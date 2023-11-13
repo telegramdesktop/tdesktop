@@ -688,7 +688,6 @@ FullReplyTo FieldHeader::getDraftReply() const {
 }
 
 void FieldHeader::updateControlsGeometry(QSize size) {
-	const auto isReadyToForward = readyToForward();
 	_cancel->moveToRight(0, 0);
 	_clickableRect = QRect(
 		0,

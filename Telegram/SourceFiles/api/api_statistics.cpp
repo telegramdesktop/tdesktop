@@ -208,7 +208,6 @@ StatisticsRequestSender::~StatisticsRequestSender() {
 }
 
 void StatisticsRequestSender::checkRequests() {
-	const auto api = &_channel->session().api();
 	for (auto i = begin(_requests); i != end(_requests);) {
 		for (auto j = begin(i->second); j != end(i->second);) {
 			if (_api.pending(*j)) {
