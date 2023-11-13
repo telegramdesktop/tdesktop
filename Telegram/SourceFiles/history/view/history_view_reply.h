@@ -63,6 +63,14 @@ public:
 		return _link;
 	}
 
+	[[nodiscard]] static TextWithEntities PeerEmoji(
+		not_null<History*> history,
+		PeerData *peer);
+	[[nodiscard]] static TextWithEntities ComposePreviewName(
+		not_null<History*> history,
+		not_null<HistoryItem*> to,
+		bool quote);
+
 private:
 	[[nodiscard]] Ui::Text::GeometryDescriptor textGeometry(
 		int available,

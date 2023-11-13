@@ -2714,6 +2714,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forwarding_from_two" = "{user} and {second_user}";
 "lng_inline_switch_choose" = "Choose conversation...";
 "lng_inline_switch_cant" = "Sorry, no way to write here :(";
+"lng_preview_reply_to" = "Reply to {name}";
+"lng_preview_reply_to_quote" = "Reply to quote by {name}";
 
 "lng_reply_in_another_title" = "Reply in...";
 "lng_reply_in_another_chat" = "Reply in Another Chat";

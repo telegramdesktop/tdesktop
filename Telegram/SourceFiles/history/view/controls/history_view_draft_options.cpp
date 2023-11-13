@@ -642,6 +642,8 @@ void DraftOptionsBox(
 		if (const auto current = state->quote.current()) {
 			result.messageId = current.item->fullId();
 			result.quote = current.text;
+		} else {
+			result.quote = {};
 		}
 		return result;
 	};

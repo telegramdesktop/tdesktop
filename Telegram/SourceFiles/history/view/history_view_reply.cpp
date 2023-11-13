@@ -394,10 +394,11 @@ void Reply::updateName(
 			viaBotUsername = bot->username();
 		}
 	}
+	const auto history = view->history();
 	const auto &fields = data->fields();
 	const auto sender = resolvedSender.value_or(this->sender(view, data));
 	const auto externalPeer = fields.externalPeerId
-		? view->history()->owner().peer(fields.externalPeerId).get()
+		? history->owner().peer(fields.externalPeerId).get()
 		: nullptr;
 	const auto displayAsExternal = data->displayAsExternal(view->data());
 	const auto groupNameAdded = displayAsExternal
@@ -415,38 +416,20 @@ void Reply::updateName(
 			+ st::historyReplyPreviewMargin.right()
 			- st::historyReplyPadding.left())
 		: 0;
-	const auto peerIcon = [](PeerData *peer) {
-		using namespace std;
-		return !peer
-			? pair(&st::historyReplyUser, st::historyReplyUserPadding)
-			: peer->isBroadcast()
-			? pair(&st::historyReplyChannel, st::historyReplyChannelPadding)
-			: (peer->isChannel() || peer->isChat())
-			? pair(&st::historyReplyGroup, st::historyReplyGroupPadding)
-			: pair(&st::historyReplyUser, st::historyReplyUserPadding);
-	};
-	const auto peerEmoji = [&](PeerData *peer) {
-		const auto owner = &view->history()->owner();
-		const auto icon = peerIcon(peer);
-		return Ui::Text::SingleCustomEmoji(
-			owner->customEmojiManager().registerInternalEmoji(
-				*icon.first,
-				icon.second));
-	};
 	auto nameFull = TextWithEntities();
 	if (displayAsExternal && !groupNameAdded && !fields.storyId) {
-		nameFull.append(peerEmoji(sender));
+		nameFull.append(PeerEmoji(history, sender));
 	}
 	nameFull.append(name);
 	if (groupNameAdded) {
-		nameFull.append(' ').append(peerEmoji(externalPeer));
+		nameFull.append(' ').append(PeerEmoji(history, externalPeer));
 		nameFull.append(externalPeer->name());
 	}
 	if (!viaBotUsername.isEmpty()) {
 		nameFull.append(u" @"_q).append(viaBotUsername);
 	}
 	const auto context = Core::MarkedTextContext{
-		.session = &view->history()->session(),
+		.session = &history->session(),
 		.customEmojiRepaint = [] {},
 		.customEmojiLoopLimit = 1,
 	};
@@ -811,6 +794,61 @@ void Reply::stopLastRipple() {
 	if (_ripple.animation) {
 		_ripple.animation->lastStop();
 	}
+}
+
+TextWithEntities Reply::PeerEmoji(
+		not_null<History*> history,
+		PeerData *peer) {
+	using namespace std;
+	const auto icon = !peer
+		? pair(&st::historyReplyUser, st::historyReplyUserPadding)
+		: peer->isBroadcast()
+		? pair(&st::historyReplyChannel, st::historyReplyChannelPadding)
+		: (peer->isChannel() || peer->isChat())
+		? pair(&st::historyReplyGroup, st::historyReplyGroupPadding)
+		: pair(&st::historyReplyUser, st::historyReplyUserPadding);
+	const auto owner = &history->owner();
+	return Ui::Text::SingleCustomEmoji(
+		owner->customEmojiManager().registerInternalEmoji(
+			*icon.first,
+			icon.second));
+}
+
+TextWithEntities Reply::ComposePreviewName(
+		not_null<History*> history,
+		not_null<HistoryItem*> to,
+		bool quote) {
+	const auto sender = [&] {
+		if (const auto from = to->displayFrom()) {
+			return not_null(from);
+		}
+		return to->author();
+	}();
+	const auto toPeer = to->history()->peer;
+	const auto displayAsExternal = (to->history() != history);
+	const auto groupNameAdded = displayAsExternal
+		&& (toPeer != sender)
+		&& (toPeer->isChat() || toPeer->isMegagroup());
+	const auto shorten = groupNameAdded || quote;
+
+	auto nameFull = TextWithEntities();
+	using namespace HistoryView;
+	if (displayAsExternal && !groupNameAdded) {
+		nameFull.append(Reply::PeerEmoji(history, sender));
+	}
+	nameFull.append(shorten ? sender->shortName() : sender->name());
+	if (groupNameAdded) {
+		nameFull.append(' ').append(Reply::PeerEmoji(history, toPeer));
+		nameFull.append(toPeer->name());
+	}
+	return (quote
+		? tr::lng_preview_reply_to_quote
+		: tr::lng_preview_reply_to)(
+			tr::now,
+			lt_name,
+			nameFull,
+			Ui::Text::WithEntities);
+
 }
 
 void Reply::unloadPersistentAnimation() {

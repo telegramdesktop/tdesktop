@@ -827,11 +827,13 @@ historyEmojiStatusInfoLabel: FlatLabel(historyContactStatusLabel) {
 }
 historyContactStatusMinSkip: 16px;
 
-historyReplySkip: 51px;
+historyReplySkip: 53px;
 historyReplyNameFg: windowActiveTextFg;
 historyReplyHeight: 49px;
-historyReplyIconPosition: point(5px, 5px);
-historyReplyIcon: icon {{ "chat/input_reply", historyReplyIconFg }};
+historyReplyIconPosition: point(7px, 7px);
+historyReplyIcon: icon {{ "chat/input_reply_settings", historyReplyIconFg }};
+historyLinkIcon: icon {{ "chat/input_link_settings", historyReplyIconFg }};
+historyQuoteIcon: icon {{ "chat/input_reply_quote", historyReplyIconFg }};
 historyForwardIcon: icon {{ "chat/input_forward", historyReplyIconFg }};
 historyEditIcon: icon {{ "chat/input_edit", historyReplyIconFg }};
 historyReplyCancel: IconButton {
