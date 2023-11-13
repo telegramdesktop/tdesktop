@@ -702,8 +702,9 @@ void InnerWidget::fillRecentPosts() {
 				container,
 				tr::lng_stories_show_more())));
 
-	constexpr auto kPerPage = int(10);
-	const auto max = stats.recentMessageInteractions.size();
+	constexpr auto kFirstPage = int(10);
+	constexpr auto kPerPage = int(30);
+	const auto max = int(stats.recentMessageInteractions.size());
 	if (_state.recentPostsExpanded) {
 		_state.recentPostsExpanded = std::max(
 			_state.recentPostsExpanded - kPerPage,
@@ -712,8 +713,10 @@ void InnerWidget::fillRecentPosts() {
 	const auto showMore = [=] {
 		const auto from = _state.recentPostsExpanded;
 		_state.recentPostsExpanded = std::min(
-			int(max),
-			_state.recentPostsExpanded + kPerPage);
+			max,
+			_state.recentPostsExpanded
+				? (_state.recentPostsExpanded + kPerPage)
+				: kFirstPage);
 		if (_state.recentPostsExpanded == max) {
 			buttonWrap->toggle(false, anim::type::instant);
 		}
