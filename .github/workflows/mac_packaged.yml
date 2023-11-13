@@ -67,6 +67,8 @@ jobs:
 
       - name: First set up.
         run: |
+          brew update
+          brew upgrade
           brew install autoconf automake boost cmake ffmpeg openal-soft openssl opus ninja pkg-config python qt yasm xz
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
