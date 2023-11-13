@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_utilities.h"
 #include "window/window_session_controller.h"
 #include "base/platform/win/base_windows_co_task_mem.h"
+#include "base/platform/win/base_windows_rpcndr_h.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/win/wrl/wrl_module_h.h"
