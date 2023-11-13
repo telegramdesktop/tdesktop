@@ -54,7 +54,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin c80c0d530200e3f27a9a39b4f230919529e73bd2 \
+	&& git fetch --depth=1 origin 90a7f1b55da69c99699e6b6776268184c20387f8 \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -758,8 +758,7 @@ RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git qt_{{ QT }} \
 	&& cd qtbase \
 	&& find ../../patches/qtbase_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd ../qtwayland \
-	&& git fetch origin aae65c885d8e38d8abc2959cded7b5e9e5fc88b3 \
-	&& git cherry-pick -n FETCH_HEAD \
+	&& find ../../patches/qtwayland_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
 	&& ./configure -prefix "{{ QT_PREFIX }}" \
 		CMAKE_BUILD_TYPE=None \
