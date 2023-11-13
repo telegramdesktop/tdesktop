@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/win/base_windows_h.h"
 
+#include <wtypes.h>
+
 namespace Platform {
 namespace AppUserModelId {
 

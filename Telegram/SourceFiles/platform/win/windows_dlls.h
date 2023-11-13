@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/win/base_windows_h.h"
 
+#include <shellapi.h>
 #include <shlobj.h>
 #include <dwmapi.h>
 #include <RestartManager.h>
