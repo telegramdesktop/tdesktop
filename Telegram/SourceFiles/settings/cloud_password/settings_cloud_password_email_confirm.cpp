@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
+#include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/buttons.h"
@@ -123,7 +124,7 @@ void EmailConfirm::setupContent() {
 					? recoverEmailPattern
 					: state->unconfirmedPattern)));
 
-	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
+	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
 	auto objectInput = object_ptr<Ui::SentCodeField>(
 		content,

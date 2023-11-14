@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -901,14 +902,14 @@ void ManageInviteLinksBox(
 			std::move(status));
 	}
 
-	AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
+	Ui::AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	AddPermanentLinkBlock(
 		show,
 		container,
 		peer,
 		admin,
 		permanentFromList->events());
-	AddDivider(container);
+	Ui::AddDivider(container);
 
 	auto otherHeader = (Ui::SlideWrap<>*)nullptr;
 	if (admin->isSelf()) {

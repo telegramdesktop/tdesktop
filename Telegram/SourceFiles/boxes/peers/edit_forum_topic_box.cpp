@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/effects/emoji_fly_animation.h"
 #include "ui/abstract_button.h"
-#include "ui/color_int_conversion.h"
+#include "ui/vertical_list.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_forum.h"
@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 
-namespace {
 namespace {
 
 constexpr auto kDefaultIconId = DocumentId(0x7FFF'FFFF'FFFF'FFFFULL);
@@ -113,8 +112,6 @@ bool DefaultIconEmoji::ready() {
 bool DefaultIconEmoji::readyInDefaultState() {
 	return true;
 }
-
-} // namespace
 
 [[nodiscard]] int EditIconSize() {
 	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
@@ -479,9 +476,7 @@ void EditForumTopicBox(
 	}, title->lifetime());
 
 	if (!topic || !topic->isGeneral()) {
-		Settings::AddDividerText(
-			top,
-			tr::lng_forum_choose_title_and_icon());
+		Ui::AddDividerText(top, tr::lng_forum_choose_title_and_icon());
 
 		box->setScrollStyle(st::reactPanelScroll);
 

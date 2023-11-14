@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
-#include "settings/settings_common.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/controls/invite_link_label.h"
@@ -31,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/labels.h"
@@ -60,9 +60,9 @@ void FillOverview(
 		const Data::BoostStatus &status) {
 	const auto &stats = status.overview;
 
-	::Settings::AddSkip(content, st::boostsLayerOverviewMargins.top());
+	Ui::AddSkip(content, st::boostsLayerOverviewMargins.top());
 	AddHeader(content, tr::lng_stats_overview_title);
-	::Settings::AddSkip(content);
+	Ui::AddSkip(content);
 
 	const auto diffBetweenHeaders = 0
 		+ st::statisticsOverviewValue.style.font->height
@@ -157,7 +157,7 @@ void FillOverview(
 			topRightLabel->x(),
 			bottomLeftLabel->y());
 	}, container->lifetime());
-	::Settings::AddSkip(content, st::boostsLayerOverviewMargins.bottom());
+	Ui::AddSkip(content, st::boostsLayerOverviewMargins.bottom());
 }
 
 void FillShareLink(
@@ -213,7 +213,7 @@ void FillShareLink(
 		}, wrap->lifetime());
 		wrap->showChildren();
 	}
-	::Settings::AddSkip(content, st::boostsLinkFieldPadding.bottom());
+	Ui::AddSkip(content, st::boostsLinkFieldPadding.bottom());
 }
 
 void FillGetBoostsButton(
@@ -225,14 +225,13 @@ void FillGetBoostsButton(
 	if (!Api::PremiumGiftCodeOptions(peer).giveawayGiftsPurchaseAvailable()) {
 		return;
 	}
-	::Settings::AddSkip(content);
+	Ui::AddSkip(content);
 	const auto &st = st::getBoostsButton;
 	const auto &icon = st::getBoostsButtonIcon;
-	const auto button = content->add(
-		::Settings::CreateButton(
-			content.get(),
-			tr::lng_boosts_get_boosts(),
-			st));
+	const auto button = content->add(object_ptr<Ui::SettingsButton>(
+		content.get(),
+		tr::lng_boosts_get_boosts(),
+		st));
 	button->setClickedCallback([=] {
 		show->showBox(Box(
 			CreateGiveawayBox,
@@ -248,8 +247,8 @@ void FillGetBoostsButton(
 			st::infoSharedMediaButtonIconPosition.x(),
 			(st.height + rect::m::sum::v(st.padding) - icon.height()) / 2,
 		})->show();
-	::Settings::AddSkip(content);
-	::Settings::AddDividerText(content, tr::lng_boosts_get_boosts_subtext());
+	Ui::AddSkip(content);
+	Ui::AddDividerText(content, tr::lng_boosts_get_boosts_subtext());
 }
 
 } // namespace
@@ -319,16 +318,16 @@ void InnerWidget::fill() {
 
 	FillOverview(inner, status);
 
-	::Settings::AddSkip(inner);
-	::Settings::AddDivider(inner);
-	::Settings::AddSkip(inner);
+	Ui::AddSkip(inner);
+	Ui::AddDivider(inner);
+	Ui::AddSkip(inner);
 
 	if (!status.prepaidGiveaway.empty()) {
 		const auto multiplier = Api::PremiumGiftCodeOptions(_peer)
 			.giveawayBoostsPerPremium();
-		::Settings::AddSkip(inner);
+		Ui::AddSkip(inner);
 		AddHeader(inner, tr::lng_boosts_prepaid_giveaway_title);
-		::Settings::AddSkip(inner);
+		Ui::AddSkip(inner);
 		for (const auto &g : status.prepaidGiveaway) {
 			using namespace Giveaway;
 			const auto button = inner->add(object_ptr<GiveawayTypeRow>(
@@ -361,9 +360,9 @@ void InnerWidget::fill() {
 			});
 		}
 
-		::Settings::AddSkip(inner);
-		::Settings::AddDivider(inner);
-		::Settings::AddSkip(inner);
+		Ui::AddSkip(inner);
+		Ui::AddDivider(inner);
+		Ui::AddSkip(inner);
 	}
 
 	const auto hasBoosts = (status.firstSliceBoosts.multipliedTotal > 0);
@@ -406,7 +405,7 @@ void InnerWidget::fill() {
 			lt_count,
 			status.firstSliceGifts.multipliedTotal);
 		if (hasOneTab) {
-			::Settings::AddSkip(inner);
+			Ui::AddSkip(inner);
 			const auto header = inner->add(
 				object_ptr<Statistic::Header>(inner),
 				st::statisticsLayerMargins
@@ -478,18 +477,18 @@ void InnerWidget::fill() {
 			_peer,
 			tr::lng_boosts_title());
 
-		::Settings::AddSkip(inner);
-		::Settings::AddSkip(inner);
-		::Settings::AddDividerText(inner, tr::lng_boosts_list_subtext());
+		Ui::AddSkip(inner);
+		Ui::AddSkip(inner);
+		Ui::AddDividerText(inner, tr::lng_boosts_list_subtext());
 	}
 
-	::Settings::AddSkip(inner);
-	::Settings::AddSkip(inner);
+	Ui::AddSkip(inner);
+	Ui::AddSkip(inner);
 	AddHeader(inner, tr::lng_boosts_link_title);
-	::Settings::AddSkip(inner, st::boostsLinkSkip);
+	Ui::AddSkip(inner, st::boostsLinkSkip);
 	FillShareLink(inner, _show, status.link, _peer);
-	::Settings::AddSkip(inner);
-	::Settings::AddDividerText(inner, tr::lng_boosts_link_subtext());
+	Ui::AddSkip(inner);
+	Ui::AddDividerText(inner, tr::lng_boosts_link_subtext());
 
 	FillGetBoostsButton(inner, _controller, _show, _peer, reloadOnDone);
 

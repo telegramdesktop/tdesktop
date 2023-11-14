@@ -22,21 +22,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/vertical_layout_reorder.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "ui/empty_userpic.h"
+#include "ui/vertical_list.h"
 #include "ui/unread_badge_paint.h"
-#include "base/call_delayed.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "support/support_templates.h"
 #include "settings/settings_advanced.h"
-#include "settings/settings_common.h"
 #include "settings/settings_calls.h"
 #include "settings/settings_information.h"
 #include "info/profile/info_profile_badge.h"
@@ -57,7 +54,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
-#include "mtproto/mtp_instance.h"
 #include "mtproto/mtproto_config.h"
 #include "data/data_document_media.h"
 #include "data/data_folder.h"
@@ -69,9 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
-#include "styles/style_dialogs.h"
 #include "styles/style_settings.h"
-#include "styles/style_boxes.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -127,16 +121,16 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 		groupCalls->hide(anim::type::instant);
 		groupCalls->toggleOn(state->groupCallsController.shownValue());
 
-		Settings::AddSubsectionTitle(
+		Ui::AddSubsectionTitle(
 			groupCalls->entity(),
 			tr::lng_call_box_groupcalls_subtitle());
 		state->groupCallsDelegate.setContent(groupCalls->entity()->add(
 			object_ptr<PeerListContent>(box, &state->groupCallsController),
 			{}));
 		state->groupCallsController.setDelegate(&state->groupCallsDelegate);
-		Settings::AddSkip(groupCalls->entity());
-		Settings::AddDivider(groupCalls->entity());
-		Settings::AddSkip(groupCalls->entity());
+		Ui::AddSkip(groupCalls->entity());
+		Ui::AddDivider(groupCalls->entity());
+		Ui::AddSkip(groupCalls->entity());
 
 		const auto content = box->addRow(
 			object_ptr<PeerListContent>(box, &state->callsController),
@@ -234,15 +228,15 @@ void SetupMenuBots(
 				}
 				continue;
 			}
-			const auto button = Settings::AddButton(
+			const auto button = wrap->add(object_ptr<Ui::SettingsButton>(
 				wrap,
 				rpl::single(bot.name),
-				st::mainMenuButton);
+				st::mainMenuButton));
 			const auto menu = button->lifetime().make_state<
 				base::unique_qptr<Ui::PopupMenu>
 			>();
 			const auto icon = Ui::CreateChild<InlineBots::MenuBotIcon>(
-				button.get(),
+				button,
 				bot.media);
 			button->heightValue(
 			) | rpl::start_with_next([=](int height) {
@@ -276,7 +270,7 @@ void SetupMenuBots(
 
 			const auto badge = bots->showMainMenuNewBadge(bot)
 				? Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
-					button.get(),
+					button,
 					object_ptr<Ui::FlatLabel>(
 						button,
 						tr::lng_bot_side_menu_new(),

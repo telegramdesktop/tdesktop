@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -57,11 +58,11 @@ void AddArrow(not_null<Ui::RpWidget*> parent) {
 	arrow->show();
 }
 
-void AddSubsectionTitle(
+void AddSubtitle(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> title) {
 	const auto &subtitlePadding = st::settingsButton.padding;
-	::Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		container,
 		std::move(title),
 		{ 0, -subtitlePadding.top(), 0, -subtitlePadding.bottom() });
@@ -636,7 +637,7 @@ void AddPublicForwards(
 	});
 
 	if (const auto total = firstSlice.total; total > 0) {
-		AddSubsectionTitle(
+		AddSubtitle(
 			container,
 			tr::lng_stats_overview_message_public_share(
 				lt_count_decimal,
@@ -683,7 +684,7 @@ void AddMembersList(
 	};
 	const auto state = container->lifetime().make_state<State>(std::move(d));
 
-	AddSubsectionTitle(container, std::move(title));
+	AddSubtitle(container, std::move(title));
 
 	state->delegate.setContent(container->add(
 		object_ptr<PeerListContent>(container, &state->controller)));

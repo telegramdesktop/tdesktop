@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/cached_round_corners.h"
+#include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
 #include "window/window_controller.h"
@@ -61,16 +62,16 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 		not_null<Window::Controller*> window) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 
-	AddDivider(result);
-	AddSkip(result);
+	Ui::AddDivider(result);
+	Ui::AddSkip(result);
 	SetupLanguageButton(window, result);
 	SetupConnectionType(window, &window->account(), result);
-	AddSkip(result);
+	Ui::AddSkip(result);
 	if (HasUpdate()) {
-		AddDivider(result);
-		AddSkip(result);
+		Ui::AddDivider(result);
+		Ui::AddSkip(result);
 		SetupUpdate(result);
-		AddSkip(result);
+		Ui::AddSkip(result);
 	}
 	{
 		auto wrap = object_ptr<Ui::VerticalLayout>(result);
@@ -81,29 +82,29 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 			window->sessionController(),
 			wrap.data());
 		if (wrap->count() > 0) {
-			AddDivider(result);
-			AddSkip(result);
+			Ui::AddDivider(result);
+			Ui::AddSkip(result);
 			result->add(object_ptr<Ui::OverrideMargins>(
 				result,
 				std::move(wrap)));
-			AddSkip(result);
+			Ui::AddSkip(result);
 		}
 	}
-	AddDivider(result);
-	AddSkip(result);
+	Ui::AddDivider(result);
+	Ui::AddSkip(result);
 	SetupInterfaceScale(window, result, false);
 	SetupDefaultThemes(window, result);
-	AddSkip(result);
+	Ui::AddSkip(result);
 
 	if (anim::Disabled()) {
-		AddDivider(result);
-		AddSkip(result);
+		Ui::AddDivider(result);
+		Ui::AddSkip(result);
 		SetupAnimations(window, result);
-		AddSkip(result);
+		Ui::AddSkip(result);
 	}
 
-	AddDivider(result);
-	AddSkip(result);
+	Ui::AddDivider(result);
+	Ui::AddSkip(result);
 	SetupFaq(result, false);
 
 	return result;

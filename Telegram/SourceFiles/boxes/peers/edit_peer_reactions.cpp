@@ -20,7 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
-#include "settings/settings_common.h"
+#include "ui/vertical_list.h"
+#include "settings/settings_common.h" // AddButton.
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h"
@@ -138,8 +139,8 @@ void EditAllowedReactionsBox(
 		}
 		Unexpected("Option value in EditAllowedReactionsBox.");
 	};
-	Settings::AddSkip(container);
-	Settings::AddDividerText(
+	Ui::AddSkip(container);
+	Ui::AddDividerText(
 		container,
 		(isGroup
 			? (state->option.value()
@@ -157,8 +158,8 @@ void EditAllowedReactionsBox(
 	}
 	const auto reactions = wrap ? wrap->entity() : container.get();
 
-	Settings::AddSkip(reactions);
-	Settings::AddSubsectionTitle(
+	Ui::AddSkip(reactions);
+	Ui::AddSubsectionTitle(
 		reactions,
 		(enabled
 			? tr::lng_manage_peer_reactions_available()

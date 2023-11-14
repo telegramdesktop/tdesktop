@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/settings_common.h"
 #include "storage/storage_domain.h"
+#include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/password_input.h"
@@ -120,7 +121,7 @@ void LocalPasscodeEnter::setupContent() {
 			[=] { _showBack.fire({}); });
 	}
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	content->add(
 		object_ptr<Ui::CenterWrap<>>(
@@ -145,10 +146,10 @@ void LocalPasscodeEnter::setupContent() {
 	};
 
 	addDescription(tr::lng_passcode_about1());
-	AddSkip(content);
+	Ui::AddSkip(content);
 	addDescription(tr::lng_passcode_about2());
 
-	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
+	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
 	const auto addField = [&](rpl::producer<QString> &&text) {
 		const auto &st = st::settingLocalPasscodeInputField;
@@ -437,7 +438,7 @@ void LocalPasscodeManage::setupContent() {
 		content->lifetime(),
 		[=] { _showBack.fire({}); });
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	AddButton(
 		content,
@@ -481,7 +482,7 @@ void LocalPasscodeManage::setupContent() {
 		) | rpl::start_to_stream(state->autoLockBoxClosing, box->lifetime());
 	});
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	using Divider = CloudPassword::OneEdgeBoxContentDivider;
 	const auto divider = Ui::CreateChild<Divider>(this);

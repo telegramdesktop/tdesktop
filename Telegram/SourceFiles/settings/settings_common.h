@@ -167,12 +167,6 @@ private:
 
 };
 
-void AddSkip(not_null<Ui::VerticalLayout*> container);
-void AddSkip(not_null<Ui::VerticalLayout*> container, int skip);
-void AddDivider(not_null<Ui::VerticalLayout*> container);
-void AddDividerText(
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<QString> text);
 void AddButtonIcon(
 	not_null<Ui::AbstractButton*> button,
 	const style::SettingsButton &st,
@@ -198,11 +192,6 @@ void CreateRightLabel(
 	rpl::producer<QString> label,
 	const style::SettingsButton &st,
 	rpl::producer<QString> buttonText);
-not_null<Ui::FlatLabel*> AddSubsectionTitle(
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<QString> text,
-	style::margins addPadding = {},
-	const style::FlatLabel *st = nullptr);
 void AddDividerTextWithLottie(
 	not_null<Ui::VerticalLayout*> parent,
 	rpl::producer<> showFinished,

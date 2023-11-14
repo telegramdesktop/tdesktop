@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
@@ -352,7 +353,7 @@ void ChoosePeerBoxController::prepareRestrictions() {
 	const auto raw = above.data();
 	auto rows = RestrictionsList(_query);
 	if (!rows.empty()) {
-		Settings::AddSubsectionTitle(
+		Ui::AddSubsectionTitle(
 			raw,
 			tr::lng_request_peer_requirements(),
 			{ 0, st::membersMarginTop, 0, 0 });
@@ -364,7 +365,7 @@ void ChoosePeerBoxController::prepareRestrictions() {
 				separator + rows.join(separator),
 				st::requestPeerRestriction),
 			{ skip, 0, skip, st::membersMarginTop });
-		Settings::AddDivider(raw);
+		Ui::AddDivider(raw);
 	}
 	const auto make = [&](tr::phrase<> text, const style::icon &st) {
 		auto button = raw->add(

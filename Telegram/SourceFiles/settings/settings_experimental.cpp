@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/vertical_list.h"
 #include "ui/gl/gl_detection.h"
 #include "ui/chat/chat_style_radius.h"
 #include "base/options.h"
@@ -87,16 +88,16 @@ void AddOption(
 
 	const auto &description = option.description();
 	if (!description.isEmpty()) {
-		AddSkip(container, st::settingsCheckboxesSkip);
-		AddDividerText(container, rpl::single(description));
-		AddSkip(container, st::settingsCheckboxesSkip);
+		Ui::AddSkip(container, st::settingsCheckboxesSkip);
+		Ui::AddDividerText(container, rpl::single(description));
+		Ui::AddSkip(container, st::settingsCheckboxesSkip);
 	}
 }
 
 void SetupExperimental(
 		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 
 	container->add(
 		object_ptr<Ui::FlatLabel>(
@@ -112,8 +113,8 @@ void SetupExperimental(
 				container,
 				object_ptr<Ui::VerticalLayout>(container)));
 		const auto inner = wrap->entity();
-		AddDivider(inner);
-		AddSkip(inner, st::settingsCheckboxesSkip);
+		Ui::AddDivider(inner);
+		Ui::AddSkip(inner, st::settingsCheckboxesSkip);
 		reset = AddButton(
 			inner,
 			tr::lng_settings_experimental_restore(),
@@ -122,11 +123,11 @@ void SetupExperimental(
 			base::options::reset();
 			wrap->hide(anim::type::normal);
 		});
-		AddSkip(inner, st::settingsCheckboxesSkip);
+		Ui::AddSkip(inner, st::settingsCheckboxesSkip);
 	}
 
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 
 	const auto addToggle = [&](const char name[]) {
 		AddOption(

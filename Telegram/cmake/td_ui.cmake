@@ -368,6 +368,8 @@ PRIVATE
     ui/grouped_layout.h
     ui/power_saving.cpp
     ui/power_saving.h
+    ui/vertical_list.cpp
+    ui/vertical_list.h
     ui/unread_badge_paint.cpp
     ui/unread_badge_paint.h
     ui/userpic_view.cpp

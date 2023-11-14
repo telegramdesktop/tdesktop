@@ -14,12 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "ui/widgets/level_meter.h"
 #include "ui/widgets/continuous_sliders.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
+#include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
 #include "boxes/share_box.h"
 #include "history/view/history_view_schedule_box.h"
@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "ui/boxes/single_choice_box.h"
 #include "webrtc/webrtc_audio_input_tester.h"
 #include "webrtc/webrtc_media_devices.h"
 #include "settings/settings_common.h"
@@ -278,7 +277,7 @@ void SettingsBox(
 	};
 
 	if (addCheck) {
-		AddSkip(layout);
+		Ui::AddSkip(layout);
 	}
 	const auto muteJoined = addCheck
 		? AddButton(
@@ -287,7 +286,7 @@ void SettingsBox(
 			st::groupCallSettingsButton)->toggleOn(rpl::single(joinMuted))
 		: nullptr;
 	if (addCheck) {
-		AddSkip(layout);
+		Ui::AddSkip(layout);
 	}
 
 	AddButtonWithLabel(
@@ -344,9 +343,9 @@ void SettingsBox(
 			}, was, state->micLevel, kMicTestAnimationDuration);
 		});
 
-		AddSkip(layout);
-		//AddDivider(layout);
-		//AddSkip(layout);
+		Ui::AddSkip(layout);
+		//Ui::AddDivider(layout);
+		//Ui::AddSkip(layout);
 
 		AddButton(
 			layout,
@@ -577,9 +576,9 @@ void SettingsBox(
 				base::install_event_filter(box, std::move(boxKeyFilter)));
 		}
 
-		AddSkip(layout);
-		//AddDivider(layout);
-		//AddSkip(layout);
+		Ui::AddSkip(layout);
+		//Ui::AddDivider(layout);
+		//Ui::AddSkip(layout);
 	}
 	auto shareLink = Fn<void()>();
 	if (peer->isChannel()
@@ -653,9 +652,9 @@ void SettingsBox(
 		)->addClickHandler(std::move(shareLink));
 	}
 	if (rtmp && !call->rtmpInfo().url.isEmpty()) {
-		AddSkip(layout);
+		Ui::AddSkip(layout);
 		addDivider();
-		AddSkip(layout);
+		Ui::AddSkip(layout);
 
 		struct State {
 			base::unique_qptr<Ui::PopupMenu> menu;
@@ -738,7 +737,7 @@ void SettingsBox(
 		state->data.fire(call->rtmpInfo());
 
 		addDivider();
-		AddSkip(layout);
+		Ui::AddSkip(layout);
 	}
 
 	if (peer->canManageGroupCall()) {

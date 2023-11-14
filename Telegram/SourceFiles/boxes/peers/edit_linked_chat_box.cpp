@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
-#include "settings/settings_common.h"
+#include "settings/settings_common.h" // AddButton.
 #include "data/data_changes.h"
 #include "ui/widgets/labels.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue
@@ -267,7 +268,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 		if (!chat) {
 			Assert(channel->isBroadcast());
 
-			Settings::AddSkip(above);
+			Ui::AddSkip(above);
 			Settings::AddButton(
 				above,
 				tr::lng_manage_discussion_group_create(),
@@ -294,9 +295,9 @@ void Controller::choose(not_null<ChatData*> chat) {
 				st::infoUnlinkChatButton,
 				{ &st::menuIconRemove }
 			)->addClickHandler([=] { callback(nullptr); });
-			Settings::AddSkip(below);
+			Ui::AddSkip(below);
 		}
-		Settings::AddDividerText(
+		Ui::AddDividerText(
 			below,
 			(channel->isBroadcast()
 				? tr::lng_manage_discussion_group_posted

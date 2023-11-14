@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
@@ -812,11 +813,11 @@ void EditPeerColorBox(
 		{ margin, skip, margin, skip });
 
 	const auto container = box->verticalLayout();
-	AddDividerText(container, peer->isSelf()
+	Ui::AddDividerText(container, peer->isSelf()
 		? tr::lng_settings_color_about()
 		: tr::lng_settings_color_about_channel());
 
-	AddSkip(container, st::settingsColorSampleSkip);
+	Ui::AddSkip(container, st::settingsColorSampleSkip);
 
 	container->add(CreateEmojiIconButton(
 		container,
@@ -826,8 +827,8 @@ void EditPeerColorBox(
 		state->emojiId.value(),
 		[=](DocumentId id) { state->emojiId = id; }));
 
-	AddSkip(container, st::settingsColorSampleSkip);
-	AddDividerText(container, peer->isSelf()
+	Ui::AddSkip(container, st::settingsColorSampleSkip);
+	Ui::AddDividerText(container, peer->isSelf()
 		? tr::lng_settings_color_emoji_about()
 		: tr::lng_settings_color_emoji_about_channel());
 

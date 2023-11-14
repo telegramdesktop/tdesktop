@@ -99,32 +99,6 @@ QSize Icon::size() const {
 	return _icon->size();
 }
 
-void AddSkip(not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container, st::settingsSectionSkip);
-}
-
-void AddSkip(not_null<Ui::VerticalLayout*> container, int skip) {
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		skip));
-}
-
-void AddDivider(not_null<Ui::VerticalLayout*> container) {
-	container->add(object_ptr<Ui::BoxContentDivider>(container));
-}
-
-void AddDividerText(
-		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text) {
-	container->add(object_ptr<Ui::DividerLabel>(
-		container,
-		object_ptr<Ui::FlatLabel>(
-			container,
-			std::move(text),
-			st::boxDividerLabel),
-		st::settingsDividerLabelPadding));
-}
-
 void AddButtonIcon(
 		not_null<Ui::AbstractButton*> button,
 		const style::SettingsButton &st,
@@ -222,19 +196,6 @@ not_null<Button*> AddButtonWithLabel(
 		std::move(descriptor));
 	CreateRightLabel(button, std::move(label), st, std::move(text));
 	return button;
-}
-
-not_null<Ui::FlatLabel*> AddSubsectionTitle(
-		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text,
-		style::margins addPadding,
-		const style::FlatLabel *st) {
-	return container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			std::move(text),
-			st ? *st : st::settingsSubsectionTitle),
-		st::settingsSubsectionTitlePadding + addPadding);
 }
 
 void AddDividerTextWithLottie(

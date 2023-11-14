@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/boxes/single_choice_box.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "boxes/connection_box.h"
 #include "boxes/about_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -683,7 +684,7 @@ void CheckNonEmptyOptions(
 		container->add(object_ptr<Ui::OverrideMargins>(
 			container,
 			std::move(wrap)));
-		AddSkip(container, st::settingsCheckboxesSkip);
+		Ui::AddSkip(container, st::settingsCheckboxesSkip);
 	}
 }
 

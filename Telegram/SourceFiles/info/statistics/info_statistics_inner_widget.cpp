@@ -22,12 +22,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
+#include "settings/settings_common.h" // CreateLottieIcon.
 #include "statistics/chart_widget.h"
 #include "statistics/statistics_common.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/layers/generic_box.h"
 #include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -114,9 +115,9 @@ void FillStatistic(
 	const auto &padding = st::statisticsChartEntryPadding;
 	const auto &m = st::statisticsLayerMargins;
 	const auto addSkip = [&](not_null<Ui::VerticalLayout*> c) {
-		::Settings::AddSkip(c, padding.bottom());
-		::Settings::AddDivider(c);
-		::Settings::AddSkip(c, padding.top());
+		Ui::AddSkip(c, padding.bottom());
+		Ui::AddDivider(c);
+		Ui::AddSkip(c, padding.top());
 	};
 	const auto addChart = [&](
 			Data::StatisticalGraph &graphData,
@@ -283,9 +284,9 @@ void FillOverview(
 	const auto &channel = stats.channel;
 	const auto &supergroup = stats.supergroup;
 
-	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.top());
+	Ui::AddSkip(content, st::statisticsLayerOverviewMargins.top());
 	AddHeader(content, tr::lng_stats_overview_title, stats);
-	::Settings::AddSkip(content);
+	Ui::AddSkip(content);
 
 	struct Second final {
 		QColor color;
@@ -457,7 +458,7 @@ void FillOverview(
 			topRightLabel->x(),
 			bottomLeftLabel->y());
 	}, container->lifetime());
-	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.bottom());
+	Ui::AddSkip(content, st::statisticsLayerOverviewMargins.bottom());
 }
 
 } // namespace
@@ -503,7 +504,7 @@ void FillLoading(
 				st::statisticsLoadingSubtext)),
 		st::changePhoneDescriptionPadding + st::boxRowPadding);
 
-	::Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
+	Ui::AddSkip(content, st::settingsBlockedListIconPadding.top());
 }
 
 InnerWidget::InnerWidget(
@@ -577,12 +578,12 @@ void InnerWidget::fill() {
 	};
 	if (_state.stats.message) {
 		if (const auto i = _peer->owner().message(_contextId)) {
-			::Settings::AddSkip(inner);
+			Ui::AddSkip(inner);
 			const auto preview = inner->add(
 				object_ptr<MessagePreview>(this, i, -1, -1, QImage()));
 			AddContextMenu(preview, _controller, i);
-			::Settings::AddSkip(inner);
-			::Settings::AddDivider(inner);
+			Ui::AddSkip(inner);
+			Ui::AddDivider(inner);
 		}
 	}
 	FillOverview(inner, _state.stats);
@@ -597,10 +598,10 @@ void InnerWidget::fill() {
 			_showRequests.fire({ .info = peer->id });
 		};
 		const auto addSkip = [&](not_null<Ui::VerticalLayout*> c) {
-			::Settings::AddSkip(c);
-			::Settings::AddDivider(c);
-			::Settings::AddSkip(c);
-			::Settings::AddSkip(c);
+			Ui::AddSkip(c);
+			Ui::AddDivider(c);
+			Ui::AddSkip(c);
+			Ui::AddSkip(c);
 		};
 		if (!supergroup.topSenders.empty()) {
 			AddMembersList(
@@ -653,7 +654,7 @@ void InnerWidget::fillRecentPosts() {
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto content = wrap->entity();
 	AddHeader(content, tr::lng_stats_recent_messages_title, { stats, {} });
-	::Settings::AddSkip(content);
+	Ui::AddSkip(content);
 
 	const auto addMessage = [=](
 			not_null<Ui::VerticalLayout*> messageWrap,
@@ -689,7 +690,7 @@ void InnerWidget::fillRecentPosts() {
 		button->setClickedCallback([=, fullId = item->fullId()] {
 			_showRequests.fire({ .messageStatistic = fullId });
 		});
-		::Settings::AddSkip(messageWrap);
+		Ui::AddSkip(messageWrap);
 		if (!wrap->toggled()) {
 			wrap->toggle(true, anim::type::normal);
 		}

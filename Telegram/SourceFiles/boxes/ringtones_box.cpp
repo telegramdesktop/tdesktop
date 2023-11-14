@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_ringtones.h"
 #include "apiwrap.h"
-#include "base/base_file_utilities.h"
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "base/timer_rpl.h"
@@ -30,13 +29,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
@@ -217,7 +214,7 @@ void RingtonesBox(
 		}
 	}, box->lifetime());
 
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_ringtones_box_cloud_subtitle());
 
@@ -323,7 +320,7 @@ void RingtonesBox(
 	});
 
 	box->addSkip(st::ringtonesBoxSkip);
-	Settings::AddDividerText(container, tr::lng_ringtones_box_about());
+	Ui::AddDividerText(container, tr::lng_ringtones_box_about());
 
 	box->addSkip(st::ringtonesBoxSkip);
 

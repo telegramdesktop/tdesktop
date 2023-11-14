@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/boxes/single_choice_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/vertical_list.h"
 #include "platform/platform_specific.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
@@ -221,14 +222,14 @@ void Calls::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	if (!GetVideoInputList().empty()) {
-		AddSkip(content);
-		AddSubsectionTitle(content, tr::lng_settings_call_camera());
+		Ui::AddSkip(content);
+		Ui::AddSubsectionTitle(content, tr::lng_settings_call_camera());
 		AddCameraSubsection(_controller->uiShow(), content, true);
-		AddSkip(content);
-		AddDivider(content);
+		Ui::AddSkip(content);
+		Ui::AddDivider(content);
 	}
-	AddSkip(content);
-	AddSubsectionTitle(content, tr::lng_settings_call_section_output());
+	Ui::AddSkip(content);
+	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_output());
 	AddButtonWithLabel(
 		content,
 		tr::lng_settings_call_output_device(),
@@ -246,10 +247,10 @@ void Calls::setupContent() {
 		})));
 	});
 
-	AddSkip(content);
-	AddDivider(content);
-	AddSkip(content);
-	AddSubsectionTitle(content, tr::lng_settings_call_section_input());
+	Ui::AddSkip(content);
+	Ui::AddDivider(content);
+	Ui::AddSkip(content);
+	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_input());
 	AddButtonWithLabel(
 		content,
 		tr::lng_settings_call_input_device(),
@@ -285,10 +286,10 @@ void Calls::setupContent() {
 		}, was, _micLevel, kMicTestAnimationDuration);
 	});
 
-	AddSkip(content);
-	AddDivider(content);
-	AddSkip(content);
-	AddSubsectionTitle(content, tr::lng_settings_call_section_other());
+	Ui::AddSkip(content);
+	Ui::AddDivider(content);
+	Ui::AddSkip(content);
+	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_other());
 
 	const auto api = &_controller->session().api();
 	AddButton(
@@ -318,7 +319,7 @@ void Calls::setupContent() {
 		}
 	});
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	Ui::ResizeFitChild(this, content);
 }

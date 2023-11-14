@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -145,7 +146,7 @@ void ChatFilterLinkBox(
 			st::settingsSubsectionTitlePadding.right(),
 			st::settingsSectionSkip * 2));
 	labelField->setMaxLength(kMaxLinkTitleLength);
-	Settings::AddDivider(container);
+	AddDivider(container);
 
 	box->setFocusCallback([=] {
 		labelField->setFocusFast();
@@ -616,7 +617,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 			&st::menuIconDelete);
 		return result;
 	};
-	AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_filters_link_subtitle(),
 		st::filterLinkSubsectionTitlePadding);
@@ -637,11 +638,11 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 
 	AddCopyShareLinkButtons(container, copyLink, shareLink);
 
-	AddSkip(container, st::inviteLinkJoinedRowPadding.bottom() * 2);
+	Ui::AddSkip(container, st::inviteLinkJoinedRowPadding.bottom() * 2);
 
-	AddSkip(container);
+	Ui::AddSkip(container);
 
-	AddDivider(container);
+	Ui::AddDivider(container);
 }
 
 void LinkController::prepare() {
@@ -1152,7 +1153,7 @@ void AddFilterSubtitleWithToggles(
 			font->width(tr::lng_filters_by_link_select(tr::now)),
 			font->width(tr::lng_filters_by_link_deselect(tr::now))));
 	}
-	const auto title = Settings::AddSubsectionTitle(
+	const auto title = Ui::AddSubsectionTitle(
 		container,
 		std::move(text),
 		padding);

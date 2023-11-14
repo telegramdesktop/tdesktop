@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/text/text_utilities.h"
+#include "ui/vertical_list.h"
 #include "main/main_session.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -790,7 +791,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 	using namespace Settings;
 
 	const auto session = &_controller->session();
-	AddSubsectionTitle(container, tr::lng_polls_create_question());
+	Ui::AddSubsectionTitle(container, tr::lng_polls_create_question());
 	const auto question = container->add(
 		object_ptr<Ui::InputField>(
 			container,
@@ -841,8 +842,8 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 	const auto inner = outer->entity();
 
 	const auto session = &_controller->session();
-	AddSkip(inner);
-	AddSubsectionTitle(inner, tr::lng_polls_solution_title());
+	Ui::AddSkip(inner);
+	Ui::AddSubsectionTitle(inner, tr::lng_polls_solution_title());
 	const auto solution = inner->add(
 		object_ptr<Ui::InputField>(
 			inner,
@@ -902,8 +903,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	const auto container = result.data();
 
 	const auto question = setupQuestion(container);
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
@@ -939,8 +940,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		options->focusFirst();
 	}, question->lifetime());
 
-	AddSkip(container);
-	AddSubsectionTitle(container, tr::lng_polls_create_settings());
+	Ui::AddSkip(container);
+	Ui::AddSubsectionTitle(container, tr::lng_polls_create_settings());
 
 	const auto anonymous = (!(_disabled & PollData::Flag::PublicVotes))
 		? container->add(

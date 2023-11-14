@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/filter_icons.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
@@ -39,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_window.h"
 
 namespace Settings {
 namespace {
@@ -342,8 +342,8 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	const auto limit = [=] {
 		return Data::PremiumLimits(session).dialogFiltersCurrent();
 	};
-	AddSkip(container, st::settingsSectionSkip);
-	AddSubsectionTitle(container, tr::lng_filters_subtitle());
+	Ui::AddSkip(container, st::settingsSectionSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_filters_subtitle());
 
 	struct State {
 		std::vector<FilterRow> rows;
@@ -571,16 +571,16 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			crl::guard(container, doneCallback),
 			crl::guard(container, saveAnd)));
 	});
-	AddSkip(container);
+	Ui::AddSkip(container);
 	const auto nonEmptyAbout = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container))
 	)->setDuration(0);
 	const auto aboutRows = nonEmptyAbout->entity();
-	AddDivider(aboutRows);
-	AddSkip(aboutRows);
-	AddSubsectionTitle(aboutRows, tr::lng_filters_recommended());
+	Ui::AddDivider(aboutRows);
+	Ui::AddSkip(aboutRows);
+	Ui::AddSubsectionTitle(aboutRows, tr::lng_filters_recommended());
 
 	rpl::single(rpl::empty) | rpl::then(
 		session->data().chatsFilters().suggestedUpdated()
@@ -613,7 +613,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			}, button->lifetime());
 		}
 		aboutRows->resizeToWidth(container->width());
-		AddSkip(aboutRows, st::settingsSectionSkip);
+		Ui::AddSkip(aboutRows, st::settingsSectionSkip);
 	}, aboutRows->lifetime());
 
 	auto showSuggestions = rpl::combine(

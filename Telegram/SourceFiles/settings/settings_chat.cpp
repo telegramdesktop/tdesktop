@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/color_editor.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
 #include "ui/chat/attach/attach_extensions.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -36,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "history/view/history_view_quick_action.h"
 #include "lang/lang_keys.h"
@@ -60,14 +60,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "base/platform/base_platform_info.h"
-#include "platform/platform_specific.h"
 #include "base/call_delayed.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "mainwidget.h"
-#include "mainwindow.h"
 #include "styles/style_chat_helpers.h" // stickersRemove
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
@@ -703,10 +701,10 @@ void ChooseFromFile(
 void SetupStickersEmoji(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
-	AddSubsectionTitle(container, tr::lng_settings_stickers_emoji());
+	Ui::AddSubsectionTitle(container, tr::lng_settings_stickers_emoji());
 
 	const auto session = &controller->session();
 
@@ -826,18 +824,18 @@ void SetupStickersEmoji(
 		controller->show(Box<Ui::Emoji::ManageSetsBox>(session));
 	});
 
-	AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 void SetupMessages(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
-	AddSubsectionTitle(container, tr::lng_settings_messages());
+	Ui::AddSubsectionTitle(container, tr::lng_settings_messages());
 
-	AddSkip(container, st::settingsSendTypeSkip);
+	Ui::AddSkip(container, st::settingsSendTypeSkip);
 
 	using SendByType = Ui::InputSubmitSettings;
 	using Quick = HistoryView::DoubleClickQuickAction;
@@ -876,7 +874,7 @@ void SetupMessages(
 		controller->content()->ctrlEnterSubmitUpdated();
 	});
 
-	AddSkip(inner, st::settingsCheckboxesSkip);
+	Ui::AddSkip(inner, st::settingsCheckboxesSkip);
 
 	const auto groupQuick = std::make_shared<Ui::RadioenumGroup<Quick>>(
 		Core::App().settings().chatQuickAction());
@@ -1001,7 +999,7 @@ void SetupMessages(
 		show->showBox(Box(ReactionsSettingsBox, controller));
 	});
 
-	AddSkip(inner, st::settingsSendTypeSkip);
+	Ui::AddSkip(inner, st::settingsSendTypeSkip);
 
 	inner->add(
 		object_ptr<Ui::Checkbox>(
@@ -1016,14 +1014,14 @@ void SetupMessages(
 		Core::App().saveSettingsDelayed();
 	}, inner->lifetime());
 
-	AddSkip(inner, st::settingsCheckboxesSkip);
+	Ui::AddSkip(inner, st::settingsCheckboxesSkip);
 }
 
 void SetupArchive(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	PreloadArchiveSettings(&controller->session());
 	AddButton(
@@ -1082,9 +1080,9 @@ void SetupDataStorage(
 		not_null<Ui::VerticalLayout*> container) {
 	using namespace rpl::mappers;
 
-	AddSkip(container);
+	Ui::AddSkip(container);
 
-	AddSubsectionTitle(container, tr::lng_settings_data_storage());
+	Ui::AddSubsectionTitle(container, tr::lng_settings_data_storage());
 
 	SetupConnectionType(
 		&controller->window(),
@@ -1159,16 +1157,16 @@ void SetupDataStorage(
 	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
 #endif // OS_WIN_STORE
 
-	AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 void SetupAutoDownload(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
-	AddSubsectionTitle(container, tr::lng_media_auto_settings());
+	Ui::AddSubsectionTitle(container, tr::lng_media_auto_settings());
 
 	using Source = Data::AutoDownload::Source;
 	const auto add = [&](
@@ -1198,16 +1196,16 @@ void SetupAutoDownload(
 		Source::Channel,
 		{ &st::menuIconChannel });
 
-	AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 void SetupChatBackground(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
-	AddSubsectionTitle(container, tr::lng_settings_section_background());
+	Ui::AddSubsectionTitle(container, tr::lng_settings_section_background());
 
 	container->add(
 		object_ptr<BackgroundRow>(container, controller),
@@ -1223,7 +1221,7 @@ void SetupChatBackground(
 			std::move(wrap),
 			QMargins(0, skipTop, 0, skipBottom)));
 
-	AddSkip(container, st::settingsTileSkip);
+	Ui::AddSkip(container, st::settingsTileSkip);
 
 	const auto background = Window::Theme::Background();
 	const auto tile = inner->add(
@@ -1455,7 +1453,7 @@ void SetupDefaultThemes(
 		apply(*scheme);
 	}, container->lifetime());
 
-	AddSkip(container);
+	Ui::AddSkip(container);
 }
 
 void SetupThemeOptions(
@@ -1463,13 +1461,13 @@ void SetupThemeOptions(
 		not_null<Ui::VerticalLayout*> container) {
 	using namespace Window::Theme;
 
-	AddSkip(container, st::settingsPrivacySkip);
+	Ui::AddSkip(container, st::settingsPrivacySkip);
 
-	AddSubsectionTitle(container, tr::lng_settings_themes());
+	Ui::AddSubsectionTitle(container, tr::lng_settings_themes());
 
-	AddSkip(container, st::settingsThemesTopSkip);
+	Ui::AddSkip(container, st::settingsThemesTopSkip);
 	SetupDefaultThemes(&controller->window(), container);
-	AddSkip(container);
+	Ui::AddSkip(container);
 }
 
 void SetupCloudThemes(
@@ -1485,8 +1483,8 @@ void SetupCloudThemes(
 	)->setDuration(0);
 	const auto inner = wrap->entity();
 
-	AddDivider(inner);
-	AddSkip(inner, st::settingsPrivacySkip);
+	Ui::AddDivider(inner);
+	Ui::AddSkip(inner, st::settingsPrivacySkip);
 
 	const auto title = AddSubsectionTitle(
 		inner,
@@ -1506,7 +1504,7 @@ void SetupCloudThemes(
 			outerWidth);
 	}, showAll->lifetime());
 
-	AddSkip(inner, st::settingsThemesTopSkip);
+	Ui::AddSkip(inner, st::settingsThemesTopSkip);
 
 	const auto list = inner->lifetime().make_state<CloudList>(
 		inner,
@@ -1535,7 +1533,7 @@ void SetupCloudThemes(
 	)->setDuration(0);
 	const auto edit = editWrap->entity();
 
-	AddSkip(edit, st::settingsThemesBottomSkip);
+	Ui::AddSkip(edit, st::settingsThemesBottomSkip);
 	AddButton(
 		edit,
 		tr::lng_settings_bg_theme_edit(),
@@ -1559,7 +1557,7 @@ void SetupCloudThemes(
 		return (Background()->themeObject().cloud.createdBy == userId);
 	}));
 
-	AddSkip(inner, 2 * st::settingsSectionSkip);
+	Ui::AddSkip(inner, 2 * st::settingsSectionSkip);
 
 	wrap->setDuration(0)->toggleOn(list->empty() | rpl::map(!_1));
 }
@@ -1567,10 +1565,10 @@ void SetupCloudThemes(
 void SetupThemeSettings(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container, st::settingsPrivacySkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsPrivacySkip);
 
-	AddSubsectionTitle(container, tr::lng_settings_theme_settings());
+	Ui::AddSubsectionTitle(container, tr::lng_settings_theme_settings());
 
 	AddPeerColorButton(
 		container,
@@ -1603,7 +1601,7 @@ void SetupThemeSettings(
 		});
 	}
 
-	AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 void SetupSupportSwitchSettings(
@@ -1674,11 +1672,11 @@ void SetupSupportChatsLimitSlice(
 void SetupSupport(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container);
+	Ui::AddSkip(container);
 
-	AddSubsectionTitle(container, rpl::single(u"Support settings"_q));
+	Ui::AddSubsectionTitle(container, rpl::single(u"Support settings"_q));
 
-	AddSkip(container, st::settingsSendTypeSkip);
+	Ui::AddSkip(container, st::settingsSendTypeSkip);
 
 	const auto skip = st::settingsSendTypeSkip;
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
@@ -1691,7 +1689,7 @@ void SetupSupport(
 
 	SetupSupportSwitchSettings(controller, inner);
 
-	AddSkip(inner, st::settingsCheckboxesSkip);
+	Ui::AddSkip(inner, st::settingsCheckboxesSkip);
 
 	inner->add(
 		object_ptr<Ui::Checkbox>(
@@ -1721,15 +1719,15 @@ void SetupSupport(
 		controller->session().saveSettingsDelayed();
 	}, inner->lifetime());
 
-	AddSkip(inner, st::settingsCheckboxesSkip);
+	Ui::AddSkip(inner, st::settingsCheckboxesSkip);
 
-	AddSubsectionTitle(inner, rpl::single(u"Load chats for a period"_q));
+	Ui::AddSubsectionTitle(inner, rpl::single(u"Load chats for a period"_q));
 
 	SetupSupportChatsLimitSlice(controller, inner);
 
-	AddSkip(inner, st::settingsCheckboxesSkip);
+	Ui::AddSkip(inner, st::settingsCheckboxesSkip);
 
-	AddSkip(inner);
+	Ui::AddSkip(inner);
 }
 
 Chat::Chat(QWidget *parent, not_null<Window::SessionController*> controller)

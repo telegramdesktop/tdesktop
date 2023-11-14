@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/vertical_list.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "data/data_user.h"
@@ -298,8 +299,8 @@ void SetupSections(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(Type)> showOther) {
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	const auto addSection = [&](
 			rpl::producer<QString> label,
@@ -317,8 +318,8 @@ void SetupSections(
 	if (controller->session().supportMode()) {
 		SetupSupport(controller, container);
 
-		AddDivider(container);
-		AddSkip(container);
+		Ui::AddDivider(container);
+		Ui::AddSkip(container);
 	} else {
 		addSection(
 			tr::lng_settings_my_account(),
@@ -394,7 +395,7 @@ void SetupSections(
 	SetupPowerSavingButton(&controller->window(), container);
 	SetupLanguageButton(&controller->window(), container);
 
-	AddSkip(container);
+	Ui::AddSkip(container);
 }
 
 void SetupPremium(
@@ -404,8 +405,8 @@ void SetupPremium(
 	if (!controller->session().premiumPossible()) {
 		return;
 	}
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	AddButton(
 		container,
@@ -416,7 +417,7 @@ void SetupPremium(
 		controller->setPremiumRef("settings");
 		showOther(PremiumId());
 	});
-	AddSkip(container);
+	Ui::AddSkip(container);
 }
 
 bool HasInterfaceScale() {
@@ -570,7 +571,7 @@ void SetupInterfaceScale(
 	}, button->lifetime());
 
 	if (!icon) {
-		AddSkip(container, st::settingsThumbSkip);
+		Ui::AddSkip(container, st::settingsThumbSkip);
 	}
 }
 
@@ -590,8 +591,8 @@ void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
 void SetupHelp(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	SetupFaq(container);
 
@@ -678,10 +679,10 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 		_showOther.fire_copy(type);
 	});
 	if (HasInterfaceScale()) {
-		AddDivider(content);
-		AddSkip(content);
+		Ui::AddDivider(content);
+		Ui::AddSkip(content);
 		SetupInterfaceScale(&controller->window(), content);
-		AddSkip(content);
+		Ui::AddSkip(content);
 	}
 	SetupPremium(controller, content, [=](Type type) {
 		_showOther.fire_copy(type);

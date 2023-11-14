@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
-#include "settings/settings_premium.h"
 #include "ui/abstract_button.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/effects/gradient.h"
@@ -39,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
-#include "ui/text/text_utilities.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h" // Ui::RadiobuttonGroup.
@@ -51,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+#include "ui/vertical_list.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/unixtime.h"
@@ -872,7 +871,7 @@ void Premium::setupSubscriptionOptions(
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto content = options->entity();
 
-	AddSkip(content, st::settingsPremiumOptionsPadding.top());
+	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
 
 	const auto apiPremium = &_controller->session().api().premium();
 	Ui::Premium::AddGiftOptions(
@@ -882,13 +881,13 @@ void Premium::setupSubscriptionOptions(
 		st::premiumSubscriptionOption,
 		true);
 
-	AddSkip(content, st::settingsPremiumOptionsPadding.bottom());
-	AddDivider(content);
+	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.bottom());
+	Ui::AddDivider(content);
 
 	const auto lastSkip = TopTransitionSkip() * (isEmojiStatus ? 1 : 2);
 
-	AddSkip(content, lastSkip - st::settingsSectionSkip);
-	AddSkip(skip->entity(), lastSkip);
+	Ui::AddSkip(content, lastSkip - st::settingsSectionSkip);
+	Ui::AddSkip(skip->entity(), lastSkip);
 
 	auto toggleOn = rpl::combine(
 		Data::AmPremiumValue(&_controller->session()),
@@ -1089,11 +1088,11 @@ void Premium::setupContent() {
 			{ .icon = icons[i], .backgroundBrush = brush });
 	}
 
-	AddSkip(content, descriptionPadding.bottom());
+	Ui::AddSkip(content, descriptionPadding.bottom());
 #if 0
-	AddSkip(content);
-	AddDivider(content);
-	AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddDivider(content);
+	Ui::AddSkip(content);
 
 	content->add(
 		object_ptr<Ui::FlatLabel>(
@@ -1108,7 +1107,9 @@ void Premium::setupContent() {
 			tr::lng_premium_summary_bottom_about(Ui::Text::RichLangValue),
 			st::aboutLabel),
 		st::boxRowPadding);
-	AddSkip(content, stDefault.padding.top() + stDefault.padding.bottom());
+	Ui::AddSkip(
+		content,
+		stDefault.padding.top() + stDefault.padding.bottom());
 #endif
 
 	Ui::ResizeFitChild(this, content);

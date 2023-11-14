@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -378,7 +379,7 @@ void SetupChecks(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
 		Notify type) {
-	AddSubsectionTitle(container, Title(type));
+	Ui::AddSubsectionTitle(container, Title(type));
 
 	const auto session = &controller->session();
 	const auto settings = &session->data().notifySettings();
@@ -597,12 +598,12 @@ void NotificationsType::setupContent(
 		not_null<Window::SessionController*> controller) {
 	const auto container = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	AddSkip(container, st::settingsPrivacySkip);
+	Ui::AddSkip(container, st::settingsPrivacySkip);
 	SetupChecks(container, controller, _type);
 
-	AddSkip(container);
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	SetupExceptions(container, controller, _type);
 

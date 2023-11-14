@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -326,8 +327,8 @@ void GlobalTTL::setupContent() {
 
 	SetupTopContent(content, _showFinished.events());
 
-	AddSkip(content);
-	AddSubsectionTitle(content, tr::lng_settings_ttl_after_subtitle());
+	Ui::AddSkip(content);
+	Ui::AddSubsectionTitle(content, tr::lng_settings_ttl_after_subtitle());
 
 	content->add(object_ptr<Ui::VerticalLayout>::fromRaw(_buttons));
 
@@ -362,7 +363,7 @@ void GlobalTTL::setupContent() {
 		}));
 	});
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	auto footer = object_ptr<Ui::FlatLabel>(
 		content,

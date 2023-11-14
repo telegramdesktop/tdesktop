@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/filter_icons.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_filter_icons.h"
 #include "styles/style_layers.h"
@@ -341,7 +342,7 @@ void ToggleChatsController::setupAboveWidget() {
 	_addedTopWidget = container->add(object_ptr<Ui::RpWidget>(container));
 	const auto realAbove = container->add(
 		object_ptr<Ui::VerticalLayout>(container));
-	AddDivider(realAbove);
+	Ui::AddDivider(realAbove);
 	const auto totalCount = [&] {
 		if (_chats.empty()) {
 			return _additional.size();

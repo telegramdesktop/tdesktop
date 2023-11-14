@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -293,7 +294,7 @@ void BackgroundPreviewBox::createDimmingSlider(bool dark) {
 	const auto equals = (dark == Window::Theme::IsNightMode());
 	const auto inner = Ui::CreateChild<Ui::VerticalLayout>(_dimmingContent);
 	inner->show();
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		inner,
 		tr::lng_background_dimming(),
 		style::margins(0, st::settingsSectionSkip, 0, 0),

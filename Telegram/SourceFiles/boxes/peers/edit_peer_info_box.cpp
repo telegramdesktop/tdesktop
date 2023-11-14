@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "api/api_user_names.h"
 #include "main/main_session.h"
-#include "boxes/add_contact_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
@@ -23,10 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_linked_chat_box.h"
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "boxes/peers/edit_peer_reactions.h"
-#include "boxes/peer_list_controllers.h"
 #include "boxes/stickers_box.h"
 #include "boxes/username_box.h"
-#include "ui/boxes/single_choice_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -42,24 +39,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
-#include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
-#include "settings/settings_common.h"
+#include "settings/settings_common.h" // IconDescriptor.
 #include "ui/controls/userpic_button.h"
 #include "ui/rp_widget.h"
+#include "ui/vertical_list.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
-#include "info/profile/info_profile_icon.h"
 #include "api/api_invite_links.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -87,13 +82,9 @@ void AddSkip(
 		not_null<Ui::VerticalLayout*> container,
 		int top = st::editPeerTopButtonsLayoutSkip,
 		int bottom = st::editPeerTopButtonsLayoutSkipToBottom) {
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		top));
-	container->add(object_ptr<Ui::BoxContentDivider>(container));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		bottom));
+	Ui::AddSkip(container, top);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, bottom);
 }
 
 void AddButtonWithCount(
@@ -244,10 +235,6 @@ void ShowEditPermissions(
 	};
 	navigation->parentController()->show(Box(std::move(createBox)));
 }
-
-} // namespace
-
-namespace {
 
 class Controller : public base::has_weak_ptr {
 public:
@@ -591,7 +578,7 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		object_ptr<Ui::VerticalLayout>(_wrap));
 	const auto container = result->entity();
 
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_group_stickers(),
 		{ 0, st::settingsSubsectionTitlePadding.top() - bottomSkip, 0, 0 });
@@ -606,13 +593,13 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		},
 		{ &st::menuIconStickers });
 
-	Settings::AddSkip(container, bottomSkip);
+	Ui::AddSkip(container, bottomSkip);
 
-	Settings::AddDividerText(
+	Ui::AddDividerText(
 		container,
 		tr::lng_group_stickers_description());
 
-	Settings::AddSkip(container, bottomSkip);
+	Ui::AddSkip(container, bottomSkip);
 
 	return result;
 }
@@ -1002,12 +989,12 @@ void Controller::fillManageSection() {
 	if (_isBot) {
 		const auto &container = _controls.buttonsLayout;
 
-		AddSkip(container, 0);
+		::AddSkip(container, 0);
 		fillBotUsernamesButton();
 		fillBotEditIntroButton();
 		fillBotEditCommandsButton();
 		fillBotEditSettingsButton();
-		Settings::AddSkip(
+		Ui::AddSkip(
 			container,
 			st::editPeerTopButtonsLayoutSkipCustomBottom);
 		container->add(object_ptr<Ui::DividerLabel>(
@@ -1070,7 +1057,7 @@ void Controller::fillManageSection() {
 		&& (channel->linkedChat()
 			|| (channel->isBroadcast() && channel->canEditInformation()));
 
-	AddSkip(_controls.buttonsLayout, 0);
+	::AddSkip(_controls.buttonsLayout, 0);
 
 	if (canEditType) {
 		fillPrivacyTypeButton();
@@ -1099,7 +1086,7 @@ void Controller::fillManageSection() {
 		//|| canEditInviteLinks
 		|| canViewOrEditLinkedChat
 		|| canEditType) {
-		AddSkip(_controls.buttonsLayout);
+		::AddSkip(_controls.buttonsLayout);
 	}
 
 	if (canEditReactions()) {
@@ -1269,7 +1256,7 @@ void Controller::fillManageSection() {
 	}
 
 	if (canEditStickers || canDeleteChannel) {
-		AddSkip(_controls.buttonsLayout);
+		::AddSkip(_controls.buttonsLayout);
 	}
 
 	if (canEditStickers) {
@@ -1287,7 +1274,7 @@ void Controller::fillManageSection() {
 	}
 
 	if (canEditStickers || canDeleteChannel) {
-		AddSkip(_controls.buttonsLayout);
+		::AddSkip(_controls.buttonsLayout);
 	}
 }
 

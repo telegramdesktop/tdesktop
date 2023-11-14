@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "history/history.h"
 #include "boxes/peer_list_controllers.h"
 #include "settings/settings_common.h"
@@ -321,7 +322,7 @@ void EditPrivacyBox::setupContent() {
 		content->add(std::move(above));
 	}
 
-	AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		content,
 		_controller->optionsTitleKey(),
 		{ 0, st::settingsPrivacySkipTop, 0, 0 });
@@ -345,8 +346,8 @@ void EditPrivacyBox::setupContent() {
 		content->add(std::move(middle));
 	}
 
-	AddSkip(content);
-	AddSubsectionTitle(
+	Ui::AddSkip(content);
+	Ui::AddSubsectionTitle(
 		content,
 		tr::lng_edit_privacy_exceptions(),
 		{ 0, st::settingsPrivacySkipTop, 0, 0 });

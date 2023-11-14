@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/cloud_password/settings_cloud_password_email.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
@@ -71,7 +72,7 @@ void Hint::setupContent() {
 		tr::lng_settings_cloud_password_hint_subtitle(),
 		tr::lng_settings_cloud_password_hint_about());
 
-	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
+	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
 	const auto wrap = AddWrappedField(
 		content,

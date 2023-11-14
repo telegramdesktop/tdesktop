@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
@@ -486,7 +487,7 @@ void ReactionsSettingsBox(
 	auto idValue = state->selectedId.value();
 	AddMessage(pinnedToTop, controller, std::move(idValue), box->width());
 
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		pinnedToTop,
 		tr::lng_settings_chat_reactions_subtitle());
 

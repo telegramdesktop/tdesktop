@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "storage/localstorage.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/translate_box.h"
@@ -34,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
-#include "settings/settings_common.h"
+#include "settings/settings_common.h" // CreateButton.
 #include "spellcheck/spellcheck_types.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
@@ -1250,10 +1251,8 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 	translateSkip->setClickedCallback([=] {
 		uiShow()->showBox(Ui::EditSkipTranslationLanguages());
 	});
-	Settings::AddSkip(container);
-	Settings::AddDividerText(
-		container,
-		tr::lng_translate_settings_about());
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, tr::lng_translate_settings_about());
 }
 
 void LanguageBox::keyPressEvent(QKeyEvent *e) {

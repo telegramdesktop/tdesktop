@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "lottie/lottie_icon.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -462,9 +463,9 @@ void SessionInfoBox(
 
 	using namespace Settings;
 	const auto container = box->verticalLayout();
-	AddDivider(container);
-	AddSkip(container, st::sessionSubtitleSkip);
-	AddSubsectionTitle(container, tr::lng_sessions_info());
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::sessionSubtitleSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_sessions_info());
 
 	AddSessionInfoRow(
 		container,
