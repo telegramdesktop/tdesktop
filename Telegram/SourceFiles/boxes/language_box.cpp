@@ -35,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
-#include "settings/settings_common.h" // CreateButton.
+#include "settings/settings_common.h"
 #include "spellcheck/spellcheck_types.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"

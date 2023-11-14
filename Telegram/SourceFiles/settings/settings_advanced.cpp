@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_global_privacy.h"
 #include "apiwrap.h"
-#include "settings/settings_common.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_power_saving.h"
 #include "settings/settings_privacy_security.h"

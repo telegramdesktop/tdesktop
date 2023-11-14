@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_peer_values.h" // Data::CanWriteValue.
 #include "data/data_session.h" // Data::Session::invitedToCallUsers.
-#include "settings/settings_common.h" // Settings::CreateButton.
+#include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"

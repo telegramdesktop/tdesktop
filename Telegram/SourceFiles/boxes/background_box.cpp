@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "boxes/background_preview_box.h"
 #include "info/profile/info_profile_icon.h"
-#include "settings/settings_common.h" // CreateButton.
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "window/window_session_controller.h"

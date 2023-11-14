@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/vertical_list.h"
-#include "settings/settings_common.h" // AddButton.
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h"

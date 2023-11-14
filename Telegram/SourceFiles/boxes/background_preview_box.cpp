@@ -38,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_themes_embedded.h"
-#include "settings/settings_common.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
 #include "styles/style_chat.h"

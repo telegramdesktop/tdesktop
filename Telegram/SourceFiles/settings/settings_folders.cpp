@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/filter_icons.h"
 #include "ui/layers/generic_box.h"

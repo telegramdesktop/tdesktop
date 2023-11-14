@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_peer_invite_link.h"
-#include "settings/settings_common.h" // AddDivider.
 #include "apiwrap.h"
 #include "base/weak_ptr.h"
 #include "base/unixtime.h"
@@ -876,8 +875,6 @@ void ManageInviteLinksBox(
 		not_null<UserData*> admin,
 		int count,
 		int revokedCount) {
-	using namespace Settings;
-
 	const auto show = Main::MakeSessionShow(
 		box->uiShow(),
 		&peer->session());

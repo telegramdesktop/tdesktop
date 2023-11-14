@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
-#include "settings/settings_common.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
 #include "styles/style_layers.h"

@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "menu/menu_send.h"
 #include "history/view/history_view_schedule_box.h"
-#include "settings/settings_common.h"
 #include "base/unique_qptr.h"
 #include "base/event_filter.h"
 #include "base/call_delayed.h"

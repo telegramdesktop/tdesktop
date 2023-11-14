@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
-#include "settings/settings_common.h"
 #include "storage/storage_domain.h"
 #include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"

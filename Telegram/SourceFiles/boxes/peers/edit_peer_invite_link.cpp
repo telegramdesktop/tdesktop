@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
-#include "settings/settings_common.h"
 #include "mtproto/sender.h"
 #include "qr/qr_generate.h"
 #include "intro/intro_qr.h" // TelegramLogoImage

@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
 #include "settings/settings_blocked_peers.h"
-#include "settings/settings_common.h"
 #include "settings/settings_global_ttl.h"
 #include "settings/settings_local_passcode.h"
 #include "settings/settings_premium.h" // Settings::ShowPremium.

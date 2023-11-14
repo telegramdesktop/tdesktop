@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_notifications.h"
 
-#include "settings/settings_common.h"
 #include "settings/settings_notifications_type.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/chat_service_checkbox.h"

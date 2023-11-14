@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_chat.h"
 
-#include "settings/settings_common.h"
 #include "settings/settings_advanced.h"
 #include "settings/settings_experimental.h"
 #include "boxes/peers/edit_peer_color_box.h"

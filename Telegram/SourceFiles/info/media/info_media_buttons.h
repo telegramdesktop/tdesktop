@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
-#include "settings/settings_common.h"
 #include "window/window_session_controller.h"
 #include "data/data_user.h"
 #include "styles/style_info.h"
@@ -65,9 +64,9 @@ inline auto AddCountedButton(
 			? textFromCount(count)
 			: QString();
 	});
-	auto button = parent->add(object_ptr<Ui::SlideWrap<Button>>(
+	auto button = parent->add(object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 		parent,
-		object_ptr<Button>(
+		object_ptr<Ui::SettingsButton>(
 			parent,
 			std::move(text),
 			st::infoSharedMediaButton))
