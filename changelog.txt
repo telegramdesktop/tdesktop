@@ -1,3 +1,7 @@
+4.11.8 (14.11.23)
+
+- Fix phrases on macOS by doing a clean rebuild.
+
 4.11.7 (13.11.23)
 
 - Fix sending media files with quote replies.
