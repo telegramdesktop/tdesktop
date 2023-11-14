@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
+#include "settings/settings_common_session.h"
 #include "ui/abstract_button.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/effects/gradient.h"

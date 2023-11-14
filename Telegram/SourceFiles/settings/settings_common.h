@@ -50,34 +50,6 @@ namespace Settings {
 
 using Button = Ui::SettingsButton;
 
-class AbstractSection;
-
-struct AbstractSectionFactory {
-	[[nodiscard]] virtual object_ptr<AbstractSection> create(
-		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller) const = 0;
-	[[nodiscard]] virtual bool hasCustomTopBar() const {
-		return false;
-	}
-
-	virtual ~AbstractSectionFactory() = default;
-};
-
-template <typename SectionType>
-struct SectionFactory : AbstractSectionFactory {
-	object_ptr<AbstractSection> create(
-		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller
-	) const final override {
-		return object_ptr<SectionType>(parent, controller);
-	}
-
-	[[nodiscard]] static const std::shared_ptr<SectionFactory> &Instance() {
-		static const auto result = std::make_shared<SectionFactory>();
-		return result;
-	}
-};
-
 class AbstractSection : public Ui::RpWidget {
 public:
 	using RpWidget::RpWidget;
@@ -116,19 +88,6 @@ public:
 		return false;
 	}
 	virtual void setStepDataReference(std::any &data) {
-	}
-};
-
-template <typename SectionType>
-class Section : public AbstractSection {
-public:
-	using AbstractSection::AbstractSection;
-
-	[[nodiscard]] static Type Id() {
-		return SectionFactory<SectionType>::Instance();
-	}
-	[[nodiscard]] Type id() const final override {
-		return Id();
 	}
 };
 
@@ -206,12 +165,6 @@ struct LottieIcon {
 	not_null<QWidget*> parent,
 	Lottie::IconDescriptor &&descriptor,
 	style::margins padding = {});
-
-void FillMenu(
-	not_null<Window::SessionController*> controller,
-	Type type,
-	Fn<void(Type)> showOther,
-	Ui::Menu::MenuCallback addAction);
 
 struct SliderWithLabel {
 	object_ptr<Ui::RpWidget> widget;

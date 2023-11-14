@@ -169,6 +169,9 @@ PRIVATE
     platform/mac/file_bookmark_mac.mm
     platform/platform_file_bookmark.h
 
+    settings/settings_common.cpp
+    settings/settings_common.h
+
     statistics/chart_lines_filter_controller.cpp
     statistics/chart_lines_filter_controller.h
     statistics/chart_rulers_data.cpp

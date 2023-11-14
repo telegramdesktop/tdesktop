@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
@@ -24,12 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 namespace {
-
-void AddSkip(not_null<Ui::VerticalLayout*> container) {
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::settingsSectionSkip));
-}
 
 [[nodiscard]] QImage CacheFlagEmoji(const QString &flag) {
 	const auto &st = st::giveawayGiftCodeCountrySelect.item;
@@ -74,7 +69,7 @@ void SelectCountriesBox(
 			box,
 			st::giveawayGiftCodeCountrySelect,
 			tr::lng_participant_filter()));
-	AddSkip(box->verticalLayout());
+	Ui::AddSkip(box->verticalLayout());
 	const auto &buttonSt = st::giveawayGiftCodeCountryButton;
 
 	struct Entry final {
@@ -179,8 +174,8 @@ void SelectCountriesBox(
 	{
 		noResults->toggle(false, anim::type::instant);
 		const auto container = noResults->entity();
-		AddSkip(container);
-		AddSkip(container);
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
 		container->add(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 				container,
@@ -188,8 +183,8 @@ void SelectCountriesBox(
 					container,
 					tr::lng_search_messages_none(),
 					st::membersAbout)));
-		AddSkip(container);
-		AddSkip(container);
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
 	}
 
 	multiSelect->setQueryChangedCallback([=](const QString &query) {

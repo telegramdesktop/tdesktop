@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "menu/menu_ttl_validator.h"
-#include "settings/settings_common.h"
+#include "settings/settings_common_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
