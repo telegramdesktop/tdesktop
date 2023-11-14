@@ -601,6 +601,11 @@ manageDeleteGroupButton: SettingsCountButton(manageGroupNoIconButton) {
 	}
 }
 
+manageGroupReactionsField: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 31px, 4px);
+	heightMax: 158px;
+}
+
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info/info_media_photo_empty", infoEmptyFg }};
 infoEmptyVideo: icon {{ "info/info_media_video_empty", infoEmptyFg }};
