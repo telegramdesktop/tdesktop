@@ -1388,7 +1388,7 @@ mac:
 if buildQt6:
     stage('qt_6_2_6', """
 mac:
-    git clone -b v6.2.6-lts-lgpl https://code.qt.io/qt/qt5.git qt_6_2_6
+    git clone -b v6.2.6-lts-lgpl https://github.com/qt/qt5.git qt_6_2_6
     cd qt_6_2_6
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
 depends:patches/qtbase_6.2.6/*.patch
