@@ -385,7 +385,7 @@ void SetupChecks(
 	const auto settings = &session->data().notifySettings();
 
 	const auto enabled = container->add(
-		CreateButton(
+		CreateButtonWithIcon(
 			container,
 			tr::lng_notification_enable(),
 			st::settingsButton,
@@ -424,7 +424,7 @@ void SetupChecks(
 		return !sound || !sound->none;
 	};
 	const auto sound = soundInner->add(
-		CreateButton(
+		CreateButtonWithIcon(
 			soundInner,
 			tr::lng_notification_sound(),
 			st::settingsButton,
@@ -503,7 +503,7 @@ void SetupExceptions(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> window,
 		Notify type) {
-	const auto add = AddButton(
+	const auto add = AddButtonWithIcon(
 		container,
 		tr::lng_notification_exceptions_add(),
 		st::settingsButtonActive,
@@ -547,7 +547,7 @@ void SetupExceptions(
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
-			CreateButton(
+			CreateButtonWithIcon(
 				container,
 				tr::lng_notification_exceptions_clear(),
 				st::settingsAttentionButtonWithIcon,

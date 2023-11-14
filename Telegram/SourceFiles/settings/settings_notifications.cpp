@@ -166,7 +166,7 @@ void AddTypeButton(
 		}
 		Unexpected("Type value in AddTypeButton.");
 	}();
-	const auto button = AddButton(
+	const auto button = AddButtonWithIcon(
 		container,
 		std::move(label),
 		st::settingsNotificationType,
@@ -917,11 +917,11 @@ void SetupMultiAccountNotifications(
 	}
 	Ui::AddSubsectionTitle(container, tr::lng_settings_show_from());
 
-	const auto fromAll = AddButton(
+	const auto fromAll = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_notify_all(),
 		st::settingsButtonNoIcon
-	)->toggleOn(rpl::single(Core::App().settings().notifyFromAll()));
+	))->toggleOn(rpl::single(Core::App().settings().notifyFromAll()));
 	fromAll->toggledChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Core::App().settings().notifyFromAll());
@@ -964,7 +964,7 @@ void SetupNotificationsContent(
 			rpl::producer<QString> label,
 			IconDescriptor &&descriptor,
 			rpl::producer<bool> checked) {
-		auto result = CreateButton(
+		auto result = CreateButtonWithIcon(
 			container,
 			std::move(label),
 			st::settingsButton,
@@ -1098,15 +1098,15 @@ void SetupNotificationsContent(
 	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 	Ui::AddSubsectionTitle(container, tr::lng_settings_badge_title());
 
-	const auto muted = AddButton(
+	const auto muted = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_include_muted(),
-		st::settingsButtonNoIcon);
+		st::settingsButtonNoIcon));
 	muted->toggleOn(rpl::single(settings.includeMutedCounter()));
-	const auto count = AddButton(
+	const auto count = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_count_unread(),
-		st::settingsButtonNoIcon);
+		st::settingsButtonNoIcon));
 	count->toggleOn(rpl::single(settings.countUnreadMessages()));
 
 	auto nativeText = [&] {
@@ -1127,11 +1127,11 @@ void SetupNotificationsContent(
 		Ui::AddDivider(container);
 		Ui::AddSkip(container, st::settingsCheckboxesSkip);
 		Ui::AddSubsectionTitle(container, tr::lng_settings_native_title());
-		return AddButton(
+		return container->add(object_ptr<Button>(
 			container,
 			std::move(nativeText),
 			st::settingsButtonNoIcon
-		)->toggleOn(rpl::single(settings.nativeNotifications()));
+		))->toggleOn(rpl::single(settings.nativeNotifications()));
 	}();
 
 	const auto advancedSlide = !Platform::Notifications::Enforced()

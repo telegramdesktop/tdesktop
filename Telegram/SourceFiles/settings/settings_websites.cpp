@@ -605,7 +605,7 @@ void Content::Inner::setupContent() {
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto terminateInner = terminateWrap->entity();
 	_terminateAll = terminateInner->add(
-		CreateButton(
+		CreateButtonWithIcon(
 			terminateInner,
 			tr::lng_settings_disconnect_all(),
 			st::infoBlockButton,

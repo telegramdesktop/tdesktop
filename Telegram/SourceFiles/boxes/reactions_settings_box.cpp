@@ -516,10 +516,10 @@ void ReactionsSettingsBox(
 		}
 	}
 	for (const auto &r : list) {
-		const auto button = Settings::AddButton(
+		const auto button = container->add(object_ptr<Ui::SettingsButton>(
 			container,
 			rpl::single<QString>(base::duplicate(r.title)),
-			st::settingsButton);
+			st::settingsButton));
 
 		const auto premium = r.premium;
 		if (premium && !premiumPossible) {

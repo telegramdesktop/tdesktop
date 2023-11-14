@@ -804,7 +804,7 @@ void SetupStickersEmoji(
 			Core::App().saveSettingsDelayed();
 		});
 
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_stickers_you_have(),
 		st::settingsButton,
@@ -815,7 +815,7 @@ void SetupStickersEmoji(
 			StickersBox::Section::Installed));
 	});
 
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_emoji_manage_sets(),
 		st::settingsButton,
@@ -1024,7 +1024,7 @@ void SetupArchive(
 	Ui::AddSkip(container);
 
 	PreloadArchiveSettings(&controller->session());
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_context_archive_settings(),
 		st::settingsButton,
@@ -1038,7 +1038,7 @@ void SetupExport(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(Type)> showOther) {
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_settings_export_data(),
 		st::settingsButton,
@@ -1052,7 +1052,7 @@ void SetupExport(
 			[=] { Core::App().exportManager().start(session); });
 	});
 
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_settings_experimental(),
 		st::settingsButton,
@@ -1065,7 +1065,7 @@ void SetupExport(
 void SetupLocalStorage(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_settings_manage_local_storage(),
 		st::settingsButton,
@@ -1096,7 +1096,7 @@ void SetupDataStorage(
 	const auto path = container->add(
 		object_ptr<Ui::SlideWrap<Button>>(
 			container,
-			CreateButton(
+			CreateButtonWithIcon(
 				container,
 				tr::lng_download_path(),
 				st::settingsButton,
@@ -1124,7 +1124,7 @@ void SetupDataStorage(
 
 	SetupLocalStorage(controller, container);
 
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_downloads_section(),
 		st::settingsButton,
@@ -1134,11 +1134,11 @@ void SetupDataStorage(
 			Info::Downloads::Make(controller->session().user()));
 	});
 
-	const auto ask = AddButton(
+	const auto ask = container->add(object_ptr<Ui::SettingsButton>(
 		container,
 		tr::lng_download_path_ask(),
 		st::settingsButtonNoIcon
-	)->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
+	))->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
 
 	ask->toggledValue(
 	) | rpl::filter([](bool checked) {
@@ -1173,7 +1173,7 @@ void SetupAutoDownload(
 		rpl::producer<QString> label,
 		Source source,
 		IconDescriptor &&descriptor) {
-		AddButton(
+		AddButtonWithIcon(
 			container,
 			std::move(label),
 			st::settingsButton,
@@ -1534,7 +1534,7 @@ void SetupCloudThemes(
 	const auto edit = editWrap->entity();
 
 	Ui::AddSkip(edit, st::settingsThemesBottomSkip);
-	AddButton(
+	AddButtonWithIcon(
 		edit,
 		tr::lng_settings_bg_theme_edit(),
 		st::settingsButton,

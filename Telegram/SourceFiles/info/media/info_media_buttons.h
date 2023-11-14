@@ -67,7 +67,7 @@ inline auto AddCountedButton(
 	});
 	auto button = parent->add(object_ptr<Ui::SlideWrap<Button>>(
 		parent,
-		CreateButton(
+		object_ptr<Button>(
 			parent,
 			std::move(text),
 			st::infoSharedMediaButton))

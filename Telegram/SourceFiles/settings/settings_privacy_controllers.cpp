@@ -1089,7 +1089,7 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupMiddleWidget(
 		st::inviteLinkUserpics.size);
 
 	Ui::AddSkip(container);
-	const auto setUserpicButton = AddButton(
+	const auto setUserpicButton = AddButtonWithIcon(
 		container,
 		state->setUserpicButtonText.value(),
 		st::settingsButtonLight,

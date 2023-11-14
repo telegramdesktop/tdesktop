@@ -82,11 +82,12 @@ void EditAllowedReactionsBox(
 
 	const auto container = box->verticalLayout();
 
-	const auto enabled = isGroup ? nullptr : Settings::AddButton(
-		container,
-		tr::lng_manage_peer_reactions_enable(),
-		st::manageGroupButton.button
-	).get();
+	const auto enabled = isGroup
+		? nullptr
+		: container->add(object_ptr<Ui::SettingsButton>(
+			container,
+			tr::lng_manage_peer_reactions_enable(),
+			st::manageGroupButton.button));
 	if (enabled && !list.empty()) {
 		AddReactionAnimatedIcon(
 			enabled,
@@ -179,10 +180,10 @@ void EditAllowedReactionsBox(
 			: (inSome || (isDefault && allowed.some.empty()));
 	};
 	const auto add = [&](const Reaction &entry) {
-		const auto button = Settings::AddButton(
+		const auto button = reactions->add(object_ptr<Ui::SettingsButton>(
 			reactions,
 			rpl::single(entry.title),
-			st::manageGroupButton.button);
+			st::manageGroupButton.button));
 		AddReactionAnimatedIcon(
 			button,
 			button->sizeValue(
@@ -223,10 +224,10 @@ void EditAllowedReactionsBox(
 	for (const auto &id : allowed.some) {
 		if (const auto customId = id.custom()) {
 			// Some possible forward compatibility.
-			const auto button = Settings::AddButton(
+			const auto button = reactions->add(object_ptr<Ui::SettingsButton>(
 				reactions,
 				rpl::single(u"Custom reaction"_q),
-				st::manageGroupButton.button);
+				st::manageGroupButton.button));
 			AddReactionCustomIcon(
 				button,
 				button->sizeValue(

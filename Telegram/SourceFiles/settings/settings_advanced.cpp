@@ -119,12 +119,12 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		tr::now,
 		lt_version,
 		currentVersionText());
-	const auto toggle = AddButton(
+	const auto toggle = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_update_automatically(),
-		st::settingsUpdateToggle);
+		st::settingsUpdateToggle));
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		toggle.get(),
+		toggle,
 		texts->events(),
 		st::settingsUpdateState);
 
@@ -133,17 +133,19 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto inner = options->entity();
-	const auto install = cAlphaVersion() ? nullptr : AddButton(
-		inner,
-		tr::lng_settings_install_beta(),
-		st::settingsButtonNoIcon).get();
+	const auto install = cAlphaVersion()
+		? nullptr
+		: inner->add(object_ptr<Button>(
+			inner,
+			tr::lng_settings_install_beta(),
+			st::settingsButtonNoIcon));
 
-	const auto check = AddButton(
+	const auto check = inner->add(object_ptr<Button>(
 		inner,
 		tr::lng_settings_check_now(),
-		st::settingsButtonNoIcon);
+		st::settingsButtonNoIcon));
 	const auto update = Ui::CreateChild<Button>(
-		check.get(),
+		check,
 		tr::lng_update_telegram(),
 		st::settingsUpdate);
 	update->hide();
@@ -286,13 +288,13 @@ void SetupSpellchecker(
 	const auto session = &controller->session();
 	const auto settings = &Core::App().settings();
 	const auto isSystem = Platform::Spellchecker::IsSystemSpellchecker();
-	const auto button = AddButton(
+	const auto button = container->add(object_ptr<Button>(
 		container,
 		isSystem
 			? tr::lng_settings_system_spellchecker()
 			: tr::lng_settings_custom_spellchecker(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
+	))->toggleOn(
 		rpl::single(settings->spellcheckerEnabled())
 	);
 
@@ -313,11 +315,11 @@ void SetupSpellchecker(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 
-	AddButton(
+	sliding->entity()->add(object_ptr<Button>(
 		sliding->entity(),
 		tr::lng_settings_auto_download_dictionaries(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
+	))->toggleOn(
 		rpl::single(settings->autoDownloadDictionaries())
 	)->toggledValue(
 	) | rpl::filter([=](bool enabled) {
@@ -709,13 +711,11 @@ void SetupWindowTitleOptions(
 void SetupAnimations(
 		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container) {
-	AddButton(
+	container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_power_menu(),
 		st::settingsButtonNoIcon
-	)->setClickedCallback([=] {
-		window->show(Box(PowerSavingBox));
-	});
+	))->setClickedCallback([=] { window->show(Box(PowerSavingBox)); });
 }
 
 void ArchiveSettingsBox(
@@ -740,11 +740,11 @@ void ArchiveSettingsBox(
 	AddSubsectionTitle(container, tr::lng_settings_unmuted_chats());
 
 	using Unarchive = Api::UnarchiveOnNewMessage;
-	AddButton(
+	container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_always_in_archive(),
 		st::settingsButtonNoIcon
-	)->toggleOn(privacy->unarchiveOnNewMessage(
+	))->toggleOn(privacy->unarchiveOnNewMessage(
 	) | rpl::map(
 		rpl::mappers::_1 == Unarchive::None
 	))->toggledChanges(
@@ -771,11 +771,11 @@ void ArchiveSettingsBox(
 	AddSkip(inner);
 	AddSubsectionTitle(inner, tr::lng_settings_chats_from_folders());
 
-	state->folders = AddButton(
+	state->folders = inner->add(object_ptr<Button>(
 		inner,
 		tr::lng_settings_always_in_archive(),
 		st::settingsButtonNoIcon
-	)->toggleOn(privacy->unarchiveOnNewMessage(
+	))->toggleOn(privacy->unarchiveOnNewMessage(
 	) | rpl::map(
 		rpl::mappers::_1 != Unarchive::AnyUnmuted
 	));
@@ -808,11 +808,11 @@ void PreloadArchiveSettings(not_null<::Main::Session*> session) {
 
 void SetupHardwareAcceleration(not_null<Ui::VerticalLayout*> container) {
 	const auto settings = &Core::App().settings();
-	AddButton(
+	container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_enable_hwaccel(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
+	))->toggleOn(
 		rpl::single(settings->hardwareAcceleratedVideo())
 	)->toggledValue(
 	) | rpl::filter([=](bool enabled) {
@@ -904,11 +904,11 @@ void SetupOpenGL(
 	const auto toggles = container->lifetime().make_state<
 		rpl::event_stream<bool>
 	>();
-	const auto button = AddButton(
+	const auto button = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_enable_opengl(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
+	))->toggleOn(
 		toggles->events_starting_with_copy(
 			!Core::App().settings().disableOpenGL())
 	);

@@ -171,12 +171,12 @@ void AddButtonIcon(
 	not_null<Ui::AbstractButton*> button,
 	const style::SettingsButton &st,
 	IconDescriptor &&descriptor);
-object_ptr<Button> CreateButton(
+object_ptr<Button> CreateButtonWithIcon(
 	not_null<QWidget*> parent,
 	rpl::producer<QString> text,
 	const style::SettingsButton &st,
 	IconDescriptor &&descriptor = {});
-not_null<Button*> AddButton(
+not_null<Button*> AddButtonWithIcon(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text,
 	const style::SettingsButton &st,

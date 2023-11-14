@@ -168,7 +168,7 @@ void BackgroundBox::prepare() {
 
 	Ui::AddSkip(container);
 
-	const auto button = container->add(Settings::CreateButton(
+	const auto button = container->add(object_ptr<Ui::SettingsButton>(
 		container,
 		tr::lng_settings_bg_from_file(),
 		st::infoProfileButton));

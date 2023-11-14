@@ -134,23 +134,23 @@ void AddPremiumPrivacyButton(
 	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 	const auto session = &controller->session();
 	const auto &st = st::settingsButtonNoIcon;
-	const auto button = AddButton(
+	const auto button = container->add(object_ptr<Button>(
 		container,
 		rpl::duplicate(label),
-		st);
+		st));
 	struct State {
 		State(QWidget *parent) : widget(parent) {
 			widget.setAttribute(Qt::WA_TransparentForMouseEvents);
 		}
 		Ui::RpWidget widget;
 	};
-	const auto state = button->lifetime().make_state<State>(button.get());
+	const auto state = button->lifetime().make_state<State>(button);
 	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
 	const auto toast = std::make_shared<WeakToast>();
 
 	{
 		const auto rightLabel = Ui::CreateChild<Ui::FlatLabel>(
-			button.get(),
+			button,
 			st.rightLabel);
 
 		state->widget.resize(st::settingsPremiumLock.size());
@@ -437,11 +437,11 @@ void SetupSensitiveContent(
 	) | rpl::start_with_next([=] {
 		session->api().sensitiveContent().reload();
 	}, container->lifetime());
-	AddButton(
+	inner->add(object_ptr<Button>(
 		inner,
 		tr::lng_settings_sensitive_disable_filtering(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
+	))->toggleOn(
 		session->api().sensitiveContent().enabled()
 	)->toggledChanges(
 	) | rpl::filter([=](bool toggled) {
@@ -556,11 +556,11 @@ void SetupBotsAndWebsites(
 	Ui::AddSubsectionTitle(container, tr::lng_settings_security_bots());
 
 	const auto session = &controller->session();
-	AddButton(
+	container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_clear_payment_info(),
 		st::settingsButtonNoIcon
-	)->addClickHandler([=] {
+	))->addClickHandler([=] {
 		controller->show(ClearPaymentInfoBox(session));
 	});
 
@@ -856,11 +856,11 @@ void SetupArchiveAndMute(
 
 	const auto privacy = &session->api().globalPrivacy();
 	privacy->reload();
-	AddButton(
+	inner->add(object_ptr<Button>(
 		inner,
 		tr::lng_settings_auto_archive(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
+	))->toggleOn(
 		privacy->archiveAndMute()
 	)->toggledChanges(
 	) | rpl::filter([=](bool toggled) {

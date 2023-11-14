@@ -1683,7 +1683,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			}
 			return;
 		}
-		auto addMember = Settings::CreateButton(
+		auto addMember = Settings::CreateButtonWithIcon(
 			_layout.get(),
 			tr::lng_group_call_invite(),
 			st::groupCallAddMember,

@@ -516,7 +516,7 @@ not_null<Ui::SettingsButton*> AddToggledButton(
 	const auto toggled = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
-			CreateButton(
+			CreateButtonWithIcon(
 				container,
 				std::move(text),
 				st,
@@ -664,7 +664,7 @@ void EditFilterBox(
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_filters_include());
 
-	const auto includeAdd = AddButton(
+	const auto includeAdd = AddButtonWithIcon(
 		content,
 		tr::lng_filters_add_chats(),
 		st::settingsButtonActive,
@@ -691,7 +691,7 @@ void EditFilterBox(
 
 	Ui::AddSubsectionTitle(excludeInner, tr::lng_filters_exclude());
 
-	const auto excludeAdd = AddButton(
+	const auto excludeAdd = AddButtonWithIcon(
 		excludeInner,
 		tr::lng_filters_remove_chats(),
 		st::settingsButtonActive,

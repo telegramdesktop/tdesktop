@@ -440,7 +440,7 @@ void LocalPasscodeManage::setupContent() {
 
 	Ui::AddSkip(content);
 
-	AddButton(
+	AddButtonWithIcon(
 		content,
 		tr::lng_passcode_change(),
 		st::settingsButton,

@@ -77,7 +77,7 @@ QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 
 	Ui::AddSkip(content);
 
-	AddButton(
+	AddButtonWithIcon(
 		content,
 		tr::lng_blocked_list_add(),
 		st::settingsButtonActive,

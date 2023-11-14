@@ -940,7 +940,7 @@ void SessionsContent::Inner::setupContent() {
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto terminateInner = terminateWrap->entity();
 	_terminateAll = terminateInner->add(
-		CreateButton(
+		CreateButtonWithIcon(
 			terminateInner,
 			tr::lng_sessions_terminate_all(),
 			st::infoBlockButton,

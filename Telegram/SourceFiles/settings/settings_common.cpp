@@ -132,7 +132,7 @@ void AddButtonIcon(
 	}, icon->widget.lifetime());
 }
 
-object_ptr<Button> CreateButton(
+object_ptr<Button> CreateButtonWithIcon(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> text,
 		const style::SettingsButton &st,
@@ -145,13 +145,13 @@ object_ptr<Button> CreateButton(
 	return result;
 }
 
-not_null<Button*> AddButton(
+not_null<Button*> AddButtonWithIcon(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text,
 		const style::SettingsButton &st,
 		IconDescriptor &&descriptor) {
 	return container->add(
-		CreateButton(container, std::move(text), st, std::move(descriptor)));
+		CreateButtonWithIcon(container, std::move(text), st, std::move(descriptor)));
 }
 
 void CreateRightLabel(
@@ -189,7 +189,7 @@ not_null<Button*> AddButtonWithLabel(
 		rpl::producer<QString> label,
 		const style::SettingsButton &st,
 		IconDescriptor &&descriptor) {
-	const auto button = AddButton(
+	const auto button = AddButtonWithIcon(
 		container,
 		rpl::duplicate(text),
 		st,

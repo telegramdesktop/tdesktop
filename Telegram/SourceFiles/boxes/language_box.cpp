@@ -1178,12 +1178,12 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 	if (!_controller) {
 		return;
 	}
-	const auto translateEnabled = Settings::AddButton(
-		container,
-		tr::lng_translate_settings_show(),
-		st::settingsButtonNoIcon
-	)->toggleOn(
-		rpl::single(Core::App().settings().translateButtonEnabled()));
+	const auto translateEnabled = container->add(
+		object_ptr<Ui::SettingsButton>(
+			container,
+			tr::lng_translate_settings_show(),
+			st::settingsButtonNoIcon))->toggleOn(
+				rpl::single(Core::App().settings().translateButtonEnabled()));
 
 	translateEnabled->toggledValue(
 	) | rpl::filter([](bool checked) {
@@ -1195,11 +1195,11 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 
 	using namespace rpl::mappers;
 	auto premium = Data::AmPremiumValue(&_controller->session());
-	const auto translateChat = Settings::AddButton(
+	const auto translateChat = container->add(object_ptr<Ui::SettingsButton>(
 		container,
 		tr::lng_translate_settings_chat(),
 		st::settingsButtonNoIconLocked
-	)->toggleOn(rpl::merge(
+	))->toggleOn(rpl::merge(
 		rpl::combine(
 			Core::App().settings().translateChatEnabledValue(),
 			rpl::duplicate(premium),

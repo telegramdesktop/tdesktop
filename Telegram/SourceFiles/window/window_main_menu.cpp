@@ -688,7 +688,7 @@ void MainMenu::setupArchive() {
 	const auto inner = wrap->entity();
 	wrap->toggle(checkArchive(), anim::type::instant);
 
-	const auto button = AddButton(
+	const auto button = AddButtonWithIcon(
 		inner,
 		tr::lng_archived_name(),
 		st::mainMenuButton,
@@ -841,7 +841,7 @@ void MainMenu::setupMenu() {
 	const auto addAction = [&](
 			rpl::producer<QString> text,
 			IconDescriptor &&descriptor) {
-		return AddButton(
+		return AddButtonWithIcon(
 			_menu,
 			std::move(text),
 			st::mainMenuButton,
@@ -864,7 +864,7 @@ void MainMenu::setupMenu() {
 		const auto wrap = _menu->add(
 			object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 				_menu,
-				CreateButton(
+				CreateButtonWithIcon(
 					_menu,
 					tr::lng_menu_my_stories(),
 					st::mainMenuButton,

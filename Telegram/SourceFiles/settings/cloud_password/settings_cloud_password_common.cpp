@@ -66,11 +66,11 @@ BottomButton CreateBottomDisableButton(
 
 	Ui::AddSkip(content);
 
-	AddButton(
+	content->add(object_ptr<Button>(
 		content,
 		std::move(buttonText),
 		st::settingsAttentionButton
-	)->addClickHandler(std::move(callback));
+	))->addClickHandler(std::move(callback));
 
 	const auto divider = Ui::CreateChild<OneEdgeBoxContentDivider>(
 		parent.get());

@@ -129,7 +129,7 @@ void Manage::setupContent() {
 		u"cloud_password/intro"_q);
 
 	Ui::AddSkip(content);
-	AddButton(
+	AddButtonWithIcon(
 		content,
 		tr::lng_settings_cloud_password_manage_password_change(),
 		st::settingsButton,
@@ -137,7 +137,7 @@ void Manage::setupContent() {
 	)->setClickedCallback([=] {
 		showOtherAndRememberPassword(CloudPasswordInputId());
 	});
-	AddButton(
+	AddButtonWithIcon(
 		content,
 		state->hasRecovery
 			? tr::lng_settings_cloud_password_manage_email_change()

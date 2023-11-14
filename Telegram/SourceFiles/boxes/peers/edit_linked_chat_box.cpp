@@ -269,7 +269,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 			Assert(channel->isBroadcast());
 
 			Ui::AddSkip(above);
-			Settings::AddButton(
+			Settings::AddButtonWithIcon(
 				above,
 				tr::lng_manage_discussion_group_create(),
 				st::infoCreateLinkedChatButton,
@@ -287,7 +287,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 
 		auto below = object_ptr<Ui::VerticalLayout>(box);
 		if (chat && canEdit) {
-			Settings::AddButton(
+			Settings::AddButtonWithIcon(
 				below,
 				(channel->isBroadcast()
 					? tr::lng_manage_discussion_group_unlink

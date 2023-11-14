@@ -540,7 +540,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		j->button->updateCount(j->filter);
 	}, container->lifetime());
 
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_filters_create(),
 		st::settingsButtonActive,

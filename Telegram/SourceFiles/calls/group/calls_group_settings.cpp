@@ -280,10 +280,10 @@ void SettingsBox(
 		Ui::AddSkip(layout);
 	}
 	const auto muteJoined = addCheck
-		? AddButton(
+		? layout->add(object_ptr<Ui::SettingsButton>(
 			layout,
 			tr::lng_group_call_new_muted(),
-			st::groupCallSettingsButton)->toggleOn(rpl::single(joinMuted))
+			st::groupCallSettingsButton))->toggleOn(rpl::single(joinMuted))
 		: nullptr;
 	if (addCheck) {
 		Ui::AddSkip(layout);
@@ -347,11 +347,11 @@ void SettingsBox(
 		//Ui::AddDivider(layout);
 		//Ui::AddSkip(layout);
 
-		AddButton(
+		layout->add(object_ptr<Ui::SettingsButton>(
 			layout,
 			tr::lng_group_call_noise_suppression(),
 			st::groupCallSettingsButton
-		)->toggleOn(rpl::single(
+		))->toggleOn(rpl::single(
 			settings.groupCallNoiseSuppression()
 		))->toggledChanges(
 		) | rpl::start_with_next([=](bool enabled) {
@@ -390,11 +390,12 @@ void SettingsBox(
 			tryFillFromManager();
 
 			state->delay = settings.groupCallPushToTalkDelay();
-			const auto pushToTalk = AddButton(
-				layout,
-				tr::lng_group_call_push_to_talk(),
-				st::groupCallSettingsButton
-			)->toggleOn(rpl::single(
+			const auto pushToTalk = layout->add(
+				object_ptr<Ui::SettingsButton>(
+					layout,
+					tr::lng_group_call_push_to_talk(),
+					st::groupCallSettingsButton
+			))->toggleOn(rpl::single(
 				settings.groupCallPushToTalk()
 			) | rpl::then(state->pushToTalkToggles.events()));
 			const auto pushToTalkWrap = layout->add(
@@ -402,10 +403,11 @@ void SettingsBox(
 					layout,
 					object_ptr<Ui::VerticalLayout>(layout)));
 			const auto pushToTalkInner = pushToTalkWrap->entity();
-			const auto recording = AddButton(
-				pushToTalkInner,
-				state->recordText.value(),
-				st::groupCallSettingsButton);
+			const auto recording = pushToTalkInner->add(
+				object_ptr<Ui::SettingsButton>(
+					pushToTalkInner,
+					state->recordText.value(),
+					st::groupCallSettingsButton));
 			CreateRightLabel(
 				recording,
 				state->shortcutText.value(),
@@ -645,11 +647,11 @@ void SettingsBox(
 		}
 	}
 	if (shareLink) {
-		AddButton(
+		layout->add(object_ptr<Ui::SettingsButton>(
 			layout,
 			tr::lng_group_call_share(),
 			st::groupCallSettingsButton
-		)->addClickHandler(std::move(shareLink));
+		))->addClickHandler(std::move(shareLink));
 	}
 	if (rtmp && !call->rtmpInfo().url.isEmpty()) {
 		Ui::AddSkip(layout);
@@ -741,13 +743,13 @@ void SettingsBox(
 	}
 
 	if (peer->canManageGroupCall()) {
-		AddButton(
+		layout->add(object_ptr<Ui::SettingsButton>(
 			layout,
 			(peer->isBroadcast()
 				? tr::lng_group_call_end_channel()
 				: tr::lng_group_call_end()),
 			st::groupCallSettingsAttentionButton
-		)->addClickHandler([=] {
+		))->addClickHandler([=] {
 			if (const auto call = weakCall.get()) {
 				box->getDelegate()->show(Box(
 					LeaveBox,

@@ -261,7 +261,7 @@ void Cover::refreshUsernameGeometry(int newWidth) {
 void SetupPowerSavingButton(
 		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container) {
-	const auto button = AddButton(
+	const auto button = AddButtonWithIcon(
 		container,
 		tr::lng_settings_power_menu(),
 		st::settingsButton,
@@ -306,7 +306,7 @@ void SetupSections(
 			rpl::producer<QString> label,
 			Type type,
 			IconDescriptor &&descriptor) {
-		AddButton(
+		AddButtonWithIcon(
 			container,
 			std::move(label),
 			st::settingsButton,
@@ -347,7 +347,7 @@ void SetupSections(
 	const auto slided = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
-			CreateButton(
+			CreateButtonWithIcon(
 				container,
 				tr::lng_settings_section_filters(),
 				st::settingsButton,
@@ -408,7 +408,7 @@ void SetupPremium(
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_premium_summary_title(),
 		st::settingsButton,
@@ -436,7 +436,7 @@ void SetupInterfaceScale(
 		container.get());
 
 	const auto switched = (cConfigScale() == style::kScaleAuto);
-	const auto button = AddButton(
+	const auto button = AddButtonWithIcon(
 		container,
 		tr::lng_settings_default_scale(),
 		icon ? st::settingsButton : st::settingsButtonNoIcon,
@@ -580,7 +580,7 @@ void OpenFaq() {
 }
 
 void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_settings_faq(),
 		icon ? st::settingsButton : st::settingsButtonNoIcon,
@@ -596,7 +596,7 @@ void SetupHelp(
 
 	SetupFaq(container);
 
-	AddButton(
+	AddButtonWithIcon(
 		container,
 		tr::lng_settings_features(),
 		st::settingsButton,
@@ -605,7 +605,7 @@ void SetupHelp(
 		UrlClickHandler::Open(tr::lng_telegram_features_url(tr::now));
 	});
 
-	const auto button = AddButton(
+	const auto button = AddButtonWithIcon(
 		container,
 		tr::lng_settings_ask_question(),
 		st::settingsButton,

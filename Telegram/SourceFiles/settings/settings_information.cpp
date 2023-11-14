@@ -776,7 +776,7 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 	const auto result = _outer->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			_outer.get(),
-			CreateButton(
+			CreateButtonWithIcon(
 				_outer.get(),
 				tr::lng_menu_add_account(),
 				st::mainMenuAddAccountButton,

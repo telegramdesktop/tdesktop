@@ -67,11 +67,11 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 		Ui::AddSkip(container);
 		Ui::AddDivider(container);
 		Ui::AddSkip(container);
-		automatic = AddButton(
+		automatic = container->add(object_ptr<Ui::SettingsButton>(
 			container,
 			tr::lng_settings_power_auto(),
 			st::powerSavingButtonNoIcon
-		)->toggleOn(rpl::single(!ignore));
+		))->toggleOn(rpl::single(!ignore));
 		Ui::AddSkip(container);
 		Ui::AddDividerText(container, tr::lng_settings_power_auto_about());
 

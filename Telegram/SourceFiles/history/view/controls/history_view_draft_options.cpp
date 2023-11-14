@@ -662,7 +662,7 @@ void DraftOptionsBox(
 
 		const auto item = state->quote.current().item;
 		if (item->allowsForward()) {
-			Settings::AddButton(
+			Settings::AddButtonWithIcon(
 				bottom,
 				tr::lng_reply_in_another_chat(),
 				st::settingsButton,
@@ -673,7 +673,7 @@ void DraftOptionsBox(
 		}
 
 		const auto weak = Ui::MakeWeak(box);
-		Settings::AddButton(
+		Settings::AddButtonWithIcon(
 			bottom,
 			tr::lng_reply_show_in_chat(),
 			st::settingsButton,
@@ -685,7 +685,7 @@ void DraftOptionsBox(
 			}
 		});
 
-		Settings::AddButton(
+		Settings::AddButtonWithIcon(
 			bottom,
 			tr::lng_reply_remove(),
 			st::settingsAttentionButtonWithIcon,
@@ -703,7 +703,7 @@ void DraftOptionsBox(
 		AddFilledSkip(bottom);
 
 		if (!draft.textWithTags.empty()) {
-			Settings::AddButton(
+			Settings::AddButtonWithIcon(
 				bottom,
 				(state->webpage.invert
 					? tr::lng_link_move_down()
@@ -723,7 +723,7 @@ void DraftOptionsBox(
 			const auto small = state->webpage.forceSmallMedia
 				|| (!state->webpage.forceLargeMedia
 					&& state->preview->computeDefaultSmallMedia());
-			Settings::AddButton(
+			Settings::AddButtonWithIcon(
 				bottom,
 				(small
 					? tr::lng_link_enlarge_photo()
@@ -743,7 +743,7 @@ void DraftOptionsBox(
 			});
 		}
 
-		Settings::AddButton(
+		Settings::AddButtonWithIcon(
 			bottom,
 			tr::lng_link_remove(),
 			st::settingsAttentionButtonWithIcon,

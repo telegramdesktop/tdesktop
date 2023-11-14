@@ -662,11 +662,10 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	const auto st = parent->lifetime().make_state<style::SettingsButton>(
 		basicSt);
 	st->padding.setRight(rightPadding);
-	auto result = CreateButton(
+	auto result = object_ptr<Ui::SettingsButton>(
 		parent,
 		tr::lng_settings_color_emoji(),
-		*st,
-		{});
+		*st);
 	const auto raw = result.data();
 
 	const auto right = Ui::CreateChild<Ui::RpWidget>(raw);
@@ -854,7 +853,7 @@ void AddPeerColorButton(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer) {
-	const auto button = AddButton(
+	const auto button = AddButtonWithIcon(
 		container,
 		(peer->isSelf()
 			? tr::lng_settings_theme_name_color()

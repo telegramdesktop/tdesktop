@@ -269,7 +269,7 @@ void RingtonesBox(
 	rebuild();
 
 	const auto upload = box->addRow(
-		Settings::CreateButton(
+		Settings::CreateButtonWithIcon(
 			container,
 			tr::lng_ringtones_box_upload_button(),
 			st::ringtonesBoxButton,

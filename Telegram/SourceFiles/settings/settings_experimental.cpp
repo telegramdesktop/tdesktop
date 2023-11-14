@@ -51,13 +51,13 @@ void AddOption(
 		option.defaultValue()
 	) | rpl::start_to_stream(*toggles, lifetime);
 
-	const auto button = AddButton(
+	const auto button = container->add(object_ptr<Button>(
 		container,
 		rpl::single(name),
 		(option.relevant()
 			? st::settingsButtonNoIcon
 			: st::settingsOptionDisabled)
-	)->toggleOn(toggles->events_starting_with(option.value()));
+	))->toggleOn(toggles->events_starting_with(option.value()));
 
 	const auto restarter = (option.relevant() && option.restartRequired())
 		? button->lifetime().make_state<base::Timer>()
@@ -115,10 +115,10 @@ void SetupExperimental(
 		const auto inner = wrap->entity();
 		Ui::AddDivider(inner);
 		Ui::AddSkip(inner, st::settingsCheckboxesSkip);
-		reset = AddButton(
+		reset = inner->add(object_ptr<Button>(
 			inner,
 			tr::lng_settings_experimental_restore(),
-			st::settingsButtonNoIcon);
+			st::settingsButtonNoIcon));
 		reset->addClickHandler([=] {
 			base::options::reset();
 			wrap->hide(anim::type::normal);

@@ -295,7 +295,7 @@ void EditPrivacyBox::setupContent() {
 		const auto button = content->add(
 			object_ptr<Ui::SlideWrap<Button>>(
 				content,
-				CreateButton(
+				object_ptr<Button>(
 					content,
 					rpl::duplicate(text),
 					st::settingsButtonNoIcon)));

@@ -536,7 +536,7 @@ void CreateGiveawayBox(
 			})));
 
 		using IconType = Settings::IconType;
-		Settings::AddButton(
+		Settings::AddButtonWithIcon(
 			channelsContainer,
 			tr::lng_giveaway_channels_add(),
 			st::giveawayGiftCodeChannelsAddButton,

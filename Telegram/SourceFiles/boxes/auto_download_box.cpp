@@ -109,11 +109,11 @@ void AutoDownloadBox::setupContent() {
 			Type type,
 			rpl::producer<QString> label) {
 		const auto value = settings->bytesLimit(_source, type);
-		AddButton(
+		content->add(object_ptr<Ui::SettingsButton>(
 			content,
 			std::move(label),
 			st::settingsButtonNoIcon
-		)->toggleOn(
+		))->toggleOn(
 			rpl::single(value > 0)
 		)->toggledChanges(
 		) | rpl::start_with_next([=](bool enabled) {

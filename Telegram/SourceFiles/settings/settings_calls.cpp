@@ -292,11 +292,11 @@ void Calls::setupContent() {
 	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_other());
 
 	const auto api = &_controller->session().api();
-	AddButton(
+	content->add(object_ptr<Ui::SettingsButton>(
 		content,
 		tr::lng_settings_call_accept_calls(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
+	))->toggleOn(
 		api->authorizations().callsDisabledHereValue(
 		) | rpl::map(!rpl::mappers::_1)
 	)->toggledChanges(
@@ -306,11 +306,11 @@ void Calls::setupContent() {
 		api->authorizations().toggleCallsDisabledHere(!value);
 	}, content->lifetime());
 
-	AddButton(
+	content->add(object_ptr<Ui::SettingsButton>(
 		content,
 		tr::lng_settings_call_open_system_prefs(),
 		st::settingsButtonNoIcon
-	)->addClickHandler([=] {
+	))->addClickHandler([=] {
 		const auto opened = Platform::OpenSystemSettings(
 			Platform::SystemSettingsType::Audio);
 		if (!opened) {
