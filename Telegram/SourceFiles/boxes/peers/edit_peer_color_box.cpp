@@ -527,7 +527,7 @@ void Apply(
 			show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
 				.link = qs(data.vboost_url()),
 				.boost = counters,
-				.requiredLevel = required,
+				.reason = { Ui::AskBoostChannelColor{ required } },
 			}, openStatistics, nullptr));
 			cancel();
 		}).fail([=](const MTP::Error &error) {

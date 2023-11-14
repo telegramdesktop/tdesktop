@@ -109,6 +109,87 @@ bool StripEmoji::readyInDefaultState() {
 
 } // namespace
 
+UnifiedFactoryOwner::UnifiedFactoryOwner(
+	not_null<Main::Session*> session,
+	const std::vector<Data::Reaction> &reactions,
+	Strip *strip)
+: _session(session)
+, _strip(strip) {
+	auto index = 0;
+	const auto inStrip = _strip ? _strip->count() : 0;
+	_unifiedIdsList.reserve(reactions.size());
+	for (const auto &reaction : reactions) {
+		if (const auto id = reaction.id.custom()) {
+			_unifiedIdsList.push_back(id);
+		} else {
+			_unifiedIdsList.push_back(reaction.selectAnimation->id);
+		}
+
+		const auto unifiedId = _unifiedIdsList.back();
+		if (!reaction.id.custom()) {
+			_defaultReactionIds.emplace(unifiedId, reaction.id.emoji());
+		}
+		if (index + 1 < inStrip) {
+			_defaultReactionInStripMap.emplace(unifiedId, index++);
+		}
+	}
+
+	_stripPaintOneShift = [&] {
+		// See EmojiListWidget custom emoji position resolving.
+		const auto size = st::reactStripSize;
+		const auto area = st::emojiPanArea;
+		const auto areaPosition = QPoint(
+			(size - area.width()) / 2,
+			(size - area.height()) / 2);
+		const auto esize = Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio();
+		const auto innerPosition = QPoint(
+			(area.width() - esize) / 2,
+			(area.height() - esize) / 2);
+		const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
+		const auto customSkip = (esize - customSize) / 2;
+		const auto customPosition = QPoint(customSkip, customSkip);
+		return areaPosition + innerPosition + customPosition;
+	}();
+
+	_defaultReactionShift = QPoint(
+		(st::reactStripSize - st::reactStripImage) / 2,
+		(st::reactStripSize - st::reactStripImage) / 2
+	) - _stripPaintOneShift;
+}
+
+Data::ReactionId UnifiedFactoryOwner::lookupReactionId(
+		DocumentId unifiedId) const {
+	const auto i = _defaultReactionIds.find(unifiedId);
+	return (i != end(_defaultReactionIds))
+		? Data::ReactionId{ i->second }
+		: Data::ReactionId{ unifiedId };
+}
+
+UnifiedFactoryOwner::RecentFactory UnifiedFactoryOwner::factory() {
+	return [=](DocumentId id, Fn<void()> repaint)
+	-> std::unique_ptr<Ui::Text::CustomEmoji> {
+		const auto tag = Data::CustomEmojiManager::SizeTag::Large;
+		const auto sizeOverride = st::reactStripImage;
+		const auto isDefaultReaction = _defaultReactionIds.contains(id);
+		const auto manager = &_session->data().customEmojiManager();
+		auto result = isDefaultReaction
+			? std::make_unique<Ui::Text::ShiftedEmoji>(
+				manager->create(id, std::move(repaint), tag, sizeOverride),
+				_defaultReactionShift)
+			: manager->create(id, std::move(repaint), tag);
+		const auto i = _defaultReactionInStripMap.find(id);
+		if (i != end(_defaultReactionInStripMap)) {
+			Assert(_strip != nullptr);
+			return std::make_unique<StripEmoji>(
+				std::move(result),
+				_strip,
+				-_stripPaintOneShift,
+				i->second);
+		}
+		return result;
+	};
+}
+
 Selector::Selector(
 	not_null<QWidget*> parent,
 	const style::EmojiPan &st,
@@ -749,65 +830,10 @@ void Selector::cacheExpandIcon() {
 
 void Selector::createList() {
 	using namespace ChatHelpers;
-	auto recent = _recent;
-	auto defaultReactionIds = base::flat_map<DocumentId, QString>();
-	if (_strip) {
-		recent.reserve(recentCount());
-		auto index = 0;
-		const auto inStrip = _strip->count();
-		for (const auto &reaction : _reactions.recent) {
-			if (const auto id = reaction.id.custom()) {
-				recent.push_back(id);
-			} else {
-				recent.push_back(reaction.selectAnimation->id);
-				defaultReactionIds.emplace(recent.back(), reaction.id.emoji());
-			}
-			if (index + 1 < inStrip) {
-				_defaultReactionInStripMap.emplace(recent.back(), index++);
-			}
-		};
-	}
-	const auto manager = &_show->session().data().customEmojiManager();
-	_stripPaintOneShift = [&] {
-		// See EmojiListWidget custom emoji position resolving.
-		const auto area = st::emojiPanArea;
-		const auto areaPosition = QPoint(
-			(_size - area.width()) / 2,
-			(_size - area.height()) / 2);
-		const auto esize = Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio();
-		const auto innerPosition = QPoint(
-			(area.width() - esize) / 2,
-			(area.height() - esize) / 2);
-		const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
-		const auto customSkip = (esize - customSize) / 2;
-		const auto customPosition = QPoint(customSkip, customSkip);
-		return areaPosition + innerPosition + customPosition;
-	}();
-	_defaultReactionShift = QPoint(
-		(_size - st::reactStripImage) / 2,
-		(_size - st::reactStripImage) / 2
-	) - _stripPaintOneShift;
-	auto factory = [=](DocumentId id, Fn<void()> repaint)
-	-> std::unique_ptr<Ui::Text::CustomEmoji> {
-		const auto tag = Data::CustomEmojiManager::SizeTag::Large;
-		const auto sizeOverride = st::reactStripImage;
-		const auto isDefaultReaction = defaultReactionIds.contains(id);
-		auto result = isDefaultReaction
-			? std::make_unique<Ui::Text::ShiftedEmoji>(
-				manager->create(id, std::move(repaint), tag, sizeOverride),
-				_defaultReactionShift)
-			: manager->create(id, std::move(repaint), tag);
-		const auto i = _defaultReactionInStripMap.find(id);
-		if (i != end(_defaultReactionInStripMap)) {
-			Assert(_strip != nullptr);
-			return std::make_unique<StripEmoji>(
-				std::move(result),
-				_strip.get(),
-				-_stripPaintOneShift,
-				i->second);
-		}
-		return result;
-	};
+	_unifiedFactoryOwner = std::make_unique<UnifiedFactoryOwner>(
+		&_show->session(),
+		_strip ? _reactions.recent : std::vector<Data::Reaction>(),
+		_strip.get());
 	_scroll = Ui::CreateChild<Ui::ScrollArea>(this, st::reactPanelScroll);
 	_scroll->hide();
 
@@ -821,8 +847,10 @@ void Selector::createList() {
 			.show = _show,
 			.mode = _listMode,
 			.paused = [] { return false; },
-			.customRecentList = std::move(recent),
-			.customRecentFactory = std::move(factory),
+			.customRecentList = (_strip
+				? _unifiedFactoryOwner->unifiedIdsList()
+				: _recent),
+			.customRecentFactory = _unifiedFactoryOwner->factory(),
 			.st = st,
 		})
 	).data();
@@ -831,13 +859,8 @@ void Selector::createList() {
 
 	_list->customChosen(
 	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
-		const auto id = DocumentId{ data.document->id };
-		const auto i = defaultReactionIds.find(id);
-		const auto reactionId = (i != end(defaultReactionIds))
-			? Data::ReactionId{ i->second }
-			: Data::ReactionId{ id };
 		_chosen.fire({
-			.id = reactionId,
+			.id = _unifiedFactoryOwner->lookupReactionId(data.document->id),
 			.icon = data.messageSendingFrom.frame,
 			.globalGeometry = data.messageSendingFrom.globalStartGeometry,
 		});

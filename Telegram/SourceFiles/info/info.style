@@ -601,10 +601,19 @@ manageDeleteGroupButton: SettingsCountButton(manageGroupNoIconButton) {
 	}
 }
 
+manageGroupReactions: IconButton(defaultIconButton) {
+	width: 24px;
+	height: 36px;
+	icon: icon{{ "info/edit/stickers_add", historyComposeIconFg }};
+	iconOver: icon{{ "info/edit/stickers_add", historyComposeIconFgOver }};
+}
 manageGroupReactionsField: InputField(defaultInputField) {
-	textMargins: margins(1px, 26px, 31px, 4px);
+	textMargins: margins(1px, 38px, 24px, 8px);
+	placeholderShift: -32px;
+	heightMin: 66px;
 	heightMax: 158px;
 }
+manageGroupReactionsTextSkip: 16px;
 
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info/info_media_photo_empty", infoEmptyFg }};
