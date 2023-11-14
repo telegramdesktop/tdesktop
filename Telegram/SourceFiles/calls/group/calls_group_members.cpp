@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h" // Core::App().domain, .activeWindow.
 #include "main/main_domain.h" // Core::App().domain().activate.
 #include "main/main_session.h"
+#include "lang/lang_keys.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration.
 #include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfo...

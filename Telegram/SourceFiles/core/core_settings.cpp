@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/media_common.h"
 #include "ui/gl/gl_detection.h"
+#include "lang/lang_keys.h"
 #include "calls/group/calls_group_common.h"
 #include "spellcheck/spellcheck_types.h"
 

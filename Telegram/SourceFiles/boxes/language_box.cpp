@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "storage/localstorage.h"
+#include "boxes/abstract_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/translate_box.h"
 #include "ui/boxes/confirm_box.h"

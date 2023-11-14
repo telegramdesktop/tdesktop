@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "platform/platform_specific.h"
+#include "lang/lang_keys.h"
 
 #include <QtWidgets/QApplication>
 

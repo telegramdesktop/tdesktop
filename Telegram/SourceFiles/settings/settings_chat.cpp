@@ -1342,11 +1342,12 @@ void SetupDefaultThemes(
 			block,
 			group,
 			scheme.type,
-			scheme.name(tr::now),
+			QString(),
 			st::settingsTheme,
 			std::move(check));
-		scheme.name(
-		) | rpl::start_with_next([=](const auto &themeName) {
+		rpl::duplicate(
+			scheme.name
+		) | rpl::start_with_next([=](const QString &themeName) {
 			result->setText(themeName);
 		}, result->lifetime());
 		result->addClickHandler([=] {

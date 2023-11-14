@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "lang/lang_cloud_manager.h"
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 #include "base/binary_guard.h"
 
 struct LanguageId;
@@ -37,8 +36,6 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
-	using Languages = Lang::CloudManager::Languages;
-
 	void setupTop(not_null<Ui::VerticalLayout*> container);
 	[[nodiscard]] int rowsInPage() const;
 

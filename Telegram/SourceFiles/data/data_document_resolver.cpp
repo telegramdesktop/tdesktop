@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "media/player/media_player_instance.h"
+#include "lang/lang_keys.h"
 #include "platform/platform_file_utilities.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/text/text_utilities.h"
