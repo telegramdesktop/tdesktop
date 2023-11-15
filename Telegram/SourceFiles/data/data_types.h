@@ -320,6 +320,7 @@ enum class MediaWebPageFlag : uint8 {
 	ForceSmallMedia = (1 << 1),
 	Manual = (1 << 2),
 	Safe = (1 << 3),
+	Sponsored = (1 << 4),
 };
 inline constexpr bool is_flag_type(MediaWebPageFlag) { return true; }
 using MediaWebPageFlags = base::flags<MediaWebPageFlag>;

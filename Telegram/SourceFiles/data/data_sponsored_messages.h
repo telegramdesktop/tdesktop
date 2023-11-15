@@ -32,7 +32,7 @@ struct SponsoredFrom {
 	bool isExactPost = false;
 	bool isRecommended = false;
 	QString externalLink;
-	ImageWithLocation userpic;
+	PhotoId externalLinkPhotoId;
 	bool isForceUserpicDisplay = false;
 };
 
@@ -61,6 +61,8 @@ public:
 		MsgId msgId;
 		std::vector<TextWithEntities> info;
 		QString externalLink;
+		bool isForceUserpicDisplay = false;
+		QString buttonText;
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);

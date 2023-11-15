@@ -1823,8 +1823,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forwarded_hidden" = "The account was hidden by the user.";
 "lng_forwarded_imported" = "This message was imported from another app. It may not be real.";
 "lng_signed_author" = "Author: {user}";
-"lng_sponsored" = "sponsored";
-"lng_recommended" = "recommended";
+"lng_sponsored_message_title" = "Sponsored";
+"lng_recommended_message_title" = "Recommended";
 "lng_edited" = "edited";
 "lng_edited_date" = "Edited: {date}";
 "lng_sent_date" = "Sent: {date}";

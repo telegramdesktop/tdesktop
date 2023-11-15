@@ -1996,14 +1996,6 @@ bool Message::hasFromPhoto() const {
 	case Context::Replies: {
 		const auto item = data();
 		if (item->isPost()) {
-			if (item->isSponsored()) {
-				if (item->history()->peer->isMegagroup()) {
-					return true;
-				}
-				if (const auto info = item->Get<HistoryMessageSponsored>()) {
-					return info->isForceUserpicDisplay;
-				}
-			}
 			return false;
 		}
 		if (item->isEmpty()
@@ -3098,10 +3090,8 @@ int Message::viewButtonHeight() const {
 
 void Message::updateViewButtonExistence() {
 	const auto item = data();
-	const auto sponsored = item->Get<HistoryMessageSponsored>();
-	const auto media = sponsored ? nullptr : item->media();
-	const auto has = sponsored
-		|| (media && ViewButton::MediaHasViewButton(media));
+	const auto media = item->media();
+	const auto has = (media && ViewButton::MediaHasViewButton(media));
 	if (!has) {
 		_viewButton = nullptr;
 		return;
@@ -3114,7 +3104,7 @@ void Message::updateViewButtonExistence() {
 			colorIndex(),
 			[=] { repaint(); });
 	};
-	_viewButton = sponsored ? make(sponsored) : make(media);
+	_viewButton = make(media);
 }
 
 void Message::initLogEntryOriginal() {
@@ -3200,7 +3190,7 @@ bool Message::hasFromName() const {
 }
 
 bool Message::displayFromName() const {
-	if (!hasFromName() || isAttachedToPrevious()) {
+	if (!hasFromName() || isAttachedToPrevious() || data()->isSponsored()) {
 		return false;
 	}
 	return !Has<PsaTooltipState>();

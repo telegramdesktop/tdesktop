@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "data/data_channel.h"
 #include "data/data_peer_id.h"
+#include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
@@ -275,39 +276,22 @@ void SponsoredMessages::append(
 			.isBot = (peer->isUser() && peer->asUser()->isBot()),
 			.isExactPost = exactPost,
 			.isRecommended = data.is_recommended(),
-			.userpic = { .location = peer->userpicLocation() },
 			.isForceUserpicDisplay = data.is_show_peer_photo(),
 		};
 	};
 	const auto externalLink = data.vwebpage()
 		? qs(data.vwebpage()->data().vurl())
 		: QString();
-	const auto userpicFromPhoto = [&](const MTPphoto &photo) {
-		return photo.match([&](const MTPDphoto &data) {
-			for (const auto &size : data.vsizes().v) {
-				const auto result = Images::FromPhotoSize(
-					_session,
-					data,
-					size);
-				if (result.location.valid()) {
-					return result;
-				}
-			}
-			return ImageWithLocation{};
-		}, [](const MTPDphotoEmpty &) {
-			return ImageWithLocation{};
-		});
-	};
 	const auto from = [&]() -> SponsoredFrom {
 		if (const auto webpage = data.vwebpage()) {
 			const auto &data = webpage->data();
-			auto userpic = data.vphoto()
-				? userpicFromPhoto(*data.vphoto())
-				: ImageWithLocation{};
+			const auto photoId = data.vphoto()
+				? _session->data().processPhoto(*data.vphoto())->id
+				: PhotoId(0);
 			return SponsoredFrom{
 				.title = qs(data.vsite_name()),
 				.externalLink = externalLink,
-				.userpic = std::move(userpic),
+				.externalLinkPhotoId = photoId,
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
 			};
 		} else if (const auto fromId = data.vfrom_id()) {
@@ -317,14 +301,12 @@ void SponsoredMessages::append(
 		}
 		Assert(data.vchat_invite());
 		return data.vchat_invite()->match([&](const MTPDchatInvite &data) {
-			auto userpic = userpicFromPhoto(data.vphoto());
 			return SponsoredFrom{
 				.title = qs(data.vtitle()),
 				.isBroadcast = data.is_broadcast(),
 				.isMegagroup = data.is_megagroup(),
 				.isChannel = data.is_channel(),
 				.isPublic = data.is_public(),
-				.userpic = std::move(userpic),
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
 			};
 		}, [&](const MTPDchatInviteAlready &data) {
@@ -437,7 +419,7 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 	const auto &hash = data.chatInviteHash;
 
 	using InfoList = std::vector<TextWithEntities>;
-	const auto info = (!data.sponsorInfo.text.isEmpty()
+	auto info = (!data.sponsorInfo.text.isEmpty()
 			&& !data.additionalInfo.text.isEmpty())
 		? InfoList{ data.sponsorInfo, data.additionalInfo }
 		: !data.sponsorInfo.text.isEmpty()
@@ -451,6 +433,12 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		.msgId = data.msgId,
 		.info = std::move(info),
 		.externalLink = data.externalLink,
+		.isForceUserpicDisplay = data.from.isForceUserpicDisplay,
+		.buttonText = !data.externalLink.isEmpty()
+			? tr::lng_view_button_external_link(tr::now)
+			: data.from.isBot
+			? tr::lng_view_button_bot(tr::now)
+			: QString(),
 	};
 }
 

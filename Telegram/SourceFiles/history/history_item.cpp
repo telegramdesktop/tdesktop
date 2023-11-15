@@ -695,13 +695,42 @@ HistoryItem::HistoryItem(
 			? injectedAfter->date()
 			: 0),
 		/*from.peer ? from.peer->id : */PeerId(0)) {
-	createComponentsHelper(
-		_flags,
-		FullReplyTo(),
-		UserId(0), // viaBotId
-		QString(), // postAuthor
-		HistoryMessageMarkupData());
-	setText(textWithEntities);
+	_flags |= MessageFlag::Sponsored;
+
+	const auto webPageType = from.isExactPost
+		? WebPageType::Message
+		: from.isBot
+		? WebPageType::Bot
+		: from.isBroadcast
+		? WebPageType::Channel
+		: (from.peer && from.peer->isUser())
+		? WebPageType::User
+		: WebPageType::Group;
+
+	const auto webpage = history->peer->owner().webpage(
+		history->peer->owner().nextLocalMessageId().bare,
+		webPageType,
+		from.externalLink,
+		from.externalLink,
+		from.isRecommended
+			? tr::lng_recommended_message_title(tr::now)
+			: tr::lng_sponsored_message_title(tr::now),
+		from.title,
+		textWithEntities,
+		from.externalLinkPhotoId
+			? history->owner().photo(from.externalLinkPhotoId)
+			: nullptr,
+		nullptr,
+		WebPageCollage(),
+		0,
+		QString(),
+		false,
+		0);
+	auto webpageMedia = std::make_unique<Data::MediaWebPage>(
+		this,
+		webpage,
+		MediaWebPageFlag::Sponsored);
+	_media = std::move(webpageMedia);
 	setSponsoredFrom(from);
 }
 
