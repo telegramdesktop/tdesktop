@@ -141,10 +141,10 @@ void ChatFilterLinkBox(
 			tr::lng_group_invite_label_header(),
 			data.title),
 		style::margins(
-			st::settingsSubsectionTitlePadding.left(),
-			st::settingsSectionSkip,
-			st::settingsSubsectionTitlePadding.right(),
-			st::settingsSectionSkip * 2));
+			st::defaultSubsectionTitlePadding.left(),
+			st::defaultVerticalListSkip,
+			st::defaultSubsectionTitlePadding.right(),
+			st::defaultVerticalListSkip * 2));
 	labelField->setMaxLength(kMaxLinkTitleLength);
 	AddDivider(container);
 
@@ -789,7 +789,7 @@ void LinkController::setupBelowWidget() {
 					? tr::lng_filters_link_chats_no_about()
 					: tr::lng_filters_link_chats_about()),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding));
+			st::defaultBoxDividerLabelPadding));
 }
 
 Main::Session &LinkController::session() const {

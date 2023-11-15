@@ -363,7 +363,7 @@ void ColorsPalette::updateInnerGeometry() {
 	const auto width = inner->width() - padding.left() - padding.right();
 	const auto skip = (width - size * _buttons.size())
 		/ float64(_buttons.size() - 1);
-	const auto y = st::settingsSectionSkip * 2;
+	const auto y = st::defaultVerticalListSkip * 2;
 	auto x = float64(padding.left());
 	for (const auto &button : _buttons) {
 		button->moveToLeft(int(base::SafeRound(x)), y);
@@ -1499,7 +1499,7 @@ void SetupCloudThemes(
 		showAll->widthValue()
 	) | rpl::start_with_next([=](int top, int outerWidth, int width) {
 		showAll->moveToRight(
-			st::settingsSubsectionTitlePadding.left(),
+			st::defaultSubsectionTitlePadding.left(),
 			top,
 			outerWidth);
 	}, showAll->lifetime());
@@ -1557,7 +1557,7 @@ void SetupCloudThemes(
 		return (Background()->themeObject().cloud.createdBy == userId);
 	}));
 
-	Ui::AddSkip(inner, 2 * st::settingsSectionSkip);
+	Ui::AddSkip(inner, 2 * st::defaultVerticalListSkip);
 
 	wrap->setDuration(0)->toggleOn(list->empty() | rpl::map(!_1));
 }

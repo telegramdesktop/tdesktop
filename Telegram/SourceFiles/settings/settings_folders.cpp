@@ -284,7 +284,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	}
 
 	const auto left = (_state == State::Suggested)
-		? st::settingsSubsectionTitlePadding.left()
+		? st::defaultSubsectionTitlePadding.left()
 		: st::settingsButtonActive.padding.left();
 	const auto buttonsLeft = std::min(
 		_add.x(),
@@ -341,7 +341,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	const auto limit = [=] {
 		return Data::PremiumLimits(session).dialogFiltersCurrent();
 	};
-	Ui::AddSkip(container, st::settingsSectionSkip);
+	Ui::AddSkip(container, st::defaultVerticalListSkip);
 	Ui::AddSubsectionTitle(container, tr::lng_filters_subtitle());
 
 	struct State {
@@ -612,7 +612,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			}, button->lifetime());
 		}
 		aboutRows->resizeToWidth(container->width());
-		Ui::AddSkip(aboutRows, st::settingsSectionSkip);
+		Ui::AddSkip(aboutRows, st::defaultVerticalListSkip);
 	}, aboutRows->lifetime());
 
 	auto showSuggestions = rpl::combine(

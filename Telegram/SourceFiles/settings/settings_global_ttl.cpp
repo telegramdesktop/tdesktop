@@ -416,7 +416,7 @@ void GlobalTTL::setupContent() {
 	content->add(object_ptr<Ui::DividerLabel>(
 		content,
 		std::move(footer),
-		st::settingsDividerLabelPadding));
+		st::defaultBoxDividerLabelPadding));
 
 	Ui::ResizeFitChild(this, content);
 }

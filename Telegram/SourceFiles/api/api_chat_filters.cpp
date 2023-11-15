@@ -422,7 +422,7 @@ void ToggleChatsController::setupBelowWidget() {
 	auto widget = object_ptr<Ui::DividerLabel>(
 		(QWidget*)nullptr,
 		std::move(layout),
-		st::settingsDividerLabelPadding);
+		st::defaultBoxDividerLabelPadding);
 	raw->add(object_ptr<Ui::FlatLabel>(
 		raw,
 		(_action == ToggleAction::Removing

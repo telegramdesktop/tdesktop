@@ -45,7 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -425,8 +424,8 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		object_ptr<Ui::FlatLabel>(
 			container,
 			tr::lng_create_group_link(),
-			st::settingsSubsectionTitle),
-		st::settingsSubsectionTitlePadding);
+			st::defaultSubsectionTitle),
+		st::defaultSubsectionTitlePadding);
 
 	const auto placeholder = container->add(
 		object_ptr<Ui::RpWidget>(container),

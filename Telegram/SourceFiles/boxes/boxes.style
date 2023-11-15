@@ -906,6 +906,14 @@ sponsoredUrlButton: RoundButton(defaultActiveButton) {
 	}
 }
 
+requestPeerRestriction: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: membersAboutLimitFg;
+	style: TextStyle(boxTextStyle) {
+		lineHeight: 22px;
+	}
+}
+
 requestsBoxItem: PeerListItem(peerListBoxItem) {
 	height: 99px;
 	button: OutlineButton(defaultPeerListButton) {

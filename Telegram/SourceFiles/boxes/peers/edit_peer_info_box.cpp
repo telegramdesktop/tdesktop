@@ -60,7 +60,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -581,7 +580,7 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_group_stickers(),
-		{ 0, st::settingsSubsectionTitlePadding.top() - bottomSkip, 0, 0 });
+		{ 0, st::defaultSubsectionTitlePadding.top() - bottomSkip, 0, 0 });
 
 	AddButtonWithCount(
 		container,
@@ -1009,7 +1008,7 @@ void Controller::fillManageSection() {
 							kBotManagerUsername.utf16()))),
 					Ui::Text::RichLangValue),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding));
+			st::defaultBoxDividerLabelPadding));
 		return;
 	}
 

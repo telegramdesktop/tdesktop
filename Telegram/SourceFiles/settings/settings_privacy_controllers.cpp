@@ -585,7 +585,7 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 	addOption(Option::Contacts);
 	Ui::AddSkip(
 		container,
-		st::settingsSectionSkip + st::settingsPrivacySkipTop);
+		st::defaultVerticalListSkip + st::settingsPrivacySkipTop);
 	Ui::AddDivider(container);
 
 	using namespace rpl::mappers;
@@ -917,7 +917,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 		object_ptr<Ui::RpWidget>(parent),
 		style::margins(
 			0,
-			st::settingsSectionSkip,
+			st::defaultVerticalListSkip,
 			0,
 			st::settingsPrivacySkipTop));
 	const auto widget = result->entity();

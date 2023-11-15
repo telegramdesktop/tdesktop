@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -818,9 +817,9 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 				- st::createPollWarningPosition.x()),
 			(geometry.y()
 				- st::createPollFieldPadding.top()
-				- st::settingsSubsectionTitlePadding.bottom()
-				- st::settingsSubsectionTitle.style.font->height
-				+ st::settingsSubsectionTitle.style.font->ascent
+				- st::defaultSubsectionTitlePadding.bottom()
+				- st::defaultSubsectionTitle.style.font->height
+				+ st::defaultSubsectionTitle.style.font->ascent
 				- st::createPollWarning.style.font->ascent),
 			geometry.width());
 	}, warning->lifetime());
@@ -875,9 +874,9 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 				- st::createPollWarningPosition.x()),
 			(geometry.y()
 				- st::createPollFieldPadding.top()
-				- st::settingsSubsectionTitlePadding.bottom()
-				- st::settingsSubsectionTitle.style.font->height
-				+ st::settingsSubsectionTitle.style.font->ascent
+				- st::defaultSubsectionTitlePadding.bottom()
+				- st::defaultSubsectionTitle.style.font->height
+				+ st::defaultSubsectionTitle.style.font->ascent
 				- st::createPollWarning.style.font->ascent),
 			geometry.width());
 	}, warning->lifetime());
@@ -908,7 +907,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		object_ptr<Ui::FlatLabel>(
 			container,
 			tr::lng_polls_create_options(),
-			st::settingsSubsectionTitle),
+			st::defaultSubsectionTitle),
 		st::createPollFieldTitlePadding);
 	const auto options = lifetime().make_state<Options>(
 		getDelegate()->outerContainer(),

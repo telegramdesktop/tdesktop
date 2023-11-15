@@ -758,6 +758,10 @@ topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimatio
 	size: size(8px, 8px);
 }
 
+inviteLinkTitleRight: FlatLabel(defaultSubsectionTitle) {
+	minWidth: 0px;
+}
+
 inviteLinkFieldRadius: 5px;
 inviteLinkFieldHeight: 42px;
 inviteLinkFieldMargin: margins(14px, 12px, 36px, 9px);

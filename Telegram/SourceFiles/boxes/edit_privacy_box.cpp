@@ -233,7 +233,7 @@ Ui::FlatLabel *EditPrivacyBox::addLabel(
 		object_ptr<Ui::DividerLabel>(
 			container,
 			std::move(label),
-			st::settingsDividerLabelPadding),
+			st::defaultBoxDividerLabelPadding),
 		{ 0, topSkip, 0, 0 });
 	return result;
 }
@@ -332,7 +332,7 @@ void EditPrivacyBox::setupContent() {
 	const auto warning = addLabelOrDivider(
 		content,
 		_controller->warning(),
-		st::settingsSectionSkip + st::settingsPrivacySkipTop);
+		st::defaultVerticalListSkip + st::settingsPrivacySkipTop);
 	if (warning) {
 		_controller->prepareWarningLabel(warning);
 	}
@@ -355,7 +355,7 @@ void EditPrivacyBox::setupContent() {
 	addLabel(
 		content,
 		_controller->exceptionsDescription() | Ui::Text::ToWithEntities(),
-		st::settingsSectionSkip);
+		st::defaultVerticalListSkip);
 
 	if (auto below = _controller->setupBelowWidget(_window, content)) {
 		content->add(std::move(below));

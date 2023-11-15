@@ -46,7 +46,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h" // st::boxDividerLabel.
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -457,7 +456,7 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 					container,
 					tr::lng_group_invite_expired_about(),
 					st::boxAttentionDividerLabel),
-				st::settingsDividerLabelPadding)));
+				st::defaultBoxDividerLabelPadding)));
 	const auto grayLabelWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::DividerLabel>>(
 			container,
@@ -467,7 +466,7 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 					container,
 					std::move(grayLabelText),
 					st::boxDividerLabel),
-				st::settingsDividerLabelPadding)));
+				st::defaultBoxDividerLabelPadding)));
 	const auto justDividerWrap = container->add(
 		object_ptr<Ui::SlideWrap<>>(
 			container,
@@ -665,7 +664,7 @@ void Controller::setupAboveJoinedWidget() {
 	const auto remaining = Ui::CreateChild<Ui::FlatLabel>(
 		listHeader,
 		std::move(remainingText),
-		st::settingsSubsectionTitleRight);
+		st::inviteLinkTitleRight);
 	dataValue(
 	) | rpl::start_with_next([=](const LinkData &data) {
 		remaining->setTextColorOverride(

@@ -184,7 +184,7 @@ void AddPremiumTopBarWithDefaultTitleBar(
 			st::giveawayGiftCodeTopHeight
 				- st::boxTitleHeight
 				+ st::boxDividerHeight
-				+ st::settingsSectionSkip,
+				+ st::defaultVerticalListSkip,
 			st::boxDividerBg,
 			RectPart::Bottom),
 		{});
@@ -720,7 +720,7 @@ void CreateGiveawayBox(
 			dateContainer->add(object_ptr<Ui::DividerLabel>(
 				dateContainer,
 				std::move(terms),
-				st::settingsDividerLabelPadding));
+				st::defaultBoxDividerLabelPadding));
 		} else {
 			Ui::AddDividerText(
 				dateContainer,
@@ -761,7 +761,7 @@ void CreateGiveawayBox(
 		listOptions->add(object_ptr<Ui::DividerLabel>(
 			listOptions,
 			std::move(termsContainer),
-			st::settingsDividerLabelPadding));
+			st::defaultBoxDividerLabelPadding));
 
 		box->verticalLayout()->resizeToWidth(box->width());
 	};

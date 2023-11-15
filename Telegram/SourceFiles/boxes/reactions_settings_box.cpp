@@ -105,7 +105,7 @@ void AddMessage(
 		object_ptr<Ui::RpWidget>(container),
 		style::margins(
 			0,
-			st::settingsSectionSkip,
+			st::defaultVerticalListSkip,
 			0,
 			st::settingsPrivacySkipTop));
 

@@ -498,7 +498,7 @@ void LocalPasscodeManage::setupContent() {
 					return s1 + "\n\n" + s2;
 				}),
 				st::boxDividerLabel),
-		st::settingsDividerLabelPadding));
+		st::defaultBoxDividerLabelPadding));
 	about->geometryValue(
 	) | rpl::start_with_next([=](const QRect &r) {
 		divider->setGeometry(r);

@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "styles/style_boxes.h" // contactsStatusFont.
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -238,8 +238,8 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 				_peer->isSelf()
 					? tr::lng_usernames_subtitle()
 					: tr::lng_channel_usernames_subtitle(),
-				st::settingsSubsectionTitle),
-			st::settingsSubsectionTitlePadding);
+				st::defaultSubsectionTitle),
+			st::defaultSubsectionTitlePadding);
 	}
 
 	const auto content = _container->add(

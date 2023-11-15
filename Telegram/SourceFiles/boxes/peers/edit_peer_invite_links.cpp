@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h" // st::boxDividerLabel
-#include "styles/style_settings.h" // st::settingsDividerLabelPadding
 #include "styles/style_menu_icons.h"
 
 namespace {
@@ -921,7 +920,7 @@ void ManageInviteLinksBox(
 			object_ptr<Ui::FlatLabel>(
 				container,
 				tr::lng_group_invite_other_list(),
-				st::settingsSubsectionTitle),
+				st::defaultSubsectionTitle),
 			st::inviteLinkRevokedTitlePadding));
 	}
 
@@ -947,7 +946,7 @@ void ManageInviteLinksBox(
 				container,
 				tr::lng_group_invite_add_about(),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding)),
+			st::defaultBoxDividerLabelPadding)),
 		style::margins(0, st::inviteLinkCreateSkip, 0, 0));
 
 	const auto adminsDivider = container->add(object_ptr<Ui::SlideWrap<>>(
@@ -958,7 +957,7 @@ void ManageInviteLinksBox(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			tr::lng_group_invite_other_title(),
-			st::settingsSubsectionTitle),
+			st::defaultSubsectionTitle),
 		st::inviteLinkRevokedTitlePadding));
 	const auto admins = AddAdminsList(show, container, peer, admin);
 
@@ -970,7 +969,7 @@ void ManageInviteLinksBox(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			tr::lng_group_invite_revoked_title(),
-			st::settingsSubsectionTitle),
+			st::defaultSubsectionTitle),
 		st::inviteLinkRevokedTitlePadding));
 	const auto revoked = AddLinksList(
 		show,

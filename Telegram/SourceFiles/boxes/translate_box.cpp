@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h" // inviteLinkListItem.
 #include "styles/style_layers.h"
-#include "styles/style_settings.h" // settingsSubsectionTitlePadding.
 
 #include <QLocale>
 
@@ -187,7 +186,7 @@ void TranslateBox(
 	Ui::AddSkip(container);
 
 	{
-		const auto padding = st::settingsSubsectionTitlePadding;
+		const auto padding = st::defaultSubsectionTitlePadding;
 		const auto subtitle = Ui::AddSubsectionTitle(
 			container,
 			state->to.value() | rpl::map(LanguageName));

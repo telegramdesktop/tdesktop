@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "styles/style_chat.h"
 #include "styles/style_premium.h"
-#include "styles/style_settings.h"
+#include "styles/style_layers.h"
 
 namespace HistoryView {
 
@@ -52,7 +52,7 @@ ServiceBox::ServiceBox(
 	- st::msgPadding.left()
 	- st::msgPadding.right())
 , _title(
-	st::settingsSubsectionTitle.style,
+	st::defaultSubsectionTitle.style,
 	_content->title(),
 	kDefaultTextOptions,
 	_maxWidth)

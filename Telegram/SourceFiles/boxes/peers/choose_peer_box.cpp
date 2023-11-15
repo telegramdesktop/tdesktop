@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_settings.h"
+#include "styles/style_layers.h"
 
 namespace {
 
@@ -356,7 +356,7 @@ void ChoosePeerBoxController::prepareRestrictions() {
 			raw,
 			tr::lng_request_peer_requirements(),
 			{ 0, st::membersMarginTop, 0, 0 });
-		const auto skip = st::settingsSubsectionTitlePadding.left();
+		const auto skip = st::defaultSubsectionTitlePadding.left();
 		auto separator = QString::fromUtf8("\n\xE2\x80\xA2 ");
 		raw->add(
 			object_ptr<Ui::FlatLabel>(

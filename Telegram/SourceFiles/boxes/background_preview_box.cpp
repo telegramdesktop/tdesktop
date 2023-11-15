@@ -43,7 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
-#include "styles/style_settings.h"
 
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
@@ -296,7 +295,7 @@ void BackgroundPreviewBox::createDimmingSlider(bool dark) {
 	Ui::AddSubsectionTitle(
 		inner,
 		tr::lng_background_dimming(),
-		style::margins(0, st::settingsSectionSkip, 0, 0),
+		style::margins(0, st::defaultVerticalListSkip, 0, 0),
 		equals ? nullptr : dark ? &_dark->subtitle : &_light->subtitle);
 	_dimmingSlider = inner->add(
 		object_ptr<Ui::MediaSlider>(
@@ -378,7 +377,7 @@ auto BackgroundPreviewBox::prepareOverridenStyle(bool dark)
 		.box = st::defaultBox,
 		.toggle = toggle,
 		.slider = st::defaultContinuousSlider,
-		.subtitle = st::settingsSubsectionTitle,
+		.subtitle = st::defaultSubsectionTitle,
 	};
 	result.box.button.textFg = p->lightButtonFg();
 	result.box.button.textFgOver = p->lightButtonFgOver();

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 namespace Settings {
@@ -220,11 +221,11 @@ void Blocked::setupContent() {
 	) | rpl::start_with_next([=](int height, bool empty) {
 		const auto subtitled = !empty || (_countBlocked.current() > 0);
 		const auto total = st::settingsBlockedHeightMin;
-		const auto padding = st::settingsSubsectionTitlePadding
+		const auto padding = st::defaultSubsectionTitlePadding
 			+ st::settingsBlockedListSubtitleAddPadding;
-		const auto subtitle = st::settingsSectionSkip
+		const auto subtitle = st::defaultVerticalListSkip
 			+ padding.top()
-			+ st::settingsSubsectionTitle.style.font->height
+			+ st::defaultSubsectionTitle.style.font->height
 			+ padding.bottom();
 		const auto min = total - (subtitled ? subtitle : 0);
 		resize(width(), std::max(height, min));

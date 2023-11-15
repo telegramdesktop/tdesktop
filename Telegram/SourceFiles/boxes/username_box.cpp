@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -369,7 +368,7 @@ void UsernamesBox(
 			container,
 			std::move(description),
 			st::boxDividerLabel),
-		st::settingsDividerLabelPadding));
+		st::defaultBoxDividerLabelPadding));
 
 	const auto list = box->addRow(
 		object_ptr<UsernamesList>(

@@ -163,7 +163,7 @@ void Manage::setupContent() {
 				content,
 				tr::lng_settings_cloud_password_manage_about2(),
 				st::boxDividerLabel),
-		st::settingsDividerLabelPadding));
+		st::defaultBoxDividerLabelPadding));
 	rpl::combine(
 		about->geometryValue(),
 		content->widthValue()

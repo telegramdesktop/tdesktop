@@ -104,7 +104,7 @@ void SetupExperimental(
 			container,
 			tr::lng_settings_experimental_about(),
 			st::boxLabel),
-		st::settingsDividerLabelPadding);
+		st::defaultBoxDividerLabelPadding);
 
 	auto reset = (Button*)nullptr;
 	if (base::options::changed()) {

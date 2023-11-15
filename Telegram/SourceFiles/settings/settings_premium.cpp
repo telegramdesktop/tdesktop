@@ -886,7 +886,7 @@ void Premium::setupSubscriptionOptions(
 
 	const auto lastSkip = TopTransitionSkip() * (isEmojiStatus ? 1 : 2);
 
-	Ui::AddSkip(content, lastSkip - st::settingsSectionSkip);
+	Ui::AddSkip(content, lastSkip - st::defaultVerticalListSkip);
 	Ui::AddSkip(skip->entity(), lastSkip);
 
 	auto toggleOn = rpl::combine(
@@ -1100,7 +1100,7 @@ void Premium::setupContent() {
 			tr::lng_premium_summary_bottom_subtitle(
 			) | rpl::map(Ui::Text::Bold),
 			stLabel),
-		st::settingsSubsectionTitlePadding);
+		st::defaultSubsectionTitlePadding);
 	content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,

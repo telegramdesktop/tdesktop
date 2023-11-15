@@ -633,7 +633,7 @@ void Content::Inner::setupContent() {
 				content,
 				tr::lng_settings_logged_in_description(),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding + QMargins(0, skip, 0, skip))
+			st::defaultBoxDividerLabelPadding + QMargins(0, skip, 0, skip))
 	)->setDuration(0);
 
 	terminateWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));

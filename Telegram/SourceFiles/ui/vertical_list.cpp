@@ -12,18 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_layers.h"
-#include "styles/style_settings.h"
 
 namespace Ui {
 
 void AddSkip(not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container, st::settingsSectionSkip);
+	AddSkip(container, st::defaultVerticalListSkip);
 }
 
 void AddSkip(not_null<Ui::VerticalLayout*> container, int skip) {
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		skip));
+	container->add(object_ptr<Ui::FixedHeightWidget>(container, skip));
 }
 
 void AddDivider(not_null<Ui::VerticalLayout*> container) {
@@ -39,7 +36,7 @@ void AddDividerText(
 			container,
 			std::move(text),
 			st::boxDividerLabel),
-		st::settingsDividerLabelPadding));
+		st::defaultBoxDividerLabelPadding));
 }
 
 not_null<Ui::FlatLabel*> AddSubsectionTitle(
@@ -51,8 +48,8 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			std::move(text),
-			st ? *st : st::settingsSubsectionTitle),
-		st::settingsSubsectionTitlePadding + addPadding);
+			st ? *st : st::defaultSubsectionTitle),
+		st::defaultSubsectionTitlePadding + addPadding);
 }
 
 } // namespace Ui
