@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
 #include "core/application.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
 #include "ui/painter.h"
