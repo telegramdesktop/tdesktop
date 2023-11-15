@@ -45,8 +45,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
-#include "styles/style_overview.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_overview.h"
 
 namespace Overview {
 namespace Layout {

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "styles/style_calls.h"
+#include "styles/style_dialogs.h" // searchedBarHeight
 
 namespace Calls::Group {
 namespace {

@@ -721,6 +721,20 @@ manageEmojiStatusTop: 25px;
 
 inlineRadialSize: 44px;
 inlineFileSize: 44px;
+inlineResultsLeft: 11px;
+inlineResultsSkip: 3px;
+inlineMediaHeight: 96px;
+inlineThumbSize: 64px;
+inlineThumbSkip: 10px;
+inlineTitleFg: windowFg;
+inlineDescriptionFg: windowSubTextFg;
+inlineRowMargin: 6px;
+inlineRowBorder: 1px;
+inlineRowBorderFg: shadowFg;
+inlineRowFileNameTop: 2px;
+inlineRowFileDescriptionTop: 23px;
+inlineResultsMinWidth: 48px;
+inlineDurationMargin: 3px;
 
 stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};
 
@@ -826,6 +840,9 @@ historyEmojiStatusInfoLabel: FlatLabel(historyContactStatusLabel) {
 	textFg: windowSubTextFg;
 }
 historyContactStatusMinSkip: 16px;
+
+historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
+historyReplyCancelIconOver: icon {{ "box_button_close", historyReplyCancelFgOver }};
 
 historyReplySkip: 53px;
 historyReplyNameFg: windowActiveTextFg;
@@ -1239,3 +1256,12 @@ defaultReportBox: ReportBox {
 	personal: menuIconPersonal;
 	other: menuIconReport;
 }
+
+dragFont: font(27px semibold);
+dragSubfont: font(19px semibold);
+dragColor: windowSubTextFg;
+dragDropColor: windowActiveTextFg;
+
+dragMargin: margins(0px, 10px, 0px, 10px);
+dragPadding: margins(20px, 10px, 20px, 10px);
+dragHeight: 72px;

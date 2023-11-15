@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location_factory.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "styles/style_chat_helpers.h"
 
 namespace InlineBots {
 namespace {
