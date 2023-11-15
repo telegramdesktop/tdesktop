@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_advanced.h"
 #include "settings/settings_experimental.h"
+#include "boxes/abstract_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/connection_box.h"
 #include "boxes/auto_download_box.h"

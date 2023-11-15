@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/peer_list_box.h"
 #include "base/weak_ptr.h"
+#include "mtproto/sender.h"
 
 namespace Window {
 class SessionNavigation;

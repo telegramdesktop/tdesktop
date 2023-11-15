@@ -11,9 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
 #include "ui/userpic_view.h"
-#include "boxes/abstract_box.h"
-#include "mtproto/sender.h"
-#include "data/data_cloud_file.h"
+#include "ui/layers/box_content.h"
 #include "base/timer.h"
 
 namespace style {

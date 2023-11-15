@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/slide_animation.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/special_fields.h"
 #include "ui/image/image.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"

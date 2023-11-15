@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/random.h"
 #include "ui/boxes/confirm_box.h"
+#include "boxes/abstract_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/peers/add_participants_box.h"

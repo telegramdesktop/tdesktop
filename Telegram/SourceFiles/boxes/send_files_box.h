@@ -8,12 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
-#include "ui/widgets/popup_menu.h"
-#include "storage/localimageloader.h"
-#include "storage/storage_media_prepare.h"
 
 namespace style {
 struct ComposeControls;

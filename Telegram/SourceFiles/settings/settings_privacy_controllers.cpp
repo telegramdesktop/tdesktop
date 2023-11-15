@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
+#include "boxes/abstract_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/peer_short_info_box.h"
 #include "boxes/peers/prepare_short_info_box.h"

@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/gl/gl_surface.h"
-#include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "data/data_shared_media.h"
@@ -34,6 +33,7 @@ struct StoriesContext;
 } // namespace Data
 
 namespace Ui {
+class DropdownMenu;
 class PopupMenu;
 class LinkButton;
 class RoundButton;

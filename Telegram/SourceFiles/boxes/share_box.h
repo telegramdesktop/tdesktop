@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 #include "base/timer.h"
 #include "history/view/history_view_schedule_box.h"
 #include "ui/chat/forward_options_box.h"

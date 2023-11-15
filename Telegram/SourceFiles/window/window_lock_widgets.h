@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 #include "base/bytes.h"
 
 namespace Ui {

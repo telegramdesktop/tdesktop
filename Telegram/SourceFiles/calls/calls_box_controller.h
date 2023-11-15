@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/peer_list_box.h"
 #include "ui/layers/generic_box.h"
+#include "mtproto/sender.h"
 
 namespace Window {
 class SessionController;
