@@ -28,9 +28,7 @@ namespace {
 	const auto exact = (data.boosts == data.thisLevelBoosts);
 	const auto reached = !data.nextLevelBoosts || (exact && data.mine > 0);
 	if (reached) {
-		if (data.nextLevelBoosts) {
-			--data.level;
-		}
+		--data.level;
 		data.boosts = data.nextLevelBoosts = std::max({
 			data.boosts,
 			data.thisLevelBoosts,
@@ -483,7 +481,7 @@ void AskBoostBox(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			std::move(title),
-			st::boostTitle),
+			st::boostCenteredTitle),
 		st::boxRowPadding + QMargins(0, st::boostTitleSkip, 0, 0));
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(

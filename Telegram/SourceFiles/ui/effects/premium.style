@@ -258,6 +258,9 @@ boostTitleBadge: FlatLabel(defaultFlatLabel) {
 	textFg: premiumButtonFg;
 }
 boostTitleBadgeSkip: 6px;
+boostCenteredTitle: FlatLabel(boostTitle) {
+	align: align(top);
+}
 boostTextSkip: 5px;
 boostText: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
