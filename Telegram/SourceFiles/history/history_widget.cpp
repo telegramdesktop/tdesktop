@@ -294,9 +294,6 @@ HistoryWidget::HistoryWidget(
 		if (_history
 			&& _history->loadedAtBottom()
 			&& session().data().sponsoredMessages().append(_history)) {
-			if (_list) {
-				_list->setCanHaveFromUserpicsSponsored(true);
-			}
 			_scroll->contentAdded();
 		}
 	}, lifetime());
@@ -2347,9 +2344,6 @@ void HistoryWidget::showHistory(
 					_scroll->setTrackingContent(
 						sponsored.canHaveFor(_history));
 				} else if (state == State::InjectToMiddle) {
-					if (_list) {
-						_list->setCanHaveFromUserpicsSponsored(true);
-					}
 					injectSponsoredMessages();
 				}
 			});

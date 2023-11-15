@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
-#include "history/view/history_view_sponsored_click_handler.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
@@ -21,24 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 namespace {
-
-using SponsoredType = HistoryMessageSponsored::Type;
-
-inline auto SponsoredPhrase(SponsoredType type) {
-	const auto phrase = [&] {
-		switch (type) {
-		case SponsoredType::User: return tr::lng_view_button_user;
-		case SponsoredType::Group: return tr::lng_view_button_group;
-		case SponsoredType::Broadcast: return tr::lng_view_button_channel;
-		case SponsoredType::Post: return tr::lng_view_button_message;
-		case SponsoredType::Bot: return tr::lng_view_button_bot;
-		case SponsoredType::ExternalLink:
-			return tr::lng_view_button_external_link;
-		}
-		Unexpected("SponsoredType in SponsoredPhrase.");
-	}();
-	return Ui::Text::Upper(phrase(tr::now));
-}
 
 [[nodiscard]] ClickHandlerPtr MakeMediaButtonClickHandler(
 		not_null<Data::Media*> media) {
@@ -71,10 +52,6 @@ inline auto SponsoredPhrase(SponsoredType type) {
 
 struct ViewButton::Inner {
 	Inner(
-		not_null<HistoryMessageSponsored*> sponsored,
-		uint8 colorIndex,
-		Fn<void()> updateCallback);
-	Inner(
 		not_null<Data::Media*> media,
 		uint8 colorIndex,
 		Fn<void()> updateCallback);
@@ -96,18 +73,6 @@ struct ViewButton::Inner {
 
 bool ViewButton::MediaHasViewButton(not_null<Data::Media*> media) {
 	return (media->giveaway() != nullptr);
-}
-
-ViewButton::Inner::Inner(
-	not_null<HistoryMessageSponsored*> sponsored,
-	uint8 colorIndex,
-	Fn<void()> updateCallback)
-: margins(st::historyViewButtonMargins)
-, link(SponsoredLink(sponsored->externalLink))
-, updateCallback(std::move(updateCallback))
-, colorIndex(colorIndex)
-, externalLink((sponsored->type == SponsoredType::ExternalLink) ? 1 : 0)
-, text(st::historyViewButtonTextStyle, SponsoredPhrase(sponsored->type)) {
 }
 
 ViewButton::Inner::Inner(
@@ -139,16 +104,6 @@ void ViewButton::Inner::toggleRipple(bool pressed) {
 			ripple->lastStop();
 		}
 	}
-}
-
-ViewButton::ViewButton(
-	not_null<HistoryMessageSponsored*> sponsored,
-	uint8 colorIndex,
-	Fn<void()> updateCallback)
-: _inner(std::make_unique<Inner>(
-	sponsored,
-	colorIndex,
-	std::move(updateCallback))) {
 }
 
 ViewButton::ViewButton(

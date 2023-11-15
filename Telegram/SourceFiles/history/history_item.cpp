@@ -731,7 +731,6 @@ HistoryItem::HistoryItem(
 		webpage,
 		MediaWebPageFlag::Sponsored);
 	_media = std::move(webpageMedia);
-	setSponsoredFrom(from);
 }
 
 HistoryItem::HistoryItem(
@@ -1181,10 +1180,6 @@ HistoryItem *HistoryItem::lookupDiscussionPostOriginal() const {
 PeerData *HistoryItem::computeDisplayFrom() const {
 	if (const auto sender = discussionPostOriginalSender()) {
 		return sender;
-	} else if (const auto sponsored = Get<HistoryMessageSponsored>()) {
-		if (sponsored->sender) {
-			return nullptr;
-		}
 	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (_history->peer->isSelf()
 			|| _history->peer->isRepliesChat()
@@ -1492,7 +1487,7 @@ bool HistoryItem::isScheduled() const {
 }
 
 bool HistoryItem::isSponsored() const {
-	return Has<HistoryMessageSponsored>();
+	return _flags & MessageFlag::Sponsored;
 }
 
 bool HistoryItem::skipNotification() const {
@@ -2486,9 +2481,7 @@ PeerData *HistoryItem::originalSender() const {
 }
 
 const HiddenSenderInfo *HistoryItem::hiddenSenderInfo() const {
-	if (const auto sponsored = Get<HistoryMessageSponsored>()) {
-		return sponsored->sender.get();
-	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		return forwarded->hiddenSenderInfo.get();
 	}
 	return nullptr;
@@ -3100,8 +3093,6 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 	const auto sender = [&]() -> std::optional<QString> {
 		if (options.hideSender || isPost() || isEmpty()) {
 			return {};
-		} else if (const auto sponsored = Get<HistoryMessageSponsored>()) {
-			return sponsored->sender->name;
 		} else if (!_history->peer->isUser()) {
 			if (const auto from = displayFrom()) {
 				return fromSender(from);
@@ -3347,36 +3338,6 @@ TextWithEntities HistoryItem::withLocalEntities(
 		}
 	}
 	return textWithEntities;
-}
-
-void HistoryItem::setSponsoredFrom(const Data::SponsoredFrom &from) {
-	AddComponents(HistoryMessageSponsored::Bit());
-	const auto sponsored = Get<HistoryMessageSponsored>();
-	sponsored->sender = std::make_unique<HiddenSenderInfo>(
-		from.title,
-		false,
-		from.peer ? from.peer->colorIndex() : std::optional<uint8>());
-	sponsored->recommended = from.isRecommended;
-	sponsored->isForceUserpicDisplay = from.isForceUserpicDisplay;
-	if (from.userpic.location.valid()) {
-		sponsored->sender->customUserpic.set(
-			&_history->session(),
-			from.userpic);
-	}
-
-	sponsored->externalLink = from.externalLink;
-	using Type = HistoryMessageSponsored::Type;
-	sponsored->type = (!from.externalLink.isEmpty())
-		? Type::ExternalLink
-		: from.isExactPost
-		? Type::Post
-		: from.isBot
-		? Type::Bot
-		: from.isBroadcast
-		? Type::Broadcast
-		: (from.peer && from.peer->isUser())
-		? Type::User
-		: Type::Group;
 }
 
 void HistoryItem::createComponentsHelper(
