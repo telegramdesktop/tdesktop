@@ -559,6 +559,8 @@ historyFastShareBottom: 5px;
 historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
 historyGoToOriginalIcon: icon {{ "fast_to_original", msgServiceFg, point(1px, 0px) }};
 historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
+historyFastCloseSize: 30px;
+historyFastCloseIcon: icon {{ "box_button_close", msgServiceFg }};
 historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
 
 historySavedFont: font(semibold 14px);

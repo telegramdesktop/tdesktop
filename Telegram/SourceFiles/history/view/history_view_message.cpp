@@ -1191,7 +1191,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				0,
 				st::historyFastShareBottom);
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			const auto fastShareTop = g.top() + g.height() - fastShareSkip - size->height();
+			const auto fastShareTop = data()->isSponsored()
+				? g.top() + fastShareSkip
+				: g.top() + g.height() - fastShareSkip - size->height();
 			drawRightAction(p, context, fastShareLeft, fastShareTop, width());
 		}
 
@@ -2209,7 +2211,9 @@ TextState Message::textState(
 				0,
 				st::historyFastShareBottom);
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			const auto fastShareTop = g.top() + g.height() - fastShareSkip - size->height();
+			const auto fastShareTop = data()->isSponsored()
+				? g.top() + fastShareSkip
+				: g.top() + g.height() - fastShareSkip - size->height();
 			if (QRect(
 				fastShareLeft,
 				fastShareTop,
@@ -3343,7 +3347,9 @@ std::optional<QSize> Message::rightActionSize() const {
 				st::historyFastShareSize + st::historyFastShareBottom + st::semiboldFont->height)
 			: QSize(st::historyFastShareSize, st::historyFastShareSize);
 	}
-	return (displayFastShare() || displayGoToOriginal())
+	return data()->isSponsored()
+		? QSize(st::historyFastCloseSize, st::historyFastCloseSize)
+		: (displayFastShare() || displayGoToOriginal())
 		? QSize(st::historyFastShareSize, st::historyFastShareSize)
 		: std::optional<QSize>();
 }
@@ -3447,7 +3453,9 @@ void Message::drawRightAction(
 				views->repliesSmall.textWidth);
 		}
 	} else {
-		const auto &icon = (displayFastShare() && !isPinnedContext())
+		const auto &icon = data()->isSponsored()
+			? st->historyFastCloseIcon()
+			: (displayFastShare() && !isPinnedContext())
 			? st->historyFastShareIcon()
 			: st->historyGoToOriginalIcon();
 		icon.paintInCenter(p, { left, top, size->width(), size->height() });
@@ -3475,7 +3483,9 @@ void Message::ensureRightAction() const {
 }
 
 ClickHandlerPtr Message::prepareRightActionLink() const {
-	if (isPinnedContext()) {
+	if (data()->isSponsored()) {
+		return HideSponsoredClickHandler();
+	} else if (isPinnedContext()) {
 		return JumpToMessageClickHandler(data());
 	} else if (displayRightActionComments()) {
 		return createGoToCommentsLink();

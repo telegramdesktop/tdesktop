@@ -136,6 +136,7 @@ struct SendingErrorRequest {
 ClickHandlerPtr JumpToStoryClickHandler(
 	not_null<PeerData*> peer,
 	StoryId storyId);
+[[nodiscard]] ClickHandlerPtr HideSponsoredClickHandler();
 
 [[nodiscard]] not_null<HistoryItem*> GenerateJoinedMessage(
 	not_null<History*> history,

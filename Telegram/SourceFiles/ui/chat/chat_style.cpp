@@ -190,6 +190,7 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 	make(_historyFastShareIcon, st::historyFastShareIcon);
 	make(_historyFastTranscribeIcon, st::historyFastTranscribeIcon);
 	make(_historyGoToOriginalIcon, st::historyGoToOriginalIcon);
+	make(_historyFastCloseIcon, st::historyFastCloseIcon);
 	make(_historyMapPoint, st::historyMapPoint);
 	make(_historyMapPointInner, st::historyMapPointInner);
 	make(_youtubeIcon, st::youtubeIcon);

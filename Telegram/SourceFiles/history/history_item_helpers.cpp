@@ -35,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "core/application.h"
+#include "core/click_handler_types.h" // ClickHandlerContext.
+#include "settings/settings_premium.h" // Settings::ShowPremium.
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
@@ -326,6 +328,15 @@ ClickHandlerPtr JumpToStoryClickHandler(
 				peer,
 				storyId,
 				{ Data::StoriesContextSingle() });
+		}
+	});
+}
+
+ClickHandlerPtr HideSponsoredClickHandler() {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			Settings::ShowPremium(controller, "no_ads");
 		}
 	});
 }
