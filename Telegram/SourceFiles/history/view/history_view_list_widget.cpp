@@ -2181,27 +2181,6 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					userpicTop,
 					view->width(),
 					st::msgPhotoSize);
-			} else if (const auto info = item->hiddenSenderInfo()) {
-				if (info->customUserpic.empty()) {
-					info->emptyUserpic.paintCircle(
-						p,
-						st::historyPhotoLeft,
-						userpicTop,
-						view->width(),
-						st::msgPhotoSize);
-				} else {
-					auto &userpic = _hiddenSenderUserpics[item->id];
-					const auto valid = info->paintCustomUserpic(
-						p,
-						userpic,
-						st::historyPhotoLeft,
-						userpicTop,
-						view->width(),
-						st::msgPhotoSize);
-					if (!valid) {
-						info->customUserpic.load(session, item->fullId());
-					}
-				}
 			} else {
 				Unexpected("Corrupt forwarded information in message.");
 			}

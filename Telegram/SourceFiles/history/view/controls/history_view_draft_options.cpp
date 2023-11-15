@@ -376,28 +376,6 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 				userpicTop,
 				width(),
 				st::msgPhotoSize);
-		} else if (const auto info = item->hiddenSenderInfo()) {
-			if (info->customUserpic.empty()) {
-				info->emptyUserpic.paintCircle(
-					p,
-					st::historyPhotoLeft,
-					userpicTop,
-					width(),
-					st::msgPhotoSize);
-			} else {
-				const auto valid = info->paintCustomUserpic(
-					p,
-					_userpic,
-					st::historyPhotoLeft,
-					userpicTop,
-					width(),
-					st::msgPhotoSize);
-				if (!valid) {
-					info->customUserpic.load(
-						&item->history()->session(),
-						item->fullId());
-				}
-			}
 		} else {
 			Unexpected("Corrupt forwarded information in message.");
 		}

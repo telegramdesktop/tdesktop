@@ -116,12 +116,7 @@ HiddenSenderInfo::HiddenSenderInfo(
 	std::optional<uint8> colorIndex)
 : name(name)
 , colorIndex(colorIndex.value_or(
-	Data::DecideColorIndex(Data::FakePeerIdForJustName(name))))
-, emptyUserpic(
-	Ui::EmptyUserpic::UserpicColor(this->colorIndex),
-	(external
-		? Ui::EmptyUserpic::ExternalName()
-		: name)) {
+	Data::DecideColorIndex(Data::FakePeerIdForJustName(name)))) {
 	Expects(!name.isEmpty());
 
 	const auto parts = name.trimmed().split(' ', Qt::SkipEmptyParts);
@@ -151,35 +146,6 @@ ClickHandlerPtr HiddenSenderInfo::ForwardClickHandler() {
 		}
 	});
 	return hidden;
-}
-
-bool HiddenSenderInfo::paintCustomUserpic(
-		Painter &p,
-		Ui::PeerUserpicView &view,
-		int x,
-		int y,
-		int outerWidth,
-		int size) const {
-	Expects(!customUserpic.empty());
-
-	auto valid = true;
-	if (!customUserpic.isCurrentView(view.cloud)) {
-		view.cloud = customUserpic.createView();
-		valid = false;
-	}
-	const auto image = *view.cloud;
-	if (image.isNull()) {
-		emptyUserpic.paintCircle(p, x, y, outerWidth, size);
-		return valid;
-	}
-	Ui::ValidateUserpicCache(
-		view,
-		image.isNull() ? nullptr : &image,
-		image.isNull() ? &emptyUserpic : nullptr,
-		size * style::DevicePixelRatio(),
-		false);
-	p.drawImage(QRect(x, y, size, size), view.cached);
-	return valid;
 }
 
 void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
