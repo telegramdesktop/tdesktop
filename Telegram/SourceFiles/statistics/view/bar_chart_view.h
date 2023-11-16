@@ -20,10 +20,10 @@ namespace Statistic {
 
 struct Limits;
 
-class StackChartView final : public AbstractChartView {
+class BarChartView final : public AbstractChartView {
 public:
-	StackChartView();
-	~StackChartView() override final;
+	BarChartView();
+	~BarChartView() override final;
 
 	void paint(QPainter &p, const PaintContext &c) override;
 

@@ -185,6 +185,8 @@ PRIVATE
     statistics/statistics_data_deserialize.h
     statistics/view/abstract_chart_view.cpp
     statistics/view/abstract_chart_view.h
+    statistics/view/bar_chart_view.cpp
+    statistics/view/bar_chart_view.h
     statistics/view/chart_rulers_view.cpp
     statistics/view/chart_rulers_view.h
     statistics/view/chart_view_factory.cpp
@@ -193,8 +195,6 @@ PRIVATE
     statistics/view/linear_chart_view.h
     statistics/view/stack_chart_common.cpp
     statistics/view/stack_chart_common.h
-    statistics/view/stack_chart_view.cpp
-    statistics/view/stack_chart_view.h
     statistics/view/stack_linear_chart_common.cpp
     statistics/view/stack_linear_chart_common.h
     statistics/view/stack_linear_chart_view.cpp

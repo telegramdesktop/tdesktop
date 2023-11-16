@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "statistics/view/stack_chart_view.h"
+#include "statistics/view/bar_chart_view.h"
 
 #include "data/data_statistics_chart.h"
 #include "statistics/chart_lines_filter_controller.h"
@@ -15,10 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 
-StackChartView::StackChartView() = default;
-StackChartView::~StackChartView() = default;
+BarChartView::BarChartView() = default;
+BarChartView::~BarChartView() = default;
 
-void StackChartView::paint(QPainter &p, const PaintContext &c) {
+void BarChartView::paint(QPainter &p, const PaintContext &c) {
 	constexpr auto kOffset = float64(2);
 	_lastPaintedXIndices = {
 		float64(std::max(0., c.xIndices.min - kOffset)),
@@ -27,10 +27,10 @@ void StackChartView::paint(QPainter &p, const PaintContext &c) {
 			c.xIndices.max + kOffset)),
 	};
 
-	StackChartView::paintChartAndSelected(p, c);
+	BarChartView::paintChartAndSelected(p, c);
 }
 
-void StackChartView::paintChartAndSelected(
+void BarChartView::paintChartAndSelected(
 		QPainter &p,
 		const PaintContext &c) {
 	const auto &[localStart, localEnd] = _lastPaintedXIndices;
@@ -105,7 +105,7 @@ void StackChartView::paintChartAndSelected(
 	}
 }
 
-void StackChartView::paintSelectedXIndex(
+void BarChartView::paintSelectedXIndex(
 		QPainter &p,
 		const PaintContext &c,
 		int selectedXIndex,
@@ -114,11 +114,11 @@ void StackChartView::paintSelectedXIndex(
 	_lastSelectedXIndex = selectedXIndex;
 	_lastSelectedXProgress = progress;
 	if ((_lastSelectedXIndex >= 0) || (was >= 0)) {
-		StackChartView::paintChartAndSelected(p, c);
+		BarChartView::paintChartAndSelected(p, c);
 	}
 }
 
-int StackChartView::findXIndexByPosition(
+int BarChartView::findXIndexByPosition(
 		const Data::StatisticalChart &chartData,
 		const Limits &xPercentageLimits,
 		const QRect &rect,
@@ -144,7 +144,7 @@ int StackChartView::findXIndexByPosition(
 	return _lastSelectedXIndex = -1;
 }
 
-AbstractChartView::HeightLimits StackChartView::heightLimits(
+AbstractChartView::HeightLimits BarChartView::heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) {
 	_cachedHeightLimits = {};
