@@ -110,6 +110,15 @@ constexpr auto kCheckRequestsTimer = 10 * crl::time(1000);
 		.instantViewInteractionGraph = StatisticalGraphFromTL(
 			data.viv_interactions_graph()),
 
+		.reactionsByEmotionGraph = StatisticalGraphFromTL(
+			data.vreactions_by_emotion_graph()),
+
+		.storyInteractionsGraph = StatisticalGraphFromTL(
+			data.vstory_interactions_graph()),
+
+		.storyReactionsByEmotionGraph = StatisticalGraphFromTL(
+			data.vstory_reactions_by_emotion_graph()),
+
 		.recentMessageInteractions = std::move(recentMessages),
 	};
 }
@@ -438,12 +447,14 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 	}
 	const auto requestFirstPublicForwards = [=](
 			const Data::StatisticalGraph &messageGraph,
+			const Data::StatisticalGraph &reactionsGraph,
 			const Data::StatisticsMessageInteractionInfo &info) {
 		_publicForwards.request({}, [=](Data::PublicForwardsSlice slice) {
 			const auto total = slice.total;
 			_firstSlice = std::move(slice);
 			done({
 				.messageInteractionGraph = messageGraph,
+				.reactionsByEmotionGraph = reactionsGraph,
 				.publicForwards = total,
 				.privateForwards = info.forwardsCount - total,
 				.views = info.viewsCount,
@@ -452,7 +463,8 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 	};
 
 	const auto requestPrivateForwards = [=](
-			const Data::StatisticalGraph &messageGraph) {
+			const Data::StatisticalGraph &messageGraph,
+			const Data::StatisticalGraph &reactionsGraph) {
 		api().request(MTPchannels_GetMessages(
 			channel()->inputChannel,
 			MTP_vector<MTPInputMessage>(
@@ -488,9 +500,12 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 				return Data::StatisticsMessageInteractionInfo();
 			});
 
-			requestFirstPublicForwards(messageGraph, std::move(info));
+			requestFirstPublicForwards(
+				messageGraph,
+				reactionsGraph,
+				std::move(info));
 		}).fail([=](const MTP::Error &error) {
-			requestFirstPublicForwards(messageGraph, {});
+			requestFirstPublicForwards(messageGraph, reactionsGraph, {});
 		}).send();
 	};
 
@@ -499,10 +514,12 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 		channel()->inputChannel,
 		MTP_int(_fullId.msg.bare)
 	)).done([=](const MTPstats_MessageStats &result) {
+		const auto &data = result.data();
 		requestPrivateForwards(
-			StatisticalGraphFromTL(result.data().vviews_graph()));
+			StatisticalGraphFromTL(data.vviews_graph()),
+			StatisticalGraphFromTL(data.vreactions_by_emotion_graph()));
 	}).fail([=](const MTP::Error &error) {
-		requestPrivateForwards({});
+		requestPrivateForwards({}, {});
 	}).send();
 }
 

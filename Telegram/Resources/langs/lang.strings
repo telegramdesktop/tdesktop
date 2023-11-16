@@ -4364,6 +4364,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chart_title_language" = "Languages";
 "lng_chart_title_message_interaction" = "Interactions";
 "lng_chart_title_instant_view_interaction" = "IV Interactions";
+"lng_chart_title_reactions_by_emotion" = "Reactions";
+"lng_chart_title_story_interactions" = "Story Interactions";
+"lng_chart_title_story_reactions_by_emotion" = "Story reactions";
 
 "lng_chart_title_group_join" = "Group members";
 "lng_chart_title_group_join_by_source" = "New members by source";

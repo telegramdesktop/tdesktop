@@ -206,6 +206,18 @@ void FillStatistic(
 			stats.channel.instantViewInteractionGraph,
 			tr::lng_chart_title_instant_view_interaction(),
 			Type::DoubleLinear);
+		addChart(
+			stats.channel.reactionsByEmotionGraph,
+			tr::lng_chart_title_reactions_by_emotion(),
+			Type::Bar);
+		addChart(
+			stats.channel.storyInteractionsGraph,
+			tr::lng_chart_title_story_interactions(),
+			Type::DoubleLinear);
+		addChart(
+			stats.channel.storyReactionsByEmotionGraph,
+			tr::lng_chart_title_story_reactions_by_emotion(),
+			Type::Bar);
 	} else if (stats.supergroup) {
 		addChart(
 			stats.supergroup.memberCountGraph,
@@ -244,6 +256,10 @@ void FillStatistic(
 			stats.message.messageInteractionGraph,
 			tr::lng_chart_title_message_interaction(),
 			Type::DoubleLinear);
+		addChart(
+			stats.message.reactionsByEmotionGraph,
+			tr::lng_chart_title_reactions_by_emotion(),
+			Type::Bar);
 	}
 }
 

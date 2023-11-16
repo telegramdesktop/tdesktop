@@ -67,6 +67,9 @@ struct ChannelStatistics final {
 	StatisticalGraph languageGraph;
 	StatisticalGraph messageInteractionGraph;
 	StatisticalGraph instantViewInteractionGraph;
+	StatisticalGraph reactionsByEmotionGraph;
+	StatisticalGraph storyInteractionsGraph;
+	StatisticalGraph storyReactionsByEmotionGraph;
 
 	std::vector<StatisticsMessageInteractionInfo> recentMessageInteractions;
 
@@ -108,6 +111,7 @@ struct MessageStatistics final {
 		return !messageInteractionGraph.chart.empty() || views;
 	}
 	Data::StatisticalGraph messageInteractionGraph;
+	Data::StatisticalGraph reactionsByEmotionGraph;
 	int publicForwards = 0;
 	int privateForwards = 0;
 	int views = 0;
