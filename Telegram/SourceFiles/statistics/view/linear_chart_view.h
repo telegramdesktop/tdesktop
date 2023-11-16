@@ -90,13 +90,7 @@ private:
 	base::flat_map<int, Cache> _mainCaches;
 	base::flat_map<int, Cache> _footerCaches;
 
-	struct SelectedPoints final {
-		int lastXIndex = -1;
-		Limits lastHeightLimits;
-		Limits lastXLimits;
-		base::flat_map<int, QPointF> points;
-	};
-	SelectedPoints _selectedPoints;
+	CachedSelectedPoints _selectedPoints;
 
 };
 

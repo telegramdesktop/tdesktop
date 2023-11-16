@@ -140,11 +140,7 @@ void LinearChartView::paintSelectedXIndex(
 	p.setBrush(st::boxBg);
 	const auto r = st::statisticsDetailsDotRadius;
 	const auto i = selectedXIndex;
-	const auto isSameToken = (_selectedPoints.lastXIndex == selectedXIndex)
-		&& (_selectedPoints.lastHeightLimits.min == c.heightLimits.min)
-		&& (_selectedPoints.lastHeightLimits.max == c.heightLimits.max)
-		&& (_selectedPoints.lastXLimits.min == c.xPercentageLimits.min)
-		&& (_selectedPoints.lastXLimits.max == c.xPercentageLimits.max);
+	const auto isSameToken = _selectedPoints.isSame(selectedXIndex, c);
 	auto linePainted = false;
 	for (const auto &line : c.chartData.lines) {
 		const auto lineAlpha = linesFilter->alpha(line.id);
