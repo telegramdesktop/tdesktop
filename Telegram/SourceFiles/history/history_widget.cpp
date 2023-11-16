@@ -4386,7 +4386,7 @@ void HistoryWidget::updateOverStates(QPoint pos) {
 	const auto inPhotoEdit = inDetails
 		&& _photoEditMedia
 		&& QRect(
-			detailsRect.x(),
+			detailsRect.x() + st::historyReplySkip,
 			(detailsRect.y()
 				+ (detailsRect.height() - st::historyReplyPreview) / 2),
 			st::historyReplyPreview,
