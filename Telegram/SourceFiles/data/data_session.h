@@ -727,6 +727,8 @@ public:
 	void webViewResultSent(WebViewResultSent &&sent);
 	[[nodiscard]] rpl::producer<WebViewResultSent> webViewResultSent() const;
 
+	void saveViewAsMessages(not_null<Forum*> forum, bool viewAsMessages);
+
 	[[nodiscard]] auto peerDecorationsUpdated() const
 		-> rpl::producer<not_null<PeerData*>>;
 
@@ -1022,6 +1024,9 @@ private:
 	rpl::event_stream<WebViewResultSent> _webViewResultSent;
 
 	rpl::event_stream<not_null<PeerData*>> _peerDecorationsUpdated;
+	base::flat_map<
+		not_null<ChannelData*>,
+		mtpRequestId> _viewAsMessagesRequests;
 
 	Groups _groups;
 	const std::unique_ptr<ChatFilters> _chatsFilters;

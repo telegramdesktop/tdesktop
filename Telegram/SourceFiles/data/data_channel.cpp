@@ -475,6 +475,14 @@ void ChannelData::applyEditBanned(
 	session().changes().peerUpdated(this, flags);
 }
 
+void ChannelData::setViewAsMessagesFlag(bool enabled) {
+	if (viewForumAsMessages() == enabled) {
+		return;
+	}
+	setFlags((flags() & ~Flag::ViewAsMessages)
+		| (enabled ? Flag::ViewAsMessages : Flag()));
+}
+
 void ChannelData::markForbidden() {
 	owner().processChat(MTP_channelForbidden(
 		MTP_flags(isMegagroup()
@@ -998,7 +1006,8 @@ void ApplyChannelUpdate(
 		| Flag::AntiSpam
 		| Flag::Location
 		| Flag::ParticipantsHidden
-		| Flag::CanGetStatistics;
+		| Flag::CanGetStatistics
+		| Flag::ViewAsMessages;
 	channel->setFlags((channel->flags() & ~mask)
 		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag())
 		| (update.is_can_view_participants()
@@ -1011,7 +1020,10 @@ void ApplyChannelUpdate(
 		| (update.is_participants_hidden()
 			? Flag::ParticipantsHidden
 			: Flag())
-		| (update.is_can_view_stats() ? Flag::CanGetStatistics : Flag()));
+		| (update.is_can_view_stats() ? Flag::CanGetStatistics : Flag())
+		| (update.is_view_forum_as_messages()
+			? Flag::ViewAsMessages
+			: Flag()));
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {
 		channel->addFlags(Flag::Megagroup);

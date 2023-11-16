@@ -4170,6 +4170,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_create_topic" = "Create topic";
 "lng_forum_discard_sure" = "Are you sure you want to discard this topic?";
 "lng_forum_view_as_messages" = "View as Messages";
+"lng_forum_view_as_topics" = "View as Topics";
 "lng_forum_no_messages" = "No messages";
 "lng_forum_messages#one" = "{count} message";
 "lng_forum_messages#other" = "{count} messages";

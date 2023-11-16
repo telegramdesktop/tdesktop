@@ -2326,6 +2326,14 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateChannelViewForumAsMessages: {
+		const auto &d = update.c_updateChannelViewForumAsMessages();
+		const auto id = ChannelId(d.vchannel_id());
+		if (const auto channel = session().data().channelLoaded(id)) {
+			channel->setViewAsMessagesFlag(mtpIsTrue(d.venabled()));
+		}
+	} break;
+
 	// Pinned message.
 	case mtpc_updatePinnedMessages: {
 		const auto &d = update.c_updatePinnedMessages();

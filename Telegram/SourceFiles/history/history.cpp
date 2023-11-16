@@ -2808,6 +2808,7 @@ void History::applyDialog(
 				}
 			}
 		}
+		channel->setViewAsMessagesFlag(data.is_view_forum_as_messages());
 	}
 	owner().notifySettings().apply(
 		MTP_notifyPeer(data.vpeer()),

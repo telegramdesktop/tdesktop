@@ -63,6 +63,7 @@ enum class ChannelDataFlag {
 	HasActiveStories = (1 << 27),
 	HasUnreadStories = (1 << 28),
 	CanGetStatistics = (1 << 29),
+	ViewAsMessages = (1 << 30),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -233,6 +234,9 @@ public:
 	[[nodiscard]] bool hasStoriesHidden() const {
 		return flags() & Flag::StoriesHidden;
 	}
+	[[nodiscard]] bool viewForumAsMessages() const {
+		return flags() & Flag::ViewAsMessages;
+	}
 
 	[[nodiscard]] static ChatRestrictionsInfo KickedRestrictedRights(
 		not_null<PeerData*> participant);
@@ -249,6 +253,7 @@ public:
 		not_null<PeerData*> participant,
 		ChatRestrictionsInfo oldRights,
 		ChatRestrictionsInfo newRights);
+	void setViewAsMessagesFlag(bool enabled);
 
 	void markForbidden();
 

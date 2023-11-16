@@ -4545,6 +4545,25 @@ void Session::applyStatsDcId(
 	}
 }
 
+void Session::saveViewAsMessages(
+		not_null<Forum*> forum,
+		bool viewAsMessages) {
+	const auto channel = forum->channel();
+	if (const auto requestId = _viewAsMessagesRequests.take(channel)) {
+		_session->api().request(*requestId).cancel();
+	}
+	_viewAsMessagesRequests[channel] = _session->api().request(
+		MTPchannels_ToggleViewForumAsMessages(
+			channel->inputChannel,
+			MTP_bool(viewAsMessages))
+	).done([=] {
+		_viewAsMessagesRequests.remove(channel);
+	}).fail([=] {
+		_viewAsMessagesRequests.remove(channel);
+	}).send();
+	channel->setViewAsMessagesFlag(viewAsMessages);
+}
+
 void Session::webViewResultSent(WebViewResultSent &&sent) {
 	return _webViewResultSent.fire(std::move(sent));
 }
