@@ -19,8 +19,11 @@ std::unique_ptr<AbstractChartView> CreateChartView(ChartViewType type) {
 	case ChartViewType::Linear: {
 		return std::make_unique<LinearChartView>(false);
 	} break;
-	case ChartViewType::Stack: {
-		return std::make_unique<BarChartView>();
+	case ChartViewType::Bar: {
+		return std::make_unique<BarChartView>(false);
+	} break;
+	case ChartViewType::StackBar: {
+		return std::make_unique<BarChartView>(true);
 	} break;
 	case ChartViewType::DoubleLinear: {
 		return std::make_unique<LinearChartView>(true);

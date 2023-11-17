@@ -18,7 +18,8 @@ struct Limits final {
 
 enum class ChartViewType {
 	Linear,
-	Stack,
+	Bar,
+	StackBar,
 	DoubleLinear,
 	StackLinear,
 };

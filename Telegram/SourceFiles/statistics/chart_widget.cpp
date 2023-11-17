@@ -1462,7 +1462,7 @@ void ChartWidget::setChartData(
 	_chartView = CreateChartView(type);
 	_chartView->setLinesFilterController(_linesFilterController);
 	_rulersView.setChartData(_chartData, type, _linesFilterController);
-	_areRulersAbove = (type == ChartViewType::Stack);
+	_areRulersAbove = (type == ChartViewType::StackBar);
 
 	if (_chartData.isFooterHidden) {
 		_footer->hide();

@@ -22,7 +22,7 @@ struct Limits;
 
 class BarChartView final : public AbstractChartView {
 public:
-	BarChartView();
+	BarChartView(bool isStack);
 	~BarChartView() override final;
 
 	void paint(QPainter &p, const PaintContext &c) override;
@@ -52,9 +52,13 @@ private:
 		SegmentTree ySumSegmentTree;
 	} _cachedHeightLimits;
 
+	const bool _isStack;
+	DoubleLineRatios _cachedLineRatios; // Non-stack.
 	Limits _lastPaintedXIndices;
 	int _lastSelectedXIndex = -1;
 	float64 _lastSelectedXProgress = 0;
+
+	CachedSelectedPoints _selectedPoints; // Non-stack.
 
 };
 

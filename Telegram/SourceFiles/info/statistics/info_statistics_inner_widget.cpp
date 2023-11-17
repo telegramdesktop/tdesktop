@@ -189,11 +189,11 @@ void FillStatistic(
 		addChart(
 			stats.channel.viewCountBySourceGraph,
 			tr::lng_chart_title_view_count_by_source(),
-			Type::Stack);
+			Type::StackBar);
 		addChart(
 			stats.channel.joinBySourceGraph,
 			tr::lng_chart_title_join_by_source(),
-			Type::Stack);
+			Type::StackBar);
 		addChart(
 			stats.channel.languageGraph,
 			tr::lng_chart_title_language(),
@@ -218,7 +218,7 @@ void FillStatistic(
 		addChart(
 			stats.supergroup.joinBySourceGraph,
 			tr::lng_chart_title_group_join_by_source(),
-			Type::Stack);
+			Type::StackBar);
 		addChart(
 			stats.supergroup.languageGraph,
 			tr::lng_chart_title_group_language(),
@@ -226,7 +226,7 @@ void FillStatistic(
 		addChart(
 			stats.supergroup.messageContentGraph,
 			tr::lng_chart_title_group_message_content(),
-			Type::Stack);
+			Type::StackBar);
 		addChart(
 			stats.supergroup.actionGraph,
 			tr::lng_chart_title_group_action(),
