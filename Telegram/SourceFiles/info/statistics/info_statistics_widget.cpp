@@ -93,6 +93,8 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 rpl::producer<QString> Widget::title() {
 	return controller()->statisticsContextId()
 		? tr::lng_stats_message_title()
+		: controller()->statisticsStoryId()
+		? tr::lng_stats_story_title()
 		: tr::lng_stats_title();
 }
 

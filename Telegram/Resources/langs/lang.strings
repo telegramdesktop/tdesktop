@@ -4314,6 +4314,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_stats_title" = "Statistics";
 "lng_stats_message_title" = "Message Statistic";
+"lng_stats_story_title" = "Story Statistic";
 "lng_stats_zoom_out" = "Zoom Out";
 
 "lng_stats_overview_title" = "Overview";

@@ -251,15 +251,20 @@ void FillStatistic(
 			stats.supergroup.weekGraph,
 			tr::lng_chart_title_group_week(),
 			Type::StackLinear);
-	} else if (stats.message) {
-		addChart(
-			stats.message.messageInteractionGraph,
-			tr::lng_chart_title_message_interaction(),
-			Type::DoubleLinear);
-		addChart(
-			stats.message.reactionsByEmotionGraph,
-			tr::lng_chart_title_reactions_by_emotion(),
-			Type::Bar);
+	} else {
+		auto &messageOrStory = stats.message
+			? stats.message
+			: stats.story;
+		if (messageOrStory) {
+			addChart(
+				messageOrStory.messageInteractionGraph,
+				tr::lng_chart_title_message_interaction(),
+				Type::DoubleLinear);
+			addChart(
+				messageOrStory.reactionsByEmotionGraph,
+				tr::lng_chart_title_reactions_by_emotion(),
+				Type::Bar);
+		}
 	}
 }
 
@@ -376,11 +381,12 @@ void FillOverview(
 	};
 
 	const auto isChannel = (!!channel);
-	const auto isMessage = (!!stats.message);
+	const auto &messageOrStory = stats.message ? stats.message : stats.story;
+	const auto isMessage = (!!messageOrStory);
 	const auto topLeftLabel = isChannel
 		? addPrimary(channel.memberCount)
 		: isMessage
-		? addPrimary({ .value = float64(stats.message.views) })
+		? addPrimary({ .value = float64(messageOrStory.views) })
 		: addPrimary(supergroup.memberCount);
 	const auto topRightLabel = isChannel
 		? Ui::CreateChild<Ui::FlatLabel>(
@@ -389,17 +395,17 @@ void FillOverview(
 				* std::round(channel.enabledNotificationsPercentage * 100.)),
 			st::statisticsOverviewValue)
 		: isMessage
-		? addPrimary({ .value = float64(stats.message.publicForwards) })
+		? addPrimary({ .value = float64(messageOrStory.publicForwards) })
 		: addPrimary(supergroup.messageCount);
 	const auto bottomLeftLabel = isChannel
 		? addPrimary(channel.meanViewCount)
 		: isMessage
-		? addPrimary({ .value = float64(stats.message.reactions) })
+		? addPrimary({ .value = float64(messageOrStory.reactions) })
 		: addPrimary(supergroup.viewerCount);
 	const auto bottomRightLabel = isChannel
 		? addPrimary(channel.meanShareCount)
 		: isMessage
-		? addPrimary({ .value = float64(stats.message.privateForwards) })
+		? addPrimary({ .value = float64(messageOrStory.privateForwards) })
 		: addPrimary(supergroup.senderCount);
 	if (const auto &s = channel) {
 		addSub(
@@ -435,7 +441,7 @@ void FillOverview(
 			bottomRightLabel,
 			s.senderCount,
 			tr::lng_stats_overview_group_mean_post_count);
-	} else if (const auto &s = stats.message) {
+	} else if (const auto &s = messageOrStory) {
 		if (s.views >= 0) {
 			addSub(
 				topLeftLabel,
@@ -564,7 +570,7 @@ void InnerWidget::load() {
 
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
-		if (!_contextId) {
+		if (!_contextId && !_storyId) {
 			descriptor.api->request(
 			) | rpl::start_with_done([=] {
 				_state.stats = Data::AnyStatistics{
@@ -577,13 +583,22 @@ void InnerWidget::load() {
 			}, lifetime());
 		} else {
 			const auto lifetimeApi = lifetime().make_state<rpl::lifetime>();
-			const auto api = lifetimeApi->make_state<Api::MessageStatistics>(
-				descriptor.peer->asChannel(),
-				_contextId);
+			const auto api = _storyId
+				? lifetimeApi->make_state<Api::MessageStatistics>(
+					descriptor.peer->asChannel(),
+					_storyId)
+				: lifetimeApi->make_state<Api::MessageStatistics>(
+					descriptor.peer->asChannel(),
+					_contextId);
 
-			api->request([=](const Data::MessageStatistics &data) {
-				_state.stats = Data::AnyStatistics{ .message = data };
-				_state.publicForwardsFirstSlice = api->firstSlice();
+			api->request([=](const Data::StoryStatistics &data) {
+				_state.stats = Data::AnyStatistics{
+					.message = _contextId ? data : Data::StoryStatistics(),
+					.story = _storyId ? data : Data::StoryStatistics(),
+				};
+				if (_contextId) {
+					_state.publicForwardsFirstSlice = api->firstSlice();
+				}
 				fill();
 
 				finishLoading();
