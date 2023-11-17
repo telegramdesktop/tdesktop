@@ -1152,7 +1152,7 @@ void Filler::addViewAsMessages() {
 			peer->owner().saveViewAsMessages(forum, true);
 		}
 		controller->showPeerHistory(peer->id);
-	}, &st::menuIconViewReplies);
+	}, &st::menuIconAsMessages);
 }
 
 void Filler::addViewAsTopics() {
@@ -1168,7 +1168,7 @@ void Filler::addViewAsTopics() {
 			peer->owner().saveViewAsMessages(forum, false);
 			controller->showForum(forum);
 		}
-	}, &st::menuIconViewReplies);
+	}, &st::menuIconAsTopics);
 }
 
 void Filler::addSearchTopics() {

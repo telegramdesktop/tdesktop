@@ -145,6 +145,8 @@ menuIconAbove: icon {{ "menu/link_above", menuIconColor }};
 menuIconBelow: icon {{ "menu/link_below", menuIconColor }};
 menuIconEnlarge: icon {{ "menu/link_enlarge", menuIconColor }};
 menuIconShrink: icon {{ "menu/link_shrink", menuIconColor }};
+menuIconAsTopics: icon {{ "menu/mode_topics", menuIconColor }};
+menuIconAsMessages: icon {{ "menu/mode_messages", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
