@@ -18,6 +18,7 @@ class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
 	Memento(not_null<PeerData*> peer, FullMsgId contextId);
+	Memento(not_null<PeerData*> peer, FullStoryId storyId);
 	~Memento();
 
 	object_ptr<ContentWidget> createWidget(
@@ -44,9 +45,6 @@ public:
 	rpl::producer<bool> desiredShadowVisibility() const override;
 	void showFinished() override;
 
-	[[nodiscard]] not_null<PeerData*> peer() const;
-	[[nodiscard]] FullMsgId contextId() const;
-
 	void setInternalState(
 		const QRect &geometry,
 		not_null<Memento*> memento);
@@ -63,6 +61,7 @@ private:
 
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(
 	not_null<PeerData*> peer,
-	FullMsgId contextId);
+	FullMsgId contextId,
+	FullStoryId storyId);
 
 } // namespace Info::Statistics

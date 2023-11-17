@@ -106,6 +106,13 @@ FullMsgId Key::statisticsContextId() const {
 	return {};
 }
 
+FullStoryId Key::statisticsStoryId() const {
+	if (const auto tag = std::get_if<Statistics::Tag>(&_value)) {
+		return tag->storyId;
+	}
+	return {};
+}
+
 PollData *Key::poll() const {
 	if (const auto data = std::get_if<PollKey>(&_value)) {
 		return data->poll;

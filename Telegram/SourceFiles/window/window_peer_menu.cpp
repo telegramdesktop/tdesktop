@@ -1008,7 +1008,8 @@ void Filler::addViewStatistics() {
 		if (channel->flags() & ChannelDataFlag::CanGetStatistics) {
 			_addAction(tr::lng_stats_title(tr::now), [=] {
 				if (const auto strong = weak.get()) {
-					controller->showSection(Info::Statistics::Make(peer, {}));
+					using namespace Info;
+					controller->showSection(Statistics::Make(peer, {}, {}));
 				}
 			}, &st::menuIconStats);
 		}

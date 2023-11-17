@@ -533,11 +533,13 @@ InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
-	FullMsgId contextId)
+	FullMsgId contextId,
+	FullStoryId storyId)
 : VerticalLayout(parent)
 , _controller(controller)
 , _peer(peer)
-, _contextId(contextId) {
+, _contextId(contextId)
+, _storyId(storyId) {
 }
 
 void InnerWidget::load() {
@@ -801,14 +803,6 @@ auto InnerWidget::showRequests() const -> rpl::producer<ShowRequest> {
 
 void InnerWidget::showFinished() {
 	_showFinished.fire({});
-}
-
-not_null<PeerData*> InnerWidget::peer() const {
-	return _peer;
-}
-
-FullMsgId InnerWidget::contextId() const {
-	return _contextId;
 }
 
 } // namespace Info::Statistics

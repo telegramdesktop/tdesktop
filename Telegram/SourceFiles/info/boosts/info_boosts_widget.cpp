@@ -17,12 +17,13 @@ namespace Info::Boosts {
 Memento::Memento(not_null<Controller*> controller)
 : ContentMemento(Info::Statistics::Tag{
 	controller->statisticsPeer(),
-	{}
+	{},
+	{},
 }) {
 }
 
 Memento::Memento(not_null<PeerData*> peer)
-: ContentMemento(Info::Statistics::Tag{ peer, {} }) {
+: ContentMemento(Info::Statistics::Tag{ peer, {}, {} }) {
 }
 
 Memento::~Memento() = default;
