@@ -86,6 +86,9 @@ public:
 	explicit MessageStatistics(
 		not_null<ChannelData*> channel,
 		FullMsgId fullId);
+	explicit MessageStatistics(
+		not_null<ChannelData*> channel,
+		FullStoryId storyId);
 
 	void request(Fn<void(Data::MessageStatistics)> done);
 
@@ -94,6 +97,7 @@ public:
 private:
 	PublicForwards _publicForwards;
 	const FullMsgId _fullId;
+	const FullStoryId _storyId;
 
 	Data::PublicForwardsSlice _firstSlice;
 

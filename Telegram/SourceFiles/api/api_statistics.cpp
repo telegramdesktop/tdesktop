@@ -437,6 +437,14 @@ MessageStatistics::MessageStatistics(
 , _fullId(fullId) {
 }
 
+MessageStatistics::MessageStatistics(
+	not_null<ChannelData*> channel,
+	FullStoryId storyId)
+: StatisticsRequestSender(channel)
+, _publicForwards(channel, {})
+, _storyId(storyId) {
+}
+
 Data::PublicForwardsSlice MessageStatistics::firstSlice() const {
 	return _firstSlice;
 }
@@ -518,18 +526,60 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 		}).send();
 	};
 
-	makeRequest(MTPstats_GetMessageStats(
-		MTP_flags(MTPstats_GetMessageStats::Flags(0)),
-		channel()->inputChannel,
-		MTP_int(_fullId.msg.bare)
-	)).done([=](const MTPstats_MessageStats &result) {
-		const auto &data = result.data();
-		requestPrivateForwards(
-			StatisticalGraphFromTL(data.vviews_graph()),
-			StatisticalGraphFromTL(data.vreactions_by_emotion_graph()));
-	}).fail([=](const MTP::Error &error) {
-		requestPrivateForwards({}, {});
-	}).send();
+	const auto requestStoryPrivateForwards = [=](
+			const Data::StatisticalGraph &messageGraph,
+			const Data::StatisticalGraph &reactionsGraph) {
+		api().request(MTPstories_GetStoriesByID(
+			channel()->input,
+			MTP_vector<MTPint>(1, MTP_int(_storyId.story)))
+		).done([=](const MTPstories_Stories &result) {
+			const auto &storyItem = result.data().vstories().v.front();
+			storyItem.match([&](const MTPDstoryItem &data) {
+				if (!data.vviews()) {
+					return;
+				}
+				const auto &tlViews = data.vviews()->data();
+				done({
+					.messageInteractionGraph = messageGraph,
+					.reactionsByEmotionGraph = reactionsGraph,
+					.publicForwards = -1,
+					.privateForwards = tlViews.vforwards_count().value_or(0),
+					.views = tlViews.vviews_count().v,
+					.reactions = tlViews.vreactions_count().value_or(0),
+				});
+			}, [](const auto &) {
+			});
+		}).fail([=](const MTP::Error &error) {
+		}).send();
+	};
+
+	if (_storyId) {
+		makeRequest(MTPstats_GetStoryStats(
+			MTP_flags(MTPstats_GetStoryStats::Flags(0)),
+			channel()->input,
+			MTP_int(_storyId.story)
+		)).done([=](const MTPstats_StoryStats &result) {
+			const auto &data = result.data();
+			requestStoryPrivateForwards(
+				StatisticalGraphFromTL(data.vviews_graph()),
+				StatisticalGraphFromTL(data.vreactions_by_emotion_graph()));
+		}).fail([=](const MTP::Error &error) {
+			requestStoryPrivateForwards({}, {});
+		}).send();
+	} else {
+		makeRequest(MTPstats_GetMessageStats(
+			MTP_flags(MTPstats_GetMessageStats::Flags(0)),
+			channel()->inputChannel,
+			MTP_int(_fullId.msg.bare)
+		)).done([=](const MTPstats_MessageStats &result) {
+			const auto &data = result.data();
+			requestPrivateForwards(
+				StatisticalGraphFromTL(data.vviews_graph()),
+				StatisticalGraphFromTL(data.vreactions_by_emotion_graph()));
+		}).fail([=](const MTP::Error &error) {
+			requestPrivateForwards({}, {});
+		}).send();
+	}
 }
 
 Boosts::Boosts(not_null<PeerData*> peer)
