@@ -18,17 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Statistic {
 namespace {
 
-[[nodiscard]] float64 Ratio(
-		const LinearChartView::CachedLineRatios &ratios,
-		int id) {
-	return (id == 1) ? ratios.first : ratios.second;
-}
-
 void PaintChartLine(
 		QPainter &p,
 		int lineIndex,
 		const PaintContext &c,
-		const LinearChartView::CachedLineRatios &ratios) {
+		const DoubleLineRatios &ratios) {
 	const auto &line = c.chartData.lines[lineIndex];
 
 	auto chartPoints = QPolygonF();
@@ -39,7 +33,7 @@ void PaintChartLine(
 		float64(c.chartData.xPercentage.size() - 1),
 		c.xIndices.max + kOffset));
 
-	const auto ratio = Ratio(ratios, line.id);
+	const auto ratio = ratios.ratio(line.id);
 
 	for (auto i = localStart; i <= localEnd; i++) {
 		if (line.y[i] < 0) {
@@ -63,7 +57,7 @@ void PaintChartLine(
 } // namespace
 
 LinearChartView::LinearChartView(bool isDouble)
-: _cachedLineRatios(CachedLineRatios{ isDouble ? 0 : 1, isDouble ? 0 : 1 }) {
+: _cachedLineRatios(isDouble) {
 }
 
 LinearChartView::~LinearChartView() = default;
@@ -148,7 +142,7 @@ void LinearChartView::paintSelectedXIndex(
 			|| (lineAlpha < 1. && !linesFilter->isEnabled(line.id));
 		if (!useCache) {
 			// Calculate.
-			const auto r = Ratio(_cachedLineRatios, line.id);
+			const auto r = _cachedLineRatios.ratio(line.id);
 			const auto xPoint = c.rect.width()
 				* ((c.chartData.xPercentage[i] - c.xPercentageLimits.min)
 					/ (c.xPercentageLimits.max - c.xPercentageLimits.min));
@@ -216,22 +210,8 @@ int LinearChartView::findXIndexByPosition(
 AbstractChartView::HeightLimits LinearChartView::heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) {
-	if (!_cachedLineRatios.first) {
-		// Double Linear calculation.
-		if (chartData.lines.size() != 2) {
-			_cachedLineRatios.first = 1.;
-			_cachedLineRatios.second = 1.;
-		} else {
-			const auto firstMax = chartData.lines.front().maxValue;
-			const auto secondMax = chartData.lines.back().maxValue;
-			if (firstMax > secondMax) {
-				_cachedLineRatios.first = 1.;
-				_cachedLineRatios.second = firstMax / float64(secondMax);
-			} else {
-				_cachedLineRatios.first = secondMax / float64(firstMax);
-				_cachedLineRatios.second = 1.;
-			}
-		}
+	if (!_cachedLineRatios) {
+		_cachedLineRatios.init(chartData);
 	}
 
 	auto minValue = std::numeric_limits<int>::max();
@@ -243,7 +223,7 @@ AbstractChartView::HeightLimits LinearChartView::heightLimits(
 		if (!linesFilterController()->isEnabled(l.id)) {
 			continue;
 		}
-		const auto r = Ratio(_cachedLineRatios, l.id);
+		const auto r = _cachedLineRatios.ratio(l.id);
 		const auto lineMax = l.segmentTree.rMaxQ(xIndices.min, xIndices.max);
 		const auto lineMin = l.segmentTree.rMinQ(xIndices.min, xIndices.max);
 		maxValue = std::max(int(lineMax * r), maxValue);

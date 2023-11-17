@@ -20,8 +20,6 @@ struct Limits;
 
 class LinearChartView final : public AbstractChartView {
 public:
-	using CachedLineRatios = std::pair<float64, float64>;
-
 	LinearChartView(bool isDouble);
 	~LinearChartView() override final;
 
@@ -44,7 +42,7 @@ public:
 		Limits xIndices) override;
 
 private:
-	CachedLineRatios _cachedLineRatios;
+	DoubleLineRatios _cachedLineRatios;
 
 	[[nodiscard]] float64 lineRatio() const;
 

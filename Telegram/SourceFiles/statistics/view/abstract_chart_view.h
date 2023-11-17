@@ -34,6 +34,18 @@ struct CachedSelectedPoints final {
 	base::flat_map<int, QPointF> points;
 };
 
+class DoubleLineRatios final : std::pair<float64, float64> {
+public:
+	DoubleLineRatios(bool isDouble);
+
+	operator bool() const {
+		return first > 0;
+	}
+
+	void init(const Data::StatisticalChart &chartData);
+	[[nodiscard]] float64 ratio(int lineId) const;
+};
+
 class AbstractChartView {
 public:
 	virtual ~AbstractChartView() = default;
