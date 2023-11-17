@@ -118,4 +118,10 @@ private:
 
 };
 
+AbstractChartView::HeightLimits DefaultHeightLimits(
+	const DoubleLineRatios &ratios,
+	const std::shared_ptr<LinesFilterController> &linesFilter,
+	Data::StatisticalChart &chartData,
+	Limits xIndices);
+
 } // namespace Statistic

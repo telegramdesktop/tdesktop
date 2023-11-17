@@ -214,32 +214,11 @@ AbstractChartView::HeightLimits LinearChartView::heightLimits(
 		_cachedLineRatios.init(chartData);
 	}
 
-	auto minValue = std::numeric_limits<int>::max();
-	auto maxValue = 0;
-
-	auto minValueFull = std::numeric_limits<int>::max();
-	auto maxValueFull = 0;
-	for (auto &l : chartData.lines) {
-		if (!linesFilterController()->isEnabled(l.id)) {
-			continue;
-		}
-		const auto r = _cachedLineRatios.ratio(l.id);
-		const auto lineMax = l.segmentTree.rMaxQ(xIndices.min, xIndices.max);
-		const auto lineMin = l.segmentTree.rMinQ(xIndices.min, xIndices.max);
-		maxValue = std::max(int(lineMax * r), maxValue);
-		minValue = std::min(int(lineMin * r), minValue);
-
-		maxValueFull = std::max(int(l.maxValue * r), maxValueFull);
-		minValueFull = std::min(int(l.minValue * r), minValueFull);
-	}
-	if (maxValue == minValue) {
-		maxValue = chartData.maxValue;
-		minValue = chartData.minValue;
-	}
-	return {
-		.full = Limits{ float64(minValueFull), float64(maxValueFull) },
-		.ranged = Limits{ float64(minValue), float64(maxValue) },
-	};
+	return DefaultHeightLimits(
+		_cachedLineRatios,
+		linesFilterController(),
+		chartData,
+		xIndices);
 }
 
 } // namespace Statistic
