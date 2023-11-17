@@ -758,9 +758,7 @@ RUN git clone -b {{ QT_TAG }} --depth=1 https://code.qt.io/qt/qt5.git qt_{{ QT }
 	&& cd qtbase \
 	&& find ../../patches/qtbase_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd ../qtwayland \
-	&& git fetch origin v6.5.3 \
-	&& git checkout FETCH_HEAD \
-	&& git fetch origin da4bb4885d91fad53a573bbeacf1b0705eb5b1a5 \
+	&& git fetch origin aae65c885d8e38d8abc2959cded7b5e9e5fc88b3 \
 	&& git cherry-pick -n FETCH_HEAD \
 	&& cd .. \
 	&& ./configure -prefix "{{ QT_PREFIX }}" \
