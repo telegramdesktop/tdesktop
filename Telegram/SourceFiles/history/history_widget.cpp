@@ -508,10 +508,7 @@ HistoryWidget::HistoryWidget(
 			if (!_peer || isRecording()) {
 				return false;
 			}
-			const auto replyTo = (_replyTo && !_editMsgId)
-				? _replyEditMsg
-				: 0;
-			const auto topic = replyTo ? replyTo->topic() : nullptr;
+			const auto topic = resolveReplyToTopic();
 			return topic
 				? Data::CanSendAnyOf(topic, Data::FilesSendRestrictions())
 				: Data::CanSendAnyOf(_peer, Data::FilesSendRestrictions());
@@ -2134,6 +2131,7 @@ void HistoryWidget::showHistory(
 		setHistory(nullptr);
 		_list = nullptr;
 		_peer = nullptr;
+		_topicsRequested.clear();
 		_canSendMessages = false;
 		_canSendTexts = false;
 		_fieldDisabled = nullptr;
@@ -2721,8 +2719,6 @@ std::optional<QString> HistoryWidget::writeRestriction() const {
 		: std::nullopt;
 	if (result) {
 		return result;
-	} else if (_peer && _peer->isForum()) {
-		return tr::lng_forum_replies_only(tr::now);
 	}
 	return std::nullopt;
 }
@@ -5223,7 +5219,31 @@ void HistoryWidget::updateFieldPlaceholder() {
 			&& !_keyboard->placeholder().isEmpty()) {
 			return rpl::single(_keyboard->placeholder());
 		} else if (const auto channel = _history->peer->asChannel()) {
-			if (channel->isBroadcast()) {
+			const auto topic = resolveReplyToTopic();
+			const auto topicRootId = topic
+				? topic->rootId()
+				: channel->forum()
+				? resolveReplyToTopicRootId()
+				: MsgId();
+			if (topicRootId) {
+				auto title = rpl::single(topic
+					? topic->title()
+					: (topicRootId == Data::ForumTopic::kGeneralId)
+					? u"General"_q
+					: u"Topic"_q
+				) | rpl::then(session().changes().topicUpdates(
+					Data::TopicUpdate::Flag::Title
+				) | rpl::filter([=](const Data::TopicUpdate &update) {
+					return (update.topic->peer() == channel)
+						&& (update.topic->rootId() == topicRootId);
+				}) | rpl::map([=](const Data::TopicUpdate &update) {
+					return update.topic->title();
+				}));
+				const auto phrase = replyTo().messageId
+					? tr::lng_forum_reply_in
+					: tr::lng_forum_message_in;
+				return phrase(lt_topic, std::move(title));
+			} else if (channel->isBroadcast()) {
 				return session().data().notifySettings().silentPosts(channel)
 					? tr::lng_broadcast_silent_ph()
 					: tr::lng_broadcast_ph();
@@ -5284,15 +5304,42 @@ bool HistoryWidget::showSendingFilesError(
 	return true;
 }
 
+MsgId HistoryWidget::resolveReplyToTopicRootId() {
+	Expects(_peer != nullptr);
+
+	const auto replyToInfo = replyTo();
+	const auto replyToMessage = (replyToInfo.messageId.peer == _peer->id)
+		? session().data().message(replyToInfo.messageId)
+		: nullptr;
+	const auto result = replyToMessage
+		? replyToMessage->topicRootId()
+		: replyToInfo.topicRootId;
+	if (result
+		&& _peer->isForum()
+		&& !_peer->forumTopicFor(result)
+		&& _topicsRequested.emplace(result).second) {
+		_peer->forum()->requestTopic(result, crl::guard(_list, [=] {
+			updateCanSendMessage();
+			updateFieldPlaceholder();
+			_topicsRequested.remove(result);
+		}));
+	}
+	return result;
+}
+
+Data::ForumTopic *HistoryWidget::resolveReplyToTopic() {
+	return _peer
+		? _peer->forumTopicFor(resolveReplyToTopicRootId())
+		: nullptr;
+}
+
 bool HistoryWidget::showSendMessageError(
 		const TextWithTags &textWithTags,
-		bool ignoreSlowmodeCountdown) const {
+		bool ignoreSlowmodeCountdown) {
 	if (!_canSendMessages) {
 		return false;
 	}
-	const auto topicRootId = _replyEditMsg
-		? _replyEditMsg->topicRootId()
-		: 0;
+	const auto topicRootId = resolveReplyToTopicRootId();
 	const auto error = GetErrorTextForSending(
 		_peer,
 		{
@@ -5691,6 +5738,8 @@ FullReplyTo HistoryWidget::replyTo() const {
 		? _replyTo
 		: _kbReplyTo
 		? FullReplyTo{ _kbReplyTo->fullId() }
+		: (_peer && _peer->forum())
+		? FullReplyTo{ .topicRootId = Data::ForumTopic::kGeneralId }
 		: FullReplyTo();
 }
 
@@ -7570,11 +7619,7 @@ bool HistoryWidget::updateCanSendMessage() {
 	if (!_peer) {
 		return false;
 	}
-	const auto checkTopicFromReplyTo = _replyTo
-		&& !_editMsgId
-		&& (_replyTo.messageId.peer == _peer->id);
-	const auto replyTo = checkTopicFromReplyTo ? _replyEditMsg : 0;
-	const auto topic = replyTo ? replyTo->topic() : nullptr;
+	const auto topic = resolveReplyToTopic();
 	const auto allWithoutPolls = Data::AllSendRestrictions()
 		& ~ChatRestriction::SendPolls;
 	const auto newCanSendMessages = topic
@@ -7786,6 +7831,9 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		_replyEditMsg = session().data().message(
 			_editMsgId ? _peer->id : _replyTo.messageId.peer,
 			_editMsgId ? _editMsgId : _replyTo.messageId.msg);
+		if (!_editMsgId) {
+			updateFieldPlaceholder();
+		}
 	}
 	if (_replyEditMsg) {
 		const auto media = _replyEditMsg->media();

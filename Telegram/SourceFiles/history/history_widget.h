@@ -457,7 +457,7 @@ private:
 		std::optional<bool> compress) const;
 	bool showSendMessageError(
 		const TextWithTags &textWithTags,
-		bool ignoreSlowmodeCountdown) const;
+		bool ignoreSlowmodeCountdown);
 
 	void sendingFilesConfirmed(
 		Ui::PreparedList &&list,
@@ -474,7 +474,9 @@ private:
 	void moveFieldControls();
 	void updateFieldSize();
 
-	bool canWriteMessage() const;
+	[[nodiscard]] MsgId resolveReplyToTopicRootId();
+	[[nodiscard]] Data::ForumTopic *resolveReplyToTopic();
+	[[nodiscard]] bool canWriteMessage() const;
 	std::optional<QString> writeRestriction() const;
 	void orderWidgets();
 
@@ -695,6 +697,7 @@ private:
 	bool _canSendMessages = false;
 	bool _canSendTexts = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
+	base::flat_set<MsgId> _topicsRequested;
 	TextWithEntities _showAtMsgHighlightPart;
 	int _showAtMsgHighlightPartOffsetHint = 0;
 

@@ -4166,6 +4166,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_topics_no_discussion" = "Topics can't be enabled in discussion groups at the moment.";
 "lng_forum_choose_title_and_icon" = "Choose title and icon for your topic";
 "lng_forum_replies_only" = "You can reply to messages in topics.";
+"lng_forum_message_in" = "Message in {topic}";
+"lng_forum_reply_in" = "Reply in {topic}";
 "lng_forum_no_topics" = "No topics currently created in this forum.";
 "lng_forum_create_topic" = "Create topic";
 "lng_forum_discard_sure" = "Are you sure you want to discard this topic?";
