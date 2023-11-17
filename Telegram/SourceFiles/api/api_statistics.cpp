@@ -458,6 +458,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 				.publicForwards = total,
 				.privateForwards = info.forwardsCount - total,
 				.views = info.viewsCount,
+				.reactions = info.reactionsCount,
 			});
 		});
 	};
@@ -474,6 +475,13 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 			const auto process = [&](const MTPVector<MTPMessage> &messages) {
 				const auto &message = messages.v.front();
 				return message.match([&](const MTPDmessage &data) {
+					auto reactionsCount = 0;
+					if (const auto tlReactions = data.vreactions()) {
+						const auto &tlCounts = tlReactions->data().vresults();
+						for (const auto &tlCount : tlCounts.v) {
+							reactionsCount += tlCount.data().vcount().v;
+						}
+					}
 					return Data::StatisticsMessageInteractionInfo{
 						.messageId = IdFromMessage(message),
 						.viewsCount = data.vviews()
@@ -482,6 +490,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 						.forwardsCount = data.vforwards()
 							? data.vforwards()->v
 							: 0,
+						.reactionsCount = reactionsCount,
 					};
 				}, [](const MTPDmessageEmpty &) {
 					return Data::StatisticsMessageInteractionInfo();

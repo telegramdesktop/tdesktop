@@ -394,12 +394,12 @@ void FillOverview(
 	const auto bottomLeftLabel = isChannel
 		? addPrimary(channel.meanViewCount)
 		: isMessage
-		? addPrimary({ .value = float64(stats.message.privateForwards) })
+		? addPrimary({ .value = float64(stats.message.reactions) })
 		: addPrimary(supergroup.viewerCount);
 	const auto bottomRightLabel = isChannel
 		? addPrimary(channel.meanShareCount)
 		: isMessage
-		? addPrimary({ .value = -1. })
+		? addPrimary({ .value = float64(stats.message.privateForwards) })
 		: addPrimary(supergroup.senderCount);
 	if (const auto &s = channel) {
 		addSub(
@@ -448,9 +448,15 @@ void FillOverview(
 				{},
 				tr::lng_stats_overview_message_public_shares);
 		}
-		if (s.privateForwards >= 0) {
+		if (s.reactions >= 0) {
 			addSub(
 				bottomLeftLabel,
+				{},
+				tr::lng_manage_peer_reactions);
+		}
+		if (s.privateForwards >= 0) {
+			addSub(
+				bottomRightLabel,
 				{},
 				tr::lng_stats_overview_message_private_shares);
 		}

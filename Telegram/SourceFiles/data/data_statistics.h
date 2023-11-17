@@ -15,6 +15,7 @@ struct StatisticsMessageInteractionInfo final {
 	MsgId messageId;
 	int viewsCount = 0;
 	int forwardsCount = 0;
+	int reactionsCount = 0;
 };
 
 struct StatisticsMessageSenderInfo final {
@@ -115,6 +116,7 @@ struct MessageStatistics final {
 	int publicForwards = 0;
 	int privateForwards = 0;
 	int views = 0;
+	int reactions = 0;
 };
 
 struct AnyStatistics final {
