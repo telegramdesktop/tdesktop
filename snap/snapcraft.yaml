@@ -489,9 +489,7 @@ parts:
       git fetch origin v6.5.3
       git checkout FETCH_HEAD
       cd ../qtwayland
-      git fetch origin v6.5.3
-      git checkout FETCH_HEAD
-      git fetch origin da4bb4885d91fad53a573bbeacf1b0705eb5b1a5
+      git fetch origin aae65c885d8e38d8abc2959cded7b5e9e5fc88b3
       git cherry-pick -n FETCH_HEAD
       sed -i 's/qMin(version, 8)/qMin(version, 7)/' src/client/qwaylandinputdevice.cpp
       cd ..
