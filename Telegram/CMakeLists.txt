@@ -380,16 +380,18 @@ PRIVATE
     chat_helpers/gifs_list_widget.h
     chat_helpers/message_field.cpp
     chat_helpers/message_field.h
+    chat_helpers/share_message_phrase_factory.cpp
+    chat_helpers/share_message_phrase_factory.h
     chat_helpers/spellchecker_common.cpp
     chat_helpers/spellchecker_common.h
+    chat_helpers/stickers_dice_pack.cpp
+    chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_emoji_image_loader.cpp
     chat_helpers/stickers_emoji_image_loader.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
     chat_helpers/stickers_gift_box_pack.cpp
     chat_helpers/stickers_gift_box_pack.h
-    chat_helpers/stickers_dice_pack.cpp
-    chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_list_footer.cpp
     chat_helpers/stickers_list_footer.h
     chat_helpers/stickers_list_widget.cpp

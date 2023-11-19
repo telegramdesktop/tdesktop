@@ -2746,6 +2746,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_share_wrong_user" = "This game was opened from a different user.";
 "lng_share_game_link_copied" = "Game link copied to clipboard.";
 "lng_share_done" = "Done!";
+"lng_share_message_to_saved_messages" = "Message forwarded to **Saved Messages**.";
+"lng_share_messages_to_saved_messages" = "Messages forwarded to **Saved Messages**.";
+"lng_share_message_to_chat" = "Message forwarded to **{chat}**.";
+"lng_share_messages_to_chat" = "Messages forwarded to **{chat}**.";
+"lng_share_message_to_two_chats" = "Message forwarded to **{user}** and **{chat}**.";
+"lng_share_messages_to_two_chats" = "Messages forwarded to **{user}** and **{chat}**.";
+"lng_share_message_to_many_chats#one" = "Message forwarded to **{count} chat**.";
+"lng_share_message_to_many_chats#other" = "Message forwarded to **{count} chats**.";
+"lng_share_messages_to_many_chats#one" = "Messages forwarded to **{count} chat**.";
+"lng_share_messages_to_many_chats#other" = "Messages forwarded to **{count} chats**.";
 
 "lng_contact_phone" = "Phone Number";
 "lng_enter_contact_data" = "New Contact";
