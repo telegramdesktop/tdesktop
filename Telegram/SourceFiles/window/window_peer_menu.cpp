@@ -1001,22 +1001,23 @@ void Filler::addManageChat() {
 
 void Filler::addViewStatistics() {
 	if (const auto channel = _peer->asChannel()) {
+		const auto controller = _controller;
+		const auto weak = base::make_weak(_thread);
+		const auto peer = _peer;
 		if (channel->flags() & ChannelDataFlag::CanGetStatistics) {
-			const auto controller = _controller;
-			const auto weak = base::make_weak(_thread);
-			const auto peer = _peer;
 			_addAction(tr::lng_stats_title(tr::now), [=] {
 				if (const auto strong = weak.get()) {
 					controller->showSection(Info::Statistics::Make(peer, {}));
 				}
 			}, &st::menuIconStats);
-			if (!channel->isMegagroup()) {
-				_addAction(tr::lng_boosts_title(tr::now), [=] {
-					if (const auto strong = weak.get()) {
-						controller->showSection(Info::Boosts::Make(peer));
-					}
-				}, &st::menuIconBoosts);
-			}
+		}
+		if (!channel->isMegagroup()
+			&& (channel->amCreator() || channel->canPostStories())) {
+			_addAction(tr::lng_boosts_title(tr::now), [=] {
+				if (const auto strong = weak.get()) {
+					controller->showSection(Info::Boosts::Make(peer));
+				}
+			}, &st::menuIconBoosts);
 		}
 	}
 }
