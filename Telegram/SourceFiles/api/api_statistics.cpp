@@ -62,15 +62,23 @@ constexpr auto kCheckRequestsTimer = 10 * crl::time(1000);
 			tlUnmuted.vpart().v / tlUnmuted.vtotal().v * 100.,
 			0.,
 			100.);
-	using Recent = MTPMessageInteractionCounters;
+	using Recent = MTPPostInteractionCounters;
 	auto recentMessages = ranges::views::all(
-		data.vrecent_message_interactions().v
+		data.vrecent_posts_interactions().v
 	) | ranges::views::transform([&](const Recent &tl) {
-		return Data::StatisticsMessageInteractionInfo{
-			.messageId = tl.data().vmsg_id().v,
-			.viewsCount = tl.data().vviews().v,
-			.forwardsCount = tl.data().vforwards().v,
-		};
+		return tl.match([&](const MTPDpostInteractionCountersStory &data) {
+			return Data::StatisticsMessageInteractionInfo{ // #TODO
+				.messageId = data.vstory_id().v,
+				.viewsCount = data.vviews().v,
+				.forwardsCount = data.vforwards().v,
+			};
+		}, [&](const MTPDpostInteractionCountersMessage &data) {
+			return Data::StatisticsMessageInteractionInfo{
+				.messageId = data.vmsg_id().v,
+				.viewsCount = data.vviews().v,
+				.forwardsCount = data.vforwards().v,
+			};
+		});
 	}) | ranges::to_vector;
 
 	return {
