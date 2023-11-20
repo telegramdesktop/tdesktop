@@ -336,7 +336,7 @@ rpl::producer<bool> CanShareContactValue(not_null<UserData*> user) {
 
 rpl::producer<bool> CanAddContactValue(not_null<UserData*> user) {
 	using namespace rpl::mappers;
-	if (user->isBot() || user->isSelf()) {
+	if (user->isBot() || user->isSelf() || user->isInaccessible()) {
 		return rpl::single(false);
 	}
 	return IsContactValue(
