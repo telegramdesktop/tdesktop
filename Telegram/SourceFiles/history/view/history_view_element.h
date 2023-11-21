@@ -515,6 +515,7 @@ public:
 		const Reactions::InlineList &reactions) const;
 	void clearCustomEmojiRepaint() const;
 	void hideSpoilers();
+	void repaint() const;
 
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
 		return fromLink();
@@ -531,6 +532,10 @@ public:
 
 	void overrideMedia(std::unique_ptr<Media> media);
 
+	virtual bool consumeHorizontalScroll(QPoint position, int delta) {
+		return false;
+	}
+
 	virtual ~Element();
 
 	static void Hovered(Element *view);
@@ -546,8 +551,6 @@ public:
 	static void ClearGlobal();
 
 protected:
-	void repaint() const;
-
 	void paintHighlight(
 		Painter &p,
 		const PaintContext &context,

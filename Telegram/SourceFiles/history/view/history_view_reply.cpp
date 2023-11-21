@@ -52,10 +52,8 @@ void ValidateBackgroundEmoji(
 		}
 		const auto tag = Data::CustomEmojiSizeTag::Isolated;
 		if (!data->emoji) {
+			const auto repaint = crl::guard(view, [=] { view->repaint(); });
 			const auto owner = &view->history()->owner();
-			const auto repaint = crl::guard(view, [=] {
-				view->history()->owner().requestViewRepaint(view);
-			});
 			data->emoji = owner->customEmojiManager().create(
 				backgroundEmojiId,
 				repaint,
@@ -779,7 +777,7 @@ void Reply::createRippleAnimation(
 		Ui::RippleAnimation::RoundRectMask(
 			size,
 			st::messageQuoteStyle.radius),
-		[=] { view->history()->owner().requestViewRepaint(view); });
+		[=] { view->repaint(); });
 }
 
 void Reply::saveRipplePoint(QPoint point) const {

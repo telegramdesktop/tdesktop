@@ -557,7 +557,7 @@ not_null<HistoryItem*> GenerateJoinedMessage(
 		bool viaRequest) {
 	return history->makeMessage(
 		history->owner().nextLocalMessageId(),
-		MessageFlag::Local,
+		MessageFlag::Local | MessageFlag::ShowSimilarChannels,
 		inviteDate,
 		GenerateJoinedText(history, inviter, viaRequest));
 }

@@ -39,6 +39,7 @@ class Entry;
 enum class SortMode;
 
 [[nodiscard]] QRect CornerBadgeTTLRect(int photoSize);
+[[nodiscard]] QImage BlurredDarkenedPart(QImage image, QRect part);
 
 class BasicRow {
 public:

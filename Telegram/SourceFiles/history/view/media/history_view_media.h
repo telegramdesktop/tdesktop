@@ -96,7 +96,9 @@ public:
 		return {};
 	}
 
-	[[nodiscard]] virtual bool isDisplayed() const;
+	[[nodiscard]] virtual bool isDisplayed() const {
+		return true;
+	}
 	virtual void updateNeedBubbleState() {
 	}
 	[[nodiscard]] virtual bool hasTextForCopy() const {
@@ -333,6 +335,10 @@ public:
 	virtual void updateSharedContactUserId(UserId userId) {
 	}
 	virtual void parentTextUpdated() {
+	}
+
+	virtual bool consumeHorizontalScroll(QPoint position, int delta) {
+		return false;
 	}
 
 	virtual ~Media() = default;

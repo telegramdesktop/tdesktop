@@ -977,3 +977,23 @@ chatGiveawayCountriesSkip: 16px;
 chatGiveawayDateTop: 6px;
 chatGiveawayDateSkip: 4px;
 chatGiveawayBottomSkip: 16px;
+
+chatSimilarRadius: 12px;
+chatSimilarArrowSize: 6px;
+chatSimilarTitle: semiboldFont;
+chatSimilarTitlePosition: point(15px, 9px);
+chatSimilarPadding: margins(8px, 32px, 8px, 4px);
+chatSimilarChannelPadding: margins(8px, 5px, 8px, 37px);
+chatSimilarChannelPhoto: 50px;
+chatSimilarBadgePadding: margins(2px, 0px, 3px, 1px);
+chatSimilarBadgeTop: 43px;
+chatSimilarBadgeIcon: icon{{ "chat/mini_subscribers", premiumButtonFg }};
+chatSimilarBadgeIconPosition: point(0px, 1px);
+chatSimilarBadgeFont: font(10px bold);
+chatSimilarNameTop: 59px;
+chatSimilarName: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	lineHeight: 14px;
+}
+chatSimilarWidthMax: 424px;
+chatSimilarSkip: 12px;

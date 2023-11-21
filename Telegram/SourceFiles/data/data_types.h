@@ -309,6 +309,8 @@ enum class MessageFlag : uint64 {
 
 	// If not set then we need to refresh _displayFrom value.
 	DisplayFromChecked    = (1ULL << 40),
+
+	ShowSimilarChannels   = (1ULL << 41),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

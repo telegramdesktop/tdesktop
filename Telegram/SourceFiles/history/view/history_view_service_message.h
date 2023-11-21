@@ -52,6 +52,8 @@ public:
 
 	QRect innerGeometry() const override;
 
+	bool consumeHorizontalScroll(QPoint position, int delta) override;
+
 private:
 	[[nodiscard]] QRect countGeometry() const;
 

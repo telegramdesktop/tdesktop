@@ -317,6 +317,9 @@ public:
 	[[nodiscard]] bool isFakeBotAbout() const {
 		return _flags & MessageFlag::FakeBotAbout;
 	}
+	[[nodiscard]] bool showSimilarChannels() const {
+		return _flags & MessageFlag::ShowSimilarChannels;
+	}
 	[[nodiscard]] bool isRegular() const;
 	[[nodiscard]] bool isUploading() const;
 	void sendFailed();

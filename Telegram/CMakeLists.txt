@@ -713,6 +713,8 @@ PRIVATE
     history/view/media/history_view_premium_gift.h
     history/view/media/history_view_service_box.cpp
     history/view/media/history_view_service_box.h
+    history/view/media/history_view_similar_channels.cpp
+    history/view/media/history_view_similar_channels.h
     history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_slot_machine.h
     history/view/media/history_view_sticker.cpp

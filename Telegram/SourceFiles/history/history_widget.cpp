@@ -135,6 +135,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/continuous_scroll.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/item_text_options.h"
 #include "main/main_session.h"
@@ -271,6 +272,15 @@ HistoryWidget::HistoryWidget(
 		update();
 	}, lifetime());
 
+	base::install_event_filter(_scroll.data(), [=](not_null<QEvent*> e) {
+		const auto consumed = (e->type() == QEvent::Wheel)
+			&& _list
+			&& _list->consumeScrollAction(
+				Ui::ScrollDelta(static_cast<QWheelEvent*>(e.get())));
+		return consumed
+			? base::EventFilterResult::Cancel
+			: base::EventFilterResult::Continue;
+	});
 	_scroll->scrolls(
 	) | rpl::start_with_next([=] {
 		handleScroll();

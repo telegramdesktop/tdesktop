@@ -203,6 +203,7 @@ public:
 	bool tooltipWindowActive() const override;
 
 	void onParentGeometryChanged();
+	bool consumeScrollAction(QPoint delta);
 
 	[[nodiscard]] Fn<HistoryView::ElementDelegate*()> elementDelegateFactory(
 		FullMsgId itemId) const;
@@ -490,6 +491,7 @@ private:
 	bool _recountedAfterPendingResizedItems = false;
 	bool _useCornerReaction = false;
 	bool _canHaveFromUserpicsSponsored = false;
+	bool _acceptsHorizontalScroll = false;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;

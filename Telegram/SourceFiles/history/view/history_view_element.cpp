@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_media_grouped.h"
+#include "history/view/media/history_view_similar_channels.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/view/media/history_view_custom_emoji.h"
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/reaction_fly_animation.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
@@ -723,6 +725,8 @@ void Element::refreshMedia(Element *replacing) {
 			}
 		}
 		_media = media->createView(this, replacing);
+	} else if (item->showSimilarChannels()) {
+		_media = std::make_unique<SimilarChannels>(this);
 	} else if (isOnlyCustomEmoji()
 		&& Core::App().settings().largeEmoji()
 		&& !item->isSponsored()) {

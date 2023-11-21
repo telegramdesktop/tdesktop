@@ -50,10 +50,11 @@ struct TextState {
 	FullMsgId itemId;
 	CursorState cursor = CursorState::None;
 	ClickHandlerPtr link;
-	bool overMessageText = false;
-	bool afterSymbol = false;
-	bool customTooltip = false;
 	uint16 symbol = 0;
+	bool afterSymbol = false;
+	bool overMessageText = false;
+	bool customTooltip = false;
+	bool horizontalScroll = false;
 	QString customTooltipText;
 
 };
