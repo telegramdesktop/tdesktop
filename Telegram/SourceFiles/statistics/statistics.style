@@ -104,6 +104,8 @@ statisticsRecentPostButton: SettingsButton(defaultSettingsButton) {
 	height: 56px;
 	padding: margins(7px, 0px, 24px, 0px);
 }
+statisticsRecentPostShareIcon: icon {{ "menu/forward", windowSubTextFg }};
+statisticsRecentPostReactionIcon: icon {{ "menu/group_reactions", windowSubTextFg }};
 
 statisticsShowMoreButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;

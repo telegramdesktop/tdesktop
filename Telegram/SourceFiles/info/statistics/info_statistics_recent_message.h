@@ -30,16 +30,13 @@ public:
 	MessagePreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<HistoryItem*> item,
-		int views,
-		int shares,
 		QImage cachedPreview);
 	MessagePreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Data::Story*> story,
-		int views,
-		int shares,
 		QImage cachedPreview);
 
+	void setInfo(int views, int shares, int reactions);
 	void saveState(SavedState &state) const;
 
 protected:
@@ -56,9 +53,11 @@ private:
 	Ui::Text::String _date;
 	Ui::Text::String _views;
 	Ui::Text::String _shares;
+	Ui::Text::String _reactions;
 
 	int _viewsWidth = 0;
 	int _sharesWidth = 0;
+	int _reactionsWidth = 0;
 
 	QImage _cornerCache;
 	QImage _preview;

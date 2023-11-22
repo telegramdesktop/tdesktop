@@ -74,32 +74,12 @@ namespace {
 MessagePreview::MessagePreview(
 	not_null<Ui::RpWidget*> parent,
 	not_null<HistoryItem*> item,
-	int views,
-	int shares,
 	QImage cachedPreview)
 : Ui::RpWidget(parent)
 , _messageId(item->fullId())
 , _date(
 	st::statisticsHeaderTitleTextStyle,
 	Ui::FormatDateTime(ItemDateTime(item)))
-, _views(
-	st::defaultPeerListItem.nameStyle,
-	(views >= 0)
-		? tr::lng_stats_recent_messages_views(
-			tr::now,
-			lt_count_decimal,
-			views)
-		: QString())
-, _shares(
-	st::statisticsHeaderTitleTextStyle,
-	(shares >= 0)
-		? tr::lng_stats_recent_messages_shares(
-			tr::now,
-			lt_count_decimal,
-			shares)
-		: QString())
-, _viewsWidth(_views.maxWidth())
-, _sharesWidth(_shares.maxWidth())
 , _preview(std::move(cachedPreview)) {
 	_text.setMarkedText(
 		st::defaultPeerListItem.nameStyle,
@@ -109,7 +89,7 @@ MessagePreview::MessagePreview(
 			.session = &item->history()->session(),
 			.customEmojiRepaint = [=] { update(); },
 		});
-	if (item->media()->hasSpoiler()) {
+	if (item->media() && item->media()->hasSpoiler()) {
 		_spoiler = std::make_unique<Ui::SpoilerAnimation>([=] { update(); });
 	}
 	if (_preview.isNull()) {
@@ -129,32 +109,12 @@ MessagePreview::MessagePreview(
 MessagePreview::MessagePreview(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Data::Story*> story,
-	int views,
-	int shares,
 	QImage cachedPreview)
 : Ui::RpWidget(parent)
 , _storyId(story->fullId())
 , _date(
 	st::statisticsHeaderTitleTextStyle,
 	Ui::FormatDateTime(base::unixtime::parse(story->date())))
-, _views(
-	st::defaultPeerListItem.nameStyle,
-	(views >= 0)
-		? tr::lng_stats_recent_messages_views(
-			tr::now,
-			lt_count_decimal,
-			views)
-		: QString())
-, _shares(
-	st::statisticsHeaderTitleTextStyle,
-	(shares >= 0)
-		? tr::lng_stats_recent_messages_shares(
-			tr::now,
-			lt_count_decimal,
-			shares)
-		: QString())
-, _viewsWidth(_views.maxWidth())
-, _sharesWidth(_shares.maxWidth())
 , _preview(std::move(cachedPreview)) {
 	_text.setMarkedText(
 		st::defaultPeerListItem.nameStyle,
@@ -174,6 +134,26 @@ MessagePreview::MessagePreview(
 		}
 		processPreview();
 	}
+}
+
+void MessagePreview::setInfo(int views, int shares, int reactions) {
+	_views = Ui::Text::String(
+		st::defaultPeerListItem.nameStyle,
+		(views >= 0)
+			? tr::lng_stats_recent_messages_views(
+				tr::now,
+				lt_count_decimal,
+				views)
+			: QString());
+	_shares = Ui::Text::String(
+		st::statisticsHeaderTitleTextStyle,
+		(shares >= 0) ? Lang::FormatCountDecimal(shares) : QString());
+	_reactions = Ui::Text::String(
+		st::statisticsHeaderTitleTextStyle,
+		(reactions >= 0) ? Lang::FormatCountDecimal(reactions) : QString());
+	_viewsWidth = (_views.maxWidth());
+	_sharesWidth = (_shares.maxWidth());
+	_reactionsWidth = (_reactions.maxWidth());
 }
 
 void MessagePreview::processPreview() {
@@ -234,7 +214,17 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
 	const auto padding = st::boxRowPadding.left() / 2;
-	const auto rightWidth = std::max(_viewsWidth, _sharesWidth) + padding;
+	const auto rightSubTextWidth = 0
+		+ (_sharesWidth
+			? _sharesWidth + st::statisticsRecentPostShareIcon.width()
+			: 0)
+		+ (_reactionsWidth
+			? _reactionsWidth
+				+ st::statisticsRecentPostReactionIcon.width()
+				+ st::statisticsChartRulerCaptionSkip
+			: 0);
+	const auto rightWidth = std::max(_viewsWidth, rightSubTextWidth)
+		+ padding;
 	const auto left = _preview.isNull()
 		? st::peerListBoxItem.photoPosition.x()
 		: st::peerListBoxItem.namePosition.x();
@@ -292,11 +282,32 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 		.outerWidth = width() - left,
 		.availableWidth = width() - rightWidth - left,
 	});
-	_shares.draw(p, {
-		.position = { width() - _sharesWidth, bottomTextTop },
-		.outerWidth = _sharesWidth,
-		.availableWidth = _sharesWidth,
-	});
+	{
+		auto right = width() - _sharesWidth;
+		_shares.draw(p, {
+			.position = { right, bottomTextTop },
+			.outerWidth = _sharesWidth,
+			.availableWidth = _sharesWidth,
+		});
+		const auto bottomTextBottom = bottomTextTop
+			+ st::statisticsHeaderTitleTextStyle.font->height;
+		if (_sharesWidth) {
+			const auto &icon = st::statisticsRecentPostShareIcon;
+			const auto iconTop = bottomTextBottom - icon.height();
+			icon.paint(p, { (right -= icon.width()), iconTop }, width());
+		}
+		right -= _reactionsWidth + st::statisticsChartRulerCaptionSkip;
+		_reactions.draw(p, {
+			.position = { right, bottomTextTop },
+			.outerWidth = _reactionsWidth,
+			.availableWidth = _reactionsWidth,
+		});
+		if (_reactionsWidth) {
+			const auto &icon = st::statisticsRecentPostReactionIcon;
+			const auto iconTop = bottomTextBottom - icon.height();
+			icon.paint(p, { (right -= icon.width()), iconTop }, width());
+		}
+	}
 }
 
 void MessagePreview::saveState(SavedState &state) const {

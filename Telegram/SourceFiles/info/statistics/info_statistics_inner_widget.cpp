@@ -621,7 +621,7 @@ void InnerWidget::fill() {
 		if (const auto i = _peer->owner().message(_contextId)) {
 			Ui::AddSkip(inner);
 			const auto preview = inner->add(
-				object_ptr<MessagePreview>(this, i, -1, -1, QImage()));
+				object_ptr<MessagePreview>(this, i, QImage()));
 			AddContextMenu(preview, _controller, i);
 			Ui::AddSkip(inner);
 			Ui::AddDivider(inner);
@@ -719,15 +719,15 @@ void InnerWidget::fillRecentPosts() {
 			? Ui::CreateChild<MessagePreview>(
 				button,
 				maybeItem,
-				info.viewsCount,
-				info.forwardsCount,
 				std::move(cachedPreview))
 			: Ui::CreateChild<MessagePreview>(
 				button,
 				maybeStory,
-				info.viewsCount,
-				info.forwardsCount,
 				std::move(cachedPreview));
+		raw->setInfo(
+			info.viewsCount,
+			info.forwardsCount,
+			info.reactionsCount);
 
 		if (maybeItem) {
 			AddContextMenu(button, _controller, maybeItem);
