@@ -43,13 +43,14 @@ namespace {
 [[nodiscard]] QImage PreparePreviewImage(
 		QImage original,
 		ImageRoundRadius radius,
+		int size,
 		bool spoiler) {
 	if (original.width() * 10 < original.height()
 		|| original.height() * 10 < original.width()) {
 		return QImage();
 	}
 	const auto factor = style::DevicePixelRatio();
-	const auto size = st::peerListBoxItem.photoSize * factor;
+	size *= factor;
 	const auto scaled = original.scaled(
 		QSize(size, size),
 		Qt::KeepAspectRatioByExpanding,
@@ -156,10 +157,10 @@ void MessagePreview::setInfo(int views, int shares, int reactions) {
 			: QString());
 	_shares = Ui::Text::String(
 		st::statisticsHeaderTitleTextStyle,
-		(shares >= 0) ? Lang::FormatCountDecimal(shares) : QString());
+		(shares > 0) ? Lang::FormatCountDecimal(shares) : QString());
 	_reactions = Ui::Text::String(
 		st::statisticsHeaderTitleTextStyle,
-		(reactions >= 0) ? Lang::FormatCountDecimal(reactions) : QString());
+		(reactions > 0) ? Lang::FormatCountDecimal(reactions) : QString());
 	_viewsWidth = (_views.maxWidth());
 	_sharesWidth = (_shares.maxWidth());
 	_reactionsWidth = (_reactions.maxWidth());
@@ -208,10 +209,40 @@ void MessagePreview::processPreview() {
 		} else if (computed.loaded) {
 			_lifetimeDownload.destroy();
 		}
-		_preview = PreparePreviewImage(
-			computed.image->original(),
-			_messageId ? ImageRoundRadius::Large : ImageRoundRadius::Ellipse,
-			!!_spoiler);
+		if (_storyId) {
+			const auto line = st::dialogsStoriesFull.lineTwice;
+			const auto rect = Rect(Size(st::peerListBoxItem.photoSize));
+			const auto penWidth = line / 2.;
+			const auto offset = 1.5 * penWidth * 2;
+			const auto preview = PreparePreviewImage(
+				computed.image->original(),
+				ImageRoundRadius::Ellipse,
+				st::peerListBoxItem.photoSize - offset * 2,
+				!!_spoiler);
+			auto image = QImage(
+				rect.size() * style::DevicePixelRatio(),
+				QImage::Format_ARGB32_Premultiplied);
+			image.fill(Qt::transparent);
+			{
+				auto p = QPainter(&image);
+				p.drawImage(offset, offset, preview);
+				auto hq = PainterHighQualityEnabler(p);
+				auto gradient = Ui::UnreadStoryOutlineGradient();
+				gradient.setStart(rect.topRight());
+				gradient.setFinalStop(rect.bottomLeft());
+
+				p.setPen(QPen(gradient, penWidth));
+				p.setBrush(Qt::NoBrush);
+				p.drawEllipse(rect - Margins(penWidth));
+			}
+			_preview = std::move(image);
+		} else {
+			_preview = PreparePreviewImage(
+				computed.image->original(),
+				ImageRoundRadius::Large,
+				st::peerListBoxItem.photoSize,
+				!!_spoiler);
+		}
 	}, _lifetimeDownload);
 }
 
@@ -252,17 +283,6 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 				Ui::DefaultImageSpoiler().frame(
 					_spoiler->index(crl::now(), paused)),
 				_cornerCache);
-		}
-		if (_storyId) {
-			auto hq = PainterHighQualityEnabler(p);
-			const auto line = st::dialogsStoriesFull.lineTwice / 2.;
-			auto gradient = Ui::UnreadStoryOutlineGradient();
-			gradient.setStart(rect.topRight());
-			gradient.setFinalStop(rect.bottomLeft());
-
-			p.setPen(QPen(gradient, line));
-			p.setBrush(Qt::NoBrush);
-			p.drawEllipse(rect + Margins(1.5 * line));
 		}
 	}
 	const auto topTextTop = st::peerListBoxItem.namePosition.y();

@@ -626,6 +626,15 @@ void InnerWidget::fill() {
 			Ui::AddSkip(inner);
 			Ui::AddDivider(inner);
 		}
+	} else if (_state.stats.story) {
+		if (const auto story = _peer->owner().stories().lookup(_storyId)) {
+			Ui::AddSkip(inner);
+			const auto preview = inner->add(
+				object_ptr<MessagePreview>(this, *story, QImage()));
+			preview->setAttribute(Qt::WA_TransparentForMouseEvents);
+			Ui::AddSkip(inner);
+			Ui::AddDivider(inner);
+		}
 	}
 	FillOverview(inner, _state.stats);
 	FillStatistic(inner, descriptor, _state.stats);
