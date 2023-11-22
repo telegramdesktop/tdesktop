@@ -106,6 +106,10 @@ statisticsRecentPostButton: SettingsButton(defaultSettingsButton) {
 }
 statisticsRecentPostShareIcon: icon {{ "menu/forward", windowSubTextFg }};
 statisticsRecentPostReactionIcon: icon {{ "menu/group_reactions", windowSubTextFg }};
+statisticsRecentPostUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(contactsPhotoSize, contactsPhotoSize);
+	photoSize: contactsPhotoSize;
+}
 
 statisticsShowMoreButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_common.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/effects/outline_segments.h" // UnreadStoryOutlineGradient
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/spoiler_mess.h"
@@ -101,8 +102,16 @@ MessagePreview::MessagePreview(
 				_documentMedia = document->createMediaView();
 				_documentMedia->thumbnailWanted(item->fullId());
 			}
+			processPreview();
 		}
-		processPreview();
+		if (!_photoMedia && !_documentMedia) {
+			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+				this,
+				item->history()->peer,
+				st::statisticsRecentPostUserpic);
+			userpic->move(st::peerListBoxItem.photoPosition);
+			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
 	}
 }
 
@@ -225,7 +234,7 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 			: 0);
 	const auto rightWidth = std::max(_viewsWidth, rightSubTextWidth)
 		+ padding;
-	const auto left = _preview.isNull()
+	const auto left = (false && _preview.isNull())
 		? st::peerListBoxItem.photoPosition.x()
 		: st::peerListBoxItem.namePosition.x();
 	if (left) {
