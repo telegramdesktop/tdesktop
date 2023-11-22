@@ -143,10 +143,12 @@ void BarChartView::paintSelectedXIndex(
 	_lastSelectedXIndex = selectedXIndex;
 	_lastSelectedXProgress = progress;
 
+	if ((_lastSelectedXIndex < 0) && (was < 0)) {
+		return;
+	}
+
 	if (_isStack) {
-		if ((_lastSelectedXIndex >= 0) || (was >= 0)) {
-			BarChartView::paintChartAndSelected(p, c);
-		}
+		BarChartView::paintChartAndSelected(p, c);
 	} else {
 		const auto linesFilter = linesFilterController();
 		auto hq = PainterHighQualityEnabler(p);
