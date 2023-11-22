@@ -492,6 +492,7 @@ private:
 	bool _useCornerReaction = false;
 	bool _canHaveFromUserpicsSponsored = false;
 	bool _acceptsHorizontalScroll = false;
+	bool _horizontalScrollLocked = false;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;

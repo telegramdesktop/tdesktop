@@ -220,7 +220,7 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 		if (!channel.participants.isEmpty()) {
 			validateParticipansBg(channel);
 			const auto participants = channel.participantsRect.translated(
-				QPoint(-_scrollLeft, 0));
+				geometry.topLeft());
 			q->drawImage(participants.topLeft(), channel.participantsBg);
 			const auto badge = participants.marginsRemoved(
 				st::chatSimilarBadgePadding);
@@ -303,14 +303,18 @@ void SimilarChannels::validateParticipansBg(const Channel &channel) const {
 		channel.thumbnail->image(photo).copy(
 			QRect(photo / 3, photo / 3, photo / 3, photo / 3)));
 
-	const auto lightness = color.lightness();
-	if (!base::in_range(lightness, 160, 208)) {
-		color = color.toHsl();
-		color.setHsl(
-			color.hue(),
-			color.saturation(),
-			std::clamp(lightness, 160, 208));
-		color = color.toRgb();
+	const auto hsl = color.toHsl();
+	constexpr auto kMinSaturation = 0;
+	constexpr auto kMaxSaturation = 96;
+	constexpr auto kMinLightness = 160;
+	constexpr auto kMaxLightness = 208;
+	if (!base::in_range(hsl.saturation(), kMinSaturation, kMaxSaturation)
+		|| !base::in_range(hsl.lightness(), kMinLightness, kMaxLightness)) {
+		color = QColor::fromHsl(
+			hsl.hue(),
+			std::clamp(hsl.saturation(), kMinSaturation, kMaxSaturation),
+			std::clamp(hsl.lightness(), kMinLightness, kMaxLightness)
+		).toRgb();
 	}
 
 	result.fill(color);
@@ -425,8 +429,8 @@ QSize SimilarChannels::countOptimalSize() {
 			const auto width = length + st::chatSimilarBadgeIcon.width();
 			const auto delta = (outer.width() - width) / 2;
 			const auto badge = QRect(
-				x + delta,
-				y + st::chatSimilarBadgeTop,
+				delta,
+				st::chatSimilarBadgeTop,
 				outer.width() - 2 * delta,
 				st::chatSimilarBadgeFont->height);
 			_channels.back().participantsRect = badge.marginsAdded(

@@ -1428,12 +1428,17 @@ void HistoryInner::onTouchScrollTimer() {
 	} else if (_touchScrollState == Ui::TouchScrollState::Auto || _touchScrollState == Ui::TouchScrollState::Acceleration) {
 		int32 elapsed = int32(nowTime - _touchTime);
 		QPoint delta = _touchSpeed * elapsed / 1000;
-		bool hasScrolled = consumeScrollAction(delta)
-			|| _widget->touchScroll(delta);
+		const auto consumedHorizontal = consumeScrollAction(delta);
+		if (consumedHorizontal) {
+			_horizontalScrollLocked = true;
+		}
+		const auto hasScrolled = consumedHorizontal
+			|| (!_horizontalScrollLocked && _widget->touchScroll(delta));
 
 		if (_touchSpeed.isNull() || !hasScrolled) {
 			_touchScrollState = Ui::TouchScrollState::Manual;
 			_touchScroll = false;
+			_horizontalScrollLocked = false;
 			_touchScrollTimer.cancel();
 		} else {
 			_touchTime = nowTime;
@@ -1507,10 +1512,13 @@ void HistoryInner::touchDeaccelerate(int32 elapsed) {
 
 void HistoryInner::touchEvent(QTouchEvent *e) {
 	if (e->type() == QEvent::TouchCancel) { // cancel
-		if (!_touchInProgress) return;
+		if (!_touchInProgress) {
+			return;
+		}
 		_touchInProgress = false;
 		_touchSelectTimer.cancel();
 		_touchScroll = _touchSelect = false;
+		_horizontalScrollLocked = false;
 		_touchScrollState = Ui::TouchScrollState::Manual;
 		mouseActionCancel();
 		return;
@@ -1527,10 +1535,12 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 			e->accept();
 			return; // ignore mouse press, that was hiding context menu
 		}
-		if (_touchInProgress) return;
-		if (e->touchPoints().isEmpty()) return;
+		if (_touchInProgress || e->touchPoints().isEmpty()) {
+			return;
+		}
 
 		_touchInProgress = true;
+		_horizontalScrollLocked = false;
 		if (_touchScrollState == Ui::TouchScrollState::Auto) {
 			_touchScrollState = Ui::TouchScrollState::Acceleration;
 			_touchWaitingAcceleration = true;
@@ -1546,8 +1556,9 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 	} break;
 
 	case QEvent::TouchUpdate: {
-		if (!_touchInProgress) return;
-		if (_touchSelect) {
+		if (!_touchInProgress) {
+			return;
+		} else if (_touchSelect) {
 			mouseActionUpdate(_touchPos);
 		} else if (!_touchScroll && (_touchPos - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 			_touchSelectTimer.cancel();
@@ -1568,7 +1579,9 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 	} break;
 
 	case QEvent::TouchEnd: {
-		if (!_touchInProgress) return;
+		if (!_touchInProgress) {
+			return;
+		}
 		_touchInProgress = false;
 		auto weak = Ui::MakeWeak(this);
 		if (_touchSelect) {
@@ -1584,6 +1597,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 				_touchTime = crl::now();
 			} else if (_touchScrollState == Ui::TouchScrollState::Auto) {
 				_touchScrollState = Ui::TouchScrollState::Manual;
+				_horizontalScrollLocked = false;
 				_touchScroll = false;
 				touchResetSpeed();
 			} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
@@ -1626,7 +1640,9 @@ void HistoryInner::mouseActionUpdate(const QPoint &screenPos) {
 
 void HistoryInner::touchScrollUpdated(const QPoint &screenPos) {
 	_touchPos = screenPos;
-	if (!consumeScrollAction(_touchPos - _touchPrevPos)) {
+	if (consumeScrollAction(_touchPos - _touchPrevPos)) {
+		_horizontalScrollLocked = true;
+	} else if (!_horizontalScrollLocked) {
 		_widget->touchScroll(_touchPos - _touchPrevPos);
 	}
 	touchUpdateSpeed();
@@ -4452,7 +4468,7 @@ void HistoryInner::onParentGeometryChanged() {
 }
 
 bool HistoryInner::consumeScrollAction(QPoint delta) {
-	const auto horizontal = std::abs(delta.x()) > std::abs(delta.y());
+	const auto horizontal = (std::abs(delta.x()) > std::abs(delta.y()));
 	if (!horizontal || !_acceptsHorizontalScroll || !Element::Moused()) {
 		return false;
 	}
