@@ -3629,6 +3629,7 @@ void OverlayWidget::showAndActivate() {
 		_window->showMaximized();
 	}
 	_helper->afterShow(_fullscreen);
+	_widget->update();
 	activate();
 }
 
