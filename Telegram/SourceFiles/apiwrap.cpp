@@ -2542,8 +2542,8 @@ void ApiWrap::refreshFileReference(
 		request(MTPhelp_GetPremiumPromo());
 	}, [&](Data::FileOriginStory data) {
 		request(MTPstories_GetStoriesByID(
-			_session->data().peer(data.peerId)->input,
-			MTP_vector<MTPint>(1, MTP_int(data.storyId))));
+			_session->data().peer(data.peer)->input,
+			MTP_vector<MTPint>(1, MTP_int(data.story))));
 	}, [&](v::null_t) {
 		fail();
 	});

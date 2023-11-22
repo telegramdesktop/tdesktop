@@ -139,7 +139,7 @@ StoryPreload::LoadTask::LoadTask(
 : DownloadMtprotoTask(
 	&document->session().downloader(),
 	document->videoPreloadLocation(),
-	FileOriginStory(id.peer, id.story))
+	id)
 , _done(std::move(done))
 , _full(document->size) {
 	const auto prefix = document->videoPreloadPrefix();
@@ -291,15 +291,9 @@ bool Story::hasReplyPreview() const {
 
 Image *Story::replyPreview() const {
 	return v::match(_media.data, [&](not_null<PhotoData*> photo) {
-		return photo->getReplyPreview(
-			Data::FileOriginStory(_peer->id, _id),
-			_peer,
-			false);
+		return photo->getReplyPreview(fullId(), _peer, false);
 	}, [&](not_null<DocumentData*> document) {
-		return document->getReplyPreview(
-			Data::FileOriginStory(_peer->id, _id),
-			_peer,
-			false);
+		return document->getReplyPreview(fullId(), _peer, false);
 	}, [](v::null_t) {
 		return (Image*)nullptr;
 	});
@@ -757,15 +751,12 @@ not_null<Story*> StoryPreload::story() const {
 }
 
 void StoryPreload::start() {
-	const auto origin = FileOriginStory(
-		_story->peer()->id,
-		_story->id());
 	if (const auto photo = _story->photo()) {
 		_photo = photo->createMediaView();
 		if (_photo->loaded()) {
 			callDone();
 		} else {
-			_photo->automaticLoad(origin, _story->peer());
+			_photo->automaticLoad(_story->fullId(), _story->peer());
 			photo->session().downloaderTaskFinished(
 			) | rpl::filter([=] {
 				return _photo->loaded();

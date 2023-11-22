@@ -578,7 +578,7 @@ bool Controller::closeByClickAt(QPoint position) const {
 }
 
 Data::FileOrigin Controller::fileOrigin() const {
-	return Data::FileOriginStory(_shown.peer, _shown.story);
+	return _shown;
 }
 
 TextWithEntities Controller::captionText() const {
