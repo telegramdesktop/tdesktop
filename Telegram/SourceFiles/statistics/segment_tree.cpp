@@ -50,7 +50,7 @@ void SegmentTree::build(int v, int from, int size) {
 
 int SegmentTree::rMaxQ(int from, int to) {
 	if (_array.size() < kMinArraySize) {
-		auto max = std::numeric_limits<int>::min();
+		auto max = 0;
 		from = std::max(from, 0);
 		to = std::min(to, int(_array.size() - 1));
 		for (auto i = from; i <= to; i++) {

@@ -99,6 +99,7 @@ int StatisticalChart::findStartIndex(float64 v) const {
 }
 
 int StatisticalChart::findEndIndex(int left, float64 v) const {
+	const auto wasLeft = left;
 	const auto n = int(xPercentage.size());
 	if (v == 1.) {
 		return n - 1;
@@ -120,7 +121,7 @@ int StatisticalChart::findEndIndex(int left, float64 v) const {
 			left = middle + 1;
 		}
 	}
-	return right;
+	return std::max(wasLeft, right);
 }
 
 
