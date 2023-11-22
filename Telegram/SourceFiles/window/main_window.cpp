@@ -72,7 +72,15 @@ using Core::WindowPosition;
 	return result;
 }
 
-} // namespace
+base::options::toggle OptionNewWindowsSizeAsFirst({
+	.id = kOptionNewWindowsSizeAsFirst,
+	.name = "Adjust size of new chat windows.",
+	.description = "Open new windows with a size of the main window.",
+});
+
+} // namespace.
+
+const char kOptionNewWindowsSizeAsFirst[] = "new-windows-size-as-first";
 
 const QImage &Logo() {
 	static const auto result = QImage(u":/gui/art/logo_256.png"_q);
@@ -616,8 +624,12 @@ WindowPosition MainWindow::nextInitialChildPosition(bool primary) {
 	const auto adjust = [&](int value) {
 		return primary ? value : (value * 3 / 4);
 	};
-	const auto width = adjust(st::windowDefaultWidth);
-	const auto height = adjust(st::windowDefaultHeight);
+	const auto width = OptionNewWindowsSizeAsFirst.value()
+		? Core::App().settings().windowPosition().w
+		: adjust(st::windowDefaultWidth);
+	const auto height = OptionNewWindowsSizeAsFirst.value()
+		? Core::App().settings().windowPosition().h
+		: adjust(st::windowDefaultHeight);
 	const auto skip = ChildSkip();
 	const auto delta = _lastChildIndex
 		? (_lastMyChildCreatePosition - position)

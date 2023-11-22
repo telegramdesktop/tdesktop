@@ -54,6 +54,8 @@ struct CounterLayerArgs {
 	required<style::color> fg;
 };
 
+extern const char kOptionNewWindowsSizeAsFirst[];
+
 [[nodiscard]] QImage GenerateCounterLayer(CounterLayerArgs &&args);
 [[nodiscard]] QImage WithSmallCounter(QImage image, CounterLayerArgs &&args);
 
