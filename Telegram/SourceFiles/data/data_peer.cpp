@@ -669,6 +669,17 @@ bool PeerData::changeBackgroundEmojiId(
 		: DocumentId());
 }
 
+bool PeerData::changeColor(
+		const tl::conditional<MTPPeerColor> &cloudColor) {
+	const auto changed1 = cloudColor
+		? changeColorIndex(cloudColor->data().vcolor().v)
+		: clearColorIndex();
+	const auto changed2 = changeBackgroundEmojiId(cloudColor
+		? cloudColor->data().vbackground_emoji_id().v
+		: DocumentId());
+	return changed1 || changed2;
+}
+
 void PeerData::fillNames() {
 	_nameWords.clear();
 	_nameFirstLetters.clear();

@@ -706,17 +706,11 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			flags |= UpdateFlag::CanShareContact;
 		}
 
-		auto decorationsUpdated = false;
-		if (result->changeColorIndex(data.vcolor())) {
+		if (result->changeColor(data.vcolor())) {
 			flags |= UpdateFlag::Color;
-			decorationsUpdated = true;
-		}
-		if (result->changeBackgroundEmojiId(data.vbackground_emoji_id())) {
-			flags |= UpdateFlag::BackgroundEmoji;
-			decorationsUpdated = true;
-		}
-		if (decorationsUpdated && result->isMinimalLoaded()) {
-			_peerDecorationsUpdated.fire_copy(result);
+			if (result->isMinimalLoaded()) {
+				_peerDecorationsUpdated.fire_copy(result);
+			}
 		}
 	});
 
@@ -992,17 +986,11 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		if (wasCallNotEmpty != Data::ChannelHasActiveCall(channel)) {
 			flags |= UpdateFlag::GroupCall;
 		}
-		auto decorationsUpdated = false;
-		if (result->changeColorIndex(data.vcolor())) {
+		if (result->changeColor(data.vcolor())) {
 			flags |= UpdateFlag::Color;
-			decorationsUpdated = true;
-		}
-		if (result->changeBackgroundEmojiId(data.vbackground_emoji_id())) {
-			flags |= UpdateFlag::BackgroundEmoji;
-			decorationsUpdated = true;
-		}
-		if (decorationsUpdated && result->isMinimalLoaded()) {
-			_peerDecorationsUpdated.fire_copy(result);
+			if (result->isMinimalLoaded()) {
+				_peerDecorationsUpdated.fire_copy(result);
+			}
 		}
 	}, [&](const MTPDchannelForbidden &data) {
 		const auto channel = result->asChannel();
@@ -4372,8 +4360,8 @@ void Session::serviceNotification(
 			MTPEmojiStatus(),
 			MTPVector<MTPUsername>(),
 			MTPint(), // stories_max_id
-			MTP_int(0), // color
-			MTPlong())); // background_emoji_id
+			MTPPeerColor(), // color
+			MTPPeerColor())); // profile_color
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	const auto insert = [=] {

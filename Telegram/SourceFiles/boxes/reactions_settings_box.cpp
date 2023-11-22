@@ -64,8 +64,8 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPEmojiStatus(),
 		MTPVector<MTPUsername>(),
 		MTPint(), // stories_max_id
-		MTP_int(0), // color
-		MTPlong())); // background_emoji_id
+		MTPPeerColor(), // color
+		MTPPeerColor())); // profile_color
 	return peerId;
 }
 

@@ -370,6 +370,7 @@ public:
 	bool changeColorIndex(const tl::conditional<MTPint> &cloudColorIndex);
 	bool changeBackgroundEmojiId(
 		const tl::conditional<MTPlong> &cloudBackgroundEmoji);
+	bool changeColor(const tl::conditional<MTPPeerColor> &cloudColor);
 
 	enum class BlockStatus : char {
 		Unknown,

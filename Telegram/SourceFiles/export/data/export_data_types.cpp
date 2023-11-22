@@ -766,8 +766,9 @@ ContactInfo ParseContactInfo(const MTPUser &data) {
 	auto result = ContactInfo();
 	data.match([&](const MTPDuser &data) {
 		result.userId = data.vid().v;
-		result.colorIndex = data.vcolor().value_or(
-			PeerColorIndex(result.userId));
+		result.colorIndex = data.vcolor()
+			? data.vcolor()->data().vcolor().v
+			: PeerColorIndex(result.userId);
 		if (const auto firstName = data.vfirst_name()) {
 			result.firstName = ParseString(*firstName);
 		}
@@ -797,8 +798,9 @@ User ParseUser(const MTPUser &data) {
 	result.info = ParseContactInfo(data);
 	data.match([&](const MTPDuser &data) {
 		result.bareId = data.vid().v;
-		result.colorIndex = data.vcolor().value_or(
-			PeerColorIndex(result.bareId));
+		result.colorIndex = data.vcolor()
+			? data.vcolor()->data().vcolor().v
+			: PeerColorIndex(result.bareId);
 		if (const auto username = data.vusername()) {
 			result.username = ParseString(*username);
 		}
@@ -853,8 +855,9 @@ Chat ParseChat(const MTPChat &data) {
 		result.input = MTP_inputPeerChat(MTP_long(result.bareId));
 	}, [&](const MTPDchannel &data) {
 		result.bareId = data.vid().v;
-		result.colorIndex = data.vcolor().value_or(
-			PeerColorIndex(result.bareId));
+		result.colorIndex = data.vcolor()
+			? data.vcolor()->data().vcolor().v
+			: PeerColorIndex(result.bareId);
 		result.isBroadcast = data.is_broadcast();
 		result.isSupergroup = data.is_megagroup();
 		result.title = ParseString(data.vtitle());
