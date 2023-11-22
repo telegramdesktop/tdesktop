@@ -67,16 +67,18 @@ constexpr auto kCheckRequestsTimer = 10 * crl::time(1000);
 		data.vrecent_posts_interactions().v
 	) | ranges::views::transform([&](const Recent &tl) {
 		return tl.match([&](const MTPDpostInteractionCountersStory &data) {
-			return Data::StatisticsMessageInteractionInfo{ // #TODO
-				.messageId = data.vstory_id().v,
+			return Data::StatisticsMessageInteractionInfo{
+				.storyId = data.vstory_id().v,
 				.viewsCount = data.vviews().v,
 				.forwardsCount = data.vforwards().v,
+				.reactionsCount = data.vreactions().v,
 			};
 		}, [&](const MTPDpostInteractionCountersMessage &data) {
 			return Data::StatisticsMessageInteractionInfo{
 				.messageId = data.vmsg_id().v,
 				.viewsCount = data.vviews().v,
 				.forwardsCount = data.vforwards().v,
+				.reactionsCount = data.vreactions().v,
 			};
 		});
 	}) | ranges::to_vector;
@@ -88,6 +90,8 @@ constexpr auto kCheckRequestsTimer = 10 * crl::time(1000);
 		.memberCount = StatisticalValueFromTL(data.vfollowers()),
 		.meanViewCount = StatisticalValueFromTL(data.vviews_per_post()),
 		.meanShareCount = StatisticalValueFromTL(data.vshares_per_post()),
+		.meanReactionCount = StatisticalValueFromTL(
+			data.vreactions_per_post()),
 
 		.enabledNotificationsPercentage = unmuted,
 

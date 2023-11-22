@@ -13,6 +13,7 @@ namespace Data {
 
 struct StatisticsMessageInteractionInfo final {
 	MsgId messageId;
+	StoryId storyId = StoryId(0);
 	int viewsCount = 0;
 	int forwardsCount = 0;
 	int reactionsCount = 0;
@@ -56,6 +57,7 @@ struct ChannelStatistics final {
 	StatisticalValue memberCount;
 	StatisticalValue meanViewCount;
 	StatisticalValue meanShareCount;
+	StatisticalValue meanReactionCount;
 
 	float64 enabledNotificationsPercentage = 0.;
 
