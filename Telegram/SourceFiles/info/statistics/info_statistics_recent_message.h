@@ -14,6 +14,7 @@ class HistoryItem;
 namespace Data {
 class DocumentMedia;
 class PhotoMedia;
+class Story;
 } // namespace Data
 
 namespace Ui {
@@ -32,6 +33,12 @@ public:
 		int views,
 		int shares,
 		QImage cachedPreview);
+	MessagePreview(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::Story*> story,
+		int views,
+		int shares,
+		QImage cachedPreview);
 
 	void saveState(SavedState &state) const;
 
@@ -41,9 +48,10 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	void processPreview(not_null<HistoryItem*> item);
+	void processPreview();
 
 	FullMsgId _messageId;
+	FullStoryId _storyId;
 	Ui::Text::String _text;
 	Ui::Text::String _date;
 	Ui::Text::String _views;

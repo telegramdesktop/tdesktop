@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
+#include "data/data_story.h"
 #include "history/history_item.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -697,26 +699,39 @@ void InnerWidget::fillRecentPosts() {
 
 	const auto addMessage = [=](
 			not_null<Ui::VerticalLayout*> messageWrap,
-			not_null<HistoryItem*> item,
+			HistoryItem *maybeItem,
+			Data::Story *maybeStory,
 			const Data::StatisticsMessageInteractionInfo &info) {
 		const auto button = messageWrap->add(
 			object_ptr<Ui::SettingsButton>(
 				messageWrap,
 				rpl::never<QString>(),
 				st::statisticsRecentPostButton));
-		auto it = _state.recentPostPreviews.find(
-			{ .messageId = item->fullId() });
+		const auto fullRecentId = RecentPostId{
+			.messageId = maybeItem ? maybeItem->fullId() : FullMsgId(),
+			.storyId = maybeStory ? maybeStory->fullId() : FullStoryId(),
+		};
+		auto it = _state.recentPostPreviews.find(fullRecentId);
 		auto cachedPreview = (it != end(_state.recentPostPreviews))
 			? base::take(it->second)
 			: QImage();
-		const auto raw = Ui::CreateChild<MessagePreview>(
-			button,
-			item,
-			info.viewsCount,
-			info.forwardsCount,
-			std::move(cachedPreview));
+		const auto raw = maybeItem
+			? Ui::CreateChild<MessagePreview>(
+				button,
+				maybeItem,
+				info.viewsCount,
+				info.forwardsCount,
+				std::move(cachedPreview))
+			: Ui::CreateChild<MessagePreview>(
+				button,
+				maybeStory,
+				info.viewsCount,
+				info.forwardsCount,
+				std::move(cachedPreview));
 
-		AddContextMenu(button, _controller, item);
+		if (maybeItem) {
+			AddContextMenu(button, _controller, maybeItem);
+		}
 
 		_messagePreviews.push_back(raw);
 		raw->show();
@@ -727,8 +742,11 @@ void InnerWidget::fillRecentPosts() {
 					- st::statisticsRecentPostButton.padding);
 			}
 		}, raw->lifetime());
-		button->setClickedCallback([=, fullId = item->fullId()] {
-			_showRequests.fire({ .messageStatistic = fullId });
+		button->setClickedCallback([=] {
+			_showRequests.fire({
+				.messageStatistic = fullRecentId.messageId,
+				.storyStatistic = fullRecentId.storyId,
+			});
 		});
 		Ui::AddSkip(messageWrap);
 		if (!wrap->toggled()) {
@@ -765,18 +783,30 @@ void InnerWidget::fillRecentPosts() {
 			const auto &recent = stats.recentMessageInteractions[i];
 			const auto messageWrap = content->add(
 				object_ptr<Ui::VerticalLayout>(content));
-			const auto msgId = recent.messageId;
-			if (const auto item = _peer->owner().message(_peer, msgId)) {
-				addMessage(messageWrap, item, recent);
-				continue;
-			}
-			const auto callback = crl::guard(content, [=] {
-				if (const auto item = _peer->owner().message(_peer, msgId)) {
-					addMessage(messageWrap, item, recent);
-					content->resizeToWidth(content->width());
+			auto &data = _peer->owner();
+			if (recent.messageId) {
+				const auto fullId = FullMsgId(_peer->id, recent.messageId);
+				if (const auto item = data.message(fullId)) {
+					addMessage(messageWrap, item, nullptr, recent);
+					continue;
 				}
-			});
-			_peer->session().api().requestMessageData(_peer, msgId, callback);
+				const auto callback = crl::guard(content, [=] {
+					if (const auto item = _peer->owner().message(fullId)) {
+						addMessage(messageWrap, item, nullptr, recent);
+						content->resizeToWidth(content->width());
+					}
+				});
+				_peer->session().api().requestMessageData(
+					_peer,
+					fullId.msg,
+					callback);
+			} else if (recent.storyId) {
+				const auto fullId = FullStoryId{ _peer->id, recent.storyId };
+				if (const auto story = data.stories().lookup(fullId)) {
+					addMessage(messageWrap, nullptr, *story, recent);
+					continue;
+				}
+			}
 		}
 		container->resizeToWidth(container->width());
 	};

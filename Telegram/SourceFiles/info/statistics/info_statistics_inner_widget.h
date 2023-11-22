@@ -32,6 +32,7 @@ public:
 		PeerId info = PeerId(0);
 		FullMsgId history;
 		FullMsgId messageStatistic;
+		FullStoryId storyStatistic;
 	};
 
 	InnerWidget(

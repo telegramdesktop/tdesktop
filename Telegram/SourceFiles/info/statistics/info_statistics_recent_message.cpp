@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/statistics/info_statistics_recent_message.h"
 
+#include "base/unixtime.h"
 #include "core/ui_integration.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -14,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "data/data_story.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
@@ -21,13 +23,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_common.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/effects/outline_segments.h" // UnreadStoryOutlineGradient
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/spoiler_mess.h"
+#include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_statistics.h"
 
@@ -73,6 +78,7 @@ MessagePreview::MessagePreview(
 	int shares,
 	QImage cachedPreview)
 : Ui::RpWidget(parent)
+, _messageId(item->fullId())
 , _date(
 	st::statisticsHeaderTitleTextStyle,
 	Ui::FormatDateTime(ItemDateTime(item)))
@@ -103,26 +109,74 @@ MessagePreview::MessagePreview(
 			.session = &item->history()->session(),
 			.customEmojiRepaint = [=] { update(); },
 		});
+	if (item->media()->hasSpoiler()) {
+		_spoiler = std::make_unique<Ui::SpoilerAnimation>([=] { update(); });
+	}
 	if (_preview.isNull()) {
-		processPreview(item);
+		if (const auto media = item->media()) {
+			if (const auto photo = media->photo()) {
+				_photoMedia = photo->createMediaView();
+				_photoMedia->wanted(Data::PhotoSize::Large, item->fullId());
+			} else if (const auto document = media->document()) {
+				_documentMedia = document->createMediaView();
+				_documentMedia->thumbnailWanted(item->fullId());
+			}
+		}
+		processPreview();
 	}
 }
 
-void MessagePreview::processPreview(not_null<HistoryItem*> item) {
-	if (const auto media = item->media()) {
-		if (item->media()->hasSpoiler()) {
-			_spoiler = std::make_unique<Ui::SpoilerAnimation>([=] {
-				update();
-			});
-		}
-		if (const auto photo = media->photo()) {
+MessagePreview::MessagePreview(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Data::Story*> story,
+	int views,
+	int shares,
+	QImage cachedPreview)
+: Ui::RpWidget(parent)
+, _storyId(story->fullId())
+, _date(
+	st::statisticsHeaderTitleTextStyle,
+	Ui::FormatDateTime(base::unixtime::parse(story->date())))
+, _views(
+	st::defaultPeerListItem.nameStyle,
+	(views >= 0)
+		? tr::lng_stats_recent_messages_views(
+			tr::now,
+			lt_count_decimal,
+			views)
+		: QString())
+, _shares(
+	st::statisticsHeaderTitleTextStyle,
+	(shares >= 0)
+		? tr::lng_stats_recent_messages_shares(
+			tr::now,
+			lt_count_decimal,
+			shares)
+		: QString())
+, _viewsWidth(_views.maxWidth())
+, _sharesWidth(_shares.maxWidth())
+, _preview(std::move(cachedPreview)) {
+	_text.setMarkedText(
+		st::defaultPeerListItem.nameStyle,
+		{ tr::lng_in_dlg_story(tr::now) },
+		Ui::DialogTextOptions(),
+		Core::MarkedTextContext{
+			.session = &story->peer()->session(),
+			.customEmojiRepaint = [=] { update(); },
+		});
+	if (_preview.isNull()) {
+		if (const auto photo = story->photo()) {
 			_photoMedia = photo->createMediaView();
-			_photoMedia->wanted(Data::PhotoSize::Large, item->fullId());
-		} else if (const auto document = media->document()) {
+			_photoMedia->wanted(Data::PhotoSize::Large, story->fullId());
+		} else if (const auto document = story->document()) {
 			_documentMedia = document->createMediaView();
-			_documentMedia->thumbnailWanted(item->fullId());
+			_documentMedia->thumbnailWanted(story->fullId());
 		}
+		processPreview();
 	}
+}
+
+void MessagePreview::processPreview() {
 	const auto session = _photoMedia
 		? &_photoMedia->owner()->session()
 		: _documentMedia
@@ -143,9 +197,8 @@ void MessagePreview::processPreview(not_null<HistoryItem*> item) {
 			return { true, _documentMedia->thumbnail() };
 		} else if (const auto large = _photoMedia->image(Size::Large)) {
 			return { true, large };
-		} else if (const auto thumbnail = _photoMedia->image(
-				Size::Thumbnail)) {
-			return { false, thumbnail };
+		} else if (const auto thumb = _photoMedia->image(Size::Thumbnail)) {
+			return { false, thumb };
 		} else if (const auto small = _photoMedia->image(Size::Small)) {
 			return { false, small };
 		} else {
@@ -168,7 +221,7 @@ void MessagePreview::processPreview(not_null<HistoryItem*> item) {
 		}
 		_preview = PreparePreviewImage(
 			computed.image->original(),
-			ImageRoundRadius::Large,
+			_messageId ? ImageRoundRadius::Large : ImageRoundRadius::Ellipse,
 			!!_spoiler);
 	}, _lifetimeDownload);
 }
@@ -186,11 +239,11 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 		? st::peerListBoxItem.photoPosition.x()
 		: st::peerListBoxItem.namePosition.x();
 	if (left) {
-		p.drawImage(st::peerListBoxItem.photoPosition, _preview);
+		const auto rect = QRect(
+			st::peerListBoxItem.photoPosition,
+			Size(st::peerListBoxItem.photoSize));
+		p.drawImage(rect.topLeft(), _preview);
 		if (_spoiler) {
-			const auto rect = QRect(
-				st::peerListBoxItem.photoPosition,
-				Size(st::peerListBoxItem.photoSize));
 			const auto paused = On(PowerSaving::kChatSpoiler);
 			FillSpoilerRect(
 				p,
@@ -200,6 +253,17 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 				Ui::DefaultImageSpoiler().frame(
 					_spoiler->index(crl::now(), paused)),
 				_cornerCache);
+		}
+		if (_storyId) {
+			auto hq = PainterHighQualityEnabler(p);
+			const auto line = st::dialogsStoriesFull.lineTwice / 2.;
+			auto gradient = Ui::UnreadStoryOutlineGradient();
+			gradient.setStart(rect.topRight());
+			gradient.setFinalStop(rect.bottomLeft());
+
+			p.setPen(QPen(gradient, line));
+			p.setBrush(Qt::NoBrush);
+			p.drawEllipse(rect + Margins(1.5 * line));
 		}
 	}
 	const auto topTextTop = st::peerListBoxItem.namePosition.y();
@@ -237,7 +301,8 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 
 void MessagePreview::saveState(SavedState &state) const {
 	if (!_lifetimeDownload) {
-		state.recentPostPreviews[{ .messageId = _messageId }] = _preview;
+		const auto fullId = RecentPostId{ _messageId, _storyId };
+		state.recentPostPreviews[fullId] = _preview;
 	}
 }
 

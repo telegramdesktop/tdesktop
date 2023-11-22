@@ -73,11 +73,11 @@ Widget::Widget(
 				request.history.msg);
 		} else if (request.info) {
 			controller->showPeerInfo(request.info);
-		} else if (request.messageStatistic) {
+		} else if (request.messageStatistic || request.storyStatistic) {
 			controller->showSection(Make(
 				controller->statisticsPeer(),
 				request.messageStatistic,
-				{}));
+				request.storyStatistic));
 		}
 	}, _inner->lifetime());
 	_inner->scrollToRequests(
