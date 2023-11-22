@@ -192,7 +192,7 @@ void Preview::toggle(ScalePreviewShow show, int scale, int sliderX) {
 	updateToScale(scale);
 	updateGlobalPosition(sliderX);
 	if (_widget.isHidden()) {
-		Ui::Platform::UpdateOverlayed(&_widget);
+		Ui::ForceFullRepaintSync(&_widget);
 	}
 	toggleShown(true);
 }

@@ -298,7 +298,7 @@ void OverlayWidget::RendererGL::paint(
 }
 
 std::optional<QColor> OverlayWidget::RendererGL::clearColor() {
-	if (Platform::IsWindows() && _owner->_hideWorkaround) {
+	if (_owner->_hideWorkaround) {
 		return QColor(0, 0, 0, 0);
 	} else if (_owner->_fullScreenVideo) {
 		return st::mediaviewVideoBg->c;
@@ -308,9 +308,9 @@ std::optional<QColor> OverlayWidget::RendererGL::clearColor() {
 }
 
 bool OverlayWidget::RendererGL::handleHideWorkaround(QOpenGLFunctions &f) {
-	// This is needed on Windows,
+	// This is needed on Windows or Linux,
 	// because on reopen it blinks with the last shown content.
-	return Platform::IsWindows() && _owner->_hideWorkaround;
+	return _owner->_hideWorkaround != nullptr;
 }
 
 void OverlayWidget::RendererGL::paintBackground() {

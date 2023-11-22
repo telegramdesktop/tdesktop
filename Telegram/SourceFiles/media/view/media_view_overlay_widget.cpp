@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/text/text_utilities.h"
-#include "ui/platform/ui_platform_utility.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
@@ -3584,11 +3583,6 @@ void OverlayWidget::displayFinished(anim::activation activation) {
 	if (isHidden()) {
 		_helper->beforeShow(_fullscreen);
 		moveToScreen();
-		//setAttribute(Qt::WA_DontShowOnScreen);
-		//OverlayParent::setVisibleHook(true);
-		//OverlayParent::setVisibleHook(false);
-		//setAttribute(Qt::WA_DontShowOnScreen, false);
-		//Ui::Platform::UpdateOverlayed(_window);
 		showAndActivate();
 	} else if (activation == anim::activation::background) {
 		return;
@@ -6077,10 +6071,12 @@ void OverlayWidget::applyHideWindowWorkaround() {
 			});
 		}, raw->lifetime());
 		raw->update();
+		_widget->update();
 
-		if (Platform::IsWindows()) {
-			Ui::Platform::UpdateOverlayed(_window);
+		if (!Platform::IsMac()) {
+			Ui::ForceFullRepaintSync(_window);
 		}
+		_hideWorkaround = nullptr;
 	}
 }
 
@@ -6147,10 +6143,10 @@ void OverlayWidget::clearBeforeHide() {
 	_helper->setControlsOpacity(1.);
 	_groupThumbs = nullptr;
 	_groupThumbsRect = QRect();
-	_body->hide();
 }
 
 void OverlayWidget::clearAfterHide() {
+	_body->hide();
 	clearStreaming();
 	destroyThemePreview();
 	_radial.stop();
