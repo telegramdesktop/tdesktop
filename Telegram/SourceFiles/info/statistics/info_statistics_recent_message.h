@@ -43,7 +43,7 @@ protected:
 private:
 	void processPreview(not_null<HistoryItem*> item);
 
-	not_null<HistoryItem*> _item;
+	FullMsgId _messageId;
 	Ui::Text::String _text;
 	Ui::Text::String _date;
 	Ui::Text::String _views;

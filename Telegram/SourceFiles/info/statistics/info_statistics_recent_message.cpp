@@ -73,7 +73,6 @@ MessagePreview::MessagePreview(
 	int shares,
 	QImage cachedPreview)
 : Ui::RpWidget(parent)
-, _item(item)
 , _date(
 	st::statisticsHeaderTitleTextStyle,
 	Ui::FormatDateTime(ItemDateTime(item)))
@@ -98,7 +97,7 @@ MessagePreview::MessagePreview(
 , _preview(std::move(cachedPreview)) {
 	_text.setMarkedText(
 		st::defaultPeerListItem.nameStyle,
-		_item->toPreview({ .generateImages = false }).text,
+		item->toPreview({ .generateImages = false }).text,
 		Ui::DialogTextOptions(),
 		Core::MarkedTextContext{
 			.session = &item->history()->session(),
@@ -238,7 +237,7 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 
 void MessagePreview::saveState(SavedState &state) const {
 	if (!_lifetimeDownload) {
-		state.recentPostPreviews[_item->fullId().msg] = _preview;
+		state.recentPostPreviews[{ .messageId = _messageId }] = _preview;
 	}
 }
 

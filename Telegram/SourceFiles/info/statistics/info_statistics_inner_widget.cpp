@@ -704,7 +704,8 @@ void InnerWidget::fillRecentPosts() {
 				messageWrap,
 				rpl::never<QString>(),
 				st::statisticsRecentPostButton));
-		auto it = _state.recentPostPreviews.find(item->fullId().msg);
+		auto it = _state.recentPostPreviews.find(
+			{ .messageId = item->fullId() });
 		auto cachedPreview = (it != end(_state.recentPostPreviews))
 			? base::take(it->second)
 			: QImage();
