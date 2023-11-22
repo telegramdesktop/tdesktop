@@ -3190,6 +3190,7 @@ void History::insertMessageToBlocks(not_null<HistoryItem*> item) {
 				const auto lastDate = chatListTimeId();
 				if (!lastDate || itemDate >= lastDate) {
 					setLastMessage(item);
+					owner().notifyHistoryChangeDelayed(this);
 				}
 				return;
 			}
@@ -3225,6 +3226,10 @@ void History::checkLocalMessages() {
 		&& goodDate(peer->asChannel()->inviteDate)) {
 		insertJoinedMessage();
 	}
+}
+
+HistoryItem *History::joinedMessageInstance() const {
+	return _joinedMessage;
 }
 
 void History::removeJoinedMessage() {

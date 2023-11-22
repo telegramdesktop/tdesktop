@@ -639,6 +639,12 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 	} else if (mediaDisplayed) {
 		g.setHeight(g.height() - (st::msgServiceMargin.top() + media->height()));
 	}
+	const auto mediaLeft = st::msgServiceMargin.left()
+		+ (media ? ((g.width() - media->width()) / 2) : 0);
+	const auto mediaTop = st::msgServiceMargin.top()
+		+ g.height()
+		+ st::msgServiceMargin.top();
+	const auto mediaPoint = point - QPoint(mediaLeft, mediaTop);
 	auto trect = g.marginsAdded(-st::msgServicePadding);
 	if (trect.contains(point)) {
 		auto textRequest = request.forText();
@@ -667,10 +673,12 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				}
 			} else if (const auto same = item->Get<HistoryServiceSameBackground>()) {
 				result.link = same->lnk;
+			} else if (media && data()->showSimilarChannels()) {
+				result = media->textState(mediaPoint, request);
 			}
 		}
-	} else if (mediaDisplayed) {
-		result = media->textState(point - QPoint(st::msgServiceMargin.left() + (g.width() - media->width()) / 2, st::msgServiceMargin.top() + g.height() + st::msgServiceMargin.top()), request);
+	} else if (mediaDisplayed && point.y() >= mediaTop) {
+		result = media->textState(mediaPoint, request);
 	}
 	return result;
 }

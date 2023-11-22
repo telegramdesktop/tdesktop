@@ -142,6 +142,9 @@ void SimilarChannels::clickHandlerPressedChanged(
 }
 
 void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
+	if (!_toggled) {
+		return;
+	}
 	const auto large = Ui::BubbleCornerRounding::Large;
 	const auto geometry = QRect(0, 0, width(), height());
 	Ui::PaintBubble(
@@ -334,6 +337,23 @@ void SimilarChannels::validateParticipansBg(const Channel &channel) const {
 	channel.participantsBg = std::move(result);
 }
 
+ClickHandlerPtr SimilarChannels::ensureToggleLink() const {
+	if (_toggleLink) {
+		return _toggleLink;
+	}
+	_toggleLink = std::make_shared<LambdaClickHandler>(crl::guard(this, [=](
+			ClickContext context) {
+		const auto channel = history()->peer->asChannel();
+		Assert(channel != nullptr);
+		using Flag = ChannelDataFlag;
+		const auto flags = channel->flags();
+		channel->setFlags((flags & Flag::SimilarExpanded)
+			? (flags & ~Flag::SimilarExpanded)
+			: (flags | Flag::SimilarExpanded));
+	}));
+	return _toggleLink;
+}
+
 void SimilarChannels::ensureCacheReady(QSize size) const {
 	const auto ratio = style::DevicePixelRatio();
 	if (_roundedCache.size() != size * ratio) {
@@ -352,6 +372,10 @@ TextState SimilarChannels::textState(
 		QPoint point,
 		StateRequest request) const {
 	auto result = TextState();
+	if (point.y() < 0 && !_empty) {
+		result.link = ensureToggleLink();
+		return result;
+	}
 	result.horizontalScroll = (_scrollMax > 0);
 	const auto skip = st::chatSimilarTitlePosition;
 	const auto viewWidth = _hasViewAll ? (_viewAllWidth + 2 * skip.x()) : 0;
@@ -362,7 +386,7 @@ TextState SimilarChannels::textState(
 			const auto channel = parent()->history()->peer->asChannel();
 			Assert(channel != nullptr);
 			_viewAllLink = std::make_shared<LambdaClickHandler>([=](
-				ClickContext context) {
+					ClickContext context) {
 				Assert(channel != nullptr);
 				const auto api = &channel->session().api();
 				const auto &list = api->chatParticipants().similar(channel);
@@ -396,8 +420,12 @@ QSize SimilarChannels::countOptimalSize() {
 
 	_channels.clear();
 	const auto api = &channel->session().api();
+	api->chatParticipants().loadSimilarChannels(channel);
 	const auto similar = api->chatParticipants().similar(channel);
-	if (similar.empty()) {
+	_empty = similar.empty() ? 1 : 0;
+	using Flag = ChannelDataFlag;
+	_toggled = (channel->flags() & Flag::SimilarExpanded) ? 1 : 0;
+	if (_empty || !_toggled) {
 		return {};
 	}
 
@@ -441,7 +469,7 @@ QSize SimilarChannels::countOptimalSize() {
 	_title = tr::lng_similar_channels_title(tr::now);
 	_titleWidth = st::chatSimilarTitle->width(_title);
 	_viewAll = tr::lng_similar_channels_view_all(tr::now);
-	_viewAllWidth = st::normalFont->width(_viewAll);
+	_viewAllWidth = std::max(st::normalFont->width(_viewAll), 0);
 	const auto count = int(_channels.size());
 	const auto desired = (count ? (x - skip) : x)
 		- st::chatSimilarPadding.left();
@@ -451,7 +479,7 @@ QSize SimilarChannels::countOptimalSize() {
 	const auto titleSkip = st::chatSimilarTitlePosition.x();
 	const auto min = _titleWidth + 2 * titleSkip;
 	const auto limited = std::max(
-		std::min(_fullWidth, st::chatSimilarWidthMax),
+		std::min(int(_fullWidth), st::chatSimilarWidthMax),
 		min);
 	if (limited > _fullWidth) {
 		const auto shift = (limited - _fullWidth) / 2;
@@ -463,7 +491,10 @@ QSize SimilarChannels::countOptimalSize() {
 }
 
 QSize SimilarChannels::countCurrentSize(int newWidth) {
-	_scrollMax = std::max(_fullWidth - newWidth, 0);
+	if (!_toggled) {
+		return {};
+	}
+	_scrollMax = std::max(int(_fullWidth) - newWidth, 0);
 	_scrollLeft = std::clamp(_scrollLeft, uint32(), _scrollMax);
 	_hasViewAll = (_scrollMax != 0) ? 1 : 0;
 	return { newWidth, minHeight() };

@@ -49,7 +49,7 @@ public:
 		return true;
 	}
 	bool isDisplayed() const override {
-		return !_channels.empty();
+		return !_empty && _toggled;
 	}
 
 	void unloadHeavyPart() override;
@@ -74,6 +74,7 @@ private:
 
 	void ensureCacheReady(QSize size) const;
 	void validateParticipansBg(const Channel &channel) const;
+	[[nodiscard]] ClickHandlerPtr ensureToggleLink() const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -83,8 +84,10 @@ private:
 	mutable std::array<QImage, 4> _roundedCorners;
 	mutable QPoint _lastPoint;
 	int _titleWidth = 0;
-	int _viewAllWidth = 0;
-	int _fullWidth = 0;
+	uint32 _viewAllWidth : 15 = 0;
+	uint32 _fullWidth : 15 = 0;
+	uint32 _empty : 1 = 0;
+	mutable uint32 _toggled : 1 = 0;
 	uint32 _scrollLeft : 15 = 0;
 	uint32 _scrollMax : 15 = 0;
 	uint32 _hasViewAll : 1 = 0;
@@ -92,6 +95,7 @@ private:
 
 	std::vector<Channel> _channels;
 	mutable ClickHandlerPtr _viewAllLink;
+	mutable ClickHandlerPtr _toggleLink;
 
 };
 

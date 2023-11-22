@@ -175,7 +175,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 			session().changes().peerUpdated(this, UpdateFlag::Migration);
 		}
 	}
-	if (diff & (Flag::Forum | Flag::CallNotEmpty)) {
+	if (diff & (Flag::Forum | Flag::CallNotEmpty | Flag::SimilarExpanded)) {
 		if (const auto history = this->owner().historyLoaded(this)) {
 			if (diff & Flag::CallNotEmpty) {
 				history->updateChatListEntry();
@@ -187,6 +187,11 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 					if (const auto forum = this->forum()) {
 						forum->preloadTopics();
 					}
+				}
+			}
+			if (diff & Flag::SimilarExpanded) {
+				if (const auto item = history->joinedMessageInstance()) {
+					history->owner().requestItemResize(item);
 				}
 			}
 		}

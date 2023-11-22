@@ -1739,6 +1739,10 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 		}).send();
 
 		_channelAmInRequests.emplace(channel, requestId);
+
+		using Flag = ChannelDataFlag;
+		chatParticipants().loadSimilarChannels(channel);
+		channel->setFlags(channel->flags() | Flag::SimilarExpanded);
 	}
 }
 

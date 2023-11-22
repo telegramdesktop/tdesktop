@@ -587,9 +587,6 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 			} else {
 				history->owner().histories().requestDialogEntry(history);
 			}
-			if (dateChanged) {
-				loadSimilarChannels(channel);
-			}
 		}
 	};
 	_selfParticipantRequests.emplace(channel);
@@ -713,9 +710,17 @@ void ChatParticipants::loadSimilarChannels(not_null<ChannelData*> channel) {
 	_similar[channel].requestId = _api.request(
 		MTPchannels_GetChannelRecommendations(channel->inputChannel)
 	).done([=](const MTPmessages_Chats &result) {
-		_similar[channel] = {
-			.list = ParseSimilar(channel, result),
-		};
+		auto &similar = _similar[channel];
+		auto list = ParseSimilar(channel, result);
+		if (similar.list == list) {
+			return;
+		}
+		similar.list = std::move(list);
+		if (const auto history = channel->owner().historyLoaded(channel)) {
+			if (const auto item = history->joinedMessageInstance()) {
+				history->owner().requestItemResize(item);
+			}
+		}
 		_similarLoaded.fire_copy(channel);
 	}).send();
 }

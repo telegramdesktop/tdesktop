@@ -120,6 +120,8 @@ public:
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> participant);
 
+	void loadSimilarChannels(not_null<ChannelData*> channel);
+
 	[[nodiscard]] const std::vector<not_null<ChannelData*>> &similar(
 		not_null<ChannelData*> channel);
 	[[nodiscard]] auto similarLoaded() const
@@ -130,8 +132,6 @@ private:
 		std::vector<not_null<ChannelData*>> list;
 		mtpRequestId requestId = 0;
 	};
-
-	void loadSimilarChannels(not_null<ChannelData*> channel);
 
 	MTP::Sender _api;
 
