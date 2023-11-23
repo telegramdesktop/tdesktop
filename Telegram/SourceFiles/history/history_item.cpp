@@ -699,7 +699,9 @@ HistoryItem::HistoryItem(
 
 	const auto webPageType = from.isExactPost
 		? WebPageType::Message
-		: from.isBot
+		: (from.botLinkInfo && !from.botLinkInfo->botAppName.isEmpty())
+		? WebPageType::BotApp
+		: from.botLinkInfo
 		? WebPageType::Bot
 		: from.isBroadcast
 		? WebPageType::Channel
@@ -717,8 +719,8 @@ HistoryItem::HistoryItem(
 			: tr::lng_sponsored_message_title(tr::now),
 		from.title,
 		textWithEntities,
-		from.externalLinkPhotoId
-			? history->owner().photo(from.externalLinkPhotoId)
+		from.webpageOrBotPhotoId
+			? history->owner().photo(from.webpageOrBotPhotoId)
 			: nullptr,
 		nullptr,
 		WebPageCollage(),

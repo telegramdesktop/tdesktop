@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
+#include "data/data_bot_app.h"
 #include "data/data_channel.h"
+#include "data/data_peer.h"
 #include "data/data_peer_id.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -273,10 +275,10 @@ void SponsoredMessages::append(
 			.isMegagroup = (channel && channel->isMegagroup()),
 			.isChannel = (channel != nullptr),
 			.isPublic = (channel && channel->isPublic()),
-			.isBot = (peer->isUser() && peer->asUser()->isBot()),
 			.isExactPost = exactPost,
 			.isRecommended = data.is_recommended(),
 			.isForceUserpicDisplay = data.is_show_peer_photo(),
+			.buttonText = qs(data.vbutton_text().value_or_empty()),
 		};
 	};
 	const auto externalLink = data.vwebpage()
@@ -291,13 +293,36 @@ void SponsoredMessages::append(
 			return SponsoredFrom{
 				.title = qs(data.vsite_name()),
 				.externalLink = externalLink,
-				.externalLinkPhotoId = photoId,
+				.webpageOrBotPhotoId = photoId,
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
 			};
 		} else if (const auto fromId = data.vfrom_id()) {
-			return makeFrom(
-				_session->data().peer(peerFromMTP(*fromId)),
+			const auto peerId = peerFromMTP(*fromId);
+			auto result = makeFrom(
+				_session->data().peer(peerId),
 				(data.vchannel_post() != nullptr));
+			const auto user = result.peer->asUser();
+			if (user && user->isBot()) {
+				const auto botAppData = data.vapp()
+					? _session->data().processBotApp(peerId, *data.vapp())
+					: nullptr;
+				result.botLinkInfo = Window::PeerByLinkInfo{
+					.usernameOrId = user->userName(),
+					.resolveType = botAppData
+						? Window::ResolveType::BotApp
+						: data.vstart_param()
+						? Window::ResolveType::BotStart
+						: Window::ResolveType::Default,
+					.startToken = qs(data.vstart_param().value_or_empty()),
+					.botAppName = botAppData
+						? botAppData->shortName
+						: QString(),
+				};
+				result.webpageOrBotPhotoId = (botAppData && botAppData->photo)
+					? botAppData->photo->id
+					: PhotoId(0);
+			}
+			return result;
 		}
 		Assert(data.vchat_invite());
 		return data.vchat_invite()->match([&](const MTPDchatInvite &data) {
@@ -434,11 +459,14 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		.info = std::move(info),
 		.externalLink = data.externalLink,
 		.isForceUserpicDisplay = data.from.isForceUserpicDisplay,
-		.buttonText = !data.externalLink.isEmpty()
+		.buttonText = !data.from.buttonText.isEmpty()
+			? data.from.buttonText
+			: !data.externalLink.isEmpty()
 			? tr::lng_view_button_external_link(tr::now)
-			: data.from.isBot
+			: data.from.botLinkInfo
 			? tr::lng_view_button_bot(tr::now)
 			: QString(),
+		.botLinkInfo = data.from.botLinkInfo,
 	};
 }
 

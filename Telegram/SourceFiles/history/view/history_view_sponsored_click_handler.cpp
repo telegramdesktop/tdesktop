@@ -44,6 +44,8 @@ ClickHandlerPtr SponsoredLink(const QString &externalLink) {
 				File::OpenUrl(details.externalLink);
 			} else if (details.hash) {
 				Api::CheckChatInvite(controller, *details.hash);
+			} else if (details.botLinkInfo) {
+				controller->showPeerByLink(*details.botLinkInfo);
 			} else if (details.peer) {
 				controller->showPeerHistory(
 					details.peer,
