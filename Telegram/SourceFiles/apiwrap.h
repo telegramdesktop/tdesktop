@@ -73,6 +73,7 @@ class InviteLinks;
 class ViewsManager;
 class ConfirmPhone;
 class PeerPhoto;
+class PeerColors;
 class Polls;
 class ChatParticipants;
 class UnreadThings;
@@ -392,6 +393,7 @@ public:
 	[[nodiscard]] Api::Premium &premium();
 	[[nodiscard]] Api::Usernames &usernames();
 	[[nodiscard]] Api::Websites &websites();
+	[[nodiscard]] Api::PeerColors &peerColors();
 
 	void updatePrivacyLastSeens();
 
@@ -711,6 +713,7 @@ private:
 	const std::unique_ptr<Api::Premium> _premium;
 	const std::unique_ptr<Api::Usernames> _usernames;
 	const std::unique_ptr<Api::Websites> _websites;
+	const std::unique_ptr<Api::PeerColors> _peerColors;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

@@ -191,11 +191,13 @@ public:
 	[[nodiscard]] Support::Helper &supportHelper() const;
 	[[nodiscard]] Support::Templates &supportTemplates() const;
 
-	[[nodiscard]] auto colorIndicesValue() const
+	[[nodiscard]] auto colorIndicesValue()
 		-> rpl::producer<Ui::ColorIndicesCompressed>;
 
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
+
+	void parseColorIndices(const MTPDhelp_peerColors &data);
 
 	const not_null<Account*> _account;
 
@@ -233,8 +235,6 @@ private:
 
 	QByteArray _tmpPassword;
 	TimeId _tmpPasswordValidUntil = 0;
-
-	rpl::event_stream<Ui::ColorIndicesCompressed> _colorIndicesChanges;
 
 	rpl::lifetime _lifetime;
 

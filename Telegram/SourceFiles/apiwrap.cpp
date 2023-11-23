@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_hash.h"
 #include "api/api_invite_links.h"
 #include "api/api_media.h"
+#include "api/api_peer_colors.h"
 #include "api/api_peer_photo.h"
 #include "api/api_polls.h"
 #include "api/api_sending.h"
@@ -180,7 +181,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _transcribes(std::make_unique<Api::Transcribes>(this))
 , _premium(std::make_unique<Api::Premium>(this))
 , _usernames(std::make_unique<Api::Usernames>(this))
-, _websites(std::make_unique<Api::Websites>(this)) {
+, _websites(std::make_unique<Api::Websites>(this))
+, _peerColors(std::make_unique<Api::PeerColors>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -4401,4 +4403,8 @@ Api::Usernames &ApiWrap::usernames() {
 
 Api::Websites &ApiWrap::websites() {
 	return *_websites;
+}
+
+Api::PeerColors &ApiWrap::peerColors() {
+	return *_peerColors;
 }

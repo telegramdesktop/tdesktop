@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 
 #include "apiwrap.h"
+#include "api/api_peer_colors.h"
 #include "api/api_updates.h"
 #include "api/api_send_progress.h"
 #include "api/api_user_privacy.h"
@@ -476,9 +477,9 @@ Window::SessionController *Session::tryResolveWindow() const {
 	return _windows.front();
 }
 
-auto Session::colorIndicesValue() const
+auto Session::colorIndicesValue()
 -> rpl::producer<Ui::ColorIndicesCompressed> {
-	return _account->appConfig().colorIndicesValue();
+	return api().peerColors().indicesValue();
 }
 
 } // namespace Main

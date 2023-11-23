@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_color_box.h"
 
 #include "apiwrap.h"
+#include "api/api_peer_colors.h"
 #include "base/unixtime.h"
 #include "boxes/peers/replace_boost_box.h"
 #include "chat_helpers/compose/compose_show.h"
@@ -787,19 +788,7 @@ void EditPeerColorBox(
 		state->emojiId.value()
 	), {});
 
-	const auto appConfig = &peer->session().account().appConfig();
-	auto indices = rpl::single(
-		rpl::empty
-	) | rpl::then(
-		appConfig->refreshed()
-	) | rpl::map([=] {
-		const auto list = appConfig->get<std::vector<int>>(
-			"peer_colors_available",
-			{ 0, 1, 2, 3, 4, 5, 6 });
-		return list | ranges::views::transform([](int i) {
-			return uint8(i);
-		}) | ranges::to_vector;
-	});
+	auto indices = peer->session().api().peerColors().suggestedValue();
 	const auto margin = st::settingsColorRadioMargin;
 	const auto skip = st::settingsColorRadioSkip;
 	box->addRow(
