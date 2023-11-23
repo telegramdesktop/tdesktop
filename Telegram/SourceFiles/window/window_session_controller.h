@@ -93,16 +93,7 @@ class SectionMemento;
 class Controller;
 class FiltersMenu;
 
-enum class ResolveType {
-	Default,
-	BotApp,
-	BotStart,
-	AddToGroup,
-	AddToChannel,
-	ShareGame,
-	Mention,
-	Boost,
-};
+struct PeerByLinkInfo;
 
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
@@ -195,33 +186,6 @@ public:
 		const SectionShow &params = SectionShow()) = 0;
 	virtual not_null<SessionController*> parentController() = 0;
 
-	struct CommentId {
-		MsgId id = 0;
-	};
-	struct ThreadId {
-		MsgId id = 0;
-	};
-	using RepliesByLinkInfo = std::variant<v::null_t, CommentId, ThreadId>;
-	struct PeerByLinkInfo {
-		std::variant<QString, ChannelId> usernameOrId;
-		QString phone;
-		MsgId messageId = ShowAtUnreadMsgId;
-		StoryId storyId = 0;
-		RepliesByLinkInfo repliesInfo;
-		ResolveType resolveType = ResolveType::Default;
-		QString startToken;
-		ChatAdminRights startAdminRights;
-		bool startAutoSubmit = false;
-		QString botAppName;
-		bool botAppForceConfirmation = false;
-		QString attachBotUsername;
-		std::optional<QString> attachBotToggleCommand;
-		bool attachBotMenuOpen = false;
-		InlineBots::PeerTypes attachBotChooseTypes;
-		std::optional<QString> voicechatHash;
-		FullMsgId clickFromMessageId;
-		QString clickFromAttachBotWebviewUrl;
-	};
 	void showPeerByLink(const PeerByLinkInfo &info);
 
 	void showRepliesForMessage(

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_reactions.h"
 
 #include "base/event_filter.h"
-#include "boxes/reactions_settings_box.h" // AddReactionAnimatedIcon
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "data/data_message_reactions.h"
@@ -30,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+#include "window/window_session_controller_link_info.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
@@ -492,7 +492,7 @@ void AddReactionsText(
 	const auto count = inner->lifetime().make_state<rpl::variable<int>>(
 		std::move(customCountValue));
 
-	auto outer = container->add(
+	container->add(
 		object_ptr<Ui::DividerLabel>(
 			container,
 			std::move(ownedInner),
@@ -510,8 +510,7 @@ void AddReactionsText(
 	const auto weak = base::make_weak(navigation);
 	label->setClickHandlerFilter([=](const auto &...) {
 		if (const auto strong = weak.get()) {
-			using Info = Window::SessionNavigation::PeerByLinkInfo;
-			strong->showPeerByLink(Info{
+			strong->showPeerByLink(Window::PeerByLinkInfo{
 				.usernameOrId = u"stickers"_q,
 				.resolveType = Window::ResolveType::Mention,
 			});
@@ -563,7 +562,6 @@ void EditAllowedReactionsBox(
 	using namespace Data;
 	using namespace rpl::mappers;
 
-	const auto iconHeight = st::editPeerReactionsPreview;
 	box->setTitle(tr::lng_manage_peer_reactions());
 	box->setWidth(st::boxWideWidth);
 
@@ -707,7 +705,6 @@ void EditAllowedReactionsBox(
 			state->customCount.value(),
 			args.askForBoosts);
 	}
-	const auto total = int(all.size());
 	const auto collect = [=] {
 		auto result = AllowedReactions();
 		if (isGroup

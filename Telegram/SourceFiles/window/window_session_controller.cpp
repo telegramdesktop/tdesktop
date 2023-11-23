@@ -83,6 +83,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
+#include "window/window_session_controller_link_info.h"
 #include "settings/settings_main.h"
 #include "settings/settings_premium.h"
 #include "settings/settings_privacy_security.h"

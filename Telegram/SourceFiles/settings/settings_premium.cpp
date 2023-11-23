@@ -52,10 +52,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "window/window_session_controller_link_info.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "api/api_premium.h"
-#include "styles/style_boxes.h"
 #include "styles/style_premium.h"
 #include "styles/style_info.h"
 #include "styles/style_intro.h"
@@ -104,8 +104,8 @@ namespace Gift {
 
 struct Data {
 	PeerId peerId;
-	int months;
-	bool me;
+	int months = 0;
+	bool me = false;
 
 	explicit operator bool() const {
 		return peerId != 0;
@@ -1448,7 +1448,7 @@ void StartPremiumPayment(
 		"premium_invoice_slug",
 		QString());
 	if (!username.isEmpty()) {
-		controller->showPeerByLink(Window::SessionNavigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.usernameOrId = username,
 			.resolveType = Window::ResolveType::BotStart,
 			.startToken = ref,
