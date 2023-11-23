@@ -1647,11 +1647,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_suggested_video_button" = "View Video";
 "lng_action_attach_menu_bot_allowed" = "You allowed this bot to message you when you added it in the attachment menu.";
 "lng_action_webapp_bot_allowed" = "You allowed this bot to message you in his web-app.";
-"lng_action_set_wallpaper_me" = "You set a new wallpaper for this chat";
-"lng_action_set_wallpaper" = "{user} set a new wallpaper for this chat";
+"lng_action_set_wallpaper_me" = "You set a new wallpaper for this chat.";
+"lng_action_set_wallpaper" = "{user} set a new wallpaper for this chat.";
+"lng_action_set_wallpaper_both_me" = "You set a new wallpaper for {user} and you.";
 "lng_action_set_wallpaper_button" = "View Wallpaper";
-"lng_action_set_same_wallpaper_me" = "You set the same wallpaper for this chat";
-"lng_action_set_same_wallpaper" = "{user} set the same wallpaper for this chat";
+"lng_action_set_wallpaper_remove" = "Remove";
+"lng_action_set_same_wallpaper_me" = "You set the same wallpaper for this chat.";
+"lng_action_set_same_wallpaper" = "{user} set the same wallpaper for this chat.";
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";

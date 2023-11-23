@@ -4501,6 +4501,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			const MTPDmessageActionSetChatWallPaper &action) {
 		const auto isSelf = (_from->id == _from->session().userPeerId());
 		const auto same = action.is_same();
+		const auto both = action.is_for_both();
 		const auto peer = isSelf ? history()->peer : _from;
 		const auto user = peer->asUser();
 		const auto name = (user && !user->firstName.isEmpty())
@@ -4511,17 +4512,23 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			result.links.push_back(peer->createOpenLink());
 		}
 		result.text = isSelf
-			? (same
-				? tr::lng_action_set_same_wallpaper_me
-				: tr::lng_action_set_wallpaper_me)(
+			? ((!same && both)
+				? tr::lng_action_set_wallpaper_both_me(
 					tr::now,
+					lt_user,
+					Ui::Text::Link(Ui::Text::Bold(name), 1),
 					Ui::Text::WithEntities)
+				: (same
+					? tr::lng_action_set_same_wallpaper_me
+					: tr::lng_action_set_wallpaper_me)(
+						tr::now,
+						Ui::Text::WithEntities))
 			: (same
 				? tr::lng_action_set_same_wallpaper
 				: tr::lng_action_set_wallpaper)(
 					tr::now,
 					lt_user,
-					Ui::Text::Link(name, 1), // Link 1.
+					Ui::Text::Link(Ui::Text::Bold(name), 1),
 					Ui::Text::WithEntities);
 		return result;
 	};
@@ -4681,7 +4688,10 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 			const auto session = &history()->session();
 			const auto &attached = data.vwallpaper();
 			if (const auto paper = WallPaper::Create(session, attached)) {
-				_media = std::make_unique<MediaWallPaper>(this, *paper);
+				_media = std::make_unique<MediaWallPaper>(
+					this,
+					*paper,
+					data.is_for_both());
 			}
 		}
 	}, [&](const MTPDmessageActionGiftCode &data) {

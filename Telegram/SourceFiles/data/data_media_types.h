@@ -131,6 +131,7 @@ public:
 	virtual CloudImage *location() const;
 	virtual PollData *poll() const;
 	virtual const WallPaper *paper() const;
+	virtual bool paperForBoth() const;
 	virtual FullStoryId storyId() const;
 	virtual bool storyExpired(bool revalidate = false);
 	virtual bool storyMention() const;
@@ -568,12 +569,16 @@ private:
 
 class MediaWallPaper final : public Media {
 public:
-	MediaWallPaper(not_null<HistoryItem*> parent, const WallPaper &paper);
+	MediaWallPaper(
+		not_null<HistoryItem*> parent,
+		const WallPaper &paper,
+		bool paperForBoth);
 	~MediaWallPaper();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	const WallPaper *paper() const override;
+	bool paperForBoth() const override;
 
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -588,6 +593,7 @@ public:
 
 private:
 	const WallPaper _paper;
+	const bool _paperForBoth = false;
 
 };
 

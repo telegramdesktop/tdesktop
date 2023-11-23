@@ -1991,6 +1991,18 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updatePeerWallpaper: {
+		const auto &d = update.c_updatePeerWallpaper();
+		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {
+			if (const auto paper = d.vwallpaper()) {
+				peer->setWallPaper(
+					Data::WallPaper::Create(&session(), *paper));
+			} else {
+				peer->setWallPaper({});
+			}
+		}
+	} break;
+
 	case mtpc_updateBotCommands: {
 		const auto &d = update.c_updateBotCommands();
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {

@@ -33,7 +33,7 @@ public:
 	QString title() override;
 	TextWithEntities subtitle() override;
 	int buttonSkip() override;
-	QString button() override;
+	rpl::producer<QString> button() override;
 	void draw(
 		Painter &p,
 		const PaintContext &context,

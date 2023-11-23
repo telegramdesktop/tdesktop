@@ -437,6 +437,10 @@ const WallPaper *Media::paper() const {
 	return nullptr;
 }
 
+bool Media::paperForBoth() const {
+	return false;
+}
+
 FullStoryId Media::storyId() const {
 	return {};
 }
@@ -1987,19 +1991,26 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 
 MediaWallPaper::MediaWallPaper(
 	not_null<HistoryItem*> parent,
-	const WallPaper &paper)
+	const WallPaper &paper,
+	bool paperForBoth)
 : Media(parent)
-, _paper(paper) {
+, _paper(paper)
+, _paperForBoth(paperForBoth) {
 }
 
 MediaWallPaper::~MediaWallPaper() = default;
 
-std::unique_ptr<Media> MediaWallPaper::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaWallPaper>(parent, _paper);
+std::unique_ptr<Media> MediaWallPaper::clone(
+		not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaWallPaper>(parent, _paper, _paperForBoth);
 }
 
 const WallPaper *MediaWallPaper::paper() const {
 	return &_paper;
+}
+
+bool MediaWallPaper::paperForBoth() const {
+	return _paperForBoth;
 }
 
 TextWithEntities MediaWallPaper::notificationText() const {
