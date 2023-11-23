@@ -89,6 +89,7 @@ private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
 	struct Entry {
 		OwnedItem item;
+		FullMsgId itemFullId;
 		SponsoredMessage sponsored;
 	};
 	struct List {

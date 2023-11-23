@@ -78,9 +78,13 @@ bool SponsoredMessages::append(not_null<History*> history) {
 		list.showedAll = true;
 		return false;
 	}
-
+	// SponsoredMessages::Details can be requested within
+	// the constructor of HistoryItem, so itemFullId is used as a key.
+	entryIt->itemFullId = FullMsgId(
+		history->peer->id,
+		_session->data().nextLocalMessageId());
 	entryIt->item.reset(history->addNewLocalMessage(
-		_session->data().nextLocalMessageId(),
+		entryIt->itemFullId.msg,
 		entryIt->sponsored.from,
 		entryIt->sponsored.textWithEntities));
 
@@ -159,8 +163,13 @@ void SponsoredMessages::inject(
 				? viewHeight
 				: (*lastViewIt)->resizeGetHeight(fallbackWidth);
 		}
+		// SponsoredMessages::Details can be requested within
+		// the constructor of HistoryItem, so itemFullId is used as a key.
+		entryIt->itemFullId = FullMsgId(
+			history->peer->id,
+			_session->data().nextLocalMessageId());
 		const auto makedMessage = history->makeMessage(
-			_session->data().nextLocalMessageId(),
+			entryIt->itemFullId.msg,
 			entryIt->sponsored.from,
 			entryIt->sponsored.textWithEntities,
 			(*lastViewIt)->data());
@@ -357,7 +366,7 @@ void SponsoredMessages::append(
 		.sponsorInfo = std::move(sponsorInfo),
 		.additionalInfo = std::move(additionalInfo),
 	};
-	list.entries.push_back({ nullptr, std::move(sharedMessage) });
+	list.entries.push_back({ nullptr, {}, std::move(sharedMessage) });
 }
 
 void SponsoredMessages::clearItems(not_null<History*> history) {
@@ -385,7 +394,7 @@ const SponsoredMessages::Entry *SponsoredMessages::find(
 	}
 	auto &list = it->second;
 	const auto entryIt = ranges::find_if(list.entries, [&](const Entry &e) {
-		return e.item && e.item->fullId() == fullId;
+		return e.itemFullId == fullId;
 	});
 	if (entryIt == end(list.entries)) {
 		return nullptr;
