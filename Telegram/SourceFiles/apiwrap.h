@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 #include "base/timer.h"
-#include "base/flat_map.h"
-#include "base/flat_set.h"
 #include "mtproto/sender.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_messages.h"
@@ -142,10 +140,10 @@ public:
 
 	void applyUpdates(
 		const MTPUpdates &updates,
-		uint64 sentMessageRandomId = 0);
+		uint64 sentMessageRandomId = 0) const;
 	int applyAffectedHistory(
 		PeerData *peer, // May be nullptr, like for deletePhoneCallHistory.
-		const MTPmessages_AffectedHistory &result);
+		const MTPmessages_AffectedHistory &result) const;
 
 	void registerModifyRequest(const QString &key, mtpRequestId requestId);
 	void clearModifyRequest(const QString &key);
@@ -505,7 +503,7 @@ private:
 		not_null<PeerData*> peer,
 		bool justClear,
 		bool revoke);
-	void applyAffectedMessages(const MTPmessages_AffectedMessages &result);
+	void applyAffectedMessages(const MTPmessages_AffectedMessages &result) const;
 
 	void deleteAllFromParticipantSend(
 		not_null<ChannelData*> channel,
@@ -534,7 +532,6 @@ private:
 		Api::SendOptions options,
 		uint64 randomId,
 		Fn<void(bool)> done = nullptr);
-	FileLoadTo fileLoadTaskOptions(const SendAction &action) const;
 
 	void getTopPromotionDelayed(TimeId now, TimeId next);
 	void topPromotionDone(const MTPhelp_PromoData &proxy);

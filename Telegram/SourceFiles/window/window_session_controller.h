@@ -7,18 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/flags.h"
-#include "base/object_ptr.h"
-#include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "boxes/gift_premium_box.h" // GiftPremiumValidator.
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_chat_participant_status.h"
 #include "dialogs/dialogs_key.h"
-#include "ui/layers/layer_widget.h"
 #include "settings/settings_type.h"
 #include "window/window_adaptive.h"
-#include "mtproto/sender.h"
 
 class PhotoData;
 class MainWidget;
@@ -403,7 +398,7 @@ public:
 	[[nodiscard]] ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
 	bool forceWideDialogs() const;
-	void updateColumnLayout();
+	void updateColumnLayout() const;
 	bool canShowThirdSection() const;
 	bool canShowThirdSectionWithoutResize() const;
 	bool takeThirdSectionFromLayer();
@@ -483,8 +478,8 @@ public:
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,
 		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done);
-	void clearChooseReportMessages();
+		Fn<void(MessageIdsList)> done) const;
+	void clearChooseReportMessages() const;
 
 	void showInNewWindow(
 		not_null<PeerData*> peer,
@@ -492,7 +487,7 @@ public:
 
 	void toggleChooseChatTheme(
 		not_null<PeerData*> peer,
-		std::optional<bool> show = std::nullopt);
+		std::optional<bool> show = std::nullopt) const;
 	void finishChatThemeEdit(not_null<PeerData*> peer);
 
 	[[nodiscard]] bool dialogsListFocused() const {
@@ -590,7 +585,7 @@ public:
 	void setPremiumRef(const QString &ref);
 	[[nodiscard]] QString premiumRef() const;
 
-	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e);
+	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() override;
 

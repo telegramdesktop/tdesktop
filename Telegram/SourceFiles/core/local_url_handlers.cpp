@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_authorizations.h"
 #include "api/api_confirm_phone.h"
-#include "api/api_text_entities.h"
 #include "api/api_chat_filters.h"
 #include "api/api_chat_invite.h"
 #include "api/api_premium.h"
@@ -24,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
-#include "boxes/gift_premium_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/sessions_box.h"
 #include "boxes/language_box.h"
@@ -32,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
-#include "data/data_cloud_themes.h"
 #include "data/data_channel.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"

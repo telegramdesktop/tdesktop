@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/event_stream.h>
 #include <rpl/filter.h>
 #include <rpl/variable.h>
 #include "base/timer.h"

@@ -16,13 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_stories.h"
 #include "data/data_emoji_statuses.h"
-#include "data/data_user_names.h"
 #include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
-#include "ui/text/text_options.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 

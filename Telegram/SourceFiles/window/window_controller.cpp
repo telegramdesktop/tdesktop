@@ -22,22 +22,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "intro/intro_widget.h"
 #include "mtproto/mtproto_config.h"
-#include "ui/layers/box_content.h"
-#include "ui/layers/layer_widget.h"
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "window/window_session_controller.h"
-#include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "ui/boxes/confirm_box.h"
 #include "data/data_peer.h"
-#include "mainwindow.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "styles/style_layers.h"
 
 #include <QtGui/QWindow>
-#include <QtGui/QScreen>
 
 namespace Window {
 namespace {

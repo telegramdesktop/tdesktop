@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "ui/platform/ui_platform_window.h"
 #include "platform/platform_window_title.h"
-#include "base/platform/base_platform_info.h"
 #include "history/history.h"
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
@@ -35,19 +34,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/controls/window_outdated_bar.h"
 #include "ui/painter.h"
-#include "ui/ui_utility.h"
 #include "apiwrap.h"
-#include "mainwindow.h"
 #include "mainwidget.h" // session->content()->windowShown().
 #include "tray.h"
-#include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h" // ChildSkip().x() for new child windows.
 
 #include <QtCore/QMimeData>
-#include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
-#include <QtGui/QScreen>
 #include <QtGui/QDrag>
 
 #include <kurlmimedata.h>

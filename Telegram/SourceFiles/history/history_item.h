@@ -8,10 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/runtime_composer.h"
-#include "base/flags.h"
 #include "data/data_media_types.h"
 #include "history/history_item_edition.h"
-#include "history/history_item_reply_markup.h"
 
 #include <any>
 

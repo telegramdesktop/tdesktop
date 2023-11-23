@@ -12,13 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_view_highlight_manager.h"
 #include "history/history_view_top_toast.h"
 #include "history/history.h"
-#include "chat_helpers/bot_command.h"
 #include "chat_helpers/field_autocomplete.h"
-#include "data/data_drafts.h"
 #include "window/section_widget.h"
 #include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
-#include "base/flags.h"
 
 struct FileLoadResult;
 enum class SendMediaType;

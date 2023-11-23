@@ -58,7 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "styles/style_premium.h"
 #include "styles/style_info.h"
-#include "styles/style_intro.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 

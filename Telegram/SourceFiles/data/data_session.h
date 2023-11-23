@@ -8,14 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/storage_databases.h"
-#include "dialogs/dialogs_key.h"
-#include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_cloud_file.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
-#include "base/flags.h"
 
 class Image;
 class HistoryItem;

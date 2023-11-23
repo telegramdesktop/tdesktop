@@ -9,20 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
-#include "base/unixtime.h"
 #include "data/data_bot_app.h"
 #include "data/data_channel.h"
-#include "data/data_peer.h"
-#include "data/data_peer_id.h"
-#include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "ui/image/image_location_factory.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
 
 namespace Data {

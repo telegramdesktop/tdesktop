@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/peers/replace_boost_box.h"
 #include "boxes/delete_messages_box.h"
-#include "window/window_adaptive.h"
 #include "window/window_controller.h"
 #include "window/window_filters_menu.h"
 #include "info/info_memento.h"
@@ -27,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
 #include "data/data_document_resolver.h"
-#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_folder.h"
@@ -43,23 +41,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_replies_list.h"
 #include "data/data_peer_values.h"
-#include "data/data_stories.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
-#include "core/core_settings.h"
 #include "core/click_handler_types.h"
 #include "base/unixtime.h"
 #include "ui/controls/userpic_button.h"
-#include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone.
 #include "ui/delayed_activation.h"
 #include "ui/boxes/boost_box.h"
-#include "ui/chat/attach/attach_bot_webview.h"
-#include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/style/style_palette_colorizer.h"
@@ -69,7 +62,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/calendar_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
-#include "mainwindow.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
@@ -90,7 +82,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
-#include "styles/style_premium.h"
 
 namespace Window {
 namespace {
@@ -2066,11 +2057,11 @@ void SessionController::clearPassportForm() {
 void SessionController::showChooseReportMessages(
 		not_null<PeerData*> peer,
 		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done) {
+		Fn<void(MessageIdsList)> done) const {
 	content()->showChooseReportMessages(peer, reason, std::move(done));
 }
 
-void SessionController::clearChooseReportMessages() {
+void SessionController::clearChooseReportMessages() const {
 	content()->clearChooseReportMessages();
 }
 
@@ -2103,7 +2094,7 @@ void SessionController::showInNewWindow(
 
 void SessionController::toggleChooseChatTheme(
 		not_null<PeerData*> peer,
-		std::optional<bool> show) {
+		std::optional<bool> show) const {
 	content()->toggleChooseChatTheme(peer, show);
 }
 
@@ -2119,7 +2110,7 @@ void SessionController::finishChatThemeEdit(not_null<PeerData*> peer) {
 	}
 }
 
-void SessionController::updateColumnLayout() {
+void SessionController::updateColumnLayout() const {
 	content()->updateColumnLayout();
 }
 
@@ -2737,7 +2728,7 @@ QString SessionController::premiumRef() const {
 	return _premiumRef;
 }
 
-bool SessionController::contentOverlapped(QWidget *w, QPaintEvent *e) {
+bool SessionController::contentOverlapped(QWidget *w, QPaintEvent *e) const {
 	return widget()->contentOverlapped(w, e);
 }
 

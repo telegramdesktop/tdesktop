@@ -19,8 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/mime_type.h" // Core::IsMimeSticker
-#include "core/crash_reports.h" // CrashReports::SetAnnotation
-#include "ui/image/image.h"
 #include "ui/image/image_location_factory.h" // Images::FromPhotoSize
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "export/export_manager.h"
@@ -44,17 +42,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_bot_app.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
-#include "data/data_media_types.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_download_manager.h"
-#include "data/data_photo.h"
-#include "data/data_document.h"
 #include "data/data_web_page.h"
-#include "data/data_wall_paper.h"
 #include "data/data_game.h"
 #include "data/data_poll.h"
 #include "data/data_replies_list.h"
@@ -67,7 +61,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_icons.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_stories.h"
-#include "data/data_story.h"
 #include "data/data_streaming.h"
 #include "data/data_media_rotation.h"
 #include "data/data_histories.h"
@@ -75,13 +68,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "base/random.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
-#include "styles/style_boxes.h" // st::backgroundSize
 
 namespace Data {
 namespace {
