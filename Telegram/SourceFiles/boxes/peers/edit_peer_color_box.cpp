@@ -460,15 +460,15 @@ void Set(
 		).done(done).fail(fail).send();
 	};
 	if (peer->isSelf()) {
+		using Flag = MTPaccount_UpdateColor::Flag;
 		send(MTPaccount_UpdateColor(
-			MTP_flags(
-				MTPaccount_UpdateColor::Flag::f_background_emoji_id),
+			MTP_flags(Flag::f_color | Flag::f_background_emoji_id),
 			MTP_int(colorIndex),
 			MTP_long(backgroundEmojiId)));
 	} else if (const auto channel = peer->asChannel()) {
+		using Flag = MTPchannels_UpdateColor::Flag;
 		send(MTPchannels_UpdateColor(
-			MTP_flags(
-				MTPchannels_UpdateColor::Flag::f_background_emoji_id),
+			MTP_flags(Flag::f_background_emoji_id),
 			channel->inputChannel,
 			MTP_int(colorIndex),
 			MTP_long(backgroundEmojiId)));

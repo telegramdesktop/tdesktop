@@ -12,7 +12,6 @@ include(cmake/generate_scheme.cmake)
 
 set(scheme_files
     ${src_loc}/mtproto/scheme/api.tl
-    ${src_loc}/mtproto/scheme/layer.tl
     ${src_loc}/mtproto/scheme/mtproto.tl
 )
 
@@ -21,7 +20,6 @@ generate_scheme(td_scheme ${src_loc}/codegen/scheme/codegen_scheme.py "${scheme_
 nice_target_sources(td_scheme ${src_loc}/mtproto/scheme
 PRIVATE
     api.tl
-    layer.tl
     mtproto.tl
 )
 

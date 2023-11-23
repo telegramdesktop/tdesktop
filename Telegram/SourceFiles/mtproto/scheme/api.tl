@@ -1606,7 +1606,10 @@ stats.storyStats#50cd067c views_graph:StatsGraph reactions_by_emotion_graph:Stat
 
 peerColor#ba278146 color:int background_emoji_id:long = PeerColor;
 
-help.peerColorOption#6a1b4441 flags:# hidden:flags.0?true color_id:int colors:flags.1?Vector<int> dark_colors:flags.2?Vector<int> = help.PeerColorOption;
+help.peerColorSet#26219a58 colors:Vector<int> = help.PeerColorSet;
+help.peerColorProfileSet#3385923e pallete_colors:Vector<int> bg_colors:Vector<int> story_colors:Vector<int> = help.PeerColorSet;
+
+help.peerColorOption#135bd42f flags:# hidden:flags.0?true color_id:int colors:flags.1?help.PeerColorSet dark_colors:flags.2?help.PeerColorSet = help.PeerColorOption;
 
 help.peerColorsNotModified#2ba1f5ce = help.PeerColors;
 help.peerColors#f8ed08 hash:int colors:Vector<help.PeerColorOption> = help.PeerColors;
@@ -1732,7 +1735,7 @@ account.getAutoSaveSettings#adcbbcda = account.AutoSaveSettings;
 account.saveAutoSaveSettings#d69b8361 flags:# users:flags.0?true chats:flags.1?true broadcasts:flags.2?true peer:flags.3?InputPeer settings:AutoSaveSettings = Bool;
 account.deleteAutoSaveExceptions#53bc0020 = Bool;
 account.invalidateSignInCodes#ca8ae8ba codes:Vector<string> = Bool;
-account.updateColor#a001cc43 flags:# for_profile:flags.1?true color:int background_emoji_id:flags.0?long = Bool;
+account.updateColor#7cefa15d flags:# for_profile:flags.1?true color:flags.2?int background_emoji_id:flags.0?long = Bool;
 account.getDefaultBackgroundEmojis#a60ab9ce hash:long = EmojiList;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
@@ -2192,3 +2195,5 @@ premium.getMyBoosts#be77b4a = premium.MyBoosts;
 premium.applyBoost#6b7da746 flags:# slots:flags.0?Vector<int> peer:InputPeer = premium.MyBoosts;
 premium.getBoostsStatus#42f1f61 peer:InputPeer = premium.BoostsStatus;
 premium.getUserBoosts#39854d1f peer:InputPeer user_id:InputUser = premium.BoostsList;
+
+// LAYER 167
