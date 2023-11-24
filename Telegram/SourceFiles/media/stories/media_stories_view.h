@@ -78,7 +78,11 @@ public:
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
 	[[nodiscard]] bool skipCaption() const;
+	[[nodiscard]] bool repost() const;
 	void showFullCaption();
+
+	[[nodiscard]] QRect captionWithRepostGeometry(QRect caption) const;
+	void drawRepostInfo(Painter &p, int x, int y, int availableWidth) const;
 
 	void updatePlayback(const Player::TrackState &state);
 	[[nodiscard]] ClickHandlerPtr lookupAreaHandler(QPoint point) const;

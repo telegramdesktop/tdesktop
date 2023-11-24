@@ -1434,7 +1434,10 @@ void OverlayWidget::refreshCaptionGeometry() {
 	_captionShowMoreWidth = 0;
 	_captionSkipBlockWidth = 0;
 
-	if (_caption.isEmpty()) {
+	const auto storiesCaptionWidth = _w
+		- st::mediaviewCaptionPadding.left()
+		- st::mediaviewCaptionPadding.right();
+	if (_caption.isEmpty() && (!_stories || !_stories->repost())) {
 		_captionRect = QRect();
 		return;
 	}
@@ -1451,9 +1454,7 @@ void OverlayWidget::refreshCaptionGeometry() {
 		? _groupThumbsTop
 		: height() - st::mediaviewCaptionMargin.height();
 	const auto captionWidth = _stories
-		? (_w
-			- st::mediaviewCaptionPadding.left()
-			- st::mediaviewCaptionPadding.right())
+		? storiesCaptionWidth
 		: std::min(
 			(_groupThumbsAvailableWidth
 				- st::mediaviewCaptionPadding.left()
@@ -4612,8 +4613,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		if (!_stories) {
 			renderer->paintFooter(footerGeometry(), opacity);
 		}
-		if (!_caption.isEmpty()
-			&& (!_stories || !_stories->skipCaption())) {
+		if (!(_stories ? _stories->skipCaption() : _caption.isEmpty())) {
 			renderer->paintCaption(captionGeometry(), opacity);
 		}
 		if (_groupThumbs) {
@@ -5020,8 +5020,13 @@ void OverlayWidget::paintCaptionContent(
 		QRect outer,
 		QRect clip,
 		float64 opacity) {
-	const auto inner = outer.marginsRemoved(st::mediaviewCaptionPadding);
-	if (!_stories) {
+	auto inner = outer.marginsRemoved(st::mediaviewCaptionPadding);
+	inner.setTop(inner.top() + inner.height() - _captionRect.height());
+	if (_stories) {
+		if (_stories->repost()) {
+			_stories->drawRepostInfo(p, inner.x(), inner.y(), inner.width());
+		}
+	} else {
 		p.setOpacity(opacity);
 		p.setBrush(st::mediaviewCaptionBg);
 		p.setPen(Qt::NoPen);
@@ -5068,7 +5073,9 @@ void OverlayWidget::paintCaptionContent(
 }
 
 QRect OverlayWidget::captionGeometry() const {
-	return _captionRect.marginsAdded(st::mediaviewCaptionPadding);
+	return (_stories && _stories->repost())
+		? _stories->captionWithRepostGeometry(_captionRect)
+		: _captionRect.marginsAdded(st::mediaviewCaptionPadding);
 }
 
 void OverlayWidget::paintGroupThumbsContent(
@@ -5710,6 +5717,8 @@ void OverlayWidget::updateOver(QPoint pos) {
 			lnk = ensureCaptionExpandLink();
 		}
 		lnkhost = this;
+	} else if (_stories && captionGeometry().contains(pos)) {
+		//_stories->repostState();
 	} else if (_groupThumbs && _groupThumbsRect.contains(pos)) {
 		const auto point = pos - QPoint(_groupThumbsLeft, _groupThumbsTop);
 		lnk = _groupThumbs->getState(point);

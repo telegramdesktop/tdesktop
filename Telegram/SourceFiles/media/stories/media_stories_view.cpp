@@ -146,6 +146,22 @@ bool View::skipCaption() const {
 	return _controller->skipCaption();
 }
 
+bool View::repost() const {
+	return _controller->repost();
+}
+
+QRect View::captionWithRepostGeometry(QRect caption) const {
+	return _controller->captionWithRepostGeometry(caption);
+}
+
+void View::drawRepostInfo(
+		Painter &p,
+		int x,
+		int y,
+		int availableWidth) const {
+	_controller->drawRepostInfo(p, x, y, availableWidth);
+}
+
 void View::showFullCaption() {
 	_controller->showFullCaption();
 }

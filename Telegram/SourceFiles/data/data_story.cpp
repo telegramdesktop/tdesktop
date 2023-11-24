@@ -105,6 +105,31 @@ using UpdateFlag = StoryUpdate::Flag;
 	return result;
 }
 
+[[nodiscard]] PeerData *RepostSourcePeer(
+		not_null<Session*> owner,
+		const MTPDstoryItem &data) {
+	if (const auto forwarded = data.vfwd_from()) {
+		if (const auto from = forwarded->data().vfrom()) {
+			return owner->peer(peerFromMTP(*from));
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] QString RepostSourceName(const MTPDstoryItem &data) {
+	if (const auto forwarded = data.vfwd_from()) {
+		return qs(forwarded->data().vfrom_name().value_or_empty());
+	}
+	return {};
+}
+
+[[nodiscard]] StoryId RepostSourceId(const MTPDstoryItem &data) {
+	if (const auto forwarded = data.vfwd_from()) {
+		return forwarded->data().vstory_id().value_or_empty();
+	}
+	return {};
+}
+
 } // namespace
 
 class StoryPreload::LoadTask final : private Storage::DownloadMtprotoTask {
@@ -216,6 +241,9 @@ Story::Story(
 	TimeId now)
 : _id(id)
 , _peer(peer)
+, _repostSourcePeer(RepostSourcePeer(&peer->owner(), data))
+, _repostSourceName(RepostSourceName(data))
+, _repostSourceId(RepostSourceId(data))
 , _date(data.vdate().v)
 , _expires(data.vexpire_date().v) {
 	applyFields(std::move(media), data, now, true);
@@ -728,6 +756,22 @@ void Story::applyViewsCounts(const MTPDstoryViews &data) {
 
 TimeId Story::lastUpdateTime() const {
 	return _lastUpdateTime;
+}
+
+bool Story::repost() const {
+	return _repostSourcePeer || !_repostSourceName.isEmpty();
+}
+
+PeerData *Story::repostSourcePeer() const {
+	return _repostSourcePeer;
+}
+
+QString Story::repostSourceName() const {
+	return _repostSourceName;
+}
+
+StoryId Story::repostSourceId() const {
+	return _repostSourceId;
 }
 
 StoryPreload::StoryPreload(not_null<Story*> story, Fn<void()> done)

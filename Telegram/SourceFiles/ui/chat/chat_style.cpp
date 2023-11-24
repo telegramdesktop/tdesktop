@@ -143,6 +143,21 @@ int BackgroundEmojiData::CacheIndex(
 	return (base * 2) + (selected ? 1 : 0);
 };
 
+int ColorPatternIndex(
+		const ColorIndicesCompressed &indices,
+		uint8 colorIndex,
+		bool dark) {
+	Expects(colorIndex >= 0 && colorIndex < kColorIndexCount);
+
+	if (!indices.colors
+		|| colorIndex < kSimpleColorIndexCount) {
+		return 0;
+	}
+	auto &data = (*indices.colors)[colorIndex];
+	auto &colors = dark ? data.dark : data.light;
+	return colors[2] ? 2 : colors[1] ? 1 : 0;
+}
+
 ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 	if (colorIndices) {
 		_colorIndicesLifetime = std::move(

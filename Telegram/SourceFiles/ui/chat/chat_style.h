@@ -236,11 +236,20 @@ struct ColorIndicesCompressed {
 	std::shared_ptr<std::array<ColorIndexData, kColorIndexCount>> colors;
 };
 
+[[nodiscard]] int ColorPatternIndex(
+	const ColorIndicesCompressed &indices,
+	uint8 colorIndex,
+	bool dark);
+
 struct ColorIndexValues {
 	std::array<QColor, kColorPatternsCount> outlines;
 	QColor name;
 	QColor bg;
 };
+
+[[nodiscard]] ColorIndexValues SimpleColorIndexValues(
+	QColor color,
+	int patternIndex);
 
 class ChatStyle final : public style::palette {
 public:

@@ -26,7 +26,7 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 		_scroll.get(),
 		object_ptr<Ui::FlatLabel>(_scroll.get(), st::storiesCaptionFull),
-		st::mediaviewCaptionPadding)))
+		st::mediaviewCaptionPadding + _controller->repostCaptionPadding())))
 , _text(_wrap->entity()) {
 	_text->setMarkedText(controller->captionText(), Core::MarkedTextContext{
 		.session = &controller->uiShow()->session(),

@@ -1034,6 +1034,8 @@ PRIVATE
     media/stories/media_stories_recent_views.h
     media/stories/media_stories_reply.cpp
     media/stories/media_stories_reply.h
+    media/stories/media_stories_repost_view.cpp
+    media/stories/media_stories_repost_view.h
     media/stories/media_stories_share.cpp
     media/stories/media_stories_share.h
     media/stories/media_stories_sibling.cpp
