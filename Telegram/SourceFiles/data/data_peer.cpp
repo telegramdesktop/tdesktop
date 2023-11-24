@@ -672,10 +672,10 @@ bool PeerData::changeBackgroundEmojiId(
 bool PeerData::changeColor(
 		const tl::conditional<MTPPeerColor> &cloudColor) {
 	const auto changed1 = cloudColor
-		? changeColorIndex(cloudColor->data().vcolor().v)
+		? changeColorIndex(cloudColor->data().vcolor())
 		: clearColorIndex();
 	const auto changed2 = changeBackgroundEmojiId(cloudColor
-		? cloudColor->data().vbackground_emoji_id().v
+		? cloudColor->data().vbackground_emoji_id().value_or_empty()
 		: DocumentId());
 	return changed1 || changed2;
 }
