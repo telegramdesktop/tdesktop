@@ -128,7 +128,7 @@ public:
 	void captionClosing();
 	void captionClosed();
 
-	[[nodiscard]] QRect captionWithRepostGeometry(QRect caption) const;
+	[[nodiscard]] QMargins repostCaptionPadding() const;
 	void drawRepostInfo(Painter &p, int x, int y, int availableWidth) const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;

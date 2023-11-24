@@ -81,7 +81,7 @@ public:
 	[[nodiscard]] bool repost() const;
 	void showFullCaption();
 
-	[[nodiscard]] QRect captionWithRepostGeometry(QRect caption) const;
+	[[nodiscard]] QMargins repostCaptionPadding() const;
 	void drawRepostInfo(Painter &p, int x, int y, int availableWidth) const;
 
 	void updatePlayback(const Player::TrackState &state);

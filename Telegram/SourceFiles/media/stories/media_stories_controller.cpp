@@ -604,9 +604,8 @@ int Controller::repostSkipTop() const {
 		: 0;
 }
 
-QRect Controller::captionWithRepostGeometry(QRect caption) const {
-	return caption.marginsAdded(st::mediaviewCaptionPadding).marginsAdded(
-		{ 0, repostSkipTop(), 0, 0 });
+QMargins Controller::repostCaptionPadding() const {
+	return { 0, repostSkipTop(), 0, 0 };
 }
 
 void Controller::drawRepostInfo(
@@ -616,7 +615,7 @@ void Controller::drawRepostInfo(
 		int availableWidth) const {
 	Expects(_repostView != nullptr);
 
-	_repostView->draw(p, x, y - repostSkipTop(), availableWidth);
+	_repostView->draw(p, x, y, availableWidth);
 }
 
 void Controller::toggleLiked() {

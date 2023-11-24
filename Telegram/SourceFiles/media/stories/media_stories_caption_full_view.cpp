@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
 #include "ui/click_handler.h"
+#include "ui/painter.h"
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
@@ -100,6 +101,18 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		}
 	}, _scroll->lifetime());
 
+	_wrap->paintRequest() | rpl::start_with_next([=] {
+		if (_controller->repost()) {
+			auto p = Painter(_wrap.get());
+			_controller->drawRepostInfo(
+				p,
+				st::mediaviewCaptionPadding.left(),
+				(_wrap->padding().top()
+					- _controller->repostCaptionPadding().top()),
+				_wrap->width());
+		}
+	}, _wrap->lifetime());
+
 	_scroll->show();
 	_scroll->setOverscrollBg(QColor(0, 0, 0, 0));
 	_scroll->setOverscrollTypes(Type::Real, Type::Real);
@@ -131,7 +144,8 @@ void CaptionFullView::updateGeometry() {
 		return;
 	}
 	const auto lineHeight = st::mediaviewCaptionStyle.font->height;
-	const auto padding = st::mediaviewCaptionPadding;
+	const auto padding = st::mediaviewCaptionPadding
+		+ _controller->repostCaptionPadding();
 	_text->resizeToWidth(_outer.width() - padding.left() - padding.right());
 	const auto add = padding.top() + padding.bottom();
 	const auto maxShownHeight = lineHeight * kMaxShownCaptionLines;

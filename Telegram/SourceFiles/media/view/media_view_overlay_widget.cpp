@@ -5020,11 +5020,12 @@ void OverlayWidget::paintCaptionContent(
 		QRect outer,
 		QRect clip,
 		float64 opacity) {
-	auto inner = outer.marginsRemoved(st::mediaviewCaptionPadding);
-	inner.setTop(inner.top() + inner.height() - _captionRect.height());
+	const auto full = outer.marginsRemoved(st::mediaviewCaptionPadding);
+	const auto inner = full.marginsRemoved(
+		_stories ? _stories->repostCaptionPadding() : QMargins());
 	if (_stories) {
 		if (_stories->repost()) {
-			_stories->drawRepostInfo(p, inner.x(), inner.y(), inner.width());
+			_stories->drawRepostInfo(p, full.x(), full.y(), full.width());
 		}
 	} else {
 		p.setOpacity(opacity);
@@ -5073,9 +5074,10 @@ void OverlayWidget::paintCaptionContent(
 }
 
 QRect OverlayWidget::captionGeometry() const {
-	return (_stories && _stories->repost())
-		? _stories->captionWithRepostGeometry(_captionRect)
-		: _captionRect.marginsAdded(st::mediaviewCaptionPadding);
+	return _captionRect.marginsAdded(
+		st::mediaviewCaptionPadding
+	).marginsAdded(
+		_stories ? _stories->repostCaptionPadding() : QMargins());
 }
 
 void OverlayWidget::paintGroupThumbsContent(

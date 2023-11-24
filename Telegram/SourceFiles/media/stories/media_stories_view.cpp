@@ -150,8 +150,8 @@ bool View::repost() const {
 	return _controller->repost();
 }
 
-QRect View::captionWithRepostGeometry(QRect caption) const {
-	return _controller->captionWithRepostGeometry(caption);
+QMargins View::repostCaptionPadding() const {
+	return _controller->repostCaptionPadding();
 }
 
 void View::drawRepostInfo(
