@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
+#include "history/view/history_view_element.h"
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_controllers.h"
