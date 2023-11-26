@@ -206,10 +206,10 @@ void ColorSample::paintEvent(QPaintEvent *e) {
 		p.setPen(Qt::NoPen);
 		if (colors.outlines[1].alpha()) {
 			p.rotate(-45.);
-			p.setClipRect(-size, 0, 3 * size, size);
+			p.setClipRect(-size, -size, 3 * size, size);
 			p.setBrush(colors.outlines[1]);
 			p.drawEllipse(full);
-			p.setClipRect(-size, -size, 3 * size, size);
+			p.setClipRect(-size, 0, 3 * size, size);
 		}
 		p.setBrush(colors.outlines[0]);
 		p.drawEllipse(full);
