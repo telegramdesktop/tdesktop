@@ -181,16 +181,9 @@ int Sandbox::start() {
 
 	// https://github.com/telegramdesktop/tdesktop/issues/948
 	// and https://github.com/telegramdesktop/tdesktop/issues/5022
-	const auto restartHint = [](QSessionManager &manager) {
+	connect(this, &QGuiApplication::saveStateRequest, [](auto &manager) {
 		manager.setRestartHint(QSessionManager::RestartNever);
-	};
-
-	connect(
-		this,
-		&QGuiApplication::saveStateRequest,
-		this,
-		restartHint,
-		Qt::DirectConnection);
+	});
 
 	LOG(("Connecting local socket to %1...").arg(_localServerName));
 	_localSocket.connectToServer(_localServerName);
