@@ -9,7 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "core/ui_integration.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
 #include "media/stories/media_stories_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/controls/userpic_button.h"
@@ -252,7 +255,22 @@ struct MadePrivacyBadge {
 		result.text.append(
 			QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now));
 	}
+	if (!data.repostFrom.isEmpty()) {
+		result.text = QString::fromUtf8("\xC2\xA0\xE2\x80\xA2 ")
+			+ result.text;
+	}
 	return result;
+}
+
+[[nodiscard]] TextWithEntities RepostNameValue(
+		not_null<Data::Session*> owner,
+		QString name) {
+	const auto result = Ui::Text::SingleCustomEmoji(
+		owner->customEmojiManager().registerInternalEmoji(
+			st::storiesRepostIcon,
+			st::storiesRepostIconPadding)
+	).append(name);
+	return Ui::Text::Link(result);
 }
 
 } // namespace
@@ -275,7 +293,9 @@ void Header::show(HeaderData data) {
 			const auto namex = st::storiesHeaderNamePosition.x();
 			const auto namer = namex + _name->width();
 			const auto datex = st::storiesHeaderDatePosition.x();
-			const auto dater = datex + _date->width();
+			const auto dater = datex
+				+ (_repost ? _repost->width() : 0)
+				+ _date->width();
 			const auto r = std::max(namer, dater);
 			_info->setGeometry({ 0, 0, r, _widget->height() });
 		}
@@ -285,6 +305,7 @@ void Header::show(HeaderData data) {
 	if (peerChanged) {
 		_volume = nullptr;
 		_date = nullptr;
+		_repost = nullptr;
 		_name = nullptr;
 		_counter = nullptr;
 		_userpic = nullptr;
@@ -349,6 +370,32 @@ void Header::show(HeaderData data) {
 
 	_date->widthValue(
 	) | rpl::start_with_next(updateInfoGeometry, _date->lifetime());
+
+	if (data.repostFrom.isEmpty()) {
+		_repost = nullptr;
+	} else {
+		_repost = std::make_unique<Ui::FlatLabel>(
+			_widget.get(),
+			st::storiesHeaderDate);
+		const auto repostName = RepostNameValue(
+			&data.peer->owner(),
+			data.repostFrom);
+		_repost->setMarkedText(
+			data.repostPeer ? Ui::Text::Link(repostName) : repostName,
+			Core::MarkedTextContext{
+				.session = &data.peer->session(),
+				.customEmojiRepaint = [=] { _repost->update(); },
+			});
+		if (const auto peer = data.repostPeer) {
+			_repost->setClickHandlerFilter([=](const auto &...) {
+				_controller->uiShow()->show(PrepareShortInfoBox(peer));
+				return false;
+			});
+		}
+		_repost->show();
+		_repost->widthValue(
+		) | rpl::start_with_next(updateInfoGeometry, _repost->lifetime());
+	}
 
 	auto counter = ComposeCounter(data);
 	if (!counter.isEmpty()) {
@@ -433,12 +480,29 @@ void Header::show(HeaderData data) {
 			_counter->move(counterLeft, _name->y());
 		}
 		const auto dateLeft = st::storiesHeaderDatePosition.x();
-		const auto dateAvailable = right - dateLeft;
+		const auto dateTop = st::storiesHeaderDatePosition.y();
+		const auto dateSkip = _repost ? st::storiesHeaderRepostWidthMin : 0;
+		const auto dateAvailable = right - dateLeft - dateSkip;
 		if (dateAvailable <= 0) {
 			_date->hide();
 		} else {
 			_date->show();
 			_date->resizeToNaturalWidth(dateAvailable);
+		}
+		if (_repost) {
+			const auto repostAvailable = dateAvailable
+				+ dateSkip
+				- _date->width();
+			if (repostAvailable <= 0) {
+				_repost->hide();
+			} else {
+				_repost->show();
+				_repost->resizeToNaturalWidth(repostAvailable);
+			}
+			_repost->move(dateLeft, dateTop);
+			_date->move(dateLeft + _repost->width(), dateTop);
+		} else {
+			_date->move(dateLeft, dateTop);
 		}
 	}, _date->lifetime());
 

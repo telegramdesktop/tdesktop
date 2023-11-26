@@ -32,6 +32,8 @@ enum class PauseState;
 
 struct HeaderData {
 	not_null<PeerData*> peer;
+	PeerData *repostPeer = nullptr;
+	QString repostFrom;
 	TimeId date = 0;
 	int fullIndex = 0;
 	int fullCount = 0;
@@ -84,6 +86,7 @@ private:
 	std::unique_ptr<Ui::UserpicButton> _userpic;
 	std::unique_ptr<Ui::FlatLabel> _name;
 	std::unique_ptr<Ui::FlatLabel> _counter;
+	std::unique_ptr<Ui::FlatLabel> _repost;
 	std::unique_ptr<Ui::FlatLabel> _date;
 	rpl::event_stream<> _dateUpdated;
 	std::unique_ptr<Ui::RpWidget> _playPause;

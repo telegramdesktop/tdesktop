@@ -879,6 +879,8 @@ void Controller::show(
 	const auto document = story->document();
 	_header->show({
 		.peer = peer,
+		.repostPeer = story->repostSourcePeer(),
+		.repostFrom = _repostView ? _repostView->fromName() : nullptr,
 		.date = story->date(),
 		.fullIndex = _sliderCount ? _index : 0,
 		.fullCount = _sliderCount ? shownCount() : 0,

@@ -184,6 +184,11 @@ RepostClickHandler RepostView::lookupHandler(QPoint position) {
 	return { _link, this };
 }
 
+QString RepostView::fromName() const {
+	const auto sender = _story->repostSourcePeer();
+	return sender ? sender->name() : _story->repostSourceName();
+}
+
 void RepostView::recountDimensions() {
 	const auto sender = _story->repostSourcePeer();
 	const auto name = sender ? sender->name() : _story->repostSourceName();

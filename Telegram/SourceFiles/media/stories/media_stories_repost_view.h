@@ -38,6 +38,8 @@ public:
 	void draw(Painter &p, int x, int y, int availableWidth);
 	[[nodiscard]] RepostClickHandler lookupHandler(QPoint position);
 
+	[[nodiscard]] QString fromName() const;
+
 private:
 	void recountDimensions();
 
