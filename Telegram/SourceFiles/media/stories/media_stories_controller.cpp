@@ -1378,6 +1378,9 @@ void Controller::repaintSibling(not_null<Sibling*> sibling) {
 }
 
 void Controller::repaint() {
+	if (_captionFullView) {
+		_captionFullView->repaint();
+	}
 	_delegate->storiesRepaint();
 }
 

@@ -68,6 +68,37 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		return base::EventFilterResult::Continue;
 	};
 	base::install_event_filter(_text.get(), filter);
+	if (_controller->repost()) {
+		_wrap->setMouseTracking(true);
+		base::install_event_filter(_wrap.get(), [=](not_null<QEvent*> e) {
+			const auto mouse = [&] {
+				return static_cast<QMouseEvent*>(e.get());
+			};
+			const auto type = e->type();
+			if (type == QEvent::MouseMove) {
+				const auto handler = _controller->lookupRepostHandler(
+					mouse()->pos() - QPoint(
+						st::mediaviewCaptionPadding.left(),
+						(_wrap->padding().top()
+							- _controller->repostCaptionPadding().top())));
+				ClickHandler::setActive(handler.link, handler.host);
+				_wrap->setCursor(handler.link
+					? style::cur_pointer
+					: style::cur_default);
+			} else if (type == QEvent::MouseButtonPress
+				&& mouse()->button() == Qt::LeftButton
+				&& ClickHandler::getActive()) {
+				ClickHandler::pressed();
+			} else if (type == QEvent::MouseButtonRelease) {
+				if (const auto activated = ClickHandler::unpressed()) {
+					ActivateClickHandler(_wrap.get(), activated, {
+						mouse()->button(),
+					});
+				}
+			}
+			return base::EventFilterResult::Continue;
+		});
+	}
 	base::install_event_filter(_wrap.get(), filter);
 
 	using Type = Ui::ElasticScroll::OverscrollType;
@@ -137,6 +168,10 @@ void CaptionFullView::close() {
 	_closing = true;
 	_controller->captionClosing();
 	startAnimation();
+}
+
+void CaptionFullView::repaint() {
+	_wrap->update();
 }
 
 void CaptionFullView::updateGeometry() {
