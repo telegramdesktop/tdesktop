@@ -618,6 +618,12 @@ void Controller::drawRepostInfo(
 	_repostView->draw(p, x, y, availableWidth);
 }
 
+RepostClickHandler Controller::lookupRepostHandler(QPoint position) const {
+	return _repostView
+		? _repostView->lookupHandler(position)
+		: RepostClickHandler();
+}
+
 void Controller::toggleLiked() {
 	_reactions->toggleLiked();
 }

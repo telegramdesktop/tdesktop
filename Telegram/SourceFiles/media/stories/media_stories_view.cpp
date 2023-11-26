@@ -162,6 +162,10 @@ void View::drawRepostInfo(
 	_controller->drawRepostInfo(p, x, y, availableWidth);
 }
 
+RepostClickHandler View::lookupRepostHandler(QPoint position) const {
+	return _controller->lookupRepostHandler(position);
+}
+
 void View::showFullCaption() {
 	_controller->showFullCaption();
 }

@@ -7,14 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/stories/media_stories_repost_view.h"
 
+#include "chat_helpers/compose/compose_show.h"
 #include "core/ui_integration.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "history/view/history_view_reply.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
+#include "media/stories/media_stories_view.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/layers/box_content.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
@@ -60,7 +64,7 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 	if (simple) {
 		y += st::normalFont->height;
 	}
-	const auto w = std::min(int(_maxWidth), availableWidth);
+	const auto w = _lastWidth = std::min(int(_maxWidth), availableWidth);
 	const auto h = height() - (simple ? st::normalFont->height : 0);
 	const auto rect = QRect(x, y, w, h);
 	const auto colorPeer = _story->repostSourcePeer();
@@ -147,6 +151,39 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 	}
 }
 
+RepostClickHandler RepostView::lookupHandler(QPoint position) {
+	if (_loading) {
+		return {};
+	}
+	const auto simple = _text.isEmpty();
+	const auto w = _lastWidth;
+	const auto skip = simple ? st::normalFont->height : 0;
+	const auto h = height() - skip;
+	const auto rect = QRect(0, skip, w, h);
+	if (!rect.contains(position)) {
+		return {};
+	} else if (!_link) {
+		_link = std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
+			const auto peer = _story->repostSourcePeer();
+			const auto owner = &_story->owner();
+			if (const auto id = peer ? _story->repostSourceId() : 0) {
+				const auto of = owner->stories().lookup({ peer->id, id });
+				if (of) {
+					using namespace Data;
+					_controller->show(*of, { StoriesContextSingle() });
+				} else {
+					_controller->uiShow()->show(PrepareShortInfoBox(peer));
+				}
+			} else {
+				_controller->uiShow()->showToast(
+					tr::lng_forwarded_story_expired(tr::now));
+			}
+		}));
+	}
+	_lastPosition = position;
+	return { _link, this };
+}
+
 void RepostView::recountDimensions() {
 	const auto sender = _story->repostSourcePeer();
 	const auto name = sender ? sender->name() : _story->repostSourceName();
@@ -214,6 +251,31 @@ void RepostView::recountDimensions() {
 	_maxWidth = st::historyReplyPadding.left()
 		+ _maxWidth
 		+ st::historyReplyPadding.right();
+}
+
+void RepostView::clickHandlerPressedChanged(
+		const ClickHandlerPtr &action,
+		bool pressed) {
+	if (action == _link) {
+		if (pressed) {
+			const auto simple = _text.isEmpty();
+			const auto skip = simple ? st::normalFont->height : 0;
+			if (!_ripple) {
+				const auto h = height() - skip;
+				_ripple = std::make_unique<Ui::RippleAnimation>(
+					st::defaultRippleAnimation,
+					Ui::RippleAnimation::RoundRectMask(
+						QSize(_lastWidth, h),
+						(simple
+							? st::storiesRepostSimpleStyle
+							: st::messageQuoteStyle).radius),
+					[=] { _controller->repaint(); });
+			}
+			_ripple->add(_lastPosition - QPoint(0, skip));
+		} else if (_ripple) {
+			_ripple->lastStop();
+		}
+	}
 }
 
 } // namespace Media::Stories

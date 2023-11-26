@@ -23,8 +23,11 @@ class RippleAnimation;
 namespace Media::Stories {
 
 class Controller;
+struct RepostClickHandler;
 
-class RepostView final : public base::has_weak_ptr {
+class RepostView final
+	: public base::has_weak_ptr
+	, public ClickHandlerHost {
 public:
 	RepostView(
 		not_null<Controller*> controller,
@@ -33,12 +36,18 @@ public:
 
 	[[nodiscard]] int height() const;
 	void draw(Painter &p, int x, int y, int availableWidth);
+	[[nodiscard]] RepostClickHandler lookupHandler(QPoint position);
 
 private:
 	void recountDimensions();
 
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &action,
+		bool pressed);
+
 	const not_null<Controller*> _controller;
 	const not_null<Data::Story*> _story;
+	ClickHandlerPtr _link;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 
 	Ui::Text::String _name;
@@ -46,6 +55,8 @@ private:
 	Ui::Text::QuotePaintCache _quoteCache;
 	Ui::BackgroundEmojiData _backgroundEmojiData;
 	Ui::ColorIndicesCompressed _colorIndices;
+	QPoint _lastPosition;
+	mutable int _lastWidth = 0;
 	uint32 _maxWidth : 31 = 0;
 	uint32 _loading : 1 = 0;
 

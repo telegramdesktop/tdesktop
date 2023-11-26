@@ -2173,14 +2173,22 @@ void OverlayWidget::assignMediaPointer(not_null<PhotoData*> photo) {
 	}
 }
 
-void OverlayWidget::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	setCursor((active || ClickHandler::getPressed()) ? style::cur_pointer : style::cur_default);
-	update(QRegion(_saveMsg) + _captionRect);
+void OverlayWidget::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
+	setCursor((active || ClickHandler::getPressed())
+		? style::cur_pointer
+		: style::cur_default);
+	update(QRegion(_saveMsg) + captionGeometry());
 }
 
-void OverlayWidget::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	setCursor((pressed || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
-	update(QRegion(_saveMsg) + _captionRect);
+void OverlayWidget::clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) {
+	setCursor((pressed || ClickHandler::getActive())
+		? style::cur_pointer
+		: style::cur_default);
+	update(QRegion(_saveMsg) + captionGeometry());
 }
 
 rpl::lifetime &OverlayWidget::lifetime() {
@@ -5707,7 +5715,15 @@ void OverlayWidget::updateOver(QPoint pos) {
 		}
 		lnkhost = this;
 	} else if (_stories && captionGeometry().contains(pos)) {
-		//_stories->repostState();
+		const auto padding = st::mediaviewCaptionPadding;
+		const auto handler = _stories->lookupRepostHandler(
+			pos - captionGeometry().marginsRemoved(padding).topLeft());
+		if (handler) {
+			lnk = handler.link;
+			lnkhost = handler.host;
+			setCursor(style::cur_pointer);
+			_cursorOverriden = true;
+		}
 	} else if (_groupThumbs && _groupThumbsRect.contains(pos)) {
 		const auto point = pos - QPoint(_groupThumbsLeft, _groupThumbsTop);
 		lnk = _groupThumbs->getState(point);
@@ -5717,7 +5733,6 @@ void OverlayWidget::updateOver(QPoint pos) {
 		lnkhost = this;
 	}
 
-
 	// retina
 	if (pos.x() == width()) {
 		pos.setX(pos.x() - 1);
@@ -5726,6 +5741,10 @@ void OverlayWidget::updateOver(QPoint pos) {
 		pos.setY(pos.y() - 1);
 	}
 
+	if (_cursorOverriden && (!lnkhost || lnkhost == this)) {
+		_cursorOverriden = false;
+		setCursor(style::cur_default);
+	}
 	ClickHandler::setActive(lnk, lnkhost);
 
 	if (_pressed || _dragging) return;

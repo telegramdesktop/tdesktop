@@ -70,6 +70,7 @@ class CaptionFullView;
 class RepostView;
 enum class ReactionsMode;
 class SuggestedReactionView;
+struct RepostClickHandler;
 
 enum class HeaderLayout {
 	Normal,
@@ -130,6 +131,8 @@ public:
 
 	[[nodiscard]] QMargins repostCaptionPadding() const;
 	void drawRepostInfo(Painter &p, int x, int y, int availableWidth) const;
+	[[nodiscard]] RepostClickHandler lookupRepostHandler(
+		QPoint position) const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 	[[nodiscard]] auto stickerOrEmojiChosen() const
