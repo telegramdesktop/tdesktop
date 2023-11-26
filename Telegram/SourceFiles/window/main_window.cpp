@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QMimeData>
 #include <QtGui/QWindow>
+#include <QtGui/QScreen>
 #include <QtGui/QDrag>
 
 #include <kurlmimedata.h>

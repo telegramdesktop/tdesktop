@@ -45,9 +45,9 @@ private:
 	Ui::Text::String _text;
 	Ui::Text::QuotePaintCache _quoteCache;
 	Ui::BackgroundEmojiData _backgroundEmojiData;
-	QString _stateText;
 	Ui::ColorIndicesCompressed _colorIndices;
-	int _maxWidth = 0;
+	uint32 _maxWidth : 31 = 0;
+	uint32 _loading : 1 = 0;
 
 	rpl::lifetime _lifetime;
 

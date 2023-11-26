@@ -711,9 +711,9 @@ HistoryItem::HistoryItem(
 			: tr::lng_sponsored_message_title(tr::now),
 		from.title,
 		textWithEntities,
-		from.webpageOrBotPhotoId
-			? history->owner().photo(from.webpageOrBotPhotoId)
-			: nullptr,
+		(from.webpageOrBotPhotoId
+			? history->owner().photo(from.webpageOrBotPhotoId).get()
+			: nullptr),
 		nullptr,
 		WebPageCollage(),
 		0,

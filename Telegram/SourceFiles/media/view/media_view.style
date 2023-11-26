@@ -1009,3 +1009,9 @@ storiesLikeCountStyle: TextStyle(defaultTextStyle) {
 	font: font(32px semibold);
 }
 storiesChangelogFooterWidthMin: 240px;
+storiesRepostSimpleStyle: QuoteStyle(defaultQuoteStyle) {
+	padding: margins(8px, 2px, 8px, 2px);
+	verticalSkip: 4px;
+	outline: 0px;
+	radius: 10px;
+}

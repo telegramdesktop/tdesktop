@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "history/view/history_view_reply.h"
-#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
 #include "ui/effects/ripple_animation.h"
@@ -54,14 +53,24 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 	if (!_maxWidth) {
 		recountDimensions();
 	}
-	const auto w = std::min(_maxWidth, availableWidth);
-	const auto rect = QRect(x, y, w, height());
+	if (_loading) {
+		return;
+	}
+	const auto simple = _text.isEmpty();
+	if (simple) {
+		y += st::normalFont->height;
+	}
+	const auto w = std::min(int(_maxWidth), availableWidth);
+	const auto h = height() - (simple ? st::normalFont->height : 0);
+	const auto rect = QRect(x, y, w, h);
 	const auto colorPeer = _story->repostSourcePeer();
-	const auto backgroundEmojiId = colorPeer
+	const auto backgroundEmojiId = (!simple && colorPeer)
 		? colorPeer->backgroundEmojiId()
 		: DocumentId();
 	const auto cache = &_quoteCache;
-	const auto &quoteSt = st::messageQuoteStyle;
+	const auto &quoteSt = simple
+		? st::storiesRepostSimpleStyle
+		: st::messageQuoteStyle;
 	const auto backgroundEmoji = backgroundEmojiId
 		? &_backgroundEmojiData
 		: nullptr;
@@ -106,27 +115,27 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 	}
 
 	const auto pausedSpoiler = On(PowerSaving::kChatSpoiler);
-	auto textLeft = x + st::historyReplyPadding.left();
-	auto textTop = y
-		+ st::historyReplyPadding.top()
-		+ st::semiboldFont->height;
 	if (w > st::historyReplyPadding.left()) {
-		if (_stateText.isEmpty()) {
-			const auto textw = w
-				- st::historyReplyPadding.left()
-				- st::historyReplyPadding.right();
-			const auto namew = textw;
-			if (namew > 0) {
-				p.setPen(cache->icon);
-				_name.drawLeftElided(
-					p,
-					x + st::historyReplyPadding.left(),
-					y + st::historyReplyPadding.top(),
-					namew,
-					w + 2 * x);
+		const auto textw = w
+			- st::historyReplyPadding.left()
+			- st::historyReplyPadding.right();
+		const auto namew = textw;
+		if (namew > 0) {
+			p.setPen(cache->icon);
+			_name.drawLeftElided(
+				p,
+				x + st::historyReplyPadding.left(),
+				y + st::historyReplyPadding.top(),
+				namew,
+				w + 2 * x);
+			if (!simple) {
+				const auto textLeft = x + st::historyReplyPadding.left();
+				const auto textTop = y
+					+ st::historyReplyPadding.top()
+					+ st::semiboldFont->height;
 				_text.draw(p, {
 					.position = { textLeft, textTop },
-					.availableWidth = w,
+					.availableWidth = textw,
 					.palette = &st::mediaviewTextPalette,
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
 					.pausedEmoji = On(PowerSaving::kEmojiChat),
@@ -134,18 +143,6 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 					.elisionLines = 1,
 				});
 			}
-		} else {
-			p.setFont(st::msgDateFont);
-			p.setPen(cache->icon);
-			p.drawTextLeft(
-				textLeft,
-				(y
-					+ st::historyReplyPadding.top()
-					+ (st::msgDateFont->height / 2)),
-				w + 2 * x,
-				st::msgDateFont->elided(
-					_stateText,
-					x + w - textLeft - st::historyReplyPadding.right()));
 		}
 	}
 }
@@ -172,13 +169,11 @@ void RepostView::recountDimensions() {
 	_quoteCache.icon = values.name;
 
 	auto text = TextWithEntities();
-	auto displaying = true;
 	auto unavailable = false;
 	if (sender && repostId) {
 		const auto of = owner->stories().lookup({ sender->id, repostId });
-		displaying = of.has_value();
-		unavailable = !displaying && (of.error() == Data::NoStory::Deleted);
-		if (displaying) {
+		unavailable = !of && (of.error() == Data::NoStory::Deleted);
+		if (of) {
 			text = (*of)->caption();
 		} else if (!unavailable) {
 			const auto done = crl::guard(this, [=] {
@@ -187,9 +182,6 @@ void RepostView::recountDimensions() {
 			});
 			owner->stories().resolve({ sender->id, repostId }, done);
 		}
-	}
-	if (displaying && !unavailable && text.empty()) {
-		text = { tr::lng_in_dlg_story(tr::now) };
 	}
 
 	auto nameFull = TextWithEntities();
@@ -215,21 +207,10 @@ void RepostView::recountDimensions() {
 		context);
 
 	const auto nameMaxWidth = _name.maxWidth();
-	const auto optimalTextWidth = std::min(
-		_text.maxWidth(),
-		st::maxSignatureSize);
+	const auto optimalTextWidth = _text.isEmpty()
+		? 0
+		: std::min(_text.maxWidth(), st::maxSignatureSize);
 	_maxWidth = std::max(nameMaxWidth, optimalTextWidth);
-	if (!displaying) {
-		_stateText = !unavailable
-			? tr::lng_profile_loading(tr::now)
-			: tr::lng_deleted_story(tr::now);
-		const auto phraseWidth = st::msgDateFont->width(_stateText);
-		_maxWidth = unavailable
-			? phraseWidth
-			: std::max(_maxWidth, phraseWidth);
-	} else {
-		_stateText = QString();
-	}
 	_maxWidth = st::historyReplyPadding.left()
 		+ _maxWidth
 		+ st::historyReplyPadding.right();

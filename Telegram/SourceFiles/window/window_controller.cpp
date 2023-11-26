@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 
 #include <QtGui/QWindow>
+#include <QtGui/QScreen>
 
 namespace Window {
 namespace {
