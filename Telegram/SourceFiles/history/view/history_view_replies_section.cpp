@@ -702,6 +702,8 @@ void RepliesWidget::setupComposeControls() {
 		return !canSendAnything
 			? (restriction
 				? restriction
+				: topicRestriction
+				? std::move(topicRestriction)
 				: tr::lng_group_not_accessible(tr::now))
 			: topicRestriction
 			? std::move(topicRestriction)
