@@ -10,8 +10,9 @@ if (APPLE)
 else()
     cmake_minimum_required(VERSION 3.16)
 endif()
-cmake_policy(SET CMP0076 NEW)
-cmake_policy(SET CMP0091 NEW)
+if (POLICY CMP0149)
+    cmake_policy(SET CMP0149 NEW)
+endif()
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 

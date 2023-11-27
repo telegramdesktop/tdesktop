@@ -1731,6 +1731,10 @@ endif()
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
 if (WIN32)
+    target_link_libraries(Telegram
+    PRIVATE
+        delayimp
+    )
     target_link_options(Telegram
     PRIVATE
         /DELAYLOAD:secur32.dll
@@ -1787,6 +1791,10 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
         )
         target_include_directories(Updater PRIVATE ${lib_base_loc})
         if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            target_link_libraries(Updater
+            PRIVATE
+                delayimp
+            )
             target_link_options(Updater
             PRIVATE
                 /DELAYLOAD:user32.dll
