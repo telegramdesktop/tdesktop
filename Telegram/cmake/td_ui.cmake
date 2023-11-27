@@ -117,6 +117,9 @@ PRIVATE
     info/boosts/giveaway/select_countries_box.cpp
     info/boosts/giveaway/select_countries_box.h
 
+    intro/intro_code_input.cpp
+    intro/intro_code_input.h
+
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
     layout/layout_mosaic.cpp

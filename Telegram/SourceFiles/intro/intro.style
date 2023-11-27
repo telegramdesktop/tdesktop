@@ -115,6 +115,12 @@ introPassword: introCountry;
 introPasswordTop: 74px;
 introPasswordHintTop: 151px;
 
+introCodeDigitFont: font(20px);
+introCodeDigitHeight: 50px;
+introCodeDigitBorderWidth: 4px;
+introCodeDigitSkip: 10px;
+introCodeDigitAnimatioDuration: 120;
+
 introPasswordHint: FlatLabel(introDescription) {
 	textFg: windowFg;
 }

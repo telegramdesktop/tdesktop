@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_code.h"
 
 #include "lang/lang_keys.h"
+#include "intro/intro_code_input.h"
 #include "intro/intro_signup.h"
 #include "intro/intro_password_check.h"
 #include "boxes/abstract_box.h"
@@ -26,67 +27,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Intro {
 namespace details {
 
-CodeInput::CodeInput(
-	QWidget *parent,
-	const style::InputField &st,
-	rpl::producer<QString> placeholder)
-: Ui::MaskedInputField(parent, st, std::move(placeholder)) {
-}
-
-void CodeInput::setDigitsCountMax(int digitsCount) {
-	_digitsCountMax = digitsCount;
-}
-
-void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) {
-	QString newText;
-	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = 0;
-	for (int i = 0; i < oldLen; ++i) {
-		if (now[i].isDigit()) {
-			++digitCount;
-		}
-	}
-	accumulate_min(digitCount, _digitsCountMax);
-	auto strict = (digitCount == _digitsCountMax);
-
-	newText.reserve(oldLen);
-	for (int i = 0; i < oldLen; ++i) {
-		QChar ch(now[i]);
-		if (ch.isDigit()) {
-			if (!digitCount--) {
-				break;
-			}
-			newText += ch;
-			if (strict && !digitCount) {
-				break;
-			}
-		} else if (ch == '-') {
-			newText += ch;
-		}
-		if (i == oldPos) {
-			newPos = newText.length();
-		}
-	}
-	if (newPos < 0 || newPos > newText.size()) {
-		newPos = newText.size();
-	}
-	if (newText != now) {
-		now = newText;
-		setText(now);
-		startPlaceholderAnimation();
-	}
-	if (newPos != nowCursor) {
-		nowCursor = newPos;
-		setCursorPosition(nowCursor);
-	}
-}
-
 CodeWidget::CodeWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data)
 , _noTelegramCode(this, tr::lng_code_no_telegram(tr::now), st::introLink)
-, _code(this, st::introCode, tr::lng_code_ph())
+, _code(this)
 , _callTimer([=] { sendCall(); })
 , _callStatus(getData()->callStatus)
 , _callTimeout(getData()->callTimeout)
@@ -97,7 +44,6 @@ CodeWidget::CodeWidget(
 		refreshLang();
 	}, lifetime());
 
-	connect(_code, &CodeInput::changed, [=] { codeChanged(); });
 	_noTelegramCode->addClickHandler([=] { noTelegramCode(); });
 
 	_code->setDigitsCountMax(getData()->codeLength);
@@ -111,9 +57,15 @@ CodeWidget::CodeWidget(
 	}) | rpl::flatten_latest());
 
 	account->setHandleLoginCode([=](const QString &code) {
-		_code->setText(code);
-		submitCode();
+		_code->setCode(code);
+		_code->requestCode();
 	});
+
+	_code->codeCollected(
+	) | rpl::start_with_next([=](const QString &code) {
+		hideError();
+		submitCode(code);
+	}, lifetime());
 }
 
 void CodeWidget::refreshLang() {
@@ -210,7 +162,7 @@ void CodeWidget::showCodeError(rpl::producer<QString> text) {
 }
 
 void CodeWidget::setInnerFocus() {
-	_code->setFocusFast();
+	_code->setFocus();
 }
 
 void CodeWidget::activate() {
@@ -233,7 +185,7 @@ void CodeWidget::finished() {
 
 	cancelled();
 	_sentCode.clear();
-	_code->setText(QString());
+	_code->clear();
 }
 
 void CodeWidget::cancelled() {
@@ -267,6 +219,7 @@ void CodeWidget::checkRequest() {
 
 void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
+	_code->setEnabled(true);
 	_sentRequest = 0;
 	finish(result);
 }
@@ -274,12 +227,16 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 	if (MTP::IsFloodError(error)) {
 		stopCheck();
+		_code->setEnabled(true);
+		_code->setFocus();
 		_sentRequest = 0;
 		showCodeError(tr::lng_flood_error());
 		return;
 	}
 
 	stopCheck();
+	_code->setEnabled(true);
+	_code->setFocus();
 	_sentRequest = 0;
 	auto &err = error.type();
 	if (err == u"PHONE_NUMBER_INVALID"_q
@@ -301,11 +258,6 @@ void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 	} else {
 		showCodeError(rpl::single(Lang::Hard::ServerError()));
 	}
-}
-
-void CodeWidget::codeChanged() {
-	hideError();
-	submitCode();
 }
 
 void CodeWidget::sendCall() {
@@ -370,19 +322,13 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 
 void CodeWidget::submit() {
 	if (getData()->codeByFragmentUrl.isEmpty()) {
-		submitCode();
+		_code->requestCode();
 	} else {
 		File::OpenUrl(getData()->codeByFragmentUrl);
 	}
 }
 
-void CodeWidget::submitCode() {
-	const auto text = QString(
-		_code->getLastText()
-	).remove(
-		TextUtilities::RegExpDigitsExclude()
-	).mid(0, getData()->codeLength);
-
+void CodeWidget::submitCode(const QString &text) {
 	if (_sentRequest
 		|| _sentCode == text
 		|| text.size() != getData()->codeLength) {
@@ -394,6 +340,7 @@ void CodeWidget::submitCode() {
 	_checkRequestTimer.callEach(1000);
 
 	_sentCode = text;
+	_code->setEnabled(false);
 	getData()->pwdState = Core::CloudPasswordState();
 	_sentRequest = api().request(MTPauth_SignIn(
 		MTP_flags(MTPauth_SignIn::Flag::f_phone_code),
