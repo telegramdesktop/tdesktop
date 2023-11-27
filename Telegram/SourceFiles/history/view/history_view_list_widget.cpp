@@ -3788,8 +3788,6 @@ void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 }
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
-	saveScrollState();
-
 	if (_reactionsItem.current() == item) {
 		_reactionsItem = nullptr;
 	}
@@ -3806,6 +3804,12 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (i == end(_views)) {
 		return;
 	}
+
+	saveScrollState();
+	const auto guard = gsl::finally([&] {
+		restoreScrollState();
+	});
+
 	const auto view = i->second.get();
 	_items.erase(
 		ranges::remove(_items, view, [](auto view) { return view.get(); }),
