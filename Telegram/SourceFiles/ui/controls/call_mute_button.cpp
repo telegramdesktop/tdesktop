@@ -8,6 +8,7 @@
 
 #include "base/flat_map.h"
 #include "ui/abstract_button.h"
+#include "ui/effects/shake_animation.h"
 #include "ui/paint/blobs.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
@@ -48,7 +49,6 @@ constexpr auto kGlowAlpha = 150;
 constexpr auto kOverrideColorBgAlpha = 76;
 constexpr auto kOverrideColorRippleAlpha = 50;
 
-constexpr auto kShiftDuration = crl::time(300);
 constexpr auto kSwitchStateDuration = crl::time(120);
 constexpr auto kSwitchLabelDuration = crl::time(180);
 
@@ -996,29 +996,10 @@ void CallMuteButton::shake() {
 	if (_shakeAnimation.animating()) {
 		return;
 	}
-	const auto update = [=] {
-		const auto fullProgress = _shakeAnimation.value(1.) * 6;
-		const auto segment = std::clamp(int(std::floor(fullProgress)), 0, 5);
-		const auto part = fullProgress - segment;
-		const auto from = (segment == 0)
-			? 0.
-			: (segment == 1 || segment == 3 || segment == 5)
-			? 1.
-			: -1.;
-		const auto to = (segment == 0 || segment == 2 || segment == 4)
-			? 1.
-			: (segment == 1 || segment == 3)
-			? -1.
-			: 0.;
-		const auto shift = from * (1. - part) + to * part;
-		_labelShakeShift = int(base::SafeRound(shift * st::shakeShift));
+	_shakeAnimation.start(DefaultShakeCallback([=](int shift) {
+		_labelShakeShift = shift;
 		updateLabelsGeometry();
-	};
-	_shakeAnimation.start(
-		update,
-		0.,
-		1.,
-		kShiftDuration);
+	}), 0., 1., st::shakeDuration);
 }
 
 CallMuteButton::HandleMouseState CallMuteButton::HandleMouseStateFromType(

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/abstract_button.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/shake_animation.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "styles/style_basic.h"
@@ -16,9 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 
 namespace Statistic {
-namespace {
-constexpr auto kShiftDuration = crl::time(300);
-} // namespace
 
 class ChartLinesFilterWidget::FlatCheckbox final : public Ui::AbstractButton {
 public:
@@ -83,7 +81,7 @@ void ChartLinesFilterWidget::FlatCheckbox::setChecked(
 	} else {
 		const auto from = value ? 0. : 1.;
 		const auto to = value ? 1. : 0.;
-		_animation.start([=] { update(); }, from, to, kShiftDuration);
+		_animation.start([=] { update(); }, from, to, st::shakeDuration);
 	}
 }
 
@@ -95,30 +93,10 @@ void ChartLinesFilterWidget::FlatCheckbox::shake() {
 	if (_shake.animation.animating()) {
 		return;
 	}
-	constexpr auto kShiftProgress = 6;
-	constexpr auto kSegmentsCount = 5;
-	const auto refresh = [=] {
-		const auto fullProgress = _shake.animation.value(1.) * kShiftProgress;
-		const auto segment = std::clamp(
-			int(std::floor(fullProgress)),
-			0,
-			kSegmentsCount);
-		const auto part = fullProgress - segment;
-		const auto from = (segment == 0)
-			? 0.
-			: (segment == 1 || segment == 3 || segment == 5)
-			? 1.
-			: -1.;
-		const auto to = (segment == 0 || segment == 2 || segment == 4)
-			? 1.
-			: (segment == 1 || segment == 3)
-			? -1.
-			: 0.;
-		const auto shift = from * (1. - part) + to * part;
-		_shake.shift = int(base::SafeRound(shift * st::shakeShift));
+	_shake.animation.start(Ui::DefaultShakeCallback([=](int shift) {
+		_shake.shift = shift;
 		update();
-	};
-	_shake.animation.start(refresh, 0., 1., kShiftDuration);
+	}), 0., 1., st::shakeDuration);
 }
 
 void ChartLinesFilterWidget::FlatCheckbox::paintEvent(QPaintEvent *e) {
