@@ -689,7 +689,9 @@ HistoryItem::HistoryItem(
 		/*from.peer ? from.peer->id : */PeerId(0)) {
 	_flags |= MessageFlag::Sponsored;
 
-	const auto webPageType = from.isExactPost
+	const auto webPageType = !from.externalLink.isEmpty()
+		? WebPageType::None
+		: from.isExactPost
 		? WebPageType::Message
 		: (from.botLinkInfo && !from.botLinkInfo->botAppName.isEmpty())
 		? WebPageType::BotApp
