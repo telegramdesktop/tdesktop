@@ -211,18 +211,23 @@ void ApplyBotsList(
 		Data::PeerUpdate::Flag::FullInfo);
 }
 
-[[nodiscard]] std::vector<not_null<ChannelData*>> ParseSimilar(
+[[nodiscard]] ChatParticipants::Channels ParseSimilar(
 		not_null<ChannelData*> channel,
 		const MTPmessages_Chats &chats) {
-	auto result = std::vector<not_null<ChannelData*>>();
+	auto result = ChatParticipants::Channels();
+	std::vector<not_null<ChannelData*>>();
+	auto total = 0;
 	chats.match([&](const auto &data) {
 		const auto &list = data.vchats().v;
-		result.reserve(list.size());
+		result.list.reserve(list.size());
 		for (const auto &chat : list) {
 			const auto peer = channel->owner().processChat(chat);
 			if (const auto channel = peer->asChannel()) {
-				result.push_back(channel);
+				result.list.push_back(channel);
 			}
+		}
+		if constexpr (MTPDmessages_chatsSlice::Is<decltype(data)>()) {
+			result.more = data.vcount().v - data.vchats().v.size();
 		}
 	});
 	return result;
@@ -704,18 +709,25 @@ void ChatParticipants::unblock(
 }
 
 void ChatParticipants::loadSimilarChannels(not_null<ChannelData*> channel) {
-	if (!channel->isBroadcast() || _similar.contains(channel)) {
+	if (!channel->isBroadcast()) {
 		return;
+	} else if (const auto i = _similar.find(channel); i != end(_similar)) {
+		if (i->second.requestId
+			|| !i->second.channels.more
+			|| !channel->session().premium()) {
+			return;
+		}
 	}
 	_similar[channel].requestId = _api.request(
 		MTPchannels_GetChannelRecommendations(channel->inputChannel)
 	).done([=](const MTPmessages_Chats &result) {
 		auto &similar = _similar[channel];
-		auto list = ParseSimilar(channel, result);
-		if (similar.list == list) {
+		similar.requestId = 0;
+		auto parsed = ParseSimilar(channel, result);
+		if (similar.channels == parsed) {
 			return;
 		}
-		similar.list = std::move(list);
+		similar.channels = std::move(parsed);
 		if (const auto history = channel->owner().historyLoaded(channel)) {
 			if (const auto item = history->joinedMessageInstance()) {
 				history->owner().requestItemResize(item);
@@ -725,15 +737,15 @@ void ChatParticipants::loadSimilarChannels(not_null<ChannelData*> channel) {
 	}).send();
 }
 
-const std::vector<not_null<ChannelData*>> &ChatParticipants::similar(
-		not_null<ChannelData*> channel) {
+auto ChatParticipants::similar(not_null<ChannelData*> channel)
+-> const Channels & {
 	const auto i = channel->isBroadcast()
 		? _similar.find(channel)
 		: end(_similar);
 	if (i != end(_similar)) {
-		return i->second.list;
+		return i->second.channels;
 	}
-	static const auto empty = std::vector<not_null<ChannelData*>>();
+	static const auto empty = Channels();
 	return empty;
 }
 

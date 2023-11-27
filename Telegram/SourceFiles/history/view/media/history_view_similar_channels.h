@@ -64,16 +64,18 @@ private:
 		Ui::Text::String name;
 		std::shared_ptr<Thumbnail> thumbnail;
 		ClickHandlerPtr link;
-		QString participants;
-		QRect participantsRect;
-		mutable QImage participantsBg;
+		QString counter;
+		QRect counterRect;
+		mutable QImage counterBg;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
-		mutable bool subscribed = false;
-		mutable bool participantsBgValid = false;
+		uint32 more : 29 = 0;
+		uint32 moreLocked : 1 = 0;
+		mutable uint32 subscribed : 1 = 0;
+		mutable uint32 counterBgValid : 1 = 0;
 	};
 
 	void ensureCacheReady(QSize size) const;
-	void validateParticipansBg(const Channel &channel) const;
+	void validateCounterBg(const Channel &channel) const;
 	[[nodiscard]] ClickHandlerPtr ensureToggleLink() const;
 
 	QSize countOptimalSize() override;
@@ -94,6 +96,7 @@ private:
 	mutable uint32 _hasHeavyPart : 1 = 0;
 
 	std::vector<Channel> _channels;
+	std::array<std::shared_ptr<Thumbnail>, 2> _moreThumbnails;
 	mutable ClickHandlerPtr _viewAllLink;
 	mutable ClickHandlerPtr _toggleLink;
 

@@ -122,14 +122,21 @@ public:
 
 	void loadSimilarChannels(not_null<ChannelData*> channel);
 
-	[[nodiscard]] const std::vector<not_null<ChannelData*>> &similar(
-		not_null<ChannelData*> channel);
+	struct Channels {
+		std::vector<not_null<ChannelData*>> list;
+		int more = 0;
+
+		friend inline bool operator==(
+			const Channels &,
+			const Channels &) = default;
+	};
+	[[nodiscard]] const Channels &similar(not_null<ChannelData*> channel);
 	[[nodiscard]] auto similarLoaded() const
 		-> rpl::producer<not_null<ChannelData*>>;
 
 private:
 	struct SimilarChannels {
-		std::vector<not_null<ChannelData*>> list;
+		Channels channels;
 		mtpRequestId requestId = 0;
 	};
 

@@ -1682,6 +1682,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_similar_channels_title" = "Similar channels";
 "lng_similar_channels_view_all" = "View all";
+"lng_similar_channels_more" = "More Channels";
+"lng_similar_channels_premium_all#one" = "Subscribe to {link} to unlock up to **{count}** similar channel.";
+"lng_similar_channels_premium_all#other" = "Subscribe to {link} to unlock up to **{count}** similar channels.";
+"lng_similar_channels_premium_all_link" = "Telegram Premium";
 
 "lng_premium_gift_duration_months#one" = "for {count} month";
 "lng_premium_gift_duration_months#other" = "for {count} months";

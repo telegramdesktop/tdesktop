@@ -20,10 +20,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "settings/settings_premium.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -31,11 +35,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+using Channels = Api::ChatParticipants::Channels;
+
 class SimilarChannelsController final : public PeerListController {
 public:
 	SimilarChannelsController(
 		not_null<Window::SessionController*> controller,
-		std::vector<not_null<ChannelData*>> channels);
+		Channels channels);
 
 	void prepare() override;
 	void loadMoreRows() override;
@@ -44,19 +50,19 @@ public:
 
 private:
 	const not_null<Window::SessionController*> _controller;
-	const std::vector<not_null<ChannelData*>> _channels;
+	const Channels _channels;
 
 };
 
 SimilarChannelsController::SimilarChannelsController(
 	not_null<Window::SessionController*> controller,
-	std::vector<not_null<ChannelData*>> channels)
+	Channels channels)
 : _controller(controller)
 , _channels(std::move(channels)) {
 }
 
 void SimilarChannelsController::prepare() {
-	for (const auto &channel : _channels) {
+	for (const auto &channel : _channels.list) {
 		auto row = std::make_unique<PeerListRow>(channel);
 		if (const auto count = channel->membersCount(); count > 1) {
 			row->setCustomStatus(tr::lng_chat_status_subscribers(
@@ -84,12 +90,12 @@ void SimilarChannelsController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 Main::Session &SimilarChannelsController::session() const {
-	return _channels.front()->session();
+	return _channels.list.front()->session();
 }
 
 [[nodiscard]] object_ptr<Ui::BoxContent> SimilarChannelsBox(
 		not_null<Window::SessionController*> controller,
-		const std::vector<not_null<ChannelData*>> &channels) {
+		const Channels &channels) {
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		box->setTitle(tr::lng_similar_channels_title());
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
@@ -97,6 +103,43 @@ Main::Session &SimilarChannelsController::session() const {
 	return Box<PeerListBox>(
 		std::make_unique<SimilarChannelsController>(controller, channels),
 		initBox);
+}
+
+[[nodiscard]] ClickHandlerPtr MakeViewAllLink(
+		not_null<ChannelData*> channel,
+		bool promoForNonPremium) {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto strong = my.sessionWindow.get()) {
+			Assert(channel != nullptr);
+			if (promoForNonPremium && !channel->session().premium()) {
+				const auto account = &channel->session().account();
+				const auto upto = account->appConfig().get<int>(
+					u"recommended_channels_limit_premium"_q,
+					100);
+				Settings::ShowPremiumPromoToast(
+					strong->uiShow(),
+					tr::lng_similar_channels_premium_all(
+						tr::now,
+						lt_count,
+						upto,
+						lt_link,
+						Ui::Text::Link(
+							Ui::Text::Bold(
+								tr::lng_similar_channels_premium_all_link(
+									tr::now))),
+						Ui::Text::RichLangValue),
+					u"similar_channels"_q);
+				return;
+			}
+			const auto api = &channel->session().api();
+			const auto &list = api->chatParticipants().similar(channel);
+			if (list.list.empty()) {
+				return;
+			}
+			strong->show(SimilarChannelsBox(strong, list));
+		}
+	});
 }
 
 } // namespace
@@ -180,14 +223,15 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 		if (right <= 0) {
 			return;
 		}
-		if (!channel.subscribed) {
-			channel.subscribed = true;
+		const auto subscribing = !channel.subscribed;
+		if (subscribing) {
+			channel.subscribed = 1;
 			const auto raw = channel.thumbnail.get();
 			const auto view = parent();
 			channel.thumbnail->subscribeToUpdates([=] {
 				for (const auto &channel : _channels) {
 					if (channel.thumbnail.get() == raw) {
-						channel.participantsBgValid = false;
+						channel.counterBgValid = 0;
 						repaint();
 					}
 				}
@@ -203,7 +247,9 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 			cachedp->translate(-geometry.topLeft());
 		}
 		const auto q = cachedp ? &*cachedp : &p;
-		if (channel.ripple) {
+		if (channel.more) {
+			channel.ripple.reset();
+		} else if (channel.ripple) {
 			q->setOpacity(st::historyPollRippleOpacity);
 			channel.ripple->paint(
 				*q,
@@ -216,30 +262,87 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 			}
 			q->setOpacity(1.);
 		}
+
+		auto pen = stm->msgBg->p;
+		auto left = geometry.x() + 2 * padding.left();
+		const auto stroke = st::lineWidth * 2.;
+		const auto add = stroke / 2.;
+		const auto top = geometry.y() + padding.top();
+		const auto size = st::chatSimilarChannelPhoto;
+		const auto paintCircle = [&] {
+			auto hq = PainterHighQualityEnabler(*q);
+			q->drawEllipse(QRectF(left, top, size, size).marginsAdded(
+				{ add, add, add, add }));
+		};
+		if (channel.more) {
+			pen.setWidthF(stroke);
+			p.setPen(pen);
+			for (auto i = 2; i != 0;) {
+				--i;
+				if (const auto &thumbnail = _moreThumbnails[i]) {
+					if (subscribing) {
+						thumbnail->subscribeToUpdates([=] {
+							repaint();
+						});
+					}
+					q->drawImage(left, top, thumbnail->image(size));
+					q->setBrush(Qt::NoBrush);
+				} else {
+					q->setBrush(st::windowBgRipple->c);
+				}
+				if (!i || !_moreThumbnails[i]) {
+					paintCircle();
+				}
+				left -= padding.left();
+			}
+		} else {
+			left -= padding.left();
+		}
 		q->drawImage(
-			geometry.x() + padding.left(),
-			geometry.y() + padding.top(),
-			channel.thumbnail->image(st::chatSimilarChannelPhoto));
-		if (!channel.participants.isEmpty()) {
-			validateParticipansBg(channel);
-			const auto participants = channel.participantsRect.translated(
+			left,
+			top,
+			channel.thumbnail->image(size));
+		if (channel.more) {
+			q->setBrush(Qt::NoBrush);
+			paintCircle();
+		}
+		if (!channel.counter.isEmpty()) {
+			validateCounterBg(channel);
+			const auto participants = channel.counterRect.translated(
 				geometry.topLeft());
-			q->drawImage(participants.topLeft(), channel.participantsBg);
+			q->drawImage(participants.topLeft(), channel.counterBg);
 			const auto badge = participants.marginsRemoved(
 				st::chatSimilarBadgePadding);
-			const auto &icon = st::chatSimilarBadgeIcon;
+			auto textLeft = badge.x();
 			const auto &font = st::chatSimilarBadgeFont;
-			const auto position = st::chatSimilarBadgeIconPosition;
 			const auto ascent = font->ascent;
-			icon.paint(*q, badge.topLeft() + position, width());
+			const auto textTop = badge.y() + font->ascent;
+			const auto icon = !channel.more
+				? &st::chatSimilarBadgeIcon
+				: channel.moreLocked
+				? &st::chatSimilarLockedIcon
+				: nullptr;
+			const auto position = !channel.more
+				? st::chatSimilarBadgeIconPosition
+				: st::chatSimilarLockedIconPosition;
+			if (icon) {
+				const auto skip = channel.more
+					? (badge.width() - icon->width())
+					: 0;
+				icon->paint(
+					*q,
+					badge.x() + position.x() + skip,
+					badge.y() + position.y(),
+					width());
+				if (!channel.more) {
+					textLeft += position.x() + icon->width();
+				}
+			}
 			q->setFont(font);
 			q->setPen(st::premiumButtonFg);
-			q->drawText(
-				badge.x() + position.x() + icon.width(),
-				badge.y() + font->ascent,
-				channel.participants);
+			q->drawText(textLeft, textTop, channel.counter);
 		}
-		q->setPen(stm->historyTextFg);
+		q->setPen(channel.more ? st::windowSubTextFg : stm->historyTextFg);
 		channel.name.drawLeftElided(
 			*q,
 			geometry.x() + st::normalFont->spacew,
@@ -268,6 +371,7 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 		}
 		drawOne(channel);
 	}
+	p.setPen(stm->historyTextFg);
 	p.setFont(st::chatSimilarTitle);
 	p.drawTextLeft(
 		st::chatSimilarTitlePosition.x(),
@@ -290,21 +394,23 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 	p.setClipping(false);
 }
 
-void SimilarChannels::validateParticipansBg(const Channel &channel) const {
-	if (channel.participantsBgValid) {
+void SimilarChannels::validateCounterBg(const Channel &channel) const {
+	if (channel.counterBgValid) {
 		return;
 	}
-	channel.participantsBgValid = true;
+	channel.counterBgValid = 1;
 	const auto photo = st::chatSimilarChannelPhoto;
-	const auto width = channel.participantsRect.width();
-	const auto height = channel.participantsRect.height();
+	const auto width = channel.counterRect.width();
+	const auto height = channel.counterRect.height();
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		channel.participantsRect.size() * ratio,
+		channel.counterRect.size() * ratio,
 		QImage::Format_ARGB32_Premultiplied);
-	auto color = Ui::CountAverageColor(
-		channel.thumbnail->image(photo).copy(
-			QRect(photo / 3, photo / 3, photo / 3, photo / 3)));
+	auto color = channel.more
+		? st::windowBgRipple->c
+		: Ui::CountAverageColor(
+			channel.thumbnail->image(photo).copy(
+				QRect(photo / 3, photo / 3, photo / 3, photo / 3)));
 
 	const auto hsl = color.toHsl();
 	constexpr auto kMinSaturation = 0;
@@ -334,7 +440,7 @@ void SimilarChannels::validateParticipansBg(const Channel &channel) const {
 		height - radius,
 		corners[Images::kBottomRight]);
 	p.end();
-	channel.participantsBg = std::move(result);
+	channel.counterBg = std::move(result);
 }
 
 ClickHandlerPtr SimilarChannels::ensureToggleLink() const {
@@ -385,19 +491,7 @@ TextState SimilarChannels::textState(
 		if (!_viewAllLink) {
 			const auto channel = parent()->history()->peer->asChannel();
 			Assert(channel != nullptr);
-			_viewAllLink = std::make_shared<LambdaClickHandler>([=](
-					ClickContext context) {
-				Assert(channel != nullptr);
-				const auto api = &channel->session().api();
-				const auto &list = api->chatParticipants().similar(channel);
-				if (list.empty()) {
-					return;
-				}
-				const auto my = context.other.value<ClickHandlerContext>();
-				if (const auto strong = my.sessionWindow.get()) {
-					strong->show(SimilarChannelsBox(strong, list));
-				}
-			});
+			_viewAllLink = MakeViewAllLink(channel, false);
 		}
 		result.link = _viewAllLink;
 		return result;
@@ -419,52 +513,85 @@ QSize SimilarChannels::countOptimalSize() {
 	Assert(channel != nullptr);
 
 	_channels.clear();
+	_moreThumbnails = {};
 	const auto api = &channel->session().api();
 	api->chatParticipants().loadSimilarChannels(channel);
+	const auto premium = channel->session().premium();
 	const auto similar = api->chatParticipants().similar(channel);
-	_empty = similar.empty() ? 1 : 0;
+	_empty = similar.list.empty() ? 1 : 0;
 	using Flag = ChannelDataFlag;
 	_toggled = (channel->flags() & Flag::SimilarExpanded) ? 1 : 0;
 	if (_empty || !_toggled) {
 		return {};
 	}
 
-	_channels.reserve(similar.size());
+	_channels.reserve(similar.list.size());
 	auto x = st::chatSimilarPadding.left();
 	auto y = st::chatSimilarPadding.top();
 	const auto skip = st::chatSimilarSkip;
 	const auto photo = st::chatSimilarChannelPhoto;
 	const auto inner = QRect(0, 0, photo, photo);
 	const auto outer = inner.marginsAdded(st::chatSimilarChannelPadding);
-	for (const auto &channel : similar) {
-		const auto participants = channel->membersCount();
-		const auto count = (participants > 1)
-			? Lang::FormatCountToShort(participants).string
-			: QString();
+	const auto limit = channel->session().account().appConfig().get<int>(
+		u"recommended_channels_limit_default"_q,
+		10);
+	const auto take = (similar.more > 0 || similar.list.size() > 2 * limit)
+		? limit
+		: int(similar.list.size());
+	const auto more = similar.more + int(similar.list.size() - take);
+	auto &&channels = ranges::views::all(similar.list)
+		| ranges::views::take(limit);
+	for (const auto &channel : channels) {
+		const auto moreCounter = (_channels.size() + 1 == take) ? more : 0;
 		_channels.push_back({
 			.geometry = QRect(QPoint(x, y), outer.size()),
 			.name = Ui::Text::String(
 				st::chatSimilarName,
-				channel->name(),
+				(moreCounter
+					? tr::lng_similar_channels_more(tr::now)
+					: channel->name()),
 				kDefaultTextOptions,
 				st::chatSimilarChannelPhoto),
 			.thumbnail = Dialogs::Stories::MakeUserpicThumbnail(channel),
-			.link = channel->openLink(),
-			.participants = count,
+			.more = uint32(moreCounter),
+			.moreLocked = uint32((moreCounter && !premium) ? 1 : 0),
 		});
-		if (!count.isEmpty()) {
-			const auto length = st::chatSimilarBadgeFont->width(count);
-			const auto width = length + st::chatSimilarBadgeIcon.width();
+		auto &last = _channels.back();
+		last.link = moreCounter
+			? MakeViewAllLink(parent()->history()->peer->asChannel(), true)
+			: channel->openLink();
+
+		const auto counter = moreCounter
+			? moreCounter :
+			channel->membersCount();
+		if (moreCounter || counter > 1) {
+			const auto text = (moreCounter ? u"+"_q : QString())
+				+ Lang::FormatCountToShort(counter).string;
+			const auto length = st::chatSimilarBadgeFont->width(text);
+			const auto width = length
+				+ (!moreCounter
+					? st::chatSimilarBadgeIcon.width()
+					: !premium
+					? st::chatSimilarLockedIcon.width()
+					: 0);
 			const auto delta = (outer.width() - width) / 2;
 			const auto badge = QRect(
 				delta,
 				st::chatSimilarBadgeTop,
 				outer.width() - 2 * delta,
 				st::chatSimilarBadgeFont->height);
-			_channels.back().participantsRect = badge.marginsAdded(
+			last.counter = text;
+			last.counterRect = badge.marginsAdded(
 				st::chatSimilarBadgePadding);
 		}
 		x += outer.width() + skip;
+	}
+	for (auto i = 0, count = int(_moreThumbnails.size()); i != count; ++i) {
+		if (similar.list.size() <= _channels.size() + i) {
+			break;
+		}
+		_moreThumbnails[i] = Dialogs::Stories::MakeUserpicThumbnail(
+			similar.list[_channels.size() + i]);
 	}
 	_title = tr::lng_similar_channels_title(tr::now);
 	_titleWidth = st::chatSimilarTitle->width(_title);
@@ -507,8 +634,13 @@ bool SimilarChannels::hasHeavyPart() const {
 void SimilarChannels::unloadHeavyPart() {
 	_hasHeavyPart = 0;
 	for (const auto &channel : _channels) {
-		channel.subscribed = false;
+		channel.subscribed = 0;
 		channel.thumbnail->subscribeToUpdates(nullptr);
+	}
+	for (const auto &thumbnail : _moreThumbnails) {
+		if (thumbnail) {
+			thumbnail->subscribeToUpdates(nullptr);
+		}
 	}
 }
 
