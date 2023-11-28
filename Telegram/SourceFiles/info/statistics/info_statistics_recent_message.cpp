@@ -256,12 +256,15 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 	const auto padding = st::boxRowPadding.left() / 2;
 	const auto rightSubTextWidth = 0
 		+ (_sharesWidth
-			? _sharesWidth + st::statisticsRecentPostShareIcon.width()
+			? _sharesWidth
+				+ st::statisticsRecentPostShareIcon.width()
+				+ st::statisticsRecentPostIconSkip
 			: 0)
 		+ (_reactionsWidth
 			? _reactionsWidth
 				+ st::statisticsRecentPostReactionIcon.width()
 				+ st::statisticsChartRulerCaptionSkip
+				+ st::statisticsRecentPostIconSkip
 			: 0);
 	const auto rightWidth = std::max(_viewsWidth, rightSubTextWidth)
 		+ padding;
@@ -319,11 +322,13 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 			.availableWidth = _sharesWidth,
 		});
 		const auto bottomTextBottom = bottomTextTop
-			+ st::statisticsHeaderTitleTextStyle.font->height;
+			+ st::statisticsHeaderTitleTextStyle.font->height
+			- st::statisticsRecentPostIconSkip;
 		if (_sharesWidth) {
 			const auto &icon = st::statisticsRecentPostShareIcon;
 			const auto iconTop = bottomTextBottom - icon.height();
-			icon.paint(p, { (right -= icon.width()), iconTop }, width());
+			right -= st::statisticsRecentPostIconSkip + icon.width();
+			icon.paint(p, { right, iconTop }, width());
 		}
 		right -= _reactionsWidth + st::statisticsChartRulerCaptionSkip;
 		_reactions.draw(p, {
@@ -334,7 +339,8 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 		if (_reactionsWidth) {
 			const auto &icon = st::statisticsRecentPostReactionIcon;
 			const auto iconTop = bottomTextBottom - icon.height();
-			icon.paint(p, { (right -= icon.width()), iconTop }, width());
+			right -= st::statisticsRecentPostIconSkip + icon.width();
+			icon.paint(p, { right, iconTop }, width());
 		}
 	}
 }
