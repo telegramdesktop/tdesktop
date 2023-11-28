@@ -93,6 +93,13 @@ constexpr auto kCheckRequestsTimer = 10 * crl::time(1000);
 		.meanReactionCount = StatisticalValueFromTL(
 			data.vreactions_per_post()),
 
+		.meanStoryViewCount = StatisticalValueFromTL(
+			data.vviews_per_story()),
+		.meanStoryShareCount = StatisticalValueFromTL(
+			data.vshares_per_story()),
+		.meanStoryReactionCount = StatisticalValueFromTL(
+			data.vreactions_per_story()),
+
 		.enabledNotificationsPercentage = unmuted,
 
 		.memberCountGraph = StatisticalGraphFromTL(

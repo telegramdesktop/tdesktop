@@ -4330,6 +4330,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stats_overview_member_count" = "Followers";
 "lng_stats_overview_mean_view_count" = "Views Per Post";
 "lng_stats_overview_mean_share_count" = "Shared Per Post";
+"lng_stats_overview_mean_reactions_count" = "Reactions Per Post";
+"lng_stats_overview_mean_story_view_count" = "Views Per Story";
+"lng_stats_overview_mean_story_share_count" = "Shared Per Story";
+"lng_stats_overview_mean_story_reactions_count" = "Reactions Per Story";
 "lng_stats_overview_enabled_notifications" = "Enabled Notifications";
 "lng_stats_overview_messages" = "Messages";
 "lng_stats_overview_group_mean_view_count" = "Viewing Members";

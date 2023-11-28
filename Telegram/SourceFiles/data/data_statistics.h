@@ -58,6 +58,9 @@ struct ChannelStatistics final {
 	StatisticalValue meanViewCount;
 	StatisticalValue meanShareCount;
 	StatisticalValue meanReactionCount;
+	StatisticalValue meanStoryViewCount;
+	StatisticalValue meanStoryShareCount;
+	StatisticalValue meanStoryReactionCount;
 
 	float64 enabledNotificationsPercentage = 0.;
 

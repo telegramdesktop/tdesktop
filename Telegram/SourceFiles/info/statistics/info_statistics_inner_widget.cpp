@@ -301,15 +301,18 @@ void AddHeader(
 
 void FillOverview(
 		not_null<Ui::VerticalLayout*> content,
-		const Data::AnyStatistics &stats) {
+		const Data::AnyStatistics &stats,
+		bool isChannelStoryStats) {
 	using Value = Data::StatisticalValue;
 
 	const auto &channel = stats.channel;
 	const auto &supergroup = stats.supergroup;
 
-	Ui::AddSkip(content, st::statisticsLayerOverviewMargins.top());
-	AddHeader(content, tr::lng_stats_overview_title, stats);
-	Ui::AddSkip(content);
+	if (!isChannelStoryStats) {
+		Ui::AddSkip(content, st::statisticsLayerOverviewMargins.top());
+		AddHeader(content, tr::lng_stats_overview_title, stats);
+		Ui::AddSkip(content);
+	}
 
 	struct Second final {
 		QColor color;
@@ -318,7 +321,7 @@ void FillOverview(
 
 	const auto parseSecond = [&](const Value &v) -> Second {
 		const auto diff = v.value - v.previousValue;
-		if (!diff) {
+		if (!diff || !v.previousValue) {
 			return {};
 		}
 		constexpr auto kTooMuchDiff = int(1'000'000);
@@ -385,12 +388,21 @@ void FillOverview(
 	const auto isChannel = (!!channel);
 	const auto &messageOrStory = stats.message ? stats.message : stats.story;
 	const auto isMessage = (!!messageOrStory);
-	const auto topLeftLabel = isChannel
+
+	const auto hasPostReactions = isChannel
+		&& (channel.meanReactionCount.value
+			|| channel.meanReactionCount.previousValue);
+
+	const auto topLeftLabel = (isChannelStoryStats && isChannel)
+		? addPrimary(channel.meanShareCount)
+		: isChannel
 		? addPrimary(channel.memberCount)
 		: isMessage
 		? addPrimary({ .value = float64(messageOrStory.views) })
 		: addPrimary(supergroup.memberCount);
-	const auto topRightLabel = isChannel
+	const auto topRightLabel = (isChannelStoryStats && isChannel)
+		? addPrimary(channel.meanStoryShareCount)
+		: isChannel
 		? Ui::CreateChild<Ui::FlatLabel>(
 			container,
 			QString("%1%").arg(0.01
@@ -399,17 +411,48 @@ void FillOverview(
 		: isMessage
 		? addPrimary({ .value = float64(messageOrStory.publicForwards) })
 		: addPrimary(supergroup.messageCount);
-	const auto bottomLeftLabel = isChannel
+	const auto bottomLeftLabel = (isChannelStoryStats && isChannel)
+		? addPrimary(hasPostReactions
+			? channel.meanReactionCount
+			: channel.meanStoryReactionCount)
+		: isChannel
 		? addPrimary(channel.meanViewCount)
 		: isMessage
 		? addPrimary({ .value = float64(messageOrStory.reactions) })
 		: addPrimary(supergroup.viewerCount);
-	const auto bottomRightLabel = isChannel
-		? addPrimary(channel.meanShareCount)
+	const auto bottomRightLabel = (isChannelStoryStats && isChannel)
+		? addPrimary(!hasPostReactions
+			? Value{ .value = -1 }
+			: channel.meanStoryReactionCount)
+		: isChannel
+		? addPrimary(channel.meanStoryViewCount)
 		: isMessage
 		? addPrimary({ .value = float64(messageOrStory.privateForwards) })
 		: addPrimary(supergroup.senderCount);
-	if (const auto &s = channel) {
+	if (isChannelStoryStats && isChannel) {
+		addSub(
+			topLeftLabel,
+			channel.meanShareCount,
+			tr::lng_stats_overview_mean_share_count);
+		addSub(
+			topRightLabel,
+			channel.meanStoryShareCount,
+			tr::lng_stats_overview_mean_story_share_count);
+		addSub(
+			bottomLeftLabel,
+			hasPostReactions
+				? channel.meanReactionCount
+				: channel.meanStoryReactionCount,
+			hasPostReactions
+				? tr::lng_stats_overview_mean_reactions_count
+				: tr::lng_stats_overview_mean_story_reactions_count);
+		if (hasPostReactions) {
+			addSub(
+				bottomRightLabel,
+				channel.meanStoryReactionCount,
+				tr::lng_stats_overview_mean_story_reactions_count);
+		}
+	} else if (const auto &s = channel) {
 		addSub(
 			topLeftLabel,
 			s.memberCount,
@@ -424,8 +467,8 @@ void FillOverview(
 			tr::lng_stats_overview_mean_view_count);
 		addSub(
 			bottomRightLabel,
-			s.meanShareCount,
-			tr::lng_stats_overview_mean_share_count);
+			s.meanStoryViewCount,
+			tr::lng_stats_overview_mean_story_view_count);
 	} else if (const auto &s = supergroup) {
 		addSub(
 			topLeftLabel,
@@ -636,7 +679,10 @@ void InnerWidget::fill() {
 			Ui::AddDivider(inner);
 		}
 	}
-	FillOverview(inner, _state.stats);
+	FillOverview(inner, _state.stats, false);
+	if (_state.stats.channel) {
+		FillOverview(inner, _state.stats, true);
+	}
 	FillStatistic(inner, descriptor, _state.stats);
 	const auto &channel = _state.stats.channel;
 	const auto &supergroup = _state.stats.supergroup;
