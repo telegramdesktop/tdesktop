@@ -641,7 +641,7 @@ void InnerWidget::load() {
 					.message = _contextId ? data : Data::StoryStatistics(),
 					.story = _storyId ? data : Data::StoryStatistics(),
 				};
-				if (_contextId) {
+				if (_contextId || _storyId) {
 					_state.publicForwardsFirstSlice = api->firstSlice();
 				}
 				fill();
@@ -726,13 +726,14 @@ void InnerWidget::fill() {
 				descriptor.peer,
 				tr::lng_stats_inviters_title());
 		}
-	} else if (message) {
+	} else if (_state.stats.message || _state.stats.story) {
+		using namespace Data;
 		AddPublicForwards(
 			_state.publicForwardsFirstSlice,
 			inner,
 			[=](FullMsgId id) { _showRequests.fire({ .history = id }); },
 			descriptor.peer,
-			_contextId);
+			RecentPostId{ .messageId = _contextId, .storyId = _storyId });
 	}
 }
 
@@ -762,7 +763,7 @@ void InnerWidget::fillRecentPosts() {
 				messageWrap,
 				rpl::never<QString>(),
 				st::statisticsRecentPostButton));
-		const auto fullRecentId = RecentPostId{
+		const auto fullRecentId = Data::RecentPostId{
 			.messageId = maybeItem ? maybeItem->fullId() : FullMsgId(),
 			.storyId = maybeStory ? maybeStory->fullId() : FullStoryId(),
 		};
@@ -886,7 +887,8 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 	_state = memento->state();
 	if (_state.stats.channel
 		|| _state.stats.supergroup
-		|| _state.stats.message) {
+		|| _state.stats.message
+		|| _state.stats.story) {
 		fill();
 	} else {
 		load();

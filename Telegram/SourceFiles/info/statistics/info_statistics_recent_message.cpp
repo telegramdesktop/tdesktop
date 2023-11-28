@@ -349,7 +349,7 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 
 void MessagePreview::saveState(SavedState &state) const {
 	if (!_lifetimeDownload) {
-		const auto fullId = RecentPostId{ _messageId, _storyId };
+		const auto fullId = Data::RecentPostId{ _messageId, _storyId };
 		state.recentPostPreviews[fullId] = _preview;
 	}
 }

@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "data/data_channel.h"
-#include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "main/main_session.h"
@@ -352,7 +351,7 @@ Data::SupergroupStatistics Statistics::supergroupStats() const {
 
 PublicForwards::PublicForwards(
 	not_null<ChannelData*> channel,
-	FullMsgId fullId)
+	Data::RecentPostId fullId)
 : StatisticsRequestSender(channel)
 , _fullId(fullId) {
 }
@@ -360,9 +359,20 @@ PublicForwards::PublicForwards(
 void PublicForwards::request(
 		const Data::PublicForwardsSlice::OffsetToken &token,
 		Fn<void(Data::PublicForwardsSlice)> done) {
-	if (_requestId) {
-		return;
+	if (!_requestId) {
+		if (_fullId.messageId) {
+			requestMessage(token, std::move(done));
+		} else if (_fullId.storyId) {
+			requestStory(token, std::move(done));
+		}
 	}
+}
+
+void PublicForwards::requestMessage(
+		const Data::PublicForwardsSlice::OffsetToken &token,
+		Fn<void(Data::PublicForwardsSlice)> done) {
+	Expects(_fullId.messageId);
+
 	const auto offsetPeer = channel()->owner().peer(token.fullId.peer);
 	const auto tlOffsetPeer = offsetPeer
 		? offsetPeer->input
@@ -370,13 +380,13 @@ void PublicForwards::request(
 	constexpr auto kLimit = tl::make_int(100);
 	_requestId = makeRequest(MTPstats_GetMessagePublicForwards(
 		channel()->inputChannel,
-		MTP_int(_fullId.msg),
+		MTP_int(_fullId.messageId.msg),
 		MTP_int(token.rate),
 		tlOffsetPeer,
 		MTP_int(token.fullId.msg),
 		kLimit
 	)).done([=, channel = channel()](const MTPmessages_Messages &result) {
-		using Messages = QVector<FullMsgId>;
+		using Messages = QVector<Data::RecentPostId>;
 		_requestId = 0;
 
 		auto nextToken = Data::PublicForwardsSlice::OffsetToken();
@@ -393,7 +403,7 @@ void PublicForwards::request(
 							MessageFlags(),
 							NewMessageType::Existing);
 						nextToken.fullId = { peerId, msgId };
-						result.push_back(nextToken.fullId);
+						result.push_back({ .messageId = nextToken.fullId });
 					}
 				}
 			}
@@ -448,11 +458,79 @@ void PublicForwards::request(
 	}).send();
 }
 
+void PublicForwards::requestStory(
+		const Data::PublicForwardsSlice::OffsetToken &token,
+		Fn<void(Data::PublicForwardsSlice)> done) {
+	Expects(_fullId.storyId);
+
+	constexpr auto kLimit = tl::make_int(100);
+	_requestId = makeRequest(MTPstats_GetStoryPublicForwards(
+		channel()->input,
+		MTP_int(_fullId.storyId.story),
+		MTP_string(token.storyOffset),
+		kLimit
+	)).done([=, channel = channel()](
+			const MTPstats_PublicForwards &tlForwards) {
+		using Messages = QVector<Data::RecentPostId>;
+		_requestId = 0;
+
+		const auto &data = tlForwards.data();
+
+		channel->owner().processUsers(data.vusers());
+		channel->owner().processChats(data.vchats());
+
+		const auto nextToken = Data::PublicForwardsSlice::OffsetToken({
+			.storyOffset = data.vnext_offset().value_or_empty(),
+		});
+
+		const auto allLoaded = nextToken.storyOffset.isEmpty()
+			|| (nextToken.storyOffset == token.storyOffset);
+		const auto fullCount = data.vcount().v;
+
+		auto recentList = Messages();
+		for (const auto &tlForward : data.vforwards().v) {
+			tlForward.match([&](const MTPDpublicForwardMessage &data) {
+				const auto &message = data.vmessage();
+				const auto msgId = IdFromMessage(message);
+				const auto peerId = PeerFromMessage(message);
+				const auto lastDate = DateFromMessage(message);
+				if (const auto peer = channel->owner().peerLoaded(peerId)) {
+					if (!lastDate) {
+						return;
+					}
+					channel->owner().addNewMessage(
+						message,
+						MessageFlags(),
+						NewMessageType::Existing);
+					recentList.push_back({ .messageId = { peerId, msgId } });
+				}
+			}, [&](const MTPDpublicForwardStory &data) {
+				data.vstory().match([&](const MTPDstoryItem &d) {
+					recentList.push_back({
+						.storyId = { peerFromMTP(data.vpeer()), d.vid().v }
+					});
+				}, [](const auto &) {
+				});
+			});
+		}
+
+		_lastTotal = std::max(_lastTotal, fullCount);
+		done({
+			.list = std::move(recentList),
+			.total = _lastTotal,
+			.allLoaded = allLoaded,
+			.token = nextToken,
+		});
+	}).fail([=] {
+		_requestId = 0;
+	}).send();
+}
+
 MessageStatistics::MessageStatistics(
 	not_null<ChannelData*> channel,
 	FullMsgId fullId)
 : StatisticsRequestSender(channel)
-, _publicForwards(channel, fullId)
+, _publicForwards(channel, { .messageId = fullId })
 , _fullId(fullId) {
 }
 
@@ -460,7 +538,7 @@ MessageStatistics::MessageStatistics(
 	not_null<ChannelData*> channel,
 	FullStoryId storyId)
 : StatisticsRequestSender(channel)
-, _publicForwards(channel, {})
+, _publicForwards(channel, { .storyId = storyId })
 , _storyId(storyId) {
 }
 
@@ -476,7 +554,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 			const Data::StatisticalGraph &messageGraph,
 			const Data::StatisticalGraph &reactionsGraph,
 			const Data::StatisticsMessageInteractionInfo &info) {
-		_publicForwards.request({}, [=](Data::PublicForwardsSlice slice) {
+		const auto callback = [=](Data::PublicForwardsSlice slice) {
 			const auto total = slice.total;
 			_firstSlice = std::move(slice);
 			done({
@@ -487,7 +565,8 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 				.views = info.viewsCount,
 				.reactions = info.reactionsCount,
 			});
-		});
+		};
+		_publicForwards.request({}, callback);
 	};
 
 	const auto requestPrivateForwards = [=](
@@ -553,22 +632,27 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 			MTP_vector<MTPint>(1, MTP_int(_storyId.story)))
 		).done([=](const MTPstories_Stories &result) {
 			const auto &storyItem = result.data().vstories().v.front();
-			storyItem.match([&](const MTPDstoryItem &data) {
+			auto info = storyItem.match([&](const MTPDstoryItem &data) {
 				if (!data.vviews()) {
-					return;
+					return Data::StatisticsMessageInteractionInfo();
 				}
 				const auto &tlViews = data.vviews()->data();
-				done({
-					.messageInteractionGraph = messageGraph,
-					.reactionsByEmotionGraph = reactionsGraph,
-					.publicForwards = -1,
-					.privateForwards = tlViews.vforwards_count().value_or(0),
-					.views = tlViews.vviews_count().v,
-					.reactions = tlViews.vreactions_count().value_or(0),
-				});
+				return Data::StatisticsMessageInteractionInfo{
+					.storyId = data.vid().v,
+					.viewsCount = tlViews.vviews_count().v,
+					.forwardsCount = tlViews.vforwards_count().value_or(0),
+					.reactionsCount = tlViews.vreactions_count().value_or(0),
+				};
 			}, [](const auto &) {
+				return Data::StatisticsMessageInteractionInfo();
 			});
+
+			requestFirstPublicForwards(
+				messageGraph,
+				reactionsGraph,
+				std::move(info));
 		}).fail([=](const MTP::Error &error) {
+			requestFirstPublicForwards(messageGraph, reactionsGraph, {});
 		}).send();
 	};
 

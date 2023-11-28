@@ -133,12 +133,27 @@ struct AnyStatistics final {
 	Data::StoryStatistics story;
 };
 
+struct RecentPostId final {
+	FullMsgId messageId;
+	FullStoryId storyId;
+
+	[[nodiscard]] bool valid() const {
+		return messageId || storyId;
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+	friend inline auto operator<=>(RecentPostId, RecentPostId) = default;
+	friend inline bool operator==(RecentPostId, RecentPostId) = default;
+};
+
 struct PublicForwardsSlice final {
 	struct OffsetToken final {
 		int rate = 0;
 		FullMsgId fullId;
+		QString storyOffset;
 	};
-	QVector<FullMsgId> list;
+	QVector<RecentPostId> list;
 	int total = 0;
 	bool allLoaded = false;
 	OffsetToken token;
