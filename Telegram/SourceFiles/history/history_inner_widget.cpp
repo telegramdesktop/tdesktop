@@ -9,13 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
-#include "history/history.h"
 #include "history/admin_log/history_admin_log_item.h"
-#include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
-#include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions_button.h"
@@ -26,10 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_quick_action.h"
 #include "history/view/history_view_emoji_interactions.h"
-#include "history/view/history_view_pinned_bar.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
-#include "ui/chat/chat_style.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
@@ -41,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/painter.h"
-#include "ui/ui_utility.h"
 #include "ui/inactive_press.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -64,8 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
-#include "mainwindow.h"
-#include "layout/layout_selection.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "menu/menu_item_download_files.h"
@@ -77,30 +69,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_views.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
-#include "data/data_media_types.h"
-#include "data/data_message_reactions.h"
 #include "data/data_document.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
-#include "data/data_poll.h"
-#include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_peer_values.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_file_click_handler.h"
-#include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/data_sponsored_messages.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
-#include "settings/settings_premium.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
-
-#include "payments/payments_checkout_process.h"
-#include "payments/payments_form.h"
-#include "base/random.h"
 
 #include <QtGui/QClipboard>
 #include <QtWidgets/QApplication>
@@ -176,7 +158,7 @@ void FillSponsoredMessagesMenu(
 		menu->addSeparator(&st::expandedMenuSeparator);
 	}
 	menu->addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
-		Settings::ShowPremium(controller, "no_ads");
+		ShowPremiumPreviewBox(controller, PremiumPreview::NoAds);
 	}, &st::menuIconCancel);
 }
 

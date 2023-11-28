@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 
 #include "api/api_text_entities.h"
+#include "boxes/premium_preview_box.h"
 #include "calls/calls_instance.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_chat_participant_status.h"
@@ -36,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/click_handler_types.h" // ClickHandlerContext.
-#include "settings/settings_premium.h" // Settings::ShowPremium.
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
@@ -336,7 +336,7 @@ ClickHandlerPtr HideSponsoredClickHandler() {
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			Settings::ShowPremium(controller, "no_ads");
+			ShowPremiumPreviewBox(controller, PremiumPreview::NoAds);
 		}
 	});
 }
