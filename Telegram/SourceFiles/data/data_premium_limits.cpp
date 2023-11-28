@@ -29,6 +29,18 @@ int PremiumLimits::channelsCurrent() const {
 		: channelsDefault();
 }
 
+int PremiumLimits::similarChannelsDefault() const {
+	return appConfigLimit("recommended_channels_limit_default", 10);
+}
+int PremiumLimits::similarChannelsPremium() const {
+	return appConfigLimit("recommended_channels_limit_premium", 100);
+}
+int PremiumLimits::similarChannelsCurrent() const {
+	return isPremium()
+		? channelsPremium()
+		: channelsDefault();
+}
+
 int PremiumLimits::gifsDefault() const {
 	return appConfigLimit("saved_gifs_limit_default", 200);
 }

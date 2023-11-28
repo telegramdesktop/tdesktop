@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/members/info_members_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/settings/info_settings_widget.h"
+#include "info/similar_channels/info_similar_channels_widget.h"
 #include "info/polls/info_polls_results_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_layer_widget.h"
@@ -141,6 +142,9 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 			section.mediaType());
 	case Section::Type::CommonGroups:
 		return std::make_shared<CommonGroups::Memento>(peer->asUser());
+	case Section::Type::SimilarChannels:
+		return std::make_shared<SimilarChannels::Memento>(
+			peer->asChannel());
 	case Section::Type::Members:
 		return std::make_shared<Members::Memento>(
 			peer,

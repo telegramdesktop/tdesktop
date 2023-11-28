@@ -21,6 +21,10 @@ public:
 	[[nodiscard]] int channelsPremium() const;
 	[[nodiscard]] int channelsCurrent() const;
 
+	[[nodiscard]] int similarChannelsDefault() const;
+	[[nodiscard]] int similarChannelsPremium() const;
+	[[nodiscard]] int similarChannelsCurrent() const;
+
 	[[nodiscard]] int gifsDefault() const;
 	[[nodiscard]] int gifsPremium() const;
 	[[nodiscard]] int gifsCurrent() const;

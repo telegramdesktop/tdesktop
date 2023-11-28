@@ -65,16 +65,18 @@ private:
 		std::shared_ptr<Thumbnail> thumbnail;
 		ClickHandlerPtr link;
 		QString counter;
-		QRect counterRect;
+		mutable QRect counterRect;
 		mutable QImage counterBg;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 		uint32 more : 29 = 0;
-		uint32 moreLocked : 1 = 0;
+		mutable uint32 moreLocked : 1 = 0;
 		mutable uint32 subscribed : 1 = 0;
 		mutable uint32 counterBgValid : 1 = 0;
 	};
 
 	void ensureCacheReady(QSize size) const;
+	void validateLastPremiumLock() const;
+	void fillMoreThumbnails() const;
 	void validateCounterBg(const Channel &channel) const;
 	[[nodiscard]] ClickHandlerPtr ensureToggleLink() const;
 
@@ -85,7 +87,8 @@ private:
 	mutable QImage _roundedCache;
 	mutable std::array<QImage, 4> _roundedCorners;
 	mutable QPoint _lastPoint;
-	int _titleWidth = 0;
+	uint32 _titleWidth : 15 = 0;
+	mutable uint32 _moreThumbnailsValid : 1 = 0;
 	uint32 _viewAllWidth : 15 = 0;
 	uint32 _fullWidth : 15 = 0;
 	uint32 _empty : 1 = 0;
@@ -96,7 +99,7 @@ private:
 	mutable uint32 _hasHeavyPart : 1 = 0;
 
 	std::vector<Channel> _channels;
-	std::array<std::shared_ptr<Thumbnail>, 2> _moreThumbnails;
+	mutable std::array<std::shared_ptr<Thumbnail>, 2> _moreThumbnails;
 	mutable ClickHandlerPtr _viewAllLink;
 	mutable ClickHandlerPtr _toggleLink;
 

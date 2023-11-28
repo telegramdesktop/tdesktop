@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "window/window_session_controller.h"
+#include "data/data_channel.h"
 #include "data/data_user.h"
 #include "styles/style_info.h"
 
@@ -120,7 +121,33 @@ inline auto AddCommonGroupsButton(
 		tracker)->entity();
 	result->addClickHandler([=] {
 		navigation->showSection(
-			std::make_shared<Info::Memento>(user, Section::Type::CommonGroups));
+			std::make_shared<Info::Memento>(
+				user,
+				Section::Type::CommonGroups));
+	});
+	return result;
+};
+
+inline auto AddSimilarChannelsButton(
+		Ui::VerticalLayout *parent,
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChannelData*> channel,
+		Ui::MultiSlideTracker &tracker) {
+	auto result = AddCountedButton(
+		parent,
+		Profile::SimilarChannelsCountValue(channel),
+		[](int count) {
+			return tr::lng_profile_similar_channels(
+				tr::now,
+				lt_count,
+				count);
+		},
+		tracker)->entity();
+	result->addClickHandler([=] {
+		navigation->showSection(
+			std::make_shared<Info::Memento>(
+				channel,
+				Section::Type::SimilarChannels));
 	});
 	return result;
 };

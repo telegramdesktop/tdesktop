@@ -160,6 +160,7 @@ struct SectionShow {
 	anim::activation activation = anim::activation::normal;
 	bool thirdColumn = false;
 	bool childColumn = false;
+	bool forbidLayer = false;
 	bool reapplyLocalDraft = false;
 	Origin origin;
 

@@ -395,6 +395,7 @@ infoIconMediaFile: icon {{ "info/info_media_file", infoIconFg }};
 infoIconMediaAudio: icon {{ "info/info_media_audio", infoIconFg }};
 infoIconMediaLink: icon {{ "info/info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info/info_common_groups", infoIconFg }};
+infoIconMediaChannel: icon {{ "menu/channel", infoIconFg, point(4px, 4px) }};
 infoIconMediaVoice: icon {{ "info/info_media_voice", infoIconFg }};
 infoIconMediaStories: icon {{ "info/info_media_stories", infoIconFg }};
 infoIconMediaStoriesArchive: icon {{ "info/info_stories_archive", infoIconFg }};
@@ -530,7 +531,7 @@ infoMediaLeft: 3px;
 infoMediaMargin: margins(0px, 6px, 0px, 2px);
 infoMediaMinGridSize: 90px;
 
-infoCommonGroupsMargin: margins(0px, 13px, 0px, 2px);
+infoCommonGroupsMargin: margins(0px, 2px, 0px, 2px);
 infoCommonGroupsListItem: PeerListItem(defaultPeerListItem) {
 	height: 52px;
 	photoSize: 40px;
@@ -952,3 +953,14 @@ shortInfoCover: ShortInfoCover {
 }
 
 permissionsExpandIcon: icon{{ "info/edit/expand_arrow_small", windowBoldFg }};
+
+similarChannelsLockOverlap: 58px;
+similarChannelsLockFade: 58px;
+similarChannelsLock: defaultActiveButton;
+similarChannelsLockPadding: margins(12px, 12px, 12px, 12px);
+similarChannelsLockAbout: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+	minWidth: 128px;
+}
+similarChannelsLockAboutPadding: margins(12px, 12px, 12px, 12px);

@@ -227,7 +227,9 @@ void ApplyBotsList(
 			}
 		}
 		if constexpr (MTPDmessages_chatsSlice::Is<decltype(data)>()) {
-			result.more = data.vcount().v - data.vchats().v.size();
+			if (channel->session().premiumPossible()) {
+				result.more = data.vcount().v - data.vchats().v.size();
+			}
 		}
 	});
 	return result;

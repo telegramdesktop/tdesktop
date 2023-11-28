@@ -125,6 +125,7 @@ public:
 		Profile,
 		Media,
 		CommonGroups,
+		SimilarChannels,
 		Members,
 		Settings,
 		Downloads,
