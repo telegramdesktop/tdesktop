@@ -105,7 +105,8 @@ MessagePreview::MessagePreview(
 			}
 			processPreview();
 		}
-		if (!_photoMedia && !_documentMedia) {
+		if ((!_documentMedia || _documentMedia->thumbnailSize().isNull())
+			&& !_photoMedia) {
 			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 				this,
 				item->history()->peer,
@@ -200,6 +201,7 @@ void MessagePreview::processPreview() {
 		session->downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		const auto computed = computeThumbInfo();
+		const auto guard = gsl::finally([&] { update(); });
 		if (!computed.image) {
 			if (_documentMedia && !_documentMedia->owner()->hasThumbnail()) {
 				_preview = QImage();
