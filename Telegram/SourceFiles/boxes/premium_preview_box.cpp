@@ -93,6 +93,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 [[nodiscard]] rpl::producer<QString> SectionTitle(PremiumPreview section) {
 	switch (section) {
+	case PremiumPreview::Wallpapers:
+		return tr::lng_premium_summary_subtitle_wallpapers();
 	case PremiumPreview::Stories:
 		return tr::lng_premium_summary_subtitle_stories();
 	case PremiumPreview::DoubleLimits:
@@ -127,6 +129,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 [[nodiscard]] rpl::producer<QString> SectionAbout(PremiumPreview section) {
 	switch (section) {
+	case PremiumPreview::Wallpapers:
+		return tr::lng_premium_summary_about_wallpapers();
 	case PremiumPreview::Stories:
 		return tr::lng_premium_summary_about_stories();
 	case PremiumPreview::DoubleLimits:
@@ -471,6 +475,7 @@ struct VideoPreviewDocument {
 		case PremiumPreview::ProfileBadge: return "profile_badge";
 		case PremiumPreview::AnimatedUserpics: return "animated_userpics";
 		case PremiumPreview::RealTimeTranslation: return "translations";
+		case PremiumPreview::Wallpapers: return "wallpapers";
 		}
 		return "";
 	}();

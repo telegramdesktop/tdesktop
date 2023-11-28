@@ -691,7 +691,7 @@ void BackgroundPreviewBox::applyForPeer() {
 			} else {
 				ShowPremiumPreviewBox(
 					_controller->uiShow(),
-					PremiumPreview::AnimatedEmoji);
+					PremiumPreview::Wallpapers);
 			}
 		});
 		const auto cancel = CreateChild<RoundButton>(

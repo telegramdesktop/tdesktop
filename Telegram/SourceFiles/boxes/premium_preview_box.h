@@ -60,6 +60,7 @@ enum class PremiumPreview {
 	ProfileBadge,
 	AnimatedUserpics,
 	RealTimeTranslation,
+	Wallpapers,
 
 	kCount,
 };

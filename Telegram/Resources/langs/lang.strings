@@ -1945,6 +1945,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_subtitle_gift#other" = "{user} has gifted you a {count}-months subscription for Telegram Premium.";
 "lng_premium_summary_subtitle_gift_me#one" = "You gifted {user} a {count}-month subscription for Telegram Premium.";
 "lng_premium_summary_subtitle_gift_me#other" = "You gifted {user} a {count}-months subscription for Telegram Premium.";
+"lng_premium_summary_subtitle_wallpapers" = "Wallpapers for Both Sides";
+"lng_premium_summary_about_wallpapers" = "Set custom wallpapers for you and your chat partner.";
 "lng_premium_summary_subtitle_stories" = "Upgraded Stories";
 "lng_premium_summary_about_stories" = "Priority order, stealth mode, permanent views history and more.";
 "lng_premium_summary_subtitle_double_limits" = "Doubled Limits";
@@ -4135,6 +4137,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_request_join" = "Request to Join";
 "lng_view_button_external_link" = "Open link";
 "lng_view_button_boost" = "Boost";
+"lng_view_button_giftcode" = "Open";
 
 "lng_sponsored_hide_ads" = "Hide";
 "lng_sponsored_title" = "What are sponsored messages?";

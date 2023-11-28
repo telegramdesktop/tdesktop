@@ -176,6 +176,7 @@ using Order = std::vector<QString>;
 
 [[nodiscard]] Order FallbackOrder() {
 	return Order{
+		u"wallpapers"_q,
 		u"stories"_q,
 		u"double_limits"_q,
 		u"more_upload"_q,
@@ -196,13 +197,22 @@ using Order = std::vector<QString>;
 [[nodiscard]] base::flat_map<QString, Entry> EntryMap() {
 	return base::flat_map<QString, Entry>{
 		{
+			u"wallpapers"_q,
+			Entry{
+				&st::settingsPremiumIconWallpapers,
+				tr::lng_premium_summary_subtitle_wallpapers(),
+				tr::lng_premium_summary_about_wallpapers(),
+				PremiumPreview::Wallpapers,
+				true,
+			},
+		},
+		{
 			u"stories"_q,
 			Entry{
 				&st::settingsPremiumIconStories,
 				tr::lng_premium_summary_subtitle_stories(),
 				tr::lng_premium_summary_about_stories(),
 				PremiumPreview::Stories,
-				true,
 			},
 		},
 		{
@@ -1660,6 +1670,8 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			return PremiumPreview::AnimatedUserpics;
 		} else if (s == u"translations"_q) {
 			return PremiumPreview::RealTimeTranslation;
+		} else if (s == u"wallpapers"_q) {
+			return PremiumPreview::Wallpapers;
 		}
 		return PremiumPreview::kCount;
 	}) | ranges::views::filter([](PremiumPreview type) {
