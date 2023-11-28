@@ -6,14 +6,18 @@
 //
 #include "intro/intro_code_input.h"
 
+#include "lang/lang_keys.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/shake_animation.h"
 #include "ui/rect.h"
 #include "ui/text/text_entity.h"
+#include "ui/widgets/popup_menu.h"
 #include "styles/style_intro.h"
 #include "styles/style_layers.h" // boxRadius
 
 #include <QtCore/QRegularExpression>
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
 
 namespace Ui {
 namespace {
@@ -268,12 +272,39 @@ void CodeInput::keyPressEvent(QKeyEvent *e) {
 		unfocusAll(_currentIndex);
 	} else if (key == Qt::Key_Enter || key == Qt::Key_Return) {
 		requestCode();
+	} else if (e == QKeySequence::Paste) {
+		insertCodeAndSubmit(QGuiApplication::clipboard()->text());
 	} else if (key >= Qt::Key_A && key <= Qt::Key_Z) {
 		_digits[_currentIndex]->shake();
 	} else if (key == Qt::Key_Home || key == Qt::Key_PageUp) {
 		unfocusAll(_currentIndex = 0);
 	} else if (key == Qt::Key_End || key == Qt::Key_PageDown) {
 		unfocusAll(_currentIndex = (_digits.size() - 1));
+	}
+}
+
+void CodeInput::contextMenuEvent(QContextMenuEvent *e) {
+	if (_menu) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::defaultPopupMenu);
+	_menu->addAction(tr::lng_mac_menu_paste(tr::now), [=] {
+		insertCodeAndSubmit(QGuiApplication::clipboard()->text());
+	})->setEnabled(!QGuiApplication::clipboard()->text().isEmpty());
+	_menu->popup(QCursor::pos());
+}
+
+void CodeInput::insertCodeAndSubmit(const QString &code) {
+	if (code.isEmpty()) {
+		return;
+	}
+	setCode(code);
+	_currentIndex = _digits.size() - 1;
+	findEmptyAndPerform([&](int i) { _currentIndex = i; });
+	unfocusAll(_currentIndex);
+	if ((_currentIndex == _digits.size() - 1)
+		&& _digits[_currentIndex]->digit() != kDigitNone) {
+		requestCode();
 	}
 }
 

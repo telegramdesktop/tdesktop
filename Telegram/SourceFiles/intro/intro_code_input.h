@@ -11,6 +11,7 @@
 namespace Ui {
 
 class CodeDigit;
+class PopupMenu;
 
 class CodeInput final : public Ui::RpWidget {
 public:
@@ -31,16 +32,20 @@ protected:
 	void focusOutEvent(QFocusEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	[[nodiscard]] QString collectDigits() const;
 
+	void insertCodeAndSubmit(const QString &code);
 	void unfocusAll(int except);
 	void findEmptyAndPerform(const Fn<void(int)> &callback);
 
 	int _digitsCountMax = 0;
 	std::vector<not_null<CodeDigit*>> _digits;
 	int _currentIndex = 0;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	rpl::event_stream<QString> _codeCollected;
 
