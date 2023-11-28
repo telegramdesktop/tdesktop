@@ -956,7 +956,15 @@ permissionsExpandIcon: icon{{ "info/edit/expand_arrow_small", windowBoldFg }};
 
 similarChannelsLockOverlap: 58px;
 similarChannelsLockFade: 58px;
-similarChannelsLock: defaultActiveButton;
+similarChannelsLock: RoundButton(defaultActiveButton) {
+	height: 44px;
+	textTop: 12px;
+	font: font(13px semibold);
+}
+similarChannelsLockLabel: FlatLabel(defaultFlatLabel) {
+	textFg: premiumButtonFg;
+	style: semiboldTextStyle;
+}
 similarChannelsLockPadding: margins(12px, 12px, 12px, 12px);
 similarChannelsLockAbout: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;

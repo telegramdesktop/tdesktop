@@ -144,15 +144,16 @@ void ListController::setupUnlock() {
 	_unlock = Ui::CreateChild<Ui::RpWidget>(_content);
 	_unlock->show();
 
-	const auto button = Ui::CreateChild<Ui::RoundButton>(
+	const auto button = ::Settings::CreateLockedButton(
 		_unlock,
 		tr::lng_similar_channels_show_more(),
-		st::similarChannelsLock);
-	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		st::similarChannelsLock,
+		rpl::single(true));
 	button->setClickedCallback([=] {
 		const auto window = _controller->parentController();
 		::Settings::ShowPremium(window, u"similar_channels"_q);
 	});
+
 	const auto upto = Data::PremiumLimits(
 		&_channel->session()).similarChannelsPremium();
 	const auto about = Ui::CreateChild<Ui::FlatLabel>(

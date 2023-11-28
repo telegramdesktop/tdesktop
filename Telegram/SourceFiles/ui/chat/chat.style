@@ -991,8 +991,8 @@ chatSimilarBadgePadding: margins(2px, 0px, 3px, 1px);
 chatSimilarBadgeTop: 43px;
 chatSimilarBadgeIcon: icon{{ "chat/mini_subscribers", premiumButtonFg }};
 chatSimilarBadgeIconPosition: point(0px, 1px);
-chatSimilarLockedIcon: icon{{ "emoji/premium_lock", premiumButtonFg }};
-chatSimilarLockedIconPosition: point(0px, -1px);
+chatSimilarLockedIcon: icon{{ "chat/mini_lock", premiumButtonFg }};
+chatSimilarLockedIconPosition: point(0px, 1px);
 chatSimilarBadgeFont: font(10px bold);
 chatSimilarNameTop: 59px;
 chatSimilarName: TextStyle(defaultTextStyle) {

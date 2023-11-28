@@ -839,6 +839,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_background_dimming" = "Background dimming";
 "lng_background_sure_reset_default" = "Are you sure you want to reset the wallpaper?";
 "lng_background_reset_default" = "Reset";
+"lng_background_apply_me" = "Apply for me";
+"lng_background_apply_both" = "Apply for me and {user}";
 
 "lng_download_path_ask" = "Ask download path for each file";
 "lng_download_path" = "Download path";

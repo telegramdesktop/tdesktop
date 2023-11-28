@@ -406,6 +406,11 @@ void SimilarChannels::validateCounterBg(const Channel &channel) const {
 	channel.counterRect = badge.marginsAdded(
 		st::chatSimilarBadgePadding);
 
+	constexpr auto kMinSaturation = 0;
+	constexpr auto kMaxSaturation = 96;
+	constexpr auto kMinLightness = 160;
+	constexpr auto kMaxLightness = 208;
+
 	const auto width = channel.counterRect.width();
 	const auto height = channel.counterRect.height();
 	const auto ratio = style::DevicePixelRatio();
@@ -413,16 +418,12 @@ void SimilarChannels::validateCounterBg(const Channel &channel) const {
 		channel.counterRect.size() * ratio,
 		QImage::Format_ARGB32_Premultiplied);
 	auto color = channel.more
-		? st::windowBgRipple->c
+		? QColor(kMinLightness, kMinLightness, kMinLightness)
 		: Ui::CountAverageColor(
 			channel.thumbnail->image(photo).copy(
 				QRect(photo / 3, photo / 3, photo / 3, photo / 3)));
 
 	const auto hsl = color.toHsl();
-	constexpr auto kMinSaturation = 0;
-	constexpr auto kMaxSaturation = 96;
-	constexpr auto kMinLightness = 160;
-	constexpr auto kMaxLightness = 208;
 	if (!base::in_range(hsl.saturation(), kMinSaturation, kMaxSaturation)
 		|| !base::in_range(hsl.lightness(), kMinLightness, kMaxLightness)) {
 		color = QColor::fromHsl(

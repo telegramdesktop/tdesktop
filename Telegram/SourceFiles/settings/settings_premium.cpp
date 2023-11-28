@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "api/api_premium.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_premium.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -1495,6 +1496,60 @@ void ShowPremiumPromoToast(
 			return false;
 		}),
 	});
+}
+
+not_null<Ui::RoundButton*> CreateLockedButton(
+		not_null<QWidget*> parent,
+		rpl::producer<QString> text,
+		const style::RoundButton &st,
+		rpl::producer<bool> locked) {
+	const auto result = Ui::CreateChild<Ui::RoundButton>(
+		parent.get(),
+		rpl::single(QString()),
+		st);
+
+	const auto labelSt = result->lifetime().make_state<style::FlatLabel>(
+		st::defaultFlatLabel);
+	labelSt->style.font = st.font;
+	labelSt->textFg = st.textFg;
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		result,
+		std::move(text),
+		*labelSt);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto icon = Ui::CreateChild<Ui::RpWidget>(result);
+	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+	icon->resize(st::stickersPremiumLock.size());
+	icon->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(icon);
+		st::stickersPremiumLock.paint(p, 0, 0, icon->width());
+	}, icon->lifetime());
+
+	rpl::combine(
+		result->widthValue(),
+		label->widthValue(),
+		std::move(locked)
+	) | rpl::start_with_next([=](int outer, int inner, bool locked) {
+		if (locked) {
+			icon->show();
+			inner += icon->width();
+			label->move(
+				(outer - inner) / 2 + icon->width(),
+				st::similarChannelsLock.textTop);
+			icon->move(
+				(outer - inner) / 2,
+				st::similarChannelsLock.textTop);
+		} else {
+			icon->hide();
+			label->move(
+				(outer - inner) / 2,
+				st::similarChannelsLock.textTop);
+		}
+	}, result->lifetime());
+
+	return result;
 }
 
 not_null<Ui::GradientButton*> CreateSubscribeButton(
