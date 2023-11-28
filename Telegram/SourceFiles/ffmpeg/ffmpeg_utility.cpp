@@ -522,7 +522,7 @@ AVRational ValidateAspectRatio(AVRational aspect) {
 QSize CorrectByAspect(QSize size, AVRational aspect) {
 	Expects(IsValidAspectRatio(aspect));
 
-	return QSize(size.width() * aspect.num / aspect.den, size.height());
+	return QSize(size.width() * av_q2d(aspect), size.height());
 }
 
 bool RotationSwapWidthHeight(int rotation) {
