@@ -153,3 +153,5 @@ ClickHandlerPtr JumpToStoryClickHandler(
 [[nodiscard]] ClickHandlerPtr GroupCallClickHandler(
 	not_null<PeerData*> peer,
 	CallId callId);
+
+void ShowTrialTranscribesToast(int left, TimeId until);

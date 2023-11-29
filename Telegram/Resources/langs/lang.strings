@@ -3335,6 +3335,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_audio_player_reverse" = "Reverse order";
 "lng_audio_player_shuffle" = "Shuffle";
 "lng_audio_transcribe_long" = "This voice message is too long.";
+"lng_audio_transcribe_trials_left#one" = "You have {count} free transcription left until {date}.";
+"lng_audio_transcribe_trials_left#other" = "You have {count} free transcriptions left until {date}.";
+"lng_audio_transcribe_trials_over" = "You have used all your free transcriptions this week. Wait until {date} to use it again or subscribe to {link} now.";
 
 "lng_rights_edit_admin" = "Manage permissions";
 "lng_rights_edit_admin_header" = "What can this admin do?";

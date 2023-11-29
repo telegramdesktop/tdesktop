@@ -9,8 +9,8 @@
 #include "lang/lang_keys.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/shake_animation.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/text/text_entity.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_intro.h"
 #include "styles/style_layers.h" // boxRadius
@@ -127,7 +127,10 @@ void CodeDigit::paintEvent(QPaintEvent *e) {
 	p.setClipPath(clipPath);
 
 	p.fillRect(rect(), st::windowBgOver);
-	p.strokePath(clipPath, _borderPen);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.strokePath(clipPath, _borderPen);
+	}
 
 	if (_viewDigit == kDigitNone) {
 		return;

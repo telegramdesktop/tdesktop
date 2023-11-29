@@ -36,11 +36,20 @@ public:
 
 	void apply(const MTPDupdateTranscribedAudio &update);
 
+	[[nodiscard]] bool trialsSupport();
+	[[nodiscard]] TimeId trialsRefreshAt();
+	[[nodiscard]] int trialsCount();
+	[[nodiscard]] crl::time trialsMaxLengthMs() const;
+
 private:
 	void load(not_null<HistoryItem*> item);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
+
+	int _trialsCount = -1;
+	std::optional<bool> _trialsSupport;
+	TimeId _trialsRefreshAt = -1;
 
 	base::flat_map<FullMsgId, Entry> _map;
 	base::flat_map<uint64, FullMsgId> _ids;

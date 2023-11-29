@@ -522,6 +522,13 @@ historyTranscribeInHide: icon {{ "chat/voice_to_text_collapse", msgFileInBg }};
 historyTranscribeInHideSelected: icon {{ "chat/voice_to_text_collapse", msgFileInBgSelected }};
 historyTranscribeOutHide: icon {{ "chat/voice_to_text_collapse", msgFileOutBg }};
 historyTranscribeOutHideSelected: icon {{ "chat/voice_to_text_collapse", msgFileOutBgSelected }};
+historyTranscribeInLock: icon {{ "chat/mini_lock", msgFileInBg }};
+historyTranscribeInLockSelected: icon {{ "chat/mini_lock", msgFileInBgSelected }};
+historyTranscribeOutLock: icon {{ "chat/mini_lock", msgFileOutBg }};
+historyTranscribeOutLockSelected: icon {{ "chat/mini_lock", msgFileOutBgSelected }};
+historyTranscribeLockPos: point(17px, 9px);
+historyTranscribeLockOverlayPos: point(19px, 11px);
+historyTranscribeLockOverlaySize: size(5px, 10px);
 
 historyVideoMessageMute: icon {{ "volume_mute", historyFileThumbIconFg }};
 historyVideoMessageMuteSelected: icon {{ "volume_mute", historyFileThumbIconFgSelected }};
@@ -562,6 +569,10 @@ historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
 historyFastCloseSize: 30px;
 historyFastCloseIcon: icon {{ "box_button_close", msgServiceFg }};
 historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
+historyFastTranscribeLock: icon {{ "chat/mini_lock", msgServiceFg }};
+historyFastTranscribeLockPos: point(18px, 13px);
+historyFastTranscribeLockOverlayPos: point(21px, 13px);
+historyFastTranscribeLockOverlaySize: size(6px, 10px);
 
 historySavedFont: font(semibold 14px);
 

@@ -306,7 +306,7 @@ QSize Document::countOptimalSize() {
 	const auto voice = Get<HistoryDocumentVoice>();
 	if (voice) {
 		const auto session = &_realParent->history()->session();
-		if (!session->premium()) {
+		if (!session->premium() && !session->api().transcribes().trialsSupport()) {
 			voice->transcribe = nullptr;
 			voice->transcribeText = {};
 		} else {

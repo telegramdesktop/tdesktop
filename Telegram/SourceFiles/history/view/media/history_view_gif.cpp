@@ -1973,7 +1973,9 @@ bool Gif::needCornerStatusDisplay() const {
 }
 
 void Gif::ensureTranscribeButton() const {
-	if (_data->isVideoMessage() && _data->session().premium()) {
+	if (_data->isVideoMessage()
+		&& (_data->session().premium()
+			|| _data->session().api().transcribes().trialsSupport())) {
 		if (!_transcribe) {
 			_transcribe = std::make_unique<TranscribeButton>(
 				_realParent,

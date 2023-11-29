@@ -89,6 +89,7 @@ struct MessageStyle {
 	style::icon historyPollChosen = { Qt::Uninitialized };
 	style::icon historyPollChoiceRight = { Qt::Uninitialized };
 	style::icon historyTranscribeIcon = { Qt::Uninitialized };
+	style::icon historyTranscribeLock = { Qt::Uninitialized };
 	style::icon historyTranscribeHide = { Qt::Uninitialized };
 	std::array<
 		std::unique_ptr<Text::QuotePaintCache>,
@@ -385,6 +386,9 @@ public:
 	[[nodiscard]] const style::icon &historyFastTranscribeIcon() const {
 		return _historyFastTranscribeIcon;
 	}
+	[[nodiscard]] const style::icon &historyFastTranscribeLock() const {
+		return _historyFastTranscribeLock;
+	}
 	[[nodiscard]] const style::icon &historyGoToOriginalIcon() const {
 		return _historyGoToOriginalIcon;
 	}
@@ -514,6 +518,7 @@ private:
 	style::icon _historyFastCommentsIcon = { Qt::Uninitialized };
 	style::icon _historyFastShareIcon = { Qt::Uninitialized };
 	style::icon _historyFastTranscribeIcon = { Qt::Uninitialized };
+	style::icon _historyFastTranscribeLock = { Qt::Uninitialized };
 	style::icon _historyGoToOriginalIcon = { Qt::Uninitialized };
 	style::icon _historyFastCloseIcon = { Qt::Uninitialized };
 	style::icon _historyMapPoint = { Qt::Uninitialized };

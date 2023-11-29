@@ -11,20 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "calls/calls_instance.h"
 #include "data/notify/data_notify_settings.h"
-#include "data/data_chat_participant_status.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
-#include "data/data_media_types.h"
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -39,7 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h" // ClickHandlerContext.
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
-#include "ui/text/text_entity.h"
+#include "ui/toast/toast.h"
 #include "ui/item_text_options.h"
 #include "lang/lang_keys.h"
 
@@ -743,4 +740,40 @@ void CheckReactionNotificationSchedule(
 	result.entities.push_front(
 		EntityInText(EntityType::Italic, 0, result.text.size()));
 	return result;
+}
+
+void ShowTrialTranscribesToast(int left, TimeId until) {
+	const auto window = Core::App().activeWindow();
+	if (!window) {
+		return;
+	}
+	const auto filter = [=](const auto &...) {
+		if (const auto controller = window->sessionController()) {
+			ShowPremiumPreviewBox(controller, PremiumPreview::VoiceToText);
+			window->activate();
+		}
+		return false;
+	};
+	const auto date = langDateTime(base::unixtime::parse(until));
+	constexpr auto kToastDuration = crl::time(4000);
+	const auto text = left
+		? tr::lng_audio_transcribe_trials_left(
+			tr::now,
+			lt_count,
+			left,
+			lt_date,
+			{ date },
+			Ui::Text::WithEntities)
+		: tr::lng_audio_transcribe_trials_over(
+			tr::now,
+			lt_date,
+			Ui::Text::Bold(date),
+			lt_link,
+			Ui::Text::Link(tr::lng_settings_privacy_premium_link(tr::now)),
+			Ui::Text::WithEntities);
+	window->uiShow()->showToast(Ui::Toast::Config{
+		.text = text,
+		.duration = kToastDuration,
+		.filter = filter,
+	});
 }

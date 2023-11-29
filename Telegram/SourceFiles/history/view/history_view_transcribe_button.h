@@ -36,6 +36,8 @@ public:
 	[[nodiscard]] bool contains(const QPoint &p);
 
 private:
+	[[nodiscard]] bool hasLock() const;
+
 	const not_null<HistoryItem*> _item;
 	const bool _roundview = false;
 	const QSize _size;
