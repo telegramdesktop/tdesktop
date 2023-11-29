@@ -499,12 +499,13 @@ TextWithEntities ThemeDocumentBox::subtitle() {
 }
 
 rpl::producer<QString> ThemeDocumentBox::button() {
-	return _parent->data()->out()
-		? nullptr
-		: rpl::conditional(
-			WallPaperRevertableValue(_parent->data()),
-			tr::lng_action_set_wallpaper_remove(),
-			tr::lng_action_set_wallpaper_button());
+	if (_parent->data()->out()) {
+		return {};
+	}
+	return rpl::conditional(
+		WallPaperRevertableValue(_parent->data()),
+		tr::lng_action_set_wallpaper_remove(),
+		tr::lng_action_set_wallpaper_button());
 }
 
 ClickHandlerPtr ThemeDocumentBox::createViewLink() {

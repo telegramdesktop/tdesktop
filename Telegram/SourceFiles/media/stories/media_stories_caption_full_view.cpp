@@ -92,7 +92,7 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 			} else if (type == QEvent::MouseButtonRelease) {
 				if (const auto activated = ClickHandler::unpressed()) {
 					ActivateClickHandler(_wrap.get(), activated, {
-						mouse()->button(),
+						mouse()->button(), QVariant(),
 					});
 				}
 			}
