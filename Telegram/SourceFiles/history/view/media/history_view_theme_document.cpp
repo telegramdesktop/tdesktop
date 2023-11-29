@@ -40,22 +40,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-[[nodiscard]] bool HasThatWallPaperForBoth(
+[[nodiscard]] bool WallPaperRevertable(
 		not_null<PeerData*> peer,
 		const Data::WallPaper &paper) {
+	if (!peer->wallPaperOverriden()) {
+		return false;
+	}
 	const auto now = peer->wallPaper();
 	return now && now->equals(paper);
 }
 
-[[nodiscard]] bool HasThatWallPaperForBoth(not_null<HistoryItem*> item) {
+[[nodiscard]] bool WallPaperRevertable(not_null<HistoryItem*> item) {
 	const auto media = item->media();
 	const auto paper = media ? media->paper() : nullptr;
 	return paper
 		&& media->paperForBoth()
-		&& HasThatWallPaperForBoth(item->history()->peer, *paper);
+		&& WallPaperRevertable(item->history()->peer, *paper);
 }
 
-[[nodiscard]] rpl::producer<bool> HasThatWallPaperForBothValue(
+[[nodiscard]] rpl::producer<bool> WallPaperRevertableValue(
 		not_null<HistoryItem*> item) {
 	const auto media = item->media();
 	const auto paper = media ? media->paper() : nullptr;
@@ -67,7 +70,7 @@ namespace {
 		peer,
 		Data::PeerUpdate::Flag::ChatWallPaper
 	) | rpl::map([peer, paper = *paper] {
-		return HasThatWallPaperForBoth(peer, paper);
+		return WallPaperRevertable(peer, paper);
 	});
 }
 
@@ -499,7 +502,7 @@ rpl::producer<QString> ThemeDocumentBox::button() {
 	return _parent->data()->out()
 		? nullptr
 		: rpl::conditional(
-			HasThatWallPaperForBothValue(_parent->data()),
+			WallPaperRevertableValue(_parent->data()),
 			tr::lng_action_set_wallpaper_remove(),
 			tr::lng_action_set_wallpaper_button());
 }
@@ -518,7 +521,7 @@ ClickHandlerPtr ThemeDocumentBox::createViewLink() {
 			const auto view = weak.get();
 			if (view
 				&& !view->data()->out()
-				&& HasThatWallPaperForBoth(view->data())) {
+				&& WallPaperRevertable(view->data())) {
 				const auto reset = crl::guard(weak, [=](Fn<void()> close) {
 					const auto api = &controller->session().api();
 					api->request(MTPmessages_SetChatWallPaper(

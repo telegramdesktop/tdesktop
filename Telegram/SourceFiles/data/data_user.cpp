@@ -515,7 +515,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 
 	if (const auto paper = update.vwallpaper()) {
 		user->setWallPaper(
-			Data::WallPaper::Create(&user->session(), *paper));
+			Data::WallPaper::Create(&user->session(), *paper),
+			update.is_wallpaper_overridden());
 	} else {
 		user->setWallPaper({});
 	}

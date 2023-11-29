@@ -1227,16 +1227,30 @@ const QString &PeerData::themeEmoji() const {
 	return _themeEmoticon;
 }
 
-void PeerData::setWallPaper(std::optional<Data::WallPaper> paper) {
-	if (!paper && !_wallPaper) {
-		return;
-	} else if (paper && _wallPaper && _wallPaper->equals(*paper)) {
-		return;
+void PeerData::setWallPaper(
+		std::optional<Data::WallPaper> paper,
+		bool overriden) {
+	const auto paperChanged = (paper || _wallPaper)
+		&& (!paper || !_wallPaper || !_wallPaper->equals(*paper));
+	if (paperChanged) {
+		_wallPaper = paper
+			? std::make_unique<Data::WallPaper>(std::move(*paper))
+			: nullptr;
 	}
-	_wallPaper = paper
-		? std::make_unique<Data::WallPaper>(std::move(*paper))
-		: nullptr;
-	session().changes().peerUpdated(this, UpdateFlag::ChatWallPaper);
+
+	const auto overridenValue = overriden ? 1 : 0;
+	const auto overridenChanged = (_wallPaperOverriden != overridenValue);
+	if (overridenChanged) {
+		_wallPaperOverriden = overridenValue;
+	}
+
+	if (paperChanged || overridenChanged) {
+		session().changes().peerUpdated(this, UpdateFlag::ChatWallPaper);
+	}
+}
+
+bool PeerData::wallPaperOverriden() const {
+	return _wallPaperOverriden != 0;
 }
 
 const Data::WallPaper *PeerData::wallPaper() const {

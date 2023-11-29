@@ -1996,7 +1996,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {
 			if (const auto paper = d.vwallpaper()) {
 				peer->setWallPaper(
-					Data::WallPaper::Create(&session(), *paper));
+					Data::WallPaper::Create(&session(), *paper),
+					d.is_wallpaper_overridden());
 			} else {
 				peer->setWallPaper({});
 			}

@@ -1195,7 +1195,8 @@ void History::applyServiceChanges(
 	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
 		if (item->out() || data.is_for_both()) {
 			peer->setWallPaper(
-				Data::WallPaper::Create(&session(), data.vwallpaper()));
+				Data::WallPaper::Create(&session(), data.vwallpaper()),
+				!item->out() && data.is_for_both());
 		}
 	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
 		processJoinedPeer(item->from());
