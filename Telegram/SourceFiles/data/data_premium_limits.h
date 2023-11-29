@@ -75,6 +75,8 @@ public:
 	[[nodiscard]] int aboutLengthPremium() const;
 	[[nodiscard]] int aboutLengthCurrent() const;
 
+	[[nodiscard]] int maxBoostLevel() const;
+
 private:
 	[[nodiscard]] int appConfigLimit(
 		const QString &key,

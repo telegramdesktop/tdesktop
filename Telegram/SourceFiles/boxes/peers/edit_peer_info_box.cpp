@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "info/boosts/info_boosts_widget.h"
@@ -1315,6 +1316,8 @@ void Controller::editReactions() {
 			EditAllowedReactionsArgs{
 				.navigation = _navigation,
 				.allowedCustomReactions = counters.level,
+				.customReactionsHardLimit = Data::PremiumLimits(
+					&_peer->session()).maxBoostLevel(),
 				.list = _navigation->session().data().reactions().list(
 					Data::Reactions::Type::Active),
 				.allowed = Data::PeerAllowedReactions(_peer),

@@ -189,6 +189,12 @@ int PremiumLimits::aboutLengthCurrent() const {
 		: aboutLengthDefault();
 }
 
+int PremiumLimits::maxBoostLevel() const {
+	return appConfigLimit(
+		u"boosts_channel_level_max"_q,
+		_session->isTestMode() ? 9 : 99);
+}
+
 int PremiumLimits::appConfigLimit(
 		const QString &key,
 		int fallback) const {

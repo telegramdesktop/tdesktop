@@ -42,6 +42,10 @@ constexpr auto kDisabledEmojiOpacity = 0.4;
 
 struct UniqueCustomEmojiContext {
 	std::vector<DocumentId> ids;
+	Fn<bool(DocumentId)> applyHardLimit;
+	int hardLimit = 0;
+	int hardLimitChecked = 0;
+	bool hardLimitHit = false;
 };
 
 class MaybeDisabledEmoji final : public Ui::Text::CustomEmoji {
@@ -153,6 +157,7 @@ bool MaybeDisabledEmoji::readyInDefaultState() {
 		not_null<QTextDocument*> document,
 		UniqueCustomEmojiContext &context) {
 	context.ids.clear();
+	context.hardLimitChecked = 0;
 	auto removeFrom = 0;
 	auto removeTill = 0;
 	auto block = document->begin();
@@ -168,11 +173,20 @@ bool MaybeDisabledEmoji::readyInDefaultState() {
 		}
 		const auto id = format.property(Ui::InputField::kCustomEmojiId);
 		const auto documentId = id.toULongLong();
+		const auto applyHardLimit = context.applyHardLimit(documentId);
 		if (ranges::contains(context.ids, documentId)) {
+			removeTill += fragment.length();
+			break;
+		} else if (applyHardLimit
+			&& context.hardLimitChecked >= context.hardLimit) {
+			context.hardLimitHit = true;
 			removeTill += fragment.length();
 			break;
 		}
 		context.ids.push_back(documentId);
+		if (applyHardLimit) {
+			++context.hardLimitChecked;
+		}
 	}
 	while (removeTill == removeFrom) {
 		block = block.next();
@@ -202,7 +216,9 @@ bool RemoveNonCustomEmoji(
 
 void SetupOnlyCustomEmojiField(
 		not_null<Ui::InputField*> field,
-		Fn<void(std::vector<DocumentId>)> callback) {
+		Fn<void(std::vector<DocumentId>, bool)> callback,
+		Fn<bool(DocumentId)> applyHardLimit,
+		int customHardLimit) {
 	field->setTagMimeProcessor(AllowOnlyCustomEmojiProcessor);
 	field->setMimeDataHook(AllowOnlyCustomEmojiMimeDataHook);
 
@@ -218,7 +234,10 @@ void SetupOnlyCustomEmojiField(
 		if (state->processing) {
 			return;
 		}
-		auto context = UniqueCustomEmojiContext();
+		auto context = UniqueCustomEmojiContext{
+			.applyHardLimit = applyHardLimit,
+			.hardLimit = customHardLimit,
+		};
 		auto changed = false;
 		state->processing = true;
 		while (state->pending) {
@@ -235,7 +254,7 @@ void SetupOnlyCustomEmojiField(
 				document->setPageSize(pageSize);
 			}
 		}
-		callback(context.ids);
+		callback(context.ids, context.hardLimitHit);
 		if (changed) {
 			field->forceProcessContentsChanges();
 		}
@@ -289,9 +308,10 @@ struct ReactionsSelectorArgs {
 	rpl::producer<QString> title;
 	std::vector<Data::Reaction> list;
 	std::vector<Data::ReactionId> selected;
-	Fn<void(std::vector<Data::ReactionId>)> callback;
+	Fn<void(std::vector<Data::ReactionId>, bool)> callback;
 	rpl::producer<ReactionsSelectorState> stateValue;
 	int customAllowed = 0;
+	int customHardLimit = 0;
 	bool all = false;
 };
 
@@ -344,7 +364,12 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 	}, std::move(customEmojiPaused));
 
 	const auto callback = args.callback;
-	SetupOnlyCustomEmojiField(raw, [=](std::vector<DocumentId> ids) {
+	const auto isCustom = [=](DocumentId id) {
+		return state->unifiedFactoryOwner->lookupReactionId(id).custom();
+	};
+	SetupOnlyCustomEmojiField(raw, [=](
+			std::vector<DocumentId> ids,
+			bool hardLimitHit) {
 		auto allowed = base::flat_set<DocumentId>();
 		auto reactions = std::vector<Data::ReactionId>();
 		reactions.reserve(ids.size());
@@ -361,8 +386,8 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 			state->allowed = std::move(allowed);
 			raw->rawTextEdit()->update();
 		}
-		callback(std::move(reactions));
-	});
+		callback(std::move(reactions), hardLimitHit);
+	}, isCustom, args.customHardLimit);
 	raw->setTextWithTags(ComposeEmojiList(reactions, args.selected));
 
 	using SelectorState = ReactionsSelectorState;
@@ -667,13 +692,19 @@ void EditAllowedReactionsBox(
 			| ranges::views::transform(&Data::Reaction::id)
 			| ranges::to_vector)
 		: allowed.some;
-	const auto changed = [=](std::vector<Data::ReactionId> chosen) {
+	const auto changed = [=](
+		std::vector<Data::ReactionId> chosen,
+		bool hardLimitHit) {
 		state->selected = std::move(chosen);
 		state->customCount = ranges::count_if(
 			state->selected,
 			&Data::ReactionId::custom);
+		if (hardLimitHit) {
+			box->uiShow()->showToast(
+				tr::lng_manage_peer_reactions_limit(tr::now));
+		}
 	};
-	changed(selected.empty() ? DefaultSelected() : std::move(selected));
+	changed(selected.empty() ? DefaultSelected() : std::move(selected), {});
 	reactions->add(AddReactionsSelector(reactions, {
 		.outer = box->getDelegate()->outerContainer(),
 		.controller = args.navigation->parentController(),
@@ -685,6 +716,7 @@ void EditAllowedReactionsBox(
 		.callback = changed,
 		.stateValue = state->selectorState.value(),
 		.customAllowed = args.allowedCustomReactions,
+		.customHardLimit = args.customReactionsHardLimit,
 		.all = !args.isGroup,
 	}), st::boxRowPadding);
 

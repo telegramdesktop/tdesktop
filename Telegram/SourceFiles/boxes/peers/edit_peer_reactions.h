@@ -25,6 +25,7 @@ class SessionNavigation;
 struct EditAllowedReactionsArgs {
 	not_null<Window::SessionNavigation*> navigation;
 	int allowedCustomReactions = 0;
+	int customReactionsHardLimit = 0;
 	bool isGroup = false;
 	std::vector<Data::Reaction> list;
 	Data::AllowedReactions allowed;
