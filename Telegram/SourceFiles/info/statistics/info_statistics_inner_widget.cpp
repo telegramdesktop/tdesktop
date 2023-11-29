@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h" // CreateLottieIcon.
 #include "statistics/chart_widget.h"
 #include "statistics/statistics_common.h"
+#include "statistics/statistics_format_values.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/layers/generic_box.h"
 #include "ui/rect.h"
@@ -289,14 +290,11 @@ void AddHeader(
 		header->setSubTitle({});
 		return;
 	}
-	const auto formatter = u"d MMM yyyy"_q;
-	const auto from = QDateTime::fromSecsSinceEpoch(startDate);
-	const auto to = QDateTime::fromSecsSinceEpoch(endDate);
-	header->setSubTitle(QLocale().toString(from.date(), formatter)
+	header->setSubTitle(Statistic::LangDayMonthYear(startDate)
 		+ ' '
 		+ QChar(8212)
 		+ ' '
-		+ QLocale().toString(to.date(), formatter));
+		+ Statistic::LangDayMonthYear(endDate));
 }
 
 void FillOverview(

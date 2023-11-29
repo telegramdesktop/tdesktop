@@ -186,6 +186,8 @@ PRIVATE
     statistics/statistics_common.h
     statistics/statistics_data_deserialize.cpp
     statistics/statistics_data_deserialize.h
+    statistics/statistics_format_values.cpp
+    statistics/statistics_format_values.h
     statistics/view/abstract_chart_view.cpp
     statistics/view/abstract_chart_view.h
     statistics/view/bar_chart_view.cpp
