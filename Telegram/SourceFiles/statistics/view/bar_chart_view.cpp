@@ -155,7 +155,6 @@ void BarChartView::paintSelectedXIndex(
 		auto o = ScopedPainterOpacity(p, progress);
 		p.setBrush(st::boxBg);
 		const auto r = st::statisticsDetailsDotRadius;
-		const auto i = selectedXIndex;
 		const auto isSameToken = _selectedPoints.isSame(selectedXIndex, c);
 		auto linePainted = false;
 
@@ -178,7 +177,6 @@ void BarChartView::paintSelectedXIndex(
 					/ float64(c.heightLimits.max - c.heightLimits.min);
 				const auto yPoint = (1. - yPercentage) * c.rect.height();
 
-				const auto bottomIndex = x - localStart;
 				const auto column = QRectF(
 					leftStart + (x - localStart) * w,
 					c.rect.height() - 0 - yPoint,

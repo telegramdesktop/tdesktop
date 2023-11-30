@@ -684,7 +684,6 @@ void InnerWidget::fill() {
 	FillStatistic(inner, descriptor, _state.stats);
 	const auto &channel = _state.stats.channel;
 	const auto &supergroup = _state.stats.supergroup;
-	const auto &message = _state.stats.message;
 	if (channel) {
 		fillRecentPosts();
 	} else if (supergroup) {

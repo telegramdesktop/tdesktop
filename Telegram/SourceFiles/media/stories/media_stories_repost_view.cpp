@@ -118,7 +118,6 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 		}
 	}
 
-	const auto pausedSpoiler = On(PowerSaving::kChatSpoiler);
 	if (w > st::historyReplyPadding.left()) {
 		const auto textw = w
 			- st::historyReplyPadding.left()

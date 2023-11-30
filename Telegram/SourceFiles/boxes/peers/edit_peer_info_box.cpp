@@ -1097,7 +1097,6 @@ void Controller::fillManageSection() {
 	}
 
 	if (canEditReactions()) {
-		const auto session = &_peer->session();
 		auto allowedReactions = Info::Profile::MigratedOrMeValue(
 			_peer
 		) | rpl::map([=](not_null<PeerData*> peer) {
