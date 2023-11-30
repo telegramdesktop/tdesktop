@@ -48,4 +48,4 @@ private:
 	rpl::lifetime _lifetime;
 };
 
-}  // namespace Media
+} // namespace Media

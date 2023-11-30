@@ -182,7 +182,7 @@ void KeyboardStyle::paintButtonBg(
 			const auto &small = sti->msgServiceBgCornersSmall;
 			const auto &large = sti->msgServiceBgCornersLarge;
 			auto corners = Ui::CornersPixmaps();
-            int radiuses[4];
+			int radiuses[4];
 			for (auto i = 0; i != 4; ++i) {
 				const auto isLarge = (rounding[i] == Corner::Large);
 				corners.p[i] = (isLarge ? large : small).p[i];

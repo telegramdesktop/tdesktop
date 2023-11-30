@@ -36,7 +36,7 @@ enum class SendMediaType {
 	Secure,
 };
 
-using UploadFileParts =  QMap<int, QByteArray>;
+using UploadFileParts = QMap<int, QByteArray>;
 struct SendMediaReady {
 	SendMediaReady() = default; // temp
 	SendMediaReady(

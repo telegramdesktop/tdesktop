@@ -60,7 +60,7 @@ Provider::Provider(not_null<AbstractController*> controller)
 	_peer->session().changes().storyUpdates(
 		Data::StoryUpdate::Flag::Destroyed
 	) | rpl::filter([=](const Data::StoryUpdate &update) {
-		return update.story->peer()  == _peer;
+		return update.story->peer() == _peer;
 	}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
 		storyRemoved(update.story);
 	}, _lifetime);

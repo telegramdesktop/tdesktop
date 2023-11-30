@@ -303,4 +303,4 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 
 SystemMediaControlsManager::~SystemMediaControlsManager() = default;
 
-}  // namespace Media
+} // namespace Media

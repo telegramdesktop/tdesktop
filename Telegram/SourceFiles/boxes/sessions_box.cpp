@@ -211,7 +211,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 		return Type::Other;
 	} else if (const auto browser = detectBrowser()) {
 		return *browser;
-    } else if (device.contains("iphone")) {
+	} else if (device.contains("iphone")) {
 		return Type::iPhone;
 	} else if (device.contains("ipad")) {
 		return Type::iPad;
@@ -221,9 +221,9 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 		return *desktop;
 	} else if (platform.contains("android") || system.contains("android")) {
 		return Type::Android;
-    } else if (platform.contains("ios") || system.contains("ios")) {
+	} else if (platform.contains("ios") || system.contains("ios")) {
 		return Type::iPhone;
-    }
+	}
 	return Type::Other;
 }
 

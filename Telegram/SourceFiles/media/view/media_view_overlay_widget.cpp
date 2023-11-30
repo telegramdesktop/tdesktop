@@ -1509,7 +1509,7 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 	if ((!story || story->canDownloadChecked())
 		&& _document
 		&& !_document->filepath(true).isEmpty()) {
-		const auto text =  Platform::IsMac()
+		const auto text = Platform::IsMac()
 			? tr::lng_context_show_in_finder(tr::now)
 			: tr::lng_context_show_in_folder(tr::now);
 		addAction(

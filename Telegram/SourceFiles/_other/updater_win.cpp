@@ -537,11 +537,12 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 
 	GetLocalTime(&stLocalTime);
 
-	wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
-	         szPath, szExeName, updaterVersionStr,
-	         stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
-	         stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
-	         GetCurrentProcessId(), GetCurrentThreadId());
+	wsprintf(
+		szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
+		szPath, szExeName, updaterVersionStr,
+		stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
+		stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
+		GetCurrentProcessId(), GetCurrentThreadId());
 	return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
 
@@ -562,7 +563,7 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 	DWORD len = GetModuleFileName(GetModuleHandle(0), szPath, maxFileLen);
 	if (!len) return;
 
-	WCHAR *pathEnd = szPath  + len;
+	WCHAR *pathEnd = szPath + len;
 
 	if (!_wcsicmp(pathEnd - wcslen(_exeName), _exeName)) {
 		wsprintf(pathEnd - wcslen(_exeName), L"");

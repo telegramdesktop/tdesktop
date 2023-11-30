@@ -216,7 +216,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 				lt_channel,
 				Ui::Text::Link(phrase.text, 1), // Link 1.
 				lt_inline_bot,
-				Ui::Text::Link('@' + via->bot->username(), 2),  // Link 2.
+				Ui::Text::Link('@' + via->bot->username(), 2), // Link 2.
 				Ui::Text::WithEntities);
 		} else {
 			phrase = tr::lng_forwarded_via(
@@ -224,7 +224,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 				lt_user,
 				Ui::Text::Link(phrase.text, 1), // Link 1.
 				lt_inline_bot,
-				Ui::Text::Link('@' + via->bot->username(), 2),  // Link 2.
+				Ui::Text::Link('@' + via->bot->username(), 2), // Link 2.
 				Ui::Text::WithEntities);
 		}
 	} else {

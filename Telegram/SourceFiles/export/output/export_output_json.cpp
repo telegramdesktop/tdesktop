@@ -1078,7 +1078,7 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 				{ "id", Data::NumberToString(Data::PeerToBareId(top.peer.id())) },
 				{ "category", SerializeString(category) },
 				{ "type", SerializeString(type) },
-				{ "name",  StringAllowNull(top.peer.name()) },
+				{ "name", StringAllowNull(top.peer.name()) },
 				{ "rating", Data::NumberToString(top.rating) },
 			}));
 		}

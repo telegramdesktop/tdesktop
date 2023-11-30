@@ -109,7 +109,7 @@ public:
 	}
 
 	bool tooltipWindowActive() const override {
-        return Ui::AppInFocus() && Ui::InFocusChain(window());
+		return Ui::AppInFocus() && Ui::InFocusChain(window());
 	}
 
 };

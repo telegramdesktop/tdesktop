@@ -806,7 +806,7 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 		return {};
 	}
 	const auto from = item->from();
-	const auto topicUrl =  u"internal:url:https://t.me/c/%1/%2"_q
+	const auto topicUrl = u"internal:url:https://t.me/c/%1/%2"_q
 		.arg(peerToChannel(peerId).bare)
 		.arg(topicRootId.bare);
 	const auto fromLink = [&](int index) {

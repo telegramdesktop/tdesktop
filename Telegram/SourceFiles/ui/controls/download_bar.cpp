@@ -287,7 +287,7 @@ void DownloadBar::paint(Painter &p, QRect clip) {
 }
 
 float64 DownloadBar::computeProgress() const {
-	const auto now  = _progress.current();
+	const auto now = _progress.current();
 	return now.total ? (now.ready / float64(now.total)) : 0.;
 }
 

@@ -422,7 +422,7 @@ void RecentViews::showMenu() {
 	const auto added = std::min(int(views.list.size()), kAddPerPage);
 	const auto add = std::min(views.total, kAddPerPage);
 	const auto now = QDateTime::currentDateTime();
-	for (const auto &entry  : views.list) {
+	for (const auto &entry : views.list) {
 		addMenuRow(entry, now);
 		if (++count >= add) {
 			break;

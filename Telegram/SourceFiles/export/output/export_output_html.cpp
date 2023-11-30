@@ -1112,7 +1112,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		if (data.recurringUsed) {
 			return "You were charged " + amount + " via recurring payment";
 		}
-		auto result =  "You have successfully transferred "
+		auto result = "You have successfully transferred "
 			+ amount
 			+ " for "
 			+ wrapReplyToLink("this invoice");

@@ -151,7 +151,7 @@ private:
 	Fn<void(QByteArray)> _done;
 	base::flat_set<int> _requestedOffsets;
 	int64 _full = 0;
-	int  _nextRequestOffset = 0;
+	int _nextRequestOffset = 0;
 	bool _finished = false;
 	bool _failed = false;
 

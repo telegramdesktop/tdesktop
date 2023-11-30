@@ -3919,7 +3919,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 				lt_from,
 				fromLinkText(), // Link 1.
 				lt_user,
-				Ui::Text::Link(user->name(), 2),  // Link 2.
+				Ui::Text::Link(user->name(), 2), // Link 2.
 				Ui::Text::WithEntities);
 		}
 		return result;

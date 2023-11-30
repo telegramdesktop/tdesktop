@@ -662,10 +662,10 @@ QRect Photo::enlargeRect() const {
 	const auto enlargeInner = st::historyPageEnlargeSize;
 	const auto enlargeOuter = 2 * skip + enlargeInner;
 	return {
-	   width() - enlargeOuter + skip,
-	   skip,
-	   enlargeInner,
-	   enlargeInner,
+		width() - enlargeOuter + skip,
+		skip,
+		enlargeInner,
+		enlargeInner,
 	};
 }
 

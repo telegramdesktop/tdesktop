@@ -180,7 +180,7 @@ struct Worker {
 	Manager manager;
 };
 
-std::vector<std::unique_ptr<Worker>>  Workers;
+std::vector<std::unique_ptr<Worker>> Workers;
 
 } // namespace
 

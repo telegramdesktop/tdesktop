@@ -317,7 +317,7 @@ void OverlayWidget::RendererGL::paintBackground() {
 	_contentBuffer->bind();
 	if (const auto notch = _owner->topNotchSkip()) {
 		const auto top = transformRect(QRect(0, 0, _owner->width(), notch));
-        const GLfloat coords[] = {
+		const GLfloat coords[] = {
 			top.left(), top.top(),
 			top.right(), top.top(),
 			top.right(), top.bottom(),
