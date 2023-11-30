@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
 
+#include <QtCore/QLocale>
+
 namespace Statistic {
 
 QString LangDayMonthYear(crl::time seconds) {
