@@ -1,3 +1,7 @@
+4.12.1 (01.12.23)
+
+- Fix assertion violation with imported messages.
+
 4.12 (30.11.23)
 
 - Similar channels.
