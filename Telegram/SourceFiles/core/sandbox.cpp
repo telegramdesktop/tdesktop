@@ -40,8 +40,9 @@ namespace {
 
 base::options::toggle OptionForceWaylandFractionalScaling({
 	.id = kOptionForceWaylandFractionalScaling,
-	.name = "Force enable fractional-scale-v1",
-	.description = "Enable fractional-scale-v1 on Wayland without "
+	.name = "Enable xdg-output fractional scaling",
+	.description = "Enable xdg-output based fractional scaling on Wayland. "
+		"This works without fractional-scale-v1 and without "
 		"precise High DPI scaling. "
 		"Requires Qt with Desktop App Toolkit patches.",
 	.scope = [] {
