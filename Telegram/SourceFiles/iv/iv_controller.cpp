@@ -7,14 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/iv_controller.h"
 
+#include "base/platform/base_platform_info.h"
 #include "iv/iv_data.h"
 #include "ui/widgets/rp_window.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
+#include "styles/palette.h"
 
 #include <QtCore/QRegularExpression>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+#include <QtCore/QJsonValue>
 #include <QtCore/QFile>
+#include <QtGui/QPainter>
 
 namespace Iv {
 
@@ -47,21 +53,55 @@ void Controller::show(const QString &dataPath, Prepared page) {
 		_webview = nullptr;
 	});
 	if (!raw->widget()) {
-		_webview = nullptr;
-		_window = nullptr;
+		_events.fire(Event::Close);
 		return;
 	}
+	window->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Close) {
+			close();
+		} else if (e->type() == QEvent::KeyPress) {
+			const auto event = static_cast<QKeyEvent*>(e.get());
+			if (event->key() == Qt::Key_Escape) {
+				escape();
+			}
+		}
+	}, window->lifetime());
 	raw->widget()->show();
 
 	container->geometryValue(
 	) | rpl::start_with_next([=](QRect geometry) {
 		raw->widget()->setGeometry(geometry);
-	}, _lifetime);
+	}, container->lifetime());
+
+	container->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		QPainter(container).fillRect(clip, st::windowBg);
+	}, container->lifetime());
 
 	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
 		return true;
 	});
 	raw->setNavigationDoneHandler([=](bool success) {
+	});
+	raw->setMessageHandler([=](const QJsonDocument &message) {
+		crl::on_main(_window.get(), [=] {
+			const auto object = message.object();
+			const auto event = object.value("event").toString();
+			if (event == u"keydown"_q) {
+				const auto key = object.value("key").toString();
+				const auto modifier = object.value("modifier").toString();
+				const auto ctrl = Platform::IsMac() ? u"cmd"_q : u"ctrl"_q;
+				if (key == u"escape"_q) {
+					escape();
+				} else if (key == u"w"_q && modifier == ctrl) {
+					close();
+				} else if (key == u"m"_q && modifier == ctrl) {
+					minimize();
+				} else if (key == u"q"_q && modifier == ctrl) {
+					quit();
+				}
+			}
+		});
 	});
 	raw->setDataRequestHandler([=](Webview::DataRequest request) {
 		if (!request.id.starts_with("iv/")) {
@@ -104,8 +144,27 @@ void Controller::show(const QString &dataPath, Prepared page) {
 	window->show();
 }
 
-rpl::producer<Webview::DataRequest> Controller::dataRequests() const {
-	return _dataRequests.events();
+bool Controller::active() const {
+	return _window && _window->isActiveWindow();
+}
+
+void Controller::minimize() {
+	if (_window) {
+		_window->setWindowState(_window->windowState()
+			| Qt::WindowMinimized);
+	}
+}
+
+void Controller::escape() {
+	close();
+}
+
+void Controller::close() {
+	_events.fire(Event::Close);
+}
+
+void Controller::quit() {
+	_events.fire(Event::Quit);
 }
 
 rpl::lifetime &Controller::lifetime() {

@@ -30,6 +30,9 @@ public:
 	[[nodiscard]] bool hasActiveWindow(
 		not_null<Main::Session*> session) const;
 
+	bool closeActive();
+	bool minimizeActive();
+
 	void closeAll();
 
 	[[nodiscard]] rpl::lifetime &lifetime();

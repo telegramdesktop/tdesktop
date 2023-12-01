@@ -1547,12 +1547,12 @@ bool Application::closeActiveWindow() {
 	if (_mediaView && _mediaView->isActive()) {
 		_mediaView->close();
 		return true;
-	} else if (!calls().closeCurrentActiveCall()) {
-		if (const auto window = activeWindow()) {
-			if (window->widget()->isActive()) {
-				window->close();
-				return true;
-			}
+	} else if (_iv->closeActive() || calls().closeCurrentActiveCall()) {
+		return true;
+	} else if (const auto window = activeWindow()) {
+		if (window->widget()->isActive()) {
+			window->close();
+			return true;
 		}
 	}
 	return false;
@@ -1562,7 +1562,8 @@ bool Application::minimizeActiveWindow() {
 	if (_mediaView && _mediaView->isActive()) {
 		_mediaView->minimize();
 		return true;
-	} else if (calls().minimizeCurrentActiveCall()) {
+	} else if (_iv->minimizeActive()
+		|| calls().minimizeCurrentActiveCall()) {
 		return true;
 	} else {
 		if (const auto window = activeWindow()) {

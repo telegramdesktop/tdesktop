@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_instance.h"
 
 #include "core/file_utilities.h"
+#include "core/shortcuts.h"
 #include "data/data_cloud_file.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
@@ -63,6 +64,17 @@ public:
 		not_null<Data*> data) const;
 	[[nodiscard]] bool showingFrom(not_null<Main::Session*> session) const;
 	[[nodiscard]] bool activeFor(not_null<Main::Session*> session) const;
+	[[nodiscard]] bool active() const;
+
+	void minimize();
+
+	[[nodiscard]] rpl::producer<Controller::Event> events() const {
+		return _events.events();
+	}
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
 
 private:
 	struct MapPreview {
@@ -130,6 +142,8 @@ private:
 	base::flat_map<QString, MapPreview> _maps;
 	std::vector<QByteArray> _resources;
 	int _resource = -1;
+
+	rpl::event_stream<Controller::Event> _events;
 
 	rpl::lifetime _lifetime;
 
@@ -358,6 +372,10 @@ void Shown::writeEmbed(QString id, QString hash) {
 
 void Shown::showWindowed(Prepared result) {
 	_controller = std::make_unique<Controller>();
+
+	_controller->events(
+	) | rpl::start_to_stream(_events, _controller->lifetime());
+
 	_controller->dataRequests(
 	) | rpl::start_with_next([=](Webview::DataRequest request) {
 		const auto requested = QString::fromStdString(request.id);
@@ -372,6 +390,7 @@ void Shown::showWindowed(Prepared result) {
 			sendEmbed(id.mid(5).toUtf8(), std::move(request));
 		}
 	}, _controller->lifetime());
+
 	const auto domain = &_session->domain();
 	_controller->show(domain->local().webviewDataPath(), std::move(result));
 }
@@ -628,6 +647,16 @@ bool Shown::activeFor(not_null<Main::Session*> session) const {
 	return showingFrom(session) && _controller;
 }
 
+bool Shown::active() const {
+	return _controller && _controller->active();
+}
+
+void Shown::minimize() {
+	if (_controller) {
+		_controller->minimize();
+	}
+}
+
 Instance::Instance() = default;
 
 Instance::~Instance() = default;
@@ -641,6 +670,14 @@ void Instance::show(
 		return;
 	}
 	_shown = std::make_unique<Shown>(show, data, local);
+	_shown->events() | rpl::start_with_next([=](Controller::Event event) {
+		if (event == Controller::Event::Close) {
+			_shown = nullptr;
+		} else if (event == Controller::Event::Quit) {
+			Shortcuts::Launch(Shortcuts::Command::Quit);
+		}
+	}, _shown->lifetime());
+
 	if (!_tracking.contains(session)) {
 		_tracking.emplace(session);
 		session->lifetime().add([=] {
@@ -654,6 +691,22 @@ void Instance::show(
 
 bool Instance::hasActiveWindow(not_null<Main::Session*> session) const {
 	return _shown && _shown->activeFor(session);
+}
+
+bool Instance::closeActive() {
+	if (!_shown || !_shown->active()) {
+		return false;
+	}
+	_shown = nullptr;
+	return true;
+}
+
+bool Instance::minimizeActive() {
+	if (!_shown || !_shown->active()) {
+		return false;
+	}
+	_shown->minimize();
+	return true;
 }
 
 void Instance::closeAll() {
