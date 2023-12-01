@@ -272,7 +272,6 @@ parts:
       - --prefix=/usr
       - --strip
       - -Dtests=false
-      - -Dintrospection=disabled
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig

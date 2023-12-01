@@ -703,7 +703,7 @@ RUN git clone -b xkbcommon-1.6.0 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git 
 	&& cd .. \
 	&& rm -rf libxkbcommon
 
-FROM patches AS glib
+FROM builder AS glib
 RUN git clone -b 2.78.1 --depth=1 {{ GIT }}/GNOME/glib.git \
 	&& cd glib \
 	&& meson build \
@@ -716,7 +716,7 @@ RUN git clone -b 2.78.1 --depth=1 {{ GIT }}/GNOME/glib.git \
 	&& cd .. \
 	&& rm -rf glib
 
-FROM builder AS glibmm
+FROM patches AS glibmm
 COPY --link --from=glib {{ LibrariesPath }}/glib-cache /
 
 RUN git clone -b 2.78.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
