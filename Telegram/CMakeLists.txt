@@ -130,6 +130,8 @@ PRIVATE
     api/api_messages_search.h
     api/api_messages_search_merged.cpp
     api/api_messages_search_merged.h
+    api/api_peer_colors.cpp
+    api/api_peer_colors.h
     api/api_peer_photo.cpp
     api/api_peer_photo.h
     api/api_polls.cpp
@@ -380,16 +382,18 @@ PRIVATE
     chat_helpers/gifs_list_widget.h
     chat_helpers/message_field.cpp
     chat_helpers/message_field.h
+    chat_helpers/share_message_phrase_factory.cpp
+    chat_helpers/share_message_phrase_factory.h
     chat_helpers/spellchecker_common.cpp
     chat_helpers/spellchecker_common.h
+    chat_helpers/stickers_dice_pack.cpp
+    chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_emoji_image_loader.cpp
     chat_helpers/stickers_emoji_image_loader.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
     chat_helpers/stickers_gift_box_pack.cpp
     chat_helpers/stickers_gift_box_pack.h
-    chat_helpers/stickers_dice_pack.cpp
-    chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_list_footer.cpp
     chat_helpers/stickers_list_footer.h
     chat_helpers/stickers_list_widget.cpp
@@ -711,6 +715,8 @@ PRIVATE
     history/view/media/history_view_premium_gift.h
     history/view/media/history_view_service_box.cpp
     history/view/media/history_view_service_box.h
+    history/view/media/history_view_similar_channels.cpp
+    history/view/media/history_view_similar_channels.h
     history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_slot_machine.h
     history/view/media/history_view_sticker.cpp
@@ -786,6 +792,8 @@ PRIVATE
     history/view/history_view_service_message.h
     history/view/history_view_spoiler_click_handler.cpp
     history/view/history_view_spoiler_click_handler.h
+    history/view/history_view_sponsored_click_handler.cpp
+    history/view/history_view_sponsored_click_handler.h
     history/view/history_view_sticker_toast.cpp
     history/view/history_view_sticker_toast.h
     history/view/history_view_transcribe_button.cpp
@@ -891,6 +899,8 @@ PRIVATE
     info/profile/info_profile_widget.h
     info/settings/info_settings_widget.cpp
     info/settings/info_settings_widget.h
+    info/similar_channels/info_similar_channels_widget.cpp
+    info/similar_channels/info_similar_channels_widget.h
     info/statistics/info_statistics_common.h
     info/statistics/info_statistics_inner_widget.cpp
     info/statistics/info_statistics_inner_widget.h
@@ -1028,6 +1038,8 @@ PRIVATE
     media/stories/media_stories_recent_views.h
     media/stories/media_stories_reply.cpp
     media/stories/media_stories_reply.h
+    media/stories/media_stories_repost_view.cpp
+    media/stories/media_stories_repost_view.h
     media/stories/media_stories_share.cpp
     media/stories/media_stories_share.h
     media/stories/media_stories_sibling.cpp
@@ -1439,6 +1451,7 @@ PRIVATE
     window/window_section_common.h
     window/window_session_controller.cpp
     window/window_session_controller.h
+    window/window_session_controller_link_info.h
     window/window_slide_animation.cpp
     window/window_slide_animation.h
     window/window_top_bar_wrap.h
@@ -1729,6 +1742,10 @@ endif()
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
 if (WIN32)
+    target_link_libraries(Telegram
+    PRIVATE
+        delayimp
+    )
     target_link_options(Telegram
     PRIVATE
         /DELAYLOAD:secur32.dll
@@ -1785,6 +1802,10 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
         )
         target_include_directories(Updater PRIVATE ${lib_base_loc})
         if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            target_link_libraries(Updater
+            PRIVATE
+                delayimp
+            )
             target_link_options(Updater
             PRIVATE
                 /DELAYLOAD:user32.dll

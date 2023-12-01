@@ -102,6 +102,8 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	Storage::SharedMediaType type);
 [[nodiscard]] rpl::producer<int> CommonGroupsCountValue(
 	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<int> SimilarChannelsCountValue(
+	not_null<ChannelData*> channel);
 [[nodiscard]] rpl::producer<bool> CanAddMemberValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> FullReactionsCountValue(

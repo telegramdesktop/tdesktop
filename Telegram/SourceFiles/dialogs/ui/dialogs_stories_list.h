@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 class QPainter;
 

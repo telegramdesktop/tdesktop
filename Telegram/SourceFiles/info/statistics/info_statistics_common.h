@@ -13,7 +13,7 @@ namespace Info::Statistics {
 
 struct SavedState final {
 	Data::AnyStatistics stats;
-	base::flat_map<MsgId, QImage> recentPostPreviews;
+	base::flat_map<Data::RecentPostId, QImage> recentPostPreviews;
 	Data::PublicForwardsSlice publicForwardsFirstSlice;
 	int recentPostsExpanded = 0;
 };

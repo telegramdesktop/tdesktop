@@ -76,9 +76,6 @@
 [submodule "Telegram/lib_webview"]
 	path = Telegram/lib_webview
 	url = https://github.com/desktop-app/lib_webview.git
-[submodule "Telegram/ThirdParty/jemalloc"]
-	path = Telegram/ThirdParty/jemalloc
-	url = https://github.com/jemalloc/jemalloc
 [submodule "Telegram/ThirdParty/dispatch"]
 	path = Telegram/ThirdParty/dispatch
 	url = https://github.com/apple/swift-corelibs-libdispatch

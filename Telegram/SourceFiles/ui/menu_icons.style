@@ -145,6 +145,8 @@ menuIconAbove: icon {{ "menu/link_above", menuIconColor }};
 menuIconBelow: icon {{ "menu/link_below", menuIconColor }};
 menuIconEnlarge: icon {{ "menu/link_enlarge", menuIconColor }};
 menuIconShrink: icon {{ "menu/link_shrink", menuIconColor }};
+menuIconAsTopics: icon {{ "menu/mode_topics", menuIconColor }};
+menuIconAsMessages: icon {{ "menu/mode_messages", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
@@ -172,6 +174,7 @@ mediaMenuIconSaveStory: icon {{ "menu/stories_save", mediaviewMenuFg }};
 mediaMenuIconArchiveStory: icon {{ "menu/stories_archive", mediaviewMenuFg }};
 mediaMenuIconStealthLocked: icon {{ "menu/stealth_locked", mediaviewMenuFg }};
 mediaMenuIconStealth: icon {{ "menu/stealth", mediaviewMenuFg }};
+mediaMenuIconStats: icon {{ "menu/stats", mediaviewMenuFg }};
 
 menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};

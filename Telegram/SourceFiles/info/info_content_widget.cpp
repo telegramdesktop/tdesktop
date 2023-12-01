@@ -340,7 +340,11 @@ Key ContentMemento::key() const {
 	} else if (const auto peer = storiesPeer()) {
 		return Stories::Tag{ peer, storiesTab() };
 	} else if (const auto peer = statisticsPeer()) {
-		return Statistics::Tag{ peer, statisticsContextId() };
+		return Statistics::Tag{
+			peer,
+			statisticsContextId(),
+			statisticsStoryId(),
+		};
 	} else {
 		return Downloads::Tag();
 	}
@@ -379,7 +383,8 @@ ContentMemento::ContentMemento(Stories::Tag stories)
 
 ContentMemento::ContentMemento(Statistics::Tag statistics)
 : _statisticsPeer(statistics.peer)
-, _statisticsContextId(statistics.contextId) {
+, _statisticsContextId(statistics.contextId)
+, _statisticsStoryId(statistics.storyId) {
 }
 
 } // namespace Info

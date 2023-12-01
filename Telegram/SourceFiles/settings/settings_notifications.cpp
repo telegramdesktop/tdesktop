@@ -610,13 +610,9 @@ NotificationsCount::SampleWidget::SampleWidget(
 	const QPixmap &cache)
 : _owner(owner)
 , _cache(cache) {
-	const QSize size(
+	setFixedSize(
 		cache.width() / cache.devicePixelRatio(),
 		cache.height() / cache.devicePixelRatio());
-
-	resize(size);
-	setMinimumSize(size);
-	setMaximumSize(size);
 
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint)
 		| Qt::WindowStaysOnTopHint

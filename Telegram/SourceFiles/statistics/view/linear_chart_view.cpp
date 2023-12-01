@@ -18,17 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Statistic {
 namespace {
 
-[[nodiscard]] float64 Ratio(
-		const LinearChartView::CachedLineRatios &ratios,
-		int id) {
-	return (id == 1) ? ratios.first : ratios.second;
-}
-
 void PaintChartLine(
 		QPainter &p,
 		int lineIndex,
 		const PaintContext &c,
-		const LinearChartView::CachedLineRatios &ratios) {
+		const DoubleLineRatios &ratios) {
 	const auto &line = c.chartData.lines[lineIndex];
 
 	auto chartPoints = QPolygonF();
@@ -39,7 +33,7 @@ void PaintChartLine(
 		float64(c.chartData.xPercentage.size() - 1),
 		c.xIndices.max + kOffset));
 
-	const auto ratio = Ratio(ratios, line.id);
+	const auto ratio = ratios.ratio(line.id);
 
 	for (auto i = localStart; i <= localEnd; i++) {
 		if (line.y[i] < 0) {
@@ -63,7 +57,7 @@ void PaintChartLine(
 } // namespace
 
 LinearChartView::LinearChartView(bool isDouble)
-: _cachedLineRatios(CachedLineRatios{ isDouble ? 0 : 1, isDouble ? 0 : 1 }) {
+: _cachedLineRatios(isDouble) {
 }
 
 LinearChartView::~LinearChartView() = default;
@@ -140,11 +134,7 @@ void LinearChartView::paintSelectedXIndex(
 	p.setBrush(st::boxBg);
 	const auto r = st::statisticsDetailsDotRadius;
 	const auto i = selectedXIndex;
-	const auto isSameToken = (_selectedPoints.lastXIndex == selectedXIndex)
-		&& (_selectedPoints.lastHeightLimits.min == c.heightLimits.min)
-		&& (_selectedPoints.lastHeightLimits.max == c.heightLimits.max)
-		&& (_selectedPoints.lastXLimits.min == c.xPercentageLimits.min)
-		&& (_selectedPoints.lastXLimits.max == c.xPercentageLimits.max);
+	const auto isSameToken = _selectedPoints.isSame(selectedXIndex, c);
 	auto linePainted = false;
 	for (const auto &line : c.chartData.lines) {
 		const auto lineAlpha = linesFilter->alpha(line.id);
@@ -152,7 +142,7 @@ void LinearChartView::paintSelectedXIndex(
 			|| (lineAlpha < 1. && !linesFilter->isEnabled(line.id));
 		if (!useCache) {
 			// Calculate.
-			const auto r = Ratio(_cachedLineRatios, line.id);
+			const auto r = _cachedLineRatios.ratio(line.id);
 			const auto xPoint = c.rect.width()
 				* ((c.chartData.xPercentage[i] - c.xPercentageLimits.min)
 					/ (c.xPercentageLimits.max - c.xPercentageLimits.min));
@@ -220,50 +210,15 @@ int LinearChartView::findXIndexByPosition(
 AbstractChartView::HeightLimits LinearChartView::heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) {
-	if (!_cachedLineRatios.first) {
-		// Double Linear calculation.
-		if (chartData.lines.size() != 2) {
-			_cachedLineRatios.first = 1.;
-			_cachedLineRatios.second = 1.;
-		} else {
-			const auto firstMax = chartData.lines.front().maxValue;
-			const auto secondMax = chartData.lines.back().maxValue;
-			if (firstMax > secondMax) {
-				_cachedLineRatios.first = 1.;
-				_cachedLineRatios.second = firstMax / float64(secondMax);
-			} else {
-				_cachedLineRatios.first = secondMax / float64(firstMax);
-				_cachedLineRatios.second = 1.;
-			}
-		}
+	if (!_cachedLineRatios) {
+		_cachedLineRatios.init(chartData);
 	}
 
-	auto minValue = std::numeric_limits<int>::max();
-	auto maxValue = 0;
-
-	auto minValueFull = std::numeric_limits<int>::max();
-	auto maxValueFull = 0;
-	for (auto &l : chartData.lines) {
-		if (!linesFilterController()->isEnabled(l.id)) {
-			continue;
-		}
-		const auto r = Ratio(_cachedLineRatios, l.id);
-		const auto lineMax = l.segmentTree.rMaxQ(xIndices.min, xIndices.max);
-		const auto lineMin = l.segmentTree.rMinQ(xIndices.min, xIndices.max);
-		maxValue = std::max(int(lineMax * r), maxValue);
-		minValue = std::min(int(lineMin * r), minValue);
-
-		maxValueFull = std::max(int(l.maxValue * r), maxValueFull);
-		minValueFull = std::min(int(l.minValue * r), minValueFull);
-	}
-	if (maxValue == minValue) {
-		maxValue = chartData.maxValue;
-		minValue = chartData.minValue;
-	}
-	return {
-		.full = Limits{ float64(minValueFull), float64(maxValueFull) },
-		.ranged = Limits{ float64(minValue), float64(maxValue) },
-	};
+	return DefaultHeightLimits(
+		_cachedLineRatios,
+		linesFilterController(),
+		chartData,
+		xIndices);
 }
 
 } // namespace Statistic

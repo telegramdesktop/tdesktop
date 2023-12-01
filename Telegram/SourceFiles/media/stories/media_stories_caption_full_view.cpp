@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
 #include "ui/click_handler.h"
+#include "ui/painter.h"
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
@@ -26,7 +27,7 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 		_scroll.get(),
 		object_ptr<Ui::FlatLabel>(_scroll.get(), st::storiesCaptionFull),
-		st::mediaviewCaptionPadding)))
+		st::mediaviewCaptionPadding + _controller->repostCaptionPadding())))
 , _text(_wrap->entity()) {
 	_text->setMarkedText(controller->captionText(), Core::MarkedTextContext{
 		.session = &controller->uiShow()->session(),
@@ -67,6 +68,37 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		return base::EventFilterResult::Continue;
 	};
 	base::install_event_filter(_text.get(), filter);
+	if (_controller->repost()) {
+		_wrap->setMouseTracking(true);
+		base::install_event_filter(_wrap.get(), [=](not_null<QEvent*> e) {
+			const auto mouse = [&] {
+				return static_cast<QMouseEvent*>(e.get());
+			};
+			const auto type = e->type();
+			if (type == QEvent::MouseMove) {
+				const auto handler = _controller->lookupRepostHandler(
+					mouse()->pos() - QPoint(
+						st::mediaviewCaptionPadding.left(),
+						(_wrap->padding().top()
+							- _controller->repostCaptionPadding().top())));
+				ClickHandler::setActive(handler.link, handler.host);
+				_wrap->setCursor(handler.link
+					? style::cur_pointer
+					: style::cur_default);
+			} else if (type == QEvent::MouseButtonPress
+				&& mouse()->button() == Qt::LeftButton
+				&& ClickHandler::getActive()) {
+				ClickHandler::pressed();
+			} else if (type == QEvent::MouseButtonRelease) {
+				if (const auto activated = ClickHandler::unpressed()) {
+					ActivateClickHandler(_wrap.get(), activated, {
+						mouse()->button(), QVariant(),
+					});
+				}
+			}
+			return base::EventFilterResult::Continue;
+		});
+	}
 	base::install_event_filter(_wrap.get(), filter);
 
 	using Type = Ui::ElasticScroll::OverscrollType;
@@ -100,6 +132,18 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		}
 	}, _scroll->lifetime());
 
+	_wrap->paintRequest() | rpl::start_with_next([=] {
+		if (_controller->repost()) {
+			auto p = Painter(_wrap.get());
+			_controller->drawRepostInfo(
+				p,
+				st::mediaviewCaptionPadding.left(),
+				(_wrap->padding().top()
+					- _controller->repostCaptionPadding().top()),
+				_wrap->width());
+		}
+	}, _wrap->lifetime());
+
 	_scroll->show();
 	_scroll->setOverscrollBg(QColor(0, 0, 0, 0));
 	_scroll->setOverscrollTypes(Type::Real, Type::Real);
@@ -126,12 +170,17 @@ void CaptionFullView::close() {
 	startAnimation();
 }
 
+void CaptionFullView::repaint() {
+	_wrap->update();
+}
+
 void CaptionFullView::updateGeometry() {
 	if (_outer.isEmpty()) {
 		return;
 	}
 	const auto lineHeight = st::mediaviewCaptionStyle.font->height;
-	const auto padding = st::mediaviewCaptionPadding;
+	const auto padding = st::mediaviewCaptionPadding
+		+ _controller->repostCaptionPadding();
 	_text->resizeToWidth(_outer.width() - padding.left() - padding.right());
 	const auto add = padding.top() + padding.bottom();
 	const auto maxShownHeight = lineHeight * kMaxShownCaptionLines;

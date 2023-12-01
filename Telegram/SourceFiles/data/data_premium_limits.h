@@ -21,6 +21,10 @@ public:
 	[[nodiscard]] int channelsPremium() const;
 	[[nodiscard]] int channelsCurrent() const;
 
+	[[nodiscard]] int similarChannelsDefault() const;
+	[[nodiscard]] int similarChannelsPremium() const;
+	[[nodiscard]] int similarChannelsCurrent() const;
+
 	[[nodiscard]] int gifsDefault() const;
 	[[nodiscard]] int gifsPremium() const;
 	[[nodiscard]] int gifsCurrent() const;
@@ -70,6 +74,8 @@ public:
 	[[nodiscard]] int aboutLengthDefault() const;
 	[[nodiscard]] int aboutLengthPremium() const;
 	[[nodiscard]] int aboutLengthCurrent() const;
+
+	[[nodiscard]] int maxBoostLevel() const;
 
 private:
 	[[nodiscard]] int appConfigLimit(

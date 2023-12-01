@@ -20,8 +20,6 @@ struct Limits;
 
 class LinearChartView final : public AbstractChartView {
 public:
-	using CachedLineRatios = std::pair<float64, float64>;
-
 	LinearChartView(bool isDouble);
 	~LinearChartView() override final;
 
@@ -44,7 +42,7 @@ public:
 		Limits xIndices) override;
 
 private:
-	CachedLineRatios _cachedLineRatios;
+	DoubleLineRatios _cachedLineRatios;
 
 	[[nodiscard]] float64 lineRatio() const;
 
@@ -90,13 +88,7 @@ private:
 	base::flat_map<int, Cache> _mainCaches;
 	base::flat_map<int, Cache> _footerCaches;
 
-	struct SelectedPoints final {
-		int lastXIndex = -1;
-		Limits lastHeightLimits;
-		Limits lastXLimits;
-		base::flat_map<int, QPointF> points;
-	};
-	SelectedPoints _selectedPoints;
+	CachedSelectedPoints _selectedPoints;
 
 };
 

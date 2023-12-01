@@ -326,13 +326,6 @@ void PaintRow(
 			context.st->padding.top(),
 			context.width,
 			context.st->photoSize);
-	} else if (!from && hiddenSenderInfo) {
-		hiddenSenderInfo->emptyUserpic.paintCircle(
-			p,
-			context.st->padding.left(),
-			context.st->padding.top(),
-			context.width,
-			context.st->photoSize);
 	} else if (!(flags & Flag::AllowUserOnline)) {
 		PaintUserpic(
 			p,

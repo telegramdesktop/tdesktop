@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class ClickHandlerHost;
+
 namespace Data {
 class Story;
 struct StoriesContext;
@@ -58,6 +60,15 @@ struct SiblingView {
 	}
 };
 
+struct RepostClickHandler {
+	ClickHandlerPtr link;
+	ClickHandlerHost *host = nullptr;
+
+	explicit operator bool() const {
+		return link && host;
+	}
+};
+
 inline constexpr auto kCollapsedCaptionLines = 2;
 inline constexpr auto kMaxShownCaptionLines = 4;
 
@@ -78,7 +89,13 @@ public:
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
 	[[nodiscard]] bool skipCaption() const;
+	[[nodiscard]] bool repost() const;
 	void showFullCaption();
+
+	[[nodiscard]] QMargins repostCaptionPadding() const;
+	void drawRepostInfo(Painter &p, int x, int y, int availableWidth) const;
+	[[nodiscard]] RepostClickHandler lookupRepostHandler(
+		QPoint position) const;
 
 	void updatePlayback(const Player::TrackState &state);
 	[[nodiscard]] ClickHandlerPtr lookupAreaHandler(QPoint point) const;

@@ -310,7 +310,7 @@ void BackgroundBox::resetForPeer() {
 	}).send();
 
 	const auto weak = Ui::MakeWeak(this);
-	_forPeer->setWallPaper(std::nullopt);
+	_forPeer->setWallPaper({});
 	if (weak) {
 		_controller->finishChatThemeEdit(_forPeer);
 	}

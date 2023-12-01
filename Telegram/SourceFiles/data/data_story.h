@@ -181,6 +181,11 @@ public:
 	void applyViewsCounts(const MTPDstoryViews &data);
 	[[nodiscard]] TimeId lastUpdateTime() const;
 
+	[[nodiscard]] bool repost() const;
+	[[nodiscard]] PeerData *repostSourcePeer() const;
+	[[nodiscard]] QString repostSourceName() const;
+	[[nodiscard]] StoryId repostSourceId() const;
+
 private:
 	struct ViewsCounts {
 		int views = 0;
@@ -203,6 +208,9 @@ private:
 
 	const StoryId _id = 0;
 	const not_null<PeerData*> _peer;
+	PeerData * const _repostSourcePeer = nullptr;
+	const QString _repostSourceName;
+	const StoryId _repostSourceId = 0;
 	Data::ReactionId _sentReactionId;
 	StoryMedia _media;
 	TextWithEntities _caption;

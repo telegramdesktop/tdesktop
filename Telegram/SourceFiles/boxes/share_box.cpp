@@ -8,14 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 
 #include "base/random.h"
-#include "dialogs/dialogs_indexed_list.h"
 #include "lang/lang_keys.h"
 #include "base/qthelp_url.h"
 #include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "apiwrap.h"
-#include "ui/chat/forward_options_box.h"
-#include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
@@ -31,12 +28,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
-#include "history/view/history_view_element.h" // HistoryView::Context.
+#include "history/view/history_view_element.h"
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
-#include "history/view/history_view_schedule_box.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_controllers.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/share_message_phrase_factory.h"
 #include "data/data_channel.h"
 #include "data/data_game.h"
 #include "data/data_histories.h"
@@ -51,7 +48,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
-#include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -1330,6 +1326,18 @@ QString AppendShareGameScoreUrl(
 	return url + shareComponent;
 }
 
+ChatHelpers::ForwardedMessagePhraseArgs CreateForwardedMessagePhraseArgs(
+		const std::vector<not_null<Data::Thread*>> &result,
+		const MessageIdsList &msgIds) {
+	const auto toCount = result.size();
+	return {
+		.toCount = result.size(),
+		.singleMessage = (msgIds.size() <= 1),
+		.to1 = (toCount > 0) ? result.front()->peer().get() : nullptr,
+		.to2 = (toCount > 1) ? result[1]->peer().get() : nullptr,
+	};
+}
+
 ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 		std::shared_ptr<Ui::Show> show,
 		not_null<History*> history,
@@ -1399,6 +1407,9 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 		};
 		auto &api = history->owner().session().api();
 		auto &histories = history->owner().histories();
+		const auto donePhraseArgs = CreateForwardedMessagePhraseArgs(
+			result,
+			msgIds);
 		const auto requestType = Data::Histories::RequestType::Send;
 		for (const auto thread : result) {
 			if (!comment.text.isEmpty()) {
@@ -1438,7 +1449,10 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 					state->requests.remove(reqId);
 					if (state->requests.empty()) {
 						if (show->valid()) {
-							show->showToast(tr::lng_share_done(tr::now));
+							auto phrase = rpl::variable<TextWithEntities>(
+								ChatHelpers::ForwardedMessagePhrase(
+									donePhraseArgs)).current();
+							show->showToast(std::move(phrase));
 							show->hideLayer();
 						}
 					}

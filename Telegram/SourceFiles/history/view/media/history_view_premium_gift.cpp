@@ -77,10 +77,10 @@ TextWithEntities PremiumGift::subtitle() {
 	return result;
 }
 
-QString PremiumGift::button() {
+rpl::producer<QString> PremiumGift::button() {
 	return _data.slug.isEmpty()
-		? tr::lng_sticker_premium_view(tr::now)
-		: tr::lng_prize_open(tr::now);
+		? tr::lng_sticker_premium_view()
+		: tr::lng_prize_open();
 }
 
 ClickHandlerPtr PremiumGift::createViewLink() {

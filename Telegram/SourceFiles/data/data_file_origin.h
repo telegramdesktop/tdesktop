@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 
 using FileOriginMessage = FullMsgId;
+using FileOriginStory = FullStoryId;
 
 struct FileOriginUserPhoto {
 	FileOriginUserPhoto(UserId userId, PhotoId photoId)
@@ -118,20 +119,6 @@ struct FileOriginPremiumPreviews {
 	inline bool operator<(const FileOriginPremiumPreviews &) const {
 		return false;
 	}
-};
-
-struct FileOriginStory {
-	FileOriginStory(PeerId peerId, StoryId storyId)
-	: peerId(peerId)
-	, storyId(storyId) {
-	}
-
-	PeerId peerId = 0;
-	StoryId storyId = 0;
-
-	friend inline auto operator<=>(
-		FileOriginStory,
-		FileOriginStory) = default;
 };
 
 struct FileOrigin {

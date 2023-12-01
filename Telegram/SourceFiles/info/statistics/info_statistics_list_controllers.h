@@ -17,6 +17,7 @@ namespace Data {
 struct Boost;
 struct BoostsListSlice;
 struct PublicForwardsSlice;
+struct RecentPostId;
 struct SupergroupStatistics;
 } // namespace Data
 
@@ -27,7 +28,7 @@ void AddPublicForwards(
 	not_null<Ui::VerticalLayout*> container,
 	Fn<void(FullMsgId)> showPeerHistory,
 	not_null<PeerData*> peer,
-	FullMsgId contextId);
+	Data::RecentPostId contextId);
 
 void AddMembersList(
 	Data::SupergroupStatistics data,

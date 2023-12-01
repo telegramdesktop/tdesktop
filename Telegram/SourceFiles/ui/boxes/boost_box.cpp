@@ -467,12 +467,25 @@ void AskBoostBox(
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
-	auto title = tr::lng_boost_channel_title_color();
-	auto text = rpl::combine(
-		tr::lng_boost_channel_needs_level_color(
+	auto title = v::is<AskBoostChannelColor>(data.reason.data)
+		? tr::lng_boost_channel_title_color()
+		: tr::lng_boost_channel_title_reactions();
+	auto reasonText = v::match(data.reason.data, [&](
+			AskBoostChannelColor data) {
+		return tr::lng_boost_channel_needs_level_color(
 			lt_count,
 			rpl::single(float64(data.requiredLevel)),
-			Ui::Text::RichLangValue),
+			Ui::Text::RichLangValue);
+	}, [&](AskBoostCustomReactions data) {
+		return tr::lng_boost_channel_needs_level_reactions(
+			lt_count,
+			rpl::single(float64(data.count)),
+			lt_same_count,
+			rpl::single(TextWithEntities{ QString::number(data.count) }),
+			Ui::Text::RichLangValue);
+	});
+	auto text = rpl::combine(
+		std::move(reasonText),
 		tr::lng_boost_channel_ask(Ui::Text::RichLangValue)
 	) | rpl::map([](TextWithEntities &&text, TextWithEntities &&ask) {
 		return text.append(u"\n\n"_q).append(std::move(ask));

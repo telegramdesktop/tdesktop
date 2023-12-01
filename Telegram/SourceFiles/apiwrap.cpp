@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_hash.h"
 #include "api/api_invite_links.h"
 #include "api/api_media.h"
+#include "api/api_peer_colors.h"
 #include "api/api_peer_photo.h"
 #include "api/api_polls.h"
 #include "api/api_sending.h"
@@ -33,50 +34,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_user_names.h"
 #include "api/api_websites.h"
 #include "data/notify/data_notify_settings.h"
-#include "data/stickers/data_stickers.h"
-#include "data/data_drafts.h"
 #include "data/data_changes.h"
-#include "data/data_photo.h"
 #include "data/data_web_page.h"
 #include "data/data_folder.h"
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
-#include "data/data_media_types.h"
-#include "data/data_sparse_ids.h"
 #include "data/data_search_controller.h"
 #include "data/data_scheduled_messages.h"
-#include "data/data_channel_admins.h"
 #include "data/data_session.h"
-#include "data/data_stories.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
-#include "data/data_cloud_themes.h"
 #include "data/data_chat_filters.h"
 #include "data/data_histories.h"
-#include "data/data_wall_paper.h"
-#include "data/stickers/data_stickers.h"
-#include "dialogs/dialogs_key.h"
 #include "core/core_cloud_password.h"
 #include "core/application.h"
 #include "base/unixtime.h"
 #include "base/random.h"
-#include "base/qt/qt_common_adapters.h"
 #include "base/call_delayed.h"
 #include "lang/lang_keys.h"
-#include "mainwindow.h"
 #include "mainwidget.h"
 #include "boxes/add_contact_box.h"
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/main_account.h"
 #include "ui/boxes/confirm_box.h"
-#include "boxes/stickers_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/premium_limits_box.h"
 #include "window/notifications_manager.h"
@@ -87,7 +73,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "ui/item_text_options.h"
 #include "ui/text/text_utilities.h"
-#include "ui/emoji_config.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/toast/toast.h"
 #include "support/support_helper.h"
@@ -95,9 +80,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/download_manager_mtproto.h"
 #include "storage/file_upload.h"
-#include "storage/storage_facade.h"
-#include "storage/storage_shared_media.h"
-#include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 
 namespace {
@@ -147,6 +129,15 @@ void ShowChannelsLimitBox(not_null<PeerData*> peer) {
 	}
 }
 
+[[nodiscard]] FileLoadTo FileLoadTaskOptions(const Api::SendAction &action) {
+	const auto peer = action.history->peer;
+	return FileLoadTo(
+		peer->id,
+		action.options,
+		action.replyTo,
+		action.replaceMediaOf);
+}
+
 } // namespace
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
@@ -180,7 +171,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _transcribes(std::make_unique<Api::Transcribes>(this))
 , _premium(std::make_unique<Api::Premium>(this))
 , _usernames(std::make_unique<Api::Usernames>(this))
-, _websites(std::make_unique<Api::Websites>(this)) {
+, _websites(std::make_unique<Api::Websites>(this))
+, _peerColors(std::make_unique<Api::PeerColors>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -1739,6 +1731,10 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 		}).send();
 
 		_channelAmInRequests.emplace(channel, requestId);
+
+		using Flag = ChannelDataFlag;
+		chatParticipants().loadSimilarChannels(channel);
+		channel->setFlags(channel->flags() | Flag::SimilarExpanded);
 	}
 }
 
@@ -2055,13 +2051,13 @@ void ApiWrap::deleteHistory(
 
 void ApiWrap::applyUpdates(
 		const MTPUpdates &updates,
-		uint64 sentMessageRandomId) {
+		uint64 sentMessageRandomId) const {
 	this->updates().applyUpdates(updates, sentMessageRandomId);
 }
 
 int ApiWrap::applyAffectedHistory(
 		PeerData *peer,
-		const MTPmessages_AffectedHistory &result) {
+		const MTPmessages_AffectedHistory &result) const {
 	const auto &data = result.c_messages_affectedHistory();
 	if (const auto channel = peer ? peer->asChannel() : nullptr) {
 		channel->ptsUpdateAndApply(data.vpts().v, data.vpts_count().v);
@@ -2083,7 +2079,7 @@ void ApiWrap::applyAffectedMessages(
 }
 
 void ApiWrap::applyAffectedMessages(
-		const MTPmessages_AffectedMessages &result) {
+		const MTPmessages_AffectedMessages &result) const {
 	const auto &data = result.c_messages_affectedMessages();
 	updates().updateAndApply(data.vpts().v, data.vpts_count().v);
 }
@@ -2542,8 +2538,8 @@ void ApiWrap::refreshFileReference(
 		request(MTPhelp_GetPremiumPromo());
 	}, [&](Data::FileOriginStory data) {
 		request(MTPstories_GetStoriesByID(
-			_session->data().peer(data.peerId)->input,
-			MTP_vector<MTPint>(1, MTP_int(data.storyId))));
+			_session->data().peer(data.peer)->input,
+			MTP_vector<MTPint>(1, MTP_int(data.story))));
 	}, [&](v::null_t) {
 		fail();
 	});
@@ -3429,7 +3425,7 @@ void ApiWrap::sendVoiceMessage(
 		crl::time duration,
 		const SendAction &action) {
 	const auto caption = TextWithTags();
-	const auto to = fileLoadTaskOptions(action);
+	const auto to = FileLoadTaskOptions(action);
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
 		&session(),
 		result,
@@ -3447,7 +3443,7 @@ void ApiWrap::editMedia(
 	if (list.files.empty()) return;
 
 	auto &file = list.files.front();
-	const auto to = fileLoadTaskOptions(action);
+	const auto to = FileLoadTaskOptions(action);
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
 		&session(),
 		file.path,
@@ -3476,7 +3472,7 @@ void ApiWrap::sendFiles(
 		sendMessage(std::move(message));
 	}
 
-	const auto to = fileLoadTaskOptions(action);
+	const auto to = FileLoadTaskOptions(action);
 	if (album) {
 		album->options = to.options;
 	}
@@ -3515,7 +3511,7 @@ void ApiWrap::sendFile(
 		const QByteArray &fileContent,
 		SendMediaType type,
 		const SendAction &action) {
-	const auto to = fileLoadTaskOptions(action);
+	const auto to = FileLoadTaskOptions(action);
 	auto caption = TextWithTags();
 	const auto spoiler = false;
 	const auto information = nullptr;
@@ -4174,15 +4170,6 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 	});
 }
 
-FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
-	const auto peer = action.history->peer;
-	return FileLoadTo(
-		peer->id,
-		action.options,
-		action.replyTo,
-		action.replaceMediaOf);
-}
-
 void ApiWrap::reloadContactSignupSilent() {
 	if (_contactSignupSilentRequestId) {
 		return;
@@ -4397,4 +4384,8 @@ Api::Usernames &ApiWrap::usernames() {
 
 Api::Websites &ApiWrap::websites() {
 	return *_websites;
+}
+
+Api::PeerColors &ApiWrap::peerColors() {
+	return *_peerColors;
 }

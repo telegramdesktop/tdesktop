@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_attached_stickers.h"
 #include "api/api_peer_photo.h"
 #include "lang/lang_keys.h"
-#include "mainwindow.h"
 #include "boxes/premium_preview_box.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -24,49 +23,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
-#include "ui/image/image.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/text/text_utilities.h"
-#include "ui/platform/ui_platform_utility.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
 #include "ui/item_text_options.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
-#include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
-#include "ui/gl/gl_surface.h"
 #include "ui/gl/gl_window.h"
 #include "ui/boxes/confirm_box.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
+#include "info/statistics/info_statistics_widget.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/report_messages_box.h"
 #include "media/audio/media_audio.h"
-#include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_group_thumbs.h"
 #include "media/view/media_view_pip.h"
 #include "media/view/media_view_overlay_raster.h"
 #include "media/view/media_view_overlay_opengl.h"
 #include "media/stories/media_stories_view.h"
-#include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/player/media_player_instance.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
-#include "history/view/reactions/history_view_reactions_strip.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
-#include "data/data_media_types.h"
 #include "data/data_session.h"
-#include "data/data_stories.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
-#include "data/data_file_origin.h"
 #include "data/data_media_rotation.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
@@ -75,14 +64,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_download_manager.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
-#include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "base/platform/base_platform_info.h"
 #include "base/power_save_blocker.h"
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "base/qt_signal_producer.h"
-#include "base/qt/qt_common_adapters.h"
 #include "base/event_filter.h"
 #include "main/main_account.h"
 #include "main/main_domain.h" // Domain::activeSessionValue.
@@ -1434,7 +1421,10 @@ void OverlayWidget::refreshCaptionGeometry() {
 	_captionShowMoreWidth = 0;
 	_captionSkipBlockWidth = 0;
 
-	if (_caption.isEmpty()) {
+	const auto storiesCaptionWidth = _w
+		- st::mediaviewCaptionPadding.left()
+		- st::mediaviewCaptionPadding.right();
+	if (_caption.isEmpty() && (!_stories || !_stories->repost())) {
 		_captionRect = QRect();
 		return;
 	}
@@ -1451,9 +1441,7 @@ void OverlayWidget::refreshCaptionGeometry() {
 		? _groupThumbsTop
 		: height() - st::mediaviewCaptionMargin.height();
 	const auto captionWidth = _stories
-		? (_w
-			- st::mediaviewCaptionPadding.left()
-			- st::mediaviewCaptionPadding.right())
+		? storiesCaptionWidth
 		: std::min(
 			(_groupThumbsAvailableWidth
 				- st::mediaviewCaptionPadding.left()
@@ -1680,6 +1668,21 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			}
 		}, &st::mediaMenuIconReport);
 	}();
+	{
+		const auto channel = story ? story->peer()->asChannel() : nullptr;
+		using Flag = ChannelDataFlag;
+		if (channel && (channel->flags() & Flag::CanGetStatistics)) {
+			const auto peer = channel;
+			const auto fullId = story->fullId();
+			addAction(tr::lng_stats_title(tr::now), [=] {
+				if (const auto window = findWindow()) {
+					close();
+					using namespace Info;
+					window->showSection(Statistics::Make(peer, {}, fullId));
+				}
+			}, &st::mediaMenuIconStats);
+		}
+	}
 	if (_stories && _stories->allowStealthMode()) {
 		const auto now = base::unixtime::now();
 		const auto stealth = _session->data().stories().stealthMode();
@@ -2170,14 +2173,22 @@ void OverlayWidget::assignMediaPointer(not_null<PhotoData*> photo) {
 	}
 }
 
-void OverlayWidget::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	setCursor((active || ClickHandler::getPressed()) ? style::cur_pointer : style::cur_default);
-	update(QRegion(_saveMsg) + _captionRect);
+void OverlayWidget::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
+	setCursor((active || ClickHandler::getPressed())
+		? style::cur_pointer
+		: style::cur_default);
+	update(QRegion(_saveMsg) + captionGeometry());
 }
 
-void OverlayWidget::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	setCursor((pressed || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
-	update(QRegion(_saveMsg) + _captionRect);
+void OverlayWidget::clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) {
+	setCursor((pressed || ClickHandler::getActive())
+		? style::cur_pointer
+		: style::cur_default);
+	update(QRegion(_saveMsg) + captionGeometry());
 }
 
 rpl::lifetime &OverlayWidget::lifetime() {
@@ -3584,11 +3595,6 @@ void OverlayWidget::displayFinished(anim::activation activation) {
 	if (isHidden()) {
 		_helper->beforeShow(_fullscreen);
 		moveToScreen();
-		//setAttribute(Qt::WA_DontShowOnScreen);
-		//OverlayParent::setVisibleHook(true);
-		//OverlayParent::setVisibleHook(false);
-		//setAttribute(Qt::WA_DontShowOnScreen, false);
-		//Ui::Platform::UpdateOverlayed(_window);
 		showAndActivate();
 	} else if (activation == anim::activation::background) {
 		return;
@@ -3619,6 +3625,7 @@ void OverlayWidget::showAndActivate() {
 		_window->showMaximized();
 	}
 	_helper->afterShow(_fullscreen);
+	_widget->update();
 	activate();
 }
 
@@ -4601,8 +4608,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		if (!_stories) {
 			renderer->paintFooter(footerGeometry(), opacity);
 		}
-		if (!_caption.isEmpty()
-			&& (!_stories || !_stories->skipCaption())) {
+		if (!(_stories ? _stories->skipCaption() : _caption.isEmpty())) {
 			renderer->paintCaption(captionGeometry(), opacity);
 		}
 		if (_groupThumbs) {
@@ -5009,8 +5015,14 @@ void OverlayWidget::paintCaptionContent(
 		QRect outer,
 		QRect clip,
 		float64 opacity) {
-	const auto inner = outer.marginsRemoved(st::mediaviewCaptionPadding);
-	if (!_stories) {
+	const auto full = outer.marginsRemoved(st::mediaviewCaptionPadding);
+	const auto inner = full.marginsRemoved(
+		_stories ? _stories->repostCaptionPadding() : QMargins());
+	if (_stories) {
+		if (_stories->repost()) {
+			_stories->drawRepostInfo(p, full.x(), full.y(), full.width());
+		}
+	} else {
 		p.setOpacity(opacity);
 		p.setBrush(st::mediaviewCaptionBg);
 		p.setPen(Qt::NoPen);
@@ -5057,7 +5069,10 @@ void OverlayWidget::paintCaptionContent(
 }
 
 QRect OverlayWidget::captionGeometry() const {
-	return _captionRect.marginsAdded(st::mediaviewCaptionPadding);
+	return _captionRect.marginsAdded(
+		st::mediaviewCaptionPadding
+	).marginsAdded(
+		_stories ? _stories->repostCaptionPadding() : QMargins());
 }
 
 void OverlayWidget::paintGroupThumbsContent(
@@ -5699,6 +5714,16 @@ void OverlayWidget::updateOver(QPoint pos) {
 			lnk = ensureCaptionExpandLink();
 		}
 		lnkhost = this;
+	} else if (_stories && captionGeometry().contains(pos)) {
+		const auto padding = st::mediaviewCaptionPadding;
+		const auto handler = _stories->lookupRepostHandler(
+			pos - captionGeometry().marginsRemoved(padding).topLeft());
+		if (handler) {
+			lnk = handler.link;
+			lnkhost = handler.host;
+			setCursor(style::cur_pointer);
+			_cursorOverriden = true;
+		}
 	} else if (_groupThumbs && _groupThumbsRect.contains(pos)) {
 		const auto point = pos - QPoint(_groupThumbsLeft, _groupThumbsTop);
 		lnk = _groupThumbs->getState(point);
@@ -5708,7 +5733,6 @@ void OverlayWidget::updateOver(QPoint pos) {
 		lnkhost = this;
 	}
 
-
 	// retina
 	if (pos.x() == width()) {
 		pos.setX(pos.x() - 1);
@@ -5717,6 +5741,10 @@ void OverlayWidget::updateOver(QPoint pos) {
 		pos.setY(pos.y() - 1);
 	}
 
+	if (_cursorOverriden && (!lnkhost || lnkhost == this)) {
+		_cursorOverriden = false;
+		setCursor(style::cur_default);
+	}
 	ClickHandler::setActive(lnk, lnkhost);
 
 	if (_pressed || _dragging) return;
@@ -6077,10 +6105,12 @@ void OverlayWidget::applyHideWindowWorkaround() {
 			});
 		}, raw->lifetime());
 		raw->update();
+		_widget->update();
 
-		if (Platform::IsWindows()) {
-			Ui::Platform::UpdateOverlayed(_window);
+		if (!Platform::IsMac()) {
+			Ui::ForceFullRepaintSync(_window);
 		}
+		_hideWorkaround = nullptr;
 	}
 }
 
@@ -6147,10 +6177,10 @@ void OverlayWidget::clearBeforeHide() {
 	_helper->setControlsOpacity(1.);
 	_groupThumbs = nullptr;
 	_groupThumbsRect = QRect();
-	_body->hide();
 }
 
 void OverlayWidget::clearAfterHide() {
+	_body->hide();
 	clearStreaming();
 	destroyThemePreview();
 	_radial.stop();

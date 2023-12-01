@@ -76,8 +76,8 @@ int StoryMention::buttonSkip() {
 	return st::storyMentionButtonSkip;
 }
 
-QString StoryMention::button() {
-	return tr::lng_action_story_mention_button(tr::now);
+rpl::producer<QString> StoryMention::button() {
+	return tr::lng_action_story_mention_button();
 }
 
 TextWithEntities StoryMention::subtitle() {

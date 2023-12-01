@@ -50,10 +50,24 @@ void GiftForBoostsBox(
 void GiftedNoBoostsBox(not_null<GenericBox*> box);
 void PremiumForBoostsBox(not_null<GenericBox*> box, Fn<void()> buyPremium);
 
+struct AskBoostChannelColor {
+	int requiredLevel = 0;
+};
+
+struct AskBoostCustomReactions {
+	int count = 0;
+};
+
+struct AskBoostReason {
+	std::variant<
+		AskBoostChannelColor,
+		AskBoostCustomReactions> data;
+};
+
 struct AskBoostBoxData {
 	QString link;
 	BoostCounters boost;
-	int requiredLevel = 0;
+	AskBoostReason reason;
 };
 
 void AskBoostBox(

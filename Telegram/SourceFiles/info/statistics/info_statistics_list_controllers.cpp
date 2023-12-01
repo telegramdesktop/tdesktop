@@ -91,11 +91,11 @@ void AddSubtitle(
 	return resultText;
 }
 
-struct Descriptor final {
+struct PublicForwardsDescriptor final {
 	Data::PublicForwardsSlice firstSlice;
 	Fn<void(FullMsgId)> showPeerHistory;
 	not_null<PeerData*> peer;
-	FullMsgId contextId;
+	Data::RecentPostId contextId;
 };
 
 struct MembersDescriptor final {
@@ -229,7 +229,7 @@ void MembersController::rowClicked(not_null<PeerListRow*> row) {
 
 class PublicForwardsController final : public PeerListController {
 public:
-	explicit PublicForwardsController(Descriptor d);
+	explicit PublicForwardsController(PublicForwardsDescriptor d);
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -251,7 +251,7 @@ private:
 
 };
 
-PublicForwardsController::PublicForwardsController(Descriptor d)
+PublicForwardsController::PublicForwardsController(PublicForwardsDescriptor d)
 : _session(&d.peer->session())
 , _showPeerHistory(std::move(d.showPeerHistory))
 , _api(d.peer->asChannel(), d.contextId)
@@ -282,8 +282,11 @@ void PublicForwardsController::applySlice(
 	_apiToken = slice.token;
 
 	for (const auto &item : slice.list) {
-		if (const auto peer = session().data().peerLoaded(item.peer)) {
-			appendRow(peer, item.msg);
+		// TODO support stories.
+		if (const auto fullId = item.messageId) {
+			if (const auto peer = session().data().peerLoaded(fullId.peer)) {
+				appendRow(peer, fullId.msg);
+			}
 		}
 	}
 	delegate()->peerListRefreshRows();
@@ -617,23 +620,24 @@ void AddPublicForwards(
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(FullMsgId)> showPeerHistory,
 		not_null<PeerData*> peer,
-		FullMsgId contextId) {
+		Data::RecentPostId contextId) {
 	if (!peer->isChannel()) {
 		return;
 	}
 
 	struct State final {
-		State(Descriptor d) : controller(std::move(d)) {
+		State(PublicForwardsDescriptor d) : controller(std::move(d)) {
 		}
 		PeerListContentDelegateSimple delegate;
 		PublicForwardsController controller;
 	};
-	const auto state = container->lifetime().make_state<State>(Descriptor{
+	auto d = PublicForwardsDescriptor{
 		firstSlice,
 		std::move(showPeerHistory),
 		peer,
 		contextId,
-	});
+	};
+	const auto state = container->lifetime().make_state<State>(std::move(d));
 
 	if (const auto total = firstSlice.total; total > 0) {
 		AddSubtitle(

@@ -1192,6 +1192,12 @@ void History::applyServiceChanges(
 		}
 	}, [&](const MTPDmessageActionSetChatTheme &data) {
 		peer->setThemeEmoji(qs(data.vemoticon()));
+	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
+		if (item->out() || data.is_for_both()) {
+			peer->setWallPaper(
+				Data::WallPaper::Create(&session(), data.vwallpaper()),
+				!item->out() && data.is_for_both());
+		}
 	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
 		processJoinedPeer(item->from());
 	}, [&](const MTPDmessageActionTopicCreate &data) {
@@ -2808,6 +2814,7 @@ void History::applyDialog(
 				}
 			}
 		}
+		channel->setViewAsMessagesFlag(data.is_view_forum_as_messages());
 	}
 	owner().notifySettings().apply(
 		MTP_notifyPeer(data.vpeer()),
@@ -3189,6 +3196,7 @@ void History::insertMessageToBlocks(not_null<HistoryItem*> item) {
 				const auto lastDate = chatListTimeId();
 				if (!lastDate || itemDate >= lastDate) {
 					setLastMessage(item);
+					owner().notifyHistoryChangeDelayed(this);
 				}
 				return;
 			}
@@ -3224,6 +3232,10 @@ void History::checkLocalMessages() {
 		&& goodDate(peer->asChannel()->inviteDate)) {
 		insertJoinedMessage();
 	}
+}
+
+HistoryItem *History::joinedMessageInstance() const {
+	return _joinedMessage;
 }
 
 void History::removeJoinedMessage() {

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "lang/lang_keys.h"
 #include "statistics/chart_lines_filter_controller.h"
+#include "statistics/statistics_format_values.h"
 #include "statistics/view/abstract_chart_view.h"
 #include "statistics/view/chart_view_factory.h"
 #include "statistics/view/stack_chart_common.h"
@@ -72,22 +73,19 @@ void FillLineColorsByKey(Data::StatisticalChart &chartData) {
 	if (leftTimestamp < kOneDay) {
 		return {};
 	}
-	const auto formatter = u"d MMM yyyy"_q;
-	const auto leftDateTime = QDateTime::fromSecsSinceEpoch(
-		leftTimestamp / 1000);
-	const auto leftText = QLocale().toString(leftDateTime.date(), formatter);
+	const auto leftText = LangDayMonthYear(leftTimestamp / 1000);
 	if ((xIndexMin == xIndexMax) && !chartData.weekFormat) {
 		return leftText;
 	} else {
 		constexpr auto kSevenDays = 3600 * 24 * 7;
-		const auto rightDateTime = QDateTime::fromSecsSinceEpoch(0
+		const auto rightTimestamp = 0
 			+ (chartData.x[xIndexMax] / 1000)
-			+ (chartData.weekFormat ? kSevenDays : 0));
+			+ (chartData.weekFormat ? kSevenDays : 0);
 		return leftText
 			+ ' '
 			+ QChar(8212)
 			+ ' '
-			+ QLocale().toString(rightDateTime.date(), formatter);
+			+ LangDayMonthYear(rightTimestamp);
 	}
 }
 
@@ -1462,7 +1460,7 @@ void ChartWidget::setChartData(
 	_chartView = CreateChartView(type);
 	_chartView->setLinesFilterController(_linesFilterController);
 	_rulersView.setChartData(_chartData, type, _linesFilterController);
-	_areRulersAbove = (type == ChartViewType::Stack);
+	_areRulersAbove = (type == ChartViewType::StackBar);
 
 	if (_chartData.isFooterHidden) {
 		_footer->hide();

@@ -281,7 +281,12 @@ void ScheduledWidget::setupComposeControls() {
 			if (item->isScheduled() && item->history() == _history) {
 				showAtPosition(item->position());
 			} else {
-				JumpToMessageClickHandler(item, {}, to.quote)->onClick({});
+				JumpToMessageClickHandler(
+					item,
+					{},
+					to.quote,
+					to.quoteOffset
+				)->onClick({});
 			}
 		}
 	}, lifetime());

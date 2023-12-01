@@ -38,32 +38,40 @@ namespace {
 
 constexpr auto kNonExpandedLinesLimit = 5;
 
+} // namespace
+
 void ValidateBackgroundEmoji(
 		DocumentId backgroundEmojiId,
 		not_null<Ui::BackgroundEmojiData*> data,
 		not_null<Ui::BackgroundEmojiCache*> cache,
 		not_null<Ui::Text::QuotePaintCache*> quote,
 		not_null<const Element*> view) {
+	if (data->firstFrameMask.isNull() && !data->emoji) {
+		data->emoji = CreateBackgroundEmojiInstance(
+			&view->history()->owner(),
+			backgroundEmojiId,
+			crl::guard(view, [=] { view->repaint(); }));
+	}
+	ValidateBackgroundEmoji(backgroundEmojiId, data, cache, quote);
+}
+
+void ValidateBackgroundEmoji(
+		DocumentId backgroundEmojiId,
+		not_null<Ui::BackgroundEmojiData*> data,
+		not_null<Ui::BackgroundEmojiCache*> cache,
+		not_null<Ui::Text::QuotePaintCache*> quote) {
+	Expects(!data->firstFrameMask.isNull() || data->emoji != nullptr);
+
 	if (data->firstFrameMask.isNull()) {
 		if (!cache->frames[0].isNull()) {
 			for (auto &frame : cache->frames) {
 				frame = QImage();
 			}
 		}
-		const auto tag = Data::CustomEmojiSizeTag::Isolated;
-		if (!data->emoji) {
-			const auto owner = &view->history()->owner();
-			const auto repaint = crl::guard(view, [=] {
-				view->history()->owner().requestViewRepaint(view);
-			});
-			data->emoji = owner->customEmojiManager().create(
-				backgroundEmojiId,
-				repaint,
-				tag);
-		}
 		if (!data->emoji->ready()) {
 			return;
 		}
+		const auto tag = Data::CustomEmojiSizeTag::Isolated;
 		const auto size = Data::FrameSizeFromTag(tag);
 		data->firstFrameMask = QImage(
 			QSize(size, size),
@@ -117,8 +125,19 @@ void ValidateBackgroundEmoji(
 	cache->frames[2] = make(kSize3);
 }
 
+auto CreateBackgroundEmojiInstance(
+	not_null<Data::Session*> owner,
+	DocumentId backgroundEmojiId,
+	Fn<void()> repaint)
+-> std::unique_ptr<Ui::Text::CustomEmoji> {
+	return owner->customEmojiManager().create(
+		backgroundEmojiId,
+		repaint,
+		Data::CustomEmojiSizeTag::Isolated);
+}
+
 void FillBackgroundEmoji(
-		Painter &p,
+		QPainter &p,
 		const QRect &rect,
 		bool quote,
 		const Ui::BackgroundEmojiCache &cache) {
@@ -158,8 +177,6 @@ void FillBackgroundEmoji(
 	p.setClipping(false);
 	p.setOpacity(1.);
 }
-
-} // namespace
 
 Reply::Reply()
 : _name(st::maxSignatureSize / 2)
@@ -270,6 +287,7 @@ void Reply::setLinkFrom(
 	const auto quote = fields.manualQuote
 		? fields.quote
 		: TextWithEntities();
+	const auto quoteOffset = fields.quoteOffset;
 	const auto returnToId = view->data()->fullId();
 	const auto externalLink = [=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -292,7 +310,8 @@ void Reply::setLinkFrom(
 							channel,
 							messageId,
 							returnToId,
-							quote
+							quote,
+							quoteOffset
 						)->onClick(context);
 					} else {
 						controller->showPeerInfo(channel);
@@ -313,7 +332,7 @@ void Reply::setLinkFrom(
 	const auto message = data->resolvedMessage.get();
 	const auto story = data->resolvedStory.get();
 	_link = message
-		? JumpToMessageClickHandler(message, returnToId, quote)
+		? JumpToMessageClickHandler(message, returnToId, quote, quoteOffset)
 		: story
 		? JumpToStoryClickHandler(story)
 		: (data->external()
@@ -777,7 +796,7 @@ void Reply::createRippleAnimation(
 		Ui::RippleAnimation::RoundRectMask(
 			size,
 			st::messageQuoteStyle.radius),
-		[=] { view->history()->owner().requestViewRepaint(view); });
+		[=] { view->repaint(); });
 }
 
 void Reply::saveRipplePoint(QPoint point) const {
@@ -799,6 +818,12 @@ void Reply::stopLastRipple() {
 TextWithEntities Reply::PeerEmoji(
 		not_null<History*> history,
 		PeerData *peer) {
+	return PeerEmoji(&history->owner(), peer);
+}
+
+TextWithEntities Reply::PeerEmoji(
+		not_null<Data::Session*> owner,
+		PeerData *peer) {
 	using namespace std;
 	const auto icon = !peer
 		? pair(&st::historyReplyUser, st::historyReplyUserPadding)
@@ -807,7 +832,6 @@ TextWithEntities Reply::PeerEmoji(
 		: (peer->isChannel() || peer->isChat())
 		? pair(&st::historyReplyGroup, st::historyReplyGroupPadding)
 		: pair(&st::historyReplyUser, st::historyReplyUserPadding);
-	const auto owner = &history->owner();
 	return Ui::Text::SingleCustomEmoji(
 		owner->customEmojiManager().registerInternalEmoji(
 			*icon.first,

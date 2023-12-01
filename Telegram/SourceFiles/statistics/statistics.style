@@ -104,6 +104,13 @@ statisticsRecentPostButton: SettingsButton(defaultSettingsButton) {
 	height: 56px;
 	padding: margins(7px, 0px, 24px, 0px);
 }
+statisticsRecentPostIconSkip: 1px;
+statisticsRecentPostShareIcon: icon {{ "statistics/mini_stats_share", windowSubTextFg }};
+statisticsRecentPostReactionIcon: icon {{ "statistics/mini_stats_like", windowSubTextFg }};
+statisticsRecentPostUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(contactsPhotoSize, contactsPhotoSize);
+	photoSize: contactsPhotoSize;
+}
 
 statisticsShowMoreButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;

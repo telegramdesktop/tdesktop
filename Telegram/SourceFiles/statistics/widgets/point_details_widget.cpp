@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/widgets/point_details_widget.h"
 
-#include "ui/cached_round_corners.h"
 #include "statistics/statistics_common.h"
+#include "statistics/statistics_format_values.h"
 #include "statistics/view/stack_linear_chart_common.h"
+#include "ui/cached_round_corners.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -22,32 +23,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Statistic {
 namespace {
 
-[[nodiscard]] QString FormatTimestamp(
-		float64 timestamp,
-		const QString &longFormat,
-		const QString &shortFormat) {
-	const auto dateTime = QDateTime::fromSecsSinceEpoch(timestamp / 1000);
-	if (dateTime.toUTC().time().hour() || dateTime.toUTC().time().minute()) {
-		return QLocale().toString(dateTime, longFormat);
-	} else {
-		return QLocale().toString(dateTime.date(), shortFormat);
-	}
-}
-
 [[nodiscard]] QString FormatWeek(float64 timestamp) {
 	constexpr auto kSevenDays = 3600 * 24 * 7;
-	const auto leftFormatter = u"d MMM"_q;
-	const auto rightFormatter = u"d MMM yyyy"_q;
 	timestamp /= 1000;
-	return QLocale().toString(
-			QDateTime::fromSecsSinceEpoch(timestamp).date(),
-			leftFormatter)
+	return LangDayMonth(timestamp)
 		+ ' '
 		+ QChar(8212)
 		+ ' '
-		+ QLocale().toString(
-			QDateTime::fromSecsSinceEpoch(timestamp + kSevenDays).date(),
-			rightFormatter);
+		+ LangDayMonthYear(timestamp + kSevenDays);
 }
 
 void PaintShadow(QPainter &p, int radius, const QRect &r) {
@@ -149,9 +132,7 @@ PointDetailsWidget::PointDetailsWidget(
 , _zoomEnabled(zoomEnabled)
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
-, _headerStyle(st::statisticsDetailsPopupHeaderStyle)
-, _longFormat(u"ddd, d MMM hh:mm"_q)
-, _shortFormat(u"ddd, d MMM yyyy"_q) {
+, _headerStyle(st::statisticsDetailsPopupHeaderStyle) {
 
 	if (zoomEnabled) {
 		rpl::single(rpl::empty_value()) | rpl::then(
@@ -209,10 +190,7 @@ PointDetailsWidget::PointDetailsWidget(
 				_headerStyle,
 				_chartData.weekFormat
 					? FormatWeek(_chartData.x.front())
-					: FormatTimestamp(
-						_chartData.x.front(),
-						_longFormat,
-						_shortFormat));
+					: LangDetailedDayMonth(_chartData.x.front() / 1000));
 			maxNameTextWidth = std::max(
 				maxHeaderText.maxWidth()
 					+ st::statisticsDetailsPopupPadding.left(),
@@ -278,7 +256,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 				? _chartData.getDayString(xIndex)
 				: _chartData.weekFormat
 				? FormatWeek(timestamp)
-				: FormatTimestamp(timestamp, _longFormat, _shortFormat));
+				: LangDetailedDayMonth(timestamp / 1000));
 	}
 
 	_lines.clear();

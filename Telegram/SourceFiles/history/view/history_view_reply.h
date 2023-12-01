@@ -9,11 +9,47 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 
+namespace Data {
+class Session;
+} // namespace Data
+
 namespace Ui {
 class SpoilerAnimation;
+struct BackgroundEmojiData;
+struct BackgroundEmojiCache;
 } // namespace Ui
 
+namespace Ui::Text {
+class CustomEmoji;
+struct QuotePaintCache;
+} // namespace Ui::Text
+
 namespace HistoryView {
+
+void ValidateBackgroundEmoji(
+	DocumentId backgroundEmojiId,
+	not_null<Ui::BackgroundEmojiData*> data,
+	not_null<Ui::BackgroundEmojiCache*> cache,
+	not_null<Ui::Text::QuotePaintCache*> quote,
+	not_null<const Element*> view);
+
+// For this one data->firstFrameMask or data->emoji must be already set.
+void ValidateBackgroundEmoji(
+	DocumentId backgroundEmojiId,
+	not_null<Ui::BackgroundEmojiData*> data,
+	not_null<Ui::BackgroundEmojiCache*> cache,
+	not_null<Ui::Text::QuotePaintCache*> quote);
+[[nodiscard]] auto CreateBackgroundEmojiInstance(
+	not_null<Data::Session*> owner,
+	DocumentId backgroundEmojiId,
+	Fn<void()> repaint)
+-> std::unique_ptr<Ui::Text::CustomEmoji>;
+
+void FillBackgroundEmoji(
+	QPainter &p,
+	const QRect &rect,
+	bool quote,
+	const Ui::BackgroundEmojiCache &cache);
 
 class Reply final : public RuntimeComponent<Reply, Element> {
 public:
@@ -65,6 +101,9 @@ public:
 
 	[[nodiscard]] static TextWithEntities PeerEmoji(
 		not_null<History*> history,
+		PeerData *peer);
+	[[nodiscard]] static TextWithEntities PeerEmoji(
+		not_null<Data::Session*> owner,
 		PeerData *peer);
 	[[nodiscard]] static TextWithEntities ComposePreviewName(
 		not_null<History*> history,

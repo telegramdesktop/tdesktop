@@ -54,14 +54,10 @@ public:
 		const QString &key) const;
 	void dismissSuggestion(const QString &key);
 
-	[[nodiscard]] auto colorIndicesValue() const
-		-> rpl::producer<Ui::ColorIndicesCompressed>;
-
 	void refresh();
 
 private:
 	void refreshDelayed();
-	void parseColorIndices();
 
 	template <typename Extractor>
 	[[nodiscard]] auto getValue(
@@ -94,9 +90,6 @@ private:
 	base::flat_map<QString, MTPJSONValue> _data;
 	rpl::event_stream<> _refreshed;
 	base::flat_set<QString> _dismissedSuggestions;
-
-	rpl::event_stream<> _colorIndicesChanged;
-	std::unique_ptr<Ui::ColorIndicesCompressed> _colorIndicesCurrent;
 
 	rpl::lifetime _lifetime;
 

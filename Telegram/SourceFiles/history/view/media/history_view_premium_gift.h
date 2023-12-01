@@ -28,7 +28,7 @@ public:
 	QSize size() override;
 	QString title() override;
 	TextWithEntities subtitle() override;
-	QString button() override;
+	rpl::producer<QString> button() override;
 	int buttonSkip() override;
 	void draw(
 		Painter &p,

@@ -61,7 +61,6 @@ void AppConfig::refresh() {
 					_data.emplace_or_assign(qs(data.vkey()), data.vvalue());
 				});
 			}
-			parseColorIndices();
 			DEBUG_LOG(("getAppConfig result handled."));
 			_refreshed.fire({});
 		}, [](const MTPDhelp_appConfigNotModified &) {});
@@ -222,123 +221,6 @@ void AppConfig::dismissSuggestion(const QString &key) {
 		MTP_inputPeerEmpty(),
 		MTP_string(key)
 	)).send();
-}
-
-void AppConfig::parseColorIndices() {
-	constexpr auto parseColor = [](const MTPJSONValue &color) {
-		if (color.type() != mtpc_jsonString) {
-			LOG(("API Error: Bad type for color element."));
-			return uint32();
-		}
-		const auto value = color.c_jsonString().vvalue().v;
-		if (value.size() != 6) {
-			LOG(("API Error: Bad length for color element: %1"
-				).arg(qs(value)));
-			return uint32();
-		}
-		const auto hex = [](char ch) {
-			return (ch >= 'a' && ch <= 'f')
-				? (ch - 'a' + 10)
-				: (ch >= 'A' && ch <= 'F')
-				? (ch - 'A' + 10)
-				: (ch >= '0' && ch <= '9')
-				? (ch - '0')
-				: 0;
-		};
-		auto result = (uint32(1) << 24);
-		for (auto i = 0; i != 6; ++i) {
-			result |= (uint32(hex(value[i])) << ((5 - i) * 4));
-		}
-		return result;
-	};
-
-	struct ParsedColor {
-		uint8 colorIndex = Ui::kColorIndexCount;
-		std::array<uint32, Ui::kColorPatternsCount> colors;
-
-		explicit operator bool() const {
-			return colorIndex < Ui::kColorIndexCount;
-		}
-	};
-	const auto parseColors = [&](const MTPJSONObjectValue &element) {
-		const auto &data = element.data();
-		if (data.vvalue().type() != mtpc_jsonArray) {
-			LOG(("API Error: Bad value for peer_colors element."));
-			return ParsedColor();
-		}
-		const auto &list = data.vvalue().c_jsonArray().vvalue().v;
-		if (list.empty() || list.size() > Ui::kColorPatternsCount) {
-			LOG(("API Error: Bad count for peer_colors element: %1"
-				).arg(list.size()));
-			return ParsedColor();
-		}
-		const auto index = data.vkey().v.toInt();
-		if (index < Ui::kSimpleColorIndexCount
-			|| index >= Ui::kColorIndexCount) {
-			LOG(("API Error: Bad index for peer_colors element: %1"
-				).arg(qs(data.vkey().v)));
-			return ParsedColor();
-		}
-		auto result = ParsedColor{ .colorIndex = uint8(index) };
-		auto fill = result.colors.data();
-		for (const auto &color : list) {
-			*fill++ = parseColor(color);
-		}
-		return result;
-	};
-	const auto checkColorsObjectType = [&](const MTPJSONValue &value) {
-		if (value.type() != mtpc_jsonObject) {
-			if (value.type() != mtpc_jsonArray
-				|| !value.c_jsonArray().vvalue().v.empty()) {
-				LOG(("API Error: Bad value for [dark_]peer_colors."));
-			}
-			return false;
-		}
-		return true;
-	};
-
-	auto colors = std::make_shared<
-		std::array<Ui::ColorIndexData, Ui::kColorIndexCount>>();
-	getValue(u"peer_colors"_q, [&](const MTPJSONValue &value) {
-		if (!checkColorsObjectType(value)) {
-			return;
-		}
-		for (const auto &element : value.c_jsonObject().vvalue().v) {
-			if (const auto parsed = parseColors(element)) {
-				auto &fields = (*colors)[parsed.colorIndex];
-				fields.dark = fields.light = parsed.colors;
-			}
-		}
-	});
-	getValue(u"dark_peer_colors"_q, [&](const MTPJSONValue &value) {
-		if (!checkColorsObjectType(value)) {
-			return;
-		}
-		for (const auto &element : value.c_jsonObject().vvalue().v) {
-			if (const auto parsed = parseColors(element)) {
-				(*colors)[parsed.colorIndex].dark = parsed.colors;
-			}
-		}
-	});
-
-	if (!_colorIndicesCurrent) {
-		_colorIndicesCurrent = std::make_unique<Ui::ColorIndicesCompressed>(
-			Ui::ColorIndicesCompressed{ std::move(colors) });
-		_colorIndicesChanged.fire({});
-	} else if (*_colorIndicesCurrent->colors != *colors) {
-		_colorIndicesCurrent->colors = std::move(colors);
-		_colorIndicesChanged.fire({});
-	}
-}
-
-auto AppConfig::colorIndicesValue() const
--> rpl::producer<Ui::ColorIndicesCompressed> {
-	return rpl::single(_colorIndicesCurrent
-		? *_colorIndicesCurrent
-		: Ui::ColorIndicesCompressed()
-	) | rpl::then(_colorIndicesChanged.events() | rpl::map([=] {
-		return *_colorIndicesCurrent;
-	}));
 }
 
 } // namespace Main

@@ -8,13 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/main_window_mac.h"
 
 #include "data/data_session.h"
-#include "styles/style_window.h"
-#include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "main/main_session.h"
-#include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
 #include "main/main_account.h"
@@ -22,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
-#include "window/notifications_manager_default.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "platform/mac/touchbar/mac_touchbar_manager.h"
@@ -33,13 +29,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/about_box.h"
 #include "lang/lang_keys.h"
 #include "base/platform/mac/base_utilities_mac.h"
-#include "ui/widgets/fields/input_field.h"
-#include "ui/ui_utility.h"
 
-#include <QtWidgets/QApplication>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QTextEdit>
-#include <QtGui/QClipboard>
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
 #include <qpa/qwindowsysteminterface.h>

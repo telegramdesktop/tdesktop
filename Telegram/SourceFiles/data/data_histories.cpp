@@ -72,7 +72,7 @@ MTPInputReplyTo ReplyToForMTP(
 				| (external ? Flag::f_reply_to_peer_id : Flag())
 				| (replyTo.quote.text.isEmpty()
 					? Flag()
-					: Flag::f_quote_text)
+					: (Flag::f_quote_text | Flag::f_quote_offset))
 				| (quoteEntities.v.isEmpty()
 					? Flag()
 					: Flag::f_quote_entities)),
@@ -82,7 +82,8 @@ MTPInputReplyTo ReplyToForMTP(
 				? owner->peer(replyTo.messageId.peer)->input
 				: MTPInputPeer()),
 			MTP_string(replyTo.quote.text),
-			quoteEntities);
+			quoteEntities,
+			MTP_int(replyTo.quoteOffset));
 	}
 	return MTPInputReplyTo();
 }
@@ -983,6 +984,7 @@ int Histories::sendPreparedMessage(
 		.quote = replyTo.quote,
 		.storyId = replyTo.storyId,
 		.topicRootId = convertTopicReplyToId(history, replyTo.topicRootId),
+		.quoteOffset = replyTo.quoteOffset,
 	};
 	return v::match(message(history, realReplyTo), [&](const auto &request) {
 		const auto type = RequestType::Send;

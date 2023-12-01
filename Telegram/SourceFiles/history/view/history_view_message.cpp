@@ -10,10 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "core/ui_integration.h"
 #include "history/view/history_view_cursor_state.h"
-#include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
-#include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/reactions/history_view_reactions_button.h"
@@ -23,17 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "boxes/share_box.h"
 #include "ui/effects/glare.h"
-#include "ui/effects/ripple_animation.h"
 #include "ui/effects/reaction_fly_animation.h"
-#include "ui/chat/message_bubble.h"
-#include "ui/chat/chat_style.h"
 #include "ui/rect.h"
 #include "ui/round_rect.h"
 #include "ui/text/text_utilities.h"
-#include "ui/text/text_entity.h"
-#include "ui/cached_round_corners.h"
 #include "ui/power_saving.h"
-#include "base/unixtime.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -47,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
-#include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
@@ -1191,7 +1182,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				0,
 				st::historyFastShareBottom);
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			const auto fastShareTop = g.top() + g.height() - fastShareSkip - size->height();
+			const auto fastShareTop = data()->isSponsored()
+				? g.top() + fastShareSkip
+				: g.top() + g.height() - fastShareSkip - size->height();
 			drawRightAction(p, context, fastShareLeft, fastShareTop, width());
 		}
 
@@ -1996,14 +1989,6 @@ bool Message::hasFromPhoto() const {
 	case Context::Replies: {
 		const auto item = data();
 		if (item->isPost()) {
-			if (item->isSponsored()) {
-				if (item->history()->peer->isMegagroup()) {
-					return true;
-				}
-				if (const auto info = item->Get<HistoryMessageSponsored>()) {
-					return info->isForceUserpicDisplay;
-				}
-			}
 			return false;
 		}
 		if (item->isEmpty()
@@ -2217,7 +2202,9 @@ TextState Message::textState(
 				0,
 				st::historyFastShareBottom);
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			const auto fastShareTop = g.top() + g.height() - fastShareSkip - size->height();
+			const auto fastShareTop = data()->isSponsored()
+				? g.top() + fastShareSkip
+				: g.top() + g.height() - fastShareSkip - size->height();
 			if (QRect(
 				fastShareLeft,
 				fastShareTop,
@@ -2684,11 +2671,13 @@ SelectedQuote Message::selectedQuote(TextSelection selection) const {
 }
 
 TextSelection Message::selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const {
-	if (quote.empty()) {
+		const SelectedQuote &quote) const {
+	Expects(quote.item != nullptr);
+
+	if (quote.text.empty()) {
 		return {};
 	}
+	const auto item = quote.item;
 	const auto &translated = item->translatedText();
 	const auto &original = item->originalText();
 	if (&translated != &original) {
@@ -2697,11 +2686,11 @@ TextSelection Message::selectionFromQuote(
 		const auto media = this->media();
 		const auto mediaDisplayed = media && media->isDisplayed();
 		const auto mediaBefore = mediaDisplayed && invertMedia();
-		const auto result = FindSelectionFromQuote(text(), item, quote);
+		const auto result = FindSelectionFromQuote(text(), quote);
 		return mediaBefore ? media->unskipSelection(result) : result;
 	} else if (const auto media = this->media()) {
 		if (media->isDisplayed() || isHiddenByGroup()) {
-			return media->selectionFromQuote(item, quote);
+			return media->selectionFromQuote(quote);
 		}
 	}
 	return {};
@@ -3096,10 +3085,8 @@ int Message::viewButtonHeight() const {
 
 void Message::updateViewButtonExistence() {
 	const auto item = data();
-	const auto sponsored = item->Get<HistoryMessageSponsored>();
-	const auto media = sponsored ? nullptr : item->media();
-	const auto has = sponsored
-		|| (media && ViewButton::MediaHasViewButton(media));
+	const auto media = item->media();
+	const auto has = (media && ViewButton::MediaHasViewButton(media));
 	if (!has) {
 		_viewButton = nullptr;
 		return;
@@ -3112,7 +3099,7 @@ void Message::updateViewButtonExistence() {
 			colorIndex(),
 			[=] { repaint(); });
 	};
-	_viewButton = sponsored ? make(sponsored) : make(media);
+	_viewButton = make(media);
 }
 
 void Message::initLogEntryOriginal() {
@@ -3198,7 +3185,7 @@ bool Message::hasFromName() const {
 }
 
 bool Message::displayFromName() const {
-	if (!hasFromName() || isAttachedToPrevious()) {
+	if (!hasFromName() || isAttachedToPrevious() || data()->isSponsored()) {
 		return false;
 	}
 	return !Has<PsaTooltipState>();
@@ -3351,7 +3338,9 @@ std::optional<QSize> Message::rightActionSize() const {
 				st::historyFastShareSize + st::historyFastShareBottom + st::semiboldFont->height)
 			: QSize(st::historyFastShareSize, st::historyFastShareSize);
 	}
-	return (displayFastShare() || displayGoToOriginal())
+	return data()->isSponsored()
+		? QSize(st::historyFastCloseSize, st::historyFastCloseSize)
+		: (displayFastShare() || displayGoToOriginal())
 		? QSize(st::historyFastShareSize, st::historyFastShareSize)
 		: std::optional<QSize>();
 }
@@ -3455,7 +3444,9 @@ void Message::drawRightAction(
 				views->repliesSmall.textWidth);
 		}
 	} else {
-		const auto &icon = (displayFastShare() && !isPinnedContext())
+		const auto &icon = data()->isSponsored()
+			? st->historyFastCloseIcon()
+			: (displayFastShare() && !isPinnedContext())
 			? st->historyFastShareIcon()
 			: st->historyGoToOriginalIcon();
 		icon.paintInCenter(p, { left, top, size->width(), size->height() });
@@ -3483,7 +3474,9 @@ void Message::ensureRightAction() const {
 }
 
 ClickHandlerPtr Message::prepareRightActionLink() const {
-	if (isPinnedContext()) {
+	if (data()->isSponsored()) {
+		return HideSponsoredClickHandler();
+	} else if (isPinnedContext()) {
 		return JumpToMessageClickHandler(data());
 	} else if (displayRightActionComments()) {
 		return createGoToCommentsLink();

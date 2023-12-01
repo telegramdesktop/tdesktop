@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "core/application.h"
-#include "core/shortcuts.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h" // Storage::StartResult.
 #include "storage/serialize_common.h"
@@ -21,9 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "media/audio/media_audio.h"
 #include "mtproto/mtproto_config.h"
-#include "mtproto/mtproto_dc_options.h"
-#include "mtproto/mtp_instance.h"
-#include "ui/image/image.h"
 #include "mainwidget.h"
 #include "api/api_updates.h"
 #include "main/main_app_config.h"
@@ -173,8 +169,8 @@ void Account::createSession(
 			MTPEmojiStatus(),
 			MTPVector<MTPUsername>(),
 			MTPint(), // stories_max_id
-			MTP_int(0), // color
-			MTPlong()), // background_emoji_id
+			MTPPeerColor(), // color
+			MTPPeerColor()), // profile_color
 		serialized,
 		streamVersion,
 		std::move(settings));

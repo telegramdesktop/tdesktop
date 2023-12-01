@@ -169,12 +169,13 @@ void Preview::watchParent() {
 }
 
 void Preview::reparent() {
-	if (_widget.window() == &_widget) {
+	const auto parent = _widget.parentWidget();
+	if (!parent) {
 		// macOS just removes parenting for a _window.
 		_parentWatcher = nullptr;
 		return;
 	}
-	_widget.setParent(_widget.window());
+	_widget.setParent(parent->window(), _widget.windowFlags());
 	if (_shown) {
 		_widget.show();
 		updateGlobalPosition();
@@ -192,7 +193,7 @@ void Preview::toggle(ScalePreviewShow show, int scale, int sliderX) {
 	updateToScale(scale);
 	updateGlobalPosition(sliderX);
 	if (_widget.isHidden()) {
-		Ui::Platform::UpdateOverlayed(&_widget);
+		Ui::ForceFullRepaintSync(&_widget);
 	}
 	toggleShown(true);
 }

@@ -27,6 +27,7 @@ enum class WebPageType : uint8 {
 	Channel,
 	ChannelWithRequest,
 	ChannelBoost,
+	Giftcode,
 
 	Photo,
 	Video,

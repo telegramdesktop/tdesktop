@@ -47,6 +47,7 @@ jobs:
     strategy:
       matrix:
         arch: [Win32, x64]
+        generator: ["", "Ninja Multi-Config"]
 
     env:
       UPLOAD_ARTIFACT: "false"
@@ -109,18 +110,41 @@ jobs:
           cd %TBUILD%
           %REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
 
-      - name: Read defines.
+      - name: Read configuration matrix.
         shell: bash
         run: |
+          ARTIFACT_NAME="Telegram"
+
+          ARCH=""
+          if [ -n "${{ matrix.arch }}" ]; then
+            case "${{ matrix.arch }}" in
+              Win32) ARCH="x86";;
+              *) ARCH="${{ matrix.arch }}";;
+            esac
+            echo "Architecture from matrix: $ARCH"
+            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.arch }}"
+          fi
+
+          GENERATOR=""
+          if [ -n "${{ matrix.generator }}" ]; then
+            GENERATOR="-G \"${{ matrix.generator }}\""
+            echo "Generator from matrix: $GENERATOR"
+            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.generator }}"
+          fi
+          echo "TDESKTOP_BUILD_GENERATOR=$GENERATOR" >> $GITHUB_ENV
+
+          [ -n "$GENERATOR" ] && ARCH=""
+          echo "TDESKTOP_BUILD_ARCH=$ARCH" >> $GITHUB_ENV
+
           DEFINE=""
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo "Define from matrix: $DEFINE"
-            echo "ARTIFACT_NAME=Telegram_${{ matrix.arch }}_${{ matrix.defines }}" >> $GITHUB_ENV
-          else
-            echo "ARTIFACT_NAME=Telegram_${{ matrix.arch }}" >> $GITHUB_ENV
+            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.defines }}"
           fi
           echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
+
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
 
           API="-D TDESKTOP_API_TEST=ON"
           if [ $GITHUB_REF == 'refs/heads/nightly' ]; then
@@ -142,24 +166,23 @@ jobs:
           cd %TBUILD%\%REPO_NAME%\Telegram
 
           call configure.bat ^
-          ${{ matrix.arch }} ^
+          %TDESKTOP_BUILD_GENERATOR% ^
+          %TDESKTOP_BUILD_ARCH% ^
           %TDESKTOP_BUILD_API% ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
           -D DESKTOP_APP_NO_PDB=ON ^
-          %TDESKTOP_BUILD_DEFINE% ^
-          -DCMAKE_SYSTEM_VERSION=%SDK%
+          %TDESKTOP_BUILD_DEFINE%
 
-          cd ..\out
-          msbuild -m Telegram.sln /p:Configuration=Debug,Platform=${{ matrix.arch }},DebugSymbols=false,DebugType=none
+          cmake --build ..\out --config Debug --parallel
 
       - name: Move artifact.
-        if: (env.UPLOAD_ARTIFACT == 'true') || ${{ github.ref == 'refs/heads/nightly' }}
+        if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
         run: |
           mkdir artifact
           move %TBUILD%\%REPO_NAME%\out\Debug\Telegram.exe artifact/
       - uses: actions/upload-artifact@master
         name: Upload artifact.
-        if: (env.UPLOAD_ARTIFACT == 'true') || ${{ github.ref == 'refs/heads/nightly' }}
+        if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: artifact\

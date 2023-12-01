@@ -25,6 +25,27 @@ struct PaintContext final {
 	bool footer = false;
 };
 
+struct CachedSelectedPoints final {
+	[[nodiscard]] bool isSame(int x, const PaintContext &c) const;
+
+	int lastXIndex = -1;
+	Limits lastHeightLimits;
+	Limits lastXLimits;
+	base::flat_map<int, QPointF> points;
+};
+
+class DoubleLineRatios final : std::pair<float64, float64> {
+public:
+	DoubleLineRatios(bool isDouble);
+
+	operator bool() const {
+		return first > 0;
+	}
+
+	void init(const Data::StatisticalChart &chartData);
+	[[nodiscard]] float64 ratio(int lineId) const;
+};
+
 class AbstractChartView {
 public:
 	virtual ~AbstractChartView() = default;
@@ -82,29 +103,25 @@ public:
 		const QPoint &p) {
 	}
 
-	void setUpdateCallback(Fn<void()> callback) {
-		_updateCallback = std::move(callback);
-	}
-	void update() {
-		if (_updateCallback) {
-			_updateCallback();
-		}
-	}
+	void setUpdateCallback(Fn<void()> callback);
+	void update();
 
-	void setLinesFilterController(std::shared_ptr<LinesFilterController> c) {
-		_linesFilterController = std::move(c);
-	}
+	void setLinesFilterController(std::shared_ptr<LinesFilterController> c);
 
 protected:
 	using LinesFilterControllerPtr = std::shared_ptr<LinesFilterController>;
-	[[nodiscard]] LinesFilterControllerPtr linesFilterController() {
-		return _linesFilterController;
-	}
+	[[nodiscard]] LinesFilterControllerPtr linesFilterController() const;
 
 private:
 	LinesFilterControllerPtr _linesFilterController;
 	Fn<void()> _updateCallback;
 
 };
+
+AbstractChartView::HeightLimits DefaultHeightLimits(
+	const DoubleLineRatios &ratios,
+	const std::shared_ptr<LinesFilterController> &linesFilter,
+	Data::StatisticalChart &chartData,
+	Limits xIndices);
 
 } // namespace Statistic

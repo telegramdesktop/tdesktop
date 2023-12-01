@@ -411,6 +411,13 @@ QRect Service::innerGeometry() const {
 	return countGeometry();
 }
 
+bool Service::consumeHorizontalScroll(QPoint position, int delta) {
+	if (const auto media = this->media()) {
+		return media->consumeHorizontalScroll(position, delta);
+	}
+	return false;
+}
+
 QRect Service::countGeometry() const {
 	auto result = QRect(0, 0, width(), height());
 	if (delegate()->elementIsChatWide()) {
@@ -429,7 +436,8 @@ QSize Service::performCountCurrentSize(int newWidth) {
 		return { newWidth, newHeight };
 	}
 	const auto media = this->media();
-	if (media && media->hideServiceText()) {
+	const auto mediaDisplayed = media && media->isDisplayed();
+	if (mediaDisplayed && media->hideServiceText()) {
 		newHeight += st::msgServiceMargin.top()
 			+ media->resizeGetHeight(newWidth)
 			+ st::msgServiceMargin.bottom();
@@ -448,8 +456,10 @@ QSize Service::performCountCurrentSize(int newWidth) {
 			? minHeight()
 			: textHeightFor(nwidth);
 		newHeight += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
-		if (media) {
-			newHeight += st::msgServiceMargin.top() + media->resizeGetHeight(media->maxWidth());
+		if (mediaDisplayed) {
+			const auto mediaWidth = std::min(media->maxWidth(), nwidth);
+			newHeight += st::msgServiceMargin.top()
+				+ media->resizeGetHeight(mediaWidth);
 		}
 	}
 
@@ -527,10 +537,11 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	p.setTextPalette(st->serviceTextPalette());
 
 	const auto media = this->media();
-	const auto onlyMedia = (media && media->hideServiceText());
+	const auto mediaDisplayed = media && media->isDisplayed();
+	const auto onlyMedia = (mediaDisplayed && media->hideServiceText());
 
 	if (!onlyMedia) {
-		if (media) {
+		if (mediaDisplayed) {
 			height -= margin.top() + media->height();
 		}
 		const auto trect = QRect(g.left(), margin.top(), g.width(), height)
@@ -561,8 +572,8 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 			.fullWidthSelection = false,
 		});
 	}
-	if (media) {
-		const auto left = margin.left() + (g.width() - media->maxWidth()) / 2;
+	if (mediaDisplayed) {
+		const auto left = margin.left() + (g.width() - media->width()) / 2;
 		const auto top = margin.top() + (onlyMedia ? 0 : (height + margin.top()));
 		p.translate(left, top);
 		media->draw(p, context.translated(-left, -top).withSelection({}));
@@ -576,6 +587,7 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 
 PointState Service::pointState(QPoint point) const {
 	const auto media = this->media();
+	const auto mediaDisplayed = media && media->isDisplayed();
 
 	auto g = countGeometry();
 	if (g.width() < 1 || isHidden()) {
@@ -588,7 +600,7 @@ PointState Service::pointState(QPoint point) const {
 	if (const auto bar = Get<UnreadBar>()) {
 		g.setTop(g.top() + bar->height());
 	}
-	if (media) {
+	if (mediaDisplayed) {
 		const auto centerPadding = (g.width() - media->width()) / 2;
 		const auto r = g - QMargins(centerPadding, 0, centerPadding, 0);
 		if (!r.contains(point)) {
@@ -602,7 +614,8 @@ PointState Service::pointState(QPoint point) const {
 TextState Service::textState(QPoint point, StateRequest request) const {
 	const auto item = data();
 	const auto media = this->media();
-	const auto onlyMedia = (media && media->hideServiceText());
+	const auto mediaDisplayed = media && media->isDisplayed();
+	const auto onlyMedia = (mediaDisplayed && media->hideServiceText());
 
 	auto result = TextState(item);
 
@@ -622,10 +635,16 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 	}
 
 	if (onlyMedia) {
-		return media->textState(point - QPoint(st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, st::msgServiceMargin.top()), request);
-	} else if (media) {
+		return media->textState(point - QPoint(st::msgServiceMargin.left() + (g.width() - media->width()) / 2, st::msgServiceMargin.top()), request);
+	} else if (mediaDisplayed) {
 		g.setHeight(g.height() - (st::msgServiceMargin.top() + media->height()));
 	}
+	const auto mediaLeft = st::msgServiceMargin.left()
+		+ (media ? ((g.width() - media->width()) / 2) : 0);
+	const auto mediaTop = st::msgServiceMargin.top()
+		+ g.height()
+		+ st::msgServiceMargin.top();
+	const auto mediaPoint = point - QPoint(mediaLeft, mediaTop);
 	auto trect = g.marginsAdded(-st::msgServicePadding);
 	if (trect.contains(point)) {
 		auto textRequest = request.forText();
@@ -654,10 +673,12 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				}
 			} else if (const auto same = item->Get<HistoryServiceSameBackground>()) {
 				result.link = same->lnk;
+			} else if (media && data()->showSimilarChannels()) {
+				result = media->textState(mediaPoint, request);
 			}
 		}
-	} else if (media) {
-		result = media->textState(point - QPoint(st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, st::msgServiceMargin.top() + g.height() + st::msgServiceMargin.top()), request);
+	} else if (mediaDisplayed && point.y() >= mediaTop) {
+		result = media->textState(mediaPoint, request);
 	}
 	return result;
 }
@@ -674,8 +695,7 @@ SelectedQuote Service::selectedQuote(TextSelection selection) const {
 }
 
 TextSelection Service::selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const {
+		const SelectedQuote &quote) const {
 	return {};
 }
 

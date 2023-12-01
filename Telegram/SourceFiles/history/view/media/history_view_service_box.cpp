@@ -26,28 +26,7 @@ ServiceBox::ServiceBox(
 : Media(parent)
 , _parent(parent)
 , _content(std::move(content))
-, _button([&] {
-	auto result = Button();
-	result.link = _content->createViewLink();
-
-	const auto text = _content->button();
-	if (text.isEmpty()) {
-		return result;
-	}
-	result.repaint = [=] { repaint(); };
-	result.text.setText(st::semiboldTextStyle, _content->button());
-
-	const auto height = st::msgServiceGiftBoxButtonHeight;
-	const auto &padding = st::msgServiceGiftBoxButtonPadding;
-	result.size = QSize(
-		result.text.maxWidth()
-			+ height
-			+ padding.left()
-			+ padding.right(),
-		height);
-
-	return result;
-}())
+, _button({ .link = _content->createViewLink() })
 , _maxWidth(st::msgServiceGiftBoxSize.width()
 	- st::msgPadding.left()
 	- st::msgPadding.right())
@@ -79,11 +58,29 @@ ServiceBox::ServiceBox(
 			: (_title.countHeight(_maxWidth)
 				+ st::msgServiceGiftBoxTitlePadding.bottom()))
 		+ _subtitle.countHeight(_maxWidth)
-		+ (_button.empty()
+		+ (!_content->button()
 			? 0
-			: (_content->buttonSkip() + _button.size.height()))
+			: (_content->buttonSkip() + st::msgServiceGiftBoxButtonHeight))
 		+ st::msgServiceGiftBoxButtonMargins.bottom()))
 , _innerSize(_size - QSize(0, st::msgServiceGiftBoxTopSkip)) {
+	if (auto text = _content->button()) {
+		_button.repaint = [=] { repaint(); };
+		std::move(text) | rpl::start_with_next([=](QString value) {
+			_button.text.setText(st::semiboldTextStyle, value);
+			const auto height = st::msgServiceGiftBoxButtonHeight;
+			const auto &padding = st::msgServiceGiftBoxButtonPadding;
+			const auto empty = _button.size.isEmpty();
+			_button.size = QSize(
+				(_button.text.maxWidth()
+					+ height
+					+ padding.left()
+					+ padding.right()),
+				height);
+			if (!empty) {
+				repaint();
+			}
+		}, _lifetime);
+	}
 }
 
 ServiceBox::~ServiceBox() = default;

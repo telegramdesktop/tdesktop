@@ -433,10 +433,14 @@ storiesHeaderName: FlatLabel(defaultFlatLabel) {
 storiesHeaderNamePosition: point(50px, 0px);
 storiesHeaderDate: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewControlFg;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: mediaviewControlFg;
+	}
 	minWidth: 10px;
 	maxHeight: 20px;
 }
 storiesHeaderDatePosition: point(50px, 17px);
+storiesHeaderRepostWidthMin: 40px;
 storiesShadowTop: icon{{ "mediaview/shadow_bottom-flip_vertical", windowShadowFg }};
 storiesShadowBottom: mediaviewShadowBottom;
 storiesControlsMinWidth: 280px;
@@ -1009,3 +1013,12 @@ storiesLikeCountStyle: TextStyle(defaultTextStyle) {
 	font: font(32px semibold);
 }
 storiesChangelogFooterWidthMin: 240px;
+
+storiesRepostSimpleStyle: QuoteStyle(defaultQuoteStyle) {
+	padding: margins(8px, 2px, 8px, 2px);
+	verticalSkip: 4px;
+	outline: 0px;
+	radius: 10px;
+}
+storiesRepostIcon: icon {{ "mediaview/mini_repost", windowFg }};
+storiesRepostIconPadding: margins(0px, 4px, 4px, 0px);

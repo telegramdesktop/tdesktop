@@ -143,6 +143,21 @@ int BackgroundEmojiData::CacheIndex(
 	return (base * 2) + (selected ? 1 : 0);
 };
 
+int ColorPatternIndex(
+		const ColorIndicesCompressed &indices,
+		uint8 colorIndex,
+		bool dark) {
+	Expects(colorIndex >= 0 && colorIndex < kColorIndexCount);
+
+	if (!indices.colors
+		|| colorIndex < kSimpleColorIndexCount) {
+		return 0;
+	}
+	auto &data = (*indices.colors)[colorIndex];
+	auto &colors = dark ? data.dark : data.light;
+	return colors[2] ? 2 : colors[1] ? 1 : 0;
+}
+
 ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 	if (colorIndices) {
 		_colorIndicesLifetime = std::move(
@@ -174,7 +189,9 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 	make(_historyFastCommentsIcon, st::historyFastCommentsIcon);
 	make(_historyFastShareIcon, st::historyFastShareIcon);
 	make(_historyFastTranscribeIcon, st::historyFastTranscribeIcon);
+	make(_historyFastTranscribeLock, st::historyFastTranscribeLock);
 	make(_historyGoToOriginalIcon, st::historyGoToOriginalIcon);
+	make(_historyFastCloseIcon, st::historyFastCloseIcon);
 	make(_historyMapPoint, st::historyMapPoint);
 	make(_historyMapPointInner, st::historyMapPointInner);
 	make(_youtubeIcon, st::youtubeIcon);
@@ -451,6 +468,12 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		st::historyTranscribeInIconSelected,
 		st::historyTranscribeOutIcon,
 		st::historyTranscribeOutIconSelected);
+	make(
+		&MessageStyle::historyTranscribeLock,
+		st::historyTranscribeInLock,
+		st::historyTranscribeInLockSelected,
+		st::historyTranscribeOutLock,
+		st::historyTranscribeOutLockSelected);
 	make(
 		&MessageStyle::historyTranscribeHide,
 		st::historyTranscribeInHide,

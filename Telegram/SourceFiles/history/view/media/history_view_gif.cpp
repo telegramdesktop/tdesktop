@@ -1205,10 +1205,8 @@ SelectedQuote Gif::selectedQuote(TextSelection selection) const {
 	return Element::FindSelectedQuote(_caption, selection, _realParent);
 }
 
-TextSelection Gif::selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const {
-	return Element::FindSelectionFromQuote(_caption, item, quote);
+TextSelection Gif::selectionFromQuote(const SelectedQuote &quote) const {
+	return Element::FindSelectionFromQuote(_caption, quote);
 }
 
 bool Gif::fullFeaturedGrouped(RectParts sides) const {
@@ -1975,7 +1973,9 @@ bool Gif::needCornerStatusDisplay() const {
 }
 
 void Gif::ensureTranscribeButton() const {
-	if (_data->isVideoMessage() && _data->session().premium()) {
+	if (_data->isVideoMessage()
+		&& (_data->session().premium()
+			|| _data->session().api().transcribes().trialsSupport())) {
 		if (!_transcribe) {
 			_transcribe = std::make_unique<TranscribeButton>(
 				_realParent,

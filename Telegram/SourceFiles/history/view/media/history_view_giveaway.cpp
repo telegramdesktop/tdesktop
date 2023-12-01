@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
-#include "data/data_session.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
 #include "history/history.h"
@@ -348,9 +347,7 @@ void Giveaway::paintChannels(
 		const auto &thumbnail = channel.thumbnail;
 		const auto &geometry = channel.geometry;
 		if (!_subscribedToThumbnails) {
-			thumbnail->subscribeToUpdates([view = parent()] {
-				view->history()->owner().requestViewRepaint(view);
-			});
+			thumbnail->subscribeToUpdates([=] { repaint(); });
 		}
 
 		const auto colorIndex = channel.colorIndex;
@@ -487,13 +484,12 @@ void Giveaway::clickHandlerPressedChanged(
 		}
 		if (pressed) {
 			if (!channel.ripple) {
-				const auto owner = &parent()->history()->owner();
 				channel.ripple = std::make_unique<Ui::RippleAnimation>(
 					st::defaultRippleAnimation,
 					Ui::RippleAnimation::RoundRectMask(
 						channel.geometry.size(),
 						channel.geometry.height() / 2),
-					[=] { owner->requestViewRepaint(parent()); });
+					[=] { repaint(); });
 			}
 			channel.ripple->add(_lastPoint - channel.geometry.topLeft());
 		} else if (channel.ripple) {

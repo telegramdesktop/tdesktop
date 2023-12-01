@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
@@ -40,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/stories/info_stories_widget.h"
 #include "info/info_memento.h"
+#include "base/platform/base_platform_info.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -80,6 +82,37 @@ namespace Window {
 namespace {
 
 constexpr auto kPlayStatusLimit = 2;
+
+class VersionLabel final
+	: public Ui::FlatLabel
+	, public Ui::AbstractTooltipShower {
+public:
+	using Ui::FlatLabel::FlatLabel;
+
+	void clickHandlerActiveChanged(
+			const ClickHandlerPtr &action,
+			bool active) override {
+		update();
+		if (active && action && !action->dragText().isEmpty()) {
+			Ui::Tooltip::Show(1000, this);
+		} else {
+			Ui::Tooltip::Hide();
+		}
+	}
+
+	QString tooltipText() const override {
+		return u"Build date: %1."_q.arg(__DATE__);
+	}
+
+	QPoint tooltipPos() const override {
+		return QCursor::pos();
+	}
+
+	bool tooltipWindowActive() const override {
+        return Ui::AppInFocus() && Ui::InFocusChain(window());
+	}
+
+};
 
 [[nodiscard]] bool CanCheckSpecialEvent() {
 	static const auto result = [] {
@@ -520,8 +553,11 @@ MainMenu::MainMenu(
 , _footer(_inner->add(object_ptr<Ui::RpWidget>(_inner.get())))
 , _telegram(
 	Ui::CreateChild<Ui::FlatLabel>(_footer.get(), st::mainMenuTelegramLabel))
-, _version(
-	Ui::CreateChild<Ui::FlatLabel>(
+, _version((Platform::IsMacStoreBuild() || Platform::IsWindowsStoreBuild())
+	? Ui::CreateChild<Ui::FlatLabel>(
+		_footer.get(),
+		st::mainMenuVersionLabel)
+	: Ui::CreateChild<VersionLabel>(
 		_footer.get(),
 		st::mainMenuVersionLabel)) {
 	setAttribute(Qt::WA_OpaquePaintEvent);

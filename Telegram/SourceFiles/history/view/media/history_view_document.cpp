@@ -306,7 +306,7 @@ QSize Document::countOptimalSize() {
 	const auto voice = Get<HistoryDocumentVoice>();
 	if (voice) {
 		const auto session = &_realParent->history()->session();
-		if (!session->premium()) {
+		if (!session->premium() && !session->api().transcribes().trialsSupport()) {
 			voice->transcribe = nullptr;
 			voice->transcribeText = {};
 		} else {
@@ -1232,12 +1232,10 @@ SelectedQuote Document::selectedQuote(TextSelection selection) const {
 }
 
 TextSelection Document::selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const {
+		const SelectedQuote &quote) const {
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		const auto result = Element::FindSelectionFromQuote(
 			captioned->caption,
-			item,
 			quote);
 		if (result.empty()) {
 			return {};

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_color_box.h"
 
 #include "apiwrap.h"
+#include "api/api_peer_colors.h"
 #include "base/unixtime.h"
 #include "boxes/peers/replace_boost_box.h"
 #include "chat_helpers/compose/compose_show.h"
@@ -460,15 +461,15 @@ void Set(
 		).done(done).fail(fail).send();
 	};
 	if (peer->isSelf()) {
+		using Flag = MTPaccount_UpdateColor::Flag;
 		send(MTPaccount_UpdateColor(
-			MTP_flags(
-				MTPaccount_UpdateColor::Flag::f_background_emoji_id),
+			MTP_flags(Flag::f_color | Flag::f_background_emoji_id),
 			MTP_int(colorIndex),
 			MTP_long(backgroundEmojiId)));
 	} else if (const auto channel = peer->asChannel()) {
+		using Flag = MTPchannels_UpdateColor::Flag;
 		send(MTPchannels_UpdateColor(
-			MTP_flags(
-				MTPchannels_UpdateColor::Flag::f_background_emoji_id),
+			MTP_flags(Flag::f_background_emoji_id),
 			channel->inputChannel,
 			MTP_int(colorIndex),
 			MTP_long(backgroundEmojiId)));
@@ -527,7 +528,7 @@ void Apply(
 			show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
 				.link = qs(data.vboost_url()),
 				.boost = counters,
-				.requiredLevel = required,
+				.reason = { Ui::AskBoostChannelColor{ required } },
 			}, openStatistics, nullptr));
 			cancel();
 		}).fail([=](const MTP::Error &error) {
@@ -787,19 +788,7 @@ void EditPeerColorBox(
 		state->emojiId.value()
 	), {});
 
-	const auto appConfig = &peer->session().account().appConfig();
-	auto indices = rpl::single(
-		rpl::empty
-	) | rpl::then(
-		appConfig->refreshed()
-	) | rpl::map([=] {
-		const auto list = appConfig->get<std::vector<int>>(
-			"peer_colors_available",
-			{ 0, 1, 2, 3, 4, 5, 6 });
-		return list | ranges::views::transform([](int i) {
-			return uint8(i);
-		}) | ranges::to_vector;
-	});
+	auto indices = peer->session().api().peerColors().suggestedValue();
 	const auto margin = st::settingsColorRadioMargin;
 	const auto skip = st::settingsColorRadioSkip;
 	box->addRow(

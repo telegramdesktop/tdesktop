@@ -11,12 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum class PremiumPreview;
 
+namespace style {
+struct RoundButton;
+} // namespace style
+
 namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
 
 namespace Ui {
 class RpWidget;
+class RoundButton;
 class GradientButton;
 } // namespace Ui
 
@@ -65,6 +70,13 @@ struct SubscribeButtonArgs final {
 	Fn<QString()> computeBotUrl; // nullable
 	std::shared_ptr<ChatHelpers::Show> show;
 };
+
+
+[[nodiscard]] not_null<Ui::RoundButton*> CreateLockedButton(
+	not_null<QWidget*> parent,
+	rpl::producer<QString> text,
+	const style::RoundButton &st,
+	rpl::producer<bool> locked);
 
 [[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
 	SubscribeButtonArgs &&args);

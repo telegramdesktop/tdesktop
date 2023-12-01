@@ -8,14 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/storage_databases.h"
-#include "dialogs/dialogs_key.h"
-#include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_cloud_file.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
-#include "base/flags.h"
 
 class Image;
 class HistoryItem;
@@ -727,6 +724,8 @@ public:
 	void webViewResultSent(WebViewResultSent &&sent);
 	[[nodiscard]] rpl::producer<WebViewResultSent> webViewResultSent() const;
 
+	void saveViewAsMessages(not_null<Forum*> forum, bool viewAsMessages);
+
 	[[nodiscard]] auto peerDecorationsUpdated() const
 		-> rpl::producer<not_null<PeerData*>>;
 
@@ -1022,6 +1021,9 @@ private:
 	rpl::event_stream<WebViewResultSent> _webViewResultSent;
 
 	rpl::event_stream<not_null<PeerData*>> _peerDecorationsUpdated;
+	base::flat_map<
+		not_null<ChannelData*>,
+		mtpRequestId> _viewAsMessagesRequests;
 
 	Groups _groups;
 	const std::unique_ptr<ChatFilters> _chatsFilters;

@@ -611,6 +611,7 @@ private:
 	float64 _zoomToDefault = 0.;
 	QPoint _mStart;
 	bool _pressed = false;
+	bool _cursorOverriden = false;
 	int32 _dragging = 0;
 	QImage _staticContent;
 	bool _staticContentTransparent = false;

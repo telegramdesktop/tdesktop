@@ -7,18 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/flags.h"
-#include "base/object_ptr.h"
-#include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "boxes/gift_premium_box.h" // GiftPremiumValidator.
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_chat_participant_status.h"
 #include "dialogs/dialogs_key.h"
-#include "ui/layers/layer_widget.h"
 #include "settings/settings_type.h"
 #include "window/window_adaptive.h"
-#include "mtproto/sender.h"
 
 class PhotoData;
 class MainWidget;
@@ -93,16 +88,7 @@ class SectionMemento;
 class Controller;
 class FiltersMenu;
 
-enum class ResolveType {
-	Default,
-	BotApp,
-	BotStart,
-	AddToGroup,
-	AddToChannel,
-	ShareGame,
-	Mention,
-	Boost,
-};
+struct PeerByLinkInfo;
 
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
@@ -168,11 +154,13 @@ struct SectionShow {
 	}
 
 	TextWithEntities highlightPart;
+	int highlightPartOffsetHint = 0;
 	Way way = Way::Forward;
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;
 	bool thirdColumn = false;
 	bool childColumn = false;
+	bool forbidLayer = false;
 	bool reapplyLocalDraft = false;
 	Origin origin;
 
@@ -194,33 +182,6 @@ public:
 		const SectionShow &params = SectionShow()) = 0;
 	virtual not_null<SessionController*> parentController() = 0;
 
-	struct CommentId {
-		MsgId id = 0;
-	};
-	struct ThreadId {
-		MsgId id = 0;
-	};
-	using RepliesByLinkInfo = std::variant<v::null_t, CommentId, ThreadId>;
-	struct PeerByLinkInfo {
-		std::variant<QString, ChannelId> usernameOrId;
-		QString phone;
-		MsgId messageId = ShowAtUnreadMsgId;
-		StoryId storyId = 0;
-		RepliesByLinkInfo repliesInfo;
-		ResolveType resolveType = ResolveType::Default;
-		QString startToken;
-		ChatAdminRights startAdminRights;
-		bool startAutoSubmit = false;
-		QString botAppName;
-		bool botAppForceConfirmation = false;
-		QString attachBotUsername;
-		std::optional<QString> attachBotToggleCommand;
-		bool attachBotMenuOpen = false;
-		InlineBots::PeerTypes attachBotChooseTypes;
-		std::optional<QString> voicechatHash;
-		FullMsgId clickFromMessageId;
-		QString clickFromAttachBotWebviewUrl;
-	};
 	void showPeerByLink(const PeerByLinkInfo &info);
 
 	void showRepliesForMessage(
@@ -438,7 +399,7 @@ public:
 	[[nodiscard]] ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
 	bool forceWideDialogs() const;
-	void updateColumnLayout();
+	void updateColumnLayout() const;
 	bool canShowThirdSection() const;
 	bool canShowThirdSectionWithoutResize() const;
 	bool takeThirdSectionFromLayer();
@@ -518,8 +479,8 @@ public:
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,
 		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done);
-	void clearChooseReportMessages();
+		Fn<void(MessageIdsList)> done) const;
+	void clearChooseReportMessages() const;
 
 	void showInNewWindow(
 		not_null<PeerData*> peer,
@@ -527,7 +488,7 @@ public:
 
 	void toggleChooseChatTheme(
 		not_null<PeerData*> peer,
-		std::optional<bool> show = std::nullopt);
+		std::optional<bool> show = std::nullopt) const;
 	void finishChatThemeEdit(not_null<PeerData*> peer);
 
 	[[nodiscard]] bool dialogsListFocused() const {
@@ -625,7 +586,7 @@ public:
 	void setPremiumRef(const QString &ref);
 	[[nodiscard]] QString premiumRef() const;
 
-	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e);
+	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() override;
 

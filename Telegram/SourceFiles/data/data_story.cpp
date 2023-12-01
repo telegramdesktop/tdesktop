@@ -105,6 +105,31 @@ using UpdateFlag = StoryUpdate::Flag;
 	return result;
 }
 
+[[nodiscard]] PeerData *RepostSourcePeer(
+		not_null<Session*> owner,
+		const MTPDstoryItem &data) {
+	if (const auto forwarded = data.vfwd_from()) {
+		if (const auto from = forwarded->data().vfrom()) {
+			return owner->peer(peerFromMTP(*from));
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] QString RepostSourceName(const MTPDstoryItem &data) {
+	if (const auto forwarded = data.vfwd_from()) {
+		return qs(forwarded->data().vfrom_name().value_or_empty());
+	}
+	return {};
+}
+
+[[nodiscard]] StoryId RepostSourceId(const MTPDstoryItem &data) {
+	if (const auto forwarded = data.vfwd_from()) {
+		return forwarded->data().vstory_id().value_or_empty();
+	}
+	return {};
+}
+
 } // namespace
 
 class StoryPreload::LoadTask final : private Storage::DownloadMtprotoTask {
@@ -139,7 +164,7 @@ StoryPreload::LoadTask::LoadTask(
 : DownloadMtprotoTask(
 	&document->session().downloader(),
 	document->videoPreloadLocation(),
-	FileOriginStory(id.peer, id.story))
+	id)
 , _done(std::move(done))
 , _full(document->size) {
 	const auto prefix = document->videoPreloadPrefix();
@@ -216,6 +241,9 @@ Story::Story(
 	TimeId now)
 : _id(id)
 , _peer(peer)
+, _repostSourcePeer(RepostSourcePeer(&peer->owner(), data))
+, _repostSourceName(RepostSourceName(data))
+, _repostSourceId(RepostSourceId(data))
 , _date(data.vdate().v)
 , _expires(data.vexpire_date().v) {
 	applyFields(std::move(media), data, now, true);
@@ -291,15 +319,9 @@ bool Story::hasReplyPreview() const {
 
 Image *Story::replyPreview() const {
 	return v::match(_media.data, [&](not_null<PhotoData*> photo) {
-		return photo->getReplyPreview(
-			Data::FileOriginStory(_peer->id, _id),
-			_peer,
-			false);
+		return photo->getReplyPreview(fullId(), _peer, false);
 	}, [&](not_null<DocumentData*> document) {
-		return document->getReplyPreview(
-			Data::FileOriginStory(_peer->id, _id),
-			_peer,
-			false);
+		return document->getReplyPreview(fullId(), _peer, false);
 	}, [](v::null_t) {
 		return (Image*)nullptr;
 	});
@@ -736,6 +758,22 @@ TimeId Story::lastUpdateTime() const {
 	return _lastUpdateTime;
 }
 
+bool Story::repost() const {
+	return _repostSourcePeer || !_repostSourceName.isEmpty();
+}
+
+PeerData *Story::repostSourcePeer() const {
+	return _repostSourcePeer;
+}
+
+QString Story::repostSourceName() const {
+	return _repostSourceName;
+}
+
+StoryId Story::repostSourceId() const {
+	return _repostSourceId;
+}
+
 StoryPreload::StoryPreload(not_null<Story*> story, Fn<void()> done)
 : _story(story)
 , _done(std::move(done)) {
@@ -757,15 +795,12 @@ not_null<Story*> StoryPreload::story() const {
 }
 
 void StoryPreload::start() {
-	const auto origin = FileOriginStory(
-		_story->peer()->id,
-		_story->id());
 	if (const auto photo = _story->photo()) {
 		_photo = photo->createMediaView();
 		if (_photo->loaded()) {
 			callDone();
 		} else {
-			_photo->automaticLoad(origin, _story->peer());
+			_photo->automaticLoad(_story->fullId(), _story->peer());
 			photo->session().downloaderTaskFinished(
 			) | rpl::filter([=] {
 				return _photo->loaded();

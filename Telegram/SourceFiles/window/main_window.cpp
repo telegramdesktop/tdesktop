@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "ui/platform/ui_platform_window.h"
 #include "platform/platform_window_title.h"
-#include "base/platform/base_platform_info.h"
 #include "history/history.h"
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
@@ -35,17 +34,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/controls/window_outdated_bar.h"
 #include "ui/painter.h"
-#include "ui/ui_utility.h"
 #include "apiwrap.h"
-#include "mainwindow.h"
 #include "mainwidget.h" // session->content()->windowShown().
 #include "tray.h"
-#include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h" // ChildSkip().x() for new child windows.
 
 #include <QtCore/QMimeData>
-#include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 #include <QtGui/QDrag>
@@ -72,7 +67,15 @@ using Core::WindowPosition;
 	return result;
 }
 
-} // namespace
+base::options::toggle OptionNewWindowsSizeAsFirst({
+	.id = kOptionNewWindowsSizeAsFirst,
+	.name = "Adjust size of new chat windows.",
+	.description = "Open new windows with a size of the main window.",
+});
+
+} // namespace.
+
+const char kOptionNewWindowsSizeAsFirst[] = "new-windows-size-as-first";
 
 const QImage &Logo() {
 	static const auto result = QImage(u":/gui/art/logo_256.png"_q);
@@ -616,8 +619,12 @@ WindowPosition MainWindow::nextInitialChildPosition(bool primary) {
 	const auto adjust = [&](int value) {
 		return primary ? value : (value * 3 / 4);
 	};
-	const auto width = adjust(st::windowDefaultWidth);
-	const auto height = adjust(st::windowDefaultHeight);
+	const auto width = OptionNewWindowsSizeAsFirst.value()
+		? Core::App().settings().windowPosition().w
+		: adjust(st::windowDefaultWidth);
+	const auto height = OptionNewWindowsSizeAsFirst.value()
+		? Core::App().settings().windowPosition().h
+		: adjust(st::windowDefaultHeight);
 	const auto skip = ChildSkip();
 	const auto delta = _lastChildIndex
 		? (_lastMyChildCreatePosition - position)

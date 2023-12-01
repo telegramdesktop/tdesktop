@@ -29,6 +29,18 @@ int PremiumLimits::channelsCurrent() const {
 		: channelsDefault();
 }
 
+int PremiumLimits::similarChannelsDefault() const {
+	return appConfigLimit("recommended_channels_limit_default", 10);
+}
+int PremiumLimits::similarChannelsPremium() const {
+	return appConfigLimit("recommended_channels_limit_premium", 100);
+}
+int PremiumLimits::similarChannelsCurrent() const {
+	return isPremium()
+		? channelsPremium()
+		: channelsDefault();
+}
+
 int PremiumLimits::gifsDefault() const {
 	return appConfigLimit("saved_gifs_limit_default", 200);
 }
@@ -175,6 +187,12 @@ int PremiumLimits::aboutLengthCurrent() const {
 	return isPremium()
 		? aboutLengthPremium()
 		: aboutLengthDefault();
+}
+
+int PremiumLimits::maxBoostLevel() const {
+	return appConfigLimit(
+		u"boosts_channel_level_max"_q,
+		_session->isTestMode() ? 9 : 99);
 }
 
 int PremiumLimits::appConfigLimit(

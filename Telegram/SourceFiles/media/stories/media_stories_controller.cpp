@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_reactions.h"
 #include "media/stories/media_stories_recent_views.h"
 #include "media/stories/media_stories_reply.h"
+#include "media/stories/media_stories_repost_view.h"
 #include "media/stories/media_stories_share.h"
 #include "media/stories/media_stories_stealth.h"
 #include "media/stories/media_stories_view.h"
@@ -332,6 +333,8 @@ Controller::Controller(not_null<Delegate*> delegate)
 }
 
 Controller::~Controller() {
+	_captionFullView = nullptr;
+	_repostView = nullptr;
 	changeShown(nullptr);
 }
 
@@ -578,7 +581,7 @@ bool Controller::closeByClickAt(QPoint position) const {
 }
 
 Data::FileOrigin Controller::fileOrigin() const {
-	return Data::FileOriginStory(_shown.peer, _shown.story);
+	return _shown;
 }
 
 TextWithEntities Controller::captionText() const {
@@ -586,7 +589,39 @@ TextWithEntities Controller::captionText() const {
 }
 
 bool Controller::skipCaption() const {
-	return _captionFullView != nullptr;
+	return (_captionFullView != nullptr)
+		|| (_captionText.empty() && !repost());
+}
+
+bool Controller::repost() const {
+	return _repostView != nullptr;
+}
+
+int Controller::repostSkipTop() const {
+	return _repostView
+		? (_repostView->height()
+			+ (_captionText.empty() ? 0 : st::mediaviewTextSkip))
+		: 0;
+}
+
+QMargins Controller::repostCaptionPadding() const {
+	return { 0, repostSkipTop(), 0, 0 };
+}
+
+void Controller::drawRepostInfo(
+		Painter &p,
+		int x,
+		int y,
+		int availableWidth) const {
+	Expects(_repostView != nullptr);
+
+	_repostView->draw(p, x, y, availableWidth);
+}
+
+RepostClickHandler Controller::lookupRepostHandler(QPoint position) const {
+	return _repostView
+		? _repostView->lookupHandler(position)
+		: RepostClickHandler();
 }
 
 void Controller::toggleLiked() {
@@ -837,12 +872,15 @@ void Controller::show(
 	}
 
 	captionClosed();
+	_repostView = validateRepostView(story);
 	_captionText = story->caption();
 	_contentFaded = false;
 	_contentFadeAnimation.stop();
 	const auto document = story->document();
 	_header->show({
 		.peer = peer,
+		.repostPeer = story->repostSourcePeer(),
+		.repostFrom = _repostView ? _repostView->fromName() : nullptr,
 		.date = story->date(),
 		.fullIndex = _sliderCount ? _index : 0,
 		.fullCount = _sliderCount ? shownCount() : 0,
@@ -1341,6 +1379,13 @@ void Controller::repaintSibling(not_null<Sibling*> sibling) {
 	}
 }
 
+void Controller::repaint() {
+	if (_captionFullView) {
+		_captionFullView->repaint();
+	}
+	_delegate->storiesRepaint();
+}
+
 SiblingView Controller::sibling(SiblingType type) const {
 	const auto &pointer = (type == SiblingType::Left)
 		? _siblingLeft
@@ -1426,6 +1471,13 @@ StoryId Controller::shownId(int index) const {
 		: (index < int(_list->ids.list.size()))
 		? *(_list->ids.list.begin() + index)
 		: StoryId();
+}
+
+std::unique_ptr<RepostView> Controller::validateRepostView(
+		not_null<Data::Story*> story) {
+	return story->repost()
+		? std::make_unique<RepostView>(this, story)
+		: nullptr;
 }
 
 void Controller::loadMoreToList() {
