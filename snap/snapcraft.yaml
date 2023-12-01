@@ -259,6 +259,27 @@ parts:
     after:
       - mozjpeg
 
+  glib:
+    source: https://github.com/GNOME/glib.git
+    source-depth: 1
+    source-tag: 2.78.1
+    plugin: meson
+    build-packages:
+      - mm-common
+      - ninja-build
+    meson-parameters:
+      - --buildtype=release
+      - --prefix=/usr
+      - --strip
+      - -Dtests=false
+      - -Dintrospection=disabled
+    prime:
+      - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
+    after:
+      - meson-deps
+
   glibmm:
     source: https://github.com/GNOME/glibmm.git
     source-depth: 1
@@ -277,14 +298,13 @@ parts:
       - -Dsigc++-3.0:build-documentation=false
       - -Dsigc++-3.0:build-examples=false
       - -Dsigc++-3.0:validation=false
-      - -Dglib:tests=false
-      - -Dglib:introspection=disabled
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
     after:
       - meson-deps
+      - glib
 
   libjxl:
     source: https://github.com/libjxl/libjxl.git
@@ -523,7 +543,7 @@ parts:
       - -./usr/mkspecs
       - -./usr/modules
     after:
-      - glibmm
+      - glib
       - mozjpeg
       - patches
 
@@ -608,5 +628,5 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
     after:
       - ffmpeg
-      - glibmm
+      - glib
       - mozjpeg
