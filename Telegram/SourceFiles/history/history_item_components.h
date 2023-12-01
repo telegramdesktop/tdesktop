@@ -97,10 +97,19 @@ public:
 	QString firstName;
 	QString lastName;
 	uint8 colorIndex = 0;
+	Ui::EmptyUserpic emptyUserpic;
+	mutable Data::CloudImage customUserpic;
 
 	[[nodiscard]] static ClickHandlerPtr ForwardClickHandler();
 
 	[[nodiscard]] const Ui::Text::String &nameText() const;
+	[[nodiscard]] bool paintCustomUserpic(
+		Painter &p,
+		Ui::PeerUserpicView &view,
+		int x,
+		int y,
+		int outerWidth,
+		int size) const;
 
 	inline bool operator==(const HiddenSenderInfo &other) const {
 		return name == other.name;
