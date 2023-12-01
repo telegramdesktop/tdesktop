@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h" // AddDivider.
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -21,12 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "styles/style_boxes.h"
 #include "styles/style_calls.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_settings.h"
 
 #include <QGuiApplication>
 #include <QStyle>
@@ -54,13 +53,13 @@ void StartWithBox(
 		std::move(data),
 		&st::boxLabel,
 		&st::groupCallRtmpShowButton,
-		&st::settingsSubsectionTitle,
+		&st::defaultSubsectionTitle,
 		&st::attentionBoxButton,
 		&st::defaultPopupMenu);
 
 	box->setTitle(tr::lng_group_call_rtmp_title());
 
-	Settings::AddDividerText(
+	Ui::AddDividerText(
 		box->verticalLayout(),
 		tr::lng_group_call_rtmp_info());
 
@@ -247,9 +246,9 @@ void StartRtmpProcess::FillRtmpRows(
 				QGuiApplication::clipboard()->setText(state->url.current());
 				showToast(tr::lng_group_call_rtmp_url_copied(tr::now));
 			}));
-		Settings::AddSkip(container, st::groupCallRtmpCopyButtonTopSkip);
+		Ui::AddSkip(container, st::groupCallRtmpCopyButtonTopSkip);
 		const auto weak = container->add(std::move(wrap), rowPadding);
-		Settings::AddSkip(container, st::groupCallRtmpCopyButtonBottomSkip);
+		Ui::AddSkip(container, st::groupCallRtmpCopyButtonBottomSkip);
 		button->heightValue(
 		) | rpl::start_with_next([=](int height) {
 			weak->resize(weak->width(), height);
@@ -271,7 +270,7 @@ void StartRtmpProcess::FillRtmpRows(
 	};
 
 	// Server URL.
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_group_call_rtmp_url_subtitle(),
 		st::groupCallRtmpSubsectionTitleAddPadding,
@@ -279,18 +278,18 @@ void StartRtmpProcess::FillRtmpRows(
 
 	auto urlLabelContent = state->url.value();
 	addLabel(std::move(urlLabelContent));
-	Settings::AddSkip(container, st::groupCallRtmpUrlSkip);
+	Ui::AddSkip(container, st::groupCallRtmpUrlSkip);
 	addButton(false, tr::lng_group_call_rtmp_url_copy());
 	//
 
 	if (divider) {
-		Settings::AddDivider(container);
+		Ui::AddDivider(container);
 	}
 
 	// Stream Key.
-	Settings::AddSkip(container, st::groupCallRtmpKeySubsectionTitleSkip);
+	Ui::AddSkip(container, st::groupCallRtmpKeySubsectionTitleSkip);
 
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_group_call_rtmp_key_subtitle(),
 		st::groupCallRtmpSubsectionTitleAddPadding,

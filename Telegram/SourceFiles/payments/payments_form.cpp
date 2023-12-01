@@ -130,6 +130,39 @@ not_null<Main::Session*> SessionFromId(const InvoiceId &id) {
 	return &giveaway.boostPeer->session();
 }
 
+MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
+		const InvoicePremiumGiftCode &invoice) {
+	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
+		invoice.purpose);
+	using Flag = MTPDinputStorePaymentPremiumGiveaway::Flag;
+	return MTP_inputStorePaymentPremiumGiveaway(
+		MTP_flags(Flag()
+			| (giveaway.onlyNewSubscribers
+				? Flag::f_only_new_subscribers
+				: Flag())
+			| (giveaway.additionalChannels.empty()
+				? Flag()
+				: Flag::f_additional_peers)
+			| (giveaway.countries.empty()
+				? Flag()
+				: Flag::f_countries_iso2)),
+		giveaway.boostPeer->input,
+		MTP_vector_from_range(ranges::views::all(
+			giveaway.additionalChannels
+		) | ranges::views::transform([](not_null<ChannelData*> c) {
+			return MTPInputPeer(c->input);
+		})),
+		MTP_vector_from_range(ranges::views::all(
+			giveaway.countries
+		) | ranges::views::transform([](QString value) {
+			return MTP_string(value);
+		})),
+		MTP_long(invoice.randomId),
+		MTP_int(giveaway.untilDate),
+		MTP_string(invoice.currency),
+		MTP_long(invoice.amount));
+}
+
 Form::Form(InvoiceId id, bool receipt)
 : _id(id)
 , _session(SessionFromId(id))
@@ -295,46 +328,18 @@ MTPInputInvoice Form::inputInvoice() const {
 		return MTP_inputInvoicePremiumGiftCode(
 			MTP_inputStorePaymentPremiumGiftCode(
 				MTP_flags(users->boostPeer ? Flag::f_boost_peer : Flag()),
-				MTP_vector<MTPInputUser>(ranges::views::all(
+				MTP_vector_from_range(ranges::views::all(
 					users->users
 				) | ranges::views::transform([](not_null<UserData*> user) {
 					return MTPInputUser(user->inputUser);
-				}) | ranges::to<QVector>),
+				})),
 				users->boostPeer ? users->boostPeer->input : MTPInputPeer(),
 				MTP_string(giftCode.currency),
 				MTP_long(giftCode.amount)),
 			option);
 	} else {
-		const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
-			giftCode.purpose);
-		using Flag = MTPDinputStorePaymentPremiumGiveaway::Flag;
 		return MTP_inputInvoicePremiumGiftCode(
-			MTP_inputStorePaymentPremiumGiveaway(
-				MTP_flags(Flag()
-					| (giveaway.onlyNewSubscribers
-						? Flag::f_only_new_subscribers
-						: Flag())
-					| (giveaway.additionalChannels.empty()
-						? Flag()
-						: Flag::f_additional_peers)
-					| (giveaway.countries.empty()
-						? Flag()
-						: Flag::f_countries_iso2)),
-				giveaway.boostPeer->input,
-				MTP_vector<MTPInputPeer>(ranges::views::all(
-					giveaway.additionalChannels
-				) | ranges::views::transform([](not_null<ChannelData*> c) {
-					return MTPInputPeer(c->input);
-				}) | ranges::to<QVector>()),
-				MTP_vector<MTPstring>(ranges::views::all(
-					giveaway.countries
-				) | ranges::views::transform([](QString value) {
-					return MTP_string(value);
-				}) | ranges::to<QVector>()),
-				MTP_long(giftCode.randomId),
-				MTP_int(giveaway.untilDate),
-				MTP_string(giftCode.currency),
-				MTP_long(giftCode.amount)),
+			InvoicePremiumGiftCodeGiveawayToTL(giftCode),
 			option);
 	}
 }

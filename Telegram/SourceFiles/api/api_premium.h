@@ -16,6 +16,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Payments {
+struct InvoicePremiumGiftCode;
+} // namespace Payments
+
 namespace Api {
 
 struct GiftCode {
@@ -138,6 +142,57 @@ private:
 	Fn<void(GiveawayInfo)> _giveawayInfoDone;
 
 	Data::SubscriptionOptions _subscriptionOptions;
+
+};
+
+class PremiumGiftCodeOptions final {
+public:
+	PremiumGiftCodeOptions(not_null<PeerData*> peer);
+
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
+	[[nodiscard]] Data::SubscriptionOptions options(int amount);
+	[[nodiscard]] const std::vector<int> &availablePresets() const;
+	[[nodiscard]] int monthsFromPreset(int monthsIndex);
+	[[nodiscard]] Payments::InvoicePremiumGiftCode invoice(
+		int users,
+		int months);
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> applyPrepaid(
+		const Payments::InvoicePremiumGiftCode &invoice,
+		uint64 prepaidId);
+
+	[[nodiscard]] int giveawayBoostsPerPremium() const;
+	[[nodiscard]] int giveawayCountriesMax() const;
+	[[nodiscard]] int giveawayAddPeersMax() const;
+	[[nodiscard]] int giveawayPeriodMax() const;
+	[[nodiscard]] bool giveawayGiftsPurchaseAvailable() const;
+
+private:
+	struct Token final {
+		int users = 0;
+		int months = 0;
+
+		friend inline constexpr auto operator<=>(Token, Token) = default;
+
+	};
+	struct Store final {
+		uint64 amount = 0;
+		QString product;
+		int quantity = 0;
+	};
+	using Amount = int;
+	const not_null<PeerData*> _peer;
+	base::flat_map<Amount, Data::SubscriptionOptions> _subscriptionOptions;
+	struct {
+		std::vector<int> months;
+		std::vector<float64> totalCosts;
+		QString currency;
+	} _optionsForOnePerson;
+
+	std::vector<int> _availablePresets;
+
+	base::flat_map<Token, Store> _stores;
+
+	MTP::Sender _api;
 
 };
 

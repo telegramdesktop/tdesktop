@@ -16,7 +16,8 @@ namespace Premium {
 
 class ColoredMiniStars final {
 public:
-	ColoredMiniStars(not_null<Ui::RpWidget*> parent);
+	// optimizeUpdate may cause paint glitch.
+	ColoredMiniStars(not_null<Ui::RpWidget*> parent, bool optimizeUpdate);
 
 	void setSize(const QSize &size);
 	void setPosition(QPoint position);

@@ -10,19 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_cloud_password.h"
 #include "core/core_cloud_password.h"
 #include "lang/lang_keys.h"
-#include "lottie/lottie_icon.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_email.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
+#include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
@@ -129,8 +128,8 @@ void Manage::setupContent() {
 			TextWithEntities::Simple),
 		u"cloud_password/intro"_q);
 
-	AddSkip(content);
-	AddButton(
+	Ui::AddSkip(content);
+	AddButtonWithIcon(
 		content,
 		tr::lng_settings_cloud_password_manage_password_change(),
 		st::settingsButton,
@@ -138,7 +137,7 @@ void Manage::setupContent() {
 	)->setClickedCallback([=] {
 		showOtherAndRememberPassword(CloudPasswordInputId());
 	});
-	AddButton(
+	AddButtonWithIcon(
 		content,
 		state->hasRecovery
 			? tr::lng_settings_cloud_password_manage_email_change()
@@ -152,7 +151,7 @@ void Manage::setupContent() {
 
 		showOtherAndRememberPassword(CloudPasswordEmailId());
 	});
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	using Divider = CloudPassword::OneEdgeBoxContentDivider;
 	const auto divider = Ui::CreateChild<Divider>(this);
@@ -164,7 +163,7 @@ void Manage::setupContent() {
 				content,
 				tr::lng_settings_cloud_password_manage_about2(),
 				st::boxDividerLabel),
-		st::settingsDividerLabelPadding));
+		st::defaultBoxDividerLabelPadding));
 	rpl::combine(
 		about->geometryValue(),
 		content->widthValue()

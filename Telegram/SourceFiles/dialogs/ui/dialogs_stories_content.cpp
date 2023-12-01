@@ -269,9 +269,7 @@ Main::Session &PhotoThumbnail::session() {
 StoryThumbnail::Thumb PhotoThumbnail::loaded(FullStoryId id) {
 	if (!_media) {
 		_media = _photo->createMediaView();
-		_media->wanted(
-			Data::PhotoSize::Small,
-			Data::FileOriginStory(id.peer, id.story));
+		_media->wanted(Data::PhotoSize::Small, id);
 	}
 	if (const auto small = _media->image(Data::PhotoSize::Small)) {
 		return { .image = small };
@@ -297,7 +295,7 @@ Main::Session &VideoThumbnail::session() {
 StoryThumbnail::Thumb VideoThumbnail::loaded(FullStoryId id) {
 	if (!_media) {
 		_media = _video->createMediaView();
-		_media->thumbnailWanted(Data::FileOriginStory(id.peer, id.story));
+		_media->thumbnailWanted(id);
 	}
 	if (const auto small = _media->thumbnail()) {
 		return { .image = small };

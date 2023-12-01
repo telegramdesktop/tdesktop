@@ -13,9 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "history/history.h"
 #include "boxes/peer_list_controllers.h"
-#include "settings/settings_common.h"
 #include "settings/settings_privacy_security.h"
 #include "calls/calls_instance.h"
 #include "base/binary_guard.h"
@@ -233,7 +233,7 @@ Ui::FlatLabel *EditPrivacyBox::addLabel(
 		object_ptr<Ui::DividerLabel>(
 			container,
 			std::move(label),
-			st::settingsDividerLabelPadding),
+			st::defaultBoxDividerLabelPadding),
 		{ 0, topSkip, 0, 0 });
 	return result;
 }
@@ -294,7 +294,7 @@ void EditPrivacyBox::setupContent() {
 		const auto button = content->add(
 			object_ptr<Ui::SlideWrap<Button>>(
 				content,
-				CreateButton(
+				object_ptr<Button>(
 					content,
 					rpl::duplicate(text),
 					st::settingsButtonNoIcon)));
@@ -321,7 +321,7 @@ void EditPrivacyBox::setupContent() {
 		content->add(std::move(above));
 	}
 
-	AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		content,
 		_controller->optionsTitleKey(),
 		{ 0, st::settingsPrivacySkipTop, 0, 0 });
@@ -332,7 +332,7 @@ void EditPrivacyBox::setupContent() {
 	const auto warning = addLabelOrDivider(
 		content,
 		_controller->warning(),
-		st::settingsSectionSkip + st::settingsPrivacySkipTop);
+		st::defaultVerticalListSkip + st::settingsPrivacySkipTop);
 	if (warning) {
 		_controller->prepareWarningLabel(warning);
 	}
@@ -345,8 +345,8 @@ void EditPrivacyBox::setupContent() {
 		content->add(std::move(middle));
 	}
 
-	AddSkip(content);
-	AddSubsectionTitle(
+	Ui::AddSkip(content);
+	Ui::AddSubsectionTitle(
 		content,
 		tr::lng_edit_privacy_exceptions(),
 		{ 0, st::settingsPrivacySkipTop, 0, 0 });
@@ -355,7 +355,7 @@ void EditPrivacyBox::setupContent() {
 	addLabel(
 		content,
 		_controller->exceptionsDescription() | Ui::Text::ToWithEntities(),
-		st::settingsSectionSkip);
+		st::defaultVerticalListSkip);
 
 	if (auto below = _controller->setupBelowWidget(_window, content)) {
 		content->add(std::move(below));

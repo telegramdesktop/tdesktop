@@ -1156,6 +1156,8 @@ void Fader::onTimer() {
 	QMutexLocker lock(&AudioMutex);
 	if (!mixer()) return;
 
+	constexpr auto kMediaPlayerSuppressDuration = crl::time(150);
+
 	auto volumeChangedAll = false;
 	auto volumeChangedSong = false;
 	if (_suppressAll || _suppressSongAnim) {
@@ -1167,13 +1169,13 @@ void Fader::onTimer() {
 			} else if (ms > _suppressAllEnd - kFadeDuration) {
 				if (_suppressVolumeAll.to() != 1.) _suppressVolumeAll.start(1.);
 				_suppressVolumeAll.update(1. - ((_suppressAllEnd - ms) / float64(kFadeDuration)), anim::linear);
-			} else if (ms >= _suppressAllStart + st::mediaPlayerSuppressDuration) {
+			} else if (ms >= _suppressAllStart + kMediaPlayerSuppressDuration) {
 				if (_suppressAllAnim) {
 					_suppressVolumeAll.finish();
 					_suppressAllAnim = false;
 				}
 			} else if (ms > _suppressAllStart) {
-				_suppressVolumeAll.update((ms - _suppressAllStart) / float64(st::mediaPlayerSuppressDuration), anim::linear);
+				_suppressVolumeAll.update((ms - _suppressAllStart) / float64(kMediaPlayerSuppressDuration), anim::linear);
 			}
 			auto wasVolumeMultiplierAll = VolumeMultiplierAll;
 			VolumeMultiplierAll = _suppressVolumeAll.current();

@@ -54,34 +54,6 @@ namespace Settings {
 
 using Button = Ui::SettingsButton;
 
-class AbstractSection;
-
-struct AbstractSectionFactory {
-	[[nodiscard]] virtual object_ptr<AbstractSection> create(
-		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller) const = 0;
-	[[nodiscard]] virtual bool hasCustomTopBar() const {
-		return false;
-	}
-
-	virtual ~AbstractSectionFactory() = default;
-};
-
-template <typename SectionType>
-struct SectionFactory : AbstractSectionFactory {
-	object_ptr<AbstractSection> create(
-		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller
-	) const final override {
-		return object_ptr<SectionType>(parent, controller);
-	}
-
-	[[nodiscard]] static const std::shared_ptr<SectionFactory> &Instance() {
-		static const auto result = std::make_shared<SectionFactory>();
-		return result;
-	}
-};
-
 class AbstractSection : public Ui::RpWidget {
 public:
 	using RpWidget::RpWidget;
@@ -123,19 +95,6 @@ public:
 	}
 };
 
-template <typename SectionType>
-class Section : public AbstractSection {
-public:
-	using AbstractSection::AbstractSection;
-
-	[[nodiscard]] static Type Id() {
-		return SectionFactory<SectionType>::Instance();
-	}
-	[[nodiscard]] Type id() const final override {
-		return Id();
-	}
-};
-
 enum class IconType {
 	Rounded,
 	Round,
@@ -171,12 +130,6 @@ private:
 
 };
 
-void AddSkip(not_null<Ui::VerticalLayout*> container);
-void AddSkip(not_null<Ui::VerticalLayout*> container, int skip);
-void AddDivider(not_null<Ui::VerticalLayout*> container);
-void AddDividerText(
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<QString> text);
 void AddButtonIcon(
 	not_null<Ui::AbstractButton*> button,
 	const style::SettingsButton &st,
@@ -185,12 +138,12 @@ void AddDialogImageToButton(
     not_null<Ui::AbstractButton*> button,
     const style::SettingsButton &st,
     not_null<Dialogs::Row*> dialog);
-object_ptr<Button> CreateButton(
+object_ptr<Button> CreateButtonWithIcon(
 	not_null<QWidget*> parent,
 	rpl::producer<QString> text,
 	const style::SettingsButton &st,
 	IconDescriptor &&descriptor = {});
-not_null<Button*> AddButton(
+not_null<Button*> AddButtonWithIcon(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text,
 	const style::SettingsButton &st,
@@ -206,11 +159,6 @@ void CreateRightLabel(
 	rpl::producer<QString> label,
 	const style::SettingsButton &st,
 	rpl::producer<QString> buttonText);
-not_null<Ui::FlatLabel*> AddSubsectionTitle(
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<QString> text,
-	style::margins addPadding = {},
-	const style::FlatLabel *st = nullptr);
 void AddDividerTextWithLottie(
 	not_null<Ui::VerticalLayout*> parent,
 	rpl::producer<> showFinished,
@@ -225,12 +173,6 @@ struct LottieIcon {
 	not_null<QWidget*> parent,
 	Lottie::IconDescriptor &&descriptor,
 	style::margins padding = {});
-
-void FillMenu(
-	not_null<Window::SessionController*> controller,
-	Type type,
-	Fn<void(Type)> showOther,
-	Ui::Menu::MenuCallback addAction);
 
 struct SliderWithLabel {
 	object_ptr<Ui::RpWidget> widget;

@@ -31,13 +31,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
-
-#include <xxhash.h>
 
 namespace {
 
@@ -142,12 +141,12 @@ void ChatFilterLinkBox(
 			tr::lng_group_invite_label_header(),
 			data.title),
 		style::margins(
-			st::settingsSubsectionTitlePadding.left(),
-			st::settingsSectionSkip,
-			st::settingsSubsectionTitlePadding.right(),
-			st::settingsSectionSkip * 2));
+			st::defaultSubsectionTitlePadding.left(),
+			st::defaultVerticalListSkip,
+			st::defaultSubsectionTitlePadding.right(),
+			st::defaultVerticalListSkip * 2));
 	labelField->setMaxLength(kMaxLinkTitleLength);
-	Settings::AddDivider(container);
+	AddDivider(container);
 
 	box->setFocusCallback([=] {
 		labelField->setFocusFast();
@@ -223,14 +222,6 @@ private:
 
 };
 
-[[nodiscard]] uint64 ComputeRowId(const QString &link) {
-	return XXH64(link.data(), link.size() * sizeof(ushort), 0);
-}
-
-[[nodiscard]] uint64 ComputeRowId(const InviteLinkData &data) {
-	return ComputeRowId(data.url);
-}
-
 [[nodiscard]] Color ComputeColor(const InviteLinkData &link) {
 	return Color::Permanent;
 }
@@ -242,7 +233,7 @@ private:
 LinkRow::LinkRow(
 	not_null<LinkRowDelegate*> delegate,
 	const InviteLinkData &data)
-: PeerListRow(ComputeRowId(data))
+: PeerListRow(UniqueRowIdFromString(data.url))
 , _delegate(delegate)
 , _data(data)
 , _color(ComputeColor(data)) {
@@ -585,19 +576,19 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 		CopyInviteLink(delegate()->peerListUiShow(), link);
 	});
 	const auto shareLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			ShareInviteLinkBox(&_window->session(), link));
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()));
 	});
 	const auto editLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			Box(ChatFilterLinkBox, &_window->session(), _data));
 	});
 	const auto deleteLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(DeleteLinkBox(_window, _data));
+		delegate()->peerListUiShow()->showBox(DeleteLinkBox(_window, _data));
 	});
 
 	const auto createMenu = [=] {
@@ -626,7 +617,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 			&st::menuIconDelete);
 		return result;
 	};
-	AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_filters_link_subtitle(),
 		st::filterLinkSubsectionTitlePadding);
@@ -647,11 +638,11 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 
 	AddCopyShareLinkButtons(container, copyLink, shareLink);
 
-	AddSkip(container, st::inviteLinkJoinedRowPadding.bottom() * 2);
+	Ui::AddSkip(container, st::inviteLinkJoinedRowPadding.bottom() * 2);
 
-	AddSkip(container);
+	Ui::AddSkip(container);
 
-	AddDivider(container);
+	Ui::AddDivider(container);
 }
 
 void LinkController::prepare() {
@@ -798,7 +789,7 @@ void LinkController::setupBelowWidget() {
 					? tr::lng_filters_link_chats_no_about()
 					: tr::lng_filters_link_chats_about()),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding));
+			st::defaultBoxDividerLabelPadding));
 }
 
 Main::Session &LinkController::session() const {
@@ -856,7 +847,7 @@ void LinksController::rebuild(const std::vector<InviteLinkData> &rows) {
 
 void LinksController::rowClicked(not_null<PeerListRow*> row) {
 	const auto link = static_cast<LinkRow*>(row.get())->data();
-	delegate()->peerListShowBox(
+	delegate()->peerListUiShow()->showBox(
 		ShowLinkBox(_window, _currentFilter(), link));
 }
 
@@ -891,19 +882,19 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		CopyInviteLink(delegate()->peerListUiShow(), link);
 	};
 	const auto shareLink = [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			ShareInviteLinkBox(&_window->session(), link));
 	};
 	const auto getLinkQr = [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()));
 	};
 	const auto editLink = [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			Box(ChatFilterLinkBox, &_window->session(), data));
 	};
 	const auto deleteLink = [=] {
-		delegate()->peerListShowBox(DeleteLinkBox(_window, data));
+		delegate()->peerListUiShow()->showBox(DeleteLinkBox(_window, data));
 	};
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
@@ -1162,7 +1153,7 @@ void AddFilterSubtitleWithToggles(
 			font->width(tr::lng_filters_by_link_select(tr::now)),
 			font->width(tr::lng_filters_by_link_deselect(tr::now))));
 	}
-	const auto title = Settings::AddSubsectionTitle(
+	const auto title = Ui::AddSubsectionTitle(
 		container,
 		std::move(text),
 		padding);

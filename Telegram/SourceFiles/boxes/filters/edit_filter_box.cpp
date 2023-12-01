@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/filter_icons.h"
 #include "ui/filter_icon_panel.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "data/data_channel.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
@@ -515,7 +516,7 @@ not_null<Ui::SettingsButton*> AddToggledButton(
 	const auto toggled = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
-			CreateButton(
+			CreateButtonWithIcon(
 				container,
 				std::move(text),
 				st,
@@ -658,12 +659,12 @@ void EditFilterBox(
 		name->setFocusFast();
 	});
 
-	AddSkip(content);
-	AddDivider(content);
-	AddSkip(content);
-	AddSubsectionTitle(content, tr::lng_filters_include());
+	Ui::AddSkip(content);
+	Ui::AddDivider(content);
+	Ui::AddSkip(content);
+	Ui::AddSubsectionTitle(content, tr::lng_filters_include());
 
-	const auto includeAdd = AddButton(
+	const auto includeAdd = AddButtonWithIcon(
 		content,
 		tr::lng_filters_add_chats(),
 		st::settingsButtonActive,
@@ -676,9 +677,9 @@ void EditFilterBox(
 		kTypes,
 		&Data::ChatFilter::always);
 
-	AddSkip(content);
-	AddDividerText(content, tr::lng_filters_include_about());
-	AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddDividerText(content, tr::lng_filters_include_about());
+	Ui::AddSkip(content);
 
 	auto excludeWrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -688,9 +689,9 @@ void EditFilterBox(
 	excludeWrap->toggleOn(state->chatlist.value() | rpl::map(!_1));
 	const auto excludeInner = excludeWrap->entity();
 
-	AddSubsectionTitle(excludeInner, tr::lng_filters_exclude());
+	Ui::AddSubsectionTitle(excludeInner, tr::lng_filters_exclude());
 
-	const auto excludeAdd = AddButton(
+	const auto excludeAdd = AddButtonWithIcon(
 		excludeInner,
 		tr::lng_filters_remove_chats(),
 		st::settingsButtonActive,
@@ -703,9 +704,9 @@ void EditFilterBox(
 		kExcludeTypes,
 		&Data::ChatFilter::never);
 
-	AddSkip(excludeInner);
-	AddDividerText(excludeInner, tr::lng_filters_exclude_about());
-	AddSkip(excludeInner);
+	Ui::AddSkip(excludeInner);
+	Ui::AddDividerText(excludeInner, tr::lng_filters_exclude_about());
+	Ui::AddSkip(excludeInner);
 
 	const auto collect = [=]() -> std::optional<Data::ChatFilter> {
 		const auto title = name->getLastText().trimmed();
@@ -726,7 +727,7 @@ void EditFilterBox(
 		return rules.withTitle(title);
 	};
 
-	AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		content,
 		rpl::conditional(
 			state->hasLinks.value(),
@@ -806,8 +807,8 @@ void EditFilterBox(
 			}));
 		}));
 	}, createLink->lifetime());
-	AddSkip(content);
-	AddDividerText(
+	Ui::AddSkip(content);
+	Ui::AddDividerText(
 		content,
 		rpl::conditional(
 			state->hasLinks.value(),

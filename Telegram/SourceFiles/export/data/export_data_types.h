@@ -533,10 +533,9 @@ struct ActionSuggestProfilePhoto {
 };
 
 struct ActionSetChatWallPaper {
+	bool same = false;
+	bool both = false;
 	// #TODO wallpapers
-};
-
-struct ActionSetSameChatWallPaper {
 };
 
 struct ActionGiftCode {
@@ -553,6 +552,11 @@ struct ActionRequestedPeer {
 };
 
 struct ActionGiveawayLaunch {
+};
+
+struct ActionGiveawayResults {
+	int winners = 0;
+	int unclaimed = 0;
 };
 
 struct ServiceAction {
@@ -593,9 +597,9 @@ struct ServiceAction {
 		ActionSuggestProfilePhoto,
 		ActionRequestedPeer,
 		ActionSetChatWallPaper,
-		ActionSetSameChatWallPaper,
 		ActionGiftCode,
-		ActionGiveawayLaunch> content;
+		ActionGiveawayLaunch,
+		ActionGiveawayResults> content;
 };
 
 ServiceAction ParseServiceAction(

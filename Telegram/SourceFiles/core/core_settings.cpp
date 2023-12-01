@@ -7,18 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/core_settings.h"
 
-#include "boxes/send_files_box.h"
-#include "history/view/history_view_quick_action.h"
-#include "ui/widgets/fields/input_field.h"
-#include "storage/serialize_common.h"
-#include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
-#include "webrtc/webrtc_create_adm.h"
-#include "media/player/media_player_instance.h"
-#include "media/media_common.h"
-#include "ui/gl/gl_detection.h"
 #include "calls/group/calls_group_common.h"
+#include "history/view/history_view_quick_action.h"
+#include "lang/lang_keys.h"
+#include "platform/platform_notifications_manager.h"
 #include "spellcheck/spellcheck_types.h"
+#include "storage/serialize_common.h"
+#include "ui/gl/gl_detection.h"
+#include "ui/widgets/fields/input_field.h"
+#include "webrtc/webrtc_create_adm.h"
+#include "window/section_widget.h"
 
 namespace Core {
 namespace {
@@ -1304,6 +1303,17 @@ auto Settings::DeserializePlaybackSpeed(qint32 speed) -> PlaybackSpeed {
 		enabled = false;
 	}
 	return validate(std::clamp(speed / 100., kSpeedMin, kSpeedMax));
+}
+
+bool Settings::nativeNotifications() const {
+	return _nativeNotifications.value_or(
+		Platform::Notifications::ByDefault());
+}
+
+void Settings::setNativeNotifications(bool value) {
+	_nativeNotifications = (value == Platform::Notifications::ByDefault())
+		? std::nullopt
+		: std::make_optional(value);
 }
 
 void Settings::setTranslateButtonEnabled(bool value) {

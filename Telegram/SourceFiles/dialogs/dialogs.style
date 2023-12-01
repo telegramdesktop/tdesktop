@@ -617,3 +617,7 @@ dialogsStoriesTooltipHide: IconButton(defaultIconButton) {
 	iconOver: icon {{ "calls/video_tooltip", importantTooltipFg }};
 	ripple: emptyRippleAnimation;
 }
+
+searchedBarHeight: 32px;
+searchedBarFont: normalFont;
+searchedBarPosition: point(17px, 7px);

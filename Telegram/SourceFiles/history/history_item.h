@@ -8,10 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/runtime_composer.h"
-#include "base/flags.h"
 #include "data/data_media_types.h"
 #include "history/history_item_edition.h"
-#include "history/history_item_reply_markup.h"
 
 #include <any>
 
@@ -317,6 +315,9 @@ public:
 	[[nodiscard]] bool isFakeBotAbout() const {
 		return _flags & MessageFlag::FakeBotAbout;
 	}
+	[[nodiscard]] bool showSimilarChannels() const {
+		return _flags & MessageFlag::ShowSimilarChannels;
+	}
 	[[nodiscard]] bool isRegular() const;
 	[[nodiscard]] bool isUploading() const;
 	void sendFailed();
@@ -611,8 +612,6 @@ private:
 	// For an invoice button we replace the button text with a "Receipt" key.
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.
 	void replaceBuyWithReceiptInMarkup();
-
-	void setSponsoredFrom(const Data::SponsoredFrom &from);
 
 	[[nodiscard]] PreparedServiceText preparePinnedText();
 	[[nodiscard]] PreparedServiceText prepareGameScoreText();

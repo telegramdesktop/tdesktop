@@ -30,6 +30,7 @@ public:
 	~CaptionFullView();
 
 	void close();
+	void repaint();
 	[[nodiscard]] bool closing() const;
 	[[nodiscard]] bool focused() const;
 

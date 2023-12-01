@@ -18,9 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
+#include "settings/settings_common.h" // IconDescriptor.
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
@@ -64,7 +65,7 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 		rpl::variable<bool> locked;
 		rpl::event_stream<bool> toggled;
 	};
-	Settings::AddSkip(container->entity());
+	Ui::AddSkip(container->entity());
 	const auto state = container->lifetime().make_state<State>();
 	const auto button = container->entity()->add(
 		EditPeerInfoBox::CreateButton(
@@ -78,8 +79,8 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 		_channel->antiSpamMode()
 	) | rpl::then(state->toggled.events()));
 	container->show(anim::type::instant);
-	Settings::AddSkip(container->entity());
-	Settings::AddDividerText(
+	Ui::AddSkip(container->entity());
+	Ui::AddDividerText(
 		container->entity(),
 		tr::lng_manage_peer_antispam_about());
 

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "boxes/abstract_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "apiwrap.h"

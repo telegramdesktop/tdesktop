@@ -20,15 +20,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h" // Session::api().
-#include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_settings.h"
+#include "styles/style_layers.h"
 
 namespace {
 
@@ -352,11 +352,11 @@ void ChoosePeerBoxController::prepareRestrictions() {
 	const auto raw = above.data();
 	auto rows = RestrictionsList(_query);
 	if (!rows.empty()) {
-		Settings::AddSubsectionTitle(
+		Ui::AddSubsectionTitle(
 			raw,
 			tr::lng_request_peer_requirements(),
 			{ 0, st::membersMarginTop, 0, 0 });
-		const auto skip = st::settingsSubsectionTitlePadding.left();
+		const auto skip = st::defaultSubsectionTitlePadding.left();
 		auto separator = QString::fromUtf8("\n\xE2\x80\xA2 ");
 		raw->add(
 			object_ptr<Ui::FlatLabel>(
@@ -364,7 +364,7 @@ void ChoosePeerBoxController::prepareRestrictions() {
 				separator + rows.join(separator),
 				st::requestPeerRestriction),
 			{ skip, 0, skip, st::membersMarginTop });
-		Settings::AddDivider(raw);
+		Ui::AddDivider(raw);
 	}
 	const auto make = [&](tr::phrase<> text, const style::icon &st) {
 		auto button = raw->add(
@@ -433,7 +433,7 @@ void ChoosePeerBoxController::rowClicked(not_null<PeerListRow*> row) {
 	if (const auto user = peer->asUser()) {
 		done();
 	} else {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			MakeConfirmBox(_bot, peer, _query, done));
 	}
 }

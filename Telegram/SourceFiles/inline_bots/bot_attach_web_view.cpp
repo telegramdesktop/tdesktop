@@ -233,7 +233,7 @@ void FillDisclaimerBox(not_null<Ui::GenericBox*> box, Fn<void()> done) {
 					tr::lng_mini_apps_disclaimer_link(tr::now),
 					tr::lng_mini_apps_tos_url(tr::now))),
 				Ui::Text::WithEntities),
-			st::defaultBoxCheckbox,
+			st::urlAuthCheckbox,
 			std::move(checkView)),
 		{
 			st::boxRowPadding.left(),
@@ -241,7 +241,7 @@ void FillDisclaimerBox(not_null<Ui::GenericBox*> box, Fn<void()> done) {
 			st::boxRowPadding.right(),
 			0,
 		});
-	row->setAllowTextLines(5);
+	row->setAllowTextLines();
 	row->setClickHandlerFilter([=](
 			const ClickHandlerPtr &link,
 			Qt::MouseButton button) {

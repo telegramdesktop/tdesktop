@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
-#include "data/data_session.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
 #include "history/history.h"
@@ -105,6 +104,7 @@ void Giveaway::fillFromData(not_null<Data::Giveaway*> giveaway) {
 				st::msgMinWidth),
 			.thumbnail = Dialogs::Stories::MakeUserpicThumbnail(channel),
 			.link = channel->openLink(),
+			.colorIndex = channel->colorIndex(),
 		});
 	}
 	const auto channels = int(_channels.size());
@@ -342,29 +342,27 @@ void Giveaway::paintChannels(
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 	const auto selected = context.selected();
-	const auto colorIndex = parent()->colorIndex();
-	const auto cache = context.outbg
-		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
-		: st->coloredReplyCache(selected, colorIndex).get();
-	if (_channelCorners[0].isNull() || _channelBg != cache->bg) {
-		_channelBg = cache->bg;
-		_channelCorners = Images::CornersMask(size / 2);
-		for (auto &image : _channelCorners) {
-			style::colorizeImage(image, cache->bg, &image);
-		}
-	}
-	p.setPen(cache->icon);
 	const auto padding = st::chatGiveawayChannelPadding;
 	for (const auto &channel : _channels) {
 		const auto &thumbnail = channel.thumbnail;
 		const auto &geometry = channel.geometry;
 		if (!_subscribedToThumbnails) {
-			thumbnail->subscribeToUpdates([view = parent()] {
-				view->history()->owner().requestViewRepaint(view);
-			});
+			thumbnail->subscribeToUpdates([=] { repaint(); });
 		}
 
-		Ui::DrawRoundedRect(p, geometry, _channelBg, _channelCorners);
+		const auto colorIndex = channel.colorIndex;
+		const auto cache = context.outbg
+			? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
+			: st->coloredReplyCache(selected, colorIndex).get();
+		if (channel.corners[0].isNull() || channel.bg != cache->bg) {
+			channel.bg = cache->bg;
+			channel.corners = Images::CornersMask(size / 2);
+			for (auto &image : channel.corners) {
+				style::colorizeImage(image, cache->bg, &image);
+			}
+		}
+		p.setPen(cache->icon);
+		Ui::DrawRoundedRect(p, geometry, channel.bg, channel.corners);
 		if (channel.ripple) {
 			channel.ripple->paint(
 				p,
@@ -388,7 +386,7 @@ void Giveaway::paintChannels(
 			.align = style::al_left,
 			.palette = &stm->textPalette,
 			.now = context.now,
-			.elisionOneLine = true,
+			.elisionLines = 1,
 			.elisionBreakEverywhere = true,
 		});
 	}
@@ -486,13 +484,12 @@ void Giveaway::clickHandlerPressedChanged(
 		}
 		if (pressed) {
 			if (!channel.ripple) {
-				const auto owner = &parent()->history()->owner();
 				channel.ripple = std::make_unique<Ui::RippleAnimation>(
 					st::defaultRippleAnimation,
 					Ui::RippleAnimation::RoundRectMask(
 						channel.geometry.size(),
 						channel.geometry.height() / 2),
-					[=] { owner->requestViewRepaint(parent()); });
+					[=] { repaint(); });
 			}
 			channel.ripple->add(_lastPoint - channel.geometry.topLeft());
 		} else if (channel.ripple) {

@@ -25,10 +25,8 @@ ElementHighlighter::ElementHighlighter(
 , _animation(*this) {
 }
 
-void ElementHighlighter::enqueue(
-		not_null<Element*> view,
-		const TextWithEntities &part) {
-	const auto data = computeHighlight(view, part);
+void ElementHighlighter::enqueue(const SelectedQuote &quote) {
+	const auto data = computeHighlight(quote);
 	if (_queue.empty() && !_animation.animating()) {
 		highlight(data);
 	} else if (_highlighted != data && !base::contains(_queue, data)) {
@@ -37,10 +35,8 @@ void ElementHighlighter::enqueue(
 	}
 }
 
-void ElementHighlighter::highlight(
-		not_null<Element*> view,
-		const TextWithEntities &part) {
-	highlight(computeHighlight(view, part));
+void ElementHighlighter::highlight(const SelectedQuote &quote) {
+	highlight(computeHighlight(quote));
 }
 
 void ElementHighlighter::checkNextHighlight() {
@@ -75,9 +71,10 @@ Ui::ChatPaintHighlight ElementHighlighter::state(
 }
 
 ElementHighlighter::Highlight ElementHighlighter::computeHighlight(
-		not_null<const Element*> view,
-		const TextWithEntities &part) {
-	const auto item = view->data();
+		const SelectedQuote &quote) {
+	Assert(quote.item != nullptr);
+
+	const auto item = not_null(quote.item);
 	const auto owner = &item->history()->owner();
 	if (const auto group = owner->groups().find(item)) {
 		const auto leader = group->items.front();
@@ -85,20 +82,19 @@ ElementHighlighter::Highlight ElementHighlighter::computeHighlight(
 		const auto i = ranges::find(group->items, item);
 		if (i != end(group->items)) {
 			const auto index = int(i - begin(group->items));
-			if (part.empty()) {
+			if (quote.text.empty()) {
 				return { leaderId, AddGroupItemSelection({}, index) };
 			} else if (const auto leaderView = _viewForItem(leader)) {
-				return {
-					leaderId,
-					leaderView->selectionFromQuote(item, part),
-				};
+				return { leaderId, leaderView->selectionFromQuote(quote) };
 			}
 		}
 		return { leaderId };
-	} else if (part.empty()) {
+	} else if (quote.text.empty()) {
 		return { item->fullId() };
+	} else if (const auto view = _viewForItem(item)) {
+		return { item->fullId(), view->selectionFromQuote(quote) };
 	}
-	return { item->fullId(), view->selectionFromQuote(item, part) };
+	return { item->fullId() };
 }
 
 void ElementHighlighter::highlight(Highlight data) {

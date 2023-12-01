@@ -1273,12 +1273,12 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionRequestedPeer &data) {
 		return "requested: "_q/* + data.peerId*/;
 	}, [&](const ActionSetChatWallPaper &data) {
-		return serviceFrom + " set a new background for this chat";
-	}, [&](const ActionSetSameChatWallPaper &data) {
 		return serviceFrom
-			+ " set "
-			+ wrapReplyToLink("the same background")
-			+ " for this chat";
+			+ (data.same
+				? (" set "
+					+ wrapReplyToLink("the same background")
+					+ " for this chat")
+				: " set a new background for this chat");
 	}, [&](const ActionGiftCode &data) {
 		return data.unclaimed
 			? ("This is an unclaimed Telegram Premium for "
@@ -1297,6 +1297,10 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionGiveawayLaunch &data) {
 		return serviceFrom + " just started a giveaway "
 			"of Telegram Premium subscriptions to its followers.";
+	}, [&](const ActionGiveawayResults &data) {
+		return QByteArray::number(data.winners)
+			+ " of the giveaway were randomly selected by Telegram "
+			"and received private messages with giftcodes.";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

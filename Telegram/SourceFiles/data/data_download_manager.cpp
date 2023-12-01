@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "lang/lang_keys.h"
 #include "storage/storage_account.h"
 #include "history/history.h"
 #include "history/history_item.h"

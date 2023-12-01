@@ -20,12 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/filter_link_header.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/filter_icons.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_filter_icons.h"
 #include "styles/style_layers.h"
@@ -341,7 +341,7 @@ void ToggleChatsController::setupAboveWidget() {
 	_addedTopWidget = container->add(object_ptr<Ui::RpWidget>(container));
 	const auto realAbove = container->add(
 		object_ptr<Ui::VerticalLayout>(container));
-	AddDivider(realAbove);
+	Ui::AddDivider(realAbove);
 	const auto totalCount = [&] {
 		if (_chats.empty()) {
 			return _additional.size();
@@ -422,7 +422,7 @@ void ToggleChatsController::setupBelowWidget() {
 	auto widget = object_ptr<Ui::DividerLabel>(
 		(QWidget*)nullptr,
 		std::move(layout),
-		st::settingsDividerLabelPadding);
+		st::defaultBoxDividerLabelPadding);
 	raw->add(object_ptr<Ui::FlatLabel>(
 		raw,
 		(_action == ToggleAction::Removing

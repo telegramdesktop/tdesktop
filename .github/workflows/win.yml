@@ -41,6 +41,8 @@ jobs:
     strategy:
       matrix:
         arch: [Win32, x64]
+#        generator: ["", "Ninja Multi-Config"]
+        generator: [""]
 
     env:
       UPLOAD_ARTIFACT: "true"
@@ -90,22 +92,72 @@ jobs:
           cd %TBUILD%
           %REPO_NAME%\Telegram\build\prepare\win.bat silent
 
+      - name: Read configuration matrix.
+        shell: bash
+        run: |
+          ARTIFACT_NAME="Telegram"
+
+          ARCH=""
+          if [ -n "${{ matrix.arch }}" ]; then
+            case "${{ matrix.arch }}" in
+              Win32) ARCH="x86";;
+              *) ARCH="${{ matrix.arch }}";;
+            esac
+            echo "Architecture from matrix: $ARCH"
+            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.arch }}"
+          fi
+
+          GENERATOR=""
+          if [ -n "${{ matrix.generator }}" ]; then
+            GENERATOR="-G \"${{ matrix.generator }}\""
+            echo "Generator from matrix: $GENERATOR"
+            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.generator }}"
+          fi
+          echo "TDESKTOP_BUILD_GENERATOR=$GENERATOR" >> $GITHUB_ENV
+
+          [ -n "$GENERATOR" ] && ARCH=""
+          echo "TDESKTOP_BUILD_ARCH=$ARCH" >> $GITHUB_ENV
+
+          DEFINE=""
+          if [ -n "${{ matrix.defines }}" ]; then
+            DEFINE="-D ${{ matrix.defines }}=ON"
+            echo "Define from matrix: $DEFINE"
+            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.defines }}"
+          fi
+          echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
+
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
+
+          API="-D TDESKTOP_API_TEST=ON"
+          if [ $GITHUB_REF == 'refs/heads/nightly' ]; then
+            echo "Use the open credentials."
+            API="-D TDESKTOP_API_ID=611335 -D TDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c"
+          fi
+          echo "TDESKTOP_BUILD_API=$API" >> $GITHUB_ENV
+
+      - name: Free up some disk space.
+        run: |
+          cd %TBUILD%
+          del /S Libraries\*.pdb
+          del /S Libraries\*.pch
+          del /S Libraries\*.obj
+
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
           SET CXXFLAGS="-bigobj"
           call configure.bat ^
-          ${{ matrix.arch }} ^
+          %TDESKTOP_BUILD_ARCH% ^
+          %TDESKTOP_BUILD_API% ^
           -D TDESKTOP_API_TEST=OFF ^
           -D TDESKTOP_API_ID=${{ secrets.API_ID }} ^
           -D TDESKTOP_API_HASH=${{ secrets.API_HASH }} ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
           -D DESKTOP_APP_NO_PDB=ON ^
-          %TDESKTOP_BUILD_DEFINE% ^
-          -DCMAKE_SYSTEM_VERSION=%SDK%
-          cd ..\out
-          msbuild -m Telegram.sln /p:Configuration=Release,Platform=${{ matrix.arch }}
+          %TDESKTOP_BUILD_DEFINE%
+          
+          cmake --build ..\out --config Release --parallel
 
       - name: Move and hash artifact.
         if: env.UPLOAD_ARTIFACT == 'true'

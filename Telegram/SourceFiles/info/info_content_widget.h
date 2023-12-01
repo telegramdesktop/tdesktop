@@ -202,6 +202,9 @@ public:
 	FullMsgId statisticsContextId() const {
 		return _statisticsContextId;
 	}
+	FullStoryId statisticsStoryId() const {
+		return _statisticsStoryId;
+	}
 	PollData *poll() const {
 		return _poll;
 	}
@@ -248,6 +251,7 @@ private:
 	Stories::Tab _storiesTab = {};
 	PeerData * const _statisticsPeer = nullptr;
 	const FullMsgId _statisticsContextId;
+	const FullStoryId _statisticsStoryId;
 	PollData * const _poll = nullptr;
 	const FullMsgId _pollContextId;
 

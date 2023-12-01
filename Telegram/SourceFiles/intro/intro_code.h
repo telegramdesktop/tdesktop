@@ -16,29 +16,13 @@ namespace Ui {
 class RoundButton;
 class LinkButton;
 class FlatLabel;
+class CodeInput;
 } // namespace Ui
 
 namespace Intro {
 namespace details {
 
 enum class CallStatus;
-
-class CodeInput final : public Ui::MaskedInputField {
-public:
-	CodeInput(
-		QWidget *parent,
-		const style::InputField &st,
-		rpl::producer<QString> placeholder);
-
-	void setDigitsCountMax(int digitsCount);
-
-protected:
-	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
-
-private:
-	int _digitsCountMax = 5;
-
-};
 
 class CodeWidget final : public Step {
 public:
@@ -65,7 +49,6 @@ protected:
 
 private:
 	void noTelegramCode();
-	void codeChanged();
 	void sendCall();
 	void checkRequest();
 
@@ -85,14 +68,14 @@ private:
 	void noTelegramCodeDone(const MTPauth_SentCode &result);
 	void noTelegramCodeFail(const MTP::Error &result);
 
-	void submitCode();
+	void submitCode(const QString &text);
 
 	void stopCheck();
 
 	object_ptr<Ui::LinkButton> _noTelegramCode;
 	mtpRequestId _noTelegramCodeRequestId = 0;
 
-	object_ptr<CodeInput> _code;
+	object_ptr<Ui::CodeInput> _code;
 	QString _sentCode;
 	mtpRequestId _sentRequest = 0;
 

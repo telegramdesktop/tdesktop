@@ -785,6 +785,10 @@ void EmojiListWidget::unloadCustomIn(const SectionInfo &info) {
 object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 	Expects(_footer == nullptr);
 
+	if (_mode == EmojiListMode::RecentReactions) {
+		return { nullptr };
+	}
+
 	using FooterDescriptor = StickersListFooter::Descriptor;
 	const auto flag = powerSavingFlag();
 	const auto footerPaused = [method = pausedMethod(), flag]() {

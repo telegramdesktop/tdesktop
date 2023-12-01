@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
+#include "ui/round_rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "lang/lang_keys.h"

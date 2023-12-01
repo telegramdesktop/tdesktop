@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/debug_log.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-#include "styles/style_settings.h"
 
 namespace Ui {
 namespace {
@@ -183,7 +182,7 @@ void Row::paintEvent(QPaintEvent *e) {
 	p.setPen(Qt::NoPen);
 	p.setBrush(color);
 
-	const auto left = st::settingsSubsectionTitlePadding.left();
+	const auto left = st::defaultSubsectionTitlePadding.left();
 	const auto toggleRect = SettingsButton::maybeToggleRect();
 	const auto right = left
 		+ (toggleRect.isEmpty() ? 0 : (width() - toggleRect.x()));

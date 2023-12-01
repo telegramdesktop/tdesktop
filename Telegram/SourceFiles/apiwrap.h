@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 #include "base/timer.h"
-#include "base/flat_map.h"
-#include "base/flat_set.h"
 #include "mtproto/sender.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_messages.h"
@@ -73,6 +71,7 @@ class InviteLinks;
 class ViewsManager;
 class ConfirmPhone;
 class PeerPhoto;
+class PeerColors;
 class Polls;
 class ChatParticipants;
 class UnreadThings;
@@ -141,10 +140,10 @@ public:
 
 	void applyUpdates(
 		const MTPUpdates &updates,
-		uint64 sentMessageRandomId = 0);
+		uint64 sentMessageRandomId = 0) const;
 	int applyAffectedHistory(
 		PeerData *peer, // May be nullptr, like for deletePhoneCallHistory.
-		const MTPmessages_AffectedHistory &result);
+		const MTPmessages_AffectedHistory &result) const;
 
 	void registerModifyRequest(const QString &key, mtpRequestId requestId);
 	void clearModifyRequest(const QString &key);
@@ -369,6 +368,9 @@ public:
 
 	void saveSelfBio(const QString &text);
 
+	void registerStatsRequest(MTP::DcId dcId, mtpRequestId id);
+	void unregisterStatsRequest(MTP::DcId dcId, mtpRequestId id);
+
 	[[nodiscard]] Api::Authorizations &authorizations();
 	[[nodiscard]] Api::AttachedStickers &attachedStickers();
 	[[nodiscard]] Api::BlockedPeers &blockedPeers();
@@ -389,6 +391,7 @@ public:
 	[[nodiscard]] Api::Premium &premium();
 	[[nodiscard]] Api::Usernames &usernames();
 	[[nodiscard]] Api::Websites &websites();
+	[[nodiscard]] Api::PeerColors &peerColors();
 
 	void updatePrivacyLastSeens();
 
@@ -500,7 +503,7 @@ private:
 		not_null<PeerData*> peer,
 		bool justClear,
 		bool revoke);
-	void applyAffectedMessages(const MTPmessages_AffectedMessages &result);
+	void applyAffectedMessages(const MTPmessages_AffectedMessages &result) const;
 
 	void deleteAllFromParticipantSend(
 		not_null<ChannelData*> channel,
@@ -529,7 +532,6 @@ private:
 		Api::SendOptions options,
 		uint64 randomId,
 		Fn<void(bool)> done = nullptr);
-	FileLoadTo fileLoadTaskOptions(const SendAction &action) const;
 
 	void getTopPromotionDelayed(TimeId now, TimeId next);
 	void topPromotionDone(const MTPhelp_PromoData &proxy);
@@ -546,6 +548,8 @@ private:
 		not_null<PeerData*> peer,
 		not_null<ChannelData*> channel);
 	void migrateFail(not_null<PeerData*> peer, const QString &error);
+
+	void checkStatsSessions();
 
 	const not_null<Main::Session*> _session;
 
@@ -683,6 +687,9 @@ private:
 		QString requestedText;
 	} _bio;
 
+	base::flat_map<MTP::DcId, base::flat_set<mtpRequestId>> _statsRequests;
+	base::Timer _statsSessionKillTimer;
+
 	const std::unique_ptr<Api::Authorizations> _authorizations;
 	const std::unique_ptr<Api::AttachedStickers> _attachedStickers;
 	const std::unique_ptr<Api::BlockedPeers> _blockedPeers;
@@ -703,6 +710,7 @@ private:
 	const std::unique_ptr<Api::Premium> _premium;
 	const std::unique_ptr<Api::Usernames> _usernames;
 	const std::unique_ptr<Api::Websites> _websites;
+	const std::unique_ptr<Api::PeerColors> _peerColors;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/premium_preview_box.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
 #include "settings/settings_premium.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -33,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
@@ -64,8 +64,8 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPEmojiStatus(),
 		MTPVector<MTPUsername>(),
 		MTPint(), // stories_max_id
-		MTP_int(0), // color
-		MTPlong())); // background_emoji_id
+		MTPPeerColor(), // color
+		MTPPeerColor())); // profile_color
 	return peerId;
 }
 
@@ -105,7 +105,7 @@ void AddMessage(
 		object_ptr<Ui::RpWidget>(container),
 		style::margins(
 			0,
-			st::settingsSectionSkip,
+			st::defaultVerticalListSkip,
 			0,
 			st::settingsPrivacySkipTop));
 
@@ -486,7 +486,7 @@ void ReactionsSettingsBox(
 	auto idValue = state->selectedId.value();
 	AddMessage(pinnedToTop, controller, std::move(idValue), box->width());
 
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		pinnedToTop,
 		tr::lng_settings_chat_reactions_subtitle());
 
@@ -515,10 +515,10 @@ void ReactionsSettingsBox(
 		}
 	}
 	for (const auto &r : list) {
-		const auto button = Settings::AddButton(
+		const auto button = container->add(object_ptr<Ui::SettingsButton>(
 			container,
 			rpl::single<QString>(base::duplicate(r.title)),
-			st::settingsButton);
+			st::settingsButton));
 
 		const auto premium = r.premium;
 		if (premium && !premiumPossible) {

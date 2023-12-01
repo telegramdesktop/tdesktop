@@ -58,13 +58,18 @@ struct Tag {
 namespace Info::Statistics {
 
 struct Tag {
-	explicit Tag(not_null<PeerData*> peer, FullMsgId contextId)
+	explicit Tag(
+		not_null<PeerData*> peer,
+		FullMsgId contextId,
+		FullStoryId storyId)
 	: peer(peer)
-	, contextId(contextId) {
+	, contextId(contextId)
+	, storyId(storyId) {
 	}
 
 	not_null<PeerData*> peer;
 	FullMsgId contextId;
+	FullStoryId storyId;
 };
 
 } // namespace Info::Statistics
@@ -89,6 +94,7 @@ public:
 	Stories::Tab storiesTab() const;
 	PeerData *statisticsPeer() const;
 	FullMsgId statisticsContextId() const;
+	FullStoryId statisticsStoryId() const;
 	PollData *poll() const;
 	FullMsgId pollContextId() const;
 
@@ -119,6 +125,7 @@ public:
 		Profile,
 		Media,
 		CommonGroups,
+		SimilarChannels,
 		Members,
 		Settings,
 		Downloads,
@@ -193,6 +200,9 @@ public:
 	}
 	[[nodiscard]] FullMsgId statisticsContextId() const {
 		return key().statisticsContextId();
+	}
+	[[nodiscard]] FullStoryId statisticsStoryId() const {
+		return key().statisticsStoryId();
 	}
 	[[nodiscard]] PollData *poll() const;
 	[[nodiscard]] FullMsgId pollContextId() const {

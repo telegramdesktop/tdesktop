@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
+#include "storage/localimageloader.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
@@ -280,7 +281,12 @@ void ScheduledWidget::setupComposeControls() {
 			if (item->isScheduled() && item->history() == _history) {
 				showAtPosition(item->position());
 			} else {
-				JumpToMessageClickHandler(item, {}, to.quote)->onClick({});
+				JumpToMessageClickHandler(
+					item,
+					{},
+					to.quote,
+					to.quoteOffset
+				)->onClick({});
 			}
 		}
 	}, lifetime());
@@ -429,8 +435,7 @@ bool ScheduledWidget::confirmSendingFiles(
 		insertTextOnCancel));
 
 	//ActivateWindow(controller());
-	const auto shown = controller()->show(std::move(box));
-	shown->setCloseByOutsideClick(false);
+	controller()->show(std::move(box));
 
 	return true;
 }

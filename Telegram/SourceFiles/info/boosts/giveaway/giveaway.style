@@ -1,0 +1,196 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "boxes/boxes.style";
+using "ui/effects/premium.style";
+using "statistics/statistics.style";
+
+giveawayTypeListItem: PeerListItem(defaultPeerListItem) {
+	height: 52px;
+	photoPosition: point(58px, 6px);
+	namePosition: point(110px, 8px);
+	statusPosition: point(110px, 28px);
+	photoSize: 42px;
+}
+giveawayUserpic: icon {{ "boosts/filled_gift", windowFgActive }};
+giveawayUserpicSkip: 1px;
+giveawayUserpicGroup: icon {{ "limits/groups", windowFgActive }};
+giveawayRadioPosition: point(21px, 16px);
+
+giveawayGiftCodeCountryButton: SettingsButton(reportReasonButton) {
+}
+giveawayGiftCodeCountrySelect: MultiSelect(defaultMultiSelect) {
+}
+
+giveawayGiftCodeChannelDeleteIcon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
+giveawayGiftCodeChannelDeleteIconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};
+
+giveawayLoadingLabel: FlatLabel(membersAbout) {
+}
+giveawayGiftCodeTopHeight: 195px;
+giveawayGiftCodeLink: FlatLabel(defaultFlatLabel) {
+	margin: margins(10px, 12px, 10px, 8px);
+	textFg: menuIconColor;
+	maxHeight: 24px;
+}
+giveawayGiftCodeLinkCopy: icon{{ "menu/copy", menuIconColor }};
+giveawayGiftCodeLinkHeight: 42px;
+giveawayGiftCodeLinkCopyWidth: 40px;
+giveawayGiftCodeLinkMargin: margins(24px, 8px, 24px, 12px);
+
+giveawayGiftCodeGiftOption: PremiumOption(premiumGiftOption) {
+	badgeShift: point(5px, 0px);
+}
+giveawayGiftCodeStartButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	radius: 6px;
+}
+giveawayGiftCodeQuantitySubtitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+	textFg: windowActiveTextFg;
+	minWidth: 240px;
+	align: align(right);
+}
+giveawayGiftCodeQuantityFloat: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(13px);
+	}
+	textFg: windowActiveTextFg;
+	minWidth: 50px;
+	align: align(center);
+}
+
+boostLinkStatsButton: IconButton(defaultIconButton) {
+	width: giveawayGiftCodeLinkCopyWidth;
+	height: giveawayGiftCodeLinkHeight;
+	icon: icon{{ "menu/stats", menuIconColor }};
+	iconOver: icon{{ "menu/stats", menuIconColor }};
+	ripple: emptyRippleAnimation;
+}
+
+giveawayGiftCodeTable: Table(defaultTable) {
+	labelMinWidth: 91px;
+}
+giveawayGiftCodeTableMargin: margins(24px, 4px, 24px, 4px);
+giveawayGiftCodeLabel: FlatLabel(defaultFlatLabel) {
+	textFg: menuIconColor;
+	maxHeight: 24px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(12px semibold);
+	}
+}
+giveawayGiftCodeLabelMargin: margins(13px, 10px, 13px, 10px);
+giveawayGiftCodeValue: FlatLabel(defaultFlatLabel) {
+	maxHeight: 24px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkUnderline: kLinkUnderlineNever;
+	}
+}
+giveawayGiftCodeValueMargin: margins(13px, 9px, 13px, 9px);
+giveawayGiftCodePeerMargin: margins(11px, 6px, 11px, 4px);
+giveawayGiftCodeUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(24px, 24px);
+	photoSize: 24px;
+	photoPosition: point(-1px, -1px);
+}
+giveawayGiftCodeNamePosition: point(32px, 4px);
+giveawayGiftCodeCover: PremiumCover(userPremiumCover) {
+	starSize: size(92px, 90px);
+	starTopSkip: 20px;
+	titlePadding: margins(0px, 15px, 0px, 17px);
+	titleFont: font(15px semibold);
+	about: FlatLabel(userPremiumCoverAbout) {
+		textFg: windowBoldFg;
+		style: TextStyle(premiumAboutTextStyle) {
+			lineHeight: 17px;
+		}
+	}
+}
+giveawayGiftCodeCoverClosePosition: point(5px, 0px);
+giveawayGiftCodeCoverDividerPadding: margins(0px, 11px, 0px, 5px);
+giveawayGiftCodeTypeDividerPadding: margins(0px, 7px, 0px, 5px);
+giveawayGiftCodeSliderPadding: margins(0px, 24px, 0px, 10px);
+giveawayGiftCodeSliderFloatSkip: 6px;
+giveawayGiftCodeChannelsSubsectionPadding: margins(0px, -1px, 0px, -4px);
+
+giveawayGiftCodeChannelsPeerList: PeerList(boostsListBox) {
+	padding: margins(0px, 7px, 0px, 0px);
+}
+giveawayGiftCodeMembersPeerList: PeerList(defaultPeerList) {
+	item: PeerListItem(defaultPeerListItem) {
+		height: 50px;
+		namePosition: point(62px, 7px);
+		statusPosition: point(62px, 27px);
+	}
+}
+giveawayRadioMembersPosition: point(21px, 14px);
+
+giveawayGiftCodeChannelsAddButton: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	padding: margins(70px, 10px, 22px, 8px);
+	iconLeft: 28px;
+}
+giveawayGiftCodeChannelsDividerPadding: margins(0px, 5px, 0px, 5px);
+
+giveawayGiftCodeFooter: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: windowBoldFg;
+}
+giveawayGiftCodeFooterMargin: margins(0px, 9px, 0px, 4px);
+giveawayGiftCodeBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 22px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		font: font(13px semibold);
+	}
+	shadowIgnoreTopSkip: true;
+}
+giveawayRefundedLabel: FlatLabel(boxLabel) {
+	align: align(top);
+	style: semiboldTextStyle;
+	textFg: attentionButtonFg;
+}
+giveawayRefundedPadding: margins(8px, 10px, 8px, 10px);
+
+startGiveawayBox: Box(premiumGiftBox) {
+	shadowIgnoreTopSkip: true;
+}
+startGiveawayScrollArea: ScrollArea(boxScroll) {
+	deltax: 3px;
+	deltat: 50px;
+}
+startGiveawayBoxTitleClose: IconButton(boxTitleClose) {
+	ripple: universalRippleAnimation;
+}
+startGiveawayCover: PremiumCover(giveawayGiftCodeCover) {
+	bg: boxDividerBg;
+	additionalShadowForDarkThemes: false;
+}
+
+startGiveawayButtonLabelSimple: LabelSimple {
+	font: semiboldFont;
+	textFg: activeButtonFg;
+}
+startGiveawayButtonMiniIcon: icon{{ "boosts/boost_mini2", activeButtonBg }};
+startGiveawayButtonMiniIconSkip: 5px;
+startGiveawayButtonBadgeTextPadding: margins(16px, -1px, 6px, 0px);
+startGiveawayButtonTextStyle: TextStyle(defaultTextStyle) {
+	font: semiboldFont;
+}
+
+startGiveawayButtonLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: activeButtonFg;
+	thickness: 2px;
+}

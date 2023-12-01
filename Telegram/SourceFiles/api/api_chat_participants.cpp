@@ -211,6 +211,29 @@ void ApplyBotsList(
 		Data::PeerUpdate::Flag::FullInfo);
 }
 
+[[nodiscard]] ChatParticipants::Channels ParseSimilar(
+		not_null<ChannelData*> channel,
+		const MTPmessages_Chats &chats) {
+	auto result = ChatParticipants::Channels();
+	std::vector<not_null<ChannelData*>>();
+	chats.match([&](const auto &data) {
+		const auto &list = data.vchats().v;
+		result.list.reserve(list.size());
+		for (const auto &chat : list) {
+			const auto peer = channel->owner().processChat(chat);
+			if (const auto channel = peer->asChannel()) {
+				result.list.push_back(channel);
+			}
+		}
+		if constexpr (MTPDmessages_chatsSlice::Is<decltype(data)>()) {
+			if (channel->session().premiumPossible()) {
+				result.more = data.vcount().v - data.vchats().v.size();
+			}
+		}
+	});
+	return result;
+}
+
 } // namespace
 
 ChatParticipant::ChatParticipant(
@@ -683,6 +706,52 @@ void ChatParticipants::unblock(
 	}).send();
 
 	_kickRequests.emplace(kick, requestId);
+}
+
+void ChatParticipants::loadSimilarChannels(not_null<ChannelData*> channel) {
+	if (!channel->isBroadcast()) {
+		return;
+	} else if (const auto i = _similar.find(channel); i != end(_similar)) {
+		if (i->second.requestId
+			|| !i->second.channels.more
+			|| !channel->session().premium()) {
+			return;
+		}
+	}
+	_similar[channel].requestId = _api.request(
+		MTPchannels_GetChannelRecommendations(channel->inputChannel)
+	).done([=](const MTPmessages_Chats &result) {
+		auto &similar = _similar[channel];
+		similar.requestId = 0;
+		auto parsed = ParseSimilar(channel, result);
+		if (similar.channels == parsed) {
+			return;
+		}
+		similar.channels = std::move(parsed);
+		if (const auto history = channel->owner().historyLoaded(channel)) {
+			if (const auto item = history->joinedMessageInstance()) {
+				history->owner().requestItemResize(item);
+			}
+		}
+		_similarLoaded.fire_copy(channel);
+	}).send();
+}
+
+auto ChatParticipants::similar(not_null<ChannelData*> channel)
+-> const Channels & {
+	const auto i = channel->isBroadcast()
+		? _similar.find(channel)
+		: end(_similar);
+	if (i != end(_similar)) {
+		return i->second.channels;
+	}
+	static const auto empty = Channels();
+	return empty;
+}
+
+auto ChatParticipants::similarLoaded() const
+-> rpl::producer<not_null<ChannelData*>> {
+	return _similarLoaded.events();
 }
 
 } // namespace Api

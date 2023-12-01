@@ -7,30 +7,53 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "data/data_boosts.h"
 #include "data/data_statistics.h"
 #include "mtproto/sender.h"
 
-class ApiWrap;
 class ChannelData;
 class PeerData;
 
 namespace Api {
 
-class Statistics final {
-public:
-	explicit Statistics(not_null<ApiWrap*> api);
+class StatisticsRequestSender {
+protected:
+	explicit StatisticsRequestSender(not_null<ChannelData*> channel);
+	~StatisticsRequestSender();
 
-	[[nodiscard]] rpl::producer<rpl::no_value, QString> request(
-		not_null<PeerData*> peer);
+	template <
+		typename Request,
+		typename = std::enable_if_t<!std::is_reference_v<Request>>,
+		typename = typename Request::Unboxed>
+	[[nodiscard]] auto makeRequest(Request &&request);
+
+	[[nodiscard]] MTP::Sender &api() {
+		return _api;
+	}
+	[[nodiscard]] not_null<ChannelData*> channel() {
+		return _channel;
+	}
+
+private:
+	void checkRequests();
+
+	const not_null<ChannelData*> _channel;
+	MTP::Sender _api;
+	base::Timer _timer;
+	base::flat_map<MTP::DcId, base::flat_set<mtpRequestId>> _requests;
+
+};
+
+class Statistics final : public StatisticsRequestSender {
+public:
+	explicit Statistics(not_null<ChannelData*> channel);
+
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
 	using GraphResult = rpl::producer<Data::StatisticalGraph, QString>;
 	[[nodiscard]] GraphResult requestZoom(
-		not_null<PeerData*> peer,
 		const QString &token,
 		float64 x);
-	[[nodiscard]] GraphResult requestMessage(
-		not_null<PeerData*> peer,
-		MsgId msgId);
 
 	[[nodiscard]] Data::ChannelStatistics channelStats() const;
 	[[nodiscard]] Data::SupergroupStatistics supergroupStats() const;
@@ -38,35 +61,43 @@ public:
 private:
 	Data::ChannelStatistics _channelStats;
 	Data::SupergroupStatistics _supergroupStats;
-	MTP::Sender _api;
 
 	std::deque<Fn<void()>> _zoomDeque;
 
 };
 
-class PublicForwards final {
+class PublicForwards final : public StatisticsRequestSender {
 public:
-	explicit PublicForwards(not_null<ChannelData*> channel, FullMsgId fullId);
+	PublicForwards(
+		not_null<ChannelData*> channel,
+		Data::RecentPostId fullId);
 
 	void request(
 		const Data::PublicForwardsSlice::OffsetToken &token,
 		Fn<void(Data::PublicForwardsSlice)> done);
 
 private:
-	const not_null<ChannelData*> _channel;
-	const FullMsgId _fullId;
+	void requestMessage(
+		const Data::PublicForwardsSlice::OffsetToken &token,
+		Fn<void(Data::PublicForwardsSlice)> done);
+	void requestStory(
+		const Data::PublicForwardsSlice::OffsetToken &token,
+		Fn<void(Data::PublicForwardsSlice)> done);
+
+	const Data::RecentPostId _fullId;
 	mtpRequestId _requestId = 0;
 	int _lastTotal = 0;
 
-	MTP::Sender _api;
-
 };
 
-class MessageStatistics final {
+class MessageStatistics final : public StatisticsRequestSender {
 public:
 	explicit MessageStatistics(
 		not_null<ChannelData*> channel,
 		FullMsgId fullId);
+	explicit MessageStatistics(
+		not_null<ChannelData*> channel,
+		FullStoryId storyId);
 
 	void request(Fn<void(Data::MessageStatistics)> done);
 
@@ -74,13 +105,12 @@ public:
 
 private:
 	PublicForwards _publicForwards;
-	const not_null<ChannelData*> _channel;
 	const FullMsgId _fullId;
+	const FullStoryId _storyId;
 
 	Data::PublicForwardsSlice _firstSlice;
 
 	mtpRequestId _requestId = 0;
-	MTP::Sender _api;
 
 };
 

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h"
 
 #include "api/api_chat_participants.h"
-#include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfoBox
@@ -21,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
@@ -33,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "ui/effects/outline_segments.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/ui_utility.h"
 #include "info/profile/info_profile_values.h"
 #include "window/window_session_controller.h"
 #include "history/history.h"
@@ -426,9 +423,7 @@ bool ParticipantsAdditionalData::isExternal(
 
 bool ParticipantsAdditionalData::isKicked(
 		not_null<PeerData*> participant) const {
-	return _peer->isChat()
-		? false
-		: _kicked.find(participant) != end(_kicked);
+	return !_peer->isChat() && (_kicked.find(participant) != end(_kicked));
 }
 
 UserData *ParticipantsAdditionalData::adminPromotedBy(
@@ -1281,7 +1276,7 @@ void ParticipantsBoxController::rebuild() {
 QPointer<Ui::BoxContent> ParticipantsBoxController::showBox(
 		object_ptr<Ui::BoxContent> box) const {
 	const auto weak = Ui::MakeWeak(box.data());
-	delegate()->peerListShowBox(std::move(box));
+	delegate()->peerListUiShow()->showBox(std::move(box));
 	return weak;
 }
 
@@ -1644,6 +1639,33 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 			(participant->isUser()
 				? &st::menuIconProfile
 				: &st::menuIconInfo));
+	}
+	if (const auto by = _additional.restrictedBy(participant)) {
+		result->addAction(
+			(_role == Role::Kicked
+				? tr::lng_channel_banned_status_removed_by
+				: tr::lng_channel_banned_status_restricted_by)(
+					tr::now,
+					lt_user,
+					by->name()),
+			crl::guard(this, [=] {
+				_navigation->parentController()->show(
+					PrepareShortInfoBox(by, _navigation));
+			}),
+			&st::menuIconAdmin);
+	} else if (user) {
+		if (const auto by = _additional.adminPromotedBy(user)) {
+			result->addAction(
+				tr::lng_channel_admin_status_promoted_by(
+					tr::now,
+					lt_user,
+					by->name()),
+				crl::guard(this, [=] {
+					_navigation->parentController()->show(
+						PrepareShortInfoBox(by, _navigation));
+				}),
+				&st::menuIconAdmin);
+		}
 	}
 	if (_role == Role::Kicked) {
 		if (_peer->isMegagroup()

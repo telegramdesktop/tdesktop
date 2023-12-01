@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_set.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "mtproto/sender.h"
 
 class History;
 

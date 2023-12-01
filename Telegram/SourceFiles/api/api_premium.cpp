@@ -9,12 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_premium_option.h"
 #include "api/api_text_entities.h"
-#include "main/main_session.h"
-#include "data/data_peer_values.h"
-#include "data/data_document.h"
-#include "data/data_session.h"
-#include "data/data_peer.h"
 #include "apiwrap.h"
+#include "base/random.h"
+#include "data/data_document.h"
+#include "data/data_peer.h"
+#include "data/data_peer_values.h"
+#include "data/data_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
+#include "payments/payments_form.h"
+#include "ui/text/format_values.h"
 
 namespace Api {
 namespace {
@@ -29,6 +34,24 @@ namespace {
 		.months = data.vmonths().v,
 		.giveaway = data.is_via_giveaway(),
 	};
+}
+
+[[nodiscard]] Data::SubscriptionOptions GiftCodesFromTL(
+		const QVector<MTPPremiumGiftCodeOption> &tlOptions) {
+	auto options = SubscriptionOptionsFromTL(tlOptions);
+	for (auto i = 0; i < options.size(); i++) {
+		const auto &tlOption = tlOptions[i].data();
+		const auto perUserText = Ui::FillAmountAndCurrency(
+			tlOption.vamount().v / float64(tlOption.vusers().v),
+			qs(tlOption.vcurrency()),
+			false);
+		options[i].costPerMonth = perUserText
+			+ ' '
+			+ QChar(0x00D7)
+			+ ' '
+			+ QString::number(tlOption.vusers().v);
+	}
+	return options;
 }
 
 } // namespace
@@ -309,6 +332,167 @@ void Premium::resolveGiveawayInfo(
 
 const Data::SubscriptionOptions &Premium::subscriptionOptions() const {
 	return _subscriptionOptions;
+}
+
+PremiumGiftCodeOptions::PremiumGiftCodeOptions(not_null<PeerData*> peer)
+: _peer(peer)
+, _api(&peer->session().api().instance()) {
+}
+
+rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto channel = _peer->asChannel();
+		if (!channel) {
+			return lifetime;
+		}
+
+		using TLOption = MTPPremiumGiftCodeOption;
+		_api.request(MTPpayments_GetPremiumGiftCodeOptions(
+			MTP_flags(
+				MTPpayments_GetPremiumGiftCodeOptions::Flag::f_boost_peer),
+			_peer->input
+		)).done([=](const MTPVector<TLOption> &result) {
+			auto tlMapOptions = base::flat_map<Amount, QVector<TLOption>>();
+			for (const auto &tlOption : result.v) {
+				const auto &data = tlOption.data();
+				tlMapOptions[data.vusers().v].push_back(tlOption);
+
+				const auto token = Token{ data.vusers().v, data.vmonths().v };
+				_stores[token] = Store{
+					.amount = data.vamount().v,
+					.product = qs(data.vstore_product().value_or_empty()),
+					.quantity = data.vstore_quantity().value_or_empty(),
+				};
+				if (!ranges::contains(_availablePresets, data.vusers().v)) {
+					_availablePresets.push_back(data.vusers().v);
+				}
+			}
+			for (const auto &[amount, tlOptions] : tlMapOptions) {
+				if (amount == 1 && _optionsForOnePerson.currency.isEmpty()) {
+					_optionsForOnePerson.currency = qs(
+						tlOptions.front().data().vcurrency());
+					for (const auto &option : tlOptions) {
+						_optionsForOnePerson.months.push_back(
+							option.data().vmonths().v);
+						_optionsForOnePerson.totalCosts.push_back(
+							option.data().vamount().v);
+					}
+				}
+				_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
+			}
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
+rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
+		const Payments::InvoicePremiumGiftCode &invoice,
+		uint64 prepaidId) {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto channel = _peer->asChannel();
+		if (!channel) {
+			return lifetime;
+		}
+
+		_api.request(MTPpayments_LaunchPrepaidGiveaway(
+			_peer->input,
+			MTP_long(prepaidId),
+			Payments::InvoicePremiumGiftCodeGiveawayToTL(invoice)
+		)).done([=](const MTPUpdates &result) {
+			_peer->session().api().applyUpdates(result);
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
+const std::vector<int> &PremiumGiftCodeOptions::availablePresets() const {
+	return _availablePresets;
+}
+
+[[nodiscard]] int PremiumGiftCodeOptions::monthsFromPreset(int monthsIndex) {
+	return _optionsForOnePerson.months[monthsIndex];
+}
+
+Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
+		int users,
+		int months) {
+	const auto randomId = base::RandomValue<uint64>();
+	const auto token = Token{ users, months };
+	const auto &store = _stores[token];
+	return Payments::InvoicePremiumGiftCode{
+		.randomId = randomId,
+		.currency = _optionsForOnePerson.currency,
+		.amount = store.amount,
+		.storeProduct = store.product,
+		.storeQuantity = store.quantity,
+		.users = token.users,
+		.months = token.months,
+	};
+}
+
+Data::SubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
+	const auto it = _subscriptionOptions.find(amount);
+	if (it != end(_subscriptionOptions)) {
+		return it->second;
+	} else {
+		auto tlOptions = QVector<MTPPremiumGiftCodeOption>();
+		for (auto i = 0; i < _optionsForOnePerson.months.size(); i++) {
+			tlOptions.push_back(MTP_premiumGiftCodeOption(
+				MTP_flags(MTPDpremiumGiftCodeOption::Flags(0)),
+				MTP_int(amount),
+				MTP_int(_optionsForOnePerson.months[i]),
+				MTPstring(),
+				MTPint(),
+				MTP_string(_optionsForOnePerson.currency),
+				MTP_long(_optionsForOnePerson.totalCosts[i] * amount)));
+		}
+		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
+		return _subscriptionOptions[amount];
+	}
+}
+
+int PremiumGiftCodeOptions::giveawayBoostsPerPremium() const {
+	constexpr auto kFallbackCount = 4;
+	return _peer->session().account().appConfig().get<int>(
+		u"giveaway_boosts_per_premium"_q,
+		kFallbackCount);
+}
+
+int PremiumGiftCodeOptions::giveawayCountriesMax() const {
+	constexpr auto kFallbackCount = 10;
+	return _peer->session().account().appConfig().get<int>(
+		u"giveaway_countries_max"_q,
+		kFallbackCount);
+}
+
+int PremiumGiftCodeOptions::giveawayAddPeersMax() const {
+	constexpr auto kFallbackCount = 10;
+	return _peer->session().account().appConfig().get<int>(
+		u"giveaway_add_peers_max"_q,
+		kFallbackCount);
+}
+
+int PremiumGiftCodeOptions::giveawayPeriodMax() const {
+	constexpr auto kFallbackCount = 3600 * 24 * 7;
+	return _peer->session().account().appConfig().get<int>(
+		u"giveaway_period_max"_q,
+		kFallbackCount);
+}
+
+bool PremiumGiftCodeOptions::giveawayGiftsPurchaseAvailable() const {
+	return _peer->session().account().appConfig().get<bool>(
+		u"giveaway_gifts_purchase_available"_q,
+		false);
 }
 
 } // namespace Api

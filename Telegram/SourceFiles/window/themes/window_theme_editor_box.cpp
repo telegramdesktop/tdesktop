@@ -44,7 +44,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
-#include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -853,8 +852,8 @@ void SaveThemeBox(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			tr::lng_theme_editor_background_image(),
-			st::settingsSubsectionTitle),
-		st::settingsSubsectionTitlePadding);
+			st::defaultSubsectionTitle),
+		st::defaultSubsectionTitlePadding);
 	const auto back = box->addRow(
 		object_ptr<BackgroundSelector>(
 			box,

@@ -50,14 +50,17 @@ MTPInputReplyTo ReplyToForMTP(
 		}
 	} else if (replyTo.messageId || replyTo.topicRootId) {
 		const auto to = LookupReplyTo(history, replyTo.messageId);
+		const auto replyingToTopic = replyTo.topicRootId
+			? history->peer->forumTopicFor(replyTo.topicRootId)
+			: nullptr;
 		const auto replyingToTopicId = replyTo.topicRootId
-			? replyTo.topicRootId
-			: Data::ForumTopic::kGeneralId;
-		const auto replyToTopicId = !to
-			? replyingToTopicId
-			: to->topicRootId()
+			? (replyingToTopic
+				? replyingToTopic->rootId()
+				: Data::ForumTopic::kGeneralId)
+			: (to ? to->topicRootId() : Data::ForumTopic::kGeneralId);
+		const auto replyToTopicId = to
 			? to->topicRootId()
-			: Data::ForumTopic::kGeneralId;
+			: replyingToTopicId;
 		const auto external = replyTo.messageId
 			&& (replyTo.messageId.peer != history->peer->id
 				|| replyingToTopicId != replyToTopicId);
@@ -71,7 +74,7 @@ MTPInputReplyTo ReplyToForMTP(
 				| (external ? Flag::f_reply_to_peer_id : Flag())
 				| (replyTo.quote.text.isEmpty()
 					? Flag()
-					: Flag::f_quote_text)
+					: (Flag::f_quote_text | Flag::f_quote_offset))
 				| (quoteEntities.v.isEmpty()
 					? Flag()
 					: Flag::f_quote_entities)),
@@ -81,7 +84,8 @@ MTPInputReplyTo ReplyToForMTP(
 				? owner->peer(replyTo.messageId.peer)->input
 				: MTPInputPeer()),
 			MTP_string(replyTo.quote.text),
-			quoteEntities);
+			quoteEntities,
+			MTP_int(replyTo.quoteOffset));
 	}
 	return MTPInputReplyTo();
 }
@@ -985,6 +989,7 @@ int Histories::sendPreparedMessage(
 		.quote = replyTo.quote,
 		.storyId = replyTo.storyId,
 		.topicRootId = convertTopicReplyToId(history, replyTo.topicRootId),
+		.quoteOffset = replyTo.quoteOffset,
 	};
 	return v::match(message(history, realReplyTo), [&](const auto &request) {
 		const auto type = RequestType::Send;

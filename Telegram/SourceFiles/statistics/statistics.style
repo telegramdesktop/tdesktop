@@ -104,6 +104,13 @@ statisticsRecentPostButton: SettingsButton(defaultSettingsButton) {
 	height: 56px;
 	padding: margins(7px, 0px, 24px, 0px);
 }
+statisticsRecentPostIconSkip: 1px;
+statisticsRecentPostShareIcon: icon {{ "statistics/mini_stats_share", windowSubTextFg }};
+statisticsRecentPostReactionIcon: icon {{ "statistics/mini_stats_like", windowSubTextFg }};
+statisticsRecentPostUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(contactsPhotoSize, contactsPhotoSize);
+	photoSize: contactsPhotoSize;
+}
 
 statisticsShowMoreButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
@@ -142,3 +149,28 @@ boostsButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 }
+
+getBoostsButton: SettingsButton(reportReasonButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFg;
+}
+getBoostsButtonIcon: icon {{ "menu/gift_premium", lightButtonFg }};
+
+boostsListMiniIcon: icon{{ "boosts/boost_mini2", premiumButtonFg }};
+boostsListMiniIconPadding: margins(1px, 0px, 0px, 0px);
+boostsListMiniIconSkip: 1px;
+boostsListBadgeTextPadding: margins(16px, 1px, 6px, 0px);
+boostsListBadgePadding: margins(4px, 1px, 4px, 0px);
+boostsListBadgeHeight: 16px;
+
+boostsListRightBadgeTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+boostsListRightBadgeTextPadding: margins(22px, 1px, 8px, 0px);
+boostsListRightBadgePadding: margins(4px, 5px, 12px, 0px);
+boostsListRightBadgeHeight: 20px;
+boostsListGiftMiniIconPadding: margins(4px, 2px, 0px, 0px);
+boostsListGiftMiniIcon: icon{{ "boosts/mini_gift", historyPeer8UserpicBg2 }};
+boostsListGiveawayMiniIcon: icon{{ "boosts/mini_giveaway", historyPeer4UserpicBg2 }};
+boostsListUnclaimedIcon: icon{{ "boosts/boost_unknown", premiumButtonFg }};
+boostsListUnknownIcon: icon{{ "boosts/boost_unclaimed", premiumButtonFg }};

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/background_preview_box.h"
 
+#include "base/unixtime.h"
+#include "boxes/premium_preview_box.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "window/themes/window_theme.h"
@@ -18,8 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -33,17 +37,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
 #include "data/data_file_origin.h"
-#include "base/unixtime.h"
-#include "boxes/background_preview_box.h"
-#include "window/window_session_controller.h"
-#include "window/themes/window_themes_embedded.h"
-#include "settings/settings_common.h"
+#include "data/data_peer_values.h"
+#include "settings/settings_premium.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
+#include "window/window_session_controller.h"
+#include "window/themes/window_themes_embedded.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
-#include "styles/style_settings.h"
 
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
@@ -293,10 +295,10 @@ void BackgroundPreviewBox::createDimmingSlider(bool dark) {
 	const auto equals = (dark == Window::Theme::IsNightMode());
 	const auto inner = Ui::CreateChild<Ui::VerticalLayout>(_dimmingContent);
 	inner->show();
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		inner,
 		tr::lng_background_dimming(),
-		style::margins(0, st::settingsSectionSkip, 0, 0),
+		style::margins(0, st::defaultVerticalListSkip, 0, 0),
 		equals ? nullptr : dark ? &_dark->subtitle : &_light->subtitle);
 	_dimmingSlider = inner->add(
 		object_ptr<Ui::MediaSlider>(
@@ -378,7 +380,7 @@ auto BackgroundPreviewBox::prepareOverridenStyle(bool dark)
 		.box = st::defaultBox,
 		.toggle = toggle,
 		.slider = st::defaultContinuousSlider,
-		.subtitle = st::settingsSubsectionTitle,
+		.subtitle = st::defaultSubsectionTitle,
 	};
 	result.box.button.textFg = p->lightButtonFg();
 	result.box.button.textFgOver = p->lightButtonFgOver();
@@ -510,6 +512,10 @@ void BackgroundPreviewBox::recreateBlurCheckbox() {
 	}, _blur->lifetime());
 
 	_blur->setDisabled(_paper.document() && _full.isNull());
+
+	if (_forBothOverlay) {
+		_forBothOverlay->raise();
+	}
 }
 
 void BackgroundPreviewBox::apply() {
@@ -520,7 +526,7 @@ void BackgroundPreviewBox::apply() {
 	}
 }
 
-void BackgroundPreviewBox::uploadForPeer() {
+void BackgroundPreviewBox::uploadForPeer(bool both) {
 	Expects(_forPeer != nullptr);
 
 	if (_uploadId) {
@@ -579,7 +585,7 @@ void BackgroundPreviewBox::uploadForPeer() {
 					"Got wallPaperNoFile after account.UploadWallPaper."));
 			});
 			if (const auto paper = Data::WallPaper::Create(session, result)) {
-				setExistingForPeer(*paper);
+				setExistingForPeer(*paper, both);
 			}
 		}).send();
 	}, _uploadLifetime);
@@ -588,7 +594,9 @@ void BackgroundPreviewBox::uploadForPeer() {
 	_radial.start(_uploadProgress);
 }
 
-void BackgroundPreviewBox::setExistingForPeer(const Data::WallPaper &paper) {
+void BackgroundPreviewBox::setExistingForPeer(
+		const Data::WallPaper &paper,
+		bool both) {
 	Expects(_forPeer != nullptr);
 
 	if (const auto already = _forPeer->wallPaper()) {
@@ -602,6 +610,7 @@ void BackgroundPreviewBox::setExistingForPeer(const Data::WallPaper &paper) {
 	api->request(MTPmessages_SetChatWallPaper(
 		MTP_flags((_fromMessageId ? Flag::f_id : Flag())
 			| (_fromMessageId ? Flag() : Flag::f_wallpaper)
+			| (both ? Flag::f_for_both : Flag())
 			| Flag::f_settings),
 		_forPeer->input,
 		paper.mtpInput(&_controller->session()),
@@ -618,10 +627,117 @@ void BackgroundPreviewBox::setExistingForPeer(const Data::WallPaper &paper) {
 void BackgroundPreviewBox::applyForPeer() {
 	Expects(_forPeer != nullptr);
 
-	if (Data::IsCustomWallPaper(_paper)) {
-		uploadForPeer();
+	if (!Data::IsCustomWallPaper(_paper)) {
+		if (const auto already = _forPeer->wallPaper()) {
+			if (already->equals(_paper)) {
+				_controller->finishChatThemeEdit(_forPeer);
+				return;
+			}
+		}
+	}
+
+	if (!_fromMessageId && _forPeer->session().premiumPossible()) {
+		if (_forBothOverlay) {
+			return;
+		}
+		const auto size = this->size() * style::DevicePixelRatio();
+		const auto bg = Images::DitherImage(
+			Images::BlurLargeImage(
+				Ui::GrabWidgetToImage(this).scaled(
+					size / style::ConvertScale(4),
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation),
+				24).scaled(
+					size,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation));
+
+		_forBothOverlay = std::make_unique<Ui::FadeWrap<>>(
+			this,
+			object_ptr<Ui::RpWidget>(this));
+		const auto overlay = _forBothOverlay->entity();
+
+		sizeValue() | rpl::start_with_next([=](QSize size) {
+			_forBothOverlay->setGeometry({ QPoint(), size });
+			overlay->setGeometry({ QPoint(), size });
+		}, _forBothOverlay->lifetime());
+
+		overlay->paintRequest(
+		) | rpl::start_with_next([=](QRect clip) {
+			auto p = QPainter(overlay);
+			p.drawImage(0, 0, bg);
+			p.fillRect(clip, QColor(0, 0, 0, 64));
+		}, overlay->lifetime());
+
+		using namespace Ui;
+		const auto forMe = CreateChild<RoundButton>(
+			overlay,
+			tr::lng_background_apply_me(),
+			st::backgroundConfirm);
+		forMe->setClickedCallback([=] {
+			applyForPeer(false);
+		});
+		using namespace rpl::mappers;
+		const auto forBoth = ::Settings::CreateLockedButton(
+			overlay,
+			tr::lng_background_apply_both(
+				lt_user,
+				rpl::single(_forPeer->shortName())),
+			st::backgroundConfirm,
+			Data::AmPremiumValue(&_forPeer->session()) | rpl::map(!_1));
+		forBoth->setClickedCallback([=] {
+			if (_forPeer->session().premium()) {
+				applyForPeer(true);
+			} else {
+				ShowPremiumPreviewBox(
+					_controller->uiShow(),
+					PremiumPreview::Wallpapers);
+			}
+		});
+		const auto cancel = CreateChild<RoundButton>(
+			overlay,
+			tr::lng_cancel(),
+			st::backgroundConfirmCancel);
+		cancel->setClickedCallback([=] {
+			const auto raw = _forBothOverlay.release();
+			raw->shownValue() | rpl::filter(
+				!rpl::mappers::_1
+			) | rpl::take(1) | rpl::start_with_next(crl::guard(raw, [=] {
+				delete raw;
+			}), raw->lifetime());
+			raw->toggle(false, anim::type::normal);
+		});
+		forMe->setTextTransform(RoundButton::TextTransform::NoTransform);
+		forBoth->setTextTransform(RoundButton::TextTransform::NoTransform);
+		cancel->setTextTransform(RoundButton::TextTransform::NoTransform);
+
+		overlay->sizeValue(
+		) | rpl::start_with_next([=](QSize size) {
+			const auto padding = st::backgroundConfirmPadding;
+			const auto width = size.width()
+				- padding.left()
+				- padding.right();
+			const auto height = cancel->height();
+			auto top = size.height() - padding.bottom() - height;
+			cancel->setGeometry(padding.left(), top, width, height);
+			top -= height + padding.top();
+			forBoth->setGeometry(padding.left(), top, width, height);
+			top -= height + padding.top();
+			forMe->setGeometry(padding.left(), top, width, height);
+		}, _forBothOverlay->lifetime());
+
+		_forBothOverlay->hide(anim::type::instant);
+		_forBothOverlay->show(anim::type::normal);
 	} else {
-		setExistingForPeer(_paper);
+		applyForPeer(false);
+	}
+}
+
+void BackgroundPreviewBox::applyForPeer(bool both) {
+	if (Data::IsCustomWallPaper(_paper)) {
+		uploadForPeer(both);
+	} else {
+		setExistingForPeer(_paper, both);
 	}
 }
 

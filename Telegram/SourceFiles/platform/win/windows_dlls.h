@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/platform/win/base_windows_h.h"
+#include "base/platform/win/base_windows_shlobj_h.h"
 
-#include <shlobj.h>
+#include <windows.h>
+#include <shellapi.h>
 #include <dwmapi.h>
 #include <RestartManager.h>
 #include <psapi.h>

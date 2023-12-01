@@ -413,13 +413,12 @@ void Game::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
 			if (!_ripple) {
 				const auto full = QRect(0, 0, width(), height());
 				const auto outer = full.marginsRemoved(inBubblePadding());
-				const auto owner = &parent()->history()->owner();
 				_ripple = std::make_unique<Ui::RippleAnimation>(
 					st::defaultRippleAnimation,
 					Ui::RippleAnimation::RoundRectMask(
 						outer.size(),
 						_st.radius),
-					[=] { owner->requestViewRepaint(parent()); });
+					[=] { repaint(); });
 			}
 			_ripple->add(_lastPoint);
 		} else if (_ripple) {

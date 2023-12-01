@@ -11,10 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/local_url_handlers.h"
 #include "mainwidget.h"
-#include "mainwindow.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/text/text_entity.h"
 #include "ui/toast/toast.h"
 #include "base/qthelp_regex.h"
 #include "base/qt/qt_key_modifiers.h"
@@ -26,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "window/window_session_controller_link_info.h"
 #include "styles/style_layers.h"
 
 namespace {
@@ -209,8 +208,7 @@ void MentionClickHandler::onClick(ClickContext context) const {
 			? Core::App().activeWindow()->sessionController()
 			: nullptr;
 		if (use) {
-			using Info = Window::SessionNavigation::PeerByLinkInfo;
-			use->showPeerByLink(Info{
+			use->showPeerByLink(Window::PeerByLinkInfo{
 				.usernameOrId = _tag.mid(1),
 				.resolveType = Window::ResolveType::Mention,
 			});

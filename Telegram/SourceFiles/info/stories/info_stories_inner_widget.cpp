@@ -123,10 +123,10 @@ void InnerWidget::createButtons() {
 	const auto key = _controller->key();
 	const auto peer = key.storiesPeer();
 	const auto stories = &peer->owner().stories();
-	const auto archive = ::Settings::AddButton(
+	const auto archive = _top->add(object_ptr<Ui::SettingsButton>(
 		_top,
 		tr::lng_stories_archive_button(),
-		st::infoSharedMediaButton);
+		st::infoSharedMediaButton));
 	archive->addClickHandler([=] {
 		_controller->showSection(Info::Stories::Make(
 			_controller->key().storiesPeer(),
@@ -156,7 +156,7 @@ void InnerWidget::createButtons() {
 	const auto recentWrap = _top->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			_top,
-			::Settings::CreateButton(
+			object_ptr<Ui::SettingsButton>(
 				_top,
 				tr::lng_stories_recent_button(),
 				st::infoSharedMediaButton)));

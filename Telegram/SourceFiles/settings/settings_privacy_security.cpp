@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
 #include "settings/settings_blocked_peers.h"
-#include "settings/settings_common.h"
 #include "settings/settings_global_ttl.h"
 #include "settings/settings_local_passcode.h"
 #include "settings/settings_premium.h" // Settings::ShowPremium.
@@ -45,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/layers/generic_box.h"
+#include "ui/vertical_list.h"
 #include "calls/calls_instance.h"
 #include "core/core_cloud_password.h"
 #include "core/update_checker.h"
@@ -134,23 +134,23 @@ void AddPremiumPrivacyButton(
 	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 	const auto session = &controller->session();
 	const auto &st = st::settingsButtonNoIcon;
-	const auto button = AddButton(
+	const auto button = container->add(object_ptr<Button>(
 		container,
 		rpl::duplicate(label),
-		st);
+		st));
 	struct State {
 		State(QWidget *parent) : widget(parent) {
 			widget.setAttribute(Qt::WA_TransparentForMouseEvents);
 		}
 		Ui::RpWidget widget;
 	};
-	const auto state = button->lifetime().make_state<State>(button.get());
+	const auto state = button->lifetime().make_state<State>(button);
 	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
 	const auto toast = std::make_shared<WeakToast>();
 
 	{
 		const auto rightLabel = Ui::CreateChild<Ui::FlatLabel>(
-			button.get(),
+			button,
 			st.rightLabel);
 
 		state->widget.resize(st::settingsPremiumLock.size());
@@ -254,8 +254,8 @@ void SetupPrivacy(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<> updateTrigger) {
-	AddSkip(container, st::settingsPrivacySkip);
-	AddSubsectionTitle(container, tr::lng_settings_privacy_title());
+	Ui::AddSkip(container, st::settingsPrivacySkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_privacy_title());
 
 	const auto session = &controller->session();
 
@@ -311,8 +311,8 @@ void SetupPrivacy(
 
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
 
-	AddSkip(container, st::settingsPrivacySecurityPadding);
-	AddDivider(container);
+	Ui::AddSkip(container, st::settingsPrivacySecurityPadding);
+	Ui::AddDivider(container);
 }
 
 void SetupLocalPasscode(
@@ -439,8 +439,8 @@ void SetupSensitiveContent(
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto inner = wrap->entity();
 
-	AddSkip(inner);
-	AddSubsectionTitle(inner, tr::lng_settings_sensitive_title());
+	Ui::AddSkip(inner);
+	Ui::AddSubsectionTitle(inner, tr::lng_settings_sensitive_title());
 
 	const auto session = &controller->session();
 
@@ -449,11 +449,11 @@ void SetupSensitiveContent(
 	) | rpl::start_with_next([=] {
 		session->api().sensitiveContent().reload();
 	}, container->lifetime());
-	AddButton(
+	inner->add(object_ptr<Button>(
 		inner,
 		tr::lng_settings_sensitive_disable_filtering(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
+	))->toggleOn(
 		session->api().sensitiveContent().enabled()
 	)->toggledChanges(
 	) | rpl::filter([=](bool toggled) {
@@ -462,8 +462,8 @@ void SetupSensitiveContent(
 		session->api().sensitiveContent().update(toggled);
 	}, container->lifetime());
 
-	AddSkip(inner);
-	AddDividerText(inner, tr::lng_settings_sensitive_about());
+	Ui::AddSkip(inner);
+	Ui::AddDividerText(inner, tr::lng_settings_sensitive_about());
 
 	wrap->toggleOn(session->api().sensitiveContent().canChange());
 }
@@ -472,8 +472,8 @@ void SetupSelfDestruction(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<> updateTrigger) {
-	AddSkip(container);
-	AddSubsectionTitle(container, tr::lng_settings_destroy_title());
+	Ui::AddSkip(container);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_destroy_title());
 
 	const auto session = &controller->session();
 
@@ -499,7 +499,7 @@ void SetupSelfDestruction(
 			session->api().selfDestruct().daysAccountTTL()));
 	});
 
-	AddSkip(container);
+	Ui::AddSkip(container);
 }
 
 void ClearPaymentInfoBoxBuilder(
@@ -564,19 +564,19 @@ auto ClearPaymentInfoBox(not_null<Main::Session*> session) {
 void SetupBotsAndWebsites(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container);
-	AddSubsectionTitle(container, tr::lng_settings_security_bots());
+	Ui::AddSkip(container);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_security_bots());
 
 	const auto session = &controller->session();
-	AddButton(
+	container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_clear_payment_info(),
 		st::settingsButtonNoIcon
-	)->addClickHandler([=] {
+	))->addClickHandler([=] {
 		controller->show(ClearPaymentInfoBox(session));
 	});
 
-	AddSkip(container);
+	Ui::AddSkip(container);
 }
 
 void SetupBlockedList(
@@ -671,8 +671,8 @@ void SetupSessionsList(
 		showOther(Sessions::Id());
 	});
 
-	AddSkip(container);
-	AddDividerText(container, tr::lng_settings_sessions_about());
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, tr::lng_settings_sessions_about());
 }
 
 void SetupGlobalTTLList(
@@ -708,8 +708,8 @@ void SetupSecurity(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<> updateTrigger,
 		Fn<void(Type)> showOther) {
-	AddSkip(container, st::settingsPrivacySkip);
-	AddSubsectionTitle(container, tr::lng_settings_security());
+	Ui::AddSkip(container, st::settingsPrivacySkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_security());
 
 	SetupCloudPassword(controller, container, showOther);
 	SetupGlobalTTLList(
@@ -861,18 +861,18 @@ void SetupArchiveAndMute(
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto inner = wrap->entity();
 
-	AddSkip(inner);
-	AddSubsectionTitle(inner, tr::lng_settings_new_unknown());
+	Ui::AddSkip(inner);
+	Ui::AddSubsectionTitle(inner, tr::lng_settings_new_unknown());
 
 	const auto session = &controller->session();
 
 	const auto privacy = &session->api().globalPrivacy();
 	privacy->reload();
-	AddButton(
+	inner->add(object_ptr<Button>(
 		inner,
 		tr::lng_settings_auto_archive(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
+	))->toggleOn(
 		privacy->archiveAndMute()
 	)->toggledChanges(
 	) | rpl::filter([=](bool toggled) {
@@ -881,8 +881,8 @@ void SetupArchiveAndMute(
 		privacy->updateArchiveAndMute(toggled);
 	}, container->lifetime());
 
-	AddSkip(inner);
-	AddDividerText(inner, tr::lng_settings_auto_archive_about());
+	Ui::AddSkip(inner);
+	Ui::AddDividerText(inner, tr::lng_settings_auto_archive_about());
 
 	auto shown = rpl::single(
 		false

@@ -459,16 +459,6 @@ void Members::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
 void Members::peerListFinishSelectedRowsBunch() {
 }
 
-void Members::peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) {
-	_show->showBox(std::move(content), options);
-}
-
-void Members::peerListHideLayer() {
-	_show->hideLayer();
-}
-
 std::shared_ptr<Main::SessionShow> Members::peerListUiShow() {
 	return _show;
 }

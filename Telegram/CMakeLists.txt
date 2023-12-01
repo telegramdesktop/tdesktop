@@ -134,6 +134,8 @@ PRIVATE
     api/api_messages_search.h
     api/api_messages_search_merged.cpp
     api/api_messages_search_merged.h
+    api/api_peer_colors.cpp
+    api/api_peer_colors.h
     api/api_peer_photo.cpp
     api/api_peer_photo.h
     api/api_polls.cpp
@@ -225,6 +227,8 @@ PRIVATE
     boxes/peers/peer_short_info_box.h
     boxes/peers/prepare_short_info_box.cpp
     boxes/peers/prepare_short_info_box.h
+    boxes/peers/replace_boost_box.cpp
+    boxes/peers/replace_boost_box.h
     boxes/about_box.cpp
     boxes/about_box.h
     boxes/about_sponsored_box.cpp
@@ -382,16 +386,18 @@ PRIVATE
     chat_helpers/gifs_list_widget.h
     chat_helpers/message_field.cpp
     chat_helpers/message_field.h
+    chat_helpers/share_message_phrase_factory.cpp
+    chat_helpers/share_message_phrase_factory.h
     chat_helpers/spellchecker_common.cpp
     chat_helpers/spellchecker_common.h
+    chat_helpers/stickers_dice_pack.cpp
+    chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_emoji_image_loader.cpp
     chat_helpers/stickers_emoji_image_loader.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
     chat_helpers/stickers_gift_box_pack.cpp
     chat_helpers/stickers_gift_box_pack.h
-    chat_helpers/stickers_dice_pack.cpp
-    chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_list_footer.cpp
     chat_helpers/stickers_list_footer.h
     chat_helpers/stickers_list_widget.cpp
@@ -749,6 +755,8 @@ PRIVATE
     history/view/media/history_view_premium_gift.h
     history/view/media/history_view_service_box.cpp
     history/view/media/history_view_service_box.h
+    history/view/media/history_view_similar_channels.cpp
+    history/view/media/history_view_similar_channels.h
     history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_slot_machine.h
     history/view/media/history_view_sticker.cpp
@@ -810,6 +818,8 @@ PRIVATE
     history/view/history_view_quick_action.h
     history/view/history_view_replies_section.cpp
     history/view/history_view_replies_section.h
+    history/view/history_view_reply.cpp
+    history/view/history_view_reply.h
     history/view/history_view_requests_bar.cpp
     history/view/history_view_requests_bar.h
     history/view/history_view_schedule_box.cpp
@@ -822,6 +832,8 @@ PRIVATE
     history/view/history_view_service_message.h
     history/view/history_view_spoiler_click_handler.cpp
     history/view/history_view_spoiler_click_handler.h
+    history/view/history_view_sponsored_click_handler.cpp
+    history/view/history_view_sponsored_click_handler.h
     history/view/history_view_sticker_toast.cpp
     history/view/history_view_sticker_toast.h
     history/view/history_view_transcribe_button.cpp
@@ -864,6 +876,10 @@ PRIVATE
     history/history_view_highlight_manager.h
     history/history_widget.cpp
     history/history_widget.h
+    info/boosts/giveaway/giveaway_list_controllers.cpp
+    info/boosts/giveaway/giveaway_list_controllers.h
+    info/boosts/create_giveaway_box.cpp
+    info/boosts/create_giveaway_box.h
     info/boosts/info_boosts_inner_widget.cpp
     info/boosts/info_boosts_inner_widget.h
     info/boosts/info_boosts_widget.cpp
@@ -923,6 +939,8 @@ PRIVATE
     info/profile/info_profile_widget.h
     info/settings/info_settings_widget.cpp
     info/settings/info_settings_widget.h
+    info/similar_channels/info_similar_channels_widget.cpp
+    info/similar_channels/info_similar_channels_widget.h
     info/statistics/info_statistics_common.h
     info/statistics/info_statistics_inner_widget.cpp
     info/statistics/info_statistics_inner_widget.h
@@ -1060,6 +1078,8 @@ PRIVATE
     media/stories/media_stories_recent_views.h
     media/stories/media_stories_reply.cpp
     media/stories/media_stories_reply.h
+    media/stories/media_stories_repost_view.cpp
+    media/stories/media_stories_repost_view.h
     media/stories/media_stories_share.cpp
     media/stories/media_stories_share.h
     media/stories/media_stories_sibling.cpp
@@ -1310,8 +1330,8 @@ PRIVATE
     settings/settings_calls.h
     settings/settings_codes.cpp
     settings/settings_codes.h
-    settings/settings_common.cpp
-    settings/settings_common.h
+    settings/settings_common_session.cpp
+    settings/settings_common_session.h
     settings/settings_experimental.cpp
     settings/settings_experimental.h
     settings/settings_folders.cpp
@@ -1471,6 +1491,7 @@ PRIVATE
     window/window_section_common.h
     window/window_session_controller.cpp
     window/window_session_controller.h
+    window/window_session_controller_link_info.h
     window/window_slide_animation.cpp
     window/window_slide_animation.h
     window/window_top_bar_wrap.h
@@ -1580,7 +1601,39 @@ elseif (APPLE)
     endif()
 
     set(icons_path ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Images.xcassets)
-    target_add_resource(Telegram ${icons_path})
+    if (CMAKE_GENERATOR STREQUAL Xcode)
+        target_add_resource(Telegram ${icons_path})
+    else()
+        set(icon_path ${icons_path}/Icon.iconset)
+        find_program(ICONUTIL iconutil)
+        find_program(PNG2ICNS png2icns)
+        if (ICONUTIL)
+            add_custom_command(
+                OUTPUT Icon.icns
+                COMMAND ${ICONUTIL}
+                ARGS
+                    --convert icns
+                    --output Icon.icns
+                    ${icon_path}
+            )
+        elseif (PNG2ICNS)
+            add_custom_command(
+                OUTPUT Icon.icns
+                COMMAND ${PNG2ICNS}
+                ARGS
+                    Icon.icns
+                    ${icon_path}/icon_16x16.png
+                    ${icon_path}/icon_32x32.png
+                    ${icon_path}/icon_128x128.png
+                    ${icon_path}/icon_256x256.png
+                    ${icon_path}/icon_512x512.png
+            )
+        endif()
+        if (ICONUTIL OR PNG2ICNS)
+            set_source_files_properties(Icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+            target_add_resource(Telegram Icon.icns)
+        endif()
+    endif()
 
     set(lang_packs
         en
@@ -1607,24 +1660,17 @@ elseif (APPLE)
         COMMAND cp ${CMAKE_BINARY_DIR}/lib_ui.rcc $<TARGET_FILE_DIR:Telegram>/../Resources
         COMMAND cp ${CMAKE_BINARY_DIR}/lib_spellcheck.rcc $<TARGET_FILE_DIR:Telegram>/../Resources
     )
-    if (NOT build_macstore)
+    if (NOT build_macstore AND NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
+        if (DESKTOP_APP_MAC_ARCH STREQUAL "x86_64" OR DESKTOP_APP_MAC_ARCH STREQUAL "arm64")
+            set(crashpad_dir_part ".${DESKTOP_APP_MAC_ARCH}")
+        else()
+            set(crashpad_dir_part "")
+        endif()
         add_custom_command(TARGET Telegram
         PRE_LINK
-            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
-            COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
+            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
+            COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>${crashpad_dir_part}/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
         )
-        if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
-            if (DESKTOP_APP_MAC_ARCH STREQUAL "x86_64" OR DESKTOP_APP_MAC_ARCH STREQUAL "arm64")
-                set(crashpad_dir_part ".${DESKTOP_APP_MAC_ARCH}")
-            else()
-                set(crashpad_dir_part "")
-            endif()
-            add_custom_command(TARGET Telegram
-            PRE_LINK
-                COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
-                COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>${crashpad_dir_part}/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
-            )
-        endif()
     endif()
 else()
     target_link_libraries(Telegram
@@ -1673,13 +1719,23 @@ if (build_macstore)
         COMMAND rm -rf $<TARGET_FILE_DIR:Telegram>/../Frameworks/Breakpad.framework/Resources/Inspector
     )
 else()
-    set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:Debug>")
+    if (CMAKE_GENERATOR STREQUAL Xcode)
+        set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:Debug>")
+    else()
+        set(bundle_identifier "com.tdesktop.Telegram")
+    endif()
     set(bundle_entitlements "Telegram.entitlements")
     if (LINUX AND DESKTOP_APP_USE_PACKAGED)
         set(output_name "telegram-desktop")
     else()
         set(output_name "Telegram")
     endif()
+endif()
+
+if (CMAKE_GENERATOR STREQUAL Xcode)
+    set(bundle_identifier_plist "$(PRODUCT_BUNDLE_IDENTIFIER)")
+else()
+    set(bundle_identifier_plist ${bundle_identifier})
 endif()
 
 set_target_properties(Telegram PROPERTIES
@@ -1726,6 +1782,10 @@ endif()
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
 if (WIN32)
+    target_link_libraries(Telegram
+    PRIVATE
+        delayimp
+    )
     target_link_options(Telegram
     PRIVATE
         /DELAYLOAD:secur32.dll
@@ -1755,7 +1815,7 @@ endif()
 
 target_prepare_qrc(Telegram)
 
-if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT build_winstore)
+if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)
     init_non_host_target(Updater)
 
@@ -1782,6 +1842,10 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
         )
         target_include_directories(Updater PRIVATE ${lib_base_loc})
         if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            target_link_libraries(Updater
+            PRIVATE
+                delayimp
+            )
             target_link_options(Updater
             PRIVATE
                 /DELAYLOAD:user32.dll
@@ -1793,6 +1857,12 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
         else()
             target_link_options(Updater PRIVATE -municode)
         endif()
+    elseif (APPLE)
+        add_custom_command(TARGET Updater
+        PRE_LINK
+            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
+            COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
+        )
     endif()
 
     if (DESKTOP_APP_SPECIAL_TARGET)
@@ -1846,6 +1916,7 @@ if (LINUX AND DESKTOP_APP_USE_PACKAGED)
     install(FILES "Resources/art/icon128.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128/apps" RENAME "telegram.png")
     install(FILES "Resources/art/icon256.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps" RENAME "telegram.png")
     install(FILES "Resources/art/icon512.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512/apps" RENAME "telegram.png")
+    install(FILES "Resources/icons/tray_monochrome.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "telegram-symbolic.svg")
     install(FILES "../lib/xdg/org.telegram.desktop.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.service" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/dbus-1/services")
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")

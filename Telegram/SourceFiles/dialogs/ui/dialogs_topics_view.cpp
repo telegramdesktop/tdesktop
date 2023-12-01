@@ -141,7 +141,7 @@ void TopicsView::paint(
 			.now = context.now,
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-			.elisionOneLine = true,
+			.elisionLines = 1,
 		});
 		const auto skip = skipBig
 			? context.st->topicsSkipBig

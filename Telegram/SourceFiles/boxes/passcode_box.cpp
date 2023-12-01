@@ -567,12 +567,10 @@ void PasscodeBox::validateEmail(
 			} else if (error.type() == u"EMAIL_HASH_EXPIRED"_q) {
 				const auto weak = Ui::MakeWeak(this);
 				_clearUnconfirmedPassword.fire({});
-				if (weak) {
-					auto box = Ui::MakeInformBox({
-						Lang::Hard::EmailConfirmationExpired()
-					});
-					weak->getDelegate()->show(
-						std::move(box),
+				if (const auto strong = weak.data()) {
+					strong->getDelegate()->show(
+						Ui::MakeInformBox(
+							Lang::Hard::EmailConfirmationExpired()),
 						Ui::LayerOption::CloseOther);
 				}
 			} else {

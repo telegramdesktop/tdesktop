@@ -7,12 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/platform/win/base_windows_shlobj_h.h"
+#include "base/platform/win/base_windows_winrt.h"
 #include "platform/platform_integration.h"
 
 #include <QAbstractNativeEventFilter>
-
-#include <winrt/base.h>
-#include <ShlObj.h>
 
 namespace Platform {
 

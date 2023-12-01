@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_color_box.h"
 
 #include "apiwrap.h"
+#include "api/api_peer_colors.h"
 #include "base/unixtime.h"
+#include "boxes/peers/replace_boost_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -36,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
@@ -458,15 +461,15 @@ void Set(
 		).done(done).fail(fail).send();
 	};
 	if (peer->isSelf()) {
+		using Flag = MTPaccount_UpdateColor::Flag;
 		send(MTPaccount_UpdateColor(
-			MTP_flags(
-				MTPaccount_UpdateColor::Flag::f_background_emoji_id),
+			MTP_flags(Flag::f_color | Flag::f_background_emoji_id),
 			MTP_int(colorIndex),
 			MTP_long(backgroundEmojiId)));
 	} else if (const auto channel = peer->asChannel()) {
+		using Flag = MTPchannels_UpdateColor::Flag;
 		send(MTPchannels_UpdateColor(
-			MTP_flags(
-				MTPchannels_UpdateColor::Flag::f_background_emoji_id),
+			MTP_flags(Flag::f_background_emoji_id),
 			channel->inputChannel,
 			MTP_int(colorIndex),
 			MTP_long(backgroundEmojiId)));
@@ -514,22 +517,18 @@ void Apply(
 				close();
 				return;
 			}
-			const auto next = data.vnext_level_boosts().value_or_empty();
 			const auto openStatistics = [=] {
 				if (const auto controller = show->resolveWindow(
 						ChatHelpers::WindowUsage::PremiumPromo)) {
 					controller->showSection(Info::Boosts::Make(peer));
 				}
 			};
+			auto counters = ParseBoostCounters(result);
+			counters.mine = 0; // Don't show current level as just-reached.
 			show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
 				.link = qs(data.vboost_url()),
-				.boost = {
-					.level = data.vlevel().v,
-					.boosts = data.vboosts().v,
-					.thisLevelBoosts = data.vcurrent_level_boosts().v,
-					.nextLevelBoosts = next,
-				},
-				.requiredLevel = required,
+				.boost = counters,
+				.reason = { Ui::AskBoostChannelColor{ required } },
 			}, openStatistics, nullptr));
 			cancel();
 		}).fail([=](const MTP::Error &error) {
@@ -664,11 +663,10 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	const auto st = parent->lifetime().make_state<style::SettingsButton>(
 		basicSt);
 	st->padding.setRight(rightPadding);
-	auto result = CreateButton(
+	auto result = object_ptr<Ui::SettingsButton>(
 		parent,
 		tr::lng_settings_color_emoji(),
-		*st,
-		{});
+		*st);
 	const auto raw = result.data();
 
 	const auto right = Ui::CreateChild<Ui::RpWidget>(raw);
@@ -790,19 +788,7 @@ void EditPeerColorBox(
 		state->emojiId.value()
 	), {});
 
-	const auto appConfig = &peer->session().account().appConfig();
-	auto indices = rpl::single(
-		rpl::empty
-	) | rpl::then(
-		appConfig->refreshed()
-	) | rpl::map([=] {
-		const auto list = appConfig->get<std::vector<int>>(
-			"peer_colors_available",
-			{ 0, 1, 2, 3, 4, 5, 6 });
-		return list | ranges::views::transform([](int i) {
-			return uint8(i);
-		}) | ranges::to_vector;
-	});
+	auto indices = peer->session().api().peerColors().suggestedValue();
 	const auto margin = st::settingsColorRadioMargin;
 	const auto skip = st::settingsColorRadioSkip;
 	box->addRow(
@@ -815,11 +801,11 @@ void EditPeerColorBox(
 		{ margin, skip, margin, skip });
 
 	const auto container = box->verticalLayout();
-	AddDividerText(container, peer->isSelf()
+	Ui::AddDividerText(container, peer->isSelf()
 		? tr::lng_settings_color_about()
 		: tr::lng_settings_color_about_channel());
 
-	AddSkip(container, st::settingsColorSampleSkip);
+	Ui::AddSkip(container, st::settingsColorSampleSkip);
 
 	container->add(CreateEmojiIconButton(
 		container,
@@ -829,8 +815,8 @@ void EditPeerColorBox(
 		state->emojiId.value(),
 		[=](DocumentId id) { state->emojiId = id; }));
 
-	AddSkip(container, st::settingsColorSampleSkip);
-	AddDividerText(container, peer->isSelf()
+	Ui::AddSkip(container, st::settingsColorSampleSkip);
+	Ui::AddDividerText(container, peer->isSelf()
 		? tr::lng_settings_color_emoji_about()
 		: tr::lng_settings_color_emoji_about_channel());
 
@@ -856,7 +842,7 @@ void AddPeerColorButton(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer) {
-	const auto button = AddButton(
+	const auto button = AddButtonWithIcon(
 		container,
 		(peer->isSelf()
 			? tr::lng_settings_theme_name_color()

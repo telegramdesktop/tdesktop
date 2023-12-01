@@ -16,26 +16,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_user.h"
 #include "data/notify/data_notify_settings.h"
+#include "ui/vertical_list.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/boxes/report_box.h"
-#include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/text_variant.h"
 #include "history/history_location_manager.h" // LocationClickHandler.
 #include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
-#include "boxes/abstract_box.h"
-#include "boxes/peer_list_box.h"
-#include "boxes/peer_list_controllers.h"
-#include "boxes/add_contact_box.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/report_messages_box.h"
@@ -58,7 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
-#include "settings/settings_common.h"
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
 #include "styles/style_info.h"
@@ -798,11 +792,11 @@ void ActionsFiller::addInviteToGroupAction(
 			_wrap.data(),
 			object_ptr<Ui::VerticalLayout>(_wrap.data())));
 	about->toggleOn(InviteToChatAbout(user) | rpl::map(notEmpty));
-	::Settings::AddSkip(about->entity());
-	::Settings::AddDividerText(
+	Ui::AddSkip(about->entity());
+	Ui::AddDividerText(
 		about->entity(),
 		InviteToChatAbout(user) | rpl::filter(notEmpty));
-	::Settings::AddSkip(about->entity());
+	Ui::AddSkip(about->entity());
 	about->finishAnimating();
 }
 

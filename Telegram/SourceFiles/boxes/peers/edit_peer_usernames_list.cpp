@@ -14,10 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/show.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "styles/style_boxes.h" // contactsStatusFont.
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -231,15 +231,15 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 	_container = base::make_unique_q<Ui::VerticalLayout>(this);
 
 	{
-		Settings::AddSkip(_container);
+		Ui::AddSkip(_container);
 		_container->add(
 			object_ptr<Ui::FlatLabel>(
 				_container,
 				_peer->isSelf()
 					? tr::lng_usernames_subtitle()
 					: tr::lng_channel_usernames_subtitle(),
-				st::settingsSubsectionTitle),
-			st::settingsSubsectionTitlePadding);
+				st::defaultSubsectionTitle),
+			st::defaultSubsectionTitlePadding);
 	}
 
 	const auto content = _container->add(
@@ -364,8 +364,8 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 	}, content->lifetime());
 
 	{
-		Settings::AddSkip(_container);
-		Settings::AddDividerText(
+		Ui::AddSkip(_container);
+		Ui::AddDividerText(
 			_container,
 			_peer->isSelf()
 				? tr::lng_usernames_description()

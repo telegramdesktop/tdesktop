@@ -179,6 +179,8 @@ WebPageType ParseWebPageType(
 		return WebPageType::BotApp;
 	} else if (type == u"telegram_channel_boost"_q) {
 		return WebPageType::ChannelBoost;
+	} else if (type == u"telegram_giftcode"_q) {
+		return WebPageType::Giftcode;
 	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {
@@ -390,4 +392,8 @@ bool WebPageData::computeDefaultSmallMedia() const {
 		}
 	}
 	return false;
+}
+
+bool WebPageData::suggestEnlargePhoto() const {
+	return !siteName.isEmpty() || !title.isEmpty() || !description.empty();
 }

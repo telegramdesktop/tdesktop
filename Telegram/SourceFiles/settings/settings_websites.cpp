@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -154,9 +155,9 @@ void InfoBox(
 
 	using namespace Settings;
 	const auto container = box->verticalLayout();
-	AddDivider(container);
-	AddSkip(container, st::sessionSubtitleSkip);
-	AddSubsectionTitle(container, tr::lng_sessions_info());
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::sessionSubtitleSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_sessions_info());
 
 	AddSessionInfoRow(
 		container,
@@ -174,9 +175,9 @@ void InfoBox(
 		data.location,
 		st::menuIconAddress);
 
-	AddSkip(container, st::sessionValueSkip);
+	Ui::AddSkip(container, st::sessionValueSkip);
 	if (!data.location.isEmpty()) {
-		AddDividerText(container, tr::lng_sessions_location_about());
+		Ui::AddDividerText(container, tr::lng_sessions_location_about());
 	}
 
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
@@ -604,13 +605,13 @@ void Content::Inner::setupContent() {
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto terminateInner = terminateWrap->entity();
 	_terminateAll = terminateInner->add(
-		CreateButton(
+		CreateButtonWithIcon(
 			terminateInner,
 			tr::lng_settings_disconnect_all(),
 			st::infoBlockButton,
 			{ .icon = &st::infoIconBlock }));
-	AddSkip(terminateInner);
-	AddDividerText(
+	Ui::AddSkip(terminateInner);
+	Ui::AddDividerText(
 		terminateInner,
 		tr::lng_settings_logged_in_description());
 
@@ -619,10 +620,10 @@ void Content::Inner::setupContent() {
 			content,
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto listInner = listWrap->entity();
-	AddSkip(listInner, st::sessionSubtitleSkip);
-	AddSubsectionTitle(listInner, tr::lng_settings_logged_in_title());
+	Ui::AddSkip(listInner, st::sessionSubtitleSkip);
+	Ui::AddSubsectionTitle(listInner, tr::lng_settings_logged_in_title());
 	_list = ListController::Add(listInner, session);
-	AddSkip(listInner);
+	Ui::AddSkip(listInner);
 
 	const auto skip = st::noContactsHeight / 2;
 	const auto placeholder = content->add(
@@ -632,7 +633,7 @@ void Content::Inner::setupContent() {
 				content,
 				tr::lng_settings_logged_in_description(),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding + QMargins(0, skip, 0, skip))
+			st::defaultBoxDividerLabelPadding + QMargins(0, skip, 0, skip))
 	)->setDuration(0);
 
 	terminateWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
@@ -772,7 +773,7 @@ rpl::producer<QString> Websites::title() {
 
 void Websites::setupContent(not_null<Window::SessionController*> controller) {
 	const auto container = Ui::CreateChild<Ui::VerticalLayout>(this);
-	AddSkip(container);
+	Ui::AddSkip(container);
 	const auto content = container->add(
 		object_ptr<Content>(container, controller));
 	content->setupContent();

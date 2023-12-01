@@ -331,8 +331,12 @@ TabbedSelector::TabbedSelector(
 	Mode mode)
 : TabbedSelector(parent, {
 	.show = std::move(show),
-	.st = ((mode == Mode::EmojiStatus || mode == Mode::BackgroundEmoji)
+	.st = ((mode == Mode::EmojiStatus
+		|| mode == Mode::BackgroundEmoji
+		|| mode == Mode::FullReactions)
 		? st::statusEmojiPan
+		: (mode == Mode::RecentReactions)
+		? st::backgroundEmojiPan
 		: st::defaultEmojiPan),
 	.level = level,
 	.mode = mode,
@@ -385,7 +389,11 @@ TabbedSelector::TabbedSelector(
 	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
 
 	for (auto &tab : _tabs) {
-		tab.footer()->hide();
+		if (tab.hasFooter()) {
+			tab.footer()->hide();
+		} else {
+			_noFooter = true;
+		}
 		tab.widget()->hide();
 	}
 	if (tabbed()) {
@@ -515,6 +523,10 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 					? EmojiMode::EmojiStatus
 					: _mode == Mode::BackgroundEmoji
 					? EmojiMode::BackgroundEmoji
+					: _mode == Mode::FullReactions
+					? EmojiMode::FullReactions
+					: _mode == Mode::RecentReactions
+					? EmojiMode::RecentReactions
 					: EmojiMode::Full),
 				.customTextColor = _customTextColor,
 				.paused = paused,
@@ -694,10 +706,16 @@ void TabbedSelector::updateScrollGeometry(QSize oldSize) {
 }
 
 void TabbedSelector::updateFooterGeometry() {
-	_footerTop = _dropDown ? 0 : (height() - _st.footer);
+	_footerTop = _dropDown
+		? 0
+		: _noFooter
+		? (height() - _roundRadius)
+		: (height() - _st.footer);
 	for (auto &tab : _tabs) {
-		tab.footer()->resizeToWidth(width());
-		tab.footer()->moveToLeft(0, _footerTop);
+		if (tab.hasFooter()) {
+			tab.footer()->resizeToWidth(width());
+			tab.footer()->moveToLeft(0, _footerTop);
+		}
 	}
 }
 
@@ -767,7 +785,7 @@ void TabbedSelector::paintContent(QPainter &p) {
 			0,
 			_footerTop,
 			width(),
-			_st.footer);
+			_noFooter ? _roundRadius : _st.footer);
 		Ui::FillRoundRect(p, footerPart, footerBg, {
 			.p = {
 				_dropDown ? pixmaps.p[0] : QPixmap(),
@@ -802,7 +820,7 @@ void TabbedSelector::paintContent(QPainter &p) {
 }
 
 int TabbedSelector::marginTop() const {
-	return _dropDown
+	return (_dropDown && !_noFooter)
 		? _st.footer
 		: _tabsSlider
 		? (_tabsSlider->height() - st::lineWidth)
@@ -810,15 +828,19 @@ int TabbedSelector::marginTop() const {
 }
 
 int TabbedSelector::scrollTop() const {
-	return tabbed() ? marginTop() : _dropDown ? _st.footer : 0;
+	return tabbed()
+		? marginTop()
+		: (_dropDown && !_noFooter)
+		? _st.footer
+		: 0;
 }
 
 int TabbedSelector::marginBottom() const {
-	return _dropDown ? _roundRadius : _st.footer;
+	return (_dropDown || _noFooter) ? _roundRadius : _st.footer;
 }
 
 int TabbedSelector::scrollBottom() const {
-	return _dropDown ? 0 : marginBottom();
+	return (_dropDown || _noFooter) ? 0 : marginBottom();
 }
 
 void TabbedSelector::refreshStickers() {
@@ -1013,7 +1035,9 @@ void TabbedSelector::showAll() {
 	if (isRestrictedView()) {
 		_restrictedLabel->show();
 	} else {
-		currentTab()->footer()->show();
+		if (currentTab()->hasFooter()) {
+			currentTab()->footer()->show();
+		}
 		_scroll->show();
 		_bottomShadow->setVisible(_mode == Mode::EmojiStatus);
 	}
@@ -1100,7 +1124,7 @@ void TabbedSelector::fillTabsSliderSections() {
 }
 
 bool TabbedSelector::hasSectionIcons() const {
-	return !_restrictedLabel;
+	return !_restrictedLabel && !_noFooter;
 }
 
 void TabbedSelector::switchTab() {
@@ -1125,7 +1149,9 @@ void TabbedSelector::switchTab() {
 	auto widget = _scroll->takeWidget<Inner>();
 	widget->setParent(this);
 	widget->hide();
-	currentTab()->footer()->hide();
+	if (currentTab()->hasFooter()) {
+		currentTab()->footer()->hide();
+	}
 	currentTab()->returnWidget(std::move(widget));
 
 	_currentTabType = newTabType;

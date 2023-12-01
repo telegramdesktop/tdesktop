@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -378,13 +379,13 @@ void SetupChecks(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
 		Notify type) {
-	AddSubsectionTitle(container, Title(type));
+	Ui::AddSubsectionTitle(container, Title(type));
 
 	const auto session = &controller->session();
 	const auto settings = &session->data().notifySettings();
 
 	const auto enabled = container->add(
-		CreateButton(
+		CreateButtonWithIcon(
 			container,
 			tr::lng_notification_enable(),
 			st::settingsButton,
@@ -423,7 +424,7 @@ void SetupChecks(
 		return !sound || !sound->none;
 	};
 	const auto sound = soundInner->add(
-		CreateButton(
+		CreateButtonWithIcon(
 			soundInner,
 			tr::lng_notification_sound(),
 			st::settingsButton,
@@ -502,7 +503,7 @@ void SetupExceptions(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> window,
 		Notify type) {
-	const auto add = AddButton(
+	const auto add = AddButtonWithIcon(
 		container,
 		tr::lng_notification_exceptions_add(),
 		st::settingsButtonActive,
@@ -546,7 +547,7 @@ void SetupExceptions(
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
-			CreateButton(
+			CreateButtonWithIcon(
 				container,
 				tr::lng_notification_exceptions_clear(),
 				st::settingsAttentionButtonWithIcon,
@@ -597,12 +598,12 @@ void NotificationsType::setupContent(
 		not_null<Window::SessionController*> controller) {
 	const auto container = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	AddSkip(container, st::settingsPrivacySkip);
+	Ui::AddSkip(container, st::settingsPrivacySkip);
 	SetupChecks(container, controller, _type);
 
-	AddSkip(container);
-	AddDivider(container);
-	AddSkip(container);
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	SetupExceptions(container, controller, _type);
 

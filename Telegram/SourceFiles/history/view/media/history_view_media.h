@@ -92,12 +92,13 @@ public:
 	[[nodiscard]] virtual SelectedQuote selectedQuote(
 		TextSelection selection) const;
 	[[nodiscard]] virtual TextSelection selectionFromQuote(
-			not_null<HistoryItem*> item,
-			const TextWithEntities &quote) const {
+			const SelectedQuote &quote) const {
 		return {};
 	}
 
-	[[nodiscard]] virtual bool isDisplayed() const;
+	[[nodiscard]] virtual bool isDisplayed() const {
+		return true;
+	}
 	virtual void updateNeedBubbleState() {
 	}
 	[[nodiscard]] virtual bool hasTextForCopy() const {
@@ -334,6 +335,10 @@ public:
 	virtual void updateSharedContactUserId(UserId userId) {
 	}
 	virtual void parentTextUpdated() {
+	}
+
+	virtual bool consumeHorizontalScroll(QPoint position, int delta) {
+		return false;
 	}
 
 	virtual ~Media() = default;

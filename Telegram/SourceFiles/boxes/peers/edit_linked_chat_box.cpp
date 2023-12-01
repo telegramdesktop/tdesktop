@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
-#include "settings/settings_common.h"
+#include "settings/settings_common.h" // AddButton.
 #include "data/data_changes.h"
 #include "ui/widgets/labels.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue
@@ -168,7 +169,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 		const auto onstack = _callback;
 		onstack(chat);
 	};
-	delegate()->peerListShowBox(Ui::MakeConfirmBox({
+	delegate()->peerListUiShow()->showBox(Ui::MakeConfirmBox({
 		.text = text,
 		.confirmed = sure,
 		.confirmText = tr::lng_manage_discussion_group_link(tr::now),
@@ -199,7 +200,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 		};
 		chat->session().api().migrateChat(chat, crl::guard(this, done));
 	};
-	delegate()->peerListShowBox(Ui::MakeConfirmBox({
+	delegate()->peerListUiShow()->showBox(Ui::MakeConfirmBox({
 		.text = text,
 		.confirmed = sure,
 		.confirmText = tr::lng_manage_discussion_group_link(tr::now),
@@ -267,8 +268,8 @@ void Controller::choose(not_null<ChatData*> chat) {
 		if (!chat) {
 			Assert(channel->isBroadcast());
 
-			Settings::AddSkip(above);
-			Settings::AddButton(
+			Ui::AddSkip(above);
+			Settings::AddButtonWithIcon(
 				above,
 				tr::lng_manage_discussion_group_create(),
 				st::infoCreateLinkedChatButton,
@@ -286,7 +287,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 
 		auto below = object_ptr<Ui::VerticalLayout>(box);
 		if (chat && canEdit) {
-			Settings::AddButton(
+			Settings::AddButtonWithIcon(
 				below,
 				(channel->isBroadcast()
 					? tr::lng_manage_discussion_group_unlink
@@ -294,9 +295,9 @@ void Controller::choose(not_null<ChatData*> chat) {
 				st::infoUnlinkChatButton,
 				{ &st::menuIconRemove }
 			)->addClickHandler([=] { callback(nullptr); });
-			Settings::AddSkip(below);
+			Ui::AddSkip(below);
 		}
-		Settings::AddDividerText(
+		Ui::AddDividerText(
 			below,
 			(channel->isBroadcast()
 				? tr::lng_manage_discussion_group_posted

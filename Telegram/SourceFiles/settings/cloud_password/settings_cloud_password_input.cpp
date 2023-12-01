@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
@@ -184,7 +185,7 @@ void Input::setupContent() {
 			: tr::lng_settings_cloud_password_password_subtitle(),
 		tr::lng_cloud_password_about());
 
-	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
+	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
 	const auto newInput = AddPasswordField(
 		content,
@@ -322,7 +323,7 @@ void Input::setupContent() {
 				showBack();
 			});
 		});
-		AddSkip(content);
+		Ui::AddSkip(content);
 	}
 
 	if (!newInput->text().isEmpty()) {

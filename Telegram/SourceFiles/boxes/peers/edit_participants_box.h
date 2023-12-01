@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <rpl/variable.h>
-#include "boxes/peer_list_box.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"

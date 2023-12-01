@@ -67,8 +67,10 @@ struct SiblingView;
 enum class SiblingType;
 struct ContentLayout;
 class CaptionFullView;
+class RepostView;
 enum class ReactionsMode;
 class SuggestedReactionView;
+struct RepostClickHandler;
 
 enum class HeaderLayout {
 	Normal,
@@ -121,10 +123,16 @@ public:
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
 	[[nodiscard]] bool skipCaption() const;
+	[[nodiscard]] bool repost() const;
 	void toggleLiked();
 	void showFullCaption();
 	void captionClosing();
 	void captionClosed();
+
+	[[nodiscard]] QMargins repostCaptionPadding() const;
+	void drawRepostInfo(Painter &p, int x, int y, int availableWidth) const;
+	[[nodiscard]] RepostClickHandler lookupRepostHandler(
+		QPoint position) const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 	[[nodiscard]] auto stickerOrEmojiChosen() const
@@ -152,6 +160,7 @@ public:
 	void changeVolume(float64 volume);
 	void volumeChangeFinished();
 
+	void repaint();
 	void repaintSibling(not_null<Sibling*> sibling);
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 
@@ -239,6 +248,8 @@ private:
 	[[nodiscard]] PeerData *shownPeer() const;
 	[[nodiscard]] int shownCount() const;
 	[[nodiscard]] StoryId shownId(int index) const;
+	[[nodiscard]] std::unique_ptr<RepostView> validateRepostView(
+		not_null<Data::Story*> story);
 	void rebuildFromContext(not_null<PeerData*> peer, FullStoryId storyId);
 	void checkMoveByDelta();
 	void loadMoreToList();
@@ -247,6 +258,7 @@ private:
 		const std::vector<Data::StoriesSourceInfo> &lists,
 		int index);
 
+	[[nodiscard]] int repostSkipTop() const;
 	void updateAreas(Data::Story *story);
 	void reactionChosen(ReactionsMode mode, ChosenReaction chosen);
 
@@ -263,6 +275,7 @@ private:
 	std::unique_ptr<Unsupported> _unsupported;
 	std::unique_ptr<PhotoPlayback> _photoPlayback;
 	std::unique_ptr<CaptionFullView> _captionFullView;
+	std::unique_ptr<RepostView> _repostView;
 
 	Ui::Animations::Simple _contentFadeAnimation;
 	bool _contentFaded = false;

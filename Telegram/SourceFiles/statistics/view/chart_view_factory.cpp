@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "statistics/statistics_common.h"
 #include "statistics/view/linear_chart_view.h"
-#include "statistics/view/stack_chart_view.h"
+#include "statistics/view/bar_chart_view.h"
 #include "statistics/view/stack_linear_chart_view.h"
 
 namespace Statistic {
@@ -19,8 +19,11 @@ std::unique_ptr<AbstractChartView> CreateChartView(ChartViewType type) {
 	case ChartViewType::Linear: {
 		return std::make_unique<LinearChartView>(false);
 	} break;
-	case ChartViewType::Stack: {
-		return std::make_unique<StackChartView>();
+	case ChartViewType::Bar: {
+		return std::make_unique<BarChartView>(false);
+	} break;
+	case ChartViewType::StackBar: {
+		return std::make_unique<BarChartView>(true);
 	} break;
 	case ChartViewType::DoubleLinear: {
 		return std::make_unique<LinearChartView>(true);

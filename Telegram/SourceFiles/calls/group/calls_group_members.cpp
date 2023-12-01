@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_peer_values.h" // Data::CanWriteValue.
 #include "data/data_session.h" // Data::Session::invitedToCallUsers.
-#include "settings/settings_common.h" // Settings::CreateButton.
+#include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h" // Core::App().domain, .activeWindow.
 #include "main/main_domain.h" // Core::App().domain().activate.
 #include "main/main_session.h"
+#include "lang/lang_keys.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration.
 #include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfo...
@@ -1683,7 +1684,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			}
 			return;
 		}
-		auto addMember = Settings::CreateButton(
+		auto addMember = Settings::CreateButtonWithIcon(
 			_layout.get(),
 			tr::lng_group_call_invite(),
 			st::groupCallAddMember,
@@ -1973,14 +1974,6 @@ void Members::peerListFinishSelectedRowsBunch() {
 void Members::peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) {
 	description.destroy();
-}
-
-void Members::peerListShowBox(
-	object_ptr<Ui::BoxContent> content,
-	Ui::LayerOptions options) {
-}
-
-void Members::peerListHideLayer() {
 }
 
 std::shared_ptr<Main::SessionShow> Members::peerListUiShow() {

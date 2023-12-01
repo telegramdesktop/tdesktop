@@ -37,6 +37,7 @@ enum class Error;
 
 namespace HistoryView {
 
+class Reply;
 class TranscribeButton;
 
 class Gif final : public File {
@@ -70,8 +71,7 @@ public:
 	TextForMimeData selectedText(TextSelection selection) const override;
 	SelectedQuote selectedQuote(TextSelection selection) const override;
 	TextSelection selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const override;
+		const SelectedQuote &quote) const override;
 
 	bool uploading() const override;
 
@@ -176,8 +176,8 @@ private:
 	[[nodiscard]] bool needInfoDisplay() const;
 	[[nodiscard]] bool needCornerStatusDisplay() const;
 	[[nodiscard]] int additionalWidth(
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 	[[nodiscard]] int additionalWidth() const;
 	[[nodiscard]] bool isUnwrapped() const;

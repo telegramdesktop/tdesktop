@@ -183,8 +183,6 @@ public:
 	void setChooseReportReason(Ui::ReportReason reason);
 	void clearChooseReportReason();
 
-	void setCanHaveFromUserpicsSponsored(bool value);
-
 	// -1 if should not be visible, -2 if bad history()
 	[[nodiscard]] int itemTop(const HistoryItem *item) const;
 	[[nodiscard]] int itemTop(const Element *view) const;
@@ -203,6 +201,7 @@ public:
 	bool tooltipWindowActive() const override;
 
 	void onParentGeometryChanged();
+	bool consumeScrollAction(QPoint delta);
 
 	[[nodiscard]] Fn<HistoryView::ElementDelegate*()> elementDelegateFactory(
 		FullMsgId itemId) const;
@@ -489,7 +488,8 @@ private:
 	bool _pressWasInactive = false;
 	bool _recountedAfterPendingResizedItems = false;
 	bool _useCornerReaction = false;
-	bool _canHaveFromUserpicsSponsored = false;
+	bool _acceptsHorizontalScroll = false;
+	bool _horizontalScrollLocked = false;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;

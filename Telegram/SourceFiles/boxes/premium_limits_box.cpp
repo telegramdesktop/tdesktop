@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/text_utilities.h"
+#include "ui/vertical_list.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -27,8 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_premium_limits.h"
 #include "lang/lang_keys.h"
-#include "settings/settings_common.h"
-#include "settings/settings_premium.h"
+#include "settings/settings_premium.h" // ShowPremium.
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "styles/style_premium.h"
@@ -48,11 +48,11 @@ struct InfographicDescriptor {
 	bool complexRatio = false;
 };
 
-void AddSubsectionTitle(
+void AddSubtitle(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text) {
 	const auto &subtitlePadding = st::settingsButton.padding;
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		container,
 		std::move(text),
 		{ 0, subtitlePadding.top(), 0, -subtitlePadding.bottom() });
@@ -115,10 +115,6 @@ public:
 	void peerListFinishSelectedRowsBunch() override;
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;
-	void peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
-	void peerListHideLayer() override;
 	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 	void peerListSetRowChecked(
 		not_null<PeerListRow*> row,
@@ -181,14 +177,6 @@ void InactiveDelegate::peerListFinishSelectedRowsBunch() {
 void InactiveDelegate::peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) {
 	description.destroy();
-}
-
-void InactiveDelegate::peerListShowBox(
-	object_ptr<Ui::BoxContent> content,
-	Ui::LayerOptions options) {
-}
-
-void InactiveDelegate::peerListHideLayer() {
 }
 
 std::shared_ptr<Main::SessionShow> InactiveDelegate::peerListUiShow() {
@@ -407,7 +395,7 @@ void SimpleLimitBox(
 		? box->setPinnedToTopContent(object_ptr<Ui::VerticalLayout>(box))
 		: box->verticalLayout();
 
-	Settings::AddSkip(top, st::premiumInfographicPadding.top());
+	Ui::AddSkip(top, st::premiumInfographicPadding.top());
 	Ui::Premium::AddBubbleRow(
 		top,
 		st::defaultPremiumBubble,
@@ -418,7 +406,7 @@ void SimpleLimitBox(
 		premiumPossible,
 		descriptor.phrase,
 		descriptor.icon);
-	Settings::AddSkip(top, st::premiumLineTextSkip);
+	Ui::AddSkip(top, st::premiumLineTextSkip);
 	if (premiumPossible) {
 		Ui::Premium::AddLimitRow(
 			top,
@@ -429,7 +417,7 @@ void SimpleLimitBox(
 			(descriptor.complexRatio
 				? (float64(descriptor.current) / descriptor.premiumLimit)
 				: Ui::Premium::kLimitRowRatio));
-		Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
+		Ui::AddSkip(top, st::premiumInfographicPadding.bottom());
 	}
 
 	box->setTitle(std::move(title));
@@ -458,8 +446,8 @@ void SimpleLimitBox(
 	}
 
 	if (fixed) {
-		Settings::AddSkip(top, st::settingsButton.padding.bottom());
-		Settings::AddDivider(top);
+		Ui::AddSkip(top, st::settingsButton.padding.bottom());
+		Ui::AddDivider(top);
 	}
 }
 
@@ -564,7 +552,7 @@ void ChannelsLimitBox(
 		{ defaultLimit, current, premiumLimit, &st::premiumIconGroups },
 		true);
 
-	AddSubsectionTitle(box->verticalLayout(), tr::lng_channels_leave_title());
+	AddSubtitle(box->verticalLayout(), tr::lng_channels_leave_title());
 
 	const auto delegate = box->lifetime().make_state<InactiveDelegate>();
 	const auto controller = box->lifetime().make_state<InactiveController>(
@@ -654,7 +642,7 @@ void PublicLinksLimitBox(
 		{ defaultLimit, current, premiumLimit, &st::premiumIconLinks },
 		true);
 
-	AddSubsectionTitle(box->verticalLayout(), tr::lng_links_revoke_title());
+	AddSubtitle(box->verticalLayout(), tr::lng_links_revoke_title());
 
 	const auto delegate = box->lifetime().make_state<InactiveDelegate>();
 	const auto controller = box->lifetime().make_state<PublicsController>(
@@ -1079,7 +1067,7 @@ void AccountsLimitBox(
 	const auto top = box->verticalLayout();
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(0);
 
-	Settings::AddSkip(top, st::premiumInfographicPadding.top());
+	Ui::AddSkip(top, st::premiumInfographicPadding.top());
 	Ui::Premium::AddBubbleRow(
 		top,
 		st::defaultPremiumBubble,
@@ -1094,7 +1082,7 @@ void AccountsLimitBox(
 		premiumPossible,
 		std::nullopt,
 		&st::premiumIconAccounts);
-	Settings::AddSkip(top, st::premiumLineTextSkip);
+	Ui::AddSkip(top, st::premiumLineTextSkip);
 	if (premiumPossible) {
 		Ui::Premium::AddLimitRow(
 			top,
@@ -1102,7 +1090,7 @@ void AccountsLimitBox(
 			(QString::number(std::max(current, defaultLimit) + 1)
 				+ ((current + 1 == premiumLimit) ? "" : "+")),
 			QString::number(defaultLimit));
-		Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
+		Ui::AddSkip(top, st::premiumInfographicPadding.bottom());
 	}
 	box->setTitle(tr::lng_accounts_limit_title());
 

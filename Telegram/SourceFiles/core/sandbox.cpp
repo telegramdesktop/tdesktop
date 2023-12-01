@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 #include "core/update_checker.h"
 #include "core/deadlock_detector.h"
+#include "base/options.h"
 #include "base/timer.h"
 #include "base/concurrent_timer.h"
 #include "base/invoke_queued.h"
@@ -36,6 +37,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Core {
 namespace {
+
+base::options::toggle OptionForceWaylandFractionalScaling({
+	.id = kOptionForceWaylandFractionalScaling,
+	.name = "Force enable fractional-scale-v1",
+	.description = "Enable fractional-scale-v1 on Wayland without "
+		"precise High DPI scaling. "
+		"Requires Qt with Desktop App Toolkit patches.",
+	.scope = [] {
+#ifdef DESKTOP_APP_QT_PATCHED
+		return Platform::IsWayland();
+#else // DESKTOP_APP_QT_PATCHED
+		return false;
+#endif // !DESKTOP_APP_QT_PATCHED
+	},
+	.restartRequired = true,
+});
 
 QChar _toHex(ushort v) {
 	v = v & 0x000F;
@@ -77,12 +94,17 @@ QString _escapeFrom7bit(const QString &str) {
 
 } // namespace
 
+const char kOptionForceWaylandFractionalScaling[] = "force-wayland-fractional-scaling";
+
 bool Sandbox::QuitOnStartRequested = false;
 
 Sandbox::Sandbox(int &argc, char **argv)
 : QApplication(argc, argv)
 , _mainThreadId(QThread::currentThreadId()) {
 	setQuitOnLastWindowClosed(false);
+	if (OptionForceWaylandFractionalScaling.value()) {
+		setProperty("_q_force_wayland_fractional_scale", true);
+	}
 }
 
 int Sandbox::start() {
@@ -159,16 +181,9 @@ int Sandbox::start() {
 
 	// https://github.com/telegramdesktop/tdesktop/issues/948
 	// and https://github.com/telegramdesktop/tdesktop/issues/5022
-	const auto restartHint = [](QSessionManager &manager) {
+	connect(this, &QGuiApplication::saveStateRequest, [](auto &manager) {
 		manager.setRestartHint(QSessionManager::RestartNever);
-	};
-
-	connect(
-		this,
-		&QGuiApplication::saveStateRequest,
-		this,
-		restartHint,
-		Qt::DirectConnection);
+	});
 
 	LOG(("Connecting local socket to %1...").arg(_localServerName));
 	_localSocket.connectToServer(_localServerName);

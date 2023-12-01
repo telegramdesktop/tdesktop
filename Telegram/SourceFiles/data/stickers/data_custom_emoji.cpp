@@ -89,6 +89,18 @@ private:
 		: FrameSizeFromTag(tag);
 }
 
+[[nodiscard]] QString InternalPrefix() {
+	return u"internal:"_q;
+}
+
+[[nodiscard]] QString InternalPadding(QMargins value) {
+	return value.isNull() ? QString() : QString(",%1,%2,%3,%4"
+	).arg(value.left()
+	).arg(value.top()
+	).arg(value.right()
+	).arg(value.bottom());
+}
+
 } // namespace
 
 class CustomEmojiLoader final
@@ -514,6 +526,9 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		Fn<void()> update,
 		SizeTag tag,
 		int sizeOverride) {
+	if (data.startsWith(InternalPrefix())) {
+		return internal(data);
+	}
 	const auto parsed = ParseCustomEmojiData(data);
 	return parsed
 		? create(parsed, std::move(update), tag, sizeOverride)
@@ -538,6 +553,26 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 	return create(document->id, std::move(update), tag, sizeOverride, [&] {
 		return createLoaderWithSetId(document, tag, sizeOverride);
 	});
+}
+
+std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::internal(
+		QStringView data) {
+	const auto v = data.mid(InternalPrefix().size()).split(',');
+	if (v.size() != 5 && v.size() != 1) {
+		return nullptr;
+	}
+	const auto index = v[0].toInt();
+	Assert(index >= 0 && index < _internalEmoji.size());
+
+	auto &info = _internalEmoji[index];
+	const auto padding = (v.size() == 5)
+		? QMargins(v[1].toInt(), v[2].toInt(), v[3].toInt(), v[4].toInt())
+		: QMargins();
+	return std::make_unique<Ui::CustomEmoji::Internal>(
+		data.toString(),
+		info.image,
+		padding,
+		info.textColor);
 }
 
 void CustomEmojiManager::resolve(
@@ -883,6 +918,41 @@ Session &CustomEmojiManager::owner() const {
 
 uint64 CustomEmojiManager::coloredSetId() const {
 	return _coloredSetId;
+}
+
+QString CustomEmojiManager::registerInternalEmoji(
+		QImage emoji,
+		QMargins padding,
+		bool textColor) {
+	_internalEmoji.push_back({ std::move(emoji), textColor });
+	return InternalPrefix()
+		+ QString::number(_internalEmoji.size() - 1)
+		+ InternalPadding(padding);
+}
+
+QString CustomEmojiManager::registerInternalEmoji(
+		const style::icon &icon,
+		QMargins padding,
+		bool textColor) {
+	const auto i = _iconEmoji.find(&icon);
+	if (i != end(_iconEmoji)) {
+		return i->second + InternalPadding(padding);
+	}
+	auto image = QImage(
+		icon.size() * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	image.fill(Qt::transparent);
+	image.setDevicePixelRatio(style::DevicePixelRatio());
+	auto p = QPainter(&image);
+	icon.paint(p, 0, 0, icon.width());
+	p.end();
+
+	const auto result = registerInternalEmoji(
+		std::move(image),
+		QMargins{},
+		textColor);
+	_iconEmoji.emplace(&icon, result);
+	return result + InternalPadding(padding);
 }
 
 int FrameSizeFromTag(SizeTag tag) {

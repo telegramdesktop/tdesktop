@@ -13,8 +13,10 @@ namespace Data {
 
 struct StatisticsMessageInteractionInfo final {
 	MsgId messageId;
+	StoryId storyId = StoryId(0);
 	int viewsCount = 0;
 	int forwardsCount = 0;
+	int reactionsCount = 0;
 };
 
 struct StatisticsMessageSenderInfo final {
@@ -55,6 +57,10 @@ struct ChannelStatistics final {
 	StatisticalValue memberCount;
 	StatisticalValue meanViewCount;
 	StatisticalValue meanShareCount;
+	StatisticalValue meanReactionCount;
+	StatisticalValue meanStoryViewCount;
+	StatisticalValue meanStoryShareCount;
+	StatisticalValue meanStoryReactionCount;
 
 	float64 enabledNotificationsPercentage = 0.;
 
@@ -67,6 +73,9 @@ struct ChannelStatistics final {
 	StatisticalGraph languageGraph;
 	StatisticalGraph messageInteractionGraph;
 	StatisticalGraph instantViewInteractionGraph;
+	StatisticalGraph reactionsByEmotionGraph;
+	StatisticalGraph storyInteractionsGraph;
+	StatisticalGraph storyReactionsByEmotionGraph;
 
 	std::vector<StatisticsMessageInteractionInfo> recentMessageInteractions;
 
@@ -108,23 +117,43 @@ struct MessageStatistics final {
 		return !messageInteractionGraph.chart.empty() || views;
 	}
 	Data::StatisticalGraph messageInteractionGraph;
+	Data::StatisticalGraph reactionsByEmotionGraph;
 	int publicForwards = 0;
 	int privateForwards = 0;
 	int views = 0;
+	int reactions = 0;
 };
+// At the moment, the structures are identical.
+using StoryStatistics = MessageStatistics;
 
 struct AnyStatistics final {
 	Data::ChannelStatistics channel;
 	Data::SupergroupStatistics supergroup;
 	Data::MessageStatistics message;
+	Data::StoryStatistics story;
+};
+
+struct RecentPostId final {
+	FullMsgId messageId;
+	FullStoryId storyId;
+
+	[[nodiscard]] bool valid() const {
+		return messageId || storyId;
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+	friend inline auto operator<=>(RecentPostId, RecentPostId) = default;
+	friend inline bool operator==(RecentPostId, RecentPostId) = default;
 };
 
 struct PublicForwardsSlice final {
 	struct OffsetToken final {
 		int rate = 0;
 		FullMsgId fullId;
+		QString storyOffset;
 	};
-	QVector<FullMsgId> list;
+	QVector<RecentPostId> list;
 	int total = 0;
 	bool allLoaded = false;
 	OffsetToken token;

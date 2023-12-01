@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_statistics_chart.h"
 
+#include "statistics/statistics_format_values.h"
+
 #include <QtCore/QDateTime>
 #include <QtCore/QLocale>
 
@@ -44,20 +46,18 @@ void StatisticalChart::measure() {
 	const auto dateCount = int((end - start) / timeStep) + 10;
 	daysLookup.reserve(dateCount);
 	constexpr auto kOneDay = 3600 * 24 * 1000;
-	const auto formatter = u"d MMM"_q;
 	for (auto i = 0; i < dateCount; i++) {
 		const auto r = (start + (i * timeStep)) / 1000;
-		const auto dateTime = QDateTime::fromSecsSinceEpoch(r);
 		if (timeStep == 1) {
 			daysLookup.push_back(
 				QString(((i < 10) ? u"0%1:00"_q : u"%1:00"_q).arg(i)));
 		} else if (timeStep < kOneDay) {
+			const auto dateTime = QDateTime::fromSecsSinceEpoch(r);
 			daysLookup.push_back(u"%1:%2"_q
 				.arg(dateTime.time().hour(), 2, 10, QChar('0'))
 				.arg(dateTime.time().minute(), 2, 10, QChar('0')));
 		} else {
-			const auto date = dateTime.date();
-			daysLookup.push_back(QLocale().toString(date, formatter));
+			daysLookup.push_back(Statistic::LangDayMonth(r));
 		}
 	}
 
@@ -99,6 +99,7 @@ int StatisticalChart::findStartIndex(float64 v) const {
 }
 
 int StatisticalChart::findEndIndex(int left, float64 v) const {
+	const auto wasLeft = left;
 	const auto n = int(xPercentage.size());
 	if (v == 1.) {
 		return n - 1;
@@ -120,7 +121,7 @@ int StatisticalChart::findEndIndex(int left, float64 v) const {
 			left = middle + 1;
 		}
 	}
-	return right;
+	return std::max(wasLeft, right);
 }
 
 

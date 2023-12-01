@@ -24,8 +24,8 @@ TextState::TextState(
 	? CursorState::Text
 	: CursorState::None)
 , link(state.link)
-, afterSymbol(state.afterSymbol)
-, symbol(state.symbol) {
+, symbol(state.symbol)
+, afterSymbol(state.afterSymbol) {
 }
 
 TextState::TextState(
@@ -59,8 +59,8 @@ TextState::TextState(
 	? CursorState::Text
 	: CursorState::None)
 , link(state.link)
-, afterSymbol(state.afterSymbol)
-, symbol(state.symbol) {
+, symbol(state.symbol)
+, afterSymbol(state.afterSymbol) {
 }
 
 TextState::TextState(std::nullptr_t, ClickHandlerPtr link)

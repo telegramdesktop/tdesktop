@@ -19,9 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "menu/menu_ttl_validator.h"
-#include "settings/settings_common.h"
+#include "settings/settings_common_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -284,14 +285,14 @@ void GlobalTTL::rebuildButtons(TimeId currentTTL) const {
 	_buttons->clear();
 	for (const auto &ttl : ttls) {
 		const auto ttlText = Ui::FormatTTLAfter(ttl);
-		const auto button = AddButton(
+		const auto button = _buttons->add(object_ptr<Ui::SettingsButton>(
 			_buttons,
 			(!ttl)
 				? tr::lng_settings_ttl_after_off()
 				: tr::lng_settings_ttl_after(
 					lt_after_duration,
 					rpl::single(ttlText)),
-			st::settingsButtonNoIcon);
+			st::settingsButtonNoIcon));
 		button->setClickedCallback([=] {
 			if (_group->value() == ttl) {
 				return;
@@ -304,7 +305,7 @@ void GlobalTTL::rebuildButtons(TimeId currentTTL) const {
 			showSure(ttl, false);
 		});
 		const auto radio = Ui::CreateChild<Ui::Radiobutton>(
-			button.get(),
+			button,
 			_group,
 			ttl,
 			QString());
@@ -326,8 +327,8 @@ void GlobalTTL::setupContent() {
 
 	SetupTopContent(content, _showFinished.events());
 
-	AddSkip(content);
-	AddSubsectionTitle(content, tr::lng_settings_ttl_after_subtitle());
+	Ui::AddSkip(content);
+	Ui::AddSubsectionTitle(content, tr::lng_settings_ttl_after_subtitle());
 
 	content->add(object_ptr<Ui::VerticalLayout>::fromRaw(_buttons));
 
@@ -343,10 +344,10 @@ void GlobalTTL::setupContent() {
 	}
 
 	const auto show = _controller->uiShow();
-	AddButton(
+	content->add(object_ptr<Ui::SettingsButton>(
 		content,
 		tr::lng_settings_ttl_after_custom(),
-		st::settingsButtonNoIcon)->setClickedCallback([=] {
+		st::settingsButtonNoIcon))->setClickedCallback([=] {
 		struct Args {
 			std::shared_ptr<Ui::Show> show;
 			TimeId startTtl;
@@ -362,7 +363,7 @@ void GlobalTTL::setupContent() {
 		}));
 	});
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	auto footer = object_ptr<Ui::FlatLabel>(
 		content,
@@ -415,7 +416,7 @@ void GlobalTTL::setupContent() {
 	content->add(object_ptr<Ui::DividerLabel>(
 		content,
 		std::move(footer),
-		st::settingsDividerLabelPadding));
+		st::defaultBoxDividerLabelPadding));
 
 	Ui::ResizeFitChild(this, content);
 }

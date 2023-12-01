@@ -17,9 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config_values.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
-#include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_variant.h"
 #include "ui/toast/toast.h"
@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -369,7 +368,7 @@ void UsernamesBox(
 			container,
 			std::move(description),
 			st::boxDividerLabel),
-		st::settingsDividerLabelPadding));
+		st::defaultBoxDividerLabelPadding));
 
 	const auto list = box->addRow(
 		object_ptr<UsernamesList>(
@@ -409,11 +408,11 @@ void AddUsernameCheckLabel(
 	const auto skip = (st::usernameSkip - st.style.font->height) / 4;
 
 	auto wrapped = object_ptr<Ui::VerticalLayout>(container);
-	Settings::AddSkip(wrapped, skip);
+	Ui::AddSkip(wrapped, skip);
 	const auto label = wrapped->add(object_ptr<Ui::FlatLabel>(wrapped, st));
-	Settings::AddSkip(wrapped, skip);
+	Ui::AddSkip(wrapped, skip);
 
-	Settings::AddSkip(container, skip);
+	Ui::AddSkip(container, skip);
 	container->add(
 		object_ptr<Ui::FollowSlideWrap<Ui::VerticalLayout>>(
 			container,
@@ -436,5 +435,5 @@ void AddUsernameCheckLabel(
 		label->setTextColorOverride(color->c);
 		label->resizeToWidth(w - padding.left() - padding.right());
 	}, label->lifetime());
-	Settings::AddSkip(container, skip);
+	Ui::AddSkip(container, skip);
 }

@@ -23,6 +23,7 @@ struct ChatPaintHighlight;
 namespace HistoryView {
 
 class Element;
+struct SelectedQuote;
 
 class ElementHighlighter final {
 public:
@@ -33,8 +34,8 @@ public:
 		ViewForItem viewForItem,
 		RepaintView repaintView);
 
-	void enqueue(not_null<Element*> view, const TextWithEntities &part);
-	void highlight(not_null<Element*> view, const TextWithEntities &part);
+	void enqueue(const SelectedQuote &quote);
+	void highlight(const SelectedQuote &quote);
 	void clear();
 
 	[[nodiscard]] Ui::ChatPaintHighlight state(
@@ -71,9 +72,7 @@ private:
 		friend inline bool operator==(Highlight, Highlight) = default;
 	};
 
-	[[nodiscard]] Highlight computeHighlight(
-		not_null<const Element*> view,
-		const TextWithEntities &part);
+	[[nodiscard]] Highlight computeHighlight(const SelectedQuote &quote);
 	void highlight(Highlight data);
 	void checkNextHighlight();
 	void repaintHighlightedItem(not_null<const Element*> view);

@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "api/api_user_names.h"
 #include "main/main_session.h"
-#include "boxes/add_contact_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
@@ -23,10 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_linked_chat_box.h"
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "boxes/peers/edit_peer_reactions.h"
+#include "boxes/peers/replace_boost_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/stickers_box.h"
 #include "boxes/username_box.h"
-#include "ui/boxes/single_choice_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -37,35 +36,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
+#include "info/boosts/info_boosts_widget.h"
 #include "info/profile/info_profile_values.h"
+#include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
-#include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "settings/settings_common.h"
+#include "ui/boxes/boost_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/rp_widget.h"
+#include "ui/vertical_list.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
-#include "info/profile/info_profile_icon.h"
 #include "api/api_invite_links.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -87,13 +87,9 @@ void AddSkip(
 		not_null<Ui::VerticalLayout*> container,
 		int top = st::editPeerTopButtonsLayoutSkip,
 		int bottom = st::editPeerTopButtonsLayoutSkipToBottom) {
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		top));
-	container->add(object_ptr<Ui::BoxContentDivider>(container));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		bottom));
+	Ui::AddSkip(container, top);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, bottom);
 }
 
 void AddButtonWithCount(
@@ -245,10 +241,6 @@ void ShowEditPermissions(
 	navigation->parentController()->show(Box(std::move(createBox)));
 }
 
-} // namespace
-
-namespace {
-
 class Controller : public base::has_weak_ptr {
 public:
 	Controller(
@@ -269,6 +261,7 @@ private:
 		Ui::VerticalLayout *buttonsLayout = nullptr;
 		Ui::SettingsButton *forumToggle = nullptr;
 		bool forumToggleLocked = false;
+		bool levelRequested = false;
 		Ui::SlideWrap<> *historyVisibilityWrap = nullptr;
 	};
 	struct Saving {
@@ -318,6 +311,7 @@ private:
 	void submitDescription();
 	void deleteWithConfirmation();
 	void deleteChannel();
+	void editReactions();
 
 	[[nodiscard]] std::optional<Saving> validate() const;
 	[[nodiscard]] bool validateUsernamesOrder(Saving &to) const;
@@ -591,10 +585,10 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		object_ptr<Ui::VerticalLayout>(_wrap));
 	const auto container = result->entity();
 
-	Settings::AddSubsectionTitle(
+	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_group_stickers(),
-		{ 0, st::settingsSubsectionTitlePadding.top() - bottomSkip, 0, 0 });
+		{ 0, st::defaultSubsectionTitlePadding.top() - bottomSkip, 0, 0 });
 
 	AddButtonWithCount(
 		container,
@@ -606,13 +600,13 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		},
 		{ &st::menuIconStickers });
 
-	Settings::AddSkip(container, bottomSkip);
+	Ui::AddSkip(container, bottomSkip);
 
-	Settings::AddDividerText(
+	Ui::AddDividerText(
 		container,
 		tr::lng_group_stickers_description());
 
-	Settings::AddSkip(container, bottomSkip);
+	Ui::AddSkip(container, bottomSkip);
 
 	return result;
 }
@@ -1002,12 +996,12 @@ void Controller::fillManageSection() {
 	if (_isBot) {
 		const auto &container = _controls.buttonsLayout;
 
-		AddSkip(container, 0);
+		::AddSkip(container, 0);
 		fillBotUsernamesButton();
 		fillBotEditIntroButton();
 		fillBotEditCommandsButton();
 		fillBotEditSettingsButton();
-		Settings::AddSkip(
+		Ui::AddSkip(
 			container,
 			st::editPeerTopButtonsLayoutSkipCustomBottom);
 		container->add(object_ptr<Ui::DividerLabel>(
@@ -1022,7 +1016,7 @@ void Controller::fillManageSection() {
 							kBotManagerUsername.utf16()))),
 					Ui::Text::RichLangValue),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding));
+			st::defaultBoxDividerLabelPadding));
 		return;
 	}
 
@@ -1070,7 +1064,7 @@ void Controller::fillManageSection() {
 		&& (channel->linkedChat()
 			|| (channel->isBroadcast() && channel->canEditInformation()));
 
-	AddSkip(_controls.buttonsLayout, 0);
+	::AddSkip(_controls.buttonsLayout, 0);
 
 	if (canEditType) {
 		fillPrivacyTypeButton();
@@ -1099,11 +1093,10 @@ void Controller::fillManageSection() {
 		//|| canEditInviteLinks
 		|| canViewOrEditLinkedChat
 		|| canEditType) {
-		AddSkip(_controls.buttonsLayout);
+		::AddSkip(_controls.buttonsLayout);
 	}
 
 	if (canEditReactions()) {
-		const auto session = &_peer->session();
 		auto allowedReactions = Info::Profile::MigratedOrMeValue(
 			_peer
 		) | rpl::map([=](not_null<PeerData*> peer) {
@@ -1114,36 +1107,21 @@ void Controller::fillManageSection() {
 				return Data::PeerAllowedReactions(peer);
 			});
 		}) | rpl::flatten_latest();
-		auto label = rpl::combine(
-			std::move(allowedReactions),
-			Info::Profile::FullReactionsCountValue(session)
-		) | rpl::map([=](const Data::AllowedReactions &allowed, int total) {
+		auto label = std::move(
+			allowedReactions
+		) | rpl::map([=](const Data::AllowedReactions &allowed) {
 			const auto some = int(allowed.some.size());
 			return (allowed.type != Data::AllowedReactionsType::Some)
 				? tr::lng_manage_peer_reactions_on(tr::now)
 				: some
-				? (QString::number(some)
-					+ " / "
-					+ QString::number(std::max(some, total)))
+				? QString::number(some)
 				: tr::lng_manage_peer_reactions_off(tr::now);
 		});
-		const auto done = [=](const Data::AllowedReactions &chosen) {
-			SaveAllowedReactions(_peer, chosen);
-		};
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			tr::lng_manage_peer_reactions(),
 			std::move(label),
-			[=] {
-				_navigation->parentController()->show(Box(
-					EditAllowedReactionsBox,
-					_navigation,
-					!_peer->isBroadcast(),
-					session->data().reactions().list(
-						Data::Reactions::Type::Active),
-					Data::PeerAllowedReactions(_peer),
-					done));
-			},
+			[=] { editReactions(); },
 			{ &st::menuIconGroupReactions });
 	}
 	if (canEditPermissions) {
@@ -1269,7 +1247,7 @@ void Controller::fillManageSection() {
 	}
 
 	if (canEditStickers || canDeleteChannel) {
-		AddSkip(_controls.buttonsLayout);
+		::AddSkip(_controls.buttonsLayout);
 	}
 
 	if (canEditStickers) {
@@ -1287,8 +1265,65 @@ void Controller::fillManageSection() {
 	}
 
 	if (canEditStickers || canDeleteChannel) {
-		AddSkip(_controls.buttonsLayout);
+		::AddSkip(_controls.buttonsLayout);
 	}
+}
+
+void Controller::editReactions() {
+	const auto done = [=](const Data::AllowedReactions &chosen) {
+		SaveAllowedReactions(_peer, chosen);
+	};
+	if (!_peer->isBroadcast()) {
+		_navigation->uiShow()->show(Box(
+			EditAllowedReactionsBox,
+			EditAllowedReactionsArgs{
+				.navigation = _navigation,
+				.isGroup = true,
+				.list = _navigation->session().data().reactions().list(
+					Data::Reactions::Type::Active),
+				.allowed = Data::PeerAllowedReactions(_peer),
+				.save = done,
+			}));
+		return;
+	}
+	if (_controls.levelRequested) {
+		return;
+	}
+	_controls.levelRequested = true;
+	_api.request(MTPpremium_GetBoostsStatus(
+		_peer->input
+	)).done([=](const MTPpremium_BoostsStatus &result) {
+		_controls.levelRequested = false;
+		const auto link = qs(result.data().vboost_url());
+		const auto weak = base::make_weak(_navigation->parentController());
+		auto counters = ParseBoostCounters(result);
+		counters.mine = 0; // Don't show current level as just-reached.
+		const auto askForBoosts = [=](int required) {
+			if (const auto strong = weak.get()) {
+				const auto openStatistics = [=, peer = _peer] {
+					strong->showSection(Info::Boosts::Make(peer));
+				};
+				strong->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
+					.link = link,
+					.boost = counters,
+					.reason = { Ui::AskBoostCustomReactions{ required } },
+				}, openStatistics, nullptr));
+			}
+		};
+		_navigation->uiShow()->show(Box(
+			EditAllowedReactionsBox,
+			EditAllowedReactionsArgs{
+				.navigation = _navigation,
+				.allowedCustomReactions = counters.level,
+				.customReactionsHardLimit = Data::PremiumLimits(
+					&_peer->session()).maxBoostLevel(),
+				.list = _navigation->session().data().reactions().list(
+					Data::Reactions::Type::Active),
+				.allowed = Data::PeerAllowedReactions(_peer),
+				.askForBoosts = askForBoosts,
+				.save = done,
+			}));
+	}).send();
 }
 
 void Controller::fillPendingRequestsButton() {

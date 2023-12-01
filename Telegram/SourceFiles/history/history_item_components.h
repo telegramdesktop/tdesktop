@@ -22,8 +22,11 @@ namespace Ui {
 struct ChatPaintContext;
 class ChatStyle;
 struct PeerUserpicView;
-class SpoilerAnimation;
 } // namespace Ui
+
+namespace Ui::Text {
+struct GeometryDescriptor;
+} // namespace Ui::Text
 
 namespace Data {
 class Session;
@@ -137,22 +140,6 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	bool story = false;
 };
 
-struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored, HistoryItem> {
-	enum class Type : uchar {
-		User,
-		Group,
-		Broadcast,
-		Post,
-		Bot,
-		ExternalLink,
-	};
-	std::unique_ptr<HiddenSenderInfo> sender;
-	Type type = Type::User;
-	bool recommended = false;
-	bool isForceUserpicDisplay = false;
-	QString externalLink;
-};
-
 class ReplyToMessagePointer final {
 public:
 	ReplyToMessagePointer(HistoryItem *item = nullptr) : _data(item) {
@@ -230,7 +217,10 @@ private:
 };
 
 struct ReplyFields {
+	[[nodiscard]] ReplyFields clone(not_null<HistoryItem*> parent) const;
+
 	TextWithEntities quote;
+	std::unique_ptr<Data::Media> externalMedia;
 	PeerId externalSenderId = 0;
 	QString externalSenderName;
 	QString externalPostAuthor;
@@ -238,12 +228,13 @@ struct ReplyFields {
 	MsgId messageId = 0;
 	MsgId topMessageId = 0;
 	StoryId storyId = 0;
-	bool topicPost = false;
-	bool manualQuote = false;
+	uint32 quoteOffset : 30 = 0;
+	uint32 manualQuote : 1 = 0;
+	uint32 topicPost : 1 = 0;
 };
 
 [[nodiscard]] ReplyFields ReplyFieldsFromMTP(
-	not_null<History*> history,
+	not_null<HistoryItem*> item,
 	const MTPMessageReplyHeader &reply);
 
 [[nodiscard]] FullReplyTo ReplyToFromMTP(
@@ -260,8 +251,6 @@ struct HistoryMessageReply
 	HistoryMessageReply &operator=(HistoryMessageReply &&other);
 	~HistoryMessageReply();
 
-	static constexpr auto kBarAlpha = 230. / 255.;
-
 	void set(ReplyFields fields);
 
 	void updateFields(
@@ -275,16 +264,8 @@ struct HistoryMessageReply
 	void clearData(not_null<HistoryItem*> holder);
 
 	[[nodiscard]] bool external() const;
-	[[nodiscard]] PeerData *sender(not_null<HistoryItem*> holder) const;
-	[[nodiscard]] QString senderName(not_null<HistoryItem*> holder) const;
-	[[nodiscard]] QString senderName(not_null<PeerData*> peer) const;
-	[[nodiscard]] bool isNameUpdated(not_null<HistoryItem*> holder) const;
-	void updateName(
-		not_null<HistoryItem*> holder,
-		std::optional<PeerData*> resolvedSender = std::nullopt) const;
-	[[nodiscard]] int resizeToWidth(int width) const;
-	[[nodiscard]] int height() const;
-	[[nodiscard]] QMargins margins() const;
+	[[nodiscard]] bool displayAsExternal(
+		not_null<HistoryItem*> holder) const;
 	void itemRemoved(
 		not_null<HistoryItem*> holder,
 		not_null<HistoryItem*> removed);
@@ -292,17 +273,7 @@ struct HistoryMessageReply
 		not_null<HistoryItem*> holder,
 		not_null<Data::Story*> removed);
 
-	void paint(
-		Painter &p,
-		not_null<const HistoryView::Element*> holder,
-		const Ui::ChatPaintContext &context,
-		int x,
-		int y,
-		int w,
-		bool inBubble) const;
-	void unloadPersistentAnimation();
-
-	[[nodiscard]] ReplyFields fields() const {
+	[[nodiscard]] const ReplyFields &fields() const {
 		return _fields;
 	}
 	[[nodiscard]] PeerId externalPeerId() const {
@@ -317,21 +288,22 @@ struct HistoryMessageReply
 	[[nodiscard]] MsgId topMessageId() const {
 		return _fields.topMessageId;
 	}
-	[[nodiscard]] int maxWidth() const {
-		return _maxWidth;
-	}
-	[[nodiscard]] ClickHandlerPtr link() const {
-		return _link;
-	}
 	[[nodiscard]] bool topicPost() const {
 		return _fields.topicPost;
 	}
 	[[nodiscard]] bool manualQuote() const {
 		return _fields.manualQuote;
 	}
-	[[nodiscard]] QString statePhrase() const;
+	[[nodiscard]] bool unavailable() const {
+		return _unavailable;
+	}
+	[[nodiscard]] bool displaying() const {
+		return _displaying;
+	}
+	[[nodiscard]] bool multiline() const {
+		return _multiline;
+	}
 
-	void setLinkFrom(not_null<HistoryItem*> holder);
 	void setTopMessageId(MsgId topMessageId);
 
 	void refreshReplyToMedia();
@@ -340,25 +312,12 @@ struct HistoryMessageReply
 	WebPageId replyToWebPageId = 0;
 	ReplyToMessagePointer resolvedMessage;
 	ReplyToStoryPointer resolvedStory;
-	std::unique_ptr<HistoryMessageVia> originalVia;
-	std::unique_ptr<Ui::SpoilerAnimation> spoiler;
-
-	struct {
-		mutable std::unique_ptr<Ui::RippleAnimation> animation;
-		QPoint lastPoint;
-	} ripple;
 
 private:
 	ReplyFields _fields;
-	ClickHandlerPtr _link;
-	mutable Ui::Text::String _name;
-	mutable Ui::Text::String _text;
-	mutable PeerData *_externalSender = nullptr;
-	mutable int _maxWidth = 0;
-	mutable int _minHeight = 0;
-	mutable int _height = 0;
-	mutable int _nameVersion = 0;
 	uint8 _unavailable : 1 = 0;
+	uint8 _displaying : 1 = 0;
+	uint8 _multiline : 1 = 0;
 
 };
 

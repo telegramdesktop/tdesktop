@@ -124,16 +124,19 @@ struct SendingErrorRequest {
 	not_null<PeerData*> peer,
 	MsgId msgId,
 	FullMsgId returnToId = FullMsgId(),
-	TextWithEntities highlightPart = {});
+	TextWithEntities highlightPart = {},
+	int highlightPartOffsetHint = 0);
 [[nodiscard]] ClickHandlerPtr JumpToMessageClickHandler(
 	not_null<HistoryItem*> item,
 	FullMsgId returnToId = FullMsgId(),
-	TextWithEntities highlightPart = {});
+	TextWithEntities highlightPart = {},
+	int highlightPartOffsetHint = 0);
 [[nodiscard]] ClickHandlerPtr JumpToStoryClickHandler(
 	not_null<Data::Story*> story);
 ClickHandlerPtr JumpToStoryClickHandler(
 	not_null<PeerData*> peer,
 	StoryId storyId);
+[[nodiscard]] ClickHandlerPtr HideSponsoredClickHandler();
 
 [[nodiscard]] not_null<HistoryItem*> GenerateJoinedMessage(
 	not_null<History*> history,
@@ -150,3 +153,5 @@ ClickHandlerPtr JumpToStoryClickHandler(
 [[nodiscard]] ClickHandlerPtr GroupCallClickHandler(
 	not_null<PeerData*> peer,
 	CallId callId);
+
+void ShowTrialTranscribesToast(int left, TimeId until);

@@ -204,6 +204,8 @@ WebpageProcessor::WebpageProcessor(
 	) | rpl::filter([=](not_null<WebPageData*> page) {
 		return (_data == page.get());
 	}) | rpl::start_with_next([=] {
+		_draft.id = _data->id;
+		_draft.url = _data->url;
 		updateFromData();
 	}, _lifetime);
 

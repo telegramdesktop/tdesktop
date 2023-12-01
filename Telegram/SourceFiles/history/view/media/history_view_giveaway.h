@@ -69,6 +69,9 @@ private:
 		QRect geometry;
 		ClickHandlerPtr link;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
+		mutable std::array<QImage, 4> corners;
+		mutable QColor bg;
+		uint8 colorIndex = 0;
 	};
 
 	void paintBadge(Painter &p, const PaintContext &context) const;
@@ -94,10 +97,8 @@ private:
 	Ui::Text::String _winnersTitle;
 	Ui::Text::String _winners;
 
-	mutable QColor _channelBg;
 	mutable QColor _badgeFg;
 	mutable QColor _badgeBorder;
-	mutable std::array<QImage, 4> _channelCorners;
 	mutable QImage _badge;
 	mutable QImage _badgeCache;
 

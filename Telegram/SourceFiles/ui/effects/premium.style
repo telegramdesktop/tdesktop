@@ -27,11 +27,13 @@ PremiumBubble {
 	font: font;
 }
 PremiumCover {
+	bg: color;
 	starSize: size;
 	starTopSkip: pixels;
 	titlePadding: margins;
 	titleFont: font;
 	about: FlatLabel;
+	additionalShadowForDarkThemes: bool;
 }
 
 premiumAboutTextStyle: TextStyle(defaultTextStyle) {
@@ -40,6 +42,7 @@ premiumAboutTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 18px;
 }
 defaultPremiumCover: PremiumCover {
+	bg: boxBg;
 	starSize: size(84px, 81px);
 	starTopSkip: 37px;
 	titlePadding: margins(0px, 18px, 0px, 11px);
@@ -53,6 +56,7 @@ defaultPremiumCover: PremiumCover {
 		textFg: premiumButtonFg;
 		minWidth: 190px;
 	}
+	additionalShadowForDarkThemes: true;
 }
 userPremiumCoverAbout: FlatLabel(boxDividerLabel) {
 	style: premiumAboutTextStyle;
@@ -243,14 +247,26 @@ boostTitleSkip: 32px;
 boostTitle: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	textFg: windowBoldFg;
-	align: align(top);
 	maxHeight: 24px;
 	style: TextStyle(boxTextStyle) {
 		font: font(17px semibold);
 	}
 }
+boostTitleBadge: FlatLabel(defaultFlatLabel) {
+	margin: margins(4px, 2px, 4px, 2px);
+	style: semiboldTextStyle;
+	textFg: premiumButtonFg;
+}
+boostTitleBadgeSkip: 6px;
+boostCenteredTitle: FlatLabel(boostTitle) {
+	align: align(top);
+}
 boostTextSkip: 5px;
 boostText: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	align: align(top);
+}
+boostReassignText: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	align: align(top);
 }
@@ -267,92 +283,13 @@ boostBox: Box(premiumPreviewDoubledLimitsBox) {
 
 boostReplaceUserpicsPadding: margins(0px, 18px, 0px, 20px);
 boostReplaceUserpicsSkip: 42px;
+boostReplaceUserpicsShift: 24px;
 boostReplaceUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(60px, 60px);
 	photoSize: 60px;
 }
-boostReplaceIcon: icon{{ "stories/boost_mini", windowBg }};
+boostReplaceIcon: icon{{ "stories/boost_mini", premiumButtonFg }};
 boostReplaceIconSkip: 3px;
 boostReplaceIconOutline: 2px;
 boostReplaceIconAdd: point(4px, 2px);
 boostReplaceArrow: icon{{ "mediaview/next", windowSubTextFg }};
-
-giveawayGiftCodeTopHeight: 195px;
-giveawayGiftCodeLink: FlatLabel(defaultFlatLabel) {
-	margin: margins(10px, 12px, 10px, 8px);
-	textFg: menuIconColor;
-	maxHeight: 24px;
-}
-giveawayGiftCodeLinkCopy: icon{{ "menu/copy", menuIconColor }};
-giveawayGiftCodeLinkHeight: 42px;
-giveawayGiftCodeLinkCopyWidth: 40px;
-giveawayGiftCodeLinkMargin: margins(24px, 8px, 24px, 12px);
-
-boostLinkStatsButton: IconButton(defaultIconButton) {
-	width: giveawayGiftCodeLinkCopyWidth;
-	height: giveawayGiftCodeLinkHeight;
-	icon: icon{{ "menu/stats", menuIconColor }};
-	iconOver: icon{{ "menu/stats", menuIconColor }};
-	ripple: emptyRippleAnimation;
-}
-
-giveawayGiftCodeTable: Table(defaultTable) {
-	labelMinWidth: 91px;
-}
-giveawayGiftCodeTableMargin: margins(24px, 4px, 24px, 4px);
-giveawayGiftCodeLabel: FlatLabel(defaultFlatLabel) {
-	textFg: menuIconColor;
-	maxHeight: 24px;
-	style: TextStyle(semiboldTextStyle) {
-		font: font(12px semibold);
-	}
-}
-giveawayGiftCodeLabelMargin: margins(13px, 10px, 13px, 10px);
-giveawayGiftCodeValue: FlatLabel(defaultFlatLabel) {
-	maxHeight: 24px;
-	style: TextStyle(defaultTextStyle) {
-		font: font(12px);
-		linkUnderline: kLinkUnderlineNever;
-	}
-}
-giveawayGiftCodeValueMargin: margins(13px, 9px, 13px, 9px);
-giveawayGiftCodePeerMargin: margins(11px, 6px, 11px, 4px);
-giveawayGiftCodeUserpic: UserpicButton(defaultUserpicButton) {
-	size: size(24px, 24px);
-	photoSize: 24px;
-	photoPosition: point(-1px, -1px);
-}
-giveawayGiftCodeNamePosition: point(32px, 4px);
-giveawayGiftCodeCover: PremiumCover(userPremiumCover) {
-	starSize: size(92px, 90px);
-	starTopSkip: 20px;
-	titlePadding: margins(0px, 15px, 0px, 17px);
-	titleFont: font(15px semibold);
-	about: FlatLabel(userPremiumCoverAbout) {
-		textFg: windowBoldFg;
-		style: TextStyle(premiumAboutTextStyle) {
-			lineHeight: 17px;
-		}
-	}
-}
-giveawayGiftCodeFooter: FlatLabel(defaultFlatLabel) {
-	align: align(top);
-	textFg: windowBoldFg;
-}
-giveawayGiftCodeFooterMargin: margins(0px, 9px, 0px, 4px);
-giveawayGiftCodeBox: Box(defaultBox) {
-	buttonPadding: margins(22px, 11px, 22px, 22px);
-	buttonHeight: 42px;
-	button: RoundButton(defaultActiveButton) {
-		height: 42px;
-		textTop: 12px;
-		font: font(13px semibold);
-	}
-	shadowIgnoreTopSkip: true;
-}
-giveawayRefundedLabel: FlatLabel(boxLabel) {
-	align: align(top);
-	style: semiboldTextStyle;
-	textFg: attentionButtonFg;
-}
-giveawayRefundedPadding: margins(8px, 10px, 8px, 10px);

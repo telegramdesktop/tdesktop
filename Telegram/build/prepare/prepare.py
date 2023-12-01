@@ -265,7 +265,7 @@ def winFailOnEach(command):
     startingCommand = True
     for command in commands:
         command = re.sub(r'\$([A-Za-z0-9_]+)', r'%\1%', command)
-        if re.search(r'\$', command):
+        if re.search(r'\$[^<]', command):
             error('Bad command: ' + command)
         appendCall = startingCommand and not re.match(r'(if|for) ', command)
         called = 'call ' + command if appendCall else command
@@ -418,7 +418,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 81a81ffb5a
+    git checkout 58c8cd0c0f
 """)
 
 stage('msys64', """
@@ -501,7 +501,7 @@ release:
 
 stage('xz', """
 !win:
-    git clone -b v5.2.9 https://git.tukaani.org/xz.git
+    git clone -b v5.4.5 https://git.tukaani.org/xz.git
     cd xz
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
@@ -513,11 +513,12 @@ stage('xz', """
 """)
 
 stage('zlib', """
-    git clone -b v1.2.11 https://github.com/madler/zlib.git
+    git clone -b v1.3 https://github.com/madler/zlib.git
     cd zlib
 win:
     cmake . ^
         -A %WIN32X64% ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
         -DCMAKE_C_FLAGS="/DZLIB_WINAPI"
@@ -534,7 +535,7 @@ mac:
 """)
 
 stage('mozjpeg', """
-    git clone -b v4.1.3 https://github.com/mozilla/mozjpeg.git
+    git clone -b v4.1.5 https://github.com/mozilla/mozjpeg.git
     cd mozjpeg
 win:
     cmake . ^
@@ -621,6 +622,7 @@ win:
     cmake -B out . ^
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
     cmake --build out --config Debug
@@ -729,6 +731,7 @@ win:
     cmake . ^
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
         -DBUILD_SHARED_LIBS=OFF ^
@@ -748,6 +751,7 @@ win:
     cmake . ^
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS="/DLIBDE265_STATIC_BUILD" ^
         -DCMAKE_CXX_FLAGS="/DLIBDE265_STATIC_BUILD" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
@@ -774,6 +778,7 @@ win:
     cmake . ^
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
@@ -800,6 +805,7 @@ win:
     cmake . ^
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
         -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
@@ -900,9 +906,8 @@ depends:yasm/yasm
 """)
 
 stage('libwebp', """
-    git clone https://github.com/webmproject/libwebp.git
+    git clone -b v1.3.2 https://github.com/webmproject/libwebp.git
     cd libwebp
-    git checkout chrome-m116-5845
 win:
     nmake /f Makefile.vc CFG=debug-static OBJDIR=out RTLIBCFG=static all
     nmake /f Makefile.vc CFG=release-static OBJDIR=out RTLIBCFG=static all
@@ -1211,7 +1216,7 @@ stage('crashpad', """
 mac:
     git clone https://github.com/desktop-app/crashpad.git
     cd crashpad
-    git checkout f07f49e287
+    git checkout 3279fae3f0
     git submodule init
     git submodule update third_party/mini_chromium
     ZLIB_PATH=$USED_PREFIX/include
@@ -1294,23 +1299,23 @@ release:
 """)
 
 if buildQt5:
-    stage('qt_5_15_10', """
-    git clone https://github.com/qt/qt5.git qt_5_15_10
-    cd qt_5_15_10
+    stage('qt_5_15_11', """
+    git clone https://github.com/qt/qt5.git qt_5_15_11
+    cd qt_5_15_11
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-    git checkout v5.15.10-lts-lgpl
+    git checkout v5.15.11-lts-lgpl
     git submodule update qtbase qtimageformats qtsvg
-depends:patches/qtbase_5.15.10/*.patch
+depends:patches/qtbase_5.15.11/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5.15.10\\*) do git apply %%i
+    for /r %%i in (..\\..\\patches\\qtbase_5.15.11\\*) do git apply %%i -v
     cd ..
 
     SET CONFIGURATIONS=-debug
 release:
     SET CONFIGURATIONS=-debug-and-release
 win:
-    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.10\"") + """
+    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.11\"") + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1318,7 +1323,7 @@ win:
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
-    configure -prefix "%LIBS_DIR%\\Qt-5.15.10" ^
+    configure -prefix "%LIBS_DIR%\\Qt-5.15.11" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1353,14 +1358,14 @@ win:
     jom -j16
     jom -j16 install
 mac:
-    find ../../patches/qtbase_5.15.10 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5.15.11 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-5.15.10" \
+    ./configure -prefix "$USED_PREFIX/Qt-5.15.11" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1381,14 +1386,14 @@ mac:
 """)
 
 if buildQt6:
-    stage('qt_6_2_5', """
+    stage('qt_6_2_6', """
 mac:
-    git clone -b v6.2.5-lts-lgpl https://code.qt.io/qt/qt5.git qt_6_2_5
-    cd qt_6_2_5
+    git clone -b v6.2.6-lts-lgpl https://github.com/qt/qt5.git qt_6_2_6
+    cd qt_6_2_6
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-depends:patches/qtbase_6.2.5/*.patch
+depends:patches/qtbase_6.2.6/*.patch
     cd qtbase
-    find ../../patches/qtbase_6.2.5 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_6.2.6 -type f -print0 | sort -z | xargs -0 git apply -v
     cd ..
     sed -i.bak 's/tqtc-//' {qtimageformats,qtsvg}/dependencies.yaml
 
@@ -1396,7 +1401,7 @@ depends:patches/qtbase_6.2.5/*.patch
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.2.5" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.6" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1421,7 +1426,7 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout be153adaa3
+    git checkout 76a3513d7f
     git submodule init
     git submodule update
 win:

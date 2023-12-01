@@ -26,7 +26,7 @@ public:
 	[[nodiscard]] virtual int buttonSkip() {
 		return top();
 	}
-	[[nodiscard]] virtual QString button() = 0;
+	[[nodiscard]] virtual rpl::producer<QString> button() = 0;
 	virtual void draw(
 		Painter &p,
 		const PaintContext &context,
@@ -110,6 +110,7 @@ private:
 	Ui::Text::String _subtitle;
 	const QSize _size;
 	const QSize _innerSize;
+	rpl::lifetime _lifetime;
 
 };
 

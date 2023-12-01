@@ -19,9 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 namespace Settings {
@@ -74,9 +76,9 @@ rpl::producer<QString> Blocked::title() {
 QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
-	AddButton(
+	AddButtonWithIcon(
 		content,
 		tr::lng_blocked_list_add(),
 		st::settingsButtonActive,
@@ -85,20 +87,20 @@ QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 		BlockedBoxController::BlockNewPeer(_controller);
 	});
 
-	AddSkip(content);
-	AddDividerText(content, tr::lng_blocked_list_about());
+	Ui::AddSkip(content);
+	Ui::AddDividerText(content, tr::lng_blocked_list_about());
 
 	{
 		const auto subtitle = content->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				content,
 				object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
-		AddSkip(subtitle->entity());
+		Ui::AddSkip(subtitle->entity());
 		auto subtitleText = _countBlocked.value(
 		) | rpl::map([=](int count) {
 			return tr::lng_blocked_list_subtitle(tr::now, lt_count, count);
 		});
-		AddSubsectionTitle(
+		Ui::AddSubsectionTitle(
 			subtitle->entity(),
 			rpl::duplicate(subtitleText),
 			st::settingsBlockedListSubtitleAddPadding);
@@ -201,7 +203,7 @@ void Blocked::setupContent() {
 					st::changePhoneDescription)),
 			st::changePhoneDescriptionPadding);
 
-		AddSkip(content, st::settingsBlockedListIconPadding.top());
+		Ui::AddSkip(content, st::settingsBlockedListIconPadding.top());
 	}
 
 	// We want minimal height to be the same no matter if subtitle
@@ -219,11 +221,11 @@ void Blocked::setupContent() {
 	) | rpl::start_with_next([=](int height, bool empty) {
 		const auto subtitled = !empty || (_countBlocked.current() > 0);
 		const auto total = st::settingsBlockedHeightMin;
-		const auto padding = st::settingsSubsectionTitlePadding
+		const auto padding = st::defaultSubsectionTitlePadding
 			+ st::settingsBlockedListSubtitleAddPadding;
-		const auto subtitle = st::settingsSectionSkip
+		const auto subtitle = st::defaultVerticalListSkip
 			+ padding.top()
-			+ st::settingsSubsectionTitle.style.font->height
+			+ st::defaultSubsectionTitle.style.font->height
 			+ padding.bottom();
 		const auto min = total - (subtitled ? subtitle : 0);
 		resize(width(), std::max(height, min));

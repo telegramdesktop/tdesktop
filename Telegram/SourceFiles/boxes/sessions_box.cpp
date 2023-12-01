@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "lottie/lottie_icon.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -115,12 +116,12 @@ private:
 void RenameBox(not_null<Ui::GenericBox*> box) {
 	box->setTitle(tr::lng_settings_rename_device_title());
 
-	const auto skip = st::settingsSubsectionTitlePadding.top();
+	const auto skip = st::defaultSubsectionTitlePadding.top();
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			tr::lng_settings_device_name(),
-			st::settingsSubsectionTitle),
+			st::defaultSubsectionTitle),
 		st::boxRowPadding + style::margins(0, skip, 0, 0));
 	const auto name = box->addRow(
 		object_ptr<Ui::InputField>(
@@ -462,9 +463,9 @@ void SessionInfoBox(
 
 	using namespace Settings;
 	const auto container = box->verticalLayout();
-	AddDivider(container);
-	AddSkip(container, st::sessionSubtitleSkip);
-	AddSubsectionTitle(container, tr::lng_sessions_info());
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::sessionSubtitleSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_sessions_info());
 
 	AddSessionInfoRow(
 		container,
@@ -919,8 +920,8 @@ void SessionsContent::Inner::setupContent() {
 	) | rpl::start_with_next([=](QSize outer, QPoint position) {
 		const auto x = st::sessionTerminateSkip
 			+ st::sessionTerminate.iconPosition.x();
-		const auto y = st::settingsSubsectionTitlePadding.top()
-			+ st::settingsSubsectionTitle.style.font->ascent
+		const auto y = st::defaultSubsectionTitlePadding.top()
+			+ st::defaultSubsectionTitle.style.font->ascent
 			- st::defaultLinkButton.font->ascent;
 		rename->moveToRight(x, y, outer.width());
 	}, rename->lifetime());
@@ -939,7 +940,7 @@ void SessionsContent::Inner::setupContent() {
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto terminateInner = terminateWrap->entity();
 	_terminateAll = terminateInner->add(
-		CreateButton(
+		CreateButtonWithIcon(
 			terminateInner,
 			tr::lng_sessions_terminate_all(),
 			st::infoBlockButton,
@@ -998,7 +999,7 @@ void SessionsContent::Inner::setupContent() {
 				content,
 				tr::lng_sessions_other_desc(),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding))->setDuration(0);
+			st::defaultBoxDividerLabelPadding))->setDuration(0);
 
 	terminateWrap->toggleOn(
 		rpl::combine(

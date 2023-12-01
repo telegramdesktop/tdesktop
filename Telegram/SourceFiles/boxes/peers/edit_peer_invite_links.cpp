@@ -19,20 +19,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_peer_invite_link.h"
-#include "settings/settings_common.h" // AddDivider.
 #include "apiwrap.h"
 #include "base/weak_ptr.h"
 #include "base/unixtime.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h" // st::boxDividerLabel
-#include "styles/style_settings.h" // st::settingsDividerLabelPadding
 #include "styles/style_menu_icons.h"
-
-#include <xxhash.h>
 
 namespace {
 
@@ -112,12 +109,8 @@ private:
 
 };
 
-[[nodiscard]] uint64 ComputeRowId(const QString &link) {
-	return XXH64(link.data(), link.size() * sizeof(ushort), 0);
-}
-
 [[nodiscard]] uint64 ComputeRowId(const InviteLinkData &data) {
-	return ComputeRowId(data.link);
+	return UniqueRowIdFromString(data.link);
 }
 
 [[nodiscard]] float64 ComputeProgress(
@@ -543,7 +536,7 @@ void LinksController::appendSlice(const InviteLinksSlice &slice) {
 }
 
 void LinksController::rowClicked(not_null<PeerListRow*> row) {
-	delegate()->peerListShowBox(
+	delegate()->peerListUiShow()->showBox(
 		ShowInviteLinkBox(_peer, static_cast<Row*>(row.get())->data()));
 }
 
@@ -579,25 +572,27 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		st::popupMenuWithIcons);
 	if (data.revoked) {
 		result->addAction(tr::lng_group_invite_context_delete(tr::now), [=] {
-			delegate()->peerListShowBox(DeleteLinkBox(_peer, _admin, link));
+			delegate()->peerListUiShow()->showBox(
+				DeleteLinkBox(_peer, _admin, link));
 		}, &st::menuIconDelete);
 	} else {
 		result->addAction(tr::lng_group_invite_context_copy(tr::now), [=] {
 			CopyInviteLink(delegate()->peerListUiShow(), link);
 		}, &st::menuIconCopy);
 		result->addAction(tr::lng_group_invite_context_share(tr::now), [=] {
-			delegate()->peerListShowBox(
+			delegate()->peerListUiShow()->showBox(
 				ShareInviteLinkBox(_peer, link));
 		}, &st::menuIconShare);
 		result->addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
-			delegate()->peerListShowBox(
+			delegate()->peerListUiShow()->showBox(
 				InviteLinkQrBox(link, tr::lng_group_invite_qr_about()));
 		}, &st::menuIconQrCode);
 		result->addAction(tr::lng_group_invite_context_edit(tr::now), [=] {
-			delegate()->peerListShowBox(EditLinkBox(_peer, data));
+			delegate()->peerListUiShow()->showBox(EditLinkBox(_peer, data));
 		}, &st::menuIconEdit);
 		result->addAction(tr::lng_group_invite_context_revoke(tr::now), [=] {
-			delegate()->peerListShowBox(RevokeLinkBox(_peer, _admin, link));
+			delegate()->peerListUiShow()->showBox(
+				RevokeLinkBox(_peer, _admin, link));
 		}, &st::menuIconRemove);
 	}
 	return result;
@@ -628,7 +623,8 @@ void LinksController::updateRow(const InviteLinkData &data, TimeId now) {
 }
 
 bool LinksController::removeRow(const QString &link) {
-	if (const auto row = delegate()->peerListFindRow(ComputeRowId(link))) {
+	const auto id = UniqueRowIdFromString(link);
+	if (const auto row = delegate()->peerListFindRow(id)) {
 		delegate()->peerListRemoveRow(row);
 		return true;
 	}
@@ -804,7 +800,7 @@ void AdminsController::loadMoreRows() {
 }
 
 void AdminsController::rowClicked(not_null<PeerListRow*> row) {
-	delegate()->peerListShowBox(
+	delegate()->peerListUiShow()->showBox(
 		Box(ManageInviteLinksBox, _peer, row->peer()->asUser(), 0, 0));
 }
 
@@ -878,8 +874,6 @@ void ManageInviteLinksBox(
 		not_null<UserData*> admin,
 		int count,
 		int revokedCount) {
-	using namespace Settings;
-
 	const auto show = Main::MakeSessionShow(
 		box->uiShow(),
 		&peer->session());
@@ -904,14 +898,14 @@ void ManageInviteLinksBox(
 			std::move(status));
 	}
 
-	AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
+	Ui::AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	AddPermanentLinkBlock(
 		show,
 		container,
 		peer,
 		admin,
 		permanentFromList->events());
-	AddDivider(container);
+	Ui::AddDivider(container);
 
 	auto otherHeader = (Ui::SlideWrap<>*)nullptr;
 	if (admin->isSelf()) {
@@ -926,7 +920,7 @@ void ManageInviteLinksBox(
 			object_ptr<Ui::FlatLabel>(
 				container,
 				tr::lng_group_invite_other_list(),
-				st::settingsSubsectionTitle),
+				st::defaultSubsectionTitle),
 			st::inviteLinkRevokedTitlePadding));
 	}
 
@@ -952,7 +946,7 @@ void ManageInviteLinksBox(
 				container,
 				tr::lng_group_invite_add_about(),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding)),
+			st::defaultBoxDividerLabelPadding)),
 		style::margins(0, st::inviteLinkCreateSkip, 0, 0));
 
 	const auto adminsDivider = container->add(object_ptr<Ui::SlideWrap<>>(
@@ -963,7 +957,7 @@ void ManageInviteLinksBox(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			tr::lng_group_invite_other_title(),
-			st::settingsSubsectionTitle),
+			st::defaultSubsectionTitle),
 		st::inviteLinkRevokedTitlePadding));
 	const auto admins = AddAdminsList(show, container, peer, admin);
 
@@ -975,7 +969,7 @@ void ManageInviteLinksBox(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			tr::lng_group_invite_revoked_title(),
-			st::settingsSubsectionTitle),
+			st::defaultSubsectionTitle),
 		st::inviteLinkRevokedTitlePadding));
 	const auto revoked = AddLinksList(
 		show,

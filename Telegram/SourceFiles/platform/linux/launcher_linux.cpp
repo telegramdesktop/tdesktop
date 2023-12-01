@@ -33,10 +33,6 @@ int Launcher::exec() {
 	return Core::Launcher::exec();
 }
 
-void Launcher::initHook() {
-	QApplication::setAttribute(Qt::AA_DisableSessionManager, true);
-}
-
 bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cExeName().isEmpty()) {
 		return false;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 
 #include "lang/lang_keys.h"
+#include "storage/localimageloader.h"
 #include "storage/localstorage.h"
 #include "storage/storage_media_prepare.h"
 #include "mainwidget.h"
@@ -427,6 +428,7 @@ void SendFilesBox::prepare() {
 	preparePreview();
 	initPreview();
 	SetupShadowsToScrollContent(this, _scroll, _inner->heightValue());
+	setCloseByOutsideClick(false);
 
 	boxClosing() | rpl::start_with_next([=] {
 		if (!_confirmed && _cancelledCallback) {
@@ -1440,7 +1442,12 @@ void SendFilesBox::sendScheduled() {
 		? SendMenu::Type::ScheduledToUser
 		: _sendMenuType;
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	_show->showBox(HistoryView::PrepareScheduleBox(this, type, callback));
+	auto box = HistoryView::PrepareScheduleBox(this, type, callback);
+	const auto weak = Ui::MakeWeak(box.data());
+	_show->showBox(std::move(box));
+	if (const auto strong = weak.data()) {
+		strong->setCloseByOutsideClick(false);
+	}
 }
 
 void SendFilesBox::sendWhenOnline() {

@@ -753,7 +753,28 @@ backgroundCheck: ServiceCheck {
 	color: msgServiceFg;
 	duration: 200;
 }
+backgroundConfirmPadding: margins(24px, 16px, 24px, 16px);
+backgroundConfirm: RoundButton(defaultActiveButton) {
+	height: 44px;
+	textTop: 12px;
+	font: font(13px semibold);
+}
+backgroundConfirmCancel: RoundButton(backgroundConfirm) {
+	textFg: mediaviewSaveMsgFg;
+	textFgOver: mediaviewSaveMsgFg;
+	numbersTextFg: mediaviewSaveMsgFg;
+	numbersTextFgOver: mediaviewSaveMsgFg;
+	textBg: shadowFg;
+	textBgOver: shadowFg;
 
+	height: 44px;
+	textTop: 12px;
+	font: font(13px semibold);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
 urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 	width: 240px;
 }
@@ -903,6 +924,14 @@ sponsoredUrlButton: RoundButton(defaultActiveButton) {
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
+	}
+}
+
+requestPeerRestriction: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: membersAboutLimitFg;
+	style: TextStyle(boxTextStyle) {
+		lineHeight: 22px;
 	}
 }
 

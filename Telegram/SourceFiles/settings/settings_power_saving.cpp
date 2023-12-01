@@ -12,10 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "lang/lang_keys.h"
-#include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/power_saving.h"
+#include "ui/vertical_list.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -40,7 +40,7 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 	box->setPinnedToTopContent(
 		object_ptr<Ui::FixedHeightWidget>(box, st::lineWidth));
 
-	const auto subtitle = AddSubsectionTitle(
+	const auto subtitle = Ui::AddSubsectionTitle(
 		container,
 		tr::lng_settings_power_subtitle(),
 		st::powerSavingSubtitlePadding);
@@ -63,16 +63,16 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 
 	auto automatic = (Ui::SettingsButton*)nullptr;
 	if (batterySaving.has_value()) {
-		AddSkip(container);
-		AddDivider(container);
-		AddSkip(container);
-		automatic = AddButton(
+		Ui::AddSkip(container);
+		Ui::AddDivider(container);
+		Ui::AddSkip(container);
+		automatic = container->add(object_ptr<Ui::SettingsButton>(
 			container,
 			tr::lng_settings_power_auto(),
 			st::powerSavingButtonNoIcon
-		)->toggleOn(rpl::single(!ignore));
-		AddSkip(container);
-		AddDividerText(container, tr::lng_settings_power_auto_about());
+		))->toggleOn(rpl::single(!ignore));
+		Ui::AddSkip(container);
+		Ui::AddDividerText(container, tr::lng_settings_power_auto_about());
 
 		state->forceDisabledMessage = rpl::combine(
 			automatic->toggledValue(),

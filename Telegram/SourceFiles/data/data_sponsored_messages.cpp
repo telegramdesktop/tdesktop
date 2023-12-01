@@ -9,17 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
-#include "base/unixtime.h"
+#include "data/data_bot_app.h"
 #include "data/data_channel.h"
-#include "data/data_peer_id.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "ui/image/image_location_factory.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
 
 namespace Data {
@@ -78,9 +75,13 @@ bool SponsoredMessages::append(not_null<History*> history) {
 		list.showedAll = true;
 		return false;
 	}
-
+	// SponsoredMessages::Details can be requested within
+	// the constructor of HistoryItem, so itemFullId is used as a key.
+	entryIt->itemFullId = FullMsgId(
+		history->peer->id,
+		_session->data().nextLocalMessageId());
 	entryIt->item.reset(history->addNewLocalMessage(
-		_session->data().nextLocalMessageId(),
+		entryIt->itemFullId.msg,
 		entryIt->sponsored.from,
 		entryIt->sponsored.textWithEntities));
 
@@ -159,8 +160,13 @@ void SponsoredMessages::inject(
 				? viewHeight
 				: (*lastViewIt)->resizeGetHeight(fallbackWidth);
 		}
+		// SponsoredMessages::Details can be requested within
+		// the constructor of HistoryItem, so itemFullId is used as a key.
+		entryIt->itemFullId = FullMsgId(
+			history->peer->id,
+			_session->data().nextLocalMessageId());
 		const auto makedMessage = history->makeMessage(
-			_session->data().nextLocalMessageId(),
+			entryIt->itemFullId.msg,
 			entryIt->sponsored.from,
 			entryIt->sponsored.textWithEntities,
 			(*lastViewIt)->data());
@@ -263,59 +269,63 @@ void SponsoredMessages::append(
 			.isMegagroup = (channel && channel->isMegagroup()),
 			.isChannel = (channel != nullptr),
 			.isPublic = (channel && channel->isPublic()),
-			.isBot = (peer->isUser() && peer->asUser()->isBot()),
 			.isExactPost = exactPost,
 			.isRecommended = data.is_recommended(),
-			.userpic = { .location = peer->userpicLocation() },
 			.isForceUserpicDisplay = data.is_show_peer_photo(),
+			.buttonText = qs(data.vbutton_text().value_or_empty()),
 		};
 	};
 	const auto externalLink = data.vwebpage()
 		? qs(data.vwebpage()->data().vurl())
 		: QString();
-	const auto userpicFromPhoto = [&](const MTPphoto &photo) {
-		return photo.match([&](const MTPDphoto &data) {
-			for (const auto &size : data.vsizes().v) {
-				const auto result = Images::FromPhotoSize(
-					_session,
-					data,
-					size);
-				if (result.location.valid()) {
-					return result;
-				}
-			}
-			return ImageWithLocation{};
-		}, [](const MTPDphotoEmpty &) {
-			return ImageWithLocation{};
-		});
-	};
 	const auto from = [&]() -> SponsoredFrom {
 		if (const auto webpage = data.vwebpage()) {
 			const auto &data = webpage->data();
-			auto userpic = data.vphoto()
-				? userpicFromPhoto(*data.vphoto())
-				: ImageWithLocation{};
+			const auto photoId = data.vphoto()
+				? _session->data().processPhoto(*data.vphoto())->id
+				: PhotoId(0);
 			return SponsoredFrom{
 				.title = qs(data.vsite_name()),
 				.externalLink = externalLink,
-				.userpic = std::move(userpic),
+				.webpageOrBotPhotoId = photoId,
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
 			};
 		} else if (const auto fromId = data.vfrom_id()) {
-			return makeFrom(
-				_session->data().peer(peerFromMTP(*fromId)),
+			const auto peerId = peerFromMTP(*fromId);
+			auto result = makeFrom(
+				_session->data().peer(peerId),
 				(data.vchannel_post() != nullptr));
+			const auto user = result.peer->asUser();
+			if (user && user->isBot()) {
+				const auto botAppData = data.vapp()
+					? _session->data().processBotApp(peerId, *data.vapp())
+					: nullptr;
+				result.botLinkInfo = Window::PeerByLinkInfo{
+					.usernameOrId = user->userName(),
+					.resolveType = botAppData
+						? Window::ResolveType::BotApp
+						: data.vstart_param()
+						? Window::ResolveType::BotStart
+						: Window::ResolveType::Default,
+					.startToken = qs(data.vstart_param().value_or_empty()),
+					.botAppName = botAppData
+						? botAppData->shortName
+						: QString(),
+				};
+				result.webpageOrBotPhotoId = (botAppData && botAppData->photo)
+					? botAppData->photo->id
+					: PhotoId(0);
+			}
+			return result;
 		}
 		Assert(data.vchat_invite());
 		return data.vchat_invite()->match([&](const MTPDchatInvite &data) {
-			auto userpic = userpicFromPhoto(data.vphoto());
 			return SponsoredFrom{
 				.title = qs(data.vtitle()),
 				.isBroadcast = data.is_broadcast(),
 				.isMegagroup = data.is_megagroup(),
 				.isChannel = data.is_channel(),
 				.isPublic = data.is_public(),
-				.userpic = std::move(userpic),
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
 			};
 		}, [&](const MTPDchatInviteAlready &data) {
@@ -357,7 +367,7 @@ void SponsoredMessages::append(
 		.sponsorInfo = std::move(sponsorInfo),
 		.additionalInfo = std::move(additionalInfo),
 	};
-	list.entries.push_back({ nullptr, std::move(sharedMessage) });
+	list.entries.push_back({ nullptr, {}, std::move(sharedMessage) });
 }
 
 void SponsoredMessages::clearItems(not_null<History*> history) {
@@ -385,7 +395,7 @@ const SponsoredMessages::Entry *SponsoredMessages::find(
 	}
 	auto &list = it->second;
 	const auto entryIt = ranges::find_if(list.entries, [&](const Entry &e) {
-		return e.item && e.item->fullId() == fullId;
+		return e.itemFullId == fullId;
 	});
 	if (entryIt == end(list.entries)) {
 		return nullptr;
@@ -428,7 +438,7 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 	const auto &hash = data.chatInviteHash;
 
 	using InfoList = std::vector<TextWithEntities>;
-	const auto info = (!data.sponsorInfo.text.isEmpty()
+	auto info = (!data.sponsorInfo.text.isEmpty()
 			&& !data.additionalInfo.text.isEmpty())
 		? InfoList{ data.sponsorInfo, data.additionalInfo }
 		: !data.sponsorInfo.text.isEmpty()
@@ -442,6 +452,15 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		.msgId = data.msgId,
 		.info = std::move(info),
 		.externalLink = data.externalLink,
+		.isForceUserpicDisplay = data.from.isForceUserpicDisplay,
+		.buttonText = !data.from.buttonText.isEmpty()
+			? data.from.buttonText
+			: !data.externalLink.isEmpty()
+			? tr::lng_view_button_external_link(tr::now)
+			: data.from.botLinkInfo
+			? tr::lng_view_button_bot(tr::now)
+			: QString(),
+		.botLinkInfo = data.from.botLinkInfo,
 	};
 }
 

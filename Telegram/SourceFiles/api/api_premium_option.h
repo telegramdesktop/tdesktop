@@ -36,7 +36,10 @@ template<typename Option>
 	result.reserve(tlOptions.size());
 	for (const auto &tlOption : tlOptions) {
 		const auto &option = tlOption.data();
-		const auto botUrl = qs(option.vbot_url());
+		auto botUrl = QString();
+		if constexpr (!std::is_same_v<Option, MTPPremiumGiftCodeOption>) {
+			botUrl = qs(option.vbot_url());
+		}
 		const auto months = option.vmonths().v;
 		const auto amount = option.vamount().v;
 		const auto currency = qs(option.vcurrency());

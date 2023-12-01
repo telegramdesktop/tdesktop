@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "layout/layout_mosaic.h"
 
-#include "styles/style_basic.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Mosaic::Layout {
 

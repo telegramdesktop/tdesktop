@@ -46,7 +46,6 @@ public:
 		return true;
 	}
 	bool isReadyForOpen() const override;
-	QString additionalInfoString() const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
@@ -100,7 +99,7 @@ public:
 	QSize size() override;
 	QString title() override;
 	TextWithEntities subtitle() override;
-	QString button() override;
+	rpl::producer<QString> button() override;
 	void draw(
 		Painter &p,
 		const PaintContext &context,

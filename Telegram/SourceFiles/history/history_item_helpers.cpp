@@ -8,35 +8,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 
 #include "api/api_text_entities.h"
+#include "boxes/premium_preview_box.h"
 #include "calls/calls_instance.h"
 #include "data/notify/data_notify_settings.h"
-#include "data/data_chat_participant_status.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
-#include "data/data_media_types.h"
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "platform/platform_notifications_manager.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "core/application.h"
+#include "core/click_handler_types.h" // ClickHandlerContext.
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
-#include "ui/text/text_entity.h"
+#include "ui/toast/toast.h"
 #include "ui/item_text_options.h"
 #include "lang/lang_keys.h"
 
@@ -269,19 +269,22 @@ bool IsItemScheduledUntilOnline(not_null<const HistoryItem*> item) {
 ClickHandlerPtr JumpToMessageClickHandler(
 		not_null<HistoryItem*> item,
 		FullMsgId returnToId,
-		TextWithEntities highlightPart) {
+		TextWithEntities highlightPart,
+		int highlightPartOffsetHint) {
 	return JumpToMessageClickHandler(
 		item->history()->peer,
 		item->id,
 		returnToId,
-		std::move(highlightPart));
+		std::move(highlightPart),
+		highlightPartOffsetHint);
 }
 
 ClickHandlerPtr JumpToMessageClickHandler(
 		not_null<PeerData*> peer,
 		MsgId msgId,
 		FullMsgId returnToId,
-		TextWithEntities highlightPart) {
+		TextWithEntities highlightPart,
+		int highlightPartOffsetHint) {
 	return std::make_shared<LambdaClickHandler>([=] {
 		const auto separate = Core::App().separateWindowForPeer(peer);
 		const auto controller = separate
@@ -292,6 +295,7 @@ ClickHandlerPtr JumpToMessageClickHandler(
 				Window::SectionShow::Way::Forward
 			};
 			params.highlightPart = highlightPart;
+			params.highlightPartOffsetHint = highlightPartOffsetHint;
 			params.origin = Window::SectionShow::OriginMessage{
 				returnToId
 			};
@@ -321,6 +325,15 @@ ClickHandlerPtr JumpToStoryClickHandler(
 				peer,
 				storyId,
 				{ Data::StoriesContextSingle() });
+		}
+	});
+}
+
+ClickHandlerPtr HideSponsoredClickHandler() {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			ShowPremiumPreviewBox(controller, PremiumPreview::NoAds);
 		}
 	});
 }
@@ -391,8 +404,11 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 			MTP_flags(Flag::f_reply_to_msg_id
 				| (replyToTop ? Flag::f_reply_to_top_id : Flag())
 				| (externalPeerId ? Flag::f_reply_to_peer_id : Flag())
-				| (replyTo.quote.empty() ? Flag() : Flag::f_quote)
-				| (replyTo.quote.empty() ? Flag() : Flag::f_quote_text)
+				| (replyTo.quote.empty()
+					? Flag()
+					: (Flag::f_quote
+						| Flag::f_quote_text
+						| Flag::f_quote_offset))
 				| (quoteEntities.v.empty()
 					? Flag()
 					: Flag::f_quote_entities)),
@@ -402,7 +418,8 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 			MTPMessageMedia(), // reply_media
 			MTP_int(replyToTop),
 			MTP_string(replyTo.quote.text),
-			quoteEntities);
+			quoteEntities,
+			MTP_int(replyTo.quoteOffset));
 	}
 	return MTPMessageReplyHeader();
 }
@@ -548,7 +565,7 @@ not_null<HistoryItem*> GenerateJoinedMessage(
 		bool viaRequest) {
 	return history->makeMessage(
 		history->owner().nextLocalMessageId(),
-		MessageFlag::Local,
+		MessageFlag::Local | MessageFlag::ShowSimilarChannels,
 		inviteDate,
 		GenerateJoinedText(history, inviter, viaRequest));
 }
@@ -723,4 +740,40 @@ void CheckReactionNotificationSchedule(
 	result.entities.push_front(
 		EntityInText(EntityType::Italic, 0, result.text.size()));
 	return result;
+}
+
+void ShowTrialTranscribesToast(int left, TimeId until) {
+	const auto window = Core::App().activeWindow();
+	if (!window) {
+		return;
+	}
+	const auto filter = [=](const auto &...) {
+		if (const auto controller = window->sessionController()) {
+			ShowPremiumPreviewBox(controller, PremiumPreview::VoiceToText);
+			window->activate();
+		}
+		return false;
+	};
+	const auto date = langDateTime(base::unixtime::parse(until));
+	constexpr auto kToastDuration = crl::time(4000);
+	const auto text = left
+		? tr::lng_audio_transcribe_trials_left(
+			tr::now,
+			lt_count,
+			left,
+			lt_date,
+			{ date },
+			Ui::Text::WithEntities)
+		: tr::lng_audio_transcribe_trials_over(
+			tr::now,
+			lt_date,
+			Ui::Text::Bold(date),
+			lt_link,
+			Ui::Text::Link(tr::lng_settings_privacy_premium_link(tr::now)),
+			Ui::Text::WithEntities);
+	window->uiShow()->showToast(Ui::Toast::Config{
+		.text = text,
+		.duration = kToastDuration,
+		.filter = filter,
+	});
 }

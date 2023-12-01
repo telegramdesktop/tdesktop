@@ -15,8 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/color_editor.h"
 #include "ui/wrap/padding_wrap.h"
-#include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
+#include "ui/vertical_list.h"
 #include "ui/rect.h"
 #include "styles/style_info_userpic_builder.h"
 #include "styles/style_boxes.h"
@@ -256,9 +256,9 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 		preview->setDocument(document);
 	}
 
-	Settings::AddSkip(container);
-	Settings::AddDivider(container);
-	Settings::AddSkip(container);
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	const auto state = container->lifetime().make_state<State>();
 	state->colors = std::move(startColors);
@@ -267,9 +267,9 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 		&state->colors));
 	buttonsContainer->resize(0, st::userpicBuilderEmojiAccentColorSize);
 
-	Settings::AddSkip(container);
-	Settings::AddDivider(container);
-	Settings::AddSkip(container);
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	const auto editor = container->add(object_ptr<ColorEditor>(
 		container,

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_common.h"
+#include "settings/settings_common_session.h"
 
 namespace Window {
 class Controller;
@@ -22,8 +22,7 @@ namespace Settings {
 
 void SetupLanguageButton(
 	not_null<Window::Controller*> window,
-	not_null<Ui::VerticalLayout*> container,
-	bool icon = true);
+	not_null<Ui::VerticalLayout*> container);
 bool HasInterfaceScale();
 void SetupInterfaceScale(
 	not_null<Window::Controller*> window,

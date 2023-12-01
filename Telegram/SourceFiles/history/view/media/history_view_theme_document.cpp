@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_theme_document.h"
 
+#include "apiwrap.h"
 #include "boxes/background_preview_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
+#include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_document_media.h"
@@ -23,7 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/local_url_handlers.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/text/format_values.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/cached_round_corners.h"
@@ -34,6 +38,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 namespace HistoryView {
+namespace {
+
+[[nodiscard]] bool WallPaperRevertable(
+		not_null<PeerData*> peer,
+		const Data::WallPaper &paper) {
+	if (!peer->wallPaperOverriden()) {
+		return false;
+	}
+	const auto now = peer->wallPaper();
+	return now && now->equals(paper);
+}
+
+[[nodiscard]] bool WallPaperRevertable(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	const auto paper = media ? media->paper() : nullptr;
+	return paper
+		&& media->paperForBoth()
+		&& WallPaperRevertable(item->history()->peer, *paper);
+}
+
+[[nodiscard]] rpl::producer<bool> WallPaperRevertableValue(
+		not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	const auto paper = media ? media->paper() : nullptr;
+	if (!paper || !media->paperForBoth()) {
+		return rpl::single(false);
+	}
+	const auto peer = item->history()->peer;
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::ChatWallPaper
+	) | rpl::map([peer, paper = *paper] {
+		return WallPaperRevertable(peer, paper);
+	});
+}
+
+} // namespace
 
 ThemeDocument::ThemeDocument(
 	not_null<Element*> parent,
@@ -418,13 +459,6 @@ bool ThemeDocument::isReadyForOpen() const {
 	return !_data || _dataMedia->loaded();
 }
 
-QString ThemeDocument::additionalInfoString() const {
-	// This will force message info (time) to be displayed below
-	// this attachment in WebPage media.
-	static auto result = QString(" ");
-	return result;
-}
-
 bool ThemeDocument::hasHeavyPart() const {
 	return (_dataMedia != nullptr);
 }
@@ -464,23 +498,50 @@ TextWithEntities ThemeDocumentBox::subtitle() {
 	return _parent->data()->notificationText();
 }
 
-QString ThemeDocumentBox::button() {
-	return _parent->data()->out()
-		? QString()
-		: tr::lng_action_set_wallpaper_button(tr::now);
+rpl::producer<QString> ThemeDocumentBox::button() {
+	if (_parent->data()->out()) {
+		return {};
+	}
+	return rpl::conditional(
+		WallPaperRevertableValue(_parent->data()),
+		tr::lng_action_set_wallpaper_remove(),
+		tr::lng_action_set_wallpaper_button());
 }
 
 ClickHandlerPtr ThemeDocumentBox::createViewLink() {
 	const auto out = _parent->data()->out();
 	const auto to = _parent->history()->peer;
 	const auto media = _parent->data()->media();
+	const auto weak = base::make_weak(_parent);
 	const auto paper = media ? media->paper() : nullptr;
 	const auto maybe = paper ? *paper : std::optional<Data::WallPaper>();
 	const auto itemId = _parent->data()->fullId();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			if (out) {
+			const auto view = weak.get();
+			if (view
+				&& !view->data()->out()
+				&& WallPaperRevertable(view->data())) {
+				const auto reset = crl::guard(weak, [=](Fn<void()> close) {
+					const auto api = &controller->session().api();
+					api->request(MTPmessages_SetChatWallPaper(
+						MTP_flags(MTPmessages_SetChatWallPaper::Flag::f_revert),
+						view->data()->history()->peer->input,
+						MTPInputWallPaper(),
+						MTPWallPaperSettings(),
+						MTPint()
+					)).done([=](const MTPUpdates &result) {
+						api->applyUpdates(result);
+					}).send();
+					close();
+				});
+				controller->show(Ui::MakeConfirmBox({
+					.text = tr::lng_background_sure_reset_default(),
+					.confirmed = reset,
+					.confirmText = tr::lng_background_reset_default(),
+				}));
+			} else if (out) {
 				controller->toggleChooseChatTheme(to);
 			} else if (maybe) {
 				controller->show(Box<BackgroundPreviewBox>(

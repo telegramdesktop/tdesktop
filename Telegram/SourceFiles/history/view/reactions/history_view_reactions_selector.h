@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 
 namespace Data {
+struct Reaction;
 struct ReactionId;
 } // namespace Data
 
@@ -38,6 +39,39 @@ class PlainShadow;
 } // namespace Ui
 
 namespace HistoryView::Reactions {
+
+class UnifiedFactoryOwner final {
+public:
+	using RecentFactory = Fn<std::unique_ptr<Ui::Text::CustomEmoji>(
+		DocumentId,
+		Fn<void()>)>;
+
+	UnifiedFactoryOwner(
+		not_null<Main::Session*> session,
+		const std::vector<Data::Reaction> &reactions,
+		Strip *strip = nullptr);
+
+	[[nodiscard]] const std::vector<DocumentId> &unifiedIdsList() const {
+		return _unifiedIdsList;
+	}
+
+	[[nodiscard]] Data::ReactionId lookupReactionId(
+		DocumentId unifiedId) const;
+
+	[[nodiscard]] RecentFactory factory();
+
+private:
+	const not_null<Main::Session*> _session;
+	Strip *_strip = nullptr;
+
+	std::vector<DocumentId> _unifiedIdsList;
+	base::flat_map<DocumentId, QString> _defaultReactionIds;
+	base::flat_map<DocumentId, int> _defaultReactionInStripMap;
+
+	QPoint _defaultReactionShift;
+	QPoint _stripPaintOneShift;
+
+};
 
 class Selector final : public Ui::RpWidget {
 public:
@@ -146,10 +180,7 @@ private:
 	const std::vector<DocumentId> _recent;
 	const ChatHelpers::EmojiListMode _listMode;
 	Fn<void()> _jumpedToPremium;
-	base::flat_map<DocumentId, int> _defaultReactionInStripMap;
 	Ui::RoundAreaWithShadow _cachedRound;
-	QPoint _defaultReactionShift;
-	QPoint _stripPaintOneShift;
 	std::unique_ptr<Strip> _strip;
 
 	rpl::event_stream<ChosenReaction> _chosen;
@@ -160,6 +191,7 @@ private:
 	Ui::ScrollArea *_scroll = nullptr;
 	ChatHelpers::EmojiListWidget *_list = nullptr;
 	ChatHelpers::StickersListFooter *_footer = nullptr;
+	std::unique_ptr<UnifiedFactoryOwner> _unifiedFactoryOwner;
 	Ui::PlainShadow *_shadow = nullptr;
 	rpl::variable<int> _shadowTop = 0;
 	rpl::variable<int> _shadowSkip = 0;
@@ -175,7 +207,7 @@ private:
 	QMargins _padding;
 	int _specialExpandTopSkip = 0;
 	int _collapsedTopSkip = 0;
-	int _size = 0;
+	const int _size = 0;
 	int _recentRows = 0;
 	int _columns = 0;
 	int _skipx = 0;

@@ -8,7 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/file_utilities.h"
-#include "lang/lang_keys.h"
+
+namespace tr {
+template <typename ...>
+struct phrase;
+} // namespace tr
 
 namespace Ui {
 struct PreparedFileInformation;

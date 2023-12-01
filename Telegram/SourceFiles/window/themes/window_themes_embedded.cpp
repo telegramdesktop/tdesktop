@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_embedded.h"
 
 #include "window/themes/window_theme.h"
+#include "lang/lang_keys.h"
 #include "storage/serialize_common.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -212,6 +213,9 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 	const auto qColor = [](auto hex) {
 		return style::ColorFromHex(hex);
 	};
+	const auto name = [](auto key) {
+		return rpl::deferred([=] { return key(); });
+	};
 	return {
 		EmbeddedScheme{
 			EmbeddedType::Default,
@@ -220,7 +224,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			qColor("ffffff"),
 			qColor("eaffdc"),
 			qColor("ffffff"),
-			tr::lng_settings_theme_classic,
+			name(tr::lng_settings_theme_classic),
 			QString(),
 			qColor("40a7e3")
 		},
@@ -231,7 +235,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			qColor("ffffff"),
 			qColor("d7f0ff"),
 			qColor("ffffff"),
-			tr::lng_settings_theme_day,
+			name(tr::lng_settings_theme_day),
 			":/gui/day-blue.tdesktop-theme",
 			qColor("40a7e3")
 		},
@@ -242,7 +246,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			qColor("6b808d"),
 			qColor("6b808d"),
 			qColor("5ca7d4"),
-			tr::lng_settings_theme_tinted,
+			name(tr::lng_settings_theme_tinted),
 			":/gui/night.tdesktop-theme",
 			qColor("5288c1")
 		},
@@ -253,7 +257,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			qColor("6b808d"),
 			qColor("6b808d"),
 			qColor("75bfb5"),
-			tr::lng_settings_theme_night,
+			name(tr::lng_settings_theme_night),
 			":/gui/night-green.tdesktop-theme",
 			qColor("3fc1b0")
 		},

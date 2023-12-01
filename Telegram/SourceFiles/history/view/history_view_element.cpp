@@ -10,17 +10,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_message.h"
-#include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_media_grouped.h"
+#include "history/view/media/history_view_similar_channels.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/view/media/history_view_custom_emoji.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_reply.h"
 #include "history/view/history_view_spoiler_click_handler.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "base/unixtime.h"
@@ -35,17 +35,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/reaction_fly_animation.h"
-#include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
-#include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/item_text_options.h"
 #include "ui/painter.h"
 #include "data/data_session.h"
-#include "data/data_groups.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
-#include "data/data_media_types.h"
 #include "data/data_sponsored_messages.h"
 #include "data/data_message_reactions.h"
 #include "lang/lang_keys.h"
@@ -93,42 +89,6 @@ Element *MousedElement/* = nullptr*/;
 	}
 	return session->tryResolveWindow();
 }
-
-[[nodiscard]] bool CheckQuoteEntities(
-		const EntitiesInText &quoteEntities,
-		const TextWithEntities &original,
-		TextSelection selection) {
-	auto left = quoteEntities;
-	const auto allowed = std::array{
-		EntityType::Bold,
-		EntityType::Italic,
-		EntityType::Underline,
-		EntityType::StrikeOut,
-		EntityType::Spoiler,
-		EntityType::CustomEmoji,
-	};
-	for (const auto &entity : original.entities) {
-		const auto from = entity.offset();
-		const auto till = from + entity.length();
-		if (till <= selection.from || from >= selection.to) {
-			continue;
-		}
-		const auto quoteFrom = std::max(from, int(selection.from));
-		const auto quoteTill = std::min(till, int(selection.to));
-		const auto cut = EntityInText(
-			entity.type(),
-			quoteFrom - int(selection.from),
-			quoteTill - quoteFrom,
-			entity.data());
-		const auto i = ranges::find(left, cut);
-		if (i != left.end()) {
-			left.erase(i);
-		} else if (ranges::contains(allowed, cut.type())) {
-			return false;
-		}
-	}
-	return left.empty();
-};
 
 } // namespace
 
@@ -497,7 +457,8 @@ Element::Element(
 	| Flag::NeedsResize
 	| (IsItemScheduledUntilOnline(data)
 		? Flag::ScheduledUntilOnline
-		: Flag()))
+		: Flag())
+	| (countIsTopicRootReply() ? Flag::TopicRootReply : Flag()))
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
 	refreshMedia(replacing);
@@ -757,13 +718,17 @@ void Element::refreshMedia(Element *replacing) {
 			}
 		}
 		_media = media->createView(this, replacing);
+	} else if (item->showSimilarChannels()) {
+		_media = std::make_unique<SimilarChannels>(this);
 	} else if (isOnlyCustomEmoji()
-		&& Core::App().settings().largeEmoji()) {
+		&& Core::App().settings().largeEmoji()
+		&& !item->isSponsored()) {
 		_media = std::make_unique<UnwrappedMedia>(
 			this,
 			std::make_unique<CustomEmoji>(this, onlyCustomEmoji()));
 	} else if (isIsolatedEmoji()
-		&& Core::App().settings().largeEmoji()) {
+		&& Core::App().settings().largeEmoji()
+		&& !item->isSponsored()) {
 		const auto emoji = isolatedEmoji();
 		const auto emojiStickers = &history()->session().emojiStickersPack();
 		const auto skipPremiumEffect = false;
@@ -1259,15 +1224,6 @@ QSize Element::countCurrentSize(int newWidth) {
 	return performCountCurrentSize(newWidth);
 }
 
-void Element::refreshIsTopicRootReply() {
-	const auto topicRootReply = countIsTopicRootReply();
-	if (topicRootReply) {
-		_flags |= Flag::TopicRootReply;
-	} else {
-		_flags &= ~Flag::TopicRootReply;
-	}
-}
-
 bool Element::countIsTopicRootReply() const {
 	const auto item = data();
 	if (!item->history()->isForum()) {
@@ -1362,6 +1318,10 @@ bool Element::hasFromName() const {
 	return false;
 }
 
+bool Element::displayReply() const {
+	return Has<Reply>();
+}
+
 bool Element::displayFromName() const {
 	return false;
 }
@@ -1417,10 +1377,6 @@ ClickHandlerPtr Element::rightActionLink(
 
 TimeId Element::displayedEditDate() const {
 	return TimeId(0);
-}
-
-HistoryMessageReply *Element::displayedReply() const {
-	return nullptr;
 }
 
 bool Element::toggleSelectionByHandlerClick(
@@ -1482,7 +1438,7 @@ void Element::unloadHeavyPart() {
 	if (_flags & Flag::HeavyCustomEmoji) {
 		_flags &= ~Flag::HeavyCustomEmoji;
 		_text.unloadPersistentAnimation();
-		if (const auto reply = data()->Get<HistoryMessageReply>()) {
+		if (const auto reply = Get<Reply>()) {
 			reply->unloadPersistentAnimation();
 		}
 	}
@@ -1652,49 +1608,102 @@ SelectedQuote Element::FindSelectedQuote(
 			++i;
 		}
 	}
-	return { item, result };
+	return { item, result, modified.from };
 }
 
 TextSelection Element::FindSelectionFromQuote(
 		const Ui::Text::String &text,
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) {
-	if (quote.empty()) {
+		const SelectedQuote &quote) {
+	Expects(quote.item != nullptr);
+
+	if (quote.text.empty()) {
 		return {};
 	}
-	const auto &original = item->originalText();
-	auto result = TextSelection();
-	auto offset = 0;
-	while (true) {
-		const auto i = original.text.indexOf(quote.text, offset);
-		if (i < 0) {
-			return {};
-		}
-		auto selection = TextSelection{
-			uint16(i),
-			uint16(i + quote.text.size()),
+	const auto &original = quote.item->originalText();
+	const auto length = int(original.text.size());
+	const auto qlength = int(quote.text.text.size());
+	const auto checkAt = [&](int offset) {
+		return TextSelection{
+			uint16(offset),
+			uint16(offset + qlength),
 		};
-		if (CheckQuoteEntities(quote.entities, original, selection)) {
-			result = selection;
+	};
+	const auto findOneAfter = [&](int offset) {
+		if (offset > length - qlength) {
+			return TextSelection();
+		}
+		const auto i = original.text.indexOf(quote.text.text, offset);
+		return (i >= 0) ? checkAt(i) : TextSelection();
+	};
+	const auto findOneBefore = [&](int offset) {
+		if (!offset) {
+			return TextSelection();
+		}
+		const auto end = std::min(offset + qlength - 1, length);
+		const auto from = end - length - 1;
+		const auto i = original.text.lastIndexOf(quote.text.text, from);
+		return (i >= 0) ? checkAt(i) : TextSelection();
+	};
+	const auto findAfter = [&](int offset) {
+		while (true) {
+			const auto result = findOneAfter(offset);
+			if (!result.empty() || result == TextSelection()) {
+				return result;
+			}
+			offset = result.from;
+		}
+	};
+	const auto findBefore = [&](int offset) {
+		while (true) {
+			const auto result = findOneBefore(offset);
+			if (!result.empty() || result == TextSelection()) {
+				return result;
+			}
+			offset = result.from - 2;
+			if (offset < 0) {
+				return result;
+			}
+		}
+	};
+	const auto findTwoWays = [&](int offset) {
+		const auto after = findAfter(offset);
+		if (after.empty()) {
+			return findBefore(offset);
+		} else if (after.from == offset) {
+			return after;
+		}
+		const auto before = findBefore(offset);
+		return before.empty()
+			? after
+			: (offset - before.from < after.from - offset)
+			? before
+			: after;
+	};
+	auto result = findTwoWays(quote.offset);
+	if (result.empty()) {
+		return {};
+	}
+	for (const auto &modification : text.modifications()) {
+		if (modification.position >= result.to) {
 			break;
 		}
-		offset = i + 1;
+		if (modification.added) {
+			++result.to;
+		}
+		const auto shiftTo = std::min(
+			int(modification.skipped),
+			result.to - modification.position);
+		result.to -= shiftTo;
+		if (modification.position <= result.from) {
+			if (modification.added) {
+				++result.from;
+			}
+			const auto shiftFrom = std::min(
+				int(modification.skipped),
+				result.from - modification.position);
+			result.from -= shiftFrom;
+		}
 	}
-	//for (const auto &modification : text.modifications()) {
-	//	if (modification.position >= selection.to) {
-	//		break;
-	//	} else if (modification.position <= selection.from) {
-	//		modified.from += modification.skipped;
-	//		if (modification.added
-	//			&& modification.position < selection.from) {
-	//			--modified.from;
-	//		}
-	//	}
-	//	modified.to += modification.skipped;
-	//	if (modification.added && modified.to > modified.from) {
-	//		--modified.to;
-	//	}
-	//}
 	return result;
 }
 

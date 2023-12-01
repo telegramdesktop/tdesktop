@@ -11,15 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
 #include "data/data_forum_topic.h"
-#include "data/data_wall_paper.h"
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
-#include "data/data_media_types.h"
 #include "data/data_folder.h"
-#include "data/data_forum_topic.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -27,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/widgets/shadow.h"
-//#include "ui/toasts/common_toasts.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
 #include "window/window_connecting_widget.h"
@@ -42,17 +39,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_widget.h"
 #include "history/history_widget.h"
 #include "history/history_item_helpers.h" // GetErrorTextForSending.
+#include "history/view/media/history_view_media.h"
+#include "history/view/history_view_service_message.h"
+#include "lang/lang_keys.h"
+#include "lang/lang_cloud_manager.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
-#include "boxes/download_path_box.h"
-#include "boxes/connection_box.h"
 #include "storage/storage_account.h"
 #include "main/main_domain.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_panel.h"
 #include "media/player/media_player_widget.h"
 #include "media/player/media_player_instance.h"
+#include "base/qthelp_regex.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
@@ -67,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_panel_controller.h"
 #include "main/main_session.h"
 #include "support/support_helper.h"
+#include "storage/storage_user_photos.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
@@ -1364,7 +1366,11 @@ void MainWidget::showHistory(
 		&& way != Way::Forward) {
 		clearBotStartToken(_history->peer());
 	}
-	_history->showHistory(peerId, showAtMsgId, params.highlightPart);
+	_history->showHistory(
+		peerId,
+		showAtMsgId,
+		params.highlightPart,
+		params.highlightPartOffsetHint);
 	if (alreadyThatPeer && params.reapplyLocalDraft) {
 		_history->applyDraft(HistoryWidget::FieldHistoryAction::NewEntry);
 	}
@@ -1725,7 +1731,7 @@ void MainWidget::showNewSection(
 	} else {
 		_mainSection = std::move(newMainSection);
 		_history->finishAnimating();
-		_history->showHistory(0, 0, {});
+		_history->showHistory(PeerId(), MsgId());
 
 		if (const auto entry = _mainSection->activeChat(); entry.key) {
 			_controller->setActiveChatEntry(entry);

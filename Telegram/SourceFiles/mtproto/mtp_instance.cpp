@@ -1138,9 +1138,10 @@ void Instance::Private::processCallback(const Response &response) {
 					QString::number(error.code()),
 					error.type(),
 					error.description()));
-			if (rpcErrorOccured(response, handler, error)) {
+			const auto guard = QPointer<Instance>(_instance);
+			if (rpcErrorOccured(response, handler, error) && guard) {
 				unregisterRequest(requestId);
-			} else {
+			} else if (guard) {
 				QMutexLocker locker(&_parserMapLock);
 				_parserMap.emplace(requestId, std::move(handler));
 			}
@@ -1160,12 +1161,15 @@ void Instance::Private::processCallback(const Response &response) {
 						"RESPONSE_PARSE_FAILED",
 						"Error parse failed.")));
 		} else {
-			if (handler.done && !handler.done(response)) {
+			const auto guard = QPointer<Instance>(_instance);
+			if (handler.done && !handler.done(response) && guard) {
 				handleError(Error::Local(
 					"RESPONSE_PARSE_FAILED",
 					"Response parse failed."));
 			}
-			unregisterRequest(requestId);
+			if (guard) {
+				unregisterRequest(requestId);
+			}
 		}
 	} else {
 		DEBUG_LOG(("RPC Info: parser not found for %1").arg(requestId));
@@ -1196,8 +1200,11 @@ bool Instance::Private::rpcErrorOccured(
 		const FailHandler &onFail,
 		const Error &error) { // return true if need to clean request data
 	if (IsDefaultHandledError(error)) {
+		const auto guard = QPointer<Instance>(_instance);
 		if (onFail && onFail(error, response)) {
 			return true;
+		} else if (!guard) {
+			return false;
 		}
 	}
 
@@ -1212,7 +1219,11 @@ bool Instance::Private::rpcErrorOccured(
 			? QString()
 			: QString(": %1").arg(error.description())));
 	if (onFail) {
+		const auto guard = QPointer<Instance>(_instance);
 		onFail(error, response);
+		if (!guard) {
+			return false;
+		}
 	}
 	return true;
 }

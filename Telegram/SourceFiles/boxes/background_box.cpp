@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_extensions.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "mtproto/sender.h"
@@ -24,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "boxes/background_preview_box.h"
 #include "info/profile/info_profile_icon.h"
-#include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "window/window_session_controller.h"
@@ -165,9 +165,9 @@ void BackgroundBox::prepare() {
 	auto wrap = object_ptr<Ui::VerticalLayout>(this);
 	const auto container = wrap.data();
 
-	Settings::AddSkip(container);
+	Ui::AddSkip(container);
 
-	const auto button = container->add(Settings::CreateButton(
+	const auto button = container->add(object_ptr<Ui::SettingsButton>(
 		container,
 		tr::lng_settings_bg_from_file(),
 		st::infoProfileButton));
@@ -180,8 +180,8 @@ void BackgroundBox::prepare() {
 		chooseFromFile();
 	});
 
-	Settings::AddSkip(container);
-	Settings::AddDivider(container);
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
 
 	_inner = container->add(
 		object_ptr<Inner>(this, &_controller->session(), _forPeer));
@@ -310,7 +310,7 @@ void BackgroundBox::resetForPeer() {
 	}).send();
 
 	const auto weak = Ui::MakeWeak(this);
-	_forPeer->setWallPaper(std::nullopt);
+	_forPeer->setWallPaper({});
 	if (weak) {
 		_controller->finishChatThemeEdit(_forPeer);
 	}

@@ -50,6 +50,10 @@ void GiftCodeBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionNavigation*> controller,
 	const QString &slug);
+void GiftCodePendingBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionNavigation*> controller,
+	const Api::GiftCode &data);
 void ResolveGiftCode(
 	not_null<Window::SessionNavigation*> controller,
 	const QString &slug);

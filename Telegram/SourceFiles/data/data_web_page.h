@@ -27,6 +27,7 @@ enum class WebPageType : uint8 {
 	Channel,
 	ChannelWithRequest,
 	ChannelBoost,
+	Giftcode,
 
 	Photo,
 	Video,
@@ -90,6 +91,7 @@ struct WebPageData {
 
 	[[nodiscard]] QString displayedSiteName() const;
 	[[nodiscard]] bool computeDefaultSmallMedia() const;
+	[[nodiscard]] bool suggestEnlargePhoto() const;
 
 	const WebPageId id = 0;
 	WebPageType type = WebPageType::None;

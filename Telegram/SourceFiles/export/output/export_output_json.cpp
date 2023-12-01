@@ -604,12 +604,15 @@ QByteArray SerializeMessage(
 		push("via_giveaway", data.viaGiveaway);
 	}, [&](const ActionGiveawayLaunch &data) {
 		pushAction("giveaway_launch");
+	}, [&](const ActionGiveawayResults &data) {
+		pushAction("giveaway_results");
+		push("winners", data.winners);
+		push("unclaimed", data.unclaimed);
 	}, [&](const ActionSetChatWallPaper &data) {
 		pushActor();
-		pushAction("set_chat_wallpaper");
-	}, [&](const ActionSetSameChatWallPaper &data) {
-		pushActor();
-		pushAction("set_same_chat_wallpaper");
+		pushAction(data.same
+			? "set_same_chat_wallpaper"
+			: "set_chat_wallpaper");
 		pushReplyToMsgId("message_id");
 	}, [](v::null_t) {});
 

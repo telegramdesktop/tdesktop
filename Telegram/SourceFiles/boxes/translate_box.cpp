@@ -18,12 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
-#include "settings/settings_common.h"
 #include "spellcheck/platform/platform_language.h"
 #include "ui/boxes/choose_language_box.h"
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/vertical_list.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/widgets/buttons.h"
@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h" // inviteLinkListItem.
 #include "styles/style_layers.h"
-#include "styles/style_settings.h" // settingsSubsectionTitlePadding.
 
 #include <QLocale>
 
@@ -127,8 +126,8 @@ void TranslateBox(
 	const auto &stLabel = st::aboutLabel;
 	const auto lineHeight = stLabel.style.lineHeight;
 
-	Settings::AddSkip(container);
-	// Settings::AddSubsectionTitle(
+	Ui::AddSkip(container);
+	// Ui::AddSubsectionTitle(
 	// 	container,
 	// 	tr::lng_translate_box_original());
 
@@ -181,14 +180,14 @@ void TranslateBox(
 		show->toggleOn(show->entity()->clicks() | rpl::map_to(false));
 		original->toggleOn(show->entity()->clicks() | rpl::map_to(true));
 	}
-	Settings::AddSkip(container);
-	Settings::AddSkip(container);
-	Settings::AddDivider(container);
-	Settings::AddSkip(container);
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	{
-		const auto padding = st::settingsSubsectionTitlePadding;
-		const auto subtitle = Settings::AddSubsectionTitle(
+		const auto padding = st::defaultSubsectionTitlePadding;
+		const auto subtitle = Ui::AddSubsectionTitle(
 			container,
 			state->to.value() | rpl::map(LanguageName));
 

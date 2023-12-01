@@ -47,7 +47,6 @@ settingsOptionDisabled: SettingsButton(settingsButtonNoIcon) {
 	textBgOver: windowBg;
 	toggleOver: infoProfileToggle;
 }
-settingsSectionSkip: 6px;
 settingsButtonRightSkip: 23px;
 settingsScalePadding: margins(60px, 7px, 22px, 4px);
 settingsBigScalePadding: margins(21px, 7px, 21px, 4px);
@@ -72,13 +71,13 @@ settingsUpdateState: FlatLabel(defaultFlatLabel) {
 settingsUpdate: SettingsButton(infoMainButton, settingsButtonNoIcon) {
 }
 settingsUpdateStatePosition: point(22px, 29px);
-settingsDividerLabelPadding: margins(22px, 8px, 22px, 16px);
 
 settingsIconChat: icon {{ "settings/chat", settingsIconFg }};
 settingsIconInterfaceScale: icon {{ "settings/interface_scale", settingsIconFg }};
 settingsIconStickers: icon {{ "settings/stickers", settingsIconFg }};
 settingsIconEmoji: icon {{ "settings/emoji", settingsIconFg }};
 
+settingsPremiumIconWallpapers: icon {{ "settings/photo", settingsIconFg }};
 settingsPremiumIconStories: icon {{ "settings/stories", settingsIconFg }};
 settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
 settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};
@@ -128,17 +127,6 @@ settingsSendTypeSkip: 5px;
 
 settingsBackgroundThumb: 76px;
 settingsThumbSkip: 16px;
-settingsSubsectionTitle: FlatLabel(defaultFlatLabel) {
-	style: TextStyle(semiboldTextStyle) {
-		font: font(boxFontSize semibold);
-	}
-	textFg: windowActiveTextFg;
-	minWidth: 240px;
-}
-settingsSubsectionTitleRight: FlatLabel(settingsSubsectionTitle) {
-	minWidth: 0px;
-}
-settingsSubsectionTitlePadding: margins(22px, 7px, 10px, 9px);
 settingsBackgroundPadding: margins(22px, 11px, 10px, 12px);
 settingsTileSkip: 15px;
 settingsFromGalleryTop: 2px;
@@ -499,14 +487,6 @@ settingsNotificationType: SettingsButton(settingsButton) {
 }
 settingsNotificationTypeDetails: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
-}
-
-requestPeerRestriction: FlatLabel(defaultFlatLabel) {
-	minWidth: 240px;
-	textFg: membersAboutLimitFg;
-	style: TextStyle(boxTextStyle) {
-		lineHeight: 22px;
-	}
 }
 
 powerSavingButton: SettingsButton(settingsButton) {

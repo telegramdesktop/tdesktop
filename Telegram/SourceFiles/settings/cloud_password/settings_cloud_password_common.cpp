@@ -19,13 +19,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
-#include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
@@ -63,13 +63,13 @@ BottomButton CreateBottomDisableButton(
 		Fn<void()> &&callback) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
-	AddButton(
+	content->add(object_ptr<Button>(
 		content,
 		std::move(buttonText),
 		st::settingsAttentionButton
-	)->addClickHandler(std::move(callback));
+	))->addClickHandler(std::move(callback));
 
 	const auto divider = Ui::CreateChild<OneEdgeBoxContentDivider>(
 		parent.get());
@@ -132,7 +132,7 @@ void SetupHeader(
 			animate(anim::repeat::once);
 		}, content->lifetime());
 	}
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	content->add(
 		object_ptr<Ui::CenterWrap<>>(
@@ -248,7 +248,7 @@ not_null<Ui::RoundButton*> AddDoneButton(
 }
 
 void AddSkipInsteadOfField(not_null<Ui::VerticalLayout*> content) {
-	AddSkip(content, st::settingLocalPasscodeInputField.heightMin);
+	Ui::AddSkip(content, st::settingLocalPasscodeInputField.heightMin);
 }
 
 void AddSkipInsteadOfError(not_null<Ui::VerticalLayout*> content) {
@@ -257,7 +257,7 @@ void AddSkipInsteadOfError(not_null<Ui::VerticalLayout*> content) {
 		tr::lng_language_name(tr::now),
 		st::settingLocalPasscodeError);
 	const auto &padding = st::changePhoneDescriptionPadding;
-	AddSkip(content, dummy->height() + padding.top() + padding.bottom());
+	Ui::AddSkip(content, dummy->height() + padding.top() + padding.bottom());
 	dummy = nullptr;
 }
 

@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_notifications.h"
 
-#include "settings/settings_common.h"
 #include "settings/settings_notifications_type.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/chat_service_checkbox.h"
@@ -20,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "window/notifications_manager.h"
@@ -165,7 +165,7 @@ void AddTypeButton(
 		}
 		Unexpected("Type value in AddTypeButton.");
 	}();
-	const auto button = AddButton(
+	const auto button = AddButtonWithIcon(
 		container,
 		std::move(label),
 		st::settingsNotificationType,
@@ -610,13 +610,9 @@ NotificationsCount::SampleWidget::SampleWidget(
 	const QPixmap &cache)
 : _owner(owner)
 , _cache(cache) {
-	const QSize size(
+	setFixedSize(
 		cache.width() / cache.devicePixelRatio(),
 		cache.height() / cache.devicePixelRatio());
-
-	resize(size);
-	setMinimumSize(size);
-	setMaximumSize(size);
 
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint)
 		| Qt::WindowStaysOnTopHint
@@ -718,9 +714,9 @@ NotifyPreview::NotifyPreview(bool nameShown, bool previewShown)
 	_logo.setDevicePixelRatio(ratio);
 
 	_name.setText(
-		st::settingsSubsectionTitle.style,
+		st::defaultSubsectionTitle.style,
 		tr::lng_notification_preview_title(tr::now));
-	_title.setText(st::settingsSubsectionTitle.style, AppName.utf16());
+	_title.setText(st::defaultSubsectionTitle.style, AppName.utf16());
 
 	_text.setText(
 		st::boxTextStyle,
@@ -880,17 +876,19 @@ NotifyViewCheckboxes SetupNotifyViewOptions(
 void SetupAdvancedNotifications(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, tr::lng_settings_notifications_position());
-	AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(
+		container,
+		tr::lng_settings_notifications_position());
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 
 	const auto position = container->add(
 		object_ptr<NotificationsCount>(container, controller));
 
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, tr::lng_settings_notifications_count());
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_notifications_count());
 
 	const auto count = container->add(
 		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
@@ -903,7 +901,7 @@ void SetupAdvancedNotifications(
 	) | rpl::start_with_next([=](int section) {
 		position->setCount(section + 1);
 	}, count->lifetime());
-	AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 void SetupMultiAccountNotifications(
@@ -912,13 +910,13 @@ void SetupMultiAccountNotifications(
 	if (Core::App().domain().accounts().size() < 2) {
 		return;
 	}
-	AddSubsectionTitle(container, tr::lng_settings_show_from());
+	Ui::AddSubsectionTitle(container, tr::lng_settings_show_from());
 
-	const auto fromAll = AddButton(
+	const auto fromAll = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_notify_all(),
 		st::settingsButtonNoIcon
-	)->toggleOn(rpl::single(Core::App().settings().notifyFromAll()));
+	))->toggleOn(rpl::single(Core::App().settings().notifyFromAll()));
 	fromAll->toggledChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Core::App().settings().notifyFromAll());
@@ -938,9 +936,9 @@ void SetupMultiAccountNotifications(
 		}
 	}, fromAll->lifetime());
 
-	AddSkip(container);
-	AddDividerText(container, tr::lng_settings_notify_all_about());
-	AddSkip(container);
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, tr::lng_settings_notify_all_about());
+	Ui::AddSkip(container);
 }
 
 void SetupNotificationsContent(
@@ -949,7 +947,7 @@ void SetupNotificationsContent(
 		Fn<void(Type)> showOther) {
 	using namespace rpl::mappers;
 
-	AddSkip(container, st::settingsPrivacySkip);
+	Ui::AddSkip(container, st::settingsPrivacySkip);
 
 	using NotifyView = Core::Settings::NotifyView;
 	SetupMultiAccountNotifications(controller, container);
@@ -961,7 +959,7 @@ void SetupNotificationsContent(
 			rpl::producer<QString> label,
 			IconDescriptor &&descriptor,
 			rpl::producer<bool> checked) {
-		auto result = CreateButton(
+		auto result = CreateButtonWithIcon(
 			container,
 			std::move(label),
 			st::settingsButton,
@@ -1010,7 +1008,7 @@ void SetupNotificationsContent(
 		{ &st::menuIconUnmute },
 		soundAllowed->events_starting_with(allowed()));
 
-	AddSkip(container);
+	Ui::AddSkip(container);
 
 	const auto checkboxes = SetupNotifyViewOptions(
 		controller,
@@ -1029,8 +1027,8 @@ void SetupNotificationsContent(
 
 	controller->session().data().notifySettings().loadExceptions();
 
-	AddSkip(container, st::notifyPreviewBottomSkip);
-	AddSubsectionTitle(container, tr::lng_settings_notify_title());
+	Ui::AddSkip(container, st::notifyPreviewBottomSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_notify_title());
 	const auto addType = [&](Data::DefaultNotify type) {
 		AddTypeButton(container, controller, type, showOther);
 	};
@@ -1038,10 +1036,10 @@ void SetupNotificationsContent(
 	addType(Data::DefaultNotify::Group);
 	addType(Data::DefaultNotify::Broadcast);
 
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, tr::lng_settings_events_title());
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_events_title());
 
 	auto joinSilent = rpl::single(
 		session->api().contactSignupSilentCurrent().value_or(false)
@@ -1072,10 +1070,10 @@ void SetupNotificationsContent(
 		Core::App().saveSettingsDelayed();
 	}, joined->lifetime());
 
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_settings_notifications_calls_title());
 	const auto authorizations = &session->api().authorizations();
@@ -1090,20 +1088,20 @@ void SetupNotificationsContent(
 		authorizations->toggleCallsDisabledHere(!toggled);
 	}, container->lifetime());
 
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, tr::lng_settings_badge_title());
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_badge_title());
 
-	const auto muted = AddButton(
+	const auto muted = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_include_muted(),
-		st::settingsButtonNoIcon);
+		st::settingsButtonNoIcon));
 	muted->toggleOn(rpl::single(settings.includeMutedCounter()));
-	const auto count = AddButton(
+	const auto count = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_count_unread(),
-		st::settingsButtonNoIcon);
+		st::settingsButtonNoIcon));
 	count->toggleOn(rpl::single(settings.countUnreadMessages()));
 
 	auto nativeText = [&] {
@@ -1120,15 +1118,15 @@ void SetupNotificationsContent(
 			return nullptr;
 		}
 
-		AddSkip(container, st::settingsCheckboxesSkip);
-		AddDivider(container);
-		AddSkip(container, st::settingsCheckboxesSkip);
-		AddSubsectionTitle(container, tr::lng_settings_native_title());
-		return AddButton(
+		Ui::AddSkip(container, st::settingsCheckboxesSkip);
+		Ui::AddDivider(container);
+		Ui::AddSkip(container, st::settingsCheckboxesSkip);
+		Ui::AddSubsectionTitle(container, tr::lng_settings_native_title());
+		return container->add(object_ptr<Button>(
 			container,
 			std::move(nativeText),
 			st::settingsButtonNoIcon
-		)->toggleOn(rpl::single(settings.nativeNotifications()));
+		))->toggleOn(rpl::single(settings.nativeNotifications()));
 	}();
 
 	const auto advancedSlide = !Platform::Notifications::Enforced()

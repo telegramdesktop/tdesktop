@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_values.h"
 
+#include "api/api_chat_participants.h"
+#include "apiwrap.h"
 #include "info/profile/info_profile_badge.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -336,7 +338,7 @@ rpl::producer<bool> CanShareContactValue(not_null<UserData*> user) {
 
 rpl::producer<bool> CanAddContactValue(not_null<UserData*> user) {
 	using namespace rpl::mappers;
-	if (user->isBot() || user->isSelf()) {
+	if (user->isBot() || user->isSelf() || user->isInaccessible()) {
 		return rpl::single(false);
 	}
 	return IsContactValue(
@@ -517,6 +519,20 @@ rpl::producer<int> CommonGroupsCountValue(not_null<UserData*> user) {
 		UpdateFlag::CommonChats
 	) | rpl::map([=] {
 		return user->commonChatsCount();
+	});
+}
+
+rpl::producer<int> SimilarChannelsCountValue(
+		not_null<ChannelData*> channel) {
+	const auto participants = &channel->session().api().chatParticipants();
+	participants->loadSimilarChannels(channel);
+	return rpl::single(channel) | rpl::then(
+		participants->similarLoaded()
+	) | rpl::filter(
+		rpl::mappers::_1 == channel
+	) | rpl::map([=] {
+		const auto &similar = participants->similar(channel);
+		return int(similar.list.size()) + similar.more;
 	});
 }
 

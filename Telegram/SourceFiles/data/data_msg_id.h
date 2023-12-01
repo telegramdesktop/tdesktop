@@ -161,6 +161,7 @@ struct FullReplyTo {
 	TextWithEntities quote;
 	FullStoryId storyId;
 	MsgId topicRootId = 0;
+	int quoteOffset = 0;
 
 	[[nodiscard]] bool valid() const {
 		return messageId || (storyId && peerIsUser(storyId.peer));

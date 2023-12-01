@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/history_item.h"
 #include "base/timer.h"
+#include "history/history_item.h"
 #include "ui/image/image_location.h"
+#include "window/window_session_controller_link_info.h"
 
 class History;
 
@@ -28,12 +29,13 @@ struct SponsoredFrom {
 	bool isMegagroup = false;
 	bool isChannel = false;
 	bool isPublic = false;
-	bool isBot = false;
+	std::optional<Window::PeerByLinkInfo> botLinkInfo;
 	bool isExactPost = false;
 	bool isRecommended = false;
 	QString externalLink;
-	ImageWithLocation userpic;
+	PhotoId webpageOrBotPhotoId = PhotoId(0);
 	bool isForceUserpicDisplay = false;
+	QString buttonText;
 };
 
 struct SponsoredMessage {
@@ -61,6 +63,9 @@ public:
 		MsgId msgId;
 		std::vector<TextWithEntities> info;
 		QString externalLink;
+		bool isForceUserpicDisplay = false;
+		QString buttonText;
+		std::optional<Window::PeerByLinkInfo> botLinkInfo;
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);
@@ -89,6 +94,7 @@ private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
 	struct Entry {
 		OwnedItem item;
+		FullMsgId itemFullId;
 		SponsoredMessage sponsored;
 	};
 	struct List {
