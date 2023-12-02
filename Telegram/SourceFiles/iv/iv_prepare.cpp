@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_data.h"
 #include "lang/lang_keys.h"
 #include "ui/image/image_prepare.h"
+#include "styles/palette.h"
 
 #include <QtCore/QSize>
 
@@ -1009,8 +1010,14 @@ QByteArray Parser::prepare(QByteArray body) {
 }
 
 QByteArray Parser::html(const QByteArray &head, const QByteArray &body) {
+#ifdef Q_OS_MAC
+	const auto classAttribute = ""_q;
+#else // Q_OS_MAC
+	const auto classAttribute = " class=\"custom_scroll\""_q;
+#endif // Q_OS_MAC
+
 	return R"(<!DOCTYPE html>
-<html>
+<html)"_q + classAttribute + R"(">
 	<head>
 		<meta charset="utf-8">
 		<meta name="robots" content="noindex, nofollow">

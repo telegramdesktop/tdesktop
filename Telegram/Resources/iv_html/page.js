@@ -49,15 +49,13 @@ var IV = {
 			});
 		}
 	},
-	postMessageHandler: function(event) {
-		if (event.source !== window.parent ||
-				event.origin != window.parentOrigin) {
-			return;
-		}
-		try {
-			var data = JSON.parse(event.data);
-		} catch(e) {
-			var data = {};
+	updateStyles: function (styles) {
+		if (IV.styles !== styles) {
+			console.log('Setting', styles);
+			IV.styles = styles;
+			document.getElementsByTagName('html')[0].style = styles;
+		} else {
+			console.log('Skipping', styles);
 		}
 	},
 	slideshowSlide: function(el, next) {

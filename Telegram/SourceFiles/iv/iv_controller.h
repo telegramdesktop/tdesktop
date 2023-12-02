@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/invoke_queued.h"
+
 namespace Webview {
 struct DataRequest;
 class Window;
 } // namespace Webview
 
 namespace Ui {
+class RpWidget;
 class RpWindow;
 } // namespace Ui
 
@@ -45,14 +48,21 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	void createWindow();
+	void showInWindow(const QString &dataPath, Prepared page);
+
 	void escape();
 	void close();
 	void quit();
 
 	std::unique_ptr<Ui::RpWindow> _window;
+	Ui::RpWidget *_container = nullptr;
 	std::unique_ptr<Webview::Window> _webview;
 	rpl::event_stream<Webview::DataRequest> _dataRequests;
 	rpl::event_stream<Event> _events;
+	SingleQueuedInvokation _updateStyles;
+	bool _subscribedToColors = false;
+
 	rpl::lifetime _lifetime;
 
 };
