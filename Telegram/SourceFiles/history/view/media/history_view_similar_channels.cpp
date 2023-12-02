@@ -162,7 +162,6 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 		path.lineTo(x, y - size);
 		p.fillPath(path, stm->msgBg);
 	}
-	const auto photo = st::chatSimilarChannelPhoto;
 	const auto padding = st::chatSimilarChannelPadding;
 	p.setClipRect(geometry);
 	_hasHeavyPart = 1;
@@ -177,7 +176,6 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 		if (subscribing) {
 			channel.subscribed = 1;
 			const auto raw = channel.thumbnail.get();
-			const auto view = parent();
 			channel.thumbnail->subscribeToUpdates([=] {
 				for (const auto &channel : _channels) {
 					if (channel.thumbnail.get() == raw) {
@@ -265,7 +263,6 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 				st::chatSimilarBadgePadding);
 			auto textLeft = badge.x();
 			const auto &font = st::chatSimilarBadgeFont;
-			const auto ascent = font->ascent;
 			const auto textTop = badge.y() + font->ascent;
 			const auto icon = !channel.more
 				? &st::chatSimilarBadgeIcon

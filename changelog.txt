@@ -1,3 +1,21 @@
+4.12.2 (01.12.23)
+
+- Fix choosing custom reactions in channels.
+- Fix crash on launch using old hardware. (Windows)
+
+4.12.1 (01.12.23)
+
+- Fix assertion violation with imported messages.
+
+4.12 (30.11.23)
+
+- Similar channels.
+- Wallpapers for both sides.
+- Voice-to-Text for rveryone.
+- Story statistics for channels.
+- Custom Reactions for channels.
+- Automatic code highlighting in messages.
+
 4.11.8 (14.11.23)
 
 - Fix phrases on macOS by doing a clean rebuild.

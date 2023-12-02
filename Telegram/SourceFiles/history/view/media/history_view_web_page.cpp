@@ -417,7 +417,6 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	auto siteNameHeight = _siteNameLines ? lineHeight : 0;
 	const auto asSponsored = (!!_sponsoredData);
 	if (asArticle() || asSponsored) {
-		const auto article = asArticle();
 		constexpr auto kSponsoredUserpicLines = 2;
 		_pixh = (asSponsored ? kSponsoredUserpicLines : linesMax) * lineHeight;
 		do {

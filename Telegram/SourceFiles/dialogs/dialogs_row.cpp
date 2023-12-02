@@ -106,7 +106,6 @@ QRect CornerBadgeTTLRect(int photoSize) {
 }
 
 QImage BlurredDarkenedPart(QImage image, QRect part) {
-	const auto ratio = style::DevicePixelRatio();
 	auto blurred = Images::BlurLargeImage(
 		std::move(image),
 		kBlurRadius).copy(part);

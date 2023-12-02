@@ -216,7 +216,6 @@ void ApplyBotsList(
 		const MTPmessages_Chats &chats) {
 	auto result = ChatParticipants::Channels();
 	std::vector<not_null<ChannelData*>>();
-	auto total = 0;
 	chats.match([&](const auto &data) {
 		const auto &list = data.vchats().v;
 		result.list.reserve(list.size());
@@ -583,7 +582,6 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 			UserId inviter = -1,
 			TimeId inviteDate = 0,
 			bool inviteViaRequest = false) {
-		const auto dateChanged = (channel->inviteDate != inviteDate);
 		channel->inviter = inviter;
 		channel->inviteDate = inviteDate;
 		channel->inviteViaRequest = inviteViaRequest;

@@ -240,7 +240,7 @@ void ListController::restoreState(
 	auto typeErasedState = state
 		? state->controllerState.get()
 		: nullptr;
-	if (auto my = dynamic_cast<SavedState*>(typeErasedState)) {
+	if (dynamic_cast<SavedState*>(typeErasedState)) {
 		PeerListController::restoreState(std::move(state));
 	}
 }

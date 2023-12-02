@@ -181,6 +181,15 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			}
 			return true;
 		});
+		if (allowed.type == AllowedReactionsType::Some) {
+			for (const auto &id : allowed.some) {
+				if (!added.contains(id)) {
+					if (const auto temp = reactions->lookupTemporary(id)) {
+						result.recent.push_back(temp);
+					}
+				}
+			}
+		}
 		result.customAllowed = (allowed.type == AllowedReactionsType::All)
 			&& premiumPossible;
 	}
