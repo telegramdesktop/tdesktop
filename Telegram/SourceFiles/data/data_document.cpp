@@ -865,7 +865,7 @@ ChatRestriction DocumentData::requiredSendRight() const {
 		: ChatRestriction::SendFiles;
 }
 
-void DocumentData::setFileName(const QString& remoteFileName) {
+void DocumentData::setFileName(const QString &remoteFileName) {
 	_filename = remoteFileName;
 
 	if (_filename.toLower().endsWith(".webm"))
