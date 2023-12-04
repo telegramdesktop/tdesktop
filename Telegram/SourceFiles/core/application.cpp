@@ -1768,18 +1768,18 @@ void Application::startShortcuts() {
 }
 
 void Application::RegisterUrlScheme() {
-	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
-		.executable = Platform::ExecutablePathForShortcuts(),
-		.arguments = Launcher::Instance().customWorkingDir()
-			? u"-workdir \"%1\""_q.arg(cWorkingDir())
-			: QString(),
-		.protocol = u"tg"_q,
-		.protocolName = u"Telegram Link"_q,
-		.shortAppName = u"tdesktop"_q,
-		.longAppName = QCoreApplication::applicationName(),
-		.displayAppName = AppName.utf16(),
-		.displayAppDescription = AppName.utf16(),
-	});
+	//base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
+	//	.executable = Platform::ExecutablePathForShortcuts(),
+	//	.arguments = Launcher::Instance().customWorkingDir()
+	//		? u"-workdir \"%1\""_q.arg(cWorkingDir())
+	//		: QString(),
+	//	.protocol = u"tg"_q,
+	//	.protocolName = u"Telegram Link"_q,
+	//	.shortAppName = u"tdesktop"_q,
+	//	.longAppName = QCoreApplication::applicationName(),
+	//	.displayAppName = AppName.utf16(),
+	//	.displayAppDescription = AppName.utf16(),
+	//});
 }
 
 bool IsAppLaunched() {
