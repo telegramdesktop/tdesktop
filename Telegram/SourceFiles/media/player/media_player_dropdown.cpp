@@ -207,6 +207,11 @@ void FillSpeedMenu(
 	};
 	const auto points = std::vector<SpeedPoint>{
 		{
+			0.25,
+			tr::lng_voice_speed_slow,
+			st.slow,
+			st.slowActive },
+		{
 			0.5,
 			tr::lng_voice_speed_slow,
 			st.slow,
@@ -233,6 +238,16 @@ void FillSpeedMenu(
 			st.veryFastActive },
 		{
 			2.0,
+			tr::lng_voice_speed_super_fast,
+			st.superFast,
+			st.superFastActive },
+		{
+			3.0,
+			tr::lng_voice_speed_super_fast,
+			st.superFast,
+			st.superFastActive },
+		{
+			4.0,
 			tr::lng_voice_speed_super_fast,
 			st.superFast,
 			st.superFastActive },
