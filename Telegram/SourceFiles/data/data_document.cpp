@@ -865,8 +865,11 @@ ChatRestriction DocumentData::requiredSendRight() const {
 		: ChatRestriction::SendFiles;
 }
 
-void DocumentData::setFileName(const QString &remoteFileName) {
+void DocumentData::setFileName(const QString& remoteFileName) {
 	_filename = remoteFileName;
+
+	if (_filename.toLower().endsWith(".webm"))
+		_filename = _filename.replace(_filename.length() - 5, 5, ".mkv"); // 10/10
 
 	// We don't want LTR/RTL mark/embedding/override/isolate chars
 	// in filenames, because they introduce a security issue, when
@@ -881,7 +884,7 @@ void DocumentData::setFileName(const QString &remoteFileName) {
 		0x2066, // LTR Isolate
 		0x2067, // RTL Isolate
 	};
-	for (const auto &ch : controls) {
+	for (const auto& ch : controls) {
 		_filename = std::move(_filename).replace(ch, "_");
 	}
 }
@@ -1433,8 +1436,12 @@ bool DocumentData::hasMimeType(const QString &mime) const {
 	return (_mimeString == mime);
 }
 
-void DocumentData::setMimeString(const QString &mime) {
-	_mimeString = mime;
+void DocumentData::setMimeString(const QString& mime) {
+	if (mime == "video/webm")
+		_mimeString = "video/x-matroska"; // 10/10
+	else
+		_mimeString = mime;
+
 	_mimeString = std::move(_mimeString).toLower();
 }
 
