@@ -172,6 +172,7 @@ Parser::Parser(const Source &source, const Options &options)
 : _options(options)
 , _rtl(source.page.data().is_rtl()) {
 	process(source);
+	_result.title = source.title;
 	_result.html = prepare(page(source.page.data()));
 }
 
@@ -1003,9 +1004,7 @@ QByteArray Parser::prepare(QByteArray body) {
 	if (_hasEmbeds) {
 		js += "IV.initEmbedBlocks();";
 	}
-	if (!js.isEmpty()) {
-		body += tag("script", js);
-	}
+	body += tag("script", js + "IV.init();");
 	return html(head, body);
 }
 
@@ -1026,7 +1025,26 @@ QByteArray Parser::html(const QByteArray &head, const QByteArray &body) {
 		<link rel="stylesheet" href=")" + resource("iv/page.css") + R"(" />
 		)"_q + head + R"(
 	</head>
-	<body>)"_q + body + R"(</body>
+	<body>
+		<button class="fixed_button hidden" id="top_back" onclick="IV.back();">
+			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+				<path d="M17 13L12 18L7 13M12 6L12 17"></path>
+			</svg>
+		</button>
+		<button class="fixed_button" id="top_menu" onclick="IV.menu();">
+			<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+				<circle cx="8" cy="2.5" r="1.6"></circle>
+				<circle cx="8" cy="8" r="1.6"></circle>
+				<circle cx="8" cy="13.5" r="1.6"></circle>
+			</svg>
+		</button>
+		<button class="fixed_button hidden" id="bottom_up" onclick="IV.toTop();">
+			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+				<path d="M17 13L12 18L7 13M12 6L12 17"></path>
+			</svg>
+		</button>
+)"_q + body + R"(
+	</body>
 </html>
 )"_q;
 }

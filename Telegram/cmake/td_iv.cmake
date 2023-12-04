@@ -38,4 +38,5 @@ PUBLIC
 PRIVATE
     desktop-app::lib_webview
     tdesktop::td_lang
+    tdesktop::td_ui
 )

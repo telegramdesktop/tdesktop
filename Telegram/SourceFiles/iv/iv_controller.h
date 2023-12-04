@@ -8,6 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/invoke_queued.h"
+#include "ui/effects/animations.h"
+#include "ui/text/text.h"
+
+class Painter;
 
 namespace Webview {
 struct DataRequest;
@@ -49,6 +53,8 @@ public:
 
 private:
 	void createWindow();
+	void updateTitleGeometry();
+	void paintTitle(Painter &p, QRect clip);
 	void showInWindow(const QString &dataPath, Prepared page);
 
 	void escape();
@@ -56,6 +62,10 @@ private:
 	void quit();
 
 	std::unique_ptr<Ui::RpWindow> _window;
+	std::unique_ptr<Ui::RpWidget> _title;
+	Ui::Text::String _titleText;
+	int _titleLeftSkip = 0;
+	int _titleRightSkip = 0;
 	Ui::RpWidget *_container = nullptr;
 	std::unique_ptr<Webview::Window> _webview;
 	rpl::event_stream<Webview::DataRequest> _dataRequests;

@@ -16,6 +16,7 @@ struct Options {
 };
 
 struct Prepared {
+	QString title;
 	QByteArray html;
 	std::vector<QByteArray> resources;
 	base::flat_map<QByteArray, QByteArray> embeds;

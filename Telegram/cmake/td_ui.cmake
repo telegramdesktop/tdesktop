@@ -26,6 +26,7 @@ set(style_files
     info/boosts/giveaway/giveaway.style
     info/userpic/info_userpic_builder.style
     intro/intro.style
+    iv/iv.style
     media/player/media_player.style
     passport/passport.style
     payments/ui/payments.style

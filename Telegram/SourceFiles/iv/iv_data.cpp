@@ -45,6 +45,9 @@ Data::Data(const MTPDwebPage &webpage, const MTPPage &page)
 	.webpageDocument = (webpage.vdocument()
 		? *webpage.vdocument()
 		: std::optional<MTPDocument>()),
+	.title = (webpage.vtitle()
+		? qs(*webpage.vtitle())
+		: qs(webpage.vauthor().value_or_empty()))
 })) {
 }
 

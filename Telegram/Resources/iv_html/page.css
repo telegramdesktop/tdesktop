@@ -28,6 +28,100 @@ html.custom_scroll ::-webkit-scrollbar-thumb:hover {
 	background-color: var(--td-scroll-bar-bg-over) !important;
 }
 
+.fixed_button {
+	position: fixed;
+	background-color: var(--td-history-to-down-bg);
+	border: none;
+	border-radius: 50%;
+	width: 32px;
+	height: 32px;
+	box-shadow: 0 0 4px -2px var(--td-history-to-down-shadow);
+	cursor: pointer;
+	outline: none;
+	z-index: 1000;
+	overflow: hidden;
+	user-select: none;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+.fixed_button:hover {
+	background-color: var(--td-history-to-down-bg-over);
+}
+.fixed_button svg {
+	fill: none;
+	position: relative;
+	z-index: 1;
+}
+.fixed_button .ripple .inner {
+	position: absolute;
+	border-radius: 50%;
+	transform: scale(0);
+	opacity: 1;
+	animation: ripple 650ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+	background-color: var(--td-history-to-down-bg-ripple);
+}
+.fixed_button .ripple.hiding {
+	animation: fadeOut 200ms linear forwards;
+}
+@keyframes ripple {
+	to {
+		transform: scale(2);
+	}
+}
+@keyframes fadeOut {
+	to {
+		opacity: 0;
+	}
+}
+#top_menu svg {
+	width: 16px;
+	height: 16px;
+}
+#top_menu circle {
+	fill: var(--td-history-to-down-fg);
+}
+#top_menu:hover circle {
+	fill: var(--td-history-to-down-fg-over);
+}
+#top_menu {
+	top: 10px;
+	right: 10px;
+}
+#top_back path,
+#bottom_up path {
+	stroke: var(--td-history-to-down-fg);
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+#top_back:hover path,
+#bottom_up:hover path {
+	stroke: var(--td-history-to-down-fg-over);
+}
+#top_back {
+	top: 10px;
+	left: 10px;
+	transition: left 200ms linear;
+}
+#top_back svg {
+	transform: rotate(90deg);
+}
+#top_back.hidden {
+	left: -36px;
+}
+#bottom_up {
+	bottom: 10px;
+	right: 10px;
+	transition: bottom 200ms linear;
+}
+#bottom_up svg {
+	transform: rotate(180deg);
+}
+#bottom_up.hidden {
+	bottom: -36px;
+}
+
 article {
 	padding-bottom: 12px;
 	overflow: hidden;

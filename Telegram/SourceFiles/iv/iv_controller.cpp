@@ -11,14 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/invoke_queued.h"
 #include "iv/iv_data.h"
 #include "lang/lang_keys.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/rp_window.h"
+#include "ui/painter.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
 #include "styles/palette.h"
-
-#include "base/call_delayed.h"
-#include "ui/effects/animations.h"
+#include "styles/style_iv.h"
+#include "styles/style_widgets.h"
+#include "styles/style_window.h"
 
 #include <QtCore/QRegularExpression>
 #include <QtCore/QJsonDocument>
@@ -39,12 +41,23 @@ namespace {
 		{ "window-bg", &st::windowBg },
 		{ "window-bg-over", &st::windowBgOver },
 		{ "window-bg-ripple", &st::windowBgRipple },
+		{ "window-bg-active", &st::windowBgActive },
 		{ "window-fg", &st::windowFg },
 		{ "window-sub-text-fg", &st::windowSubTextFg },
 		{ "window-active-text-fg", &st::windowActiveTextFg },
-		{ "window-bg-active", &st::windowBgActive },
+		{ "window-shadow-fg", &st::windowShadowFg },
 		{ "box-divider-bg", &st::boxDividerBg },
 		{ "box-divider-fg", &st::boxDividerFg },
+		{ "menu-icon-fg", &st::menuIconFg },
+		{ "menu-icon-fg-over", &st::menuIconFgOver },
+		{ "menu-bg", &st::menuBg },
+		{ "menu-bg-over", &st::menuBgOver },
+		{ "history-to-down-fg", &st::historyToDownFg },
+		{ "history-to-down-fg-over", &st::historyToDownFgOver },
+		{ "history-to-down-bg", &st::historyToDownBg },
+		{ "history-to-down-bg-over", &st::historyToDownBgOver },
+		{ "history-to-down-bg-ripple", &st::historyToDownBgRipple },
+		{ "history-to-down-shadow", &st::historyToDownShadow },
 	};
 	static const auto phrases = base::flat_map<QByteArray, tr::phrase<>>{
 		{ "group-call-join", tr::lng_group_call_join },
@@ -124,51 +137,102 @@ Controller::Controller()
 
 Controller::~Controller() {
 	_webview = nullptr;
+	_title = nullptr;
 	_window = nullptr;
 }
 
 void Controller::show(const QString &dataPath, Prepared page) {
 	createWindow();
+	_titleText.setText(st::ivTitle.style, page.title);
 	InvokeQueued(_container, [=, page = std::move(page)]() mutable {
 		showInWindow(dataPath, std::move(page));
 	});
 }
 
+void Controller::updateTitleGeometry() {
+	_title->setGeometry(0, 0, _window->width(), st::ivTitle.height);
+}
+
+void Controller::paintTitle(Painter &p, QRect clip) {
+	const auto active = _window->isActiveWindow();
+	const auto full = _title->width();
+	p.setPen(active ? st::ivTitle.fgActive : st::ivTitle.fg);
+	const auto available = QRect(
+		_titleLeftSkip,
+		0,
+		full - _titleLeftSkip - _titleRightSkip,
+		_title->height());
+	const auto use = std::min(available.width(), _titleText.maxWidth());
+	const auto center = full
+		- 2 * std::max(_titleLeftSkip, _titleRightSkip);
+	const auto left = (use <= center)
+		? ((full - use) / 2)
+		: (use < available.width() && _titleLeftSkip < _titleRightSkip)
+		? (available.x() + available.width() - use)
+		: available.x();
+	const auto titleTextHeight = st::ivTitle.style.font->height;
+	const auto top = (st::ivTitle.height - titleTextHeight) / 2;
+	_titleText.drawLeftElided(p, left, top, available.width(), full);
+}
+
 void Controller::createWindow() {
 	_window = std::make_unique<Ui::RpWindow>();
+	_window->setTitleStyle(st::ivTitle);
 	const auto window = _window.get();
 
-	window->setGeometry({ 200, 200, 600, 800 });
+	_title = std::make_unique<Ui::RpWidget>(window);
+	_title->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_title->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		auto p = Painter(_title.get());
+		paintTitle(p, clip);
+	}, _title->lifetime());
+	window->widthValue() | rpl::start_with_next([=] {
+		updateTitleGeometry();
+	}, _title->lifetime());
 
-	const auto skip = window->lifetime().make_state<rpl::variable<int>>(0);
+#ifdef Q_OS_MAC
+	_titleLeftSkip = 8 + 12 + 8 + 12 + 8 + 12 + 8;
+	_titleRightSkip = st::ivTitle.style.font->spacew;
+#else // Q_OS_MAC
+	using namespace Ui::Platform;
+	TitleControlsLayoutValue(
+	) | rpl::start_with_next([=](TitleControls::Layout layout) {
+		const auto accumulate = [](const auto &list) {
+			auto result = 0;
+			for (const auto control : list) {
+				switch (control) {
+				case TitleControl::Close:
+					result += st::ivTitle.close.width;
+					break;
+				case TitleControl::Minimize:
+					result += st::ivTitle.minimize.width;
+					break;
+				case TitleControl::Maximize:
+					result += st::ivTitle.maximize.width;
+					break;
+				}
+			}
+			return result;
+		};
+		const auto space = st::ivTitle.style.font->spacew;
+		_titleLeftSkip = accumulate(layout.left) + space;
+		_titleRightSkip = accumulate(layout.right) + space;
+		_title->update();
+	}, _title->lifetime());
+#endif // Q_OS_MAC
+
+	window->setGeometry({ 200, 200, 600, 800 });
+	window->setMinimumSize({ st::windowMinWidth, st::windowMinHeight });
 
 	_container = Ui::CreateChild<Ui::RpWidget>(window->body().get());
 	rpl::combine(
 		window->body()->sizeValue(),
-		skip->value()
-	) | rpl::start_with_next([=](QSize size, int skip) {
-		_container->setGeometry(QRect(QPoint(), size).marginsRemoved({ 0, skip, 0, 0 }));
+		_title->heightValue()
+	) | rpl::start_with_next([=](QSize size, int title) {
+		title -= window->body()->y();
+		_container->setGeometry(QRect(QPoint(), size).marginsRemoved(
+			{ 0, title, 0, 0 }));
 	}, _container->lifetime());
-
-	base::call_delayed(5000, window, [=] {
-		const auto animation = window->lifetime().make_state<Ui::Animations::Simple>();
-		animation->start([=] {
-			*skip = animation->value(64);
-			if (!animation->animating()) {
-				base::call_delayed(4000, window, [=] {
-					animation->start([=] {
-						*skip = animation->value(0);
-					}, 64, 0, 200, anim::easeOutCirc);
-				});
-			}
-		}, 0, 64, 200, anim::easeOutCirc);
-	});
-
-	window->body()->paintRequest() | rpl::start_with_next([=](QRect clip) {
-		auto p = QPainter(window->body());
-		p.fillRect(clip, st::windowBg);
-		p.fillRect(clip, QColor(0, 128, 0, 128));
-	}, window->body()->lifetime());
 
 	_container->paintRequest() | rpl::start_with_next([=](QRect clip) {
 		QPainter(_container).fillRect(clip, st::windowBg);
@@ -237,6 +301,10 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 				} else if (key == u"q"_q && modifier == ctrl) {
 					quit();
 				}
+			} else if (event == u"mouseenter"_q) {
+				window->overrideSystemButtonOver({});
+			} else if (event == u"mouseup"_q) {
+				window->overrideSystemButtonDown({});
 			}
 		});
 	});

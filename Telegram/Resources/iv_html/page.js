@@ -25,15 +25,15 @@ var IV = {
 		e.preventDefault();
 	},
 	frameKeyDown: function (e) {
-		let keyW = (e.key === 'w')
+		const keyW = (e.key === 'w')
 			|| (e.code === 'KeyW')
 			|| (e.keyCode === 87);
-		let keyQ = (e.key === 'q')
+		const keyQ = (e.key === 'q')
 			|| (e.code === 'KeyQ')
 			|| (e.keyCode === 81);
-		let keyM = (e.key === 'm')
-		    || (e.code === 'KeyM')
-            || (e.keyCode === 77);
+		const keyM = (e.key === 'm')
+			|| (e.code === 'KeyM')
+			|| (e.keyCode === 77);
 		if ((e.metaKey || e.ctrlKey) && (keyW || keyQ || keyM)) {
 			e.preventDefault();
 			IV.notify({
@@ -49,13 +49,26 @@ var IV = {
 			});
 		}
 	},
+	frameMouseEnter: function (e) {
+		IV.notify({ event: 'mouseenter' });
+	},
+	frameMouseUp: function (e) {
+		IV.notify({ event: 'mouseup' });
+	},
+	lastScrollTop: 0,
+	frameScrolled: function (e) {
+		const now = document.documentElement.scrollTop;
+		if (now < 100) {
+			document.getElementById('bottom_up').classList.add('hidden');
+		} else if (now > IV.lastScrollTop && now > 200) {
+			document.getElementById('bottom_up').classList.remove('hidden');
+		}
+		IV.lastScrollTop = now;
+	},
 	updateStyles: function (styles) {
 		if (IV.styles !== styles) {
-			console.log('Setting', styles);
 			IV.styles = styles;
 			document.getElementsByTagName('html')[0].style = styles;
-		} else {
-			console.log('Skipping', styles);
 		}
 	},
 	slideshowSlide: function(el, next) {
@@ -72,7 +85,9 @@ var IV = {
 		return false;
 	},
 	initPreBlocks: function() {
-		if (!hljs) return;
+		if (!hljs) {
+			return;
+		}
 		var pres = document.getElementsByTagName('pre');
 		for (var i = 0; i < pres.length; i++) {
 			if (pres[i].hasAttribute('data-language')) {
@@ -102,9 +117,71 @@ var IV = {
 				}, false);
 			})(iframes[i]);
 		}
+	},
+	addRipple: function (button, x, y) {
+		const ripple = document.createElement('span');
+		ripple.classList.add('ripple');
+
+		const inner = document.createElement('span');
+		inner.classList.add('inner');
+		x -= button.offsetLeft;
+		y -= button.offsetTop;
+
+		const mx = button.clientWidth - x;
+		const my = button.clientHeight - y;
+		const sq1 = x * x + y * y;
+		const sq2 = mx * mx + y * y;
+		const sq3 = x * x + my * my;
+		const sq4 = mx * mx + my * my;
+		const radius = Math.sqrt(Math.max(sq1, sq2, sq3, sq4));
+
+		inner.style.width = inner.style.height = `${2 * radius}px`;
+		inner.style.left = `${x - radius}px`;
+		inner.style.top = `${y - radius}px`;
+		inner.classList.add('inner');
+
+		ripple.addEventListener('animationend', function (e) {
+			if (e.animationName === 'fadeOut') {
+				ripple.remove();
+			}
+		});
+
+		ripple.appendChild(inner);
+		button.appendChild(ripple);
+	},
+	stopRipples: function (button) {
+		const ripples = button.getElementsByClassName('ripple');
+		for (var i = 0; i < ripples.length; ++i) {
+			const ripple = ripples[i];
+			if (!ripple.classList.contains('hiding')) {
+				ripple.classList.add('hiding');
+			}
+		}
+	},
+	init: function () {
+		const buttons = document.getElementsByClassName('fixed_button');
+		for (let i = 0; i < buttons.length; ++i) {
+			const button = buttons[i];
+			button.addEventListener('mousedown', function (e) {
+				IV.addRipple(e.currentTarget, e.clientX, e.clientY);
+			});
+			button.addEventListener('mouseup', function (e) {
+				IV.stopRipples(e.currentTarget);
+			});
+			button.addEventListener('mouseleave', function (e) {
+				IV.stopRipples(e.currentTarget);
+			});
+		}
+	},
+	toTop: function () {
+		document.getElementById('bottom_up').classList.add('hidden');
+		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 };
 
 document.onclick = IV.frameClickHandler;
 document.onkeydown = IV.frameKeyDown;
+document.onmouseenter = IV.frameMouseEnter;
+document.onmouseup = IV.frameMouseUp;
+document.onscroll = IV.frameScrolled;
 window.onmessage = IV.postMessageHandler;
