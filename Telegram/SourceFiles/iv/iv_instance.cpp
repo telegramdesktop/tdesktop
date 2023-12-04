@@ -7,13 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/iv_instance.h"
 
+#include "apiwrap.h"
+#include "core/application.h"
 #include "core/file_utilities.h"
 #include "core/shortcuts.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_cloud_file.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "info/profile/info_profile_values.h"
 #include "iv/iv_controller.h"
 #include "iv/iv_data.h"
 #include "main/main_account.h"
@@ -26,6 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_interface.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
+#include "window/window_session_controller_link_info.h"
 
 namespace Iv {
 namespace {
@@ -66,6 +74,7 @@ public:
 	[[nodiscard]] bool activeFor(not_null<Main::Session*> session) const;
 	[[nodiscard]] bool active() const;
 
+	void showJoinedTooltip();
 	void minimize();
 
 	[[nodiscard]] rpl::producer<Controller::Event> events() const {
@@ -123,6 +132,7 @@ private:
 	void streamMap(QString params, Webview::DataRequest request);
 	void sendEmbed(QByteArray hash, Webview::DataRequest request);
 
+	void fillChannelJoinedValues(const Prepared &result);
 	void requestDone(
 		Webview::DataRequest request,
 		QByteArray bytes,
@@ -136,6 +146,7 @@ private:
 	QString _id;
 	std::unique_ptr<Controller> _controller;
 	base::flat_map<DocumentId, FileLoad> _files;
+	base::flat_map<QByteArray, rpl::producer<bool>> _inChannelValues;
 
 	QString _localBase;
 	base::flat_map<QByteArray, QByteArray> _embeds;
@@ -162,6 +173,7 @@ Shown::Shown(
 	data->prepare({ .saveToFolder = base }, [=](Prepared result) {
 		crl::on_main(weak, [=, result = std::move(result)]() mutable {
 			_embeds = std::move(result.embeds);
+			fillChannelJoinedValues(result);
 			if (!base.isEmpty()) {
 				_localBase = base;
 				showLocal(std::move(result));
@@ -172,6 +184,22 @@ Shown::Shown(
 	});
 }
 
+void Shown::fillChannelJoinedValues(const Prepared &result) {
+	for (const auto &id : result.channelIds) {
+		const auto channelId = ChannelId(id.toLongLong());
+		const auto channel = _session->data().channel(channelId);
+		if (!channel->isLoaded() && !channel->username().isEmpty()) {
+			channel->session().api().request(MTPcontacts_ResolveUsername(
+				MTP_string(channel->username())
+			)).done([=](const MTPcontacts_ResolvedPeer &result) {
+				channel->owner().processUsers(result.data().vusers());
+				channel->owner().processChats(result.data().vchats());
+			}).send();
+		}
+		_inChannelValues[id] = Info::Profile::AmInChannelValue(channel);
+	}
+}
+
 void Shown::showLocal(Prepared result) {
 	showProgress(0);
 
@@ -179,7 +207,7 @@ void Shown::showLocal(Prepared result) {
 	QDir().mkpath(_localBase);
 
 	_resources = std::move(result.resources);
-	writeLocal(localRoot(), result.html);
+	writeLocal(localRoot(), result.content);
 }
 
 void Shown::showProgress(int index) {
@@ -392,7 +420,10 @@ void Shown::showWindowed(Prepared result) {
 	}, _controller->lifetime());
 
 	const auto domain = &_session->domain();
-	_controller->show(domain->local().webviewDataPath(), std::move(result));
+	_controller->show(
+		domain->local().webviewDataPath(),
+		std::move(result),
+		base::duplicate(_inChannelValues));
 }
 
 void Shown::streamPhoto(PhotoId photoId, Webview::DataRequest request) {
@@ -651,6 +682,12 @@ bool Shown::active() const {
 	return _controller && _controller->active();
 }
 
+void Shown::showJoinedTooltip() {
+	if (_controller) {
+		_controller->showJoinedTooltip();
+	}
+}
+
 void Shown::minimize() {
 	if (_controller) {
 		_controller->minimize();
@@ -670,11 +707,34 @@ void Instance::show(
 		return;
 	}
 	_shown = std::make_unique<Shown>(show, data, local);
+	_shownSession = session;
 	_shown->events() | rpl::start_with_next([=](Controller::Event event) {
-		if (event == Controller::Event::Close) {
+		using Type = Controller::Event::Type;
+		switch (event.type) {
+		case Type::Close:
 			_shown = nullptr;
-		} else if (event == Controller::Event::Quit) {
+			break;
+		case Type::Quit:
 			Shortcuts::Launch(Shortcuts::Command::Quit);
+			break;
+		case Type::OpenChannel:
+			processOpenChannel(event.context);
+			break;
+		case Type::JoinChannel:
+			processJoinChannel(event.context);
+			break;
+		}
+	}, _shown->lifetime());
+
+	session->changes().peerUpdates(
+		::Data::PeerUpdate::Flag::ChannelAmIn
+	) | rpl::start_with_next([=](const ::Data::PeerUpdate &update) {
+		if (const auto channel = update.peer->asChannel()) {
+			if (channel->amIn()) {
+				if (_joining.remove(not_null(channel))) {
+					_shown->showJoinedTooltip();
+				}
+			}
 		}
 	}, _shown->lifetime());
 
@@ -682,10 +742,66 @@ void Instance::show(
 		_tracking.emplace(session);
 		session->lifetime().add([=] {
 			_tracking.remove(session);
+			for (auto i = begin(_joining); i != end(_joining);) {
+				if (&(*i)->session() == session) {
+					i = _joining.erase(i);
+				} else {
+					++i;
+				}
+			}
+			if (_shownSession == session) {
+				_shownSession = nullptr;
+			}
 			if (_shown && _shown->showingFrom(session)) {
 				_shown = nullptr;
 			}
 		});
+	}
+}
+
+void Instance::processOpenChannel(const QString &context) {
+	if (!_shownSession) {
+		return;
+	} else if (const auto channelId = ChannelId(context.toLongLong())) {
+		const auto channel = _shownSession->data().channel(channelId);
+		if (channel->isLoaded()) {
+			if (const auto window = Core::App().windowFor(channel)) {
+				if (const auto controller = window->sessionController()) {
+					controller->showPeerHistory(channel);
+					_shown = nullptr;
+				}
+			}
+		} else if (!channel->username().isEmpty()) {
+			if (const auto window = Core::App().windowFor(channel)) {
+				if (const auto controller = window->sessionController()) {
+					controller->showPeerByLink({
+						.usernameOrId = channel->username(),
+					});
+					_shown = nullptr;
+				}
+			}
+		}
+	}
+}
+
+void Instance::processJoinChannel(const QString &context) {
+	if (!_shownSession) {
+		return;
+	} else if (const auto channelId = ChannelId(context.toLongLong())) {
+		const auto channel = _shownSession->data().channel(channelId);
+		_joining.emplace(channel);
+		if (channel->isLoaded()) {
+			_shownSession->api().joinChannel(channel);
+		} else if (!channel->username().isEmpty()) {
+			if (const auto window = Core::App().windowFor(channel)) {
+				if (const auto controller = window->sessionController()) {
+					controller->showPeerByLink({
+						.usernameOrId = channel->username(),
+						.joinChannel = true,
+					});
+				}
+			}
+		}
 	}
 }
 

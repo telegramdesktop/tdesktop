@@ -17,9 +17,13 @@ struct Options {
 
 struct Prepared {
 	QString title;
-	QByteArray html;
+	QByteArray content;
 	std::vector<QByteArray> resources;
 	base::flat_map<QByteArray, QByteArray> embeds;
+	base::flat_set<QByteArray> channelIds;
+	bool rtl = false;
+	bool hasCode = false;
+	bool hasEmbeds = false;
 };
 
 struct Geo {

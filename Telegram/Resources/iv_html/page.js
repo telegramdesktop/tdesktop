@@ -5,22 +5,36 @@ var IV = {
 		}
 	},
 	frameClickHandler: function(e) {
-		var target = e.target, href;
-		do {
-			if (target.tagName == 'SUMMARY') return;
-			if (target.tagName == 'DETAILS') return;
-			if (target.tagName == 'LABEL') return;
-			if (target.tagName == 'AUDIO') return;
-			if (target.tagName == 'A') break;
-		} while (target = target.parentNode);
-		if (target && target.hasAttribute('href')) {
-			var base_loc = document.createElement('A');
-			base_loc.href = window.currentUrl;
-			if (base_loc.origin != target.origin ||
-					base_loc.pathname != target.pathname ||
-					base_loc.search != target.search) {
-				IV.notify({ event: 'link_click', url: target.href });
+		var target = e.target;
+		var context = '';
+		console.log('click', target);
+		while (target) {
+			if (target.tagName == 'AUDIO' || target.tagName == 'VIDEO') {
+				return;
 			}
+			if (context === ''
+				&& target.hasAttribute
+				&& target.hasAttribute('data-context')) {
+				context = String(target.getAttribute('data-context'));
+			}
+			if (target.tagName == 'A') {
+				break;
+			}
+			target = target.parentNode;
+		}
+		if (!target || !target.hasAttribute('href')) {
+			return;
+		}
+		var base_loc = document.createElement('A');
+		base_loc.href = window.currentUrl;
+		if (base_loc.origin != target.origin
+			|| base_loc.pathname != target.pathname
+			|| base_loc.search != target.search) {
+			IV.notify({
+				event: 'link_click',
+				url: target.href,
+				context: context,
+			});
 		}
 		e.preventDefault();
 	},
@@ -69,6 +83,16 @@ var IV = {
 		if (IV.styles !== styles) {
 			IV.styles = styles;
 			document.getElementsByTagName('html')[0].style = styles;
+		}
+	},
+	toggleChannelJoined: function (id, joined) {
+		const channels = document.getElementsByClassName('channel');
+		const full = 'channel' + id;
+		for (var i = 0; i < channels.length; ++i) {
+			const channel = channels[i];
+			if (String(channel.getAttribute('data-context')) === full) {
+				channel.classList.toggle('joined', joined);
+			}
 		}
 	},
 	slideshowSlide: function(el, next) {
@@ -172,6 +196,19 @@ var IV = {
 				IV.stopRipples(e.currentTarget);
 			});
 		}
+		IV.notify({ event: 'ready' });
+	},
+	showTooltip: function (text) {
+		var toast = document.createElement('div');
+		toast.classList.add('toast');
+		toast.textContent = text;
+		document.body.appendChild(toast);
+		setTimeout(function () {
+			toast.classList.add('hiding');
+		}, 2000);
+		setTimeout(function () {
+			document.body.removeChild(toast);
+		}, 3000);
 	},
 	toTop: function () {
 		document.getElementById('bottom_up').classList.add('hidden');

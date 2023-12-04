@@ -86,17 +86,47 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 	return result;
 }
 
-[[nodiscard]] ClickHandlerPtr IvClickHandler(not_null<WebPageData*> webpage) {
+[[nodiscard]] QString ExtractHash(
+		not_null<WebPageData*> webpage,
+		const TextWithEntities &text) {
+	const auto simplify = [](const QString &url) {
+		auto result = url.split('#')[0].toLower();
+		if (result.endsWith('/')) {
+			result.chop(1);
+		}
+		const auto prefixes = { u"http://"_q, u"https://"_q };
+		for (const auto &prefix : prefixes) {
+			if (result.startsWith(prefix)) {
+				result = result.mid(prefix.size());
+				break;
+			}
+		}
+		return result;
+	};
+	const auto simplified = simplify(webpage->url);
+	for (const auto &entity : text.entities) {
+		const auto link = (entity.type() == EntityType::Url)
+			? text.text.mid(entity.offset(), entity.length())
+			: (entity.type() == EntityType::CustomUrl)
+			? entity.data()
+			: QString();
+		if (simplify(link) == simplified) {
+			const auto i = link.indexOf('#');
+			return (i > 0) ? link.mid(i + 1) : QString();
+		}
+	}
+	return QString();
+}
+
+[[nodiscard]] ClickHandlerPtr IvClickHandler(
+		not_null<WebPageData*> webpage,
+		const TextWithEntities &text) {
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			if (const auto iv = webpage->iv.get()) {
-#ifdef _DEBUG
-				const auto local = base::IsCtrlPressed();
-#else // _DEBUG
-				const auto local = false;
-#endif // _DEBUG
-				Core::App().iv().show(controller->uiShow(), iv, local);
+				const auto hash = ExtractHash(webpage, text);
+				Core::App().iv().show(controller->uiShow(), iv, hash);
 				return;
 			} else {
 				HiddenUrlClickHandler::Open(webpage->url, context.other);
@@ -235,6 +265,7 @@ QSize WebPage::countOptimalSize() {
 	const auto lineHeight = UnitedLineHeight();
 
 	if (!_openl && (!_data->url.isEmpty() || _sponsoredData)) {
+		const auto original = _parent->data()->originalText();
 		const auto previewOfHiddenUrl = [&] {
 			if (_data->type == WebPageType::BotApp) {
 				// Bot Web Apps always show confirmation on hidden urls.
@@ -258,12 +289,11 @@ QSize WebPage::countOptimalSize() {
 				return result;
 			};
 			const auto simplified = simplify(_data->url);
-			const auto full = _parent->data()->originalText();
-			for (const auto &entity : full.entities) {
+			for (const auto &entity : original.entities) {
 				if (entity.type() != EntityType::Url) {
 					continue;
 				}
-				const auto link = full.text.mid(
+				const auto link = original.text.mid(
 					entity.offset(),
 					entity.length());
 				if (simplify(link) == simplified) {
@@ -272,8 +302,10 @@ QSize WebPage::countOptimalSize() {
 			}
 			return true;
 		}();
-		_openl = _data->iv ? IvClickHandler(_data) : (previewOfHiddenUrl
-			|| UrlClickHandler::IsSuspicious(_data->url))
+		_openl = _data->iv
+			? IvClickHandler(_data, original)
+			: (previewOfHiddenUrl || UrlClickHandler::IsSuspicious(
+				_data->url))
 			? std::make_shared<HiddenUrlClickHandler>(_data->url)
 			: std::make_shared<UrlClickHandler>(_data->url, true);
 		if (_data->document

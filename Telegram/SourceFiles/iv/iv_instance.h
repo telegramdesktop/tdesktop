@@ -38,8 +38,13 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	void processOpenChannel(const QString &context);
+	void processJoinChannel(const QString &context);
+
 	std::unique_ptr<Shown> _shown;
+	Main::Session *_shownSession = nullptr;
 	base::flat_set<not_null<Main::Session*>> _tracking;
+	base::flat_set<not_null<ChannelData*>> _joining;
 
 	rpl::lifetime _lifetime;
 

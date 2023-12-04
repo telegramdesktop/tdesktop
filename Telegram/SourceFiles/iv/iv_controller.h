@@ -32,13 +32,23 @@ public:
 	Controller();
 	~Controller();
 
-	enum class Event {
-		Close,
-		Quit,
+	struct Event {
+		enum class Type {
+			Close,
+			Quit,
+			OpenChannel,
+			JoinChannel,
+		};
+		Type type = Type::Close;
+		QString context;
 	};
 
-	void show(const QString &dataPath, Prepared page);
+	void show(
+		const QString &dataPath,
+		Prepared page,
+		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues);
 	[[nodiscard]] bool active() const;
+	void showJoinedTooltip();
 	void minimize();
 
 	[[nodiscard]] rpl::producer<Webview::DataRequest> dataRequests() const {
@@ -55,7 +65,18 @@ private:
 	void createWindow();
 	void updateTitleGeometry();
 	void paintTitle(Painter &p, QRect clip);
-	void showInWindow(const QString &dataPath, Prepared page);
+	void showInWindow(
+		const QString &dataPath,
+		Prepared page,
+		const QByteArray &initScript);
+	[[nodiscard]] QByteArray fillInChannelValuesScript(
+		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues);
+	[[nodiscard]] QByteArray toggleInChannelScript(
+		const QByteArray &id,
+		bool in) const;
+
+	void processKey(const QString &key, const QString &modifier);
+	void processLink(const QString &url, const QString &context);
 
 	void escape();
 	void close();
@@ -70,8 +91,10 @@ private:
 	std::unique_ptr<Webview::Window> _webview;
 	rpl::event_stream<Webview::DataRequest> _dataRequests;
 	rpl::event_stream<Event> _events;
+	base::flat_map<QByteArray, bool> _inChannelChanged;
 	SingleQueuedInvokation _updateStyles;
 	bool _subscribedToColors = false;
+	bool _ready = false;
 
 	rpl::lifetime _lifetime;
 

@@ -58,6 +58,8 @@ namespace {
 		{ "history-to-down-bg-over", &st::historyToDownBgOver },
 		{ "history-to-down-bg-ripple", &st::historyToDownBgRipple },
 		{ "history-to-down-shadow", &st::historyToDownShadow },
+		{ "toast-bg", &st::toastBg },
+		{ "toast-fg", &st::toastFg },
 	};
 	static const auto phrases = base::flat_map<QByteArray, tr::phrase<>>{
 		{ "group-call-join", tr::lng_group_call_join },
@@ -125,28 +127,123 @@ namespace {
 		.replace('\'', "\\\'");
 }
 
+[[nodiscard]] QByteArray WrapPage(
+		const Prepared &page,
+		const QByteArray &initScript) {
+#ifdef Q_OS_MAC
+	const auto classAttribute = ""_q;
+#else // Q_OS_MAC
+	const auto classAttribute = " class=\"custom_scroll\""_q;
+#endif // Q_OS_MAC
+
+	const auto js = QByteArray()
+		+ (page.hasCode ? "IV.initPreBlocks();" : "")
+		+ (page.hasEmbeds ? "IV.initEmbedBlocks();" : "")
+		+ "IV.init();"
+		+ initScript;
+
+	const auto contentAttributes = page.rtl
+		? " dir=\"rtl\" class=\"rtl\""_q
+		: QByteArray();
+
+	return R"(<!DOCTYPE html>
+<html)"_q
+	+ classAttribute
+	+ R"("" style=")"
+	+ EscapeForAttribute(ComputeStyles())
+	+ R"(">
+	<head>
+		<meta charset="utf-8">
+		<meta name="robots" content="noindex, nofollow">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<script src="/iv/page.js"></script>
+		<script src="/iv/highlight.js"></script>
+		<link rel="stylesheet" href="/iv/page.css" />
+		<link rel="stylesheet" href="/iv/highlight.css">
+	</head>
+	<body>
+		<button class="fixed_button hidden" id="top_back" onclick="IV.back();">
+			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+				<line x1="5.37464142" y1="12" x2="18.5" y2="12"></line>
+				<path d="M11.5,18.3 L5.27277119,12.0707223 C5.23375754,12.0316493 5.23375754,11.9683507 5.27277119,11.9292777 L11.5,5.7 L11.5,5.7"></path>
+			</svg>
+		</button>
+		<button class="fixed_button" id="top_menu" onclick="IV.menu();">
+			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+				<circle cx="12" cy="17.4" r="1.7"></circle>
+				<circle cx="12" cy="12" r="1.7"></circle>
+				<circle cx="12" cy="6.6" r="1.7"></circle>
+			</svg>
+		</button>
+		<button class="fixed_button hidden" id="bottom_up" onclick="IV.toTop();">
+			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+				<path d="M14.9972363,18 L9.13865768,12.1414214 C9.06055283,12.0633165 9.06055283,11.9366835 9.13865768,11.8585786 L14.9972363,6 L14.9972363,6" transform="translate(11.997236, 12.000000) scale(-1, -1) rotate(-90.000000) translate(-11.997236, -12.000000) "></path>
+			</svg>
+		</button>
+		<article)"_q + contentAttributes + ">"_q + page.content + R"(</article>
+		<script>)"_q + js + R"(</script>
+	</body>
+</html>
+)"_q;
+}
+
 } // namespace
+
 Controller::Controller()
 : _updateStyles([=] {
 	const auto str = EscapeForScriptString(ComputeStyles());
 	if (_webview) {
-		_webview->eval("IV.updateStyles(\"" + str + "\");");
+		_webview->eval("IV.updateStyles('" + str + "');");
 	}
 }) {
 }
 
 Controller::~Controller() {
+	_ready = false;
 	_webview = nullptr;
 	_title = nullptr;
 	_window = nullptr;
 }
 
-void Controller::show(const QString &dataPath, Prepared page) {
+void Controller::show(
+		const QString &dataPath,
+		Prepared page,
+		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues) {
 	createWindow();
+	const auto js = fillInChannelValuesScript(std::move(inChannelValues));
+
 	_titleText.setText(st::ivTitle.style, page.title);
 	InvokeQueued(_container, [=, page = std::move(page)]() mutable {
-		showInWindow(dataPath, std::move(page));
+		showInWindow(dataPath, std::move(page), js);
+		if (!_webview) {
+			return;
+		}
 	});
+}
+
+QByteArray Controller::fillInChannelValuesScript(
+		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues) {
+	auto result = QByteArray();
+	for (auto &[id, in] : inChannelValues) {
+		std::move(in) | rpl::start_with_next([=](bool in) {
+			if (_ready) {
+				_webview->eval(toggleInChannelScript(id, in));
+			} else {
+				_inChannelChanged[id] = in;
+			}
+		}, _lifetime);
+	}
+	for (const auto &[id, in] : base::take(_inChannelChanged)) {
+		result += toggleInChannelScript(id, in);
+	}
+	return result;
+}
+
+QByteArray Controller::toggleInChannelScript(
+		const QByteArray &id,
+		bool in) const {
+	const auto value = in ? "true" : "false";
+	return "IV.toggleChannelJoined('" + id + "', " + value + ");";
 }
 
 void Controller::updateTitleGeometry() {
@@ -242,7 +339,10 @@ void Controller::createWindow() {
 	window->show();
 }
 
-void Controller::showInWindow(const QString &dataPath, Prepared page) {
+void Controller::showInWindow(
+		const QString &dataPath,
+		Prepared page,
+		const QByteArray &initScript) {
 	Expects(_container != nullptr);
 
 	const auto window = _window.get();
@@ -255,10 +355,11 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 	const auto raw = _webview.get();
 
 	window->lifetime().add([=] {
+		_ready = false;
 		_webview = nullptr;
 	});
 	if (!raw->widget()) {
-		_events.fire(Event::Close);
+		_events.fire({ Event::Type::Close });
 		return;
 	}
 	window->events(
@@ -291,20 +392,24 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 			if (event == u"keydown"_q) {
 				const auto key = object.value("key").toString();
 				const auto modifier = object.value("modifier").toString();
-				const auto ctrl = Platform::IsMac() ? u"cmd"_q : u"ctrl"_q;
-				if (key == u"escape"_q) {
-					escape();
-				} else if (key == u"w"_q && modifier == ctrl) {
-					close();
-				} else if (key == u"m"_q && modifier == ctrl) {
-					minimize();
-				} else if (key == u"q"_q && modifier == ctrl) {
-					quit();
-				}
+				processKey(key, modifier);
 			} else if (event == u"mouseenter"_q) {
 				window->overrideSystemButtonOver({});
 			} else if (event == u"mouseup"_q) {
 				window->overrideSystemButtonDown({});
+			} else if (event == u"link_click"_q) {
+				const auto url = object.value("url").toString();
+				const auto context = object.value("context").toString();
+				processLink(url, context);
+			} else if (event == u"ready"_q) {
+				_ready = true;
+				auto script = QByteArray();
+				for (const auto &[id, in] : base::take(_inChannelChanged)) {
+					script += toggleInChannelScript(id, in);
+				}
+				if (!script.isEmpty()) {
+					_webview->eval(script);
+				}
 			}
 		});
 	});
@@ -323,11 +428,6 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 		};
 		const auto id = std::string_view(request.id).substr(3);
 		if (id == "page.html") {
-			const auto i = page.html.indexOf("<html"_q);
-			Assert(i >= 0);
-			const auto colored = page.html.mid(0, i + 5)
-				+ " style=\"" + EscapeForAttribute(ComputeStyles()) + "\""
-				+ page.html.mid(i + 5);
 			if (!_subscribedToColors) {
 				_subscribedToColors = true;
 
@@ -338,7 +438,7 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 					_updateStyles.call();
 				}, _webview->lifetime());
 			}
-			return finishWith(colored, "text/html");
+			return finishWith(WrapPage(page, initScript), "text/html");
 		}
 		const auto css = id.ends_with(".css");
 		const auto js = !css && id.ends_with(".js");
@@ -357,13 +457,50 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 		return Webview::DataResult::Failed;
 	});
 
-	raw->init(R"(
-)");
+	raw->init(R"()");
 	raw->navigateToData("iv/page.html");
+}
+
+void Controller::processKey(const QString &key, const QString &modifier) {
+	const auto ctrl = Platform::IsMac() ? u"cmd"_q : u"ctrl"_q;
+	if (key == u"escape"_q) {
+		escape();
+	} else if (key == u"w"_q && modifier == ctrl) {
+		close();
+	} else if (key == u"m"_q && modifier == ctrl) {
+		minimize();
+	} else if (key == u"q"_q && modifier == ctrl) {
+		quit();
+	}
+}
+
+void Controller::processLink(const QString &url, const QString &context) {
+	const auto channelPrefix = u"channel"_q;
+	const auto joinPrefix = u"join_link"_q;
+	if (context.startsWith(channelPrefix)) {
+		_events.fire({
+			Event::Type::OpenChannel,
+			context.mid(channelPrefix.size()),
+		});
+	} else if (context.startsWith(joinPrefix)) {
+		_events.fire({
+			Event::Type::JoinChannel,
+			context.mid(joinPrefix.size()),
+		});
+	}
 }
 
 bool Controller::active() const {
 	return _window && _window->isActiveWindow();
+}
+
+void Controller::showJoinedTooltip() {
+	if (_webview) {
+		_webview->eval("IV.showTooltip('"
+			+ EscapeForScriptString(
+				tr::lng_action_you_joined(tr::now).toUtf8())
+			+ "');");
+	}
 }
 
 void Controller::minimize() {
@@ -378,11 +515,11 @@ void Controller::escape() {
 }
 
 void Controller::close() {
-	_events.fire(Event::Close);
+	_events.fire({ Event::Type::Close });
 }
 
 void Controller::quit() {
-	_events.fire(Event::Quit);
+	_events.fire({ Event::Type::Quit });
 }
 
 rpl::lifetime &Controller::lifetime() {

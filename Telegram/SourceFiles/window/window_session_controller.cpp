@@ -314,6 +314,8 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 					peer,
 					[=](bool) { showPeerByLinkResolved(peer, info); },
 					true);
+			} else if (info.joinChannel && peer->isChannel()) {
+				peer->session().api().joinChannel(peer->asChannel());
 			} else {
 				showPeerByLinkResolved(peer, info);
 			}

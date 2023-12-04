@@ -47,14 +47,6 @@ private:
 	void process(const MTPPhoto &photo);
 	void process(const MTPDocument &document);
 
-	[[nodiscard]] QByteArray prepare(QByteArray body);
-
-	[[nodiscard]] QByteArray html(
-		const QByteArray &head,
-		const QByteArray &body);
-
-	[[nodiscard]] QByteArray page(const MTPDpage &data);
-
 	template <typename Inner>
 	[[nodiscard]] QByteArray list(const MTPVector<Inner> &data);
 
@@ -143,9 +135,6 @@ private:
 	base::flat_map<uint64, Photo> _photosById;
 	base::flat_map<uint64, Document> _documentsById;
 
-	bool _hasCode = false;
-	bool _hasEmbeds = false;
-
 };
 
 [[nodiscard]] bool IsVoidElement(const QByteArray &name) {
@@ -169,11 +158,11 @@ private:
 }
 
 Parser::Parser(const Source &source, const Options &options)
-: _options(options)
-, _rtl(source.page.data().is_rtl()) {
+: _options(options) {
 	process(source);
 	_result.title = source.title;
-	_result.html = prepare(page(source.page.data()));
+	_result.rtl = source.page.data().is_rtl();
+	_result.content = list(source.page.data().vblocks());
 }
 
 Prepared Parser::result() {
@@ -260,7 +249,7 @@ QByteArray Parser::block(const MTPDpageBlockPreformatted &data) {
 	if (!language.isEmpty()) {
 		list.push_back({ "data-language", language });
 		list.push_back({ "class", "lang-" + language });
-		_hasCode = true;
+		_result.hasCode = true;
 	}
 	return tag("pre", list, rich(data.vtext()));
 }
@@ -270,7 +259,7 @@ QByteArray Parser::block(const MTPDpageBlockFooter &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockDivider &data) {
-	return tag("hr", { {"class", "iv-divider" } });
+	return tag("hr", { { "class", "iv-divider" } });
 }
 
 QByteArray Parser::block(const MTPDpageBlockAnchor &data) {
@@ -393,7 +382,7 @@ QByteArray Parser::block(const MTPDpageBlockCover &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockEmbed &data) {
-	_hasEmbeds = true;
+	_result.hasEmbeds = true;
 	auto eclass = data.is_full_width() ? QByteArray() : "nowide";
 	auto width = QByteArray();
 	auto height = QByteArray();
@@ -519,6 +508,9 @@ QByteArray Parser::block(const MTPDpageBlockSlideshow &data) {
 QByteArray Parser::block(const MTPDpageBlockChannel &data) {
 	auto name = QByteArray();
 	auto username = QByteArray();
+	auto id = data.vchannel().match([](const auto &data) {
+		return QByteArray::number(data.vid().v);
+	});
 	data.vchannel().match([&](const MTPDchannel &data) {
 		if (const auto has = data.vusername()) {
 			username = utf(*has);
@@ -528,15 +520,23 @@ QByteArray Parser::block(const MTPDpageBlockChannel &data) {
 		name = utf(data.vtitle());
 	}, [](const auto &) {
 	});
-	auto result = tag("h4", name);
-	if (!username.isEmpty()) {
-		const auto link = "https://t.me/" + username;
-		result = tag(
-			"a",
-			{ { "href", link }, { "target", "_blank" } },
-			result);
-	}
-	return tag("section", { { "class", "channel" } }, result);
+	auto result = tag(
+		"div",
+		{ { "class", "join" }, { "data-context", "join_link" + id } },
+		tag("span")
+	) + tag("h4", name);
+	const auto link = username.isEmpty()
+		? "javascript:alert('Channel Link');"
+		: "https://t.me/" + username;
+	result = tag(
+		"a",
+		{ { "href", link }, { "data-context", "channel" + id } },
+		result);
+	_result.channelIds.emplace(id);
+	return tag("section", {
+		{ "class", "channel joined" },
+		{ "data-context", "channel" + id },
+	}, result);
 }
 
 QByteArray Parser::block(const MTPDpageBlockAudio &data) {
@@ -970,83 +970,6 @@ QByteArray Parser::resource(QByteArray id) {
 		_result.resources.push_back(id);
 	}
 	return toFolder ? id : ('/' + id);
-}
-
-QByteArray Parser::page(const MTPDpage &data) {
-	const auto html = list(data.vblocks());
-	if (html.isEmpty()) {
-		return html;
-	}
-	auto attributes = Attributes();
-	if (_rtl) {
-		attributes.push_back({ "dir", "rtl" });
-		attributes.push_back({ "class", "rtl" });
-	}
-	return tag("article", attributes, html);
-}
-
-QByteArray Parser::prepare(QByteArray body) {
-	auto head = QByteArray();
-	auto js = QByteArray();
-	if (body.isEmpty()) {
-		body = tag(
-			"section",
-			{ { "class", "message" } },
-			tag("aside", "Failed." + tag("cite", "Failed.")));
-	}
-	if (_hasCode) {
-		head += R"(
-<link rel="stylesheet" href=")" + resource("iv/highlight.css") + R"(">
-<script src=")" + resource("iv/highlight.js") + R"("></script>
-)"_q;
-		js += "IV.initPreBlocks();";
-	}
-	if (_hasEmbeds) {
-		js += "IV.initEmbedBlocks();";
-	}
-	body += tag("script", js + "IV.init();");
-	return html(head, body);
-}
-
-QByteArray Parser::html(const QByteArray &head, const QByteArray &body) {
-#ifdef Q_OS_MAC
-	const auto classAttribute = ""_q;
-#else // Q_OS_MAC
-	const auto classAttribute = " class=\"custom_scroll\""_q;
-#endif // Q_OS_MAC
-
-	return R"(<!DOCTYPE html>
-<html)"_q + classAttribute + R"(">
-	<head>
-		<meta charset="utf-8">
-		<meta name="robots" content="noindex, nofollow">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<script src=")" + resource("iv/page.js") + R"("></script>
-		<link rel="stylesheet" href=")" + resource("iv/page.css") + R"(" />
-		)"_q + head + R"(
-	</head>
-	<body>
-		<button class="fixed_button hidden" id="top_back" onclick="IV.back();">
-			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-				<path d="M17 13L12 18L7 13M12 6L12 17"></path>
-			</svg>
-		</button>
-		<button class="fixed_button" id="top_menu" onclick="IV.menu();">
-			<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-				<circle cx="8" cy="2.5" r="1.6"></circle>
-				<circle cx="8" cy="8" r="1.6"></circle>
-				<circle cx="8" cy="13.5" r="1.6"></circle>
-			</svg>
-		</button>
-		<button class="fixed_button hidden" id="bottom_up" onclick="IV.toTop();">
-			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-				<path d="M17 13L12 18L7 13M12 6L12 17"></path>
-			</svg>
-		</button>
-)"_q + body + R"(
-	</body>
-</html>
-)"_q;
 }
 
 } // namespace
