@@ -18,6 +18,7 @@ struct Options {
 struct Prepared {
 	QString title;
 	QByteArray content;
+	QString hash;
 	std::vector<QByteArray> resources;
 	base::flat_map<QByteArray, QByteArray> embeds;
 	base::flat_set<QByteArray> channelIds;

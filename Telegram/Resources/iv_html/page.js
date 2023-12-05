@@ -7,7 +7,6 @@ var IV = {
 	frameClickHandler: function(e) {
 		var target = e.target;
 		var context = '';
-		console.log('click', target);
 		while (target) {
 			if (target.tagName == 'AUDIO' || target.tagName == 'VIDEO') {
 				return;
@@ -25,16 +24,28 @@ var IV = {
 		if (!target || !target.hasAttribute('href')) {
 			return;
 		}
-		var base_loc = document.createElement('A');
-		base_loc.href = window.currentUrl;
-		if (base_loc.origin != target.origin
-			|| base_loc.pathname != target.pathname
-			|| base_loc.search != target.search) {
+		var base = document.createElement('A');
+		base.href = window.location.href;
+		if (base.origin != target.origin
+			|| base.pathname != target.pathname
+			|| base.search != target.search) {
 			IV.notify({
 				event: 'link_click',
 				url: target.href,
 				context: context,
 			});
+		} else if (target.hash.length < 2) {
+			IV.hash = '';
+			IV.scrollTo(0);
+		} else {
+			const name = target.hash.substr(1);
+			IV.hash = name;
+
+			const element = document.getElementsByName(name)[0];
+			if (element) {
+				const y = element.getBoundingClientRect().y;
+				IV.scrollTo(y + document.documentElement.scrollTop);
+			}
 		}
 		e.preventDefault();
 	},
@@ -183,6 +194,8 @@ var IV = {
 		}
 	},
 	init: function () {
+		IV.hash = window.location.hash.substr(1);
+
 		const buttons = document.getElementsByClassName('fixed_button');
 		for (let i = 0; i < buttons.length; ++i) {
 			const button = buttons[i];
@@ -210,9 +223,9 @@ var IV = {
 			document.body.removeChild(toast);
 		}, 3000);
 	},
-	toTop: function () {
+	scrollTo: function (y) {
 		document.getElementById('bottom_up').classList.add('hidden');
-		window.scrollTo({ top: 0, behavior: 'smooth' });
+		window.scrollTo({ top: y || 0, behavior: 'smooth' });
 	}
 };
 

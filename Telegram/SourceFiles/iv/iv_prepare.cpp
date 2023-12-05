@@ -656,9 +656,14 @@ QByteArray Parser::block(const MTPDpageRelatedArticle &data) {
 			{ "class", "related-link-content" },
 		}, inner);
 	}
+	const auto webpageId = data.vwebpage_id().v;
+	const auto context = webpageId
+		? ("webpage" + QByteArray::number(webpageId))
+		: QByteArray();
 	return tag("a", {
 		{ "class", "related-link" },
 		{ "href", utf(data.vurl()) },
+		{ "data-context", context },
 	}, result);
 }
 
@@ -795,8 +800,13 @@ QByteArray Parser::rich(const MTPRichText &text) {
 	}, [&](const MTPDtextFixed &data) {
 		return tag("code", rich(data.vtext()));
 	}, [&](const MTPDtextUrl &data) {
+		const auto webpageId = data.vwebpage_id().v;
+		const auto context = webpageId
+			? ("webpage" + QByteArray::number(webpageId))
+			: QByteArray();
 		return tag("a", {
 			{ "href", utf(data.vurl()) },
+			{ "data-context", context },
 		}, rich(data.vtext()));
 	}, [&](const MTPDtextEmail &data) {
 		return tag("a", {

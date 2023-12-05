@@ -25,7 +25,7 @@ public:
 	void show(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Data*> data,
-		bool local);
+		QString hash);
 
 	[[nodiscard]] bool hasActiveWindow(
 		not_null<Main::Session*> session) const;

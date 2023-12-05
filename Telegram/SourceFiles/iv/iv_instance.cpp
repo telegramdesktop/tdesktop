@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/basic_click_handlers.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_interface.h"
 #include "window/window_controller.h"
@@ -65,7 +66,7 @@ public:
 	Shown(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Data*> data,
-		bool local);
+		QString hash);
 
 	[[nodiscard]] bool showing(
 		not_null<Main::Session*> session,
@@ -163,14 +164,15 @@ private:
 Shown::Shown(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<Data*> data,
-	bool local)
+	QString hash)
 : _session(&show->session())
 , _show(show)
 , _id(data->id()) {
 	const auto weak = base::make_weak(this);
 
-	const auto base = local ? LookupLocalPath(show) : QString();
+	const auto base = /*local ? LookupLocalPath(show) : */QString();
 	data->prepare({ .saveToFolder = base }, [=](Prepared result) {
+		result.hash = hash;
 		crl::on_main(weak, [=, result = std::move(result)]() mutable {
 			_embeds = std::move(result.embeds);
 			fillChannelJoinedValues(result);
@@ -701,12 +703,12 @@ Instance::~Instance() = default;
 void Instance::show(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Data*> data,
-		bool local) {
+		QString hash) {
 	const auto session = &show->session();
 	if (_shown && _shown->showing(session, data)) {
 		return;
 	}
-	_shown = std::make_unique<Shown>(show, data, local);
+	_shown = std::make_unique<Shown>(show, data, hash);
 	_shownSession = session;
 	_shown->events() | rpl::start_with_next([=](Controller::Event event) {
 		using Type = Controller::Event::Type;
@@ -722,6 +724,9 @@ void Instance::show(
 			break;
 		case Type::JoinChannel:
 			processJoinChannel(event.context);
+			break;
+		case Type::OpenLink:
+			UrlClickHandler::Open(event.context);
 			break;
 		}
 	}, _shown->lifetime());

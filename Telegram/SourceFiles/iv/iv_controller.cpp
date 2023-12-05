@@ -175,7 +175,7 @@ namespace {
 				<circle cx="12" cy="6.6" r="1.7"></circle>
 			</svg>
 		</button>
-		<button class="fixed_button hidden" id="bottom_up" onclick="IV.toTop();">
+		<button class="fixed_button hidden" id="bottom_up" onclick="IV.scrollTo(0);">
 			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 				<path d="M14.9972363,18 L9.13865768,12.1414214 C9.06055283,12.0633165 9.06055283,11.9366835 9.13865768,11.8585786 L14.9972363,6 L14.9972363,6" transform="translate(11.997236, 12.000000) scale(-1, -1) rotate(-90.000000) translate(-11.997236, -12.000000) "></path>
 			</svg>
@@ -458,7 +458,12 @@ void Controller::showInWindow(
 	});
 
 	raw->init(R"()");
-	raw->navigateToData("iv/page.html");
+
+	auto id = u"iv/page.html"_q;
+	if (!page.hash.isEmpty()) {
+		id += '#' + page.hash;
+	}
+	raw->navigateToData(id);
 }
 
 void Controller::processKey(const QString &key, const QString &modifier) {
@@ -487,6 +492,8 @@ void Controller::processLink(const QString &url, const QString &context) {
 			Event::Type::JoinChannel,
 			context.mid(joinPrefix.size()),
 		});
+	} else if (context.isEmpty()) {
+		_events.fire({ Event::Type::OpenLink, url });
 	}
 }
 
