@@ -38,9 +38,11 @@ public:
 			Quit,
 			OpenChannel,
 			JoinChannel,
+			OpenPage,
 			OpenLink,
 		};
 		Type type = Type::Close;
+		QString url;
 		QString context;
 	};
 

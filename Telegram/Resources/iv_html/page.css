@@ -306,7 +306,7 @@ article ol aside {
 article blockquote cite,
 article aside cite,
 article footer cite,
-article .iv-pullquote cite {
+article .pullquote cite {
 	font-family: 'Helvetica Neue';
 	font-size: 15px;
 	display: block;
@@ -385,7 +385,7 @@ article table {
 article table.bordered,
 article table.bordered td,
 article table.bordered th {
-	border: 1px solid var(--td-box-divider-fg);
+	border: 1px solid var(--td-history-to-down-shadow);
 }
 article table.striped tr:nth-child(odd) td {
 	background-color: var(--td-box-divider-bg);
@@ -425,7 +425,7 @@ article details {
 article details:before {
 	content: '';
 	display: block;
-	border-bottom: 1px solid var(--td-box-divider-fg);
+	border-bottom: 1px solid var(--td-history-to-down-shadow);
 	position: absolute;
 	left: 18px;
 	right: 0;
@@ -818,6 +818,7 @@ section.embed-post small {
 	color: var(--td-window-sub-text-fg);
 }
 
+
 section.related {
 	margin: 7px 0 12px;
 }
@@ -842,7 +843,7 @@ section.related a.related-link {
 section.related a.related-link:after {
 	content: '';
 	display: block;
-	border-bottom: 1px solid var(--td-box-divider-fg);
+	border-bottom: 1px solid var(--td-history-to-down-shadow);
 	position: absolute;
 	left: 18px;
 	right: 0;
@@ -975,19 +976,19 @@ section.channel > a > h4 {
 	padding: 7px 18px;
 }
 
-.iv-pullquote {
+.pullquote {
 	text-align: center;
 	max-width: 420px;
 	font-size: 19px;
 	display: block;
 	margin: 0 auto;
 }
-.iv-photo-wrap {
+.photo-wrap {
 	width: 100%;
 	background-size: 100%;
 	margin: 0 auto;
 }
-.iv-photo {
+.photo {
 	background-size: 100%;
 }
 

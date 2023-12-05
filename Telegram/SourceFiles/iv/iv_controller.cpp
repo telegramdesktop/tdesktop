@@ -482,18 +482,25 @@ void Controller::processKey(const QString &key, const QString &modifier) {
 void Controller::processLink(const QString &url, const QString &context) {
 	const auto channelPrefix = u"channel"_q;
 	const auto joinPrefix = u"join_link"_q;
+	const auto webpagePrefix = u"webpage"_q;
 	if (context.startsWith(channelPrefix)) {
 		_events.fire({
-			Event::Type::OpenChannel,
-			context.mid(channelPrefix.size()),
+			.type = Event::Type::OpenChannel,
+			.context = context.mid(channelPrefix.size()),
 		});
 	} else if (context.startsWith(joinPrefix)) {
 		_events.fire({
-			Event::Type::JoinChannel,
-			context.mid(joinPrefix.size()),
+			.type = Event::Type::JoinChannel,
+			.context = context.mid(joinPrefix.size()),
+		});
+	} else if (context.startsWith(webpagePrefix)) {
+		_events.fire({
+			.type = Event::Type::OpenPage,
+			.url = url,
+			.context = context.mid(webpagePrefix.size()),
 		});
 	} else if (context.isEmpty()) {
-		_events.fire({ Event::Type::OpenLink, url });
+		_events.fire({ .type = Event::Type::OpenLink, .url = url });
 	}
 }
 

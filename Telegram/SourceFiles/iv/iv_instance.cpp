@@ -15,12 +15,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_cloud_file.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "info/profile/info_profile_values.h"
 #include "iv/iv_controller.h"
 #include "iv/iv_data.h"
+#include "lottie/lottie_common.h" // Lottie::ReadContent.
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
@@ -97,12 +100,16 @@ private:
 		std::vector<bool> loaded;
 		int64 offset = 0;
 	};
-	struct FileLoad {
+	struct FileStream {
 		not_null<DocumentData*> document;
 		std::unique_ptr<Media::Streaming::Loader> loader;
 		std::vector<PartRequest> requests;
 		std::string mime;
 		rpl::lifetime lifetime;
+	};
+	struct FileLoad {
+		std::shared_ptr<::Data::DocumentMedia> media;
+		std::vector<Webview::DataRequest> requests;
 	};
 
 	void showLocal(Prepared result);
@@ -123,9 +130,9 @@ private:
 	// Windowed.
 	void streamPhoto(PhotoId photoId, Webview::DataRequest request);
 	void streamFile(DocumentId documentId, Webview::DataRequest request);
-	void streamFile(FileLoad &file, Webview::DataRequest request);
+	void streamFile(FileStream &file, Webview::DataRequest request);
 	void processPartInFile(
-		FileLoad &file,
+		FileStream &file,
 		Media::Streaming::LoadedPart &&part);
 	bool finishRequestWithPart(
 		PartRequest &request,
@@ -134,6 +141,9 @@ private:
 	void sendEmbed(QByteArray hash, Webview::DataRequest request);
 
 	void fillChannelJoinedValues(const Prepared &result);
+	void subscribeToDocuments();
+	[[nodiscard]] QByteArray readFile(
+		const std::shared_ptr<::Data::DocumentMedia> &media);
 	void requestDone(
 		Webview::DataRequest request,
 		QByteArray bytes,
@@ -146,6 +156,7 @@ private:
 	std::shared_ptr<Main::SessionShow> _show;
 	QString _id;
 	std::unique_ptr<Controller> _controller;
+	base::flat_map<DocumentId, FileStream> _streams;
 	base::flat_map<DocumentId, FileLoad> _files;
 	base::flat_map<QByteArray, rpl::producer<bool>> _inChannelValues;
 
@@ -157,6 +168,7 @@ private:
 
 	rpl::event_stream<Controller::Event> _events;
 
+	rpl::lifetime _documentLifetime;
 	rpl::lifetime _lifetime;
 
 };
@@ -461,20 +473,37 @@ void Shown::streamFile(
 		Webview::DataRequest request) {
 	using namespace Data;
 
-	const auto i = _files.find(documentId);
-	if (i != end(_files)) {
+	const auto i = _streams.find(documentId);
+	if (i != end(_streams)) {
 		streamFile(i->second, std::move(request));
 		return;
 	}
 	const auto document = _session->data().document(documentId);
 	auto loader = document->createStreamingLoader(FileOrigin(), false);
 	if (!loader) {
-		requestFail(std::move(request));
+		if (document->size >= Storage::kMaxFileInMemory) {
+			requestFail(std::move(request));
+		} else {
+			auto media = document->createMediaView();
+			if (const auto content = readFile(media); !content.isEmpty()) {
+				requestDone(
+					std::move(request),
+					content,
+					document->mimeString().toStdString());
+			} else {
+				subscribeToDocuments();
+				auto &file = _files[documentId];
+				file.media = std::move(media);
+				file.requests.push_back(std::move(request));
+				document->forceToCache(true);
+				document->save(::Data::FileOrigin(), QString());
+			}
+		}
 		return;
 	}
-	auto &file = _files.emplace(
+	auto &file = _streams.emplace(
 		documentId,
-		FileLoad{
+		FileStream{
 			.document = document,
 			.loader = std::move(loader),
 			.mime = document->mimeString().toStdString(),
@@ -482,15 +511,15 @@ void Shown::streamFile(
 
 	file.loader->parts(
 	) | rpl::start_with_next([=](Media::Streaming::LoadedPart &&part) {
-		const auto i = _files.find(documentId);
-		Assert(i != end(_files));
+		const auto i = _streams.find(documentId);
+		Assert(i != end(_streams));
 		processPartInFile(i->second, std::move(part));
 	}, file.lifetime);
 
 	streamFile(file, std::move(request));
 }
 
-void Shown::streamFile(FileLoad &file, Webview::DataRequest request) {
+void Shown::streamFile(FileStream &file, Webview::DataRequest request) {
 	constexpr auto kPart = Media::Streaming::Loader::kPartSize;
 	const auto size = file.document->size;
 	const auto last = int((size + kPart - 1) / kPart);
@@ -519,8 +548,44 @@ void Shown::streamFile(FileLoad &file, Webview::DataRequest request) {
 	}
 }
 
+void Shown::subscribeToDocuments() {
+	if (_documentLifetime) {
+		return;
+	}
+	_documentLifetime = _session->data().documentLoadProgress(
+	) | rpl::filter([=](not_null<DocumentData*> document) {
+		return !document->loading();
+	}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		const auto i = _files.find(document->id);
+		if (i == end(_files)) {
+			return;
+		}
+		auto requests = base::take(i->second.requests);
+		const auto content = readFile(i->second.media);
+		_files.erase(i);
+
+		if (!content.isEmpty()) {
+			for (auto &request : requests) {
+				requestDone(
+					std::move(request),
+					content,
+					document->mimeString().toStdString());
+			}
+		} else {
+			for (auto &request : requests) {
+				requestFail(std::move(request));
+			}
+		}
+	});
+}
+
+QByteArray Shown::readFile(
+		const std::shared_ptr<::Data::DocumentMedia> &media) {
+	return Lottie::ReadContent(media->bytes(), media->owner()->filepath());
+}
+
 void Shown::processPartInFile(
-		FileLoad &file,
+		FileStream &file,
 		Media::Streaming::LoadedPart &&part) {
 	for (auto i = begin(file.requests); i != end(file.requests);) {
 		if (finishRequestWithPart(*i, part)) {
@@ -725,8 +790,26 @@ void Instance::show(
 		case Type::JoinChannel:
 			processJoinChannel(event.context);
 			break;
+		case Type::OpenPage:
 		case Type::OpenLink:
-			UrlClickHandler::Open(event.context);
+			_shownSession->api().request(MTPmessages_GetWebPage(
+				MTP_string(event.url),
+				MTP_int(0)
+			)).done([=](const MTPmessages_WebPage &result) {
+				_shownSession->data().processUsers(result.data().vusers());
+				_shownSession->data().processChats(result.data().vchats());
+				const auto page = _shownSession->data().processWebpage(
+					result.data().vwebpage());
+				if (page && page->iv) {
+					const auto parts = event.url.split('#');
+					const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
+					this->show(show, page->iv.get(), hash);
+				} else {
+					UrlClickHandler::Open(event.url);
+				}
+			}).fail([=] {
+				UrlClickHandler::Open(event.url);
+			}).send();
 			break;
 		}
 	}, _shown->lifetime());

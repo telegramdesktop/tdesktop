@@ -214,11 +214,11 @@ QByteArray Parser::block(const MTPDpageBlockUnsupported &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockTitle &data) {
-	return tag("h1", { { "class", "iv-title" } }, rich(data.vtext()));
+	return tag("h1", { { "class", "title" } }, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockSubtitle &data) {
-	return tag("h2", { { "class", "iv-subtitle" } }, rich(data.vtext()));
+	return tag("h2", { { "class", "subtitle" } }, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockAuthorDate &data) {
@@ -232,11 +232,11 @@ QByteArray Parser::block(const MTPDpageBlockAuthorDate &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockHeader &data) {
-	return tag("h3", { { "class", "iv-header" } }, rich(data.vtext()));
+	return tag("h3", { { "class", "header" } }, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockSubheader &data) {
-	return tag("h4", { { "class", "iv-subheader" } }, rich(data.vtext()));
+	return tag("h4", { { "class", "subheader" } }, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockParagraph &data) {
@@ -255,11 +255,11 @@ QByteArray Parser::block(const MTPDpageBlockPreformatted &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockFooter &data) {
-	return tag("footer", { { "class", "iv-footer" } }, rich(data.vtext()));
+	return tag("footer", { { "class", "footer" } }, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockDivider &data) {
-	return tag("hr", { { "class", "iv-divider" } });
+	return tag("hr", { { "class", "divider" } });
 }
 
 QByteArray Parser::block(const MTPDpageBlockAnchor &data) {
@@ -285,7 +285,7 @@ QByteArray Parser::block(const MTPDpageBlockPullquote &data) {
 		: tag("cite", caption);
 	return tag(
 		"div",
-		{ { "class", "iv-pullquote" } },
+		{ { "class", "pullquote" } },
 		rich(data.vtext()) + cite);
 }
 
@@ -313,11 +313,11 @@ QByteArray Parser::block(const MTPDpageBlockPhoto &data) {
 	const auto style = "background-image:url('" + src + "');"
 		"padding-top:" + QByteArray::number(paddingTopPercent) + "%";
 	const auto inner = tag("div", {
-		{ "class", "iv-photo" },
+		{ "class", "photo" },
 		{ "style", style } });
 	auto result = tag(
 		"div",
-		{ { "class", "iv-photo-wrap" }, { "style", wrapStyle } },
+		{ { "class", "photo-wrap" }, { "style", wrapStyle } },
 		inner);
 	if (const auto url = data.vurl()) {
 		result = tag("a", { { "href", utf(*url) } }, result);
@@ -552,7 +552,7 @@ QByteArray Parser::block(const MTPDpageBlockAudio &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockKicker &data) {
-	return tag("h6", { { "class", "iv-kicker" } }, rich(data.vtext()));
+	return tag("h6", { { "class", "kicker" } }, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockTable &data) {
@@ -599,9 +599,9 @@ QByteArray Parser::block(const MTPDpageBlockRelatedArticles &data) {
 	}
 	auto title = rich(data.vtitle());
 	if (!title.isEmpty()) {
-		title = tag("h4", { { "class", "iv-related-title" } }, title);
+		title = tag("h4", { { "class", "related-title" } }, title);
 	}
-	return tag("section", { { "class", "iv-related" } }, title + result);
+	return tag("section", { { "class", "related" } }, title + result);
 }
 
 QByteArray Parser::block(const MTPDpageBlockMap &data) {
