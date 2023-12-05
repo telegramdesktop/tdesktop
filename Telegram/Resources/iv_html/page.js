@@ -185,11 +185,25 @@ var IV = {
 		button.appendChild(ripple);
 	},
 	stopRipples: function (button) {
+		const id = button.id ? button.id : button;
+		if (IV.frozenRipple === id) {
+			return;
+		}
+		button = document.getElementById(id);
 		const ripples = button.getElementsByClassName('ripple');
 		for (var i = 0; i < ripples.length; ++i) {
 			const ripple = ripples[i];
 			if (!ripple.classList.contains('hiding')) {
 				ripple.classList.add('hiding');
+			}
+		}
+	},
+	clearFrozenRipple: function () {
+		if (IV.frozenRipple) {
+			const button = document.getElementById(IV.frozenRipple);
+			IV.frozenRipple = null;
+			if (button) {
+				IV.stopRipples(button);
 			}
 		}
 	},
@@ -203,7 +217,10 @@ var IV = {
 				IV.addRipple(e.currentTarget, e.clientX, e.clientY);
 			});
 			button.addEventListener('mouseup', function (e) {
-				IV.stopRipples(e.currentTarget);
+				const id = e.currentTarget.id;
+				setTimeout(function () {
+					IV.stopRipples(id);
+				}, 0);
 			});
 			button.addEventListener('mouseleave', function (e) {
 				IV.stopRipples(e.currentTarget);
@@ -226,6 +243,10 @@ var IV = {
 	scrollTo: function (y) {
 		document.getElementById('bottom_up').classList.add('hidden');
 		window.scrollTo({ top: y || 0, behavior: 'smooth' });
+	},
+	menu: function (button) {
+		IV.frozenRipple = button.id;
+		IV.notify({ event: 'menu', hash: IV.hash });
 	}
 };
 

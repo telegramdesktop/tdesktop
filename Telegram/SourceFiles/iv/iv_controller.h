@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/invoke_queued.h"
+#include "base/unique_qptr.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text.h"
 
@@ -21,6 +22,7 @@ class Window;
 namespace Ui {
 class RpWidget;
 class RpWindow;
+class PopupMenu;
 } // namespace Ui
 
 namespace Iv {
@@ -40,6 +42,7 @@ public:
 			JoinChannel,
 			OpenPage,
 			OpenLink,
+			OpenLinkExternal,
 		};
 		Type type = Type::Close;
 		QString url;
@@ -81,12 +84,14 @@ private:
 	void processKey(const QString &key, const QString &modifier);
 	void processLink(const QString &url, const QString &context);
 
+	void menu(const QString &hash);
 	void escape();
 	void close();
 	void quit();
 
 	std::unique_ptr<Ui::RpWindow> _window;
 	std::unique_ptr<Ui::RpWidget> _title;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 	Ui::Text::String _titleText;
 	int _titleLeftSkip = 0;
 	int _titleRightSkip = 0;
@@ -96,6 +101,7 @@ private:
 	rpl::event_stream<Event> _events;
 	base::flat_map<QByteArray, bool> _inChannelChanged;
 	SingleQueuedInvokation _updateStyles;
+	QString _url;
 	bool _subscribedToColors = false;
 	bool _ready = false;
 

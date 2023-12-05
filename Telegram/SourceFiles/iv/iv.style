@@ -98,3 +98,4 @@ ivTitle: WindowTitle(defaultWindowTitle) {
 	};
 }
 ivTitleExpandedHeight: 76px;
+ivMenuPosition: point(-8px, 36px);

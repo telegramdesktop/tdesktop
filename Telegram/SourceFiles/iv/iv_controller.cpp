@@ -13,12 +13,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/rp_window.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
 #include "styles/palette.h"
 #include "styles/style_iv.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -168,7 +171,7 @@ namespace {
 				<path d="M11.5,18.3 L5.27277119,12.0707223 C5.23375754,12.0316493 5.23375754,11.9683507 5.27277119,11.9292777 L11.5,5.7 L11.5,5.7"></path>
 			</svg>
 		</button>
-		<button class="fixed_button" id="top_menu" onclick="IV.menu();">
+		<button class="fixed_button" id="top_menu" onclick="IV.menu(this);">
 			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 				<circle cx="12" cy="17.4" r="1.7"></circle>
 				<circle cx="12" cy="12" r="1.7"></circle>
@@ -346,6 +349,7 @@ void Controller::showInWindow(
 	Expects(_container != nullptr);
 
 	const auto window = _window.get();
+	_url = page.url;
 	_webview = std::make_unique<Webview::Window>(
 		_container,
 		Webview::WindowConfig{
@@ -410,6 +414,8 @@ void Controller::showInWindow(
 				if (!script.isEmpty()) {
 					_webview->eval(script);
 				}
+			} else if (event == u"menu"_q) {
+				menu(object.value("hash").toString());
 			}
 		});
 	});
@@ -522,6 +528,38 @@ void Controller::minimize() {
 		_window->setWindowState(_window->windowState()
 			| Qt::WindowMinimized);
 	}
+}
+
+void Controller::menu(const QString &hash) {
+	if (!_webview || _menu) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		_window.get(),
+		st::popupMenuWithIcons);
+	_menu->setDestroyedCallback(crl::guard(_window.get(), [
+			this,
+			menu = _menu.get()] {
+		if (_webview) {
+			_webview->eval("IV.clearFrozenRipple();");
+		}
+	}));
+
+	const auto url = _url + (hash.isEmpty() ? u""_q : ('#' + hash));
+	const auto openInBrowser = crl::guard(_window.get(), [=] {
+		_events.fire({ .type = Event::Type::OpenLinkExternal, .url = url });
+	});
+	_menu->addAction(
+		tr::lng_iv_open_in_browser(tr::now),
+		openInBrowser,
+		&st::menuIconIpAddress);
+
+	_menu->addAction(tr::lng_iv_share(tr::now), [=] {
+	}, &st::menuIconShare);
+
+	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+	_menu->popup(_window->body()->mapToGlobal(
+		QPoint(_window->body()->width(), 0) + st::ivMenuPosition));
 }
 
 void Controller::escape() {

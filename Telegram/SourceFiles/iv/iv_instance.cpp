@@ -39,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_session_controller_link_info.h"
 
+#include <QtGui/QDesktopServices>
+
 namespace Iv {
 namespace {
 
@@ -186,6 +188,7 @@ Shown::Shown(
 	data->prepare({ .saveToFolder = base }, [=](Prepared result) {
 		result.hash = hash;
 		crl::on_main(weak, [=, result = std::move(result)]() mutable {
+			result.url = _id;
 			_embeds = std::move(result.embeds);
 			fillChannelJoinedValues(result);
 			if (!base.isEmpty()) {
@@ -789,6 +792,9 @@ void Instance::show(
 			break;
 		case Type::JoinChannel:
 			processJoinChannel(event.context);
+			break;
+		case Type::OpenLinkExternal:
+			QDesktopServices::openUrl(event.url);
 			break;
 		case Type::OpenPage:
 		case Type::OpenLink:

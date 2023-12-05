@@ -4866,6 +4866,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_contact_add" = "Add";
 "lng_contact_send_message" = "message";
 
+"lng_iv_open_in_browser" = "Open in Browser";
+"lng_iv_share" = "Share";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";
