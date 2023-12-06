@@ -23,9 +23,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_dialogs.h" // dialogsStoriesFull.
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 #include "styles/style_window.h"
@@ -274,6 +276,9 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override;
 
 private:
 	void appendRow(not_null<PeerData*> peer, Data::RecentPostId contextId);
@@ -337,6 +342,29 @@ void PublicForwardsController::applySlice(
 void PublicForwardsController::rowClicked(not_null<PeerListRow*> row) {
 	const auto rowWithId = static_cast<PeerListRowWithFullId*>(row.get());
 	crl::on_main([=, id = rowWithId->contextId()] { _requestShow(id); });
+}
+
+base::unique_qptr<Ui::PopupMenu> PublicForwardsController::rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) {
+	auto menu = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
+	const auto peer = row->peer();
+	const auto text = (peer->isChat() || peer->isMegagroup())
+		? tr::lng_context_view_group(tr::now)
+		: peer->isUser()
+		? tr::lng_context_view_profile(tr::now)
+		: peer->isChannel()
+		? tr::lng_context_view_channel(tr::now)
+		: QString();
+	if (text.isEmpty()) {
+		return nullptr;
+	}
+	menu->addAction(text, crl::guard(parent, [=, peerId = peer->id] {
+		_requestShow({ .messageId = { peerId, MsgId() } });
+	}), peer->isUser() ? &st::menuIconProfile : &st::menuIconInfo);
+	return menu;
 }
 
 void PublicForwardsController::appendRow(

@@ -730,6 +730,9 @@ void InnerWidget::fill() {
 			inner,
 			[=](RecentPostId id) {
 				_showRequests.fire({
+					.info = (!id.messageId && !id.storyId)
+						? id.messageId.peer
+						: PeerId(0),
 					.history = id.messageId,
 					.story = id.storyId,
 				});
