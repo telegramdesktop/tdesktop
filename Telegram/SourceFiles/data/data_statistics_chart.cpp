@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_statistics_chart.h"
 
 #include "statistics/statistics_format_values.h"
+#include "styles/style_basic.h"
+#include "styles/style_statistics.h"
 
 #include <QtCore/QDateTime>
 #include <QtCore/QLocale>
@@ -46,6 +48,11 @@ void StatisticalChart::measure() {
 	const auto dateCount = int((end - start) / timeStep) + 10;
 	daysLookup.reserve(dateCount);
 	constexpr auto kOneDay = 3600 * 24 * 1000;
+
+	// View data.
+	auto maxWidth = 0;
+	const auto &defaultFont = st::statisticsDetailsBottomCaptionStyle.font;
+
 	for (auto i = 0; i < dateCount; i++) {
 		const auto r = (start + (i * timeStep)) / 1000;
 		if (timeStep == 1) {
@@ -59,7 +66,9 @@ void StatisticalChart::measure() {
 		} else {
 			daysLookup.push_back(Statistic::LangDayMonth(r));
 		}
+		maxWidth = std::max(maxWidth, defaultFont->width(daysLookup.back()));
 	}
+	dayStringMaxWidth = maxWidth;
 
 	oneDayPercentage = timeStep / float64(end - start);
 }

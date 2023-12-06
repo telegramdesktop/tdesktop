@@ -37,8 +37,6 @@ statisticsChartRulerCaptionSkip: 4px;
 statisticsChartBottomCaptionHeight: 15px;
 statisticsChartBottomCaptionSkip: 6px;
 
-statisticsChartBottomCaptionMaxWidth: 44px;
-
 statisticsChartFlatCheckboxMargins: margins(4px, 3px, 4px, 5px);
 statisticsChartFlatCheckboxCheckWidth: 3px;
 statisticsChartFlatCheckboxShrinkkWidth: 4px;

@@ -66,6 +66,9 @@ struct StatisticalChart {
 	bool hasPercentages = false;
 	bool weekFormat = false;
 
+	// View data.
+	int dayStringMaxWidth = 0;
+
 };
 
 struct StatisticalGraph final {
