@@ -52,6 +52,112 @@ QString PrepareStoryFileName(
 		+ extension;
 }
 
+std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
+		const MTPDreplyInlineMarkup &data) {
+	const auto &list = data.vrows().v;
+
+	if (list.isEmpty()) {
+		return {};
+	}
+	using Type = HistoryMessageMarkupButton::Type;
+	auto rows = std::vector<std::vector<HistoryMessageMarkupButton>>();
+	rows.reserve(list.size());
+
+	for (const auto &tlRow : list) {
+		auto row = std::vector<HistoryMessageMarkupButton>();
+		row.reserve(tlRow.data().vbuttons().v.size());
+		for (const auto &button : tlRow.data().vbuttons().v) {
+			button.match([&](const MTPDkeyboardButton &data) {
+				row.push_back({ Type::Default, qs(data.vtext()) });
+			}, [&](const MTPDkeyboardButtonCallback &data) {
+				row.push_back({
+					(data.is_requires_password()
+						? Type::CallbackWithPassword
+						: Type::Callback),
+					qs(data.vtext()),
+					qba(data.vdata())
+				});
+			}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {
+				row.push_back({ Type::RequestLocation, qs(data.vtext()) });
+			}, [&](const MTPDkeyboardButtonRequestPhone &data) {
+				row.push_back({ Type::RequestPhone, qs(data.vtext()) });
+			}, [&](const MTPDkeyboardButtonRequestPeer &data) {
+				row.push_back({
+					Type::RequestPeer,
+					qs(data.vtext()),
+					QByteArray("unsupported"),
+					QString(),
+					int64(data.vbutton_id().v),
+				});
+			}, [&](const MTPDkeyboardButtonUrl &data) {
+				row.push_back({
+					Type::Url,
+					qs(data.vtext()),
+					qba(data.vurl())
+				});
+			}, [&](const MTPDkeyboardButtonSwitchInline &data) {
+				const auto type = data.is_same_peer()
+					? Type::SwitchInlineSame
+					: Type::SwitchInline;
+				row.push_back({ type, qs(data.vtext()), qba(data.vquery()) });
+			}, [&](const MTPDkeyboardButtonGame &data) {
+				row.push_back({ Type::Game, qs(data.vtext()) });
+			}, [&](const MTPDkeyboardButtonBuy &data) {
+				row.push_back({ Type::Buy, qs(data.vtext()) });
+			}, [&](const MTPDkeyboardButtonUrlAuth &data) {
+				row.push_back({
+					Type::Auth,
+					qs(data.vtext()),
+					qba(data.vurl()),
+					qs(data.vfwd_text().value_or_empty()),
+					data.vbutton_id().v,
+				});
+			}, [&](const MTPDkeyboardButtonRequestPoll &data) {
+				const auto quiz = [&] {
+					if (!data.vquiz()) {
+						return QByteArray();
+					}
+					return data.vquiz()->match([&](const MTPDboolTrue&) {
+						return QByteArray(1, 1);
+					}, [&](const MTPDboolFalse&) {
+						return QByteArray(1, 0);
+					});
+				}();
+				row.push_back({
+					Type::RequestPoll,
+					qs(data.vtext()),
+					quiz
+				});
+			}, [&](const MTPDkeyboardButtonUserProfile &data) {
+				row.push_back({
+					Type::UserProfile,
+					qs(data.vtext()),
+					QByteArray::number(data.vuser_id().v)
+				});
+			}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
+			}, [&](const MTPDinputKeyboardButtonUserProfile &data) {
+			}, [&](const MTPDkeyboardButtonWebView &data) {
+				row.push_back({
+					Type::WebView,
+					qs(data.vtext()),
+					data.vurl().v
+				});
+			}, [&](const MTPDkeyboardButtonSimpleWebView &data) {
+				row.push_back({
+					Type::SimpleWebView,
+					qs(data.vtext()),
+					data.vurl().v
+				});
+			});
+		}
+		if (!row.empty()) {
+			rows.push_back(std::move(row));
+		}
+	}
+
+	return rows;
+}
+
 } // namespace
 
 uint8 PeerColorIndex(BareId bareId) {
@@ -1495,6 +1601,14 @@ Message ParseMessage(
 				result.media.thumb().file = File();
 			}
 			context.botId = 0;
+		}
+		if (const auto replyMarkup = data.vreply_markup()) {
+			replyMarkup->match([](const MTPDreplyKeyboardMarkup &) {
+			}, [&](const MTPDreplyInlineMarkup &data) {
+				result.inlineButtonRows = ButtonRowsFromTL(data);
+			}, [](const MTPDreplyKeyboardHide &) {
+			}, [](const MTPDreplyKeyboardForceReply &) {
+			});
 		}
 		result.text = ParseText(
 			data.vmessage(),

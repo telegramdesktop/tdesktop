@@ -665,6 +665,33 @@ inline bool operator>=(MessageId a, MessageId b) {
 	return !(a < b);
 }
 
+struct HistoryMessageMarkupButton {
+	enum class Type {
+		Default,
+		Url,
+		Callback,
+		CallbackWithPassword,
+		RequestPhone,
+		RequestLocation,
+		RequestPoll,
+		RequestPeer,
+		SwitchInline,
+		SwitchInlineSame,
+		Game,
+		Buy,
+		Auth,
+		UserProfile,
+		WebView,
+		SimpleWebView,
+	};
+
+	Type type;
+	QString text;
+	QByteArray data;
+	QString forwardText;
+	int64 buttonId = 0;
+};
+
 struct Message {
 	int32 id = 0;
 	TimeId date = 0;
@@ -686,6 +713,7 @@ struct Message {
 	Media media;
 	ServiceAction action;
 	bool out = false;
+	std::vector<std::vector<HistoryMessageMarkupButton>> inlineButtonRows;
 
 	File &file();
 	const File &file() const;
