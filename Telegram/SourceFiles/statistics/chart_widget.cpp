@@ -970,7 +970,7 @@ void ChartWidget::setupChartArea() {
 			[[maybe_unused]] const auto o = ScopedPainterOpacity(
 				p,
 				p.opacity() * kRulerLineAlpha);
-			const auto bottom = r
+			const auto bottom = rect()
 				- QMargins{ 0, rect::bottom(chartRect), 0, 0 };
 			p.fillRect(bottom, st::boxBg);
 			p.fillRect(
