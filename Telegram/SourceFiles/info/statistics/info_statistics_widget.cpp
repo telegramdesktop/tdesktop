@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/statistics/info_statistics_widget.h"
 
-#include "info/statistics/info_statistics_inner_widget.h"
+#include "data/data_session.h"
+#include "data/data_stories.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "info/statistics/info_statistics_inner_widget.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 
 namespace Info::Statistics {
 
@@ -78,6 +81,13 @@ Widget::Widget(
 				controller->statisticsPeer(),
 				request.messageStatistic,
 				request.storyStatistic));
+		} else if (const auto &s = request.story) {
+			if (const auto peer = controller->session().data().peer(s.peer)) {
+				controller->parentController()->openPeerStory(
+					peer,
+					s.story,
+					{ Data::StoriesContextSingle() });
+			}
 		}
 	}, _inner->lifetime());
 	_inner->scrollToRequests(

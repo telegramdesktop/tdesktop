@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
+#include "data/data_story.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "statistics/statistics_data_deserialize.h"
@@ -475,9 +477,10 @@ void PublicForwards::requestStory(
 		_requestId = 0;
 
 		const auto &data = tlForwards.data();
+		auto &owner = channel->owner();
 
-		channel->owner().processUsers(data.vusers());
-		channel->owner().processChats(data.vchats());
+		owner.processUsers(data.vusers());
+		owner.processChats(data.vchats());
 
 		const auto nextToken = Data::PublicForwardsSlice::OffsetToken({
 			.storyOffset = data.vnext_offset().value_or_empty(),
@@ -494,23 +497,23 @@ void PublicForwards::requestStory(
 				const auto msgId = IdFromMessage(message);
 				const auto peerId = PeerFromMessage(message);
 				const auto lastDate = DateFromMessage(message);
-				if (const auto peer = channel->owner().peerLoaded(peerId)) {
+				if (const auto peer = owner.peerLoaded(peerId)) {
 					if (!lastDate) {
 						return;
 					}
-					channel->owner().addNewMessage(
+					owner.addNewMessage(
 						message,
 						MessageFlags(),
 						NewMessageType::Existing);
 					recentList.push_back({ .messageId = { peerId, msgId } });
 				}
 			}, [&](const MTPDpublicForwardStory &data) {
-				data.vstory().match([&](const MTPDstoryItem &d) {
-					recentList.push_back({
-						.storyId = { peerFromMTP(data.vpeer()), d.vid().v }
-					});
-				}, [](const auto &) {
-				});
+				const auto story = owner.stories().applyFromWebpage(
+					peerFromMTP(data.vpeer()),
+					data.vstory());
+				if (story) {
+					recentList.push_back({ .storyId = story->fullId() });
+				}
 			});
 		}
 

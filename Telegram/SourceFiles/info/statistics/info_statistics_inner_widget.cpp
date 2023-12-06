@@ -728,7 +728,12 @@ void InnerWidget::fill() {
 		AddPublicForwards(
 			_state.publicForwardsFirstSlice,
 			inner,
-			[=](FullMsgId id) { _showRequests.fire({ .history = id }); },
+			[=](RecentPostId id) {
+				_showRequests.fire({
+					.history = id.messageId,
+					.story = id.storyId,
+				});
+			},
 			descriptor.peer,
 			RecentPostId{ .messageId = _contextId, .storyId = _storyId });
 	}
