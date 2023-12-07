@@ -744,7 +744,7 @@ QByteArray Parser::block(const MTPDpageBlockAudio &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockKicker &data) {
-	return tag("h6", { { "class", "kicker" } }, rich(data.vtext()));
+	return tag("h5", { { "class", "kicker" } }, rich(data.vtext()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockTable &data) {

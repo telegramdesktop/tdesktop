@@ -18,6 +18,7 @@ struct Options {
 struct Prepared {
 	QString title;
 	QByteArray content;
+	QByteArray script;
 	QString url;
 	QString hash;
 	std::vector<QByteArray> resources;

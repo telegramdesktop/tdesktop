@@ -50,6 +50,7 @@ public:
 		QString context;
 	};
 
+	[[nodiscard]] bool showFast(const QString &url, const QString &hash);
 	void show(
 		const QString &dataPath,
 		Prepared page,
@@ -70,12 +71,12 @@ public:
 
 private:
 	void createWindow();
+	void createWebview(const QString &dataPath);
+	[[nodiscard]] QByteArray navigateScript(int index, const QString &hash);
+
 	void updateTitleGeometry();
 	void paintTitle(Painter &p, QRect clip);
-	void showInWindow(
-		const QString &dataPath,
-		Prepared page,
-		const QByteArray &initScript);
+	void showInWindow(const QString &dataPath, Prepared page);
 	[[nodiscard]] QByteArray fillInChannelValuesScript(
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues);
 	[[nodiscard]] QByteArray toggleInChannelScript(
@@ -85,7 +86,7 @@ private:
 	void processKey(const QString &key, const QString &modifier);
 	void processLink(const QString &url, const QString &context);
 
-	void menu(const QString &hash);
+	void menu(int index, const QString &hash);
 	void escape();
 	void close();
 	void quit();
@@ -101,10 +102,15 @@ private:
 	rpl::event_stream<Webview::DataRequest> _dataRequests;
 	rpl::event_stream<Event> _events;
 	base::flat_map<QByteArray, bool> _inChannelChanged;
+	base::flat_set<QByteArray> _inChannelSubscribed;
 	SingleQueuedInvokation _updateStyles;
-	QString _url;
 	bool _subscribedToColors = false;
 	bool _ready = false;
+
+	std::vector<Prepared> _pages;
+	base::flat_map<QString, int> _indices;
+	QString _navigateToHashWhenReady;
+	int _navigateToIndexWhenReady = -1;
 
 	rpl::lifetime _lifetime;
 

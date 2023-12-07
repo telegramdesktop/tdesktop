@@ -35,19 +35,30 @@ var IV = {
 				context: context,
 			});
 		} else if (target.hash.length < 2) {
-			IV.hash = '';
-			IV.scrollTo(0);
+			IV.jumpToHash('');
 		} else {
-			const name = target.hash.substr(1);
-			IV.hash = name;
-
-			const element = document.getElementsByName(name)[0];
-			if (element) {
-				const y = element.getBoundingClientRect().y;
-				IV.scrollTo(y + document.documentElement.scrollTop);
-			}
+			IV.jumpToHash(target.hash.substr(1));
 		}
 		e.preventDefault();
+	},
+	jumpToHash: function (hash, instant) {
+		var current = IV.computeCurrentState();
+		current.hash = hash;
+		window.history.replaceState(current, '');
+		if (hash == '') {
+			IV.scrollTo(0, instant);
+			return;
+		}
+
+		var element = document.getElementsByName(hash)[0];
+		if (element) {
+			var y = 0;
+			while (element && !element.classList.contains('page-scroll')) {
+				y += element.offsetTop;
+				element = element.offsetParent;
+			}
+			IV.scrollTo(y, instant);
+		}
 	},
 	frameKeyDown: function (e) {
 		const keyW = (e.key === 'w')
@@ -210,7 +221,7 @@ var IV = {
 		}
 	},
 	init: function () {
-		IV.hash = window.location.hash.substr(1);
+		window.history.replaceState(IV.computeCurrentState(), '');
 
 		const buttons = document.getElementsByClassName('fixed_button');
 		for (let i = 0; i < buttons.length; ++i) {
@@ -228,6 +239,10 @@ var IV = {
 				IV.stopRipples(e.currentTarget);
 			});
 		}
+		IV.initMedia();
+		IV.notify({ event: 'ready' });
+	},
+	initMedia: function () {
 		const photos = document.getElementsByClassName('photo');
 		for (let i = 0; i < photos.length; ++i) {
 			const photo = photos[i];
@@ -258,7 +273,6 @@ var IV = {
 				video.classList.add('loaded');
 			});
 		}
-		IV.notify({ event: 'ready' });
 	},
 	showTooltip: function (text) {
 		var toast = document.createElement('div');
@@ -272,14 +286,163 @@ var IV = {
 			document.body.removeChild(toast);
 		}, 3000);
 	},
-	scrollTo: function (y) {
+	scrollTo: function (y, instant) {
 		document.getElementById('bottom_up').classList.add('hidden');
-		window.scrollTo({ top: y || 0, behavior: 'smooth' });
+		IV.findPageScroll().scrollTo({
+			top: y || 0,
+			behavior: instant ? 'instant' : 'smooth'
+		});
 	},
 	menu: function (button) {
 		IV.frozenRipple = button.id;
-		IV.notify({ event: 'menu', hash: IV.hash });
-	}
+		const state = this.computeCurrentState();
+		IV.notify({ event: 'menu', index: state.index, hash: state.hash });
+	},
+
+	computeCurrentState: function () {
+		var now = IV.findPageScroll();
+		return {
+			position: IV.position,
+			index: IV.index,
+			hash: ((!window.history.state
+				|| window.history.state.hash === undefined)
+				? window.location.hash.substr(1)
+				: window.history.state.hash),
+			scroll: now ? now.scrollTop : 0
+		};
+	},
+	navigateTo: function (index, hash) {
+		if (!index && !IV.index) {
+			IV.navigateToDOM(IV.index, hash);
+			return;
+		}
+		IV.pending = [index, hash];
+		if (!IV.cache[index]) {
+			IV.cache[index] = { loading: true };
+
+			let xhr = new XMLHttpRequest();
+			xhr.onload = function () {
+				IV.cache[index].loading = false;
+				IV.cache[index].content = xhr.responseText;
+				if (IV.pending && IV.pending[0] == index) {
+					IV.navigateToLoaded(index, IV.pending[1]);
+				}
+			}
+
+			xhr.open('GET', 'page' + index + '.json');
+			xhr.send();
+		} else if (IV.cache[index].dom) {
+			IV.navigateToDOM(index, hash);
+		} else if (IV.cache[index].content) {
+			IV.navigateToLoaded(index, hash);
+		}
+	},
+
+	navigateToLoaded: function (index, hash) {
+		if (IV.cache[index].dom) {
+			IV.navigateToDOM(index, hash);
+		} else {
+			var data = JSON.parse(IV.cache[index].content);
+			var el = document.createElement('div');
+			el.className = 'page-scroll';
+			el.innerHTML = '<div class="page-slide"><article>'
+				+ data.html
+				+ '</article></div>';
+			IV.cache[index].dom = el;
+
+			IV.navigateToDOM(index, hash);
+			eval(data.js);
+		}
+	},
+	navigateToDOM: function (index, hash) {
+		IV.pending = null;
+		if (IV.index == index) {
+			IV.jumpToHash(hash);
+			return;
+		}
+		window.history.replaceState(IV.computeCurrentState(), '');
+
+		IV.position = IV.position + 1;
+		window.history.pushState(
+			{ position: IV.position, index: index, hash: hash },
+			'',
+			'page' + index + '.html' + (hash.length ? '#' + hash : ''));
+		IV.showDOM(index, hash);
+	},
+	findPageScroll: function () {
+		var all = document.getElementsByClassName('page-scroll');
+		for (i = 0; i < all.length; ++i) {
+			if (!all[i].classList.contains('hidden-left')
+				&& !all[i].classList.contains('hidden-right')) {
+				return all[i];
+			}
+		}
+		return null;
+	},
+	showDOM: function (index, hash, scroll) {
+		IV.pending = null;
+		if (IV.index != index) {
+			var initial = !window.history.state
+				|| window.history.state.position === undefined;
+			var back = initial
+				|| IV.position > window.history.state.position;
+			IV.position = initial ? 0 : window.history.state.position;
+
+			var now = IV.cache[index].dom;
+			var was = IV.findPageScroll();
+			if (!IV.cache[IV.index]) {
+				IV.cache[IV.index] = {};
+			}
+			IV.cache[IV.index].dom = was;
+			was.parentNode.appendChild(now);
+			if (scroll !== undefined) {
+				now.scrollTop = scroll;
+			}
+
+			now.classList.add(back ? 'hidden-left' : 'hidden-right');
+			now.classList.remove(back ? 'hidden-right' : 'hidden-left');
+			now.firstChild.getAnimations().forEach(
+				(animation) => animation.finish());
+
+			if (!was.listening) {
+				was.listening = true;
+				was.firstChild.addEventListener('transitionend', function (e) {
+					if (was.classList.contains('hidden-left')
+						|| was.classList.contains('hidden-right')) {
+						if (was.parentNode) {
+							was.parentNode.removeChild(was);
+						}
+					}
+				});
+			}
+
+			was.classList.add(back ? 'hidden-right' : 'hidden-left');
+			now.classList.remove(back ? 'hidden-left' : 'hidden-right');
+
+			var topBack = document.getElementById('top_back');
+			if (!IV.position) {
+				topBack.classList.add('hidden');
+			} else {
+				topBack.classList.remove('hidden');
+			}
+			IV.index = index;
+			IV.initMedia();
+			if (scroll === undefined) {
+				IV.jumpToHash(hash, true);
+			}
+		} else if (scroll !== undefined) {
+			IV.scrollTo(scroll);
+		} else {
+			IV.jumpToHash(hash);
+		}
+	},
+	back: function () {
+        window.history.back();
+	},
+
+	cache: {},
+	index: 0,
+	position: 0
 };
 
 document.onclick = IV.frameClickHandler;
@@ -288,3 +451,9 @@ document.onmouseenter = IV.frameMouseEnter;
 document.onmouseup = IV.frameMouseUp;
 document.onscroll = IV.frameScrolled;
 window.onmessage = IV.postMessageHandler;
+
+window.addEventListener('popstate', function (e) {
+	if (e.state) {
+		IV.showDOM(e.state.index, e.state.hash, e.state.scroll);
+	}
+});

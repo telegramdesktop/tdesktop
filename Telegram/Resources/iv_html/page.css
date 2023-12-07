@@ -128,9 +128,33 @@ html.custom_scroll ::-webkit-scrollbar-thumb:hover {
 	bottom: -36px;
 }
 
+.page-scroll {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+.page-slide {
+	position: relative;
+	width: 100%;
+	margin-left: 0%;
+	transition: margin 240ms ease-in-out;
+}
+.hidden-left,
+.hidden-right {
+	pointer-events: none;
+}
+.hidden-left .page-slide {
+	margin-left: -100%;
+}
+.hidden-right .page-slide {
+	margin-left: 100%;
+}
 article {
 	padding-bottom: 12px;
-	overflow: hidden;
+	overflow-y: hidden;
+	overflow-x: auto;
 	white-space: pre-wrap;
 	max-width: 732px;
 	margin: 0 auto;
@@ -149,6 +173,9 @@ article h2 {
 	line-height: 30px;
 	margin: -6px 18px 12px;
 	color: var(--td-window-sub-text-fg);
+}
+article h5 {
+	margin: 21px 18px 12px;
 }
 article address {
 	font-size: 15px;

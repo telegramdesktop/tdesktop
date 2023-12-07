@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonValue>
 #include <QtCore/QFile>
 #include <QtGui/QPainter>
+#include <charconv>
 
 namespace Iv {
 namespace {
@@ -130,9 +131,7 @@ namespace {
 		.replace('\'', "\\\'");
 }
 
-[[nodiscard]] QByteArray WrapPage(
-		const Prepared &page,
-		const QByteArray &initScript) {
+[[nodiscard]] QByteArray WrapPage(const Prepared &page) {
 #ifdef Q_OS_MAC
 	const auto classAttribute = ""_q;
 #else // Q_OS_MAC
@@ -143,7 +142,7 @@ namespace {
 		+ (page.hasCode ? "IV.initPreBlocks();" : "")
 		+ (page.hasEmbeds ? "IV.initEmbedBlocks();" : "")
 		+ "IV.init();"
-		+ initScript;
+		+ page.script;
 
 	const auto contentAttributes = page.rtl
 		? " dir=\"rtl\" class=\"rtl\""_q
@@ -183,7 +182,9 @@ namespace {
 				<path d="M14.9972363,18 L9.13865768,12.1414214 C9.06055283,12.0633165 9.06055283,11.9366835 9.13865768,11.8585786 L14.9972363,6 L14.9972363,6" transform="translate(11.997236, 12.000000) scale(-1, -1) rotate(-90.000000) translate(-11.997236, -12.000000) "></path>
 			</svg>
 		</button>
-		<article)"_q + contentAttributes + ">"_q + page.content + R"(</article>
+		<div class="page-scroll"><div class="page-slide">
+			<article)"_q + contentAttributes + ">"_q + page.content + R"(</article>
+		</div></div>
 		<script>)"_q + js + R"(</script>
 	</body>
 </html>
@@ -199,28 +200,29 @@ Controller::Controller()
 		_webview->eval("IV.updateStyles('" + str + "');");
 	}
 }) {
+	createWindow();
 }
 
 Controller::~Controller() {
+	_window->hide();
 	_ready = false;
 	_webview = nullptr;
 	_title = nullptr;
 	_window = nullptr;
 }
 
+bool Controller::showFast(const QString &url, const QString &hash) {
+	return false;
+}
+
 void Controller::show(
 		const QString &dataPath,
 		Prepared page,
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues) {
-	createWindow();
-	const auto js = fillInChannelValuesScript(std::move(inChannelValues));
-
+	page.script = fillInChannelValuesScript(std::move(inChannelValues));
 	_titleText.setText(st::ivTitle.style, page.title);
 	InvokeQueued(_container, [=, page = std::move(page)]() mutable {
-		showInWindow(dataPath, std::move(page), js);
-		if (!_webview) {
-			return;
-		}
+		showInWindow(dataPath, std::move(page));
 	});
 }
 
@@ -228,13 +230,15 @@ QByteArray Controller::fillInChannelValuesScript(
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues) {
 	auto result = QByteArray();
 	for (auto &[id, in] : inChannelValues) {
-		std::move(in) | rpl::start_with_next([=](bool in) {
-			if (_ready) {
-				_webview->eval(toggleInChannelScript(id, in));
-			} else {
-				_inChannelChanged[id] = in;
-			}
-		}, _lifetime);
+		if (_inChannelSubscribed.emplace(id).second) {
+			std::move(in) | rpl::start_with_next([=](bool in) {
+				if (_ready) {
+					_webview->eval(toggleInChannelScript(id, in));
+				} else {
+					_inChannelChanged[id] = in;
+				}
+			}, _lifetime);
+		}
 	}
 	for (const auto &[id, in] : base::take(_inChannelChanged)) {
 		result += toggleInChannelScript(id, in);
@@ -342,14 +346,10 @@ void Controller::createWindow() {
 	window->show();
 }
 
-void Controller::showInWindow(
-		const QString &dataPath,
-		Prepared page,
-		const QByteArray &initScript) {
-	Expects(_container != nullptr);
+void Controller::createWebview(const QString &dataPath) {
+	Expects(!_webview);
 
 	const auto window = _window.get();
-	_url = page.url;
 	_webview = std::make_unique<Webview::Window>(
 		_container,
 		Webview::WindowConfig{
@@ -362,10 +362,7 @@ void Controller::showInWindow(
 		_ready = false;
 		_webview = nullptr;
 	});
-	if (!raw->widget()) {
-		_events.fire({ Event::Type::Close });
-		return;
-	}
+
 	window->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close) {
@@ -411,11 +408,18 @@ void Controller::showInWindow(
 				for (const auto &[id, in] : base::take(_inChannelChanged)) {
 					script += toggleInChannelScript(id, in);
 				}
+				if (_navigateToIndexWhenReady >= 0) {
+					script += navigateScript(
+						std::exchange(_navigateToIndexWhenReady, -1),
+						base::take(_navigateToHashWhenReady));
+				}
 				if (!script.isEmpty()) {
 					_webview->eval(script);
 				}
 			} else if (event == u"menu"_q) {
-				menu(object.value("hash").toString());
+				menu(
+					object.value("index").toInt(),
+					object.value("hash").toString());
 			}
 		});
 	});
@@ -433,7 +437,7 @@ void Controller::showInWindow(
 			return Webview::DataResult::Done;
 		};
 		const auto id = std::string_view(request.id).substr(3);
-		if (id == "page.html") {
+		if (id.starts_with("page") && id.ends_with(".html")) {
 			if (!_subscribedToColors) {
 				_subscribedToColors = true;
 
@@ -444,7 +448,33 @@ void Controller::showInWindow(
 					_updateStyles.call();
 				}, _webview->lifetime());
 			}
-			return finishWith(WrapPage(page, initScript), "text/html");
+			auto index = 0;
+			const auto result = std::from_chars(
+				id.data() + 4,
+				id.data() + id.size() - 5,
+				index);
+			if (result.ec != std::errc()
+				|| index < 0
+				|| index >= _pages.size()) {
+				return Webview::DataResult::Failed;
+			}
+			return finishWith(WrapPage(_pages[index]), "text/html");
+		} else if (id.starts_with("page") && id.ends_with(".json")) {
+			auto index = 0;
+			const auto result = std::from_chars(
+				id.data() + 4,
+				id.data() + id.size() - 5,
+				index);
+			if (result.ec != std::errc()
+				|| index < 0
+				|| index >= _pages.size()) {
+				return Webview::DataResult::Failed;
+			}
+			auto &page = _pages[index];
+			return finishWith(QJsonDocument(QJsonObject{
+				{ "html", QJsonValue(QString::fromUtf8(page.content)) },
+				{ "js", QJsonValue(QString::fromUtf8(page.script)) },
+			}).toJson(QJsonDocument::Compact), "application/json");
 		}
 		const auto css = id.ends_with(".css");
 		const auto js = !css && id.ends_with(".js");
@@ -464,12 +494,48 @@ void Controller::showInWindow(
 	});
 
 	raw->init(R"()");
+}
 
-	auto id = u"iv/page.html"_q;
-	if (!page.hash.isEmpty()) {
-		id += '#' + page.hash;
+void Controller::showInWindow(const QString &dataPath, Prepared page) {
+	Expects(_container != nullptr);
+
+	const auto url = page.url;
+	const auto hash = page.hash;
+	auto i = _indices.find(url);
+	if (i == end(_indices)) {
+		_pages.push_back(std::move(page));
+		i = _indices.emplace(url, int(_pages.size() - 1)).first;
 	}
-	raw->navigateToData(id);
+	const auto index = i->second;
+	if (!_webview) {
+		createWebview(dataPath);
+		if (_webview && _webview->widget()) {
+			auto id = u"iv/page%1.html"_q.arg(index);
+			if (!hash.isEmpty()) {
+				id += '#' + hash;
+			}
+			_webview->navigateToData(id);
+		} else {
+			_events.fire({ Event::Type::Close });
+		}
+	} else if (_ready) {
+		_webview->eval(navigateScript(index, hash));
+		_window->activateWindow();
+		_window->setFocus();
+	} else {
+		_navigateToIndexWhenReady = index;
+		_navigateToHashWhenReady = hash;
+		_window->activateWindow();
+		_window->setFocus();
+	}
+}
+
+QByteArray Controller::navigateScript(int index, const QString &hash) {
+	return "IV.navigateTo("
+		+ QByteArray::number(index)
+		+ ", '"
+		+ EscapeForScriptString(hash.toUtf8())
+		+ "');";
 }
 
 void Controller::processKey(const QString &key, const QString &modifier) {
@@ -537,8 +603,8 @@ void Controller::minimize() {
 	}
 }
 
-void Controller::menu(const QString &hash) {
-	if (!_webview || _menu) {
+void Controller::menu(int index, const QString &hash) {
+	if (!_webview || _menu || index < 0 || index > _pages.size()) {
 		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
@@ -552,7 +618,8 @@ void Controller::menu(const QString &hash) {
 		}
 	}));
 
-	const auto url = _url + (hash.isEmpty() ? u""_q : ('#' + hash));
+	const auto url = _pages[index].url
+		+ (hash.isEmpty() ? u""_q : ('#' + hash));
 	const auto openInBrowser = crl::guard(_window.get(), [=] {
 		_events.fire({ .type = Event::Type::OpenLinkExternal, .url = url });
 	});

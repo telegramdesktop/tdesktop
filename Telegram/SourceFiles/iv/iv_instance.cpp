@@ -81,6 +81,8 @@ public:
 	[[nodiscard]] bool activeFor(not_null<Main::Session*> session) const;
 	[[nodiscard]] bool active() const;
 
+	void moveTo(not_null<Data*> data, QString hash);
+
 	void showJoinedTooltip();
 	void minimize();
 
@@ -114,6 +116,9 @@ private:
 		std::shared_ptr<::Data::DocumentMedia> media;
 		std::vector<Webview::DataRequest> requests;
 	};
+
+	void prepare(not_null<Data*> data, const QString &hash);
+	void createController();
 
 	void showLocal(Prepared result);
 	void showWindowed(Prepared result);
@@ -163,6 +168,8 @@ private:
 	base::flat_map<DocumentId, FileLoad> _files;
 	base::flat_map<QByteArray, rpl::producer<bool>> _inChannelValues;
 
+	bool _preparing = false;
+
 	QString _localBase;
 	base::flat_map<QByteArray, QByteArray> _embeds;
 	base::flat_map<QString, MapPreview> _maps;
@@ -181,15 +188,24 @@ Shown::Shown(
 	not_null<Data*> data,
 	QString hash)
 : _session(&show->session())
-, _show(show)
-, _id(data->id()) {
+, _show(show) {
+	prepare(data, hash);
+}
+
+void Shown::prepare(not_null<Data*> data, const QString &hash) {
 	const auto weak = base::make_weak(this);
 
+	_preparing = true;
+	const auto id = _id = data->id();
 	const auto base = /*local ? LookupLocalPath(show) : */QString();
 	data->prepare({ .saveToFolder = base }, [=](Prepared result) {
 		result.hash = hash;
 		crl::on_main(weak, [=, result = std::move(result)]() mutable {
-			result.url = _id;
+			result.url = id;
+			if (_id != id || !_preparing) {
+				return;
+			}
+			_preparing = false;
 			_embeds = std::move(result.embeds);
 			fillChannelJoinedValues(result);
 			if (!base.isEmpty()) {
@@ -416,7 +432,9 @@ void Shown::writeEmbed(QString id, QString hash) {
 	}
 }
 
-void Shown::showWindowed(Prepared result) {
+void Shown::createController() {
+	Expects(!_controller);
+
 	_controller = std::make_unique<Controller>();
 
 	_controller->events(
@@ -436,6 +454,12 @@ void Shown::showWindowed(Prepared result) {
 			sendEmbed(id.mid(5).toUtf8(), std::move(request));
 		}
 	}, _controller->lifetime());
+}
+
+void Shown::showWindowed(Prepared result) {
+	if (!_controller) {
+		createController();
+	}
 
 	const auto domain = &_session->domain();
 	_controller->show(
@@ -753,6 +777,12 @@ bool Shown::active() const {
 	return _controller && _controller->active();
 }
 
+void Shown::moveTo(not_null<Data*> data, QString hash) {
+	if (!_controller || !_controller->showFast(data->id(), hash)) {
+		prepare(data, hash);
+	}
+}
+
 void Shown::showJoinedTooltip() {
 	if (_controller) {
 		_controller->showJoinedTooltip();
@@ -774,7 +804,8 @@ void Instance::show(
 		not_null<Data*> data,
 		QString hash) {
 	const auto session = &show->session();
-	if (_shown && _shown->showing(session, data)) {
+	if (_shown && _shownSession == session) {
+		_shown->moveTo(data, hash);
 		return;
 	}
 	_shown = std::make_unique<Shown>(show, data, hash);
