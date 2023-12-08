@@ -788,6 +788,8 @@ HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
 		return info;
 	} else if (const auto same = Get<HistoryServiceSameBackground>()) {
 		return same;
+	} else if (const auto results = Get<HistoryServiceGiveawayResults>()) {
+		return results;
 	}
 	return nullptr;
 }
@@ -3705,6 +3707,8 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		} else {
 			RemoveComponents(HistoryServiceSameBackground::Bit());
 		}
+	} else if (type == mtpc_messageActionGiveawayResults) {
+		UpdateComponents(HistoryServiceGiveawayResults::Bit());
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
