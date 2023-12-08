@@ -980,6 +980,8 @@ chatGiveawayBadgePadding: margins(7px, 1px, 5px, 3px);
 chatGiveawayBadgeStroke: 2px;
 chatGiveawayPrizesTop: 16px;
 chatGiveawayPrizesSkip: 4px;
+chatGiveawayPrizesWithPadding: margins(22px, 2px, 8px, 2px);
+chatGiveawayPrizesWithTop: 9px;
 chatGiveawayParticipantsTop: 16px;
 chatGiveawayParticipantsSkip: 4px;
 chatGiveawayChannelTop: 6px;

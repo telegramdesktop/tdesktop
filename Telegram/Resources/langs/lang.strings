@@ -2198,6 +2198,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_prizes_title#one" = "Giveaway Prize";
 "lng_prizes_title#other" = "Giveaway Prizes";
+"lng_prizes_additional#one" = "**{count}** {prize}";
+"lng_prizes_additional#other" = "**{count}** {prize}";
+"lng_prizes_additional_with" = "with";
 "lng_prizes_about#one" = "**{count}** Telegram Premium Subscription {duration}.";
 "lng_prizes_about#other" = "**{count}** Telegram Premium Subscriptions {duration}.";
 "lng_prizes_participants" = "Participants";

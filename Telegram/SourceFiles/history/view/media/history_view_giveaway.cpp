@@ -35,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+constexpr auto kAdditionalPrizesWithLineOpacity = 0.6;
+
 [[nodiscard]] QSize CountOptimalTextSize(
 		const Ui::Text::String &text,
 		int minWidth,
@@ -80,6 +82,24 @@ void Giveaway::fillFromData(not_null<Data::Giveaway*> giveaway) {
 		tr::lng_prizes_title(tr::now, lt_count, _quantity),
 		kDefaultTextOptions);
 
+	if (giveaway->additionalPrize.isEmpty()) {
+		_additional.clear();
+		_with.clear();
+	} else {
+		_additional.setMarkedText(
+			st::defaultTextStyle,
+			tr::lng_prizes_additional(
+				tr::now,
+				lt_count,
+				_quantity,
+				lt_prize,
+				TextWithEntities{ giveaway->additionalPrize },
+				Ui::Text::RichLangValue));
+		_with.setText(
+			st::defaultTextStyle,
+			tr::lng_prizes_additional_with(tr::now));
+	}
+
 	_prizes.setMarkedText(
 		st::defaultTextStyle,
 		tr::lng_prizes_about(
@@ -88,8 +108,7 @@ void Giveaway::fillFromData(not_null<Data::Giveaway*> giveaway) {
 			_quantity,
 			lt_duration,
 			Ui::Text::Bold(GiftDuration(_months)),
-			Ui::Text::RichLangValue),
-		kDefaultTextOptions);
+			Ui::Text::RichLangValue));
 	_participantsTitle.setText(
 		st::semiboldTextStyle,
 		tr::lng_prizes_participants(tr::now),
@@ -163,9 +182,25 @@ QSize Giveaway::countOptimalSize() {
 	_prizesTitleTop = _stickerTop
 		+ st::msgServiceGiftBoxStickerSize.height()
 		+ st::chatGiveawayPrizesTop;
-	_prizesTop = _prizesTitleTop
+	_additionalTop = _prizesTitleTop
 		+ _prizesTitle.countHeight(available)
 		+ st::chatGiveawayPrizesSkip;
+	if (!_additional.isEmpty()) {
+		const auto additionalSize = CountOptimalTextSize(
+			_additional,
+			st::msgMinWidth,
+			available);
+		_additionalWidth = additionalSize.width();
+		_withTop = _additionalTop
+			+ additionalSize.height()
+			+ st::chatGiveawayPrizesWithPadding.top();
+		_prizesTop = _withTop
+			+ st::normalFont->height
+			+ st::chatGiveawayPrizesWithPadding.bottom();
+	} else {
+		_additionalWidth = 0;
+		_prizesTop = _withTop = _additionalTop;
+	}
 	const auto prizesSize = CountOptimalTextSize(
 		_prizes,
 		st::msgMinWidth,
@@ -285,6 +320,33 @@ void Giveaway::draw(Painter &p, const PaintContext &context) const {
 		});
 	};
 	paintText(_prizesTitle, _prizesTitleTop, paintw);
+	if (!_additional.isEmpty()) {
+		paintText(_additional, _additionalTop, _additionalWidth);
+		p.setPen(stm->msgDateFg);
+		_with.draw(p, {
+			.position = { padding.left(), _withTop },
+			.outerWidth = outer,
+			.availableWidth = paintw,
+			.align = style::al_top,
+			.palette = &stm->textPalette,
+			.now = context.now,
+			.elisionLines = 1,
+		});
+		const auto skip = st::chatGiveawayPrizesWithPadding;
+		const auto inner = outer - 2 * (skip.left() + skip.right());
+		const auto sub = _with.maxWidth();
+		if (inner > sub + 1) {
+			const auto fill = (inner - sub) / 2;
+			const auto stroke = st::lineWidth;
+			const auto top = _withTop
+				+ st::chatGiveawayPrizesWithTop;
+			p.setOpacity(kAdditionalPrizesWithLineOpacity);
+			p.fillRect(skip.left(), top, fill, stroke, stm->msgDateFg);
+			const auto start = outer - skip.left() - fill;
+			p.fillRect(start, top, fill, stroke, stm->msgDateFg);
+			p.setOpacity(1.);
+		}
+	}
 	paintText(_prizes, _prizesTop, _prizesWidth);
 	paintText(_participantsTitle, _participantsTitleTop, paintw);
 	paintText(_participants, _participantsTop, _participantsWidth);

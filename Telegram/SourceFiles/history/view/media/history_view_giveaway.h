@@ -89,6 +89,8 @@ private:
 	mutable std::optional<Sticker> _sticker;
 
 	Ui::Text::String _prizesTitle;
+	Ui::Text::String _additional;
+	Ui::Text::String _with;
 	Ui::Text::String _prizes;
 	Ui::Text::String _participantsTitle;
 	Ui::Text::String _participants;
@@ -107,6 +109,9 @@ private:
 	int _quantity = 0;
 	int _stickerTop = 0;
 	int _prizesTitleTop = 0;
+	int _additionalTop = 0;
+	int _additionalWidth = 0;
+	int _withTop = 0;
 	int _prizesTop = 0;
 	int _prizesWidth = 0;
 	int _participantsTitleTop = 0;
