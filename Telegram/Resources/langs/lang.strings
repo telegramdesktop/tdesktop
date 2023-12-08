@@ -2170,6 +2170,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_maximum_users_error#other" = "You can select maximum {count} users.";
 "lng_giveaway_channels_confirm_title" = "Channel is Private";
 "lng_giveaway_channels_confirm_about" = "Are you sure you want to add a private channel? Users won't be able to join it without an invite link.";
+"lng_giveaway_additional_prizes" = "Additional prizes";
+"lng_giveaway_additional_about" = "Turn this on if you want to give the winners your own prizes in addition to Premium subscriptions.";
+"lng_giveaway_additional_prizes_ph" = "Enter your prize";
+"lng_giveaway_prizes_just_premium#one" = "All prizes: **{count}** Telegram Premium subscription {duration}.";
+"lng_giveaway_prizes_just_premium#other" = "All prizes: **{count}** Telegram Premium subscriptions {duration}.";
+"lng_giveaway_prizes_additional#one" = "All prizes: **{count}** {prize} with Telegram Premium subscription {duration}.";
+"lng_giveaway_prizes_additional#other" = "All prizes: **{count}** {prize} with Telegram Premium subscriptions {duration}.";
+"lng_giveaway_show_winners" = "Show winners";
+"lng_giveaway_show_winners_about" = "Choose whether to make the list of winners public when the giveaway ends.";
 
 "lng_giveaway_created_title" = "Giveaway created";
 "lng_giveaway_created_body" = "Check your channels' {link} to see how this giveaway boosted your channel.";

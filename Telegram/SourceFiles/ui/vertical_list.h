@@ -22,6 +22,9 @@ void AddDivider(not_null<Ui::VerticalLayout*> container);
 void AddDividerText(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text);
+void AddDividerText(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<TextWithEntities> text);
 not_null<Ui::FlatLabel*> AddSubsectionTitle(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text,

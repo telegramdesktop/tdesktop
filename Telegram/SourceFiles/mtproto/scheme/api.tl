@@ -131,7 +131,7 @@ messageMediaGeoLive#b940c666 flags:# geo:GeoPoint heading:flags.0?int period:int
 messageMediaPoll#4bd6e798 poll:Poll results:PollResults = MessageMedia;
 messageMediaDice#3f7ee58b value:int emoticon:string = MessageMedia;
 messageMediaStory#68cb6283 flags:# via_mention:flags.1?true peer:Peer id:int story:flags.0?StoryItem = MessageMedia;
-messageMediaGiveaway#58260664 flags:# only_new_subscribers:flags.0?true channels:Vector<long> countries_iso2:flags.1?Vector<string> quantity:int months:int until_date:int = MessageMedia;
+messageMediaGiveaway#daad85b0 flags:# only_new_subscribers:flags.0?true winners_are_visible:flags.2?true channels:Vector<long> countries_iso2:flags.1?Vector<string> prize_description:flags.3?string quantity:int months:int until_date:int = MessageMedia;
 
 messageActionEmpty#b6aef7b0 = MessageAction;
 messageActionChatCreate#bd47cbad title:string users:Vector<long> = MessageAction;
@@ -1426,7 +1426,7 @@ help.premiumPromo#5334759c status_text:string status_entities:Vector<MessageEnti
 inputStorePaymentPremiumSubscription#a6751e66 flags:# restore:flags.0?true upgrade:flags.1?true = InputStorePaymentPurpose;
 inputStorePaymentGiftPremium#616f7fe8 user_id:InputUser currency:string amount:long = InputStorePaymentPurpose;
 inputStorePaymentPremiumGiftCode#a3805f3f flags:# users:Vector<InputUser> boost_peer:flags.0?InputPeer currency:string amount:long = InputStorePaymentPurpose;
-inputStorePaymentPremiumGiveaway#7c9375e6 flags:# only_new_subscribers:flags.0?true boost_peer:InputPeer additional_peers:flags.1?Vector<InputPeer> countries_iso2:flags.2?Vector<string> random_id:long until_date:int currency:string amount:long = InputStorePaymentPurpose;
+inputStorePaymentPremiumGiveaway#160544ca flags:# only_new_subscribers:flags.0?true winners_are_visible:flags.3?true boost_peer:InputPeer additional_peers:flags.1?Vector<InputPeer> countries_iso2:flags.2?Vector<string> prize_description:flags.4?string random_id:long until_date:int currency:string amount:long = InputStorePaymentPurpose;
 
 premiumGiftOption#74c34319 flags:# months:int currency:string amount:long bot_url:string store_product:flags.0?string = PremiumGiftOption;
 
@@ -1583,7 +1583,7 @@ premiumGiftCodeOption#257e962b flags:# users:int months:int store_product:flags.
 payments.checkedGiftCode#b722f158 flags:# via_giveaway:flags.2?true from_id:Peer giveaway_msg_id:flags.3?int to_id:flags.0?long date:int months:int used_date:flags.1?int chats:Vector<Chat> users:Vector<User> = payments.CheckedGiftCode;
 
 payments.giveawayInfo#4367daa0 flags:# participating:flags.0?true preparing_results:flags.3?true start_date:int joined_too_early_date:flags.1?int admin_disallowed_chat_id:flags.2?long disallowed_country:flags.4?string = payments.GiveawayInfo;
-payments.giveawayInfoResults#cd5570 flags:# winner:flags.0?true refunded:flags.1?true start_date:int gift_code_slug:flags.0?string finish_date:int winners_count:int activated_count:int = payments.GiveawayInfo;
+payments.giveawayInfoResults#8ac7e167 flags:# winner:flags.0?true refunded:flags.1?true start_date:int gift_code_slug:flags.0?string finish_date:int winners_count:int activated_count:int winners:flags.2?Vector<User> = payments.GiveawayInfo;
 
 prepaidGiveaway#b2539d54 id:long months:int quantity:int date:int = PrepaidGiveaway;
 
@@ -1618,6 +1618,10 @@ help.peerColorOption#135bd42f flags:# hidden:flags.0?true color_id:int colors:fl
 
 help.peerColorsNotModified#2ba1f5ce = help.PeerColors;
 help.peerColors#f8ed08 hash:int colors:Vector<help.PeerColorOption> = help.PeerColors;
+
+storyPeerReaction#7decc433 peer_id:Peer date:int reaction:Reaction = StoryPeerReaction;
+
+stories.storyReactionsList#d86c162a flags:# count:int reactions:Vector<StoryPeerReaction> chats:Vector<Chat> users:Vector<User> next_offset:flags.0?string = stories.StoryReactionsList;
 
 ---functions---
 
@@ -1986,7 +1990,6 @@ help.getNearestDc#1fb33026 = NearestDc;
 help.getAppUpdate#522d5a7d source:string = help.AppUpdate;
 help.getInviteText#4d392343 = help.InviteText;
 help.getSupport#9cdf08cd = help.Support;
-help.getAppChangelog#9010ef6f prev_app_version:string = Updates;
 help.setBotUpdatesStatus#ec22cfcd pending_updates_count:int message:string = Bool;
 help.getCdnConfig#52029342 = CdnConfig;
 help.getRecentMeUrls#3dc0f114 referer:string = help.RecentMeUrls;
@@ -2195,6 +2198,7 @@ stories.getAllReadPeerStories#9b5ae7f9 = Updates;
 stories.getPeerMaxIDs#535983c3 id:Vector<InputPeer> = Vector<int>;
 stories.getChatsToSend#a56a8b60 = messages.Chats;
 stories.togglePeerStoriesHidden#bd0415c4 peer:InputPeer hidden:Bool = Bool;
+stories.getStoryReactionsList#b9b2881f flags:# peer:InputPeer id:int reaction:flags.0?Reaction offset:flags.1?string limit:int = stories.StoryReactionsList;
 
 premium.getBoostsList#60f67660 flags:# gifts:flags.0?true peer:InputPeer offset:string limit:int = premium.BoostsList;
 premium.getMyBoosts#be77b4a = premium.MyBoosts;
@@ -2202,4 +2206,4 @@ premium.applyBoost#6b7da746 flags:# slots:flags.0?Vector<int> peer:InputPeer = p
 premium.getBoostsStatus#42f1f61 peer:InputPeer = premium.BoostsStatus;
 premium.getUserBoosts#39854d1f peer:InputPeer user_id:InputUser = premium.BoostsList;
 
-// LAYER 167
+// LAYER 168
