@@ -383,6 +383,9 @@ Giveaway ComputeGiveawayData(
 			result.countries.push_back(qs(country));
 		}
 	}
+	if (const auto additional = data.vprize_description()) {
+		result.additionalPrize = qs(*additional);
+	}
 	return result;
 }
 

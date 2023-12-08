@@ -93,6 +93,7 @@ struct Invoice {
 struct Giveaway {
 	std::vector<not_null<ChannelData*>> channels;
 	std::vector<QString> countries;
+	QString additionalPrize;
 	TimeId untilDate = 0;
 	int quantity = 0;
 	int months = 0;

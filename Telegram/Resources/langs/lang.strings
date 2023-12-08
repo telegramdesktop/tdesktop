@@ -2216,6 +2216,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_end_text" = "This giveaway was sponsored by {admins}.";
 "lng_prizes_admins#one" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscription {duration} for its followers";
 "lng_prizes_admins#other" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscriptions {duration} for its followers.";
+"lng_prizes_additional_added#one" = "{channel} also included **{count} {prize}** in the prize. Admins of the channel are responsible for delivering this prize.";
+"lng_prizes_additional_added#other" = "{channel} also included **{count} {prize}** in the prizes. Admins of the channel are responsible for delivering these prizes.";
 "lng_prizes_how_when_finish" = "On {date}, Telegram will automatically select {winners}.";
 "lng_prizes_end_when_finish" = "On {date}, Telegram automatically selected {winners}.";
 "lng_prizes_end_activated#one" = "**{count}** of the winners already used their gift link.";

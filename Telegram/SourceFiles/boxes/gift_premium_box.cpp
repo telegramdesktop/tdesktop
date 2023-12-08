@@ -752,7 +752,22 @@ void GiveawayInfoBox(
 	const auto first = !giveaway.channels.empty()
 		? giveaway.channels.front()->name()
 		: u"channel"_q;
-	auto text = (finished
+	auto text = TextWithEntities();
+
+	if (!info.giftCode.isEmpty()) {
+		text.append("\n\n");
+		text.append(Ui::Text::Bold(tr::lng_prizes_you_won(
+			tr::now,
+			lt_cup,
+			QString::fromUtf8("\xf0\x9f\x8f\x86"))));
+		text.append("\n\n");
+	} else if (info.state == State::Finished) {
+		text.append("\n\n");
+		text.append(Ui::Text::Bold(tr::lng_prizes_you_didnt(tr::now)));
+		text.append("\n\n");
+	}
+
+	text.append((finished
 		? tr::lng_prizes_end_text
 		: tr::lng_prizes_how_text)(
 			tr::now,
@@ -766,7 +781,7 @@ void GiveawayInfoBox(
 				lt_duration,
 				TextWithEntities{ GiftDuration(giveaway.months) },
 				Ui::Text::RichLangValue),
-			Ui::Text::RichLangValue);
+			Ui::Text::RichLangValue));
 	const auto many = (giveaway.channels.size() > 1);
 	const auto count = info.winnersCount
 		? info.winnersCount
@@ -793,6 +808,17 @@ void GiveawayInfoBox(
 				Ui::Text::Bold(
 					langDateTime(base::unixtime::parse(info.startDate))),
 				Ui::Text::RichLangValue);
+	if (!giveaway.additionalPrize.isEmpty()) {
+		text.append("\n\n").append(tr::lng_prizes_additional_added(
+			tr::now,
+			lt_count,
+			count,
+			lt_channel,
+			Ui::Text::Bold(first),
+			lt_prize,
+			TextWithEntities{ giveaway.additionalPrize },
+			Ui::Text::RichLangValue));
+	}
 	text.append("\n\n").append((finished
 		? tr::lng_prizes_end_when_finish
 		: tr::lng_prizes_how_when_finish)(
@@ -810,17 +836,9 @@ void GiveawayInfoBox(
 			info.activatedCount,
 			Ui::Text::RichLangValue));
 	}
-	if (!info.giftCode.isEmpty()) {
-		text.append("\n\n");
-		text.append(tr::lng_prizes_you_won(
-			tr::now,
-			lt_cup,
-			QString::fromUtf8("\xf0\x9f\x8f\x86")));
-	} else if (info.state == State::Finished) {
-		text.append("\n\n");
-		text.append(tr::lng_prizes_you_didnt(tr::now));
-	} else if (info.state == State::Preparing) {
-
+	if (!info.giftCode.isEmpty()
+		|| info.state == State::Finished
+		|| info.state == State::Preparing) {
 	} else if (info.state != State::Refunded) {
 		if (info.adminChannelId) {
 			const auto channel = controller->session().data().channel(
