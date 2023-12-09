@@ -2285,7 +2285,9 @@ std::unique_ptr<HistoryView::Media> MediaGiveaway::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	return std::make_unique<HistoryView::Giveaway>(message, &_giveaway);
+	return std::make_unique<HistoryView::MediaInBubble>(
+		message,
+		HistoryView::GenerateGiveawayStart(message, &_giveaway));
 }
 
 } // namespace Data

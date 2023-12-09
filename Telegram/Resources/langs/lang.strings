@@ -1682,7 +1682,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_giveaway_started" = "{from} just started a giveaway of Telegram Premium subscriptions to its followers.";
 "lng_action_giveaway_results#one" = "{count} winner of the giveaway was randomly selected by Telegram and received private messages with giftcodes.";
 "lng_action_giveaway_results#other" = "{count} winners of the giveaway were randomly selected by Telegram and received private messages with giftcodes.";
-"lng_action_giveaway_results_some" = "Some winners of the giveaway was randomly selected by Telegram and received private messages with giftcodes.";
+"lng_action_giveaway_results_some" = "Some winners of the giveaway were randomly selected by Telegram and received private messages with giftcodes.";
 "lng_action_giveaway_results_none" = "No winners of the giveaway could be selected.";
 
 "lng_similar_channels_title" = "Similar channels";

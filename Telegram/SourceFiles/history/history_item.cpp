@@ -314,6 +314,10 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		return std::make_unique<Data::MediaGiveaway>(
 			item,
 			Data::ComputeGiveawayData(item, media));
+	}, [&](const MTPDmessageMediaGiveawayResults &media) -> Result {
+		return nullptr;/* std::make_unique<Data::MediaGiveaway>(
+			item,
+			Data::ComputeGiveawayData(item, media));*/
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {

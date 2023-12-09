@@ -132,6 +132,7 @@ messageMediaPoll#4bd6e798 poll:Poll results:PollResults = MessageMedia;
 messageMediaDice#3f7ee58b value:int emoticon:string = MessageMedia;
 messageMediaStory#68cb6283 flags:# via_mention:flags.1?true peer:Peer id:int story:flags.0?StoryItem = MessageMedia;
 messageMediaGiveaway#daad85b0 flags:# only_new_subscribers:flags.0?true winners_are_visible:flags.2?true channels:Vector<long> countries_iso2:flags.1?Vector<string> prize_description:flags.3?string quantity:int months:int until_date:int = MessageMedia;
+messageMediaGiveawayResults#b11ff5a1 flags:# refunded:flags.0?true channel_id:long launch_msg_id:int winners_count:int unclaimed_count:int winners:Vector<long> months:int prize_description:flags.1?string = MessageMedia;
 
 messageActionEmpty#b6aef7b0 = MessageAction;
 messageActionChatCreate#bd47cbad title:string users:Vector<long> = MessageAction;
@@ -1583,7 +1584,7 @@ premiumGiftCodeOption#257e962b flags:# users:int months:int store_product:flags.
 payments.checkedGiftCode#b722f158 flags:# via_giveaway:flags.2?true from_id:Peer giveaway_msg_id:flags.3?int to_id:flags.0?long date:int months:int used_date:flags.1?int chats:Vector<Chat> users:Vector<User> = payments.CheckedGiftCode;
 
 payments.giveawayInfo#4367daa0 flags:# participating:flags.0?true preparing_results:flags.3?true start_date:int joined_too_early_date:flags.1?int admin_disallowed_chat_id:flags.2?long disallowed_country:flags.4?string = payments.GiveawayInfo;
-payments.giveawayInfoResults#8ac7e167 flags:# winner:flags.0?true refunded:flags.1?true start_date:int gift_code_slug:flags.0?string finish_date:int winners_count:int activated_count:int winners:flags.2?Vector<User> = payments.GiveawayInfo;
+payments.giveawayInfoResults#cd5570 flags:# winner:flags.0?true refunded:flags.1?true start_date:int gift_code_slug:flags.0?string finish_date:int winners_count:int activated_count:int = payments.GiveawayInfo;
 
 prepaidGiveaway#b2539d54 id:long months:int quantity:int date:int = PrepaidGiveaway;
 
@@ -1620,6 +1621,7 @@ help.peerColorsNotModified#2ba1f5ce = help.PeerColors;
 help.peerColors#f8ed08 hash:int colors:Vector<help.PeerColorOption> = help.PeerColors;
 
 storyPeerReaction#7decc433 peer_id:Peer date:int reaction:Reaction = StoryPeerReaction;
+storyPeerPublicRepost#f7fbc17d peer_id:Peer story:StoryItem = StoryPeerReaction;
 
 stories.storyReactionsList#d86c162a flags:# count:int reactions:Vector<StoryPeerReaction> chats:Vector<Chat> users:Vector<User> next_offset:flags.0?string = stories.StoryReactionsList;
 
@@ -2198,7 +2200,7 @@ stories.getAllReadPeerStories#9b5ae7f9 = Updates;
 stories.getPeerMaxIDs#535983c3 id:Vector<InputPeer> = Vector<int>;
 stories.getChatsToSend#a56a8b60 = messages.Chats;
 stories.togglePeerStoriesHidden#bd0415c4 peer:InputPeer hidden:Bool = Bool;
-stories.getStoryReactionsList#b9b2881f flags:# peer:InputPeer id:int reaction:flags.0?Reaction offset:flags.1?string limit:int = stories.StoryReactionsList;
+stories.getStoryReactionsList#b9b2881f flags:# reposts_first:flags.2?true peer:InputPeer id:int reaction:flags.0?Reaction offset:flags.1?string limit:int = stories.StoryReactionsList;
 
 premium.getBoostsList#60f67660 flags:# gifts:flags.0?true peer:InputPeer offset:string limit:int = premium.BoostsList;
 premium.getMyBoosts#be77b4a = premium.MyBoosts;

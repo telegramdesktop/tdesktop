@@ -1389,6 +1389,14 @@ bool Element::allowTextSelectionByHandler(
 	return false;
 }
 
+bool Element::usesBubblePattern(const PaintContext &context) const {
+	return (context.selection != FullSelection)
+		&& hasOutLayout()
+		&& context.bubblesPattern
+		&& !context.viewport.isEmpty()
+		&& !context.bubblesPattern->pixmap.size().isEmpty();
+}
+
 bool Element::hasVisibleText() const {
 	return false;
 }

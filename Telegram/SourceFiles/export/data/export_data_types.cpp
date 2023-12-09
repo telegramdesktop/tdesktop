@@ -1196,6 +1196,8 @@ Media ParseMedia(
 		// #TODO export stories
 	}, [&](const MTPDmessageMediaGiveaway &data) {
 		result.content = ParseGiveaway(data);
+	}, [&](const MTPDmessageMediaGiveawayResults &data) {
+		// #TODO export giveaway
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }
