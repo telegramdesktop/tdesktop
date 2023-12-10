@@ -45,6 +45,7 @@ base::options::toggle OptionForceWaylandFractionalScaling({
 		"This works without fractional-scale-v1 and without "
 		"precise High DPI scaling. "
 		"Requires Qt with Desktop App Toolkit patches.",
+	.defaultValue = true,
 	.scope = [] {
 #ifdef DESKTOP_APP_QT_PATCHED
 		return Platform::IsWayland();
@@ -252,12 +253,7 @@ void Sandbox::setupScreenScale() {
 	logEnv("QT_USE_PHYSICAL_DPI");
 	logEnv("QT_FONT_DPI");
 
-	// Like Qt::HighDpiScaleFactorRoundingPolicy::RoundPreferFloor.
-	// Round up for .75 and higher. This favors "small UI" over "large UI".
-	const auto roundedRatio = ((ratio - qFloor(ratio)) < 0.75)
-		? qFloor(ratio)
-		: qCeil(ratio);
-	const auto useRatio = std::clamp(roundedRatio, 1, 3);
+	const auto useRatio = std::clamp(qCeil(ratio), 1, 3);
 	style::SetDevicePixelRatio(useRatio);
 
 	const auto screen = Sandbox::primaryScreen();
