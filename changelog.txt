@@ -1,7 +1,7 @@
 4.12.2 (01.12.23)
 
-- Fix choosing custom reactions in channels.
 - Fix crash on launch using old hardware. (Windows)
+- Fix choosing custom reactions in channels.
 
 4.12.1 (01.12.23)
 
