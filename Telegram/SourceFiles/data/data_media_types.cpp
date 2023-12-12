@@ -1506,15 +1506,57 @@ bool MediaWebPage::replyPreviewLoaded() const {
 }
 
 ItemPreview MediaWebPage::toPreview(ToPreviewOptions options) const {
-	auto text = options.ignoreMessageText
-		? TextWithEntities()
-		: options.translated
-		? parent()->translatedText()
-		: parent()->originalText();
-	if (text.empty()) {
-		text = Ui::Text::Colorized(_page->url);
+	const auto caption = [&] {
+		const auto text = options.ignoreMessageText
+			? TextWithEntities()
+			: options.translated
+			? parent()->translatedText()
+			: parent()->originalText();
+		return text.empty() ? Ui::Text::Colorized(_page->url) : text;
+	}();
+	const auto pageTypeWithPreview = _page->type == WebPageType::Photo
+		|| _page->type == WebPageType::Video
+		|| _page->type == WebPageType::Document;
+	if (pageTypeWithPreview || !_page->collage.items.empty()) {
+		if (auto found = FindCachedPreview(options.existing, _page, false)) {
+			return { .text = caption, .images = { std::move(found) } };
+		}
+		auto context = std::any();
+		auto images = std::vector<ItemPreviewImage>();
+		auto prepared = ItemPreviewImage();
+		const auto radius = ImageRoundRadius::Small;
+		if (const auto photo = MediaWebPage::photo()) {
+			const auto media = photo->createMediaView();
+			prepared = PreparePhotoPreview(parent(), media, radius, false);
+			if (prepared || !prepared.cacheKey) {
+				images.push_back(std::move(prepared));
+				if (!prepared.cacheKey) {
+					context = media;
+				}
+			}
+		} else {
+			const auto document = MediaWebPage::document();
+			if (document
+				&& document->hasThumbnail()
+				&& (document->isGifv() || document->isVideoFile())) {
+				const auto media = document->createMediaView();
+				prepared = PrepareFilePreview(parent(), media, radius, false);
+				if (prepared || !prepared.cacheKey) {
+					images.push_back(std::move(prepared));
+					if (!prepared.cacheKey) {
+						context = media;
+					}
+				}
+			}
+		}
+		return {
+			.text = caption,
+			.images = std::move(images),
+			.loadingContext = std::move(context),
+		};
+	} else {
+		return { .text = caption };
 	}
-	return { .text = text };
 }
 
 TextWithEntities MediaWebPage::notificationText() const {

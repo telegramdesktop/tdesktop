@@ -141,7 +141,7 @@ WebPageType ParseWebPageType(
 		const QString &type,
 		const QString &embedUrl,
 		bool hasIV) {
-	if (type == u"video"_q || !embedUrl.isEmpty()) {
+	if (type == u"video"_q || type == u"gif"_q || !embedUrl.isEmpty()) {
 		return WebPageType::Video;
 	} else if (type == u"photo"_q) {
 		return WebPageType::Photo;
