@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
+#include "chat_helpers/stickers_dice_pack.h"
 #include "countries/countries_instance.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "lang/lang_keys.h"
@@ -54,7 +56,8 @@ constexpr auto kAdditionalPrizesWithLineOpacity = 0.6;
 
 TextState MediaInBubble::Part::textState(
 		QPoint point,
-		StateRequest request) const {
+		StateRequest request,
+		int outerWidth) const {
 	return {};
 }
 
@@ -127,7 +130,8 @@ TextState MediaInBubble::textState(
 		StateRequest request) const {
 	auto result = TextState(_parent);
 
-	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
+	const auto outer = width();
+	if (outer < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
 	}
 
@@ -135,7 +139,7 @@ TextState MediaInBubble::textState(
 		const auto raw = entry.object.get();
 		const auto height = raw->height();
 		if (point.y() >= 0 && point.y() < height) {
-			const auto part = raw->textState(point, request);
+			const auto part = raw->textState(point, request, outer);
 			result.link = part.link;
 			return result;
 		}
@@ -186,10 +190,14 @@ QMargins MediaInBubble::inBubblePadding() const {
 
 TextMediaInBubblePart::TextMediaInBubblePart(
 	TextWithEntities text,
-	QMargins margins)
+	QMargins margins,
+	const base::flat_map<uint16, ClickHandlerPtr> &links)
 : _text(st::msgMinWidth)
 , _margins(margins) {
 	_text.setMarkedText(st::defaultTextStyle, text);
+	for (const auto &[index, link] : links) {
+		_text.setLink(index, link);
+	}
 }
 
 void TextMediaInBubblePart::draw(
@@ -205,6 +213,18 @@ void TextMediaInBubblePart::draw(
 		.palette = &context.messageStyle()->textPalette,
 		.now = context.now,
 	});
+}
+
+TextState TextMediaInBubblePart::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	point -= QPoint{ (outerWidth - width()) / 2, _margins.top() };
+	auto result = TextState();
+	auto forText = request.forText();
+	forText.align = style::al_top;
+	result.link = _text.getState(point, width(), forText).link;
+	return result;
 }
 
 QSize TextMediaInBubblePart::countOptimalSize() {
@@ -278,7 +298,7 @@ QSize TextDelimeterPart::countCurrentSize(int newWidth) {
 
 StickerWithBadgePart::StickerWithBadgePart(
 	not_null<Element*> parent,
-	Fn<DocumentData*()> lookup,
+	Fn<Data()> lookup,
 	QString badge)
 : _parent(parent)
 , _lookup(std::move(lookup))
@@ -293,7 +313,7 @@ void StickerWithBadgePart::draw(
 	const auto stickerSize = st::msgServiceGiftBoxStickerSize;
 	const auto sticker = QRect(
 		(outerWidth - stickerSize.width()) / 2,
-		st::chatGiveawayStickerTop,
+		st::chatGiveawayStickerTop + _skipTop,
 		stickerSize.width(),
 		stickerSize.height());
 
@@ -327,12 +347,14 @@ QSize StickerWithBadgePart::countCurrentSize(int newWidth) {
 void StickerWithBadgePart::ensureCreated() const {
 	if (_sticker) {
 		return;
-	} else if (const auto document = _lookup()) {
+	} else if (const auto data = _lookup()) {
+		const auto document = data.sticker;
 		if (const auto sticker = document->sticker()) {
 			const auto skipPremiumEffect = false;
+			_skipTop = data.skipTop;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
 			_sticker->setDiceIndex(sticker->alt, 1);
-			_sticker->setGiftBoxSticker(true);
+			_sticker->setGiftBoxSticker(data.isGiftBoxSticker);
 			_sticker->initSize();
 		}
 	}
@@ -427,6 +449,7 @@ PeerBubbleListPart::PeerBubbleListPart(
 				kDefaultTextOptions,
 				st::msgMinWidth),
 			.thumbnail = Dialogs::Stories::MakeUserpicThumbnail(peer),
+			.link = peer->openLink(),
 			.colorIndex = peer->colorIndex(),
 		});
 	}
@@ -528,9 +551,43 @@ int PeerBubbleListPart::layout(int x, int y, int available) {
 	return y + size + skip;
 }
 
+TextState PeerBubbleListPart::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	auto result = TextState(_parent);
+	for (const auto &peer : _peers) {
+		if (peer.geometry.contains(point)) {
+			result.link = peer.link;
+			_lastPoint = point;
+			break;
+		}
+	}
+	return result;
+}
+
 void PeerBubbleListPart::clickHandlerPressedChanged(
-	const ClickHandlerPtr &p,
-	bool pressed) {
+		const ClickHandlerPtr &p,
+		bool pressed) {
+	for (auto &peer : _peers) {
+		if (peer.link != p) {
+			continue;
+		}
+		if (pressed) {
+			if (!peer.ripple) {
+				peer.ripple = std::make_unique<Ui::RippleAnimation>(
+				st::defaultRippleAnimation,
+				Ui::RippleAnimation::RoundRectMask(
+					peer.geometry.size(),
+					peer.geometry.height() / 2),
+					[=] { _parent->repaint(); });
+			}
+			peer.ripple->add(_lastPoint - peer.geometry.topLeft());
+		} else if (peer.ripple) {
+			peer.ripple->lastStop();
+		}
+		break;
+	}
 }
 
 bool PeerBubbleListPart::hasHeavyPart() {
@@ -579,18 +636,19 @@ QSize PeerBubbleListPart::countCurrentSize(int newWidth) {
 
 auto GenerateGiveawayStart(
 	not_null<Element*> parent,
-	not_null<Data::Giveaway*> giveaway)
+	not_null<Data::GiveawayStart*> data)
 -> Fn<void(Fn<void(std::unique_ptr<MediaInBubble::Part>)>)> {
 	return [=](Fn<void(std::unique_ptr<MediaInBubble::Part>)> push) {
-		const auto months = giveaway->months;
-		const auto quantity = giveaway->quantity;
+		const auto months = data->months;
+		const auto quantity = data->quantity;
 
+		using Data = StickerWithBadgePart::Data;
 		const auto sticker = [=] {
 			const auto &session = parent->history()->session();
 			auto &packs = session.giftBoxStickersPacks();
-			return packs.lookup(months);
+			return Data{ packs.lookup(months), 0, true };
 		};
-		push(std::make_unique<HistoryView::StickerWithBadgePart>(
+		push(std::make_unique<StickerWithBadgePart>(
 			parent,
 			sticker,
 			tr::lng_prizes_badge(
@@ -598,27 +656,31 @@ auto GenerateGiveawayStart(
 				lt_amount,
 				QString::number(quantity))));
 
-		auto pushText = [&](TextWithEntities text, QMargins margins = {}) {
-			push(std::make_unique<HistoryView::TextMediaInBubblePart>(
+		auto pushText = [&](
+				TextWithEntities text,
+				QMargins margins = {},
+				const base::flat_map<uint16, ClickHandlerPtr> &links = {}) {
+			push(std::make_unique<TextMediaInBubblePart>(
 				std::move(text),
-				margins));
+				margins,
+				links));
 		};
 		pushText(
 			Ui::Text::Bold(
 				tr::lng_prizes_title(tr::now, lt_count, quantity)),
 			st::chatGiveawayPrizesTitleMargin);
 
-		if (!giveaway->additionalPrize.isEmpty()) {
+		if (!data->additionalPrize.isEmpty()) {
 			pushText(
 				tr::lng_prizes_additional(
 					tr::now,
 					lt_count,
 					quantity,
 					lt_prize,
-					TextWithEntities{ giveaway->additionalPrize },
+					TextWithEntities{ data->additionalPrize },
 					Ui::Text::RichLangValue),
 				st::chatGiveawayPrizesMargin);
-			push(std::make_unique<HistoryView::TextDelimeterPart>(
+			push(std::make_unique<TextDelimeterPart>(
 				tr::lng_prizes_additional_with(tr::now),
 				st::chatGiveawayPrizesWithPadding));
 		}
@@ -636,26 +698,26 @@ auto GenerateGiveawayStart(
 			Ui::Text::Bold(tr::lng_prizes_participants(tr::now)),
 			st::chatGiveawayPrizesTitleMargin);
 
-		pushText({ (giveaway->all
+		pushText({ (data->all
 			? tr::lng_prizes_participants_all
 			: tr::lng_prizes_participants_new)(
 				tr::now,
 				lt_count,
-				giveaway->channels.size()),
+				data->channels.size()),
 		}, st::chatGiveawayParticipantsMargin);
 
 		auto list = ranges::views::all(
-			giveaway->channels
+			data->channels
 		) | ranges::views::transform([](not_null<ChannelData*> channel) {
 			return not_null<PeerData*>(channel);
 		}) | ranges::to_vector;
-		push(std::make_unique<HistoryView::PeerBubbleListPart>(
+		push(std::make_unique<PeerBubbleListPart>(
 			parent,
 			std::move(list)));
 
 		const auto &instance = Countries::Instance();
 		auto countries = QStringList();
-		for (const auto &country : giveaway->countries) {
+		for (const auto &country : data->countries) {
 			const auto name = instance.countryNameByISO2(country);
 			const auto flag = instance.flagEmojiByISO2(country);
 			countries.push_back(flag + QChar(0xA0) + name);
@@ -683,7 +745,80 @@ auto GenerateGiveawayStart(
 				? st::chatGiveawayNoCountriesTitleMargin
 				: st::chatGiveawayPrizesMargin));
 		pushText({
-			langDateTime(base::unixtime::parse(giveaway->untilDate)),
+			langDateTime(base::unixtime::parse(data->untilDate)),
+		}, st::chatGiveawayEndDateMargin);
+	};
+}
+
+auto GenerateGiveawayResults(
+	not_null<Element*> parent,
+	not_null<Data::GiveawayResults*> data)
+-> Fn<void(Fn<void(std::unique_ptr<MediaInBubble::Part>)>)> {
+	return [=](Fn<void(std::unique_ptr<MediaInBubble::Part>)> push) {
+		const auto months = data->months;
+		const auto quantity = data->winnersCount;
+
+		using Data = StickerWithBadgePart::Data;
+		const auto sticker = [=] {
+			const auto &session = parent->history()->session();
+			auto &packs = session.diceStickersPacks();
+			const auto &emoji = Stickers::DicePacks::kPartyPopper;
+			const auto skip = st::chatGiveawayWinnersTopSkip;
+			return Data{ packs.lookup(emoji, 0), skip };
+		};
+		push(std::make_unique<StickerWithBadgePart>(
+			parent,
+			sticker,
+			tr::lng_prizes_badge(
+				tr::now,
+				lt_amount,
+				QString::number(quantity))));
+
+		auto pushText = [&](
+				TextWithEntities text,
+				QMargins margins = {},
+				const base::flat_map<uint16, ClickHandlerPtr> &links = {}) {
+			push(std::make_unique<TextMediaInBubblePart>(
+				std::move(text),
+				margins,
+				links));
+		};
+		pushText(
+			Ui::Text::Bold(
+				tr::lng_prizes_results_title(tr::now)),
+			st::chatGiveawayPrizesTitleMargin);
+		const auto showGiveawayHandler = JumpToMessageClickHandler(
+			data->channel,
+			data->launchId,
+			parent->data()->fullId());
+		pushText(
+			tr::lng_prizes_results_about(
+				tr::now,
+				lt_count,
+				quantity,
+				lt_link,
+				Ui::Text::Link(tr::lng_prizes_results_link(tr::now)),
+				Ui::Text::RichLangValue),
+			st::chatGiveawayPrizesMargin,
+			{ { 1, showGiveawayHandler } });
+		pushText(
+			Ui::Text::Bold(tr::lng_prizes_results_winners(tr::now)),
+			st::chatGiveawayPrizesTitleMargin);
+
+		push(std::make_unique<PeerBubbleListPart>(
+			parent,
+			data->winners));
+		if (data->winnersCount > data->winners.size()) {
+			pushText(
+				Ui::Text::Bold(tr::lng_prizes_results_more(
+					tr::now,
+					lt_count,
+					data->winnersCount - data->winners.size())),
+				st::chatGiveawayNoCountriesTitleMargin);
+		}
+		pushText({ data->unclaimedCount
+			? tr::lng_prizes_results_some(tr::now)
+			: tr::lng_prizes_results_all(tr::now)
 		}, st::chatGiveawayEndDateMargin);
 	};
 }

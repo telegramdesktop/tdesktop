@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
-#include "data/data_media_types.h" // Data::Giveaway
+#include "data/data_media_types.h" // Data::GiveawayStart.
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
 #include "data/data_session.h"
 #include "data/data_subscription_option.h"
@@ -739,8 +739,11 @@ void ResolveGiftCode(
 void GiveawayInfoBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionNavigation*> controller,
-		Data::Giveaway giveaway,
+		std::optional<Data::GiveawayStart> start,
+		std::optional<Data::GiveawayResults> results,
 		Api::GiveawayInfo info) {
+	Expects(start || results);
+
 	using State = Api::GiveawayState;
 	const auto finished = (info.state == State::Finished)
 		|| (info.state == State::Refunded);
@@ -749,8 +752,10 @@ void GiveawayInfoBox(
 		? tr::lng_prizes_end_title
 		: tr::lng_prizes_how_title)());
 
-	const auto first = !giveaway.channels.empty()
-		? giveaway.channels.front()->name()
+	const auto first = results
+		? results->channel->name()
+		: !start->channels.empty()
+		? start->channels.front()->name()
 		: u"channel"_q;
 	auto text = TextWithEntities();
 
@@ -767,6 +772,10 @@ void GiveawayInfoBox(
 		text.append("\n\n");
 	}
 
+	const auto quantity = start
+		? start->quantity
+		: (results->winnersCount + results->unclaimedCount);
+	const auto months = start ? start->months : results->months;
 	text.append((finished
 		? tr::lng_prizes_end_text
 		: tr::lng_prizes_how_text)(
@@ -775,18 +784,21 @@ void GiveawayInfoBox(
 			tr::lng_prizes_admins(
 				tr::now,
 				lt_count,
-				giveaway.quantity,
+				quantity,
 				lt_channel,
 				Ui::Text::Bold(first),
 				lt_duration,
-				TextWithEntities{ GiftDuration(giveaway.months) },
+				TextWithEntities{ GiftDuration(months) },
 				Ui::Text::RichLangValue),
 			Ui::Text::RichLangValue));
-	const auto many = (giveaway.channels.size() > 1);
+	const auto many = start
+		? (start->channels.size() > 1)
+		: (results->additionalPeersCount > 0);
 	const auto count = info.winnersCount
 		? info.winnersCount
-		: giveaway.quantity;
-	auto winners = giveaway.all
+		: quantity;
+	const auto all = start ? start->all : results->all;
+	auto winners = all
 		? (many
 			? tr::lng_prizes_winners_all_of_many
 			: tr::lng_prizes_winners_all_of_one)(
@@ -808,7 +820,10 @@ void GiveawayInfoBox(
 				Ui::Text::Bold(
 					langDateTime(base::unixtime::parse(info.startDate))),
 				Ui::Text::RichLangValue);
-	if (!giveaway.additionalPrize.isEmpty()) {
+	const auto additionalPrize = results
+		? results->additionalPrize
+		: start->additionalPrize;
+	if (!additionalPrize.isEmpty()) {
 		text.append("\n\n").append(tr::lng_prizes_additional_added(
 			tr::now,
 			lt_count,
@@ -816,16 +831,19 @@ void GiveawayInfoBox(
 			lt_channel,
 			Ui::Text::Bold(first),
 			lt_prize,
-			TextWithEntities{ giveaway.additionalPrize },
+			TextWithEntities{ additionalPrize },
 			Ui::Text::RichLangValue));
 	}
+	const auto untilDate = start
+		? start->untilDate
+		: results->untilDate;
 	text.append("\n\n").append((finished
 		? tr::lng_prizes_end_when_finish
 		: tr::lng_prizes_how_when_finish)(
 			tr::now,
 			lt_date,
 			Ui::Text::Bold(langDayOfMonthFull(
-				base::unixtime::parse(giveaway.untilDate).date())),
+				base::unixtime::parse(untilDate).date())),
 			lt_winners,
 			winners,
 			Ui::Text::RichLangValue));
@@ -876,7 +894,7 @@ void GiveawayInfoBox(
 					Ui::Text::Bold(first),
 					lt_date,
 					Ui::Text::Bold(langDayOfMonthFull(
-						base::unixtime::parse(giveaway.untilDate).date())),
+						base::unixtime::parse(untilDate).date())),
 					Ui::Text::RichLangValue));
 		}
 	}
@@ -920,14 +938,15 @@ void ResolveGiveawayInfo(
 		not_null<Window::SessionNavigation*> controller,
 		not_null<PeerData*> peer,
 		MsgId messageId,
-		Data::Giveaway giveaway) {
+		std::optional<Data::GiveawayStart> start,
+		std::optional<Data::GiveawayResults> results) {
 	const auto show = [=](Api::GiveawayInfo info) {
 		if (!info) {
 			controller->showToast(
 				tr::lng_confirm_phone_link_invalid(tr::now));
 		} else {
 			controller->uiShow()->showBox(
-				Box(GiveawayInfoBox, controller, giveaway, info));
+				Box(GiveawayInfoBox, controller, start, results, info));
 		}
 	};
 	controller->session().api().premium().resolveGiveawayInfo(

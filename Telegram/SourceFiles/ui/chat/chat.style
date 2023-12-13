@@ -974,6 +974,7 @@ storyMentionButtonSkip: 5px;
 
 chatGiveawayWidth: 292px;
 chatGiveawayStickerTop: -16px;
+chatGiveawayWinnersTopSkip: 25px;
 chatGiveawayBadgeFont: font(12px bold);
 chatGiveawayBadgeTop: 106px;
 chatGiveawayBadgePadding: margins(7px, 1px, 5px, 3px);

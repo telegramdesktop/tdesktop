@@ -311,13 +311,13 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			media.vid().v,
 		}, media.is_via_mention());
 	}, [&](const MTPDmessageMediaGiveaway &media) -> Result {
-		return std::make_unique<Data::MediaGiveaway>(
+		return std::make_unique<Data::MediaGiveawayStart>(
 			item,
-			Data::ComputeGiveawayData(item, media));
+			Data::ComputeGiveawayStartData(item, media));
 	}, [&](const MTPDmessageMediaGiveawayResults &media) -> Result {
-		return nullptr;/* std::make_unique<Data::MediaGiveaway>(
+		return std::make_unique<Data::MediaGiveawayResults>(
 			item,
-			Data::ComputeGiveawayData(item, media));*/
+			Data::ComputeGiveawayResultsData(item, media));
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {

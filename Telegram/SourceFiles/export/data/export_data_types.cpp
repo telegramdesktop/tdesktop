@@ -681,8 +681,8 @@ Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 	return result;
 }
 
-Giveaway ParseGiveaway(const MTPDmessageMediaGiveaway &data) {
-	auto result = Giveaway{
+GiveawayStart ParseGiveaway(const MTPDmessageMediaGiveaway &data) {
+	auto result = GiveawayStart{
 		.untilDate = data.vuntil_date().v,
 		.quantity = data.vquantity().v,
 		.months = data.vmonths().v,

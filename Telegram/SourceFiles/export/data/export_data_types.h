@@ -197,7 +197,7 @@ struct Poll {
 	bool closed = false;
 };
 
-struct Giveaway {
+struct GiveawayStart {
 	std::vector<ChannelId> channels;
 	TimeId untilDate = 0;
 	int quantity = 0;
@@ -336,7 +336,7 @@ struct Media {
 		Game,
 		Invoice,
 		Poll,
-		Giveaway,
+		GiveawayStart,
 		UnsupportedMedia> content;
 	TimeId ttl = 0;
 

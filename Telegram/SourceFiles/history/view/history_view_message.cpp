@@ -403,6 +403,11 @@ Message::Message(
 , _bottomInfo(
 		&data->history()->owner().reactions(),
 		BottomInfoDataFromMessage(this)) {
+	if (const auto media = data->media()) {
+		if (media->giveawayResults()) {
+			_hideReply = 1;
+		}
+	}
 	initLogEntryOriginal();
 	initPsa();
 	refreshReactions();

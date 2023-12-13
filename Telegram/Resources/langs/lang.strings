@@ -2246,6 +2246,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_cancelled" = "The channel cancelled the prizes by reversing the payment for them.";
 "lng_prizes_badge" = "x{amount}";
 
+"lng_prizes_results_title" = "Winners Selected!";
+"lng_prizes_results_about#one" = "**{count}** winner of the {link} was randomly selected by Telegram.";
+"lng_prizes_results_about#other" = "**{count}** winners of the {link} were randomly selected by Telegram.";
+"lng_prizes_results_link" = "Giveaway";
+"lng_prizes_results_winners" = "Winners";
+"lng_prizes_results_more#one" = "and {count} more!";
+"lng_prizes_results_more#other" = "and {count} more!";
+"lng_prizes_results_all" = "All winners received gift links in private messages.";
+"lng_prizes_results_some" = "Some winners couldn't be selected.";
+
 "lng_gift_link_title" = "Gift Link";
 "lng_gift_link_about" = "This link allows you to activate\na **Telegram Premium** subscription.";
 "lng_gift_link_label_from" = "From";
@@ -3629,6 +3639,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_set_background_emoji" = "{from} set channel background emoji to {emoji}";
 "lng_admin_log_change_background_emoji" = "{from} changed channel background emoji from {previous} to {emoji}";
 "lng_admin_log_removed_background_emoji" = "{from} removed channel background emoji {emoji}";
+"lng_admin_log_change_profile_color" = "{from} changed channel profile color from {previous} to {color}";
+"lng_admin_log_set_profile_background_emoji" = "{from} set channel profile background emoji to {emoji}";
+"lng_admin_log_change_profile_background_emoji" = "{from} changed channel profile background emoji from {previous} to {emoji}";
+"lng_admin_log_removed_profile_background_emoji" = "{from} removed channel profile background emoji {emoji}";
+"lng_admin_log_change_wallpaper" = "{from} changed channel wallpaper";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_messages_ttl_set" = "{from} enabled messages auto-delete after {duration}";
 "lng_admin_log_messages_ttl_changed" = "{from} changed messages auto-delete period from {previous} to {duration}";

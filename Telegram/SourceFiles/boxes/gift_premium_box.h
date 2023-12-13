@@ -16,7 +16,8 @@ struct GiftCode;
 } // namespace Api
 
 namespace Data {
-struct Giveaway;
+struct GiveawayStart;
+struct GiveawayResults;
 } // namespace Data
 
 namespace Ui {
@@ -62,4 +63,5 @@ void ResolveGiveawayInfo(
 	not_null<Window::SessionNavigation*> controller,
 	not_null<PeerData*> peer,
 	MsgId messageId,
-	Data::Giveaway giveaway);
+	std::optional<Data::GiveawayStart> start,
+	std::optional<Data::GiveawayResults> results);

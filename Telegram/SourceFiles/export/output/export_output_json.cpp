@@ -753,7 +753,7 @@ QByteArray SerializeMessage(
 			{ "total_voters", NumberToString(data.totalVotes) },
 			{ "answers", serialized }
 		}));
-	}, [&](const Giveaway &data) {
+	}, [&](const GiveawayStart &data) {
 		context.nesting.push_back(Context::kObject);
 		const auto channels = ranges::views::all(
 			data.channels

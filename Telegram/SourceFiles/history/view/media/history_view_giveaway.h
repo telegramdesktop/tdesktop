@@ -11,7 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 
 namespace Data {
-struct Giveaway;
+struct GiveawayStart;
+struct GiveawayResults;
 } // namespace Data
 
 namespace Dialogs::Stories {
@@ -36,7 +37,8 @@ public:
 			int outerWidth) const = 0;
 		[[nodiscard]] virtual TextState textState(
 			QPoint point,
-			StateRequest request) const;
+			StateRequest request,
+			int outerWidth) const;
 		virtual void clickHandlerPressedChanged(
 			const ClickHandlerPtr &p,
 			bool pressed);
@@ -82,7 +84,6 @@ public:
 private:
 	struct Entry {
 		std::unique_ptr<Part> object;
-		int top = 0;
 	};
 
 	QSize countOptimalSize() override;
@@ -96,11 +97,18 @@ private:
 
 class TextMediaInBubblePart final : public MediaInBubble::Part {
 public:
-	TextMediaInBubblePart(TextWithEntities text, QMargins margins);
+	TextMediaInBubblePart(
+		TextWithEntities text,
+		QMargins margins,
+		const base::flat_map<uint16, ClickHandlerPtr> &links = {});
 
 	void draw(
 		Painter &p,
 		const PaintContext &context,
+		int outerWidth) const override;
+	TextState textState(
+		QPoint point,
+		StateRequest request,
 		int outerWidth) const override;
 
 	QSize countOptimalSize() override;
@@ -132,9 +140,18 @@ private:
 
 class StickerWithBadgePart final : public MediaInBubble::Part {
 public:
+	struct Data {
+		DocumentData *sticker = nullptr;
+		int skipTop = 0;
+		bool isGiftBoxSticker = false;
+
+		explicit operator bool() const {
+			return sticker != nullptr;
+		}
+	};
 	StickerWithBadgePart(
 		not_null<Element*> parent,
-		Fn<DocumentData*()> lookup,
+		Fn<Data()> lookup,
 		QString badge);
 
 	void draw(
@@ -153,8 +170,9 @@ private:
 	void paintBadge(Painter &p, const PaintContext &context) const;
 
 	const not_null<Element*> _parent;
-	Fn<DocumentData*()> _lookup;
+	Fn<Data()> _lookup;
 	QString _badgeText;
+	mutable int _skipTop = 0;
 	mutable std::optional<Sticker> _sticker;
 	mutable QColor _badgeFg;
 	mutable QColor _badgeBorder;
@@ -172,6 +190,10 @@ public:
 	void draw(
 		Painter &p,
 		const PaintContext &context,
+		int outerWidth) const override;
+	TextState textState(
+		QPoint point,
+		StateRequest request,
 		int outerWidth) const override;
 	void clickHandlerPressedChanged(
 		const ClickHandlerPtr &p,
@@ -199,13 +221,19 @@ private:
 
 	const not_null<Element*> _parent;
 	std::vector<Peer> _peers;
+	mutable QPoint _lastPoint;
 	mutable bool _subscribed = false;
 
 };
 
 [[nodiscard]] auto GenerateGiveawayStart(
 	not_null<Element*> parent,
-	not_null<Data::Giveaway*> giveaway)
+	not_null<Data::GiveawayStart*> data)
+-> Fn<void(Fn<void(std::unique_ptr<MediaInBubble::Part>)>)>;
+
+[[nodiscard]] auto GenerateGiveawayResults(
+	not_null<Element*> parent,
+	not_null<Data::GiveawayResults*> data)
 -> Fn<void(Fn<void(std::unique_ptr<MediaInBubble::Part>)>)>;
 
 } // namespace HistoryView
