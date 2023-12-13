@@ -1379,12 +1379,16 @@ void Stories::sendViewsSliceRequest() {
 		_owner->processUsers(data.vusers());
 		slice.list.reserve(data.vviews().v.size());
 		for (const auto &view : data.vviews().v) {
-			slice.list.push_back({
-				.peer = _owner->peer(peerFromUser(view.data().vuser_id())),
-				.reaction = (view.data().vreaction()
-					? ReactionFromMTP(*view.data().vreaction())
-					: Data::ReactionId()),
-				.date = view.data().vdate().v,
+			view.match([&](const MTPDstoryView &data) {
+				slice.list.push_back({
+					.peer = _owner->peer(peerFromUser(data.vuser_id())),
+					.reaction = (data.vreaction()
+						? ReactionFromMTP(*data.vreaction())
+						: Data::ReactionId()),
+					.date = data.vdate().v,
+				});
+			}, [](const auto &) {
+
 			});
 		}
 		const auto fullId = FullStoryId{
