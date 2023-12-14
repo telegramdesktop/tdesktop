@@ -455,6 +455,8 @@ PeerBubbleListPart::PeerBubbleListPart(
 	}
 }
 
+PeerBubbleListPart::~PeerBubbleListPart() = default;
+
 void PeerBubbleListPart::draw(
 		Painter &p,
 		const PaintContext &context,
