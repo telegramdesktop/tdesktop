@@ -81,8 +81,11 @@ using UpdateFlag = StoryUpdate::Flag;
 		}, [](const MTPDgeoPointEmpty &) {
 		});
 	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
+	}, [&](const MTPDmediaAreaChannelPost &data) {
+	}, [&](const MTPDinputMediaAreaChannelPost &data) {
+		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
 	}, [&](const MTPDinputMediaAreaVenue &data) {
-		LOG(("API Error: Unexpected inputMediaAreaVenue in API data."));
+		LOG(("API Error: Unexpected inputMediaAreaVenue from API."));
 	});
 	return result;
 }
@@ -99,8 +102,32 @@ using UpdateFlag = StoryUpdate::Flag;
 			.flipped = data.is_flipped(),
 			.dark = data.is_dark(),
 		});
+	}, [&](const MTPDmediaAreaChannelPost &data) {
+	}, [&](const MTPDinputMediaAreaChannelPost &data) {
+		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
 	}, [&](const MTPDinputMediaAreaVenue &data) {
-		LOG(("API Error: Unexpected inputMediaAreaVenue in API data."));
+		LOG(("API Error: Unexpected inputMediaAreaVenue from API."));
+	});
+	return result;
+}
+
+[[nodiscard]] auto ParseChannelPost(const MTPMediaArea &area)
+-> std::optional<ChannelPost> {
+	auto result = std::optional<ChannelPost>();
+	area.match([&](const MTPDmediaAreaVenue &data) {
+	}, [&](const MTPDmediaAreaGeoPoint &data) {
+	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
+	}, [&](const MTPDmediaAreaChannelPost &data) {
+		result.emplace(ChannelPost{
+			.area = ParseArea(data.vcoordinates()),
+			.itemId = FullMsgId(
+				peerFromChannel(data.vchannel_id()),
+				data.vmsg_id().v),
+		});
+	}, [&](const MTPDinputMediaAreaChannelPost &data) {
+		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
+	}, [&](const MTPDinputMediaAreaVenue &data) {
+		LOG(("API Error: Unexpected inputMediaAreaVenue from API."));
 	});
 	return result;
 }

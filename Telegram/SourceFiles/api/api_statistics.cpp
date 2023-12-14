@@ -383,11 +383,12 @@ void PublicForwards::requestMessage(
 	_requestId = makeRequest(MTPstats_GetMessagePublicForwards(
 		channel()->inputChannel,
 		MTP_int(_fullId.messageId.msg),
-		MTP_int(token.rate),
-		tlOffsetPeer,
-		MTP_int(token.fullId.msg),
+		//MTP_int(token.rate),
+		//tlOffsetPeer,
+		//MTP_int(token.fullId.msg),
+		MTP_string(), // offset
 		kLimit
-	)).done([=, channel = channel()](const MTPmessages_Messages &result) {
+	)).done([=, channel = channel()](const MTPstats_PublicForwards &result) {
 		using Messages = QVector<Data::RecentPostId>;
 		_requestId = 0;
 
@@ -414,6 +415,8 @@ void PublicForwards::requestMessage(
 
 		auto allLoaded = false;
 		auto fullCount = 0;
+		auto messages = Messages();
+#if 0 // todo
 		auto messages = result.match([&](const MTPDmessages_messages &data) {
 			channel->owner().processUsers(data.vusers());
 			channel->owner().processChats(data.vchats());
@@ -447,7 +450,7 @@ void PublicForwards::requestMessage(
 			allLoaded = true;
 			return Messages();
 		});
-
+#endif
 		_lastTotal = std::max(_lastTotal, fullCount);
 		done({
 			.list = std::move(messages),

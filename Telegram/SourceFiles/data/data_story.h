@@ -109,6 +109,15 @@ struct SuggestedReaction {
 		const SuggestedReaction &) = default;
 };
 
+struct ChannelPost {
+	StoryArea area;
+	FullMsgId itemId;
+
+	friend inline bool operator==(
+		const ChannelPost &,
+		const ChannelPost &) = default;
+};
+
 class Story final {
 public:
 	Story(
