@@ -77,13 +77,6 @@ public:
 		Fn<void(Data::PublicForwardsSlice)> done);
 
 private:
-	void requestMessage(
-		const Data::PublicForwardsSlice::OffsetToken &token,
-		Fn<void(Data::PublicForwardsSlice)> done);
-	void requestStory(
-		const Data::PublicForwardsSlice::OffsetToken &token,
-		Fn<void(Data::PublicForwardsSlice)> done);
-
 	const Data::RecentPostId _fullId;
 	mtpRequestId _requestId = 0;
 	int _lastTotal = 0;

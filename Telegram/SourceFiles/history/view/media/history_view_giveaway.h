@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
+#include "ui/effects/ripple_animation.h"
 
 namespace Data {
 struct GiveawayStart;
@@ -18,10 +19,6 @@ struct GiveawayResults;
 namespace Dialogs::Stories {
 class Thumbnail;
 } // namespace Dialogs::Stories
-
-namespace Ui {
-class RippleAnimation;
-} // namespace Ui
 
 namespace HistoryView {
 

@@ -361,139 +361,27 @@ PublicForwards::PublicForwards(
 void PublicForwards::request(
 		const Data::PublicForwardsSlice::OffsetToken &token,
 		Fn<void(Data::PublicForwardsSlice)> done) {
-	if (!_requestId) {
-		if (_fullId.messageId) {
-			requestMessage(token, std::move(done));
-		} else if (_fullId.storyId) {
-			requestStory(token, std::move(done));
-		}
+	if (_requestId) {
+		return;
 	}
-}
-
-void PublicForwards::requestMessage(
-		const Data::PublicForwardsSlice::OffsetToken &token,
-		Fn<void(Data::PublicForwardsSlice)> done) {
-	Expects(_fullId.messageId);
-
-	const auto offsetPeer = channel()->owner().peer(token.fullId.peer);
-	const auto tlOffsetPeer = offsetPeer
-		? offsetPeer->input
-		: MTP_inputPeerEmpty();
-	constexpr auto kLimit = tl::make_int(100);
-	_requestId = makeRequest(MTPstats_GetMessagePublicForwards(
-		channel()->inputChannel,
-		MTP_int(_fullId.messageId.msg),
-		//MTP_int(token.rate),
-		//tlOffsetPeer,
-		//MTP_int(token.fullId.msg),
-		MTP_string(), // offset
-		kLimit
-	)).done([=, channel = channel()](const MTPstats_PublicForwards &result) {
+	const auto channel = StatisticsRequestSender::channel();
+	const auto processResult = [=](const MTPstats_PublicForwards &tl) {
 		using Messages = QVector<Data::RecentPostId>;
 		_requestId = 0;
 
-		auto nextToken = Data::PublicForwardsSlice::OffsetToken();
-		const auto process = [&](const MTPVector<MTPMessage> &messages) {
-			auto result = Messages();
-			for (const auto &message : messages.v) {
-				const auto msgId = IdFromMessage(message);
-				const auto peerId = PeerFromMessage(message);
-				const auto lastDate = DateFromMessage(message);
-				if (const auto peer = channel->owner().peerLoaded(peerId)) {
-					if (lastDate) {
-						channel->owner().addNewMessage(
-							message,
-							MessageFlags(),
-							NewMessageType::Existing);
-						nextToken.fullId = { peerId, msgId };
-						result.push_back({ .messageId = nextToken.fullId });
-					}
-				}
-			}
-			return result;
-		};
-
-		auto allLoaded = false;
-		auto fullCount = 0;
-		auto messages = Messages();
-#if 0 // todo
-		auto messages = result.match([&](const MTPDmessages_messages &data) {
-			channel->owner().processUsers(data.vusers());
-			channel->owner().processChats(data.vchats());
-			auto list = process(data.vmessages());
-			allLoaded = true;
-			fullCount = list.size();
-			return list;
-		}, [&](const MTPDmessages_messagesSlice &data) {
-			channel->owner().processUsers(data.vusers());
-			channel->owner().processChats(data.vchats());
-			auto list = process(data.vmessages());
-
-			if (const auto nextRate = data.vnext_rate()) {
-				const auto rateUpdated = (nextRate->v != token.rate);
-				if (rateUpdated) {
-					nextToken.rate = nextRate->v;
-				} else {
-					allLoaded = true;
-				}
-			}
-			fullCount = data.vcount().v;
-			return list;
-		}, [&](const MTPDmessages_channelMessages &data) {
-			channel->owner().processUsers(data.vusers());
-			channel->owner().processChats(data.vchats());
-			auto list = process(data.vmessages());
-			allLoaded = true;
-			fullCount = data.vcount().v;
-			return list;
-		}, [&](const MTPDmessages_messagesNotModified &) {
-			allLoaded = true;
-			return Messages();
-		});
-#endif
-		_lastTotal = std::max(_lastTotal, fullCount);
-		done({
-			.list = std::move(messages),
-			.total = _lastTotal,
-			.allLoaded = allLoaded,
-			.token = nextToken,
-		});
-	}).fail([=] {
-		_requestId = 0;
-	}).send();
-}
-
-void PublicForwards::requestStory(
-		const Data::PublicForwardsSlice::OffsetToken &token,
-		Fn<void(Data::PublicForwardsSlice)> done) {
-	Expects(_fullId.storyId);
-
-	constexpr auto kLimit = tl::make_int(100);
-	_requestId = makeRequest(MTPstats_GetStoryPublicForwards(
-		channel()->input,
-		MTP_int(_fullId.storyId.story),
-		MTP_string(token.storyOffset),
-		kLimit
-	)).done([=, channel = channel()](
-			const MTPstats_PublicForwards &tlForwards) {
-		using Messages = QVector<Data::RecentPostId>;
-		_requestId = 0;
-
-		const auto &data = tlForwards.data();
+		const auto &data = tl.data();
 		auto &owner = channel->owner();
 
 		owner.processUsers(data.vusers());
 		owner.processChats(data.vchats());
 
-		const auto nextToken = Data::PublicForwardsSlice::OffsetToken({
-			.storyOffset = data.vnext_offset().value_or_empty(),
-		});
+		const auto nextToken = data.vnext_offset()
+			? qs(*data.vnext_offset())
+			: Data::PublicForwardsSlice::OffsetToken();
 
-		const auto allLoaded = nextToken.storyOffset.isEmpty()
-			|| (nextToken.storyOffset == token.storyOffset);
 		const auto fullCount = data.vcount().v;
 
-		auto recentList = Messages();
+		auto recentList = Messages(data.vforwards().v.size());
 		for (const auto &tlForward : data.vforwards().v) {
 			tlForward.match([&](const MTPDpublicForwardMessage &data) {
 				const auto &message = data.vmessage();
@@ -520,6 +408,7 @@ void PublicForwards::requestStory(
 			});
 		}
 
+		const auto allLoaded = nextToken.isEmpty() || (nextToken == token);
 		_lastTotal = std::max(_lastTotal, fullCount);
 		done({
 			.list = std::move(recentList),
@@ -527,9 +416,24 @@ void PublicForwards::requestStory(
 			.allLoaded = allLoaded,
 			.token = nextToken,
 		});
-	}).fail([=] {
-		_requestId = 0;
-	}).send();
+	};
+
+	constexpr auto kLimit = tl::make_int(100);
+	if (_fullId.messageId) {
+		_requestId = makeRequest(MTPstats_GetMessagePublicForwards(
+			channel->inputChannel,
+			MTP_int(_fullId.messageId.msg),
+			MTP_string(token),
+			kLimit
+		)).done(processResult).fail([=] { _requestId = 0; }).send();
+	} else if (_fullId.storyId) {
+		_requestId = makeRequest(MTPstats_GetStoryPublicForwards(
+			channel->input,
+			MTP_int(_fullId.storyId.story),
+			MTP_string(token),
+			kLimit
+		)).done(processResult).fail([=] { _requestId = 0; }).send();
+	}
 }
 
 MessageStatistics::MessageStatistics(
