@@ -1836,6 +1836,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sponsored_message_title" = "Sponsored";
 "lng_recommended_message_title" = "Recommended";
 "lng_edited" = "edited";
+"lng_commented" = "commented";
 "lng_edited_date" = "Edited: {date}";
 "lng_sent_date" = "Sent: {date}";
 "lng_views_tooltip#one" = "Views: {count}";

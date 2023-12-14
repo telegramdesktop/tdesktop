@@ -149,7 +149,7 @@ public:
 	void apply(const MTPDupdateReadStories &data);
 	void apply(const MTPStoriesStealthMode &stealthMode);
 	void apply(not_null<PeerData*> peer, const MTPPeerStories *data);
-	Story *applyFromWebpage(PeerId peerId, const MTPstoryItem &story);
+	Story *applySingle(PeerId peerId, const MTPstoryItem &story);
 	void loadAround(FullStoryId id, StoriesContext context);
 
 	const StoriesSource *source(PeerId id) const;

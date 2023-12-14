@@ -5019,6 +5019,7 @@ void OverlayWidget::paintCaptionContent(
 	const auto inner = full.marginsRemoved(
 		_stories ? _stories->repostCaptionPadding() : QMargins());
 	if (_stories) {
+		p.setOpacity(1.);
 		if (_stories->repost()) {
 			_stories->drawRepostInfo(p, full.x(), full.y(), full.width());
 		}

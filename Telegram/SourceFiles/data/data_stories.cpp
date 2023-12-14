@@ -220,7 +220,7 @@ void Stories::apply(not_null<PeerData*> peer, const MTPPeerStories *data) {
 	}
 }
 
-Story *Stories::applyFromWebpage(PeerId peerId, const MTPstoryItem &story) {
+Story *Stories::applySingle(PeerId peerId, const MTPstoryItem &story) {
 	const auto idDates = parseAndApply(
 		_owner->peer(peerId),
 		story,
@@ -1374,6 +1374,8 @@ void Stories::sendViewsSliceRequest() {
 		auto slice = StoryViews{
 			.nextOffset = data.vnext_offset().value_or_empty(),
 			.reactions = data.vreactions_count().v,
+			.forwards = data.vforwards_count().v,
+			.views = data.vviews_count().v,
 			.total = data.vcount().v,
 		};
 		_owner->processUsers(data.vusers());
@@ -1387,8 +1389,27 @@ void Stories::sendViewsSliceRequest() {
 						: Data::ReactionId()),
 					.date = data.vdate().v,
 				});
-			}, [](const auto &) {
-
+			}, [&](const MTPDstoryViewPublicRepost &data) {
+				const auto story = applySingle(
+					peerFromMTP(data.vpeer_id()),
+					data.vstory());
+				if (story) {
+					slice.list.push_back({
+						.peer = story->peer(),
+						.repostId = story->id(),
+					});
+				}
+			}, [&](const MTPDstoryViewPublicForward &data) {
+				const auto item = _owner->addNewMessage(
+					data.vmessage(),
+					{},
+					NewMessageType::Existing);
+				if (item) {
+					slice.list.push_back({
+						.peer = item->history()->peer,
+						.forwardId = item->id,
+					});
+				}
 			});
 		}
 		const auto fullId = FullStoryId{

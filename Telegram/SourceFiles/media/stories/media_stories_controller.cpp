@@ -903,7 +903,9 @@ void Controller::show(
 	_recentViews->show({
 		.list = story->recentViewers(),
 		.reactions = story->reactions(),
-		.total = story->views(),
+		.forwards = story->forwards(),
+		.views = story->views(),
+		.total = story->interactions(),
 		.type = RecentViewsTypeFor(peer),
 	}, _reactions->likedValue());
 	if (const auto nowLikeButton = _recentViews->likeButton()) {
@@ -999,7 +1001,9 @@ void Controller::subscribeToSession() {
 			_recentViews->show({
 				.list = update.story->recentViewers(),
 				.reactions = update.story->reactions(),
-				.total = update.story->views(),
+				.forwards = update.story->forwards(),
+				.views = update.story->views(),
+				.total = update.story->interactions(),
 				.type = RecentViewsTypeFor(update.story->peer()),
 			});
 			updateAreas(update.story);

@@ -3416,7 +3416,7 @@ void Session::webpageApplyFields(
 					data.vid().v,
 				};
 				if (const auto embed = data.vstory()) {
-					story = stories().applyFromWebpage(
+					story = stories().applySingle(
 						peerFromMTP(data.vpeer()),
 						*embed);
 				} else if (const auto maybe = stories().lookup(storyId)) {

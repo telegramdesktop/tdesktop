@@ -399,7 +399,7 @@ void PublicForwards::request(
 					recentList.push_back({ .messageId = { peerId, msgId } });
 				}
 			}, [&](const MTPDpublicForwardStory &data) {
-				const auto story = owner.stories().applyFromWebpage(
+				const auto story = owner.stories().applySingle(
 					peerFromMTP(data.vpeer()),
 					data.vstory());
 				if (story) {

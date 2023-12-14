@@ -23,6 +23,7 @@ class RpWidget;
 class GroupCallUserpics;
 class PopupMenu;
 class WhoReactedEntryAction;
+enum class WhoReactedType : uchar;
 } // namespace Ui
 
 namespace Main {
@@ -43,6 +44,8 @@ enum class RecentViewsType {
 struct RecentViewsData {
 	std::vector<not_null<PeerData*>> list;
 	int reactions = 0;
+	int forwards = 0;
+	int views = 0;
 	int total = 0;
 	RecentViewsType type = RecentViewsType::Other;
 
@@ -72,7 +75,8 @@ private:
 	struct MenuEntry {
 		not_null<Ui::WhoReactedEntryAction*> action;
 		PeerData *peer = nullptr;
-		QString date;
+		Ui::WhoReactedType type = {};
+		QString status;
 		QString customEntityData;
 		Fn<void()> callback;
 		Ui::PeerUserpicView view;

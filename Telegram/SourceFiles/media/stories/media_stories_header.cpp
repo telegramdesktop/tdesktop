@@ -256,7 +256,7 @@ struct MadePrivacyBadge {
 			QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now));
 	}
 	if (!data.repostFrom.isEmpty()) {
-		result.text = QString::fromUtf8("\xC2\xA0\xE2\x80\xA2 ")
+		result.text = QString::fromUtf8("\xE2\x80\xA2 ")
 			+ result.text;
 	}
 	return result;
@@ -500,7 +500,8 @@ void Header::show(HeaderData data) {
 				_repost->resizeToNaturalWidth(repostAvailable);
 			}
 			_repost->move(dateLeft, dateTop);
-			_date->move(dateLeft + _repost->width(), dateTop);
+			const auto space = st::normalFont->spacew;
+			_date->move(dateLeft + _repost->width() + space, dateTop);
 		} else {
 			_date->move(dateLeft, dateTop);
 		}
