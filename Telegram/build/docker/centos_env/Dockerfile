@@ -797,19 +797,10 @@ RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git qt_{{ QT }} \
 	&& cd .. \
 	&& rm -rf qt_{{ QT }}
 
-FROM patches AS breakpad
-RUN git init breakpad \
+FROM builder AS breakpad
+RUN git clone -b v2023.01.27 --depth=1 https://chromium.googlesource.com/breakpad/breakpad.git \
 	&& cd breakpad \
-	&& git remote add origin https://chromium.googlesource.com/breakpad/breakpad.git \
-	&& git fetch --depth=1 origin dfcb7b6799b7c1e2c8d65e857d8afede185471d8 \
-	&& git reset --hard FETCH_HEAD \
-	&& git apply ../patches/breakpad.diff \
-	&& git init src/third_party/lss \
-	&& cd src/third_party/lss \
-	&& git remote add origin https://chromium.googlesource.com/linux-syscall-support.git \
-	&& git fetch --depth=1 origin e1e7b0ad8ee99a875b272c8e33e308472e897660 \
-	&& git reset --hard FETCH_HEAD \
-	&& cd ../../.. \
+	&& git clone -b v2022.10.12 --depth=1 https://chromium.googlesource.com/linux-syscall-support.git src/third_party/lss \
 	&& env -u CFLAGS -u CXXFLAGS ./configure \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/breakpad-cache" install \
