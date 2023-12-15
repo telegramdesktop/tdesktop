@@ -729,6 +729,7 @@ RUN git clone -b 2.78.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 		-Dbuild-examples=false \
 		-Dsigc++-3.0:build-documentation=false \
 		-Dsigc++-3.0:build-examples=false \
+		-Dsigc++-3.0:build-tests=false \
 		-Dsigc++-3.0:validation=false \
 		-Dmm-common:use-network=true \
 	&& meson compile -C build \

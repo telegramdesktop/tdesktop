@@ -296,6 +296,7 @@ parts:
       - -Dbuild-examples=false
       - -Dsigc++-3.0:build-documentation=false
       - -Dsigc++-3.0:build-examples=false
+      - -Dsigc++-3.0:build-tests=false
       - -Dsigc++-3.0:validation=false
     prime:
       - -./usr/include
