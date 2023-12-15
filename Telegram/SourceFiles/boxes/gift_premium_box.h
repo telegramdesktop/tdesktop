@@ -57,7 +57,9 @@ void GiftCodePendingBox(
 	const Api::GiftCode &data);
 void ResolveGiftCode(
 	not_null<Window::SessionNavigation*> controller,
-	const QString &slug);
+	const QString &slug,
+	PeerId fromId = 0,
+	PeerId toId = 0);
 
 void ResolveGiveawayInfo(
 	not_null<Window::SessionNavigation*> controller,

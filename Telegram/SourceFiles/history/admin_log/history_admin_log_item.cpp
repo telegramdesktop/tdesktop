@@ -770,6 +770,7 @@ void GenerateItems(
 	using LogChangePeerColor = MTPDchannelAdminLogEventActionChangePeerColor;
 	using LogChangeProfilePeerColor = MTPDchannelAdminLogEventActionChangeProfilePeerColor;
 	using LogChangeWallpaper = MTPDchannelAdminLogEventActionChangeWallpaper;
+	using LogChangeEmojiStatus = MTPDchannelAdminLogEventActionChangeEmojiStatus;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -1908,6 +1909,10 @@ void GenerateItems(
 			Ui::Text::WithEntities));
 	};
 
+	const auto createChangeEmojiStatus = [&](const LogChangeEmojiStatus &data) {
+
+	};
+
 	action.match(
 		createChangeTitle,
 		createChangeAbout,
@@ -1954,7 +1959,8 @@ void GenerateItems(
 		createToggleAntiSpam,
 		createChangePeerColor,
 		createChangeProfilePeerColor,
-		createChangeWallpaper);
+		createChangeWallpaper,
+		createChangeEmojiStatus);
 }
 
 } // namespace AdminLog

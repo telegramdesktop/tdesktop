@@ -370,18 +370,20 @@ void AddTable(
 			container,
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
-	AddTableRow(
-		table,
-		tr::lng_gift_link_label_from(),
-		controller,
-		current.from);
+	if (current.from) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_from(),
+			controller,
+			current.from);
+	}
 	if (current.to) {
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_to(),
 			controller,
 			current.to);
-	} else {
+	} else if (current.from) {
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_to(),
@@ -723,11 +725,17 @@ void GiftCodePendingBox(
 
 void ResolveGiftCode(
 		not_null<Window::SessionNavigation*> controller,
-		const QString &slug) {
+		const QString &slug,
+		PeerId fromId,
+		PeerId toId) {
 	const auto done = [=](Api::GiftCode code) {
 		if (!code) {
 			controller->showToast(tr::lng_gift_link_expired(tr::now));
 		} else {
+			if (!code.from) {
+				code.from = fromId;
+				code.to = toId;
+			}
 			controller->uiShow()->showBox(Box(GiftCodeBox, controller, slug));
 		}
 	};

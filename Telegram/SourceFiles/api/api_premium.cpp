@@ -26,7 +26,7 @@ namespace {
 
 [[nodiscard]] GiftCode Parse(const MTPDpayments_checkedGiftCode &data) {
 	return {
-		.from = peerFromMTP(data.vfrom_id()),
+		.from = data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(),
 		.to = data.vto_id() ? peerFromUser(*data.vto_id()) : PeerId(),
 		.giveawayId = data.vgiveaway_msg_id().value_or_empty(),
 		.date = data.vdate().v,

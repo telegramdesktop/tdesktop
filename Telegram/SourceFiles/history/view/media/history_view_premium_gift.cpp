@@ -90,14 +90,16 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
+			const auto selfId = controller->session().userPeerId();
+			const auto self = (from->id == selfId);
 			if (data.slug.isEmpty()) {
-				const auto selfId = controller->session().userPeerId();
-				const auto self = (from->id == selfId);
 				const auto peer = self ? to : from;
 				const auto months = data.months;
 				Settings::ShowGiftPremium(controller, peer, months, self);
 			} else {
-				ResolveGiftCode(controller, data.slug);
+				const auto fromId = from->id;
+				const auto toId = self ? to->id : selfId;
+				ResolveGiftCode(controller, data.slug, fromId, toId);
 			}
 		}
 	});
