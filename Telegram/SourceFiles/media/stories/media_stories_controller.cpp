@@ -907,6 +907,7 @@ void Controller::show(
 		.views = story->views(),
 		.total = story->interactions(),
 		.type = RecentViewsTypeFor(peer),
+		.canViewReactions = CanViewReactionsFor(peer),
 	}, _reactions->likedValue());
 	if (const auto nowLikeButton = _recentViews->likeButton()) {
 		if (wasLikeButton != nowLikeButton) {
@@ -998,13 +999,15 @@ void Controller::subscribeToSession() {
 			show(update.story, _context);
 			_delegate->storiesRedisplay(update.story);
 		} else {
+			const auto peer = update.story->peer();
 			_recentViews->show({
 				.list = update.story->recentViewers(),
 				.reactions = update.story->reactions(),
 				.forwards = update.story->forwards(),
 				.views = update.story->views(),
 				.total = update.story->interactions(),
-				.type = RecentViewsTypeFor(update.story->peer()),
+				.type = RecentViewsTypeFor(peer),
+				.canViewReactions = CanViewReactionsFor(peer),
 			});
 			updateAreas(update.story);
 		}
@@ -1414,11 +1417,19 @@ const Data::StoryViews &Controller::views(int limit, bool initial) {
 		const auto done = viewsGotMoreCallback();
 		const auto peer = shownPeer();
 		auto &stories = peer->owner().stories();
-		stories.loadViewsSlice(
-			peer,
-			_shown.story,
-			_viewsSlice.nextOffset,
-			done);
+		if (peer->isChannel()) {
+			stories.loadReactionsSlice(
+				peer,
+				_shown.story,
+				_viewsSlice.nextOffset,
+				done);
+		} else {
+			stories.loadViewsSlice(
+				peer,
+				_shown.story,
+				_viewsSlice.nextOffset,
+				done);
+		}
 	}
 	return _viewsSlice;
 }
@@ -1433,7 +1444,11 @@ Fn<void(Data::StoryViews)> Controller::viewsGotMoreCallback() {
 			const auto peer = shownPeer();
 			auto &stories = peer->owner().stories();
 			if (const auto maybeStory = stories.lookup(_shown)) {
-				_viewsSlice = (*maybeStory)->viewsList();
+				if (peer->isChannel()) {
+					_viewsSlice = (*maybeStory)->channelReactionsList();
+				} else {
+					_viewsSlice = (*maybeStory)->viewsList();
+				}
 			} else {
 				_viewsSlice = {};
 			}
@@ -1596,8 +1611,12 @@ void Controller::refreshViewsFromData() {
 	const auto peer = shownPeer();
 	auto &stories = peer->owner().stories();
 	const auto maybeStory = stories.lookup(_shown);
-	if (!maybeStory || !peer->isSelf()) {
+	const auto check = peer->isSelf()
+		|| CanViewReactionsFor(peer);
+	if (!maybeStory || !check) {
 		_viewsSlice = {};
+	} else if (peer->isChannel()) {
+		_viewsSlice = (*maybeStory)->channelReactionsList();
 	} else {
 		_viewsSlice = (*maybeStory)->viewsList();
 	}

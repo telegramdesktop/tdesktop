@@ -182,6 +182,11 @@ public:
 		StoryId id,
 		QString offset,
 		Fn<void(StoryViews)> done);
+	void loadReactionsSlice(
+		not_null<PeerData*> peer,
+		StoryId id,
+		QString offset,
+		Fn<void(StoryViews)> done);
 
 	[[nodiscard]] bool hasArchive(not_null<PeerData*> peer) const;
 
@@ -378,6 +383,12 @@ private:
 	QString _viewsOffset;
 	Fn<void(StoryViews)> _viewsDone;
 	mtpRequestId _viewsRequestId = 0;
+
+	PeerData *_reactionsStoryPeer = nullptr;
+	StoryId _reactionsStoryId = 0;
+	QString _reactionsOffset;
+	Fn<void(StoryViews)> _reactionsDone;
+	mtpRequestId _reactionsRequestId = 0;
 
 	base::flat_set<FullStoryId> _preloaded;
 	std::vector<FullStoryId> _toPreloadSources[kStorySourcesListCount];

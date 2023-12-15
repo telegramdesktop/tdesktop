@@ -513,6 +513,10 @@ const StoryViews &Story::viewsList() const {
 	return _views;
 }
 
+const StoryViews &Story::channelReactionsList() const {
+	return _channelReactions;
+}
+
 int Story::interactions() const {
 	return _views.total;
 }
@@ -543,6 +547,9 @@ void Story::applyViewsSlice(
 	_views.known = true;
 	if (offset.isEmpty()) {
 		_views = slice;
+		if (!_channelReactions.total) {
+			_channelReactions.total = _views.reactions + _views.forwards;
+		}
 	} else if (_views.nextOffset == offset) {
 		_views.list.insert(
 			end(_views.list),
@@ -582,6 +589,33 @@ void Story::applyViewsSlice(
 					this,
 					UpdateFlag::ViewsChanged);
 			}
+		}
+	}
+	if (changed) {
+		_peer->session().changes().storyUpdated(
+			this,
+			UpdateFlag::ViewsChanged);
+	}
+}
+
+void Story::applyChannelReactionsSlice(
+		const QString &offset,
+		const StoryViews &slice) {
+	const auto changed = (_channelReactions.reactions != slice.reactions)
+		|| (_channelReactions.total != slice.total);
+	_channelReactions.reactions = slice.reactions;
+	_channelReactions.total = slice.total;
+	_channelReactions.known = true;
+	if (offset.isEmpty()) {
+		_channelReactions = slice;
+	} else if (_channelReactions.nextOffset == offset) {
+		_channelReactions.list.insert(
+			end(_channelReactions.list),
+			begin(slice.list),
+			end(slice.list));
+		_channelReactions.nextOffset = slice.nextOffset;
+		if (_channelReactions.nextOffset.isEmpty()) {
+			_channelReactions.total = int(_channelReactions.list.size());
 		}
 	}
 	if (changed) {
@@ -793,6 +827,9 @@ void Story::updateViewsCounts(ViewsCounts &&counts, bool known, bool initial) {
 			.total = total,
 			.known = known,
 		};
+		if (!_channelReactions.total) {
+			_channelReactions.total = _views.reactions + _views.forwards;
+		}
 	}
 	if (viewsChanged) {
 		_recentViewers = std::move(counts.viewers);

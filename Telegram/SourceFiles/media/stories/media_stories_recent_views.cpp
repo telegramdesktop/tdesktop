@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_who_reacted.h" // FormatReadDate.
 #include "chat_helpers/compose/compose_show.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/data_channel.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -145,6 +146,13 @@ RecentViewsType RecentViewsTypeFor(not_null<PeerData*> peer) {
 		: RecentViewsType::Other;
 }
 
+bool CanViewReactionsFor(not_null<PeerData*> peer) {
+	if (const auto channel = peer->asChannel()) {
+		return channel->amCreator() || channel->hasAdminRights();
+	}
+	return false;
+}
+
 RecentViews::RecentViews(not_null<Controller*> controller)
 : _controller(controller) {
 }
@@ -178,8 +186,10 @@ void RecentViews::show(
 		|| (_data.forwards != data.forwards)
 		|| (_data.reactions != data.reactions);
 	const auto usersChanged = !_userpics || (_data.list != data.list);
+	const auto canViewReactions = data.canViewReactions
+		&& (data.reactions > 0 || data.forwards > 0);
 	_data = data;
-	if (_data.type != RecentViewsType::Self) {
+	if (_data.type != RecentViewsType::Self && !canViewReactions) {
 		_text = {};
 		_clickHandlerLifetime.destroy();
 		_userpicsLifetime.destroy();
@@ -229,7 +239,8 @@ Ui::RpWidget *RecentViews::likeIconWidget() const {
 }
 
 void RecentViews::refreshClickHandler() {
-	const auto nowEmpty = _data.list.empty();
+	const auto nowEmpty = (_data.type != RecentViewsType::Channel)
+		&& _data.list.empty();
 	const auto wasEmpty = !_clickHandlerLifetime;
 	const auto raw = _widget.get();
 	if (wasEmpty == nowEmpty) {
@@ -389,13 +400,16 @@ void RecentViews::updateViewsReactionsGeometry() {
 void RecentViews::updatePartsGeometry() {
 	const auto skip = st::storiesRecentViewsSkip;
 	const auto full = _userpicsWidth + skip + _text.maxWidth();
+	const auto add = (_data.type == RecentViewsType::Channel)
+		? st::storiesViewsTextPosition.y()
+		: 0;
 	const auto use = std::min(full, _outer.width());
 	const auto ux = _outer.x() + (_outer.width() - use) / 2;
 	const auto uheight = st::storiesWhoViewed.userpics.size;
-	const auto uy = _outer.y() + (_outer.height() - uheight) / 2;
+	const auto uy = _outer.y() + (_outer.height() - uheight) / 2 + add;
 	const auto tx = ux + _userpicsWidth + skip;
 	const auto theight = st::normalFont->height;
-	const auto ty = _outer.y() + (_outer.height() - theight) / 2;
+	const auto ty = _outer.y() + (_outer.height() - theight) / 2 + add;
 	const auto my = std::min(uy, ty);
 	const auto mheight = std::max(uheight, theight);
 	const auto padding = skip;
@@ -406,7 +420,9 @@ void RecentViews::updatePartsGeometry() {
 }
 
 void RecentViews::updateText() {
-	const auto text = _data.views
+	const auto text = (_data.type == RecentViewsType::Channel)
+		? u"View reactions"_q
+		: _data.views
 		? (tr::lng_stories_views(tr::now, lt_count, _data.views)
 			+ (_data.reactions
 				? (u"  "_q + QChar(10084) + QString::number(_data.reactions))
@@ -417,7 +433,8 @@ void RecentViews::updateText() {
 }
 
 void RecentViews::showMenu() {
-	if (_menu || _data.list.empty()) {
+	if (_menu
+		|| (_data.type != RecentViewsType::Channel && _data.list.empty())) {
 		return;
 	}
 

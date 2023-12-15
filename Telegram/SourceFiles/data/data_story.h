@@ -179,11 +179,15 @@ public:
 	[[nodiscard]] auto recentViewers() const
 		-> const std::vector<not_null<PeerData*>> &;
 	[[nodiscard]] const StoryViews &viewsList() const;
+	[[nodiscard]] const StoryViews &channelReactionsList() const;
 	[[nodiscard]] int interactions() const;
 	[[nodiscard]] int views() const;
 	[[nodiscard]] int forwards() const;
 	[[nodiscard]] int reactions() const;
 	void applyViewsSlice(const QString &offset, const StoryViews &slice);
+	void applyChannelReactionsSlice(
+		const QString &offset,
+		const StoryViews &slice);
 
 	[[nodiscard]] const std::vector<StoryLocation> &locations() const;
 	[[nodiscard]] auto suggestedReactions() const
@@ -235,6 +239,7 @@ private:
 	std::vector<StoryLocation> _locations;
 	std::vector<SuggestedReaction> _suggestedReactions;
 	StoryViews _views;
+	StoryViews _channelReactions;
 	const TimeId _date = 0;
 	const TimeId _expires = 0;
 	TimeId _lastUpdateTime = 0;

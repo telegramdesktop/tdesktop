@@ -48,6 +48,7 @@ struct RecentViewsData {
 	int views = 0;
 	int total = 0;
 	RecentViewsType type = RecentViewsType::Other;
+	bool canViewReactions = false;
 
 	friend inline auto operator<=>(
 		const RecentViewsData &,
@@ -58,6 +59,7 @@ struct RecentViewsData {
 };
 
 [[nodiscard]] RecentViewsType RecentViewsTypeFor(not_null<PeerData*> peer);
+[[nodiscard]] bool CanViewReactionsFor(not_null<PeerData*> peer);
 
 class RecentViews final {
 public:
