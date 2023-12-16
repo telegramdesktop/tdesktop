@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_sponsored_click_handler.h"
+#include "history/view/history_view_reply.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_theme_document.h"
 #include "ui/image/image.h"
@@ -567,12 +568,38 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
 
 	const auto selected = context.selected();
-	const auto colorIndex = parent()->colorIndex();
+	const auto view = parent();
+	const auto colorIndex = view->colorIndex();
 	const auto cache = context.outbg
 		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
 		: st->coloredReplyCache(selected, colorIndex).get();
+	const auto from = view->data()->displayFrom();
+	const auto backgroundEmojiId = from
+		? from->backgroundEmojiId()
+		: DocumentId();
+	const auto backgroundEmoji = backgroundEmojiId
+		? st->backgroundEmojiData(backgroundEmojiId).get()
+		: nullptr;
+	const auto backgroundEmojiCache = backgroundEmoji
+		? &backgroundEmoji->caches[Ui::BackgroundEmojiData::CacheIndex(
+			selected,
+			context.outbg,
+			true,
+			colorIndex + 1)]
+		: nullptr;
 	Ui::Text::ValidateQuotePaintCache(*cache, _st);
 	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
+	if (backgroundEmoji) {
+		ValidateBackgroundEmoji(
+			backgroundEmojiId,
+			backgroundEmoji,
+			backgroundEmojiCache,
+			cache,
+			view);
+		if (!backgroundEmojiCache->frames[0].isNull()) {
+			FillBackgroundEmoji(p, outer, false, *backgroundEmojiCache);
+		}
+	}
 
 	if (_ripple) {
 		_ripple->paint(p, outer.x(), outer.y(), width(), &cache->bg);
