@@ -371,7 +371,8 @@ MTPWallPaperSettings WallPaper::mtpSettings() const {
 		serializeForIndex(2),
 		serializeForIndex(3),
 		MTP_int(_intensity),
-		MTP_int(_rotation));
+		MTP_int(_rotation),
+		MTPstring()); // emoticon
 }
 
 WallPaper WallPaper::withUrlParams(

@@ -192,6 +192,8 @@ public:
 	[[nodiscard]] const std::vector<StoryLocation> &locations() const;
 	[[nodiscard]] auto suggestedReactions() const
 		-> const std::vector<SuggestedReaction> &;
+	[[nodiscard]] auto channelPosts() const
+		-> const std::vector<ChannelPost> &;
 
 	void applyChanges(
 		StoryMedia media,
@@ -238,6 +240,7 @@ private:
 	std::vector<not_null<PeerData*>> _recentViewers;
 	std::vector<StoryLocation> _locations;
 	std::vector<SuggestedReaction> _suggestedReactions;
+	std::vector<ChannelPost> _channelPosts;
 	StoryViews _views;
 	StoryViews _channelReactions;
 	const TimeId _date = 0;

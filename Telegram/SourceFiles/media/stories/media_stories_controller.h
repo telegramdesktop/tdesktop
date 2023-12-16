@@ -302,6 +302,7 @@ private:
 
 	std::vector<Data::StoryLocation> _locations;
 	std::vector<Data::SuggestedReaction> _suggestedReactions;
+	std::vector<Data::ChannelPost> _channelPosts;
 	mutable std::vector<ActiveArea> _areas;
 
 	std::vector<CachedSource> _cachedSourcesList;

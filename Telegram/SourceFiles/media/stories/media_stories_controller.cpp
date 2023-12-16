@@ -119,6 +119,25 @@ struct SameDayRange {
 		int(base::SafeRound(asin * point.x() + acos * point.y())));
 }
 
+[[nodiscard]] ClickHandlerPtr MakeChannelPostHandler(
+		not_null<Main::Session*> session,
+		FullMsgId item) {
+	return std::make_shared<LambdaClickHandler>(crl::guard(session, [=] {
+		const auto peer = session->data().peer(item.peer);
+		if (const auto window = Core::App().windowFor(peer)) {
+			if (const auto controller = window->sessionController()) {
+				if (&controller->session() == &peer->session()) {
+					Core::App().hideMediaView();
+					controller->showPeerHistory(
+						item.peer,
+						Window::SectionShow::Way::ClearStack,
+						item.msg);
+				}
+			}
+		}
+	}));
+}
+
 } // namespace
 
 class Controller::PhotoPlayback final {
@@ -1024,8 +1043,15 @@ void Controller::updateAreas(Data::Story *story) {
 	const auto &suggestedReactions = story
 		? story->suggestedReactions()
 		: std::vector<Data::SuggestedReaction>();
+	const auto &channelPosts = story
+		? story->channelPosts()
+		: std::vector<Data::ChannelPost>();
 	if (_locations != locations) {
 		_locations = locations;
+		_areas.clear();
+	}
+	if (_channelPosts != channelPosts) {
+		_channelPosts = channelPosts;
 		_areas.clear();
 	}
 	const auto reactionsCount = int(suggestedReactions.size());
@@ -1046,10 +1072,6 @@ void Controller::updateAreas(Data::Story *story) {
 		_suggestedReactions = suggestedReactions;
 		_areas.clear();
 	}
-	if (_areas.empty() || _suggestedReactions.empty()) {
-		return;
-	}
-
 }
 
 PauseState Controller::pauseState() const {
@@ -1172,10 +1194,16 @@ void Controller::updatePlayback(const Player::TrackState &state) {
 
 ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 	const auto &layout = _layout.current();
-	if ((_locations.empty() && _suggestedReactions.empty()) || !layout) {
+	if (!layout
+		|| (_locations.empty()
+			&& _suggestedReactions.empty()
+			&& _channelPosts.empty())) {
 		return nullptr;
 	} else if (_areas.empty()) {
-		_areas.reserve(_locations.size() + _suggestedReactions.size());
+		const auto now = story();
+		_areas.reserve(_locations.size()
+			+ _suggestedReactions.size()
+			+ _channelPosts.size());
 		for (const auto &location : _locations) {
 			_areas.push_back({
 				.original = location.area.geometry,
@@ -1204,6 +1232,17 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 				}),
 				.reaction = std::move(widget),
 			});
+		}
+		if (const auto session = now ? &now->session() : nullptr) {
+			for (const auto &channelPost : _channelPosts) {
+				_areas.push_back({
+					.original = channelPost.area.geometry,
+					.rotation = channelPost.area.rotation,
+					.handler = MakeChannelPostHandler(
+						session,
+						channelPost.itemId),
+				});
+			}
 		}
 		rebuildActiveAreas(*layout);
 	}

@@ -741,7 +741,8 @@ void ExportTestChatTheme(
 				MTP_int(color(bg.size() > 2 ? bg[2] : Qt::black)),
 				MTP_int(color(bg.size() > 3 ? bg[3] : Qt::black)),
 				MTP_int(fields.paper->patternIntensity()),
-				MTP_int(0)));
+				MTP_int(0), // rotation
+				MTPstring())); // emoticon
 	};
 	const auto light = inputSettings(Data::CloudThemeType::Light);
 	if (!light) {

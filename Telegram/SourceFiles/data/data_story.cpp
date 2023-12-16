@@ -633,6 +633,10 @@ const std::vector<SuggestedReaction> &Story::suggestedReactions() const {
 	return _suggestedReactions;
 }
 
+const std::vector<ChannelPost> &Story::channelPosts() const {
+	return _channelPosts;
+}
+
 void Story::applyChanges(
 		StoryMedia media,
 		const MTPDstoryItem &data,
@@ -735,9 +739,8 @@ void Story::applyFields(
 	}
 	auto locations = std::vector<StoryLocation>();
 	auto suggestedReactions = std::vector<SuggestedReaction>();
+	auto channelPosts = std::vector<ChannelPost>();
 	if (const auto areas = data.vmedia_areas()) {
-		locations.reserve(areas->v.size());
-		suggestedReactions.reserve(areas->v.size());
 		for (const auto &area : areas->v) {
 			if (const auto location = ParseLocation(area)) {
 				locations.push_back(*location);
@@ -748,6 +751,8 @@ void Story::applyFields(
 					reaction->count = i->second;
 				}
 				suggestedReactions.push_back(*reaction);
+			} else if (auto post = ParseChannelPost(area)) {
+				channelPosts.push_back(*post);
 			}
 		}
 	}
@@ -759,6 +764,7 @@ void Story::applyFields(
 	const auto locationsChanged = (_locations != locations);
 	const auto suggestedReactionsChanged
 		= (_suggestedReactions != suggestedReactions);
+	const auto channelPostsChanged = (_channelPosts != channelPosts);
 	const auto reactionChanged = (_sentReactionId != reaction);
 
 	_out = out;
@@ -781,6 +787,9 @@ void Story::applyFields(
 	if (suggestedReactionsChanged) {
 		_suggestedReactions = std::move(suggestedReactions);
 	}
+	if (channelPostsChanged) {
+		_channelPosts = std::move(channelPosts);
+	}
 	if (reactionChanged) {
 		_sentReactionId = reaction;
 	}
@@ -789,7 +798,8 @@ void Story::applyFields(
 	const auto changed = editedChanged
 		|| captionChanged
 		|| mediaChanged
-		|| locationsChanged;
+		|| locationsChanged
+		|| channelPostsChanged;
 	const auto reactionsChanged = reactionChanged
 		|| suggestedReactionsChanged;
 	if (!initial && (changed || reactionsChanged)) {
