@@ -104,19 +104,19 @@ rpl::producer<> EmojiStatuses::defaultUpdates() const {
 }
 
 void EmojiStatuses::registerAutomaticClear(
-		not_null<UserData*> user,
+		not_null<PeerData*> peer,
 		TimeId until) {
 	if (!until) {
-		_clearing.remove(user);
+		_clearing.remove(peer);
 		if (_clearing.empty()) {
 			_clearingTimer.cancel();
 		}
-	} else if (auto &already = _clearing[user]; already != until) {
+	} else if (auto &already = _clearing[peer]; already != until) {
 		already = until;
 		const auto i = ranges::min_element(_clearing, {}, [](auto &&pair) {
 			return pair.second;
 		});
-		if (i->first == user) {
+		if (i->first == peer) {
 			const auto now = base::unixtime::now();
 			if (now < until) {
 				processClearingIn(until - now);

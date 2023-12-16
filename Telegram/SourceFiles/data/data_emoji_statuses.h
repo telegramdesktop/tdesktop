@@ -51,7 +51,7 @@ public:
 	void set(DocumentId id, TimeId until = 0);
 	[[nodiscard]] bool setting() const;
 
-	void registerAutomaticClear(not_null<UserData*> user, TimeId until);
+	void registerAutomaticClear(not_null<PeerData*> peer, TimeId until);
 
 	using Groups = std::vector<Ui::EmojiGroup>;
 	[[nodiscard]] rpl::producer<Groups> emojiGroupsValue() const;
@@ -102,7 +102,7 @@ private:
 
 	mtpRequestId _sentRequestId = 0;
 
-	base::flat_map<not_null<UserData*>, TimeId> _clearing;
+	base::flat_map<not_null<PeerData*>, TimeId> _clearing;
 	base::Timer _clearingTimer;
 
 	GroupsType _emojiGroups;

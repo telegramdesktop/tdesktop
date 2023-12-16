@@ -609,15 +609,14 @@ rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer) {
 }
 
 rpl::producer<DocumentId> EmojiStatusIdValue(not_null<PeerData*> peer) {
-	if (const auto user = peer->asUser()) {
-		return user->session().changes().peerFlagsValue(
-			peer,
-			Data::PeerUpdate::Flag::EmojiStatus
-		) | rpl::map([=] { return user->emojiStatusId(); });
+	if (peer->isChat()) {
+		return rpl::single(DocumentId(0));
 	}
-	return rpl::single(DocumentId(0));
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::EmojiStatus
+	) | rpl::map([=] { return peer->emojiStatusId(); });
 }
-
 
 } // namespace Profile
 } // namespace Info

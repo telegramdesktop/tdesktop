@@ -76,7 +76,6 @@ public:
 
 	UserData(not_null<Data::Session*> owner, PeerId id);
 	void setPhoto(const MTPUserProfilePhoto &photo);
-	void setEmojiStatus(const MTPEmojiStatus &status);
 
 	void setName(
 		const QString &newFirstName,
@@ -84,9 +83,6 @@ public:
 		const QString &newPhoneName,
 		const QString &newUsername);
 	void setUsernames(const Data::Usernames &newUsernames);
-
-	void setEmojiStatus(DocumentId emojiStatusId, TimeId until = 0);
-	[[nodiscard]] DocumentId emojiStatusId() const;
 
 	void setUsername(const QString &username);
 	void setPhone(const QString &newPhone);
@@ -198,8 +194,6 @@ private:
 	uint64 _accessHash = 0;
 	static constexpr auto kInaccessibleAccessHashOld
 		= 0xFFFFFFFFFFFFFFFFULL;
-
-	DocumentId _emojiStatusId = 0;
 
 };
 

@@ -854,6 +854,11 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			channel->setDefaultRestrictions(ChatRestrictions());
 		}
 
+		if (const auto &status = data.vemoji_status()) {
+			channel->setEmojiStatus(*status);
+		} else {
+			channel->setEmojiStatus(0);
+		}
 		if (minimal) {
 			if (channel->input.type() == mtpc_inputPeerEmpty
 				|| channel->inputChannel.type() == mtpc_inputChannelEmpty) {

@@ -178,6 +178,10 @@ public:
 	[[nodiscard]] DocumentId backgroundEmojiId() const;
 	bool changeBackgroundEmojiId(DocumentId id);
 
+	void setEmojiStatus(const MTPEmojiStatus &status);
+	void setEmojiStatus(DocumentId emojiStatusId, TimeId until = 0);
+	[[nodiscard]] DocumentId emojiStatusId() const;
+
 	[[nodiscard]] bool isUser() const {
 		return peerIsUser(id);
 	}
@@ -466,6 +470,7 @@ private:
 	base::flat_set<QString> _nameWords; // for filtering
 	base::flat_set<QChar> _nameFirstLetters;
 
+	DocumentId _emojiStatusId = 0;
 	uint64 _backgroundEmojiId = 0;
 	crl::time _lastFullUpdate = 0;
 

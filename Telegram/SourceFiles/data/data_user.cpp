@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_bot_command.h"
 #include "data/data_photo.h"
 #include "data/data_stories.h"
-#include "data/data_emoji_statuses.h"
 #include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
@@ -71,23 +70,6 @@ void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 		removeFlags(UserDataFlag::PersonalPhoto);
 		clearUserpic();
 	});
-}
-
-void UserData::setEmojiStatus(const MTPEmojiStatus &status) {
-	const auto parsed = Data::ParseEmojiStatus(status);
-	setEmojiStatus(parsed.id, parsed.until);
-}
-
-void UserData::setEmojiStatus(DocumentId emojiStatusId, TimeId until) {
-	if (_emojiStatusId != emojiStatusId) {
-		_emojiStatusId = emojiStatusId;
-		session().changes().peerUpdated(this, UpdateFlag::EmojiStatus);
-	}
-	owner().emojiStatuses().registerAutomaticClear(this, until);
-}
-
-DocumentId UserData::emojiStatusId() const {
-	return _emojiStatusId;
 }
 
 auto UserData::unavailableReasons() const

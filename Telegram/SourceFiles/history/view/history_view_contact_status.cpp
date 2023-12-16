@@ -98,16 +98,15 @@ namespace {
 
 [[nodiscard]] rpl::producer<TextWithEntities> PeerCustomStatus(
 		not_null<PeerData*> peer) {
-	const auto user = peer->asUser();
-	if (!user) {
+	if (peer->isChat()) {
 		return rpl::single(TextWithEntities());
 	}
-	const auto owner = &user->owner();
-	return user->session().changes().peerFlagsValue(
-		user,
+	const auto owner = &peer->owner();
+	return peer->session().changes().peerFlagsValue(
+		peer,
 		Data::PeerUpdate::Flag::EmojiStatus
 	) | rpl::map([=] {
-		const auto id = user->emojiStatusId();
+		const auto id = peer->emojiStatusId();
 		return id
 			? ResolveIsCustom(owner, id)
 			: rpl::single(TextWithEntities());
