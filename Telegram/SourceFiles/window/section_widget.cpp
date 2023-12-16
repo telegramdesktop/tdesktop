@@ -50,13 +50,58 @@ struct ResolvedPaper {
 	std::shared_ptr<Data::DocumentMedia> media;
 };
 
-[[nodiscard]] rpl::producer<std::optional<ResolvedPaper>> PeerWallPaperValue(
+[[nodiscard]] rpl::producer<const Data::WallPaper*> PeerWallPaperMapped(
 		not_null<PeerData*> peer) {
 	return peer->session().changes().peerFlagsValue(
 		peer,
 		Data::PeerUpdate::Flag::ChatWallPaper
-	) | rpl::map([=]() -> rpl::producer<std::optional<ResolvedPaper>> {
+	) | rpl::map([=]() -> rpl::producer<const Data::WallPaper*> {
 		const auto paper = peer->wallPaper();
+		const auto id = paper ? paper->emojiId() : QString();
+		if (id.isEmpty()) {
+			return rpl::single(paper);
+		}
+		const auto themes = &peer->owner().cloudThemes();
+		auto fromThemes = [=](bool force)
+		-> rpl::producer<const Data::WallPaper*> {
+			if (themes->chatThemes().empty() && !force) {
+				return nullptr;
+			}
+			return Window::Theme::IsNightModeValue(
+			) | rpl::map([=](bool dark) -> const Data::WallPaper* {
+				const auto &list = themes->chatThemes();
+				const auto i = ranges::find(
+					list,
+					id,
+					&Data::CloudTheme::emoticon);
+				if (i != end(list)) {
+					using Type = Data::CloudThemeType;
+					const auto type = dark ? Type::Dark : Type::Light;
+					const auto j = i->settings.find(type);
+					if (j != end(i->settings) && j->second.paper) {
+						return &*j->second.paper;
+					}
+				}
+				return nullptr;
+			});
+		};
+		if (auto result = fromThemes(false)) {
+			return result;
+		}
+		themes->refreshChatThemes();
+		return themes->chatThemesUpdated(
+		) | rpl::take(1) | rpl::map([=] {
+			return fromThemes(true);
+		}) | rpl::flatten_latest();
+	}) | rpl::flatten_latest();
+}
+
+[[nodiscard]] rpl::producer<std::optional<ResolvedPaper>> PeerWallPaperValue(
+		not_null<PeerData*> peer) {
+	return PeerWallPaperMapped(
+		peer
+	) | rpl::map([=](const Data::WallPaper *paper)
+	-> rpl::producer<std::optional<ResolvedPaper>> {
 		const auto single = [](std::optional<ResolvedPaper> value) {
 			return rpl::single(std::move(value));
 		};

@@ -45,6 +45,7 @@ public:
 	[[nodiscard]] bool equals(const WallPaper &paper) const;
 
 	[[nodiscard]] WallPaperId id() const;
+	[[nodiscard]] QString emojiId() const;
 	[[nodiscard]] bool isNull() const;
 	[[nodiscard]] QString key() const;
 	[[nodiscard]] const std::vector<QColor> backgroundColors() const;
@@ -114,6 +115,7 @@ private:
 	UserId _ownerId = 0;
 	WallPaperFlags _flags;
 	QString _slug;
+	QString _emojiId;
 
 	std::vector<QColor> _backgroundColors;
 	int _rotation = 0;
