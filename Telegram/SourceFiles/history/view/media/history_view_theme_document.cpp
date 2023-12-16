@@ -509,8 +509,11 @@ rpl::producer<QString> ThemeDocumentBox::button() {
 }
 
 ClickHandlerPtr ThemeDocumentBox::createViewLink() {
-	const auto out = _parent->data()->out();
 	const auto to = _parent->history()->peer;
+	if (to->isChannel()) {
+		return nullptr;
+	}
+	const auto out = _parent->data()->out();
 	const auto media = _parent->data()->media();
 	const auto weak = base::make_weak(_parent);
 	const auto paper = media ? media->paper() : nullptr;
