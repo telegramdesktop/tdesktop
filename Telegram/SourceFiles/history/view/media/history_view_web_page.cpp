@@ -421,9 +421,7 @@ QSize WebPage::countCurrentSize(int newWidth) {
 		_pixh = (asSponsored ? kSponsoredUserpicLines : linesMax) * lineHeight;
 		do {
 			_pixw = asSponsored ? _pixh : articleThumbWidth(_data->photo, _pixh);
-			auto wleft = asSponsored
-				? innerWidth - st::webPagePhotoDelta - qMax(_pixw, lineHeight)
-				: innerWidth;
+			auto wleft = innerWidth - st::webPagePhotoDelta - qMax(_pixw, lineHeight);
 
 			newHeight = siteNameHeight;
 
