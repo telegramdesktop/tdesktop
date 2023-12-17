@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "base/weak_ptr.h"
+#include "boxes/peer_list_controllers.h" // ContactsBoxController.
 #include "boxes/peers/prepare_short_info_box.h"
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
@@ -24,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "payments/payments_checkout_process.h"
+#include "payments/payments_form.h"
 #include "settings/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
 #include "ui/boxes/boost_box.h" // StartFireworks.
@@ -211,7 +214,7 @@ void GiftBox(
 	auto raw = Settings::CreateSubscribeButton({
 		controller,
 		box,
-		[] { return QString("gift"); },
+		[] { return u"gift"_q; },
 		state->buttonText.events(),
 		Ui::Premium::GiftGradientStops(),
 		[=] {
@@ -237,6 +240,117 @@ void GiftBox(
 	) | rpl::skip(1) | rpl::start_with_next([=] {
 		box->closeBox();
 	}, box->lifetime());
+}
+
+void GiftsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		std::vector<not_null<UserData*>> users,
+		not_null<Api::PremiumGiftCodeOptions*> api) {
+	Expects(!users.empty());
+
+	const auto boxWidth = st::boxWideWidth;
+	box->setWidth(boxWidth);
+	box->setNoContentMargin(true);
+	const auto buttonsParent = box->verticalLayout().get();
+	const auto session = &users.front()->session();
+
+	struct State {
+		rpl::event_stream<QString> buttonText;
+	};
+	const auto state = box->lifetime().make_state<State>();
+
+	const auto userpicPadding = st::premiumGiftUserpicPadding;
+	const auto top = box->addRow(object_ptr<Ui::FixedHeightWidget>(
+		buttonsParent,
+		userpicPadding.top()
+			+ userpicPadding.bottom()
+			+ st::defaultUserpicButton.size.height()));
+
+	// Header.
+	const auto &padding = st::premiumGiftAboutPadding;
+	const auto available = boxWidth - padding.left() - padding.right();
+
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		buttonsParent,
+		st::infoTopBarClose);
+	close->setClickedCallback([=] { box->closeBox(); });
+
+	buttonsParent->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		close->moveToRight(0, 0, width);
+	}, close->lifetime());
+
+	// List.
+	const auto options = api->options(users.size());
+	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
+	const auto groupValueChangedCallback = [=](int value) {
+		Expects(value < options.size() && value >= 0);
+		auto text = tr::lng_premium_gift_button(
+			tr::now,
+			lt_cost,
+			options[value].costTotal);
+		state->buttonText.fire(std::move(text));
+	};
+	group->setChangedCallback(groupValueChangedCallback);
+	Ui::Premium::AddGiftOptions(
+		buttonsParent,
+		group,
+		options,
+		st::premiumGiftOption);
+
+	// Footer.
+	auto terms = object_ptr<Ui::FlatLabel>(
+		box,
+		tr::lng_premium_gift_terms(
+			lt_link,
+			tr::lng_premium_gift_terms_link(
+			) | rpl::map([=](const QString &t) {
+				return Ui::Text::Link(t, 1);
+			}),
+			Ui::Text::WithEntities),
+		st::premiumGiftTerms);
+	terms->setLink(1, std::make_shared<LambdaClickHandler>([=] {
+		box->closeBox();
+		Settings::ShowPremium(session, QString());
+	}));
+	terms->resizeToWidth(available);
+	box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(box, std::move(terms)),
+		st::premiumGiftTermsPadding);
+
+	// Button.
+	const auto &stButton = st::premiumGiftBox;
+	box->setStyle(stButton);
+	auto raw = Settings::CreateSubscribeButton({
+		controller,
+		box,
+		[] { return u"gift"_q; },
+		state->buttonText.events(),
+		Ui::Premium::GiftGradientStops(),
+	});
+	raw->setClickedCallback([=] {
+		auto invoice = api->invoice(
+			users.size(),
+			api->monthsFromPreset(group->value()));
+		invoice.purpose = Payments::InvoicePremiumGiftCodeUsers{ users };
+
+		const auto done = [=](Payments::CheckoutResult result) {
+			box->uiShow()->showToast(tr::lng_share_done(tr::now));
+		};
+
+		Payments::CheckoutProcess::Start(std::move(invoice), done);
+	});
+	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
+	button->resizeToWidth(boxWidth
+		- stButton.buttonPadding.left()
+		- stButton.buttonPadding.right());
+	box->setShowFinishedCallback([raw = button.data()]{
+		raw->startGlareAnimation();
+	});
+	box->addButton(std::move(button));
+
+	groupValueChangedCallback(0);
 }
 
 [[nodiscard]] Data::GiftCodeLink MakeGiftCodeLink(
@@ -439,6 +553,112 @@ GiftPremiumValidator::GiftPremiumValidator(
 
 void GiftPremiumValidator::cancel() {
 	_requestId = 0;
+}
+
+void GiftPremiumValidator::showChoosePeerBox() {
+	if (_manyGiftsLifetime) {
+		return;
+	}
+	using namespace Api;
+	const auto api = _manyGiftsLifetime.make_state<PremiumGiftCodeOptions>(
+		_controller->session().user());
+	const auto show = _controller->uiShow();
+	api->request(
+	) | rpl::start_with_error_done([=](const QString &error) {
+		show->showToast(error);
+	}, [=] {
+		const auto maxAmount = *ranges::max_element(api->availablePresets());
+
+		class Controller final : public ContactsBoxController {
+		public:
+			Controller(
+				not_null<Main::Session*> session,
+				Fn<bool(int)> checkErrorCallback)
+			: ContactsBoxController(session)
+			, _checkErrorCallback(std::move(checkErrorCallback)) {
+			}
+
+		protected:
+			std::unique_ptr<PeerListRow> createRow(
+					not_null<UserData*> user) override {
+				return !user->isSelf()
+					? ContactsBoxController::createRow(user)
+					: nullptr;
+			}
+
+			void rowClicked(not_null<PeerListRow*> row) override {
+				const auto checked = !row->checked();
+				if (checked
+					&& _checkErrorCallback
+					&& _checkErrorCallback(
+						delegate()->peerListSelectedRowsCount())) {
+					return;
+				}
+				delegate()->peerListSetRowChecked(row, checked);
+			}
+
+		private:
+			const Fn<bool(int)> _checkErrorCallback;
+
+		};
+		auto initBox = [=](not_null<PeerListBox*> peersBox) {
+			const auto ignoreClose = peersBox->lifetime().make_state<bool>(0);
+
+			auto process = [=] {
+				const auto selected = peersBox->collectSelectedRows();
+				const auto users = ranges::views::all(
+					selected
+				) | ranges::views::transform([](not_null<PeerData*> p) {
+					return p->asUser();
+				}) | ranges::views::filter([](UserData *u) -> bool {
+					return u;
+				}) | ranges::to<std::vector<not_null<UserData*>>>();
+				if (!users.empty()) {
+					const auto giftBox = show->showBox(
+						Box(GiftsBox, _controller, users, api));
+					giftBox->boxClosing(
+					) | rpl::start_with_next([=] {
+						_manyGiftsLifetime.destroy();
+					}, giftBox->lifetime());
+				}
+				(*ignoreClose) = true;
+				peersBox->closeBox();
+			};
+
+			peersBox->setTitle(tr::lng_premium_gift_title());
+			peersBox->addButton(
+				tr::lng_settings_gift_premium_users_confirm(),
+				std::move(process));
+			peersBox->addButton(tr::lng_cancel(), [=] {
+				peersBox->closeBox();
+			});
+			peersBox->boxClosing(
+			) | rpl::start_with_next([=] {
+				if (!(*ignoreClose)) {
+					_manyGiftsLifetime.destroy();
+				}
+			}, peersBox->lifetime());
+		};
+
+		auto listController = std::make_unique<Controller>(
+			&_controller->session(),
+			[=](int count) {
+				if (count <= maxAmount) {
+					return false;
+				}
+				show->showToast(tr::lng_settings_gift_premium_users_error(
+					tr::now,
+					lt_count,
+					maxAmount));
+				return true;
+			});
+		show->showBox(
+			Box<PeerListBox>(
+				std::move(listController),
+				std::move(initBox)),
+			Ui::LayerOption::KeepOther);
+
+	}, _manyGiftsLifetime);
 }
 
 void GiftPremiumValidator::showBox(not_null<UserData*> user) {

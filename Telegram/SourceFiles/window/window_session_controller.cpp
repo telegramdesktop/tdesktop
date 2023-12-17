@@ -1216,6 +1216,10 @@ void SessionController::showGiftPremiumBox(UserData *user) {
 	}
 }
 
+void SessionController::showGiftPremiumsBox() {
+	_giftPremiumValidator.showChoosePeerBox();
+}
+
 void SessionController::init() {
 	if (session().supportMode()) {
 		initSupportMode();

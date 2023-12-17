@@ -380,6 +380,7 @@ public:
 
 	void showEditPeerBox(PeerData *peer);
 	void showGiftPremiumBox(UserData *user);
+	void showGiftPremiumsBox();
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
