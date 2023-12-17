@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "boxes/peer_list_controllers.h" // ContactsBoxController.
 #include "boxes/peers/prepare_short_info_box.h"
+#include "boxes/peers/replace_boost_box.h" // BoostsForGift.
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -56,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kDiscountDivider = 5.;
+constexpr auto kUserpicsMax = size_t(3);
 
 using GiftOption = Data::SubscriptionOption;
 using GiftOptions = Data::SubscriptionOptions;
@@ -74,6 +76,65 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 			option.costPerMonth);
 	}
 	return result;
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> ComplexAboutLabel(
+		const std::vector<not_null<UserData*>> &users) {
+	Expects(!users.empty());
+
+	const auto session = &users.front()->session();
+	const auto count = users.size();
+	const auto nameValue = [&](not_null<UserData*> user) {
+		return session->changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::Name
+		) | rpl::map([=] { return TextWithEntities{ user->firstName }; });
+	};
+	const auto addReward = [=](TextWithEntities text) {
+		text.append('\n');
+		text.append('\n');
+		text.append(tr::lng_premium_gifts_about_reward(
+			tr::now,
+			lt_count,
+			count * BoostsForGift(session),
+			lt_emoji,
+			TextWithEntities(),
+			Ui::Text::RichLangValue));
+		return text;
+	};
+	if (count == 1) {
+		return tr::lng_premium_gifts_about_user1(
+			lt_user,
+			nameValue(users.front()),
+			Ui::Text::RichLangValue) | rpl::map(addReward);
+	} else if (count == 2) {
+		return tr::lng_premium_gifts_about_user2(
+			lt_user,
+			nameValue(users.front()),
+			lt_second_user,
+			nameValue(users[1]),
+			Ui::Text::RichLangValue) | rpl::map(addReward);
+	} else if (count == 3) {
+		return tr::lng_premium_gifts_about_user3(
+			lt_user,
+			nameValue(users.front()),
+			lt_second_user,
+			nameValue(users[1]),
+			lt_name,
+			nameValue(users[2]),
+			Ui::Text::RichLangValue) | rpl::map(addReward);
+	} else {
+		return tr::lng_premium_gifts_about_user_more(
+			lt_count,
+			rpl::single(count - kUserpicsMax) | tr::to_count(),
+			lt_user,
+			nameValue(users.front()),
+			lt_second_user,
+			nameValue(users[1]),
+			lt_name,
+			nameValue(users[2]),
+			Ui::Text::RichLangValue) | rpl::map(addReward);
+	}
 }
 
 [[nodiscard]] not_null<Ui::RpWidget*> CircleBadge(
@@ -348,7 +409,6 @@ void GiftsBox(
 		top,
 		true);
 
-	constexpr auto kUserpicsMax = size_t(3);
 	const auto maxWithUserpic = std::min(users.size(), kUserpicsMax);
 	const auto userpics = UserpicsContainer(
 		top,
@@ -397,6 +457,27 @@ void GiftsBox(
 	// Header.
 	const auto &padding = st::premiumGiftAboutPadding;
 	const auto available = boxWidth - padding.left() - padding.right();
+	const auto &stTitle = st::premiumPreviewAboutTitle;
+	auto titleLabel = object_ptr<Ui::FlatLabel>(
+		box,
+		tr::lng_premium_gift_title(),
+		stTitle);
+	titleLabel->resizeToWidth(available);
+	box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			box,
+			std::move(titleLabel)),
+		st::premiumGiftTitlePadding);
+
+	auto textLabel = object_ptr<Ui::FlatLabel>(
+		box,
+		ComplexAboutLabel(users),
+		st::premiumPreviewAbout);
+	textLabel->setTextColorOverride(stTitle.textFg->c);
+	textLabel->resizeToWidth(available);
+	box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(box, std::move(textLabel)),
+		padding);
 
 	// List.
 	const auto options = api->options(users.size());

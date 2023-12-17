@@ -2061,6 +2061,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_gift_per" = "{cost} / month";
 "lng_premium_gift_terms" = "You can review the list of features and terms of use for Telegram Premium {link}.";
 "lng_premium_gift_terms_link" = "here";
+"lng_premium_gifts_about_user1" = "Give **{user}** access to exclusive features.";
+"lng_premium_gifts_about_user2" = "Give **{user}** and **{second_user}** access to exclusive features.";
+"lng_premium_gifts_about_user3" = "Give **{user}**, **{second_user}** and **{name}** access to exclusive features.";
+"lng_premium_gifts_about_user_more#one" = "Give **{user}**, **{second_user}**, **{name}** and **{count}** more friend access to exclusive features.";
+"lng_premium_gifts_about_user_more#other" = "Give **{user}**, **{second_user}**, **{name}** and **{count}** more friends access to exclusive features.";
+"lng_premium_gifts_about_reward#one" = "You will receive {emoji}**{count}** boost.";
+"lng_premium_gifts_about_reward#other" = "You will receive {emoji}**{count}** boosts.";
 
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_again_button" = "Boost Again";
