@@ -15,22 +15,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/snowflakes.h"
 #include "ui/effects/toggle_arrow.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
+#include "ui/new_badges.h"
 #include "ui/painter.h"
-#include "ui/empty_userpic.h"
 #include "ui/vertical_list.h"
 #include "ui/unread_badge_paint.h"
 #include "inline_bots/bot_attach_web_view.h"
-#include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "support/support_templates.h"
@@ -50,7 +46,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_box_controller.h"
 #include "lang/lang_keys.h"
 #include "core/click_handler_types.h"
-#include "core/core_settings.h"
 #include "core/application.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -66,7 +61,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_window.h"
-#include "styles/style_widgets.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
@@ -301,33 +295,8 @@ void SetupMenuBots(
 				}
 			}, button->lifetime());
 
-			const auto badge = bots->showMainMenuNewBadge(bot)
-				? Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
-					button,
-					object_ptr<Ui::FlatLabel>(
-						button,
-						tr::lng_bot_side_menu_new(),
-						st::settingsPremiumNewBadge),
-					st::settingsPremiumNewBadgePadding)
-				: nullptr;
-			if (badge) {
-				badge->setAttribute(Qt::WA_TransparentForMouseEvents);
-				badge->paintRequest() | rpl::start_with_next([=] {
-					auto p = QPainter(badge);
-					auto hq = PainterHighQualityEnabler(p);
-					p.setPen(Qt::NoPen);
-					p.setBrush(st::windowBgActive);
-					const auto r = st::settingsPremiumNewBadgePadding.left();
-					p.drawRoundedRect(badge->rect(), r, r);
-				}, badge->lifetime());
-
-				button->sizeValue(
-				) | rpl::start_with_next([=](QSize size) {
-					badge->moveToRight(
-						st::mainMenuButton.padding.right(),
-						(size.height() - badge->height()) / 2,
-						size.width());
-				}, badge->lifetime());
+			if (bots->showMainMenuNewBadge(bot)) {
+				Ui::NewBadge::AddToRight(button);
 			}
 		}
 		wrap->resizeToWidth(width);

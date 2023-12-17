@@ -377,6 +377,8 @@ PRIVATE
     ui/empty_userpic.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
+    ui/new_badges.cpp
+    ui/new_badges.h
     ui/power_saving.cpp
     ui/power_saving.h
     ui/vertical_list.cpp

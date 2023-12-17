@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/vertical_list.h"
@@ -951,31 +952,8 @@ void Premium::setupContent() {
 			descriptionPadding);
 		description->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-		const auto badge = entry.newBadge
-			? Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
-				content,
-				object_ptr<Ui::FlatLabel>(
-					content,
-					tr::lng_premium_summary_new_badge(),
-					st::settingsPremiumNewBadge),
-				st::settingsPremiumNewBadgePadding)
-			: nullptr;
-		if (badge) {
-			badge->setAttribute(Qt::WA_TransparentForMouseEvents);
-			badge->paintRequest() | rpl::start_with_next([=] {
-				auto p = QPainter(badge);
-				auto hq = PainterHighQualityEnabler(p);
-				p.setPen(Qt::NoPen);
-				p.setBrush(st::windowBgActive);
-				const auto r = st::settingsPremiumNewBadgePadding.left();
-				p.drawRoundedRect(badge->rect(), r, r);
-			}, badge->lifetime());
-
-			label->geometryValue(
-			) | rpl::start_with_next([=](QRect geometry) {
-				badge->move(st::settingsPremiumNewBadgePosition
-					+ QPoint(label->x() + label->width(), label->y()));
-			}, badge->lifetime());
+		if (entry.newBadge) {
+			Ui::NewBadge::AddAfterLabel(content, label);
 		}
 		const auto dummy = Ui::CreateChild<Ui::AbstractButton>(content);
 		dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
