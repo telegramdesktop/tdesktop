@@ -4530,19 +4530,35 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareGiftCode = [&](const MTPDmessageActionGiftCode &action) {
 		auto result = PreparedServiceText();
 		_history->session().giftBoxStickersPacks().load();
-		result.text = {
-			(action.is_unclaimed()
-				? tr::lng_prize_unclaimed_about
-				: action.is_via_giveaway()
-				? tr::lng_prize_about
-				: tr::lng_prize_gift_about)(
+		if (const auto boosted = action.vboost_peer()) {
+			result.text = {
+				(action.is_unclaimed()
+					? tr::lng_prize_unclaimed_about
+					: action.is_via_giveaway()
+					? tr::lng_prize_about
+					: tr::lng_prize_gift_about)(
+						tr::now,
+						lt_channel,
+						_from->owner().peer(
+							peerFromMTP(*action.vboost_peer()))->name()),
+			};
+		} else {
+			const auto isSelf = (_from->id == _from->session().userPeerId());
+			const auto peer = isSelf ? _history->peer : _from;
+			result.links.push_back(peer->createOpenLink());
+			result.text = (isSelf
+				? tr::lng_action_gift_received_me
+				: tr::lng_action_gift_received)(
 					tr::now,
-					lt_channel,
-					(action.vboost_peer()
-						? _from->owner().peer(
-							peerFromMTP(*action.vboost_peer()))->name()
-						: "a channel")),
-		};
+					lt_user,
+					Ui::Text::Link(peer->name(), 1), // Link 1.
+					lt_cost,
+					{ Ui::FillAmountAndCurrency(
+						action.vamount().value_or_empty(),
+						qs(action.vcurrency().value_or_empty())) },
+					Ui::Text::WithEntities);
+
+		}
 		return result;
 	};
 
@@ -4697,7 +4713,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 			_from,
 			Data::GiftCode{
 				.slug = qs(data.vslug()),
-				.channel = (peerIsChannel(boostedId)
+				.channel = (boostedId
 					? history()->owner().channel(boostedId).get()
 					: nullptr),
 				.months = data.vmonths().v,

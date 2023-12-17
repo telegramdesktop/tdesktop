@@ -871,6 +871,7 @@ void Premium::setStepDataReference(std::any &data) {
 void Premium::setupSubscriptionOptions(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto isEmojiStatus = (!!Ref::EmojiStatus::Parse(_ref));
+	const auto isGift = (!!Ref::Gift::Parse(_ref));
 
 	const auto options = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -900,15 +901,19 @@ void Premium::setupSubscriptionOptions(
 	Ui::AddSkip(content, lastSkip - st::defaultVerticalListSkip);
 	Ui::AddSkip(skip->entity(), lastSkip);
 
+	if (isEmojiStatus || isGift) {
+		options->toggle(false, anim::type::instant);
+		skip->toggle(true, anim::type::instant);
+		return;
+	}
 	auto toggleOn = rpl::combine(
 		Data::AmPremiumValue(&_controller->session()),
-		rpl::single(isEmojiStatus),
 		apiPremium->statusTextValue(
 		) | rpl::map([=] {
 			return apiPremium->subscriptionOptions().size() < 2;
 		})
-	) | rpl::map([=](bool premium, bool isEmojiStatus, bool noOptions) {
-		return !premium && !isEmojiStatus && !noOptions;
+	) | rpl::map([=](bool premium, bool noOptions) {
+		return !premium && !noOptions;
 	});
 	options->toggleOn(rpl::duplicate(toggleOn), anim::type::instant);
 	skip->toggleOn(std::move(

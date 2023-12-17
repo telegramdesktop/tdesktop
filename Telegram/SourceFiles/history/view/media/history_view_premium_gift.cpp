@@ -43,7 +43,7 @@ QSize PremiumGift::size() {
 }
 
 QString PremiumGift::title() {
-	return _data.slug.isEmpty()
+	return gift()
 		? tr::lng_premium_summary_title(tr::now)
 		: _data.unclaimed
 		? tr::lng_prize_unclaimed_title(tr::now)
@@ -51,7 +51,7 @@ QString PremiumGift::title() {
 }
 
 TextWithEntities PremiumGift::subtitle() {
-	if (_data.slug.isEmpty()) {
+	if (gift()) {
 		return { GiftDuration(_data.months) };
 	}
 	const auto name = _data.channel ? _data.channel->name() : "channel";
@@ -78,7 +78,7 @@ TextWithEntities PremiumGift::subtitle() {
 }
 
 rpl::producer<QString> PremiumGift::button() {
-	return _data.slug.isEmpty()
+	return (gift() && (outgoingGift() || !_data.unclaimed))
 		? tr::lng_sticker_premium_view()
 		: tr::lng_prize_open();
 }
@@ -121,7 +121,7 @@ void PremiumGift::draw(
 }
 
 bool PremiumGift::hideServiceText() {
-	return !_data.slug.isEmpty();
+	return !gift();
 }
 
 void PremiumGift::stickerClearLoopPlayed() {
@@ -146,6 +146,18 @@ void PremiumGift::unloadHeavyPart() {
 	if (_sticker) {
 		_sticker->unloadHeavyPart();
 	}
+}
+
+bool PremiumGift::incomingGift() const {
+	return gift() && !_parent->data()->out();
+}
+
+bool PremiumGift::outgoingGift() const {
+	return gift() && _parent->data()->out();
+}
+
+bool PremiumGift::gift() const {
+	return _data.slug.isEmpty() || !_data.channel;
 }
 
 void PremiumGift::ensureStickerCreated() const {

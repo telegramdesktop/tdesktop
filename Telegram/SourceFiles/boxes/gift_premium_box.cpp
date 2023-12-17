@@ -720,7 +720,7 @@ void AddTable(
 			controller,
 			current.from);
 	}
-	if (current.to) {
+	if (current.from && current.to) {
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_to(),
@@ -739,7 +739,7 @@ void AddTable(
 			lt_duration,
 			GiftDurationValue(current.months) | Ui::Text::ToWithEntities(),
 			Ui::Text::WithEntities));
-	if (!skipReason) {
+	if (!skipReason && current.from) {
 		const auto reason = AddTableRow(
 			table,
 			tr::lng_gift_link_label_reason(),
@@ -1178,13 +1178,19 @@ void ResolveGiftCode(
 		PeerId fromId,
 		PeerId toId) {
 	const auto done = [=](Api::GiftCode code) {
+		const auto session = &controller->session();
+		const auto selfId = session->userPeerId();
 		if (!code) {
 			controller->showToast(tr::lng_gift_link_expired(tr::now));
+		} else if (!code.from && fromId == selfId) {
+			code.from = fromId;
+			code.to = toId;
+			const auto self = (fromId == selfId);
+			const auto peer = session->data().peer(self ? toId : fromId);
+			const auto months = code.months;
+			const auto parent = controller->parentController();
+			Settings::ShowGiftPremium(parent, peer, months, self);
 		} else {
-			if (!code.from) {
-				code.from = fromId;
-				code.to = toId;
-			}
 			controller->uiShow()->showBox(Box(GiftCodeBox, controller, slug));
 		}
 	};
