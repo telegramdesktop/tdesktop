@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h" // ContactsBoxController.
 #include "boxes/peers/prepare_short_info_box.h"
 #include "boxes/peers/replace_boost_box.h" // BoostsForGift.
+#include "boxes/premium_preview_box.h" // ShowPremiumPreviewBox.
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -39,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/gradient_round_button.h"
@@ -496,6 +498,37 @@ void GiftsBox(
 		group,
 		options,
 		st::premiumGiftOption);
+
+	// Summary.
+	{
+		const auto content = box->addRow(
+			object_ptr<Ui::VerticalLayout>(box),
+			{});
+		Ui::AddSkip(content);
+		Ui::AddDivider(content);
+		Ui::AddSkip(content);
+		auto buttonCallback = [=](PremiumPreview section) {
+			stars->setPaused(true);
+			const auto previewBoxShown = [=](
+					not_null<Ui::BoxContent*> previewBox) {
+				previewBox->boxClosing(
+				) | rpl::start_with_next(crl::guard(box, [=] {
+					stars->setPaused(false);
+				}), previewBox->lifetime());
+			};
+
+			ShowPremiumPreviewBox(
+				controller->uiShow(),
+				section,
+				previewBoxShown,
+				true);
+		};
+		Settings::AddSummaryPremium(
+			content,
+			controller,
+			u"gift"_q,
+			std::move(buttonCallback));
+	}
 
 	// Footer.
 	auto terms = object_ptr<Ui::FlatLabel>(
