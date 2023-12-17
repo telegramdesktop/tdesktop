@@ -919,164 +919,15 @@ void Premium::setupSubscriptionOptions(
 void Premium::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	const auto &stDefault = st::settingsButton;
-	const auto &stLabel = st::defaultFlatLabel;
-	const auto iconSize = st::settingsPremiumIconDouble.size();
-	const auto &titlePadding = st::settingsPremiumRowTitlePadding;
-	const auto &descriptionPadding = st::settingsPremiumRowAboutPadding;
-
 	setupSubscriptionOptions(content);
 
-	auto entryMap = EntryMap();
-	auto iconContainers = std::vector<Ui::AbstractButton*>();
-	iconContainers.reserve(int(entryMap.size()));
+	auto buttonCallback = [=](PremiumPreview section) {
+		_setPaused(true);
+		const auto hidden = crl::guard(this, [=] { _setPaused(false); });
 
-	const auto addRow = [&](Entry &entry) {
-		const auto labelAscent = stLabel.style.font->ascent;
-		const auto button = Ui::CreateChild<Ui::SettingsButton>(
-			content,
-			rpl::single(QString()));
-
-		const auto label = content->add(
-			object_ptr<Ui::FlatLabel>(
-				content,
-				std::move(entry.title) | rpl::map(Ui::Text::Bold),
-				stLabel),
-			titlePadding);
-		label->setAttribute(Qt::WA_TransparentForMouseEvents);
-		const auto description = content->add(
-			object_ptr<Ui::FlatLabel>(
-				content,
-				std::move(entry.description),
-				st::boxDividerLabel),
-			descriptionPadding);
-		description->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-		if (entry.newBadge) {
-			Ui::NewBadge::AddAfterLabel(content, label);
-		}
-		const auto dummy = Ui::CreateChild<Ui::AbstractButton>(content);
-		dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-		content->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
-			dummy->resize(s.width(), iconSize.height());
-		}, dummy->lifetime());
-
-		label->geometryValue(
-		) | rpl::start_with_next([=](const QRect &r) {
-			dummy->moveToLeft(0, r.y() + (r.height() - labelAscent));
-		}, dummy->lifetime());
-
-		rpl::combine(
-			content->widthValue(),
-			label->heightValue(),
-			description->heightValue()
-		) | rpl::start_with_next([=,
-			topPadding = titlePadding,
-			bottomPadding = descriptionPadding](
-				int width,
-				int topHeight,
-				int bottomHeight) {
-			button->resize(
-				width,
-				topPadding.top()
-					+ topHeight
-					+ topPadding.bottom()
-					+ bottomPadding.top()
-					+ bottomHeight
-					+ bottomPadding.bottom());
-		}, button->lifetime());
-		label->topValue(
-		) | rpl::start_with_next([=, padding = titlePadding.top()](int top) {
-			button->moveToLeft(0, top - padding);
-		}, button->lifetime());
-		const auto arrow = Ui::CreateChild<Ui::IconButton>(
-			button,
-			st::backButton);
-		arrow->setIconOverride(
-			&st::settingsPremiumArrow,
-			&st::settingsPremiumArrowOver);
-		arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
-		button->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
-			const auto &point = st::settingsPremiumArrowShift;
-			arrow->moveToRight(
-				-point.x(),
-				point.y() + (s.height() - arrow->height()) / 2);
-		}, arrow->lifetime());
-
-		const auto section = entry.section;
-		button->setClickedCallback([=, controller = _controller] {
-			_setPaused(true);
-			const auto hidden = crl::guard(this, [=] {
-				_setPaused(false);
-			});
-
-			ShowPremiumPreviewToBuy(controller, section, hidden);
-		});
-
-		iconContainers.push_back(dummy);
+		ShowPremiumPreviewToBuy(_controller, section, hidden);
 	};
-
-	auto icons = std::vector<const style::icon *>();
-	icons.reserve(int(entryMap.size()));
-	{
-		const auto &account = _controller->session().account();
-		const auto mtpOrder = account.appConfig().get<Order>(
-			"premium_promo_order",
-			FallbackOrder());
-		const auto processEntry = [&](Entry &entry) {
-			icons.push_back(entry.icon);
-			addRow(entry);
-		};
-
-		for (const auto &key : mtpOrder) {
-			auto it = entryMap.find(key);
-			if (it == end(entryMap)) {
-				continue;
-			}
-			processEntry(it->second);
-		}
-
-		SendScreenShow(_controller, mtpOrder, _ref);
-	}
-
-	content->resizeToWidth(content->height());
-
-	// Icons.
-	Assert(iconContainers.size() > 2);
-	const auto from = iconContainers.front()->y();
-	const auto to = iconContainers.back()->y() + iconSize.height();
-	auto gradient = QLinearGradient(0, 0, 0, to - from);
-	gradient.setStops(Ui::Premium::FullHeightGradientStops());
-	for (auto i = 0; i < int(icons.size()); i++) {
-		const auto &iconContainer = iconContainers[i];
-
-		const auto pointTop = iconContainer->y() - from;
-		const auto pointBottom = pointTop + iconContainer->height();
-		const auto ratioTop = pointTop / float64(to - from);
-		const auto ratioBottom = pointBottom / float64(to - from);
-
-		auto resultGradient = QLinearGradient(
-			QPointF(),
-			QPointF(0, pointBottom - pointTop));
-
-		resultGradient.setColorAt(
-			.0,
-			anim::gradient_color_at(gradient, ratioTop));
-		resultGradient.setColorAt(
-			.1,
-			anim::gradient_color_at(gradient, ratioBottom));
-
-		const auto brush = QBrush(resultGradient);
-		AddButtonIcon(
-			iconContainer,
-			stDefault,
-			{ .icon = icons[i], .backgroundBrush = brush });
-	}
-
-	Ui::AddSkip(content, descriptionPadding.bottom());
+	AddSummaryPremium(content, _controller, _ref, std::move(buttonCallback));
 #if 0
 	Ui::AddSkip(content);
 	Ui::AddDivider(content);
@@ -1655,6 +1506,163 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 	}) | ranges::views::filter([](PremiumPreview type) {
 		return (type != PremiumPreview::kCount);
 	}) | ranges::to_vector;
+}
+
+void AddSummaryPremium(
+		not_null<Ui::VerticalLayout*> content,
+		not_null<Window::SessionController*> controller,
+		const QString &ref,
+		Fn<void(PremiumPreview)> buttonCallback) {
+	const auto &stDefault = st::settingsButton;
+	const auto &stLabel = st::defaultFlatLabel;
+	const auto iconSize = st::settingsPremiumIconDouble.size();
+	const auto &titlePadding = st::settingsPremiumRowTitlePadding;
+	const auto &descriptionPadding = st::settingsPremiumRowAboutPadding;
+
+	auto entryMap = EntryMap();
+	auto iconContainers = std::vector<Ui::AbstractButton*>();
+	iconContainers.reserve(int(entryMap.size()));
+
+	const auto addRow = [&](Entry &entry) {
+		const auto labelAscent = stLabel.style.font->ascent;
+		const auto button = Ui::CreateChild<Ui::SettingsButton>(
+			content.get(),
+			rpl::single(QString()));
+
+		const auto label = content->add(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				std::move(entry.title) | rpl::map(Ui::Text::Bold),
+				stLabel),
+			titlePadding);
+		label->setAttribute(Qt::WA_TransparentForMouseEvents);
+		const auto description = content->add(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				std::move(entry.description),
+				st::boxDividerLabel),
+			descriptionPadding);
+		description->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+		if (entry.newBadge) {
+			Ui::NewBadge::AddAfterLabel(content, label);
+		}
+		const auto dummy = Ui::CreateChild<Ui::AbstractButton>(content.get());
+		dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+		content->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			dummy->resize(s.width(), iconSize.height());
+		}, dummy->lifetime());
+
+		label->geometryValue(
+		) | rpl::start_with_next([=](const QRect &r) {
+			dummy->moveToLeft(0, r.y() + (r.height() - labelAscent));
+		}, dummy->lifetime());
+
+		rpl::combine(
+			content->widthValue(),
+			label->heightValue(),
+			description->heightValue()
+		) | rpl::start_with_next([=,
+			topPadding = titlePadding,
+			bottomPadding = descriptionPadding](
+				int width,
+				int topHeight,
+				int bottomHeight) {
+			button->resize(
+				width,
+				topPadding.top()
+					+ topHeight
+					+ topPadding.bottom()
+					+ bottomPadding.top()
+					+ bottomHeight
+					+ bottomPadding.bottom());
+		}, button->lifetime());
+		label->topValue(
+		) | rpl::start_with_next([=, padding = titlePadding.top()](int top) {
+			button->moveToLeft(0, top - padding);
+		}, button->lifetime());
+		const auto arrow = Ui::CreateChild<Ui::IconButton>(
+			button,
+			st::backButton);
+		arrow->setIconOverride(
+			&st::settingsPremiumArrow,
+			&st::settingsPremiumArrowOver);
+		arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+		button->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			const auto &point = st::settingsPremiumArrowShift;
+			arrow->moveToRight(
+				-point.x(),
+				point.y() + (s.height() - arrow->height()) / 2);
+		}, arrow->lifetime());
+
+		const auto section = entry.section;
+		button->setClickedCallback([=] { buttonCallback(section); });
+
+		iconContainers.push_back(dummy);
+	};
+
+	auto icons = std::vector<const style::icon *>();
+	icons.reserve(int(entryMap.size()));
+	{
+		const auto &account = controller->session().account();
+		const auto mtpOrder = account.appConfig().get<Order>(
+			"premium_promo_order",
+			FallbackOrder());
+		const auto processEntry = [&](Entry &entry) {
+			icons.push_back(entry.icon);
+			addRow(entry);
+		};
+
+		for (const auto &key : mtpOrder) {
+			auto it = entryMap.find(key);
+			if (it == end(entryMap)) {
+				continue;
+			}
+			processEntry(it->second);
+		}
+
+		SendScreenShow(controller, mtpOrder, ref);
+	}
+
+	content->resizeToWidth(content->height());
+
+	// Icons.
+	Assert(iconContainers.size() > 2);
+	const auto from = iconContainers.front()->y();
+	const auto to = iconContainers.back()->y() + iconSize.height();
+	auto gradient = QLinearGradient(0, 0, 0, to - from);
+	gradient.setStops(Ui::Premium::FullHeightGradientStops());
+	for (auto i = 0; i < int(icons.size()); i++) {
+		const auto &iconContainer = iconContainers[i];
+
+		const auto pointTop = iconContainer->y() - from;
+		const auto pointBottom = pointTop + iconContainer->height();
+		const auto ratioTop = pointTop / float64(to - from);
+		const auto ratioBottom = pointBottom / float64(to - from);
+
+		auto resultGradient = QLinearGradient(
+			QPointF(),
+			QPointF(0, pointBottom - pointTop));
+
+		resultGradient.setColorAt(
+			.0,
+			anim::gradient_color_at(gradient, ratioTop));
+		resultGradient.setColorAt(
+			.1,
+			anim::gradient_color_at(gradient, ratioBottom));
+
+		const auto brush = QBrush(resultGradient);
+		AddButtonIcon(
+			iconContainer,
+			stDefault,
+			{ .icon = icons[i], .backgroundBrush = brush });
+	}
+
+	Ui::AddSkip(content, descriptionPadding.bottom());
+
 }
 
 } // namespace Settings

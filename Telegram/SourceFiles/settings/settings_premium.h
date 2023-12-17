@@ -23,6 +23,7 @@ namespace Ui {
 class RpWidget;
 class RoundButton;
 class GradientButton;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Main {
@@ -84,6 +85,11 @@ struct SubscribeButtonArgs final {
 [[nodiscard]] std::vector<PremiumPreview> PremiumPreviewOrder(
 	not_null<::Main::Session*> session);
 
+void AddSummaryPremium(
+	not_null<Ui::VerticalLayout*> content,
+	not_null<Window::SessionController*> controller,
+	const QString &ref,
+	Fn<void(PremiumPreview)> buttonCallback);
 
 } // namespace Settings
 
