@@ -76,6 +76,36 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	return result;
 }
 
+[[nodiscard]] not_null<Ui::RpWidget*> CircleBadge(
+		not_null<Ui::RpWidget*> parent,
+		const QString &text) {
+	const auto widget = Ui::CreateChild<Ui::RpWidget>(parent.get());
+
+	const auto full = Rect(st::premiumGiftsUserpicBadgeSize);
+	const auto inner = full - Margins(st::premiumGiftsUserpicBadgeInner);
+	auto gradient = QLinearGradient(
+		QPointF(0, full.height()),
+		QPointF(full.width(), 0));
+	gradient.setStops(Ui::Premium::GiftGradientStops());
+
+	widget->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(widget);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::boxBg);
+		p.drawEllipse(full);
+		p.setPen(Qt::NoPen);
+		p.setBrush(gradient);
+		p.drawEllipse(inner);
+		p.setFont(st::premiumGiftsUserpicBadgeFont);
+		p.setPen(st::premiumButtonFg);
+		p.drawText(full, text, style::al_center);
+	}, widget->lifetime());
+	widget->resize(full.size());
+	return widget;
+}
+
 [[nodiscard]] not_null<Ui::RpWidget*> UserpicsContainer(
 		not_null<Ui::RpWidget*> parent,
 		std::vector<not_null<UserData*>> users) {
@@ -273,10 +303,8 @@ void GiftBox(
 		},
 	});
 	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
-	button->resizeToWidth(boxWidth
-		- stButton.buttonPadding.left()
-		- stButton.buttonPadding.right());
-	box->setShowFinishedCallback([raw = button.data()]{
+	button->resizeToWidth(boxWidth - rect::m::sum::h(stButton.buttonPadding));
+	box->setShowFinishedCallback([raw = button.data()] {
 		raw->startGlareAnimation();
 	});
 	box->addButton(std::move(button));
@@ -320,7 +348,11 @@ void GiftsBox(
 		top,
 		true);
 
-	const auto userpics = UserpicsContainer(top, users);
+	constexpr auto kUserpicsMax = size_t(3);
+	const auto maxWithUserpic = std::min(users.size(), kUserpicsMax);
+	const auto userpics = UserpicsContainer(
+		top,
+		{ users.begin(), users.begin() + maxWithUserpic });
 	top->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		userpics->moveToLeft(
@@ -337,6 +369,12 @@ void GiftsBox(
 		stars->setPosition(ministarsRect.topLeft());
 		stars->setSize(ministarsRect.size());
 	}, userpics->lifetime());
+	if (const auto rest = users.size() - maxWithUserpic; rest > 0) {
+		const auto badge = CircleBadge(
+			userpics,
+			QChar('+') + QString::number(rest));
+		badge->moveToRight(0, userpics->height() - badge->height());
+	}
 
 	top->paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {
@@ -421,10 +459,8 @@ void GiftsBox(
 		Payments::CheckoutProcess::Start(std::move(invoice), done);
 	});
 	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
-	button->resizeToWidth(boxWidth
-		- stButton.buttonPadding.left()
-		- stButton.buttonPadding.right());
-	box->setShowFinishedCallback([raw = button.data()]{
+	button->resizeToWidth(boxWidth - rect::m::sum::h(stButton.buttonPadding));
+	box->setShowFinishedCallback([raw = button.data()] {
 		raw->startGlareAnimation();
 	});
 	box->addButton(std::move(button));

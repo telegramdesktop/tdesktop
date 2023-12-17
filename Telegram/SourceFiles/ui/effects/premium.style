@@ -236,6 +236,9 @@ premiumGiftsUserpicButton: UserpicButton(defaultUserpicButton) {
 	photoPosition: point(-1px, -1px);
 }
 premiumGiftsUserpicShift: 30px;
+premiumGiftsUserpicBadgeSize: size(26px, 26px);
+premiumGiftsUserpicBadgeInner: 2px;
+premiumGiftsUserpicBadgeFont: font(14px bold);
 
 boostSkipTop: 37px;
 boostLimits: PremiumLimits(defaultPremiumLimits) {
