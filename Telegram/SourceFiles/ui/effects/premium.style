@@ -230,6 +230,13 @@ premiumGiftBox: Box(premiumPreviewBox) {
 	buttonPadding: margins(12px, 12px, 12px, 12px);
 }
 
+premiumGiftsUserpicButton: UserpicButton(defaultUserpicButton) {
+	size: size(64px, 64px);
+	photoSize: 64px;
+	photoPosition: point(-1px, -1px);
+}
+premiumGiftsUserpicShift: 30px;
+
 boostSkipTop: 37px;
 boostLimits: PremiumLimits(defaultPremiumLimits) {
 	gradientFromLeft: true;

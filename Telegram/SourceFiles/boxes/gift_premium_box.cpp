@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_top_bar.h"
 #include "ui/effects/spoiler_mess.h"
 #include "ui/layers/generic_box.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
@@ -75,6 +76,54 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	return result;
 }
 
+[[nodiscard]] not_null<Ui::RpWidget*> UserpicsContainer(
+		not_null<Ui::RpWidget*> parent,
+		std::vector<not_null<UserData*>> users) {
+	Expects(!users.empty());
+
+	if (users.size() == 1) {
+		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+			parent.get(),
+			users.front(),
+			st::defaultUserpicButton);
+		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+		return userpic;
+	}
+
+	const auto &singleSize = st::defaultUserpicButton.size;
+
+	const auto container = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	const auto single = singleSize.width();
+	const auto shift = st::premiumGiftsUserpicShift;
+	const auto maxWidth = users.size() * (single - shift) + shift;
+	container->resize(maxWidth, singleSize.height());
+	container->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto diff = (single - st::premiumGiftsUserpicButton.size.width())
+		/ 2;
+	for (auto i = 0; i < users.size(); i++) {
+		const auto bg = Ui::CreateChild<Ui::RpWidget>(container);
+		bg->resize(singleSize);
+		bg->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(bg);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::boxBg);
+			p.drawEllipse(bg->rect());
+		}, bg->lifetime());
+		bg->moveToLeft(std::max(0, i * (single - shift)), 0);
+
+		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+			bg,
+			users[i],
+			st::premiumGiftsUserpicButton);
+		userpic->moveToLeft(diff, diff);
+	}
+
+	return container;
+}
+
 void GiftBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
@@ -98,12 +147,11 @@ void GiftBox(
 			+ st::defaultUserpicButton.size.height()));
 
 	using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
-	const auto stars = box->lifetime().make_state<ColoredMiniStars>(top, true);
-
-	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+	const auto stars = box->lifetime().make_state<ColoredMiniStars>(
 		top,
-		user,
-		st::defaultUserpicButton);
+		true);
+
+	const auto userpic = UserpicsContainer(top, { user });
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 	top->widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -267,9 +315,36 @@ void GiftsBox(
 			+ userpicPadding.bottom()
 			+ st::defaultUserpicButton.size.height()));
 
-	// Header.
-	const auto &padding = st::premiumGiftAboutPadding;
-	const auto available = boxWidth - padding.left() - padding.right();
+	using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
+	const auto stars = box->lifetime().make_state<ColoredMiniStars>(
+		top,
+		true);
+
+	const auto userpics = UserpicsContainer(top, users);
+	top->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		userpics->moveToLeft(
+			(width - userpics->width()) / 2,
+			userpicPadding.top());
+
+		const auto center = top->rect().center();
+		const auto size = QSize(
+			userpics->width() * Ui::Premium::MiniStars::kSizeFactor,
+			userpics->height());
+		const auto ministarsRect = QRect(
+			QPoint(center.x() - size.width(), center.y() - size.height()),
+			QPoint(center.x() + size.width(), center.y() + size.height()));
+		stars->setPosition(ministarsRect.topLeft());
+		stars->setSize(ministarsRect.size());
+	}, userpics->lifetime());
+
+	top->paintRequest(
+	) | rpl::start_with_next([=](const QRect &r) {
+		auto p = QPainter(top);
+
+		p.fillRect(r, Qt::transparent);
+		stars->paint(p);
+	}, top->lifetime());
 
 	const auto close = Ui::CreateChild<Ui::IconButton>(
 		buttonsParent,
@@ -280,6 +355,10 @@ void GiftsBox(
 	) | rpl::start_with_next([=](int width) {
 		close->moveToRight(0, 0, width);
 	}, close->lifetime());
+
+	// Header.
+	const auto &padding = st::premiumGiftAboutPadding;
+	const auto available = boxWidth - padding.left() - padding.right();
 
 	// List.
 	const auto options = api->options(users.size());
@@ -614,7 +693,7 @@ void GiftPremiumValidator::showChoosePeerBox() {
 					return u;
 				}) | ranges::to<std::vector<not_null<UserData*>>>();
 				if (!users.empty()) {
-					const auto giftBox = show->showBox(
+					const auto giftBox = show->show(
 						Box(GiftsBox, _controller, users, api));
 					giftBox->boxClosing(
 					) | rpl::start_with_next([=] {
