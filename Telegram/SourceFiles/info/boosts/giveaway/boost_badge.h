@@ -32,6 +32,10 @@ namespace Info::Statistics {
 	not_null<Ui::RpWidget*> parent,
 	int size);
 
+void AddChildToWidgetCenter(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Ui::RpWidget*> child);
+
 void AddLabelWithBadgeToButton(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<QString> text,

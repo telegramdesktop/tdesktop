@@ -958,13 +958,7 @@ void CreateGiveawayBox(
 			const auto loadingAnimation = InfiniteRadialAnimationWidget(
 				button,
 				st::giveawayGiftCodeStartButton.height / 2);
-			button->sizeValue(
-			) | rpl::start_with_next([=](const QSize &s) {
-				const auto size = loadingAnimation->size();
-				loadingAnimation->moveToLeft(
-					(s.width() - size.width()) / 2,
-					(s.height() - size.height()) / 2);
-			}, loadingAnimation->lifetime());
+			AddChildToWidgetCenter(button.data(), loadingAnimation);
 			loadingAnimation->showOn(state->confirmButtonBusy.value());
 		}
 

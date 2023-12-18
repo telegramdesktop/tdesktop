@@ -647,13 +647,7 @@ void GiftsBox(
 		const auto loadingAnimation = InfiniteRadialAnimationWidget(
 			raw,
 			raw->height() / 2);
-		raw->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
-			const auto size = loadingAnimation->size();
-			loadingAnimation->moveToLeft(
-				(s.width() - size.width()) / 2,
-				(s.height() - size.height()) / 2);
-		}, loadingAnimation->lifetime());
+		AddChildToWidgetCenter(raw, loadingAnimation);
 		loadingAnimation->showOn(state->confirmButtonBusy.value());
 	}
 	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
