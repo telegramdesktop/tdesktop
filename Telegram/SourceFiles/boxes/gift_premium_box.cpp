@@ -531,24 +531,17 @@ void GiftsBox(
 	}
 
 	// Footer.
-	auto terms = object_ptr<Ui::FlatLabel>(
-		box,
-		tr::lng_premium_gift_terms(
-			lt_link,
-			tr::lng_premium_gift_terms_link(
-			) | rpl::map([=](const QString &t) {
-				return Ui::Text::Link(t, 1);
-			}),
-			Ui::Text::WithEntities),
-		st::premiumGiftTerms);
-	terms->setLink(1, std::make_shared<LambdaClickHandler>([=] {
-		box->closeBox();
-		Settings::ShowPremium(session, QString());
-	}));
-	terms->resizeToWidth(available);
-	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(box, std::move(terms)),
-		st::premiumGiftTermsPadding);
+	{
+		box->addRow(
+			object_ptr<Ui::DividerLabel>(
+				box,
+				object_ptr<Ui::FlatLabel>(
+					box,
+					session->api().premium().statusTextValue(), // TODO.
+					st::premiumGiftTerms),
+				st::defaultBoxDividerLabelPadding),
+			{});
+	}
 
 	// Button.
 	const auto &stButton = st::premiumGiftBox;
