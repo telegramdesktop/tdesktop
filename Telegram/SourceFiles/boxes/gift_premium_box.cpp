@@ -187,7 +187,7 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 
 	const auto container = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	const auto single = singleSize.width();
-	const auto shift = st::premiumGiftsUserpicShift;
+	const auto shift = single - st::boostReplaceUserpicsShift;
 	const auto maxWidth = users.size() * (single - shift) + shift;
 	container->resize(maxWidth, singleSize.height());
 	container->setAttribute(Qt::WA_TransparentForMouseEvents);

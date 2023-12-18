@@ -231,11 +231,10 @@ premiumGiftBox: Box(premiumPreviewBox) {
 }
 
 premiumGiftsUserpicButton: UserpicButton(defaultUserpicButton) {
-	size: size(64px, 64px);
-	photoSize: 64px;
+	size: size(66px, 66px);
+	photoSize: 66px;
 	photoPosition: point(-1px, -1px);
 }
-premiumGiftsUserpicShift: 30px;
 premiumGiftsUserpicBadgeSize: size(26px, 26px);
 premiumGiftsUserpicBadgeInner: 2px;
 premiumGiftsUserpicBadgeFont: font(14px bold);
