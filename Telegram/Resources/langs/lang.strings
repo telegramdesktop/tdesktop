@@ -2068,6 +2068,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_gifts_about_user_more#other" = "Give **{user}**, **{second_user}**, **{name}** and **{count}** more friends access to exclusive features.";
 "lng_premium_gifts_about_reward#one" = "You will receive {emoji}**{count}** boost.";
 "lng_premium_gifts_about_reward#other" = "You will receive {emoji}**{count}** boosts.";
+"lng_premium_gifts_about_paid_title" = "Gifts Sent!";
+"lng_premium_gifts_about_paid1" = "**{user}** has been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid2" = "**{user}** and **{second_user}** have been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid3" = "**{user}**, **{second_user}** and **{name}** have been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid_more#one" = "**{user}**, **{second_user}**, **{name}** and **{count}** other have been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid_more#other" = "**{user}**, **{second_user}**, **{name}** and **{count}** others have been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid_below#one" = "They now have access to additional features.";
+"lng_premium_gifts_about_paid_below#other" = "They now have access to additional features.";
+"lng_premium_gifts_summary_subtitle" = "What's Included";
 
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_again_button" = "Boost Again";

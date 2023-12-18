@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_subscription_option.h"
 #include "data/data_user.h"
+#include "info/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
 #include "window/window_peer_menu.h" // ShowChooseRecipientBox.
 #include "window/window_session_controller.h"
@@ -80,53 +82,47 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	return result;
 }
 
+using TagUser1 = lngtag_user;
+using TagUser2 = lngtag_second_user;
+using TagUser3 = lngtag_name;
 [[nodiscard]] rpl::producer<TextWithEntities> ComplexAboutLabel(
-		const std::vector<not_null<UserData*>> &users) {
+		const std::vector<not_null<UserData*>> &users,
+		tr::phrase<TagUser1> phrase1,
+		tr::phrase<TagUser1, TagUser2> phrase2,
+		tr::phrase<TagUser1, TagUser2, TagUser3> phrase3,
+		tr::phrase<lngtag_count, TagUser1, TagUser2, TagUser3> phraseMore) {
 	Expects(!users.empty());
 
-	const auto session = &users.front()->session();
 	const auto count = users.size();
 	const auto nameValue = [&](not_null<UserData*> user) {
-		return session->changes().peerFlagsValue(
+		return user->session().changes().peerFlagsValue(
 			user,
 			Data::PeerUpdate::Flag::Name
 		) | rpl::map([=] { return TextWithEntities{ user->firstName }; });
 	};
-	const auto addReward = [=](TextWithEntities text) {
-		text.append('\n');
-		text.append('\n');
-		text.append(tr::lng_premium_gifts_about_reward(
-			tr::now,
-			lt_count,
-			count * BoostsForGift(session),
-			lt_emoji,
-			TextWithEntities(),
-			Ui::Text::RichLangValue));
-		return text;
-	};
 	if (count == 1) {
-		return tr::lng_premium_gifts_about_user1(
+		return phrase1(
 			lt_user,
 			nameValue(users.front()),
-			Ui::Text::RichLangValue) | rpl::map(addReward);
+			Ui::Text::RichLangValue);
 	} else if (count == 2) {
-		return tr::lng_premium_gifts_about_user2(
+		return phrase2(
 			lt_user,
 			nameValue(users.front()),
 			lt_second_user,
 			nameValue(users[1]),
-			Ui::Text::RichLangValue) | rpl::map(addReward);
+			Ui::Text::RichLangValue);
 	} else if (count == 3) {
-		return tr::lng_premium_gifts_about_user3(
+		return phrase3(
 			lt_user,
 			nameValue(users.front()),
 			lt_second_user,
 			nameValue(users[1]),
 			lt_name,
 			nameValue(users[2]),
-			Ui::Text::RichLangValue) | rpl::map(addReward);
+			Ui::Text::RichLangValue);
 	} else {
-		return tr::lng_premium_gifts_about_user_more(
+		return phraseMore(
 			lt_count,
 			rpl::single(count - kUserpicsMax) | tr::to_count(),
 			lt_user,
@@ -135,7 +131,7 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 			nameValue(users[1]),
 			lt_name,
 			nameValue(users[2]),
-			Ui::Text::RichLangValue) | rpl::map(addReward);
+			Ui::Text::RichLangValue);
 	}
 }
 
@@ -396,6 +392,8 @@ void GiftsBox(
 
 	struct State {
 		rpl::event_stream<QString> buttonText;
+		rpl::variable<bool> confirmButtonBusy = false;
+		rpl::variable<bool> isPaymentComplete = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
 
@@ -462,7 +460,10 @@ void GiftsBox(
 	const auto &stTitle = st::premiumPreviewAboutTitle;
 	auto titleLabel = object_ptr<Ui::FlatLabel>(
 		box,
-		tr::lng_premium_gift_title(),
+		rpl::conditional(
+			state->isPaymentComplete.value(),
+			tr::lng_premium_gifts_about_paid_title(),
+			tr::lng_premium_gift_title()),
 		stTitle);
 	titleLabel->resizeToWidth(available);
 	box->addRow(
@@ -473,7 +474,43 @@ void GiftsBox(
 
 	auto textLabel = object_ptr<Ui::FlatLabel>(
 		box,
-		ComplexAboutLabel(users),
+		rpl::conditional(
+			state->isPaymentComplete.value(),
+			ComplexAboutLabel(
+				users,
+				tr::lng_premium_gifts_about_paid1,
+				tr::lng_premium_gifts_about_paid2,
+				tr::lng_premium_gifts_about_paid3,
+				tr::lng_premium_gifts_about_paid_more
+			) | rpl::map([count = users.size()](TextWithEntities text) {
+				text.append('\n');
+				text.append('\n');
+				text.append(tr::lng_premium_gifts_about_paid_below(
+					tr::now,
+					lt_count,
+					float64(count),
+					Ui::Text::RichLangValue));
+				return text;
+			}),
+			ComplexAboutLabel(
+				users,
+				tr::lng_premium_gifts_about_user1,
+				tr::lng_premium_gifts_about_user2,
+				tr::lng_premium_gifts_about_user3,
+				tr::lng_premium_gifts_about_user_more
+			) | rpl::map([=, count = users.size()](TextWithEntities text) {
+				text.append('\n');
+				text.append('\n');
+				text.append(tr::lng_premium_gifts_about_reward(
+					tr::now,
+					lt_count,
+					count * BoostsForGift(session),
+					lt_emoji,
+					TextWithEntities(),
+					Ui::Text::RichLangValue));
+				return text;
+			})
+		),
 		st::premiumPreviewAbout);
 	textLabel->setTextColorOverride(stTitle.textFg->c);
 	textLabel->resizeToWidth(available);
@@ -482,6 +519,10 @@ void GiftsBox(
 		padding);
 
 	// List.
+	const auto optionsContainer = buttonsParent->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			buttonsParent,
+			object_ptr<Ui::VerticalLayout>(buttonsParent)));
 	const auto options = api->options(users.size());
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
 	const auto groupValueChangedCallback = [=](int value) {
@@ -494,19 +535,29 @@ void GiftsBox(
 	};
 	group->setChangedCallback(groupValueChangedCallback);
 	Ui::Premium::AddGiftOptions(
-		buttonsParent,
+		optionsContainer->entity(),
 		group,
 		options,
 		st::premiumGiftOption);
+	optionsContainer->toggleOn(
+		state->isPaymentComplete.value() | rpl::map(!rpl::mappers::_1),
+		anim::type::instant);
 
 	// Summary.
 	{
+		{
+			// Will be hidden after payment.
+			const auto content = optionsContainer->entity();
+			Ui::AddSkip(content);
+			Ui::AddDivider(content);
+			Ui::AddSkip(content);
+			Ui::AddSubsectionTitle(
+				content,
+				tr::lng_premium_gifts_summary_subtitle());
+		}
 		const auto content = box->addRow(
 			object_ptr<Ui::VerticalLayout>(box),
 			{});
-		Ui::AddSkip(content);
-		Ui::AddDivider(content);
-		Ui::AddSkip(content);
 		auto buttonCallback = [=](PremiumPreview section) {
 			stars->setPaused(true);
 			const auto previewBoxShown = [=](
@@ -550,21 +601,61 @@ void GiftsBox(
 		controller,
 		box,
 		[] { return u"gift"_q; },
-		state->buttonText.events(),
+		rpl::combine(
+			state->buttonText.events(),
+			state->confirmButtonBusy.value(),
+			state->isPaymentComplete.value()
+		) | rpl::map([](const QString &text, bool busy, bool paid) {
+			return busy
+				? QString()
+				: paid
+				? tr::lng_close(tr::now)
+				: text;
+		}),
 		Ui::Premium::GiftGradientStops(),
 	});
 	raw->setClickedCallback([=] {
+		if (state->confirmButtonBusy.current()) {
+			return;
+		}
+		if (state->isPaymentComplete.current()) {
+			return box->closeBox();
+		}
 		auto invoice = api->invoice(
 			users.size(),
 			api->monthsFromPreset(group->value()));
 		invoice.purpose = Payments::InvoicePremiumGiftCodeUsers{ users };
 
+		state->confirmButtonBusy = true;
+		const auto show = box->uiShow();
+		const auto weak = Ui::MakeWeak(box.get());
 		const auto done = [=](Payments::CheckoutResult result) {
-			box->uiShow()->showToast(tr::lng_share_done(tr::now));
+			if (const auto strong = weak.data()) {
+				strong->window()->setFocus();
+				state->confirmButtonBusy = false;
+				if (result == Payments::CheckoutResult::Paid) {
+					state->isPaymentComplete = true;
+					Ui::StartFireworks(box->parentWidget());
+				}
+			}
 		};
 
 		Payments::CheckoutProcess::Start(std::move(invoice), done);
 	});
+	{
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			raw,
+			raw->height() / 2);
+		raw->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			const auto size = loadingAnimation->size();
+			loadingAnimation->moveToLeft(
+				(s.width() - size.width()) / 2,
+				(s.height() - size.height()) / 2);
+		}, loadingAnimation->lifetime());
+		loadingAnimation->showOn(state->confirmButtonBusy.value());
+	}
 	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
 	button->resizeToWidth(boxWidth - rect::m::sum::h(stButton.buttonPadding));
 	box->setShowFinishedCallback([raw = button.data()] {
