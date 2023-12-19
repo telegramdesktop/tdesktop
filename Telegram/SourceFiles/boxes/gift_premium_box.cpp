@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/prepare_short_info_box.h"
 #include "boxes/peers/replace_boost_box.h" // BoostsForGift.
 #include "boxes/premium_preview_box.h" // ShowPremiumPreviewBox.
+#include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_subscription_option.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "info/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -472,9 +474,14 @@ void GiftsBox(
 			std::move(titleLabel)),
 		st::premiumGiftTitlePadding);
 
-	auto textLabel = object_ptr<Ui::FlatLabel>(
-		box,
-		rpl::conditional(
+	// About.
+	{
+		const auto emoji = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				st::premiumGiftsBoostIcon,
+				QMargins(0, st::premiumGiftsUserpicBadgeInner, 0, 0),
+				false));
+		auto text = rpl::conditional(
 			state->isPaymentComplete.value(),
 			ComplexAboutLabel(
 				users,
@@ -506,17 +513,25 @@ void GiftsBox(
 					lt_count,
 					count * BoostsForGift(session),
 					lt_emoji,
-					TextWithEntities(),
+					emoji,
 					Ui::Text::RichLangValue));
 				return text;
 			})
-		),
-		st::premiumPreviewAbout);
-	textLabel->setTextColorOverride(stTitle.textFg->c);
-	textLabel->resizeToWidth(available);
-	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(box, std::move(textLabel)),
-		padding);
+		);
+		const auto label = box->addRow(
+			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+				box,
+				object_ptr<Ui::FlatLabel>(box, st::premiumPreviewAbout)),
+			padding)->entity();
+		std::move(
+			text
+		) | rpl::start_with_next([=](const TextWithEntities &t) {
+			using namespace Core;
+			label->setMarkedText(t, MarkedTextContext{ .session = session });
+		}, label->lifetime());
+		label->setTextColorOverride(stTitle.textFg->c);
+		label->resizeToWidth(available);
+	}
 
 	// List.
 	const auto optionsContainer = buttonsParent->add(

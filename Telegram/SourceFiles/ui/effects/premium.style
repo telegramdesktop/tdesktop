@@ -238,6 +238,7 @@ premiumGiftsUserpicButton: UserpicButton(defaultUserpicButton) {
 premiumGiftsUserpicBadgeSize: size(26px, 26px);
 premiumGiftsUserpicBadgeInner: 2px;
 premiumGiftsUserpicBadgeFont: font(14px bold);
+premiumGiftsBoostIcon: icon{{ "stories/boost_mini", windowBgActive }};
 
 boostSkipTop: 37px;
 boostLimits: PremiumLimits(defaultPremiumLimits) {
