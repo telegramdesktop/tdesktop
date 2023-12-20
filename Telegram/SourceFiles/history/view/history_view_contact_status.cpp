@@ -714,8 +714,9 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 
 void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 	_inner->unarchiveClicks(
-	) | rpl::start_with_next([=] {
-		Window::ToggleHistoryArchived(peer->owner().history(peer), false);
+	) | rpl::start_with_next([=, show = _controller->uiShow()] {
+		using namespace Window;
+		ToggleHistoryArchived(show, peer->owner().history(peer), false);
 		peer->owner().notifySettings().resetToDefault(peer);
 		if (const auto settings = peer->settings()) {
 			const auto flags = PeerSetting::AutoArchived

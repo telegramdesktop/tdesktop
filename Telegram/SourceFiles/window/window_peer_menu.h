@@ -116,7 +116,10 @@ void BlockSenderFromRepliesBox(
 	not_null<Window::SessionController*> controller,
 	FullMsgId id);
 
-void ToggleHistoryArchived(not_null<History*> history, bool archived);
+void ToggleHistoryArchived(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<History*> history,
+	bool archived);
 Fn<void()> ClearHistoryHandler(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);

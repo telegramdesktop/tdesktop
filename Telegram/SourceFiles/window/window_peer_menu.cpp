@@ -652,8 +652,8 @@ void Filler::addToggleArchive() {
 			? tr::lng_archived_remove(tr::now)
 			: tr::lng_archived_add(tr::now);
 	};
-	const auto toggle = [=] {
-		ToggleHistoryArchived(history, !isArchived());
+	const auto toggle = [=, show = _controller->uiShow()] {
+		ToggleHistoryArchived(show, history, !isArchived());
 	};
 	const auto archiveAction = _addAction(
 		label(),
@@ -2406,9 +2406,12 @@ void MenuAddMarkAsReadChatListAction(
 		&st::menuIconMarkRead);
 }
 
-void ToggleHistoryArchived(not_null<History*> history, bool archived) {
+void ToggleHistoryArchived(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<History*> history,
+		bool archived) {
 	const auto callback = [=] {
-		Ui::Toast::Show(Ui::Toast::Config{
+		show->showToast(Ui::Toast::Config{
 			.text = { (archived
 				? tr::lng_archived_added(tr::now)
 				: tr::lng_archived_removed(tr::now)) },
