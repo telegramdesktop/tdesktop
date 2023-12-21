@@ -152,11 +152,12 @@ EditDocumentScheme GetDocumentScheme(
 	};
 	using Result = std::optional<QString>;
 	const auto NameValidate = [](const QString &value) -> Result {
+		static const auto RegExp = QRegularExpression(
+			"^[a-zA-Z0-9\\.,/&\\-' ]+$"
+		);
 		if (value.isEmpty() || value.size() > kMaxNameSize) {
 			return QString();
-		} else if (!QRegularExpression(
-			"^[a-zA-Z0-9\\.,/&\\-' ]+$"
-		).match(value).hasMatch()) {
+		} else if (!RegExp.match(value).hasMatch()) {
 			return tr::lng_passport_bad_name(tr::now);
 		}
 		return std::nullopt;
@@ -167,14 +168,16 @@ EditDocumentScheme GetDocumentScheme(
 	const auto StreetValidate = LimitedValidate(kMaxStreetSize);
 	const auto CityValidate = LimitedValidate(kMaxCitySize, kMinCitySize);
 	const auto PostcodeValidate = FromBoolean([](const QString &value) {
-		return QRegularExpression(
+		static const auto RegExp = QRegularExpression(
 			QString("^[a-zA-Z0-9\\-]{2,%1}$").arg(kMaxPostcodeSize)
-		).match(value).hasMatch();
+		);
+		return RegExp.match(value).hasMatch();
 	});
 	const auto DateValidateBoolean = [](const QString &value) {
-		return QRegularExpression(
+		static const auto RegExp = QRegularExpression(
 			"^\\d{2}\\.\\d{2}\\.\\d{4}$"
-		).match(value).hasMatch();
+		);
+		return RegExp.match(value).hasMatch();
 	};
 	const auto DateValidate = FromBoolean(DateValidateBoolean);
 	const auto DateOrEmptyValidate = FromBoolean([=](const QString &value) {
@@ -479,9 +482,8 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 		result.newHeader = tr::lng_passport_new_phone(tr::now);
 		result.aboutNew = tr::lng_passport_new_phone_code(tr::now);
 		result.validate = [](const QString &value) {
-			return QRegularExpression(
-				"^\\d{2,12}$"
-			).match(value).hasMatch();
+			static const auto RegExp = QRegularExpression("^\\d{2,12}$");
+			return RegExp.match(value).hasMatch();
 		};
 		result.format = [](const QString &value) {
 			return Ui::FormatPhone(value);

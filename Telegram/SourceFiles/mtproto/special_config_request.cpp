@@ -62,8 +62,9 @@ QString InstanceId() {
 }
 
 bool CheckPhoneByPrefixesRules(const QString &phone, const QString &rules) {
+	static const auto RegExp = QRegularExpression("[^0-9]");
 	const auto check = QString(phone).replace(
-		QRegularExpression("[^0-9]"),
+		RegExp,
 		QString());
 	auto result = false;
 	for (const auto &prefix : rules.split(',')) {

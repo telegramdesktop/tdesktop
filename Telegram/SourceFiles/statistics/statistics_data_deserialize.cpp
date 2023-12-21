@@ -139,7 +139,8 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 	for (auto &line : result.lines) {
 		const auto colorIt = colors.constFind(line.idString);
 		if (colorIt != colors.constEnd() && (*colorIt).isString()) {
-			const auto match = QRegularExpression(colorPattern).match(
+			static const auto RegExp = QRegularExpression(u"(.*)(#.*)"_q);
+			const auto match = RegExp.match(
 				colorIt->toString());
 			if (match.hasMatch()) {
 				line.colorKey = match.captured(1);

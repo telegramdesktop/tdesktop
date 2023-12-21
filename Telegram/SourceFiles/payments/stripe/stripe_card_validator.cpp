@@ -90,11 +90,13 @@ struct BinRange {
 }
 
 [[nodiscard]] bool IsNumeric(const QString &value) {
-	return QRegularExpression("^[0-9]*$").match(value).hasMatch();
+	static const auto RegExp = QRegularExpression("^[0-9]*$");
+	return RegExp.match(value).hasMatch();
 }
 
 [[nodiscard]] QString RemoveWhitespaces(QString value) {
-	return value.replace(QRegularExpression("\\s"), QString());
+	static const auto RegExp = QRegularExpression("\\s");
+	return value.replace(RegExp, QString());
 }
 
 [[nodiscard]] std::vector<BinRange> BinRangesForNumber(

@@ -25,11 +25,11 @@ namespace {
 Error::Error(const MTPrpcError &error)
 : _code(error.c_rpc_error().verror_code().v) {
 	QString text = qs(error.c_rpc_error().verror_message());
-	const auto expression = QRegularExpression(
+	static const auto Expression = QRegularExpression(
 		"^([A-Z0-9_]+)(: .*)?$",
 		(QRegularExpression::DotMatchesEverythingOption
 			| QRegularExpression::MultilineOption));
-	const auto match = expression.match(text);
+	const auto match = Expression.match(text);
 	if (match.hasMatch()) {
 		_type = match.captured(1);
 		_description = match.captured(2).mid(2);
