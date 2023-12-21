@@ -15,13 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 namespace Data {
-namespace {
-
-constexpr auto kRefreshDefaultListEach = 60 * 60 * crl::time(1000);
-constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
-constexpr auto kMaxTimeout = 6 * 60 * 60 * crl::time(1000);
-
-} // namespace
 
 ForumIcons::ForumIcons(not_null<Session*> owner)
 : _owner(owner)

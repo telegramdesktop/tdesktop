@@ -900,7 +900,6 @@ TextWithEntities Manager::ComposeReactionEmoji(
 		return TextWithEntities{ *emoji };
 	}
 	const auto id = v::get<DocumentId>(reaction.data);
-	auto entities = EntitiesInText();
 	const auto document = session->data().document(id);
 	const auto sticker = document->sticker();
 	const auto text = sticker ? sticker->alt : PlaceholderReactionText();

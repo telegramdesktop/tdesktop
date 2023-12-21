@@ -57,7 +57,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMaxWallPaperSlugLength = 255;
-constexpr auto kDefaultDimming = 50;
 
 [[nodiscard]] bool IsValidWallPaperSlug(const QString &slug) {
 	if (slug.isEmpty() || slug.size() > kMaxWallPaperSlugLength) {

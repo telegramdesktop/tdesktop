@@ -226,7 +226,6 @@ bool PhotoMedia::setToClipboard() {
 	if (fallback.isNull()) {
 		return false;
 	}
-	const auto bytes = imageBytes(large);
 	auto mime = std::make_unique<QMimeData>();
 	mime->setImageData(std::move(fallback));
 	if (auto bytes = imageBytes(large); !bytes.isEmpty()) {

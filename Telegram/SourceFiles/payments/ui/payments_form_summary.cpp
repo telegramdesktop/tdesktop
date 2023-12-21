@@ -388,7 +388,6 @@ void FormSummary::setupSuggestedTips(not_null<VerticalLayout*> layout) {
 		st::paymentsTipButtonsPadding);
 	const auto state = outer->lifetime().make_state<State>();
 	for (const auto amount : _invoice.suggestedTips) {
-		const auto text = formatAmount(amount, true);
 		const auto selected = (amount == _invoice.tipsSelected);
 		const auto &st = selected
 			? _tipChosen
