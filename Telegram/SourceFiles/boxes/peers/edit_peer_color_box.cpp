@@ -452,8 +452,11 @@ void Set(
 			: tr::lng_settings_color_changed_channel(tr::now));
 	};
 	const auto fail = [=](const MTP::Error &error) {
-		setLocal(wasIndex, wasEmojiId);
-		show->showToast(error.type());
+		const auto type = error.type();
+		if (type != u"CHAT_NOT_MODIFIED"_q) {
+			setLocal(wasIndex, wasEmojiId);
+			show->showToast(type);
+		}
 	};
 	const auto send = [&](auto &&request) {
 		peer->session().api().request(
@@ -469,7 +472,7 @@ void Set(
 	} else if (const auto channel = peer->asChannel()) {
 		using Flag = MTPchannels_UpdateColor::Flag;
 		send(MTPchannels_UpdateColor(
-			MTP_flags(Flag::f_background_emoji_id),
+			MTP_flags(Flag::f_color | Flag::f_background_emoji_id),
 			channel->inputChannel,
 			MTP_int(colorIndex),
 			MTP_long(backgroundEmojiId)));
@@ -509,9 +512,19 @@ void Apply(
 			peer->input
 		)).done([=](const MTPpremium_BoostsStatus &result) {
 			const auto &data = result.data();
-			const auto required = session->account().appConfig().get<int>(
-				"channel_color_level_min",
-				5);
+			if (const auto channel = peer->asChannel()) {
+				channel->updateLevelHint(data.vlevel().v);
+			}
+			const auto peerColors = &peer->session().api().peerColors();
+			const auto colorRequired = peerColors->requiredLevelFor(
+				peer->id,
+				colorIndex);
+			const auto iconRequired = backgroundEmojiId
+				? session->account().appConfig().get<int>(
+					"channel_bg_icon_level_min",
+					5)
+				: 0;
+			const auto required = std::max(colorRequired, iconRequired);
 			if (data.vlevel().v >= required) {
 				Set(show, peer, colorIndex, backgroundEmojiId);
 				close();
@@ -842,11 +855,12 @@ void AddPeerColorButton(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer) {
+	auto label = peer->isSelf()
+		? tr::lng_settings_theme_name_color()
+		: tr::lng_edit_channel_color();
 	const auto button = AddButtonWithIcon(
 		container,
-		(peer->isSelf()
-			? tr::lng_settings_theme_name_color()
-			: tr::lng_edit_channel_color()),
+		rpl::duplicate(label),
 		st::settingsColorButton,
 		{ &st::menuIconChangeColors });
 
@@ -873,7 +887,7 @@ void AddPeerColorButton(
 
 	rpl::combine(
 		button->widthValue(),
-		tr::lng_settings_theme_name_color(),
+		rpl::duplicate(label),
 		rpl::duplicate(colorIndexValue)
 	) | rpl::start_with_next([=](
 			int width,

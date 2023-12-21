@@ -949,6 +949,14 @@ void ChannelData::processTopics(const MTPVector<MTPForumTopic> &topics) {
 	}
 }
 
+int ChannelData::levelHint() const {
+	return _levelHint;
+}
+
+void ChannelData::updateLevelHint(int levelHint) {
+	_levelHint = levelHint;
+}
+
 namespace Data {
 
 void ApplyMigration(

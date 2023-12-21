@@ -612,6 +612,7 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 			_peer->input
 		)).done([=](const MTPpremium_BoostsStatus &result) {
 			const auto &data = result.data();
+			channel->updateLevelHint(data.vlevel().v);
 			const auto hasPremium = !!data.vpremium_audience();
 			const auto premiumMemberCount = hasPremium
 				? std::max(0, int(data.vpremium_audience()->data().vpart().v))

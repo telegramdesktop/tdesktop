@@ -845,6 +845,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 
 		const auto wasCallNotEmpty = Data::ChannelHasActiveCall(channel);
 
+		channel->updateLevelHint(data.vlevel().value_or_empty());
 		if (const auto count = data.vparticipants_count()) {
 			channel->setMembersCount(count->v);
 		}

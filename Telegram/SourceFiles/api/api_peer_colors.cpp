@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_colors.h"
 
 #include "apiwrap.h"
+#include "data/data_peer.h"
 #include "ui/chat/chat_style.h"
 
 namespace Api {
@@ -62,6 +63,16 @@ auto PeerColors::indicesValue() const
 	}));
 }
 
+int PeerColors::requiredLevelFor(PeerId channel, uint8 index) const {
+	if (Data::DecideColorIndex(channel) == index) {
+		return 0;
+	} else if (const auto i = _requiredLevels.find(index)
+		; i != end(_requiredLevels)) {
+		return i->second;
+	}
+	return 1;
+}
+
 void PeerColors::apply(const MTPDhelp_peerColors &data) {
 	auto suggested = std::vector<uint8>();
 	auto colors = std::make_shared<
@@ -89,6 +100,7 @@ void PeerColors::apply(const MTPDhelp_peerColors &data) {
 	};
 
 	const auto &list = data.vcolors().v;
+	_requiredLevels.clear();
 	suggested.reserve(list.size());
 	for (const auto &color : list) {
 		const auto &data = color.data();
@@ -98,6 +110,9 @@ void PeerColors::apply(const MTPDhelp_peerColors &data) {
 			continue;
 		}
 		const auto colorIndex = uint8(colorIndexBare);
+		if (const auto min = data.vchannel_min_level()) {
+			_requiredLevels[colorIndex] = min->v;
+		}
 		if (!data.is_hidden()) {
 			suggested.push_back(colorIndex);
 		}

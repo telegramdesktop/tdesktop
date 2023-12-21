@@ -463,6 +463,9 @@ public:
 
 	void processTopics(const MTPVector<MTPForumTopic> &topics);
 
+	[[nodiscard]] int levelHint() const;
+	void updateLevelHint(int levelHint);
+
 	// Still public data members.
 	uint64 access = 0;
 
@@ -497,6 +500,7 @@ private:
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
 	int _pendingRequestsCount = 0;
+	int _levelHint = 0;
 	std::vector<UserId> _recentRequesters;
 	MsgId _availableMinId = 0;
 

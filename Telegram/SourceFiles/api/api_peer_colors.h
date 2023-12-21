@@ -28,6 +28,10 @@ public:
 	[[nodiscard]] auto indicesValue() const
 		-> rpl::producer<Ui::ColorIndicesCompressed>;
 
+	[[nodiscard]] int requiredLevelFor(
+		PeerId channel,
+		uint8 index) const;
+
 private:
 	void request();
 	void apply(const MTPDhelp_peerColors &data);
@@ -38,6 +42,7 @@ private:
 	mtpRequestId _requestId = 0;
 	base::Timer _timer;
 	rpl::variable<std::vector<uint8>> _suggested;
+	base::flat_map<uint8, int> _requiredLevels;
 	rpl::event_stream<> _colorIndicesChanged;
 	std::unique_ptr<Ui::ColorIndicesCompressed> _colorIndicesCurrent;
 
