@@ -536,9 +536,10 @@ void TcpConnection::connectToServer(
 	const auto postfix = _socket->debugPostfix();
 	_debugId = u"%1(dc:%2,%3%4:%5%6)"_q
 		.arg(_debugId.toInt())
-		.arg(ProtocolDcDebugId(_protocolDcId))
-		.arg((_proxy.type == ProxyData::Type::Mtproto) ? "mtproxy " : "")
-		.arg(_address)
+		.arg(
+			ProtocolDcDebugId(_protocolDcId),
+			(_proxy.type == ProxyData::Type::Mtproto) ? "mtproxy " : "",
+			_address)
 		.arg(_port)
 		.arg(postfix.isEmpty() ? _protocol->debugPostfix() : postfix);
 	_socket->setDebugId(_debugId);

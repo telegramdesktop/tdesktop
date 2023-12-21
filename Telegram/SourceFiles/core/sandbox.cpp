@@ -216,7 +216,7 @@ void Sandbox::setupScreenScale() {
 	const auto logEnv = [](const char *name) {
 		const auto value = qEnvironmentVariable(name);
 		if (!value.isEmpty()) {
-			LOG(("%1: %2").arg(name).arg(value));
+			LOG(("%1: %2").arg(name, value));
 		}
 	};
 	logEnv("QT_DEVICE_PIXEL_RATIO");

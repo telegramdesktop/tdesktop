@@ -82,8 +82,7 @@ enum class FilterType {
 	const auto durationString = Ui::FormatDurationText(duration / kPrecision);
 	const auto decimalPart = duration % kPrecision;
 	return QString("%1%2%3")
-		.arg(durationString)
-		.arg(QLocale().decimalPoint())
+		.arg(durationString, QLocale().decimalPoint())
 		.arg(decimalPart);
 }
 
