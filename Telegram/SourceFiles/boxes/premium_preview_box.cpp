@@ -51,8 +51,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kPremiumShift = 21. / 240;
-constexpr auto kReactionsPerRow = 5;
-constexpr auto kDisabledOpacity = 0.5;
 constexpr auto kToggleStickerTimeout = 2 * crl::time(1000);
 constexpr auto kStarOpacityOff = 0.1;
 constexpr auto kStarOpacityOn = 1.;

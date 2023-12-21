@@ -136,7 +136,6 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 	const auto colors = root.value(u"colors"_q).toObject();
 	const auto names = root.value(u"names"_q).toObject();
 
-	const auto colorPattern = u"(.*)(#.*)"_q;
 	for (auto &line : result.lines) {
 		const auto colorIt = colors.constFind(line.idString);
 		if (colorIt != colors.constEnd() && (*colorIt).isString()) {

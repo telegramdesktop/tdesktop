@@ -16,11 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
-namespace {
-
-constexpr auto kAnimationDuration = crl::time(120);
-
-} // namespace
 
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 : RippleButton(parent, st::historySilentToggle.ripple)

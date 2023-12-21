@@ -36,7 +36,6 @@ namespace {
 constexpr auto kSuppressRatioAll = 0.2;
 constexpr auto kSuppressRatioSong = 0.05;
 constexpr auto kWaveformCounterBufferSize = 256 * 1024;
-constexpr auto kEffectDestructionDelay = crl::time(1000);
 
 QMutex AudioMutex;
 ALCdevice *AudioDevice = nullptr;

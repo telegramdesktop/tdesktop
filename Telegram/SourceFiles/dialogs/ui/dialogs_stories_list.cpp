@@ -36,7 +36,6 @@ constexpr auto kCollapseAfterRatio = 0.68;
 constexpr auto kFrictionRatio = 0.15;
 constexpr auto kExpandCatchUpDuration = crl::time(200);
 constexpr auto kMaxTooltipNames = 3;
-constexpr auto kStoriesTooltipHideBgOpacity = 0.2;
 
 [[nodiscard]] int AvailableNameWidth(const style::DialogsStoriesList &st) {
 	const auto &full = st.full;

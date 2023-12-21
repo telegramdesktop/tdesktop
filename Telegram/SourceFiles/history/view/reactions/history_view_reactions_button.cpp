@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView::Reactions {
 namespace {
 
-constexpr auto kDivider = 4;
 constexpr auto kToggleDuration = crl::time(120);
 constexpr auto kActivateDuration = crl::time(150);
 constexpr auto kExpandDuration = crl::time(300);

@@ -62,7 +62,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kDiscountDivider = 5.;
 constexpr auto kUserpicsMax = size_t(3);
 
 using GiftOption = Data::SubscriptionOption;
