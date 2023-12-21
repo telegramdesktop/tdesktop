@@ -4258,6 +4258,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_request_peer_confirm_rights" = "This will also add {bot} to {chat} with the following rights: {rights}.";
 "lng_request_peer_confirm_send" = "Send";
 "lng_request_user_title" = "Choose User";
+"lng_request_users_title" = "Choose Users";
 "lng_request_user_premium_yes" = "The user should have a Premium subscription.";
 "lng_request_user_premium_no" = "The user shouldn't have a Premium subscription.";
 "lng_request_user_no" = "No such users";

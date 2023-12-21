@@ -4476,18 +4476,45 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareRequestedPeer = [&](
 			const MTPDmessageActionRequestedPeer &action) {
-		const auto peerId = peerFromMTP(action.vpeer());
-		const auto peer = history()->owner().peer(peerId);
 		auto result = PreparedServiceText{};
+		result.links.push_back(fromLink());
+
+		const auto &list = action.vpeers().v;
+		for (auto i = 0, count = int(list.size()); i != count; ++i) {
+			const auto id = peerFromMTP(list[i]);
+
+			auto user = _history->owner().peer(id);
+			result.links.push_back(user->createOpenLink());
+
+			auto linkText = Ui::Text::Link(user->name(), 2 + i);
+			if (i == 0) {
+				result.text = linkText;
+			} else if (i + 1 == count) {
+				result.text = tr::lng_action_add_users_and_last(
+					tr::now,
+					lt_accumulated,
+					result.text,
+					lt_user,
+					linkText,
+					Ui::Text::WithEntities);
+			} else {
+				result.text = tr::lng_action_add_users_and_one(
+					tr::now,
+					lt_accumulated,
+					result.text,
+					lt_user,
+					linkText,
+					Ui::Text::WithEntities);
+			}
+		}
+
 		result.text = tr::lng_action_shared_chat_with_bot(
 			tr::now,
 			lt_chat,
-			Ui::Text::Link(peer->name(), 1),
+			result.text,
 			lt_bot,
 			Ui::Text::Link(history()->peer->name(), 2),
 			Ui::Text::WithEntities);
-		result.links.push_back(peer->createOpenLink());
-		result.links.push_back(history()->peer->createOpenLink());
 		return result;
 	};
 

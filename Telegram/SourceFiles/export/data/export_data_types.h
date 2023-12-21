@@ -547,7 +547,7 @@ struct ActionGiftCode {
 };
 
 struct ActionRequestedPeer {
-	PeerId peerId = 0;
+	std::vector<PeerId> peers;
 	int buttonId = 0;
 };
 

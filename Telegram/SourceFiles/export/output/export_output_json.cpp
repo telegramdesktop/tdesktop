@@ -592,7 +592,11 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("requested_peer");
 		push("button_id", data.buttonId);
-		push("peer_id", data.peerId.value);
+		auto values = std::vector<QByteArray>();
+		for (const auto &one : data.peers) {
+			values.push_back(Data::NumberToString(one.value));
+		}
+		push("peers", SerializeArray(context, values));
 	}, [&](const ActionGiftCode &data) {
 		pushAction("gift_code_prize");
 		push("gift_code", data.code);

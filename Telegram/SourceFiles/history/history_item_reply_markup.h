@@ -45,6 +45,8 @@ struct RequestPeerQuery {
 		Yes,
 		No,
 	};
+
+	int maxQuantity = 0;
 	Type type = Type::User;
 	Restriction userIsBot = Restriction::Any;
 	Restriction userIsPremium = Restriction::Any;

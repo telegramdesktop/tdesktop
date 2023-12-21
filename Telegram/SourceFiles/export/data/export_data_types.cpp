@@ -1435,7 +1435,9 @@ ServiceAction ParseServiceAction(
 		result.content = content;
 	}, [&](const MTPDmessageActionRequestedPeer &data) {
 		auto content = ActionRequestedPeer();
-		content.peerId = ParsePeerId(data.vpeer());
+		for (const auto &peer : data.vpeers().v) {
+			content.peers.push_back(ParsePeerId(peer));
+		}
 		content.buttonId = data.vbutton_id().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionGiftCode &data) {
