@@ -757,8 +757,9 @@ bool DcOptions::loadFromFile(const QString &path) {
 	stream.setCodec("UTF-8");
 #endif // Qt < 6.0.0
 	while (!stream.atEnd()) {
+		static const auto RegExp = QRegularExpression(R"(\s)");
 		auto line = stream.readLine();
-		auto components = line.split(QRegularExpression(R"(\s)"), Qt::SkipEmptyParts);
+		auto components = line.split(RegExp, Qt::SkipEmptyParts);
 		if (components.isEmpty() || components[0].startsWith('#')) {
 			continue;
 		}

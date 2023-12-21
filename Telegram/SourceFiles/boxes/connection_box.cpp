@@ -113,7 +113,8 @@ Base64UrlInput::Base64UrlInput(
 	rpl::producer<QString> placeholder,
 	const QString &val)
 : MaskedInputField(parent, st, std::move(placeholder), val) {
-	if (!QRegularExpression("^[a-zA-Z0-9_\\-]+$").match(val).hasMatch()) {
+	static const auto RegExp = QRegularExpression("^[a-zA-Z0-9_\\-]+$");
+	if (!RegExp.match(val).hasMatch()) {
 		setText(QString());
 	}
 }
@@ -831,8 +832,9 @@ void ProxyBox::prepare() {
 	connect(_host.data(), &HostInput::changed, [=] {
 		Ui::PostponeCall(_host, [=] {
 			const auto host = _host->getLastText().trimmed();
-			static const auto mask = u"^\\d+\\.\\d+\\.\\d+\\.\\d+:(\\d*)$"_q;
-			const auto match = QRegularExpression(mask).match(host);
+			static const auto mask = QRegularExpression(
+				u"^\\d+\\.\\d+\\.\\d+\\.\\d+:(\\d*)$"_q);
+			const auto match = mask.match(host);
 			if (_host->cursorPosition() == host.size()
 				&& match.hasMatch()) {
 				const auto port = match.captured(1);
@@ -1107,6 +1109,10 @@ void ProxiesBoxController::ShowApplyConfirmation(
 		proxy.password = fields.value(u"secret"_q);
 	}
 	if (proxy) {
+		static const auto UrlStartRegExp = QRegularExpression(
+			"^https://",
+			QRegularExpression::CaseInsensitiveOption);
+		static const auto UrlEndRegExp = QRegularExpression("/$");
 		const auto displayed = "https://" + server + "/";
 		const auto parsed = QUrl::fromUserInput(displayed);
 		const auto displayUrl = !UrlClickHandler::IsSuspicious(displayed)
@@ -1117,11 +1123,9 @@ void ProxiesBoxController::ShowApplyConfirmation(
 		const auto displayServer = QString(
 			displayUrl
 		).replace(
-			QRegularExpression(
-				"^https://",
-				QRegularExpression::CaseInsensitiveOption),
+			UrlStartRegExp,
 			QString()
-		).replace(QRegularExpression("/$"), QString());
+		).replace(UrlEndRegExp, QString());
 		const auto text = tr::lng_sure_enable_socks(
 			tr::now,
 			lt_server,
