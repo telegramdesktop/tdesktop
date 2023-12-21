@@ -56,43 +56,7 @@ struct ResolvedPaper {
 		peer,
 		Data::PeerUpdate::Flag::ChatWallPaper
 	) | rpl::map([=]() -> rpl::producer<const Data::WallPaper*> {
-		const auto paper = peer->wallPaper();
-		const auto id = paper ? paper->emojiId() : QString();
-		if (id.isEmpty()) {
-			return rpl::single(paper);
-		}
-		const auto themes = &peer->owner().cloudThemes();
-		auto fromThemes = [=](bool force)
-		-> rpl::producer<const Data::WallPaper*> {
-			if (themes->chatThemes().empty() && !force) {
-				return nullptr;
-			}
-			return Window::Theme::IsNightModeValue(
-			) | rpl::map([=](bool dark) -> const Data::WallPaper* {
-				const auto &list = themes->chatThemes();
-				const auto i = ranges::find(
-					list,
-					id,
-					&Data::CloudTheme::emoticon);
-				if (i != end(list)) {
-					using Type = Data::CloudThemeType;
-					const auto type = dark ? Type::Dark : Type::Light;
-					const auto j = i->settings.find(type);
-					if (j != end(i->settings) && j->second.paper) {
-						return &*j->second.paper;
-					}
-				}
-				return nullptr;
-			});
-		};
-		if (auto result = fromThemes(false)) {
-			return result;
-		}
-		themes->refreshChatThemes();
-		return themes->chatThemesUpdated(
-		) | rpl::take(1) | rpl::map([=] {
-			return fromThemes(true);
-		}) | rpl::flatten_latest();
+		return WallPaperResolved(&peer->owner(), peer->wallPaper());
 	}) | rpl::flatten_latest();
 }
 
@@ -201,6 +165,47 @@ struct ResolvedTheme {
 }
 
 } // namespace
+
+rpl::producer<const Data::WallPaper*> WallPaperResolved(
+		not_null<Data::Session*> owner,
+		const Data::WallPaper *paper) {
+	const auto id = paper ? paper->emojiId() : QString();
+	if (id.isEmpty()) {
+		return rpl::single(paper);
+	}
+	const auto themes = &owner->cloudThemes();
+	auto fromThemes = [=](bool force)
+	-> rpl::producer<const Data::WallPaper*> {
+		if (themes->chatThemes().empty() && !force) {
+			return nullptr;
+		}
+		return Window::Theme::IsNightModeValue(
+		) | rpl::map([=](bool dark) -> const Data::WallPaper* {
+			const auto &list = themes->chatThemes();
+			const auto i = ranges::find(
+				list,
+				id,
+				&Data::CloudTheme::emoticon);
+			if (i != end(list)) {
+				using Type = Data::CloudThemeType;
+				const auto type = dark ? Type::Dark : Type::Light;
+				const auto j = i->settings.find(type);
+				if (j != end(i->settings) && j->second.paper) {
+					return &*j->second.paper;
+				}
+			}
+			return nullptr;
+		});
+	};
+	if (auto result = fromThemes(false)) {
+		return result;
+	}
+	themes->refreshChatThemes();
+	return themes->chatThemesUpdated(
+	) | rpl::take(1) | rpl::map([=] {
+		return fromThemes(true);
+	}) | rpl::flatten_latest();
+}
 
 AbstractSectionWidget::AbstractSectionWidget(
 	QWidget *parent,

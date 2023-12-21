@@ -23,6 +23,8 @@ class Show;
 namespace Data {
 struct ReactionId;
 class ForumTopic;
+class WallPaper;
+class Session;
 } // namespace Data
 
 namespace Main {
@@ -250,5 +252,9 @@ private:
 	not_null<SessionController*> controller,
 	not_null<HistoryItem*> item,
 	const Data::ReactionId &id);
+
+[[nodiscard]] rpl::producer<const Data::WallPaper*> WallPaperResolved(
+	not_null<Data::Session*> owner,
+	const Data::WallPaper *paper);
 
 } // namespace Window
