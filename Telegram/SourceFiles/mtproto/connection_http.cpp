@@ -85,8 +85,7 @@ void HttpConnection::connectToServer(
 	if (Logs::DebugEnabled()) {
 		_debugId = u"%1(dc:%2,%3)"_q
 			.arg(_debugId.toInt())
-			.arg(ProtocolDcDebugId(protocolDcId))
-			.arg(url().toDisplayString());
+			.arg(ProtocolDcDebugId(protocolDcId), url().toDisplayString());
 	}
 
 	_pingTime = crl::now();

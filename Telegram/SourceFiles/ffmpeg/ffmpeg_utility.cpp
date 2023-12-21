@@ -134,8 +134,9 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	}
 	DEBUG_LOG(("Video Info: "
 		"Trying \"%1\" hardware acceleration for \"%2\" decoder."
-		).arg(av_hwdevice_get_type_name(type)
-		).arg(context->codec->name));
+		).arg(
+			av_hwdevice_get_type_name(type),
+			context->codec->name));
 	if (parent->hw_device_ctx) {
 		av_buffer_unref(&parent->hw_device_ctx);
 	}
