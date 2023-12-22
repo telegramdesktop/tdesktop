@@ -1458,6 +1458,10 @@ void AttachWebView::show(
 			: attached->inMainMenu
 			? Button::RemoveFromMainMenu
 			: Button::RemoveFromMenu);
+	if (attached != end(_attachBots)
+		&& (attached->inAttachMenu || attached->inMainMenu)) {
+		allowClipboardRead = true;
+	}
 
 	_lastShownUrl = url;
 	_lastShownQueryId = queryId;
