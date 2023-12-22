@@ -2526,6 +2526,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			? link->copyToClipboardContextItemText()
 			: QString();
 
+		if (item->isSponsored()) {
+			FillSponsoredMessagesMenu(controller, item->fullId(), _menu);
+		}
 		if (isUponSelected > 0) {
 			addReplyAction(item);
 			const auto selectedText = getSelectedText();
@@ -2587,10 +2590,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							QGuiApplication::clipboard()->setText(phone);
 						}, &st::menuIconCopy);
 					}
-				}
-				if (item->isSponsored()) {
-					const auto itemId = item->fullId();
-					FillSponsoredMessagesMenu(controller, itemId, _menu);
 				}
 				if (!item->isService() && view && actionText.isEmpty()) {
 					if (!hasCopyRestriction(item)
