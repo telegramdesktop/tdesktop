@@ -1910,7 +1910,80 @@ void GenerateItems(
 	};
 
 	const auto createChangeEmojiStatus = [&](const LogChangeEmojiStatus &data) {
+		const auto parse = [](const MTPEmojiStatus &status) {
+			return status.match([](
+					const MTPDemojiStatus &data) {
+				return data.vdocument_id().v;
+			}, [](const MTPDemojiStatusEmpty &) {
+				return DocumentId();
+			}, [](const MTPDemojiStatusUntil &data) {
+				return data.vdocument_id().v;
+			});
+		};
+		const auto prevEmoji = parse(data.vprev_value());
+		const auto nextEmoji = parse(data.vnew_value());
+		const auto nextUntil = data.vnew_value().match([](
+				const MTPDemojiStatusUntil &data) {
+			return data.vuntil().v;
+		}, [](const auto &) { return TimeId(); });
 
+		const auto text = !prevEmoji
+			? (nextUntil
+				? tr::lng_admin_log_set_status_until(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_emoji,
+					Ui::Text::SingleCustomEmoji(
+						Data::SerializeCustomEmojiId(nextEmoji)),
+					lt_date,
+					TextWithEntities{
+						langDateTime(base::unixtime::parse(nextUntil)) },
+					Ui::Text::WithEntities)
+				: tr::lng_admin_log_set_status(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_emoji,
+					Ui::Text::SingleCustomEmoji(
+						Data::SerializeCustomEmojiId(nextEmoji)),
+					Ui::Text::WithEntities))
+			: !nextEmoji
+			? tr::lng_admin_log_removed_status(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_emoji,
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(prevEmoji)),
+				Ui::Text::WithEntities)
+			: (nextUntil
+				? tr::lng_admin_log_change_status_until(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_previous,
+					Ui::Text::SingleCustomEmoji(
+						Data::SerializeCustomEmojiId(prevEmoji)),
+					lt_emoji,
+					Ui::Text::SingleCustomEmoji(
+						Data::SerializeCustomEmojiId(nextEmoji)),
+					lt_date,
+					TextWithEntities{
+						langDateTime(base::unixtime::parse(nextUntil)) },
+					Ui::Text::WithEntities)
+				: tr::lng_admin_log_change_status(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_previous,
+					Ui::Text::SingleCustomEmoji(
+						Data::SerializeCustomEmojiId(prevEmoji)),
+					lt_emoji,
+					Ui::Text::SingleCustomEmoji(
+						Data::SerializeCustomEmojiId(nextEmoji)),
+					Ui::Text::WithEntities));
+		addSimpleServiceMessage(text);
 	};
 
 	action.match(

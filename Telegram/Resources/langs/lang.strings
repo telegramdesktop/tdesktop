@@ -3682,6 +3682,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_change_profile_background_emoji" = "{from} changed channel profile background emoji from {previous} to {emoji}";
 "lng_admin_log_removed_profile_background_emoji" = "{from} removed channel profile background emoji {emoji}";
 "lng_admin_log_change_wallpaper" = "{from} changed channel wallpaper";
+"lng_admin_log_set_status" = "{from} set channel emoji status to {emoji}";
+"lng_admin_log_change_status" = "{from} changed channel emoji status from {previous} to {emoji}";
+"lng_admin_log_removed_status" = "{from} removed channel emoji status {emoji}";
+"lng_admin_log_set_status_until" = "{from} set channel emoji status to {emoji} until {date}";
+"lng_admin_log_change_status_until" = "{from} changed channel emoji status from {previous} to {emoji} until {date}";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_messages_ttl_set" = "{from} enabled messages auto-delete after {duration}";
 "lng_admin_log_messages_ttl_changed" = "{from} changed messages auto-delete period from {previous} to {duration}";
