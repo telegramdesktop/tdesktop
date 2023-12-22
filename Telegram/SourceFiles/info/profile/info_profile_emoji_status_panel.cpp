@@ -72,6 +72,7 @@ void EmojiStatusPanel::show(
 		.controller = controller,
 		.button = button,
 		.animationSizeTag = animationSizeTag,
+		.ensureAddedEmojiId = controller->session().user()->emojiStatusId(),
 	});
 }
 
@@ -99,28 +100,41 @@ void EmojiStatusPanel::show(Descriptor &&descriptor) {
 	}
 	_panelButton = button;
 	_animationSizeTag = descriptor.animationSizeTag;
-	auto list = std::vector<DocumentId>();
+	const auto feed = [=, now = descriptor.ensureAddedEmojiId](
+			std::vector<DocumentId> list) {
+		list.insert(begin(list), 0);
+		if (now && !ranges::contains(list, now)) {
+			list.push_back(now);
+		}
+		_panel->selector()->provideRecentEmoji(list);
+	};
 	if (descriptor.backgroundEmojiMode) {
 		controller->session().api().peerPhoto().emojiListValue(
 			Api::PeerPhoto::EmojiListType::Background
 		) | rpl::start_with_next([=](std::vector<DocumentId> &&list) {
-			list.insert(begin(list), 0);
-			if (const auto now = descriptor.currentBackgroundEmojiId) {
-				if (!ranges::contains(list, now)) {
-					list.push_back(now);
-				}
-			}
-			_panel->selector()->provideRecentEmoji(list);
+			feed(std::move(list));
 		}, _panel->lifetime());
+	} else if (descriptor.channelStatusMode) {
+		const auto &statuses = controller->session().data().emojiStatuses();
+		const auto &other = statuses.list(Data::EmojiStatuses::Type::ChannelDefault);
+		auto list = statuses.list(Data::EmojiStatuses::Type::ChannelColored);
+		if (list.size() > kLimitFirstRow - 1) {
+			list.erase(begin(list) + kLimitFirstRow - 1, end(list));
+		}
+		list.reserve(list.size() + other.size() + 1);
+		for (const auto &id : other) {
+			if (!ranges::contains(list, id)) {
+				list.push_back(id);
+			}
+		}
+		feed(std::move(list));
 	} else {
-		const auto self = controller->session().user();
 		const auto &statuses = controller->session().data().emojiStatuses();
 		const auto &recent = statuses.list(Data::EmojiStatuses::Type::Recent);
 		const auto &other = statuses.list(Data::EmojiStatuses::Type::Default);
 		auto list = statuses.list(Data::EmojiStatuses::Type::Colored);
-		list.insert(begin(list), 0);
-		if (list.size() > kLimitFirstRow) {
-			list.erase(begin(list) + kLimitFirstRow, end(list));
+		if (list.size() > kLimitFirstRow - 1) {
+			list.erase(begin(list) + kLimitFirstRow - 1, end(list));
 		}
 		list.reserve(list.size() + recent.size() + other.size() + 1);
 		for (const auto &id : ranges::views::concat(recent, other)) {
@@ -128,15 +142,12 @@ void EmojiStatusPanel::show(Descriptor &&descriptor) {
 				list.push_back(id);
 			}
 		}
-		if (!ranges::contains(list, self->emojiStatusId())) {
-			list.push_back(self->emojiStatusId());
-		}
-		_panel->selector()->provideRecentEmoji(list);
+		feed(std::move(list));
 	}
 	const auto parent = _panel->parentWidget();
 	const auto global = button->mapToGlobal(QPoint());
 	const auto local = parent->mapFromGlobal(global);
-	if (descriptor.backgroundEmojiMode) {
+	if (descriptor.backgroundEmojiMode || descriptor.channelStatusMode) {
 		_panel->moveBottomRight(
 			local.y() + (st::normalFont->height / 2),
 			local.x() + button->width() * 3);
@@ -175,18 +186,22 @@ void EmojiStatusPanel::create(const Descriptor &descriptor) {
 			nullptr,
 			Descriptor{
 				.show = controller->uiShow(),
-				.st = (descriptor.backgroundEmojiMode
+				.st = ((descriptor.backgroundEmojiMode
+					|| descriptor.channelStatusMode)
 					? st::backgroundEmojiPan
 					: st::statusEmojiPan),
 				.level = Window::GifPauseReason::Layer,
 				.mode = (descriptor.backgroundEmojiMode
 					? Mode::BackgroundEmoji
+					: descriptor.channelStatusMode
+					? Mode::ChannelStatus
 					: Mode::EmojiStatus),
 				.customTextColor = descriptor.customTextColor,
 			}));
 	_customTextColor = descriptor.customTextColor;
 	_backgroundEmojiMode = descriptor.backgroundEmojiMode;
-	_panel->setDropDown(!_backgroundEmojiMode);
+	_channelStatusMode = descriptor.channelStatusMode;
+	_panel->setDropDown(!_backgroundEmojiMode && !_channelStatusMode);
 	_panel->setDesiredHeightValues(
 		1.,
 		st::emojiPanMinHeight / 2,
@@ -218,14 +233,14 @@ void EmojiStatusPanel::create(const Descriptor &descriptor) {
 		return Chosen{ .animation = data.messageSendingFrom };
 	});
 
-	if (descriptor.backgroundEmojiMode) {
+	if (descriptor.backgroundEmojiMode || descriptor.channelStatusMode) {
 		rpl::merge(
 			std::move(statusChosen),
 			std::move(emojiChosen)
 		) | rpl::start_with_next([=](const Chosen &chosen) {
 			const auto owner = &controller->session().data();
 			startAnimation(owner, body, chosen.id, chosen.animation);
-			_backgroundEmojiChosen.fire_copy(chosen.id);
+			_someCustomChosen.fire({ chosen.id, chosen.until });
 			_panel->hideAnimated();
 		}, _panel->lifetime());
 	} else {

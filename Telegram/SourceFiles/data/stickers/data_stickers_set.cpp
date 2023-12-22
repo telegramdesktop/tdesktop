@@ -54,7 +54,8 @@ StickersSetFlags ParseStickersSetFlags(const MTPDstickerSet &data) {
 		| (data.is_emojis() ? Flag::Emoji : Flag())
 		| (data.vinstalled_date() ? Flag::Installed : Flag())
 		| (data.is_videos() ? Flag::Webm : Flag())
-		| (data.is_text_color() ? Flag::TextColor : Flag());
+		| (data.is_text_color() ? Flag::TextColor : Flag())
+		| (data.is_channel_emoji_status() ? Flag::ChannelStatus : Flag());
 }
 
 StickersSet::StickersSet(
@@ -111,6 +112,10 @@ StickersType StickersSet::type() const {
 
 bool StickersSet::textColor() const {
 	return flags & StickersSetFlag::TextColor;
+}
+
+bool StickersSet::channelStatus() const {
+	return flags & StickersSetFlag::ChannelStatus;
 }
 
 void StickersSet::setThumbnail(const ImageWithLocation &data) {

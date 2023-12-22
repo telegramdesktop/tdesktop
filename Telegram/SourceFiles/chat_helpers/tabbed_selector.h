@@ -81,6 +81,7 @@ enum class TabbedSelectorMode {
 	EmojiOnly,
 	MediaEditor,
 	EmojiStatus,
+	ChannelStatus,
 	BackgroundEmoji,
 	FullReactions,
 	RecentReactions,

@@ -526,7 +526,8 @@ bool ShowReactPremiumError(
 		not_null<HistoryItem*> item,
 		const Data::ReactionId &id) {
 	if (controller->session().premium()
-		|| ranges::contains(item->chosenReactions(), id)) {
+		|| ranges::contains(item->chosenReactions(), id)
+		|| item->history()->peer->isBroadcast()) {
 		return false;
 	}
 	const auto &list = controller->session().data().reactions().list(

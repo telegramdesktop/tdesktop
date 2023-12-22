@@ -58,6 +58,7 @@ enum class StickersSetFlag {
 	Webm = (1 << 8),
 	Emoji = (1 << 9),
 	TextColor = (1 << 10),
+	ChannelStatus = (1 << 11),
 };
 inline constexpr bool is_flag_type(StickersSetFlag) { return true; };
 using StickersSetFlags = base::flags<StickersSetFlag>;
@@ -86,6 +87,7 @@ public:
 	[[nodiscard]] StickerSetIdentifier identifier() const;
 	[[nodiscard]] StickersType type() const;
 	[[nodiscard]] bool textColor() const;
+	[[nodiscard]] bool channelStatus() const;
 
 	void setThumbnail(const ImageWithLocation &data);
 
