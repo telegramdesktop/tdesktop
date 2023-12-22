@@ -213,7 +213,7 @@ QString ItemBase::getResultThumbLetter() const {
 			domain = parts.at(2);
 		}
 
-		parts = domain.split('@').back().split('.');
+		parts = domain.split('@').constLast().split('.');
 		if (parts.size() > 1) {
 			return parts.at(parts.size() - 2).at(0).toUpper();
 		}
