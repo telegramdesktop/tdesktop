@@ -109,7 +109,7 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 		return;
 	}
 
-	const auto image = media->image(Data::PhotoSize::Large)->original();
+	const auto image = media->image(Data::PhotoSize::Large)->original(); // clazy:exclude=unused-non-trivial-variable
 	FileDialog::GetWritePath(
 		Core::App().getFileDialogParent(),
 		tr::lng_save_photo(tr::now),
