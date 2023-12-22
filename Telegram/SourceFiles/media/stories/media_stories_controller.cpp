@@ -119,25 +119,6 @@ struct SameDayRange {
 		int(base::SafeRound(asin * point.x() + acos * point.y())));
 }
 
-[[nodiscard]] ClickHandlerPtr MakeChannelPostHandler(
-		not_null<Main::Session*> session,
-		FullMsgId item) {
-	return std::make_shared<LambdaClickHandler>(crl::guard(session, [=] {
-		const auto peer = session->data().peer(item.peer);
-		if (const auto window = Core::App().windowFor(peer)) {
-			if (const auto controller = window->sessionController()) {
-				if (&controller->session() == &peer->session()) {
-					Core::App().hideMediaView();
-					controller->showPeerHistory(
-						item.peer,
-						Window::SectionShow::Way::ClearStack,
-						item.msg);
-				}
-			}
-		}
-	}));
-}
-
 } // namespace
 
 class Controller::PhotoPlayback final {
@@ -898,7 +879,7 @@ void Controller::show(
 	const auto document = story->document();
 	_header->show({
 		.peer = peer,
-		.repostPeer = story->repostSourcePeer(),
+		.repostPeer = _repostView ? _repostView->fromPeer() : nullptr,
 		.repostFrom = _repostView ? _repostView->fromName() : nullptr,
 		.date = story->date(),
 		.fullIndex = _sliderCount ? _index : 0,
@@ -1533,7 +1514,7 @@ StoryId Controller::shownId(int index) const {
 
 std::unique_ptr<RepostView> Controller::validateRepostView(
 		not_null<Data::Story*> story) {
-	return story->repost()
+	return (story->repost() || !story->channelPosts().empty())
 		? std::make_unique<RepostView>(this, story)
 		: nullptr;
 }
@@ -1839,6 +1820,25 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(not_null<PeerData*> peer) {
 		open,
 		[] { return false; },
 		&st::storiesShortInfoBox);
+}
+
+ClickHandlerPtr MakeChannelPostHandler(
+		not_null<Main::Session*> session,
+		FullMsgId item) {
+	return std::make_shared<LambdaClickHandler>(crl::guard(session, [=] {
+		const auto peer = session->data().peer(item.peer);
+		if (const auto window = Core::App().windowFor(peer)) {
+			if (const auto controller = window->sessionController()) {
+				if (&controller->session() == &peer->session()) {
+					Core::App().hideMediaView();
+					controller->showPeerHistory(
+						item.peer,
+						Window::SectionShow::Way::ClearStack,
+						item.msg);
+				}
+			}
+		}
+	}));
 }
 
 } // namespace Media::Stories
