@@ -103,6 +103,7 @@ public:
 		qint32 legacyId);
 	[[nodiscard]] static std::optional<WallPaper> FromColorsSlug(
 		const QString &slug);
+	[[nodiscard]] static WallPaper FromEmojiId(const QString &emojiId);
 	[[nodiscard]] static WallPaper ConstructDefault();
 
 private:

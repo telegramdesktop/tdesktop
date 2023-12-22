@@ -94,18 +94,24 @@ private:
 	void applyDarkMode(bool dark);
 	[[nodiscard]] OverridenStyle prepareOverridenStyle(bool dark);
 
+	[[nodiscard]] bool forChannel() const;
+	void checkLevelForChannel();
+
+	void recreate(bool dark);
 	void resetTitle();
 	void rebuildButtons(bool dark);
 	void createDimmingSlider(bool dark);
 
 	const not_null<Window::SessionController*> _controller;
 	PeerData * const _forPeer = nullptr;
+	bool _forPeerLevelCheck = false;
 	FullMsgId _fromMessageId;
 	std::unique_ptr<Ui::ChatStyle> _chatStyle;
 	const not_null<History*> _serviceHistory;
 	AdminLog::OwnedItem _service;
 	AdminLog::OwnedItem _text1;
 	AdminLog::OwnedItem _text2;
+	QString _paperEmojiId;
 	Data::WallPaper _paper;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	QImage _full;

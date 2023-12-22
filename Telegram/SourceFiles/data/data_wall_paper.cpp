@@ -698,6 +698,12 @@ std::optional<WallPaper> WallPaper::FromColorsSlug(const QString &slug) {
 	return result;
 }
 
+WallPaper WallPaper::FromEmojiId(const QString &emojiId) {
+	auto result = WallPaper(0);
+	result._emojiId = emojiId;
+	return result;
+}
+
 WallPaper WallPaper::ConstructDefault() {
 	auto result = WallPaper(
 		kDefaultBackground

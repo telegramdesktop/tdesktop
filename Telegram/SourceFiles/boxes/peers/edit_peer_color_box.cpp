@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "base/unixtime.h"
 #include "boxes/peers/replace_boost_box.h"
+#include "boxes/background_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -524,13 +525,7 @@ void Apply(
 		Set(show, peer, values);
 		close();
 	} else {
-		session->api().request(MTPpremium_GetBoostsStatus(
-			peer->input
-		)).done([=](const MTPpremium_BoostsStatus &result) {
-			const auto &data = result.data();
-			if (const auto channel = peer->asChannel()) {
-				channel->updateLevelHint(data.vlevel().v);
-			}
+		CheckBoostLevel(show, peer, [=](int level) {
 			const auto peerColors = &peer->session().api().peerColors();
 			const auto colorRequired = peerColors->requiredLevelFor(
 				peer->id,
@@ -551,38 +546,21 @@ void Apply(
 				iconRequired,
 				statusRequired,
 			});
-			const auto current = data.vlevel().v;
-			if (current >= required) {
+			if (level >= required) {
 				Set(show, peer, values);
 				close();
-				return;
+				return std::optional<Ui::AskBoostReason>();
 			}
-			const auto openStatistics = [=] {
-				if (const auto controller = show->resolveWindow(
-						ChatHelpers::WindowUsage::PremiumPromo)) {
-					controller->showSection(Info::Boosts::Make(peer));
-				}
-			};
-			auto counters = ParseBoostCounters(result);
-			counters.mine = 0; // Don't show current level as just-reached.
 			const auto reason = [&]() -> Ui::AskBoostReason {
-				if (current < statusRequired) {
+				if (level < statusRequired) {
 					return { Ui::AskBoostEmojiStatus{ statusRequired } };
-				} else if (current < iconRequired) {
+				} else if (level < iconRequired) {
 					return { Ui::AskBoostChannelColor{ iconRequired } };
 				}
 				return { Ui::AskBoostChannelColor{ colorRequired } };
 			}();
-			show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
-				.link = qs(data.vboost_url()),
-				.boost = counters,
-				.reason = reason,
-			}, openStatistics, nullptr));
-			cancel();
-		}).fail([=](const MTP::Error &error) {
-			show->showToast(error.type());
-			cancel();
-		}).send();
+			return std::make_optional(reason);
+		}, cancel);
 	}
 }
 
@@ -978,6 +956,23 @@ void EditPeerColorBox(
 		: tr::lng_settings_color_emoji_about_channel());
 
 	if (const auto channel = peer->asChannel()) {
+		Ui::AddSkip(container, st::settingsColorSampleSkip);
+		container->add(object_ptr<Ui::SettingsButton>(
+			container,
+			tr::lng_edit_channel_wallpaper(),
+			st::settingsButtonNoIcon)
+		)->setClickedCallback([=] {
+			const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
+			if (const auto strong = show->resolveWindow(usage)) {
+				show->show(Box<BackgroundBox>(strong, channel));
+			}
+		});
+
+		Ui::AddSkip(container, st::settingsColorSampleSkip);
+		Ui::AddDividerText(
+			container,
+			tr::lng_edit_channel_wallpaper_about());
+
 		// Preload exceptions list.
 		const auto peerPhoto = &channel->session().api().peerPhoto();
 		[[maybe_unused]] auto list = peerPhoto->emojiListValue(
@@ -1109,4 +1104,40 @@ void AddPeerColorButton(
 	button->setClickedCallback([=] {
 		show->show(Box(EditPeerColorBox, show, peer, style, theme));
 	});
+}
+
+void CheckBoostLevel(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
+		Fn<std::optional<Ui::AskBoostReason>(int level)> askMore,
+		Fn<void()> cancel) {
+	peer->session().api().request(MTPpremium_GetBoostsStatus(
+		peer->input
+	)).done([=](const MTPpremium_BoostsStatus &result) {
+		const auto &data = result.data();
+		if (const auto channel = peer->asChannel()) {
+			channel->updateLevelHint(data.vlevel().v);
+		}
+		const auto reason = askMore(data.vlevel().v);
+		if (!reason) {
+			return;
+		}
+		const auto openStatistics = [=] {
+			if (const auto controller = show->resolveWindow(
+					ChatHelpers::WindowUsage::PremiumPromo)) {
+				controller->showSection(Info::Boosts::Make(peer));
+			}
+		};
+		auto counters = ParseBoostCounters(result);
+		counters.mine = 0; // Don't show current level as just-reached.
+		show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
+			.link = qs(data.vboost_url()),
+			.boost = counters,
+			.reason = *reason,
+		}, openStatistics, nullptr));
+		cancel();
+	}).fail([=](const MTP::Error &error) {
+		show->showToast(error.type());
+		cancel();
+	}).send();
 }
