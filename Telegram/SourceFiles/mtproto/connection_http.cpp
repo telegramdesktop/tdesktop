@@ -55,7 +55,8 @@ void HttpConnection::disconnectFromServer() {
 	if (_status == Status::Finished) return;
 	_status = Status::Finished;
 
-	for (const auto request : base::take(_requests)) {
+	const auto requests = base::take(_requests);
+	for (const auto request : requests) {
 		request->abort();
 		request->deleteLater();
 	}
