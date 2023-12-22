@@ -733,8 +733,9 @@ void Panel::switchInlineQueryMessage(const QJsonObject &args) {
 		u"groups"_q,
 		u"channels"_q,
 	};
+	const auto typeArray = args["chat_types"].toArray();
 	auto types = std::vector<QString>();
-	for (const auto &value : args["chat_types"].toArray()) {
+	for (const auto &value : typeArray) {
 		const auto type = value.toString();
 		if (valid.contains(type)) {
 			types.push_back(type);
@@ -810,8 +811,9 @@ void Panel::openPopup(const QJsonObject &args) {
 		{ "cancel", Type::Cancel },
 		{ "destructive", Type::Destructive },
 	};
+	const auto buttonArray = args["buttons"].toArray();
 	auto buttons = std::vector<Webview::PopupArgs::Button>();
-	for (const auto button : args["buttons"].toArray()) {
+	for (const auto button : buttonArray) {
 		const auto fields = button.toObject();
 		const auto i = types.find(fields["type"].toString());
 		if (i == end(types)) {

@@ -104,8 +104,9 @@ std::vector<DnsEntry> ParseDnsResponse(
 		return {};
 	}
 
+	const auto array = (*answerIt).toArray();
 	auto result = std::vector<DnsEntry>();
-	for (const auto elem : (*answerIt).toArray()) {
+	for (const auto elem : array) {
 		if (!elem.isObject()) {
 			LOG(("Config Error: Not an object found "
 				"in Answer array in dns response JSON."));
