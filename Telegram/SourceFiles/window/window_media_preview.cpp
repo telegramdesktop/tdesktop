@@ -46,6 +46,13 @@ MediaPreviewWidget::MediaPreviewWidget(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		if (_document && _document->emojiUsesTextColor()) {
+			_cache = QPixmap();
+		}
+	}, lifetime());
 }
 
 QRect MediaPreviewWidget::updateArea() const {
@@ -68,7 +75,12 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	const auto factor = cIntRetinaFactor();
 	const auto dimensions = currentDimensions();
 	const auto frame = (_lottie && _lottie->ready())
-		? _lottie->frameInfo({ dimensions * factor })
+		? _lottie->frameInfo({
+			.box = dimensions * factor,
+			.colored = ((_document && _document->emojiUsesTextColor())
+				? st::windowFg->c
+				: QColor(0, 0, 0, 0)),
+		})
 		: Lottie::Animation::FrameInfo();
 	const auto effect = (_effect && _effect->ready())
 		? _effect->frameInfo({ dimensions * kPremiumMultiplier * factor })
@@ -370,6 +382,12 @@ QPixmap MediaPreviewWidget::currentImage() const {
 					&& _documentMedia->thumbnail()) {
 					QSize s = currentDimensions();
 					_cache = _documentMedia->thumbnail()->pix(s, blur);
+					if (_document && _document->emojiUsesTextColor()) {
+						_cache = Ui::PixmapFromImage(
+							Images::Colored(
+								_cache.toImage(),
+								st::windowFg->c));
+					}
 					_cacheStatus = CacheThumbLoaded;
 				}
 			}
