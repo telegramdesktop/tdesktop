@@ -418,6 +418,7 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	auto siteNameHeight = _siteNameLines ? lineHeight : 0;
 	const auto asSponsored = (!!_sponsoredData);
 	if (asArticle() || asSponsored) {
+		const auto sponsoredUserpic = (asSponsored && _sponsoredData->peer);
 		constexpr auto kSponsoredUserpicLines = 2;
 		_pixh = (asSponsored ? kSponsoredUserpicLines : linesMax) * lineHeight;
 		do {
@@ -437,7 +438,9 @@ QSize WebPage::countCurrentSize(int newWidth) {
 				newHeight += _titleLines * lineHeight;
 			}
 
-			auto descriptionHeight = _description.countHeight(wleft);
+			auto descriptionHeight = _description.countHeight(sponsoredUserpic
+				? innerWidth
+				: wleft);
 			if (descriptionHeight < (linesMax - _siteNameLines - _titleLines) * st::webPageDescriptionFont->height) {
 				// We have height for all the lines.
 				_descriptionLines = -1;
@@ -608,6 +611,8 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 
+	const auto asSponsored = (!!_sponsoredData);
+
 	auto lineHeight = UnitedLineHeight();
 	if (asArticle()) {
 		ensurePhotoMediaCreated();
@@ -647,8 +652,12 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				st->msgSelectOverlay(),
 				st->msgSelectOverlayCorners(Ui::CachedCornerRadius::Small));
 		}
-		paintw -= pw + st::webPagePhotoDelta;
-	} else if (_sponsoredData && _sponsoredData->peer) {
+		if (!asSponsored) {
+			// Ignore photo width in sponsored messages,
+			// as its width only affects the title.
+			paintw -= pw + st::webPagePhotoDelta;
+		}
+	} else if (asSponsored && _sponsoredData->peer) {
 		const auto size = _pixh;
 		const auto sizeHq = size * style::DevicePixelRatio();
 		const auto userpicPos = QPoint(inner.left() + paintw - size, tshift);
@@ -685,7 +694,10 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_title.drawLeftElided(p, inner.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, toTitleSelection(context.selection));
+		const auto titleWidth = asSponsored
+			? (paintw - _pixh - st::webPagePhotoDelta)
+			: paintw;
+		_title.drawLeftElided(p, inner.left(), tshift, titleWidth, width(), _titleLines, style::al_left, 0, -1, endskip, false, toTitleSelection(context.selection));
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
