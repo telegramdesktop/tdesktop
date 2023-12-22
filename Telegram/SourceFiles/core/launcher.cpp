@@ -499,7 +499,7 @@ uint64 Launcher::installationTag() const {
 }
 
 void Launcher::processArguments() {
-		enum class KeyFormat {
+	enum class KeyFormat {
 		NoValues,
 		OneValue,
 		AllLeftValues,
