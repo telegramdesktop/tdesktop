@@ -2526,7 +2526,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			? link->copyToClipboardContextItemText()
 			: QString();
 
-		if (item->isSponsored()) {
+		if (item && item->isSponsored()) {
 			FillSponsoredMessagesMenu(controller, item->fullId(), _menu);
 		}
 		if (isUponSelected > 0) {
