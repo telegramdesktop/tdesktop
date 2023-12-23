@@ -95,6 +95,7 @@ struct StripePaymentMethod {
 
 struct SmartGlocalPaymentMethod {
 	QString publicToken;
+	QString tokenizeUrl;
 };
 
 struct NativePaymentMethod {

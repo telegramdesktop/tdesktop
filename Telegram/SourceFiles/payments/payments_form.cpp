@@ -675,6 +675,7 @@ void Form::fillSmartGlocalNativeMethod(QJsonObject object) {
 	_paymentMethod.native = NativePaymentMethod{
 		.data = SmartGlocalPaymentMethod{
 			.publicToken = key,
+			.tokenizeUrl = value(u"tokenize_url").toString(),
 		},
 	};
 	_paymentMethod.ui.native = Ui::NativeMethodDetails{
@@ -1011,6 +1012,7 @@ void Form::validateCard(
 	}
 	auto configuration = SmartGlocal::PaymentConfiguration{
 		.publicToken = method.publicToken,
+		.tokenizeUrl = method.tokenizeUrl,
 		.isTest = _invoice.isTest,
 	};
 	_smartglocal = std::make_unique<SmartGlocal::APIClient>(

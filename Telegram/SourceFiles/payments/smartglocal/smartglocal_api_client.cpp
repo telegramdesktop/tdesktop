@@ -44,10 +44,21 @@ namespace {
 	}).toJson(QJsonDocument::Compact);
 }
 
+[[nodiscard]] QString ComputeApiUrl(PaymentConfiguration configuration) {
+	const auto url = configuration.tokenizeUrl;
+	if (url.startsWith("https://")
+		&& url.endsWith(".smart-glocal.com/cds/v1/tokenize/card")) {
+		return url;
+	}
+	return QString("https://%1/%2")
+		.arg(APIURLBase(configuration.isTest))
+		.arg(TokenEndpoint());
+}
+
 } // namespace
 
 APIClient::APIClient(PaymentConfiguration configuration)
-: _apiUrl("https://" + APIURLBase(configuration.isTest))
+: _apiUrl(ComputeApiUrl(configuration))
 , _configuration(configuration) {
 	_additionalHttpHeaders = {
 		{ "X-PUBLIC-TOKEN", _configuration.publicToken },
@@ -67,7 +78,7 @@ void APIClient::createTokenWithCard(
 void APIClient::createTokenWithData(
 		QByteArray data,
 		TokenCompletionCallback completion) {
-	const auto url = QUrl(_apiUrl + '/' + TokenEndpoint());
+	const auto url = QUrl(_apiUrl);
 	auto request = QNetworkRequest(url);
 	request.setHeader(
 		QNetworkRequest::ContentTypeHeader,

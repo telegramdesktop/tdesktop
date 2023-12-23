@@ -19,6 +19,7 @@ namespace SmartGlocal {
 
 struct PaymentConfiguration {
 	QString publicToken;
+	QString tokenizeUrl;
 	bool isTest = false;
 };
 
