@@ -93,8 +93,6 @@ MediaInBubble::~MediaInBubble() {
 
 QSize MediaInBubble::countOptimalSize() {
 	const auto maxWidth = st::chatGiveawayWidth;
-	const auto padding = inBubblePadding();
-	const auto available = maxWidth - padding.left() - padding.right();
 
 	auto top = 0;
 	for (auto &entry : _entries) {
@@ -757,7 +755,6 @@ auto GenerateGiveawayResults(
 	not_null<Data::GiveawayResults*> data)
 -> Fn<void(Fn<void(std::unique_ptr<MediaInBubble::Part>)>)> {
 	return [=](Fn<void(std::unique_ptr<MediaInBubble::Part>)> push) {
-		const auto months = data->months;
 		const auto quantity = data->winnersCount;
 
 		using Data = StickerWithBadgePart::Data;

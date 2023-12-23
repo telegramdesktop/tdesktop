@@ -1003,8 +1003,6 @@ void EditPeerColorBox(
 			return;
 		}
 		state->applying = true;
-		const auto index = state->index.current();
-		const auto emojiId = state->emojiId.current();
 		Apply(show, peer, {
 			state->index.current(),
 			state->emojiId.current(),

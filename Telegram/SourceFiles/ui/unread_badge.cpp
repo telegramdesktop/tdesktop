@@ -204,7 +204,6 @@ int PeerBadge::drawGetWidth(
 	} else if (descriptor.premium
 		&& peer->isPremium()
 		&& peer->session().premiumBadgesShown()) {
-		const auto id = peer->isChat() ? 0 : peer->emojiStatusId();
 		const auto iconw = descriptor.premium->width();
 		const auto iconx = rectForName.x()
 			+ qMin(nameWidth, rectForName.width() - iconw);
