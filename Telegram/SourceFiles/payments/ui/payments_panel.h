@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "base/weak_ptr.h"
 
 namespace Ui {
 class Show;
@@ -39,7 +40,7 @@ struct PaymentMethodDetails;
 struct PaymentMethodAdditional;
 struct NativeMethodDetails;
 
-class Panel final {
+class Panel final : public base::has_weak_ptr {
 public:
 	explicit Panel(not_null<PanelDelegate*> delegate);
 	~Panel();
