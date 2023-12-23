@@ -30,7 +30,7 @@ namespace {
 		BadgeValue(peer),
 		EmojiStatusIdValue(peer)
 	) | rpl::map([=](BadgeType badge, DocumentId emojiStatusId) {
-		if (statusOnlyForPremium) {
+		if (statusOnlyForPremium && badge != BadgeType::Premium) {
 			emojiStatusId = 0;
 		} else if (emojiStatusId && badge == BadgeType::None) {
 			badge = BadgeType::Premium;
