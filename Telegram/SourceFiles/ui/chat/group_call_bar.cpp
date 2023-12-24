@@ -244,6 +244,7 @@ void GroupCallBar::setupInner() {
 }
 
 void GroupCallBar::setupRightButton(not_null<RoundButton*> button) {
+	button->setFullRadius(true);
 	rpl::combine(
 		_inner->widthValue(),
 		button->widthValue()
