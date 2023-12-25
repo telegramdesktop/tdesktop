@@ -509,8 +509,7 @@ void WhoReactedEntryAction::setData(Data &&data) {
 			{ data.date },
 			MenuTextOptions);
 	}
-	_dateReacted = data.dateReacted;
-	_preloader = data.preloader;
+	_type = data.type;
 	_custom = _customEmojiFactory
 		? _customEmojiFactory(data.customEntityData, [=] { update(); })
 		: nullptr;
@@ -545,13 +544,14 @@ void WhoReactedEntryAction::paint(Painter &&p) {
 	const auto photoSize = st::defaultWhoRead.photoSize;
 	const auto photoLeft = st::defaultWhoRead.photoLeft;
 	const auto photoTop = (height() - photoSize) / 2;
-	const auto preloaderBrush = _preloader
+	const auto preloader = (_type == WhoReactedType::Preloader);
+	const auto preloaderBrush = preloader
 		? [&] {
 			auto color = _st.itemFg->c;
 			color.setAlphaF(color.alphaF() * kPreloaderAlpha);
 			return QBrush(color);
 		}() : QBrush();
-	if (_preloader) {
+	if (preloader) {
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(preloaderBrush);
@@ -568,7 +568,7 @@ void WhoReactedEntryAction::paint(Painter &&p) {
 	const auto textTop = withDate
 		? st::whoReadNameWithDateTop
 		: (height() - _st.itemStyle.font->height) / 2;
-	if (_preloader) {
+	if (_type == WhoReactedType::Preloader) {
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(preloaderBrush);
@@ -597,10 +597,28 @@ void WhoReactedEntryAction::paint(Painter &&p) {
 		const auto iconPosition = QPoint(
 			st::defaultWhoRead.nameLeft,
 			st::whoReadDateTop) + st::whoReadDateChecksPosition;
-		const auto &icon = _dateReacted
-			? (selected ? st::whoLikedDateHeartOver : st::whoLikedDateHeart)
-			: (selected ? st::whoReadDateChecksOver : st::whoReadDateChecks);
-		icon.paint(p, iconPosition, width());
+		const auto icon = [&] {
+			switch (_type) {
+			case WhoReactedType::Viewed:
+				return &(selected
+					? st::whoReadDateChecksOver
+					: st::whoReadDateChecks);
+			case WhoReactedType::Reacted:
+				return &(selected
+					? st::whoLikedDateHeartOver
+					: st::whoLikedDateHeart);
+			case WhoReactedType::Reposted:
+				return &(selected
+					? st::whoRepostedDateHeartOver
+					: st::whoRepostedDateHeart);
+			case WhoReactedType::Forwarded:
+				return &(selected
+					? st::whoForwardedDateHeartOver
+					: st::whoForwardedDateHeart);
+			}
+			Unexpected("Type in WhoReactedEntryAction::paint.");
+		}();
+		icon->paint(p, iconPosition, width());
 		p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
 		_date.drawLeftElided(
 			p,
@@ -708,7 +726,9 @@ void WhoReactedListMenu::populate(
 		append({
 			.text = participant.name,
 			.date = participant.date,
-			.dateReacted = participant.dateReacted,
+			.type = (participant.dateReacted
+				? WhoReactedType::Reacted
+				: WhoReactedType::Viewed),
 			.customEntityData = participant.customEntityData,
 			.userpic = participant.userpicLarge,
 			.callback = chosen,

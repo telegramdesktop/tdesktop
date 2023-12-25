@@ -23,14 +23,21 @@ namespace {
 
 [[nodiscard]] ClickHandlerPtr MakeMediaButtonClickHandler(
 		not_null<Data::Media*> media) {
-	const auto giveaway = media->giveaway();
-	Assert(giveaway != nullptr);
+	const auto start = media->giveawayStart();
+	const auto results = media->giveawayResults();
+	Assert(start || results);
+
 	const auto peer = media->parent()->history()->peer;
 	const auto messageId = media->parent()->id;
 	if (media->parent()->isSending() || media->parent()->hasFailed()) {
 		return nullptr;
 	}
-	const auto info = *giveaway;
+	const auto maybeStart = start
+		? *start
+		: std::optional<Data::GiveawayStart>();
+	const auto maybeResults = results
+		? *results
+		: std::optional<Data::GiveawayResults>();
 	return std::make_shared<LambdaClickHandler>([=](
 			ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -38,13 +45,18 @@ namespace {
 		if (!controller) {
 			return;
 		}
-		ResolveGiveawayInfo(controller, peer, messageId, info);
+		ResolveGiveawayInfo(
+			controller,
+			peer,
+			messageId,
+			maybeStart,
+			maybeResults);
 	});
 }
 
 [[nodiscard]] QString MakeMediaButtonText(not_null<Data::Media*> media) {
-	const auto giveaway = media->giveaway();
-	Assert(giveaway != nullptr);
+	Expects(media->giveawayStart() || media->giveawayResults());
+
 	return Ui::Text::Upper(tr::lng_prizes_how_works(tr::now));
 }
 
@@ -72,7 +84,7 @@ struct ViewButton::Inner {
 };
 
 bool ViewButton::MediaHasViewButton(not_null<Data::Media*> media) {
-	return (media->giveaway() != nullptr);
+	return media->giveawayStart() || media->giveawayResults();
 }
 
 ViewButton::Inner::Inner(

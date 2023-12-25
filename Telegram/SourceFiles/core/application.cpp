@@ -428,11 +428,12 @@ void Application::showOpenGLCrashNotification() {
 		Local::writeSettings();
 		Restart();
 	};
-	const auto keepDisabled = [=] {
+	const auto keepDisabled = [=](Fn<void()> close) {
 		Ui::GL::ForceDisable(true);
 		Ui::GL::CrashCheckFinish();
 		settings().setDisableOpenGL(true);
 		Local::writeSettings();
+		close();
 	};
 	_lastActivePrimaryWindow->show(Ui::MakeConfirmBox({
 		.text = ""

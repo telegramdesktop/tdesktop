@@ -467,12 +467,29 @@ void AskBoostBox(
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
-	auto title = v::is<AskBoostChannelColor>(data.reason.data)
-		? tr::lng_boost_channel_title_color()
-		: tr::lng_boost_channel_title_reactions();
+	auto title = v::match(data.reason.data, [&](
+			AskBoostChannelColor data) {
+		return tr::lng_boost_channel_title_color();
+	}, [&](AskBoostWallpaper data) {
+		return tr::lng_boost_channel_title_wallpaper();
+	}, [&](AskBoostEmojiStatus data) {
+		return tr::lng_boost_channel_title_status();
+	}, [&](AskBoostCustomReactions data) {
+		return tr::lng_boost_channel_title_reactions();
+	});
 	auto reasonText = v::match(data.reason.data, [&](
 			AskBoostChannelColor data) {
 		return tr::lng_boost_channel_needs_level_color(
+			lt_count,
+			rpl::single(float64(data.requiredLevel)),
+			Ui::Text::RichLangValue);
+	}, [&](AskBoostWallpaper data) {
+		return tr::lng_boost_channel_needs_level_wallpaper(
+			lt_count,
+			rpl::single(float64(data.requiredLevel)),
+			Ui::Text::RichLangValue);
+	}, [&](AskBoostEmojiStatus data) {
+		return tr::lng_boost_channel_needs_level_status(
 			lt_count,
 			rpl::single(float64(data.requiredLevel)),
 			Ui::Text::RichLangValue);

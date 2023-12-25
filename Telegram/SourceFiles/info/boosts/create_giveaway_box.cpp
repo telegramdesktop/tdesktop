@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_giveaway.h"
@@ -48,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kDoneTooltipDuration = 5 * crl::time(1000);
+constexpr auto kAdditionalPrizeLengthMax = 128;
 
 [[nodiscard]] QDateTime ThreeDaysAfterToday() {
 	auto dateNow = QDateTime::currentDateTime();
@@ -256,6 +258,10 @@ void CreateGiveawayBox(
 		rpl::variable<int> sliderValue;
 		rpl::variable<TimeId> dateValue;
 		rpl::variable<std::vector<QString>> countriesValue;
+
+		rpl::variable<QString> additionalPrize;
+		rpl::variable<int> chosenMonths;
+		rpl::variable<bool> showWinners;
 
 		rpl::variable<bool> confirmButtonBusy = true;
 	};
@@ -669,6 +675,182 @@ void CreateGiveawayBox(
 		c->add(std::move(terms));
 	};
 
+	const auto durationGroup = std::make_shared<Ui::RadiobuttonGroup>(0);
+	durationGroup->setChangedCallback([=](int value) {
+		state->chosenMonths = state->apiOptions.monthsFromPreset(value);
+	});
+	const auto listOptionsRandom = randomWrap->entity()->add(
+		object_ptr<Ui::VerticalLayout>(box));
+	const auto listOptionsSpecific = contentWrap->entity()->add(
+		object_ptr<Ui::VerticalLayout>(box));
+	const auto rebuildListOptions = [=](GiveawayType type, int usersCount) {
+		if (prepaid) {
+			return;
+		}
+		while (listOptionsRandom->count()) {
+			delete listOptionsRandom->widgetAt(0);
+		}
+		while (listOptionsSpecific->count()) {
+			delete listOptionsSpecific->widgetAt(0);
+		}
+		const auto listOptions = (type == GiveawayType::SpecificUsers)
+			? listOptionsSpecific
+			: listOptionsRandom;
+		Ui::AddSubsectionTitle(
+			listOptions,
+			tr::lng_giveaway_duration_title(
+				lt_count,
+				rpl::single(usersCount) | tr::to_count()),
+			st::giveawayGiftCodeChannelsSubsectionPadding);
+		Ui::Premium::AddGiftOptions(
+			listOptions,
+			durationGroup,
+			state->apiOptions.options(usersCount),
+			st::giveawayGiftCodeGiftOption,
+			true);
+
+		Ui::AddSkip(listOptions);
+
+		auto termsContainer = object_ptr<Ui::VerticalLayout>(listOptions);
+		addTerms(termsContainer.data());
+		listOptions->add(object_ptr<Ui::DividerLabel>(
+			listOptions,
+			std::move(termsContainer),
+			st::defaultBoxDividerLabelPadding));
+
+		Ui::AddSkip(listOptions);
+
+		box->verticalLayout()->resizeToWidth(box->width());
+	};
+	if (!prepaid) {
+		rpl::combine(
+			state->sliderValue.value(),
+			state->typeValue.value()
+		) | rpl::start_with_next([=](int users, GiveawayType type) {
+			typeGroup->setValue(type);
+			rebuildListOptions(type, (type == GiveawayType::SpecificUsers)
+				? state->selectedToAward.size()
+				: users);
+		}, box->lifetime());
+	} else {
+		typeGroup->setValue(GiveawayType::Random);
+	}
+
+	{
+		const auto additionalWrap = randomWrap->entity()->add(
+			object_ptr<Ui::VerticalLayout>(randomWrap));
+		const auto additionalToggle = additionalWrap->add(
+			object_ptr<Ui::SettingsButton>(
+				additionalWrap,
+				tr::lng_giveaway_additional_prizes(),
+				st::defaultSettingsButton));
+		const auto additionalInner = additionalWrap->add(
+			object_ptr<Ui::SlideWrap<Ui::InputField>>(
+				additionalWrap,
+				object_ptr<Ui::InputField>(
+					additionalWrap,
+					st::giveawayGiftCodeAdditionalField,
+					Ui::InputField::Mode::SingleLine,
+					tr::lng_giveaway_additional_prizes_ph()),
+				st::giveawayGiftCodeAdditionalPaddingMin));
+		const auto additionalPadded = additionalInner->wrapped();
+		const auto additional = additionalInner->entity();
+		additionalInner->hide(anim::type::instant);
+		additional->setMaxLength(kAdditionalPrizeLengthMax);
+		const auto fillAdditionalPrizeValue = [=] {
+			state->additionalPrize = additional->getLastText().trimmed();
+		};
+		additionalToggle->toggleOn(rpl::single(false))->toggledChanges(
+		) | rpl::start_with_next([=](bool toggled) {
+			if (!toggled && Ui::InFocusChain(additional)) {
+				additionalWrap->setFocus();
+				state->additionalPrize = QString();
+			}
+			additionalInner->toggle(toggled, anim::type::normal);
+			if (toggled) {
+				additional->setFocusFast();
+				fillAdditionalPrizeValue();
+			}
+		}, additionalInner->lifetime());
+		additionalInner->finishAnimating();
+
+		additional->changes() | rpl::filter([=] {
+			return additionalInner->toggled();
+		}) | rpl::start_with_next(
+			fillAdditionalPrizeValue,
+			additional->lifetime());
+
+		Ui::AddSkip(additionalWrap);
+
+		auto monthsValue = prepaid
+			? (rpl::single(prepaid->months) | rpl::type_erased())
+			: state->chosenMonths.value();
+		const auto usersCountByType = [=](GiveawayType type) {
+			if (type != GiveawayType::SpecificUsers) {
+				return state->sliderValue.value() | rpl::type_erased();
+			}
+			return state->toAwardAmountChanged.events_starting_with_copy(
+				rpl::empty
+			) | rpl::map([=] {
+				return int(state->selectedToAward.size());
+			}) | rpl::type_erased();
+		};
+		auto usersCountValue = prepaid
+			? (rpl::single(prepaid->quantity) | rpl::type_erased())
+			: state->typeValue.value(
+			) | rpl::map(usersCountByType) | rpl::flatten_latest();
+
+		const auto additionalLabel = Ui::CreateChild<Ui::FlatLabel>(
+			additionalInner,
+			rpl::duplicate(usersCountValue) | rpl::map([](int count) {
+				return QString::number(count);
+			}),
+			st::giveawayGiftCodeAdditionalLabel);
+		additionalLabel->widthValue() | rpl::start_with_next([=](int width) {
+			const auto min = st::giveawayGiftCodeAdditionalPaddingMin;
+			const auto skip = st::giveawayGiftCodeAdditionalLabelSkip;
+			const auto added = std::max(width + skip - min.left(), 0);
+			const auto &field = st::giveawayGiftCodeAdditionalField;
+			const auto top = field.textMargins.top();
+			additionalLabel->moveToLeft(min.right(), min.top() + top);
+			additionalPadded->setPadding(min + QMargins(added, 0, 0, 0));
+		}, additionalLabel->lifetime());
+
+		auto additionalAbout = rpl::combine(
+			state->additionalPrize.value(),
+			std::move(monthsValue),
+			std::move(usersCountValue)
+		) | rpl::map([=](QString prize, int months, int users) {
+			const auto duration = ((months >= 12)
+				? tr::lng_premium_gift_duration_years
+				: tr::lng_premium_gift_duration_months)(
+					tr::now,
+					lt_count,
+					(months >= 12) ? (months / 12) : months);
+			if (prize.isEmpty()) {
+				return tr::lng_giveaway_prizes_just_premium(
+					tr::now,
+					lt_count,
+					users,
+					lt_duration,
+					TextWithEntities{ duration },
+					Ui::Text::RichLangValue);
+			}
+			return tr::lng_giveaway_prizes_additional(
+				tr::now,
+				lt_count,
+				users,
+				lt_prize,
+				TextWithEntities{ prize },
+				lt_duration,
+				TextWithEntities{ duration },
+				Ui::Text::RichLangValue);
+		});
+
+		Ui::AddDividerText(additionalWrap, std::move(additionalAbout));
+		Ui::AddSkip(additionalWrap);
+	}
+
 	{
 		const auto dateContainer = randomWrap->entity()->add(
 			object_ptr<Ui::VerticalLayout>(randomWrap));
@@ -699,7 +881,7 @@ void CreateGiveawayBox(
 					.time = state->dateValue.current(),
 					.max = [=] {
 						return QDateTime::currentSecsSinceEpoch()
-							+ state->apiOptions.giveawayPeriodMax();;
+							+ state->apiOptions.giveawayPeriodMax();
 					},
 				});
 			}));
@@ -721,6 +903,7 @@ void CreateGiveawayBox(
 				dateContainer,
 				std::move(terms),
 				st::defaultBoxDividerLabelPadding));
+			Ui::AddSkip(dateContainer);
 		} else {
 			Ui::AddDividerText(
 				dateContainer,
@@ -731,53 +914,24 @@ void CreateGiveawayBox(
 		}
 	}
 
-	const auto durationGroup = std::make_shared<Ui::RadiobuttonGroup>(0);
-	const auto listOptions = contentWrap->entity()->add(
-		object_ptr<Ui::VerticalLayout>(box));
-	const auto rebuildListOptions = [=](int amountUsers) {
-		if (prepaid) {
-			return;
-		}
-		while (listOptions->count()) {
-			delete listOptions->widgetAt(0);
-		}
-		Ui::AddSubsectionTitle(
-			listOptions,
-			tr::lng_giveaway_duration_title(
-				lt_count,
-				rpl::single(amountUsers) | tr::to_count()),
-			st::giveawayGiftCodeChannelsSubsectionPadding);
-		Ui::Premium::AddGiftOptions(
-			listOptions,
-			durationGroup,
-			state->apiOptions.options(amountUsers),
-			st::giveawayGiftCodeGiftOption,
-			true);
+	{
+		const auto winnersWrap = randomWrap->entity()->add(
+			object_ptr<Ui::VerticalLayout>(randomWrap));
+		const auto winnersToggle = winnersWrap->add(
+			object_ptr<Ui::SettingsButton>(
+				winnersWrap,
+				tr::lng_giveaway_show_winners(),
+				st::defaultSettingsButton));
+		state->showWinners = winnersToggle->toggleOn(
+			rpl::single(false)
+		)->toggledValue();
+		Ui::AddSkip(winnersWrap);
 
-		Ui::AddSkip(listOptions);
-
-		auto termsContainer = object_ptr<Ui::VerticalLayout>(listOptions);
-		addTerms(termsContainer.data());
-		listOptions->add(object_ptr<Ui::DividerLabel>(
-			listOptions,
-			std::move(termsContainer),
-			st::defaultBoxDividerLabelPadding));
-
-		box->verticalLayout()->resizeToWidth(box->width());
-	};
-	if (!prepaid) {
-		rpl::combine(
-			state->sliderValue.value(),
-			state->typeValue.value()
-		) | rpl::start_with_next([=](int users, GiveawayType type) {
-			typeGroup->setValue(type);
-			rebuildListOptions((type == GiveawayType::SpecificUsers)
-				? state->selectedToAward.size()
-				: users);
-		}, box->lifetime());
-	} else {
-		typeGroup->setValue(GiveawayType::Random);
+		Ui::AddDividerText(
+			winnersWrap,
+			tr::lng_giveaway_show_winners_about());
 	}
+
 	{
 		using namespace Info::Statistics;
 		const auto &stButton = st::startGiveawayBox;
@@ -804,13 +958,7 @@ void CreateGiveawayBox(
 			const auto loadingAnimation = InfiniteRadialAnimationWidget(
 				button,
 				st::giveawayGiftCodeStartButton.height / 2);
-			button->sizeValue(
-			) | rpl::start_with_next([=](const QSize &s) {
-				const auto size = loadingAnimation->size();
-				loadingAnimation->moveToLeft(
-					(s.width() - size.width()) / 2,
-					(s.height() - size.height()) / 2);
-			}, loadingAnimation->lifetime());
+			AddChildToWidgetCenter(button.data(), loadingAnimation);
 			loadingAnimation->showOn(state->confirmButtonBusy.value());
 		}
 
@@ -862,9 +1010,11 @@ void CreateGiveawayBox(
 						return not_null{ p->asChannel() };
 					}) | ranges::to_vector,
 					.countries = state->countriesValue.current(),
+					.additionalPrize = state->additionalPrize.current(),
 					.untilDate = state->dateValue.current(),
 					.onlyNewSubscribers = (membersGroup->value()
 						== GiveawayType::OnlyNewMembers),
+					.showWinners = state->showWinners.current(),
 				};
 			}
 			state->confirmButtonBusy = true;
@@ -960,7 +1110,10 @@ void CreateGiveawayBox(
 			loading->toggle(false, anim::type::instant);
 			state->confirmButtonBusy = false;
 			fillSliderContainer();
-			rebuildListOptions(1);
+			if (!prepaid) {
+				state->chosenMonths = state->apiOptions.monthsFromPreset(0);
+			}
+			rebuildListOptions(state->typeValue.current(), 1);
 			contentWrap->toggle(true, anim::type::instant);
 			contentWrap->resizeToWidth(box->width());
 		};

@@ -7,18 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-struct RequestPeerQuery;
-
 namespace Ui {
-class BoxContent;
+class RpWidget;
 } // namespace Ui
 
-namespace Window {
-class SessionNavigation;
-} // namespace Window
+namespace Ui::NewBadge {
 
-void ShowChoosePeerBox(
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<UserData*> bot,
-	RequestPeerQuery query,
-	Fn<void(std::vector<not_null<PeerData*>>)> chosen);
+void AddToRight(not_null<Ui::RpWidget*> parent);
+void AddAfterLabel(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Ui::RpWidget*> label);
+
+} // namespace Ui::NewBadge

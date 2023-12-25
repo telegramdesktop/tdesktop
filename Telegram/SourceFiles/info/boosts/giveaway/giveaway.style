@@ -121,6 +121,13 @@ giveawayGiftCodeTypeDividerPadding: margins(0px, 7px, 0px, 5px);
 giveawayGiftCodeSliderPadding: margins(0px, 24px, 0px, 10px);
 giveawayGiftCodeSliderFloatSkip: 6px;
 giveawayGiftCodeChannelsSubsectionPadding: margins(0px, -1px, 0px, -4px);
+giveawayGiftCodeAdditionalPaddingMin: margins(50px, 4px, 22px, 0px);
+giveawayGiftCodeAdditionalField: InputField(defaultMultiSelectSearchField) {
+}
+giveawayGiftCodeAdditionalLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+giveawayGiftCodeAdditionalLabelSkip: 12px;
 
 giveawayGiftCodeChannelsPeerList: PeerList(boostsListBox) {
 	padding: margins(0px, 7px, 0px, 0px);

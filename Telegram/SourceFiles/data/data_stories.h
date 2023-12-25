@@ -149,7 +149,7 @@ public:
 	void apply(const MTPDupdateReadStories &data);
 	void apply(const MTPStoriesStealthMode &stealthMode);
 	void apply(not_null<PeerData*> peer, const MTPPeerStories *data);
-	Story *applyFromWebpage(PeerId peerId, const MTPstoryItem &story);
+	Story *applySingle(PeerId peerId, const MTPstoryItem &story);
 	void loadAround(FullStoryId id, StoriesContext context);
 
 	const StoriesSource *source(PeerId id) const;
@@ -178,6 +178,11 @@ public:
 
 	static constexpr auto kViewsPerPage = 50;
 	void loadViewsSlice(
+		not_null<PeerData*> peer,
+		StoryId id,
+		QString offset,
+		Fn<void(StoryViews)> done);
+	void loadReactionsSlice(
 		not_null<PeerData*> peer,
 		StoryId id,
 		QString offset,
@@ -378,6 +383,12 @@ private:
 	QString _viewsOffset;
 	Fn<void(StoryViews)> _viewsDone;
 	mtpRequestId _viewsRequestId = 0;
+
+	PeerData *_reactionsStoryPeer = nullptr;
+	StoryId _reactionsStoryId = 0;
+	QString _reactionsOffset;
+	Fn<void(StoryViews)> _reactionsDone;
+	mtpRequestId _reactionsRequestId = 0;
 
 	base::flat_set<FullStoryId> _preloaded;
 	std::vector<FullStoryId> _toPreloadSources[kStorySourcesListCount];

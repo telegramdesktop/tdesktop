@@ -33,6 +33,7 @@ public:
 		FullMsgId history;
 		FullMsgId messageStatistic;
 		FullStoryId storyStatistic;
+		FullStoryId story;
 	};
 
 	InnerWidget(

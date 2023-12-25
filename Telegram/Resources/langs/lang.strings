@@ -591,6 +591,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_section_background" = "Chat background";
 "lng_settings_bg_from_gallery" = "Choose from gallery";
 "lng_settings_bg_from_file" = "Choose from file";
+"lng_settings_bg_remove" = "Remove wallpaper";
 "lng_settings_bg_theme_edit" = "Edit theme";
 "lng_settings_bg_theme_create" = "Create new theme";
 "lng_settings_bg_cloud_themes" = "Custom themes";
@@ -813,6 +814,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_manage_enabled_dictionary" = "Dictionary is enabled";
 "lng_settings_manage_remove_dictionary" = "Remove Dictionary";
 
+"lng_settings_gift_premium" = "Premium Gifting";
+"lng_settings_gift_premium_users_confirm" = "Proceed";
+"lng_settings_gift_premium_users_error#one" = "You can select maximum {count} user.";
+"lng_settings_gift_premium_users_error#other" = "You can select maximum {count} users.";
+
 "lng_backgrounds_header" = "Choose Wallpaper";
 "lng_theme_sure_keep" = "Keep this theme?";
 "lng_theme_reverting#one" = "Reverting to the old theme in {count} second.";
@@ -833,6 +839,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_background_blur" = "Blurred";
 "lng_background_sure_delete" = "Are you sure you want to delete this background?";
 "lng_background_other_info" = "{user} will be able to apply this wallpaper";
+"lng_background_other_channel" = "All subscribers will see this wallpaper";
 "lng_background_apply1" = "Apply the wallpaper in this chat.";
 "lng_background_apply2" = "Enjoy the view.";
 "lng_background_apply_button" = "Apply For This Chat";
@@ -841,6 +848,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_background_reset_default" = "Reset";
 "lng_background_apply_me" = "Apply for me";
 "lng_background_apply_both" = "Apply for me and {user}";
+"lng_background_apply_channel" = "Apply For Channel";
 
 "lng_download_path_ask" = "Ask download path for each file";
 "lng_download_path" = "Download path";
@@ -1682,7 +1690,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_giveaway_started" = "{from} just started a giveaway of Telegram Premium subscriptions to its followers.";
 "lng_action_giveaway_results#one" = "{count} winner of the giveaway was randomly selected by Telegram and received private messages with giftcodes.";
 "lng_action_giveaway_results#other" = "{count} winners of the giveaway were randomly selected by Telegram and received private messages with giftcodes.";
-"lng_action_giveaway_results_some" = "Some winners of the giveaway was randomly selected by Telegram and received private messages with giftcodes.";
+"lng_action_giveaway_results_some" = "Some winners of the giveaway were randomly selected by Telegram and received private messages with giftcodes.";
 "lng_action_giveaway_results_none" = "No winners of the giveaway could be selected.";
 
 "lng_similar_channels_title" = "Similar channels";
@@ -1836,6 +1844,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sponsored_message_title" = "Sponsored";
 "lng_recommended_message_title" = "Recommended";
 "lng_edited" = "edited";
+"lng_commented" = "commented";
 "lng_edited_date" = "Edited: {date}";
 "lng_sent_date" = "Sent: {date}";
 "lng_views_tooltip#one" = "Views: {count}";
@@ -2055,6 +2064,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_gift_per" = "{cost} / month";
 "lng_premium_gift_terms" = "You can review the list of features and terms of use for Telegram Premium {link}.";
 "lng_premium_gift_terms_link" = "here";
+"lng_premium_gifts_about_user1" = "Give **{user}** access to exclusive features.";
+"lng_premium_gifts_about_user2" = "Give **{user}** and **{second_user}** access to exclusive features.";
+"lng_premium_gifts_about_user3" = "Give **{user}**, **{second_user}** and **{name}** access to exclusive features.";
+"lng_premium_gifts_about_user_more#one" = "Give **{user}**, **{second_user}**, **{name}** and **{count}** more friend access to exclusive features.";
+"lng_premium_gifts_about_user_more#other" = "Give **{user}**, **{second_user}**, **{name}** and **{count}** more friends access to exclusive features.";
+"lng_premium_gifts_about_reward#one" = "You will receive {emoji}**{count}** boost.";
+"lng_premium_gifts_about_reward#other" = "You will receive {emoji}**{count}** boosts.";
+"lng_premium_gifts_about_paid_title" = "Gifts Sent!";
+"lng_premium_gifts_about_paid1" = "**{user}** has been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid2" = "**{user}** and **{second_user}** have been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid3" = "**{user}**, **{second_user}** and **{name}** have been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid_more#one" = "**{user}**, **{second_user}**, **{name}** and **{count}** other have been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid_more#other" = "**{user}**, **{second_user}**, **{name}** and **{count}** others have been notified about the gifts you purchased.";
+"lng_premium_gifts_about_paid_below#one" = "They now have access to additional features.";
+"lng_premium_gifts_about_paid_below#other" = "They now have access to additional features.";
+"lng_premium_gifts_summary_subtitle" = "What's Included";
 
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_again_button" = "Boost Again";
@@ -2110,6 +2135,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_channel_title_color" = "Enable colors";
 "lng_boost_channel_needs_level_color#one" = "Your channel needs to reach **Level {count}** to change channel color.";
 "lng_boost_channel_needs_level_color#other" = "Your channel needs to reach **Level {count}** to change channel color.";
+
+"lng_boost_channel_title_wallpaper" = "Enable wallpapers";
+"lng_boost_channel_needs_level_wallpaper#one" = "Your channel needs to reach **Level {count}** to change channel wallpaper.";
+"lng_boost_channel_needs_level_wallpaper#other" = "Your channel needs to reach **Level {count}** to change channel wallpaper.";
+
+"lng_boost_channel_title_status" = "Enable emoji status";
+"lng_boost_channel_needs_level_status#one" = "Your channel needs to reach **Level {count}** to set emoji status.";
+"lng_boost_channel_needs_level_status#other" = "Your channel needs to reach **Level {count}** to set emoji status.";
 
 "lng_boost_channel_title_reactions" = "Custom reactions";
 "lng_boost_channel_needs_level_reactions#one" = "Your channel needs to reach **Level {count}** to add **{same_count}** custom emoji as a reaction.";
@@ -2170,6 +2203,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_maximum_users_error#other" = "You can select maximum {count} users.";
 "lng_giveaway_channels_confirm_title" = "Channel is Private";
 "lng_giveaway_channels_confirm_about" = "Are you sure you want to add a private channel? Users won't be able to join it without an invite link.";
+"lng_giveaway_additional_prizes" = "Additional prizes";
+"lng_giveaway_additional_about" = "Turn this on if you want to give the winners your own prizes in addition to Premium subscriptions.";
+"lng_giveaway_additional_prizes_ph" = "Enter your prize";
+"lng_giveaway_prizes_just_premium#one" = "All prizes: **{count}** Telegram Premium subscription {duration}.";
+"lng_giveaway_prizes_just_premium#other" = "All prizes: **{count}** Telegram Premium subscriptions {duration}.";
+"lng_giveaway_prizes_additional#one" = "All prizes: **{count}** {prize} with Telegram Premium subscription {duration}.";
+"lng_giveaway_prizes_additional#other" = "All prizes: **{count}** {prize} with Telegram Premium subscriptions {duration}.";
+"lng_giveaway_show_winners" = "Show winners";
+"lng_giveaway_show_winners_about" = "Choose whether to make the list of winners public when the giveaway ends.";
 
 "lng_giveaway_created_title" = "Giveaway created";
 "lng_giveaway_created_body" = "Check your channels' {link} to see how this giveaway boosted your channel.";
@@ -2189,6 +2231,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_prizes_title#one" = "Giveaway Prize";
 "lng_prizes_title#other" = "Giveaway Prizes";
+"lng_prizes_additional#one" = "**{count}** {prize}";
+"lng_prizes_additional#other" = "**{count}** {prize}";
+"lng_prizes_additional_with" = "with";
 "lng_prizes_about#one" = "**{count}** Telegram Premium Subscription {duration}.";
 "lng_prizes_about#other" = "**{count}** Telegram Premium Subscriptions {duration}.";
 "lng_prizes_participants" = "Participants";
@@ -2207,6 +2252,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_end_text" = "This giveaway was sponsored by {admins}.";
 "lng_prizes_admins#one" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscription {duration} for its followers";
 "lng_prizes_admins#other" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscriptions {duration} for its followers.";
+"lng_prizes_additional_added#one" = "{channel} also included **{count} {prize}** in the prize. Admins of the channel are responsible for delivering this prize.";
+"lng_prizes_additional_added#other" = "{channel} also included **{count} {prize}** in the prizes. Admins of the channel are responsible for delivering these prizes.";
 "lng_prizes_how_when_finish" = "On {date}, Telegram will automatically select {winners}.";
 "lng_prizes_end_when_finish" = "On {date}, Telegram automatically selected {winners}.";
 "lng_prizes_end_activated#one" = "**{count}** of the winners already used their gift link.";
@@ -2231,6 +2278,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_you_didnt" = "You didn't win a prize in this giveaway.";
 "lng_prizes_cancelled" = "The channel cancelled the prizes by reversing the payment for them.";
 "lng_prizes_badge" = "x{amount}";
+
+"lng_prizes_results_title" = "Winners Selected!";
+"lng_prizes_results_about#one" = "**{count}** winner of the {link} was randomly selected by Telegram.";
+"lng_prizes_results_about#other" = "**{count}** winners of the {link} were randomly selected by Telegram.";
+"lng_prizes_results_link" = "Giveaway";
+"lng_prizes_results_winners" = "Winners";
+"lng_prizes_results_more#one" = "and {count} more!";
+"lng_prizes_results_more#other" = "and {count} more!";
+"lng_prizes_results_all" = "All winners received gift links in private messages.";
+"lng_prizes_results_some" = "Some winners couldn't be selected.";
 
 "lng_gift_link_title" = "Gift Link";
 "lng_gift_link_about" = "This link allows you to activate\na **Telegram Premium** subscription.";
@@ -2801,6 +2858,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_sign_messages" = "Sign messages";
 "lng_edit_group" = "Edit group";
 "lng_edit_channel_color" = "Change name color";
+"lng_edit_channel_level_min" = "Level 1+";
+"lng_edit_channel_wallpaper" = "Channel wallpaper";
+"lng_edit_channel_wallpaper_about" = "Set a wallpaper that will be visible for everyone reading your channel.";
+"lng_edit_channel_status" = "Channel emoji status";
+"lng_edit_channel_status_about" = "Choose a status that will be shown next to the channel's name.";
 "lng_edit_self_title" = "Edit your name";
 "lng_confirm_contact_data" = "New Contact";
 "lng_add_contact" = "Create";
@@ -3615,6 +3677,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_set_background_emoji" = "{from} set channel background emoji to {emoji}";
 "lng_admin_log_change_background_emoji" = "{from} changed channel background emoji from {previous} to {emoji}";
 "lng_admin_log_removed_background_emoji" = "{from} removed channel background emoji {emoji}";
+"lng_admin_log_change_profile_color" = "{from} changed channel profile color from {previous} to {color}";
+"lng_admin_log_set_profile_background_emoji" = "{from} set channel profile background emoji to {emoji}";
+"lng_admin_log_change_profile_background_emoji" = "{from} changed channel profile background emoji from {previous} to {emoji}";
+"lng_admin_log_removed_profile_background_emoji" = "{from} removed channel profile background emoji {emoji}";
+"lng_admin_log_change_wallpaper" = "{from} changed channel wallpaper";
+"lng_admin_log_set_status" = "{from} set channel emoji status to {emoji}";
+"lng_admin_log_change_status" = "{from} changed channel emoji status from {previous} to {emoji}";
+"lng_admin_log_removed_status" = "{from} removed channel emoji status {emoji}";
+"lng_admin_log_set_status_until" = "{from} set channel emoji status to {emoji} until {date}";
+"lng_admin_log_change_status_until" = "{from} changed channel emoji status from {previous} to {emoji} until {date}";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_messages_ttl_set" = "{from} enabled messages auto-delete after {duration}";
 "lng_admin_log_messages_ttl_changed" = "{from} changed messages auto-delete period from {previous} to {duration}";
@@ -4207,6 +4279,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_request_peer_confirm_rights" = "This will also add {bot} to {chat} with the following rights: {rights}.";
 "lng_request_peer_confirm_send" = "Send";
 "lng_request_user_title" = "Choose User";
+"lng_request_users_title" = "Choose Users";
 "lng_request_user_premium_yes" = "The user should have a Premium subscription.";
 "lng_request_user_premium_no" = "The user shouldn't have a Premium subscription.";
 "lng_request_user_no" = "No such users";

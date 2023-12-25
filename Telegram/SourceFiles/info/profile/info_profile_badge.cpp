@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
@@ -24,10 +25,16 @@ namespace {
 
 [[nodiscard]] rpl::producer<Badge::Content> ContentForPeer(
 		not_null<PeerData*> peer) {
+	const auto statusOnlyForPremium = peer->isUser();
 	return rpl::combine(
 		BadgeValue(peer),
 		EmojiStatusIdValue(peer)
 	) | rpl::map([=](BadgeType badge, DocumentId emojiStatusId) {
+		if (statusOnlyForPremium && badge != BadgeType::Premium) {
+			emojiStatusId = 0;
+		} else if (emojiStatusId && badge == BadgeType::None) {
+			badge = BadgeType::Premium;
+		}
 		return Badge::Content{ badge, emojiStatusId };
 	});
 }
@@ -90,9 +97,6 @@ void Badge::setContent(Content content) {
 	}
 	if (!(_allowed & content.badge)) {
 		content.badge = BadgeType::None;
-	}
-	if (content.badge != BadgeType::Premium) {
-		content.emojiStatusId = 0;
 	}
 	if (_content == content) {
 		return;

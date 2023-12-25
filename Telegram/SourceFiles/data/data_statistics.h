@@ -148,11 +148,7 @@ struct RecentPostId final {
 };
 
 struct PublicForwardsSlice final {
-	struct OffsetToken final {
-		int rate = 0;
-		FullMsgId fullId;
-		QString storyOffset;
-	};
+	using OffsetToken = QString;
 	QVector<RecentPostId> list;
 	int total = 0;
 	bool allLoaded = false;

@@ -38,6 +38,7 @@ private:
 		const Data::WallPaper &paper) const;
 	void removePaper(const Data::WallPaper &paper);
 	void resetForPeer();
+	[[nodiscard]] bool forChannel() const;
 
 	void chooseFromFile();
 

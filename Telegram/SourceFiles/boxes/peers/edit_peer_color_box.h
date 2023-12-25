@@ -16,6 +16,7 @@ class GenericBox;
 class ChatStyle;
 class ChatTheme;
 class VerticalLayout;
+struct AskBoostReason;
 } // namespace Ui
 
 void EditPeerColorBox(
@@ -29,3 +30,9 @@ void AddPeerColorButton(
 	not_null<Ui::VerticalLayout*> container,
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer);
+
+void CheckBoostLevel(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	Fn<std::optional<Ui::AskBoostReason>(int level)> askMore,
+	Fn<void()> cancel);

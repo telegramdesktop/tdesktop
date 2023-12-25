@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
+#include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
 #include "main/main_session.h"
 #include "main/session/send_as_peers.h"
@@ -948,6 +949,14 @@ void ChannelData::processTopics(const MTPVector<MTPForumTopic> &topics) {
 	}
 }
 
+int ChannelData::levelHint() const {
+	return _levelHint;
+}
+
+void ChannelData::updateLevelHint(int levelHint) {
+	_levelHint = levelHint;
+}
+
 namespace Data {
 
 void ApplyMigration(
@@ -1140,6 +1149,13 @@ void ApplyChannelUpdate(
 		session->sendAsPeers().setChosen(channel, peerFromMTP(*sendAs));
 	} else {
 		session->sendAsPeers().setChosen(channel, PeerId());
+	}
+
+	if (const auto paper = update.vwallpaper()) {
+		channel->setWallPaper(
+			Data::WallPaper::Create(&channel->session(), *paper));
+	} else {
+		channel->setWallPaper({});
 	}
 
 	// For clearUpTill() call.

@@ -95,6 +95,7 @@ struct StripePaymentMethod {
 
 struct SmartGlocalPaymentMethod {
 	QString publicToken;
+	QString tokenizeUrl;
 };
 
 struct NativePaymentMethod {
@@ -190,8 +191,10 @@ struct InvoicePremiumGiftCodeGiveaway {
 	not_null<ChannelData*> boostPeer;
 	std::vector<not_null<ChannelData*>> additionalChannels;
 	std::vector<QString> countries;
+	QString additionalPrize;
 	TimeId untilDate = 0;
 	bool onlyNewSubscribers = false;
+	bool showWinners = false;
 };
 
 struct InvoicePremiumGiftCodeUsers {

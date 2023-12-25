@@ -515,6 +515,7 @@ auto PeerPhoto::emojiList(EmojiListType type) -> EmojiListData & {
 	case EmojiListType::Profile: return _profileEmojiList;
 	case EmojiListType::Group: return _groupEmojiList;
 	case EmojiListType::Background: return _backgroundEmojiList;
+	case EmojiListType::NoChannelStatus: return _noChannelStatusEmojiList;
 	}
 	Unexpected("Type in PeerPhoto::emojiList.");
 }
@@ -551,6 +552,8 @@ void PeerPhoto::requestEmojiList(EmojiListType type) {
 		? send(MTPaccount_GetDefaultProfilePhotoEmojis())
 		: (type == EmojiListType::Group)
 		? send(MTPaccount_GetDefaultGroupPhotoEmojis())
+		: (type == EmojiListType::NoChannelStatus)
+		? send(MTPaccount_GetChannelRestrictedStatusEmojis())
 		: send(MTPaccount_GetDefaultBackgroundEmojis());
 }
 

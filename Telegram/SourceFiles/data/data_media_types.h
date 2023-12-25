@@ -90,12 +90,27 @@ struct Invoice {
 	bool isTest = false;
 };
 
-struct Giveaway {
+struct GiveawayStart {
 	std::vector<not_null<ChannelData*>> channels;
 	std::vector<QString> countries;
+	QString additionalPrize;
 	TimeId untilDate = 0;
 	int quantity = 0;
 	int months = 0;
+	bool all = false;
+};
+
+struct GiveawayResults {
+	not_null<ChannelData*> channel;
+	std::vector<not_null<PeerData*>> winners;
+	QString additionalPrize;
+	TimeId untilDate = 0;
+	MsgId launchId = 0;
+	int additionalPeersCount = 0;
+	int winnersCount = 0;
+	int unclaimedCount = 0;
+	int months = 0;
+	bool refunded = false;
 	bool all = false;
 };
 
@@ -135,7 +150,8 @@ public:
 	virtual FullStoryId storyId() const;
 	virtual bool storyExpired(bool revalidate = false);
 	virtual bool storyMention() const;
-	virtual const Giveaway *giveaway() const;
+	virtual const GiveawayStart *giveawayStart() const;
+	virtual const GiveawayResults *giveawayResults() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -634,15 +650,15 @@ private:
 
 };
 
-class MediaGiveaway final : public Media {
+class MediaGiveawayStart final : public Media {
 public:
-	MediaGiveaway(
+	MediaGiveawayStart(
 		not_null<HistoryItem*> parent,
-		const Giveaway &data);
+		const GiveawayStart &data);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
-	const Giveaway *giveaway() const override;
+	const GiveawayStart *giveawayStart() const override;
 
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -656,7 +672,33 @@ public:
 		HistoryView::Element *replacing = nullptr) override;
 
 private:
-	Giveaway _giveaway;
+	GiveawayStart _data;
+
+};
+
+class MediaGiveawayResults final : public Media {
+public:
+	MediaGiveawayResults(
+		not_null<HistoryItem*> parent,
+		const GiveawayResults &data);
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	const GiveawayResults *giveawayResults() const override;
+
+	TextWithEntities notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextForMimeData clipboardText() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryView::Media> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
+
+private:
+	GiveawayResults _data;
 
 };
 
@@ -670,8 +712,12 @@ private:
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);
 
-[[nodiscard]] Giveaway ComputeGiveawayData(
+[[nodiscard]] GiveawayStart ComputeGiveawayStartData(
 	not_null<HistoryItem*> item,
 	const MTPDmessageMediaGiveaway &data);
+
+[[nodiscard]] GiveawayResults ComputeGiveawayResultsData(
+	not_null<HistoryItem*> item,
+	const MTPDmessageMediaGiveawayResults &data);
 
 } // namespace Data

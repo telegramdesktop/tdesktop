@@ -341,11 +341,7 @@ auto Media::getBubbleSelectionIntervals(
 }
 
 bool Media::usesBubblePattern(const PaintContext &context) const {
-	return (context.selection != FullSelection)
-		&& _parent->hasOutLayout()
-		&& context.bubblesPattern
-		&& !context.viewport.isEmpty()
-		&& !context.bubblesPattern->pixmap.size().isEmpty();
+	return _parent->usesBubblePattern(context);
 }
 
 PointState Media::pointState(QPoint point) const {

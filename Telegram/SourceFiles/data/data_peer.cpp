@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_participant_status.h"
 #include "data/data_channel.h"
 #include "data/data_changes.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_message_reaction_id.h"
 #include "data/data_photo.h"
 #include "data/data_folder.h"
@@ -926,6 +927,24 @@ bool PeerData::changeBackgroundEmojiId(DocumentId id) {
 	_backgroundEmojiId = id;
 	return true;
 }
+
+void PeerData::setEmojiStatus(const MTPEmojiStatus &status) {
+	const auto parsed = Data::ParseEmojiStatus(status);
+	setEmojiStatus(parsed.id, parsed.until);
+}
+
+void PeerData::setEmojiStatus(DocumentId emojiStatusId, TimeId until) {
+	if (_emojiStatusId != emojiStatusId) {
+		_emojiStatusId = emojiStatusId;
+		session().changes().peerUpdated(this, UpdateFlag::EmojiStatus);
+	}
+	owner().emojiStatuses().registerAutomaticClear(this, until);
+}
+
+DocumentId PeerData::emojiStatusId() const {
+	return _emojiStatusId;
+}
+
 bool PeerData::isSelf() const {
 	if (const auto user = asUser()) {
 		return (user->flags() & UserDataFlag::Self);

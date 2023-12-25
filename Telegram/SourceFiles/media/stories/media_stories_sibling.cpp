@@ -143,7 +143,7 @@ Sibling::LoaderVideo::LoaderVideo(
 	Fn<void()> update)
 : _video(video)
 , _origin(origin)
-, _update(std::move(                                                                                                                     update))
+, _update(std::move(update))
 , _media(_video->createMediaView()) {
 	_media->goodThumbnailWanted();
 }

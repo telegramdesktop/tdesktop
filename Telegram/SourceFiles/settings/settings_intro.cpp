@@ -177,7 +177,7 @@ public:
 
 	void updateGeometry(QRect newGeometry, int additionalScroll);
 	int scrollTillBottom(int forHeight) const;
-	rpl::producer<int>  scrollTillBottomChanges() const;
+	rpl::producer<int> scrollTillBottomChanges() const;
 
 	void setInnerFocus();
 

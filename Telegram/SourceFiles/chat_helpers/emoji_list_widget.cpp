@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_list_widget.h"
 
+#include "api/api_peer_photo.h"
+#include "apiwrap.h"
 #include "base/unixtime.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/tabbed_search.h"
@@ -477,8 +479,21 @@ EmojiListWidget::EmojiListWidget(
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 
-	if (_mode != Mode::RecentReactions && _mode != Mode::BackgroundEmoji) {
+	if (_mode != Mode::RecentReactions
+		&& _mode != Mode::BackgroundEmoji
+		&& _mode != Mode::ChannelStatus) {
 		setupSearch();
+	}
+
+	if (_mode == Mode::ChannelStatus) {
+		session().api().peerPhoto().emojiListValue(
+			Api::PeerPhoto::EmojiListType::NoChannelStatus
+		) | rpl::start_with_next([=](const std::vector<DocumentId> &list) {
+			_restrictedCustomList = { begin(list), end(list) };
+			if (!_custom.empty()) {
+				refreshCustom();
+			}
+		}, lifetime());
 	}
 
 	_customSingleSize = Data::FrameSizeFromTag(
@@ -1034,7 +1049,9 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 		if (!id && _mode == Mode::EmojiStatus) {
 			const auto star = QString::fromUtf8("\xe2\xad\x90\xef\xb8\x8f");
 			_recent.push_back({ .id = { Ui::Emoji::Find(star) } });
-		} else if (!id && _mode == Mode::BackgroundEmoji) {
+		} else if (!id
+			&& (_mode == Mode::BackgroundEmoji
+				|| _mode == Mode::ChannelStatus)) {
 			const auto fakeId = DocumentId(5246772116543512028ULL);
 			const auto no = QString::fromUtf8("\xe2\x9b\x94\xef\xb8\x8f");
 			_recent.push_back({
@@ -1070,7 +1087,7 @@ base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
 			: st::defaultPopupMenu));
 	if (_mode == Mode::Full) {
 		fillRecentMenu(menu, section, index);
-	} else if (_mode == Mode::EmojiStatus) {
+	} else if (_mode == Mode::EmojiStatus || _mode == Mode::ChannelStatus) {
 		fillEmojiStatusMenu(menu, section, index);
 	}
 	if (menu->empty()) {
@@ -1205,7 +1222,7 @@ void EmojiListWidget::validateEmojiPaintContext(
 	auto value = Ui::Text::CustomEmojiPaintContext{
 		.textColor = (_customTextColor
 			? _customTextColor()
-			: (_mode == Mode::EmojiStatus)
+			: (_mode == Mode::EmojiStatus || _mode == Mode::ChannelStatus)
 			? anim::color(
 				st::stickerPanPremium1,
 				st::stickerPanPremium2,
@@ -1402,6 +1419,10 @@ void EmojiListWidget::drawRecent(
 		_emojiPaintContext->position = position
 			+ _innerPosition
 			+ _customPosition;
+		if (_mode == Mode::ChannelStatus) {
+			_emojiPaintContext->internal.forceFirstFrame
+				= (recent.id == _recent.front().id);
+		}
 		custom->paint(p, *_emojiPaintContext);
 	} else if (const auto emoji = std::get_if<EmojiPtr>(&recent.id.data)) {
 		if (_mode == Mode::EmojiStatus) {
@@ -1642,6 +1663,7 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 				Settings::ShowPremium(resolved, u"infinite_reactions"_q);
 				break;
 			case Mode::EmojiStatus:
+			case Mode::ChannelStatus:
 				Settings::ShowPremium(resolved, u"emoji_status"_q);
 				break;
 			case Mode::TopicIcon:
@@ -2018,8 +2040,9 @@ void EmojiListWidget::refreshCustom() {
 		auto it = sets.find(setId);
 		if (it == sets.cend()
 			|| it->second->stickers.isEmpty()
-			|| (_mode == Mode::BackgroundEmoji
-				&& !it->second->textColor())) {
+			|| (_mode == Mode::BackgroundEmoji && !it->second->textColor())
+			|| (_mode == Mode::ChannelStatus
+				&& !it->second->channelStatus())) {
 			return;
 		}
 		const auto canRemove = !!(it->second->flags
@@ -2070,7 +2093,9 @@ void EmojiListWidget::refreshCustom() {
 		auto set = std::vector<CustomOne>();
 		set.reserve(list.size());
 		for (const auto document : list) {
-			if (const auto sticker = document->sticker()) {
+			if (_restrictedCustomList.contains(document->id)) {
+				continue;
+			} else if (const auto sticker = document->sticker()) {
 				set.push_back({
 					.custom = resolveCustomEmoji(document, setId),
 					.document = document,

@@ -44,6 +44,7 @@ public:
 	static const QString kSlotString;
 	static const QString kFballString;
 	static const QString kBballString;
+	static const QString kPartyPopper;
 
 	[[nodiscard]] static bool IsSlot(const QString &emoji) {
 		return (emoji == kSlotString);

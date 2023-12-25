@@ -879,7 +879,7 @@ void Controller::show(
 	const auto document = story->document();
 	_header->show({
 		.peer = peer,
-		.repostPeer = story->repostSourcePeer(),
+		.repostPeer = _repostView ? _repostView->fromPeer() : nullptr,
 		.repostFrom = _repostView ? _repostView->fromName() : nullptr,
 		.date = story->date(),
 		.fullIndex = _sliderCount ? _index : 0,
@@ -903,8 +903,11 @@ void Controller::show(
 	_recentViews->show({
 		.list = story->recentViewers(),
 		.reactions = story->reactions(),
-		.total = story->views(),
+		.forwards = story->forwards(),
+		.views = story->views(),
+		.total = story->interactions(),
 		.type = RecentViewsTypeFor(peer),
+		.canViewReactions = CanViewReactionsFor(peer),
 	}, _reactions->likedValue());
 	if (const auto nowLikeButton = _recentViews->likeButton()) {
 		if (wasLikeButton != nowLikeButton) {
@@ -996,11 +999,15 @@ void Controller::subscribeToSession() {
 			show(update.story, _context);
 			_delegate->storiesRedisplay(update.story);
 		} else {
+			const auto peer = update.story->peer();
 			_recentViews->show({
 				.list = update.story->recentViewers(),
 				.reactions = update.story->reactions(),
-				.total = update.story->views(),
-				.type = RecentViewsTypeFor(update.story->peer()),
+				.forwards = update.story->forwards(),
+				.views = update.story->views(),
+				.total = update.story->interactions(),
+				.type = RecentViewsTypeFor(peer),
+				.canViewReactions = CanViewReactionsFor(peer),
 			});
 			updateAreas(update.story);
 		}
@@ -1017,8 +1024,15 @@ void Controller::updateAreas(Data::Story *story) {
 	const auto &suggestedReactions = story
 		? story->suggestedReactions()
 		: std::vector<Data::SuggestedReaction>();
+	const auto &channelPosts = story
+		? story->channelPosts()
+		: std::vector<Data::ChannelPost>();
 	if (_locations != locations) {
 		_locations = locations;
+		_areas.clear();
+	}
+	if (_channelPosts != channelPosts) {
+		_channelPosts = channelPosts;
 		_areas.clear();
 	}
 	const auto reactionsCount = int(suggestedReactions.size());
@@ -1039,10 +1053,6 @@ void Controller::updateAreas(Data::Story *story) {
 		_suggestedReactions = suggestedReactions;
 		_areas.clear();
 	}
-	if (_areas.empty() || _suggestedReactions.empty()) {
-		return;
-	}
-
 }
 
 PauseState Controller::pauseState() const {
@@ -1165,10 +1175,16 @@ void Controller::updatePlayback(const Player::TrackState &state) {
 
 ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 	const auto &layout = _layout.current();
-	if ((_locations.empty() && _suggestedReactions.empty()) || !layout) {
+	if (!layout
+		|| (_locations.empty()
+			&& _suggestedReactions.empty()
+			&& _channelPosts.empty())) {
 		return nullptr;
 	} else if (_areas.empty()) {
-		_areas.reserve(_locations.size() + _suggestedReactions.size());
+		const auto now = story();
+		_areas.reserve(_locations.size()
+			+ _suggestedReactions.size()
+			+ _channelPosts.size());
 		for (const auto &location : _locations) {
 			_areas.push_back({
 				.original = location.area.geometry,
@@ -1197,6 +1213,17 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 				}),
 				.reaction = std::move(widget),
 			});
+		}
+		if (const auto session = now ? &now->session() : nullptr) {
+			for (const auto &channelPost : _channelPosts) {
+				_areas.push_back({
+					.original = channelPost.area.geometry,
+					.rotation = channelPost.area.rotation,
+					.handler = MakeChannelPostHandler(
+						session,
+						channelPost.itemId),
+				});
+			}
 		}
 		rebuildActiveAreas(*layout);
 	}
@@ -1410,11 +1437,19 @@ const Data::StoryViews &Controller::views(int limit, bool initial) {
 		const auto done = viewsGotMoreCallback();
 		const auto peer = shownPeer();
 		auto &stories = peer->owner().stories();
-		stories.loadViewsSlice(
-			peer,
-			_shown.story,
-			_viewsSlice.nextOffset,
-			done);
+		if (peer->isChannel()) {
+			stories.loadReactionsSlice(
+				peer,
+				_shown.story,
+				_viewsSlice.nextOffset,
+				done);
+		} else {
+			stories.loadViewsSlice(
+				peer,
+				_shown.story,
+				_viewsSlice.nextOffset,
+				done);
+		}
 	}
 	return _viewsSlice;
 }
@@ -1429,7 +1464,11 @@ Fn<void(Data::StoryViews)> Controller::viewsGotMoreCallback() {
 			const auto peer = shownPeer();
 			auto &stories = peer->owner().stories();
 			if (const auto maybeStory = stories.lookup(_shown)) {
-				_viewsSlice = (*maybeStory)->viewsList();
+				if (peer->isChannel()) {
+					_viewsSlice = (*maybeStory)->channelReactionsList();
+				} else {
+					_viewsSlice = (*maybeStory)->viewsList();
+				}
 			} else {
 				_viewsSlice = {};
 			}
@@ -1475,7 +1514,7 @@ StoryId Controller::shownId(int index) const {
 
 std::unique_ptr<RepostView> Controller::validateRepostView(
 		not_null<Data::Story*> story) {
-	return story->repost()
+	return (story->repost() || !story->channelPosts().empty())
 		? std::make_unique<RepostView>(this, story)
 		: nullptr;
 }
@@ -1592,8 +1631,12 @@ void Controller::refreshViewsFromData() {
 	const auto peer = shownPeer();
 	auto &stories = peer->owner().stories();
 	const auto maybeStory = stories.lookup(_shown);
-	if (!maybeStory || !peer->isSelf()) {
+	const auto check = peer->isSelf()
+		|| CanViewReactionsFor(peer);
+	if (!maybeStory || !check) {
 		_viewsSlice = {};
+	} else if (peer->isChannel()) {
+		_viewsSlice = (*maybeStory)->channelReactionsList();
 	} else {
 		_viewsSlice = (*maybeStory)->viewsList();
 	}
@@ -1777,6 +1820,25 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(not_null<PeerData*> peer) {
 		open,
 		[] { return false; },
 		&st::storiesShortInfoBox);
+}
+
+ClickHandlerPtr MakeChannelPostHandler(
+		not_null<Main::Session*> session,
+		FullMsgId item) {
+	return std::make_shared<LambdaClickHandler>(crl::guard(session, [=] {
+		const auto peer = session->data().peer(item.peer);
+		if (const auto window = Core::App().windowFor(peer)) {
+			if (const auto controller = window->sessionController()) {
+				if (&controller->session() == &peer->session()) {
+					Core::App().hideMediaView();
+					controller->showPeerHistory(
+						item.peer,
+						Window::SectionShow::Way::ClearStack,
+						item.msg);
+				}
+			}
+		}
+	}));
 }
 
 } // namespace Media::Stories

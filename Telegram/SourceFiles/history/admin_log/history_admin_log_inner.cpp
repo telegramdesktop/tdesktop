@@ -1243,7 +1243,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						showContextInFolder(lnkDocument);
 					}, &st::menuIconShowInFolder);
 				}
-				_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ?  tr::lng_context_save_audio(tr::now) : (lnkIsAudio ?  tr::lng_context_save_audio_file(tr::now) :  tr::lng_context_save_file(tr::now))), base::fn_delayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, lnkDocument] {
+				_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ? tr::lng_context_save_audio(tr::now) : (lnkIsAudio ?  tr::lng_context_save_audio_file(tr::now) :  tr::lng_context_save_file(tr::now))), base::fn_delayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, lnkDocument] {
 					saveDocumentToFile(lnkDocument);
 				}), &st::menuIconDownload);
 				if (lnkDocument->hasAttachedStickers()) {

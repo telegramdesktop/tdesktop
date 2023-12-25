@@ -459,7 +459,7 @@ PointState GroupedMedia::pointState(QPoint point) const {
 		return PointState::Outside;
 	}
 	const auto groupPadding = groupedPadding();
-	point -=  QPoint(0, groupPadding.top());
+	point -= QPoint(0, groupPadding.top());
 	for (const auto &part : _parts) {
 		if (part.geometry.contains(point)) {
 			return PointState::GroupPart;

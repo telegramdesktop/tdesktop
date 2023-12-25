@@ -498,6 +498,8 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 			: Result::Good;
 	}, [](const MTPDmessageMediaGiveaway &) {
 		return Result::Good;
+	}, [](const MTPDmessageMediaGiveawayResults &) {
+		return Result::Good;
 	}, [](const MTPDmessageMediaUnsupported &) {
 		return Result::Unsupported;
 	});

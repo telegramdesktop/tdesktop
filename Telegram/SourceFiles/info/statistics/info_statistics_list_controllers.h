@@ -26,7 +26,7 @@ namespace Info::Statistics {
 void AddPublicForwards(
 	const Data::PublicForwardsSlice &firstSlice,
 	not_null<Ui::VerticalLayout*> container,
-	Fn<void(FullMsgId)> showPeerHistory,
+	Fn<void(Data::RecentPostId)> requestShow,
 	not_null<PeerData*> peer,
 	Data::RecentPostId contextId);
 

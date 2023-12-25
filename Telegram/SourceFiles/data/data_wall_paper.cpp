@@ -198,9 +198,14 @@ WallPaperId WallPaper::id() const {
 	return _id;
 }
 
+QString WallPaper::emojiId() const {
+	return _emojiId;
+}
+
 bool WallPaper::equals(const WallPaper &paper) const {
 	return (_flags == paper._flags)
 		&& (_slug == paper._slug)
+		&& (_emojiId == paper._emojiId)
 		&& (_backgroundColors == paper._backgroundColors)
 		&& (_rotation == paper._rotation)
 		&& (_intensity == paper._intensity)
@@ -362,6 +367,7 @@ MTPWallPaperSettings WallPaper::mtpSettings() const {
 		MTP_flags((_blurred ? Flag::f_blur : Flag(0))
 			| Flag::f_intensity
 			| Flag::f_rotation
+			| (_emojiId.isEmpty() ? Flag() : Flag::f_emoticon)
 			| flagForIndex(0)
 			| flagForIndex(1)
 			| flagForIndex(2)
@@ -371,7 +377,8 @@ MTPWallPaperSettings WallPaper::mtpSettings() const {
 		serializeForIndex(2),
 		serializeForIndex(3),
 		MTP_int(_intensity),
-		MTP_int(_rotation));
+		MTP_int(_rotation),
+		MTP_string(_emojiId));
 }
 
 WallPaper WallPaper::withUrlParams(
@@ -519,6 +526,7 @@ std::optional<WallPaper> WallPaper::Create(const MTPDwallPaperNoFile &data) {
 			if (const auto rotation = data.vrotation()) {
 				result._rotation = rotation->v;
 			}
+			result._emojiId = qs(data.vemoticon().value_or_empty());
 		});
 	}
 	return result;
@@ -687,6 +695,12 @@ std::optional<WallPaper> WallPaper::FromColorsSlug(const QString &slug) {
 	auto result = CustomWallPaper();
 	result._slug = slug;
 	result._backgroundColors = std::move(colors);
+	return result;
+}
+
+WallPaper WallPaper::FromEmojiId(const QString &emojiId) {
+	auto result = WallPaper(0);
+	result._emojiId = emojiId;
 	return result;
 }
 

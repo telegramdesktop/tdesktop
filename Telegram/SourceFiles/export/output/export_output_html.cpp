@@ -613,7 +613,7 @@ private:
 	[[nodiscard]] QByteArray pushPoll(const Data::Poll &data);
 	[[nodiscard]] QByteArray pushGiveaway(
 		const PeersMap &peers,
-		const Data::Giveaway &data);
+		const Data::GiveawayStart &data);
 
 	File _file;
 	QByteArray _composedStart;
@@ -1112,7 +1112,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		if (data.recurringUsed) {
 			return "You were charged " + amount + " via recurring payment";
 		}
-		auto result =  "You have successfully transferred "
+		auto result = "You have successfully transferred "
 			+ amount
 			+ " for "
 			+ wrapReplyToLink("this invoice");
@@ -1501,7 +1501,7 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 		return pushPhotoMedia(*photo, basePath);
 	} else if (const auto poll = std::get_if<Poll>(&content)) {
 		return pushPoll(*poll);
-	} else if (const auto giveaway = std::get_if<Giveaway>(&content)) {
+	} else if (const auto giveaway = std::get_if<GiveawayStart>(&content)) {
 		return pushGiveaway(peers, *giveaway);
 	}
 	Assert(v::is_null(content));
@@ -1826,7 +1826,7 @@ QByteArray HtmlWriter::Wrap::pushPoll(const Data::Poll &data) {
 
 QByteArray HtmlWriter::Wrap::pushGiveaway(
 		const PeersMap &peers,
-		const Data::Giveaway &data) {
+		const Data::GiveawayStart &data) {
 	auto result = pushDiv("media_wrap clearfix");
 	result.append(pushDiv("media_giveaway"));
 
@@ -2028,7 +2028,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		result.description = data.description;
 		result.status = Data::FormatMoneyAmount(data.amount, data.currency);
 	}, [](const Poll &data) {
-	}, [](const Giveaway &data) {
+	}, [](const GiveawayStart &data) {
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
 	}, [](v::null_t) {});

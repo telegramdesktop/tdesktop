@@ -230,6 +230,16 @@ premiumGiftBox: Box(premiumPreviewBox) {
 	buttonPadding: margins(12px, 12px, 12px, 12px);
 }
 
+premiumGiftsUserpicButton: UserpicButton(defaultUserpicButton) {
+	size: size(66px, 66px);
+	photoSize: 66px;
+	photoPosition: point(-1px, -1px);
+}
+premiumGiftsUserpicBadgeSize: size(26px, 26px);
+premiumGiftsUserpicBadgeInner: 2px;
+premiumGiftsUserpicBadgeFont: font(14px bold);
+premiumGiftsBoostIcon: icon{{ "stories/boost_mini", windowBgActive }};
+
 boostSkipTop: 37px;
 boostLimits: PremiumLimits(defaultPremiumLimits) {
 	gradientFromLeft: true;

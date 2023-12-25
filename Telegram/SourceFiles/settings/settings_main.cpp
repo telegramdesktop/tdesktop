@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/new_badges.h"
 #include "ui/vertical_list.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
@@ -60,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "base/call_delayed.h"
+#include "base/unixtime.h"
 #include "base/platform/base_platform_info.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
@@ -417,6 +419,21 @@ void SetupPremium(
 		controller->setPremiumRef("settings");
 		showOther(PremiumId());
 	});
+	{
+		const auto button = AddButtonWithIcon(
+			container,
+			tr::lng_settings_gift_premium(),
+			st::settingsButton,
+			{ .icon = &st::menuIconGiftPremium }
+		);
+		button->addClickHandler([=] {
+			controller->showGiftPremiumsBox();
+		});
+		constexpr auto kNewExpiresAt = int(1735689600);
+		if (base::unixtime::now() < kNewExpiresAt) {
+			Ui::NewBadge::AddToRight(button);
+		}
+	}
 	Ui::AddSkip(container);
 }
 

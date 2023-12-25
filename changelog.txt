@@ -1,3 +1,14 @@
+4.13.1 (23.12.23)
+
+- Fix crash in chat history right click.
+- Fix user emoji status display in main menu, profile and settings.
+
+4.13 (22.12.23)
+
+- Support setting channel wallpaper.
+- Support setting channel emoji status.
+- Allow gifting premium to several recipients at once.
+
 4.12.2 (01.12.23)
 
 - Fix choosing custom reactions in channels.

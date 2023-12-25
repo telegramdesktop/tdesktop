@@ -15,6 +15,7 @@
     <file alias="art/slot_2_idle.tgs">../../art/slot_2_idle.tgs</file>
     <file alias="art/slot_back.tgs">../../art/slot_back.tgs</file>
     <file alias="art/slot_pull.tgs">../../art/slot_pull.tgs</file>
+    <file alias="art/winners.tgs">../../art/winners.tgs</file>
     <file alias="day-blue.tdesktop-theme">../../day-blue.tdesktop-theme</file>
     <file alias="night.tdesktop-theme">../../night.tdesktop-theme</file>
     <file alias="night-green.tdesktop-theme">../../night-green.tdesktop-theme</file>

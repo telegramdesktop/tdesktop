@@ -415,12 +415,16 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 		const auto peer = item->history()->peer;
 		const auto itemId = item->id;
 		const auto id = int32(button->buttonId);
-		const auto chosen = [=](not_null<PeerData*> result) {
+		const auto chosen = [=](std::vector<not_null<PeerData*>> result) {
 			peer->session().api().request(MTPmessages_SendBotRequestedPeer(
 				peer->input,
 				MTP_int(itemId),
 				MTP_int(id),
-				result->input
+				MTP_vector_from_range(
+					result
+					| ranges::views::transform([](
+						not_null<PeerData*> peer) {
+				return MTPInputPeer(peer->input); }))
 			)).done([=](const MTPUpdates &result) {
 				peer->session().api().applyUpdates(result);
 			}).send();

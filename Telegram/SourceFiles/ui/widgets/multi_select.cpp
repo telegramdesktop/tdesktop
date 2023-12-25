@@ -381,7 +381,7 @@ void Item::prepareCache() {
 		paintOnce(
 			p,
 			_width * (kWideScale - 1) / 2,
-			_st.height  * (kWideScale - 1) / 2,
+			_st.height * (kWideScale - 1) / 2,
 			cacheWidth);
 	}
 	_cache = Ui::PixmapFromImage(std::move(data));

@@ -38,6 +38,7 @@ public:
 	void draw(Painter &p, int x, int y, int availableWidth);
 	[[nodiscard]] RepostClickHandler lookupHandler(QPoint position);
 
+	[[nodiscard]] PeerData *fromPeer() const;
 	[[nodiscard]] QString fromName() const;
 
 private:
@@ -49,6 +50,7 @@ private:
 
 	const not_null<Controller*> _controller;
 	const not_null<Data::Story*> _story;
+	PeerData *_sourcePeer = nullptr;
 	ClickHandlerPtr _link;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 

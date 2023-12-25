@@ -845,6 +845,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 
 		const auto wasCallNotEmpty = Data::ChannelHasActiveCall(channel);
 
+		channel->updateLevelHint(data.vlevel().value_or_empty());
 		if (const auto count = data.vparticipants_count()) {
 			channel->setMembersCount(count->v);
 		}
@@ -854,6 +855,11 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			channel->setDefaultRestrictions(ChatRestrictions());
 		}
 
+		if (const auto &status = data.vemoji_status()) {
+			channel->setEmojiStatus(*status);
+		} else {
+			channel->setEmojiStatus(0);
+		}
 		if (minimal) {
 			if (channel->input.type() == mtpc_inputPeerEmpty
 				|| channel->inputChannel.type() == mtpc_inputChannelEmpty) {
@@ -3416,7 +3422,7 @@ void Session::webpageApplyFields(
 					data.vid().v,
 				};
 				if (const auto embed = data.vstory()) {
-					story = stories().applyFromWebpage(
+					story = stories().applySingle(
 						peerFromMTP(data.vpeer()),
 						*embed);
 				} else if (const auto maybe = stories().lookup(storyId)) {

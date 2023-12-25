@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_chat.h"
@@ -471,13 +472,28 @@ ThemeDocumentBox::ThemeDocumentBox(
 	not_null<Element*> parent,
 	const Data::WallPaper &paper)
 : _parent(parent)
-, _preview(
-		parent,
+, _emojiId(paper.emojiId()) {
+	Window::WallPaperResolved(
+		&_parent->history()->owner(),
+		&paper
+	) | rpl::start_with_next([=](const Data::WallPaper *paper) {
+		_parent->repaint();
+		if (!paper) {
+			_preview.reset();
+		} else {
+			createPreview(*paper);
+		}
+	}, _lifetime);
+}
+
+void ThemeDocumentBox::createPreview(const Data::WallPaper &paper) {
+	_preview.emplace(
+		_parent,
 		paper.document(),
 		paper,
-		st::msgServicePhotoWidth) {
-	_preview.initDimensions();
-	_preview.resizeGetHeight(_preview.maxWidth());
+		st::msgServicePhotoWidth);
+	_preview->initDimensions();
+	_preview->resizeGetHeight(_preview->maxWidth());
 }
 
 ThemeDocumentBox::~ThemeDocumentBox() = default;
@@ -487,7 +503,9 @@ int ThemeDocumentBox::top() {
 }
 
 QSize ThemeDocumentBox::size() {
-	return { _preview.maxWidth(), _preview.minHeight() };
+	return _preview
+		? QSize(_preview->maxWidth(), _preview->minHeight())
+		: QSize(st::msgServicePhotoWidth, st::msgServicePhotoWidth);
 }
 
 QString ThemeDocumentBox::title() {
@@ -509,8 +527,11 @@ rpl::producer<QString> ThemeDocumentBox::button() {
 }
 
 ClickHandlerPtr ThemeDocumentBox::createViewLink() {
-	const auto out = _parent->data()->out();
 	const auto to = _parent->history()->peer;
+	if (to->isChannel()) {
+		return nullptr;
+	}
+	const auto out = _parent->data()->out();
 	const auto media = _parent->data()->media();
 	const auto weak = base::make_weak(_parent);
 	const auto paper = media ? media->paper() : nullptr;
@@ -557,9 +578,11 @@ void ThemeDocumentBox::draw(
 		Painter &p,
 		const PaintContext &context,
 		const QRect &geometry) {
-	p.translate(geometry.topLeft());
-	_preview.draw(p, context);
-	p.translate(-geometry.topLeft());
+	if (_preview) {
+		p.translate(geometry.topLeft());
+		_preview->draw(p, context);
+		p.translate(-geometry.topLeft());
+	}
 }
 
 void ThemeDocumentBox::stickerClearLoopPlayed() {
@@ -572,11 +595,13 @@ std::unique_ptr<StickerPlayer> ThemeDocumentBox::stickerTakePlayer(
 }
 
 bool ThemeDocumentBox::hasHeavyPart() {
-	return _preview.hasHeavyPart();
+	return _preview && _preview->hasHeavyPart();
 }
 
 void ThemeDocumentBox::unloadHeavyPart() {
-	_preview.unloadHeavyPart();
+	if (_preview) {
+		_preview->unloadHeavyPart();
+	}
 }
 
 } // namespace HistoryView

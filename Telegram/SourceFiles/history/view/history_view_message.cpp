@@ -182,7 +182,7 @@ void KeyboardStyle::paintButtonBg(
 			const auto &small = sti->msgServiceBgCornersSmall;
 			const auto &large = sti->msgServiceBgCornersLarge;
 			auto corners = Ui::CornersPixmaps();
-            int radiuses[4];
+			int radiuses[4];
 			for (auto i = 0; i != 4; ++i) {
 				const auto isLarge = (rounding[i] == Corner::Large);
 				corners.p[i] = (isLarge ? large : small).p[i];
@@ -403,6 +403,11 @@ Message::Message(
 , _bottomInfo(
 		&data->history()->owner().reactions(),
 		BottomInfoDataFromMessage(this)) {
+	if (const auto media = data->media()) {
+		if (media->giveawayResults()) {
+			_hideReply = 1;
+		}
+	}
 	initLogEntryOriginal();
 	initPsa();
 	refreshReactions();
@@ -1405,13 +1410,12 @@ void Message::paintFromName(
 		const auto y = trect.top();
 		auto color = nameFg;
 		color.setAlpha(115);
-		const auto user = from->asUser();
-		const auto id = user ? user->emojiStatusId() : 0;
+		const auto id = from ? from->emojiStatusId() : 0;
 		if (_fromNameStatus->id != id) {
 			const auto that = const_cast<Message*>(this);
 			_fromNameStatus->custom = id
 				? std::make_unique<Ui::Text::LimitedLoopsEmoji>(
-					user->owner().customEmojiManager().create(
+					history()->owner().customEmojiManager().create(
 						id,
 						[=] { that->customEmojiRepaint(); }),
 					kPlayStatusLimit)
@@ -3012,7 +3016,8 @@ void Message::validateFromNameText(PeerData *from) const {
 			from->name(),
 			Ui::NameTextOptions());
 	}
-	if (from->isPremium()) {
+	if (from->isPremium()
+		|| (from->isChannel() && from != history()->peer)) {
 		if (!_fromNameStatus) {
 			_fromNameStatus = std::make_unique<FromNameStatus>();
 			const auto size = st::emojiSize;

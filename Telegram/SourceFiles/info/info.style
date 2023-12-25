@@ -404,6 +404,7 @@ infoIconMediaStoriesRecent: icon {{ "info/info_stories_recent", infoIconFg }};
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
 infoIconDelete: icon {{ "info/info_delete", infoIconFg }};
+infoIconDeleteRed: icon {{ "info/info_delete", attentionButtonFg }};
 infoIconReport: icon {{ "info/info_report", attentionButtonFg }};
 infoIconLeave: icon {{ "info/info_leave", infoIconFg }};
 infoIconBlock: icon {{ "info/info_block", attentionButtonFg }};

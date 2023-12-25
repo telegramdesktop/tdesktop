@@ -69,7 +69,7 @@ void BarChartView::paintChartAndSelected(
 		const auto &line = c.chartData.lines[i];
 		auto path = QPainterPath();
 		for (auto x = localStart; x <= localEnd; x++) {
-			if (line.y[x] <= 0) {
+			if (line.y[x] <= 0 && _isStack) {
 				continue;
 			}
 			const auto yPercentage = (line.y[x] - c.heightLimits.min)

@@ -51,15 +51,20 @@ public:
 		not_null<Window::SessionController*> controller;
 		not_null<QWidget*> button;
 		Data::CustomEmojiSizeTag animationSizeTag = {};
-		DocumentId currentBackgroundEmojiId = 0;
+		DocumentId ensureAddedEmojiId = 0;
 		Fn<QColor()> customTextColor;
 		bool backgroundEmojiMode = false;
+		bool channelStatusMode = false;
 	};
 	void show(Descriptor &&descriptor);
 	void repaint();
 
-	[[nodiscard]] rpl::producer<DocumentId> backgroundEmojiChosen() const {
-		return _backgroundEmojiChosen.events();
+	struct CustomChosen {
+		DocumentId id = 0;
+		TimeId until = 0;
+	};
+	[[nodiscard]] rpl::producer<CustomChosen> someCustomChosen() const {
+		return _someCustomChosen.events();
 	}
 
 	bool paintBadgeFrame(not_null<Ui::RpWidget*> widget);
@@ -81,9 +86,10 @@ private:
 	Fn<bool(DocumentId)> _chooseFilter;
 	QPointer<QWidget> _panelButton;
 	std::unique_ptr<Ui::EmojiFlyAnimation> _animation;
-	rpl::event_stream<DocumentId> _backgroundEmojiChosen;
+	rpl::event_stream<CustomChosen> _someCustomChosen;
 	Data::CustomEmojiSizeTag _animationSizeTag = {};
 	bool _backgroundEmojiMode = false;
+	bool _channelStatusMode = false;
 
 };
 

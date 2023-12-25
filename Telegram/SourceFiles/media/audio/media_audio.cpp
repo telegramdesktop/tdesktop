@@ -182,7 +182,7 @@ void ClosePlaybackDevice(not_null<Instance*> instance) {
 
 } // namespace
 
-  // Thread: Main.
+// Thread: Main.
 void Start(not_null<Instance*> instance) {
 	Assert(AudioDevice == nullptr);
 

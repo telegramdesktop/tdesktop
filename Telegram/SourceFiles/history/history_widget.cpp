@@ -4561,7 +4561,7 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 			if (k->key() == Qt::Key_Up) {
 #ifdef Q_OS_MAC
 				// Cmd + Up is used instead of Home.
-				if (!_field->textCursor().atStart()) {
+				if (HasSendText(_field)) {
 					return false;
 				}
 #endif
@@ -4569,7 +4569,7 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 			} else if (k->key() == Qt::Key_Down) {
 #ifdef Q_OS_MAC
 				// Cmd + Down is used instead of End.
-				if (!_field->textCursor().atEnd()) {
+				if (HasSendText(_field)) {
 					return false;
 				}
 #endif

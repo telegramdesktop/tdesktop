@@ -603,10 +603,17 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	if (!raw->widget()) {
 		return false;
 	}
+	QObject::connect(raw->widget(), &QObject::destroyed, [=] {
+		crl::on_main(this, [=] {
+			showCriticalError({ "Error: WebView has crashed." });
+		});
+	});
 
 	container->geometryValue(
 	) | rpl::start_with_next([=](QRect geometry) {
-		raw->widget()->setGeometry(geometry);
+		if (raw->widget()) {
+			raw->widget()->setGeometry(geometry);
+		}
 	}, _webview->lifetime);
 
 	raw->setMessageHandler([=](const QJsonDocument &message) {

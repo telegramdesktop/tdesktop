@@ -16,7 +16,8 @@ struct GiftCode;
 } // namespace Api
 
 namespace Data {
-struct Giveaway;
+struct GiveawayStart;
+struct GiveawayResults;
 } // namespace Data
 
 namespace Ui {
@@ -33,6 +34,7 @@ public:
 	GiftPremiumValidator(not_null<Window::SessionController*> controller);
 
 	void showBox(not_null<UserData*> user);
+	void showChoosePeerBox();
 	void cancel();
 
 private:
@@ -40,6 +42,8 @@ private:
 	MTP::Sender _api;
 
 	mtpRequestId _requestId = 0;
+
+	rpl::lifetime _manyGiftsLifetime;
 
 };
 
@@ -56,10 +60,13 @@ void GiftCodePendingBox(
 	const Api::GiftCode &data);
 void ResolveGiftCode(
 	not_null<Window::SessionNavigation*> controller,
-	const QString &slug);
+	const QString &slug,
+	PeerId fromId = 0,
+	PeerId toId = 0);
 
 void ResolveGiveawayInfo(
 	not_null<Window::SessionNavigation*> controller,
 	not_null<PeerData*> peer,
 	MsgId messageId,
-	Data::Giveaway giveaway);
+	std::optional<Data::GiveawayStart> start,
+	std::optional<Data::GiveawayResults> results);

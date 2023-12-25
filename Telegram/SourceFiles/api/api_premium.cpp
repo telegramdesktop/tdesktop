@@ -26,7 +26,7 @@ namespace {
 
 [[nodiscard]] GiftCode Parse(const MTPDpayments_checkedGiftCode &data) {
 	return {
-		.from = peerFromMTP(data.vfrom_id()),
+		.from = data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(),
 		.to = data.vto_id() ? peerFromUser(*data.vto_id()) : PeerId(),
 		.giveawayId = data.vgiveaway_msg_id().value_or_empty(),
 		.date = data.vdate().v,
@@ -342,15 +342,12 @@ PremiumGiftCodeOptions::PremiumGiftCodeOptions(not_null<PeerData*> peer)
 rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
-		const auto channel = _peer->asChannel();
-		if (!channel) {
-			return lifetime;
-		}
 
 		using TLOption = MTPPremiumGiftCodeOption;
 		_api.request(MTPpayments_GetPremiumGiftCodeOptions(
-			MTP_flags(
-				MTPpayments_GetPremiumGiftCodeOptions::Flag::f_boost_peer),
+			MTP_flags(_peer->isChannel()
+				? MTPpayments_GetPremiumGiftCodeOptions::Flag::f_boost_peer
+				: MTPpayments_GetPremiumGiftCodeOptions::Flag(0)),
 			_peer->input
 		)).done([=](const MTPVector<TLOption> &result) {
 			auto tlMapOptions = base::flat_map<Amount, QVector<TLOption>>();
@@ -420,6 +417,8 @@ const std::vector<int> &PremiumGiftCodeOptions::availablePresets() const {
 }
 
 [[nodiscard]] int PremiumGiftCodeOptions::monthsFromPreset(int monthsIndex) {
+	Expects(monthsIndex >= 0 && monthsIndex < _availablePresets.size());
+
 	return _optionsForOnePerson.months[monthsIndex];
 }
 

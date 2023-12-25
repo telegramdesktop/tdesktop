@@ -311,9 +311,13 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			media.vid().v,
 		}, media.is_via_mention());
 	}, [&](const MTPDmessageMediaGiveaway &media) -> Result {
-		return std::make_unique<Data::MediaGiveaway>(
+		return std::make_unique<Data::MediaGiveawayStart>(
 			item,
-			Data::ComputeGiveawayData(item, media));
+			Data::ComputeGiveawayStartData(item, media));
+	}, [&](const MTPDmessageMediaGiveawayResults &media) -> Result {
+		return std::make_unique<Data::MediaGiveawayResults>(
+			item,
+			Data::ComputeGiveawayResultsData(item, media));
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {
@@ -788,6 +792,8 @@ HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
 		return info;
 	} else if (const auto same = Get<HistoryServiceSameBackground>()) {
 		return same;
+	} else if (const auto results = Get<HistoryServiceGiveawayResults>()) {
+		return results;
 	}
 	return nullptr;
 }
@@ -3705,6 +3711,8 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		} else {
 			RemoveComponents(HistoryServiceSameBackground::Bit());
 		}
+	} else if (type == mtpc_messageActionGiveawayResults) {
+		UpdateComponents(HistoryServiceGiveawayResults::Bit());
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -3919,7 +3927,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 				lt_from,
 				fromLinkText(), // Link 1.
 				lt_user,
-				Ui::Text::Link(user->name(), 2),  // Link 2.
+				Ui::Text::Link(user->name(), 2), // Link 2.
 				Ui::Text::WithEntities);
 		}
 		return result;
@@ -4468,18 +4476,45 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareRequestedPeer = [&](
 			const MTPDmessageActionRequestedPeer &action) {
-		const auto peerId = peerFromMTP(action.vpeer());
-		const auto peer = history()->owner().peer(peerId);
 		auto result = PreparedServiceText{};
+		result.links.push_back(fromLink());
+
+		const auto &list = action.vpeers().v;
+		for (auto i = 0, count = int(list.size()); i != count; ++i) {
+			const auto id = peerFromMTP(list[i]);
+
+			auto user = _history->owner().peer(id);
+			result.links.push_back(user->createOpenLink());
+
+			auto linkText = Ui::Text::Link(user->name(), 2 + i);
+			if (i == 0) {
+				result.text = linkText;
+			} else if (i + 1 == count) {
+				result.text = tr::lng_action_add_users_and_last(
+					tr::now,
+					lt_accumulated,
+					result.text,
+					lt_user,
+					linkText,
+					Ui::Text::WithEntities);
+			} else {
+				result.text = tr::lng_action_add_users_and_one(
+					tr::now,
+					lt_accumulated,
+					result.text,
+					lt_user,
+					linkText,
+					Ui::Text::WithEntities);
+			}
+		}
+
 		result.text = tr::lng_action_shared_chat_with_bot(
 			tr::now,
 			lt_chat,
-			Ui::Text::Link(peer->name(), 1),
+			result.text,
 			lt_bot,
 			Ui::Text::Link(history()->peer->name(), 2),
 			Ui::Text::WithEntities);
-		result.links.push_back(peer->createOpenLink());
-		result.links.push_back(history()->peer->createOpenLink());
 		return result;
 	};
 
@@ -4522,19 +4557,35 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareGiftCode = [&](const MTPDmessageActionGiftCode &action) {
 		auto result = PreparedServiceText();
 		_history->session().giftBoxStickersPacks().load();
-		result.text = {
-			(action.is_unclaimed()
-				? tr::lng_prize_unclaimed_about
-				: action.is_via_giveaway()
-				? tr::lng_prize_about
-				: tr::lng_prize_gift_about)(
+		if (const auto boosted = action.vboost_peer()) {
+			result.text = {
+				(action.is_unclaimed()
+					? tr::lng_prize_unclaimed_about
+					: action.is_via_giveaway()
+					? tr::lng_prize_about
+					: tr::lng_prize_gift_about)(
+						tr::now,
+						lt_channel,
+						_from->owner().peer(
+							peerFromMTP(*action.vboost_peer()))->name()),
+			};
+		} else {
+			const auto isSelf = (_from->id == _from->session().userPeerId());
+			const auto peer = isSelf ? _history->peer : _from;
+			result.links.push_back(peer->createOpenLink());
+			result.text = (isSelf
+				? tr::lng_action_gift_received_me
+				: tr::lng_action_gift_received)(
 					tr::now,
-					lt_channel,
-					(action.vboost_peer()
-						? _from->owner().peer(
-							peerFromMTP(*action.vboost_peer()))->name()
-						: "a channel")),
-		};
+					lt_user,
+					Ui::Text::Link(peer->name(), 1), // Link 1.
+					lt_cost,
+					{ Ui::FillAmountAndCurrency(
+						action.vamount().value_or_empty(),
+						qs(action.vcurrency().value_or_empty())) },
+					Ui::Text::WithEntities);
+
+		}
 		return result;
 	};
 
@@ -4689,7 +4740,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 			_from,
 			Data::GiftCode{
 				.slug = qs(data.vslug()),
-				.channel = (peerIsChannel(boostedId)
+				.channel = (boostedId
 					? history()->owner().channel(boostedId).get()
 					: nullptr),
 				.months = data.vmonths().v,

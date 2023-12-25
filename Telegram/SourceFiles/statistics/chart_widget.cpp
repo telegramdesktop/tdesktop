@@ -107,7 +107,8 @@ void PaintBottomLine(
 		startXIndex,
 		xPercentageLimits.max);
 
-	const auto edgeAlphaSize = st::statisticsChartBottomCaptionMaxWidth / 4.;
+	const auto captionMaxWidth = chartData.dayStringMaxWidth;
+	const auto edgeAlphaSize = captionMaxWidth / 4.;
 
 	for (auto k = 0; k < dates.size(); k++) {
 		const auto &date = dates[k];
@@ -145,9 +146,9 @@ void PaintBottomLine(
 				/ float64(chartData.x.back() - chartData.x.front());
 			const auto xPoint = xPercentage * fullWidth - offset;
 			const auto r = QRectF(
-				xPoint - st::statisticsChartBottomCaptionMaxWidth / 2.,
+				xPoint - captionMaxWidth / 2.,
 				y,
-				st::statisticsChartBottomCaptionMaxWidth,
+				captionMaxWidth,
 				st::statisticsChartBottomCaptionHeight);
 			const auto edgeAlpha = (r.x() < 0)
 				? std::max(
@@ -969,7 +970,7 @@ void ChartWidget::setupChartArea() {
 			[[maybe_unused]] const auto o = ScopedPainterOpacity(
 				p,
 				p.opacity() * kRulerLineAlpha);
-			const auto bottom = r
+			const auto bottom = rect()
 				- QMargins{ 0, rect::bottom(chartRect), 0, 0 };
 			p.fillRect(bottom, st::boxBg);
 			p.fillRect(
@@ -1018,7 +1019,7 @@ void ChartWidget::updateBottomDates() {
 
 	const auto by = int(_chartArea->width() / float64(_chartData.x.size()));
 	_bottomLine.captionIndicesOffset = 0
-		+ st::statisticsChartBottomCaptionMaxWidth / std::max(by, 1);
+		+ _chartData.dayStringMaxWidth / std::max(by, 1);
 
 	const auto isCurrentNull = (_bottomLine.current.stepMinFast == 0);
 	if (!isCurrentNull

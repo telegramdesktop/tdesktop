@@ -465,6 +465,8 @@ public:
 	[[nodiscard]] virtual bool allowTextSelectionByHandler(
 		const ClickHandlerPtr &handler) const;
 
+	[[nodiscard]] bool usesBubblePattern(const PaintContext &context) const;
+
 	struct VerticalRepaintRange {
 		int top = 0;
 		int height = 0;

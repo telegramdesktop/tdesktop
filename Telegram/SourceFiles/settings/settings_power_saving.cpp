@@ -172,7 +172,7 @@ EditFlagsDescriptor<PowerSaving::Flags> PowerSavingLabels() {
 		{ tr::lng_settings_power_emoji(), std::move(emoji) },
 		{ tr::lng_settings_power_chat(), std::move(chat) },
 		{ std::nullopt, std::move(calls) },
-		{ std::nullopt, std::move(animations),  },
+		{ std::nullopt, std::move(animations) },
 	}, .st = &st::powerSavingButton };
 }
 

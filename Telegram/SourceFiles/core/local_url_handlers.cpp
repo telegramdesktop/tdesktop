@@ -344,9 +344,19 @@ bool ResolveUsernameOrPhone(
 		qthelp::UrlParamNameTransform::ToLower);
 	const auto domainParam = params.value(u"domain"_q);
 	const auto appnameParam = params.value(u"appname"_q);
+	const auto myContext = context.value<ClickHandlerContext>();
 
 	if (domainParam == u"giftcode"_q && !appnameParam.isEmpty()) {
-		ResolveGiftCode(controller, appnameParam);
+		const auto itemId = myContext.itemId;
+		const auto item = controller->session().data().message(itemId);
+		const auto fromId = item ? item->from()->id : PeerId();
+		const auto selfId = controller->session().userPeerId();
+		const auto toId = !item
+			? PeerId()
+			: (fromId == selfId)
+			? item->history()->peer->id
+			: selfId;
+		ResolveGiftCode(controller, appnameParam, fromId, toId);
 		return true;
 	}
 
@@ -413,7 +423,6 @@ bool ResolveUsernameOrPhone(
 			startToken = params.value(u"startapp"_q);
 		}
 	}
-	const auto myContext = context.value<ClickHandlerContext>();
 	controller->window().activate();
 	controller->showPeerByLink(Window::PeerByLinkInfo{
 		.usernameOrId = domain,
@@ -732,7 +741,8 @@ void ExportTestChatTheme(
 				MTP_int(color(bg.size() > 2 ? bg[2] : Qt::black)),
 				MTP_int(color(bg.size() > 3 ? bg[3] : Qt::black)),
 				MTP_int(fields.paper->patternIntensity()),
-				MTP_int(0)));
+				MTP_int(0), // rotation
+				MTPstring())); // emoticon
 	};
 	const auto light = inputSettings(Data::CloudThemeType::Light);
 	if (!light) {

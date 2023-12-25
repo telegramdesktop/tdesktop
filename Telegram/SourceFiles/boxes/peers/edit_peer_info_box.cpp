@@ -1294,6 +1294,9 @@ void Controller::editReactions() {
 		_peer->input
 	)).done([=](const MTPpremium_BoostsStatus &result) {
 		_controls.levelRequested = false;
+		if (const auto channel = _peer->asChannel()) {
+			channel->updateLevelHint(result.data().vlevel().v);
+		}
 		const auto link = qs(result.data().vboost_url());
 		const auto weak = base::make_weak(_navigation->parentController());
 		auto counters = ParseBoostCounters(result);

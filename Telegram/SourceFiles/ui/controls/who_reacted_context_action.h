@@ -54,11 +54,18 @@ struct WhoReadContent {
 	Fn<void(uint64)> participantChosen,
 	Fn<void()> showAllChosen);
 
+enum class WhoReactedType : uchar {
+	Viewed,
+	Reacted,
+	Reposted,
+	Forwarded,
+	Preloader,
+};
+
 struct WhoReactedEntryData {
 	QString text;
 	QString date;
-	bool dateReacted = false;
-	bool preloader = false;
+	WhoReactedType type = WhoReactedType::Viewed;
 	QString customEntityData;
 	QImage userpic;
 	Fn<void()> callback;
@@ -95,8 +102,7 @@ private:
 	QImage _userpic;
 	int _textWidth = 0;
 	int _customSize = 0;
-	bool _dateReacted = false;
-	bool _preloader = false;
+	WhoReactedType _type = WhoReactedType::Viewed;
 
 };
 

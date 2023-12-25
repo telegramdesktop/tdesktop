@@ -2502,7 +2502,7 @@ void Account::writeRecentHashtagsAndBots() {
 		writeMapQueued();
 	}
 	quint32 size = sizeof(quint32) * 3, writeCnt = 0, searchCnt = 0, botsCnt = cRecentInlineBots().size();
-	for (auto i = write.cbegin(), e = write.cend(); i != e;  ++i) {
+	for (auto i = write.cbegin(), e = write.cend(); i != e; ++i) {
 		if (!i->first.isEmpty()) {
 			size += Serialize::stringSize(i->first) + sizeof(quint16);
 			++writeCnt;

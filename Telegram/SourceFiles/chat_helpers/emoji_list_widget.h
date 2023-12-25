@@ -71,6 +71,7 @@ enum class EmojiListMode {
 	Full,
 	TopicIcon,
 	EmojiStatus,
+	ChannelStatus,
 	FullReactions,
 	RecentReactions,
 	UserpicBuilder,
@@ -384,6 +385,7 @@ private:
 	bool _grabbingChosen = false;
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
+	base::flat_set<DocumentId> _restrictedCustomList;
 	base::flat_map<DocumentId, CustomEmojiInstance> _customEmoji;
 	base::flat_map<
 		DocumentId,

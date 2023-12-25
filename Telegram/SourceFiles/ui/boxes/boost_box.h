@@ -54,6 +54,14 @@ struct AskBoostChannelColor {
 	int requiredLevel = 0;
 };
 
+struct AskBoostWallpaper {
+	int requiredLevel = 0;
+};
+
+struct AskBoostEmojiStatus {
+	int requiredLevel = 0;
+};
+
 struct AskBoostCustomReactions {
 	int count = 0;
 };
@@ -61,6 +69,8 @@ struct AskBoostCustomReactions {
 struct AskBoostReason {
 	std::variant<
 		AskBoostChannelColor,
+		AskBoostWallpaper,
+		AskBoostEmojiStatus,
 		AskBoostCustomReactions> data;
 };
 

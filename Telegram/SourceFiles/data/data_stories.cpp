@@ -220,7 +220,7 @@ void Stories::apply(not_null<PeerData*> peer, const MTPPeerStories *data) {
 	}
 }
 
-Story *Stories::applyFromWebpage(PeerId peerId, const MTPstoryItem &story) {
+Story *Stories::applySingle(PeerId peerId, const MTPstoryItem &story) {
 	const auto idDates = parseAndApply(
 		_owner->peer(peerId),
 		story,
@@ -1353,6 +1353,96 @@ void Stories::loadViewsSlice(
 	}
 }
 
+void Stories::loadReactionsSlice(
+		not_null<PeerData*> peer,
+		StoryId id,
+		QString offset,
+		Fn<void(StoryViews)> done) {
+	Expects(peer->isChannel());
+
+	if (_reactionsStoryPeer == peer
+		&& _reactionsStoryId == id
+		&& _reactionsOffset == offset) {
+		if (_reactionsRequestId) {
+			_reactionsDone = std::move(done);
+		}
+		return;
+	}
+	_reactionsStoryPeer = peer;
+	_reactionsStoryId = id;
+	_reactionsOffset = offset;
+	_reactionsDone = std::move(done);
+
+	using Flag = MTPstories_GetStoryReactionsList::Flag;
+	const auto api = &_owner->session().api();
+	_owner->session().api().request(_reactionsRequestId).cancel();
+	_reactionsRequestId = api->request(MTPstories_GetStoryReactionsList(
+		MTP_flags(offset.isEmpty() ? Flag() : Flag::f_offset),
+		_reactionsStoryPeer->input,
+		MTP_int(_reactionsStoryId),
+		MTPReaction(),
+		MTP_string(_reactionsOffset),
+		MTP_int(kViewsPerPage)
+	)).done([=](const MTPstories_StoryReactionsList &result) {
+		_reactionsRequestId = 0;
+
+		const auto &data = result.data();
+		auto slice = StoryViews{
+			.nextOffset = data.vnext_offset().value_or_empty(),
+			.reactions = data.vcount().v,
+			.total = data.vcount().v,
+		};
+		_owner->processUsers(data.vusers());
+		_owner->processChats(data.vchats());
+		slice.list.reserve(data.vreactions().v.size());
+		for (const auto &reaction : data.vreactions().v) {
+			reaction.match([&](const MTPDstoryReaction &data) {
+				slice.list.push_back({
+					.peer = _owner->peer(peerFromMTP(data.vpeer_id())),
+					.reaction = ReactionFromMTP(data.vreaction()),
+					.date = data.vdate().v,
+				});
+			}, [&](const MTPDstoryReactionPublicRepost &data) {
+				const auto story = applySingle(
+					peerFromMTP(data.vpeer_id()),
+					data.vstory());
+				if (story) {
+					slice.list.push_back({
+						.peer = story->peer(),
+						.repostId = story->id(),
+						});
+				}
+			}, [&](const MTPDstoryReactionPublicForward &data) {
+				const auto item = _owner->addNewMessage(
+					data.vmessage(),
+					{},
+					NewMessageType::Existing);
+				if (item) {
+					slice.list.push_back({
+						.peer = item->history()->peer,
+						.forwardId = item->id,
+					});
+				}
+			});
+		}
+		const auto fullId = FullStoryId{
+			.peer = _reactionsStoryPeer->id,
+			.story = _reactionsStoryId,
+		};
+		if (const auto story = lookup(fullId)) {
+			(*story)->applyChannelReactionsSlice(_reactionsOffset, slice);
+		}
+		if (const auto done = base::take(_reactionsDone)) {
+			done(std::move(slice));
+		}
+	}).fail([=] {
+		_reactionsRequestId = 0;
+		if (const auto done = base::take(_reactionsDone)) {
+			done({});
+		}
+	}).send();
+}
+
 void Stories::sendViewsSliceRequest() {
 	Expects(_viewsStoryPeer != nullptr);
 	Expects(_viewsStoryPeer->isSelf());
@@ -1374,17 +1464,43 @@ void Stories::sendViewsSliceRequest() {
 		auto slice = StoryViews{
 			.nextOffset = data.vnext_offset().value_or_empty(),
 			.reactions = data.vreactions_count().v,
+			.forwards = data.vforwards_count().v,
+			.views = data.vviews_count().v,
 			.total = data.vcount().v,
 		};
 		_owner->processUsers(data.vusers());
+		_owner->processChats(data.vchats());
 		slice.list.reserve(data.vviews().v.size());
 		for (const auto &view : data.vviews().v) {
-			slice.list.push_back({
-				.peer = _owner->peer(peerFromUser(view.data().vuser_id())),
-				.reaction = (view.data().vreaction()
-					? ReactionFromMTP(*view.data().vreaction())
-					: Data::ReactionId()),
-				.date = view.data().vdate().v,
+			view.match([&](const MTPDstoryView &data) {
+				slice.list.push_back({
+					.peer = _owner->peer(peerFromUser(data.vuser_id())),
+					.reaction = (data.vreaction()
+						? ReactionFromMTP(*data.vreaction())
+						: Data::ReactionId()),
+					.date = data.vdate().v,
+				});
+			}, [&](const MTPDstoryViewPublicRepost &data) {
+				const auto story = applySingle(
+					peerFromMTP(data.vpeer_id()),
+					data.vstory());
+				if (story) {
+					slice.list.push_back({
+						.peer = story->peer(),
+						.repostId = story->id(),
+					});
+				}
+			}, [&](const MTPDstoryViewPublicForward &data) {
+				const auto item = _owner->addNewMessage(
+					data.vmessage(),
+					{},
+					NewMessageType::Existing);
+				if (item) {
+					slice.list.push_back({
+						.peer = item->history()->peer,
+						.forwardId = item->id,
+					});
+				}
 			});
 		}
 		const auto fullId = FullStoryId{

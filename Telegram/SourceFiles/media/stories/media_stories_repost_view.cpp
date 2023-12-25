@@ -32,8 +32,18 @@ RepostView::RepostView(
 	not_null<Controller*> controller,
 	not_null<Data::Story*> story)
 : _controller(controller)
-, _story(story) {
-	Expects(_story->repost());
+, _story(story)
+, _sourcePeer(_story->repost()
+	? _story->repostSourcePeer()
+	: _story->owner().peer(
+		_story->channelPosts().front().itemId.peer).get()) {
+	Expects(_story->repost() || !_story->channelPosts().empty());
+
+	if (!_story->repost()) {
+		_link = MakeChannelPostHandler(
+			&_story->session(),
+			_story->channelPosts().front().itemId);
+	}
 
 	_story->session().colorIndicesValue(
 	) | rpl::start_with_next([=](Ui::ColorIndicesCompressed &&indices) {
@@ -67,9 +77,8 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 	const auto w = _lastWidth = std::min(int(_maxWidth), availableWidth);
 	const auto h = height() - (simple ? st::normalFont->height : 0);
 	const auto rect = QRect(x, y, w, h);
-	const auto colorPeer = _story->repostSourcePeer();
-	const auto backgroundEmojiId = (!simple && colorPeer)
-		? colorPeer->backgroundEmojiId()
+	const auto backgroundEmojiId = (!simple && _sourcePeer)
+		? _sourcePeer->backgroundEmojiId()
 		: DocumentId();
 	const auto cache = &_quoteCache;
 	const auto &quoteSt = simple
@@ -183,19 +192,23 @@ RepostClickHandler RepostView::lookupHandler(QPoint position) {
 	return { _link, this };
 }
 
+PeerData *RepostView::fromPeer() const {
+	return _sourcePeer;
+}
+
 QString RepostView::fromName() const {
-	const auto sender = _story->repostSourcePeer();
-	return sender ? sender->name() : _story->repostSourceName();
+	return _sourcePeer ? _sourcePeer->name() : _story->repostSourceName();
 }
 
 void RepostView::recountDimensions() {
-	const auto sender = _story->repostSourcePeer();
-	const auto name = sender ? sender->name() : _story->repostSourceName();
+	const auto name = _sourcePeer
+		? _sourcePeer->name()
+		: _story->repostSourceName();
 	const auto owner = &_story->owner();
-	const auto repostId = _story->repostSourceId();
+	const auto repostId = _story->repost() ? _story->repostSourceId() : 0;
 
-	const auto colorIndexPlusOne = sender
-		? (sender->colorIndex() + 1)
+	const auto colorIndexPlusOne = _sourcePeer
+		? (_sourcePeer->colorIndex() + 1)
 		: 1;
 	const auto dark = true;
 	const auto colorPattern = colorIndexPlusOne
@@ -211,8 +224,9 @@ void RepostView::recountDimensions() {
 
 	auto text = TextWithEntities();
 	auto unavailable = false;
-	if (sender && repostId) {
-		const auto of = owner->stories().lookup({ sender->id, repostId });
+	if (_sourcePeer && repostId) {
+		const auto senderId = _sourcePeer->id;
+		const auto of = owner->stories().lookup({ senderId, repostId });
 		unavailable = !of && (of.error() == Data::NoStory::Deleted);
 		if (of) {
 			text = (*of)->caption();
@@ -221,12 +235,12 @@ void RepostView::recountDimensions() {
 				_maxWidth = 0;
 				_controller->repaint();
 			});
-			owner->stories().resolve({ sender->id, repostId }, done);
+			owner->stories().resolve({ _sourcePeer->id, repostId }, done);
 		}
 	}
 
 	auto nameFull = TextWithEntities();
-	nameFull.append(HistoryView::Reply::PeerEmoji(owner, sender));
+	nameFull.append(HistoryView::Reply::PeerEmoji(owner, _sourcePeer));
 	nameFull.append(name);
 	auto context = Core::MarkedTextContext{
 		.session = &_story->session(),

@@ -37,10 +37,11 @@ namespace {
 }
 
 [[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
-		const MTPRequestPeerType &query) {
+		const MTPDkeyboardButtonRequestPeer &query) {
 	using Type = RequestPeerQuery::Type;
 	using Restriction = RequestPeerQuery::Restriction;
 	auto result = RequestPeerQuery();
+	result.maxQuantity = query.vmax_quantity().v;
 	const auto restriction = [](const MTPBool *value) {
 		return !value
 			? Restriction::Any
@@ -51,7 +52,7 @@ namespace {
 	const auto rights = [](const MTPChatAdminRights *value) {
 		return value ? ChatAdminRightsInfo(*value).flags : ChatAdminRights();
 	};
-	query.match([&](const MTPDrequestPeerTypeUser &data) {
+	query.vpeer_type().match([&](const MTPDrequestPeerTypeUser &data) {
 		result.type = Type::User;
 		result.userIsBot = restriction(data.vbot());
 		result.userIsPremium = restriction(data.vpremium());
@@ -134,7 +135,7 @@ void HistoryMessageMarkupData::fillRows(
 				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
 					row.emplace_back(Type::RequestPhone, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonRequestPeer &data) {
-					const auto query = RequestPeerQueryFromTL(data.vpeer_type());
+					const auto query = RequestPeerQueryFromTL(data);
 					row.emplace_back(
 						Type::RequestPeer,
 						qs(data.vtext()),

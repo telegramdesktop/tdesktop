@@ -1509,7 +1509,7 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 	if ((!story || story->canDownloadChecked())
 		&& _document
 		&& !_document->filepath(true).isEmpty()) {
-		const auto text =  Platform::IsMac()
+		const auto text = Platform::IsMac()
 			? tr::lng_context_show_in_finder(tr::now)
 			: tr::lng_context_show_in_folder(tr::now);
 		addAction(
@@ -5019,6 +5019,7 @@ void OverlayWidget::paintCaptionContent(
 	const auto inner = full.marginsRemoved(
 		_stories ? _stories->repostCaptionPadding() : QMargins());
 	if (_stories) {
+		p.setOpacity(1.);
 		if (_stories->repost()) {
 			_stories->drawRepostInfo(p, full.x(), full.y(), full.width());
 		}

@@ -306,9 +306,10 @@ void objc_start() {
 
 	_sharedDelegate = [[ApplicationDelegate alloc] init];
 	[[NSApplication sharedApplication] setDelegate:_sharedDelegate];
-	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver: _sharedDelegate
-														   selector: @selector(receiveWakeNote:)
-															   name: NSWorkspaceDidWakeNotification object: NULL];
+	[[[NSWorkspace sharedWorkspace] notificationCenter]
+		addObserver: _sharedDelegate
+		selector: @selector(receiveWakeNote:)
+		name: NSWorkspaceDidWakeNotification object: NULL];
 }
 
 void objc_ignoreApplicationActivationRightNow() {

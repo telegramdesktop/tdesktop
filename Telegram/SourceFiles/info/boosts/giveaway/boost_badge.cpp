@@ -52,6 +52,18 @@ not_null<Ui::RpWidget*> InfiniteRadialAnimationWidget(
 	return Ui::CreateChild<Widget>(parent.get(), size);
 }
 
+void AddChildToWidgetCenter(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Ui::RpWidget*> child) {
+	parent->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		const auto size = child->size();
+		child->moveToLeft(
+			(s.width() - size.width()) / 2,
+			(s.height() - size.height()) / 2);
+	}, child->lifetime());
+}
+
 QImage CreateBadge(
 		const style::TextStyle &textStyle,
 		const QString &text,
