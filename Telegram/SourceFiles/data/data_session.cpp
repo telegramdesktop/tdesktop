@@ -4394,6 +4394,7 @@ void Session::insertCheckedServiceNotification(
 				MTP_int(0), // Not used (would've been trimmed to 32 bits).
 				peerToMTP(PeerData::kServiceNotificationsId),
 				peerToMTP(PeerData::kServiceNotificationsId),
+				MTPPeer(), // saved_peer_id
 				MTPMessageFwdHeader(),
 				MTPlong(), // via_bot_id
 				MTPMessageReplyHeader(),

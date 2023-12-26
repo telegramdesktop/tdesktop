@@ -1111,6 +1111,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 					? peerToMTP(_session->userPeerId())
 					: MTP_peerUser(d.vuser_id())),
 				MTP_peerUser(d.vuser_id()),
+				MTPPeer(), // saved_peer_id
 				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),
 				MTP_long(d.vvia_bot_id().value_or_empty()),
 				d.vreply_to() ? *d.vreply_to() : MTPMessageReplyHeader(),
@@ -1142,6 +1143,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				d.vid(),
 				MTP_peerUser(d.vfrom_id()),
 				MTP_peerChat(d.vchat_id()),
+				MTPPeer(), // saved_peer_id
 				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),
 				MTP_long(d.vvia_bot_id().value_or_empty()),
 				d.vreply_to() ? *d.vreply_to() : MTPMessageReplyHeader(),

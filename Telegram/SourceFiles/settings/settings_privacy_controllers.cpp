@@ -171,6 +171,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTP_int(0), // Not used (would've been trimmed to 32 bits).
 		peerToMTP(history->peer->id),
 		peerToMTP(history->peer->id),
+		MTPPeer(), // saved_peer_id
 		MTP_messageFwdHeader(
 			MTP_flags(MTPDmessageFwdHeader::Flag::f_from_id),
 			peerToMTP(history->session().userPeerId()),
@@ -180,6 +181,9 @@ AdminLog::OwnedItem GenerateForwardedItem(
 			MTPstring(), // post_author
 			MTPPeer(), // saved_from_peer
 			MTPint(), // saved_from_msg_id
+			MTPPeer(), // saved_from_id
+			MTPstring(), // saved_from_name
+			MTPint(), // saved_date
 			MTPstring()), // psa_type
 		MTPlong(), // via_bot_id
 		MTPMessageReplyHeader(),

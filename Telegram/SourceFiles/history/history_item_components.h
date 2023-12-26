@@ -140,6 +140,10 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	bool story = false;
 };
 
+struct HistoryMessageSaved : public RuntimeComponent<HistoryMessageSaved, HistoryItem> {
+	PeerData *peer = nullptr;
+};
+
 class ReplyToMessagePointer final {
 public:
 	ReplyToMessagePointer(HistoryItem *item = nullptr) : _data(item) {

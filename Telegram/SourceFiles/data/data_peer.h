@@ -165,6 +165,7 @@ public:
 	virtual ~PeerData();
 
 	static constexpr auto kServiceNotificationsId = peerFromUser(777000);
+	static constexpr auto kSavedHiddenAuthorId = peerFromUser(2666000);
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -211,6 +212,9 @@ public:
 	}
 	[[nodiscard]] bool isServiceUser() const {
 		return isUser() && !(id.value % 1000);
+	}
+	[[nodiscard]] bool isSavedHiddenAuthor() const {
+		return (id == kSavedHiddenAuthorId);
 	}
 
 	[[nodiscard]] Data::Forum *forum() const;
