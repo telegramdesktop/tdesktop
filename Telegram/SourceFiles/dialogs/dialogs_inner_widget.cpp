@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
+#include "data/data_saved_messages.h"
 #include "data/data_stories.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_send_action.h"
@@ -219,7 +220,9 @@ InnerWidget::InnerWidget(
 		session().data().chatsListChanges(),
 		session().data().chatsListLoadedEvents()
 	) | rpl::filter([=](Data::Folder *folder) {
-		return !_openedForum && (folder == _openedFolder);
+		return !_savedSublists
+			&& !_openedForum
+			&& (folder == _openedFolder);
 	}) | rpl::start_with_next([=] {
 		refresh();
 	}, lifetime());
@@ -499,6 +502,8 @@ int InnerWidget::searchInChatSkip() const {
 }
 
 void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
+	Expects(!folder || !_savedSublists);
+
 	if (_openedFolder == folder) {
 		return;
 	}
@@ -513,6 +518,8 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 }
 
 void InnerWidget::changeOpenedForum(Data::Forum *forum) {
+	Expects(!forum || !_savedSublists);
+
 	if (_openedForum == forum) {
 		return;
 	}
@@ -553,12 +560,39 @@ void InnerWidget::changeOpenedForum(Data::Forum *forum) {
 	}
 }
 
+void InnerWidget::showSavedSublists() {
+	Expects(!_geometryInited);
+	Expects(!_savedSublists);
+
+	_savedSublists = true;
+
+	stopReorderPinned();
+	clearSelection();
+
+	_filterId = 0;
+	_openedForum = nullptr;
+	_st = &st::defaultDialogRow;
+	refreshShownList();
+
+	_openedForumLifetime.destroy();
+
+	//session().data().savedMessages().chatsListChanges(
+	//) | rpl::start_with_next([=] {
+	//	refresh();
+	//}, lifetime());
+
+	refreshWithCollapsedRows(true);
+	if (_loadMoreCallback) {
+		_loadMoreCallback();
+	}
+}
+
 void InnerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	p.setInactive(
 		_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any));
-	if (_controller->contentOverlapped(this, e)) {
+	if (!_savedSublists && _controller->contentOverlapped(this, e)) {
 		return;
 	}
 	const auto activeEntry = _controller->activeChatEntryCurrent();
@@ -1416,11 +1450,14 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	}
 }
 const std::vector<Key> &InnerWidget::pinnedChatsOrder() const {
-	return _openedForum
-		? session().data().pinnedChatsOrder(_openedForum)
+	const auto owner = &session().data();
+	return _savedSublists
+		? owner->pinnedChatsOrder(&owner->savedMessages())
+		: _openedForum
+		? owner->pinnedChatsOrder(_openedForum)
 		: _filterId
-		? session().data().pinnedChatsOrder(_filterId)
-		: session().data().pinnedChatsOrder(_openedFolder);
+		? owner->pinnedChatsOrder(_filterId)
+		: owner->pinnedChatsOrder(_openedFolder);
 }
 
 void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
@@ -1473,7 +1510,9 @@ void InnerWidget::savePinnedOrder() {
 			return; // Something has changed in the set of pinned chats.
 		}
 	}
-	if (_openedForum) {
+	if (_savedSublists) {
+		session().api().savePinnedOrder(&session().data().savedMessages());
+	} else if (_openedForum) {
 		session().api().savePinnedOrder(_openedForum);
 	} else if (_filterId) {
 		Api::SaveNewFilterPinned(&session(), _filterId);
@@ -1577,7 +1616,7 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 	const auto delta = [&] {
 		if (localPosition.y() < _visibleTop) {
 			return localPosition.y() - _visibleTop;
-		} else if ((_openedFolder || _openedForum || _filterId)
+		} else if ((_savedSublists || _openedFolder || _openedForum || _filterId)
 			&& localPosition.y() > _visibleBottom) {
 			return localPosition.y() - _visibleBottom;
 		}
@@ -1832,6 +1871,8 @@ void InnerWidget::handleChatListEntryRefreshes() {
 			return false;
 		} else if (const auto topic = event.key.topic()) {
 			return (topic->forum() == _openedForum);
+		} else if (event.key.sublist()) {
+			return _savedSublists;
 		} else {
 			return !_openedForum;
 		}
@@ -1848,6 +1889,8 @@ void InnerWidget::handleChatListEntryRefreshes() {
 			&& (_state == WidgetState::Default)
 			&& (key.topic()
 				? (key.topic()->forum() == _openedForum)
+				: key.sublist()
+				? _savedSublists
 				: (entry->folder() == _openedFolder))) {
 			_dialogMoved.fire({ from, to });
 		}
@@ -2051,7 +2094,11 @@ void InnerWidget::enterEventHook(QEnterEvent *e) {
 
 Row *InnerWidget::shownRowByKey(Key key) {
 	const auto entry = key.entry();
-	if (_openedForum) {
+	if (_savedSublists) {
+		if (!entry->asSublist()) {
+			return nullptr;
+		}
+	} else if (_openedForum) {
 		const auto topic = entry->asTopic();
 		if (!topic || topic->forum() != _openedForum) {
 			return nullptr;
@@ -2114,7 +2161,9 @@ void InnerWidget::updateSelectedRow(Key key) {
 }
 
 void InnerWidget::refreshShownList() {
-	const auto list = _openedForum
+	const auto list = _savedSublists
+		? session().data().savedMessages().chatsList()->indexed()
+		: _openedForum
 		? _openedForum->topicsList()->indexed()
 		: _filterId
 		? session().data().chatsFilters().chatsList(_filterId)->indexed()
@@ -2294,15 +2343,19 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 				}
 			};
 			if (!_searchInChat && !_searchFromPeer && !words.isEmpty()) {
-				if (_openedForum) {
+				if (_savedSublists) {
+					const auto owner = &session().data();
+					append(owner->savedMessages().chatsList()->indexed());
+				} else if (_openedForum) {
 					append(_openedForum->topicsList()->indexed());
 				} else {
-					append(session().data().chatsList()->indexed());
+					const auto owner = &session().data();
+					append(owner->chatsList()->indexed());
 					const auto id = Data::Folder::kId;
-					if (const auto add = session().data().folderLoaded(id)) {
+					if (const auto add = owner->folderLoaded(id)) {
 						append(add->chatsList()->indexed());
 					}
-					append(session().data().contactsNoChatsList());
+					append(owner->contactsNoChatsList());
 				}
 			}
 			refresh(true);
@@ -2759,6 +2812,10 @@ void InnerWidget::refreshEmptyLabel() {
 	const auto data = &session().data();
 	const auto state = !_shownList->empty()
 		? EmptyState::None
+		: _savedSublists
+		? (data->savedMessages().chatsList()->loaded()
+			? EmptyState::EmptySavedSublists
+			: EmptyState::Loading)
 		: _openedForum
 		? (_openedForum->topicsList()->loaded()
 			? EmptyState::EmptyForum
@@ -2783,6 +2840,8 @@ void InnerWidget::refreshEmptyLabel() {
 		? tr::lng_no_chats_filter()
 		: (state == EmptyState::EmptyForum)
 		? tr::lng_forum_no_topics()
+		: (state == EmptyState::EmptySavedSublists)
+		? tr::lng_no_saved_sublists()
 		: tr::lng_contacts_loading();
 	auto link = (state == EmptyState::NoContacts)
 		? tr::lng_add_contact_button()

@@ -98,6 +98,7 @@ public:
 
 	void setRealRootId(MsgId realId);
 	void readTillEnd();
+	void requestChatListMessage();
 
 	void applyTopic(const MTPDforumTopic &data);
 
@@ -109,9 +110,9 @@ public:
 	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;
 	bool chatListMessageKnown() const override;
-	void requestChatListMessage() override;
 	const QString &chatListName() const override;
 	const QString &chatListNameSortKey() const override;
+	int chatListNameVersion() const override;
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
 
@@ -186,8 +187,6 @@ private:
 	void setChatListMessage(HistoryItem *item);
 	void allowChatListMessageResolve();
 	void resolveChatListMessageGroup();
-
-	int chatListNameVersion() const override;
 
 	void subscribeToUnreadChanges();
 	[[nodiscard]] Dialogs::UnreadState unreadStateFor(

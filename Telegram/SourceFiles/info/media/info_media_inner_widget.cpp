@@ -43,7 +43,7 @@ InnerWidget::InnerWidget(
 // Allows showing additional shared media links and tabs.
 // Used for shared media in Saved Messages.
 void InnerWidget::setupOtherTypes() {
-	if (_controller->key().peer()->isSelf() && _isStackBottom) {
+	if (_controller->key().peer()->sharedMediaInfo() && _isStackBottom) {
 		createOtherTypes();
 	} else {
 		_otherTypes.destroy();

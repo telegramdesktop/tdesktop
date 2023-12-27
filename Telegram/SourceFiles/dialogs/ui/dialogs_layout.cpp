@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_drafts.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_list.h"
 #include "dialogs/dialogs_three_state_icon.h"
@@ -732,6 +733,7 @@ void RowPainter::Paint(
 	const auto entry = row->entry();
 	const auto history = row->history();
 	const auto thread = row->thread();
+	const auto sublist = row->sublist();
 	const auto peer = history ? history->peer.get() : nullptr;
 	const auto badgesState = entry->chatListBadgesState();
 	entry->chatListPreloadData(); // Allow chat list message resolve.
@@ -810,6 +812,8 @@ void RowPainter::Paint(
 			? nullptr
 			: thread
 			? &thread->lastItemDialogsView()
+			: sublist
+			? &sublist->lastItemDialogsView()
 			: nullptr;
 		if (view) {
 			const auto forum = context.st->topicsHeight

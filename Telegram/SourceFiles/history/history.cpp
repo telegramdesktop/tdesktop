@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_channel_admins.h"
@@ -609,6 +610,11 @@ not_null<HistoryItem*> History::addNewItem(
 		addNewToBack(item, unread);
 		checkForLoadedAtTop(item);
 	}
+
+	if (const auto sublist = item->savedSublist()) {
+		sublist->applyMaybeLast(item);
+	}
+
 	return item;
 }
 
@@ -1427,6 +1433,12 @@ void History::addCreatedOlderSlice(
 	if (loadedAtBottom()) {
 		// Add photos to overview and authors to lastAuthors.
 		addItemsToLists(items);
+
+		for (const auto &item : items) {
+			if (const auto sublist = item->savedSublist()) {
+				sublist->applyMaybeLast(item);
+			}
+		}
 	}
 	addToSharedMedia(items);
 }

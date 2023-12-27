@@ -141,6 +141,18 @@ int PremiumLimits::topicsPinnedCurrent() const {
 	return appConfigLimit("topics_pinned_limit", 5);
 }
 
+int PremiumLimits::savedSublistsPinnedDefault() const {
+	return appConfigLimit("saved_dialogs_pinned_limit_default", 5);
+}
+int PremiumLimits::savedSublistsPinnedPremium() const {
+	return appConfigLimit("saved_dialogs_pinned_limit_premium", 100);
+}
+int PremiumLimits::savedSublistsPinnedCurrent() const {
+	return isPremium()
+		? savedSublistsPinnedPremium()
+		: savedSublistsPinnedDefault();
+}
+
 int PremiumLimits::channelsPublicDefault() const {
 	return appConfigLimit("channels_public_limit_default", 10);
 }

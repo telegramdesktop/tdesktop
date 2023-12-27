@@ -500,7 +500,7 @@ void Filler::addTogglePin() {
 }
 
 void Filler::addToggleMuteSubmenu(bool addSeparator) {
-	if (_thread->peer()->isSelf()) {
+	if (!_thread || _thread->peer()->isSelf()) {
 		return;
 	}
 	PeerMenuAddMuteSubmenuAction(_controller, _thread, _addAction);
@@ -526,6 +526,8 @@ void Filler::addSupportInfo() {
 void Filler::addInfo() {
 	if (_peer && (_peer->isSelf() || _peer->isRepliesChat())) {
 		return;
+	} else if (!_thread) {
+		return;
 	} else if (_controller->adaptive().isThreeColumn()) {
 		const auto thread = _controller->activeChatCurrent().thread();
 		if (thread && thread == _thread) {
@@ -534,8 +536,6 @@ void Filler::addInfo() {
 				return;
 			}
 		}
-	} else if (!_thread) {
-		return;
 	}
 	const auto controller = _controller;
 	const auto weak = base::make_weak(_thread);

@@ -68,4 +68,3 @@ private:
 };
 
 } // namespace Info::SimilarChannels
-

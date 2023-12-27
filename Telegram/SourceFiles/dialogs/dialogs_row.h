@@ -131,6 +131,9 @@ public:
 	[[nodiscard]] Data::Thread *thread() const {
 		return _id.thread();
 	}
+	[[nodiscard]] Data::SavedSublist *sublist() const {
+		return _id.sublist();
+	}
 	[[nodiscard]] not_null<Entry*> entry() const {
 		return _id.entry();
 	}

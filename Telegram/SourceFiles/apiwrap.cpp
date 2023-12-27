@@ -440,6 +440,26 @@ void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
 	}).send();
 }
 
+void ApiWrap::savePinnedOrder(not_null<Data::SavedMessages*> saved) {
+	const auto &order = _session->data().pinnedChatsOrder(saved);
+	const auto input = [](Dialogs::Key key) {
+		if (const auto history = key.history()) {
+			return MTP_inputDialogPeer(history->peer->input);
+		}
+		Unexpected("Key type in pinnedDialogsOrder().");
+	};
+	auto peers = QVector<MTPInputDialogPeer>();
+	peers.reserve(order.size());
+	ranges::transform(
+		order,
+		ranges::back_inserter(peers),
+		input);
+	request(MTPmessages_ReorderPinnedSavedDialogs(
+		MTP_flags(MTPmessages_ReorderPinnedSavedDialogs::Flag::f_force),
+		MTP_vector(peers)
+	)).send();
+}
+
 void ApiWrap::toggleHistoryArchived(
 		not_null<History*> history,
 		bool archived,

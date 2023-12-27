@@ -141,7 +141,7 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 };
 
 struct HistoryMessageSaved : public RuntimeComponent<HistoryMessageSaved, HistoryItem> {
-	PeerData *peer = nullptr;
+	Data::SavedSublist *sublist = nullptr;
 };
 
 class ReplyToMessagePointer final {

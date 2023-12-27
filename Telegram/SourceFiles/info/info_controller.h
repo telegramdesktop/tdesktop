@@ -126,6 +126,7 @@ public:
 		Media,
 		CommonGroups,
 		SimilarChannels,
+		SavedSublists,
 		Members,
 		Settings,
 		Downloads,

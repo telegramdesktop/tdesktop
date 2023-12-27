@@ -41,6 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_bot_app.h"
+#include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -144,6 +146,8 @@ struct HistoryItem::CreateConfig {
 	PeerId originalSenderId = 0;
 	QString originalSenderName;
 	QString originalPostAuthor;
+
+	PeerId savedSublistPeer = 0;
 
 	QString forwardPsaType;
 	PeerId savedFromPeer = 0;
@@ -769,6 +773,9 @@ HistoryItem::~HistoryItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
 	}
+	if (const auto saved = Get<HistoryMessageSaved>()) {
+		saved->sublist->removeOne(this);
+	}
 	clearDependencyMessage();
 	applyTTL(0);
 }
@@ -1228,6 +1235,9 @@ void HistoryItem::invalidateChatListEntry() {
 	_history->lastItemDialogsView().itemInvalidated(this);
 	if (const auto topic = this->topic()) {
 		topic->lastItemDialogsView().itemInvalidated(this);
+	}
+	if (const auto sublist = savedSublist()) {
+		sublist->lastItemDialogsView().itemInvalidated(this);
 	}
 }
 
@@ -3027,6 +3037,20 @@ bool HistoryItem::isEmpty() const {
 		&& !Has<HistoryMessageLogEntryOriginal>();
 }
 
+Data::SavedSublist *HistoryItem::savedSublist() const {
+	if (const auto saved = Get<HistoryMessageSaved>()) {
+		return saved->sublist;
+	}
+	return nullptr;
+}
+
+PeerData *HistoryItem::savedSublistPeer() const {
+	if (const auto sublist = savedSublist()) {
+		return sublist->peer();
+	}
+	return nullptr;
+}
+
 TextWithEntities HistoryItem::notificationText(
 		NotificationTextOptions options) const {
 	auto result = [&] {
@@ -3178,8 +3202,27 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 	} else if (config.inlineMarkup) {
 		mask |= HistoryMessageReplyMarkup::Bit();
 	}
+	if (_history->peer->isSelf()) {
+		mask |= HistoryMessageSaved::Bit();
+	}
 
 	UpdateComponents(mask);
+
+	if (const auto saved = Get<HistoryMessageSaved>()) {
+		if (!config.savedSublistPeer) {
+			if (config.savedFromPeer) {
+				config.savedSublistPeer = config.savedFromPeer;
+			} else if (config.originalSenderId) {
+				config.savedSublistPeer = config.originalSenderId;
+			} else if (!config.originalSenderName.isEmpty()) {
+				config.savedSublistPeer = PeerData::kSavedHiddenAuthorId;
+			} else {
+				config.savedSublistPeer = _history->session().userPeerId();
+			}
+		}
+		const auto peer = _history->owner().peer(config.savedSublistPeer);
+		saved->sublist = _history->owner().savedMessages().sublist(peer);
+	}
 
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		reply->set(std::move(config.reply));
@@ -3474,6 +3517,9 @@ void HistoryItem::applyTTL(const MTPDmessageService &data) {
 
 void HistoryItem::createComponents(const MTPDmessage &data) {
 	auto config = CreateConfig();
+	config.savedSublistPeer = data.vsaved_peer_id()
+		? peerFromMTP(*data.vsaved_peer_id())
+		: PeerId();
 	if (const auto forwarded = data.vfwd_from()) {
 		forwarded->match([&](const MTPDmessageFwdHeader &data) {
 			FillForwardedInfo(config, data);

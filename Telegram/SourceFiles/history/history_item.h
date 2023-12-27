@@ -56,6 +56,7 @@ class ForumTopic;
 class Thread;
 struct SponsoredFrom;
 class Story;
+class SavedSublist;
 } // namespace Data
 
 namespace Main {
@@ -484,6 +485,9 @@ public:
 	[[nodiscard]] not_null<PeerData*> fromOriginal() const;
 	[[nodiscard]] QString originalPostAuthor() const;
 	[[nodiscard]] MsgId originalId() const;
+
+	[[nodiscard]] Data::SavedSublist *savedSublist() const;
+	[[nodiscard]] PeerData *savedSublistPeer() const;
 
 	[[nodiscard]] bool isEmpty() const;
 
