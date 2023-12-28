@@ -270,6 +270,7 @@ enum class Flag {
 	RepliesMessages  = 0x10,
 	AllowUserOnline  = 0x20,
 	TopicJumpRipple  = 0x40,
+	HiddenAuthor     = 0x80,
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 
@@ -312,6 +313,7 @@ void PaintRow(
 
 	const auto history = entry->asHistory();
 	const auto thread = entry->asThread();
+	const auto sublist = entry->asSublist();
 
 	if (flags & Flag::SavedMessages) {
 		EmptyUserpic::PaintSavedMessages(
@@ -322,6 +324,13 @@ void PaintRow(
 			context.st->photoSize);
 	} else if (flags & Flag::RepliesMessages) {
 		EmptyUserpic::PaintRepliesMessages(
+			p,
+			context.st->padding.left(),
+			context.st->padding.top(),
+			context.width,
+			context.st->photoSize);
+	} else if (flags & Flag::HiddenAuthor) {
+		EmptyUserpic::PaintHiddenAuthor(
 			p,
 			context.st->padding.left(),
 			context.st->padding.top(),
@@ -548,7 +557,7 @@ void PaintRow(
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
-		if (thread && !promoted) {
+		if ((thread || sublist) && !promoted) {
 			PaintRowDate(p, date, rectForName, context);
 		}
 
@@ -607,10 +616,15 @@ void PaintRow(
 	}
 
 	p.setFont(st::semiboldFont);
-	if (flags & (Flag::SavedMessages | Flag::RepliesMessages)) {
+	if (flags
+		& (Flag::SavedMessages
+			| Flag::RepliesMessages
+			| Flag::HiddenAuthor)) {
 		auto text = (flags & Flag::SavedMessages)
 			? tr::lng_saved_messages(tr::now)
-			: tr::lng_replies_messages(tr::now);
+			: (flags & Flag::RepliesMessages)
+			? tr::lng_replies_messages(tr::now)
+			: tr::lng_hidden_author_messages(tr::now);
 		const auto textWidth = st::semiboldFont->width(text);
 		if (textWidth > rectForName.width()) {
 			text = st::semiboldFont->elided(text, rectForName.width());
@@ -622,7 +636,7 @@ void PaintRow(
 			: st::dialogsNameFg);
 		p.drawTextLeft(rectForName.left(), rectForName.top(), context.width, text);
 	} else if (from) {
-		if (history && !context.search) {
+		if ((history || sublist) && !context.search) {
 			const auto badgeWidth = fromBadge.drawGetWidth(
 				p,
 				rectForName,
@@ -773,11 +787,18 @@ void RowPainter::Paint(
 		? (history->peer->migrateTo()
 			? history->peer->migrateTo()
 			: history->peer.get())
+		: sublist
+		? sublist->peer().get()
 		: nullptr;
 	const auto allowUserOnline = true;// !context.narrow || badgesState.empty();
 	const auto flags = (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
-		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0))
-		| (peer && peer->isRepliesChat() ? Flag::RepliesMessages : Flag(0))
+		| ((peer && peer->isSelf()) ? Flag::SavedMessages : Flag(0))
+		| ((from && from->isRepliesChat())
+			? Flag::RepliesMessages
+			: Flag(0))
+		| ((sublist && from->isSavedHiddenAuthor())
+			? Flag::HiddenAuthor
+			: Flag(0))
 		| (row->topicJumpRipple() ? Flag::TopicJumpRipple : Flag(0));
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
 		const auto texttop = context.st->textTop;
