@@ -800,6 +800,8 @@ PRIVATE
     history/view/history_view_sponsored_click_handler.h
     history/view/history_view_sticker_toast.cpp
     history/view/history_view_sticker_toast.h
+    history/view/history_view_sublist_section.cpp
+    history/view/history_view_sublist_section.h
     history/view/history_view_transcribe_button.cpp
     history/view/history_view_transcribe_button.h
     history/view/history_view_translate_bar.cpp

@@ -106,6 +106,7 @@ struct EntryState {
 		Scheduled,
 		Pinned,
 		Replies,
+		SavedSublist,
 		ContextMenu,
 	};
 

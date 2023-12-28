@@ -138,6 +138,7 @@ void SavedMessages::loadMore(not_null<SavedSublist*> sublist) {
 			MTP_int(0), // min_id
 			MTP_long(0)) // hash
 	).done([=](const MTPmessages_Messages &result) {
+		auto count = 0;
 		auto list = (const QVector<MTPMessage>*)nullptr;
 		result.match([](const MTPDmessages_channelMessages &) {
 			LOG(("API Error: messages.channelMessages in sublist."));
@@ -147,6 +148,11 @@ void SavedMessages::loadMore(not_null<SavedSublist*> sublist) {
 			owner().processUsers(data.vusers());
 			owner().processChats(data.vchats());
 			list = &data.vmessages().v;
+			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
+				count = int(list->size());
+			} else {
+				count = data.vcount().v;
+			}
 		});
 
 		_loadMoreRequests.remove(sublist);
@@ -165,7 +171,7 @@ void SavedMessages::loadMore(not_null<SavedSublist*> sublist) {
 				items.push_back(item);
 			}
 		}
-		sublist->append(std::move(items));
+		sublist->append(std::move(items), count);
 		if (result.type() == mtpc_messages_messages) {
 			sublist->setFullLoaded();
 		}

@@ -2493,6 +2493,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_saved_short" = "Save";
 "lng_saved_forward_here" = "Forward messages here for quick access";
 "lng_saved_quote_here" = "Quote here to save";
+"lng_saved_open_chat" = "Open Chat";
+"lng_saved_open_channel" = "Open Channel";
+"lng_saved_open_group" = "Open Group";
+"lng_saved_about_hidden" = "Senders of this messages restricted to link their name when forwarding.";
 
 "lng_scheduled_messages" = "Scheduled Messages";
 "lng_scheduled_messages_empty" = "No scheduled messages here yet...";

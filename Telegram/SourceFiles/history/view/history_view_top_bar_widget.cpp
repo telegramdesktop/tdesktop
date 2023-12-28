@@ -469,6 +469,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto now = crl::now();
 	const auto history = _activeChat.key.owningHistory();
 	const auto folder = _activeChat.key.folder();
+	const auto sublist = _activeChat.key.sublist();
 	const auto topic = _activeChat.key.topic();
 	if (topic && _activeChat.section == Section::Replies) {
 		p.setPen(st::dialogsNameFg);
@@ -491,8 +492,9 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			p.setPen(st::historyStatusFg);
 			p.drawTextLeft(nameleft, statustop, width(), _customTitleText);
 		}
+	} else if (sublist) {
 	} else if (folder
-		|| history->peer->sharedMediaInfo()
+		|| (history && history->peer->sharedMediaInfo())
 		|| (_activeChat.section == Section::Scheduled)
 		|| (_activeChat.section == Section::Pinned)) {
 		auto text = (_activeChat.section == Section::Scheduled)
@@ -689,6 +691,10 @@ void TopBarWidget::infoClicked() {
 		return;
 	} else if (const auto topic = key.topic()) {
 		_controller->showSection(std::make_shared<Info::Memento>(topic));
+	} else if (const auto sublist = key.sublist()) {
+		_controller->showSection(std::make_shared<Info::Memento>(
+			_controller->session().user(),
+			Info::Section(Storage::SharedMediaType::Photo)));
 	} else if (key.peer()->savedSublistsInfo()) {
 		_controller->showSection(std::make_shared<Info::Memento>(
 			key.peer(),

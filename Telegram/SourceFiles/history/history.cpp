@@ -612,7 +612,7 @@ not_null<HistoryItem*> History::addNewItem(
 	}
 
 	if (const auto sublist = item->savedSublist()) {
-		sublist->applyMaybeLast(item);
+		sublist->applyMaybeLast(item, unread);
 	}
 
 	return item;

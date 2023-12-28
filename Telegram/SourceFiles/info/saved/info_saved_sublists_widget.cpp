@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "dialogs/dialogs_inner_widget.h"
+#include "history/view/history_view_sublist_section.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "main/main_session.h"
@@ -47,6 +48,14 @@ SublistsWidget::SublistsWidget(
 		rpl::single(Dialogs::InnerWidget::ChildListShown())));
 	_inner->showSavedSublists();
 	_inner->setNarrowRatio(0.);
+
+	_inner->chosenRow() | rpl::start_with_next([=](Dialogs::ChosenRow row) {
+		if (const auto sublist = row.key.sublist()) {
+			controller->showSection(
+				std::make_shared<HistoryView::SublistMemento>(sublist),
+				Window::SectionShow::Way::Forward);
+		}
+	}, _inner->lifetime());
 
 	const auto saved = &controller->session().data().savedMessages();
 	_inner->heightValue() | rpl::start_with_next([=] {

@@ -29,10 +29,14 @@ public:
 
 	[[nodiscard]] auto messages() const
 		-> const std::vector<not_null<HistoryItem*>> &;
-	void applyMaybeLast(not_null<HistoryItem*> item);
+	void applyMaybeLast(not_null<HistoryItem*> item, bool added = false);
 	void removeOne(not_null<HistoryItem*> item);
-	void append(std::vector<not_null<HistoryItem*>> &&items);
+	void append(std::vector<not_null<HistoryItem*>> &&items, int fullCount);
 	void setFullLoaded(bool loaded = true);
+
+	[[nodiscard]] rpl::producer<> changes() const;
+	[[nodiscard]] std::optional<int> fullCount() const;
+	[[nodiscard]] rpl::producer<int> fullCountValue() const;
 
 	[[nodiscard]] Dialogs::Ui::MessageView &lastItemDialogsView() {
 		return _lastItemDialogsView;
@@ -71,6 +75,8 @@ private:
 	const not_null<History*> _history;
 
 	std::vector<not_null<HistoryItem*>> _items;
+	std::optional<int> _fullCount;
+	rpl::event_stream<> _changed;
 	Dialogs::Ui::MessageView _lastItemDialogsView;
 	Flags _flags;
 
