@@ -215,8 +215,22 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			icon,
 			st::infoSharedMediaButtonIconPosition);
 	};
+	auto addSavedSublistButton = [&](
+			not_null<PeerData*> peer,
+			const style::icon &icon) {
+		auto result = Media::AddSavedSublistButton(
+			content,
+			_controller,
+			peer,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
+	};
 
 	addStoriesButton(_peer, st::infoIconMediaStories);
+	addSavedSublistButton(_peer, st::infoIconMediaSaved);
 	addMediaButton(MediaType::Photo, st::infoIconMediaPhoto);
 	addMediaButton(MediaType::Video, st::infoIconMediaVideo);
 	addMediaButton(MediaType::File, st::infoIconMediaFile);

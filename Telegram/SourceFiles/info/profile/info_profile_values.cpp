@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_peer_values.h"
+#include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_shared_media.h"
 #include "data/data_message_reactions.h"
 #include "data/data_folder.h"
@@ -534,6 +536,17 @@ rpl::producer<int> SimilarChannelsCountValue(
 		const auto &similar = participants->similar(channel);
 		return int(similar.list.size()) + similar.more;
 	});
+}
+
+rpl::producer<int> SavedSublistCountValue(
+		not_null<PeerData*> peer) {
+	const auto saved = &peer->owner().savedMessages();
+	const auto sublist = saved->sublist(peer);
+	if (!sublist->fullCount()) {
+		saved->loadMore(sublist);
+		return rpl::single(0) | rpl::then(sublist->fullCountValue());
+	}
+	return sublist->fullCountValue();
 }
 
 rpl::producer<bool> CanAddMemberValue(not_null<PeerData*> peer) {
