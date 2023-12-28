@@ -418,7 +418,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 182c4076ab
+    git checkout 26f2387219
 """)
 
 stage('msys64', """
@@ -1299,23 +1299,23 @@ release:
 """)
 
 if buildQt5:
-    stage('qt_5_15_11', """
-    git clone https://github.com/qt/qt5.git qt_5_15_11
-    cd qt_5_15_11
+    stage('qt_5_15_12', """
+    git clone https://github.com/qt/qt5.git qt_5_15_12
+    cd qt_5_15_12
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-    git checkout v5.15.11-lts-lgpl
+    git checkout v5.15.12-lts-lgpl
     git submodule update qtbase qtimageformats qtsvg
-depends:patches/qtbase_5.15.11/*.patch
+depends:patches/qtbase_5.15.12/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5.15.11\\*) do git apply %%i -v
+    for /r %%i in (..\\..\\patches\\qtbase_5.15.12\\*) do git apply %%i -v
     cd ..
 
     SET CONFIGURATIONS=-debug
 release:
     SET CONFIGURATIONS=-debug-and-release
 win:
-    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.11\"") + """
+    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.12\"") + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1323,7 +1323,7 @@ win:
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
-    configure -prefix "%LIBS_DIR%\\Qt-5.15.11" ^
+    configure -prefix "%LIBS_DIR%\\Qt-5.15.12" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1358,14 +1358,14 @@ win:
     jom -j16
     jom -j16 install
 mac:
-    find ../../patches/qtbase_5.15.11 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5.15.12 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-5.15.11" \
+    ./configure -prefix "$USED_PREFIX/Qt-5.15.12" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
