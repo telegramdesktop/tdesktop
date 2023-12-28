@@ -2695,7 +2695,7 @@ void Widget::filterCursorMoved() {
 }
 
 void Widget::completeHashtag(QString tag) {
-	const auto t = _filter->getLastText();;
+	const auto t = _filter->getLastText();
 	auto cur = _filter->textCursor().position();
 	auto hashtag = QString();
 	for (int start = cur; start > 0;) {

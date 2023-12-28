@@ -3665,7 +3665,7 @@ void ListWidget::performDrag() {
 		_reactionsManager->updateButton({});
 		_controller->widget()->launchDrag(
 			std::move(mimeData),
-			crl::guard(this, [=] { mouseActionUpdate(QCursor::pos()); }));;
+			crl::guard(this, [=] { mouseActionUpdate(QCursor::pos()); }));
 	}
 }
 

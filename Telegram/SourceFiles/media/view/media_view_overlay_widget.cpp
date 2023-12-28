@@ -560,7 +560,7 @@ OverlayWidget::OverlayWidget()
 			|| type == QEvent::TouchEnd
 			|| type == QEvent::TouchCancel) {
 			if (handleTouchEvent(static_cast<QTouchEvent*>(e.get()))) {
-				return base::EventFilterResult::Cancel;;
+				return base::EventFilterResult::Cancel;
 			}
 		} else if (type == QEvent::Wheel) {
 			handleWheelEvent(static_cast<QWheelEvent*>(e.get()));
