@@ -156,3 +156,5 @@ ClickHandlerPtr JumpToStoryClickHandler(
 	CallId callId);
 
 void ShowTrialTranscribesToast(int left, TimeId until);
+
+void ClearMediaAsExpired(not_null<HistoryItem*> item);

@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/history_unread_things.h"
 #include "core/application.h"
 #include "storage/storage_account.h"
@@ -1204,11 +1205,12 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 					item->markMediaAndMentionRead();
 					_session->data().requestItemRepaint(item);
 
-					if (item->out()
-						&& item->history()->peer->isUser()
-						&& !requestingDifference()) {
-						item->history()->peer->asUser()->madeAction(
-							base::unixtime::now());
+					if (item->out()) {
+						const auto user = item->history()->peer->asUser();
+						if (user && !requestingDifference()) {
+							user->madeAction(base::unixtime::now());
+						}
+						ClearMediaAsExpired(item);
 					}
 				}
 			} else {
