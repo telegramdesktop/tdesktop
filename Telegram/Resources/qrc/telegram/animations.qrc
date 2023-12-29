@@ -11,5 +11,7 @@
     <file alias="ttl.tgs">../../animations/ttl.tgs</file>
     <file alias="discussion.tgs">../../animations/discussion.tgs</file>
     <file alias="stats.tgs">../../animations/stats.tgs</file>
+    <file alias="voice_ttl_idle.tgs">../../animations/voice_ttl_idle.tgs</file>
+    <file alias="voice_ttl_start.tgs">../../animations/voice_ttl_start.tgs</file>
   </qresource>
 </RCC>

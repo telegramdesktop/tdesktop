@@ -25,6 +25,8 @@ class String;
 
 namespace HistoryView {
 
+using TtlPaintCallback = Fn<void(QPainter&, QRect, QColor)>;
+
 class Document final
 	: public File
 	, public RuntimeComposer<Document> {
@@ -177,6 +179,8 @@ private:
 	};
 
 	mutable TooltipFilename _tooltipFilename;
+
+	TtlPaintCallback _drawTtl;
 
 	bool _transcribedRound = false;
 

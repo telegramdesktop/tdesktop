@@ -281,6 +281,7 @@ public:
 	bool dropForwardedInfo() const override;
 	bool hasSpoiler() const override;
 	crl::time ttlSeconds() const override;
+	bool allowsForward() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;

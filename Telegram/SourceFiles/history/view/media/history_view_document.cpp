@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/random.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
 #include "media/player/media_player_float.h" // Media::Player::RoundPainter.
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -47,6 +49,52 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
+
+[[nodiscard]] HistoryView::TtlPaintCallback CreateTtlPaintCallback(
+		std::shared_ptr<rpl::lifetime> lifetime,
+		Fn<void()> update) {
+	struct State final {
+		std::unique_ptr<Lottie::Icon> start;
+		std::unique_ptr<Lottie::Icon> idle;
+	};
+	const auto iconSize = Size(std::min(
+		st::historyFileInPause.width(),
+		st::historyFileInPause.height()));
+	const auto state = lifetime->make_state<State>();
+	state->start = Lottie::MakeIcon({
+		.name = u"voice_ttl_start"_q,
+		.color = &st::historyFileInIconFg,
+		.sizeOverride = iconSize,
+	});
+
+	const auto animateSingle = [=](
+			not_null<Lottie::Icon*> icon,
+			Fn<void()> next) {
+		auto callback = [=] {
+			update();
+			if (icon->frameIndex() == icon->framesCount()) {
+				next();
+			}
+		};
+		icon->animate(std::move(callback), 0, icon->framesCount());
+	};
+	const auto animate = [=](auto reanimate) -> void {
+		animateSingle(state->idle.get(), [=] { reanimate(reanimate); });
+	};
+	animateSingle(
+		state->start.get(),
+		[=] {
+			state->idle = Lottie::MakeIcon({
+				.name = u"voice_ttl_idle"_q,
+				.color = &st::historyFileInIconFg,
+				.sizeOverride = iconSize,
+			});
+			animate(animate);
+		});
+	return [=](QPainter &p, QRect r, QColor c) {
+		(state->idle ? state->idle : state->start)->paintInCenter(p, r, c);
+	};
+}
 
 [[nodiscard]] bool OncePlayable(not_null<HistoryItem*> item) {
 	return !item->out() && item->media()->ttlSeconds();
@@ -249,9 +297,11 @@ Document::Document(
 							Ui::Text::WithEntities)
 				});
 				if (lifetime) {
+					_drawTtl = nullptr;
 					base::take(lifetime)->destroy();
 				}
 			}, *lifetime);
+			_drawTtl = CreateTtlPaintCallback(lifetime, [=] { repaint(); });
 
 			return false;
 		});
@@ -670,7 +720,9 @@ void Document::draw(
 			: nullptr;
 
 		const auto paintContent = [&](QPainter &q) {
-			if (previous && radialOpacity > 0. && radialOpacity < 1.) {
+			if (_drawTtl) {
+				_drawTtl(q, inner, context.st->historyFileInIconFg()->c);
+			} else if (previous && radialOpacity > 0. && radialOpacity < 1.) {
 				PaintInterpolatedIcon(q, icon, *previous, radialOpacity, inner);
 			} else {
 				icon.paintInCenter(q, inner);

@@ -1140,6 +1140,10 @@ crl::time MediaFile::ttlSeconds() const {
 	return _ttlSeconds;
 }
 
+bool MediaFile::allowsForward() const {
+	return !ttlSeconds();
+}
+
 bool MediaFile::updateInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaDocument) {
 		return false;
