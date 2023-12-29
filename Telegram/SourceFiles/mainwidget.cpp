@@ -752,13 +752,20 @@ void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 void MainWidget::handleAudioUpdate(const Media::Player::TrackState &state) {
 	using State = Media::Player::State;
 	const auto document = state.id.audio();
+	const auto item = session().data().message(state.id.contextId());
 	if (!Media::Player::IsStoppedOrStopping(state.state)) {
-		createPlayer();
+		const auto ttlSeconds = item
+			&& !item->out()
+			&& item->media()
+			&& item->media()->ttlSeconds();
+		if (!ttlSeconds) {
+			createPlayer();
+		}
 	} else if (state.state == State::StoppedAtStart) {
 		Media::Player::instance()->stopAndClose();
 	}
 
-	if (const auto item = session().data().message(state.id.contextId())) {
+	if (item) {
 		session().data().requestItemRepaint(item);
 	}
 	if (document) {

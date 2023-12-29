@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h" // PreparedServiceText.
 #include "history/history.h"
 #include "core/click_handler_types.h" // kDocumentFilenameTooltipProperty.
 #include "history/view/history_view_element.h"
@@ -46,6 +47,10 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
+
+[[nodiscard]] bool OncePlayable(not_null<HistoryItem*> item) {
+	return !item->out() && item->media()->ttlSeconds();
+}
 
 [[nodiscard]] QString CleanTagSymbols(const QString &value) {
 	auto result = QString();
@@ -195,7 +200,8 @@ Document::Document(
 	not_null<DocumentData*> document)
 : File(parent, realParent)
 , _data(document) {
-	if (_data->isVideoMessage()) {
+	const auto isRound = _data->isVideoMessage();
+	if (isRound) {
 		const auto &entry = _data->session().api().transcribes().entry(
 			realParent);
 		_transcribedRound = entry.shown;
@@ -209,7 +215,49 @@ Document::Document(
 		_tooltipFilename.setTooltipText(named->name);
 	}
 
-	setDocumentLinks(_data, realParent);
+	if ((_data->isVoiceMessage() || isRound)
+		&& OncePlayable(_parent->data())) {
+		_parent->data()->removeFromSharedMediaIndex();
+		setDocumentLinks(_data, realParent, [=] {
+			_openl = nullptr;
+
+			auto lifetime = std::make_shared<rpl::lifetime>();
+			rpl::merge(
+				::Media::Player::instance()->updatedNotifier(
+				) | rpl::filter([=](::Media::Player::TrackState state) {
+					using State = ::Media::Player::State;
+					const auto badState = state.state == State::Stopped
+						|| state.state == State::StoppedAtEnd
+						|| state.state == State::StoppedAtError
+						|| state.state == State::StoppedAtStart;
+					return (state.id.contextId() != _realParent->fullId())
+						&& !badState;
+				}) | rpl::to_empty,
+				::Media::Player::instance()->tracksFinished(
+				) | rpl::filter([=](AudioMsgId::Type type) {
+					return (type == AudioMsgId::Type::Voice);
+				}) | rpl::to_empty
+			) | rpl::start_with_next([=]() mutable {
+				const auto item = _parent->data();
+				// Destroys this.
+				item->applyEditionToHistoryCleared();
+				item->updateServiceText(PreparedServiceText{
+					(isRound
+						? tr::lng_ttl_round_expired
+						: tr::lng_ttl_voice_expired)(
+							tr::now,
+							Ui::Text::WithEntities)
+				});
+				if (lifetime) {
+					base::take(lifetime)->destroy();
+				}
+			}, *lifetime);
+
+			return false;
+		});
+	} else {
+		setDocumentLinks(_data, realParent);
+	}
 
 	setStatusSize(Ui::FileStatusSizeReady);
 
@@ -273,9 +321,9 @@ void Document::createComponents(bool caption) {
 			_realParent->fullId());
 	}
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
-		voice->seekl = std::make_shared<VoiceSeekClickHandler>(
-			_data,
-			[](FullMsgId) {});
+		voice->seekl = !OncePlayable(_parent->data())
+			? std::make_shared<VoiceSeekClickHandler>(_data, [](FullMsgId) {})
+			: nullptr;
 		if (_transcribedRound) {
 			voice->round = std::make_unique<::Media::Player::RoundPainter>(
 				_realParent);

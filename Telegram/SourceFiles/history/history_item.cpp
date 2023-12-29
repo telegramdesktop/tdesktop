@@ -242,7 +242,7 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		});
 	}, [&](const MTPDmessageMediaDocument &media) -> Result {
 		const auto document = media.vdocument();
-		if (media.vttl_seconds()) {
+		if (media.vttl_seconds() && media.is_video()) {
 			LOG(("App Error: "
 				"Unexpected MTPMessageMediaDocument "
 				"with ttl_seconds in CreateMedia."));
@@ -258,7 +258,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 				item,
 				item->history()->owner().processDocument(document),
 				media.is_nopremium(),
-				media.is_spoiler());
+				media.is_spoiler(),
+				media.vttl_seconds().value_or_empty());
 		}, [](const MTPDdocumentEmpty &) -> Result {
 			return nullptr;
 		});
@@ -354,7 +355,8 @@ HistoryItem::HistoryItem(
 		setServiceText({
 			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
 		});
-	} else if (checked == MediaCheckResult::HasTimeToLive) {
+	} else if ((checked == MediaCheckResult::HasUnsupportedTimeToLive)
+			|| (checked == MediaCheckResult::HasExpiredMediaTimeToLive)) {
 		createServiceFromMtp(data);
 		applyTTL(data);
 	} else if (checked == MediaCheckResult::HasStoryMention) {
@@ -617,7 +619,8 @@ HistoryItem::HistoryItem(
 		this,
 		document,
 		skipPremiumEffect,
-		spoiler);
+		spoiler,
+		/*ttlSeconds = */0);
 	setText(caption);
 }
 
@@ -1659,7 +1662,8 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 			this,
 			document,
 			/*skipPremiumEffect=*/false,
-			spoiler);
+			spoiler,
+			/*ttlSeconds = */0);
 	}
 	setText(story->caption());
 }
@@ -3605,25 +3609,43 @@ void HistoryItem::createServiceFromMtp(const MTPDmessage &message) {
 			const auto ttl = data.vttl_seconds();
 			Assert(ttl != nullptr);
 
-			setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, *ttl);
-			if (out()) {
-				setServiceText({
-					tr::lng_ttl_video_sent(tr::now, Ui::Text::WithEntities)
-				});
-			} else {
-				auto result = PreparedServiceText();
-				result.links.push_back(fromLink());
-				result.text = tr::lng_ttl_video_received(
-					tr::now,
-					lt_from,
-					fromLinkText(), // Link 1.
-					Ui::Text::WithEntities);
-				setServiceText(std::move(result));
+			if (data.is_video()) {
+				setSelfDestruct(
+					HistoryServiceSelfDestruct::Type::Video,
+					*ttl);
+				if (out()) {
+					setServiceText({
+						tr::lng_ttl_video_sent(
+							tr::now,
+							Ui::Text::WithEntities)
+					});
+				} else {
+					auto result = PreparedServiceText();
+					result.links.push_back(fromLink());
+					result.text = tr::lng_ttl_video_received(
+						tr::now,
+						lt_from,
+						fromLinkText(), // Link 1.
+						Ui::Text::WithEntities);
+					setServiceText(std::move(result));
+				}
+			} else if (out()) {
+				auto text = (data.is_voice()
+					? tr::lng_ttl_voice_sent
+					: data.is_round()
+					? tr::lng_ttl_round_sent
+					: tr::lng_message_empty)(tr::now, Ui::Text::WithEntities);
+				setServiceText({ std::move(text) });
 			}
 		} else {
-			setServiceText({
-				tr::lng_ttl_video_expired(tr::now, Ui::Text::WithEntities)
-			});
+			auto text = (data.is_video()
+				? tr::lng_ttl_video_expired
+				: data.is_voice()
+				? tr::lng_ttl_voice_expired
+				: data.is_round()
+				? tr::lng_ttl_round_expired
+				: tr::lng_message_empty)(tr::now, Ui::Text::WithEntities);
+			setServiceText({ std::move(text) });
 		}
 	}, [&](const MTPDmessageMediaStory &data) {
 		setServiceText(prepareStoryMentionText());

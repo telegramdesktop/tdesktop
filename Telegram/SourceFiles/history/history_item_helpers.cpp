@@ -451,7 +451,7 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	}, [](const MTPDmessageMediaPhoto &data) {
 		const auto photo = data.vphoto();
 		if (data.vttl_seconds()) {
-			return Result::HasTimeToLive;
+			return Result::HasUnsupportedTimeToLive;
 		} else if (!photo) {
 			return Result::Empty;
 		}
@@ -463,7 +463,11 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	}, [](const MTPDmessageMediaDocument &data) {
 		const auto document = data.vdocument();
 		if (data.vttl_seconds()) {
-			return Result::HasTimeToLive;
+			if (data.is_video()) {
+				return Result::HasUnsupportedTimeToLive;
+			} else if (!document) {
+				return Result::HasExpiredMediaTimeToLive;
+			}
 		} else if (!document) {
 			return Result::Empty;
 		}

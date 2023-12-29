@@ -1715,6 +1715,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_video_received" = "{from} sent you a self-destructing video. Please view it on your mobile.";
 "lng_ttl_video_sent" = "You sent a self-destructing video.";
 "lng_ttl_video_expired" = "Video has expired";
+"lng_ttl_voice_sent" = "You sent a self-destructing voice messsage.";
+"lng_ttl_voice_expired" = "Voice message expired";
+"lng_ttl_round_sent" = "You sent a self-destructing video message.";
+"lng_ttl_round_expired" = "Round message expired";
 
 "lng_profile_add_more_after_create" = "You will be able to add more members after you create the group.";
 "lng_profile_camera_title" = "Capture yourself";
