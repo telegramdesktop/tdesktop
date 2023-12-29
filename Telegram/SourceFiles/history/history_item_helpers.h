@@ -158,3 +158,4 @@ ClickHandlerPtr JumpToStoryClickHandler(
 void ShowTrialTranscribesToast(int left, TimeId until);
 
 void ClearMediaAsExpired(not_null<HistoryItem*> item);
+[[nodiscard]] bool IsVoiceOncePlayable(not_null<HistoryItem*> item);

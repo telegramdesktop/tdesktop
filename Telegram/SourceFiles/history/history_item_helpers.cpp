@@ -808,3 +808,7 @@ void ClearMediaAsExpired(not_null<HistoryItem*> item) {
 		}
 	}
 }
+
+[[nodiscard]] bool IsVoiceOncePlayable(not_null<HistoryItem*> item) {
+	return !item->out() && item->media()->ttlSeconds();
+}

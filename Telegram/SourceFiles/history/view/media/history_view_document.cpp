@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_item_components.h"
-#include "history/history_item_helpers.h" // PreparedServiceText.
+#include "history/history_item_helpers.h" // ClearMediaAsExpired.
 #include "history/history.h"
 #include "core/click_handler_types.h" // kDocumentFilenameTooltipProperty.
 #include "history/view/history_view_element.h"
@@ -94,10 +94,6 @@ constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 	return [=](QPainter &p, QRect r, QColor c) {
 		(state->idle ? state->idle : state->start)->paintInCenter(p, r, c);
 	};
-}
-
-[[nodiscard]] bool OncePlayable(not_null<HistoryItem*> item) {
-	return !item->out() && item->media()->ttlSeconds();
 }
 
 [[nodiscard]] QString CleanTagSymbols(const QString &value) {
@@ -264,7 +260,7 @@ Document::Document(
 	}
 
 	if ((_data->isVoiceMessage() || isRound)
-		&& OncePlayable(_parent->data())) {
+		&& IsVoiceOncePlayable(_parent->data())) {
 		_parent->data()->removeFromSharedMediaIndex();
 		setDocumentLinks(_data, realParent, [=] {
 			_openl = nullptr;
@@ -288,14 +284,7 @@ Document::Document(
 			) | rpl::start_with_next([=]() mutable {
 				const auto item = _parent->data();
 				// Destroys this.
-				item->applyEditionToHistoryCleared();
-				item->updateServiceText(PreparedServiceText{
-					(isRound
-						? tr::lng_ttl_round_expired
-						: tr::lng_ttl_voice_expired)(
-							tr::now,
-							Ui::Text::WithEntities)
-				});
+				ClearMediaAsExpired(_parent->data());
 				if (lifetime) {
 					_drawTtl = nullptr;
 					base::take(lifetime)->destroy();
@@ -371,7 +360,7 @@ void Document::createComponents(bool caption) {
 			_realParent->fullId());
 	}
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
-		voice->seekl = !OncePlayable(_parent->data())
+		voice->seekl = !IsVoiceOncePlayable(_parent->data())
 			? std::make_shared<VoiceSeekClickHandler>(_data, [](FullMsgId) {})
 			: nullptr;
 		if (_transcribedRound) {
@@ -404,7 +393,9 @@ QSize Document::countOptimalSize() {
 	const auto voice = Get<HistoryDocumentVoice>();
 	if (voice) {
 		const auto session = &_realParent->history()->session();
-		if (!session->premium() && !session->api().transcribes().trialsSupport()) {
+		if (IsVoiceOncePlayable(_parent->data())
+			|| (!session->premium()
+				&& !session->api().transcribes().trialsSupport())) {
 			voice->transcribe = nullptr;
 			voice->transcribeText = {};
 		} else {

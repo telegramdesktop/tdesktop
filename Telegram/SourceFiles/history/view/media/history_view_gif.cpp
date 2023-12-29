@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
@@ -1974,6 +1975,7 @@ bool Gif::needCornerStatusDisplay() const {
 
 void Gif::ensureTranscribeButton() const {
 	if (_data->isVideoMessage()
+		&& !IsVoiceOncePlayable(_parent->data())
 		&& (_data->session().premium()
 			|| _data->session().api().transcribes().trialsSupport())) {
 		if (!_transcribe) {
