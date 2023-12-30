@@ -44,11 +44,55 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_transcribes.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+#include "styles/style_dialogs.h"
 
 namespace HistoryView {
 namespace {
 
 constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
+
+void DrawCornerBadgeTTL(
+		QPainter &p,
+		const style::color &color,
+		const QRect &circleRect) {
+	p.save();
+	const auto ratio = style::DevicePixelRatio();
+	const auto partRect = QRect(
+		circleRect.left() + circleRect.width() - st::dialogsTTLBadgeSize * 0.85,
+		circleRect.top() + circleRect.height() - st::dialogsTTLBadgeSize * 0.85,
+		st::dialogsTTLBadgeSize,
+		st::dialogsTTLBadgeSize);
+
+	auto hq = PainterHighQualityEnabler(p);
+	p.setBrush(color);
+	p.drawEllipse(partRect);
+
+	const auto innerRect = partRect - st::dialogsTTLBadgeInnerMargins;
+	const auto ttlText = u"1"_q;
+
+	p.setFont(st::dialogsScamFont);
+	p.setPen(st::premiumButtonFg);
+	p.drawText(innerRect, ttlText, style::al_center);
+
+	constexpr auto kPenWidth = 1.5;
+
+	const auto penWidth = style::ConvertScaleExact(kPenWidth);
+	auto pen = QPen(st::premiumButtonFg);
+	pen.setJoinStyle(Qt::RoundJoin);
+	pen.setCapStyle(Qt::RoundCap);
+	pen.setWidthF(penWidth);
+
+	p.setPen(pen);
+	p.setBrush(Qt::NoBrush);
+	p.drawArc(innerRect, arc::kQuarterLength, arc::kHalfLength);
+
+	p.setClipRect(innerRect
+		- QMargins(innerRect.width() / 2, 0, -penWidth, -penWidth));
+	pen.setStyle(Qt::DotLine);
+	p.setPen(pen);
+	p.drawEllipse(innerRect);
+	p.restore();
+}
 
 [[nodiscard]] HistoryView::TtlPaintCallback CreateTtlPaintCallback(
 		std::shared_ptr<rpl::lifetime> lifetime,
@@ -675,6 +719,10 @@ void Document::draw(
 				PainterHighQualityEnabler hq(p);
 				p.setBrush(stm->msgFileBg);
 				p.drawEllipse(inner);
+
+				if (_parent->data()->media()->ttlSeconds()) {
+					DrawCornerBadgeTTL(p, stm->msgFileBg, inner);
+				}
 			}
 		}
 
