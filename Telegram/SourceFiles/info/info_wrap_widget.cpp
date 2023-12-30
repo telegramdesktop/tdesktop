@@ -597,7 +597,10 @@ void WrapWidget::finishShowContent() {
 	updateContentGeometry();
 	_content->setIsStackBottom(!hasStackHistory());
 	if (_topBar) {
-		_topBar->setTitle(_content->title());
+		_topBar->setTitle({
+			.title = _content->title(),
+			.subtitle = _content->subtitle(),
+		});
 		_topBar->setStories(_content->titleStories());
 		_topBar->setStoriesArchive(
 			_controller->key().storiesTab() == Stories::Tab::Archive);

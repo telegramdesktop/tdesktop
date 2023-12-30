@@ -7,53 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_sublist_section.h"
 
-//#include "base/timer_rpl.h"
-//#include "apiwrap.h"
-//#include "base/event_filter.h"
-//#include "base/call_delayed.h"
-//#include "base/qt/qt_key_modifiers.h"
-//#include "core/file_utilities.h"
 #include "main/main_session.h"
-//#include "data/data_chat.h"
-//#include "data/data_channel.h"
-//#include "data/data_changes.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
-//#include "data/data_sparse_ids.h"
-//#include "data/data_shared_media.h"
 #include "data/data_peer_values.h"
 #include "data/data_user.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_translate_bar.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history.h"
-//#include "history/history_item_components.h"
 #include "history/history_item.h"
-//#include "storage/storage_account.h"
-//#include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
-//#include "ui/boxes/confirm_box.h"
-//#include "ui/layers/generic_box.h"
-//#include "ui/item_text_options.h"
 #include "ui/chat/chat_style.h"
-//#include "ui/toast/toast.h"
-//#include "ui/text/format_values.h"
-//#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
-//#include "ui/ui_utility.h"
-//#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
-//#include "window/window_peer_menu.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
-//#include "styles/style_info.h"
-//#include "styles/style_boxes.h"
-//
-//#include <QtCore/QMimeData>
 
 namespace HistoryView {
 namespace {
@@ -134,7 +107,6 @@ SublistWidget::SublistWidget(
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
 	_topBar->show();
-	_topBar->setCustomTitle(tr::lng_contacts_loading(tr::now));
 
 	_topBar->deleteSelectionRequest(
 	) | rpl::start_with_next([=] {
@@ -464,6 +436,12 @@ rpl::producer<Data::MessagesSlice> SublistWidget::listSource(
 		const auto pushSlice = [=] {
 			auto result = Data::MessagesSlice();
 			result.fullCount = _sublist->fullCount();
+			_topBar->setCustomTitle(result.fullCount
+				? tr::lng_forum_messages(
+					tr::now,
+					lt_count_decimal,
+					*result.fullCount)
+				: tr::lng_contacts_loading(tr::now));
 			const auto &messages = _sublist->messages();
 			const auto i = ranges::lower_bound(
 				messages,
@@ -476,7 +454,7 @@ rpl::producer<Data::MessagesSlice> SublistWidget::listSource(
 			const auto useAfter = std::min(after, limitAfter);
 			const auto from = i - useAfter;
 			const auto till = i + useBefore;
-			auto nearestDistance = std::numeric_limits<int>::max();
+			auto nearestDistance = std::numeric_limits<int64>::max();
 			result.ids.reserve(useAfter + useBefore);
 			for (auto j = till; j != from;) {
 				const auto item = *--j;

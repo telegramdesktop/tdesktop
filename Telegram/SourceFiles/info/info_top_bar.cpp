@@ -82,13 +82,36 @@ void TopBar::registerToggleControlCallback(
 	});
 }
 
-void TopBar::setTitle(rpl::producer<QString> &&title) {
+void TopBar::setTitle(TitleDescriptor descriptor) {
 	if (_title) {
 		delete _title;
 	}
+	if (_subtitle) {
+		delete _subtitle;
+	}
+	const auto withSubtitle = !!descriptor.subtitle;
+	if (withSubtitle) {
+		_subtitle = Ui::CreateChild<Ui::FadeWrap<Ui::FlatLabel>>(
+			this,
+			object_ptr<Ui::FlatLabel>(
+				this,
+				std::move(descriptor.subtitle),
+				_st.subtitle),
+			st::infoTopBarScale);
+		_subtitle->setDuration(st::infoTopBarDuration);
+		_subtitle->toggle(
+			!selectionMode() && !storiesTitle(),
+			anim::type::instant);
+		registerToggleControlCallback(_subtitle.data(), [=] {
+			return !selectionMode() && !storiesTitle() && !searchMode();
+		});
+	}
 	_title = Ui::CreateChild<Ui::FadeWrap<Ui::FlatLabel>>(
 		this,
-		object_ptr<Ui::FlatLabel>(this, std::move(title), _st.title),
+		object_ptr<Ui::FlatLabel>(
+			this,
+			std::move(descriptor.title),
+			withSubtitle ? _st.titleWithSubtitle : _st.title),
 		st::infoTopBarScale);
 	_title->setDuration(st::infoTopBarDuration);
 	_title->toggle(
@@ -100,6 +123,9 @@ void TopBar::setTitle(rpl::producer<QString> &&title) {
 
 	if (_back) {
 		_title->setAttribute(Qt::WA_TransparentForMouseEvents);
+		if (_subtitle) {
+			_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
 	}
 	updateControlsGeometry(width());
 }
@@ -123,6 +149,9 @@ void TopBar::enableBackButton() {
 
 	if (_title) {
 		_title->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+	if (_subtitle) {
+		_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 	if (_storiesWrap) {
 		_storiesWrap->raise();
@@ -339,10 +368,21 @@ void TopBar::updateDefaultControlsGeometry(int newWidth) {
 			newWidth);
 	}
 	if (_title) {
-		_title->moveToLeft(
-			_back ? _st.back.width : _st.titlePosition.x(),
-			_st.titlePosition.y(),
-			newWidth);
+		const auto x = _back
+			? _st.back.width
+			: _subtitle
+			? _st.titleWithSubtitlePosition.x()
+			: _st.titlePosition.x();
+		const auto y = _subtitle
+			? _st.titleWithSubtitlePosition.y()
+			: _st.titlePosition.y();
+		_title->moveToLeft(x, y, newWidth);
+		if (_subtitle) {
+			_subtitle->moveToLeft(
+				_back ? _st.back.width : _st.subtitlePosition.x(),
+				_st.subtitlePosition.y(),
+				newWidth);
+		}
 	}
 }
 

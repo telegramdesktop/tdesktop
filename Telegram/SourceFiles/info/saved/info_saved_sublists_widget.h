@@ -50,6 +50,7 @@ public:
 		not_null<SublistsMemento*> memento);
 
 	rpl::producer<QString> title() override;
+	rpl::producer<QString> subtitle() override;
 
 private:
 	void saveState(not_null<SublistsMemento*> memento);

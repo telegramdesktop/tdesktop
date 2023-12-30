@@ -77,6 +77,16 @@ rpl::producer<QString> SublistsWidget::title() {
 	return tr::lng_saved_messages();
 }
 
+rpl::producer<QString> SublistsWidget::subtitle() {
+	const auto saved = &controller()->session().data().savedMessages();
+	return saved->chatsList()->fullSize().value(
+	) | rpl::map([=](int value) {
+		return (value || saved->chatsList()->loaded())
+			? tr::lng_filters_chats_count(tr::now, lt_count, value)
+			: tr::lng_contacts_loading(tr::now);
+	});
+}
+
 bool SublistsWidget::showInternal(not_null<ContentMemento*> memento) {
 	if (!controller()->validateMementoPeer(memento)) {
 		return false;
