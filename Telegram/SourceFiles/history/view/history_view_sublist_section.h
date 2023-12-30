@@ -163,6 +163,7 @@ private:
 		FullMsgId originId = {});
 
 	void setupOpenChatButton();
+	void setupAboutHiddenAuthor();
 	void setupTranslateBar();
 
 	void confirmDeleteSelected();
@@ -183,6 +184,7 @@ private:
 	bool _skipScrollEvent = false;
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Ui::FlatButton> _openChatButton;
+	std::unique_ptr<Ui::RpWidget> _aboutHiddenAuthor;
 
 	CornerButtons _cornerButtons;
 

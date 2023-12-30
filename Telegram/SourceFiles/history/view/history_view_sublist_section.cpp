@@ -72,14 +72,6 @@ SublistWidget::SublistWidget(
 	this,
 	controller->chatStyle()->value(lifetime(), st::historyScroll),
 	false))
-, _openChatButton(std::make_unique<Ui::FlatButton>(
-	this,
-	(_sublist->peer()->isBroadcast()
-		? tr::lng_saved_open_channel(tr::now)
-		: _sublist->peer()->isUser()
-		? tr::lng_saved_open_chat(tr::now)
-		: tr::lng_saved_open_group(tr::now)),
-	st::historyComposeButton))
 , _cornerButtons(
 		_scroll.get(),
 		controller->chatStyle(),
@@ -88,6 +80,9 @@ SublistWidget::SublistWidget(
 	) | rpl::start_with_next([=] {
 		_scroll->updateBars();
 	}, _scroll->lifetime());
+
+	setupOpenChatButton();
+	setupAboutHiddenAuthor();
 
 	Window::ChatThemeValueFromPeer(
 		controller,
@@ -139,18 +134,50 @@ SublistWidget::SublistWidget(
 		onScroll();
 	}, lifetime());
 
-	setupOpenChatButton();
 	setupTranslateBar();
 }
 
 SublistWidget::~SublistWidget() = default;
 
 void SublistWidget::setupOpenChatButton() {
+	if (_sublist->peer()->isSavedHiddenAuthor()) {
+		return;
+	}
+	_openChatButton = std::make_unique<Ui::FlatButton>(
+		this,
+		(_sublist->peer()->isBroadcast()
+			? tr::lng_saved_open_channel(tr::now)
+			: _sublist->peer()->isUser()
+			? tr::lng_saved_open_chat(tr::now)
+			: tr::lng_saved_open_group(tr::now)),
+		st::historyComposeButton);
+
 	_openChatButton->setClickedCallback([=] {
 		controller()->showPeerHistory(
 			_sublist->peer(),
 			Window::SectionShow::Way::Forward);
 	});
+}
+
+void SublistWidget::setupAboutHiddenAuthor() {
+	if (!_sublist->peer()->isSavedHiddenAuthor()) {
+		return;
+	}
+	_aboutHiddenAuthor = std::make_unique<Ui::RpWidget>(this);
+	_aboutHiddenAuthor->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(_aboutHiddenAuthor.get());
+		auto rect = _aboutHiddenAuthor->rect();
+
+		p.fillRect(rect, st::historyReplyBg);
+
+		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
+		p.drawText(
+			rect.marginsRemoved(
+				QMargins(st::historySendPadding, 0, st::historySendPadding, 0)),
+			tr::lng_saved_about_hidden(tr::now),
+			style::al_center);
+	}, _aboutHiddenAuthor->lifetime());
 }
 
 void SublistWidget::setupTranslateBar() {
@@ -319,9 +346,17 @@ void SublistWidget::updateControlsGeometry() {
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
 
-	const auto bottom = height() - _openChatButton->height();
-	_openChatButton->resizeToWidth(width());
-	_openChatButton->move(0, bottom);
+	auto bottom = height();
+	if (_openChatButton) {
+		_openChatButton->resizeToWidth(width());
+		bottom -= _openChatButton->height();
+		_openChatButton->move(0, bottom);
+	}
+	if (_aboutHiddenAuthor) {
+		_aboutHiddenAuthor->resize(width(), st::historyUnblock.height);
+		bottom -= _aboutHiddenAuthor->height();
+		_aboutHiddenAuthor->move(0, bottom);
+	}
 	const auto controlsHeight = 0;
 	auto top = _topBar->height();
 	_translateBar->move(0, top);
