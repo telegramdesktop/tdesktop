@@ -182,6 +182,7 @@ void SavedMessages::loadMore(not_null<SavedSublist*> sublist) {
 		sublist->setFullLoaded();
 		_loadMoreRequests.remove(sublist);
 	}).send();
+	_loadMoreRequests[sublist] = requestId;
 }
 
 } // namespace Data

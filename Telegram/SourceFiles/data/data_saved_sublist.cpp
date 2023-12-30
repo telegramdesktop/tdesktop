@@ -134,12 +134,20 @@ void SavedSublist::append(
 	_fullCount = fullCount;
 	if (items.empty()) {
 		setFullLoaded();
-	} else if (!_items.empty()) {
+	} else if (_items.empty()) {
+		_items = std::move(items);
+		setChatListTimeId(_items.front()->date());
+		_changed.fire({});
+	} else if (_items.back()->id > items.front()->id) {
 		_items.insert(end(_items), begin(items), end(items));
 		_changed.fire({});
 	} else {
-		_items = std::move(items);
-		setChatListTimeId(_items.front()->date());
+		_items.insert(end(_items), begin(items), end(items));
+		ranges::stable_sort(
+			_items,
+			ranges::greater(),
+			&HistoryItem::id);
+		ranges::unique(_items, ranges::greater(), &HistoryItem::id);
 		_changed.fire({});
 	}
 }
