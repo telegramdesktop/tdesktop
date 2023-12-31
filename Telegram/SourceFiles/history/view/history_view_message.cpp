@@ -3225,7 +3225,8 @@ bool Message::hasOutLayout() const {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 			return (context() == Context::SavedSublist)
 				&& (!forwarded->forwardOfForward()
-					? forwarded->originalSender->isSelf()
+					? (forwarded->originalSender
+						&& forwarded->originalSender->isSelf())
 					: ((forwarded->savedFromSender
 						&& forwarded->savedFromSender->isSelf())
 						|| forwarded->savedFromOutgoing));
