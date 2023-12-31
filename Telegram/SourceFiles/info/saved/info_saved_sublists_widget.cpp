@@ -12,10 +12,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "history/view/history_view_sublist_section.h"
+#include "info/media/info_media_buttons.h"
+#include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
+#include "ui/widgets/box_content_divider.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "styles/style_info.h"
 
 namespace Info::Saved {
 
@@ -41,24 +47,27 @@ SublistsMemento::~SublistsMemento() = default;
 SublistsWidget::SublistsWidget(
 	QWidget *parent,
 	not_null<Controller*> controller)
-: ContentWidget(parent, controller) {
-	_inner = setInnerWidget(object_ptr<Dialogs::InnerWidget>(
+: ContentWidget(parent, controller)
+, _layout(setInnerWidget(object_ptr<Ui::VerticalLayout>(this))) {
+	setupOtherTypes();
+
+	_list = _layout->add(object_ptr<Dialogs::InnerWidget>(
 		this,
 		controller->parentController(),
 		rpl::single(Dialogs::InnerWidget::ChildListShown())));
-	_inner->showSavedSublists();
-	_inner->setNarrowRatio(0.);
+	_list->showSavedSublists();
+	_list->setNarrowRatio(0.);
 
-	_inner->chosenRow() | rpl::start_with_next([=](Dialogs::ChosenRow row) {
+	_list->chosenRow() | rpl::start_with_next([=](Dialogs::ChosenRow row) {
 		if (const auto sublist = row.key.sublist()) {
 			controller->showSection(
 				std::make_shared<HistoryView::SublistMemento>(sublist),
 				Window::SectionShow::Way::Forward);
 		}
-	}, _inner->lifetime());
+	}, _list->lifetime());
 
 	const auto saved = &controller->session().data().savedMessages();
-	_inner->heightValue() | rpl::start_with_next([=] {
+	_list->heightValue() | rpl::start_with_next([=] {
 		if (!saved->supported()) {
 			crl::on_main(controller, [=] {
 				controller->showSection(
@@ -68,9 +77,59 @@ SublistsWidget::SublistsWidget(
 		}
 	}, lifetime());
 
-	_inner->setLoadMoreCallback([=] {
+	_list->setLoadMoreCallback([=] {
 		saved->loadMore();
 	});
+}
+
+void SublistsWidget::setupOtherTypes() {
+	auto wrap = _layout->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_layout,
+			object_ptr<Ui::VerticalLayout>(_layout)));
+	auto content = wrap->entity();
+	content->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::infoProfileSkip));
+
+	using Type = Media::Type;
+	auto tracker = Ui::MultiSlideTracker();
+	const auto peer = controller()->session().user();
+	const auto addMediaButton = [&](
+			Type buttonType,
+			const style::icon &icon) {
+		auto result = Media::AddButton(
+			content,
+			controller(),
+			peer,
+			MsgId(), // topicRootId
+			nullptr, // migrated
+			buttonType,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition)->show();
+	};
+
+	addMediaButton(Type::Photo, st::infoIconMediaPhoto);
+	addMediaButton(Type::Video, st::infoIconMediaVideo);
+	addMediaButton(Type::File, st::infoIconMediaFile);
+	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
+	addMediaButton(Type::Link, st::infoIconMediaLink);
+	addMediaButton(Type::RoundVoiceFile, st::infoIconMediaVoice);
+	addMediaButton(Type::GIF, st::infoIconMediaGif);
+
+	content->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::infoProfileSkip));
+	wrap->toggleOn(tracker.atLeastOneShownValue());
+	wrap->finishAnimating();
+
+	_layout->add(object_ptr<Ui::BoxContentDivider>(_layout));
+	_layout->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::infoProfileSkip));
 }
 
 rpl::producer<QString> SublistsWidget::title() {

@@ -349,7 +349,7 @@ public:
 		const QVector<MTPDialog> &dialogs,
 		std::optional<int> count = std::nullopt);
 
-	[[nodiscard]] bool pinnedCanPin(not_null<Thread*> thread) const;
+	[[nodiscard]] bool pinnedCanPin(not_null<Dialogs::Entry*> entry) const;
 	[[nodiscard]] bool pinnedCanPin(
 		FilterId filterId,
 		not_null<History*> history) const;

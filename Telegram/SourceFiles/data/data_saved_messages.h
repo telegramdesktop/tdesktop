@@ -34,7 +34,13 @@ public:
 	void loadMore();
 	void loadMore(not_null<SavedSublist*> sublist);
 
+	void apply(const MTPDupdatePinnedSavedDialogs &update);
+	void apply(const MTPDupdateSavedDialogPinned &update);
+
 private:
+	void loadPinned();
+	void apply(const MTPmessages_SavedDialogs &result, bool pinned);
+
 	const not_null<Session*> _owner;
 
 	Dialogs::MainList _chatsList;
@@ -44,11 +50,13 @@ private:
 
 	base::flat_map<not_null<SavedSublist*>, mtpRequestId> _loadMoreRequests;
 	mtpRequestId _loadMoreRequestId = 0;
+	mtpRequestId _pinnedRequestId = 0;
 
 	TimeId _offsetDate = 0;
 	MsgId _offsetId = 0;
 	PeerData *_offsetPeer = nullptr;
 
+	bool _pinnedLoaded = false;
 	bool _unsupported = false;
 
 };

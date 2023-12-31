@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_search_controller.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
@@ -443,8 +444,8 @@ void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
 void ApiWrap::savePinnedOrder(not_null<Data::SavedMessages*> saved) {
 	const auto &order = _session->data().pinnedChatsOrder(saved);
 	const auto input = [](Dialogs::Key key) {
-		if (const auto history = key.history()) {
-			return MTP_inputDialogPeer(history->peer->input);
+		if (const auto sublist = key.sublist()) {
+			return MTP_inputDialogPeer(sublist->peer()->input);
 		}
 		Unexpected("Key type in pinnedDialogsOrder().");
 	};

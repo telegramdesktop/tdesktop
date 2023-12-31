@@ -2107,13 +2107,17 @@ void Session::applyDialog(
 	setPinnedFromEntryList(folder, data.is_pinned());
 }
 
-bool Session::pinnedCanPin(not_null<Data::Thread*> thread) const {
-	if (const auto topic = thread->asTopic()) {
+bool Session::pinnedCanPin(not_null<Dialogs::Entry*> entry) const {
+	if (const auto sublist = entry->asSublist()) {
+		const auto saved = &savedMessages();
+		return pinnedChatsOrder(saved).size() < pinnedChatsLimit(saved);
+	} else if (const auto topic = entry->asTopic()) {
 		const auto forum = topic->forum();
 		return pinnedChatsOrder(forum).size() < pinnedChatsLimit(forum);
+	} else {
+		const auto folder = entry->folder();
+		return pinnedChatsOrder(folder).size() < pinnedChatsLimit(folder);
 	}
-	const auto folder = thread->folder();
-	return pinnedChatsOrder(folder).size() < pinnedChatsLimit(folder);
 }
 
 bool Session::pinnedCanPin(
@@ -2240,7 +2244,7 @@ void Session::reorderTwoPinnedChats(
 		? topic->forum()->topicsList()
 		: filterId
 		? chatsFilters().chatsList(filterId)
-		: chatsList(key1.entry()->folder());
+		: chatsListFor(key1.entry());
 	list->pinned()->reorder(key1, key2);
 	notifyPinnedDialogsOrderUpdated();
 }

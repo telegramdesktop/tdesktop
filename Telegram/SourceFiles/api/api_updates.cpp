@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_saved_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -2206,6 +2207,16 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		if (!done) {
 			session().api().requestPinnedDialogs(folder);
 		}
+	} break;
+
+	case mtpc_updatePinnedSavedDialogs: {
+		session().data().savedMessages().apply(
+			update.c_updatePinnedSavedDialogs());
+	} break;
+
+	case mtpc_updateSavedDialogPinned: {
+		session().data().savedMessages().apply(
+			update.c_updateSavedDialogPinned());
 	} break;
 
 	case mtpc_updateChannel: {

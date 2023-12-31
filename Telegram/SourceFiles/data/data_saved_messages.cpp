@@ -62,60 +62,43 @@ not_null<SavedSublist*> SavedMessages::sublist(not_null<PeerData*> peer) {
 void SavedMessages::loadMore() {
 	if (_loadMoreRequestId || _chatsList.loaded()) {
 		return;
+	} else if (!_pinnedLoaded) {
+		loadPinned();
 	}
 	_loadMoreRequestId = _owner->session().api().request(
 		MTPmessages_GetSavedDialogs(
-			MTP_flags(0),
+			MTP_flags(MTPmessages_GetSavedDialogs::Flag::f_exclude_pinned),
 			MTP_int(_offsetDate),
 			MTP_int(_offsetId),
 			_offsetPeer ? _offsetPeer->input : MTP_inputPeerEmpty(),
 			MTP_int(kPerPage),
 			MTP_long(0)) // hash
 	).done([=](const MTPmessages_SavedDialogs &result) {
-		auto list = (const QVector<MTPSavedDialog>*)nullptr;
-		result.match([](const MTPDmessages_savedDialogsNotModified &) {
-			LOG(("API Error: messages.savedDialogsNotModified."));
-		}, [&](const auto &data) {
-			_owner->processUsers(data.vusers());
-			_owner->processChats(data.vchats());
-			_owner->processMessages(
-				data.vmessages(),
-				NewMessageType::Existing);
-			list = &data.vdialogs().v;
-		});
-		_loadMoreRequestId = 0;
-		if (!list) {
-			_chatsList.setLoaded();
-			return;
-		}
-		auto lastValid = false;
-		const auto selfId = _owner->session().userPeerId();
-		for (const auto &dialog : *list) {
-			const auto &data = dialog.data();
-			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
-			const auto topId = MsgId(data.vtop_message().v);
-			if (const auto item = _owner->message(selfId, topId)) {
-				_offsetPeer = peer;
-				_offsetDate = item->date();
-				_offsetId = topId;
-				lastValid = true;
-				sublist(peer)->applyMaybeLast(item);
-			} else {
-				lastValid = false;
-			}
-		}
-		if (!lastValid) {
-			LOG(("API Error: Unknown message in the end of a slice."));
-			_chatsList.setLoaded();
-		} else if (result.type() == mtpc_messages_savedDialogs) {
-			_chatsList.setLoaded();
-		}
+		apply(result, false);
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
 			_unsupported = true;
 		}
 		_chatsList.setLoaded();
 		_loadMoreRequestId = 0;
+	}).send();
+}
+
+void SavedMessages::loadPinned() {
+	if (_pinnedRequestId) {
+		return;
+	}
+	_pinnedRequestId = _owner->session().api().request(
+		MTPmessages_GetPinnedSavedDialogs()
+	).done([=](const MTPmessages_SavedDialogs &result) {
+		apply(result, true);
+	}).fail([=](const MTP::Error &error) {
+		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
+			_unsupported = true;
+		} else {
+			_pinnedLoaded = true;
+		}
+		_pinnedRequestId = 0;
 	}).send();
 }
 
@@ -183,6 +166,111 @@ void SavedMessages::loadMore(not_null<SavedSublist*> sublist) {
 		_loadMoreRequests.remove(sublist);
 	}).send();
 	_loadMoreRequests[sublist] = requestId;
+}
+
+void SavedMessages::apply(
+		const MTPmessages_SavedDialogs &result,
+		bool pinned) {
+	auto list = (const QVector<MTPSavedDialog>*)nullptr;
+	result.match([](const MTPDmessages_savedDialogsNotModified &) {
+		LOG(("API Error: messages.savedDialogsNotModified."));
+	}, [&](const auto &data) {
+		_owner->processUsers(data.vusers());
+		_owner->processChats(data.vchats());
+		_owner->processMessages(
+			data.vmessages(),
+			NewMessageType::Existing);
+		list = &data.vdialogs().v;
+	});
+	if (pinned) {
+		_pinnedRequestId = 0;
+		_pinnedLoaded = true;
+	} else {
+		_loadMoreRequestId = 0;
+	}
+	if (!list) {
+		if (!pinned) {
+			_chatsList.setLoaded();
+		}
+		return;
+	}
+	auto lastValid = false;
+	auto offsetDate = TimeId();
+	auto offsetId = MsgId();
+	auto offsetPeer = (PeerData*)nullptr;
+	const auto selfId = _owner->session().userPeerId();
+	for (const auto &dialog : *list) {
+		const auto &data = dialog.data();
+		const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
+		const auto topId = MsgId(data.vtop_message().v);
+		if (const auto item = _owner->message(selfId, topId)) {
+			offsetPeer = peer;
+			offsetDate = item->date();
+			offsetId = topId;
+			lastValid = true;
+			const auto entry = sublist(peer);
+			const auto entryPinned = pinned || data.is_pinned();
+			entry->applyMaybeLast(item);
+			_owner->setPinnedFromEntryList(entry, entryPinned);
+		} else {
+			lastValid = false;
+		}
+	}
+	if (pinned) {
+	} else if (!lastValid) {
+		LOG(("API Error: Unknown message in the end of a slice."));
+		_chatsList.setLoaded();
+	} else if (result.type() == mtpc_messages_savedDialogs) {
+		_chatsList.setLoaded();
+	} else if (offsetDate < _offsetDate
+		|| (offsetDate == _offsetDate && offsetId == _offsetId && offsetPeer == _offsetPeer)) {
+		LOG(("API Error: Bad order in messages.savedDialogs."));
+		_chatsList.setLoaded();
+	} else {
+		_offsetDate = offsetDate;
+		_offsetId = offsetId;
+		_offsetPeer = offsetPeer;
+	}
+}
+
+void SavedMessages::apply(const MTPDupdatePinnedSavedDialogs &update) {
+	const auto list = update.vorder();
+	if (!list) {
+		loadPinned();
+		return;
+	}
+	const auto &order = list->v;
+	const auto notLoaded = [&](const MTPDialogPeer &peer) {
+		return peer.match([&](const MTPDdialogPeer &data) {
+			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
+			return !_sublists.contains(peer);
+		}, [&](const MTPDdialogPeerFolder &data) {
+			LOG(("API Error: "
+				"updatePinnedSavedDialogs has folders."));
+			return false;
+		});
+	};
+	if (!ranges::none_of(order, notLoaded)) {
+		loadPinned();
+	} else {
+		_chatsList.pinned()->applyList(_owner, order);
+		_owner->notifyPinnedDialogsOrderUpdated();
+	}
+}
+
+void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
+	update.vpeer().match([&](const MTPDdialogPeer &data) {
+		const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
+		const auto i = _sublists.find(peer);
+		if (i != end(_sublists)) {
+			const auto entry = i->second.get();
+			_owner->setChatPinned(entry, FilterId(), update.is_pinned());
+		} else {
+			loadPinned();
+		}
+	}, [&](const MTPDdialogPeerFolder &data) {
+		DEBUG_LOG(("API Error: Folder in updateSavedDialogPinned."));
+	});
 }
 
 } // namespace Data

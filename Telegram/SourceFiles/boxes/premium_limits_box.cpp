@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_forum.h"
+#include "data/data_saved_messages.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_premium_limits.h"
@@ -881,6 +882,18 @@ void PinsLimitBox(
 		limits.dialogsPinnedDefault(),
 		limits.dialogsPinnedPremium(),
 		PinsCount(session->data().chatsList()));
+}
+void SublistsPinsLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	const auto limits = Data::PremiumLimits(session);
+	SimplePinsLimitBox(
+		box,
+		session,
+		"saved_dialog_pinned",
+		limits.savedSublistsPinnedDefault(),
+		limits.savedSublistsPinnedPremium(),
+		PinsCount(session->data().savedMessages().chatsList()));
 }
 
 void ForumPinsLimitBox(

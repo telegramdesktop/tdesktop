@@ -60,6 +60,9 @@ void PinsLimitBox(
 void ForumPinsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Data::Forum*> forum);
+void SublistsPinsLimitBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
 void CaptionLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session,
