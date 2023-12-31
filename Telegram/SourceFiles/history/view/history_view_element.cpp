@@ -64,16 +64,20 @@ Element *MousedElement/* = nullptr*/;
 		HistoryMessageForwarded *prevForwarded,
 		not_null<HistoryItem*> item,
 		HistoryMessageForwarded *forwarded) {
-	const auto sender = previous->originalSender();
+	const auto sender = previous->displayFrom();
 	if ((prevForwarded != nullptr) != (forwarded != nullptr)) {
 		return false;
-	} else if (sender != item->originalSender()) {
+	} else if (sender != item->displayFrom()) {
 		return false;
 	} else if (!prevForwarded || sender) {
 		return true;
 	}
-	const auto previousInfo = prevForwarded->hiddenSenderInfo.get();
-	const auto itemInfo = forwarded->hiddenSenderInfo.get();
+	const auto previousInfo = prevForwarded->savedFromHiddenSenderInfo
+		? prevForwarded->savedFromHiddenSenderInfo.get()
+		: prevForwarded->originalHiddenSenderInfo.get();
+	const auto itemInfo = forwarded->savedFromHiddenSenderInfo
+		? forwarded->savedFromHiddenSenderInfo.get()
+		: forwarded->originalHiddenSenderInfo.get();
 	Assert(previousInfo != nullptr);
 	Assert(itemInfo != nullptr);
 	return (*previousInfo == *itemInfo);

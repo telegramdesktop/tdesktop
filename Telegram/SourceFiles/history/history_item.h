@@ -20,6 +20,7 @@ struct HistoryMessageViews;
 struct HistoryMessageMarkupData;
 struct HistoryMessageReplyMarkup;
 struct HistoryMessageTranslation;
+struct HistoryMessageForwarded;
 struct HistoryServiceDependentData;
 enum class HistorySelfDestructType;
 struct PreparedServiceText;
@@ -481,13 +482,20 @@ public:
 
 	[[nodiscard]] TimeId originalDate() const;
 	[[nodiscard]] PeerData *originalSender() const;
-	[[nodiscard]] const HiddenSenderInfo *hiddenSenderInfo() const;
+	[[nodiscard]] const HiddenSenderInfo *originalHiddenSenderInfo() const;
 	[[nodiscard]] not_null<PeerData*> fromOriginal() const;
 	[[nodiscard]] QString originalPostAuthor() const;
 	[[nodiscard]] MsgId originalId() const;
 
 	[[nodiscard]] Data::SavedSublist *savedSublist() const;
 	[[nodiscard]] PeerData *savedSublistPeer() const;
+	[[nodiscard]] PeerData *savedFromSender() const;
+	[[nodiscard]] const HiddenSenderInfo *savedFromHiddenSenderInfo() const;
+
+	[[nodiscard]] const HiddenSenderInfo *displayHiddenSenderInfo() const;
+
+	[[nodiscard]] bool showForwardsFromSender(
+		not_null<const HistoryMessageForwarded*> forwarded) const;
 
 	[[nodiscard]] bool isEmpty() const;
 

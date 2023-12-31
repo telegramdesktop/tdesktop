@@ -56,7 +56,8 @@ enum class Context : char {
 	Replies,
 	Pinned,
 	AdminLog,
-	ContactPreview
+	ContactPreview,
+	SavedSublist,
 };
 
 enum class OnlyEmojiAndSpaces : char {

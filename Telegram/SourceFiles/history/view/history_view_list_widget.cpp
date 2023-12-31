@@ -2181,7 +2181,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					userpicTop,
 					view->width(),
 					st::msgPhotoSize);
-			} else if (const auto info = item->hiddenSenderInfo()) {
+			} else if (const auto info = item->displayHiddenSenderInfo()) {
 				if (info->customUserpic.empty()) {
 					info->emptyUserpic.paintCircle(
 						p,

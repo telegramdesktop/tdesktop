@@ -153,6 +153,10 @@ struct HistoryItem::CreateConfig {
 	PeerId savedFromPeer = 0;
 	MsgId savedFromMsgId = 0;
 
+	PeerId savedFromSenderId = 0;
+	QString savedFromSenderName;
+	bool savedFromOutgoing = false;
+
 	TimeId editDate = 0;
 	HistoryMessageMarkupData markup;
 	HistoryMessageRepliesData replies;
@@ -179,6 +183,13 @@ void HistoryItem::FillForwardedInfo(
 		config.savedFromPeer = peerFromMTP(*savedFromPeer);
 		config.savedFromMsgId = savedFromMsgId->v;
 	}
+	config.savedFromSenderId = data.vsaved_from_id()
+		? peerFromMTP(*data.vsaved_from_id())
+		: PeerId();
+	config.savedFromSenderName = qs(
+		data.vsaved_from_name().value_or_empty());
+	config.savedFromOutgoing = data.is_saved_out();
+
 	config.imported = data.is_imported();
 }
 
@@ -476,7 +487,7 @@ HistoryItem::HistoryItem(
 	}
 	if (!dropForwardInfo) {
 		config.originalDate = original->originalDate();
-		if (const auto info = original->hiddenSenderInfo()) {
+		if (const auto info = original->originalHiddenSenderInfo()) {
 			config.originalSenderName = info->name;
 		} else if (const auto originalSender = original->originalSender()) {
 			config.originalSenderId = originalSender->id;
@@ -500,6 +511,11 @@ HistoryItem::HistoryItem(
 			config.savedFromPeer = original->history()->peer->id;
 			config.savedFromMsgId = original->id;
 		//}
+
+		config.savedFromOutgoing = original->out();
+		config.savedFromSenderId = original->Get<HistoryMessageForwarded>()
+			? original->author()->id
+			: PeerId();
 	}
 	if (flags & MessageFlag::HasPostAuthor) {
 		config.postAuthor = postAuthor;
@@ -1193,10 +1209,10 @@ PeerData *HistoryItem::computeDisplayFrom() const {
 	if (const auto sender = discussionPostOriginalSender()) {
 		return sender;
 	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-		if (_history->peer->isSelf()
-			|| _history->peer->isRepliesChat()
-			|| forwarded->imported) {
-			return forwarded->originalSender;
+		if (showForwardsFromSender(forwarded)) {
+			return forwarded->forwardOfForward()
+				? forwarded->savedFromSender
+				: forwarded->originalSender;
 		}
 	}
 	return author().get();
@@ -1213,10 +1229,10 @@ PeerData *HistoryItem::displayFrom() const {
 uint8 HistoryItem::colorIndex() const {
 	if (const auto from = displayFrom()) {
 		return from->colorIndex();
-	} else if (const auto info = hiddenSenderInfo()) {
+	} else if (const auto info = displayHiddenSenderInfo()) {
 		return info->colorIndex;
 	}
-	Unexpected("No displayFrom and no hiddenSenderInfo.");
+	Unexpected("No displayFrom and no displayHiddenSenderInfo.");
 }
 
 std::unique_ptr<HistoryView::Element> HistoryItem::createView(
@@ -2493,14 +2509,30 @@ PeerData *HistoryItem::originalSender() const {
 		return forwarded->originalSender;
 	}
 	const auto peer = _history->peer;
-	return (peer->isChannel() && !peer->isMegagroup()) ? peer : from();
+	return peer->isBroadcast() ? peer : from();
 }
 
-const HiddenSenderInfo *HistoryItem::hiddenSenderInfo() const {
+const HiddenSenderInfo *HistoryItem::originalHiddenSenderInfo() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-		return forwarded->hiddenSenderInfo.get();
+		return forwarded->originalHiddenSenderInfo.get();
 	}
 	return nullptr;
+}
+
+const HiddenSenderInfo *HistoryItem::displayHiddenSenderInfo() const {
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		return forwarded->savedFromHiddenSenderInfo
+			? forwarded->savedFromHiddenSenderInfo.get()
+			: forwarded->originalHiddenSenderInfo.get();
+	}
+	return nullptr;
+}
+
+bool HistoryItem::showForwardsFromSender(
+		not_null<const HistoryMessageForwarded*> forwarded) const {
+	const auto peer = history()->peer;
+	return !forwarded->story
+		&& (peer->isSelf() || peer->isRepliesChat() || forwarded->imported);
 }
 
 not_null<PeerData*> HistoryItem::fromOriginal() const {
@@ -3055,6 +3087,20 @@ PeerData *HistoryItem::savedSublistPeer() const {
 	return nullptr;
 }
 
+PeerData *HistoryItem::savedFromSender() const {
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		return forwarded->savedFromSender;
+	}
+	return nullptr;
+}
+
+const HiddenSenderInfo *HistoryItem::savedFromHiddenSenderInfo() const {
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		return forwarded->savedFromHiddenSenderInfo.get();
+	}
+	return nullptr;
+}
+
 TextWithEntities HistoryItem::notificationText(
 		NotificationTextOptions options) const {
 	auto result = [&] {
@@ -3107,16 +3153,25 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 			? tr::lng_from_you(tr::now)
 			: sender->shortName();
 	};
-	result.icon = (Get<HistoryMessageForwarded>() != nullptr)
+	const auto forwarded = Get<HistoryMessageForwarded>();
+	const auto forwardFromSender = forwarded
+		&& showForwardsFromSender(forwarded);
+	result.icon = (forwarded
+		&& (!forwardFromSender || forwarded->forwardOfForward()))
 		? ItemPreview::Icon::ForwardedMessage
 		: replyToStory().valid()
 		? ItemPreview::Icon::ReplyToStory
 		: ItemPreview::Icon::None;
 	const auto fromForwarded = [&]() -> std::optional<QString> {
-		if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-			return forwarded->originalSender
-				? fromSender(forwarded->originalSender)
-				: forwarded->hiddenSenderInfo->name;
+		if (forwarded) {
+			const auto sender = forwarded->forwardOfForward()
+				? forwarded->savedFromSender
+				: forwarded->originalSender;
+			return sender
+				? fromSender(sender)
+				: forwarded->savedFromHiddenSenderInfo
+				? forwarded->savedFromHiddenSenderInfo->name
+				: forwarded->originalHiddenSenderInfo->name;
 		}
 		return {};
 	};
@@ -3313,9 +3368,10 @@ void HistoryItem::setupForwardedComponent(const CreateConfig &config) {
 		? _history->owner().peer(originalSender).get()
 		: nullptr;
 	if (!forwarded->originalSender) {
-		forwarded->hiddenSenderInfo = std::make_unique<HiddenSenderInfo>(
-			config.originalSenderName,
-			config.imported);
+		forwarded->originalHiddenSenderInfo
+			= std::make_unique<HiddenSenderInfo>(
+				config.originalSenderName,
+				config.imported);
 	}
 	forwarded->originalId = config.originalId;
 	forwarded->originalPostAuthor = config.originalPostAuthor;
@@ -3323,6 +3379,14 @@ void HistoryItem::setupForwardedComponent(const CreateConfig &config) {
 	forwarded->savedFromPeer = _history->owner().peerLoaded(
 		config.savedFromPeer);
 	forwarded->savedFromMsgId = config.savedFromMsgId;
+	forwarded->savedFromSender = _history->owner().peerLoaded(
+		config.savedFromSenderId);
+	forwarded->savedFromOutgoing = config.savedFromOutgoing;
+	if (!forwarded->savedFromSender
+		&& !config.savedFromSenderName.isEmpty()) {
+		forwarded->savedFromHiddenSenderInfo
+			= std::make_unique<HiddenSenderInfo>(config.savedFromSenderName, false);
+	}
 	forwarded->imported = config.imported;
 }
 

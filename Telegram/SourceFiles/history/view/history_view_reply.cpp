@@ -208,7 +208,7 @@ void Reply::update(
 		? _externalSender
 		: nullptr;
 	_hiddenSenderColorIndexPlusOne = (!_colorPeer && message)
-		? (message->hiddenSenderInfo()->colorIndex + 1)
+		? (message->originalHiddenSenderInfo()->colorIndex + 1)
 		: 0;
 
 	const auto hasPreview = (story && story->hasReplyPreview())
@@ -376,8 +376,8 @@ QString Reply::senderName(
 		const auto forwarded
 			= data->resolvedMessage->Get<HistoryMessageForwarded>();
 		if (forwarded) {
-			Assert(forwarded->hiddenSenderInfo != nullptr);
-			return forwarded->hiddenSenderInfo->name;
+			Assert(forwarded->originalHiddenSenderInfo != nullptr);
+			return forwarded->originalHiddenSenderInfo->name;
 		}
 	}
 	return QString();

@@ -432,7 +432,7 @@ QRect SublistWidget::floatPlayerAvailableRect() {
 }
 
 Context SublistWidget::listContext() {
-	return Context::Pinned;
+	return Context::SavedSublist;
 }
 
 bool SublistWidget::listScrollTo(int top, bool syntetic) {
