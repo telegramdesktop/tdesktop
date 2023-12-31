@@ -169,6 +169,7 @@ jobs:
           %TDESKTOP_BUILD_GENERATOR% ^
           %TDESKTOP_BUILD_ARCH% ^
           %TDESKTOP_BUILD_API% ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
           -D DESKTOP_APP_NO_PDB=ON ^
           %TDESKTOP_BUILD_DEFINE%
@@ -178,8 +179,10 @@ jobs:
       - name: Move artifact.
         if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
         run: |
+          set OUT=%TBUILD%\%REPO_NAME%\out\Debug
           mkdir artifact
-          move %TBUILD%\%REPO_NAME%\out\Debug\Telegram.exe artifact/
+          move %OUT%\Telegram.exe artifact/
+          move %OUT%\Updater.exe artifact/
       - uses: actions/upload-artifact@master
         name: Upload artifact.
         if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
