@@ -208,7 +208,7 @@ TextWithEntities AboutWithEntities(
 	const auto used = (!user || isPremium || value.size() <= limit)
 		? value
 		: value.mid(0, limit) + "...";
-	auto result = TextWithEntities{ value };
+	auto result = TextWithEntities{ used };
 	TextUtilities::ParseEntities(result, flags);
 	if (stripExternal) {
 		StripExternalLinks(result);
