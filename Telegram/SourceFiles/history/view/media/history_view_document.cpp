@@ -326,13 +326,13 @@ Document::Document(
 					return (type == AudioMsgId::Type::Voice);
 				}) | rpl::to_empty
 			) | rpl::start_with_next([=]() mutable {
+				_drawTtl = nullptr;
 				const auto item = _parent->data();
-				// Destroys this.
-				ClearMediaAsExpired(_parent->data());
 				if (lifetime) {
-					_drawTtl = nullptr;
 					base::take(lifetime)->destroy();
 				}
+				// Destroys this.
+				ClearMediaAsExpired(item);
 			}, *lifetime);
 			_drawTtl = CreateTtlPaintCallback(lifetime, [=] { repaint(); });
 
@@ -437,7 +437,7 @@ QSize Document::countOptimalSize() {
 	const auto voice = Get<HistoryDocumentVoice>();
 	if (voice) {
 		const auto session = &_realParent->history()->session();
-		if (IsVoiceOncePlayable(_parent->data())
+		if (_parent->data()->media()->ttlSeconds()
 			|| (!session->premium()
 				&& !session->api().transcribes().trialsSupport())) {
 			voice->transcribe = nullptr;
