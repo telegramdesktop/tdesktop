@@ -364,7 +364,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
 	const bool bubble = _parent->hasBubble();
-	const auto outbg = context.outbg;
+	const auto rightLayout = _parent->hasRightLayout();
 	const auto inWebPage = (_parent->media() != this);
 	const auto isRound = _data->isVideoMessage();
 	const auto botTop = _parent->Get<FakeBotAboutTop>();
@@ -389,9 +389,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto via = unwrapped ? item->Get<HistoryMessageVia>() : nullptr;
 	const auto reply = unwrapped ? _parent->Get<Reply>() : nullptr;
 	const auto forwarded = unwrapped ? item->Get<HistoryMessageForwarded>() : nullptr;
-	const auto rightAligned = unwrapped
-		&& outbg
-		&& !_parent->delegate()->elementIsChatWide();
+	const auto rightAligned = unwrapped && rightLayout;
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(reply, via, forwarded);
 		if (rightAligned) {
@@ -770,7 +768,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			const auto rightActionWidth = size
 				? size->width()
 				: _transcribe->size().width();
-			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
+			auto fastShareLeft = rightLayout
+				? (paintx + usex - size->width() - st::historyFastShareLeft)
+				: (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = fullBottom
 				- st::historyFastShareBottom
 				- (size ? size->height() : 0);
@@ -789,8 +789,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			if (_transcribe) {
 				paintTranscribe(p, fastShareLeft, fastShareTop, true, context);
 			}
-		}
-		if (rightAligned && _transcribe) {
+		} else if (rightAligned && _transcribe) {
 			paintTranscribe(p, usex, fullBottom, false, context);
 		}
 	}
@@ -1010,7 +1009,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 		}
 		painth -= st::mediaCaptionSkip;
 	}
-	const auto outbg = _parent->hasOutLayout();
+	const auto rightLayout = _parent->hasRightLayout();
 	const auto inWebPage = (_parent->media() != this);
 	const auto isRound = _data->isVideoMessage();
 	const auto unwrapped = isUnwrapped();
@@ -1019,9 +1018,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	const auto via = unwrapped ? item->Get<HistoryMessageVia>() : nullptr;
 	const auto reply = unwrapped ? _parent->Get<Reply>() : nullptr;
 	const auto forwarded = unwrapped ? item->Get<HistoryMessageForwarded>() : nullptr;
-	const auto rightAligned = unwrapped
-		&& outbg
-		&& !_parent->delegate()->elementIsChatWide();
+	const auto rightAligned = unwrapped && rightLayout;
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(reply, via, forwarded);
 		if (rightAligned) {
@@ -1158,7 +1155,9 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			const auto rightActionWidth = size->width();
-			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
+			auto fastShareLeft = _parent->hasRightLayout()
+				? (paintx + usex - size->width() - st::historyFastShareLeft)
+				: (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = fullBottom
 				- st::historyFastShareBottom
 				- size->height();
@@ -1532,9 +1531,7 @@ QRect Gif::contentRectForReactions() const {
 	}
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	auto usex = 0, usew = paintw;
-	const auto outbg = _parent->hasOutLayout();
-	const auto rightAligned = outbg
-		&& !_parent->delegate()->elementIsChatWide();
+	const auto rightAligned = _parent->hasRightLayout();
 	const auto item = _parent->data();
 	const auto via = item->Get<HistoryMessageVia>();
 	const auto reply = _parent->Get<Reply>();
@@ -1573,9 +1570,7 @@ QPoint Gif::resolveCustomInfoRightBottom() const {
 			maxRight -= st::msgMargin.left();
 		}
 		const auto infoWidth = _parent->infoWidth();
-		const auto outbg = _parent->hasOutLayout();
-		const auto rightAligned = outbg
-			&& !_parent->delegate()->elementIsChatWide();
+		const auto rightAligned = _parent->hasRightLayout();
 		if (!rightAligned) {
 			// This is just some arbitrary point,
 			// the main idea is to make info left aligned here.

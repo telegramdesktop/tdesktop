@@ -1342,6 +1342,10 @@ bool Element::hasOutLayout() const {
 	return false;
 }
 
+bool Element::hasRightLayout() const {
+	return hasOutLayout() && !_delegate->elementIsChatWide();
+}
+
 bool Element::drawBubble() const {
 	return false;
 }
