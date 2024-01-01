@@ -1056,7 +1056,7 @@ void CreateGiveawayBox(
 						.adaptive = true,
 						.filter = filter,
 					});
-				} else {
+				} else if (weak) {
 					state->confirmButtonBusy = false;
 				}
 			};
