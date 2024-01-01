@@ -1,3 +1,10 @@
+4.14.1 (01.01.24)
+
+- Fix crash in "Author Hidden" chat in "Saved Messages".
+- Improve jump-to-original button layout in "Saved Messages".
+- Show my own chat as "My Notes" in "Saved Messages".
+- In screen sharing source window select first screen by default.
+
 4.14 (31.12.23)
 
 - Improved saved messages.
