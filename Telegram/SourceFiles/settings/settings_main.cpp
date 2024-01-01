@@ -419,7 +419,7 @@ void SetupPremium(
 		controller->setPremiumRef("settings");
 		showOther(PremiumId());
 	});
-	{
+	if (controller->session().premiumCanBuy()) {
 		const auto button = AddButtonWithIcon(
 			container,
 			tr::lng_settings_gift_premium(),

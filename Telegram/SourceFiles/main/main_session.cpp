@@ -240,7 +240,7 @@ bool Session::premium() const {
 }
 
 bool Session::premiumPossible() const {
-	return premium() || _premiumPossible.current();
+	return premium() || premiumCanBuy();
 }
 
 bool Session::premiumBadgesShown() const {
@@ -260,6 +260,10 @@ rpl::producer<bool> Session::premiumPossibleValue() const {
 		std::move(premium),
 		_premiumPossible.value(),
 		_1 || _2);
+}
+
+bool Session::premiumCanBuy() const {
+	return _premiumPossible.current();
 }
 
 bool Session::isTestMode() const {
