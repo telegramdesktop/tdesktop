@@ -56,7 +56,6 @@ void DrawCornerBadgeTTL(
 		const style::color &color,
 		const QRect &circleRect) {
 	p.save();
-	const auto ratio = style::DevicePixelRatio();
 	const auto partRect = QRect(
 		circleRect.left() + circleRect.width() - st::dialogsTTLBadgeSize * 0.85,
 		circleRect.top() + circleRect.height() - st::dialogsTTLBadgeSize * 0.85,
