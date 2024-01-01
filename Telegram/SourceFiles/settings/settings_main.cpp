@@ -427,7 +427,7 @@ void SetupPremium(
 			{ .icon = &st::menuIconGiftPremium }
 		);
 		button->addClickHandler([=] {
-			controller->showGiftPremiumsBox();
+			controller->showGiftPremiumsBox(u"gift"_q);
 		});
 		constexpr auto kNewExpiresAt = int(1735689600);
 		if (base::unixtime::now() < kNewExpiresAt) {

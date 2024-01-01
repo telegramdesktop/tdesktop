@@ -845,6 +845,21 @@ bool ResolvePremiumOffer(
 	return true;
 }
 
+bool ResolvePremiumMultigift(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1).mid(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	controller->showGiftPremiumsBox(params.value(u"ref"_q, u"gift_url"_q));
+	controller->window().activate();
+	return true;
+}
+
 bool ResolveLoginCode(
 		Window::SessionController *controller,
 		const Match &match,
@@ -967,6 +982,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"premium_offer/?(\\?.+)?(#|$)"_q,
 			ResolvePremiumOffer,
+		},
+		{
+			u"^premium_multigift/?\\?(.+)(#|$)"_q,
+			ResolvePremiumMultigift,
 		},
 		{
 			u"^login/?(\\?code=([0-9]+))(&|$)"_q,

@@ -382,7 +382,8 @@ void GiftsBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
 		std::vector<not_null<UserData*>> users,
-		not_null<Api::PremiumGiftCodeOptions*> api) {
+		not_null<Api::PremiumGiftCodeOptions*> api,
+		const QString &ref) {
 	Expects(!users.empty());
 
 	const auto boxWidth = st::boxWideWidth;
@@ -591,7 +592,7 @@ void GiftsBox(
 		Settings::AddSummaryPremium(
 			content,
 			controller,
-			u"gift"_q,
+			ref,
 			std::move(buttonCallback));
 	}
 
@@ -614,7 +615,7 @@ void GiftsBox(
 	auto raw = Settings::CreateSubscribeButton({
 		controller,
 		box,
-		[] { return u"gift"_q; },
+		[=] { return ref; },
 		rpl::combine(
 			state->buttonText.events(),
 			state->confirmButtonBusy.value(),
@@ -876,7 +877,7 @@ void GiftPremiumValidator::cancel() {
 	_requestId = 0;
 }
 
-void GiftPremiumValidator::showChoosePeerBox() {
+void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
 	if (_manyGiftsLifetime) {
 		return;
 	}
@@ -936,7 +937,7 @@ void GiftPremiumValidator::showChoosePeerBox() {
 				}) | ranges::to<std::vector<not_null<UserData*>>>();
 				if (!users.empty()) {
 					const auto giftBox = show->show(
-						Box(GiftsBox, _controller, users, api));
+						Box(GiftsBox, _controller, users, api, ref));
 					giftBox->boxClosing(
 					) | rpl::start_with_next([=] {
 						_manyGiftsLifetime.destroy();
