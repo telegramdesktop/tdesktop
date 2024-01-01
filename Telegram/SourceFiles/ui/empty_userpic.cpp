@@ -167,6 +167,22 @@ void PaintHiddenAuthorInner(
 		fg);
 }
 
+void PaintMyNotesInner(
+		QPainter &p,
+		int x,
+		int y,
+		int size,
+		const style::color &fg) {
+	PaintIconInner(
+		p,
+		x,
+		y,
+		size,
+		st::defaultDialogRow.photoSize,
+		st::dialogsMyNotesUserpic,
+		fg);
+}
+
 void PaintExternalMessagesInner(
 		QPainter &p,
 		int x,
@@ -421,8 +437,8 @@ void EmptyUserpic::PaintHiddenAuthor(
 		int size) {
 	auto bg = QLinearGradient(x, y, x, y + size);
 	bg.setStops({
-		{ 0., st::historyPeerSavedMessagesBg->c },
-		{ 1., st::historyPeerSavedMessagesBg2->c }
+		{ 0., st::premiumButtonBg2->c },
+		{ 1., st::premiumButtonBg3->c },
 	});
 	const auto &fg = st::historyPeerUserpicFg;
 	PaintHiddenAuthor(p, x, y, outerWidth, size, QBrush(bg), fg);
@@ -449,6 +465,45 @@ void EmptyUserpic::PaintHiddenAuthor(
 QImage EmptyUserpic::GenerateHiddenAuthor(int size) {
 	return Generate(size, [&](QPainter &p) {
 		PaintHiddenAuthor(p, 0, 0, size, size);
+	});
+}
+
+void EmptyUserpic::PaintMyNotes(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	auto bg = QLinearGradient(x, y, x, y + size);
+	bg.setStops({
+		{ 0., st::historyPeerSavedMessagesBg->c },
+		{ 1., st::historyPeerSavedMessagesBg2->c }
+	});
+	const auto &fg = st::historyPeerUserpicFg;
+	PaintMyNotes(p, x, y, outerWidth, size, QBrush(bg), fg);
+}
+
+void EmptyUserpic::PaintMyNotes(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		QBrush bg,
+		const style::color &fg) {
+	x = style::RightToLeft() ? (outerWidth - x - size) : x;
+
+	PainterHighQualityEnabler hq(p);
+	p.setBrush(bg);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(x, y, size, size);
+
+	PaintMyNotesInner(p, x, y, size, fg);
+}
+
+QImage EmptyUserpic::GenerateMyNotes(int size) {
+	return Generate(size, [&](QPainter &p) {
+		PaintMyNotes(p, 0, 0, size, size);
 	});
 }
 

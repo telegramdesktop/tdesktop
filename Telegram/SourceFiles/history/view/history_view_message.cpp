@@ -1997,7 +1997,7 @@ bool Message::hasFromPhoto() const {
 		} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 			const auto peer = item->history()->peer;
 			if (peer->isSelf() || peer->isRepliesChat()) {
-				return true;
+				return !hasOutLayout();
 			}
 		}
 		return !item->out() && !item->history()->peer->isUser();

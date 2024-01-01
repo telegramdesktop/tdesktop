@@ -97,6 +97,22 @@ public:
 		const style::color &fg);
 	[[nodiscard]] static QImage GenerateHiddenAuthor(int size);
 
+	static void PaintMyNotes(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size);
+	static void PaintMyNotes(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		QBrush bg,
+		const style::color &fg);
+	[[nodiscard]] static QImage GenerateMyNotes(int size);
+
 	~EmptyUserpic();
 
 private:
