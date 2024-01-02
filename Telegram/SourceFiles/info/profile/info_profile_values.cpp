@@ -203,12 +203,7 @@ TextWithEntities AboutWithEntities(
 	const auto stripExternal = peer->isChat()
 		|| peer->isMegagroup()
 		|| (user && !isBot && !isPremium);
-	const auto limit = Data::PremiumLimits(&peer->session())
-		.aboutLengthDefault();
-	const auto used = (!user || isPremium || value.size() <= limit)
-		? value
-		: value.mid(0, limit) + "...";
-	auto result = TextWithEntities{ used };
+	auto result = TextWithEntities{ value };
 	TextUtilities::ParseEntities(result, flags);
 	if (stripExternal) {
 		StripExternalLinks(result);
