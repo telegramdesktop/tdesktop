@@ -233,8 +233,10 @@ void SavedMessages::apply(
 		_chatsList.setLoaded();
 	} else if (result.type() == mtpc_messages_savedDialogs) {
 		_chatsList.setLoaded();
-	} else if (offsetDate < _offsetDate
-		|| (offsetDate == _offsetDate && offsetId == _offsetId && offsetPeer == _offsetPeer)) {
+	} else if ((_offsetDate > 0 && offsetDate > _offsetDate)
+		|| (offsetDate == _offsetDate
+			&& offsetId == _offsetId
+			&& offsetPeer == _offsetPeer)) {
 		LOG(("API Error: Bad order in messages.savedDialogs."));
 		_chatsList.setLoaded();
 	} else {
