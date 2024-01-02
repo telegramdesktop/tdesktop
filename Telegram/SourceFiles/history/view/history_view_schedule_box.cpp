@@ -93,9 +93,10 @@ void ScheduleBox(
 		.style = style.chooseDateTimeArgs,
 	});
 
+	using T = SendMenu::Type;
 	SendMenu::SetupMenuAndShortcuts(
 		descriptor.submit.data(),
-		[=] { return SendMenu::Type::SilentOnly; },
+		[t = type == T::Disabled ? T::Disabled : T::SilentOnly] { return t; },
 		[=] { save(true, descriptor.collect()); },
 		nullptr,
 		nullptr);

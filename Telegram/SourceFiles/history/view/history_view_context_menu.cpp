@@ -552,7 +552,7 @@ bool AddRescheduleAction(
 			? SendMenu::Type::Reminder
 			: HistoryView::CanScheduleUntilOnline(peer)
 			? SendMenu::Type::ScheduledToUser
-			: SendMenu::Type::Scheduled;
+			: SendMenu::Type::Disabled;
 
 		const auto itemDate = firstItem->date();
 		const auto date = (itemDate == Api::kScheduledUntilOnlineTimestamp)
