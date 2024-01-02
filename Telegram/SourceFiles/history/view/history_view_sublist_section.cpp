@@ -293,6 +293,10 @@ bool SublistWidget::showInternal(
 	return false;
 }
 
+bool SublistWidget::sameTypeAs(not_null<Window::SectionMemento*> memento) {
+	return dynamic_cast<SublistMemento*>(memento.get()) != nullptr;
+}
+
 void SublistWidget::setInternalState(
 		const QRect &geometry,
 		not_null<SublistMemento*> memento) {

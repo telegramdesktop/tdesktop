@@ -60,9 +60,12 @@ SublistsWidget::SublistsWidget(
 
 	_list->chosenRow() | rpl::start_with_next([=](Dialogs::ChosenRow row) {
 		if (const auto sublist = row.key.sublist()) {
+			using namespace Window;
+			auto params = SectionShow(SectionShow::Way::Forward);
+			params.dropSameFromStack = true;
 			controller->showSection(
 				std::make_shared<HistoryView::SublistMemento>(sublist),
-				Window::SectionShow::Way::Forward);
+				params);
 		}
 	}, _list->lifetime());
 

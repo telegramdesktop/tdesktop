@@ -162,6 +162,7 @@ struct SectionShow {
 	bool childColumn = false;
 	bool forbidLayer = false;
 	bool reapplyLocalDraft = false;
+	bool dropSameFromStack = false;
 	Origin origin;
 
 };
