@@ -20,10 +20,21 @@ OverlayWidget::RendererSW::RendererSW(not_null<OverlayWidget*> owner)
 , _transparentBrush(style::TransparentPlaceholder()) {
 }
 
+bool OverlayWidget::RendererSW::handleHideWorkaround() {
+	// This is needed on Windows or Linux,
+	// because on reopen it blinks with the last shown content.
+	return _owner->_hideWorkaround != nullptr;
+}
+
 void OverlayWidget::RendererSW::paintFallback(
 		Painter &&p,
 		const QRegion &clip,
 		Ui::GL::Backend backend) {
+	if (handleHideWorkaround()) {
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		p.fillRect(clip.boundingRect(), Qt::transparent);
+		return;
+	}
 	_p = &p;
 	_clip = &clip;
 	_clipOuter = clip.boundingRect();
