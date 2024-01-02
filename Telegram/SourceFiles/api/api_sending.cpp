@@ -42,6 +42,9 @@ void InnerFillMessagePostFlags(
 		not_null<PeerData*> peer,
 		MessageFlags &flags) {
 	const auto anonymousPost = peer->amAnonymous();
+	if (ShouldSendSilent(peer, options)) {
+		flags |= MessageFlag::Silent;
+	}
 	if (!anonymousPost || options.sendAs) {
 		flags |= MessageFlag::HasFromId;
 		return;
@@ -401,9 +404,6 @@ void SendConfirmedFile(
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, file->to.options);
 	FillMessagePostFlags(action, peer, flags);
-	if (silentPost) {
-		flags |= MessageFlag::Silent;
-	}
 	if (file->to.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 
