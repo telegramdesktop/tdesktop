@@ -430,8 +430,9 @@ void Reply::updateName(
 	const auto originalNameAdded = !displayAsExternal
 		&& forwarded
 		&& !message->isDiscussionPost()
-		&& (!message->showForwardsFromSender(forwarded)
-			|| forwarded->forwardOfForward());
+		&& (forwarded->forwardOfForward()
+			|| (!message->showForwardsFromSender(forwarded)
+				&& !view->data()->Has<HistoryMessageForwarded>()));
 	const auto shorten = !viaBotUsername.isEmpty()
 		|| groupNameAdded
 		|| originalNameAdded;
