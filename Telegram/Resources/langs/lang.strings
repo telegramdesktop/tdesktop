@@ -2087,6 +2087,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_gifts_about_paid_below#one" = "They now have access to additional features.";
 "lng_premium_gifts_about_paid_below#other" = "They now have access to additional features.";
 "lng_premium_gifts_summary_subtitle" = "What's Included";
+"lng_premium_gifts_terms" = "By gifting Telegram Premium, you agree to the Telegram {link} and {policy}.";
+"lng_premium_gifts_terms_policy" = "Privacy Policy";
 
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_again_button" = "Boost Again";

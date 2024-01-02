@@ -603,7 +603,20 @@ void GiftsBox(
 				box,
 				object_ptr<Ui::FlatLabel>(
 					box,
-					session->api().premium().statusTextValue(), // TODO.
+					tr::lng_premium_gifts_terms(
+						lt_link,
+						tr::lng_payments_terms_link(
+						) | rpl::map([](const QString &t) {
+							using namespace Ui::Text;
+							return Link(t, u"https://telegram.org/tos"_q);
+						}),
+						lt_policy,
+						tr::lng_premium_gifts_terms_policy(
+						) | rpl::map([](const QString &t) {
+							using namespace Ui::Text;
+							return Link(t, u"https://telegram.org/privacy"_q);
+						}),
+						Ui::Text::RichLangValue),
 					st::premiumGiftTerms),
 				st::defaultBoxDividerLabelPadding),
 			{});
