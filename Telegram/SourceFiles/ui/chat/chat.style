@@ -38,6 +38,8 @@ historyReplyGroup: icon {{ "chat/reply_type_group", windowFg }};
 historyReplyGroupPadding: margins(0px, 4px, 4px, 0px);
 historyReplyChannel: icon {{ "chat/reply_type_channel", windowFg }};
 historyReplyChannelPadding: margins(0px, 5px, 4px, 0px);
+historyReplyForward: icon {{ "mini_forward", windowFg }};
+historyReplyForwardPadding: margins(0px, 2px, 2px, 0px);
 
 msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);
