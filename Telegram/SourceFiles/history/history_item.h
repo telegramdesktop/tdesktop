@@ -516,6 +516,11 @@ public:
 	[[nodiscard]] PeerData *displayFrom() const;
 	[[nodiscard]] uint8 colorIndex() const;
 
+	// In forwards we show name in sender's color, but the message
+	// content uses the color of the original sender.
+	[[nodiscard]] PeerData *contentColorsFrom() const;
+	[[nodiscard]] uint8 contentColorIndex() const;
+
 	[[nodiscard]] std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		HistoryView::Element *replacing = nullptr);

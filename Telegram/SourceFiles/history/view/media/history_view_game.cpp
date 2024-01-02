@@ -219,7 +219,7 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 	auto tshift = inner.top();
 	auto paintw = inner.width();
 
-	const auto colorIndex = parent()->colorIndex();
+	const auto colorIndex = parent()->contentColorIndex();
 	const auto selected = context.selected();
 	const auto cache = context.outbg
 		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()

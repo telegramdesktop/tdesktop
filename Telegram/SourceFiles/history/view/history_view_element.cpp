@@ -490,6 +490,10 @@ uint8 Element::colorIndex() const {
 	return data()->colorIndex();
 }
 
+uint8 Element::contentColorIndex() const {
+	return data()->contentColorIndex();
+}
+
 QDateTime Element::dateTime() const {
 	return _dateTime;
 }

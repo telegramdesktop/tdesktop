@@ -584,11 +584,11 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 
 	const auto selected = context.selected();
 	const auto view = parent();
-	const auto colorIndex = view->colorIndex();
+	const auto from = view->data()->contentColorsFrom();
+	const auto colorIndex = from ? from->colorIndex() : view->colorIndex();
 	const auto cache = context.outbg
 		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
 		: st->coloredReplyCache(selected, colorIndex).get();
-	const auto from = view->data()->displayFrom();
 	const auto backgroundEmojiId = from
 		? from->backgroundEmojiId()
 		: DocumentId();

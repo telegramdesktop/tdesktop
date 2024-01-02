@@ -1235,6 +1235,22 @@ uint8 HistoryItem::colorIndex() const {
 	Unexpected("No displayFrom and no displayHiddenSenderInfo.");
 }
 
+PeerData *HistoryItem::contentColorsFrom() const {
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		return forwarded->originalSender;
+	}
+	return displayFrom();
+}
+
+uint8 HistoryItem::contentColorIndex() const {
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		return forwarded->originalSender
+			? forwarded->originalSender->colorIndex()
+			: forwarded->originalHiddenSenderInfo->colorIndex;
+	}
+	return colorIndex();
+}
+
 std::unique_ptr<HistoryView::Element> HistoryItem::createView(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		HistoryView::Element *replacing) {

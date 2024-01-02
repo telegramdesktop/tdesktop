@@ -201,7 +201,7 @@ void Reply::update(
 		}
 	}
 	_colorPeer = message
-		? message->displayFrom()
+		? message->contentColorsFrom()
 		: story
 		? story->peer().get()
 		: _externalSender

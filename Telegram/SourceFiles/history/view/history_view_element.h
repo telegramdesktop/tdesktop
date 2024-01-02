@@ -317,6 +317,7 @@ public:
 	void refreshDataId();
 
 	[[nodiscard]] uint8 colorIndex() const;
+	[[nodiscard]] uint8 contentColorIndex() const;
 	[[nodiscard]] QDateTime dateTime() const;
 
 	[[nodiscard]] int y() const;

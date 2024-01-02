@@ -405,7 +405,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
 			.pre = stm->preCache.get(),
-			.blockquote = context.quoteCache(parent()->colorIndex()),
+			.blockquote = context.quoteCache(parent()->contentColorIndex()),
 			.colors = context.st->highlightColors(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
