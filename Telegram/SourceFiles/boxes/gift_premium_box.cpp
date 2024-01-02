@@ -903,9 +903,13 @@ void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
 		protected:
 			std::unique_ptr<PeerListRow> createRow(
 					not_null<UserData*> user) override {
-				return !user->isSelf()
-					? ContactsBoxController::createRow(user)
-					: nullptr;
+				if (user->isSelf()
+					|| user->isBot()
+					|| user->isServiceUser()
+					|| user->isInaccessible()) {
+					return nullptr;
+				}
+				return ContactsBoxController::createRow(user);
 			}
 
 			void rowClicked(not_null<PeerListRow*> row) override {
