@@ -259,7 +259,7 @@ not_null<Data::SavedSublist*> SublistWidget::sublist() const {
 
 Dialogs::RowDescriptor SublistWidget::activeChat() const {
 	return {
-		_history,
+		_sublist,
 		FullMsgId(_history->peer->id, ShowAtUnreadMsgId)
 	};
 }

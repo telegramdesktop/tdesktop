@@ -231,6 +231,7 @@ private:
 	void switchToFilter(FilterId filterId);
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
+	bool isRowActive(not_null<Row*> row, const RowDescriptor &entry) const;
 	bool isSearchResultActive(
 		not_null<FakeRow*> result,
 		const RowDescriptor &entry) const;

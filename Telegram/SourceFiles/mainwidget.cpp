@@ -2446,6 +2446,10 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 		return std::make_shared<Info::Memento>(
 			peer,
 			Info::Memento::DefaultSection(peer));
+	} else if (const auto sublist = key.sublist()) {
+		return std::make_shared<Info::Memento>(
+			session().user(),
+			Info::Memento::DefaultSection(session().user()));
 	}
 	Unexpected("Key in MainWidget::thirdSectionForCurrentMainSection().");
 }
