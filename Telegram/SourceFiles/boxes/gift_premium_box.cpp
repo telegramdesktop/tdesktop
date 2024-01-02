@@ -1037,7 +1037,7 @@ void GiftCodeBox(
 	state->data = session->api().premium().giftCodeValue(slug);
 	state->used = state->data.value(
 	) | rpl::map([=](const Api::GiftCode &data) {
-		return data.used;
+		return data.used != 0;
 	});
 
 	box->setWidth(st::boxWideWidth);
