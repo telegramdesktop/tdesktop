@@ -75,6 +75,19 @@ inline bool HasGroupCallMenu(const not_null<PeerData*> &peer) {
 			|| (peer->isChat() && peer->asChat()->amCreator()));
 }
 
+QString TopBarNameText(
+		not_null<PeerData*> peer,
+		Dialogs::EntryState::Section section) {
+	if (section == Dialogs::EntryState::Section::SavedSublist) {
+		if (peer->isSelf()) {
+			return tr::lng_my_notes(tr::now);
+		} else if (peer->isSavedHiddenAuthor()) {
+			return tr::lng_hidden_author_messages(tr::now);
+		}
+	}
+	return peer->topBarNameText();
+}
+
 } // namespace
 
 struct TopBarWidget::EmojiInteractionSeenAnimation {
@@ -554,7 +567,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			_titleNameVersion = namePeer->nameVersion();
 			_title.setText(
 				st::msgNameStyle,
-				namePeer->topBarNameText(),
+				TopBarNameText(namePeer, _activeChat.section),
 				Ui::NameTextOptions());
 		}
 		const auto badgeWidth = _titleBadge.drawGetWidth(
