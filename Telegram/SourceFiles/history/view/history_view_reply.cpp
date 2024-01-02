@@ -732,7 +732,11 @@ void Reply::paint(
 			const auto textw = w
 				- st::historyReplyPadding.left()
 				- st::historyReplyPadding.right();
-			const auto namew = textw - previewSkip;
+			const auto namew = textw
+				- previewSkip
+				- (_hasQuoteIcon
+					? st::messageTextStyle.blockquote.icon.width()
+					: 0);
 			auto firstLineSkip = _nameTwoLines ? 0 : previewSkip;
 			if (namew > 0) {
 				p.setPen(!inBubble
