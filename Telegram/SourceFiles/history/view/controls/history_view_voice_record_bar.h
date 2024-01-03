@@ -112,29 +112,29 @@ private:
 
 	void recordUpdated(quint16 level, int samples);
 
-	bool recordingAnimationCallback(crl::time now);
+	[[nodiscard]] bool recordingAnimationCallback(crl::time now);
 
 	void stop(bool send);
 	void stopRecording(StopType type);
 	void visibilityAnimate(bool show, Fn<void()> &&callback);
 
-	bool showRecordButton() const;
-	void drawDuration(Painter &p);
-	void drawRedCircle(Painter &p);
-	void drawMessage(Painter &p, float64 recordActive);
+	[[nodiscard]] bool showRecordButton() const;
+	void drawDuration(QPainter &p);
+	void drawRedCircle(QPainter &p);
+	void drawMessage(QPainter &p, float64 recordActive);
 
 	void startRedCircleAnimation();
 	void installListenStateFilter();
 
-	bool isTypeRecord() const;
-	bool hasDuration() const;
+	[[nodiscard]] bool isTypeRecord() const;
+	[[nodiscard]] bool hasDuration() const;
 
 	void finish();
 
 	void activeAnimate(bool active);
-	float64 showAnimationRatio() const;
-	float64 showListenAnimationRatio() const;
-	float64 activeAnimationRatio() const;
+	[[nodiscard]] float64 showAnimationRatio() const;
+	[[nodiscard]] float64 showListenAnimationRatio() const;
+	[[nodiscard]] float64 activeAnimationRatio() const;
 
 	void computeAndSetLockProgress(QPoint globalPos);
 

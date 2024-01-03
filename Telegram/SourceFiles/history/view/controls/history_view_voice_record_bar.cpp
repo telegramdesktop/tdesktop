@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
@@ -316,7 +317,7 @@ void ListenWrap::init() {
 	_parent->paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
 		auto p = QPainter(_parent);
-		PainterHighQualityEnabler hq(p);
+		auto hq = PainterHighQualityEnabler(p);
 		const auto progress = _showProgress.current();
 		p.setOpacity(progress);
 		const auto &remove = _st.remove;
@@ -359,7 +360,7 @@ void ListenWrap::init() {
 			}
 			p.setPen(Qt::NoPen);
 			p.setBrush(_st.cancelActive);
-			QPainterPath path;
+			auto path = QPainterPath();
 			path.setFillRule(Qt::WindingFill);
 			path.addEllipse(bgLeftCircleRect);
 			path.addEllipse(bgRightCircleRect);
@@ -627,7 +628,7 @@ protected:
 private:
 	void init();
 
-	void drawProgress(Painter &p);
+	void drawProgress(QPainter &p);
 	void setProgress(float64 progress);
 	void startLockingAnimation(float64 to);
 
@@ -648,12 +649,8 @@ RecordLock::RecordLock(
 	const style::RecordBarLock &st)
 : RippleButton(parent, st.ripple)
 , _st(st)
-, _rippleRect(QRect(
-	0,
-	0,
-	st::historyRecordLockTopShadow.width(),
-	st::historyRecordLockTopShadow.width())
-		.marginsRemoved(st::historyRecordLockRippleMargin))
+, _rippleRect(Rect(Size(st::historyRecordLockTopShadow.width()))
+	- (st::historyRecordLockRippleMargin))
 , _arcPen(
 	QColor(Qt::white),
 	st::historyRecordLockIconLineWidth,
@@ -687,7 +684,7 @@ void RecordLock::init() {
 		if (!_visibleTopPart) {
 			return;
 		}
-		Painter p(this);
+		auto p = QPainter(this);
 		if (_visibleTopPart > 0 && _visibleTopPart < height()) {
 			p.setClipRect(0, 0, width(), _visibleTopPart);
 		}
@@ -704,7 +701,7 @@ void RecordLock::init() {
 	}, lifetime());
 }
 
-void RecordLock::drawProgress(Painter &p) {
+void RecordLock::drawProgress(QPainter &p) {
 	const auto progress = _progress.current();
 
 	const auto &originTop = _st.originTop;
@@ -770,7 +767,7 @@ void RecordLock::drawProgress(Painter &p) {
 		p.setOpacity(1.);
 	}
 	if (isLocked()) {
-		paintRipple(p, _rippleRect.x(), _rippleRect.y());
+		Ui::RippleButton::paintRipple(p, _rippleRect.x(), _rippleRect.y());
 	}
 	{
 		const auto &arcOffset = st::historyRecordLockIconLineSkip;
@@ -808,7 +805,7 @@ void RecordLock::drawProgress(Painter &p) {
 
 		if (_lockToStopProgress == 1.) {
 			// Paint the block.
-			PainterHighQualityEnabler hq(p);
+			auto hq = PainterHighQualityEnabler(p);
 			p.translate(inner.topLeft() + lockTranslation);
 			p.setPen(Qt::NoPen);
 			p.setBrush(_st.fg);
@@ -821,8 +818,8 @@ void RecordLock::drawProgress(Painter &p) {
 			frame.setDevicePixelRatio(style::DevicePixelRatio());
 			frame.fill(Qt::transparent);
 
-			Painter q(&frame);
-			PainterHighQualityEnabler hq(q);
+			auto q = QPainter(&frame);
+			auto hq = PainterHighQualityEnabler(q);
 
 			q.setPen(Qt::NoPen);
 			q.setBrush(_arcPen.brush());
@@ -980,19 +977,19 @@ void CancelButton::init() {
 
 	paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(this);
+		auto p = QPainter(this);
 
 		p.setOpacity(_showProgress.current());
 
-		paintRipple(p, _rippleRect.x(), _rippleRect.y());
+		Ui::RippleButton::paintRipple(p, _rippleRect.x(), _rippleRect.y());
 
 		p.setPen(_st.cancelActive);
-		_text.draw(
-			p,
-			0,
-			(height() - _text.minHeight()) / 2,
-			width(),
-			style::al_center);
+		_text.draw(p, {
+			.position = QPoint(0, (height() - _text.minHeight()) / 2),
+			.outerWidth = width(),
+			.availableWidth = width(),
+			.align = style::al_center,
+		});
 	}, lifetime());
 }
 
@@ -1054,9 +1051,7 @@ VoiceRecordBar::~VoiceRecordBar() {
 }
 
 void VoiceRecordBar::updateMessageGeometry() {
-	const auto left = _durationRect.x()
-		+ _durationRect.width()
-		+ st::historyRecordTextLeft;
+	const auto left = rect::right(_durationRect) + st::historyRecordTextLeft;
 	const auto right = width()
 		- _send->width()
 		- st::historyRecordTextRight;
@@ -1080,7 +1075,7 @@ void VoiceRecordBar::updateLockGeometry() {
 		- st::historyRecordLockPosition.y()
 		- _lock->height();
 	const auto finalRight = _outerContainer->width()
-		- (me.x() + me.width())
+		- rect::right(me)
 		+ st::historyRecordLockPosition.x();
 	const auto progress = _showLockAnimation.value(
 		_lockShowing.current() ? 1. : 0.);
@@ -1143,7 +1138,7 @@ void VoiceRecordBar::init() {
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(this);
+		auto p = QPainter(this);
 		if (_showAnimation.animating()) {
 			p.setOpacity(showAnimationRatio());
 		}
@@ -1506,7 +1501,7 @@ void VoiceRecordBar::stopRecording(StopType type) {
 	}));
 }
 
-void VoiceRecordBar::drawDuration(Painter &p) {
+void VoiceRecordBar::drawDuration(QPainter &p) {
 	const auto duration = FormatVoiceDuration(_recordingSamples);
 	p.setFont(_cancelFont);
 	p.setPen(_st.durationFg);
@@ -1529,8 +1524,8 @@ void VoiceRecordBar::startRedCircleAnimation() {
 	animation->start();
 }
 
-void VoiceRecordBar::drawRedCircle(Painter &p) {
-	PainterHighQualityEnabler hq(p);
+void VoiceRecordBar::drawRedCircle(QPainter &p) {
+	auto hq = PainterHighQualityEnabler(p);
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::historyRecordVoiceFgInactive);
 
@@ -1542,18 +1537,18 @@ void VoiceRecordBar::drawRedCircle(Painter &p) {
 	p.setOpacity(opacity);
 }
 
-void VoiceRecordBar::drawMessage(Painter &p, float64 recordActive) {
+void VoiceRecordBar::drawMessage(QPainter &p, float64 recordActive) {
 	p.setPen(anim::pen(_st.cancel, _st.cancelActive, 1. - recordActive));
 
 	const auto opacity = p.opacity();
 	p.setOpacity(opacity * (1. - _lock->lockToStopProgress()));
 
-	_message.draw(
-		p,
-		_messageRect.x(),
-		_messageRect.y(),
-		_messageRect.width(),
-		style::al_center);
+	_message.draw(p, {
+		.position = _messageRect.topLeft(),
+		.outerWidth = _messageRect.width(),
+		.availableWidth = _messageRect.width(),
+		.align = style::al_center,
+	});
 
 	p.setOpacity(opacity);
 }
