@@ -313,6 +313,8 @@ enum class MessageFlag : uint64 {
 	ShowSimilarChannels   = (1ULL << 41),
 
 	Sponsored             = (1ULL << 42),
+
+	ReactionsAreTags      = (1ULL << 43),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

@@ -454,6 +454,7 @@ public:
 		not_null<UserData*> from) const;
 	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
 
+	[[nodiscard]] bool reactionsAreTags() const;
 	[[nodiscard]] bool hasDirectLink() const;
 	[[nodiscard]] bool changesWallPaper() const;
 

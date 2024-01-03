@@ -2429,6 +2429,10 @@ const std::vector<Data::MessageReaction> &HistoryItem::reactions() const {
 	return _reactions ? _reactions->list() : kEmpty;
 }
 
+bool HistoryItem::reactionsAreTags() const {
+	return _flags & MessageFlag::ReactionsAreTags;
+}
+
 auto HistoryItem::recentReactions() const
 -> const base::flat_map<
 		Data::ReactionId,
@@ -3556,31 +3560,40 @@ bool HistoryItem::changeReactions(const MTPMessageReactions *reactions) {
 	}
 	if (!reactions) {
 		_flags &= ~MessageFlag::CanViewReactions;
+		if (_history->peer->isSelf()) {
+			_flags |= MessageFlag::ReactionsAreTags;
+		}
 		return (base::take(_reactions) != nullptr);
 	}
-	return reactions->match([&](const MTPDmessageReactions &data) {
-		if (data.is_can_see_list()) {
-			_flags |= MessageFlag::CanViewReactions;
-		} else {
-			_flags &= ~MessageFlag::CanViewReactions;
+	const auto &data = reactions->data();
+	const auto empty = data.vresults().v.isEmpty();
+	if (data.is_reactions_as_tags()
+		|| (empty && _history->peer->isSelf())) {
+		_flags |= MessageFlag::ReactionsAreTags;
+	} else {
+		_flags &= ~MessageFlag::ReactionsAreTags;
+	}
+	if (data.is_can_see_list()) {
+		_flags |= MessageFlag::CanViewReactions;
+	} else {
+		_flags &= ~MessageFlag::CanViewReactions;
+	}
+	if (empty) {
+		return (base::take(_reactions) != nullptr);
+	} else if (!_reactions) {
+		_reactions = std::make_unique<Data::MessageReactions>(this);
+	}
+	const auto min = data.is_min();
+	const auto &list = data.vresults().v;
+	const auto &recent = data.vrecent_reactions().value_or_empty();
+	if (min && hasUnreadReaction()) {
+		// We can't update reactions from min if we have unread.
+		if (_reactions->checkIfChanged(list, recent, min)) {
+			updateReactionsUnknown();
 		}
-		if (data.vresults().v.isEmpty()) {
-			return (base::take(_reactions) != nullptr);
-		} else if (!_reactions) {
-			_reactions = std::make_unique<Data::MessageReactions>(this);
-		}
-		const auto min = data.is_min();
-		const auto &list = data.vresults().v;
-		const auto &recent = data.vrecent_reactions().value_or_empty();
-		if (min && hasUnreadReaction()) {
-			// We can't update reactions from min if we have unread.
-			if (_reactions->checkIfChanged(list, recent, min)) {
-				updateReactionsUnknown();
-			}
-			return false;
-		}
-		return _reactions->change(list, recent, min);
-	});
+		return false;
+	}
+	return _reactions->change(list, recent, min);
 }
 
 void HistoryItem::applyTTL(const MTPDmessage &data) {

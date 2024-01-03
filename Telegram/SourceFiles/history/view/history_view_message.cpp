@@ -2917,8 +2917,12 @@ bool Message::isSignedAuthorElided() const {
 bool Message::embedReactionsInBottomInfo() const {
 	const auto item = data();
 	const auto user = item->history()->peer->asUser();
-	if (!user || user->isPremium() || user->session().premium()) {
+	if (!user
+		|| user->isPremium()
+		|| user->isSelf()
+		|| user->session().premium()) {
 		// Only in messages of a non premium user with a non premium user.
+		// In saved messages we use reactions for tags, we don't embed them.
 		return false;
 	}
 	auto seenMy = false;
