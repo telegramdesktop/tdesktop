@@ -110,4 +110,6 @@ void AddEmojiPacksAction(
 
 [[nodiscard]] TextWithEntities TransribedText(not_null<HistoryItem*> item);
 
+[[nodiscard]] bool ItemHasTtl(HistoryItem *item);
+
 } // namespace HistoryView
