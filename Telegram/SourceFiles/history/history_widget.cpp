@@ -6334,7 +6334,9 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		} else {
 			_forwardPanel->editOptions(controller()->uiShow());
 		}
-	} else if (_replyTo && (e->modifiers() & Qt::ControlModifier)) {
+	} else if (_replyTo
+		&& ((e->modifiers() & Qt::ControlModifier)
+			|| (e->button() != Qt::LeftButton))) {
 		jumpToReply(_replyTo);
 	} else if (_replyTo) {
 		editDraftOptions();
