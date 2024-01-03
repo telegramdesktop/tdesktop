@@ -199,6 +199,175 @@ void PaintWaveform(
 	}
 }
 
+[[nodiscard]] QRect DrawLockCircle(
+		QPainter &p,
+		const QRect &widgetRect,
+		const style::RecordBarLock &st,
+		float64 progress) {
+	const auto &originTop = st.originTop;
+	const auto &originBottom = st.originBottom;
+	const auto &originBody = st.originBody;
+	const auto &shadowTop = st.shadowTop;
+	const auto &shadowBottom = st.shadowBottom;
+	const auto &shadowBody = st.shadowBody;
+	const auto &shadowMargins = st::historyRecordLockMargin;
+
+	const auto bottomMargin = anim::interpolate(
+		0,
+		widgetRect.height() - shadowTop.height() - shadowBottom.height(),
+		progress);
+
+	const auto topMargin = anim::interpolate(
+		widgetRect.height() / 4,
+		0,
+		progress);
+
+	const auto full = widgetRect - QMargins(0, topMargin, 0, bottomMargin);
+	const auto inner = full - shadowMargins;
+	const auto content = inner
+		- style::margins(0, originTop.height(), 0, originBottom.height());
+	const auto contentShadow = full
+		- style::margins(0, shadowTop.height(), 0, shadowBottom.height());
+
+	const auto w = full.width();
+	{
+		shadowTop.paint(p, full.topLeft(), w);
+		originTop.paint(p, inner.topLeft(), w);
+	}
+	{
+		const auto shadowPos = QPoint(
+			full.x(),
+			contentShadow.y() + contentShadow.height());
+		const auto originPos = QPoint(
+			inner.x(),
+			content.y() + content.height());
+		shadowBottom.paint(p, shadowPos, w);
+		originBottom.paint(p, originPos, w);
+	}
+	{
+		shadowBody.fill(p, contentShadow);
+		originBody.fill(p, content);
+	}
+	if (progress < 1.) {
+		const auto &arrow = st.arrow;
+		const auto arrowRect = QRect(
+			inner.x(),
+			content.y() + content.height() - arrow.height() / 2,
+			inner.width(),
+			arrow.height());
+		p.setOpacity(1. - progress);
+		arrow.paintInCenter(p, arrowRect);
+		p.setOpacity(1.);
+	}
+
+	return inner;
+}
+
+class TTLButton final : public Ui::RippleButton {
+public:
+	TTLButton(
+		not_null<Ui::RpWidget*> parent,
+		const style::RecordBar &st);
+
+	void clearState() override;
+
+protected:
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+private:
+	const style::RecordBar &_st;
+	const QRect _rippleRect;
+	const QString _text;
+
+	Ui::Animations::Simple _activeAnimation;
+
+};
+
+TTLButton::TTLButton(
+	not_null<Ui::RpWidget*> parent,
+	const style::RecordBar &st)
+: RippleButton(parent, st.lock.ripple)
+, _st(st)
+, _rippleRect(Rect(Size(st::historyRecordLockTopShadow.width()))
+	- (st::historyRecordLockRippleMargin))
+, _text(u"1"_q) {
+	resize(Size(st::historyRecordLockTopShadow.width()));
+
+	setClickedCallback([=] {
+		Ui::AbstractButton::setDisabled(!Ui::AbstractButton::isDisabled());
+		const auto isActive = !Ui::AbstractButton::isDisabled();
+		_activeAnimation.start(
+			[=] { update(); },
+			isActive ? 0. : 1.,
+			isActive ? 1. : 0.,
+			st::historyRecordVoiceShowDuration);
+	});
+
+	paintRequest(
+	) | rpl::start_with_next([=](const QRect &clip) {
+		auto p = QPainter(this);
+
+		const auto inner = DrawLockCircle(p, rect(), _st.lock, 1.);
+
+		Ui::RippleButton::paintRipple(p, _rippleRect.x(), _rippleRect.y());
+
+		const auto innerRect = inner - st::historyRecordLockMargin * 2;
+		auto hq = PainterHighQualityEnabler(p);
+
+		p.setFont(st::semiboldFont);
+		p.setPen(_st.lock.fg);
+		p.drawText(inner, _text, style::al_center);
+
+		const auto penWidth = st::historyRecordTTLLineWidth;
+		auto pen = QPen(_st.lock.fg);
+		pen.setJoinStyle(Qt::RoundJoin);
+		pen.setCapStyle(Qt::RoundCap);
+		pen.setWidthF(penWidth);
+
+		p.setPen(pen);
+		p.setBrush(Qt::NoBrush);
+		p.drawArc(innerRect, arc::kQuarterLength, arc::kHalfLength);
+
+		{
+			p.setClipRect(innerRect
+				- QMargins(innerRect.width() / 2, 0, -penWidth, -penWidth));
+			pen.setStyle(Qt::DotLine);
+			p.setPen(pen);
+			p.drawEllipse(innerRect);
+			p.setClipping(false);
+		}
+
+		const auto activeProgress = _activeAnimation.value(
+			!Ui::AbstractButton::isDisabled() ? 1 : 0);
+		if (activeProgress) {
+			p.setOpacity(activeProgress);
+			pen.setStyle(Qt::SolidLine);
+			pen.setBrush(st::windowBgActive);
+			p.setPen(pen);
+			p.setBrush(pen.brush());
+			p.drawEllipse(innerRect);
+
+			p.setPen(st::windowFgActive);
+			p.drawText(innerRect, _text, style::al_center);
+		}
+
+	}, lifetime());
+}
+
+void TTLButton::clearState() {
+	Ui::AbstractButton::setDisabled(true);
+	update();
+}
+
+QImage TTLButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::EllipseMask(_rippleRect.size());
+}
+
+QPoint TTLButton::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - _rippleRect.topLeft();
+}
+
 } // namespace
 
 class ListenWrap final {
@@ -704,68 +873,8 @@ void RecordLock::init() {
 void RecordLock::drawProgress(QPainter &p) {
 	const auto progress = _progress.current();
 
-	const auto &originTop = _st.originTop;
-	const auto &originBottom = _st.originBottom;
-	const auto &originBody = _st.originBody;
-	const auto &shadowTop = _st.shadowTop;
-	const auto &shadowBottom = _st.shadowBottom;
-	const auto &shadowBody = _st.shadowBody;
-	const auto &shadowMargins = st::historyRecordLockMargin;
+	const auto inner = DrawLockCircle(p, rect(), _st, progress);
 
-	const auto bottomMargin = anim::interpolate(
-		0,
-		rect().height() - shadowTop.height() - shadowBottom.height(),
-		progress);
-
-	const auto topMargin = anim::interpolate(
-		rect().height() / 4,
-		0,
-		progress);
-
-	const auto full = rect().marginsRemoved(
-		style::margins(0, topMargin, 0, bottomMargin));
-	const auto inner = full.marginsRemoved(shadowMargins);
-	const auto content = inner.marginsRemoved(style::margins(
-		0,
-		originTop.height(),
-		0,
-		originBottom.height()));
-	const auto contentShadow = full.marginsRemoved(style::margins(
-		0,
-		shadowTop.height(),
-		0,
-		shadowBottom.height()));
-
-	const auto w = full.width();
-	{
-		shadowTop.paint(p, full.topLeft(), w);
-		originTop.paint(p, inner.topLeft(), w);
-	}
-	{
-		const auto shadowPos = QPoint(
-			full.x(),
-			contentShadow.y() + contentShadow.height());
-		const auto originPos = QPoint(
-			inner.x(),
-			content.y() + content.height());
-		shadowBottom.paint(p, shadowPos, w);
-		originBottom.paint(p, originPos, w);
-	}
-	{
-		shadowBody.fill(p, contentShadow);
-		originBody.fill(p, content);
-	}
-	{
-		const auto &arrow = _st.arrow;
-		const auto arrowRect = QRect(
-			inner.x(),
-			content.y() + content.height() - arrow.height() / 2,
-			inner.width(),
-			arrow.height());
-		p.setOpacity(1. - progress);
-		arrow.paintInCenter(p, arrowRect);
-		p.setOpacity(1.);
-	}
 	if (isLocked()) {
 		Ui::RippleButton::paintRipple(p, _rippleRect.x(), _rippleRect.y());
 	}
@@ -800,7 +909,7 @@ void RecordLock::drawProgress(QPainter &p) {
 
 		const auto lockTranslation = QPoint(
 			(inner.width() - size.width()) / 2,
-			(originTop.height() * 2 - size.height()) / 2);
+			(_st.originTop.height() * 2 - size.height()) / 2);
 		const auto xRadius = anim::interpolate(2, 3, _lockToStopProgress);
 
 		if (_lockToStopProgress == 1.) {
@@ -1015,6 +1124,7 @@ VoiceRecordBar::VoiceRecordBar(
 , _show(std::move(descriptor.show))
 , _send(std::move(descriptor.send))
 , _lock(std::make_unique<RecordLock>(_outerContainer, _st.lock))
+, _ttlButton(std::make_unique<TTLButton>(_outerContainer, _st))
 , _level(std::make_unique<VoiceRecordButton>(_outerContainer, _st))
 , _cancel(std::make_unique<CancelButton>(this, _st, descriptor.recorderHeight))
 , _startTimer([=] { startRecording(); })
@@ -1087,6 +1197,33 @@ void VoiceRecordBar::updateLockGeometry() {
 		const auto from = -_lock->width();
 		const auto right = anim::interpolate(from, finalRight, progress);
 		_lock->moveToRight(right, finalTop);
+	}
+}
+
+void VoiceRecordBar::updateTTLGeometry(
+		TTLAnimationType type,
+		float64 progress) {
+	const auto parent = parentWidget();
+	const auto me = Ui::MapFrom(_outerContainer, parent, geometry());
+	const auto anyTop = me.y() - st::historyRecordLockPosition.y();
+	if (type == TTLAnimationType::RightLeft) {
+		const auto finalRight = _outerContainer->width()
+			- rect::right(me)
+			+ st::historyRecordLockPosition.x();
+
+		const auto from = -_ttlButton->width();
+		const auto right = anim::interpolate(from, finalRight, progress);
+		_ttlButton->moveToRight(right, _ttlButton->y());
+	} else if (type == TTLAnimationType::TopBottom) {
+		const auto ttlFrom = anyTop - _ttlButton->height() * 2;
+		const auto ttlTo = anyTop - _lock->height();
+		_ttlButton->moveToLeft(
+			_ttlButton->x(),
+			anim::interpolate(ttlFrom, ttlTo, 1. - progress));
+	} else if (type == TTLAnimationType::RightTopStatic) {
+		_ttlButton->moveToRight(
+			-_ttlButton->width(),
+			anyTop - _ttlButton->height() * 2);
 	}
 }
 
@@ -1213,6 +1350,7 @@ void VoiceRecordBar::init() {
 				if (to == value) {
 					_recordingLifetime.destroy();
 				}
+				updateTTLGeometry(TTLAnimationType::TopBottom, 1. - value);
 			};
 			_showListenAnimation.start(std::move(callback), 0., to, duration);
 		}, lifetime());
@@ -1222,6 +1360,9 @@ void VoiceRecordBar::init() {
 
 	_lock->locks(
 	) | rpl::start_with_next([=] {
+		_ttlButton->show();
+		updateTTLGeometry(TTLAnimationType::RightTopStatic, 0);
+
 		_level->setType(VoiceRecordButton::Type::Send);
 
 		_level->clicks(
@@ -1243,6 +1384,7 @@ void VoiceRecordBar::init() {
 		auto callback = [=](float64 value) {
 			_lock->requestPaintLockToStopProgress(value);
 			update();
+			updateTTLGeometry(TTLAnimationType::RightLeft, value);
 		};
 		_lockToStopAnimation.start(std::move(callback), from, to, duration);
 	}, lifetime());
@@ -1318,6 +1460,9 @@ void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
 			_listen->requestPaintProgress(value);
 		}
 		update();
+		if (!show) {
+			updateTTLGeometry(TTLAnimationType::RightLeft, value);
+		}
 		if ((show && value == 1.) || (!show && value == 0.)) {
 			if (callback) {
 				callback();
@@ -1465,6 +1610,7 @@ void VoiceRecordBar::hideFast() {
 	hide();
 	_lock->hide();
 	_level->hide();
+	_ttlButton->clearState();
 }
 
 void VoiceRecordBar::stopRecording(StopType type) {

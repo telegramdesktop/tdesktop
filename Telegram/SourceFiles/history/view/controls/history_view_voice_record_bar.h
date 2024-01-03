@@ -21,6 +21,7 @@ struct RecordBar;
 } // namespace style
 
 namespace Ui {
+class AbstractButton;
 class SendButton;
 } // namespace Ui
 
@@ -103,12 +104,19 @@ private:
 		Listen,
 	};
 
+	enum class TTLAnimationType {
+		RightLeft,
+		TopBottom,
+		RightTopStatic,
+	};
+
 	void init();
 	void initLockGeometry();
 	void initLevelGeometry();
 
 	void updateMessageGeometry();
 	void updateLockGeometry();
+	void updateTTLGeometry(TTLAnimationType type, float64 progress);
 
 	void recordUpdated(quint16 level, int samples);
 
@@ -143,6 +151,7 @@ private:
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
+	const std::unique_ptr<Ui::AbstractButton> _ttlButton;
 	const std::unique_ptr<VoiceRecordButton> _level;
 	const std::unique_ptr<CancelButton> _cancel;
 	std::unique_ptr<ListenWrap> _listen;
