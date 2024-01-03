@@ -718,10 +718,6 @@ void Document::draw(
 				PainterHighQualityEnabler hq(p);
 				p.setBrush(stm->msgFileBg);
 				p.drawEllipse(inner);
-
-				if (_parent->data()->media()->ttlSeconds()) {
-					DrawCornerBadgeTTL(p, stm->msgFileBg, inner);
-				}
 			}
 		}
 
@@ -897,6 +893,9 @@ void Document::draw(
 			.selection = selection,
 			.highlight = highlightRequest ? &*highlightRequest : nullptr,
 		});
+	}
+	if (_parent->data()->media()->ttlSeconds()) {
+		DrawCornerBadgeTTL(p, stm->msgFileBg, inner);
 	}
 }
 

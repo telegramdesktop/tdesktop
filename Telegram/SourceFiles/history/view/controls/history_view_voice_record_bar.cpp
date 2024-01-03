@@ -358,6 +358,7 @@ TTLButton::TTLButton(
 void TTLButton::clearState() {
 	Ui::AbstractButton::setDisabled(true);
 	update();
+	Ui::RpWidget::hide();
 }
 
 QImage TTLButton::prepareRippleMask() const {
@@ -1360,7 +1361,9 @@ void VoiceRecordBar::init() {
 
 	_lock->locks(
 	) | rpl::start_with_next([=] {
-		_ttlButton->show();
+		if (_hasTTLFilter && _hasTTLFilter()) {
+			_ttlButton->show();
+		}
 		updateTTLGeometry(TTLAnimationType::RightTopStatic, 0);
 
 		_level->setType(VoiceRecordButton::Type::Send);
@@ -1472,8 +1475,12 @@ void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
 	_showAnimation.start(std::move(animationCallback), from, to, duration);
 }
 
-void VoiceRecordBar::setStartRecordingFilter(Fn<bool()> &&callback) {
+void VoiceRecordBar::setStartRecordingFilter(FilterCallback &&callback) {
 	_startRecordingFilter = std::move(callback);
+}
+
+void VoiceRecordBar::setTTLFilter(FilterCallback &&callback) {
+	_hasTTLFilter = std::move(callback);
 }
 
 void VoiceRecordBar::initLockGeometry() {
@@ -1610,7 +1617,7 @@ void VoiceRecordBar::hideFast() {
 	hide();
 	_lock->hide();
 	_level->hide();
-	_ttlButton->clearState();
+	[[maybe_unused]] const auto s = takeTTLState();
 }
 
 void VoiceRecordBar::stopRecording(StopType type) {
@@ -1632,7 +1639,17 @@ void VoiceRecordBar::stopRecording(StopType type) {
 		window()->activateWindow();
 		const auto duration = Duration(data.samples);
 		if (type == StopType::Send) {
-			_sendVoiceRequests.fire({ data.bytes, data.waveform, duration });
+			const auto options = Api::SendOptions{
+				.ttlSeconds = takeTTLState()
+					? std::numeric_limits<int>::max()
+					: 0
+			};
+			_sendVoiceRequests.fire({
+				data.bytes,
+				data.waveform,
+				duration,
+				options,
+			});
 		} else if (type == StopType::Listen) {
 			_listen = std::make_unique<ListenWrap>(
 				this,
@@ -1702,11 +1719,15 @@ void VoiceRecordBar::drawMessage(QPainter &p, float64 recordActive) {
 void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
 	if (isListenState()) {
 		const auto data = _listen->data();
+		if (takeTTLState()) {
+			options.ttlSeconds = std::numeric_limits<int>::max();
+		}
 		_sendVoiceRequests.fire({
 			data->bytes,
 			data->waveform,
 			Duration(data->samples),
-			options });
+			options,
+		});
 	}
 }
 
@@ -1823,6 +1844,12 @@ void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {
 	const auto lower = _lock->height();
 	const auto higher = 0;
 	_lock->requestPaintProgress(Progress(localPos.y(), higher - lower));
+}
+
+bool VoiceRecordBar::takeTTLState() const {
+	const auto hasTtl = !_ttlButton->isDisabled();
+	_ttlButton->clearState();
+	return hasTtl;
 }
 
 void VoiceRecordBar::orderControls() {

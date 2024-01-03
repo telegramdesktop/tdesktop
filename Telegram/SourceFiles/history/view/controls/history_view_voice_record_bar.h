@@ -54,6 +54,7 @@ class VoiceRecordBar final : public Ui::RpWidget {
 public:
 	using SendActionUpdate = Controls::SendActionUpdate;
 	using VoiceToSend = Controls::VoiceToSend;
+	using FilterCallback = Fn<bool()>;
 
 	VoiceRecordBar(
 		not_null<Ui::RpWidget*> parent,
@@ -88,7 +89,8 @@ public:
 
 	void requestToSendWithOptions(Api::SendOptions options);
 
-	void setStartRecordingFilter(Fn<bool()> &&callback);
+	void setStartRecordingFilter(FilterCallback &&callback);
+	void setTTLFilter(FilterCallback &&callback);
 
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isRecordingLocked() const;
@@ -146,6 +148,8 @@ private:
 
 	void computeAndSetLockProgress(QPoint globalPos);
 
+	[[nodiscard]] bool takeTTLState() const;
+
 	const style::RecordBar &_st;
 	const not_null<Ui::RpWidget*> _outerContainer;
 	const std::shared_ptr<ChatHelpers::Show> _show;
@@ -170,7 +174,8 @@ private:
 
 	Ui::Text::String _message;
 
-	Fn<bool()> _startRecordingFilter;
+	FilterCallback _startRecordingFilter;
+	FilterCallback _hasTTLFilter;
 
 	bool _warningShown = false;
 

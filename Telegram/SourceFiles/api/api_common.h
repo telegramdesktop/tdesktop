@@ -25,6 +25,7 @@ struct SendOptions {
 	bool silent = false;
 	bool handleSupportSwitch = false;
 	bool hideViaBot = false;
+	crl::time ttlSeconds = 0;
 };
 [[nodiscard]] SendOptions DefaultSendWhenOnlineOptions();
 

@@ -948,6 +948,16 @@ void HistoryWidget::initVoiceRecordBar() {
 		}
 		return false;
 	});
+	_voiceRecordBar->setTTLFilter([=] {
+		if (const auto peer = _history ? _history->peer : nullptr) {
+			if (const auto user = peer->asUser()) {
+				if (!user->isSelf() && !user->isBot()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	});
 
 	const auto applyLocalDraft = [=] {
 		if (_history && _history->localDraft({})) {
