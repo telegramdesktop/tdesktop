@@ -1764,6 +1764,7 @@ bool Widget::searchMessages(bool searchCache) {
 						? _searchQueryFrom->input
 						: MTP_inputPeerEmpty()),
 					MTPInputPeer(), // saved_peer_id
+					MTPVector<MTPReaction>(), // saved_reaction
 					MTP_int(topic ? topic->rootId() : 0),
 					MTP_inputMessagesFilterEmpty(),
 					MTP_int(0), // min_date
@@ -2006,6 +2007,7 @@ void Widget::searchMore() {
 						? _searchQueryFrom->input
 						: MTP_inputPeerEmpty()),
 					MTPInputPeer(), // saved_peer_id
+					MTPVector<MTPReaction>(), // saved_reaction
 					MTP_int(topic ? topic->rootId() : 0),
 					MTP_inputMessagesFilterEmpty(),
 					MTP_int(0), // min_date
@@ -2079,6 +2081,7 @@ void Widget::searchMore() {
 					? _searchQueryFrom->input
 					: MTP_inputPeerEmpty()),
 				MTPInputPeer(), // saved_peer_id
+				MTPVector<MTPReaction>(), // saved_reaction
 				MTPint(), // top_msg_id
 				MTP_inputMessagesFilterEmpty(),
 				MTP_int(0), // min_date
