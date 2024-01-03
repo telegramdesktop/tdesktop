@@ -195,8 +195,7 @@ bool ManageAppLink(
 		return true;
 	}
 	const auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
-		CLSID_ShellLink,
-		CLSCTX_INPROC_SERVER);
+		CLSID_ShellLink);
 	if (!shellLink) {
 		if (!silent) LOG(("App Error: could not create instance of IID_IShellLink %1").arg(hr));
 		return false;

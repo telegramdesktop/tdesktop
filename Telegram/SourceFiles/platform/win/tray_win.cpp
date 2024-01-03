@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <private/qguiapplication_p.h>
 #include <private/qhighdpiscaling_p.h>
 #include <QSvgRenderer>
+#include <QBuffer>
 
 namespace Platform {
 
@@ -33,18 +34,10 @@ namespace {
 
 constexpr auto kTooltipDelay = crl::time(10000);
 
-[[nodiscard]] std::optional<bool> IsDarkTaskbar() {
-	static const auto kSystemVersion = QOperatingSystemVersion::current();
-	static const auto kDarkModeAddedVersion = QOperatingSystemVersion(
-		QOperatingSystemVersion::Windows,
-		10,
-		0,
-		18282);
-	static const auto kSupported = (kSystemVersion >= kDarkModeAddedVersion);
-	if (!kSupported) {
-		return std::nullopt;
-	}
+std::optional<bool> DarkTaskbar;
+bool DarkTasbarValueValid/* = false*/;
 
+[[nodiscard]] std::optional<bool> ReadDarkTaskbarValue() {
 	const auto keyName = L""
 		"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 	const auto valueName = L"SystemUsesLightTheme";
@@ -62,6 +55,23 @@ constexpr auto kTooltipDelay = crl::time(10000);
 	}
 
 	return (value == 0);
+}
+
+[[nodiscard]] std::optional<bool> IsDarkTaskbar() {
+	static const auto kSystemVersion = QOperatingSystemVersion::current();
+	static const auto kDarkModeAddedVersion = QOperatingSystemVersion(
+		QOperatingSystemVersion::Windows,
+		10,
+		0,
+		18282);
+	static const auto kSupported = (kSystemVersion >= kDarkModeAddedVersion);
+	if (!kSupported) {
+		return std::nullopt;
+	} else if (!DarkTasbarValueValid) {
+		DarkTasbarValueValid = true;
+		DarkTaskbar = ReadDarkTaskbarValue();
+	}
+	return DarkTaskbar;
 }
 
 [[nodiscard]] QImage MonochromeIconFor(int size, bool darkMode) {
@@ -339,8 +349,99 @@ QPixmap Tray::IconWithCounter(
 		monochrome));
 }
 
+void WriteIco(const QString &path, std::vector<QImage> images) {
+	Expects(!images.empty());
+
+	auto buffer = QByteArray();
+	const auto write = [&](auto value) {
+		buffer.append(reinterpret_cast<const char*>(&value), sizeof(value));
+	};
+
+	const auto count = int(images.size());
+
+	auto full = 0;
+	auto pngs = std::vector<QByteArray>();
+	pngs.reserve(count);
+	for (const auto &image : images) {
+		pngs.emplace_back();
+		{
+			auto buffer = QBuffer(&pngs.back());
+			image.save(&buffer, "PNG");
+		}
+		full += pngs.back().size();
+	}
+
+	// Images directory
+	constexpr auto entry = sizeof(int8)
+		+ sizeof(int8)
+		+ sizeof(int8)
+		+ sizeof(int8)
+		+ sizeof(int16)
+		+ sizeof(int16)
+		+ sizeof(uint32)
+		+ sizeof(uint32);
+	static_assert(entry == 16);
+
+	auto offset = 3 * sizeof(int16) + count * entry;
+	full += offset;
+
+	buffer.reserve(full);
+
+	// Thanks https://stackoverflow.com/a/54289564/6509833
+	write(int16(0));
+	write(int16(1));
+	write(int16(count));
+
+	for (auto i = 0; i != count; ++i) {
+		const auto &image = images[i];
+		Assert(image.width() <= 256 && image.height() <= 256);
+
+		write(int8(image.width() == 256 ? 0 : image.width()));
+		write(int8(image.height() == 256 ? 0 : image.height()));
+		write(int8(0)); // palette size
+		write(int8(0)); // reserved
+		write(int16(1)); // color planes
+		write(int16(image.depth())); // bits-per-pixel
+		write(uint32(pngs[i].size())); // size of image in bytes
+		write(uint32(offset)); // offset
+		offset += pngs[i].size();
+	}
+	for (auto i = 0; i != count; ++i) {
+		buffer.append(pngs[i]);
+	}
+
+	auto f = QFile(path);
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write(buffer);
+	}
+}
+
+QString Tray::QuitJumpListIconPath() {
+	const auto dark = IsDarkTaskbar();
+	const auto key = !dark ? 0 : *dark ? 1 : 2;
+	const auto path = cWorkingDir() + u"tdata/temp/quit_%1.ico"_q.arg(key);
+	if (QFile::exists(path)) {
+		return path;
+	}
+	const auto color = !dark
+		? st::trayCounterBg->c
+		: *dark
+		? QColor(255, 255, 255)
+		: QColor(0, 0, 0, 228);
+	WriteIco(path, {
+		st::winQuitIcon.instance(color, 100, true),
+		st::winQuitIcon.instance(color, 200, true),
+		st::winQuitIcon.instance(color, 300, true),
+	});
+	return path;
+}
+
 bool HasMonochromeSetting() {
 	return IsDarkTaskbar().has_value();
+}
+
+void RefreshTaskbarThemeValue() {
+	DarkTasbarValueValid = false;
 }
 
 } // namespace Platform

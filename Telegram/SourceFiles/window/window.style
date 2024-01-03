@@ -317,6 +317,10 @@ windowArchiveToast: Toast(defaultToast) {
 	maxWidth: boxWideWidth;
 }
 
+// Windows specific
+
+winQuitIcon: icon {{ "win_quit", windowFg }};
+
 // Mac specific
 
 macAccessoryWidth: 450.;
