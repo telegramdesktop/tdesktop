@@ -414,7 +414,7 @@ Ui::CustomEmoji::Preview CustomEmojiLoader::preview() {
 	const auto make = [&](not_null<DocumentData*> document) -> Preview {
 		const auto dimensions = document->dimensions;
 		if (!document->inlineThumbnailIsPath()
-			|| !dimensions.width()) {
+			|| dimensions.isEmpty()) {
 			return {};
 		}
 		const auto scale = (FrameSizeFromTag(_tag, _sizeOverride) * 1.)

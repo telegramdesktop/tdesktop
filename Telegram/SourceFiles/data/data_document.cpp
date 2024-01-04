@@ -483,8 +483,7 @@ bool DocumentData::checkWallPaperProperties() {
 	}
 	if (type != FileDocument
 		|| !hasThumbnail()
-		|| !dimensions.width()
-		|| !dimensions.height()
+		|| dimensions.isEmpty()
 		|| dimensions.width() > Storage::kMaxWallPaperDimension
 		|| dimensions.height() > Storage::kMaxWallPaperDimension
 		|| size > Storage::kMaxWallPaperInMemory) {
