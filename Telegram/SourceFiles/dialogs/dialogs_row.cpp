@@ -86,7 +86,7 @@ constexpr auto kBlurRadius = 24;
 	q.drawArc(innerRect, arc::kQuarterLength, arc::kHalfLength);
 
 	q.setClipRect(innerRect
-		- QMargins(innerRect.width() / 2, 0, -penWidth, -penWidth));
+		- QMargins(innerRect.width() / 2, -penWidth, -penWidth, -penWidth));
 	pen.setStyle(Qt::DotLine);
 	q.setPen(pen);
 	q.drawEllipse(innerRect);

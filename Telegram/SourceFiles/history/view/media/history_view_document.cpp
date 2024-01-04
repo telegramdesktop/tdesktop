@@ -53,30 +53,36 @@ constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 
 void DrawCornerBadgeTTL(
 		QPainter &p,
-		const style::color &color,
+		const style::color &bg,
+		const style::color &fg,
 		const QRect &circleRect) {
 	p.save();
-	const auto partRect = QRect(
-		circleRect.left() + circleRect.width() - st::dialogsTTLBadgeSize * 0.85,
-		circleRect.top() + circleRect.height() - st::dialogsTTLBadgeSize * 0.85,
+	const auto partRect = QRectF(
+		rect::right(circleRect)
+			- st::dialogsTTLBadgeSize
+			+ rect::m::sum::h(st::dialogsTTLBadgeInnerMargins),
+		rect::bottom(circleRect)
+			- st::dialogsTTLBadgeSize
+			+ rect::m::sum::v(st::dialogsTTLBadgeInnerMargins),
 		st::dialogsTTLBadgeSize,
 		st::dialogsTTLBadgeSize);
 
 	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(color);
+	p.setPen(Qt::NoPen);
+	p.setBrush(bg);
 	p.drawEllipse(partRect);
 
 	const auto innerRect = partRect - st::dialogsTTLBadgeInnerMargins;
 	const auto ttlText = u"1"_q;
 
 	p.setFont(st::dialogsScamFont);
-	p.setPen(st::premiumButtonFg);
+	p.setPen(fg);
 	p.drawText(innerRect, ttlText, style::al_center);
 
 	constexpr auto kPenWidth = 1.5;
 
 	const auto penWidth = style::ConvertScaleExact(kPenWidth);
-	auto pen = QPen(st::premiumButtonFg);
+	auto pen = QPen(fg);
 	pen.setJoinStyle(Qt::RoundJoin);
 	pen.setCapStyle(Qt::RoundCap);
 	pen.setWidthF(penWidth);
@@ -86,7 +92,7 @@ void DrawCornerBadgeTTL(
 	p.drawArc(innerRect, arc::kQuarterLength, arc::kHalfLength);
 
 	p.setClipRect(innerRect
-		- QMargins(innerRect.width() / 2, 0, -penWidth, -penWidth));
+		- QMarginsF(innerRect.width() / 2, -penWidth, -penWidth, -penWidth));
 	pen.setStyle(Qt::DotLine);
 	p.setPen(pen);
 	p.drawEllipse(innerRect);
@@ -895,7 +901,10 @@ void Document::draw(
 		});
 	}
 	if (_parent->data()->media()->ttlSeconds()) {
-		DrawCornerBadgeTTL(p, stm->msgFileBg, inner);
+		const auto &fg = context.outbg
+			? st::historyFileOutIconFg
+			: st::historyFileInIconFg;
+		DrawCornerBadgeTTL(p, stm->msgFileBg, fg, inner);
 	}
 }
 

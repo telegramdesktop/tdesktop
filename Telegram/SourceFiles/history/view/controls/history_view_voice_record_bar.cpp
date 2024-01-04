@@ -312,7 +312,8 @@ TTLButton::TTLButton(
 
 		Ui::RippleButton::paintRipple(p, _rippleRect.x(), _rippleRect.y());
 
-		const auto innerRect = inner - st::historyRecordLockMargin * 2;
+		const auto innerRect = QRectF(inner)
+			- st::historyRecordLockMargin * 2;
 		auto hq = PainterHighQualityEnabler(p);
 
 		p.setFont(st::semiboldFont);
@@ -331,7 +332,11 @@ TTLButton::TTLButton(
 
 		{
 			p.setClipRect(innerRect
-				- QMargins(innerRect.width() / 2, 0, -penWidth, -penWidth));
+				- QMarginsF(
+					innerRect.width() / 2,
+					-penWidth,
+					-penWidth,
+					-penWidth));
 			pen.setStyle(Qt::DotLine);
 			p.setPen(pen);
 			p.drawEllipse(innerRect);
