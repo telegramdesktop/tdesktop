@@ -346,7 +346,8 @@ Document::Document(
 				::Media::Player::instance()->tracksFinished(
 				) | rpl::filter([=](AudioMsgId::Type type) {
 					return (type == AudioMsgId::Type::Voice);
-				}) | rpl::to_empty
+				}) | rpl::to_empty,
+				::Media::Player::instance()->stops(AudioMsgId::Type::Voice)
 			) | rpl::start_with_next([=]() mutable {
 				_drawTtl = nullptr;
 				const auto item = _parent->data();
@@ -917,7 +918,7 @@ void Document::draw(
 			.highlight = highlightRequest ? &*highlightRequest : nullptr,
 		});
 	}
-	if (_parent->data()->media()->ttlSeconds()) {
+	if (_parent->data()->media() && _parent->data()->media()->ttlSeconds()) {
 		const auto &fg = context.outbg
 			? st::historyFileOutIconFg
 			: st::historyFileInIconFg;

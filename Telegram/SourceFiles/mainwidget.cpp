@@ -755,7 +755,6 @@ void MainWidget::handleAudioUpdate(const Media::Player::TrackState &state) {
 	const auto item = session().data().message(state.id.contextId());
 	if (!Media::Player::IsStoppedOrStopping(state.state)) {
 		const auto ttlSeconds = item
-			&& !item->out()
 			&& item->media()
 			&& item->media()->ttlSeconds();
 		if (!ttlSeconds) {
