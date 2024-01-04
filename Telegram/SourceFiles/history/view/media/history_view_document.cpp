@@ -23,24 +23,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_transcribe_button.h"
 #include "history/view/media/history_view_media_common.h"
-#include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/text/format_song_document_name.h"
 #include "ui/text/text_utilities.h"
-#include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
-#include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/rect.h"
-#include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
-#include "data/data_media_types.h"
 #include "data/data_file_click_handler.h"
-#include "data/data_file_origin.h"
 #include "api/api_transcribes.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -143,6 +137,29 @@ void DrawCornerBadgeTTL(
 	return [=](QPainter &p, QRect r, QColor c) {
 		(state->idle ? state->idle : state->start)->paintInCenter(p, r, c);
 	};
+}
+
+void FillThumbnailOverlay(
+		QPainter &p,
+		QRect rect,
+		Ui::BubbleRounding rounding,
+		const PaintContext &context) {
+	using Corner = Ui::BubbleCornerRounding;
+	using Radius = Ui::CachedCornerRadius;
+	auto corners = Ui::CornersPixmaps();
+	const auto &st = context.st;
+	const auto lookup = [&](Corner corner) {
+		switch (corner) {
+		case Corner::None: return Radius::Small;
+		case Corner::Small: return Radius::ThumbSmall;
+		case Corner::Large: return Radius::ThumbLarge;
+		}
+		Unexpected("Corner value in FillThumbnailOverlay.");
+	};
+	for (auto i = 0; i != 4; ++i) {
+		corners.p[i] = st->msgSelectOverlayCorners(lookup(rounding[i])).p[i];
+	}
+	Ui::FillComplexOverlayRect(p, rect, st->msgSelectOverlay(), corners);
 }
 
 [[nodiscard]] QString CleanTagSymbols(const QString &value) {
@@ -648,7 +665,7 @@ void Document::draw(
 		validateThumbnail(thumbed, st.thumbSize, rounding);
 		p.drawImage(rthumb, thumbed->thumbnail);
 		if (context.selected()) {
-			fillThumbnailOverlay(p, rthumb, rounding, context);
+			FillThumbnailOverlay(p, rthumb, rounding, context);
 		}
 
 		if (radial || (!loaded && !_data->loading()) || _data->waitingForAlbum()) {
@@ -968,29 +985,6 @@ void Document::validateThumbnail(
 	thumbed->thumbnail = std::move(thumbnail);
 	thumbed->blurred = !normal;
 	thumbed->rounding = rounding;
-}
-
-void Document::fillThumbnailOverlay(
-		QPainter &p,
-		QRect rect,
-		Ui::BubbleRounding rounding,
-		const PaintContext &context) const {
-	using Corner = Ui::BubbleCornerRounding;
-	using Radius = Ui::CachedCornerRadius;
-	auto corners = Ui::CornersPixmaps();
-	const auto &st = context.st;
-	const auto lookup = [&](Corner corner) {
-		switch (corner) {
-		case Corner::None: return Radius::Small;
-		case Corner::Small: return Radius::ThumbSmall;
-		case Corner::Large: return Radius::ThumbLarge;
-		}
-		Unexpected("Corner value in Document::fillThumbnailOverlay.");
-	};
-	for (auto i = 0; i != 4; ++i) {
-		corners.p[i] = st->msgSelectOverlayCorners(lookup(rounding[i])).p[i];
-	}
-	Ui::FillComplexOverlayRect(p, rect, st->msgSelectOverlay(), corners);
 }
 
 bool Document::hasHeavyPart() const {
@@ -1709,7 +1703,7 @@ bool DrawThumbnailAsSongCover(
 		const style::color &colored,
 		const std::shared_ptr<Data::DocumentMedia> &dataMedia,
 		const QRect &rect,
-		const bool selected) {
+		bool selected) {
 	if (!dataMedia) {
 		return false;
 	}
