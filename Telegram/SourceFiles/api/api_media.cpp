@@ -80,7 +80,9 @@ MTPInputMedia PrepareUploadedPhoto(
 		RemoteFileInfo info) {
 	using Flag = MTPDinputMediaUploadedPhoto::Flag;
 	const auto spoiler = item->media() && item->media()->hasSpoiler();
-	const auto ttlSeconds = item->media() && item->media()->ttlSeconds();
+	const auto ttlSeconds = item->media()
+		? item->media()->ttlSeconds()
+		: 0;
 	const auto flags = (spoiler ? Flag::f_spoiler : Flag())
 		| (info.attachedStickers.empty() ? Flag() : Flag::f_stickers)
 		| (ttlSeconds ? Flag::f_ttl_seconds : Flag());
@@ -100,7 +102,9 @@ MTPInputMedia PrepareUploadedDocument(
 	}
 	using Flag = MTPDinputMediaUploadedDocument::Flag;
 	const auto spoiler = item->media() && item->media()->hasSpoiler();
-	const auto ttlSeconds = item->media() && item->media()->ttlSeconds();
+	const auto ttlSeconds = item->media()
+		? item->media()->ttlSeconds()
+		: 0;
 	const auto flags = (spoiler ? Flag::f_spoiler : Flag())
 		| (info.thumb ? Flag::f_thumb : Flag())
 		| (item->groupId() ? Flag::f_nosound_video : Flag())
