@@ -1,3 +1,11 @@
+4.14.3 (04.01.24)
+
+- Allow sending single-time voice messages.
+- Fix payments card validation.
+- Fix crash when trying to join channels above the limit.
+- Add "Quit Telegram" to the Taskbar context menu. (Windows)
+- Fix opened windows list in the Dock icon context menu. (macOS) 
+
 4.14.2 (02.01.24)
 
 - Show original senders name in reply to forward information.
