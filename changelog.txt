@@ -4,7 +4,7 @@
 - Fix payments card validation.
 - Fix crash when trying to join channels above the limit.
 - Add "Quit Telegram" to the Taskbar context menu. (Windows)
-- Fix opened windows list in the Dock icon context menu. (macOS) 
+- Fix opened windows list in the Dock icon context menu. (macOS)
 
 4.14.2 (02.01.24)
 
