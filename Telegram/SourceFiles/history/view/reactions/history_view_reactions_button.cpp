@@ -895,7 +895,9 @@ void SetupManagerList(
 				reactions.topUpdates(),
 				reactions.recentUpdates(),
 				reactions.defaultUpdates(),
-				reactions.favoriteUpdates()
+				reactions.favoriteUpdates(),
+				reactions.myTagsUpdates(),
+				reactions.tagsUpdates()
 			) | rpl::start_with_next([=] {
 				if (!state->timer.isActive()) {
 					state->timer.callOnce(kRefreshListDelay);

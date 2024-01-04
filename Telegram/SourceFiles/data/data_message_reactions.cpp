@@ -38,6 +38,7 @@ constexpr auto kPollEach = 20 * crl::time(1000);
 constexpr auto kSizeForDownscale = 64;
 constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
 constexpr auto kRecentReactionsLimit = 40;
+constexpr auto kMyTagsRequestTimeout = crl::time(1000);
 constexpr auto kTopRequestDelay = 60 * crl::time(1000);
 constexpr auto kTopReactionsLimit = 14;
 
@@ -59,6 +60,27 @@ constexpr auto kTopReactionsLimit = 14;
 			LOG(("API Error: reactionEmpty in messages.reactions."));
 		} else {
 			result.push_back(id);
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] std::vector<MyTagInfo> ListFromMTP(
+		const MTPDmessages_savedReactionTags &data) {
+	const auto &list = data.vtags().v;
+	auto result = std::vector<MyTagInfo>();
+	result.reserve(list.size());
+	for (const auto &reaction : list) {
+		const auto &data = reaction.data();
+		const auto id = ReactionFromMTP(data.vreaction());
+		if (id.empty()) {
+			LOG(("API Error: reactionEmpty in messages.reactions."));
+		} else {
+			result.push_back({
+				.id = id,
+				.title = qs(data.vtitle().value_or_empty()),
+				.count = data.vcount().v,
+			});
 		}
 	}
 	return result;
@@ -121,6 +143,8 @@ PossibleItemReactionsRef LookupPossibleReactions(
 	const auto &full = reactions->list(Reactions::Type::Active);
 	const auto &top = reactions->list(Reactions::Type::Top);
 	const auto &recent = reactions->list(Reactions::Type::Recent);
+	const auto &myTags = reactions->list(Reactions::Type::MyTags);
+	const auto &tags = reactions->list(Reactions::Type::Tags);
 	const auto &all = item->reactions();
 	const auto limit = UniqueReactionsLimit(peer);
 	const auto premiumPossible = session->premiumPossible();
@@ -143,7 +167,19 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		}
 	};
 	reactions->clearTemporary();
-	if (limited) {
+	if (item->reactionsAreTags()) {
+		auto &&all = ranges::views::concat(myTags, tags);
+		result.recent.reserve(myTags.size() + tags.size());
+		for (const auto &reaction : all) {
+			if (premiumPossible
+				|| ranges::contains(tags, reaction.id, &Reaction::id)) {
+				if (added.emplace(reaction.id).second) {
+					result.recent.push_back(&reaction);
+				}
+			}
+		}
+		result.customAllowed = premiumPossible;
+	} else if (limited) {
 		result.recent.reserve(all.size());
 		add([&](const Reaction &reaction) {
 			return ranges::contains(all, reaction.id, &MessageReaction::id);
@@ -193,12 +229,14 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		result.customAllowed = (allowed.type == AllowedReactionsType::All)
 			&& premiumPossible;
 	}
-	const auto i = ranges::find(
-		result.recent,
-		reactions->favoriteId(),
-		&Reaction::id);
-	if (i != end(result.recent) && i != begin(result.recent)) {
-		std::rotate(begin(result.recent), i, i + 1);
+	if (!item->reactionsAreTags()) {
+		const auto i = ranges::find(
+			result.recent,
+			reactions->favoriteId(),
+			&Reaction::id);
+		if (i != end(result.recent) && i != begin(result.recent)) {
+			std::rotate(begin(result.recent), i, i + 1);
+		}
 	}
 	return result;
 }
@@ -280,14 +318,40 @@ void Reactions::refreshDefault() {
 	requestDefault();
 }
 
+void Reactions::refreshMyTags() {
+	requestMyTags();
+}
+
+void Reactions::refreshMyTagsDelayed() {
+	if (_myTagsRequestId || _myTagsRequestScheduled) {
+		return;
+	}
+	_myTagsRequestScheduled = true;
+	base::call_delayed(kMyTagsRequestTimeout, &_owner->session(), [=] {
+		if (_myTagsRequestScheduled) {
+			requestMyTags();
+		}
+	});
+}
+
+void Reactions::refreshTags() {
+	requestTags();
+}
+
 const std::vector<Reaction> &Reactions::list(Type type) const {
 	switch (type) {
 	case Type::Active: return _active;
 	case Type::Recent: return _recent;
 	case Type::Top: return _top;
 	case Type::All: return _available;
+	case Type::MyTags: return _myTags;
+	case Type::Tags: return _tags;
 	}
 	Unexpected("Type in Reactions::list.");
+}
+
+const std::vector<MyTagInfo> &Reactions::myTagsInfo() const {
+	return _myTagsInfo;
 }
 
 ReactionId Reactions::favoriteId() const {
@@ -373,6 +437,14 @@ rpl::producer<> Reactions::defaultUpdates() const {
 
 rpl::producer<> Reactions::favoriteUpdates() const {
 	return _favoriteUpdated.events();
+}
+
+rpl::producer<> Reactions::myTagsUpdates() const {
+	return _myTagsUpdated.events();
+}
+
+rpl::producer<> Reactions::tagsUpdates() const {
+	return _tagsUpdated.events();
 }
 
 void Reactions::preloadImageFor(const ReactionId &id) {
@@ -617,6 +689,46 @@ void Reactions::requestGeneric() {
 	}).send();
 }
 
+void Reactions::requestMyTags() {
+	if (_myTagsRequestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	_myTagsRequestScheduled = false;
+	_myTagsRequestId = api.request(MTPmessages_GetSavedReactionTags(
+		MTP_long(_myTagsHash)
+	)).done([=](const MTPmessages_SavedReactionTags &result) {
+		_myTagsRequestId = 0;
+		result.match([&](const MTPDmessages_savedReactionTags &data) {
+			updateMyTags(data);
+		}, [](const MTPDmessages_savedReactionTagsNotModified&) {
+		});
+	}).fail([=] {
+		_myTagsRequestId = 0;
+		_myTagsHash = 0;
+	}).send();
+}
+
+void Reactions::requestTags() {
+	if (_tagsRequestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	_tagsRequestId = api.request(MTPmessages_GetDefaultTagReactions(
+		MTP_long(_tagsHash)
+	)).done([=](const MTPmessages_Reactions &result) {
+		_tagsRequestId = 0;
+		result.match([&](const MTPDmessages_reactions &data) {
+			updateTags(data);
+		}, [](const MTPDmessages_reactionsNotModified&) {
+		});
+	}).fail([=] {
+		_tagsRequestId = 0;
+		_tagsHash = 0;
+	}).send();
+
+}
+
 void Reactions::updateTop(const MTPDmessages_reactions &data) {
 	_topHash = data.vhash().v;
 	_topIds = ListFromMTP(data);
@@ -685,6 +797,23 @@ void Reactions::updateGeneric(const MTPDmessages_stickerSet &data) {
 	}
 }
 
+void Reactions::updateMyTags(const MTPDmessages_savedReactionTags &data) {
+	_myTagsHash = data.vhash().v;
+	_myTagsInfo = ListFromMTP(data);
+	_myTagsIds = _myTagsInfo | ranges::views::transform(
+		&MyTagInfo::id
+	) | ranges::to_vector;
+	_myTags = resolveByIds(_myTagsIds, _unresolvedMyTags);
+	_myTagsUpdated.fire({});
+}
+
+void Reactions::updateTags(const MTPDmessages_reactions &data) {
+	_tagsHash = data.vhash().v;
+	_tagsIds = ListFromMTP(data);
+	_tags = resolveByIds(_tagsIds, _unresolvedTags);
+	_tagsUpdated.fire({});
+}
+
 void Reactions::recentUpdated() {
 	_topRefreshTimer.callOnce(kTopRequestDelay);
 	_recentUpdated.fire({});
@@ -696,7 +825,23 @@ void Reactions::defaultUpdated() {
 	if (_genericAnimations.empty()) {
 		requestGeneric();
 	}
+	refreshMyTags();
+	refreshTags();
 	_defaultUpdated.fire({});
+}
+
+void Reactions::myTagsUpdated() {
+	if (_genericAnimations.empty()) {
+		requestGeneric();
+	}
+	_myTagsUpdated.fire({});
+}
+
+void Reactions::tagsUpdated() {
+	if (_genericAnimations.empty()) {
+		requestGeneric();
+	}
+	_tagsUpdated.fire({});
 }
 
 not_null<CustomEmojiManager::Listener*> Reactions::resolveListener() {
@@ -710,6 +855,10 @@ void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
 	const auto top = (i != end(_unresolvedTop));
 	const auto j = _unresolvedRecent.find(id);
 	const auto recent = (j != end(_unresolvedRecent));
+	const auto k = _unresolvedMyTags.find(id);
+	const auto myTag = (k != end(_unresolvedMyTags));
+	const auto l = _unresolvedTags.find(id);
+	const auto tag = (l != end(_unresolvedTags));
 	if (favorite) {
 		_unresolvedFavoriteId = ReactionId();
 		_favorite = resolveById(_favoriteId);
@@ -722,6 +871,14 @@ void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
 		_unresolvedRecent.erase(j);
 		_recent = resolveByIds(_recentIds, _unresolvedRecent);
 	}
+	if (myTag) {
+		_unresolvedMyTags.erase(k);
+		_myTags = resolveByIds(_myTagsIds, _unresolvedMyTags);
+	}
+	if (tag) {
+		_unresolvedTags.erase(l);
+		_tags = resolveByIds(_tagsIds, _unresolvedTags);
+	}
 	if (favorite) {
 		_favoriteUpdated.fire({});
 	}
@@ -730,6 +887,12 @@ void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
 	}
 	if (recent) {
 		_recentUpdated.fire({});
+	}
+	if (myTag) {
+		_myTagsUpdated.fire({});
+	}
+	if (tag) {
+		_tagsUpdated.fire({});
 	}
 }
 
