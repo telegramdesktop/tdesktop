@@ -70,7 +70,7 @@ RUN git clone -b nasm-2.15.05 --depth=1 {{ GIT }}/netwide-assembler/nasm.git \
 	&& rm -rf nasm
 
 FROM builder AS zlib
-RUN git init zlib
+RUN git init zlib \
 	&& cd zlib \
 	&& git remote add origin {{ GIT }}/madler/zlib.git \
 	&& git fetch --depth=1 origin 643e17b7498d12ab8d15565662880579692f769d \
