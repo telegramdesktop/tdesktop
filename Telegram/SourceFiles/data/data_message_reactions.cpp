@@ -378,6 +378,56 @@ void Reactions::setFavorite(const ReactionId &id) {
 	applyFavorite(id);
 }
 
+void Reactions::incrementMyTag(const ReactionId &id) {
+	auto i = ranges::find(_myTagsInfo, id, &MyTagInfo::id);
+	if (i == end(_myTagsInfo)) {
+		_myTagsInfo.push_back({ .id = id, .count = 0 });
+		i = end(_myTagsInfo) - 1;
+	}
+	++i->count;
+	while (i != begin(_myTagsInfo)) {
+		auto j = i - 1;
+		if (j->count >= i->count) {
+			break;
+		}
+		std::swap(*i, *j);
+		i = j;
+	}
+	scheduleMyTagsUpdate();
+}
+
+void Reactions::decrementMyTag(const ReactionId &id) {
+	auto i = ranges::find(_myTagsInfo, id, &MyTagInfo::id);
+	if (i->count <= 0) {
+		return;
+	}
+	--i->count;
+	while (i + 1 != end(_myTagsInfo)) {
+		auto j = i + 1;
+		if (j->count <= i->count) {
+			break;
+		}
+		std::swap(*i, *j);
+		i = j;
+	}
+	scheduleMyTagsUpdate();
+}
+
+void Reactions::scheduleMyTagsUpdate() {
+	_myTagsUpdateScheduled = true;
+	crl::on_main(&session(), [=] {
+		if (!_myTagsUpdateScheduled) {
+			return;
+		}
+		_myTagsUpdateScheduled = false;
+		_myTagsIds = _myTagsInfo | ranges::views::transform(
+			&MyTagInfo::id
+		) | ranges::to_vector;
+		_myTags = resolveByIds(_myTagsIds, _unresolvedMyTags);
+		_myTagsUpdated.fire({});
+	});
+}
+
 DocumentData *Reactions::chooseGenericAnimation(
 		not_null<DocumentData*> custom) const {
 	const auto sticker = custom->sticker();
@@ -1155,6 +1205,10 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 		return;
 	}
 	auto my = 0;
+	const auto tags = _item->reactionsAreTags();
+	if (tags) {
+		history->owner().reactions().incrementMyTag(id);
+	}
 	_list.erase(ranges::remove_if(_list, [&](MessageReaction &one) {
 		const auto removing = one.my && (my == myLimit || ++my == myLimit);
 		if (!removing) {
@@ -1175,6 +1229,9 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 					_recent.erase(j);
 				}
 			}
+		}
+		if (tags) {
+			history->owner().reactions().decrementMyTag(one.id);
 		}
 		return removed;
 	}), end(_list));

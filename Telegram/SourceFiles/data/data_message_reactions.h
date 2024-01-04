@@ -93,6 +93,8 @@ public:
 	[[nodiscard]] ReactionId favoriteId() const;
 	[[nodiscard]] const Reaction *favorite() const;
 	void setFavorite(const ReactionId &id);
+	void incrementMyTag(const ReactionId &id);
+	void decrementMyTag(const ReactionId &id);
 	[[nodiscard]] DocumentData *chooseGenericAnimation(
 		not_null<DocumentData*> custom) const;
 
@@ -165,6 +167,7 @@ private:
 		base::flat_set<ReactionId> &unresolved);
 	void resolve(const ReactionId &id);
 	void applyFavorite(const ReactionId &id);
+	void scheduleMyTagsUpdate();
 
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
@@ -234,6 +237,7 @@ private:
 
 	mtpRequestId _myTagsRequestId = 0;
 	bool _myTagsRequestScheduled = false;
+	bool _myTagsUpdateScheduled = false;
 	uint64 _myTagsHash = 0;
 
 	mtpRequestId _tagsRequestId = 0;
