@@ -70,8 +70,11 @@ RUN git clone -b nasm-2.15.05 --depth=1 {{ GIT }}/netwide-assembler/nasm.git \
 	&& rm -rf nasm
 
 FROM builder AS zlib
-RUN git clone -b v1.2.13 --depth=1 {{ GIT }}/madler/zlib.git \
+RUN git init zlib
 	&& cd zlib \
+	&& git remote add origin {{ GIT }}/madler/zlib.git \
+	&& git fetch --depth=1 origin 643e17b7498d12ab8d15565662880579692f769d \
+	&& git reset --hard FETCH_HEAD \
 	&& ./configure \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/zlib-cache" install \

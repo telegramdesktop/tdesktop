@@ -513,8 +513,9 @@ stage('xz', """
 """)
 
 stage('zlib', """
-    git clone -b v1.3 https://github.com/madler/zlib.git
+    git clone https://github.com/madler/zlib.git
     cd zlib
+    git checkout 643e17b749
 win:
     cmake . ^
         -A %WIN32X64% ^
