@@ -364,7 +364,7 @@ Panel::Panel(
 }
 
 Panel::~Panel() {
-	_webview = nullptr;
+	base::take(_webview);
 	_progress = nullptr;
 	_widget = nullptr;
 }
@@ -587,7 +587,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 
 	QObject::connect(container, &QObject::destroyed, [=] {
 		if (_webview && &_webview->window == raw) {
-			_webview = nullptr;
+			base::take(_webview);
 			if (_webviewProgress) {
 				hideWebviewProgress();
 				if (_progress && !_progress->shown) {
@@ -604,6 +604,16 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		return false;
 	}
 	QObject::connect(raw->widget(), &QObject::destroyed, [=] {
+		const auto parent = _webviewParent.data();
+		if (!_webview
+			|| &_webview->window != raw
+			|| !parent
+			|| _widget->inner() != parent) {
+			// If we destroyed _webview ourselves,
+			// or if we changed _widget->inner ourselves,
+			// we don't show any message, nothing crashed.
+			return;
+		}
 		crl::on_main(this, [=] {
 			showCriticalError({ "Error: WebView has crashed." });
 		});
