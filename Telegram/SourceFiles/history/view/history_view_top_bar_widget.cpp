@@ -928,7 +928,9 @@ int TopBarWidget::countSelectedButtonsTop(float64 selectedShown) {
 void TopBarWidget::updateSearchVisibility() {
 	const auto searchAllowedMode = (_activeChat.section == Section::History)
 		|| (_activeChat.section == Section::Replies
-			&& _activeChat.key.topic());
+			&& _activeChat.key.topic())
+		|| (_activeChat.section == Section::SavedSublist
+			&& _activeChat.key.sublist());
 	_search->setVisible(searchAllowedMode && !_chooseForReportReason);
 }
 

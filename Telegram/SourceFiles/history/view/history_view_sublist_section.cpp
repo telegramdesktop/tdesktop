@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_sublist_section.h"
 
 #include "main/main_session.h"
+#include "core/application.h"
+#include "core/shortcuts.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
@@ -19,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "mainwidget.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -115,6 +118,10 @@ SublistWidget::SublistWidget(
 	) | rpl::start_with_next([=] {
 		clearSelected();
 	}, _topBar->lifetime());
+	_topBar->searchRequest(
+	) | rpl::start_with_next([=] {
+		searchInSublist();
+	}, _topBar->lifetime());
 
 	_translateBar->raise();
 	_topBarShadow->raise();
@@ -134,6 +141,7 @@ SublistWidget::SublistWidget(
 		onScroll();
 	}, lifetime());
 
+	setupShortcuts();
 	setupTranslateBar();
 }
 
@@ -656,6 +664,26 @@ void SublistWidget::confirmForwardSelected() {
 
 void SublistWidget::clearSelected() {
 	_inner->cancelSelection();
+}
+
+void SublistWidget::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::filter([=] {
+		return Ui::AppInFocus()
+			&& Ui::InFocusChain(this)
+			&& !controller()->isLayerShown()
+			&& (Core::App().activeWindow() == &controller()->window());
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::Search, 1) && request->handle([=] {
+			searchInSublist();
+			return true;
+		});
+	}, lifetime());
+}
+
+void SublistWidget::searchInSublist() {
+	controller()->content()->searchInChat(_sublist);
 }
 
 } // namespace HistoryView

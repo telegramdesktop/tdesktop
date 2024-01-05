@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_message_reactions.h"
 #include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_stories.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_send_action.h"
@@ -502,7 +503,7 @@ int InnerWidget::searchInChatSkip() const {
 	if (_searchInChat) {
 		result += st::searchedBarHeight + st::dialogsSearchInHeight;
 	}
-	if (_searchFromPeer) {
+	if (_searchFromShown) {
 		if (_searchInChat) {
 			result += st::lineWidth;
 		}
@@ -1139,7 +1140,7 @@ void InnerWidget::paintSearchInChat(
 	auto fullRect = QRect(0, top, width(), height - top);
 	p.fillRect(fullRect, currentBg());
 	if (_searchInChat) {
-		if (_searchFromPeer) {
+		if (_searchFromShown) {
 			p.fillRect(QRect(0, top + st::dialogsSearchInHeight, width(), st::lineWidth), st::shadowFg);
 		}
 		p.setPen(st::dialogsNameFg);
@@ -1153,15 +1154,17 @@ void InnerWidget::paintSearchInChat(
 			} else {
 				paintSearchInPeer(p, peer, _searchInChatUserpic, top, _searchInChatText);
 			}
+		} else if (const auto sublist = _searchInChat.sublist()) {
+			paintSearchInSaved(p, top, _searchInChatText);
 		} else {
 			Unexpected("Empty Key in paintSearchInChat.");
 		}
 		top += st::dialogsSearchInHeight + st::lineWidth;
 	}
-	if (_searchFromPeer) {
+	if (_searchFromShown) {
 		p.setPen(st::dialogsTextFg);
 		p.setTextPalette(st::dialogsSearchFromPalette);
-		paintSearchInPeer(p, _searchFromPeer, _searchFromUserUserpic, top, _searchFromUserText);
+		paintSearchInPeer(p, _searchFromShown, _searchFromUserUserpic, top, _searchFromUserText);
 		p.restoreTextPalette();
 	}
 }
@@ -2967,7 +2970,9 @@ bool InnerWidget::hasFilteredResults() const {
 
 void InnerWidget::searchInChat(Key key, PeerData *from) {
 	_searchInMigrated = nullptr;
-	if (const auto peer = key.peer()) {
+	const auto sublist = key.sublist();
+	const auto peer = sublist ? session().user().get() : key.peer();
+	if (peer) {
 		if (const auto migrateTo = peer->migrateTo()) {
 			return searchInChat(peer->owner().history(migrateTo), from);
 		} else if (const auto migrateFrom = peer->migrateFrom()) {
@@ -3013,15 +3018,16 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 	}
 	_searchInChat = key;
 	_searchFromPeer = from;
+	_searchFromShown = key.sublist() ? key.sublist()->peer().get() : from;
 	if (_searchInChat) {
 		onHashtagFilterUpdate(QStringView());
 		_cancelSearchInChat->show();
 	} else {
 		_cancelSearchInChat->hide();
 	}
-	if (_searchFromPeer) {
+	if (_searchFromShown) {
 		_cancelSearchFromUser->show();
-		_searchFromUserUserpic = _searchFromPeer->createUserpicView();
+		_searchFromUserUserpic = _searchFromShown->createUserpicView();
 	} else {
 		_cancelSearchFromUser->hide();
 		_searchFromUserUserpic = {};
@@ -3030,7 +3036,7 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 		refreshSearchInChatLabel();
 	}
 
-	if (const auto peer = _searchInChat.peer()) {
+	if (peer) {
 		_searchInChatUserpic = peer->createUserpicView();
 	} else {
 		_searchInChatUserpic = {};
@@ -3059,6 +3065,8 @@ void InnerWidget::refreshSearchInChatLabel() {
 				return tr::lng_replies_messages(tr::now);
 			}
 			return peer->name();
+		} else if (_searchInChat.sublist()) {
+			return tr::lng_saved_messages(tr::now);
 		}
 		return QString();
 	}();
@@ -3068,7 +3076,7 @@ void InnerWidget::refreshSearchInChatLabel() {
 			dialog,
 			Ui::DialogTextOptions());
 	}
-	const auto from = _searchFromPeer ? _searchFromPeer->name() : QString();
+	const auto from = _searchFromShown ? _searchFromShown->name() : u""_q;
 	if (!from.isEmpty()) {
 		const auto fromUserText = tr::lng_dlg_search_from(
 			tr::now,

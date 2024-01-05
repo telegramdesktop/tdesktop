@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_download_manager.h"
 #include "data/data_chat_filters.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_stories.h"
 #include "info/downloads/info_downloads_widget.h"
 #include "info/info_memento.h"
@@ -1756,21 +1757,27 @@ bool Widget::searchMessages(bool searchCache) {
 			auto &histories = session().data().histories();
 			const auto type = Data::Histories::RequestType::History;
 			const auto history = session().data().history(peer);
+			const auto sublist = _openedForum
+				? nullptr
+				: _searchInChat.sublist();
+			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
+			const auto savedPeer = sublist
+				? sublist->peer().get()
+				: nullptr;
 			_searchInHistoryRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
 				const auto type = SearchRequestType::PeerFromStart;
 				using Flag = MTPmessages_Search::Flag;
 				_searchRequest = session().api().request(MTPmessages_Search(
 					MTP_flags((topic ? Flag::f_top_msg_id : Flag())
-						| (_searchQueryFrom ? Flag::f_from_id : Flag())
+						| (fromPeer ? Flag::f_from_id : Flag())
+						| (savedPeer ? Flag::f_saved_peer_id : Flag())
 						| (_searchQueryTags.empty()
 							? Flag()
 							: Flag::f_saved_reaction)),
 					peer->input,
 					MTP_string(_searchQuery),
-					(_searchQueryFrom
-						? _searchQueryFrom->input
-						: MTP_inputPeerEmpty()),
-					MTPInputPeer(), // saved_peer_id
+					(fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
+					(savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
 					MTP_vector_from_range(
 						_searchQueryTags | ranges::views::transform(
 							Data::ReactionToMTP
@@ -1922,6 +1929,7 @@ void Widget::searchMessages(const QString &query, Key inChat) {
 	const auto inChatChanged = [&] {
 		const auto inPeer = inChat.peer();
 		const auto inTopic = inChat.topic();
+		const auto inSublist = inChat.sublist();
 		if (!inTopic
 			&& _openedForum
 			&& inPeer == _openedForum->channel()
@@ -1931,7 +1939,7 @@ void Widget::searchMessages(const QString &query, Key inChat) {
 		} else if ((inTopic || (inPeer && !inPeer->isForum()))
 			&& (inChat == _searchInChat)) {
 			return false;
-		} else if (const auto inPeer = inChat.peer()) {
+		} else if (inPeer) {
 			if (const auto to = inPeer->migrateTo()) {
 				if (to == _searchInChat.peer() && !_searchInChat.topic()) {
 					return false;
@@ -2005,6 +2013,13 @@ void Widget::searchMore() {
 			const auto topic = searchInTopic();
 			const auto type = Data::Histories::RequestType::History;
 			const auto history = session().data().history(peer);
+			const auto sublist = _openedForum
+				? nullptr
+				: _searchInChat.sublist();
+			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
+			const auto savedPeer = sublist
+				? sublist->peer().get()
+				: nullptr;
 			_searchInHistoryRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
 				const auto type = _lastSearchId
 					? SearchRequestType::PeerFromOffset
@@ -2012,16 +2027,15 @@ void Widget::searchMore() {
 				using Flag = MTPmessages_Search::Flag;
 				_searchRequest = session().api().request(MTPmessages_Search(
 					MTP_flags((topic ? Flag::f_top_msg_id : Flag())
-						| (_searchQueryFrom ? Flag::f_from_id : Flag())
+						| (fromPeer ? Flag::f_from_id : Flag())
+						| (savedPeer ? Flag::f_saved_peer_id : Flag())
 						| (_searchQueryTags.empty()
 							? Flag()
 							: Flag::f_saved_reaction)),
 					peer->input,
 					MTP_string(_searchQuery),
-					(_searchQueryFrom
-						? _searchQueryFrom->input
-						: MTP_inputPeerEmpty()),
-					MTPInputPeer(), // saved_peer_id
+					(fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
+					(savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
 					MTP_vector_from_range(
 						_searchQueryTags | ranges::views::transform(
 							Data::ReactionToMTP
@@ -2590,6 +2604,7 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 	}
 	const auto peer = chat.peer();
 	const auto topic = chat.topic();
+	const auto sublist = chat.sublist();
 	const auto forum = peer ? peer->forum() : nullptr;
 	if (chat.folder() || (forum && !topic)) {
 		chat = Key();
@@ -3083,6 +3098,8 @@ void Widget::cancelSearchRequest() {
 PeerData *Widget::searchInPeer() const {
 	return _openedForum
 		? _openedForum->channel().get()
+		: _searchInChat.sublist()
+		? session().user().get()
 		: _searchInChat.peer();
 }
 

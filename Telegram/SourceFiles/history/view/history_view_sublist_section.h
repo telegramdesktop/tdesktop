@@ -167,11 +167,13 @@ private:
 	void setupOpenChatButton();
 	void setupAboutHiddenAuthor();
 	void setupTranslateBar();
+	void setupShortcuts();
 
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
 	void clearSelected();
 	void recountChatWidth();
+	void searchInSublist();
 
 	const not_null<Data::SavedSublist*> _sublist;
 	const not_null<History*> _history;

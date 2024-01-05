@@ -483,6 +483,7 @@ private:
 	Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromPeer = nullptr;
+	PeerData *_searchFromShown = nullptr;
 	mutable Ui::PeerUserpicView _searchInChatUserpic;
 	mutable Ui::PeerUserpicView _searchFromUserUserpic;
 	Ui::Text::String _searchInChatText;
