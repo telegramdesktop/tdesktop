@@ -623,3 +623,6 @@ dialogsStoriesTooltipHide: IconButton(defaultIconButton) {
 searchedBarHeight: 32px;
 searchedBarFont: normalFont;
 searchedBarPosition: point(17px, 7px);
+
+dialogsSearchTagSkip: point(8px, 4px);
+dialogsSearchTagBottom: 10px;

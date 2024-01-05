@@ -1713,7 +1713,7 @@ void Widget::loadMoreBlockedByDate() {
 bool Widget::searchMessages(bool searchCache) {
 	auto result = false;
 	auto q = currentSearchQuery().trimmed();
-	if (q.isEmpty() && !_searchFromAuthor) {
+	if (q.isEmpty() && !_searchFromAuthor && _searchTags.empty()) {
 		cancelSearchRequest();
 		_api.request(base::take(_peerSearchRequest)).cancel();
 		_api.request(base::take(_topicSearchRequest)).cancel();
@@ -1730,6 +1730,7 @@ bool Widget::searchMessages(bool searchCache) {
 		if (i != _searchCache.end()) {
 			_searchQuery = q;
 			_searchQueryFrom = _searchFromAuthor;
+			_searchQueryTags = _searchTags;
 			_searchNextRate = 0;
 			_searchFull = _searchFullMigrated = false;
 			cancelSearchRequest();
@@ -1741,9 +1742,12 @@ bool Widget::searchMessages(bool searchCache) {
 				0);
 			result = true;
 		}
-	} else if (_searchQuery != q || _searchQueryFrom != _searchFromAuthor) {
+	} else if (_searchQuery != q
+		|| _searchQueryFrom != _searchFromAuthor
+		|| _searchQueryTags != _searchTags) {
 		_searchQuery = q;
 		_searchQueryFrom = _searchFromAuthor;
+		_searchQueryTags = _searchTags;
 		_searchNextRate = 0;
 		_searchFull = _searchFullMigrated = false;
 		cancelSearchRequest();
@@ -1757,14 +1761,20 @@ bool Widget::searchMessages(bool searchCache) {
 				using Flag = MTPmessages_Search::Flag;
 				_searchRequest = session().api().request(MTPmessages_Search(
 					MTP_flags((topic ? Flag::f_top_msg_id : Flag())
-						| (_searchQueryFrom ? Flag::f_from_id : Flag())),
+						| (_searchQueryFrom ? Flag::f_from_id : Flag())
+						| (_searchQueryTags.empty()
+							? Flag()
+							: Flag::f_saved_reaction)),
 					peer->input,
 					MTP_string(_searchQuery),
 					(_searchQueryFrom
 						? _searchQueryFrom->input
 						: MTP_inputPeerEmpty()),
 					MTPInputPeer(), // saved_peer_id
-					MTPVector<MTPReaction>(), // saved_reaction
+					MTP_vector_from_range(
+						_searchQueryTags | ranges::views::transform(
+							Data::ReactionToMTP
+						)),
 					MTP_int(topic ? topic->rootId() : 0),
 					MTP_inputMessagesFilterEmpty(),
 					MTP_int(0), // min_date
@@ -1868,6 +1878,7 @@ bool Widget::searchMessages(bool searchCache) {
 bool Widget::searchForPeersRequired(const QString &query) const {
 	return !_searchInChat
 		&& !_searchFromAuthor
+		&& _searchTags.empty()
 		&& !_openedForum
 		&& !query.isEmpty()
 		&& (query[0] != '#');
@@ -1876,6 +1887,7 @@ bool Widget::searchForPeersRequired(const QString &query) const {
 bool Widget::searchForTopicsRequired(const QString &query) const {
 	return !_searchInChat
 		&& !_searchFromAuthor
+		&& _searchTags.empty()
 		&& _openedForum
 		&& !query.isEmpty()
 		&& (query[0] != '#')
@@ -2000,14 +2012,20 @@ void Widget::searchMore() {
 				using Flag = MTPmessages_Search::Flag;
 				_searchRequest = session().api().request(MTPmessages_Search(
 					MTP_flags((topic ? Flag::f_top_msg_id : Flag())
-						| (_searchQueryFrom ? Flag::f_from_id : Flag())),
+						| (_searchQueryFrom ? Flag::f_from_id : Flag())
+						| (_searchQueryTags.empty()
+							? Flag()
+							: Flag::f_saved_reaction)),
 					peer->input,
 					MTP_string(_searchQuery),
 					(_searchQueryFrom
 						? _searchQueryFrom->input
 						: MTP_inputPeerEmpty()),
 					MTPInputPeer(), // saved_peer_id
-					MTPVector<MTPReaction>(), // saved_reaction
+					MTP_vector_from_range(
+						_searchQueryTags | ranges::views::transform(
+							Data::ReactionToMTP
+						)),
 					MTP_int(topic ? topic->rootId() : 0),
 					MTP_inputMessagesFilterEmpty(),
 					MTP_int(0), // min_date
@@ -2401,7 +2419,7 @@ void Widget::applyFilterUpdate(bool force) {
 	updateStoriesVisibility();
 	const auto filterText = currentSearchQuery();
 	_inner->applyFilterUpdate(filterText, force);
-	if (filterText.isEmpty() && !_searchFromAuthor) {
+	if (filterText.isEmpty() && !_searchFromAuthor && _searchTags.empty()) {
 		clearSearchCache();
 	}
 	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
@@ -2417,7 +2435,9 @@ void Widget::applyFilterUpdate(bool force) {
 		_peerSearchQuery = QString();
 	}
 
-	if (_chooseFromUser->toggled() || _searchFromAuthor) {
+	if (_chooseFromUser->toggled()
+		|| _searchFromAuthor
+		|| !_searchTags.empty()) {
 		auto switchToChooseFrom = HistoryView::SwitchToChooseFromQuery();
 		if (_lastFilterText != switchToChooseFrom
 			&& switchToChooseFrom.startsWith(_lastFilterText)
@@ -2619,6 +2639,18 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 		controller()->closeFolder();
 	}
 	_inner->searchInChat(_searchInChat, _searchFromAuthor);
+	_searchTagsLifetime = _inner->searchTagsValue(
+	) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
+		if (_searchTags != list) {
+			clearSearchCache();
+			_searchTags = std::move(list);
+			if (_searchTags.empty()) {
+				applyFilterUpdate(true);
+			} else {
+				searchMessages();
+			}
+		}
+	});
 	if (_subsectionTopBar) {
 		_subsectionTopBar->searchEnableJumpToDate(
 			_openedForum && _searchInChat);
@@ -2639,6 +2671,7 @@ void Widget::clearSearchCache() {
 	}
 	_searchQuery = QString();
 	_searchQueryFrom = nullptr;
+	_searchQueryTags.clear();
 	_topicSearchQuery = QString();
 	_topicSearchOffsetDate = 0;
 	_topicSearchOffsetId = _topicSearchOffsetTopicId = 0;

@@ -507,12 +507,11 @@ void InlineList::paint(
 	}
 }
 
-void InlineList::validateTagBg(const QColor &color) const {
-	if (!_tagBg.isNull() && _tagBgColor == color) {
-		return;
-	}
-	_tagBgColor = color;
+float64 InlineList::TagDotAlpha() {
+	return 0.6;
+}
 
+QImage InlineList::PrepareTagBg(QColor tagBg, QColor dotBg) {
 	const auto padding = st::reactionInlinePadding;
 	const auto size = st::reactionInlineSize;
 	const auto width = padding.left()
@@ -522,20 +521,19 @@ void InlineList::validateTagBg(const QColor &color) const {
 	const auto height = padding.top() + size + padding.bottom();
 	const auto ratio = style::DevicePixelRatio();
 
-	auto mask = QImage(
+	auto result = QImage(
 		QSize(width, height) * ratio,
 		QImage::Format_ARGB32_Premultiplied);
-	mask.setDevicePixelRatio(ratio);
+	result.setDevicePixelRatio(ratio);
 
-	mask.fill(Qt::transparent);
-	auto p = QPainter(&mask);
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
 
 	auto path = QPainterPath();
 	const auto arrow = st::reactionInlineTagArrow;
 	const auto rradius = st::reactionInlineTagRightRadius * 1.;
 	const auto radius = st::reactionInlineTagLeftRadius - rradius;
-	const auto fg = QColor(255, 255, 255);
-	auto pen = QPen(fg);
+	auto pen = QPen(tagBg);
 	pen.setWidthF(rradius * 2.);
 	pen.setJoinStyle(Qt::RoundJoin);
 	const auto rect = QRectF(0, 0, width, height).marginsRemoved(
@@ -548,9 +546,15 @@ void InlineList::validateTagBg(const QColor &color) const {
 	path.lineTo(right, rect.y() + rect.height() / 2);
 	path.lineTo(right - arrow, bottom);
 	path.lineTo(rect.x() + radius, bottom);
-	path.arcTo(QRectF(rect.x(), bottom - radius * 2, radius * 2, radius * 2), 270, -90);
+	path.arcTo(
+		QRectF(rect.x(), bottom - radius * 2, radius * 2, radius * 2),
+		270,
+		-90);
 	path.lineTo(rect.x(), rect.y() + radius);
-	path.arcTo(QRectF(rect.x(), rect.y(), radius * 2, radius * 2), 180, -90);
+	path.arcTo(
+		QRectF(rect.x(), rect.y(), radius * 2, radius * 2),
+		180,
+		-90);
 	path.closeSubpath();
 
 	const auto dsize = st::reactionInlineTagDot;
@@ -563,16 +567,26 @@ void InlineList::validateTagBg(const QColor &color) const {
 	auto hq = PainterHighQualityEnabler(p);
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	p.setPen(pen);
-	p.setBrush(fg);
+	p.setBrush(tagBg);
 	p.drawPath(path);
 
 	p.setPen(Qt::NoPen);
-	p.setBrush(QColor(255, 255, 255, 255 * 0.6));
+	p.setBrush(dotBg);
 	p.drawEllipse(dot);
 
 	p.end();
 
-	_tagBg = style::colorizeImage(mask, color);
+	return result;
+}
+
+void InlineList::validateTagBg(const QColor &color) const {
+	if (!_tagBg.isNull() && _tagBgColor == color) {
+		return;
+	}
+	_tagBgColor = color;
+	auto dot = color;
+	dot.setAlphaF(dot.alphaF() * TagDotAlpha());
+	_tagBg = PrepareTagBg(color, anim::with_alpha(color, TagDotAlpha()));
 }
 
 void InlineList::paintSingleBg(

@@ -22,6 +22,7 @@ class Error;
 namespace Data {
 class Forum;
 enum class StorySourcesList : uchar;
+struct ReactionId;
 } // namespace Data
 
 namespace Main {
@@ -285,6 +286,8 @@ private:
 	Dialogs::Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromAuthor = nullptr;
+	std::vector<Data::ReactionId> _searchTags;
+	rpl::lifetime _searchTagsLifetime;
 	QString _lastFilterText;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
@@ -313,6 +316,7 @@ private:
 
 	QString _searchQuery;
 	PeerData *_searchQueryFrom = nullptr;
+	std::vector<Data::ReactionId> _searchQueryTags;
 	int32 _searchNextRate = 0;
 	bool _searchFull = false;
 	bool _searchFullMigrated = false;

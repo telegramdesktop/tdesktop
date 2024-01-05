@@ -43,6 +43,7 @@ namespace Data {
 class Thread;
 class Folder;
 class Forum;
+struct ReactionId;
 } // namespace Data
 
 namespace Dialogs::Ui {
@@ -57,6 +58,7 @@ namespace Dialogs {
 class Row;
 class FakeRow;
 class IndexedList;
+class SearchTags;
 
 struct ChosenRow {
 	Key key;
@@ -138,6 +140,8 @@ public:
 	[[nodiscard]] bool hasFilteredResults() const;
 
 	void searchInChat(Key key, PeerData *from);
+	[[nodiscard]] auto searchTagsValue() const
+		-> rpl::producer<std::vector<Data::ReactionId>>;
 
 	void applyFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringView newFilter);
@@ -325,6 +329,7 @@ private:
 	[[nodiscard]] int filteredIndex(int y) const;
 	[[nodiscard]] int filteredHeight(int till = -1) const;
 	[[nodiscard]] int peerSearchOffset() const;
+	[[nodiscard]] int searchInChatOffset() const;
 	[[nodiscard]] int searchedOffset() const;
 	[[nodiscard]] int searchInChatSkip() const;
 
@@ -482,6 +487,9 @@ private:
 	mutable Ui::PeerUserpicView _searchFromUserUserpic;
 	Ui::Text::String _searchInChatText;
 	Ui::Text::String _searchFromUserText;
+	std::unique_ptr<SearchTags> _searchTags;
+	std::vector<Data::ReactionId> _searchTagsSelected;
+	int _searchTagsLeft = 0;
 	RowDescriptor _menuRow;
 
 	base::flat_map<

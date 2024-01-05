@@ -609,6 +609,8 @@ PRIVATE
     dialogs/dialogs_row.h
     dialogs/dialogs_search_from_controllers.cpp
     dialogs/dialogs_search_from_controllers.h
+    dialogs/dialogs_search_tags.cpp
+    dialogs/dialogs_search_tags.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
     dialogs/ui/dialogs_layout.cpp

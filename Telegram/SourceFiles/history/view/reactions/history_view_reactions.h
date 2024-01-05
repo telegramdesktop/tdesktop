@@ -93,6 +93,9 @@ public:
 		ReactionId,
 		std::unique_ptr<Ui::ReactionFlyAnimation>> animations);
 
+	[[nodiscard]] static float64 TagDotAlpha();
+	[[nodiscard]] static QImage PrepareTagBg(QColor tagBg, QColor dotBg);
+
 private:
 	struct Userpics {
 		QImage image;
