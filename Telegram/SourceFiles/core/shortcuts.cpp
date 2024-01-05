@@ -80,6 +80,13 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"next_folder"_q       , Command::FolderNext },
 	{ u"all_chats"_q         , Command::ShowAllChats },
 
+	{ u"account1"_q          , Command::ShowAccount1 },
+	{ u"account2"_q          , Command::ShowAccount2 },
+	{ u"account3"_q          , Command::ShowAccount3 },
+	{ u"account4"_q          , Command::ShowAccount4 },
+	{ u"account5"_q          , Command::ShowAccount5 },
+	{ u"account6"_q          , Command::ShowAccount6 },
+
 	{ u"folder1"_q           , Command::ShowFolder1 },
 	{ u"folder2"_q           , Command::ShowFolder2 },
 	{ u"folder3"_q           , Command::ShowFolder3 },
@@ -390,6 +397,14 @@ void Manager::fillDefaults() {
 
 	for (const auto [command, index] : folders) {
 		set(u"%1+%2"_q.arg(ctrl).arg(index), command);
+	}
+
+	auto &&accounts = ranges::views::zip(
+		kShowAccount,
+		ranges::views::ints(1, ranges::unreachable));
+
+	for (const auto [command, index] : accounts) {
+		set(u"%1+shift+%2"_q.arg(ctrl).arg(index), command);
 	}
 
 	set(u"%1+shift+down"_q.arg(ctrl), Command::FolderNext);
