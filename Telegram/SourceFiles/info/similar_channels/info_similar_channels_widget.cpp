@@ -513,4 +513,3 @@ void Widget::restoreState(not_null<Memento*> memento) {
 }
 
 } // namespace Info::SimilarChannels
-

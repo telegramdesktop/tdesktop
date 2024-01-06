@@ -347,6 +347,8 @@ dialogsForumIcon: ThreeStateIcon {
 dialogsArchiveUserpic: icon {{ "archive_userpic", historyPeerUserpicFg }};
 dialogsRepliesUserpic: icon {{ "replies_userpic", historyPeerUserpicFg }};
 dialogsInaccessibleUserpic: icon {{ "dialogs/inaccessible_userpic", historyPeerUserpicFg }};
+dialogsHiddenAuthorUserpic: icon {{ "dialogs/avatar_hidden", premiumButtonFg }};
+dialogsMyNotesUserpic: icon {{ "dialogs/avatar_notes", historyPeerUserpicFg }};
 
 dialogsSendStateSkip: 20px;
 dialogsSendingIcon: ThreeStateIcon {

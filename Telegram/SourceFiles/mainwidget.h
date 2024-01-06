@@ -286,7 +286,9 @@ private:
 	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
 	Window::SectionSlideParams prepareDialogsAnimation();
 
-	void saveSectionInStack();
+	bool saveSectionInStack(
+		const SectionShow &params,
+		Window::SectionWidget *newMainSection = nullptr);
 
 	int getMainSectionTop() const;
 	int getThirdSectionTop() const;

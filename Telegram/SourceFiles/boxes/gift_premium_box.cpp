@@ -62,7 +62,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kDiscountDivider = 5.;
 constexpr auto kUserpicsMax = size_t(3);
 
 using GiftOption = Data::SubscriptionOption;
@@ -383,7 +382,8 @@ void GiftsBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
 		std::vector<not_null<UserData*>> users,
-		not_null<Api::PremiumGiftCodeOptions*> api) {
+		not_null<Api::PremiumGiftCodeOptions*> api,
+		const QString &ref) {
 	Expects(!users.empty());
 
 	const auto boxWidth = st::boxWideWidth;
@@ -592,7 +592,7 @@ void GiftsBox(
 		Settings::AddSummaryPremium(
 			content,
 			controller,
-			u"gift"_q,
+			ref,
 			std::move(buttonCallback));
 	}
 
@@ -603,7 +603,20 @@ void GiftsBox(
 				box,
 				object_ptr<Ui::FlatLabel>(
 					box,
-					session->api().premium().statusTextValue(), // TODO.
+					tr::lng_premium_gifts_terms(
+						lt_link,
+						tr::lng_payments_terms_link(
+						) | rpl::map([](const QString &t) {
+							using namespace Ui::Text;
+							return Link(t, u"https://telegram.org/tos"_q);
+						}),
+						lt_policy,
+						tr::lng_premium_gifts_terms_policy(
+						) | rpl::map([](const QString &t) {
+							using namespace Ui::Text;
+							return Link(t, u"https://telegram.org/privacy"_q);
+						}),
+						Ui::Text::RichLangValue),
 					st::premiumGiftTerms),
 				st::defaultBoxDividerLabelPadding),
 			{});
@@ -615,7 +628,7 @@ void GiftsBox(
 	auto raw = Settings::CreateSubscribeButton({
 		controller,
 		box,
-		[] { return u"gift"_q; },
+		[=] { return ref; },
 		rpl::combine(
 			state->buttonText.events(),
 			state->confirmButtonBusy.value(),
@@ -877,7 +890,7 @@ void GiftPremiumValidator::cancel() {
 	_requestId = 0;
 }
 
-void GiftPremiumValidator::showChoosePeerBox() {
+void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
 	if (_manyGiftsLifetime) {
 		return;
 	}
@@ -903,9 +916,13 @@ void GiftPremiumValidator::showChoosePeerBox() {
 		protected:
 			std::unique_ptr<PeerListRow> createRow(
 					not_null<UserData*> user) override {
-				return !user->isSelf()
-					? ContactsBoxController::createRow(user)
-					: nullptr;
+				if (user->isSelf()
+					|| user->isBot()
+					|| user->isServiceUser()
+					|| user->isInaccessible()) {
+					return nullptr;
+				}
+				return ContactsBoxController::createRow(user);
 			}
 
 			void rowClicked(not_null<PeerListRow*> row) override {
@@ -937,7 +954,7 @@ void GiftPremiumValidator::showChoosePeerBox() {
 				}) | ranges::to<std::vector<not_null<UserData*>>>();
 				if (!users.empty()) {
 					const auto giftBox = show->show(
-						Box(GiftsBox, _controller, users, api));
+						Box(GiftsBox, _controller, users, api, ref));
 					giftBox->boxClosing(
 					) | rpl::start_with_next([=] {
 						_manyGiftsLifetime.destroy();
@@ -1037,7 +1054,7 @@ void GiftCodeBox(
 	state->data = session->api().premium().giftCodeValue(slug);
 	state->used = state->data.value(
 	) | rpl::map([=](const Api::GiftCode &data) {
-		return data.used;
+		return data.used != 0;
 	});
 
 	box->setWidth(st::boxWideWidth);

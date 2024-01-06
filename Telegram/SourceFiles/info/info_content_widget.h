@@ -96,6 +96,9 @@ public:
 	}
 
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
+	[[nodiscard]] virtual rpl::producer<QString> subtitle() {
+		return nullptr;
+	}
 	[[nodiscard]] virtual auto titleStories()
 		-> rpl::producer<Dialogs::Stories::Content>;
 

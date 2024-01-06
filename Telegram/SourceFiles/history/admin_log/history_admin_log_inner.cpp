@@ -442,7 +442,6 @@ void InnerWidget::applyFilter(FilterValue &&value) {
 }
 
 void InnerWidget::applySearch(const QString &query) {
-	auto clearQuery = query.trimmed();
 	if (_searchQuery != query) {
 		_searchQuery = query;
 		clearAndRequestLog();

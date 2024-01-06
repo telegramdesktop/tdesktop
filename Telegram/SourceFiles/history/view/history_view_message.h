@@ -173,8 +173,6 @@ private:
 	void initPsa();
 	void fromNameUpdated(int width) const;
 
-	[[nodiscard]] bool showForwardsFromSender(
-		not_null<HistoryMessageForwarded*> forwarded) const;
 	[[nodiscard]] TextSelection skipTextSelection(
 		TextSelection selection) const;
 	[[nodiscard]] TextSelection unskipTextSelection(

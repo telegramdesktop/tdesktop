@@ -454,8 +454,10 @@ void ChooseSourceProcess::fillSources() {
 
 	auto screenIndex = 0;
 	auto windowIndex = 0;
+	auto firstScreenSelected = false;
 	const auto active = _delegate->chooseSourceActiveDeviceId();
 	const auto append = [&](const tgcalls::DesktopCaptureSource &source) {
+		const auto firstScreen = !source.isWindow() && !screenIndex;
 		const auto title = !source.isWindow()
 			? tr::lng_group_call_screen_title(
 				tr::now,
@@ -471,6 +473,10 @@ void ChooseSourceProcess::fillSources() {
 		if (!active.isEmpty() && active.toStdString() == id) {
 			_selected = raw;
 			raw->setActive(true);
+		} else if (active.isEmpty() && firstScreen) {
+			_selected = raw;
+			raw->setActive(true);
+			firstScreenSelected = true;
 		}
 		_sources.back()->activations(
 		) | rpl::filter([=] {
@@ -488,6 +494,9 @@ void ChooseSourceProcess::fillSources() {
 	}
 	for (const auto &source : windowsManager.sources()) {
 		append(source);
+	}
+	if (firstScreenSelected) {
+		updateButtonsVisibility();
 	}
 }
 

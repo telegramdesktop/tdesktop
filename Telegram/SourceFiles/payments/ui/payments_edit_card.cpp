@@ -39,7 +39,8 @@ struct SimpleFieldState {
 }
 
 [[nodiscard]] QString RemoveNonNumbers(QString value) {
-	return value.replace(QRegularExpression("[^0-9]"), QString());
+	static const auto RegExp = QRegularExpression("[^0-9]");
+	return value.replace(RegExp, QString());
 }
 
 [[nodiscard]] SimpleFieldState NumbersOnlyState(SimpleFieldState state) {

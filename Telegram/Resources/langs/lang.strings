@@ -395,6 +395,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dlg_new_bot_name" = "Bot name";
 "lng_no_chats" = "Your chats will be here";
 "lng_no_chats_filter" = "No chats currently belong to this folder.";
+"lng_no_saved_sublists" = "You can save messages from other chats here.";
 "lng_contacts_loading" = "Loading...";
 "lng_contacts_not_found" = "No contacts found";
 "lng_topics_not_found" = "No topics found.";
@@ -1187,6 +1188,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_common_groups#other" = "{count} groups in common";
 "lng_profile_similar_channels#one" = "{count} similar channel";
 "lng_profile_similar_channels#other" = "{count} similar channels";
+"lng_profile_saved_messages#one" = "{count} saved message";
+"lng_profile_saved_messages#other" = "{count} saved messages";
 "lng_profile_participants_section" = "Members";
 "lng_profile_subscribers_section" = "Subscribers";
 "lng_profile_add_contact" = "Add Contact";
@@ -1712,6 +1715,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_video_received" = "{from} sent you a self-destructing video. Please view it on your mobile.";
 "lng_ttl_video_sent" = "You sent a self-destructing video.";
 "lng_ttl_video_expired" = "Video has expired";
+"lng_ttl_voice_sent" = "You sent a self-destructing voice messsage.";
+"lng_ttl_voice_expired" = "Voice message expired";
+"lng_ttl_round_sent" = "You sent a self-destructing video message.";
+"lng_ttl_round_expired" = "Round message expired";
 
 "lng_profile_add_more_after_create" = "You will be able to add more members after you create the group.";
 "lng_profile_camera_title" = "Capture yourself";
@@ -2080,6 +2087,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_gifts_about_paid_below#one" = "They now have access to additional features.";
 "lng_premium_gifts_about_paid_below#other" = "They now have access to additional features.";
 "lng_premium_gifts_summary_subtitle" = "What's Included";
+"lng_premium_gifts_terms" = "By gifting Telegram Premium, you agree to the Telegram {link} and {policy}.";
+"lng_premium_gifts_terms_policy" = "Privacy Policy";
 
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_again_button" = "Boost Again";
@@ -2492,6 +2501,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_saved_short" = "Save";
 "lng_saved_forward_here" = "Forward messages here for quick access";
 "lng_saved_quote_here" = "Quote here to save";
+"lng_saved_open_chat" = "Open Chat";
+"lng_saved_open_channel" = "Open Channel";
+"lng_saved_open_group" = "Open Group";
+"lng_saved_about_hidden" = "Senders of this messages restricted to link their name when forwarding.";
 
 "lng_scheduled_messages" = "Scheduled Messages";
 "lng_scheduled_messages_empty" = "No scheduled messages here yet...";
@@ -2518,6 +2531,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_comments_open_none" = "Leave a comment";
 "lng_replies_view_original" = "View in chat";
 "lng_replies_messages" = "Replies";
+"lng_hidden_author_messages" = "Author Hidden";
+"lng_my_notes" = "My Notes";
 "lng_replies_discussion_started" = "Discussion started";
 "lng_replies_no_comments" = "No comments here yet...";
 

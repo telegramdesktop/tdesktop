@@ -36,7 +36,6 @@ namespace {
 constexpr auto kSuppressRatioAll = 0.2;
 constexpr auto kSuppressRatioSong = 0.05;
 constexpr auto kWaveformCounterBufferSize = 256 * 1024;
-constexpr auto kEffectDestructionDelay = crl::time(1000);
 
 QMutex AudioMutex;
 ALCdevice *AudioDevice = nullptr;
@@ -538,16 +537,16 @@ Mixer::Mixer(not_null<Audio::Instance*> instance)
 		});
 	}, _lifetime);
 
-	connect(this, SIGNAL(loaderOnStart(const AudioMsgId&, qint64)), _loader, SLOT(onStart(const AudioMsgId&, qint64)));
-	connect(this, SIGNAL(loaderOnCancel(const AudioMsgId&)), _loader, SLOT(onCancel(const AudioMsgId&)), Qt::QueuedConnection);
+	connect(this, SIGNAL(loaderOnStart(AudioMsgId,qint64)), _loader, SLOT(onStart(AudioMsgId,qint64)));
+	connect(this, SIGNAL(loaderOnCancel(AudioMsgId)), _loader, SLOT(onCancel(AudioMsgId)), Qt::QueuedConnection);
 	connect(_loader, SIGNAL(needToCheck()), _fader, SLOT(onTimer()));
-	connect(_loader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
-	connect(_fader, SIGNAL(needToPreload(const AudioMsgId&)), _loader, SLOT(onLoad(const AudioMsgId&)));
-	connect(_fader, SIGNAL(playPositionUpdated(const AudioMsgId&)), this, SIGNAL(updated(const AudioMsgId&)));
-	connect(_fader, SIGNAL(audioStopped(const AudioMsgId&)), this, SLOT(onStopped(const AudioMsgId&)));
-	connect(_fader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
-	connect(this, SIGNAL(stoppedOnError(const AudioMsgId&)), this, SIGNAL(updated(const AudioMsgId&)), Qt::QueuedConnection);
-	connect(this, SIGNAL(updated(const AudioMsgId&)), this, SLOT(onUpdated(const AudioMsgId&)));
+	connect(_loader, SIGNAL(error(AudioMsgId)), this, SLOT(onError(AudioMsgId)));
+	connect(_fader, SIGNAL(needToPreload(AudioMsgId)), _loader, SLOT(onLoad(AudioMsgId)));
+	connect(_fader, SIGNAL(playPositionUpdated(AudioMsgId)), this, SIGNAL(updated(AudioMsgId)));
+	connect(_fader, SIGNAL(audioStopped(AudioMsgId)), this, SLOT(onStopped(AudioMsgId)));
+	connect(_fader, SIGNAL(error(AudioMsgId)), this, SLOT(onError(AudioMsgId)));
+	connect(this, SIGNAL(stoppedOnError(AudioMsgId)), this, SIGNAL(updated(AudioMsgId)), Qt::QueuedConnection);
+	connect(this, SIGNAL(updated(AudioMsgId)), this, SLOT(onUpdated(AudioMsgId)));
 
 	_loaderThread.start();
 	_faderThread.start();

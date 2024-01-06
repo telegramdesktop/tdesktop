@@ -48,6 +48,8 @@ namespace {
 
 constexpr auto kDefaultCoverThumbnailSize = 100;
 constexpr auto kMaxAllowedPreloadPrefix = 6 * 1024 * 1024;
+constexpr auto kDefaultWebmEmojiSize = 100;
+constexpr auto kDefaultWebmStickerLargerSize = kStickerSideSize;
 
 const auto kLottieStickerDimensions = QSize(
 	kStickerSideSize,
@@ -430,6 +432,42 @@ void DocumentData::setattributes(
 			_flags |= Flag::HasAttachedStickers;
 		});
 	}
+
+	// Any "video/webm" file is treated as a video-sticker.
+	if (hasMimeType(u"video/webm"_q)) {
+		if (type == FileDocument) {
+			type = StickerDocument;
+			_additional = std::make_unique<StickerData>();
+		}
+		if (type == StickerDocument) {
+			sticker()->type = StickerType::Webm;
+		}
+	}
+
+	// If "video/webm" sticker without dimensions we set them to default.
+	if (const auto info = sticker(); info
+		&& info->set
+		&& info->type == StickerType::Webm
+		&& dimensions.isEmpty()) {
+		if (info->setType == Data::StickersType::Emoji) {
+			// Always fixed.
+			dimensions = { kDefaultWebmEmojiSize, kDefaultWebmEmojiSize };
+		} else if (info->setType == Data::StickersType::Stickers) {
+			// May have aspect != 1, so we count it from the thumbnail.
+			const auto thumbnail = QSize(
+				_thumbnail.location.width(),
+				_thumbnail.location.height()
+			).scaled(
+				kDefaultWebmStickerLargerSize,
+				kDefaultWebmStickerLargerSize,
+				Qt::KeepAspectRatio);
+			if (!thumbnail.isEmpty()) {
+				dimensions = thumbnail;
+			}
+		}
+	}
+
+	// Check sticker size/dimensions properties (for sticker of any type).
 	if (type == StickerDocument
 		&& ((size > Storage::kMaxStickerBytesSize)
 			|| (!sticker()->isLottie()
@@ -438,14 +476,8 @@ void DocumentData::setattributes(
 					dimensions.height())))) {
 		type = FileDocument;
 		_additional = nullptr;
-	} else if (type == FileDocument
-		&& hasMimeType(u"video/webm"_q)
-		&& (size < Storage::kMaxStickerBytesSize)
-		&& GoodStickerDimensions(dimensions.width(), dimensions.height())) {
-		type = StickerDocument;
-		_additional = std::make_unique<StickerData>();
-		sticker()->type = StickerType::Webm;
 	}
+
 	if (isAudioFile()
 		|| isAnimation()
 		|| isVoiceMessage()
@@ -483,8 +515,7 @@ bool DocumentData::checkWallPaperProperties() {
 	}
 	if (type != FileDocument
 		|| !hasThumbnail()
-		|| !dimensions.width()
-		|| !dimensions.height()
+		|| dimensions.isEmpty()
 		|| dimensions.width() > Storage::kMaxWallPaperDimension
 		|| dimensions.height() > Storage::kMaxWallPaperDimension
 		|| size > Storage::kMaxWallPaperInMemory) {

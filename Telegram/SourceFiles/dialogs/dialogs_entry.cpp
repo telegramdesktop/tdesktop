@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_forum_topic.h"
 #include "data/data_chat_filters.h"
+#include "data/data_saved_sublist.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "mainwidget.h"
@@ -83,6 +84,8 @@ Entry::Entry(not_null<Data::Session*> owner, Type type)
 	? (Flag::IsThread | Flag::IsHistory)
 	: (type == Type::ForumTopic)
 	? Flag::IsThread
+	: (type == Type::SavedSublist)
+	? Flag::IsSavedSublist
 	: Flag(0)) {
 }
 
@@ -109,7 +112,7 @@ Data::Forum *Entry::asForum() {
 }
 
 Data::Folder *Entry::asFolder() {
-	return (_flags & Flag::IsThread)
+	return (_flags & (Flag::IsThread | Flag::IsSavedSublist))
 		? nullptr
 		: static_cast<Data::Folder*>(this);
 }
@@ -123,6 +126,12 @@ Data::Thread *Entry::asThread() {
 Data::ForumTopic *Entry::asTopic() {
 	return ((_flags & Flag::IsThread) && !(_flags & Flag::IsHistory))
 		? static_cast<Data::ForumTopic*>(this)
+		: nullptr;
+}
+
+Data::SavedSublist *Entry::asSublist() {
+	return (_flags & Flag::IsSavedSublist)
+		? static_cast<Data::SavedSublist*>(this)
 		: nullptr;
 }
 
@@ -144,6 +153,10 @@ const Data::Thread *Entry::asThread() const {
 
 const Data::ForumTopic *Entry::asTopic() const {
 	return const_cast<Entry*>(this)->asTopic();
+}
+
+const Data::SavedSublist *Entry::asSublist() const {
+	return const_cast<Entry*>(this)->asSublist();
 }
 
 void Entry::pinnedIndexChanged(FilterId filterId, int was, int now) {

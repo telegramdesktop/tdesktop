@@ -109,7 +109,7 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 		return;
 	}
 
-	const auto image = media->image(Data::PhotoSize::Large)->original();
+	const auto image = media->image(Data::PhotoSize::Large)->original(); // clazy:exclude=unused-non-trivial-variable
 	FileDialog::GetWritePath(
 		Core::App().getFileDialogParent(),
 		tr::lng_save_photo(tr::now),
@@ -216,7 +216,7 @@ void AddSaveDocumentAction(
 		HistoryItem *item,
 		not_null<DocumentData*> document,
 		not_null<ListWidget*> list) {
-	if (list->hasCopyMediaRestriction(item)) {
+	if (list->hasCopyMediaRestriction(item) || ItemHasTtl(item)) {
 		return;
 	}
 	const auto origin = item ? item->fullId() : FullMsgId();
@@ -552,7 +552,7 @@ bool AddRescheduleAction(
 			? SendMenu::Type::Reminder
 			: HistoryView::CanScheduleUntilOnline(peer)
 			? SendMenu::Type::ScheduledToUser
-			: SendMenu::Type::Scheduled;
+			: SendMenu::Type::Disabled;
 
 		const auto itemDate = firstItem->date();
 		const auto date = (itemDate == Api::kScheduledUntilOnlineTimestamp)
@@ -1224,6 +1224,9 @@ void AddSaveSoundForNotifications(
 		not_null<HistoryItem*> item,
 		not_null<DocumentData*> document,
 		not_null<Window::SessionController*> controller) {
+	if (ItemHasTtl(item)) {
+		return;
+	}
 	const auto &ringtones = document->session().api().ringtones();
 	if (document->size > ringtones.maxSize()) {
 		return;
@@ -1519,6 +1522,12 @@ TextWithEntities TransribedText(not_null<HistoryItem*> item) {
 		return { entry.result };
 	}
 	return {};
+}
+
+bool ItemHasTtl(HistoryItem *item) {
+	return (item && item->media())
+		? (item->media()->ttlSeconds() > 0)
+		: false;
 }
 
 } // namespace HistoryView

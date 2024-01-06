@@ -65,7 +65,7 @@ QByteArray DnsUserAgent() {
 	static const auto kResult = QByteArray(
 		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
 		"AppleWebKit/537.36 (KHTML, like Gecko) "
-		"Chrome/118.0.5993.117 Safari/537.36");
+		"Chrome/120.0.6099.109 Safari/537.36");
 	return kResult;
 }
 
@@ -104,8 +104,9 @@ std::vector<DnsEntry> ParseDnsResponse(
 		return {};
 	}
 
+	const auto array = (*answerIt).toArray();
 	auto result = std::vector<DnsEntry>();
-	for (const auto elem : (*answerIt).toArray()) {
+	for (const auto elem : array) {
 		if (!elem.isObject()) {
 			LOG(("Config Error: Not an object found "
 				"in Answer array in dns response JSON."));

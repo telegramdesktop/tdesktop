@@ -60,6 +60,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_emoji_statuses.h"
 #include "data/data_forum_icons.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_stories.h"
 #include "data/data_streaming.h"
 #include "data/data_media_rotation.h"
@@ -261,7 +263,8 @@ Session::Session(not_null<Main::Session*> session)
 , _forumIcons(std::make_unique<ForumIcons>(this))
 , _notifySettings(std::make_unique<NotifySettings>(this))
 , _customEmojiManager(std::make_unique<CustomEmojiManager>(this))
-, _stories(std::make_unique<Stories>(this)) {
+, _stories(std::make_unique<Stories>(this))
+, _savedMessages(std::make_unique<SavedMessages>(this)) {
 	_cache->open(_session->local().cacheKey());
 	_bigFileCache->open(_session->local().cacheBigFileKey());
 
@@ -1712,6 +1715,11 @@ void Session::requestItemRepaint(not_null<const HistoryItem*> item) {
 			topic->updateChatListEntry();
 		}
 	}
+	if (const auto sublist = item->savedSublist()) {
+		if (sublist->lastItemDialogsView().dependsOn(item)) {
+			sublist->updateChatListEntry();
+		}
+	}
 }
 
 rpl::producer<not_null<const HistoryItem*>> Session::itemRepaintRequest() const {
@@ -2099,13 +2107,17 @@ void Session::applyDialog(
 	setPinnedFromEntryList(folder, data.is_pinned());
 }
 
-bool Session::pinnedCanPin(not_null<Data::Thread*> thread) const {
-	if (const auto topic = thread->asTopic()) {
+bool Session::pinnedCanPin(not_null<Dialogs::Entry*> entry) const {
+	if (const auto sublist = entry->asSublist()) {
+		const auto saved = &savedMessages();
+		return pinnedChatsOrder(saved).size() < pinnedChatsLimit(saved);
+	} else if (const auto topic = entry->asTopic()) {
 		const auto forum = topic->forum();
 		return pinnedChatsOrder(forum).size() < pinnedChatsLimit(forum);
+	} else {
+		const auto folder = entry->folder();
+		return pinnedChatsOrder(folder).size() < pinnedChatsLimit(folder);
 	}
-	const auto folder = thread->folder();
-	return pinnedChatsOrder(folder).size() < pinnedChatsLimit(folder);
 }
 
 bool Session::pinnedCanPin(
@@ -2135,6 +2147,11 @@ int Session::pinnedChatsLimit(FilterId filterId) const {
 int Session::pinnedChatsLimit(not_null<Data::Forum*> forum) const {
 	const auto limits = Data::PremiumLimits(_session);
 	return limits.topicsPinnedCurrent();
+}
+
+int Session::pinnedChatsLimit(not_null<Data::SavedMessages*> saved) const {
+	const auto limits = Data::PremiumLimits(_session);
+	return limits.savedSublistsPinnedCurrent();
 }
 
 rpl::producer<int> Session::maxPinnedChatsLimitValue(
@@ -2177,6 +2194,20 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 	});
 }
 
+rpl::producer<int> Session::maxPinnedChatsLimitValue(
+		not_null<SavedMessages*> saved) const {
+	// Premium limit from appconfig.
+	// We always use premium limit in the MainList limit producer,
+	// because it slices the list to that limit. We don't want to slice
+	// premium-ly added chats from the pinned list because of sync issues.
+	return rpl::single(rpl::empty_value()) | rpl::then(
+		_session->account().appConfig().refreshed()
+	) | rpl::map([=] {
+		const auto limits = Data::PremiumLimits(_session);
+		return limits.savedSublistsPinnedPremium();
+	});
+}
+
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
 		Data::Folder *folder) const {
 	return chatsList(folder)->pinned()->order();
@@ -2190,6 +2221,11 @@ const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
 		not_null<Data::Forum*> forum) const {
 	return forum->topicsList()->pinned()->order();
+}
+
+const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
+		not_null<Data::SavedMessages*> saved) const {
+	return saved->chatsList()->pinned()->order();
 }
 
 void Session::clearPinnedChats(Data::Folder *folder) {
@@ -2208,7 +2244,7 @@ void Session::reorderTwoPinnedChats(
 		? topic->forum()->topicsList()
 		: filterId
 		? chatsFilters().chatsList(filterId)
-		: chatsList(key1.entry()->folder());
+		: chatsListFor(key1.entry());
 	list->pinned()->reorder(key1, key2);
 	notifyPinnedDialogsOrderUpdated();
 }
@@ -4198,6 +4234,8 @@ not_null<Dialogs::MainList*> Session::chatsListFor(
 	const auto topic = entry->asTopic();
 	return topic
 		? topic->forum()->topicsList()
+		: entry->asSublist()
+		? _savedMessages->chatsList()
 		: chatsList(entry->folder());
 }
 
@@ -4394,6 +4432,7 @@ void Session::insertCheckedServiceNotification(
 				MTP_int(0), // Not used (would've been trimmed to 32 bits).
 				peerToMTP(PeerData::kServiceNotificationsId),
 				peerToMTP(PeerData::kServiceNotificationsId),
+				MTPPeer(), // saved_peer_id
 				MTPMessageFwdHeader(),
 				MTPlong(), // via_bot_id
 				MTPMessageReplyHeader(),

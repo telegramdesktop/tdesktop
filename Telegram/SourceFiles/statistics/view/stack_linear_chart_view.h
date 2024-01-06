@@ -132,7 +132,7 @@ private:
 		[[nodiscard]] bool isFinished() const;
 
 	private:
-		crl::time _startedAt = 0;;
+		crl::time _startedAt = 0;
 		std::vector<anim::value> _animValues;
 		PiePartData _current;
 		bool _isFinished = true;

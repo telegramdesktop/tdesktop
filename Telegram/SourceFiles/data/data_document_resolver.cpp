@@ -267,17 +267,18 @@ void ResolveDocument(
 			return false;
 		}
 		const auto &location = document->location(true);
+		const auto mime = u"image/"_q;
 		if (!location.isEmpty() && location.accessEnable()) {
 			const auto guard = gsl::finally([&] {
 				location.accessDisable();
 			});
 			const auto path = location.name();
-			if (Core::MimeTypeForFile(QFileInfo(path)).name().startsWith("image/")
+			if (Core::MimeTypeForFile(QFileInfo(path)).name().startsWith(mime)
 				&& QImageReader(path).canRead()) {
 				showDocument();
 				return true;
 			}
-		} else if (document->mimeString().startsWith("image/")
+		} else if (document->mimeString().startsWith(mime)
 			&& !media->bytes().isEmpty()) {
 			auto bytes = media->bytes();
 			auto buffer = QBuffer(&bytes);

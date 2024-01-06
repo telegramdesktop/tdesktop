@@ -54,8 +54,9 @@ bool Card::empty() const {
 }
 
 QString Last4(const Card &card) {
+	static const auto RegExp = QRegularExpression("[^\\d]\\d*(\\d{4})$");
 	const auto masked = card.maskedNumber();
-	const auto m = QRegularExpression("[^\\d]\\d*(\\d{4})$").match(masked);
+	const auto m = RegExp.match(masked);
 	return m.hasMatch() ? m.captured(1) : QString();
 }
 

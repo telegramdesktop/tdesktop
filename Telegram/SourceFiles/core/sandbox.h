@@ -19,8 +19,6 @@ class QLockFile;
 
 namespace Core {
 
-extern const char kOptionForceWaylandFractionalScaling[];
-
 class UpdateChecker;
 class Application;
 

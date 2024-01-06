@@ -127,7 +127,7 @@ void ForwardPanel::checkTexts() {
 		for (const auto item : _data.items) {
 			if (const auto from = item->originalSender()) {
 				version += from->nameVersion();
-			} else if (const auto info = item->hiddenSenderInfo()) {
+			} else if (const auto info = item->originalHiddenSenderInfo()) {
 				++version;
 			} else {
 				Unexpected("Corrupt forwarded information in message.");
@@ -168,7 +168,7 @@ void ForwardPanel::updateTexts() {
 					names.push_back(from->shortName());
 					fullname = from->name();
 				}
-			} else if (const auto info = item->hiddenSenderInfo()) {
+			} else if (const auto info = item->originalHiddenSenderInfo()) {
 				if (!insertedNames.contains(info->name)) {
 					insertedNames.emplace(info->name);
 					names.push_back(info->firstName);

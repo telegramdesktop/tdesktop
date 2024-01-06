@@ -34,7 +34,7 @@ public:
 	GiftPremiumValidator(not_null<Window::SessionController*> controller);
 
 	void showBox(not_null<UserData*> user);
-	void showChoosePeerBox();
+	void showChoosePeerBox(const QString &ref);
 	void cancel();
 
 private:

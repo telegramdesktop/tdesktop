@@ -59,6 +59,10 @@ public:
 
 	[[nodiscard]] int topicsPinnedCurrent() const;
 
+	[[nodiscard]] int savedSublistsPinnedDefault() const;
+	[[nodiscard]] int savedSublistsPinnedPremium() const;
+	[[nodiscard]] int savedSublistsPinnedCurrent() const;
+
 	[[nodiscard]] int channelsPublicDefault() const;
 	[[nodiscard]] int channelsPublicPremium() const;
 	[[nodiscard]] int channelsPublicCurrent() const;

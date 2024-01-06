@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_forum.h"
+#include "data/data_saved_messages.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_premium_limits.h"
@@ -67,6 +68,8 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
+	[[nodiscard]] rpl::producer<int> countValue() const;
+
 private:
 	void appendRow(not_null<PeerData*> peer, TimeId date);
 	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
@@ -74,6 +77,7 @@ private:
 		TimeId date) const;
 
 	const not_null<Main::Session*> _session;
+	rpl::variable<int> _count;
 	mtpRequestId _requestId = 0;
 
 };
@@ -90,12 +94,15 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowRightActionClicked(not_null<PeerListRow*> row) override;
 
+	[[nodiscard]] rpl::producer<int> countValue() const;
+
 private:
 	void appendRow(not_null<PeerData*> peer);
 	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
 		not_null<PeerData*> peer) const;
 
 	const not_null<Window::SessionNavigation*> _navigation;
+	rpl::variable<int> _count;
 	Fn<void()> _closeBox;
 	mtpRequestId _requestId = 0;
 
@@ -209,22 +216,26 @@ void InactiveController::prepare() {
 	_requestId = _session->api().request(MTPchannels_GetInactiveChannels(
 	)).done([=](const MTPmessages_InactiveChats &result) {
 		_requestId = 0;
-		result.match([&](const MTPDmessages_inactiveChats &data) {
-			_session->data().processUsers(data.vusers());
-			const auto &list = data.vchats().v;
-			const auto &dates = data.vdates().v;
-			for (auto i = 0, count = int(list.size()); i != count; ++i) {
-				const auto peer = _session->data().processChat(list[i]);
-				const auto date = (i < dates.size()) ? dates[i].v : TimeId();
-				appendRow(peer, date);
-			}
-			delegate()->peerListRefreshRows();
-		});
+		const auto &data = result.data();
+		_session->data().processUsers(data.vusers());
+		const auto &list = data.vchats().v;
+		const auto &dates = data.vdates().v;
+		for (auto i = 0, count = int(list.size()); i != count; ++i) {
+			const auto peer = _session->data().processChat(list[i]);
+			const auto date = (i < dates.size()) ? dates[i].v : TimeId();
+			appendRow(peer, date);
+		}
+		delegate()->peerListRefreshRows();
+		_count = delegate()->peerListFullRowsCount();
 	}).send();
 }
 
 void InactiveController::rowClicked(not_null<PeerListRow*> row) {
 	delegate()->peerListSetRowChecked(row, !row->checked());
+}
+
+rpl::producer<int> InactiveController::countValue() const {
+	return _count.value();
 }
 
 void InactiveController::appendRow(
@@ -295,6 +306,10 @@ Main::Session &PublicsController::session() const {
 	return _navigation->session();
 }
 
+rpl::producer<int> PublicsController::countValue() const {
+	return _count.value();
+}
+
 void PublicsController::prepare() {
 	_requestId = _navigation->session().api().request(
 		MTPchannels_GetAdminedPublicChannels(MTP_flags(0))
@@ -314,6 +329,7 @@ void PublicsController::prepare() {
 			}
 			delegate()->peerListRefreshRows();
 		}
+		_count = delegate()->peerListFullRowsCount();
 	}).send();
 }
 
@@ -570,7 +586,7 @@ void ChannelsLimitBox(
 		{});
 
 	using namespace rpl::mappers;
-	content->heightValue(
+	controller->countValue(
 	) | rpl::filter(_1 > 0) | rpl::start_with_next([=] {
 		delete placeholder;
 	}, placeholder->lifetime());
@@ -661,7 +677,7 @@ void PublicLinksLimitBox(
 		{});
 
 	using namespace rpl::mappers;
-	content->heightValue(
+	controller->countValue(
 	) | rpl::filter(_1 > 0) | rpl::start_with_next([=] {
 		delete placeholder;
 	}, placeholder->lifetime());
@@ -881,6 +897,18 @@ void PinsLimitBox(
 		limits.dialogsPinnedDefault(),
 		limits.dialogsPinnedPremium(),
 		PinsCount(session->data().chatsList()));
+}
+void SublistsPinsLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	const auto limits = Data::PremiumLimits(session);
+	SimplePinsLimitBox(
+		box,
+		session,
+		"saved_dialog_pinned",
+		limits.savedSublistsPinnedDefault(),
+		limits.savedSublistsPinnedPremium(),
+		PinsCount(session->data().savedMessages().chatsList()));
 }
 
 void ForumPinsLimitBox(

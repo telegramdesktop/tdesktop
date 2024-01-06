@@ -21,6 +21,7 @@ struct RecordBar;
 } // namespace style
 
 namespace Ui {
+class AbstractButton;
 class SendButton;
 } // namespace Ui
 
@@ -53,6 +54,7 @@ class VoiceRecordBar final : public Ui::RpWidget {
 public:
 	using SendActionUpdate = Controls::SendActionUpdate;
 	using VoiceToSend = Controls::VoiceToSend;
+	using FilterCallback = Fn<bool()>;
 
 	VoiceRecordBar(
 		not_null<Ui::RpWidget*> parent,
@@ -87,7 +89,8 @@ public:
 
 	void requestToSendWithOptions(Api::SendOptions options);
 
-	void setStartRecordingFilter(Fn<bool()> &&callback);
+	void setStartRecordingFilter(FilterCallback &&callback);
+	void setTTLFilter(FilterCallback &&callback);
 
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isRecordingLocked() const;
@@ -103,46 +106,56 @@ private:
 		Listen,
 	};
 
+	enum class TTLAnimationType {
+		RightLeft,
+		TopBottom,
+		RightTopStatic,
+	};
+
 	void init();
 	void initLockGeometry();
 	void initLevelGeometry();
 
 	void updateMessageGeometry();
 	void updateLockGeometry();
+	void updateTTLGeometry(TTLAnimationType type, float64 progress);
 
 	void recordUpdated(quint16 level, int samples);
 
-	bool recordingAnimationCallback(crl::time now);
+	[[nodiscard]] bool recordingAnimationCallback(crl::time now);
 
 	void stop(bool send);
 	void stopRecording(StopType type);
 	void visibilityAnimate(bool show, Fn<void()> &&callback);
 
-	bool showRecordButton() const;
-	void drawDuration(Painter &p);
-	void drawRedCircle(Painter &p);
-	void drawMessage(Painter &p, float64 recordActive);
+	[[nodiscard]] bool showRecordButton() const;
+	void drawDuration(QPainter &p);
+	void drawRedCircle(QPainter &p);
+	void drawMessage(QPainter &p, float64 recordActive);
 
 	void startRedCircleAnimation();
 	void installListenStateFilter();
 
-	bool isTypeRecord() const;
-	bool hasDuration() const;
+	[[nodiscard]] bool isTypeRecord() const;
+	[[nodiscard]] bool hasDuration() const;
 
 	void finish();
 
 	void activeAnimate(bool active);
-	float64 showAnimationRatio() const;
-	float64 showListenAnimationRatio() const;
-	float64 activeAnimationRatio() const;
+	[[nodiscard]] float64 showAnimationRatio() const;
+	[[nodiscard]] float64 showListenAnimationRatio() const;
+	[[nodiscard]] float64 activeAnimationRatio() const;
 
 	void computeAndSetLockProgress(QPoint globalPos);
+
+	[[nodiscard]] bool takeTTLState() const;
 
 	const style::RecordBar &_st;
 	const not_null<Ui::RpWidget*> _outerContainer;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
+	const std::unique_ptr<Ui::AbstractButton> _ttlButton;
 	const std::unique_ptr<VoiceRecordButton> _level;
 	const std::unique_ptr<CancelButton> _cancel;
 	std::unique_ptr<ListenWrap> _listen;
@@ -161,7 +174,8 @@ private:
 
 	Ui::Text::String _message;
 
-	Fn<bool()> _startRecordingFilter;
+	FilterCallback _startRecordingFilter;
+	FilterCallback _hasTTLFilter;
 
 	bool _warningShown = false;
 

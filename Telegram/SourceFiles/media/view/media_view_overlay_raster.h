@@ -59,6 +59,7 @@ private:
 		QRect rect,
 		float64 opacity = 1.) override;
 
+	bool handleHideWorkaround();
 	void validateOverControlImage();
 
 	[[nodiscard]] static QRect TransformRect(QRectF geometry, int rotation);

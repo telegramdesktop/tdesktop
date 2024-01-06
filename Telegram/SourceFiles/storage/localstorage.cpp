@@ -579,8 +579,9 @@ void writeAutoupdatePrefix(const QString &prefix) {
 QString readAutoupdatePrefix() {
 	Expects(!Core::UpdaterDisabled());
 
+	static const auto RegExp = QRegularExpression("/+$");
 	auto result = readAutoupdatePrefixRaw();
-	return result.replace(QRegularExpression("/+$"), QString());
+	return result.replace(RegExp, QString());
 }
 
 void writeBackground(const Data::WallPaper &paper, const QImage &image) {
@@ -613,7 +614,7 @@ void writeBackground(const Data::WallPaper &paper, const QImage &image) {
 		dst = dst.subspan(sizeof(qint32));
 		bytes::copy(dst, bytes::object_as_span(&height));
 		dst = dst.subspan(sizeof(qint32));
-		const auto src = bytes::make_span(image.constBits(), srcsize);
+		const auto src = bytes::make_span(copy.constBits(), srcsize);
 		if (srcsize == dstsize) {
 			bytes::copy(dst, src);
 		} else {

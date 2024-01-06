@@ -889,7 +889,6 @@ not_null<HistoryItem*> DownloadManager::generateItem(
 	const auto replyTo = FullReplyTo();
 	const auto viaBotId = UserId();
 	const auto date = base::unixtime::now();
-	const auto postAuthor = QString();
 	const auto caption = TextWithEntities();
 	const auto make = [&](const auto media) {
 		return history->makeMessage(

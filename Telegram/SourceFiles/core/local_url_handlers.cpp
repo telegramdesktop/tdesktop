@@ -845,6 +845,21 @@ bool ResolvePremiumOffer(
 	return true;
 }
 
+bool ResolvePremiumMultigift(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1).mid(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	controller->showGiftPremiumsBox(params.value(u"ref"_q, u"gift_url"_q));
+	controller->window().activate();
+	return true;
+}
+
 bool ResolveLoginCode(
 		Window::SessionController *controller,
 		const Match &match,
@@ -967,6 +982,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"premium_offer/?(\\?.+)?(#|$)"_q,
 			ResolvePremiumOffer,
+		},
+		{
+			u"^premium_multigift/?\\?(.+)(#|$)"_q,
+			ResolvePremiumMultigift,
 		},
 		{
 			u"^login/?(\\?code=([0-9]+))(&|$)"_q,
@@ -1092,7 +1111,7 @@ QString TryConvertUrlToLocal(QString url) {
 			const auto base = u"tg://privatepost?channel="_q + channel;
 			auto added = QString();
 			if (const auto threadPostMatch = regex_match(u"^/(\\d+)/(\\d+)(/?\\?|/?$)"_q, privateMatch->captured(2))) {
-				added = u"&topic=%1&post=%2"_q.arg(threadPostMatch->captured(1)).arg(threadPostMatch->captured(2));
+				added = u"&topic=%1&post=%2"_q.arg(threadPostMatch->captured(1), threadPostMatch->captured(2));
 			} else if (const auto postMatch = regex_match(u"^/(\\d+)(/?\\?|/?$)"_q, privateMatch->captured(2))) {
 				added = u"&post="_q + postMatch->captured(1);
 			}
@@ -1122,7 +1141,7 @@ QString TryConvertUrlToLocal(QString url) {
 			const auto base = u"tg://resolve?domain="_q + url_encode(usernameMatch->captured(1));
 			auto added = QString();
 			if (const auto threadPostMatch = regex_match(u"^/(\\d+)/(\\d+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {
-				added = u"&topic=%1&post=%2"_q.arg(threadPostMatch->captured(1)).arg(threadPostMatch->captured(2));
+				added = u"&topic=%1&post=%2"_q.arg(threadPostMatch->captured(1), threadPostMatch->captured(2));
 			} else if (const auto postMatch = regex_match(u"^/(\\d+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {
 				added = u"&post="_q + postMatch->captured(1);
 			} else if (const auto storyMatch = regex_match(u"^/s/(\\d+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {

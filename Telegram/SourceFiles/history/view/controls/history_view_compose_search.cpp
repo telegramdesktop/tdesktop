@@ -281,7 +281,7 @@ private:
 	base::unique_qptr<Ui::IconButton> _cancel;
 	base::unique_qptr<Ui::MultiSelect> _select;
 
-	rpl::variable<PeerData*> _from = nullptr;;
+	rpl::variable<PeerData*> _from = nullptr;
 
 	base::Timer _searchTimer;
 

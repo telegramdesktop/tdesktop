@@ -96,7 +96,7 @@ Panel::Panel(not_null<PanelDelegate*> delegate)
 }
 
 Panel::~Panel() {
-	_webview = nullptr;
+	base::take(_webview);
 	_progress = nullptr;
 	_widget = nullptr;
 }
@@ -528,6 +528,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	auto outer = base::make_unique_q<RpWidget>(_widget.get());
 	const auto container = outer.get();
 	_widget->showInner(std::move(outer));
+	const auto webviewParent = QPointer<RpWidget>(container);
 
 	_webviewBottom = std::make_unique<RpWidget>(_widget.get());
 	const auto bottom = _webviewBottom.get();
@@ -552,7 +553,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	const auto raw = &_webview->window;
 	QObject::connect(container, &QObject::destroyed, [=] {
 		if (_webview && &_webview->window == raw) {
-			_webview = nullptr;
+			base::take(_webview);
 			if (_webviewProgress) {
 				hideWebviewProgress();
 				if (_progress && !_progress->shown) {
@@ -568,6 +569,16 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		return false;
 	}
 	QObject::connect(raw->widget(), &QObject::destroyed, [=] {
+		const auto parent = webviewParent.data();
+		if (!_webview
+			|| &_webview->window != raw
+			|| !parent
+			|| _widget->inner() != parent) {
+			// If we destroyed _webview ourselves,
+			// or if we changed _widget->inner ourselves,
+			// we don't show any message, nothing crashed.
+			return;
+		}
 		crl::on_main(this, [=] {
 			showCriticalError({ "Error: WebView has crashed." });
 		});

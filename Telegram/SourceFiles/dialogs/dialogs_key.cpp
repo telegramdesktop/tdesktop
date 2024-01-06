@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_folder.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "history/history.h"
 
 namespace Dialogs {
@@ -25,6 +26,9 @@ Key::Key(Data::Thread *thread) : _value(thread) {
 Key::Key(Data::ForumTopic *topic) : _value(topic) {
 }
 
+Key::Key(Data::SavedSublist *sublist) : _value(sublist) {
+}
+
 Key::Key(not_null<History*> history) : _value(history) {
 }
 
@@ -35,6 +39,9 @@ Key::Key(not_null<Data::Folder*> folder) : _value(folder) {
 }
 
 Key::Key(not_null<Data::ForumTopic*> topic) : _value(topic) {
+}
+
+Key::Key(not_null<Data::SavedSublist*> sublist) : _value(sublist) {
 }
 
 not_null<Entry*> Key::entry() const {
@@ -57,6 +64,10 @@ Data::ForumTopic *Key::topic() const {
 
 Data::Thread *Key::thread() const {
 	return _value ? _value->asThread() : nullptr;
+}
+
+Data::SavedSublist *Key::sublist() const {
+	return _value ? _value->asSublist() : nullptr;
 }
 
 History *Key::owningHistory() const {

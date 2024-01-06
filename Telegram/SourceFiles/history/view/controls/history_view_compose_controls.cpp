@@ -386,6 +386,10 @@ void FieldHeader::init() {
 				} else if (reply) {
 					_editOptionsRequests.fire({});
 				}
+			} else if (!isLeftButton) {
+				if (const auto reply = replyingToMessage()) {
+					_jumpToItemRequests.fire_copy(reply);
+				}
 			}
 		}
 	}, lifetime());

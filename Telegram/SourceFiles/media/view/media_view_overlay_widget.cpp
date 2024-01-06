@@ -560,7 +560,7 @@ OverlayWidget::OverlayWidget()
 			|| type == QEvent::TouchEnd
 			|| type == QEvent::TouchCancel) {
 			if (handleTouchEvent(static_cast<QTouchEvent*>(e.get()))) {
-				return base::EventFilterResult::Cancel;;
+				return base::EventFilterResult::Cancel;
 			}
 		} else if (type == QEvent::Wheel) {
 			handleWheelEvent(static_cast<QWheelEvent*>(e.get()));
@@ -3050,7 +3050,7 @@ void OverlayWidget::refreshMediaViewer() {
 void OverlayWidget::refreshFromLabel() {
 	if (_message) {
 		_from = _message->originalSender();
-		if (const auto info = _message->hiddenSenderInfo()) {
+		if (const auto info = _message->originalHiddenSenderInfo()) {
 			_fromName = info->name;
 		} else {
 			Assert(_from != nullptr);
@@ -4879,7 +4879,6 @@ void OverlayWidget::paintControls(
 		const style::icon &icon;
 		bool nonbright = false;
 	};
-	const QRect kEmpty;
 	// When adding / removing controls please update RendererGL.
 	const Control controls[] = {
 		{

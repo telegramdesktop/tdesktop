@@ -61,6 +61,7 @@ class GroupCall;
 class NotifySettings;
 class CustomEmojiManager;
 class Stories;
+class SavedMessages;
 
 struct RepliesReadTillUpdate {
 	FullMsgId id;
@@ -136,6 +137,9 @@ public:
 	}
 	[[nodiscard]] Stories &stories() const {
 		return *_stories;
+	}
+	[[nodiscard]] SavedMessages &savedMessages() const {
+		return *_savedMessages;
 	}
 
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
@@ -345,25 +349,31 @@ public:
 		const QVector<MTPDialog> &dialogs,
 		std::optional<int> count = std::nullopt);
 
-	[[nodiscard]] bool pinnedCanPin(not_null<Thread*> thread) const;
+	[[nodiscard]] bool pinnedCanPin(not_null<Dialogs::Entry*> entry) const;
 	[[nodiscard]] bool pinnedCanPin(
 		FilterId filterId,
 		not_null<History*> history) const;
 	[[nodiscard]] int pinnedChatsLimit(Folder *folder) const;
 	[[nodiscard]] int pinnedChatsLimit(FilterId filterId) const;
 	[[nodiscard]] int pinnedChatsLimit(not_null<Forum*> forum) const;
+	[[nodiscard]] int pinnedChatsLimit(
+		not_null<SavedMessages*> saved) const;
 	[[nodiscard]] rpl::producer<int> maxPinnedChatsLimitValue(
 		Folder *folder) const;
 	[[nodiscard]] rpl::producer<int> maxPinnedChatsLimitValue(
 		FilterId filterId) const;
 	[[nodiscard]] rpl::producer<int> maxPinnedChatsLimitValue(
 		not_null<Forum*> forum) const;
+	[[nodiscard]] rpl::producer<int> maxPinnedChatsLimitValue(
+		not_null<SavedMessages*> saved) const;
 	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		Folder *folder) const;
 	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		not_null<Forum*> forum) const;
 	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		FilterId filterId) const;
+	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
+		not_null<Data::SavedMessages*> saved) const;
 	void setChatPinned(Dialogs::Key key, FilterId filterId, bool pinned);
 	void setPinnedFromEntryList(Dialogs::Key key, bool pinned);
 	void clearPinnedChats(Folder *folder);
@@ -1041,6 +1051,7 @@ private:
 	const std::unique_ptr<NotifySettings> _notifySettings;
 	const std::unique_ptr<CustomEmojiManager> _customEmojiManager;
 	const std::unique_ptr<Stories> _stories;
+	const std::unique_ptr<SavedMessages> _savedMessages;
 
 	MsgId _nonHistoryEntryId = ServerMaxMsgId.bare + ScheduledMsgIdsRange;
 

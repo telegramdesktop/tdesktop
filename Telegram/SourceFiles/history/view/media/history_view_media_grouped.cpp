@@ -405,7 +405,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
 			.pre = stm->preCache.get(),
-			.blockquote = context.quoteCache(parent()->colorIndex()),
+			.blockquote = context.quoteCache(parent()->contentColorIndex()),
 			.colors = context.st->highlightColors(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
@@ -427,7 +427,9 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 				InfoDisplayType::Image);
 		}
 		if (const auto size = _parent->hasBubble() ? std::nullopt : _parent->rightActionSize()) {
-			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
+			auto fastShareLeft = _parent->hasRightLayout()
+				? (-size->width() - st::historyFastShareLeft)
+				: (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
 			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, width());
 		}
@@ -501,7 +503,9 @@ TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
 			return bottomInfoResult;
 		}
 		if (const auto size = _parent->hasBubble() ? std::nullopt : _parent->rightActionSize()) {
-			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
+			auto fastShareLeft = _parent->hasRightLayout()
+				? (-size->width() - st::historyFastShareLeft)
+				: (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
 			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
 				result.link = _parent->rightActionLink(point

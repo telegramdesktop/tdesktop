@@ -162,6 +162,7 @@ struct SectionShow {
 	bool childColumn = false;
 	bool forbidLayer = false;
 	bool reapplyLocalDraft = false;
+	bool dropSameFromStack = false;
 	Origin origin;
 
 };
@@ -380,7 +381,7 @@ public:
 
 	void showEditPeerBox(PeerData *peer);
 	void showGiftPremiumBox(UserData *user);
-	void showGiftPremiumsBox();
+	void showGiftPremiumsBox(const QString &ref);
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);

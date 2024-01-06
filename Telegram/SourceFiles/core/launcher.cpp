@@ -499,7 +499,7 @@ uint64 Launcher::installationTag() const {
 }
 
 void Launcher::processArguments() {
-		enum class KeyFormat {
+	enum class KeyFormat {
 		NoValues,
 		OneValue,
 		AllLeftValues,
@@ -542,9 +542,13 @@ void Launcher::processArguments() {
 		}
 	}
 
+	static const auto RegExp = QRegularExpression("[^a-z0-9\\-_]");
 	gDebugMode = parseResult.contains("-debug");
-	gKeyFile = parseResult.value("-key", {}).join(QString()).toLower();
-	gKeyFile = gKeyFile.replace(QRegularExpression("[^a-z0-9\\-_]"), {});
+	gKeyFile = parseResult
+		.value("-key", {})
+		.join(QString())
+		.toLower()
+		.replace(RegExp, {});
 	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart
 		: parseResult.contains("-fixprevious") ? LaunchModeFixPrevious
 		: parseResult.contains("-cleanup") ? LaunchModeCleanup

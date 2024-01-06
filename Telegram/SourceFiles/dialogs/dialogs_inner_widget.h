@@ -107,6 +107,7 @@ public:
 
 	void changeOpenedFolder(Data::Folder *folder);
 	void changeOpenedForum(Data::Forum *forum);
+	void showSavedSublists();
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
@@ -198,6 +199,7 @@ private:
 		NoContacts,
 		EmptyFolder,
 		EmptyForum,
+		EmptySavedSublists,
 	};
 
 	struct PinnedRow {
@@ -229,6 +231,7 @@ private:
 	void switchToFilter(FilterId filterId);
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
+	bool isRowActive(not_null<Row*> row, const RowDescriptor &entry) const;
 	bool isSearchResultActive(
 		not_null<FakeRow*> result,
 		const RowDescriptor &entry) const;
@@ -502,6 +505,8 @@ private:
 	rpl::variable<ChildListShown> _childListShown;
 	float64 _narrowRatio = 0.;
 	bool _geometryInited = false;
+
+	bool _savedSublists = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

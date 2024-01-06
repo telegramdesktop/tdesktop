@@ -87,6 +87,7 @@ public:
 	[[nodiscard]] bool premiumPossible() const;
 	[[nodiscard]] rpl::producer<bool> premiumPossibleValue() const;
 	[[nodiscard]] bool premiumBadgesShown() const;
+	[[nodiscard]] bool premiumCanBuy() const;
 
 	[[nodiscard]] bool isTestMode() const;
 	[[nodiscard]] uint64 uniqueId() const; // userId() with TestDC shift.

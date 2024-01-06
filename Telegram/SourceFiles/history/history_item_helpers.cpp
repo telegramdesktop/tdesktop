@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_changes.h"
+#include "data/data_document.h"
 #include "data/data_group_call.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
@@ -451,7 +452,7 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	}, [](const MTPDmessageMediaPhoto &data) {
 		const auto photo = data.vphoto();
 		if (data.vttl_seconds()) {
-			return Result::HasTimeToLive;
+			return Result::HasUnsupportedTimeToLive;
 		} else if (!photo) {
 			return Result::Empty;
 		}
@@ -463,7 +464,11 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	}, [](const MTPDmessageMediaDocument &data) {
 		const auto document = data.vdocument();
 		if (data.vttl_seconds()) {
-			return Result::HasTimeToLive;
+			if (data.is_video()) {
+				return Result::HasUnsupportedTimeToLive;
+			} else if (!document) {
+				return Result::HasExpiredMediaTimeToLive;
+			}
 		} else if (!document) {
 			return Result::Empty;
 		}
@@ -778,4 +783,32 @@ void ShowTrialTranscribesToast(int left, TimeId until) {
 		.duration = kToastDuration,
 		.filter = filter,
 	});
+}
+
+void ClearMediaAsExpired(not_null<HistoryItem*> item) {
+	if (const auto media = item->media()) {
+		if (!media->ttlSeconds()) {
+			return;
+		}
+		if (const auto document = media->document()) {
+			item->applyEditionToHistoryCleared();
+			auto text = (document->isVideoFile()
+				? tr::lng_ttl_video_expired
+				: document->isVoiceMessage()
+				? tr::lng_ttl_voice_expired
+				: document->isVideoMessage()
+				? tr::lng_ttl_round_expired
+				: tr::lng_message_empty)(tr::now, Ui::Text::WithEntities);
+			item->updateServiceText(PreparedServiceText{ std::move(text) });
+		} else if (const auto photo = media->photo()) {
+			item->applyEditionToHistoryCleared();
+			item->updateServiceText(PreparedServiceText{
+				tr::lng_ttl_photo_expired(tr::now, Ui::Text::WithEntities)
+			});
+		}
+	}
+}
+
+[[nodiscard]] bool IsVoiceOncePlayable(not_null<HistoryItem*> item) {
+	return !item->out() && item->media()->ttlSeconds();
 }

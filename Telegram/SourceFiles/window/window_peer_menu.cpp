@@ -76,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_user.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_histories.h"
 #include "data/data_chat_filters.h"
@@ -244,6 +245,7 @@ private:
 	void fillRepliesActions();
 	void fillScheduledActions();
 	void fillArchiveActions();
+	void fillSavedSublistActions();
 	void fillContextMenuActions();
 
 	void addHidePromotion();
@@ -293,6 +295,7 @@ private:
 	Data::ForumTopic *_topic = nullptr;
 	PeerData *_peer = nullptr;
 	Data::Folder *_folder = nullptr;
+	Data::SavedSublist *_sublist = nullptr;
 	const PeerMenuCallback &_addAction;
 
 };
@@ -319,17 +322,21 @@ void AddChatMembers(
 
 bool PinnedLimitReached(
 		not_null<Window::SessionController*> controller,
-		not_null<Data::Thread*> thread) {
-	const auto owner = &thread->owner();
-	if (owner->pinnedCanPin(thread)) {
+		not_null<Dialogs::Entry*> entry) {
+	const auto owner = &entry->owner();
+	if (owner->pinnedCanPin(entry)) {
 		return false;
 	}
 	// Some old chat, that was converted, maybe is still pinned.
-	const auto history = thread->asHistory();
-	if (!history) {
-		controller->show(Box(ForumPinsLimitBox, thread->asTopic()->forum()));
+	if (const auto sublist = entry->asSublist()) {
+		controller->show(Box(SublistsPinsLimitBox, &sublist->session()));
+		return true;
+	} else if (const auto topic = entry->asTopic()) {
+		controller->show(Box(ForumPinsLimitBox, topic->forum()));
 		return true;
 	}
+	const auto history = entry->asHistory();
+	Assert(history != nullptr);
 	const auto folder = history->folder();
 	const auto wasted = FindWastedPin(owner, folder);
 	if (wasted) {
@@ -359,18 +366,18 @@ bool PinnedLimitReached(
 
 void TogglePinnedThread(
 		not_null<Window::SessionController*> controller,
-		not_null<Data::Thread*> thread) {
-	if (!thread->folderKnown()) {
+		not_null<Dialogs::Entry*> entry) {
+	if (!entry->folderKnown()) {
 		return;
 	}
-	const auto owner = &thread->owner();
-	const auto isPinned = !thread->isPinnedDialog(FilterId());
-	if (isPinned && PinnedLimitReached(controller, thread)) {
+	const auto owner = &entry->owner();
+	const auto isPinned = !entry->isPinnedDialog(FilterId());
+	if (isPinned && PinnedLimitReached(controller, entry)) {
 		return;
 	}
 
-	owner->setChatPinned(thread, FilterId(), isPinned);
-	if (const auto history = thread->asHistory()) {
+	owner->setChatPinned(entry, FilterId(), isPinned);
+	if (const auto history = entry->asHistory()) {
 		const auto flags = isPinned
 			? MTPmessages_ToggleDialogPin::Flag::f_pinned
 			: MTPmessages_ToggleDialogPin::Flag(0);
@@ -383,7 +390,7 @@ void TogglePinnedThread(
 		if (isPinned) {
 			controller->content()->dialogsToUp();
 		}
-	} else if (const auto topic = thread->asTopic()) {
+	} else if (const auto topic = entry->asTopic()) {
 		owner->session().api().request(MTPchannels_UpdatePinnedForumTopic(
 			topic->channel()->inputChannel,
 			MTP_int(topic->rootId()),
@@ -391,17 +398,30 @@ void TogglePinnedThread(
 		)).done([=](const MTPUpdates &result) {
 			owner->session().api().applyUpdates(result);
 		}).send();
+	} else if (const auto sublist = entry->asSublist()) {
+		const auto flags = isPinned
+			? MTPmessages_ToggleSavedDialogPin::Flag::f_pinned
+			: MTPmessages_ToggleSavedDialogPin::Flag(0);
+		owner->session().api().request(MTPmessages_ToggleSavedDialogPin(
+			MTP_flags(flags),
+			MTP_inputDialogPeer(sublist->peer()->input)
+		)).done([=] {
+			owner->notifyPinnedDialogsOrderUpdated();
+		}).send();
+		//if (isPinned) {
+		//	controller->content()->dialogsToUp();
+		//}
 	}
 }
 
 void TogglePinnedThread(
 		not_null<Window::SessionController*> controller,
-		not_null<Data::Thread*> thread,
+		not_null<Dialogs::Entry*> entry,
 		FilterId filterId) {
 	if (!filterId) {
-		return TogglePinnedThread(controller, thread);
+		return TogglePinnedThread(controller, entry);
 	}
-	const auto history = thread->asHistory();
+	const auto history = entry->asHistory();
 	if (!history) {
 		return;
 	}
@@ -438,6 +458,7 @@ Filler::Filler(
 , _topic(request.key.topic())
 , _peer(request.key.peer())
 , _folder(request.key.folder())
+, _sublist(request.key.sublist())
 , _addAction(addAction) {
 }
 
@@ -471,21 +492,21 @@ void Filler::addToggleTopicClosed() {
 }
 
 void Filler::addTogglePin() {
-	if (!_peer || (_topic && !_topic->canTogglePinned())) {
+	if ((!_sublist && !_peer) || (_topic && !_topic->canTogglePinned())) {
 		return;
 	}
 	const auto controller = _controller;
 	const auto filterId = _request.filterId;
-	const auto thread = _request.key.thread();
-	if (!thread || thread->fixedOnTopIndex()) {
+	const auto entry = _thread ? (Dialogs::Entry*)_thread : _sublist;
+	if (!entry || entry->fixedOnTopIndex()) {
 		return;
 	}
 	const auto pinText = [=] {
-		return thread->isPinnedDialog(filterId)
+		return entry->isPinnedDialog(filterId)
 			? tr::lng_context_unpin_from_top(tr::now)
 			: tr::lng_context_pin_to_top(tr::now);
 	};
-	const auto weak = base::make_weak(thread);
+	const auto weak = base::make_weak(entry);
 	const auto pinToggle = [=] {
 		if (const auto strong = weak.get()) {
 			TogglePinnedThread(controller, strong, filterId);
@@ -494,13 +515,13 @@ void Filler::addTogglePin() {
 	_addAction(
 		pinText(),
 		pinToggle,
-		(thread->isPinnedDialog(filterId)
+		(entry->isPinnedDialog(filterId)
 			? &st::menuIconUnpin
 			: &st::menuIconPin));
 }
 
 void Filler::addToggleMuteSubmenu(bool addSeparator) {
-	if (_thread->peer()->isSelf()) {
+	if (!_thread || _thread->peer()->isSelf()) {
 		return;
 	}
 	PeerMenuAddMuteSubmenuAction(_controller, _thread, _addAction);
@@ -526,6 +547,8 @@ void Filler::addSupportInfo() {
 void Filler::addInfo() {
 	if (_peer && (_peer->isSelf() || _peer->isRepliesChat())) {
 		return;
+	} else if (!_thread) {
+		return;
 	} else if (_controller->adaptive().isThreeColumn()) {
 		const auto thread = _controller->activeChatCurrent().thread();
 		if (thread && thread == _thread) {
@@ -534,8 +557,6 @@ void Filler::addInfo() {
 				return;
 			}
 		}
-	} else if (!_thread) {
-		return;
 	}
 	const auto controller = _controller;
 	const auto weak = base::make_weak(_thread);
@@ -1103,7 +1124,8 @@ void Filler::addGiftPremium() {
 		|| user->isBot()
 		|| user->isNotificationsUser()
 		|| !user->canReceiveGifts()
-		|| user->isRepliesChat()) {
+		|| user->isRepliesChat()
+		|| !user->session().premiumCanBuy()) {
 		return;
 	}
 
@@ -1116,9 +1138,9 @@ void Filler::addGiftPremium() {
 void Filler::fill() {
 	if (_folder) {
 		fillArchiveActions();
-		return;
-	}
-	switch (_request.section) {
+	} else if (_sublist) {
+		fillSavedSublistActions();
+	} else switch (_request.section) {
 	case Section::ChatsList: fillChatsListActions(); break;
 	case Section::History: fillHistoryActions(); break;
 	case Section::Profile: fillProfileActions(); break;
@@ -1351,6 +1373,10 @@ void Filler::fillArchiveActions() {
 	_addAction(tr::lng_context_archive_settings(tr::now), [=] {
 		controller->show(Box(Settings::ArchiveSettingsBox, controller));
 	}, &st::menuIconManage);
+}
+
+void Filler::fillSavedSublistActions() {
+	addTogglePin();
 }
 
 } // namespace

@@ -33,6 +33,10 @@ InfoTopBar {
 	back: IconButton;
 	title: FlatLabel;
 	titlePosition: point;
+	titleWithSubtitle: FlatLabel;
+	titleWithSubtitlePosition: point;
+	subtitle: FlatLabel;
+	subtitlePosition: point;
 	bg: color;
 	mediaCancel: IconButton;
 	mediaActionsSkip: pixels;
@@ -186,6 +190,14 @@ infoTopBar: InfoTopBar {
 	back: infoTopBarBack;
 	title: infoTopBarTitle;
 	titlePosition: point(24px, 17px);
+	titleWithSubtitle: FlatLabel(infoTopBarTitle) {
+		style: semiboldTextStyle;
+	}
+	titleWithSubtitlePosition: point(16px, 8px);
+	subtitle: FlatLabel(defaultFlatLabel) {
+		textFg: windowSubTextFg;
+	}
+	subtitlePosition: point(16px, 28px);
 	bg: windowBg;
 	mediaCancel: infoTopBarMediaCancel;
 	mediaActionsSkip: 4px;
@@ -261,6 +273,8 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	back: infoLayerTopBarBack;
 	title: boxTitle;
 	titlePosition: point(24px, 17px);
+	titleWithSubtitlePosition: point(16px, 9px);
+	subtitlePosition: point(16px, 30px);
 	bg: boxBg;
 	mediaCancel: infoLayerTopBarMediaCancel;
 	mediaActionsSkip: 6px;
@@ -398,6 +412,7 @@ infoIconMediaGroup: icon {{ "info/info_common_groups", infoIconFg }};
 infoIconMediaChannel: icon {{ "menu/channel", infoIconFg, point(4px, 4px) }};
 infoIconMediaVoice: icon {{ "info/info_media_voice", infoIconFg }};
 infoIconMediaStories: icon {{ "info/info_media_stories", infoIconFg }};
+infoIconMediaSaved: icon {{ "info/info_media_saved", infoIconFg }};
 infoIconMediaStoriesArchive: icon {{ "info/info_stories_archive", infoIconFg }};
 infoIconMediaStoriesRecent: icon {{ "info/info_stories_recent", infoIconFg }};
 

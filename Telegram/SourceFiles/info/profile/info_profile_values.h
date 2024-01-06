@@ -104,6 +104,8 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<int> SimilarChannelsCountValue(
 	not_null<ChannelData*> channel);
+[[nodiscard]] rpl::producer<int> SavedSublistCountValue(
+	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanAddMemberValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> FullReactionsCountValue(

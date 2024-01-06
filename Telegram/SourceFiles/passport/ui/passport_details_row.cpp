@@ -51,7 +51,8 @@ PostcodeInput::PostcodeInput(
 	rpl::producer<QString> placeholder,
 	const QString &val)
 : MaskedInputField(parent, st, std::move(placeholder), val) {
-	if (!QRegularExpression("^[a-zA-Z0-9\\-]+$").match(val).hasMatch()) {
+	static const auto RegExp = QRegularExpression("^[a-zA-Z0-9\\-]+$");
+	if (!RegExp.match(val).hasMatch()) {
 		setText(QString());
 	}
 }
@@ -414,8 +415,9 @@ void CountryRow::chooseCountry() {
 }
 
 QDate ValidateDate(const QString &value) {
-	const auto match = QRegularExpression(
-		"^([0-9]{2})\\.([0-9]{2})\\.([0-9]{4})$").match(value);
+	static const auto RegExp = QRegularExpression(
+		"^([0-9]{2})\\.([0-9]{2})\\.([0-9]{4})$");
+	const auto match = RegExp.match(value);
 	if (!match.hasMatch()) {
 		return QDate();
 	}

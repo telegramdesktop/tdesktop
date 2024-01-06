@@ -518,7 +518,6 @@ void Templates::ensureUpdatesCreated() {
 }
 
 void Templates::update() {
-	auto errors = QStringList();
 	const auto sendRequest = [&](const QString &path, const QString &url) {
 		ensureUpdatesCreated();
 		if (_updates->requests.find(path) != end(_updates->requests)) {

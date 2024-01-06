@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_widget.h"
 #include "info/members/info_members_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
+#include "info/saved/info_saved_sublists_widget.h"
 #include "info/settings/info_settings_widget.h"
 #include "info/similar_channels/info_similar_channels_widget.h"
 #include "info/polls/info_polls_results_widget.h"
@@ -111,7 +112,9 @@ std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 }
 
 Section Memento::DefaultSection(not_null<PeerData*> peer) {
-	if (peer->sharedMediaInfo()) {
+	if (peer->savedSublistsInfo()) {
+		return Section(Section::Type::SavedSublists);
+	} else if (peer->sharedMediaInfo()) {
 		return Section(Section::MediaType::Photo);
 	}
 	return Section(Section::Type::Profile);
@@ -145,6 +148,8 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 	case Section::Type::SimilarChannels:
 		return std::make_shared<SimilarChannels::Memento>(
 			peer->asChannel());
+	case Section::Type::SavedSublists:
+		return std::make_shared<Saved::SublistsMemento>(&peer->session());
 	case Section::Type::Members:
 		return std::make_shared<Members::Memento>(
 			peer,

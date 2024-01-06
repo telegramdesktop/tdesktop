@@ -49,9 +49,9 @@ public:
 	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;
 	bool chatListMessageKnown() const override;
-	void requestChatListMessage() override;
 	const QString &chatListName() const override;
 	const QString &chatListNameSortKey() const override;
+	int chatListNameVersion() const override;
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
 
@@ -81,8 +81,6 @@ public:
 
 private:
 	void indexNameParts();
-
-	int chatListNameVersion() const override;
 
 	void reorderLastHistories();
 

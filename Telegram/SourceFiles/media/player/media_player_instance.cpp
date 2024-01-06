@@ -503,6 +503,9 @@ bool Instance::moveInPlaylist(
 	}
 	const auto jumpByItem = [&](not_null<HistoryItem*> item) {
 		if (const auto media = item->media()) {
+			if (media->ttlSeconds()) {
+				return false;
+			}
 			if (const auto document = media->document()) {
 				if (autonext) {
 					_switchToNext.fire({

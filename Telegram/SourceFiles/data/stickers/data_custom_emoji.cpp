@@ -349,7 +349,6 @@ void CustomEmojiLoader::check() {
 	const auto tag = _tag;
 	const auto sizeOverride = int(_sizeOverride);
 	const auto size = FrameSizeFromTag(_tag, _sizeOverride);
-	auto bytes = Lottie::ReadContent(data, filepath);
 	auto loader = [=] {
 		return std::make_unique<CustomEmojiLoader>(
 			document,
@@ -415,7 +414,7 @@ Ui::CustomEmoji::Preview CustomEmojiLoader::preview() {
 	const auto make = [&](not_null<DocumentData*> document) -> Preview {
 		const auto dimensions = document->dimensions;
 		if (!document->inlineThumbnailIsPath()
-			|| !dimensions.width()) {
+			|| dimensions.isEmpty()) {
 			return {};
 		}
 		const auto scale = (FrameSizeFromTag(_tag, _sizeOverride) * 1.)

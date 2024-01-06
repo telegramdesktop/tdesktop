@@ -132,7 +132,6 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		return MimeDataState::None;
 	}
 
-	auto files = QStringList();
 	auto allAreSmallImages = true;
 	for (const auto &url : urls) {
 		if (!url.isLocalFile()) {

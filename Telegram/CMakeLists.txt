@@ -550,6 +550,10 @@ PRIVATE
     data/data_replies_list.h
     data/data_reply_preview.cpp
     data/data_reply_preview.h
+    data/data_saved_messages.cpp
+    data/data_saved_messages.h
+    data/data_saved_sublist.cpp
+    data/data_saved_sublist.h
     data/data_search_controller.cpp
     data/data_search_controller.h
     data/data_send_action.cpp
@@ -796,6 +800,8 @@ PRIVATE
     history/view/history_view_sponsored_click_handler.h
     history/view/history_view_sticker_toast.cpp
     history/view/history_view_sticker_toast.h
+    history/view/history_view_sublist_section.cpp
+    history/view/history_view_sublist_section.h
     history/view/history_view_transcribe_button.cpp
     history/view/history_view_transcribe_button.h
     history/view/history_view_translate_bar.cpp
@@ -897,6 +903,8 @@ PRIVATE
     info/profile/info_profile_values.h
     info/profile/info_profile_widget.cpp
     info/profile/info_profile_widget.h
+    info/saved/info_saved_sublists_widget.cpp
+    info/saved/info_saved_sublists_widget.h
     info/settings/info_settings_widget.cpp
     info/settings/info_settings_widget.h
     info/similar_channels/info_similar_channels_widget.cpp

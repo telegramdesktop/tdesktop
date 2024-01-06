@@ -948,6 +948,16 @@ void HistoryWidget::initVoiceRecordBar() {
 		}
 		return false;
 	});
+	_voiceRecordBar->setTTLFilter([=] {
+		if (const auto peer = _history ? _history->peer.get() : nullptr) {
+			if (const auto user = peer->asUser()) {
+				if (!user->isSelf() && !user->isBot()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	});
 
 	const auto applyLocalDraft = [=] {
 		if (_history && _history->localDraft({})) {
@@ -6334,7 +6344,9 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		} else {
 			_forwardPanel->editOptions(controller()->uiShow());
 		}
-	} else if (_replyTo && (e->modifiers() & Qt::ControlModifier)) {
+	} else if (_replyTo
+		&& ((e->modifiers() & Qt::ControlModifier)
+			|| (e->button() != Qt::LeftButton))) {
 		jumpToReply(_replyTo);
 	} else if (_replyTo) {
 		editDraftOptions();

@@ -806,7 +806,7 @@ void Selector::expand() {
 	createList();
 	cacheExpandIcon();
 
-	[[maybe_unused]] const auto grabbed = Ui::GrabWidget(_scroll);
+	[[maybe_unused]] const auto grabbed = Ui::GrabWidget(_scroll); // clazy:exclude=unused-non-trivial-variable
 	_list->prepareExpanding();
 	setSelected(-1);
 

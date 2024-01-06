@@ -41,6 +41,11 @@ namespace Info {
 class Key;
 class Section;
 
+struct TitleDescriptor {
+	rpl::producer<QString> title;
+	rpl::producer<QString> subtitle;
+};
+
 class TopBar : public Ui::RpWidget {
 public:
 	TopBar(
@@ -56,7 +61,7 @@ public:
 		return _storyClicks.events();
 	}
 
-	void setTitle(rpl::producer<QString> &&title);
+	void setTitle(TitleDescriptor descriptor);
 	void setStories(rpl::producer<Dialogs::Stories::Content> content);
 	void setStoriesArchive(bool archive);
 	void enableBackButton();
@@ -155,6 +160,7 @@ private:
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _back;
 	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
 	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _title;
+	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _subtitle;
 
 	bool _searchModeEnabled = false;
 	bool _searchModeAvailable = false;

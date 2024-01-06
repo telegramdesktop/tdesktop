@@ -126,9 +126,13 @@ private:
 struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem> {
 	void create(const HistoryMessageVia *via) const;
 
+	[[nodiscard]] bool forwardOfForward() const {
+		return savedFromSender || savedFromHiddenSenderInfo;
+	}
+
 	TimeId originalDate = 0;
 	PeerData *originalSender = nullptr;
-	std::unique_ptr<HiddenSenderInfo> hiddenSenderInfo;
+	std::unique_ptr<HiddenSenderInfo> originalHiddenSenderInfo;
 	QString originalPostAuthor;
 	QString psaType;
 	MsgId originalId = 0;
@@ -136,8 +140,17 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 
 	PeerData *savedFromPeer = nullptr;
 	MsgId savedFromMsgId = 0;
+
+	PeerData *savedFromSender = nullptr;
+	std::unique_ptr<HiddenSenderInfo> savedFromHiddenSenderInfo;
+
+	bool savedFromOutgoing = false;
 	bool imported = false;
 	bool story = false;
+};
+
+struct HistoryMessageSaved : public RuntimeComponent<HistoryMessageSaved, HistoryItem> {
+	Data::SavedSublist *sublist = nullptr;
 };
 
 class ReplyToMessagePointer final {

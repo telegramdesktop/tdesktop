@@ -321,9 +321,6 @@ void Viewport::RendererGL::init(
 	_frameBuffer->bind();
 	_frameBuffer->allocate(kValues * sizeof(GLfloat));
 	_downscaleProgram.yuv420.emplace();
-	const auto downscaleVertexSource = VertexShader({
-		VertexPassTextureCoord(),
-	});
 	_downscaleVertexShader = LinkProgram(
 		&*_downscaleProgram.yuv420,
 		VertexShader({

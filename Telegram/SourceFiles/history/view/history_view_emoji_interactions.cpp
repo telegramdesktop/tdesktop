@@ -220,8 +220,7 @@ QRect EmojiInteractions::computeRect(const Play &play) const {
 		? int(sticker.width() * kPremiumShift)
 		: (size.width() / 40);
 	const auto inner = view->innerGeometry();
-	const auto rightAligned = view->hasOutLayout()
-		&& !view->delegate()->elementIsChatWide();
+	const auto rightAligned = view->hasRightLayout();
 	const auto left = rightAligned
 		? (inner.x() + inner.width() + shift - size.width())
 		: (inner.x() - shift);
@@ -241,8 +240,7 @@ void EmojiInteractions::paint(QPainter &p) {
 		}
 		auto request = Lottie::FrameRequest();
 		request.box = play.outer * factor;
-		const auto rightAligned = play.view->hasOutLayout()
-			&& !play.view->delegate()->elementIsChatWide();
+		const auto rightAligned = play.view->hasRightLayout();
 		if (!rightAligned) {
 			request.mirrorHorizontal = true;
 		}

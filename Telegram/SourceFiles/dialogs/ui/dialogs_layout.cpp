@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_drafts.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_list.h"
 #include "dialogs/dialogs_three_state_icon.h"
@@ -265,10 +266,12 @@ void PaintFolderEntryText(
 }
 
 enum class Flag {
-	SavedMessages    = 0x08,
-	RepliesMessages  = 0x10,
-	AllowUserOnline  = 0x20,
-	TopicJumpRipple  = 0x40,
+	SavedMessages    = 0x008,
+	RepliesMessages  = 0x010,
+	AllowUserOnline  = 0x020,
+	TopicJumpRipple  = 0x040,
+	HiddenAuthor     = 0x080,
+	MyNotes          = 0x100,
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 
@@ -311,6 +314,7 @@ void PaintRow(
 
 	const auto history = entry->asHistory();
 	const auto thread = entry->asThread();
+	const auto sublist = entry->asSublist();
 
 	if (flags & Flag::SavedMessages) {
 		EmptyUserpic::PaintSavedMessages(
@@ -321,6 +325,20 @@ void PaintRow(
 			context.st->photoSize);
 	} else if (flags & Flag::RepliesMessages) {
 		EmptyUserpic::PaintRepliesMessages(
+			p,
+			context.st->padding.left(),
+			context.st->padding.top(),
+			context.width,
+			context.st->photoSize);
+	} else if (flags & Flag::HiddenAuthor) {
+		EmptyUserpic::PaintHiddenAuthor(
+			p,
+			context.st->padding.left(),
+			context.st->padding.top(),
+			context.width,
+			context.st->photoSize);
+	} else if (flags & Flag::MyNotes) {
+		EmptyUserpic::PaintMyNotes(
 			p,
 			context.st->padding.left(),
 			context.st->padding.top(),
@@ -547,7 +565,7 @@ void PaintRow(
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
-		if (thread && !promoted) {
+		if ((thread || sublist) && !promoted) {
 			PaintRowDate(p, date, rectForName, context);
 		}
 
@@ -606,10 +624,18 @@ void PaintRow(
 	}
 
 	p.setFont(st::semiboldFont);
-	if (flags & (Flag::SavedMessages | Flag::RepliesMessages)) {
+	if (flags
+		& (Flag::SavedMessages
+			| Flag::RepliesMessages
+			| Flag::HiddenAuthor
+			| Flag::MyNotes)) {
 		auto text = (flags & Flag::SavedMessages)
 			? tr::lng_saved_messages(tr::now)
-			: tr::lng_replies_messages(tr::now);
+			: (flags & Flag::RepliesMessages)
+			? tr::lng_replies_messages(tr::now)
+			: (flags & Flag::MyNotes)
+			? tr::lng_my_notes(tr::now)
+			: tr::lng_hidden_author_messages(tr::now);
 		const auto textWidth = st::semiboldFont->width(text);
 		if (textWidth > rectForName.width()) {
 			text = st::semiboldFont->elided(text, rectForName.width());
@@ -621,7 +647,7 @@ void PaintRow(
 			: st::dialogsNameFg);
 		p.drawTextLeft(rectForName.left(), rectForName.top(), context.width, text);
 	} else if (from) {
-		if (history && !context.search) {
+		if ((history || sublist) && !context.search) {
 			const auto badgeWidth = fromBadge.drawGetWidth(
 				p,
 				rectForName,
@@ -732,6 +758,7 @@ void RowPainter::Paint(
 	const auto entry = row->entry();
 	const auto history = row->history();
 	const auto thread = row->thread();
+	const auto sublist = row->sublist();
 	const auto peer = history ? history->peer.get() : nullptr;
 	const auto badgesState = entry->chatListBadgesState();
 	entry->chatListPreloadData(); // Allow chat list message resolve.
@@ -771,11 +798,22 @@ void RowPainter::Paint(
 		? (history->peer->migrateTo()
 			? history->peer->migrateTo()
 			: history->peer.get())
+		: sublist
+		? sublist->peer().get()
 		: nullptr;
 	const auto allowUserOnline = true;// !context.narrow || badgesState.empty();
 	const auto flags = (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
-		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0))
-		| (peer && peer->isRepliesChat() ? Flag::RepliesMessages : Flag(0))
+		| ((sublist && from->isSelf())
+			? Flag::MyNotes
+			: (peer && peer->isSelf())
+			? Flag::SavedMessages
+			: Flag(0))
+		| ((from && from->isRepliesChat())
+			? Flag::RepliesMessages
+			: Flag(0))
+		| ((sublist && from->isSavedHiddenAuthor())
+			? Flag::HiddenAuthor
+			: Flag(0))
 		| (row->topicJumpRipple() ? Flag::TopicJumpRipple : Flag(0));
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
 		const auto texttop = context.st->textTop;
@@ -810,6 +848,8 @@ void RowPainter::Paint(
 			? nullptr
 			: thread
 			? &thread->lastItemDialogsView()
+			: sublist
+			? &sublist->lastItemDialogsView()
 			: nullptr;
 		if (view) {
 			const auto forum = context.st->topicsHeight
@@ -872,7 +912,9 @@ void RowPainter::Paint(
 			if (const auto peer = searchChat.peer()) {
 				if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 					if (peer->isSelf() || forwarded->imported) {
-						return forwarded->hiddenSenderInfo.get();
+						return forwarded->savedFromHiddenSenderInfo.get()
+							? forwarded->savedFromHiddenSenderInfo.get()
+							: forwarded->originalHiddenSenderInfo.get();
 					}
 				}
 			}

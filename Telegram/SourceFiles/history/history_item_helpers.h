@@ -43,7 +43,8 @@ enum class MediaCheckResult {
 	Good,
 	Unsupported,
 	Empty,
-	HasTimeToLive,
+	HasExpiredMediaTimeToLive,
+	HasUnsupportedTimeToLive,
 	HasStoryMention,
 };
 [[nodiscard]] MediaCheckResult CheckMessageMedia(
@@ -155,3 +156,6 @@ ClickHandlerPtr JumpToStoryClickHandler(
 	CallId callId);
 
 void ShowTrialTranscribesToast(int left, TimeId until);
+
+void ClearMediaAsExpired(not_null<HistoryItem*> item);
+[[nodiscard]] bool IsVoiceOncePlayable(not_null<HistoryItem*> item);

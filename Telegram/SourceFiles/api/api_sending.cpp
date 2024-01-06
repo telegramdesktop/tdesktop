@@ -42,6 +42,9 @@ void InnerFillMessagePostFlags(
 		not_null<PeerData*> peer,
 		MessageFlags &flags) {
 	const auto anonymousPost = peer->amAnonymous();
+	if (ShouldSendSilent(peer, options)) {
+		flags |= MessageFlag::Silent;
+	}
 	if (!anonymousPost || options.sendAs) {
 		flags |= MessageFlag::HasFromId;
 		return;
@@ -401,9 +404,6 @@ void SendConfirmedFile(
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, file->to.options);
 	FillMessagePostFlags(action, peer, flags);
-	if (silentPost) {
-		flags |= MessageFlag::Silent;
-	}
 	if (file->to.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 
@@ -443,11 +443,30 @@ void SendConfirmedFile(
 				MTPDocument(), // alt_document
 				MTPint());
 		} else if (file->type == SendMediaType::Audio) {
+			const auto ttlSeconds = file->to.options.ttlSeconds;
+			const auto isVoice = [&] {
+				return file->document.match([](const MTPDdocumentEmpty &d) {
+					return false;
+				}, [](const MTPDdocument &d) {
+					return ranges::any_of(d.vattributes().v, [&](
+							const MTPDocumentAttribute &attribute) {
+						using Att = MTPDdocumentAttributeAudio;
+						return attribute.match([](const Att &data) -> bool {
+							return data.vflags().v & Att::Flag::f_voice;
+						}, [](const auto &) {
+							return false;
+						});
+					});
+				});
+			}();
+			using Flag = MTPDmessageMediaDocument::Flag;
 			return MTP_messageMediaDocument(
-				MTP_flags(MTPDmessageMediaDocument::Flag::f_document),
+				MTP_flags(Flag::f_document
+					| (isVoice ? Flag::f_voice : Flag())
+					| (ttlSeconds ? Flag::f_ttl_seconds : Flag())),
 				file->document,
 				MTPDocument(), // alt_document
-				MTPint());
+				MTP_int(ttlSeconds));
 		} else {
 			Unexpected("Type in sendFilesConfirmed.");
 		}

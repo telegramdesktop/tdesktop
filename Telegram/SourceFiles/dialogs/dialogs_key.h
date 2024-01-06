@@ -14,6 +14,7 @@ namespace Data {
 class Thread;
 class Folder;
 class ForumTopic;
+class SavedSublist;
 } // namespace Data
 
 namespace Dialogs {
@@ -29,12 +30,14 @@ public:
 	Key(Data::Folder *folder);
 	Key(Data::Thread *thread);
 	Key(Data::ForumTopic *topic);
+	Key(Data::SavedSublist *sublist);
 	Key(not_null<Entry*> entry) : _value(entry) {
 	}
 	Key(not_null<History*> history);
 	Key(not_null<Data::Thread*> thread);
 	Key(not_null<Data::Folder*> folder);
 	Key(not_null<Data::ForumTopic*> topic);
+	Key(not_null<Data::SavedSublist*> sublist);
 
 	explicit operator bool() const {
 		return (_value != nullptr);
@@ -46,6 +49,7 @@ public:
 	[[nodiscard]] Data::Thread *thread() const;
 	[[nodiscard]] History *owningHistory() const;
 	[[nodiscard]] PeerData *peer() const;
+	[[nodiscard]] Data::SavedSublist *sublist() const;
 
 	friend inline constexpr auto operator<=>(Key, Key) noexcept = default;
 
@@ -102,6 +106,7 @@ struct EntryState {
 		Scheduled,
 		Pinned,
 		Replies,
+		SavedSublist,
 		ContextMenu,
 	};
 

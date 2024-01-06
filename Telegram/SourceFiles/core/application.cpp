@@ -683,7 +683,8 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 	} break;
 
 	case QEvent::ThemeChange: {
-		if (Platform::IsLinux() && object == QGuiApplication::allWindows().first()) {
+		if (Platform::IsLinux()
+				&& object == QGuiApplication::allWindows().constFirst()) {
 			Core::App().refreshApplicationIcon();
 			Core::App().tray().updateIconCounters();
 		}

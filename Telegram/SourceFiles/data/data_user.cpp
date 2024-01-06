@@ -368,7 +368,7 @@ QString UserData::username() const {
 }
 
 QString UserData::editableUsername() const {
-	return _username.editableUsername();;
+	return _username.editableUsername();
 }
 
 const std::vector<QString> &UserData::usernames() const {

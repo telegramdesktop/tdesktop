@@ -20,6 +20,7 @@ struct HistoryMessageViews;
 struct HistoryMessageMarkupData;
 struct HistoryMessageReplyMarkup;
 struct HistoryMessageTranslation;
+struct HistoryMessageForwarded;
 struct HistoryServiceDependentData;
 enum class HistorySelfDestructType;
 struct PreparedServiceText;
@@ -56,6 +57,7 @@ class ForumTopic;
 class Thread;
 struct SponsoredFrom;
 class Story;
+class SavedSublist;
 } // namespace Data
 
 namespace Main {
@@ -480,10 +482,20 @@ public:
 
 	[[nodiscard]] TimeId originalDate() const;
 	[[nodiscard]] PeerData *originalSender() const;
-	[[nodiscard]] const HiddenSenderInfo *hiddenSenderInfo() const;
+	[[nodiscard]] const HiddenSenderInfo *originalHiddenSenderInfo() const;
 	[[nodiscard]] not_null<PeerData*> fromOriginal() const;
 	[[nodiscard]] QString originalPostAuthor() const;
 	[[nodiscard]] MsgId originalId() const;
+
+	[[nodiscard]] Data::SavedSublist *savedSublist() const;
+	[[nodiscard]] PeerData *savedSublistPeer() const;
+	[[nodiscard]] PeerData *savedFromSender() const;
+	[[nodiscard]] const HiddenSenderInfo *savedFromHiddenSenderInfo() const;
+
+	[[nodiscard]] const HiddenSenderInfo *displayHiddenSenderInfo() const;
+
+	[[nodiscard]] bool showForwardsFromSender(
+		not_null<const HistoryMessageForwarded*> forwarded) const;
 
 	[[nodiscard]] bool isEmpty() const;
 
@@ -503,6 +515,11 @@ public:
 	[[nodiscard]] HistoryItem *lookupDiscussionPostOriginal() const;
 	[[nodiscard]] PeerData *displayFrom() const;
 	[[nodiscard]] uint8 colorIndex() const;
+
+	// In forwards we show name in sender's color, but the message
+	// content uses the color of the original sender.
+	[[nodiscard]] PeerData *contentColorsFrom() const;
+	[[nodiscard]] uint8 contentColorIndex() const;
 
 	[[nodiscard]] std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate,

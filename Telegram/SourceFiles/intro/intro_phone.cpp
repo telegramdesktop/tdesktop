@@ -169,7 +169,8 @@ void PhoneWidget::submit() {
 
 	// Check if such account is authorized already.
 	const auto digitsOnly = [](QString value) {
-		return value.replace(QRegularExpression("[^0-9]"), QString());
+		static const auto RegExp = QRegularExpression("[^0-9]");
+		return value.replace(RegExp, QString());
 	};
 	const auto phoneDigits = digitsOnly(phone);
 	for (const auto &[index, existing] : Core::App().domain().accounts()) {

@@ -90,11 +90,13 @@ struct BinRange {
 }
 
 [[nodiscard]] bool IsNumeric(const QString &value) {
-	return QRegularExpression("^[0-9]*$").match(value).hasMatch();
+	static const auto RegExp = QRegularExpression("^[0-9]*$");
+	return RegExp.match(value).hasMatch();
 }
 
 [[nodiscard]] QString RemoveWhitespaces(QString value) {
-	return value.replace(QRegularExpression("\\s"), QString());
+	static const auto RegExp = QRegularExpression("\\s");
+	return value.replace(RegExp, QString());
 }
 
 [[nodiscard]] std::vector<BinRange> BinRangesForNumber(
@@ -233,7 +235,7 @@ ExpireDateValidationResult ValidateExpireDate(
 		return { ValidationState::Incomplete };
 	}
 	const auto normalized = (sanitized[0] > '1' ? "0" : "") + sanitized;
-	const auto month = normalized.mid(0, 2).toInt();
+	const auto month = base::StringViewMid(normalized, 0, 2).toInt();
 	if (month < 1 || month > 12) {
 		return { ValidationState::Invalid };
 	} else if (normalized.size() < 4) {
@@ -241,7 +243,7 @@ ExpireDateValidationResult ValidateExpireDate(
 	} else if (normalized.size() > 4) {
 		return { ValidationState::Invalid };
 	}
-	const auto year = 2000 + normalized.mid(2).toInt();
+	const auto year = 2000 + base::StringViewMid(normalized, 2).toInt();
 
 	const auto thresholdDate = overrideExpireDateThreshold.value_or(
 		QDate::currentDate());

@@ -1218,7 +1218,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					width(),
 					st::msgPhotoSize,
 					context.paused);
-			} else if (const auto info = item->hiddenSenderInfo()) {
+			} else if (const auto info = item->displayHiddenSenderInfo()) {
 				if (info->customUserpic.empty()) {
 					info->emptyUserpic.paintCircle(
 						p,
@@ -2309,7 +2309,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				showContextInFolder(document);
 			}, &st::menuIconShowInFolder);
 		}
-		if (item && !hasCopyMediaRestriction(item)) {
+		if (item
+			&& !hasCopyMediaRestriction(item)
+			&& !HistoryView::ItemHasTtl(item)) {
 			HistoryView::AddSaveSoundForNotifications(
 				_menu,
 				item,

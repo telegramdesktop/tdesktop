@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_saved_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -44,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/history_unread_things.h"
 #include "core/application.h"
 #include "storage/storage_account.h"
@@ -1111,6 +1113,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 					? peerToMTP(_session->userPeerId())
 					: MTP_peerUser(d.vuser_id())),
 				MTP_peerUser(d.vuser_id()),
+				MTPPeer(), // saved_peer_id
 				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),
 				MTP_long(d.vvia_bot_id().value_or_empty()),
 				d.vreply_to() ? *d.vreply_to() : MTPMessageReplyHeader(),
@@ -1142,6 +1145,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				d.vid(),
 				MTP_peerUser(d.vfrom_id()),
 				MTP_peerChat(d.vchat_id()),
+				MTPPeer(), // saved_peer_id
 				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),
 				MTP_long(d.vvia_bot_id().value_or_empty()),
 				d.vreply_to() ? *d.vreply_to() : MTPMessageReplyHeader(),
@@ -1202,11 +1206,12 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 					item->markMediaAndMentionRead();
 					_session->data().requestItemRepaint(item);
 
-					if (item->out()
-						&& item->history()->peer->isUser()
-						&& !requestingDifference()) {
-						item->history()->peer->asUser()->madeAction(
-							base::unixtime::now());
+					if (item->out()) {
+						const auto user = item->history()->peer->asUser();
+						if (user && !requestingDifference()) {
+							user->madeAction(base::unixtime::now());
+						}
+						ClearMediaAsExpired(item);
 					}
 				}
 			} else {
@@ -2202,6 +2207,16 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		if (!done) {
 			session().api().requestPinnedDialogs(folder);
 		}
+	} break;
+
+	case mtpc_updatePinnedSavedDialogs: {
+		session().data().savedMessages().apply(
+			update.c_updatePinnedSavedDialogs());
+	} break;
+
+	case mtpc_updateSavedDialogPinned: {
+		session().data().savedMessages().apply(
+			update.c_updateSavedDialogPinned());
 	} break;
 
 	case mtpc_updateChannel: {

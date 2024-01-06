@@ -241,7 +241,7 @@ QString FindUpdateFile() {
 	}
 	const auto list = updates.entryInfoList(QDir::Files);
 	for (const auto &info : list) {
-		if (QRegularExpression(
+		static const auto RegExp = QRegularExpression(
 			"^("
 			"tupdate|"
 			"tx64upd|"
@@ -250,7 +250,8 @@ QString FindUpdateFile() {
 			"tlinuxupd|"
 			")\\d+(_[a-z\\d]+)?$",
 			QRegularExpression::CaseInsensitiveOption
-		).match(info.fileName()).hasMatch()) {
+		);
+		if (RegExp.match(info.fileName()).hasMatch()) {
 			return info.absoluteFilePath();
 		}
 	}

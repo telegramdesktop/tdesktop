@@ -819,7 +819,7 @@ EditorBlock::Row &EditorBlock::rowAtIndex(int index) {
 }
 
 int EditorBlock::findRowIndex(const QString &name) const {
-	return _indices.value(name, -1);;
+	return _indices.value(name, -1);
 }
 
 EditorBlock::Row *EditorBlock::findRow(const QString &name) {

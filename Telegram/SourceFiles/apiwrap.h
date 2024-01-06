@@ -34,6 +34,7 @@ class Forum;
 class ForumTopic;
 class Thread;
 class Story;
+class SavedMessages;
 } // namespace Data
 
 namespace InlineBots {
@@ -152,6 +153,7 @@ public:
 
 	void savePinnedOrder(Data::Folder *folder);
 	void savePinnedOrder(not_null<Data::Forum*> forum);
+	void savePinnedOrder(not_null<Data::SavedMessages*> saved);
 	void toggleHistoryArchived(
 		not_null<History*> history,
 		bool archived,

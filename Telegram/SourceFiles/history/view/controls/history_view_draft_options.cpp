@@ -376,7 +376,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 				userpicTop,
 				width(),
 				st::msgPhotoSize);
-		} else if (const auto info = item->hiddenSenderInfo()) {
+		} else if (const auto info = item->originalHiddenSenderInfo()) {
 			if (info->customUserpic.empty()) {
 				info->emptyUserpic.paintCircle(
 					p,

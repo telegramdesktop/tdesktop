@@ -81,8 +81,7 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	if (_parent->media() != this) {
 		return { newWidth, newHeight };
 	}
-	if (_parent->hasOutLayout()
-		&& !_parent->delegate()->elementIsChatWide()) {
+	if (_parent->hasRightLayout()) {
 		// Add some height to isolated emoji for the timestamp info.
 		const auto infoHeight = st::msgDateImgPadding.y() * 2
 			+ st::msgDateFont->height;
@@ -137,8 +136,7 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return;
 	}
-	const auto rightAligned = context.outbg
-		&& !_parent->delegate()->elementIsChatWide();
+	const auto rightAligned = _parent->hasRightLayout();
 	const auto inWebPage = (_parent->media() != this);
 	const auto item = _parent->data();
 	auto usex = 0;
@@ -248,8 +246,7 @@ void UnwrappedMedia::drawSurrounding(
 		const HistoryMessageForwarded *forwarded) const {
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	const auto rightAligned = context.outbg
-		&& !_parent->delegate()->elementIsChatWide();
+	const auto rightAligned = _parent->hasRightLayout();
 	const auto rightActionSize = _parent->rightActionSize();
 	const auto fullRight = calculateFullRight(inner);
 	auto fullBottom = height();
@@ -262,6 +259,7 @@ void UnwrappedMedia::drawSurrounding(
 			inner.x() * 2 + inner.width(),
 			InfoDisplayType::Background);
 	}
+	auto replyLeft = 0;
 	auto replyRight = 0;
 	auto rectw = _additionalOnTop
 		? std::min(width() - st::msgReplyPadding.left(), additionalWidth(topic, reply, via, forwarded))
@@ -340,11 +338,15 @@ void UnwrappedMedia::drawSurrounding(
 				}
 				reply->paint(p, _parent, context, rectx, recty, rectw, false);
 			}
+			replyLeft = rectx;
 			replyRight = rectx + rectw;
 		}
 	}
 	if (rightActionSize) {
 		const auto position = calculateFastActionPosition(
+			inner,
+			rightAligned,
+			replyLeft,
 			replyRight,
 			reply ? reply->height() : 0,
 			fullBottom,
@@ -360,8 +362,7 @@ PointState UnwrappedMedia::pointState(QPoint point) const {
 		return PointState::Outside;
 	}
 
-	const auto rightAligned = _parent->hasOutLayout()
-		&& !_parent->delegate()->elementIsChatWide();
+	const auto rightAligned = _parent->hasRightLayout();
 	const auto inWebPage = (_parent->media() != this);
 	auto usex = 0;
 	auto usew = _contentSize.width();
@@ -394,8 +395,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 
-	const auto rightAligned = _parent->hasOutLayout()
-		&& !_parent->delegate()->elementIsChatWide();
+	const auto rightAligned = _parent->hasRightLayout();
 	const auto inWebPage = (_parent->media() != this);
 	const auto item = _parent->data();
 	auto usex = 0;
@@ -420,6 +420,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		const auto reply = inWebPage ? nullptr : _parent->Get<Reply>();
 		const auto topic = inWebPage ? nullptr : _parent->displayedTopicButton();
 		const auto forwarded = inWebPage ? nullptr : getDisplayedForwardedInfo();
+		auto replyLeft = 0;
 		auto replyRight = 0;
 		auto rectw = _additionalOnTop
 			? std::min(width() - st::msgReplyPadding.left(), additionalWidth(topic, reply, via, forwarded))
@@ -491,7 +492,8 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 						reply->createRippleAnimation(_parent, replyRect.size());
 					}
 				}
-				replyRight = rectx + rectw - st::msgReplyPadding.right();
+				replyLeft = rectx;
+				replyRight = rectx + rectw;
 			}
 		}
 		const auto fullRight = calculateFullRight(inner);
@@ -509,6 +511,9 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		}
 		if (rightActionSize) {
 			const auto position = calculateFastActionPosition(
+				inner,
+				rightAligned,
+				replyLeft,
 				replyRight,
 				reply ? reply->height() : 0,
 				fullBottom,
@@ -544,8 +549,7 @@ QRect UnwrappedMedia::contentRectForReactions() const {
 	if (inWebPage) {
 		return QRect(0, 0, width(), height());
 	}
-	const auto rightAligned = _parent->hasOutLayout()
-		&& !_parent->delegate()->elementIsChatWide();
+	const auto rightAligned = _parent->hasRightLayout();
 	auto usex = 0;
 	auto usew = _contentSize.width();
 	accumulate_max(usew, _parent->reactionsOptimalWidth());
@@ -589,8 +593,7 @@ std::unique_ptr<StickerPlayer> UnwrappedMedia::stickerTakePlayer(
 }
 
 int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
-	const auto rightAligned = _parent->hasOutLayout()
-		&& !_parent->delegate()->elementIsChatWide();
+	const auto rightAligned = _parent->hasRightLayout();
 	const auto infoWidth = _parent->infoWidth()
 		+ st::msgDateImgPadding.x() * 2
 		+ st::msgReplyPadding.left();
@@ -606,13 +609,19 @@ int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
 	auto fullRight = inner.x()
 		+ inner.width()
 		+ (rightAligned ? 0 : infoWidth);
-	if (fullRight + rightActionWidth + rightSkip > _parent->width()) {
-		fullRight = _parent->width() - rightActionWidth - rightSkip;
+	const auto rightActionSkip = rightAligned ? 0 : rightActionWidth;
+	if (fullRight + rightActionSkip + rightSkip > _parent->width()) {
+		fullRight = _parent->width()
+			- (rightAligned ? 0 : rightActionSkip)
+			- rightSkip;
 	}
 	return fullRight;
 }
 
 QPoint UnwrappedMedia::calculateFastActionPosition(
+		QRect inner,
+		bool rightAligned,
+		int replyLeft,
 		int replyRight,
 		int replyHeight,
 		int fullBottom,
@@ -623,9 +632,12 @@ QPoint UnwrappedMedia::calculateFastActionPosition(
 		- size.height());
 	const auto doesRightActionHitReply = replyRight
 		&& (fastShareTop < replyHeight);
-	const auto fastShareLeft = ((doesRightActionHitReply
-		? replyRight
-		: fullRight) + st::historyFastShareLeft);
+	const auto fastShareLeft = rightAligned
+		? ((doesRightActionHitReply ? replyLeft : inner.x())
+			- size.width()
+			- st::historyFastShareLeft)
+		: ((doesRightActionHitReply ? replyRight : fullRight)
+			+ st::historyFastShareLeft);
 	return QPoint(fastShareLeft, fastShareTop);
 }
 
@@ -635,8 +647,7 @@ bool UnwrappedMedia::needInfoDisplay() const {
 		|| _parent->isUnderCursor()
 		|| _parent->rightActionSize()
 		|| _parent->isLastAndSelfMessage()
-		|| (_parent->hasOutLayout()
-			&& !_parent->delegate()->elementIsChatWide()
+		|| (_parent->hasRightLayout()
 			&& _content->alwaysShowOutTimestamp());
 }
 

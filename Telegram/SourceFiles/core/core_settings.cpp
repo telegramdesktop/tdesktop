@@ -1258,7 +1258,7 @@ void Settings::resetOnLastLogout() {
 	_tabbedReplacedWithInfo = false; // per-window
 	_systemDarkModeEnabled = false;
 	_hiddenGroupCallTooltips = 0;
-	_storiesClickTooltipHidden = 0;
+	_storiesClickTooltipHidden = false;
 
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();

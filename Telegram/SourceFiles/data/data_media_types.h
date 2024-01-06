@@ -174,6 +174,7 @@ public:
 	virtual bool dropForwardedInfo() const;
 	virtual bool forceForwardedInfo() const;
 	[[nodiscard]] virtual bool hasSpoiler() const;
+	[[nodiscard]] virtual crl::time ttlSeconds() const;
 
 	[[nodiscard]] virtual bool consumeMessageText(
 		const TextWithEntities &text);
@@ -256,7 +257,8 @@ public:
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> document,
 		bool skipPremiumEffect,
-		bool spoiler);
+		bool spoiler,
+		crl::time ttlSeconds);
 	~MediaFile();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -278,6 +280,8 @@ public:
 	bool forwardedBecomesUnread() const override;
 	bool dropForwardedInfo() const override;
 	bool hasSpoiler() const override;
+	crl::time ttlSeconds() const override;
+	bool allowsForward() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -291,6 +295,9 @@ private:
 	QString _emoji;
 	bool _skipPremiumEffect = false;
 	bool _spoiler = false;
+
+	// Video (unsupported) / Voice / Round.
+	crl::time _ttlSeconds = 0;
 
 };
 

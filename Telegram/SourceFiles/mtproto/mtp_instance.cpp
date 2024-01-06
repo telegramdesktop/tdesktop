@@ -1354,8 +1354,11 @@ bool Instance::Private::onErrorDefault(
 	const auto &type = error.type();
 	const auto code = error.code();
 	auto badGuestDc = (code == 400) && (type == u"FILE_ID_INVALID"_q);
+	static const auto MigrateRegExp = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$");
+	static const auto FloodWaitRegExp = QRegularExpression("^FLOOD_WAIT_(\\d+)$");
+	static const auto SlowmodeWaitRegExp = QRegularExpression("^SLOWMODE_WAIT_(\\d+)$");
 	QRegularExpressionMatch m1, m2;
-	if ((m1 = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(type)).hasMatch()) {
+	if ((m1 = MigrateRegExp.match(type)).hasMatch()) {
 		if (!requestId) return false;
 
 		auto dcWithShift = ShiftedDcId(0);
@@ -1458,8 +1461,8 @@ bool Instance::Private::onErrorDefault(
 		return true;
 	} else if (code < 0
 		|| code >= 500
-		|| (m1 = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(type)).hasMatch()
-		|| ((m2 = QRegularExpression("^SLOWMODE_WAIT_(\\d+)$").match(type)).hasMatch()
+		|| (m1 = FloodWaitRegExp.match(type)).hasMatch()
+		|| ((m2 = SlowmodeWaitRegExp.match(type)).hasMatch()
 			&& m2.captured(1).toInt() < 3)) {
 		if (!requestId) return false;
 

@@ -37,8 +37,12 @@ private:
 		LPARAM lParam,
 		LRESULT *result);
 
+	void createCustomJumpList();
+	void refreshCustomJumpList();
+
 	uint32 _taskbarCreatedMsgId = 0;
 	winrt::com_ptr<ITaskbarList3> _taskbarList;
+	winrt::com_ptr<ICustomDestinationList> _jumpList;
 
 };
 
