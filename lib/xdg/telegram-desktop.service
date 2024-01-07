@@ -1,0 +1,13 @@
+[Unit]
+Description=Official desktop version of Telegram messaging app
+
+[Service]
+Type=dbus
+BusName=org.telegram.desktop
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/telegram-desktop
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
+Slice=app.slice
