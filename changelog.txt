@@ -1,3 +1,9 @@
+4.14.4 (08.01.24)
+
+- Switch between logged in accounts using Ctrl+Shift+[1-6] shortcuts.
+- Add poll creation in groups to the attach menu, if exists.
+- Another fix for payment card validation.
+
 4.14.3 (04.01.24)
 
 - Allow sending single-time voice messages.
