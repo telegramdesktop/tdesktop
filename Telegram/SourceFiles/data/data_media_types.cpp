@@ -902,7 +902,7 @@ bool MediaFile::uploading() const {
 
 Storage::SharedMediaTypesMask MediaFile::sharedMediaTypes() const {
 	using Type = Storage::SharedMediaType;
-	if (_document->sticker()) {
+	if (_document->sticker() || ttlSeconds()) {
 		return {};
 	} else if (_document->isVideoMessage()) {
 		return Storage::SharedMediaTypesMask{}
