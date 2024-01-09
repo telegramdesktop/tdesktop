@@ -99,6 +99,7 @@ void DrawCornerBadgeTTL(
 	struct State final {
 		std::unique_ptr<Lottie::Icon> start;
 		std::unique_ptr<Lottie::Icon> idle;
+		bool started = false;
 	};
 	const auto iconSize = Size(std::min(
 		st::historyFileInPause.width(),
@@ -110,36 +111,37 @@ void DrawCornerBadgeTTL(
 		.sizeOverride = iconSize,
 	});
 
-	const auto animateSingle = [=](
-			not_null<Lottie::Icon*> icon,
-			Fn<void()> next) {
-		auto callback = [=] {
-			update();
-			if (icon->frameIndex() == icon->framesCount()) {
-				next();
-			}
-		};
-		icon->animate(std::move(callback), 0, icon->framesCount());
-	};
-	const auto animate = [=](auto reanimate) -> void {
-		animateSingle(state->idle.get(), [=] { reanimate(reanimate); });
-	};
-	animateSingle(
-		state->start.get(),
-		[=] {
-			state->idle = Lottie::MakeIcon({
-				.name = u"voice_ttl_idle"_q,
-				.color = &st::historyFileInIconFg,
-				.sizeOverride = iconSize,
-			});
-			animate(animate);
-		});
 	const auto weak = std::weak_ptr(lifetime);
 	return [=](QPainter &p, QRect r, QColor c) {
 		if (weak.expired()) {
 			return;
 		}
-		(state->idle ? state->idle : state->start)->paintInCenter(p, r, c);
+		{
+			const auto &icon = state->idle;
+			if (icon) {
+				icon->paintInCenter(p, r, c);
+				if (!icon->animating()) {
+					icon->animate(update, 0, icon->framesCount());
+				}
+				return;
+			}
+		}
+		{
+			const auto &icon = state->start;
+			icon->paintInCenter(p, r, c);
+			if (!icon->animating()) {
+				if (!state->started) {
+					icon->animate(update, 0, icon->framesCount());
+					state->started = true;
+				} else {
+					state->idle = Lottie::MakeIcon({
+						.name = u"voice_ttl_idle"_q,
+						.color = &st::historyFileInIconFg,
+						.sizeOverride = iconSize,
+					});
+				}
+			}
+		}
 	};
 }
 
