@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -95,6 +96,11 @@ private:
 	const std::unique_ptr<PreviewDelegate> _delegate;
 	std::unique_ptr<HistoryView::Element> _element;
 	rpl::lifetime _elementLifetime;
+
+	struct {
+		QImage frame;
+		bool use = false;
+	} _last;
 
 	rpl::event_stream<> _closeRequests;
 
@@ -200,7 +206,10 @@ PreviewWrap::PreviewWrap(
 
 	HistoryView::TTLVoiceStops(
 		item->fullId()
-	) | rpl::start_with_next(closeCallback, lifetime());
+	) | rpl::start_with_next([=] {
+		_last.use = true;
+		closeCallback();
+	}, lifetime());
 }
 
 QRect PreviewWrap::elementRect() const {
@@ -225,20 +234,32 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	auto p = Painter(this);
+	auto p = QPainter(this);
 	const auto r = rect();
 
-	auto context = _theme->preparePaintContext(
-		_style.get(),
-		r,
-		e->rect(),
-		!window()->isActiveWindow());
-	context.outbg = _element->hasOutLayout();
-
+	if (!_last.use) {
+		const auto size = _element->currentSize();
+		auto result = QImage(
+			size * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		result.fill(Qt::transparent);
+		result.setDevicePixelRatio(style::DevicePixelRatio());
+		{
+			auto q = Painter(&result);
+			auto context = _theme->preparePaintContext(
+				_style.get(),
+				Rect(size),
+				Rect(size),
+				!window()->isActiveWindow());
+			context.outbg = _element->hasOutLayout();
+			_element->draw(q, context);
+		}
+		_last.frame = std::move(result);
+	}
 	p.translate(
 		(r.width() - _element->width()) / 2,
 		(r.height() - _element->height()) / 2);
-	_element->draw(p, context);
+	p.drawImage(0, 0, _last.frame);
 }
 
 } // namespace
