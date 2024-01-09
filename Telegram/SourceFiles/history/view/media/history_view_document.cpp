@@ -1262,18 +1262,22 @@ TextState Document::textState(
 void Document::updatePressed(QPoint point) {
 	// LayoutMode should be passed here.
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
-		if (voice->seeking()) {
-			const auto thumbed = Get<HistoryDocumentThumbed>();
-			const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
-			const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
-			const auto nameright = st.padding.right();
-			voice->setSeekingCurrent(std::clamp(
-				(point.x() - nameleft)
-					/ float64(width() - nameleft - nameright),
-				0.,
-				1.));
-			repaint();
+		if (!voice->seeking()) {
+			return;
 		}
+		const auto thumbed = Get<HistoryDocumentThumbed>();
+		const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
+		const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
+		const auto nameright = st.padding.right();
+		const auto transcribeWidth = voice->transcribe
+			? (st::historyTranscribeSkip + voice->transcribe->size().width())
+			: 0;
+		voice->setSeekingCurrent(std::clamp(
+			(point.x() - nameleft)
+				/ float64(width() - transcribeWidth - nameleft - nameright),
+			0.,
+			1.));
+		repaint();
 	}
 }
 
