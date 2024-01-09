@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_attached_stickers.h"
 #include "api/api_editing.h"
+#include "api/api_global_privacy.h"
 #include "api/api_polls.h"
 #include "api/api_report.h"
 #include "api/api_ringtones.h"
@@ -41,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/report_messages_box.h"
+#include "boxes/premium_preview_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/translate_box.h"
@@ -62,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "base/platform/base_platform_info.h"
 #include "base/call_delayed.h"
+#include "settings/settings_premium.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -1265,11 +1268,23 @@ void AddWhoReactedAction(
 		not_null<Window::SessionController*> controller) {
 	const auto whoReadIds = std::make_shared<Api::WhoReadList>();
 	const auto weak = Ui::MakeWeak(menu.get());
+	const auto user = item->history()->peer;
 	const auto participantChosen = [=](uint64 id) {
 		if (const auto strong = weak.data()) {
 			strong->hideMenu();
 		}
-		controller->showPeerInfo(PeerId(id));
+		if (id) {
+			controller->showPeerInfo(PeerId(id));
+		} else {
+			const auto type = ShowOrPremium::ReadTime;
+			auto box = Box(ShowOrPremiumBox, type, user->shortName(), [=] {
+				const auto api = &controller->session().api();
+				api->globalPrivacy().updateHideReadTime({});
+			}, [=] {
+				Settings::ShowPremium(controller, u"revtime_hidden"_q);
+			});
+			controller->show(std::move(box));
+		}
 	};
 	const auto showAllChosen = [=, itemId = item->fullId()]{
 		// Pressing on an item that has a submenu doesn't hide it :(
@@ -1396,7 +1411,7 @@ void ShowWhoReactedMenu(
 		context,
 		st::defaultWhoRead
 	) | rpl::filter([=](const Ui::WhoReadContent &content) {
-		return !content.unknown;
+		return content.state != Ui::WhoReadState::Unknown;
 	}) | rpl::start_with_next([=, &lifetime](Ui::WhoReadContent &&content) {
 		const auto creating = !*menu;
 		const auto refillTop = [=] {

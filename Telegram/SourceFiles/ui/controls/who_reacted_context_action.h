@@ -38,13 +38,21 @@ enum class WhoReadType {
 	Reacted,
 };
 
+enum class WhoReadState : uchar {
+	Empty,
+	Unknown,
+	MyHidden,
+	HisHidden,
+	TooOld,
+};
+
 struct WhoReadContent {
 	std::vector<WhoReadParticipant> participants;
 	WhoReadType type = WhoReadType::Seen;
 	QString singleCustomEntityData;
 	int fullReactionsCount = 0;
 	int fullReadCount = 0;
-	bool unknown = false;
+	WhoReadState state = WhoReadState::Empty;
 };
 
 [[nodiscard]] base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(

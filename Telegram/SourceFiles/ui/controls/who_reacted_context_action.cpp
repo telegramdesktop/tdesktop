@@ -178,7 +178,7 @@ Action::Action(
 	) | rpl::start_with_next([=](WhoReadContent &&content) {
 		checkAppeared();
 		const auto changed = (_content.participants != content.participants)
-			|| (_content.unknown != content.unknown);
+			|| (_content.state != content.state);
 		_content = content;
 		if (changed) {
 			PostponeCall(this, [=] { populateSubmenu(); });
@@ -218,6 +218,10 @@ Action::Action(
 		} else if (_content.fullReactionsCount > 0) {
 			if (const auto onstack = _showAllChosen) {
 				onstack();
+			}
+		} else if (_content.state == WhoReadState::MyHidden) {
+			if (const auto onstack = _participantChosen) {
+				onstack(0);
 			}
 		}
 	}, lifetime());
@@ -379,8 +383,13 @@ void Action::refreshText() {
 	const auto count = std::max(_content.fullReactionsCount, usersCount);
 	_text.setMarkedText(
 		_st.itemStyle,
-		{ (_content.unknown
+		{ ((_content.state == WhoReadState::Unknown)
 			? tr::lng_context_seen_loading(tr::now)
+			: (_content.state == WhoReadState::MyHidden)
+			? tr::lng_context_read_show(tr::now)
+			: (_content.state == WhoReadState::HisHidden
+				|| _content.state == WhoReadState::TooOld)
+			? tr::lng_context_read_hidden(tr::now)
 			: (usersCount == 1)
 			? _content.participants.front().name
 			: (_content.fullReactionsCount > 0
@@ -431,7 +440,8 @@ void Action::refreshDimensions() {
 }
 
 bool Action::isEnabled() const {
-	return !_content.participants.empty();
+	return !_content.participants.empty()
+		|| (_content.state == WhoReadState::MyHidden);
 }
 
 not_null<QAction*> Action::action() const {
