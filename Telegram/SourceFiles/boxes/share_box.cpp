@@ -882,7 +882,7 @@ auto ShareBox::Inner::getChat(not_null<Dialogs::Row*> row)
 		row->attached = i->second.get();
 		return i->second.get();
 	}
-	const auto [i, ok] = _dataMap.emplace(
+	const auto &[i, ok] = _dataMap.emplace(
 		peer,
 		std::make_unique<Chat>(peer, _st.item, [=] { repaintChat(peer); }));
 	updateChatName(i->second.get());

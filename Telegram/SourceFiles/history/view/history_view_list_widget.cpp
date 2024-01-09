@@ -901,7 +901,7 @@ not_null<Element*> ListWidget::enforceViewForItem(
 			return j->second.get();
 		}
 	}
-	const auto [i, ok] = _views.emplace(
+	const auto &[i, ok] = _views.emplace(
 		item,
 		item->createView(this));
 	return i->second.get();
@@ -1094,7 +1094,7 @@ void ListWidget::repaintScrollDateCallback() {
 
 auto ListWidget::collectSelectedItems() const -> SelectedItems {
 	auto transformation = [&](const auto &item) {
-		const auto [itemId, selection] = item;
+		const auto &[itemId, selection] = item;
 		auto result = SelectedItem(itemId);
 		result.canDelete = selection.canDelete;
 		result.canForward = selection.canForward;
@@ -3766,7 +3766,7 @@ void ListWidget::refreshItem(not_null<const Element*> view) {
 			}
 			return nullptr;
 		}();
-		const auto [i, ok] = _views.emplace(
+		const auto &[i, ok] = _views.emplace(
 			item,
 			item->createView(this, was.get()));
 		const auto now = i->second.get();

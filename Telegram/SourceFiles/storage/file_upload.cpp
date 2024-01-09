@@ -359,7 +359,7 @@ void Uploader::upload(
 void Uploader::currentFailed() {
 	auto j = queue.find(uploadingId);
 	if (j != queue.end()) {
-		const auto [msgId, file] = std::move(*j);
+		const auto &[msgId, file] = std::move(*j);
 		queue.erase(j);
 		notifyFailed(msgId, file);
 	}
@@ -640,7 +640,7 @@ void Uploader::cancelAll() {
 		currentFailed();
 	}
 	while (!queue.empty()) {
-		const auto [msgId, file] = std::move(*queue.begin());
+		const auto &[msgId, file] = std::move(*queue.begin());
 		queue.erase(queue.begin());
 		notifyFailed(msgId, file);
 	}

@@ -1097,7 +1097,7 @@ void Session::watchForOffline(not_null<UserData*> user, TimeId now) {
 		return;
 	}
 	const auto till = user->onlineTill;
-	const auto [i, ok] = _watchingForOffline.emplace(user, till);
+	const auto &[i, ok] = _watchingForOffline.emplace(user, till);
 	if (!ok) {
 		if (i->second == till) {
 			return;
@@ -1626,7 +1626,7 @@ HistoryItem *Session::changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId) {
 	}
 	const auto item = i->second;
 	list->erase(i);
-	const auto [j, ok] = list->emplace(nowId, item);
+	const auto &[j, ok] = list->emplace(nowId, item);
 
 	if (!peerIsChannel(peerId)) {
 		if (IsServerMsgId(wasId)) {
@@ -1789,7 +1789,7 @@ void Session::registerHighlightProcess(
 		not_null<HistoryItem*> item) {
 	Expects(item->inHighlightProcess());
 
-	const auto [i, ok] = _highlightings.emplace(processId, item);
+	const auto &[i, ok] = _highlightings.emplace(processId, item);
 
 	Ensures(ok);
 }
@@ -4208,7 +4208,7 @@ not_null<Folder*> Session::folder(FolderId id) {
 	if (const auto result = folderLoaded(id)) {
 		return result;
 	}
-	const auto [it, ok] = _folders.emplace(
+	const auto &[it, ok] = _folders.emplace(
 		id,
 		std::make_unique<Folder>(this, id));
 	return it->second.get();

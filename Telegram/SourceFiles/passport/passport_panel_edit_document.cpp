@@ -530,7 +530,7 @@ void PanelEditDocument::createDetailsRow(
 	const auto isoByPhone = Countries::Instance().countryISO2ByPhone(
 		_controller->bot()->session().user()->phone());
 
-	const auto [it, ok] = _details.emplace(
+	const auto &[it, ok] = _details.emplace(
 		i,
 		container->add(Ui::PanelDetailsRow::Create(
 			container,

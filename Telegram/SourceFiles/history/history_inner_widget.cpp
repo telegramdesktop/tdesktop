@@ -1992,7 +1992,7 @@ void HistoryInner::mouseActionFinish(
 		&& !_selected.empty()
 		&& _selected.cbegin()->second != FullSelection
 		&& !hasCopyRestriction(_selected.cbegin()->first)) {
-		const auto [item, selection] = *_selected.cbegin();
+		const auto &[item, selection] = *_selected.cbegin();
 		if (const auto view = viewByItem(item)) {
 			TextUtilities::SetClipboardText(
 				view->selectedText(selection),
@@ -2925,7 +2925,7 @@ TextForMimeData HistoryInner::getSelectedText() const {
 		return TextForMimeData();
 	}
 	if (selected.cbegin()->second != FullSelection) {
-		const auto [item, selection] = *selected.cbegin();
+		const auto &[item, selection] = *selected.cbegin();
 		if (const auto view = viewByItem(item)) {
 			return view->selectedText(selection);
 		}

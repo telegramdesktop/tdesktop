@@ -20,7 +20,7 @@ namespace Ui {
 namespace {
 
 [[nodiscard]] int SameFirstPartLength(const QString &a, const QString &b) {
-	const auto [i, j] = ranges::mismatch(a, b);
+	const auto &[i, j] = ranges::mismatch(a, b);
 	return (i - a.begin());
 }
 

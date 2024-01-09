@@ -2458,7 +2458,7 @@ void InnerWidget::appendToFiltered(Key key) {
 	}
 	auto row = std::make_unique<Row>(key, 0, 0);
 	row->recountHeight(_narrowRatio);
-	const auto [i, ok] = _filterResultsGlobal.emplace(key, std::move(row));
+	const auto &[i, ok] = _filterResultsGlobal.emplace(key, std::move(row));
 	const auto height = filteredHeight();
 	_filterResults.emplace_back(i->second.get());
 	_filterResults.back().top = height;
@@ -3913,7 +3913,7 @@ void InnerWidget::setupShortcuts() {
 			auto &&folders = ranges::views::zip(
 				Shortcuts::kShowFolder,
 				ranges::views::ints(0, ranges::unreachable));
-			for (const auto [command, index] : folders) {
+			for (const auto &[command, index] : folders) {
 				const auto select = (command == Command::ShowFolderLast)
 					? (filtersCount - 1)
 					: std::clamp(index, 0, filtersCount - 1);
@@ -3940,7 +3940,7 @@ void InnerWidget::setupShortcuts() {
 		auto &&pinned = ranges::views::zip(
 			kPinned,
 			ranges::views::ints(0, ranges::unreachable));
-		for (const auto [command, index] : pinned) {
+		for (const auto &[command, index] : pinned) {
 			request->check(command) && request->handle([=, index = index] {
 				const auto list = (_filterId
 					? session().data().chatsFilters().chatsList(_filterId)

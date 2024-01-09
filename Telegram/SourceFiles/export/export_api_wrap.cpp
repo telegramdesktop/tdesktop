@@ -1553,7 +1553,7 @@ void ApiWrap::appendChatsSlice(
 				continue;
 			}
 		}
-		const auto [i, ok] = process.indexByPeer.emplace(
+		const auto &[i, ok] = process.indexByPeer.emplace(
 			info.peerId,
 			nextIndex);
 		if (ok) {

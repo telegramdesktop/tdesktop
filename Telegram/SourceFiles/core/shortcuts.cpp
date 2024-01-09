@@ -402,7 +402,7 @@ void Manager::fillDefaults() {
 		kShowFolder,
 		ranges::views::ints(1, ranges::unreachable));
 
-	for (const auto [command, index] : folders) {
+	for (const auto &[command, index] : folders) {
 		set(u"%1+%2"_q.arg(ctrl).arg(index), command);
 	}
 
@@ -410,7 +410,7 @@ void Manager::fillDefaults() {
 		kShowAccount,
 		ranges::views::ints(1, ranges::unreachable));
 
-	for (const auto [command, index] : accounts) {
+	for (const auto &[command, index] : accounts) {
 		set(u"%1+shift+%2"_q.arg(ctrl).arg(index), command);
 	}
 

@@ -1791,7 +1791,7 @@ void FormController::loadFile(File &file) {
 		return;
 	}
 	file.downloadStatus.set(LoadStatus::Status::InProgress, 0);
-	const auto [j, ok] = _fileLoaders.emplace(
+	const auto &[j, ok] = _fileLoaders.emplace(
 		key,
 		std::make_unique<mtpFileLoader>(
 			&_controller->session(),
@@ -1823,7 +1823,7 @@ void FormController::loadFile(File &file) {
 }
 
 void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
-	if (const auto [value, file] = findFile(key); file != nullptr) {
+	if (const auto &[value, file] = findFile(key); file != nullptr) {
 		const auto decrypted = DecryptData(
 			bytes::make_span(bytes),
 			file->hash,
@@ -1843,7 +1843,7 @@ void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
 }
 
 void FormController::fileLoadProgress(FileKey key, int offset) {
-	if (const auto [value, file] = findFile(key); file != nullptr) {
+	if (const auto &[value, file] = findFile(key); file != nullptr) {
 		file->downloadStatus.set(LoadStatus::Status::InProgress, offset);
 		if (const auto fileInEdit = findEditFile(key)) {
 			fileInEdit->fields.downloadStatus = file->downloadStatus;
@@ -1853,7 +1853,7 @@ void FormController::fileLoadProgress(FileKey key, int offset) {
 }
 
 void FormController::fileLoadFail(FileKey key) {
-	if (const auto [value, file] = findFile(key); file != nullptr) {
+	if (const auto &[value, file] = findFile(key); file != nullptr) {
 		file->downloadStatus.set(LoadStatus::Status::Failed);
 		if (const auto fileInEdit = findEditFile(key)) {
 			fileInEdit->fields.downloadStatus = file->downloadStatus;
@@ -2591,7 +2591,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 		const auto row = CollectRequestedRow(required);
 		for (const auto &requested : row.values) {
 			const auto type = requested.type;
-			const auto [i, ok] = _form.values.emplace(type, Value(type));
+			const auto &[i, ok] = _form.values.emplace(type, Value(type));
 			auto &value = i->second;
 			value.translationRequired = requested.translationRequired;
 			value.selfieRequired = requested.selfieRequired;

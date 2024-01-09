@@ -3013,7 +3013,7 @@ void GroupCall::checkLastSpoke() {
 	const auto now = crl::now();
 	auto list = base::take(_lastSpoke);
 	for (auto i = list.begin(); i != list.end();) {
-		const auto [ssrc, when] = *i;
+		const auto &[ssrc, when] = *i;
 		if (when.anything + kKeepInListFor >= now) {
 			hasRecent = true;
 			++i;
