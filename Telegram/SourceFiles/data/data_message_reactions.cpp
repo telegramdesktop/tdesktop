@@ -179,6 +179,7 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			}
 		}
 		result.customAllowed = premiumPossible;
+		result.tags = true;
 	} else if (limited) {
 		result.recent.reserve(all.size());
 		add([&](const Reaction &reaction) {
@@ -243,11 +244,12 @@ PossibleItemReactionsRef LookupPossibleReactions(
 
 PossibleItemReactions::PossibleItemReactions(
 	const PossibleItemReactionsRef &other)
-	: recent(other.recent | ranges::views::transform([](const auto &value) {
+: recent(other.recent | ranges::views::transform([](const auto &value) {
 	return *value;
 }) | ranges::to_vector)
 , morePremiumAvailable(other.morePremiumAvailable)
-, customAllowed(other.customAllowed) {
+, customAllowed(other.customAllowed)
+, tags(other.tags){
 }
 
 Reactions::Reactions(not_null<Session*> owner)

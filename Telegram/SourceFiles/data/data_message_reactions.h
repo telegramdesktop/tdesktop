@@ -42,6 +42,7 @@ struct PossibleItemReactionsRef {
 	std::vector<not_null<const Reaction*>> recent;
 	bool morePremiumAvailable = false;
 	bool customAllowed = false;
+	bool tags = false;
 };
 
 struct PossibleItemReactions {
@@ -51,6 +52,7 @@ struct PossibleItemReactions {
 	std::vector<Reaction> recent;
 	bool morePremiumAvailable = false;
 	bool customAllowed = false;
+	bool tags = false;
 };
 
 [[nodiscard]] PossibleItemReactionsRef LookupPossibleReactions(

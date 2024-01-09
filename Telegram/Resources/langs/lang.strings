@@ -2749,7 +2749,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_reacted#other" = "{count} Reacted";
 "lng_context_seen_reacted_none" = "Nobody Reacted";
 "lng_context_seen_reacted_all" = "Show All Reactions";
-"lng_context_set_as_quick" = "Set As Quick";
+"lng_context_set_as_quick" = "Set as Quick";
+"lng_context_filter_by_tag" = "Filter by Tag";
+"lng_context_remove_tag" = "Remove Tag";
 "lng_context_delete_from_disk" = "Delete from disk";
 "lng_context_delete_all_files" = "Delete all files";
 "lng_context_save_custom_sound" = "Save for notifications";
