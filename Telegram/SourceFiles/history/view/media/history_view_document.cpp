@@ -45,28 +45,25 @@ namespace {
 
 constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 
-void DrawCornerBadgeTTL(
-		QPainter &p,
-		const style::color &bg,
-		const style::color &fg,
-		const QRect &circleRect) {
-	p.save();
-	const auto partRect = QRectF(
-		rect::right(circleRect)
+[[nodiscard]] QRect TTLRectFromInner(const QRect &inner) {
+	return QRect(
+		rect::right(inner)
 			- st::dialogsTTLBadgeSize
-			+ rect::m::sum::h(st::dialogsTTLBadgeInnerMargins),
-		rect::bottom(circleRect)
+			+ rect::m::sum::h(st::dialogsTTLBadgeInnerMargins)
+			- st::dialogsTTLBadgeSkip.x(),
+		rect::bottom(inner)
 			- st::dialogsTTLBadgeSize
-			+ rect::m::sum::v(st::dialogsTTLBadgeInnerMargins),
+			+ rect::m::sum::v(st::dialogsTTLBadgeInnerMargins)
+			- st::dialogsTTLBadgeSkip.y(),
 		st::dialogsTTLBadgeSize,
 		st::dialogsTTLBadgeSize);
+}
 
+void DrawCornerBadgeTTL(QPainter &p, const QColor &fg, const QRect &ttlRect) {
+	p.save();
 	auto hq = PainterHighQualityEnabler(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(bg);
-	p.drawEllipse(partRect);
 
-	const auto innerRect = partRect - st::dialogsTTLBadgeInnerMargins;
+	const auto innerRect = QRectF(ttlRect - st::dialogsTTLBadgeInnerMargins);
 	const auto ttlText = u"1"_q;
 
 	p.setFont(st::dialogsScamFont);
@@ -716,6 +713,11 @@ void Document::draw(
 	} else {
 		p.setPen(Qt::NoPen);
 
+		const auto hasTtlBadge = _parent->data()->media()
+			&& _parent->data()->media()->ttlSeconds()
+			&& _openl;
+		const auto ttlRect = hasTtlBadge ? TTLRectFromInner(inner) : QRect();
+
 		const auto coverDrawn = _data->isSongWithCover()
 			&& DrawThumbnailAsSongCover(
 				p,
@@ -740,9 +742,12 @@ void Document::draw(
 					}
 				}
 			} else {
-				PainterHighQualityEnabler hq(p);
+				auto hq = PainterHighQualityEnabler(p);
 				p.setBrush(stm->msgFileBg);
 				p.drawEllipse(inner);
+				if (hasTtlBadge) {
+					p.drawEllipse(ttlRect);
+				}
 			}
 		}
 
@@ -791,6 +796,9 @@ void Document::draw(
 				QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 				_animation->radial.draw(q, rinner, st::msgFileRadialLine, stm->historyFileRadialFg);
 			}
+			if (hasTtlBadge) {
+				DrawCornerBadgeTTL(q, stm->historyFileRadialFg->c, ttlRect);
+			}
 		};
 		if (_data->isSongWithCover() || !usesBubblePattern(context)) {
 			paintContent(p);
@@ -799,7 +807,7 @@ void Document::draw(
 				p,
 				context.viewport,
 				context.bubblesPattern->pixmap,
-				inner,
+				hasTtlBadge ? inner.united(ttlRect) : inner,
 				paintContent,
 				_iconCache);
 		}
@@ -918,13 +926,6 @@ void Document::draw(
 			.selection = selection,
 			.highlight = highlightRequest ? &*highlightRequest : nullptr,
 		});
-	}
-	if ((_parent->data()->media() && _parent->data()->media()->ttlSeconds())
-		&& _openl) {
-		const auto &fg = context.outbg
-			? st::historyFileOutIconFg
-			: st::historyFileInIconFg;
-		DrawCornerBadgeTTL(p, stm->msgFileBg, fg, inner);
 	}
 }
 
