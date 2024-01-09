@@ -710,21 +710,13 @@ object_ptr<Ui::RpWidget> LastSeenPrivacyController::setupBelowWidget(
 void LastSeenPrivacyController::confirmSave(
 		bool someAreDisallowed,
 		Fn<void()> saveCallback) {
-	const auto privacy = &_session->api().globalPrivacy();
-	const auto hideReadTime = _hideReadTime;
-	const auto save = [=, saveCallback = std::move(saveCallback)] {
-		if (privacy->hideReadTimeCurrent() != hideReadTime) {
-			privacy->updateHideReadTime(hideReadTime);
-		}
-		saveCallback();
-	};
 	if (someAreDisallowed && !Core::App().settings().lastSeenWarningSeen()) {
 		auto callback = [
 			=,
-			save = std::move(save)
+			saveCallback = std::move(saveCallback)
 		](Fn<void()> &&close) {
 			close();
-			save();
+			saveCallback();
 			Core::App().settings().setLastSeenWarningSeen(true);
 			Core::App().saveSettingsDelayed();
 		};
@@ -735,7 +727,14 @@ void LastSeenPrivacyController::confirmSave(
 		});
 		Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 	} else {
-		save();
+		saveCallback();
+	}
+}
+
+void LastSeenPrivacyController::saveAdditional() {
+	const auto privacy = &_session->api().globalPrivacy();
+	if (privacy->hideReadTimeCurrent() != _hideReadTime) {
+		privacy->updateHideReadTime(_hideReadTime);
 	}
 }
 

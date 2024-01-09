@@ -83,6 +83,17 @@ void ShowPremiumPreviewToBuy(
 
 void PremiumUnavailableBox(not_null<Ui::GenericBox*> box);
 
+enum class ShowOrPremium : uchar {
+	LastSeen,
+	ReadTime,
+};
+void ShowOrPremiumBox(
+	not_null<Ui::GenericBox*> box,
+	ShowOrPremium type,
+	QString shortName,
+	Fn<void()> justShow,
+	Fn<void()> toPremium);
+
 [[nodiscard]] object_ptr<Ui::GradientButton> CreateUnlockButton(
 	QWidget *parent,
 	rpl::producer<QString> text);

@@ -170,21 +170,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_remember" = "Remember this choice";
 
-"lng_lastseen_show_title" = "Show your last seen";
-"lng_lastseen_show_about" = "To see **{user}'s** Last Seen time, either start showing your own Last Seen time...";
-"lng_lastseen_show_button" = "Show my Last Seen";
+"lng_lastseen_show_title" = "Show Your Last Seen";
+"lng_lastseen_show_about" = "To see **{user}'s** Last Seen time, either start\nshowing your own Last Seen time...";
+"lng_lastseen_show_button" = "Show My Last Seen";
 "lng_lastseen_or" = "or";
 "lng_lastseen_premium_title" = "Upgrade to Premium";
-"lng_lastseen_premium_about" = "Subscription will let you see **{user}'s** Last Seen status without showing yours.";
+"lng_lastseen_premium_about" = "Subscription will let you see **{user}'s** Last Seen\nstatus without showing yours.";
 "lng_lastseen_premium_button" = "Subscribe to Telegram Premium";
 "lng_lastseen_shown_toast" = "Your last seen time is now visible.";
 
-"lng_readtime_show_title" = "Show your read date";
-"lng_readtime_show_about" = "To see when **{user}** read the message, either start showing your own read time...";
-"lng_readtime_show_button" = "Show my Read Time";
+"lng_readtime_show_title" = "Show Your Read Date";
+"lng_readtime_show_about" = "To see when **{user}** read the message,\neither start showing your own read time...";
+"lng_readtime_show_button" = "Show My Read Time";
 "lng_readtime_or" = "or";
 "lng_readtime_premium_title" = "Upgrade to Premium";
-"lng_readtime_premium_about" = "Subscription will let you see **{user}'s** read time without showing yours.";
+"lng_readtime_premium_about" = "Subscription will let you see **{user}'s** read time\nwithout showing yours.";
 "lng_readtime_premium_button" = "Subscribe to Telegram Premium";
 "lng_readtime_shown_toast" = "Your read times are now visible.";
 

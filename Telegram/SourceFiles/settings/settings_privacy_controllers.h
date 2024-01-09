@@ -117,6 +117,8 @@ public:
 		bool someAreDisallowed,
 		Fn<void()> saveCallback) override;
 
+	void saveAdditional() override;
+
 private:
 	const not_null<::Main::Session*> _session;
 	bool _hideReadTime = false;

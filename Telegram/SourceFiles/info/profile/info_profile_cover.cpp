@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_cover.h"
 
+#include "api/api_user_privacy.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/info_controller.h"
 #include "boxes/peers/edit_forum_topic_box.h"
+#include "boxes/premium_preview_box.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
 #include "ui/controls/userpic_button.h"
@@ -373,23 +375,54 @@ void Cover::setupShowLastSeen() {
 		&& !user->isBot()
 		&& !user->isServiceUser()
 		&& user->session().premiumPossible()) {
+		if (user->session().premium()) {
+			if (user->onlineTill == kOnlineHidden) {
+				user->updateFullForced();
+			}
+			_showLastSeen->hide();
+			return;
+		}
+
 		rpl::combine(
 			user->session().changes().peerFlagsValue(
 				user,
 				Data::PeerUpdate::Flag::OnlineStatus),
 			Data::AmPremiumValue(&user->session())
-		) | rpl::start_with_next([=] {
-			_showLastSeen->setVisible(
-				(user->onlineTill == kOnlineHidden)
-				&& !user->session().premium()
-				&& user->session().premiumPossible());
+		) | rpl::start_with_next([=](auto, bool premium) {
+			const auto wasShown = !_showLastSeen->isHidden();
+			const auto onlineHidden = (user->onlineTill == kOnlineHidden);
+			const auto shown = onlineHidden
+				&& !premium
+				&& user->session().premiumPossible();
+			_showLastSeen->setVisible(shown);
+			if (wasShown && premium && onlineHidden) {
+				user->updateFullForced();
+			}
+		}, _showLastSeen->lifetime());
+
+		_controller->session().api().userPrivacy().value(
+			Api::UserPrivacy::Key::LastSeen
+		) | rpl::filter([=](Api::UserPrivacy::Rule rule) {
+			return (rule.option == Api::UserPrivacy::Option::Everyone);
+		}) | rpl::start_with_next([=] {
+			if (user->onlineTill == kOnlineHidden) {
+				user->updateFullForced();
+			}
 		}, _showLastSeen->lifetime());
 	} else {
 		_showLastSeen->hide();
 	}
 
 	_showLastSeen->setClickedCallback([=] {
-		::Settings::ShowPremium(_controller, u"lastseen_hidden"_q);
+		const auto type = ShowOrPremium::LastSeen;
+		auto box = Box(ShowOrPremiumBox, type, user->shortName(), [=] {
+			_controller->session().api().userPrivacy().save(
+				::Api::UserPrivacy::Key::LastSeen,
+				{});
+		}, [=] {
+			::Settings::ShowPremium(_controller, u"lastseen_hidden"_q);
+		});
+		_controller->show(std::move(box));
 	});
 }
 
