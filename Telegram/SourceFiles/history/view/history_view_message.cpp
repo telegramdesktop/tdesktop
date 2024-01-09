@@ -2965,8 +2965,14 @@ void Message::refreshReactions() {
 	if (!_reactions) {
 		const auto handlerFactory = [=](ReactionId id) {
 			const auto weak = base::make_weak(this);
-			return std::make_shared<LambdaClickHandler>([=] {
+			return std::make_shared<LambdaClickHandler>([=](
+					ClickContext context) {
 				if (const auto strong = weak.get()) {
+					if (strong->data()->reactionsAreTags()) {
+						const auto tag = Data::SearchTagToQuery(id);
+						HashtagClickHandler(tag).onClick(context);
+						return;
+					}
 					strong->data()->toggleReaction(
 						id,
 						HistoryItem::ReactionSource::Existing);

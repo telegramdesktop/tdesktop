@@ -2968,13 +2968,17 @@ bool InnerWidget::hasFilteredResults() const {
 	return !_filterResults.empty() && _hashtagResults.empty();
 }
 
-void InnerWidget::searchInChat(Key key, PeerData *from) {
+void InnerWidget::searchInChat(
+		Key key,
+		PeerData *from,
+		std::vector<Data::ReactionId> tags) {
 	_searchInMigrated = nullptr;
 	const auto sublist = key.sublist();
 	const auto peer = sublist ? session().user().get() : key.peer();
 	if (peer) {
 		if (const auto migrateTo = peer->migrateTo()) {
-			return searchInChat(peer->owner().history(migrateTo), from);
+			const auto to = peer->owner().history(migrateTo);
+			return searchInChat(to, from, tags);
 		} else if (const auto migrateFrom = peer->migrateFrom()) {
 			_searchInMigrated = peer->owner().history(migrateFrom);
 		}
@@ -2990,7 +2994,8 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 					list()
 				) | rpl::then(
 					reactions->myTagsUpdates() | rpl::map(list)
-				));
+				),
+				tags);
 
 			_searchTags->selectedValue(
 			) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {

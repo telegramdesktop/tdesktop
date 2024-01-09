@@ -1911,7 +1911,7 @@ void Widget::showMainMenu() {
 	controller()->widget()->showMainMenu();
 }
 
-void Widget::searchMessages(const QString &query, Key inChat) {
+void Widget::searchMessages(QString query, Key inChat) {
 	if (_childList) {
 		const auto forum = controller()->shownForum().current();
 		const auto topic = inChat.topic();
@@ -1926,6 +1926,12 @@ void Widget::searchMessages(const QString &query, Key inChat) {
 		controller()->closeFolder();
 	}
 
+	auto tags = std::vector<Data::ReactionId>();
+	if (const auto tagId = Data::SearchTagFromQuery(query)) {
+		inChat = session().data().history(session().user());
+		query = QString();
+		tags.push_back(tagId);
+	}
 	const auto inChatChanged = [&] {
 		const auto inPeer = inChat.peer();
 		const auto inTopic = inChat.topic();
@@ -1948,10 +1954,12 @@ void Widget::searchMessages(const QString &query, Key inChat) {
 		}
 		return true;
 	}();
-	if ((currentSearchQuery() != query) || inChatChanged) {
+	if ((currentSearchQuery() != query)
+		|| inChatChanged
+		|| _searchTags != tags) {
 		if (inChat) {
 			cancelSearch();
-			setSearchInChat(inChat);
+			setSearchInChat(inChat, nullptr, tags);
 		}
 		setSearchQuery(query);
 		applyFilterUpdate(true);
@@ -2595,9 +2603,12 @@ void Widget::searchInChat(Key chat) {
 	searchMessages(QString(), chat);
 }
 
-bool Widget::setSearchInChat(Key chat, PeerData *from) {
+bool Widget::setSearchInChat(
+		Key chat,
+		PeerData *from,
+		std::vector<Data::ReactionId> tags) {
 	if (_childList) {
-		if (_childList->setSearchInChat(chat, from)) {
+		if (_childList->setSearchInChat(chat, from, tags)) {
 			return true;
 		}
 		hideChildList();
@@ -2634,7 +2645,8 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 		if (_layout != Layout::Main) {
 			return false;
 		} else if (const auto migrateTo = peer->migrateTo()) {
-			return setSearchInChat(peer->owner().history(migrateTo), from);
+			const auto to = peer->owner().history(migrateTo);
+			return setSearchInChat(to, from, tags);
 		} else if (const auto migrateFrom = peer->migrateFrom()) {
 			_searchInMigrated = peer->owner().history(migrateFrom);
 		}
@@ -2653,7 +2665,8 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 	if (_searchInChat && _layout == Layout::Main) {
 		controller()->closeFolder();
 	}
-	_inner->searchInChat(_searchInChat, _searchFromAuthor);
+	_searchTags = std::move(tags);
+	_inner->searchInChat(_searchInChat, _searchFromAuthor, _searchTags);
 	_searchTagsLifetime = _inner->searchTagsValue(
 	) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
 		if (_searchTags != list) {

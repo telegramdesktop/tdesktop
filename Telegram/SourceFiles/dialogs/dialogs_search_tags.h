@@ -25,7 +25,8 @@ class SearchTags final : public base::has_weak_ptr {
 public:
 	SearchTags(
 		not_null<Data::Session*> owner,
-		rpl::producer<std::vector<Data::Reaction>> tags);
+		rpl::producer<std::vector<Data::Reaction>> tags,
+		std::vector<Data::ReactionId> selected);
 	~SearchTags();
 
 	void resizeToWidth(int width);
@@ -61,6 +62,7 @@ private:
 	[[nodiscard]] const QImage &validateBg(bool selected) const;
 
 	const not_null<Data::Session*> _owner;
+	std::vector<Data::ReactionId> _added;
 	std::vector<Tag> _tags;
 	rpl::event_stream<> _selectedChanges;
 	rpl::event_stream<> _repaintRequests;

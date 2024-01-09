@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_search_tags.h"
 
+#include "base/qt/qt_key_modifiers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_document.h"
 #include "data/data_message_reactions.h"
@@ -30,13 +31,23 @@ struct SearchTags::Tag {
 
 SearchTags::SearchTags(
 	not_null<Data::Session*> owner,
-	rpl::producer<std::vector<Data::Reaction>> tags)
-: _owner(owner) {
+	rpl::producer<std::vector<Data::Reaction>> tags,
+	std::vector<Data::ReactionId> selected)
+: _owner(owner)
+, _added(selected) {
 	std::move(
 		tags
 	) | rpl::start_with_next([=](const std::vector<Data::Reaction> &list) {
 		fill(list);
 	}, _lifetime);
+
+	// Mark the `selected` reactions as selected in `_tags`.
+	for (const auto &id : selected) {
+		const auto i = ranges::find(_tags, id, &Tag::id);
+		if (i != end(_tags)) {
+			i->selected = true;
+		}
+	}
 
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
@@ -54,13 +65,17 @@ void SearchTags::fill(const std::vector<Data::Reaction> &list) {
 		return std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
 			const auto i = ranges::find(_tags, id, &Tag::id);
 			if (i != end(_tags)) {
+				if (!i->selected && !base::IsShiftPressed()) {
+					for (auto &tag : _tags) {
+						tag.selected = false;
+					}
+				}
 				i->selected = !i->selected;
 				_selectedChanges.fire({});
 			}
 		}));
 	};
-	for (const auto &reaction : list) {
-		const auto id = reaction.id;
+	const auto push = [&](Data::ReactionId id) {
 		const auto customId = id.custom();
 		_tags.push_back({
 			.id = id,
@@ -74,6 +89,14 @@ void SearchTags::fill(const std::vector<Data::Reaction> &list) {
 		});
 		if (!customId) {
 			_owner->reactions().preloadImageFor(id);
+		}
+	};
+	for (const auto &reaction : list) {
+		push(reaction.id);
+	}
+	for (const auto &reaction : _added) {
+		if (!ranges::contains(_tags, reaction, &Tag::id)) {
+			push(reaction);
 		}
 	}
 	if (_width > 0) {

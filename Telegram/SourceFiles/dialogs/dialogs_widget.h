@@ -117,7 +117,7 @@ public:
 
 	void scrollToEntry(const RowDescriptor &entry);
 
-	void searchMessages(const QString &query, Key inChat = {});
+	void searchMessages(QString query, Key inChat = {});
 	void searchTopics();
 	void searchMore();
 
@@ -180,7 +180,10 @@ private:
 	void trackScroll(not_null<Ui::RpWidget*> widget);
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
 	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
-	bool setSearchInChat(Key chat, PeerData *from = nullptr);
+	bool setSearchInChat(
+		Key chat,
+		PeerData *from = nullptr,
+		std::vector<Data::ReactionId> tags = {});
 	void showCalendar();
 	void showSearchFrom();
 	void showMainMenu();

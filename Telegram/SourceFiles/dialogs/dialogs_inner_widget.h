@@ -139,7 +139,10 @@ public:
 	}
 	[[nodiscard]] bool hasFilteredResults() const;
 
-	void searchInChat(Key key, PeerData *from);
+	void searchInChat(
+		Key key,
+		PeerData *from,
+		std::vector<Data::ReactionId> tags);
 	[[nodiscard]] auto searchTagsValue() const
 		-> rpl::producer<std::vector<Data::ReactionId>>;
 
