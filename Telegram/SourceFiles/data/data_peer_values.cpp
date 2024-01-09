@@ -67,13 +67,13 @@ std::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {
 std::optional<QString> OnlineTextCommon(TimeId online, TimeId now) {
 	if (online <= 0) {
 		switch (online) {
-		case 0:
-		case -1: return tr::lng_status_offline(tr::now);
-		case -2: return tr::lng_status_recently(tr::now);
-		case -3: return tr::lng_status_last_week(tr::now);
-		case -4: return tr::lng_status_last_month(tr::now);
+		case kOnlineEmpty: return tr::lng_status_offline(tr::now);
+		case kOnlineRecently: return tr::lng_status_recently(tr::now);
+		case kOnlineLastWeek: return tr::lng_status_last_week(tr::now);
+		case kOnlineLastMonth: return tr::lng_status_last_month(tr::now);
+		case kOnlineHidden: return tr::lng_status_lastseen_hidden(tr::now);
 		}
-		return (-online > now)
+		return IsRecentOnline(online, now)
 			? tr::lng_status_online(tr::now)
 			: tr::lng_status_recently(tr::now);
 	} else if (online > now) {

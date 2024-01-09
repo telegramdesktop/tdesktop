@@ -141,6 +141,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_status_last_week" = "last seen within a week";
 "lng_status_last_month" = "last seen within a month";
 "lng_status_lastseen_now" = "last seen just now";
+"lng_status_lastseen_hidden" = "last seen hidden";
+"lng_status_lastseen_show" = "show";
 "lng_status_lastseen_minutes#one" = "last seen {count} minute ago";
 "lng_status_lastseen_minutes#other" = "last seen {count} minutes ago";
 "lng_status_lastseen_hours#one" = "last seen {count} hour ago";
@@ -167,6 +169,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_fake_badge" = "FAKE";
 
 "lng_remember" = "Remember this choice";
+
+"lng_lastseen_show_title" = "Show your last seen";
+"lng_lastseen_show_about" = "To see **{user}'s** Last Seen time, either start showing your own Last Seen time...";
+"lng_lastseen_show_button" = "Show my Last Seen";
+"lng_lastseen_or" = "or";
+"lng_lastseen_premium_title" = "Upgrade to Premium";
+"lng_lastseen_premium_about" = "Subscription will let you see **{user}'s** Last Seen status without showing yours.";
+"lng_lastseen_premium_button" = "Subscribe to Telegram Premium";
+"lng_lastseen_shown_toast" = "Your last seen time is now visible.";
+
+"lng_readtime_show_title" = "Show your read date";
+"lng_readtime_show_about" = "To see when **{user}** read the message, either start showing your own read time...";
+"lng_readtime_show_button" = "Show my Read Time";
+"lng_readtime_or" = "or";
+"lng_readtime_premium_title" = "Upgrade to Premium";
+"lng_readtime_premium_about" = "Subscription will let you see **{user}'s** read time without showing yours.";
+"lng_readtime_premium_button" = "Subscribe to Telegram Premium";
+"lng_readtime_shown_toast" = "Your read times are now visible.";
 
 "lng_channels_limit_title" = "Too Many Communities";
 "lng_channels_limit1#one" = "You are a member of **{count}** groups and channels.";
@@ -1086,6 +1106,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_lastseen_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_lastseen_always_title" = "Always share with";
 "lng_edit_privacy_lastseen_never_title" = "Never share with";
+"lng_edit_lastseen_hide_read_time" = "Hide read time";
+"lng_edit_lastseen_hide_read_time_about" = "Do not show the time when you read a message to people you hid your last seen from. If you turn this on, their read time will also be hidden from you. This does not affect group chats.";
+"lng_edit_lastseen_subscribe" = "Subscribe to Telegram Premium";
+"lng_edit_lastseen_subscribe_about" = "If you subscribe to Premium, you will see other users' last seen and read time even if you hid yours from them (unless they specifically restricted it).";
 
 "lng_edit_privacy_groups_title" = "Group invite settings";
 "lng_edit_privacy_groups_header" = "Who can invite you to groups and channels";
@@ -2764,6 +2788,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_save_custom_sound" = "Save for notifications";
 "lng_context_translate" = "Translate";
 "lng_context_translate_selected" = "Translate Selected Text";
+"lng_context_read_hidden" = "read";
+"lng_context_read_show" = "show when";
 
 "lng_context_animated_emoji" = "This message contains emoji from **{name} pack**.";
 "lng_context_animated_emoji_many#one" = "This message contains emoji from **{count} pack**.";

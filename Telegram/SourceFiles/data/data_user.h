@@ -65,9 +65,26 @@ enum class UserDataFlag {
 	StoriesHidden = (1 << 18),
 	HasActiveStories = (1 << 19),
 	HasUnreadStories = (1 << 20),
+	MeRequiresPremiumToWrite = (1 << 21),
+	SomeRequirePremiumToWrite = (1 << 22),
+	RequirePremiumToWriteKnown = (1 << 23),
+	ReadDatesPrivate = (1 << 24),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
+
+inline constexpr auto kOnlineEmpty = 0;
+inline constexpr auto kOnlineRecently = -2;
+inline constexpr auto kOnlineLastWeek = -3;
+inline constexpr auto kOnlineLastMonth = -4;
+inline constexpr auto kOnlineHidden = -5;
+
+[[nodiscard]] int RecentOnlineAfter(TimeId when);
+[[nodiscard]] bool IsRecentOnlineValue(int value);
+[[nodiscard]] bool IsRecentOnline(int value, TimeId now);
+[[nodiscard]] int OnlineTillFromMTP(
+	const MTPUserStatus& status,
+	int currentOnlineTill);
 
 class UserData final : public PeerData {
 public:
@@ -119,6 +136,10 @@ public:
 	[[nodiscard]] bool applyMinPhoto() const;
 	[[nodiscard]] bool hasPersonalPhoto() const;
 	[[nodiscard]] bool hasStoriesHidden() const;
+	[[nodiscard]] bool someRequirePremiumToWrite() const;
+	[[nodiscard]] bool meRequiresPremiumToWrite() const;
+	[[nodiscard]] bool requirePremiumToWriteKnown() const;
+	[[nodiscard]] bool readDatesPrivate() const;
 
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;

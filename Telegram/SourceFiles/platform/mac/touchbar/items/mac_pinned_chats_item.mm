@@ -141,7 +141,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
 		if (!user->isServiceUser() && !user->isBot()) {
 			const auto onlineTill = user->onlineTill;
-			return (onlineTill <= -5)
+			return IsRecentOnlineValue(onlineTill)
 				? -onlineTill
 				: (onlineTill <= 0)
 				? 0

@@ -34,6 +34,40 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 BotInfo::BotInfo() = default;
 
+int RecentOnlineAfter(TimeId when) {
+	return (when > 0) ? (-when - kSetOnlineAfterActivity) : 0;
+}
+
+bool IsRecentOnlineValue(int value) {
+	return (value < -kSetOnlineAfterActivity);
+}
+
+bool IsRecentOnline(int value, TimeId now) {
+	return IsRecentOnlineValue(value) && (now < -value);
+}
+
+int OnlineTillFromMTP(
+		const MTPUserStatus &status,
+		int currentOnlineTill) {
+	return status.match([](const MTPDuserStatusEmpty &) {
+		return kOnlineEmpty;
+	}, [&](const MTPDuserStatusRecently&) {
+		return IsRecentOnlineValue(currentOnlineTill)
+			? currentOnlineTill
+			: kOnlineRecently;
+	}, [](const MTPDuserStatusLastWeek &) {
+		return kOnlineLastWeek;
+	}, [](const MTPDuserStatusLastMonth &) {
+		return kOnlineLastMonth;
+	}, [](const MTPDuserStatusHidden &) {
+		return kOnlineHidden;
+	}, [](const MTPDuserStatusOnline& data) {
+		return data.vexpires().v;
+	}, [](const MTPDuserStatusOffline &data) {
+		return data.vwas_online().v;
+	});
+}
+
 UserData::UserData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
 , _flags((id == owner->session().userPeerId()) ? Flag::Self : Flag(0)) {
@@ -351,6 +385,22 @@ bool UserData::hasStoriesHidden() const {
 	return (flags() & UserDataFlag::StoriesHidden);
 }
 
+bool UserData::someRequirePremiumToWrite() const {
+	return (flags() & UserDataFlag::SomeRequirePremiumToWrite);
+}
+
+bool UserData::meRequiresPremiumToWrite() const {
+	return (flags() & UserDataFlag::MeRequiresPremiumToWrite);
+}
+
+bool UserData::requirePremiumToWriteKnown() const {
+	return (flags() & UserDataFlag::RequirePremiumToWriteKnown);
+}
+
+bool UserData::readDatesPrivate() const {
+	return (flags() & UserDataFlag::ReadDatesPrivate);
+}
+
 bool UserData::canAddContact() const {
 	return canShareThisContact() && !isContact();
 }
@@ -453,15 +503,25 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		| Flag::PhoneCallsPrivate
 		| Flag::CanReceiveGifts
 		| Flag::CanPinMessages
-		| Flag::VoiceMessagesForbidden;
+		| Flag::VoiceMessagesForbidden
+		| Flag::ReadDatesPrivate
+		| Flag::RequirePremiumToWriteKnown
+		| Flag::MeRequiresPremiumToWrite;
 	user->setFlags((user->flags() & ~mask)
-		| (update.is_phone_calls_private() ? Flag::PhoneCallsPrivate : Flag())
+		| (update.is_phone_calls_private()
+			? Flag::PhoneCallsPrivate
+			: Flag())
 		| (update.is_phone_calls_available() ? Flag::HasPhoneCalls : Flag())
 		| (canReceiveGifts ? Flag::CanReceiveGifts : Flag())
 		| (update.is_can_pin_message() ? Flag::CanPinMessages : Flag())
 		| (update.is_blocked() ? Flag::Blocked : Flag())
 		| (update.is_voice_messages_forbidden()
 			? Flag::VoiceMessagesForbidden
+			: Flag())
+		| (update.is_read_dates_private() ? Flag::ReadDatesPrivate : Flag())
+		| Flag::RequirePremiumToWriteKnown
+		| (update.is_contact_require_premium()
+			? Flag::MeRequiresPremiumToWrite
 			: Flag()));
 	user->setIsBlocked(update.is_blocked());
 	user->setCallsStatus(update.is_phone_calls_private()

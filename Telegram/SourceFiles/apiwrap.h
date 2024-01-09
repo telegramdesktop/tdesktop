@@ -258,10 +258,6 @@ public:
 	void updateNotifySettingsDelayed(Data::DefaultNotify type);
 	void saveDraftToCloudDelayed(not_null<Data::Thread*> thread);
 
-	static int OnlineTillFromStatus(
-		const MTPUserStatus &status,
-		int currentOnlineTill);
-
 	void clearHistory(not_null<PeerData*> peer, bool revoke);
 	void deleteConversation(not_null<PeerData*> peer, bool revoke);
 

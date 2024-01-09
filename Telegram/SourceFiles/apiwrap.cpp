@@ -1923,21 +1923,18 @@ void ApiWrap::saveDraftToCloudDelayed(not_null<Data::Thread*> thread) {
 void ApiWrap::updatePrivacyLastSeens() {
 	const auto now = base::unixtime::now();
 	_session->data().enumerateUsers([&](UserData *user) {
-		if (user->isSelf() || !user->isLoaded()) {
-			return;
-		}
-		if (user->onlineTill <= 0) {
+		if (user->isSelf() || !user->isLoaded() || user->onlineTill <= 0) {
 			return;
 		}
 
 		if (user->onlineTill + 3 * 86400 >= now) {
-			user->onlineTill = -2; // recently
+			user->onlineTill = kOnlineRecently;
 		} else if (user->onlineTill + 7 * 86400 >= now) {
-			user->onlineTill = -3; // last week
+			user->onlineTill = kOnlineLastWeek;
 		} else if (user->onlineTill + 30 * 86400 >= now) {
-			user->onlineTill = -4; // last month
+			user->onlineTill = kOnlineLastMonth;
 		} else {
-			user->onlineTill = 0;
+			user->onlineTill = kOnlineEmpty;
 		}
 		session().changes().peerUpdated(
 			user,
@@ -1955,12 +1952,11 @@ void ApiWrap::updatePrivacyLastSeens() {
 			Assert(item.type() == mtpc_contactStatus);
 			auto &data = item.c_contactStatus();
 			if (auto user = _session->data().userLoaded(data.vuser_id())) {
-				auto oldOnlineTill = user->onlineTill;
-				auto newOnlineTill = OnlineTillFromStatus(
+				auto value = OnlineTillFromMTP(
 					data.vstatus(),
-					oldOnlineTill);
-				if (oldOnlineTill != newOnlineTill) {
-					user->onlineTill = newOnlineTill;
+					user->onlineTill);
+				if (user->onlineTill != value) {
+					user->onlineTill = value;
 					session().changes().peerUpdated(
 						user,
 						Data::PeerUpdate::Flag::OnlineStatus);
@@ -1971,22 +1967,6 @@ void ApiWrap::updatePrivacyLastSeens() {
 	}).fail([this] {
 		_contactsStatusesRequestId = 0;
 	}).send();
-}
-
-int ApiWrap::OnlineTillFromStatus(
-		const MTPUserStatus &status,
-		int currentOnlineTill) {
-	switch (status.type()) {
-	case mtpc_userStatusEmpty: return 0;
-	case mtpc_userStatusRecently:
-		// Don't modify pseudo-online.
-		return (currentOnlineTill > -10) ? -2 : currentOnlineTill;
-	case mtpc_userStatusLastWeek: return -3;
-	case mtpc_userStatusLastMonth: return -4;
-	case mtpc_userStatusOffline: return status.c_userStatusOffline().vwas_online().v;
-	case mtpc_userStatusOnline: return status.c_userStatusOnline().vexpires().v;
-	}
-	Unexpected("Bad UserStatus type.");
 }
 
 void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {

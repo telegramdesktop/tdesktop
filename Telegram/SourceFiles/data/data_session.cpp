@@ -519,6 +519,8 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| Flag::BotInlineGeo
 			| Flag::Premium
 			| Flag::Support
+			| Flag::SomeRequirePremiumToWrite
+			| Flag::RequirePremiumToWriteKnown
 			| (!minimal
 				? Flag::Contact
 				| Flag::MutualContact
@@ -539,10 +541,20 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| (data.is_bot_inline_geo() ? Flag::BotInlineGeo : Flag())
 			| (data.is_premium() ? Flag::Premium : Flag())
 			| (data.is_support() ? Flag::Support : Flag())
+			| (data.is_contact_require_premium()
+				? (Flag::SomeRequirePremiumToWrite
+					| (result->someRequirePremiumToWrite()
+						? (result->requirePremiumToWriteKnown()
+							? Flag::RequirePremiumToWriteKnown
+							: Flag())
+						: Flag()))
+				: Flag())
 			| (!minimal
 				? (data.is_contact() ? Flag::Contact : Flag())
 				| (data.is_mutual_contact() ? Flag::MutualContact : Flag())
-				| (data.is_apply_min_photo() ? Flag() : Flag::DiscardMinPhoto)
+				| (data.is_apply_min_photo()
+					? Flag()
+					: Flag::DiscardMinPhoto)
 				| (data.is_stories_hidden() ? Flag::StoriesHidden : Flag())
 				: Flag());
 		result->setFlags((result->flags() & ~flagsMask) | flagsSet);
@@ -718,12 +730,9 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 	}
 
 	if (status && !minimal) {
-		const auto oldOnlineTill = result->onlineTill;
-		const auto newOnlineTill = ApiWrap::OnlineTillFromStatus(
-			*status,
-			oldOnlineTill);
-		if (oldOnlineTill != newOnlineTill) {
-			result->onlineTill = newOnlineTill;
+		const auto value = OnlineTillFromMTP(*status, result->onlineTill);
+		if (result->onlineTill != value) {
+			result->onlineTill = value;
 			flags |= UpdateFlag::OnlineStatus;
 			session().data().maybeStopWatchForOffline(result);
 		}

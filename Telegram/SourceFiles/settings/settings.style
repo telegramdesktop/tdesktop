@@ -15,12 +15,14 @@ settingsButton: SettingsButton(infoProfileButton) {
 	padding: margins(60px, 10px, 22px, 10px);
 	iconLeft: 20px;
 }
+settingsButtonNoIcon: SettingsButton(settingsButton) {
+	padding: margins(22px, 10px, 22px, 8px);
+}
 settingsButtonLight: SettingsButton(settingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 }
-settingsButtonNoIcon: SettingsButton(settingsButton) {
-	padding: margins(22px, 10px, 22px, 8px);
+settingsButtonLightNoIcon: SettingsButton(settingsButtonLight, settingsButtonNoIcon) {
 }
 settingsButtonNoIconLocked : SettingsButton(settingsButtonNoIcon) {
 	toggle: Toggle(infoProfileToggle) {

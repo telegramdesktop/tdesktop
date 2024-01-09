@@ -109,12 +109,17 @@ public:
 		Exception exception) const override;
 	rpl::producer<QString> exceptionsDescription() const override;
 
+	object_ptr<Ui::RpWidget> setupBelowWidget(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> parent) override;
+
 	void confirmSave(
 		bool someAreDisallowed,
 		Fn<void()> saveCallback) override;
 
 private:
 	const not_null<::Main::Session*> _session;
+	bool _hideReadTime = false;
 
 };
 

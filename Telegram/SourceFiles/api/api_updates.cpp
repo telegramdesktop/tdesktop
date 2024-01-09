@@ -944,7 +944,8 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 		}
 
 		const auto self = session().user();
-		self->onlineTill = base::unixtime::now() + (isOnline ? (config.onlineUpdatePeriod / 1000) : -1);
+		self->onlineTill = base::unixtime::now()
+			+ (isOnline ? (config.onlineUpdatePeriod / 1000) : -1);
 		session().changes().peerUpdated(
 			self,
 			Data::PeerUpdate::Flag::OnlineStatus);
@@ -1850,23 +1851,16 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateUserStatus: {
 		auto &d = update.c_updateUserStatus();
-		if (auto user = session().data().userLoaded(d.vuser_id())) {
-			switch (d.vstatus().type()) {
-			case mtpc_userStatusEmpty: user->onlineTill = 0; break;
-			case mtpc_userStatusRecently:
-				if (user->onlineTill > -10) { // don't modify pseudo-online
-					user->onlineTill = -2;
-				}
-			break;
-			case mtpc_userStatusLastWeek: user->onlineTill = -3; break;
-			case mtpc_userStatusLastMonth: user->onlineTill = -4; break;
-			case mtpc_userStatusOffline: user->onlineTill = d.vstatus().c_userStatusOffline().vwas_online().v; break;
-			case mtpc_userStatusOnline: user->onlineTill = d.vstatus().c_userStatusOnline().vexpires().v; break;
+		if (const auto user = session().data().userLoaded(d.vuser_id())) {
+			const auto value = OnlineTillFromMTP(
+				d.vstatus(),
+				user->onlineTill);
+			if (user->onlineTill != value) {
+				session().changes().peerUpdated(
+					user,
+					Data::PeerUpdate::Flag::OnlineStatus);
+				session().data().maybeStopWatchForOffline(user);
 			}
-			session().changes().peerUpdated(
-				user,
-				Data::PeerUpdate::Flag::OnlineStatus);
-			session().data().maybeStopWatchForOffline(user);
 		}
 		if (UserId(d.vuser_id()) == session().userId()) {
 			if (d.vstatus().type() == mtpc_userStatusOffline
