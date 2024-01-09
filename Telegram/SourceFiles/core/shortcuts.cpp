@@ -133,6 +133,13 @@ const auto CommandNames = base::flat_map<Command, QString>{
 	{ Command::FolderNext     , u"next_folder"_q },
 	{ Command::ShowAllChats   , u"all_chats"_q },
 
+	{ Command::ShowAccount1   , u"account1"_q },
+	{ Command::ShowAccount2   , u"account2"_q },
+	{ Command::ShowAccount3   , u"account3"_q },
+	{ Command::ShowAccount4   , u"account4"_q },
+	{ Command::ShowAccount5   , u"account5"_q },
+	{ Command::ShowAccount6   , u"account6"_q },
+
 	{ Command::ShowFolder1    , u"folder1"_q },
 	{ Command::ShowFolder2    , u"folder2"_q },
 	{ Command::ShowFolder3    , u"folder3"_q },
