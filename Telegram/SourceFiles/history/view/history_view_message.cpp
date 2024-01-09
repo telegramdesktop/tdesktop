@@ -2005,6 +2005,7 @@ bool Message::hasFromPhoto() const {
 		return !item->out() && !item->history()->peer->isUser();
 	} break;
 	case Context::ContactPreview:
+	case Context::TTLViewer:
 		return false;
 	}
 	Unexpected("Context in Message::hasFromPhoto.");
@@ -3200,9 +3201,10 @@ bool Message::hasFromName() const {
 		return false;
 	} break;
 	case Context::ContactPreview:
+	case Context::TTLViewer:
 		return false;
 	}
-	Unexpected("Context in Message::hasFromPhoto.");
+	Unexpected("Context in Message::hasFromName.");
 }
 
 bool Message::displayFromName() const {

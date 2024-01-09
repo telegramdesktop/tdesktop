@@ -134,7 +134,11 @@ void DrawCornerBadgeTTL(
 			});
 			animate(animate);
 		});
+	const auto weak = std::weak_ptr(lifetime);
 	return [=](QPainter &p, QRect r, QColor c) {
+		if (weak.expired()) {
+			return;
+		}
 		(state->idle ? state->idle : state->start)->paintInCenter(p, r, c);
 	};
 }
@@ -326,41 +330,36 @@ Document::Document(
 	}
 
 	if ((_data->isVoiceMessage() || isRound)
-		&& IsVoiceOncePlayable(_parent->data())) {
-		_parent->data()->removeFromSharedMediaIndex();
-		setDocumentLinks(_data, realParent, [=] {
-			_openl = nullptr;
-
+		&& _parent->data()->media()->ttlSeconds()) {
+		const auto fullId = _realParent->fullId();
+		if (_parent->delegate()->elementContext() == Context::TTLViewer) {
 			auto lifetime = std::make_shared<rpl::lifetime>();
-			rpl::merge(
-				::Media::Player::instance()->updatedNotifier(
-				) | rpl::filter([=](::Media::Player::TrackState state) {
-					using State = ::Media::Player::State;
-					const auto badState = state.state == State::Stopped
-						|| state.state == State::StoppedAtEnd
-						|| state.state == State::StoppedAtError
-						|| state.state == State::StoppedAtStart;
-					return (state.id.contextId() != _realParent->fullId())
-						&& !badState;
-				}) | rpl::to_empty,
-				::Media::Player::instance()->tracksFinished(
-				) | rpl::filter([=](AudioMsgId::Type type) {
-					return (type == AudioMsgId::Type::Voice);
-				}) | rpl::to_empty,
-				::Media::Player::instance()->stops(AudioMsgId::Type::Voice)
-			) | rpl::start_with_next([=]() mutable {
-				_drawTtl = nullptr;
-				const auto item = _parent->data();
+			TTLVoiceStops(fullId) | rpl::start_with_next([=]() mutable {
 				if (lifetime) {
 					base::take(lifetime)->destroy();
 				}
-				// Destroys this.
-				ClearMediaAsExpired(item);
 			}, *lifetime);
 			_drawTtl = CreateTtlPaintCallback(lifetime, [=] { repaint(); });
+		} else if (!_parent->data()->out()) {
+			_parent->data()->removeFromSharedMediaIndex();
+			setDocumentLinks(_data, realParent, [=] {
+				_openl = nullptr;
 
-			return false;
-		});
+				auto lifetime = std::make_shared<rpl::lifetime>();
+				TTLVoiceStops(fullId) | rpl::start_with_next([=]() mutable {
+					const auto item = _parent->data();
+					if (lifetime) {
+						base::take(lifetime)->destroy();
+					}
+					// Destroys this.
+					ClearMediaAsExpired(item);
+				}, *lifetime);
+
+				return false;
+			});
+		} else {
+			setDocumentLinks(_data, realParent);
+		}
 	} else {
 		setDocumentLinks(_data, realParent);
 	}
@@ -918,7 +917,8 @@ void Document::draw(
 			.highlight = highlightRequest ? &*highlightRequest : nullptr,
 		});
 	}
-	if (_parent->data()->media() && _parent->data()->media()->ttlSeconds()) {
+	if ((_parent->data()->media() && _parent->data()->media()->ttlSeconds())
+		&& _openl) {
 		const auto &fg = context.outbg
 			? st::historyFileOutIconFg
 			: st::historyFileInIconFg;
@@ -1737,6 +1737,25 @@ bool DrawThumbnailAsSongCover(
 	p.drawPixmap(rect.topLeft(), cover);
 
 	return true;
+}
+
+rpl::producer<> TTLVoiceStops(FullMsgId fullId) {
+	return rpl::merge(
+		::Media::Player::instance()->updatedNotifier(
+		) | rpl::filter([=](::Media::Player::TrackState state) {
+			using State = ::Media::Player::State;
+			const auto badState = state.state == State::Stopped
+				|| state.state == State::StoppedAtEnd
+				|| state.state == State::StoppedAtError
+				|| state.state == State::StoppedAtStart;
+			return (state.id.contextId() != fullId) && !badState;
+		}) | rpl::to_empty,
+		::Media::Player::instance()->tracksFinished(
+		) | rpl::filter([=](AudioMsgId::Type type) {
+			return (type == AudioMsgId::Type::Voice);
+		}) | rpl::to_empty,
+		::Media::Player::instance()->stops(AudioMsgId::Type::Voice)
+	);
 }
 
 } // namespace HistoryView

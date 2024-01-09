@@ -1266,3 +1266,17 @@ dragDropColor: windowActiveTextFg;
 dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);
 dragHeight: 72px;
+
+ttlMediaImportantTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+ttlMediaButton: RoundButton(defaultActiveButton) {
+	textBg: shadowFg;
+	textBgOver: shadowFg;
+	ripple: universalRippleAnimation;
+	height: 31px;
+	textTop: 6px;
+}
+ttlMediaButtonBottomSkip: 14px;
