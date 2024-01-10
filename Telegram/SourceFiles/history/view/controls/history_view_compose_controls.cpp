@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_compose_controls.h"
 
+#include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt_signal_producer.h"
@@ -2692,12 +2693,15 @@ bool ComposeControls::updateReplaceMediaButton() {
 	_replaceMedia = std::make_unique<Ui::IconButton>(
 		_wrap.get(),
 		st::historyReplaceMedia);
+	const auto hideDuration = st::historyReplaceMedia.ripple.hideDuration;
 	_replaceMedia->setClickedCallback([=] {
-		EditCaptionBox::StartMediaReplace(
-			_regularWindow,
-			_editingId,
-			_field->getTextWithTags(),
-			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
+		base::call_delayed(hideDuration, _wrap.get(), [=] {
+			EditCaptionBox::StartMediaReplace(
+				_regularWindow,
+				_editingId,
+				_field->getTextWithTags(),
+				crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
+		});
 	});
 	return true;
 }
