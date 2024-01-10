@@ -979,14 +979,16 @@ void HistoryInner::paintEmpty(
 
 Ui::ChatPaintContext HistoryInner::preparePaintContext(
 		const QRect &clip) const {
-	const auto visibleAreaTopGlobal = mapToGlobal(
-		QPoint(0, _visibleAreaTop)).y();
+	const auto visibleAreaPositionGlobal = mapToGlobal(
+		QPoint(0, _visibleAreaTop));
+	const auto visibleAreaPositionLocal = mapFromGlobal(
+		visibleAreaPositionGlobal);
 	return _controller->preparePaintContext({
 		.theme = _theme.get(),
-		.visibleAreaTop = _visibleAreaTop,
-		.visibleAreaTopGlobal = visibleAreaTopGlobal,
-		.visibleAreaWidth = width(),
 		.clip = clip,
+		.visibleAreaPositionGlobal = visibleAreaPositionGlobal,
+		.visibleAreaTop = _visibleAreaTop,
+		.visibleAreaWidth = width(),
 	});
 }
 

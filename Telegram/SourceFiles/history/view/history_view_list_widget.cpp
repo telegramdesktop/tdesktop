@@ -2009,10 +2009,10 @@ Ui::ChatPaintContext ListWidget::preparePaintContext(
 		const QRect &clip) const {
 	return controller()->preparePaintContext({
 		.theme = _delegate->listChatTheme(),
-		.visibleAreaTop = _visibleTop,
-		.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
-		.visibleAreaWidth = width(),
 		.clip = clip,
+		.visibleAreaPositionGlobal = mapToGlobal(QPoint(0, _visibleTop)),
+		.visibleAreaTop = _visibleTop,
+		.visibleAreaWidth = width(),
 	});
 }
 

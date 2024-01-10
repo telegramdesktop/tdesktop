@@ -2742,7 +2742,7 @@ void SessionController::openPeerStories(
 HistoryView::PaintContext SessionController::preparePaintContext(
 		PaintContextArgs &&args) {
 	const auto visibleAreaTopLocal = content()->mapFromGlobal(
-		QPoint(0, args.visibleAreaTopGlobal)).y();
+		args.visibleAreaPositionGlobal).y();
 	const auto viewport = QRect(
 		0,
 		args.visibleAreaTop - visibleAreaTopLocal,
