@@ -491,6 +491,7 @@ parts:
       - libxkbcommon0
       - libxkbcommon-x11-0
       - zlib1g
+      - mesa-vulkan-drivers
     override-pull: |
       QT=6.6.1
 
