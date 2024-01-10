@@ -1060,11 +1060,13 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 			_call->videoEndpointLargeValue(),
 			_call->videoEndpointPinnedValue()
 		) | rpl::map(_1 == endpoint && _2);
+		const auto self = (endpoint.peer == _call->joinAs());
 		viewport->add(
 			endpoint,
 			VideoTileTrack{ GroupCall::TrackPointer(track), row },
 			GroupCall::TrackSizeValue(track),
-			std::move(pinned));
+			std::move(pinned),
+			self);
 	};
 	for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
 		setupTile(endpoint, track);
