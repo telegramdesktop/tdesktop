@@ -644,6 +644,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_phone_number_privacy" = "Phone number";
 "lng_settings_forwards_privacy" = "Forwarded messages";
 "lng_settings_profile_photo_privacy" = "Profile photo";
+"lng_settings_messages_privacy" = "Messages";
 "lng_settings_voices_privacy" = "Voice messages";
 "lng_settings_bio_privacy" = "Bio";
 "lng_settings_privacy_premium" = "Only subscribers of {link} can restrict receiving voice messages.";
@@ -1080,6 +1081,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_contacts" = "My contacts";
 "lng_edit_privacy_close_friends" = "Close friends";
 "lng_edit_privacy_nobody" = "Nobody";
+"lng_edit_privacy_premium" = "Premium users";
 "lng_edit_privacy_exceptions" = "Add exceptions";
 
 "lng_edit_privacy_exceptions_count#one" = "{count} user";
@@ -1180,6 +1182,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_voices_exceptions" = "These users will or will not be able to send voice and video messages to you regardless of the settings above.";
 "lng_edit_privacy_voices_always_title" = "Always allow";
 "lng_edit_privacy_voices_never_title" = "Never allow";
+
+"lng_messages_privacy_title" = "Messages";
+"lng_messages_privacy_subtitle" = "Who can send me messages?";
+"lng_messages_privacy_everyone" = "Everybody";
+"lng_messages_privacy_restricted" = "My Contacts and Premium Users";
+"lng_messages_privacy_about" = "You can restrict incoming messages to only contacts and Premium users.";
+"lng_messages_privacy_premium_button" = "Subscribe to Telegram Premium";
+"lng_messages_privacy_premium_about" = "Subscribe now to change this setting and get access to other exclusive features of Telegram Premium.";
+"lng_messages_privacy_premium" = "Only subscribers of {link} can select this option.";
+"lng_messages_privacy_premium_link" = "Telegram Premium";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";

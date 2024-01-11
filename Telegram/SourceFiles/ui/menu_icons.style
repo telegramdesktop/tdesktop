@@ -157,6 +157,7 @@ menuIconMuteForAnyTextPosition: point(14px, 9px);
 menuIconMuteForAnyTextFont: font(8px semibold);
 
 menuBlueIconPhotoSet: icon {{ "menu/photo_set", lightButtonFg }};
+menuBlueIconPremium: icon{{ "menu/premium", lightButtonFg }};
 
 mediaMenuIconStickers: icon {{ "menu/stickers", mediaviewMenuFg }};
 mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};
