@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
 #include "base/unixtime.h"
@@ -323,6 +324,7 @@ Cover::Cover(
 	: nullptr)
 , _name(this, _st.name)
 , _status(this, _st.status)
+, _showLastSeen(this, tr::lng_status_lastseen_show(), _st.showLastSeen)
 , _refreshStatusTimer([this] { refreshStatusText(); }) {
 	_peer->updateFull();
 
@@ -332,6 +334,8 @@ Cover::Cover(
 	if (!_peer->isMegagroup()) {
 		_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
+
+	setupShowLastSeen();
 
 	_badge->setPremiumClickCallback([=] {
 		if (const auto panel = _emojiStatusPanel.get()) {
@@ -359,6 +363,34 @@ Cover::Cover(
 	} else {
 		_iconButton->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
+}
+
+void Cover::setupShowLastSeen() {
+	const auto user = _peer->asUser();
+	if (_st.showLastSeenVisible
+		&& user
+		&& !user->isSelf()
+		&& !user->isBot()
+		&& !user->isServiceUser()
+		&& user->session().premiumPossible()) {
+		rpl::combine(
+			user->session().changes().peerFlagsValue(
+				user,
+				Data::PeerUpdate::Flag::OnlineStatus),
+			Data::AmPremiumValue(&user->session())
+		) | rpl::start_with_next([=] {
+			_showLastSeen->setVisible(
+				(user->onlineTill == kOnlineHidden)
+				&& !user->session().premium()
+				&& user->session().premiumPossible());
+		}, _showLastSeen->lifetime());
+	} else {
+		_showLastSeen->hide();
+	}
+
+	_showLastSeen->setClickedCallback([=] {
+		::Settings::ShowPremium(_controller, u"lastseen_hidden"_q);
+	});
 }
 
 void Cover::setupChildGeometry() {
@@ -577,6 +609,11 @@ void Cover::refreshStatusGeometry(int newWidth) {
 	auto statusWidth = newWidth - _st.statusLeft - _st.rightSkip;
 	_status->resizeToWidth(statusWidth);
 	_status->moveToLeft(_st.statusLeft, _st.statusTop, newWidth);
+	const auto left = _st.statusLeft + _status->textMaxWidth();
+	_showLastSeen->moveToLeft(
+		left + _st.showLastSeenPosition.x(),
+		_st.showLastSeenPosition.y(),
+		newWidth);
 }
 
 } // namespace Info::Profile

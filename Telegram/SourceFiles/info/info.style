@@ -304,6 +304,9 @@ InfoProfileCover {
 	status: FlatLabel;
 	statusLeft: pixels;
 	statusTop: pixels;
+	showLastSeen: RoundButton;
+	showLastSeenPosition: point;
+	showLastSeenVisible: bool;
 	rightSkip: pixels;
 }
 infoProfilePhotoInnerSize: 72px;
@@ -334,6 +337,14 @@ infoProfileCover: InfoProfileCover {
 	status: infoProfileStatus;
 	statusLeft: 109px;
 	statusTop: 58px;
+	showLastSeen: RoundButton(defaultActiveButton) {
+		width: -12px;
+		height: 20px;
+		textTop: 2px;
+		font: font(11px semibold);
+	}
+	showLastSeenPosition: point(4px, 56px);
+	showLastSeenVisible: true;
 	rightSkip: 20px;
 }
 infoProfileMegagroupCover: InfoProfileCover(infoProfileCover) {
