@@ -314,8 +314,8 @@ public:
 	[[nodiscard]] bool isLocal() const {
 		return _flags & MessageFlag::Local;
 	}
-	[[nodiscard]] bool isFakeBotAbout() const {
-		return _flags & MessageFlag::FakeBotAbout;
+	[[nodiscard]] bool isFakeAboutView() const {
+		return _flags & MessageFlag::FakeAboutView;
 	}
 	[[nodiscard]] bool showSimilarChannels() const {
 		return _flags & MessageFlag::ShowSimilarChannels;

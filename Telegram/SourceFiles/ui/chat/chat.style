@@ -965,6 +965,9 @@ historySendDisabled: FlatLabel(defaultFlatLabel) {
 historySendDisabledIcon: icon {{ "emoji/premium_lock", placeholderFgActive }};
 historySendDisabledIconSkip: 20px;
 historySendDisabledPosition: point(0px, 0px);
+historySendPremiumRequired: FlatLabel(historySendDisabled) {
+	align: align(top);
+}
 
 backgroundSwitchToDark: IconButton(defaultIconButton) {
 	width: 48px;
@@ -1031,3 +1034,7 @@ chatSimilarName: TextStyle(defaultTextStyle) {
 }
 chatSimilarWidthMax: 424px;
 chatSimilarSkip: 12px;
+
+premiumRequiredWidth: 186px;
+premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
+premiumRequiredCircle: 60px;

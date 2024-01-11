@@ -300,8 +300,8 @@ enum class MessageFlag : uint64 {
 	OnlyEmojiAndSpaces    = (1ULL << 35),
 	OnlyEmojiAndSpacesSet = (1ULL << 36),
 
-	// Fake message with bot cover and information.
-	FakeBotAbout          = (1ULL << 37),
+	// Fake message with some info, like bot cover and information.
+	FakeAboutView         = (1ULL << 37),
 
 	StoryItem             = (1ULL << 38),
 

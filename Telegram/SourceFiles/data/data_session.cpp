@@ -520,6 +520,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| Flag::Premium
 			| Flag::Support
 			| Flag::SomeRequirePremiumToWrite
+			| Flag::MeRequiresPremiumToWrite AssertIsDebug()
 			| Flag::RequirePremiumToWriteKnown
 			| (!minimal
 				? Flag::Contact
@@ -542,7 +543,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| (data.is_premium() ? Flag::Premium : Flag())
 			| (data.is_support() ? Flag::Support : Flag())
 			| (data.is_contact_require_premium()
-				? (Flag::SomeRequirePremiumToWrite
+				? ((Flag::SomeRequirePremiumToWrite | Flag::MeRequiresPremiumToWrite) AssertIsDebug()
 					| (result->someRequirePremiumToWrite()
 						? (result->requirePremiumToWriteKnown()
 							? Flag::RequirePremiumToWriteKnown

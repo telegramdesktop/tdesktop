@@ -217,13 +217,24 @@ inline auto DefaultRestrictionValue(
 		using namespace rpl::mappers;
 		const auto other = rights & ~(ChatRestriction::SendVoiceMessages
 			| ChatRestriction::SendVideoMessages);
+		auto allowedAny = PeerFlagsValue(
+			user,
+			(UserDataFlag::Deleted | UserDataFlag::MeRequiresPremiumToWrite)
+		) | rpl::map([=](UserDataFlags flags) {
+			return (flags & UserDataFlag::Deleted)
+				? rpl::single(false)
+				: !(flags & UserDataFlag::MeRequiresPremiumToWrite)
+				? rpl::single(true)
+				: AmPremiumValue(&user->session());
+		}) | rpl::flatten_latest();
 		if (other) {
-			return PeerFlagValue(user, UserDataFlag::Deleted)
-				| rpl::map(!_1);
+			return std::move(allowedAny);
 		}
-		const auto mask = UserDataFlag::Deleted
-			| UserDataFlag::VoiceMessagesForbidden;
-		return PeerFlagsValue(user, mask) | rpl::map(!_1);
+		const auto mask = UserDataFlag::VoiceMessagesForbidden;
+		return rpl::combine(
+			std::move(allowedAny),
+			PeerFlagValue(user, mask),
+			_1 && !_2);
 	} else if (const auto chat = peer->asChat()) {
 		const auto mask = ChatDataFlag()
 			| ChatDataFlag::Deactivated

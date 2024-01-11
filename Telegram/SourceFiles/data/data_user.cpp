@@ -506,7 +506,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		| Flag::VoiceMessagesForbidden
 		| Flag::ReadDatesPrivate
 		| Flag::RequirePremiumToWriteKnown
-		| Flag::MeRequiresPremiumToWrite;
+		/*| Flag::MeRequiresPremiumToWrite*/; AssertIsDebug()
 	user->setFlags((user->flags() & ~mask)
 		| (update.is_phone_calls_private()
 			? Flag::PhoneCallsPrivate
