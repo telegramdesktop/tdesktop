@@ -40,9 +40,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_item_download_files.h"
 #include "menu/menu_send.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/boxes/show_or_premium_box.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/report_messages_box.h"
-#include "boxes/premium_preview_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/translate_box.h"
@@ -1269,22 +1269,25 @@ void AddWhoReactedAction(
 	const auto whoReadIds = std::make_shared<Api::WhoReadList>();
 	const auto weak = Ui::MakeWeak(menu.get());
 	const auto user = item->history()->peer;
+	const auto showOrPremium = [=] {
+		if (const auto strong = weak.data()) {
+			strong->hideMenu();
+		}
+		const auto type = Ui::ShowOrPremium::ReadTime;
+		const auto name = user->shortName();
+		auto box = Box(Ui::ShowOrPremiumBox, type, name, [=] {
+			const auto api = &controller->session().api();
+			api->globalPrivacy().updateHideReadTime({});
+		}, [=] {
+			Settings::ShowPremium(controller, u"revtime_hidden"_q);
+		});
+		controller->show(std::move(box));
+	};
 	const auto participantChosen = [=](uint64 id) {
 		if (const auto strong = weak.data()) {
 			strong->hideMenu();
 		}
-		if (id) {
-			controller->showPeerInfo(PeerId(id));
-		} else {
-			const auto type = ShowOrPremium::ReadTime;
-			auto box = Box(ShowOrPremiumBox, type, user->shortName(), [=] {
-				const auto api = &controller->session().api();
-				api->globalPrivacy().updateHideReadTime({});
-			}, [=] {
-				Settings::ShowPremium(controller, u"revtime_hidden"_q);
-			});
-			controller->show(std::move(box));
-		}
+		controller->showPeerInfo(PeerId(id));
 	};
 	const auto showAllChosen = [=, itemId = item->fullId()]{
 		// Pressing on an item that has a submenu doesn't hide it :(
@@ -1302,12 +1305,19 @@ void AddWhoReactedAction(
 	if (!menu->empty()) {
 		menu->addSeparator(&st::expandedMenuSeparator);
 	}
-	menu->addAction(Ui::WhoReactedContextAction(
-		menu.get(),
-		Api::WhoReacted(item, context, st::defaultWhoRead, whoReadIds),
-		Data::ReactedMenuFactory(&controller->session()),
-		participantChosen,
-		showAllChosen));
+	if (item->history()->peer->isUser()) {
+		menu->addAction(Ui::WhenReadContextAction(
+			menu.get(),
+			Api::WhoReacted(item, context, st::defaultWhoRead, whoReadIds),
+			showOrPremium));
+	} else {
+		menu->addAction(Ui::WhoReactedContextAction(
+			menu.get(),
+			Api::WhoReacted(item, context, st::defaultWhoRead, whoReadIds),
+			Data::ReactedMenuFactory(&controller->session()),
+			participantChosen,
+			showAllChosen));
+	}
 }
 
 void ShowTagMenu(

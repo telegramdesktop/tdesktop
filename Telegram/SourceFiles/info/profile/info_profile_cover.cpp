@@ -24,9 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/info_controller.h"
 #include "boxes/peers/edit_forum_topic_box.h"
-#include "boxes/premium_preview_box.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
+#include "ui/boxes/show_or_premium_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -414,8 +414,8 @@ void Cover::setupShowLastSeen() {
 	}
 
 	_showLastSeen->setClickedCallback([=] {
-		const auto type = ShowOrPremium::LastSeen;
-		auto box = Box(ShowOrPremiumBox, type, user->shortName(), [=] {
+		const auto type = Ui::ShowOrPremium::LastSeen;
+		auto box = Box(Ui::ShowOrPremiumBox, type, user->shortName(), [=] {
 			_controller->session().api().userPrivacy().save(
 				::Api::UserPrivacy::Key::LastSeen,
 				{});

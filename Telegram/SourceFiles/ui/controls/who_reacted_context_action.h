@@ -62,6 +62,11 @@ struct WhoReadContent {
 	Fn<void(uint64)> participantChosen,
 	Fn<void()> showAllChosen);
 
+[[nodiscard]] base::unique_qptr<Menu::ItemBase> WhenReadContextAction(
+	not_null<PopupMenu*> menu,
+	rpl::producer<WhoReadContent> content,
+	Fn<void()> showOrPremium);
+
 enum class WhoReactedType : uchar {
 	Viewed,
 	Reacted,

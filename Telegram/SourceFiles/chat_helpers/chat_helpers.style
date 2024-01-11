@@ -249,6 +249,13 @@ defaultWhoRead: WhoRead {
 	iconPosition: point(15px, 7px);
 	itemPadding: margins(44px, 9px, 17px, 7px);
 }
+whenReadStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+}
+whenReadPadding: margins(34px, 3px, 17px, 4px);
+whenReadIconPosition: point(8px, 0px);
+whenReadSkip: 3px;
+whenReadShowPadding: margins(6px, 0px, 6px, 2px);
 
 switchPmButton: RoundButton(defaultBoxButton) {
 	width: 320px;
