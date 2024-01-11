@@ -413,6 +413,10 @@ void Cover::setupShowLastSeen() {
 		_showLastSeen->hide();
 	}
 
+	using TextTransform = Ui::RoundButton::TextTransform;
+	_showLastSeen->setTextTransform(TextTransform::NoTransform);
+	_showLastSeen->setFullRadius(true);
+
 	_showLastSeen->setClickedCallback([=] {
 		const auto type = Ui::ShowOrPremium::LastSeen;
 		auto box = Box(Ui::ShowOrPremiumBox, type, user->shortName(), [=] {

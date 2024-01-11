@@ -338,12 +338,17 @@ infoProfileCover: InfoProfileCover {
 	statusLeft: 109px;
 	statusTop: 58px;
 	showLastSeen: RoundButton(defaultActiveButton) {
+		textFg: windowSubTextFg;
+		textFgOver: windowSubTextFg;
+		textBg: windowBgOver;
+		textBgOver: windowBgOver;
 		width: -12px;
-		height: 20px;
-		textTop: 2px;
-		font: font(11px semibold);
+		height: 18px;
+		textTop: 0px;
+		font: font(12px);
+		ripple: defaultRippleAnimation;
 	}
-	showLastSeenPosition: point(4px, 56px);
+	showLastSeenPosition: point(3px, 58px);
 	showLastSeenVisible: true;
 	rightSkip: 20px;
 }
