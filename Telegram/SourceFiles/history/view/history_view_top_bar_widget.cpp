@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_send_action.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "base/unixtime.h"
+#include "base/event_filter.h"
 #include "support/support_helper.h"
 #include "apiwrap.h"
 #include "api/api_chat_participants.h"
@@ -230,6 +231,16 @@ TopBarWidget::TopBarWidget(
 		updateConnectingState();
 	}, lifetime());
 
+	base::install_event_filter(
+		this,
+		window()->windowHandle(),
+		[=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::Expose) {
+				updateConnectingState();
+			}
+			return base::EventFilterResult::Continue;
+		});
+
 	setCursor(style::cur_pointer);
 }
 
@@ -241,7 +252,8 @@ Main::Session &TopBarWidget::session() const {
 
 void TopBarWidget::updateConnectingState() {
 	const auto state = _controller->session().mtp().dcstate();
-	if (state == MTP::ConnectedState) {
+	const auto exposed = window()->windowHandle()->isExposed();
+	if (state == MTP::ConnectedState || !exposed) {
 		if (_connecting) {
 			_connecting = nullptr;
 			update();

@@ -46,6 +46,7 @@ private:
 		};
 		Type type = Type::Connected;
 		bool useProxy = false;
+		bool exposed = false;
 		bool underCursor = false;
 		bool updateReady = false;
 		int waitTillRetry = 0;
@@ -79,6 +80,7 @@ private:
 
 	const not_null<Main::Account*> _account;
 	not_null<Ui::RpWidget*> _parent;
+	base::unique_qptr<QObject> _exposeFilter;
 	rpl::variable<int> _bottomSkip;
 	base::unique_qptr<Widget> _widget;
 	bool _forceHidden = false;
