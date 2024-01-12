@@ -360,7 +360,7 @@ void Application::run() {
 	startDomain();
 	startTray();
 
-	_lastActivePrimaryWindow->widget()->show();
+	_lastActivePrimaryWindow->firstShow();
 
 	startMediaView();
 

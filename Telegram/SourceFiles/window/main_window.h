@@ -132,6 +132,7 @@ public:
 	void recountGeometryConstraints();
 	virtual void updateControlsGeometry();
 
+	void firstShow();
 	bool minimizeToTray();
 	void updateGlobalMenu() {
 		updateGlobalMenuHook();
@@ -197,7 +198,6 @@ private:
 	[[nodiscard]] Core::WindowPosition nextInitialChildPosition(
 		bool primary);
 	[[nodiscard]] QRect countInitialGeometry(Core::WindowPosition position);
-	void initGeometry();
 
 	bool computeIsActive() const;
 

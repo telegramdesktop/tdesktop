@@ -74,6 +74,7 @@ public:
 
 	[[nodiscard]] Adaptive &adaptive() const;
 
+	void firstShow();
 	void finishFirstShow();
 
 	void setupPasscodeLock();
