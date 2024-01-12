@@ -1524,7 +1524,9 @@ bool MainWidget::saveSectionInStack(
 			_history->msgId(),
 			_history->replyReturns()));
 	} else {
-		return false;
+		// We pretend that we "saved" the chats list state in stack,
+		// so that we do animate a transition from chats list to a section.
+		return true;
 	}
 	const auto raw = _stack.back().get();
 	raw->setThirdSectionWeak(_thirdSection.data());
