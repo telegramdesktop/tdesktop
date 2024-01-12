@@ -65,6 +65,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
+#include <QtGui/QWindow>
+
 namespace HistoryView {
 namespace {
 
