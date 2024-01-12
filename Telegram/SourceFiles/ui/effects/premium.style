@@ -35,6 +35,14 @@ PremiumCover {
 	about: FlatLabel;
 	additionalShadowForDarkThemes: bool;
 }
+ComposePremiumRequired {
+	label: FlatLabel;
+	button: RoundButton;
+	buttonSkip: pixels;
+	buttonTop: pixels;
+	position: point;
+	icon: icon;
+}
 
 premiumAboutTextStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);

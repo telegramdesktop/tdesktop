@@ -3618,10 +3618,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_non_premium_text" = "Subscribe to **Premium**\n to message {user}.";
 "lng_send_non_premium_go" = "Go Premium";
 "lng_send_non_premium_story" = "Replies restricted";
-"lng_send_non_premium_unlock" = "Unlock";
-"lng_send_non_premium_story_toast" = "You need a **Premium** subscription to reply to **{user}'s** stories.";
-"lng_send_non_premium_message_toast" = "**{user}** only accepts messages from contacts and **Premium** users.";
-"lng_send_non_premium_toast_button" = "View";
+"lng_send_non_premium_unlock" = "unlock";
+"lng_send_non_premium_message_toast" = "**{user}** only accepts messages from contacts and {link} subscribers.";
+"lng_send_non_premium_message_toast_link" = "Telegram Premium";
 
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";

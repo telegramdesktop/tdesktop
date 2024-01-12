@@ -208,6 +208,8 @@ ComposeControls {
 	files: ComposeFiles;
 	premium: PremiumLimits;
 	boxField: InputField;
+	restrictionLabel: FlatLabel;
+	premiumRequired: ComposePremiumRequired;
 }
 
 ReportBox {
@@ -1218,6 +1220,11 @@ defaultComposeFiles: ComposeFiles {
 	nameFg: historyFileNameInFg;
 	statusFg: mediaInFg;
 }
+defaultRestrictionLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 12px;
+	textFg: placeholderFg;
+	align: align(top);
+}
 defaultComposeControls: ComposeControls {
 	bg: historyComposeAreaBg;
 	radius: 0px;
@@ -1234,6 +1241,7 @@ defaultComposeControls: ComposeControls {
 	files: defaultComposeFiles;
 	premium: defaultPremiumLimits;
 	boxField: defaultInputField;
+	restrictionLabel: defaultRestrictionLabel;
 }
 
 moreChatsBarHeight: 48px;

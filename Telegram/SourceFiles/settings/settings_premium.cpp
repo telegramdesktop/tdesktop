@@ -1322,6 +1322,7 @@ void ShowPremiumPromoToast(
 		.text = std::move(textWithLink),
 		.st = &st::defaultMultilineToast,
 		.duration = Ui::Toast::kDefaultDuration * 2,
+		.adaptive = true,
 		.multiline = true,
 		.filter = crl::guard(&show->session(), [=](
 				const ClickHandlerPtr &,
