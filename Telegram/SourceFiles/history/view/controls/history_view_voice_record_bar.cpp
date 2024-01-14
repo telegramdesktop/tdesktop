@@ -312,49 +312,16 @@ TTLButton::TTLButton(
 
 		Ui::RippleButton::paintRipple(p, _rippleRect.x(), _rippleRect.y());
 
-		const auto innerRect = QRectF(inner)
-			- st::historyRecordLockMargin * 2;
-		auto hq = PainterHighQualityEnabler(p);
-
-		p.setFont(st::semiboldFont);
-		p.setPen(_st.lock.fg);
-		p.drawText(inner, _text, style::al_center);
-
-		const auto penWidth = st::historyRecordTTLLineWidth;
-		auto pen = QPen(_st.lock.fg);
-		pen.setJoinStyle(Qt::RoundJoin);
-		pen.setCapStyle(Qt::RoundCap);
-		pen.setWidthF(penWidth);
-
-		p.setPen(pen);
-		p.setBrush(Qt::NoBrush);
-		p.drawArc(innerRect, arc::kQuarterLength, arc::kHalfLength);
-
-		{
-			p.setClipRect(innerRect
-				- QMarginsF(
-					innerRect.width() / 2,
-					-penWidth,
-					-penWidth,
-					-penWidth));
-			pen.setStyle(Qt::DotLine);
-			p.setPen(pen);
-			p.drawEllipse(innerRect);
-			p.setClipping(false);
-		}
-
 		const auto activeProgress = _activeAnimation.value(
 			!Ui::AbstractButton::isDisabled() ? 1 : 0);
+
+		p.setOpacity(1. - activeProgress);
+		st::historyRecordVoiceOnceInactive.paintInCenter(p, inner);
+
 		if (activeProgress) {
 			p.setOpacity(activeProgress);
-			pen.setStyle(Qt::SolidLine);
-			pen.setBrush(st::windowBgActive);
-			p.setPen(pen);
-			p.setBrush(pen.brush());
-			p.drawEllipse(innerRect);
-
-			p.setPen(st::windowFgActive);
-			p.drawText(innerRect, _text, style::al_center);
+			st::historyRecordVoiceOnceBg.paintInCenter(p, inner);
+			st::historyRecordVoiceOnceFg.paintInCenter(p, inner);
 		}
 
 	}, lifetime());

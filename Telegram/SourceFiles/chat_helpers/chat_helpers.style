@@ -1063,12 +1063,17 @@ historyRecordVoiceShowDuration: 120;
 historyRecordVoiceDuration: 120;
 historyRecordVoice: icon {{ "chat/input_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "chat/input_record", historyRecordVoiceFgOver }};
+historyRecordVoiceOnceBg: icon {{ "voice_lock/audio_once_bg", historySendIconFg }};
+historyRecordVoiceOnceBgOver: icon {{ "voice_lock/audio_once_bg", historySendIconFgOver }};
+historyRecordVoiceOnceFg: icon {{ "voice_lock/audio_once_number", windowFgActive }};
+historyRecordVoiceOnceFgOver: icon {{ "voice_lock/audio_once_number", windowFgActive }};
+historyRecordVoiceOnceInactive: icon {{ "chat/audio_once", windowSubTextFg }};
 historyRecordVoiceActive: icon {{ "chat/input_record_filled", historyRecordVoiceFgActiveIcon }};
 historyRecordSendIconPosition: point(2px, 0px);
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
 historyRecordSignalRadius: 5px;
 historyRecordCancel: windowSubTextFg;
-historyRecordCancelActive: windowActiveTextFg;
+historyRecordCancelActive: historySendIconFg;
 historyRecordFont: font(13px);
 historyRecordDurationSkip: 12px;
 historyRecordDurationFg: historyComposeAreaFg;
@@ -1111,16 +1116,16 @@ historyRecordLockArrow: icon {{ "voice_lock/voice_arrow", historyToDownFg }};
 historyRecordLockRippleMargin: margins(6px, 6px, 6px, 6px);
 
 historyRecordDelete: IconButton(historyAttach) {
-	icon: icon {{ "info/info_media_delete", historyComposeIconFg }};
-	iconOver: icon {{ "info/info_media_delete", historyComposeIconFgOver }};
+	icon: icon {{ "voice_lock/recorded_delete", historyComposeIconFg }};
+	iconOver: icon {{ "voice_lock/recorded_delete", historyComposeIconFgOver }};
 	iconPosition: point(10px, 11px);
 }
 historyRecordWaveformRightSkip: 10px;
-historyRecordWaveformBgMargins: margins(5px, 7px, 5px, 7px);
+historyRecordWaveformBgMargins: margins(5px, 8px, 5px, 9px);
 
 historyRecordWaveformBar: 3px;
 
-historyRecordLockPosition: point(1px, 35px);
+historyRecordLockPosition: point(1px, 22px);
 
 historyRecordCancelButtonWidth: 100px;
 historyRecordCancelButtonFg: lightButtonFg;
