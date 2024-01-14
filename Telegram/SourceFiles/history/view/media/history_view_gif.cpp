@@ -582,18 +582,19 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			const auto value = playback->value();
 			if (value > 0.) {
 				auto pen = st->historyVideoMessageProgressFg()->p;
-				auto was = p.pen();
+				const auto was = p.pen();
 				pen.setWidth(st::radialLine);
 				pen.setCapStyle(Qt::RoundCap);
 				p.setPen(pen);
 				p.setOpacity(st::historyVideoMessageProgressOpacity);
 
-				auto from = arc::kQuarterLength;
-				auto len = -qRound(arc::kFullLength * value);
-				auto stepInside = st::radialLine / 2;
+				const auto from = arc::kQuarterLength;
+				const auto len = std::round(arc::kFullLength
+					* (inTTLViewer ? (1. - value) : -value));
+				const auto stepInside = st::radialLine / 2;
 				{
-					PainterHighQualityEnabler hq(p);
-					p.drawArc(rthumb.marginsRemoved(QMargins(stepInside, stepInside, stepInside, stepInside)), from, len);
+					auto hq = PainterHighQualityEnabler(p);
+					p.drawArc(rthumb - Margins(stepInside), from, len);
 				}
 
 				p.setPen(was);
