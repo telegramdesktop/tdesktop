@@ -280,7 +280,6 @@ protected:
 private:
 	const style::RecordBar &_st;
 	const QRect _rippleRect;
-	const QString _text;
 
 	Ui::Animations::Simple _activeAnimation;
 
@@ -292,8 +291,7 @@ TTLButton::TTLButton(
 : RippleButton(parent, st.lock.ripple)
 , _st(st)
 , _rippleRect(Rect(Size(st::historyRecordLockTopShadow.width()))
-	- (st::historyRecordLockRippleMargin))
-, _text(u"1"_q) {
+	- (st::historyRecordLockRippleMargin)) {
 	resize(Size(st::historyRecordLockTopShadow.width()));
 
 	setClickedCallback([=] {
@@ -306,20 +304,27 @@ TTLButton::TTLButton(
 			st::historyRecordVoiceShowDuration);
 	});
 
-	{
+	Ui::RpWidget::shownValue() | rpl::filter(
+		rpl::mappers::_1
+	) | rpl::skip(1) | rpl::take(1) | rpl::start_with_next([=] {
+		auto text = rpl::conditional(
+			Core::App().settings().ttlVoiceClickTooltipHiddenValue(),
+			tr::lng_record_once_active_tooltip(
+				Ui::Text::RichLangValue),
+			tr::lng_record_once_first_tooltip(
+				Ui::Text::RichLangValue));
 		const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
 			parent.get(),
 			object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 				parent.get(),
 				Ui::MakeNiceTooltipLabel(
 					parent,
-					tr::lng_record_once_active_tooltip(
-						Ui::Text::RichLangValue),
+					std::move(text),
 					st::historyMessagesTTLLabel.minWidth,
 					st::ttlMediaImportantTooltipLabel),
 				st::defaultImportantTooltip.padding),
 			st::historyRecordTooltip);
-		geometryValue(
+		Ui::RpWidget::geometryValue(
 		) | rpl::start_with_next([=](const QRect &r) {
 			if (r.isEmpty()) {
 				return;
@@ -336,6 +341,15 @@ TTLButton::TTLButton(
 			});
 		}, tooltip->lifetime());
 		tooltip->show();
+		if (!Core::App().settings().ttlVoiceClickTooltipHidden()) {
+			clicks(
+			) | rpl::take(1) | rpl::start_with_next([=] {
+				Core::App().settings().setTtlVoiceClickTooltipHidden(true);
+			}, tooltip->lifetime());
+			tooltip->toggleAnimated(true);
+		} else {
+			tooltip->toggleFast(false);
+		}
 
 		clicks(
 		) | rpl::start_with_next([=] {
@@ -347,7 +361,19 @@ TTLButton::TTLButton(
 				tooltip->hideAfter(kTimeout);
 			}
 		}, tooltip->lifetime());
-	}
+
+		Ui::RpWidget::geometryValue(
+		) | rpl::map([=](const QRect &r) {
+			return (r.left() + r.width() > parentWidget()->width());
+		}) | rpl::distinct_until_changed(
+		) | rpl::start_with_next([=](bool toHide) {
+			const auto isFirstTooltip =
+				!Core::App().settings().ttlVoiceClickTooltipHidden();
+			if (isFirstTooltip || (!isFirstTooltip && toHide)) {
+				tooltip->toggleAnimated(!toHide);
+			}
+		}, tooltip->lifetime());
+	}, lifetime());
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
@@ -1632,6 +1658,8 @@ void VoiceRecordBar::finish() {
 	_lockToStopAnimation.stop();
 
 	_listen = nullptr;
+
+	[[maybe_unused]] const auto s = takeTTLState();
 
 	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
 }
