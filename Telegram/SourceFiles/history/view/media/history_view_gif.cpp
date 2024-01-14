@@ -150,17 +150,20 @@ Gif::Gif(
 			_drawTtl = CreateTtlPaintCallback([=] { repaint(); });
 		}
 		const auto fullId = _realParent->fullId();
+		const auto &data = &_parent->data()->history()->owner();
+		const auto isOut = _parent->data()->out();
 		_parent->data()->removeFromSharedMediaIndex();
 		setDocumentLinks(_data, realParent, [=] {
 			auto lifetime = std::make_shared<rpl::lifetime>();
 			TTLVoiceStops(fullId) | rpl::start_with_next([=]() mutable {
-				const auto item = _parent->data();
 				if (lifetime) {
 					base::take(lifetime)->destroy();
 				}
-				if (!item->out()) {
-					// Destroys this.
-					ClearMediaAsExpired(item);
+				if (!isOut) {
+					if (const auto item = data->message(fullId)) {
+						// Destroys this.
+						ClearMediaAsExpired(item);
+					}
 				}
 			}, *lifetime);
 

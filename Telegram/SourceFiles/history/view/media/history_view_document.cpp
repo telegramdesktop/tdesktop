@@ -309,18 +309,20 @@ Document::Document(
 			}, *lifetime);
 			_drawTtl = CreateTtlPaintCallback(lifetime, [=] { repaint(); });
 		} else if (!_parent->data()->out()) {
+			const auto &data = &_parent->data()->history()->owner();
 			_parent->data()->removeFromSharedMediaIndex();
 			setDocumentLinks(_data, realParent, [=] {
 				_openl = nullptr;
 
 				auto lifetime = std::make_shared<rpl::lifetime>();
 				TTLVoiceStops(fullId) | rpl::start_with_next([=]() mutable {
-					const auto item = _parent->data();
 					if (lifetime) {
 						base::take(lifetime)->destroy();
 					}
-					// Destroys this.
-					ClearMediaAsExpired(item);
+					if (const auto item = data->message(fullId)) {
+						// Destroys this.
+						ClearMediaAsExpired(item);
+					}
 				}, *lifetime);
 
 				return false;
