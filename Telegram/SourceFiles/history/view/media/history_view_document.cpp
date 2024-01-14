@@ -425,7 +425,7 @@ void Document::createComponents(bool caption) {
 			_realParent->fullId());
 	}
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
-		voice->seekl = !IsVoiceOncePlayable(_parent->data())
+		voice->seekl = !_parent->data()->media()->ttlSeconds()
 			? std::make_shared<VoiceSeekClickHandler>(_data, [](FullMsgId) {})
 			: nullptr;
 		if (_transcribedRound) {

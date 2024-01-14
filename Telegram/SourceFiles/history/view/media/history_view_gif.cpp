@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_playback_progress.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "history/history_item.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_reply.h"
 #include "history/view/history_view_transcribe_button.h"
+#include "history/view/media/history_view_document.h" // TTLVoiceStops
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_spoiler.h"
 #include "window/window_session_controller.h"
@@ -52,6 +54,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "styles/style_chat.h"
 
+#include <QSvgRenderer>
+
 namespace HistoryView {
 namespace {
 
@@ -63,6 +67,41 @@ int gifMaxStatusWidth(DocumentData *document) {
 	auto result = st::normalFont->width(Ui::FormatDownloadText(document->size, document->size));
 	accumulate_max(result, st::normalFont->width(Ui::FormatGifAndSizeText(document->size)));
 	return result;
+}
+
+[[nodiscard]] HistoryView::TtlRoundPaintCallback CreateTtlPaintCallback(
+		Fn<void()> update) {
+	const auto iconSize = Size(std::min(
+		st::historyFileInPause.width(),
+		st::historyFileInPause.height()));
+	const auto centerMargins = Margins(st::historyFileInPause.width() * 3);
+
+	const auto renderer = std::make_shared<QSvgRenderer>(
+		u":/gui/ttl/video_message_icon.svg"_q);
+
+	return [=](QPainter &p, QRect r, const PaintContext &context) {
+		const auto centerRect = r - centerMargins;
+		const auto &icon = context.imageStyle()->historyVideoMessageTtlIcon;
+		const auto iconRect = QRect(
+			rect::right(centerRect) - icon.width() * 0.75,
+			rect::bottom(centerRect) - icon.height() * 0.75,
+			icon.width(),
+			icon.height());
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			auto path = QPainterPath();
+			path.setFillRule(Qt::WindingFill);
+			path.addEllipse(centerRect);
+			path.addEllipse(iconRect);
+			p.fillPath(path, st::shadowFg);
+			p.fillPath(path, st::shadowFg);
+			p.fillPath(path, st::shadowFg);
+		}
+
+		renderer->render(&p, centerRect - Margins(centerRect.width() / 4));
+
+		icon.paint(p, iconRect.topLeft(), centerRect.width());
+	};
 }
 
 } // namespace
@@ -83,6 +122,12 @@ Gif::Streamed::Streamed(
 : instance(std::move(shared), std::move(waitingCallback)) {
 }
 
+[[nodiscard]] bool IsHiddenRoundMessage(not_null<Element*> parent) {
+	return parent->delegate()->elementContext() != Context::TTLViewer
+		&& parent->data()->media()
+		&& parent->data()->media()->ttlSeconds();
+}
+
 Gif::Gif(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
@@ -95,18 +140,45 @@ Gif::Gif(
 	: FullStoryId())
 , _caption(
 	st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
-, _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr)
+, _spoiler((spoiler || IsHiddenRoundMessage(_parent))
+	? std::make_unique<MediaSpoiler>()
+	: nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
-	setDocumentLinks(_data, realParent, [=] {
-		if (!_data->createMediaView()->canBePlayed(realParent)
-			|| !_data->isAnimation()
-			|| _data->isVideoMessage()
-			|| !CanPlayInline(_data)) {
-			return false;
+	auto hasDefaultDocumentLinks = false;
+	if (_data->isVideoMessage() && _parent->data()->media()->ttlSeconds()) {
+		if (_spoiler) {
+			_drawTtl = CreateTtlPaintCallback([=] { repaint(); });
 		}
-		playAnimation(false);
-		return true;
-	});
+		const auto fullId = _realParent->fullId();
+		_parent->data()->removeFromSharedMediaIndex();
+		setDocumentLinks(_data, realParent, [=] {
+			auto lifetime = std::make_shared<rpl::lifetime>();
+			TTLVoiceStops(fullId) | rpl::start_with_next([=]() mutable {
+				const auto item = _parent->data();
+				if (lifetime) {
+					base::take(lifetime)->destroy();
+				}
+				if (!item->out()) {
+					// Destroys this.
+					ClearMediaAsExpired(item);
+				}
+			}, *lifetime);
+
+			return false;
+		});
+	} else {
+		setDocumentLinks(_data, realParent, [=] {
+			if (!_data->createMediaView()->canBePlayed(realParent)
+				|| !_data->isAnimation()
+				|| _data->isVideoMessage()
+				|| !CanPlayInline(_data)) {
+				return false;
+			}
+			playAnimation(false);
+			return true;
+		});
+	}
+
 	setStatusSize(Ui::FileStatusSizeReady);
 
 	if (_spoiler) {
@@ -403,7 +475,13 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 	QRect rthumb(style::rtlrect(usex + paintx, painty, usew, painth, width()));
 
-	const auto revealed = (!isRound && _spoiler)
+	const auto inTTLViewer = _parent->delegate()->elementContext()
+		== Context::TTLViewer;
+	const auto revealed = (isRound
+			&& item->media()->ttlSeconds()
+			&& !inTTLViewer)
+		? 0
+		: (!isRound && _spoiler)
 		? _spoiler->revealAnimation.value(_spoiler->revealed ? 1. : 0.)
 		: 1.;
 	const auto fullHiddenBySpoiler = (revealed == 0.);
@@ -525,10 +603,19 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		p.drawImage(rthumb, _thumbCache);
 	}
 
-	if (!isRound && revealed < 1.) {
+	if (revealed < 1.) {
 		p.setOpacity(1. - revealed);
-		p.drawImage(rthumb.topLeft(), _spoiler->background);
-		fillImageSpoiler(p, _spoiler.get(), rthumb, context);
+		if (!isRound) {
+			p.drawImage(rthumb.topLeft(), _spoiler->background);
+			fillImageSpoiler(p, _spoiler.get(), rthumb, context);
+		} else {
+			auto frame = _spoiler->background;
+			{
+				auto q = QPainter(&frame);
+				fillImageSpoiler(q, _spoiler.get(), rthumb, context);
+			}
+			p.drawImage(rthumb.topLeft(), Images::Circle(std::move(frame)));
+		}
 		p.setOpacity(1.);
 	}
 	if (context.selected()) {
@@ -792,6 +879,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		} else if (rightAligned && _transcribe) {
 			paintTranscribe(p, usex, fullBottom, false, context);
 		}
+	}
+	if (_drawTtl) {
+		_drawTtl(p, rthumb, context);
 	}
 }
 
@@ -1108,7 +1198,9 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	}
 	if (QRect(usex + paintx, painty, usew, painth).contains(point)) {
 		ensureDataMediaCreated();
-		result.link = (_spoiler && !_spoiler->revealed)
+		result.link = (isRound && _parent->data()->media()->ttlSeconds())
+			? _openl // Overriden.
+			: (_spoiler && !_spoiler->revealed)
 			? _spoiler->link
 			: _data->uploading()
 			? _cancell
@@ -1970,7 +2062,7 @@ bool Gif::needCornerStatusDisplay() const {
 
 void Gif::ensureTranscribeButton() const {
 	if (_data->isVideoMessage()
-		&& !IsVoiceOncePlayable(_parent->data())
+		&& !_parent->data()->media()->ttlSeconds()
 		&& (_data->session().premium()
 			|| _data->session().api().transcribes().trialsSupport())) {
 		if (!_transcribe) {

@@ -26,6 +26,7 @@
     <file alias="recording/info_audio.svg">../../art/recording/recording_info_audio.svg</file>
     <file alias="recording/info_video_landscape.svg">../../art/recording/recording_info_video_landscape.svg</file>
     <file alias="recording/info_video_portrait.svg">../../art/recording/recording_info_video_portrait.svg</file>
+    <file alias="ttl/video_message_icon.svg">../../art/ttl/video_message_icon.svg</file>
     <file alias="icons/settings/dino.svg">../../icons/settings/dino.svg</file>
     <file alias="icons/settings/star.svg">../../icons/settings/star.svg</file>
     <file alias="icons/settings/starmini.svg">../../icons/settings/starmini.svg</file>

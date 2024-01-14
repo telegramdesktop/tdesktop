@@ -118,6 +118,7 @@ struct MessageImageStyle {
 	style::icon historyVideoDownload = { Qt::Uninitialized };
 	style::icon historyVideoCancel = { Qt::Uninitialized };
 	style::icon historyVideoMessageMute = { Qt::Uninitialized };
+	style::icon historyVideoMessageTtlIcon = { Qt::Uninitialized };
 	style::icon historyPageEnlarge = { Qt::Uninitialized };
 };
 
