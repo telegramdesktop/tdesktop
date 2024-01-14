@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
+#include "window/section_widget.h" // Window::ChatThemeValueFromPeer.
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -81,7 +82,10 @@ bool PreviewDelegate::elementIsChatWide() {
 
 class PreviewWrap final : public Ui::RpWidget {
 public:
-	PreviewWrap(not_null<Ui::RpWidget*> parent, not_null<HistoryItem*> item);
+	PreviewWrap(
+		not_null<Ui::RpWidget*> parent,
+		not_null<HistoryItem*> item,
+		rpl::producer<std::shared_ptr<Ui::ChatTheme>> theme);
 	~PreviewWrap();
 
 	[[nodiscard]] rpl::producer<> closeRequests() const;
@@ -91,9 +95,9 @@ private:
 	[[nodiscard]] QRect elementRect() const;
 
 	const not_null<HistoryItem*> _item;
-	const std::unique_ptr<Ui::ChatTheme> _theme;
 	const std::unique_ptr<Ui::ChatStyle> _style;
 	const std::unique_ptr<PreviewDelegate> _delegate;
+	std::shared_ptr<Ui::ChatTheme> _theme;
 	std::unique_ptr<HistoryView::Element> _element;
 	rpl::lifetime _elementLifetime;
 
@@ -108,17 +112,23 @@ private:
 
 PreviewWrap::PreviewWrap(
 	not_null<Ui::RpWidget*> parent,
-	not_null<HistoryItem*> item)
+	not_null<HistoryItem*> item,
+	rpl::producer<std::shared_ptr<Ui::ChatTheme>> theme)
 : RpWidget(parent)
 , _item(item)
-, _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
 , _style(std::make_unique<Ui::ChatStyle>(
 	item->history()->session().colorIndicesValue()))
 , _delegate(std::make_unique<PreviewDelegate>(
 	parent,
 	_style.get(),
 	[=] { update(elementRect()); })) {
-	_style->apply(_theme.get());
+
+	std::move(
+		theme
+	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> theme) {
+		_theme = std::move(theme);
+		_style->apply(_theme.get());
+	}, lifetime());
 
 	const auto session = &_item->history()->session();
 	session->data().viewRepaintRequest(
@@ -269,7 +279,12 @@ void ShowTTLMediaLayerWidget(
 		not_null<HistoryItem*> item) {
 	const auto parent = controller->content();
 	const auto show = controller->uiShow();
-	auto preview = base::make_unique_q<PreviewWrap>(parent, item);
+	auto preview = base::make_unique_q<PreviewWrap>(
+		parent,
+		item,
+		Window::ChatThemeValueFromPeer(
+			controller,
+			item->history()->peer));
 	preview->closeRequests(
 	) | rpl::start_with_next([=] {
 		show->hideLayer();
