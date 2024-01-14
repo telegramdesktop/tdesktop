@@ -1325,6 +1325,7 @@ void VoiceRecordBar::init() {
 				}
 				updateTTLGeometry(TTLAnimationType::TopBottom, 1. - value);
 			};
+			_showListenAnimation.stop();
 			_showListenAnimation.start(std::move(callback), 0., to, duration);
 		}, lifetime());
 
@@ -1456,12 +1457,17 @@ void VoiceRecordBar::setTTLFilter(FilterCallback &&callback) {
 }
 
 void VoiceRecordBar::initLockGeometry() {
-	rpl::combine(
-		_lock->heightValue(),
-		geometryValue(),
-		static_cast<Ui::RpWidget*>(parentWidget())->geometryValue()
+	const auto parent = static_cast<Ui::RpWidget*>(parentWidget());
+	rpl::merge(
+		_lock->heightValue() | rpl::to_empty,
+		geometryValue() | rpl::to_empty,
+		parent->geometryValue() | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		updateLockGeometry();
+	}, lifetime());
+	parent->geometryValue(
+	) | rpl::start_with_next([=] {
+		updateTTLGeometry(TTLAnimationType::RightLeft, 1.);
 	}, lifetime());
 }
 
