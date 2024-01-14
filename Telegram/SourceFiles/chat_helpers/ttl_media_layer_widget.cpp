@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/ttl_media_layer_widget.h"
 
 #include "base/event_filter.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "editor/editor_layer_widget.h"
 #include "history/history.h"
@@ -123,6 +124,11 @@ PreviewWrap::PreviewWrap(
 	_style.get(),
 	[=] { update(elementRect()); })) {
 
+	const auto isRound = _item
+		&& _item->media()
+		&& _item->media()->document()
+		&& _item->media()->document()->isVideoMessage();
+
 	std::move(
 		theme
 	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> theme) {
@@ -174,13 +180,17 @@ PreviewWrap::PreviewWrap(
 
 	{
 		auto text = item->out()
-			? tr::lng_ttl_voice_tooltip_out(
-				lt_user,
-				rpl::single(
-					item->history()->peer->name()
-				) | rpl::map(Ui::Text::RichLangValue),
-				Ui::Text::RichLangValue)
-			: tr::lng_ttl_voice_tooltip_in(Ui::Text::RichLangValue);
+			? (isRound
+				? tr::lng_ttl_round_tooltip_out
+				: tr::lng_ttl_voice_tooltip_out)(
+					lt_user,
+					rpl::single(
+						item->history()->peer->shortName()
+					) | rpl::map(Ui::Text::RichLangValue),
+					Ui::Text::RichLangValue)
+			: (isRound
+				? tr::lng_ttl_round_tooltip_in
+				: tr::lng_ttl_voice_tooltip_in)(Ui::Text::RichLangValue);
 		const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
 			this,
 			object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
