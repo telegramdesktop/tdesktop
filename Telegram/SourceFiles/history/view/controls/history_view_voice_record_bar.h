@@ -98,6 +98,7 @@ public:
 	[[nodiscard]] bool isListenState() const;
 	[[nodiscard]] bool isActive() const;
 	[[nodiscard]] bool isRecordingByAnotherBar() const;
+	[[nodiscard]] bool isTTLButtonShown() const;
 
 private:
 	enum class StopType {

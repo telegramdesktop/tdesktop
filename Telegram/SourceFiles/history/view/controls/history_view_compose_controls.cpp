@@ -2925,6 +2925,10 @@ bool ComposeControls::isLockPresent() const {
 	return _voiceRecordBar->isLockPresent();
 }
 
+bool ComposeControls::isTTLButtonShown() const {
+	return _voiceRecordBar->isTTLButtonShown();
+}
+
 rpl::producer<bool> ComposeControls::lockShowStarts() const {
 	return _voiceRecordBar->lockShowStarts();
 }

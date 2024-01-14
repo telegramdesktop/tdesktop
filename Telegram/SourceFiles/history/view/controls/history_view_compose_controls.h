@@ -220,6 +220,7 @@ public:
 
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] bool isLockPresent() const;
+	[[nodiscard]] bool isTTLButtonShown() const;
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isRecordingPressed() const;
 	[[nodiscard]] rpl::producer<bool> recordingActiveValue() const;

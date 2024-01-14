@@ -1838,6 +1838,10 @@ bool VoiceRecordBar::isRecordingByAnotherBar() const {
 	return !isRecording() && ::Media::Capture::instance()->started();
 }
 
+bool VoiceRecordBar::isTTLButtonShown() const {
+	return !_ttlButton->isHidden();
+}
+
 bool VoiceRecordBar::hasDuration() const {
 	return _recordingSamples > 0;
 }

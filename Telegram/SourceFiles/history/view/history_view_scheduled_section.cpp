@@ -843,7 +843,8 @@ bool ScheduledWidget::cornerButtonsIgnoreVisibility() {
 }
 
 std::optional<bool> ScheduledWidget::cornerButtonsDownShown() {
-	if (_composeControls->isLockPresent()) {
+	if (_composeControls->isLockPresent()
+		|| _composeControls->isTTLButtonShown()) {
 		return false;
 	}
 	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
@@ -857,7 +858,8 @@ std::optional<bool> ScheduledWidget::cornerButtonsDownShown() {
 
 bool ScheduledWidget::cornerButtonsUnreadMayBeShown() {
 	return _inner->loadedAtBottomKnown()
-		&& !_composeControls->isLockPresent();
+		&& !_composeControls->isLockPresent()
+		&& !_composeControls->isTTLButtonShown();
 }
 
 bool ScheduledWidget::cornerButtonsHas(CornerButtonType type) {
