@@ -59,37 +59,6 @@ constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 		st::dialogsTTLBadgeSize);
 }
 
-void DrawCornerBadgeTTL(QPainter &p, const QColor &fg, const QRect &ttlRect) {
-	p.save();
-	auto hq = PainterHighQualityEnabler(p);
-
-	const auto innerRect = QRectF(ttlRect - st::dialogsTTLBadgeInnerMargins);
-	const auto ttlText = u"1"_q;
-
-	p.setFont(st::dialogsScamFont);
-	p.setPen(fg);
-	p.drawText(innerRect, ttlText, style::al_center);
-
-	constexpr auto kPenWidth = 1.5;
-
-	const auto penWidth = style::ConvertScaleExact(kPenWidth);
-	auto pen = QPen(fg);
-	pen.setJoinStyle(Qt::RoundJoin);
-	pen.setCapStyle(Qt::RoundCap);
-	pen.setWidthF(penWidth);
-
-	p.setPen(pen);
-	p.setBrush(Qt::NoBrush);
-	p.drawArc(innerRect, arc::kQuarterLength, arc::kHalfLength);
-
-	p.setClipRect(innerRect
-		- QMarginsF(innerRect.width() / 2, -penWidth, -penWidth, -penWidth));
-	pen.setStyle(Qt::DotLine);
-	p.setPen(pen);
-	p.drawEllipse(innerRect);
-	p.restore();
-}
-
 [[nodiscard]] HistoryView::TtlPaintCallback CreateTtlPaintCallback(
 		std::shared_ptr<rpl::lifetime> lifetime,
 		Fn<void()> update) {
@@ -797,7 +766,15 @@ void Document::draw(
 				_animation->radial.draw(q, rinner, st::msgFileRadialLine, stm->historyFileRadialFg);
 			}
 			if (hasTtlBadge) {
-				DrawCornerBadgeTTL(q, stm->historyFileRadialFg->c, ttlRect);
+				{
+					auto hq = PainterHighQualityEnabler(q);
+					auto pen = stm->msgBg->p;
+					pen.setWidthF(style::ConvertScaleExact(1.5));
+					q.setPen(pen);
+					q.setBrush(Qt::NoBrush);
+					q.drawEllipse(ttlRect);
+				}
+				stm->historyVoiceMessageTTL.paintInCenter(q, ttlRect);
 			}
 		};
 		if (_data->isSongWithCover() || !usesBubblePattern(context)) {

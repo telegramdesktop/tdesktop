@@ -536,6 +536,12 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		&MessageImageStyle::historyPageEnlarge,
 		st::historyPageEnlarge,
 		st::historyPageEnlargeSelected);
+	make(
+		&MessageStyle::historyVoiceMessageTTL,
+		st::historyVoiceMessageInTTL,
+		st::historyVoiceMessageInTTLSelected,
+		st::historyVoiceMessageOutTTL,
+		st::historyVoiceMessageOutTTLSelected);
 
 	updateDarkValue();
 }

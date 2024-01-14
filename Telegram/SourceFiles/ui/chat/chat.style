@@ -513,6 +513,11 @@ msgWaveformSkip: 1px;
 msgWaveformMin: 3px;
 msgWaveformMax: 17px;
 
+historyVoiceMessageInTTL: icon {{ "chat/mini_media_once", historyFileInIconFg }};
+historyVoiceMessageInTTLSelected: icon {{ "chat/mini_media_once", historyFileInIconFgSelected }};
+historyVoiceMessageOutTTL: icon {{ "chat/mini_media_once", historyFileOutIconFg }};
+historyVoiceMessageOutTTLSelected: icon {{ "chat/mini_media_once", historyFileOutIconFgSelected }};
+
 historyTranscribeSkip: 10px;
 historyTranscribeSize: size(28px, 22px);
 historyTranscribeRadius: 4px;
