@@ -186,7 +186,8 @@ void PaintWaveform(
 		const PaintContext &context,
 		const VoiceData *voiceData,
 		int availableWidth,
-		float64 progress) {
+		float64 progress,
+		bool ttl) {
 	const auto wf = [&]() -> const VoiceWaveform* {
 		if (!voiceData) {
 			return nullptr;
@@ -198,11 +199,14 @@ void PaintWaveform(
 		}
 		return &voiceData->waveform;
 	}();
+	if (ttl) {
+		progress = 1. - progress;
+	}
 	const auto stm = context.messageStyle();
 
 	// Rescale waveform by going in waveform.size * bar_count 1D grid.
 	const auto active = stm->msgWaveformActive;
-	const auto inactive = stm->msgWaveformInactive;
+	const auto inactive = ttl ? stm->msgBg : stm->msgWaveformInactive;
 	const auto wfSize = wf
 		? int(wf->size())
 		: ::Media::Player::kWaveformSamplesCount;
@@ -755,8 +759,28 @@ void Document::draw(
 			: nullptr;
 
 		const auto paintContent = [&](QPainter &q) {
+			constexpr auto kPenWidth = 1.5;
 			if (_drawTtl) {
 				_drawTtl(q, inner, context.st->historyFileInIconFg()->c);
+
+				const auto voice = Get<HistoryDocumentVoice>();
+				const auto progress = (voice && voice->playback)
+					? voice->playback->progress.current()
+					: 0.;
+
+				if (progress > 0.) {
+					auto pen = stm->msgBg->p;
+					pen.setWidthF(style::ConvertScaleExact(kPenWidth));
+					pen.setCapStyle(Qt::RoundCap);
+					q.setPen(pen);
+
+					const auto from = arc::kQuarterLength;
+					const auto len = std::round(arc::kFullLength
+						* (1. - progress));
+					const auto stepInside = pen.widthF() * 2;
+					auto hq = PainterHighQualityEnabler(q);
+					q.drawArc(inner - Margins(stepInside), from, len);
+				}
 			} else if (previous && radialOpacity > 0. && radialOpacity < 1.) {
 				PaintInterpolatedIcon(q, icon, *previous, radialOpacity, inner);
 			} else {
@@ -771,7 +795,7 @@ void Document::draw(
 				{
 					auto hq = PainterHighQualityEnabler(q);
 					auto pen = stm->msgBg->p;
-					pen.setWidthF(style::ConvertScaleExact(1.5));
+					pen.setWidthF(style::ConvertScaleExact(kPenWidth));
 					q.setPen(pen);
 					q.setBrush(Qt::NoBrush);
 					q.drawEllipse(ttlRect);
@@ -843,11 +867,14 @@ void Document::draw(
 		if (_transcribedRound) {
 			FillWaveform(_data->round());
 		}
+		const auto inTTLViewer = _parent->delegate()->elementContext()
+			== Context::TTLViewer;
 		PaintWaveform(p,
 			context,
 			_transcribedRound ? _data->round() : _data->voice(),
 			namewidth + st::msgWaveformSkip,
-			progress);
+			progress,
+			inTTLViewer);
 		p.restore();
 	} else if (auto named = Get<HistoryDocumentNamed>()) {
 		p.setFont(st::semiboldFont);
