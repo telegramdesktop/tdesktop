@@ -1130,6 +1130,12 @@ historyRecordLockPosition: point(1px, 22px);
 historyRecordCancelButtonWidth: 100px;
 historyRecordCancelButtonFg: lightButtonFg;
 
+historyRecordTooltip: ImportantTooltip(defaultImportantTooltip) {
+	padding: margins(4px, 4px, 4px, 4px);
+	radius: 11px;
+	arrow: 6px;
+}
+
 historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "chat/input_silent", historyComposeIconFg }};
 	iconOver: icon {{ "chat/input_silent", historyComposeIconFgOver }};

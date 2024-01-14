@@ -31,7 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/rect.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -303,6 +305,49 @@ TTLButton::TTLButton(
 			isActive ? 1. : 0.,
 			st::historyRecordVoiceShowDuration);
 	});
+
+	{
+		const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
+			parent.get(),
+			object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+				parent.get(),
+				Ui::MakeNiceTooltipLabel(
+					parent,
+					tr::lng_record_once_active_tooltip(
+						Ui::Text::RichLangValue),
+					st::historyMessagesTTLLabel.minWidth,
+					st::ttlMediaImportantTooltipLabel),
+				st::defaultImportantTooltip.padding),
+			st::historyRecordTooltip);
+		geometryValue(
+		) | rpl::start_with_next([=](const QRect &r) {
+			if (r.isEmpty()) {
+				return;
+			}
+			tooltip->pointAt(r, RectPart::Right, [=](QSize size) {
+				return QPoint(
+					r.left()
+						- size.width()
+						- st::defaultImportantTooltip.padding.left(),
+					r.top()
+						+ r.height()
+						- size.height()
+						+ st::historyRecordTooltip.padding.top());
+			});
+		}, tooltip->lifetime());
+		tooltip->show();
+
+		clicks(
+		) | rpl::start_with_next([=] {
+			const auto toggled = !Ui::AbstractButton::isDisabled();
+			tooltip->toggleAnimated(toggled);
+
+			if (toggled) {
+				constexpr auto kTimeout = crl::time(3000);
+				tooltip->hideAfter(kTimeout);
+			}
+		}, tooltip->lifetime());
+	}
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
