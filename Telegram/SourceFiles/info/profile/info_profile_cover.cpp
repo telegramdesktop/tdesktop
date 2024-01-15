@@ -326,7 +326,7 @@ Cover::Cover(
 	: nullptr)
 , _name(this, _st.name)
 , _status(this, _st.status)
-, _showLastSeen(this, tr::lng_status_lastseen_show(), _st.showLastSeen)
+, _showLastSeen(this, tr::lng_status_lastseen_when(), _st.showLastSeen)
 , _refreshStatusTimer([this] { refreshStatusText(); }) {
 	_peer->updateFull();
 
@@ -376,7 +376,7 @@ void Cover::setupShowLastSeen() {
 		&& !user->isServiceUser()
 		&& user->session().premiumPossible()) {
 		if (user->session().premium()) {
-			if (user->onlineTill == kOnlineHidden) {
+			if (user->lastseen().isHiddenByMe()) {
 				user->updateFullForced();
 			}
 			_showLastSeen->hide();
@@ -390,12 +390,12 @@ void Cover::setupShowLastSeen() {
 			Data::AmPremiumValue(&user->session())
 		) | rpl::start_with_next([=](auto, bool premium) {
 			const auto wasShown = !_showLastSeen->isHidden();
-			const auto onlineHidden = (user->onlineTill == kOnlineHidden);
-			const auto shown = onlineHidden
+			const auto hiddenByMe = user->lastseen().isHiddenByMe();
+			const auto shown = hiddenByMe
 				&& !premium
 				&& user->session().premiumPossible();
 			_showLastSeen->setVisible(shown);
-			if (wasShown && premium && onlineHidden) {
+			if (wasShown && premium && hiddenByMe) {
 				user->updateFullForced();
 			}
 		}, _showLastSeen->lifetime());
@@ -405,7 +405,7 @@ void Cover::setupShowLastSeen() {
 		) | rpl::filter([=](Api::UserPrivacy::Rule rule) {
 			return (rule.option == Api::UserPrivacy::Option::Everyone);
 		}) | rpl::start_with_next([=] {
-			if (user->onlineTill == kOnlineHidden) {
+			if (user->lastseen().isHiddenByMe()) {
 				user->updateFullForced();
 			}
 		}, _showLastSeen->lifetime());

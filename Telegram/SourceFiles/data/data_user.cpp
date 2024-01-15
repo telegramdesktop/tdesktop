@@ -34,37 +34,26 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 BotInfo::BotInfo() = default;
 
-int RecentOnlineAfter(TimeId when) {
-	return (when > 0) ? (-when - kSetOnlineAfterActivity) : 0;
-}
-
-bool IsRecentOnlineValue(int value) {
-	return (value < -kSetOnlineAfterActivity);
-}
-
-bool IsRecentOnline(int value, TimeId now) {
-	return IsRecentOnlineValue(value) && (now < -value);
-}
-
-int OnlineTillFromMTP(
+Data::LastseenStatus LastseenFromMTP(
 		const MTPUserStatus &status,
-		int currentOnlineTill) {
-	return status.match([](const MTPDuserStatusEmpty &) {
-		return kOnlineEmpty;
-	}, [&](const MTPDuserStatusRecently&) {
-		return IsRecentOnlineValue(currentOnlineTill)
-			? currentOnlineTill
-			: kOnlineRecently;
-	}, [](const MTPDuserStatusLastWeek &) {
-		return kOnlineLastWeek;
-	}, [](const MTPDuserStatusLastMonth &) {
-		return kOnlineLastMonth;
-	}, [](const MTPDuserStatusHidden &) {
-		return kOnlineHidden;
+		Data::LastseenStatus currentStatus) {
+	return status.match([](const MTPDuserStatusEmpty &data) {
+		return Data::LastseenStatus::LongAgo();
+	}, [&](const MTPDuserStatusRecently &data) {
+		return currentStatus.isLocalOnlineValue()
+			? Data::LastseenStatus::OnlineTill(
+				currentStatus.onlineTill(),
+				true,
+				data.is_by_me())
+			: Data::LastseenStatus::Recently(data.is_by_me());
+	}, [](const MTPDuserStatusLastWeek &data) {
+		return Data::LastseenStatus::WithinWeek(data.is_by_me());
+	}, [](const MTPDuserStatusLastMonth &data) {
+		return Data::LastseenStatus::WithinMonth(data.is_by_me());
 	}, [](const MTPDuserStatusOnline& data) {
-		return data.vexpires().v;
+		return Data::LastseenStatus::OnlineTill(data.vexpires().v);
 	}, [](const MTPDuserStatusOffline &data) {
-		return data.vwas_online().v;
+		return Data::LastseenStatus::OnlineTill(data.vwas_online().v);
 	});
 }
 
@@ -86,6 +75,19 @@ void UserData::setIsContact(bool is) {
 		_contactStatus = status;
 		session().changes().peerUpdated(this, UpdateFlag::IsContact);
 	}
+}
+
+Data::LastseenStatus UserData::lastseen() const {
+	return _lastseen;
+}
+
+bool UserData::updateLastseen(Data::LastseenStatus value) {
+	if (_lastseen == value) {
+		return false;
+	}
+	_lastseen = value;
+	owner().maybeStopWatchForOffline(this);
+	return true;
 }
 
 // see Serialize::readPeer as well
@@ -305,11 +307,14 @@ void UserData::setNameOrPhone(const QString &newNameOrPhone) {
 void UserData::madeAction(TimeId when) {
 	if (isBot() || isServiceUser() || when <= 0) {
 		return;
-	} else if (onlineTill <= 0 && -onlineTill < when) {
-		onlineTill = -when - kSetOnlineAfterActivity;
-		session().changes().peerUpdated(this, UpdateFlag::OnlineStatus);
-	} else if (onlineTill > 0 && onlineTill < when + 1) {
-		onlineTill = when + kSetOnlineAfterActivity;
+	}
+	const auto till = lastseen().onlineTill();
+	if (till < when + 1
+		&& updateLastseen(
+			Data::LastseenStatus::OnlineTill(
+				when + kSetOnlineAfterActivity,
+				!till || lastseen().isLocalOnlineValue(),
+				lastseen().isHiddenByMe()))) {
 		session().changes().peerUpdated(this, UpdateFlag::OnlineStatus);
 	}
 }

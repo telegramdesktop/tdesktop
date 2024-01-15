@@ -731,11 +731,9 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 	}
 
 	if (status && !minimal) {
-		const auto value = OnlineTillFromMTP(*status, result->onlineTill);
-		if (result->onlineTill != value) {
-			result->onlineTill = value;
+		const auto lastseen = LastseenFromMTP(*status, result->lastseen());
+		if (result->updateLastseen(lastseen)) {
 			flags |= UpdateFlag::OnlineStatus;
-			session().data().maybeStopWatchForOffline(result);
 		}
 	}
 
@@ -1106,7 +1104,8 @@ void Session::watchForOffline(not_null<UserData*> user, TimeId now) {
 	if (!Data::IsUserOnline(user, now)) {
 		return;
 	}
-	const auto till = user->onlineTill;
+	const auto lastseen = user->lastseen();
+	const auto till = lastseen.onlineTill();
 	const auto &[i, ok] = _watchingForOffline.emplace(user, till);
 	if (!ok) {
 		if (i->second == till) {
@@ -1114,7 +1113,7 @@ void Session::watchForOffline(not_null<UserData*> user, TimeId now) {
 		}
 		i->second = till;
 	}
-	const auto timeout = Data::OnlineChangeTimeout(till, now);
+	const auto timeout = Data::OnlineChangeTimeout(lastseen, now);
 	const auto fires = _watchForOfflineTimer.isActive()
 		? _watchForOfflineTimer.remainingTime()
 		: -1;
@@ -4397,7 +4396,7 @@ void Session::serviceNotification(
 			MTPstring(), // username
 			MTP_string("42777"),
 			MTP_userProfilePhotoEmpty(),
-			MTP_userStatusRecently(),
+			MTP_userStatusRecently(MTP_flags(0)),
 			MTPint(), // bot_info_version
 			MTPVector<MTPRestrictionReason>(),
 			MTPstring(), // bot_inline_placeholder

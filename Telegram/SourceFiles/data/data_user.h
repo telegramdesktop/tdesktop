@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_lastseen_status.h"
 #include "data/data_user_names.h"
 #include "dialogs/dialogs_key.h"
 
@@ -43,7 +44,7 @@ struct BotInfo {
 	ChatAdminRights channelAdminRights;
 };
 
-enum class UserDataFlag {
+enum class UserDataFlag : uint32 {
 	Contact = (1 << 0),
 	MutualContact = (1 << 1),
 	Deleted = (1 << 2),
@@ -73,18 +74,9 @@ enum class UserDataFlag {
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
 
-inline constexpr auto kOnlineEmpty = 0;
-inline constexpr auto kOnlineRecently = -2;
-inline constexpr auto kOnlineLastWeek = -3;
-inline constexpr auto kOnlineLastMonth = -4;
-inline constexpr auto kOnlineHidden = -5;
-
-[[nodiscard]] int RecentOnlineAfter(TimeId when);
-[[nodiscard]] bool IsRecentOnlineValue(int value);
-[[nodiscard]] bool IsRecentOnline(int value, TimeId now);
-[[nodiscard]] int OnlineTillFromMTP(
-	const MTPUserStatus& status,
-	int currentOnlineTill);
+[[nodiscard]] Data::LastseenStatus LastseenFromMTP(
+	const MTPUserStatus &status,
+	Data::LastseenStatus currentStatus);
 
 class UserData final : public PeerData {
 public:
@@ -160,7 +152,6 @@ public:
 	[[nodiscard]] QString editableUsername() const;
 	[[nodiscard]] const std::vector<QString> &usernames() const;
 	QString nameOrPhone;
-	TimeId onlineTill = 0;
 
 	enum class ContactStatus : char {
 		Unknown,
@@ -170,6 +161,9 @@ public:
 	[[nodiscard]] ContactStatus contactStatus() const;
 	[[nodiscard]] bool isContact() const;
 	void setIsContact(bool is);
+
+	[[nodiscard]] Data::LastseenStatus lastseen() const;
+	bool updateLastseen(Data::LastseenStatus value);
 
 	enum class CallsStatus : char {
 		Unknown,
@@ -202,6 +196,7 @@ private:
 		-> const std::vector<Data::UnavailableReason> & override;
 
 	Flags _flags;
+	Data::LastseenStatus _lastseen;
 
 	Data::UsernamesInfo _username;
 

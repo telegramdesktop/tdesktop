@@ -141,8 +141,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_status_last_week" = "last seen within a week";
 "lng_status_last_month" = "last seen within a month";
 "lng_status_lastseen_now" = "last seen just now";
-"lng_status_lastseen_hidden" = "last seen hidden";
-"lng_status_lastseen_show" = "show";
+"lng_status_lastseen_when" = "when?";
 "lng_status_lastseen_minutes#one" = "last seen {count} minute ago";
 "lng_status_lastseen_minutes#other" = "last seen {count} minutes ago";
 "lng_status_lastseen_hours#one" = "last seen {count} hour ago";

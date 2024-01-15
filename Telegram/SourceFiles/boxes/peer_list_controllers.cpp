@@ -598,7 +598,9 @@ void ContactsBoxController::sortByOnline() {
 	const auto now = base::unixtime::now();
 	const auto key = [&](const PeerListRow &row) {
 		const auto user = row.peer()->asUser();
-		return user ? (std::min(user->onlineTill, now) + 1) : TimeId();
+		return user
+			? (std::min(user->lastseen().onlineTill(), now + 1) + 1)
+			: TimeId();
 	};
 	const auto predicate = [&](const PeerListRow &a, const PeerListRow &b) {
 		return key(a) > key(b);

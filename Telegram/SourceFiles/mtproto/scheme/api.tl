@@ -90,10 +90,9 @@ userProfilePhoto#82d1f706 flags:# has_video:flags.0?true personal:flags.2?true p
 userStatusEmpty#9d05049 = UserStatus;
 userStatusOnline#edb93949 expires:int = UserStatus;
 userStatusOffline#8c703f was_online:int = UserStatus;
-userStatusRecently#e26f42f1 = UserStatus;
-userStatusLastWeek#7bf09fc = UserStatus;
-userStatusLastMonth#77ebc742 = UserStatus;
-userStatusHidden#cf7d64b1 = UserStatus;
+userStatusRecently#7b197dc8 flags:# by_me:flags.0?true = UserStatus;
+userStatusLastWeek#541a1d1a flags:# by_me:flags.0?true = UserStatus;
+userStatusLastMonth#65899777 flags:# by_me:flags.0?true = UserStatus;
 
 chatEmpty#29562865 id:long = Chat;
 chat#41cbf256 flags:# creator:flags.0?true left:flags.2?true deactivated:flags.5?true call_active:flags.23?true call_not_empty:flags.24?true noforwards:flags.25?true id:long title:string photo:ChatPhoto participants_count:int date:int version:int migrated_to:flags.6?InputChannel admin_rights:flags.14?ChatAdminRights default_banned_rights:flags.18?ChatBannedRights = Chat;

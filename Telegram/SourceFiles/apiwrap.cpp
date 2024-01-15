@@ -1922,25 +1922,28 @@ void ApiWrap::saveDraftToCloudDelayed(not_null<Data::Thread*> thread) {
 
 void ApiWrap::updatePrivacyLastSeens() {
 	const auto now = base::unixtime::now();
-	_session->data().enumerateUsers([&](UserData *user) {
-		if (user->isSelf() || !user->isLoaded() || user->onlineTill <= 0) {
-			return;
-		}
+	if (!_session->premium()) {
+		_session->data().enumerateUsers([&](not_null<UserData*> user) {
+			if (user->isSelf()
+				|| !user->isLoaded()
+				|| user->lastseen().isHidden()) {
+				return;
+			}
 
-		if (user->onlineTill + 3 * 86400 >= now) {
-			user->onlineTill = kOnlineRecently;
-		} else if (user->onlineTill + 7 * 86400 >= now) {
-			user->onlineTill = kOnlineLastWeek;
-		} else if (user->onlineTill + 30 * 86400 >= now) {
-			user->onlineTill = kOnlineLastMonth;
-		} else {
-			user->onlineTill = kOnlineEmpty;
-		}
-		session().changes().peerUpdated(
-			user,
-			Data::PeerUpdate::Flag::OnlineStatus);
-		session().data().maybeStopWatchForOffline(user);
-	});
+			const auto till = user->lastseen().onlineTill();
+			user->updateLastseen((till + 3 * 86400 >= now)
+				? Data::LastseenStatus::Recently(true)
+				: (till + 7 * 86400 >= now)
+				? Data::LastseenStatus::WithinWeek(true)
+				: (till + 30 * 86400 >= now)
+				? Data::LastseenStatus::WithinMonth(true)
+				: Data::LastseenStatus::LongAgo(true));
+			session().changes().peerUpdated(
+				user,
+				Data::PeerUpdate::Flag::OnlineStatus);
+			session().data().maybeStopWatchForOffline(user);
+		});
+	}
 
 	if (_contactsStatusesRequestId) {
 		request(_contactsStatusesRequestId).cancel();
@@ -1948,19 +1951,17 @@ void ApiWrap::updatePrivacyLastSeens() {
 	_contactsStatusesRequestId = request(MTPcontacts_GetStatuses(
 	)).done([=](const MTPVector<MTPContactStatus> &result) {
 		_contactsStatusesRequestId = 0;
-		for (const auto &item : result.v) {
-			Assert(item.type() == mtpc_contactStatus);
-			auto &data = item.c_contactStatus();
-			if (auto user = _session->data().userLoaded(data.vuser_id())) {
-				auto value = OnlineTillFromMTP(
+		for (const auto &status : result.v) {
+			const auto &data = status.data();
+			const auto userId = UserId(data.vuser_id());
+			if (const auto user = _session->data().userLoaded(userId)) {
+				const auto status = LastseenFromMTP(
 					data.vstatus(),
-					user->onlineTill);
-				if (user->onlineTill != value) {
-					user->onlineTill = value;
+					user->lastseen());
+				if (user->updateLastseen(status)) {
 					session().changes().peerUpdated(
 						user,
 						Data::PeerUpdate::Flag::OnlineStatus);
-					session().data().maybeStopWatchForOffline(user);
 				}
 			}
 		}

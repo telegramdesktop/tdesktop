@@ -944,8 +944,9 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 		}
 
 		const auto self = session().user();
-		self->onlineTill = base::unixtime::now()
-			+ (isOnline ? (config.onlineUpdatePeriod / 1000) : -1);
+		const auto onlineFor = (config.onlineUpdatePeriod / 1000);
+		self->updateLastseen(Data::LastseenStatus::OnlineTill(
+			base::unixtime::now() + (isOnline ? onlineFor : -1)));
 		session().changes().peerUpdated(
 			self,
 			Data::PeerUpdate::Flag::OnlineStatus);
@@ -1852,14 +1853,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateUserStatus: {
 		auto &d = update.c_updateUserStatus();
 		if (const auto user = session().data().userLoaded(d.vuser_id())) {
-			const auto value = OnlineTillFromMTP(
-				d.vstatus(),
-				user->onlineTill);
-			if (user->onlineTill != value) {
+			const auto now = LastseenFromMTP(d.vstatus(), user->lastseen());
+			if (user->updateLastseen(now)) {
 				session().changes().peerUpdated(
 					user,
 					Data::PeerUpdate::Flag::OnlineStatus);
-				session().data().maybeStopWatchForOffline(user);
 			}
 		}
 		if (UserId(d.vuser_id()) == session().userId()) {
