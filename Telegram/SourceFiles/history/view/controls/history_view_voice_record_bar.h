@@ -126,7 +126,7 @@ private:
 	[[nodiscard]] bool recordingAnimationCallback(crl::time now);
 
 	void stop(bool send);
-	void stopRecording(StopType type);
+	void stopRecording(StopType type, bool ttlBeforeHide = false);
 	void visibilityAnimate(bool show, Fn<void()> &&callback);
 
 	[[nodiscard]] bool showRecordButton() const;
@@ -149,6 +149,7 @@ private:
 
 	void computeAndSetLockProgress(QPoint globalPos);
 
+	[[nodiscard]] bool peekTTLState() const;
 	[[nodiscard]] bool takeTTLState() const;
 
 	const style::RecordBar &_st;

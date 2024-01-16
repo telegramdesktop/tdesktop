@@ -1638,10 +1638,12 @@ void VoiceRecordBar::stop(bool send) {
 	if (isHidden() && !send) {
 		return;
 	}
+	const auto ttlBeforeHide = peekTTLState();
 	auto disappearanceCallback = [=] {
 		hide();
 
-		stopRecording(send ? StopType::Send : StopType::Cancel);
+		const auto type = send ? StopType::Send : StopType::Cancel;
+		stopRecording(type, ttlBeforeHide);
 	};
 	_lockShowing = false;
 	visibilityAnimate(false, std::move(disappearanceCallback));
@@ -1671,7 +1673,7 @@ void VoiceRecordBar::hideFast() {
 	[[maybe_unused]] const auto s = takeTTLState();
 }
 
-void VoiceRecordBar::stopRecording(StopType type) {
+void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 	using namespace ::Media::Capture;
 	if (type == StopType::Cancel) {
 		instance()->stop(crl::guard(this, [=](Result &&data) {
@@ -1691,9 +1693,9 @@ void VoiceRecordBar::stopRecording(StopType type) {
 		const auto duration = Duration(data.samples);
 		if (type == StopType::Send) {
 			const auto options = Api::SendOptions{
-				.ttlSeconds = takeTTLState()
+				.ttlSeconds = (ttlBeforeHide
 					? std::numeric_limits<int>::max()
-					: 0
+					: 0),
 			};
 			_sendVoiceRequests.fire({
 				data.bytes,
@@ -1899,6 +1901,10 @@ void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {
 	const auto lower = _lock->height();
 	const auto higher = 0;
 	_lock->requestPaintProgress(Progress(localPos.y(), higher - lower));
+}
+
+bool VoiceRecordBar::peekTTLState() const {
+	return !_ttlButton->isDisabled();
 }
 
 bool VoiceRecordBar::takeTTLState() const {
