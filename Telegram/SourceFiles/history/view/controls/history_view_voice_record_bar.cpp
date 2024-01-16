@@ -292,9 +292,10 @@ TTLButton::TTLButton(
 , _st(st)
 , _rippleRect(Rect(Size(st::historyRecordLockTopShadow.width()))
 	- (st::historyRecordLockRippleMargin)) {
-	resize(Size(st::historyRecordLockTopShadow.width()));
+	QWidget::resize(Size(st::historyRecordLockTopShadow.width()));
+	Ui::AbstractButton::setDisabled(true);
 
-	setClickedCallback([=] {
+	Ui::AbstractButton::setClickedCallback([=] {
 		Ui::AbstractButton::setDisabled(!Ui::AbstractButton::isDisabled());
 		const auto isActive = !Ui::AbstractButton::isDisabled();
 		_activeAnimation.start(
@@ -306,7 +307,7 @@ TTLButton::TTLButton(
 
 	Ui::RpWidget::shownValue() | rpl::filter(
 		rpl::mappers::_1
-	) | rpl::skip(1) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::start_with_next([=] {
 		auto text = rpl::conditional(
 			Core::App().settings().ttlVoiceClickTooltipHiddenValue(),
 			tr::lng_record_once_active_tooltip(
@@ -400,7 +401,7 @@ TTLButton::TTLButton(
 
 void TTLButton::clearState() {
 	Ui::AbstractButton::setDisabled(true);
-	update();
+	QWidget::update();
 	Ui::RpWidget::hide();
 }
 
@@ -1168,7 +1169,6 @@ VoiceRecordBar::VoiceRecordBar(
 , _show(std::move(descriptor.show))
 , _send(std::move(descriptor.send))
 , _lock(std::make_unique<RecordLock>(_outerContainer, _st.lock))
-, _ttlButton(std::make_unique<TTLButton>(_outerContainer, _st))
 , _level(std::make_unique<VoiceRecordButton>(_outerContainer, _st))
 , _cancel(std::make_unique<CancelButton>(this, _st, descriptor.recorderHeight))
 , _startTimer([=] { startRecording(); })
@@ -1247,6 +1247,9 @@ void VoiceRecordBar::updateLockGeometry() {
 void VoiceRecordBar::updateTTLGeometry(
 		TTLAnimationType type,
 		float64 progress) {
+	if (!_ttlButton) {
+		return;
+	}
 	const auto parent = parentWidget();
 	const auto me = Ui::MapFrom(_outerContainer, parent, geometry());
 	const auto anyTop = me.y() - st::historyRecordLockPosition.y();
@@ -1406,6 +1409,11 @@ void VoiceRecordBar::init() {
 	_lock->locks(
 	) | rpl::start_with_next([=] {
 		if (_hasTTLFilter && _hasTTLFilter()) {
+			if (!_ttlButton) {
+				_ttlButton = std::make_unique<TTLButton>(
+					_outerContainer,
+					_st);
+			}
 			_ttlButton->show();
 		}
 		updateTTLGeometry(TTLAnimationType::RightTopStatic, 0);
@@ -1869,7 +1877,7 @@ bool VoiceRecordBar::isRecordingByAnotherBar() const {
 }
 
 bool VoiceRecordBar::isTTLButtonShown() const {
-	return !_ttlButton->isHidden();
+	return _ttlButton && !_ttlButton->isHidden();
 }
 
 bool VoiceRecordBar::hasDuration() const {
@@ -1904,10 +1912,13 @@ void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {
 }
 
 bool VoiceRecordBar::peekTTLState() const {
-	return !_ttlButton->isDisabled();
+	return _ttlButton && !_ttlButton->isDisabled();
 }
 
 bool VoiceRecordBar::takeTTLState() const {
+	if (!_ttlButton) {
+		return false;
+	}
 	const auto hasTtl = !_ttlButton->isDisabled();
 	_ttlButton->clearState();
 	return hasTtl;

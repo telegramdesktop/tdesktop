@@ -157,9 +157,9 @@ private:
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
-	const std::unique_ptr<Ui::AbstractButton> _ttlButton;
 	const std::unique_ptr<VoiceRecordButton> _level;
 	const std::unique_ptr<CancelButton> _cancel;
+	std::unique_ptr<Ui::AbstractButton> _ttlButton;
 	std::unique_ptr<ListenWrap> _listen;
 
 	base::Timer _startTimer;
