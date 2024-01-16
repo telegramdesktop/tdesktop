@@ -1108,7 +1108,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_lastseen_always_title" = "Always share with";
 "lng_edit_privacy_lastseen_never_title" = "Never share with";
 "lng_edit_lastseen_hide_read_time" = "Hide read time";
-"lng_edit_lastseen_hide_read_time_about" = "Do not show the time when you read a message to people you hid your last seen from. If you turn this on, their read time will also be hidden from you. This does not affect group chats.";
+"lng_edit_lastseen_hide_read_time_about" = "Hide the time when you read messages from people who can't see your last seen. If you turn this on, their read time will also be hidden from you. This setting does not affect group chats.";
 "lng_edit_lastseen_subscribe" = "Subscribe to Telegram Premium";
 "lng_edit_lastseen_subscribe_about" = "If you subscribe to Premium, you will see other users' last seen and read time even if you hid yours from them (unless they specifically restricted it).";
 

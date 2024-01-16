@@ -75,7 +75,8 @@ public:
 	}
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupBelowWidget(
 			not_null<Window::SessionController*> controller,
-			not_null<QWidget*> parent) {
+			not_null<QWidget*> parent,
+			rpl::producer<Option> option) {
 		return { nullptr };
 	}
 

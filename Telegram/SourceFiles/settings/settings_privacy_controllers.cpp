@@ -669,9 +669,17 @@ auto LastSeenPrivacyController::exceptionsDescription() const
 
 object_ptr<Ui::RpWidget> LastSeenPrivacyController::setupBelowWidget(
 		not_null<Window::SessionController*> controller,
-		not_null<QWidget*> parent) {
-	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	const auto content = result.data();
+		not_null<QWidget*> parent,
+		rpl::producer<Option> option) {
+	using namespace rpl::mappers;
+
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		parent,
+		object_ptr<Ui::VerticalLayout>(parent));
+
+	_option = std::move(option);
+
+	const auto content = result->entity();
 
 	Ui::AddSkip(content);
 
@@ -704,7 +712,20 @@ object_ptr<Ui::RpWidget> LastSeenPrivacyController::setupBelowWidget(
 			tr::lng_edit_lastseen_subscribe_about());
 	}
 
+	result->toggleOn(rpl::combine(
+		_option.value(),
+		_exceptionsNever.value(),
+		(_1 != Option::Everyone) || (_2 > 0)));
+
 	return result;
+}
+
+void LastSeenPrivacyController::handleExceptionsChange(
+		Exception exception,
+		rpl::producer<int> value) {
+	if (exception == Exception::Never) {
+		_exceptionsNever = std::move(value);
+	}
 }
 
 void LastSeenPrivacyController::confirmSave(
@@ -732,6 +753,10 @@ void LastSeenPrivacyController::confirmSave(
 }
 
 void LastSeenPrivacyController::saveAdditional() {
+	if (_option.current() == Option::Everyone
+		&& !_exceptionsNever.current()) {
+		return;
+	}
 	const auto privacy = &_session->api().globalPrivacy();
 	if (privacy->hideReadTimeCurrent() != _hideReadTime) {
 		privacy->updateHideReadTime(_hideReadTime);
@@ -811,7 +836,8 @@ auto CallsPrivacyController::exceptionsDescription() const
 
 object_ptr<Ui::RpWidget> CallsPrivacyController::setupBelowWidget(
 		not_null<Window::SessionController*> controller,
-		not_null<QWidget*> parent) {
+		not_null<QWidget*> parent,
+		rpl::producer<Option> option) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	const auto content = result.data();
 

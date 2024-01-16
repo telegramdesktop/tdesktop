@@ -379,7 +379,7 @@ void EditPrivacyBox::setupContent() {
 	auto middle = _controller->setupMiddleWidget(
 		_window,
 		content,
-		std::move(optionValue));
+		rpl::duplicate(optionValue));
 	if (middle) {
 		content->add(std::move(middle));
 	}
@@ -396,7 +396,11 @@ void EditPrivacyBox::setupContent() {
 		_controller->exceptionsDescription() | Ui::Text::ToWithEntities(),
 		st::defaultVerticalListSkip);
 
-	if (auto below = _controller->setupBelowWidget(_window, content)) {
+	auto below = _controller->setupBelowWidget(
+		_window,
+		content,
+		rpl::duplicate(optionValue));
+	if (below) {
 		content->add(std::move(below));
 	}
 
