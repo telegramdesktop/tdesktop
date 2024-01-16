@@ -981,8 +981,6 @@ Ui::ChatPaintContext HistoryInner::preparePaintContext(
 		const QRect &clip) const {
 	const auto visibleAreaPositionGlobal = mapToGlobal(
 		QPoint(0, _visibleAreaTop));
-	const auto visibleAreaPositionLocal = mapFromGlobal(
-		visibleAreaPositionGlobal);
 	return _controller->preparePaintContext({
 		.theme = _theme.get(),
 		.clip = clip,

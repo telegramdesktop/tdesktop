@@ -408,7 +408,6 @@ void InlineList::paint(
 					: st->msgServiceBg())->c;
 			}
 
-			const auto radius = geometry.height() / 2.;
 			const auto fill = geometry.marginsAdded({
 				flipped ? bubbleSkip : 0,
 				0,

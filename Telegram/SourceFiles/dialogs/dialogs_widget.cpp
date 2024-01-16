@@ -1935,7 +1935,6 @@ void Widget::searchMessages(QString query, Key inChat) {
 	const auto inChatChanged = [&] {
 		const auto inPeer = inChat.peer();
 		const auto inTopic = inChat.topic();
-		const auto inSublist = inChat.sublist();
 		if (!inTopic
 			&& _openedForum
 			&& inPeer == _openedForum->channel()
@@ -2615,7 +2614,6 @@ bool Widget::setSearchInChat(
 	}
 	const auto peer = chat.peer();
 	const auto topic = chat.topic();
-	const auto sublist = chat.sublist();
 	const auto forum = peer ? peer->forum() : nullptr;
 	if (chat.folder() || (forum && !topic)) {
 		chat = Key();

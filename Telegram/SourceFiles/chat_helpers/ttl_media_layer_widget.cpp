@@ -208,7 +208,6 @@ PreviewWrap::PreviewWrap(
 				_element->width(),
 				_element->height()
 			).translated(_viewport.topLeft());
-			const auto media = _element->media();
 			_elementInner = _element->innerGeometry().translated(
 				_elementGeometry.topLeft());
 			update();

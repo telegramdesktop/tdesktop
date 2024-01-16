@@ -406,9 +406,9 @@ void Manager::fillDefaults() {
 		set(u"%1+%2"_q.arg(ctrl).arg(index), command);
 	}
 
-	auto &&accounts = ranges::views::zip(
-		kShowAccount,
-		ranges::views::ints(1, ranges::unreachable));
+	//auto &&accounts = ranges::views::zip(
+	//	kShowAccount,
+	//	ranges::views::ints(1, ranges::unreachable));
 
 	//for (const auto &[command, index] : accounts) {
 	//	set(u"%1+shift+%2"_q.arg(ctrl).arg(index), command);

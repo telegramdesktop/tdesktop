@@ -71,9 +71,6 @@ int gifMaxStatusWidth(DocumentData *document) {
 
 [[nodiscard]] HistoryView::TtlRoundPaintCallback CreateTtlPaintCallback(
 		Fn<void()> update) {
-	const auto iconSize = Size(std::min(
-		st::historyFileInPause.width(),
-		st::historyFileInPause.height()));
 	const auto centerMargins = Margins(st::historyFileInPause.width() * 3);
 
 	const auto renderer = std::make_shared<QSvgRenderer>(
@@ -144,7 +141,6 @@ Gif::Gif(
 	? std::make_unique<MediaSpoiler>()
 	: nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
-	auto hasDefaultDocumentLinks = false;
 	if (_data->isVideoMessage() && _parent->data()->media()->ttlSeconds()) {
 		if (_spoiler) {
 			_drawTtl = CreateTtlPaintCallback([=] { repaint(); });
