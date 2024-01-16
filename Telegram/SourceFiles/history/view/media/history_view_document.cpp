@@ -243,10 +243,12 @@ void PaintWaveform(
 			p.fillRect(
 				QRectF(barLeft, barTop, leftWidth, barHeight),
 				active);
-			p.fillRect(
-				QRectF(activeWidth, barTop, rightWidth, barHeight),
-				inactive);
-		} else {
+			if (!ttl) {
+				p.fillRect(
+					QRectF(activeWidth, barTop, rightWidth, barHeight),
+					inactive);
+			}
+		} else if (!ttl || barLeft < activeWidth) {
 			const auto &color = (barLeft >= activeWidth) ? inactive : active;
 			p.fillRect(QRectF(barLeft, barTop, barWidth, barHeight), color);
 		}

@@ -1984,6 +1984,7 @@ bool Message::hasFromPhoto() const {
 	case Context::AdminLog:
 		return true;
 	case Context::History:
+	case Context::TTLViewer:
 	case Context::Pinned:
 	case Context::Replies:
 	case Context::SavedSublist: {
@@ -2005,7 +2006,6 @@ bool Message::hasFromPhoto() const {
 		return !item->out() && !item->history()->peer->isUser();
 	} break;
 	case Context::ContactPreview:
-	case Context::TTLViewer:
 		return false;
 	}
 	Unexpected("Context in Message::hasFromPhoto.");
@@ -3171,6 +3171,7 @@ bool Message::hasFromName() const {
 	case Context::AdminLog:
 		return true;
 	case Context::History:
+	case Context::TTLViewer:
 	case Context::Pinned:
 	case Context::Replies:
 	case Context::SavedSublist: {
@@ -3201,7 +3202,6 @@ bool Message::hasFromName() const {
 		return false;
 	} break;
 	case Context::ContactPreview:
-	case Context::TTLViewer:
 		return false;
 	}
 	Unexpected("Context in Message::hasFromName.");

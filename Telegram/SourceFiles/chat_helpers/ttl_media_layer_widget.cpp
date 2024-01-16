@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "window/section_widget.h" // Window::ChatThemeValueFromPeer.
 #include "window/themes/window_theme.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -44,6 +45,7 @@ public:
 	PreviewDelegate(
 		not_null<QWidget*> parent,
 		not_null<Ui::ChatStyle*> st,
+		rpl::producer<bool> chatWideValue,
 		Fn<void()> update);
 
 	bool elementAnimationsPaused() override;
@@ -54,15 +56,18 @@ public:
 private:
 	const not_null<QWidget*> _parent;
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	rpl::variable<bool> _chatWide;
 
 };
 
 PreviewDelegate::PreviewDelegate(
 	not_null<QWidget*> parent,
 	not_null<Ui::ChatStyle*> st,
+	rpl::producer<bool> chatWideValue,
 	Fn<void()> update)
 : _parent(parent)
-, _pathGradient(HistoryView::MakePathShiftGradient(st, update)) {
+, _pathGradient(HistoryView::MakePathShiftGradient(st, update))
+, _chatWide(std::move(chatWideValue)) {
 }
 
 bool PreviewDelegate::elementAnimationsPaused() {
@@ -78,7 +83,7 @@ HistoryView::Context PreviewDelegate::elementContext() {
 }
 
 bool PreviewDelegate::elementIsChatWide() {
-	return true;
+	return _chatWide.current();
 }
 
 class PreviewWrap final : public Ui::RpWidget {
@@ -86,6 +91,8 @@ public:
 	PreviewWrap(
 		not_null<Ui::RpWidget*> parent,
 		not_null<HistoryItem*> item,
+		rpl::producer<QRect> viewportValue,
+		rpl::producer<bool> chatWideValue,
 		rpl::producer<std::shared_ptr<Ui::ChatTheme>> theme);
 	~PreviewWrap();
 
@@ -93,13 +100,17 @@ public:
 
 private:
 	void paintEvent(QPaintEvent *e) override;
-	[[nodiscard]] QRect elementRect() const;
 
 	const not_null<HistoryItem*> _item;
 	const std::unique_ptr<Ui::ChatStyle> _style;
 	const std::unique_ptr<PreviewDelegate> _delegate;
+	rpl::variable<QRect> _globalViewport;
+	rpl::variable<bool> _chatWide;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 	std::unique_ptr<HistoryView::Element> _element;
+	QRect _viewport;
+	QRect _elementGeometry;
+	rpl::variable<QRect> _elementInner;
 	rpl::lifetime _elementLifetime;
 
 	struct {
@@ -114,6 +125,8 @@ private:
 PreviewWrap::PreviewWrap(
 	not_null<Ui::RpWidget*> parent,
 	not_null<HistoryItem*> item,
+	rpl::producer<QRect> viewportValue,
+	rpl::producer<bool> chatWideValue,
 	rpl::producer<std::shared_ptr<Ui::ChatTheme>> theme)
 : RpWidget(parent)
 , _item(item)
@@ -122,8 +135,9 @@ PreviewWrap::PreviewWrap(
 , _delegate(std::make_unique<PreviewDelegate>(
 	parent,
 	_style.get(),
-	[=] { update(elementRect()); })) {
-
+	std::move(chatWideValue),
+	[=] { update(_elementGeometry); }))
+, _globalViewport(std::move(viewportValue)) {
 	const auto isRound = _item
 		&& _item->media()
 		&& _item->media()->document()
@@ -140,7 +154,7 @@ PreviewWrap::PreviewWrap(
 	session->data().viewRepaintRequest(
 	) | rpl::start_with_next([=](not_null<const HistoryView::Element*> view) {
 		if (view == _element.get()) {
-			update(elementRect());
+			update(_elementGeometry);
 		}
 	}, lifetime());
 
@@ -157,11 +171,15 @@ PreviewWrap::PreviewWrap(
 		close->setClickedCallback(closeCallback);
 		close->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
-		sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
+		rpl::combine(
+			sizeValue(),
+			_elementInner.value()
+		) | rpl::start_with_next([=](QSize size, QRect inner) {
 			close->moveToLeft(
-				(s.width() - close->width()) / 2,
-				s.height() - close->height() - st::ttlMediaButtonBottomSkip);
+				inner.x() + (inner.width() - close->width()) / 2,
+				(size.height()
+					- close->height()
+					- st::ttlMediaButtonBottomSkip));
 		}, close->lifetime());
 	}
 
@@ -170,11 +188,27 @@ PreviewWrap::PreviewWrap(
 
 	{
 		_element->initDimensions();
-		widthValue(
-		) | rpl::filter([=](int width) {
-			return width > st::msgMinWidth;
-		}) | rpl::start_with_next([=](int width) {
-			_element->resizeGetHeight(width);
+		rpl::combine(
+			sizeValue(),
+			_globalViewport.value()
+		) | rpl::start_with_next([=](QSize outer, QRect globalViewport) {
+			_viewport = globalViewport.isEmpty()
+				? rect()
+				: mapFromGlobal(globalViewport);
+			if (_viewport.width() < st::msgMinWidth) {
+				return;
+			}
+			_element->resizeGetHeight(_viewport.width());
+			_elementGeometry = QRect(
+				(_viewport.width() - _element->width()) / 2,
+				(_viewport.height() - _element->height()) / 2,
+				_element->width(),
+				_element->height()
+			).translated(_viewport.topLeft());
+			const auto media = _element->media();
+			_elementInner = _element->innerGeometry().translated(
+				_elementGeometry.topLeft());
+			update();
 		}, _elementLifetime);
 	}
 
@@ -203,22 +237,17 @@ PreviewWrap::PreviewWrap(
 				st::defaultImportantTooltip.padding),
 			st::dialogsStoriesTooltip);
 		tooltip->toggleFast(true);
-		sizeValue(
-		) | rpl::filter(
-			[](const QSize &s) { return !s.isNull(); }
-		) | rpl::take(1) | rpl::start_with_next([=](const QSize &s) {
-			if (s.isEmpty()) {
-				return;
-			}
-			auto area = elementRect();
-			area.setWidth(_element->media()
-				? _element->media()->width()
-				: _element->width());
-			tooltip->pointAt(area, RectPart::Top, [=](QSize size) {
+		_elementInner.value(
+		) | rpl::filter([](const QRect &inner) {
+			return !inner.isEmpty();
+		}) | rpl::start_with_next([=](const QRect &inner) {
+			tooltip->pointAt(inner, RectPart::Top, [=](QSize size) {
 				return QPoint{
-					(area.width() - size.width()) / 2,
-					(s.height() - size.height() * 2 - _element->height()) / 2
-						- st::defaultImportantTooltip.padding.top(),
+					inner.x() + (inner.width() - size.width()) / 2,
+					(inner.y()
+						- st::normalFont->height
+						- size.height()
+						- st::defaultImportantTooltip.padding.top()),
 				};
 			});
 		}, tooltip->lifetime());
@@ -232,14 +261,6 @@ PreviewWrap::PreviewWrap(
 	}, lifetime());
 }
 
-QRect PreviewWrap::elementRect() const {
-	return QRect(
-		(width() - _element->width()) / 2,
-		(height() - _element->height()) / 2,
-		_element->width(),
-		_element->height());
-}
-
 rpl::producer<> PreviewWrap::closeRequests() const {
 	return _closeRequests.events();
 }
@@ -250,13 +271,14 @@ PreviewWrap::~PreviewWrap() {
 }
 
 void PreviewWrap::paintEvent(QPaintEvent *e) {
-	if (!_element) {
+	if (!_element || _elementGeometry.isEmpty()) {
 		return;
 	}
 
 	auto p = QPainter(this);
-	const auto r = rect();
-
+	//p.fillRect(_viewport, QColor(255, 0, 0, 64));
+	//p.fillRect(_elementGeometry, QColor(0, 255, 0, 64));
+	//p.fillRect(_elementInner.current(), QColor(0, 0, 255, 64));
 	if (!_last.use) {
 		const auto size = _element->currentSize();
 		auto result = QImage(
@@ -276,10 +298,33 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 		}
 		_last.frame = std::move(result);
 	}
-	p.translate(
-		(r.width() - _element->width()) / 2,
-		(r.height() - _element->height()) / 2);
+	p.translate(_elementGeometry.topLeft());
 	p.drawImage(0, 0, _last.frame);
+}
+
+rpl::producer<QRect> GlobalViewportForWindow(
+		not_null<Window::SessionController*> controller) {
+	const auto delegate = controller->window().floatPlayerDelegate();
+	return rpl::single(rpl::empty) | rpl::then(
+		delegate->floatPlayerAreaUpdates()
+	) | rpl::map([=] {
+		auto section = (Media::Player::FloatSectionDelegate*)nullptr;
+		delegate->floatPlayerEnumerateSections([&](
+				not_null<Media::Player::FloatSectionDelegate*> check,
+				Window::Column column) {
+			if ((column == Window::Column::First && !section)
+				|| column == Window::Column::Second) {
+				section = check;
+			}
+		});
+		if (section) {
+			const auto rect = section->floatPlayerAvailableRect();
+			if (rect.width() >= st::msgMinWidth) {
+				return rect;
+			}
+		}
+		return QRect();
+	});
 }
 
 } // namespace
@@ -292,6 +337,8 @@ void ShowTTLMediaLayerWidget(
 	auto preview = base::make_unique_q<PreviewWrap>(
 		parent,
 		item,
+		GlobalViewportForWindow(controller),
+		controller->adaptive().chatWideValue(),
 		Window::ChatThemeValueFromPeer(
 			controller,
 			item->history()->peer));
