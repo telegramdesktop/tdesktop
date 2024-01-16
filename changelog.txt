@@ -1,3 +1,10 @@
+4.14.5 (15.01.24)
+
+- Allow sending one-time voice messages.
+- Improve playing one-time voice and video messages.
+- Remove Ctrl+Shift+[1-6] shortcuts by default, some are used in input methods.
+- Some bugs and glitches fixed.
+
 4.14.4 (08.01.24)
 
 - Switch between logged in accounts using Ctrl+Shift+[1-6] shortcuts.
