@@ -88,7 +88,8 @@ def appendSubmodules(appendTo, root, rootRevision):
       return False
     if not appendSubmodules(tmppath, subroot, revision):
       return False
-    if not invoke('gtar --concatenate --file=' + appendTo + '.tar ' + tmppath + '.tar'):
+    tar = 'tar' if sys.platform == 'linux' else 'gtar'
+    if not invoke(tar + ' --concatenate --file=' + appendTo + '.tar ' + tmppath + '.tar'):
       os.remove(appendTo + '.tar')
       os.remove(tmppath + '.tar')
       return False
@@ -163,7 +164,13 @@ if access_token == '':
   sys.exit(1)
 
 print('Version: ' + version_full)
-local_folder = expanduser("~") + '/Projects/backup/tdesktop/' + version_major + '/' + version_full
+local_base = expanduser("~") + '/Projects/backup/tdesktop'
+if not os.path.isdir(local_base):
+    local_base = '/mnt/c/Telegram/Projects/backup/tdesktop'
+    if not os.path.isdir(local_base):
+        print('Backup path not found: ' + local_base)
+        sys.exit(1)
+local_folder = local_base + '/' + version_major + '/' + version_full
 
 if stable == 1:
   if os.path.isdir(local_folder + '.beta'):
