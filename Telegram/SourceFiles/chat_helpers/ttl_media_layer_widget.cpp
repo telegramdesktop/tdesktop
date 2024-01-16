@@ -100,6 +100,9 @@ public:
 
 private:
 	void paintEvent(QPaintEvent *e) override;
+	void createView();
+	[[nodiscard]] bool goodItem() const;
+	void clear();
 
 	const not_null<HistoryItem*> _item;
 	const std::unique_ptr<Ui::ChatStyle> _style;
@@ -162,6 +165,30 @@ PreviewWrap::PreviewWrap(
 			update(_elementGeometry);
 		}
 	}, lifetime());
+	session->data().itemViewRefreshRequest(
+	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		if (item == _item) {
+			if (goodItem()) {
+				createView();
+				update();
+			} else {
+				clear();
+				_closeRequests.fire({});
+			}
+		}
+	}, lifetime());
+	session->data().itemDataChanges(
+	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		if (item == _item) {
+			_element->itemDataChanged();
+		}
+	}, lifetime());
+	session->data().itemRemoved(
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		if (item == _item) {
+			_closeRequests.fire({});
+		}
+	}, lifetime());
 
 	{
 		const auto close = Ui::CreateChild<Ui::RoundButton>(
@@ -187,32 +214,7 @@ PreviewWrap::PreviewWrap(
 	}
 
 	QWidget::setAttribute(Qt::WA_OpaquePaintEvent, false);
-	_element = _item->createView(_delegate.get());
-
-	{
-		_element->initDimensions();
-		rpl::combine(
-			sizeValue(),
-			_globalViewport.value()
-		) | rpl::start_with_next([=](QSize outer, QRect globalViewport) {
-			_viewport = globalViewport.isEmpty()
-				? rect()
-				: mapFromGlobal(globalViewport);
-			if (_viewport.width() < st::msgMinWidth) {
-				return;
-			}
-			_element->resizeGetHeight(_viewport.width());
-			_elementGeometry = QRect(
-				(_viewport.width() - _element->width()) / 2,
-				(_viewport.height() - _element->height()) / 2,
-				_element->width(),
-				_element->height()
-			).translated(_viewport.topLeft());
-			_elementInner = _element->innerGeometry().translated(
-				_elementGeometry.topLeft());
-			update();
-		}, _elementLifetime);
-	}
+	createView();
 
 	{
 		auto text = item->out()
@@ -260,9 +262,50 @@ rpl::producer<> PreviewWrap::closeRequests() const {
 	return _closeRequests.events();
 }
 
-PreviewWrap::~PreviewWrap() {
+bool PreviewWrap::goodItem() const {
+	const auto media = _item->media();
+	if (!media || !media->ttlSeconds()) {
+		return false;
+	}
+	const auto document = media->document();
+	return document
+		&& (document->isVoiceMessage() || document->isVideoMessage());
+}
+
+void PreviewWrap::createView() {
+	clear();
+	_element = _item->createView(_delegate.get());
+	_element->initDimensions();
+	rpl::combine(
+		sizeValue(),
+		_globalViewport.value()
+	) | rpl::start_with_next([=](QSize outer, QRect globalViewport) {
+		_viewport = globalViewport.isEmpty()
+			? rect()
+			: mapFromGlobal(globalViewport);
+		if (_viewport.width() < st::msgMinWidth) {
+			return;
+		}
+		_element->resizeGetHeight(_viewport.width());
+		_elementGeometry = QRect(
+			(_viewport.width() - _element->width()) / 2,
+			(_viewport.height() - _element->height()) / 2,
+			_element->width(),
+			_element->height()
+		).translated(_viewport.topLeft());
+		_elementInner = _element->innerGeometry().translated(
+			_elementGeometry.topLeft());
+		update();
+	}, _elementLifetime);
+}
+
+void PreviewWrap::clear() {
 	_elementLifetime.destroy();
 	_element = nullptr;
+}
+
+PreviewWrap::~PreviewWrap() {
+	clear();
 }
 
 void PreviewWrap::paintEvent(QPaintEvent *e) {
