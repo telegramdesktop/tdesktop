@@ -1,3 +1,9 @@
+4.14.6 (15.01.24)
+
+- Fix one-time audio tooltip showing in wrong places.
+- Fix media viewer showing above taskbar on Windows.
+- Fix crash in one-time video message playback.
+
 4.14.5 (15.01.24)
 
 - Allow sending one-time voice messages.
