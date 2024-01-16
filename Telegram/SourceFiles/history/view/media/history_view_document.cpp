@@ -71,8 +71,13 @@ constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 		st::historyFileInPause.width(),
 		st::historyFileInPause.height()));
 	const auto state = lifetime->make_state<State>();
-	state->start = Lottie::MakeIcon({
-		.name = u"voice_ttl_start"_q,
+	//state->start = Lottie::MakeIcon({
+	//	.name = u"voice_ttl_start"_q,
+	//	.color = &st::historyFileInIconFg,
+	//	.sizeOverride = iconSize,
+	//});
+	state->idle = Lottie::MakeIcon({
+		.name = u"voice_ttl_idle"_q,
 		.color = &st::historyFileInIconFg,
 		.sizeOverride = iconSize,
 	});

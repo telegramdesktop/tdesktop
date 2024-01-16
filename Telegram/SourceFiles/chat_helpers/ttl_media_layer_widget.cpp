@@ -113,10 +113,7 @@ private:
 	rpl::variable<QRect> _elementInner;
 	rpl::lifetime _elementLifetime;
 
-	struct {
-		QImage frame;
-		bool use = false;
-	} _last;
+	QImage _lastFrameCache;
 
 	rpl::event_stream<> _closeRequests;
 
@@ -138,6 +135,14 @@ PreviewWrap::PreviewWrap(
 	std::move(chatWideValue),
 	[=] { update(_elementGeometry); }))
 , _globalViewport(std::move(viewportValue)) {
+	const auto closeCallback = [=] { _closeRequests.fire({}); };
+	HistoryView::TTLVoiceStops(
+		item->fullId()
+	) | rpl::start_with_next([=] {
+		_lastFrameCache = Ui::GrabWidgetToImage(this, _elementGeometry);
+		closeCallback();
+	}, lifetime());
+
 	const auto isRound = _item
 		&& _item->media()
 		&& _item->media()->document()
@@ -157,8 +162,6 @@ PreviewWrap::PreviewWrap(
 			update(_elementGeometry);
 		}
 	}, lifetime());
-
-	const auto closeCallback = [=] { _closeRequests.fire({}); };
 
 	{
 		const auto close = Ui::CreateChild<Ui::RoundButton>(
@@ -252,13 +255,6 @@ PreviewWrap::PreviewWrap(
 			});
 		}, tooltip->lifetime());
 	}
-
-	HistoryView::TTLVoiceStops(
-		item->fullId()
-	) | rpl::start_with_next([=] {
-		_last.use = true;
-		closeCallback();
-	}, lifetime());
 }
 
 rpl::producer<> PreviewWrap::closeRequests() const {
@@ -275,31 +271,19 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	auto p = QPainter(this);
-	//p.fillRect(_viewport, QColor(255, 0, 0, 64));
-	//p.fillRect(_elementGeometry, QColor(0, 255, 0, 64));
-	//p.fillRect(_elementInner.current(), QColor(0, 0, 255, 64));
-	if (!_last.use) {
-		const auto size = _element->currentSize();
-		auto result = QImage(
-			size * style::DevicePixelRatio(),
-			QImage::Format_ARGB32_Premultiplied);
-		result.fill(Qt::transparent);
-		result.setDevicePixelRatio(style::DevicePixelRatio());
-		{
-			auto q = Painter(&result);
-			auto context = _theme->preparePaintContext(
-				_style.get(),
-				Rect(size),
-				Rect(size),
-				!window()->isActiveWindow());
-			context.outbg = _element->hasOutLayout();
-			_element->draw(q, context);
-		}
-		_last.frame = std::move(result);
-	}
+	auto p = Painter(this);
 	p.translate(_elementGeometry.topLeft());
-	p.drawImage(0, 0, _last.frame);
+	if (!_lastFrameCache.isNull()) {
+		p.drawImage(0, 0, _lastFrameCache);
+	} else {
+		auto context = _theme->preparePaintContext(
+			_style.get(),
+			Rect(_element->currentSize()),
+			Rect(_element->currentSize()),
+			!window()->isActiveWindow());
+		context.outbg = _element->hasOutLayout();
+		_element->draw(p, context);
+	}
 }
 
 rpl::producer<QRect> GlobalViewportForWindow(
