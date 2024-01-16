@@ -410,9 +410,9 @@ void Manager::fillDefaults() {
 		kShowAccount,
 		ranges::views::ints(1, ranges::unreachable));
 
-	for (const auto &[command, index] : accounts) {
-		set(u"%1+shift+%2"_q.arg(ctrl).arg(index), command);
-	}
+	//for (const auto &[command, index] : accounts) {
+	//	set(u"%1+shift+%2"_q.arg(ctrl).arg(index), command);
+	//}
 
 	set(u"%1+shift+down"_q.arg(ctrl), Command::FolderNext);
 	set(u"%1+shift+up"_q.arg(ctrl), Command::FolderPrevious);
@@ -457,6 +457,18 @@ void Manager::writeDefaultFile() {
 			}
 		}
 	}
+
+	// Commands without a default value.
+	for (const auto command : kShowAccount) {
+		const auto j = CommandNames.find(command);
+		if (j != CommandNames.end()) {
+			QJsonObject entry;
+			entry.insert(u"keys"_q, QJsonValue());
+			entry.insert(u"command"_q, j->second);
+			shortcuts.append(entry);
+		}
+	}
+
 
 	auto document = QJsonDocument();
 	document.setArray(shortcuts);
