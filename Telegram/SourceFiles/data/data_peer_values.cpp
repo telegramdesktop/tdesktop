@@ -228,7 +228,7 @@ inline auto DefaultRestrictionValue(
 				: AmPremiumValue(&user->session());
 		}) | rpl::flatten_latest();
 		if (other) {
-			return std::move(allowedAny);
+			return allowedAny;
 		}
 		const auto mask = UserDataFlag::VoiceMessagesForbidden;
 		return rpl::combine(
