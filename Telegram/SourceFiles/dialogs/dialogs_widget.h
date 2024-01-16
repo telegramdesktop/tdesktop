@@ -182,8 +182,11 @@ private:
 	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
 	bool setSearchInChat(
 		Key chat,
-		PeerData *from = nullptr,
-		std::vector<Data::ReactionId> tags = {});
+		PeerData *from,
+		std::vector<Data::ReactionId> tags);
+	bool setSearchInChat(
+		Key chat,
+		PeerData *from = nullptr);
 	void showCalendar();
 	void showSearchFrom();
 	void showMainMenu();

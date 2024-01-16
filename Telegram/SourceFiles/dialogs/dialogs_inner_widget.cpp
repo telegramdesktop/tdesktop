@@ -1781,7 +1781,7 @@ void InnerWidget::mousePressReleased(
 		}
 	}
 	if (auto activated = ClickHandler::unpressed()) {
-		ActivateClickHandler(window(), activated, { button });
+		ActivateClickHandler(window(), activated, ClickContext{ button });
 	}
 }
 

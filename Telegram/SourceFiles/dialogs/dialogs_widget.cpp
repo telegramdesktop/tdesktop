@@ -2691,6 +2691,12 @@ bool Widget::setSearchInChat(
 	return true;
 }
 
+bool Widget::setSearchInChat(
+		Key chat,
+		PeerData *from) {
+	return setSearchInChat(chat, from, {});
+}
+
 void Widget::clearSearchCache() {
 	_searchCache.clear();
 	_singleMessageSearch.clear();
