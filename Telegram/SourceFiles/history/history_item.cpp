@@ -2430,7 +2430,8 @@ const std::vector<Data::MessageReaction> &HistoryItem::reactions() const {
 }
 
 bool HistoryItem::reactionsAreTags() const {
-	return _flags & MessageFlag::ReactionsAreTags;
+	// Disable reactions as tags for now.
+	return false;// _flags & MessageFlag::ReactionsAreTags;
 }
 
 auto HistoryItem::recentReactions() const

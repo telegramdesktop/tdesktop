@@ -2986,7 +2986,9 @@ void InnerWidget::searchInChat(
 		if (peer->isSelf()) {
 			const auto reactions = &peer->owner().reactions();
 			const auto list = [=] {
-				return reactions->list(Data::Reactions::Type::MyTags);
+				// Disable reactions as tags for now.
+				//return reactions->list(Data::Reactions::Type::MyTags);
+				return std::vector<Data::Reaction>();
 			};
 			_searchTags = std::make_unique<SearchTags>(
 				&peer->owner(),
