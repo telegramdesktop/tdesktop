@@ -533,7 +533,14 @@ bool Panel::showWebview(
 			}, &st::menuIconLeave);
 		}
 		callback(tr::lng_bot_reload_page(tr::now), [=] {
-			_webview->window.reload();
+			if (_webview) {
+				_webview->window.reload();
+			} else if (const auto params = _delegate->botThemeParams()
+				; createWebview(params)) {
+				showWebviewProgress();
+				updateThemeParams(params);
+				_webview->window.navigate(url);
+			}
 		}, &st::menuIconRestore);
 		const auto main = (_menuButtons & MenuButton::RemoveFromMainMenu);
 		if (main || (_menuButtons & MenuButton::RemoveFromMenu)) {
