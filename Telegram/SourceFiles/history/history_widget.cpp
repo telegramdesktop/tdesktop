@@ -7638,6 +7638,7 @@ void HistoryWidget::fullInfoUpdated() {
 			refresh = true;
 		}
 		checkFieldAutocomplete();
+		_list->refreshAboutView();
 		_list->updateBotInfo();
 
 		handlePeerUpdate();
