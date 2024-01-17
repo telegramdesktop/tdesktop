@@ -544,6 +544,12 @@ bool PeerListRow::checked() const {
 	return _checkbox && _checkbox->checked();
 }
 
+void PeerListRow::preloadUserpic() {
+	if (_peer) {
+		_peer->loadUserpic();
+	}
+}
+
 void PeerListRow::setCustomStatus(const QString &status, bool active) {
 	setStatusText(status);
 	_statusType = active ? StatusType::CustomActive : StatusType::Custom;
@@ -1914,10 +1920,7 @@ void PeerListContent::loadProfilePhotos() {
 			if (to > rowsCount) to = rowsCount;
 
 			for (auto index = from; index != to; ++index) {
-				const auto row = getRow(RowIndex(index));
-				if (!row->special()) {
-					row->peer()->loadUserpic();
-				}
+				getRow(RowIndex(index))->preloadUserpic();
 			}
 		}
 	}

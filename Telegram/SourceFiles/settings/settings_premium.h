@@ -17,6 +17,7 @@ struct RoundButton;
 
 namespace ChatHelpers {
 class Show;
+enum class WindowUsage;
 } // namespace ChatHelpers
 
 namespace Ui {
@@ -28,6 +29,7 @@ class VerticalLayout;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Window {
@@ -59,6 +61,13 @@ void StartPremiumPayment(
 
 void ShowPremiumPromoToast(
 	std::shared_ptr<ChatHelpers::Show> show,
+	TextWithEntities textWithLink,
+	const QString &ref);
+void ShowPremiumPromoToast(
+	std::shared_ptr<::Main::SessionShow> show,
+	Fn<Window::SessionController*(
+		not_null<::Main::Session*>,
+		ChatHelpers::WindowUsage)> resolveWindow,
 	TextWithEntities textWithLink,
 	const QString &ref);
 

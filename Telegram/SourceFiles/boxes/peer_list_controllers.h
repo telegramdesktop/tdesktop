@@ -91,16 +91,34 @@ private:
 
 class ChatsListBoxController : public PeerListController {
 public:
+	class Row;
+	class RowDelegate {
+	public:
+		virtual void rowPreloadUserpic(not_null<Row*> row);
+	};
+
 	class Row : public PeerListRow {
 	public:
-		Row(not_null<History*> history);
+		Row(not_null<History*> history, RowDelegate *delegate = nullptr);
 
-		not_null<History*> history() const {
+		[[nodiscard]] not_null<History*> history() const {
 			return _history;
 		}
+		[[nodiscard]] bool locked() const {
+			return _locked;
+		}
+		void setLocked(bool locked) {
+			_locked = locked;
+		}
+		PaintRoundImageCallback generatePaintUserpicCallback(
+			bool forceRound) override;
+
+		void preloadUserpic() override;
 
 	private:
-		not_null<History*> _history;
+		const not_null<History*> _history;
+		RowDelegate *_delegate = nullptr;
+		bool _locked = false;
 
 	};
 
@@ -207,14 +225,32 @@ private:
 
 };
 
+struct ChooseRecipientPremiumRequiredError {
+	TextWithEntities text;
+};
+
+[[nodiscard]] ChooseRecipientPremiumRequiredError WritePremiumRequiredError(
+	not_null<UserData*> user);
+
+struct ChooseRecipientArgs {
+	not_null<Main::Session*> session;
+	FnMut<void(not_null<Data::Thread*>)> callback;
+	Fn<bool(not_null<Data::Thread*>)> filter;
+
+	using PremiumRequiredError = ChooseRecipientPremiumRequiredError;
+	Fn<PremiumRequiredError(not_null<UserData*>)> premiumRequiredError;
+};
+
 class ChooseRecipientBoxController
 	: public ChatsListBoxController
-	, public base::has_weak_ptr {
+	, public base::has_weak_ptr
+	, private ChatsListBoxController::RowDelegate {
 public:
 	ChooseRecipientBoxController(
 		not_null<Main::Session*> session,
 		FnMut<void(not_null<Data::Thread*>)> callback,
 		Fn<bool(not_null<Data::Thread*>)> filter = nullptr);
+	explicit ChooseRecipientBoxController(ChooseRecipientArgs &&args);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -225,10 +261,19 @@ protected:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
+	[[nodiscard]] bool showLockedError(not_null<PeerListRow*> row) const;
+
 private:
+	void refreshLockedRows();
+	void rowPreloadUserpic(not_null<Row*> row) override;
+
 	const not_null<Main::Session*> _session;
 	FnMut<void(not_null<Data::Thread*>)> _callback;
 	Fn<bool(not_null<Data::Thread*>)> _filter;
+	Fn<ChooseRecipientPremiumRequiredError(
+		not_null<UserData*>)> _premiumRequiredError;
+
+	rpl::lifetime _lifetime;
 
 };
 

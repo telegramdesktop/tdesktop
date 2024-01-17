@@ -8,10 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 
 #include "api/api_chat_participants.h"
+#include "api/api_premium.h"
 #include "base/random.h"
 #include "boxes/filters/edit_filter_chats_list.h"
+#include "settings/settings_premium.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/round_checkbox.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/popup_menu.h"
@@ -19,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_channel.h"
@@ -44,10 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 #include "styles/style_dialogs.h"
-
-#include "data/data_stories.h"
-#include "dialogs/ui/dialogs_stories_content.h"
-#include "dialogs/ui/dialogs_stories_list.h"
+#include "styles/style_chat_helpers.h"
 
 namespace {
 
@@ -257,9 +258,63 @@ bool PeerListGlobalSearchController::isLoading() {
 	return _timer.isActive() || _requestId;
 }
 
-ChatsListBoxController::Row::Row(not_null<History*> history)
+void ChatsListBoxController::RowDelegate::rowPreloadUserpic(
+		not_null<Row*> row) {
+	row->PeerListRow::preloadUserpic();
+}
+
+ChatsListBoxController::Row::Row(
+	not_null<History*> history,
+	RowDelegate *delegate)
 : PeerListRow(history->peer)
-, _history(history) {
+, _history(history)
+, _delegate(delegate) {
+}
+
+void PaintLock(
+		Painter &p,
+		not_null<const style::PeerListItem*> st,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	auto hq = PainterHighQualityEnabler(p);
+	const auto &check = st->checkbox.check;
+	auto pen = check.border->p;
+	pen.setWidthF(check.width);
+	p.setPen(pen);
+	p.setBrush(st::premiumButtonBg2);
+	const auto &icon = st::stickersPremiumLock;
+	const auto width = icon.width();
+	const auto height = icon.height();
+	const auto rect = QRect(
+		QPoint(x + size - width, y + size - height),
+		icon.size());
+	p.drawEllipse(rect);
+	icon.paintInCenter(p, rect);
+}
+
+auto ChatsListBoxController::Row::generatePaintUserpicCallback(
+	bool forceRound)
+-> PaintRoundImageCallback {
+	auto result = PeerListRow::generatePaintUserpicCallback(forceRound);
+	if (_locked) {
+		AssertIsDebug();
+		const auto st = /*_delegate ? _delegate->rowSt() : */&st::defaultPeerListItem;
+		return [=](Painter &p, int x, int y, int outerWidth, int size) {
+			result(p, x, y, outerWidth, size);
+			PaintLock(p, st, x, y, outerWidth, size);
+		};
+	}
+	return result;
+}
+
+void ChatsListBoxController::Row::preloadUserpic() {
+	if (_delegate) {
+		_delegate->rowPreloadUserpic(this);
+	} else {
+		PeerListRow::preloadUserpic();
+	}
 }
 
 ChatsListBoxController::ChatsListBoxController(
@@ -629,14 +684,40 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createRow(
 	return std::make_unique<PeerListRow>(user);
 }
 
+ChooseRecipientPremiumRequiredError WritePremiumRequiredError(
+		not_null<UserData*> user) {
+	return {
+		.text = tr::lng_send_non_premium_message_toast(
+			tr::now,
+			lt_user,
+			TextWithEntities{ user->shortName() },
+			lt_link,
+			Ui::Text::Link(
+				Ui::Text::Bold(
+					tr::lng_send_non_premium_message_toast_link(
+						tr::now))),
+			Ui::Text::RichLangValue),
+	};
+}
+
 ChooseRecipientBoxController::ChooseRecipientBoxController(
 	not_null<Main::Session*> session,
 	FnMut<void(not_null<Data::Thread*>)> callback,
 	Fn<bool(not_null<Data::Thread*>)> filter)
-: ChatsListBoxController(session)
-, _session(session)
-, _callback(std::move(callback))
-, _filter(std::move(filter)) {
+: ChooseRecipientBoxController({
+	.session = session,
+	.callback = std::move(callback),
+	.filter = std::move(filter),
+}) {
+}
+
+ChooseRecipientBoxController::ChooseRecipientBoxController(
+	ChooseRecipientArgs &&args)
+: ChatsListBoxController(args.session)
+, _session(args.session)
+, _callback(std::move(args.callback))
+, _filter(std::move(args.filter))
+, _premiumRequiredError(std::move(args.premiumRequiredError)) {
 }
 
 Main::Session &ChooseRecipientBoxController::session() const {
@@ -645,9 +726,50 @@ Main::Session &ChooseRecipientBoxController::session() const {
 
 void ChooseRecipientBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_forward_choose());
+
+	if (_premiumRequiredError) {
+		rpl::merge(
+			Data::AmPremiumValue(_session) | rpl::to_empty,
+			_session->api().premium().somePremiumRequiredResolved()
+		) | rpl::start_with_next([=] {
+			refreshLockedRows();
+		}, _lifetime);
+	}
+}
+
+void ChooseRecipientBoxController::refreshLockedRows() {
+	auto count = delegate()->peerListFullRowsCount();
+	for (auto i = 0; i != count; ++i) {
+		const auto raw = delegate()->peerListRowAt(i);
+		const auto row = static_cast<Row*>(raw.get());
+		if (const auto user = row->peer()->asUser()) {
+			const auto history = row->history();
+			const auto locked = (Api::ResolveRequiresPremiumToWrite(history)
+				== Api::RequirePremiumState::Yes);
+			if (row->locked() != locked) {
+				row->setLocked(locked);
+				delegate()->peerListUpdateRow(row);
+			}
+		}
+	}
+}
+
+void ChooseRecipientBoxController::rowPreloadUserpic(not_null<Row*> row) {
+	row->PeerListRow::preloadUserpic();
+
+	if (!_premiumRequiredError) {
+		return;
+	} else if (Api::ResolveRequiresPremiumToWrite(row->history())
+		== Api::RequirePremiumState::Unknown) {
+		const auto user = row->peer()->asUser();
+		session().api().premium().resolvePremiumRequired(user);
+	}
 }
 
 void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
+	if (showLockedError(row)) {
+		return;
+	}
 	auto guard = base::make_weak(this);
 	const auto peer = row->peer();
 	if (const auto forum = peer->forum()) {
@@ -698,6 +820,19 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
+bool ChooseRecipientBoxController::showLockedError(
+		not_null<PeerListRow*> row) const {
+	if (!static_cast<Row*>(row.get())->locked()) {
+		return false;
+	}
+	::Settings::ShowPremiumPromoToast(
+		delegate()->peerListUiShow(),
+		ChatHelpers::ResolveWindowDefault(),
+		_premiumRequiredError(row->peer()->asUser()).text,
+		u"require_premium"_q);
+	return true;
+}
+
 QString ChooseRecipientBoxController::savedMessagesChatStatus() const {
 	return tr::lng_saved_forward_here(tr::now);
 }
@@ -708,8 +843,23 @@ auto ChooseRecipientBoxController::createRow(
 	const auto skip = _filter
 		? !_filter(history)
 		: ((peer->isBroadcast() && !Data::CanSendAnything(peer))
-			|| (peer->isUser() && !Data::CanSendAnything(peer)));
-	return skip ? nullptr : std::make_unique<Row>(history);
+			|| peer->isRepliesChat()
+			|| (peer->isUser() && (_premiumRequiredError
+				? peer->asUser()->isInaccessible()
+				: !Data::CanSendAnything(peer))));
+	if (skip) {
+		return nullptr;
+	}
+	auto result = std::make_unique<Row>(
+		history,
+		static_cast<RowDelegate*>(this));
+	if (_premiumRequiredError) {
+		const auto require = Api::ResolveRequiresPremiumToWrite(history);
+		if (require == Api::RequirePremiumState::Yes) {
+			result->setLocked(true);
+		}
+	}
+	return result;
 }
 
 ChooseTopicSearchController::ChooseTopicSearchController(

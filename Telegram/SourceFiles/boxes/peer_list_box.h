@@ -101,6 +101,8 @@ public:
 	[[nodiscard]] virtual auto generateNameWords() const
 		-> const base::flat_set<QString> &;
 
+	virtual void preloadUserpic();
+
 	void setCustomStatus(const QString &status, bool active = false);
 	void clearCustomStatus();
 

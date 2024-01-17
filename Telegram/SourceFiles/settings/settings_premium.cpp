@@ -1316,6 +1316,22 @@ void ShowPremiumPromoToast(
 		std::shared_ptr<ChatHelpers::Show> show,
 		TextWithEntities textWithLink,
 		const QString &ref) {
+	ShowPremiumPromoToast(show, [=](
+			not_null<Main::Session*> session,
+			ChatHelpers::WindowUsage usage) {
+		Expects(&show->session() == session);
+
+		return show->resolveWindow(usage);
+	}, std::move(textWithLink), ref);
+}
+
+void ShowPremiumPromoToast(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<Window::SessionController*(
+			not_null<Main::Session*>,
+			ChatHelpers::WindowUsage)> resolveWindow,
+		TextWithEntities textWithLink,
+		const QString &ref) {
 	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
 	const auto toast = std::make_shared<WeakToast>();
 	(*toast) = show->showToast({
@@ -1331,7 +1347,8 @@ void ShowPremiumPromoToast(
 				if (const auto strong = toast->get()) {
 					strong->hideAnimated();
 					(*toast) = nullptr;
-					if (const auto controller = show->resolveWindow(
+					if (const auto controller = resolveWindow(
+							&show->session(),
 							ChatHelpers::WindowUsage::PremiumPromo)) {
 						Settings::ShowPremium(controller, ref);
 					}
