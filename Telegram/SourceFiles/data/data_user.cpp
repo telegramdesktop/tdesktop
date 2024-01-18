@@ -402,6 +402,10 @@ bool UserData::requirePremiumToWriteKnown() const {
 	return (flags() & UserDataFlag::RequirePremiumToWriteKnown);
 }
 
+bool UserData::canSendIgnoreRequirePremium() const {
+	return !isInaccessible() && !isRepliesChat();
+}
+
 bool UserData::readDatesPrivate() const {
 	return (flags() & UserDataFlag::ReadDatesPrivate);
 }

@@ -281,9 +281,7 @@ void PeerListsBox::resizeEvent(QResizeEvent *e) {
 void PeerListsBox::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	const auto &bg = (firstController()->listSt()
-		? *firstController()->listSt()
-		: st::peerListBox).bg;
+	const auto &bg = firstController()->computeListSt().bg;
 	for (const auto &rect : e->region()) {
 		p.fillRect(rect, bg);
 	}

@@ -232,9 +232,7 @@ void PeerListBox::resizeEvent(QResizeEvent *e) {
 void PeerListBox::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	const auto &bg = (_controller->listSt()
-		? *_controller->listSt()
-		: st::peerListBox).bg;
+	const auto &bg = _controller->computeListSt().bg;
 	const auto fill = QRect(
 		0,
 		_addedTopScrollSkip,
@@ -1255,6 +1253,16 @@ not_null<PeerListRow*> PeerListContent::rowAt(int index) const {
 	return _rows[index].get();
 }
 
+int PeerListContent::searchRowsCount() const {
+	return _searchRows.size();
+}
+
+not_null<PeerListRow*> PeerListContent::searchRowAt(int index) const {
+	Expects(index >= 0 && index < _searchRows.size());
+
+	return _searchRows[index].get();
+}
+
 void PeerListContent::setDescription(object_ptr<Ui::FlatLabel> description) {
 	_description = std::move(description);
 	if (_description) {
@@ -1349,6 +1357,7 @@ void PeerListContent::refreshRows() {
 	if (_mouseSelection) {
 		selectByMouse(QCursor::pos());
 	}
+	loadProfilePhotos();
 	update();
 }
 
@@ -1903,7 +1912,9 @@ void PeerListContent::mouseLeftGeometry() {
 }
 
 void PeerListContent::loadProfilePhotos() {
-	if (_visibleTop >= _visibleBottom) return;
+	if (_visibleTop >= _visibleBottom) {
+		return;
+	}
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleBottom + (_visibleBottom - _visibleTop) * PreloadHeightsCount;

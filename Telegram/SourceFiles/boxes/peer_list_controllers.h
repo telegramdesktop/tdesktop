@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace style {
+struct PeerListItem;
+} // namespace style
+
 namespace Data {
 class Thread;
 class Forum;
@@ -95,6 +99,8 @@ public:
 	class RowDelegate {
 	public:
 		virtual void rowPreloadUserpic(not_null<Row*> row);
+		[[nodiscard]] virtual auto rowSt()
+			-> not_null<const style::PeerListItem*> = 0;
 	};
 
 	class Row : public PeerListRow {
@@ -266,6 +272,7 @@ protected:
 private:
 	void refreshLockedRows();
 	void rowPreloadUserpic(not_null<Row*> row) override;
+	not_null<const style::PeerListItem*> rowSt() override;
 
 	const not_null<Main::Session*> _session;
 	FnMut<void(not_null<Data::Thread*>)> _callback;
@@ -350,3 +357,11 @@ private:
 	Fn<bool(not_null<Data::ForumTopic*>)> _filter;
 
 };
+
+void PaintPremiumRequiredLock(
+	Painter &p,
+	not_null<const style::PeerListItem*> st,
+	int x,
+	int y,
+	int outerWidth,
+	int size);

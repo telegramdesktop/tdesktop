@@ -131,6 +131,7 @@ public:
 	[[nodiscard]] bool someRequirePremiumToWrite() const;
 	[[nodiscard]] bool meRequiresPremiumToWrite() const;
 	[[nodiscard]] bool requirePremiumToWriteKnown() const;
+	[[nodiscard]] bool canSendIgnoreRequirePremium() const;
 	[[nodiscard]] bool readDatesPrivate() const;
 
 	[[nodiscard]] bool canShareThisContact() const;

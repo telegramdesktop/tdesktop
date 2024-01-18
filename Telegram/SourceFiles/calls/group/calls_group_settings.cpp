@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_group_call.h"
+#include "data/data_user.h"
 #include "calls/group/calls_group_rtmp.h"
 #include "ui/toast/toast.h"
 #include "data/data_changes.h"
@@ -191,6 +192,11 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		show->showToast(tr::lng_share_done(tr::now));
 	};
 	auto filterCallback = [](not_null<Data::Thread*> thread) {
+		if (const auto user = thread->peer()->asUser()) {
+			if (user->canSendIgnoreRequirePremium()) {
+				return true;
+			}
+		}
 		return Data::CanSend(thread, ChatRestriction::SendOther);
 	};
 
@@ -227,6 +233,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		.st = &st::groupCallShareBoxList,
 		.stLabel = &st::groupCallField,
 		.scheduleBoxStyle = scheduleStyle(),
+		.premiumRequiredError = SharePremiumRequiredError(),
 	});
 	*box = result.data();
 	return result;

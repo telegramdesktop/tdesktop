@@ -271,39 +271,17 @@ ChatsListBoxController::Row::Row(
 , _delegate(delegate) {
 }
 
-void PaintLock(
-		Painter &p,
-		not_null<const style::PeerListItem*> st,
-		int x,
-		int y,
-		int outerWidth,
-		int size) {
-	auto hq = PainterHighQualityEnabler(p);
-	const auto &check = st->checkbox.check;
-	auto pen = check.border->p;
-	pen.setWidthF(check.width);
-	p.setPen(pen);
-	p.setBrush(st::premiumButtonBg2);
-	const auto &icon = st::stickersPremiumLock;
-	const auto width = icon.width();
-	const auto height = icon.height();
-	const auto rect = QRect(
-		QPoint(x + size - width, y + size - height),
-		icon.size());
-	p.drawEllipse(rect);
-	icon.paintInCenter(p, rect);
-}
-
 auto ChatsListBoxController::Row::generatePaintUserpicCallback(
 	bool forceRound)
 -> PaintRoundImageCallback {
 	auto result = PeerListRow::generatePaintUserpicCallback(forceRound);
 	if (_locked) {
-		AssertIsDebug();
-		const auto st = /*_delegate ? _delegate->rowSt() : */&st::defaultPeerListItem;
+		const auto st = _delegate
+			? _delegate->rowSt().get()
+			: &st::defaultPeerListItem;
 		return [=](Painter &p, int x, int y, int outerWidth, int size) {
 			result(p, x, y, outerWidth, size);
-			PaintLock(p, st, x, y, outerWidth, size);
+			PaintPremiumRequiredLock(p, st, x, y, outerWidth, size);
 		};
 	}
 	return result;
@@ -475,7 +453,7 @@ void PeerListStories::process(not_null<PeerListRow*> row) {
 
 bool PeerListStories::handleClick(not_null<PeerData*> peer) {
 	const auto point = _delegate->peerListLastRowMousePosition();
-	const auto &st = _controller->listSt()->item;
+	const auto &st = _controller->computeListSt().item;
 	if (point && point->x() < st.photoPosition.x() + st.photoSize) {
 		if (const auto window = peer->session().tryResolveWindow()) {
 			if (const auto user = peer->asUser()) {
@@ -492,9 +470,9 @@ bool PeerListStories::handleClick(not_null<PeerData*> peer) {
 void PeerListStories::prepare(not_null<PeerListDelegate*> delegate) {
 	_delegate = delegate;
 
-	_unreadBrush = PeerListStoriesGradient(*_controller->listSt());
+	_unreadBrush = PeerListStoriesGradient(_controller->computeListSt());
 	style::PaletteChanged() | rpl::start_with_next([=] {
-		_unreadBrush = PeerListStoriesGradient(*_controller->listSt());
+		_unreadBrush = PeerListStoriesGradient(_controller->computeListSt());
 		updateColors();
 	}, _lifetime);
 
@@ -738,9 +716,7 @@ void ChooseRecipientBoxController::prepareViewHook() {
 }
 
 void ChooseRecipientBoxController::refreshLockedRows() {
-	auto count = delegate()->peerListFullRowsCount();
-	for (auto i = 0; i != count; ++i) {
-		const auto raw = delegate()->peerListRowAt(i);
+	const auto process = [&](not_null<PeerListRow*> raw) {
 		const auto row = static_cast<Row*>(raw.get());
 		if (const auto user = row->peer()->asUser()) {
 			const auto history = row->history();
@@ -751,6 +727,14 @@ void ChooseRecipientBoxController::refreshLockedRows() {
 				delegate()->peerListUpdateRow(row);
 			}
 		}
+	};
+	auto count = delegate()->peerListFullRowsCount();
+	for (auto i = 0; i != count; ++i) {
+		process(delegate()->peerListRowAt(i));
+	}
+	count = delegate()->peerListSearchRowsCount();
+	for (auto i = 0; i != count; ++i) {
+		process(delegate()->peerListSearchRowAt(i));
 	}
 }
 
@@ -764,6 +748,10 @@ void ChooseRecipientBoxController::rowPreloadUserpic(not_null<Row*> row) {
 		const auto user = row->peer()->asUser();
 		session().api().premium().resolvePremiumRequired(user);
 	}
+}
+
+not_null<const style::PeerListItem*> ChooseRecipientBoxController::rowSt() {
+	return &computeListSt().item;
 }
 
 void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -845,7 +833,7 @@ auto ChooseRecipientBoxController::createRow(
 		: ((peer->isBroadcast() && !Data::CanSendAnything(peer))
 			|| peer->isRepliesChat()
 			|| (peer->isUser() && (_premiumRequiredError
-				? peer->asUser()->isInaccessible()
+				? !peer->asUser()->canSendIgnoreRequirePremium()
 				: !Data::CanSendAnything(peer))));
 	if (skip) {
 		return nullptr;
@@ -1077,3 +1065,26 @@ auto ChooseTopicBoxController::createRow(not_null<Data::ForumTopic*> topic)
 	const auto skip = _filter && !_filter(topic);
 	return skip ? nullptr : std::make_unique<Row>(topic);
 };
+
+void PaintPremiumRequiredLock(
+		Painter &p,
+		not_null<const style::PeerListItem*> st,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	auto hq = PainterHighQualityEnabler(p);
+	const auto &check = st->checkbox.check;
+	auto pen = check.border->p;
+	pen.setWidthF(check.width);
+	p.setPen(pen);
+	p.setBrush(st::premiumButtonBg2);
+	const auto &icon = st::stickersPremiumLock;
+	const auto width = icon.width();
+	const auto height = icon.height();
+	const auto rect = QRect(
+		QPoint(x + size - width, y + size - height),
+		icon.size());
+	p.drawEllipse(rect);
+	icon.paintInCenter(p, rect);
+}
