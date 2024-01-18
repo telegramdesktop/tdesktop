@@ -392,6 +392,7 @@ void Cover::setupShowLastSeen() {
 			const auto wasShown = !_showLastSeen->isHidden();
 			const auto hiddenByMe = user->lastseen().isHiddenByMe();
 			const auto shown = hiddenByMe
+				&& !user->lastseen().isOnline(base::unixtime::now())
 				&& !premium
 				&& user->session().premiumPossible();
 			_showLastSeen->setVisible(shown);

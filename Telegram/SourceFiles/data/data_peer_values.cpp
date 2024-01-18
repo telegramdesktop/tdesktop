@@ -66,7 +66,7 @@ std::optional<QString> OnlineTextCommon(LastseenStatus status, TimeId now) {
 		return tr::lng_status_online(tr::now);
 	} else if (status.isLongAgo()) {
 		return tr::lng_status_offline(tr::now);
-	} else if (status.isRecently()) {
+	} else if (status.isRecently() || status.isHiddenByMe()) {
 		return tr::lng_status_recently(tr::now);
 	} else if (status.isWithinWeek()) {
 		return tr::lng_status_last_week(tr::now);
