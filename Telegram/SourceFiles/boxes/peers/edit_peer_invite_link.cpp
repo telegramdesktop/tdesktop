@@ -522,9 +522,23 @@ not_null<Ui::SlideWrap<>*> Controller::addRequestedListBlock(
 			lt_count_decimal,
 			std::move(requestedCount)));
 
-	const auto delegate = container->lifetime().make_state<
-		PeerListContentDelegateSimple
-	>();
+	class Delegate final : public PeerListContentDelegateSimple {
+	public:
+		explicit Delegate(std::shared_ptr<Main::SessionShow> show)
+		: _show(std::move(show)) {
+		}
+
+		std::shared_ptr<Main::SessionShow> peerListUiShow() override {
+			return _show;
+		}
+
+	private:
+		const std::shared_ptr<Main::SessionShow> _show;
+
+	};
+	const auto delegate = container->lifetime().make_state<Delegate>(
+		this->delegate()->peerListUiShow());
+
 	const auto controller = container->lifetime().make_state<
 		Controller
 	>(_peer, _data.current().admin, _data.value(), Role::Requested);

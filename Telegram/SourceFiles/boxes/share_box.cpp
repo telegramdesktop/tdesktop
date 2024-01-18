@@ -936,16 +936,18 @@ void ShareBox::Inner::loadProfilePhotos() {
 		const auto from = std::max(yFrom / _rowHeight, 0);
 		const auto to = std::max((yTo / _rowHeight) + 1, from);
 
-		const auto ffrom = from;
 		const auto fto = std::min(to, int(_filtered.size()));
+		const auto ffrom = std::min(from, fto);
 		for (auto i = ffrom; i != fto; ++i) {
 			preloadUserpic(_filtered[i]->entry());
 		}
 
-		const auto ufrom = std::max(from - int(_filtered.size()), 0);
 		const auto uto = std::min(
 			to - int(_filtered.size()),
 			int(d_byUsernameFiltered.size()));
+		const auto ufrom = std::min(
+			std::max(from - int(_filtered.size()), 0),
+			uto);
 		for (auto i = ufrom; i != uto; ++i) {
 			preloadUserpic(d_byUsernameFiltered[i]->history);
 		}
