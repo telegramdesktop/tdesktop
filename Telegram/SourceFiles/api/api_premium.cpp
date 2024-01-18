@@ -565,8 +565,9 @@ bool PremiumGiftCodeOptions::giveawayGiftsPurchaseAvailable() const {
 }
 
 RequirePremiumState ResolveRequiresPremiumToWrite(
-		not_null<History*> history) {
-	const auto user = history->peer->asUser();
+		not_null<PeerData*> peer,
+		History *maybeHistory) {
+	const auto user = peer->asUser();
 	if (!user
 		|| !user->someRequirePremiumToWrite()
 		|| user->session().premium()) {
@@ -575,20 +576,35 @@ RequirePremiumState ResolveRequiresPremiumToWrite(
 		return user->meRequiresPremiumToWrite()
 			? RequirePremiumState::Yes
 			: RequirePremiumState::No;
+	} else if (user->flags() & UserDataFlag::MutualContact) {
+		return RequirePremiumState::No;
+	} else if (!maybeHistory) {
+		return RequirePremiumState::Unknown;
 	}
+
+	const auto update = [&](bool require) {
+		using Flag = UserDataFlag;
+		constexpr auto known = Flag::RequirePremiumToWriteKnown;
+		constexpr auto me = Flag::MeRequiresPremiumToWrite;
+		user->setFlags((user->flags() & ~me)
+			| known
+			| (require ? me : Flag()));
+	};
 	// We allow this potentially-heavy loop because in case we've opened
 	// the chat and have a lot of messages `requires_premium` will be known.
-	for (const auto &block : history->blocks) {
+	for (const auto &block : maybeHistory->blocks) {
 		for (const auto &view : block->messages) {
 			const auto item = view->data();
 			if (!item->out() && !item->isService()) {
-				using Flag = UserDataFlag;
-				constexpr auto known = Flag::RequirePremiumToWriteKnown;
-				constexpr auto me = Flag::MeRequiresPremiumToWrite;
-				user->setFlags((user->flags() | known) & ~me);
+				update(false);
 				return RequirePremiumState::No;
 			}
 		}
+	}
+	if (user->isContact() // Here we know, that we're not in his contacts.
+		&& maybeHistory->loadedAtTop() // And no incoming messages.
+		&& maybeHistory->loadedAtBottom()) {
+		update(true);
 	}
 	return RequirePremiumState::Unknown;
 }

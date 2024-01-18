@@ -741,8 +741,10 @@ void ShareBox::Inner::refreshLockedRows() {
 	auto changed = false;
 	for (const auto &[peer, data] : _dataMap) {
 		const auto history = data->history;
-		const auto locked = (Api::ResolveRequiresPremiumToWrite(history)
-			== Api::RequirePremiumState::Yes);
+		const auto locked = (Api::ResolveRequiresPremiumToWrite(
+			history->peer,
+			history
+		) == Api::RequirePremiumState::Yes);
 		if (data->locked != locked) {
 			data->locked = locked;
 			changed = true;
@@ -750,8 +752,10 @@ void ShareBox::Inner::refreshLockedRows() {
 	}
 	for (const auto &data : d_byUsernameFiltered) {
 		const auto history = data->history;
-		const auto locked = (Api::ResolveRequiresPremiumToWrite(history)
-			== Api::RequirePremiumState::Yes);
+		const auto locked = (Api::ResolveRequiresPremiumToWrite(
+			history->peer,
+			history
+		) == Api::RequirePremiumState::Yes);
 		if (data->locked != locked) {
 			data->locked = locked;
 			changed = true;
@@ -821,8 +825,10 @@ void ShareBox::Inner::updateChatName(not_null<Chat*> chat) {
 void ShareBox::Inner::initChatLocked(not_null<Chat*> chat) {
 	if (_descriptor.premiumRequiredError) {
 		const auto history = chat->history;
-		const auto require = Api::ResolveRequiresPremiumToWrite(history);
-		if (require == Api::RequirePremiumState::Yes) {
+		if (Api::ResolveRequiresPremiumToWrite(
+			history->peer,
+			history
+		) == Api::RequirePremiumState::Yes) {
 			chat->locked = true;
 		}
 	}
@@ -949,8 +955,10 @@ void ShareBox::Inner::preloadUserpic(not_null<Dialogs::Entry*> entry) {
 	const auto history = entry->asHistory();
 	if (!_descriptor.premiumRequiredError || !history) {
 		return;
-	} else if (Api::ResolveRequiresPremiumToWrite(history)
-		== Api::RequirePremiumState::Unknown) {
+	} else if (Api::ResolveRequiresPremiumToWrite(
+		history->peer,
+		history
+	) == Api::RequirePremiumState::Unknown) {
 		const auto user = history->peer->asUser();
 		_descriptor.session->api().premium().resolvePremiumRequired(user);
 	}
@@ -1661,7 +1669,7 @@ void FastShareMessage(
 }
 
 auto SharePremiumRequiredError()
--> Fn<ChooseRecipientPremiumRequiredError(not_null<UserData*>)> {
+-> Fn<RecipientPremiumRequiredError(not_null<UserData*>)> {
 	return WritePremiumRequiredError;
 }
 

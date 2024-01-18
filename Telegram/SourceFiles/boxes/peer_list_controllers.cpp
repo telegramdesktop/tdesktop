@@ -258,27 +258,24 @@ bool PeerListGlobalSearchController::isLoading() {
 	return _timer.isActive() || _requestId;
 }
 
-void ChatsListBoxController::RowDelegate::rowPreloadUserpic(
-		not_null<Row*> row) {
-	row->PeerListRow::preloadUserpic();
+RecipientRow::RecipientRow(
+	not_null<PeerData*> peer,
+	const style::PeerListItem *maybeLockedSt,
+	History *maybeHistory)
+: PeerListRow(peer)
+, _maybeHistory(maybeHistory)
+, _resolvePremiumRequired(maybeLockedSt != nullptr) {
+	if (maybeLockedSt
+		&& (Api::ResolveRequiresPremiumToWrite(peer, maybeHistory)
+			== Api::RequirePremiumState::Yes)) {
+		_lockedSt = maybeLockedSt;
+	}
 }
 
-ChatsListBoxController::Row::Row(
-	not_null<History*> history,
-	RowDelegate *delegate)
-: PeerListRow(history->peer)
-, _history(history)
-, _delegate(delegate) {
-}
-
-auto ChatsListBoxController::Row::generatePaintUserpicCallback(
-	bool forceRound)
--> PaintRoundImageCallback {
+PaintRoundImageCallback RecipientRow::generatePaintUserpicCallback(
+		bool forceRound) {
 	auto result = PeerListRow::generatePaintUserpicCallback(forceRound);
-	if (_locked) {
-		const auto st = _delegate
-			? _delegate->rowSt().get()
-			: &st::defaultPeerListItem;
+	if (const auto st = _lockedSt) {
 		return [=](Painter &p, int x, int y, int outerWidth, int size) {
 			result(p, x, y, outerWidth, size);
 			PaintPremiumRequiredLock(p, st, x, y, outerWidth, size);
@@ -287,12 +284,62 @@ auto ChatsListBoxController::Row::generatePaintUserpicCallback(
 	return result;
 }
 
-void ChatsListBoxController::Row::preloadUserpic() {
-	if (_delegate) {
-		_delegate->rowPreloadUserpic(this);
-	} else {
-		PeerListRow::preloadUserpic();
+bool RecipientRow::refreshLock(
+		not_null<const style::PeerListItem*> maybeLockedSt) {
+	if (const auto user = peer()->asUser()) {
+		const auto locked = _resolvePremiumRequired
+			&& (Api::ResolveRequiresPremiumToWrite(user, _maybeHistory)
+				== Api::RequirePremiumState::Yes);
+		if (this->locked() != locked) {
+			setLocked(locked ? maybeLockedSt.get() : nullptr);
+			return true;
+		}
 	}
+	return false;
+}
+
+void RecipientRow::preloadUserpic() {
+	PeerListRow::preloadUserpic();
+
+	if (!_resolvePremiumRequired) {
+		return;
+	} else if (Api::ResolveRequiresPremiumToWrite(peer(), _maybeHistory)
+		== Api::RequirePremiumState::Unknown) {
+		const auto user = peer()->asUser();
+		user->session().api().premium().resolvePremiumRequired(user);
+	}
+}
+
+void TrackPremiumRequiredChanges(
+		not_null<PeerListController*> controller,
+		rpl::lifetime &lifetime) {
+	const auto session = &controller->session();
+	rpl::merge(
+		Data::AmPremiumValue(session) | rpl::to_empty,
+		session->api().premium().somePremiumRequiredResolved()
+	) | rpl::start_with_next([=] {
+		const auto st = &controller->computeListSt().item;
+		const auto delegate = controller->delegate();
+		const auto process = [&](not_null<PeerListRow*> raw) {
+			if (static_cast<RecipientRow*>(raw.get())->refreshLock(st)) {
+				delegate->peerListUpdateRow(raw);
+			}
+		};
+		auto count = delegate->peerListFullRowsCount();
+		for (auto i = 0; i != count; ++i) {
+			process(delegate->peerListRowAt(i));
+		}
+		count = delegate->peerListSearchRowsCount();
+		for (auto i = 0; i != count; ++i) {
+			process(delegate->peerListSearchRowAt(i));
+		}
+	}, lifetime);
+}
+
+ChatsListBoxController::Row::Row(
+	not_null<History*> history,
+	const style::PeerListItem *maybeLockedSt)
+: RecipientRow(history->peer, maybeLockedSt, history) {
 }
 
 ChatsListBoxController::ChatsListBoxController(
@@ -662,7 +709,7 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createRow(
 	return std::make_unique<PeerListRow>(user);
 }
 
-ChooseRecipientPremiumRequiredError WritePremiumRequiredError(
+RecipientPremiumRequiredError WritePremiumRequiredError(
 		not_null<UserData*> user) {
 	return {
 		.text = tr::lng_send_non_premium_message_toast(
@@ -706,52 +753,13 @@ void ChooseRecipientBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_forward_choose());
 
 	if (_premiumRequiredError) {
-		rpl::merge(
-			Data::AmPremiumValue(_session) | rpl::to_empty,
-			_session->api().premium().somePremiumRequiredResolved()
-		) | rpl::start_with_next([=] {
-			refreshLockedRows();
-		}, _lifetime);
+		TrackPremiumRequiredChanges(this, lifetime());
 	}
 }
 
-void ChooseRecipientBoxController::refreshLockedRows() {
-	const auto process = [&](not_null<PeerListRow*> raw) {
-		const auto row = static_cast<Row*>(raw.get());
-		if (const auto user = row->peer()->asUser()) {
-			const auto history = row->history();
-			const auto locked = (Api::ResolveRequiresPremiumToWrite(history)
-				== Api::RequirePremiumState::Yes);
-			if (row->locked() != locked) {
-				row->setLocked(locked);
-				delegate()->peerListUpdateRow(row);
-			}
-		}
-	};
-	auto count = delegate()->peerListFullRowsCount();
-	for (auto i = 0; i != count; ++i) {
-		process(delegate()->peerListRowAt(i));
-	}
-	count = delegate()->peerListSearchRowsCount();
-	for (auto i = 0; i != count; ++i) {
-		process(delegate()->peerListSearchRowAt(i));
-	}
-}
-
-void ChooseRecipientBoxController::rowPreloadUserpic(not_null<Row*> row) {
-	row->PeerListRow::preloadUserpic();
-
-	if (!_premiumRequiredError) {
-		return;
-	} else if (Api::ResolveRequiresPremiumToWrite(row->history())
-		== Api::RequirePremiumState::Unknown) {
-		const auto user = row->peer()->asUser();
-		session().api().premium().resolvePremiumRequired(user);
-	}
-}
-
-not_null<const style::PeerListItem*> ChooseRecipientBoxController::rowSt() {
-	return &computeListSt().item;
+bool ChooseRecipientBoxController::showLockedError(
+		not_null<PeerListRow*> row) {
+	return RecipientRow::ShowLockedError(this, row, _premiumRequiredError);
 }
 
 void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -808,15 +816,17 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
-bool ChooseRecipientBoxController::showLockedError(
-		not_null<PeerListRow*> row) const {
-	if (!static_cast<Row*>(row.get())->locked()) {
+bool RecipientRow::ShowLockedError(
+		not_null<PeerListController*> controller,
+		not_null<PeerListRow*> row,
+		Fn<RecipientPremiumRequiredError(not_null<UserData*>)> error) {
+	if (!static_cast<RecipientRow*>(row.get())->locked()) {
 		return false;
 	}
 	::Settings::ShowPremiumPromoToast(
-		delegate()->peerListUiShow(),
+		controller->delegate()->peerListUiShow(),
 		ChatHelpers::ResolveWindowDefault(),
-		_premiumRequiredError(row->peer()->asUser()).text,
+		error(row->peer()->asUser()).text,
 		u"require_premium"_q);
 	return true;
 }
@@ -840,13 +850,7 @@ auto ChooseRecipientBoxController::createRow(
 	}
 	auto result = std::make_unique<Row>(
 		history,
-		static_cast<RowDelegate*>(this));
-	if (_premiumRequiredError) {
-		const auto require = Api::ResolveRequiresPremiumToWrite(history);
-		if (require == Api::RequirePremiumState::Yes) {
-			result->setLocked(true);
-		}
-	}
+		_premiumRequiredError ? &computeListSt().item : nullptr);
 	return result;
 }
 

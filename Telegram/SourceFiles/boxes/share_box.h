@@ -69,9 +69,9 @@ void FastShareMessage(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item);
 
-struct ChooseRecipientPremiumRequiredError;
+struct RecipientPremiumRequiredError;
 [[nodiscard]] auto SharePremiumRequiredError()
--> Fn<ChooseRecipientPremiumRequiredError(not_null<UserData*>)>;
+-> Fn<RecipientPremiumRequiredError(not_null<UserData*>)>;
 
 class ShareBox final : public Ui::BoxContent {
 public:
@@ -106,7 +106,7 @@ public:
 		} forwardOptions;
 		HistoryView::ScheduleBoxStyleArgs scheduleBoxStyle;
 
-		using PremiumRequiredError = ChooseRecipientPremiumRequiredError;
+		using PremiumRequiredError = RecipientPremiumRequiredError;
 		Fn<PremiumRequiredError(not_null<UserData*>)> premiumRequiredError;
 	};
 	ShareBox(QWidget*, Descriptor &&descriptor);

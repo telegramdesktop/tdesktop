@@ -212,6 +212,7 @@ enum class RequirePremiumState {
 	No,
 };
 [[nodiscard]] RequirePremiumState ResolveRequiresPremiumToWrite(
-	not_null<History*> history);
+	not_null<PeerData*> peer,
+	History *maybeHistory);
 
 } // namespace Api
