@@ -282,6 +282,7 @@ private:
 	const QRect _rippleRect;
 
 	Ui::Animations::Simple _activeAnimation;
+	base::unique_qptr<Ui::ImportantTooltip> _tooltip;
 
 };
 
@@ -305,16 +306,20 @@ TTLButton::TTLButton(
 			st::historyRecordVoiceShowDuration);
 	});
 
-	Ui::RpWidget::shownValue() | rpl::filter(
-		rpl::mappers::_1
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	Ui::RpWidget::shownValue() | rpl::start_with_next([=](bool shown) {
+		if (!shown) {
+			_tooltip = nullptr;
+			return;
+		} else if (_tooltip) {
+			return;
+		}
 		auto text = rpl::conditional(
 			Core::App().settings().ttlVoiceClickTooltipHiddenValue(),
 			tr::lng_record_once_active_tooltip(
 				Ui::Text::RichLangValue),
 			tr::lng_record_once_first_tooltip(
 				Ui::Text::RichLangValue));
-		const auto tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
+		_tooltip.reset(Ui::CreateChild<Ui::ImportantTooltip>(
 			parent.get(),
 			object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 				parent.get(),
@@ -324,13 +329,13 @@ TTLButton::TTLButton(
 					st::historyMessagesTTLLabel.minWidth,
 					st::ttlMediaImportantTooltipLabel),
 				st::defaultImportantTooltip.padding),
-			st::historyRecordTooltip);
+			st::historyRecordTooltip));
 		Ui::RpWidget::geometryValue(
 		) | rpl::start_with_next([=](const QRect &r) {
 			if (r.isEmpty()) {
 				return;
 			}
-			tooltip->pointAt(r, RectPart::Right, [=](QSize size) {
+			_tooltip->pointAt(r, RectPart::Right, [=](QSize size) {
 				return QPoint(
 					r.left()
 						- size.width()
@@ -340,28 +345,28 @@ TTLButton::TTLButton(
 						- size.height()
 						+ st::historyRecordTooltip.padding.top());
 			});
-		}, tooltip->lifetime());
-		tooltip->show();
+		}, _tooltip->lifetime());
+		_tooltip->show();
 		if (!Core::App().settings().ttlVoiceClickTooltipHidden()) {
 			clicks(
 			) | rpl::take(1) | rpl::start_with_next([=] {
 				Core::App().settings().setTtlVoiceClickTooltipHidden(true);
-			}, tooltip->lifetime());
-			tooltip->toggleAnimated(true);
+			}, _tooltip->lifetime());
+			_tooltip->toggleAnimated(true);
 		} else {
-			tooltip->toggleFast(false);
+			_tooltip->toggleFast(false);
 		}
 
 		clicks(
 		) | rpl::start_with_next([=] {
 			const auto toggled = !Ui::AbstractButton::isDisabled();
-			tooltip->toggleAnimated(toggled);
+			_tooltip->toggleAnimated(toggled);
 
 			if (toggled) {
 				constexpr auto kTimeout = crl::time(3000);
-				tooltip->hideAfter(kTimeout);
+				_tooltip->hideAfter(kTimeout);
 			}
-		}, tooltip->lifetime());
+		}, _tooltip->lifetime());
 
 		Ui::RpWidget::geometryValue(
 		) | rpl::map([=](const QRect &r) {
@@ -371,9 +376,9 @@ TTLButton::TTLButton(
 			const auto isFirstTooltip =
 				!Core::App().settings().ttlVoiceClickTooltipHidden();
 			if (isFirstTooltip || (!isFirstTooltip && toHide)) {
-				tooltip->toggleAnimated(!toHide);
+				_tooltip->toggleAnimated(!toHide);
 			}
-		}, tooltip->lifetime());
+		}, _tooltip->lifetime());
 	}, lifetime());
 
 	paintRequest(
