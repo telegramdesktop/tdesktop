@@ -99,7 +99,6 @@ TextWithEntities PremiumRequiredBox::subtitle() {
 }
 
 ClickHandlerPtr PremiumRequiredBox::createViewLink() {
-	const auto itemId = _parent->data()->fullId();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
@@ -112,8 +111,6 @@ void PremiumRequiredBox::draw(
 		Painter &p,
 		const PaintContext &context,
 		const QRect &geometry) {
-	const auto padding = (geometry.width() - st::premiumRequiredCircle) / 2;
-	const auto size = geometry.width() - 2 * padding;
 	p.setBrush(context.st->msgServiceBg()); // ?
 	p.setPen(Qt::NoPen);
 	p.drawEllipse(geometry);

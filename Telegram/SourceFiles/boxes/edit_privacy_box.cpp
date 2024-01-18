@@ -59,7 +59,6 @@ void CreateRadiobuttonLock(
 		const auto &icon = st::messagePrivacyLock;
 		const auto size = st::defaultRadio.diameter;
 		const auto image = icon.instance(st::checkboxFg->c);
-		const auto dimensions = image.size();
 		p.drawImage(QRectF(
 			(size - icon.width()) / 2.,
 			(size - icon.height()) / 2.,

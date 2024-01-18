@@ -520,8 +520,6 @@ WhenAction::WhenAction(
 	std::move(
 		content
 	) | rpl::start_with_next([=](WhoReadContent &&content) {
-		const auto changed = (_content.participants != content.participants)
-			|| (_content.state != content.state);
 		_content = content;
 		refreshText();
 		refreshDimensions();
@@ -630,12 +628,6 @@ void WhenAction::paint(Painter &p) {
 }
 
 void WhenAction::refreshText() {
-	const auto usersCount = int(_content.participants.size());
-	const auto onlySeenCount = ranges::count(
-		_content.participants,
-		QString(),
-		&WhoReadParticipant::customEntityData);
-	const auto count = std::max(_content.fullReactionsCount, usersCount);
 	_text.setMarkedText(
 		st::whenReadStyle,
 		{ ((_content.state == WhoReadState::Unknown)

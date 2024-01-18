@@ -187,7 +187,6 @@ void ShowOrPremiumBox(
 		box.get(),
 		Premium::ButtonGradientStops());
 
-	const auto &st = st::premiumPreviewBox.button;
 	premium->resize(st::showOrShowButton.width, st::showOrShowButton.height);
 
 	const auto label = CreateChild<FlatLabel>(

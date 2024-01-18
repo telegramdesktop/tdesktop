@@ -82,7 +82,6 @@ public:
 	}
 
 	[[nodiscard]] static LastseenStatus FromLegacy(int32 value) {
-		auto result = LastseenStatus();
 		if (value == -2) {
 			return LastseenStatus::Recently();
 		} else if (value == -3) {
