@@ -1,3 +1,9 @@
+4.14.7 (18.01.24)
+
+- See when your message was read in private chat.
+- Premium users can see other last seen times if they weren't hidden explicitly.
+- Premium users can allow new chats only from their contacts and other Premium users.
+
 4.14.6 (15.01.24)
 
 - Fix one-time audio tooltip showing in wrong places.
