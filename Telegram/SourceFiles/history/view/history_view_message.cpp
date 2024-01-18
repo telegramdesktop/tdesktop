@@ -3877,6 +3877,8 @@ int Message::resizeContentGetHeight(int newWidth) {
 	const auto mediaDisplayed = media ? media->isDisplayed() : false;
 	const auto bubble = drawBubble();
 
+	item->resolveDependent();
+
 	// This code duplicates countGeometry() but also resizes media.
 	const auto centeredView = item->isFakeAboutView()
 		|| (context() == Context::Replies && item->isDiscussionPost());
