@@ -1213,8 +1213,8 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 						if (user && !requestingDifference()) {
 							user->madeAction(base::unixtime::now());
 						}
-						ClearMediaAsExpired(item);
 					}
+					ClearMediaAsExpired(item);
 				}
 			} else {
 				// Perhaps it was an unread mention!
