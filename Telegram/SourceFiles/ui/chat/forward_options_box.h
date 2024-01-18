@@ -14,8 +14,9 @@ namespace Ui {
 class AbstractCheckView;
 
 struct ForwardOptions {
+	int sendersCount = 0;
+	int captionsCount = 0;
 	bool dropNames = false;
-	bool hasCaptions = false;
 	bool dropCaptions = false;
 };
 
@@ -23,7 +24,6 @@ void FillForwardOptions(
 	Fn<not_null<AbstractCheckView*>(
 		rpl::producer<QString> &&,
 		bool)> createView,
-	int count,
 	ForwardOptions options,
 	Fn<void(ForwardOptions)> optionsChanged,
 	rpl::lifetime &lifetime);

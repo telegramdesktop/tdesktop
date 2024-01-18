@@ -100,9 +100,9 @@ public:
 		const style::PeerList *st = nullptr;
 		const style::InputField *stLabel = nullptr;
 		struct {
-			int messagesCount = 0;
+			int sendersCount = 0;
+			int captionsCount = 0;
 			bool show = false;
-			bool hasCaptions = false;
 		} forwardOptions;
 		HistoryView::ScheduleBoxStyleArgs scheduleBoxStyle;
 

@@ -158,3 +158,6 @@ ClickHandlerPtr JumpToStoryClickHandler(
 void ShowTrialTranscribesToast(int left, TimeId until);
 
 void ClearMediaAsExpired(not_null<HistoryItem*> item);
+
+[[nodiscard]] int ItemsForwardSendersCount(const HistoryItemsList &list);
+[[nodiscard]] int ItemsForwardCaptionsCount(const HistoryItemsList &list);

@@ -495,7 +495,6 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 		};
 		Ui::FillForwardOptions(
 			std::move(createView),
-			_descriptor.forwardOptions.messagesCount,
 			_forwardOptions,
 			[=](Ui::ForwardOptions value) { _forwardOptions = value; },
 			_menu->lifetime());
@@ -522,7 +521,10 @@ void ShareBox::createButtons() {
 		const auto send = addButton(tr::lng_share_confirm(), [=] {
 			submit({});
 		});
-		_forwardOptions.hasCaptions = _descriptor.forwardOptions.hasCaptions;
+		_forwardOptions.sendersCount
+			= _descriptor.forwardOptions.sendersCount;
+		_forwardOptions.captionsCount
+			= _descriptor.forwardOptions.captionsCount;
 
 		send->setAcceptBoth();
 		send->clicks(
@@ -575,7 +577,7 @@ void ShareBox::innerSelectedChanged(
 
 void ShareBox::submit(Api::SendOptions options) {
 	if (const auto onstack = _descriptor.submitCallback) {
-		const auto forwardOptions = (_forwardOptions.hasCaptions
+		const auto forwardOptions = (_forwardOptions.captionsCount
 			&& _forwardOptions.dropCaptions)
 			? Data::ForwardOptions::NoNamesAndCaptions
 			: _forwardOptions.dropNames
@@ -1659,9 +1661,9 @@ void FastShareMessage(
 				msgIds),
 			.filterCallback = std::move(filterCallback),
 			.forwardOptions = {
-				.messagesCount = int(msgIds.size()),
+				.sendersCount = ItemsForwardSendersCount(items),
+				.captionsCount = ItemsForwardCaptionsCount(items),
 				.show = !hasOnlyForcedForwardedInfo,
-				.hasCaptions = hasCaptions,
 			},
 			.premiumRequiredError = SharePremiumRequiredError(),
 		}),

@@ -808,3 +808,29 @@ void ClearMediaAsExpired(not_null<HistoryItem*> item) {
 		}
 	}
 }
+
+int ItemsForwardSendersCount(const HistoryItemsList &list) {
+	auto peers = base::flat_set<not_null<PeerData*>>();
+	auto names = base::flat_set<QString>();
+	for (const auto &item : list) {
+		if (const auto peer = item->originalSender()) {
+			peers.emplace(peer);
+		} else {
+			names.emplace(item->originalHiddenSenderInfo()->name);
+		}
+	}
+	return int(peers.size()) + int(names.size());
+}
+
+int ItemsForwardCaptionsCount(const HistoryItemsList &list) {
+	auto result = 0;
+	for (const auto &item : list) {
+		if (const auto media = item->media()) {
+			if (!item->originalText().text.isEmpty()
+				&& media->allowsEditCaption()) {
+				++result;
+			}
+		}
+	}
+	return result;
+}
