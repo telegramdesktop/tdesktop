@@ -8207,7 +8207,9 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			|| replyTo()
 			|| readyToForward()
 			|| _kbShown) {
-			drawField(p, clip);
+			if (!isSearching()) {
+				drawField(p, clip);
+			}
 		}
 	} else {
 		const auto w = st::msgServiceFont->width(tr::lng_willbe_history(tr::now))
