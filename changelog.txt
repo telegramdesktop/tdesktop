@@ -1,3 +1,9 @@
+4.14.8 (18.01.24)
+
+- Fix initial position and size of secondary windows.
+- Optimize messages loading. (load replies on demand)
+- Fix local online status turning off.
+
 4.14.7 (18.01.24)
 
 - See when your message was read in private chat.
