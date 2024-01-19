@@ -3615,7 +3615,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_non_premium_more" = "Learn more...";
 
 "lng_send_non_premium_text" = "Subscribe to **Premium**\n to message {user}.";
-"lng_send_non_premium_go" = "Go Premium";
+"lng_send_non_premium_go" = "Get Premium";
 "lng_send_non_premium_story" = "Replies restricted";
 "lng_send_non_premium_unlock" = "unlock";
 "lng_send_non_premium_message_toast" = "**{user}** only accepts messages from contacts and {link} subscribers.";
