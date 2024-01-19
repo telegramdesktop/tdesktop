@@ -164,7 +164,7 @@ bool AboutView::refresh() {
 		if (bot
 			&& bot->meRequiresPremiumToWrite()
 			&& !bot->session().premium()
-			&& _history->isEmpty()) {
+			&& _history->isDisplayedEmpty()) {
 			if (_item) {
 				return false;
 			}
