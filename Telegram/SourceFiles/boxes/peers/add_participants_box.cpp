@@ -296,6 +296,8 @@ void AddParticipantsBoxController::itemDeselectedHook(
 
 void AddParticipantsBoxController::prepareViewHook() {
 	updateTitle();
+
+	TrackPremiumRequiredChanges(this, lifetime());
 }
 
 int AddParticipantsBoxController::alreadyInCount() const {
@@ -713,8 +715,6 @@ void AddSpecialBoxController::prepare() {
 		loadMoreRows();
 	}
 	delegate()->peerListRefreshRows();
-
-	TrackPremiumRequiredChanges(this, lifetime());
 }
 
 void AddSpecialBoxController::prepareChatRows(not_null<ChatData*> chat) {
