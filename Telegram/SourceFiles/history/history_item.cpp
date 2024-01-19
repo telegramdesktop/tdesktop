@@ -919,6 +919,17 @@ void HistoryItem::updateServiceDependent(bool force) {
 			}
 		}
 	}
+
+	// Record resolve state for upcoming on-demand resolving.
+	if (dependent->msg || !dependent->msgId || force) {
+		dependent->pendingResolve = false;
+	} else {
+		dependent->pendingResolve = true;
+		dependent->requestedResolve = false;
+	}
+
+	// updateDependentServiceText may call UpdateComponents!
+	// So the `dependent` pointer becomes invalid.
 	if (dependent->msg) {
 		updateDependentServiceText();
 	} else if (force) {
@@ -930,12 +941,6 @@ void HistoryItem::updateServiceDependent(bool force) {
 	}
 	if (force && gotDependencyItem) {
 		Core::App().notifications().checkDelayed();
-	}
-	if (dependent->msg || !dependent->msgId || force) {
-		dependent->pendingResolve = false;
-	} else {
-		dependent->pendingResolve = true;
-		dependent->requestedResolve = false;
 	}
 }
 
