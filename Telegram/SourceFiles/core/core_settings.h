@@ -263,30 +263,68 @@ public:
 	void setAutoLock(int value) {
 		_autoLock = value;
 	}
-	[[nodiscard]] QString callOutputDeviceId() const {
-		return _callOutputDeviceId.isEmpty()
-			? u"default"_q
-			: _callOutputDeviceId;
+
+	[[nodiscard]] QString playbackDeviceId() const {
+		return _playbackDeviceId.current();
 	}
-	void setCallOutputDeviceId(const QString &value) {
-		_callOutputDeviceId = value;
+	[[nodiscard]] rpl::producer<QString> playbackDeviceIdChanges() const {
+		return _playbackDeviceId.changes();
 	}
-	[[nodiscard]] QString callInputDeviceId() const {
-		return _callInputDeviceId.isEmpty()
-			? u"default"_q
-			: _callInputDeviceId;
+	[[nodiscard]] rpl::producer<QString> playbackDeviceIdValue() const {
+		return _playbackDeviceId.value();
 	}
-	void setCallInputDeviceId(const QString &value) {
-		_callInputDeviceId = value;
+	void setPlaybackDeviceId(const QString &value) {
+		_playbackDeviceId = value;
 	}
-	[[nodiscard]] QString callVideoInputDeviceId() const {
-		return _callVideoInputDeviceId.isEmpty()
-			? u"default"_q
-			: _callVideoInputDeviceId;
+	[[nodiscard]] QString captureDeviceId() const {
+		return _captureDeviceId.current();
 	}
-	void setCallVideoInputDeviceId(const QString &value) {
-		_callVideoInputDeviceId = value;
+	[[nodiscard]] rpl::producer<QString> captureDeviceIdChanges() const {
+		return _captureDeviceId.changes();
 	}
+	[[nodiscard]] rpl::producer<QString> captureDeviceIdValue() const {
+		return _captureDeviceId.value();
+	}
+	void setCaptureDeviceId(const QString &value) {
+		_captureDeviceId = value;
+	}
+	[[nodiscard]] QString cameraDeviceId() const {
+		return _cameraDeviceId.current();
+	}
+	[[nodiscard]] rpl::producer<QString> cameraDeviceIdChanges() const {
+		return _cameraDeviceId.changes();
+	}
+	[[nodiscard]] rpl::producer<QString> cameraDeviceIdValue() const {
+		return _cameraDeviceId.value();
+	}
+	void setCameraDeviceId(const QString &value) {
+		_cameraDeviceId = value;
+	}
+	[[nodiscard]] QString callPlaybackDeviceId() const {
+		return _callPlaybackDeviceId.current();
+	}
+	[[nodiscard]] rpl::producer<QString> callPlaybackDeviceIdChanges() const {
+		return _callPlaybackDeviceId.changes();
+	}
+	[[nodiscard]] rpl::producer<QString> callPlaybackDeviceIdValue() const {
+		return _callPlaybackDeviceId.value();
+	}
+	void setCallPlaybackDeviceId(const QString &value) {
+		_callPlaybackDeviceId = value;
+	}
+	[[nodiscard]] QString callCaptureDeviceId() const {
+		return _callCaptureDeviceId.current();
+	}
+	[[nodiscard]] rpl::producer<QString> callCaptureDeviceIdChanges() const {
+		return _callCaptureDeviceId.changes();
+	}
+	[[nodiscard]] rpl::producer<QString> callCaptureDeviceIdValue() const {
+		return _callCaptureDeviceId.value();
+	}
+	void setCallCaptureDeviceId(const QString &value) {
+		_callCaptureDeviceId = value;
+	}
+
 	[[nodiscard]] int callOutputVolume() const {
 		return _callOutputVolume;
 	}
@@ -875,9 +913,11 @@ private:
 	bool _countUnreadMessages = true;
 	rpl::variable<bool> _notifyAboutPinned = true;
 	int _autoLock = 3600;
-	QString _callOutputDeviceId = u"default"_q;
-	QString _callInputDeviceId = u"default"_q;
-	QString _callVideoInputDeviceId = u"default"_q;
+	rpl::variable<QString> _playbackDeviceId;
+	rpl::variable<QString> _captureDeviceId;
+	rpl::variable<QString> _cameraDeviceId;
+	rpl::variable<QString> _callPlaybackDeviceId;
+	rpl::variable<QString> _callCaptureDeviceId;
 	int _callOutputVolume = 100;
 	int _callInputVolume = 100;
 	bool _callAudioDuckingEnabled = true;

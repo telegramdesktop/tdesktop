@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_video_bubble.h"
 #include "apiwrap.h"
 #include "api/api_authorizations.h"
+#include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_audio_input_tester.h"
@@ -40,6 +41,18 @@ namespace Settings {
 namespace {
 
 using namespace Webrtc;
+
+[[nodiscard]] rpl::producer<QString> DeviceNameValue(
+		DeviceType type,
+		rpl::producer<QString> id) {
+	return std::move(id) | rpl::map([type](const QString &id) {
+		const auto list = Core::App().mediaDevices().devices(type);
+		const auto i = ranges::find(list, id, &DeviceInfo::id);
+		return (i != end(list))
+			? i->name
+			: tr::lng_settings_call_device_default(tr::now);
+	});
+}
 
 } // namespace
 
@@ -86,7 +99,7 @@ Webrtc::VideoTrack *Calls::AddCameraSubsection(
 		const auto cameras = GetVideoInputList();
 		const auto i = ranges::find(
 			cameras,
-			Core::App().settings().callVideoInputDeviceId(),
+			Core::App().settings().cameraDeviceId(),
 			&VideoInput::id);
 		return (i != end(cameras))
 			? i->name
@@ -111,7 +124,7 @@ Webrtc::VideoTrack *Calls::AddCameraSubsection(
 		) | ranges::to_vector;
 		const auto i = ranges::find(
 			devices,
-			Core::App().settings().callVideoInputDeviceId(),
+			Core::App().settings().cameraDeviceId(),
 			&VideoInput::id);
 		const auto currentOption = (i != end(devices))
 			? int(i - begin(devices) + 1)
@@ -120,13 +133,10 @@ Webrtc::VideoTrack *Calls::AddCameraSubsection(
 			cameraNameStream->fire_copy(options[option]);
 			const auto deviceId = option
 				? devices[option - 1].id
-				: "default";
+				: kDefaultDeviceId;
 			if (saveToSettings) {
-				Core::App().settings().setCallVideoInputDeviceId(deviceId);
+				Core::App().settings().setCameraDeviceId(deviceId);
 				Core::App().saveSettingsDelayed();
-			}
-			if (const auto call = Core::App().calls().currentCall()) {
-				call->setCurrentCameraDevice(deviceId);
 			}
 			if (*capturerOwner) {
 				(*capturerOwner)->switchToDevice(
@@ -186,7 +196,7 @@ Webrtc::VideoTrack *Calls::AddCameraSubsection(
 			return;
 		}
 		*capturerOwner = Core::App().calls().getVideoCapture(
-			Core::App().settings().callVideoInputDeviceId(),
+			Core::App().settings().cameraDeviceId(),
 			false);
 		(*capturerOwner)->setPreferredAspectRatio(0.);
 		track->setState(VideoState::Active);
@@ -220,54 +230,58 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 void Calls::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	if (!GetVideoInputList().empty()) {
-		Ui::AddSkip(content);
-		Ui::AddSubsectionTitle(content, tr::lng_settings_call_camera());
-		AddCameraSubsection(_controller->uiShow(), content, true);
-		Ui::AddSkip(content);
-		Ui::AddDivider(content);
-	}
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_output());
+
+	//auto playbackIdWithFallback = DeviceIdValueWithFallback(
+	//	Core::App().settings().callPlaybackDeviceIdValue(),
+	//	Core::App().settings().playbackDeviceIdValue());
+	auto playbackIdWithFallback = [] {
+		return DeviceIdOrDefault(
+			Core::App().settings().playbackDeviceIdValue());
+	};
 	AddButtonWithLabel(
 		content,
 		tr::lng_settings_call_output_device(),
-		rpl::single(
-			CurrentAudioOutputName()
-		) | rpl::then(
-			_outputNameStream.events()
-		),
+		PlaybackDeviceNameValue(playbackIdWithFallback()),
 		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
-		_controller->show(ChooseAudioOutputBox(crl::guard(this, [=](
-				const QString &id,
-				const QString &name) {
-			_outputNameStream.fire_copy(name);
-		})));
+		_controller->show(ChoosePlaybackDeviceBox(
+			playbackIdWithFallback(),
+			crl::guard(this, [=](const QString &id) {
+				//Core::App().settings().setCallPlaybackDeviceId(id);
+				Core::App().settings().setPlaybackDeviceId(id);
+				Core::App().saveSettingsDelayed();
+			})));
 	});
 
 	Ui::AddSkip(content);
 	Ui::AddDivider(content);
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_input());
+	//auto captureIdWithFallback = DeviceIdValueWithFallback(
+	//	Core::App().settings().callCaptureDeviceIdValue(),
+	//	Core::App().settings().captureDeviceIdValue());
+	auto captureIdWithFallback = [] {
+		return DeviceIdOrDefault(
+			Core::App().settings().captureDeviceIdValue());
+	};
 	AddButtonWithLabel(
 		content,
 		tr::lng_settings_call_input_device(),
-		rpl::single(
-			CurrentAudioInputName()
-		) | rpl::then(
-			_inputNameStream.events()
-		),
+		CaptureDeviceNameValue(captureIdWithFallback()),
 		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
-		_controller->show(ChooseAudioInputBox(crl::guard(this, [=](
-				const QString &id,
-				const QString &name) {
-			_inputNameStream.fire_copy(name);
-			if (_micTester) {
-				_micTester->setDeviceId(id);
-			}
-		})));
+		_controller->show(ChooseCaptureDeviceBox(
+			captureIdWithFallback(),
+			crl::guard(this, [=](const QString &id) {
+				//Core::App().settings().setCallCaptureDeviceId(id);
+				Core::App().settings().setCaptureDeviceId(id);
+				Core::App().saveSettingsDelayed();
+				if (_micTester) {
+					_micTester->setDeviceId(id);
+				}
+			})));
 	});
 
 	_micTestLevel = content->add(
@@ -287,6 +301,15 @@ void Calls::setupContent() {
 
 	Ui::AddSkip(content);
 	Ui::AddDivider(content);
+
+	if (!GetVideoInputList().empty()) {
+		Ui::AddSkip(content);
+		Ui::AddSubsectionTitle(content, tr::lng_settings_call_camera());
+		AddCameraSubsection(_controller->uiShow(), content, true);
+		Ui::AddSkip(content);
+		Ui::AddDivider(content);
+	}
+
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_other());
 
@@ -310,8 +333,8 @@ void Calls::setupContent() {
 		tr::lng_settings_call_open_system_prefs(),
 		st::settingsButtonNoIcon
 	))->addClickHandler([=] {
-		const auto opened = Platform::OpenSystemSettings(
-			Platform::SystemSettingsType::Audio);
+		using namespace ::Platform;
+		const auto opened = OpenSystemSettings(SystemSettingsType::Audio);
 		if (!opened) {
 			_controller->show(
 				Ui::MakeInformBox(tr::lng_linux_no_audio_prefs()));
@@ -324,26 +347,27 @@ void Calls::setupContent() {
 }
 
 void Calls::requestPermissionAndStartTestingMicrophone() {
-	const auto status = Platform::GetPermissionStatus(
-		Platform::PermissionType::Microphone);
-	if (status == Platform::PermissionStatus::Granted) {
+	using namespace ::Platform;
+	const auto status = GetPermissionStatus(
+		PermissionType::Microphone);
+	if (status == PermissionStatus::Granted) {
 		startTestingMicrophone();
-	} else if (status == Platform::PermissionStatus::CanRequest) {
+	} else if (status == PermissionStatus::CanRequest) {
 		const auto startTestingChecked = crl::guard(this, [=](
-				Platform::PermissionStatus status) {
-			if (status == Platform::PermissionStatus::Granted) {
+				PermissionStatus status) {
+			if (status == PermissionStatus::Granted) {
 				crl::on_main(crl::guard(this, [=] {
 					startTestingMicrophone();
 				}));
 			}
 		});
-		Platform::RequestPermission(
-			Platform::PermissionType::Microphone,
+		RequestPermission(
+			PermissionType::Microphone,
 			startTestingChecked);
 	} else {
 		const auto showSystemSettings = [controller = _controller] {
-			Platform::OpenSystemSettingsForPermission(
-				Platform::PermissionType::Microphone);
+			OpenSystemSettingsForPermission(
+				PermissionType::Microphone);
 			controller->hideLayer();
 		};
 		_controller->show(Ui::MakeConfirmBox({
@@ -358,135 +382,215 @@ void Calls::startTestingMicrophone() {
 	_levelUpdateTimer.callEach(kMicTestUpdateInterval);
 	_micTester = std::make_unique<AudioInputTester>(
 		Core::App().settings().callAudioBackend(),
-		Core::App().settings().callInputDeviceId());
+		Core::App().settings().callCaptureDeviceId());
 }
 
-QString CurrentAudioOutputName() {
-	const auto &settings = Core::App().settings();
-	const auto list = GetAudioOutputList(settings.callAudioBackend());
-	const auto i = ranges::find(
-		list,
-		settings.callOutputDeviceId(),
-		&AudioOutput::id);
-	return (i != end(list))
-		? i->name
-		: tr::lng_settings_call_device_default(tr::now);
+rpl::producer<QString> PlaybackDeviceNameValue(rpl::producer<QString> id) {
+	return DeviceNameValue(DeviceType::Playback, std::move(id));
 }
 
-QString CurrentAudioInputName() {
-	const auto &settings = Core::App().settings();
-	const auto list = GetAudioInputList(settings.callAudioBackend());
-	const auto i = ranges::find(
-		list,
-		settings.callInputDeviceId(),
-		&AudioInput::id);
-	return (i != end(list))
-		? i->name
-		: tr::lng_settings_call_device_default(tr::now);
+rpl::producer<QString> CaptureDeviceNameValue(rpl::producer<QString> id) {
+	return DeviceNameValue(DeviceType::Capture, std::move(id));
 }
 
-object_ptr<Ui::GenericBox> ChooseAudioOutputBox(
-		Fn<void(QString id, QString name)> chosen,
+void ChooseAudioDeviceBox(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> title,
+		rpl::producer<std::vector<DeviceInfo>> devicesValue,
+		rpl::producer<QString> currentId,
+		Fn<void(QString id)> chosen,
 		const style::Checkbox *st,
 		const style::Radio *radioSt) {
-	const auto &settings = Core::App().settings();
-	const auto list = GetAudioOutputList(settings.callAudioBackend());
-	const auto options = ranges::views::concat(
-		ranges::views::single(tr::lng_settings_call_device_default(tr::now)),
-		list | ranges::views::transform(&AudioOutput::name)
-	) | ranges::to_vector;
-	const auto i = ranges::find(
-		list,
-		settings.callOutputDeviceId(),
-		&AudioOutput::id);
-	const auto currentOption = (i != end(list))
-		? int(i - begin(list) + 1)
-		: 0;
-	const auto save = [=](int option) {
-		const auto deviceId = option
-			? list[option - 1].id
-			: "default";
-		Core::App().calls().setCurrentAudioDevice(false, deviceId);
-		chosen(deviceId, options[option]);
+	box->setTitle(std::move(title));
+	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
+	const auto layout = box->verticalLayout();
+	const auto skip = st::boxOptionListPadding.top()
+		+ st::defaultBoxCheckbox.margin.top();
+	layout->add(object_ptr<Ui::FixedHeightWidget>(layout, skip));
+
+	if (!st) {
+		st = &st::defaultBoxCheckbox;
+	}
+	if (!radioSt) {
+		radioSt = &st::defaultRadio;
+	}
+
+	struct State {
+		std::vector<DeviceInfo> list;
+		base::flat_map<int, QString> ids;
+		rpl::variable<QString> currentId;
+		QString currentName;
+		bool ignoreValueChange = false;
 	};
-	return Box([=](not_null<Ui::GenericBox*> box) {
-		SingleChoiceBox(box, {
-			.title = tr::lng_settings_call_output_device(),
-			.options = options,
-			.initialSelection = currentOption,
-			.callback = save,
-			.st = st,
-			.radioSt = radioSt,
+	const auto state = box->lifetime().make_state<State>();
+	state->currentId = std::move(currentId);
+
+	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
+	const auto fake = std::make_shared<Ui::RadiobuttonGroup>(0);
+	const auto buttons = layout->add(object_ptr<Ui::VerticalLayout>(layout));
+	const auto other = layout->add(object_ptr<Ui::VerticalLayout>(layout));
+	const auto margins = QMargins(
+		st::boxPadding.left() + st::boxOptionListPadding.left(),
+		0,
+		st::boxPadding.right(),
+		st::boxOptionListSkip);
+	const auto def = buttons->add(
+		object_ptr<Ui::Radiobutton>(
+			buttons,
+			group,
+			0,
+			tr::lng_settings_call_device_default(tr::now),
+			*st,
+			*radioSt),
+		margins);
+
+	const auto selectCurrent = [=](QString current) {
+		state->ignoreValueChange = true;
+		const auto guard = gsl::finally([&] {
+			state->ignoreValueChange = false;
 		});
+		if (current.isEmpty() || current == kDefaultDeviceId) {
+			group->setValue(0);
+			other->clear();
+		} else {
+			auto found = false;
+			for (const auto &[index, id] : state->ids) {
+				if (id == current) {
+					group->setValue(index);
+					found = true;
+					break;
+				}
+			}
+			if (found) {
+				other->clear();
+			} else {
+				group->setValue(0);
+				const auto i = ranges::find(
+					state->list,
+					current,
+					&DeviceInfo::id);
+				if (i != end(state->list)) {
+					const auto button = other->add(
+						object_ptr<Ui::Radiobutton>(
+							other,
+							fake,
+							0,
+							i->name,
+							*st,
+							*radioSt),
+						margins);
+					button->show();
+					button->setDisabled(true);
+					button->finishAnimating();
+					button->setAttribute(Qt::WA_TransparentForMouseEvents);
+					while (other->count() > 1) {
+						delete other->widgetAt(1);
+					}
+					if (const auto width = box->width()) {
+						other->resizeToWidth(width);
+					}
+				} else {
+					other->clear();
+				}
+			}
+		}
+	};
+
+	std::move(
+		devicesValue
+	) | rpl::start_with_next([=](std::vector<DeviceInfo> &&list) {
+		auto count = buttons->count();
+		auto index = 1;
+		state->ids.clear();
+		state->list = std::move(list);
+
+		state->ignoreValueChange = true;
+		const auto guard = gsl::finally([&] {
+			state->ignoreValueChange = false;
+		});
+
+		const auto current = state->currentId.current();
+		for (const auto &info : state->list) {
+			if (info.inactive) {
+				continue;
+			} else if (current == info.id) {
+				group->setValue(index);
+			}
+			const auto button = buttons->insert(
+				index,
+				object_ptr<Ui::Radiobutton>(
+					buttons,
+					group,
+					index,
+					info.name,
+					*st,
+					*radioSt),
+				margins);
+			button->show();
+			button->finishAnimating();
+
+			state->ids.emplace(index, info.id);
+			if (index < count) {
+				delete buttons->widgetAt(index + 1);
+			}
+			++index;
+		}
+		while (index < count) {
+			delete buttons->widgetAt(index);
+			--count;
+		}
+		if (const auto width = box->width()) {
+			buttons->resizeToWidth(width);
+		}
+		selectCurrent(current);
+	}, box->lifetime());
+
+	state->currentId.changes(
+	) | rpl::start_with_next(selectCurrent, box->lifetime());
+
+	def->finishAnimating();
+
+	group->setChangedCallback([=](int value) {
+		if (state->ignoreValueChange) {
+			return;
+		}
+		const auto weak = Ui::MakeWeak(box);
+		chosen(state->ids.take(value).value_or(kDefaultDeviceId));
+		if (weak) {
+			box->closeBox();
+		}
 	});
 }
 
-object_ptr<Ui::GenericBox> ChooseAudioInputBox(
-		Fn<void(QString id, QString name)> chosen,
+object_ptr<Ui::GenericBox> ChoosePlaybackDeviceBox(
+		rpl::producer<QString> currentId,
+		Fn<void(QString id)> chosen,
 		const style::Checkbox *st,
 		const style::Radio *radioSt) {
-	const auto &settings = Core::App().settings();
-	const auto list = GetAudioInputList(settings.callAudioBackend());
-	const auto options = ranges::views::concat(
-		ranges::views::single(tr::lng_settings_call_device_default(tr::now)),
-		list | ranges::views::transform(&AudioInput::name)
-	) | ranges::to_vector;
-	const auto i = ranges::find(
-		list,
-		Core::App().settings().callInputDeviceId(),
-		&AudioInput::id);
-	const auto currentOption = (i != end(list))
-		? int(i - begin(list) + 1)
-		: 0;
-	const auto save = [=](int option) {
-		const auto deviceId = option
-			? list[option - 1].id
-			: "default";
-		Core::App().calls().setCurrentAudioDevice(true, deviceId);
-		chosen(deviceId, options[option]);
-	};
-	return Box([=](not_null<Ui::GenericBox*> box) {
-		SingleChoiceBox(box, {
-			.title = tr::lng_settings_call_input_device(),
-			.options = options,
-			.initialSelection = currentOption,
-			.callback = save,
-			.st = st,
-			.radioSt = radioSt,
-		});
-	});
+	return Box(
+		ChooseAudioDeviceBox,
+		tr::lng_settings_call_output_device(),
+		Core::App().mediaDevices().devicesValue(DeviceType::Playback),
+		std::move(currentId),
+		std::move(chosen),
+		st,
+		radioSt);
 }
-//
-//object_ptr<Ui::GenericBox> ChooseAudioBackendBox(
-//		const style::Checkbox *st,
-//		const style::Radio *radioSt) {
-//	const auto &settings = Core::App().settings();
-//	const auto list = GetAudioInputList(settings.callAudioBackend());
-//	const auto options = std::vector<QString>{
-//		"OpenAL",
-//		"Webrtc ADM",
-//#ifdef Q_OS_WIN
-//		"Webrtc ADM2",
-//#endif // Q_OS_WIN
-//	};
-//	const auto currentOption = static_cast<int>(settings.callAudioBackend());
-//	const auto save = [=](int option) {
-//		Core::App().settings().setCallAudioBackend(
-//			static_cast<Webrtc::Backend>(option));
-//		Core::App().saveSettings();
-//		Core::Restart();
-//	};
-//	return Box([=](not_null<Ui::GenericBox*> box) {
-//		SingleChoiceBox(box, {
-//			.title = rpl::single<QString>("Calls audio backend"),
-//			.options = options,
-//			.initialSelection = currentOption,
-//			.callback = save,
-//			.st = st,
-//			.radioSt = radioSt,
-//		});
-//	});
-//}
+
+object_ptr<Ui::GenericBox> ChooseCaptureDeviceBox(
+		rpl::producer<QString> currentId,
+		Fn<void(QString id)> chosen,
+		const style::Checkbox *st,
+		const style::Radio *radioSt) {
+	return Box(
+		ChooseAudioDeviceBox,
+		tr::lng_settings_call_input_device(),
+		Core::App().mediaDevices().devicesValue(DeviceType::Capture),
+		std::move(currentId),
+		std::move(chosen),
+		st,
+		radioSt);
+}
 
 } // namespace Settings
 

@@ -141,7 +141,8 @@ void DestroyPlaybackDevice() {
 bool CreatePlaybackDevice() {
 	if (AudioDevice) return true;
 
-	AudioDevice = alcOpenDevice(nullptr);
+	const auto id = Current().deviceId().toStdString();
+	AudioDevice = alcOpenDevice(id.c_str());
 	if (!AudioDevice) {
 		LOG(("Audio Error: Could not create default playback device, enumerating.."));
 		EnumeratePlaybackDevices();
@@ -200,12 +201,12 @@ void Start(not_null<Instance*> instance) {
 
 	MixerInstance = new Player::Mixer(instance);
 
-	Platform::Audio::Init();
+	//Platform::Audio::Init();
 }
 
 // Thread: Main.
 void Finish(not_null<Instance*> instance) {
-	Platform::Audio::DeInit();
+	//Platform::Audio::DeInit();
 
 	// MixerInstance variable should be modified under AudioMutex protection.
 	// So it is modified in the ~Mixer() destructor after all tracks are cleared.

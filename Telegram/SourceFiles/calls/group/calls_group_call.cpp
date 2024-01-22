@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/global_shortcuts.h"
 #include "base/random.h"
 #include "webrtc/webrtc_video_track.h"
-#include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_create_adm.h"
 
 #include <tgcalls/group/GroupInstanceCustomImpl.h>
@@ -51,14 +50,6 @@ constexpr auto kFixManualLargeVideoDuration = 5 * crl::time(1000);
 constexpr auto kFixSpeakingLargeVideoDuration = 3 * crl::time(1000);
 constexpr auto kFullAsMediumsCount = 4; // 1 Full is like 4 Mediums.
 constexpr auto kMaxMediumQualities = 16; // 4 Fulls or 16 Mediums.
-
-[[nodiscard]] std::unique_ptr<Webrtc::MediaDevices> CreateMediaDevices() {
-	const auto &settings = Core::App().settings();
-	return Webrtc::CreateMediaDevices(
-		settings.callInputDeviceId(),
-		settings.callOutputDeviceId(),
-		settings.callVideoInputDeviceId());
-}
 
 [[nodiscard]] const Data::GroupCallParticipant *LookupParticipant(
 		not_null<PeerData*> peer,
@@ -590,12 +581,27 @@ GroupCall::GroupCall(
 , _scheduleDate(info.scheduleDate)
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
+, _playbackDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Playback,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callPlaybackDeviceIdValue(),
+		Core::App().settings().playbackDeviceIdValue()))
+, _captureDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callCaptureDeviceIdValue(),
+		Core::App().settings().captureDeviceIdValue()))
+, _cameraDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Camera,
+	Webrtc::DeviceIdOrDefault(Core::App().settings().cameraDeviceIdValue()))
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
 , _connectingSoundTimer([=] { playConnectingSoundOnce(); })
 , _listenersHidden(info.rtmp)
 , _rtmp(info.rtmp)
-, _rtmpVolume(Group::kDefaultVolume)
-, _mediaDevices(CreateMediaDevices()) {
+, _rtmpVolume(Group::kDefaultVolume) {
 	_muted.value(
 	) | rpl::combine_previous(
 	) | rpl::start_with_next([=](MuteState previous, MuteState state) {
@@ -2058,28 +2064,22 @@ void GroupCall::applyOtherParticipantUpdate(
 }
 
 void GroupCall::setupMediaDevices() {
-	_mediaDevices->audioInputId(
-	) | rpl::start_with_next([=](QString id) {
-		_audioInputId = id;
-		if (_instance) {
-			_instance->setAudioInputDevice(id.toStdString());
-		}
+	_playbackDeviceId.changes() | rpl::filter([=] {
+		return _instance != nullptr;
+	}) | rpl::start_with_next([=](const QString &deviceId) {
+		_instance->setAudioOutputDevice(deviceId.toStdString());
 	}, _lifetime);
 
-	_mediaDevices->audioOutputId(
-	) | rpl::start_with_next([=](QString id) {
-		_audioOutputId = id;
-		if (_instance) {
-			_instance->setAudioOutputDevice(id.toStdString());
-		}
+	_captureDeviceId.changes() | rpl::filter([=] {
+		return _instance != nullptr;
+	}) | rpl::start_with_next([=](const QString &deviceId) {
+		_instance->setAudioInputDevice(deviceId.toStdString());
 	}, _lifetime);
 
-	_mediaDevices->videoInputId(
-	) | rpl::start_with_next([=](QString id) {
-		_cameraInputId = id;
-		if (_cameraCapture) {
-			_cameraCapture->switchToDevice(id.toStdString(), false);
-		}
+	_cameraDeviceId.changes() | rpl::filter([=] {
+		return _cameraCapture != nullptr;
+	}) | rpl::start_with_next([=](const QString &deviceId) {
+		_cameraCapture->switchToDevice(deviceId.toStdString(), false);
 	}, _lifetime);
 }
 
@@ -2117,7 +2117,7 @@ bool GroupCall::emitShareCameraError() {
 		return emitError(Error::DisabledNoCamera);
 	} else if (mutedByAdmin()) {
 		return emitError(Error::MutedNoCamera);
-	} else if (Webrtc::GetVideoInputList().empty()) {
+	} else if (_cameraDeviceId.current().isEmpty()) {
 		return emitError(Error::NoCamera);
 	}
 	return false;
@@ -2126,7 +2126,7 @@ bool GroupCall::emitShareCameraError() {
 void GroupCall::emitShareCameraError(Error error) {
 	_cameraState = Webrtc::VideoState::Inactive;
 	if (error == Error::CameraFailed
-		&& Webrtc::GetVideoInputList().empty()) {
+		&& _cameraDeviceId.current().isEmpty()) {
 		error = Error::NoCamera;
 	}
 	_errors.fire_copy(error);
@@ -2180,7 +2180,7 @@ void GroupCall::setupOutgoingVideo() {
 				return;
 			} else if (!_cameraCapture) {
 				_cameraCapture = _delegate->groupCallGetVideoCapture(
-					_cameraInputId);
+					_cameraDeviceId.current());
 				if (!_cameraCapture) {
 					return emitShareCameraError(Error::CameraFailed);
 				}
@@ -2192,7 +2192,7 @@ void GroupCall::setupOutgoingVideo() {
 				});
 			} else {
 				_cameraCapture->switchToDevice(
-					_cameraInputId.toStdString(),
+					_cameraDeviceId.current().toStdString(),
 					false);
 			}
 			if (_instance) {
@@ -2360,8 +2360,8 @@ bool GroupCall::tryCreateController() {
 			}
 			crl::on_main(weak, [=] { audioLevelsUpdated(data); });
 		},
-		.initialInputDeviceId = _audioInputId.toStdString(),
-		.initialOutputDeviceId = _audioOutputId.toStdString(),
+		.initialInputDeviceId = _captureDeviceId.current().toStdString(),
+		.initialOutputDeviceId = _playbackDeviceId.current().toStdString(),
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
 			settings.callAudioBackend()),
 		.videoCapture = _cameraCapture,
@@ -3288,14 +3288,6 @@ void GroupCall::requestVideoQuality(
 	}
 	i->second->quality = quality;
 	updateRequestedVideoChannelsDelayed();
-}
-
-void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
-	if (input) {
-		_mediaDevices->switchToAudioInput(deviceId);
-	} else {
-		_mediaDevices->switchToAudioOutput(deviceId);
-	}
 }
 
 void GroupCall::toggleMute(const Group::MuteRequest &data) {

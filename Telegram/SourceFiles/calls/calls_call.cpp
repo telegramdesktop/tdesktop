@@ -215,6 +215,22 @@ Call::Call(
 , _api(&_user->session().mtp())
 , _type(type)
 , _discardByTimeoutTimer([=] { hangup(); })
+, _playbackDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Playback,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callPlaybackDeviceIdValue(),
+		Core::App().settings().playbackDeviceIdValue()))
+, _captureDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callCaptureDeviceIdValue(),
+		Core::App().settings().captureDeviceIdValue()))
+, _cameraDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Camera,
+	Core::App().settings().cameraDeviceIdValue())
 , _videoIncoming(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video)))
@@ -228,6 +244,7 @@ Call::Call(
 		_discardByTimeoutTimer.callOnce(config.callRingTimeoutMs);
 		startWaitingTrack();
 	}
+	setupMediaDevices();
 	setupOutgoingVideo();
 }
 
@@ -410,6 +427,20 @@ void Call::setMuted(bool mute) {
 	}
 }
 
+void Call::setupMediaDevices() {
+	_playbackDeviceId.changes() | rpl::filter([=] {
+		return _instance != nullptr;
+	}) | rpl::start_with_next([=](const QString &deviceId) {
+		_instance->setAudioOutputDevice(deviceId.toStdString());
+	}, _lifetime);
+
+	_captureDeviceId.changes() | rpl::filter([=] {
+		return _instance != nullptr;
+	}) | rpl::start_with_next([=](const QString &deviceId) {
+		_instance->setAudioInputDevice(deviceId.toStdString());
+	}, _lifetime);
+}
+
 void Call::setupOutgoingVideo() {
 	static const auto hasDevices = [] {
 		return !Webrtc::GetVideoInputList().empty();
@@ -452,6 +483,19 @@ void Call::setupOutgoingVideo() {
 			_videoCapture->setState(tgcalls::VideoState::Inactive);
 			if (_instance) {
 				_instance->setVideoCapture(nullptr);
+			}
+		}
+	}, _lifetime);
+
+	_cameraDeviceId.changes(
+	) | rpl::filter([=] {
+		return !_videoCaptureIsScreencast;
+	}) | rpl::start_with_next([=](QString deviceId) {
+		_videoCaptureDeviceId = deviceId;
+		if (_videoCapture) {
+			_videoCapture->switchToDevice(deviceId.toStdString(), false);
+			if (_instance) {
+				_instance->sendVideoDeviceUpdated();
 			}
 		}
 	}, _lifetime);
@@ -866,8 +910,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			std::move(encryptionKeyValue),
 			(_type == Type::Outgoing)),
 		.mediaDevicesConfig = tgcalls::MediaDevicesConfig{
-			.audioInputId = settings.callInputDeviceId().toStdString(),
-			.audioOutputId = settings.callOutputDeviceId().toStdString(),
+			.audioInputId = _captureDeviceId.current().toStdString(),
+			.audioOutputId = _playbackDeviceId.current().toStdString(),
 			.inputVolume = 1.f,//settings.callInputVolume() / 100.f,
 			.outputVolume = 1.f,//settings.callOutputVolume() / 100.f,
 		},
@@ -1096,29 +1140,6 @@ void Call::setState(State state) {
 	}
 }
 
-void Call::setCurrentAudioDevice(bool input, const QString &deviceId) {
-	if (_instance) {
-		const auto id = deviceId.toStdString();
-		if (input) {
-			_instance->setAudioInputDevice(id);
-		} else {
-			_instance->setAudioOutputDevice(id);
-		}
-	}
-}
-
-void Call::setCurrentCameraDevice(const QString &deviceId) {
-	if (!_videoCaptureIsScreencast) {
-		_videoCaptureDeviceId = deviceId;
-		if (_videoCapture) {
-			_videoCapture->switchToDevice(deviceId.toStdString(), false);
-			if (_instance) {
-				_instance->sendVideoDeviceUpdated();
-			}
-		}
-	}
-}
-
 //void Call::setAudioVolume(bool input, float level) {
 //	if (_instance) {
 //		if (input) {
@@ -1168,10 +1189,11 @@ void Call::toggleCameraSharing(bool enabled) {
 	}
 	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
 		toggleScreenSharing(std::nullopt);
-		const auto deviceId = Core::App().settings().callVideoInputDeviceId();
-		_videoCaptureDeviceId = deviceId;
+		_videoCaptureDeviceId = _cameraDeviceId.current();
 		if (_videoCapture) {
-			_videoCapture->switchToDevice(deviceId.toStdString(), false);
+			_videoCapture->switchToDevice(
+				_videoCaptureDeviceId.toStdString(),
+				false);
 			if (_instance) {
 				_instance->sendVideoDeviceUpdated();
 			}
