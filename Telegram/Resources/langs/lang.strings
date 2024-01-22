@@ -2440,6 +2440,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_contact" = "Contact";
 "lng_in_dlg_audio" = "Voice message";
 "lng_in_dlg_video_message" = "Video message";
+"lng_in_dlg_voice_message_ttl" = "One-time Voice Message";
+"lng_in_dlg_video_message_ttl" = "One-time Video Message";
 "lng_in_dlg_file" = "File";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";

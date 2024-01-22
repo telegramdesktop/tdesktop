@@ -983,13 +983,17 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	const auto type = [&] {
 		using namespace Ui::Text;
 		if (_document->isVideoMessage()) {
-			return tr::lng_in_dlg_video_message(tr::now);
+			return (item->media() && item->media()->ttlSeconds())
+				? tr::lng_in_dlg_video_message_ttl(tr::now)
+				: tr::lng_in_dlg_video_message(tr::now);
 		} else if (_document->isAnimation()) {
 			return u"GIF"_q;
 		} else if (_document->isVideoFile()) {
 			return tr::lng_in_dlg_video(tr::now);
 		} else if (_document->isVoiceMessage()) {
-			return tr::lng_in_dlg_audio(tr::now);
+			return (item->media() && item->media()->ttlSeconds())
+				? tr::lng_in_dlg_voice_message_ttl(tr::now)
+				: tr::lng_in_dlg_audio(tr::now);
 		} else if (const auto name = FormatSongNameFor(_document).string();
 				!name.isEmpty()) {
 			return name;
@@ -1020,13 +1024,19 @@ TextWithEntities MediaFile::notificationText() const {
 	}
 	const auto type = [&] {
 		if (_document->isVideoMessage()) {
-			return tr::lng_in_dlg_video_message(tr::now);
+			const auto media = parent()->media();
+			return (media && media->ttlSeconds())
+				? tr::lng_in_dlg_video_message_ttl(tr::now)
+				: tr::lng_in_dlg_video_message(tr::now);
 		} else if (_document->isAnimation()) {
 			return u"GIF"_q;
 		} else if (_document->isVideoFile()) {
 			return tr::lng_in_dlg_video(tr::now);
 		} else if (_document->isVoiceMessage()) {
-			return tr::lng_in_dlg_audio(tr::now);
+			const auto media = parent()->media();
+			return (media && media->ttlSeconds())
+				? tr::lng_in_dlg_voice_message_ttl(tr::now)
+				: tr::lng_in_dlg_audio(tr::now);
 		} else if (!_document->filename().isEmpty()) {
 			return _document->filename();
 		} else if (_document->isAudioFile()) {
@@ -1077,13 +1087,19 @@ TextForMimeData MediaFile::clipboardText() const {
 			return tr::lng_in_dlg_sticker(tr::now);
 		} else if (_document->isAnimation()) {
 			if (_document->isVideoMessage()) {
-				return tr::lng_in_dlg_video_message(tr::now);
+				const auto media = parent()->media();
+				return (media && media->ttlSeconds())
+					? tr::lng_in_dlg_video_message_ttl(tr::now)
+					: tr::lng_in_dlg_video_message(tr::now);
 			}
 			return u"GIF"_q;
 		} else if (_document->isVideoFile()) {
 			return tr::lng_in_dlg_video(tr::now);
 		} else if (_document->isVoiceMessage()) {
-			return tr::lng_in_dlg_audio(tr::now) + addName;
+			const auto media = parent()->media();
+			return ((media && media->ttlSeconds())
+				? tr::lng_in_dlg_voice_message_ttl
+				: tr::lng_in_dlg_audio)(tr::now) + addName;;
 		} else if (_document->isSong()) {
 			return tr::lng_in_dlg_audio_file(tr::now) + addName;
 		}
