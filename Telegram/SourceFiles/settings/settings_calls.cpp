@@ -71,7 +71,7 @@ Calls::Calls(
 Calls::~Calls() = default;
 
 rpl::producer<QString> Calls::title() {
-	return tr::lng_settings_section_call_settings();
+	return tr::lng_settings_section_devices();
 }
 
 Webrtc::VideoTrack *Calls::AddCameraSubsection(
@@ -229,16 +229,13 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 
 void Calls::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	const auto settings = &Core::App().settings();
 
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_output());
 
-	//auto playbackIdWithFallback = DeviceIdValueWithFallback(
-	//	Core::App().settings().callPlaybackDeviceIdValue(),
-	//	Core::App().settings().playbackDeviceIdValue());
-	auto playbackIdWithFallback = [] {
-		return DeviceIdOrDefault(
-			Core::App().settings().playbackDeviceIdValue());
+	const auto playbackIdWithFallback = [=] {
+		return DeviceIdOrDefault(settings->playbackDeviceIdValue());
 	};
 	AddButtonWithLabel(
 		content,
@@ -249,8 +246,7 @@ void Calls::setupContent() {
 		_controller->show(ChoosePlaybackDeviceBox(
 			playbackIdWithFallback(),
 			crl::guard(this, [=](const QString &id) {
-				//Core::App().settings().setCallPlaybackDeviceId(id);
-				Core::App().settings().setPlaybackDeviceId(id);
+				settings->setPlaybackDeviceId(id);
 				Core::App().saveSettingsDelayed();
 			})));
 	});
@@ -259,12 +255,8 @@ void Calls::setupContent() {
 	Ui::AddDivider(content);
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_input());
-	//auto captureIdWithFallback = DeviceIdValueWithFallback(
-	//	Core::App().settings().callCaptureDeviceIdValue(),
-	//	Core::App().settings().captureDeviceIdValue());
-	auto captureIdWithFallback = [] {
-		return DeviceIdOrDefault(
-			Core::App().settings().captureDeviceIdValue());
+	const auto captureIdWithFallback = [=] {
+		return DeviceIdOrDefault(settings->captureDeviceIdValue());
 	};
 	AddButtonWithLabel(
 		content,
@@ -275,8 +267,7 @@ void Calls::setupContent() {
 		_controller->show(ChooseCaptureDeviceBox(
 			captureIdWithFallback(),
 			crl::guard(this, [=](const QString &id) {
-				//Core::App().settings().setCallCaptureDeviceId(id);
-				Core::App().settings().setCaptureDeviceId(id);
+				settings->setCaptureDeviceId(id);
 				Core::App().saveSettingsDelayed();
 				if (_micTester) {
 					_micTester->setDeviceId(id);
@@ -299,6 +290,85 @@ void Calls::setupContent() {
 		}, was, _micLevel, kMicTestAnimationDuration);
 	});
 
+	Ui::AddSkip(content);
+	Ui::AddDivider(content);
+
+	Ui::AddSkip(content);
+	Ui::AddSubsectionTitle(content, tr::lng_settings_devices_calls());
+	const auto orDefault = [](const QString &value) {
+		return value.isEmpty() ? kDefaultDeviceId : value;
+	};
+	const auto same = content->add(object_ptr<Ui::SettingsButton>(
+		content,
+		tr::lng_settings_devices_calls_same(),
+		st::settingsButtonNoIcon));
+	same->toggleOn(rpl::combine(
+		settings->callPlaybackDeviceIdValue(),
+		settings->callCaptureDeviceIdValue()
+	) | rpl::map([](const QString &playback, const QString &capture) {
+		return playback.isEmpty() && capture.isEmpty();
+	}));
+	same->toggledValue() | rpl::filter([=](bool toggled) {
+		const auto empty = settings->callPlaybackDeviceId().isEmpty()
+			&& settings->callCaptureDeviceId().isEmpty();
+		return (empty != toggled);
+	}) | rpl::start_with_next([=](bool toggled) {
+		if (toggled) {
+			settings->setCallPlaybackDeviceId(QString());
+			settings->setCallCaptureDeviceId(QString());
+		} else {
+			settings->setCallPlaybackDeviceId(
+				orDefault(settings->playbackDeviceId()));
+			settings->setCallCaptureDeviceId(
+				orDefault(settings->captureDeviceId()));
+		}
+		Core::App().saveSettingsDelayed();
+	}, same->lifetime());
+	const auto different = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content)));
+	const auto calls = different->entity();
+	const auto callPlaybackIdWithFallback = [=] {
+		return DeviceIdValueWithFallback(
+			settings->callPlaybackDeviceIdValue(),
+			settings->playbackDeviceIdValue());
+	};
+	AddButtonWithLabel(
+		calls,
+		tr::lng_group_call_speakers(),
+		PlaybackDeviceNameValue(callPlaybackIdWithFallback()),
+		st::settingsButtonNoIcon
+	)->addClickHandler([=] {
+		_controller->show(ChoosePlaybackDeviceBox(
+			callPlaybackIdWithFallback(),
+			crl::guard(this, [=](const QString &id) {
+				settings->setCallPlaybackDeviceId(orDefault(id));
+				Core::App().saveSettingsDelayed();
+			})));
+	});
+	const auto callCaptureIdWithFallback = [=] {
+		return DeviceIdValueWithFallback(
+			settings->callCaptureDeviceIdValue(),
+			settings->captureDeviceIdValue());
+	};
+	AddButtonWithLabel(
+		calls,
+		tr::lng_group_call_microphone(),
+		CaptureDeviceNameValue(callCaptureIdWithFallback()),
+		st::settingsButtonNoIcon
+	)->addClickHandler([=] {
+		_controller->show(ChooseCaptureDeviceBox(
+			callCaptureIdWithFallback(),
+			crl::guard(this, [=](const QString &id) {
+				settings->setCallCaptureDeviceId(orDefault(id));
+				Core::App().saveSettingsDelayed();
+				//if (_micTester) {
+				//	_micTester->setDeviceId(id);
+				//}
+			})));
+	});
+	different->toggleOn(same->toggledValue() | rpl::map(!rpl::mappers::_1));
 	Ui::AddSkip(content);
 	Ui::AddDivider(content);
 
