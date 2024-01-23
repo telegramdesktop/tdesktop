@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "media/media_common.h"
 #include "media/streaming/media_streaming_utility.h"
+#include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_media_devices.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
@@ -144,8 +145,11 @@ bool CreatePlaybackDevice() {
 	const auto id = Current().deviceId().toStdString();
 	AudioDevice = alcOpenDevice(id.c_str());
 	if (!AudioDevice) {
-		LOG(("Audio Error: Could not create default playback device, enumerating.."));
-		EnumeratePlaybackDevices();
+		LOG(("Audio Error: Could not create default playback device, refreshing.."));
+		crl::on_main([] {
+			const auto type = Webrtc::DeviceType::Playback;
+			Core::App().mediaDevices().forceRefresh(type);
+		});
 		return false;
 	}
 

@@ -555,7 +555,8 @@ void ChooseAudioDeviceBox(
 			return;
 		}
 		const auto weak = Ui::MakeWeak(box);
-		chosen(state->ids.take(value).value_or(kDefaultDeviceId));
+		const auto i = state->ids.find(value);
+		chosen((i != end(state->ids)) ? i->second : kDefaultDeviceId);
 		if (weak) {
 			box->closeBox();
 		}
