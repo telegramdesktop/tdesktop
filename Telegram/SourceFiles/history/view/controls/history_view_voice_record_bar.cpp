@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "ui/controls/send_button.h"
 #include "ui/effects/animation_value.h"
+#include "ui/effects/animation_value_f.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -960,15 +961,24 @@ void RecordLock::drawProgress(QPainter &p) {
 		const auto lockTranslation = QPoint(
 			(inner.width() - size.width()) / 2,
 			(_st.originTop.height() * 2 - size.height()) / 2);
-		const auto xRadius = anim::interpolate(2, 3, _lockToStopProgress);
+		const auto xRadius = anim::interpolateF(2, 3, _lockToStopProgress);
 
+		const auto pauseLineOffset = blockRectWidth / 2
+			+ st::historyRecordLockIconLineWidth;
 		if (_lockToStopProgress == 1.) {
 			// Paint the block.
 			auto hq = PainterHighQualityEnabler(p);
 			p.translate(inner.topLeft() + lockTranslation);
 			p.setPen(Qt::NoPen);
 			p.setBrush(_st.fg);
-			p.drawRoundedRect(blockRect, xRadius, 3);
+			p.drawRoundedRect(
+				blockRect - QMargins(0, 0, pauseLineOffset, 0),
+				xRadius,
+				3);
+			p.drawRoundedRect(
+				blockRect - QMargins(pauseLineOffset, 0, 0, 0),
+				xRadius,
+				3);
 		} else {
 			// Paint an animation frame.
 			auto frame = QImage(
@@ -984,7 +994,20 @@ void RecordLock::drawProgress(QPainter &p) {
 			q.setBrush(_arcPen.brush());
 
 			q.translate(lockTranslation);
-			q.drawRoundedRect(blockRect, xRadius, 3);
+			{
+				const auto offset = anim::interpolateF(
+					0,
+					pauseLineOffset,
+					_lockToStopProgress);
+				q.drawRoundedRect(
+					blockRect - QMarginsF(0, 0, offset, 0),
+					xRadius,
+					3);
+				q.drawRoundedRect(
+					blockRect - QMarginsF(offset, 0, 0, 0),
+					xRadius,
+					3);
+			}
 
 			const auto offsetTranslate = _lockToStopProgress *
 				(lineHeight + arcHeight + _arcPen.width() * 2);
@@ -996,7 +1019,12 @@ void RecordLock::drawProgress(QPainter &p) {
 				q.rotate(kLockArcAngle * progress);
 			}
 
-			q.setPen(_arcPen);
+			const auto lockProgress = 1. - _lockToStopProgress;
+			{
+				auto arcPen = _arcPen;
+				arcPen.setWidthF(_arcPen.widthF() * lockProgress);
+				q.setPen(arcPen);
+			}
 			const auto rLine = QLineF(0, 0, 0, -lineHeight);
 			q.drawLine(rLine);
 
@@ -1008,7 +1036,6 @@ void RecordLock::drawProgress(QPainter &p) {
 				0,
 				arc::kHalfLength);
 
-			const auto lockProgress = 1. - _lockToStopProgress;
 			if (progress == 1. && lockProgress < 1.) {
 				q.drawLine(
 					-arcWidth,
