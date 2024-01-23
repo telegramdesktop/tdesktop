@@ -160,8 +160,8 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_downloadPath.current())
 		+ Serialize::bytearraySize(_downloadPathBookmark)
 		+ sizeof(qint32) * 9
-		+ Serialize::stringSize(_callPlaybackDeviceId.current())
-		+ Serialize::stringSize(_callCaptureDeviceId.current())
+		+ Serialize::stringSize(QString()) // legacy call output device id
+		+ Serialize::stringSize(QString()) // legacy call input device id
 		+ sizeof(qint32) * 5;
 	for (const auto &[key, value] : _soundOverrides) {
 		size += Serialize::stringSize(key) + Serialize::stringSize(value);
@@ -207,7 +207,9 @@ QByteArray Settings::serialize() const {
 	}
 	size += sizeof(qint32) * 2
 		+ Serialize::stringSize(_playbackDeviceId.current())
-		+ Serialize::stringSize(_captureDeviceId.current());
+		+ Serialize::stringSize(_captureDeviceId.current())
+		+ Serialize::stringSize(_callPlaybackDeviceId.current())
+		+ Serialize::stringSize(_callCaptureDeviceId.current());
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -232,8 +234,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(_notificationsCount)
 			<< static_cast<qint32>(_notificationsCorner)
 			<< qint32(_autoLock)
-			<< _callPlaybackDeviceId.current()
-			<< _callCaptureDeviceId.current()
+			<< QString() // legacy call output device id
+			<< QString() // legacy call input device id
 			<< qint32(_callOutputVolume)
 			<< qint32(_callInputVolume)
 			<< qint32(_callAudioDuckingEnabled ? 1 : 0)
@@ -349,7 +351,9 @@ QByteArray Settings::serialize() const {
 			<< qint32(_trayIconMonochrome.current() ? 1 : 0)
 			<< qint32(_ttlVoiceClickTooltipHidden.current() ? 1 : 0)
 			<< _playbackDeviceId.current()
-			<< _captureDeviceId.current();
+			<< _captureDeviceId.current()
+			<< _callPlaybackDeviceId.current()
+			<< _callCaptureDeviceId.current();
 	}
 
 	Ensures(result.size() == size);
@@ -384,6 +388,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QString playbackDeviceId = _playbackDeviceId.current();
 	QString captureDeviceId = _captureDeviceId.current();
 	QString cameraDeviceId = _cameraDeviceId.current();
+	QString legacyCallPlaybackDeviceId = _callPlaybackDeviceId.current();
+	QString legacyCallCaptureDeviceId = _callCaptureDeviceId.current();
 	QString callPlaybackDeviceId = _callPlaybackDeviceId.current();
 	QString callCaptureDeviceId = _callCaptureDeviceId.current();
 	qint32 callOutputVolume = _callOutputVolume;
@@ -483,8 +489,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> notificationsCount
 			>> notificationsCorner
 			>> autoLock
-			>> callPlaybackDeviceId
-			>> callCaptureDeviceId
+			>> legacyCallPlaybackDeviceId
+			>> legacyCallCaptureDeviceId
 			>> callOutputVolume
 			>> callInputVolume
 			>> callAudioDuckingEnabled
@@ -727,6 +733,19 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream
 			>> playbackDeviceId
 			>> captureDeviceId;
+	}
+	if (!stream.atEnd()) {
+		stream
+			>> callPlaybackDeviceId
+			>> callCaptureDeviceId;
+	} else {
+		const auto &defaultId = Webrtc::kDefaultDeviceId;
+		callPlaybackDeviceId = (legacyCallPlaybackDeviceId == defaultId)
+			? QString()
+			: legacyCallPlaybackDeviceId;
+		callCaptureDeviceId = (legacyCallCaptureDeviceId == defaultId)
+			? QString()
+			: legacyCallCaptureDeviceId;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "

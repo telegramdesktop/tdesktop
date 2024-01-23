@@ -513,6 +513,30 @@ void ChooseAudioDeviceBox(
 			*st,
 			*radioSt),
 		margins);
+	const auto showUnavailable = [=](QString text) {
+		AddSkip(other);
+		AddSubsectionTitle(other, tr::lng_settings_devices_inactive());
+		const auto &radio = *radioSt;
+		const auto button = other->add(
+			object_ptr<Ui::Radiobutton>(other, fake, 0, text, *st, radio),
+			margins);
+		button->show();
+
+		button->setDisabled(true);
+		button->finishAnimating();
+		button->setAttribute(Qt::WA_TransparentForMouseEvents);
+		while (other->count() > 3) {
+			delete other->widgetAt(0);
+		}
+		if (const auto width = box->width()) {
+			other->resizeToWidth(width);
+		}
+	};
+	const auto hideUnavailable = [=] {
+		while (other->count() > 0) {
+			delete other->widgetAt(0);
+		}
+	};
 
 	const auto selectCurrent = [=](QString current) {
 		state->ignoreValueChange = true;
@@ -521,7 +545,7 @@ void ChooseAudioDeviceBox(
 		});
 		if (current.isEmpty() || current == kDefaultDeviceId) {
 			group->setValue(0);
-			other->clear();
+			hideUnavailable();
 		} else {
 			auto found = false;
 			for (const auto &[index, id] : state->ids) {
@@ -532,7 +556,7 @@ void ChooseAudioDeviceBox(
 				}
 			}
 			if (found) {
-				other->clear();
+				hideUnavailable();
 			} else {
 				group->setValue(0);
 				const auto i = ranges::find(
@@ -540,29 +564,19 @@ void ChooseAudioDeviceBox(
 					current,
 					&DeviceInfo::id);
 				if (i != end(state->list)) {
-					const auto button = other->add(
-						object_ptr<Ui::Radiobutton>(
-							other,
-							fake,
-							0,
-							i->name,
-							*st,
-							*radioSt),
-						margins);
-					button->show();
-					button->setDisabled(true);
-					button->finishAnimating();
-					button->setAttribute(Qt::WA_TransparentForMouseEvents);
-					while (other->count() > 1) {
-						delete other->widgetAt(1);
-					}
-					if (const auto width = box->width()) {
-						other->resizeToWidth(width);
-					}
+					showUnavailable(i->name);
 				} else {
-					other->clear();
+					hideUnavailable();
 				}
 			}
+		}
+	};
+
+	const auto choose = [=](const QString &id) {
+		const auto weak = Ui::MakeWeak(box);
+		chosen(id);
+		if (weak) {
+			box->closeBox();
 		}
 	};
 
@@ -581,9 +595,10 @@ void ChooseAudioDeviceBox(
 
 		const auto current = state->currentId.current();
 		for (const auto &info : state->list) {
+			const auto id = info.id;
 			if (info.inactive) {
 				continue;
-			} else if (current == info.id) {
+			} else if (current == id) {
 				group->setValue(index);
 			}
 			const auto button = buttons->insert(
@@ -598,8 +613,14 @@ void ChooseAudioDeviceBox(
 				margins);
 			button->show();
 			button->finishAnimating();
+			button->clicks(
+			) | rpl::filter([=] {
+				return (current == id);
+			}) | rpl::start_with_next([=] {
+				choose(id);
+			}, button->lifetime());
 
-			state->ids.emplace(index, info.id);
+			state->ids.emplace(index, id);
 			if (index < count) {
 				delete buttons->widgetAt(index + 1);
 			}
@@ -624,12 +645,8 @@ void ChooseAudioDeviceBox(
 		if (state->ignoreValueChange) {
 			return;
 		}
-		const auto weak = Ui::MakeWeak(box);
 		const auto i = state->ids.find(value);
-		chosen((i != end(state->ids)) ? i->second : kDefaultDeviceId);
-		if (weak) {
-			box->closeBox();
-		}
+		choose((i != end(state->ids)) ? i->second : kDefaultDeviceId);
 	});
 }
 
