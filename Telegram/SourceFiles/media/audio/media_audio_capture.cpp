@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/audio/media_audio_capture_common.h"
 #include "media/audio/media_audio_ffmpeg_loader.h"
+#include "media/audio/media_audio_track.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "base/timer.h"
 
@@ -84,7 +85,7 @@ public:
 	Inner(QThread *thread);
 	~Inner();
 
-	void start(Fn<void(Update)> updated, Fn<void()> error);
+	void start(QString id, Fn<void(Update)> updated, Fn<void()> error);
 	void stop(Fn<void(Result&&)> callback = nullptr);
 	void pause(bool value, Fn<void(Result&&)> callback);
 
@@ -129,8 +130,9 @@ Instance::Instance() : _inner(std::make_unique<Inner>(&_thread)) {
 
 void Instance::start() {
 	_updates.fire_done();
+	const auto id = Audio::Current().captureDeviceId();
 	InvokeQueued(_inner.get(), [=] {
-		_inner->start([=](Update update) {
+		_inner->start(id, [=](Update update) {
 			crl::on_main(this, [=] {
 				_updates.fire_copy(update);
 			});
@@ -292,7 +294,10 @@ void Instance::Inner::fail() {
 	}
 }
 
-void Instance::Inner::start(Fn<void(Update)> updated, Fn<void()> error) {
+void Instance::Inner::start(
+		QString id,
+		Fn<void(Update)> updated,
+		Fn<void()> error) {
 	_updated = std::move(updated);
 	_error = std::move(error);
 	if (_paused) {
@@ -300,7 +305,12 @@ void Instance::Inner::start(Fn<void(Update)> updated, Fn<void()> error) {
 	}
 
 	// Start OpenAL Capture
-	d->device = alcCaptureOpenDevice(nullptr, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5);
+	const auto utf = id.toStdString();
+	d->device = alcCaptureOpenDevice(
+		utf.c_str(),
+		kCaptureFrequency,
+		AL_FORMAT_MONO16,
+		kCaptureFrequency / 5);
 	if (!d->device) {
 		LOG(("Audio Error: capture device not present!"));
 		fail();

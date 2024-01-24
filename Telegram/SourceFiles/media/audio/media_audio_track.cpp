@@ -248,7 +248,12 @@ Instance::Instance()
 	&Core::App().mediaDevices(),
 	Webrtc::DeviceType::Playback,
 	Webrtc::DeviceIdOrDefault(
-		Core::App().settings().playbackDeviceIdValue())) {
+		Core::App().settings().playbackDeviceIdValue()))
+, _captureDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdOrDefault(
+		Core::App().settings().captureDeviceIdValue())) {
 	_updateTimer.setCallback([this] {
 		auto hasActive = false;
 		for (auto track : _tracks) {
@@ -273,8 +278,12 @@ Instance::Instance()
 	}, _lifetime);
 }
 
-QString Instance::deviceId() const {
+QString Instance::playbackDeviceId() const {
 	return _playbackDeviceId.current();
+}
+
+QString Instance::captureDeviceId() const {
+	return _captureDeviceId.current();
 }
 
 std::unique_ptr<Track> Instance::createTrack() {

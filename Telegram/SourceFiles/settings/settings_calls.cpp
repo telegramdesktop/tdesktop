@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_authorizations.h"
 #include "webrtc/webrtc_environment.h"
-#include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_audio_input_tester.h"
 #include "webrtc/webrtc_create_adm.h" // Webrtc::Backend.
@@ -46,12 +45,15 @@ using namespace Webrtc;
 		DeviceType type,
 		rpl::producer<QString> id) {
 	return std::move(id) | rpl::map([type](const QString &id) {
-		const auto list = Core::App().mediaDevices().devices(type);
-		const auto i = ranges::find(list, id, &DeviceInfo::id);
-		return (i != end(list))
-			? i->name
-			: tr::lng_settings_call_device_default(tr::now);
-	});
+		return Core::App().mediaDevices().devicesValue(
+			type
+		) | rpl::map([id](const std::vector<DeviceInfo> &list) {
+			const auto i = ranges::find(list, id, &DeviceInfo::id);
+			return (i != end(list) && !i->inactive)
+				? i->name
+				: tr::lng_settings_call_device_default(tr::now);
+		});
+	}) | rpl::flatten_latest();
 }
 
 } // namespace
@@ -82,10 +84,6 @@ Webrtc::VideoTrack *Calls::AddCameraSubsection(
 
 	const auto hasCall = (Core::App().calls().currentCall() != nullptr);
 
-	const auto cameraNameStream = lifetime.make_state<
-		rpl::event_stream<QString>
-	>();
-
 	auto capturerOwner = lifetime.make_state<
 		std::shared_ptr<tgcalls::VideoCaptureInterface>
 	>();
@@ -95,62 +93,30 @@ Webrtc::VideoTrack *Calls::AddCameraSubsection(
 			? VideoState::Inactive
 			: VideoState::Active));
 
-	const auto currentCameraName = [&] {
-		const auto cameras = GetVideoInputList();
-		const auto i = ranges::find(
-			cameras,
-			Core::App().settings().cameraDeviceId(),
-			&VideoInput::id);
-		return (i != end(cameras))
-			? i->name
-			: tr::lng_settings_call_device_default(tr::now);
-	}();
-
+	const auto deviceId = lifetime.make_state<rpl::variable<QString>>(
+		Core::App().settings().cameraDeviceId());
+	auto resolvedId = rpl::deferred([=] {
+		return DeviceIdOrDefault(deviceId->value());
+	});
 	AddButtonWithLabel(
 		content,
 		tr::lng_settings_call_input_device(),
-		rpl::single(
-			currentCameraName
-		) | rpl::then(
-			cameraNameStream->events()
-		),
+		CameraDeviceNameValue(rpl::duplicate(resolvedId)),
 		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
-		const auto &devices = GetVideoInputList();
-		const auto options = ranges::views::concat(
-			ranges::views::single(
-				tr::lng_settings_call_device_default(tr::now)),
-			devices | ranges::views::transform(&VideoInput::name)
-		) | ranges::to_vector;
-		const auto i = ranges::find(
-			devices,
-			Core::App().settings().cameraDeviceId(),
-			&VideoInput::id);
-		const auto currentOption = (i != end(devices))
-			? int(i - begin(devices) + 1)
-			: 0;
-		const auto save = crl::guard(content, [=](int option) {
-			cameraNameStream->fire_copy(options[option]);
-			const auto deviceId = option
-				? devices[option - 1].id
-				: kDefaultDeviceId;
-			if (saveToSettings) {
-				Core::App().settings().setCameraDeviceId(deviceId);
-				Core::App().saveSettingsDelayed();
-			}
-			if (*capturerOwner) {
-				(*capturerOwner)->switchToDevice(
-					deviceId.toStdString(),
-					false);
-			}
-		});
-		show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
-			SingleChoiceBox(box, {
-				.title = tr::lng_settings_call_camera(),
-				.options = options,
-				.initialSelection = currentOption,
-				.callback = save,
-			});
+		show->show(ChooseCameraDeviceBox(
+			rpl::duplicate(resolvedId),
+			[=](const QString &id) {
+				*deviceId = id;
+				if (saveToSettings) {
+					Core::App().settings().setCameraDeviceId(id);
+					Core::App().saveSettingsDelayed();
+				}
+				if (*capturerOwner) {
+					(*capturerOwner)->switchToDevice(
+						id.toStdString(),
+						false);
+				}
 		}));
 	});
 	const auto bubbleWrap = content->add(object_ptr<Ui::RpWidget>(content));
@@ -221,9 +187,7 @@ Webrtc::VideoTrack *Calls::AddCameraSubsection(
 }
 
 void Calls::sectionSaveChanges(FnMut<void()> done) {
-	if (_micTester) {
-		_micTester.reset();
-	}
+	_testingMicrophone = false;
 	done();
 }
 
@@ -234,61 +198,25 @@ void Calls::setupContent() {
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_output());
 
-	const auto playbackIdWithFallback = [=] {
-		return DeviceIdOrDefault(settings->playbackDeviceIdValue());
-	};
-	AddButtonWithLabel(
+	initPlaybackButton(
 		content,
 		tr::lng_settings_call_output_device(),
-		PlaybackDeviceNameValue(playbackIdWithFallback()),
-		st::settingsButtonNoIcon
-	)->addClickHandler([=] {
-		_controller->show(ChoosePlaybackDeviceBox(
-			playbackIdWithFallback(),
-			crl::guard(this, [=](const QString &id) {
-				settings->setPlaybackDeviceId(id);
-				Core::App().saveSettingsDelayed();
-			})));
-	});
+		rpl::deferred([=] {
+			return DeviceIdOrDefault(settings->playbackDeviceIdValue());
+		}),
+		[=](const QString &id) { settings->setPlaybackDeviceId(id); });
 
 	Ui::AddSkip(content);
 	Ui::AddDivider(content);
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_settings_call_section_input());
-	const auto captureIdWithFallback = [=] {
-		return DeviceIdOrDefault(settings->captureDeviceIdValue());
-	};
-	AddButtonWithLabel(
+	initCaptureButton(
 		content,
 		tr::lng_settings_call_input_device(),
-		CaptureDeviceNameValue(captureIdWithFallback()),
-		st::settingsButtonNoIcon
-	)->addClickHandler([=] {
-		_controller->show(ChooseCaptureDeviceBox(
-			captureIdWithFallback(),
-			crl::guard(this, [=](const QString &id) {
-				settings->setCaptureDeviceId(id);
-				Core::App().saveSettingsDelayed();
-				if (_micTester) {
-					_micTester->setDeviceId(id);
-				}
-			})));
-	});
-
-	_micTestLevel = content->add(
-		object_ptr<Ui::LevelMeter>(
-			content,
-			st::defaultLevelMeter),
-		st::settingsLevelMeterPadding);
-	_micTestLevel->resize(QSize(0, st::defaultLevelMeter.height));
-
-	_levelUpdateTimer.setCallback([=] {
-		const auto was = _micLevel;
-		_micLevel = _micTester->getAndResetLevel();
-		_micLevelAnimation.start([=] {
-			_micTestLevel->setValue(_micLevelAnimation.value(_micLevel));
-		}, was, _micLevel, kMicTestAnimationDuration);
-	});
+		rpl::deferred([=] {
+			return DeviceIdOrDefault(settings->captureDeviceIdValue());
+		}),
+		[=](const QString &id) { settings->setCaptureDeviceId(id); });
 
 	Ui::AddSkip(content);
 	Ui::AddDivider(content);
@@ -329,50 +257,30 @@ void Calls::setupContent() {
 			content,
 			object_ptr<Ui::VerticalLayout>(content)));
 	const auto calls = different->entity();
-	const auto callPlaybackIdWithFallback = [=] {
-		return DeviceIdValueWithFallback(
-			settings->callPlaybackDeviceIdValue(),
-			settings->playbackDeviceIdValue());
-	};
-	AddButtonWithLabel(
+	initPlaybackButton(
 		calls,
 		tr::lng_group_call_speakers(),
-		PlaybackDeviceNameValue(callPlaybackIdWithFallback()),
-		st::settingsButtonNoIcon
-	)->addClickHandler([=] {
-		_controller->show(ChoosePlaybackDeviceBox(
-			callPlaybackIdWithFallback(),
-			crl::guard(this, [=](const QString &id) {
-				settings->setCallPlaybackDeviceId(orDefault(id));
-				Core::App().saveSettingsDelayed();
-			})));
-	});
-	const auto callCaptureIdWithFallback = [=] {
-		return DeviceIdValueWithFallback(
-			settings->callCaptureDeviceIdValue(),
-			settings->captureDeviceIdValue());
-	};
-	AddButtonWithLabel(
+		rpl::deferred([=] {
+			return DeviceIdValueWithFallback(
+				settings->callPlaybackDeviceIdValue(),
+				settings->playbackDeviceIdValue());
+		}),
+		[=](const QString &id) { settings->setCallPlaybackDeviceId(id); });
+	initCaptureButton(
 		calls,
 		tr::lng_group_call_microphone(),
-		CaptureDeviceNameValue(callCaptureIdWithFallback()),
-		st::settingsButtonNoIcon
-	)->addClickHandler([=] {
-		_controller->show(ChooseCaptureDeviceBox(
-			callCaptureIdWithFallback(),
-			crl::guard(this, [=](const QString &id) {
-				settings->setCallCaptureDeviceId(orDefault(id));
-				Core::App().saveSettingsDelayed();
-				//if (_micTester) {
-				//	_micTester->setDeviceId(id);
-				//}
-			})));
-	});
+		rpl::deferred([=] {
+			return DeviceIdValueWithFallback(
+				settings->callCaptureDeviceIdValue(),
+				settings->captureDeviceIdValue());
+		}),
+		[=](const QString &id) { settings->setCallCaptureDeviceId(id); });
 	different->toggleOn(same->toggledValue() | rpl::map(!rpl::mappers::_1));
 	Ui::AddSkip(content);
 	Ui::AddDivider(content);
 
-	if (!GetVideoInputList().empty()) {
+	if (!Core::App().mediaDevices().defaultId(
+			Webrtc::DeviceType::Camera).isEmpty()) {
 		Ui::AddSkip(content);
 		Ui::AddSubsectionTitle(content, tr::lng_settings_call_camera());
 		AddCameraSubsection(_controller->uiShow(), content, true);
@@ -416,18 +324,98 @@ void Calls::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
+void Calls::initPlaybackButton(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		rpl::producer<QString> resolvedId,
+		Fn<void(QString)> set) {
+	AddButtonWithLabel(
+		container,
+		tr::lng_settings_call_output_device(),
+		PlaybackDeviceNameValue(rpl::duplicate(resolvedId)),
+		st::settingsButtonNoIcon
+	)->addClickHandler([=] {
+		_controller->show(ChoosePlaybackDeviceBox(
+			rpl::duplicate(resolvedId),
+			[=](const QString &id) {
+				set(id);
+				Core::App().saveSettingsDelayed();
+			}));
+	});
+
+}
+
+void Calls::initCaptureButton(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		rpl::producer<QString> resolvedId,
+		Fn<void(QString)> set) {
+	AddButtonWithLabel(
+		container,
+		tr::lng_settings_call_input_device(),
+		CaptureDeviceNameValue(rpl::duplicate(resolvedId)),
+		st::settingsButtonNoIcon
+	)->addClickHandler([=] {
+		_controller->show(ChooseCaptureDeviceBox(
+			rpl::duplicate(resolvedId),
+			[=](const QString &id) {
+				set(id);
+				Core::App().saveSettingsDelayed();
+			}));
+	});
+
+	struct LevelState {
+		std::unique_ptr<Webrtc::DeviceId> computedDeviceId;
+		std::unique_ptr<Webrtc::AudioInputTester> tester;
+		base::Timer timer;
+		Ui::Animations::Simple animation;
+		float level = 0.;
+	};
+	const auto level = container->add(
+		object_ptr<Ui::LevelMeter>(
+			container,
+			st::defaultLevelMeter),
+		st::settingsLevelMeterPadding);
+	const auto state = level->lifetime().make_state<LevelState>();
+	level->resize(QSize(0, st::defaultLevelMeter.height));
+
+	state->timer.setCallback([=] {
+		const auto was = state->level;
+		state->level = state->tester->getAndResetLevel();
+		state->animation.start([=] {
+			level->setValue(state->animation.value(state->level));
+		}, was, state->level, kMicTestAnimationDuration);
+	});
+	_testingMicrophone.value() | rpl::start_with_next([=](bool testing) {
+		if (testing) {
+			state->computedDeviceId = std::make_unique<Webrtc::DeviceId>(
+				&Core::App().mediaDevices(),
+				Webrtc::DeviceType::Capture,
+				rpl::duplicate(resolvedId));
+			state->tester = std::make_unique<AudioInputTester>(
+				state->computedDeviceId->value());
+			state->timer.callEach(kMicTestUpdateInterval);
+		} else {
+			state->timer.cancel();
+			state->animation.stop();
+			state->tester = nullptr;
+			state->computedDeviceId = nullptr;
+		}
+	}, level->lifetime());
+}
+
 void Calls::requestPermissionAndStartTestingMicrophone() {
 	using namespace ::Platform;
 	const auto status = GetPermissionStatus(
 		PermissionType::Microphone);
 	if (status == PermissionStatus::Granted) {
-		startTestingMicrophone();
+		_testingMicrophone = true;
 	} else if (status == PermissionStatus::CanRequest) {
 		const auto startTestingChecked = crl::guard(this, [=](
 				PermissionStatus status) {
 			if (status == PermissionStatus::Granted) {
 				crl::on_main(crl::guard(this, [=] {
-					startTestingMicrophone();
+					_testingMicrophone = true;
 				}));
 			}
 		});
@@ -448,13 +436,6 @@ void Calls::requestPermissionAndStartTestingMicrophone() {
 	}
 }
 
-void Calls::startTestingMicrophone() {
-	_levelUpdateTimer.callEach(kMicTestUpdateInterval);
-	_micTester = std::make_unique<AudioInputTester>(
-		Core::App().settings().callAudioBackend(),
-		Core::App().settings().callCaptureDeviceId());
-}
-
 rpl::producer<QString> PlaybackDeviceNameValue(rpl::producer<QString> id) {
 	return DeviceNameValue(DeviceType::Playback, std::move(id));
 }
@@ -463,7 +444,12 @@ rpl::producer<QString> CaptureDeviceNameValue(rpl::producer<QString> id) {
 	return DeviceNameValue(DeviceType::Capture, std::move(id));
 }
 
-void ChooseAudioDeviceBox(
+rpl::producer<QString> CameraDeviceNameValue(
+		rpl::producer<QString> id) {
+	return DeviceNameValue(DeviceType::Camera, std::move(id));
+}
+
+void ChooseMediaDeviceBox(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<QString> title,
 		rpl::producer<std::vector<DeviceInfo>> devicesValue,
@@ -495,6 +481,14 @@ void ChooseAudioDeviceBox(
 	const auto state = box->lifetime().make_state<State>();
 	state->currentId = std::move(currentId);
 
+	const auto choose = [=](const QString &id) {
+		const auto weak = Ui::MakeWeak(box);
+		chosen(id);
+		if (weak) {
+			box->closeBox();
+		}
+	};
+
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
 	const auto fake = std::make_shared<Ui::RadiobuttonGroup>(0);
 	const auto buttons = layout->add(object_ptr<Ui::VerticalLayout>(layout));
@@ -513,6 +507,12 @@ void ChooseAudioDeviceBox(
 			*st,
 			*radioSt),
 		margins);
+	def->clicks(
+	) | rpl::filter([=] {
+		return !group->value();
+	}) | rpl::start_with_next([=] {
+		choose(kDefaultDeviceId);
+	}, def->lifetime());
 	const auto showUnavailable = [=](QString text) {
 		AddSkip(other);
 		AddSubsectionTitle(other, tr::lng_settings_devices_inactive());
@@ -572,14 +572,6 @@ void ChooseAudioDeviceBox(
 		}
 	};
 
-	const auto choose = [=](const QString &id) {
-		const auto weak = Ui::MakeWeak(box);
-		chosen(id);
-		if (weak) {
-			box->closeBox();
-		}
-	};
-
 	std::move(
 		devicesValue
 	) | rpl::start_with_next([=](std::vector<DeviceInfo> &&list) {
@@ -615,7 +607,7 @@ void ChooseAudioDeviceBox(
 			button->finishAnimating();
 			button->clicks(
 			) | rpl::filter([=] {
-				return (current == id);
+				return (group->value() == index);
 			}) | rpl::start_with_next([=] {
 				choose(id);
 			}, button->lifetime());
@@ -656,7 +648,7 @@ object_ptr<Ui::GenericBox> ChoosePlaybackDeviceBox(
 		const style::Checkbox *st,
 		const style::Radio *radioSt) {
 	return Box(
-		ChooseAudioDeviceBox,
+		ChooseMediaDeviceBox,
 		tr::lng_settings_call_output_device(),
 		Core::App().mediaDevices().devicesValue(DeviceType::Playback),
 		std::move(currentId),
@@ -671,9 +663,24 @@ object_ptr<Ui::GenericBox> ChooseCaptureDeviceBox(
 		const style::Checkbox *st,
 		const style::Radio *radioSt) {
 	return Box(
-		ChooseAudioDeviceBox,
+		ChooseMediaDeviceBox,
 		tr::lng_settings_call_input_device(),
 		Core::App().mediaDevices().devicesValue(DeviceType::Capture),
+		std::move(currentId),
+		std::move(chosen),
+		st,
+		radioSt);
+}
+
+object_ptr<Ui::GenericBox> ChooseCameraDeviceBox(
+		rpl::producer<QString> currentId,
+		Fn<void(QString id)> chosen,
+		const style::Checkbox *st,
+		const style::Radio *radioSt) {
+	return Box(
+		ChooseMediaDeviceBox,
+		tr::lng_settings_call_device_default(),
+		Core::App().mediaDevices().devicesValue(DeviceType::Camera),
 		std::move(currentId),
 		std::move(chosen),
 		st,

@@ -2065,14 +2065,16 @@ void GroupCall::applyOtherParticipantUpdate(
 
 void GroupCall::setupMediaDevices() {
 	_playbackDeviceId.changes() | rpl::filter([=] {
-		return _instance != nullptr;
+		return _instance && _setDeviceIdCallback;
 	}) | rpl::start_with_next([=](const QString &deviceId) {
+		_setDeviceIdCallback(Webrtc::DeviceType::Playback, deviceId);
 		_instance->setAudioOutputDevice(deviceId.toStdString());
 	}, _lifetime);
 
 	_captureDeviceId.changes() | rpl::filter([=] {
-		return _instance != nullptr;
+		return _instance && _setDeviceIdCallback;
 	}) | rpl::start_with_next([=](const QString &deviceId) {
+		_setDeviceIdCallback(Webrtc::DeviceType::Capture, deviceId);
 		_instance->setAudioInputDevice(deviceId.toStdString());
 	}, _lifetime);
 
@@ -2338,6 +2340,31 @@ bool GroupCall::tryCreateController() {
 
 	const auto weak = base::make_weak(&_instanceGuard);
 	const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
+	const auto playbackDeviceIdInitial = _playbackDeviceId.current();
+	const auto captureDeviceIdInitial = _captureDeviceId.current();
+	const auto saveSetDeviceIdCallback = [=](
+			Fn<void(Webrtc::DeviceType, QString)> setDeviceIdCallback) {
+		setDeviceIdCallback(
+			Webrtc::DeviceType::Playback,
+			playbackDeviceIdInitial);
+		setDeviceIdCallback(
+			Webrtc::DeviceType::Capture,
+			captureDeviceIdInitial);
+		crl::on_main(weak, [=] {
+			_setDeviceIdCallback = std::move(setDeviceIdCallback);
+			const auto playback = _playbackDeviceId.current();
+			if (_instance && playback != playbackDeviceIdInitial) {
+				_setDeviceIdCallback(Webrtc::DeviceType::Playback, playback);
+				_instance->setAudioOutputDevice(playback.toStdString());
+			}
+			const auto capture = _captureDeviceId.current();
+			if (_instance && capture != captureDeviceIdInitial) {
+				_setDeviceIdCallback(Webrtc::DeviceType::Capture, capture);
+				_instance->setAudioInputDevice(capture.toStdString());
+			}
+		});
+	};
+
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.threads = tgcalls::StaticThreads::getThreads(),
 		.config = tgcalls::GroupConfig{
@@ -2360,10 +2387,10 @@ bool GroupCall::tryCreateController() {
 			}
 			crl::on_main(weak, [=] { audioLevelsUpdated(data); });
 		},
-		.initialInputDeviceId = _captureDeviceId.current().toStdString(),
-		.initialOutputDeviceId = _playbackDeviceId.current().toStdString(),
+		.initialInputDeviceId = captureDeviceIdInitial.toStdString(),
+		.initialOutputDeviceId = playbackDeviceIdInitial.toStdString(),
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
-			settings.callAudioBackend()),
+			saveSetDeviceIdCallback),
 		.videoCapture = _cameraCapture,
 		.requestCurrentTime = [=, call = base::make_weak(this)](
 				std::function<void(int64_t)> done) {

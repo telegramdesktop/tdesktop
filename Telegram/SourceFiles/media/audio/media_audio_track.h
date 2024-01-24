@@ -95,7 +95,8 @@ public:
 	// Thread: Main.
 	Instance();
 
-	[[nodiscard]] QString deviceId() const;
+	[[nodiscard]] QString playbackDeviceId() const;
+	[[nodiscard]] QString captureDeviceId() const;
 
 	[[nodiscard]] std::unique_ptr<Track> createTrack();
 
@@ -119,6 +120,7 @@ private:
 private:
 	std::set<Track*> _tracks;
 	Webrtc::DeviceId _playbackDeviceId;
+	Webrtc::DeviceId _captureDeviceId;
 
 	base::Timer _updateTimer;
 

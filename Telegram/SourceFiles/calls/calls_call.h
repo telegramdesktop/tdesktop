@@ -271,6 +271,7 @@ private:
 	base::DelayedCallTimer _finishByTimeoutTimer;
 	base::Timer _discardByTimeoutTimer;
 
+	Fn<void(Webrtc::DeviceType, QString)> _setDeviceIdCallback;
 	Webrtc::DeviceId _playbackDeviceId;
 	Webrtc::DeviceId _captureDeviceId;
 	Webrtc::DeviceId _cameraDeviceId;

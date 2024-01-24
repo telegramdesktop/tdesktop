@@ -667,6 +667,7 @@ private:
 
 	crl::time _lastSendProgressUpdate = 0;
 
+	Fn<void(Webrtc::DeviceType, QString)> _setDeviceIdCallback;
 	Webrtc::DeviceId _playbackDeviceId;
 	Webrtc::DeviceId _captureDeviceId;
 	Webrtc::DeviceId _cameraDeviceId;

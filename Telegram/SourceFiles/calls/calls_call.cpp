@@ -25,8 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
+#include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
-#include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_create_adm.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
@@ -429,30 +429,37 @@ void Call::setMuted(bool mute) {
 
 void Call::setupMediaDevices() {
 	_playbackDeviceId.changes() | rpl::filter([=] {
-		return _instance != nullptr;
+		return _instance && _setDeviceIdCallback;
 	}) | rpl::start_with_next([=](const QString &deviceId) {
+		_setDeviceIdCallback(
+			Webrtc::DeviceType::Playback,
+			deviceId);
 		_instance->setAudioOutputDevice(deviceId.toStdString());
 	}, _lifetime);
 
 	_captureDeviceId.changes() | rpl::filter([=] {
-		return _instance != nullptr;
+		return _instance && _setDeviceIdCallback;
 	}) | rpl::start_with_next([=](const QString &deviceId) {
+		_setDeviceIdCallback(
+			Webrtc::DeviceType::Capture,
+			deviceId);
 		_instance->setAudioInputDevice(deviceId.toStdString());
 	}, _lifetime);
 }
 
 void Call::setupOutgoingVideo() {
-	static const auto hasDevices = [] {
-		return !Webrtc::GetVideoInputList().empty();
+	const auto cameraId = [] {
+		return Core::App().mediaDevices().defaultId(
+			Webrtc::DeviceType::Camera);
 	};
 	const auto started = _videoOutgoing->state();
-	if (!hasDevices()) {
+	if (cameraId().isEmpty()) {
 		_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 	}
 	_videoOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
 		if (state != Webrtc::VideoState::Inactive
-			&& !hasDevices()
+			&& cameraId().isEmpty()
 			&& !_videoCaptureIsScreencast) {
 			_errors.fire({ ErrorType::NoCamera });
 			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
@@ -892,6 +899,33 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	const auto versionString = version.toStdString();
 	const auto &settings = Core::App().settings();
 	const auto weak = base::make_weak(this);
+
+	_setDeviceIdCallback = nullptr;
+	const auto playbackDeviceIdInitial = _playbackDeviceId.current();
+	const auto captureDeviceIdInitial = _captureDeviceId.current();
+	const auto saveSetDeviceIdCallback = [=](
+			Fn<void(Webrtc::DeviceType, QString)> setDeviceIdCallback) {
+		setDeviceIdCallback(
+			Webrtc::DeviceType::Playback,
+			playbackDeviceIdInitial);
+		setDeviceIdCallback(
+			Webrtc::DeviceType::Capture,
+			captureDeviceIdInitial);
+		crl::on_main(weak, [=] {
+			_setDeviceIdCallback = std::move(setDeviceIdCallback);
+			const auto playback = _playbackDeviceId.current();
+			if (_instance && playback != playbackDeviceIdInitial) {
+				_setDeviceIdCallback(Webrtc::DeviceType::Playback, playback);
+				_instance->setAudioOutputDevice(playback.toStdString());
+			}
+			const auto capture = _captureDeviceId.current();
+			if (_instance && capture != captureDeviceIdInitial) {
+				_setDeviceIdCallback(Webrtc::DeviceType::Capture, capture);
+				_instance->setAudioInputDevice(capture.toStdString());
+			}
+		});
+	};
+
 	tgcalls::Descriptor descriptor = {
 		.version = versionString,
 		.config = tgcalls::Config{
@@ -910,8 +944,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			std::move(encryptionKeyValue),
 			(_type == Type::Outgoing)),
 		.mediaDevicesConfig = tgcalls::MediaDevicesConfig{
-			.audioInputId = _captureDeviceId.current().toStdString(),
-			.audioOutputId = _playbackDeviceId.current().toStdString(),
+			.audioInputId = captureDeviceIdInitial.toStdString(),
+			.audioOutputId = playbackDeviceIdInitial.toStdString(),
 			.inputVolume = 1.f,//settings.callInputVolume() / 100.f,
 			.outputVolume = 1.f,//settings.callOutputVolume() / 100.f,
 		},
@@ -942,7 +976,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			});
 		},
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
-			settings.callAudioBackend()),
+			saveSetDeviceIdCallback),
 	};
 	if (Logs::DebugEnabled()) {
 		const auto callLogFolder = cWorkingDir() + u"DebugLogs"_q;

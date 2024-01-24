@@ -431,7 +431,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 groupCallPushToTalk = _groupCallPushToTalk ? 1 : 0;
 	QByteArray groupCallPushToTalkShortcut = _groupCallPushToTalkShortcut;
 	qint64 groupCallPushToTalkDelay = _groupCallPushToTalkDelay;
-	qint32 callAudioBackend = 0;
+	qint32 legacyCallAudioBackend = 0;
 	qint32 disableCallsLegacy = 0;
 	QByteArray windowPosition;
 	std::vector<RecentEmojiPreload> recentEmojiPreload;
@@ -565,7 +565,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> groupCallPushToTalkDelay;
 	}
 	if (!stream.atEnd()) {
-		stream >> callAudioBackend;
+		stream >> legacyCallAudioBackend;
 	}
 	if (!stream.atEnd()) {
 		stream >> disableCallsLegacy;
@@ -989,10 +989,6 @@ void Settings::setTabbedReplacedWithInfo(bool enabled) {
 		_tabbedReplacedWithInfo = enabled;
 		_tabbedReplacedWithInfoValue.fire_copy(enabled);
 	}
-}
-
-Webrtc::Backend Settings::callAudioBackend() const {
-	return Webrtc::Backend::OpenAL;
 }
 
 void Settings::setDialogsWidthRatio(float64 ratio) {

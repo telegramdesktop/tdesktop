@@ -42,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "webrtc/webrtc_audio_input_tester.h"
-#include "webrtc/webrtc_media_devices.h"
 #include "settings/settings_calls.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -250,6 +249,7 @@ void SettingsBox(
 	const auto weakBox = Ui::MakeWeak(box);
 
 	struct State {
+		std::unique_ptr<Webrtc::DeviceId> computedDeviceId;
 		std::unique_ptr<Webrtc::AudioInputTester> micTester;
 		Ui::LevelMeter *micTestLevel = nullptr;
 		float micLevel = 0.;
@@ -327,9 +327,6 @@ void SettingsBox(
 				crl::guard(box, [=](const QString &id) {
 					Core::App().settings().setCallCaptureDeviceId(id);
 					Core::App().saveSettingsDelayed();
-					if (state->micTester) {
-						state->micTester->setDeviceId(id);
-					}
 				}),
 				&st::groupCallCheckbox,
 				&st::groupCallRadio));
@@ -773,9 +770,14 @@ void SettingsBox(
 		box->setShowFinishedCallback([=] {
 			// Means we finished showing the box.
 			crl::on_main(box, [=] {
+				state->computedDeviceId = std::make_unique<Webrtc::DeviceId>(
+					&Core::App().mediaDevices(),
+					Webrtc::DeviceType::Capture,
+					Webrtc::DeviceIdValueWithFallback(
+						Core::App().settings().callCaptureDeviceIdValue(),
+						Core::App().settings().captureDeviceIdValue()));
 				state->micTester = std::make_unique<Webrtc::AudioInputTester>(
-					Core::App().settings().callAudioBackend(),
-					Core::App().settings().callCaptureDeviceId());
+					state->computedDeviceId->value());
 				state->levelUpdateTimer.callEach(kMicTestUpdateInterval);
 			});
 		});
@@ -884,8 +886,9 @@ MicLevelTester::MicLevelTester(Fn<void()> show)
 , _timer([=] { check(); })
 , _tester(
 	std::make_unique<Webrtc::AudioInputTester>(
-		Core::App().settings().callAudioBackend(),
-		Core::App().settings().callCaptureDeviceId())) {
+		Webrtc::DeviceIdValueWithFallback(
+			Core::App().settings().callCaptureDeviceIdValue(),
+			Core::App().settings().captureDeviceIdValue()))) {
 	_timer.callEach(kMicrophoneTooltipCheckInterval);
 }
 

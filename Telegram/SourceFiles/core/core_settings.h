@@ -29,10 +29,6 @@ namespace Window {
 enum class Column;
 } // namespace Window
 
-namespace Webrtc {
-enum class Backend;
-} // namespace Webrtc
-
 namespace Calls::Group {
 enum class StickedTooltip;
 } // namespace Calls::Group
@@ -343,7 +339,6 @@ public:
 	void setCallAudioDuckingEnabled(bool value) {
 		_callAudioDuckingEnabled = value;
 	}
-	[[nodiscard]] Webrtc::Backend callAudioBackend() const;
 	[[nodiscard]] bool disableCallsLegacy() const {
 		return _disableCallsLegacy;
 	}
