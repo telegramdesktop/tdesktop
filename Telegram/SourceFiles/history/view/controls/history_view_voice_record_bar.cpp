@@ -574,6 +574,8 @@ void ListenWrap::init() {
 
 			if (!_isShowAnimation) {
 				p.setOpacity(progress);
+			} else {
+				p.fillRect(bgRect, _st.bg);
 			}
 			p.setPen(Qt::NoPen);
 			p.setBrush(_st.cancelActive);
@@ -826,6 +828,7 @@ public:
 
 	void requestPaintProgress(float64 progress);
 	void requestPaintLockToStopProgress(float64 progress);
+	void requestPaintPauseToInputProgress(float64 progress);
 	void setVisibleTopPart(int part);
 
 	[[nodiscard]] rpl::producer<> locks() const;
@@ -852,6 +855,7 @@ private:
 	Ui::Animations::Simple _lockEnderAnimation;
 
 	float64 _lockToStopProgress = 0.;
+	float64 _pauseToInputProgress = 0.;
 	rpl::variable<float64> _progress = 0.;
 	int _visibleTopPart = -1;
 
@@ -888,6 +892,7 @@ void RecordLock::init() {
 			setAttribute(Qt::WA_TransparentForMouseEvents, true);
 			_lockEnderAnimation.stop();
 			_lockToStopProgress = 0.;
+			_pauseToInputProgress = 0.;
 			_progress = 0.;
 		}
 	}, lifetime());
@@ -964,6 +969,13 @@ void RecordLock::drawProgress(QPainter &p) {
 			p.translate(inner.topLeft() + lockTranslation);
 			p.setPen(Qt::NoPen);
 			p.setBrush(_st.fg);
+			if (_pauseToInputProgress > 0.) {
+				p.setOpacity(_pauseToInputProgress);
+				st::historyRecordLockInput.paintInCenter(
+					p,
+					blockRect.toRect());
+				p.setOpacity(1. - _pauseToInputProgress);
+			}
 			p.drawRoundedRect(
 				blockRect - QMargins(0, 0, pauseLineOffset, 0),
 				xRadius,
@@ -1075,6 +1087,11 @@ void RecordLock::requestPaintLockToStopProgress(float64 progress) {
 			st::historyRecordLockTopShadow.width(),
 			st::historyRecordLockTopShadow.width());
 	}
+	update();
+}
+
+void RecordLock::requestPaintPauseToInputProgress(float64 progress) {
+	_pauseToInputProgress = progress;
 	update();
 }
 
@@ -1420,10 +1437,24 @@ void VoiceRecordBar::init() {
 		}, _recordingLifetime);
 	};
 
+	const auto paintShowListenCallback = [=](float64 value) {
+		_listen->requestPaintProgress(value);
+		_level->requestPaintProgress(1. - value);
+		_lock->requestPaintPauseToInputProgress(value);
+		update();
+	};
+
 	_lock->setClickedCallback([=] {
 		if (isListenState()) {
 			startRecording();
-			_listen = nullptr;
+			_showListenAnimation.stop();
+			_showListenAnimation.start([=](float64 value) {
+				_listen->requestPaintProgress(1.);
+				paintShowListenCallback(value);
+				if (!value) {
+					_listen = nullptr;
+				}
+			}, 1., 0., st::historyRecordVoiceShowDuration * 2);
 			setLevelAsSend();
 
 			return;
@@ -1445,10 +1476,7 @@ void VoiceRecordBar::init() {
 		const auto to = 1.;
 		const auto &duration = st::historyRecordVoiceShowDuration;
 		auto callback = [=](float64 value) {
-			_listen->requestPaintProgress(value);
-			const auto reverseValue = to - value;
-			_level->requestPaintProgress(reverseValue);
-			update();
+			paintShowListenCallback(value);
 			if (to == value) {
 				_recordingLifetime.destroy();
 			}
@@ -1956,7 +1984,11 @@ float64 VoiceRecordBar::showAnimationRatio() const {
 }
 
 float64 VoiceRecordBar::showListenAnimationRatio() const {
-	return _showListenAnimation.value(_listen ? 1. : 0.);
+	const auto value = _showListenAnimation.value(_listen ? 1. : 0.);
+	if (_paused.current()) {
+		return value * value;
+	}
+	return value;
 }
 
 void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {

@@ -1122,6 +1122,7 @@ historyRecordLockBodyShadow: icon {{ "voice_lock/record_lock_body_shadow", histo
 historyRecordLockBody: icon {{ "voice_lock/record_lock_body", historyToDownBg }};
 historyRecordLockMargin: margins(4px, 4px, 4px, 4px);
 historyRecordLockArrow: icon {{ "voice_lock/voice_arrow", historyToDownFg }};
+historyRecordLockInput: icon {{ "voice_lock/input_mic_s", historyToDownFg }};
 historyRecordLockRippleMargin: margins(6px, 6px, 6px, 6px);
 
 historyRecordDelete: IconButton(historyAttach) {
