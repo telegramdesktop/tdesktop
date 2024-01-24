@@ -84,16 +84,14 @@ enum class FilterType {
 	const int duration = kPrecision
 		* (float64(samples) / ::Media::Player::kDefaultFrequency);
 	const auto durationString = Ui::FormatDurationText(duration / kPrecision);
-	const auto decimalPart = duration % kPrecision;
-	return QString("%1%2%3")
-		.arg(durationString, QLocale().decimalPoint())
-		.arg(decimalPart);
+	const auto decimalPart = QString::number(duration % kPrecision);
+	return durationString + QLocale().decimalPoint() + decimalPart;
 }
 
 [[nodiscard]] std::unique_ptr<VoiceData> ProcessCaptureResult(
-		const ::Media::Capture::Result &data) {
+		const VoiceWaveform &waveform) {
 	auto voiceData = std::make_unique<VoiceData>();
-	voiceData->waveform = data.waveform;
+	voiceData->waveform = waveform;
 	voiceData->wavemax = voiceData->waveform.empty()
 		? uchar(0)
 		: *ranges::max_element(voiceData->waveform);
@@ -427,12 +425,11 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		const style::RecordBar &st,
 		not_null<Main::Session*> session,
-		::Media::Capture::Result &&data,
+		::Media::Capture::Result *data,
 		const style::font &font);
 
 	void requestPaintProgress(float64 progress);
 	rpl::producer<> stopRequests() const;
-	::Media::Capture::Result *data() const;
 
 	void playPause();
 
@@ -456,7 +453,7 @@ private:
 	const not_null<DocumentData*> _document;
 	const std::unique_ptr<VoiceData> _voiceData;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;
-	const std::unique_ptr<::Media::Capture::Result> _data;
+	const not_null<::Media::Capture::Result*> _data;
 	const base::unique_qptr<Ui::IconButton> _delete;
 	const style::font &_durationFont;
 	const QString _duration;
@@ -486,15 +483,15 @@ ListenWrap::ListenWrap(
 	not_null<Ui::RpWidget*> parent,
 	const style::RecordBar &st,
 	not_null<Main::Session*> session,
-	::Media::Capture::Result &&data,
+	::Media::Capture::Result *data,
 	const style::font &font)
 : _parent(parent)
 , _st(st)
 , _session(session)
 , _document(DummyDocument(&session->data()))
-, _voiceData(ProcessCaptureResult(data))
+, _voiceData(ProcessCaptureResult(data->waveform))
 , _mediaView(_document->createMediaView())
-, _data(std::make_unique<::Media::Capture::Result>(std::move(data)))
+, _data(data)
 , _delete(base::make_unique_q<Ui::IconButton>(parent, _st.remove))
 , _durationFont(font)
 , _duration(Ui::FormatDurationText(
@@ -815,10 +812,6 @@ void ListenWrap::requestPaintProgress(float64 progress) {
 
 rpl::producer<> ListenWrap::stopRequests() const {
 	return _delete->clicks() | rpl::to_empty;
-}
-
-::Media::Capture::Result *ListenWrap::data() const {
-	return _data.get();
 }
 
 rpl::lifetime &ListenWrap::lifetime() {
@@ -1293,12 +1286,14 @@ void VoiceRecordBar::updateTTLGeometry(
 		const auto from = -_ttlButton->width();
 		const auto right = anim::interpolate(from, finalRight, progress);
 		_ttlButton->moveToRight(right, _ttlButton->y());
+#if 0
 	} else if (type == TTLAnimationType::TopBottom) {
 		const auto ttlFrom = anyTop - _ttlButton->height() * 2;
 		const auto ttlTo = anyTop - _lock->height();
 		_ttlButton->moveToLeft(
 			_ttlButton->x(),
 			anim::interpolate(ttlFrom, ttlTo, 1. - progress));
+#endif
 	} else if (type == TTLAnimationType::RightTopStatic) {
 		_ttlButton->moveToRight(
 			-_ttlButton->width(),
@@ -1408,48 +1403,7 @@ void VoiceRecordBar::init() {
 		_showLockAnimation.start(std::move(callback), from, to, duration);
 	}, lifetime());
 
-	_lock->setClickedCallback([=] {
-		if (!_lock->isStopState()) {
-			return;
-		}
-
-		::Media::Capture::instance()->startedChanges(
-		) | rpl::filter([=](bool capturing) {
-			return !capturing && _listen;
-		}) | rpl::take(1) | rpl::start_with_next([=] {
-			_lockShowing = false;
-
-			const auto to = 1.;
-			const auto &duration = st::historyRecordVoiceShowDuration;
-			auto callback = [=](float64 value) {
-				_listen->requestPaintProgress(value);
-				const auto reverseValue = to - value;
-				_level->requestPaintProgress(reverseValue);
-				update();
-				if (to == value) {
-					_recordingLifetime.destroy();
-				}
-				updateTTLGeometry(TTLAnimationType::TopBottom, 1. - value);
-			};
-			_showListenAnimation.stop();
-			_showListenAnimation.start(std::move(callback), 0., to, duration);
-		}, lifetime());
-
-		stopRecording(StopType::Listen);
-	});
-
-	_lock->locks(
-	) | rpl::start_with_next([=] {
-		if (_hasTTLFilter && _hasTTLFilter()) {
-			if (!_ttlButton) {
-				_ttlButton = std::make_unique<TTLButton>(
-					_outerContainer,
-					_st);
-			}
-			_ttlButton->show();
-		}
-		updateTTLGeometry(TTLAnimationType::RightTopStatic, 0);
-
+	const auto setLevelAsSend = [=] {
 		_level->setType(VoiceRecordButton::Type::Send);
 
 		_level->clicks(
@@ -1464,6 +1418,58 @@ void VoiceRecordBar::init() {
 		) | rpl::start_with_next([=](bool enter) {
 			_inField = enter;
 		}, _recordingLifetime);
+	};
+
+	_lock->setClickedCallback([=] {
+		if (isListenState()) {
+			startRecording();
+			_listen = nullptr;
+			setLevelAsSend();
+
+			return;
+		}
+		if (!_lock->isStopState()) {
+			return;
+		}
+
+		stopRecording(StopType::Listen);
+	});
+
+	_paused.value() | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool paused) {
+		if (!paused) {
+			return;
+		}
+		// _lockShowing = false;
+
+		const auto to = 1.;
+		const auto &duration = st::historyRecordVoiceShowDuration;
+		auto callback = [=](float64 value) {
+			_listen->requestPaintProgress(value);
+			const auto reverseValue = to - value;
+			_level->requestPaintProgress(reverseValue);
+			update();
+			if (to == value) {
+				_recordingLifetime.destroy();
+			}
+		};
+		_showListenAnimation.stop();
+		_showListenAnimation.start(std::move(callback), 0., to, duration);
+	}, lifetime());
+
+	_lock->locks(
+	) | rpl::start_with_next([=] {
+		if (_hasTTLFilter && _hasTTLFilter()) {
+			if (!_ttlButton) {
+				_ttlButton = std::make_unique<TTLButton>(
+					_outerContainer,
+					_st);
+			}
+			_ttlButton->show();
+		}
+		updateTTLGeometry(TTLAnimationType::RightTopStatic, 0);
+
+		setLevelAsSend();
 
 		const auto &duration = st::historyRecordVoiceShowDuration;
 		const auto from = 0.;
@@ -1616,7 +1622,12 @@ void VoiceRecordBar::startRecording() {
 		startRedCircleAnimation();
 
 		_recording = true;
-		instance()->start();
+		if (_paused.current()) {
+			_paused = false;
+			instance()->pause(false, nullptr);
+		} else {
+			instance()->start();
+		}
 		instance()->updated(
 		) | rpl::start_with_next_error([=](const Update &update) {
 			_recordingTipRequired = (update.samples < kMinSamples);
@@ -1685,7 +1696,7 @@ void VoiceRecordBar::stop(bool send) {
 		const auto type = send ? StopType::Send : StopType::Cancel;
 		stopRecording(type, ttlBeforeHide);
 	};
-	_lockShowing = false;
+	// _lockShowing = false;
 	visibilityAnimate(false, std::move(disappearanceCallback));
 }
 
@@ -1695,6 +1706,7 @@ void VoiceRecordBar::finish() {
 	_inField = false;
 	_redCircleProgress = 0.;
 	_recordingSamples = 0;
+	_paused = false;
 
 	_showAnimation.stop();
 	_lockToStopAnimation.stop();
@@ -1704,6 +1716,8 @@ void VoiceRecordBar::finish() {
 	[[maybe_unused]] const auto s = takeTTLState();
 
 	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
+
+	_data = {};
 }
 
 void VoiceRecordBar::hideFast() {
@@ -1719,42 +1733,52 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 		instance()->stop(crl::guard(this, [=](Result &&data) {
 			_cancelRequests.fire({});
 		}));
-		return;
-	}
-	instance()->stop(crl::guard(this, [=](Result &&data) {
-		if (data.bytes.isEmpty()) {
-			// Close everything.
-			stop(false);
-			return;
-		}
+	} else if (type == StopType::Listen) {
+		instance()->pause(true, crl::guard(this, [=](Result &&data) {
+			if (data.bytes.isEmpty()) {
+				// Close everything.
+				stop(false);
+				return;
+			}
+			_paused = true;
+			_data = std::move(data);
 
-		window()->raise();
-		window()->activateWindow();
-		const auto duration = Duration(data.samples);
-		if (type == StopType::Send) {
+			window()->raise();
+			window()->activateWindow();
+			_listen = std::make_unique<ListenWrap>(
+				this,
+				_st,
+				&_show->session(),
+				&_data,
+				_cancelFont);
+			_listenChanges.fire({});
+
+			// _lockShowing = false;
+		}));
+	} else if (type == StopType::Send) {
+		instance()->stop(crl::guard(this, [=](Result &&data) {
+			if (data.bytes.isEmpty()) {
+				// Close everything.
+				stop(false);
+				return;
+			}
+			_data = std::move(data);
+
+			window()->raise();
+			window()->activateWindow();
 			const auto options = Api::SendOptions{
 				.ttlSeconds = (ttlBeforeHide
 					? std::numeric_limits<int>::max()
 					: 0),
 			};
 			_sendVoiceRequests.fire({
-				data.bytes,
-				data.waveform,
-				duration,
+				_data.bytes,
+				_data.waveform,
+				Duration(_data.samples),
 				options,
 			});
-		} else if (type == StopType::Listen) {
-			_listen = std::make_unique<ListenWrap>(
-				this,
-				_st,
-				&_show->session(),
-				std::move(data),
-				_cancelFont);
-			_listenChanges.fire({});
-
-			_lockShowing = false;
-		}
-	}));
+		}));
+	}
 }
 
 void VoiceRecordBar::drawDuration(QPainter &p) {
@@ -1811,14 +1835,13 @@ void VoiceRecordBar::drawMessage(QPainter &p, float64 recordActive) {
 
 void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
 	if (isListenState()) {
-		const auto data = _listen->data();
 		if (takeTTLState()) {
 			options.ttlSeconds = std::numeric_limits<int>::max();
 		}
 		_sendVoiceRequests.fire({
-			data->bytes,
-			data->waveform,
-			Duration(data->samples),
+			_data.bytes,
+			_data.waveform,
+			Duration(_data.samples),
 			options,
 		});
 	}
@@ -1837,7 +1860,7 @@ rpl::producer<> VoiceRecordBar::cancelRequests() const {
 }
 
 bool VoiceRecordBar::isRecording() const {
-	return _recording.current();
+	return _recording.current() && !_paused.current();
 }
 
 bool VoiceRecordBar::isRecordingLocked() const {

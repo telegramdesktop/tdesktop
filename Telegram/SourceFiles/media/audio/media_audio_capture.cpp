@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/audio/media_audio_capture.h"
 
+#include "media/audio/media_audio_capture_common.h"
 #include "media/audio/media_audio_ffmpeg_loader.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "base/timer.h"
@@ -37,6 +38,45 @@ bool ErrorHappened(ALCdevice *device) {
 	return false;
 }
 
+[[nodiscard]] VoiceWaveform CollectWaveform(
+		const QVector<uchar> &waveformVector) {
+	if (waveformVector.isEmpty()) {
+		return {};
+	}
+	auto waveform = VoiceWaveform();
+	auto count = int64(waveformVector.size());
+	auto sum = int64(0);
+	if (count >= Player::kWaveformSamplesCount) {
+		auto peaks = QVector<uint16>();
+		peaks.reserve(Player::kWaveformSamplesCount);
+
+		auto peak = uint16(0);
+		for (auto i = int32(0); i < count; ++i) {
+			auto sample = uint16(waveformVector.at(i)) * 256;
+			if (peak < sample) {
+				peak = sample;
+			}
+			sum += Player::kWaveformSamplesCount;
+			if (sum >= count) {
+				sum -= count;
+				peaks.push_back(peak);
+				peak = 0;
+			}
+		}
+
+		auto sum = std::accumulate(peaks.cbegin(), peaks.cend(), 0LL);
+		peak = qMax(int32(sum * 1.8 / peaks.size()), 2500);
+
+		waveform.resize(peaks.size());
+		for (int32 i = 0, l = peaks.size(); i != l; ++i) {
+			waveform[i] = char(qMin(
+				31U,
+				uint32(qMin(peaks.at(i), peak)) * 31 / peak));
+		}
+	}
+	return waveform;
+}
+
 } // namespace
 
 class Instance::Inner final : public QObject {
@@ -46,6 +86,7 @@ public:
 
 	void start(Fn<void(Update)> updated, Fn<void()> error);
 	void stop(Fn<void(Result&&)> callback = nullptr);
+	void pause(bool value, Fn<void(Result&&)> callback);
 
 private:
 	void process();
@@ -66,6 +107,8 @@ private:
 	const std::unique_ptr<Private> d;
 	base::Timer _timer;
 	QByteArray _captured;
+
+	bool _paused = false;
 
 };
 
@@ -113,6 +156,17 @@ void Instance::stop(Fn<void(Result&&)> callback) {
 			crl::on_main([=, result = std::move(result)]() mutable {
 				callback(std::move(result));
 				_started = false;
+			});
+		});
+	});
+}
+
+void Instance::pause(bool value, Fn<void(Result&&)> callback) {
+	Expects(callback != nullptr || !value);
+	InvokeQueued(_inner.get(), [=] {
+		_inner->pause(value, [=](Result &&result) {
+			crl::on_main([=, result = std::move(result)]() mutable {
+				callback(std::move(result));
 			});
 		});
 	});
@@ -241,6 +295,9 @@ void Instance::Inner::fail() {
 void Instance::Inner::start(Fn<void(Update)> updated, Fn<void()> error) {
 	_updated = std::move(updated);
 	_error = std::move(error);
+	if (_paused) {
+		_paused = false;
+	}
 
 	// Start OpenAL Capture
 	d->device = alcCaptureOpenDevice(nullptr, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5);
@@ -404,10 +461,23 @@ void Instance::Inner::start(Fn<void(Update)> updated, Fn<void()> error) {
 	DEBUG_LOG(("Audio Capture: started!"));
 }
 
+void Instance::Inner::pause(bool value, Fn<void(Result&&)> callback) {
+	_paused = value;
+	if (!_paused) {
+		return;
+	}
+	callback({
+		d->fullSamples ? d->data : QByteArray(),
+		d->fullSamples ? CollectWaveform(d->waveform) : VoiceWaveform(),
+		qint32(d->fullSamples),
+	});
+}
+
 void Instance::Inner::stop(Fn<void(Result&&)> callback) {
 	if (!_timer.isActive()) {
 		return; // in stop() already
 	}
+	_paused = false;
 	_timer.cancel();
 
 	const auto needResult = (callback != nullptr);
@@ -480,33 +550,7 @@ void Instance::Inner::stop(Fn<void(Result&&)> callback) {
 	VoiceWaveform waveform;
 	qint32 samples = d->fullSamples;
 	if (needResult && samples && !d->waveform.isEmpty()) {
-		int64 count = d->waveform.size(), sum = 0;
-		if (count >= Player::kWaveformSamplesCount) {
-			QVector<uint16> peaks;
-			peaks.reserve(Player::kWaveformSamplesCount);
-
-			uint16 peak = 0;
-			for (int32 i = 0; i < count; ++i) {
-				uint16 sample = uint16(d->waveform.at(i)) * 256;
-				if (peak < sample) {
-					peak = sample;
-				}
-				sum += Player::kWaveformSamplesCount;
-				if (sum >= count) {
-					sum -= count;
-					peaks.push_back(peak);
-					peak = 0;
-				}
-			}
-
-			auto sum = std::accumulate(peaks.cbegin(), peaks.cend(), 0LL);
-			peak = qMax(int32(sum * 1.8 / peaks.size()), 2500);
-
-			waveform.resize(peaks.size());
-			for (int32 i = 0, l = peaks.size(); i != l; ++i) {
-				waveform[i] = char(qMin(31U, uint32(qMin(peaks.at(i), peak)) * 31 / peak));
-			}
-		}
+		waveform = CollectWaveform(d->waveform);
 	}
 	if (hadDevice) {
 		if (d->codecContext) {
@@ -567,6 +611,10 @@ void Instance::Inner::stop(Fn<void(Result&&)> callback) {
 
 void Instance::Inner::process() {
 	Expects(!d->processing);
+
+	if (_paused) {
+		return;
+	}
 
 	d->processing = true;
 	const auto guard = gsl::finally([&] { d->processing = false; });
