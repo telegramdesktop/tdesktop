@@ -1,3 +1,10 @@
+4.14.10 beta (25.01.24)
+
+- Allow choosing audio device for music and video files.
+- Allow choosing microphone device for voice recording.
+- Allow pause and resume voice messages recording.
+- Track audio device changes on Windows and macOS.
+
 4.14.9 (19.01.24)
 
 - Fix two possible crashes in messages history and group search.
