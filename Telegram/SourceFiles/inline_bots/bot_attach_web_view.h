@@ -267,6 +267,7 @@ private:
 	base::flat_set<not_null<UserData*>> _disclaimerAccepted;
 
 	std::unique_ptr<Ui::BotWebView::Panel> _panel;
+	bool _catchingCancelInShowCall = false;
 
 };
 
