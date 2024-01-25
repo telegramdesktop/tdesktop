@@ -1,3 +1,8 @@
+4.14.11 beta (25.01.24)
+
+- Fix crash when accepting calls.
+- Fix possible crash in loopback audio on Windows.
+
 4.14.10 beta (25.01.24)
 
 - Allow choosing audio device for music and video files.
