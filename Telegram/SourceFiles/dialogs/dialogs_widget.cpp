@@ -3002,7 +3002,7 @@ void Widget::updateControlsGeometry() {
 		}
 		const auto scrollTop = forumReportTop
 			+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
-		const auto scrollHeight = height() - scrollTop;
+		const auto scrollHeight = height() - scrollTop - bottomSkip;
 		const auto wasScrollHeight = _scroll->height();
 		_scroll->setGeometry(0, scrollTop, scrollWidth, scrollHeight);
 		if (scrollHeight != wasScrollHeight) {
