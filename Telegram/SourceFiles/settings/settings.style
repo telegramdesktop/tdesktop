@@ -466,7 +466,7 @@ settingsPremiumUserTitlePadding: margins(0px, 16px, 0px, 6px);
 settingsPremiumUserTitle: FlatLabel(boxTitle) {
 	style: TextStyle(defaultTextStyle) {
 		font: boxTitleFont;
-		lineHeight: 14px;
+		lineHeight: 20px;
 	}
 	minWidth: 300px;
 	maxHeight: 0px;
