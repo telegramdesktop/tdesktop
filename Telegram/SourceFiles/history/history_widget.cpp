@@ -337,6 +337,14 @@ HistoryWidget::HistoryWidget(
 	) | rpl::start_with_next([=] {
 		fieldChanged();
 	}, _field->lifetime());
+#ifdef Q_OS_MAC
+	// Removed an ability to insert text from the menu bar
+	// when the field is hidden.
+	_field->shownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		_field->setEnabled(shown);
+	}, _field->lifetime());
+#endif // Q_OS_MAC
 	connect(
 		controller->widget()->windowHandle(),
 		&QWindow::visibleChanged,
