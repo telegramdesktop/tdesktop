@@ -1295,6 +1295,7 @@ void VoiceRecordBar::updateTTLGeometry(
 	const auto parent = parentWidget();
 	const auto me = Ui::MapFrom(_outerContainer, parent, geometry());
 	const auto anyTop = me.y() - st::historyRecordLockPosition.y();
+	const auto ttlFrom = anyTop - _ttlButton->height() * 2;
 	if (type == TTLAnimationType::RightLeft) {
 		const auto finalRight = _outerContainer->width()
 			- rect::right(me)
@@ -1302,7 +1303,7 @@ void VoiceRecordBar::updateTTLGeometry(
 
 		const auto from = -_ttlButton->width();
 		const auto right = anim::interpolate(from, finalRight, progress);
-		_ttlButton->moveToRight(right, _ttlButton->y());
+		_ttlButton->moveToRight(right, ttlFrom);
 #if 0
 	} else if (type == TTLAnimationType::TopBottom) {
 		const auto ttlFrom = anyTop - _ttlButton->height() * 2;
@@ -1312,9 +1313,7 @@ void VoiceRecordBar::updateTTLGeometry(
 			anim::interpolate(ttlFrom, ttlTo, 1. - progress));
 #endif
 	} else if (type == TTLAnimationType::RightTopStatic) {
-		_ttlButton->moveToRight(
-			-_ttlButton->width(),
-			anyTop - _ttlButton->height() * 2);
+		_ttlButton->moveToRight(-_ttlButton->width(), ttlFrom);
 	}
 }
 
