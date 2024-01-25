@@ -748,6 +748,8 @@ void Reactions::requestMyTags() {
 	auto &api = _owner->session().api();
 	_myTagsRequestScheduled = false;
 	_myTagsRequestId = api.request(MTPmessages_GetSavedReactionTags(
+		MTP_flags(0),
+		MTP_inputPeerEmpty(),
 		MTP_long(_myTagsHash)
 	)).done([=](const MTPmessages_SavedReactionTags &result) {
 		_myTagsRequestId = 0;

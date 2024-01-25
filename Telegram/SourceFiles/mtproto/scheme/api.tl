@@ -2002,7 +2002,7 @@ messages.deleteSavedHistory#6e98102b flags:# peer:InputPeer max_id:int min_date:
 messages.getPinnedSavedDialogs#d63d94e0 = messages.SavedDialogs;
 messages.toggleSavedDialogPin#ac81bbde flags:# pinned:flags.0?true peer:InputDialogPeer = Bool;
 messages.reorderPinnedSavedDialogs#8b716587 flags:# force:flags.0?true order:Vector<InputDialogPeer> = Bool;
-messages.getSavedReactionTags#761ddacf hash:long = messages.SavedReactionTags;
+messages.getSavedReactionTags#3637e05b flags:# peer:flags.0?InputPeer hash:long = messages.SavedReactionTags;
 messages.updateSavedReactionTag#60297dec flags:# reaction:Reaction title:flags.0?string = Bool;
 messages.getDefaultTagReactions#bdf93428 hash:long = messages.Reactions;
 messages.getOutboxReadDate#8c4bfe5d peer:InputPeer msg_id:int = OutboxReadDate;
@@ -2248,4 +2248,4 @@ premium.applyBoost#6b7da746 flags:# slots:flags.0?Vector<int> peer:InputPeer = p
 premium.getBoostsStatus#42f1f61 peer:InputPeer = premium.BoostsStatus;
 premium.getUserBoosts#39854d1f peer:InputPeer user_id:InputUser = premium.BoostsList;
 
-// LAYER 172
+// LAYER 173
