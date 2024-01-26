@@ -151,8 +151,8 @@ private:
 					LOG(("Could not delete '%1' file to start new logging: %2").arg(to->fileName(), to->errorString()));
 					return false;
 				}
-				if (!QFile(files[type]->fileName()).copy(to->fileName())) { // don't close files[type] yet
-					LOG(("Could not copy '%1' to '%2' to start new logging: %3").arg(files[type]->fileName(), to->fileName(), to->errorString()));
+				if (auto from = QFile(files[type]->fileName()); !from.copy(to->fileName())) { // don't close files[type] yet
+					LOG(("Could not copy '%1' to '%2' to start new logging: %3").arg(files[type]->fileName(), to->fileName(), from.errorString()));
 					return false;
 				}
 				if (to->open(mode | QIODevice::Append)) {
