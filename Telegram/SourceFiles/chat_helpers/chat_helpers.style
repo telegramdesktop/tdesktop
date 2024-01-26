@@ -71,7 +71,6 @@ ComposeIcons {
 	menuSpoilerOff: icon;
 
 	stripBubble: icon;
-	stripPremiumLocked: icon;
 	stripExpandPanel: icon;
 	stripExpandDropdown: icon;
 }
@@ -608,10 +607,6 @@ defaultComposeIcons: ComposeIcons {
 	stripBubble: icon{
 		{ "chat/reactions_bubble_shadow", windowShadowFg },
 		{ "chat/reactions_bubble", windowBg },
-	};
-	stripPremiumLocked: icon{
-		{ "chat/reactions_premium_bg", historyPeerArchiveUserpicBg },
-		{ "chat/reactions_premium_star", historyPeerUserpicFg },
 	};
 	stripExpandPanel: icon{
 		{ "chat/reactions_round_big", windowBgRipple },

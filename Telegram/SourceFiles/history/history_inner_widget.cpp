@@ -386,14 +386,6 @@ HistoryInner::HistoryInner(
 		reactionChosen(reaction);
 	}, lifetime());
 
-	_reactionsManager->premiumPromoChosen(
-	) | rpl::start_with_next([=](FullMsgId context) {
-		_reactionsManager->updateButton({});
-		ShowPremiumPreviewBox(
-			_controller,
-			PremiumPreview::InfiniteReactions);
-	}, lifetime());
-
 	session().data().peerDecorationsUpdated(
 	) | rpl::start_with_next([=] {
 		update();
@@ -2644,9 +2636,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			desiredPosition,
 			reactItem,
 			[=](ChosenReaction reaction) { reactionChosen(reaction); },
-			[=](FullMsgId context) { ShowPremiumPreviewBox(
-				controller,
-				PremiumPreview::InfiniteReactions); },
+			TextWithEntities(),
 			_controller->cachedReactionIconFactory().createMethod())
 		: AttachSelectorResult::Skipped;
 	if (attached == AttachSelectorResult::Failed) {

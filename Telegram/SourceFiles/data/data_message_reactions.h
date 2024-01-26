@@ -37,12 +37,10 @@ struct Reaction {
 	DocumentData *aroundAnimation = nullptr;
 	int count = 0;
 	bool active = false;
-	bool premium = false;
 };
 
 struct PossibleItemReactionsRef {
 	std::vector<not_null<const Reaction*>> recent;
-	bool morePremiumAvailable = false;
 	bool customAllowed = false;
 	bool tags = false;
 };
@@ -52,7 +50,6 @@ struct PossibleItemReactions {
 	explicit PossibleItemReactions(const PossibleItemReactionsRef &other);
 
 	std::vector<Reaction> recent;
-	bool morePremiumAvailable = false;
 	bool customAllowed = false;
 	bool tags = false;
 };

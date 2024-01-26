@@ -278,8 +278,7 @@ int Selector::recentCount() const {
 }
 
 int Selector::countSkipLeft() const {
-	const auto addedToMax = _reactions.customAllowed
-		|| _reactions.morePremiumAvailable;
+	const auto addedToMax = _reactions.customAllowed;
 	const auto max = recentCount() + (addedToMax ? 1 : 0);
 	return std::max(
 		(st::reactStripMinWidth - (max * _size)) / 2,
@@ -287,8 +286,7 @@ int Selector::countSkipLeft() const {
 }
 
 int Selector::countWidth(int desiredWidth, int maxWidth) {
-	const auto addedToMax = _reactions.customAllowed
-		|| _reactions.morePremiumAvailable;
+	const auto addedToMax = _reactions.customAllowed;
 	const auto max = recentCount() + (addedToMax ? 1 : 0);
 	const auto desiredColumns = std::max(
 		(desiredWidth - 2 * _skipx + _size - 1) / _size,
@@ -298,13 +296,9 @@ int Selector::countWidth(int desiredWidth, int maxWidth) {
 		(maxWidth - 2 * _skipx) / _size);
 	_columns = _strip ? std::min(possibleColumns, max) : kDefaultColumns;
 	_small = (possibleColumns - _columns > 1);
-	_recentRows = (recentCount()
-		+ (_reactions.morePremiumAvailable ? 1 : 0)
-		+ _columns - 1) / _columns;
+	_recentRows = (recentCount() + _columns - 1) / _columns;
 	const auto added = (_columns < max || _reactions.customAllowed)
 		? Strip::AddedButton::Expand
-		: _reactions.morePremiumAvailable
-		? Strip::AddedButton::Premium
 		: Strip::AddedButton::None;
 	if (_strip) {
 		const auto &real = _reactions.recent;
@@ -731,9 +725,7 @@ void Selector::mouseReleaseEvent(QMouseEvent *e) {
 	}
 	_pressed = -1;
 	const auto selected = _strip->selected();
-	if (selected == Strip::AddedButton::Premium) {
-		_premiumPromoChosen.fire({});
-	} else if (selected == Strip::AddedButton::Expand) {
+	if (selected == Strip::AddedButton::Expand) {
 		expand();
 	} else if (const auto id = std::get_if<Data::ReactionId>(&selected)) {
 		if (!id->empty()) {
@@ -993,6 +985,7 @@ bool AdjustMenuGeometryForSelector(
 	return menu->prepareGeometryFor(desiredPosition);
 }
 
+#if 0 // not ready
 AttachSelectorResult MakeJustSelectorMenu(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<Window::SessionController*> controller,
@@ -1062,6 +1055,7 @@ AttachSelectorResult MakeJustSelectorMenu(
 
 	return AttachSelectorResult::Attached;
 }
+#endif
 
 AttachSelectorResult AttachSelectorToMenu(
 		not_null<Ui::PopupMenu*> menu,
@@ -1069,7 +1063,7 @@ AttachSelectorResult AttachSelectorToMenu(
 		QPoint desiredPosition,
 		not_null<HistoryItem*> item,
 		Fn<void(ChosenReaction)> chosen,
-		Fn<void(FullMsgId)> showPremiumPromo,
+		TextWithEntities description,
 		IconFactory iconFactory) {
 	const auto result = AttachSelectorToMenu(
 		menu,
@@ -1088,11 +1082,6 @@ AttachSelectorResult AttachSelectorToMenu(
 		menu->hideMenu();
 		reaction.context = itemId;
 		chosen(std::move(reaction));
-	}, selector->lifetime());
-
-	selector->premiumPromoChosen() | rpl::start_with_next([=] {
-		menu->hideMenu();
-		showPremiumPromo(itemId);
 	}, selector->lifetime());
 
 	const auto weak = base::make_weak(controller);
@@ -1116,7 +1105,7 @@ auto AttachSelectorToMenu(
 	const Data::PossibleItemReactionsRef &reactions,
 	IconFactory iconFactory)
 -> base::expected<not_null<Selector*>, AttachSelectorResult> {
-	if (reactions.recent.empty() && !reactions.morePremiumAvailable) {
+	if (reactions.recent.empty()) {
 		return base::make_unexpected(AttachSelectorResult::Skipped);
 	}
 	const auto withSearch = reactions.customAllowed;

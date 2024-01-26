@@ -106,9 +106,6 @@ public:
 	[[nodiscard]] rpl::producer<ChosenReaction> chosen() const {
 		return _chosen.events();
 	}
-	[[nodiscard]] rpl::producer<> premiumPromoChosen() const {
-		return _premiumPromoChosen.events();
-	}
 	[[nodiscard]] rpl::producer<> willExpand() const {
 		return _willExpand.events();
 	}
@@ -184,7 +181,6 @@ private:
 	std::unique_ptr<Strip> _strip;
 
 	rpl::event_stream<ChosenReaction> _chosen;
-	rpl::event_stream<> _premiumPromoChosen;
 	rpl::event_stream<> _willExpand;
 	rpl::event_stream<> _escapes;
 
@@ -231,6 +227,7 @@ enum class AttachSelectorResult {
 	Attached,
 };
 
+#if 0 // not ready
 AttachSelectorResult MakeJustSelectorMenu(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<Window::SessionController*> controller,
@@ -238,6 +235,7 @@ AttachSelectorResult MakeJustSelectorMenu(
 	ChatHelpers::EmojiListMode mode,
 	std::vector<DocumentId> recent,
 	Fn<void(ChosenReaction)> chosen);
+#endif
 
 AttachSelectorResult AttachSelectorToMenu(
 	not_null<Ui::PopupMenu*> menu,
@@ -245,7 +243,7 @@ AttachSelectorResult AttachSelectorToMenu(
 	QPoint desiredPosition,
 	not_null<HistoryItem*> item,
 	Fn<void(ChosenReaction)> chosen,
-	Fn<void(FullMsgId)> showPremiumPromo,
+	TextWithEntities description,
 	IconFactory iconFactory);
 
 [[nodiscard]] auto AttachSelectorToMenu(

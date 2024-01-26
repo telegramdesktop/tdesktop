@@ -638,10 +638,6 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 			{ "chat/reactions_bubble_shadow", windowShadowFg },
 			{ "chat/reactions_bubble", storiesComposeBg },
 		};
-		stripPremiumLocked: icon{
-			{ "chat/reactions_premium_bg", storiesComposeBgRipple },
-			{ "chat/reactions_premium_star", storiesComposeGrayIcon },
-		};
 		stripExpandPanel: icon{
 			{ "chat/reactions_round_big", storiesComposeBgRipple },
 			{ "chat/reactions_expand_panel", storiesComposeGrayIcon },

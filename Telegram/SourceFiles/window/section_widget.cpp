@@ -536,15 +536,8 @@ bool ShowReactPremiumError(
 		if (i != end(list)) {
 			return false;
 		}
-	} else {
-		const auto &list = controller->session().data().reactions().list(
-			Data::Reactions::Type::Active);
-		const auto i = ranges::find(list, id, &Data::Reaction::id);
-		if (i == end(list) || !i->premium) {
-			if (!id.custom()) {
-				return false;
-			}
-		}
+	} else if (!id.custom()) {
+		return false;
 	}
 	ShowPremiumPreviewBox(controller, PremiumPreview::InfiniteReactions);
 	return true;

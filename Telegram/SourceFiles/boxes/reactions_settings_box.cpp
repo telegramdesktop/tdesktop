@@ -520,11 +520,6 @@ void ReactionsSettingsBox(
 			rpl::single<QString>(base::duplicate(r.title)),
 			st::settingsButton));
 
-		const auto premium = r.premium;
-		if (premium && !premiumPossible) {
-			continue;
-		}
-
 		const auto iconSize = st::settingsReactionSize;
 		const auto left = button->st().iconLeft;
 		auto iconPositionValue = button->sizeValue(
@@ -556,12 +551,6 @@ void ReactionsSettingsBox(
 				&button->lifetime());
 		}
 		button->setClickedCallback([=, id = r.id] {
-			if (premium && !controller->session().premium()) {
-				ShowPremiumPreviewBox(
-					controller,
-					PremiumPreview::InfiniteReactions);
-				return;
-			}
 			checkButton(button);
 			state->selectedId = id;
 		});

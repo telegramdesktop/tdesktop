@@ -646,7 +646,7 @@ void Reactions::Panel::attachToReactionButton(
 void Reactions::Panel::create() {
 	auto reactions = LookupPossibleReactions(
 		&_controller->uiShow()->session());
-	if (reactions.recent.empty() && !reactions.morePremiumAvailable) {
+	if (reactions.recent.empty()) {
 		return;
 	}
 	_parent = std::make_unique<Ui::RpWidget>(_controller->wrap().get());
@@ -683,13 +683,6 @@ void Reactions::Panel::create() {
 			HistoryView::Reactions::ChosenReaction reaction) {
 		_chosen.fire({ .reaction = reaction, .mode = mode });
 		hide(mode);
-	}, _selector->lifetime());
-
-	_selector->premiumPromoChosen() | rpl::start_with_next([=] {
-		hide(mode);
-		ShowPremiumPreviewBox(
-			_controller->uiShow(),
-			PremiumPreview::InfiniteReactions);
 	}, _selector->lifetime());
 
 	const auto desiredWidth = st::storiesReactionsWidth;

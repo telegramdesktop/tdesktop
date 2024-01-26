@@ -209,13 +209,6 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			} else if (id.custom()
 				&& allowed.type == AllowedReactionsType::Default) {
 				return false;
-			} else if (reaction.premium
-				&& !session->premium()
-				&& !ranges::contains(all, id, &MessageReaction::id)) {
-				if (premiumPossible) {
-					result.morePremiumAvailable = true;
-				}
-				return false;
 			}
 			return true;
 		});
@@ -248,7 +241,6 @@ PossibleItemReactions::PossibleItemReactions(
 : recent(other.recent | ranges::views::transform([](const auto &value) {
 	return *value;
 }) | ranges::to_vector)
-, morePremiumAvailable(other.morePremiumAvailable)
 , customAllowed(other.customAllowed)
 , tags(other.tags){
 }
@@ -1139,7 +1131,6 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 						*data.varound_animation()).get()
 					: nullptr),
 				.active = !data.is_inactive(),
-				.premium = data.is_premium(),
 			})
 			: std::nullopt;
 	});

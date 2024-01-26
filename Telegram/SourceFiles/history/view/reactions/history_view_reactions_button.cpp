@@ -448,8 +448,6 @@ void Manager::applyList(const Data::PossibleItemReactionsRef &reactions) {
 		reactions.recent,
 		(/*reactions.customAllowed
 			? Button::Expand
-			: reactions.morePremiumAvailable
-			? Button::Premium
 			: */Button::None));
 	_tagsStrip = reactions.tags;
 }
@@ -519,14 +517,7 @@ ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
 		int(_strip.count() - 1));
 	_strip.setSelected(index);
 	const auto selected = _strip.selected();
-	if (selected == Strip::AddedButton::Premium) {
-		if (!_premiumPromoLink) {
-			_premiumPromoLink = std::make_shared<LambdaClickHandler>([=] {
-				_premiumPromoChosen.fire_copy(_buttonContext);
-			});
-		}
-		return _premiumPromoLink;
-	} else if (selected == Strip::AddedButton::Expand) {
+	if (selected == Strip::AddedButton::Expand) {
 		if (!_expandLink) {
 			_expandLink = std::make_shared<LambdaClickHandler>([=] {
 				_expandChosen.fire_copy(_buttonContext);
