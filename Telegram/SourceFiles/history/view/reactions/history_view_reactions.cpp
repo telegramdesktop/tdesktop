@@ -88,6 +88,19 @@ void InlineList::removeSkipBlock() {
 	_skipBlock = {};
 }
 
+bool InlineList::areTags() const {
+	return _data.flags & Data::Flag::Tags;
+}
+
+std::vector<ReactionId> InlineList::computeTagsList() const {
+	if (!areTags()) {
+		return {};
+	}
+	return _buttons | ranges::views::transform(
+		&Button::id
+	) | ranges::to_vector;
+}
+
 bool InlineList::hasCustomEmoji() const {
 	return _hasCustomEmoji;
 }
@@ -119,7 +132,7 @@ void InlineList::layoutButtons() {
 	) | ranges::views::transform([](const MessageReaction &reaction) {
 		return not_null{ &reaction };
 	}) | ranges::to_vector;
-	const auto tags = _data.flags & Data::Flag::Tags;
+	const auto tags = areTags();
 	const auto &infos = _owner->myTagsInfo();
 	if (!tags) {
 		const auto &list = _owner->list(::Data::Reactions::Type::All);
@@ -148,10 +161,7 @@ void InlineList::layoutButtons() {
 			? std::move(*i)
 			: prepareButtonWithId(id));
 		if (tags) {
-			const auto i = ranges::find(infos, id, &::Data::MyTagInfo::id);
-			setButtonTag(
-				buttons.back(),
-				(i == end(infos)) ? QString() : i->title);
+			setButtonTag(buttons.back(), _owner->myTagTitle(id));
 		} else if (const auto j = _data.recent.find(id)
 			; j != end(_data.recent) && !j->second.empty()) {
 			setButtonUserpics(buttons.back(), j->second);
@@ -367,7 +377,7 @@ void InlineList::paint(
 	const auto padding = st::reactionInlinePadding;
 	const auto size = st::reactionInlineSize;
 	const auto skip = (size - st::reactionInlineImage) / 2;
-	const auto tags = (_data.flags & Data::Flag::Tags);
+	const auto tags = areTags();
 	const auto inbubble = (_data.flags & Data::Flag::InBubble);
 	const auto flipped = (_data.flags & Data::Flag::Flipped);
 	p.setFont(tags ? st::reactionInlineTagFont : st::semiboldFont);
@@ -613,7 +623,7 @@ void InlineList::paintSingleBg(
 		const QColor &color,
 		float64 opacity) const {
 	p.setOpacity(opacity);
-	if (!(_data.flags & Data::Flag::Tags)) {
+	if (!areTags()) {
 		const auto radius = fill.height() / 2.;
 		p.setBrush(color);
 		p.drawRoundedRect(fill, radius, radius);

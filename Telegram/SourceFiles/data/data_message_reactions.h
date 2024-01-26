@@ -93,11 +93,13 @@ public:
 	};
 	[[nodiscard]] const std::vector<Reaction> &list(Type type) const;
 	[[nodiscard]] const std::vector<MyTagInfo> &myTagsInfo() const;
+	[[nodiscard]] const QString &myTagTitle(const ReactionId &id) const;
 	[[nodiscard]] ReactionId favoriteId() const;
 	[[nodiscard]] const Reaction *favorite() const;
 	void setFavorite(const ReactionId &id);
 	void incrementMyTag(const ReactionId &id);
 	void decrementMyTag(const ReactionId &id);
+	void renameTag(const ReactionId &id, const QString &name);
 	[[nodiscard]] DocumentData *chooseGenericAnimation(
 		not_null<DocumentData*> custom) const;
 
@@ -107,6 +109,7 @@ public:
 	[[nodiscard]] rpl::producer<> favoriteUpdates() const;
 	[[nodiscard]] rpl::producer<> myTagsUpdates() const;
 	[[nodiscard]] rpl::producer<> tagsUpdates() const;
+	[[nodiscard]] rpl::producer<ReactionId> myTagRenamed() const;
 
 	enum class ImageSize {
 		BottomInfo,
@@ -223,6 +226,7 @@ private:
 	rpl::event_stream<> _favoriteUpdated;
 	rpl::event_stream<> _myTagsUpdated;
 	rpl::event_stream<> _tagsUpdated;
+	rpl::event_stream<ReactionId> _myTagRenamed;
 
 	// We need &i->second stay valid while inserting new items.
 	// So we use std::map instead of base::flat_map here.

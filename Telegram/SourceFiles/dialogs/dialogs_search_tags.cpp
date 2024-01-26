@@ -110,7 +110,11 @@ void SearchTags::fill(const std::vector<Data::Reaction> &list) {
 		}
 	};
 	for (const auto &reaction : list) {
-		push(reaction.id, ComposeText(reaction));
+		if (reaction.count > 0
+			|| ranges::contains(_added, reaction.id)
+			|| ranges::contains(selected, reaction.id)) {
+			push(reaction.id, ComposeText(reaction));
+		}
 	}
 	for (const auto &reaction : _added) {
 		if (!ranges::contains(_tags, reaction, &Tag::id)) {
@@ -119,6 +123,7 @@ void SearchTags::fill(const std::vector<Data::Reaction> &list) {
 	}
 	if (_width > 0) {
 		layout();
+		_repaintRequests.fire({});
 	}
 }
 

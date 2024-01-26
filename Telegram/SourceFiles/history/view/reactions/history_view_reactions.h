@@ -70,6 +70,8 @@ public:
 	void updateSkipBlock(int width, int height);
 	void removeSkipBlock();
 
+	[[nodiscard]] bool areTags() const;
+	[[nodiscard]] std::vector<ReactionId> computeTagsList() const;
 	[[nodiscard]] bool hasCustomEmoji() const;
 	void unloadCustomEmoji();
 

@@ -2801,6 +2801,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_reacted_all" = "Show All Reactions";
 "lng_context_set_as_quick" = "Set as Quick";
 "lng_context_filter_by_tag" = "Filter by Tag";
+"lng_context_tag_add_name" = "Add Name";
+"lng_context_tag_edit_name" = "Edit Name";
 "lng_context_remove_tag" = "Remove Tag";
 "lng_context_delete_from_disk" = "Delete from disk";
 "lng_context_delete_all_files" = "Delete all files";
@@ -2809,6 +2811,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_translate_selected" = "Translate Selected Text";
 "lng_context_read_hidden" = "read";
 "lng_context_read_show" = "show when";
+
+"lng_edit_tag_about" = "You can label your emoji tag with a text name.";
+"lng_edit_tag_name" = "Name";
 
 "lng_context_animated_emoji" = "This message contains emoji from **{name} pack**.";
 "lng_context_animated_emoji_many#one" = "This message contains emoji from **{count} pack**.";

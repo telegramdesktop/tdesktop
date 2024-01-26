@@ -1430,8 +1430,10 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		});
 	} else if (_pressed) {
 		auto row = _pressed;
-		const auto updateCallback = [this, row] {
-			if (!_pinnedShiftAnimation.animating()) {
+		const auto weak = Ui::MakeWeak(this);
+		const auto updateCallback = [weak, row] {
+			const auto strong = weak.data();
+			if (!strong || !strong->_pinnedShiftAnimation.animating()) {
 				row->entry()->updateChatListEntry();
 			}
 		};

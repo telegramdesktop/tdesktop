@@ -295,6 +295,16 @@ Session::Session(not_null<Main::Session*> session)
 		}
 	}, _lifetime);
 
+	_reactions->myTagRenamed(
+	) | rpl::start_with_next([=](const ReactionId &id) {
+		const auto i = _viewsByTag.find(id);
+		if (i != end(_viewsByTag)) {
+			for (const auto &view : i->second) {
+				notifyItemDataChange(view->data());
+			}
+		}
+	}, _lifetime);
+
 	Spellchecker::HighlightReady(
 	) | rpl::start_with_next([=](uint64 processId) {
 		highlightProcessDone(processId);
@@ -4606,6 +4616,28 @@ auto Session::webViewResultSent() const -> rpl::producer<WebViewResultSent> {
 
 rpl::producer<not_null<PeerData*>> Session::peerDecorationsUpdated() const {
 	return _peerDecorationsUpdated.events();
+}
+
+void Session::viewTagsChanged(
+		not_null<ViewElement*> view,
+		std::vector<Data::ReactionId> &&was,
+		std::vector<Data::ReactionId> &&now) {
+	for (const auto &id : now) {
+		const auto i = ranges::remove(was, id);
+		if (i != end(was)) {
+			was.erase(i, end(was));
+		} else {
+			_viewsByTag[id].emplace(view);
+		}
+	}
+	for (const auto &id : was) {
+		const auto i = _viewsByTag.find(id);
+		if (i != end(_viewsByTag)
+			&& i->second.remove(view)
+			&& i->second.empty()) {
+			_viewsByTag.erase(i);
+		}
+	}
 }
 
 void Session::clearLocalStorage() {

@@ -1307,3 +1307,22 @@ ttlMediaButton: RoundButton(defaultActiveButton) {
 	textTop: 6px;
 }
 ttlMediaButtonBottomSkip: 14px;
+
+editTagAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+}
+editTagField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(24px, 10px, 32px, 0px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+
+	heightMin: 32px;
+}
+editTagLimit: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}

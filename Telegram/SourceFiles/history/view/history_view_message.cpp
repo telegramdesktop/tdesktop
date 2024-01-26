@@ -435,6 +435,21 @@ Message::~Message() {
 		_fromNameStatus = nullptr;
 		checkHeavyPart();
 	}
+	setReactions(nullptr);
+}
+
+void Message::setReactions(std::unique_ptr<Reactions::InlineList> list) {
+	auto was = _reactions
+		? _reactions->computeTagsList()
+		: std::vector<Data::ReactionId>();
+	_reactions = std::move(list);
+	auto now = _reactions
+		? _reactions->computeTagsList()
+		: std::vector<Data::ReactionId>();
+	if (!was.empty() || !now.empty()) {
+		auto &owner = history()->owner();
+		owner.viewTagsChanged(this, std::move(was), std::move(now));
+	}
 }
 
 void Message::refreshRightBadge() {
@@ -2958,7 +2973,7 @@ void Message::refreshReactions() {
 	const auto item = data();
 	const auto &list = item->reactions();
 	if (list.empty() || embedReactionsInBottomInfo()) {
-		_reactions = nullptr;
+		setReactions(nullptr);
 		return;
 	}
 	using namespace Reactions;
@@ -2988,13 +3003,19 @@ void Message::refreshReactions() {
 				}
 			});
 		};
-		_reactions = std::make_unique<InlineList>(
+		setReactions(std::make_unique<InlineList>(
 			&item->history()->owner().reactions(),
 			handlerFactory,
 			[=] { customEmojiRepaint(); },
-			std::move(reactionsData));
+			std::move(reactionsData)));
 	} else {
+		auto was = _reactions->computeTagsList();
 		_reactions->update(std::move(reactionsData), width());
+		auto now = _reactions->computeTagsList();
+		if (!was.empty() || !now.empty()) {
+			auto &owner = history()->owner();
+			owner.viewTagsChanged(this, std::move(was), std::move(now));
+		}
 	}
 }
 

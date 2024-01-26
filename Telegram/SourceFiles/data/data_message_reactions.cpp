@@ -356,6 +356,15 @@ const std::vector<MyTagInfo> &Reactions::myTagsInfo() const {
 	return _myTagsInfo;
 }
 
+const QString &Reactions::myTagTitle(const ReactionId &id) const {
+	const auto i = ranges::find(_myTagsInfo, id, &::Data::MyTagInfo::id);
+	if (i != end(_myTagsInfo)) {
+		return i->title;
+	}
+	static const auto kEmpty = QString();
+	return kEmpty;
+}
+
 ReactionId Reactions::favoriteId() const {
 	return _favoriteId;
 }
@@ -413,6 +422,23 @@ void Reactions::decrementMyTag(const ReactionId &id) {
 		i = j;
 	}
 	scheduleMyTagsUpdate();
+}
+
+void Reactions::renameTag(const ReactionId &id, const QString &name) {
+	auto i = ranges::find(_myTagsInfo, id, &MyTagInfo::id);
+	if (i == end(_myTagsInfo) || i->title == name) {
+		return;
+	}
+	i->title = name;
+	scheduleMyTagsUpdate();
+	_myTagRenamed.fire_copy(id);
+
+	using Flag = MTPmessages_UpdateSavedReactionTag::Flag;
+	_owner->session().api().request(MTPmessages_UpdateSavedReactionTag(
+		MTP_flags(name.isEmpty() ? Flag(0) : Flag::f_title),
+		ReactionToMTP(id),
+		MTP_string(name)
+	)).send();
 }
 
 void Reactions::scheduleMyTagsUpdate() {
@@ -494,6 +520,10 @@ rpl::producer<> Reactions::myTagsUpdates() const {
 
 rpl::producer<> Reactions::tagsUpdates() const {
 	return _tagsUpdated.events();
+}
+
+rpl::producer<ReactionId> Reactions::myTagRenamed() const {
+	return _myTagRenamed.events();
 }
 
 void Reactions::preloadImageFor(const ReactionId &id) {
@@ -850,9 +880,21 @@ void Reactions::updateGeneric(const MTPDmessages_stickerSet &data) {
 
 void Reactions::updateMyTags(const MTPDmessages_savedReactionTags &data) {
 	_myTagsHash = data.vhash().v;
-	_myTagsInfo = ListFromMTP(data);
+	auto list = ListFromMTP(data);
+	auto renamed = base::flat_set<ReactionId>();
+	for (const auto &info : list) {
+		const auto j = ranges::find(_myTagsInfo, info.id, &MyTagInfo::id);
+		const auto was = (j != end(_myTagsInfo)) ? j->title : QString();
+		if (info.title != was) {
+			renamed.emplace(info.id);
+		}
+	}
+	_myTagsInfo = std::move(list);
 	_myTags = resolveByInfos(_myTagsInfo, _unresolvedMyTags);
 	_myTagsUpdated.fire({});
+	for (const auto &id : renamed) {
+		_myTagRenamed.fire_copy(id);
+	}
 }
 
 void Reactions::updateTags(const MTPDmessages_reactions &data) {
@@ -1304,6 +1346,7 @@ void MessageReactions::remove(const ReactionId &id) {
 		return;
 	}
 	i->my = false;
+	const auto tags = _item->reactionsAreTags();
 	const auto removed = !--i->count;
 	if (removed) {
 		_list.erase(i);
@@ -1320,6 +1363,9 @@ void MessageReactions::remove(const ReactionId &id) {
 				_recent.erase(j);
 			}
 		}
+	}
+	if (tags) {
+		history->owner().reactions().decrementMyTag(id);
 	}
 	auto &owner = history->owner();
 	owner.reactions().send(_item, false);
