@@ -2987,16 +2987,9 @@ void InnerWidget::searchInChat(
 
 		if (peer->isSelf()) {
 			const auto reactions = &peer->owner().reactions();
-			const auto list = [=] {
-				return reactions->list(Data::Reactions::Type::MyTags);
-			};
 			_searchTags = std::make_unique<SearchTags>(
 				&peer->owner(),
-				rpl::single(
-					list()
-				) | rpl::then(
-					reactions->myTagsUpdates() | rpl::map(list)
-				),
+				reactions->myTagsValue(sublist),
 				tags);
 
 			_searchTags->selectedValue(

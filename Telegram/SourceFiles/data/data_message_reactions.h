@@ -21,6 +21,7 @@ class CustomEmoji;
 
 namespace Data {
 
+class SavedSublist;
 class DocumentMedia;
 class Session;
 
@@ -79,7 +80,7 @@ public:
 	void refreshRecent();
 	void refreshRecentDelayed();
 	void refreshDefault();
-	void refreshMyTags();
+	void refreshMyTags(SavedSublist *sublist = nullptr);
 	void refreshMyTagsDelayed();
 	void refreshTags();
 
@@ -97,8 +98,8 @@ public:
 	[[nodiscard]] ReactionId favoriteId() const;
 	[[nodiscard]] const Reaction *favorite() const;
 	void setFavorite(const ReactionId &id);
-	void incrementMyTag(const ReactionId &id);
-	void decrementMyTag(const ReactionId &id);
+	void incrementMyTag(const ReactionId &id, SavedSublist *sublist);
+	void decrementMyTag(const ReactionId &id, SavedSublist *sublist);
 	void renameTag(const ReactionId &id, const QString &name);
 	[[nodiscard]] DocumentData *chooseGenericAnimation(
 		not_null<DocumentData*> custom) const;
@@ -131,6 +132,9 @@ public:
 	void clearTemporary();
 	[[nodiscard]] Reaction *lookupTemporary(const ReactionId &id);
 
+	[[nodiscard]] rpl::producer<std::vector<Reaction>> myTagsValue(
+		SavedSublist *sublist = nullptr);
+
 	[[nodiscard]] static bool HasUnread(const MTPMessageReactions &data);
 	static void CheckUnknownForUnread(
 		not_null<Session*> owner,
@@ -144,6 +148,20 @@ private:
 		std::unique_ptr<Ui::AnimatedIcon> icon;
 		bool fromSelectAnimation = false;
 	};
+	struct TagsBySublist {
+		TagsBySublist() = default;
+		TagsBySublist(TagsBySublist&&) = default;
+		TagsBySublist(const TagsBySublist&) = delete;
+		TagsBySublist &operator=(TagsBySublist&&) = default;
+		TagsBySublist &operator=(const TagsBySublist&) = delete;
+
+		std::vector<Reaction> tags;
+		std::vector<MyTagInfo> info;
+		uint64 hash = 0;
+		mtpRequestId requestId = 0;
+		bool requestScheduled = false;
+		bool updateScheduled = false;
+	};
 
 	[[nodiscard]] not_null<CustomEmojiManager::Listener*> resolveListener();
 	void customEmojiResolveDone(not_null<DocumentData*> document) override;
@@ -152,14 +170,16 @@ private:
 	void requestRecent();
 	void requestDefault();
 	void requestGeneric();
-	void requestMyTags();
+	void requestMyTags(SavedSublist *sublist = nullptr);
 	void requestTags();
 
 	void updateTop(const MTPDmessages_reactions &data);
 	void updateRecent(const MTPDmessages_reactions &data);
 	void updateDefault(const MTPDmessages_availableReactions &data);
 	void updateGeneric(const MTPDmessages_stickerSet &data);
-	void updateMyTags(const MTPDmessages_savedReactionTags &data);
+	void updateMyTags(
+		SavedSublist *sublist,
+		const MTPDmessages_savedReactionTags &data);
 	void updateTags(const MTPDmessages_reactions &data);
 
 	void recentUpdated();
@@ -172,13 +192,17 @@ private:
 		const std::vector<ReactionId> &ids,
 		base::flat_set<ReactionId> &unresolved);
 	[[nodiscard]] std::optional<Reaction> resolveByInfo(
-		const MyTagInfo &info);
+		const MyTagInfo &info,
+		SavedSublist *sublist);
 	[[nodiscard]] std::vector<Reaction> resolveByInfos(
 		const std::vector<MyTagInfo> &infos,
-		base::flat_set<ReactionId> &unresolved);
+		base::flat_map<
+			ReactionId,
+			base::flat_set<SavedSublist*>> &unresolved,
+		SavedSublist *sublist);
 	void resolve(const ReactionId &id);
 	void applyFavorite(const ReactionId &id);
-	void scheduleMyTagsUpdate();
+	void scheduleMyTagsUpdate(SavedSublist *sublist);
 
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
@@ -201,9 +225,10 @@ private:
 	std::vector<Reaction> _recent;
 	std::vector<ReactionId> _recentIds;
 	base::flat_set<ReactionId> _unresolvedRecent;
-	std::vector<Reaction> _myTags;
-	std::vector<MyTagInfo> _myTagsInfo;
-	base::flat_set<ReactionId> _unresolvedMyTags;
+	base::flat_map<SavedSublist*, TagsBySublist> _myTags;
+	base::flat_map<
+		ReactionId,
+		base::flat_set<SavedSublist*>> _unresolvedMyTags;
 	std::vector<Reaction> _tags;
 	std::vector<ReactionId> _tagsIds;
 	base::flat_set<ReactionId> _unresolvedTags;
@@ -224,7 +249,7 @@ private:
 	rpl::event_stream<> _recentUpdated;
 	rpl::event_stream<> _defaultUpdated;
 	rpl::event_stream<> _favoriteUpdated;
-	rpl::event_stream<> _myTagsUpdated;
+	rpl::event_stream<SavedSublist*> _myTagsUpdated;
 	rpl::event_stream<> _tagsUpdated;
 	rpl::event_stream<ReactionId> _myTagRenamed;
 
@@ -245,11 +270,6 @@ private:
 	int32 _defaultHash = 0;
 
 	mtpRequestId _genericRequestId = 0;
-
-	mtpRequestId _myTagsRequestId = 0;
-	bool _myTagsRequestScheduled = false;
-	bool _myTagsUpdateScheduled = false;
-	uint64 _myTagsHash = 0;
 
 	mtpRequestId _tagsRequestId = 0;
 	uint64 _tagsHash = 0;

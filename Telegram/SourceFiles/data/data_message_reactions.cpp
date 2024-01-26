@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_peer_values.h"
+#include "data/data_saved_sublist.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "storage/localimageloader.h"
 #include "ui/image/image_location_factory.h"
@@ -258,6 +259,8 @@ Reactions::Reactions(not_null<Session*> owner)
 , _repaintTimer([=] { repaintCollected(); }) {
 	refreshDefault();
 
+	_myTags.emplace(nullptr);
+
 	base::timer_each(
 		kRefreshFullListEach
 	) | rpl::start_with_next([=] {
@@ -320,17 +323,18 @@ void Reactions::refreshDefault() {
 	requestDefault();
 }
 
-void Reactions::refreshMyTags() {
-	requestMyTags();
+void Reactions::refreshMyTags(SavedSublist *sublist) {
+	requestMyTags(sublist);
 }
 
 void Reactions::refreshMyTagsDelayed() {
-	if (_myTagsRequestId || _myTagsRequestScheduled) {
+	auto &my = _myTags[nullptr];
+	if (my.requestId || my.requestScheduled) {
 		return;
 	}
-	_myTagsRequestScheduled = true;
+	my.requestScheduled = true;
 	base::call_delayed(kMyTagsRequestTimeout, &_owner->session(), [=] {
-		if (_myTagsRequestScheduled) {
+		if (_myTags[nullptr].requestScheduled) {
 			requestMyTags();
 		}
 	});
@@ -346,20 +350,24 @@ const std::vector<Reaction> &Reactions::list(Type type) const {
 	case Type::Recent: return _recent;
 	case Type::Top: return _top;
 	case Type::All: return _available;
-	case Type::MyTags: return _myTags;
+	case Type::MyTags:
+		return _myTags.find((SavedSublist*)nullptr)->second.tags;
 	case Type::Tags: return _tags;
 	}
 	Unexpected("Type in Reactions::list.");
 }
 
 const std::vector<MyTagInfo> &Reactions::myTagsInfo() const {
-	return _myTagsInfo;
+	return _myTags.find((SavedSublist*)nullptr)->second.info;
 }
 
 const QString &Reactions::myTagTitle(const ReactionId &id) const {
-	const auto i = ranges::find(_myTagsInfo, id, &::Data::MyTagInfo::id);
-	if (i != end(_myTagsInfo)) {
-		return i->title;
+	const auto i = _myTags.find((SavedSublist*)nullptr);
+	if (i != end(_myTags)) {
+		const auto j = ranges::find(i->second.info, id, &MyTagInfo::id);
+		if (j != end(i->second.info)) {
+			return j->title;
+		}
 	}
 	static const auto kEmpty = QString();
 	return kEmpty;
@@ -389,14 +397,18 @@ void Reactions::setFavorite(const ReactionId &id) {
 	applyFavorite(id);
 }
 
-void Reactions::incrementMyTag(const ReactionId &id) {
-	auto i = ranges::find(_myTagsInfo, id, &MyTagInfo::id);
-	if (i == end(_myTagsInfo)) {
-		_myTagsInfo.push_back({ .id = id, .count = 0 });
-		i = end(_myTagsInfo) - 1;
+void Reactions::incrementMyTag(const ReactionId &id, SavedSublist *sublist) {
+	if (sublist) {
+		incrementMyTag(id, nullptr);
+	}
+	auto &my = _myTags[sublist];
+	auto i = ranges::find(my.info, id, &MyTagInfo::id);
+	if (i == end(my.info)) {
+		my.info.push_back({ .id = id, .count = 0 });
+		i = end(my.info) - 1;
 	}
 	++i->count;
-	while (i != begin(_myTagsInfo)) {
+	while (i != begin(my.info)) {
 		auto j = i - 1;
 		if (j->count >= i->count) {
 			break;
@@ -404,33 +416,43 @@ void Reactions::incrementMyTag(const ReactionId &id) {
 		std::swap(*i, *j);
 		i = j;
 	}
-	scheduleMyTagsUpdate();
+	scheduleMyTagsUpdate(sublist);
 }
 
-void Reactions::decrementMyTag(const ReactionId &id) {
-	auto i = ranges::find(_myTagsInfo, id, &MyTagInfo::id);
-	if (i->count <= 0) {
-		return;
+void Reactions::decrementMyTag(const ReactionId &id, SavedSublist *sublist) {
+	if (sublist) {
+		decrementMyTag(id, nullptr);
 	}
-	--i->count;
-	while (i + 1 != end(_myTagsInfo)) {
-		auto j = i + 1;
-		if (j->count <= i->count) {
-			break;
+	auto &my = _myTags[sublist];
+	auto i = ranges::find(my.info, id, &MyTagInfo::id);
+	if (i->count > 0) {
+		--i->count;
+		while (i + 1 != end(my.info)) {
+			auto j = i + 1;
+			if (j->count <= i->count) {
+				break;
+			}
+			std::swap(*i, *j);
+			i = j;
 		}
-		std::swap(*i, *j);
-		i = j;
 	}
-	scheduleMyTagsUpdate();
+	scheduleMyTagsUpdate(sublist);
 }
 
 void Reactions::renameTag(const ReactionId &id, const QString &name) {
-	auto i = ranges::find(_myTagsInfo, id, &MyTagInfo::id);
-	if (i == end(_myTagsInfo) || i->title == name) {
+	auto changed = false;
+	for (auto &[sublist, my] : _myTags) {
+		auto i = ranges::find(my.info, id, &MyTagInfo::id);
+		if (i == end(my.info) || i->title == name) {
+			continue;
+		}
+		i->title = name;
+		changed = true;
+		scheduleMyTagsUpdate(sublist);
+	}
+	if (!changed) {
 		return;
 	}
-	i->title = name;
-	scheduleMyTagsUpdate();
 	_myTagRenamed.fire_copy(id);
 
 	using Flag = MTPmessages_UpdateSavedReactionTag::Flag;
@@ -441,15 +463,17 @@ void Reactions::renameTag(const ReactionId &id, const QString &name) {
 	)).send();
 }
 
-void Reactions::scheduleMyTagsUpdate() {
-	_myTagsUpdateScheduled = true;
+void Reactions::scheduleMyTagsUpdate(SavedSublist *sublist) {
+	auto &my = _myTags[sublist];
+	my.updateScheduled = true;
 	crl::on_main(&session(), [=] {
-		if (!_myTagsUpdateScheduled) {
+		auto &my = _myTags[sublist];
+		if (!my.updateScheduled) {
 			return;
 		}
-		_myTagsUpdateScheduled = false;
-		_myTags = resolveByInfos(_myTagsInfo, _unresolvedMyTags);
-		_myTagsUpdated.fire({});
+		my.updateScheduled = false;
+		my.tags = resolveByInfos(my.info, _unresolvedMyTags, sublist);
+		_myTagsUpdated.fire_copy(sublist);
 	});
 }
 
@@ -515,7 +539,10 @@ rpl::producer<> Reactions::favoriteUpdates() const {
 }
 
 rpl::producer<> Reactions::myTagsUpdates() const {
-	return _myTagsUpdated.events();
+	return _myTagsUpdated.events(
+	) | rpl::filter(
+		!rpl::mappers::_1
+	) | rpl::to_empty;
 }
 
 rpl::producer<> Reactions::tagsUpdates() const {
@@ -768,25 +795,29 @@ void Reactions::requestGeneric() {
 	}).send();
 }
 
-void Reactions::requestMyTags() {
-	if (_myTagsRequestId) {
+void Reactions::requestMyTags(SavedSublist *sublist) {
+	auto &my = _myTags[sublist];
+	if (my.requestId) {
 		return;
 	}
 	auto &api = _owner->session().api();
-	_myTagsRequestScheduled = false;
-	_myTagsRequestId = api.request(MTPmessages_GetSavedReactionTags(
-		MTP_flags(0),
-		MTP_inputPeerEmpty(),
-		MTP_long(_myTagsHash)
+	my.requestScheduled = false;
+	using Flag = MTPmessages_GetSavedReactionTags::Flag;
+	my.requestId = api.request(MTPmessages_GetSavedReactionTags(
+		MTP_flags(sublist ? Flag::f_peer : Flag()),
+		(sublist ? sublist->peer()->input : MTP_inputPeerEmpty()),
+		MTP_long(my.hash)
 	)).done([=](const MTPmessages_SavedReactionTags &result) {
-		_myTagsRequestId = 0;
+		auto &my = _myTags[sublist];
+		my.requestId = 0;
 		result.match([&](const MTPDmessages_savedReactionTags &data) {
-			updateMyTags(data);
+			updateMyTags(sublist, data);
 		}, [](const MTPDmessages_savedReactionTagsNotModified&) {
 		});
 	}).fail([=] {
-		_myTagsRequestId = 0;
-		_myTagsHash = 0;
+		auto &my = _myTags[sublist];
+		my.requestId = 0;
+		my.hash = 0;
 	}).send();
 }
 
@@ -878,20 +909,25 @@ void Reactions::updateGeneric(const MTPDmessages_stickerSet &data) {
 	}
 }
 
-void Reactions::updateMyTags(const MTPDmessages_savedReactionTags &data) {
-	_myTagsHash = data.vhash().v;
+void Reactions::updateMyTags(
+		SavedSublist *sublist,
+		const MTPDmessages_savedReactionTags &data) {
+	auto &my = _myTags[sublist];
+	my.hash = data.vhash().v;
 	auto list = ListFromMTP(data);
 	auto renamed = base::flat_set<ReactionId>();
-	for (const auto &info : list) {
-		const auto j = ranges::find(_myTagsInfo, info.id, &MyTagInfo::id);
-		const auto was = (j != end(_myTagsInfo)) ? j->title : QString();
-		if (info.title != was) {
-			renamed.emplace(info.id);
+	if (!sublist) {
+		for (const auto &info : list) {
+			const auto j = ranges::find(my.info, info.id, &MyTagInfo::id);
+			const auto was = (j != end(my.info)) ? j->title : QString();
+			if (info.title != was) {
+				renamed.emplace(info.id);
+			}
 		}
 	}
-	_myTagsInfo = std::move(list);
-	_myTags = resolveByInfos(_myTagsInfo, _unresolvedMyTags);
-	_myTagsUpdated.fire({});
+	my.info = std::move(list);
+	my.tags = resolveByInfos(my.info, _unresolvedMyTags, sublist);
+	_myTagsUpdated.fire_copy(sublist);
 	for (const auto &id : renamed) {
 		_myTagRenamed.fire_copy(id);
 	}
@@ -946,7 +982,9 @@ void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
 	const auto j = _unresolvedRecent.find(id);
 	const auto recent = (j != end(_unresolvedRecent));
 	const auto k = _unresolvedMyTags.find(id);
-	const auto myTag = (k != end(_unresolvedMyTags));
+	const auto myTagSublists = (k != end(_unresolvedMyTags))
+		? base::take(k->second)
+		: base::flat_set<SavedSublist*>();
 	const auto l = _unresolvedTags.find(id);
 	const auto tag = (l != end(_unresolvedTags));
 	if (favorite) {
@@ -961,9 +999,12 @@ void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
 		_unresolvedRecent.erase(j);
 		_recent = resolveByIds(_recentIds, _unresolvedRecent);
 	}
-	if (myTag) {
+	if (!myTagSublists.empty()) {
 		_unresolvedMyTags.erase(k);
-		_myTags = resolveByInfos(_myTagsInfo, _unresolvedMyTags);
+		for (const auto &sublist : myTagSublists) {
+			auto &my = _myTags[sublist];
+			my.tags = resolveByInfos(my.info, _unresolvedMyTags, sublist);
+		}
 	}
 	if (tag) {
 		_unresolvedTags.erase(l);
@@ -978,8 +1019,8 @@ void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
 	if (recent) {
 		_recentUpdated.fire({});
 	}
-	if (myTag) {
-		_myTagsUpdated.fire({});
+	for (const auto &sublist : myTagSublists) {
+		_myTagsUpdated.fire_copy(sublist);
 	}
 	if (tag) {
 		_tagsUpdated.fire({});
@@ -1016,10 +1057,12 @@ std::vector<Reaction> Reactions::resolveByIds(
 	return result;
 }
 
-std::optional<Reaction> Reactions::resolveByInfo(const MyTagInfo &info) {
+std::optional<Reaction> Reactions::resolveByInfo(
+		const MyTagInfo &info,
+		SavedSublist *sublist) {
 	const auto withInfo = [&](Reaction reaction) {
-		reaction.title = info.title;
 		reaction.count = info.count;
+		reaction.title = sublist ? myTagTitle(reaction.id) : info.title;
 		return reaction;
 	};
 	if (const auto emoji = info.id.emoji(); !emoji.isEmpty()) {
@@ -1038,13 +1081,20 @@ std::optional<Reaction> Reactions::resolveByInfo(const MyTagInfo &info) {
 
 std::vector<Reaction> Reactions::resolveByInfos(
 		const std::vector<MyTagInfo> &infos,
-		base::flat_set<ReactionId> &unresolved) {
+		base::flat_map<
+			ReactionId,
+			base::flat_set<SavedSublist*>> &unresolved,
+		SavedSublist *sublist) {
 	auto result = std::vector<Reaction>();
 	result.reserve(infos.size());
 	for (const auto &tag : infos) {
-		if (const auto resolved = resolveByInfo(tag)) {
+		if (auto resolved = resolveByInfo(tag, sublist)) {
 			result.push_back(*resolved);
-		} else if (unresolved.emplace(tag.id).second) {
+		} else if (const auto i = unresolved.find(tag.id)
+			; i != end(unresolved)) {
+			i->second.emplace(sublist);
+		} else {
+			unresolved[tag.id].emplace(sublist);
 			resolve(tag.id);
 		}
 	}
@@ -1180,6 +1230,20 @@ Reaction *Reactions::lookupTemporary(const ReactionId &id) {
 	return nullptr;
 }
 
+rpl::producer<std::vector<Reaction>> Reactions::myTagsValue(
+		SavedSublist *sublist) {
+	refreshMyTags(sublist);
+	const auto list = [=] {
+		return _myTags[sublist].tags;
+	};
+	return rpl::single(
+		list()
+	) | rpl::then(_myTagsUpdated.events(
+	) | rpl::filter(
+		rpl::mappers::_1 == sublist
+	) | rpl::map(list));
+}
+
 void Reactions::repaintCollected() {
 	const auto now = crl::now();
 	auto closest = crl::time();
@@ -1282,7 +1346,8 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 	auto my = 0;
 	const auto tags = _item->reactionsAreTags();
 	if (tags) {
-		history->owner().reactions().incrementMyTag(id);
+		const auto sublist = _item->savedSublist();
+		history->owner().reactions().incrementMyTag(id, sublist);
 	}
 	_list.erase(ranges::remove_if(_list, [&](MessageReaction &one) {
 		const auto removing = one.my && (my == myLimit || ++my == myLimit);
@@ -1306,7 +1371,8 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 			}
 		}
 		if (tags) {
-			history->owner().reactions().decrementMyTag(one.id);
+			const auto sublist = _item->savedSublist();
+			history->owner().reactions().decrementMyTag(one.id, sublist);
 		}
 		return removed;
 	}), end(_list));
@@ -1365,7 +1431,8 @@ void MessageReactions::remove(const ReactionId &id) {
 		}
 	}
 	if (tags) {
-		history->owner().reactions().decrementMyTag(id);
+		const auto sublist = _item->savedSublist();
+		history->owner().reactions().decrementMyTag(id, sublist);
 	}
 	auto &owner = history->owner();
 	owner.reactions().send(_item, false);
