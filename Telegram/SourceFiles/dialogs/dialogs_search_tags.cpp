@@ -19,10 +19,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 namespace Dialogs {
+namespace {
+
+[[nodiscard]] QString ComposeText(const Data::Reaction &tag) {
+	auto result = tag.title;
+	if (!result.isEmpty() && tag.count > 0) {
+		result.append(' ');
+	}
+	if (tag.count > 0) {
+		result.append(QString::number(tag.count));
+	}
+	return TextUtilities::SingleLine(result);
+}
+
+} // namespace
 
 struct SearchTags::Tag {
 	Data::ReactionId id;
 	std::unique_ptr<Ui::Text::CustomEmoji> custom;
+	QString text;
+	int textWidth = 0;
 	mutable QImage image;
 	QRect geometry;
 	ClickHandlerPtr link;
@@ -75,7 +91,7 @@ void SearchTags::fill(const std::vector<Data::Reaction> &list) {
 			}
 		}));
 	};
-	const auto push = [&](Data::ReactionId id) {
+	const auto push = [&](Data::ReactionId id, const QString &text) {
 		const auto customId = id.custom();
 		_tags.push_back({
 			.id = id,
@@ -84,6 +100,8 @@ void SearchTags::fill(const std::vector<Data::Reaction> &list) {
 					customId,
 					[=] { _repaintRequests.fire({}); })
 				: nullptr),
+			.text = text,
+			.textWidth = st::reactionInlineTagFont->width(text),
 			.link = link(id),
 			.selected = ranges::contains(selected, id),
 		});
@@ -92,11 +110,11 @@ void SearchTags::fill(const std::vector<Data::Reaction> &list) {
 		}
 	};
 	for (const auto &reaction : list) {
-		push(reaction.id);
+		push(reaction.id, ComposeText(reaction));
 	}
 	for (const auto &reaction : _added) {
 		if (!ranges::contains(_tags, reaction, &Tag::id)) {
-			push(reaction);
+			push(reaction, QString());
 		}
 	}
 	if (_width > 0) {
@@ -107,26 +125,27 @@ void SearchTags::fill(const std::vector<Data::Reaction> &list) {
 void SearchTags::layout() {
 	Expects(_width > 0);
 
+	if (_tags.empty()) {
+		_height = 0;
+		return;
+	}
 	const auto &bg = validateBg(false);
 	const auto skip = st::dialogsSearchTagSkip;
 	const auto size = bg.size() / bg.devicePixelRatio();
-	const auto xsingle = size.width() + skip.x();
-	const auto ysingle = size.height() + skip.y();
-	const auto columns = std::max((_width + skip.x()) / xsingle, 1);
-	const auto rows = (_tags.size() + columns - 1) / columns;
-	for (auto row = 0; row != rows; ++row) {
-		for (auto column = 0; column != columns; ++column) {
-			const auto index = row * columns + column;
-			if (index >= _tags.size()) {
-				break;
-			}
-			const auto x = column * xsingle;
-			const auto y = row * ysingle;
-			_tags[index].geometry = QRect(QPoint(x, y), size);
+	const auto xbase = size.width();
+	const auto ybase = size.height();
+	auto x = 0;
+	auto y = 0;
+	for (auto &tag : _tags) {
+		const auto width = xbase + tag.textWidth;
+		if (x > 0 && x + width > _width) {
+			x = 0;
+			y += ybase + skip.y();
 		}
+		tag.geometry = QRect(x, y, width, xbase);
+		x += width + skip.x();
 	}
-	const auto bottom = st::dialogsSearchTagBottom;
-	_height = rows ? (rows * ysingle - skip.y() + bottom) : 0;
+	_height = y + ybase + st::dialogsSearchTagBottom;
 }
 
 void SearchTags::resizeToWidth(int width) {
@@ -212,7 +231,8 @@ void SearchTags::paint(
 	const auto padding = st::reactionInlinePadding;
 	for (const auto &tag : _tags) {
 		const auto geometry = tag.geometry.translated(position);
-		p.drawImage(geometry.topLeft(), validateBg(tag.selected));
+		paintBackground(p, geometry, tag.selected);
+		paintText(p, geometry, tag);
 		if (!tag.custom && tag.image.isNull()) {
 			tag.image = _owner->reactions().resolveImageFor(
 				tag.id,
@@ -239,16 +259,59 @@ void SearchTags::paint(
 	}
 }
 
+void SearchTags::paintBackground(
+		QPainter &p,
+		QRect geometry,
+		bool selected) const {
+	const auto &image = validateBg(selected);
+	const auto ratio = int(image.devicePixelRatio());
+	const auto size = image.size() / ratio;
+	if (const auto fill = geometry.width() - size.width(); fill > 0) {
+		const auto left = size.width() / 2;
+		const auto right = size.width() - left;
+		const auto x = geometry.x();
+		const auto y = geometry.y();
+		p.drawImage(
+			QRect(x, y, left, size.height()),
+			image,
+			QRect(QPoint(), QSize(left, size.height()) * ratio));
+		p.fillRect(
+			QRect(x + left, y, fill, size.height()),
+			bgColor(selected));
+		p.drawImage(
+			QRect(x + left + fill, y, right, size.height()),
+			image,
+			QRect(left * ratio, 0, right * ratio, size.height() * ratio));
+	} else {
+		p.drawImage(geometry.topLeft(), image);
+	}
+}
+
+void SearchTags::paintText(QPainter &p, QRect geometry, const Tag &tag) const {
+	using namespace HistoryView::Reactions;
+
+	if (tag.text.isEmpty()) {
+		return;
+	}
+	p.setPen(tag.selected ? st::dialogsTextFgActive : st::windowSubTextFg);
+	p.setFont(st::reactionInlineTagFont);
+	const auto x = geometry.x() + st::reactionInlineTagNamePosition.x();
+	const auto y = geometry.y() + st::reactionInlineTagNamePosition.y();
+	p.drawText(x, y + st::reactionInlineTagFont->ascent, tag.text);
+}
+
+QColor SearchTags::bgColor(bool selected) const {
+	return selected
+		? st::dialogsBgActive->c
+		: st::dialogsBgOver->c;
+}
+
 const QImage &SearchTags::validateBg(bool selected) const {
 	using namespace HistoryView::Reactions;
 	auto &image = selected ? _selectedBg : _normalBg;
 	if (image.isNull()) {
-		const auto tagBg = selected
-			? st::dialogsBgActive->c
-			: st::dialogsBgOver->c;
-		const auto dotBg = selected
-			? anim::with_alpha(tagBg, InlineList::TagDotAlpha())
-			: st::windowSubTextFg->c;
+		const auto tagBg = bgColor(selected);
+		const auto dotBg = st::transparent->c;
 		image = InlineList::PrepareTagBg(tagBg, dotBg);
 	}
 	return image;

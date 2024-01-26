@@ -422,10 +422,7 @@ void Reactions::scheduleMyTagsUpdate() {
 			return;
 		}
 		_myTagsUpdateScheduled = false;
-		_myTagsIds = _myTagsInfo | ranges::views::transform(
-			&MyTagInfo::id
-		) | ranges::to_vector;
-		_myTags = resolveByIds(_myTagsIds, _unresolvedMyTags);
+		_myTags = resolveByInfos(_myTagsInfo, _unresolvedMyTags);
 		_myTagsUpdated.fire({});
 	});
 }
@@ -854,10 +851,7 @@ void Reactions::updateGeneric(const MTPDmessages_stickerSet &data) {
 void Reactions::updateMyTags(const MTPDmessages_savedReactionTags &data) {
 	_myTagsHash = data.vhash().v;
 	_myTagsInfo = ListFromMTP(data);
-	_myTagsIds = _myTagsInfo | ranges::views::transform(
-		&MyTagInfo::id
-	) | ranges::to_vector;
-	_myTags = resolveByIds(_myTagsIds, _unresolvedMyTags);
+	_myTags = resolveByInfos(_myTagsInfo, _unresolvedMyTags);
 	_myTagsUpdated.fire({});
 }
 
@@ -927,7 +921,7 @@ void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
 	}
 	if (myTag) {
 		_unresolvedMyTags.erase(k);
-		_myTags = resolveByIds(_myTagsIds, _unresolvedMyTags);
+		_myTags = resolveByInfos(_myTagsInfo, _unresolvedMyTags);
 	}
 	if (tag) {
 		_unresolvedTags.erase(l);
@@ -975,6 +969,41 @@ std::vector<Reaction> Reactions::resolveByIds(
 			result.push_back(*resolved);
 		} else if (unresolved.emplace(id).second) {
 			resolve(id);
+		}
+	}
+	return result;
+}
+
+std::optional<Reaction> Reactions::resolveByInfo(const MyTagInfo &info) {
+	const auto withInfo = [&](Reaction reaction) {
+		reaction.title = info.title;
+		reaction.count = info.count;
+		return reaction;
+	};
+	if (const auto emoji = info.id.emoji(); !emoji.isEmpty()) {
+		const auto i = ranges::find(_available, info.id, &Reaction::id);
+		if (i != end(_available)) {
+			return withInfo(*i);
+		}
+	} else if (const auto customId = info.id.custom()) {
+		const auto document = _owner->document(customId);
+		if (document->sticker()) {
+			return withInfo(CustomReaction(document));
+		}
+	}
+	return {};
+}
+
+std::vector<Reaction> Reactions::resolveByInfos(
+		const std::vector<MyTagInfo> &infos,
+		base::flat_set<ReactionId> &unresolved) {
+	auto result = std::vector<Reaction>();
+	result.reserve(infos.size());
+	for (const auto &tag : infos) {
+		if (const auto resolved = resolveByInfo(tag)) {
+			result.push_back(*resolved);
+		} else if (unresolved.emplace(tag.id).second) {
+			resolve(tag.id);
 		}
 	}
 	return result;

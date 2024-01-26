@@ -34,6 +34,7 @@ struct Reaction {
 	//not_null<DocumentData*> activateEffects;
 	DocumentData *centerIcon = nullptr;
 	DocumentData *aroundAnimation = nullptr;
+	int count = 0;
 	bool active = false;
 	bool premium = false;
 };
@@ -167,6 +168,11 @@ private:
 	[[nodiscard]] std::vector<Reaction> resolveByIds(
 		const std::vector<ReactionId> &ids,
 		base::flat_set<ReactionId> &unresolved);
+	[[nodiscard]] std::optional<Reaction> resolveByInfo(
+		const MyTagInfo &info);
+	[[nodiscard]] std::vector<Reaction> resolveByInfos(
+		const std::vector<MyTagInfo> &infos,
+		base::flat_set<ReactionId> &unresolved);
 	void resolve(const ReactionId &id);
 	void applyFavorite(const ReactionId &id);
 	void scheduleMyTagsUpdate();
@@ -193,7 +199,6 @@ private:
 	std::vector<ReactionId> _recentIds;
 	base::flat_set<ReactionId> _unresolvedRecent;
 	std::vector<Reaction> _myTags;
-	std::vector<ReactionId> _myTagsIds;
 	std::vector<MyTagInfo> _myTagsInfo;
 	base::flat_set<ReactionId> _unresolvedMyTags;
 	std::vector<Reaction> _tags;

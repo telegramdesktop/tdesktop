@@ -107,7 +107,7 @@ private:
 	void layout();
 	void layoutButtons();
 
-	void setButtonTag(Button &button);
+	void setButtonTag(Button &button, const QString &title);
 	void setButtonCount(Button &button, int count);
 	void setButtonUserpics(
 		Button &button,

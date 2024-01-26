@@ -864,6 +864,8 @@ reactionInlineTagRightRadius: 3px;
 reactionInlineTagArrow: 5px;
 reactionInlineTagDot: 5px;
 reactionInlineTagDotSkip: 2px;
+reactionInlineTagFont: font(12px);
+reactionInlineTagNamePosition: point(26px, 2px);
 reactionInlineBetween: 4px;
 reactionInlineInBubbleLeft: -3px;
 reactionInlineUserpicsPadding: margins(1px, 1px, 1px, 1px);

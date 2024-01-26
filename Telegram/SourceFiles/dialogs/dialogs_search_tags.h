@@ -59,7 +59,13 @@ private:
 		const QColor &textColor) const;
 	void layout();
 	[[nodiscard]] std::vector<Data::ReactionId> collectSelected() const;
+	[[nodiscard]] QColor bgColor(bool selected) const;
 	[[nodiscard]] const QImage &validateBg(bool selected) const;
+	void paintBackground(
+		QPainter &p,
+		QRect geometry,
+		bool selected) const;
+	void paintText(QPainter &p, QRect geometry, const Tag &tag) const;
 
 	const not_null<Data::Session*> _owner;
 	std::vector<Data::ReactionId> _added;
