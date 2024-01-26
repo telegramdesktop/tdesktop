@@ -277,7 +277,7 @@ void SavedMessages::apply(const MTPDupdatePinnedSavedDialogs &update) {
 	if (!ranges::none_of(order, notLoaded)) {
 		loadPinned();
 	} else {
-		_chatsList.pinned()->applyList(_owner, order);
+		_chatsList.pinned()->applyList(this, order);
 		_owner->notifyPinnedDialogsOrderUpdated();
 	}
 }
