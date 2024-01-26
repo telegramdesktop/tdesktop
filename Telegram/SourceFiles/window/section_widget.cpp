@@ -530,12 +530,8 @@ bool ShowReactPremiumError(
 		|| item->history()->peer->isBroadcast()) {
 		return false;
 	} else if (item->reactionsAreTags()) {
-		const auto &list = controller->session().data().reactions().list(
-			Data::Reactions::Type::Tags);
-		const auto i = ranges::find(list, id, &Data::Reaction::id);
-		if (i != end(list)) {
-			return false;
-		}
+		ShowPremiumPreviewBox(controller, PremiumPreview::TagsForMessages);
+		return true;
 	} else if (!id.custom()) {
 		return false;
 	}

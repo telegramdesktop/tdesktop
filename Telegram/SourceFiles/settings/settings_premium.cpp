@@ -185,6 +185,7 @@ using Order = std::vector<QString>;
 		u"voice_to_text"_q,
 		u"no_ads"_q,
 		u"emoji_status"_q,
+		u"saved_tags"_q,
 		u"infinite_reactions"_q,
 		u"premium_stickers"_q,
 		u"animated_emoji"_q,
@@ -198,13 +199,22 @@ using Order = std::vector<QString>;
 [[nodiscard]] base::flat_map<QString, Entry> EntryMap() {
 	return base::flat_map<QString, Entry>{
 		{
+			u"saved_tags"_q,
+			Entry{
+				&st::settingsPremiumIconTags,
+				tr::lng_premium_summary_subtitle_tags_for_messages(),
+				tr::lng_premium_summary_about_tags_for_messages(),
+				PremiumPreview::TagsForMessages,
+				true,
+			},
+		},
+		{
 			u"wallpapers"_q,
 			Entry{
 				&st::settingsPremiumIconWallpapers,
 				tr::lng_premium_summary_subtitle_wallpapers(),
 				tr::lng_premium_summary_about_wallpapers(),
 				PremiumPreview::Wallpapers,
-				true,
 			},
 		},
 		{
@@ -1510,6 +1520,8 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			return PremiumPreview::EmojiStatus;
 		} else if (s == u"infinite_reactions"_q) {
 			return PremiumPreview::InfiniteReactions;
+		} else if (s == u"saved_tags"_q) {
+			return PremiumPreview::TagsForMessages;
 		} else if (s == u"premium_stickers"_q) {
 			return PremiumPreview::Stickers;
 		} else if (s == u"animated_emoji"_q) {

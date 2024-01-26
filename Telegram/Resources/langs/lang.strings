@@ -2026,6 +2026,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_emoji_status" = "Add any of thousands emoji next to your name to display current activity.";
 "lng_premium_summary_subtitle_infinite_reactions" = "Infinite Reactions";
 "lng_premium_summary_about_infinite_reactions" = "React with thousands of emoji — with multiple reactions per message.";
+"lng_premium_summary_subtitle_tags_for_messages" = "Tags for Messages";
+"lng_premium_summary_about_tags_for_messages" = "Organize your Saved Messages with tags for quicker access.";
 "lng_premium_summary_subtitle_premium_stickers" = "Premium Stickers";
 "lng_premium_summary_about_premium_stickers" = "Exclusive enlarged stickers featuring additional effects, updated monthly.";
 "lng_premium_summary_subtitle_animated_emoji" = "Animated Emoji";
