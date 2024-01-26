@@ -340,7 +340,7 @@ int Selector::extendTopForCategories() const {
 
 int Selector::minimalHeight() const {
 	return _skipy
-		+ (_recentRows * _size)
+		+ std::min(_recentRows * _size, st::emojiPanMinHeight)
 		+ st::emojiPanRadius
 		+ _st.padding.bottom();
 }
