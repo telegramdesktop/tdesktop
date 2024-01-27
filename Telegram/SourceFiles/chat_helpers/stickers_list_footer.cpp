@@ -635,7 +635,7 @@ void StickersListFooter::paint(
 	if (context.expanding) {
 		const auto both = clip.intersected(
 			context.clip.marginsRemoved(
-				{ context.radius, 0, context.radius, 0 }));
+				{ 0/*context.radius*/, 0, context.radius, 0 }));
 		if (both.isEmpty()) {
 			return;
 		}

@@ -2636,7 +2636,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			desiredPosition,
 			reactItem,
 			[=](ChosenReaction reaction) { reactionChosen(reaction); },
-			TextWithEntities(),
+			(reactItem->reactionsAreTags()
+				? TextWithEntities{ u"Organize your Saved Messages with tags. Learn More..."_q }
+				: TextWithEntities()),
 			_controller->cachedReactionIconFactory().createMethod())
 		: AttachSelectorResult::Skipped;
 	if (attached == AttachSelectorResult::Failed) {

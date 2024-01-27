@@ -36,6 +36,7 @@ namespace Ui {
 class PopupMenu;
 class ScrollArea;
 class PlainShadow;
+class FlatLabel;
 } // namespace Ui
 
 namespace HistoryView::Reactions {
@@ -80,6 +81,7 @@ public:
 		const style::EmojiPan &st,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::PossibleItemReactionsRef &reactions,
+		TextWithEntities about,
 		IconFactory iconFactory,
 		Fn<void(bool fast)> close,
 		bool child = false);
@@ -91,12 +93,14 @@ public:
 		std::vector<DocumentId> recent,
 		Fn<void(bool fast)> close,
 		bool child = false);
+	~Selector();
 
 	[[nodiscard]] bool useTransparency() const;
 
 	int countWidth(int desiredWidth, int maxWidth);
 	[[nodiscard]] QMargins marginsForShadow() const;
 	[[nodiscard]] int extendTopForCategories() const;
+	[[nodiscard]] int extendTopForCategoriesAndAbout(int width) const;
 	[[nodiscard]] int minimalHeight() const;
 	[[nodiscard]] int countAppearedWidth(float64 progress) const;
 	void setSpecialExpandTopSkip(int skip);
@@ -137,6 +141,7 @@ private:
 		const Data::PossibleItemReactionsRef &reactions,
 		ChatHelpers::EmojiListMode mode,
 		std::vector<DocumentId> recent,
+		TextWithEntities about,
 		IconFactory iconFactory,
 		Fn<void(bool fast)> close,
 		bool child);
@@ -179,6 +184,8 @@ private:
 	Fn<void()> _jumpedToPremium;
 	Ui::RoundAreaWithShadow _cachedRound;
 	std::unique_ptr<Strip> _strip;
+	std::unique_ptr<Ui::FlatLabel> _about;
+	mutable int _aboutExtend = 0;
 
 	rpl::event_stream<ChosenReaction> _chosen;
 	rpl::event_stream<> _willExpand;
@@ -200,9 +207,11 @@ private:
 	QRect _outer;
 	QRect _outerWithBubble;
 	QImage _expandIconCache;
+	QImage _aboutCache;
 	QMargins _padding;
 	int _specialExpandTopSkip = 0;
 	int _collapsedTopSkip = 0;
+	int _topAddOnExpand = 0;
 	const int _size = 0;
 	int _recentRows = 0;
 	int _columns = 0;
@@ -243,7 +252,7 @@ AttachSelectorResult AttachSelectorToMenu(
 	QPoint desiredPosition,
 	not_null<HistoryItem*> item,
 	Fn<void(ChosenReaction)> chosen,
-	TextWithEntities description,
+	TextWithEntities about,
 	IconFactory iconFactory);
 
 [[nodiscard]] auto AttachSelectorToMenu(
@@ -252,6 +261,7 @@ AttachSelectorResult AttachSelectorToMenu(
 	const style::EmojiPan &st,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::PossibleItemReactionsRef &reactions,
+	TextWithEntities about,
 	IconFactory iconFactory
 ) -> base::expected<not_null<Selector*>, AttachSelectorResult>;
 

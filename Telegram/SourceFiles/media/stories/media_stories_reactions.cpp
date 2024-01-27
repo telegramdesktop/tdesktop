@@ -675,6 +675,9 @@ void Reactions::Panel::create() {
 		st::storiesReactionsPan,
 		_controller->uiShow(),
 		std::move(reactions),
+		TextWithEntities{ (mode == Mode::Message
+			? u"Send reaction as a private message"_q
+			: QString()) },
 		_controller->cachedReactionIconFactory().createMethod(),
 		[=](bool fast) { hide(mode); });
 
@@ -689,7 +692,8 @@ void Reactions::Panel::create() {
 	const auto maxWidth = desiredWidth * 2;
 	const auto width = _selector->countWidth(desiredWidth, maxWidth);
 	const auto margins = _selector->marginsForShadow();
-	const auto categoriesTop = _selector->extendTopForCategories();
+	const auto categoriesTop = _selector->extendTopForCategoriesAndAbout(
+		width);
 	const auto full = margins.left() + width + margins.right();
 
 	_shownValue = 0.;
@@ -874,6 +878,7 @@ auto Reactions::attachToMenu(
 		st::storiesReactionsPan,
 		show,
 		LookupPossibleReactions(&show->session()),
+		TextWithEntities(),
 		_controller->cachedReactionIconFactory().createMethod());
 	if (!result) {
 		return result.error();

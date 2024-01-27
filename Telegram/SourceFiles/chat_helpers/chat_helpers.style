@@ -122,6 +122,8 @@ EmojiPan {
 	removeSet: IconButton;
 	boxLabel: FlatLabel;
 	icons: ComposeIcons;
+	about: FlatLabel;
+	aboutPadding: margins;
 	autocompleteBottomSkip: pixels;
 }
 
@@ -617,6 +619,14 @@ defaultComposeIcons: ComposeIcons {
 		{ "chat/reactions_expand_panel", windowSubTextFg },
 	};
 }
+defaultEmojiPanAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 10px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
 defaultEmojiPan: EmojiPan {
 	margin: margins(7px, 0px, 7px, 0px);
 	padding: margins(7px, 0px, 4px, 7px);
@@ -658,6 +668,8 @@ defaultEmojiPan: EmojiPan {
 	removeSet: stickerPanRemoveSet;
 	boxLabel: boxLabel;
 	icons: defaultComposeIcons;
+	about: defaultEmojiPanAbout;
+	aboutPadding: margins(12px, 2px, 12px, 2px);
 	autocompleteBottomSkip: 0px;
 }
 statusEmojiPan: EmojiPan(defaultEmojiPan) {
