@@ -1862,6 +1862,9 @@ void InnerWidget::setSearchedPressed(int pressed) {
 }
 
 void InnerWidget::resizeEvent(QResizeEvent *e) {
+	if (_searchTags) {
+		_searchTags->resizeToWidth(width() - 2 * _searchTagsLeft);
+	}
 	resizeEmptyLabel();
 	moveCancelSearchButtons();
 }

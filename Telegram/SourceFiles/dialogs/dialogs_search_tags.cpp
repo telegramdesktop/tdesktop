@@ -214,7 +214,9 @@ void SearchTags::layout() {
 	auto x = 0;
 	auto y = 0;
 	for (auto &tag : _tags) {
-		const auto width = xbase + tag.textWidth;
+		const auto width = xbase + (tag.promo
+			? std::max(0, tag.textWidth - st::dialogsSearchTagPromoLeft - st::dialogsSearchTagPromoRight)
+			: tag.textWidth);
 		if (x > 0 && x + width > _width) {
 			x = 0;
 			y += ybase + skip.y();
@@ -224,7 +226,7 @@ void SearchTags::layout() {
 	}
 	_height = y + ybase + st::dialogsSearchTagBottom;
 	if (_tags.size() == 1 && _tags.front().promo) {
-		_additionalLeft = x;
+		_additionalLeft = x - skip.x() + st::dialogsSearchTagPromoSkip;
 		const auto additionalWidth = _width - _additionalLeft;
 		_additionalText = FillAdditionalText(_owner, additionalWidth);
 	} else {
@@ -335,7 +337,11 @@ void SearchTags::paint(
 			inner.topLeft() + QPoint(skip, skip),
 			QSize(st::reactionInlineImage, st::reactionInlineImage));
 		if (tag.promo) {
-			st::dialogsSearchTagLocked.paintInCenter(p, image);
+			st::dialogsSearchTagLocked.paintInCenter(p, QRect(
+				inner.x(),
+				inner.y() + skip,
+				size - st::dialogsSearchTagPromoLeft,
+				st::reactionInlineImage));
 		} else if (const auto custom = tag.custom.get()) {
 			const auto textFg = tag.selected
 				? st::dialogsNameFgActive->c
@@ -363,7 +369,7 @@ void SearchTags::paintAdditionalText(Painter &p, QPoint position) const {
 	const auto height = st::dialogsSearchTagPromo.font->height;
 	const auto y = position.y() + tag.y() + (tag.height() - height) / 2;
 	p.setPen(st::windowSubTextFg);
-	_additionalText.drawLeft(p, x, y, _width - x, _width);
+	_additionalText.drawLeft(p, x, y, _width - _additionalLeft, _width);
 }
 
 void SearchTags::paintBackground(
@@ -409,8 +415,11 @@ void SearchTags::paintText(
 		? st::dialogsTextFgActive
 		: st::windowSubTextFg);
 	p.setFont(st::reactionInlineTagFont);
-	const auto x = geometry.x() + st::reactionInlineTagNamePosition.x();
-	const auto y = geometry.y() + st::reactionInlineTagNamePosition.y();
+	const auto position = tag.promo
+		? st::reactionInlineTagPromoPosition
+		: st::reactionInlineTagNamePosition;
+	const auto x = geometry.x() + position.x();
+	const auto y = geometry.y() + position.y();
 	p.drawText(x, y + st::reactionInlineTagFont->ascent, tag.text);
 }
 

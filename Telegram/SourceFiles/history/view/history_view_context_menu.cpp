@@ -1449,14 +1449,14 @@ void ShowTagMenu(
 				.sessionWindow = controller,
 			}),
 		});
-	}, &st::menuIconFave);
+	}, &st::menuIconTagFilter);
 
 	const auto editLabel = owner->reactions().myTagTitle(id).isEmpty()
 		? tr::lng_context_tag_add_name(tr::now)
 		: tr::lng_context_tag_edit_name(tr::now);
 	(*menu)->addAction(editLabel, [=] {
 		controller->show(Box(EditTagBox, controller, id));
-	}, &st::menuIconEdit);
+	}, &st::menuIconTagRename);
 
 	const auto removeTag = [=] {
 		if (const auto item = owner->message(itemId)) {
@@ -1475,8 +1475,8 @@ void ShowTagMenu(
 			(*menu)->menu(),
 			tr::lng_context_remove_tag(tr::now),
 			removeTag),
-		&st::menuIconDisableAttention,
-		&st::menuIconDisableAttention));
+		&st::menuIconTagRemoveAttention,
+		&st::menuIconTagRemoveAttention));
 
 	if (const auto custom = id.custom()) {
 		if (const auto set = owner->document(custom)->sticker()) {

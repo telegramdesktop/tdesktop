@@ -147,6 +147,8 @@ menuIconEnlarge: icon {{ "menu/link_enlarge", menuIconColor }};
 menuIconShrink: icon {{ "menu/link_shrink", menuIconColor }};
 menuIconAsTopics: icon {{ "menu/mode_topics", menuIconColor }};
 menuIconAsMessages: icon {{ "menu/mode_messages", menuIconColor }};
+menuIconTagFilter: icon{{ "menu/tag_filter", menuIconColor }};
+menuIconTagRename: icon{{ "menu/tag_rename", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
@@ -182,6 +184,7 @@ menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};
 menuIconDisableAttention: icon {{ "menu/disable", menuIconAttentionColor }};
 menuIconReportAttention: icon {{ "menu/report", menuIconAttentionColor }};
 menuIconRestoreAttention: icon {{ "menu/restore", menuIconAttentionColor }};
+menuIconTagRemoveAttention: icon {{ "menu/tag_remove", menuIconAttentionColor }};
 
 menuIconBlockSettings: icon {{ "menu/block", windowBgActive }};
 menuIconInviteSettings: icon {{ "menu/invite", windowBgActive }};

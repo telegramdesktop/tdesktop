@@ -327,6 +327,8 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		setSearchInChat((_openedForum && !_searchInChat)
 			? Key(_openedForum->history())
+			: _searchInChat.sublist()
+			? Key(session().data().history(session().user()))
 			: _searchInChat, nullptr);
 		applyFilterUpdate(true);
 	}, lifetime());
