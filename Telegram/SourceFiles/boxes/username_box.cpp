@@ -33,17 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-[[nodiscard]] TextWithEntities PurchaseAvailableText() {
-	constexpr auto kUsernameAuction = "auction";
-	return tr::lng_username_purchase_available(
-		tr::now,
-		lt_link,
-		Ui::Text::Link(
-			'@' + QString(kUsernameAuction),
-			u"https://t.me/"_q + kUsernameAuction),
-		Ui::Text::RichLangValue);
-}
-
 class UsernameEditor final : public Ui::RpWidget {
 public:
 	UsernameEditor(not_null<Ui::RpWidget*>, not_null<PeerData*> peer);
@@ -268,9 +257,8 @@ void UsernameEditor::checkInfoPurchaseAvailable() {
 	_username->showError();
 	_errorText = u".bad."_q;
 
-	_checkInfoChanged.fire({
-		.type = UsernameCheckInfo::Type::PurchaseAvailable,
-	});
+	_checkInfoChanged.fire(
+		UsernameCheckInfo::PurchaseAvailable(_checkUsername, _peer));
 }
 
 void UsernameEditor::updateFail(const QString &error) {
@@ -424,9 +412,7 @@ void AddUsernameCheckLabel(
 		container->widthValue()
 	) | rpl::start_with_next([=](const UsernameCheckInfo &info, int w) {
 		using Type = UsernameCheckInfo::Type;
-		label->setMarkedText((info.type == Type::PurchaseAvailable)
-			? PurchaseAvailableText()
-			: info.text);
+		label->setMarkedText(info.text);
 		const auto &color = (info.type == Type::Good)
 			? st::boxTextFgGood
 			: (info.type == Type::Error)
@@ -436,4 +422,26 @@ void AddUsernameCheckLabel(
 		label->resizeToWidth(w - padding.left() - padding.right());
 	}, label->lifetime());
 	Ui::AddSkip(container, skip);
+}
+
+UsernameCheckInfo UsernameCheckInfo::PurchaseAvailable(
+		const QString &username,
+		not_null<PeerData*> peer) {
+	if (const auto fragmentLink = AppConfig::FragmentLink(&peer->session())) {
+		return {
+			.type = UsernameCheckInfo::Type::Default,
+			.text = tr::lng_username_purchase_available(
+				tr::now,
+				lt_link,
+				Ui::Text::Link(
+					tr::lng_username_purchase_available_link(tr::now),
+					(*fragmentLink) + u"/username/"_q + username),
+				Ui::Text::RichLangValue),
+		};
+	} else {
+		return {
+			.type = UsernameCheckInfo::Type::Error,
+			.text = { u"INTERNAL_SERVER_ERROR"_q },
+		};
+	}
 }

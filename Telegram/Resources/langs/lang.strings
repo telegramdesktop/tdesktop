@@ -433,7 +433,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_username_invalid" = "This username is invalid.";
 "lng_username_occupied" = "This username is already occupied.";
 "lng_username_too_short" = "This username is too short.";
-"lng_username_purchase_available" = "Sorry, this link is occupied by someone. But it's available for purchase through\nofficial {link}.";
+"lng_username_purchase_available" = "**This username is already taken.** However, it is currently available for purchase. {link}";
+"lng_username_purchase_available_link" = "Learn more...";
 "lng_username_bad_symbols" = "Only a-z, 0-9, and underscores allowed.";
 "lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
