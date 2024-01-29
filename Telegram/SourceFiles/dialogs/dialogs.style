@@ -626,3 +626,7 @@ searchedBarPosition: point(17px, 7px);
 
 dialogsSearchTagSkip: point(8px, 4px);
 dialogsSearchTagBottom: 10px;
+dialogsSearchTagLocked: icon{{ "emoji/premium_lock", lightButtonFgOver }};
+dialogsSearchTagPromo: defaultTextStyle;
+dialogsSearchTagArrow: icon{{ "dialogs/tags_arrow", windowSubTextFg }};
+dialogsSearchTagArrowPadding: margins(0px, 3px, 0px, 0px);

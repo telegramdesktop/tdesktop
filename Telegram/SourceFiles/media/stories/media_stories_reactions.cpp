@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
-#include "lang/lang_tag.h"
+#include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/emoji_fly_animation.h"
 #include "ui/effects/path_shift_gradient.h"
@@ -676,7 +676,7 @@ void Reactions::Panel::create() {
 		_controller->uiShow(),
 		std::move(reactions),
 		TextWithEntities{ (mode == Mode::Message
-			? u"Send reaction as a private message"_q
+			? tr::lng_stories_reaction_as_message(tr::now)
 			: QString()) },
 		_controller->cachedReactionIconFactory().createMethod(),
 		[=](bool fast) { hide(mode); });

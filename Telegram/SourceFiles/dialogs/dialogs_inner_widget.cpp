@@ -18,8 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_search_tags.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "core/shortcuts.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
+#include "core/shortcuts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
@@ -1783,7 +1784,11 @@ void InnerWidget::mousePressReleased(
 		}
 	}
 	if (auto activated = ClickHandler::unpressed()) {
-		ActivateClickHandler(window(), activated, ClickContext{ button });
+		ActivateClickHandler(window(), activated, ClickContext{
+			button,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = _controller,
+			}) });
 	}
 }
 
@@ -3002,8 +3007,8 @@ void InnerWidget::searchInChat(
 				update(0, searchInChatOffset(), width(), height);
 			}, _searchTags->lifetime());
 
-			_searchTags->heightValue() | rpl::filter(
-				rpl::mappers::_1 > 0
+			_searchTags->heightValue() | rpl::skip(
+				1
 			) | rpl::start_with_next([=] {
 				refresh();
 				moveCancelSearchButtons();

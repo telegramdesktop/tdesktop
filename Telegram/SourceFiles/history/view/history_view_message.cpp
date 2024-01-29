@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_reply.h"
 #include "history/view/history_view_view_button.h" // ViewButton.
 #include "history/history.h"
+#include "boxes/premium_preview_box.h"
 #include "boxes/share_box.h"
 #include "ui/effects/glare.h"
 #include "ui/effects/reaction_fly_animation.h"
@@ -49,13 +50,13 @@ namespace {
 constexpr auto kPlayStatusLimit = 2;
 const auto kPsaTooltipPrefix = "cloud_lng_tooltip_psa_";
 
-[[nodiscard]] std::optional<Window::SessionController*> ExtractController(
+[[nodiscard]] Window::SessionController *ExtractController(
 		const ClickContext &context) {
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto controller = my.sessionWindow.get()) {
 		return controller;
 	}
-	return std::nullopt;
+	return nullptr;
 }
 
 class KeyboardStyle : public ReplyKeyboard::Style {
@@ -2288,11 +2289,8 @@ ClickHandlerPtr Message::createGoToCommentsLink() const {
 	const auto fullId = data()->fullId();
 	const auto sessionId = data()->history()->session().uniqueId();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
-		const auto controller = ExtractController(context).value_or(nullptr);
-		if (!controller) {
-			return;
-		}
-		if (controller->session().uniqueId() != sessionId) {
+		const auto controller = ExtractController(context);
+		if (!controller || controller->session().uniqueId() != sessionId) {
 			return;
 		}
 		if (const auto item = controller->session().data().message(fullId)) {
@@ -2984,12 +2982,20 @@ void Message::refreshReactions() {
 			return std::make_shared<LambdaClickHandler>([=](
 					ClickContext context) {
 				if (const auto strong = weak.get()) {
-					if (strong->data()->reactionsAreTags()) {
-						const auto tag = Data::SearchTagToQuery(id);
-						HashtagClickHandler(tag).onClick(context);
+					const auto item = strong->data();
+					if (item->reactionsAreTags()) {
+						if (item->history()->session().premium()) {
+							const auto tag = Data::SearchTagToQuery(id);
+							HashtagClickHandler(tag).onClick(context);
+						} else if (const auto controller
+							= ExtractController(context)) {
+							ShowPremiumPreviewBox(
+								controller,
+								PremiumPreview::TagsForMessages);
+						}
 						return;
 					}
-					strong->data()->toggleReaction(
+					item->toggleReaction(
 						id,
 						HistoryItem::ReactionSource::Existing);
 					if (const auto now = weak.get()) {
@@ -3586,11 +3592,8 @@ ClickHandlerPtr Message::prepareRightActionLink() const {
 	};
 	return std::make_shared<LambdaClickHandler>([=](
 			ClickContext context) {
-		const auto controller = ExtractController(context).value_or(nullptr);
-		if (!controller) {
-			return;
-		}
-		if (controller->session().uniqueId() != sessionId) {
+		const auto controller = ExtractController(context);
+		if (!controller || controller->session().uniqueId() != sessionId) {
 			return;
 		}
 

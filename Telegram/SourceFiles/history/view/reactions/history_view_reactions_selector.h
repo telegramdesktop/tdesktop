@@ -265,4 +265,7 @@ AttachSelectorResult AttachSelectorToMenu(
 	IconFactory iconFactory
 ) -> base::expected<not_null<Selector*>, AttachSelectorResult>;
 
+[[nodiscard]] TextWithEntities ItemReactionsAbout(
+	not_null<HistoryItem*> item);
+
 } // namespace HistoryView::Reactions

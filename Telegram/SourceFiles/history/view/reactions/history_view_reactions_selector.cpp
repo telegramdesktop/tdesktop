@@ -12,13 +12,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/text/text_utilities.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/painter.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_footer.h"
@@ -276,6 +279,13 @@ Selector::Selector(
 , _skipx(countSkipLeft())
 , _skipy((st::reactStripHeight - st::reactStripSize) / 2) {
 	setMouseTracking(true);
+
+	if (_about) {
+		_about->setClickHandlerFilter([=](const auto &...) {
+			_escapes.fire({});
+			return true;
+		});
+	}
 
 	_useTransparency = child || Ui::Platform::TranslucentWindowsSupported();
 }
@@ -1173,6 +1183,10 @@ AttachSelectorResult AttachSelectorToMenu(
 		chosen(std::move(reaction));
 	}, selector->lifetime());
 
+	selector->escapes() | rpl::start_with_next([=] {
+		menu->hideMenu();
+	}, selector->lifetime());
+
 	const auto weak = base::make_weak(controller);
 	controller->enableGifPauseReason(
 		Window::GifPauseReason::MediaPreview);
@@ -1247,6 +1261,20 @@ auto AttachSelectorToMenu(
 	}, selector->lifetime());
 
 	return selector;
+}
+
+TextWithEntities ItemReactionsAbout(not_null<HistoryItem*> item) {
+	return !item->reactionsAreTags()
+		? TextWithEntities()
+		: item->history()->session().premium()
+		? TextWithEntities{ tr::lng_add_tag_about(tr::now) }
+		: tr::lng_subscribe_tag_about(
+			tr::now,
+			lt_link,
+			Ui::Text::Link(
+				tr::lng_subscribe_tag_link(tr::now),
+				u"internal:about_tags"_q),
+			Ui::Text::WithEntities);
 }
 
 } // namespace HistoryView::Reactions

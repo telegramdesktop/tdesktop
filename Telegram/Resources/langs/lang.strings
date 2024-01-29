@@ -2814,8 +2814,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_read_hidden" = "read";
 "lng_context_read_show" = "show when";
 
+"lng_add_tag_about" = "Tag this message with an emoji for quick search.";
+"lng_subscribe_tag_about" = "Organize your Saved Messages with tags. {link}";
+"lng_subscribe_tag_link" = "Learn More...";
 "lng_edit_tag_about" = "You can label your emoji tag with a text name.";
 "lng_edit_tag_name" = "Name";
+"lng_add_tag_button" = "Add tags";
+"lng_add_tag_phrase" = "to messages {arrow}";
+"lng_add_tag_phrase_long" = "to your Saved Messages {arrow}";
+"lng_unlock_tags" = "Unlock";
 
 "lng_context_animated_emoji" = "This message contains emoji from **{name} pack**.";
 "lng_context_animated_emoji_many#one" = "This message contains emoji from **{count} pack**.";
@@ -4471,6 +4478,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_channel_archive_done_many#one" = "{count} story is hidden from the channel page.";
 "lng_stories_channel_archive_done_many#other" = "{count} stories are hidden from the channel page.";
 "lng_stories_save_promo" = "Subscribe to {link} to download other people's unprotected stories to disk.";
+"lng_stories_reaction_as_message" = "Send reaction as a private message";
 
 "lng_stealth_mode_menu_item" = "Stealth Mode";
 "lng_stealth_mode_title" = "Stealth Mode";
