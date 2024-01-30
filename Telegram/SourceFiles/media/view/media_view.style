@@ -602,6 +602,9 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	colorAllLabel: storiesColorAllLabel;
 	removeSet: storiesRemoveSet;
 	boxLabel: storiesBoxLabel;
+	about: FlatLabel(defaultEmojiPanAbout) {
+		textFg: storiesComposeGrayText;
+	}
 	icons: ComposeIcons {
 		settings: icon {{ "emoji/emoji_settings", storiesComposeGrayIcon }};
 
