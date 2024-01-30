@@ -912,6 +912,7 @@ searchInChatPeerListItem: PeerListItem(defaultPeerListItem) {
 searchInChatPeerList: PeerList(defaultPeerList) {
 	item: searchInChatPeerListItem;
 }
+searchInChatTagsPadding: margins(6px, 0px, 6px, 0px);
 
 msgServiceGiftBoxSize: size(236px, 231px); // Plus msgServiceGiftBoxTopSkip.
 msgServiceGiftBoxRadius: 20px;

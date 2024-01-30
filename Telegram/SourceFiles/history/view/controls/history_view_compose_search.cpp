@@ -9,12 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_messages_search_merged.h"
 #include "boxes/peer_list_box.h"
+#include "core/click_handler_types.h"
+#include "core/ui_integration.h"
+#include "data/data_message_reactions.h"
+#include "data/data_saved_messages.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "dialogs/dialogs_search_from_controllers.h" // SearchFromBox
+#include "dialogs/dialogs_search_tags.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/effects/show_animation.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -255,7 +262,12 @@ List CreateList(
 
 class TopBar final : public Ui::RpWidget {
 public:
-	TopBar(not_null<Ui::RpWidget*> parent, const QString &query);
+	TopBar(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> window,
+		not_null<History*> history,
+		PeerData *from,
+		const QString &query);
 
 	void setInnerFocus();
 	void setQuery(const QString &query);
@@ -275,11 +287,17 @@ protected:
 
 private:
 	void clearItems();
+	void setupTags(
+		not_null<Window::SessionController*> window,
+		not_null<History*> history,
+		PeerData *from);
 	void requestSearch(bool cache = true);
 	void requestSearchDelayed();
 
 	base::unique_qptr<Ui::IconButton> _cancel;
+	std::vector<Data::ReactionId> _searchTagsSelected;
 	base::unique_qptr<Ui::MultiSelect> _select;
+	std::unique_ptr<Dialogs::SearchTags> _searchTags;
 
 	rpl::variable<PeerData*> _from = nullptr;
 
@@ -293,29 +311,39 @@ private:
 	rpl::event_stream<not_null<QKeyEvent*>> _keyEvents;
 };
 
-TopBar::TopBar(not_null<Ui::RpWidget*> parent, const QString &query)
+TopBar::TopBar(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Window::SessionController*> window,
+	not_null<History*> history,
+	PeerData *from,
+	const QString &query)
 : Ui::RpWidget(parent)
 , _cancel(base::make_unique_q<Ui::IconButton>(this, st::historyTopBarBack))
+, _searchTagsSelected(Data::SearchTagsFromQuery(query))
 , _select(base::make_unique_q<Ui::MultiSelect>(
 	this,
 	st::searchInChatMultiSelect,
 	tr::lng_dlg_filter(),
-	query))
+	_searchTagsSelected.empty() ? query : QString()))
 , _searchTimer([=] { requestSearch(); }) {
+	setupTags(window, history, from);
 
-	parent->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
+	rpl::combine(
+		parent->geometryValue(),
+		_searchTags ? _searchTags->heightValue() : rpl::single(0)
+	) | rpl::start_with_next([=](const QRect &r, int tagsHeight) {
 		moveToLeft(0, 0);
-		resize(r.width(), st::topBarHeight);
+		resize(r.width(), st::topBarHeight + tagsHeight);
 	}, lifetime());
 
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
-		_cancel->moveToLeft(0, (s.height() - _cancel->height()) / 2);
+		const auto height = st::topBarHeight;
+		_cancel->moveToLeft(0, (height - _cancel->height()) / 2);
 
 		const auto selectLeft = _cancel->x() + _cancel->width();
 		_select->resizeToWidth(s.width() - selectLeft);
-		_select->moveToLeft(selectLeft, (s.height() - _select->height()) / 2);
+		_select->moveToLeft(selectLeft, (height - _select->height()) / 2);
 
 	}, lifetime());
 
@@ -337,6 +365,10 @@ TopBar::TopBar(not_null<Ui::RpWidget*> parent, const QString &query)
 	_select->setCancelledCallback([=] {
 		_cancelRequests.fire({});
 	});
+
+	if (from) {
+		setFrom(from);
+	}
 }
 
 void TopBar::keyPressEvent(QKeyEvent *e) {
@@ -372,8 +404,94 @@ void TopBar::clearItems() {
 	});
 }
 
+void TopBar::setupTags(
+		not_null<Window::SessionController*> window,
+		not_null<History*> history,
+		PeerData *from) {
+	if (!_searchTagsSelected.empty()) {
+		history = history->owner().history(history->session().user());
+	} else if (!history->peer->isSelf()) {
+		_searchTags = nullptr;
+		return;
+	}
+	const auto reactions = &history->owner().reactions();
+	const auto sublist = from
+		? history->owner().savedMessages().sublist(from).get()
+		: nullptr;
+	_searchTags = std::make_unique<Dialogs::SearchTags>(
+		&history->owner(),
+		reactions->myTagsValue(sublist),
+		_searchTagsSelected);
+
+	_searchTags->selectedValue(
+	) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
+		_searchTagsSelected = std::move(list);
+		requestSearch(false);
+	}, _searchTags->lifetime());
+
+	const auto parent = Ui::CreateChild<Ui::RpWidget>(this);
+	const auto padding = st::searchInChatTagsPadding;
+	const auto position = QPoint(padding.left(), padding.top());
+
+	_searchTags->repaintRequests() | rpl::start_with_next([=] {
+		parent->update();
+	}, _searchTags->lifetime());
+
+	widthValue() | rpl::start_with_next([=](int width) {
+		width -= padding.left() + padding.right();
+		_searchTags->resizeToWidth(width);
+	}, _searchTags->lifetime());
+
+	rpl::combine(
+		widthValue(),
+		_searchTags->heightValue()
+	) | rpl::start_with_next([=](int width, int height) {
+		height += padding.top() + padding.bottom();
+		parent->setGeometry(0, st::topBarHeight, width, height);
+	}, _searchTags->lifetime());
+
+	parent->paintRequest() | rpl::start_with_next([=](const QRect &r) {
+		auto p = Painter(parent);
+		p.fillRect(r, st::dialogsBg);
+		_searchTags->paint(p, position, crl::now(), false);
+	}, parent->lifetime());
+
+	parent->setMouseTracking(true);
+	parent->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseMove) {
+			const auto mouse = static_cast<QMouseEvent*>(e.get());
+			const auto point = mouse->pos() - position;
+			const auto handler = _searchTags->lookupHandler(point);
+			ClickHandler::setActive(handler);
+			parent->setCursor(handler
+				? style::cur_pointer
+				: style::cur_default);
+		} else if (e->type() == QEvent::MouseButtonPress) {
+			const auto mouse = static_cast<QMouseEvent*>(e.get());
+			if (mouse->button() == Qt::LeftButton) {
+				ClickHandler::pressed();
+			}
+		} else if (e->type() == QEvent::MouseButtonRelease) {
+			const auto mouse = static_cast<QMouseEvent*>(e.get());
+			if (mouse->button() == Qt::LeftButton) {
+				const auto handler = ClickHandler::unpressed();
+				ActivateClickHandler(parent, handler, ClickContext{
+					.button = mouse->button(),
+					.other = QVariant::fromValue(ClickHandlerContext{
+						.sessionWindow = window,
+					}),
+				});
+			}
+		}
+	}, parent->lifetime());
+}
+
 void TopBar::requestSearch(bool cache) {
-	const auto search = SearchRequest{ _select->getQuery(), _from.current() };
+	const auto search = SearchRequest{
+		_select->getQuery(),
+		_from.current(),
+		_searchTagsSelected
+	};
 	if (cache) {
 		_typedRequests.insert(search);
 	}
@@ -382,7 +500,11 @@ void TopBar::requestSearch(bool cache) {
 
 void TopBar::requestSearchDelayed() {
 	// Check cached queries.
-	const auto search = SearchRequest{ _select->getQuery(), _from.current() };
+	const auto search = SearchRequest{
+		_select->getQuery(),
+		_from.current(),
+		_searchTagsSelected
+	};
 	if (_typedRequests.contains(search)) {
 		requestSearch(false);
 		return;
@@ -655,6 +777,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> window,
 		not_null<History*> history,
+		PeerData *from,
 		const QString &query);
 	~Inner();
 
@@ -693,10 +816,11 @@ ComposeSearch::Inner::Inner(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> window,
 	not_null<History*> history,
+	PeerData *from,
 	const QString &query)
 : _window(window)
 , _history(history)
-, _topBar(base::make_unique_q<TopBar>(parent, query))
+, _topBar(base::make_unique_q<TopBar>(parent, window, history, from, query))
 , _bottomBar(base::make_unique_q<BottomBar>(parent, HasChooseFrom(history)))
 , _list(CreateList(parent, history))
 , _apiSearch(history) {
@@ -720,7 +844,7 @@ ComposeSearch::Inner::Inner(
 
 	_topBar->searchRequests(
 	) | rpl::start_with_next([=](const SearchRequest &search) {
-		if (search.query.isEmpty() && !search.from) {
+		if (search.query.isEmpty() && !search.from && search.tags.empty()) {
 			return;
 		}
 		_apiSearch.clear();
@@ -893,8 +1017,9 @@ ComposeSearch::ComposeSearch(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> window,
 	not_null<History*> history,
+	PeerData *from,
 	const QString &query)
-: _inner(std::make_unique<Inner>(parent, window, history, query)) {
+: _inner(std::make_unique<Inner>(parent, window, history, from, query)) {
 }
 
 ComposeSearch::~ComposeSearch() {

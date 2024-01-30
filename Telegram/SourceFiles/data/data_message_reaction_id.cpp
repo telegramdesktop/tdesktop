@@ -31,6 +31,15 @@ ReactionId SearchTagFromQuery(const QString &query) {
 	return {};
 }
 
+std::vector<ReactionId> SearchTagsFromQuery(
+		const QString &query) {
+	auto result = std::vector<ReactionId>();
+	if (const auto tag = SearchTagFromQuery(query)) {
+		result.push_back(tag);
+	}
+	return result;
+}
+
 QString ReactionEntityData(const ReactionId &id) {
 	if (id.empty()) {
 		return {};

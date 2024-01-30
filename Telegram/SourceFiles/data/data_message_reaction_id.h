@@ -47,6 +47,8 @@ struct MessageReaction {
 
 [[nodiscard]] QString SearchTagToQuery(const ReactionId &tagId);
 [[nodiscard]] ReactionId SearchTagFromQuery(const QString &query);
+[[nodiscard]] std::vector<ReactionId> SearchTagsFromQuery(
+	const QString &query);
 
 [[nodiscard]] QString ReactionEntityData(const ReactionId &id);
 

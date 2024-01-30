@@ -221,7 +221,7 @@ void DeleteMessagesBox::prepare() {
 						? QString()
 						: QString(" (%1)").arg(total));
 			});
-			search->searchMessages(QString(), _moderateFrom);
+			search->searchMessages({ .from = _moderateFrom });
 		}
 	} else {
 		details.text = (_ids.size() == 1)

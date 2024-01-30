@@ -1928,11 +1928,10 @@ void Widget::searchMessages(QString query, Key inChat) {
 		controller()->closeFolder();
 	}
 
-	auto tags = std::vector<Data::ReactionId>();
-	if (const auto tagId = Data::SearchTagFromQuery(query)) {
+	auto tags = Data::SearchTagsFromQuery(query);
+	if (!tags.empty()) {
 		inChat = session().data().history(session().user());
 		query = QString();
-		tags.push_back(tagId);
 	}
 	const auto inChatChanged = [&] {
 		const auto inPeer = inChat.peer();

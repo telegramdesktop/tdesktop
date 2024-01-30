@@ -25,6 +25,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> window,
 		not_null<History*> history,
+		PeerData *from = nullptr,
 		const QString &query = QString());
 	~ComposeSearch();
 

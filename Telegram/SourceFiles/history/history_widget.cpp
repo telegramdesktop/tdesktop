@@ -4818,10 +4818,12 @@ void HistoryWidget::searchInChatEmbedded(std::optional<QString> query) {
 
 			updateControlsGeometry();
 		};
+		const auto from = (PeerData*)nullptr;
 		_composeSearch = std::make_unique<HistoryView::ComposeSearch>(
 			this,
 			controller(),
 			_history,
+			from,
 			query.value_or(QString()));
 
 		update();
