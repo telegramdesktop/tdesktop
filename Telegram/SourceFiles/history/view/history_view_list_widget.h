@@ -124,6 +124,9 @@ public:
 	virtual void listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) = 0;
+	virtual void listSearch(
+		const QString &query,
+		const FullMsgId &context) = 0;
 	virtual void listHandleViaClick(not_null<UserData*> bot) = 0;
 	virtual not_null<Ui::ChatTheme*> listChatTheme() = 0;
 	virtual CopyRestrictionType listCopyRestrictionType(
@@ -324,6 +327,9 @@ public:
 	bool elementShownUnread(not_null<const Element*> view) override;
 	void elementSendBotCommand(
 		const QString &command,
+		const FullMsgId &context) override;
+	void elementSearchInList(
+		const QString &query,
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;

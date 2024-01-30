@@ -203,8 +203,6 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	void searchInChat(Dialogs::Key chat);
-
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,
 		Ui::ReportReason reason,

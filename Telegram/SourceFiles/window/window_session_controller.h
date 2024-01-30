@@ -240,6 +240,9 @@ public:
 		FullMsgId contextId,
 		const SectionShow &params = SectionShow());
 
+	void searchInChat(Dialogs::Key inChat);
+	void searchMessages(const QString &query, Dialogs::Key inChat);
+
 	base::weak_ptr<Ui::Toast::Instance> showToast(
 		Ui::Toast::Config &&config);
 	base::weak_ptr<Ui::Toast::Instance> showToast(
@@ -340,7 +343,12 @@ public:
 
 	// This is needed for History TopBar updating when searchInChat
 	// is changed in the Dialogs::Widget of the current window.
-	rpl::variable<Dialogs::Key> searchInChat;
+	rpl::producer<Dialogs::Key> searchInChatValue() const {
+		return _searchInChat.value();
+	}
+	void setSearchInChat(Dialogs::Key value) {
+		_searchInChat = value;
+	}
 	bool uniqueChatsInSearchResults() const;
 
 	void openFolder(not_null<Data::Folder*> folder);
@@ -658,6 +666,7 @@ private:
 	// Depends on _gifPause*.
 	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;
 
+	rpl::variable<Dialogs::Key> _searchInChat;
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	rpl::lifetime _activeHistoryLifetime;
 	rpl::variable<bool> _dialogsListFocused = false;

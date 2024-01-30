@@ -848,7 +848,9 @@ HistoryWidget::HistoryWidget(
 	}, _topBar->lifetime());
 	_topBar->searchRequest(
 	) | rpl::start_with_next([=] {
-		searchInChat();
+		if (_history) {
+			controller->searchInChat(_history);
+		}
 	}, _topBar->lifetime());
 
 	session().api().sendActions(
@@ -1840,7 +1842,7 @@ void HistoryWidget::setupShortcuts() {
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::Search, 1) && request->handle([=] {
-			searchInChat();
+			controller()->searchInChat(_history);
 			return true;
 		});
 		if (session().supportMode()) {
@@ -4789,12 +4791,6 @@ bool HistoryWidget::updateCmdStartShown() {
 	}
 	_cmdStartShown = cmdStartShown;
 	return commandsChanged || buttonChanged || textChanged;
-}
-
-void HistoryWidget::searchInChat() {
-	if (_history) {
-		controller()->content()->searchInChat(_history);
-	}
 }
 
 bool HistoryWidget::searchInChatEmbedded(Dialogs::Key chat, QString query) {

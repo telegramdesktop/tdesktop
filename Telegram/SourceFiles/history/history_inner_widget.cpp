@@ -258,6 +258,13 @@ public:
 			_widget->elementSendBotCommand(command, context);
 		}
 	}
+	void elementSearchInList(
+			const QString &query,
+			const FullMsgId &context) override {
+		if (_widget) {
+			_widget->elementSearchInList(query, context);
+		}
+	}
 	void elementHandleViaClick(not_null<UserData*> bot) override {
 		if (_widget) {
 			_widget->elementHandleViaClick(bot);
@@ -3394,6 +3401,15 @@ void HistoryInner::elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
 	_widget->sendBotCommand({ _history->peer, command, context });
+}
+
+void HistoryInner::elementSearchInList(
+		const QString &query,
+		const FullMsgId &context) {
+	const auto inChat = _history->peer->isUser()
+		? Dialogs::Key()
+		: Dialogs::Key(_history);
+	_controller->searchMessages(query, inChat);
 }
 
 void HistoryInner::elementHandleViaClick(not_null<UserData*> bot) {

@@ -985,7 +985,7 @@ void Widget::setupShortcuts() {
 		if (_openedForum && !controller()->activeChatCurrent()) {
 			request->check(Command::Search) && request->handle([=] {
 				const auto history = _openedForum->history();
-				controller()->content()->searchInChat(history);
+				controller()->searchInChat(history);
 				return true;
 			});
 		}
@@ -2654,7 +2654,7 @@ bool Widget::setSearchInChat(
 	}
 	if (searchInPeerUpdated) {
 		_searchInChat = chat;
-		controller()->searchInChat = _searchInChat;
+		controller()->setSearchInChat(_searchInChat);
 		updateJumpToDateVisibility();
 		updateStoriesVisibility();
 	}

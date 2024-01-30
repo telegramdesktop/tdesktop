@@ -1265,6 +1265,15 @@ void ScheduledWidget::listSendBotCommand(
 	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
 }
 
+void ScheduledWidget::listSearch(
+		const QString &query,
+		const FullMsgId &context) {
+	const auto inChat = _history->peer->isUser()
+		? Dialogs::Key()
+		: Dialogs::Key(_history);
+	controller()->searchMessages(query, inChat);
+}
+
 void ScheduledWidget::listHandleViaClick(not_null<UserData*> bot) {
 	_composeControls->setText({ '@' + bot->username() + ' ' });
 }

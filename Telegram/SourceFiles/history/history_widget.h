@@ -641,7 +641,6 @@ private:
 
 	bool kbWasHidden() const;
 
-	void searchInChat();
 	void switchToSearch(QString query);
 
 	MTP::Sender _api;

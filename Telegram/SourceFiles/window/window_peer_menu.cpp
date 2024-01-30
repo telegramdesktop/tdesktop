@@ -1216,7 +1216,7 @@ void Filler::addSearchTopics() {
 	const auto history = forum->history();
 	const auto controller = _controller;
 	_addAction(tr::lng_dlg_filter(tr::now), [=] {
-		controller->content()->searchInChat(history);
+		controller->searchInChat(history);
 	}, &st::menuIconSearch);
 }
 

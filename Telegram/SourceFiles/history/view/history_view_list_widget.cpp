@@ -1723,6 +1723,12 @@ void ListWidget::elementSendBotCommand(
 	_delegate->listSendBotCommand(command, context);
 }
 
+void ListWidget::elementSearchInList(
+		const QString &query,
+		const FullMsgId &context) {
+	_delegate->listSearch(query, context);
+}
+
 void ListWidget::elementHandleViaClick(not_null<UserData*> bot) {
 	_delegate->listHandleViaClick(bot);
 }

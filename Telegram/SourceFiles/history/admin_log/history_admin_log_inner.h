@@ -122,6 +122,9 @@ public:
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) override;
+	void elementSearchInList(
+		const QString &query,
+		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;

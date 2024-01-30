@@ -978,6 +978,16 @@ void SessionNavigation::showPollResults(
 	showSection(std::make_shared<Info::Memento>(poll, contextId), params);
 }
 
+void SessionNavigation::searchInChat(Dialogs::Key inChat) {
+	searchMessages(QString(), inChat);
+}
+
+void SessionNavigation::searchMessages(
+		const QString &query,
+		Dialogs::Key inChat) {
+	parentController()->content()->searchMessages(query, inChat);
+}
+
 auto SessionNavigation::showToast(Ui::Toast::Config &&config)
 -> base::weak_ptr<Ui::Toast::Instance> {
 	return uiShow()->showToast(std::move(config));
@@ -1320,7 +1330,7 @@ void SessionController::activateFirstChatsFilter() {
 bool SessionController::uniqueChatsInSearchResults() const {
 	return session().supportMode()
 		&& !session().settings().supportAllSearchResults()
-		&& !searchInChat.current();
+		&& !_searchInChat.current();
 }
 
 void SessionController::openFolder(not_null<Data::Folder*> folder) {

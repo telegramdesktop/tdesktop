@@ -2696,10 +2696,6 @@ int MainWidget::backgroundFromY() const {
 	return -getMainSectionTop();
 }
 
-void MainWidget::searchInChat(Dialogs::Key chat) {
-	searchMessages(QString(), chat);
-}
-
 bool MainWidget::contentOverlapped(const QRect &globalRect) {
 	return _history->contentOverlapped(globalRect)
 		|| _playerPlaylist->overlaps(globalRect);

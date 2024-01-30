@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/application.h"
 #include "core/shortcuts.h"
+#include "data/data_message_reaction_id.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
@@ -22,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -675,6 +675,15 @@ void SublistWidget::listSendBotCommand(
 	const FullMsgId &context) {
 }
 
+void SublistWidget::listSearch(
+		const QString &query,
+		const FullMsgId &context) {
+	const auto inChat = Data::SearchTagFromQuery(query)
+		? Dialogs::Key(_sublist)
+		: Dialogs::Key();
+	controller()->searchMessages(query, inChat);
+}
+
 void SublistWidget::listHandleViaClick(not_null<UserData*> bot) {
 }
 
@@ -763,7 +772,7 @@ void SublistWidget::setupShortcuts() {
 }
 
 void SublistWidget::searchInSublist() {
-	controller()->content()->searchInChat(_sublist);
+	controller()->searchInChat(_sublist);
 }
 
 } // namespace HistoryView

@@ -166,6 +166,11 @@ void DefaultElementDelegate::elementSendBotCommand(
 	const FullMsgId &context) {
 }
 
+void DefaultElementDelegate::elementSearchInList(
+	const QString &query,
+	const FullMsgId &context) {
+}
+
 void DefaultElementDelegate::elementHandleViaClick(
 	not_null<UserData*> bot) {
 }

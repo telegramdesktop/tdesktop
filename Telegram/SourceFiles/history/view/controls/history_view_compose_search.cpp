@@ -577,7 +577,7 @@ void TopBar::setFrom(PeerData *peer) {
 		_from = peer;
 		requestSearchDelayed();
 	});
-	if (!peer) {
+	if (!peer || _history->peer->isSelf()) {
 		return;
 	}
 

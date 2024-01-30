@@ -150,7 +150,7 @@ TopBarWidget::TopBarWidget(
 
 	rpl::combine(
 		_controller->activeChatValue(),
-		_controller->searchInChat.value()
+		_controller->searchInChatValue()
 	) | rpl::combine_previous(
 		std::make_tuple(Dialogs::Key(), Dialogs::Key())
 	) | rpl::map([](

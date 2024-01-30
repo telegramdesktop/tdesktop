@@ -158,6 +158,9 @@ public:
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context);
+	void elementSearchInList(
+		const QString &query,
+		const FullMsgId &context);
 	void elementHandleViaClick(not_null<UserData*> bot);
 	bool elementIsChatWide();
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient();
