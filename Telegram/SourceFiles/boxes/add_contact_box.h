@@ -132,6 +132,8 @@ private:
 	void descriptionResized();
 	void updateMaxHeight();
 
+	[[nodiscard]] TimeId ttlPeriod() const;
+
 	const not_null<Window::SessionNavigation*> _navigation;
 	MTP::Sender _api;
 
@@ -150,6 +152,7 @@ private:
 	bool _creatingInviteLink = false;
 	ChannelData *_createdChannel = nullptr;
 	TimeId _ttlPeriod = 0;
+	bool _ttlPeriodOverridden = false;
 
 };
 
