@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/share_message_phrase_factory.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/fields/input_field.h"
 #include "api/api_chat_participants.h"
@@ -218,13 +219,22 @@ void ForwardToSelf(
 	const auto history = session->data().history(session->user());
 	auto resolved = history->resolveForwardDraft(draft);
 	if (!resolved.items.empty()) {
+		const auto count = resolved.items.size();
 		auto action = Api::SendAction(history);
 		action.clearDraft = false;
 		action.generateLocal = false;
 		session->api().forwardMessages(
 			std::move(resolved),
 			action,
-			[=] { show->showToast(tr::lng_share_done(tr::now)); });
+			[=] {
+				auto phrase = rpl::variable<TextWithEntities>(
+					ChatHelpers::ForwardedMessagePhrase({
+					.toCount = 1,
+					.singleMessage = (count == 1),
+					.to1 = session->user(),
+				})).current();
+				show->showToast(std::move(phrase));
+			});
 	}
 }
 
