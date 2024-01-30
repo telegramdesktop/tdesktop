@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
@@ -433,10 +434,26 @@ void TopBar::refreshTags() {
 		&_history->owner(),
 		reactions->myTagsValue(sublist),
 		_searchTagsSelected);
+
+	const auto parent = _searchTags->lifetime().make_state<Ui::RpWidget>(
+		this);
+	const auto shadow = _searchTags->lifetime().make_state<Ui::PlainShadow>(
+		parentWidget());
+	parent->show();
+
 	_searchTags->heightValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](int height) {
 		updateSize();
+		shadow->setVisible(height > 0);
 	}, _searchTags->lifetime());
+
+	geometryValue() | rpl::start_with_next([=](QRect geometry) {
+		shadow->setGeometry(
+			geometry.x(),
+			geometry.y() + geometry.height(),
+			geometry.width(),
+			st::lineWidth);
+	}, shadow->lifetime());
 
 	_searchTags->selectedChanges(
 	) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
@@ -449,10 +466,6 @@ void TopBar::refreshTags() {
 			requestSearch(false);
 		});
 	}
-
-	const auto parent = _searchTags->lifetime().make_state<Ui::RpWidget>(
-		this);
-	parent->show();
 
 	const auto padding = st::searchInChatTagsPadding;
 	const auto position = QPoint(padding.left(), padding.top());
