@@ -143,7 +143,7 @@ public:
 		Key key,
 		PeerData *from,
 		std::vector<Data::ReactionId> tags);
-	[[nodiscard]] auto searchTagsValue() const
+	[[nodiscard]] auto searchTagsChanges() const
 		-> rpl::producer<std::vector<Data::ReactionId>>;
 
 	void applyFilterUpdate(QString newFilter, bool force = false);

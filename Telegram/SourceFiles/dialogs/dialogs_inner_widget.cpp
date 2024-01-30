@@ -3000,7 +3000,7 @@ void InnerWidget::searchInChat(
 				reactions->myTagsValue(sublist),
 				tags);
 
-			_searchTags->selectedValue(
+			_searchTags->selectedChanges(
 			) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
 				_searchTagsSelected = std::move(list);
 			}, _searchTags->lifetime());
@@ -3055,11 +3055,11 @@ void InnerWidget::searchInChat(
 		_searchInChat || !_filter.isEmpty());
 }
 
-auto InnerWidget::searchTagsValue() const
+auto InnerWidget::searchTagsChanges() const
 -> rpl::producer<std::vector<Data::ReactionId>> {
 	return _searchTags
-		? _searchTags->selectedValue()
-		: rpl::single(std::vector<Data::ReactionId>());
+		? _searchTags->selectedChanges()
+		: rpl::never<std::vector<Data::ReactionId>>();
 }
 
 void InnerWidget::refreshSearchInChatLabel() {

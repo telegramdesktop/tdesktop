@@ -271,7 +271,7 @@ ClickHandlerPtr SearchTags::lookupHandler(QPoint point) const {
 	return nullptr;
 }
 
-auto SearchTags::selectedValue() const
+auto SearchTags::selectedChanges() const
 -> rpl::producer<std::vector<Data::ReactionId>> {
 	return _selectedChanges.events() | rpl::map([=] {
 		return collectSelected();

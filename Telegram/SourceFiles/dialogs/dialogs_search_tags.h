@@ -37,7 +37,7 @@ public:
 	[[nodiscard]] rpl::producer<> repaintRequests() const;
 
 	[[nodiscard]] ClickHandlerPtr lookupHandler(QPoint point) const;
-	[[nodiscard]] auto selectedValue() const
+	[[nodiscard]] auto selectedChanges() const
 		-> rpl::producer<std::vector<Data::ReactionId>>;
 
 	void paint(

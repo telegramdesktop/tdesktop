@@ -2666,7 +2666,7 @@ bool Widget::setSearchInChat(
 	}
 	_searchTags = std::move(tags);
 	_inner->searchInChat(_searchInChat, _searchFromAuthor, _searchTags);
-	_searchTagsLifetime = _inner->searchTagsValue(
+	_searchTagsLifetime = _inner->searchTagsChanges(
 	) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
 		if (_searchTags != list) {
 			clearSearchCache();

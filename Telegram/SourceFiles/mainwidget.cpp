@@ -727,6 +727,10 @@ void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 			_dialogs->setInnerFocus();
 		}
 	} else {
+		if (!Data::SearchTagsFromQuery(query).empty()) {
+			inChat = controller()->session().data().history(
+				controller()->session().user());
+		}
 		const auto searchIn = [&](not_null<Window::Controller*> window) {
 			if (const auto controller = window->sessionController()) {
 				controller->content()->searchMessages(query, inChat);

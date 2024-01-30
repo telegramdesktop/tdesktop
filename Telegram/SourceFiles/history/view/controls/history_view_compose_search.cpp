@@ -287,10 +287,8 @@ protected:
 
 private:
 	void clearItems();
-	void setupTags(
-		not_null<Window::SessionController*> window,
-		not_null<History*> history,
-		PeerData *from);
+	void refreshTags();
+	void updateSize();
 	void requestSearch(bool cache = true);
 	void requestSearchDelayed();
 
@@ -299,6 +297,8 @@ private:
 	base::unique_qptr<Ui::MultiSelect> _select;
 	std::unique_ptr<Dialogs::SearchTags> _searchTags;
 
+	const not_null<Window::SessionController*> _window;
+	const not_null<History*> _history;
 	rpl::variable<PeerData*> _from = nullptr;
 
 	base::Timer _searchTimer;
@@ -325,15 +325,16 @@ TopBar::TopBar(
 	st::searchInChatMultiSelect,
 	tr::lng_dlg_filter(),
 	_searchTagsSelected.empty() ? query : QString()))
+, _window(window)
+, _history(history)
 , _searchTimer([=] { requestSearch(); }) {
-	setupTags(window, history, from);
+	refreshTags();
 
-	rpl::combine(
-		parent->geometryValue(),
-		_searchTags ? _searchTags->heightValue() : rpl::single(0)
-	) | rpl::start_with_next([=](const QRect &r, int tagsHeight) {
-		moveToLeft(0, 0);
-		resize(r.width(), st::topBarHeight + tagsHeight);
+	moveToLeft(0, 0);
+
+	parent->geometryValue(
+	) | rpl::start_with_next([=] {
+		updateSize();
 	}, lifetime());
 
 	sizeValue(
@@ -387,8 +388,22 @@ void TopBar::setInnerFocus() {
 	_select->setInnerFocus();
 }
 
+void TopBar::updateSize() {
+	const auto height = st::topBarHeight
+		+ (_searchTags ? _searchTags->height() : 0);
+	resize(parentWidget()->width(), height);
+}
+
 void TopBar::setQuery(const QString &query) {
-	_select->setQuery(query);
+	if (auto tags = Data::SearchTagsFromQuery(query); !tags.empty()) {
+		if (_searchTagsSelected != tags) {
+			_searchTagsSelected = std::move(tags);
+			refreshTags();
+		}
+		_select->setQuery(QString());
+	} else {
+		_select->setQuery(query);
+	}
 }
 
 void TopBar::clearItems() {
@@ -404,32 +419,41 @@ void TopBar::clearItems() {
 	});
 }
 
-void TopBar::setupTags(
-		not_null<Window::SessionController*> window,
-		not_null<History*> history,
-		PeerData *from) {
-	if (!_searchTagsSelected.empty()) {
-		history = history->owner().history(history->session().user());
-	} else if (!history->peer->isSelf()) {
+void TopBar::refreshTags() {
+	if (!_history->peer->isSelf()) {
 		_searchTags = nullptr;
 		return;
 	}
-	const auto reactions = &history->owner().reactions();
+	const auto from = _from.current();
+	const auto reactions = &_history->owner().reactions();
 	const auto sublist = from
-		? history->owner().savedMessages().sublist(from).get()
+		? _history->owner().savedMessages().sublist(from).get()
 		: nullptr;
 	_searchTags = std::make_unique<Dialogs::SearchTags>(
-		&history->owner(),
+		&_history->owner(),
 		reactions->myTagsValue(sublist),
 		_searchTagsSelected);
+	_searchTags->heightValue(
+	) | rpl::start_with_next([=] {
+		updateSize();
+	}, _searchTags->lifetime());
 
-	_searchTags->selectedValue(
+	_searchTags->selectedChanges(
 	) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
 		_searchTagsSelected = std::move(list);
 		requestSearch(false);
 	}, _searchTags->lifetime());
 
-	const auto parent = Ui::CreateChild<Ui::RpWidget>(this);
+	if (!_searchTagsSelected.empty()) {
+		crl::on_main(this, [=] {
+			requestSearch(false);
+		});
+	}
+
+	const auto parent = _searchTags->lifetime().make_state<Ui::RpWidget>(
+		this);
+	parent->show();
+
 	const auto padding = st::searchInChatTagsPadding;
 	const auto position = QPoint(padding.left(), padding.top());
 
@@ -478,7 +502,7 @@ void TopBar::setupTags(
 				ActivateClickHandler(parent, handler, ClickContext{
 					.button = mouse->button(),
 					.other = QVariant::fromValue(ClickHandlerContext{
-						.sessionWindow = window,
+						.sessionWindow = _window,
 					}),
 				});
 			}
