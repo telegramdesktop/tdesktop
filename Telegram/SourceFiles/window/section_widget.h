@@ -148,6 +148,9 @@ public:
 			MsgId messageId) {
 		return false;
 	}
+	virtual bool searchInChatEmbedded(Dialogs::Key chat, QString query) {
+		return false;
+	}
 
 	[[nodiscard]] virtual bool preventsClose(
 			Fn<void()> &&continueCallback) const {

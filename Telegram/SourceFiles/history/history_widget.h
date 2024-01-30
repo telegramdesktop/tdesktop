@@ -251,7 +251,7 @@ public:
 	[[nodiscard]] rpl::producer<> cancelRequests() const {
 		return _cancelRequests.events();
 	}
-	void searchInChatEmbedded(std::optional<QString> query = {});
+	bool searchInChatEmbedded(Dialogs::Key chat, QString query);
 
 	void updateNotifyControls();
 
@@ -642,6 +642,7 @@ private:
 	bool kbWasHidden() const;
 
 	void searchInChat();
+	void switchToSearch(QString query);
 
 	MTP::Sender _api;
 	FullReplyTo _replyTo;

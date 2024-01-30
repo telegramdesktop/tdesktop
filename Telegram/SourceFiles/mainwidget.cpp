@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h" // GetErrorTextForSending.
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_sublist_section.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "inline_bots/inline_bot_layout_item.h"
@@ -727,28 +728,23 @@ void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 			_dialogs->setInnerFocus();
 		}
 	} else {
-		if (!Data::SearchTagsFromQuery(query).empty()) {
+		if (const auto sublist = inChat.sublist()) {
+			controller()->showSection(
+				std::make_shared<HistoryView::SublistMemento>(sublist));
+		} else if (!Data::SearchTagsFromQuery(query).empty()) {
 			inChat = controller()->session().data().history(
 				controller()->session().user());
 		}
-		const auto searchIn = [&](not_null<Window::Controller*> window) {
-			if (const auto controller = window->sessionController()) {
-				controller->content()->searchMessages(query, inChat);
-				controller->widget()->activate();
-			}
-		};
-		const auto account = &session().account();
-		if (const auto peer = inChat.peer()) {
-			if (peer == controller()->singlePeer()) {
-				if (_history->peer() != peer) {
-					controller()->showPeerHistory(peer);
+		if ((!_mainSection
+			|| !_mainSection->searchInChatEmbedded(inChat, query))
+			&& !_history->searchInChatEmbedded(inChat, query)) {
+			const auto account = &session().account();
+			if (const auto window = Core::App().windowFor(account)) {
+				if (const auto controller = window->sessionController()) {
+					controller->content()->searchMessages(query, inChat);
+					controller->widget()->activate();
 				}
-				_history->searchInChatEmbedded(query);
-			} else if (const auto window = Core::App().windowFor(peer)) {
-				searchIn(window);
 			}
-		} else if (const auto window = Core::App().windowFor(account)) {
-			searchIn(window);
 		}
 	}
 }

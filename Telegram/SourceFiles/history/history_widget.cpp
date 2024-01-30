@@ -4797,18 +4797,31 @@ void HistoryWidget::searchInChat() {
 	}
 }
 
-void HistoryWidget::searchInChatEmbedded(std::optional<QString> query) {
-	if (!_history) {
-		return;
-	} else if (_composeSearch) {
-		if (query) {
-			_composeSearch->setQuery(*query);
+bool HistoryWidget::searchInChatEmbedded(Dialogs::Key chat, QString query) {
+	const auto peer = chat.peer();
+	if (!peer || peer != controller()->singlePeer()) {
+		return false;
+	} else if (_peer != peer) {
+		const auto weak = Ui::MakeWeak(this);
+		controller()->showPeerHistory(peer);
+		if (!weak) {
+			return false;
 		}
-		_composeSearch->setInnerFocus();
-		return;
 	}
+	if (_peer != peer) {
+		return false;
+	} else if (_composeSearch) {
+		_composeSearch->setQuery(query);
+		_composeSearch->setInnerFocus();
+		return true;
+	}
+	switchToSearch(query);
+	return true;
+}
+
+void HistoryWidget::switchToSearch(QString query) {
 	const auto search = crl::guard(_list, [=] {
-		if (!_history) {
+		if (!_peer) {
 			return;
 		}
 		const auto update = [=] {
@@ -4824,18 +4837,27 @@ void HistoryWidget::searchInChatEmbedded(std::optional<QString> query) {
 			controller(),
 			_history,
 			from,
-			query.value_or(QString()));
+			query);
 
 		update();
 		setInnerFocus();
+
+		_composeSearch->activations(
+		) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+			controller()->showPeerHistory(
+				item->history()->peer->id,
+				::Window::SectionShow::Way::ClearStack,
+				item->fullId().msg);
+		}, _composeSearch->lifetime());
+
 		_composeSearch->destroyRequests(
 		) | rpl::take(
 			1
 		) | rpl::start_with_next([=] {
 			_composeSearch = nullptr;
 
-		update();
-		setInnerFocus();
+			update();
+			setInnerFocus();
 		}, _composeSearch->lifetime());
 	});
 	if (!preventsClose(search)) {

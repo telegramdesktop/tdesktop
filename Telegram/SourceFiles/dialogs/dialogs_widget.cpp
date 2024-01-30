@@ -1930,7 +1930,9 @@ void Widget::searchMessages(QString query, Key inChat) {
 
 	auto tags = Data::SearchTagsFromQuery(query);
 	if (!tags.empty()) {
-		inChat = session().data().history(session().user());
+		if (!inChat.sublist()) {
+			inChat = session().data().history(session().user());
+		}
 		query = QString();
 	}
 	const auto inChatChanged = [&] {

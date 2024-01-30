@@ -329,6 +329,9 @@ TopBar::TopBar(
 , _window(window)
 , _history(history)
 , _searchTimer([=] { requestSearch(); }) {
+	if (from) {
+		setFrom(from);
+	}
 	refreshTags();
 
 	moveToLeft(0, 0);
@@ -367,10 +370,6 @@ TopBar::TopBar(
 	_select->setCancelledCallback([=] {
 		_cancelRequests.fire({});
 	});
-
-	if (from) {
-		setFrom(from);
-	}
 }
 
 void TopBar::keyPressEvent(QKeyEvent *e) {
@@ -425,14 +424,15 @@ void TopBar::refreshTags() {
 		_searchTags = nullptr;
 		return;
 	}
-	const auto from = _from.current();
-	const auto reactions = &_history->owner().reactions();
-	const auto sublist = from
-		? _history->owner().savedMessages().sublist(from).get()
-		: nullptr;
+	auto fullTagsList = _from.value() | rpl::map([=](PeerData *from) {
+		const auto sublist = from
+			? _history->owner().savedMessages().sublist(from).get()
+			: nullptr;
+		return _history->owner().reactions().myTagsValue(sublist);
+	}) | rpl::flatten_latest();
 	_searchTags = std::make_unique<Dialogs::SearchTags>(
 		&_history->owner(),
-		reactions->myTagsValue(sublist),
+		std::move(fullTagsList),
 		_searchTagsSelected);
 
 	const auto parent = _searchTags->lifetime().make_state<Ui::RpWidget>(
@@ -822,6 +822,7 @@ public:
 	void setInnerFocus();
 	void setQuery(const QString &query);
 
+	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> activations() const;
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -845,6 +846,7 @@ private:
 		rpl::event_stream<BottomBar::Index> jumps;
 	} _pendingJump;
 
+	rpl::event_stream<not_null<HistoryItem*>> _activations;
 	rpl::event_stream<> _destroyRequests;
 
 };
@@ -881,8 +883,10 @@ ComposeSearch::Inner::Inner(
 
 	_topBar->searchRequests(
 	) | rpl::start_with_next([=](const SearchRequest &search) {
-		if (search.query.isEmpty() && !search.from && search.tags.empty()) {
-			return;
+		if (search.query.isEmpty() && search.tags.empty()) {
+			if (!search.from || _history->peer->isSelf()) {
+				return;
+			}
 		}
 		_apiSearch.clear();
 		_apiSearch.search(search);
@@ -910,8 +914,12 @@ ComposeSearch::Inner::Inner(
 	_apiSearch.newFounds(
 	) | rpl::start_with_next([=] {
 		const auto &apiData = _apiSearch.messages();
+		const auto weak = Ui::MakeWeak(_bottomBar.get());
 		_bottomBar->setTotal(apiData.total);
-		_list.controller->addItems(apiData.messages, true);
+		if (weak) {
+			// Activating the first search result may switch the chat.
+			_list.controller->addItems(apiData.messages, true);
+		}
 	}, _topBar->lifetime());
 
 	_apiSearch.nextFounds(
@@ -921,16 +929,6 @@ ComposeSearch::Inner::Inner(
 		}
 		_list.controller->addItems(_apiSearch.messages().messages, false);
 	}, _topBar->lifetime());
-
-	const auto goToMessage = [=](const FullMsgId &itemId) {
-		const auto item = _history->owner().message(itemId);
-		if (item) {
-			_window->showPeerHistory(
-				item->history()->peer->id,
-				::Window::SectionShow::Way::ClearStack,
-				item->fullId().msg);
-		}
-	};
 
 	rpl::merge(
 		_pendingJump.jumps.events() | rpl::filter(rpl::mappers::_1 >= 0),
@@ -947,8 +945,14 @@ ComposeSearch::Inner::Inner(
 			return;
 		}
 		_pendingJump.data = {};
-		goToMessage(messages[index]);
-		hideList();
+		const auto item = _history->owner().message(messages[index]);
+		if (item) {
+			const auto weak = Ui::MakeWeak(_topBar.get());
+			_activations.fire_copy(item);
+			if (weak) {
+				hideList();
+			}
+		}
 	}, _bottomBar->lifetime());
 
 	_list.controller->showItemRequests(
@@ -1039,6 +1043,11 @@ void ComposeSearch::Inner::hideList() {
 	}
 }
 
+auto ComposeSearch::Inner::activations() const
+-> rpl::producer<not_null<HistoryItem*>> {
+	return _activations.events();
+}
+
 rpl::producer<> ComposeSearch::Inner::destroyRequests() const {
 	return _destroyRequests.events();
 }
@@ -1072,6 +1081,10 @@ void ComposeSearch::setInnerFocus() {
 
 void ComposeSearch::setQuery(const QString &query) {
 	_inner->setQuery(query);
+}
+
+rpl::producer<not_null<HistoryItem*>> ComposeSearch::activations() const {
+	return _inner->activations();
 }
 
 rpl::producer<> ComposeSearch::destroyRequests() const {

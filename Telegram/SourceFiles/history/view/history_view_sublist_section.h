@@ -33,6 +33,7 @@ class Element;
 class TopBarWidget;
 class SublistMemento;
 class TranslateBar;
+class ComposeSearch;
 
 class SublistWidget final
 	: public Window::SectionWidget
@@ -74,6 +75,8 @@ public:
 			Bot::SendCommandRequest request) override {
 		return Window::SectionActionResult::Fallback;
 	}
+
+	bool searchInChatEmbedded(Dialogs::Key chat, QString query) override;
 
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
@@ -163,6 +166,10 @@ private:
 	void showAtPosition(
 		Data::MessagePosition position,
 		FullMsgId originId = {});
+	void showAtPosition(
+		Data::MessagePosition position,
+		FullMsgId originItemId,
+		const Window::SectionShow &params);
 
 	void setupOpenChatButton();
 	void setupAboutHiddenAuthor();
@@ -189,7 +196,9 @@ private:
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Ui::FlatButton> _openChatButton;
 	std::unique_ptr<Ui::RpWidget> _aboutHiddenAuthor;
+	std::unique_ptr<ComposeSearch> _composeSearch;
 
+	FullMsgId _lastShownAt;
 	CornerButtons _cornerButtons;
 
 };

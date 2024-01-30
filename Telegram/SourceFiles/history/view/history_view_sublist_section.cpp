@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_peer_values.h"
 #include "data/data_user.h"
+#include "history/view/controls/history_view_compose_search.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_translate_bar.h"
 #include "history/view/history_view_list_widget.h"
@@ -221,7 +222,7 @@ Data::Thread *SublistWidget::cornerButtonsThread() {
 }
 
 FullMsgId SublistWidget::cornerButtonsCurrentId() {
-	return {};
+	return _lastShownAt;
 }
 
 bool SublistWidget::cornerButtonsIgnoreVisibility() {
@@ -249,12 +250,20 @@ bool SublistWidget::cornerButtonsHas(CornerButtonType type) {
 void SublistWidget::showAtPosition(
 		Data::MessagePosition position,
 		FullMsgId originId) {
-	_inner->showAtPosition(
-		position,
-		{},
-		_cornerButtons.doneJumpFrom(position.fullId, originId));
+	showAtPosition(position, originId, {});
 }
 
+void SublistWidget::showAtPosition(
+		Data::MessagePosition position,
+		FullMsgId originItemId,
+		const Window::SectionShow &params) {
+	_lastShownAt = position.fullId;
+	controller()->setActiveChatEntry(activeChat());
+	_inner->showAtPosition(
+		position,
+		params,
+		_cornerButtons.doneJumpFrom(position.fullId, originItemId));
+}
 void SublistWidget::updateAdaptiveLayout() {
 	_topBarShadow->moveToLeft(
 		controller()->adaptive().isOneColumn() ? 0 : st::lineWidth,
@@ -266,13 +275,14 @@ not_null<Data::SavedSublist*> SublistWidget::sublist() const {
 }
 
 Dialogs::RowDescriptor SublistWidget::activeChat() const {
-	return {
-		_sublist,
-		FullMsgId(_history->peer->id, ShowAtUnreadMsgId)
-	};
+	const auto messageId = _lastShownAt
+		? _lastShownAt
+		: FullMsgId(_history->peer->id, ShowAtUnreadMsgId);
+	return { _sublist, messageId };
 }
 
-QPixmap SublistWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
+QPixmap SublistWidget::grabForShowAnimation(
+		const Window::SectionSlideParams &params) {
 	_topBar->updateControlsVisibility();
 	if (params.withTopBarShadow) _topBarShadow->hide();
 	auto result = Ui::GrabWidget(this);
@@ -286,7 +296,11 @@ void SublistWidget::checkActivation() {
 }
 
 void SublistWidget::doSetInnerFocus() {
-	_inner->setFocus();
+	if (_composeSearch) {
+		_composeSearch->setInnerFocus();
+	} else {
+		_inner->setFocus();
+	}
 }
 
 bool SublistWidget::showInternal(
@@ -313,6 +327,46 @@ void SublistWidget::setInternalState(
 	restoreState(memento);
 }
 
+bool SublistWidget::searchInChatEmbedded(Dialogs::Key chat, QString query) {
+	const auto sublist = chat.sublist();
+	if (!sublist || sublist != _sublist) {
+		return false;
+	} else if (_composeSearch) {
+		_composeSearch->setQuery(query);
+		_composeSearch->setInnerFocus();
+		return true;
+	}
+	_composeSearch = std::make_unique<HistoryView::ComposeSearch>(
+		this,
+		controller(),
+		_history,
+		sublist->peer(),
+		query);
+
+	updateControlsGeometry();
+	setInnerFocus();
+
+	_composeSearch->activations(
+	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		controller()->showPeerHistory(
+			item->history()->peer->id,
+			::Window::SectionShow::Way::ClearStack,
+			item->fullId().msg);
+	}, _composeSearch->lifetime());
+
+	_composeSearch->destroyRequests(
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=] {
+		_composeSearch = nullptr;
+
+		updateControlsGeometry();
+		setInnerFocus();
+	}, _composeSearch->lifetime());
+
+	return true;
+}
+
 std::shared_ptr<Window::SectionMemento> SublistWidget::createMemento() {
 	auto result = std::make_shared<SublistMemento>(sublist());
 	saveState(result.get());
@@ -323,7 +377,30 @@ bool SublistWidget::showMessage(
 		PeerId peerId,
 		const Window::SectionShow &params,
 		MsgId messageId) {
-	return false; // We want 'Go to original' to work.
+	const auto id = FullMsgId(_history->peer->id, messageId);
+	const auto message = _history->owner().message(id);
+	if (!message || message->savedSublist() != _sublist) {
+		return false;
+	}
+	const auto originMessage = [&]() -> HistoryItem* {
+		using OriginMessage = Window::SectionShow::OriginMessage;
+		if (const auto origin = std::get_if<OriginMessage>(&params.origin)) {
+			if (const auto returnTo = session().data().message(origin->id)) {
+				if (returnTo->savedSublist() == _sublist) {
+					return returnTo;
+				}
+			}
+		}
+		return nullptr;
+	}();
+	const auto currentReplyReturn = _cornerButtons.replyReturn();
+	const auto originItemId = !originMessage
+		? FullMsgId()
+		: (currentReplyReturn != originMessage)
+		? originMessage->fullId()
+		: FullMsgId();
+	showAtPosition(message->position(), originItemId, params);
+	return true;
 }
 
 void SublistWidget::saveState(not_null<SublistMemento*> memento) {
@@ -555,6 +632,9 @@ void SublistWidget::listSelectionChanged(SelectedItems &&items) {
 		}
 	}
 	_topBar->showSelected(state);
+	if ((state.count > 0) && _composeSearch) {
+		_composeSearch->hideAnimated();
+	}
 }
 
 void SublistWidget::listMarkReadTill(not_null<HistoryItem*> item) {
