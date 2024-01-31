@@ -54,7 +54,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin a63f0887630c3e2130ee60ef322dd51ae3983c88 \
+	&& git fetch --depth=1 origin 61a1f5871bc83ec0514f867960616f45e142297c \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -110,7 +110,7 @@ RUN git clone -b v21.9 --depth=1 --recursive {{ GIT }}/protocolbuffers/protobuf.
 	&& rm -rf .git
 
 FROM patches AS libproxy
-RUN git clone -b 0.4.17 --depth=1 {{ GIT }}/libproxy/libproxy.git \
+RUN git clone -b 0.4.18 --depth=1 {{ GIT }}/libproxy/libproxy.git \
 	&& cd libproxy \
 	&& git apply ../patches/libproxy.patch \
 	&& cmake -GNinja -B build . \
