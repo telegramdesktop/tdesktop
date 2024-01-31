@@ -26,6 +26,7 @@ jobs:
           responseRequiredLabel: needs user action
 
   cant-reproduce:
+    if: github.event_name != 'issue_comment'
     runs-on: ubuntu-latest
     steps:
       - uses: lee-dohm/no-response@v0.5.0
