@@ -1,3 +1,10 @@
+4.14.12 (25.01.24)
+
+- Tags in Saved Messages.
+- Audio output device selection for music and videos.
+- Audio input device selection for voice messages recording.
+- Default device changes should be applied instantly. (Windows / macOS)
+
 4.14.11 beta (25.01.24)
 
 - Fix crash when accepting calls.
