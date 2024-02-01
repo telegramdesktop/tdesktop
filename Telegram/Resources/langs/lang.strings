@@ -1505,6 +1505,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_messages_none" = "Select Messages";
 "lng_report_messages_count#one" = "Report {count} Message";
 "lng_report_messages_count#other" = "Report {count} Messages";
+"lng_report_reaction" = "Report reaction";
+"lng_report_and_ban" = "Ban and report";
+"lng_report_reaction_title" = "Report reaction";
+"lng_report_reaction_about" = "Are you sure you want to report reactions from this user?";
+"lng_report_and_ban_button" = "Ban user";
 "lng_report_details_about" = "Please enter any additional details relevant to your report.";
 "lng_report_details" = "Additional Details";
 "lng_report_reason_spam" = "Spam";

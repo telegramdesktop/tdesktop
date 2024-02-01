@@ -478,6 +478,10 @@ infoMainButton: SettingsButton(infoProfileButton) {
 	textFgOver: lightButtonFgOver;
 	style: semiboldTextStyle;
 }
+infoMainButtonAttention: SettingsButton(infoMainButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
 infoSharedMediaButton: infoProfileButton;
 infoSharedMediaBottomSkip: 12px;
 

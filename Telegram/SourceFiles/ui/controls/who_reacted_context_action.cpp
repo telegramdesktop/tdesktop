@@ -80,7 +80,7 @@ public:
 		not_null<PopupMenu*> parentMenu,
 		rpl::producer<WhoReadContent> content,
 		CustomEmojiFactory factory,
-		Fn<void(uint64)> participantChosen,
+		Fn<void(WhoReadParticipant)> participantChosen,
 		Fn<void()> showAllChosen);
 
 	bool isEnabled() const override;
@@ -105,7 +105,7 @@ private:
 
 	const not_null<PopupMenu*> _parentMenu;
 	const not_null<QAction*> _dummyAction;
-	const Fn<void(uint64)> _participantChosen;
+	const Fn<void(WhoReadParticipant)> _participantChosen;
 	const Fn<void()> _showAllChosen;
 	const std::unique_ptr<GroupCallUserpics> _userpics;
 	const style::Menu &_st;
@@ -186,7 +186,7 @@ Action::Action(
 	not_null<PopupMenu*> parentMenu,
 	rpl::producer<WhoReadContent> content,
 	Text::CustomEmojiFactory factory,
-	Fn<void(uint64)> participantChosen,
+	Fn<void(WhoReadParticipant)> participantChosen,
 	Fn<void()> showAllChosen)
 : ItemBase(parentMenu->menu(), parentMenu->menu()->st())
 , _parentMenu(parentMenu)
@@ -252,7 +252,7 @@ Action::Action(
 	) | rpl::start_with_next([=] {
 		if (_content.participants.size() == 1) {
 			if (const auto onstack = _participantChosen) {
-				onstack(_content.participants.front().id);
+				onstack(_content.participants.front());
 			}
 		} else if (_content.fullReactionsCount > 0) {
 			if (const auto onstack = _showAllChosen) {
@@ -909,7 +909,7 @@ base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 		not_null<PopupMenu*> menu,
 		rpl::producer<WhoReadContent> content,
 		CustomEmojiFactory factory,
-		Fn<void(uint64)> participantChosen,
+		Fn<void(WhoReadParticipant)> participantChosen,
 		Fn<void()> showAllChosen) {
 	return base::make_unique_q<Action>(
 		menu,
@@ -931,7 +931,7 @@ base::unique_qptr<Menu::ItemBase> WhenReadContextAction(
 
 WhoReactedListMenu::WhoReactedListMenu(
 	CustomEmojiFactory factory,
-	Fn<void(uint64)> participantChosen,
+	Fn<void(WhoReadParticipant)> participantChosen,
 	Fn<void()> showAllChosen)
 : _customEmojiFactory(std::move(factory))
 , _participantChosen(std::move(participantChosen))
@@ -983,8 +983,8 @@ void WhoReactedListMenu::populate(
 		++index;
 	};
 	for (const auto &participant : content.participants) {
-		const auto chosen = [call = _participantChosen, id = participant.id]{
-			call(id);
+		const auto chosen = [call = _participantChosen, participant] {
+			call(participant);
 		};
 		append({
 			.text = participant.name,

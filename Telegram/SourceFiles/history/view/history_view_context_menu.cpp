@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions_list.h"
+#include "info/info_memento.h"
+#include "info/profile/info_profile_widget.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_common.h"
@@ -1089,6 +1091,28 @@ void EditTagBox(
 	});
 }
 
+void ShowWhoReadInfo(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		Ui::WhoReadParticipant who) {
+	const auto peer = controller->session().data().peer(itemId.peer);
+	const auto participant = peer->owner().peer(PeerId(who.id));
+	const auto migrated = participant->migrateFrom();
+	const auto origin = who.dateReacted
+		? Info::Profile::Origin{
+			Info::Profile::GroupReactionOrigin{ peer, itemId.msg },
+		}
+		: Info::Profile::Origin();
+	auto memento = std::make_shared<Info::Memento>(
+		std::vector<std::shared_ptr<Info::ContentMemento>>{
+		std::make_shared<Info::Profile::Memento>(
+			participant,
+			migrated ? migrated->id : PeerId(),
+			origin),
+	});
+	controller->showSection(std::move(memento));
+}
+
 } // namespace
 
 ContextMenuRequest::ContextMenuRequest(
@@ -1392,11 +1416,12 @@ void AddWhoReactedAction(
 		});
 		controller->show(std::move(box));
 	};
-	const auto participantChosen = [=](uint64 id) {
+	const auto itemId = item->fullId();
+	const auto participantChosen = [=](Ui::WhoReadParticipant who) {
 		if (const auto strong = weak.data()) {
 			strong->hideMenu();
 		}
-		controller->showPeerInfo(PeerId(id));
+		ShowWhoReadInfo(controller, itemId, who);
 	};
 	const auto showAllChosen = [=, itemId = item->fullId()]{
 		// Pressing on an item that has a submenu doesn't hide it :(
@@ -1508,8 +1533,9 @@ void ShowWhoReactedMenu(
 	struct State {
 		int addedToBottom = 0;
 	};
-	const auto participantChosen = [=](uint64 id) {
-		controller->showPeerInfo(PeerId(id));
+	const auto itemId = item->fullId();
+	const auto participantChosen = [=](Ui::WhoReadParticipant who) {
+		ShowWhoReadInfo(controller, itemId, who);
 	};
 	const auto showAllChosen = [=, itemId = item->fullId()]{
 		if (const auto item = controller->session().data().message(itemId)) {

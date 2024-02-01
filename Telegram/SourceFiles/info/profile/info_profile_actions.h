@@ -25,10 +25,13 @@ namespace Info::Profile {
 
 extern const char kOptionShowPeerIdBelowAbout[];
 
+struct Origin;
+
 object_ptr<Ui::RpWidget> SetupDetails(
 	not_null<Controller*> controller,
 	not_null<Ui::RpWidget*> parent,
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	Origin origin);
 
 object_ptr<Ui::RpWidget> SetupDetails(
 	not_null<Controller*> controller,
