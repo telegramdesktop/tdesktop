@@ -39,6 +39,9 @@ constexpr auto kWaveformCounterBufferSize = 256 * 1024;
 QMutex AudioMutex;
 ALCdevice *AudioDevice = nullptr;
 ALCcontext *AudioContext = nullptr;
+Webrtc::DeviceResolvedId AudioDeviceLastUsedId{
+	.type = Webrtc::DeviceType::Playback
+};
 
 auto VolumeMultiplierAll = 1.;
 auto VolumeMultiplierSong = 1.;
@@ -89,8 +92,12 @@ void DestroyPlaybackDevice() {
 bool CreatePlaybackDevice() {
 	if (AudioDevice) return true;
 
-	const auto id = Current().playbackDeviceId().toStdString();
-	AudioDevice = alcOpenDevice(id.c_str());
+	AudioDeviceLastUsedId = Current().playbackDeviceId();
+
+	const auto id = AudioDeviceLastUsedId.isDefault()
+		? std::string()
+		: AudioDeviceLastUsedId.value.toStdString();
+	AudioDevice = alcOpenDevice(id.empty() ? nullptr : id.c_str());
 	if (!AudioDevice) {
 		LOG(("Audio Error: Could not create default playback device, refreshing.."));
 		crl::on_main([] {
@@ -1378,6 +1385,20 @@ void DetachFromDevice(not_null<Audio::Instance*> instance) {
 	if (mixer()) {
 		mixer()->reattachIfNeeded();
 	}
+}
+
+bool DetachIfDeviceChanged(
+		not_null<Audio::Instance*> instance,
+		const Webrtc::DeviceResolvedId &nowDeviceId) {
+	QMutexLocker lock(&AudioMutex);
+	if (AudioDeviceLastUsedId == nowDeviceId) {
+		return false;
+	}
+	Audio::ClosePlaybackDevice(instance);
+	if (mixer()) {
+		mixer()->reattachIfNeeded();
+	}
+	return true;
 }
 
 } // namespace internal

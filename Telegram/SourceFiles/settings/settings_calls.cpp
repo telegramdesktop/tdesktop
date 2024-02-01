@@ -365,7 +365,7 @@ void Calls::initCaptureButton(
 	});
 
 	struct LevelState {
-		std::unique_ptr<Webrtc::DeviceId> computedDeviceId;
+		std::unique_ptr<Webrtc::DeviceResolver> deviceId;
 		std::unique_ptr<Webrtc::AudioInputTester> tester;
 		base::Timer timer;
 		Ui::Animations::Simple animation;
@@ -388,18 +388,18 @@ void Calls::initCaptureButton(
 	});
 	_testingMicrophone.value() | rpl::start_with_next([=](bool testing) {
 		if (testing) {
-			state->computedDeviceId = std::make_unique<Webrtc::DeviceId>(
+			state->deviceId = std::make_unique<Webrtc::DeviceResolver>(
 				&Core::App().mediaDevices(),
 				Webrtc::DeviceType::Capture,
 				rpl::duplicate(resolvedId));
 			state->tester = std::make_unique<AudioInputTester>(
-				state->computedDeviceId->value());
+				state->deviceId->value());
 			state->timer.callEach(kMicTestUpdateInterval);
 		} else {
 			state->timer.cancel();
 			state->animation.stop();
 			state->tester = nullptr;
-			state->computedDeviceId = nullptr;
+			state->deviceId = nullptr;
 		}
 	}, level->lifetime());
 }

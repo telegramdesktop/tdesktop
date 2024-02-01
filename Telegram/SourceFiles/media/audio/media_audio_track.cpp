@@ -272,17 +272,19 @@ Instance::Instance()
 		Player::internal::DetachFromDevice(this);
 	});
 
-	_playbackDeviceId.changes() | rpl::start_with_next([=] {
-		_detachFromDeviceForce = false;
-		Player::internal::DetachFromDevice(this);
+	_playbackDeviceId.changes(
+	) | rpl::start_with_next([=](Webrtc::DeviceResolvedId id) {
+		if (Player::internal::DetachIfDeviceChanged(this, id)) {
+			_detachFromDeviceForce = false;
+		}
 	}, _lifetime);
 }
 
-QString Instance::playbackDeviceId() const {
-	return _playbackDeviceId.current();
+Webrtc::DeviceResolvedId Instance::playbackDeviceId() const {
+	return _playbackDeviceId.threadSafeCurrent();
 }
 
-QString Instance::captureDeviceId() const {
+Webrtc::DeviceResolvedId Instance::captureDeviceId() const {
 	return _captureDeviceId.current();
 }
 

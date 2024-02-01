@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "webrtc/webrtc_audio_input_tester.h"
+#include "webrtc/webrtc_device_resolver.h"
 #include "settings/settings_calls.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -249,7 +250,7 @@ void SettingsBox(
 	const auto weakBox = Ui::MakeWeak(box);
 
 	struct State {
-		std::unique_ptr<Webrtc::DeviceId> computedDeviceId;
+		std::unique_ptr<Webrtc::DeviceResolver> deviceId;
 		std::unique_ptr<Webrtc::AudioInputTester> micTester;
 		Ui::LevelMeter *micTestLevel = nullptr;
 		float micLevel = 0.;
@@ -770,14 +771,14 @@ void SettingsBox(
 		box->setShowFinishedCallback([=] {
 			// Means we finished showing the box.
 			crl::on_main(box, [=] {
-				state->computedDeviceId = std::make_unique<Webrtc::DeviceId>(
+				state->deviceId = std::make_unique<Webrtc::DeviceResolver>(
 					&Core::App().mediaDevices(),
 					Webrtc::DeviceType::Capture,
 					Webrtc::DeviceIdValueWithFallback(
 						Core::App().settings().callCaptureDeviceIdValue(),
 						Core::App().settings().captureDeviceIdValue()));
 				state->micTester = std::make_unique<Webrtc::AudioInputTester>(
-					state->computedDeviceId->value());
+					state->deviceId->value());
 				state->levelUpdateTimer.callEach(kMicTestUpdateInterval);
 			});
 		});
@@ -884,11 +885,13 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 MicLevelTester::MicLevelTester(Fn<void()> show)
 : _show(std::move(show))
 , _timer([=] { check(); })
-, _tester(
-	std::make_unique<Webrtc::AudioInputTester>(
-		Webrtc::DeviceIdValueWithFallback(
-			Core::App().settings().callCaptureDeviceIdValue(),
-			Core::App().settings().captureDeviceIdValue()))) {
+, _deviceId(std::make_unique<Webrtc::DeviceResolver>(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callCaptureDeviceIdValue(),
+		Core::App().settings().captureDeviceIdValue())))
+, _tester(std::make_unique<Webrtc::AudioInputTester>(_deviceId->value())) {
 	_timer.callEach(kMicrophoneTooltipCheckInterval);
 }
 

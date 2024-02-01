@@ -2066,22 +2066,26 @@ void GroupCall::applyOtherParticipantUpdate(
 void GroupCall::setupMediaDevices() {
 	_playbackDeviceId.changes() | rpl::filter([=] {
 		return _instance && _setDeviceIdCallback;
-	}) | rpl::start_with_next([=](const QString &deviceId) {
-		_setDeviceIdCallback(Webrtc::DeviceType::Playback, deviceId);
-		_instance->setAudioOutputDevice(deviceId.toStdString());
+	}) | rpl::start_with_next([=](const Webrtc::DeviceResolvedId &deviceId) {
+		_setDeviceIdCallback(deviceId);
+
+		// Value doesn't matter here, just trigger reading of the new value.
+		_instance->setAudioOutputDevice(deviceId.value.toStdString());
 	}, _lifetime);
 
 	_captureDeviceId.changes() | rpl::filter([=] {
 		return _instance && _setDeviceIdCallback;
-	}) | rpl::start_with_next([=](const QString &deviceId) {
-		_setDeviceIdCallback(Webrtc::DeviceType::Capture, deviceId);
-		_instance->setAudioInputDevice(deviceId.toStdString());
+	}) | rpl::start_with_next([=](const Webrtc::DeviceResolvedId &deviceId) {
+		_setDeviceIdCallback(deviceId);
+
+		// Value doesn't matter here, just trigger reading of the new value.
+		_instance->setAudioInputDevice(deviceId.value.toStdString());
 	}, _lifetime);
 
 	_cameraDeviceId.changes() | rpl::filter([=] {
 		return _cameraCapture != nullptr;
-	}) | rpl::start_with_next([=](const QString &deviceId) {
-		_cameraCapture->switchToDevice(deviceId.toStdString(), false);
+	}) | rpl::start_with_next([=](const Webrtc::DeviceResolvedId &deviceId) {
+		_cameraCapture->switchToDevice(deviceId.value.toStdString(), false);
 	}, _lifetime);
 }
 
@@ -2119,7 +2123,7 @@ bool GroupCall::emitShareCameraError() {
 		return emitError(Error::DisabledNoCamera);
 	} else if (mutedByAdmin()) {
 		return emitError(Error::MutedNoCamera);
-	} else if (_cameraDeviceId.current().isEmpty()) {
+	} else if (_cameraDeviceId.current().value.isEmpty()) {
 		return emitError(Error::NoCamera);
 	}
 	return false;
@@ -2128,7 +2132,7 @@ bool GroupCall::emitShareCameraError() {
 void GroupCall::emitShareCameraError(Error error) {
 	_cameraState = Webrtc::VideoState::Inactive;
 	if (error == Error::CameraFailed
-		&& _cameraDeviceId.current().isEmpty()) {
+		&& _cameraDeviceId.current().value.isEmpty()) {
 		error = Error::NoCamera;
 	}
 	_errors.fire_copy(error);
@@ -2182,7 +2186,7 @@ void GroupCall::setupOutgoingVideo() {
 				return;
 			} else if (!_cameraCapture) {
 				_cameraCapture = _delegate->groupCallGetVideoCapture(
-					_cameraDeviceId.current());
+					_cameraDeviceId.current().value);
 				if (!_cameraCapture) {
 					return emitShareCameraError(Error::CameraFailed);
 				}
@@ -2194,7 +2198,7 @@ void GroupCall::setupOutgoingVideo() {
 				});
 			} else {
 				_cameraCapture->switchToDevice(
-					_cameraDeviceId.current().toStdString(),
+					_cameraDeviceId.current().value.toStdString(),
 					false);
 			}
 			if (_instance) {
@@ -2343,24 +2347,25 @@ bool GroupCall::tryCreateController() {
 	const auto playbackDeviceIdInitial = _playbackDeviceId.current();
 	const auto captureDeviceIdInitial = _captureDeviceId.current();
 	const auto saveSetDeviceIdCallback = [=](
-			Fn<void(Webrtc::DeviceType, QString)> setDeviceIdCallback) {
-		setDeviceIdCallback(
-			Webrtc::DeviceType::Playback,
-			playbackDeviceIdInitial);
-		setDeviceIdCallback(
-			Webrtc::DeviceType::Capture,
-			captureDeviceIdInitial);
+			Fn<void(Webrtc::DeviceResolvedId)> setDeviceIdCallback) {
+		setDeviceIdCallback(playbackDeviceIdInitial);
+		setDeviceIdCallback(captureDeviceIdInitial);
 		crl::on_main(weak, [=] {
 			_setDeviceIdCallback = std::move(setDeviceIdCallback);
 			const auto playback = _playbackDeviceId.current();
 			if (_instance && playback != playbackDeviceIdInitial) {
-				_setDeviceIdCallback(Webrtc::DeviceType::Playback, playback);
-				_instance->setAudioOutputDevice(playback.toStdString());
+				_setDeviceIdCallback(playback);
+
+				// Value doesn't matter here, just trigger reading of the...
+				_instance->setAudioOutputDevice(
+					playback.value.toStdString());
 			}
 			const auto capture = _captureDeviceId.current();
 			if (_instance && capture != captureDeviceIdInitial) {
-				_setDeviceIdCallback(Webrtc::DeviceType::Capture, capture);
-				_instance->setAudioInputDevice(capture.toStdString());
+				_setDeviceIdCallback(capture);
+
+				// Value doesn't matter here, just trigger reading of the...
+				_instance->setAudioInputDevice(capture.value.toStdString());
 			}
 		});
 	};
@@ -2387,8 +2392,8 @@ bool GroupCall::tryCreateController() {
 			}
 			crl::on_main(weak, [=] { audioLevelsUpdated(data); });
 		},
-		.initialInputDeviceId = captureDeviceIdInitial.toStdString(),
-		.initialOutputDeviceId = playbackDeviceIdInitial.toStdString(),
+		.initialInputDeviceId = captureDeviceIdInitial.value.toStdString(),
+		.initialOutputDeviceId = playbackDeviceIdInitial.value.toStdString(),
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
 			saveSetDeviceIdCallback),
 		.videoCapture = _cameraCapture,

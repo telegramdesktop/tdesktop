@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "mtproto/sender.h"
 #include "mtproto/mtproto_auth_key.h"
-#include "webrtc/webrtc_device_id.h"
+#include "webrtc/webrtc_device_resolver.h"
 
 namespace Media {
 namespace Audio {
@@ -271,10 +271,10 @@ private:
 	base::DelayedCallTimer _finishByTimeoutTimer;
 	base::Timer _discardByTimeoutTimer;
 
-	Fn<void(Webrtc::DeviceType, QString)> _setDeviceIdCallback;
-	Webrtc::DeviceId _playbackDeviceId;
-	Webrtc::DeviceId _captureDeviceId;
-	Webrtc::DeviceId _cameraDeviceId;
+	Fn<void(Webrtc::DeviceResolvedId)> _setDeviceIdCallback;
+	Webrtc::DeviceResolver _playbackDeviceId;
+	Webrtc::DeviceResolver _captureDeviceId;
+	Webrtc::DeviceResolver _cameraDeviceId;
 
 	rpl::variable<bool> _muted = false;
 

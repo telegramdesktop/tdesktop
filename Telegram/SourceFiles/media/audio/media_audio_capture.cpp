@@ -85,7 +85,10 @@ public:
 	Inner(QThread *thread);
 	~Inner();
 
-	void start(QString id, Fn<void(Update)> updated, Fn<void()> error);
+	void start(
+		Webrtc::DeviceResolvedId id,
+		Fn<void(Update)> updated,
+		Fn<void()> error);
 	void stop(Fn<void(Result&&)> callback = nullptr);
 	void pause(bool value, Fn<void(Result&&)> callback);
 
@@ -295,7 +298,7 @@ void Instance::Inner::fail() {
 }
 
 void Instance::Inner::start(
-		QString id,
+		Webrtc::DeviceResolvedId id,
 		Fn<void(Update)> updated,
 		Fn<void()> error) {
 	_updated = std::move(updated);
@@ -305,9 +308,9 @@ void Instance::Inner::start(
 	}
 
 	// Start OpenAL Capture
-	const auto utf = id.toStdString();
+	const auto utf = id.isDefault() ? std::string() : id.value.toStdString();
 	d->device = alcCaptureOpenDevice(
-		utf.c_str(),
+		utf.empty() ? nullptr : utf.c_str(),
 		kCaptureFrequency,
 		AL_FORMAT_MONO16,
 		kCaptureFrequency / 5);
