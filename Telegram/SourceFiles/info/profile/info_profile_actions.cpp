@@ -724,16 +724,20 @@ void DetailsFiller::addReportReaction(Ui::MultiSlideTracker &tracker) {
 		const auto user = _peer->asUser();
 		if (_peer->isSelf()) {
 			return;
+#if 0 // Only public groups allow reaction reports for now.
 		} else if (const auto chat = data.group->asChat()) {
 			const auto ban = chat->canBanMembers()
 				&& (!user || !chat->admins.contains(_peer))
 				&& (!user || chat->creator != user->id);
 			addReportReaction(data, ban, tracker);
+#endif
 		} else if (const auto channel = data.group->asMegagroup()) {
-			const auto ban = channel->canBanMembers()
-				&& (!user || !channel->mgInfo->admins.contains(user->id))
-				&& (!user || channel->mgInfo->creator != user);
-			addReportReaction(data, ban, tracker);
+			if (channel->isPublic()) {
+				const auto ban = channel->canBanMembers()
+					&& (!user || !channel->mgInfo->admins.contains(user->id))
+					&& (!user || channel->mgInfo->creator != user);
+				addReportReaction(data, ban, tracker);
+			}
 		}
 	}, [](const auto &) {});
 }
