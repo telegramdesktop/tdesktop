@@ -183,6 +183,7 @@ void SignupWidget::submit() {
 		_firstName = _first->getLastText().trimmed();
 		_lastName = _last->getLastText().trimmed();
 		_sentRequest = api().request(MTPauth_SignUp(
+			MTP_flags(0),
 			MTP_string(getData()->phone),
 			MTP_bytes(getData()->phoneHash),
 			MTP_string(_firstName),
