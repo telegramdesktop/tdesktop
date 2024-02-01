@@ -133,7 +133,6 @@ void InlineList::layoutButtons() {
 		return not_null{ &reaction };
 	}) | ranges::to_vector;
 	const auto tags = areTags();
-	const auto &infos = _owner->myTagsInfo();
 	if (!tags) {
 		const auto &list = _owner->list(::Data::Reactions::Type::All);
 		ranges::sort(sorted, [&](

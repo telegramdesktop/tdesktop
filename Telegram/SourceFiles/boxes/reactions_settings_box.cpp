@@ -507,7 +507,6 @@ void ReactionsSettingsBox(
 	};
 
 	auto firstCheckedButton = (Ui::RpWidget*)(nullptr);
-	const auto premiumPossible = controller->session().premiumPossible();
 	auto list = reactions.list(Data::Reactions::Type::Active);
 	if (const auto favorite = reactions.favorite()) {
 		if (favorite->id.custom()) {
