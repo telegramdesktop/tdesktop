@@ -313,21 +313,23 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
-object_ptr<Ui::BoxContent> ReassignBoostFloodBox(int seconds) {
+object_ptr<Ui::BoxContent> ReassignBoostFloodBox(int seconds, bool group) {
 	const auto days = seconds / 86400;
 	const auto hours = seconds / 3600;
 	const auto minutes = seconds / 60;
 	return Ui::MakeInformBox({
-		.text = tr::lng_boost_error_flood_text(
-			lt_left,
-			rpl::single(Ui::Text::Bold((days > 1)
-				? tr::lng_days(tr::now, lt_count, days)
-				: (hours > 1)
-				? tr::lng_hours(tr::now, lt_count, hours)
-				: (minutes > 1)
-				? tr::lng_minutes(tr::now, lt_count, minutes)
-				: tr::lng_seconds(tr::now, lt_count, seconds))),
-			Ui::Text::RichLangValue),
+		.text = (group
+			? tr::lng_boost_error_flood_text_group
+			: tr::lng_boost_error_flood_text)(
+				lt_left,
+				rpl::single(Ui::Text::Bold((days > 1)
+					? tr::lng_days(tr::now, lt_count, days)
+					: (hours > 1)
+					? tr::lng_hours(tr::now, lt_count, hours)
+					: (minutes > 1)
+					? tr::lng_minutes(tr::now, lt_count, minutes)
+					: tr::lng_seconds(tr::now, lt_count, seconds))),
+				Ui::Text::RichLangValue),
 		.title = tr::lng_boost_error_flood_title(),
 	});
 }
@@ -445,7 +447,9 @@ object_ptr<Ui::BoxContent> ReassignBoostsBox(
 	const auto now = base::unixtime::now();
 	if (from.size() == 1 && from.front().cooldown > now) {
 		cancel();
-		return ReassignBoostFloodBox(from.front().cooldown - now);
+		return ReassignBoostFloodBox(
+			from.front().cooldown - now,
+			to->owner().peer(from.front().peerId)->isMegagroup());
 	} else if (from.size() == 1 && from.front().peerId) {
 		return ReassignBoostSingleBox(to, from.front(), reassign, cancel);
 	}

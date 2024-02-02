@@ -32,7 +32,8 @@ public:
 	GiveawayTypeRow(
 		not_null<Ui::RpWidget*> parent,
 		Type type,
-		rpl::producer<QString> subtitle);
+		rpl::producer<QString> subtitle,
+		bool group);
 
 	GiveawayTypeRow(
 		not_null<Ui::RpWidget*> parent,

@@ -4796,11 +4796,13 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareGiveawayLaunch = [&](const MTPDmessageActionGiveawayLaunch &action) {
 		auto result = PreparedServiceText();
 		result.links.push_back(fromLink());
-		result.text = tr::lng_action_giveaway_started(
-			tr::now,
-			lt_from,
-			fromLinkText(), // Link 1.
-			Ui::Text::WithEntities);
+		result.text = (_history->peer->isMegagroup()
+			? tr::lng_action_giveaway_started_group
+			: tr::lng_action_giveaway_started)(
+				tr::now,
+				lt_from,
+				fromLinkText(), // Link 1.
+				Ui::Text::WithEntities);
 		return result;
 	};
 

@@ -1363,20 +1363,24 @@ void GiveawayInfoBox(
 		? start->quantity
 		: (results->winnersCount + results->unclaimedCount);
 	const auto months = start ? start->months : results->months;
+	const auto group = !start->channels.empty()
+		&& start->channels.front()->isMegagroup();
 	text.append((finished
 		? tr::lng_prizes_end_text
 		: tr::lng_prizes_how_text)(
 			tr::now,
 			lt_admins,
-			tr::lng_prizes_admins(
-				tr::now,
-				lt_count,
-				quantity,
-				lt_channel,
-				Ui::Text::Bold(first),
-				lt_duration,
-				TextWithEntities{ GiftDuration(months) },
-				Ui::Text::RichLangValue),
+			(group
+				? tr::lng_prizes_admins_group
+				: tr::lng_prizes_admins)(
+					tr::now,
+					lt_count,
+					quantity,
+					lt_channel,
+					Ui::Text::Bold(first),
+					lt_duration,
+					TextWithEntities{ GiftDuration(months) },
+					Ui::Text::RichLangValue),
 			Ui::Text::RichLangValue));
 	const auto many = start
 		? (start->channels.size() > 1)
@@ -1387,8 +1391,12 @@ void GiveawayInfoBox(
 	const auto all = start ? start->all : results->all;
 	auto winners = all
 		? (many
-			? tr::lng_prizes_winners_all_of_many
-			: tr::lng_prizes_winners_all_of_one)(
+			? (group
+				? tr::lng_prizes_winners_all_of_many_group
+				: tr::lng_prizes_winners_all_of_many)
+			: (group
+				? tr::lng_prizes_winners_all_of_one_group
+				: tr::lng_prizes_winners_all_of_one))(
 				tr::now,
 				lt_count,
 				count,
@@ -1411,15 +1419,17 @@ void GiveawayInfoBox(
 		? results->additionalPrize
 		: start->additionalPrize;
 	if (!additionalPrize.isEmpty()) {
-		text.append("\n\n").append(tr::lng_prizes_additional_added(
-			tr::now,
-			lt_count,
-			count,
-			lt_channel,
-			Ui::Text::Bold(first),
-			lt_prize,
-			TextWithEntities{ additionalPrize },
-			Ui::Text::RichLangValue));
+		text.append("\n\n").append((group
+			? tr::lng_prizes_additional_added_group
+			: tr::lng_prizes_additional_added)(
+				tr::now,
+				lt_count,
+				count,
+				lt_channel,
+				Ui::Text::Bold(first),
+				lt_prize,
+				TextWithEntities{ additionalPrize },
+				Ui::Text::RichLangValue));
 	}
 	const auto untilDate = start
 		? start->untilDate
@@ -1448,18 +1458,25 @@ void GiveawayInfoBox(
 		if (info.adminChannelId) {
 			const auto channel = controller->session().data().channel(
 				info.adminChannelId);
-			text.append("\n\n").append(tr::lng_prizes_how_no_admin(
-				tr::now,
-				lt_channel,
-				Ui::Text::Bold(channel->name()),
-				Ui::Text::RichLangValue));
+			text.append("\n\n").append((channel->isMegagroup()
+				? tr::lng_prizes_how_no_admin_group
+				: tr::lng_prizes_how_no_admin)(
+					tr::now,
+					lt_channel,
+					Ui::Text::Bold(channel->name()),
+					Ui::Text::RichLangValue));
 		} else if (info.tooEarlyDate) {
-			text.append("\n\n").append(tr::lng_prizes_how_no_joined(
-				tr::now,
-				lt_date,
-				Ui::Text::Bold(
-					langDateTime(base::unixtime::parse(info.tooEarlyDate))),
-				Ui::Text::RichLangValue));
+			const auto channel = controller->session().data().channel(
+				info.adminChannelId);
+			text.append("\n\n").append((channel->isMegagroup()
+				? tr::lng_prizes_how_no_joined_group
+				: tr::lng_prizes_how_no_joined)(
+					tr::now,
+					lt_date,
+					Ui::Text::Bold(
+						langDateTime(
+							base::unixtime::parse(info.tooEarlyDate))),
+					Ui::Text::RichLangValue));
 		} else if (!info.disallowedCountry.isEmpty()) {
 			text.append("\n\n").append(tr::lng_prizes_how_no_country(
 				tr::now,
@@ -1499,7 +1516,9 @@ void GiveawayInfoBox(
 				box.get(),
 				object_ptr<Ui::FlatLabel>(
 					box.get(),
-					tr::lng_prizes_cancelled(),
+					(group
+						? tr::lng_prizes_cancelled_group()
+						: tr::lng_prizes_cancelled()),
 					st::giveawayRefundedLabel),
 				st::giveawayRefundedPadding),
 			{ padding.left(), 0, padding.right(), padding.bottom() });

@@ -128,7 +128,9 @@ void FillOverview(
 	addSub(
 		topRightLabel,
 		stats.premiumMemberPercentage,
-		tr::lng_boosts_premium_audience);
+		(stats.group
+			? tr::lng_boosts_premium_members
+			: tr::lng_boosts_premium_audience));
 	addSub(
 		bottomLeftLabel,
 		0,
@@ -248,7 +250,9 @@ void FillGetBoostsButton(
 			(st.height + rect::m::sum::v(st.padding) - icon.height()) / 2,
 		})->show();
 	Ui::AddSkip(content);
-	Ui::AddDividerText(content, tr::lng_boosts_get_boosts_subtext());
+	Ui::AddDividerText(content, peer->isMegagroup()
+		? tr::lng_boosts_get_boosts_subtext_group()
+		: tr::lng_boosts_get_boosts_subtext());
 }
 
 } // namespace
@@ -479,7 +483,9 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(inner);
 		Ui::AddSkip(inner);
-		Ui::AddDividerText(inner, tr::lng_boosts_list_subtext());
+		Ui::AddDividerText(inner, status.overview.group
+			? tr::lng_boosts_list_subtext_group()
+			: tr::lng_boosts_list_subtext());
 	}
 
 	Ui::AddSkip(inner);
@@ -488,7 +494,9 @@ void InnerWidget::fill() {
 	Ui::AddSkip(inner, st::boostsLinkSkip);
 	FillShareLink(inner, _show, status.link, _peer);
 	Ui::AddSkip(inner);
-	Ui::AddDividerText(inner, tr::lng_boosts_link_subtext());
+	Ui::AddDividerText(inner, status.overview.group
+		? tr::lng_boosts_link_subtext_group()
+		: tr::lng_boosts_link_subtext());
 
 	FillGetBoostsButton(inner, _controller, _show, _peer, reloadOnDone);
 

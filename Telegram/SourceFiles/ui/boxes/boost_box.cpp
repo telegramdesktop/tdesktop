@@ -165,9 +165,13 @@ void BoostBox(
 				rpl::single(name))
 			: !counters.nextLevelBoosts
 			? tr::lng_boost_channel_title_max()
-			: !counters.level
-			? tr::lng_boost_channel_title_first()
-			: tr::lng_boost_channel_title_more();
+			: counters.level
+			? (data.group
+				? tr::lng_boost_channel_title_more_group()
+				: tr::lng_boost_channel_title_more())
+			: (data.group
+				? tr::lng_boost_channel_title_first_group()
+				: tr::lng_boost_channel_title_first());
 	}) | rpl::flatten_latest();
 	auto repeated = state->data.value(
 	) | rpl::map([=](BoostCounters counters) {
@@ -189,25 +193,33 @@ void BoostBox(
 		return (counters.mine || full)
 			? (left
 				? (!counters.level
-					? tr::lng_boost_channel_you_first(
-						lt_count,
-						rpl::single(float64(left)),
-						Ui::Text::RichLangValue)
-					: tr::lng_boost_channel_you_more(
-						lt_count,
-						rpl::single(float64(left)),
-						lt_post,
-						std::move(post),
-						Ui::Text::RichLangValue))
+					? (data.group
+						? tr::lng_boost_channel_you_first_group
+						: tr::lng_boost_channel_you_first)(
+							lt_count,
+							rpl::single(float64(left)),
+							Ui::Text::RichLangValue)
+					: (data.group
+						? tr::lng_boost_channel_you_more_group
+						: tr::lng_boost_channel_you_more)(
+							lt_count,
+							rpl::single(float64(left)),
+							lt_post,
+							std::move(post),
+							Ui::Text::RichLangValue))
 				: (!counters.level
-					? tr::lng_boost_channel_reached_first(
-						Ui::Text::RichLangValue)
-					: tr::lng_boost_channel_reached_more(
-						lt_count,
-						rpl::single(float64(counters.level)),
-						lt_post,
-						std::move(post),
-						Ui::Text::RichLangValue)))
+					? (data.group
+						? tr::lng_boost_channel_reached_first_group
+						: tr::lng_boost_channel_reached_first)(
+							Ui::Text::RichLangValue)
+					: (data.group
+						? tr::lng_boost_channel_reached_more_group
+						: tr::lng_boost_channel_reached_more)(
+							lt_count,
+							rpl::single(float64(counters.level)),
+							lt_post,
+							std::move(post),
+							Ui::Text::RichLangValue)))
 			: !counters.level
 			? tr::lng_boost_channel_needs_first(
 				lt_count,
@@ -244,6 +256,8 @@ void BoostBox(
 			? tr::lng_box_ok()
 			: (counters.mine > 0)
 			? tr::lng_boost_again_button()
+			: data.group
+			? tr::lng_boost_group_button()
 			: tr::lng_boost_channel_button();
 	}) | rpl::flatten_latest();
 
@@ -408,9 +422,11 @@ object_ptr<Ui::RpWidget> MakeLinkLabel(
 	return result;
 }
 
-void BoostBoxAlready(not_null<GenericBox*> box) {
+void BoostBoxAlready(not_null<GenericBox*> box, bool group) {
 	ConfirmBox(box, {
-		.text = tr::lng_boost_error_already_text(Text::RichLangValue),
+		.text = (group
+			? tr::lng_boost_error_already_text_group
+			: tr::lng_boost_error_already_text)(Text::RichLangValue),
 		.title = tr::lng_boost_error_already_title(),
 		.inform = true,
 	});
@@ -435,16 +451,23 @@ void GiftForBoostsBox(
 	});
 }
 
-void GiftedNoBoostsBox(not_null<GenericBox*> box) {
+void GiftedNoBoostsBox(not_null<GenericBox*> box, bool group) {
 	InformBox(box, {
-		.text = tr::lng_boost_error_gifted_text(Text::RichLangValue),
+		.text = (group
+			? tr::lng_boost_error_gifted_text_group
+			: tr::lng_boost_error_gifted_text)(Text::RichLangValue),
 		.title = tr::lng_boost_error_gifted_title(),
 	});
 }
 
-void PremiumForBoostsBox(not_null<GenericBox*> box, Fn<void()> buyPremium) {
+void PremiumForBoostsBox(
+		not_null<GenericBox*> box,
+		bool group,
+		Fn<void()> buyPremium) {
 	ConfirmBox(box, {
-		.text = tr::lng_boost_error_premium_text(Text::RichLangValue),
+		.text = (group
+			? tr::lng_boost_error_premium_text_group
+			: tr::lng_boost_error_premium_text)(Text::RichLangValue),
 		.confirmed = buyPremium,
 		.confirmText = tr::lng_boost_error_premium_yes(),
 		.title = tr::lng_boost_error_premium_title(),

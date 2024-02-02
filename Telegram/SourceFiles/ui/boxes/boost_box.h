@@ -34,6 +34,7 @@ struct BoostBoxData {
 	QString name;
 	BoostCounters boost;
 	bool allowMulti = false;
+	bool group = false;
 };
 
 void BoostBox(
@@ -41,14 +42,17 @@ void BoostBox(
 	BoostBoxData data,
 	Fn<void(Fn<void(BoostCounters)>)> boost);
 
-void BoostBoxAlready(not_null<GenericBox*> box);
+void BoostBoxAlready(not_null<GenericBox*> box, bool group);
 void GiftForBoostsBox(
 	not_null<GenericBox*> box,
 	QString channel,
 	int receive,
 	bool again);
-void GiftedNoBoostsBox(not_null<GenericBox*> box);
-void PremiumForBoostsBox(not_null<GenericBox*> box, Fn<void()> buyPremium);
+void GiftedNoBoostsBox(not_null<GenericBox*> box, bool group);
+void PremiumForBoostsBox(
+	not_null<GenericBox*> box,
+	bool group,
+	Fn<void()> buyPremium);
 
 struct AskBoostChannelColor {
 	int requiredLevel = 0;

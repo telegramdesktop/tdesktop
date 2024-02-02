@@ -552,7 +552,7 @@ void SessionNavigation::showPeerByLinkResolved(
 		} else {
 			showPeerInfo(peer, params);
 		}
-	} else if (resolveType == ResolveType::Boost && peer->isBroadcast()) {
+	} else if (resolveType == ResolveType::Boost && peer->isChannel()) {
 		resolveBoostState(peer->asChannel());
 	} else {
 		// Show specific posts only in channels / supergroups.
@@ -631,6 +631,7 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 			.name = channel->name(),
 			.boost = ParseBoostCounters(result),
 			.allowMulti = (BoostsForGift(_session) > 0),
+			.group = channel->isMegagroup(),
 		}, submit));
 	}).fail([=](const MTP::Error &error) {
 		_boostStateResolving = nullptr;
@@ -659,10 +660,12 @@ void SessionNavigation::applyBoost(
 					uiShow()->show(
 						Box(Ui::GiftForBoostsBox, name, receive, again));
 				} else {
-					uiShow()->show(Box(Ui::BoostBoxAlready));
+					uiShow()->show(
+						Box(Ui::BoostBoxAlready, channel->isMegagroup()));
 				}
 			} else if (!_session->premium()) {
-				uiShow()->show(Box(Ui::PremiumForBoostsBox, [=] {
+				const auto group = channel->isMegagroup();
+				uiShow()->show(Box(Ui::PremiumForBoostsBox, group, [=] {
 					const auto id = peerToChannel(channel->id).bare;
 					Settings::ShowPremium(
 						parentController(),
@@ -674,7 +677,8 @@ void SessionNavigation::applyBoost(
 				uiShow()->show(
 					Box(Ui::GiftForBoostsBox, name, receive, again));
 			} else {
-				uiShow()->show(Box(Ui::GiftedNoBoostsBox));
+				uiShow()->show(
+					Box(Ui::GiftedNoBoostsBox, channel->isMegagroup()));
 			}
 			done({});
 		} else {

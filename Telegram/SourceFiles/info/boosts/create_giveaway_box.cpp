@@ -89,7 +89,8 @@ constexpr auto kAdditionalPrizeLengthMax = 128;
 void AddPremiumTopBarWithDefaultTitleBar(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<> showFinished,
-		rpl::producer<QString> titleText) {
+		rpl::producer<QString> titleText,
+		bool group) {
 	struct State final {
 		Ui::Animations::Simple animation;
 		Ui::Text::String title;
@@ -175,7 +176,9 @@ void AddPremiumTopBarWithDefaultTitleBar(
 		st::startGiveawayCover,
 		nullptr,
 		tr::lng_giveaway_new_title(),
-		tr::lng_giveaway_new_about(Ui::Text::RichLangValue),
+		(group
+			? tr::lng_giveaway_new_about_group
+			: tr::lng_giveaway_new_about)(Ui::Text::RichLangValue),
 		true,
 		false);
 	bar->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -265,6 +268,7 @@ void CreateGiveawayBox(
 
 		rpl::variable<bool> confirmButtonBusy = true;
 	};
+	const auto group = peer->isMegagroup();
 	const auto state = box->lifetime().make_state<State>(peer);
 	const auto typeGroup = std::make_shared<GiveawayGroup>();
 
@@ -276,7 +280,8 @@ void CreateGiveawayBox(
 			state->typeValue.value(
 			) | rpl::map(rpl::mappers::_1 == GiveawayType::Random),
 			tr::lng_giveaway_start(),
-			tr::lng_giveaway_award()));
+			tr::lng_giveaway_award()),
+		peer->isMegagroup());
 	{
 		const auto &padding = st::giveawayGiftCodeCoverDividerPadding;
 		Ui::AddSkip(box->verticalLayout(), padding.bottom());
@@ -329,7 +334,8 @@ void CreateGiveawayBox(
 			object_ptr<Giveaway::GiveawayTypeRow>(
 				box,
 				GiveawayType::Random,
-				tr::lng_giveaway_create_subtitle()));
+				tr::lng_giveaway_create_subtitle(),
+				group));
 		row->addRadio(typeGroup);
 		row->setClickedCallback([=] {
 			state->typeValue.force_assign(GiveawayType::Random);
@@ -351,7 +357,8 @@ void CreateGiveawayBox(
 						: tr::lng_giveaway_award_chosen(
 							lt_count,
 							rpl::single(selected.size()) | tr::to_count());
-				}) | rpl::flatten_latest()));
+				}) | rpl::flatten_latest(),
+				group));
 		row->addRadio(typeGroup);
 		row->setClickedCallback([=] {
 			auto initBox = [=](not_null<PeerListBox*> peersBox) {
@@ -534,12 +541,14 @@ void CreateGiveawayBox(
 			auto &list = state->selectedToSubscribe;
 			list.erase(ranges::remove(list, peer), end(list));
 		}, box->lifetime());
-		listState->controller.setTopStatus(tr::lng_giveaway_channels_this(
-			lt_count,
-			state->sliderValue.value(
-			) | rpl::map([=](int v) -> float64 {
-				return state->apiOptions.giveawayBoostsPerPremium() * v;
-			})));
+		listState->controller.setTopStatus((peer->isMegagroup()
+			? tr::lng_giveaway_channels_this_group
+			: tr::lng_giveaway_channels_this)(
+				lt_count,
+				state->sliderValue.value(
+				) | rpl::map([=](int v) -> float64 {
+					return state->apiOptions.giveawayBoostsPerPremium() * v;
+				})));
 
 		using IconType = Settings::IconType;
 		Settings::AddButtonWithIcon(
@@ -638,7 +647,8 @@ void CreateGiveawayBox(
 				object_ptr<Giveaway::GiveawayTypeRow>(
 					box,
 					GiveawayType::AllMembers,
-					rpl::duplicate(subtitle)));
+					rpl::duplicate(subtitle),
+					group));
 			row->addRadio(membersGroup);
 			row->setClickedCallback(createCallback(GiveawayType::AllMembers));
 		}
@@ -646,14 +656,17 @@ void CreateGiveawayBox(
 			object_ptr<Giveaway::GiveawayTypeRow>(
 				box,
 				GiveawayType::OnlyNewMembers,
-				std::move(subtitle)));
+				std::move(subtitle),
+				group));
 		row->addRadio(membersGroup);
 		row->setClickedCallback(createCallback(GiveawayType::OnlyNewMembers));
 
 		Ui::AddSkip(countriesContainer);
 		Ui::AddDividerText(
 			countriesContainer,
-			tr::lng_giveaway_users_about());
+			(group
+				? tr::lng_giveaway_users_about_group()
+				: tr::lng_giveaway_users_about()));
 		Ui::AddSkip(countriesContainer);
 	}
 
@@ -892,9 +905,11 @@ void CreateGiveawayBox(
 			auto terms = object_ptr<Ui::VerticalLayout>(dateContainer);
 			terms->add(object_ptr<Ui::FlatLabel>(
 				terms,
-				tr::lng_giveaway_date_about(
-					lt_count,
-					state->sliderValue.value() | tr::to_count()),
+				(group
+					? tr::lng_giveaway_date_about_group
+					: tr::lng_giveaway_date_about)(
+						lt_count,
+						state->sliderValue.value() | tr::to_count()),
 				st::boxDividerLabel));
 			Ui::AddSkip(terms.data());
 			Ui::AddSkip(terms.data());
@@ -907,9 +922,11 @@ void CreateGiveawayBox(
 		} else {
 			Ui::AddDividerText(
 				dateContainer,
-				tr::lng_giveaway_date_about(
-					lt_count,
-					state->sliderValue.value() | tr::to_count()));
+				(group
+					? tr::lng_giveaway_date_about_group
+					: tr::lng_giveaway_date_about)(
+						lt_count,
+						state->sliderValue.value() | tr::to_count()));
 			Ui::AddSkip(dateContainer);
 		}
 	}
@@ -1036,12 +1053,17 @@ void CreateGiveawayBox(
 						}
 						return false;
 					};
+					const auto group = peer->isMegagroup();
 					const auto title = isSpecific
 						? tr::lng_giveaway_awarded_title
 						: tr::lng_giveaway_created_title;
 					const auto body = isSpecific
-						? tr::lng_giveaway_awarded_body
-						: tr::lng_giveaway_created_body;
+						? (group
+							? tr::lng_giveaway_awarded_body_group
+							: tr::lng_giveaway_awarded_body)
+						: (group
+							? tr::lng_giveaway_created_body_group
+							: tr::lng_giveaway_created_body);
 					show->showToast({
 						.text = Ui::Text::Bold(
 							title(tr::now)).append('\n').append(

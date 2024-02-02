@@ -293,14 +293,13 @@ void MyChannelsListController::setCheckError(Fn<bool(int)> callback) {
 
 std::unique_ptr<PeerListRow> MyChannelsListController::createRow(
 		not_null<ChannelData*> channel) const {
-	if (channel->isMegagroup()) {
-		return nullptr;
-	}
 	auto row = std::make_unique<PeerListRow>(channel);
-	row->setCustomStatus(tr::lng_chat_status_subscribers(
-		tr::now,
-		lt_count,
-		channel->membersCount()));
+	row->setCustomStatus((channel->isBroadcast()
+		? tr::lng_chat_status_subscribers
+		: tr::lng_chat_status_members)(
+			tr::now,
+			lt_count,
+			channel->membersCount()));
 	return row;
 }
 
@@ -358,19 +357,18 @@ void SelectedChannelsListController::prepare() {
 
 std::unique_ptr<PeerListRow> SelectedChannelsListController::createRow(
 		not_null<ChannelData*> channel) const {
-	if (channel->isMegagroup()) {
-		return nullptr;
-	}
 	const auto isYourChannel = (_peer->asChannel() == channel);
 	auto row = isYourChannel
 		? std::make_unique<PeerListRow>(channel)
 		: std::make_unique<ChannelRow>(channel);
 	row->setCustomStatus(isYourChannel
 		? QString()
-		: tr::lng_chat_status_subscribers(
-			tr::now,
-			lt_count,
-			channel->membersCount()));
+		: (channel->isMegagroup()
+			? tr::lng_chat_status_members
+			: tr::lng_chat_status_subscribers)(
+				tr::now,
+				lt_count,
+				channel->membersCount()));
 	return row;
 }
 

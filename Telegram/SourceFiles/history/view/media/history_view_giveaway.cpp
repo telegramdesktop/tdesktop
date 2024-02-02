@@ -698,12 +698,27 @@ auto GenerateGiveawayStart(
 			Ui::Text::Bold(tr::lng_prizes_participants(tr::now)),
 			st::chatGiveawayPrizesTitleMargin);
 
+		const auto hasChannel = ranges::any_of(
+			data->channels,
+			&ChannelData::isBroadcast);
+		const auto hasGroup = ranges::any_of(
+			data->channels,
+			&ChannelData::isMegagroup);
+		const auto mixed = (hasChannel && hasGroup);
 		pushText({ (data->all
-			? tr::lng_prizes_participants_all
-			: tr::lng_prizes_participants_new)(
-				tr::now,
-				lt_count,
-				data->channels.size()),
+			? (mixed
+				? tr::lng_prizes_participants_all_mixed
+				: hasGroup
+				? tr::lng_prizes_participants_all_group
+				: tr::lng_prizes_participants_all)
+			: (mixed
+				? tr::lng_prizes_participants_new_mixed
+				: hasGroup
+				? tr::lng_prizes_participants_new_group
+				: tr::lng_prizes_participants_new))(
+					tr::now,
+					lt_count,
+					data->channels.size()),
 		}, st::chatGiveawayParticipantsMargin);
 
 		auto list = ranges::views::all(
