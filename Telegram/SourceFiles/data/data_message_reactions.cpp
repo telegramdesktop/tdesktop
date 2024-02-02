@@ -417,7 +417,7 @@ void Reactions::decrementMyTag(const ReactionId &id, SavedSublist *sublist) {
 	}
 	auto &my = _myTags[sublist];
 	auto i = ranges::find(my.info, id, &MyTagInfo::id);
-	if (i->count > 0) {
+	if (i != end(my.info) && i->count > 0) {
 		--i->count;
 		while (i + 1 != end(my.info)) {
 			auto j = i + 1;
