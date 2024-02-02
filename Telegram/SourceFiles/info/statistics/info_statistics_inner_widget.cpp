@@ -287,6 +287,10 @@ void FillStatistic(
 				Type::Bar);
 		}
 	}
+	if (!state->pendingCount) {
+		++state->pendingCount;
+		singlePendingDone();
+	}
 }
 
 void AddHeader(
