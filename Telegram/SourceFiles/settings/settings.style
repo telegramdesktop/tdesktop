@@ -92,6 +92,8 @@ settingsPremiumIconVoice: icon {{ "settings/premium/voice", settingsIconFg }};
 settingsPremiumIconFiles: icon {{ "settings/premium/files", settingsIconFg }};
 settingsPremiumIconTranslations: icon {{ "settings/premium/translations", settingsIconFg }};
 settingsPremiumIconTags: icon {{ "settings/premium/tags", settingsIconFg }};
+settingsPremiumIconLastSeen: icon {{ "settings/premium/lastseen", settingsIconFg }};
+settingsPremiumIconPrivacy: icon {{ "settings/premium/privacy", settingsIconFg }};
 
 settingsStoriesIconOrder: icon {{ "settings/premium/stories_order", premiumButtonBg1 }};
 settingsStoriesIconStealth: icon {{ "menu/stealth", premiumButtonBg1 }};

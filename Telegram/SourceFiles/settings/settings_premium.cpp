@@ -177,22 +177,26 @@ using Order = std::vector<QString>;
 
 [[nodiscard]] Order FallbackOrder() {
 	return Order{
-		u"wallpapers"_q,
 		u"stories"_q,
-		u"double_limits"_q,
 		u"more_upload"_q,
-		u"faster_download"_q,
+		u"double_limits"_q,
+		u"last_seen"_q,
 		u"voice_to_text"_q,
-		u"no_ads"_q,
+		u"faster_download"_q,
+		u"translations"_q,
+		u"animated_emoji"_q,
 		u"emoji_status"_q,
 		u"saved_tags"_q,
-		u"infinite_reactions"_q,
-		u"premium_stickers"_q,
-		u"animated_emoji"_q,
-		u"advanced_chat_management"_q,
+		//u"peer_colors"_q,
+		u"wallpapers"_q,
 		u"profile_badge"_q,
+		u"message_privacy"_q,
+		u"advanced_chat_management"_q,
+		u"no_ads"_q,
+		//u"app_icons"_q,
+		u"infinite_reactions"_q,
 		u"animated_userpics"_q,
-		u"translations"_q,
+		u"premium_stickers"_q,
 	};
 }
 
@@ -205,6 +209,26 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_tags_for_messages(),
 				tr::lng_premium_summary_about_tags_for_messages(),
 				PremiumPreview::TagsForMessages,
+				true,
+			},
+		},
+		{
+			u"last_seen"_q,
+			Entry{
+				&st::settingsPremiumIconLastSeen,
+				tr::lng_premium_summary_subtitle_last_seen(),
+				tr::lng_premium_summary_about_last_seen(),
+				PremiumPreview::LastSeen,
+				true,
+			},
+		},
+		{
+			u"message_privacy"_q,
+			Entry{
+				&st::settingsPremiumIconPrivacy,
+				tr::lng_premium_summary_subtitle_message_privacy(),
+				tr::lng_premium_summary_about_message_privacy(),
+				PremiumPreview::MessagePrivacy,
 				true,
 			},
 		},
@@ -1522,6 +1546,10 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			return PremiumPreview::InfiniteReactions;
 		} else if (s == u"saved_tags"_q) {
 			return PremiumPreview::TagsForMessages;
+		} else if (s == u"last_seen"_q) {
+			return PremiumPreview::LastSeen;
+		} else if (s == u"message_privacy"_q) {
+			return PremiumPreview::MessagePrivacy;
 		} else if (s == u"premium_stickers"_q) {
 			return PremiumPreview::Stickers;
 		} else if (s == u"animated_emoji"_q) {

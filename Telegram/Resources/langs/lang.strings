@@ -2035,6 +2035,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_infinite_reactions" = "React with thousands of emoji — with multiple reactions per message.";
 "lng_premium_summary_subtitle_tags_for_messages" = "Tags for Messages";
 "lng_premium_summary_about_tags_for_messages" = "Organize your Saved Messages with tags for quicker access.";
+"lng_premium_summary_subtitle_last_seen" = "Last Seen Times";
+"lng_premium_summary_about_last_seen" = "View the last seen and read times of others even if you hide yours.";
+"lng_premium_summary_subtitle_message_privacy" = "Message Privacy";
+"lng_premium_summary_about_message_privacy" = "Restrict people you don't know from sending you messages.";
 "lng_premium_summary_subtitle_premium_stickers" = "Premium Stickers";
 "lng_premium_summary_about_premium_stickers" = "Exclusive enlarged stickers featuring additional effects, updated monthly.";
 "lng_premium_summary_subtitle_animated_emoji" = "Animated Emoji";
