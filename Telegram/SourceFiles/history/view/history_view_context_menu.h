@@ -88,11 +88,18 @@ void ShowWhoReactedMenu(
 	const Data::ReactionId &id,
 	not_null<Window::SessionController*> controller,
 	rpl::lifetime &lifetime);
+void ShowTagInListMenu(
+	not_null<base::unique_qptr<Ui::PopupMenu>*> menu,
+	QPoint position,
+	not_null<QWidget*> context,
+	const Data::ReactionId &id,
+	not_null<Window::SessionController*> controller);
 
 enum class EmojiPacksSource {
 	Message,
 	Reaction,
 	Reactions,
+	Tag,
 };
 [[nodiscard]] std::vector<StickerSetIdentifier> CollectEmojiPacks(
 	not_null<HistoryItem*> item,

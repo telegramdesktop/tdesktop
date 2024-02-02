@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "dialogs/dialogs_search_tags.h"
+#include "history/view/history_view_context_menu.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "core/application.h"
@@ -3008,6 +3009,16 @@ void InnerWidget::searchInChat(
 			_searchTags->repaintRequests() | rpl::start_with_next([=] {
 				const auto height = _searchTags->height();
 				update(0, searchInChatOffset(), width(), height);
+			}, _searchTags->lifetime());
+
+			_searchTags->menuRequests(
+			) | rpl::start_with_next([=](Data::ReactionId id) {
+				HistoryView::ShowTagInListMenu(
+					&_menu,
+					_lastMousePosition.value_or(QCursor::pos()),
+					this,
+					id,
+					_controller);
 			}, _searchTags->lifetime());
 
 			_searchTags->heightValue() | rpl::skip(

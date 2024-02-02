@@ -40,6 +40,8 @@ public:
 	[[nodiscard]] auto selectedChanges() const
 		-> rpl::producer<std::vector<Data::ReactionId>>;
 
+	[[nodiscard]] rpl::producer<Data::ReactionId> menuRequests() const;
+
 	void paint(
 		Painter &p,
 		QPoint position,
@@ -73,6 +75,7 @@ private:
 	Ui::Text::String _additionalText;
 	rpl::event_stream<> _selectedChanges;
 	rpl::event_stream<> _repaintRequests;
+	rpl::event_stream<Data::ReactionId> _menuRequests;
 	mutable QImage _normalBg;
 	mutable QImage _selectedBg;
 	mutable QImage _promoBg;

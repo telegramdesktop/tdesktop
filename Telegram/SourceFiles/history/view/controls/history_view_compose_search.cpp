@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_search_from_controllers.h" // SearchFromBox
 #include "dialogs/dialogs_search_tags.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "history/view/history_view_context_menu.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/painter.h"
@@ -297,6 +299,8 @@ private:
 	std::vector<Data::ReactionId> _searchTagsSelected;
 	base::unique_qptr<Ui::MultiSelect> _select;
 	std::unique_ptr<Dialogs::SearchTags> _searchTags;
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	std::optional<QPoint> _mouseGlobalPosition;
 
 	const not_null<Window::SessionController*> _window;
 	const not_null<History*> _history;
@@ -461,6 +465,16 @@ void TopBar::refreshTags() {
 		requestSearch(false);
 	}, _searchTags->lifetime());
 
+	_searchTags->menuRequests(
+	) | rpl::start_with_next([=](Data::ReactionId id) {
+		ShowTagInListMenu(
+			&_menu,
+			_mouseGlobalPosition.value_or(QCursor::pos()),
+			this,
+			id,
+			_window);
+	}, _searchTags->lifetime());
+
 	if (!_searchTagsSelected.empty()) {
 		crl::on_main(this, [=] {
 			requestSearch(false);
@@ -497,6 +511,7 @@ void TopBar::refreshTags() {
 	parent->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::MouseMove) {
 			const auto mouse = static_cast<QMouseEvent*>(e.get());
+			_mouseGlobalPosition = mouse->globalPos();
 			const auto point = mouse->pos() - position;
 			const auto handler = _searchTags->lookupHandler(point);
 			ClickHandler::setActive(handler);

@@ -1320,7 +1320,7 @@ editTagAbout: FlatLabel(defaultFlatLabel) {
 }
 editTagField: InputField(defaultInputField) {
 	textBg: transparent;
-	textMargins: margins(24px, 10px, 32px, 0px);
+	textMargins: margins(24px, 10px, 32px, 2px);
 
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
@@ -1328,7 +1328,7 @@ editTagField: InputField(defaultInputField) {
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	placeholderScale: 0.;
 
-	heightMin: 32px;
+	heightMin: 36px;
 }
 editTagLimit: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;

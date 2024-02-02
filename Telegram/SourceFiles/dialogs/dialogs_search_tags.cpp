@@ -132,10 +132,13 @@ void SearchTags::fill(
 	_tags.clear();
 	_tags.reserve(list.size());
 	const auto link = [&](Data::ReactionId id) {
-		return std::make_shared<LambdaClickHandler>(crl::guard(this, [=](
+		return std::make_shared<GenericClickHandler>(crl::guard(this, [=](
 				ClickContext context) {
 			if (!premium) {
 				MakePromoLink()->onClick(context);
+				return;
+			} else if (context.button == Qt::RightButton) {
+				_menuRequests.fire_copy(id);
 				return;
 			}
 			const auto i = ranges::find(_tags, id, &Tag::id);
@@ -313,6 +316,10 @@ void SearchTags::paintCustomFrame(
 	p.drawImage(
 		innerTopLeft + QPoint(_customSkip, _customSkip),
 		_customCache);
+}
+
+rpl::producer<Data::ReactionId> SearchTags::menuRequests() const {
+	return _menuRequests.events();
 }
 
 void SearchTags::paint(
