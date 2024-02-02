@@ -1118,6 +1118,8 @@ void ApplyChannelUpdate(
 		if (stickersChanged) {
 			session->changes().peerUpdated(channel, UpdateFlag::StickersSet);
 		}
+
+		channel->mgInfo->boostsApplied = update.vboosts_applied().value_or_empty();
 	}
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	channel->setTranslationDisabled(update.is_translations_disabled());

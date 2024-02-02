@@ -132,6 +132,7 @@ public:
 	};
 	mutable int lastParticipantsStatus = LastParticipantsUpToDate;
 	int lastParticipantsCount = 0;
+	int boostsApplied = 0;
 
 private:
 	ChatData *_migratedFrom = nullptr;

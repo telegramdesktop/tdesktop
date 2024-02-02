@@ -454,19 +454,20 @@ void Message::setReactions(std::unique_ptr<Reactions::InlineList> list) {
 }
 
 void Message::refreshRightBadge() {
+	const auto item = data();
 	const auto text = [&] {
-		if (data()->isDiscussionPost()) {
+		if (item->isDiscussionPost()) {
 			return (delegate()->elementContext() == Context::Replies)
 				? QString()
 				: tr::lng_channel_badge(tr::now);
-		} else if (data()->author()->isMegagroup()) {
-			if (const auto msgsigned = data()->Get<HistoryMessageSigned>()) {
+		} else if (item->author()->isMegagroup()) {
+			if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
 				Assert(msgsigned->isAnonymousRank);
 				return msgsigned->postAuthor;
 			}
 		}
-		const auto channel = data()->history()->peer->asMegagroup();
-		const auto user = data()->author()->asUser();
+		const auto channel = item->history()->peer->asMegagroup();
+		const auto user = item->author()->asUser();
 		if (!channel || !user) {
 			return QString();
 		}
@@ -485,13 +486,41 @@ void Message::refreshRightBadge() {
 			? tr::lng_admin_badge(tr::now)
 			: QString();
 	}();
-	const auto badge = text.isEmpty()
-		? delegate()->elementAuthorRank(this)
-		: TextUtilities::RemoveEmoji(TextUtilities::SingleLine(text));
-	if (badge.isEmpty()) {
+	auto badge = TextWithEntities{
+		(text.isEmpty()
+			? delegate()->elementAuthorRank(this)
+			: TextUtilities::RemoveEmoji(TextUtilities::SingleLine(text)))
+	};
+	_rightBadgeHasBoosts = 0;
+	if (const auto boosts = item->boostsApplied()) {
+		_rightBadgeHasBoosts = 1;
+
+		const auto many = (boosts > 1);
+		const auto &icon = many
+			? st::boostsMessageIcon
+			: st::boostMessageIcon;
+		const auto padding = many
+			? st::boostsMessageIconPadding
+			: st::boostMessageIconPadding;
+		const auto owner = &item->history()->owner();
+		auto added = Ui::Text::SingleCustomEmoji(
+			owner->customEmojiManager().registerInternalEmoji(icon, padding)
+		).append(many ? QString::number(boosts) : QString());
+		badge.append(' ').append(Ui::Text::Colorized(added, 1));
+	}
+	if (badge.empty()) {
 		_rightBadge.clear();
 	} else {
-		_rightBadge.setText(st::defaultTextStyle, badge);
+		const auto context = Core::MarkedTextContext{
+			.session = &item->history()->session(),
+			.customEmojiRepaint = [] {},
+			.customEmojiLoopLimit = 1,
+		};
+		_rightBadge.setMarkedText(
+			st::defaultTextStyle,
+			badge,
+			Ui::NameTextOptions(),
+			context);
 	}
 }
 
@@ -1482,20 +1511,30 @@ void Message::paintFromName(
 	}
 	if (rightWidth) {
 		p.setPen(stm->msgDateFg);
-		p.setFont(ClickHandler::showAsActive(_fastReplyLink)
-			? st::msgFont->underline()
-			: st::msgFont);
 		if (replyWidth) {
+			p.setFont(ClickHandler::showAsActive(_fastReplyLink)
+				? st::msgFont->underline()
+				: st::msgFont);
 			p.drawText(
 				trect.left() + trect.width() - rightWidth,
 				trect.top() + st::msgFont->ascent,
 				FastReplyText());
 		} else {
-			_rightBadge.draw(
-				p,
-				trect.left() + trect.width() - rightWidth,
-				trect.top(),
-				rightWidth);
+			const auto shift = QPoint(trect.width() - rightWidth, 0);
+			const auto pen = !_rightBadgeHasBoosts
+				? QPen()
+				: !context.outbg
+				? QPen(FromNameFg(context, colorIndex()))
+				: stm->msgServiceFg->p;
+			auto colored = std::array<Ui::Text::SpecialColor, 1>{
+				{ { &pen, &pen } },
+			};
+			_rightBadge.draw(p, {
+				.position = trect.topLeft() + shift,
+				.availableWidth = rightWidth,
+				.colors = colored,
+				.now = context.now,
+			});
 		}
 	}
 	trect.setY(trect.y() + st::msgNameFont->height);

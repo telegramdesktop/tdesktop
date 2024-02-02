@@ -139,6 +139,7 @@ struct HistoryItem::CreateConfig {
 	UserId viaBotId = 0;
 	int viewsCount = -1;
 	int forwardsCount = -1;
+	int boostsApplied = 0;
 	QString postAuthor;
 
 	MsgId originalId = 0;
@@ -352,6 +353,8 @@ HistoryItem::HistoryItem(
 		FlagsFromMTP(id, data.vflags().v, localFlags),
 		data.vdate().v,
 		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
+	_boostsApplied = data.vfrom_boosts_applied().value_or_empty();
+
 	const auto media = data.vmedia();
 	const auto checked = media
 		? CheckMessageMedia(*media)
@@ -1474,8 +1477,9 @@ void HistoryItem::returnSavedMedia() {
 		return;
 	}
 	const auto wasGrouped = history()->owner().groups().isGrouped(this);
-	_media = std::move(_savedLocalEditMediaData->media);
-	setText(_savedLocalEditMediaData->text);
+	const auto data = Get<HistoryMessageSavedMediaData>();
+	_media = std::move(data->media);
+	setText(data->text);
 	clearSavedMedia();
 	if (wasGrouped) {
 		history()->owner().groups().refreshMessage(this, true);
@@ -1488,19 +1492,18 @@ void HistoryItem::returnSavedMedia() {
 void HistoryItem::savePreviousMedia() {
 	Expects(_media != nullptr);
 
-	using Data = SavedMediaData;
-	_savedLocalEditMediaData = std::make_unique<Data>(Data{
-		.text = originalText(),
-		.media = _media->clone(this),
-	});
+	AddComponents(HistoryMessageSavedMediaData::Bit());
+	const auto data = Get<HistoryMessageSavedMediaData>();
+	data->text = originalText();
+	data->media = _media->clone(this);
 }
 
 bool HistoryItem::isEditingMedia() const {
-	return _savedLocalEditMediaData != nullptr;
+	return Has<HistoryMessageSavedMediaData>();
 }
 
 void HistoryItem::clearSavedMedia() {
-	_savedLocalEditMediaData = nullptr;
+	RemoveComponents(HistoryMessageSavedMediaData::Bit());
 }
 
 bool HistoryItem::definesReplyKeyboard() const {
@@ -1652,9 +1655,10 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	//	}
 	//}
 
+	const auto editingMedia = isEditingMedia();
 	const auto updatingSavedLocalEdit = !edition.savePreviousMedia
-		&& (_savedLocalEditMediaData != nullptr);
-	if (!_savedLocalEditMediaData && edition.savePreviousMedia) {
+		&& editingMedia;
+	if (!editingMedia && edition.savePreviousMedia) {
 		savePreviousMedia();
 	}
 	Assert(!updatingSavedLocalEdit || !isLocalUpdateMedia());
@@ -1683,7 +1687,7 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 		setReplyMarkup(base::take(edition.replyMarkup));
 	}
 	if (updatingSavedLocalEdit) {
-		_savedLocalEditMediaData->media = edition.mtpMedia
+		Get<HistoryMessageSavedMediaData>()->media = edition.mtpMedia
 			? CreateMedia(this, *edition.mtpMedia)
 			: nullptr;
 	} else {
@@ -1700,13 +1704,13 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 		setForwardsCount(edition.forwards);
 	}
 	const auto &checkedMedia = updatingSavedLocalEdit
-		? _savedLocalEditMediaData->media
+		? Get<HistoryMessageSavedMediaData>()->media
 		: _media;
 	auto updatedText = checkedMedia
 		? edition.textWithEntities
 		: EnsureNonEmpty(edition.textWithEntities);
 	if (updatingSavedLocalEdit) {
-		_savedLocalEditMediaData->text = std::move(updatedText);
+		Get<HistoryMessageSavedMediaData>()->text = std::move(updatedText);
 	} else {
 		setText(std::move(updatedText));
 		addToSharedMediaIndex();
@@ -1866,7 +1870,7 @@ void HistoryItem::applySentMessage(
 void HistoryItem::updateSentContent(
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media) {
-	if (_savedLocalEditMediaData) {
+	if (isEditingMedia()) {
 		return;
 	}
 	setText(textWithEntities);
@@ -1998,10 +2002,9 @@ void HistoryItem::destroyHistoryEntry() {
 }
 
 Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
-	auto result = Storage::SharedMediaTypesMask {};
-	const auto media = _savedLocalEditMediaData
-		? _savedLocalEditMediaData->media.get()
-		: _media.get();
+	auto result = Storage::SharedMediaTypesMask{};
+	const auto saved = Get<HistoryMessageSavedMediaData>();
+	const auto media = saved ? saved->media.get() : _media.get();
 	if (media) {
 		result.set(media->sharedMediaTypes());
 	}
@@ -3402,6 +3405,12 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 		_flags |= MessageFlag::HasReplyMarkup;
 	} else {
 		_flags &= ~MessageFlag::HasReplyMarkup;
+	}
+
+	if (out() && isSending()) {
+		if (const auto channel = _history->peer->asMegagroup()) {
+			_boostsApplied = channel->mgInfo->boostsApplied;
+		}
 	}
 }
 
