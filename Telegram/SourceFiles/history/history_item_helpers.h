@@ -66,7 +66,9 @@ void CheckReactionNotificationSchedule(
 	not_null<PeerData*> peer,
 	PeerId from,
 	not_null<HistoryItem*> fwd);
-[[nodiscard]] MessageFlags FinalizeMessageFlags(MessageFlags flags);
+[[nodiscard]] MessageFlags FinalizeMessageFlags(
+	not_null<History*> history,
+	MessageFlags flags);
 [[nodiscard]] bool CopyMarkupToForward(not_null<const HistoryItem*> item);
 [[nodiscard]] TextWithEntities EnsureNonEmpty(
 	const TextWithEntities &text = TextWithEntities());

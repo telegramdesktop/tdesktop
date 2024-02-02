@@ -624,11 +624,16 @@ std::optional<bool> PeerHasThisCall(
 	});
 }
 
-[[nodiscard]] MessageFlags FinalizeMessageFlags(MessageFlags flags) {
+[[nodiscard]] MessageFlags FinalizeMessageFlags(
+		not_null<History*> history,
+		MessageFlags flags) {
 	if (!(flags & MessageFlag::FakeHistoryItem)
 		&& !(flags & MessageFlag::IsOrWasScheduled)
 		&& !(flags & MessageFlag::AdminLogEntry)) {
 		flags |= MessageFlag::HistoryEntry;
+		if (history->peer->isSelf()) {
+			flags |= MessageFlag::ReactionsAreTags;
+		}
 	}
 	return flags;
 }

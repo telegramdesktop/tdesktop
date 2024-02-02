@@ -765,7 +765,7 @@ HistoryItem::HistoryItem(
 : id(id)
 , _history(history)
 , _from(from ? history->owner().peer(from) : history->peer)
-, _flags(FinalizeMessageFlags(flags))
+, _flags(FinalizeMessageFlags(history, flags))
 , _date(date) {
 	if (isHistoryEntry() && IsClientMsgId(id)) {
 		_history->registerClientSideMessage(this);
