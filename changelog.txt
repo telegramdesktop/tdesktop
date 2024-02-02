@@ -1,4 +1,10 @@
-4.14.12 (25.01.24)
+4.14.13 (02.02.24)
+
+- Fix display of statistics for single posts.
+- Allow editing tag name from search tags.
+- Fix a crash in tags removal.
+
+4.14.12 (01.02.24)
 
 - Tags in Saved Messages.
 - Audio output device selection for music and videos.
