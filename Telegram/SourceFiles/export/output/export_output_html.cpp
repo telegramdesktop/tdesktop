@@ -1301,6 +1301,11 @@ auto HtmlWriter::Wrap::pushMessage(
 		return QByteArray::number(data.winners)
 			+ " of the giveaway were randomly selected by Telegram "
 			"and received private messages with giftcodes.";
+	}, [&](const ActionBoostApply &data) {
+		return serviceFrom
+			+ " boosted the group "
+			+ QByteArray::number(data.boosts)
+			+ (data.boosts > 1 ? " times" : " time");
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

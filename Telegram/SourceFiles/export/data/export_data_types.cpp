@@ -1458,6 +1458,10 @@ ServiceAction ParseServiceAction(
 		content.winners = data.vwinners_count().v;
 		content.unclaimed = data.vunclaimed_count().v;
 		result.content = content;
+	}, [&](const MTPDmessageActionBoostApply &data) {
+		auto content = ActionBoostApply();
+		content.boosts = data.vboosts().v;
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

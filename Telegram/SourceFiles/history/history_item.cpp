@@ -4812,6 +4812,20 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareBoostApply = [&](const MTPDmessageActionBoostApply &action) {
+		auto result = PreparedServiceText();
+		const auto boosts = action.vboosts().v;
+		result.links.push_back(fromLink());
+		result.text = tr::lng_action_boost_apply(
+			tr::now,
+			lt_count,
+			boosts,
+			lt_from,
+			fromLinkText(), // Link 1.
+			Ui::Text::WithEntities);
+		return result;
+	};
+
 	setServiceText(action.match(
 		prepareChatAddUserText,
 		prepareChatJoinedByLink,
@@ -4853,6 +4867,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareGiftCode,
 		prepareGiveawayLaunch,
 		prepareGiveawayResults,
+		prepareBoostApply,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 
 	// Additional information.
