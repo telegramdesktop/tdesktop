@@ -703,6 +703,10 @@ postEvent: function(eventType, eventData) {
 }
 };)");
 
+	if (!_webview) {
+		return false;
+	}
+
 	setupProgressGeometry();
 
 	return true;
