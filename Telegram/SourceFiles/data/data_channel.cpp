@@ -787,7 +787,10 @@ void ChannelData::setSlowmodeSeconds(int seconds) {
 }
 
 TimeId ChannelData::slowmodeLastMessage() const {
-	return (hasAdminRights() || amCreator() || !mgInfo)
+	return (hasAdminRights()
+		|| amCreator()
+		|| unrestrictedByBoosts()
+		|| !mgInfo)
 		? 0
 		: mgInfo->slowmodeLastMessage;
 }
@@ -822,20 +825,36 @@ int ChannelData::boostsUnrestrict() const {
 	return 0;
 }
 
+bool ChannelData::unrestrictedByBoosts() const {
+	if (const auto info = mgInfo.get()) {
+		return (info->boostsUnrestrict > 0)
+			&& (info->boostsApplied >= info->boostsUnrestrict);
+	}
+	return 0;
+}
+
+rpl::producer<bool> ChannelData::unrestrictedByBoostsValue() const {
+	return mgInfo
+		? mgInfo->unrestrictedByBoostsChanges.events_starting_with(
+			unrestrictedByBoosts())
+		: (rpl::single(false) | rpl::type_erased());
+}
+
 void ChannelData::setBoostsUnrestrict(int applied, int unrestrict) {
 	if (const auto info = mgInfo.get()) {
 		if (info->boostsApplied == applied
 			&& info->boostsUnrestrict == unrestrict) {
 			return;
 		}
-		const auto wasUnrestricted = (info->boostsApplied > 0)
-			&& (info->boostsApplied >= info->boostsUnrestrict);
-		const auto nowUnrestricted = (applied > 0)
-			&& (applied >= unrestrict);
+		const auto wasUnrestricted = unrestrictedByBoosts();
 		info->boostsApplied = applied;
 		info->boostsUnrestrict = unrestrict;
+		const auto nowUnrestricted = unrestrictedByBoosts();
 		if (wasUnrestricted != nowUnrestricted) {
-			session().changes().peerUpdated(this, UpdateFlag::Rights);
+			info->unrestrictedByBoostsChanges.fire_copy(nowUnrestricted);
+			session().changes().peerUpdated(
+				this,
+				UpdateFlag::Rights | UpdateFlag::Slowmode);
 		}
 	}
 }

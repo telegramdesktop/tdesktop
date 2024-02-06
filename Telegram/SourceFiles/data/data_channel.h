@@ -114,6 +114,7 @@ public:
 	base::flat_map<not_null<UserData*>, Restricted> lastRestricted;
 	base::flat_set<not_null<PeerData*>> markupSenders;
 	base::flat_set<not_null<UserData*>> bots;
+	rpl::event_stream<bool> unrestrictedByBoostsChanges;
 
 	// For admin badges, full admins list with ranks.
 	base::flat_map<UserId, QString> admins;
@@ -440,6 +441,7 @@ public:
 	[[nodiscard]] int boostsApplied() const;
 	[[nodiscard]] int boostsUnrestrict() const;
 	[[nodiscard]] bool unrestrictedByBoosts() const;
+	[[nodiscard]] rpl::producer<bool> unrestrictedByBoostsValue() const;
 	void setBoostsUnrestrict(int applied, int unrestrict);
 
 	void setInvitePeek(const QString &hash, TimeId expires);

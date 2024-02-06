@@ -889,7 +889,7 @@ void AddBoostsUnrestrictLabels(
 			labels,
 			st::boostsUnrestrictLabel);
 		label->setMarkedText(
-			TextWithEntities(i ? one : many).append(QString::number(i + 1)),
+			TextWithEntities(i ? many : one).append(QString::number(i + 1)),
 			context);
 		rpl::combine(
 			labels->widthValue(),
