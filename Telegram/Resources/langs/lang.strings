@@ -2181,6 +2181,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_channel_reached_more_group#other" = "This group reached **Level {count}** and can now {post}.";
 "lng_boost_channel_post_stories#one" = "post **{count} story** per day";
 "lng_boost_channel_post_stories#other" = "post **{count} stories** per day";
+"lng_boost_channel_features" = "Your boosts will help {channel} to unlock new features.";
+"lng_boost_group_lift_restrictions" = "Boost the group to remove messaging restrictions.";
+"lng_boost_group_lift_restrictions_many#one" = "Boost the group **{count} times** to remove messaging restrictions.";
+"lng_boost_group_lift_restrictions_many#other" = "Boost the group **{count} times** to remove messaging restrictions.";
 "lng_boost_error_gifted_title" = "Can't boost with gifted Premium!";
 "lng_boost_error_gifted_text" = "Because your **Telegram Premium** subscription was gifted to you, you can't use it to boost channels.";
 "lng_boost_error_gifted_text_group" = "Because your **Telegram Premium** subscription was gifted to you, you can't use it to boost groups.";
@@ -3566,6 +3570,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_slowmode_interval_seconds#other" = "every {count} seconds";
 "lng_rights_slowmode_interval_minutes#one" = "every {count} minute";
 "lng_rights_slowmode_interval_minutes#other" = "every {count} minutes";
+"lng_rights_boosts_no_restrict" = "Do not restrict boosters";
+"lng_rights_boosts_about" = "Turn this on to always allow users who boosted your group to send messages and media.";
+"lng_rights_boosts_about_on" = "Choose how many boosts a user must give to the group to bypass restrictions on sending messages.";
 
 "lng_slowmode_enabled"= "Slow mode is enabled. You can send your next message in {left}.";
 "lng_slowmode_no_many" = "Slow mode is enabled. You can't send more than one message at a time.";
@@ -3661,6 +3668,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_gifs" = "The admins of this group restricted you from posting GIFs here.";
 "lng_restricted_send_inline" = "The admins of this group restricted you from posting inline content here.";
 "lng_restricted_send_polls" = "The admins of this group restricted you from posting polls here.";
+"lng_restricted_boost_group" = "Boost this group to send messages";
 
 "lng_restricted_send_message_until" = "The admins of this group restricted you from writing here until {date}, {time}.";
 "lng_restricted_send_photos_until" = "The admins of this group restricted you from posting photos here until {date}, {time}.";

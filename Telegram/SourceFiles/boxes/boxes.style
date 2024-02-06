@@ -791,6 +791,9 @@ slowmodeLabelsMargin: margins(0px, 5px, 0px, 0px);
 slowmodeLabel: LabelSimple(defaultLabelSimple) {
 	textFg: windowSubTextFg;
 }
+boostsUnrestrictLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
 
 customBadgeField: InputField(defaultInputField) {
 	textMargins: margins(2px, 7px, 2px, 0px);

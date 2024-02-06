@@ -133,6 +133,10 @@ public:
 	mutable int lastParticipantsStatus = LastParticipantsUpToDate;
 	int lastParticipantsCount = 0;
 	int boostsApplied = 0;
+	int boostsUnrestrict = 0;
+
+	int slowmodeSeconds = 0;
+	TimeId slowmodeLastMessage = 0;
 
 private:
 	ChatData *_migratedFrom = nullptr;
@@ -433,6 +437,11 @@ public:
 	[[nodiscard]] TimeId slowmodeLastMessage() const;
 	void growSlowmodeLastMessage(TimeId when);
 
+	[[nodiscard]] int boostsApplied() const;
+	[[nodiscard]] int boostsUnrestrict() const;
+	[[nodiscard]] bool unrestrictedByBoosts() const;
+	void setBoostsUnrestrict(int applied, int unrestrict);
+
 	void setInvitePeek(const QString &hash, TimeId expires);
 	void clearInvitePeek();
 	[[nodiscard]] TimeId invitePeekExpires() const;
@@ -519,9 +528,6 @@ private:
 
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;
-
-	int _slowmodeSeconds = 0;
-	TimeId _slowmodeLastMessage = 0;
 
 };
 
