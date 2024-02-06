@@ -30,7 +30,7 @@ Or, to create a debug build, run (also using [your **api_id** and **api_hash**](
 
     docker run --rm -it \
         -v $PWD:/usr/src/tdesktop \
-        -e DEBUG=1 \
+        -e CONFIG=Debug \
         tdesktop:centos_env \
         /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
         -D TDESKTOP_API_ID=YOUR_API_ID \
