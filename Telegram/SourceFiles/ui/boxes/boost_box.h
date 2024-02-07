@@ -30,9 +30,22 @@ struct BoostCounters {
 		BoostCounters) = default;
 };
 
+struct BoostFeatures {
+	base::flat_map<int, int> nameColorsByLevel;
+	base::flat_map<int, int> linkStylesByLevel;
+	int linkLogoLevel = 0;
+	int transcribeLevel = 0;
+	int emojiPackLevel = 0;
+	int emojiStatusLevel = 0;
+	int wallpaperLevel = 0;
+	int wallpapersCount = 0;
+	int customWallpaperLevel = 0;
+};
+
 struct BoostBoxData {
 	QString name;
 	BoostCounters boost;
+	BoostFeatures features;
 	bool allowMulti = false;
 	bool group = false;
 };

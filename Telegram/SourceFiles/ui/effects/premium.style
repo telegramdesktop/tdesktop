@@ -290,7 +290,7 @@ boostReassignText: FlatLabel(defaultFlatLabel) {
 }
 boostBottomSkip: 6px;
 boostBox: Box(premiumPreviewDoubledLimitsBox) {
-	buttonPadding: margins(22px, 22px, 22px, 22px);
+	buttonPadding: margins(16px, 12px, 16px, 12px);
 	buttonHeight: 42px;
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
@@ -337,3 +337,30 @@ showOrBox: Box(boostBox) {
 	buttonPadding: margins(28px, 16px, 28px, 27px);
 	button: showOrShowButton;
 }
+
+boostBoxMaxHeight: 512px;
+boostLevelBadge: FlatLabel(defaultFlatLabel) {
+	margin: margins(12px, 4px, 12px, 4px);
+	style: semiboldTextStyle;
+	textFg: premiumButtonFg;
+	align: align(top);
+}
+boostLevelBadgePadding: margins(30px, 12px, 32px, 12px);
+boostLevelBadgeSkip: 8px;
+boostLevelBadgeLine: 1px;
+
+boostFeatureLabel: FlatLabel(defaultFlatLabel) {
+	margin: margins(36px, 4px, 0px, 4px);
+}
+boostFeaturePadding: margins(64px, 6px, 24px, 6px);
+boostFeatureIconPosition: point(0px, 0px);
+boostFeatureBackground: icon{{ "settings/premium/features/background", windowBgActive }};
+boostFeatureCustomBackground: icon{{ "settings/premium/features/custom_background", windowBgActive }};
+boostFeatureCustomEmoji: icon{{ "settings/premium/features/custom_emoji", windowBgActive }};
+boostFeatureCustomLink: icon{{ "settings/premium/features/custom_link", windowBgActive }};
+boostFeatureCustomReactions: icon{{ "settings/premium/features/custom_reactions", windowBgActive }};
+boostFeatureEmojiStatus: icon{{ "settings/premium/features/emoji_status", windowBgActive }};
+boostFeatureLink: icon{{ "settings/premium/features/link", windowBgActive }};
+boostFeatureName: icon{{ "settings/premium/features/name", windowBgActive }};
+boostFeatureStories: icon{{ "settings/premium/features/stories", windowBgActive }};
+boostFeatureTranscribe: icon{{ "settings/premium/features/transcribe", windowBgActive }};

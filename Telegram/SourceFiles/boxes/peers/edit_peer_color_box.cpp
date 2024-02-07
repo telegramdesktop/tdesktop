@@ -527,9 +527,13 @@ void Apply(
 	} else {
 		CheckBoostLevel(show, peer, [=](int level) {
 			const auto peerColors = &peer->session().api().peerColors();
-			const auto colorRequired = peerColors->requiredLevelFor(
-				peer->id,
-				values.colorIndex);
+			const auto colorRequired = peer->isMegagroup()
+				? peerColors->requiredGroupLevelFor(
+					peer->id,
+					values.colorIndex)
+				: peerColors->requiredChannelLevelFor(
+					peer->id,
+					values.colorIndex);
 			const auto iconRequired = values.backgroundEmojiId
 				? session->account().appConfig().get<int>(
 					"channel_bg_icon_level_min",

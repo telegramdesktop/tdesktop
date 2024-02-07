@@ -9,12 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 
+class ChannelData;
+
 namespace Main {
 class Session;
 } // namespace Main
 
 namespace Ui {
 struct BoostCounters;
+struct BoostFeatures;
 class BoxContent;
 class RpWidget;
 } // namespace Ui
@@ -38,6 +41,9 @@ struct ForChannelBoostSlots {
 
 [[nodiscard]] Ui::BoostCounters ParseBoostCounters(
 	const MTPpremium_BoostsStatus &status);
+
+[[nodiscard]] Ui::BoostFeatures LookupBoostFeatures(
+	not_null<ChannelData*> channel);
 
 [[nodiscard]] int BoostsForGift(not_null<Main::Session*> session);
 

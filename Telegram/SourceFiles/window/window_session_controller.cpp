@@ -630,6 +630,7 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 		uiShow()->show(Box(Ui::BoostBox, Ui::BoostBoxData{
 			.name = channel->name(),
 			.boost = ParseBoostCounters(result),
+			.features = LookupBoostFeatures(channel),
 			.allowMulti = (BoostsForGift(_session) > 0),
 			.group = channel->isMegagroup(),
 		}, submit));
