@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_sponsored_messages.h"
 #include "data/data_message_reactions.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 
@@ -162,6 +163,11 @@ bool DefaultElementDelegate::elementShownUnread(
 
 void DefaultElementDelegate::elementSendBotCommand(
 	const QString &command,
+	const FullMsgId &context) {
+}
+
+void DefaultElementDelegate::elementSearchInList(
+	const QString &query,
 	const FullMsgId &context) {
 }
 
@@ -472,8 +478,11 @@ Element::Element(
 	if (_context == Context::History) {
 		history()->setHasPendingResizedItems();
 	}
-	if (data->isFakeBotAbout() && !data->history()->peer->isRepliesChat()) {
-		AddComponents(FakeBotAboutTop::Bit());
+	if (data->isFakeAboutView()) {
+		const auto user = data->history()->peer->asUser();
+		if (user && user->isBot() && !user->isRepliesChat()) {
+			AddComponents(FakeBotAboutTop::Bit());
+		}
 	}
 }
 

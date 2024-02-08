@@ -48,8 +48,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/power_save_blocker.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "window/main_window.h"
+#include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
-#include "webrtc/webrtc_media_devices.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
 
@@ -238,13 +238,14 @@ void Panel::initControls() {
 		}
 	});
 	_screencast->entity()->setClickedCallback([=] {
+		const auto env = &Core::App().mediaDevices();
 		if (!_call) {
 			return;
-		} else if (!Webrtc::DesktopCaptureAllowed()) {
+		} else if (!env->desktopCaptureAllowed()) {
 			if (auto box = Group::ScreenSharingPrivacyRequestBox()) {
 				_layerBg->showBox(std::move(box));
 			}
-		} else if (const auto source = Webrtc::UniqueDesktopCaptureSource()) {
+		} else if (const auto source = env->uniqueDesktopCaptureSource()) {
 			if (_call->isSharingScreen()) {
 				_call->toggleScreenSharing(std::nullopt);
 			} else {

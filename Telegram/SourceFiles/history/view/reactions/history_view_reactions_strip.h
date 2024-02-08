@@ -58,7 +58,6 @@ public:
 	enum class AddedButton : uchar {
 		None,
 		Expand,
-		Premium,
 	};
 	void applyList(
 		const std::vector<not_null<const Data::Reaction*>> &list,
@@ -110,7 +109,6 @@ private:
 	};
 
 	void clearStateForHidden(ReactionIcons &icon);
-	void paintPremiumIcon(QPainter &p, QPoint position, QRectF target) const;
 	void paintExpandIcon(QPainter &p, QPoint position, QRectF target) const;
 	void clearStateForSelectFinished(ReactionIcons &icon);
 

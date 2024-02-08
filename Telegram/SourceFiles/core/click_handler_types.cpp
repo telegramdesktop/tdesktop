@@ -33,6 +33,12 @@ namespace {
 
 void SearchByHashtag(ClickContext context, const QString &tag) {
 	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto delegate = my.elementDelegate
+		? my.elementDelegate()
+		: nullptr) {
+		delegate->elementSearchInList(tag, my.itemId);
+		return;
+	}
 	const auto controller = my.sessionWindow.get();
 	if (!controller) {
 		return;
@@ -287,7 +293,9 @@ void BotCommandClickHandler::onClick(ClickContext context) const {
 		return;
 	}
 	const auto my = context.other.value<ClickHandlerContext>();
-	if (const auto delegate = my.elementDelegate ? my.elementDelegate() : nullptr) {
+	if (const auto delegate = my.elementDelegate
+		? my.elementDelegate()
+		: nullptr) {
 		delegate->elementSendBotCommand(_cmd, my.itemId);
 	} else if (const auto controller = my.sessionWindow.get()) {
 		auto &data = controller->session().data();

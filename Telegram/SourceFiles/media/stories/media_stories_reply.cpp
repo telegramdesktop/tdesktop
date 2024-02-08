@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_document.h"
 #include "data/data_message_reaction_id.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/view/controls/compose_controls_common.h"
@@ -663,6 +664,22 @@ void ReplyArea::show(
 	invalidate_weak_ptrs(&_shownPeerGuard);
 	const auto peer = data.peer;
 	const auto history = peer ? peer->owner().history(peer).get() : nullptr;
+	const auto user = peer->asUser();
+	auto writeRestriction = Data::CanSendAnythingValue(
+		peer
+	) | rpl::map([=](bool can) {
+		using namespace HistoryView::Controls;
+		return (can
+			|| !user
+			|| !user->meRequiresPremiumToWrite()
+			|| user->session().premium())
+			? WriteRestriction()
+			: WriteRestriction{
+				.text = tr::lng_send_non_premium_story(tr::now),
+				.button = tr::lng_send_non_premium_unlock(tr::now),
+				.type = WriteRestrictionType::PremiumRequired,
+			};
+	});
 	_controls->setHistory({
 		.history = history,
 		.liked = std::move(
@@ -670,6 +687,7 @@ void ReplyArea::show(
 		) | rpl::map([](const Data::ReactionId &id) {
 			return !id.empty();
 		}),
+		.writeRestriction = std::move(writeRestriction),
 	});
 	_controls->clear();
 	const auto hidden = peer

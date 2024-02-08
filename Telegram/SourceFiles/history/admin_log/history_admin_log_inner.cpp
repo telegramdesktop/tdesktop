@@ -642,6 +642,12 @@ void InnerWidget::elementSendBotCommand(
 	const FullMsgId &context) {
 }
 
+void InnerWidget::elementSearchInList(
+	const QString &query,
+	const FullMsgId &context) {
+
+}
+
 void InnerWidget::elementHandleViaClick(not_null<UserData*> bot) {
 }
 
@@ -943,10 +949,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	auto clip = e->rect();
 	auto context = _controller->preparePaintContext({
 		.theme = _theme.get(),
-		.visibleAreaTop = _visibleTop,
-		.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
-		.visibleAreaWidth = width(),
 		.clip = clip,
+		.visibleAreaPositionGlobal = mapToGlobal(QPoint(0, _visibleTop)),
+		.visibleAreaTop = _visibleTop,
+		.visibleAreaWidth = width(),
 	});
 	if (_items.empty() && _upLoaded && _downLoaded) {
 		paintEmpty(p, context.st);

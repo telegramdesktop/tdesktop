@@ -101,6 +101,8 @@ public:
 	[[nodiscard]] virtual auto generateNameWords() const
 		-> const base::flat_set<QString> &;
 
+	virtual void preloadUserpic();
+
 	void setCustomStatus(const QString &status, bool active = false);
 	void clearCustomStatus();
 
@@ -330,6 +332,8 @@ public:
 	virtual void peerListScrollToTop() = 0;
 	virtual int peerListFullRowsCount() = 0;
 	virtual PeerListRow *peerListFindRow(PeerListRowId id) = 0;
+	virtual int peerListSearchRowsCount() = 0;
+	virtual not_null<PeerListRow*> peerListSearchRowAt(int index) = 0;
 	virtual std::optional<QPoint> peerListLastRowMousePosition() = 0;
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
@@ -625,6 +629,8 @@ public:
 	void convertRowToSearchResult(not_null<PeerListRow*> row);
 	int fullRowsCount() const;
 	not_null<PeerListRow*> rowAt(int index) const;
+	int searchRowsCount() const;
+	not_null<PeerListRow*> searchRowAt(int index) const;
 	void setDescription(object_ptr<Ui::FlatLabel> description);
 	void setSearchLoading(object_ptr<Ui::FlatLabel> loading);
 	void setSearchNoResults(object_ptr<Ui::FlatLabel> noResults);
@@ -905,6 +911,12 @@ public:
 	}
 	not_null<PeerListRow*> peerListRowAt(int index) override {
 		return _content->rowAt(index);
+	}
+	int peerListSearchRowsCount() override {
+		return _content->searchRowsCount();
+	}
+	not_null<PeerListRow*> peerListSearchRowAt(int index) override {
+		return _content->searchRowAt(index);
 	}
 	void peerListRefreshRows() override {
 		_content->refreshRows();

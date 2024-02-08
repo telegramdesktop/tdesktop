@@ -54,7 +54,7 @@ public:
 private:
 	void load();
 	void fill();
-	void fillRecentPosts();
+	void fillRecentPosts(not_null<Ui::VerticalLayout*> container);
 
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;

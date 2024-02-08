@@ -143,7 +143,7 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 				? tr::lng_status_bot_reads_all
 				: tr::lng_status_bot_not_reads_all)(tr::now);
 		}
-		return Data::OnlineText(_user->onlineTill, base::unixtime::now());
+		return Data::OnlineText(_user->lastseen(), base::unixtime::now());
 	}();
 	p.setFont(st::contactsStatusFont);
 	p.setPen(st::contactsStatusFg);

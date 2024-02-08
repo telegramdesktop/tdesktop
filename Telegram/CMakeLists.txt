@@ -406,6 +406,8 @@ PRIVATE
     chat_helpers/tabbed_section.h
     chat_helpers/tabbed_selector.cpp
     chat_helpers/tabbed_selector.h
+    chat_helpers/ttl_media_layer_widget.cpp
+    chat_helpers/ttl_media_layer_widget.h
     core/application.cpp
     core/application.h
     core/base_integration.cpp
@@ -513,6 +515,7 @@ PRIVATE
     data/data_groups.h
     data/data_histories.cpp
     data/data_histories.h
+    data/data_lastseen_status.h
     data/data_location.cpp
     data/data_location.h
     data/data_media_rotation.cpp
@@ -609,6 +612,8 @@ PRIVATE
     dialogs/dialogs_row.h
     dialogs/dialogs_search_from_controllers.cpp
     dialogs/dialogs_search_from_controllers.h
+    dialogs/dialogs_search_tags.cpp
+    dialogs/dialogs_search_tags.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
     dialogs/ui/dialogs_layout.cpp
@@ -748,6 +753,8 @@ PRIVATE
     history/view/reactions/history_view_reactions_strip.h
     history/view/reactions/history_view_reactions_tabs.cpp
     history/view/reactions/history_view_reactions_tabs.h
+    history/view/history_view_about_view.cpp
+    history/view/history_view_about_view.h
     history/view/history_view_bottom_info.cpp
     history/view/history_view_bottom_info.h
     history/view/history_view_contact_status.cpp
@@ -1012,6 +1019,7 @@ PRIVATE
     media/audio/media_audio.h
     media/audio/media_audio_capture.cpp
     media/audio/media_audio_capture.h
+    media/audio/media_audio_capture_common.h
     media/audio/media_audio_ffmpeg_loader.cpp
     media/audio/media_audio_ffmpeg_loader.h
     media/audio/media_audio_loader.cpp
@@ -1227,8 +1235,6 @@ PRIVATE
     platform/mac/touchbar/mac_touchbar_manager.mm
     platform/mac/touchbar/mac_touchbar_media_view.h
     platform/mac/touchbar/mac_touchbar_media_view.mm
-    platform/win/audio_win.cpp
-    platform/win/audio_win.h
     platform/win/file_utilities_win.cpp
     platform/win/file_utilities_win.h
     platform/win/launcher_win.cpp
@@ -1252,7 +1258,6 @@ PRIVATE
     platform/win/windows_autostart_task.h
     platform/win/windows_toast_activator.cpp
     platform/win/windows_toast_activator.h
-    platform/platform_audio.h
     platform/platform_file_utilities.h
     platform/platform_launcher.h
     platform/platform_integration.cpp

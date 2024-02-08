@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
+#include "boxes/premium_preview_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/sessions_box.h"
 #include "boxes/language_box.h"
@@ -657,6 +658,17 @@ bool CopyPeerId(
 	return true;
 }
 
+bool ShowSearchTagsPromo(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	ShowPremiumPreviewBox(controller, PremiumPreview::TagsForMessages);
+	return true;
+}
+
 void ExportTestChatTheme(
 		not_null<Window::SessionController*> controller,
 		not_null<const Data::CloudTheme*> theme) {
@@ -1020,6 +1032,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^copy:(.+)$"_q,
 			CopyPeerId
+		},
+		{
+			u"about_tags"_q,
+			ShowSearchTagsPromo
 		}
 	};
 	return Result;

@@ -148,9 +148,8 @@ void GroupMembersWidget::refreshUserOnline(UserData *user) {
 	_now = base::unixtime::now();
 
 	auto member = getMember(it->second);
-	member->statusHasOnlineColor = !user->isBot()
-		&& Data::OnlineTextActive(user->onlineTill, _now);
-	member->onlineTill = user->onlineTill;
+	member->lastseen = user->lastseen();
+	member->statusHasOnlineColor = Data::OnlineTextActive(user, _now);
 	member->onlineForSort = user->isSelf()
 		? std::numeric_limits<TimeId>::max()
 		: Data::SortByOnlineValue(user, _now);
@@ -184,10 +183,10 @@ void GroupMembersWidget::updateItemStatusText(Item *item) {
 				: tr::lng_status_bot_not_reads_all(tr::now);
 			member->onlineTextTill = _now + 86400;
 		} else {
-			member->statusHasOnlineColor = Data::OnlineTextActive(member->onlineTill, _now);
-			member->statusText = Data::OnlineText(member->onlineTill, _now);
+			member->statusHasOnlineColor = member->lastseen.isOnline(_now);
+			member->statusText = Data::OnlineText(member->lastseen, _now);
 			const auto changeInMs = Data::OnlineChangeTimeout(
-				member->onlineTill,
+				member->lastseen,
 				_now);
 			member->onlineTextTill = _now + TimeId(changeInMs / 1000);
 		}
@@ -247,7 +246,8 @@ void GroupMembersWidget::updateOnlineCount() {
 	for (const auto item : items()) {
 		auto member = getMember(item);
 		auto user = member->user();
-		auto isOnline = !user->isBot() && Data::OnlineTextActive(member->onlineTill, _now);
+		auto isOnline = !user->isBot()
+			&& member->lastseen.isOnline(_now);
 		if (member->statusHasOnlineColor != isOnline) {
 			member->statusHasOnlineColor = isOnline;
 			member->statusText = QString();
@@ -439,9 +439,9 @@ auto GroupMembersWidget::computeMember(not_null<UserData*> user)
 	if (it == _membersByUser.cend()) {
 		auto member = new Member(user);
 		it = _membersByUser.emplace(user, member).first;
+		member->lastseen = user->lastseen();
 		member->statusHasOnlineColor = !user->isBot()
-			&& Data::OnlineTextActive(user->onlineTill, _now);
-		member->onlineTill = user->onlineTill;
+			&& member->lastseen.isOnline(_now);
 		member->onlineForSort = Data::SortByOnlineValue(user, _now);
 	}
 	return it->second;
@@ -462,7 +462,7 @@ void GroupMembersWidget::updateOnlineDisplay() {
 			}
 			auto member = getMember(item);
 			bool isOnline = !member->user()->isBot()
-				&& Data::OnlineTextActive(member->onlineTill, _now);
+				&& member->lastseen.isOnline(_now);
 			if (!isOnline) {
 				changed = true;
 			}

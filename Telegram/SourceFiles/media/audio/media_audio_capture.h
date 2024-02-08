@@ -19,11 +19,7 @@ struct Update {
 	ushort level = 0;
 };
 
-struct Result {
-	QByteArray bytes;
-	VoiceWaveform waveform;
-	int samples = 0;
-};
+struct Result;
 
 void Start();
 void Finish();
@@ -51,6 +47,7 @@ public:
 
 	void start();
 	void stop(Fn<void(Result&&)> callback = nullptr);
+	void pause(bool value, Fn<void(Result&&)> callback);
 
 private:
 	class Inner;

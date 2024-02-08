@@ -11,6 +11,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
+QString SearchTagToQuery(const ReactionId &tagId) {
+	if (const auto customId = tagId.custom()) {
+		return u"#tag-custom:%1"_q.arg(customId);
+	} else if (!tagId) {
+		return QString();
+	}
+	return u"#tag-emoji:"_q + tagId.emoji();
+}
+
+ReactionId SearchTagFromQuery(const QString &query) {
+	const auto list = query.split(QChar(' '));
+	const auto tag = list.isEmpty() ? QString() : list[0];
+	if (tag.startsWith(u"#tag-custom:"_q)) {
+		return ReactionId{ DocumentId(tag.mid(12).toULongLong()) };
+	} else if (tag.startsWith(u"#tag-emoji:"_q)) {
+		return ReactionId{ tag.mid(11) };
+	}
+	return {};
+}
+
+std::vector<ReactionId> SearchTagsFromQuery(
+		const QString &query) {
+	auto result = std::vector<ReactionId>();
+	if (const auto tag = SearchTagFromQuery(query)) {
+		result.push_back(tag);
+	}
+	return result;
+}
+
 QString ReactionEntityData(const ReactionId &id) {
 	if (id.empty()) {
 		return {};

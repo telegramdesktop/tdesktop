@@ -143,3 +143,10 @@ private:
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 	QWidget *parent,
 	not_null<PeerData*> peer);
+[[nodiscard]] base::unique_qptr<Ui::RpWidget> TextErrorSendRestriction(
+	QWidget *parent,
+	const QString &text);
+[[nodiscard]] base::unique_qptr<Ui::RpWidget> PremiumRequiredSendRestriction(
+	QWidget *parent,
+	not_null<UserData*> user,
+	not_null<Window::SessionController*> controller);

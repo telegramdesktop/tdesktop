@@ -212,8 +212,8 @@ void Crop::computeDownState(const QPoint &p) {
 	const auto edge = mouseState(p);
 	const auto &inner = _innerRect;
 	const auto &crop = _cropPaint;
-	const auto [iLeft, iTop, iRight, iBottom] = RectEdges(inner);
-	const auto [cLeft, cTop, cRight, cBottom] = RectEdges(crop);
+	const auto &[iLeft, iTop, iRight, iBottom] = RectEdges(inner);
+	const auto &[cLeft, cTop, cRight, cBottom] = RectEdges(crop);
 	_down = InfoAtDown{
 		.rect = crop,
 		.edge = edge,

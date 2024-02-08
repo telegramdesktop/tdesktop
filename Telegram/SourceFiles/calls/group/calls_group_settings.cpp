@@ -35,13 +35,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_group_call.h"
+#include "data/data_user.h"
 #include "calls/group/calls_group_rtmp.h"
 #include "ui/toast/toast.h"
 #include "data/data_changes.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "webrtc/webrtc_audio_input_tester.h"
-#include "webrtc/webrtc_media_devices.h"
+#include "webrtc/webrtc_device_resolver.h"
 #include "settings/settings_calls.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -191,6 +192,11 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		show->showToast(tr::lng_share_done(tr::now));
 	};
 	auto filterCallback = [](not_null<Data::Thread*> thread) {
+		if (const auto user = thread->peer()->asUser()) {
+			if (user->canSendIgnoreRequirePremium()) {
+				return true;
+			}
+		}
 		return Data::CanSend(thread, ChatRestriction::SendOther);
 	};
 
@@ -227,6 +233,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		.st = &st::groupCallShareBoxList,
 		.stLabel = &st::groupCallField,
 		.scheduleBoxStyle = scheduleStyle(),
+		.premiumRequiredError = SharePremiumRequiredError(),
 	});
 	*box = result.data();
 	return result;
@@ -243,8 +250,7 @@ void SettingsBox(
 	const auto weakBox = Ui::MakeWeak(box);
 
 	struct State {
-		rpl::event_stream<QString> outputNameStream;
-		rpl::event_stream<QString> inputNameStream;
+		std::unique_ptr<Webrtc::DeviceResolver> deviceId;
 		std::unique_ptr<Webrtc::AudioInputTester> micTester;
 		Ui::LevelMeter *micTestLevel = nullptr;
 		float micLevel = 0.;
@@ -288,42 +294,43 @@ void SettingsBox(
 		Ui::AddSkip(layout);
 	}
 
+	auto playbackIdWithFallback = Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callPlaybackDeviceIdValue(),
+		Core::App().settings().playbackDeviceIdValue());
 	AddButtonWithLabel(
 		layout,
 		tr::lng_group_call_speakers(),
-		rpl::single(
-			CurrentAudioOutputName()
-		) | rpl::then(
-			state->outputNameStream.events()
-		),
+		PlaybackDeviceNameValue(rpl::duplicate(playbackIdWithFallback)),
 		st::groupCallSettingsButton
 	)->addClickHandler([=] {
-		box->getDelegate()->show(ChooseAudioOutputBox(crl::guard(box, [=](
-				const QString &id,
-				const QString &name) {
-			state->outputNameStream.fire_copy(name);
-		}), &st::groupCallCheckbox, &st::groupCallRadio));
+		box->getDelegate()->show(ChoosePlaybackDeviceBox(
+			rpl::duplicate(playbackIdWithFallback),
+			crl::guard(box, [=](const QString &id) {
+				Core::App().settings().setCallPlaybackDeviceId(id);
+				Core::App().saveSettingsDelayed();
+			}),
+			&st::groupCallCheckbox,
+			&st::groupCallRadio));
 	});
 
 	if (!rtmp) {
+		auto captureIdWithFallback = Webrtc::DeviceIdValueWithFallback(
+			Core::App().settings().callCaptureDeviceIdValue(),
+			Core::App().settings().captureDeviceIdValue());
 		AddButtonWithLabel(
 			layout,
 			tr::lng_group_call_microphone(),
-			rpl::single(
-				CurrentAudioInputName()
-			) | rpl::then(
-				state->inputNameStream.events()
-			),
+			CaptureDeviceNameValue(rpl::duplicate(captureIdWithFallback)),
 			st::groupCallSettingsButton
 		)->addClickHandler([=] {
-			box->getDelegate()->show(ChooseAudioInputBox(crl::guard(box, [=](
-					const QString &id,
-					const QString &name) {
-				state->inputNameStream.fire_copy(name);
-				if (state->micTester) {
-					state->micTester->setDeviceId(id);
-				}
-			}), &st::groupCallCheckbox, &st::groupCallRadio));
+			box->getDelegate()->show(ChooseCaptureDeviceBox(
+				rpl::duplicate(captureIdWithFallback),
+				crl::guard(box, [=](const QString &id) {
+					Core::App().settings().setCallCaptureDeviceId(id);
+					Core::App().saveSettingsDelayed();
+				}),
+				&st::groupCallCheckbox,
+				&st::groupCallRadio));
 		});
 
 		state->micTestLevel = box->addRow(
@@ -764,9 +771,14 @@ void SettingsBox(
 		box->setShowFinishedCallback([=] {
 			// Means we finished showing the box.
 			crl::on_main(box, [=] {
+				state->deviceId = std::make_unique<Webrtc::DeviceResolver>(
+					&Core::App().mediaDevices(),
+					Webrtc::DeviceType::Capture,
+					Webrtc::DeviceIdValueWithFallback(
+						Core::App().settings().callCaptureDeviceIdValue(),
+						Core::App().settings().captureDeviceIdValue()));
 				state->micTester = std::make_unique<Webrtc::AudioInputTester>(
-					Core::App().settings().callAudioBackend(),
-					Core::App().settings().callInputDeviceId());
+					state->deviceId->value());
 				state->levelUpdateTimer.callEach(kMicTestUpdateInterval);
 			});
 		});
@@ -873,10 +885,13 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 MicLevelTester::MicLevelTester(Fn<void()> show)
 : _show(std::move(show))
 , _timer([=] { check(); })
-, _tester(
-	std::make_unique<Webrtc::AudioInputTester>(
-		Core::App().settings().callAudioBackend(),
-		Core::App().settings().callInputDeviceId())) {
+, _deviceId(std::make_unique<Webrtc::DeviceResolver>(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callCaptureDeviceIdValue(),
+		Core::App().settings().captureDeviceIdValue())))
+, _tester(std::make_unique<Webrtc::AudioInputTester>(_deviceId->value())) {
 	_timer.callEach(kMicrophoneTooltipCheckInterval);
 }
 

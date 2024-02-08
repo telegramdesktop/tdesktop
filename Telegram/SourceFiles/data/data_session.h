@@ -62,6 +62,7 @@ class NotifySettings;
 class CustomEmojiManager;
 class Stories;
 class SavedMessages;
+struct ReactionId;
 
 struct RepliesReadTillUpdate {
 	FullMsgId id;
@@ -742,6 +743,11 @@ public:
 	void applyStatsDcId(not_null<ChannelData*>, MTP::DcId);
 	[[nodiscard]] MTP::DcId statsDcId(not_null<ChannelData*>);
 
+	void viewTagsChanged(
+		not_null<ViewElement*> view,
+		std::vector<ReactionId> &&was,
+		std::vector<ReactionId> &&now);
+
 	void clearLocalStorage();
 
 private:
@@ -1005,9 +1011,14 @@ private:
 
 	base::flat_map<uint64, not_null<GroupCall*>> _groupCalls;
 	rpl::event_stream<InviteToCall> _invitesToCalls;
-	base::flat_map<uint64, base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
+	base::flat_map<
+		uint64,
+		base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
 
 	base::flat_set<not_null<ViewElement*>> _shownSpoilers;
+	base::flat_map<
+		ReactionId,
+		base::flat_set<not_null<ViewElement*>>> _viewsByTag;
 
 	History *_topPromoted = nullptr;
 

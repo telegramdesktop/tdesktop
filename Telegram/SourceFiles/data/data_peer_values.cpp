@@ -28,23 +28,20 @@ constexpr auto kMinOnlineChangeTimeout = crl::time(1000);
 constexpr auto kMaxOnlineChangeTimeout = 86400 * crl::time(1000);
 constexpr auto kSecondsInDay = 86400;
 
-int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
-	if (online <= 0) {
-		if (-online > now) {
-			return (-online - now);
-		}
-		return std::numeric_limits<TimeId>::max();
+int OnlinePhraseChangeInSeconds(LastseenStatus status, TimeId now) {
+	const auto till = status.onlineTill();
+	if (till > now) {
+		return till - now;
+	} else if (status.isHidden()) {
+		return std::numeric_limits<int>::max();
 	}
-	if (online > now) {
-		return online - now;
-	}
-	const auto minutes = (now - online) / 60;
+	const auto minutes = (now - till) / 60;
 	if (minutes < 60) {
-		return (minutes + 1) * 60 - (now - online);
+		return (minutes + 1) * 60 - (now - till);
 	}
-	const auto hours = (now - online) / 3600;
+	const auto hours = (now - till) / 3600;
 	if (hours < 12) {
-		return (hours + 1) * 3600 - (now - online);
+		return (hours + 1) * 3600 - (now - till);
 	}
 	const auto nowFull = base::unixtime::parse(now);
 	const auto tomorrow = nowFull.date().addDays(1).startOfDay();
@@ -64,20 +61,17 @@ std::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {
 	return std::nullopt;
 }
 
-std::optional<QString> OnlineTextCommon(TimeId online, TimeId now) {
-	if (online <= 0) {
-		switch (online) {
-		case 0:
-		case -1: return tr::lng_status_offline(tr::now);
-		case -2: return tr::lng_status_recently(tr::now);
-		case -3: return tr::lng_status_last_week(tr::now);
-		case -4: return tr::lng_status_last_month(tr::now);
-		}
-		return (-online > now)
-			? tr::lng_status_online(tr::now)
-			: tr::lng_status_recently(tr::now);
-	} else if (online > now) {
+std::optional<QString> OnlineTextCommon(LastseenStatus status, TimeId now) {
+	if (status.isOnline(now)) {
 		return tr::lng_status_online(tr::now);
+	} else if (status.isLongAgo()) {
+		return tr::lng_status_offline(tr::now);
+	} else if (status.isRecently() || status.isHidden()) {
+		return tr::lng_status_recently(tr::now);
+	} else if (status.isWithinWeek()) {
+		return tr::lng_status_last_week(tr::now);
+	} else if (status.isWithinMonth()) {
+		return tr::lng_status_last_month(tr::now);
 	}
 	return std::nullopt;
 }
@@ -217,13 +211,24 @@ inline auto DefaultRestrictionValue(
 		using namespace rpl::mappers;
 		const auto other = rights & ~(ChatRestriction::SendVoiceMessages
 			| ChatRestriction::SendVideoMessages);
+		auto allowedAny = PeerFlagsValue(
+			user,
+			(UserDataFlag::Deleted | UserDataFlag::MeRequiresPremiumToWrite)
+		) | rpl::map([=](UserDataFlags flags) {
+			return (flags & UserDataFlag::Deleted)
+				? rpl::single(false)
+				: !(flags & UserDataFlag::MeRequiresPremiumToWrite)
+				? rpl::single(true)
+				: AmPremiumValue(&user->session());
+		}) | rpl::flatten_latest();
 		if (other) {
-			return PeerFlagValue(user, UserDataFlag::Deleted)
-				| rpl::map(!_1);
+			return allowedAny;
 		}
-		const auto mask = UserDataFlag::Deleted
-			| UserDataFlag::VoiceMessagesForbidden;
-		return PeerFlagsValue(user, mask) | rpl::map(!_1);
+		const auto mask = UserDataFlag::VoiceMessagesForbidden;
+		return rpl::combine(
+			std::move(allowedAny),
+			PeerFlagValue(user, mask),
+			_1 && !_2);
 	} else if (const auto chat = peer->asChat()) {
 		const auto mask = ChatDataFlag()
 			| ChatDataFlag::Deactivated
@@ -384,31 +389,22 @@ TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
 	if (user->isServiceUser() || user->isBot()) {
 		return -1;
 	}
-	const auto online = user->onlineTill;
-	if (online <= 0) {
-		switch (online) {
-		case 0:
-		case -1: return online;
-
-		case -2: {
-			return now - 3 * kSecondsInDay;
-		} break;
-
-		case -3: {
-			return now - 7 * kSecondsInDay;
-		} break;
-
-		case -4: {
-			return now - 30 * kSecondsInDay;
-		} break;
-		}
-		return -online;
+	const auto lastseen = user->lastseen();
+	if (const auto till = lastseen.onlineTill()) {
+		return till;
+	} else if (lastseen.isRecently()) {
+		return now - 3 * kSecondsInDay;
+	} else if (lastseen.isWithinWeek()) {
+		return now - 7 * kSecondsInDay;
+	} else if (lastseen.isWithinMonth()) {
+		return now - 30 * kSecondsInDay;
+	} else {
+		return 0;
 	}
-	return online;
 }
 
-crl::time OnlineChangeTimeout(TimeId online, TimeId now) {
-	const auto result = OnlinePhraseChangeInSeconds(online, now);
+crl::time OnlineChangeTimeout(Data::LastseenStatus status, TimeId now) {
+	const auto result = OnlinePhraseChangeInSeconds(status, now);
 	Assert(result >= 0);
 	return std::clamp(
 		result * crl::time(1000),
@@ -420,24 +416,26 @@ crl::time OnlineChangeTimeout(not_null<UserData*> user, TimeId now) {
 	if (user->isServiceUser() || user->isBot()) {
 		return kMaxOnlineChangeTimeout;
 	}
-	return OnlineChangeTimeout(user->onlineTill, now);
+	return OnlineChangeTimeout(user->lastseen(), now);
 }
 
-QString OnlineText(TimeId online, TimeId now) {
-	if (const auto common = OnlineTextCommon(online, now)) {
+QString OnlineText(Data::LastseenStatus status, TimeId now) {
+	if (const auto common = OnlineTextCommon(status, now)) {
 		return *common;
 	}
-	const auto minutes = (now - online) / 60;
+	const auto till = status.onlineTill();
+	Assert(till > 0);
+	const auto minutes = (now - till) / 60;
 	if (!minutes) {
 		return tr::lng_status_lastseen_now(tr::now);
 	} else if (minutes < 60) {
 		return tr::lng_status_lastseen_minutes(tr::now, lt_count, minutes);
 	}
-	const auto hours = (now - online) / 3600;
+	const auto hours = (now - till) / 3600;
 	if (hours < 12) {
 		return tr::lng_status_lastseen_hours(tr::now, lt_count, hours);
 	}
-	const auto onlineFull = base::unixtime::parse(online);
+	const auto onlineFull = base::unixtime::parse(till);
 	const auto nowFull = base::unixtime::parse(now);
 	const auto locale = QLocale();
 	if (onlineFull.date() == nowFull.date()) {
@@ -455,16 +453,17 @@ QString OnlineText(not_null<UserData*> user, TimeId now) {
 	if (const auto special = OnlineTextSpecial(user)) {
 		return *special;
 	}
-	return OnlineText(user->onlineTill, now);
+	return OnlineText(user->lastseen(), now);
 }
 
 QString OnlineTextFull(not_null<UserData*> user, TimeId now) {
 	if (const auto special = OnlineTextSpecial(user)) {
 		return *special;
-	} else if (const auto common = OnlineTextCommon(user->onlineTill, now)) {
+	} else if (const auto common = OnlineTextCommon(user->lastseen(), now)) {
 		return *common;
 	}
-	const auto onlineFull = base::unixtime::parse(user->onlineTill);
+	const auto till = user->lastseen().onlineTill();
+	const auto onlineFull = base::unixtime::parse(till);
 	const auto nowFull = base::unixtime::parse(now);
 	const auto locale = QLocale();
 	if (onlineFull.date() == nowFull.date()) {
@@ -479,25 +478,10 @@ QString OnlineTextFull(not_null<UserData*> user, TimeId now) {
 	return tr::lng_status_lastseen_date_time(tr::now, lt_date, date, lt_time, time);
 }
 
-bool OnlineTextActive(TimeId online, TimeId now) {
-	if (online <= 0) {
-		switch (online) {
-		case 0:
-		case -1:
-		case -2:
-		case -3:
-		case -4: return false;
-		}
-		return (-online > now);
-	}
-	return (online > now);
-}
-
 bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
-	if (user->isServiceUser() || user->isBot()) {
-		return false;
-	}
-	return OnlineTextActive(user->onlineTill, now);
+	return !user->isServiceUser()
+		&& !user->isBot()
+		&& user->lastseen().isOnline(now);
 }
 
 bool IsUserOnline(not_null<UserData*> user, TimeId now) {

@@ -529,9 +529,19 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		st::historyVideoMessageMute,
 		st::historyVideoMessageMuteSelected);
 	make(
+		&MessageImageStyle::historyVideoMessageTtlIcon,
+		st::historyVideoMessageTtlIcon,
+		st::historyVideoMessageTtlIconSelected);
+	make(
 		&MessageImageStyle::historyPageEnlarge,
 		st::historyPageEnlarge,
 		st::historyPageEnlargeSelected);
+	make(
+		&MessageStyle::historyVoiceMessageTTL,
+		st::historyVoiceMessageInTTL,
+		st::historyVoiceMessageInTTLSelected,
+		st::historyVoiceMessageOutTTL,
+		st::historyVoiceMessageOutTTLSelected);
 
 	updateDarkValue();
 }

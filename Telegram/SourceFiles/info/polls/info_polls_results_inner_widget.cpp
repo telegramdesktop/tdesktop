@@ -372,10 +372,7 @@ void ListController::restoreState(std::unique_ptr<PeerListState> state) {
 
 std::unique_ptr<PeerListRow> ListController::createRestoredRow(
 		not_null<PeerData*> peer) {
-	if (const auto user = peer->asUser()) {
-		return createRow(user);
-	}
-	return nullptr;
+	return createRow(peer);
 }
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {

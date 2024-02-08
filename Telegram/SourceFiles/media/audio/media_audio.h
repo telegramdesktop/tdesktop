@@ -30,6 +30,10 @@ struct TimePoint;
 } // namespace Streaming
 } // namespace Media
 
+namespace Webrtc {
+struct DeviceResolvedId;
+} // namespace Webrtc
+
 namespace Media {
 namespace Audio {
 
@@ -378,6 +382,9 @@ bool CheckAudioDeviceConnected();
 
 // Thread: Main. Locks: AudioMutex.
 void DetachFromDevice(not_null<Audio::Instance*> instance);
+bool DetachIfDeviceChanged(
+	not_null<Audio::Instance*> instance,
+	const Webrtc::DeviceResolvedId &nowDeviceId);
 
 // Thread: Any.
 QMutex *audioPlayerMutex();

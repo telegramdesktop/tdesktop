@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_pinned_list.h"
 
+#include "data/data_saved_messages.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
@@ -86,6 +87,8 @@ void PinnedList::clear() {
 void PinnedList::applyList(
 		not_null<Data::Session*> owner,
 		const QVector<MTPDialogPeer> &list) {
+	Expects(this != owner->savedMessages().chatsList()->pinned());
+
 	clear();
 	for (const auto &peer : list) {
 		peer.match([&](const MTPDdialogPeer &data) {
@@ -99,8 +102,27 @@ void PinnedList::applyList(
 }
 
 void PinnedList::applyList(
+		not_null<Data::SavedMessages*> sublistsOwner,
+		const QVector<MTPDialogPeer> &list) {
+	Expects(this == sublistsOwner->chatsList()->pinned());
+
+	clear();
+	for (const auto &peer : list) {
+		peer.match([&](const MTPDdialogPeer &data) {
+			if (const auto peerId = peerFromMTP(data.vpeer())) {
+				const auto peer = sublistsOwner->owner().peer(peerId);
+				addPinned(sublistsOwner->sublist(peer));
+			}
+		}, [](const MTPDdialogPeerFolder &data) {
+		});
+	}
+}
+
+void PinnedList::applyList(
 		not_null<Data::Forum*> forum,
 		const QVector<MTPint> &list) {
+	Expects(this == forum->topicsList()->pinned());
+
 	clear();
 	for (const auto &topicId : list) {
 		addPinned(forum->topicFor(topicId.v));

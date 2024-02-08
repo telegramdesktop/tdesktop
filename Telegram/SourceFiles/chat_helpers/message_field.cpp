@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "settings/settings_premium.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
@@ -901,6 +902,71 @@ base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 			.multiline = true,
 			.slideSide = RectPart::Bottom,
 		});
+	});
+	return result;
+}
+
+base::unique_qptr<Ui::RpWidget> TextErrorSendRestriction(
+		QWidget *parent,
+		const QString &text) {
+	auto result = base::make_unique_q<Ui::RpWidget>(parent);
+	const auto raw = result.get();
+	const auto label = CreateChild<Ui::FlatLabel>(
+		result.get(),
+		text,
+		st::historySendPremiumRequired);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		QPainter(raw).fillRect(clip, st::windowBg);
+	}, raw->lifetime());
+	raw->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		const auto &st = st::historyComposeField;
+		const auto width = size.width();
+		const auto margins = (st.textMargins + st.placeholderMargins);
+		const auto available = width - margins.left() - margins.right();
+		label->resizeToWidth(available);
+		label->moveToLeft(
+			margins.left(),
+			(size.height() - label->height()) / 2,
+			width);
+	}, label->lifetime());
+	return result;
+}
+
+base::unique_qptr<Ui::RpWidget> PremiumRequiredSendRestriction(
+		QWidget *parent,
+		not_null<UserData*> user,
+		not_null<Window::SessionController*> controller) {
+	auto result = base::make_unique_q<Ui::RpWidget>(parent);
+	const auto raw = result.get();
+	const auto label = CreateChild<Ui::FlatLabel>(
+		result.get(),
+		tr::lng_restricted_send_non_premium(
+			tr::now,
+			lt_user,
+			user->shortName()),
+		st::historySendPremiumRequired);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto link = CreateChild<Ui::LinkButton>(
+		result.get(),
+		tr::lng_restricted_send_non_premium_more(tr::now));
+	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		QPainter(raw).fillRect(clip, st::windowBg);
+	}, raw->lifetime());
+	raw->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto &st = st::historyComposeField;
+		const auto margins = (st.textMargins + st.placeholderMargins);
+		const auto available = width - margins.left() - margins.right();
+		label->resizeToWidth(available);
+		label->moveToLeft(margins.left(), margins.top(), width);
+		link->move(
+			(width - link->width()) / 2,
+			label->y() + label->height());
+	}, label->lifetime());
+	link->setClickedCallback([=] {
+		Settings::ShowPremium(controller, u"require_premium"_q);
 	});
 	return result;
 }

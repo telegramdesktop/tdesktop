@@ -127,12 +127,13 @@ void VideoBubble::paint() {
 		const auto inner = _content.rect().marginsRemoved(padding);
 		Ui::Shadow::paint(p, inner, _content.width(), st::boxRoundShadow);
 		const auto factor = cIntRetinaFactor();
+		const auto left = _mirrored
+			? (_frame.width() - (inner.width() * factor))
+			: 0;
 		p.drawImage(
 			inner,
 			_frame,
-			QRect(
-				QPoint(_frame.width() - (inner.width() * factor), 0),
-				inner.size() * factor));
+			QRect(QPoint(left, 0), inner.size() * factor));
 	}
 	_track->markFrameShown();
 }
@@ -152,11 +153,10 @@ void VideoBubble::prepareFrame() {
 		.resize = size,
 		.outer = size,
 	};
-	const auto frame = _track->frame(request).mirrored(!_mirrored, false);
+	const auto frame = _track->frame(request);
 	if (_frame.width() < size.width() || _frame.height() < size.height()) {
-		_frame = QImage(
-			size * cIntRetinaFactor(),
-			QImage::Format_ARGB32_Premultiplied);
+		_frame = QImage(size, QImage::Format_ARGB32_Premultiplied);
+		_frame.fill(Qt::transparent);
 	}
 	Assert(_frame.width() >= frame.width()
 		&& _frame.height() >= frame.height());
@@ -174,7 +174,7 @@ void VideoBubble::prepareFrame() {
 		ImageRoundRadius::Large,
 		RectPart::AllCorners,
 		QRect(QPoint(), size)
-	).mirrored(true, false);
+	).mirrored(_mirrored, false);
 }
 
 void VideoBubble::setState(Webrtc::VideoState state) {

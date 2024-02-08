@@ -765,7 +765,7 @@ HistoryItem::HistoryItem(
 : id(id)
 , _history(history)
 , _from(from ? history->owner().peer(from) : history->peer)
-, _flags(FinalizeMessageFlags(flags))
+, _flags(FinalizeMessageFlags(history, flags))
 , _date(date) {
 	if (isHistoryEntry() && IsClientMsgId(id)) {
 		_history->registerClientSideMessage(this);
@@ -880,13 +880,14 @@ void HistoryItem::updateDependentServiceText() {
 	}
 }
 
-bool HistoryItem::updateServiceDependent(bool force) {
+void HistoryItem::updateServiceDependent(bool force) {
 	auto dependent = GetServiceDependentData();
 	Assert(dependent != nullptr);
 
 	if (!force) {
 		if (!dependent->msgId || dependent->msg) {
-			return true;
+			dependent->pendingResolve = false;
+			return;
 		}
 	}
 
@@ -918,6 +919,17 @@ bool HistoryItem::updateServiceDependent(bool force) {
 			}
 		}
 	}
+
+	// Record resolve state for upcoming on-demand resolving.
+	if (dependent->msg || !dependent->msgId || force) {
+		dependent->pendingResolve = false;
+	} else {
+		dependent->pendingResolve = true;
+		dependent->requestedResolve = false;
+	}
+
+	// updateDependentServiceText may call UpdateComponents!
+	// So the `dependent` pointer becomes invalid.
 	if (dependent->msg) {
 		updateDependentServiceText();
 	} else if (force) {
@@ -930,7 +942,6 @@ bool HistoryItem::updateServiceDependent(bool force) {
 	if (force && gotDependencyItem) {
 		Core::App().notifications().checkDelayed();
 	}
-	return (dependent->msg || !dependent->msgId);
 }
 
 MsgId HistoryItem::dependencyMsgId() const {
@@ -948,9 +959,49 @@ void HistoryItem::checkBuyButton() {
 	}
 }
 
+void HistoryItem::resolveDependent(
+		not_null<HistoryServiceDependentData*> dependent) {
+	if (!dependent->pendingResolve || dependent->requestedResolve) {
+		return;
+	}
+	dependent->requestedResolve = true;
+	RequestDependentMessageItem(
+		this,
+		(dependent->peerId ? dependent->peerId : _history->peer->id),
+		dependent->msgId);
+}
+
+void HistoryItem::resolveDependent(not_null<HistoryMessageReply*> reply) {
+	if (!reply->acquireResolve()) {
+		return;
+	} else if (const auto messageId = reply->messageId()) {
+		RequestDependentMessageItem(
+			this,
+			reply->externalPeerId(),
+			reply->messageId());
+	} else if (reply->storyId()) {
+		RequestDependentMessageStory(
+			this,
+			reply->externalPeerId(),
+			reply->storyId());
+	}
+}
+
+void HistoryItem::resolveDependent() {
+	if (const auto dependent = GetServiceDependentData()) {
+		resolveDependent(dependent);
+	} else if (const auto reply = Get<HistoryMessageReply>()) {
+		resolveDependent(reply);
+	}
+}
+
 bool HistoryItem::notificationReady() const {
 	if (const auto dependent = GetServiceDependentData()) {
-		return (dependent->msg || !dependent->msgId);
+		if (dependent->msg || !dependent->msgId) {
+			return true;
+		}
+		const_cast<HistoryItem*>(this)->resolveDependent(
+			const_cast<HistoryServiceDependentData*>(dependent));
 	}
 	return true;
 }
@@ -2429,6 +2480,10 @@ const std::vector<Data::MessageReaction> &HistoryItem::reactions() const {
 	return _reactions ? _reactions->list() : kEmpty;
 }
 
+bool HistoryItem::reactionsAreTags() const {
+	return _flags & MessageFlag::ReactionsAreTags;
+}
+
 auto HistoryItem::recentReactions() const
 -> const base::flat_map<
 		Data::ReactionId,
@@ -3141,6 +3196,8 @@ TextWithEntities HistoryItem::notificationText(
 
 ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 	if (isService()) {
+		const_cast<HistoryItem*>(this)->resolveDependent();
+
 		// Don't show small media for service messages (chat photo changed).
 		// Because larger version is shown exactly to the left of the small.
 		//auto media = _media ? _media->toPreview(options) : ItemPreview();
@@ -3301,19 +3358,7 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		reply->set(std::move(config.reply));
-		if (!reply->updateData(this)) {
-			if (const auto messageId = reply->messageId()) {
-				RequestDependentMessageItem(
-					this,
-					reply->externalPeerId(),
-					reply->messageId());
-			} else if (reply->storyId()) {
-				RequestDependentMessageStory(
-					this,
-					reply->externalPeerId(),
-					reply->storyId());
-			}
-		}
+		reply->updateData(this);
 	}
 	if (const auto via = Get<HistoryMessageVia>()) {
 		via->create(&_history->owner(), config.viaBotId);
@@ -3556,31 +3601,40 @@ bool HistoryItem::changeReactions(const MTPMessageReactions *reactions) {
 	}
 	if (!reactions) {
 		_flags &= ~MessageFlag::CanViewReactions;
+		if (_history->peer->isSelf()) {
+			_flags |= MessageFlag::ReactionsAreTags;
+		}
 		return (base::take(_reactions) != nullptr);
 	}
-	return reactions->match([&](const MTPDmessageReactions &data) {
-		if (data.is_can_see_list()) {
-			_flags |= MessageFlag::CanViewReactions;
-		} else {
-			_flags &= ~MessageFlag::CanViewReactions;
+	const auto &data = reactions->data();
+	const auto empty = data.vresults().v.isEmpty();
+	if (data.is_reactions_as_tags()
+		|| (empty && _history->peer->isSelf())) {
+		_flags |= MessageFlag::ReactionsAreTags;
+	} else {
+		_flags &= ~MessageFlag::ReactionsAreTags;
+	}
+	if (data.is_can_see_list()) {
+		_flags |= MessageFlag::CanViewReactions;
+	} else {
+		_flags &= ~MessageFlag::CanViewReactions;
+	}
+	if (empty) {
+		return (base::take(_reactions) != nullptr);
+	} else if (!_reactions) {
+		_reactions = std::make_unique<Data::MessageReactions>(this);
+	}
+	const auto min = data.is_min();
+	const auto &list = data.vresults().v;
+	const auto &recent = data.vrecent_reactions().value_or_empty();
+	if (min && hasUnreadReaction()) {
+		// We can't update reactions from min if we have unread.
+		if (_reactions->checkIfChanged(list, recent, min)) {
+			updateReactionsUnknown();
 		}
-		if (data.vresults().v.isEmpty()) {
-			return (base::take(_reactions) != nullptr);
-		} else if (!_reactions) {
-			_reactions = std::make_unique<Data::MessageReactions>(this);
-		}
-		const auto min = data.is_min();
-		const auto &list = data.vresults().v;
-		const auto &recent = data.vrecent_reactions().value_or_empty();
-		if (min && hasUnreadReaction()) {
-			// We can't update reactions from min if we have unread.
-			if (_reactions->checkIfChanged(list, recent, min)) {
-				updateReactionsUnknown();
-			}
-			return false;
-		}
-		return _reactions->change(list, recent, min);
-	});
+		return false;
+	}
+	return _reactions->change(list, recent, min);
 }
 
 void HistoryItem::applyTTL(const MTPDmessage &data) {
@@ -3877,14 +3931,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 					dependent->topId = data.vreply_to_top_id().value_or(id);
 					dependent->topicPost = data.is_forum_topic()
 						|| Has<HistoryServiceTopicInfo>();
-					if (!updateServiceDependent()) {
-						RequestDependentMessageItem(
-							this,
-							(dependent->peerId
-								? dependent->peerId
-								: _history->peer->id),
-							dependent->msgId);
-					}
+					updateServiceDependent();
 				}
 			}
 		}, [](const MTPDmessageReplyStoryHeader &data) {

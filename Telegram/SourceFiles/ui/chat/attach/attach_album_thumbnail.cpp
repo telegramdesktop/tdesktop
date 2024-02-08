@@ -324,7 +324,7 @@ void AlbumThumbnail::drawSimpleFrame(QPainter &p, QRect to, QSize size) const {
 	const auto Round = [](float64 value) {
 		return int(base::SafeRound(value));
 	};
-	const auto [from, fillBlack] = [&] {
+	const auto &[from, fillBlack] = [&] {
 		if (previewWidth < width && previewHeight < height) {
 			const auto toWidth = Round(previewWidth * scaleWidth);
 			const auto toHeight = Round(previewHeight * scaleHeight);

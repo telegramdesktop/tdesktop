@@ -402,7 +402,6 @@ void SendConfirmedFile(
 		flags |= MessageFlag::HasReplyInfo;
 	}
 	const auto anonymousPost = peer->amAnonymous();
-	const auto silentPost = ShouldSendSilent(peer, file->to.options);
 	FillMessagePostFlags(action, peer, flags);
 	if (file->to.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;

@@ -304,6 +304,9 @@ InfoProfileCover {
 	status: FlatLabel;
 	statusLeft: pixels;
 	statusTop: pixels;
+	showLastSeen: RoundButton;
+	showLastSeenPosition: point;
+	showLastSeenVisible: bool;
 	rightSkip: pixels;
 }
 infoProfilePhotoInnerSize: 72px;
@@ -334,6 +337,19 @@ infoProfileCover: InfoProfileCover {
 	status: infoProfileStatus;
 	statusLeft: 109px;
 	statusTop: 58px;
+	showLastSeen: RoundButton(defaultActiveButton) {
+		textFg: windowSubTextFg;
+		textFgOver: windowSubTextFg;
+		textBg: windowBgOver;
+		textBgOver: windowBgOver;
+		width: -12px;
+		height: 18px;
+		textTop: 0px;
+		font: font(12px);
+		ripple: defaultRippleAnimation;
+	}
+	showLastSeenPosition: point(3px, 58px);
+	showLastSeenVisible: true;
 	rightSkip: 20px;
 }
 infoProfileMegagroupCover: InfoProfileCover(infoProfileCover) {
@@ -461,6 +477,10 @@ infoMainButton: SettingsButton(infoProfileButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 	style: semiboldTextStyle;
+}
+infoMainButtonAttention: SettingsButton(infoMainButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
 }
 infoSharedMediaButton: infoProfileButton;
 infoSharedMediaBottomSkip: 12px;

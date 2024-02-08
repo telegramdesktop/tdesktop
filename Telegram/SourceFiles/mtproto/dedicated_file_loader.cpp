@@ -453,7 +453,7 @@ void StartDedicatedLoader(
 		ready(nullptr);
 	};
 
-	const auto [username, postId] = location;
+	const auto &[username, postId] = location;
 	ResolveChannel(mtp, username, [=, postId = postId](
 			const MTPInputChannel &channel) {
 		mtp->send(

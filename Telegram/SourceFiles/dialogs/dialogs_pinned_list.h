@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 
 namespace Data {
+class SavedMessages;
 class Session;
 class Forum;
 } // namespace Data
@@ -35,6 +36,9 @@ public:
 
 	void applyList(
 		not_null<Data::Session*> owner,
+		const QVector<MTPDialogPeer> &list);
+	void applyList(
+		not_null<Data::SavedMessages*> sublistsOwner,
 		const QVector<MTPDialogPeer> &list);
 	void applyList(
 		not_null<Data::Forum*> forum,

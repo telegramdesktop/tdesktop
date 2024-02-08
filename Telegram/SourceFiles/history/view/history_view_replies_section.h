@@ -152,6 +152,9 @@ public:
 	void listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) override;
+	void listSearch(
+		const QString &query,
+		const FullMsgId &context) override;
 	void listHandleViaClick(not_null<UserData*> bot) override;
 	not_null<Ui::ChatTheme*> listChatTheme() override;
 	CopyRestrictionType listCopyRestrictionType(HistoryItem *item) override;

@@ -9,11 +9,38 @@ on:
     - cron: '0 0 * * *'
 
 jobs:
-  noResponse:
+  waiting-for-answer:
     runs-on: ubuntu-latest
     steps:
       - uses: lee-dohm/no-response@v0.5.0
         with:
           token: ${{ github.token }}
-          # Label requiring a response
           responseRequiredLabel: waiting for answer
+
+  needs-user-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: lee-dohm/no-response@v0.5.0
+        with:
+          token: ${{ github.token }}
+          responseRequiredLabel: needs user action
+
+  cant-reproduce:
+    if: github.event_name != 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: lee-dohm/no-response@v0.5.0
+        with:
+          token: ${{ github.token }}
+          responseRequiredLabel: cant reproduce
+          closeComment: >
+            This issue has been automatically closed because no developer succeeded to
+            reproduce the issue with the given reproduction steps. With only the
+            information that is currently in the issue, we don't have enough
+            information to take action. Please reach out if you find what's missing to
+            reproduce the issue so that we can investigate further.
+
+
+            Note that GitHub is a developer communication platform. If you're an ordinary
+            user seeking for help, get to support crew via `Settings -> Ask question` in
+            the application.

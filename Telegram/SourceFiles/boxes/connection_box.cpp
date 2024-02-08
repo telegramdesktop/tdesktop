@@ -748,7 +748,7 @@ void ProxiesBox::applyView(View &&view) {
 		const auto wrap = _wrap
 			? _wrap.data()
 			: _initialWrap.data();
-		const auto [i, ok] = _rows.emplace(id, nullptr);
+		const auto &[i, ok] = _rows.emplace(id, nullptr);
 		i->second.reset(wrap->insert(
 			0,
 			object_ptr<ProxyRow>(

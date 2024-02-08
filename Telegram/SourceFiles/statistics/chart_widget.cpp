@@ -851,6 +851,9 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 }
 
 int ChartWidget::resizeGetHeight(int newWidth) {
+	if (newWidth <= 0) {
+		return 0;
+	}
 	if (_filterButtons) {
 		_filterButtons->resizeToWidth(newWidth);
 	}

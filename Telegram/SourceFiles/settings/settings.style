@@ -15,12 +15,14 @@ settingsButton: SettingsButton(infoProfileButton) {
 	padding: margins(60px, 10px, 22px, 10px);
 	iconLeft: 20px;
 }
+settingsButtonNoIcon: SettingsButton(settingsButton) {
+	padding: margins(22px, 10px, 22px, 8px);
+}
 settingsButtonLight: SettingsButton(settingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 }
-settingsButtonNoIcon: SettingsButton(settingsButton) {
-	padding: margins(22px, 10px, 22px, 8px);
+settingsButtonLightNoIcon: SettingsButton(settingsButtonLight, settingsButtonNoIcon) {
 }
 settingsButtonNoIconLocked : SettingsButton(settingsButtonNoIcon) {
 	toggle: Toggle(infoProfileToggle) {
@@ -89,6 +91,7 @@ settingsPremiumIconStar: icon {{ "settings/premium/star", settingsIconFg }};
 settingsPremiumIconVoice: icon {{ "settings/premium/voice", settingsIconFg }};
 settingsPremiumIconFiles: icon {{ "settings/premium/files", settingsIconFg }};
 settingsPremiumIconTranslations: icon {{ "settings/premium/translations", settingsIconFg }};
+settingsPremiumIconTags: icon {{ "settings/premium/tags", settingsIconFg }};
 
 settingsStoriesIconOrder: icon {{ "settings/premium/stories_order", premiumButtonBg1 }};
 settingsStoriesIconStealth: icon {{ "menu/stealth", premiumButtonBg1 }};
@@ -464,7 +467,7 @@ settingsPremiumUserTitlePadding: margins(0px, 16px, 0px, 6px);
 settingsPremiumUserTitle: FlatLabel(boxTitle) {
 	style: TextStyle(defaultTextStyle) {
 		font: boxTitleFont;
-		lineHeight: 14px;
+		lineHeight: 20px;
 	}
 	minWidth: 300px;
 	maxHeight: 0px;
@@ -557,3 +560,15 @@ settingsColorButton: SettingsButton(settingsButton) {
 settingsColorRadioMargin: 17px;
 settingsColorRadioSkip: 13px;
 settingsColorRadioStroke: 2px;
+
+messagePrivacyTopSkip: 8px;
+messagePrivacyRadioSkip: 6px;
+messagePrivacyBottomSkip: 10px;
+messagePrivacyCheck: Checkbox(settingsPrivacyOption) {
+	textPosition: point(13px, 1px);
+}
+messagePrivacySubscribe: SettingsButton(settingsButtonLight) {
+	padding: margins(56px, 10px, 22px, 8px);
+	iconLeft: 20px;
+}
+messagePrivacyLock: icon {{ "info/info_rights_lock", checkboxFg }};

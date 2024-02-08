@@ -28,12 +28,14 @@ Viewport::VideoTile::VideoTile(
 	VideoTileTrack track,
 	rpl::producer<QSize> trackSize,
 	rpl::producer<bool> pinned,
-	Fn<void()> update)
+	Fn<void()> update,
+	bool self)
 : _endpoint(endpoint)
 , _update(std::move(update))
 , _track(std::move(track))
 , _trackSize(std::move(trackSize))
-, _rtmp(endpoint.rtmp()) {
+, _rtmp(endpoint.rtmp())
+, _self(self) {
 	Expects(_track.track != nullptr);
 	Expects(_track.row != nullptr);
 
@@ -46,6 +48,10 @@ Viewport::VideoTile::VideoTile(
 	}, _lifetime);
 
 	setup(std::move(pinned));
+}
+
+bool Viewport::VideoTile::mirror() const {
+	return _self && (_endpoint.type == VideoEndpointType::Camera);
 }
 
 QRect Viewport::VideoTile::pinOuter() const {

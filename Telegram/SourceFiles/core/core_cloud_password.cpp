@@ -128,7 +128,7 @@ CloudPasswordResult ComputeCheck(
 		}
 	};
 
-	const auto [a, AForHash, u] = GenerateAndCheckRandom();
+	const auto &[a, AForHash, u] = GenerateAndCheckRandom();
 	const auto g_b = BigNum::ModSub(B, kg_x, p, context);
 	if (!MTP::IsGoodModExpFirst(g_b, p)) {
 		LOG(("API Error: Bad g_b in cloud password check!"));

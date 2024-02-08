@@ -618,6 +618,15 @@ void PinnedWidget::listSendBotCommand(
 	const FullMsgId &context) {
 }
 
+void PinnedWidget::listSearch(
+		const QString &query,
+		const FullMsgId &context) {
+	const auto inChat = _history->peer->isUser()
+		? Dialogs::Key()
+		: Dialogs::Key(_history);
+	controller()->searchMessages(query, inChat);
+}
+
 void PinnedWidget::listHandleViaClick(not_null<UserData*> bot) {
 }
 

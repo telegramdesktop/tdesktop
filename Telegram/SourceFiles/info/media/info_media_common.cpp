@@ -39,7 +39,7 @@ bool ChangeItemSelection(
 		return false;
 	};
 	if (selected.size() < MaxSelectedItems) {
-		const auto [i, ok] = selected.try_emplace(item, selectionData);
+		const auto &[i, ok] = selected.try_emplace(item, selectionData);
 		if (ok) {
 			return true;
 		}

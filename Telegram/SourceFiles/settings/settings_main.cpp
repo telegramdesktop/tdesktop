@@ -390,9 +390,9 @@ void SetupSections(
 		Advanced::Id(),
 		{ &st::menuIconManage });
 	addSection(
-		tr::lng_settings_section_call_settings(),
+		tr::lng_settings_section_devices(),
 		Calls::Id(),
-		{ &st::menuIconPhone });
+		{ &st::menuIconUnmute });
 
 	SetupPowerSavingButton(&controller->window(), container);
 	SetupLanguageButton(&controller->window(), container);

@@ -20,6 +20,8 @@ namespace {
 
 constexpr auto kPerPage = 50;
 constexpr auto kFirstPerPage = 10;
+constexpr auto kListPerPage = 100;
+constexpr auto kListFirstPerPage = 20;
 
 } // namespace
 
@@ -82,7 +84,7 @@ void SavedMessages::sendLoadMore() {
 			MTP_int(_offsetDate),
 			MTP_int(_offsetId),
 			_offsetPeer ? _offsetPeer->input : MTP_inputPeerEmpty(),
-			MTP_int(kPerPage),
+			MTP_int(_offsetId ? kListPerPage : kListFirstPerPage),
 			MTP_long(0)) // hash
 	).done([=](const MTPmessages_SavedDialogs &result) {
 		apply(result, false);
@@ -275,7 +277,7 @@ void SavedMessages::apply(const MTPDupdatePinnedSavedDialogs &update) {
 	if (!ranges::none_of(order, notLoaded)) {
 		loadPinned();
 	} else {
-		_chatsList.pinned()->applyList(_owner, order);
+		_chatsList.pinned()->applyList(this, order);
 		_owner->notifyPinnedDialogsOrderUpdated();
 	}
 }

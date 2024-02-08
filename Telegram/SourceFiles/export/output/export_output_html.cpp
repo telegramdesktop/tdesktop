@@ -1563,7 +1563,7 @@ QByteArray HtmlWriter::Wrap::pushStickerMedia(
 		const QString &basePath) {
 	using namespace Data;
 
-	const auto [thumb, size] = WriteImageThumb(
+	const auto &[thumb, size] = WriteImageThumb(
 		basePath,
 		data.file.relativePath,
 		CalculateThumbSize(
@@ -1730,7 +1730,7 @@ QByteArray HtmlWriter::Wrap::pushPhotoMedia(
 		const QString &basePath) {
 	using namespace Data;
 
-	const auto [thumb, size] = WriteImageThumb(
+	const auto &[thumb, size] = WriteImageThumb(
 		basePath,
 		data.image.file.relativePath,
 		CalculateThumbSize(
@@ -2790,7 +2790,7 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 				_settings.path,
 				FormatDateText(date)));
 		}
-		const auto [info, content] = _chat->pushMessage(
+		const auto &[info, content] = _chat->pushMessage(
 			message,
 			previous,
 			_dialog,

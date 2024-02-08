@@ -98,6 +98,7 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		MTP_string(query),
 		MTP_inputPeerEmpty(),
 		MTPInputPeer(), // saved_peer_id
+		MTPVector<MTPReaction>(), // saved_reaction
 		MTP_int(topicRootId),
 		filter,
 		MTP_int(0), // min_date

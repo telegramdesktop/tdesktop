@@ -59,10 +59,12 @@ TimeId DefaultScheduleTime() {
 }
 
 bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
-	return !peer->isSelf()
-		&& peer->isUser()
-		&& !peer->asUser()->isBot()
-		&& (peer->asUser()->onlineTill > 0);
+	if (const auto user = peer->asUser()) {
+		return !user->isSelf()
+			&& !user->isBot()
+			&& !user->lastseen().isHidden();
+	}
+	return false;
 }
 
 void ScheduleBox(

@@ -410,6 +410,8 @@ void WriteIco(const QString &path, std::vector<QImage> images) {
 		buffer.append(pngs[i]);
 	}
 
+	const auto dir = QFileInfo(path).dir();
+	dir.mkpath(dir.absolutePath());
 	auto f = QFile(path);
 	if (f.open(QIODevice::WriteOnly)) {
 		f.write(buffer);

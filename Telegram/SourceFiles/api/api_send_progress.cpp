@@ -161,14 +161,13 @@ bool SendProgressManager::skipRequest(const Key &key) const {
 		return true;
 	}
 	const auto recently = base::unixtime::now() - kSendTypingsToOfflineFor;
-	const auto online = user->onlineTill;
-	if (online == -2) { // last seen recently
+	const auto lastseen = user->lastseen();
+	if (lastseen.isRecently()) {
 		return false;
-	} else if (online < 0) {
-		return (-online < recently);
-	} else {
-		return (online < recently);
+	} else if (const auto value = lastseen.onlineTill()) {
+		return (value < recently);
 	}
+	return true;
 }
 
 void SendProgressManager::done(mtpRequestId requestId) {

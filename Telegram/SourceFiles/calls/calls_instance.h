@@ -103,8 +103,6 @@ public:
 		-> std::shared_ptr<tgcalls::VideoCaptureInterface>;
 	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);
 
-	void setCurrentAudioDevice(bool input, const QString &deviceId);
-
 	[[nodiscard]] FnMut<void()> addAsyncWaiter();
 
 	[[nodiscard]] bool isSharingScreen() const;

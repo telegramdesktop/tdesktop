@@ -25,18 +25,24 @@ Memento::Memento(not_null<Controller*> controller)
 : Memento(
 	controller->peer(),
 	controller->topic(),
-	controller->migratedPeerId()) {
+	controller->migratedPeerId(),
+	{ v::null }) {
 }
 
-Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId)
-: Memento(peer, nullptr, migratedPeerId) {
+Memento::Memento(
+	not_null<PeerData*> peer,
+	PeerId migratedPeerId,
+	Origin origin)
+: Memento(peer, nullptr, migratedPeerId, origin) {
 }
 
 Memento::Memento(
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,
-	PeerId migratedPeerId)
-: ContentMemento(peer, topic, migratedPeerId) {
+	PeerId migratedPeerId,
+	Origin origin)
+: ContentMemento(peer, topic, migratedPeerId)
+, _origin(origin) {
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic)
@@ -51,7 +57,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(parent, controller);
+	auto result = object_ptr<Widget>(parent, controller, _origin);
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -66,13 +72,17 @@ std::unique_ptr<MembersState> Memento::membersState() {
 
 Memento::~Memento() = default;
 
-Widget::Widget(QWidget *parent, not_null<Controller*> controller)
+Widget::Widget(
+	QWidget *parent,
+	not_null<Controller*> controller,
+	Origin origin)
 : ContentWidget(parent, controller) {
 	controller->setSearchEnabledByContent(false);
 
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
-		controller));
+		controller,
+		origin));
 	_inner->move(0, 0);
 	_inner->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {

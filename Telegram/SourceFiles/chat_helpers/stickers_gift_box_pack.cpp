@@ -26,6 +26,8 @@ DocumentData *GiftBoxPack::lookup(int months) const {
 	const auto fallback = _documents.empty() ? nullptr : _documents[0];
 	if (it == begin(_localMonths)) {
 		return fallback;
+	} else if (it == end(_localMonths)) {
+		return _documents.back();
 	}
 	const auto left = *(it - 1);
 	const auto right = *it;

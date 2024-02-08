@@ -533,7 +533,14 @@ bool Panel::showWebview(
 			}, &st::menuIconLeave);
 		}
 		callback(tr::lng_bot_reload_page(tr::now), [=] {
-			_webview->window.reload();
+			if (_webview) {
+				_webview->window.reload();
+			} else if (const auto params = _delegate->botThemeParams()
+				; createWebview(params)) {
+				showWebviewProgress();
+				updateThemeParams(params);
+				_webview->window.navigate(url);
+			}
 		}, &st::menuIconRestore);
 		const auto main = (_menuButtons & MenuButton::RemoveFromMainMenu);
 		if (main || (_menuButtons & MenuButton::RemoveFromMenu)) {
@@ -572,7 +579,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			height = _mainButton->height();
 		}
 		bottom->move(inner.x(), inner.y() + inner.height() - height);
-		container->resize(inner.width(), inner.height() - height);
+		container->setFixedSize(inner.width(), inner.height() - height);
 		bottom->resizeToWidth(inner.width());
 	}, bottom->lifetime());
 	container->show();
@@ -695,6 +702,10 @@ postEvent: function(eventType, eventData) {
 	}
 }
 };)");
+
+	if (!_webview) {
+		return false;
+	}
 
 	setupProgressGeometry();
 
@@ -1170,7 +1181,7 @@ void Panel::createMainButton() {
 		}
 		button->move(inner.x(), inner.y() + inner.height() - height);
 		if (const auto raw = _webviewParent.data()) {
-			raw->resize(inner.width(), inner.height() - height);
+			raw->setFixedSize(inner.width(), inner.height() - height);
 		}
 		button->resizeToWidth(inner.width());
 		_webviewBottom->setVisible(!shown);

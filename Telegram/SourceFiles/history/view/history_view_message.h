@@ -289,6 +289,7 @@ private:
 	[[nodiscard]] ClickHandlerPtr psaTooltipLink() const;
 	void psaTooltipToggled(bool shown) const;
 
+	void setReactions(std::unique_ptr<Reactions::InlineList> list);
 	void refreshRightBadge();
 	void refreshReactions();
 	void validateFromNameText(PeerData *from) const;

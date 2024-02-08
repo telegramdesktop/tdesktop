@@ -134,22 +134,13 @@ NSRect PeerRectByIndex(int index) {
 		kCircleDiameter);
 }
 
-TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
-	if (peer->isSelf() || peer->isRepliesChat()) {
-		return 0;
-	}
+[[nodiscard]] Data::LastseenStatus CalculateLastseenStatus(
+		not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		if (!user->isServiceUser() && !user->isBot()) {
-			const auto onlineTill = user->onlineTill;
-			return (onlineTill <= -5)
-				? -onlineTill
-				: (onlineTill <= 0)
-				? 0
-				: onlineTill;
-		}
+		return user->lastseen();
 	}
-	return 0;
-};
+	return Data::LastseenStatus();
+}
 
 } // namespace
 
@@ -175,7 +166,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		bool onTop = false;
 
 		Ui::Animations::Simple onlineAnimation;
-		TimeId onlineTill = 0;
+		Data::LastseenStatus lastseen;
 	};
 	rpl::lifetime _lifetime;
 	Main::Session *_session;
@@ -570,10 +561,10 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 
 		const auto callTimer = [=](const auto &pin) {
 			onlineTimer->cancel();
-			if (pin->onlineTill) {
-				const auto time = pin->onlineTill - base::unixtime::now();
-				if (time > 0) {
-					onlineTimer->callOnce(std::min(86400, time)
+			if (const auto till = pin->lastseen.onlineTill()) {
+				const auto left = till - base::unixtime::now();
+				if (left > 0) {
+					onlineTimer->callOnce(std::min(86400, left)
 						* crl::time(1000));
 				}
 			}
@@ -595,7 +586,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 				return;
 			}
 			const auto &pin = *it;
-			pin->onlineTill = CalculateOnlineTill(pin->peer);
+			pin->lastseen = CalculateLastseenStatus(pin->peer);
 
 			callTimer(pin);
 
@@ -603,9 +594,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 				pin->onlineAnimation.stop();
 				return;
 			}
-			const auto online = Data::OnlineTextActive(
-				pin->onlineTill,
-				base::unixtime::now());
+			const auto now = base::unixtime::now();
+			const auto online = pin->lastseen.isOnline(now);
 			if (pin->onlineAnimation.animating()) {
 				pin->onlineAnimation.change(
 					online ? 1. : 0.,
@@ -638,13 +628,12 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			const auto index = pair.second;
 			auto peer = pair.first.history()->peer;
 			auto view = peer->createUserpicView();
-			const auto onlineTill = CalculateOnlineTill(peer);
-			Pin pin = {
+			return std::make_unique<Pin>(Pin{
 				.peer = std::move(peer),
 				.userpicView = std::move(view),
 				.index = index,
-				.onlineTill = onlineTill };
-			return std::make_unique<Pin>(std::move(pin));
+				.lastseen = CalculateLastseenStatus(peer),
+			});
 		}) | ranges::to_vector;
 		_selfUnpinned = ranges::none_of(peers, &PeerData::isSelf);
 		_repliesUnpinned = ranges::none_of(peers, &PeerData::isRepliesChat);
@@ -837,9 +826,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			CGImageRelease(image);
 			return;
 		}
-		const auto online = Data::OnlineTextActive(
-			pin->onlineTill,
-			base::unixtime::now());
+		const auto now = base::unixtime::now();
+		const auto online = pin->lastseen.isOnline(now);
 		const auto value = pin->onlineAnimation.value(online ? 1. : 0.);
 		if (value < 0.05) {
 			return;

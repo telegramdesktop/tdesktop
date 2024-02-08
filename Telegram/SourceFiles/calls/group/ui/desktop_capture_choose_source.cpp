@@ -114,6 +114,7 @@ private:
 	const not_null<RoundButton*> _finish;
 	const not_null<Checkbox*> _withAudio;
 
+	QSize _fixedSize;
 	std::vector<std::unique_ptr<Source>> _sources;
 	Source *_selected = nullptr;
 	QString _selectedId;
@@ -337,7 +338,7 @@ void ChooseSourceProcess::setupPanel() {
 		+ (kRows - 1) * skips.height()
 		+ (st::desktopCaptureSourceSize.height() / 2)
 		+ bottomHeight;
-	_window->setFixedSize({ width, height });
+	_fixedSize = QSize(width, height);
 	_window->setStaysOnTop(true);
 
 	_window->body()->paintRequest(
@@ -598,6 +599,7 @@ void ChooseSourceProcess::setupGeometryWithParent(
 	if (parentScreen && myScreen != parentScreen) {
 		_window->windowHandle()->setScreen(parentScreen);
 	}
+	_window->setFixedSize(_fixedSize);
 	_window->move(
 		parent->x() + (parent->width() - _window->width()) / 2,
 		parent->y() + (parent->height() - _window->height()) / 2);

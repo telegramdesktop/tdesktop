@@ -8,10 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 
 #include "api/api_chat_participants.h"
+#include "api/api_premium.h"
 #include "base/random.h"
 #include "boxes/filters/edit_filter_chats_list.h"
+#include "settings/settings_premium.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/round_checkbox.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/popup_menu.h"
@@ -19,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_channel.h"
@@ -44,10 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 #include "styles/style_dialogs.h"
-
-#include "data/data_stories.h"
-#include "dialogs/ui/dialogs_stories_content.h"
-#include "dialogs/ui/dialogs_stories_list.h"
+#include "styles/style_chat_helpers.h"
 
 namespace {
 
@@ -257,9 +258,88 @@ bool PeerListGlobalSearchController::isLoading() {
 	return _timer.isActive() || _requestId;
 }
 
-ChatsListBoxController::Row::Row(not_null<History*> history)
-: PeerListRow(history->peer)
-, _history(history) {
+RecipientRow::RecipientRow(
+	not_null<PeerData*> peer,
+	const style::PeerListItem *maybeLockedSt,
+	History *maybeHistory)
+: PeerListRow(peer)
+, _maybeHistory(maybeHistory)
+, _resolvePremiumRequired(maybeLockedSt != nullptr) {
+	if (maybeLockedSt
+		&& (Api::ResolveRequiresPremiumToWrite(peer, maybeHistory)
+			== Api::RequirePremiumState::Yes)) {
+		_lockedSt = maybeLockedSt;
+	}
+}
+
+PaintRoundImageCallback RecipientRow::generatePaintUserpicCallback(
+		bool forceRound) {
+	auto result = PeerListRow::generatePaintUserpicCallback(forceRound);
+	if (const auto st = _lockedSt) {
+		return [=](Painter &p, int x, int y, int outerWidth, int size) {
+			result(p, x, y, outerWidth, size);
+			PaintPremiumRequiredLock(p, st, x, y, outerWidth, size);
+		};
+	}
+	return result;
+}
+
+bool RecipientRow::refreshLock(
+		not_null<const style::PeerListItem*> maybeLockedSt) {
+	if (const auto user = peer()->asUser()) {
+		const auto locked = _resolvePremiumRequired
+			&& (Api::ResolveRequiresPremiumToWrite(user, _maybeHistory)
+				== Api::RequirePremiumState::Yes);
+		if (this->locked() != locked) {
+			setLocked(locked ? maybeLockedSt.get() : nullptr);
+			return true;
+		}
+	}
+	return false;
+}
+
+void RecipientRow::preloadUserpic() {
+	PeerListRow::preloadUserpic();
+
+	if (!_resolvePremiumRequired) {
+		return;
+	} else if (Api::ResolveRequiresPremiumToWrite(peer(), _maybeHistory)
+		== Api::RequirePremiumState::Unknown) {
+		const auto user = peer()->asUser();
+		user->session().api().premium().resolvePremiumRequired(user);
+	}
+}
+
+void TrackPremiumRequiredChanges(
+		not_null<PeerListController*> controller,
+		rpl::lifetime &lifetime) {
+	const auto session = &controller->session();
+	rpl::merge(
+		Data::AmPremiumValue(session) | rpl::to_empty,
+		session->api().premium().somePremiumRequiredResolved()
+	) | rpl::start_with_next([=] {
+		const auto st = &controller->computeListSt().item;
+		const auto delegate = controller->delegate();
+		const auto process = [&](not_null<PeerListRow*> raw) {
+			if (static_cast<RecipientRow*>(raw.get())->refreshLock(st)) {
+				delegate->peerListUpdateRow(raw);
+			}
+		};
+		auto count = delegate->peerListFullRowsCount();
+		for (auto i = 0; i != count; ++i) {
+			process(delegate->peerListRowAt(i));
+		}
+		count = delegate->peerListSearchRowsCount();
+		for (auto i = 0; i != count; ++i) {
+			process(delegate->peerListSearchRowAt(i));
+		}
+	}, lifetime);
+}
+
+ChatsListBoxController::Row::Row(
+	not_null<History*> history,
+	const style::PeerListItem *maybeLockedSt)
+: RecipientRow(history->peer, maybeLockedSt, history) {
 }
 
 ChatsListBoxController::ChatsListBoxController(
@@ -420,7 +500,7 @@ void PeerListStories::process(not_null<PeerListRow*> row) {
 
 bool PeerListStories::handleClick(not_null<PeerData*> peer) {
 	const auto point = _delegate->peerListLastRowMousePosition();
-	const auto &st = _controller->listSt()->item;
+	const auto &st = _controller->computeListSt().item;
 	if (point && point->x() < st.photoPosition.x() + st.photoSize) {
 		if (const auto window = peer->session().tryResolveWindow()) {
 			if (const auto user = peer->asUser()) {
@@ -437,9 +517,9 @@ bool PeerListStories::handleClick(not_null<PeerData*> peer) {
 void PeerListStories::prepare(not_null<PeerListDelegate*> delegate) {
 	_delegate = delegate;
 
-	_unreadBrush = PeerListStoriesGradient(*_controller->listSt());
+	_unreadBrush = PeerListStoriesGradient(_controller->computeListSt());
 	style::PaletteChanged() | rpl::start_with_next([=] {
-		_unreadBrush = PeerListStoriesGradient(*_controller->listSt());
+		_unreadBrush = PeerListStoriesGradient(_controller->computeListSt());
 		updateColors();
 	}, _lifetime);
 
@@ -598,7 +678,9 @@ void ContactsBoxController::sortByOnline() {
 	const auto now = base::unixtime::now();
 	const auto key = [&](const PeerListRow &row) {
 		const auto user = row.peer()->asUser();
-		return user ? (std::min(user->onlineTill, now) + 1) : TimeId();
+		return user
+			? (std::min(user->lastseen().onlineTill(), now + 1) + 1)
+			: TimeId();
 	};
 	const auto predicate = [&](const PeerListRow &a, const PeerListRow &b) {
 		return key(a) > key(b);
@@ -627,14 +709,40 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createRow(
 	return std::make_unique<PeerListRow>(user);
 }
 
+RecipientPremiumRequiredError WritePremiumRequiredError(
+		not_null<UserData*> user) {
+	return {
+		.text = tr::lng_send_non_premium_message_toast(
+			tr::now,
+			lt_user,
+			TextWithEntities{ user->shortName() },
+			lt_link,
+			Ui::Text::Link(
+				Ui::Text::Bold(
+					tr::lng_send_non_premium_message_toast_link(
+						tr::now))),
+			Ui::Text::RichLangValue),
+	};
+}
+
 ChooseRecipientBoxController::ChooseRecipientBoxController(
 	not_null<Main::Session*> session,
 	FnMut<void(not_null<Data::Thread*>)> callback,
 	Fn<bool(not_null<Data::Thread*>)> filter)
-: ChatsListBoxController(session)
-, _session(session)
-, _callback(std::move(callback))
-, _filter(std::move(filter)) {
+: ChooseRecipientBoxController({
+	.session = session,
+	.callback = std::move(callback),
+	.filter = std::move(filter),
+}) {
+}
+
+ChooseRecipientBoxController::ChooseRecipientBoxController(
+	ChooseRecipientArgs &&args)
+: ChatsListBoxController(args.session)
+, _session(args.session)
+, _callback(std::move(args.callback))
+, _filter(std::move(args.filter))
+, _premiumRequiredError(std::move(args.premiumRequiredError)) {
 }
 
 Main::Session &ChooseRecipientBoxController::session() const {
@@ -643,9 +751,21 @@ Main::Session &ChooseRecipientBoxController::session() const {
 
 void ChooseRecipientBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_forward_choose());
+
+	if (_premiumRequiredError) {
+		TrackPremiumRequiredChanges(this, lifetime());
+	}
+}
+
+bool ChooseRecipientBoxController::showLockedError(
+		not_null<PeerListRow*> row) {
+	return RecipientRow::ShowLockedError(this, row, _premiumRequiredError);
 }
 
 void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
+	if (showLockedError(row)) {
+		return;
+	}
 	auto guard = base::make_weak(this);
 	const auto peer = row->peer();
 	if (const auto forum = peer->forum()) {
@@ -696,6 +816,21 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
+bool RecipientRow::ShowLockedError(
+		not_null<PeerListController*> controller,
+		not_null<PeerListRow*> row,
+		Fn<RecipientPremiumRequiredError(not_null<UserData*>)> error) {
+	if (!static_cast<RecipientRow*>(row.get())->locked()) {
+		return false;
+	}
+	::Settings::ShowPremiumPromoToast(
+		controller->delegate()->peerListUiShow(),
+		ChatHelpers::ResolveWindowDefault(),
+		error(row->peer()->asUser()).text,
+		u"require_premium"_q);
+	return true;
+}
+
 QString ChooseRecipientBoxController::savedMessagesChatStatus() const {
 	return tr::lng_saved_forward_here(tr::now);
 }
@@ -706,8 +841,17 @@ auto ChooseRecipientBoxController::createRow(
 	const auto skip = _filter
 		? !_filter(history)
 		: ((peer->isBroadcast() && !Data::CanSendAnything(peer))
-			|| (peer->isUser() && !Data::CanSendAnything(peer)));
-	return skip ? nullptr : std::make_unique<Row>(history);
+			|| peer->isRepliesChat()
+			|| (peer->isUser() && (_premiumRequiredError
+				? !peer->asUser()->canSendIgnoreRequirePremium()
+				: !Data::CanSendAnything(peer))));
+	if (skip) {
+		return nullptr;
+	}
+	auto result = std::make_unique<Row>(
+		history,
+		_premiumRequiredError ? &computeListSt().item : nullptr);
+	return result;
 }
 
 ChooseTopicSearchController::ChooseTopicSearchController(
@@ -925,3 +1069,26 @@ auto ChooseTopicBoxController::createRow(not_null<Data::ForumTopic*> topic)
 	const auto skip = _filter && !_filter(topic);
 	return skip ? nullptr : std::make_unique<Row>(topic);
 };
+
+void PaintPremiumRequiredLock(
+		Painter &p,
+		not_null<const style::PeerListItem*> st,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	auto hq = PainterHighQualityEnabler(p);
+	const auto &check = st->checkbox.check;
+	auto pen = check.border->p;
+	pen.setWidthF(check.width);
+	p.setPen(pen);
+	p.setBrush(st::premiumButtonBg2);
+	const auto &icon = st::stickersPremiumLock;
+	const auto width = icon.width();
+	const auto height = icon.height();
+	const auto rect = QRect(
+		QPoint(x + size - width, y + size - height),
+		icon.size());
+	p.drawEllipse(rect);
+	icon.paintInCenter(p, rect);
+}

@@ -421,7 +421,7 @@ void RecentViews::updatePartsGeometry() {
 
 void RecentViews::updateText() {
 	const auto text = (_data.type == RecentViewsType::Channel)
-		? u"View reactions"_q
+		? tr::lng_stories_view_reactions(tr::now)
 		: _data.views
 		? (tr::lng_stories_views(tr::now, lt_count, _data.views)
 			+ (_data.reactions

@@ -19,6 +19,7 @@ class ServiceBoxContent {
 public:
 	virtual ~ServiceBoxContent() = default;
 
+	[[nodiscard]] virtual int width();
 	[[nodiscard]] virtual int top() = 0;
 	[[nodiscard]] virtual QSize size() = 0;
 	[[nodiscard]] virtual QString title() = 0;

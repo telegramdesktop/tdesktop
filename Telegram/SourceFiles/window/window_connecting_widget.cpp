@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_connecting_widget.h"
 
+#include "base/event_filter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/painter.h"
@@ -21,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
 #include "styles/style_window.h"
+
+#include <QtGui/QWindow>
 
 namespace Window {
 namespace {
@@ -207,6 +210,14 @@ ConnectionState::ConnectionState(
 	rpl::producer<bool> shown)
 : _account(account)
 , _parent(parent)
+, _exposeFilter(base::install_event_filter(
+	parent->window()->windowHandle(),
+	[=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Expose) {
+			refreshState();
+		}
+		return base::EventFilterResult::Continue;
+	}))
 , _refreshTimer([=] { refreshState(); })
 , _currentLayout(computeLayout(_state)) {
 	rpl::combine(
@@ -290,6 +301,7 @@ void ConnectionState::setBottomSkip(int skip) {
 void ConnectionState::refreshState() {
 	using Checker = Core::UpdateChecker;
 	const auto state = [&]() -> State {
+		const auto exposed = _parent->window()->windowHandle()->isExposed();
 		const auto under = _widget && _widget->isOver();
 		const auto ready = (Checker().state() == Checker::State::Ready);
 		const auto state = _account->mtp().dcstate();
@@ -297,18 +309,18 @@ void ConnectionState::refreshState() {
 		if (state == MTP::ConnectingState
 			|| state == MTP::DisconnectedState
 			|| (state < 0 && state > -600)) {
-			return { State::Type::Connecting, proxy, under, ready };
+			return { State::Type::Connecting, proxy, exposed, under, ready };
 		} else if (state < 0
 			&& state >= -kMinimalWaitingStateDuration
 			&& _state.type != State::Type::Waiting) {
-			return { State::Type::Connecting, proxy, under, ready };
+			return { State::Type::Connecting, proxy, exposed, under, ready };
 		} else if (state < 0) {
 			const auto wait = ((-state) / 1000) + 1;
-			return { State::Type::Waiting, proxy, under, ready, wait };
+			return { State::Type::Waiting, proxy, exposed, under, ready, wait };
 		}
-		return { State::Type::Connected, proxy, under, ready };
+		return { State::Type::Connected, proxy, exposed, under, ready };
 	}();
-	if (state.waitTillRetry > 0) {
+	if (state.exposed && state.waitTillRetry > 0) {
 		_refreshTimer.callOnce(kRefreshTimeout);
 	}
 	if (state == _state) {
@@ -421,7 +433,8 @@ auto ConnectionState::computeLayout(const State &state) const -> Layout {
 	auto result = Layout();
 	result.proxyEnabled = state.useProxy;
 	result.progressShown = (state.type != State::Type::Connected);
-	result.visible = !state.updateReady
+	result.visible = state.exposed
+		&& !state.updateReady
 		&& (state.useProxy
 			|| state.type == State::Type::Connecting
 			|| state.type == State::Type::Waiting);

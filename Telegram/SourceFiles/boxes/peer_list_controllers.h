@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace style {
+struct PeerListItem;
+} // namespace style
+
 namespace Data {
 class Thread;
 class Forum;
@@ -89,18 +93,63 @@ private:
 
 };
 
+struct RecipientPremiumRequiredError {
+	TextWithEntities text;
+};
+
+[[nodiscard]] RecipientPremiumRequiredError WritePremiumRequiredError(
+	not_null<UserData*> user);
+
+class RecipientRow : public PeerListRow {
+public:
+	explicit RecipientRow(
+		not_null<PeerData*> peer,
+		const style::PeerListItem *maybeLockedSt = nullptr,
+		History *maybeHistory = nullptr);
+
+	bool refreshLock(not_null<const style::PeerListItem*> maybeLockedSt);
+
+	[[nodiscard]] static bool ShowLockedError(
+		not_null<PeerListController*> controller,
+		not_null<PeerListRow*> row,
+		Fn<RecipientPremiumRequiredError(not_null<UserData*>)> error);
+
+	[[nodiscard]] History *maybeHistory() const {
+		return _maybeHistory;
+	}
+	[[nodiscard]] bool locked() const {
+		return _lockedSt != nullptr;
+	}
+	void setLocked(const style::PeerListItem *lockedSt) {
+		_lockedSt = lockedSt;
+	}
+	PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
+
+	void preloadUserpic() override;
+
+private:
+	History *_maybeHistory = nullptr;
+	const style::PeerListItem *_lockedSt = nullptr;
+	bool _resolvePremiumRequired = false;
+
+};
+
+void TrackPremiumRequiredChanges(
+	not_null<PeerListController*> controller,
+	rpl::lifetime &lifetime);
+
 class ChatsListBoxController : public PeerListController {
 public:
-	class Row : public PeerListRow {
+	class Row : public RecipientRow {
 	public:
-		Row(not_null<History*> history);
+		Row(
+			not_null<History*> history,
+			const style::PeerListItem *maybeLockedSt = nullptr);
 
-		not_null<History*> history() const {
-			return _history;
+		[[nodiscard]] not_null<History*> history() const {
+			return maybeHistory();
 		}
-
-	private:
-		not_null<History*> _history;
 
 	};
 
@@ -207,6 +256,15 @@ private:
 
 };
 
+struct ChooseRecipientArgs {
+	not_null<Main::Session*> session;
+	FnMut<void(not_null<Data::Thread*>)> callback;
+	Fn<bool(not_null<Data::Thread*>)> filter;
+
+	using PremiumRequiredError = RecipientPremiumRequiredError;
+	Fn<PremiumRequiredError(not_null<UserData*>)> premiumRequiredError;
+};
+
 class ChooseRecipientBoxController
 	: public ChatsListBoxController
 	, public base::has_weak_ptr {
@@ -215,6 +273,7 @@ public:
 		not_null<Main::Session*> session,
 		FnMut<void(not_null<Data::Thread*>)> callback,
 		Fn<bool(not_null<Data::Thread*>)> filter = nullptr);
+	explicit ChooseRecipientBoxController(ChooseRecipientArgs &&args);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -225,10 +284,14 @@ protected:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
+	bool showLockedError(not_null<PeerListRow*> row);
+
 private:
 	const not_null<Main::Session*> _session;
 	FnMut<void(not_null<Data::Thread*>)> _callback;
 	Fn<bool(not_null<Data::Thread*>)> _filter;
+	Fn<RecipientPremiumRequiredError(
+		not_null<UserData*>)> _premiumRequiredError;
 
 };
 
@@ -305,3 +368,11 @@ private:
 	Fn<bool(not_null<Data::ForumTopic*>)> _filter;
 
 };
+
+void PaintPremiumRequiredLock(
+	Painter &p,
+	not_null<const style::PeerListItem*> st,
+	int x,
+	int y,
+	int outerWidth,
+	int size);

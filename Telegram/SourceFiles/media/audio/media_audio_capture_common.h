@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Platform {
-namespace Audio {
+namespace Media::Capture {
 
-void Init();
-void DeInit();
+struct Result {
+	QByteArray bytes;
+	VoiceWaveform waveform;
+	int samples = 0;
+};
 
-} // namespace Audio
-} // namespace Platform
-
+} // namespace Media::Capture
