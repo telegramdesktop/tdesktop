@@ -1030,7 +1030,10 @@ QSize OverlayWidget::flipSizeByRotation(QSize size) const {
 	return FlipSizeByRotation(size, _rotation);
 }
 
+
 bool OverlayWidget::hasCopyMediaRestriction(bool skipPremiumCheck) const {
+	return false;
+
 	if (const auto story = _stories ? _stories->story() : nullptr) {
 		return skipPremiumCheck
 			? !story->canDownloadIfPremium()
@@ -1041,6 +1044,8 @@ bool OverlayWidget::hasCopyMediaRestriction(bool skipPremiumCheck) const {
 }
 
 bool OverlayWidget::showCopyMediaRestriction(bool skipPRemiumCheck) {
+	return false;
+
 	if (!hasCopyMediaRestriction(skipPRemiumCheck)) {
 		return false;
 	} else if (_stories) {
@@ -2495,7 +2500,7 @@ void OverlayWidget::downloadMedia() {
 		if (_stories && !hasCopyMediaRestriction(true)) {
 			showPremiumDownloadPromo();
 		}
-		return;
+		return saveAs();
 	}
 
 	QString path;
