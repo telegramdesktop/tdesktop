@@ -17,15 +17,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 
 TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
-	auto textResult = item->clipboardText();
+	const auto media = item->media();
+
+	auto mediaResult = media ? media->clipboardText() : TextForMimeData();
+	auto textResult = mediaResult.empty()
+		? item->clipboardText()
+		: TextForMimeData();
 	auto logEntryOriginalResult = [&] {
 		const auto entry = item->Get<HistoryMessageLogEntryOriginal>();
 		if (!entry) {
 			return TextForMimeData();
 		}
-		const auto title = TextUtilities::SingleLine(entry->page->title.isEmpty()
-			? entry->page->author
-			: entry->page->title);
+		const auto title = TextUtilities::SingleLine(
+			entry->page->title.isEmpty()
+				? entry->page->author
+				: entry->page->title);
 		auto titleResult = TextForMimeData::Rich(
 			TextUtilities::ParseEntities(
 				title,
@@ -41,6 +47,11 @@ TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 		return titleResult;
 	}();
 	auto result = textResult;
+	if (result.empty()) {
+		result = std::move(mediaResult);
+	} else if (!mediaResult.empty()) {
+		result.append(qstr("\n\n")).append(std::move(mediaResult));
+	}
 	if (result.empty()) {
 		result = std::move(logEntryOriginalResult);
 	} else if (!logEntryOriginalResult.empty()) {
@@ -78,7 +89,7 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 			return result;
 		}
 	}
-	auto caption = [&] {
+	return [&] {
 		auto &&nonempty = ranges::views::all(
 			group->items
 		) | ranges::views::filter(
@@ -92,7 +103,4 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 		auto result = (*first)->clipboardText();
 		return (++first == end) ? result : TextForMimeData();
 	}();
-	return Data::WithCaptionClipboardText(
-		tr::lng_in_dlg_album(tr::now),
-		std::move(caption));
 }

@@ -709,10 +709,6 @@ private:
 
 };
 
-[[nodiscard]] TextForMimeData WithCaptionClipboardText(
-	const QString &attachType,
-	TextForMimeData &&caption);
-
 [[nodiscard]] Invoice ComputeInvoiceData(
 	not_null<HistoryItem*> item,
 	const MTPDmessageMediaInvoice &data);
