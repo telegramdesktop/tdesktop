@@ -73,9 +73,15 @@ struct AskBoostChannelColor {
 
 struct AskBoostWallpaper {
 	int requiredLevel = 0;
+	bool group = false;
 };
 
 struct AskBoostEmojiStatus {
+	int requiredLevel = 0;
+	bool group = false;
+};
+
+struct AskBoostEmojiPack {
 	int requiredLevel = 0;
 };
 
@@ -88,6 +94,7 @@ struct AskBoostReason {
 		AskBoostChannelColor,
 		AskBoostWallpaper,
 		AskBoostEmojiStatus,
+		AskBoostEmojiPack,
 		AskBoostCustomReactions> data;
 };
 

@@ -2606,6 +2606,19 @@ void ApiWrap::setGroupStickerSet(
 	_session->data().stickers().notifyUpdated(Data::StickersType::Stickers);
 }
 
+void ApiWrap::setGroupEmojiSet(
+		not_null<ChannelData*> megagroup,
+		const StickerSetIdentifier &set) {
+	Expects(megagroup->mgInfo != nullptr);
+
+	megagroup->mgInfo->emojiSet = set;
+	request(MTPchannels_SetEmojiStickers(
+		megagroup->inputChannel,
+		Data::InputStickerSet(set)
+	)).send();
+	_session->data().stickers().notifyUpdated(Data::StickersType::Emoji);
+}
+
 std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 		const QString &key) {
 	const auto it = _stickersByEmoji.find(key);

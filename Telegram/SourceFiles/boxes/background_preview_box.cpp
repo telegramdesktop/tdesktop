@@ -708,7 +708,7 @@ void BackgroundPreviewBox::checkLevelForChannel() {
 			return std::optional<Ui::AskBoostReason>();
 		}
 		return std::make_optional(Ui::AskBoostReason{
-			Ui::AskBoostWallpaper{ required }
+			Ui::AskBoostWallpaper{ required, _forPeer->isMegagroup()}
 		});
 	}, [=] { _forPeerLevelCheck = false; });
 }

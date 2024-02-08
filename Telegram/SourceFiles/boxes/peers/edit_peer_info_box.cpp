@@ -631,8 +631,9 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		tr::lng_group_stickers_add(),
 		rpl::single(QString()), //Empty count.
 		[=, controller = _navigation->parentController()] {
+			const auto isEmoji = false;
 			controller->show(
-				Box<StickersBox>(controller->uiShow(), channel));
+				Box<StickersBox>(controller->uiShow(), channel, isEmoji));
 		},
 		{ &st::menuIconStickers });
 
@@ -1094,8 +1095,8 @@ void Controller::fillManageSection() {
 	const auto canEditStickers = isChannel && channel->canEditStickers();
 	const auto canDeleteChannel = isChannel && channel->canDelete();
 	const auto canEditColorIndex = isChannel
-		&& !channel->isMegagroup()
-		&& channel->canEditInformation();
+		&& (channel->amCreator()
+			|| (channel->adminRights() & ChatAdminRight::ChangeInfo));
 	const auto canViewOrEditLinkedChat = isChannel
 		&& (channel->linkedChat()
 			|| (channel->isBroadcast() && channel->canEditInformation()));

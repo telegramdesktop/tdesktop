@@ -125,6 +125,7 @@ public:
 	bool joinedMessageFound = false;
 	bool adminsLoaded = false;
 	StickerSetIdentifier stickerSet;
+	StickerSetIdentifier emojiSet;
 
 	enum LastParticipantsStatus {
 		LastParticipantsUpToDate       = 0x00,

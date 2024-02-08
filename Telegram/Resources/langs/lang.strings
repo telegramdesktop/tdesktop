@@ -1986,6 +1986,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_stickers" = "Group stickers";
 "lng_group_stickers_description" = "You can choose a sticker set which will be available for every member while in the group chat.";
 "lng_group_stickers_add" = "Choose sticker set";
+"lng_group_emoji" = "Group emoji pack";
+"lng_group_emoji_description" = "Choose an emoji pack that will be available to all members within the group.";
 
 "lng_premium" = "Premium";
 "lng_premium_free" = "Free";
@@ -2230,14 +2232,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_channel_title_wallpaper" = "Enable wallpapers";
 "lng_boost_channel_needs_level_wallpaper#one" = "Your channel needs to reach **Level {count}** to change channel wallpaper.";
 "lng_boost_channel_needs_level_wallpaper#other" = "Your channel needs to reach **Level {count}** to change channel wallpaper.";
+"lng_boost_group_needs_level_wallpaper#one" = "Your group needs to reach **Level {count}** to change group wallpaper.";
+"lng_boost_group_needs_level_wallpaper#other" = "Your group needs to reach **Level {count}** to change group wallpaper.";
 
 "lng_boost_channel_title_status" = "Enable emoji status";
 "lng_boost_channel_needs_level_status#one" = "Your channel needs to reach **Level {count}** to set emoji status.";
 "lng_boost_channel_needs_level_status#other" = "Your channel needs to reach **Level {count}** to set emoji status.";
+"lng_boost_group_needs_level_status#one" = "Your group needs to reach **Level {count}** to set emoji status.";
+"lng_boost_group_needs_level_status#other" = "Your group needs to reach **Level {count}** to set emoji status.";
 
 "lng_boost_channel_title_reactions" = "Custom reactions";
 "lng_boost_channel_needs_level_reactions#one" = "Your channel needs to reach **Level {count}** to add **{same_count}** custom emoji as a reaction.";
 "lng_boost_channel_needs_level_reactions#other" = "Your channel needs to reach **Level {count}** to add **{same_count}** custom emoji as reactions.";
+
+"lng_boost_group_title_emoji" = "Enable emoji pack";
+"lng_boost_group_needs_level_emoji#one" = "Your group needs to reach **Level {count}** to set emoji pack.";
+"lng_boost_group_needs_level_emoji#other" = "Your group needs to reach **Level {count}** to set emoji pack.";
 
 "lng_boost_channel_ask" = "Ask your **Premium** subscribers to boost your channel with this link:";
 "lng_boost_channel_ask_button" = "Copy Link";
@@ -2518,6 +2528,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_remove_pack_confirm" = "Remove";
 "lng_stickers_archive_pack" = "Archive Stickers";
 "lng_stickers_has_been_archived" = "Sticker pack has been archived.";
+"lng_emoji_group_set" = "Group emoji set";
+"lng_emoji_remove_group_set" = "Remove group emoji set?";
+"lng_emoji_group_from_your" = "Choose from your emoji";
+"lng_emoji_group_from_featured" = "Choose from trending emoji";
 "lng_masks_archive_pack" = "Archive Masks";
 "lng_masks_has_been_archived" = "Mask pack has been archived.";
 "lng_masks_installed" = "Mask pack has been installed.";
@@ -3028,8 +3042,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_channel_level_min" = "Level 1+";
 "lng_edit_channel_wallpaper" = "Channel wallpaper";
 "lng_edit_channel_wallpaper_about" = "Set a wallpaper that will be visible for everyone reading your channel.";
+"lng_edit_channel_wallpaper_group" = "Group wallpaper";
+"lng_edit_channel_wallpaper_about_group" = "Set a wallpaper that will be visible for everyone participating in your group.";
 "lng_edit_channel_status" = "Channel emoji status";
 "lng_edit_channel_status_about" = "Choose a status that will be shown next to the channel's name.";
+"lng_edit_channel_status_group" = "Group emoji status";
+"lng_edit_channel_status_about_group" = "Choose a status that will be shown next to the group's name.";
 "lng_edit_self_title" = "Edit your name";
 "lng_confirm_contact_data" = "New Contact";
 "lng_add_contact" = "Create";

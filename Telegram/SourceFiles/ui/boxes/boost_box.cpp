@@ -684,6 +684,8 @@ void AskBoostBox(
 		return tr::lng_boost_channel_title_wallpaper();
 	}, [&](AskBoostEmojiStatus data) {
 		return tr::lng_boost_channel_title_status();
+	}, [&](AskBoostEmojiPack data) {
+		return tr::lng_boost_group_title_emoji();
 	}, [&](AskBoostCustomReactions data) {
 		return tr::lng_boost_channel_title_reactions();
 	});
@@ -694,12 +696,21 @@ void AskBoostBox(
 			rpl::single(float64(data.requiredLevel)),
 			Ui::Text::RichLangValue);
 	}, [&](AskBoostWallpaper data) {
-		return tr::lng_boost_channel_needs_level_wallpaper(
-			lt_count,
-			rpl::single(float64(data.requiredLevel)),
-			Ui::Text::RichLangValue);
+		return (data.group
+			? tr::lng_boost_group_needs_level_wallpaper
+			: tr::lng_boost_channel_needs_level_wallpaper)(
+				lt_count,
+				rpl::single(float64(data.requiredLevel)),
+				Ui::Text::RichLangValue);
 	}, [&](AskBoostEmojiStatus data) {
-		return tr::lng_boost_channel_needs_level_status(
+		return (data.group
+			? tr::lng_boost_group_needs_level_status
+			: tr::lng_boost_channel_needs_level_status)(
+				lt_count,
+				rpl::single(float64(data.requiredLevel)),
+				Ui::Text::RichLangValue);
+	}, [&](AskBoostEmojiPack data) {
+		return tr::lng_boost_group_needs_level_emoji(
 			lt_count,
 			rpl::single(float64(data.requiredLevel)),
 			Ui::Text::RichLangValue);
