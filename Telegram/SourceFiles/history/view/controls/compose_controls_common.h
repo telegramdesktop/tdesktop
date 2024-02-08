@@ -34,6 +34,31 @@ struct SendActionUpdate {
 	bool cancel = false;
 };
 
+enum class WriteRestrictionType {
+	None,
+	Rights,
+	PremiumRequired,
+};
+
+struct WriteRestriction {
+	using Type = WriteRestrictionType;
+
+	QString text;
+	QString button;
+	Type type = Type::None;
+
+	[[nodiscard]] bool empty() const {
+		return (type == Type::None);
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
+
+	friend inline bool operator==(
+		const WriteRestriction &a,
+		const WriteRestriction &b) = default;
+};
+
 struct SetHistoryArgs {
 	required<History*> history;
 	MsgId topicRootId = 0;
@@ -42,7 +67,7 @@ struct SetHistoryArgs {
 	rpl::producer<int> slowmodeSecondsLeft;
 	rpl::producer<bool> sendDisabledBySlowmode;
 	rpl::producer<bool> liked;
-	rpl::producer<std::optional<QString>> writeRestriction;
+	rpl::producer<WriteRestriction> writeRestriction;
 };
 
 struct ReplyNextRequest {

@@ -35,6 +35,14 @@ PremiumCover {
 	about: FlatLabel;
 	additionalShadowForDarkThemes: bool;
 }
+ComposePremiumRequired {
+	label: FlatLabel;
+	button: RoundButton;
+	buttonSkip: pixels;
+	buttonTop: pixels;
+	position: point;
+	icon: icon;
+}
 
 premiumAboutTextStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
@@ -303,3 +311,29 @@ boostReplaceIconSkip: 3px;
 boostReplaceIconOutline: 2px;
 boostReplaceIconAdd: point(4px, 2px);
 boostReplaceArrow: icon{{ "mediaview/next", windowSubTextFg }};
+
+showOrIconLastSeen: icon{{ "settings/premium/large_lastseen", windowFgActive }};
+showOrIconReadTime: icon{{ "settings/premium/large_readtime", windowFgActive }};
+showOrIconBg: windowBgActive;
+showOrIconPadding: margins(12px, 12px, 12px, 12px);
+showOrIconMargin: margins(0px, 28px, 0px, 12px);
+showOrTitlePadding: margins(0px, 0px, 0px, 5px);
+showOrAboutPadding: margins(0px, 0px, 0px, 16px);
+showOrShowButton: RoundButton(defaultActiveButton) {
+	width: 308px;
+	height: 42px;
+	textTop: 12px;
+	font: font(13px semibold);
+}
+showOrLabel: FlatLabel(boostText) {
+	textFg: windowSubTextFg;
+}
+showOrLineWidth: 190px;
+showOrLabelSkip: 7px;
+showOrLineTop: 10px;
+showOrLabelPadding: margins(0px, 17px, 0px, 13px);
+showOrPremiumAboutPadding: margins(0px, 0px, 0px, 0px);
+showOrBox: Box(boostBox) {
+	buttonPadding: margins(28px, 16px, 28px, 27px);
+	button: showOrShowButton;
+}

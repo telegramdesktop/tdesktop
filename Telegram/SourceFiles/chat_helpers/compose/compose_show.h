@@ -44,6 +44,11 @@ enum class WindowUsage {
 	PremiumPromo,
 };
 
+using ResolveWindow = Fn<Window::SessionController*(
+	not_null<Main::Session*>,
+	WindowUsage)>;
+[[nodiscard]] ResolveWindow ResolveWindowDefault();
+
 class Show : public Main::SessionShow {
 public:
 	virtual void activate() = 0;

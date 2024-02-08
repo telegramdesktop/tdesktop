@@ -21,6 +21,7 @@ class CustomEmoji;
 
 namespace Data {
 
+class SavedSublist;
 class DocumentMedia;
 class Session;
 
@@ -34,14 +35,14 @@ struct Reaction {
 	//not_null<DocumentData*> activateEffects;
 	DocumentData *centerIcon = nullptr;
 	DocumentData *aroundAnimation = nullptr;
+	int count = 0;
 	bool active = false;
-	bool premium = false;
 };
 
 struct PossibleItemReactionsRef {
 	std::vector<not_null<const Reaction*>> recent;
-	bool morePremiumAvailable = false;
 	bool customAllowed = false;
+	bool tags = false;
 };
 
 struct PossibleItemReactions {
@@ -49,12 +50,18 @@ struct PossibleItemReactions {
 	explicit PossibleItemReactions(const PossibleItemReactionsRef &other);
 
 	std::vector<Reaction> recent;
-	bool morePremiumAvailable = false;
 	bool customAllowed = false;
+	bool tags = false;
 };
 
 [[nodiscard]] PossibleItemReactionsRef LookupPossibleReactions(
 	not_null<HistoryItem*> item);
+
+struct MyTagInfo {
+	ReactionId id;
+	QString title;
+	int count = 0;
+};
 
 class Reactions final : private CustomEmojiManager::Listener {
 public:
@@ -70,17 +77,27 @@ public:
 	void refreshRecent();
 	void refreshRecentDelayed();
 	void refreshDefault();
+	void refreshMyTags(SavedSublist *sublist = nullptr);
+	void refreshMyTagsDelayed();
+	void refreshTags();
 
 	enum class Type {
 		Active,
 		Recent,
 		Top,
 		All,
+		MyTags,
+		Tags,
 	};
 	[[nodiscard]] const std::vector<Reaction> &list(Type type) const;
+	[[nodiscard]] const std::vector<MyTagInfo> &myTagsInfo() const;
+	[[nodiscard]] const QString &myTagTitle(const ReactionId &id) const;
 	[[nodiscard]] ReactionId favoriteId() const;
 	[[nodiscard]] const Reaction *favorite() const;
 	void setFavorite(const ReactionId &id);
+	void incrementMyTag(const ReactionId &id, SavedSublist *sublist);
+	void decrementMyTag(const ReactionId &id, SavedSublist *sublist);
+	void renameTag(const ReactionId &id, const QString &name);
 	[[nodiscard]] DocumentData *chooseGenericAnimation(
 		not_null<DocumentData*> custom) const;
 
@@ -88,6 +105,9 @@ public:
 	[[nodiscard]] rpl::producer<> recentUpdates() const;
 	[[nodiscard]] rpl::producer<> defaultUpdates() const;
 	[[nodiscard]] rpl::producer<> favoriteUpdates() const;
+	[[nodiscard]] rpl::producer<> myTagsUpdates() const;
+	[[nodiscard]] rpl::producer<> tagsUpdates() const;
+	[[nodiscard]] rpl::producer<ReactionId> myTagRenamed() const;
 
 	enum class ImageSize {
 		BottomInfo,
@@ -109,6 +129,9 @@ public:
 	void clearTemporary();
 	[[nodiscard]] Reaction *lookupTemporary(const ReactionId &id);
 
+	[[nodiscard]] rpl::producer<std::vector<Reaction>> myTagsValue(
+		SavedSublist *sublist = nullptr);
+
 	[[nodiscard]] static bool HasUnread(const MTPMessageReactions &data);
 	static void CheckUnknownForUnread(
 		not_null<Session*> owner,
@@ -122,6 +145,20 @@ private:
 		std::unique_ptr<Ui::AnimatedIcon> icon;
 		bool fromSelectAnimation = false;
 	};
+	struct TagsBySublist {
+		TagsBySublist() = default;
+		TagsBySublist(TagsBySublist&&) = default;
+		TagsBySublist(const TagsBySublist&) = delete;
+		TagsBySublist &operator=(TagsBySublist&&) = default;
+		TagsBySublist &operator=(const TagsBySublist&) = delete;
+
+		std::vector<Reaction> tags;
+		std::vector<MyTagInfo> info;
+		uint64 hash = 0;
+		mtpRequestId requestId = 0;
+		bool requestScheduled = false;
+		bool updateScheduled = false;
+	};
 
 	[[nodiscard]] not_null<CustomEmojiManager::Listener*> resolveListener();
 	void customEmojiResolveDone(not_null<DocumentData*> document) override;
@@ -130,21 +167,39 @@ private:
 	void requestRecent();
 	void requestDefault();
 	void requestGeneric();
+	void requestMyTags(SavedSublist *sublist = nullptr);
+	void requestTags();
 
 	void updateTop(const MTPDmessages_reactions &data);
 	void updateRecent(const MTPDmessages_reactions &data);
 	void updateDefault(const MTPDmessages_availableReactions &data);
 	void updateGeneric(const MTPDmessages_stickerSet &data);
+	void updateMyTags(
+		SavedSublist *sublist,
+		const MTPDmessages_savedReactionTags &data);
+	void updateTags(const MTPDmessages_reactions &data);
 
 	void recentUpdated();
 	void defaultUpdated();
+	void myTagsUpdated();
+	void tagsUpdated();
 
 	[[nodiscard]] std::optional<Reaction> resolveById(const ReactionId &id);
 	[[nodiscard]] std::vector<Reaction> resolveByIds(
 		const std::vector<ReactionId> &ids,
 		base::flat_set<ReactionId> &unresolved);
+	[[nodiscard]] std::optional<Reaction> resolveByInfo(
+		const MyTagInfo &info,
+		SavedSublist *sublist);
+	[[nodiscard]] std::vector<Reaction> resolveByInfos(
+		const std::vector<MyTagInfo> &infos,
+		base::flat_map<
+			ReactionId,
+			base::flat_set<SavedSublist*>> &unresolved,
+		SavedSublist *sublist);
 	void resolve(const ReactionId &id);
 	void applyFavorite(const ReactionId &id);
+	void scheduleMyTagsUpdate(SavedSublist *sublist);
 
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
@@ -167,6 +222,13 @@ private:
 	std::vector<Reaction> _recent;
 	std::vector<ReactionId> _recentIds;
 	base::flat_set<ReactionId> _unresolvedRecent;
+	base::flat_map<SavedSublist*, TagsBySublist> _myTags;
+	base::flat_map<
+		ReactionId,
+		base::flat_set<SavedSublist*>> _unresolvedMyTags;
+	std::vector<Reaction> _tags;
+	std::vector<ReactionId> _tagsIds;
+	base::flat_set<ReactionId> _unresolvedTags;
 	std::vector<Reaction> _top;
 	std::vector<ReactionId> _topIds;
 	base::flat_set<ReactionId> _unresolvedTop;
@@ -184,6 +246,9 @@ private:
 	rpl::event_stream<> _recentUpdated;
 	rpl::event_stream<> _defaultUpdated;
 	rpl::event_stream<> _favoriteUpdated;
+	rpl::event_stream<SavedSublist*> _myTagsUpdated;
+	rpl::event_stream<> _tagsUpdated;
+	rpl::event_stream<ReactionId> _myTagRenamed;
 
 	// We need &i->second stay valid while inserting new items.
 	// So we use std::map instead of base::flat_map here.
@@ -202,6 +267,9 @@ private:
 	int32 _defaultHash = 0;
 
 	mtpRequestId _genericRequestId = 0;
+
+	mtpRequestId _tagsRequestId = 0;
+	uint64 _tagsHash = 0;
 
 	base::flat_map<ReactionId, ImageSet> _images;
 	rpl::lifetime _imagesLoadLifetime;

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_ffmpeg_loader.h"
 #include "media/audio/media_audio.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/file_location.h"
 
 #include <al.h>
@@ -242,7 +243,17 @@ Track::~Track() {
 	_instance->unregisterTrack(this);
 }
 
-Instance::Instance() {
+Instance::Instance()
+: _playbackDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Playback,
+	Webrtc::DeviceIdOrDefault(
+		Core::App().settings().playbackDeviceIdValue()))
+, _captureDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdOrDefault(
+		Core::App().settings().captureDeviceIdValue())) {
 	_updateTimer.setCallback([this] {
 		auto hasActive = false;
 		for (auto track : _tracks) {
@@ -260,6 +271,21 @@ Instance::Instance() {
 		_detachFromDeviceForce = false;
 		Player::internal::DetachFromDevice(this);
 	});
+
+	_playbackDeviceId.changes(
+	) | rpl::start_with_next([=](Webrtc::DeviceResolvedId id) {
+		if (Player::internal::DetachIfDeviceChanged(this, id)) {
+			_detachFromDeviceForce = false;
+		}
+	}, _lifetime);
+}
+
+Webrtc::DeviceResolvedId Instance::playbackDeviceId() const {
+	return _playbackDeviceId.threadSafeCurrent();
+}
+
+Webrtc::DeviceResolvedId Instance::captureDeviceId() const {
+	return _captureDeviceId.current();
 }
 
 std::unique_ptr<Track> Instance::createTrack() {

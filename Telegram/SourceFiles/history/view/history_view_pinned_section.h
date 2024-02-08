@@ -104,9 +104,13 @@ public:
 		not_null<Element*> view) override;
 	bool listElementHideReply(not_null<const Element*> view) override;
 	bool listElementShownUnread(not_null<const Element*> view) override;
-	bool listIsGoodForAroundPosition(not_null<const Element*> view) override;
+	bool listIsGoodForAroundPosition(
+		not_null<const Element*> view) override;
 	void listSendBotCommand(
 		const QString &command,
+		const FullMsgId &context) override;
+	void listSearch(
+		const QString &query,
 		const FullMsgId &context) override;
 	void listHandleViaClick(not_null<UserData*> bot) override;
 	not_null<Ui::ChatTheme*> listChatTheme() override;

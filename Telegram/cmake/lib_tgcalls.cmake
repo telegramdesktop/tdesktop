@@ -138,12 +138,16 @@ PRIVATE
     # iOS / macOS
     platform/darwin/CustomSimulcastEncoderAdapter.cpp
     platform/darwin/CustomSimulcastEncoderAdapter.h
+    platform/darwin/DarwinFFMpeg.h
+    platform/darwin/DarwinFFMpeg.mm
     platform/darwin/DarwinInterface.h
     platform/darwin/DarwinInterface.mm
     platform/darwin/DarwinVideoSource.h
     platform/darwin/DarwinVideoSource.mm
     platform/darwin/DesktopSharingCapturer.h
     platform/darwin/DesktopSharingCapturer.mm
+    platform/darwin/ExtractCVPixelBuffer.h
+    platform/darwin/ExtractCVPixelBuffer.mm
     platform/darwin/GLVideoView.h
     platform/darwin/GLVideoView.mm
     platform/darwin/GLVideoViewMac.h

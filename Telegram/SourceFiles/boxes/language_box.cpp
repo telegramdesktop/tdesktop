@@ -1121,7 +1121,7 @@ void LanguageBox::prepare() {
 
 	using namespace rpl::mappers;
 
-	const auto [recent, official] = PrepareLists();
+	const auto &[recent, official] = PrepareLists();
 	const auto inner = setInnerWidget(
 		object_ptr<Content>(this, recent, official),
 		st::boxScroll,

@@ -20,6 +20,7 @@ class UserpicButton;
 class FlatLabel;
 template <typename Widget>
 class SlideWrap;
+class RoundButton;
 } // namespace Ui
 
 namespace HistoryView {
@@ -126,6 +127,7 @@ private:
 		Role role,
 		rpl::producer<QString> title);
 
+	void setupShowLastSeen();
 	void setupChildGeometry();
 	void initViewers(rpl::producer<QString> title);
 	void refreshStatusText();
@@ -149,6 +151,7 @@ private:
 	object_ptr<TopicIconButton> _iconButton;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
+	object_ptr<Ui::RoundButton> _showLastSeen = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };
 	base::Timer _refreshStatusTimer;
 

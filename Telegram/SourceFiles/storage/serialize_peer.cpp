@@ -21,7 +21,7 @@ namespace {
 
 constexpr auto kModernImageLocationTag = std::numeric_limits<qint32>::min();
 constexpr auto kVersionTag = uint64(0x77FF'FFFF'FFFF'FFFFULL);
-constexpr auto kVersion = 1;
+constexpr auto kVersion = 2;
 
 } // namespace
 
@@ -111,12 +111,12 @@ std::optional<ImageLocation> readImageLocation(
 }
 
 uint32 peerSize(not_null<PeerData*> peer) {
-	uint32 result = sizeof(quint64)
-		+ sizeof(quint64)
-		+ sizeof(qint32)
-		+ sizeof(quint64)
+	uint32 result = sizeof(quint64) // id
+		+ sizeof(quint64) // version tag
+		+ sizeof(qint32) // version
+		+ sizeof(quint64) // userpic photo id
 		+ imageLocationSize(peer->userpicLocation())
-		+ sizeof(qint32);
+		+ sizeof(qint32); // userpic has video
 	if (const auto user = peer->asUser()) {
 		result += stringSize(user->firstName)
 			+ stringSize(user->lastName)
@@ -124,7 +124,7 @@ uint32 peerSize(not_null<PeerData*> peer) {
 			+ stringSize(user->username())
 			+ sizeof(quint64) // access
 			+ sizeof(qint32) // flags
-			+ sizeof(qint32) // onlineTill
+			+ sizeof(quint32) // lastseen
 			+ sizeof(qint32) // contact
 			+ sizeof(qint32); // botInfoVersion
 	} else if (const auto chat = peer->asChat()) {
@@ -168,7 +168,7 @@ void writePeer(QDataStream &stream, not_null<PeerData*> peer) {
 			<< quint64(user->accessHash())
 			<< qint32(user->flags())
 			<< botInlinePlaceholder
-			<< qint32(user->onlineTill)
+			<< quint32(user->lastseen().serialize())
 			<< qint32(user->isContact() ? 1 : 0)
 			<< qint32(user->isBot() ? user->botInfo->version : -1);
 	} else if (const auto chat = peer->asChat()) {
@@ -233,7 +233,8 @@ PeerData *readPeer(
 	if (const auto user = result->asUser()) {
 		QString first, last, phone, username, inlinePlaceholder;
 		quint64 access;
-		qint32 flags = 0, onlineTill, contact, botInfoVersion;
+		qint32 flags = 0, contact, botInfoVersion;
+		quint32 lastseen;
 		stream >> first >> last >> phone >> username >> access;
 		if (streamAppVersion >= 9012) {
 			stream >> flags;
@@ -241,7 +242,7 @@ PeerData *readPeer(
 		if (streamAppVersion >= 9016) {
 			stream >> inlinePlaceholder;
 		}
-		stream >> onlineTill >> contact >> botInfoVersion;
+		stream >> lastseen >> contact >> botInfoVersion;
 
 		userpicAccessHash = access;
 
@@ -285,7 +286,9 @@ PeerData *readPeer(
 				user->setFlags((user->flags() & ~flagsMask) | flagsSet);
 			}
 			user->setAccessHash(access);
-			user->onlineTill = onlineTill;
+			user->updateLastseen((version > 1)
+				? Data::LastseenStatus::FromSerialized(lastseen)
+				: Data::LastseenStatus::FromLegacy(lastseen));
 			user->setIsContact(contact == 1);
 			user->setBotInfoVersion(botInfoVersion);
 			if (!inlinePlaceholder.isEmpty() && user->isBot()) {

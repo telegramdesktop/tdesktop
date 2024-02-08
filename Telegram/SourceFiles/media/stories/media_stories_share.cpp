@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_thread.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item_helpers.h" // GetErrorTextForSending.
 #include "history/view/history_view_context_menu.h" // CopyStoryLink.
@@ -61,6 +62,11 @@ namespace Media::Stories {
 	};
 	const auto state = std::make_shared<State>();
 	auto filterCallback = [=](not_null<Data::Thread*> thread) {
+		if (const auto user = thread->peer()->asUser()) {
+			if (user->canSendIgnoreRequirePremium()) {
+				return true;
+			}
+		}
 		return Data::CanSend(thread, ChatRestriction::SendPhotos)
 			&& Data::CanSend(thread, ChatRestriction::SendVideos);
 	};
@@ -189,6 +195,7 @@ namespace Media::Stories {
 		.scheduleBoxStyle = (viewerStyle
 			? viewerScheduleStyle()
 			: HistoryView::ScheduleBoxStyleArgs()),
+		.premiumRequiredError = SharePremiumRequiredError(),
 	});
 }
 

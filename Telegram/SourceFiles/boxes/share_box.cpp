@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/share_box.h"
 
+#include "api/api_premium.h"
 #include "base/random.h"
 #include "lang/lang_keys.h"
 #include "base/qthelp_url.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
+#include "settings/settings_premium.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_controllers.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -38,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_game.h"
 #include "data/data_histories.h"
 #include "data/data_user.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
@@ -96,19 +99,23 @@ protected:
 private:
 	struct Chat {
 		Chat(
-			not_null<PeerData*> peer,
+			not_null<History*> history,
 			const style::PeerListItem &st,
 			Fn<void()> updateCallback);
 
+		not_null<History*> history;
 		not_null<PeerData*> peer;
 		Data::ForumTopic *topic = nullptr;
 		rpl::lifetime topicLifetime;
 		Ui::RoundImageCheckbox checkbox;
 		Ui::Text::String name;
 		Ui::Animations::Simple nameActive;
+		bool locked = false;
 	};
 
 	void invalidateCache();
+	bool showLockedError(not_null<Chat*> chat);
+	void refreshLockedRows();
 
 	[[nodiscard]] int displayedChatsCount() const;
 	[[nodiscard]] not_null<Data::Thread*> chatThread(
@@ -117,12 +124,14 @@ private:
 	void paintChat(Painter &p, not_null<Chat*> chat, int index);
 	void updateChat(not_null<PeerData*> peer);
 	void updateChatName(not_null<Chat*> chat);
+	void initChatLocked(not_null<Chat*> chat);
 	void repaintChat(not_null<PeerData*> peer);
 	int chatIndex(not_null<PeerData*> peer) const;
 	void repaintChatAtIndex(int index);
 	Chat *getChatAtIndex(int index);
 
-	void loadProfilePhotos(int yFrom);
+	void loadProfilePhotos();
+	void preloadUserpic(not_null<Dialogs::Entry*> entry);
 	void changeCheckState(Chat *chat);
 	void chooseForumTopic(not_null<Data::Forum*> forum);
 	enum class ChangeStateWay {
@@ -153,6 +162,7 @@ private:
 	int _columnCount = 4;
 	int _active = -1;
 	int _upon = -1;
+	int _visibleTop = 0;
 
 	std::unique_ptr<Dialogs::IndexedList> _chatsIndexed;
 	QString _filter;
@@ -485,7 +495,6 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 		};
 		Ui::FillForwardOptions(
 			std::move(createView),
-			_descriptor.forwardOptions.messagesCount,
 			_forwardOptions,
 			[=](Ui::ForwardOptions value) { _forwardOptions = value; },
 			_menu->lifetime());
@@ -512,7 +521,10 @@ void ShareBox::createButtons() {
 		const auto send = addButton(tr::lng_share_confirm(), [=] {
 			submit({});
 		});
-		_forwardOptions.hasCaptions = _descriptor.forwardOptions.hasCaptions;
+		_forwardOptions.sendersCount
+			= _descriptor.forwardOptions.sendersCount;
+		_forwardOptions.captionsCount
+			= _descriptor.forwardOptions.captionsCount;
 
 		send->setAcceptBoth();
 		send->clicks(
@@ -565,7 +577,7 @@ void ShareBox::innerSelectedChanged(
 
 void ShareBox::submit(Api::SendOptions options) {
 	if (const auto onstack = _descriptor.submitCallback) {
-		const auto forwardOptions = (_forwardOptions.hasCaptions
+		const auto forwardOptions = (_forwardOptions.captionsCount
 			&& _forwardOptions.dropCaptions)
 			? Data::ForwardOptions::NoNamesAndCaptions
 			: _forwardOptions.dropNames
@@ -649,6 +661,16 @@ ShareBox::Inner::Inner(
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
+	if (_descriptor.premiumRequiredError) {
+		const auto session = _descriptor.session;
+		rpl::merge(
+			Data::AmPremiumValue(session) | rpl::to_empty,
+			session->api().premium().somePremiumRequiredResolved()
+		) | rpl::start_with_next([=] {
+			refreshLockedRows();
+		}, lifetime());
+	}
+
 	const auto self = _descriptor.session->user();
 	const auto selfHistory = self->owner().history(self);
 	if (_descriptor.filterCallback(selfHistory)) {
@@ -705,10 +727,52 @@ void ShareBox::Inner::invalidateCache() {
 	}
 }
 
+bool ShareBox::Inner::showLockedError(not_null<Chat*> chat) {
+	if (!chat->locked) {
+		return false;
+	}
+	::Settings::ShowPremiumPromoToast(
+		Main::MakeSessionShow(_show, _descriptor.session),
+		ChatHelpers::ResolveWindowDefault(),
+		_descriptor.premiumRequiredError(chat->peer->asUser()).text,
+		u"require_premium"_q);
+	return true;
+}
+
+void ShareBox::Inner::refreshLockedRows() {
+	auto changed = false;
+	for (const auto &[peer, data] : _dataMap) {
+		const auto history = data->history;
+		const auto locked = (Api::ResolveRequiresPremiumToWrite(
+			history->peer,
+			history
+		) == Api::RequirePremiumState::Yes);
+		if (data->locked != locked) {
+			data->locked = locked;
+			changed = true;
+		}
+	}
+	for (const auto &data : d_byUsernameFiltered) {
+		const auto history = data->history;
+		const auto locked = (Api::ResolveRequiresPremiumToWrite(
+			history->peer,
+			history
+		) == Api::RequirePremiumState::Yes);
+		if (data->locked != locked) {
+			data->locked = locked;
+			changed = true;
+		}
+	}
+	if (changed) {
+		update();
+	}
+}
+
 void ShareBox::Inner::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	loadProfilePhotos(visibleTop);
+	_visibleTop = visibleTop;
+	loadProfilePhotos();
 }
 
 void ShareBox::Inner::activateSkipRow(int direction) {
@@ -758,6 +822,18 @@ void ShareBox::Inner::updateChatName(not_null<Chat*> chat) {
 		? tr::lng_replies_messages(tr::now)
 		: peer->name();
 	chat->name.setText(_st.item.nameStyle, text, Ui::NameTextOptions());
+}
+
+void ShareBox::Inner::initChatLocked(not_null<Chat*> chat) {
+	if (_descriptor.premiumRequiredError) {
+		const auto history = chat->history;
+		if (Api::ResolveRequiresPremiumToWrite(
+			history->peer,
+			history
+		) == Api::RequirePremiumState::Yes) {
+			chat->locked = true;
+		}
+	}
 }
 
 void ShareBox::Inner::repaintChatAtIndex(int index) {
@@ -829,11 +905,11 @@ int ShareBox::Inner::chatIndex(not_null<PeerData*> peer) const {
 	return -1;
 }
 
-void ShareBox::Inner::loadProfilePhotos(int yFrom) {
-	if (!parentWidget()) return;
-	if (yFrom < 0) {
-		yFrom = 0;
+void ShareBox::Inner::loadProfilePhotos() {
+	if (!parentWidget()) {
+		return;
 	}
+	auto yFrom = std::max(_visibleTop, 0);
 	if (auto part = (yFrom % _rowHeight)) {
 		yFrom -= part;
 	}
@@ -853,20 +929,42 @@ void ShareBox::Inner::loadProfilePhotos(int yFrom) {
 				if (((*i)->index() * _rowHeight) >= yTo) {
 					break;
 				}
-				(*i)->entry()->chatListPreloadData();
+				preloadUserpic((*i)->entry());
 			}
 		}
-	} else if (!_filtered.empty()) {
-		int from = yFrom / _rowHeight;
-		if (from < 0) from = 0;
-		if (from < _filtered.size()) {
-			int to = (yTo / _rowHeight) + 1;
-			if (to > _filtered.size()) to = _filtered.size();
+	} else {
+		const auto from = std::max(yFrom / _rowHeight, 0);
+		const auto to = std::max((yTo / _rowHeight) + 1, from);
 
-			for (; from < to; ++from) {
-				_filtered[from]->entry()->chatListPreloadData();
-			}
+		const auto fto = std::min(to, int(_filtered.size()));
+		const auto ffrom = std::min(from, fto);
+		for (auto i = ffrom; i != fto; ++i) {
+			preloadUserpic(_filtered[i]->entry());
 		}
+
+		const auto uto = std::min(
+			to - int(_filtered.size()),
+			int(d_byUsernameFiltered.size()));
+		const auto ufrom = std::min(
+			std::max(from - int(_filtered.size()), 0),
+			uto);
+		for (auto i = ufrom; i != uto; ++i) {
+			preloadUserpic(d_byUsernameFiltered[i]->history);
+		}
+	}
+}
+
+void ShareBox::Inner::preloadUserpic(not_null<Dialogs::Entry*> entry) {
+	entry->chatListPreloadData();
+	const auto history = entry->asHistory();
+	if (!_descriptor.premiumRequiredError || !history) {
+		return;
+	} else if (Api::ResolveRequiresPremiumToWrite(
+		history->peer,
+		history
+	) == Api::RequirePremiumState::Unknown) {
+		const auto user = history->peer->asUser();
+		_descriptor.session->api().premium().resolvePremiumRequired(user);
 	}
 }
 
@@ -877,15 +975,19 @@ auto ShareBox::Inner::getChat(not_null<Dialogs::Row*> row)
 	if (const auto data = static_cast<Chat*>(row->attached)) {
 		return data;
 	}
-	const auto peer = row->history()->peer;
+	const auto history = row->history();
+	const auto peer = history->peer;
 	if (const auto i = _dataMap.find(peer); i != end(_dataMap)) {
 		row->attached = i->second.get();
 		return i->second.get();
 	}
-	const auto [i, ok] = _dataMap.emplace(
+	const auto &[i, ok] = _dataMap.emplace(
 		peer,
-		std::make_unique<Chat>(peer, _st.item, [=] { repaintChat(peer); }));
+		std::make_unique<Chat>(history, _st.item, [=] {
+			repaintChat(peer);
+		}));
 	updateChatName(i->second.get());
+	initChatLocked(i->second.get());
 	row->attached = i->second.get();
 	return i->second.get();
 }
@@ -919,6 +1021,16 @@ void ShareBox::Inner::paintChat(
 	auto photoTop = st::sharePhotoTop;
 	chat->checkbox.paint(p, x + photoLeft, y + photoTop, outerWidth);
 
+	if (chat->locked) {
+		PaintPremiumRequiredLock(
+			p,
+			&_st.item,
+			x + photoLeft,
+			y + photoTop,
+			outerWidth,
+			_st.item.checkbox.imageRadius * 2);
+	}
+
 	auto nameActive = chat->nameActive.value((index == _active) ? 1. : 0.);
 	p.setPen(anim::pen(_st.item.nameFg, _st.item.nameFgChecked, nameActive));
 
@@ -929,10 +1041,11 @@ void ShareBox::Inner::paintChat(
 }
 
 ShareBox::Inner::Chat::Chat(
-	not_null<PeerData*> peer,
+	not_null<History*> history,
 	const style::PeerListItem &st,
 	Fn<void()> updateCallback)
-: peer(peer)
+: history(history)
+, peer(history->peer)
 , checkbox(
 	st.checkbox,
 	updateCallback,
@@ -1062,7 +1175,7 @@ void ShareBox::Inner::resizeEvent(QResizeEvent *e) {
 }
 
 void ShareBox::Inner::changeCheckState(Chat *chat) {
-	if (!chat) {
+	if (!chat || showLockedError(chat)) {
 		return;
 	} else if (!_filter.isEmpty()) {
 		const auto history = chat->peer->owner().history(chat->peer);
@@ -1194,8 +1307,8 @@ void ShareBox::Inner::updateFilter(QString filter) {
 			_searchRequests.fire({});
 		}
 		setActive(-1);
+		loadProfilePhotos();
 		update();
-		loadProfilePhotos(0);
 	}
 }
 
@@ -1234,10 +1347,11 @@ void ShareBox::Inner::peopleReceived(
 				}
 				_byUsernameFiltered.push_back(peer);
 				d_byUsernameFiltered.push_back(std::make_unique<Chat>(
-					peer,
+					history,
 					_st.item,
 					[=] { repaintChat(peer); }));
 				updateChatName(d_byUsernameFiltered.back().get());
+				initChatLocked(d_byUsernameFiltered.back().get());
 			}
 		}
 	};
@@ -1256,6 +1370,7 @@ void ShareBox::Inner::refresh() {
 	} else {
 		resize(width(), st::noContactsHeight);
 	}
+	loadProfilePhotos();
 	update();
 }
 
@@ -1525,6 +1640,11 @@ void FastShareMessage(
 	const auto requiredRight = item->requiredSendRight();
 	const auto requiresInline = item->requiresSendInlineRight();
 	auto filterCallback = [=](not_null<Data::Thread*> thread) {
+		if (const auto user = thread->peer()->asUser()) {
+			if (user->canSendIgnoreRequirePremium()) {
+				return true;
+			}
+		}
 		return Data::CanSend(thread, requiredRight)
 			&& (!requiresInline
 				|| Data::CanSend(thread, ChatRestriction::SendInline))
@@ -1543,12 +1663,18 @@ void FastShareMessage(
 				msgIds),
 			.filterCallback = std::move(filterCallback),
 			.forwardOptions = {
-				.messagesCount = int(msgIds.size()),
+				.sendersCount = ItemsForwardSendersCount(items),
+				.captionsCount = ItemsForwardCaptionsCount(items),
 				.show = !hasOnlyForcedForwardedInfo,
-				.hasCaptions = hasCaptions,
 			},
+			.premiumRequiredError = SharePremiumRequiredError(),
 		}),
 		Ui::LayerOption::CloseOther);
+}
+
+auto SharePremiumRequiredError()
+-> Fn<RecipientPremiumRequiredError(not_null<UserData*>)> {
+	return WritePremiumRequiredError;
 }
 
 void ShareGameScoreByHash(

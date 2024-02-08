@@ -465,7 +465,7 @@ not_null<HistoryItem*> History::insertItem(
 		std::unique_ptr<HistoryItem> item) {
 	Expects(item != nullptr);
 
-	const auto [i, ok] = _messages.insert(std::move(item));
+	const auto &[i, ok] = _messages.insert(std::move(item));
 
 	const auto result = i->get();
 	owner().registerMessage(result);

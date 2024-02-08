@@ -220,6 +220,7 @@ public:
 
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] bool isLockPresent() const;
+	[[nodiscard]] bool isTTLButtonShown() const;
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isRecordingPressed() const;
 	[[nodiscard]] rpl::producer<bool> recordingActiveValue() const;
@@ -271,7 +272,7 @@ private:
 	void updateControlsGeometry(QSize size);
 	bool updateReplaceMediaButton();
 	void updateOuterGeometry(QRect rect);
-	void paintBackground(QRect clip);
+	void paintBackground(QPainter &p, QRect full, QRect clip);
 
 	[[nodiscard]] auto computeSendButtonType() const;
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
@@ -295,7 +296,6 @@ private:
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
 
 	bool showRecordButton() const;
-	void drawRestrictedWrite(QPainter &p, const QString &error);
 	bool updateBotCommandShown();
 	bool updateLikeShown();
 
@@ -352,12 +352,12 @@ private:
 	rpl::variable<int> _slowmodeSecondsLeft;
 	rpl::variable<bool> _sendDisabledBySlowmode;
 	rpl::variable<bool> _liked;
-	rpl::variable<std::optional<QString>> _writeRestriction;
+	rpl::variable<Controls::WriteRestriction> _writeRestriction;
 	rpl::variable<bool> _hidden;
 	Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;
-	const std::unique_ptr<Ui::RpWidget> _writeRestricted;
+	std::unique_ptr<Ui::RpWidget> _writeRestricted;
 	rpl::event_stream<FullReplyTo> _jumpToItemRequests;
 
 	std::optional<Ui::RoundRect> _backgroundRect;

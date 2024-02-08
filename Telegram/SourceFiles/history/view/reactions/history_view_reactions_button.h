@@ -155,9 +155,6 @@ public:
 	[[nodiscard]] rpl::producer<ChosenReaction> chosen() const {
 		return _chosen.events();
 	}
-	[[nodiscard]] rpl::producer<FullMsgId> premiumPromoChosen() const {
-		return _premiumPromoChosen.events();
-	}
 	[[nodiscard]] rpl::producer<FullMsgId> expandChosen() const {
 		return _expandChosen.events();
 	}
@@ -227,14 +224,13 @@ private:
 	QColor _gradient;
 
 	rpl::event_stream<ChosenReaction> _chosen;
-	rpl::event_stream<FullMsgId> _premiumPromoChosen;
 	rpl::event_stream<FullMsgId> _expandChosen;
 	mutable base::flat_map<ReactionId, ClickHandlerPtr> _links;
-	mutable ClickHandlerPtr _premiumPromoLink;
 	mutable ClickHandlerPtr _expandLink;
 
 	rpl::variable<int> _uniqueLimit = 0;
 	bool _showingAll = false;
+	bool _tagsStrip = false;
 
 	std::optional<ButtonParameters> _scheduledParameters;
 	base::Timer _buttonShowTimer;

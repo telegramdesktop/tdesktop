@@ -217,10 +217,10 @@ struct SimpleFieldState {
 		const FieldConfig &config,
 		const QString &parsed,
 		const QString &countryIso2) {
-	static const auto RegExp = QRegularExpression("[^0-9]\\.");
 	if (config.type == FieldType::Country) {
 		return countryIso2;
 	} else if (config.type == FieldType::Money) {
+		static const auto RegExp = QRegularExpression("[^0-9\\.]");
 		const auto rule = LookupCurrencyRule(config.currency);
 		const auto real = QString(parsed).replace(
 			QChar(rule.decimal),
@@ -236,6 +236,7 @@ struct SimpleFieldState {
 			int64(base::SafeRound(real * std::pow(10., rule.exponent))));
 	} else if (config.type == FieldType::CardNumber
 		|| config.type == FieldType::CardCVC) {
+		static const auto RegExp = QRegularExpression("[^0-9]");
 		return QString(parsed).replace(RegExp, QString());
 	}
 	return parsed;

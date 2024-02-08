@@ -522,9 +522,23 @@ not_null<Ui::SlideWrap<>*> Controller::addRequestedListBlock(
 			lt_count_decimal,
 			std::move(requestedCount)));
 
-	const auto delegate = container->lifetime().make_state<
-		PeerListContentDelegateSimple
-	>();
+	class Delegate final : public PeerListContentDelegateSimple {
+	public:
+		explicit Delegate(std::shared_ptr<Main::SessionShow> show)
+		: _show(std::move(show)) {
+		}
+
+		std::shared_ptr<Main::SessionShow> peerListUiShow() override {
+			return _show;
+		}
+
+	private:
+		const std::shared_ptr<Main::SessionShow> _show;
+
+	};
+	const auto delegate = container->lifetime().make_state<Delegate>(
+		this->delegate()->peerListUiShow());
+
 	const auto controller = container->lifetime().make_state<
 		Controller
 	>(_peer, _data.current().admin, _data.value(), Role::Requested);
@@ -1194,6 +1208,11 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		}
 	};
 	auto filterCallback = [](not_null<Data::Thread*> thread) {
+		if (const auto user = thread->peer()->asUser()) {
+			if (user->canSendIgnoreRequirePremium()) {
+				return true;
+			}
+		}
 		return Data::CanSendTexts(thread);
 	};
 	auto object = Box<ShareBox>(ShareBox::Descriptor{
@@ -1201,6 +1220,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		.copyCallback = std::move(copyCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
+		.premiumRequiredError = SharePremiumRequiredError(),
 	});
 	*box = Ui::MakeWeak(object.data());
 	return object;

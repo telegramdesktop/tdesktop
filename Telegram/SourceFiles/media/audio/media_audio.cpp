@@ -13,11 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "media/media_common.h"
 #include "media/streaming/media_streaming_utility.h"
-#include "webrtc/webrtc_media_devices.h"
+#include "webrtc/webrtc_environment.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
-#include "platform/platform_audio.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
@@ -40,6 +39,9 @@ constexpr auto kWaveformCounterBufferSize = 256 * 1024;
 QMutex AudioMutex;
 ALCdevice *AudioDevice = nullptr;
 ALCcontext *AudioContext = nullptr;
+Webrtc::DeviceResolvedId AudioDeviceLastUsedId{
+	.type = Webrtc::DeviceType::Playback
+};
 
 auto VolumeMultiplierAll = 1.;
 auto VolumeMultiplierSong = 1.;
@@ -72,57 +74,6 @@ bool PlaybackErrorHappened() {
 	return false;
 }
 
-void EnumeratePlaybackDevices() {
-	auto deviceNames = QStringList();
-	auto devices = [&] {
-		if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT")) {
-			return alcGetString(nullptr, alcGetEnumValue(nullptr, "ALC_ALL_DEVICES_SPECIFIER"));
-		} else {
-			return alcGetString(nullptr, ALC_DEVICE_SPECIFIER);
-		}
-	}();
-	Assert(devices != nullptr);
-	while (*devices != 0) {
-		auto deviceName8Bit = QByteArray(devices);
-		auto deviceName = QString::fromUtf8(deviceName8Bit);
-		deviceNames.append(deviceName);
-		devices += deviceName8Bit.size() + 1;
-	}
-	LOG(("Audio Playback Devices: %1").arg(deviceNames.join(';')));
-
-	auto device = [&] {
-		if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT")) {
-			return alcGetString(nullptr, alcGetEnumValue(nullptr, "ALC_DEFAULT_ALL_DEVICES_SPECIFIER"));
-		} else {
-			return alcGetString(nullptr, ALC_DEFAULT_DEVICE_SPECIFIER);
-		}
-	}();
-	if (device) {
-		LOG(("Audio Playback Default Device: %1").arg(QString::fromUtf8(device)));
-	} else {
-		LOG(("Audio Playback Default Device: (null)"));
-	}
-}
-
-void EnumerateCaptureDevices() {
-	auto deviceNames = QStringList();
-	auto devices = alcGetString(nullptr, ALC_CAPTURE_DEVICE_SPECIFIER);
-	Assert(devices != nullptr);
-	while (*devices != 0) {
-		auto deviceName8Bit = QByteArray(devices);
-		auto deviceName = QString::fromUtf8(deviceName8Bit);
-		deviceNames.append(deviceName);
-		devices += deviceName8Bit.size() + 1;
-	}
-	LOG(("Audio Capture Devices: %1").arg(deviceNames.join(';')));
-
-	if (auto device = alcGetString(nullptr, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER)) {
-		LOG(("Audio Capture Default Device: %1").arg(QString::fromUtf8(device)));
-	} else {
-		LOG(("Audio Capture Default Device: (null)"));
-	}
-}
-
 // Thread: Any. Must be locked: AudioMutex.
 void DestroyPlaybackDevice() {
 	if (AudioContext) {
@@ -141,10 +92,18 @@ void DestroyPlaybackDevice() {
 bool CreatePlaybackDevice() {
 	if (AudioDevice) return true;
 
-	AudioDevice = alcOpenDevice(nullptr);
+	AudioDeviceLastUsedId = Current().playbackDeviceId();
+
+	const auto id = AudioDeviceLastUsedId.isDefault()
+		? std::string()
+		: AudioDeviceLastUsedId.value.toStdString();
+	AudioDevice = alcOpenDevice(id.empty() ? nullptr : id.c_str());
 	if (!AudioDevice) {
-		LOG(("Audio Error: Could not create default playback device, enumerating.."));
-		EnumeratePlaybackDevices();
+		LOG(("Audio Error: Could not create default playback device, refreshing.."));
+		crl::on_main([] {
+			const auto type = Webrtc::DeviceType::Playback;
+			Core::App().mediaDevices().forceRefresh(type);
+		});
 		return false;
 	}
 
@@ -188,25 +147,14 @@ void Start(not_null<Instance*> instance) {
 	qRegisterMetaType<AudioMsgId>();
 	qRegisterMetaType<VoiceWaveform>();
 
-	if (!Webrtc::InitPipewireStubs()) {
-		LOG(("Audio Info: Failed to load pipewire 0.3 stubs."));
-	}
-
-	auto loglevel = getenv("ALSOFT_LOGLEVEL");
+	const auto loglevel = getenv("ALSOFT_LOGLEVEL");
 	LOG(("OpenAL Logging Level: %1").arg(loglevel ? loglevel : "(not set)"));
 
-	EnumeratePlaybackDevices();
-	EnumerateCaptureDevices();
-
 	MixerInstance = new Player::Mixer(instance);
-
-	Platform::Audio::Init();
 }
 
 // Thread: Main.
 void Finish(not_null<Instance*> instance) {
-	Platform::Audio::DeInit();
-
 	// MixerInstance variable should be modified under AudioMutex protection.
 	// So it is modified in the ~Mixer() destructor after all tracks are cleared.
 	delete MixerInstance;
@@ -1437,6 +1385,20 @@ void DetachFromDevice(not_null<Audio::Instance*> instance) {
 	if (mixer()) {
 		mixer()->reattachIfNeeded();
 	}
+}
+
+bool DetachIfDeviceChanged(
+		not_null<Audio::Instance*> instance,
+		const Webrtc::DeviceResolvedId &nowDeviceId) {
+	QMutexLocker lock(&AudioMutex);
+	if (AudioDeviceLastUsedId == nowDeviceId) {
+		return false;
+	}
+	Audio::ClosePlaybackDevice(instance);
+	if (mixer()) {
+		mixer()->reattachIfNeeded();
+	}
+	return true;
 }
 
 } // namespace internal

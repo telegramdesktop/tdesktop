@@ -7,9 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/qt/qt_compare.h"
+#include "data/data_message_reaction_id.h"
+
 class HistoryItem;
 class History;
 class PeerData;
+
+namespace Data {
+struct ReactionId;
+} // namespace Data
 
 namespace Api {
 
@@ -21,10 +28,23 @@ struct FoundMessages {
 
 class MessagesSearch final {
 public:
+	struct Request {
+		QString query;
+		PeerData *from = nullptr;
+		std::vector<Data::ReactionId> tags;
+
+		friend inline bool operator==(
+			const Request &,
+			const Request &) = default;
+		friend inline auto operator<=>(
+			const Request &,
+			const Request &) = default;
+	};
+
 	explicit MessagesSearch(not_null<History*> history);
 	~MessagesSearch();
 
-	void searchMessages(const QString &query, PeerData *from);
+	void searchMessages(Request request);
 	void searchMore();
 
 	[[nodiscard]] rpl::producer<FoundMessages> messagesFounds() const;
@@ -41,8 +61,7 @@ private:
 
 	base::flat_map<QString, TLMessages> _cacheOfStartByToken;
 
-	QString _query;
-	PeerData *_from = nullptr;
+	Request _request;
 	MsgId _offsetId;
 
 	int _searchInHistoryRequest = 0; // Not real mtpRequestId.

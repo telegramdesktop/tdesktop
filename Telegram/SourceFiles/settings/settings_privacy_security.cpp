@@ -195,9 +195,8 @@ void AddPremiumPrivacyButton(
 
 	const auto showToast = [=] {
 		auto link = Ui::Text::Link(
-			tr::lng_settings_privacy_premium_link(tr::now));
-		link.entities.push_back(
-			EntityInText(EntityType::Semibold, 0, link.text.size()));
+			Ui::Text::Semibold(
+				tr::lng_settings_privacy_premium_link(tr::now)));
 		(*toast) = controller->showToast({
 			.text = tr::lng_settings_privacy_premium(
 				tr::now,
@@ -239,6 +238,25 @@ void AddPremiumPrivacyButton(
 				controllerFactory(),
 				value));
 		});
+	});
+}
+
+void AddMessagesPrivacyButton(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	const auto session = &controller->session();
+	const auto privacy = &session->api().globalPrivacy();
+	AddButtonWithLabel(
+		container,
+		tr::lng_settings_messages_privacy(),
+		rpl::conditional(
+			privacy->newRequirePremium(),
+			tr::lng_edit_privacy_premium(),
+			tr::lng_edit_privacy_everyone()),
+		st::settingsButtonNoIcon,
+		{}
+	)->addClickHandler([=] {
+		controller->show(Box(EditMessagesPrivacyBox, controller));
 	});
 }
 
@@ -307,6 +325,7 @@ void SetupPrivacy(
 		tr::lng_settings_voices_privacy(),
 		Key::Voices,
 		[=] { return std::make_unique<VoicesPrivacyController>(session); });
+	AddMessagesPrivacyButton(controller, container);
 
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
 

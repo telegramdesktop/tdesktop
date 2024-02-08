@@ -50,36 +50,48 @@ public:
 private:
 	void setupContent();
 	void requestPermissionAndStartTestingMicrophone();
-	void startTestingMicrophone();
+
+	void initPlaybackButton(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		rpl::producer<QString> resolvedId,
+		Fn<void(QString)> set);
+	void initCaptureButton(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		rpl::producer<QString> resolvedId,
+		Fn<void(QString)> set);
 
 	const not_null<Window::SessionController*> _controller;
 	rpl::event_stream<QString> _cameraNameStream;
-	rpl::event_stream<QString> _outputNameStream;
-	rpl::event_stream<QString> _inputNameStream;
-	std::unique_ptr<Webrtc::AudioInputTester> _micTester;
-	Ui::LevelMeter *_micTestLevel = nullptr;
-	float _micLevel = 0.;
-	Ui::Animations::Simple _micLevelAnimation;
-	base::Timer _levelUpdateTimer;
+	rpl::variable<bool> _testingMicrophone;
 
 };
 
 inline constexpr auto kMicTestUpdateInterval = crl::time(100);
 inline constexpr auto kMicTestAnimationDuration = crl::time(200);
 
-[[nodiscard]] QString CurrentAudioOutputName();
-[[nodiscard]] QString CurrentAudioInputName();
-[[nodiscard]] object_ptr<Ui::GenericBox> ChooseAudioOutputBox(
-	Fn<void(QString id, QString name)> chosen,
+[[nodiscard]] rpl::producer<QString> PlaybackDeviceNameValue(
+	rpl::producer<QString> id);
+[[nodiscard]] rpl::producer<QString> CaptureDeviceNameValue(
+	rpl::producer<QString> id);
+[[nodiscard]] rpl::producer<QString> CameraDeviceNameValue(
+	rpl::producer<QString> id);
+[[nodiscard]] object_ptr<Ui::GenericBox> ChoosePlaybackDeviceBox(
+	rpl::producer<QString> currentId,
+	Fn<void(QString id)> chosen,
 	const style::Checkbox *st = nullptr,
 	const style::Radio *radioSt = nullptr);
-[[nodiscard]] object_ptr<Ui::GenericBox> ChooseAudioInputBox(
-	Fn<void(QString id, QString name)> chosen,
+[[nodiscard]] object_ptr<Ui::GenericBox> ChooseCaptureDeviceBox(
+	rpl::producer<QString> currentId,
+	Fn<void(QString id)> chosen,
 	const style::Checkbox *st = nullptr,
 	const style::Radio *radioSt = nullptr);
-//[[nodiscard]] object_ptr<Ui::GenericBox> ChooseAudioBackendBox(
-//	const style::Checkbox *st = nullptr,
-//	const style::Radio *radioSt = nullptr);
+[[nodiscard]] object_ptr<Ui::GenericBox> ChooseCameraDeviceBox(
+	rpl::producer<QString> currentId,
+	Fn<void(QString id)> chosen,
+	const style::Checkbox *st = nullptr,
+	const style::Radio *radioSt = nullptr);
 
 } // namespace Settings
 

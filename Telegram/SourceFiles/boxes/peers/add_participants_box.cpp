@@ -267,6 +267,10 @@ void AddParticipantsBoxController::subscribeToMigration() {
 }
 
 void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
+	const auto premiumRequiredError = WritePremiumRequiredError;
+	if (RecipientRow::ShowLockedError(this, row, premiumRequiredError)) {
+		return;
+	}
 	const auto &serverConfig = session().serverConfig();
 	auto count = fullCount();
 	auto limit = _peer && (_peer->isChat() || _peer->isMegagroup())
@@ -292,6 +296,8 @@ void AddParticipantsBoxController::itemDeselectedHook(
 
 void AddParticipantsBoxController::prepareViewHook() {
 	updateTitle();
+
+	TrackPremiumRequiredChanges(this, lifetime());
 }
 
 int AddParticipantsBoxController::alreadyInCount() const {
@@ -332,8 +338,10 @@ std::unique_ptr<PeerListRow> AddParticipantsBoxController::createRow(
 	if (user->isSelf()) {
 		return nullptr;
 	}
-	auto result = std::make_unique<PeerListRow>(user);
-	if (isAlreadyIn(user)) {
+	const auto already = isAlreadyIn(user);
+	const auto maybeLockedSt = already ? nullptr : &computeListSt().item;
+	auto result = std::make_unique<RecipientRow>(user, maybeLockedSt);
+	if (already) {
 		result->setDisabledState(PeerListRow::State::DisabledChecked);
 	}
 	return result;

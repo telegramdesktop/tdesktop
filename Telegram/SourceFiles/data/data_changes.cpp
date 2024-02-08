@@ -56,7 +56,7 @@ rpl::producer<UpdateType> Changes::Manager<DataType, UpdateType>::updates(
 		Flags flags) const {
 	return _stream.events(
 	) | rpl::filter([=](const UpdateType &update) {
-		const auto [updateData, updateFlags] = update;
+		const auto &[updateData, updateFlags] = update;
 		return (updateData == data) && (updateFlags & flags);
 	});
 }

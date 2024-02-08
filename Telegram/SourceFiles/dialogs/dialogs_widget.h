@@ -22,6 +22,7 @@ class Error;
 namespace Data {
 class Forum;
 enum class StorySourcesList : uchar;
+struct ReactionId;
 } // namespace Data
 
 namespace Main {
@@ -116,7 +117,7 @@ public:
 
 	void scrollToEntry(const RowDescriptor &entry);
 
-	void searchMessages(const QString &query, Key inChat = {});
+	void searchMessages(QString query, Key inChat = {});
 	void searchTopics();
 	void searchMore();
 
@@ -179,7 +180,13 @@ private:
 	void trackScroll(not_null<Ui::RpWidget*> widget);
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
 	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
-	bool setSearchInChat(Key chat, PeerData *from = nullptr);
+	bool setSearchInChat(
+		Key chat,
+		PeerData *from,
+		std::vector<Data::ReactionId> tags);
+	bool setSearchInChat(
+		Key chat,
+		PeerData *from = nullptr);
 	void showCalendar();
 	void showSearchFrom();
 	void showMainMenu();
@@ -285,6 +292,8 @@ private:
 	Dialogs::Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromAuthor = nullptr;
+	std::vector<Data::ReactionId> _searchTags;
+	rpl::lifetime _searchTagsLifetime;
 	QString _lastFilterText;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
@@ -313,6 +322,7 @@ private:
 
 	QString _searchQuery;
 	PeerData *_searchQueryFrom = nullptr;
+	std::vector<Data::ReactionId> _searchQueryTags;
 	int32 _searchNextRate = 0;
 	bool _searchFull = false;
 	bool _searchFullMigrated = false;

@@ -384,13 +384,14 @@ HistoryMessageReply::~HistoryMessageReply() {
 	_fields.externalMedia = nullptr;
 }
 
-bool HistoryMessageReply::updateData(
+void HistoryMessageReply::updateData(
 		not_null<HistoryItem*> holder,
 		bool force) {
 	const auto guard = gsl::finally([&] { refreshReplyToMedia(); });
 	if (!force) {
 		if (resolvedMessage || resolvedStory || _unavailable) {
-			return true;
+			_pendingResolve = 0;
+			return;
 		}
 	}
 	const auto peerId = _fields.externalPeerId
@@ -449,10 +450,15 @@ bool HistoryMessageReply::updateData(
 		}
 		holder->history()->owner().requestItemResize(holder);
 	}
-	return resolvedMessage
+	if (resolvedMessage
 		|| resolvedStory
 		|| (!_fields.messageId && !_fields.storyId && external())
-		|| _unavailable;
+		|| _unavailable) {
+		_pendingResolve = 0;
+	} else if (!force) {
+		_pendingResolve = 1;
+		_requestedResolve = 0;
+	}
 }
 
 void HistoryMessageReply::set(ReplyFields fields) {
@@ -468,17 +474,20 @@ void HistoryMessageReply::updateFields(
 	if ((_fields.messageId != messageId)
 		&& !IsServerMsgId(_fields.messageId)) {
 		_fields.messageId = messageId;
-		if (!updateData(holder)) {
-			RequestDependentMessageItem(
-				holder,
-				_fields.externalPeerId,
-				_fields.messageId);
-		}
+		updateData(holder);
 	}
 	if ((_fields.topMessageId != topMessageId)
 		&& !IsServerMsgId(_fields.topMessageId)) {
 		_fields.topMessageId = topMessageId;
 	}
+}
+
+bool HistoryMessageReply::acquireResolve() {
+	if (!_pendingResolve || _requestedResolve) {
+		return false;
+	}
+	_requestedResolve = 1;
+	return true;
 }
 
 void HistoryMessageReply::setTopMessageId(MsgId topMessageId) {

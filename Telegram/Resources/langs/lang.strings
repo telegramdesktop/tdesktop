@@ -141,6 +141,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_status_last_week" = "last seen within a week";
 "lng_status_last_month" = "last seen within a month";
 "lng_status_lastseen_now" = "last seen just now";
+"lng_status_lastseen_when" = "when?";
 "lng_status_lastseen_minutes#one" = "last seen {count} minute ago";
 "lng_status_lastseen_minutes#other" = "last seen {count} minutes ago";
 "lng_status_lastseen_hours#one" = "last seen {count} hour ago";
@@ -167,6 +168,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_fake_badge" = "FAKE";
 
 "lng_remember" = "Remember this choice";
+
+"lng_lastseen_show_title" = "Show Your Last Seen";
+"lng_lastseen_show_about" = "To see **{user}'s** Last Seen time, either start\nshowing your own Last Seen time...";
+"lng_lastseen_show_button" = "Show My Last Seen";
+"lng_lastseen_or" = "or";
+"lng_lastseen_premium_title" = "Upgrade to Premium";
+"lng_lastseen_premium_about" = "Subscription will let you see **{user}'s** Last Seen\nstatus without showing yours.";
+"lng_lastseen_premium_button" = "Subscribe to Telegram Premium";
+"lng_lastseen_shown_toast" = "Your last seen time is now visible.";
+
+"lng_readtime_show_title" = "Show Your Read Date";
+"lng_readtime_show_about" = "To see when **{user}** read the message,\neither start showing your own read time...";
+"lng_readtime_show_button" = "Show My Read Time";
+"lng_readtime_or" = "or";
+"lng_readtime_premium_title" = "Upgrade to Premium";
+"lng_readtime_premium_about" = "Subscription will let you see **{user}'s** read time\nwithout showing yours.";
+"lng_readtime_premium_button" = "Subscribe to Telegram Premium";
+"lng_readtime_shown_toast" = "Your read times are now visible.";
 
 "lng_channels_limit_title" = "Too Many Communities";
 "lng_channels_limit1#one" = "You are a member of **{count}** groups and channels.";
@@ -414,7 +433,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_username_invalid" = "This username is invalid.";
 "lng_username_occupied" = "This username is already occupied.";
 "lng_username_too_short" = "This username is too short.";
-"lng_username_purchase_available" = "Sorry, this link is occupied by someone. But it's available for purchase through\nofficial {link}.";
+"lng_username_purchase_available" = "**This username is already taken.** However, it is currently available for purchase. {link}";
+"lng_username_purchase_available_link" = "Learn more...";
 "lng_username_bad_symbols" = "Only a-z, 0-9, and underscores allowed.";
 "lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
@@ -611,6 +631,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_call_accept_calls" = "Accept calls from this device";
 "lng_settings_call_device_default" = "Same as the System";
 
+"lng_settings_section_devices" = "Speakers and Camera";
+"lng_settings_devices_calls" = "Calls and video chats";
+"lng_settings_devices_calls_same" = "Use the same devices for calls";
+"lng_settings_devices_inactive" = "Unavailable";
+
 "lng_settings_language" = "Language";
 "lng_settings_default_scale" = "Default interface scale";
 "lng_settings_connection_type" = "Connection type";
@@ -624,6 +649,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_phone_number_privacy" = "Phone number";
 "lng_settings_forwards_privacy" = "Forwarded messages";
 "lng_settings_profile_photo_privacy" = "Profile photo";
+"lng_settings_messages_privacy" = "Messages";
 "lng_settings_voices_privacy" = "Voice messages";
 "lng_settings_bio_privacy" = "Bio";
 "lng_settings_privacy_premium" = "Only subscribers of {link} can restrict receiving voice messages.";
@@ -1060,6 +1086,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_contacts" = "My contacts";
 "lng_edit_privacy_close_friends" = "Close friends";
 "lng_edit_privacy_nobody" = "Nobody";
+"lng_edit_privacy_premium" = "Premium users";
 "lng_edit_privacy_exceptions" = "Add exceptions";
 
 "lng_edit_privacy_exceptions_count#one" = "{count} user";
@@ -1086,6 +1113,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_lastseen_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_lastseen_always_title" = "Always share with";
 "lng_edit_privacy_lastseen_never_title" = "Never share with";
+"lng_edit_lastseen_hide_read_time" = "Hide read time";
+"lng_edit_lastseen_hide_read_time_about" = "Hide the time when you read messages from people who can't see your last seen. If you turn this on, their read time will also be hidden from you. This setting does not affect group chats.";
+"lng_edit_lastseen_subscribe" = "Subscribe to Telegram Premium";
+"lng_edit_lastseen_subscribe_about" = "If you subscribe to Premium, you will see other users' last seen and read time even if you hid yours from them (unless they specifically restricted it).";
 
 "lng_edit_privacy_groups_title" = "Group invite settings";
 "lng_edit_privacy_groups_header" = "Who can invite you to groups and channels";
@@ -1156,6 +1187,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_voices_exceptions" = "These users will or will not be able to send voice and video messages to you regardless of the settings above.";
 "lng_edit_privacy_voices_always_title" = "Always allow";
 "lng_edit_privacy_voices_never_title" = "Never allow";
+
+"lng_messages_privacy_title" = "Messages";
+"lng_messages_privacy_subtitle" = "Who can send me messages?";
+"lng_messages_privacy_everyone" = "Everybody";
+"lng_messages_privacy_restricted" = "My Contacts and Premium Users";
+"lng_messages_privacy_about" = "You can restrict incoming messages to only contacts and Premium users.";
+"lng_messages_privacy_premium_button" = "Subscribe to Telegram Premium";
+"lng_messages_privacy_premium_about" = "Subscribe now to change this setting and get access to other exclusive features of Telegram Premium.";
+"lng_messages_privacy_premium" = "Only subscribers of {link} can select this option.";
+"lng_messages_privacy_premium_link" = "Telegram Premium";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
@@ -1464,6 +1505,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_messages_none" = "Select Messages";
 "lng_report_messages_count#one" = "Report {count} Message";
 "lng_report_messages_count#other" = "Report {count} Messages";
+"lng_report_reaction" = "Report reaction";
+"lng_report_and_ban" = "Ban and report";
+"lng_report_reaction_title" = "Report reaction";
+"lng_report_reaction_about" = "Are you sure you want to report reactions from this user?";
+"lng_report_and_ban_button" = "Ban user";
 "lng_report_details_about" = "Please enter any additional details relevant to your report.";
 "lng_report_details" = "Additional Details";
 "lng_report_reason_spam" = "Spam";
@@ -1719,6 +1765,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_voice_expired" = "Voice message expired";
 "lng_ttl_round_sent" = "You sent a self-destructing video message.";
 "lng_ttl_round_expired" = "Round message expired";
+"lng_ttl_voice_tooltip_in" = "This voice message can only be played once.";
+"lng_ttl_voice_tooltip_out" = "This message will disappear once **{user}** plays it once.";
+"lng_ttl_voice_close_in" = "Delete and close";
+"lng_ttl_round_tooltip_in" = "This video message can only be played once.";
+"lng_ttl_round_tooltip_out" = "This message will disappear once **{user}** plays it once.";
 
 "lng_profile_add_more_after_create" = "You will be able to add more members after you create the group.";
 "lng_profile_camera_title" = "Capture yourself";
@@ -1980,6 +2031,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_emoji_status" = "Add any of thousands emoji next to your name to display current activity.";
 "lng_premium_summary_subtitle_infinite_reactions" = "Infinite Reactions";
 "lng_premium_summary_about_infinite_reactions" = "React with thousands of emoji — with multiple reactions per message.";
+"lng_premium_summary_subtitle_tags_for_messages" = "Tags for Messages";
+"lng_premium_summary_about_tags_for_messages" = "Organize your Saved Messages with tags for quicker access.";
 "lng_premium_summary_subtitle_premium_stickers" = "Premium Stickers";
 "lng_premium_summary_about_premium_stickers" = "Exclusive enlarged stickers featuring additional effects, updated monthly.";
 "lng_premium_summary_subtitle_animated_emoji" = "Animated Emoji";
@@ -2400,6 +2453,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_contact" = "Contact";
 "lng_in_dlg_audio" = "Voice message";
 "lng_in_dlg_video_message" = "Video message";
+"lng_in_dlg_voice_message_ttl" = "One-time Voice Message";
+"lng_in_dlg_video_message_ttl" = "One-time Video Message";
 "lng_in_dlg_file" = "File";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
@@ -2487,6 +2542,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_record_listen_cancel_sure" = "Are you sure you want to discard your recorded voice message?";
 "lng_record_lock_discard" = "Discard";
 "lng_record_hold_tip" = "Please hold the mouse button pressed to record a voice message.";
+"lng_record_once_first_tooltip" = "Click to set this message to **Play Once**.";
+"lng_record_once_active_tooltip" = "The recipients will be able to listen to it only once.";
 "lng_will_be_notified" = "Members will be notified when you post";
 "lng_wont_be_notified" = "Members will not be notified when you post";
 "lng_willbe_history" = "Please select a chat to start messaging";
@@ -2749,17 +2806,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_reacted#other" = "{count} Reacted";
 "lng_context_seen_reacted_none" = "Nobody Reacted";
 "lng_context_seen_reacted_all" = "Show All Reactions";
-"lng_context_set_as_quick" = "Set As Quick";
+"lng_context_set_as_quick" = "Set as Quick";
+"lng_context_filter_by_tag" = "Filter by Tag";
+"lng_context_tag_add_name" = "Add Name";
+"lng_context_tag_edit_name" = "Edit Name";
+"lng_context_remove_tag" = "Remove Tag";
 "lng_context_delete_from_disk" = "Delete from disk";
 "lng_context_delete_all_files" = "Delete all files";
 "lng_context_save_custom_sound" = "Save for notifications";
 "lng_context_translate" = "Translate";
 "lng_context_translate_selected" = "Translate Selected Text";
+"lng_context_read_hidden" = "read";
+"lng_context_read_show" = "show when";
+
+"lng_add_tag_about" = "Tag this message with an emoji for quick search.";
+"lng_subscribe_tag_about" = "Organize your Saved Messages with tags. {link}";
+"lng_subscribe_tag_link" = "Learn More...";
+"lng_edit_tag_about" = "You can label your emoji tag with a text name.";
+"lng_edit_tag_name" = "Name";
+"lng_add_tag_button" = "Add tags";
+"lng_add_tag_phrase" = "to messages {arrow}";
+"lng_add_tag_phrase_long" = "to your Saved Messages {arrow}";
+"lng_unlock_tags" = "Unlock";
 
 "lng_context_animated_emoji" = "This message contains emoji from **{name} pack**.";
 "lng_context_animated_emoji_many#one" = "This message contains emoji from **{count} pack**.";
 "lng_context_animated_emoji_many#other" = "This message contains emoji from **{count} packs**.";
 "lng_context_animated_reaction" = "This reaction is from **{name} pack**.";
+"lng_context_animated_tag" = "This tag is from **{name} pack**.";
 "lng_context_animated_reactions" = "Reactions contain emoji from **{name} pack**.";
 "lng_context_animated_reactions_many#one" = "Reactions contain emoji from **{count} pack**.";
 "lng_context_animated_reactions_many#other" = "Reactions contain emoji from **{count} packs**.";
@@ -3397,7 +3471,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_rtmp_key_copy" = "Copy Stream Key";
 "lng_group_call_rtmp_key_copied" = "Stream Key copied to clipboard.";
 "lng_group_call_rtmp_key_warning" = "**Never share your Stream Key with anyone or show it on stream!**";
-"lng_group_call_rtmp_info" = "To stream video with another app, enter these Server URL and Stream Key in your streaming app.\n\nOnce you start broadcasting in your streaming app, tap Start Streaming below.";
+"lng_group_call_rtmp_info" = "To stream video with another app, enter these Server URL and Stream Key in your streaming app.\n\nOnce you start broadcasting in your streaming app, click Start Streaming below.";
 "lng_group_call_rtmp_start" = "Start Streaming";
 "lng_group_call_rtmp_revoke" = "Revoke Stream Key";
 "lng_group_call_rtmp_revoke_sure" = "Are you sure you want to revoke your Server URL and Stream Key?";
@@ -3565,6 +3639,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_restricted_send_voice_messages" = "{user} restricted sending of voice messages to them.";
 "lng_restricted_send_video_messages" = "{user} restricted sending of video messages to them.";
+"lng_restricted_send_non_premium" = "Only Premium users can message {user}.";
+"lng_restricted_send_non_premium_more" = "Learn more...";
+
+"lng_send_non_premium_text" = "Subscribe to **Premium**\n to message {user}.";
+"lng_send_non_premium_go" = "Get Premium";
+"lng_send_non_premium_story" = "Replies restricted";
+"lng_send_non_premium_unlock" = "unlock";
+"lng_send_non_premium_message_toast" = "**{user}** only accepts messages from contacts and {link} subscribers.";
+"lng_send_non_premium_message_toast_link" = "Telegram Premium";
 
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";
@@ -4232,7 +4315,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_sponsored_hide_ads" = "Hide";
 "lng_sponsored_title" = "What are sponsored messages?";
-"lng_sponsored_info_description1" = "Unlike other apps, Telegram never uses your private data to target ads. Sponsored messages on Telegram are based solely on the topic of the public channels in which they are shown. This means that no user data is mined or analyzed to display ads, and every user viewing a channel on Telegram sees the same sponsored messages.\n\nUnlike other apps, Telegram doesn't track whether you tapped on a sponsored message and doesn't profile you based on your activity. We also prevent external links in sponsored messages to ensure that third parties can’t spy on our users. We believe that everyone has the right to privacy, and technological platforms should respect that.\n\nTelegram offers a free and unlimited service to hundreds of millions of users, which involves significant server and traffic costs. In order to remain independent and stay true to its values, Telegram developed a paid tool to promote messages with user privacy in mind. We welcome responsible advertisers at:";
+"lng_sponsored_info_description1" = "Unlike other apps, Telegram never uses your private data to target ads. Sponsored messages on Telegram are based solely on the topic of the public channels in which they are shown. This means that no user data is mined or analyzed to display ads, and every user viewing a channel on Telegram sees the same sponsored messages.\n\nUnlike other apps, Telegram doesn't track whether you clicked on a sponsored message and doesn't profile you based on your activity. We also prevent external links in sponsored messages to ensure that third parties can’t spy on our users. We believe that everyone has the right to privacy, and technological platforms should respect that.\n\nTelegram offers a free and unlimited service to hundreds of millions of users, which involves significant server and traffic costs. In order to remain independent and stay true to its values, Telegram developed a paid tool to promote messages with user privacy in mind. We welcome responsible advertisers at:";
 "lng_sponsored_info_description2" = "Sponsored Messages are currently in test mode. Once they are fully launched and allow Telegram to cover its basic costs, we will start sharing ad revenue with the owners of public channels in which sponsored messages are displayed.\n\nOnline ads should no longer be synonymous with abuse of user privacy. Let us redefine how a tech company should operate – together.";
 "lng_sponsored_info_menu" = "About this ad";
 "lng_sponsored_info_submenu" = "Advertiser: {text}";
@@ -4346,6 +4429,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_views#one" = "{count} view";
 "lng_stories_views#other" = "{count} views";
 "lng_stories_no_views" = "No views";
+"lng_stories_view_reactions" = "View reactions";
 "lng_stories_unsupported" = "This story is not supported\nby your version of Telegram.";
 "lng_stories_cant_reply" = "You can't reply to this story.";
 "lng_stories_about_silent" = "This video has no sound.";
@@ -4400,6 +4484,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_channel_archive_done_many#one" = "{count} story is hidden from the channel page.";
 "lng_stories_channel_archive_done_many#other" = "{count} stories are hidden from the channel page.";
 "lng_stories_save_promo" = "Subscribe to {link} to download other people's unprotected stories to disk.";
+"lng_stories_reaction_as_message" = "Send reaction as a private message";
 
 "lng_stealth_mode_menu_item" = "Stealth Mode";
 "lng_stealth_mode_title" = "Stealth Mode";

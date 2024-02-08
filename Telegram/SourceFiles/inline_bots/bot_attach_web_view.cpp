@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "webview/webview_interface.h"
 #include "core/application.h"
@@ -880,6 +881,8 @@ void AttachWebView::request(const WebViewButton &button) {
 }
 
 void AttachWebView::cancel() {
+	Expects(!_catchingCancelInShowCall);
+
 	ActiveWebViews().remove(this);
 	_session->api().request(base::take(_requestId)).cancel();
 	_session->api().request(base::take(_prolongId)).cancel();
@@ -1467,6 +1470,7 @@ void AttachWebView::show(
 	_lastShownQueryId = queryId;
 	_lastShownButtonText = buttonText;
 	base::take(_panel);
+	_catchingCancelInShowCall = true;
 	_panel = Ui::BotWebView::Show({
 		.url = url,
 		.userDataPath = _session->domain().local().webviewDataPath(),
@@ -1476,11 +1480,13 @@ void AttachWebView::show(
 		.menuButtons = buttons,
 		.allowClipboardRead = allowClipboardRead,
 	});
+	_catchingCancelInShowCall = false;
 	started(queryId);
 }
 
 void AttachWebView::started(uint64 queryId) {
-	Expects(_bot != nullptr && _context != nullptr);
+	Expects(_bot != nullptr);
+	Expects(_context != nullptr);
 
 	if (_context->fromSwitch || !queryId) {
 		return;
@@ -1659,6 +1665,28 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		raw->addAction(tr::lng_attach_document(tr::now), [=] {
 			attach(false);
 		}, &st::menuIconFile);
+	}
+	if (peer->canCreatePolls()) {
+		++minimal;
+		raw->addAction(tr::lng_polls_create(tr::now), [=] {
+			const auto action = actionFactory();
+			const auto source = action.options.scheduled
+				? Api::SendType::Scheduled
+				: Api::SendType::Normal;
+			const auto sendMenuType = action.replyTo.topicRootId
+				? SendMenu::Type::SilentOnly
+				: SendMenu::Type::Scheduled;
+			const auto flag = PollData::Flags();
+			const auto replyTo = action.replyTo;
+			Window::PeerMenuCreatePoll(
+				controller,
+				peer,
+				replyTo,
+				flag,
+				flag,
+				source,
+				sendMenuType);
+		}, &st::menuIconCreatePoll);
 	}
 	for (const auto &bot : bots->attachBots()) {
 		if (!bot.inAttachMenu

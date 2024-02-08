@@ -38,21 +38,34 @@ enum class WhoReadType {
 	Reacted,
 };
 
+enum class WhoReadState : uchar {
+	Empty,
+	Unknown,
+	MyHidden,
+	HisHidden,
+	TooOld,
+};
+
 struct WhoReadContent {
 	std::vector<WhoReadParticipant> participants;
 	WhoReadType type = WhoReadType::Seen;
 	QString singleCustomEntityData;
 	int fullReactionsCount = 0;
 	int fullReadCount = 0;
-	bool unknown = false;
+	WhoReadState state = WhoReadState::Empty;
 };
 
 [[nodiscard]] base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 	not_null<PopupMenu*> menu,
 	rpl::producer<WhoReadContent> content,
 	Text::CustomEmojiFactory factory,
-	Fn<void(uint64)> participantChosen,
+	Fn<void(WhoReadParticipant)> participantChosen,
 	Fn<void()> showAllChosen);
+
+[[nodiscard]] base::unique_qptr<Menu::ItemBase> WhenReadContextAction(
+	not_null<PopupMenu*> menu,
+	rpl::producer<WhoReadContent> content,
+	Fn<void()> showOrPremium);
 
 enum class WhoReactedType : uchar {
 	Viewed,
@@ -110,7 +123,7 @@ class WhoReactedListMenu final {
 public:
 	WhoReactedListMenu(
 		Text::CustomEmojiFactory factory,
-		Fn<void(uint64)> participantChosen,
+		Fn<void(WhoReadParticipant)> participantChosen,
 		Fn<void()> showAllChosen);
 
 	void clear();
@@ -123,7 +136,7 @@ public:
 
 private:
 	const Text::CustomEmojiFactory _customEmojiFactory;
-	const Fn<void(uint64)> _participantChosen;
+	const Fn<void(WhoReadParticipant)> _participantChosen;
 	const Fn<void()> _showAllChosen;
 
 	std::vector<not_null<WhoReactedEntryAction*>> _actions;

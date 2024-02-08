@@ -418,7 +418,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout d3107bf4a5
+    git checkout 94be868240
 """)
 
 stage('msys64', """
@@ -1128,7 +1128,7 @@ depends:yasm/yasm
 """)
 
 stage('openal-soft', """
-version: 2
+version: 3
 win:
     git clone -b wasapi_exact_device_time https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
@@ -1140,9 +1140,8 @@ win:
 release:
     cmake --build build --config RelWithDebInfo --parallel
 mac:
-    git clone https://github.com/kcat/openal-soft.git
+    git clone -b coreaudio_device_uid https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
-    git checkout 1.23.1
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -B build . \\
         -D CMAKE_BUILD_TYPE=RelWithDebInfo \\
         -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \\

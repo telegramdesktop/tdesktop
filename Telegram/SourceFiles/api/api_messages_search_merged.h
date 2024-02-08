@@ -12,19 +12,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class PeerData;
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace Api {
 
 // Search in both of history and migrated history, if it exists.
 class MessagesSearchMerged final {
 public:
-	struct Request {
-		QString query;
-		PeerData *from = nullptr;
-	};
-	struct RequestCompare {
-		bool operator()(const Request &a, const Request &b) const;
-	};
-	using CachedRequests = std::set<Request, RequestCompare>;
+	using Request = MessagesSearch::Request;
+	using CachedRequests = base::flat_set<Request>;
 
 	MessagesSearchMerged(not_null<History*> history);
 

@@ -267,7 +267,7 @@ TopBar::TopBar(
 	? object_ptr<Ui::LabelSimple>(
 		this,
 		st::callBarLabel,
-		tr::lng_call_bar_hangup(tr::now).toUpper())
+		tr::lng_call_bar_hangup(tr::now))
 	: object_ptr<Ui::LabelSimple>(nullptr))
 , _mute(this, st::callBarMuteToggle)
 , _info(this)

@@ -309,7 +309,7 @@ System::Timing System::countTiming(
 
 void System::registerThread(not_null<Data::Thread*> thread) {
 	if (const auto topic = thread->asTopic()) {
-		const auto [i, ok] = _watchedTopics.emplace(topic, rpl::lifetime());
+		const auto &[i, ok] = _watchedTopics.emplace(topic, rpl::lifetime());
 		if (ok) {
 			topic->destroyed() | rpl::start_with_next([=] {
 				clearFromTopic(topic);

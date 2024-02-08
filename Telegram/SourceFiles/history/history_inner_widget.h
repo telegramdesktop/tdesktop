@@ -36,6 +36,7 @@ class Element;
 class TranslateTracker;
 struct PinnedId;
 struct SelectedQuote;
+class AboutView;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
@@ -157,6 +158,9 @@ public:
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context);
+	void elementSearchInList(
+		const QString &query,
+		const FullMsgId &context);
 	void elementHandleViaClick(not_null<UserData*> bot);
 	bool elementIsChatWide();
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient();
@@ -192,7 +196,7 @@ public:
 	[[nodiscard]] std::pair<Element*, int> findViewForPinnedTracking(
 		int top) const;
 
-	void notifyIsBotChanged();
+	void refreshAboutView();
 	void notifyMigrateUpdated();
 
 	// Ui::AbstractTooltipShower interface.
@@ -234,7 +238,6 @@ private:
 	void onTouchSelect();
 	void onTouchScrollTimer();
 
-	class BotAbout;
 	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 	using VideoUserpic = Dialogs::Ui::VideoUserpic;
 	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
@@ -449,7 +452,7 @@ private:
 	// the first _history message date (just skip it by height).
 	int _historySkipHeight = 0;
 
-	std::unique_ptr<BotAbout> _botAbout;
+	std::unique_ptr<HistoryView::AboutView> _aboutView;
 	std::unique_ptr<HistoryView::EmptyPainter> _emptyPainter;
 	std::unique_ptr<HistoryView::TranslateTracker> _translateTracker;
 

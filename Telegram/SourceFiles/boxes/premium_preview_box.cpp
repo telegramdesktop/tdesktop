@@ -110,6 +110,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_emoji_status();
 	case PremiumPreview::InfiniteReactions:
 		return tr::lng_premium_summary_subtitle_infinite_reactions();
+	case PremiumPreview::TagsForMessages:
+		return tr::lng_premium_summary_subtitle_tags_for_messages();
 	case PremiumPreview::Stickers:
 		return tr::lng_premium_summary_subtitle_premium_stickers();
 	case PremiumPreview::AnimatedEmoji:
@@ -146,6 +148,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_emoji_status();
 	case PremiumPreview::InfiniteReactions:
 		return tr::lng_premium_summary_about_infinite_reactions();
+	case PremiumPreview::TagsForMessages:
+		return tr::lng_premium_summary_about_tags_for_messages();
 	case PremiumPreview::Stickers:
 		return tr::lng_premium_summary_about_premium_stickers();
 	case PremiumPreview::AnimatedEmoji:
@@ -471,6 +475,7 @@ struct VideoPreviewDocument {
 			return "advanced_chat_management";
 		case PremiumPreview::EmojiStatus: return "emoji_status";
 		case PremiumPreview::InfiniteReactions: return "infinite_reactions";
+		case PremiumPreview::TagsForMessages: return "saved_tags";
 		case PremiumPreview::ProfileBadge: return "profile_badge";
 		case PremiumPreview::AnimatedUserpics: return "animated_userpics";
 		case PremiumPreview::RealTimeTranslation: return "translations";

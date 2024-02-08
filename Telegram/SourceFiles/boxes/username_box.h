@@ -19,11 +19,14 @@ void UsernamesBox(
 	not_null<PeerData*> peer);
 
 struct UsernameCheckInfo final {
+	[[nodiscard]] static UsernameCheckInfo PurchaseAvailable(
+		const QString &username,
+		not_null<PeerData*> peer);
+
 	enum class Type {
 		Good,
 		Error,
 		Default,
-		PurchaseAvailable,
 	};
 	Type type;
 	TextWithEntities text;

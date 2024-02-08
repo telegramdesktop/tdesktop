@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_cover.h"
 
+#include "api/api_user_privacy.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -25,7 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_forum_topic_box.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
+#include "ui/boxes/show_or_premium_box.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
 #include "base/unixtime.h"
@@ -323,6 +326,7 @@ Cover::Cover(
 	: nullptr)
 , _name(this, _st.name)
 , _status(this, _st.status)
+, _showLastSeen(this, tr::lng_status_lastseen_when(), _st.showLastSeen)
 , _refreshStatusTimer([this] { refreshStatusText(); }) {
 	_peer->updateFull();
 
@@ -332,6 +336,8 @@ Cover::Cover(
 	if (!_peer->isMegagroup()) {
 		_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
+
+	setupShowLastSeen();
 
 	_badge->setPremiumClickCallback([=] {
 		if (const auto panel = _emojiStatusPanel.get()) {
@@ -359,6 +365,70 @@ Cover::Cover(
 	} else {
 		_iconButton->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
+}
+
+void Cover::setupShowLastSeen() {
+	const auto user = _peer->asUser();
+	if (_st.showLastSeenVisible
+		&& user
+		&& !user->isSelf()
+		&& !user->isBot()
+		&& !user->isServiceUser()
+		&& user->session().premiumPossible()) {
+		if (user->session().premium()) {
+			if (user->lastseen().isHiddenByMe()) {
+				user->updateFullForced();
+			}
+			_showLastSeen->hide();
+			return;
+		}
+
+		rpl::combine(
+			user->session().changes().peerFlagsValue(
+				user,
+				Data::PeerUpdate::Flag::OnlineStatus),
+			Data::AmPremiumValue(&user->session())
+		) | rpl::start_with_next([=](auto, bool premium) {
+			const auto wasShown = !_showLastSeen->isHidden();
+			const auto hiddenByMe = user->lastseen().isHiddenByMe();
+			const auto shown = hiddenByMe
+				&& !user->lastseen().isOnline(base::unixtime::now())
+				&& !premium
+				&& user->session().premiumPossible();
+			_showLastSeen->setVisible(shown);
+			if (wasShown && premium && hiddenByMe) {
+				user->updateFullForced();
+			}
+		}, _showLastSeen->lifetime());
+
+		_controller->session().api().userPrivacy().value(
+			Api::UserPrivacy::Key::LastSeen
+		) | rpl::filter([=](Api::UserPrivacy::Rule rule) {
+			return (rule.option == Api::UserPrivacy::Option::Everyone);
+		}) | rpl::start_with_next([=] {
+			if (user->lastseen().isHiddenByMe()) {
+				user->updateFullForced();
+			}
+		}, _showLastSeen->lifetime());
+	} else {
+		_showLastSeen->hide();
+	}
+
+	using TextTransform = Ui::RoundButton::TextTransform;
+	_showLastSeen->setTextTransform(TextTransform::NoTransform);
+	_showLastSeen->setFullRadius(true);
+
+	_showLastSeen->setClickedCallback([=] {
+		const auto type = Ui::ShowOrPremium::LastSeen;
+		auto box = Box(Ui::ShowOrPremiumBox, type, user->shortName(), [=] {
+			_controller->session().api().userPrivacy().save(
+				::Api::UserPrivacy::Key::LastSeen,
+				{});
+		}, [=] {
+			::Settings::ShowPremium(_controller, u"lastseen_hidden"_q);
+		});
+		_controller->show(std::move(box));
+	});
 }
 
 void Cover::setupChildGeometry() {
@@ -577,6 +647,11 @@ void Cover::refreshStatusGeometry(int newWidth) {
 	auto statusWidth = newWidth - _st.statusLeft - _st.rightSkip;
 	_status->resizeToWidth(statusWidth);
 	_status->moveToLeft(_st.statusLeft, _st.statusTop, newWidth);
+	const auto left = _st.statusLeft + _status->textMaxWidth();
+	_showLastSeen->moveToLeft(
+		left + _st.showLastSeenPosition.x(),
+		_st.showLastSeenPosition.y(),
+		newWidth);
 }
 
 } // namespace Info::Profile

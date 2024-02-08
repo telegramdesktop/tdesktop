@@ -27,6 +27,10 @@ struct ReactionId {
 		return custom ? *custom : DocumentId();
 	}
 
+	explicit operator bool() const {
+		return !empty();
+	}
+
 	friend inline auto operator<=>(
 		const ReactionId &,
 		const ReactionId &) = default;
@@ -40,6 +44,11 @@ struct MessageReaction {
 	int count = 0;
 	bool my = false;
 };
+
+[[nodiscard]] QString SearchTagToQuery(const ReactionId &tagId);
+[[nodiscard]] ReactionId SearchTagFromQuery(const QString &query);
+[[nodiscard]] std::vector<ReactionId> SearchTagsFromQuery(
+	const QString &query);
 
 [[nodiscard]] QString ReactionEntityData(const ReactionId &id);
 

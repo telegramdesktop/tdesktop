@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/chat/attach/attach_prepare.h"
 
 namespace {
@@ -113,6 +114,9 @@ bool CanSendAnyOf(
 	if (const auto user = peer->asUser()) {
 		if (user->isInaccessible() || user->isRepliesChat()) {
 			return false;
+		} else if (user->meRequiresPremiumToWrite()
+			&& !user->session().premium()) {
+			return false;
 		} else if (rights
 			& ~(ChatRestriction::SendVoiceMessages
 				| ChatRestriction::SendVideoMessages
@@ -167,6 +171,13 @@ std::optional<QString> RestrictionError(
 	using Flag = ChatRestriction;
 	if (const auto restricted = peer->amRestricted(restriction)) {
 		if (const auto user = peer->asUser()) {
+			if (user->meRequiresPremiumToWrite()
+				&& !user->session().premium()) {
+				return tr::lng_restricted_send_non_premium(
+					tr::now,
+					lt_user,
+					user->shortName());
+			}
 			const auto result = (restriction == Flag::SendVoiceMessages)
 				? tr::lng_restricted_send_voice_messages(
 					tr::now,

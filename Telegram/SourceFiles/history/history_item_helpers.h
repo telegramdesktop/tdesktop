@@ -66,7 +66,9 @@ void CheckReactionNotificationSchedule(
 	not_null<PeerData*> peer,
 	PeerId from,
 	not_null<HistoryItem*> fwd);
-[[nodiscard]] MessageFlags FinalizeMessageFlags(MessageFlags flags);
+[[nodiscard]] MessageFlags FinalizeMessageFlags(
+	not_null<History*> history,
+	MessageFlags flags);
 [[nodiscard]] bool CopyMarkupToForward(not_null<const HistoryItem*> item);
 [[nodiscard]] TextWithEntities EnsureNonEmpty(
 	const TextWithEntities &text = TextWithEntities());
@@ -158,4 +160,6 @@ ClickHandlerPtr JumpToStoryClickHandler(
 void ShowTrialTranscribesToast(int left, TimeId until);
 
 void ClearMediaAsExpired(not_null<HistoryItem*> item);
-[[nodiscard]] bool IsVoiceOncePlayable(not_null<HistoryItem*> item);
+
+[[nodiscard]] int ItemsForwardSendersCount(const HistoryItemsList &list);
+[[nodiscard]] int ItemsForwardCaptionsCount(const HistoryItemsList &list);

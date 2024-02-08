@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_lastseen_status.h"
 #include "profile/profile_block_peer_list.h"
 
 namespace Ui {
@@ -61,7 +62,7 @@ private:
 		not_null<UserData*> user() const;
 
 		TimeId onlineTextTill = 0;
-		TimeId onlineTill = 0;
+		Data::LastseenStatus lastseen;
 		TimeId onlineForSort = 0;
 	};
 	Member *getMember(Item *item) {

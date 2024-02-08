@@ -83,6 +83,31 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	return result;
 }
 
+[[nodiscard]] Fn<TextWithEntities(TextWithEntities)> BoostsForGiftText(
+		const std::vector<not_null<UserData*>> users) {
+	Expects(!users.empty());
+
+	const auto session = &users.front()->session();
+	const auto emoji = Ui::Text::SingleCustomEmoji(
+		session->data().customEmojiManager().registerInternalEmoji(
+			st::premiumGiftsBoostIcon,
+			QMargins(0, st::premiumGiftsUserpicBadgeInner, 0, 0),
+			false));
+
+	return [=, count = users.size()](TextWithEntities text) {
+		text.append('\n');
+		text.append('\n');
+		text.append(tr::lng_premium_gifts_about_reward(
+			tr::now,
+			lt_count,
+			count * BoostsForGift(session),
+			lt_emoji,
+			emoji,
+			Ui::Text::RichLangValue));
+		return text;
+	};
+}
+
 using TagUser1 = lngtag_user;
 using TagUser2 = lngtag_second_user;
 using TagUser3 = lngtag_name;
@@ -293,16 +318,21 @@ void GiftBox(
 			std::move(titleLabel)),
 		st::premiumGiftTitlePadding);
 
-	auto textLabel = object_ptr<Ui::FlatLabel>(
-		box,
-		tr::lng_premium_gift_about(
-			lt_user,
-			user->session().changes().peerFlagsValue(
-				user,
-				Data::PeerUpdate::Flag::Name
-			) | rpl::map([=] { return TextWithEntities{ user->firstName }; }),
-			Ui::Text::RichLangValue),
-		st::premiumPreviewAbout);
+	auto textLabel = object_ptr<Ui::FlatLabel>(box, st::premiumPreviewAbout);
+	tr::lng_premium_gift_about(
+		lt_user,
+		user->session().changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::Name
+		) | rpl::map([=] { return TextWithEntities{ user->firstName }; }),
+		Ui::Text::RichLangValue
+	) | rpl::map(
+		BoostsForGiftText({ user })
+	) | rpl::start_with_next([
+			raw = textLabel.data(),
+			session = &user->session()](const TextWithEntities &t) {
+		raw->setMarkedText(t, Core::MarkedTextContext{ .session = session });
+	}, textLabel->lifetime());
 	textLabel->setTextColorOverride(stTitle.textFg->c);
 	textLabel->resizeToWidth(available);
 	box->addRow(
@@ -476,11 +506,6 @@ void GiftsBox(
 
 	// About.
 	{
-		const auto emoji = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				st::premiumGiftsBoostIcon,
-				QMargins(0, st::premiumGiftsUserpicBadgeInner, 0, 0),
-				false));
 		auto text = rpl::conditional(
 			state->isPaymentComplete.value(),
 			ComplexAboutLabel(
@@ -505,18 +530,7 @@ void GiftsBox(
 				tr::lng_premium_gifts_about_user2,
 				tr::lng_premium_gifts_about_user3,
 				tr::lng_premium_gifts_about_user_more
-			) | rpl::map([=, count = users.size()](TextWithEntities text) {
-				text.append('\n');
-				text.append('\n');
-				text.append(tr::lng_premium_gifts_about_reward(
-					tr::now,
-					lt_count,
-					count * BoostsForGift(session),
-					lt_emoji,
-					emoji,
-					Ui::Text::RichLangValue));
-				return text;
-			})
+			) | rpl::map(BoostsForGiftText(users))
 		);
 		const auto label = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(

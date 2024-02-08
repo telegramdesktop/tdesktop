@@ -71,7 +71,6 @@ ComposeIcons {
 	menuSpoilerOff: icon;
 
 	stripBubble: icon;
-	stripPremiumLocked: icon;
 	stripExpandPanel: icon;
 	stripExpandDropdown: icon;
 }
@@ -123,6 +122,8 @@ EmojiPan {
 	removeSet: IconButton;
 	boxLabel: FlatLabel;
 	icons: ComposeIcons;
+	about: FlatLabel;
+	aboutPadding: margins;
 	autocompleteBottomSkip: pixels;
 }
 
@@ -208,6 +209,8 @@ ComposeControls {
 	files: ComposeFiles;
 	premium: PremiumLimits;
 	boxField: InputField;
+	restrictionLabel: FlatLabel;
+	premiumRequired: ComposePremiumRequired;
 }
 
 ReportBox {
@@ -249,6 +252,13 @@ defaultWhoRead: WhoRead {
 	iconPosition: point(15px, 7px);
 	itemPadding: margins(44px, 9px, 17px, 7px);
 }
+whenReadStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+}
+whenReadPadding: margins(34px, 3px, 17px, 4px);
+whenReadIconPosition: point(8px, 0px);
+whenReadSkip: 3px;
+whenReadShowPadding: margins(6px, 0px, 6px, 2px);
 
 switchPmButton: RoundButton(defaultBoxButton) {
 	width: 320px;
@@ -600,10 +610,6 @@ defaultComposeIcons: ComposeIcons {
 		{ "chat/reactions_bubble_shadow", windowShadowFg },
 		{ "chat/reactions_bubble", windowBg },
 	};
-	stripPremiumLocked: icon{
-		{ "chat/reactions_premium_bg", historyPeerArchiveUserpicBg },
-		{ "chat/reactions_premium_star", historyPeerUserpicFg },
-	};
 	stripExpandPanel: icon{
 		{ "chat/reactions_round_big", windowBgRipple },
 		{ "chat/reactions_expand_panel", windowSubTextFg },
@@ -612,6 +618,14 @@ defaultComposeIcons: ComposeIcons {
 		{ "chat/reactions_round_small", windowBgRipple },
 		{ "chat/reactions_expand_panel", windowSubTextFg },
 	};
+}
+defaultEmojiPanAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 10px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
 }
 defaultEmojiPan: EmojiPan {
 	margin: margins(7px, 0px, 7px, 0px);
@@ -654,6 +668,8 @@ defaultEmojiPan: EmojiPan {
 	removeSet: stickerPanRemoveSet;
 	boxLabel: boxLabel;
 	icons: defaultComposeIcons;
+	about: defaultEmojiPanAbout;
+	aboutPadding: margins(12px, 2px, 12px, 2px);
 	autocompleteBottomSkip: 0px;
 }
 statusEmojiPan: EmojiPan(defaultEmojiPan) {
@@ -1063,12 +1079,17 @@ historyRecordVoiceShowDuration: 120;
 historyRecordVoiceDuration: 120;
 historyRecordVoice: icon {{ "chat/input_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "chat/input_record", historyRecordVoiceFgOver }};
+historyRecordVoiceOnceBg: icon {{ "voice_lock/audio_once_bg", historySendIconFg }};
+historyRecordVoiceOnceBgOver: icon {{ "voice_lock/audio_once_bg", historySendIconFgOver }};
+historyRecordVoiceOnceFg: icon {{ "voice_lock/audio_once_number", windowFgActive }};
+historyRecordVoiceOnceFgOver: icon {{ "voice_lock/audio_once_number", windowFgActive }};
+historyRecordVoiceOnceInactive: icon {{ "chat/audio_once", windowSubTextFg }};
 historyRecordVoiceActive: icon {{ "chat/input_record_filled", historyRecordVoiceFgActiveIcon }};
 historyRecordSendIconPosition: point(2px, 0px);
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
 historyRecordSignalRadius: 5px;
 historyRecordCancel: windowSubTextFg;
-historyRecordCancelActive: windowActiveTextFg;
+historyRecordCancelActive: historySendIconFg;
 historyRecordFont: font(13px);
 historyRecordDurationSkip: 12px;
 historyRecordDurationFg: historyComposeAreaFg;
@@ -1108,22 +1129,29 @@ historyRecordLockBodyShadow: icon {{ "voice_lock/record_lock_body_shadow", histo
 historyRecordLockBody: icon {{ "voice_lock/record_lock_body", historyToDownBg }};
 historyRecordLockMargin: margins(4px, 4px, 4px, 4px);
 historyRecordLockArrow: icon {{ "voice_lock/voice_arrow", historyToDownFg }};
+historyRecordLockInput: icon {{ "voice_lock/input_mic_s", historyToDownFg }};
 historyRecordLockRippleMargin: margins(6px, 6px, 6px, 6px);
 
 historyRecordDelete: IconButton(historyAttach) {
-	icon: icon {{ "info/info_media_delete", historyComposeIconFg }};
-	iconOver: icon {{ "info/info_media_delete", historyComposeIconFgOver }};
+	icon: icon {{ "voice_lock/recorded_delete", historyComposeIconFg }};
+	iconOver: icon {{ "voice_lock/recorded_delete", historyComposeIconFgOver }};
 	iconPosition: point(10px, 11px);
 }
 historyRecordWaveformRightSkip: 10px;
-historyRecordWaveformBgMargins: margins(5px, 7px, 5px, 7px);
+historyRecordWaveformBgMargins: margins(5px, 8px, 5px, 9px);
 
 historyRecordWaveformBar: 3px;
 
-historyRecordLockPosition: point(1px, 35px);
+historyRecordLockPosition: point(1px, 22px);
 
 historyRecordCancelButtonWidth: 100px;
 historyRecordCancelButtonFg: lightButtonFg;
+
+historyRecordTooltip: ImportantTooltip(defaultImportantTooltip) {
+	padding: margins(4px, 4px, 4px, 4px);
+	radius: 11px;
+	arrow: 6px;
+}
 
 historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "chat/input_silent", historyComposeIconFg }};
@@ -1200,6 +1228,11 @@ defaultComposeFiles: ComposeFiles {
 	nameFg: historyFileNameInFg;
 	statusFg: mediaInFg;
 }
+defaultRestrictionLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 12px;
+	textFg: placeholderFg;
+	align: align(top);
+}
 defaultComposeControls: ComposeControls {
 	bg: historyComposeAreaBg;
 	radius: 0px;
@@ -1216,6 +1249,7 @@ defaultComposeControls: ComposeControls {
 	files: defaultComposeFiles;
 	premium: defaultPremiumLimits;
 	boxField: defaultInputField;
+	restrictionLabel: defaultRestrictionLabel;
 }
 
 moreChatsBarHeight: 48px;
@@ -1266,3 +1300,36 @@ dragDropColor: windowActiveTextFg;
 dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);
 dragHeight: 72px;
+
+ttlMediaImportantTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+ttlMediaButton: RoundButton(defaultActiveButton) {
+	textBg: shadowFg;
+	textBgOver: shadowFg;
+	ripple: universalRippleAnimation;
+	height: 31px;
+	textTop: 6px;
+}
+ttlMediaButtonBottomSkip: 14px;
+
+editTagAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+}
+editTagField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(24px, 10px, 32px, 2px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+
+	heightMin: 36px;
+}
+editTagLimit: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}

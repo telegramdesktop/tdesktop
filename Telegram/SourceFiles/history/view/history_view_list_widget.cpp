@@ -398,14 +398,6 @@ ListWidget::ListWidget(
 		reactionChosen(reaction);
 	}, lifetime());
 
-	_reactionsManager->premiumPromoChosen(
-	) | rpl::start_with_next([=] {
-		_reactionsManager->updateButton({});
-		ShowPremiumPreviewBox(
-			_controller,
-			PremiumPreview::InfiniteReactions);
-	}, lifetime());
-
 	Reactions::SetupManagerList(
 		_reactionsManager.get(),
 		_reactionsItem.value());
@@ -901,7 +893,7 @@ not_null<Element*> ListWidget::enforceViewForItem(
 			return j->second.get();
 		}
 	}
-	const auto [i, ok] = _views.emplace(
+	const auto &[i, ok] = _views.emplace(
 		item,
 		item->createView(this));
 	return i->second.get();
@@ -1094,7 +1086,7 @@ void ListWidget::repaintScrollDateCallback() {
 
 auto ListWidget::collectSelectedItems() const -> SelectedItems {
 	auto transformation = [&](const auto &item) {
-		const auto [itemId, selection] = item;
+		const auto &[itemId, selection] = item;
 		auto result = SelectedItem(itemId);
 		result.canDelete = selection.canDelete;
 		result.canForward = selection.canForward;
@@ -1731,6 +1723,12 @@ void ListWidget::elementSendBotCommand(
 	_delegate->listSendBotCommand(command, context);
 }
 
+void ListWidget::elementSearchInList(
+		const QString &query,
+		const FullMsgId &context) {
+	_delegate->listSearch(query, context);
+}
+
 void ListWidget::elementHandleViaClick(not_null<UserData*> bot) {
 	_delegate->listHandleViaClick(bot);
 }
@@ -2009,10 +2007,10 @@ Ui::ChatPaintContext ListWidget::preparePaintContext(
 		const QRect &clip) const {
 	return controller()->preparePaintContext({
 		.theme = _delegate->listChatTheme(),
-		.visibleAreaTop = _visibleTop,
-		.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
-		.visibleAreaWidth = width(),
 		.clip = clip,
+		.visibleAreaPositionGlobal = mapToGlobal(QPoint(0, _visibleTop)),
+		.visibleAreaTop = _visibleTop,
+		.visibleAreaWidth = width(),
 	});
 }
 
@@ -2641,9 +2639,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			desiredPosition,
 			reactItem,
 			[=](ChosenReaction reaction) { reactionChosen(reaction); },
-			[=](FullMsgId context) { ShowPremiumPreviewBox(
-				_controller,
-				PremiumPreview::InfiniteReactions); },
+			ItemReactionsAbout(reactItem),
 			_controller->cachedReactionIconFactory().createMethod())
 		: AttachSelectorResult::Skipped;
 	if (attached == AttachSelectorResult::Failed) {
@@ -3766,7 +3762,7 @@ void ListWidget::refreshItem(not_null<const Element*> view) {
 			}
 			return nullptr;
 		}();
-		const auto [i, ok] = _views.emplace(
+		const auto &[i, ok] = _views.emplace(
 			item,
 			item->createView(this, was.get()));
 		const auto now = i->second.get();

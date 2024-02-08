@@ -624,11 +624,16 @@ std::optional<bool> PeerHasThisCall(
 	});
 }
 
-[[nodiscard]] MessageFlags FinalizeMessageFlags(MessageFlags flags) {
+[[nodiscard]] MessageFlags FinalizeMessageFlags(
+		not_null<History*> history,
+		MessageFlags flags) {
 	if (!(flags & MessageFlag::FakeHistoryItem)
 		&& !(flags & MessageFlag::IsOrWasScheduled)
 		&& !(flags & MessageFlag::AdminLogEntry)) {
 		flags |= MessageFlag::HistoryEntry;
+		if (history->peer->isSelf()) {
+			flags |= MessageFlag::ReactionsAreTags;
+		}
 	}
 	return flags;
 }
@@ -809,6 +814,28 @@ void ClearMediaAsExpired(not_null<HistoryItem*> item) {
 	}
 }
 
-[[nodiscard]] bool IsVoiceOncePlayable(not_null<HistoryItem*> item) {
-	return !item->out() && item->media()->ttlSeconds();
+int ItemsForwardSendersCount(const HistoryItemsList &list) {
+	auto peers = base::flat_set<not_null<PeerData*>>();
+	auto names = base::flat_set<QString>();
+	for (const auto &item : list) {
+		if (const auto peer = item->originalSender()) {
+			peers.emplace(peer);
+		} else {
+			names.emplace(item->originalHiddenSenderInfo()->name);
+		}
+	}
+	return int(peers.size()) + int(names.size());
+}
+
+int ItemsForwardCaptionsCount(const HistoryItemsList &list) {
+	auto result = 0;
+	for (const auto &item : list) {
+		if (const auto media = item->media()) {
+			if (!item->originalText().text.isEmpty()
+				&& media->allowsEditCaption()) {
+				++result;
+			}
+		}
+	}
+	return result;
 }

@@ -1720,7 +1720,7 @@ bool OverlayWidget::stateAnimationCallback(crl::time now) {
 		now += st::mediaviewShowDuration + st::mediaviewHideDuration;
 	}
 	for (auto i = begin(_animations); i != end(_animations);) {
-		const auto [state, started] = *i;
+		const auto &[state, started] = *i;
 		updateOverRect(state);
 		const auto dt = float64(now - started) / st::mediaviewFadeDuration;
 		if (dt >= 1) {
@@ -5494,12 +5494,12 @@ void OverlayWidget::preloadData(int delta) {
 	for (auto index = from; index != till + 1; ++index) {
 		auto entity = entityByIndex(index);
 		if (auto photo = std::get_if<not_null<PhotoData*>>(&entity.data)) {
-			const auto [i, ok] = photos.emplace((*photo)->createMediaView());
+			const auto &[i, ok] = photos.emplace((*photo)->createMediaView());
 			(*i)->wanted(Data::PhotoSize::Small, fileOrigin(entity));
 			(*photo)->load(fileOrigin(entity), LoadFromCloudOrLocal, true);
 		} else if (auto document = std::get_if<not_null<DocumentData*>>(
 				&entity.data)) {
-			const auto [i, ok] = documents.emplace(
+			const auto &[i, ok] = documents.emplace(
 				(*document)->createMediaView());
 			(*i)->thumbnailWanted(fileOrigin(entity));
 			if (!(*i)->canBePlayed(entity.item)) {

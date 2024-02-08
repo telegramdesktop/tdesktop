@@ -45,12 +45,14 @@
         <keyword>im</keyword>
     </keywords>
     <requires>
-        <display_length compare="ge">medium</display_length>
+        <!-- windowMinHeight from Telegram/SourceFiles/window/window.style -->
+        <display_length compare="ge">480</display_length>
         <internet>always</internet>
+        <!-- on-screen keyboards are too big for current minimal display height -->
+        <control>keyboard</control>
     </requires>
     <supports>
         <control>pointing</control>
-        <control>keyboard</control>
         <control>touch</control>
     </supports>
     <content_rating type="oars-1.1">
@@ -86,5 +88,7 @@
     <launchable type="desktop-id">org.telegram.desktop.desktop</launchable>
     <provides>
         <binary>telegram-desktop</binary>
+        <dbus type="session">org.telegram.desktop</dbus>
+        <mediatype>x-scheme-handler/tg</mediatype>
     </provides>
 </component>

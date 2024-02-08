@@ -51,10 +51,11 @@ struct InlineList::Button {
 	mutable std::unique_ptr<Ui::Text::CustomEmoji> custom;
 	std::unique_ptr<Userpics> userpics;
 	ReactionId id;
-	QString countText;
+	QString text;
+	int textWidth = 0;
 	int count = 0;
-	int countTextWidth = 0;
 	bool chosen = false;
+	bool tag = false;
 };
 
 InlineList::InlineList(
@@ -85,6 +86,19 @@ void InlineList::updateSkipBlock(int width, int height) {
 
 void InlineList::removeSkipBlock() {
 	_skipBlock = {};
+}
+
+bool InlineList::areTags() const {
+	return _data.flags & Data::Flag::Tags;
+}
+
+std::vector<ReactionId> InlineList::computeTagsList() const {
+	if (!areTags()) {
+		return {};
+	}
+	return _buttons | ranges::views::transform(
+		&Button::id
+	) | ranges::to_vector;
 }
 
 bool InlineList::hasCustomEmoji() const {
@@ -118,20 +132,23 @@ void InlineList::layoutButtons() {
 	) | ranges::views::transform([](const MessageReaction &reaction) {
 		return not_null{ &reaction };
 	}) | ranges::to_vector;
-	const auto &list = _owner->list(::Data::Reactions::Type::All);
-	ranges::sort(sorted, [&](
-			not_null<const MessageReaction*> a,
-			not_null<const MessageReaction*> b) {
-		const auto acount = a->count - (a->my ? 1 : 0);
-		const auto bcount = b->count - (b->my ? 1 : 0);
-		if (acount > bcount) {
-			return true;
-		} else if (acount < bcount) {
-			return false;
-		}
-		return ranges::find(list, a->id, &::Data::Reaction::id)
-			< ranges::find(list, b->id, &::Data::Reaction::id);
-	});
+	const auto tags = areTags();
+	if (!tags) {
+		const auto &list = _owner->list(::Data::Reactions::Type::All);
+		ranges::sort(sorted, [&](
+				not_null<const MessageReaction*> a,
+				not_null<const MessageReaction*> b) {
+			const auto acount = a->count - (a->my ? 1 : 0);
+			const auto bcount = b->count - (b->my ? 1 : 0);
+			if (acount > bcount) {
+				return true;
+			} else if (acount < bcount) {
+				return false;
+			}
+			return ranges::find(list, a->id, &::Data::Reaction::id)
+				< ranges::find(list, b->id, &::Data::Reaction::id);
+		});
+	}
 
 	_hasCustomEmoji = false;
 	auto buttons = std::vector<Button>();
@@ -142,8 +159,10 @@ void InlineList::layoutButtons() {
 		buttons.push_back((i != end(_buttons))
 			? std::move(*i)
 			: prepareButtonWithId(id));
-		const auto j = _data.recent.find(id);
-		if (j != end(_data.recent) && !j->second.empty()) {
+		if (tags) {
+			setButtonTag(buttons.back(), _owner->myTagTitle(id));
+		} else if (const auto j = _data.recent.find(id)
+			; j != end(_data.recent) && !j->second.empty()) {
 			setButtonUserpics(buttons.back(), j->second);
 		} else {
 			setButtonCount(buttons.back(), reaction->count);
@@ -168,19 +187,32 @@ InlineList::Button InlineList::prepareButtonWithId(const ReactionId &id) {
 	return result;
 }
 
+void InlineList::setButtonTag(Button &button, const QString &title) {
+	if (button.tag && button.text == title) {
+		return;
+	}
+	button.userpics = nullptr;
+	button.count = 0;
+	button.tag = true;
+	button.text = title;
+	button.textWidth = st::reactionInlineTagFont->width(button.text);
+}
+
 void InlineList::setButtonCount(Button &button, int count) {
-	if (button.count == count && !button.userpics) {
+	if (!button.tag && button.count == count && !button.userpics) {
 		return;
 	}
 	button.userpics = nullptr;
 	button.count = count;
-	button.countText = Lang::FormatCountToShort(count).string;
-	button.countTextWidth = st::semiboldFont->width(button.countText);
+	button.tag = false;
+	button.text = Lang::FormatCountToShort(count).string;
+	button.textWidth = st::semiboldFont->width(button.text);
 }
 
 void InlineList::setButtonUserpics(
 		Button &button,
 		const std::vector<not_null<PeerData*>> &peers) {
+	button.tag = false;
 	if (!button.userpics) {
 		button.userpics = std::make_unique<Userpics>();
 	}
@@ -228,6 +260,10 @@ QSize InlineList::countOptimalSize() {
 	const auto between = st::reactionInlineBetween;
 	const auto padding = st::reactionInlinePadding;
 	const auto size = st::reactionInlineSize;
+	const auto widthBaseTag = padding.left()
+		+ size
+		+ st::reactionInlineTagSkip
+		+ padding.right();
 	const auto widthBaseCount = padding.left()
 		+ size
 		+ st::reactionInlineSkip
@@ -245,9 +281,13 @@ QSize InlineList::countOptimalSize() {
 	};
 	const auto height = padding.top() + size + padding.bottom();
 	for (auto &button : _buttons) {
-		const auto width = button.userpics
+		const auto width = button.tag
+			? (widthBaseTag
+				+ button.textWidth
+				+ (button.textWidth ? st::reactionInlineSkip : 0))
+			: button.userpics
 			? (widthBaseUserpics + userpicsWidth(button))
-			: (widthBaseCount + button.countTextWidth);
+			: (widthBaseCount + button.textWidth);
 		button.geometry.setSize({ width, height });
 		x += width + between;
 	}
@@ -336,9 +376,10 @@ void InlineList::paint(
 	const auto padding = st::reactionInlinePadding;
 	const auto size = st::reactionInlineSize;
 	const auto skip = (size - st::reactionInlineImage) / 2;
-	const auto inbubble = (_data.flags & InlineListData::Flag::InBubble);
+	const auto tags = areTags();
+	const auto inbubble = (_data.flags & Data::Flag::InBubble);
 	const auto flipped = (_data.flags & Data::Flag::Flipped);
-	p.setFont(st::semiboldFont);
+	p.setFont(tags ? st::reactionInlineTagFont : st::semiboldFont);
 	for (const auto &button : _buttons) {
 		if (context.reactionInfo
 			&& button.animation
@@ -366,29 +407,33 @@ void InlineList::paint(
 		if (bubbleProgress > 0.) {
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
+			auto opacity = 1.;
+			auto color = QColor();
 			if (inbubble) {
 				if (!chosen) {
-					p.setOpacity(bubbleProgress * (context.outbg
+					opacity = bubbleProgress * (context.outbg
 						? kOutNonChosenOpacity
-						: kInNonChosenOpacity));
+						: kInNonChosenOpacity);
 				} else if (!bubbleReady) {
-					p.setOpacity(bubbleProgress);
+					opacity = bubbleProgress;
 				}
-				p.setBrush(stm->msgFileBg);
+				color = stm->msgFileBg->c;
 			} else {
 				if (!bubbleReady) {
-					p.setOpacity(bubbleProgress);
+					opacity = bubbleProgress;
 				}
-				p.setBrush(chosen ? st->msgServiceFg() : st->msgServiceBg());
+				color = (chosen
+					? st->msgServiceFg()
+					: st->msgServiceBg())->c;
 			}
-			const auto radius = geometry.height() / 2.;
+
 			const auto fill = geometry.marginsAdded({
 				flipped ? bubbleSkip : 0,
 				0,
 				flipped ? 0 : bubbleSkip,
 				0,
 			});
-			p.drawRoundedRect(fill, radius, radius);
+			paintSingleBg(p, fill, color, opacity);
 			if (inbubble && !chosen) {
 				p.setOpacity(bubbleProgress);
 			}
@@ -434,7 +479,8 @@ void InlineList::paint(
 				.target = image,
 			});
 		}
-		if (bubbleProgress == 0.) {
+		if ((tags && !button.textWidth) || bubbleProgress == 0.) {
+			p.setOpacity(1.);
 			continue;
 		}
 		resolveUserpicsImage(button);
@@ -446,12 +492,19 @@ void InlineList::paint(
 				button.userpics->image);
 		} else {
 			p.setPen(textFg);
+			const auto textLeft = tags
+				? (left
+					- padding.left()
+					+ st::reactionInlineTagNamePosition.x())
+				: (left + size + st::reactionInlineSkip);
 			const auto textTop = geometry.y()
-				+ ((geometry.height() - st::semiboldFont->height) / 2);
-			p.drawText(
-				left + size + st::reactionInlineSkip,
-				textTop + st::semiboldFont->ascent,
-				button.countText);
+				+ (tags
+					? st::reactionInlineTagNamePosition.y()
+					: ((geometry.height() - st::semiboldFont->height) / 2));
+			const auto font = tags
+				? st::reactionInlineTagFont
+				: st::semiboldFont;
+			p.drawText(textLeft, textTop + font->ascent, button.text);
 		}
 		if (!bubbleReady) {
 			p.setOpacity(1.);
@@ -476,6 +529,131 @@ void InlineList::paint(
 			}
 			return result;
 		};
+	}
+}
+
+float64 InlineList::TagDotAlpha() {
+	return 0.6;
+}
+
+QImage InlineList::PrepareTagBg(QColor tagBg, QColor dotBg) {
+	const auto padding = st::reactionInlinePadding;
+	const auto size = st::reactionInlineSize;
+	const auto width = padding.left()
+		+ size
+		+ st::reactionInlineTagSkip
+		+ padding.right();
+	const auto height = padding.top() + size + padding.bottom();
+	const auto ratio = style::DevicePixelRatio();
+
+	auto result = QImage(
+		QSize(width, height) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
+
+	auto path = QPainterPath();
+	const auto arrow = st::reactionInlineTagArrow;
+	const auto rradius = st::reactionInlineTagRightRadius * 1.;
+	const auto radius = st::reactionInlineTagLeftRadius - rradius;
+	auto pen = QPen(tagBg);
+	pen.setWidthF(rradius * 2.);
+	pen.setJoinStyle(Qt::RoundJoin);
+	const auto rect = QRectF(0, 0, width, height).marginsRemoved(
+		{ rradius, rradius, rradius, rradius });
+
+	const auto right = rect.x() + rect.width();
+	const auto bottom = rect.y() + rect.height();
+	path.moveTo(rect.x() + radius, rect.y());
+	path.lineTo(right - arrow, rect.y());
+	path.lineTo(right, rect.y() + rect.height() / 2);
+	path.lineTo(right - arrow, bottom);
+	path.lineTo(rect.x() + radius, bottom);
+	path.arcTo(
+		QRectF(rect.x(), bottom - radius * 2, radius * 2, radius * 2),
+		270,
+		-90);
+	path.lineTo(rect.x(), rect.y() + radius);
+	path.arcTo(
+		QRectF(rect.x(), rect.y(), radius * 2, radius * 2),
+		180,
+		-90);
+	path.closeSubpath();
+
+	const auto dsize = st::reactionInlineTagDot;
+	const auto dot = QRectF(
+		right - st::reactionInlineTagDotSkip - dsize,
+		rect.y() + (rect.height() - dsize) / 2.,
+		dsize,
+		dsize);
+
+	auto hq = PainterHighQualityEnabler(p);
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.setPen(pen);
+	p.setBrush(tagBg);
+	p.drawPath(path);
+
+	if (dotBg.alpha() > 0) {
+		p.setPen(Qt::NoPen);
+		p.setBrush(dotBg);
+		p.drawEllipse(dot);
+	}
+
+	p.end();
+
+	return result;
+}
+
+void InlineList::validateTagBg(const QColor &color) const {
+	if (!_tagBg.isNull() && _tagBgColor == color) {
+		return;
+	}
+	_tagBgColor = color;
+	auto dot = color;
+	dot.setAlphaF(dot.alphaF() * TagDotAlpha());
+	_tagBg = PrepareTagBg(color, anim::with_alpha(color, TagDotAlpha()));
+}
+
+void InlineList::paintSingleBg(
+		Painter &p,
+		const QRect &fill,
+		const QColor &color,
+		float64 opacity) const {
+	p.setOpacity(opacity);
+	if (!areTags()) {
+		const auto radius = fill.height() / 2.;
+		p.setBrush(color);
+		p.drawRoundedRect(fill, radius, radius);
+		return;
+	}
+	validateTagBg(color);
+	const auto ratio = style::DevicePixelRatio();
+	const auto left = st::reactionInlineTagLeftRadius;
+	const auto right = (_tagBg.width() / ratio) - left;
+	Assert(right > 0);
+	const auto useLeft = std::min(fill.width(), left);
+	p.drawImage(
+		QRect(fill.x(), fill.y(), useLeft, fill.height()),
+		_tagBg,
+		QRect(0, 0, useLeft * ratio, _tagBg.height()));
+	const auto middle = fill.width() - left - right;
+	if (middle > 0) {
+		p.fillRect(fill.x() + left, fill.y(), middle, fill.height(), color);
+	}
+	if (const auto useRight = fill.width() - left; useRight > 0) {
+		p.drawImage(
+			QRect(
+				fill.x() + fill.width() - useRight,
+				fill.y(),
+				useRight,
+				fill.height()),
+			_tagBg,
+			QRect(_tagBg.width() - useRight * ratio,
+				0,
+				useRight * ratio,
+				_tagBg.height()));
 	}
 }
 
@@ -654,7 +832,8 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 		}
 	}
 	result.flags = (message->hasOutLayout() ? Flag::OutLayout : Flag())
-		| (message->embedReactionsInBubble() ? Flag::InBubble : Flag());
+		| (message->embedReactionsInBubble() ? Flag::InBubble : Flag())
+		| (item->reactionsAreTags() ? Flag::Tags : Flag());
 	return result;
 }
 

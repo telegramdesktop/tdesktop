@@ -1553,7 +1553,7 @@ void ApiWrap::appendChatsSlice(
 				continue;
 			}
 		}
-		const auto [i, ok] = process.indexByPeer.emplace(
+		const auto &[i, ok] = process.indexByPeer.emplace(
 			info.peerId,
 			nextIndex);
 		if (ok) {
@@ -1625,6 +1625,7 @@ void ApiWrap::requestChatMessages(
 			MTP_string(), // query
 			MTP_inputPeerSelf(),
 			MTPInputPeer(), // saved_peer_id
+			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
 			MTP_int(0), // min_date

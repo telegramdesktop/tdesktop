@@ -181,4 +181,6 @@ bool DrawThumbnailAsSongCover(
 	const QRect &rect,
 	bool selected = false);
 
+rpl::producer<> TTLVoiceStops(FullMsgId fullId);
+
 } // namespace HistoryView

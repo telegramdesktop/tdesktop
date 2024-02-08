@@ -440,7 +440,7 @@ void EmptyUserpic::PaintHiddenAuthor(
 		{ 0., st::premiumButtonBg2->c },
 		{ 1., st::premiumButtonBg3->c },
 	});
-	const auto &fg = st::historyPeerUserpicFg;
+	const auto &fg = st::premiumButtonFg;
 	PaintHiddenAuthor(p, x, y, outerWidth, size, QBrush(bg), fg);
 }
 

@@ -585,9 +585,8 @@ void Controller::checkUsernameAvailability() {
 			showUsernameError(tr::lng_create_channel_link_invalid());
 		} else if (type == u"USERNAME_PURCHASE_AVAILABLE"_q) {
 			_goodUsername = false;
-			_usernameCheckInfo.fire({
-				.type = UsernameCheckInfo::Type::PurchaseAvailable,
-			});
+			_usernameCheckInfo.fire(
+				UsernameCheckInfo::PurchaseAvailable(checking, _peer));
 		} else if (type == u"USERNAME_OCCUPIED"_q && checking != username) {
 			showUsernameError(tr::lng_create_channel_link_occupied());
 		}

@@ -525,18 +525,18 @@ bool ShowReactPremiumError(
 		not_null<SessionController*> controller,
 		not_null<HistoryItem*> item,
 		const Data::ReactionId &id) {
-	if (controller->session().premium()
+	if (item->reactionsAreTags()) {
+		if (controller->session().premium()) {
+			return false;
+		}
+		ShowPremiumPreviewBox(controller, PremiumPreview::TagsForMessages);
+		return true;
+	} else if (controller->session().premium()
 		|| ranges::contains(item->chosenReactions(), id)
 		|| item->history()->peer->isBroadcast()) {
 		return false;
-	}
-	const auto &list = controller->session().data().reactions().list(
-		Data::Reactions::Type::Active);
-	const auto i = ranges::find(list, id, &Data::Reaction::id);
-	if (i == end(list) || !i->premium) {
-		if (!id.custom()) {
-			return false;
-		}
+	} else if (!id.custom()) {
+		return false;
 	}
 	ShowPremiumPreviewBox(controller, PremiumPreview::InfiniteReactions);
 	return true;

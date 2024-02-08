@@ -113,7 +113,8 @@ void ProcessZoom(
 void FillStatistic(
 		not_null<Ui::VerticalLayout*> content,
 		const Descriptor &descriptor,
-		Data::AnyStatistics &stats) {
+		Data::AnyStatistics &stats,
+		Fn<void()> done) {
 	using Type = Statistic::ChartViewType;
 	const auto &padding = st::statisticsChartEntryPadding;
 	const auto &m = st::statisticsLayerMargins;
@@ -122,6 +123,20 @@ void FillStatistic(
 		Ui::AddDivider(c);
 		Ui::AddSkip(c, padding.top());
 	};
+	struct State final {
+		Fn<void()> done;
+		int pendingCount = 0;
+	};
+	const auto state = content->lifetime().make_state<State>(
+		State{ std::move(done) });
+
+	const auto singlePendingDone = [=] {
+		state->pendingCount--;
+		if (!state->pendingCount && state->done) {
+			base::take(state->done)();
+		}
+	};
+
 	const auto addChart = [&](
 			Data::StatisticalGraph &graphData,
 			rpl::producer<QString> &&title,
@@ -137,6 +152,7 @@ void FillStatistic(
 
 			addSkip(content);
 		} else if (!graphData.zoomToken.isEmpty()) {
+			state->pendingCount++;
 			const auto wrap = content->add(
 				object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 					content,
@@ -159,13 +175,15 @@ void FillStatistic(
 
 				if (graph.chart) {
 					widget->setChartData(graph.chart, type);
-					wrap->toggle(true, anim::type::normal);
+					wrap->toggle(true, anim::type::instant);
 					ProcessZoom(descriptor, widget, graph.zoomToken, type);
 					widget->setTitle(rpl::duplicate(title));
 				} else if (!graph.error.isEmpty()) {
 				}
-			}, [](const QString &error) {
-			}, [] {
+			}, [=](const QString &error) {
+				singlePendingDone();
+			}, [=] {
+				singlePendingDone();
 			}, content->lifetime());
 
 			addSkip(wrap->entity());
@@ -268,6 +286,10 @@ void FillStatistic(
 				tr::lng_chart_title_reactions_by_emotion(),
 				Type::Bar);
 		}
+	}
+	if (!state->pendingCount) {
+		++state->pendingCount;
+		singlePendingDone();
 	}
 }
 
@@ -605,12 +627,6 @@ void InnerWidget::load() {
 		_loaded.events_starting_with(false) | rpl::map(!rpl::mappers::_1),
 		_showFinished.events());
 
-	const auto finishLoading = [=] {
-		_loaded.fire(true);
-		inner->resizeToWidth(width());
-		inner->showChildren();
-	};
-
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
 		if (!_contextId && !_storyId) {
@@ -622,7 +638,6 @@ void InnerWidget::load() {
 				};
 				fill();
 
-				finishLoading();
 			}, lifetime());
 		} else {
 			const auto lifetimeApi = lifetime().make_state<rpl::lifetime>();
@@ -644,7 +659,6 @@ void InnerWidget::load() {
 				}
 				fill();
 
-				finishLoading();
 				lifetimeApi->destroy();
 			});
 		}
@@ -652,17 +666,28 @@ void InnerWidget::load() {
 }
 
 void InnerWidget::fill() {
-	const auto inner = this;
+	const auto wrap = this->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			this,
+			object_ptr<Ui::VerticalLayout>(this)));
+	wrap->toggle(false, anim::type::instant);
+	const auto inner = wrap->entity();
 	const auto descriptor = Descriptor{
 		_peer,
 		lifetime().make_state<Api::Statistics>(_peer->asChannel()),
 		_controller->uiShow()->toastParent(),
 	};
+	const auto finishLoading = [=] {
+		_loaded.fire(true);
+		wrap->toggle(true, anim::type::instant);
+		this->resizeToWidth(width());
+		this->showChildren();
+	};
 	if (_state.stats.message) {
 		if (const auto i = _peer->owner().message(_contextId)) {
 			Ui::AddSkip(inner);
 			const auto preview = inner->add(
-				object_ptr<MessagePreview>(this, i, QImage()));
+				object_ptr<MessagePreview>(inner, i, QImage()));
 			AddContextMenu(preview, _controller, i);
 			Ui::AddSkip(inner);
 			Ui::AddDivider(inner);
@@ -671,7 +696,7 @@ void InnerWidget::fill() {
 		if (const auto story = _peer->owner().stories().lookup(_storyId)) {
 			Ui::AddSkip(inner);
 			const auto preview = inner->add(
-				object_ptr<MessagePreview>(this, *story, QImage()));
+				object_ptr<MessagePreview>(inner, *story, QImage()));
 			preview->setAttribute(Qt::WA_TransparentForMouseEvents);
 			Ui::AddSkip(inner);
 			Ui::AddDivider(inner);
@@ -681,11 +706,11 @@ void InnerWidget::fill() {
 	if (_state.stats.channel) {
 		FillOverview(inner, _state.stats, true);
 	}
-	FillStatistic(inner, descriptor, _state.stats);
+	FillStatistic(inner, descriptor, _state.stats, finishLoading);
 	const auto &channel = _state.stats.channel;
 	const auto &supergroup = _state.stats.supergroup;
 	if (channel) {
-		fillRecentPosts();
+		fillRecentPosts(inner);
 	} else if (supergroup) {
 		const auto showPeerInfo = [=](not_null<PeerData*> peer) {
 			_showRequests.fire({ .info = peer->id });
@@ -742,13 +767,12 @@ void InnerWidget::fill() {
 	}
 }
 
-void InnerWidget::fillRecentPosts() {
+void InnerWidget::fillRecentPosts(not_null<Ui::VerticalLayout*> container) {
 	const auto &stats = _state.stats.channel;
 	if (!stats || stats.recentMessageInteractions.empty()) {
 		return;
 	}
 	_messagePreviews.reserve(stats.recentMessageInteractions.size());
-	const auto container = this;
 
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(

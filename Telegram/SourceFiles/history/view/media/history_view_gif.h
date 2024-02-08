@@ -40,6 +40,11 @@ namespace HistoryView {
 class Reply;
 class TranscribeButton;
 
+using TtlRoundPaintCallback = Fn<void(
+	QPainter&,
+	QRect,
+	const PaintContext &context)>;
+
 class Gif final : public File {
 public:
 	Gif(
@@ -213,6 +218,8 @@ private:
 		QPoint position) const;
 
 	void togglePollingStory(bool enabled) const;
+
+	TtlRoundPaintCallback _drawTtl;
 
 	const not_null<DocumentData*> _data;
 	const FullStoryId _storyId;

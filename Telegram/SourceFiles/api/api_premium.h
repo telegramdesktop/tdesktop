@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_subscription_option.h"
 #include "mtproto/sender.h"
 
+class History;
 class ApiWrap;
 
 namespace Main {
@@ -103,10 +104,14 @@ public:
 	[[nodiscard]] auto subscriptionOptions() const
 		-> const Data::SubscriptionOptions &;
 
+	[[nodiscard]] rpl::producer<> somePremiumRequiredResolved() const;
+	void resolvePremiumRequired(not_null<UserData*> user);
+
 private:
 	void reloadPromo();
 	void reloadStickers();
 	void reloadCloudSet();
+	void requestPremiumRequiredSlice();
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -142,6 +147,11 @@ private:
 	Fn<void(GiveawayInfo)> _giveawayInfoDone;
 
 	Data::SubscriptionOptions _subscriptionOptions;
+
+	rpl::event_stream<> _somePremiumRequiredResolved;
+	base::flat_set<not_null<UserData*>> _resolvePremiumRequiredUsers;
+	base::flat_set<not_null<UserData*>> _resolvePremiumRequestedUsers;
+	bool _premiumRequiredRequestScheduled = false;
 
 };
 
@@ -195,5 +205,14 @@ private:
 	MTP::Sender _api;
 
 };
+
+enum class RequirePremiumState {
+	Unknown,
+	Yes,
+	No,
+};
+[[nodiscard]] RequirePremiumState ResolveRequiresPremiumToWrite(
+	not_null<PeerData*> peer,
+	History *maybeHistory);
 
 } // namespace Api

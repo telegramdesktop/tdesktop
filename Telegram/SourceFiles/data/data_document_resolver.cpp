@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/options.h"
 #include "base/platform/base_platform_info.h"
-#include "ui/boxes/confirm_box.h"
+#include "boxes/abstract_box.h" // Ui::show().
+#include "chat_helpers/ttl_media_layer_widget.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/mime_type.h"
@@ -17,17 +18,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_session.h"
-#include "history/view/media/history_view_gif.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "media/player/media_player_instance.h"
+#include "history/view/media/history_view_gif.h"
 #include "lang/lang_keys.h"
+#include "media/player/media_player_instance.h"
 #include "platform/platform_file_utilities.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "window/window_session_controller.h"
-#include "boxes/abstract_box.h" // Ui::show().
 #include "styles/style_layers.h"
 
 #include <QtCore/QBuffer>
@@ -298,6 +299,12 @@ void ResolveDocument(
 			|| document->isVoiceMessage()
 			|| document->isVideoMessage()) {
 			::Media::Player::instance()->playPause({ document, msgId });
+			if (controller
+				&& item
+				&& item->media()
+				&& item->media()->ttlSeconds()) {
+				ChatHelpers::ShowTTLMediaLayerWidget(controller, item);
+			}
 		} else {
 			showDocument();
 		}

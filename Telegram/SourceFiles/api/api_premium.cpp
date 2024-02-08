@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
+#include "history/view/history_view_element.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -334,6 +338,72 @@ const Data::SubscriptionOptions &Premium::subscriptionOptions() const {
 	return _subscriptionOptions;
 }
 
+rpl::producer<> Premium::somePremiumRequiredResolved() const {
+	return _somePremiumRequiredResolved.events();
+}
+
+void Premium::resolvePremiumRequired(not_null<UserData*> user) {
+	_resolvePremiumRequiredUsers.emplace(user);
+	if (!_premiumRequiredRequestScheduled
+		&& _resolvePremiumRequestedUsers.empty()) {
+		_premiumRequiredRequestScheduled = true;
+		crl::on_main(_session, [=] {
+			requestPremiumRequiredSlice();
+		});
+	}
+}
+
+void Premium::requestPremiumRequiredSlice() {
+	_premiumRequiredRequestScheduled = false;
+	if (!_resolvePremiumRequestedUsers.empty()
+		|| _resolvePremiumRequiredUsers.empty()) {
+		return;
+	}
+	constexpr auto kPerRequest = 100;
+	auto users = MTP_vector_from_range(_resolvePremiumRequiredUsers
+		| ranges::views::transform(&UserData::inputUser));
+	if (users.v.size() > kPerRequest) {
+		auto shortened = users.v;
+		shortened.resize(kPerRequest);
+		users = MTP_vector<MTPInputUser>(std::move(shortened));
+		const auto from = begin(_resolvePremiumRequiredUsers);
+		_resolvePremiumRequestedUsers = { from, from + kPerRequest };
+		_resolvePremiumRequiredUsers.erase(from, from + kPerRequest);
+	} else {
+		_resolvePremiumRequestedUsers
+			= base::take(_resolvePremiumRequiredUsers);
+	}
+	const auto finish = [=](const QVector<MTPBool> &list) {
+		constexpr auto me = UserDataFlag::MeRequiresPremiumToWrite;
+		constexpr auto known = UserDataFlag::RequirePremiumToWriteKnown;
+		constexpr auto mask = me | known;
+
+		auto index = 0;
+		for (const auto &user : base::take(_resolvePremiumRequestedUsers)) {
+			const auto require = (index < list.size())
+				&& mtpIsTrue(list[index++]);
+			user->setFlags((user->flags() & ~mask)
+				| known
+				| (require ? me : UserDataFlag()));
+		}
+		if (!_premiumRequiredRequestScheduled
+			&& !_resolvePremiumRequiredUsers.empty()) {
+			_premiumRequiredRequestScheduled = true;
+			crl::on_main(_session, [=] {
+				requestPremiumRequiredSlice();
+			});
+		}
+		_somePremiumRequiredResolved.fire({});
+	};
+	_session->api().request(
+		MTPusers_GetIsPremiumRequiredToContact(std::move(users))
+	).done([=](const MTPVector<MTPBool> &result) {
+		finish(result.v);
+	}).fail([=] {
+		finish({});
+	}).send();
+}
+
 PremiumGiftCodeOptions::PremiumGiftCodeOptions(not_null<PeerData*> peer)
 : _peer(peer)
 , _api(&peer->session().api().instance()) {
@@ -492,6 +562,51 @@ bool PremiumGiftCodeOptions::giveawayGiftsPurchaseAvailable() const {
 	return _peer->session().account().appConfig().get<bool>(
 		u"giveaway_gifts_purchase_available"_q,
 		false);
+}
+
+RequirePremiumState ResolveRequiresPremiumToWrite(
+		not_null<PeerData*> peer,
+		History *maybeHistory) {
+	const auto user = peer->asUser();
+	if (!user
+		|| !user->someRequirePremiumToWrite()
+		|| user->session().premium()) {
+		return RequirePremiumState::No;
+	} else if (user->requirePremiumToWriteKnown()) {
+		return user->meRequiresPremiumToWrite()
+			? RequirePremiumState::Yes
+			: RequirePremiumState::No;
+	} else if (user->flags() & UserDataFlag::MutualContact) {
+		return RequirePremiumState::No;
+	} else if (!maybeHistory) {
+		return RequirePremiumState::Unknown;
+	}
+
+	const auto update = [&](bool require) {
+		using Flag = UserDataFlag;
+		constexpr auto known = Flag::RequirePremiumToWriteKnown;
+		constexpr auto me = Flag::MeRequiresPremiumToWrite;
+		user->setFlags((user->flags() & ~me)
+			| known
+			| (require ? me : Flag()));
+	};
+	// We allow this potentially-heavy loop because in case we've opened
+	// the chat and have a lot of messages `requires_premium` will be known.
+	for (const auto &block : maybeHistory->blocks) {
+		for (const auto &view : block->messages) {
+			const auto item = view->data();
+			if (!item->out() && !item->isService()) {
+				update(false);
+				return RequirePremiumState::No;
+			}
+		}
+	}
+	if (user->isContact() // Here we know, that we're not in his contacts.
+		&& maybeHistory->loadedAtTop() // And no incoming messages.
+		&& maybeHistory->loadedAtBottom()) {
+		update(true);
+	}
+	return RequirePremiumState::Unknown;
 }
 
 } // namespace Api

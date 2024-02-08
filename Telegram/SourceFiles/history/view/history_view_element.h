@@ -58,6 +58,7 @@ enum class Context : char {
 	AdminLog,
 	ContactPreview,
 	SavedSublist,
+	TTLViewer,
 };
 
 enum class OnlyEmojiAndSpaces : char {
@@ -96,6 +97,9 @@ public:
 	virtual bool elementShownUnread(not_null<const Element*> view) = 0;
 	virtual void elementSendBotCommand(
 		const QString &command,
+		const FullMsgId &context) = 0;
+	virtual void elementSearchInList(
+		const QString &query,
 		const FullMsgId &context) = 0;
 	virtual void elementHandleViaClick(not_null<UserData*> bot) = 0;
 	virtual bool elementIsChatWide() = 0;
@@ -144,6 +148,9 @@ public:
 	bool elementShownUnread(not_null<const Element*> view) override;
 	void elementSendBotCommand(
 		const QString &command,
+		const FullMsgId &context) override;
+	void elementSearchInList(
+		const QString &query,
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;

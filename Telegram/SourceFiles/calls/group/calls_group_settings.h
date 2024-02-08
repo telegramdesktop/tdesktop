@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Webrtc {
 class AudioInputTester;
+class DeviceResolver;
 } // namespace Webrtc
 
 namespace Calls {
@@ -38,6 +39,7 @@ private:
 
 	Fn<void()> _show;
 	base::Timer _timer;
+	std::unique_ptr<Webrtc::DeviceResolver> _deviceId;
 	std::unique_ptr<Webrtc::AudioInputTester> _tester;
 	int _loudCount = 0;
 	int _quietCount = 0;
