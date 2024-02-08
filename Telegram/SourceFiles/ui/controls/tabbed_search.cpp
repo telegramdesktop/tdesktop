@@ -181,6 +181,7 @@ void GroupsStrip::paintEvent(QPaintEvent *e) {
 		const auto top = 0;
 		const auto size = SearchWithGroups::IconSizeOverride();
 		if (_chosen == index) {
+			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
 			p.setBrush(_st.bgActive);
 			p.drawEllipse(
