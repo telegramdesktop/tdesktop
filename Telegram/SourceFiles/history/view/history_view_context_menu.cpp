@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
+#include "ui/text/format_song_document_name.h"
 #include "ui/text/text_utilities.h"
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/controls/who_reacted_context_action.h"
@@ -326,6 +327,10 @@ void AddDocumentActions(
 		AddSaveSoundForNotifications(menu, item, document, controller);
 	}
 	AddSaveDocumentAction(menu, item, document, list);
+	AddCopyFilename(
+		menu,
+		document,
+		[=] { return list->showCopyRestrictionForSelected(); });
 }
 
 void AddPostLinkAction(
@@ -1553,6 +1558,33 @@ void ShowTagInListMenu(
 	AddTagPackAction(menu->get(), id, controller);
 
 	(*menu)->popup(position);
+}
+
+void AddCopyFilename(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<DocumentData*> document,
+		Fn<bool()> showCopyRestrictionForSelected) {
+	const auto filenameToCopy = [&] {
+		if (document->isAudioFile()) {
+			return TextForMimeData().append(
+				Ui::Text::FormatSongNameFor(document).string());
+		} else if (document->sticker()
+			|| document->isAnimation()
+			|| document->isVideoMessage()
+			|| document->isVideoFile()
+			|| document->isVoiceMessage()) {
+			return TextForMimeData();
+		} else {
+			return TextForMimeData().append(document->filename());
+		}
+	}();
+	if (!filenameToCopy.empty()) {
+		menu->addAction(tr::lng_context_copy_filename(tr::now), [=] {
+			if (!showCopyRestrictionForSelected()) {
+				TextUtilities::SetClipboardText(filenameToCopy);
+			}
+		}, &st::menuIconCopy);
+	}
 }
 
 void ShowWhoReactedMenu(
