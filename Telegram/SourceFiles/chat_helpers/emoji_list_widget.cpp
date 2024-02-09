@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "layout/layout_position.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_peer_values.h"
 #include "data/stickers/data_stickers.h"
@@ -41,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "emoji_suggestions_data.h"
 #include "emoji_suggestions_helper.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "core/core_settings.h"
 #include "core/application.h"
 #include "settings/settings_premium.h"
@@ -462,6 +465,7 @@ EmojiListWidget::EmojiListWidget(
 , _show(std::move(descriptor.show))
 , _features(descriptor.features)
 , _mode(descriptor.mode)
+, _api(&session().mtp())
 , _staticCount(_mode == Mode::Full ? kEmojiSectionCount : 1)
 , _premiumIcon(_mode == Mode::EmojiStatus
 	? std::make_unique<GradientPremiumStar>()
@@ -515,6 +519,15 @@ EmojiListWidget::EmojiListWidget(
 	_picker->hidden(
 	) | rpl::start_with_next([=] {
 		pickerHidden();
+	}, lifetime());
+
+	session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::EmojiSet
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		return (update.peer.get() == _megagroupSet);
+	}) | rpl::start_with_next([=] {
+		refreshCustom();
+		resizeToWidth(width());
 	}, lifetime());
 
 	session().data().stickers().updated(
@@ -1678,6 +1691,13 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void EmojiListWidget::displaySet(uint64 setId) {
+	if (setId == Data::Stickers::MegagroupSetId) {
+		if (_megagroupSet->mgInfo->emojiSet.id) {
+			setId = _megagroupSet->mgInfo->emojiSet.id;
+		} else {
+			return;
+		}
+	}
 	const auto &sets = session().data().stickers().sets();
 	auto it = sets.find(setId);
 	if (it != sets.cend()) {
@@ -1685,9 +1705,37 @@ void EmojiListWidget::displaySet(uint64 setId) {
 	}
 }
 
+void EmojiListWidget::removeMegagroupSet(bool locally) {
+	if (locally) {
+		session().settings().setGroupEmojiSectionHidden(_megagroupSet->id);
+		session().saveSettings();
+		refreshCustom();
+		return;
+	}
+	checkHideWithBox(Ui::MakeConfirmBox({
+		.text = tr::lng_emoji_remove_group_set(),
+		.confirmed = crl::guard(this, [this, group = _megagroupSet](
+				Fn<void()> &&close) {
+			Expects(group->mgInfo != nullptr);
+
+			if (group->mgInfo->emojiSet) {
+				session().api().setGroupEmojiSet(group, {});
+			}
+			close();
+		}),
+		.cancelled = [](Fn<void()> &&close) { close(); },
+		.labelStyle = &st().boxLabel,
+	}));
+}
+
 void EmojiListWidget::removeSet(uint64 setId) {
 	const auto &labelSt = st().boxLabel;
-	if (auto box = MakeConfirmRemoveSetBox(&session(), labelSt, setId)) {
+	if (setId == Data::Stickers::MegagroupSetId) {
+		const auto i = ranges::find(_custom, setId, &CustomSet::id);
+		Assert(i != end(_custom));
+		const auto removeLocally = !_megagroupSet->canEditEmoji();
+		removeMegagroupSet(removeLocally);
+	} else if (auto box = MakeConfirmRemoveSetBox(&session(), labelSt, setId)) {
 		checkHideWithBox(std::move(box));
 	}
 }
@@ -1784,6 +1832,13 @@ bool EmojiListWidget::hasRemoveButton(int index) const {
 		return false;
 	}
 	const auto &set = _custom[index - _staticCount];
+	if (set.id == Data::Stickers::MegagroupSetId) {
+		Assert(_megagroupSet != nullptr);
+		if (index + 1 != _staticCount + _custom.size()) {
+			return true;
+		}
+		return !set.list.empty() && _megagroupSet->canEditEmoji();
+	}
 	return set.canRemove && !set.premiumRequired;
 }
 
@@ -1810,7 +1865,9 @@ bool EmojiListWidget::hasAddButton(int index) const {
 		return false;
 	}
 	const auto &set = _custom[index - _staticCount];
-	return !set.canRemove && !set.premiumRequired;
+	return !set.canRemove
+		&& !set.premiumRequired
+		&& set.id != Data::Stickers::MegagroupSetId;
 }
 
 QRect EmojiListWidget::addButtonRect(int index) const {
@@ -1834,10 +1891,13 @@ QRect EmojiListWidget::unlockButtonRect(int index) const {
 }
 
 bool EmojiListWidget::hasButton(int index) const {
-	if (hasColorButton(index)
-		|| (index >= _staticCount
-			&& index < _staticCount + _custom.size())) {
+	if (hasColorButton(index)) {
 		return true;
+	} else if (index >= _staticCount
+		&& index < _staticCount + _custom.size()) {
+		const auto &custom = _custom[index - _staticCount];
+		return (custom.id != Data::Stickers::MegagroupSetId)
+			|| custom.canRemove;
 	}
 	return false;
 }
@@ -1967,6 +2027,16 @@ void EmojiListWidget::setAllowWithoutPremium(bool allow) {
 	resizeToWidth(width());
 }
 
+void EmojiListWidget::showMegagroupSet(ChannelData *megagroup) {
+	Expects(!megagroup || megagroup->isMegagroup());
+
+	if (_megagroupSet != megagroup) {
+		_megagroupSet = megagroup;
+		refreshCustom();
+		resizeToWidth(width());
+	}
+}
+
 QString EmojiListWidget::tooltipText() const {
 	if (_mode != Mode::Full) {
 		return {};
@@ -2037,7 +2107,15 @@ void EmojiListWidget::refreshCustom() {
 	const auto owner = &session->data();
 	const auto &sets = owner->stickers().sets();
 	const auto push = [&](uint64 setId, bool installed) {
-		auto it = sets.find(setId);
+		const auto megagroup = _megagroupSet
+			&& (setId == Data::Stickers::MegagroupSetId);
+		const auto lookupId = megagroup
+			? _megagroupSet->mgInfo->emojiSet.id
+			: setId;
+		if (!lookupId) {
+			return;
+		}
+		auto it = sets.find(lookupId);
 		if (it == sets.cend()
 			|| it->second->stickers.isEmpty()
 			|| (_mode == Mode::BackgroundEmoji && !it->second->textColor())
@@ -2045,12 +2123,13 @@ void EmojiListWidget::refreshCustom() {
 				&& !it->second->channelStatus())) {
 			return;
 		}
-		const auto canRemove = !!(it->second->flags
-			& Data::StickersSetFlag::Installed);
+		const auto canRemove = megagroup
+			? (_megagroupSet->canEditEmoji() || installed)
+			: !!(it->second->flags & Data::StickersSetFlag::Installed);
 		const auto sortAsInstalled = canRemove
 			&& (!(it->second->flags & Data::StickersSetFlag::Featured)
-				|| !_localSetsManager->isInstalledLocally(setId));
-		if (sortAsInstalled != installed) {
+				|| !_localSetsManager->isInstalledLocally(lookupId));
+		if (!megagroup && sortAsInstalled != installed) {
 			return;
 		}
 		auto premium = false;
@@ -2063,7 +2142,7 @@ void EmojiListWidget::refreshCustom() {
 					return false;
 				}
 				for (auto k = 0; k != count; ++k) {
-					if (!premium && list[k]->isPremiumEmoji()) {
+					if (!premium && !megagroup && list[k]->isPremiumEmoji()) {
 						premium = true;
 					}
 					if (i->list[k].document != list[k]) {
@@ -2097,11 +2176,11 @@ void EmojiListWidget::refreshCustom() {
 				continue;
 			} else if (const auto sticker = document->sticker()) {
 				set.push_back({
-					.custom = resolveCustomEmoji(document, setId),
+					.custom = resolveCustomEmoji(document, lookupId),
 					.document = document,
 					.emoji = Ui::Emoji::Find(sticker->alt),
 				});
-				if (!premium && document->isPremiumEmoji()) {
+				if (!premium && !megagroup && document->isPremiumEmoji()) {
 					premium = true;
 				}
 			}
@@ -2119,12 +2198,14 @@ void EmojiListWidget::refreshCustom() {
 			.premiumRequired = premium && premiumMayBeBought,
 		});
 	};
+	refreshMegagroupStickers(push, GroupStickersPlace::Visible);
 	for (const auto setId : owner->stickers().emojiSetsOrder()) {
 		push(setId, true);
 	}
 	for (const auto setId : owner->stickers().featuredEmojiSetsOrder()) {
 		push(setId, false);
 	}
+	refreshMegagroupStickers(push, GroupStickersPlace::Hidden);
 
 	_footer->refreshIcons(
 		fillIcons(),
@@ -2217,6 +2298,60 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomRecent(
 	).first->second.emoji.get();
 }
 
+void EmojiListWidget::refreshMegagroupStickers(
+		Fn<void(uint64 setId, bool installed)> push,
+		GroupStickersPlace place) {
+	if (!_features.megagroupSet
+		|| !_megagroupSet
+		|| !_megagroupSet->mgInfo->emojiSet) {
+		return;
+	}
+	auto canEdit = _megagroupSet->canEditEmoji();
+	auto isShownHere = [place](bool hidden) {
+		return (hidden == (place == GroupStickersPlace::Hidden));
+	};
+	auto hidden = session().settings().isGroupEmojiSectionHidden(_megagroupSet->id);
+	auto removeHiddenForGroup = [this, &hidden] {
+		if (hidden) {
+			session().settings().removeGroupEmojiSectionHidden(_megagroupSet->id);
+			session().saveSettings();
+			hidden = false;
+		}
+	};
+	if (canEdit && hidden) {
+		removeHiddenForGroup();
+	}
+	const auto &set = _megagroupSet->mgInfo->emojiSet;
+	if (!set.id || !isShownHere(hidden)) {
+		return;
+	}
+	push(Data::Stickers::MegagroupSetId, !hidden);
+	if (!_custom.empty()
+		&& _custom.back().id == Data::Stickers::MegagroupSetId) {
+		return;
+	} else if (_megagroupSetIdRequested == set.id) {
+		return;
+	}
+	_megagroupSetIdRequested = set.id;
+	_api.request(MTPmessages_GetStickerSet(
+		Data::InputStickerSet(set),
+		MTP_int(0) // hash
+	)).done([=](const MTPmessages_StickerSet &result) {
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			if (const auto set = session().data().stickers().feedSetFull(data)) {
+				refreshCustom();
+				if (set->id == _megagroupSetIdRequested) {
+					_megagroupSetIdRequested = 0;
+				} else {
+					LOG(("API Error: Got different set."));
+				}
+			}
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+		});
+	}).send();
+}
+
 std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	auto result = std::vector<StickerIcon>();
 	result.reserve(2 + _custom.size());
@@ -2233,6 +2368,11 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	}
 	const auto esize = StickersListFooter::IconFrameSize();
 	for (const auto &custom : _custom) {
+		if (custom.id == Data::Stickers::MegagroupSetId) {
+			result.emplace_back(Data::Stickers::MegagroupSetId);
+			result.back().megagroup = _megagroupSet;
+			continue;
+		}
 		const auto set = custom.set;
 		result.emplace_back(set, custom.thumbnailDocument, esize, esize);
 	}

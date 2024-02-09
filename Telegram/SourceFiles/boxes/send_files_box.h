@@ -92,6 +92,7 @@ struct SendFilesBoxDescriptor {
 	std::shared_ptr<ChatHelpers::Show> show;
 	Ui::PreparedList list;
 	TextWithTags caption;
+	PeerData *captionToPeer = nullptr;
 	SendFilesLimits limits = {};
 	SendFilesCheck check;
 	Api::SendType sendType = {};
@@ -112,8 +113,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		Ui::PreparedList &&list,
 		const TextWithTags &caption,
-		SendFilesLimits limits,
-		SendFilesCheck check,
+		not_null<PeerData*> toPeer,
 		Api::SendType sendType,
 		SendMenu::Type sendMenuType);
 	SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor);
@@ -239,7 +239,7 @@ private:
 
 	SendFilesLimits _limits = {};
 	SendMenu::Type _sendMenuType = {};
-
+	PeerData *_captionToPeer = nullptr;
 	SendFilesCheck _check;
 	SendFilesConfirmed _confirmedCallback;
 	Fn<void()> _cancelledCallback;

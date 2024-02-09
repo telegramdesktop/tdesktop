@@ -111,7 +111,9 @@ struct SendingErrorRequest {
 	not_null<Data::Thread*> thread,
 	SendingErrorRequest request);
 
-[[nodiscard]] TextWithEntities DropCustomEmoji(TextWithEntities text);
+[[nodiscard]] TextWithEntities DropDisallowedCustomEmoji(
+	not_null<PeerData*> to,
+	TextWithEntities text);
 
 [[nodiscard]] Main::Session *SessionByUniqueId(uint64 sessionUniqueId);
 [[nodiscard]] HistoryItem *MessageByGlobalId(GlobalMsgId globalId);

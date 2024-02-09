@@ -395,7 +395,7 @@ HistoryWidget::HistoryWidget(
 
 	InitMessageField(controller, _field, [=](
 			not_null<DocumentData*> document) {
-		if (_peer && Data::AllowEmojiWithoutPremium(_peer)) {
+		if (_peer && Data::AllowEmojiWithoutPremium(_peer, document)) {
 			return true;
 		}
 		showPremiumToast(document);
@@ -1091,7 +1091,10 @@ void HistoryWidget::initTabbedSelector() {
 			; info && info->setType == Data::StickersType::Emoji) {
 			if (data.document->isPremiumEmoji()
 				&& !session().premium()
-				&& (!_peer || !Data::AllowEmojiWithoutPremium(_peer))) {
+				&& (!_peer
+					|| !Data::AllowEmojiWithoutPremium(
+						_peer,
+						data.document))) {
 				showPremiumToast(data.document);
 			} else if (!_field->isHidden()) {
 				Data::InsertCustomEmoji(_field.data(), data.document);
@@ -5474,8 +5477,7 @@ bool HistoryWidget::confirmSendingFiles(
 		controller(),
 		std::move(list),
 		text,
-		DefaultLimitsForPeer(_peer),
-		DefaultCheckForPeer(controller(), _peer),
+		_peer,
 		Api::SendType::Normal,
 		sendMenuType());
 	_field->setTextWithTags({});

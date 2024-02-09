@@ -335,16 +335,16 @@ SendFilesBox::SendFilesBox(
 	not_null<Window::SessionController*> controller,
 	Ui::PreparedList &&list,
 	const TextWithTags &caption,
-	SendFilesLimits limits,
-	SendFilesCheck check,
+	not_null<PeerData*> toPeer,
 	Api::SendType sendType,
 	SendMenu::Type sendMenuType)
 : SendFilesBox(nullptr, {
 	.show = controller->uiShow(),
 	.list = std::move(list),
 	.caption = caption,
-	.limits = limits,
-	.check = check,
+	.captionToPeer = toPeer,
+	.limits = DefaultLimitsForPeer(toPeer),
+	.check = DefaultCheckForPeer(controller, toPeer),
 	.sendType = sendType,
 	.sendMenuType = sendMenuType,
 }) {
@@ -360,6 +360,7 @@ SendFilesBox::SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor)
 , _list(std::move(descriptor.list))
 , _limits(descriptor.limits)
 , _sendMenuType(descriptor.sendMenuType)
+, _captionToPeer(descriptor.captionToPeer)
 , _check(std::move(descriptor.check))
 , _confirmedCallback(std::move(descriptor.confirmed))
 , _cancelledCallback(std::move(descriptor.cancelled))
@@ -1000,8 +1001,10 @@ void SendFilesBox::updateSendWayControls() {
 }
 
 void SendFilesBox::setupCaption() {
-	const auto allow = [=](const auto &) {
-		return (_limits & SendFilesAllow::EmojiWithoutPremium);
+	const auto allow = [=](not_null<DocumentData*> emoji) {
+		return _captionToPeer
+			? Data::AllowEmojiWithoutPremium(_captionToPeer, emoji)
+			: (_limits & SendFilesAllow::EmojiWithoutPremium);
 	};
 	const auto show = _show;
 	InitMessageFieldHandlers(
@@ -1113,7 +1116,6 @@ void SendFilesBox::setupEmojiPanel() {
 					.level = Window::GifPauseReason::Layer,
 					.mode = ChatHelpers::TabbedSelector::Mode::EmojiOnly,
 					.features = {
-						.megagroupSet = false,
 						.stickersSettings = false,
 						.openStickerSets = false,
 					},
@@ -1124,6 +1126,7 @@ void SendFilesBox::setupEmojiPanel() {
 		st::emojiPanMinHeight / 2,
 		st::emojiPanMinHeight);
 	_emojiPanel->hide();
+	_emojiPanel->selector()->setCurrentPeer(_captionToPeer);
 	_emojiPanel->selector()->setAllowEmojiWithoutPremium(
 		_limits & SendFilesAllow::EmojiWithoutPremium);
 	_emojiPanel->selector()->emojiChosen(
@@ -1136,7 +1139,11 @@ void SendFilesBox::setupEmojiPanel() {
 		if (info
 			&& info->setType == Data::StickersType::Emoji
 			&& !_show->session().premium()
-			&& !(_limits & SendFilesAllow::EmojiWithoutPremium)) {
+			&& !(_captionToPeer
+				? Data::AllowEmojiWithoutPremium(
+					_captionToPeer,
+					data.document)
+				: (_limits & SendFilesAllow::EmojiWithoutPremium))) {
 			ShowPremiumPreviewBox(_show, PremiumPreview::AnimatedEmoji);
 		} else {
 			Data::InsertCustomEmoji(_caption.data(), data.document);

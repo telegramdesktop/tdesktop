@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
+#include "styles/style_premium.h"
 #include "styles/style_statistics.h"
 
 #include <QtGui/QGuiApplication>
@@ -301,6 +302,9 @@ void InnerWidget::fill() {
 
 	{
 		auto dividerContent = object_ptr<Ui::VerticalLayout>(inner);
+		dividerContent->add(object_ptr<Ui::FixedHeightWidget>(
+			dividerContent,
+			st::boostSkipTop));
 		Ui::FillBoostLimit(
 			fakeShowed->events(),
 			dividerContent.data(),

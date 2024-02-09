@@ -505,6 +505,7 @@ bool ReplyArea::confirmSendingFiles(
 		.show = show,
 		.list = std::move(list),
 		.caption = _controls->getTextWithAppliedMarkdown(),
+		.captionToPeer = _data.peer,
 		.limits = DefaultLimitsForPeer(_data.peer),
 		.check = DefaultCheckForPeer(show, _data.peer),
 		.sendType = Api::SendType::Normal,

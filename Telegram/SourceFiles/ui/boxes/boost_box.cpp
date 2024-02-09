@@ -777,8 +777,6 @@ void FillBoostLimit(
 		container->add(object_ptr<Ui::FixedHeightWidget>(container, skip));
 	};
 
-	//addSkip(st::boostSkipTop);
-
 	const auto ratio = [=](BoostCounters counters) {
 		const auto min = counters.thisLevelBoosts;
 		const auto max = counters.nextLevelBoosts;

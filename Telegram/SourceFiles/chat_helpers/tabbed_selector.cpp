@@ -966,6 +966,9 @@ void TabbedSelector::setCurrentPeer(PeerData *peer) {
 	}
 	_currentPeer = peer;
 	checkRestrictedPeer();
+	if (hasEmojiTab()) {
+		emoji()->showMegagroupSet(peer ? peer->asMegagroup() : nullptr);
+	}
 	if (hasStickersTab()) {
 		stickers()->showMegagroupSet(peer ? peer->asMegagroup() : nullptr);
 	}

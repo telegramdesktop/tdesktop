@@ -648,6 +648,10 @@ bool ChannelData::canEditStickers() const {
 	return (flags() & Flag::CanSetStickers);
 }
 
+bool ChannelData::canEditEmoji() const {
+	return amCreator(); AssertIsDebug();
+}
+
 bool ChannelData::canDelete() const {
 	constexpr auto kDeleteChannelMembersLimit = 1000;
 	return amCreator()

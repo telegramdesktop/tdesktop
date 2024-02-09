@@ -1572,7 +1572,8 @@ void ComposeControls::initField() {
 	}, _field->lifetime());
 #endif // Q_OS_MAC
 	InitMessageField(_show, _field, [=](not_null<DocumentData*> emoji) {
-		if (_history && Data::AllowEmojiWithoutPremium(_history->peer)) {
+		if (_history
+			&& Data::AllowEmojiWithoutPremium(_history->peer, emoji)) {
 			return true;
 		}
 		if (_unavailableEmojiPasted) {
@@ -1584,8 +1585,9 @@ void ComposeControls::initField() {
 	_field->setEditLinkCallback(
 		DefaultEditLinkCallback(_show, _field, &_st.boxField));
 	initAutocomplete();
-	const auto allow = [=](const auto &) {
-		return _history && Data::AllowEmojiWithoutPremium(_history->peer);
+	const auto allow = [=](not_null<DocumentData*> emoji) {
+		return _history
+			&& Data::AllowEmojiWithoutPremium(_history->peer, emoji);
 	};
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		_parent,
@@ -2087,7 +2089,9 @@ void ComposeControls::initTabbedSelector() {
 			if (data.document->isPremiumEmoji()
 				&& !session().premium()
 				&& (!_history
-					|| !Data::AllowEmojiWithoutPremium(_history->peer))) {
+					|| !Data::AllowEmojiWithoutPremium(
+						_history->peer,
+						data.document))) {
 				if (_unavailableEmojiPasted) {
 					_unavailableEmojiPasted(data.document);
 				}

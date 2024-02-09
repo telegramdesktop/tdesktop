@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -980,8 +981,21 @@ TextWithEntities SingleCustomEmoji(not_null<DocumentData*> document) {
 	return SingleCustomEmoji(document->id);
 }
 
-bool AllowEmojiWithoutPremium(not_null<PeerData*> peer) {
-	return peer->isSelf();
+bool AllowEmojiWithoutPremium(
+		not_null<PeerData*> peer,
+		DocumentData *exactEmoji) {
+	if (peer->isSelf()) {
+		return true;
+	} else if (!exactEmoji) {
+		return false;
+	} else if (const auto sticker = exactEmoji->sticker()) {
+		if (const auto channel = peer->asMegagroup()) {
+			if (channel->mgInfo->emojiSet.id == sticker->set.id) {
+				return (sticker->set.id != 0);
+			}
+		}
+	}
+	return false;
 }
 
 void InsertCustomEmoji(

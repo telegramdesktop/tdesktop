@@ -361,6 +361,7 @@ public:
 	[[nodiscard]] bool canViewBanned() const;
 	[[nodiscard]] bool canEditSignatures() const;
 	[[nodiscard]] bool canEditStickers() const;
+	[[nodiscard]] bool canEditEmoji() const;
 	[[nodiscard]] bool canDelete() const;
 	[[nodiscard]] bool canEditAdmin(not_null<UserData*> user) const;
 	[[nodiscard]] bool canRestrictParticipant(

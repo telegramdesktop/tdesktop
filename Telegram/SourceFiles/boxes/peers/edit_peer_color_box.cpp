@@ -479,6 +479,7 @@ void Set(
 			MTP_flags(Flag::f_color | Flag::f_background_emoji_id),
 			MTP_int(values.colorIndex),
 			MTP_long(values.backgroundEmojiId)));
+	} else if (peer->isMegagroup()) {
 	} else if (const auto channel = peer->asChannel()) {
 		using Flag = MTPchannels_UpdateColor::Flag;
 		send(MTPchannels_UpdateColor(

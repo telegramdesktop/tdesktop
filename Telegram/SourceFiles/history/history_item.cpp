@@ -564,11 +564,8 @@ HistoryItem::HistoryItem(
 		}
 	}
 
-	const auto dropCustomEmoji = dropForwardInfo
-		&& !history->session().premium()
-		&& !history->peer->isSelf();
-	setText(dropCustomEmoji
-		? DropCustomEmoji(original->originalText())
+	setText(dropForwardInfo
+		? DropDisallowedCustomEmoji(history->peer, original->originalText())
 		: original->originalText());
 }
 

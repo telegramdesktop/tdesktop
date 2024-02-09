@@ -201,7 +201,9 @@ private:
 [[nodiscard]] TextWithEntities SingleCustomEmoji(
 	not_null<DocumentData*> document);
 
-[[nodiscard]] bool AllowEmojiWithoutPremium(not_null<PeerData*> peer);
+[[nodiscard]] bool AllowEmojiWithoutPremium(
+	not_null<PeerData*> peer,
+	DocumentData *exactEmoji = nullptr);
 
 void InsertCustomEmoji(
 	not_null<Ui::InputField*> field,
