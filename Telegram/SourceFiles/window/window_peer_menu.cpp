@@ -1054,6 +1054,12 @@ void Filler::addViewStatistics() {
 					controller->showSection(Info::Boosts::Make(peer));
 				}
 			}, &st::menuIconBoosts);
+		} else {
+			_addAction(tr::lng_boost_group_button(tr::now), [=] {
+				if (const auto strong = weak.get()) {
+					controller->resolveBoostState(channel);
+				}
+			}, &st::menuIconBoosts);
 		}
 	}
 }
