@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_transcribes.h"
 
 #include "apiwrap.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -23,6 +24,14 @@ namespace Api {
 Transcribes::Transcribes(not_null<ApiWrap*> api)
 : _session(&api->session())
 , _api(&api->instance()) {
+}
+
+bool Transcribes::freeFor(not_null<HistoryItem*> item) const {
+	if (const auto channel = item->history()->peer->asMegagroup()) {
+		const auto owner = &channel->owner();
+		return channel->levelHint() >= owner->groupFreeTranscribeLevel();
+	}
+	return false;
 }
 
 bool Transcribes::trialsSupport() {

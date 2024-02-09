@@ -1094,9 +1094,7 @@ void Controller::fillManageSection() {
 		&& (channel->hasAdminRights() || channel->amCreator());
 	const auto canEditStickers = isChannel && channel->canEditStickers();
 	const auto canDeleteChannel = isChannel && channel->canDelete();
-	const auto canEditColorIndex = isChannel
-		&& (channel->amCreator()
-			|| (channel->adminRights() & ChatAdminRight::ChangeInfo));
+	const auto canEditColorIndex = isChannel && channel->canEditEmoji();
 	const auto canViewOrEditLinkedChat = isChannel
 		&& (channel->linkedChat()
 			|| (channel->isBroadcast() && channel->canEditInformation()));

@@ -649,7 +649,7 @@ bool ChannelData::canEditStickers() const {
 }
 
 bool ChannelData::canEditEmoji() const {
-	return amCreator(); AssertIsDebug();
+	return amCreator() || (adminRights() & ChatAdminRight::ChangeInfo);
 }
 
 bool ChannelData::canDelete() const {

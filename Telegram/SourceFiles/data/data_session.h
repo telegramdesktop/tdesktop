@@ -367,6 +367,7 @@ public:
 		not_null<Forum*> forum) const;
 	[[nodiscard]] rpl::producer<int> maxPinnedChatsLimitValue(
 		not_null<SavedMessages*> saved) const;
+	[[nodiscard]] int groupFreeTranscribeLevel() const;
 	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		Folder *folder) const;
 	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
@@ -887,6 +888,7 @@ private:
 	QPointer<Ui::BoxContent> _exportSuggestion;
 
 	rpl::variable<bool> _contactsLoaded = false;
+	rpl::variable<int> _groupFreeTranscribeLevel;
 	rpl::event_stream<Folder*> _chatsListLoadedEvents;
 	rpl::event_stream<Folder*> _chatsListChanged;
 	rpl::event_stream<not_null<UserData*>> _userIsBotChanges;
