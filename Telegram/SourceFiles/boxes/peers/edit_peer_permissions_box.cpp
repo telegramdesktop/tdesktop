@@ -104,7 +104,7 @@ constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
 	using Flag = ChatAdminRight;
 
 	if (options.isGroup) {
-		auto result = std::vector<AdminRightLabel>{
+		auto first = std::vector<AdminRightLabel>{
 			{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
 			{ Flag::DeleteMessages, tr::lng_rights_group_delete(tr::now) },
 			{ Flag::BanUsers, tr::lng_rights_group_ban(tr::now) },
@@ -113,19 +113,30 @@ constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
 				: tr::lng_rights_group_invite(tr::now) },
 			{ Flag::ManageTopics, tr::lng_rights_group_topics(tr::now) },
 			{ Flag::PinMessages, tr::lng_rights_group_pin(tr::now) },
+		};
+		auto stories = std::vector<AdminRightLabel>{
+			{ Flag::PostStories, tr::lng_rights_channel_post_stories(tr::now) },
+			{ Flag::EditStories, tr::lng_rights_channel_edit_stories(tr::now) },
+			{ Flag::DeleteStories, tr::lng_rights_channel_delete_stories(tr::now) },
+		};
+		auto second = std::vector<AdminRightLabel>{
 			{ Flag::ManageCall, tr::lng_rights_group_manage_calls(tr::now) },
 			{ Flag::Anonymous, tr::lng_rights_group_anonymous(tr::now) },
 			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
 		};
 		if (!options.isForum) {
-			result.erase(
+			first.erase(
 				ranges::remove(
-					result,
+					first,
 					Flag::ManageTopics | Flag(),
 					&AdminRightLabel::flags),
-				end(result));
+				end(first));
 		}
-		return { { std::nullopt, std::move(result) } };
+		return {
+			{ std::nullopt, std::move(first) },
+			{ tr::lng_rights_channel_manage_stories(), std::move(stories) },
+			{ std::nullopt, std::move(second) },
+		};
 	}
 	auto first = std::vector<AdminRightLabel>{
 		{ Flag::ChangeInfo, tr::lng_rights_channel_info(tr::now) },
