@@ -416,7 +416,7 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 	if (const auto replyTo = action.replyTo) {
 		if (replyTo.storyId) {
 			return MTP_messageReplyStoryHeader(
-				MTP_long(peerToUser(replyTo.storyId.peer).bare),
+				peerToMTP(replyTo.storyId.peer),
 				MTP_int(replyTo.storyId.story));
 		}
 		using Flag = MTPDmessageReplyHeader::Flag;
