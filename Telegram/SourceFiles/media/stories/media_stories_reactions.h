@@ -87,6 +87,8 @@ public:
 	void attachToReactionButton(not_null<Ui::RpWidget*> button);
 	void setReactionIconWidget(Ui::RpWidget *widget);
 
+	void animateAndProcess(Chosen &&chosen);
+
 	using AttachStripResult = HistoryView::Reactions::AttachSelectorResult;
 	[[nodiscard]] AttachStripResult attachToMenu(
 		not_null<Ui::PopupMenu*> menu,
@@ -94,8 +96,6 @@ public:
 
 private:
 	class Panel;
-
-	void animateAndProcess(Chosen &&chosen);
 
 	void assignLikedId(Data::ReactionId id);
 	[[nodiscard]] Fn<void(Ui::ReactionFlyCenter)> setLikedIdIconInit(

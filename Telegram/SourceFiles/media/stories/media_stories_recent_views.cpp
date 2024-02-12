@@ -139,7 +139,7 @@ constexpr auto kLoadViewsPages = 2;
 RecentViewsType RecentViewsTypeFor(not_null<PeerData*> peer) {
 	return peer->isSelf()
 		? RecentViewsType::Self
-		: peer->isChannel()
+		: peer->isBroadcast()
 		? RecentViewsType::Channel
 		: peer->isServiceUser()
 		? RecentViewsType::Changelog

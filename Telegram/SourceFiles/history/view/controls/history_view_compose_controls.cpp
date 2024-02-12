@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt_signal_producer.h"
+#include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "boxes/edit_caption_box.h"
 #include "chat_helpers/compose/compose_show.h"
@@ -95,6 +96,7 @@ constexpr auto kMouseEvents = {
 	QEvent::MouseButtonPress,
 	QEvent::MouseButtonRelease
 };
+constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 
 constexpr auto kCommonModifiers = 0
 	| Qt::ShiftModifier
@@ -3341,6 +3343,48 @@ void ComposeControls::checkCharsLimitation() {
 			_charsLimitation = nullptr;
 		}
 	}
+}
+
+rpl::producer<int> SlowmodeSecondsLeft(not_null<PeerData*> peer) {
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::Slowmode
+	) | rpl::map([=] {
+		return peer->slowmodeSecondsLeft();
+	}) | rpl::map([=](int delay) -> rpl::producer<int> {
+		auto start = rpl::single(delay);
+		if (!delay) {
+			return start;
+		}
+		return std::move(
+			start
+		) | rpl::then(base::timer_each(
+			kRefreshSlowmodeLabelTimeout
+		) | rpl::map([=] {
+			return peer->slowmodeSecondsLeft();
+		}) | rpl::take_while([=](int delay) {
+			return delay > 0;
+		})) | rpl::then(rpl::single(0));
+	}) | rpl::flatten_latest();
+}
+
+rpl::producer<bool> SendDisabledBySlowmode(not_null<PeerData*> peer) {
+	const auto history = peer->owner().history(peer);
+	auto hasSendingMessage = peer->session().changes().historyFlagsValue(
+		history,
+		Data::HistoryUpdate::Flag::ClientSideMessages
+	) | rpl::map([=] {
+		return history->latestSendingMessage() != nullptr;
+	}) | rpl::distinct_until_changed();
+
+	using namespace rpl::mappers;
+	const auto channel = peer->asChannel();
+	return (!channel || channel->amCreator())
+		? (rpl::single(false) | rpl::type_erased())
+		: rpl::combine(
+			channel->slowmodeAppliedValue(),
+			std::move(hasSendingMessage),
+			_1 && _2);
 }
 
 } // namespace HistoryView

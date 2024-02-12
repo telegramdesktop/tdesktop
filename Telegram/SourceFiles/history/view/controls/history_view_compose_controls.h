@@ -439,4 +439,9 @@ private:
 
 };
 
+[[nodiscard]] rpl::producer<int> SlowmodeSecondsLeft(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<bool> SendDisabledBySlowmode(
+	not_null<PeerData*> peer);
+
 } // namespace HistoryView

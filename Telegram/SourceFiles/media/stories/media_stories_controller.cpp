@@ -299,7 +299,9 @@ Controller::Controller(not_null<Delegate*> delegate)
 
 	_reactions->chosen(
 	) | rpl::start_with_next([=](Reactions::Chosen chosen) {
-		reactionChosen(chosen.mode, chosen.reaction);
+		if (reactionChosen(chosen.mode, chosen.reaction)) {
+			_reactions->animateAndProcess(std::move(chosen));
+		}
 	}, _lifetime);
 
 	_delegate->storiesLayerShown(
@@ -628,13 +630,15 @@ void Controller::toggleLiked() {
 	_reactions->toggleLiked();
 }
 
-void Controller::reactionChosen(ReactionsMode mode, ChosenReaction chosen) {
+bool Controller::reactionChosen(ReactionsMode mode, ChosenReaction chosen) {
+	auto result = true;
 	if (mode == ReactionsMode::Message) {
-		_replyArea->sendReaction(chosen.id);
+		result = _replyArea->sendReaction(chosen.id);
 	} else if (const auto peer = shownPeer()) {
 		peer->owner().stories().sendReaction(_shown, chosen.id);
 	}
 	unfocusReply();
+	return result;
 }
 
 void Controller::showFullCaption() {
@@ -907,7 +911,7 @@ void Controller::show(
 		.views = story->views(),
 		.total = story->interactions(),
 		.type = RecentViewsTypeFor(peer),
-		.canViewReactions = CanViewReactionsFor(peer),
+		.canViewReactions = CanViewReactionsFor(peer) && !peer->isMegagroup(),
 	}, _reactions->likedValue());
 	if (const auto nowLikeButton = _recentViews->likeButton()) {
 		if (wasLikeButton != nowLikeButton) {
@@ -1007,7 +1011,7 @@ void Controller::subscribeToSession() {
 				.views = update.story->views(),
 				.total = update.story->interactions(),
 				.type = RecentViewsTypeFor(peer),
-				.canViewReactions = CanViewReactionsFor(peer),
+				.canViewReactions = CanViewReactionsFor(peer) && !peer->isMegagroup(),
 			});
 			updateAreas(update.story);
 		}
