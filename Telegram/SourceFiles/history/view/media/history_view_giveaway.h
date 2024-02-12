@@ -15,11 +15,8 @@ struct GiveawayStart;
 struct GiveawayResults;
 } // namespace Data
 
-namespace Dialogs::Stories {
-class Thumbnail;
-} // namespace Dialogs::Stories
-
 namespace Ui {
+class DynamicImage;
 class RippleAnimation;
 } // namespace Ui
 
@@ -208,10 +205,9 @@ public:
 private:
 	int layout(int x, int y, int available);
 
-	using Thumbnail = Dialogs::Stories::Thumbnail;
 	struct Peer {
 		Ui::Text::String name;
-		std::shared_ptr<Thumbnail> thumbnail;
+		std::shared_ptr<Ui::DynamicImage> thumbnail;
 		QRect geometry;
 		ClickHandlerPtr link;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;

@@ -15,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
-#include "dialogs/ui/dialogs_stories_content.h"
-#include "dialogs/ui/dialogs_stories_list.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
@@ -30,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
 #include "ui/round_rect.h"
 #include "styles/style_chat.h"
@@ -446,7 +446,7 @@ PeerBubbleListPart::PeerBubbleListPart(
 				peer->name(),
 				kDefaultTextOptions,
 				st::msgMinWidth),
-			.thumbnail = Dialogs::Stories::MakeUserpicThumbnail(peer),
+			.thumbnail = Ui::MakeUserpicThumbnail(peer),
 			.link = peer->openLink(),
 			.colorIndex = peer->colorIndex(),
 		});

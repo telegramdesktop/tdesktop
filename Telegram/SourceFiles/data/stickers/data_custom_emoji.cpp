@@ -19,14 +19,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_message_reactions.h"
 #include "data/stickers/data_stickers.h"
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_stories_content.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_frame_generator.h"
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "storage/file_download.h" // kMaxFileInMemory
 #include "ui/widgets/fields/input_field.h"
+#include "ui/text/custom_emoji_instance.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -92,6 +96,10 @@ private:
 
 [[nodiscard]] QString InternalPrefix() {
 	return u"internal:"_q;
+}
+
+[[nodiscard]] QString UserpicEmojiPrefix() {
+	return u"userpic:"_q;
 }
 
 [[nodiscard]] QString InternalPadding(QMargins value) {
@@ -528,6 +536,10 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		int sizeOverride) {
 	if (data.startsWith(InternalPrefix())) {
 		return internal(data);
+	} else if (data.startsWith(UserpicEmojiPrefix())) {
+		const auto ratio = style::DevicePixelRatio();
+		const auto size = FrameSizeFromTag(tag, sizeOverride) / ratio;
+		return userpic(data, std::move(update), size);
 	}
 	const auto parsed = ParseCustomEmojiData(data);
 	return parsed
@@ -573,6 +585,26 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::internal(
 		info.image,
 		padding,
 		info.textColor);
+}
+
+std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::userpic(
+		QStringView data,
+		Fn<void()> update,
+		int size) {
+	const auto v = data.mid(UserpicEmojiPrefix().size()).split(',');
+	if (v.size() != 5 && v.size() != 1) {
+		return nullptr;
+	}
+	const auto id = PeerId(v[0].toULongLong());
+	const auto padding = (v.size() == 5)
+		? QMargins(v[1].toInt(), v[2].toInt(), v[3].toInt(), v[4].toInt())
+		: QMargins();
+	return std::make_unique<Ui::CustomEmoji::DynamicImageEmoji>(
+		data.toString(),
+		Ui::MakeUserpicThumbnail(_owner->peer(id)),
+		std::move(update),
+		padding,
+		size);
 }
 
 void CustomEmojiManager::resolve(
@@ -953,6 +985,14 @@ QString CustomEmojiManager::registerInternalEmoji(
 		textColor);
 	_iconEmoji.emplace(&icon, result);
 	return result + InternalPadding(padding);
+}
+
+[[nodiscard]] QString CustomEmojiManager::peerUserpicEmojiData(
+		not_null<PeerData*> peer,
+		QMargins padding) {
+	return UserpicEmojiPrefix()
+		+ QString::number(peer->id.value)
+		+ InternalPadding(padding);
 }
 
 int FrameSizeFromTag(SizeTag tag) {

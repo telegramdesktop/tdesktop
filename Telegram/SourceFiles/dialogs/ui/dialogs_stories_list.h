@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_compare.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "ui/effects/animations.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/rp_widget.h"
-#include "ui/effects/animations.h"
 
 class QPainter;
 
@@ -23,22 +24,17 @@ struct DialogsStoriesList;
 
 namespace Ui {
 class PopupMenu;
+class DynamicImage;
 struct OutlineSegment;
 class ImportantTooltip;
 } // namespace Ui
 
 namespace Dialogs::Stories {
 
-class Thumbnail {
-public:
-	[[nodiscard]] virtual QImage image(int size) = 0;
-	virtual void subscribeToUpdates(Fn<void()> callback) = 0;
-};
-
 struct Element {
 	uint64 id = 0;
 	QString name;
-	std::shared_ptr<Thumbnail> thumbnail;
+	std::shared_ptr<Ui::DynamicImage> thumbnail;
 	uint32 count : 15 = 0;
 	uint32 unreadCount : 15 = 0;
 	uint32 skipSmall : 1 = 0;

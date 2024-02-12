@@ -92,6 +92,10 @@ public:
 		QMargins padding = {},
 		bool textColor = true);
 
+	[[nodiscard]] QString peerUserpicEmojiData(
+		not_null<PeerData*> peer,
+		QMargins padding = {});
+
 	[[nodiscard]] uint64 coloredSetId() const;
 
 private:
@@ -146,6 +150,10 @@ private:
 		LoaderFactory factory);
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> internal(
 		QStringView data);
+	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> userpic(
+		QStringView data,
+		Fn<void()> update,
+		int size);
 	[[nodiscard]] static int SizeIndex(SizeTag tag);
 
 	const not_null<Session*> _owner;
