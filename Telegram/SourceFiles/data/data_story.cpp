@@ -164,6 +164,15 @@ using UpdateFlag = StoryUpdate::Flag;
 	return false;
 }
 
+[[nodiscard]] PeerData *FromPeer(
+		not_null<Session*> owner,
+		const MTPDstoryItem &data) {
+	if (const auto from = data.vfrom_id()) {
+		return owner->peer(peerFromMTP(*from));
+	}
+	return nullptr;
+}
+
 } // namespace
 
 class StoryPreload::LoadTask final : private Storage::DownloadMtprotoTask {
@@ -278,6 +287,7 @@ Story::Story(
 , _repostSourcePeer(RepostSourcePeer(&peer->owner(), data))
 , _repostSourceName(RepostSourceName(data))
 , _repostSourceId(RepostSourceId(data))
+, _fromPeer(FromPeer(&peer->owner(), data))
 , _date(data.vdate().v)
 , _expires(data.vexpire_date().v)
 , _repostModified(RepostModified(data)) {
@@ -888,6 +898,10 @@ QString Story::repostSourceName() const {
 
 StoryId Story::repostSourceId() const {
 	return _repostSourceId;
+}
+
+PeerData *Story::fromPeer() const {
+	return _fromPeer;
 }
 
 StoryPreload::StoryPreload(not_null<Story*> story, Fn<void()> done)

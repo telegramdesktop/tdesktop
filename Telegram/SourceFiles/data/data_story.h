@@ -208,6 +208,8 @@ public:
 	[[nodiscard]] QString repostSourceName() const;
 	[[nodiscard]] StoryId repostSourceId() const;
 
+	[[nodiscard]] PeerData *fromPeer() const;
+
 private:
 	struct ViewsCounts {
 		int views = 0;
@@ -234,6 +236,7 @@ private:
 	PeerData * const _repostSourcePeer = nullptr;
 	const QString _repostSourceName;
 	const StoryId _repostSourceId = 0;
+	PeerData * const _fromPeer = nullptr;
 	Data::ReactionId _sentReactionId;
 	StoryMedia _media;
 	TextWithEntities _caption;

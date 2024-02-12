@@ -538,7 +538,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		return internal(data);
 	} else if (data.startsWith(UserpicEmojiPrefix())) {
 		const auto ratio = style::DevicePixelRatio();
-		const auto size = FrameSizeFromTag(tag, sizeOverride) / ratio;
+		const auto size = EmojiSizeFromTag(tag) / ratio;
 		return userpic(data, std::move(update), size);
 	}
 	const auto parsed = ParseCustomEmojiData(data);

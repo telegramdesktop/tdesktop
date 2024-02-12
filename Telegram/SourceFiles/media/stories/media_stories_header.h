@@ -32,6 +32,7 @@ enum class PauseState;
 
 struct HeaderData {
 	not_null<PeerData*> peer;
+	PeerData *fromPeer = nullptr;
 	PeerData *repostPeer = nullptr;
 	QString repostFrom;
 	TimeId date = 0;

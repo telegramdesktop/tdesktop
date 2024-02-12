@@ -883,6 +883,7 @@ void Controller::show(
 	const auto document = story->document();
 	_header->show({
 		.peer = peer,
+		.fromPeer = story->fromPeer(),
 		.repostPeer = _repostView ? _repostView->fromPeer() : nullptr,
 		.repostFrom = _repostView ? _repostView->fromName() : nullptr,
 		.date = story->date(),
