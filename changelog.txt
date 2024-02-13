@@ -1,3 +1,11 @@
+4.14.15 (10.02.24)
+
+- Fix webview regression on Linux X11. (2nd attempt)
+
+4.14.14 (09.02.24)
+
+- Fix webview regression on Linux X11.
+
 4.14.13 (02.02.24)
 
 - Fix display of statistics for single posts.

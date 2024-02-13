@@ -94,6 +94,10 @@ void ShowTagInListMenu(
 	not_null<QWidget*> context,
 	const Data::ReactionId &id,
 	not_null<Window::SessionController*> controller);
+void AddCopyFilename(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<DocumentData*> document,
+	Fn<bool()> showCopyRestrictionForSelected);
 
 enum class EmojiPacksSource {
 	Message,

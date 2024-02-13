@@ -2752,6 +2752,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_copy_email" = "Copy Email Address";
 "lng_context_copy_hashtag" = "Copy Hashtag";
 "lng_context_copy_mention" = "Copy Username";
+"lng_context_copy_filename" = "Copy Filename";
 "lng_context_save_image" = "Save Image As...";
 "lng_context_copy_image" = "Copy Image";
 "lng_context_cancel_download" = "Cancel Download";
