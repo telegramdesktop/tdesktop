@@ -598,70 +598,22 @@ figure.slideshow-wrap {
 	position: relative;
 }
 figure.slideshow {
-	position: relative;
+	position: absolute;
+	top: 0px;
 	white-space: nowrap;
 	width: 100%;
 	background: #000;
 	overflow: hidden;
 }
-figure.slideshow > figure {
+figure.slideshow a {
+	transition: margin 200ms ease-in-out;
+}
+figure.slideshow .photo-wrap,
+figure.slideshow .video-wrap {
 	position: static !important;
 	display: inline-block;
-	width: 100%;
+	margin: 0;
 	vertical-align: middle;
-	transition: margin .3s;
-}
-figure.slideshow > figure figcaption {
-	box-sizing: border-box;
-	position: absolute;
-	bottom: 0;
-	width: 100%;
-	padding-bottom: 36px;
-}
-figure.slideshow > figure figcaption:after {
-	content: '';
-	display: block;
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	top: -75px;
-	background: -moz-linear-gradient(top,rgba(64,64,64,0),rgba(64,64,64,.55));
-	background: -webkit-gradient(linear,0 0,0 100%,from(rgba(64,64,64,0)),to(rgba(64,64,64,.55)));
-	background: -o-linear-gradient(rgba(64,64,64,0),rgba(64,64,64,.55));
-	pointer-events: none;
-}
-figure.slideshow > figure figcaption > span,
-figure.slideshow > figure figcaption > cite {
-	position: relative;
-	color: #fff;
-	text-shadow: 0 1px rgba(0, 0, 0, .4);
-	z-index: 1;
-	display: block;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-figure.slideshow > figure figcaption > span {
-	display: -webkit-box;
-	max-height: 3.8em;
-	-webkit-line-clamp: 3;
-	-webkit-box-orient: vertical;
-	white-space: pre-wrap;
-}
-figure.slideshow > figure figcaption code {
-	text-shadow: none;
-	background: rgba(204, 204, 204, .7);
-	color: #fff;
-}
-figure.slideshow > figure figcaption mark {
-	text-shadow: none;
-	background: rgba(33, 123, 134, .7);
-	color: #fff;
-}
-figure.slideshow > figure figcaption a,
-figure.slideshow > figure figcaption a:hover {
-	color: #66baff;
 }
 .slideshow-buttons {
 	position: absolute;
@@ -672,8 +624,8 @@ figure.slideshow > figure figcaption a:hover {
 	z-index: 3;
 }
 .slideshow-buttons > fieldset {
-	padding: 0 10px 20px;
-	margin: 0 0 -20px;
+	padding: 0;
+	margin: 0;
 	border: none;
 	line-height: 0;
 	overflow: hidden;
@@ -701,6 +653,54 @@ figure.slideshow > figure figcaption a:hover {
 }
 .slideshow-buttons input:checked ~ i {
 	opacity: 1;
+}
+.slideshow-next,
+.slideshow-prev {
+	position: absolute;
+	z-index: 4;
+	top: 0;
+	width: 25%;
+	max-width: 128px;
+	height: 100%;
+	cursor: pointer;
+	transition: opacity 200ms ease-in-out;
+	user-select: none;
+	opacity: 0.6;
+}
+.slideshow-next {
+	right: 0;
+	background: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%);
+}
+.slideshow-prev {
+	left: 0;
+	background: linear-gradient(to left, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%);
+}
+.slideshow-next:hover {
+	opacity: 1;
+}
+.slideshow-prev:hover {
+	opacity: 1;
+}
+.slideshow-prev svg,
+.slideshow-next svg {
+	fill: none;
+	top: calc(50% - 12px);
+	position: absolute;
+	z-index: 5;
+	width: 24px;
+	height: 24px;
+	pointer-events: none;
+}
+.slideshow-prev svg {
+	left: calc(min(50% - 12px, 20px));
+}
+.slideshow-next svg {
+	right: calc(min(50% - 12px, 20px));
+}
+.slideshow-prev path,
+.slideshow-next path {
+	stroke-width: 1.4;
+	stroke: #fff;
 }
 
 figure.collage-wrap {

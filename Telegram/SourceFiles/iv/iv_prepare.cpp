@@ -69,6 +69,9 @@ private:
 		const QVector<MTPPageBlock> &list,
 		const std::vector<QSize> &dimensions,
 		int offset = 0);
+	[[nodiscard]] QByteArray slideshow(
+		const QVector<MTPPageBlock> &list,
+		QSize dimensions);
 
 	[[nodiscard]] QByteArray block(const MTPDpageBlockUnsupported &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockTitle &data);
@@ -87,11 +90,13 @@ private:
 	[[nodiscard]] QByteArray block(
 		const MTPDpageBlockPhoto &data,
 		const Ui::GroupMediaLayout &layout = {},
-		QSize outer = {});
+		QSize outer = {},
+		int slideshowIndex = -1);
 	[[nodiscard]] QByteArray block(
 		const MTPDpageBlockVideo &data,
 		const Ui::GroupMediaLayout &layout = {},
-		QSize outer = {});
+		QSize outer = {},
+		int slideshowIndex = -1);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockCover &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockEmbed &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockEmbedPost &data);
@@ -151,6 +156,8 @@ private:
 
 	[[nodiscard]] std::vector<QSize> computeCollageDimensions(
 		const QVector<MTPPageBlock> &items);
+	[[nodiscard]] QSize computeSlideshowDimensions(
+		const QVector<MTPPageBlock> &items);
 
 	const Options _options;
 
@@ -158,9 +165,6 @@ private:
 
 	Prepared _result;
 
-	bool _rtl = false;
-	bool _captionAsTitle = false;
-	bool _captionWrapped = false;
 	base::flat_map<uint64, Photo> _photosById;
 	base::flat_map<uint64, Document> _documentsById;
 
@@ -184,6 +188,17 @@ private:
 		"wbr"_q,
 	};
 	return voids.contains(name);
+}
+
+[[nodiscard]] QByteArray ArrowSvg(bool left) {
+	const auto rotate = QByteArray(left ? "180" : "0");
+	return R"(
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+	<path
+		d="M14.9972363,18 L9.13865768,12.1414214 C9.06055283,12.0633165 9.06055283,11.9366835 9.13865768,11.8585786 L14.9972363,6 L14.9972363,6"
+		transform="translate(11.997236, 12) scale(-1, -1) rotate()" + rotate + ") translate(-11.997236, -12)" + R"(">
+	</path>
+</svg>)";
 }
 
 Parser::Parser(const Source &source, const Options &options)
@@ -292,6 +307,56 @@ QByteArray Parser::collage(
 	return wrapped;
 }
 
+QByteArray Parser::slideshow(
+		const QVector<MTPPageBlock> &list,
+		QSize dimensions) {
+	auto result = QByteArray();
+	for (auto i = 0, count = int(list.size()); i != count; ++i) {
+		list[i].match([&](const MTPDpageBlockPhoto &data) {
+			result += block(data, {}, dimensions);
+		}, [&](const MTPDpageBlockVideo &data) {
+			result += block(data, {}, dimensions);
+		}, [](const auto &) {
+			Unexpected("Block type in collage layout.");
+		});
+	}
+
+	auto inputs = QByteArrayList();
+	for (auto i = 0; i != int(list.size()); ++i) {
+		auto attributes = Attributes{
+			{ "type", "radio" },
+			{ "name", "s" },
+			{ "value", Number(i) },
+			{ "onchange", "return IV.slideshowSlide(this);" },
+		};
+		if (!i) {
+			attributes.push_back({ "checked", std::nullopt });
+		}
+		inputs.append(tag("label", tag("input", attributes, tag("i"))));
+	}
+	const auto form = tag(
+		"form",
+		{ { "class", "slideshow-buttons" } },
+		tag("fieldset", inputs.join(QByteArray())));
+	const auto navigation = tag("a", {
+		{ "class", "slideshow-prev" },
+		{ "onclick", "IV.slideshowSlide(this, -1);" },
+	}, ArrowSvg(true)) + tag("a", {
+		{ "class", "slideshow-next" },
+		{ "onclick", "IV.slideshowSlide(this, 1);" },
+	}, ArrowSvg(false));
+	auto wrapStyle = "padding-top: calc(min("
+		+ Percent(dimensions.height() / float64(dimensions.width()))
+		+ "%, 480px));";
+	result = form + tag("figure", {
+		{ "class", "slideshow" },
+	}, result) + navigation;
+	return tag("figure", {
+		{ "class", "slideshow-wrap" },
+		{ "style", wrapStyle },
+	}, result);
+}
+
 QByteArray Parser::block(const MTPDpageBlockUnsupported &data) {
 	return "Unsupported."_q;
 }
@@ -375,8 +440,10 @@ QByteArray Parser::block(const MTPDpageBlockPullquote &data) {
 QByteArray Parser::block(
 		const MTPDpageBlockPhoto &data,
 		const Ui::GroupMediaLayout &layout,
-		QSize outer) {
+		QSize outer,
+		int slideshowIndex) {
 	const auto collage = !layout.geometry.isEmpty();
+	const auto slideshow = !collage && !outer.isEmpty();
 	const auto photo = photoById(data.vphoto_id().v);
 	if (!photo.id) {
 		return "Photo not found.";
@@ -390,7 +457,7 @@ QByteArray Parser::block(
 			+ "top: " + Percent(layout.geometry.y() * hcoef) + "%; "
 			+ "width: " + Percent(layout.geometry.width() * wcoef) + "%; "
 			+ "height: " + Percent(layout.geometry.height() * hcoef) + "%";
-	} else if (photo.width) {
+	} else if (!slideshow && photo.width) {
 		wrapStyle += "max-width:" + Number(photo.width) + "px";
 	}
 	const auto dimension = collage
@@ -420,16 +487,6 @@ QByteArray Parser::block(
 		{ "class", "photo-wrap" },
 		{ "style", wrapStyle }
 	};
-	if (_captionAsTitle) {
-		const auto caption = plain(data.vcaption().data().vtext());
-		const auto credit = plain(data.vcaption().data().vtext());
-		if (!caption.isEmpty() || !credit.isEmpty()) {
-			const auto title = (!caption.isEmpty() && !credit.isEmpty())
-				? (caption + " / " + credit)
-				: (caption + credit);
-			attributes.push_back({ "title", title });
-		}
-	}
 	auto result = tag("div", attributes, inner);
 
 	const auto href = data.vurl()
@@ -439,20 +496,19 @@ QByteArray Parser::block(
 	result = tag("a", {
 		{ "href", href },
 		{ "data-context", data.vurl() ? QByteArray() : "viewer-photo" + id },
-	}, result);
-	if (!_captionAsTitle) {
-		result += caption(data.vcaption());
-	}
+	}, result) + caption(data.vcaption());
 	return result;
 }
 
 QByteArray Parser::block(
 		const MTPDpageBlockVideo &data,
 		const Ui::GroupMediaLayout &layout,
-		QSize outer) {
+		QSize outer,
+		int slideshowIndex) {
 	const auto collage = !layout.geometry.isEmpty();
 	const auto collageSmall = collage
 		&& (layout.geometry.width() < outer.width());
+	const auto slideshow = !collage && !outer.isEmpty();
 	const auto video = documentById(data.vvideo_id().v);
 	if (!video.id) {
 		return "Video not found.";
@@ -512,16 +568,6 @@ QByteArray Parser::block(
 		{ "class", "video-wrap" },
 		{ "style", wrapStyle },
 	};
-	if (_captionAsTitle) {
-		const auto caption = plain(data.vcaption().data().vtext());
-		const auto credit = plain(data.vcaption().data().vtext());
-		if (!caption.isEmpty() || !credit.isEmpty()) {
-			const auto title = (!caption.isEmpty() && !credit.isEmpty())
-				? (caption + " / " + credit)
-				: (caption + credit);
-			attributes.push_back({ "title", title });
-		}
-	}
 	auto result = tag("div", attributes, inner);
 	if (data.is_autoplay() || collageSmall) {
 		const auto id = Number(video.id);
@@ -531,9 +577,7 @@ QByteArray Parser::block(
 			{ "data-context", "viewer-video" + id },
 		}, result);
 	}
-	if (!_captionAsTitle) {
-		result += caption(data.vcaption());
-	}
+	result += caption(data.vcaption());
 	return result;
 }
 
@@ -644,32 +688,12 @@ QByteArray Parser::block(const MTPDpageBlockCollage &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockSlideshow &data) {
-	auto inputs = QByteArrayList();
-	auto i = 0;
-	for (auto i = 0; i != int(data.vitems().v.size()); ++i) {
-		auto attributes = Attributes{
-			{ "type", "radio" },
-			{ "name", "s" },
-			{ "value", Number(i) },
-			{ "onchange", "return IV.slideshowSlide(this);" },
-		};
-		if (!i) {
-			attributes.push_back({ "checked", std::nullopt });
-		}
-		inputs.append(tag("label", tag("input", attributes, tag("i"))));
+	const auto &items = data.vitems().v;
+	const auto dimensions = computeSlideshowDimensions(items);
+	if (dimensions.isEmpty()) {
+		return list(data.vitems());
 	}
-	const auto form = tag(
-		"form",
-		{ { "class", "slideshow-buttons" } },
-		tag("fieldset", inputs.join(QByteArray())));
-	auto inner = form + tag("figure", {
-		{ "class", "slideshow" },
-		{ "onclick", "return IV.slideshowSlide(this, 1);" },
-	}, list(data.vitems()));
-	auto result = tag(
-		"figure",
-		{ { "class", "slideshow-wrap" } },
-		inner);
+	const auto result = slideshow(items, dimensions);
 	return tag("figure", result + caption(data.vcaption()));
 }
 
@@ -909,7 +933,7 @@ QByteArray Parser::tag(
 		list.push_back(' ' + name + (value ? "=\"" + *value + "\"" : ""));
 	}
 	const auto serialized = list.join(QByteArray());
-	return IsVoidElement(name)
+	return (IsVoidElement(name) && body.isEmpty())
 		? ('<' + name + serialized + " />")
 		: ('<' + name + serialized + '>' + body + "</" + name + '>');
 }
@@ -1024,9 +1048,6 @@ QByteArray Parser::plain(const MTPRichText &text) {
 QByteArray Parser::caption(const MTPPageCaption &caption) {
 	auto text = rich(caption.data().vtext());
 	const auto credit = rich(caption.data().vcredit());
-	if (_captionWrapped && !text.isEmpty()) {
-		text = tag("span", text);
-	}
 	if (!credit.isEmpty()) {
 		text += tag("cite", credit);
 	} else if (text.isEmpty()) {
@@ -1170,12 +1191,11 @@ QByteArray Parser::resource(QByteArray id) {
 
 std::vector<QSize> Parser::computeCollageDimensions(
 		const QVector<MTPPageBlock> &items) {
-	auto result = std::vector<QSize>(items.size());
 	if (items.size() < 2) {
 		return {};
 	}
+	auto result = std::vector<QSize>(items.size());
 	for (auto i = 0, count = int(items.size()); i != count; ++i) {
-		auto size = QSize();
 		items[i].match([&](const MTPDpageBlockPhoto &data) {
 			const auto photo = photoById(data.vphoto_id().v);
 			if (photo.id && photo.width > 0 && photo.height > 0) {
@@ -1189,6 +1209,35 @@ std::vector<QSize> Parser::computeCollageDimensions(
 		}, [](const auto &) {});
 		if (result[i].isEmpty()) {
 			return {};
+		}
+	}
+	return result;
+}
+
+QSize Parser::computeSlideshowDimensions(
+		const QVector<MTPPageBlock> &items) {
+	if (items.size() < 2) {
+		return {};
+	}
+	auto result = QSize();
+	for (const auto &item : items) {
+		auto size = QSize();
+		item.match([&](const MTPDpageBlockPhoto &data) {
+			const auto photo = photoById(data.vphoto_id().v);
+			if (photo.id && photo.width > 0 && photo.height > 0) {
+				size = QSize(photo.width, photo.height);
+			}
+		}, [&](const MTPDpageBlockVideo &data) {
+			const auto document = documentById(data.vvideo_id().v);
+			if (document.id && document.width > 0 && document.height > 0) {
+				size = QSize(document.width, document.height);
+			}
+		}, [](const auto &) {});
+		if (size.isEmpty()) {
+			return {};
+		} else if (result.height() * size.width()
+			< result.width() * size.height()) {
+			result = size;
 		}
 	}
 	return result;

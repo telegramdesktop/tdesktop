@@ -106,14 +106,16 @@ var IV = {
 			}
 		}
 	},
-	slideshowSlide: function(el, next) {
+	slideshowSlide: function(el, delta) {
 		var dir = window.getComputedStyle(el, null).direction || 'ltr';
 		var marginProp = dir == 'rtl' ? 'marginRight' : 'marginLeft';
-		if (next) {
-			var s = el.previousSibling.s;
-			s.value = (+s.value + 1 == s.length) ? 0 : +s.value + 1;
+		if (delta) {
+			var form = el.parentNode.firstChild;
+			var s = form.s;
+			const next = +s.value + delta;
+			s.value = (next == s.length) ? 0 : (next == -1) ? (s.length - 1) : next;
 			s.forEach(function(el){ el.checked && el.parentNode.scrollIntoView && el.parentNode.scrollIntoView({behavior: 'smooth', block: 'center', inline: 'center'}); });
-			el.firstChild.style[marginProp] = (-100 * s.value) + '%';
+			form.nextSibling.firstChild.style[marginProp] = (-100 * s.value) + '%';
 		} else {
 			el.form.nextSibling.firstChild.style[marginProp] = (-100 * el.value) + '%';
 		}
