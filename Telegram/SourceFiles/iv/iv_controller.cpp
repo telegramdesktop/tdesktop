@@ -489,6 +489,7 @@ void Controller::processLink(const QString &url, const QString &context) {
 	const auto channelPrefix = u"channel"_q;
 	const auto joinPrefix = u"join_link"_q;
 	const auto webpagePrefix = u"webpage"_q;
+	const auto viewerPrefix = u"viewer"_q;
 	if (context.startsWith(channelPrefix)) {
 		_events.fire({
 			.type = Event::Type::OpenChannel,
@@ -504,6 +505,12 @@ void Controller::processLink(const QString &url, const QString &context) {
 			.type = Event::Type::OpenPage,
 			.url = url,
 			.context = context.mid(webpagePrefix.size()),
+		});
+	} else if (context.startsWith(viewerPrefix)) {
+		_events.fire({
+			.type = Event::Type::OpenMedia,
+			.url = url,
+			.context = context.mid(viewerPrefix.size()),
 		});
 	} else if (context.isEmpty()) {
 		_events.fire({ .type = Event::Type::OpenLink, .url = url });

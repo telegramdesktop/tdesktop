@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_data.h"
 #include "lang/lang_keys.h"
 #include "ui/image/image_prepare.h"
+#include "ui/grouped_layout.h"
 #include "styles/palette.h"
+#include "styles/style_chat.h"
 
 #include <QtCore/QSize>
 
@@ -34,6 +36,19 @@ struct Photo {
 
 struct Document {
 	uint64 id = 0;
+	int width = 0;
+	int height = 0;
+	QByteArray minithumbnail;
+};
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+[[nodiscard]] QByteArray Number(T value) {
+	return QByteArray::number(value);
+}
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+[[nodiscard]] QByteArray Percent(T value) {
+	return Number(base::SafeRound(value * 10000.) / 100.);
 };
 
 class Parser final {
@@ -50,6 +65,11 @@ private:
 	template <typename Inner>
 	[[nodiscard]] QByteArray list(const MTPVector<Inner> &data);
 
+	[[nodiscard]] QByteArray collage(
+		const QVector<MTPPageBlock> &list,
+		const std::vector<QSize> &dimensions,
+		int offset = 0);
+
 	[[nodiscard]] QByteArray block(const MTPDpageBlockUnsupported &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockTitle &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockSubtitle &data);
@@ -64,8 +84,14 @@ private:
 	[[nodiscard]] QByteArray block(const MTPDpageBlockList &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockBlockquote &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockPullquote &data);
-	[[nodiscard]] QByteArray block(const MTPDpageBlockPhoto &data);
-	[[nodiscard]] QByteArray block(const MTPDpageBlockVideo &data);
+	[[nodiscard]] QByteArray block(
+		const MTPDpageBlockPhoto &data,
+		const Ui::GroupMediaLayout &layout = {},
+		QSize outer = {});
+	[[nodiscard]] QByteArray block(
+		const MTPDpageBlockVideo &data,
+		const Ui::GroupMediaLayout &layout = {},
+		QSize outer = {});
 	[[nodiscard]] QByteArray block(const MTPDpageBlockCover &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockEmbed &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockEmbedPost &data);
@@ -122,6 +148,9 @@ private:
 		int height,
 		int zoom);
 	[[nodiscard]] QByteArray resource(QByteArray id);
+
+	[[nodiscard]] std::vector<QSize> computeCollageDimensions(
+		const QVector<MTPPageBlock> &items);
 
 	const Options _options;
 
@@ -209,6 +238,60 @@ QByteArray Parser::list(const MTPVector<Inner> &data) {
 	return result.join(QByteArray());
 }
 
+QByteArray Parser::collage(
+		const QVector<MTPPageBlock> &list,
+		const std::vector<QSize> &dimensions,
+		int offset) {
+	Expects(list.size() == dimensions.size());
+
+	constexpr auto kPerCollage = 10;
+	const auto last = (offset + kPerCollage >= int(dimensions.size()));
+
+	auto result = QByteArray();
+	auto slice = ((offset > 0) || (dimensions.size() > kPerCollage))
+		? (dimensions
+			| ranges::views::drop(offset)
+			| ranges::views::take(kPerCollage)
+			| ranges::to_vector)
+		: dimensions;
+	const auto layout = Ui::LayoutMediaGroup(
+		slice,
+		st::historyGroupWidthMax,
+		st::historyGroupWidthMin,
+		st::historyGroupSkip);
+	auto size = QSize();
+	for (const auto &part : layout) {
+		const auto &rect = part.geometry;
+		size = QSize(
+			std::max(size.width(), rect.x() + rect.width()),
+			std::max(size.height(), rect.y() + rect.height()));
+	}
+	for (auto i = 0, count = int(layout.size()); i != count; ++i) {
+		const auto &part = layout[i];
+		list[offset + i].match([&](const MTPDpageBlockPhoto &data) {
+			result += block(data, part, size);
+		}, [&](const MTPDpageBlockVideo &data) {
+			result += block(data, part, size);
+		}, [](const auto &) {
+			Unexpected("Block type in collage layout.");
+		});
+	}
+	const auto aspectHeight = size.height() / float64(size.width());
+	const auto aspectSkip = st::historyGroupSkip / float64(size.width());
+	auto wrapped = tag("figure", {
+		{ "class", "collage" },
+		{
+			"style",
+			("padding-top: " + Percent(aspectHeight) + "%; "
+				+ "margin-bottom: " + Percent(last ? 0 : aspectSkip) + "%;")
+		},
+	}, result);
+	if (offset + kPerCollage < int(dimensions.size())) {
+		wrapped += collage(list, dimensions, offset + kPerCollage);
+	}
+	return wrapped;
+}
+
 QByteArray Parser::block(const MTPDpageBlockUnsupported &data) {
 	return "Unsupported."_q;
 }
@@ -289,40 +372,54 @@ QByteArray Parser::block(const MTPDpageBlockPullquote &data) {
 		rich(data.vtext()) + cite);
 }
 
-QByteArray Parser::block(const MTPDpageBlockPhoto &data) {
+QByteArray Parser::block(
+		const MTPDpageBlockPhoto &data,
+		const Ui::GroupMediaLayout &layout,
+		QSize outer) {
+	const auto collage = !layout.geometry.isEmpty();
 	const auto photo = photoById(data.vphoto_id().v);
 	if (!photo.id) {
 		return "Photo not found.";
 	}
 	const auto src = photoFullUrl(photo);
 	auto wrapStyle = QByteArray();
-	if (photo.width) {
-		wrapStyle += "max-width:" + QByteArray::number(photo.width) + "px";
+	if (collage) {
+		const auto wcoef = 1. / outer.width();
+		const auto hcoef = 1. / outer.height();
+		wrapStyle += "left: " + Percent(layout.geometry.x() * wcoef) + "%; "
+			+ "top: " + Percent(layout.geometry.y() * hcoef) + "%; "
+			+ "width: " + Percent(layout.geometry.width() * wcoef) + "%; "
+			+ "height: " + Percent(layout.geometry.height() * hcoef) + "%";
+	} else if (photo.width) {
+		wrapStyle += "max-width:" + Number(photo.width) + "px";
 	}
+	const auto dimension = collage
+		? (layout.geometry.height() / float64(layout.geometry.width()))
+		: (photo.width && photo.height)
+		? (photo.height / float64(photo.width))
+		: (3 / 4.);
+	const auto paddingTop = collage
+		? Percent(dimension) + "%"
+		: "calc(min(480px, " + Percent(dimension) + "%))";
+	const auto style = "background-image:url('" + src + "');"
+		"padding-top: " + paddingTop + ";";
+	auto inner = tag("div", {
+		{ "class", "photo" },
+		{ "style", style } });
 	const auto minithumb = Images::ExpandInlineBytes(photo.minithumbnail);
 	if (!minithumb.isEmpty()) {
 		const auto image = Images::Read({ .content = minithumb });
-		wrapStyle += ";background-image:url('data:image/jpeg;base64,"
-			+ minithumb.toBase64()
-			+ "');";
+		inner = tag("div", {
+			{ "class", "photo-bg" },
+			{ "style", "background-image:url('data:image/jpeg;base64,"
+				+ minithumb.toBase64()
+				+ "');" },
+		}) + inner;
 	}
-	const auto dimension = (photo.width && photo.height)
-		? (photo.height / float64(photo.width))
-		: (3 / 4.);
-	const auto paddingTopPercent = int(base::SafeRound(dimension * 100));
-	const auto style = "background-image:url('" + src + "');"
-		"padding-top:" + QByteArray::number(paddingTopPercent) + "%";
-	const auto inner = tag("div", {
-		{ "class", "photo" },
-		{ "style", style } });
-	auto result = tag(
-		"div",
-		{ { "class", "photo-wrap" }, { "style", wrapStyle } },
-		inner);
-	if (const auto url = data.vurl()) {
-		result = tag("a", { { "href", utf(*url) } }, result);
-	}
-	auto attributes = Attributes();
+	auto attributes = Attributes{
+		{ "class", "photo-wrap" },
+		{ "style", wrapStyle }
+	};
 	if (_captionAsTitle) {
 		const auto caption = plain(data.vcaption().data().vtext());
 		const auto credit = plain(data.vcaption().data().vtext());
@@ -332,34 +429,89 @@ QByteArray Parser::block(const MTPDpageBlockPhoto &data) {
 				: (caption + credit);
 			attributes.push_back({ "title", title });
 		}
-	} else {
+	}
+	auto result = tag("div", attributes, inner);
+
+	const auto href = data.vurl()
+		? utf(*data.vurl())
+		: photoFullUrl(photo);
+	const auto id = Number(photo.id);
+	result = tag("a", {
+		{ "href", href },
+		{ "data-context", data.vurl() ? QByteArray() : "viewer-photo" + id },
+	}, result);
+	if (!_captionAsTitle) {
 		result += caption(data.vcaption());
 	}
-	return tag("figure", attributes, result);
+	return result;
 }
 
-QByteArray Parser::block(const MTPDpageBlockVideo &data) {
+QByteArray Parser::block(
+		const MTPDpageBlockVideo &data,
+		const Ui::GroupMediaLayout &layout,
+		QSize outer) {
+	const auto collage = !layout.geometry.isEmpty();
+	const auto collageSmall = collage
+		&& (layout.geometry.width() < outer.width());
 	const auto video = documentById(data.vvideo_id().v);
 	if (!video.id) {
 		return "Video not found.";
 	}
 	const auto src = documentFullUrl(video);
 	auto vattributes = Attributes{};
+	if (collageSmall) {
+		vattributes.push_back({ "class", "video-small" });
+	}
 	if (data.is_autoplay()) {
 		vattributes.push_back({ "preload", "auto" });
 		vattributes.push_back({ "autoplay", std::nullopt });
-	} else {
+	} else if (!collageSmall) {
 		vattributes.push_back({ "controls", std::nullopt });
 	}
 	if (data.is_loop()) {
 		vattributes.push_back({ "loop", std::nullopt });
 	}
 	vattributes.push_back({ "muted", std::nullopt });
-	auto result = tag(
+	auto inner = tag(
 		"video",
 		vattributes,
 		tag("source", { { "src", src }, { "type", "video/mp4" } }));
-	auto attributes = Attributes();
+	if (collageSmall) {
+		inner += tag(
+			"div",
+			{ { "class", "video-play-outer" } },
+			tag("div", { { "class", "video-play" } }));
+	}
+	const auto minithumb = Images::ExpandInlineBytes(video.minithumbnail);
+	if (!minithumb.isEmpty()) {
+		const auto image = Images::Read({ .content = minithumb });
+		inner = tag("div", {
+			{ "class", "video-bg" },
+			{ "style", "background-image:url('data:image/jpeg;base64,"
+				+ minithumb.toBase64()
+				+ "');" },
+		}) + inner;
+	}
+	auto wrapStyle = QByteArray();
+	if (collage) {
+		const auto wcoef = 1. / outer.width();
+		const auto hcoef = 1. / outer.height();
+		wrapStyle += "left: " + Percent(layout.geometry.x() * wcoef) + "%; "
+			+ "top: " + Percent(layout.geometry.y() * hcoef) + "%; "
+			+ "width: " + Percent(layout.geometry.width() * wcoef) + "%; "
+			+ "height: " + Percent(layout.geometry.height() * hcoef) + "%; ";
+	} else {
+		const auto dimension = (video.width && video.height)
+			? (video.height / float64(video.width))
+			: (3 / 4.);
+		wrapStyle += "padding-top: calc(min(480px, "
+			+ Percent(dimension)
+			+ "%));";
+	}
+	auto attributes = Attributes{
+		{ "class", "video-wrap" },
+		{ "style", wrapStyle },
+	};
 	if (_captionAsTitle) {
 		const auto caption = plain(data.vcaption().data().vtext());
 		const auto credit = plain(data.vcaption().data().vtext());
@@ -369,10 +521,20 @@ QByteArray Parser::block(const MTPDpageBlockVideo &data) {
 				: (caption + credit);
 			attributes.push_back({ "title", title });
 		}
-	} else {
+	}
+	auto result = tag("div", attributes, inner);
+	if (data.is_autoplay() || collageSmall) {
+		const auto id = Number(video.id);
+		const auto href = resource("video" + id);
+		result = tag("a", {
+			{ "href", href },
+			{ "data-context", "viewer-video" + id },
+		}, result);
+	}
+	if (!_captionAsTitle) {
 		result += caption(data.vcaption());
 	}
-	return tag("figure", attributes, result);
+	return result;
 }
 
 QByteArray Parser::block(const MTPDpageBlockCover &data) {
@@ -394,13 +556,12 @@ QByteArray Parser::block(const MTPDpageBlockEmbed &data) {
 		eclass = "nowide";
 	} else if (data.is_full_width() || !data.vw()->v) {
 		width = "100%";
-		height = QByteArray::number(data.vh()->v) + "px";
+		height = Number(data.vh()->v) + "px";
 		iframeWidth = "100%";
 		iframeHeight = height;
 	} else {
-		const auto percent = data.vh()->v * 100 / data.vw()->v;
-		width = QByteArray::number(data.vw()->v) + "px";
-		height = QByteArray::number(percent) + "%";
+		width = Number(data.vw()->v) + "px";
+		height = Percent(data.vh()->v / float64(data.vw()->v)) + "%";
 	}
 	auto attributes = Attributes();
 	if (autosize) {
@@ -468,11 +629,18 @@ QByteArray Parser::block(const MTPDpageBlockEmbedPost &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockCollage &data) {
-	auto result = tag(
+	const auto &items = data.vitems().v;
+	const auto dimensions = computeCollageDimensions(items);
+	if (dimensions.empty()) {
+		return tag(
+			"figure",
+			tag("figure", list(data.vitems())) + caption(data.vcaption()));
+	}
+
+	return tag(
 		"figure",
-		{ { "class", "collage" } },
-		list(data.vitems()));
-	return tag("figure", result + caption(data.vcaption()));
+		{ { "class", "collage-wrap" } },
+		collage(items, dimensions) + caption(data.vcaption()));
 }
 
 QByteArray Parser::block(const MTPDpageBlockSlideshow &data) {
@@ -482,7 +650,7 @@ QByteArray Parser::block(const MTPDpageBlockSlideshow &data) {
 		auto attributes = Attributes{
 			{ "type", "radio" },
 			{ "name", "s" },
-			{ "value", QByteArray::number(i) },
+			{ "value", Number(i) },
 			{ "onchange", "return IV.slideshowSlide(this);" },
 		};
 		if (!i) {
@@ -509,7 +677,7 @@ QByteArray Parser::block(const MTPDpageBlockChannel &data) {
 	auto name = QByteArray();
 	auto username = QByteArray();
 	auto id = data.vchannel().match([](const auto &data) {
-		return QByteArray::number(data.vid().v);
+		return Number(data.vid().v);
 	});
 	data.vchannel().match([&](const MTPDchannel &data) {
 		if (const auto has = data.vusername()) {
@@ -658,7 +826,7 @@ QByteArray Parser::block(const MTPDpageRelatedArticle &data) {
 	}
 	const auto webpageId = data.vwebpage_id().v;
 	const auto context = webpageId
-		? ("webpage" + QByteArray::number(webpageId))
+		? ("webpage" + Number(webpageId))
 		: QByteArray();
 	return tag("a", {
 		{ "class", "related-link" },
@@ -690,10 +858,10 @@ QByteArray Parser::block(const MTPDpageTableCell &data) {
 	}
 	auto attributes = Attributes{ { "style", style } };
 	if (const auto cs = data.vcolspan()) {
-		attributes.push_back({ "colspan", QByteArray::number(cs->v) });
+		attributes.push_back({ "colspan", Number(cs->v) });
 	}
 	if (const auto rs = data.vrowspan()) {
-		attributes.push_back({ "rowspan", QByteArray::number(rs->v) });
+		attributes.push_back({ "rowspan", Number(rs->v) });
 	}
 	return tag(data.is_header() ? "th" : "td", attributes, text);
 }
@@ -783,10 +951,10 @@ QByteArray Parser::rich(const MTPRichText &text) {
 			{ "src", documentFullUrl(image) },
 		};
 		if (const auto width = data.vw().v) {
-			attributes.push_back({ "width", QByteArray::number(width) });
+			attributes.push_back({ "width", Number(width) });
 		}
 		if (const auto height = data.vh().v) {
-			attributes.push_back({ "height", QByteArray::number(height) });
+			attributes.push_back({ "height", Number(height) });
 		}
 		return tag("img", attributes);
 	}, [&](const MTPDtextBold &data) {
@@ -802,7 +970,7 @@ QByteArray Parser::rich(const MTPRichText &text) {
 	}, [&](const MTPDtextUrl &data) {
 		const auto webpageId = data.vwebpage_id().v;
 		const auto context = webpageId
-			? ("webpage" + QByteArray::number(webpageId))
+			? ("webpage" + Number(webpageId))
 			: QByteArray();
 		return tag("a", {
 			{ "href", utf(data.vurl()) },
@@ -911,6 +1079,24 @@ Document Parser::parse(const MTPDocument &document) {
 	};
 	document.match([](const MTPDdocumentEmpty &) {
 	}, [&](const MTPDdocument &data) {
+		for (const auto &attribute : data.vattributes().v) {
+			attribute.match([&](const MTPDdocumentAttributeImageSize &data) {
+				result.width = data.vw().v;
+				result.height = data.vh().v;
+			}, [&](const MTPDdocumentAttributeVideo &data) {
+				result.width = data.vw().v;
+				result.height = data.vh().v;
+			}, [](const auto &) {});
+		}
+		if (const auto sizes = data.vthumbs()) {
+			for (const auto &size : sizes->v) {
+				size.match([&](const MTPDphotoStrippedSize &data) {
+					result.minithumbnail = data.vbytes().v;
+				}, [&](const auto &data) {
+				});
+			}
+
+		}
 	});
 	return result;
 }
@@ -938,11 +1124,11 @@ Document Parser::documentById(uint64 id) {
 }
 
 QByteArray Parser::photoFullUrl(const Photo &photo) {
-	return resource("photo/" + QByteArray::number(photo.id));
+	return resource("photo/" + Number(photo.id));
 }
 
 QByteArray Parser::documentFullUrl(const Document &document) {
-	return resource("document/" + QByteArray::number(document.id));
+	return resource("document/" + Number(document.id));
 }
 
 QByteArray Parser::embedUrl(const QByteArray &html) {
@@ -969,9 +1155,9 @@ QByteArray Parser::embedUrl(const QByteArray &html) {
 QByteArray Parser::mapUrl(const Geo &geo, int width, int height, int zoom) {
 	return resource("map/"
 		+ GeoPointId(geo) + "&"
-		+ QByteArray::number(width) + ","
-		+ QByteArray::number(height) + "&"
-		+ QByteArray::number(zoom));
+		+ Number(width) + ","
+		+ Number(height) + "&"
+		+ Number(zoom));
 }
 
 QByteArray Parser::resource(QByteArray id) {
@@ -980,6 +1166,32 @@ QByteArray Parser::resource(QByteArray id) {
 		_result.resources.push_back(id);
 	}
 	return toFolder ? id : ('/' + id);
+}
+
+std::vector<QSize> Parser::computeCollageDimensions(
+		const QVector<MTPPageBlock> &items) {
+	auto result = std::vector<QSize>(items.size());
+	if (items.size() < 2) {
+		return {};
+	}
+	for (auto i = 0, count = int(items.size()); i != count; ++i) {
+		auto size = QSize();
+		items[i].match([&](const MTPDpageBlockPhoto &data) {
+			const auto photo = photoById(data.vphoto_id().v);
+			if (photo.id && photo.width > 0 && photo.height > 0) {
+				result[i] = QSize(photo.width, photo.height);
+			}
+		}, [&](const MTPDpageBlockVideo &data) {
+			const auto document = documentById(data.vvideo_id().v);
+			if (document.id && document.width > 0 && document.height > 0) {
+				result[i] = QSize(document.width, document.height);
+			}
+		}, [](const auto &) {});
+		if (result[i].isEmpty()) {
+			return {};
+		}
+	}
+	return result;
 }
 
 } // namespace

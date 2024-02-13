@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/session/session_show.h"
 #include "media/streaming/media_streaming_loader.h"
+#include "media/view/media_view_open_common.h"
 #include "storage/file_download.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
@@ -795,6 +796,40 @@ void Instance::show(
 			break;
 		case Type::OpenLinkExternal:
 			QDesktopServices::openUrl(event.url);
+			break;
+		case Type::OpenMedia:
+			if (const auto window = Core::App().activeWindow()) {
+				const auto current = window->sessionController();
+				const auto controller = (current
+					&& &current->session() == _shownSession)
+					? current
+					: nullptr;
+				const auto item = (HistoryItem*)nullptr;
+				const auto topicRootId = MsgId(0);
+				if (event.context.startsWith("-photo")) {
+					const auto id = event.context.mid(6).toULongLong();
+					const auto photo = _shownSession->data().photo(id);
+					if (!photo->isNull()) {
+						window->openInMediaView({
+							controller,
+							photo,
+							item,
+							topicRootId
+						});
+					}
+				} else if (event.context.startsWith("-video")) {
+					const auto id = event.context.mid(6).toULongLong();
+					const auto video = _shownSession->data().document(id);
+					if (!video->isNull()) {
+						window->openInMediaView({
+							controller,
+							video,
+							item,
+							topicRootId
+						});
+					}
+				}
+			}
 			break;
 		case Type::OpenPage:
 		case Type::OpenLink:

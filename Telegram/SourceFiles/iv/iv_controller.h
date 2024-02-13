@@ -43,6 +43,7 @@ public:
 			OpenPage,
 			OpenLink,
 			OpenLinkExternal,
+			OpenMedia,
 		};
 		Type type = Type::Close;
 		QString url;

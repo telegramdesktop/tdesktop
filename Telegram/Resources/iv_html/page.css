@@ -499,7 +499,7 @@ img,
 video,
 iframe {
 	max-width: 100%;
-	max-height: 400px;
+	max-height: 480px;
 	vertical-align: top;
 }
 video {
@@ -703,24 +703,37 @@ figure.slideshow > figure figcaption a:hover {
 	opacity: 1;
 }
 
+figure.collage-wrap {
+	margin: 0px 12px;
+}
+figure.collage-wrap figcaption {
+	padding: 6px 6px 0px;
+}
 figure.collage {
-	margin: -2px 16px;
-	text-align: left;
+	overflow: hidden;
+	border-radius: 6px;
 }
-figure.collage > figure {
-	display: inline-block;
-	vertical-align: top;
-	width: calc(25% - 4px);
-	margin: 2px;
-	box-sizing: border-box;
+figure.collage .photo-wrap,
+figure.collage .video-wrap {
+	position: absolute;
 }
-figure.collage > figure > i {
-	background: no-repeat center;
+figure.collage .photo-wrap .photo {
 	background-size: cover;
-	display: inline-block;
-	vertical-align: top;
-	width: 100%;
-	padding-top: 100%;
+}
+figure.collage .video-wrap video {
+	object-fit: cover;
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: auto;
+	height: auto;
+	min-width: 100%;
+	min-height: 100%;
+	transform: translate(-50%, -50%);
+}
+figure.collage .video-wrap .video-small,
+video[autoplay] {
+	pointer-events: none;
 }
 
 figure.table-wrap {
@@ -983,13 +996,74 @@ section.channel > a > h4 {
 	display: block;
 	margin: 0 auto;
 }
-.photo-wrap {
+.photo-wrap,
+.video-wrap {
 	width: 100%;
-	background-size: 100%;
 	margin: 0 auto;
+	position: relative;
+	overflow: hidden;
+}
+.photo-bg,
+.video-bg {
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	position: absolute;
+	filter: blur(16px);
+	width: 100%;
+	height: 100%;
+}
+.video-bg,
+video {
+	position: absolute;
+	top: 0px;
 }
 .photo {
-	background-size: 100%;
+	position: relative;
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+.photo,
+video {
+	opacity: 0;
+	transition: opacity 300ms ease-in-out;
+}
+.photo.loaded,
+video.loaded {
+	opacity: 1;
+}
+.video-play-outer {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+.video-play {
+	position: relative;
+	width: 48px;
+	height: 0;
+	padding-top: 48px;
+	max-width: 48px;
+	max-height: 48px;
+	background-color: rgba(0, 0, 0, 0.34);
+	border-radius: 50%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	overflow: hidden;
+}
+.video-play::before {
+	content: '';
+	position: absolute;
+	margin: -48px -4px 0px 0px;
+	width: 0;
+	height: 0;
+	border-style: solid;
+	border-width: 10px 0 10px 16px;
+	border-color: transparent transparent transparent white;
 }
 
 .toast {

@@ -226,6 +226,36 @@ var IV = {
 				IV.stopRipples(e.currentTarget);
 			});
 		}
+		const photos = document.getElementsByClassName('photo');
+		for (let i = 0; i < photos.length; ++i) {
+			const photo = photos[i];
+			if (photo.classList.contains('loaded')) {
+				continue;
+			}
+
+			const url = photo.style.backgroundImage;
+			if (!url || url.length < 7) {
+				continue;
+			}
+			var img = new Image();
+			img.onload = function () {
+				photo.classList.add('loaded');
+			}
+			img.src = url.substr(5, url.length - 7);
+			if (img.complete) {
+				img.onload();
+			}
+		}
+		const videos = document.getElementsByTagName('video');
+		for (let i = 0; i < videos.length; ++i) {
+			const video = videos[i];
+			if (video.classList.contains('loaded')) {
+				continue;
+			}
+			video.addEventListener('canplay', function () {
+				video.classList.add('loaded');
+			});
+		}
 		IV.notify({ event: 'ready' });
 	},
 	showTooltip: function (text) {
