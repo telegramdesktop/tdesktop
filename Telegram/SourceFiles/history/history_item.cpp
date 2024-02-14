@@ -2665,7 +2665,7 @@ TextWithEntities HistoryItem::translatedTextWithLocalEntities() const {
 TextForMimeData HistoryItem::clipboardText() const {
 	return isService()
 		? TextForMimeData()
-		: TextForMimeData::WithExpandedLinks(_text);
+		: TextForMimeData::WithExpandedLinks(translatedText());
 }
 
 bool HistoryItem::changeViewsCount(int count) {
