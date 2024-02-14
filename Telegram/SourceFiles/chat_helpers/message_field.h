@@ -79,6 +79,8 @@ void InitSpellchecker(
 
 bool HasSendText(not_null<const Ui::InputField*> field);
 
+void InitMessageFieldFade(not_null<Ui::InputField*> field);
+
 struct InlineBotQuery {
 	QString query;
 	QString username;

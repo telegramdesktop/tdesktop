@@ -1575,6 +1575,7 @@ void ComposeControls::initField() {
 		}
 		return false;
 	});
+	InitMessageFieldFade(_field);
 	_field->setEditLinkCallback(
 		DefaultEditLinkCallback(_show, _field, &_st.boxField));
 	initAutocomplete();

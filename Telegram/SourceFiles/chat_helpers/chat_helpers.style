@@ -968,6 +968,7 @@ historyComposeField: InputField(defaultInputField) {
 	duration: 100;
 }
 historyComposeFieldMaxHeight: 224px;
+historyComposeFieldFadeHeight: 8px;
 // historyMinHeight: 56px;
 
 historyAttach: IconButton(defaultIconButton) {

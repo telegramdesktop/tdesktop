@@ -398,6 +398,7 @@ HistoryWidget::HistoryWidget(
 		showPremiumToast(document);
 		return false;
 	});
+	InitMessageFieldFade(_field);
 
 	_keyboard->sendCommandRequests(
 	) | rpl::start_with_next([=](Bot::SendCommandRequest r) {

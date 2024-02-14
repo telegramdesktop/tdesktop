@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/event_filter.h"
 #include "ui/layers/generic_box.h"
+#include "ui/rect.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -440,6 +441,74 @@ bool HasSendText(not_null<const Ui::InputField*> field) {
 		}
 	}
 	return false;
+}
+
+void InitMessageFieldFade(not_null<Ui::InputField*> field) {
+	class Fade final : public Ui::RpWidget {
+	public:
+		using Ui::RpWidget::RpWidget;
+
+		void setFade(QPixmap &&fade) {
+			_fade = std::move(fade);
+		}
+
+		int resizeGetHeight(int newWidth) override {
+			return st::historyComposeFieldFadeHeight;
+		}
+
+	private:
+		void paintEvent(QPaintEvent *event) override {
+			auto p = QPainter(this);
+			p.drawTiledPixmap(rect(), _fade);
+		}
+
+		QPixmap _fade;
+
+	};
+
+	const auto topFade = Ui::CreateChild<Fade>(field.get());
+	const auto bottomFade = Ui::CreateChild<Fade>(field.get());
+
+	const auto generateFade = [=] {
+		const auto size = QSize(1, st::historyComposeFieldFadeHeight);
+		auto fade = QPixmap(size * style::DevicePixelRatio());
+		fade.setDevicePixelRatio(style::DevicePixelRatio());
+		fade.fill(Qt::transparent);
+		{
+			auto p = QPainter(&fade);
+
+			auto gradient = QLinearGradient(0, 1, 0, size.height());
+			gradient.setStops({
+				{ 0., st::historyComposeField.textBg->c },
+				{ .9, Qt::transparent },
+			});
+			p.setPen(Qt::NoPen);
+			p.setBrush(gradient);
+			p.drawRect(Rect(size));
+		}
+		bottomFade->setFade(fade.transformed(QTransform().scale(1, -1)));
+		topFade->setFade(std::move(fade));
+	};
+	generateFade();
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		generateFade();
+	}, topFade->lifetime());
+
+	field->sizeValue(
+	) | rpl::start_with_next_done([=](const QSize &size) {
+		topFade->resizeToWidth(size.width());
+		bottomFade->resizeToWidth(size.width());
+		bottomFade->move(
+			0,
+			size.height() - st::historyComposeFieldFadeHeight);
+	}, [t = Ui::MakeWeak(topFade), b = Ui::MakeWeak(bottomFade)] {
+		Ui::DestroyChild(t.data());
+		Ui::DestroyChild(b.data());
+	}, topFade->lifetime());
+
+	topFade->show();
+	bottomFade->show();
 }
 
 InlineBotQuery ParseInlineBotQuery(
