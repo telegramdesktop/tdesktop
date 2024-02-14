@@ -676,8 +676,6 @@ PRIVATE
     history/view/controls/history_view_ttl_button.h
     history/view/controls/history_view_voice_record_bar.cpp
     history/view/controls/history_view_voice_record_bar.h
-    history/view/controls/history_view_voice_record_button.cpp
-    history/view/controls/history_view_voice_record_button.h
     history/view/controls/history_view_webpage_processor.cpp
     history/view/controls/history_view_webpage_processor.h
     history/view/media/history_view_call.cpp

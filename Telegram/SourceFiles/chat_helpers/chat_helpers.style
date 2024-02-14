@@ -1071,6 +1071,13 @@ historyMessagesTTLLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 
+historyCharsLimitationLabel: FlatLabel(defaultFlatLabel) {
+	// The same as a width of the historySendSize.
+	minWidth: 44px;
+	align: align(center);
+	textFg: attentionButtonFg;
+}
+
 historyRecordVoiceFg: historyComposeIconFg;
 historyRecordVoiceFgOver: historyComposeIconFgOver;
 historyRecordVoiceFgInactive: attentionButtonFg;

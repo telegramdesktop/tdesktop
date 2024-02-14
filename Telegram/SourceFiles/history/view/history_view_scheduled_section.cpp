@@ -649,16 +649,9 @@ void ScheduledWidget::edit(
 	if (*saveEditMsgRequestId) {
 		return;
 	}
-	const auto textWithTags = _composeControls->getTextWithAppliedMarkdown();
 	const auto webpage = _composeControls->webPageDraft();
-	const auto prepareFlags = Ui::ItemTextOptions(
-		_history,
-		session().user()).flags;
 	auto sending = TextWithEntities();
-	auto left = TextWithEntities {
-		textWithTags.text,
-		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
-	TextUtilities::PrepareForSending(left, prepareFlags);
+	auto left = _composeControls->prepareTextForEditMsg();
 
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)
 		&& (!item

@@ -71,6 +71,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
+#include "data/data_peer_values.h" // Data::AmPremiumValue.
+#include "data/data_premium_limits.h" // Data::PremiumLimits.
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
@@ -80,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_inner_widget.h"
 #include "history/history_item_components.h"
 #include "history/history_unread_things.h"
+#include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_search.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
@@ -1621,6 +1624,8 @@ void HistoryWidget::fieldChanged() {
 				Api::SendProgressType::Typing);
 		}
 	});
+
+	checkCharsLimitation();
 
 	updateSendButtonType();
 	if (!HasSendText(_field)) {
@@ -3836,6 +3841,18 @@ void HistoryWidget::windowIsVisibleChanged() {
 	});
 }
 
+TextWithEntities HistoryWidget::prepareTextForEditMsg() const {
+	const auto textWithTags = _field->getTextWithAppliedMarkdown();
+	const auto prepareFlags = Ui::ItemTextOptions(
+		_history,
+		session().user()).flags;
+	auto left = TextWithEntities {
+		textWithTags.text,
+		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
+	TextUtilities::PrepareForSending(left, prepareFlags);
+	return left;
+}
+
 void HistoryWidget::saveEditMsg() {
 	Expects(_history != nullptr);
 
@@ -3849,15 +3866,8 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	}
 	const auto webPageDraft = _preview->draft();
-	const auto textWithTags = _field->getTextWithAppliedMarkdown();
-	const auto prepareFlags = Ui::ItemTextOptions(
-		_history,
-		session().user()).flags;
+	auto left = prepareTextForEditMsg();
 	auto sending = TextWithEntities();
-	auto left = TextWithEntities {
-		textWithTags.text,
-		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
-	TextUtilities::PrepareForSending(left, prepareFlags);
 
 	const auto media = item->media();
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)
@@ -7291,6 +7301,36 @@ void HistoryWidget::showPremiumToast(not_null<DocumentData*> document) {
 	_stickerToast->showFor(document);
 }
 
+void HistoryWidget::checkCharsLimitation() {
+	if (!_history || !_editMsgId) {
+		if (_charsLimitation) {
+			_charsLimitation = nullptr;
+		}
+		return;
+	}
+	const auto limits = Data::PremiumLimits(&session());
+	const auto left = prepareTextForEditMsg();
+	const auto remove = left.text.size() - limits.captionLengthCurrent();
+	if (remove > 0) {
+		if (!_charsLimitation) {
+			_charsLimitation = base::make_unique_q<CharactersLimitLabel>(
+				this,
+				_send.get());
+			_charsLimitation->show();
+			Data::AmPremiumValue(
+				&session()
+			) | rpl::start_with_next([=] {
+				checkCharsLimitation();
+			}, _charsLimitation->lifetime());
+		}
+		_charsLimitation->setLeft(remove);
+	} else {
+		if (_charsLimitation) {
+			_charsLimitation = nullptr;
+		}
+	}
+}
+
 void HistoryWidget::setFieldText(
 		const TextWithTags &textWithTags,
 		TextUpdateEvents events,
@@ -7302,6 +7342,8 @@ void HistoryWidget::setFieldText(
 	_field->setTextCursor(cursor);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft
 		| TextUpdateEvent::SendTyping;
+
+	checkCharsLimitation();
 
 	if (_preview) {
 		_preview->checkNow(false);

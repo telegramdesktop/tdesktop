@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
 #include "data/data_photo_media.h"
+#include "data/data_premium_limits.h" // Data::PremiumLimits.
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
@@ -47,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
@@ -63,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 #include "media/audio/media_audio.h"
 #include "settings/settings_premium.h"
+#include "ui/item_text_options.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"
@@ -1205,6 +1208,8 @@ void ComposeControls::setFieldText(
 	_textUpdateEvents = TextUpdateEvent::SaveDraft
 		| TextUpdateEvent::SendTyping;
 
+	checkCharsLimitation();
+
 	if (_preview) {
 		_preview->checkNow(false);
 	}
@@ -1788,6 +1793,8 @@ void ComposeControls::fieldChanged() {
 		}
 	});
 
+	checkCharsLimitation();
+
 	_saveCloudDraftTimer.cancel();
 	if (!(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
 		return;
@@ -2021,6 +2028,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			_preview->setDisabled(false);
 		}
 	}
+	checkCharsLimitation();
 }
 
 void ComposeControls::cancelForward() {
@@ -3282,6 +3290,52 @@ Fn<void()> ComposeControls::restoreTextCallback(
 			_field->textCursor().insertText(insertTextOnCancel);
 		}
 	});
+}
+
+TextWithEntities ComposeControls::prepareTextForEditMsg() const {
+	if (!_history) {
+		return {};
+	}
+	const auto textWithTags = getTextWithAppliedMarkdown();
+	const auto prepareFlags = Ui::ItemTextOptions(
+		_history,
+		session().user()).flags;
+	auto left = TextWithEntities {
+		textWithTags.text,
+		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
+	TextUtilities::PrepareForSending(left, prepareFlags);
+	return left;
+}
+
+void ComposeControls::checkCharsLimitation() {
+	if (!_history || !isEditingMessage()) {
+		if (_charsLimitation) {
+			_charsLimitation = nullptr;
+		}
+		return;
+	}
+	const auto limits = Data::PremiumLimits(&session());
+	const auto left = prepareTextForEditMsg();
+	const auto remove = left.text.size() - limits.captionLengthCurrent();
+	if (remove > 0) {
+		if (!_charsLimitation) {
+			using namespace Controls;
+			_charsLimitation = base::make_unique_q<CharactersLimitLabel>(
+				_wrap.get(),
+				_send.get());
+			_charsLimitation->show();
+			Data::AmPremiumValue(
+				&session()
+			) | rpl::start_with_next([=] {
+				checkCharsLimitation();
+			}, _charsLimitation->lifetime());
+		}
+		_charsLimitation->setLeft(remove);
+	} else {
+		if (_charsLimitation) {
+			_charsLimitation = nullptr;
+		}
+	}
 }
 
 } // namespace HistoryView
