@@ -3322,7 +3322,8 @@ void ComposeControls::checkCharsLimitation() {
 			using namespace Controls;
 			_charsLimitation = base::make_unique_q<CharactersLimitLabel>(
 				_wrap.get(),
-				_send.get());
+				_send.get(),
+				style::al_bottom);
 			_charsLimitation->show();
 			Data::AmPremiumValue(
 				&session()

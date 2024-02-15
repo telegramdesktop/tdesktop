@@ -7319,7 +7319,8 @@ void HistoryWidget::checkCharsLimitation() {
 		if (!_charsLimitation) {
 			_charsLimitation = base::make_unique_q<CharactersLimitLabel>(
 				this,
-				_send.get());
+				_send.get(),
+				style::al_bottom);
 			_charsLimitation->show();
 			Data::AmPremiumValue(
 				&session()

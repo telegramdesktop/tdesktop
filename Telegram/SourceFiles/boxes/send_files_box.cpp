@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
+#include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/history_view_schedule_box.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
@@ -48,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
 #include "data/data_user.h"
+#include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_premium_limits.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -1060,6 +1062,39 @@ void SendFilesBox::setupCaption() {
 
 	updateCaptionPlaceholder();
 	setupEmojiPanel();
+
+	rpl::single(rpl::empty_value()) | rpl::then(
+		_caption->changes()
+	) | rpl::start_with_next([=] {
+		checkCharsLimitation();
+	}, _caption->lifetime());
+}
+
+void SendFilesBox::checkCharsLimitation() {
+	const auto limits = Data::PremiumLimits(&_show->session());
+	const auto caption = (_caption && !_caption->isHidden())
+		? _caption->getTextWithAppliedMarkdown()
+		: TextWithTags();
+	const auto remove = caption.text.size() - limits.captionLengthCurrent();
+	if ((remove > 0) && _emojiToggle) {
+		if (!_charsLimitation) {
+			_charsLimitation = base::make_unique_q<CharactersLimitLabel>(
+				this,
+				_emojiToggle.data(),
+				style::al_top);
+			_charsLimitation->show();
+			Data::AmPremiumValue(
+				&_show->session()
+			) | rpl::start_with_next([=] {
+				checkCharsLimitation();
+			}, _charsLimitation->lifetime());
+		}
+		_charsLimitation->setLeft(remove);
+	} else {
+		if (_charsLimitation) {
+			_charsLimitation = nullptr;
+		}
+	}
 }
 
 void SendFilesBox::setupEmojiPanel() {

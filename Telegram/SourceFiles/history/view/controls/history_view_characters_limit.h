@@ -15,7 +15,8 @@ class CharactersLimitLabel final : public Ui::FlatLabel {
 public:
 	CharactersLimitLabel(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Ui::RpWidget*> widgetBelow);
+		not_null<Ui::RpWidget*> widgetToAlign,
+		style::align align);
 
 	void setLeft(int value);
 

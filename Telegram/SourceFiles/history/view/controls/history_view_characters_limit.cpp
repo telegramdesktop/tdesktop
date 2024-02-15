@@ -7,20 +7,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_characters_limit.h"
 
+#include "ui/rect.h"
 #include "styles/style_chat_helpers.h"
 
 namespace HistoryView::Controls {
 
 CharactersLimitLabel::CharactersLimitLabel(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Ui::RpWidget*> widgetBelow)
+	not_null<Ui::RpWidget*> widgetToAlign,
+	style::align align)
 : Ui::FlatLabel(parent, st::historyCharsLimitationLabel) {
+	Expects((align == style::al_top) || align == style::al_bottom);
+	const auto w = st::historyCharsLimitationLabel.minWidth;
+	using F = Fn<void(int, const QRect &)>;
+	const auto position = (align == style::al_top)
+		? F([=](int height, const QRect &g) {
+			move(g.x() + (g.width() - w) / 2, rect::bottom(g));
+		})
+		: F([=](int height, const QRect &g) {
+			move(g.x() + (g.width() - w) / 2, g.y() - height);
+		});
 	rpl::combine(
 		Ui::RpWidget::heightValue(),
-		widgetBelow->positionValue()
-	) | rpl::start_with_next([=](int height, const QPoint &p) {
-		move(p.x(), p.y() - height);
-	}, lifetime());
+		widgetToAlign->geometryValue()
+	) | rpl::start_with_next(position, lifetime());
 }
 
 void CharactersLimitLabel::setLeft(int value) {
