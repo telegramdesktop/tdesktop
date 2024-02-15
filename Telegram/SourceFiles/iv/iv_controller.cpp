@@ -204,7 +204,9 @@ Controller::Controller()
 }
 
 Controller::~Controller() {
-	_window->hide();
+	if (_window) {
+		_window->hide();
+	}
 	_ready = false;
 	_webview = nullptr;
 	_title = nullptr;
@@ -424,6 +426,10 @@ void Controller::createWebview(const QString &dataPath) {
 		});
 	});
 	raw->setDataRequestHandler([=](Webview::DataRequest request) {
+		const auto pos = request.id.find('#');
+		if (pos != request.id.npos) {
+			request.id = request.id.substr(0, pos);
+		}
 		if (!request.id.starts_with("iv/")) {
 			_dataRequests.fire(std::move(request));
 			return Webview::DataResult::Pending;
@@ -520,11 +526,13 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 		}
 	} else if (_ready) {
 		_webview->eval(navigateScript(index, hash));
+		_window->raise();
 		_window->activateWindow();
 		_window->setFocus();
 	} else {
 		_navigateToIndexWhenReady = index;
 		_navigateToHashWhenReady = hash;
+		_window->raise();
 		_window->activateWindow();
 		_window->setFocus();
 	}

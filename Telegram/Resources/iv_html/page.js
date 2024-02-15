@@ -93,13 +93,16 @@ var IV = {
 	},
 	lastScrollTop: 0,
 	frameScrolled: function (e) {
-		const now = document.documentElement.scrollTop;
-		if (now < 100) {
+		const was = IV.lastScrollTop;
+		IV.lastScrollTop = IV.findPageScroll().scrollTop;
+		IV.updateJumpToTop(was < IV.lastScrollTop);
+	},
+	updateJumpToTop: function (scrolledDown) {
+		if (IV.lastScrollTop < 100) {
 			document.getElementById('bottom_up').classList.add('hidden');
-		} else if (now > IV.lastScrollTop && now > 200) {
+		} else if (scrolledDown && IV.lastScrollTop > 200) {
 			document.getElementById('bottom_up').classList.remove('hidden');
 		}
-		IV.lastScrollTop = now;
 	},
 	updateStyles: function (styles) {
 		if (IV.styles !== styles) {
@@ -221,7 +224,13 @@ var IV = {
 		}
 	},
 	init: function () {
+		IV.platform = window.navigator.platform.toLowerCase();
+		IV.mac = IV.platform.startsWith('mac');
+		IV.win = IV.platform.startsWith('win');
+
 		window.history.replaceState(IV.computeCurrentState(), '');
+		IV.lastScrollTop = window.history.state.scroll;
+		IV.findPageScroll().onscroll = IV.frameScrolled;
 
 		const buttons = document.getElementsByClassName('fixed_button');
 		for (let i = 0; i < buttons.length; ++i) {
@@ -287,7 +296,9 @@ var IV = {
 		}, 3000);
 	},
 	scrollTo: function (y, instant) {
-		document.getElementById('bottom_up').classList.add('hidden');
+		if (y < 200) {
+			document.getElementById('bottom_up').classList.add('hidden');
+		}
 		IV.findPageScroll().scrollTo({
 			top: y || 0,
 			behavior: instant ? 'instant' : 'smooth'
@@ -348,6 +359,7 @@ var IV = {
 			el.innerHTML = '<div class="page-slide"><article>'
 				+ data.html
 				+ '</article></div>';
+			el.onscroll = IV.frameScrolled;
 			IV.cache[index].dom = el;
 
 			IV.navigateToDOM(index, hash);
@@ -357,7 +369,7 @@ var IV = {
 	navigateToDOM: function (index, hash) {
 		IV.pending = null;
 		if (IV.index == index) {
-			IV.jumpToHash(hash);
+			IV.jumpToHash(hash, IV.mac);
 			return;
 		}
 		window.history.replaceState(IV.computeCurrentState(), '');
@@ -429,11 +441,16 @@ var IV = {
 			IV.initMedia();
 			if (scroll === undefined) {
 				IV.jumpToHash(hash, true);
+			} else {
+				IV.lastScrollTop = scroll;
+				IV.updateJumpToTop(true);
 			}
 		} else if (scroll !== undefined) {
-			IV.scrollTo(scroll);
+			IV.scrollTo(scroll, IV.mac);
+			IV.lastScrollTop = scroll;
+			IV.updateJumpToTop(true);
 		} else {
-			IV.jumpToHash(hash);
+			IV.jumpToHash(hash, IV.mac);
 		}
 	},
 	back: function () {
@@ -449,7 +466,6 @@ document.onclick = IV.frameClickHandler;
 document.onkeydown = IV.frameKeyDown;
 document.onmouseenter = IV.frameMouseEnter;
 document.onmouseup = IV.frameMouseUp;
-document.onscroll = IV.frameScrolled;
 window.onmessage = IV.postMessageHandler;
 
 window.addEventListener('popstate', function (e) {
