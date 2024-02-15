@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "storage/localimageloader.h"
@@ -653,7 +654,10 @@ void ScheduledWidget::edit(
 	auto sending = TextWithEntities();
 	auto left = _composeControls->prepareTextForEditMsg();
 
-	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)
+	const auto originalLeftSize = left.text.size();
+	const auto maxCaptionSize = Data::PremiumLimits(
+		&session()).captionLengthCurrent();
+	if (!TextUtilities::CutPart(sending, left, maxCaptionSize)
 		&& (!item
 			|| !item->media()
 			|| !item->media()->allowsEditCaption())) {
@@ -664,7 +668,7 @@ void ScheduledWidget::edit(
 		}
 		return;
 	} else if (!left.text.isEmpty()) {
-		const auto remove = left.text.size();
+		const auto remove = originalLeftSize - maxCaptionSize;
 		controller()->showToast(
 			tr::lng_edit_limit_reached(tr::now, lt_count, remove));
 		return;

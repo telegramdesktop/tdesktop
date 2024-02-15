@@ -3870,7 +3870,11 @@ void HistoryWidget::saveEditMsg() {
 	auto sending = TextWithEntities();
 
 	const auto media = item->media();
-	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)
+
+	const auto originalLeftSize = left.text.size();
+	const auto maxCaptionSize = Data::PremiumLimits(
+		&session()).captionLengthCurrent();
+	if (!TextUtilities::CutPart(sending, left, maxCaptionSize)
 		&& (webPageDraft.removed
 			|| webPageDraft.url.isEmpty()
 			|| !webPageDraft.manual)
@@ -3880,7 +3884,7 @@ void HistoryWidget::saveEditMsg() {
 			Box<DeleteMessagesBox>(item, suggestModerateActions));
 		return;
 	} else if (!left.text.isEmpty()) {
-		const auto remove = left.text.size();
+		const auto remove = originalLeftSize - maxCaptionSize;
 		controller()->showToast(
 			tr::lng_edit_limit_reached(tr::now, lt_count, remove));
 		return;
