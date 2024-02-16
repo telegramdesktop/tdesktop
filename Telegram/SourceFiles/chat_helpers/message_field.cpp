@@ -441,7 +441,9 @@ bool HasSendText(not_null<const Ui::InputField*> field) {
 	return false;
 }
 
-void InitMessageFieldFade(not_null<Ui::InputField*> field) {
+void InitMessageFieldFade(
+		not_null<Ui::InputField*> field,
+		const style::color &bg) {
 	class Fade final : public Ui::RpWidget {
 	public:
 		using Ui::RpWidget::RpWidget;
@@ -467,7 +469,7 @@ void InitMessageFieldFade(not_null<Ui::InputField*> field) {
 	const auto topFade = Ui::CreateChild<Fade>(field.get());
 	const auto bottomFade = Ui::CreateChild<Fade>(field.get());
 
-	const auto generateFade = [=] {
+	const auto generateFade = [=, bg = bg->c] {
 		const auto size = QSize(1, st::historyComposeFieldFadeHeight);
 		auto fade = QPixmap(size * style::DevicePixelRatio());
 		fade.setDevicePixelRatio(style::DevicePixelRatio());
@@ -476,10 +478,7 @@ void InitMessageFieldFade(not_null<Ui::InputField*> field) {
 			auto p = QPainter(&fade);
 
 			auto gradient = QLinearGradient(0, 1, 0, size.height());
-			gradient.setStops({
-				{ 0., st::historyComposeField.textBg->c },
-				{ .9, Qt::transparent },
-			});
+			gradient.setStops({ { 0., bg }, { .9, Qt::transparent } });
 			p.setPen(Qt::NoPen);
 			p.setBrush(gradient);
 			p.drawRect(Rect(size));

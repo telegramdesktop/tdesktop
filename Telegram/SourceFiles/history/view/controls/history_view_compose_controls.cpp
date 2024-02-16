@@ -1583,7 +1583,7 @@ void ComposeControls::initField() {
 		}
 		return false;
 	});
-	InitMessageFieldFade(_field);
+	InitMessageFieldFade(_field, _st.field.textBg);
 	_field->setEditLinkCallback(
 		DefaultEditLinkCallback(_show, _field, &_st.boxField));
 	initAutocomplete();
