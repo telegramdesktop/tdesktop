@@ -18,7 +18,8 @@ namespace Ui {
 class DynamicImage;
 
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeUserpicThumbnail(
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	bool forceRound = false);
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeStoryThumbnail(
 	not_null<Data::Story*> story);
 

@@ -66,7 +66,7 @@ Content State::next() {
 		if (const auto i = _userpics.find(peer); i != end(_userpics)) {
 			userpic = i->second;
 		} else {
-			userpic = Ui::MakeUserpicThumbnail(peer);
+			userpic = Ui::MakeUserpicThumbnail(peer, true);
 			_userpics.emplace(peer, userpic);
 		}
 		result.elements.push_back({

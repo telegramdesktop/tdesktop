@@ -25,7 +25,7 @@ namespace {
 
 class PeerUserpic final : public DynamicImage {
 public:
-	explicit PeerUserpic(not_null<PeerData*> peer);
+	PeerUserpic(not_null<PeerData*> peer, bool forceRound);
 
 	QImage image(int size) override;
 	void subscribeToUpdates(Fn<void()> callback) override;
@@ -33,7 +33,7 @@ public:
 private:
 	struct Subscribed {
 		explicit Subscribed(Fn<void()> callback)
-			: callback(std::move(callback)) {
+		: callback(std::move(callback)) {
 		}
 
 		Ui::PeerUserpicView view;
@@ -49,6 +49,7 @@ private:
 	const not_null<PeerData*> _peer;
 	QImage _frame;
 	std::unique_ptr<Subscribed> _subscribed;
+	bool _forceRound = false;
 
 };
 
@@ -116,8 +117,9 @@ private:
 
 };
 
-PeerUserpic::PeerUserpic(not_null<PeerData*> peer)
-: _peer(peer) {
+PeerUserpic::PeerUserpic(not_null<PeerData*> peer, bool forceRound)
+: _peer(peer)
+, _forceRound(forceRound) {
 }
 
 QImage PeerUserpic::image(int size) {
@@ -135,7 +137,17 @@ QImage PeerUserpic::image(int size) {
 		_frame.fill(Qt::transparent);
 
 		auto p = Painter(&_frame);
-		_peer->paintUserpic(p, _subscribed->view, 0, 0, size);
+		auto &view = _subscribed->view;
+		if (!_forceRound) {
+			_peer->paintUserpic(p, view, 0, 0, size);
+		} else if (const auto cloud = _peer->userpicCloudImage(view)) {
+			Ui::ValidateUserpicCache(view, cloud, nullptr, size, false);
+			p.drawImage(QRect(0, 0, size, size), view.cached);
+		} else {
+			const auto r = size / 2.;
+			const auto empty = _peer->generateUserpicImage(view, size, r);
+			p.drawImage(QRect(0, 0, size, size), empty);
+		}
 	}
 	return _frame;
 }
@@ -302,8 +314,9 @@ void EmptyThumbnail::subscribeToUpdates(Fn<void()> callback) {
 } // namespace
 
 std::shared_ptr<DynamicImage> MakeUserpicThumbnail(
-		not_null<PeerData*> peer) {
-	return std::make_shared<PeerUserpic>(peer);
+		not_null<PeerData*> peer,
+		bool forceRound) {
+	return std::make_shared<PeerUserpic>(peer, forceRound);
 }
 
 std::shared_ptr<DynamicImage> MakeStoryThumbnail(
