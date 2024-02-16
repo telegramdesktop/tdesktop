@@ -469,7 +469,7 @@ void InitMessageFieldFade(
 	const auto topFade = Ui::CreateChild<Fade>(field.get());
 	const auto bottomFade = Ui::CreateChild<Fade>(field.get());
 
-	const auto generateFade = [=, bg = bg->c] {
+	const auto generateFade = [=] {
 		const auto size = QSize(1, st::historyComposeFieldFadeHeight);
 		auto fade = QPixmap(size * style::DevicePixelRatio());
 		fade.setDevicePixelRatio(style::DevicePixelRatio());
@@ -478,7 +478,7 @@ void InitMessageFieldFade(
 			auto p = QPainter(&fade);
 
 			auto gradient = QLinearGradient(0, 1, 0, size.height());
-			gradient.setStops({ { 0., bg }, { .9, Qt::transparent } });
+			gradient.setStops({ { 0., bg->c }, { .9, Qt::transparent } });
 			p.setPen(Qt::NoPen);
 			p.setBrush(gradient);
 			p.drawRect(Rect(size));
