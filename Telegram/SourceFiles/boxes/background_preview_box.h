@@ -95,6 +95,7 @@ private:
 	[[nodiscard]] OverridenStyle prepareOverridenStyle(bool dark);
 
 	[[nodiscard]] bool forChannel() const;
+	[[nodiscard]] bool forGroup() const;
 	void checkLevelForChannel();
 
 	void recreate(bool dark);
