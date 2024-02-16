@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "base/invoke_queued.h"
+#include "base/qt_signal_producer.h"
 #include "iv/iv_data.h"
 #include "lang/lang_keys.h"
 #include "ui/platform/ui_platform_window_title.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonValue>
 #include <QtCore/QFile>
 #include <QtGui/QPainter>
+#include <QtGui/QWindow>
 #include <charconv>
 
 namespace Iv {
@@ -182,7 +184,7 @@ namespace {
 				<path d="M14.9972363,18 L9.13865768,12.1414214 C9.06055283,12.0633165 9.06055283,11.9366835 9.13865768,11.8585786 L14.9972363,6 L14.9972363,6" transform="translate(11.997236, 12.000000) scale(-1, -1) rotate(-90.000000) translate(-11.997236, -12.000000) "></path>
 			</svg>
 		</button>
-		<div class="page-scroll"><div class="page-slide">
+		<div class="page-scroll" tabindex="-1"><div class="page-slide">
 			<article)"_q + contentAttributes + ">"_q + page.content + R"(</article>
 		</div></div>
 		<script>)"_q + js + R"(</script>
@@ -285,6 +287,15 @@ void Controller::createWindow() {
 	_window = std::make_unique<Ui::RpWindow>();
 	_window->setTitleStyle(st::ivTitle);
 	const auto window = _window.get();
+
+	base::qt_signal_producer(
+		window->window()->windowHandle(),
+		&QWindow::activeChanged
+	) | rpl::filter([=] {
+		return _webview && window->window()->windowHandle()->isActive();
+	}) | rpl::start_with_next([=] {
+		_webview->focus();
+	}, window->lifetime());
 
 	_title = std::make_unique<Ui::RpWidget>(window);
 	_title->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -521,6 +532,7 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 				id += '#' + hash;
 			}
 			_webview->navigateToData(id);
+			_webview->focus();
 		} else {
 			_events.fire({ Event::Type::Close });
 		}
@@ -529,12 +541,14 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 		_window->raise();
 		_window->activateWindow();
 		_window->setFocus();
+		_webview->focus();
 	} else {
 		_navigateToIndexWhenReady = index;
 		_navigateToHashWhenReady = hash;
 		_window->raise();
 		_window->activateWindow();
 		_window->setFocus();
+		_webview->focus();
 	}
 }
 

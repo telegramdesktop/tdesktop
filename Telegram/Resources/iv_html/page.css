@@ -135,6 +135,9 @@ html.custom_scroll ::-webkit-scrollbar-thumb:hover {
 	overflow-x: hidden;
 	overflow-y: auto;
 }
+.page-scroll:focus {
+	outline: none;
+}
 .page-slide {
 	position: relative;
 	width: 100%;

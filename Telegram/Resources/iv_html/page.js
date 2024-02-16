@@ -79,10 +79,14 @@ var IV = {
 			});
 		} else if (e.key === 'Escape' || e.keyCode === 27) {
 			e.preventDefault();
-			IV.notify({
-				event: 'keydown',
-				key: 'escape',
-			});
+			if (IV.position) {
+				window.history.back();
+			} else {
+				IV.notify({
+					event: 'keydown',
+					key: 'escape',
+				});
+			}
 		}
 	},
 	frameMouseEnter: function (e) {
@@ -250,6 +254,8 @@ var IV = {
 		}
 		IV.initMedia();
 		IV.notify({ event: 'ready' });
+
+		IV.forceScrollFocus();
 	},
 	initMedia: function () {
 		const photos = document.getElementsByClassName('photo');
@@ -356,6 +362,7 @@ var IV = {
 			var data = JSON.parse(IV.cache[index].content);
 			var el = document.createElement('div');
 			el.className = 'page-scroll';
+			el.tabIndex = '-1';
 			el.innerHTML = '<div class="page-slide"><article>'
 				+ data.html
 				+ '</article></div>';
@@ -370,6 +377,7 @@ var IV = {
 		IV.pending = null;
 		if (IV.index == index) {
 			IV.jumpToHash(hash, IV.mac);
+			IV.forceScrollFocus();
 			return;
 		}
 		window.history.replaceState(IV.computeCurrentState(), '');
@@ -452,6 +460,15 @@ var IV = {
 		} else {
 			IV.jumpToHash(hash, IV.mac);
 		}
+
+		IV.forceScrollFocus();
+	},
+	forceScrollFocus: function () {
+		IV.findPageScroll().focus();
+		setTimeout(function () {
+			// Doesn't work on #hash-ed pages in Windows WebView2 otherwise.
+			IV.findPageScroll().focus();
+		}, 100);
 	},
 	back: function () {
         window.history.back();
@@ -467,9 +484,9 @@ document.onkeydown = IV.frameKeyDown;
 document.onmouseenter = IV.frameMouseEnter;
 document.onmouseup = IV.frameMouseUp;
 window.onmessage = IV.postMessageHandler;
-
 window.addEventListener('popstate', function (e) {
 	if (e.state) {
 		IV.showDOM(e.state.index, e.state.hash, e.state.scroll);
 	}
 });
+document.addEventListener("DOMContentLoaded", IV.forceScrollFocus);
