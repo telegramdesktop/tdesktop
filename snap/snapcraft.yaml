@@ -191,6 +191,7 @@ parts:
 
   desktop-qt:
     source: https://github.com/desktop-app/snapcraft-desktop-helpers.git
+    source-depth: 1
     source-subdir: qt
     plugin: make
     make-parameters: ["FLAVOR=qt5"]
