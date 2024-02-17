@@ -1363,8 +1363,15 @@ void GiveawayInfoBox(
 		? start->quantity
 		: (results->winnersCount + results->unclaimedCount);
 	const auto months = start ? start->months : results->months;
-	const auto group = !start->channels.empty()
-		&& start->channels.front()->isMegagroup();
+	const auto group = results
+		? results->channel->isMegagroup()
+		: !start->channels.empty()
+		? start->channels.front()->isMegagroup()
+		: false;
+	const auto group = results
+		? results->channel->isMegagroup()
+		: (!start->channels.empty()
+			&& start->channels.front()->isMegagroup());
 	text.append((finished
 		? tr::lng_prizes_end_text
 		: tr::lng_prizes_how_text)(
