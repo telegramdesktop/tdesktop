@@ -920,7 +920,7 @@ void Controller::show(
 		}
 	}
 
-	if (peer->isSelf() || peer->isChannel() || peer->isServiceUser()) {
+	if (peer->isSelf() || peer->isBroadcast() || peer->isServiceUser()) {
 		_reactions->setReactionIconWidget(_recentViews->likeIconWidget());
 	} else if (const auto like = _replyArea->likeAnimationTarget()) {
 		_reactions->setReactionIconWidget(like);
