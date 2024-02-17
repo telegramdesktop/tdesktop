@@ -221,14 +221,19 @@ void FillSourceMenu(
 			controller->showSection(Info::Stories::Make(peer));
 		}, &st::menuIconStoriesSavedSection);
 	} else {
+		const auto group = peer->isMegagroup();
 		const auto channel = peer->isChannel();
-		const auto showHistoryText = channel
+		const auto showHistoryText = group
+			? tr::lng_context_open_group(tr::now)
+			: channel
 			? tr::lng_context_open_channel(tr::now)
 			: tr::lng_profile_send_message(tr::now);
 		add(showHistoryText, [=] {
 			controller->showPeerHistory(peer);
 		}, channel ? &st::menuIconChannel : &st::menuIconChatBubble);
-		const auto viewProfileText = channel
+		const auto viewProfileText = group
+			? tr::lng_context_view_group(tr::now)
+			: channel
 			? tr::lng_context_view_channel(tr::now)
 			: tr::lng_context_view_profile(tr::now);
 		add(viewProfileText, [=] {
