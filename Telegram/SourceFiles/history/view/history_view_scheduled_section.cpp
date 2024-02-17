@@ -638,12 +638,14 @@ void ScheduledWidget::edit(
 	auto left = _composeControls->prepareTextForEditMsg();
 
 	const auto originalLeftSize = left.text.size();
-	const auto maxCaptionSize = Data::PremiumLimits(
-		&session()).captionLengthCurrent();
+	const auto hasMediaWithCaption = item
+		&& item->media()
+		&& item->media()->allowsEditCaption();
+	const auto maxCaptionSize = !hasMediaWithCaption
+		? MaxMessageSize
+		: Data::PremiumLimits(&session()).captionLengthCurrent();
 	if (!TextUtilities::CutPart(sending, left, maxCaptionSize)
-		&& (!item
-			|| !item->media()
-			|| !item->media()->allowsEditCaption())) {
+		&& !hasMediaWithCaption) {
 		if (item) {
 			controller()->show(Box<DeleteMessagesBox>(item, false));
 		} else {

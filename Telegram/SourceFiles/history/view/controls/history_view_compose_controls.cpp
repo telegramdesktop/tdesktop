@@ -3315,9 +3315,12 @@ TextWithEntities ComposeControls::prepareTextForEditMsg() const {
 
 void ComposeControls::checkCharsLimitation() {
 	if (!_history || !isEditingMessage()) {
-		if (_charsLimitation) {
-			_charsLimitation = nullptr;
-		}
+		_charsLimitation = nullptr;
+		return;
+	}
+	const auto item = _history->owner().message(_header->editMsgId());
+	if (!item || !item->media() || !item->media()->allowsEditCaption()) {
+		_charsLimitation = nullptr;
 		return;
 	}
 	const auto limits = Data::PremiumLimits(&session());
@@ -3339,9 +3342,7 @@ void ComposeControls::checkCharsLimitation() {
 		}
 		_charsLimitation->setLeft(remove);
 	} else {
-		if (_charsLimitation) {
-			_charsLimitation = nullptr;
-		}
+		_charsLimitation = nullptr;
 	}
 }
 

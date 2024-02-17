@@ -3875,13 +3875,17 @@ void HistoryWidget::saveEditMsg() {
 	const auto media = item->media();
 
 	const auto originalLeftSize = left.text.size();
-	const auto maxCaptionSize = Data::PremiumLimits(
-		&session()).captionLengthCurrent();
+	const auto hasMediaWithCaption = item
+		&& item->media()
+		&& item->media()->allowsEditCaption();
+	const auto maxCaptionSize = !hasMediaWithCaption
+		? MaxMessageSize
+		: Data::PremiumLimits(&session()).captionLengthCurrent();
 	if (!TextUtilities::CutPart(sending, left, maxCaptionSize)
 		&& (webPageDraft.removed
 			|| webPageDraft.url.isEmpty()
 			|| !webPageDraft.manual)
-		&& (!media || !media->allowsEditCaption())) {
+		&& !hasMediaWithCaption) {
 		const auto suggestModerateActions = false;
 		controller()->show(
 			Box<DeleteMessagesBox>(item, suggestModerateActions));
@@ -7309,9 +7313,12 @@ void HistoryWidget::showPremiumToast(not_null<DocumentData*> document) {
 
 void HistoryWidget::checkCharsLimitation() {
 	if (!_history || !_editMsgId) {
-		if (_charsLimitation) {
-			_charsLimitation = nullptr;
-		}
+		_charsLimitation = nullptr;
+		return;
+	}
+	const auto item = session().data().message(_history->peer, _editMsgId);
+	if (!item || !item->media() || !item->media()->allowsEditCaption()) {
+		_charsLimitation = nullptr;
 		return;
 	}
 	const auto limits = Data::PremiumLimits(&session());
@@ -7332,9 +7339,7 @@ void HistoryWidget::checkCharsLimitation() {
 		}
 		_charsLimitation->setLeft(remove);
 	} else {
-		if (_charsLimitation) {
-			_charsLimitation = nullptr;
-		}
+		_charsLimitation = nullptr;
 	}
 }
 
