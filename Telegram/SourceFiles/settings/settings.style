@@ -574,3 +574,14 @@ messagePrivacySubscribe: SettingsButton(settingsButtonLight) {
 	iconLeft: 20px;
 }
 messagePrivacyLock: icon {{ "info/info_rights_lock", checkboxFg }};
+
+peerAppearanceButton: SettingsButton(settingsButtonLight) {
+	padding: margins(60px, 8px, 22px, 8px);
+	iconLeft: 20px;
+}
+peerAppearanceCoverLabel: FlatLabel(boxDividerLabel) {
+	align: align(top);
+}
+peerAppearanceCoverLabelMargin: margins(22px, 0px, 22px, 17px);
+peerAppearanceIconPadding: margins(0px, 15px, 0px, 5px);
+peerAppearanceDividerTextMargin: margins(22px, 8px, 22px, 11px);

@@ -2157,6 +2157,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_group_button" = "Boost Group";
 "lng_boost_again_button" = "Boost Again";
+"lng_boost_group_about" = "Boost your group to unlock additional\nappearance settings.";
 "lng_boost_level#one" = "Level {count}";
 "lng_boost_level#other" = "Level {count}";
 "lng_boost_level_unlocks#one" = "Level {count} Unlocks:";

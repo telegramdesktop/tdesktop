@@ -30,20 +30,25 @@ void AddDivider(not_null<Ui::VerticalLayout*> container) {
 
 void AddDividerText(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text) {
-	AddDividerText(container, std::move(text) | Ui::Text::ToWithEntities());
+		rpl::producer<QString> text,
+		const style::margins &margins) {
+	AddDividerText(
+		container,
+		std::move(text) | Ui::Text::ToWithEntities(),
+		margins);
 }
 
 void AddDividerText(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<TextWithEntities> text) {
+		rpl::producer<TextWithEntities> text,
+		const style::margins &margins) {
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
 		object_ptr<Ui::FlatLabel>(
 			container,
 			std::move(text),
 			st::boxDividerLabel),
-		st::defaultBoxDividerLabelPadding));
+		margins));
 }
 
 not_null<Ui::FlatLabel*> AddSubsectionTitle(

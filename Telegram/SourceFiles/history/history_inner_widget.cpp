@@ -84,6 +84,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
+#include "chat_helpers/stickers_emoji_pack.h"
+
 #include <QtGui/QClipboard>
 #include <QtWidgets/QApplication>
 #include <QtCore/QMimeData>
@@ -2320,6 +2322,19 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		? reinterpret_cast<DocumentData*>(
 			link->property(kDocumentLinkMediaProperty).toULongLong())
 		: nullptr;
+	if (const auto media = _dragStateItem->media()) {
+		if (const auto document = media->document()) {
+			addDocumentActions(document, _dragStateItem);
+		}
+	}
+	if (_dragStateItem) {
+		if (const auto emoji = _dragStateItem->mainView()->isolatedEmoji()) {
+			const auto emojiStickers = &_dragStateItem->history()->session().emojiStickersPack();
+			if (const auto sticker = emojiStickers->stickerForEmoji(emoji)) {
+				addDocumentActions(sticker.document, _dragStateItem);
+			}
+		}
+	}
 	if (lnkPhoto || lnkDocument) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();

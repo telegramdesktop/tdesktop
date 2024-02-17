@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -686,7 +687,7 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 		rpl::producer<uint8> colorIndexValue,
 		rpl::producer<DocumentId> emojiIdValue,
 		Fn<void(DocumentId)> emojiIdChosen) {
-	const auto &basicSt = st::settingsButtonNoIcon;
+	const auto &basicSt = st::peerAppearanceButton;
 	const auto ratio = style::DevicePixelRatio();
 	const auto added = st::normalFont->spacew;
 	const auto emojiSize = Data::FrameSizeFromTag({}) / ratio;
@@ -698,10 +699,11 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	const auto st = parent->lifetime().make_state<style::SettingsButton>(
 		basicSt);
 	st->padding.setRight(rightPadding);
-	auto result = object_ptr<Ui::SettingsButton>(
+	auto result = Settings::CreateButtonWithIcon(
 		parent,
 		tr::lng_settings_color_emoji(),
-		*st);
+		*st,
+		{ &st::menuBlueIconColorNames });
 	const auto raw = result.data();
 
 	const auto right = Ui::CreateChild<Ui::RpWidget>(raw);
@@ -802,7 +804,7 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 		rpl::producer<DocumentId> statusIdValue,
 		Fn<void(DocumentId,TimeId)> statusIdChosen,
 		bool group) {
-	const auto &basicSt = st::settingsButtonNoIcon;
+	const auto &basicSt = st::peerAppearanceButton;
 	const auto ratio = style::DevicePixelRatio();
 	const auto added = st::normalFont->spacew;
 	const auto emojiSize = Data::FrameSizeFromTag({}) / ratio;
@@ -814,12 +816,13 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	const auto st = parent->lifetime().make_state<style::SettingsButton>(
 		basicSt);
 	st->padding.setRight(rightPadding);
-	auto result = object_ptr<Ui::SettingsButton>(
+	auto result = Settings::CreateButtonWithIcon(
 		parent,
 		(group
 			? tr::lng_edit_channel_status_group()
 			: tr::lng_edit_channel_status()),
-		*st);
+		*st,
+		{ &st::menuBlueIconEmojiStatus });
 	const auto raw = result.data();
 
 	const auto right = Ui::CreateChild<Ui::RpWidget>(raw);
@@ -931,7 +934,38 @@ void EditPeerColorBox(
 	state->emojiId = peer->backgroundEmojiId();
 	state->statusId = peer->emojiStatusId();
 
-	if (!group) {
+	if (group) {
+		const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(
+			box.get());
+		const auto verticalLayout = box->verticalLayout()->add(
+			object_ptr<Ui::VerticalLayout>(box.get()));
+
+		auto icon = CreateLottieIcon(
+			verticalLayout,
+			{
+				.name = u"palette"_q,
+				.sizeOverride = {
+					st::settingsCloudPasswordIconSize,
+					st::settingsCloudPasswordIconSize,
+				},
+			},
+			st::peerAppearanceIconPadding);
+		box->setShowFinishedCallback([animate = std::move(icon.animate)] {
+			animate(anim::repeat::once);
+		});
+		verticalLayout->add(std::move(icon.widget));
+		verticalLayout->add(
+			object_ptr<Ui::FlatLabel>(
+				verticalLayout,
+				tr::lng_boost_group_about(),
+				st::peerAppearanceCoverLabel),
+		st::peerAppearanceCoverLabelMargin);
+
+		verticalLayout->geometryValue(
+		) | rpl::start_with_next([=](const QRect &r) {
+			divider->setGeometry(r);
+		}, divider->lifetime());
+	} else {
 		box->addRow(object_ptr<PreviewWrap>(
 			box,
 			style,
@@ -953,9 +987,12 @@ void EditPeerColorBox(
 				[=](uint8 index) { state->index = index; }),
 			{ margin, skip, margin, skip });
 
-		Ui::AddDividerText(container, peer->isSelf()
-			? tr::lng_settings_color_about()
-			: tr::lng_settings_color_about_channel());
+		Ui::AddDividerText(
+			container,
+			(peer->isSelf()
+				? tr::lng_settings_color_about()
+				: tr::lng_settings_color_about_channel()),
+			st::peerAppearanceDividerTextMargin);
 
 		Ui::AddSkip(container, st::settingsColorSampleSkip);
 
@@ -968,19 +1005,23 @@ void EditPeerColorBox(
 			[=](DocumentId id) { state->emojiId = id; }));
 
 		Ui::AddSkip(container, st::settingsColorSampleSkip);
-		Ui::AddDividerText(container, peer->isSelf()
-			? tr::lng_settings_color_emoji_about()
-			: tr::lng_settings_color_emoji_about_channel());
+		Ui::AddDividerText(
+			container,
+			(peer->isSelf()
+				? tr::lng_settings_color_emoji_about()
+				: tr::lng_settings_color_emoji_about_channel()),
+			st::peerAppearanceDividerTextMargin);
 	}
 
 	if (const auto channel = peer->asChannel()) {
 		Ui::AddSkip(container, st::settingsColorSampleSkip);
-		container->add(object_ptr<Ui::SettingsButton>(
+		Settings::AddButtonWithIcon(
 			container,
 			(group
 				? tr::lng_edit_channel_wallpaper_group()
 				: tr::lng_edit_channel_wallpaper()),
-			st::settingsButtonNoIcon)
+			st::peerAppearanceButton,
+			{ &st::menuBlueIconWallpaper }
 		)->setClickedCallback([=] {
 			const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
 			if (const auto strong = show->resolveWindow(usage)) {
@@ -989,24 +1030,31 @@ void EditPeerColorBox(
 		});
 
 		Ui::AddSkip(container, st::settingsColorSampleSkip);
-		Ui::AddDividerText(container, group
-			? tr::lng_edit_channel_wallpaper_about_group()
-			: tr::lng_edit_channel_wallpaper_about());
+		Ui::AddDividerText(
+			container,
+			(group
+				? tr::lng_edit_channel_wallpaper_about_group()
+				: tr::lng_edit_channel_wallpaper_about()),
+			st::peerAppearanceDividerTextMargin);
 
 		if (group) {
 			Ui::AddSkip(container, st::settingsColorSampleSkip);
 
-			container->add(object_ptr<Ui::SettingsButton>(
+			Settings::AddButtonWithIcon(
 				container,
 				tr::lng_group_emoji(),
-				st::settingsButtonNoIcon)
+				st::peerAppearanceButton,
+				{ &st::menuBlueIconEmojiPack }
 			)->setClickedCallback([=] {
 				const auto isEmoji = true;
 				show->showBox(Box<StickersBox>(show, channel, isEmoji));
 			});
 
 			Ui::AddSkip(container, st::settingsColorSampleSkip);
-			Ui::AddDividerText(container, tr::lng_group_emoji_description());
+			Ui::AddDividerText(
+				container,
+				tr::lng_group_emoji_description(),
+				st::peerAppearanceDividerTextMargin);
 		}
 
 		// Preload exceptions list.
@@ -1032,9 +1080,12 @@ void EditPeerColorBox(
 			group));
 
 		Ui::AddSkip(container, st::settingsColorSampleSkip);
-		Ui::AddDividerText(container, group
-			? tr::lng_edit_channel_status_about_group()
-			: tr::lng_edit_channel_status_about());
+		Ui::AddDividerText(
+			container,
+			(group
+				? tr::lng_edit_channel_status_about_group()
+				: tr::lng_edit_channel_status_about()),
+			st::peerAppearanceDividerTextMargin);
 	}
 
 	box->addButton(tr::lng_settings_apply(), [=] {
