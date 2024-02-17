@@ -684,7 +684,10 @@ void SessionNavigation::applyBoost(
 			done({});
 		} else {
 			const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
-			const auto reassign = [=](std::vector<int> slots, int sources) {
+			const auto reassign = [=](
+					std::vector<int> slots,
+					int groups,
+					int channels) {
 				const auto count = int(slots.size());
 				const auto callback = [=](Ui::BoostCounters counters) {
 					if (const auto strong = weak->data()) {
@@ -696,10 +699,14 @@ void SessionNavigation::applyBoost(
 						lt_count,
 						count,
 						lt_channels,
-						tr::lng_boost_reassign_channels(
-							tr::now,
-							lt_count,
-							sources)));
+						(!groups
+							? tr::lng_boost_reassign_channels
+							: !channels
+							? tr::lng_boost_reassign_groups
+							: tr::lng_boost_reassign_mixed)(
+									tr::now,
+									lt_count,
+									groups + channels)));
 				};
 				applyBoostsChecked(
 					channel,

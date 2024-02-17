@@ -50,7 +50,7 @@ struct ForChannelBoostSlots {
 object_ptr<Ui::BoxContent> ReassignBoostsBox(
 	not_null<ChannelData*> to,
 	std::vector<TakenBoostSlot> from,
-	Fn<void(std::vector<int> slots, int sources)> reassign,
+	Fn<void(std::vector<int> slots, int groups, int channels)> reassign,
 	Fn<void()> cancel);
 
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateBoostReplaceUserpics(

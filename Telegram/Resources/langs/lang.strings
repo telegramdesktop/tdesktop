@@ -2226,6 +2226,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_reassign_done#other" = "{count} boosts are reassigned from {channels}.";
 "lng_boost_reassign_channels#one" = "{count} channel";
 "lng_boost_reassign_channels#other" = "{count} channels";
+"lng_boost_reassign_groups#one" = "{count} group";
+"lng_boost_reassign_groups#other" = "{count} groups";
+"lng_boost_reassign_mixed#one" = "{count} group or channel";
+"lng_boost_reassign_mixed#other" = "{count} groups and channels";
 
 "lng_boost_channel_title_color" = "Enable colors";
 "lng_boost_channel_needs_level_color#one" = "Your channel needs to reach **Level {count}** to change channel color.";
@@ -2321,8 +2325,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_duration_price" = "{price} x {amount}";
 "lng_giveaway_date_select" = "Select Date and Time";
 "lng_giveaway_date_confirm" = "Confirm";
-"lng_giveaway_channels_select#one" = "Select up to {count} channel";
-"lng_giveaway_channels_select#other" = "Select up to {count} channels";
 "lng_giveaway_recipients_save" = "Save Recipients";
 "lng_giveaway_recipients_deselect" = "Deselect All";
 "lng_giveaway_maximum_countries_error#one" = "You can select maximum {count} country.";

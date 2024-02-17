@@ -340,14 +340,15 @@ object_ptr<Ui::BoxContent> ReassignBoostFloodBox(int seconds, bool group) {
 object_ptr<Ui::BoxContent> ReassignBoostSingleBox(
 		not_null<ChannelData*> to,
 		TakenBoostSlot from,
-		Fn<void(std::vector<int> slots, int sources)> reassign,
+		Fn<void(std::vector<int> slots, int groups, int channels)> reassign,
 		Fn<void()> cancel) {
 	const auto reassigned = std::make_shared<bool>();
 	const auto slot = from.id;
 	const auto peer = to->owner().peer(from.peerId);
+	const auto group = peer->isMegagroup();
 	const auto confirmed = [=](Fn<void()> close) {
 		*reassigned = true;
-		reassign({ slot }, 1);
+		reassign({ slot }, group ? 1 : 0, group ? 0 : 1);
 		close();
 	};
 
@@ -442,7 +443,10 @@ Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
 		}
 		++linkStylesByLevel[level];
 	}
-
+	const auto &themes = channel->owner().cloudThemes().chatThemes();
+	if (themes.empty()) {
+		channel->owner().cloudThemes().refreshChatThemes();
+	}
 	return Ui::BoostFeatures{
 		.nameColorsByLevel = std::move(nameColorsByLevel),
 		.linkStylesByLevel = std::move(linkStylesByLevel),
@@ -455,8 +459,7 @@ Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
 		.wallpaperLevel = get(group
 			? u"group_wallpaper_level_min"_q
 			: u"channel_wallpaper_level_min"_q, 9),
-		.wallpapersCount = int(
-			channel->owner().cloudThemes().chatThemes().size()),
+		.wallpapersCount = themes.empty() ? 8 : int(themes.size()),
 		.customWallpaperLevel = get(group
 			? u"channel_custom_wallpaper_level_min"_q
 			: u"group_custom_wallpaper_level_min"_q, 10),
@@ -468,23 +471,37 @@ int BoostsForGift(not_null<Main::Session*> session) {
 	return session->account().appConfig().get<int>(key, 0);
 }
 
-[[nodiscard]] int SourcesCount(
+struct Sources {
+	int groups = 0;
+	int channels = 0;
+};
+[[nodiscard]] Sources SourcesCount(
+		not_null<ChannelData*> to,
 		const std::vector<TakenBoostSlot> &from,
 		const std::vector<int> &slots) {
-	auto checked = base::flat_set<PeerId>();
-	checked.reserve(slots.size());
+	auto groups = base::flat_set<PeerId>();
+	groups.reserve(slots.size());
+	auto channels = base::flat_set<PeerId>();
+	channels.reserve(slots.size());
+	const auto owner = &to->owner();
 	for (const auto slot : slots) {
 		const auto i = ranges::find(from, slot, &TakenBoostSlot::id);
 		Assert(i != end(from));
-		checked.emplace(i->peerId);
+		const auto id = i->peerId;
+		if (!groups.contains(id) && !channels.contains(id)) {
+			(owner->peer(id)->isMegagroup() ? groups : channels).insert(id);
+		}
 	}
-	return checked.size();
+	return {
+		.groups = int(groups.size()),
+		.channels = int(channels.size()),
+	};
 }
 
 object_ptr<Ui::BoxContent> ReassignBoostsBox(
 		not_null<ChannelData*> to,
 		std::vector<TakenBoostSlot> from,
-		Fn<void(std::vector<int> slots, int sources)> reassign,
+		Fn<void(std::vector<int> slots, int groups, int channels)> reassign,
 		Fn<void()> cancel) {
 	Expects(!from.empty());
 
@@ -505,10 +522,10 @@ object_ptr<Ui::BoxContent> ReassignBoostsBox(
 		) | rpl::start_with_next([=](std::vector<int> slots) {
 			box->clearButtons();
 			if (!slots.empty()) {
-				const auto sources = SourcesCount(from, slots);
+				const auto sources = SourcesCount(to, from, slots);
 				box->addButton(tr::lng_boost_reassign_button(), [=] {
 					*reassigned = true;
-					reassign(slots, sources);
+					reassign(slots, sources.groups, sources.channels);
 				});
 			}
 			box->addButton(tr::lng_cancel(), [=] {
