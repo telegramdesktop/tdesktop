@@ -357,6 +357,7 @@ struct UserpicData {
 	QString largeLink;
 	QByteArray firstName;
 	QByteArray lastName;
+	QByteArray tooltip;
 };
 
 struct StoryData {
@@ -743,9 +744,17 @@ QByteArray HtmlWriter::Wrap::pushUserpic(const UserpicData &userpic) {
 			},
 			{ "style", sizeStyle }
 		}));
-		result.append(pushDiv(
-			"initials",
-			"line-height: " + size));
+		if (userpic.tooltip.isEmpty()) {
+			result.append(pushDiv(
+				"initials",
+				"line-height: " + size));
+		} else {
+			result.append(pushTag("div", {
+				{ "class", "initials" },
+				{ "style", "line-height: " + size },
+				{ "title", userpic.tooltip },
+			}));
+		}
 		auto character = [](const QByteArray &from) {
 			const auto utf = QString::fromUtf8(from).trimmed();
 			return utf.isEmpty()
@@ -2493,6 +2502,10 @@ Result HtmlWriter::writeSavedContacts(const Data::ContactsList &data) {
 		};
 		userpic.firstName = contact.firstName;
 		userpic.lastName = contact.lastName;
+		if (contact.userId) {
+			const auto raw = contact.userId.bare & PeerId::kChatTypeMask;
+			userpic.tooltip = (u"ID: "_q + QString::number(raw)).toUtf8();
+		}
 		block.append(file->pushListEntry(
 			userpic,
 			ComposeName(userpic, "Deleted Account"),
