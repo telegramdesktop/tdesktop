@@ -354,13 +354,13 @@ boostFeatureLabel: FlatLabel(defaultFlatLabel) {
 }
 boostFeaturePadding: margins(64px, 6px, 24px, 6px);
 boostFeatureIconPosition: point(0px, 0px);
-boostFeatureBackground: icon{{ "settings/premium/features/background", windowBgActive }};
-boostFeatureCustomBackground: icon{{ "settings/premium/features/custom_background", windowBgActive }};
-boostFeatureCustomEmoji: icon{{ "settings/premium/features/custom_emoji", windowBgActive }};
-boostFeatureCustomLink: icon{{ "settings/premium/features/custom_link", windowBgActive }};
-boostFeatureCustomReactions: icon{{ "settings/premium/features/custom_reactions", windowBgActive }};
-boostFeatureEmojiStatus: icon{{ "settings/premium/features/emoji_status", windowBgActive }};
-boostFeatureLink: icon{{ "settings/premium/features/link", windowBgActive }};
-boostFeatureName: icon{{ "settings/premium/features/name", windowBgActive }};
-boostFeatureStories: icon{{ "settings/premium/features/stories", windowBgActive }};
-boostFeatureTranscribe: icon{{ "settings/premium/features/transcribe", windowBgActive }};
+boostFeatureBackground: icon{{ "settings/premium/features/feature_wallpaper", windowBgActive }};
+boostFeatureCustomBackground: icon{{ "settings/premium/features/feature_custombg", windowBgActive }};
+boostFeatureCustomEmoji: icon{{ "settings/premium/features/feature_emoji_pack", windowBgActive }};
+boostFeatureCustomLink: icon{{ "settings/premium/features/feature_links2", windowBgActive }};
+boostFeatureCustomReactions: icon{{ "settings/premium/features/feature_reactions", windowBgActive }};
+boostFeatureEmojiStatus: icon{{ "settings/premium/features/feature_status", windowBgActive }};
+boostFeatureLink: icon{{ "settings/premium/features/feature_links", windowBgActive }};
+boostFeatureName: icon{{ "settings/premium/features/feature_color_names", windowBgActive }};
+boostFeatureStories: icon{{ "settings/premium/features/feature_stories", windowBgActive }};
+boostFeatureTranscribe: icon{{ "settings/premium/features/feature_voice", windowBgActive }};
