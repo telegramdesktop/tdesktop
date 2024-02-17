@@ -1365,11 +1365,6 @@ void GiveawayInfoBox(
 	const auto months = start ? start->months : results->months;
 	const auto group = results
 		? results->channel->isMegagroup()
-		: !start->channels.empty()
-		? start->channels.front()->isMegagroup()
-		: false;
-	const auto group = results
-		? results->channel->isMegagroup()
 		: (!start->channels.empty()
 			&& start->channels.front()->isMegagroup());
 	text.append((finished
