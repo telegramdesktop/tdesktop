@@ -2616,6 +2616,9 @@ void ApiWrap::setGroupEmojiSet(
 		megagroup->inputChannel,
 		Data::InputStickerSet(set)
 	)).send();
+	_session->changes().peerUpdated(
+		megagroup,
+		Data::PeerUpdate::Flag::EmojiSet);
 	_session->data().stickers().notifyUpdated(Data::StickersType::Emoji);
 }
 
