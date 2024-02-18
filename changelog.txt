@@ -1,3 +1,10 @@
+4.15 (18.02.24)
+
+- Stories from groups.
+- Group appearance settings.
+- Group emoji pack.
+- Boost groups to unlock features.
+
 4.14.16 (16.02.24)
 
 - Boost groups.
