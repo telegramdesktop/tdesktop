@@ -2,7 +2,7 @@ name: telegram-desktop
 adopt-info: telegram
 icon: Telegram/Resources/art/icon512@2x.png
 
-base: core22
+base: core24
 grade: stable
 confinement: strict
 compression: lzo
@@ -70,12 +70,14 @@ layout:
     bind: $SNAP/usr/share/X11
   /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0
+  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-4.0:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-4.0
   /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pipewire-0.3:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pipewire-0.3
   /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/spa-0.2:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/spa-0.2
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1
+  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkitgtk-6.0:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkitgtk-6.0
 
 package-repositories:
   - type: apt
@@ -94,14 +96,17 @@ parts:
       - clang
       - libtool-bin
       - python3
+      - protobuf-compiler
       - libasound2-dev
       - libavif-dev
-      - libboost-regex1.74-dev
+      - libboost-regex-dev
       - libfmt-dev
       - libgirepository1.0-dev
       - libglib2.0-dev
       - libheif-dev
+      - libopenal-dev
       - libopus-dev
+      - libprotobuf-dev
       - libpulse-dev
       - libssl-dev
       - libwayland-dev
@@ -112,15 +117,17 @@ parts:
       - zlib1g-dev
     stage-packages:
       - libasound2
-      - libavif13
-      - libboost-regex1.74.0
+      - libavif16
+      - libboost-regex1.83.0
       - libglib2.0-0
       - libheif1
+      - libopenal1
       - libopus0
+      - libprotobuf-lite32
       - libpulse0
       - libssl3
       - libwayland-client0
-      - libwebkit2gtk-4.1-0
+      - libwebkitgtk-6.0-4
       - libxcb1
       - libxcb-keysyms1
       - libxcb-record0
@@ -157,8 +164,6 @@ parts:
     after:
       - ffmpeg
       - libjxl
-      - openal
-      - protobuf
       - qt
       - rnnoise
       - webrtc
@@ -220,12 +225,12 @@ parts:
       - libswresample-dev
       - libswscale-dev
     stage-packages:
-      - libavcodec58
-      - libavfilter7
-      - libavformat58
-      - libavutil56
-      - libswresample3
-      - libswscale5
+      - libavcodec60
+      - libavfilter9
+      - libavformat60
+      - libavutil58
+      - libswresample4
+      - libswscale7
       - va-driver-all
       - vdpau-driver-all
     override-build: |
@@ -272,60 +277,6 @@ parts:
       - -./usr/share
     after:
       - patches
-
-  openal:
-    source: https://github.com/kcat/openal-soft.git
-    source-depth: 1
-    source-tag: 1.23.1
-    plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - libasound2-dev
-      - libdbus-1-dev
-      - libpipewire-0.3-dev
-      - libpulse-dev
-    stage-packages:
-      - libasound2
-      - libdbus-1-3
-      - libpulse0
-      - pipewire
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DALSOFT_EXAMPLES=OFF
-      - -DALSOFT_UTILS=OFF
-      - -DALSOFT_INSTALL_CONFIG=OFF
-    prime:
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
-
-  protobuf:
-    source: https://github.com/protocolbuffers/protobuf.git
-    source-depth: 1
-    source-tag: v24.3
-    plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - zlib1g-dev
-    stage-packages:
-      - zlib1g
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_SHARED_LIBS=ON
-      - -Dprotobuf_BUILD_TESTS=OFF
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
 
   qt:
     plugin: nil
@@ -380,7 +331,7 @@ parts:
       - libgtk-3-0
       - libharfbuzz0b
       - libice6
-      - libicu70
+      - libicu74
       - liblcms2-2
       - libopengl0
       - libpcre2-16-0
@@ -413,6 +364,7 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
       - mesa-vulkan-drivers
+      - xkb-data
     override-pull: |
       QT=6.7.0
 
@@ -518,10 +470,10 @@ parts:
       - libgbm1
       - libgl1
       - libglib2.0-0
-      - libopenh264-6
+      - libopenh264-7
       - libopus0
       - libssl3
-      - libvpx7
+      - libvpx8
       - libx11-6
       - libxcomposite1
       - libxdamage1
