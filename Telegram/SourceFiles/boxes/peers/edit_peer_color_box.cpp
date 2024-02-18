@@ -942,8 +942,6 @@ struct ButtonWithEmoji {
 		not_null<ChannelData*> channel) {
 	Expects(channel->mgInfo != nullptr);
 
-	using Icon = ChatHelpers::StickerIcon;
-
 	const auto button = ButtonStyleWithRightEmoji(parent);
 	auto result = Settings::CreateButtonWithIcon(
 		parent,
