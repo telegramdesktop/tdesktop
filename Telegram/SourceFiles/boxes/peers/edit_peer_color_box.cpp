@@ -694,13 +694,6 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	return st;
 }
 
-[[nodiscard]] int EmojiWidth() {
-}
-
-[[nodiscard]] int NoneWidth() {
-	return st::normalFont->width(tr::lng_settings_color_emoji_off(tr::now));
-}
-
 struct ButtonWithEmoji {
 	not_null<const style::SettingsButton*> st;
 	int emojiWidth = 0;
@@ -1009,7 +1002,7 @@ struct ButtonWithEmoji {
 	channel->session().changes().peerFlagsValue(
 		channel,
 		Data::PeerUpdate::Flag::EmojiSet
-	) | rpl::map([=] {
+	) | rpl::map([=]() -> rpl::producer<DocumentData*> {
 		const auto id = channel->mgInfo->emojiSet.id;
 		if (!id) {
 			return rpl::single<DocumentData*>(nullptr);
