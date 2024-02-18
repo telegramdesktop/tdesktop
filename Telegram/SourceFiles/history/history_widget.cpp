@@ -3872,8 +3872,6 @@ void HistoryWidget::saveEditMsg() {
 	auto left = prepareTextForEditMsg();
 	auto sending = TextWithEntities();
 
-	const auto media = item->media();
-
 	const auto originalLeftSize = left.text.size();
 	const auto hasMediaWithCaption = item
 		&& item->media()
