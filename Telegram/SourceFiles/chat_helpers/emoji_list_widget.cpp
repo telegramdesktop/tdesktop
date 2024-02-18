@@ -2114,6 +2114,16 @@ void EmojiListWidget::refreshCustom() {
 			: setId;
 		if (!lookupId) {
 			return;
+		} else if (!megagroup
+			&& !_custom.empty()
+			&& _custom.front().id == Data::Stickers::MegagroupSetId
+			&& _megagroupSet->mgInfo->emojiSet.id == setId) {
+			// Skip the set that is already added as a megagroup set.
+			return;
+		} else if (megagroup
+			&& ranges::contains(_custom, lookupId, &CustomSet::id)) {
+			// Skip the set that is already added as a custom set.
+			return;
 		}
 		auto it = sets.find(lookupId);
 		if (it == sets.cend()
