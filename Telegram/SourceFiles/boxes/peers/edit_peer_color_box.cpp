@@ -1036,8 +1036,11 @@ struct ButtonWithEmoji {
 		}));
 	}) | rpl::flatten_latest(
 	) | rpl::start_with_next([=](DocumentData *icon) {
-		state->icon = icon;
-		right->update();
+		if (state->icon != icon) {
+			state->icon = icon;
+			state->custom = nullptr;
+			right->update();
+		}
 	}, right->lifetime());
 
 	return result;
