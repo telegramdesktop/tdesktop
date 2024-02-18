@@ -2038,6 +2038,7 @@ void StickersBox::Inner::checkGroupLevel(Fn<void()> done) {
 
 	if (!_megagroupSetInput) {
 		save();
+		return;
 	} else if (_checkingGroupLevel) {
 		return;
 	}
