@@ -202,10 +202,11 @@ def removeDir(folder):
         return 'if exist ' + folder + ' rmdir /Q /S ' + folder + '\nif exist ' + folder + ' exit /b 1'
     return 'rm -rf ' + folder
 
-def setVar(key, value):
+def setVar(key, multilineValue):
+    singlelineValue = ' '.join(multilineValue.replace('\n', '').split());
     if win:
-        return 'SET ' + key + '="' + value + '"';
-    return key + '="' + value + '"';
+        return 'SET ' + key + '="' + singlelineValue + '"';
+    return key + '="' + singlelineValue + '"';
 
 def filterByPlatform(commands):
     commands = commands.split('\n')
@@ -931,7 +932,7 @@ mac:
 stage('libjxl', """
     git clone -b v0.8.2 --depth 1 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
     cd libjxl
-""" + setVar("cmake_defines", ' '.join("""
+""" + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
     -DBUILD_TESTING=OFF
     -DJPEGXL_ENABLE_FUZZERS=OFF
@@ -952,7 +953,7 @@ stage('libjxl', """
     -DJPEGXL_ENABLE_COVERAGE=OFF
     -DJPEGXL_ENABLE_PROFILER=OFF
     -DJPEGXL_WARNINGS_AS_ERRORS=OFF
-""".replace('\n', '').split())) + """
+""") + """
 win:
     cmake . ^
         -A %WIN32X64% ^
