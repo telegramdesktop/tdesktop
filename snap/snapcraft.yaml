@@ -96,7 +96,6 @@ parts:
       - python3
       - libasound2-dev
       - libavif-dev
-      - libboost-program-options1.74-dev
       - libboost-regex1.74-dev
       - libfmt-dev
       - libgirepository1.0-dev
