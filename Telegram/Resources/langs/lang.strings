@@ -2056,6 +2056,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_animated_userpics" = "Video avatars animated in chat lists and chats to allow for additional self-expression.";
 "lng_premium_summary_subtitle_translation" = "Real-Time Translation";
 "lng_premium_summary_about_translation" = "Real-time translation of channels and chats into other languages.";
+"lng_premium_summary_subtitle_business" = "Telegram Business";
+"lng_premium_summary_about_business" = "Upgrade your account with business features such as location, opening hours and quick replies.";
 "lng_premium_summary_bottom_subtitle" = "About Telegram Premium";
 "lng_premium_summary_bottom_about" = "While the free version of Telegram already gives its users more than any other messaging application, **Telegram Premium** pushes its capabilities even further.\n\n**Telegram Premium** is a paid option, because most Premium Features require additional expenses from Telegram to third parties such as data center providers and server manufacturers. Contributions from **Telegram Premium** users allow us to cover such costs and also help Telegram stay free for everyone.";
 "lng_premium_summary_button" = "Subscribe for {cost} per month";
@@ -2153,6 +2155,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_gifts_summary_subtitle" = "What's Included";
 "lng_premium_gifts_terms" = "By gifting Telegram Premium, you agree to the Telegram {link} and {policy}.";
 "lng_premium_gifts_terms_policy" = "Privacy Policy";
+
+"lng_business_title" = "Telegram Business";
+"lng_business_about" = "Turn your account to a business page with these additional features.";
+"lng_business_unlocked" = "You have now unlocked these additional business features.";
+"lng_business_subtitle_location" = "Location";
+"lng_business_about_location" = "Display the location of your business on your account.";
+"lng_business_subtitle_opening_hours" = "Opening Hours";
+"lng_business_about_opening_hours" = "Show to your customers when you are open for business.";
+"lng_business_subtitle_quick_replies" = "Quick Replies";
+"lng_business_about_quick_replies" = "Set up shortcuts up to 20 messages each to respond to customers faster.";
+"lng_business_subtitle_greeting_messages" = "Greeting Messages";
+"lng_business_about_greeting_messages" = "Create greetings that will be automatically sent to new customers.";
+"lng_business_subtitle_away_messages" = "Away Messages";
+"lng_business_about_away_messages" = "Define messages that are automatically sent when you are off.";
+"lng_business_subtitle_chatbots" = "Chatbots";
+"lng_business_about_chatbots" = "Add any third party chatbots that will process customer interactions.";
 
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_group_button" = "Boost Group";

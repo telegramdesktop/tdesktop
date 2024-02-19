@@ -64,6 +64,7 @@ enum class PremiumPreview {
 	TagsForMessages,
 	LastSeen,
 	MessagePrivacy,
+	Business,
 
 	kCount,
 };

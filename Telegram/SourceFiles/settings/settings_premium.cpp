@@ -180,6 +180,7 @@ using Order = std::vector<QString>;
 		u"stories"_q,
 		u"more_upload"_q,
 		u"double_limits"_q,
+		u"business"_q,
 		u"last_seen"_q,
 		u"voice_to_text"_q,
 		u"faster_download"_q,
@@ -365,6 +366,16 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_translation(),
 				tr::lng_premium_summary_about_translation(),
 				PremiumPreview::RealTimeTranslation,
+			},
+		},
+		{
+			u"business"_q,
+			Entry{
+				&st::settingsPremiumIconPlay, AssertIsDebug()
+				tr::lng_premium_summary_subtitle_business(),
+				tr::lng_premium_summary_about_business(),
+				PremiumPreview::Business,
+				true,
 			},
 		},
 	};
@@ -1671,9 +1682,9 @@ void AddSummaryPremium(
 	icons.reserve(int(entryMap.size()));
 	{
 		const auto &account = controller->session().account();
-		const auto mtpOrder = account.appConfig().get<Order>(
+		const auto mtpOrder = FallbackOrder();/* session->account().appConfig().get<Order>(
 			"premium_promo_order",
-			FallbackOrder());
+			FallbackOrder());*/ AssertIsDebug()
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
 			addRow(entry);

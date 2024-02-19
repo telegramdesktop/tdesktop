@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
+#include "settings/settings_business.h"
 #include "settings/settings_premium.h"
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"
@@ -128,6 +129,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_animated_userpics();
 	case PremiumPreview::RealTimeTranslation:
 		return tr::lng_premium_summary_subtitle_translation();
+	case PremiumPreview::Business:
+		return tr::lng_premium_summary_subtitle_business();
 	}
 	Unexpected("PremiumPreview in SectionTitle.");
 }
@@ -170,6 +173,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_animated_userpics();
 	case PremiumPreview::RealTimeTranslation:
 		return tr::lng_premium_summary_about_translation();
+	case PremiumPreview::Business:
+		return tr::lng_premium_summary_about_business();
 	}
 	Unexpected("PremiumPreview in SectionTitle.");
 }
@@ -1218,6 +1223,13 @@ void Show(
 			UpgradedStoriesPreviewBox(box, &show->session());
 			DecorateListPromoBox(box, show, descriptor);
 		}));
+		return;
+	} else if (descriptor.section == PremiumPreview::Business) {
+		const auto window = show->resolveWindow(
+			ChatHelpers::WindowUsage::PremiumPromo);
+		if (window) {
+			Settings::ShowBusiness(window);
+		}
 		return;
 	}
 	auto &list = Preloads();

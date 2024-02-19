@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_main.h"
 
+#include "settings/settings_business.h"
 #include "settings/settings_codes.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_information.h"
@@ -419,6 +420,19 @@ void SetupPremium(
 		controller->setPremiumRef("settings");
 		showOther(PremiumId());
 	});
+	const auto button = AddButtonWithIcon(
+		container,
+		tr::lng_business_title(),
+		st::settingsButton,
+		{ .icon = &st::menuIconShop });
+	button->addClickHandler([=] {
+		showOther(BusinessId());
+	});
+	constexpr auto kNewExpiresAt = int(1711958400);
+	if (base::unixtime::now() < kNewExpiresAt) {
+		Ui::NewBadge::AddToRight(button);
+	}
+
 	if (controller->session().premiumCanBuy()) {
 		const auto button = AddButtonWithIcon(
 			container,
