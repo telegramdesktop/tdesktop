@@ -1223,35 +1223,15 @@ void EditPeerColorBox(
 	state->index = peer->colorIndex();
 	state->emojiId = peer->backgroundEmojiId();
 	state->statusId = peer->emojiStatusId();
-
 	if (group) {
-		const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(
-			box.get());
-		const auto verticalLayout = box->verticalLayout()->add(
-			object_ptr<Ui::VerticalLayout>(box.get()));
-
-		auto icon = CreateLottieIcon(
-			verticalLayout,
-			{
-				.name = u"palette"_q,
-				.sizeOverride = Size(st::settingsCloudPasswordIconSize),
-			},
-			st::peerAppearanceIconPadding);
-		box->setShowFinishedCallback([animate = std::move(icon.animate)] {
-			animate(anim::repeat::once);
+		Settings::AddDividerTextWithLottie(box->verticalLayout(), {
+			.lottie = u"palette"_q,
+			.lottieSize = st::settingsCloudPasswordIconSize,
+			.lottieMargins = st::peerAppearanceIconPadding,
+			.showFinished = box->showFinishes(),
+			.about = tr::lng_boost_group_about(Ui::Text::WithEntities),
+			.aboutMargins = st::peerAppearanceCoverLabelMargin,
 		});
-		verticalLayout->add(std::move(icon.widget));
-		verticalLayout->add(
-			object_ptr<Ui::FlatLabel>(
-				verticalLayout,
-				tr::lng_boost_group_about(),
-				st::peerAppearanceCoverLabel),
-		st::peerAppearanceCoverLabelMargin);
-
-		verticalLayout->geometryValue(
-		) | rpl::start_with_next([=](const QRect &r) {
-			divider->setGeometry(r);
-		}, divider->lifetime());
 	} else {
 		box->addRow(object_ptr<PreviewWrap>(
 			box,

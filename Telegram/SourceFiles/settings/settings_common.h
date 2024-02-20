@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/text_variant.h"
 #include "ui/rp_widget.h"
 #include "ui/round_rect.h"
 #include "base/object_ptr.h"
@@ -151,11 +152,19 @@ void CreateRightLabel(
 	rpl::producer<QString> label,
 	const style::SettingsButton &st,
 	rpl::producer<QString> buttonText);
+
+struct DividerWithLottieDescriptor {
+	QString lottie;
+	std::optional<anim::repeat> lottieRepeat;
+	std::optional<int> lottieSize;
+	std::optional<QMargins> lottieMargins;
+	rpl::producer<> showFinished;
+	rpl::producer<TextWithEntities> about;
+	std::optional<QMargins> aboutMargins;
+};
 void AddDividerTextWithLottie(
-	not_null<Ui::VerticalLayout*> parent,
-	rpl::producer<> showFinished,
-	rpl::producer<TextWithEntities> text,
-	const QString &lottie);
+	not_null<Ui::VerticalLayout*> container,
+	DividerWithLottieDescriptor &&descriptor);
 
 struct LottieIcon {
 	object_ptr<Ui::RpWidget> widget;

@@ -2172,6 +2172,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_business_subtitle_chatbots" = "Chatbots";
 "lng_business_about_chatbots" = "Add any third party chatbots that will process customer interactions.";
 
+"lng_chatbots_title" = "Chatbots";
+"lng_chatbots_about" = "Add a bot to your account to help you automatically process and respond to the messages you receive. {link}";
+"lng_chatbots_about_link" = "Learn more...";
+"lng_chatbots_placeholder" = "Enter bot URL or username";
+"lng_chatbots_add_about" = "Enter the link to the Telegram bot that you want to automatically process your chats.";
+"lng_chatbots_access_title" = "Chats accessible for the bot";
+"lng_chatbots_all_except" = "All 1-to-1 Chats Except...";
+"lng_chatbots_selected" = "Only Selected Chats";
+"lng_chatbots_excluded_title" = "Excluded chats";
+"lng_chatbots_exclude_button" = "Exclude Chats";
+"lng_chatbots_included_title" = "Included chats";
+"lng_chatbots_include_button" = "Select Chats";
+"lng_chatbots_exclude_about" = "Select chats or entire chat categories which the bot will not have access to.";
+"lng_chatbots_permissions_title" = "Bot permissions";
+"lng_chatbots_reply" = "Reply to Messages";
+"lng_chatbots_reply_about" = "The bot will be able to view all new incoming messages, but not the messages that had been sent before you added the bot.";
+"lng_chatbots_remove" = "Remove Bot";
+
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_group_button" = "Boost Group";
 "lng_boost_again_button" = "Boost Again";

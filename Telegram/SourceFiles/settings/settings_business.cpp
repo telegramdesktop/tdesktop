@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/business/settings_chatbots.h"
 #include "settings/settings_common_session.h"
 #include "settings/settings_premium.h"
 #include "ui/effects/gradient.h"
@@ -287,6 +288,7 @@ public:
 	void setStepDataReference(std::any &data) override;
 
 	[[nodiscard]] rpl::producer<> sectionShowBack() override final;
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
 
 private:
 	void setupContent();
@@ -299,8 +301,9 @@ private:
 	rpl::variable<bool> _backToggles;
 	rpl::variable<Info::Wrap> _wrap;
 	Fn<void(bool)> _setPaused;
-
 	std::shared_ptr<Ui::RadiobuttonGroup> _radioGroup;
+
+	rpl::event_stream<Type> _showOther;
 
 	rpl::event_stream<> _showBack;
 	rpl::event_stream<> _showFinished;
@@ -330,6 +333,10 @@ rpl::producer<> Business::sectionShowBack() {
 	return _showBack.events();
 }
 
+rpl::producer<Type> Business::sectionShowOther() {
+	return _showOther.events();
+}
+
 void Business::setStepDataReference(std::any &data) {
 	using namespace Info::Settings;
 	const auto my = std::any_cast<SectionCustomTopBarData>(&data);
@@ -347,6 +354,11 @@ void Business::setupContent() {
 	Ui::AddSkip(content, st::settingsFromFileTop);
 
 	AddBusinessSummary(content, _controller, [=](BusinessFeature feature) {
+		switch (feature) {
+		case BusinessFeature::Chatbots:
+			_showOther.fire(Settings::ChatbotsId());
+			break;
+		}
 	});
 
 	Ui::ResizeFitChild(this, content);

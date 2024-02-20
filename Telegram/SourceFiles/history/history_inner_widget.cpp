@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_inner_widget.h"
 
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
 #include "history/history_item_helpers.h"
@@ -32,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_isolated_emoji.h"
 #include "ui/boxes/report_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/controls/delete_message_context_action.h"
@@ -2238,6 +2240,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}, &st::menuIconStickers);
 		}
 	};
+
+	if (const auto item = _dragStateItem) {
+		const auto emojiStickers = &session->emojiStickersPack();
+		if (const auto view = item->mainView()) {
+			if (const auto isolated = view->isolatedEmoji()) {
+				if (const auto sticker = emojiStickers->stickerForEmoji(isolated)) {
+					addDocumentActions(sticker.document, item);
+				}
+			}
+		}
+	}
 
 	const auto asGroup = !Element::Moused()
 		|| (Element::Moused() != Element::Hovered())
