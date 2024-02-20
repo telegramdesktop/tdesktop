@@ -598,6 +598,8 @@ settingsChatbotsUsername: InputField(defaultMultiSelectSearchField) {
 settingsChatbotsAccess: Checkbox(defaultCheckbox) {
 	textPosition: point(18px, 2px);
 }
+settingsLocationAddress: InputField(defaultMultiSelectSearchField) {
+}
 settingsChatbotsUsernameMargins: margins(20px, 8px, 20px, 8px);
 settingsChatbotsAccessMargins: margins(22px, 5px, 22px, 9px);
 settingsChatbotsAccessSkip: 4px;

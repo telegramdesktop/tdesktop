@@ -161,6 +161,7 @@ struct DividerWithLottieDescriptor {
 	rpl::producer<> showFinished;
 	rpl::producer<TextWithEntities> about;
 	std::optional<QMargins> aboutMargins;
+	RectParts parts = RectPart::Top | RectPart::Bottom;
 };
 void AddDividerTextWithLottie(
 	not_null<Ui::VerticalLayout*> container,

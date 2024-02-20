@@ -1282,10 +1282,20 @@ PRIVATE
     profile/profile_block_widget.h
     profile/profile_cover_drop_area.cpp
     profile/profile_cover_drop_area.h
-    settings/business/settings_business_exceptions.cpp
-    settings/business/settings_business_exceptions.h
+    settings/business/settings_away_message.cpp
+    settings/business/settings_away_message.h
     settings/business/settings_chatbots.cpp
     settings/business/settings_chatbots.h
+    settings/business/settings_greeting.cpp
+    settings/business/settings_greeting.h
+    settings/business/settings_location.cpp
+    settings/business/settings_location.h
+    settings/business/settings_quick_replies.cpp
+    settings/business/settings_quick_replies.h
+    settings/business/settings_recipients_helper.cpp
+    settings/business/settings_recipients_helper.h
+    settings/business/settings_working_hours.cpp
+    settings/business/settings_working_hours.h
     settings/cloud_password/settings_cloud_password_common.cpp
     settings/cloud_password/settings_cloud_password_common.h
     settings/cloud_password/settings_cloud_password_email.cpp

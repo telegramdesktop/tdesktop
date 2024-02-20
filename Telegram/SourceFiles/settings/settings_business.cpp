@@ -14,7 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/business/settings_away_message.h"
 #include "settings/business/settings_chatbots.h"
+#include "settings/business/settings_greeting.h"
+#include "settings/business/settings_location.h"
+#include "settings/business/settings_quick_replies.h"
+#include "settings/business/settings_working_hours.h"
 #include "settings/settings_common_session.h"
 #include "settings/settings_premium.h"
 #include "ui/effects/gradient.h"
@@ -354,11 +359,17 @@ void Business::setupContent() {
 	Ui::AddSkip(content, st::settingsFromFileTop);
 
 	AddBusinessSummary(content, _controller, [=](BusinessFeature feature) {
-		switch (feature) {
-		case BusinessFeature::Chatbots:
-			_showOther.fire(Settings::ChatbotsId());
-			break;
-		}
+		_showOther.fire([&] {
+			switch (feature) {
+			case BusinessFeature::AwayMessages: return AwayMessageId();
+			case BusinessFeature::OpeningHours: return WorkingHoursId();
+			case BusinessFeature::Location: return LocationId();
+			case BusinessFeature::GreetingMessages: return GreetingId();
+			case BusinessFeature::QuickReplies: return QuickRepliesId();
+			case BusinessFeature::Chatbots: return ChatbotsId();
+			}
+			Unexpected("Feature in Business::setupContent.");
+		}());
 	});
 
 	Ui::ResizeFitChild(this, content);

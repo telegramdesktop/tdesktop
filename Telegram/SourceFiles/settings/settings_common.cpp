@@ -173,7 +173,10 @@ void AddDividerTextWithLottie(
 		not_null<Ui::VerticalLayout*> container,
 		DividerWithLottieDescriptor &&descriptor) {
 	const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(
-		container.get());
+		container.get(),
+		0,
+		st::boxDividerBg,
+		descriptor.parts);
 	const auto verticalLayout = container->add(
 		object_ptr<Ui::VerticalLayout>(container.get()));
 	const auto size = descriptor.lottieSize.value_or(

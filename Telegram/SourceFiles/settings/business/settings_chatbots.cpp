@@ -6,18 +6,17 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/business/settings_chatbots.h"
-
+//
 #include "core/application.h"
 #include "data/business/data_business_chatbots.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/business/settings_business_exceptions.h"
-#include "settings/settings_common_session.h"
+#include "settings/business/settings_recipients_helper.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
@@ -28,10 +27,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
-constexpr auto kAllExcept = 0;
-constexpr auto kSelectedOnly = 1;
+enum class LookupState {
+	Empty,
+	Loading,
+	Ready,
+};
 
-class Chatbots : public Section<Chatbots> {
+struct BotState {
+	UserData *bot = nullptr;
+	LookupState state = LookupState::Empty;
+};
+
+class Chatbots : public BusinessSection<Chatbots> {
 public:
 	Chatbots(
 		QWidget *parent,
@@ -39,10 +46,6 @@ public:
 	~Chatbots();
 
 	[[nodiscard]] rpl::producer<QString> title() override;
-
-	rpl::producer<> showFinishes() const {
-		return _showFinished.events();
-	}
 
 	const Ui::RoundRect *bottomSkipRounding() const {
 		return &_bottomSkipRounding;
@@ -52,29 +55,37 @@ private:
 	void setupContent(not_null<Window::SessionController*> controller);
 	void save();
 
-	void showFinished() override {
-		_showFinished.fire({});
-	}
-
-	const not_null<Window::SessionController*> _controller;
-	const not_null<Main::Session*> _session;
-
-	rpl::event_stream<> _showFinished;
 	Ui::RoundRect _bottomSkipRounding;
 
-	rpl::variable<bool> _onlySelected = false;
+	rpl::variable<Data::BusinessRecipients> _recipients;
+	rpl::variable<QString> _usernameValue;
+	rpl::variable<BotState> _botValue = nullptr;
 	rpl::variable<bool> _repliesAllowed = true;
-	rpl::variable<Data::BusinessExceptions> _allowed;
-	rpl::variable<Data::BusinessExceptions> _disallowed;
 
 };
+
+[[nodiscard]] rpl::producer<QString> DebouncedValue(
+		not_null<Ui::InputField*> field) {
+	return rpl::single(field->getLastText());
+}
+
+[[nodiscard]] rpl::producer<BotState> LookupBot(
+		not_null<Main::Session*> session,
+		rpl::producer<QString> usernameChanges) {
+	return rpl::never<BotState>();
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeBotPreview(
+		not_null<QWidget*> parent,
+		rpl::producer<BotState> state,
+		Fn<void()> resetBot) {
+	return object_ptr<Ui::RpWidget>(parent.get());
+}
 
 Chatbots::Chatbots(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: Section(parent)
-, _controller(controller)
-, _session(&controller->session())
+: BusinessSection(parent, controller)
 , _bottomSkipRounding(st::boxRadius, st::boxDividerBg) {
 	setupContent(controller);
 }
@@ -96,10 +107,8 @@ void Chatbots::setupContent(
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	const auto current = controller->session().data().chatbots().current();
 
-	_onlySelected = current.onlySelected;
+	_recipients = current.recipients;
 	_repliesAllowed = current.repliesAllowed;
-	_allowed = current.allowed;
-	_disallowed = current.disallowed;
 
 	AddDividerTextWithLottie(content, {
 		.lottie = u"robot"_q,
@@ -125,93 +134,31 @@ void Chatbots::setupContent(
 				: QString())),
 		st::settingsChatbotsUsernameMargins);
 
+	_usernameValue = DebouncedValue(username);
+	_botValue = rpl::single(BotState{
+		current.bot,
+		current.bot ? LookupState::Ready : LookupState::Empty
+	}) | rpl::then(
+		LookupBot(&controller->session(), _usernameValue.changes())
+	);
+
+	const auto resetBot = [=] {
+		username->setText(QString());
+		username->setFocus();
+	};
+	content->add(object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
+		content,
+		MakeBotPreview(content, _botValue.value(), resetBot)));
+
 	Ui::AddDividerText(
 		content,
 		tr::lng_chatbots_add_about(),
 		st::peerAppearanceDividerTextMargin);
-	Ui::AddSkip(content);
-	Ui::AddSubsectionTitle(content, tr::lng_chatbots_access_title());
 
-	const auto group = std::make_shared<Ui::RadiobuttonGroup>(
-		_onlySelected.current() ? kSelectedOnly : kAllExcept);
-	const auto everyone = content->add(
-		object_ptr<Ui::Radiobutton>(
-			content,
-			group,
-			kAllExcept,
-			tr::lng_chatbots_all_except(tr::now),
-			st::settingsChatbotsAccess),
-		st::settingsChatbotsAccessMargins);
-	const auto selected = content->add(
-		object_ptr<Ui::Radiobutton>(
-			content,
-			group,
-			kSelectedOnly,
-			tr::lng_chatbots_selected(tr::now),
-			st::settingsChatbotsAccess),
-		st::settingsChatbotsAccessMargins);
-
-	Ui::AddSkip(content, st::settingsChatbotsAccessSkip);
-	Ui::AddDivider(content);
-
-	const auto excludeWrap = content->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			content,
-			object_ptr<Ui::VerticalLayout>(content))
-	)->setDuration(0);
-	const auto excludeInner = excludeWrap->entity();
-
-	Ui::AddSkip(excludeInner);
-	Ui::AddSubsectionTitle(excludeInner, tr::lng_chatbots_excluded_title());
-	const auto excludeAdd = AddButtonWithIcon(
-		excludeInner,
-		tr::lng_chatbots_exclude_button(),
-		st::settingsChatbotsAdd,
-		{ &st::settingsIconRemove, IconType::Round, &st::windowBgActive });
-	excludeAdd->setClickedCallback([=] {
-		EditBusinessExceptions(_controller, {
-			.current = _disallowed.current(),
-			.save = crl::guard(this, [=](Data::BusinessExceptions value) {
-				_disallowed = std::move(value);
-			}),
-			.allow = false,
-		});
-	});
-	SetupBusinessExceptionsPreview(excludeInner, &_disallowed);
-
-	excludeWrap->toggleOn(_onlySelected.value() | rpl::map(!_1));
-	excludeWrap->finishAnimating();
-
-	const auto includeWrap = content->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			content,
-			object_ptr<Ui::VerticalLayout>(content))
-	)->setDuration(0);
-	const auto includeInner = includeWrap->entity();
-
-	Ui::AddSkip(includeInner);
-	Ui::AddSubsectionTitle(includeInner, tr::lng_chatbots_included_title());
-	const auto includeAdd = AddButtonWithIcon(
-		includeInner,
-		tr::lng_chatbots_include_button(),
-		st::settingsChatbotsAdd,
-		{ &st::settingsIconAdd, IconType::Round, &st::windowBgActive });
-	includeAdd->setClickedCallback([=] {
-		EditBusinessExceptions(_controller, {
-			.current = _allowed.current(),
-			.save = crl::guard(this, [=](Data::BusinessExceptions value) {
-				_allowed = std::move(value);
-			}),
-			.allow = true,
-		});
-	});
-	SetupBusinessExceptionsPreview(includeInner, &_allowed);
-
-	includeWrap->toggleOn(_onlySelected.value());
-	includeWrap->finishAnimating();
-
-	group->setChangedCallback([=](int value) {
-		_onlySelected = (value == kSelectedOnly);
+	AddBusinessRecipientsSelector(content, {
+		.controller = controller,
+		.title = tr::lng_chatbots_access_title(),
+		.data = &_recipients,
 	});
 
 	Ui::AddSkip(content, st::settingsChatbotsAccessSkip);
@@ -243,13 +190,11 @@ void Chatbots::setupContent(
 
 void Chatbots::save() {
 	const auto settings = Data::ChatbotsSettings{
-		.bot = nullptr,
-		.allowed = _allowed.current(),
-		.disallowed = _disallowed.current(),
+		.bot = _botValue.current().bot,
+		.recipients = _recipients.current(),
 		.repliesAllowed = _repliesAllowed.current(),
-		.onlySelected = _onlySelected.current(),
 	};
-	_session->data().chatbots().save(settings);
+	controller()->session().data().chatbots().save(settings);
 }
 
 } // namespace

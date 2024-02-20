@@ -23,9 +23,23 @@ inline constexpr bool is_flag_type(BusinessChatType) { return true; }
 
 using BusinessChatTypes = base::flags<BusinessChatType>;
 
-struct BusinessExceptions {
+struct BusinessChats {
 	BusinessChatTypes types;
 	std::vector<not_null<UserData*>> list;
+
+	friend inline bool operator==(
+		const BusinessChats &a,
+		const BusinessChats &b) = default;
+};
+
+struct BusinessRecipients {
+	BusinessChats included;
+	BusinessChats excluded;
+	bool onlyIncluded = false;
+
+	friend inline bool operator==(
+		const BusinessRecipients &a,
+		const BusinessRecipients &b) = default;
 };
 
 } // namespace Data

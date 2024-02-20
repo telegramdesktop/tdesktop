@@ -2172,6 +2172,70 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_business_subtitle_chatbots" = "Chatbots";
 "lng_business_about_chatbots" = "Add any third party chatbots that will process customer interactions.";
 
+"lng_location_title" = "Location";
+"lng_location_about" = "Display the location of your business on your account.";
+"lng_location_address" = "Enter Address";
+"lng_location_fallback" = "You can set your location on the map from your mobile device.";
+
+"lng_hours_title" = "Business Hours";
+"lng_hours_about" = "Turn this on to show your opening hours schedule to your customers.";
+"lng_hours_show" = "Show Business Hours";
+"lng_hours_time_zone" = "Time Zone";
+"lng_hours_monday" = "Monday";
+"lng_hours_tuesday" = "Tuesday";
+"lng_hours_wednesday" = "Wednesday";
+"lng_hours_thursday" = "Thursday";
+"lng_hours_friday" = "Friday";
+"lng_hours_saturday" = "Saturday";
+"lng_hours_sunday" = "Sunday";
+"lng_hours_closed" = "Closed";
+
+"lng_replies_title" = "Quick Replies";
+"lng_replies_about" = "Set up shortcuts with rich text and media to respond to messages faster.";
+"lng_replies_add" = "Add Quick Reply";
+"lng_replies_add_title" = "New Quick Reply";
+"lng_replies_add_shortcut" = "Add a shortcut for your reply.";
+"lng_replies_add_placeholder" = "Shortcut";
+"lng_replies_add_exists" = "This shortcut already exists.";
+"lng_replies_empty_title" = "New Quick Reply";
+"lng_replies_empty_about" = "Enter a message below that will be sent in chat when you type {shortcut}.\n\nYou can access Quick Replies in any chat by typing / or using Attachment menu.";
+"lng_replies_remove_title" = "Remove Shortcut";
+"lng_replies_remove_text" = "You didn't create a quick reply message. Do you want to remove the shortcut?";
+"lng_replies_edit_title" = "Edit Shortcut";
+"lng_replies_edit_about" = "Edit the name for this shortcut.";
+"lng_replies_message_placeholder" = "Add a Quick Reply";
+
+"lng_greeting_title" = "Greeting Message";
+"lng_greeting_about" = "Greet customers when they message you the first time or after a period of no activity.";
+"lng_greeting_enable" = "Send Greeting Message";
+"lng_greeting_create" = "Create a Greeting Message";
+"lng_greeting_recipients" = "Recipients";
+"lng_greeting_select" = "Select chats or entire chat categories for sending a greeting message.";
+"lng_greeting_period_title" = "Period of no activity";
+"lng_greeting_period_about" = "Choose how many days should pass after your last interaction with a recipient to send them a greeting in response to their message.";
+"lng_greeting_empty_title" = "New Greeting Message";
+"lng_greeting_empty_about" = "Create greetings that will be automatically sent to new customers.";
+"lng_greeting_message_placeholder" = "Add a Greeting";
+
+"lng_away_title" = "Away Message";
+"lng_away_about" = "Automatically reply with a message when you are away.";
+"lng_away_enable" = "Send Away Message";
+"lng_away_create" = "Create an Away Message";
+"lng_away_schedule" = "Schedule";
+"lng_away_schedule_always" = "Send Always";
+"lng_away_schedule_outside" = "Outside of Business Hours";
+"lng_away_schedule_custom" = "Custom Schedule";
+"lng_away_custom_start" = "Start Time";
+"lng_away_custom_end" = "End Time";
+"lng_away_recipients" = "Recipients";
+"lng_away_select" = "Select chats or entire chat categories for sending an away message.";
+"lng_away_empty_title" = "New Away Message";
+"lng_away_empty_about" = "Add messages that will be automatically sent when you are off.";
+"lng_away_message_placeholder" = "Add an Away Message";
+
+"lng_business_limit_reached#one" = "Limit of {count} message reached.";
+"lng_business_limit_reached#other" = "Limit of {count} messages reached.";
+
 "lng_chatbots_title" = "Chatbots";
 "lng_chatbots_about" = "Add a bot to your account to help you automatically process and respond to the messages you receive. {link}";
 "lng_chatbots_about_link" = "Learn more...";

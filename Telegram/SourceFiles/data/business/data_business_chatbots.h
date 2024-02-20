@@ -17,10 +17,8 @@ class Session;
 
 struct ChatbotsSettings {
 	UserData *bot = nullptr;
-	BusinessExceptions allowed;
-	BusinessExceptions disallowed;
+	BusinessRecipients recipients;
 	bool repliesAllowed = false;
-	bool onlySelected = false;
 };
 
 class Chatbots final {
