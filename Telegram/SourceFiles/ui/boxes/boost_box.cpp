@@ -201,57 +201,12 @@ void AddFeaturesList(
 						lt_count,
 						rpl::single(float64(i)))),
 			st::boostLevelBadgePadding);
-		add(
-			tr::lng_feature_stories(lt_count, rpl::single(float64(i)), proj),
-			st::boostFeatureStories);
-		if (!group) {
-			add(tr::lng_feature_reactions(
-				lt_count,
-				rpl::single(float64(i)),
-				proj
-			), st::boostFeatureCustomReactions);
-			if (const auto j = features.nameColorsByLevel.find(i)
-				; j != end(features.nameColorsByLevel)) {
-				nameColors += j->second;
-			}
-			if (nameColors > 0) {
-				add(tr::lng_feature_name_color_channel(
-					lt_count,
-					rpl::single(float64(nameColors)),
-					proj
-				), st::boostFeatureName);
-			}
-			if (const auto j = features.linkStylesByLevel.find(i)
-				; j != end(features.linkStylesByLevel)) {
-				linkStyles += j->second;
-			}
-			if (linkStyles > 0) {
-				add(tr::lng_feature_link_style_channel(
-					lt_count,
-					rpl::single(float64(linkStyles)),
-					proj
-				), st::boostFeatureLink);
-			}
-			if (i >= features.linkLogoLevel) {
-				add(
-					tr::lng_feature_link_emoji(proj),
-					st::boostFeatureCustomLink);
-			}
-		}
-		if (group && i >= features.emojiPackLevel) {
+		if (i >= features.customWallpaperLevel) {
 			add(
-				tr::lng_feature_custom_emoji_pack(proj),
-				st::boostFeatureCustomEmoji);
-		}
-		if (group && i >= features.transcribeLevel) {
-			add(
-				tr::lng_feature_transcribe(proj),
-				st::boostFeatureTranscribe);
-		}
-		if (i >= features.emojiStatusLevel) {
-			add(
-				tr::lng_feature_emoji_status(proj),
-				st::boostFeatureEmojiStatus);
+				(group
+					? tr::lng_feature_custom_background_group
+					: tr::lng_feature_custom_background_channel)(proj),
+				st::boostFeatureCustomBackground);
 		}
 		if (i >= features.wallpaperLevel) {
 			add(
@@ -263,13 +218,58 @@ void AddFeaturesList(
 						proj),
 				st::boostFeatureBackground);
 		}
-		if (i >= features.customWallpaperLevel) {
+		if (i >= features.emojiStatusLevel) {
 			add(
-				(group
-					? tr::lng_feature_custom_background_group
-					: tr::lng_feature_custom_background_channel)(proj),
-				st::boostFeatureCustomBackground);
+				tr::lng_feature_emoji_status(proj),
+				st::boostFeatureEmojiStatus);
 		}
+		if (group && i >= features.transcribeLevel) {
+			add(
+				tr::lng_feature_transcribe(proj),
+				st::boostFeatureTranscribe);
+		}
+		if (group && i >= features.emojiPackLevel) {
+			add(
+				tr::lng_feature_custom_emoji_pack(proj),
+				st::boostFeatureCustomEmoji);
+		}
+		if (!group) {
+			if (const auto j = features.linkStylesByLevel.find(i)
+				; j != end(features.linkStylesByLevel)) {
+				linkStyles += j->second;
+			}
+			if (i >= features.linkLogoLevel) {
+				add(
+					tr::lng_feature_link_emoji(proj),
+					st::boostFeatureCustomLink);
+			}
+			if (linkStyles > 0) {
+				add(tr::lng_feature_link_style_channel(
+					lt_count,
+					rpl::single(float64(linkStyles)),
+					proj
+				), st::boostFeatureLink);
+			}
+			if (const auto j = features.nameColorsByLevel.find(i)
+				; j != end(features.nameColorsByLevel)) {
+				nameColors += j->second;
+			}
+			if (nameColors > 0) {
+				add(tr::lng_feature_name_color_channel(
+					lt_count,
+					rpl::single(float64(nameColors)),
+					proj
+				), st::boostFeatureName);
+			}
+			add(tr::lng_feature_reactions(
+				lt_count,
+				rpl::single(float64(i)),
+				proj
+			), st::boostFeatureCustomReactions);
+		}
+		add(
+			tr::lng_feature_stories(lt_count, rpl::single(float64(i)), proj),
+			st::boostFeatureStories);
 	}
 }
 
