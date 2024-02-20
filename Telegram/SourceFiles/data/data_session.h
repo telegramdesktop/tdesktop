@@ -62,6 +62,7 @@ class NotifySettings;
 class CustomEmojiManager;
 class Stories;
 class SavedMessages;
+class Chatbots;
 struct ReactionId;
 
 struct RepliesReadTillUpdate {
@@ -141,6 +142,9 @@ public:
 	}
 	[[nodiscard]] SavedMessages &savedMessages() const {
 		return *_savedMessages;
+	}
+	[[nodiscard]] Chatbots &chatbots() const {
+		return *_chatbots;
 	}
 
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
@@ -1065,6 +1069,7 @@ private:
 	const std::unique_ptr<CustomEmojiManager> _customEmojiManager;
 	const std::unique_ptr<Stories> _stories;
 	const std::unique_ptr<SavedMessages> _savedMessages;
+	const std::unique_ptr<Chatbots> _chatbots;
 
 	MsgId _nonHistoryEntryId = ServerMaxMsgId.bare + ScheduledMsgIdsRange;
 

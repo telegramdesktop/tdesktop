@@ -180,6 +180,8 @@ PRIVATE
     boxes/filters/edit_filter_box.h
     boxes/filters/edit_filter_chats_list.cpp
     boxes/filters/edit_filter_chats_list.h
+    boxes/filters/edit_filter_chats_preview.cpp
+    boxes/filters/edit_filter_chats_preview.h
     boxes/filters/edit_filter_links.cpp
     boxes/filters/edit_filter_links.h
     boxes/peers/add_bot_to_chat_box.cpp
@@ -446,6 +448,9 @@ PRIVATE
     core/version.h
     countries/countries_manager.cpp
     countries/countries_manager.h
+    data/business/data_business_chatbots.cpp
+    data/business/data_business_chatbots.h
+    data/business/data_business_common.h
     data/notify/data_notify_settings.cpp
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
@@ -1277,6 +1282,8 @@ PRIVATE
     profile/profile_block_widget.h
     profile/profile_cover_drop_area.cpp
     profile/profile_cover_drop_area.h
+    settings/business/settings_business_exceptions.cpp
+    settings/business/settings_business_exceptions.h
     settings/business/settings_chatbots.cpp
     settings/business/settings_chatbots.h
     settings/cloud_password/settings_cloud_password_common.cpp

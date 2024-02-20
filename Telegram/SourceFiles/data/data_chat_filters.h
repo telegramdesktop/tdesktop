@@ -36,9 +36,13 @@ public:
 		NoMuted     = (1 << 5),
 		NoRead      = (1 << 6),
 		NoArchived  = (1 << 7),
+		RulesMask   = ((1 << 8) - 1),
 
 		Chatlist    = (1 << 8),
 		HasMyLinks  = (1 << 9),
+
+		NewChats      = (1 << 10), // Telegram Business exceptions.
+		ExistingChats = (1 << 11),
 	};
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;

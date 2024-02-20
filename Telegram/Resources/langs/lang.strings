@@ -2189,6 +2189,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chatbots_reply" = "Reply to Messages";
 "lng_chatbots_reply_about" = "The bot will be able to view all new incoming messages, but not the messages that had been sent before you added the bot.";
 "lng_chatbots_remove" = "Remove Bot";
+"lng_chatbots_not_found" = "Chatbot not found";
+"lng_chatbots_add" = "Add";
 
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_group_button" = "Boost Group";
@@ -4341,6 +4343,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_type_non_contacts" = "Non-Contacts";
 "lng_filters_type_groups" = "Groups";
 "lng_filters_type_channels" = "Channels";
+"lng_filters_type_new" = "New Chats";
+"lng_filters_type_existing" = "Existing Chats";
 "lng_filters_type_bots" = "Bots";
 "lng_filters_type_no_archived" = "Archived";
 "lng_filters_type_no_muted" = "Muted";
