@@ -1046,13 +1046,18 @@ void Filler::addViewStatistics() {
 				}
 			}, &st::menuIconStats);
 		}
-		if (!channel->isMegagroup()
-			&& (canGetStats
-				|| channel->amCreator()
-				|| channel->canPostStories())) {
+		if (canGetStats
+			|| channel->amCreator()
+			|| channel->canPostStories()) {
 			_addAction(tr::lng_boosts_title(tr::now), [=] {
 				if (const auto strong = weak.get()) {
 					controller->showSection(Info::Boosts::Make(peer));
+				}
+			}, &st::menuIconBoosts);
+		} else if (channel->isMegagroup()) {
+			_addAction(tr::lng_boost_group_button(tr::now), [=] {
+				if (const auto strong = weak.get()) {
+					controller->resolveBoostState(channel);
 				}
 			}, &st::menuIconBoosts);
 		}

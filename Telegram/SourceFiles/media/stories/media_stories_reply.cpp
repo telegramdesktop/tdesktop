@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/text/format_values.h"
 #include "ui/round_rect.h"
 #include "window/section_widget.h"
 #include "styles/style_boxes.h" // sendMediaPreviewSize.
@@ -49,11 +50,15 @@ namespace Media::Stories {
 namespace {
 
 [[nodiscard]] rpl::producer<QString> PlaceholderText(
-		const std::shared_ptr<ChatHelpers::Show> &show) {
-	return show->session().data().stories().stealthModeValue(
-	) | rpl::map([](Data::StealthMode value) {
-		return value.enabledTill;
-	}) | rpl::distinct_until_changed() | rpl::map([](TimeId till) {
+		const std::shared_ptr<ChatHelpers::Show> &show,
+		rpl::producer<bool> isComment) {
+	return rpl::combine(
+		show->session().data().stories().stealthModeValue(),
+		std::move(isComment)
+	) | rpl::map([](Data::StealthMode value, bool isComment) {
+		return std::tuple(value.enabledTill, isComment);
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([](TimeId till, bool isComment) {
 		return rpl::single(
 			rpl::empty
 		) | rpl::then(
@@ -64,11 +69,13 @@ namespace {
 			return left > 0;
 		}) | rpl::then(
 			rpl::single(0)
-		) | rpl::map([](TimeId left) {
+		) | rpl::map([=](TimeId left) {
 			return left
 				? tr::lng_stealth_mode_countdown(
 					lt_left,
 					rpl::single(TimeLeftText(left)))
+				: isComment
+				? tr::lng_story_comment_ph()
 				: tr::lng_story_reply_ph();
 		}) | rpl::flatten_latest();
 	}) | rpl::flatten_latest();
@@ -118,7 +125,9 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 		.mode = HistoryView::ComposeControlsMode::Normal,
 		.sendMenuType = SendMenu::Type::SilentOnly,
 		.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
-		.customPlaceholder = PlaceholderText(_controller->uiShow()),
+		.customPlaceholder = PlaceholderText(
+			_controller->uiShow(),
+			rpl::deferred([=] { return _isComment.value(); })),
 		.voiceCustomCancelText = tr::lng_record_cancel_stories(tr::now),
 		.voiceLockFromBottom = true,
 		.features = {
@@ -171,7 +180,7 @@ void ReplyArea::initGeometry() {
 	}, _lifetime);
 }
 
-void ReplyArea::sendReaction(const Data::ReactionId &id) {
+bool ReplyArea::sendReaction(const Data::ReactionId &id) {
 	Expects(_data.peer != nullptr);
 
 	auto message = Api::MessageToSend(prepareSendAction({}));
@@ -188,9 +197,8 @@ void ReplyArea::sendReaction(const Data::ReactionId &id) {
 			};
 		}
 	}
-	if (!message.textWithTags.empty()) {
-		send(std::move(message), {}, true);
-	}
+	return !message.textWithTags.empty()
+		&& send(std::move(message), {}, true);
 }
 
 void ReplyArea::send(Api::SendOptions options) {
@@ -203,10 +211,14 @@ void ReplyArea::send(Api::SendOptions options) {
 	send(std::move(message), options);
 }
 
-void ReplyArea::send(
+bool ReplyArea::send(
 		Api::MessageToSend message,
 		Api::SendOptions options,
 		bool skipToast) {
+	if (!options.scheduled && showSlowmodeError()) {
+		return false;
+	}
+
 	const auto error = GetErrorTextForSending(
 		_data.peer,
 		{
@@ -216,12 +228,14 @@ void ReplyArea::send(
 		});
 	if (!error.isEmpty()) {
 		_controller->uiShow()->showToast(error);
+		return false;
 	}
 
 	session().api().sendMessage(std::move(message));
 
 	finishSending(skipToast);
 	_controls->clear();
+	return true;
 }
 
 void ReplyArea::sendVoice(VoiceToSend &&data) {
@@ -249,7 +263,8 @@ bool ReplyArea::sendExistingDocument(
 	if (error) {
 		show->showToast(*error);
 		return false;
-	} else if (Window::ShowSendPremiumError(show, document)) {
+	} else if (showSlowmodeError()
+		|| Window::ShowSendPremiumError(show, document)) {
 		return false;
 	}
 
@@ -278,6 +293,8 @@ bool ReplyArea::sendExistingPhoto(
 		ChatRestriction::SendPhotos);
 	if (error) {
 		show->showToast(*error);
+		return false;
+	} else if (showSlowmodeError()) {
 		return false;
 	}
 
@@ -409,6 +426,8 @@ void ReplyArea::chooseAttach(
 	if (const auto error = Data::AnyFileRestrictionError(peer)) {
 		_controller->uiShow()->showToast(*error);
 		return;
+	} else if (showSlowmodeError()) {
+		return;
 	}
 
 	const auto filter = (overrideSendImagesAsPhotos == true)
@@ -505,6 +524,7 @@ bool ReplyArea::confirmSendingFiles(
 		.show = show,
 		.list = std::move(list),
 		.caption = _controls->getTextWithAppliedMarkdown(),
+		.captionToPeer = _data.peer,
 		.limits = DefaultLimitsForPeer(_data.peer),
 		.check = DefaultCheckForPeer(show, _data.peer),
 		.sendType = Api::SendType::Normal,
@@ -665,6 +685,7 @@ void ReplyArea::show(
 	const auto peer = data.peer;
 	const auto history = peer ? peer->owner().history(peer).get() : nullptr;
 	const auto user = peer->asUser();
+	_isComment = peer->isMegagroup();
 	auto writeRestriction = Data::CanSendAnythingValue(
 		peer
 	) | rpl::map([=](bool can) {
@@ -680,8 +701,13 @@ void ReplyArea::show(
 				.type = WriteRestrictionType::PremiumRequired,
 			};
 	});
+	using namespace HistoryView;
 	_controls->setHistory({
 		.history = history,
+		.showSlowmodeError = [=] { return showSlowmodeError(); },
+		.sendActionFactory = [=] { return prepareSendAction({}); },
+		.slowmodeSecondsLeft = SlowmodeSecondsLeft(history->peer),
+		.sendDisabledBySlowmode = SendDisabledBySlowmode(history->peer),
 		.liked = std::move(
 			likedValue
 		) | rpl::map([](const Data::ReactionId &id) {
@@ -691,7 +717,7 @@ void ReplyArea::show(
 	});
 	_controls->clear();
 	const auto hidden = peer
-		&& (!peer->isUser() || peer->isSelf() || peer->isServiceUser());
+		&& (peer->isBroadcast() || peer->isSelf() || peer->isServiceUser());
 	const auto cant = !peer;
 	if (!hidden && !cant) {
 		_controls->show();
@@ -711,6 +737,33 @@ void ReplyArea::show(
 			_cant = nullptr;
 		}
 	}
+}
+
+bool ReplyArea::showSlowmodeError() {
+	const auto text = [&] {
+		const auto story = _controller->story();
+		if (!story) {
+			return QString();
+		}
+		const auto peer = story->peer();
+		if (const auto left = peer->slowmodeSecondsLeft()) {
+			return tr::lng_slowmode_enabled(
+				tr::now,
+				lt_left,
+				Ui::FormatDurationWordsSlowmode(left));
+		} else if (peer->slowmodeApplied()) {
+			const auto history = peer->owner().history(peer);
+			if (const auto item = history->latestSendingMessage()) {
+				return tr::lng_slowmode_no_many(tr::now);
+			}
+		}
+		return QString();
+	}();
+	if (text.isEmpty()) {
+		return false;
+	}
+	_controller->uiShow()->showToast(text);
+	return true;
 }
 
 Main::Session &ReplyArea::session() const {

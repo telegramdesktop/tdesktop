@@ -164,7 +164,7 @@ struct FullReplyTo {
 	int quoteOffset = 0;
 
 	[[nodiscard]] bool valid() const {
-		return messageId || (storyId && peerIsUser(storyId.peer));
+		return messageId || (storyId && storyId.peer);
 	}
 	explicit operator bool() const {
 		return valid();

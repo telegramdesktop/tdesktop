@@ -556,25 +556,16 @@ bool ChannelData::canDeleteMessages() const {
 }
 
 bool ChannelData::canPostStories() const {
-	if (!isBroadcast()) {
-		return false;
-	}
 	return amCreator()
 		|| (adminRights() & AdminRight::PostStories);
 }
 
 bool ChannelData::canEditStories() const {
-	if (!isBroadcast()) {
-		return false;
-	}
 	return amCreator()
 		|| (adminRights() & AdminRight::EditStories);
 }
 
 bool ChannelData::canDeleteStories() const {
-	if (!isBroadcast()) {
-		return false;
-	}
 	return amCreator()
 		|| (adminRights() & AdminRight::DeleteStories);
 }
@@ -646,6 +637,10 @@ bool ChannelData::canEditUsername() const {
 
 bool ChannelData::canEditStickers() const {
 	return (flags() & Flag::CanSetStickers);
+}
+
+bool ChannelData::canEditEmoji() const {
+	return amCreator() || (adminRights() & ChatAdminRight::ChangeInfo);
 }
 
 bool ChannelData::canDelete() const {
@@ -772,32 +767,91 @@ void ChannelData::setMigrateFromChat(ChatData *chat) {
 }
 
 int ChannelData::slowmodeSeconds() const {
-	return _slowmodeSeconds;
+	if (const auto info = mgInfo.get()) {
+		return info->slowmodeSeconds;
+	}
+	return 0;
 }
 
 void ChannelData::setSlowmodeSeconds(int seconds) {
-	if (_slowmodeSeconds == seconds) {
+	if (!mgInfo || slowmodeSeconds() == seconds) {
 		return;
 	}
-	_slowmodeSeconds = seconds;
+	mgInfo->slowmodeSeconds = seconds;
 	session().changes().peerUpdated(this, UpdateFlag::Slowmode);
 }
 
 TimeId ChannelData::slowmodeLastMessage() const {
-	return (hasAdminRights() || amCreator()) ? 0 : _slowmodeLastMessage;
+	return (hasAdminRights()
+		|| amCreator()
+		|| unrestrictedByBoosts()
+		|| !mgInfo)
+		? 0
+		: mgInfo->slowmodeLastMessage;
 }
 
 void ChannelData::growSlowmodeLastMessage(TimeId when) {
+	const auto info = mgInfo.get();
 	const auto now = base::unixtime::now();
 	accumulate_min(when, now);
-	if (_slowmodeLastMessage > now) {
-		_slowmodeLastMessage = when;
-	} else if (_slowmodeLastMessage >= when) {
+	if (!info) {
+		return;
+	} else if (info->slowmodeLastMessage > now) {
+		info->slowmodeLastMessage = when;
+	} else if (info->slowmodeLastMessage >= when) {
 		return;
 	} else {
-		_slowmodeLastMessage = when;
+		info->slowmodeLastMessage = when;
 	}
 	session().changes().peerUpdated(this, UpdateFlag::Slowmode);
+}
+
+int ChannelData::boostsApplied() const {
+	if (const auto info = mgInfo.get()) {
+		return info->boostsApplied;
+	}
+	return 0;
+}
+
+int ChannelData::boostsUnrestrict() const {
+	if (const auto info = mgInfo.get()) {
+		return info->boostsUnrestrict;
+	}
+	return 0;
+}
+
+bool ChannelData::unrestrictedByBoosts() const {
+	if (const auto info = mgInfo.get()) {
+		return (info->boostsUnrestrict > 0)
+			&& (info->boostsApplied >= info->boostsUnrestrict);
+	}
+	return 0;
+}
+
+rpl::producer<bool> ChannelData::unrestrictedByBoostsValue() const {
+	return mgInfo
+		? mgInfo->unrestrictedByBoostsChanges.events_starting_with(
+			unrestrictedByBoosts())
+		: (rpl::single(false) | rpl::type_erased());
+}
+
+void ChannelData::setBoostsUnrestrict(int applied, int unrestrict) {
+	if (const auto info = mgInfo.get()) {
+		if (info->boostsApplied == applied
+			&& info->boostsUnrestrict == unrestrict) {
+			return;
+		}
+		const auto wasUnrestricted = unrestrictedByBoosts();
+		info->boostsApplied = applied;
+		info->boostsUnrestrict = unrestrict;
+		const auto nowUnrestricted = unrestrictedByBoosts();
+		if (wasUnrestricted != nowUnrestricted) {
+			info->unrestrictedByBoostsChanges.fire_copy(nowUnrestricted);
+			session().changes().peerUpdated(
+				this,
+				UpdateFlag::Rights | UpdateFlag::Slowmode);
+		}
+	}
 }
 
 void ChannelData::setInvitePeek(const QString &hash, TimeId expires) {
@@ -1104,20 +1158,37 @@ void ApplyChannelUpdate(
 			channel->owner().botCommandsChanged(channel);
 		}
 		const auto stickerSet = update.vstickerset();
-		const auto set = stickerSet ? &stickerSet->c_stickerSet() : nullptr;
-		const auto newSetId = (set ? set->vid().v : 0);
-		const auto oldSetId = channel->mgInfo->stickerSet.id;
+		const auto sset = stickerSet ? &stickerSet->c_stickerSet() : nullptr;
+		const auto newStickerSetId = (sset ? sset->vid().v : 0);
+		const auto oldStickerSetId = channel->mgInfo->stickerSet.id;
 		const auto stickersChanged = (canEditStickers != channel->canEditStickers())
-			|| (oldSetId != newSetId);
-		if (oldSetId != newSetId) {
+			|| (oldStickerSetId != newStickerSetId);
+		if (oldStickerSetId != newStickerSetId) {
 			channel->mgInfo->stickerSet = StickerSetIdentifier{
-				.id = set ? set->vid().v : 0,
-				.accessHash = set ? set->vaccess_hash().v : 0,
+				.id = sset ? sset->vid().v : 0,
+				.accessHash = sset ? sset->vaccess_hash().v : 0,
 			};
 		}
 		if (stickersChanged) {
 			session->changes().peerUpdated(channel, UpdateFlag::StickersSet);
 		}
+		const auto emojiSet = update.vemojiset();
+		const auto eset = emojiSet ? &emojiSet->c_stickerSet() : nullptr;
+		const auto newEmojiSetId = (eset ? eset->vid().v : 0);
+		const auto oldEmojiSetId = channel->mgInfo->emojiSet.id;
+		const auto emojiChanged = (oldEmojiSetId != newEmojiSetId);
+		if (oldEmojiSetId != newEmojiSetId) {
+			channel->mgInfo->emojiSet = StickerSetIdentifier{
+				.id = eset ? eset->vid().v : 0,
+				.accessHash = eset ? eset->vaccess_hash().v : 0,
+			};
+		}
+		if (emojiChanged) {
+			session->changes().peerUpdated(channel, UpdateFlag::EmojiSet);
+		}
+		channel->setBoostsUnrestrict(
+			update.vboosts_applied().value_or_empty(),
+			update.vboosts_unrestrict().value_or_empty());
 	}
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	channel->setTranslationDisabled(update.is_translations_disabled());

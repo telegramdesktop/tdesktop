@@ -106,6 +106,7 @@ private:
 	struct WebviewWithLifetime;
 
 	bool createWebview(const Webview::ThemeParams &params);
+	void createWebviewBottom();
 	void showWebviewProgress();
 	void hideWebviewProgress();
 	void setTitle(rpl::producer<QString> title);
@@ -150,6 +151,7 @@ private:
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<RpWidget> _webviewBottom;
+	rpl::variable<QString> _bottomText;
 	QPointer<QWidget> _webviewParent;
 	std::unique_ptr<Button> _mainButton;
 	mutable crl::time _mainButtonLastClick = 0;

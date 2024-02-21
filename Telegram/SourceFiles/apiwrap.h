@@ -246,6 +246,9 @@ public:
 	void setGroupStickerSet(
 		not_null<ChannelData*> megagroup,
 		const StickerSetIdentifier &set);
+	void setGroupEmojiSet(
+		not_null<ChannelData*> megagroup,
+		const StickerSetIdentifier &set);
 	[[nodiscard]] std::vector<not_null<DocumentData*>> *stickersByEmoji(
 		const QString &key);
 

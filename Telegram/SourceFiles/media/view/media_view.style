@@ -1046,4 +1046,5 @@ storiesRepostSimpleStyle: QuoteStyle(defaultQuoteStyle) {
 	radius: 10px;
 }
 storiesRepostIcon: icon {{ "mediaview/mini_repost", windowFg }};
-storiesRepostIconPadding: margins(0px, 4px, 4px, 0px);
+storiesRepostIconPadding: margins(0px, 4px, 2px, 0px);
+storiesRepostUserpicPadding: margins(0px, 1px, 4px, 0px);

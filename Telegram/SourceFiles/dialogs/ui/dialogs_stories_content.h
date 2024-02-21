@@ -23,7 +23,6 @@ class SessionController;
 namespace Dialogs::Stories {
 
 struct Content;
-class Thumbnail;
 struct ShowMenuRequest;
 
 [[nodiscard]] rpl::producer<Content> ContentForSession(
@@ -31,11 +30,6 @@ struct ShowMenuRequest;
 	Data::StorySourcesList list);
 
 [[nodiscard]] rpl::producer<Content> LastForPeer(not_null<PeerData*> peer);
-
-[[nodiscard]] std::shared_ptr<Thumbnail> MakeUserpicThumbnail(
-	not_null<PeerData*> peer);
-[[nodiscard]] std::shared_ptr<Thumbnail> MakeStoryThumbnail(
-	not_null<Data::Story*> story);
 
 void FillSourceMenu(
 	not_null<Window::SessionController*> controller,

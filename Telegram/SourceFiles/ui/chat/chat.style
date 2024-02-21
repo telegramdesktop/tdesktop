@@ -1042,3 +1042,8 @@ chatSimilarSkip: 12px;
 premiumRequiredWidth: 186px;
 premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
 premiumRequiredCircle: 60px;
+
+boostMessageIcon: icon {{ "stories/boost_mini", windowFg }};
+boostMessageIconPadding: margins(0px, 2px, 0px, 0px);
+boostsMessageIcon: icon {{ "stories/boosts_mini", windowFg }};
+boostsMessageIconPadding: margins(0px, 2px, 0px, 0px);

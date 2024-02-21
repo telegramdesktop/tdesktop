@@ -330,7 +330,7 @@ ReplyFields ReplyFieldsFromMTP(
 		return result;
 	}, [&](const MTPDmessageReplyStoryHeader &data) {
 		return ReplyFields{
-			.externalPeerId = peerFromUser(data.vuser_id()),
+			.externalPeerId = peerFromMTP(data.vpeer()),
 			.storyId = data.vstory_id().v,
 		};
 	});
@@ -362,9 +362,9 @@ FullReplyTo ReplyToFromMTP(
 		result.quoteOffset = data.vquote_offset().value_or_empty();
 		return result;
 	}, [&](const MTPDinputReplyToStory &data) {
-		if (const auto parsed = Data::UserFromInputMTP(
+		if (const auto parsed = Data::PeerFromInputMTP(
 				&history->owner(),
-				data.vuser_id())) {
+				data.vpeer())) {
 			return FullReplyTo{
 				.storyId = { parsed->id, data.vstory_id().v },
 			};

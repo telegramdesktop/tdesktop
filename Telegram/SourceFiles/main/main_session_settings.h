@@ -75,6 +75,16 @@ public:
 		_groupStickersSectionHidden.remove(peerId);
 	}
 
+	void setGroupEmojiSectionHidden(PeerId peerId) {
+		_groupEmojiSectionHidden.insert(peerId);
+	}
+	[[nodiscard]] bool isGroupEmojiSectionHidden(PeerId peerId) const {
+		return _groupEmojiSectionHidden.contains(peerId);
+	}
+	void removeGroupEmojiSectionHidden(PeerId peerId) {
+		_groupEmojiSectionHidden.remove(peerId);
+	}
+
 	void setMediaLastPlaybackPosition(DocumentId id, crl::time time);
 	[[nodiscard]] crl::time mediaLastPlaybackPosition(DocumentId id) const;
 
@@ -137,6 +147,7 @@ private:
 
 	ChatHelpers::SelectorTab _selectorTab; // per-window
 	base::flat_set<PeerId> _groupStickersSectionHidden;
+	base::flat_set<PeerId> _groupEmojiSectionHidden;
 	bool _hadLegacyCallsPeerToPeerNobody = false;
 	Data::AutoDownload::Full _autoDownload;
 	rpl::variable<bool> _archiveCollapsed = false;

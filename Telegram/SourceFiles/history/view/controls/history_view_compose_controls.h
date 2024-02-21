@@ -83,6 +83,7 @@ namespace HistoryView::Controls {
 class VoiceRecordBar;
 class TTLButton;
 class WebpageProcessor;
+class CharactersLimitLabel;
 } // namespace HistoryView::Controls
 
 namespace HistoryView {
@@ -228,6 +229,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> fieldMenuShownValue() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> likeAnimationTarget() const;
 
+	[[nodiscard]] TextWithEntities prepareTextForEditMsg() const;
+
 	void applyCloudDraft();
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
@@ -334,6 +337,8 @@ private:
 	void registerDraftSource();
 	void changeFocusedControl();
 
+	void checkCharsLimitation();
+
 	const style::ComposeControls &_st;
 	const ChatHelpers::ComposeFeatures _features;
 	const not_null<QWidget*> _parent;
@@ -373,6 +378,7 @@ private:
 	std::unique_ptr<Ui::SendAsButton> _sendAs;
 	std::unique_ptr<Ui::SilentToggle> _silent;
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;
+	base::unique_qptr<Controls::CharactersLimitLabel> _charsLimitation;
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
@@ -432,5 +438,10 @@ private:
 	rpl::lifetime _uploaderSubscriptions;
 
 };
+
+[[nodiscard]] rpl::producer<int> SlowmodeSecondsLeft(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<bool> SendDisabledBySlowmode(
+	not_null<PeerData*> peer);
 
 } // namespace HistoryView

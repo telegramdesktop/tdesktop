@@ -194,12 +194,8 @@ void ForwardPanel::updateTexts() {
 				.generateImages = false,
 				.ignoreGroup = true,
 			}).text;
-			const auto history = item->history();
-			const auto dropCustomEmoji = !history->session().premium()
-				&& !_to->peer()->isSelf()
-				&& (item->computeDropForwardedInfo() || !keepNames);
-			if (dropCustomEmoji) {
-				text = DropCustomEmoji(std::move(text));
+			if (item->computeDropForwardedInfo() || !keepNames) {
+				text = DropDisallowedCustomEmoji(_to->peer(), std::move(text));
 			}
 		} else {
 			text = Ui::Text::Colorized(

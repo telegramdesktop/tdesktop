@@ -559,6 +559,10 @@ struct ActionGiveawayResults {
 	int unclaimed = 0;
 };
 
+struct ActionBoostApply {
+	int boosts = 0;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -599,7 +603,8 @@ struct ServiceAction {
 		ActionSetChatWallPaper,
 		ActionGiftCode,
 		ActionGiveawayLaunch,
-		ActionGiveawayResults> content;
+		ActionGiveawayResults,
+		ActionBoostApply> content;
 };
 
 ServiceAction ParseServiceAction(

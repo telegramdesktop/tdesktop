@@ -172,6 +172,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTP_flags(flags),
 		MTP_int(0), // Not used (would've been trimmed to 32 bits).
 		peerToMTP(history->peer->id),
+		MTPint(), // from_boosts_applied
 		peerToMTP(history->peer->id),
 		MTPPeer(), // saved_peer_id
 		MTP_messageFwdHeader(

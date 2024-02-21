@@ -1,6 +1,6 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set QT = "6.6.1" -%}
+{%- set QT = "6.6.2" -%}
 {%- set QT_TAG = "v" ~ QT -%}
 {%- set QT_PREFIX = "/usr/local/desktop-app/Qt-" ~ QT -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
@@ -54,7 +54,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 61a1f5871bc83ec0514f867960616f45e142297c \
+	&& git fetch --depth=1 origin 0edd8a93409ca24e215fc8ba1e98814893ad05cf \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -108,20 +108,6 @@ RUN git clone -b v21.9 --depth=1 --recursive {{ GIT }}/protocolbuffers/protobuf.
 		-Dprotobuf_DEBUG_POSTFIX="" \
 	&& cmake --build build --parallel \
 	&& rm -rf .git
-
-FROM patches AS libproxy
-RUN git clone -b 0.4.18 --depth=1 {{ GIT }}/libproxy/libproxy.git \
-	&& cd libproxy \
-	&& git apply ../patches/libproxy.patch \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
-		-DWITH_DBUS=OFF \
-		-DWITH_NM=OFF \
-		-DWITH_NMold=OFF \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/libproxy-cache" cmake --install build \
-	&& cd .. \
-	&& rm -rf libproxy
 
 FROM builder AS lcms2
 RUN git clone -b lcms2.15 --depth=1 {{ GIT }}/mm2/Little-CMS.git \
@@ -753,7 +739,6 @@ RUN git clone -b 1.78.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
 
 FROM patches AS qt
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
-COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
@@ -782,7 +767,6 @@ RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git qt_{{ QT }} \
 		CMAKE_BUILD_TYPE=None \
 		-opensource \
 		-confirm-license \
-		-libproxy \
 		-qt-libpng \
 		-qt-harfbuzz \
 		-qt-pcre \
@@ -856,7 +840,6 @@ FROM builder-base
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=xz {{ LibrariesPath }}/xz-cache /
 COPY --link --from=protobuf {{ LibrariesPath }}/protobuf protobuf
-COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
 COPY --link --from=highway {{ LibrariesPath }}/highway-cache /

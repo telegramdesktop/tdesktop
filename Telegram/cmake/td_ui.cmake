@@ -100,6 +100,10 @@ PRIVATE
 
     history/history_view_top_toast.cpp
     history/history_view_top_toast.h
+    history/view/controls/history_view_characters_limit.cpp
+    history/view/controls/history_view_characters_limit.h
+    history/view/controls/history_view_voice_record_button.cpp
+    history/view/controls/history_view_voice_record_button.h
 
     info/profile/info_profile_icon.cpp
     info/profile/info_profile_icon.h

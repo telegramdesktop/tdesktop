@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
+#include "styles/style_premium.h"
 #include "styles/style_statistics.h"
 
 #include <QtGui/QGuiApplication>
@@ -128,7 +129,9 @@ void FillOverview(
 	addSub(
 		topRightLabel,
 		stats.premiumMemberPercentage,
-		tr::lng_boosts_premium_audience);
+		(stats.group
+			? tr::lng_boosts_premium_members
+			: tr::lng_boosts_premium_audience));
 	addSub(
 		bottomLeftLabel,
 		0,
@@ -248,7 +251,9 @@ void FillGetBoostsButton(
 			(st.height + rect::m::sum::v(st.padding) - icon.height()) / 2,
 		})->show();
 	Ui::AddSkip(content);
-	Ui::AddDividerText(content, tr::lng_boosts_get_boosts_subtext());
+	Ui::AddDividerText(content, peer->isMegagroup()
+		? tr::lng_boosts_get_boosts_subtext_group()
+		: tr::lng_boosts_get_boosts_subtext());
 }
 
 } // namespace
@@ -297,6 +302,9 @@ void InnerWidget::fill() {
 
 	{
 		auto dividerContent = object_ptr<Ui::VerticalLayout>(inner);
+		dividerContent->add(object_ptr<Ui::FixedHeightWidget>(
+			dividerContent,
+			st::boostSkipTop));
 		Ui::FillBoostLimit(
 			fakeShowed->events(),
 			dividerContent.data(),
@@ -479,7 +487,9 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(inner);
 		Ui::AddSkip(inner);
-		Ui::AddDividerText(inner, tr::lng_boosts_list_subtext());
+		Ui::AddDividerText(inner, status.overview.group
+			? tr::lng_boosts_list_subtext_group()
+			: tr::lng_boosts_list_subtext());
 	}
 
 	Ui::AddSkip(inner);
@@ -488,7 +498,9 @@ void InnerWidget::fill() {
 	Ui::AddSkip(inner, st::boostsLinkSkip);
 	FillShareLink(inner, _show, status.link, _peer);
 	Ui::AddSkip(inner);
-	Ui::AddDividerText(inner, tr::lng_boosts_link_subtext());
+	Ui::AddDividerText(inner, status.overview.group
+		? tr::lng_boosts_link_subtext_group()
+		: tr::lng_boosts_link_subtext());
 
 	FillGetBoostsButton(inner, _controller, _show, _peer, reloadOnDone);
 

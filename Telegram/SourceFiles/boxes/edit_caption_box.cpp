@@ -470,8 +470,8 @@ void EditCaptionBox::rebuildPreview() {
 
 void EditCaptionBox::setupField() {
 	const auto peer = _historyItem->history()->peer;
-	const auto allow = [=](const auto&) {
-		return Data::AllowEmojiWithoutPremium(peer);
+	const auto allow = [=](not_null<DocumentData*> emoji) {
+		return Data::AllowEmojiWithoutPremium(peer, emoji);
 	};
 	InitMessageFieldHandlers(
 		_controller,

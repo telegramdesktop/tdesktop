@@ -55,19 +55,42 @@ rpl::producer<std::vector<uint8>> PeerColors::suggestedValue() const {
 
 auto PeerColors::indicesValue() const
 -> rpl::producer<Ui::ColorIndicesCompressed> {
-	return rpl::single(_colorIndicesCurrent
-		? *_colorIndicesCurrent
-		: Ui::ColorIndicesCompressed()
+	return rpl::single(
+		indicesCurrent()
 	) | rpl::then(_colorIndicesChanged.events() | rpl::map([=] {
-		return *_colorIndicesCurrent;
+		return indicesCurrent();
 	}));
 }
 
-int PeerColors::requiredLevelFor(PeerId channel, uint8 index) const {
+Ui::ColorIndicesCompressed PeerColors::indicesCurrent() const {
+	return _colorIndicesCurrent
+		? *_colorIndicesCurrent
+		: Ui::ColorIndicesCompressed();
+}
+
+const base::flat_map<uint8, int> &PeerColors::requiredLevelsGroup() const {
+	return _requiredLevelsGroup;
+}
+
+const base::flat_map<uint8, int> &PeerColors::requiredLevelsChannel() const {
+	return _requiredLevelsChannel;
+}
+
+int PeerColors::requiredGroupLevelFor(PeerId channel, uint8 index) const {
 	if (Data::DecideColorIndex(channel) == index) {
 		return 0;
-	} else if (const auto i = _requiredLevels.find(index)
-		; i != end(_requiredLevels)) {
+	} else if (const auto i = _requiredLevelsGroup.find(index)
+		; i != end(_requiredLevelsGroup)) {
+		return i->second;
+	}
+	return 1;
+}
+
+int PeerColors::requiredChannelLevelFor(PeerId channel, uint8 index) const {
+	if (Data::DecideColorIndex(channel) == index) {
+		return 0;
+	} else if (const auto i = _requiredLevelsChannel.find(index)
+		; i != end(_requiredLevelsChannel)) {
 		return i->second;
 	}
 	return 1;
@@ -100,7 +123,8 @@ void PeerColors::apply(const MTPDhelp_peerColors &data) {
 	};
 
 	const auto &list = data.vcolors().v;
-	_requiredLevels.clear();
+	_requiredLevelsGroup.clear();
+	_requiredLevelsChannel.clear();
 	suggested.reserve(list.size());
 	for (const auto &color : list) {
 		const auto &data = color.data();
@@ -110,8 +134,11 @@ void PeerColors::apply(const MTPDhelp_peerColors &data) {
 			continue;
 		}
 		const auto colorIndex = uint8(colorIndexBare);
+		if (const auto min = data.vgroup_min_level()) {
+			_requiredLevelsGroup[colorIndex] = min->v;
+		}
 		if (const auto min = data.vchannel_min_level()) {
-			_requiredLevels[colorIndex] = min->v;
+			_requiredLevelsChannel[colorIndex] = min->v;
 		}
 		if (!data.is_hidden()) {
 			suggested.push_back(colorIndex);

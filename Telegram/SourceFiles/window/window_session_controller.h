@@ -243,6 +243,8 @@ public:
 	void searchInChat(Dialogs::Key inChat);
 	void searchMessages(const QString &query, Dialogs::Key inChat);
 
+	void resolveBoostState(not_null<ChannelData*> channel);
+
 	base::weak_ptr<Ui::Toast::Instance> showToast(
 		Ui::Toast::Config &&config);
 	base::weak_ptr<Ui::Toast::Instance> showToast(
@@ -279,7 +281,6 @@ private:
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
 
-	void resolveBoostState(not_null<ChannelData*> channel);
 	void applyBoost(
 		not_null<ChannelData*> channel,
 		Fn<void(Ui::BoostCounters)> done);

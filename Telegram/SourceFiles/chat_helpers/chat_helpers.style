@@ -968,6 +968,7 @@ historyComposeField: InputField(defaultInputField) {
 	duration: 100;
 }
 historyComposeFieldMaxHeight: 224px;
+historyComposeFieldFadeHeight: 6px;
 // historyMinHeight: 56px;
 
 historyAttach: IconButton(defaultIconButton) {
@@ -1068,6 +1069,13 @@ historyMessagesTTLLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 200px;
 	align: align(topleft);
 	textFg: windowSubTextFg;
+}
+
+historyCharsLimitationLabel: FlatLabel(defaultFlatLabel) {
+	// The same as a width of the historySendSize.
+	minWidth: 44px;
+	align: align(center);
+	textFg: attentionButtonFg;
 }
 
 historyRecordVoiceFg: historyComposeIconFg;

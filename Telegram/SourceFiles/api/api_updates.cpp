@@ -1114,6 +1114,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				(d.is_out()
 					? peerToMTP(_session->userPeerId())
 					: MTP_peerUser(d.vuser_id())),
+				MTPint(), // from_boosts_applied
 				MTP_peerUser(d.vuser_id()),
 				MTPPeer(), // saved_peer_id
 				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),
@@ -1146,6 +1147,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTP_flags(flags),
 				d.vid(),
 				MTP_peerUser(d.vfrom_id()),
+				MTPint(), // from_boosts_applied
 				MTP_peerChat(d.vchat_id()),
 				MTPPeer(), // saved_peer_id
 				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),

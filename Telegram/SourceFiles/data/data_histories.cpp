@@ -40,11 +40,9 @@ MTPInputReplyTo ReplyToForMTP(
 	const auto owner = &history->owner();
 	if (replyTo.storyId) {
 		if (const auto peer = owner->peerLoaded(replyTo.storyId.peer)) {
-			if (const auto user = peer->asUser()) {
-				return MTP_inputReplyToStory(
-					user->inputUser,
-					MTP_int(replyTo.storyId.story));
-			}
+			return MTP_inputReplyToStory(
+				peer->input,
+				MTP_int(replyTo.storyId.story));
 		}
 	} else if (replyTo.messageId || replyTo.topicRootId) {
 		const auto to = LookupReplyTo(history, replyTo.messageId);

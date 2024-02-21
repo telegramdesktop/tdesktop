@@ -255,21 +255,37 @@ struct MadePrivacyBadge {
 		result.text.append(
 			QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now));
 	}
-	if (!data.repostFrom.isEmpty()) {
+	if (data.fromPeer || !data.repostFrom.isEmpty()) {
 		result.text = QString::fromUtf8("\xE2\x80\xA2 ")
 			+ result.text;
 	}
 	return result;
 }
 
+[[nodiscard]] TextWithEntities FromNameValue(not_null<PeerData*> from) {
+	auto result = Ui::Text::SingleCustomEmoji(
+		from->owner().customEmojiManager().peerUserpicEmojiData(
+			from,
+			st::storiesRepostUserpicPadding));
+	result.append(from->name());
+	return Ui::Text::Link(result);
+}
+
 [[nodiscard]] TextWithEntities RepostNameValue(
 		not_null<Data::Session*> owner,
+		PeerData *peer,
 		QString name) {
-	const auto result = Ui::Text::SingleCustomEmoji(
+	auto result = Ui::Text::SingleCustomEmoji(
 		owner->customEmojiManager().registerInternalEmoji(
 			st::storiesRepostIcon,
-			st::storiesRepostIconPadding)
-	).append(name);
+			st::storiesRepostIconPadding));
+	if (peer) {
+		result.append(Ui::Text::SingleCustomEmoji(
+			owner->customEmojiManager().peerUserpicEmojiData(
+				peer,
+				st::storiesRepostUserpicPadding)));
+	}
+	result.append(name);
 	return Ui::Text::Link(result);
 }
 
@@ -371,24 +387,28 @@ void Header::show(HeaderData data) {
 	_date->widthValue(
 	) | rpl::start_with_next(updateInfoGeometry, _date->lifetime());
 
-	if (data.repostFrom.isEmpty()) {
+	if (!data.fromPeer && data.repostFrom.isEmpty()) {
 		_repost = nullptr;
 	} else {
 		_repost = std::make_unique<Ui::FlatLabel>(
 			_widget.get(),
 			st::storiesHeaderDate);
-		const auto repostName = RepostNameValue(
-			&data.peer->owner(),
-			data.repostFrom);
+		const auto prefixName = data.fromPeer
+			? FromNameValue(data.fromPeer)
+			: RepostNameValue(
+				&data.peer->owner(),
+				data.repostPeer,
+				data.repostFrom);
+		const auto prefix = data.fromPeer ? data.fromPeer : data.repostPeer;
 		_repost->setMarkedText(
-			data.repostPeer ? Ui::Text::Link(repostName) : repostName,
+			(prefix ? Ui::Text::Link(prefixName) : prefixName),
 			Core::MarkedTextContext{
 				.session = &data.peer->session(),
 				.customEmojiRepaint = [=] { _repost->update(); },
 			});
-		if (const auto peer = data.repostPeer) {
+		if (prefix) {
 			_repost->setClickHandlerFilter([=](const auto &...) {
-				_controller->uiShow()->show(PrepareShortInfoBox(peer));
+				_controller->uiShow()->show(PrepareShortInfoBox(prefix));
 				return false;
 			});
 		}

@@ -15,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
-#include "dialogs/ui/dialogs_stories_content.h"
-#include "dialogs/ui/dialogs_stories_list.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history.h"
@@ -31,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/outline_segments.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
@@ -102,12 +102,11 @@ void StoryMention::draw(
 		const QRect &geometry) {
 	const auto showStory = _story->forbidsForward() ? 0 : 1;
 	if (!_thumbnail || _thumbnailFromStory != showStory) {
-		using namespace Dialogs::Stories;
 		const auto item = _parent->data();
 		const auto history = item->history();
 		_thumbnail = showStory
-			? MakeStoryThumbnail(_story)
-			: MakeUserpicThumbnail(item->out()
+			? Ui::MakeStoryThumbnail(_story)
+			: Ui::MakeUserpicThumbnail(item->out()
 				? history->session().user()
 				: history->peer);
 		_thumbnailFromStory = showStory;

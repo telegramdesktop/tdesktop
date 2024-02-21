@@ -149,6 +149,11 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	bool story = false;
 };
 
+struct HistoryMessageSavedMediaData : public RuntimeComponent<HistoryMessageSavedMediaData, HistoryItem> {
+	TextWithEntities text;
+	std::unique_ptr<Data::Media> media;
+};
+
 struct HistoryMessageSaved : public RuntimeComponent<HistoryMessageSaved, HistoryItem> {
 	Data::SavedSublist *sublist = nullptr;
 };

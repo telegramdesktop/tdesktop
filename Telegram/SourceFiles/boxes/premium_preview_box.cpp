@@ -112,6 +112,10 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_infinite_reactions();
 	case PremiumPreview::TagsForMessages:
 		return tr::lng_premium_summary_subtitle_tags_for_messages();
+	case PremiumPreview::LastSeen:
+		return tr::lng_premium_summary_subtitle_last_seen();
+	case PremiumPreview::MessagePrivacy:
+		return tr::lng_premium_summary_subtitle_message_privacy();
 	case PremiumPreview::Stickers:
 		return tr::lng_premium_summary_subtitle_premium_stickers();
 	case PremiumPreview::AnimatedEmoji:
@@ -150,6 +154,10 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_infinite_reactions();
 	case PremiumPreview::TagsForMessages:
 		return tr::lng_premium_summary_about_tags_for_messages();
+	case PremiumPreview::LastSeen:
+		return tr::lng_premium_summary_about_last_seen();
+	case PremiumPreview::MessagePrivacy:
+		return tr::lng_premium_summary_about_message_privacy();
 	case PremiumPreview::Stickers:
 		return tr::lng_premium_summary_about_premium_stickers();
 	case PremiumPreview::AnimatedEmoji:
@@ -480,6 +488,8 @@ struct VideoPreviewDocument {
 		case PremiumPreview::AnimatedUserpics: return "animated_userpics";
 		case PremiumPreview::RealTimeTranslation: return "translations";
 		case PremiumPreview::Wallpapers: return "wallpapers";
+		case PremiumPreview::LastSeen: return "last_seen";
+		case PremiumPreview::MessagePrivacy: return "message_privacy";
 		}
 		return "";
 	}();

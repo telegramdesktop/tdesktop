@@ -439,10 +439,13 @@ QSize Document::countOptimalSize() {
 	auto hasTranscribe = false;
 	const auto voice = Get<HistoryDocumentVoice>();
 	if (voice) {
-		const auto session = &_realParent->history()->session();
+		const auto history = _realParent->history();
+		const auto session = &history->session();
+		const auto transcribes = &session->api().transcribes();
 		if (_parent->data()->media()->ttlSeconds()
 			|| (!session->premium()
-				&& !session->api().transcribes().trialsSupport())) {
+				&& !transcribes->freeFor(_realParent)
+				&& !transcribes->trialsSupport())) {
 			voice->transcribe = nullptr;
 			voice->transcribeText = {};
 		} else {
@@ -452,8 +455,7 @@ QSize Document::countOptimalSize() {
 					_realParent,
 					false);
 			}
-			const auto &entry = session->api().transcribes().entry(
-				_realParent);
+			const auto &entry = transcribes->entry(_realParent);
 			const auto update = [=] { repaint(); };
 			voice->transcribe->setLoading(
 				entry.shown && (entry.requestId || entry.pending),

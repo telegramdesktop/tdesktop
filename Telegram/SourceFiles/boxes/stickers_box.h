@@ -66,7 +66,8 @@ public:
 	StickersBox(
 		QWidget*,
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<ChannelData*> megagroup);
+		not_null<ChannelData*> megagroup,
+		bool isEmoji);
 	StickersBox(
 		QWidget*,
 		std::shared_ptr<ChatHelpers::Show> show,

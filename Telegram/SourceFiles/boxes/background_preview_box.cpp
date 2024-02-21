@@ -467,6 +467,10 @@ bool BackgroundPreviewBox::forChannel() const {
 	return _forPeer && _forPeer->isChannel();
 }
 
+bool BackgroundPreviewBox::forGroup() const {
+	return forChannel() && _forPeer->isMegagroup();
+}
+
 void BackgroundPreviewBox::generateBackground() {
 	if (_paper.backgroundColors().empty()) {
 		return;
@@ -492,7 +496,9 @@ void BackgroundPreviewBox::resetTitle() {
 
 void BackgroundPreviewBox::rebuildButtons(bool dark) {
 	clearButtons();
-	addButton(forChannel()
+	addButton(forGroup()
+		? tr::lng_background_apply_group()
+		: forChannel()
 		? tr::lng_background_apply_channel()
 		: _forPeer
 		? tr::lng_background_apply_button()
@@ -708,7 +714,7 @@ void BackgroundPreviewBox::checkLevelForChannel() {
 			return std::optional<Ui::AskBoostReason>();
 		}
 		return std::make_optional(Ui::AskBoostReason{
-			Ui::AskBoostWallpaper{ required }
+			Ui::AskBoostWallpaper{ required, _forPeer->isMegagroup()}
 		});
 	}, [=] { _forPeerLevelCheck = false; });
 }
@@ -1083,7 +1089,9 @@ void BackgroundPreviewBox::updateServiceBg(const std::vector<QColor> &bg) {
 	_service = GenerateServiceItem(
 		delegate(),
 		_serviceHistory,
-		(forChannel()
+		(forGroup()
+			? tr::lng_background_other_group(tr::now)
+			: forChannel()
 			? tr::lng_background_other_channel(tr::now)
 			: (_forPeer && !_fromMessageId)
 			? tr::lng_background_other_info(

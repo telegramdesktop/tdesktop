@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt_signal_producer.h"
+#include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "boxes/edit_caption_box.h"
 #include "chat_helpers/compose/compose_show.h"
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
 #include "data/data_photo_media.h"
+#include "data/data_premium_limits.h" // Data::PremiumLimits.
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
@@ -47,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
@@ -63,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 #include "media/audio/media_audio.h"
 #include "settings/settings_premium.h"
+#include "ui/item_text_options.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"
@@ -92,6 +96,7 @@ constexpr auto kMouseEvents = {
 	QEvent::MouseButtonPress,
 	QEvent::MouseButtonRelease
 };
+constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 
 constexpr auto kCommonModifiers = 0
 	| Qt::ShiftModifier
@@ -1205,6 +1210,8 @@ void ComposeControls::setFieldText(
 	_textUpdateEvents = TextUpdateEvent::SaveDraft
 		| TextUpdateEvent::SendTyping;
 
+	checkCharsLimitation();
+
 	if (_preview) {
 		_preview->checkNow(false);
 	}
@@ -1567,7 +1574,8 @@ void ComposeControls::initField() {
 	}, _field->lifetime());
 #endif // Q_OS_MAC
 	InitMessageField(_show, _field, [=](not_null<DocumentData*> emoji) {
-		if (_history && Data::AllowEmojiWithoutPremium(_history->peer)) {
+		if (_history
+			&& Data::AllowEmojiWithoutPremium(_history->peer, emoji)) {
 			return true;
 		}
 		if (_unavailableEmojiPasted) {
@@ -1575,11 +1583,13 @@ void ComposeControls::initField() {
 		}
 		return false;
 	});
+	InitMessageFieldFade(_field, _st.field.textBg);
 	_field->setEditLinkCallback(
 		DefaultEditLinkCallback(_show, _field, &_st.boxField));
 	initAutocomplete();
-	const auto allow = [=](const auto &) {
-		return _history && Data::AllowEmojiWithoutPremium(_history->peer);
+	const auto allow = [=](not_null<DocumentData*> emoji) {
+		return _history
+			&& Data::AllowEmojiWithoutPremium(_history->peer, emoji);
 	};
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		_parent,
@@ -1786,6 +1796,8 @@ void ComposeControls::fieldChanged() {
 			_sendActionUpdates.fire({ Api::SendProgressType::Typing });
 		}
 	});
+
+	checkCharsLimitation();
 
 	_saveCloudDraftTimer.cancel();
 	if (!(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
@@ -2020,6 +2032,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			_preview->setDisabled(false);
 		}
 	}
+	checkCharsLimitation();
 }
 
 void ComposeControls::cancelForward() {
@@ -2078,7 +2091,9 @@ void ComposeControls::initTabbedSelector() {
 			if (data.document->isPremiumEmoji()
 				&& !session().premium()
 				&& (!_history
-					|| !Data::AllowEmojiWithoutPremium(_history->peer))) {
+					|| !Data::AllowEmojiWithoutPremium(
+						_history->peer,
+						data.document))) {
 				if (_unavailableEmojiPasted) {
 					_unavailableEmojiPasted(data.document);
 				}
@@ -3281,6 +3296,96 @@ Fn<void()> ComposeControls::restoreTextCallback(
 			_field->textCursor().insertText(insertTextOnCancel);
 		}
 	});
+}
+
+TextWithEntities ComposeControls::prepareTextForEditMsg() const {
+	if (!_history) {
+		return {};
+	}
+	const auto textWithTags = getTextWithAppliedMarkdown();
+	const auto prepareFlags = Ui::ItemTextOptions(
+		_history,
+		session().user()).flags;
+	auto left = TextWithEntities {
+		textWithTags.text,
+		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
+	TextUtilities::PrepareForSending(left, prepareFlags);
+	return left;
+}
+
+void ComposeControls::checkCharsLimitation() {
+	if (!_history || !isEditingMessage()) {
+		_charsLimitation = nullptr;
+		return;
+	}
+	const auto item = _history->owner().message(_header->editMsgId());
+	if (!item || !item->media() || !item->media()->allowsEditCaption()) {
+		_charsLimitation = nullptr;
+		return;
+	}
+	const auto limits = Data::PremiumLimits(&session());
+	const auto left = prepareTextForEditMsg();
+	const auto remove = left.text.size() - limits.captionLengthCurrent();
+	if (remove > 0) {
+		if (!_charsLimitation) {
+			using namespace Controls;
+			_charsLimitation = base::make_unique_q<CharactersLimitLabel>(
+				_wrap.get(),
+				_send.get(),
+				style::al_bottom);
+			_charsLimitation->show();
+			Data::AmPremiumValue(
+				&session()
+			) | rpl::start_with_next([=] {
+				checkCharsLimitation();
+			}, _charsLimitation->lifetime());
+		}
+		_charsLimitation->setLeft(remove);
+	} else {
+		_charsLimitation = nullptr;
+	}
+}
+
+rpl::producer<int> SlowmodeSecondsLeft(not_null<PeerData*> peer) {
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::Slowmode
+	) | rpl::map([=] {
+		return peer->slowmodeSecondsLeft();
+	}) | rpl::map([=](int delay) -> rpl::producer<int> {
+		auto start = rpl::single(delay);
+		if (!delay) {
+			return start;
+		}
+		return std::move(
+			start
+		) | rpl::then(base::timer_each(
+			kRefreshSlowmodeLabelTimeout
+		) | rpl::map([=] {
+			return peer->slowmodeSecondsLeft();
+		}) | rpl::take_while([=](int delay) {
+			return delay > 0;
+		})) | rpl::then(rpl::single(0));
+	}) | rpl::flatten_latest();
+}
+
+rpl::producer<bool> SendDisabledBySlowmode(not_null<PeerData*> peer) {
+	const auto history = peer->owner().history(peer);
+	auto hasSendingMessage = peer->session().changes().historyFlagsValue(
+		history,
+		Data::HistoryUpdate::Flag::ClientSideMessages
+	) | rpl::map([=] {
+		return history->latestSendingMessage() != nullptr;
+	}) | rpl::distinct_until_changed();
+
+	using namespace rpl::mappers;
+	const auto channel = peer->asChannel();
+	return (!channel || channel->amCreator())
+		? (rpl::single(false) | rpl::type_erased())
+		: rpl::combine(
+			channel->slowmodeAppliedValue(),
+			std::move(hasSendingMessage),
+			_1 && _2);
 }
 
 } // namespace HistoryView

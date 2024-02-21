@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/replace_boost_box.h"
 
+#include "api/api_peer_colors.h"
+#include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "boxes/peer_list_box.h"
 #include "data/data_channel.h"
+#include "data/data_cloud_themes.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
@@ -313,21 +316,23 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
-object_ptr<Ui::BoxContent> ReassignBoostFloodBox(int seconds) {
+object_ptr<Ui::BoxContent> ReassignBoostFloodBox(int seconds, bool group) {
 	const auto days = seconds / 86400;
 	const auto hours = seconds / 3600;
 	const auto minutes = seconds / 60;
 	return Ui::MakeInformBox({
-		.text = tr::lng_boost_error_flood_text(
-			lt_left,
-			rpl::single(Ui::Text::Bold((days > 1)
-				? tr::lng_days(tr::now, lt_count, days)
-				: (hours > 1)
-				? tr::lng_hours(tr::now, lt_count, hours)
-				: (minutes > 1)
-				? tr::lng_minutes(tr::now, lt_count, minutes)
-				: tr::lng_seconds(tr::now, lt_count, seconds))),
-			Ui::Text::RichLangValue),
+		.text = (group
+			? tr::lng_boost_error_flood_text_group
+			: tr::lng_boost_error_flood_text)(
+				lt_left,
+				rpl::single(Ui::Text::Bold((days > 1)
+					? tr::lng_days(tr::now, lt_count, days)
+					: (hours > 1)
+					? tr::lng_hours(tr::now, lt_count, hours)
+					: (minutes > 1)
+					? tr::lng_minutes(tr::now, lt_count, minutes)
+					: tr::lng_seconds(tr::now, lt_count, seconds))),
+				Ui::Text::RichLangValue),
 		.title = tr::lng_boost_error_flood_title(),
 	});
 }
@@ -335,14 +340,15 @@ object_ptr<Ui::BoxContent> ReassignBoostFloodBox(int seconds) {
 object_ptr<Ui::BoxContent> ReassignBoostSingleBox(
 		not_null<ChannelData*> to,
 		TakenBoostSlot from,
-		Fn<void(std::vector<int> slots, int sources)> reassign,
+		Fn<void(std::vector<int> slots, int groups, int channels)> reassign,
 		Fn<void()> cancel) {
 	const auto reassigned = std::make_shared<bool>();
 	const auto slot = from.id;
 	const auto peer = to->owner().peer(from.peerId);
+	const auto group = peer->isMegagroup();
 	const auto confirmed = [=](Fn<void()> close) {
 		*reassigned = true;
-		reassign({ slot }, 1);
+		reassign({ slot }, group ? 1 : 0, group ? 0 : 1);
 		close();
 	};
 
@@ -417,35 +423,94 @@ Ui::BoostCounters ParseBoostCounters(
 	};
 }
 
+Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
+	const auto group = channel->isMegagroup();
+	const auto appConfig = &channel->session().account().appConfig();
+	const auto get = [&](const QString &key, int fallback, bool ok = true) {
+		return ok ? appConfig->get<int>(key, fallback) : 0;
+	};
+
+	auto nameColorsByLevel = base::flat_map<int, int>();
+	auto linkStylesByLevel = base::flat_map<int, int>();
+	const auto peerColors = &channel->session().api().peerColors();
+	const auto &list = group
+		? peerColors->requiredLevelsGroup()
+		: peerColors->requiredLevelsChannel();
+	const auto indices = peerColors->indicesCurrent();
+	for (const auto &[index, level] : list) {
+		if (!Ui::ColorPatternIndex(indices, index, false)) {
+			++nameColorsByLevel[level];
+		}
+		++linkStylesByLevel[level];
+	}
+	const auto &themes = channel->owner().cloudThemes().chatThemes();
+	if (themes.empty()) {
+		channel->owner().cloudThemes().refreshChatThemes();
+	}
+	return Ui::BoostFeatures{
+		.nameColorsByLevel = std::move(nameColorsByLevel),
+		.linkStylesByLevel = std::move(linkStylesByLevel),
+		.linkLogoLevel = get(u"channel_bg_icon_level_min"_q, 4, !group),
+		.transcribeLevel = get(u"group_transcribe_level_min"_q, 6, group),
+		.emojiPackLevel = get(u"group_emoji_stickers_level_min"_q, 4, group),
+		.emojiStatusLevel = get(group
+			? u"group_emoji_status_level_min"_q
+			: u"channel_emoji_status_level_min"_q, 8),
+		.wallpaperLevel = get(group
+			? u"group_wallpaper_level_min"_q
+			: u"channel_wallpaper_level_min"_q, 9),
+		.wallpapersCount = themes.empty() ? 8 : int(themes.size()),
+		.customWallpaperLevel = get(group
+			? u"channel_custom_wallpaper_level_min"_q
+			: u"group_custom_wallpaper_level_min"_q, 10),
+	};
+}
+
 int BoostsForGift(not_null<Main::Session*> session) {
 	const auto key = u"boosts_per_sent_gift"_q;
 	return session->account().appConfig().get<int>(key, 0);
 }
 
-[[nodiscard]] int SourcesCount(
+struct Sources {
+	int groups = 0;
+	int channels = 0;
+};
+[[nodiscard]] Sources SourcesCount(
+		not_null<ChannelData*> to,
 		const std::vector<TakenBoostSlot> &from,
 		const std::vector<int> &slots) {
-	auto checked = base::flat_set<PeerId>();
-	checked.reserve(slots.size());
+	auto groups = base::flat_set<PeerId>();
+	groups.reserve(slots.size());
+	auto channels = base::flat_set<PeerId>();
+	channels.reserve(slots.size());
+	const auto owner = &to->owner();
 	for (const auto slot : slots) {
 		const auto i = ranges::find(from, slot, &TakenBoostSlot::id);
 		Assert(i != end(from));
-		checked.emplace(i->peerId);
+		const auto id = i->peerId;
+		if (!groups.contains(id) && !channels.contains(id)) {
+			(owner->peer(id)->isMegagroup() ? groups : channels).insert(id);
+		}
 	}
-	return checked.size();
+	return {
+		.groups = int(groups.size()),
+		.channels = int(channels.size()),
+	};
 }
 
 object_ptr<Ui::BoxContent> ReassignBoostsBox(
 		not_null<ChannelData*> to,
 		std::vector<TakenBoostSlot> from,
-		Fn<void(std::vector<int> slots, int sources)> reassign,
+		Fn<void(std::vector<int> slots, int groups, int channels)> reassign,
 		Fn<void()> cancel) {
 	Expects(!from.empty());
 
 	const auto now = base::unixtime::now();
 	if (from.size() == 1 && from.front().cooldown > now) {
 		cancel();
-		return ReassignBoostFloodBox(from.front().cooldown - now);
+		return ReassignBoostFloodBox(
+			from.front().cooldown - now,
+			to->owner().peer(from.front().peerId)->isMegagroup());
 	} else if (from.size() == 1 && from.front().peerId) {
 		return ReassignBoostSingleBox(to, from.front(), reassign, cancel);
 	}
@@ -457,10 +522,10 @@ object_ptr<Ui::BoxContent> ReassignBoostsBox(
 		) | rpl::start_with_next([=](std::vector<int> slots) {
 			box->clearButtons();
 			if (!slots.empty()) {
-				const auto sources = SourcesCount(from, slots);
+				const auto sources = SourcesCount(to, from, slots);
 				box->addButton(tr::lng_boost_reassign_button(), [=] {
 					*reassigned = true;
-					reassign(slots, sources);
+					reassign(slots, sources.groups, sources.channels);
 				});
 			}
 			box->addButton(tr::lng_cancel(), [=] {

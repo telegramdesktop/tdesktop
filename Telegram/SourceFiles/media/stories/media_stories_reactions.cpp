@@ -793,7 +793,7 @@ Reactions::Reactions(not_null<Controller*> controller)
 : _controller(controller)
 , _panel(std::make_unique<Panel>(_controller)) {
 	_panel->chosen() | rpl::start_with_next([=](Chosen &&chosen) {
-		animateAndProcess(std::move(chosen));
+		_chosen.fire(std::move(chosen));
 	}, _lifetime);
 }
 
@@ -887,7 +887,7 @@ auto Reactions::attachToMenu(
 
 	selector->chosen() | rpl::start_with_next([=](ChosenReaction reaction) {
 		menu->hideMenu();
-		animateAndProcess({ reaction, ReactionsMode::Reaction });
+		_chosen.fire({ reaction, ReactionsMode::Reaction });
 	}, selector->lifetime());
 
 	return AttachSelectorResult::Attached;
@@ -933,7 +933,7 @@ void Reactions::toggleLiked() {
 
 void Reactions::applyLike(Data::ReactionId id) {
 	if (_liked.current() != id) {
-		animateAndProcess({ { .id = id }, ReactionsMode::Reaction });
+		_chosen.fire({ { .id = id }, ReactionsMode::Reaction });
 	}
 }
 
@@ -971,8 +971,6 @@ void Reactions::animateAndProcess(Chosen &&chosen) {
 			.scaleOutTarget = scaleOutTarget,
 		}, target, std::move(done));
 	}
-
-	_chosen.fire(std::move(chosen));
 }
 
 void Reactions::assignLikedId(Data::ReactionId id) {

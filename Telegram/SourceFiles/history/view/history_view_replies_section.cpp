@@ -8,12 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_replies_section.h"
 
 #include "history/view/controls/history_view_compose_controls.h"
-#include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
 #include "history/view/history_view_top_bar_widget.h"
-#include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"
-#include "history/view/history_view_pinned_bar.h"
 #include "history/view/history_view_sticker_toast.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_contact_status.h"
@@ -25,43 +22,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
-#include "history/history_item.h"
 #include "history/history_item_helpers.h" // GetErrorTextForSending.
-#include "menu/menu_send.h" // SendMenu::Type.
-#include "ui/chat/attach/attach_prepare.h"
-#include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/chat/pinned_bar.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/widgets/shadow.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/layers/generic_box.h"
-#include "ui/item_text_options.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/message_sending_animation_controller.h"
-#include "ui/ui_utility.h"
 #include "base/timer_rpl.h"
 #include "api/api_bot.h"
-#include "api/api_common.h"
 #include "api/api_editing.h"
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "ui/boxes/confirm_box.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "boxes/delete_messages_box.h"
-#include "boxes/edit_caption_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/premium_limits_box.h"
-#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
-#include "base/event_filter.h"
 #include "base/call_delayed.h"
 #include "base/qt/qt_key_modifiers.h"
-#include "core/file_utilities.h"
 #include "core/application.h"
 #include "core/shortcuts.h"
 #include "core/click_handler_types.h"
@@ -79,8 +62,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_shared_media.h"
 #include "data/data_send_action.h"
+#include "data/data_premium_limits.h"
 #include "storage/storage_media_prepare.h"
-#include "storage/storage_shared_media.h"
 #include "storage/storage_account.h"
 #include "storage/localimageloader.h"
 #include "inline_bots/inline_bot_result.h"
@@ -89,7 +72,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
-#include "styles/style_info.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
@@ -97,8 +79,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 namespace {
-
-constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 
 rpl::producer<Ui::MessageBarContent> RootViewContent(
 		not_null<History*> history,
@@ -630,45 +610,6 @@ bool RepliesWidget::computeAreComments() const {
 }
 
 void RepliesWidget::setupComposeControls() {
-	auto slowmodeSecondsLeft = session().changes().peerFlagsValue(
-		_history->peer,
-		Data::PeerUpdate::Flag::Slowmode
-	) | rpl::map([=] {
-		return _history->peer->slowmodeSecondsLeft();
-	}) | rpl::map([=](int delay) -> rpl::producer<int> {
-		auto start = rpl::single(delay);
-		if (!delay) {
-			return start;
-		}
-		return std::move(
-			start
-		) | rpl::then(base::timer_each(
-			kRefreshSlowmodeLabelTimeout
-		) | rpl::map([=] {
-			return _history->peer->slowmodeSecondsLeft();
-		}) | rpl::take_while([=](int delay) {
-			return delay > 0;
-		})) | rpl::then(rpl::single(0));
-	}) | rpl::flatten_latest();
-
-	const auto channel = _history->peer->asChannel();
-	Assert(channel != nullptr);
-
-	auto hasSendingMessage = session().changes().historyFlagsValue(
-		_history,
-		Data::HistoryUpdate::Flag::ClientSideMessages
-	) | rpl::map([=] {
-		return _history->latestSendingMessage() != nullptr;
-	}) | rpl::distinct_until_changed();
-
-	using namespace rpl::mappers;
-	auto sendDisabledBySlowmode = (!channel || channel->amCreator())
-		? (rpl::single(false) | rpl::type_erased())
-		: rpl::combine(
-			channel->slowmodeAppliedValue(),
-			std::move(hasSendingMessage),
-			_1 && _2);
-
 	auto topicWriteRestrictions = rpl::single(
 	) | rpl::then(session().changes().topicUpdates(
 		Data::TopicUpdate::Flag::Closed
@@ -718,8 +659,8 @@ void RepliesWidget::setupComposeControls() {
 		.topicRootId = _topic ? _topic->rootId() : MsgId(0),
 		.showSlowmodeError = [=] { return showSlowmodeError(); },
 		.sendActionFactory = [=] { return prepareSendAction({}); },
-		.slowmodeSecondsLeft = std::move(slowmodeSecondsLeft),
-		.sendDisabledBySlowmode = std::move(sendDisabledBySlowmode),
+		.slowmodeSecondsLeft = SlowmodeSecondsLeft(_history->peer),
+		.sendDisabledBySlowmode = SendDisabledBySlowmode(_history->peer),
 		.writeRestriction = std::move(writeRestriction),
 	});
 
@@ -963,8 +904,7 @@ bool RepliesWidget::confirmSendingFiles(
 		controller(),
 		std::move(list),
 		_composeControls->getTextWithAppliedMarkdown(),
-		DefaultLimitsForPeer(_history->peer),
-		DefaultCheckForPeer(controller(), _history->peer),
+		_history->peer,
 		Api::SendType::Normal,
 		SendMenu::Type::SilentOnly); // #TODO replies schedule
 
@@ -1229,21 +1169,19 @@ void RepliesWidget::edit(
 	if (*saveEditMsgRequestId) {
 		return;
 	}
-	const auto textWithTags = _composeControls->getTextWithAppliedMarkdown();
 	const auto webpage = _composeControls->webPageDraft();
-	const auto prepareFlags = Ui::ItemTextOptions(
-		_history,
-		session().user()).flags;
 	auto sending = TextWithEntities();
-	auto left = TextWithEntities {
-		textWithTags.text,
-		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
-	TextUtilities::PrepareForSending(left, prepareFlags);
+	auto left = _composeControls->prepareTextForEditMsg();
 
-	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)
-		&& (!item
-			|| !item->media()
-			|| !item->media()->allowsEditCaption())) {
+	const auto originalLeftSize = left.text.size();
+	const auto hasMediaWithCaption = item
+		&& item->media()
+		&& item->media()->allowsEditCaption();
+	const auto maxCaptionSize = !hasMediaWithCaption
+		? MaxMessageSize
+		: Data::PremiumLimits(&session()).captionLengthCurrent();
+	if (!TextUtilities::CutPart(sending, left, maxCaptionSize)
+		&& !hasMediaWithCaption) {
 		if (item) {
 			controller()->show(Box<DeleteMessagesBox>(item, false));
 		} else {
@@ -1251,7 +1189,7 @@ void RepliesWidget::edit(
 		}
 		return;
 	} else if (!left.text.isEmpty()) {
-		const auto remove = left.text.size();
+		const auto remove = originalLeftSize - maxCaptionSize;
 		controller()->showToast(
 			tr::lng_edit_limit_reached(tr::now, lt_count, remove));
 		return;

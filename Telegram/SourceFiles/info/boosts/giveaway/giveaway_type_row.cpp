@@ -24,7 +24,8 @@ constexpr auto kColorIndexRandom = int(2);
 GiveawayTypeRow::GiveawayTypeRow(
 	not_null<Ui::RpWidget*> parent,
 	Type type,
-	rpl::producer<QString> subtitle)
+	rpl::producer<QString> subtitle,
+	bool group)
 : GiveawayTypeRow(
 	parent,
 	type,
@@ -34,8 +35,12 @@ GiveawayTypeRow::GiveawayTypeRow(
 		: (type == Type::Random)
 		? tr::lng_giveaway_create_option()
 		: (type == Type::AllMembers)
-		? tr::lng_giveaway_users_all()
-		: tr::lng_giveaway_users_new(),
+		? (group
+			? tr::lng_giveaway_users_all_group()
+			: tr::lng_giveaway_users_all())
+		: (group
+			? tr::lng_giveaway_users_new_group()
+			: tr::lng_giveaway_users_new()),
 	std::move(subtitle),
 	QImage()) {
 }

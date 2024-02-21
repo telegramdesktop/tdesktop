@@ -221,14 +221,14 @@ void TranscribeButton::paint(
 }
 
 bool TranscribeButton::hasLock() const {
-	if (_item->history()->session().premium()) {
+	const auto session = &_item->history()->session();
+	const auto transcribes = &session->api().transcribes();
+	if (session->premium()
+		|| transcribes->freeFor(_item)
+		|| transcribes->trialsCount()) {
 		return false;
 	}
-	if (_item->history()->session().api().transcribes().trialsCount()) {
-		return false;
-	}
-	const auto until = _item->history()->session().api().transcribes()
-		.trialsRefreshAt();
+	const auto until = transcribes->trialsRefreshAt();
 	if (!until || base::unixtime::now() >= until) {
 		return false;
 	}

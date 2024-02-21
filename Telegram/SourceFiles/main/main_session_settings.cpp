@@ -44,7 +44,9 @@ QByteArray SessionSettings::serialize() const {
 		+ sizeof(qint32)
 		+ (_mutePeriods.size() * sizeof(quint64))
 		+ sizeof(qint32) * 2
-		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 3);
+		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 3)
+		+ sizeof(qint32)
+		+ _groupEmojiSectionHidden.size() * sizeof(quint64);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -91,6 +93,11 @@ QByteArray SessionSettings::serialize() const {
 				<< qint64(key.topicRootId.bare)
 				<< qint64(value.bare);
 		}
+		stream
+			<< qint32(_groupEmojiSectionHidden.size());
+		for (const auto &peerId : _groupEmojiSectionHidden) {
+			stream << SerializePeerId(peerId);
+		}
 	}
 	return result;
 }
@@ -114,6 +121,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 appFloatPlayerCorner = static_cast<qint32>(RectPart::TopRight);
 	base::flat_map<QString, QString> appSoundOverrides;
 	base::flat_set<PeerId> groupStickersSectionHidden;
+	base::flat_set<PeerId> groupEmojiSectionHidden;
 	qint32 appThirdSectionInfoEnabled = 0;
 	qint32 legacySmallDialogsList = 0;
 	float64 appDialogsWidthRatio = app.dialogsWidthRatio();
@@ -410,6 +418,22 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				quint64 peerId;
+				stream >> peerId;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"));
+					return;
+				}
+				groupEmojiSectionHidden.emplace(DeserializePeerId(peerId));
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -433,6 +457,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	case ChatHelpers::SelectorTab::Gifs: _selectorTab = uncheckedTab; break;
 	}
 	_groupStickersSectionHidden = std::move(groupStickersSectionHidden);
+	_groupEmojiSectionHidden = std::move(groupEmojiSectionHidden);
 	auto uncheckedSupportSwitch = static_cast<Support::SwitchSettings>(
 		supportSwitch);
 	switch (uncheckedSupportSwitch) {

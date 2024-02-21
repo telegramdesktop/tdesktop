@@ -198,6 +198,37 @@ void SaveSlowmodeSeconds(
 	api->registerModifyRequest(key, requestId);
 }
 
+void SaveBoostsUnrestrict(
+		not_null<ChannelData*> channel,
+		int boostsUnrestrict,
+		Fn<void()> done) {
+	const auto api = &channel->session().api();
+	const auto key = Api::RequestKey("boosts_unrestrict", channel->id);
+	const auto requestId = api->request(
+		MTPchannels_SetBoostsToUnblockRestrictions(
+			channel->inputChannel,
+			MTP_int(boostsUnrestrict))
+	).done([=](const MTPUpdates &result) {
+		api->clearModifyRequest(key);
+		api->applyUpdates(result);
+		channel->setBoostsUnrestrict(
+			channel->boostsApplied(),
+			boostsUnrestrict);
+		done();
+	}).fail([=](const MTP::Error &error) {
+		api->clearModifyRequest(key);
+		if (error.type() != u"CHAT_NOT_MODIFIED"_q) {
+			return;
+		}
+		channel->setBoostsUnrestrict(
+			channel->boostsApplied(),
+			boostsUnrestrict);
+		done();
+	}).send();
+
+	api->registerModifyRequest(key, requestId);
+}
+
 void ShowEditPermissions(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer) {
@@ -215,6 +246,10 @@ void ShowEditPermissions(
 				close);
 			if (const auto channel = peer->asChannel()) {
 				SaveSlowmodeSeconds(channel, result.slowmodeSeconds, close);
+				SaveBoostsUnrestrict(
+					channel,
+					result.boostsUnrestrict,
+					close);
 			}
 		};
 		auto done = [=](EditPeerPermissionsBoxResult result) {
@@ -225,7 +260,8 @@ void ShowEditPermissions(
 
 			const auto saveFor = peer->migrateToOrMe();
 			const auto chat = saveFor->asChat();
-			if (!result.slowmodeSeconds || !chat) {
+			if (!chat
+				|| (!result.slowmodeSeconds && !result.boostsUnrestrict)) {
 				save(saveFor, result);
 				return;
 			}
@@ -595,8 +631,9 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		tr::lng_group_stickers_add(),
 		rpl::single(QString()), //Empty count.
 		[=, controller = _navigation->parentController()] {
+			const auto isEmoji = false;
 			controller->show(
-				Box<StickersBox>(controller->uiShow(), channel));
+				Box<StickersBox>(controller->uiShow(), channel, isEmoji));
 		},
 		{ &st::menuIconStickers });
 
@@ -1057,9 +1094,7 @@ void Controller::fillManageSection() {
 		&& (channel->hasAdminRights() || channel->amCreator());
 	const auto canEditStickers = isChannel && channel->canEditStickers();
 	const auto canDeleteChannel = isChannel && channel->canDelete();
-	const auto canEditColorIndex = isChannel
-		&& !channel->isMegagroup()
-		&& channel->canEditInformation();
+	const auto canEditColorIndex = isChannel && channel->canEditEmoji();
 	const auto canViewOrEditLinkedChat = isChannel
 		&& (channel->linkedChat()
 			|| (channel->isBroadcast() && channel->canEditInformation()));

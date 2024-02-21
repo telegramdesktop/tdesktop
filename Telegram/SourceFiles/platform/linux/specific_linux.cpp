@@ -280,6 +280,11 @@ bool GenerateDesktopFile(
 			}
 		}
 
+		if (!args.isEmpty()
+				&& target->has_key("Desktop Entry", "DBusActivatable")) {
+			target->remove_key("Desktop Entry", "DBusActivatable");
+		}
+
 		target->save_to_file(targetFile.toStdString());
 	} catch (const std::exception &e) {
 		if (!silent) {

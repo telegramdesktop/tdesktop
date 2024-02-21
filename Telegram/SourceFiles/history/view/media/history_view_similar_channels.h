@@ -9,11 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_media.h"
 
-namespace Dialogs::Stories {
-class Thumbnail;
-} // namespace Dialogs::Stories
-
 namespace Ui {
+class DynamicImage;
 class RippleAnimation;
 } // namespace Ui
 
@@ -58,11 +55,10 @@ public:
 	bool consumeHorizontalScroll(QPoint position, int delta) override;
 
 private:
-	using Thumbnail = Dialogs::Stories::Thumbnail;
 	struct Channel {
 		QRect geometry;
 		Ui::Text::String name;
-		std::shared_ptr<Thumbnail> thumbnail;
+		std::shared_ptr<Ui::DynamicImage> thumbnail;
 		ClickHandlerPtr link;
 		QString counter;
 		mutable QRect counterRect;
@@ -99,7 +95,7 @@ private:
 	mutable uint32 _hasHeavyPart : 1 = 0;
 
 	std::vector<Channel> _channels;
-	mutable std::array<std::shared_ptr<Thumbnail>, 2> _moreThumbnails;
+	mutable std::array<std::shared_ptr<Ui::DynamicImage>, 2> _moreThumbnails;
 	mutable ClickHandlerPtr _viewAllLink;
 	mutable ClickHandlerPtr _toggleLink;
 

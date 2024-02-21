@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "boxes/premium_preview_box.h"
 #include "calls/calls_instance.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -217,13 +218,40 @@ bool LookupReplyIsTopicPost(HistoryItem *replyTo) {
 		&& (replyTo->topicRootId() != Data::ForumTopic::kGeneralId);
 }
 
-TextWithEntities DropCustomEmoji(TextWithEntities text) {
-	text.entities.erase(
-		ranges::remove(
-			text.entities,
-			EntityType::CustomEmoji,
-			&EntityInText::type),
-		text.entities.end());
+TextWithEntities DropDisallowedCustomEmoji(
+		not_null<PeerData*> to,
+		TextWithEntities text) {
+	if (to->session().premium() || to->isSelf()) {
+		return text;
+	}
+	const auto channel = to->asMegagroup();
+	const auto allowSetId = channel ? channel->mgInfo->emojiSet.id : 0;
+	if (!allowSetId) {
+		text.entities.erase(
+			ranges::remove(
+				text.entities,
+				EntityType::CustomEmoji,
+				&EntityInText::type),
+			text.entities.end());
+	} else {
+		const auto predicate = [&](const EntityInText &entity) {
+			if (entity.type() != EntityType::CustomEmoji) {
+				return false;
+			}
+			if (const auto id = Data::ParseCustomEmojiData(entity.data())) {
+				const auto document = to->owner().document(id);
+				if (const auto sticker = document->sticker()) {
+					if (sticker->set.id == allowSetId) {
+						return false;
+					}
+				}
+			}
+			return true;
+		};
+		text.entities.erase(
+			ranges::remove_if(text.entities, predicate),
+			text.entities.end());
+	}
 	return text;
 }
 
@@ -388,7 +416,7 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 	if (const auto replyTo = action.replyTo) {
 		if (replyTo.storyId) {
 			return MTP_messageReplyStoryHeader(
-				MTP_long(peerToUser(replyTo.storyId.peer).bare),
+				peerToMTP(replyTo.storyId.peer),
 				MTP_int(replyTo.storyId.story));
 		}
 		using Flag = MTPDmessageReplyHeader::Flag;
