@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "core/click_handler_types.h"
 #include "data/data_peer_values.h" // AmPremiumValue.
+#include "data/data_session.h"
+#include "data/business/data_business_info.h"
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
@@ -355,6 +357,8 @@ void Business::setStepDataReference(std::any &data) {
 
 void Business::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+
+	_controller->session().data().businessInfo().preloadTimezones();
 
 	Ui::AddSkip(content, st::settingsFromFileTop);
 

@@ -607,3 +607,10 @@ settingsChatbotsBottomTextMargin: margins(22px, 8px, 22px, 3px);
 settingsChatbotsAdd: SettingsButton(settingsButton) {
 	iconLeft: 22px;
 }
+settingsWorkingHoursWeek: SettingsButton(settingsButtonNoIcon) {
+	height: 40px;
+	padding: margins(22px, 4px, 22px, 4px);
+}
+settingsWorkingHoursDetails: settingsNotificationTypeDetails;
+settingsWorkingHoursPicker: 200px;
+settingsWorkingHoursPickerItemHeight: 40px;

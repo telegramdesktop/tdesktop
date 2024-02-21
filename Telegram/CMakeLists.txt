@@ -450,7 +450,10 @@ PRIVATE
     countries/countries_manager.h
     data/business/data_business_chatbots.cpp
     data/business/data_business_chatbots.h
+    data/business/data_business_common.cpp
     data/business/data_business_common.h
+    data/business/data_business_info.cpp
+    data/business/data_business_info.h
     data/notify/data_notify_settings.cpp
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp

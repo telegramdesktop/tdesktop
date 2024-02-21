@@ -63,6 +63,7 @@ class CustomEmojiManager;
 class Stories;
 class SavedMessages;
 class Chatbots;
+class BusinessInfo;
 struct ReactionId;
 
 struct RepliesReadTillUpdate {
@@ -145,6 +146,9 @@ public:
 	}
 	[[nodiscard]] Chatbots &chatbots() const {
 		return *_chatbots;
+	}
+	[[nodiscard]] BusinessInfo &businessInfo() const {
+		return *_businessInfo;
 	}
 
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
@@ -1070,6 +1074,7 @@ private:
 	const std::unique_ptr<Stories> _stories;
 	const std::unique_ptr<SavedMessages> _savedMessages;
 	const std::unique_ptr<Chatbots> _chatbots;
+	const std::unique_ptr<BusinessInfo> _businessInfo;
 
 	MsgId _nonHistoryEntryId = ServerMaxMsgId.bare + ScheduledMsgIdsRange;
 

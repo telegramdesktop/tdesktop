@@ -2189,6 +2189,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_hours_saturday" = "Saturday";
 "lng_hours_sunday" = "Sunday";
 "lng_hours_closed" = "Closed";
+"lng_hours_open_full" = "Open 24 hours";
+"lng_hours_next_day" = "Next day, {time}";
+"lng_hours_time_zone_title" = "Choose Time Zone";
+"lng_hours_add_button" = "Add a Set of Hours";
+"lng_hours_opening" = "Opening Time";
+"lng_hours_closing" = "Closing Time";
+"lng_hours_remove" = "Remove";
+"lng_hours_about_day" = "Specify your working hours during the day.";
 
 "lng_replies_title" = "Quick Replies";
 "lng_replies_about" = "Set up shortcuts with rich text and media to respond to messages faster.";
