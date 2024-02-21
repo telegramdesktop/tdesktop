@@ -784,29 +784,6 @@ QByteArray SerializeMessage(
 	pushBare("text_entities", SerializeText(context, message.text, true));
 
 	if (!message.inlineButtonRows.empty()) {
-		const auto typeString = [](
-				const HistoryMessageMarkupButton &entry) -> QByteArray {
-			using Type = HistoryMessageMarkupButton::Type;
-			switch (entry.type) {
-			case Type::Default: return "default";
-			case Type::Url: return "url";
-			case Type::Callback: return "callback";
-			case Type::CallbackWithPassword: return "callback_with_password";
-			case Type::RequestPhone: return "request_phone";
-			case Type::RequestLocation: return "request_location";
-			case Type::RequestPoll: return "request_poll";
-			case Type::RequestPeer: return "request_peer";
-			case Type::SwitchInline: return "switch_inline";
-			case Type::SwitchInlineSame: return "switch_inline_same";
-			case Type::Game: return "game";
-			case Type::Buy: return "buy";
-			case Type::Auth: return "auth";
-			case Type::UserProfile: return "user_profile";
-			case Type::WebView: return "web_view";
-			case Type::SimpleWebView: return "simple_web_view";
-			}
-			Unexpected("Type in HistoryMessageMarkupButton::Type.");
-		};
 		const auto serializeRow = [&](
 				const std::vector<HistoryMessageMarkupButton> &row) {
 			context.nesting.push_back(Context::kArray);
@@ -817,7 +794,8 @@ QByteArray SerializeMessage(
 				auto pairs = std::vector<std::pair<QByteArray, QByteArray>>();
 				pairs.push_back({
 					"type",
-					SerializeString(typeString(entry)),
+					SerializeString(
+						HistoryMessageMarkupButton::TypeToString(entry)),
 				});
 				if (!entry.text.isEmpty()) {
 					pairs.push_back({

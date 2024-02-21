@@ -690,6 +690,8 @@ struct HistoryMessageMarkupButton {
 		SimpleWebView,
 	};
 
+	static QByteArray TypeToString(const HistoryMessageMarkupButton &);
+
 	Type type;
 	QString text;
 	QByteArray data;
