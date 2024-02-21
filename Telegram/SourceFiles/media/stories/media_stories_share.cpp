@@ -154,7 +154,8 @@ namespace Media::Stories {
 					MTPReplyMarkup(),
 					MTPVector<MTPMessageEntity>(),
 					MTP_int(action.options.scheduled),
-					MTP_inputPeerEmpty()
+					MTP_inputPeerEmpty(),
+					MTPstring() // quick_reply_shortcut
 				), [=](
 						const MTPUpdates &result,
 						const MTP::Response &response) {

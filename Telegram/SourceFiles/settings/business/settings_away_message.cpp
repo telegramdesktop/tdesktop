@@ -65,7 +65,6 @@ void AwayMessage::setupContent(
 	//const auto current = controller->session().data().chatbots().current();
 
 	//_recipients = current.recipients;
-
 	AddDividerTextWithLottie(content, {
 		.lottie = u"sleep"_q,
 		.lottieSize = st::settingsCloudPasswordIconSize,

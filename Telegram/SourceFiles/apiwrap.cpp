@@ -3264,7 +3264,8 @@ void ApiWrap::forwardMessages(
 				peer->input,
 				MTP_int(topMsgId),
 				MTP_int(action.options.scheduled),
-				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
+				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+				MTPstring() // quick_reply_shortcut
 			)).done([=](const MTPUpdates &result) {
 				applyUpdates(result);
 				if (shared && !--shared->requestsLeft) {
@@ -3779,7 +3780,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					MTPReplyMarkup(),
 					sentEntities,
 					MTP_int(message.action.options.scheduled),
-					(sendAs ? sendAs->input : MTP_inputPeerEmpty())
+					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+					MTPstring() // quick_reply_shortcut
 				), done, fail);
 		} else {
 			histories.sendPreparedMessage(
@@ -3795,7 +3797,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					MTPReplyMarkup(),
 					sentEntities,
 					MTP_int(action.options.scheduled),
-					(sendAs ? sendAs->input : MTP_inputPeerEmpty())
+					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+					MTPstring() // quick_reply_shortcut
 				), done, fail);
 		}
 		isFirst = false;
@@ -3928,7 +3931,8 @@ void ApiWrap::sendInlineResult(
 			MTP_long(data->getQueryId()),
 			MTP_string(data->getId()),
 			MTP_int(action.options.scheduled),
-			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+			MTPstring() // quick_reply_shortcut
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		history->finishSavingCloudDraft(
 			topicRootId,
@@ -4076,7 +4080,8 @@ void ApiWrap::sendMediaWithRandomId(
 			MTPReplyMarkup(),
 			sentEntities,
 			MTP_int(options.scheduled),
-			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty())
+			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty()),
+			MTPstring() // quick_reply_shortcut
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (done) done(true);
 		if (updateRecentStickers) {
@@ -4174,7 +4179,8 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			Data::Histories::ReplyToPlaceholder(),
 			MTP_vector<MTPInputSingleMedia>(medias),
 			MTP_int(album->options.scheduled),
-			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+			MTPstring() // quick_reply_shortcut
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		_sendingAlbums.remove(groupId);
 	}, [=](const MTP::Error &error, const MTP::Response &response) {

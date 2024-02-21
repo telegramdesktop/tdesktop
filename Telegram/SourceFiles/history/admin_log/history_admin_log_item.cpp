@@ -137,7 +137,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTP_long(0), // grouped_id
 			MTPMessageReactions(),
 			MTPVector<MTPRestrictionReason>(),
-			MTPint()); // ttl_period
+			MTPint(), // ttl_period
+			MTPint()); // quick_reply_shortcut_id
 	});
 }
 

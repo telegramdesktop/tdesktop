@@ -4470,7 +4470,8 @@ void Session::insertCheckedServiceNotification(
 				MTPlong(),
 				MTPMessageReactions(),
 				MTPVector<MTPRestrictionReason>(),
-				MTPint()), // ttl_period
+				MTPint(), // ttl_period
+				MTPint()), // quick_reply_shortcut_id
 			localFlags,
 			NewMessageType::Unread);
 	}

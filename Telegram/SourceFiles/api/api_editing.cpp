@@ -101,7 +101,8 @@ mtpRequestId EditMessage(
 		inputMedia.value_or(Data::WebPageForMTP(webpage, text.isEmpty())),
 		MTPReplyMarkup(),
 		sentEntities,
-		MTP_int(options.scheduled)
+		MTP_int(options.scheduled),
+		MTPint() // quick_reply_shortcut_id
 	)).done([=](
 			const MTPUpdates &result,
 			[[maybe_unused]] mtpRequestId requestId) {

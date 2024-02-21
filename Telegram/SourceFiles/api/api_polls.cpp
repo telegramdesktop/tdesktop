@@ -84,7 +84,8 @@ void Polls::create(
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
-			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+			MTPstring() // quick_reply_shortcut
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(
@@ -173,7 +174,8 @@ void Polls::close(not_null<HistoryItem*> item) {
 		PollDataToInputMedia(poll, true),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>(),
-		MTP_int(0) // schedule_date
+		MTP_int(0), // schedule_date
+		MTPint() // quick_reply_shortcut_id
 	)).done([=](const MTPUpdates &result) {
 		_pollCloseRequestIds.erase(itemId);
 		_session->updates().applyUpdates(result);

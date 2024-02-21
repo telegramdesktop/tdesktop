@@ -88,6 +88,10 @@ void Location::setupContent(
 			QString()),
 		st::settingsChatbotsUsernameMargins);
 
+	showFinishes() | rpl::start_with_next([=] {
+		address->setFocus();
+	}, address->lifetime());
+
 	if (!mapSupported()) {
 		AddDividerTextWithLottie(content, {
 			.lottie = u"phone"_q,
