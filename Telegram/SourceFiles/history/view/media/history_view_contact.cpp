@@ -32,8 +32,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-ClickHandlerPtr SendMessageClickHandler(PeerData *peer) {
-	return std::make_shared<LambdaClickHandler>([peer](ClickContext context) {
+class ContactClickHandler : public LambdaClickHandler {
+public:
+	using LambdaClickHandler::LambdaClickHandler;
+
+	void setDragText(const QString &t) {
+		_dragText = t;
+	}
+
+	QString dragText() const override {
+		return _dragText;
+	}
+
+private:
+	QString _dragText;
+
+};
+
+ClickHandlerPtr SendMessageClickHandler(not_null<PeerData*> peer) {
+	const auto clickHandlerPtr = std::make_shared<ContactClickHandler>([peer](
+			ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			if (controller->session().uniqueId()
@@ -45,30 +63,44 @@ ClickHandlerPtr SendMessageClickHandler(PeerData *peer) {
 				Window::SectionShow::Way::Forward);
 		}
 	});
+	if (const auto user = peer->asUser()) {
+		clickHandlerPtr->setDragText(user->phone().isEmpty()
+			? peer->name()
+			: Ui::FormatPhone(user->phone()));
+	}
+	return clickHandlerPtr;
 }
 
 ClickHandlerPtr AddContactClickHandler(not_null<HistoryItem*> item) {
 	const auto session = &item->history()->session();
-	const auto fullId = item->fullId();
-	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+	const auto sharedContact = [=, fullId = item->fullId()] {
+		if (const auto item = session->data().message(fullId)) {
+			if (const auto media = item->media()) {
+				return media->sharedContact();
+			}
+		}
+		return (const Data::SharedContact *)nullptr;
+	};
+	const auto clickHandlerPtr = std::make_shared<ContactClickHandler>([=](
+			ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			if (controller->session().uniqueId() != session->uniqueId()) {
 				return;
 			}
-			if (const auto item = session->data().message(fullId)) {
-				if (const auto media = item->media()) {
-					if (const auto contact = media->sharedContact()) {
-						controller->show(Box<AddContactBox>(
-							session,
-							contact->firstName,
-							contact->lastName,
-							contact->phoneNumber));
-					}
-				}
+			if (const auto contact = sharedContact()) {
+				controller->show(Box<AddContactBox>(
+					session,
+					contact->firstName,
+					contact->lastName,
+					contact->phoneNumber));
 			}
 		}
 	});
+	if (const auto contact = sharedContact()) {
+		clickHandlerPtr->setDragText(Ui::FormatPhone(contact->phoneNumber));
+	}
+	return clickHandlerPtr;
 }
 
 } // namespace
