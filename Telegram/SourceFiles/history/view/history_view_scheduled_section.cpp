@@ -563,7 +563,7 @@ Api::SendAction ScheduledWidget::prepareSendAction(
 
 void ScheduledWidget::send() {
 	const auto textWithTags = _composeControls->getTextWithAppliedMarkdown();
-	if (textWithTags.text.isEmpty()) {
+	if (textWithTags.text.isEmpty() && !_composeControls->readyToForward()) {
 		return;
 	}
 
@@ -592,6 +592,7 @@ void ScheduledWidget::send(Api::SendOptions options) {
 
 	session().api().sendMessage(std::move(message));
 
+	_composeControls->cancelForward();
 	_composeControls->clear();
 	//_saveDraftText = true;
 	//_saveDraftStart = crl::now();
