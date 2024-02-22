@@ -4724,6 +4724,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boosts_prepaid_giveaway_status#one" = "{count} subscription {duration}";
 "lng_boosts_prepaid_giveaway_status#other" = "{count} subscriptions {duration}";
 
+"lng_contact_add" = "Add";
+"lng_contact_send_message" = "message";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

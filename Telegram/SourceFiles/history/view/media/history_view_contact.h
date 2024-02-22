@@ -12,11 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class EmptyUserpic;
+class RippleAnimation;
 } // namespace Ui
 
 namespace HistoryView {
 
-class Contact : public Media {
+class Contact final : public Media {
 public:
 	Contact(
 		not_null<Element*> parent,
@@ -29,7 +30,8 @@ public:
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+	bool toggleSelectionByHandlerClick(
+			const ClickHandlerPtr &p) const override {
 		return true;
 	}
 	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
@@ -43,16 +45,6 @@ public:
 		return false;
 	}
 
-	const QString &fname() const {
-		return _fname;
-	}
-	const QString &lname() const {
-		return _lname;
-	}
-	const QString &phone() const {
-		return _phone;
-	}
-
 	// Should be called only by Data::Session.
 	void updateSharedContactUserId(UserId userId) override;
 
@@ -62,18 +54,40 @@ public:
 private:
 	QSize countOptimalSize() override;
 
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &p, bool pressed) override;
+
+	[[nodiscard]] QMargins inBubblePadding() const;
+	[[nodiscard]] QMargins innerMargin() const;
+	[[nodiscard]] int bottomInfoPadding() const;
+
+	[[nodiscard]] TextSelection toTitleSelection(
+		TextSelection selection) const;
+	[[nodiscard]] TextSelection toDescriptionSelection(
+		TextSelection selection) const;
+
+	const style::QuoteStyle &_st;
+	const int _pixh;
+
 	UserId _userId = 0;
 	UserData *_contact = nullptr;
 
-	int _phonew = 0;
-	QString _fname, _lname, _phone;
-	Ui::Text::String _name;
+	Ui::Text::String _nameLine;
+	Ui::Text::String _phoneLine;
+	Ui::Text::String _infoLine;
+
+	struct Button {
+		QString text;
+		int width = 0;
+		ClickHandlerPtr link;
+		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
+	};
+	std::vector<Button> _buttons;
+	Button _mainButton;
+
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 	mutable Ui::PeerUserpicView _userpic;
-
-	ClickHandlerPtr _linkl;
-	int _linkw = 0;
-	QString _link;
+	mutable QPoint _lastPoint;
 
 };
 
