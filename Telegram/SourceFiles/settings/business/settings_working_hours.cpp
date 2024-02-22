@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "data/business/data_business_info.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/business/settings_recipients_helper.h"
@@ -50,6 +51,7 @@ private:
 	void save();
 
 	rpl::variable<Data::WorkingHours> _hours;
+	rpl::variable<bool> _enabled;
 
 };
 
@@ -566,7 +568,7 @@ void WorkingHours::setupContent(
 	const auto state = content->lifetime().make_state<State>(State{
 		.timezones = info->timezonesValue(),
 	});
-	_hours = info->workingHours();
+	_hours = controller->session().user()->businessDetails().hours;
 
 	AddDividerTextWithLottie(content, {
 		.lottie = u"hours"_q,
@@ -582,7 +584,9 @@ void WorkingHours::setupContent(
 		content,
 		tr::lng_hours_show(),
 		st::settingsButtonNoIcon
-	))->toggleOn(rpl::single(false));
+	))->toggleOn(rpl::single(bool(_hours.current())));
+
+	_enabled = enabled->toggledValue();
 
 	const auto wrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -670,7 +674,7 @@ void WorkingHours::setupContent(
 
 void WorkingHours::save() {
 	controller()->session().data().businessInfo().saveWorkingHours(
-		_hours.current());
+		_enabled.current() ? _hours.current() : Data::WorkingHours());
 }
 
 } // namespace

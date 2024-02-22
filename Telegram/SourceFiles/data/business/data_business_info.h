@@ -18,8 +18,6 @@ public:
 	explicit BusinessInfo(not_null<Session*> owner);
 	~BusinessInfo();
 
-	[[nodiscard]] const WorkingHours &workingHours() const;
-	[[nodiscard]] rpl::producer<WorkingHours> workingHoursValue() const;
 	void saveWorkingHours(WorkingHours data);
 
 	void preload();
@@ -28,8 +26,6 @@ public:
 
 private:
 	const not_null<Session*> _owner;
-
-	rpl::variable<WorkingHours> _workingHours;
 
 	rpl::variable<Timezones> _timezones;
 

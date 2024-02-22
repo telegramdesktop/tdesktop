@@ -26,7 +26,6 @@ public:
 
 	[[nodiscard]] size_t hash() const;
 
-private:
 	friend inline bool operator==(
 			const LocationPoint &a,
 			const LocationPoint &b) {
@@ -39,6 +38,7 @@ private:
 		return (a._lat < b._lat) || ((a._lat == b._lat) && (a._lon < b._lon));
 	}
 
+private:
 	float64 _lat = 0;
 	float64 _lon = 0;
 	uint64 _access = 0;

@@ -18,7 +18,7 @@ constexpr auto kInNextDayMax = WorkingInterval::kInNextDayMax;
 	auto &list = intervals.list;
 	ranges::sort(list, ranges::less(), &WorkingInterval::start);
 	for (auto i = 0, count = int(list.size()); i != count; ++i) {
-		if (i && list[i].intersected(list[i - 1])) {
+		if (i && list[i] && list[i -1] && list[i].start <= list[i - 1].end) {
 			list[i - 1] = list[i - 1].united(list[i]);
 			list[i] = {};
 		}
@@ -54,12 +54,12 @@ WorkingIntervals WorkingIntervals::normalized() const {
 	return SortAndMerge(MoveTailToFront(SortAndMerge(*this)));
 }
 
-Data::WorkingIntervals ExtractDayIntervals(
-		const Data::WorkingIntervals &intervals,
+WorkingIntervals ExtractDayIntervals(
+		const WorkingIntervals &intervals,
 		int dayIndex) {
 	Expects(dayIndex >= 0 && dayIndex < 7);
 
-	auto result = Data::WorkingIntervals();
+	auto result = WorkingIntervals();
 	auto &list = result.list;
 	for (const auto &interval : intervals.list) {
 		const auto now = interval.intersected(
@@ -80,7 +80,7 @@ Data::WorkingIntervals ExtractDayIntervals(
 	}
 	result = result.normalized();
 
-	const auto outside = [&](Data::WorkingInterval interval) {
+	const auto outside = [&](WorkingInterval interval) {
 		return (interval.end <= 0) || (interval.start >= kDay);
 	};
 	list.erase(ranges::remove_if(list, outside), end(list));
@@ -106,15 +106,15 @@ Data::WorkingIntervals ExtractDayIntervals(
 	return result;
 }
 
-Data::WorkingIntervals RemoveDayIntervals(
-		const Data::WorkingIntervals &intervals,
+WorkingIntervals RemoveDayIntervals(
+		const WorkingIntervals &intervals,
 		int dayIndex) {
 	auto result = intervals.normalized();
 	auto &list = result.list;
-	const auto day = Data::WorkingInterval{ 0, kDay };
+	const auto day = WorkingInterval{ 0, kDay };
 	const auto shifted = day.shifted(dayIndex * kDay);
-	auto before = Data::WorkingInterval{ 0, shifted.start };
-	auto after = Data::WorkingInterval{ shifted.end, kWeek };
+	auto before = WorkingInterval{ 0, shifted.start };
+	auto after = WorkingInterval{ shifted.end, kWeek };
 	for (auto i = 0, count = int(list.size()); i != count; ++i) {
 		if (list[i].end <= shifted.start || list[i].start >= shifted.end) {
 			continue;
@@ -140,10 +140,10 @@ Data::WorkingIntervals RemoveDayIntervals(
 	return result.normalized();
 }
 
-Data::WorkingIntervals ReplaceDayIntervals(
-		const Data::WorkingIntervals &intervals,
+WorkingIntervals ReplaceDayIntervals(
+		const WorkingIntervals &intervals,
 		int dayIndex,
-		Data::WorkingIntervals replacement) {
+		WorkingIntervals replacement) {
 	auto result = RemoveDayIntervals(intervals, dayIndex);
 	const auto first = result.list.insert(
 		end(result.list),

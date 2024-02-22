@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
+#include "data/data_location.h"
 
 class UserData;
 
@@ -125,20 +126,50 @@ struct WorkingHours {
 		return { intervals.normalized(), timezoneId };
 	}
 
+	explicit operator bool() const {
+		return !timezoneId.isEmpty();
+	}
+
 	friend inline bool operator==(
 		const WorkingHours &a,
 		const WorkingHours &b) = default;
 };
 
-[[nodiscard]] Data::WorkingIntervals ExtractDayIntervals(
-	const Data::WorkingIntervals &intervals,
+[[nodiscard]] WorkingIntervals ExtractDayIntervals(
+	const WorkingIntervals &intervals,
 	int dayIndex);
-[[nodiscard]] Data::WorkingIntervals RemoveDayIntervals(
-	const Data::WorkingIntervals &intervals,
+[[nodiscard]] WorkingIntervals RemoveDayIntervals(
+	const WorkingIntervals &intervals,
 	int dayIndex);
-[[nodiscard]] Data::WorkingIntervals ReplaceDayIntervals(
-	const Data::WorkingIntervals &intervals,
+[[nodiscard]] WorkingIntervals ReplaceDayIntervals(
+	const WorkingIntervals &intervals,
 	int dayIndex,
-	Data::WorkingIntervals replacement);
+	WorkingIntervals replacement);
+
+struct BusinessLocation {
+	QString address;
+	LocationPoint point;
+
+	explicit operator bool() const {
+		return !address.isEmpty();
+	}
+
+	friend inline bool operator==(
+		const BusinessLocation &a,
+		const BusinessLocation &b) = default;
+};
+
+struct BusinessDetails {
+	WorkingHours hours;
+	BusinessLocation location;
+
+	explicit operator bool() const {
+		return hours || location;
+	}
+
+	friend inline bool operator==(
+		const BusinessDetails &a,
+		const BusinessDetails &b) = default;
+};
 
 } // namespace Data
