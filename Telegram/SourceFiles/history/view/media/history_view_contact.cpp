@@ -97,7 +97,7 @@ Contact::Contact(
 
 	_phoneLine.setText(
 		st::webPageDescriptionStyle,
-		Ui::FormatPhone(QString(phone).replace(QChar('+'), QString())),
+		Ui::FormatPhone(phone),
 		Ui::WebpageTextTitleOptions());
 
 #if 0 // No info.

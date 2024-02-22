@@ -388,7 +388,9 @@ QString FormatPhone(const QString &phone) {
 	if (phone.at(0) == '0') {
 		return phone;
 	}
-	return Countries::Instance().format({ .phone = phone }).formatted;
+	return Countries::Instance().format({
+		.phone = (phone.at(0) == '+') ? phone.mid(1) : phone,
+	}).formatted;
 }
 
 QString FormatTTL(float64 ttl) {
