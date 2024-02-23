@@ -172,4 +172,34 @@ struct BusinessDetails {
 		const BusinessDetails &b) = default;
 };
 
+enum class AwayScheduleType : uchar {
+	Never = 0,
+	Always = 1,
+	OutsideWorkingHours = 2,
+	Custom = 3,
+};
+
+struct AwaySchedule {
+	AwayScheduleType type = AwayScheduleType::Always;
+	WorkingInterval customInterval;
+
+	friend inline bool operator==(
+		const AwaySchedule &a,
+		const AwaySchedule &b) = default;
+};
+
+struct AwaySettings {
+	BusinessRecipients recipients;
+	AwaySchedule schedule;
+	int shortcutId = 0;
+
+	explicit operator bool() const {
+		return schedule.type != AwayScheduleType::Never;
+	}
+
+	friend inline bool operator==(
+		const AwaySettings &a,
+		const AwaySettings &b) = default;
+};
+
 } // namespace Data

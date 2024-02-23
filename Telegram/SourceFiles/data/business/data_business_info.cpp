@@ -29,6 +29,51 @@ namespace {
 		MTP_vector_from_range(list | ranges::views::transform(proj)));
 }
 
+template <typename Flag>
+[[nodiscard]] auto RecipientsFlags(
+		const BusinessRecipients &data,
+		Flag) {
+	using Type = BusinessChatType;
+	const auto &chats = data.allButExcluded
+		? data.excluded
+		: data.included;
+	return Flag()
+		| ((chats.types & Type::NewChats) ? Flag::f_new_chats : Flag())
+		| ((chats.types & Type::ExistingChats)
+			? Flag::f_existing_chats
+			: Flag())
+		| ((chats.types & Type::Contacts) ? Flag::f_contacts : Flag())
+		| ((chats.types & Type::NonContacts) ? Flag::f_non_contacts : Flag())
+		| (chats.list.empty() ? Flag() : Flag::f_users)
+		| (data.allButExcluded ? Flag::f_exclude_selected : Flag());
+}
+
+[[nodiscard]] MTPBusinessAwayMessageSchedule ToMTP(
+		const AwaySchedule &data) {
+	Expects(data.type != AwayScheduleType::Never);
+
+	return (data.type == AwayScheduleType::Always)
+		? MTP_businessAwayMessageScheduleAlways()
+		: (data.type == AwayScheduleType::OutsideWorkingHours)
+		? MTP_businessAwayMessageScheduleOutsideWorkHours()
+		: MTP_businessAwayMessageScheduleCustom(
+			MTP_int(data.customInterval.start),
+			MTP_int(data.customInterval.end));
+}
+
+[[nodiscard]] MTPInputBusinessAwayMessage ToMTP(const AwaySettings &data) {
+	using Flag = MTPDinputBusinessAwayMessage::Flag;
+	return MTP_inputBusinessAwayMessage(
+		MTP_flags(RecipientsFlags(data.recipients, Flag())),
+		MTP_int(data.shortcutId),
+		ToMTP(data.schedule),
+		MTP_vector_from_range(
+			(data.recipients.allButExcluded
+				? data.recipients.excluded
+				: data.recipients.included).list
+			| ranges::views::transform(&UserData::inputUser)));
+}
+
 } // namespace
 
 BusinessInfo::BusinessInfo(not_null<Session*> owner)
@@ -42,15 +87,49 @@ void BusinessInfo::saveWorkingHours(WorkingHours data) {
 	if (details.hours == data) {
 		return;
 	}
-	details.hours = std::move(data);
 
 	using Flag = MTPaccount_UpdateBusinessWorkHours::Flag;
 	_owner->session().api().request(MTPaccount_UpdateBusinessWorkHours(
-		MTP_flags(details.hours ? Flag::f_business_work_hours : Flag()),
-		ToMTP(details.hours)
+		MTP_flags(data ? Flag::f_business_work_hours : Flag()),
+		ToMTP(data)
 	)).send();
 
+	details.hours = std::move(data);
 	_owner->session().user()->setBusinessDetails(std::move(details));
+}
+
+void BusinessInfo::applyAwaySettings(AwaySettings data) {
+	if (_awaySettings == data) {
+		return;
+	}
+	_awaySettings = data;
+	_awaySettingsChanged.fire({});
+}
+
+void BusinessInfo::saveAwaySettings(AwaySettings data) {
+	if (_awaySettings == data) {
+		return;
+	}
+	using Flag = MTPaccount_UpdateBusinessAwayMessage::Flag;
+	_owner->session().api().request(MTPaccount_UpdateBusinessAwayMessage(
+		MTP_flags(data ? Flag::f_message : Flag()),
+		data ? ToMTP(data) : MTPInputBusinessAwayMessage()
+	)).send();
+
+	_awaySettings = std::move(data);
+	_awaySettingsChanged.fire({});
+}
+
+bool BusinessInfo::awaySettingsLoaded() const {
+	return _awaySettings.has_value();
+}
+
+AwaySettings BusinessInfo::awaySettings() const {
+	return _awaySettings.value_or(AwaySettings());
+}
+
+rpl::producer<> BusinessInfo::awaySettingsChanged() const {
+	return _awaySettingsChanged.events();
 }
 
 void BusinessInfo::preload() {

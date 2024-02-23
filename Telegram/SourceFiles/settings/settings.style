@@ -614,3 +614,5 @@ settingsWorkingHoursWeek: SettingsButton(settingsButtonNoIcon) {
 settingsWorkingHoursDetails: settingsNotificationTypeDetails;
 settingsWorkingHoursPicker: 200px;
 settingsWorkingHoursPickerItemHeight: 40px;
+
+settingsAwaySchedulePadding: margins(0px, 8px, 0px, 8px);

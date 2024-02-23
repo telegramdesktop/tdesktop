@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_user_photos.h"
 #include "main/main_session.h"
 #include "data/business/data_business_common.h"
+#include "data/business/data_business_info.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_peer_bot_command.h"
@@ -51,11 +52,63 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 	if (location) {
 		const auto &data = location->data();
 		result.location.address = qs(data.vaddress());
-		data.vgeo_point().match([&](const MTPDgeoPoint &data) {
-			result.location.point = Data::LocationPoint(data);
-		}, [&](const MTPDgeoPointEmpty &) {
-		});
+		if (const auto point = data.vgeo_point()) {
+			point->match([&](const MTPDgeoPoint &data) {
+				result.location.point = Data::LocationPoint(data);
+			}, [&](const MTPDgeoPointEmpty &) {
+			});
+		}
 	}
+	return result;
+}
+
+template <typename T>
+Data::BusinessRecipients RecipientsFromMTP(
+		not_null<Data::Session*> owner,
+		const T &data) {
+	using Type = Data::BusinessChatType;
+	auto result = Data::BusinessRecipients{
+		.allButExcluded = data.is_exclude_selected(),
+	};
+	auto &chats = result.allButExcluded
+		? result.excluded
+		: result.included;
+	chats.types = Type()
+		| (data.is_new_chats() ? Type::NewChats : Type())
+		| (data.is_existing_chats() ? Type::ExistingChats : Type())
+		| (data.is_contacts() ? Type::Contacts : Type())
+		| (data.is_non_contacts() ? Type::NonContacts : Type());
+	if (const auto users = data.vusers()) {
+		for (const auto &userId : users->v) {
+			chats.list.push_back(owner->user(UserId(userId.v)));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] Data::AwaySettings FromMTP(
+		not_null<Data::Session*> owner,
+		const tl::conditional<MTPBusinessAwayMessage> &message) {
+	if (!message) {
+		return Data::AwaySettings();
+	}
+	const auto &data = message->data();
+	auto result = Data::AwaySettings{
+		.recipients = RecipientsFromMTP(owner, data),
+		.shortcutId = data.vshortcut_id().v,
+	};
+	data.vschedule().match([&](
+			const MTPDbusinessAwayMessageScheduleAlways &) {
+		result.schedule.type = Data::AwayScheduleType::Always;
+	}, [&](const MTPDbusinessAwayMessageScheduleOutsideWorkHours &) {
+		result.schedule.type = Data::AwayScheduleType::OutsideWorkingHours;
+	}, [&](const MTPDbusinessAwayMessageScheduleCustom &data) {
+		result.schedule.type = Data::AwayScheduleType::Custom;
+		result.schedule.customInterval = Data::WorkingInterval{
+			data.vstart_date().v,
+			data.vend_date().v,
+		};
+	});
 	return result;
 }
 
@@ -622,6 +675,10 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setBusinessDetails(FromMTP(
 		update.vbusiness_work_hours(),
 		update.vbusiness_location()));
+	if (user->isSelf()) {
+		user->owner().businessInfo().applyAwaySettings(
+			FromMTP(&user->owner(), update.vbusiness_away_message()));
+	}
 
 	user->owner().stories().apply(user, update.vstories());
 
