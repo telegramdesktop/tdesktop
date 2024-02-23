@@ -717,7 +717,7 @@ void ProxiesBox::refreshProxyForCalls() {
 		return;
 	}
 	_proxyForCalls->toggle(
-		(_proxySettings->value() == ProxyData::Settings::Enabled
+		(_proxySettings->current() == ProxyData::Settings::Enabled
 			&& _currentProxySupportsCallsId != 0),
 		anim::type::normal);
 }
@@ -864,7 +864,7 @@ void ProxyBox::refreshButtons() {
 	addButton(tr::lng_settings_save(), [=] { save(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
-	const auto type = _type->value();
+	const auto type = _type->current();
 	if (type == Type::Socks5 || type == Type::Mtproto) {
 		addLeftButton(tr::lng_proxy_share(), [=] { share(); });
 	}
@@ -885,7 +885,7 @@ void ProxyBox::share() {
 
 ProxyData ProxyBox::collectData() {
 	auto result = ProxyData();
-	result.type = _type->value();
+	result.type = _type->current();
 	result.host = _host->getLastText().trimmed();
 	result.port = _port->getLastText().trimmed().toInt();
 	result.user = (result.type == Type::Mtproto)
@@ -1053,7 +1053,7 @@ void ProxyBox::setupControls(const ProxyData &data) {
 		handleType(type);
 		refreshButtons();
 	});
-	handleType(_type->value());
+	handleType(_type->current());
 }
 
 void ProxyBox::addLabel(

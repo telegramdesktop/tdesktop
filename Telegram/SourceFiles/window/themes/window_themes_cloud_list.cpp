@@ -498,7 +498,7 @@ bool CloudList::insertTillLimit(
 void CloudList::insert(int index, const Data::CloudTheme &theme) {
 	const auto id = theme.id;
 	const auto value = groupValueForId(id);
-	const auto checked = _group->hasValue() && (_group->value() == value);
+	const auto checked = _group->hasValue() && (_group->current() == value);
 	auto check = std::make_unique<CloudListCheck>(checked);
 	const auto raw = check.get();
 	auto button = std::make_unique<Ui::Radiobutton>(

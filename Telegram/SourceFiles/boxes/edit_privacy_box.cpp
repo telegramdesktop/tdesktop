@@ -582,7 +582,7 @@ void EditMessagesPrivacyBox(
 		box->addButton(tr::lng_settings_save(), [=] {
 			if (controller->session().premium()) {
 				privacy->updateNewRequirePremium(
-					group->value() == kOptionPremium);
+					group->current() == kOptionPremium);
 				box->closeBox();
 			} else {
 				showToast();

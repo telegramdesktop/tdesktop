@@ -840,7 +840,7 @@ void EditRestrictedBox::createUntilGroup() {
 
 void EditRestrictedBox::createUntilVariants() {
 	auto addVariant = [&](int value, const QString &text) {
-		if (!canSave() && _untilGroup->value() != value) {
+		if (!canSave() && _untilGroup->current() != value) {
 			return;
 		}
 		_untilVariants.emplace_back(

@@ -1190,7 +1190,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		std::move(buttonText),
 		std::nullopt,
 		[=, options = session->api().premium().subscriptionOptions()] {
-			const auto value = _radioGroup->value();
+			const auto value = _radioGroup->current();
 			return (value < options.size() && value >= 0)
 				? options[value].botUrl
 				: QString();

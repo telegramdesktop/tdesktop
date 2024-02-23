@@ -78,7 +78,7 @@ void ChooseFormatBox(
 	addFormatOption(
 		tr::lng_export_option_html_and_json(tr::now),
 		Format::HtmlAndJson);
-	box->addButton(tr::lng_settings_save(), [=] { done(group->value()); });
+	box->addButton(tr::lng_settings_save(), [=] { done(group->current()); });
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 

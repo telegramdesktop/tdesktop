@@ -140,7 +140,7 @@ void RequestTypeBox::setupControls(
 	_height = y;
 
 	_submit = [=] {
-		const auto value = group->hasValue() ? group->value() : -1;
+		const auto value = group->hasValue() ? group->current() : -1;
 		if (value >= 0) {
 			submit(value);
 		}

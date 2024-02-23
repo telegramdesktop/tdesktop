@@ -607,7 +607,7 @@ void ChooseMediaDeviceBox(
 			button->finishAnimating();
 			button->clicks(
 			) | rpl::filter([=] {
-				return (group->value() == index);
+				return (group->current() == index);
 			}) | rpl::start_with_next([=] {
 				choose(id);
 			}, button->lifetime());

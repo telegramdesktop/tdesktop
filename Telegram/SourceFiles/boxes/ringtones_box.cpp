@@ -327,7 +327,7 @@ void RingtonesBox(
 
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_settings_save(), [=] {
-		const auto value = state->group->value();
+		const auto value = state->group->current();
 		auto sound = (value == kDefaultValue)
 			? Data::NotifySound()
 			: (value == kNoSoundValue)

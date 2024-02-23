@@ -25,7 +25,7 @@ void EditPeerHistoryVisibilityBox(
 
 	box->setTitle(tr::lng_manage_history_visibility_title());
 	box->addButton(tr::lng_settings_save(), [=] {
-		savedCallback(historyVisibility->value());
+		savedCallback(historyVisibility->current());
 		box->closeBox();
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
