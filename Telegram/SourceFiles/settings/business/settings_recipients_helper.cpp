@@ -165,7 +165,7 @@ void AddBusinessRecipientsSelector(
 		*data = std::move(now);
 	};
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(
-		data->current().onlyIncluded ? kSelectedOnly : kAllExcept);
+		data->current().allButExcluded ? kAllExcept : kSelectedOnly);
 	const auto everyone = container->add(
 		object_ptr<Ui::Radiobutton>(
 			container,
@@ -231,7 +231,7 @@ void AddBusinessRecipientsSelector(
 
 	excludeWrap->toggleOn(data->value(
 	) | rpl::map([](const Data::BusinessRecipients &value) {
-		return !value.onlyIncluded;
+		return value.allButExcluded;
 	}));
 	excludeWrap->finishAnimating();
 
@@ -280,13 +280,13 @@ void AddBusinessRecipientsSelector(
 
 	includeWrap->toggleOn(data->value(
 	) | rpl::map([](const Data::BusinessRecipients &value) {
-		return value.onlyIncluded;
+		return !value.allButExcluded;
 	}));
 	includeWrap->finishAnimating();
 
 	group->setChangedCallback([=](int value) {
 		change([&](Data::BusinessRecipients &data) {
-			data.onlyIncluded = (value == kSelectedOnly);
+			data.allButExcluded = (value == kAllExcept);
 		});
 	});
 }

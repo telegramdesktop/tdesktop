@@ -36,7 +36,7 @@ struct BusinessChats {
 struct BusinessRecipients {
 	BusinessChats included;
 	BusinessChats excluded;
-	bool onlyIncluded = false;
+	bool allButExcluded = false;
 
 	friend inline bool operator==(
 		const BusinessRecipients &a,
