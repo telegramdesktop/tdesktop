@@ -85,7 +85,7 @@ void Polls::create(
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-			MTPstring() // quick_reply_shortcut
+			MTPInputQuickReplyShortcut()
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(
