@@ -5,12 +5,13 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "data/data_scheduled_messages.h"
+#include "data/business/data_shortcut_messages.h"
 
+#include "api/api_hash.h"
+#include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "api/api_hash.h"
 #include "api/api_text_entities.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -30,7 +31,7 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 }
 
 [[nodiscard]] MsgId LocalToRemoteMsgId(MsgId id) {
-	Expects(IsScheduledMsgId(id));
+	Expects(IsShortcutMsgId(id));
 
 	return (id - ServerMaxMsgId - 1);
 }
@@ -39,12 +40,9 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 	return (received > 0) && (received + kRequestTimeLimit > crl::now());
 }
 
-[[nodiscard]] bool HasScheduledDate(not_null<HistoryItem*> item) {
-	return (item->date() != Api::kScheduledUntilOnlineTimestamp)
-		&& (item->date() > base::unixtime::now());
-}
-
-[[nodiscard]] MTPMessage PrepareMessage(const MTPMessage &message) {
+[[nodiscard]] MTPMessage PrepareMessage(
+		BusinessShortcutId shortcutId,
+		const MTPMessage &message) {
 	return message.match([&](const MTPDmessageEmpty &data) {
 		return MTP_messageEmpty(
 			data.vflags(),
@@ -52,9 +50,7 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			data.vpeer_id() ? *data.vpeer_id() : MTPPeer());
 	}, [&](const MTPDmessageService &data) {
 		return MTP_messageService(
-			MTP_flags(data.vflags().v
-				| MTPDmessageService::Flag(
-					MTPDmessage::Flag::f_from_scheduled)),
+			data.vflags(),
 			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			data.vpeer_id(),
@@ -64,7 +60,7 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			MTP_int(data.vttl_period().value_or_empty()));
 	}, [&](const MTPDmessage &data) {
 		return MTP_message(
-			MTP_flags(data.vflags().v | MTPDmessage::Flag::f_from_scheduled),
+			MTP_flags(data.vflags().v | MTPDmessage::Flag::f_quick_reply_shortcut_id),
 			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			MTPint(), // from_boosts_applied
@@ -89,34 +85,35 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			MTPMessageReactions(),
 			MTPVector<MTPRestrictionReason>(),
 			MTP_int(data.vttl_period().value_or_empty()),
-			MTPint()); // quick_reply_shortcut_id
+			MTP_int(shortcutId));
 	});
 }
 
 } // namespace
 
-bool IsScheduledMsgId(MsgId id) {
-	return (id > ServerMaxMsgId) && (id < ScheduledMaxMsgId);
+bool IsShortcutMsgId(MsgId id) {
+	return (id > ScheduledMaxMsgId) && (id < ShortcutMaxMsgId);
 }
 
-ScheduledMessages::ScheduledMessages(not_null<Session*> owner)
+ShortcutMessages::ShortcutMessages(not_null<Session*> owner)
 : _session(&owner->session())
+, _history(owner->history(_session->userPeerId()))
 , _clearTimer([=] { clearOldRequests(); }) {
 	owner->itemRemoved(
 	) | rpl::filter([](not_null<const HistoryItem*> item) {
-		return item->isScheduled();
+		return item->isBusinessShortcut();
 	}) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		remove(item);
 	}, _lifetime);
 }
 
-ScheduledMessages::~ScheduledMessages() {
+ShortcutMessages::~ShortcutMessages() {
 	for (const auto &request : _requests) {
 		_session->api().request(request.second.requestId).cancel();
 	}
 }
 
-void ScheduledMessages::clearOldRequests() {
+void ShortcutMessages::clearOldRequests() {
 	const auto now = crl::now();
 	while (true) {
 		const auto i = ranges::find_if(_requests, [&](const auto &value) {
@@ -131,188 +128,42 @@ void ScheduledMessages::clearOldRequests() {
 	}
 }
 
-MsgId ScheduledMessages::localMessageId(MsgId remoteId) const {
+MsgId ShortcutMessages::localMessageId(MsgId remoteId) const {
 	return RemoteToLocalMsgId(remoteId);
 }
 
-MsgId ScheduledMessages::lookupId(not_null<const HistoryItem*> item) const {
-	Expects(item->isScheduled());
+MsgId ShortcutMessages::lookupId(not_null<const HistoryItem*> item) const {
+	Expects(item->isBusinessShortcut());
 	Expects(!item->isSending());
 	Expects(!item->hasFailed());
 
 	return LocalToRemoteMsgId(item->id);
 }
 
-HistoryItem *ScheduledMessages::lookupItem(PeerId peer, MsgId msg) const {
-	const auto history = _session->data().historyLoaded(peer);
-	if (!history) {
-		return nullptr;
-	}
-
-	const auto i = _data.find(history);
-	if (i == end(_data)) {
-		return nullptr;
-	}
-
-	const auto &items = i->second.items;
-	const auto j = ranges::find_if(items, [&](auto &item) {
-		return item->id == msg;
-	});
-	if (j == end(items)) {
-		return nullptr;
-	}
-	return (*j).get();
-}
-
-HistoryItem *ScheduledMessages::lookupItem(FullMsgId itemId) const {
-	return lookupItem(itemId.peer, itemId.msg);
-}
-
-int ScheduledMessages::count(not_null<History*> history) const {
-	const auto i = _data.find(history);
+int ShortcutMessages::count(BusinessShortcutId shortcutId) const {
+	const auto i = _data.find(shortcutId);
 	return (i != end(_data)) ? i->second.items.size() : 0;
 }
 
-void ScheduledMessages::sendNowSimpleMessage(
-		const MTPDupdateShortSentMessage &update,
-		not_null<HistoryItem*> local) {
-	Expects(local->isSending());
-	Expects(local->isScheduled());
-
-	if (HasScheduledDate(local)) {
-		LOG(("Error: trying to put to history a new local message, "
-			"that has scheduled date."));
-		return;
-	}
-
-	// When the user sends a text message scheduled until online
-	// while the recipient is already online, the server sends
-	// updateShortSentMessage to the client and the client calls this method.
-	// Since such messages can only be sent to recipients,
-	// we know for sure that a message can't have fields such as the author,
-	// views count, etc.
-
-	const auto history = local->history();
-	auto action = Api::SendAction(history);
-	action.replyTo = local->replyTo();
-	const auto replyHeader = NewMessageReplyHeader(action);
-	const auto localFlags = NewMessageFlags(history->peer)
-		& ~MessageFlag::BeingSent;
-	const auto flags = MTPDmessage::Flag::f_entities
-		| MTPDmessage::Flag::f_from_id
-		| (action.replyTo
-			? MTPDmessage::Flag::f_reply_to
-			: MTPDmessage::Flag(0))
-		| (update.vttl_period()
-			? MTPDmessage::Flag::f_ttl_period
-			: MTPDmessage::Flag(0))
-		| ((localFlags & MessageFlag::Outgoing)
-			? MTPDmessage::Flag::f_out
-			: MTPDmessage::Flag(0));
-	const auto views = 1;
-	const auto forwards = 0;
-	history->addNewMessage(
-		update.vid().v,
-		MTP_message(
-			MTP_flags(flags),
-			update.vid(),
-			peerToMTP(local->from()->id),
-			MTPint(), // from_boosts_applied
-			peerToMTP(history->peer->id),
-			MTPPeer(), // saved_peer_id
-			MTPMessageFwdHeader(),
-			MTPlong(), // via_bot_id
-			replyHeader,
-			update.vdate(),
-			MTP_string(local->originalText().text),
-			MTP_messageMediaEmpty(),
-			MTPReplyMarkup(),
-			Api::EntitiesToMTP(
-				&history->session(),
-				local->originalText().entities),
-			MTP_int(views),
-			MTP_int(forwards),
-			MTPMessageReplies(),
-			MTPint(), // edit_date
-			MTP_string(),
-			MTPlong(),
-			MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>(),
-			MTP_int(update.vttl_period().value_or_empty()),
-			MTPint()), // quick_reply_shortcut_id
-		localFlags,
-		NewMessageType::Unread);
-
-	local->destroy();
-}
-
-void ScheduledMessages::apply(const MTPDupdateNewScheduledMessage &update) {
+void ShortcutMessages::apply(const MTPDupdateQuickReplyMessage &update) {
 	const auto &message = update.vmessage();
-	const auto peer = PeerFromMessage(message);
-	if (!peer) {
+	const auto shortcutId = BusinessShortcutIdFromMessage(message);
+	if (!shortcutId) {
 		return;
 	}
-	const auto history = _session->data().historyLoaded(peer);
-	if (!history) {
-		return;
-	}
-	auto &list = _data[history];
-	append(history, list, message);
+	auto &list = _data[shortcutId];
+	append(shortcutId, list, message);
 	sort(list);
-	_updates.fire_copy(history);
+	_updates.fire_copy(shortcutId);
 }
 
-void ScheduledMessages::checkEntitiesAndUpdate(const MTPDmessage &data) {
-	// When the user sends a message with a media scheduled until online
-	// while the recipient is already online, or scheduled message
-	// is already due and is sent immediately, the server sends
-	// updateNewMessage or updateNewChannelMessage to the client
-	// and the client calls this method.
-
-	const auto peer = peerFromMTP(data.vpeer_id());
-	const auto history = _session->data().historyLoaded(peer);
-	if (!history) {
+void ShortcutMessages::apply(
+		const MTPDupdateDeleteQuickReplyMessages &update) {
+	const auto shortcutId = update.vshortcut_id().v;
+	if (!shortcutId) {
 		return;
 	}
-
-	const auto i = _data.find(history);
-	if (i == end(_data)) {
-		return;
-	}
-
-	const auto &itemMap = i->second.itemById;
-	const auto j = itemMap.find(data.vid().v);
-	if (j == end(itemMap)) {
-		return;
-	}
-
-	const auto existing = j->second;
-	if (!HasScheduledDate(existing)) {
-		// Destroy a local message, that should be in history.
-		existing->updateSentContent({
-			qs(data.vmessage()),
-			Api::EntitiesFromMTP(_session, data.ventities().value_or_empty())
-		}, data.vmedia());
-		existing->updateReplyMarkup(
-			HistoryMessageMarkupData(data.vreply_markup()));
-		existing->updateForwardedInfo(data.vfwd_from());
-		_session->data().requestItemTextRefresh(existing);
-
-		existing->destroy();
-	}
-}
-
-void ScheduledMessages::apply(
-		const MTPDupdateDeleteScheduledMessages &update) {
-	const auto peer = peerFromMTP(update.vpeer());
-	if (!peer) {
-		return;
-	}
-	const auto history = _session->data().historyLoaded(peer);
-	if (!history) {
-		return;
-	}
-	auto i = _data.find(history);
+	auto i = _data.find(shortcutId);
 	if (i == end(_data)) {
 		return;
 	}
@@ -321,20 +172,34 @@ void ScheduledMessages::apply(
 		const auto j = list.itemById.find(id.v);
 		if (j != end(list.itemById)) {
 			j->second->destroy();
-			i = _data.find(history);
+			i = _data.find(shortcutId);
 			if (i == end(_data)) {
 				break;
 			}
 		}
 	}
-	_updates.fire_copy(history);
+	_updates.fire_copy(shortcutId);
 }
 
-void ScheduledMessages::apply(
+void ShortcutMessages::apply(const MTPDupdateDeleteQuickReply &update) {
+	const auto shortcutId = update.vshortcut_id().v;
+	if (!shortcutId) {
+		return;
+	}
+	auto i = _data.find(shortcutId);
+	while (i != end(_data)) {
+		Assert(!i->second.itemById.empty());
+		i->second.itemById.back().second->destroy();
+		i = _data.find(shortcutId);
+	}
+	_updates.fire_copy(shortcutId);
+}
+
+void ShortcutMessages::apply(
 		const MTPDupdateMessageID &update,
 		not_null<HistoryItem*> local) {
 	const auto id = update.vid().v;
-	const auto i = _data.find(local->history());
+	const auto i = _data.find(local->shortcutId());
 	Assert(i != end(_data));
 	auto &list = i->second;
 	const auto j = list.itemById.find(id);
@@ -347,38 +212,38 @@ void ScheduledMessages::apply(
 	}
 }
 
-void ScheduledMessages::appendSending(not_null<HistoryItem*> item) {
+void ShortcutMessages::appendSending(not_null<HistoryItem*> item) {
 	Expects(item->isSending());
-	Expects(item->isScheduled());
+	Expects(item->isBusinessShortcut());
 
-	const auto history = item->history();
-	auto &list = _data[history];
+	const auto shortcutId = item->shortcutId();
+	auto &list = _data[shortcutId];
 	list.items.emplace_back(item);
 	sort(list);
-	_updates.fire_copy(history);
+	_updates.fire_copy(shortcutId);
 }
 
-void ScheduledMessages::removeSending(not_null<HistoryItem*> item) {
+void ShortcutMessages::removeSending(not_null<HistoryItem*> item) {
 	Expects(item->isSending() || item->hasFailed());
-	Expects(item->isScheduled());
+	Expects(item->isBusinessShortcut());
 
 	item->destroy();
 }
 
-rpl::producer<> ScheduledMessages::updates(not_null<History*> history) {
-	request(history);
+rpl::producer<> ShortcutMessages::updates(BusinessShortcutId shortcutId) {
+	request(shortcutId);
 
 	return _updates.events(
-	) | rpl::filter([=](not_null<History*> value) {
-		return (value == history);
+	) | rpl::filter([=](BusinessShortcutId value) {
+		return (value == shortcutId);
 	}) | rpl::to_empty;
 }
 
-Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
+Data::MessagesSlice ShortcutMessages::list(BusinessShortcutId shortcutId) {
 	auto result = Data::MessagesSlice();
-	const auto i = _data.find(history);
+	const auto i = _data.find(shortcutId);
 	if (i == end(_data)) {
-		const auto i = _requests.find(history);
+		const auto i = _requests.find(shortcutId);
 		if (i == end(_requests)) {
 			return result;
 		}
@@ -396,32 +261,111 @@ Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
 	return result;
 }
 
-void ScheduledMessages::request(not_null<History*> history) {
-	const auto peer = history->peer;
-	if (peer->isBroadcast() && !Data::CanSendAnything(peer)) {
+void ShortcutMessages::preloadShortcuts() {
+	if (_shortcutsLoaded || _shortcutsRequestId) {
 		return;
 	}
-	auto &request = _requests[history];
+	const auto owner = &_session->data();
+	_shortcutsRequestId = owner->session().api().request(
+		MTPmessages_GetQuickReplies(MTP_long(_shortcutsHash))
+	).done([=](const MTPmessages_QuickReplies &result) {
+		result.match([&](const MTPDmessages_quickReplies &data) {
+			owner->processUsers(data.vusers());
+			owner->processChats(data.vchats());
+			owner->processMessages(
+				data.vmessages(),
+				NewMessageType::Existing);
+			auto shortcuts = Shortcuts();
+			const auto messages = &owner->shortcutMessages();
+			for (const auto &reply : data.vquick_replies().v) {
+				const auto &data = reply.data();
+				const auto id = BusinessShortcutId(data.vshortcut_id().v);
+				shortcuts.list.emplace(id, Shortcut{
+					.name = qs(data.vshortcut()),
+					.topMessageId = messages->localMessageId(
+						data.vtop_message().v),
+					.count = data.vcount().v,
+				});
+			}
+			for (auto &[id, shortcut] : _shortcuts.list) {
+				if (id < 0) {
+					shortcuts.list.emplace(id, shortcut);
+				}
+			}
+			const auto changed = !_shortcutsLoaded
+				|| (shortcuts != _shortcuts);
+			if (changed) {
+				_shortcuts = std::move(shortcuts);
+				_shortcutsLoaded = true;
+				_shortcutsChanged.fire({});
+			}
+		}, [&](const MTPDmessages_quickRepliesNotModified &) {
+			if (!_shortcutsLoaded) {
+				_shortcutsLoaded = true;
+				_shortcutsChanged.fire({});
+			}
+		});
+	}).send();
+}
+
+const Shortcuts &ShortcutMessages::shortcuts() const {
+	return _shortcuts;
+}
+
+bool ShortcutMessages::shortcutsLoaded() const {
+	return _shortcutsLoaded;
+}
+
+rpl::producer<> ShortcutMessages::shortcutsChanged() const {
+	return _shortcutsChanged.events();
+}
+
+BusinessShortcutId ShortcutMessages::emplaceShortcut(QString name) {
+	Expects(_shortcutsLoaded);
+
+	for (auto &[id, shortcut] : _shortcuts.list) {
+		if (shortcut.name == name) {
+			return id;
+		}
+	}
+	const auto result = --_localShortcutId;
+	_shortcuts.list.emplace(result, Shortcut{ name });
+	return result;
+}
+
+Shortcut ShortcutMessages::lookupShortcut(BusinessShortcutId id) const {
+	const auto i = _shortcuts.list.find(id);
+
+	Ensures(i != end(_shortcuts.list));
+	return i->second;
+}
+
+void ShortcutMessages::request(BusinessShortcutId shortcutId) {
+	auto &request = _requests[shortcutId];
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
-	const auto i = _data.find(history);
+	const auto i = _data.find(shortcutId);
 	const auto hash = (i != end(_data))
 		? countListHash(i->second)
 		: uint64(0);
 	request.requestId = _session->api().request(
-		MTPmessages_GetScheduledHistory(peer->input, MTP_long(hash))
+		MTPmessages_GetQuickReplyMessages(
+			MTP_flags(0),
+			MTP_int(shortcutId),
+			MTPVector<MTPint>(),
+			MTP_long(hash))
 	).done([=](const MTPmessages_Messages &result) {
-		parse(history, result);
+		parse(shortcutId, result);
 	}).fail([=] {
-		_requests.remove(history);
+		_requests.remove(shortcutId);
 	}).send();
 }
 
-void ScheduledMessages::parse(
-		not_null<History*> history,
+void ShortcutMessages::parse(
+		BusinessShortcutId shortcutId,
 		const MTPmessages_Messages &list) {
-	auto &request = _requests[history];
+	auto &request = _requests[shortcutId];
 	request.lastReceived = crl::now();
 	request.requestId = 0;
 	if (!_clearTimer.isActive()) {
@@ -435,14 +379,14 @@ void ScheduledMessages::parse(
 
 		const auto &messages = data.vmessages().v;
 		if (messages.isEmpty()) {
-			clearNotSending(history);
+			clearNotSending(shortcutId);
 			return;
 		}
 		auto received = base::flat_set<not_null<HistoryItem*>>();
 		auto clear = base::flat_set<not_null<HistoryItem*>>();
-		auto &list = _data.emplace(history, List()).first->second;
+		auto &list = _data.emplace(shortcutId, List()).first->second;
 		for (const auto &message : messages) {
-			if (const auto item = append(history, list, message)) {
+			if (const auto item = append(shortcutId, list, message)) {
 				received.emplace(item);
 			}
 		}
@@ -452,12 +396,12 @@ void ScheduledMessages::parse(
 				clear.emplace(item);
 			}
 		}
-		updated(history, received, clear);
+		updated(shortcutId, received, clear);
 	});
 }
 
-HistoryItem *ScheduledMessages::append(
-		not_null<History*> history,
+HistoryItem *ShortcutMessages::append(
+		BusinessShortcutId shortcutId,
 		List &list,
 		const MTPMessage &message) {
 	const auto id = message.match([&](const auto &data) {
@@ -467,9 +411,6 @@ HistoryItem *ScheduledMessages::append(
 	if (i != end(list.itemById)) {
 		const auto existing = i->second;
 		message.match([&](const MTPDmessage &data) {
-			// Scheduled messages never have an edit date,
-			// so if we receive a flag about it,
-			// probably this message was edited.
 			if (data.is_edit_hide()) {
 				existing->applyEdition(HistoryMessageEdition(_session, data));
 			} else {
@@ -484,22 +425,24 @@ HistoryItem *ScheduledMessages::append(
 				existing->updateForwardedInfo(data.vfwd_from());
 			}
 			existing->updateDate(data.vdate().v);
-			history->owner().requestItemTextRefresh(existing);
+			_history->owner().requestItemTextRefresh(existing);
 		}, [&](const auto &data) {});
 		return existing;
 	}
 
 	if (!IsServerMsgId(id)) {
-		LOG(("API Error: Bad id in scheduled messages: %1.").arg(id));
+		LOG(("API Error: Bad id in quick reply messages: %1.").arg(id));
 		return nullptr;
 	}
 	const auto item = _session->data().addNewMessage(
 		localMessageId(id),
-		PrepareMessage(message),
+		PrepareMessage(shortcutId, message),
 		MessageFlags(), // localFlags
 		NewMessageType::Existing);
-	if (!item || item->history() != history) {
-		LOG(("API Error: Bad data received in scheduled messages."));
+	if (!item
+		|| item->history() != _history
+		|| item->shortcutId() != shortcutId) {
+		LOG(("API Error: Bad data received in quick reply messages."));
 		return nullptr;
 	}
 	list.items.emplace_back(item);
@@ -507,8 +450,8 @@ HistoryItem *ScheduledMessages::append(
 	return item;
 }
 
-void ScheduledMessages::clearNotSending(not_null<History*> history) {
-	const auto i = _data.find(history);
+void ShortcutMessages::clearNotSending(BusinessShortcutId shortcutId) {
+	const auto i = _data.find(shortcutId);
 	if (i == end(_data)) {
 		return;
 	}
@@ -518,11 +461,11 @@ void ScheduledMessages::clearNotSending(not_null<History*> history) {
 			clear.emplace(owned.get());
 		}
 	}
-	updated(history, {}, clear);
+	updated(shortcutId, {}, clear);
 }
 
-void ScheduledMessages::updated(
-		not_null<History*> history,
+void ShortcutMessages::updated(
+		BusinessShortcutId shortcutId,
 		const base::flat_set<not_null<HistoryItem*>> &added,
 		const base::flat_set<not_null<HistoryItem*>> &clear) {
 	if (!clear.empty()) {
@@ -530,22 +473,22 @@ void ScheduledMessages::updated(
 			item->destroy();
 		}
 	}
-	const auto i = _data.find(history);
+	const auto i = _data.find(shortcutId);
 	if (i != end(_data)) {
 		sort(i->second);
 	}
 	if (!added.empty() || !clear.empty()) {
-		_updates.fire_copy(history);
+		_updates.fire_copy(shortcutId);
 	}
 }
 
-void ScheduledMessages::sort(List &list) {
+void ShortcutMessages::sort(List &list) {
 	ranges::sort(list.items, ranges::less(), &HistoryItem::position);
 }
 
-void ScheduledMessages::remove(not_null<const HistoryItem*> item) {
-	const auto history = item->history();
-	const auto i = _data.find(history);
+void ShortcutMessages::remove(not_null<const HistoryItem*> item) {
+	const auto shortcutId = item->shortcutId();
+	const auto i = _data.find(shortcutId);
 	Assert(i != end(_data));
 	auto &list = i->second;
 
@@ -560,10 +503,10 @@ void ScheduledMessages::remove(not_null<const HistoryItem*> item) {
 	if (list.items.empty()) {
 		_data.erase(i);
 	}
-	_updates.fire_copy(history);
+	_updates.fire_copy(shortcutId);
 }
 
-uint64 ScheduledMessages::countListHash(const List &list) const {
+uint64 ShortcutMessages::countListHash(const List &list) const {
 	using namespace Api;
 
 	auto hash = HashInit();
@@ -579,9 +522,18 @@ uint64 ScheduledMessages::countListHash(const List &list) const {
 		} else {
 			HashUpdate(hash, TimeId(0));
 		}
-		HashUpdate(hash, item->date());
 	}
 	return HashFinalize(hash);
+}
+
+MTPInputQuickReplyShortcut ShortcutIdToMTP(
+		not_null<Main::Session*> session,
+		BusinessShortcutId id) {
+	if (id >= 0) {
+		return MTP_inputQuickReplyShortcutId(MTP_int(id));
+	}
+	return MTP_inputQuickReplyShortcut(MTP_string(
+		session->data().shortcutMessages().lookupShortcut(id).name));
 }
 
 } // namespace Data

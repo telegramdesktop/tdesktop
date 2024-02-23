@@ -203,6 +203,13 @@ void ContentWidget::applyAdditionalScroll(int additionalScroll) {
 	}
 }
 
+void ContentWidget::applyMaxVisibleHeight(int maxVisibleHeight) {
+	if (_maxVisibleHeight != maxVisibleHeight) {
+		_maxVisibleHeight = maxVisibleHeight;
+		update();
+	}
+}
+
 rpl::producer<int> ContentWidget::desiredHeightValue() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
@@ -326,6 +333,10 @@ rpl::producer<bool> ContentWidget::desiredBottomShadowVisibility() const {
 	) | rpl::map([=](int scroll, int skip, int) {
 		return ((skip > 0) && (scroll < _scroll->scrollTopMax()));
 	});
+}
+
+not_null<Ui::ScrollArea*> ContentWidget::scroll() const {
+	return _scroll.data();
 }
 
 Key ContentMemento::key() const {

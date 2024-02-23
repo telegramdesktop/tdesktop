@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "base/random.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_changes.h"
 #include "data/data_histories.h"
 #include "data/data_poll.h"
@@ -64,6 +65,9 @@ void Polls::create(
 	if (action.options.scheduled) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
 	}
+	if (action.options.shortcutId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
+	}
 	const auto sendAs = action.options.sendAs;
 	if (sendAs) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
@@ -85,7 +89,7 @@ void Polls::create(
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-			MTPInputQuickReplyShortcut()
+			Data::ShortcutIdToMTP(_session, action.options.shortcutId)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(

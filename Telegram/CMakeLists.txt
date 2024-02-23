@@ -454,6 +454,8 @@ PRIVATE
     data/business/data_business_common.h
     data/business/data_business_info.cpp
     data/business/data_business_info.h
+    data/business/data_shortcut_messages.cpp
+    data/business/data_shortcut_messages.h
     data/notify/data_notify_settings.cpp
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
@@ -1287,6 +1289,8 @@ PRIVATE
     profile/profile_cover_drop_area.h
     settings/business/settings_away_message.cpp
     settings/business/settings_away_message.h
+    settings/business/settings_shortcut_messages.cpp
+    settings/business/settings_shortcut_messages.h
     settings/business/settings_chatbots.cpp
     settings/business/settings_chatbots.h
     settings/business/settings_greeting.cpp

@@ -124,7 +124,8 @@ public:
 	void updateGeometry(
 		QRect newGeometry,
 		bool expanding,
-		int additionalScroll);
+		int additionalScroll,
+		int maxVisibleHeight);
 	[[nodiscard]] int scrollBottomSkip() const;
 	[[nodiscard]] int scrollTillBottom(int forHeight) const;
 	[[nodiscard]] rpl::producer<int> scrollTillBottomChanges() const;
@@ -207,6 +208,7 @@ private:
 	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
 	int _additionalScroll = 0;
+	int _maxVisibleHeight = 0;
 	bool _expanding = false;
 	rpl::variable<bool> _grabbingForExpanding = false;
 	object_ptr<TopBar> _topBar = { nullptr };

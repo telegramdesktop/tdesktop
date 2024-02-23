@@ -90,6 +90,13 @@ public:
 	}
 	virtual void setStepDataReference(std::any &data) {
 	}
+
+	virtual bool paintOuter(
+			not_null<QWidget*> outer,
+			int maxVisibleHeight,
+			QRect clip) {
+		return false;
+	}
 };
 
 enum class IconType {

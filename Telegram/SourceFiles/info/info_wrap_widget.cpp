@@ -934,12 +934,16 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 void WrapWidget::updateGeometry(
 		QRect newGeometry,
 		bool expanding,
-		int additionalScroll) {
+		int additionalScroll,
+		int maxVisibleHeight) {
 	auto scrollChanged = (_additionalScroll != additionalScroll);
 	auto geometryChanged = (geometry() != newGeometry);
 	auto shrinkingContent = (additionalScroll < _additionalScroll);
 	_additionalScroll = additionalScroll;
+	_maxVisibleHeight = maxVisibleHeight;
 	_expanding = expanding;
+
+	_content->applyMaxVisibleHeight(maxVisibleHeight);
 
 	if (geometryChanged) {
 		if (shrinkingContent) {

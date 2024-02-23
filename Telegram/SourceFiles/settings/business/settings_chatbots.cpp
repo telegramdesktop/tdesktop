@@ -6,7 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/business/settings_chatbots.h"
-//
+
 #include "core/application.h"
 #include "data/business/data_business_chatbots.h"
 #include "data/data_session.h"

@@ -191,7 +191,7 @@ struct AwaySchedule {
 struct AwaySettings {
 	BusinessRecipients recipients;
 	AwaySchedule schedule;
-	int shortcutId = 0;
+	BusinessShortcutId shortcutId = 0;
 
 	explicit operator bool() const {
 		return schedule.type != AwayScheduleType::Never;
@@ -205,7 +205,7 @@ struct AwaySettings {
 struct GreetingSettings {
 	BusinessRecipients recipients;
 	int noActivityDays = 0;
-	int shortcutId = 0;
+	BusinessShortcutId shortcutId = 0;
 
 	explicit operator bool() const {
 		return noActivityDays > 0;

@@ -145,6 +145,15 @@ TimeId DateFromMessage(const MTPmessage &message) {
 	});
 }
 
+BusinessShortcutId BusinessShortcutIdFromMessage(
+		const MTPmessage &message) {
+	return message.match([](const MTPDmessage &data) {
+		return data.vquick_reply_shortcut_id().value_or_empty();
+	}, [](const auto &) {
+		return BusinessShortcutId();
+	});
+}
+
 bool GoodStickerDimensions(int width, int height) {
 	// Show all .webp (except very large ones) as stickers,
 	// allow to open them in media viewer to see details.

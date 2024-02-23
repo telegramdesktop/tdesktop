@@ -1267,7 +1267,8 @@ template <>
 struct SectionFactory<Premium> : AbstractSectionFactory {
 	object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::ScrollArea*> scroll
 	) const final override {
 		return object_ptr<Premium>(parent, controller);
 	}

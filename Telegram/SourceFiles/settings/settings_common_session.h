@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "settings/settings_type.h"
 
+namespace Ui {
+class ScrollArea;
+} // namespace Ui
+
 namespace Ui::Menu {
 struct MenuCallback;
 } // namespace Ui::Menu
@@ -27,7 +31,8 @@ class AbstractSection;
 struct AbstractSectionFactory {
 	[[nodiscard]] virtual object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller) const = 0;
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::ScrollArea*> scroll) const = 0;
 	[[nodiscard]] virtual bool hasCustomTopBar() const {
 		return false;
 	}
@@ -39,7 +44,8 @@ template <typename SectionType>
 struct SectionFactory : AbstractSectionFactory {
 	object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::ScrollArea*> scroll
 	) const final override {
 		return object_ptr<SectionType>(parent, controller);
 	}

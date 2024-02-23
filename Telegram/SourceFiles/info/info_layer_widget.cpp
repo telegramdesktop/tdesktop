@@ -291,9 +291,10 @@ QRect LayerWidget::countGeometry(int newWidth) {
 	const auto newBottom = newTop;
 
 	const auto bottomRadius = st::boxRadius;
+	const auto maxVisibleHeight = windowHeight - newTop;
 	// Top rounding is included in _contentHeight.
 	auto desiredHeight = _contentHeight + bottomRadius;
-	accumulate_min(desiredHeight, windowHeight - newTop - newBottom);
+	accumulate_min(desiredHeight, maxVisibleHeight - newBottom);
 
 	// First resize content to new width and get the new desired height.
 	const auto contentLeft = 0;
@@ -308,7 +309,7 @@ QRect LayerWidget::countGeometry(int newWidth) {
 
 	desiredHeight += additionalScroll;
 	contentHeight += additionalScroll;
-	_tillBottom = (newTop + desiredHeight >= windowHeight);
+	_tillBottom = (desiredHeight >= maxVisibleHeight);
 	if (_tillBottom) {
 		additionalScroll += contentBottom;
 	}
@@ -321,7 +322,7 @@ QRect LayerWidget::countGeometry(int newWidth) {
 		contentTop,
 		contentWidth,
 		contentHeight,
-	}, expanding, additionalScroll);
+	}, expanding, additionalScroll, maxVisibleHeight);
 
 	return QRect(newLeft, newTop, newWidth, desiredHeight);
 }

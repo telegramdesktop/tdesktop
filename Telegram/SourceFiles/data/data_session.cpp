@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
 #include "data/business/data_business_chatbots.h"
 #include "data/business/data_business_info.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/stickers/data_stickers.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_bot_app.h"
@@ -256,14 +257,12 @@ Session::Session(not_null<Main::Session*> session)
 , _watchForOfflineTimer([=] { checkLocalUsersWentOffline(); })
 , _groups(this)
 , _chatsFilters(std::make_unique<ChatFilters>(this))
-, _scheduledMessages(std::make_unique<ScheduledMessages>(this))
 , _cloudThemes(std::make_unique<CloudThemes>(session))
 , _sendActionManager(std::make_unique<SendActionManager>())
 , _streaming(std::make_unique<Streaming>(this))
 , _mediaRotation(std::make_unique<MediaRotation>())
 , _histories(std::make_unique<Histories>(this))
 , _stickers(std::make_unique<Stickers>(this))
-, _sponsoredMessages(std::make_unique<SponsoredMessages>(this))
 , _reactions(std::make_unique<Reactions>(this))
 , _emojiStatuses(std::make_unique<EmojiStatuses>(this))
 , _forumIcons(std::make_unique<ForumIcons>(this))
@@ -272,7 +271,10 @@ Session::Session(not_null<Main::Session*> session)
 , _stories(std::make_unique<Stories>(this))
 , _savedMessages(std::make_unique<SavedMessages>(this))
 , _chatbots(std::make_unique<Chatbots>(this))
-, _businessInfo(std::make_unique<BusinessInfo>(this)) {
+, _businessInfo(std::make_unique<BusinessInfo>(this))
+, _scheduledMessages(std::make_unique<ScheduledMessages>(this))
+, _shortcutMessages(std::make_unique<ShortcutMessages>(this))
+, _sponsoredMessages(std::make_unique<SponsoredMessages>(this)) {
 	_cache->open(_session->local().cacheKey());
 	_bigFileCache->open(_session->local().cacheBigFileKey());
 
@@ -396,6 +398,7 @@ void Session::clear() {
 
 	_histories->unloadAll();
 	_scheduledMessages = nullptr;
+	_shortcutMessages = nullptr;
 	_sponsoredMessages = nullptr;
 	_dependentMessages.clear();
 	base::take(_messages);

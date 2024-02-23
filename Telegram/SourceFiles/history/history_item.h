@@ -210,6 +210,12 @@ public:
 	[[nodiscard]] bool isSponsored() const;
 	[[nodiscard]] bool skipNotification() const;
 	[[nodiscard]] bool isUserpicSuggestion() const;
+	[[nodiscard]] BusinessShortcutId shortcutId() const {
+		return _shortcutId;
+	}
+	[[nodiscard]] bool isBusinessShortcut() const {
+		return _shortcutId != 0;
+	}
 
 	void addLogEntryOriginal(
 		WebPageId localId,
@@ -662,6 +668,7 @@ private:
 	TimeId _date = 0;
 	TimeId _ttlDestroyAt = 0;
 	int _boostsApplied = 0;
+	BusinessShortcutId _shortcutId = 0;
 
 	HistoryView::Element *_mainView = nullptr;
 	MessageGroupId _groupId = MessageGroupId();

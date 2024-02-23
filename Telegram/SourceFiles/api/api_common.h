@@ -22,6 +22,7 @@ inline constexpr auto kScheduledUntilOnlineTimestamp = TimeId(0x7FFFFFFE);
 struct SendOptions {
 	PeerData *sendAs = nullptr;
 	TimeId scheduled = 0;
+	BusinessShortcutId shortcutId = 0;
 	bool silent = false;
 	bool handleSupportSwitch = false;
 	bool hideViaBot = false;

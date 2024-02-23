@@ -79,7 +79,8 @@ Session::Session(
 	not_null<Account*> account,
 	const MTPUser &user,
 	std::unique_ptr<SessionSettings> settings)
-: _account(account)
+: _userId(user.c_user().vid())
+, _account(account)
 , _settings(std::move(settings))
 , _changes(std::make_unique<Data::Changes>(this))
 , _api(std::make_unique<ApiWrap>(this))
@@ -89,7 +90,6 @@ Session::Session(
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())
 , _data(std::make_unique<Data::Session>(this))
-, _userId(user.c_user().vid())
 , _user(_data->processUser(user))
 , _emojiStickersPack(std::make_unique<Stickers::EmojiPack>(this))
 , _diceStickersPacks(std::make_unique<Stickers::DicePacks>(this))

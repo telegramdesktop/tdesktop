@@ -10,9 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "core/application.h"
 #include "data/business/data_business_info.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/business/settings_shortcut_messages.h"
 #include "settings/business/settings_recipients_helper.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -50,6 +52,7 @@ private:
 
 	Ui::RoundRect _bottomSkipRounding;
 
+	rpl::event_stream<Type> _showOther;
 	rpl::variable<Data::BusinessRecipients> _recipients;
 	rpl::variable<int> _noActivityDays;
 	rpl::variable<bool> _enabled;
@@ -229,6 +232,28 @@ void Greeting::setupContent(
 			object_ptr<Ui::VerticalLayout>(content)));
 	const auto inner = wrap->entity();
 
+	const auto createWrap = inner->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			inner,
+			object_ptr<Ui::VerticalLayout>(inner)));
+	const auto createInner = createWrap->entity();
+	Ui::AddSkip(createInner);
+	const auto create = createInner->add(object_ptr<Ui::SettingsButton>(
+		createInner,
+		tr::lng_greeting_create(),
+		st::settingsButtonLightNoIcon
+	));
+	create->setClickedCallback([=] {
+		const auto owner = &controller->session().data();
+		const auto id = owner->shortcutMessages().emplaceShortcut("hello");
+		_showOther.fire(ShortcutMessagesId(id));
+	});
+	Ui::AddSkip(createInner);
+	Ui::AddDivider(createInner);
+
+	createWrap->toggleOn(rpl::single(true));
+
+	Ui::AddSkip(inner);
 	AddBusinessRecipientsSelector(inner, {
 		.controller = controller,
 		.title = tr::lng_greeting_recipients(),

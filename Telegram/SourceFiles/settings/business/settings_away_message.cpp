@@ -10,10 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "data/business/data_business_info.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/business/settings_recipients_helper.h"
+#include "settings/business/settings_shortcut_messages.h"
 #include "ui/boxes/choose_date_time.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -37,10 +39,13 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
+
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 	void save();
 
+	rpl::event_stream<Type> _showOther;
 	rpl::variable<Data::BusinessRecipients> _recipients;
 	rpl::variable<Data::AwaySchedule> _schedule;
 	rpl::variable<bool> _enabled;
@@ -197,6 +202,10 @@ rpl::producer<QString> AwayMessage::title() {
 	return tr::lng_away_title();
 }
 
+rpl::producer<Type> AwayMessage::sectionShowOther() {
+	return _showOther.events();
+}
+
 void AwayMessage::setupContent(
 		not_null<Window::SessionController*> controller) {
 	using namespace Data;
@@ -258,7 +267,9 @@ void AwayMessage::setupContent(
 		st::settingsButtonLightNoIcon
 	));
 	create->setClickedCallback([=] {
-
+		const auto owner = &controller->session().data();
+		const auto id = owner->shortcutMessages().emplaceShortcut("away");
+		_showOther.fire(ShortcutMessagesId(id));
 	});
 	Ui::AddSkip(createInner);
 	Ui::AddDivider(createInner);

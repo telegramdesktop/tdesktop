@@ -84,6 +84,8 @@ private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
+	void paintEvent(QPaintEvent *e) override;
+
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
 	not_null<UserData*> _self;

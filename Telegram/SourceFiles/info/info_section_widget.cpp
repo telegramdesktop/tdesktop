@@ -54,7 +54,11 @@ void SectionWidget::init() {
 		const auto full = !_content->scrollBottomSkip();
 		const auto height = size.height() - (full ? 0 : st::boxRadius);
 		const auto wrapGeometry = QRect{ 0, 0, size.width(), height };
-		_content->updateGeometry(wrapGeometry, expanding, additionalScroll);
+		_content->updateGeometry(
+			wrapGeometry,
+			expanding,
+			additionalScroll,
+			size.height());
 	}, lifetime());
 
 	_connecting = std::make_unique<Window::ConnectionState>(
