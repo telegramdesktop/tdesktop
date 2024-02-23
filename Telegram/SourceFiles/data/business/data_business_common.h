@@ -202,4 +202,18 @@ struct AwaySettings {
 		const AwaySettings &b) = default;
 };
 
+struct GreetingSettings {
+	BusinessRecipients recipients;
+	int noActivityDays = 0;
+	int shortcutId = 0;
+
+	explicit operator bool() const {
+		return noActivityDays > 0;
+	}
+
+	friend inline bool operator==(
+		const GreetingSettings &a,
+		const GreetingSettings &b) = default;
+};
+
 } // namespace Data

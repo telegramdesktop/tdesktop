@@ -112,6 +112,20 @@ Data::BusinessRecipients RecipientsFromMTP(
 	return result;
 }
 
+[[nodiscard]] Data::GreetingSettings FromMTP(
+		not_null<Data::Session*> owner,
+		const tl::conditional<MTPBusinessGreetingMessage> &message) {
+	if (!message) {
+		return Data::GreetingSettings();
+	}
+	const auto &data = message->data();
+	return Data::GreetingSettings{
+		.recipients = RecipientsFromMTP(owner, data),
+		.noActivityDays = data.vno_activity_days().v,
+		.shortcutId = data.vshortcut_id().v,
+	};
+}
+
 } // namespace
 
 BotInfo::BotInfo() = default;
@@ -678,6 +692,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (user->isSelf()) {
 		user->owner().businessInfo().applyAwaySettings(
 			FromMTP(&user->owner(), update.vbusiness_away_message()));
+		user->owner().businessInfo().applyGreetingSettings(
+			FromMTP(&user->owner(), update.vbusiness_greeting_message()));
 	}
 
 	user->owner().stories().apply(user, update.vstories());

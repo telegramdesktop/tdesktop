@@ -74,6 +74,20 @@ template <typename Flag>
 			| ranges::views::transform(&UserData::inputUser)));
 }
 
+[[nodiscard]] MTPInputBusinessGreetingMessage ToMTP(
+		const GreetingSettings &data) {
+	using Flag = MTPDinputBusinessGreetingMessage::Flag;
+	return MTP_inputBusinessGreetingMessage(
+		MTP_flags(RecipientsFlags(data.recipients, Flag())),
+		MTP_int(data.shortcutId),
+		MTP_vector_from_range(
+			(data.recipients.allButExcluded
+				? data.recipients.excluded
+				: data.recipients.included).list
+			| ranges::views::transform(&UserData::inputUser)),
+		MTP_int(data.noActivityDays));
+}
+
 } // namespace
 
 BusinessInfo::BusinessInfo(not_null<Session*> owner)
@@ -130,6 +144,40 @@ AwaySettings BusinessInfo::awaySettings() const {
 
 rpl::producer<> BusinessInfo::awaySettingsChanged() const {
 	return _awaySettingsChanged.events();
+}
+
+void BusinessInfo::applyGreetingSettings(GreetingSettings data) {
+	if (_greetingSettings == data) {
+		return;
+	}
+	_greetingSettings = data;
+	_greetingSettingsChanged.fire({});
+}
+
+void BusinessInfo::saveGreetingSettings(GreetingSettings data) {
+	if (_greetingSettings == data) {
+		return;
+	}
+	using Flag = MTPaccount_UpdateBusinessGreetingMessage::Flag;
+	_owner->session().api().request(MTPaccount_UpdateBusinessGreetingMessage(
+		MTP_flags(data ? Flag::f_message : Flag()),
+		data ? ToMTP(data) : MTPInputBusinessGreetingMessage()
+	)).send();
+
+	_greetingSettings = std::move(data);
+	_greetingSettingsChanged.fire({});
+}
+
+bool BusinessInfo::greetingSettingsLoaded() const {
+	return _greetingSettings.has_value();
+}
+
+GreetingSettings BusinessInfo::greetingSettings() const {
+	return _greetingSettings.value_or(GreetingSettings());
+}
+
+rpl::producer<> BusinessInfo::greetingSettingsChanged() const {
+	return _greetingSettingsChanged.events();
 }
 
 void BusinessInfo::preload() {

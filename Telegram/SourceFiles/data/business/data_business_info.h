@@ -28,6 +28,12 @@ public:
 	[[nodiscard]] bool awaySettingsLoaded() const;
 	[[nodiscard]] rpl::producer<> awaySettingsChanged() const;
 
+	void saveGreetingSettings(GreetingSettings data);
+	void applyGreetingSettings(GreetingSettings data);
+	[[nodiscard]] GreetingSettings greetingSettings() const;
+	[[nodiscard]] bool greetingSettingsLoaded() const;
+	[[nodiscard]] rpl::producer<> greetingSettingsChanged() const;
+
 	void preloadTimezones();
 	[[nodiscard]] rpl::producer<Timezones> timezonesValue() const;
 
@@ -35,8 +41,12 @@ private:
 	const not_null<Session*> _owner;
 
 	rpl::variable<Timezones> _timezones;
+
 	std::optional<AwaySettings> _awaySettings;
 	rpl::event_stream<> _awaySettingsChanged;
+
+	std::optional<GreetingSettings> _greetingSettings;
+	rpl::event_stream<> _greetingSettingsChanged;
 
 	mtpRequestId _timezonesRequestId = 0;
 	int32 _timezonesHash = 0;
