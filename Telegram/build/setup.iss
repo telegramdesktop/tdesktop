@@ -33,6 +33,7 @@ VersionInfoVersion={#MyAppVersion}.0
 CloseApplications=force
 DisableDirPage=no
 DisableProgramGroupPage=no
+WizardStyle=modern
 
 #if MyBuildTarget == "win64"
   ArchitecturesAllowed="x64 arm64"
