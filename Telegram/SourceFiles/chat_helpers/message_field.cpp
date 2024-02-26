@@ -727,7 +727,8 @@ void MessageLinksParser::parse() {
 			|| (tag == Ui::InputField::kTagItalic)
 			|| (tag == Ui::InputField::kTagUnderline)
 			|| (tag == Ui::InputField::kTagStrikeOut)
-			|| (tag == Ui::InputField::kTagSpoiler);
+			|| (tag == Ui::InputField::kTagSpoiler)
+			|| (tag == Ui::InputField::kTagBlockquote);
 	};
 
 	_ranges.clear();
