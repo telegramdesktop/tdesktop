@@ -62,11 +62,12 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 	return result;
 }
 
-template <typename T>
-Data::BusinessRecipients RecipientsFromMTP(
+Data::BusinessRecipients FromMTP(
 		not_null<Data::Session*> owner,
-		const T &data) {
+		const MTPBusinessRecipients &recipients) {
 	using Type = Data::BusinessChatType;
+
+	const auto &data = recipients.data();
 	auto result = Data::BusinessRecipients{
 		.allButExcluded = data.is_exclude_selected(),
 	};
@@ -94,7 +95,7 @@ Data::BusinessRecipients RecipientsFromMTP(
 	}
 	const auto &data = message->data();
 	auto result = Data::AwaySettings{
-		.recipients = RecipientsFromMTP(owner, data),
+		.recipients = FromMTP(owner, data.vrecipients()),
 		.shortcutId = data.vshortcut_id().v,
 	};
 	data.vschedule().match([&](
@@ -120,7 +121,7 @@ Data::BusinessRecipients RecipientsFromMTP(
 	}
 	const auto &data = message->data();
 	return Data::GreetingSettings{
-		.recipients = RecipientsFromMTP(owner, data),
+		.recipients = FromMTP(owner, data.vrecipients()),
 		.noActivityDays = data.vno_activity_days().v,
 		.shortcutId = data.vshortcut_id().v,
 	};

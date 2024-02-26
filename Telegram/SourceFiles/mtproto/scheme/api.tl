@@ -1671,17 +1671,21 @@ businessWorkHours#8c92b098 flags:# open_now:flags.0?true timezone_id:string week
 
 businessLocation#ac5c1af7 flags:# geo_point:flags.0?GeoPoint address:string = BusinessLocation;
 
+inputBusinessRecipients#6f8b32aa flags:# existing_chats:flags.0?true new_chats:flags.1?true contacts:flags.2?true non_contacts:flags.3?true exclude_selected:flags.5?true users:flags.4?Vector<InputUser> = InputBusinessRecipients;
+
+businessRecipients#21108ff7 flags:# existing_chats:flags.0?true new_chats:flags.1?true contacts:flags.2?true non_contacts:flags.3?true exclude_selected:flags.5?true users:flags.4?Vector<long> = BusinessRecipients;
+
 businessAwayMessageScheduleAlways#c9b9e2b9 = BusinessAwayMessageSchedule;
 businessAwayMessageScheduleOutsideWorkHours#c3f2f501 = BusinessAwayMessageSchedule;
 businessAwayMessageScheduleCustom#cc4d9ecc start_date:int end_date:int = BusinessAwayMessageSchedule;
 
-inputBusinessGreetingMessage#7d4a3609 flags:# existing_chats:flags.0?true new_chats:flags.1?true contacts:flags.2?true non_contacts:flags.3?true exclude_selected:flags.5?true shortcut_id:int users:flags.4?Vector<InputUser> no_activity_days:int = InputBusinessGreetingMessage;
+inputBusinessGreetingMessage#194cb3b shortcut_id:int recipients:InputBusinessRecipients no_activity_days:int = InputBusinessGreetingMessage;
 
-businessGreetingMessage#a098d54c flags:# existing_chats:flags.0?true new_chats:flags.1?true contacts:flags.2?true non_contacts:flags.3?true exclude_selected:flags.5?true shortcut_id:int users:flags.4?Vector<long> no_activity_days:int = BusinessGreetingMessage;
+businessGreetingMessage#e519abab shortcut_id:int recipients:BusinessRecipients no_activity_days:int = BusinessGreetingMessage;
 
-inputBusinessAwayMessage#ce6fda48 flags:# existing_chats:flags.0?true new_chats:flags.1?true contacts:flags.2?true non_contacts:flags.3?true exclude_selected:flags.5?true shortcut_id:int schedule:BusinessAwayMessageSchedule users:flags.4?Vector<InputUser> = InputBusinessAwayMessage;
+inputBusinessAwayMessage#edac03f4 shortcut_id:int schedule:BusinessAwayMessageSchedule recipients:InputBusinessRecipients = InputBusinessAwayMessage;
 
-businessAwayMessage#9acd7a15 flags:# existing_chats:flags.0?true new_chats:flags.1?true contacts:flags.2?true non_contacts:flags.3?true exclude_selected:flags.5?true shortcut_id:int schedule:BusinessAwayMessageSchedule users:flags.4?Vector<long> = BusinessAwayMessage;
+businessAwayMessage#1bd9bebc shortcut_id:int schedule:BusinessAwayMessageSchedule recipients:BusinessRecipients = BusinessAwayMessage;
 
 timezone#ff9289f5 id:string name:string utc_offset:int = Timezone;
 
