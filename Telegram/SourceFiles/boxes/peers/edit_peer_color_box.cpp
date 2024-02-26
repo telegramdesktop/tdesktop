@@ -319,47 +319,36 @@ PreviewWrap::PreviewWrap(
 , _delegate(std::make_unique<PreviewDelegate>(box, _style.get(), [=] {
 	update();
 }))
-, _replyToItem(_history->addNewLocalMessage(
-	_history->nextNonHistoryEntryId(),
-	(MessageFlag::FakeHistoryItem
+, _replyToItem(_history->addNewLocalMessage({
+	.id = _history->nextNonHistoryEntryId(),
+	.flags = (MessageFlag::FakeHistoryItem
 		| MessageFlag::HasFromId
 		| MessageFlag::Post),
-	UserId(), // via
-	FullReplyTo(),
-	base::unixtime::now(), // date
-	_fake->id,
-	QString(), // postAuthor
-	TextWithEntities{ _peer->isSelf()
-		? tr::lng_settings_color_reply(tr::now)
-		: tr::lng_settings_color_reply_channel(tr::now),
-	},
-	MTP_messageMediaEmpty(),
-	HistoryMessageMarkupData(),
-	uint64(0)))
-, _replyItem(_history->addNewLocalMessage(
-	_history->nextNonHistoryEntryId(),
-	(MessageFlag::FakeHistoryItem
+	.from = _fake->id,
+	.date = base::unixtime::now(),
+}, TextWithEntities{ _peer->isSelf()
+	? tr::lng_settings_color_reply(tr::now)
+	: tr::lng_settings_color_reply_channel(tr::now),
+}, MTP_messageMediaEmpty()))
+, _replyItem(_history->addNewLocalMessage({
+	.id = _history->nextNonHistoryEntryId(),
+	.flags = (MessageFlag::FakeHistoryItem
 		| MessageFlag::HasFromId
 		| MessageFlag::HasReplyInfo
 		| MessageFlag::Post),
-	UserId(), // via
-	FullReplyTo{ .messageId = _replyToItem->fullId() },
-	base::unixtime::now(), // date
-	_fake->id,
-	QString(), // postAuthor
-	TextWithEntities{ _peer->isSelf()
-		? tr::lng_settings_color_text(tr::now)
-		: tr::lng_settings_color_text_channel(tr::now),
-	},
-	MTP_messageMediaWebPage(
+	.from = _fake->id,
+	.replyTo = FullReplyTo{.messageId = _replyToItem->fullId() },
+	.date = base::unixtime::now(),
+}, TextWithEntities{ _peer->isSelf()
+	? tr::lng_settings_color_text(tr::now)
+	: tr::lng_settings_color_text_channel(tr::now),
+}, MTP_messageMediaWebPage(
+	MTP_flags(0),
+	MTP_webPagePending(
 		MTP_flags(0),
-		MTP_webPagePending(
-			MTP_flags(0),
-			MTP_long(_webpage->id),
-			MTPstring(),
-			MTP_int(0))),
-	HistoryMessageMarkupData(),
-	uint64(0)))
+		MTP_long(_webpage->id),
+		MTPstring(),
+		MTP_int(0)))))
 , _element(_replyItem->createView(_delegate.get()))
 , _position(0, st::msgMargin.bottom()) {
 	_style->apply(_theme.get());

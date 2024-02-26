@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_media.h"
 #include "api/api_text_entities.h"
 #include "ui/boxes/confirm_box.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_histories.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
@@ -92,6 +93,8 @@ mtpRequestId EditMessage(
 
 	const auto id = item->isScheduled()
 		? session->data().scheduledMessages().lookupId(item)
+		: item->isBusinessShortcut()
+		? session->data().shortcutMessages().lookupId(item)
 		: item->id;
 	return api->request(MTPmessages_EditMessage(
 		MTP_flags(flags),

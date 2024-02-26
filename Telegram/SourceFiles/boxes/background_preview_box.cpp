@@ -81,11 +81,11 @@ constexpr auto kMaxWallPaperSlugLength = 255;
 	const auto flags = MessageFlag::FakeHistoryItem
 		| MessageFlag::HasFromId
 		| (out ? MessageFlag::Outgoing : MessageFlag(0));
-	const auto item = history->makeMessage(
-		history->owner().nextLocalMessageId(),
-		flags,
-		base::unixtime::now(),
-		PreparedServiceText{ { text } });
+	const auto item = history->makeMessage({
+		.id = history->owner().nextLocalMessageId(),
+		.flags = flags,
+		.date = base::unixtime::now(),
+	}, PreparedServiceText{ { text } });
 	return AdminLog::OwnedItem(delegate, item);
 }
 
@@ -96,24 +96,16 @@ constexpr auto kMaxWallPaperSlugLength = 255;
 		bool out) {
 	Expects(history->peer->isUser());
 
-	const auto flags = MessageFlag::FakeHistoryItem
-		| MessageFlag::HasFromId
-		| (out ? MessageFlag::Outgoing : MessageFlag(0));
-	const auto replyTo = FullReplyTo();
-	const auto viaBotId = UserId();
-	const auto groupedId = uint64();
-	const auto item = history->makeMessage(
-		history->nextNonHistoryEntryId(),
-		flags,
-		replyTo,
-		viaBotId,
-		base::unixtime::now(),
-		out ? history->session().userId() : peerToUser(history->peer->id),
-		QString(),
-		TextWithEntities{ text },
-		MTP_messageMediaEmpty(),
-		HistoryMessageMarkupData(),
-		groupedId);
+	const auto item = history->makeMessage({
+		.id = history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeHistoryItem
+			| MessageFlag::HasFromId
+			| (out ? MessageFlag::Outgoing : MessageFlag(0))),
+		.from = (out
+			? history->session().userId()
+			: peerToUser(history->peer->id)),
+		.date = base::unixtime::now(),
+	}, TextWithEntities{ text }, MTP_messageMediaEmpty());
 	return AdminLog::OwnedItem(delegate, item);
 }
 

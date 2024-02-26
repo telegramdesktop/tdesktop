@@ -27,13 +27,13 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 [[nodiscard]] MsgId RemoteToLocalMsgId(MsgId id) {
 	Expects(IsServerMsgId(id));
 
-	return ServerMaxMsgId + id + 1;
+	return ScheduledMaxMsgId + id + 1;
 }
 
 [[nodiscard]] MsgId LocalToRemoteMsgId(MsgId id) {
 	Expects(IsShortcutMsgId(id));
 
-	return (id - ServerMaxMsgId - 1);
+	return (id - ScheduledMaxMsgId - 1);
 }
 
 [[nodiscard]] bool TooEarlyForRequest(crl::time received) {
@@ -143,6 +143,14 @@ MsgId ShortcutMessages::lookupId(not_null<const HistoryItem*> item) const {
 int ShortcutMessages::count(BusinessShortcutId shortcutId) const {
 	const auto i = _data.find(shortcutId);
 	return (i != end(_data)) ? i->second.items.size() : 0;
+}
+
+void ShortcutMessages::apply(const MTPDupdateQuickReplies &update) {
+
+}
+
+void ShortcutMessages::apply(const MTPDupdateNewQuickReply &update) {
+
 }
 
 void ShortcutMessages::apply(const MTPDupdateQuickReplyMessage &update) {

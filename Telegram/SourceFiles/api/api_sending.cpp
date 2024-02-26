@@ -85,20 +85,21 @@ void SendExistingMedia(
 			? (*localMessageId)
 			: session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
+	const auto &action = message.action;
 
 	auto flags = NewMessageFlags(peer);
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
-	if (message.action.replyTo) {
+	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
 	const auto anonymousPost = peer->amAnonymous();
-	const auto silentPost = ShouldSendSilent(peer, message.action.options);
-	InnerFillMessagePostFlags(message.action.options, peer, flags);
+	const auto silentPost = ShouldSendSilent(peer, action.options);
+	InnerFillMessagePostFlags(action.options, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	const auto sendAs = message.action.options.sendAs;
+	const auto sendAs = action.options.sendAs;
 	const auto messageFromId = sendAs
 		? sendAs->id
 		: anonymousPost
@@ -125,33 +126,30 @@ void SendExistingMedia(
 	}
 	const auto captionText = caption.text;
 
-	if (message.action.options.scheduled) {
+	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
 	}
-	if (message.action.options.shortcutId) {
+	if (action.options.shortcutId) {
+		flags |= MessageFlag::ShortcutMessage;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
 	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
-	const auto viaBotId = UserId();
-	history->addNewLocalMessage(
-		newId.msg,
-		flags,
-		viaBotId,
-		message.action.replyTo,
-		HistoryItem::NewMessageDate(message.action.options.scheduled),
-		messageFromId,
-		messagePostAuthor,
-		media,
-		caption,
-		HistoryMessageMarkupData());
+	history->addNewLocalMessage({
+		.id = newId.msg,
+		.flags = flags,
+		.from = messageFromId,
+		.replyTo = action.replyTo,
+		.date = HistoryItem::NewMessageDate(action.options),
+		.shortcutId = action.options.shortcutId,
+		.postAuthor = messagePostAuthor,
+	}, media, caption);
 
 	const auto performRequest = [=](const auto &repeatRequest) -> void {
 		auto &histories = history->owner().histories();
 		const auto session = &history->session();
-		const auto &action = message.action;
 		const auto usedFileReference = media->fileReference();
 		histories.sendPreparedMessage(
 			history,
@@ -187,7 +185,7 @@ void SendExistingMedia(
 	};
 	performRequest(performRequest);
 
-	api->finishForwarding(message.action);
+	api->finishForwarding(action);
 }
 
 } // namespace
@@ -307,23 +305,23 @@ bool SendDice(MessageToSend &message) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
 	}
 	if (action.options.shortcutId) {
+		flags |= MessageFlag::ShortcutMessage;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
 	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
-	const auto viaBotId = UserId();
-	history->addNewLocalMessage(
-		newId.msg,
-		flags,
-		viaBotId,
-		action.replyTo,
-		HistoryItem::NewMessageDate(action.options.scheduled),
-		messageFromId,
-		messagePostAuthor,
-		TextWithEntities(),
-		MTP_messageMediaDice(MTP_int(0), MTP_string(emoji)),
-		HistoryMessageMarkupData());
+	history->addNewLocalMessage({
+		.id = newId.msg,
+		.flags = flags,
+		.from = messageFromId,
+		.replyTo = action.replyTo,
+		.date = HistoryItem::NewMessageDate(action.options),
+		.shortcutId = action.options.shortcutId,
+		.postAuthor = messagePostAuthor,
+	}, TextWithEntities(), MTP_messageMediaDice(
+		MTP_int(0),
+		MTP_string(emoji)));
 	histories.sendPreparedMessage(
 		history,
 		action.replyTo,
@@ -420,7 +418,13 @@ void SendConfirmedFile(
 	if (file->to.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 
-		// Scheduled messages have no the 'edited' badge.
+		// Scheduled messages have no 'edited' badge.
+		flags |= MessageFlag::HideEdited;
+	}
+	if (file->to.options.shortcutId) {
+		flags |= MessageFlag::ShortcutMessage;
+
+		// Shortcut messages have no 'edited' badge.
 		flags |= MessageFlag::HideEdited;
 	}
 	if (file->type == SendMediaType::Audio) {
@@ -429,8 +433,7 @@ void SendConfirmedFile(
 		}
 	}
 
-	const auto messageFromId =
-		file->to.options.sendAs
+	const auto messageFromId = file->to.options.sendAs
 		? file->to.options.sendAs->id
 		: anonymousPost
 		? PeerId()
@@ -500,19 +503,15 @@ void SendConfirmedFile(
 		edition.savePreviousMedia = true;
 		itemToEdit->applyEdition(std::move(edition));
 	} else {
-		const auto viaBotId = UserId();
-		history->addNewLocalMessage(
-			newId.msg,
-			flags,
-			viaBotId,
-			file->to.replyTo,
-			HistoryItem::NewMessageDate(file->to.options.scheduled),
-			messageFromId,
-			messagePostAuthor,
-			caption,
-			media,
-			HistoryMessageMarkupData(),
-			groupId);
+		history->addNewLocalMessage({
+			.id = newId.msg,
+			.flags = flags,
+			.from = messageFromId,
+			.replyTo = file->to.replyTo,
+			.date = HistoryItem::NewMessageDate(file->to.options),
+			.shortcutId = file->to.options.shortcutId,
+			.postAuthor = messagePostAuthor,
+		}, caption, media);
 	}
 
 	if (isEditing) {

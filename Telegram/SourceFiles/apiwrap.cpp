@@ -2449,6 +2449,14 @@ void ApiWrap::refreshFileReference(
 				request(MTPmessages_GetScheduledMessages(
 					item->history()->peer->input,
 					MTP_vector<MTPint>(1, MTP_int(realId))));
+			} else if (item->isBusinessShortcut()) {
+				const auto &shortcuts = _session->data().shortcutMessages();
+				const auto realId = shortcuts.lookupId(item);
+				request(MTPmessages_GetQuickReplyMessages(
+					MTP_flags(MTPmessages_GetQuickReplyMessages::Flag::f_id),
+					MTP_int(item->shortcutId()),
+					MTP_vector<MTPint>(1, MTP_int(realId)),
+					MTP_long(0)));
 			} else if (const auto channel = item->history()->peer->asChannel()) {
 				request(MTPchannels_GetMessages(
 					channel->inputChannel,
@@ -3232,6 +3240,7 @@ void ApiWrap::forwardMessages(
 		sendFlags |= SendFlag::f_schedule_date;
 	}
 	if (action.options.shortcutId) {
+		flags |= MessageFlag::ShortcutMessage;
 		sendFlags |= SendFlag::f_quick_reply_shortcut;
 	}
 	if (draft.options != Data::ForwardOptions::PreserveInfo) {
@@ -3317,14 +3326,15 @@ void ApiWrap::forwardMessages(
 			const auto messagePostAuthor = peer->isBroadcast()
 				? self->name()
 				: QString();
-			history->addNewLocalMessage(
-				newId.msg,
-				flags,
-				HistoryItem::NewMessageDate(action.options.scheduled),
-				messageFromId,
-				messagePostAuthor,
-				item,
-				topMsgId);
+			history->addNewLocalMessage({
+				.id = newId.msg,
+				.flags = flags,
+				.from = messageFromId,
+				.replyTo = { .topicRootId = topMsgId },
+				.date = HistoryItem::NewMessageDate(action.options),
+				.shortcutId = action.options.shortcutId,
+				.postAuthor = messagePostAuthor,
+			}, item);
 			_session->data().registerMessageRandomId(randomId, newId);
 			if (!localIds) {
 				localIds = std::make_shared<base::flat_map<uint64, FullMsgId>>();
@@ -3405,6 +3415,9 @@ void ApiWrap::sendSharedContact(
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 	}
+	if (action.options.shortcutId) {
+		flags |= MessageFlag::ShortcutMessage;
+	}
 	const auto messageFromId = action.options.sendAs
 		? action.options.sendAs->id
 		: anonymousPost
@@ -3413,23 +3426,20 @@ void ApiWrap::sendSharedContact(
 	const auto messagePostAuthor = peer->isBroadcast()
 		? _session->user()->name()
 		: QString();
-	const auto viaBotId = UserId();
-	const auto item = history->addNewLocalMessage(
-		newId.msg,
-		flags,
-		viaBotId,
-		action.replyTo,
-		HistoryItem::NewMessageDate(action.options.scheduled),
-		messageFromId,
-		messagePostAuthor,
-		TextWithEntities(),
-		MTP_messageMediaContact(
-			MTP_string(phone),
-			MTP_string(firstName),
-			MTP_string(lastName),
-			MTP_string(), // vcard
-			MTP_long(userId.bare)),
-		HistoryMessageMarkupData());
+	const auto item = history->addNewLocalMessage({
+		.id = newId.msg,
+		.flags = flags,
+		.from = messageFromId,
+		.replyTo = action.replyTo,
+		.date = HistoryItem::NewMessageDate(action.options),
+		.shortcutId = action.options.shortcutId,
+		.postAuthor = messagePostAuthor,
+	}, TextWithEntities(), MTP_messageMediaContact(
+		MTP_string(phone),
+		MTP_string(firstName),
+		MTP_string(lastName),
+		MTP_string(), // vcard
+		MTP_long(userId.bare)));
 
 	const auto media = MTP_inputMediaContact(
 		MTP_string(phone),
@@ -3737,21 +3747,19 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
 		}
 		if (action.options.shortcutId) {
+			flags |= MessageFlag::ShortcutMessage;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_quick_reply_shortcut;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
 		}
-		const auto viaBotId = UserId();
-		lastMessage = history->addNewLocalMessage(
-			newId.msg,
-			flags,
-			viaBotId,
-			action.replyTo,
-			HistoryItem::NewMessageDate(action.options.scheduled),
-			messageFromId,
-			messagePostAuthor,
-			sending,
-			media,
-			HistoryMessageMarkupData());
+		lastMessage = history->addNewLocalMessage({
+			.id = newId.msg,
+			.flags = flags,
+			.from = messageFromId,
+			.replyTo = action.replyTo,
+			.date = HistoryItem::NewMessageDate(action.options),
+			.shortcutId = action.options.shortcutId,
+			.postAuthor = messagePostAuthor,
+		}, sending, media);
 		const auto done = [=](
 				const MTPUpdates &result,
 				const MTP::Response &response) {
@@ -3903,6 +3911,7 @@ void ApiWrap::sendInlineResult(
 		sendFlags |= SendFlag::f_schedule_date;
 	}
 	if (action.options.shortcutId) {
+		flags |= MessageFlag::ShortcutMessage;
 		sendFlags |= SendFlag::f_quick_reply_shortcut;
 	}
 	if (action.options.hideViaBot) {
@@ -3923,15 +3932,18 @@ void ApiWrap::sendInlineResult(
 
 	_session->data().registerMessageRandomId(randomId, newId);
 
-	data->addToHistory(
-		history,
-		flags,
-		newId.msg,
-		messageFromId,
-		HistoryItem::NewMessageDate(action.options.scheduled),
-		(bot && !action.options.hideViaBot) ? peerToUser(bot->id) : 0,
-		action.replyTo,
-		messagePostAuthor);
+	data->addToHistory(history, {
+		.id = newId.msg,
+		.flags = flags,
+		.from = messageFromId,
+		.replyTo = action.replyTo,
+		.date = HistoryItem::NewMessageDate(action.options),
+		.shortcutId = action.options.shortcutId,
+		.viaBotId = ((bot && !action.options.hideViaBot)
+			? peerToUser(bot->id)
+			: UserId()),
+		.postAuthor = messagePostAuthor,
+	});
 
 	history->clearCloudDraft(topicRootId);
 	history->startSavingCloudDraft(topicRootId);

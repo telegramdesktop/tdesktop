@@ -50,6 +50,8 @@ public:
 	[[nodiscard]] int count(BusinessShortcutId shortcutId) const;
 	[[nodiscard]] MsgId localMessageId(MsgId remoteId) const;
 
+	void apply(const MTPDupdateQuickReplies &update);
+	void apply(const MTPDupdateNewQuickReply &update);
 	void apply(const MTPDupdateQuickReplyMessage &update);
 	void apply(const MTPDupdateDeleteQuickReplyMessages &update);
 	void apply(const MTPDupdateDeleteQuickReply &update);

@@ -301,6 +301,7 @@ ReplyFields ReplyFieldsFromMTP(
 		if (const auto id = data.vreply_to_msg_id().value_or_empty()) {
 			result.messageId = data.is_reply_to_scheduled()
 				? owner->scheduledMessages().localMessageId(id)
+				AssertIsDebug()
 				: id;
 			result.topMessageId
 				= data.vreply_to_top_id().value_or(id);

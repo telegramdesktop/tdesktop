@@ -77,20 +77,15 @@ AdminLog::OwnedItem GenerateItem(
 		const QString &text) {
 	Expects(history->peer->isUser());
 
-	const auto item = history->addNewLocalMessage(
-		history->nextNonHistoryEntryId(),
-		(MessageFlag::FakeHistoryItem
+	const auto item = history->addNewLocalMessage({
+		.id = history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeHistoryItem
 			| MessageFlag::HasFromId
 			| MessageFlag::HasReplyInfo),
-		UserId(), // via
-		FullReplyTo{ .messageId = replyTo },
-		base::unixtime::now(), // date
-		from,
-		QString(), // postAuthor
-		TextWithEntities{ .text = text },
-		MTP_messageMediaEmpty(),
-		HistoryMessageMarkupData(),
-		uint64(0)); // groupedId
+		.from = from,
+		.replyTo = FullReplyTo{ .messageId = replyTo },
+		.date = base::unixtime::now(),
+	}, TextWithEntities{ .text = text }, MTP_messageMediaEmpty());
 
 	return AdminLog::OwnedItem(delegate, item);
 }

@@ -631,11 +631,11 @@ private:
 	const not_null<ListDelegate*> _delegate;
 	const not_null<Window::SessionController*> _controller;
 	const std::unique_ptr<EmojiInteractions> _emojiInteractions;
+	const Context _context;
 
 	Data::MessagePosition _aroundPosition;
 	Data::MessagePosition _shownAtPosition;
 	Data::MessagePosition _initialAroundPosition;
-	Context _context;
 	int _aroundIndex = -1;
 	int _idsLimit = kMinimalIdsLimit;
 	Data::MessagesSlice _slice;

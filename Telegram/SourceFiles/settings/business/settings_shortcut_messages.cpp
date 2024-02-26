@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_message_reaction_id.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -75,6 +76,8 @@ public:
 	}
 
 	[[nodiscard]] rpl::producer<QString> title() override;
+	[[nodiscard]] rpl::producer<> sectionShowBack() override;
+	void setInnerFocus() override;
 
 	bool paintOuter(
 		not_null<QWidget*> outer,
@@ -82,6 +85,8 @@ public:
 		QRect clip) override;
 
 private:
+	void outerResized(QSize outer);
+
 	// ListDelegate interface.
 	Context listContext() override;
 	bool listScrollTo(int top, bool syntetic = true) override;
@@ -154,7 +159,11 @@ private:
 	QPointer<Ui::RpWidget> createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) override;
 	void setupComposeControls();
+	void processScroll();
+	void updateInnerVisibleArea();
 
+	void pushReplyReturn(not_null<HistoryItem*> item);
+	void checkReplyReturns();
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
@@ -234,6 +243,7 @@ private:
 	QPointer<ListWidget> _inner;
 	std::unique_ptr<Ui::RpWidget> _controlsWrap;
 	std::unique_ptr<ComposeControls> _composeControls;
+	rpl::event_stream<> _showBackRequests;
 	bool _skipScrollEvent = false;
 
 	std::unique_ptr<StickerToast> _stickerToast;
@@ -294,10 +304,17 @@ ShortcutMessages::ShortcutMessages(
 		this,
 		controller,
 		static_cast<ListDelegate*>(this));
-	//_scroll->scrolls(
-	//) | rpl::start_with_next([=] {
-	//	onScroll();
-	//}, lifetime());
+
+	_scroll->sizeValue() | rpl::filter([](QSize size) {
+		return !size.isEmpty();
+	}) | rpl::start_with_next([=](QSize size) {
+		outerResized(size);
+	}, lifetime());
+
+	_scroll->scrolls(
+	) | rpl::start_with_next([=] {
+		processScroll();
+	}, lifetime());
 
 	_inner->editMessageRequested(
 	) | rpl::start_with_next([=](auto fullId) {
@@ -312,10 +329,10 @@ ShortcutMessages::ShortcutMessages(
 	{
 		auto emptyInfo = base::make_unique_q<EmptyListBubbleWidget>(
 			_inner,
-			controller->chatStyle(),
+			_style.get(),
 			st::msgServicePadding);
 		const auto emptyText = Ui::Text::Semibold(
-			tr::lng_scheduled_messages_empty(tr::now));
+			u"give me your money.."_q);
 		emptyInfo->setText(emptyText);
 		_inner->setEmptyInfoWidget(std::move(emptyInfo));
 	}
@@ -335,6 +352,31 @@ rpl::producer<QString> ShortcutMessages::title() {
 	return rpl::single(u"Editing messages list"_q);
 }
 
+void ShortcutMessages::processScroll() {
+	if (_skipScrollEvent) {
+		return;
+	}
+	updateInnerVisibleArea();
+}
+
+void ShortcutMessages::updateInnerVisibleArea() {
+	if (!_inner->animatedScrolling()) {
+		checkReplyReturns();
+	}
+	const auto scrollTop = _scroll->scrollTop();
+	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+	_cornerButtons.updateJumpDownVisibility();
+	_cornerButtons.updateUnreadThingsVisibility();
+}
+
+rpl::producer<> ShortcutMessages::sectionShowBack() {
+	return _showBackRequests.events();
+}
+
+void ShortcutMessages::setInnerFocus() {
+	_composeControls->focus();
+}
+
 bool ShortcutMessages::paintOuter(
 		not_null<QWidget*> outer,
 		int maxVisibleHeight,
@@ -347,6 +389,29 @@ bool ShortcutMessages::paintOuter(
 		0,
 		clip);
 	return true;
+}
+
+void ShortcutMessages::outerResized(QSize outer) {
+	const auto contentWidth = outer.width();
+
+	const auto newScrollTop = _scroll->isHidden()
+		? std::nullopt
+		: _scroll->scrollTop()
+		? base::make_optional(_scroll->scrollTop())
+		: 0;
+	_skipScrollEvent = true;
+	_inner->resizeToWidth(contentWidth, _scroll->height());
+	resize(width(), _inner->height());
+	_skipScrollEvent = false;
+
+	if (!_scroll->isHidden()) {
+		if (newScrollTop) {
+			_scroll->scrollToY(*newScrollTop);
+		}
+		updateInnerVisibleArea();
+	}
+	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
+	_cornerButtons.updatePositions();
 }
 
 void ShortcutMessages::setupComposeControls() {
@@ -446,10 +511,10 @@ void ShortcutMessages::setupComposeControls() {
 		if (action == Ui::InputField::MimeAction::Check) {
 			return Core::CanSendFiles(data);
 		} else if (action == Ui::InputField::MimeAction::Insert) {
-			//return confirmSendingFiles(
-			//	data,
-			//	std::nullopt,
-			//	Core::ReadMimeText(data));#TODO
+			return confirmSendingFiles(
+				data,
+				std::nullopt,
+				Core::ReadMimeText(data));
 		}
 		Unexpected("action in MimeData hook.");
 	});
@@ -480,22 +545,24 @@ QPointer<Ui::RpWidget> ShortcutMessages::createPinnedToBottom(
 		_controlsWrap.get(),
 		_controller,
 		[=](not_null<DocumentData*> emoji) { listShowPremiumToast(emoji); },
-		ComposeControls::Mode::Scheduled,
+		ComposeControls::Mode::Normal,
 		SendMenu::Type::Disabled);
 
 	setupComposeControls();
+
+	showAtEnd();
 
 	return _controlsWrap.get();
 }
 
 Context ShortcutMessages::listContext() {
-	return Context::History;
+	return Context::ShortcutMessages;
 }
 
 bool ShortcutMessages::listScrollTo(int top, bool syntetic) {
 	top = std::clamp(top, 0, _scroll->scrollTopMax());
 	if (_scroll->scrollTop() == top) {
-		//updateInnerVisibleArea();
+		updateInnerVisibleArea();
 		return false;
 	}
 	_scroll->scrollToY(top);
@@ -509,7 +576,7 @@ void ShortcutMessages::listCancelRequest() {
 	} else if (_composeControls->handleCancelRequest()) {
 		return;
 	}
-	_controller->showBackFromStack();
+	_showBackRequests.fire({});
 }
 
 void ShortcutMessages::listDeleteRequest() {
@@ -525,13 +592,11 @@ rpl::producer<Data::MessagesSlice> ShortcutMessages::listSource(
 		int limitBefore,
 		int limitAfter) {
 	const auto data = &_controller->session().data();
-	//return rpl::single(rpl::empty) | rpl::then(
-	//	data->scheduledMessages().updates(_history)
-	//) | rpl::map([=] {
-	//	return data->scheduledMessages().list(_history);
-	//}) | rpl::after_next([=](const Data::MessagesSlice &slice) {
-	//	highlightSingleNewMessage(slice);
-	//});
+	return rpl::single(rpl::empty) | rpl::then(
+		data->shortcutMessages().updates(_shortcutId)
+	) | rpl::map([=] {
+		return data->shortcutMessages().list(_shortcutId);
+	});
 	return rpl::never<Data::MessagesSlice>();
 }
 
@@ -698,12 +763,12 @@ std::optional<bool> ShortcutMessages::cornerButtonsDownShown() {
 		|| _composeControls->isTTLButtonShown()) {
 		return false;
 	}
-	//const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
-	//if (top < _scroll->scrollTopMax() || _cornerButtons.replyReturn()) {
-	//	return true;
-	//} else if (_inner->loadedAtBottomKnown()) {
-	//	return !_inner->loadedAtBottom();
-	//}
+	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
+	if (top < _scroll->scrollTopMax() || _cornerButtons.replyReturn()) {
+		return true;
+	} else if (_inner->loadedAtBottomKnown()) {
+		return !_inner->loadedAtBottom();
+	}
 	return std::nullopt;
 }
 
@@ -717,10 +782,31 @@ bool ShortcutMessages::cornerButtonsHas(CornerButtonType type) {
 	return (type == CornerButtonType::Down);
 }
 
+void ShortcutMessages::pushReplyReturn(not_null<HistoryItem*> item) {
+	if (item->shortcutId() == _shortcutId) {
+		_cornerButtons.pushReplyReturn(item);
+	}
+}
+
+void ShortcutMessages::checkReplyReturns() {
+	const auto currentTop = _scroll->scrollTop();
+	while (const auto replyReturn = _cornerButtons.replyReturn()) {
+		const auto position = replyReturn->position();
+		const auto scrollTop = _inner->scrollTopForPosition(position);
+		const auto below = scrollTop
+			? (currentTop >= std::min(*scrollTop, _scroll->scrollTopMax()))
+			: _inner->isBelowPosition(position);
+		if (below) {
+			_cornerButtons.calculateNextReplyReturn();
+		} else {
+			break;
+		}
+	}
+}
+
 void ShortcutMessages::uploadFile(
 		const QByteArray &fileContent,
 		SendMediaType type) {
-	// #TODO replies schedule
 	_session->api().sendFile(fileContent, type, prepareSendAction({}));
 }
 
@@ -773,11 +859,6 @@ void ShortcutMessages::send() {
 		return;
 	}
 	send({});
-	// #TODO replies schedule
-	//const auto callback = [=](Api::SendOptions options) { send(options); };
-	//Ui::show(
-	//	PrepareScheduleBox(this, sendMenuType(), callback),
-	//	Ui::LayerOption::KeepOther);
 }
 
 void ShortcutMessages::sendVoice(ComposeControls::VoiceToSend &&data) {
@@ -933,7 +1014,7 @@ bool ShortcutMessages::confirmSendingFiles(
 		_composeControls->getTextWithAppliedMarkdown(),
 		_history->peer,
 		Api::SendType::Normal,
-		SendMenu::Type::SilentOnly); // #TODO replies schedule
+		SendMenu::Type::Disabled);
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,

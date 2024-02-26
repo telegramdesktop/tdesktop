@@ -188,54 +188,39 @@ bool AboutView::refresh() {
 }
 
 AdminLog::OwnedItem AboutView::makeAboutBot(not_null<BotInfo*> info) {
-	const auto flags = MessageFlag::FakeAboutView
-		| MessageFlag::FakeHistoryItem
-		| MessageFlag::Local;
-	const auto postAuthor = QString();
-	const auto date = TimeId(0);
-	const auto replyTo = FullReplyTo();
-	const auto viaBotId = UserId(0);
-	const auto groupedId = uint64(0);
 	const auto textWithEntities = TextUtilities::ParseEntities(
 		info->description,
 		Ui::ItemTextBotNoMonoOptions().flags);
-	const auto make = [&](auto &&a, auto &&b, auto &&...other) {
-		return _history->makeMessage(
-			_history->nextNonHistoryEntryId(),
-			flags,
-			replyTo,
-			viaBotId,
-			date,
-			_history->peer->id,
-			postAuthor,
-			std::forward<decltype(a)>(a),
-			std::forward<decltype(b)>(b),
-			HistoryMessageMarkupData(),
-			std::forward<decltype(other)>(other)...);
+	const auto make = [&](auto &&...args) {
+		return _history->makeMessage({
+			.id = _history->nextNonHistoryEntryId(),
+			.flags = (MessageFlag::FakeAboutView
+				| MessageFlag::FakeHistoryItem
+				| MessageFlag::Local),
+			.from = _history->peer->id,
+		}, std::forward<decltype(args)>(args)...);
 	};
 	const auto item = info->document
 		? make(info->document, textWithEntities)
 		: info->photo
 		? make(info->photo, textWithEntities)
-		: make(textWithEntities, MTP_messageMediaEmpty(), groupedId);
+		: make(textWithEntities, MTP_messageMediaEmpty());
 	return AdminLog::OwnedItem(_delegate, item);
 }
 
 AdminLog::OwnedItem AboutView::makePremiumRequired() {
-	const auto flags = MessageFlag::FakeAboutView
-		| MessageFlag::FakeHistoryItem
-		| MessageFlag::Local;
-	const auto date = TimeId(0);
-	const auto item = _history->makeMessage(
-		_history->nextNonHistoryEntryId(),
-		flags,
-		date,
-		PreparedServiceText{ tr::lng_send_non_premium_text(
-			tr::now,
-			lt_user,
-			Ui::Text::Bold(_history->peer->shortName()),
-			Ui::Text::RichLangValue) },
-		peerToUser(_history->peer->id));
+	const auto item = _history->makeMessage({
+		.id = _history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeAboutView
+			| MessageFlag::FakeHistoryItem
+			| MessageFlag::Local),
+		.from = _history->peer->id,
+	}, PreparedServiceText{ tr::lng_send_non_premium_text(
+		tr::now,
+		lt_user,
+		Ui::Text::Bold(_history->peer->shortName()),
+		Ui::Text::RichLangValue),
+	});
 	auto result = AdminLog::OwnedItem(_delegate, item);
 	result->overrideMedia(std::make_unique<ServiceBox>(
 		result.get(),

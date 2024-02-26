@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_item_reply_markup.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
@@ -376,30 +377,15 @@ bool Result::hasThumbDisplay() const {
 
 void Result::addToHistory(
 		not_null<History*> history,
-		MessageFlags flags,
-		MsgId msgId,
-		PeerId fromId,
-		TimeId date,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		const QString &postAuthor) const {
-	flags |= MessageFlag::FromInlineBot;
-
-	auto markup = _replyMarkup ? *_replyMarkup : HistoryMessageMarkupData();
-	if (!markup.isNull()) {
-		flags |= MessageFlag::HasReplyMarkup;
+		HistoryItemCommonFields &&fields) const {
+	fields.flags |= MessageFlag::FromInlineBot;
+	if (_replyMarkup) {
+		fields.markup = *_replyMarkup;
+		if (!fields.markup.isNull()) {
+			fields.flags |= MessageFlag::HasReplyMarkup;
+		}
 	}
-	sendData->addToHistory(
-		this,
-		history,
-		flags,
-		msgId,
-		fromId,
-		date,
-		viaBotId,
-		replyTo,
-		postAuthor,
-		std::move(markup));
+	sendData->addToHistory(this, history, std::move(fields));
 }
 
 QString Result::getErrorOnSend(not_null<History*> history) const {

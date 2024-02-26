@@ -1792,7 +1792,7 @@ void ListWidget::updateItemsGeometry() {
 			if (view->isHidden()) {
 				view->setDisplayDate(false);
 			} else {
-				view->setDisplayDate(true);
+				view->setDisplayDate(_context != Context::ShortcutMessages);
 				view->setAttachToPrevious(false);
 				return i;
 			}
@@ -2048,7 +2048,8 @@ void ListWidget::checkActivation() {
 }
 
 void ListWidget::paintEvent(QPaintEvent *e) {
-	if (_controller->contentOverlapped(this, e)) {
+	if ((_context != Context::ShortcutMessages)
+		&& _controller->contentOverlapped(this, e)) {
 		return;
 	}
 
@@ -3737,7 +3738,8 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 		} else {
 			const auto viewDate = view->dateTime();
 			const auto nextDate = next->dateTime();
-			next->setDisplayDate(nextDate.date() != viewDate.date());
+			next->setDisplayDate(_context != Context::ShortcutMessages
+				&& nextDate.date() != viewDate.date());
 			auto attached = next->computeIsAttachToPrevious(view);
 			next->setAttachToPrevious(attached, view);
 			view->setAttachToNext(attached, next);

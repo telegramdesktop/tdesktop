@@ -318,6 +318,8 @@ enum class MessageFlag : uint64 {
 	Sponsored             = (1ULL << 42),
 
 	ReactionsAreTags      = (1ULL << 43),
+
+	ShortcutMessage       = (1ULL << 44),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

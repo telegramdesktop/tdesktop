@@ -16,6 +16,7 @@ class FileLoader;
 class History;
 class UserData;
 struct HistoryMessageMarkupData;
+struct HistoryItemCommonFields;
 
 namespace Data {
 class LocationPoint;
@@ -64,13 +65,7 @@ public:
 
 	void addToHistory(
 		not_null<History*> history,
-		MessageFlags flags,
-		MsgId msgId,
-		PeerId fromId,
-		TimeId date,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		const QString &postAuthor) const;
+		HistoryItemCommonFields &&fields) const;
 	QString getErrorOnSend(not_null<History*> history) const;
 
 	// interface for Layout:: usage
