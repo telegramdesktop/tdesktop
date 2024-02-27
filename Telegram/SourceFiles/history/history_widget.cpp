@@ -1953,6 +1953,7 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	updateControlsVisibility();
 	updateControlsGeometry();
 	refreshTopBarActiveChat();
+	checkCharsLimitation();
 	if (_editMsgId) {
 		updateReplyEditTexts();
 		if (!_replyEditMsg) {
@@ -3869,17 +3870,12 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	}
 	const auto webPageDraft = _preview->draft();
-	auto left = prepareTextForEditMsg();
-	auto sending = TextWithEntities();
+	const auto sending = prepareTextForEditMsg();
 
-	const auto originalLeftSize = left.text.size();
 	const auto hasMediaWithCaption = item
 		&& item->media()
 		&& item->media()->allowsEditCaption();
-	const auto maxCaptionSize = !hasMediaWithCaption
-		? MaxMessageSize
-		: Data::PremiumLimits(&session()).captionLengthCurrent();
-	if (!TextUtilities::CutPart(sending, left, maxCaptionSize)
+	if (sending.text.isEmpty()
 		&& (webPageDraft.removed
 			|| webPageDraft.url.isEmpty()
 			|| !webPageDraft.manual)
@@ -3888,11 +3884,16 @@ void HistoryWidget::saveEditMsg() {
 		controller()->show(
 			Box<DeleteMessagesBox>(item, suggestModerateActions));
 		return;
-	} else if (!left.text.isEmpty()) {
-		const auto remove = originalLeftSize - maxCaptionSize;
-		controller()->showToast(
-			tr::lng_edit_limit_reached(tr::now, lt_count, remove));
-		return;
+	} else {
+		const auto maxCaptionSize = !hasMediaWithCaption
+			? MaxMessageSize
+			: Data::PremiumLimits(&session()).captionLengthCurrent();
+		const auto remove = Ui::FieldCharacterCount(_field) - maxCaptionSize;
+		if (remove > 0) {
+			controller()->showToast(
+				tr::lng_edit_limit_reached(tr::now, lt_count, remove));
+			return;
+		}
 	}
 
 	const auto weak = Ui::MakeWeak(this);
@@ -7319,9 +7320,8 @@ void HistoryWidget::checkCharsLimitation() {
 		_charsLimitation = nullptr;
 		return;
 	}
-	const auto limits = Data::PremiumLimits(&session());
-	const auto left = prepareTextForEditMsg();
-	const auto remove = left.text.size() - limits.captionLengthCurrent();
+	const auto remove = Ui::FieldCharacterCount(_field)
+		- Data::PremiumLimits(&session()).captionLengthCurrent();
 	if (remove > 0) {
 		if (!_charsLimitation) {
 			_charsLimitation = base::make_unique_q<CharactersLimitLabel>(

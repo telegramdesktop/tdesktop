@@ -3150,6 +3150,10 @@ not_null<Ui::RpWidget*> ComposeControls::likeAnimationTarget() const {
 	return _like;
 }
 
+int ComposeControls::fieldCharacterCount() const {
+	return Ui::FieldCharacterCount(_field);
+}
+
 bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {
 	if (_voiceRecordBar->isActive()) {
 		_voiceRecordBar->showDiscardBox(std::move(continueCallback));
@@ -3323,9 +3327,8 @@ void ComposeControls::checkCharsLimitation() {
 		_charsLimitation = nullptr;
 		return;
 	}
-	const auto limits = Data::PremiumLimits(&session());
-	const auto left = prepareTextForEditMsg();
-	const auto remove = left.text.size() - limits.captionLengthCurrent();
+	const auto remove = Ui::FieldCharacterCount(_field)
+		- Data::PremiumLimits(&session()).captionLengthCurrent();
 	if (remove > 0) {
 		if (!_charsLimitation) {
 			using namespace Controls;
