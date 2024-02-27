@@ -3323,12 +3323,16 @@ void ComposeControls::checkCharsLimitation() {
 		return;
 	}
 	const auto item = _history->owner().message(_header->editMsgId());
-	if (!item || !item->media() || !item->media()->allowsEditCaption()) {
+	if (!item) {
 		_charsLimitation = nullptr;
 		return;
 	}
-	const auto remove = Ui::FieldCharacterCount(_field)
-		- Data::PremiumLimits(&session()).captionLengthCurrent();
+	const auto hasMediaWithCaption = item->media()
+		&& item->media()->allowsEditCaption();
+	const auto maxCaptionSize = !hasMediaWithCaption
+		? MaxMessageSize
+		: Data::PremiumLimits(&session()).captionLengthCurrent();
+	const auto remove = Ui::FieldCharacterCount(_field) - maxCaptionSize;
 	if (remove > 0) {
 		if (!_charsLimitation) {
 			using namespace Controls;
