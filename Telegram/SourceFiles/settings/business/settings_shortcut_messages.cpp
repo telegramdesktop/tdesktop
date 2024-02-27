@@ -337,8 +337,8 @@ ShortcutMessages::ShortcutMessages(
 		_inner->setEmptyInfoWidget(std::move(emptyInfo));
 	}
 
-	widthValue() | rpl::start_with_next([=](int width) {
-		resize(width, width);
+	_inner->heightValue() | rpl::start_with_next([=](int height) {
+		resize(width(), height);
 	}, lifetime());
 }
 
@@ -401,7 +401,6 @@ void ShortcutMessages::outerResized(QSize outer) {
 		: 0;
 	_skipScrollEvent = true;
 	_inner->resizeToWidth(contentWidth, _scroll->height());
-	resize(width(), _inner->height());
 	_skipScrollEvent = false;
 
 	if (!_scroll->isHidden()) {
@@ -743,7 +742,7 @@ void ShortcutMessages::listAddTranslatedItems(
 
 void ShortcutMessages::cornerButtonsShowAtPosition(
 		Data::MessagePosition position) {
-	//showAtPosition(position);
+	showAtPosition(position);
 }
 
 Data::Thread *ShortcutMessages::cornerButtonsThread() {

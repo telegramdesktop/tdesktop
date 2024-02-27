@@ -735,7 +735,7 @@ TimeId HistoryItem::NewMessageDate(TimeId scheduled) {
 
 TimeId HistoryItem::NewMessageDate(
 		const Api::SendOptions &options) {
-	return options.shortcutId ? TimeId() : NewMessageDate(options.scheduled);
+	return options.shortcutId ? 1 : NewMessageDate(options.scheduled);
 }
 
 HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
