@@ -164,6 +164,8 @@ private:
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	void checkReplyReturns();
+	void confirmDeleteSelected();
+	void clearSelected();
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
@@ -579,7 +581,7 @@ void ShortcutMessages::listCancelRequest() {
 }
 
 void ShortcutMessages::listDeleteRequest() {
-	//confirmDeleteSelected();
+	confirmDeleteSelected();
 }
 
 void ShortcutMessages::listTryProcessKeyInput(not_null<QKeyEvent*> e) {
@@ -801,6 +803,14 @@ void ShortcutMessages::checkReplyReturns() {
 			break;
 		}
 	}
+}
+
+void ShortcutMessages::confirmDeleteSelected() {
+	ConfirmDeleteSelectedItems(_inner);
+}
+
+void ShortcutMessages::clearSelected() {
+	_inner->cancelSelection();
 }
 
 void ShortcutMessages::uploadFile(

@@ -2037,6 +2037,9 @@ void HistoryItem::setRealId(MsgId newId) {
 
 	const auto oldId = std::exchange(id, newId);
 	_flags &= ~(MessageFlag::BeingSent | MessageFlag::Local);
+	if (isBusinessShortcut()) {
+		_date = 0;
+	}
 	if (isRegular()) {
 		_history->unregisterClientSideMessage(this);
 	}
@@ -2154,7 +2157,9 @@ bool HistoryItem::canDelete() const {
 		return false;
 	} else if (topicRootId() == id) {
 		return false;
-	} else if (!isHistoryEntry() && !isScheduled()) {
+	} else if (!isHistoryEntry()
+		&& !isScheduled()
+		&& !isBusinessShortcut()) {
 		return false;
 	}
 	auto channel = _history->peer->asChannel();
