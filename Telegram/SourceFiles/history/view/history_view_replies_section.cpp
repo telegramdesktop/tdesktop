@@ -967,7 +967,8 @@ void RepliesWidget::sendingFilesConfirmed(
 			album,
 			action);
 	}
-	if (_composeControls->replyingToMessage() == action.replyTo) {
+	if (_composeControls->replyingToMessage().messageId
+			== action.replyTo.messageId) {
 		_composeControls->cancelReplyMessage();
 		refreshTopBarActiveChat();
 	}
