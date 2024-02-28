@@ -38,7 +38,6 @@ public:
 	~AwayMessage();
 
 	[[nodiscard]] rpl::producer<QString> title() override;
-
 	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
 
 private:

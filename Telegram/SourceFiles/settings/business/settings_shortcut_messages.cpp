@@ -30,14 +30,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_sticker_toast.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "info/info_wrap_widget.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_numbers_animation.h"
 #include "main/main_session.h"
 #include "menu/menu_send.h"
 #include "settings/business/settings_recipients_helper.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_account.h"
 #include "storage/storage_media_prepare.h"
+#include "storage/storage_shared_media.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -72,12 +75,15 @@ public:
 	[[nodiscard]] static Type Id(BusinessShortcutId shortcutId);
 
 	[[nodiscard]] Type id() const final override {
-		return Id(_shortcutId);
+		return Id(_shortcutId.current());
 	}
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 	[[nodiscard]] rpl::producer<> sectionShowBack() override;
 	void setInnerFocus() override;
+
+	rpl::producer<Info::SelectedItems> selectedListValue() override;
+	void selectionAction(Info::SelectionAction action) override;
 
 	bool paintOuter(
 		not_null<QWidget*> outer,
@@ -238,8 +244,9 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	const not_null<Main::Session*> _session;
 	const not_null<Ui::ScrollArea*> _scroll;
-	const BusinessShortcutId _shortcutId;
 	const not_null<History*> _history;
+	rpl::variable<BusinessShortcutId> _shortcutId;
+	rpl::variable<QString> _shortcut;
 	std::shared_ptr<Ui::ChatStyle> _style;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 	QPointer<ListWidget> _inner;
@@ -247,6 +254,9 @@ private:
 	std::unique_ptr<ComposeControls> _composeControls;
 	rpl::event_stream<> _showBackRequests;
 	bool _skipScrollEvent = false;
+
+	rpl::variable<Info::SelectedItems> _selectedItems
+		= Info::SelectedItems(Storage::SharedMediaType::kCount);
 
 	std::unique_ptr<StickerToast> _stickerToast;
 
@@ -287,12 +297,31 @@ ShortcutMessages::ShortcutMessages(
 , _controller(controller)
 , _session(&controller->session())
 , _scroll(scroll)
-, _shortcutId(shortcutId)
 , _history(_session->data().history(_session->user()->id))
+, _shortcutId(shortcutId)
+, _shortcut(
+	_session->data().shortcutMessages().lookupShortcut(shortcutId).name)
 , _cornerButtons(
 		_scroll,
 		controller->chatStyle(),
 		static_cast<HistoryView::CornerButtonsDelegate*>(this)) {
+	const auto messages = &_session->data().shortcutMessages();
+
+	messages->shortcutIdChanged(
+	) | rpl::start_with_next([=](Data::ShortcutIdChange change) {
+		if (change.oldId == _shortcutId.current()) {
+			if (change.newId) {
+				_shortcutId = change.newId;
+			} else {
+				_showBackRequests.fire({});
+			}
+		}
+	}, lifetime());
+	messages->shortcutsChanged(
+	) | rpl::start_with_next([=] {
+		_shortcut = messages->lookupShortcut(_shortcutId.current()).name;
+	}, lifetime());
+
 	controller->chatStyle()->paletteChanged(
 	) | rpl::start_with_next([=] {
 		_scroll->updateBars();
@@ -351,7 +380,13 @@ Type ShortcutMessages::Id(BusinessShortcutId shortcutId) {
 }
 
 rpl::producer<QString> ShortcutMessages::title() {
-	return rpl::single(u"Editing messages list"_q);
+	return _shortcut.value() | rpl::map([=](const QString &shortcut) {
+		return (shortcut == u"away"_q)
+			? tr::lng_away_title()
+			: (shortcut == u"hello"_q)
+			? tr::lng_greeting_title()
+			: rpl::single('/' + shortcut);
+	}) | rpl::flatten_latest();
 }
 
 void ShortcutMessages::processScroll() {
@@ -377,6 +412,18 @@ rpl::producer<> ShortcutMessages::sectionShowBack() {
 
 void ShortcutMessages::setInnerFocus() {
 	_composeControls->focus();
+}
+
+rpl::producer<Info::SelectedItems> ShortcutMessages::selectedListValue() {
+	return _selectedItems.value();
+}
+
+void ShortcutMessages::selectionAction(Info::SelectionAction action) {
+	switch (action) {
+	case Info::SelectionAction::Clear: clearSelected(); return;
+	case Info::SelectionAction::Delete: confirmDeleteSelected(); return;
+	}
+	Unexpected("Action in ShortcutMessages::selectionAction.");
 }
 
 bool ShortcutMessages::paintOuter(
@@ -572,7 +619,7 @@ bool ShortcutMessages::listScrollTo(int top, bool syntetic) {
 
 void ShortcutMessages::listCancelRequest() {
 	if (_inner && !_inner->getSelectedItems().empty()) {
-		//clearSelected();
+		clearSelected();
 		return;
 	} else if (_composeControls->handleCancelRequest()) {
 		return;
@@ -592,13 +639,15 @@ rpl::producer<Data::MessagesSlice> ShortcutMessages::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
-	const auto data = &_controller->session().data();
-	return rpl::single(rpl::empty) | rpl::then(
-		data->shortcutMessages().updates(_shortcutId)
-	) | rpl::map([=] {
-		return data->shortcutMessages().list(_shortcutId);
-	});
-	return rpl::never<Data::MessagesSlice>();
+	const auto messages = &_session->data().shortcutMessages();
+	return _shortcutId.value(
+	) | rpl::map([=](BusinessShortcutId shortcutId) {
+		return rpl::single(rpl::empty) | rpl::then(
+			messages->updates(shortcutId)
+		) | rpl::map([=] {
+			return messages->list(shortcutId);
+		});
+	}) | rpl::flatten_latest();
 }
 
 bool ShortcutMessages::listAllowsMultiSelect() {
@@ -617,6 +666,24 @@ bool ShortcutMessages::listIsLessInOrder(
 }
 
 void ShortcutMessages::listSelectionChanged(SelectedItems &&items) {
+	auto value = Info::SelectedItems();
+	value.title = [](int count) {
+		return tr::lng_forum_messages(
+			tr::now,
+			lt_count,
+			count,
+			Ui::StringWithNumbers::FromString);
+	};
+	value.list = items | ranges::views::transform([](SelectedItem item) {
+		auto result = Info::SelectedItem(GlobalMsgId{ item.msgId });
+		result.canDelete = item.canDelete;
+		return result;
+	}) | ranges::to_vector;
+	_selectedItems = std::move(value);
+
+	if (items.empty()) {
+		doSetInnerFocus();
+	}
 }
 
 void ShortcutMessages::listMarkReadTill(not_null<HistoryItem*> item) {
@@ -784,20 +851,21 @@ bool ShortcutMessages::cornerButtonsHas(CornerButtonType type) {
 }
 
 void ShortcutMessages::pushReplyReturn(not_null<HistoryItem*> item) {
-	if (item->shortcutId() == _shortcutId) {
+	if (item->shortcutId() == _shortcutId.current()) {
 		_cornerButtons.pushReplyReturn(item);
 	}
 }
 
 void ShortcutMessages::checkReplyReturns() {
 	const auto currentTop = _scroll->scrollTop();
+	const auto shortcutId = _shortcutId.current();
 	while (const auto replyReturn = _cornerButtons.replyReturn()) {
 		const auto position = replyReturn->position();
 		const auto scrollTop = _inner->scrollTopForPosition(position);
 		const auto below = scrollTop
 			? (currentTop >= std::min(*scrollTop, _scroll->scrollTopMax()))
 			: _inner->isBelowPosition(position);
-		if (below) {
+		if (replyReturn->shortcutId() != shortcutId || below) {
 			_cornerButtons.calculateNextReplyReturn();
 		} else {
 			break;
@@ -858,7 +926,7 @@ Api::SendAction ShortcutMessages::prepareSendAction(
 		Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
 	result.replyTo = replyTo();
-	result.options.shortcutId = _shortcutId;
+	result.options.shortcutId = _shortcutId.current();
 	result.options.sendAs = _composeControls->sendAsPeer();
 	return result;
 }

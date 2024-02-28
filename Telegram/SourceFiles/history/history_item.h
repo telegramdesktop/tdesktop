@@ -196,6 +196,7 @@ public:
 	[[nodiscard]] bool isUserpicSuggestion() const;
 	[[nodiscard]] BusinessShortcutId shortcutId() const;
 	[[nodiscard]] bool isBusinessShortcut() const;
+	void setRealShortcutId(BusinessShortcutId id);
 
 	void addLogEntryOriginal(
 		WebPageId localId,

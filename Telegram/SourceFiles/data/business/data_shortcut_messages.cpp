@@ -128,6 +128,94 @@ void ShortcutMessages::clearOldRequests() {
 	}
 }
 
+void ShortcutMessages::updateShortcuts(const QVector<MTPQuickReply> &list) {
+	auto shortcuts = parseShortcuts(list);
+	auto changes = std::vector<ShortcutIdChange>();
+	for (auto &[id, shortcut] : _shortcuts.list) {
+		if (shortcuts.list.contains(id)) {
+			continue;
+		}
+		auto foundId = BusinessShortcutId();
+		for (auto &[realId, real] : shortcuts.list) {
+			if (real.name == shortcut.name) {
+				foundId = realId;
+				break;
+			}
+		}
+		if (foundId) {
+			mergeMessagesFromTo(id, foundId);
+			changes.push_back({ .oldId = id, .newId = foundId });
+		} else {
+			shortcuts.list.emplace(id, shortcut);
+		}
+	}
+	const auto changed = !_shortcutsLoaded
+		|| (shortcuts != _shortcuts);
+	if (changed) {
+		_shortcuts = std::move(shortcuts);
+		_shortcutsLoaded = true;
+		for (const auto &change : changes) {
+			_shortcutIdChanges.fire_copy(change);
+		}
+		_shortcutsChanged.fire({});
+	} else {
+		Assert(changes.empty());
+	}
+}
+
+void ShortcutMessages::mergeMessagesFromTo(
+		BusinessShortcutId fromId,
+		BusinessShortcutId toId) {
+	auto &to = _data[toId];
+	const auto i = _data.find(fromId);
+	if (i == end(_data)) {
+		return;
+	}
+
+	auto &from = i->second;
+	auto destroy = base::flat_set<not_null<HistoryItem*>>();
+	for (auto &item : from.items) {
+		if (item->isSending() || item->hasFailed()) {
+			item->setRealShortcutId(toId);
+			to.items.push_back(std::move(item));
+		} else {
+			destroy.emplace(item.get());
+		}
+	}
+	for (const auto &item : destroy) {
+		item->destroy();
+	}
+	_data.remove(fromId);
+
+	cancelRequest(fromId);
+
+	_updates.fire_copy(toId);
+	if (!destroy.empty()) {
+		cancelRequest(toId);
+		request(toId);
+	}
+}
+
+Shortcuts ShortcutMessages::parseShortcuts(
+		const QVector<MTPQuickReply> &list) const {
+	auto result = Shortcuts();
+	for (const auto &reply : list) {
+		const auto shortcut = parseShortcut(reply);
+		result.list.emplace(shortcut.id, shortcut);
+	}
+	return result;
+}
+
+Shortcut ShortcutMessages::parseShortcut(const MTPQuickReply &reply) const {
+	const auto &data = reply.data();
+	return Shortcut{
+		.id = BusinessShortcutId(data.vshortcut_id().v),
+		.count = data.vcount().v,
+		.name = qs(data.vshortcut()),
+		.topMessageId = localMessageId(data.vtop_message().v),
+	};
+}
+
 MsgId ShortcutMessages::localMessageId(MsgId remoteId) const {
 	return RemoteToLocalMsgId(remoteId);
 }
@@ -146,11 +234,60 @@ int ShortcutMessages::count(BusinessShortcutId shortcutId) const {
 }
 
 void ShortcutMessages::apply(const MTPDupdateQuickReplies &update) {
+	updateShortcuts(update.vquick_replies().v);
+	scheduleShortcutsReload();
+}
 
+void ShortcutMessages::scheduleShortcutsReload() {
+	const auto hasUnknownMessages = [&] {
+		const auto selfId = _session->userPeerId();
+		for (const auto &[id, shortcut] : _shortcuts.list) {
+			if (!_session->data().message({ selfId, shortcut.topMessageId })) {
+				return true;
+			}
+		}
+		return false;
+	};
+	if (hasUnknownMessages()) {
+		_shortcutsLoaded = false;
+		const auto cancelledId = base::take(_shortcutsRequestId);
+		_session->api().request(cancelledId).cancel();
+		crl::on_main(_session, [=] {
+			if (cancelledId || hasUnknownMessages()) {
+				preloadShortcuts();
+			}
+		});
+	}
 }
 
 void ShortcutMessages::apply(const MTPDupdateNewQuickReply &update) {
-
+	const auto selfId = _session->userPeerId();
+	const auto &reply = update.vquick_reply();
+	auto foundId = BusinessShortcutId();
+	const auto shortcut = parseShortcut(reply);
+	for (auto &[id, existing] : _shortcuts.list) {
+		if (id == shortcut.id) {
+			foundId = id;
+			break;
+		} else if (existing.name == shortcut.name) {
+			foundId = id;
+			break;
+		}
+	}
+	if (foundId == shortcut.id) {
+		auto &already = _shortcuts.list[shortcut.id];
+		if (already != shortcut) {
+			already = shortcut;
+			_shortcutsChanged.fire({});
+		}
+		return;
+	} else if (foundId) {
+		_shortcuts.list.emplace(shortcut.id, shortcut);
+		mergeMessagesFromTo(foundId, shortcut.id);
+		_shortcuts.list.remove(foundId);
+		_shortcutIdChanges.fire({ foundId, shortcut.id });
+		_shortcutsChanged.fire({});
+	}
 }
 
 void ShortcutMessages::apply(const MTPDupdateQuickReplyMessage &update) {
@@ -159,10 +296,30 @@ void ShortcutMessages::apply(const MTPDupdateQuickReplyMessage &update) {
 	if (!shortcutId) {
 		return;
 	}
+	const auto loaded = _data.contains(shortcutId);
 	auto &list = _data[shortcutId];
 	append(shortcutId, list, message);
 	sort(list);
 	_updates.fire_copy(shortcutId);
+	updateCount(shortcutId);
+	if (!loaded) {
+		request(shortcutId);
+	}
+}
+
+void ShortcutMessages::updateCount(BusinessShortcutId shortcutId) {
+	const auto i = _data.find(shortcutId);
+	const auto j = _shortcuts.list.find(shortcutId);
+	if (j == end(_shortcuts.list)) {
+		return;
+	}
+	const auto count = (i != end(_data))
+		? int(i->second.itemById.size())
+		: 0;
+	if (j->second.count != count) {
+		_shortcuts.list[shortcutId].count = count;
+		_shortcutsChanged.fire({});
+	}
 }
 
 void ShortcutMessages::apply(
@@ -187,6 +344,10 @@ void ShortcutMessages::apply(
 		}
 	}
 	_updates.fire_copy(shortcutId);
+	updateCount(shortcutId);
+
+	cancelRequest(shortcutId);
+	request(shortcutId);
 }
 
 void ShortcutMessages::apply(const MTPDupdateDeleteQuickReply &update) {
@@ -195,12 +356,17 @@ void ShortcutMessages::apply(const MTPDupdateDeleteQuickReply &update) {
 		return;
 	}
 	auto i = _data.find(shortcutId);
-	while (i != end(_data)) {
-		Assert(!i->second.itemById.empty());
+	while (i != end(_data) && !i->second.itemById.empty()) {
 		i->second.itemById.back().second->destroy();
 		i = _data.find(shortcutId);
 	}
 	_updates.fire_copy(shortcutId);
+	if (_data.contains(shortcutId)) {
+		updateCount(shortcutId);
+	} else {
+		_shortcuts.list.remove(shortcutId);
+		_shortcutIdChanges.fire({ shortcutId, 0 });
+	}
 }
 
 void ShortcutMessages::apply(
@@ -283,30 +449,7 @@ void ShortcutMessages::preloadShortcuts() {
 			owner->processMessages(
 				data.vmessages(),
 				NewMessageType::Existing);
-			auto shortcuts = Shortcuts();
-			const auto messages = &owner->shortcutMessages();
-			for (const auto &reply : data.vquick_replies().v) {
-				const auto &data = reply.data();
-				const auto id = BusinessShortcutId(data.vshortcut_id().v);
-				shortcuts.list.emplace(id, Shortcut{
-					.name = qs(data.vshortcut()),
-					.topMessageId = messages->localMessageId(
-						data.vtop_message().v),
-					.count = data.vcount().v,
-				});
-			}
-			for (auto &[id, shortcut] : _shortcuts.list) {
-				if (id < 0) {
-					shortcuts.list.emplace(id, shortcut);
-				}
-			}
-			const auto changed = !_shortcutsLoaded
-				|| (shortcuts != _shortcuts);
-			if (changed) {
-				_shortcuts = std::move(shortcuts);
-				_shortcutsLoaded = true;
-				_shortcutsChanged.fire({});
-			}
+			updateShortcuts(data.vquick_replies().v);
 		}, [&](const MTPDmessages_quickRepliesNotModified &) {
 			if (!_shortcutsLoaded) {
 				_shortcutsLoaded = true;
@@ -328,6 +471,11 @@ rpl::producer<> ShortcutMessages::shortcutsChanged() const {
 	return _shortcutsChanged.events();
 }
 
+auto ShortcutMessages::shortcutIdChanged() const
+-> rpl::producer<ShortcutIdChange> {
+	return _shortcutIdChanges.events();
+}
+
 BusinessShortcutId ShortcutMessages::emplaceShortcut(QString name) {
 	Expects(_shortcutsLoaded);
 
@@ -337,7 +485,7 @@ BusinessShortcutId ShortcutMessages::emplaceShortcut(QString name) {
 		}
 	}
 	const auto result = --_localShortcutId;
-	_shortcuts.list.emplace(result, Shortcut{ name });
+	_shortcuts.list.emplace(result, Shortcut{ .id = result, .name = name });
 	return result;
 }
 
@@ -346,6 +494,14 @@ Shortcut ShortcutMessages::lookupShortcut(BusinessShortcutId id) const {
 
 	Ensures(i != end(_shortcuts.list));
 	return i->second;
+}
+
+void ShortcutMessages::cancelRequest(BusinessShortcutId shortcutId) {
+	const auto j = _requests.find(shortcutId);
+	if (j != end(_requests)) {
+		_session->api().request(j->second.requestId).cancel();
+		_requests.erase(j);
+	}
 }
 
 void ShortcutMessages::request(BusinessShortcutId shortcutId) {
@@ -512,6 +668,7 @@ void ShortcutMessages::remove(not_null<const HistoryItem*> item) {
 		_data.erase(i);
 	}
 	_updates.fire_copy(shortcutId);
+	updateCount(shortcutId);
 }
 
 uint64 ShortcutMessages::countListHash(const List &list) const {
@@ -537,11 +694,10 @@ uint64 ShortcutMessages::countListHash(const List &list) const {
 MTPInputQuickReplyShortcut ShortcutIdToMTP(
 		not_null<Main::Session*> session,
 		BusinessShortcutId id) {
-	if (id >= 0) {
-		return MTP_inputQuickReplyShortcutId(MTP_int(id));
-	}
-	return MTP_inputQuickReplyShortcut(MTP_string(
-		session->data().shortcutMessages().lookupShortcut(id).name));
+	return id
+		? MTP_inputQuickReplyShortcut(MTP_string(
+			session->data().shortcutMessages().lookupShortcut(id).name))
+		: MTPInputQuickReplyShortcut();
 }
 
 } // namespace Data

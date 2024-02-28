@@ -44,6 +44,7 @@ public:
 			Sponsored      = 0x10,
 			Pinned         = 0x20,
 			Imported       = 0x40,
+			Shortcut       = 0x80,
 			//Unread, // We don't want to pass and update it in Date for now.
 		};
 		friend inline constexpr bool is_flag_type(Flag) { return true; };

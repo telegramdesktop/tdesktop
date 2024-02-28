@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_numbers_animation.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
@@ -64,12 +65,36 @@ const style::InfoTopBar &TopBarStyle(Wrap wrap) {
 		&& section.settingsType()->hasCustomTopBar();
 }
 
+[[nodiscard]] Fn<Ui::StringWithNumbers(int)> SelectedTitleForMedia(
+		Section::MediaType type) {
+	return [type](int count) {
+		using Type = Storage::SharedMediaType;
+		return [&] {
+			switch (type) {
+			case Type::Photo: return tr::lng_media_selected_photo;
+			case Type::GIF: return tr::lng_media_selected_gif;
+			case Type::Video: return tr::lng_media_selected_video;
+			case Type::File: return tr::lng_media_selected_file;
+			case Type::MusicFile: return tr::lng_media_selected_song;
+			case Type::Link: return tr::lng_media_selected_link;
+			case Type::RoundVoiceFile: return tr::lng_media_selected_audio;
+			case Type::PhotoVideo: return tr::lng_stories_row_count;
+			}
+			Unexpected("Type in TopBar::generateSelectedText()");
+		}()(tr::now, lt_count, count, Ui::StringWithNumbers::FromString);
+	};
+}
+
 } // namespace
 
 struct WrapWidget::StackItem {
 	std::shared_ptr<ContentMemento> section;
 //	std::shared_ptr<ContentMemento> anotherTab;
 };
+
+SelectedItems::SelectedItems(Section::MediaType mediaType)
+: title(SelectedTitleForMedia(mediaType)) {
+}
 
 WrapWidget::WrapWidget(
 	QWidget *parent,
@@ -609,7 +634,12 @@ void WrapWidget::finishShowContent() {
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
 	_desiredBottomShadowVisibilities.fire(
 		_content->desiredBottomShadowVisibility());
-	_selectedLists.fire(_content->selectedListValue());
+	if (auto selection = _content->selectedListValue()) {
+		_selectedLists.fire(std::move(selection));
+	} else {
+		_selectedLists.fire(rpl::single(
+			SelectedItems(Storage::SharedMediaType::Photo)));
+	}
 	_scrollTillBottomChanges.fire(_content->scrollTillBottomChanges());
 	_topShadow->raise();
 	_topShadow->finishAnimating();

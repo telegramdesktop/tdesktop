@@ -248,6 +248,14 @@ void Widget::enableBackButton() {
 	_flexibleScroll.backButtonEnables.fire({});
 }
 
+rpl::producer<SelectedItems> Widget::selectedListValue() const {
+	return _inner->selectedListValue();
+}
+
+void Widget::selectionAction(SelectionAction action) {
+	_inner->selectionAction(action);
+}
+
 void Widget::saveState(not_null<Memento*> memento) {
 	memento->setScrollTop(scrollTopSave());
 }

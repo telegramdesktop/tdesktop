@@ -1542,6 +1542,10 @@ bool HistoryItem::isBusinessShortcut() const {
 	return _shortcutId != 0;
 }
 
+void HistoryItem::setRealShortcutId(BusinessShortcutId id) {
+	_shortcutId = id;
+}
+
 void HistoryItem::destroy() {
 	_history->destroyMessage(this);
 }

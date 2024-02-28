@@ -22,13 +22,19 @@ class Session;
 struct MessagesSlice;
 
 struct Shortcut {
+	BusinessShortcutId id = 0;
+	int count = 0;
 	QString name;
 	MsgId topMessageId = 0;
-	int count = 0;
 
 	friend inline bool operator==(
 		const Shortcut &a,
 		const Shortcut &b) = default;
+};
+
+struct ShortcutIdChange {
+	BusinessShortcutId oldId = 0;
+	BusinessShortcutId newId = 0;
 };
 
 struct Shortcuts {
@@ -69,6 +75,7 @@ public:
 	[[nodiscard]] const Shortcuts &shortcuts() const;
 	[[nodiscard]] bool shortcutsLoaded() const;
 	[[nodiscard]] rpl::producer<> shortcutsChanged() const;
+	[[nodiscard]] rpl::producer<ShortcutIdChange> shortcutIdChanged() const;
 	[[nodiscard]] BusinessShortcutId emplaceShortcut(QString name);
 	[[nodiscard]] Shortcut lookupShortcut(BusinessShortcutId id) const;
 
@@ -100,6 +107,17 @@ private:
 	void remove(not_null<const HistoryItem*> item);
 	[[nodiscard]] uint64 countListHash(const List &list) const;
 	void clearOldRequests();
+	void cancelRequest(BusinessShortcutId shortcutId);
+	void updateCount(BusinessShortcutId shortcutId);
+
+	void scheduleShortcutsReload();
+	void mergeMessagesFromTo(
+		BusinessShortcutId fromId,
+		BusinessShortcutId toId);
+	void updateShortcuts(const QVector<MTPQuickReply> &list);
+	[[nodiscard]] Shortcut parseShortcut(const MTPQuickReply &reply) const;
+	[[nodiscard]] Shortcuts parseShortcuts(
+		const QVector<MTPQuickReply> &list) const;
 
 	const not_null<Main::Session*> _session;
 	const not_null<History*> _history;
@@ -111,6 +129,7 @@ private:
 
 	Shortcuts _shortcuts;
 	rpl::event_stream<> _shortcutsChanged;
+	rpl::event_stream<ShortcutIdChange> _shortcutIdChanges;
 	BusinessShortcutId _localShortcutId = 0;
 	uint64 _shortcutsHash = 0;
 	mtpRequestId _shortcutsRequestId = 0;

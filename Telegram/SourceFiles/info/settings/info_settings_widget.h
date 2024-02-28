@@ -80,6 +80,9 @@ public:
 
 	void enableBackButton() override;
 
+	rpl::producer<SelectedItems> selectedListValue() const override;
+	void selectionAction(SelectionAction action) override;
+
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);

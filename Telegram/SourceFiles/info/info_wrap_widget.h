@@ -20,6 +20,7 @@ class PlainShadow;
 class PopupMenu;
 class IconButton;
 class RoundRect;
+struct StringWithNumbers;
 } // namespace Ui
 
 namespace Window {
@@ -61,11 +62,10 @@ struct SelectedItem {
 };
 
 struct SelectedItems {
-	explicit SelectedItems(Storage::SharedMediaType type)
-	: type(type) {
-	}
+	SelectedItems() = default;
+	explicit SelectedItems(Storage::SharedMediaType type);
 
-	Storage::SharedMediaType type;
+	Fn<Ui::StringWithNumbers(int)> title;
 	std::vector<SelectedItem> list;
 };
 

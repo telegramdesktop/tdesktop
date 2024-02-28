@@ -1560,6 +1560,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			if (const auto local = owner.message(id)) {
 				if (local->isScheduled()) {
 					session().data().scheduledMessages().apply(d, local);
+				} else if (local->isBusinessShortcut()) {
+					session().data().shortcutMessages().apply(d, local);
 				} else {
 					const auto existing = session().data().message(
 						id.peer,

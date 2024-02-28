@@ -17,6 +17,11 @@ namespace anim {
 enum class repeat : uchar;
 } // namespace anim
 
+namespace Info {
+struct SelectedItems;
+enum class SelectionAction;
+} // namespace Info
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -89,6 +94,13 @@ public:
 		return false;
 	}
 	virtual void setStepDataReference(std::any &data) {
+	}
+
+	[[nodiscard]] virtual auto selectedListValue()
+	-> rpl::producer<Info::SelectedItems> {
+		return nullptr;
+	}
+	virtual void selectionAction(Info::SelectionAction action) {
 	}
 
 	virtual bool paintOuter(

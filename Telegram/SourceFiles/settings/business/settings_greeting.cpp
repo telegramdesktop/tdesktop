@@ -41,6 +41,7 @@ public:
 	~Greeting();
 
 	[[nodiscard]] rpl::producer<QString> title() override;
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
 
 	const Ui::RoundRect *bottomSkipRounding() const {
 		return &_bottomSkipRounding;
@@ -174,6 +175,10 @@ Greeting::~Greeting() {
 
 rpl::producer<QString> Greeting::title() {
 	return tr::lng_greeting_title();
+}
+
+rpl::producer<Type> Greeting::sectionShowOther() {
+	return _showOther.events();
 }
 
 void Greeting::setupContent(

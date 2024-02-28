@@ -1937,6 +1937,9 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom)
 		? (_minHeight - _itemsHeight - st::historyPaddingBottom)
 		: 0;
+	if (_emptyInfo) {
+		_emptyInfo->setVisible(isEmpty());
+	}
 	return _itemsTop + _itemsHeight + st::historyPaddingBottom;
 }
 
@@ -3934,6 +3937,9 @@ void ListWidget::replyNextMessage(FullMsgId fullId, bool next) {
 
 void ListWidget::setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w) {
 	_emptyInfo = std::move(w);
+	if (_emptyInfo) {
+		_emptyInfo->setVisible(isEmpty());
+	}
 }
 
 ListWidget::~ListWidget() {
