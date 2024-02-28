@@ -256,6 +256,10 @@ void Widget::selectionAction(SelectionAction action) {
 	_inner->selectionAction(action);
 }
 
+void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
+	_inner->fillTopBarMenu(addAction);
+}
+
 void Widget::saveState(not_null<Memento*> memento) {
 	memento->setScrollTop(scrollTopSave());
 }

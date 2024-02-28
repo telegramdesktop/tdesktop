@@ -296,7 +296,6 @@ public:
 	void setStepDataReference(std::any &data) override;
 
 	[[nodiscard]] rpl::producer<> sectionShowBack() override final;
-	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
 
 private:
 	void setupContent();
@@ -310,8 +309,6 @@ private:
 	rpl::variable<Info::Wrap> _wrap;
 	Fn<void(bool)> _setPaused;
 	std::shared_ptr<Ui::RadiobuttonGroup> _radioGroup;
-
-	rpl::event_stream<Type> _showOther;
 
 	rpl::event_stream<> _showBack;
 	rpl::event_stream<> _showFinished;
@@ -341,10 +338,6 @@ rpl::producer<> Business::sectionShowBack() {
 	return _showBack.events();
 }
 
-rpl::producer<Type> Business::sectionShowOther() {
-	return _showOther.events();
-}
-
 void Business::setStepDataReference(std::any &data) {
 	using namespace Info::Settings;
 	const auto my = std::any_cast<SectionCustomTopBarData>(&data);
@@ -365,7 +358,7 @@ void Business::setupContent() {
 	Ui::AddSkip(content, st::settingsFromFileTop);
 
 	AddBusinessSummary(content, _controller, [=](BusinessFeature feature) {
-		_showOther.fire([&] {
+		showOther([&] {
 			switch (feature) {
 			case BusinessFeature::AwayMessages: return AwayMessageId();
 			case BusinessFeature::OpeningHours: return WorkingHoursId();

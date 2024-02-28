@@ -78,6 +78,12 @@ public:
 	[[nodiscard]] rpl::producer<ShortcutIdChange> shortcutIdChanged() const;
 	[[nodiscard]] BusinessShortcutId emplaceShortcut(QString name);
 	[[nodiscard]] Shortcut lookupShortcut(BusinessShortcutId id) const;
+	void editShortcut(
+		BusinessShortcutId id,
+		QString name,
+		Fn<void()> done,
+		Fn<void(QString)> fail);
+	void removeShortcut(BusinessShortcutId shortcutId);
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;

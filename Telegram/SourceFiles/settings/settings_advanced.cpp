@@ -978,10 +978,6 @@ rpl::producer<QString> Advanced::title() {
 	return tr::lng_settings_advanced();
 }
 
-rpl::producer<Type> Advanced::sectionShowOther() {
-	return _showOther.events();
-}
-
 void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
@@ -1033,9 +1029,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	AddSkip(content);
 	AddDivider(content);
 	AddSkip(content);
-	SetupExport(controller, content, [=](Type type) {
-		_showOther.fire_copy(type);
-	});
+	SetupExport(controller, content, showOtherMethod());
 
 	Ui::ResizeFitChild(this, content);
 }

@@ -496,6 +496,71 @@ Shortcut ShortcutMessages::lookupShortcut(BusinessShortcutId id) const {
 	return i->second;
 }
 
+void ShortcutMessages::editShortcut(
+		BusinessShortcutId id,
+		QString name,
+		Fn<void()> done,
+		Fn<void(QString)> fail) {
+	name = name.trimmed();
+	if (name.isEmpty()) {
+		fail(QString());
+		return;
+	}
+	const auto finish = [=] {
+		const auto i = _shortcuts.list.find(id);
+		if (i != end(_shortcuts.list)) {
+			i->second.name = name;
+			_shortcutsChanged.fire({});
+		}
+		done();
+	};
+	for (const auto &[existingId, shortcut] : _shortcuts.list) {
+		if (shortcut.name == name) {
+			if (existingId == id) {
+				//done();
+				//return;
+				break;
+			} else if (_data[existingId].items.empty() && !shortcut.count) {
+				removeShortcut(existingId);
+				break;
+			} else {
+				fail(u"SHORTCUT_OCCUPIED"_q);
+				return;
+			}
+		}
+	}
+	_session->api().request(MTPmessages_EditQuickReplyShortcut(
+		MTP_int(id),
+		MTP_string(name)
+	)).done(finish).fail([=](const MTP::Error &error) {
+		const auto type = error.type();
+		if (type == u"SHORTCUT_ID_INVALID"_q) {
+			// Not on the server (yet).
+			finish();
+		} else {
+			fail(type);
+		}
+	}).send();
+}
+
+void ShortcutMessages::removeShortcut(BusinessShortcutId shortcutId) {
+	auto i = _data.find(shortcutId);
+	while (i != end(_data)) {
+		if (i->second.items.empty()) {
+			_data.erase(i);
+		} else {
+			i->second.items.front()->destroy();
+		}
+		i = _data.find(shortcutId);
+	}
+	_shortcuts.list.remove(shortcutId);
+	_shortcutIdChanges.fire({ shortcutId, 0 });
+
+	_session->api().request(MTPmessages_DeleteQuickReplyShortcut(
+		MTP_int(shortcutId)
+	)).send();
+}
+
 void ShortcutMessages::cancelRequest(BusinessShortcutId shortcutId) {
 	const auto j = _requests.find(shortcutId);
 	if (j != end(_requests)) {

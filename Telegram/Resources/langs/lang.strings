@@ -2212,6 +2212,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_replies_edit_title" = "Edit Shortcut";
 "lng_replies_edit_about" = "Edit the name for this shortcut.";
 "lng_replies_message_placeholder" = "Add a Quick Reply";
+"lng_replies_delete_sure" = "Are you sure you want to delete this quick reply with all its messages?";
+"lng_replies_error_occupied" = "This shortcut is already used.";
 
 "lng_greeting_title" = "Greeting Message";
 "lng_greeting_about" = "Greet customers when they message you the first time or after a period of no activity.";
@@ -3027,6 +3029,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_translate_selected" = "Translate Selected Text";
 "lng_context_read_hidden" = "read";
 "lng_context_read_show" = "show when";
+"lng_context_edit_shortcut" = "Edit Shortcut";
+"lng_context_delete_shortcut" = "Delete Quick Reply";
 
 "lng_add_tag_about" = "Tag this message with an emoji for quick search.";
 "lng_subscribe_tag_about" = "Organize your Saved Messages with tags. {link}";

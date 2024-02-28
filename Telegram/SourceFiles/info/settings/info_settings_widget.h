@@ -82,6 +82,7 @@ public:
 
 	rpl::producer<SelectedItems> selectedListValue() const override;
 	void selectionAction(SelectionAction action) override;
+	void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) override;
 
 private:
 	void saveState(not_null<Memento*> memento);

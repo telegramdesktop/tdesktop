@@ -41,7 +41,6 @@ public:
 	~Greeting();
 
 	[[nodiscard]] rpl::producer<QString> title() override;
-	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
 
 	const Ui::RoundRect *bottomSkipRounding() const {
 		return &_bottomSkipRounding;
@@ -53,7 +52,6 @@ private:
 
 	Ui::RoundRect _bottomSkipRounding;
 
-	rpl::event_stream<Type> _showOther;
 	rpl::variable<Data::BusinessRecipients> _recipients;
 	rpl::variable<int> _noActivityDays;
 	rpl::variable<bool> _enabled;
@@ -177,10 +175,6 @@ rpl::producer<QString> Greeting::title() {
 	return tr::lng_greeting_title();
 }
 
-rpl::producer<Type> Greeting::sectionShowOther() {
-	return _showOther.events();
-}
-
 void Greeting::setupContent(
 		not_null<Window::SessionController*> controller) {
 	using namespace rpl::mappers;
@@ -251,7 +245,7 @@ void Greeting::setupContent(
 	create->setClickedCallback([=] {
 		const auto owner = &controller->session().data();
 		const auto id = owner->shortcutMessages().emplaceShortcut("hello");
-		_showOther.fire(ShortcutMessagesId(id));
+		showOther(ShortcutMessagesId(id));
 	});
 	Ui::AddSkip(createInner);
 	Ui::AddDivider(createInner);

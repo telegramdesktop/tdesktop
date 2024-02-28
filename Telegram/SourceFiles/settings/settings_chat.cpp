@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "history/view/history_view_quick_action.h"
 #include "lang/lang_keys.h"
 #include "export/export_manager.h"
@@ -1732,12 +1733,21 @@ void SetupSupport(
 }
 
 Chat::Chat(QWidget *parent, not_null<Window::SessionController*> controller)
-: Section(parent) {
+: Section(parent)
+, _controller(controller) {
 	setupContent(controller);
 }
 
 rpl::producer<QString> Chat::title() {
 	return tr::lng_settings_section_chat_settings();
+}
+
+void Chat::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
+	const auto window = &_controller->window();
+	addAction(
+		tr::lng_settings_bg_theme_create(tr::now),
+		[=] { window->show(Box(Window::Theme::CreateBox, window)); },
+		&st::menuIconChangeColors);
 }
 
 void Chat::setupContent(not_null<Window::SessionController*> controller) {

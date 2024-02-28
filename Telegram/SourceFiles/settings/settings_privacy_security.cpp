@@ -968,10 +968,6 @@ rpl::producer<QString> PrivacySecurity::title() {
 	return tr::lng_settings_section_privacy();
 }
 
-rpl::producer<Type> PrivacySecurity::sectionShowOther() {
-	return _showOther.events();
-}
-
 void PrivacySecurity::setupContent(
 		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
@@ -982,9 +978,7 @@ void PrivacySecurity::setupContent(
 		return rpl::duplicate(updateOnTick);
 	};
 
-	SetupSecurity(controller, content, trigger(), [=](Type type) {
-		_showOther.fire_copy(type);
-	});
+	SetupSecurity(controller, content, trigger(), showOtherMethod());
 	SetupPrivacy(controller, content, trigger());
 #if !defined OS_MAC_STORE && !defined OS_WIN_STORE
 	SetupSensitiveContent(controller, content, trigger());

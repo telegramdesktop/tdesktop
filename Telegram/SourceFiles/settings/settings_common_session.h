@@ -54,6 +54,7 @@ struct SectionFactory : AbstractSectionFactory {
 		static const auto result = std::make_shared<SectionFactory>();
 		return result;
 	}
+
 };
 
 template <typename SectionType>
@@ -67,12 +68,24 @@ public:
 	[[nodiscard]] Type id() const final override {
 		return Id();
 	}
+
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() final override {
+		return _showOtherRequests.events();
+	}
+	[[nodiscard]] void showOther(Type type) {
+		_showOtherRequests.fire_copy(type);
+	}
+	[[nodiscard]] Fn<void(Type)> showOtherMethod() {
+		return crl::guard(this, [=](Type type) {
+			showOther(type);
+		});
+	}
+
+private:
+	rpl::event_stream<Type> _showOtherRequests;
+
 };
 
-void FillMenu(
-	not_null<Window::SessionController*> controller,
-	Type type,
-	Fn<void(Type)> showOther,
-	Ui::Menu::MenuCallback addAction);
+bool HasMenu(Type type);
 
 } // namespace Settings

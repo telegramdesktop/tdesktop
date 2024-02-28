@@ -102,6 +102,9 @@ public:
 	}
 	virtual void selectionAction(Info::SelectionAction action) {
 	}
+	[[nodiscard]] virtual void fillTopBarMenu(
+		const Ui::Menu::MenuCallback &addAction) {
+	}
 
 	virtual bool paintOuter(
 			not_null<QWidget*> outer,

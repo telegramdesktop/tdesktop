@@ -172,6 +172,7 @@ private:
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
 	void setupTop();
+	void setupTopBarMenuToggle();
 	void createTopBar();
 	void highlightTopBar();
 	void setupShortcuts();
@@ -202,7 +203,6 @@ private:
 	void addTopBarMenuButton();
 	void addProfileCallsButton();
 	void showTopBarMenu(bool check);
-	void deleteAllDownloads();
 
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;

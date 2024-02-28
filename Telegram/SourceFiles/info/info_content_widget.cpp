@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
 #include "main/main_session.h"
+#include "window/window_peer_menu.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 #include "styles/style_layers.h"
@@ -261,6 +262,24 @@ bool ContentWidget::floatPlayerHandleWheelEvent(QEvent *e) {
 
 QRect ContentWidget::floatPlayerAvailableRect() const {
 	return mapToGlobal(_scroll->geometry());
+}
+
+void ContentWidget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
+	const auto peer = _controller->key().peer();
+	const auto topic = _controller->key().topic();
+	if (!peer && !topic) {
+		return;
+	}
+
+	Window::FillDialogsEntryMenu(
+		_controller->parentController(),
+		Dialogs::EntryState{
+			.key = (topic
+				? Dialogs::Key{ topic }
+				: Dialogs::Key{ peer->owner().history(peer) }),
+			.section = Dialogs::EntryState::Section::Profile,
+		},
+		addAction);
 }
 
 rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {

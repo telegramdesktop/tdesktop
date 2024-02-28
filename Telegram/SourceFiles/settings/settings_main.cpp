@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_main.h"
 
+#include "core/application.h"
 #include "settings/settings_business.h"
 #include "settings/settings_codes.h"
 #include "settings/settings_chat.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
@@ -49,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_app_config.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
@@ -691,6 +694,28 @@ rpl::producer<QString> Main::title() {
 	return tr::lng_menu_settings();
 }
 
+void Main::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
+	const auto &list = Core::App().domain().accounts();
+	if (list.size() < Core::App().domain().maxAccounts()) {
+		addAction(tr::lng_menu_add_account(tr::now), [=] {
+			Core::App().domain().addActivated(MTP::Environment{});
+		}, &st::menuIconAddAccount);
+	}
+	if (!_controller->session().supportMode()) {
+		addAction(
+			tr::lng_settings_information(tr::now),
+			[=] { showOther(Information::Id()); },
+			&st::menuIconInfo);
+	}
+	const auto window = &_controller->window();
+	addAction({
+		.text = tr::lng_settings_logout(tr::now),
+		.handler = [=] { window->showLogoutConfirmation(); },
+		.icon = &st::menuIconLeaveAttention,
+		.isAttention = true,
+	});
+}
+
 void Main::keyPressEvent(QKeyEvent *e) {
 	crl::on_main(this, [=, text = e->text()]{
 		CodesFeedString(_controller, text);
@@ -706,18 +731,14 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 		controller,
 		controller->session().user()));
 
-	SetupSections(controller, content, [=](Type type) {
-		_showOther.fire_copy(type);
-	});
+	SetupSections(controller, content, showOtherMethod());
 	if (HasInterfaceScale()) {
 		Ui::AddDivider(content);
 		Ui::AddSkip(content);
 		SetupInterfaceScale(&controller->window(), content);
 		Ui::AddSkip(content);
 	}
-	SetupPremium(controller, content, [=](Type type) {
-		_showOther.fire_copy(type);
-	});
+	SetupPremium(controller, content, showOtherMethod());
 	SetupHelp(controller, content);
 
 	Ui::ResizeFitChild(this, content);
@@ -728,10 +749,6 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 	controller->session().api().sensitiveContent().reload();
 	controller->session().api().globalPrivacy().reload();
 	controller->session().data().cloudThemes().refresh();
-}
-
-rpl::producer<Type> Main::sectionShowOther() {
-	return _showOther.events();
 }
 
 } // namespace Settings

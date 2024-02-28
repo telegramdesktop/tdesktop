@@ -37,13 +37,10 @@ public:
 	~QuickReplies();
 
 	[[nodiscard]] rpl::producer<QString> title() override;
-	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 	void save();
-
-	rpl::event_stream<Type> _showOther;
 
 };
 
@@ -62,10 +59,6 @@ QuickReplies::~QuickReplies() {
 
 rpl::producer<QString> QuickReplies::title() {
 	return tr::lng_replies_title();
-}
-
-rpl::producer<Type> QuickReplies::sectionShowOther() {
-	return _showOther.events();
 }
 
 void QuickReplies::setupContent(
@@ -94,41 +87,13 @@ void QuickReplies::setupContent(
 	const auto messages = &owner->shortcutMessages();
 
 	add->setClickedCallback([=] {
-		controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-			box->setTitle(tr::lng_replies_add_title());
-			box->addRow(object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_replies_add_shortcut(),
-				st::settingsAddReplyLabel));
-			const auto field = box->addRow(object_ptr<Ui::InputField>(
-				box,
-				st::settingsAddReplyField,
-				tr::lng_replies_add_placeholder(),
-				QString()));
-			box->setFocusCallback([=] {
-				field->setFocusFast();
-			});
-
-			const auto submit = [=] {
-				const auto weak = Ui::MakeWeak(box);
-				const auto name = field->getLastText().trimmed();
-				if (name.isEmpty()) {
-					field->showError();
-				} else {
-					const auto id = messages->emplaceShortcut(name);
-					_showOther.fire(ShortcutMessagesId(id));
-				}
-				if (const auto strong = weak.data()) {
-					strong->closeBox();
-				}
-			};
-			field->submits(
-			) | rpl::start_with_next(submit, field->lifetime());
-			box->addButton(tr::lng_settings_save(), submit);
-			box->addButton(tr::lng_cancel(), [=] {
-				box->closeBox();
-			});
-		}));
+		const auto submit = [=](QString name, Fn<void()> close) {
+			const auto id = messages->emplaceShortcut(name);
+			showOther(ShortcutMessagesId(id));
+			close();
+		};
+		controller->show(
+			Box(EditShortcutNameBox, QString(), crl::guard(this, submit)));
 	});
 
 	Ui::AddSkip(content);
@@ -140,24 +105,33 @@ void QuickReplies::setupContent(
 	rpl::single(rpl::empty) | rpl::then(
 		messages->shortcutsChanged()
 	) | rpl::start_with_next([=] {
-		while (inner->count()) {
-			delete inner->widgetAt(0);
-		}
+		auto old = inner->count();
+
 		const auto &shortcuts = messages->shortcuts();
 		auto i = 0;
-		for (const auto &shortcut : shortcuts.list) {
-			const auto name = shortcut.second.name;
+		for (const auto &[_, shortcut] : shortcuts.list) {
+			if (!shortcut.count) {
+				continue;
+			}
+			const auto name = shortcut.name;
 			AddButtonWithLabel(
 				inner,
 				rpl::single('/' + name),
 				tr::lng_forum_messages(
 					lt_count,
-					rpl::single(1. * shortcut.second.count)),
+					rpl::single(1. * shortcut.count)),
 				st::settingsButtonNoIcon
 			)->setClickedCallback([=] {
 				const auto id = messages->emplaceShortcut(name);
-				_showOther.fire(ShortcutMessagesId(id));
+				showOther(ShortcutMessagesId(id));
 			});
+			if (old) {
+				delete inner->widgetAt(0);
+				--old;
+			}
+		}
+		while (old--) {
+			delete inner->widgetAt(0);
 		}
 	}, content->lifetime());
 
@@ -171,6 +145,50 @@ void QuickReplies::save() {
 
 Type QuickRepliesId() {
 	return QuickReplies::Id();
+}
+
+void EditShortcutNameBox(
+		not_null<Ui::GenericBox*> box,
+		QString name,
+		Fn<void(QString, Fn<void()>)> submit) {
+	name = name.trimmed();
+	const auto editing = !name.isEmpty();
+	box->setTitle(editing
+		? tr::lng_replies_edit_title()
+		: tr::lng_replies_add_title());
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		(editing
+			? tr::lng_replies_edit_about()
+			: tr::lng_replies_add_shortcut()),
+		st::settingsAddReplyLabel));
+	const auto field = box->addRow(object_ptr<Ui::InputField>(
+		box,
+		st::settingsAddReplyField,
+		tr::lng_replies_add_placeholder(),
+		name));
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+
+	const auto callback = [=] {
+		const auto name = field->getLastText().trimmed();
+		if (name.isEmpty()) {
+			field->showError();
+		} else {
+			submit(name, [weak = Ui::MakeWeak(box)] {
+				if (const auto strong = weak.data()) {
+					strong->closeBox();
+				}
+			});
+		}
+	};
+	field->submits(
+	) | rpl::start_with_next(callback, field->lifetime());
+	box->addButton(tr::lng_settings_save(), callback);
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
 }
 
 } // namespace Settings

@@ -28,6 +28,10 @@ template <typename Widget>
 class PaddingWrap;
 } // namespace Ui
 
+namespace Ui::Menu {
+struct MenuCallback;
+} // namespace Ui::Menu
+
 namespace Info::Settings {
 struct Tag;
 } // namespace Info::Settings
@@ -95,6 +99,7 @@ public:
 	virtual rpl::producer<SelectedItems> selectedListValue() const;
 	virtual void selectionAction(SelectionAction action) {
 	}
+	virtual void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction);
 
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	[[nodiscard]] virtual rpl::producer<QString> subtitle() {

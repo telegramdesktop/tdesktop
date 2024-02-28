@@ -38,13 +38,11 @@ public:
 	~AwayMessage();
 
 	[[nodiscard]] rpl::producer<QString> title() override;
-	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 	void save();
 
-	rpl::event_stream<Type> _showOther;
 	rpl::variable<Data::BusinessRecipients> _recipients;
 	rpl::variable<Data::AwaySchedule> _schedule;
 	rpl::variable<bool> _enabled;
@@ -201,10 +199,6 @@ rpl::producer<QString> AwayMessage::title() {
 	return tr::lng_away_title();
 }
 
-rpl::producer<Type> AwayMessage::sectionShowOther() {
-	return _showOther.events();
-}
-
 void AwayMessage::setupContent(
 		not_null<Window::SessionController*> controller) {
 	using namespace Data;
@@ -268,7 +262,7 @@ void AwayMessage::setupContent(
 	create->setClickedCallback([=] {
 		const auto owner = &controller->session().data();
 		const auto id = owner->shortcutMessages().emplaceShortcut("away");
-		_showOther.fire(ShortcutMessagesId(id));
+		showOther(ShortcutMessagesId(id));
 	});
 	Ui::AddSkip(createInner);
 	Ui::AddDivider(createInner);

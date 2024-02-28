@@ -36,17 +36,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_numbers_animation.h"
 #include "main/main_session.h"
 #include "menu/menu_send.h"
+#include "settings/business/settings_quick_replies.h"
 #include "settings/business/settings_recipients_helper.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_account.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_shared_media.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/jump_down_button.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/scroll_area.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
@@ -54,6 +57,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_layers.h"
 
 namespace Settings {
 namespace {
@@ -84,6 +89,7 @@ public:
 
 	rpl::producer<Info::SelectedItems> selectedListValue() override;
 	void selectionAction(Info::SelectionAction action) override;
+	void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) override;
 
 	bool paintOuter(
 		not_null<QWidget*> outer,
@@ -268,9 +274,9 @@ private:
 
 };
 
-struct Factory : AbstractSectionFactory {
+struct Factory final : AbstractSectionFactory {
 	explicit Factory(BusinessShortcutId shortcutId)
-		: shortcutId(shortcutId) {
+	: shortcutId(shortcutId) {
 	}
 
 	object_ptr<AbstractSection> create(
@@ -424,6 +430,56 @@ void ShortcutMessages::selectionAction(Info::SelectionAction action) {
 	case Info::SelectionAction::Delete: confirmDeleteSelected(); return;
 	}
 	Unexpected("Action in ShortcutMessages::selectionAction.");
+}
+
+void ShortcutMessages::fillTopBarMenu(
+		const Ui::Menu::MenuCallback &addAction) {
+	const auto owner = &_controller->session().data();
+	const auto messages = &owner->shortcutMessages();
+
+	addAction(tr::lng_context_edit_shortcut(tr::now), [=] {
+		const auto submit = [=](QString name, Fn<void()> close) {
+			const auto id = _shortcutId.current();
+			const auto error = [=](QString text) {
+				if (!text.isEmpty()) {
+					_controller->showToast((text == u"SHORTCUT_OCCUPIED"_q)
+						? tr::lng_replies_error_occupied(tr::now)
+						: text);
+				}
+			};
+			messages->editShortcut(id, name, close, crl::guard(this, error));
+		};
+		const auto name = _shortcut.current();
+		_controller->show(
+			Box(EditShortcutNameBox, name, crl::guard(this, submit)));
+	}, &st::menuIconEdit);
+
+	const auto justDelete = crl::guard(this, [=] {
+		messages->removeShortcut(_shortcutId.current());
+	});
+	const auto confirmDeleteShortcut = [=] {
+		const auto slice = messages->list(_shortcutId.current());
+		if (slice.fullCount == 0) {
+			justDelete();
+		} else {
+			const auto confirmed = [=](Fn<void()> close) {
+				justDelete();
+				close();
+			};
+			_controller->show(Ui::MakeConfirmBox({
+				.text = { tr::lng_replies_delete_sure() },
+				.confirmed = confirmed,
+				.confirmText = tr::lng_box_delete(),
+				.confirmStyle = &st::attentionBoxButton,
+			}));
+		}
+	};
+	addAction({
+		.text = tr::lng_context_delete_shortcut(tr::now),
+		.handler = crl::guard(this, confirmDeleteShortcut),
+		.icon = &st::menuIconDeleteAttention,
+		.isAttention = true,
+	});
 }
 
 bool ShortcutMessages::paintOuter(

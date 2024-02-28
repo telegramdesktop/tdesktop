@@ -9,8 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_type.h"
 
+namespace Ui {
+class GenericBox;
+} // namespace Ui
+
 namespace Settings {
 
 [[nodiscard]] Type QuickRepliesId();
+
+void EditShortcutNameBox(
+	not_null<Ui::GenericBox*> box,
+	QString name,
+	Fn<void(QString, Fn<void()>)> submit);
 
 } // namespace Settings
