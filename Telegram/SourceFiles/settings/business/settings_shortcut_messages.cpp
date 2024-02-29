@@ -98,6 +98,7 @@ public:
 
 private:
 	void outerResized(QSize outer);
+	void updateComposeControlsPosition();
 
 	// ListDelegate interface.
 	Context listContext() override;
@@ -505,7 +506,7 @@ void ShortcutMessages::outerResized(QSize outer) {
 		? base::make_optional(_scroll->scrollTop())
 		: 0;
 	_skipScrollEvent = true;
-	_inner->resizeToWidth(contentWidth, _scroll->height());
+	_inner->resizeToWidth(contentWidth, st::boxWidth);
 	_skipScrollEvent = false;
 
 	if (!_scroll->isHidden()) {
@@ -514,24 +515,33 @@ void ShortcutMessages::outerResized(QSize outer) {
 		}
 		updateInnerVisibleArea();
 	}
-	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
+	updateComposeControlsPosition();
 	_cornerButtons.updatePositions();
 }
 
+void ShortcutMessages::updateComposeControlsPosition() {
+	const auto bottom = _scroll->parentWidget()->height();
+	const auto controlsHeight = _composeControls->heightCurrent();
+	_composeControls->move(0, bottom - controlsHeight + st::boxRadius);
+	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
+}
+
 void ShortcutMessages::setupComposeControls() {
+	_shortcutId.value() | rpl::start_with_next([=](BusinessShortcutId id) {
+		_composeControls->updateShortcutId(id);
+	}, lifetime());
+
+	const auto state = Dialogs::EntryState{
+		.key = Dialogs::Key{ _history },
+		.section = Dialogs::EntryState::Section::ShortcutMessages,
+		.currentReplyTo = replyTo(),
+	};
+	_composeControls->setCurrentDialogsEntryState(state);
+
 	_composeControls->setHistory({
 		.history = _history.get(),
 		.writeRestriction = rpl::single(Controls::WriteRestriction()),
 	});
-
-	_composeControls->height(
-	) | rpl::start_with_next([=](int height) {
-		const auto wasMax = (_scroll->scrollTopMax() == _scroll->scrollTop());
-		_controlsWrap->resize(width(), height);
-		if (wasMax) {
-			listScrollTo(_scroll->scrollTopMax());
-		}
-	}, lifetime());
 
 	_composeControls->cancelRequests(
 	) | rpl::start_with_next([=] {
@@ -637,20 +647,58 @@ void ShortcutMessages::setupComposeControls() {
 	_controlsWrap->widthValue() | rpl::start_with_next([=](int width) {
 		_composeControls->resizeToWidth(width);
 	}, _controlsWrap->lifetime());
-	_composeControls->height() | rpl::start_with_next([=](int height) {
-		_controlsWrap->resize(_controlsWrap->width(), height);
-	}, _controlsWrap->lifetime());
+
+	_composeControls->height(
+	) | rpl::start_with_next([=](int height) {
+		const auto wasMax = (_scroll->scrollTopMax() == _scroll->scrollTop());
+		_controlsWrap->resize(width(), height - st::boxRadius);
+		updateComposeControlsPosition();
+		if (wasMax) {
+			listScrollTo(_scroll->scrollTopMax());
+		}
+	}, lifetime());
 }
 
 QPointer<Ui::RpWidget> ShortcutMessages::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
+	auto placeholder = rpl::deferred([=] {
+		return _shortcutId.value();
+	}) | rpl::map([=](BusinessShortcutId id) {
+		return _session->data().shortcutMessages().lookupShortcut(id).name;
+	}) | rpl::map([=](const QString &shortcut) {
+		return (shortcut == u"away"_q)
+			? tr::lng_away_message_placeholder()
+			: (shortcut == u"hello"_q)
+			? tr::lng_greeting_message_placeholder()
+			: tr::lng_replies_message_placeholder();
+	}) | rpl::flatten_latest();
+
 	_controlsWrap = std::make_unique<Ui::RpWidget>(parent);
 	_composeControls = std::make_unique<ComposeControls>(
-		_controlsWrap.get(),
-		_controller,
-		[=](not_null<DocumentData*> emoji) { listShowPremiumToast(emoji); },
-		ComposeControls::Mode::Normal,
-		SendMenu::Type::Disabled);
+		dynamic_cast<Ui::RpWidget*>(_scroll->parentWidget()),
+		ComposeControlsDescriptor{
+			.show = _controller->uiShow(),
+			.unavailableEmojiPasted = [=](not_null<DocumentData*> emoji) {
+				listShowPremiumToast(emoji);
+			},
+			.mode = HistoryView::ComposeControlsMode::Normal,
+			.sendMenuType = SendMenu::Type::Disabled,
+			.regularWindow = _controller,
+			.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
+			.customPlaceholder = std::move(placeholder),
+			.panelsLevel = Window::GifPauseReason::Layer,
+			.voiceCustomCancelText = tr::lng_record_cancel_stories(tr::now),
+			.voiceLockFromBottom = true,
+			.features = {
+				.sendAs = false,
+				.ttlInfo = false,
+				.botCommandSend = false,
+				.silentBroadcastToggle = false,
+				.attachBotsMenu = false,
+				.megagroupSet = false,
+				.commonTabbedPanel = false,
+			},
+		});
 
 	setupComposeControls();
 

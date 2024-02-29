@@ -551,7 +551,7 @@ void BottomInfo::layoutReactionsText() {
 
 QSize BottomInfo::countOptimalSize() {
 	if (_data.flags & Data::Flag::Shortcut) {
-		return { st::historySendStateSpace / 2, st::msgDateFont->height };
+		return { st::historyShortcutStateSpace, st::msgDateFont->height };
 	}
 	auto width = 0;
 	if (_data.flags & (Data::Flag::OutLayout | Data::Flag::Sending)) {

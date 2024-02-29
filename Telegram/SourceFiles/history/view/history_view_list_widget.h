@@ -600,6 +600,15 @@ private:
 	void showPremiumStickerTooltip(
 		not_null<const HistoryView::Element*> view);
 
+	void paintUserpics(
+		Painter &p,
+		const Ui::ChatPaintContext &context,
+		QRect clip);
+	void paintDates(
+		Painter &p,
+		const Ui::ChatPaintContext &context,
+		QRect clip);
+
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//

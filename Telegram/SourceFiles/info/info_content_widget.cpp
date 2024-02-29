@@ -167,7 +167,12 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		const auto bottom = top + height;
 		_innerDesiredHeight = desired;
 		_innerWrap->setVisibleTopBottom(top, bottom);
+		LOG(("TOP: %1, HEIGHT: %2, DESIRED: %3, TILL: %4").arg(top).arg(height).arg(desired).arg(std::max(desired - bottom, 0)));
 		_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
+		//const auto bottom = _scroll->scrollTop() + _scroll->height();
+		//_innerDesiredHeight = desired;
+		//_innerWrap->setVisibleTopBottom(_scroll->scrollTop(), bottom);
+		//_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
 	}, _innerWrap->lifetime());
 
 	return _innerWrap->entity();
@@ -217,7 +222,12 @@ rpl::producer<int> ContentWidget::desiredHeightValue() const {
 		_innerWrap->entity()->desiredHeightValue(),
 		_scrollTopSkip.value(),
 		_scrollBottomSkip.value()
-	) | rpl::map(_1 + _2 + _3);
+	//) | rpl::map(_1 + _2 + _3);
+	) | rpl::map([=](int desired, int, int) {
+		return desired
+			+ _scrollTopSkip.current()
+			+ _scrollBottomSkip.current();
+	});
 }
 
 rpl::producer<bool> ContentWidget::desiredShadowVisibility() const {

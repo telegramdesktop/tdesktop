@@ -73,10 +73,10 @@ private:
 	[[nodiscard]] QRect countGeometry(int newWidth);
 
 	not_null<Window::SessionController*> _controller;
-	object_ptr<WrapWidget> _content;
+	object_ptr<WrapWidget> _contentWrap;
 
 	int _desiredHeight = 0;
-	int _contentHeight = 0;
+	int _contentWrapHeight = 0;
 	int _savedHeight = 0;
 	Ui::Animations::Simple _heightAnimation;
 	Ui::Animations::Simple _savedHeightAnimation;

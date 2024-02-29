@@ -517,6 +517,7 @@ FileLoadTask::FileLoadTask(
 , _caption(caption)
 , _spoiler(spoiler) {
 	Expects(to.options.scheduled
+		|| to.options.shortcutId
 		|| !to.replaceMediaOf
 		|| IsServerMsgId(to.replaceMediaOf));
 

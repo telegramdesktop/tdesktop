@@ -117,17 +117,17 @@ Widget::Widget(
 	}
 
 	if (_pinnedToBottom) {
-		const auto processHeight = [=](int bottomHeight, int height) {
-			setScrollBottomSkip(bottomHeight);
+		const auto processHeight = [=] {
+			setScrollBottomSkip(_pinnedToBottom->height());
 			_pinnedToBottom->moveToLeft(
 				_pinnedToBottom->x(),
-				height - bottomHeight);
+				height() - _pinnedToBottom->height());
 		};
 
 		_inner->sizeValue(
 		) | rpl::start_with_next([=](const QSize &s) {
 			_pinnedToBottom->resizeToWidth(s.width());
-			processHeight(_pinnedToBottom->height(), height());
+			//processHeight();
 		}, _pinnedToBottom->lifetime());
 
 		rpl::combine(

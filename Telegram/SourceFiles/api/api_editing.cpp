@@ -89,6 +89,9 @@ mtpRequestId EditMessage(
 		: emptyFlag)
 	| (options.scheduled
 		? MTPmessages_EditMessage::Flag::f_schedule_date
+		: emptyFlag)
+	| (item->isBusinessShortcut()
+		? MTPmessages_EditMessage::Flag::f_quick_reply_shortcut_id
 		: emptyFlag);
 
 	const auto id = item->isScheduled()
@@ -105,7 +108,7 @@ mtpRequestId EditMessage(
 		MTPReplyMarkup(),
 		sentEntities,
 		MTP_int(options.scheduled),
-		MTPint() // quick_reply_shortcut_id
+		MTP_int(item->shortcutId())
 	)).done([=](
 			const MTPUpdates &result,
 			[[maybe_unused]] mtpRequestId requestId) {

@@ -60,7 +60,8 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			MTP_int(data.vttl_period().value_or_empty()));
 	}, [&](const MTPDmessage &data) {
 		return MTP_message(
-			MTP_flags(data.vflags().v | MTPDmessage::Flag::f_quick_reply_shortcut_id),
+			MTP_flags(data.vflags().v
+				| MTPDmessage::Flag::f_quick_reply_shortcut_id),
 			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			MTPint(), // from_boosts_applied

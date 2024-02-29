@@ -2166,6 +2166,21 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	context.translate(0, top);
 	p.translate(0, -top);
 
+	paintUserpics(p, context, clip);
+	paintDates(p, context, clip);
+
+	_reactionsManager->paint(p, context);
+	_emojiInteractions->paint(p);
+}
+
+void ListWidget::paintUserpics(
+		Painter &p,
+		const Ui::ChatPaintContext &context,
+		QRect clip) {
+	if (_context == Context::ShortcutMessages) {
+		return;
+	}
+	const auto session = &controller()->session();
 	enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
 		// stop the enumeration if the userpic is below the painted rect
 		if (userpicTop >= clip.top() + clip.height()) {
@@ -2210,6 +2225,15 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		}
 		return true;
 	});
+}
+
+void ListWidget::paintDates(
+		Painter &p,
+		const Ui::ChatPaintContext &context,
+		QRect clip) {
+	if (_context == Context::ShortcutMessages) {
+		return;
+	}
 
 	auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 	auto scrollDateOpacity = _scrollDateOpacity.value(_scrollDateShown ? 1. : 0.);
@@ -2256,9 +2280,6 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		}
 		return true;
 	});
-
-	_reactionsManager->paint(p, context);
-	_emojiInteractions->paint(p);
 }
 
 void ListWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {

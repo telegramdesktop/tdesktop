@@ -114,6 +114,9 @@ using ForwardPanel = Controls::ForwardPanel;
 
 } // namespace
 
+const ChatHelpers::PauseReason kDefaultPanelsLevel
+	= ChatHelpers::PauseReason::TabbedPanel;
+
 class FieldHeader final : public Ui::RpWidget {
 public:
 	FieldHeader(
@@ -760,7 +763,10 @@ MessageToEdit FieldHeader::queryToEdit() {
 	}
 	return {
 		.fullId = item->fullId(),
-		.options = { .scheduled = item->isScheduled() ? item->date() : 0 },
+		.options = {
+			.scheduled = item->isScheduled() ? item->date() : 0,
+			.shortcutId = item->shortcutId(),
+		},
 	};
 }
 
@@ -788,21 +794,24 @@ ComposeControls::ComposeControls(
 	: st::defaultComposeControls)
 , _features(descriptor.features)
 , _parent(parent)
+, _panelsParent(descriptor.panelsParent
+	? descriptor.panelsParent
+	: _parent.get())
 , _show(std::move(descriptor.show))
 , _session(&_show->session())
 , _regularWindow(descriptor.regularWindow)
-, _ownedSelector(_regularWindow
+, _ownedSelector((_regularWindow && _features.commonTabbedPanel)
 	? nullptr
 	: std::make_unique<ChatHelpers::TabbedSelector>(
-		_parent,
+		_panelsParent,
 		ChatHelpers::TabbedSelectorDescriptor{
 			.show = _show,
 			.st = _st.tabbed,
-			.level = Window::GifPauseReason::TabbedPanel,
+			.level = descriptor.panelsLevel,
 			.mode = ChatHelpers::TabbedSelector::Mode::Full,
 			.features = _features,
 		}))
-, _selector(_regularWindow
+, _selector((_regularWindow && _features.commonTabbedPanel)
 	? _regularWindow->tabbedSelector()
 	: not_null(_ownedSelector.get()))
 , _mode(descriptor.mode)
@@ -874,6 +883,12 @@ Main::Session &ComposeControls::session() const {
 void ComposeControls::updateTopicRootId(MsgId topicRootId) {
 	_topicRootId = topicRootId;
 	_header->updateTopicRootId(_topicRootId);
+}
+
+void ComposeControls::updateShortcutId(BusinessShortcutId shortcutId) {
+	unregisterDraftSources();
+	_shortcutId = shortcutId;
+	registerDraftSource();
 }
 
 void ComposeControls::setHistory(SetHistoryArgs &&args) {
@@ -1592,7 +1607,7 @@ void ComposeControls::initField() {
 			&& Data::AllowEmojiWithoutPremium(_history->peer, emoji);
 	};
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
-		_parent,
+		_panelsParent,
 		_field,
 		_session,
 		{
@@ -1828,6 +1843,10 @@ Data::DraftKey ComposeControls::draftKey(DraftType type) const {
 		return (type == DraftType::Edit)
 			? Key::ScheduledEdit()
 			: Key::Scheduled();
+	case Section::ShortcutMessages:
+		return (type == DraftType::Edit)
+			? Key::ShortcutEdit(_shortcutId)
+			: Key::Shortcut(_shortcutId);
 	}
 	return Key::None();
 }
@@ -2053,7 +2072,9 @@ rpl::producer<SendActionUpdate> ComposeControls::sendActionUpdates() const {
 }
 
 void ComposeControls::initTabbedSelector() {
-	if (!_regularWindow || _regularWindow->hasTabbedSelectorOwnership()) {
+	if (!_regularWindow
+		|| !_features.commonTabbedPanel
+		|| _regularWindow->hasTabbedSelectorOwnership()) {
 		createTabbedPanel();
 	} else {
 		setTabbedPanel(nullptr);
@@ -2686,7 +2707,7 @@ void ComposeControls::updateAttachBotsMenu() {
 		return;
 	}
 	_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
-		_parent,
+		_panelsParent,
 		_regularWindow,
 		_history->peer,
 		_sendActionFactory,
@@ -2729,7 +2750,7 @@ void ComposeControls::escape() {
 bool ComposeControls::pushTabbedSelectorToThirdSection(
 		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) {
-	if (!_tabbedPanel || !_regularWindow) {
+	if (!_tabbedPanel || !_regularWindow || !_features.commonTabbedPanel) {
 		return true;
 	//} else if (!_canSendMessages) {
 	//	Core::App().settings().setTabbedReplacedWithInfo(true);
@@ -2764,7 +2785,7 @@ void ComposeControls::createTabbedPanel() {
 		.nonOwnedSelector = _ownedSelector ? nullptr : _selector.get(),
 	};
 	setTabbedPanel(std::make_unique<TabbedPanel>(
-		_parent,
+		_panelsParent,
 		std::move(descriptor)));
 	_tabbedPanel->setDesiredHeightValues(
 		st::emojiPanHeightRatio,
@@ -2787,7 +2808,7 @@ void ComposeControls::setTabbedPanel(
 }
 
 void ComposeControls::toggleTabbedSelectorMode() {
-	if (!_history || !_regularWindow) {
+	if (!_history || !_regularWindow || !_features.commonTabbedPanel) {
 		return;
 	}
 	if (_tabbedPanel) {
@@ -3248,7 +3269,7 @@ void ComposeControls::applyInlineBotQuery(
 		}
 		if (!_inlineResults) {
 			_inlineResults = std::make_unique<InlineBots::Layout::Widget>(
-				_parent,
+				_panelsParent,
 				_regularWindow);
 			_inlineResults->setResultSelectedCallback([=](
 					InlineBots::ResultSelected result) {

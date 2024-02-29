@@ -301,6 +301,7 @@ historySentInvertedIcon: icon {{ "history_sent", historyIconFgInverted, point(2p
 historyReceivedIcon: icon {{ "history_received", historyOutIconFg, point(2px, 4px) }};
 historyReceivedSelectedIcon: icon {{ "history_received", historyOutIconFgSelected, point(2px, 4px) }};
 historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, point(2px, 4px) }};
+historyShortcutStateSpace: 18px;
 
 historyViewsSpace: 8px;
 historyViewsWidth: 20px;

@@ -37,6 +37,7 @@ class TabbedSelector;
 struct FileChosen;
 struct PhotoChosen;
 class Show;
+enum class PauseReason;
 } // namespace ChatHelpers
 
 namespace Data {
@@ -95,6 +96,8 @@ enum class ComposeControlsMode {
 	Scheduled,
 };
 
+extern const ChatHelpers::PauseReason kDefaultPanelsLevel;
+
 struct ComposeControlsDescriptor {
 	const style::ComposeControls *stOverride = nullptr;
 	std::shared_ptr<ChatHelpers::Show> show;
@@ -104,6 +107,8 @@ struct ComposeControlsDescriptor {
 	Window::SessionController *regularWindow = nullptr;
 	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
 	rpl::producer<QString> customPlaceholder;
+	QWidget *panelsParent = nullptr;
+	ChatHelpers::PauseReason panelsLevel = kDefaultPanelsLevel;
 	QString voiceCustomCancelText;
 	bool voiceLockFromBottom = false;
 	ChatHelpers::ComposeFeatures features;
@@ -137,6 +142,7 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 	void setHistory(SetHistoryArgs &&args);
 	void updateTopicRootId(MsgId topicRootId);
+	void updateShortcutId(BusinessShortcutId shortcutId);
 	void setCurrentDialogsEntryState(Dialogs::EntryState state);
 	[[nodiscard]] PeerData *sendAsPeer() const;
 
@@ -343,6 +349,7 @@ private:
 	const style::ComposeControls &_st;
 	const ChatHelpers::ComposeFeatures _features;
 	const not_null<QWidget*> _parent;
+	const not_null<QWidget*> _panelsParent;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
 
@@ -353,6 +360,7 @@ private:
 
 	History *_history = nullptr;
 	MsgId _topicRootId = 0;
+	BusinessShortcutId _shortcutId = 0;
 	Fn<bool()> _showSlowmodeError;
 	Fn<Api::SendAction()> _sendActionFactory;
 	rpl::variable<int> _slowmodeSecondsLeft;

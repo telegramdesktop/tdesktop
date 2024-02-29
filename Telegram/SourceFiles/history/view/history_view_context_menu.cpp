@@ -102,7 +102,9 @@ bool HasEditMessageAction(
 		|| item->hasFailed()
 		|| item->isEditingMedia()
 		|| !request.selectedItems.empty()
-		|| (context != Context::History && context != Context::Replies)) {
+		|| (context != Context::History
+			&& context != Context::Replies
+			&& context != Context::ShortcutMessages)) {
 		return false;
 	}
 	const auto peer = item->history()->peer;

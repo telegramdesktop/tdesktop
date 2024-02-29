@@ -2108,7 +2108,7 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 }
 
 bool HistoryItem::canBeEdited() const {
-	if ((!isRegular() && !isScheduled())
+	if ((!isRegular() && !isScheduled() && !isBusinessShortcut())
 		|| Has<HistoryMessageVia>()
 		|| Has<HistoryMessageForwarded>()) {
 		return false;

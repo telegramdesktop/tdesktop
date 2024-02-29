@@ -50,8 +50,8 @@ void SectionWidget::init() {
 		return (_content != nullptr);
 	}) | rpl::start_with_next([=](QSize size, int) {
 		const auto expanding = false;
-		const auto additionalScroll = st::boxRadius;
 		const auto full = !_content->scrollBottomSkip();
+		const auto additionalScroll = (full ? st::boxRadius : 0);
 		const auto height = size.height() - (full ? 0 : st::boxRadius);
 		const auto wrapGeometry = QRect{ 0, 0, size.width(), height };
 		_content->updateGeometry(
