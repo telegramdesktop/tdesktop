@@ -587,7 +587,7 @@ void GiftsBox(
 		const auto content = box->addRow(
 			object_ptr<Ui::VerticalLayout>(box),
 			{});
-		auto buttonCallback = [=](PremiumPreview section) {
+		auto buttonCallback = [=](PremiumFeature section) {
 			stars->setPaused(true);
 			const auto previewBoxShown = [=](
 					not_null<Ui::BoxContent*> previewBox) {

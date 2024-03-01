@@ -3031,7 +3031,7 @@ void Message::refreshReactions() {
 							= ExtractController(context)) {
 							ShowPremiumPreviewBox(
 								controller,
-								PremiumPreview::TagsForMessages);
+								PremiumFeature::TagsForMessages);
 						}
 						return;
 					}

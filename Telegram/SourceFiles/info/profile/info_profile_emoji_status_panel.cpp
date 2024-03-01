@@ -281,7 +281,7 @@ bool EmojiStatusPanel::filter(
 	if (_chooseFilter) {
 		return _chooseFilter(chosenId);
 	} else if (chosenId && !controller->session().premium()) {
-		ShowPremiumPreviewBox(controller, PremiumPreview::EmojiStatus);
+		ShowPremiumPreviewBox(controller, PremiumFeature::EmojiStatus);
 		return false;
 	}
 	return true;

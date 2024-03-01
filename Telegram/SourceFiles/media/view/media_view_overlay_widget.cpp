@@ -1254,7 +1254,7 @@ void OverlayWidget::showPremiumDownloadPromo() {
 	const auto filter = [=](const auto &...) {
 		const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
 		if (const auto window = uiShow()->resolveWindow(usage)) {
-			ShowPremiumPreviewBox(window, PremiumPreview::Stories);
+			ShowPremiumPreviewBox(window, PremiumFeature::Stories);
 			window->window().activate();
 		}
 		return false;

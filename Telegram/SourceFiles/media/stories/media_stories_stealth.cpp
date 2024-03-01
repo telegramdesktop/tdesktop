@@ -352,7 +352,7 @@ struct Feature {
 				data->requested = false;
 				const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
 				if (const auto window = show->resolveWindow(usage)) {
-					ShowPremiumPreviewBox(window, PremiumPreview::Stories);
+					ShowPremiumPreviewBox(window, PremiumFeature::Stories);
 					window->window().activate();
 				}
 			} else if (now.mode.cooldownTill > now.now) {

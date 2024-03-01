@@ -362,7 +362,7 @@ ClickHandlerPtr HideSponsoredClickHandler() {
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			ShowPremiumPreviewBox(controller, PremiumPreview::NoAds);
+			ShowPremiumPreviewBox(controller, PremiumFeature::NoAds);
 		}
 	});
 }
@@ -793,7 +793,7 @@ void ShowTrialTranscribesToast(int left, TimeId until) {
 	}
 	const auto filter = [=](const auto &...) {
 		if (const auto controller = window->sessionController()) {
-			ShowPremiumPreviewBox(controller, PremiumPreview::VoiceToText);
+			ShowPremiumPreviewBox(controller, PremiumFeature::VoiceToText);
 			window->activate();
 		}
 		return false;

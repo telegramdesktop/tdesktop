@@ -776,7 +776,7 @@ void BackgroundPreviewBox::applyForPeer() {
 		} else {
 			ShowPremiumPreviewBox(
 				_controller->uiShow(),
-				PremiumPreview::Wallpapers);
+				PremiumFeature::Wallpapers);
 		}
 	});
 	const auto cancel = CreateChild<RoundButton>(

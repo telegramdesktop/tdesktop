@@ -1216,7 +1216,7 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 		if (checked && !premium) {
 			ShowPremiumPreviewToBuy(
 				_controller,
-				PremiumPreview::RealTimeTranslation);
+				PremiumFeature::RealTimeTranslation);
 			_translateChatTurnOff.fire(false);
 		}
 		return premium

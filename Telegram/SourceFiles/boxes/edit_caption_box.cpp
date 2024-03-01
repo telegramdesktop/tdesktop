@@ -682,7 +682,7 @@ void EditCaptionBox::setupEmojiPanel() {
 			&& !_controller->session().premium()) {
 			ShowPremiumPreviewBox(
 				_controller,
-				PremiumPreview::AnimatedEmoji);
+				PremiumFeature::AnimatedEmoji);
 		} else {
 			Data::InsertCustomEmoji(_field.get(), data.document);
 		}

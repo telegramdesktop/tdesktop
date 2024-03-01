@@ -160,7 +160,7 @@ void FillSponsoredMessagesMenu(
 		menu->addSeparator(&st::expandedMenuSeparator);
 	}
 	menu->addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
-		ShowPremiumPreviewBox(controller, PremiumPreview::NoAds);
+		ShowPremiumPreviewBox(controller, PremiumFeature::NoAds);
 	}, &st::menuIconCancel);
 }
 

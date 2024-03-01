@@ -665,7 +665,7 @@ bool ShowSearchTagsPromo(
 	if (!controller) {
 		return false;
 	}
-	ShowPremiumPreviewBox(controller, PremiumPreview::TagsForMessages);
+	ShowPremiumPreviewBox(controller, PremiumFeature::TagsForMessages);
 	return true;
 }
 

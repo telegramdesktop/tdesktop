@@ -238,7 +238,7 @@ void StickerToast::showWithTitle(const QString &title) {
 			&& (i->second->flags & Data::StickersSetFlag::Installed)) {
 			ShowPremiumPreviewBox(
 				_controller,
-				PremiumPreview::AnimatedEmoji);
+				PremiumFeature::AnimatedEmoji);
 		} else {
 			_controller->show(Box<StickerSetBox>(
 				_controller->uiShow(),

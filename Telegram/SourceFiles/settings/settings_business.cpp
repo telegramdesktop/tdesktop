@@ -53,7 +53,7 @@ struct Entry {
 	const style::icon *icon;
 	rpl::producer<QString> title;
 	rpl::producer<QString> description;
-	BusinessFeature feature = BusinessFeature::Location;
+	PremiumFeature feature = PremiumFeature::BusinessLocation;
 };
 
 using Order = std::vector<QString>;
@@ -77,7 +77,7 @@ using Order = std::vector<QString>;
 				&st::settingsBusinessIconLocation,
 				tr::lng_business_subtitle_location(),
 				tr::lng_business_about_location(),
-				BusinessFeature::Location,
+				PremiumFeature::BusinessLocation,
 			},
 		},
 		{
@@ -86,7 +86,7 @@ using Order = std::vector<QString>;
 				&st::settingsBusinessIconHours,
 				tr::lng_business_subtitle_opening_hours(),
 				tr::lng_business_about_opening_hours(),
-				BusinessFeature::OpeningHours,
+				PremiumFeature::BusinessHours,
 			},
 		},
 		{
@@ -95,7 +95,7 @@ using Order = std::vector<QString>;
 				&st::settingsBusinessIconReplies,
 				tr::lng_business_subtitle_quick_replies(),
 				tr::lng_business_about_quick_replies(),
-				BusinessFeature::QuickReplies,
+				PremiumFeature::QuickReplies,
 			},
 		},
 		{
@@ -104,7 +104,7 @@ using Order = std::vector<QString>;
 				&st::settingsBusinessIconGreeting,
 				tr::lng_business_subtitle_greeting_messages(),
 				tr::lng_business_about_greeting_messages(),
-				BusinessFeature::GreetingMessages,
+				PremiumFeature::GreetingMessage,
 			},
 		},
 		{
@@ -113,7 +113,7 @@ using Order = std::vector<QString>;
 				&st::settingsBusinessIconAway,
 				tr::lng_business_subtitle_away_messages(),
 				tr::lng_business_about_away_messages(),
-				BusinessFeature::AwayMessages,
+				PremiumFeature::AwayMessage,
 			},
 		},
 		{
@@ -122,7 +122,7 @@ using Order = std::vector<QString>;
 				&st::settingsBusinessIconChatbots,
 				tr::lng_business_subtitle_chatbots(),
 				tr::lng_business_about_chatbots(),
-				BusinessFeature::Chatbots,
+				PremiumFeature::BusinessBots,
 			},
 		},
 	};
@@ -131,7 +131,7 @@ using Order = std::vector<QString>;
 void AddBusinessSummary(
 		not_null<Ui::VerticalLayout*> content,
 		not_null<Window::SessionController*> controller,
-		Fn<void(BusinessFeature)> buttonCallback) {
+		Fn<void(PremiumFeature)> buttonCallback) {
 	const auto &stDefault = st::settingsButton;
 	const auto &stLabel = st::defaultFlatLabel;
 	const auto iconSize = st::settingsPremiumIconDouble.size();
@@ -359,15 +359,22 @@ void Business::setupContent() {
 
 	Ui::AddSkip(content, st::settingsFromFileTop);
 
-	AddBusinessSummary(content, _controller, [=](BusinessFeature feature) {
+	AddBusinessSummary(content, _controller, [=](PremiumFeature feature) {
+		if (!_controller->session().premium()) {
+			_setPaused(true);
+			const auto hidden = crl::guard(this, [=] { _setPaused(false); });
+
+			ShowPremiumPreviewToBuy(_controller, feature, hidden);
+			return;
+		}
 		showOther([&] {
 			switch (feature) {
-			case BusinessFeature::AwayMessages: return AwayMessageId();
-			case BusinessFeature::OpeningHours: return WorkingHoursId();
-			case BusinessFeature::Location: return LocationId();
-			case BusinessFeature::GreetingMessages: return GreetingId();
-			case BusinessFeature::QuickReplies: return QuickRepliesId();
-			case BusinessFeature::Chatbots: return ChatbotsId();
+			case PremiumFeature::AwayMessage: return AwayMessageId();
+			case PremiumFeature::BusinessHours: return WorkingHoursId();
+			case PremiumFeature::BusinessLocation: return LocationId();
+			case PremiumFeature::GreetingMessage: return GreetingId();
+			case PremiumFeature::QuickReplies: return QuickRepliesId();
+			case PremiumFeature::BusinessBots: return ChatbotsId();
 			}
 			Unexpected("Feature in Business::setupContent.");
 		}());
@@ -591,7 +598,7 @@ void ShowBusiness(not_null<Window::SessionController*> controller) {
 	controller->showSettings(Settings::BusinessId());
 }
 
-std::vector<BusinessFeature> BusinessFeaturesOrder(
+std::vector<PremiumFeature> BusinessFeaturesOrder(
 		not_null<::Main::Session*> session) {
 	const auto mtpOrder = session->account().appConfig().get<Order>(
 		"business_promo_order",
@@ -600,21 +607,21 @@ std::vector<BusinessFeature> BusinessFeaturesOrder(
 		mtpOrder
 	) | ranges::views::transform([](const QString &s) {
 		if (s == u"greeting_message"_q) {
-			return BusinessFeature::GreetingMessages;
+			return PremiumFeature::GreetingMessage;
 		} else if (s == u"away_message"_q) {
-			return BusinessFeature::AwayMessages;
+			return PremiumFeature::AwayMessage;
 		} else if (s == u"quick_replies"_q) {
-			return BusinessFeature::QuickReplies;
+			return PremiumFeature::QuickReplies;
 		} else if (s == u"business_hours"_q) {
-			return BusinessFeature::OpeningHours;
+			return PremiumFeature::BusinessHours;
 		} else if (s == u"business_location"_q) {
-			return BusinessFeature::Location;
+			return PremiumFeature::BusinessLocation;
 		} else if (s == u"business_bots"_q) {
-			return BusinessFeature::Chatbots;
+			return PremiumFeature::BusinessBots;
 		}
-		return BusinessFeature::kCount;
-	}) | ranges::views::filter([](BusinessFeature feature) {
-		return (feature != BusinessFeature::kCount);
+		return PremiumFeature::kCount;
+	}) | ranges::views::filter([](PremiumFeature feature) {
+		return (feature != PremiumFeature::kCount);
 	}) | ranges::to_vector;
 }
 

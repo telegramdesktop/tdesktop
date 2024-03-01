@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_type.h"
 
+enum class PremiumFeature;
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -19,22 +21,11 @@ class SessionController;
 
 namespace Settings {
 
-enum class BusinessFeature {
-	Location,
-	OpeningHours,
-	QuickReplies,
-	GreetingMessages,
-	AwayMessages,
-	Chatbots,
-
-	kCount,
-};
-
 [[nodiscard]] Type BusinessId();
 
 void ShowBusiness(not_null<Window::SessionController*> controller);
 
-[[nodiscard]] std::vector<BusinessFeature> BusinessFeaturesOrder(
+[[nodiscard]] std::vector<PremiumFeature> BusinessFeaturesOrder(
 	not_null<::Main::Session*> session);
 
 } // namespace Settings
