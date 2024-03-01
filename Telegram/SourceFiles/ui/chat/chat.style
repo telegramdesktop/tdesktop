@@ -1044,6 +1044,13 @@ premiumRequiredWidth: 186px;
 premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
 premiumRequiredCircle: 60px;
 
+repliesEmptyIcon: icon{{ "chat/large_quickreply", msgServiceFg }};
+greetingEmptyIcon: icon{{ "chat/large_greeting", msgServiceFg }};
+awayEmptyIcon: icon{{ "chat/large_away", msgServiceFg }};
+repliesEmptyWidth: 264px;
+repliesEmptySkip: 16px;
+repliesEmptyPadding: margins(10px, 20px, 10px, 16px);
+
 boostMessageIcon: icon {{ "stories/boost_mini", windowFg }};
 boostMessageIconPadding: margins(0px, 2px, 0px, 0px);
 boostsMessageIcon: icon {{ "stories/boosts_mini", windowFg }};

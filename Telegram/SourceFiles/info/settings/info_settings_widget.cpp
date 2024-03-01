@@ -47,7 +47,11 @@ Widget::Widget(
 	auto inner = _type->create(
 		this,
 		controller->parentController(),
-		scroll());
+		scroll(),
+		controller->wrapValue(
+		) | rpl::map([](Wrap wrap) { return (wrap == Wrap::Layer)
+			? ::Settings::Container::Layer
+			: ::Settings::Container::Section; }));
 	if (inner->hasFlexibleTopBar()) {
 		auto filler = setInnerWidget(object_ptr<Ui::RpWidget>(this));
 		filler->resize(1, 1);

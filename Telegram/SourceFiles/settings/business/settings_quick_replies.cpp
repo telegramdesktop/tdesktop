@@ -96,9 +96,8 @@ void QuickReplies::setupContent(
 			Box(EditShortcutNameBox, QString(), crl::guard(this, submit)));
 	});
 
-	Ui::AddSkip(content);
-	Ui::AddDivider(content);
-	Ui::AddSkip(content);
+	const auto dividerWrap = content->add(
+		object_ptr<Ui::VerticalLayout>(content));
 
 	const auto inner = content->add(
 		object_ptr<Ui::VerticalLayout>(content));
@@ -132,6 +131,18 @@ void QuickReplies::setupContent(
 		}
 		while (old--) {
 			delete inner->widgetAt(0);
+		}
+		if (!inner->count()) {
+			while (dividerWrap->count()) {
+				delete dividerWrap->widgetAt(0);
+			}
+		} else if (!dividerWrap->count()) {
+			AddSkip(dividerWrap);
+			AddDivider(dividerWrap);
+			AddSkip(dividerWrap);
+		}
+		if (const auto width = content->width()) {
+			content->resizeToWidth(width);
 		}
 	}, content->lifetime());
 
@@ -170,6 +181,7 @@ void EditShortcutNameBox(
 	box->setFocusCallback([=] {
 		field->setFocusFast();
 	});
+	field->selectAll();
 
 	const auto callback = [=] {
 		const auto name = field->getLastText().trimmed();

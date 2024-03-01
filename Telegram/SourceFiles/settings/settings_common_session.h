@@ -26,13 +26,19 @@ class SessionController;
 
 namespace Settings {
 
+enum class Container {
+	Section,
+	Layer,
+};
+
 class AbstractSection;
 
 struct AbstractSectionFactory {
 	[[nodiscard]] virtual object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::ScrollArea*> scroll) const = 0;
+		not_null<Ui::ScrollArea*> scroll,
+		rpl::producer<Container> containerValue) const = 0;
 	[[nodiscard]] virtual bool hasCustomTopBar() const {
 		return false;
 	}
@@ -45,7 +51,8 @@ struct SectionFactory : AbstractSectionFactory {
 	object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::ScrollArea*> scroll
+		not_null<Ui::ScrollArea*> scroll,
+		rpl::producer<Container> containerValue
 	) const final override {
 		return object_ptr<SectionType>(parent, controller);
 	}

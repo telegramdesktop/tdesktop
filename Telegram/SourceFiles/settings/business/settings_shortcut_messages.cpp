@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_empty_list_bubble.h"
 #include "history/view/history_view_list_widget.h"
+#include "history/view/history_view_service_message.h"
 #include "history/view/history_view_sticker_toast.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -51,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/painter.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
@@ -74,6 +76,7 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::ScrollArea*> scroll,
+		rpl::producer<Container> containerValue,
 		BusinessShortcutId shortcutId);
 	~ShortcutMessages();
 
@@ -97,7 +100,7 @@ public:
 		QRect clip) override;
 
 private:
-	void outerResized(QSize outer);
+	void outerResized();
 	void updateComposeControlsPosition();
 
 	// ListDelegate interface.
@@ -247,6 +250,7 @@ private:
 		const Window::SectionShow &params);
 	void showAtEnd();
 	void finishSending();
+	void refreshEmptyText();
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<Main::Session*> _session;
@@ -254,6 +258,7 @@ private:
 	const not_null<History*> _history;
 	rpl::variable<BusinessShortcutId> _shortcutId;
 	rpl::variable<QString> _shortcut;
+	rpl::variable<Container> _container;
 	std::shared_ptr<Ui::ChatStyle> _style;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 	QPointer<ListWidget> _inner;
@@ -261,6 +266,14 @@ private:
 	std::unique_ptr<ComposeControls> _composeControls;
 	rpl::event_stream<> _showBackRequests;
 	bool _skipScrollEvent = false;
+
+	QSize _inOuterResize;
+	QSize _pendingOuterResize;
+
+	const style::icon *_emptyIcon = nullptr;
+	Ui::Text::String _emptyText;
+	int _emptyTextWidth = 0;
+	int _emptyTextHeight = 0;
 
 	rpl::variable<Info::SelectedItems> _selectedItems
 		= Info::SelectedItems(Storage::SharedMediaType::kCount);
@@ -283,22 +296,33 @@ struct Factory final : AbstractSectionFactory {
 	object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::ScrollArea*> scroll
+		not_null<Ui::ScrollArea*> scroll,
+		rpl::producer<Container> containerValue
 	) const final override {
 		return object_ptr<ShortcutMessages>(
 			parent,
 			controller,
 			scroll,
+			std::move(containerValue),
 			shortcutId);
 	}
 
 	const BusinessShortcutId shortcutId = {};
 };
 
+[[nodiscard]] bool IsAway(const QString &shortcut) {
+	return (shortcut == u"away"_q);
+}
+
+[[nodiscard]] bool IsGreeting(const QString &shortcut) {
+	return (shortcut == u"hello"_q);
+}
+
 ShortcutMessages::ShortcutMessages(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::ScrollArea*> scroll,
+	rpl::producer<Container> containerValue,
 	BusinessShortcutId shortcutId)
 : AbstractSection(parent)
 , _controller(controller)
@@ -308,6 +332,7 @@ ShortcutMessages::ShortcutMessages(
 , _shortcutId(shortcutId)
 , _shortcut(
 	_session->data().shortcutMessages().lookupShortcut(shortcutId).name)
+, _container(std::move(containerValue))
 , _cornerButtons(
 		_scroll,
 		controller->chatStyle(),
@@ -345,13 +370,18 @@ ShortcutMessages::ShortcutMessages(
 
 	_scroll->sizeValue() | rpl::filter([](QSize size) {
 		return !size.isEmpty();
-	}) | rpl::start_with_next([=](QSize size) {
-		outerResized(size);
+	}) | rpl::start_with_next([=] {
+		outerResized();
 	}, lifetime());
 
 	_scroll->scrolls(
 	) | rpl::start_with_next([=] {
 		processScroll();
+	}, lifetime());
+
+	_shortcut.value() | rpl::start_with_next([=] {
+		refreshEmptyText();
+		_inner->update();
 	}, lifetime());
 
 	_inner->editMessageRequested(
@@ -364,17 +394,6 @@ ShortcutMessages::ShortcutMessages(
 		}
 	}, _inner->lifetime());
 
-	{
-		auto emptyInfo = base::make_unique_q<EmptyListBubbleWidget>(
-			_inner,
-			_style.get(),
-			st::msgServicePadding);
-		const auto emptyText = Ui::Text::Semibold(
-			u"give me your money.."_q);
-		emptyInfo->setText(emptyText);
-		_inner->setEmptyInfoWidget(std::move(emptyInfo));
-	}
-
 	_inner->heightValue() | rpl::start_with_next([=](int height) {
 		resize(width(), height);
 	}, lifetime());
@@ -382,15 +401,62 @@ ShortcutMessages::ShortcutMessages(
 
 ShortcutMessages::~ShortcutMessages() = default;
 
+void ShortcutMessages::refreshEmptyText() {
+	const auto &shortcut = _shortcut.current();
+	const auto away = IsAway(shortcut);
+	const auto greeting = !away && IsGreeting(shortcut);
+	auto text = away
+		? tr::lng_away_empty_title(
+			tr::now,
+			Ui::Text::Bold
+		).append("\n\n").append(tr::lng_away_empty_about(tr::now))
+		: greeting
+		? tr::lng_greeting_empty_title(
+			tr::now,
+			Ui::Text::Bold
+		).append("\n\n").append(tr::lng_greeting_empty_about(tr::now))
+		: tr::lng_replies_empty_title(
+			tr::now,
+			Ui::Text::Bold
+		).append("\n\n").append(tr::lng_replies_empty_about(
+			tr::now,
+			lt_shortcut,
+			Ui::Text::Bold('/' + shortcut),
+			Ui::Text::WithEntities));
+	_emptyIcon = away
+		? &st::awayEmptyIcon
+		: greeting
+		? &st::greetingEmptyIcon
+		: &st::repliesEmptyIcon;
+	const auto padding = st::repliesEmptyPadding;
+	const auto minWidth = st::repliesEmptyWidth / 4;
+	const auto maxWidth = std::max(
+		minWidth + 1,
+		st::repliesEmptyWidth - padding.left() - padding.right());
+	_emptyText = Ui::Text::String(
+		st::messageTextStyle,
+		text,
+		kMarkupTextOptions,
+		minWidth);
+	const auto countHeight = [&](int width) {
+		return _emptyText.countHeight(width);
+	};
+	_emptyTextWidth = Ui::FindNiceTooltipWidth(
+		minWidth,
+		maxWidth,
+		countHeight);
+	_emptyTextHeight = countHeight(_emptyTextWidth);
+}
+
 Type ShortcutMessages::Id(BusinessShortcutId shortcutId) {
 	return std::make_shared<Factory>(shortcutId);
 }
 
 rpl::producer<QString> ShortcutMessages::title() {
 	return _shortcut.value() | rpl::map([=](const QString &shortcut) {
-		return (shortcut == u"away"_q)
+		return IsAway(shortcut)
 			? tr::lng_away_title()
-			: (shortcut == u"hello"_q)
+			: IsGreeting(shortcut)
 			? tr::lng_greeting_title()
 			: rpl::single('/' + shortcut);
 	}) | rpl::flatten_latest();
@@ -497,22 +563,36 @@ bool ShortcutMessages::paintOuter(
 	return true;
 }
 
-void ShortcutMessages::outerResized(QSize outer) {
-	const auto contentWidth = outer.width();
+void ShortcutMessages::outerResized() {
+	const auto outer = _scroll->size();
+	if (!_inOuterResize.isEmpty()) {
+		_pendingOuterResize = (_inOuterResize != outer)
+			? outer
+			: QSize();
+		return;
+	}
+	_inOuterResize = outer;
 
-	const auto newScrollTop = _scroll->isHidden()
-		? std::nullopt
-		: _scroll->scrollTop()
-		? base::make_optional(_scroll->scrollTop())
-		: 0;
-	_skipScrollEvent = true;
-	_inner->resizeToWidth(contentWidth, st::boxWidth);
-	_skipScrollEvent = false;
+	do {
+		const auto newScrollTop = _scroll->isHidden()
+			? std::nullopt
+			: _scroll->scrollTop()
+			? base::make_optional(_scroll->scrollTop())
+			: 0;
+		_skipScrollEvent = true;
+		const auto minHeight = (_container.current() == Container::Layer)
+			? st::boxWidth
+			: _inOuterResize.height();
+		_inner->resizeToWidth(_inOuterResize.width(), minHeight);
+		_skipScrollEvent = false;
 
-	if (!_scroll->isHidden()) {
-		if (newScrollTop) {
+		if (!_scroll->isHidden() && newScrollTop) {
 			_scroll->scrollToY(*newScrollTop);
 		}
+		_inOuterResize = base::take(_pendingOuterResize);
+	} while (!_inOuterResize.isEmpty());
+
+	if (!_scroll->isHidden()) {
 		updateInnerVisibleArea();
 	}
 	updateComposeControlsPosition();
@@ -896,8 +976,36 @@ void ShortcutMessages::listOpenDocument(
 }
 
 void ShortcutMessages::listPaintEmpty(
-	Painter &p,
-	const Ui::ChatPaintContext &context) {
+		Painter &p,
+		const Ui::ChatPaintContext &context) {
+	Expects(_emptyIcon != nullptr);
+
+	const auto width = st::repliesEmptyWidth;
+	const auto padding = st::repliesEmptyPadding;
+	const auto height = padding.top()
+		+ _emptyIcon->height()
+		+ st::repliesEmptySkip
+		+ _emptyTextHeight
+		+ padding.bottom();
+	const auto r = QRect(
+		(this->width() - width) / 2,
+		(this->height() - height) / 3,
+		width,
+		height);
+	HistoryView::ServiceMessagePainter::PaintBubble(p, context.st, r);
+
+	_emptyIcon->paint(
+		p,
+		r.x() + (r.width() - _emptyIcon->width()) / 2,
+		r.y() + padding.top(),
+		this->width());
+	p.setPen(st::msgServiceFg);
+	_emptyText.draw(
+		p,
+		r.x() + (r.width() - _emptyTextWidth) / 2,
+		r.y() + padding.top() + _emptyIcon->height() + st::repliesEmptySkip,
+		_emptyTextWidth,
+		style::al_top);
 }
 
 QString ShortcutMessages::listElementAuthorRank(

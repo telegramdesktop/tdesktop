@@ -44,7 +44,8 @@ struct Factory : AbstractSectionFactory {
 	object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::ScrollArea*> scroll
+		not_null<Ui::ScrollArea*> scroll,
+		rpl::producer<Container> containerValue
 	) const final override {
 		return object_ptr<NotificationsType>(parent, controller, type);
 	}
