@@ -232,7 +232,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 	const auto thumbMaxWidth = qMin(newWidth, st::maxMediaSize);
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
-		(_parent->hasBubble()
+		qMin(thumbMaxWidth, _parent->hasBubble()
 			? st::historyPhotoBubbleMinWidth
 			: st::minPhotoSize),
 		thumbMaxWidth);
