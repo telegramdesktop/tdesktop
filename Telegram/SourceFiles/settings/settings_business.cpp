@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/business/settings_away_message.h"
 #include "settings/business/settings_chatbots.h"
@@ -58,19 +60,19 @@ using Order = std::vector<QString>;
 
 [[nodiscard]] Order FallbackOrder() {
 	return Order{
-		u"location"_q,
-		u"opening_hours"_q,
+		u"greeting_message"_q,
+		u"away_message"_q,
 		u"quick_replies"_q,
-		u"greeting_messages"_q,
-		u"away_messages"_q,
-		u"chatbots"_q,
+		u"business_hours"_q,
+		u"business_location"_q,
+		u"business_bots"_q,
 	};
 }
 
 [[nodiscard]] base::flat_map<QString, Entry> EntryMap() {
 	return base::flat_map<QString, Entry>{
 		{
-			u"location"_q,
+			u"business_location"_q,
 			Entry{
 				&st::settingsBusinessIconLocation,
 				tr::lng_business_subtitle_location(),
@@ -79,7 +81,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			u"opening_hours"_q,
+			u"business_hours"_q,
 			Entry{
 				&st::settingsBusinessIconHours,
 				tr::lng_business_subtitle_opening_hours(),
@@ -97,7 +99,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			u"greeting_messages"_q,
+			u"greeting_message"_q,
 			Entry{
 				&st::settingsBusinessIconGreeting,
 				tr::lng_business_subtitle_greeting_messages(),
@@ -106,7 +108,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			u"away_messages"_q,
+			u"away_message"_q,
 			Entry{
 				&st::settingsBusinessIconAway,
 				tr::lng_business_subtitle_away_messages(),
@@ -115,7 +117,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			u"chatbots"_q,
+			u"business_bots"_q,
 			Entry{
 				&st::settingsBusinessIconChatbots,
 				tr::lng_business_subtitle_chatbots(),
@@ -222,9 +224,9 @@ void AddBusinessSummary(
 	icons.reserve(int(entryMap.size()));
 	{
 		const auto &account = controller->session().account();
-		const auto mtpOrder = FallbackOrder();/* session->account().appConfig().get<Order>(
-			"premium_promo_order",
-			FallbackOrder());*/ AssertIsDebug()
+		const auto mtpOrder = account.appConfig().get<Order>(
+			"business_promo_order",
+			FallbackOrder());
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
 			addRow(entry);
@@ -587,6 +589,33 @@ void ShowBusiness(not_null<Window::SessionController*> controller) {
 		return;
 	}
 	controller->showSettings(Settings::BusinessId());
+}
+
+std::vector<BusinessFeature> BusinessFeaturesOrder(
+		not_null<::Main::Session*> session) {
+	const auto mtpOrder = session->account().appConfig().get<Order>(
+		"business_promo_order",
+		FallbackOrder());
+	return ranges::views::all(
+		mtpOrder
+	) | ranges::views::transform([](const QString &s) {
+		if (s == u"greeting_message"_q) {
+			return BusinessFeature::GreetingMessages;
+		} else if (s == u"away_message"_q) {
+			return BusinessFeature::AwayMessages;
+		} else if (s == u"quick_replies"_q) {
+			return BusinessFeature::QuickReplies;
+		} else if (s == u"business_hours"_q) {
+			return BusinessFeature::OpeningHours;
+		} else if (s == u"business_location"_q) {
+			return BusinessFeature::Location;
+		} else if (s == u"business_bots"_q) {
+			return BusinessFeature::Chatbots;
+		}
+		return BusinessFeature::kCount;
+	}) | ranges::views::filter([](BusinessFeature feature) {
+		return (feature != BusinessFeature::kCount);
+	}) | ranges::to_vector;
 }
 
 } // namespace Settings

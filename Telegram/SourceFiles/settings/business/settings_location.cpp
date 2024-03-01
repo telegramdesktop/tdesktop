@@ -70,6 +70,7 @@ void Location::setupContent(
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+#if 0 // #TODO location choosing
 	AddDividerTextWithLottie(content, {
 		.lottie = u"location"_q,
 		.lottieSize = st::settingsCloudPasswordIconSize,
@@ -91,6 +92,7 @@ void Location::setupContent(
 	showFinishes() | rpl::start_with_next([=] {
 		address->setFocus();
 	}, address->lifetime());
+#endif
 
 	if (!mapSupported()) {
 		AddDividerTextWithLottie(content, {

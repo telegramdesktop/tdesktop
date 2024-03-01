@@ -34,4 +34,7 @@ enum class BusinessFeature {
 
 void ShowBusiness(not_null<Window::SessionController*> controller);
 
+[[nodiscard]] std::vector<BusinessFeature> BusinessFeaturesOrder(
+	not_null<::Main::Session*> session);
+
 } // namespace Settings

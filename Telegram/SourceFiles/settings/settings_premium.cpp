@@ -180,7 +180,6 @@ using Order = std::vector<QString>;
 		u"stories"_q,
 		u"more_upload"_q,
 		u"double_limits"_q,
-		u"business"_q,
 		u"last_seen"_q,
 		u"voice_to_text"_q,
 		u"faster_download"_q,
@@ -198,6 +197,7 @@ using Order = std::vector<QString>;
 		u"infinite_reactions"_q,
 		u"animated_userpics"_q,
 		u"premium_stickers"_q,
+		u"business"_q,
 	};
 }
 
@@ -1537,7 +1537,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 	return result;
 }
 
-[[nodiscard]] std::vector<PremiumPreview> PremiumPreviewOrder(
+std::vector<PremiumPreview> PremiumPreviewOrder(
 		not_null<Main::Session*> session) {
 	const auto mtpOrder = session->account().appConfig().get<Order>(
 		"premium_promo_order",
@@ -1684,9 +1684,9 @@ void AddSummaryPremium(
 	icons.reserve(int(entryMap.size()));
 	{
 		const auto &account = controller->session().account();
-		const auto mtpOrder = FallbackOrder();/* session->account().appConfig().get<Order>(
+		const auto mtpOrder = account.appConfig().get<Order>(
 			"premium_promo_order",
-			FallbackOrder());*/ AssertIsDebug()
+			FallbackOrder());
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
 			addRow(entry);
