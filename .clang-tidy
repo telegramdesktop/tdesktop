@@ -1,0 +1,335 @@
+---
+Checks:          'bugprone-argument-comment,
+                  bugprone-assert-side-effect,
+                  bugprone-assignment-in-if-condition,
+                  bugprone-branch-clone,
+                  bugprone-casting-through-void,
+                  bugprone-chained-comparison,
+                  bugprone-compare-pointer-to-member-virtual-function,
+                  bugprone-copy-constructor-init,
+                  bugprone-dangling-handle,
+                  bugprone-fold-init-type,
+                  bugprone-forward-declaration-namespace,
+                  bugprone-inc-dec-in-conditions,
+                  bugprone-move-forwarding-reference,
+                  bugprone-parent-virtual-call,
+                  bugprone-redundant-branch-condition,
+                  bugprone-shared-ptr-array-mismatch,
+                  bugprone-sizeof-expression,
+                  bugprone-standalone-empty,
+                  bugprone-string-constructor,
+                  bugprone-string-literal-with-embedded-nul,
+                  bugprone-stringview-nullptr,
+                  bugprone-suspicious-enum-usage,
+                  bugprone-suspicious-include,
+                  bugprone-suspicious-missing-comma,
+                  bugprone-suspicious-semicolon,
+                  bugprone-suspicious-string-compare,
+                  bugprone-switch-missing-default-case,
+                  bugprone-throw-keyword-missing,
+                  bugprone-unhandled-exception-at-new,
+                  bugprone-unhandled-self-assignment,
+                  bugprone-unique-ptr-array-mismatch,
+                  bugprone-unused-local-non-trivial-variable,
+                  bugprone-unused-raii,
+                  bugprone-unused-return-value,
+                  bugprone-use-after-move,
+
+                  google-build-explicit-make-pair,
+                  google-build-namespaces,
+                  google-build-using-namespace,
+                  google-default-arguments,
+                  google-readability-avoid-underscore-in-googletest-name,
+                  google-readability-casting,
+                  google-runtime-int,
+
+                  llvm-header-guard,
+                  llvm-include-order,
+                  llvm-namespace-comment,
+
+                  misc-const-correctness,
+                  misc-definitions-in-headers,
+                  misc-header-include-cycle,
+                  misc-include-cleaner,
+                  misc-redundant-expression,
+                  misc-static-assert,
+                  misc-unconventional-assign-operator,
+                  misc-uniqueptr-reset-release,
+                  misc-unused-alias-decls,
+                  misc-unused-parameters,
+                  misc-unused-using-decls,
+                  misc-use-anonymous-namespace,
+
+                  modernize-avoid-bind,
+                  modernize-concat-nested-namespaces,
+                  modernize-deprecated-headers,
+                  modernize-deprecated-ios-base-aliases,
+                  modernize-macro-to-enum,
+                  modernize-make-shared,
+                  modernize-make-unique,
+                  modernize-pass-by-value,
+                  modernize-redundant-void-arg,
+                  modernize-replace-disallow-copy-and-assign-macro,
+                  modernize-return-braced-init-list,
+                  modernize-type-traits,
+                  modernize-unary-static-assert,
+                  modernize-use-auto,
+                  modernize-use-bool-literals,
+                  modernize-use-default-member-init,
+                  modernize-use-emplace,
+                  modernize-use-equals-default,
+                  modernize-use-equals-delete,
+                  modernize-use-nullptr,
+                  modernize-use-override,
+                  modernize-use-starts-ends-with,
+                  modernize-use-std-numbers,
+                  modernize-use-std-print,
+                  modernize-use-transparent-functors,
+                  modernize-use-using,
+
+                  performance-faster-string-find,
+                  performance-for-range-copy,
+                  performance-implicit-conversion-in-loop,
+                  performance-inefficient-algorithm,
+                  performance-inefficient-string-concatenation,
+                  performance-inefficient-vector-operation,
+                  performance-move-const-arg,
+                  performance-move-constructor-init,
+                  performance-no-automatic-move,
+                  performance-no-int-to-ptr,
+                  performance-noexcept-destructor,
+                  performance-noexcept-move-constructor,
+                  performance-noexcept-swap,
+                  performance-trivially-destructible,
+                  performance-type-promotion-in-math-fn,
+                  performance-unnecessary-copy-initialization,
+                  performance-unnecessary-value-param,
+
+                  readability-avoid-const-params-in-decls,
+                  readability-avoid-nested-conditional-operator,
+                  readability-avoid-return-with-void-value,
+                  readability-avoid-unconditional-preprocessor-if,
+                  readability-braces-around-statements,
+                  readability-const-return-type,
+                  readability-container-size-empty,
+                  readability-convert-member-functions-to-static,
+                  readability-duplicate-include,
+                  readability-else-after-return,
+                  readability-inconsistent-declaration-parameter-name,
+                  readability-identifier-naming,
+                  readability-isolate-declaration,
+                  readability-make-member-function-const,
+                  readability-named-parameter,
+                  readability-non-const-parameter,
+                  readability-operators-representation,
+                  readability-qualified-auto,
+                  readability-redundant-*,
+                  readability-reference-to-constructed-temporary,
+                  readability-simplify-boolean-expr,
+                  readability-simplify-subscript-expr,
+                  readability-use-std-min-max
+                  '
+HeaderFilterRegex: ''
+AnalyzeTemporaryDtors: false
+WarningsAsErrors:  'bugprone-argument-comment,
+                    bugprone-assert-side-effect,
+                    bugprone-assignment-in-if-condition,
+                    bugprone-branch-clone,
+                    bugprone-casting-through-void,
+                    bugprone-chained-comparison,
+                    bugprone-compare-pointer-to-member-virtual-function,
+                    bugprone-copy-constructor-init,
+                    bugprone-dangling-handle,
+                    bugprone-fold-init-type,
+                    bugprone-forward-declaration-namespace,
+                    bugprone-inc-dec-in-conditions,
+                    bugprone-move-forwarding-reference,
+                    bugprone-parent-virtual-call,
+                    bugprone-redundant-branch-condition,
+                    bugprone-shared-ptr-array-mismatch,
+                    bugprone-sizeof-expression,
+                    bugprone-standalone-empty,
+                    bugprone-string-constructor,
+                    bugprone-string-literal-with-embedded-nul,
+                    bugprone-stringview-nullptr,
+                    bugprone-suspicious-enum-usage,
+                    bugprone-suspicious-include,
+                    bugprone-suspicious-missing-comma,
+                    bugprone-suspicious-semicolon,
+                    bugprone-suspicious-string-compare,
+                    bugprone-switch-missing-default-case,
+                    bugprone-throw-keyword-missing,
+                    bugprone-unhandled-exception-at-new,
+                    bugprone-unhandled-self-assignment,
+                    bugprone-unique-ptr-array-mismatch,
+                    bugprone-unused-local-non-trivial-variable,
+                    bugprone-unused-raii,
+                    bugprone-unused-return-value,
+                    bugprone-use-after-move,
+
+                    google-build-explicit-make-pair,
+                    google-build-namespaces,
+                    google-build-using-namespace,
+                    google-default-arguments,
+                    google-readability-avoid-underscore-in-googletest-name,
+                    google-readability-casting,
+                    google-runtime-int,
+
+                    llvm-header-guard,
+                    llvm-include-order,
+                    llvm-namespace-comment,
+
+                    misc-const-correctness,
+                    misc-definitions-in-headers,
+                    misc-header-include-cycle,
+                    misc-include-cleaner,
+                    misc-redundant-expression,
+                    misc-static-assert,
+                    misc-unconventional-assign-operator,
+                    misc-uniqueptr-reset-release,
+                    misc-unused-alias-decls,
+                    misc-unused-parameters,
+                    misc-unused-using-decls,
+                    misc-use-anonymous-namespace,
+
+                    modernize-avoid-bind,
+                    modernize-concat-nested-namespaces,
+                    modernize-deprecated-headers,
+                    modernize-deprecated-ios-base-aliases,
+                    modernize-macro-to-enum,
+                    modernize-make-shared,
+                    modernize-make-unique,
+                    modernize-pass-by-value,
+                    modernize-redundant-void-arg,
+                    modernize-replace-disallow-copy-and-assign-macro,
+                    modernize-return-braced-init-list,
+                    modernize-type-traits,
+                    modernize-unary-static-assert,
+                    modernize-use-auto,
+                    modernize-use-bool-literals,
+                    modernize-use-default-member-init,
+                    modernize-use-emplace,
+                    modernize-use-equals-default,
+                    modernize-use-equals-delete,
+                    modernize-use-nullptr,
+                    modernize-use-override,
+                    modernize-use-starts-ends-with,
+                    modernize-use-std-numbers,
+                    modernize-use-std-print,
+                    modernize-use-transparent-functors,
+                    modernize-use-using,
+
+                    performance-faster-string-find,
+                    performance-for-range-copy,
+                    performance-implicit-conversion-in-loop,
+                    performance-inefficient-algorithm,
+                    performance-inefficient-string-concatenation,
+                    performance-inefficient-vector-operation,
+                    performance-move-const-arg,
+                    performance-move-constructor-init,
+                    performance-no-automatic-move,
+                    performance-no-int-to-ptr,
+                    performance-noexcept-destructor,
+                    performance-noexcept-move-constructor,
+                    performance-noexcept-swap,
+                    performance-trivially-destructible,
+                    performance-type-promotion-in-math-fn,
+                    performance-unnecessary-copy-initialization,
+                    performance-unnecessary-value-param,
+
+                    readability-avoid-const-params-in-decls,
+                    readability-avoid-nested-conditional-operator,
+                    readability-avoid-return-with-void-value,
+                    readability-avoid-unconditional-preprocessor-if,
+                    readability-braces-around-statements,
+                    readability-const-return-type,
+                    readability-container-size-empty,
+                    readability-convert-member-functions-to-static,
+                    readability-duplicate-include,
+                    readability-else-after-return,
+                    readability-inconsistent-declaration-parameter-name,
+                    readability-identifier-naming,
+                    readability-isolate-declaration,
+                    readability-make-member-function-const,
+                    readability-named-parameter,
+                    readability-non-const-parameter,
+                    readability-operators-representation,
+                    readability-qualified-auto,
+                    readability-redundant-*,
+                    readability-reference-to-constructed-temporary,
+                    readability-simplify-boolean-expr,
+                    readability-simplify-subscript-expr,
+                    readability-use-std-min-max
+                    '
+CheckOptions:
+  - key:             readability-operators-representation.BinaryOperators
+    value:           1
+  - key:             misc-unused-parameters.StrictMode
+    value:           1
+
+  # type names
+  - key:             readability-identifier-naming.ClassCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.EnumCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.UnionCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.StructCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.TypeAliasCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.TemplateParameterCase
+    value:           CamelCase
+
+  # namespace name
+  - key:             readability-identifier-naming.NamespaceCase
+    value:           lower_case
+
+  # macros name
+  - key:             readability-identifier-naming.MacroDefinitionCase
+    value:           UPPER_CASE
+
+  # variable names
+  - key:             readability-identifier-naming.VariableCase
+    value:           lower_case
+  - key:             readability-identifier-naming.ProtectedMemberSuffix
+    value:           '_'
+  - key:             readability-identifier-naming.PrivateMemberSuffix
+    value:           '_'
+
+  # function/method names
+  - key:             readability-identifier-naming.FunctionCase
+    value:           camelBack
+  - key:             readability-identifier-naming.MethodCase
+    value:           camelBack
+
+  # const static or global variables
+  - key:             readability-identifier-naming.ClassConstantCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.ClassConstantPrefix
+    value:           'k'
+
+  - key:             readability-identifier-naming.ConstantMemberCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.ConstantMemberPrefix
+    value:           'k'
+
+  - key:             readability-identifier-naming.EnumConstantCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.EnumConstantPrefix
+    value:           'k'
+
+  - key:             readability-identifier-naming.GlobalConstantCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.GlobalConstantPrefix
+    value:           'k'
+
+  - key:             readability-identifier-naming.ScopedEnumConstantCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.ScopedEnumConstantPrefix
+    value:           'k'
+
+  - key:             readability-identifier-naming.StaticConstantCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.StaticConstantPrefix
+    value:           'k'
