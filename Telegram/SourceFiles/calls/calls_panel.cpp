@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "platform/platform_specific.h"
+#include "base/event_filter.h"
 #include "base/platform/base_platform_info.h"
 #include "base/power_save_blocker.h"
 #include "media/streaming/media_streaming_utility.h"
@@ -147,17 +148,18 @@ void Panel::initWindow() {
 	window()->setTitle(_user->name());
 	window()->setTitleStyle(st::callTitle);
 
-	window()->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Close) {
-			handleClose();
+	base::install_event_filter(window().get(), [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Close && handleClose()) {
+			e->ignore();
+			return base::EventFilterResult::Cancel;
 		} else if (e->type() == QEvent::KeyPress) {
 			if ((static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape)
 				&& window()->isFullScreen()) {
 				window()->showNormal();
 			}
 		}
-	}, window()->lifetime());
+		return base::EventFilterResult::Continue;
+	});
 
 	window()->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;
@@ -828,10 +830,12 @@ void Panel::paint(QRect clip) {
 	}
 }
 
-void Panel::handleClose() {
+bool Panel::handleClose() const {
 	if (_call) {
-		_call->hangup();
+		window()->hide();
+		return true;
 	}
+	return false;
 }
 
 not_null<Ui::RpWindow*> Panel::window() const {
