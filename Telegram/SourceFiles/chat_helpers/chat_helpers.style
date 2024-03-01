@@ -608,7 +608,7 @@ defaultComposeIcons: ComposeIcons {
 
 	stripBubble: icon{
 		{ "chat/reactions_bubble_shadow", windowShadowFg },
-		{ "chat/reactions_bubble", windowBg },
+		{ "chat/reactions_bubble", emojiPanBg },
 	};
 	stripExpandPanel: icon{
 		{ "chat/reactions_round_big", windowBgRipple },
