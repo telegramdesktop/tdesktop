@@ -97,6 +97,7 @@ Data::BusinessRecipients FromMTP(
 	auto result = Data::AwaySettings{
 		.recipients = FromMTP(owner, data.vrecipients()),
 		.shortcutId = data.vshortcut_id().v,
+		.offlineOnly = data.is_offline_only(),
 	};
 	data.vschedule().match([&](
 			const MTPDbusinessAwayMessageScheduleAlways &) {

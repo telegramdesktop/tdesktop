@@ -192,6 +192,7 @@ struct AwaySettings {
 	BusinessRecipients recipients;
 	AwaySchedule schedule;
 	BusinessShortcutId shortcutId = 0;
+	bool offlineOnly = false;
 
 	explicit operator bool() const {
 		return schedule.type != AwayScheduleType::Never;

@@ -196,6 +196,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 			MTP_int(replaceId ? replaceId : _id),
 			MTP_string(_title),
 			MTP_string(_iconEmoji),
+			MTPint(), // color
 			MTP_vector<MTPInputPeer>(pinned),
 			MTP_vector<MTPInputPeer>(include));
 	}
@@ -221,6 +222,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 		MTP_int(replaceId ? replaceId : _id),
 		MTP_string(_title),
 		MTP_string(_iconEmoji),
+		MTPint(), // color
 		MTP_vector<MTPInputPeer>(pinned),
 		MTP_vector<MTPInputPeer>(include),
 		MTP_vector<MTPInputPeer>(never));
@@ -361,8 +363,8 @@ void ChatFilters::load(bool force) {
 	auto &api = _owner->session().api();
 	api.request(_loadRequestId).cancel();
 	_loadRequestId = api.request(MTPmessages_GetDialogFilters(
-	)).done([=](const MTPVector<MTPDialogFilter> &result) {
-		received(result.v);
+	)).done([=](const MTPmessages_DialogFilters &result) {
+		received(result.data().vfilters().v);
 		_loadRequestId = 0;
 	}).fail([=] {
 		_loadRequestId = 0;
