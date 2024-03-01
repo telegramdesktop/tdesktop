@@ -2238,6 +2238,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_away_schedule_custom" = "Custom Schedule";
 "lng_away_custom_start" = "Start Time";
 "lng_away_custom_end" = "End Time";
+"lng_away_offline_only" = "Only if Offline";
+"lng_away_offline_only_about" = "Don't send the away message if you've recently been online.";
 "lng_away_recipients" = "Recipients";
 "lng_away_select" = "Select chats or entire chat categories for sending an away message.";
 "lng_away_empty_title" = "New Away Message";

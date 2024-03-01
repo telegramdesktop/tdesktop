@@ -48,6 +48,7 @@ private:
 	rpl::event_stream<> _deactivateOnAttempt;
 	rpl::variable<Data::BusinessRecipients> _recipients;
 	rpl::variable<Data::AwaySchedule> _schedule;
+	rpl::variable<bool> _offlineOnly;
 	rpl::variable<bool> _enabled;
 
 };
@@ -311,6 +312,18 @@ void AwayMessage::setupContent(
 	});
 	Ui::AddSkip(inner);
 	Ui::AddDivider(inner);
+	Ui::AddSkip(inner);
+
+	const auto offlineOnly = inner->add(
+		object_ptr<Ui::SettingsButton>(
+			inner,
+			tr::lng_away_offline_only(),
+			st::settingsButtonNoIcon)
+	)->toggleOn(rpl::single(current.offlineOnly));
+	_offlineOnly = offlineOnly->toggledValue();
+
+	Ui::AddSkip(inner);
+	Ui::AddDividerText(inner, tr::lng_away_offline_only_about());
 
 	AddBusinessRecipientsSelector(inner, {
 		.controller = controller,
@@ -327,10 +340,13 @@ void AwayMessage::setupContent(
 }
 
 void AwayMessage::save() {
-	controller()->session().data().businessInfo().saveAwaySettings(
+	const auto session = &controller()->session();
+	session->data().businessInfo().saveAwaySettings(
 		_enabled.current() ? Data::AwaySettings{
 			.recipients = _recipients.current(),
 			.schedule = _schedule.current(),
+			.shortcutId = LookupShortcutId(session, u"away"_q),
+			.offlineOnly = _offlineOnly.current(),
 		} : Data::AwaySettings());
 }
 

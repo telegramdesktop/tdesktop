@@ -326,10 +326,12 @@ void Greeting::setupContent(
 }
 
 void Greeting::save() {
-	controller()->session().data().businessInfo().saveGreetingSettings(
+	const auto session = &controller()->session();
+	session->data().businessInfo().saveGreetingSettings(
 		_enabled.current() ? Data::GreetingSettings{
 			.recipients = _recipients.current(),
 			.noActivityDays = _noActivityDays.current(),
+			.shortcutId = LookupShortcutId(session, u"hello"_q),
 		} : Data::GreetingSettings());
 }
 

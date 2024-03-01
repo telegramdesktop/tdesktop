@@ -93,4 +93,8 @@ void AddBusinessRecipientsSelector(
 [[nodiscard]] rpl::producer<int> ShortcutMessagesLimitValue(
 	not_null<Main::Session*> session);
 
+[[nodiscard]] BusinessShortcutId LookupShortcutId(
+	not_null<Main::Session*> session,
+	const QString &name);
+
 } // namespace Settings

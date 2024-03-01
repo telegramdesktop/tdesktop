@@ -280,7 +280,7 @@ void AddBusinessRecipientsSelector(
 		});
 	}, lifetime);
 
-	SetupBusinessChatsPreview(includeInner, excluded);
+	SetupBusinessChatsPreview(includeInner, included);
 
 	includeWrap->toggleOn(data->value(
 	) | rpl::map([](const Data::BusinessRecipients &value) {
@@ -372,6 +372,18 @@ rpl::producer<int> ShortcutMessagesLimitValue(
 	return appConfig->value() | rpl::map([=] {
 		return ShortcutMessagesLimit(session);
 	});
+}
+
+BusinessShortcutId LookupShortcutId(
+		not_null<Main::Session*> session,
+		const QString &name) {
+	const auto messages = &session->data().shortcutMessages();
+	for (const auto &[id, shortcut] : messages->shortcuts().list) {
+		if (shortcut.name == name) {
+			return id;
+		}
+	}
+	return {};
 }
 
 } // namespace Settings
