@@ -30,7 +30,7 @@ public:
 	[[nodiscard]] rpl::producer<ChatbotsSettings> changes() const;
 	[[nodiscard]] rpl::producer<ChatbotsSettings> value() const;
 
-	void save(ChatbotsSettings settings);
+	void save(ChatbotsSettings settings, Fn<void(QString)> fail);
 
 private:
 	const not_null<Session*> _session;

@@ -20,15 +20,17 @@ public:
 
 	void preload();
 
-	void saveWorkingHours(WorkingHours data);
+	void saveWorkingHours(WorkingHours data, Fn<void(QString)> fail);
 
-	void saveAwaySettings(AwaySettings data);
+	void saveAwaySettings(AwaySettings data, Fn<void(QString)> fail);
 	void applyAwaySettings(AwaySettings data);
 	[[nodiscard]] AwaySettings awaySettings() const;
 	[[nodiscard]] bool awaySettingsLoaded() const;
 	[[nodiscard]] rpl::producer<> awaySettingsChanged() const;
 
-	void saveGreetingSettings(GreetingSettings data);
+	void saveGreetingSettings(
+		GreetingSettings data,
+		Fn<void(QString)> fail);
 	void applyGreetingSettings(GreetingSettings data);
 	[[nodiscard]] GreetingSettings greetingSettings() const;
 	[[nodiscard]] bool greetingSettingsLoaded() const;

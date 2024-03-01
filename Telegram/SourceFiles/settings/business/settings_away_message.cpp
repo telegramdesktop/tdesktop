@@ -213,7 +213,9 @@ void AwayMessage::setupContent(
 	const auto current = info->awaySettings();
 	const auto disabled = (current.schedule.type == AwayScheduleType::Never);
 
-	_recipients = current.recipients;
+	_recipients = disabled
+		? Data::BusinessRecipients{ .allButExcluded = true }
+		: current.recipients;
 	auto initialSchedule = disabled ? AwaySchedule{
 		.type = AwayScheduleType::Always,
 	} : current.schedule;
@@ -340,14 +342,25 @@ void AwayMessage::setupContent(
 }
 
 void AwayMessage::save() {
+	const auto show = controller()->uiShow();
 	const auto session = &controller()->session();
+	const auto fail = [=](QString error) {
+		if (error == u"BUSINESS_RECIPIENTS_EMPTY"_q) {
+			AssertIsDebug();
+			show->showToast(u"Please choose at least one recipient."_q);
+			//tr::lng_greeting_recipients_empty(tr::now));
+		} else if (error != u"SHORTCUT_INVALID"_q) {
+			show->showToast(error);
+		}
+	};
 	session->data().businessInfo().saveAwaySettings(
 		_enabled.current() ? Data::AwaySettings{
 			.recipients = _recipients.current(),
 			.schedule = _schedule.current(),
 			.shortcutId = LookupShortcutId(session, u"away"_q),
 			.offlineOnly = _offlineOnly.current(),
-		} : Data::AwaySettings());
+		} : Data::AwaySettings(),
+		fail);
 }
 
 } // namespace

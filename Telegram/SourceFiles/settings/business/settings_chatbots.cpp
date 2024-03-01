@@ -189,12 +189,20 @@ void Chatbots::setupContent(
 }
 
 void Chatbots::save() {
-	const auto settings = Data::ChatbotsSettings{
+	const auto show = controller()->uiShow();
+	const auto session = &controller()->session();
+	const auto fail = [=](QString error) {
+		if (error == u"BUSINESS_RECIPIENTS_EMPTY"_q) {
+			AssertIsDebug();
+			show->showToast(u"Please choose at least one recipient."_q);
+			//tr::lng_greeting_recipients_empty(tr::now));
+		}
+	};
+	controller()->session().data().chatbots().save({
 		.bot = _botValue.current().bot,
 		.recipients = _recipients.current(),
 		.repliesAllowed = _repliesAllowed.current(),
-	};
-	controller()->session().data().chatbots().save(settings);
+	}, [=](QString error) { show->showToast(error); });
 }
 
 } // namespace

@@ -118,20 +118,31 @@ BusinessInfo::BusinessInfo(not_null<Session*> owner)
 
 BusinessInfo::~BusinessInfo() = default;
 
-void BusinessInfo::saveWorkingHours(WorkingHours data) {
-	auto details = _owner->session().user()->businessDetails();
-	if (details.hours == data) {
+void BusinessInfo::saveWorkingHours(
+		WorkingHours data,
+		Fn<void(QString)> fail) {
+	const auto session = &_owner->session();
+	auto details = session->user()->businessDetails();
+	const auto &was = details.hours;
+	if (was == data) {
 		return;
 	}
 
 	using Flag = MTPaccount_UpdateBusinessWorkHours::Flag;
-	_owner->session().api().request(MTPaccount_UpdateBusinessWorkHours(
+	session->api().request(MTPaccount_UpdateBusinessWorkHours(
 		MTP_flags(data ? Flag::f_business_work_hours : Flag()),
 		ToMTP(data)
-	)).send();
+	)).fail([=](const MTP::Error &error) {
+		auto details = session->user()->businessDetails();
+		details.hours = was;
+		session->user()->setBusinessDetails(std::move(details));
+		if (fail) {
+			fail(error.type());
+		}
+	}).send();
 
 	details.hours = std::move(data);
-	_owner->session().user()->setBusinessDetails(std::move(details));
+	session->user()->setBusinessDetails(std::move(details));
 }
 
 void BusinessInfo::applyAwaySettings(AwaySettings data) {
@@ -142,15 +153,25 @@ void BusinessInfo::applyAwaySettings(AwaySettings data) {
 	_awaySettingsChanged.fire({});
 }
 
-void BusinessInfo::saveAwaySettings(AwaySettings data) {
-	if (_awaySettings == data) {
+void BusinessInfo::saveAwaySettings(
+		AwaySettings data,
+		Fn<void(QString)> fail) {
+	const auto &was = _awaySettings;
+	if (was == data) {
 		return;
 	}
 	using Flag = MTPaccount_UpdateBusinessAwayMessage::Flag;
-	_owner->session().api().request(MTPaccount_UpdateBusinessAwayMessage(
+	const auto session = &_owner->session();
+	session->api().request(MTPaccount_UpdateBusinessAwayMessage(
 		MTP_flags(data ? Flag::f_message : Flag()),
 		data ? ToMTP(data) : MTPInputBusinessAwayMessage()
-	)).send();
+	)).fail([=](const MTP::Error &error) {
+		_awaySettings = was;
+		_awaySettingsChanged.fire({});
+		if (fail) {
+			fail(error.type());
+		}
+	}).send();
 
 	_awaySettings = std::move(data);
 	_awaySettingsChanged.fire({});
@@ -176,15 +197,25 @@ void BusinessInfo::applyGreetingSettings(GreetingSettings data) {
 	_greetingSettingsChanged.fire({});
 }
 
-void BusinessInfo::saveGreetingSettings(GreetingSettings data) {
-	if (_greetingSettings == data) {
+void BusinessInfo::saveGreetingSettings(
+		GreetingSettings data,
+		Fn<void(QString)> fail) {
+	const auto &was = _greetingSettings;
+	if (was == data) {
 		return;
 	}
 	using Flag = MTPaccount_UpdateBusinessGreetingMessage::Flag;
-	_owner->session().api().request(MTPaccount_UpdateBusinessGreetingMessage(
-		MTP_flags(data ? Flag::f_message : Flag()),
-		data ? ToMTP(data) : MTPInputBusinessGreetingMessage()
-	)).send();
+	_owner->session().api().request(
+		MTPaccount_UpdateBusinessGreetingMessage(
+			MTP_flags(data ? Flag::f_message : Flag()),
+			data ? ToMTP(data) : MTPInputBusinessGreetingMessage())
+	).fail([=](const MTP::Error &error) {
+		_greetingSettings = was;
+		_greetingSettingsChanged.fire({});
+		if (fail) {
+			fail(error.type());
+		}
+	}).send();
 
 	_greetingSettings = std::move(data);
 	_greetingSettingsChanged.fire({});

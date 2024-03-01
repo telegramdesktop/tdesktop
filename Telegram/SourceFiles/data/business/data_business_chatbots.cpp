@@ -27,7 +27,7 @@ rpl::producer<ChatbotsSettings> Chatbots::value() const {
 	return _settings.value();
 }
 
-void Chatbots::save(ChatbotsSettings settings) {
+void Chatbots::save(ChatbotsSettings settings, Fn<void(QString)> fail) {
 	_settings = settings;
 }
 

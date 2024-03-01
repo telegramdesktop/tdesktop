@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/business/settings_shortcut_messages.h"
 #include "settings/business/settings_recipients_helper.h"
+#include "ui/boxes/time_picker_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -73,92 +74,22 @@ void EditPeriodBox(
 		not_null<Ui::GenericBox*> box,
 		int days,
 		Fn<void(int)> save) {
-	auto values = base::flat_set<int>{ 7, 14, 21, 28 };
-	if (!values.contains(days)) {
-		values.emplace(days);
+	auto values = std::vector{ 7, 14, 21, 28 };
+	if (!ranges::contains(values, days)) {
+		values.push_back(days);
+		ranges::sort(values);
 	}
-	const auto startIndex = int(values.find(days) - begin(values));
 
-	const auto content = box->addRow(object_ptr<Ui::FixedHeightWidget>(
-		box,
-		st::settingsWorkingHoursPicker));
-
-	const auto font = st::boxTextFont;
-	const auto itemHeight = st::settingsWorkingHoursPickerItemHeight;
-	auto paintCallback = [=](
-			QPainter &p,
-			int index,
-			float64 y,
-			float64 distanceFromCenter,
-			int outerWidth) {
-		const auto r = QRectF(0, y, outerWidth, itemHeight);
-		const auto progress = std::abs(distanceFromCenter);
-		const auto revProgress = 1. - progress;
-		p.save();
-		p.translate(r.center());
-		constexpr auto kMinYScale = 0.2;
-		const auto yScale = kMinYScale
-			+ (1. - kMinYScale) * anim::easeOutCubic(1., revProgress);
-		p.scale(1., yScale);
-		p.translate(-r.center());
-		p.setOpacity(revProgress);
-		p.setFont(font);
-		p.setPen(st::defaultFlatLabel.textFg);
-		p.drawText(
-			r,
-			tr::lng_days(tr::now, lt_count, *(values.begin() + index)),
-			style::al_center);
-		p.restore();
-	};
-
-	const auto picker = Ui::CreateChild<Ui::VerticalDrumPicker>(
-		content,
-		std::move(paintCallback),
-		int(values.size()),
-		itemHeight,
-		startIndex);
-
-	content->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		picker->resize(s.width(), s.height());
-		picker->moveToLeft((s.width() - picker->width()) / 2, 0);
-	}, content->lifetime());
-
-	content->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
-		auto p = QPainter(content);
-
-		p.fillRect(r, Qt::transparent);
-
-		const auto lineRect = QRect(
-			0,
-			content->height() / 2,
-			content->width(),
-			st::defaultInputField.borderActive);
-		p.fillRect(lineRect.translated(0, itemHeight / 2), st::activeLineFg);
-		p.fillRect(lineRect.translated(0, -itemHeight / 2), st::activeLineFg);
-	}, content->lifetime());
-
-	base::install_event_filter(content, [=](not_null<QEvent*> e) {
-		if ((e->type() == QEvent::MouseButtonPress)
-			|| (e->type() == QEvent::MouseButtonRelease)
-			|| (e->type() == QEvent::MouseMove)) {
-			picker->handleMouseEvent(static_cast<QMouseEvent*>(e.get()));
-		} else if (e->type() == QEvent::Wheel) {
-			picker->handleWheelEvent(static_cast<QWheelEvent*>(e.get()));
-		}
-		return base::EventFilterResult::Continue;
-	});
-	base::install_event_filter(box, [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::KeyPress) {
-			picker->handleKeyEvent(static_cast<QKeyEvent*>(e.get()));
-		}
-		return base::EventFilterResult::Continue;
-	});
+	const auto phrases = ranges::views::all(
+		values
+	) | ranges::views::transform([](int days) {
+		return tr::lng_days(tr::now, lt_count, days);
+	}) | ranges::to_vector;
+	const auto take = TimePickerBox(box, values, phrases, days);
 
 	box->addButton(tr::lng_settings_save(), [=] {
 		const auto weak = Ui::MakeWeak(box);
-		save(*(begin(values) + picker->index()));
+		save(take());
 		if (const auto strong = weak.data()) {
 			strong->closeBox();
 		}
@@ -187,7 +118,9 @@ void Greeting::setupContent(
 	const auto current = info->greetingSettings();
 	const auto disabled = !current.noActivityDays;
 
-	_recipients = current.recipients;
+	_recipients = disabled
+		? Data::BusinessRecipients{ .allButExcluded = true }
+		: current.recipients;
 	_noActivityDays = disabled
 		? kDefaultNoActivityDays
 		: current.noActivityDays;
@@ -326,13 +259,24 @@ void Greeting::setupContent(
 }
 
 void Greeting::save() {
+	const auto show = controller()->uiShow();
 	const auto session = &controller()->session();
+	const auto fail = [=](QString error) {
+		if (error == u"BUSINESS_RECIPIENTS_EMPTY"_q) {
+			AssertIsDebug();
+			show->showToast(u"Please choose at least one recipient."_q);
+			//tr::lng_greeting_recipients_empty(tr::now));
+		} else if (error != u"SHORTCUT_INVALID"_q) {
+			show->showToast(error);
+		}
+	};
 	session->data().businessInfo().saveGreetingSettings(
 		_enabled.current() ? Data::GreetingSettings{
 			.recipients = _recipients.current(),
 			.noActivityDays = _noActivityDays.current(),
 			.shortcutId = LookupShortcutId(session, u"hello"_q),
-		} : Data::GreetingSettings());
+		} : Data::GreetingSettings(),
+		fail);
 }
 
 } // namespace

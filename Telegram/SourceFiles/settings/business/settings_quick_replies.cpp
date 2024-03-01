@@ -41,7 +41,6 @@ public:
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
-	void save();
 
 	rpl::variable<int> _count;
 
@@ -54,11 +53,7 @@ QuickReplies::QuickReplies(
 	setupContent(controller);
 }
 
-QuickReplies::~QuickReplies() {
-	if (!Core::Quitting()) {
-		save();
-	}
-}
+QuickReplies::~QuickReplies() = default;
 
 rpl::producer<QString> QuickReplies::title() {
 	return tr::lng_replies_title();
@@ -158,9 +153,6 @@ void QuickReplies::setupContent(
 	}, content->lifetime());
 
 	Ui::ResizeFitChild(this, content);
-}
-
-void QuickReplies::save() {
 }
 
 } // namespace

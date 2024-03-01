@@ -673,8 +673,10 @@ void WorkingHours::setupContent(
 }
 
 void WorkingHours::save() {
+	const auto show = controller()->uiShow();
 	controller()->session().data().businessInfo().saveWorkingHours(
-		_enabled.current() ? _hours.current() : Data::WorkingHours());
+		_enabled.current() ? _hours.current() : Data::WorkingHours(),
+		[=](QString error) { show->showToast(error); });
 }
 
 } // namespace
