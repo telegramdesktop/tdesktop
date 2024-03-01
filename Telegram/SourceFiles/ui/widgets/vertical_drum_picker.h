@@ -75,7 +75,7 @@ private:
 
 	PaintItemCallback _paintCallback;
 
-	int _pendingStartIndex = 0;
+	int _pendingStartIndex = -1;
 
 	struct {
 		int count = 0;

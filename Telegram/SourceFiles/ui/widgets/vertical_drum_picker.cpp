@@ -82,9 +82,10 @@ VerticalDrumPicker::VerticalDrumPicker(
 	) | rpl::start_with_next([=](const QSize &s) {
 		_itemsVisible.count = std::ceil(float64(s.height()) / _itemHeight);
 		_itemsVisible.centerOffset = _itemsVisible.count / 2;
-		if (_pendingStartIndex && _itemsVisible.count) {
-			_index = normalizedIndex(base::take(_pendingStartIndex)
+		if ((_pendingStartIndex >= 0) && _itemsVisible.count) {
+			_index = normalizedIndex(_pendingStartIndex
 				- _itemsVisible.centerOffset);
+			_pendingStartIndex = -1;
 		}
 
 		if (!_loopData.looped) {
