@@ -102,7 +102,7 @@ public:
 	}
 	virtual void selectionAction(Info::SelectionAction action) {
 	}
-	[[nodiscard]] virtual void fillTopBarMenu(
+	virtual void fillTopBarMenu(
 		const Ui::Menu::MenuCallback &addAction) {
 	}
 

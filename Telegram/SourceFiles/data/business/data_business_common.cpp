@@ -149,7 +149,7 @@ WorkingIntervals ReplaceDayIntervals(
 		end(result.list),
 		begin(replacement.list),
 		end(replacement.list));
-	for (auto &interval : ranges::subrange(first, end(result.list))) {
+	for (auto &interval : ranges::make_subrange(first, end(result.list))) {
 		interval = interval.shifted(dayIndex * kDay);
 	}
 	return result.normalized();

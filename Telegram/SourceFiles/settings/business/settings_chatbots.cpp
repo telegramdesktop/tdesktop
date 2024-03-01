@@ -47,7 +47,7 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
-	const Ui::RoundRect *bottomSkipRounding() const {
+	const Ui::RoundRect *bottomSkipRounding() const override {
 		return &_bottomSkipRounding;
 	}
 
@@ -59,7 +59,7 @@ private:
 
 	rpl::variable<Data::BusinessRecipients> _recipients;
 	rpl::variable<QString> _usernameValue;
-	rpl::variable<BotState> _botValue = nullptr;
+	rpl::variable<BotState> _botValue;
 	rpl::variable<bool> _repliesAllowed = true;
 
 };

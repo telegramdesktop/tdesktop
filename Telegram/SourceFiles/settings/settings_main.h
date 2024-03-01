@@ -38,7 +38,7 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
-	[[nodiscard]] void fillTopBarMenu(
+	void fillTopBarMenu(
 		const Ui::Menu::MenuCallback &addAction) override;
 
 protected:

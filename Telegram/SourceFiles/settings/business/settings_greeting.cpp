@@ -44,7 +44,7 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
-	const Ui::RoundRect *bottomSkipRounding() const {
+	const Ui::RoundRect *bottomSkipRounding() const override {
 		return &_bottomSkipRounding;
 	}
 
@@ -157,7 +157,7 @@ void Greeting::setupContent(
 	_enabled.value() | rpl::filter(_1) | rpl::start_with_next([=] {
 		if (!_canHave.current()) {
 			controller->showToast({
-				.text = tr::lng_greeting_limit_reached(tr::now),
+				.text = { tr::lng_greeting_limit_reached(tr::now) },
 				.adaptive = true,
 			});
 			_deactivateOnAttempt.fire({});

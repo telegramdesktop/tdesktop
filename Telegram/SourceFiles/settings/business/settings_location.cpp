@@ -32,7 +32,7 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
-	const Ui::RoundRect *bottomSkipRounding() const {
+	const Ui::RoundRect *bottomSkipRounding() const override {
 		return mapSupported() ? nullptr : &_bottomSkipRounding;
 	}
 

@@ -462,7 +462,7 @@ void AddWeekButton(
 		[=] { toggleButton->update(); });
 
 	auto status = data->value(
-	) | rpl::map([=](const Data::WorkingHours &data) {
+	) | rpl::map([=](const Data::WorkingHours &data) -> rpl::producer<QString> {
 		using namespace Data;
 
 		const auto intervals = ExtractDayIntervals(data.intervals, index);

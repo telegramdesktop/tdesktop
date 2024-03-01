@@ -79,7 +79,7 @@ public:
 	[[nodiscard]] rpl::producer<Type> sectionShowOther() final override {
 		return _showOtherRequests.events();
 	}
-	[[nodiscard]] void showOther(Type type) {
+	void showOther(Type type) {
 		_showOtherRequests.fire_copy(type);
 	}
 	[[nodiscard]] Fn<void(Type)> showOtherMethod() {
