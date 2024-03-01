@@ -2226,6 +2226,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_greeting_empty_title" = "New Greeting Message";
 "lng_greeting_empty_about" = "Create greetings that will be automatically sent to new customers.";
 "lng_greeting_message_placeholder" = "Add a Greeting";
+"lng_greeting_limit_reached" = "You have too many quick replies. Remove one to add a greeting message.";
 
 "lng_away_title" = "Away Message";
 "lng_away_about" = "Automatically reply with a message when you are away.";
@@ -2242,7 +2243,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_away_empty_title" = "New Away Message";
 "lng_away_empty_about" = "Add messages that will be automatically sent when you are off.";
 "lng_away_message_placeholder" = "Add an Away Message";
+"lng_away_limit_reached" = "You have too many quick replies. Remove one to add an away message.";
 
+"lng_business_edit_messages" = "Edit messages";
 "lng_business_limit_reached#one" = "Limit of {count} message reached.";
 "lng_business_limit_reached#other" = "Limit of {count} messages reached.";
 

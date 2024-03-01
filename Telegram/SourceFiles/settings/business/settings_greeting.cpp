@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/business/settings_recipients_helper.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/vertical_drum_picker.h"
@@ -53,6 +54,8 @@ private:
 	Ui::RoundRect _bottomSkipRounding;
 
 	rpl::variable<Data::BusinessRecipients> _recipients;
+	rpl::variable<bool> _canHave;
+	rpl::event_stream<> _deactivateOnAttempt;
 	rpl::variable<int> _noActivityDays;
 	rpl::variable<bool> _enabled;
 
@@ -198,14 +201,35 @@ void Greeting::setupContent(
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
 
+	const auto session = &controller->session();
+	_canHave = rpl::combine(
+		ShortcutsCountValue(session),
+		ShortcutsLimitValue(session),
+		ShortcutExistsValue(session, u"hello"_q),
+		(_1 < _2) || _3);
+
 	Ui::AddSkip(content);
 	const auto enabled = content->add(object_ptr<Ui::SettingsButton>(
 		content,
 		tr::lng_greeting_enable(),
 		st::settingsButtonNoIcon
-	))->toggleOn(rpl::single(!disabled));
+	))->toggleOn(rpl::single(
+		!disabled
+	) | rpl::then(rpl::merge(
+		_canHave.value() | rpl::filter(!_1),
+		_deactivateOnAttempt.events() | rpl::map_to(false)
+	)));
 
 	_enabled = enabled->toggledValue();
+	_enabled.value() | rpl::filter(_1) | rpl::start_with_next([=] {
+		if (!_canHave.current()) {
+			controller->showToast({
+				.text = tr::lng_greeting_limit_reached(tr::now),
+				.adaptive = true,
+			});
+			_deactivateOnAttempt.fire({});
+		}
+	}, lifetime());
 
 	Ui::AddSkip(content);
 
@@ -237,11 +261,21 @@ void Greeting::setupContent(
 			object_ptr<Ui::VerticalLayout>(inner)));
 	const auto createInner = createWrap->entity();
 	Ui::AddSkip(createInner);
-	const auto create = createInner->add(object_ptr<Ui::SettingsButton>(
+	const auto create = AddButtonWithLabel(
 		createInner,
-		tr::lng_greeting_create(),
-		st::settingsButtonLightNoIcon
-	));
+		rpl::conditional(
+			ShortcutExistsValue(session, u"hello"_q),
+			tr::lng_business_edit_messages(),
+			tr::lng_greeting_create()),
+		ShortcutMessagesCountValue(
+			session,
+			u"hello"_q
+		) | rpl::map([=](int count) {
+			return count
+				? tr::lng_forum_messages(tr::now, lt_count, count)
+				: QString();
+		}),
+		st::settingsButtonLightNoIcon);
 	create->setClickedCallback([=] {
 		const auto owner = &controller->session().data();
 		const auto id = owner->shortcutMessages().emplaceShortcut("hello");

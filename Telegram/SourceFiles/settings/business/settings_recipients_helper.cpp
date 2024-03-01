@@ -9,10 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/filters/edit_filter_chats_list.h"
 #include "boxes/filters/edit_filter_chats_preview.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
@@ -288,6 +292,85 @@ void AddBusinessRecipientsSelector(
 		change([&](Data::BusinessRecipients &data) {
 			data.allButExcluded = (value == kAllExcept);
 		});
+	});
+}
+
+int ShortcutsCount(not_null<Main::Session*> session) {
+	const auto &shortcuts = session->data().shortcutMessages().shortcuts();
+	auto result = 0;
+	for (const auto &[_, shortcut] : shortcuts.list) {
+		if (shortcut.count > 0) {
+			++result;
+		}
+	}
+	return result;
+}
+
+rpl::producer<int> ShortcutsCountValue(not_null<Main::Session*> session) {
+	const auto messages = &session->data().shortcutMessages();
+	return rpl::single(rpl::empty) | rpl::then(
+		messages->shortcutsChanged()
+	) | rpl::map([=] {
+		return ShortcutsCount(session);
+	});
+}
+
+int ShortcutMessagesCount(
+		not_null<Main::Session*> session,
+		const QString &name) {
+	const auto &shortcuts = session->data().shortcutMessages().shortcuts();
+	for (const auto &[_, shortcut] : shortcuts.list) {
+		if (shortcut.name == name) {
+			return shortcut.count;
+		}
+	}
+	return 0;
+}
+
+rpl::producer<int> ShortcutMessagesCountValue(
+		not_null<Main::Session*> session,
+		const QString &name) {
+	const auto messages = &session->data().shortcutMessages();
+	return rpl::single(rpl::empty) | rpl::then(
+		messages->shortcutsChanged()
+	) | rpl::map([=] {
+		return ShortcutMessagesCount(session, name);
+	});
+}
+
+bool ShortcutExists(not_null<Main::Session*> session, const QString &name) {
+	return ShortcutMessagesCount(session, name) > 0;
+}
+
+rpl::producer<bool> ShortcutExistsValue(
+		not_null<Main::Session*> session,
+		const QString &name) {
+	return ShortcutMessagesCountValue(session, name)
+		| rpl::map(rpl::mappers::_1 > 0);
+}
+
+int ShortcutsLimit(not_null<Main::Session*> session) {
+	const auto appConfig = &session->account().appConfig();
+	return appConfig->get<int>("quick_replies_limit", 100);
+}
+
+rpl::producer<int> ShortcutsLimitValue(not_null<Main::Session*> session) {
+	const auto appConfig = &session->account().appConfig();
+	return appConfig->value() | rpl::map([=] {
+		return ShortcutsLimit(session);
+	});
+}
+
+int ShortcutMessagesLimit(not_null<Main::Session*> session) {
+	const auto appConfig = &session->account().appConfig();
+	return appConfig->get<int>("quick_reply_messages_limit", 20);
+}
+
+rpl::producer<int> ShortcutMessagesLimitValue(
+		not_null<Main::Session*> session) {
+	const auto appConfig = &session->account().appConfig();
+	return appConfig->value() | rpl::map([=] {
+		return ShortcutMessagesLimit(session);
 	});
 }
 

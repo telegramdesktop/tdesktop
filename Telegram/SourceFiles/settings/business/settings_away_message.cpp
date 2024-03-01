@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/business/settings_shortcut_messages.h"
 #include "ui/boxes/choose_date_time.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
@@ -43,6 +44,8 @@ private:
 	void setupContent(not_null<Window::SessionController*> controller);
 	void save();
 
+	rpl::variable<bool> _canHave;
+	rpl::event_stream<> _deactivateOnAttempt;
 	rpl::variable<Data::BusinessRecipients> _recipients;
 	rpl::variable<Data::AwaySchedule> _schedule;
 	rpl::variable<bool> _enabled;
@@ -231,13 +234,35 @@ void AwayMessage::setupContent(
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
 
+	const auto session = &controller->session();
+	_canHave = rpl::combine(
+		ShortcutsCountValue(session),
+		ShortcutsLimitValue(session),
+		ShortcutExistsValue(session, u"away"_q),
+		(_1 < _2) || _3);
+
 	Ui::AddSkip(content);
 	const auto enabled = content->add(object_ptr<Ui::SettingsButton>(
 		content,
 		tr::lng_away_enable(),
 		st::settingsButtonNoIcon
-	))->toggleOn(rpl::single(!disabled));
+	))->toggleOn(rpl::single(
+		!disabled
+	) | rpl::then(rpl::merge(
+		_canHave.value() | rpl::filter(!_1),
+		_deactivateOnAttempt.events() | rpl::map_to(false)
+	)));
+
 	_enabled = enabled->toggledValue();
+	_enabled.value() | rpl::filter(_1) | rpl::start_with_next([=] {
+		if (!_canHave.current()) {
+			controller->showToast({
+				.text = tr::lng_away_limit_reached(tr::now),
+				.adaptive = true,
+			});
+			_deactivateOnAttempt.fire({});
+		}
+	}, lifetime());
 
 	const auto wrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -254,11 +279,21 @@ void AwayMessage::setupContent(
 			object_ptr<Ui::VerticalLayout>(inner)));
 	const auto createInner = createWrap->entity();
 	Ui::AddSkip(createInner);
-	const auto create = createInner->add(object_ptr<Ui::SettingsButton>(
+	const auto create = AddButtonWithLabel(
 		createInner,
-		tr::lng_away_create(),
-		st::settingsButtonLightNoIcon
-	));
+		rpl::conditional(
+			ShortcutExistsValue(session, u"away"_q),
+			tr::lng_business_edit_messages(),
+			tr::lng_away_create()),
+		ShortcutMessagesCountValue(
+			session,
+			u"away"_q
+		) | rpl::map([=](int count) {
+			return count
+				? tr::lng_forum_messages(tr::now, lt_count, count)
+				: QString();
+		}),
+		st::settingsButtonLightNoIcon);
 	create->setClickedCallback([=] {
 		const auto owner = &controller->session().data();
 		const auto id = owner->shortcutMessages().emplaceShortcut("away");

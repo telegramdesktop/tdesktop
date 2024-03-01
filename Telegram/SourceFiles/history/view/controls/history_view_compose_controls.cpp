@@ -2347,6 +2347,7 @@ void SetupRestrictionView(
 			});
 			state->label = makeLabel(value.text, st->premiumRequired.label);
 		}
+		state->updateGeometries();
 	}, widget->lifetime());
 
 	widget->sizeValue(

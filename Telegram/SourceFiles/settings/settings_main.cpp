@@ -446,10 +446,6 @@ void SetupPremium(
 		button->addClickHandler([=] {
 			controller->showGiftPremiumsBox(u"gift"_q);
 		});
-		constexpr auto kNewExpiresAt = int(1735689600);
-		if (base::unixtime::now() < kNewExpiresAt) {
-			Ui::NewBadge::AddToRight(button);
-		}
 	}
 	Ui::AddSkip(container);
 }

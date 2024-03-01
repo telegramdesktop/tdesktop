@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_shortcut_messages.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "settings/business/settings_recipients_helper.h"
 #include "settings/business/settings_shortcut_messages.h"
@@ -41,6 +42,8 @@ public:
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 	void save();
+
+	rpl::variable<int> _count;
 
 };
 
@@ -75,29 +78,47 @@ void QuickReplies::setupContent(
 		.about = tr::lng_replies_about(Ui::Text::WithEntities),
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
-
 	Ui::AddSkip(content);
-	const auto add = content->add(object_ptr<Ui::SettingsButton>(
-		content,
-		tr::lng_replies_add(),
-		st::settingsButtonNoIcon
-	));
+
+	const auto addWrap = content->add(
+		object_ptr<Ui::VerticalLayout>(content));
 
 	const auto owner = &controller->session().data();
 	const auto messages = &owner->shortcutMessages();
 
-	add->setClickedCallback([=] {
-		const auto submit = [=](QString name, Fn<void()> close) {
-			const auto id = messages->emplaceShortcut(name);
-			showOther(ShortcutMessagesId(id));
-			close();
-		};
-		controller->show(
-			Box(EditShortcutNameBox, QString(), crl::guard(this, submit)));
-	});
+	rpl::combine(
+		_count.value(),
+		ShortcutsLimitValue(&controller->session())
+	) | rpl::start_with_next([=](int count, int limit) {
+		while (addWrap->count()) {
+			delete addWrap->widgetAt(0);
+		}
+		if (count < limit) {
+			const auto add = addWrap->add(object_ptr<Ui::SettingsButton>(
+				addWrap,
+				tr::lng_replies_add(),
+				st::settingsButtonNoIcon
+			));
 
-	const auto dividerWrap = content->add(
-		object_ptr<Ui::VerticalLayout>(content));
+			add->setClickedCallback([=] {
+				const auto submit = [=](QString name, Fn<void()> close) {
+					const auto id = messages->emplaceShortcut(name);
+					showOther(ShortcutMessagesId(id));
+					close();
+				};
+				controller->show(
+					Box(EditShortcutNameBox, QString(), crl::guard(this, submit)));
+			});
+			if (count > 0) {
+				AddSkip(addWrap);
+				AddDivider(addWrap);
+				AddSkip(addWrap);
+			}
+		}
+		if (const auto width = content->width()) {
+			content->resizeToWidth(width);
+		}
+	}, lifetime());
 
 	const auto inner = content->add(
 		object_ptr<Ui::VerticalLayout>(content));
@@ -108,7 +129,8 @@ void QuickReplies::setupContent(
 
 		const auto &shortcuts = messages->shortcuts();
 		auto i = 0;
-		for (const auto &[_, shortcut] : shortcuts.list) {
+		for (const auto &[_, shortcut]
+			: shortcuts.list | ranges::views::reverse) {
 			if (!shortcut.count) {
 				continue;
 			}
@@ -132,18 +154,7 @@ void QuickReplies::setupContent(
 		while (old--) {
 			delete inner->widgetAt(0);
 		}
-		if (!inner->count()) {
-			while (dividerWrap->count()) {
-				delete dividerWrap->widgetAt(0);
-			}
-		} else if (!dividerWrap->count()) {
-			AddSkip(dividerWrap);
-			AddDivider(dividerWrap);
-			AddSkip(dividerWrap);
-		}
-		if (const auto width = content->width()) {
-			content->resizeToWidth(width);
-		}
+		_count = inner->count();
 	}, content->lifetime());
 
 	Ui::ResizeFitChild(this, content);

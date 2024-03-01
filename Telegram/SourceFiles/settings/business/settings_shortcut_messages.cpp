@@ -35,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_numbers_animation.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "menu/menu_send.h"
 #include "settings/business/settings_quick_replies.h"
@@ -259,6 +261,7 @@ private:
 	rpl::variable<BusinessShortcutId> _shortcutId;
 	rpl::variable<QString> _shortcut;
 	rpl::variable<Container> _container;
+	rpl::variable<int> _count;
 	std::shared_ptr<Ui::ChatStyle> _style;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 	QPointer<ListWidget> _inner;
@@ -618,9 +621,22 @@ void ShortcutMessages::setupComposeControls() {
 	};
 	_composeControls->setCurrentDialogsEntryState(state);
 
+	auto writeRestriction = rpl::combine(
+		_count.value(),
+		ShortcutMessagesLimitValue(_session)
+	) | rpl::map([=](int count, int limit) {
+		return (count >= limit)
+			? Controls::WriteRestriction{
+				.text = tr::lng_business_limit_reached(
+					tr::now,
+					lt_count,
+					limit),
+				.type = Controls::WriteRestrictionType::Rights,
+			} : Controls::WriteRestriction();
+	});
 	_composeControls->setHistory({
 		.history = _history.get(),
-		.writeRestriction = rpl::single(Controls::WriteRestriction()),
+		.writeRestriction = std::move(writeRestriction),
 	});
 
 	_composeControls->cancelRequests(
@@ -831,7 +847,11 @@ rpl::producer<Data::MessagesSlice> ShortcutMessages::listSource(
 		) | rpl::map([=] {
 			return messages->list(shortcutId);
 		});
-	}) | rpl::flatten_latest();
+	}) | rpl::flatten_latest(
+	) | rpl::after_next([=](const Data::MessagesSlice &slice) {
+		_count = slice.fullCount.value_or(
+			messages->count(_shortcutId.current()));
+	});
 }
 
 bool ShortcutMessages::listAllowsMultiSelect() {
