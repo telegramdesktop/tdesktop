@@ -3132,6 +3132,7 @@ void ApiWrap::sharedMediaDone(
 	if (topicRootId && !topic) {
 		return;
 	}
+	const auto hasMessages = !parsed.messageIds.empty();
 	_session->storage().add(Storage::SharedMediaAddSlice(
 		peer->id,
 		topicRootId,
@@ -3140,7 +3141,7 @@ void ApiWrap::sharedMediaDone(
 		parsed.noSkipRange,
 		parsed.fullCount
 	));
-	if (type == SharedMediaType::Pinned && !parsed.messageIds.empty()) {
+	if (type == SharedMediaType::Pinned && hasMessages) {
 		peer->owner().history(peer)->setHasPinnedMessages(true);
 		if (topic) {
 			topic->setHasPinnedMessages(true);
