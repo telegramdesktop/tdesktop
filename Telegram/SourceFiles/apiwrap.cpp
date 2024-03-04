@@ -953,6 +953,7 @@ void ApiWrap::requestMoreDialogsIfNeeded() {
 		}
 	}
 	requestContacts();
+	_session->data().shortcutMessages().preloadShortcuts();
 }
 
 void ApiWrap::updateDialogsOffset(
@@ -3604,6 +3605,17 @@ void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
 	if (const auto groupId = item->groupId()) {
 		sendAlbumWithCancelled(item, groupId);
 	}
+}
+
+void ApiWrap::sendShortcutMessages(
+		not_null<PeerData*> peer,
+		BusinessShortcutId id) {
+	request(MTPmessages_SendQuickReplyMessages(
+		peer->input,
+		MTP_int(id)
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+	}).send();
 }
 
 void ApiWrap::sendMessage(MessageToSend &&message) {

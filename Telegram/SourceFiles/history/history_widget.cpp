@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
@@ -431,7 +432,20 @@ HistoryWidget::HistoryWidget(
 
 	_fieldAutocomplete->botCommandChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::BotCommandChosen data) {
-		insertHashtagOrBotCommand(data.command, data.method);
+		using Method = FieldAutocomplete::ChooseMethod;
+		const auto messages = &data.user->owner().shortcutMessages();
+		const auto shortcutId = (_peer
+			&& data.user->isSelf()
+			&& data.method != Method::ByTab)
+			? messages->lookupShortcutId(data.command.mid(1))
+			: BusinessShortcutId();
+		if (shortcutId) {
+			session().api().sendShortcutMessages(_peer, shortcutId);
+			session().api().finishForwarding(prepareSendAction({}));
+			setFieldText(_field->getTextWithTagsPart(_field->textCursor().position()));
+		} else {
+			insertHashtagOrBotCommand(data.command, data.method);
+		}
 	}, lifetime());
 
 	_fieldAutocomplete->setModerateKeyActivateCallback([=](int key) {
@@ -1410,9 +1424,14 @@ AutocompleteQuery HistoryWidget::parseMentionHashtagBotCommandQuery() const {
 	} else if (result.query[0] == '@'
 		&& cRecentInlineBots().isEmpty()) {
 		session().local().readRecentHashtagsAndBots();
-	} else if (result.query[0] == '/'
-		&& ((_peer->isUser() && !_peer->asUser()->isBot()) || _editMsgId)) {
-		return AutocompleteQuery();
+	} else if (result.query[0] == '/') {
+		if (_editMsgId) {
+			return {};
+		} else if (_peer->isUser()
+			&& !_peer->asUser()->isBot()
+			&& _peer->owner().shortcutMessages().shortcuts().list.empty()) {
+			return {};
+		}
 	}
 	return result;
 }

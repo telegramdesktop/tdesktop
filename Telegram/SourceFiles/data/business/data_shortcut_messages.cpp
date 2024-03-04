@@ -497,6 +497,16 @@ Shortcut ShortcutMessages::lookupShortcut(BusinessShortcutId id) const {
 	return i->second;
 }
 
+BusinessShortcutId ShortcutMessages::lookupShortcutId(
+		const QString &name) const {
+	for (const auto &[id, shortcut] : _shortcuts.list) {
+		if (!shortcut.name.compare(name, Qt::CaseInsensitive)) {
+			return id;
+		}
+	}
+	return {};
+}
+
 void ShortcutMessages::editShortcut(
 		BusinessShortcutId id,
 		QString name,

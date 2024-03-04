@@ -96,6 +96,7 @@ public:
 		ChooseMethod method = ChooseMethod::ByEnter;
 	};
 	struct BotCommandChosen {
+		not_null<UserData*> user;
 		QString command;
 		ChooseMethod method = ChooseMethod::ByEnter;
 	};

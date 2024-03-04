@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/field_autocomplete.h"
 
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_channel.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
 #include "media/clip/media_clip_reader.h"
 #include "ui/widgets/popup_menu.h"
@@ -634,6 +636,27 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 						brows.push_back(make(user, command));
 					}
 				}
+			}
+		}
+		const auto shortcuts = _user
+			? _user->owner().shortcutMessages().shortcuts().list
+			: base::flat_map<BusinessShortcutId, Data::Shortcut>();
+		if (!hasUsername && !shortcuts.empty()) {
+			const auto self = _user->session().user();
+			for (const auto &[id, shortcut] : shortcuts) {
+				if (shortcut.count < 1) {
+					continue;
+				} else if (!listAllSuggestions) {
+					if (!shortcut.name.startsWith(_filter, Qt::CaseInsensitive)) {
+						continue;
+					}
+				}
+				brows.push_back(BotCommandRow{
+					self,
+					shortcut.name,
+					tr::lng_forum_messages(tr::now, lt_count, shortcut.count),
+					self->activeUserpicView()
+				});
 			}
 		}
 	}
@@ -1247,7 +1270,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 				command,
 				insertUsername ? ('@' + PrimaryUsername(user)) : QString());
 
-			_botCommandChosen.fire({ commandString, method });
+			_botCommandChosen.fire({ user, commandString, method });
 			return true;
 		}
 	}
