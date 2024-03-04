@@ -1302,7 +1302,14 @@ if buildQt5:
     stage('qt_5_15_12', """
     git clone https://github.com/qt/qt5.git qt_5_15_12
     cd qt_5_15_12
+win:
+    SET PATH_BACKUP_=%PATH%
+    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
+common:
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
+win:
+    SET PATH=%PATH_BACKUP_%
+common:
     git checkout v5.15.12-lts-lgpl
     git submodule update qtbase qtimageformats qtsvg
 depends:patches/qtbase_5.15.12/*.patch
