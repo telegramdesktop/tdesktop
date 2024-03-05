@@ -55,4 +55,7 @@ private:
 
 };
 
+[[nodiscard]] QString FindClosestTimezoneId(
+	const std::vector<Timezone> &list);
+
 } // namespace Data

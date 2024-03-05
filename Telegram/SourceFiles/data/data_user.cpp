@@ -280,6 +280,7 @@ const Data::BusinessDetails &UserData::businessDetails() const {
 }
 
 void UserData::setBusinessDetails(Data::BusinessDetails details) {
+	details.hours = details.hours.normalized();
 	if ((!details && !_businessDetails)
 		|| (details && _businessDetails && details == *_businessDetails)) {
 		return;

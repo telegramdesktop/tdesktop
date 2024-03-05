@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_business_info.h"
 
 #include "apiwrap.h"
+#include "base/unixtime.h"
 #include "data/business/data_business_common.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -268,6 +269,26 @@ void BusinessInfo::preloadTimezones() {
 rpl::producer<Timezones> BusinessInfo::timezonesValue() const {
 	const_cast<BusinessInfo*>(this)->preloadTimezones();
 	return _timezones.value();
+}
+
+QString FindClosestTimezoneId(const std::vector<Timezone> &list) {
+	const auto local = QDateTime::currentDateTime();
+	const auto utc = QDateTime(local.date(), local.time(), Qt::UTC);
+	const auto shift = base::unixtime::now() - (TimeId)::time(nullptr);
+	const auto delta = int(utc.toSecsSinceEpoch())
+		- int(local.toSecsSinceEpoch())
+		- shift;
+	const auto proj = [&](const Timezone &value) {
+		auto distance = value.utcOffset - delta;
+		while (distance > 12 * 3600) {
+			distance -= 24 * 3600;
+		}
+		while (distance < -12 * 3600) {
+			distance += 24 * 3600;
+		}
+		return std::abs(distance);
+	};
+	return ranges::min_element(list, ranges::less(), proj)->id;
 }
 
 } // namespace Data

@@ -106,6 +106,11 @@ WorkingIntervals ExtractDayIntervals(
 	return result;
 }
 
+bool IsFullOpen(const WorkingIntervals &extractedDay) {
+	return extractedDay
+		&& (extractedDay.list.front() == WorkingInterval{ 0, kDay });
+}
+
 WorkingIntervals RemoveDayIntervals(
 		const WorkingIntervals &intervals,
 		int dayIndex) {

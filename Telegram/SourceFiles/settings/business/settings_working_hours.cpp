@@ -70,27 +70,6 @@ private:
 	return prefix + ' ' + data.name;
 }
 
-[[nodiscard]] QString FindClosestTimezoneId(
-		const std::vector<Data::Timezone> &list) {
-	const auto local = QDateTime::currentDateTime();
-	const auto utc = QDateTime(local.date(), local.time(), Qt::UTC);
-	const auto shift = base::unixtime::now() - (TimeId)::time(nullptr);
-	const auto delta = int(utc.toSecsSinceEpoch())
-		- int(local.toSecsSinceEpoch())
-		- shift;
-	const auto proj = [&](const Data::Timezone &value) {
-		auto distance = value.utcOffset - delta;
-		while (distance > 12 * 3600) {
-			distance -= 24 * 3600;
-		}
-		while (distance < -12 * 3600) {
-			distance += 24 * 3600;
-		}
-		return std::abs(distance);
-	};
-	return ranges::min_element(list, ranges::less(), proj)->id;
-}
-
 [[nodiscard]] QString FormatDayTime(
 		TimeId time,
 		bool showEndAsNextDay = false) {
@@ -372,7 +351,7 @@ void ChooseTimezoneBox(
 	});
 
 	if (!ranges::contains(list, id, &Data::Timezone::id)) {
-		id = FindClosestTimezoneId(list);
+		id = Data::FindClosestTimezoneId(list);
 	}
 	const auto i = ranges::find(list, id, &Data::Timezone::id);
 	const auto value = int(i - begin(list));
@@ -472,7 +451,7 @@ void AddWeekButton(
 		}
 		if (!intervals) {
 			return tr::lng_hours_closed();
-		} else if (intervals.list.front() == WorkingInterval{ 0, kDay }) {
+		} else if (IsFullOpen(intervals)) {
 			return tr::lng_hours_open_full();
 		}
 		return rpl::single(JoinIntervals(intervals));
@@ -613,7 +592,7 @@ void WorkingHours::setupContent(
 		const auto now = _hours.current().timezoneId;
 		if (!ranges::contains(value.list, now, &Data::Timezone::id)) {
 			auto copy = _hours.current();
-			copy.timezoneId = FindClosestTimezoneId(value.list);
+			copy.timezoneId = Data::FindClosestTimezoneId(value.list);
 			_hours = std::move(copy);
 		}
 	}, inner->lifetime());

@@ -138,6 +138,7 @@ struct WorkingHours {
 [[nodiscard]] WorkingIntervals ExtractDayIntervals(
 	const WorkingIntervals &intervals,
 	int dayIndex);
+[[nodiscard]] bool IsFullOpen(const WorkingIntervals &extractedDay);
 [[nodiscard]] WorkingIntervals RemoveDayIntervals(
 	const WorkingIntervals &intervals,
 	int dayIndex);
@@ -148,7 +149,7 @@ struct WorkingHours {
 
 struct BusinessLocation {
 	QString address;
-	LocationPoint point;
+	std::optional<LocationPoint> point;
 
 	explicit operator bool() const {
 		return !address.isEmpty();
