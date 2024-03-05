@@ -9,10 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/premium_preview_box.h"
 #include "core/click_handler_types.h"
+#include "data/business/data_business_info.h"
+#include "data/business/data_business_chatbots.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_peer_values.h" // AmPremiumValue.
 #include "data/data_session.h"
-#include "data/business/data_business_info.h"
-#include "data/business/data_shortcut_messages.h"
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
@@ -224,9 +225,9 @@ void AddBusinessSummary(
 	icons.reserve(int(entryMap.size()));
 	{
 		const auto &account = controller->session().account();
-		const auto mtpOrder = account.appConfig().get<Order>(
+		const auto mtpOrder = FallbackOrder(); AssertIsDebug();/* account.appConfig().get<Order>(
 			"business_promo_order",
-			FallbackOrder());
+			FallbackOrder());*/
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
 			addRow(entry);
@@ -354,7 +355,8 @@ void Business::setStepDataReference(std::any &data) {
 void Business::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	_controller->session().data().businessInfo().preloadTimezones();
+	_controller->session().data().chatbots().preload();
+	_controller->session().data().businessInfo().preload();
 	_controller->session().data().shortcutMessages().preloadShortcuts();
 
 	Ui::AddSkip(content, st::settingsFromFileTop);

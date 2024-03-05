@@ -211,12 +211,14 @@ base::options::toggle ShowPeerIdBelowAbout({
 
 [[nodiscard]] rpl::producer<QString> OpensInText(
 		rpl::producer<TimeId> in,
+		rpl::producer<bool> hoursExpanded,
 		rpl::producer<QString> fallback) {
 	return rpl::combine(
 		std::move(in),
+		std::move(hoursExpanded),
 		std::move(fallback)
-	) | rpl::map([](TimeId in, QString fallback) {
-		return !in
+	) | rpl::map([](TimeId in, bool hoursExpanded, QString fallback) {
+		return (!in || hoursExpanded)
 			? std::move(fallback)
 			: (in >= 86400)
 			? tr::lng_info_hours_opens_in_days(tr::now, lt_count, in / 86400)
@@ -465,6 +467,7 @@ base::options::toggle ShowPeerIdBelowAbout({
 		openedWrap,
 		OpensInText(
 			state->opensIn.value(),
+			state->expanded.value(),
 			dayHoursTextValue(state->day.value())
 		) | rpl::after_next(recount),
 		st::infoHoursValue);
@@ -518,6 +521,7 @@ base::options::toggle ShowPeerIdBelowAbout({
 	}, link->lifetime());
 	link->setClickedCallback([=] {
 		state->myTimezone = !state->myTimezone.current();
+		state->expanded = true;
 	});
 
 	rpl::combine(

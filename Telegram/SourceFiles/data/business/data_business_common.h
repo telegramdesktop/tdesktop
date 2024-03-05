@@ -14,6 +14,8 @@ class UserData;
 
 namespace Data {
 
+class Session;
+
 enum class BusinessChatType {
 	NewChats = (1 << 0),
 	ExistingChats = (1 << 1),
@@ -42,6 +44,12 @@ struct BusinessRecipients {
 		const BusinessRecipients &a,
 		const BusinessRecipients &b) = default;
 };
+
+[[nodiscard]] MTPInputBusinessRecipients ToMTP(
+	const BusinessRecipients &data);
+[[nodiscard]] BusinessRecipients FromMTP(
+	not_null<Session*> owner,
+	const MTPBusinessRecipients &recipients);
 
 struct Timezone {
 	QString id;
@@ -173,6 +181,10 @@ struct BusinessDetails {
 		const BusinessDetails &b) = default;
 };
 
+[[nodiscard]] BusinessDetails FromMTP(
+	const tl::conditional<MTPBusinessWorkHours> &hours,
+	const tl::conditional<MTPBusinessLocation> &location);
+
 enum class AwayScheduleType : uchar {
 	Never = 0,
 	Always = 1,
@@ -204,6 +216,10 @@ struct AwaySettings {
 		const AwaySettings &b) = default;
 };
 
+[[nodiscard]] AwaySettings FromMTP(
+	not_null<Session*> owner,
+	const tl::conditional<MTPBusinessAwayMessage> &message);
+
 struct GreetingSettings {
 	BusinessRecipients recipients;
 	int noActivityDays = 0;
@@ -217,5 +233,9 @@ struct GreetingSettings {
 		const GreetingSettings &a,
 		const GreetingSettings &b) = default;
 };
+
+[[nodiscard]] GreetingSettings FromMTP(
+	not_null<Session*> owner,
+	const tl::conditional<MTPBusinessGreetingMessage> &message);
 
 } // namespace Data

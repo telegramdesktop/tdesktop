@@ -346,9 +346,7 @@ void AwayMessage::save() {
 	const auto session = &controller()->session();
 	const auto fail = [=](QString error) {
 		if (error == u"BUSINESS_RECIPIENTS_EMPTY"_q) {
-			AssertIsDebug();
-			show->showToast(u"Please choose at least one recipient."_q);
-			//tr::lng_greeting_recipients_empty(tr::now));
+			show->showToast(tr::lng_greeting_recipients_empty(tr::now));
 		} else if (error != u"SHORTCUT_INVALID"_q) {
 			show->showToast(error);
 		}

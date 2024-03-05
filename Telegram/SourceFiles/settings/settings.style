@@ -632,3 +632,9 @@ settingsAddReplyField: InputField(defaultInputField) {
 
 	heightMin: 36px;
 }
+settingsChatbotsNotFound: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+}
+settingsChatbotsDeleteIcon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
+settingsChatbotsDeleteIconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};

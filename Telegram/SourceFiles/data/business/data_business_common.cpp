@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/business/data_business_common.h"
 
+#include "data/data_session.h"
+#include "data/data_user.h"
+
 namespace Data {
 namespace {
 
@@ -49,6 +52,127 @@ constexpr auto kInNextDayMax = WorkingInterval::kInNextDayMax;
 }
 
 } // namespace
+
+MTPInputBusinessRecipients ToMTP(
+		const BusinessRecipients &data) {
+	using Flag = MTPDinputBusinessRecipients::Flag;
+	using Type = BusinessChatType;
+	const auto &chats = data.allButExcluded
+		? data.excluded
+		: data.included;
+	const auto flags = Flag()
+		| ((chats.types & Type::NewChats) ? Flag::f_new_chats : Flag())
+		| ((chats.types & Type::ExistingChats)
+			? Flag::f_existing_chats
+			: Flag())
+		| ((chats.types & Type::Contacts) ? Flag::f_contacts : Flag())
+		| ((chats.types & Type::NonContacts) ? Flag::f_non_contacts : Flag())
+		| (chats.list.empty() ? Flag() : Flag::f_users)
+		| (data.allButExcluded ? Flag::f_exclude_selected : Flag());
+	const auto &users = data.allButExcluded
+		? data.excluded
+		: data.included;
+	return MTP_inputBusinessRecipients(
+		MTP_flags(flags),
+		MTP_vector_from_range(users.list
+			| ranges::views::transform(&UserData::inputUser)));
+}
+
+BusinessRecipients FromMTP(
+		not_null<Session*> owner,
+		const MTPBusinessRecipients &recipients) {
+	using Type = BusinessChatType;
+
+	const auto &data = recipients.data();
+	auto result = BusinessRecipients{
+		.allButExcluded = data.is_exclude_selected(),
+	};
+	auto &chats = result.allButExcluded
+		? result.excluded
+		: result.included;
+	chats.types = Type()
+		| (data.is_new_chats() ? Type::NewChats : Type())
+		| (data.is_existing_chats() ? Type::ExistingChats : Type())
+		| (data.is_contacts() ? Type::Contacts : Type())
+		| (data.is_non_contacts() ? Type::NonContacts : Type());
+	if (const auto users = data.vusers()) {
+		for (const auto &userId : users->v) {
+			chats.list.push_back(owner->user(UserId(userId.v)));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] BusinessDetails FromMTP(
+		const tl::conditional<MTPBusinessWorkHours> &hours,
+		const tl::conditional<MTPBusinessLocation> &location) {
+	auto result = BusinessDetails();
+	if (hours) {
+		const auto &data = hours->data();
+		result.hours.timezoneId = qs(data.vtimezone_id());
+		result.hours.intervals.list = ranges::views::all(
+			data.vweekly_open().v
+		) | ranges::views::transform([](const MTPBusinessWeeklyOpen &open) {
+			const auto &data = open.data();
+			return WorkingInterval{
+				data.vstart_minute().v * 60,
+				data.vend_minute().v * 60,
+			};
+		}) | ranges::to_vector;
+	}
+	if (location) {
+		const auto &data = location->data();
+		result.location.address = qs(data.vaddress());
+		if (const auto point = data.vgeo_point()) {
+			point->match([&](const MTPDgeoPoint &data) {
+				result.location.point = LocationPoint(data);
+			}, [&](const MTPDgeoPointEmpty &) {
+			});
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] AwaySettings FromMTP(
+		not_null<Session*> owner,
+		const tl::conditional<MTPBusinessAwayMessage> &message) {
+	if (!message) {
+		return AwaySettings();
+	}
+	const auto &data = message->data();
+	auto result = AwaySettings{
+		.recipients = FromMTP(owner, data.vrecipients()),
+		.shortcutId = data.vshortcut_id().v,
+		.offlineOnly = data.is_offline_only(),
+	};
+	data.vschedule().match([&](
+			const MTPDbusinessAwayMessageScheduleAlways &) {
+		result.schedule.type = AwayScheduleType::Always;
+	}, [&](const MTPDbusinessAwayMessageScheduleOutsideWorkHours &) {
+		result.schedule.type = AwayScheduleType::OutsideWorkingHours;
+	}, [&](const MTPDbusinessAwayMessageScheduleCustom &data) {
+		result.schedule.type = AwayScheduleType::Custom;
+		result.schedule.customInterval = WorkingInterval{
+			data.vstart_date().v,
+			data.vend_date().v,
+		};
+	});
+	return result;
+}
+
+[[nodiscard]] GreetingSettings FromMTP(
+		not_null<Session*> owner,
+		const tl::conditional<MTPBusinessGreetingMessage> &message) {
+	if (!message) {
+		return GreetingSettings();
+	}
+	const auto &data = message->data();
+	return GreetingSettings{
+		.recipients = FromMTP(owner, data.vrecipients()),
+		.noActivityDays = data.vno_activity_days().v,
+		.shortcutId = data.vshortcut_id().v,
+	};
+}
 
 WorkingIntervals WorkingIntervals::normalized() const {
 	return SortAndMerge(MoveTailToFront(SortAndMerge(*this)));

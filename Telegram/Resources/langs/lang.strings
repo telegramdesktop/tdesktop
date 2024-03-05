@@ -2220,7 +2220,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_replies_add_placeholder" = "Shortcut";
 "lng_replies_add_exists" = "This shortcut already exists.";
 "lng_replies_empty_title" = "New Quick Reply";
-"lng_replies_empty_about" = "Enter a message below that will be sent in chat when you type {shortcut}.\n\nYou can access Quick Replies in any chat by typing / or using Attachment menu.";
+"lng_replies_empty_about" = "Enter a message below that will be sent in chat when you type {shortcut}.\n\nYou can access Quick Replies in any chat by typing /.";
 "lng_replies_remove_title" = "Remove Shortcut";
 "lng_replies_remove_text" = "You didn't create a quick reply message. Do you want to remove the shortcut?";
 "lng_replies_edit_title" = "Edit Shortcut";
@@ -2241,6 +2241,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_greeting_empty_about" = "Create greetings that will be automatically sent to new customers.";
 "lng_greeting_message_placeholder" = "Add a Greeting";
 "lng_greeting_limit_reached" = "You have too many quick replies. Remove one to add a greeting message.";
+"lng_greeting_recipients_empty" = "Please choose at least one recipient.";
 
 "lng_away_title" = "Away Message";
 "lng_away_about" = "Automatically reply with a message when you are away.";
@@ -2282,7 +2283,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chatbots_reply" = "Reply to Messages";
 "lng_chatbots_reply_about" = "The bot will be able to view all new incoming messages, but not the messages that had been sent before you added the bot.";
 "lng_chatbots_remove" = "Remove Bot";
-"lng_chatbots_not_found" = "Chatbot not found";
+"lng_chatbots_not_found" = "Chatbot not found.";
 "lng_chatbots_add" = "Add";
 
 "lng_boost_channel_button" = "Boost Channel";

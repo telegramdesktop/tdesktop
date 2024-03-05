@@ -19,23 +19,33 @@ struct ChatbotsSettings {
 	UserData *bot = nullptr;
 	BusinessRecipients recipients;
 	bool repliesAllowed = false;
+
+	friend inline bool operator==(
+		const ChatbotsSettings &,
+		const ChatbotsSettings &) = default;
 };
 
 class Chatbots final {
 public:
-	explicit Chatbots(not_null<Session*> session);
+	explicit Chatbots(not_null<Session*> owner);
 	~Chatbots();
 
+	void preload();
 	[[nodiscard]] const ChatbotsSettings &current() const;
 	[[nodiscard]] rpl::producer<ChatbotsSettings> changes() const;
 	[[nodiscard]] rpl::producer<ChatbotsSettings> value() const;
 
-	void save(ChatbotsSettings settings, Fn<void(QString)> fail);
+	void save(
+		ChatbotsSettings settings,
+		Fn<void()> done,
+		Fn<void(QString)> fail);
 
 private:
-	const not_null<Session*> _session;
+	const not_null<Session*> _owner;
 
 	rpl::variable<ChatbotsSettings> _settings;
+	mtpRequestId _requestId = 0;
+	bool _loaded = false;
 
 };
 

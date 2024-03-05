@@ -30,57 +30,6 @@ namespace {
 		MTP_vector_from_range(list | ranges::views::transform(proj)));
 }
 
-[[nodiscard]] MTPInputBusinessRecipients ToMTP(
-		const BusinessRecipients &data) {
-	//MTP_flags(RecipientsFlags(data.recipients, Flag())),
-	//	MTP_vector_from_range(
-	//		(data.recipients.allButExcluded
-	//			? data.recipients.excluded
-	//			: data.recipients.included).list
-	//		| ranges::views::transform(&UserData::inputUser)),
-
-	using Flag = MTPDinputBusinessRecipients::Flag;
-	using Type = BusinessChatType;
-	const auto &chats = data.allButExcluded
-		? data.excluded
-		: data.included;
-	const auto flags = Flag()
-		| ((chats.types & Type::NewChats) ? Flag::f_new_chats : Flag())
-		| ((chats.types & Type::ExistingChats)
-			? Flag::f_existing_chats
-			: Flag())
-		| ((chats.types & Type::Contacts) ? Flag::f_contacts : Flag())
-		| ((chats.types & Type::NonContacts) ? Flag::f_non_contacts : Flag())
-		| (chats.list.empty() ? Flag() : Flag::f_users)
-		| (data.allButExcluded ? Flag::f_exclude_selected : Flag());
-	const auto &users = data.allButExcluded
-		? data.excluded
-		: data.included;
-	return MTP_inputBusinessRecipients(
-		MTP_flags(flags),
-		MTP_vector_from_range(users.list
-			| ranges::views::transform(&UserData::inputUser)));
-}
-
-template <typename Flag>
-[[nodiscard]] auto RecipientsFlags(
-		const BusinessRecipients &data,
-		Flag) {
-	using Type = BusinessChatType;
-	const auto &chats = data.allButExcluded
-		? data.excluded
-		: data.included;
-	return Flag()
-		| ((chats.types & Type::NewChats) ? Flag::f_new_chats : Flag())
-		| ((chats.types & Type::ExistingChats)
-			? Flag::f_existing_chats
-			: Flag())
-		| ((chats.types & Type::Contacts) ? Flag::f_contacts : Flag())
-		| ((chats.types & Type::NonContacts) ? Flag::f_non_contacts : Flag())
-		| (chats.list.empty() ? Flag() : Flag::f_users)
-		| (data.allButExcluded ? Flag::f_exclude_selected : Flag());
-}
-
 [[nodiscard]] MTPBusinessAwayMessageSchedule ToMTP(
 		const AwaySchedule &data) {
 	Expects(data.type != AwayScheduleType::Never);
