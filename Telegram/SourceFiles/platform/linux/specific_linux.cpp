@@ -105,8 +105,8 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 	uniqueName.erase(0, 1);
 	uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
 
-	const auto requestPath = Glib::ustring(
-			"/org/freedesktop/portal/desktop/request/")
+	const auto requestPath = base::Platform::XDP::kObjectPath
+		+ Glib::ustring("/request/")
 		+ uniqueName
 		+ '/'
 		+ handleToken;
