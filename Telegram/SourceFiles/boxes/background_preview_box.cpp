@@ -31,8 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/view/history_view_message.h"
-#include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "data/data_session.h"
@@ -42,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_resolver.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "settings/settings_premium.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
@@ -699,16 +698,10 @@ void BackgroundPreviewBox::checkLevelForChannel() {
 		if (!weak) {
 			return std::optional<Ui::AskBoostReason>();
 		}
-		const auto appConfig = &_forPeer->session().account().appConfig();
-		const auto defaultRequired = appConfig->get<int>(
-			"channel_wallpaper_level_min",
-			9);
-		const auto customRequired = appConfig->get<int>(
-			"channel_custom_wallpaper_level_min",
-			10);
+		const auto limits = Data::LevelLimits(&_forPeer->session());
 		const auto required = _paperEmojiId.isEmpty()
-			? customRequired
-			: defaultRequired;
+			? limits.channelCustomWallpaperLevelMin()
+			: limits.channelWallpaperLevelMin();
 		if (level >= required) {
 			applyForPeer(false);
 			return std::optional<Ui::AskBoostReason>();

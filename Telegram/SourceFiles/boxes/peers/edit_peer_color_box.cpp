@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_emoji_statuses.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer.h"
+#include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "history/view/history_view_element.h"
@@ -34,8 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "lottie/lottie_single_player.h"
-#include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h"
@@ -541,16 +540,13 @@ void Apply(
 				: peerColors->requiredChannelLevelFor(
 					peer->id,
 					values.colorIndex);
+			const auto limits = Data::LevelLimits(&peer->session());
 			const auto iconRequired = values.backgroundEmojiId
-				? session->account().appConfig().get<int>(
-					"channel_bg_icon_level_min",
-					5)
+				? limits.channelBgIconLevelMin()
 				: 0;
 			const auto statusRequired = (values.statusChanged
 				&& values.statusId)
-				? session->account().appConfig().get<int>(
-					"channel_emoji_status_level_min",
-					8)
+				? limits.channelEmojiStatusLevelMin()
 				: 0;
 			const auto required = std::max({
 				colorRequired,

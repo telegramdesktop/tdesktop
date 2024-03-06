@@ -239,10 +239,8 @@ Session::Session(not_null<Main::Session*> session)
 	_session->local().cacheBigFilePath(),
 	_session->local().cacheBigFileSettings()))
 , _groupFreeTranscribeLevel(session->account().appConfig().value(
-) | rpl::map([=] {
-	return session->account().appConfig().get<int>(
-		u"group_transcribe_level_min"_q,
-		6);
+) | rpl::map([limits = Data::LevelLimits(session)] {
+	return limits.groupTranscribeLevelMin();
 }))
 , _chatsList(
 	session,
@@ -2185,8 +2183,7 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 	// because it slices the list to that limit. We don't want to slice
 	// premium-ly added chats from the pinned list because of sync issues.
 	return _session->account().appConfig().value(
-	) | rpl::map([=] {
-		const auto limits = Data::PremiumLimits(_session);
+	) | rpl::map([folder, limits = Data::PremiumLimits(_session)] {
 		return folder
 			? limits.dialogsFolderPinnedPremium()
 			: limits.dialogsPinnedPremium();
@@ -2200,8 +2197,7 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 	// because it slices the list to that limit. We don't want to slice
 	// premium-ly added chats from the pinned list because of sync issues.
 	return _session->account().appConfig().value(
-	) | rpl::map([=] {
-		const auto limits = Data::PremiumLimits(_session);
+	) | rpl::map([limits = Data::PremiumLimits(_session)] {
 		return limits.dialogFiltersChatsPremium();
 	});
 }
@@ -2209,8 +2205,7 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 rpl::producer<int> Session::maxPinnedChatsLimitValue(
 		not_null<Data::Forum*> forum) const {
 	return _session->account().appConfig().value(
-	) | rpl::map([=] {
-		const auto limits = Data::PremiumLimits(_session);
+	) | rpl::map([limits = Data::PremiumLimits(_session)] {
 		return limits.topicsPinnedCurrent();
 	});
 }
@@ -2222,8 +2217,7 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 	// because it slices the list to that limit. We don't want to slice
 	// premium-ly added chats from the pinned list because of sync issues.
 	return _session->account().appConfig().value(
-	) | rpl::map([=] {
-		const auto limits = Data::PremiumLimits(_session);
+	) | rpl::map([limits = Data::PremiumLimits(_session)] {
 		return limits.savedSublistsPinnedPremium();
 	});
 }
