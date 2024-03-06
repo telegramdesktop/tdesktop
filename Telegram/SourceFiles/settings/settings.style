@@ -562,6 +562,8 @@ settingsColorButton: SettingsButton(settingsButton) {
 settingsColorRadioMargin: 17px;
 settingsColorRadioSkip: 13px;
 settingsColorRadioStroke: 2px;
+settingsLevelBadgeLock: icon {{ "chat/mini_lock", premiumButtonFg }};
+settingsLevelBadgeLockSkip: 4px;
 
 messagePrivacyTopSkip: 8px;
 messagePrivacyRadioSkip: 6px;

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_box.h"
 #include "boxes/stickers_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_changes.h"
@@ -42,10 +43,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
@@ -142,6 +145,28 @@ private:
 	std::unique_ptr<Element> _element;
 	Ui::PeerUserpicView _userpic;
 	QPoint _position;
+
+};
+
+class LevelBadge final : public Ui::RpWidget {
+public:
+	LevelBadge(
+		not_null<QWidget*> parent,
+		uint32 level,
+		not_null<Main::Session*> session);
+
+	void setMinimal(bool value);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	void updateText();
+
+	const uint32 _level;
+	const TextWithEntities _icon;
+	const Core::MarkedTextContext _context;
+	Ui::Text::String _text;
+	bool _minimal = false;
 
 };
 
@@ -436,6 +461,108 @@ HistoryView::Context PreviewDelegate::elementContext() {
 	return HistoryView::Context::AdminLog;
 }
 
+LevelBadge::LevelBadge(
+	not_null<QWidget*> parent,
+	uint32 level,
+	not_null<Main::Session*> session)
+: Ui::RpWidget(parent)
+, _level(level)
+, _icon(Ui::Text::SingleCustomEmoji(
+	session->data().customEmojiManager().registerInternalEmoji(
+		st::settingsLevelBadgeLock,
+		QMargins(0, st::settingsLevelBadgeLockSkip, 0, 0),
+		false)))
+, _context({ .session = session }) {
+	updateText();
+}
+
+void LevelBadge::updateText() {
+	auto text = _icon;
+	text.append(' ');
+	if (!_minimal) {
+		text.append(tr::lng_boost_level(
+			tr::now,
+			lt_count,
+			_level,
+			Ui::Text::WithEntities));
+	} else {
+		text.append(QString::number(_level));
+	}
+	const auto &st = st::settingsPremiumNewBadge.style;
+	_text.setMarkedText(
+		st,
+		text,
+		kMarkupTextOptions,
+		_context);
+	const auto &padding = st::settingsColorSamplePadding;
+	QWidget::resize(
+		_text.maxWidth() + rect::m::sum::h(padding),
+		st.font->height + rect::m::sum::v(padding));
+}
+
+void LevelBadge::setMinimal(bool value) {
+	if ((value != _minimal) && value) {
+		_minimal = value;
+		updateText();
+		update();
+	}
+}
+
+void LevelBadge::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	auto hq = PainterHighQualityEnabler(p);
+
+	const auto radius = height() / 2;
+	p.setPen(Qt::NoPen);
+	auto gradient = QLinearGradient(QPointF(0, 0), QPointF(width(), 0));
+	gradient.setStops(Ui::Premium::ButtonGradientStops());
+	p.setBrush(gradient);
+	p.drawRoundedRect(rect(), radius, radius);
+
+	p.setPen(st::premiumButtonFg);
+	p.setBrush(Qt::NoBrush);
+
+	const auto context = Ui::Text::PaintContext{
+		.position = rect::m::pos::tl(st::settingsColorSamplePadding),
+		.outerWidth = width(),
+		.availableWidth = width(),
+	};
+	_text.draw(p, context);
+}
+
+void AddLevelBadge(
+		int level,
+		not_null<Ui::SettingsButton*> button,
+		Ui::RpWidget *right,
+		not_null<ChannelData*> channel,
+		const QMargins &padding,
+		rpl::producer<QString> text) {
+	if (channel->levelHint() >= level) {
+		return;
+	}
+	const auto badge = Ui::CreateChild<LevelBadge>(
+		button.get(),
+		level,
+		&channel->session());
+	badge->show();
+	const auto sampleLeft = st::settingsColorSamplePadding.left();
+	const auto badgeLeft = padding.left() + sampleLeft;
+	rpl::combine(
+		button->sizeValue(),
+		std::move(text)
+	) | rpl::start_with_next([=](const QSize &s, const QString &) {
+		if (s.isNull()) {
+			return;
+		}
+		badge->moveToLeft(
+			button->fullTextWidth() + badgeLeft,
+			(s.height() - badge->height()) / 2);
+		const auto rightEdge = right ? right->pos().x() : button->width();
+		badge->setMinimal((rect::right(badge) + sampleLeft) > rightEdge);
+		badge->setVisible((rect::right(badge) + sampleLeft) < rightEdge);
+	}, badge->lifetime());
+}
+
 struct SetValues {
 	uint8 colorIndex = 0;
 	DocumentId backgroundEmojiId = 0;
@@ -722,6 +849,7 @@ struct ButtonWithEmoji {
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Ui::ChatStyle> style,
+		not_null<PeerData*> peer,
 		rpl::producer<uint8> colorIndexValue,
 		rpl::producer<DocumentId> emojiIdValue,
 		Fn<void(DocumentId)> emojiIdChosen) {
@@ -823,21 +951,33 @@ struct ButtonWithEmoji {
 		}
 	});
 
+	if (const auto channel = peer->asChannel()) {
+		AddLevelBadge(
+			Data::LevelLimits(&channel->session()).channelBgIconLevelMin(),
+			raw,
+			right,
+			channel,
+			button.st->padding,
+			tr::lng_settings_color_emoji());
+	}
+
 	return result;
 }
 
 [[nodiscard]] object_ptr<Ui::SettingsButton> CreateEmojiStatusButton(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<ChannelData*> channel,
 		rpl::producer<DocumentId> statusIdValue,
 		Fn<void(DocumentId,TimeId)> statusIdChosen,
 		bool group) {
 	const auto button = ButtonStyleWithRightEmoji(parent);
+	const auto &phrase = group
+		? tr::lng_edit_channel_status_group
+		: tr::lng_edit_channel_status;
 	auto result = Settings::CreateButtonWithIcon(
 		parent,
-		(group
-			? tr::lng_edit_channel_status_group()
-			: tr::lng_edit_channel_status()),
+		phrase(),
 		*button.st,
 		{ &st::menuBlueIconEmojiStatus });
 	const auto raw = result.data();
@@ -921,6 +1061,17 @@ struct ButtonWithEmoji {
 			});
 		}
 	});
+
+	const auto limits = Data::LevelLimits(&channel->session());
+	AddLevelBadge(
+		(group
+			? limits.groupEmojiStatusLevelMin()
+			: limits.channelEmojiStatusLevelMin()),
+		raw,
+		right,
+		channel,
+		button.st->padding,
+		phrase());
 
 	return result;
 }
@@ -1032,6 +1183,14 @@ struct ButtonWithEmoji {
 		}
 	}, right->lifetime());
 
+	AddLevelBadge(
+		Data::LevelLimits(&channel->session()).groupEmojiStickersLevelMin(),
+		raw,
+		right,
+		channel,
+		button.st->padding,
+		tr::lng_group_emoji());
+
 	return result;
 }
 
@@ -1075,10 +1234,7 @@ void EditPeerColorBox(
 			verticalLayout,
 			{
 				.name = u"palette"_q,
-				.sizeOverride = {
-					st::settingsCloudPasswordIconSize,
-					st::settingsCloudPasswordIconSize,
-				},
+				.sizeOverride = Size(st::settingsCloudPasswordIconSize),
 			},
 			st::peerAppearanceIconPadding);
 		box->setShowFinishedCallback([animate = std::move(icon.animate)] {
@@ -1131,6 +1287,7 @@ void EditPeerColorBox(
 			container,
 			show,
 			style,
+			peer,
 			state->index.value(),
 			state->emojiId.value(),
 			[=](DocumentId id) { state->emojiId = id; }));
@@ -1146,19 +1303,34 @@ void EditPeerColorBox(
 
 	if (const auto channel = peer->asChannel()) {
 		Ui::AddSkip(container, st::settingsColorSampleSkip);
-		Settings::AddButtonWithIcon(
+		const auto &phrase = group
+			? tr::lng_edit_channel_wallpaper_group
+			: tr::lng_edit_channel_wallpaper;
+		const auto button = Settings::AddButtonWithIcon(
 			container,
-			(group
-				? tr::lng_edit_channel_wallpaper_group()
-				: tr::lng_edit_channel_wallpaper()),
+			phrase(),
 			st::peerAppearanceButton,
 			{ &st::menuBlueIconWallpaper }
-		)->setClickedCallback([=] {
+		);
+		button->setClickedCallback([=] {
 			const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
 			if (const auto strong = show->resolveWindow(usage)) {
 				show->show(Box<BackgroundBox>(strong, channel));
 			}
 		});
+
+		{
+			const auto limits = Data::LevelLimits(&channel->session());
+			AddLevelBadge(
+				group
+					? limits.groupCustomWallpaperLevelMin()
+					: limits.channelCustomWallpaperLevelMin(),
+				button,
+				nullptr,
+				channel,
+				st::peerAppearanceButton.padding,
+				phrase());
+		}
 
 		Ui::AddSkip(container, st::settingsColorSampleSkip);
 		Ui::AddDividerText(
@@ -1197,6 +1369,7 @@ void EditPeerColorBox(
 		container->add(CreateEmojiStatusButton(
 			container,
 			show,
+			channel,
 			state->statusId.value(),
 			[=](DocumentId id, TimeId until) {
 				state->statusId = id;
