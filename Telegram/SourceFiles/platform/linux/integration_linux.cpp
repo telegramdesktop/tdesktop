@@ -252,7 +252,8 @@ void LinuxIntegration::initInhibit() {
 	const auto sessionHandleToken = "tdesktop"
 		+ std::to_string(base::RandomValue<uint>());
 
-	const auto sessionHandle = "/org/freedesktop/portal/desktop/session/"
+	const auto sessionHandle = base::Platform::XDP::kObjectPath
+		+ std::string("/session/")
 		+ uniqueName
 		+ '/'
 		+ sessionHandleToken;
