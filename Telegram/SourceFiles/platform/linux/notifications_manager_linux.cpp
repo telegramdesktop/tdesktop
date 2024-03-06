@@ -78,24 +78,24 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 			Gio::DBus::BusType::SESSION);
 
 		const auto activatable = [&] {
-			try {
-				return ranges::contains(
-					base::Platform::DBus::ListActivatableNames(connection),
-					kService,
-					&Glib::ustring::raw);
-			} catch (...) {
+			const auto names = base::Platform::DBus::ListActivatableNames(
+				connection->gobj());
+
+			if (!names) {
 				// avoid service restart loop in sandboxed environments
 				return true;
 			}
+
+			return ranges::contains(*names, kService);
 		}();
 
 		return std::make_unique<base::Platform::DBus::ServiceWatcher>(
-			connection,
+			connection->gobj(),
 			kService,
 			[=](
-				const Glib::ustring &service,
-				const Glib::ustring &oldOwner,
-				const Glib::ustring &newOwner) {
+				const std::string &service,
+				const std::string &oldOwner,
+				const std::string &newOwner) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					if (activatable && newOwner.empty()) {
 						Core::App().notifications().clearAll();
@@ -115,27 +115,28 @@ void StartServiceAsync(Fn<void()> callback) {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::SESSION);
 
-		base::Platform::DBus::StartServiceByNameAsync(
-			connection,
+		namespace DBus = base::Platform::DBus;
+		DBus::StartServiceByNameAsync(
+			connection->gobj(),
 			kService,
-			[=](Fn<base::Platform::DBus::StartReply()> result) {
+			[=](Fn<DBus::Result<DBus::StartReply>()> result) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
-						try {
-							result(); // get the error if any
-						} catch (const Glib::Error &e) {
+						// get the error if any
+						if (const auto ret = result(); !ret) {
 							static const auto NotSupportedErrors = {
 								"org.freedesktop.DBus.Error.ServiceUnknown",
 							};
 
-							const auto errorName =
-								Gio::DBus::ErrorUtils::get_remote_error(e)
-									.raw();
-
-							if (!ranges::contains(
+							if (ranges::none_of(
 									NotSupportedErrors,
-									errorName)) {
-								throw;
+									[&](const auto &error) {
+										return strstr(
+											ret.error()->what(),
+											error);
+									})) {
+								throw std::runtime_error(
+									ret.error()->what());
 							}
 						}
 					});
@@ -156,25 +157,20 @@ bool GetServiceRegistered() {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::SESSION);
 
-		const auto hasOwner = [&] {
-			try {
-				return base::Platform::DBus::NameHasOwner(
-					connection,
-					kService);
-			} catch (...) {
-				return false;
-			}
-		}();
+		const auto hasOwner = base::Platform::DBus::NameHasOwner(
+				connection->gobj(),
+				kService
+		).value_or(false);
 
 		static const auto activatable = [&] {
-			try {
-				return ranges::contains(
-					base::Platform::DBus::ListActivatableNames(connection),
-					kService,
-					&Glib::ustring::raw);
-			} catch (...) {
+			const auto names = base::Platform::DBus::ListActivatableNames(
+				connection->gobj());
+
+			if (!names) {
 				return false;
 			}
+
+			return ranges::contains(*names, kService);
 		}();
 
 		return hasOwner || activatable;
