@@ -3892,7 +3892,13 @@ void HistoryWidget::saveEditMsg() {
 		if (remove > 0) {
 			controller()->showToast(
 				tr::lng_edit_limit_reached(tr::now, lt_count, remove));
+#ifndef _DEBUG
 			return;
+#else
+			if (!base::IsCtrlPressed()) {
+				return;
+			}
+#endif
 		}
 	}
 
