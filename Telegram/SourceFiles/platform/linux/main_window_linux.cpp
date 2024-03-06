@@ -43,8 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QTextEdit>
 
-#include <glibmm.h>
-#include <giomm.h>
+#include <gio/gio.hpp>
 
 namespace Platform {
 namespace {
@@ -236,6 +235,8 @@ void MainWindow::updateUnityCounter() {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
 	qApp->setBadgeNumber(Core::App().unreadBadge());
 #else // Qt >= 6.6.0
+	using namespace gi::repository;
+
 	static const auto djbStringHash = [](const std::string &string) {
 		uint hash = 5381;
 		for (const auto &curChar : string) {
@@ -244,40 +245,36 @@ void MainWindow::updateUnityCounter() {
 		return hash;
 	};
 
-	const auto launcherUrl = Glib::ustring(
-		"application://"
-			+ QGuiApplication::desktopFileName().toStdString()
-			+ ".desktop");
+	const auto launcherUrl = "application://"
+		+ QGuiApplication::desktopFileName().toStdString()
+		+ ".desktop";
+
 	const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
-	std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
 
-	if (counterSlice > 0) {
-		// According to the spec, it should be of 'x' D-Bus signature,
-		// which corresponds to signed 64-bit integer
-		// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
-		dbusUnityProperties["count"] = Glib::create_variant(
-			int64(counterSlice));
-		dbusUnityProperties["count-visible"] = Glib::create_variant(true);
-	} else {
-		dbusUnityProperties["count-visible"] = Glib::create_variant(false);
+	auto connection = Gio::bus_get_sync(Gio::BusType::SESSION_, nullptr);
+	if (!connection) {
+		return;
 	}
 
-	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::SESSION);
-
-		connection->emit_signal(
-			"/com/canonical/unity/launcherentry/"
-				+ std::to_string(djbStringHash(launcherUrl)),
-			"com.canonical.Unity.LauncherEntry",
-			"Update",
-			{},
-			Glib::create_variant(std::tuple{
-				launcherUrl,
-				dbusUnityProperties,
-			}));
-	} catch (...) {
-	}
+	connection.emit_signal(
+		{},
+		"/com/canonical/unity/launcherentry/"
+			+ std::to_string(djbStringHash(launcherUrl)),
+		"com.canonical.Unity.LauncherEntry",
+		"Update",
+		GLib::Variant::new_tuple({
+			GLib::Variant::new_string(launcherUrl),
+			GLib::Variant::new_array({
+				GLib::Variant::new_dict_entry(
+					GLib::Variant::new_string("count"),
+					GLib::Variant::new_variant(
+						GLib::Variant::new_int64(counterSlice))),
+				GLib::Variant::new_dict_entry(
+					GLib::Variant::new_string("count-visible"),
+					GLib::Variant::new_variant(
+						GLib::Variant::new_boolean(counterSlice))),
+			}),
+		}));
 #endif // Qt < 6.6.0
 }
 
