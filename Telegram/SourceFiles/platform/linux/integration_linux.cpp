@@ -180,7 +180,7 @@ gi::ref_ptr<Application> MakeApplication() {
 	return result;
 }
 
-class LinuxIntegration final : public Integration {
+class LinuxIntegration final : public Integration, public base::has_weak_ptr {
 public:
 	LinuxIntegration();
 
@@ -200,13 +200,6 @@ private:
 
 LinuxIntegration::LinuxIntegration()
 : _application(MakeApplication())
-, _inhibitProxy(
-	XdpInhibit::InhibitProxy::new_for_bus_sync(
-		Gio::BusType::SESSION_,
-		Gio::DBusProxyFlags::DO_NOT_AUTO_START_AT_CONSTRUCTION_,
-		base::Platform::XDP::kService,
-		base::Platform::XDP::kObjectPath,
-		nullptr))
 , _darkModeWatcher(
 	"org.freedesktop.appearance",
 	"color-scheme",
@@ -230,7 +223,18 @@ LinuxIntegration::LinuxIntegration()
 }
 
 void LinuxIntegration::init() {
-	initInhibit();
+	XdpInhibit::InhibitProxy::new_for_bus(
+		Gio::BusType::SESSION_,
+		Gio::DBusProxyFlags::NONE_,
+		base::Platform::XDP::kService,
+		base::Platform::XDP::kObjectPath,
+		crl::guard(this, [=](GObject::Object, Gio::AsyncResult res) {
+			_inhibitProxy = XdpInhibit::InhibitProxy::new_for_bus_finish(
+				res,
+				nullptr);
+
+			initInhibit();
+		}));
 }
 
 void LinuxIntegration::initInhibit() {
