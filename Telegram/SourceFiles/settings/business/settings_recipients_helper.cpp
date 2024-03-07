@@ -72,9 +72,8 @@ void EditBusinessChats(
 		options,
 		TypesToFlags(descriptor.current.types) & options,
 		base::flat_set<not_null<History*>>(begin(peers), end(peers)),
-		[=](int count) {
-			return nullptr; AssertIsDebug();
-		});
+		100,
+		nullptr);
 	const auto rawController = controller.get();
 	const auto save = descriptor.save;
 	auto initBox = [=](not_null<PeerListBox*> box) {

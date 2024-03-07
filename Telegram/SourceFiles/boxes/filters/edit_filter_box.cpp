@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
+#include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "core/application.h"
@@ -124,6 +125,12 @@ void EditExceptions(
 	const auto include = (options & Flag::Contacts) != Flags(0);
 	const auto rules = data->current();
 	const auto session = &window->session();
+	const auto limit = Data::PremiumLimits(
+		session
+	).dialogFiltersChatsCurrent();
+	const auto showLimitReached = [=] {
+		window->show(Box(FilterChatsLimitBox, session, limit, include));
+	};
 	auto controller = std::make_unique<EditFilterChatsListController>(
 		session,
 		(include
@@ -132,9 +139,8 @@ void EditExceptions(
 		options,
 		rules.flags() & options,
 		include ? rules.always() : rules.never(),
-		[=](int count) {
-			return Box(FilterChatsLimitBox, session, count, include);
-		});
+		limit,
+		showLimitReached);
 	const auto rawController = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->setCloseByOutsideClick(false);

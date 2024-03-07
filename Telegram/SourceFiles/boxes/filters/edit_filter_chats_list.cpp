@@ -333,17 +333,17 @@ EditFilterChatsListController::EditFilterChatsListController(
 	Flags options,
 	Flags selected,
 	const base::flat_set<not_null<History*>> &peers,
-	LimitBoxFactory limitBox)
+	int limit,
+	Fn<void()> showLimitReached)
 : ChatsListBoxController(session)
 , _session(session)
-, _limitBox(std::move(limitBox))
+, _showLimitReached(std::move(showLimitReached))
 , _title(std::move(title))
 , _peers(peers)
 , _options(options & ~Flag::Chatlist)
 , _selected(selected)
-, _limit(Data::PremiumLimits(session).dialogFiltersChatsCurrent())
+, _limit(limit)
 , _chatlist(options & Flag::Chatlist) {
-	Expects(_limitBox != nullptr);
 }
 
 Main::Session &EditFilterChatsListController::session() const {
@@ -371,8 +371,8 @@ void EditFilterChatsListController::rowClicked(not_null<PeerListRow*> row) {
 	if (count < _limit || row->checked()) {
 		delegate()->peerListSetRowChecked(row, !row->checked());
 		updateTitle();
-	} else {
-		delegate()->peerListUiShow()->showBox(_limitBox(count));
+	} else if (const auto copy = _showLimitReached) {
+		copy();
 	}
 }
 
