@@ -1734,7 +1734,7 @@ void ListWidget::elementHandleViaClick(not_null<UserData*> bot) {
 }
 
 bool ListWidget::elementIsChatWide() {
-	return _isChatWide;
+	return _overrideIsChatWide.value_or(_isChatWide);
 }
 
 not_null<Ui::PathShiftGradient*> ListWidget::elementPathShiftGradient() {
@@ -3961,6 +3961,10 @@ void ListWidget::setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w) {
 	if (_emptyInfo) {
 		_emptyInfo->setVisible(isEmpty());
 	}
+}
+
+void ListWidget::overrideIsChatWide(bool isWide) {
+	_overrideIsChatWide = isWide;
 }
 
 ListWidget::~ListWidget() {

@@ -372,6 +372,7 @@ ShortcutMessages::ShortcutMessages(
 		this,
 		controller,
 		static_cast<ListDelegate*>(this));
+	_inner->overrideIsChatWide(false);
 
 	_scroll->sizeValue() | rpl::filter([](QSize size) {
 		return !size.isEmpty();

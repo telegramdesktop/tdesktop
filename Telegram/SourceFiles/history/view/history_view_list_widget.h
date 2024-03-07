@@ -343,6 +343,7 @@ public:
 	QString elementAuthorRank(not_null<const Element*> view) override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
+	void overrideIsChatWide(bool isWide);
 
 	~ListWidget();
 
@@ -725,6 +726,7 @@ private:
 	bool _refreshingViewer = false;
 	bool _showFinished = false;
 	bool _resizePending = false;
+	std::optional<bool> _overrideIsChatWide;
 
 	// _menu must be destroyed before _whoReactedMenuLifetime.
 	rpl::lifetime _whoReactedMenuLifetime;
