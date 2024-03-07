@@ -1050,6 +1050,9 @@ awayEmptyIcon: icon{{ "chat/large_away", msgServiceFg }};
 repliesEmptyWidth: 264px;
 repliesEmptySkip: 16px;
 repliesEmptyPadding: margins(10px, 20px, 10px, 16px);
+repliesComposeControls: ComposeControls(defaultComposeControls) {
+	tabbedHeightMin: 220px;
+}
 
 boostMessageIcon: icon {{ "stories/boost_mini", windowFg }};
 boostMessageIconPadding: margins(0px, 2px, 0px, 0px);

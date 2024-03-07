@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/business/settings_quick_replies.h"
 
+#include "boxes/premium_preview_box.h"
 #include "core/application.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/data_session.h"
@@ -96,6 +97,12 @@ void QuickReplies::setupContent(
 			));
 
 			add->setClickedCallback([=] {
+				if (!controller->session().premium()) {
+					ShowPremiumPreviewToBuy(
+						controller,
+						PremiumFeature::QuickReplies);
+					return;
+				}
 				const auto submit = [=](QString name, Fn<void()> close) {
 					const auto id = messages->emplaceShortcut(name);
 					showOther(ShortcutMessagesId(id));

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/premium_limits_box.h"
+#include "boxes/premium_preview_box.h"
 #include "boxes/send_files_box.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/file_utilities.h"
@@ -253,6 +254,7 @@ private:
 	void showAtEnd();
 	void finishSending();
 	void refreshEmptyText();
+	bool showPremiumRequired() const;
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<Main::Session*> _session;
@@ -508,6 +510,12 @@ void ShortcutMessages::fillTopBarMenu(
 	const auto messages = &owner->shortcutMessages();
 
 	addAction(tr::lng_context_edit_shortcut(tr::now), [=] {
+		if (!_controller->session().premium()) {
+			ShowPremiumPreviewToBuy(
+				_controller,
+				PremiumFeature::QuickReplies);
+			return;
+		}
 		const auto submit = [=](QString name, Fn<void()> close) {
 			const auto id = _shortcutId.current();
 			const auto error = [=](QString text) {
@@ -773,6 +781,7 @@ QPointer<Ui::RpWidget> ShortcutMessages::createPinnedToBottom(
 	_composeControls = std::make_unique<ComposeControls>(
 		dynamic_cast<Ui::RpWidget*>(_scroll->parentWidget()),
 		ComposeControlsDescriptor{
+			.stOverride = &st::repliesComposeControls,
 			.show = _controller->uiShow(),
 			.unavailableEmojiPasted = [=](not_null<DocumentData*> emoji) {
 				listShowPremiumToast(emoji);
@@ -1127,6 +1136,9 @@ bool ShortcutMessages::showSendingFilesError(
 bool ShortcutMessages::showSendingFilesError(
 		const Ui::PreparedList &list,
 		std::optional<bool> compress) const {
+	if (showPremiumRequired()) {
+		return true;
+	}
 	const auto text = [&] {
 		using Error = Ui::PreparedList::Error;
 		switch (list.error) {
@@ -1171,6 +1183,9 @@ void ShortcutMessages::send() {
 }
 
 void ShortcutMessages::sendVoice(ComposeControls::VoiceToSend &&data) {
+	if (showPremiumRequired()) {
+		return;
+	}
 	auto action = prepareSendAction(data.options);
 	_session->api().sendVoiceMessage(
 		data.bytes,
@@ -1184,6 +1199,9 @@ void ShortcutMessages::sendVoice(ComposeControls::VoiceToSend &&data) {
 }
 
 void ShortcutMessages::send(Api::SendOptions options) {
+	if (showPremiumRequired()) {
+		return;
+	}
 	_cornerButtons.clearReplyReturns();
 
 	auto message = Api::MessageToSend(prepareSendAction(options));
@@ -1409,6 +1427,9 @@ void ShortcutMessages::sendingFilesConfirmed(
 
 void ShortcutMessages::chooseAttach(
 		std::optional<bool> overrideSendImagesAsPhotos) {
+	if (showPremiumRequired()) {
+		return;
+	}
 	_choosingAttach = false;
 
 	const auto filter = (overrideSendImagesAsPhotos == true)
@@ -1472,6 +1493,10 @@ bool ShortcutMessages::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options,
 		std::optional<MsgId> localId) {
+	if (showPremiumRequired()) {
+		return false;
+	}
+
 	Api::SendExistingDocument(
 		Api::MessageToSend(prepareSendAction(options)),
 		document,
@@ -1489,6 +1514,9 @@ void ShortcutMessages::sendExistingPhoto(not_null<PhotoData*> photo) {
 bool ShortcutMessages::sendExistingPhoto(
 		not_null<PhotoData*> photo,
 		Api::SendOptions options) {
+	if (showPremiumRequired()) {
+		return false;
+	}
 	Api::SendExistingPhoto(
 		Api::MessageToSend(prepareSendAction(options)),
 		photo);
@@ -1501,6 +1529,9 @@ bool ShortcutMessages::sendExistingPhoto(
 void ShortcutMessages::sendInlineResult(
 		not_null<InlineBots::Result*> result,
 		not_null<UserData*> bot) {
+	if (showPremiumRequired()) {
+		return;
+	}
 	const auto errorText = result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
 		_controller->showToast(errorText);
@@ -1520,6 +1551,9 @@ void ShortcutMessages::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
+	if (showPremiumRequired()) {
+		return;
+	}
 	auto action = prepareSendAction(options);
 	action.generateLocal = true;
 	_session->api().sendInlineResult(bot, result, action, localMessageId);
@@ -1562,6 +1596,14 @@ void ShortcutMessages::showAtPosition(
 
 FullReplyTo ShortcutMessages::replyTo() const {
 	return _composeControls->replyingToMessage();
+}
+
+bool ShortcutMessages::showPremiumRequired() const {
+	if (!_controller->session().premium()) {
+		ShowPremiumPreviewToBuy(_controller, PremiumFeature::QuickReplies);
+		return true;
+	}
+	return false;
 }
 
 } // namespace

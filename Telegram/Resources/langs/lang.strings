@@ -2228,6 +2228,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_replies_message_placeholder" = "Add a Quick Reply";
 "lng_replies_delete_sure" = "Are you sure you want to delete this quick reply with all its messages?";
 "lng_replies_error_occupied" = "This shortcut is already used.";
+"lng_replies_edit_button" = "Edit Quick Replies";
 
 "lng_greeting_title" = "Greeting Message";
 "lng_greeting_about" = "Greet customers when they message you the first time or after a period of no activity.";

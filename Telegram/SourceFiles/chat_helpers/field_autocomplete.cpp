@@ -641,7 +641,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		const auto shortcuts = (_user && !_user->isBot())
 			? _user->owner().shortcutMessages().shortcuts().list
 			: base::flat_map<BusinessShortcutId, Data::Shortcut>();
-		if (!hasUsername && !shortcuts.empty()) {
+		if (!hasUsername && brows.empty() && !shortcuts.empty()) {
 			const auto self = _user->session().user();
 			for (const auto &[id, shortcut] : shortcuts) {
 				if (shortcut.count < 1) {
@@ -657,6 +657,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					tr::lng_forum_messages(tr::now, lt_count, shortcut.count),
 					self->activeUserpicView()
 				});
+			}
+			if (!brows.empty()) {
+				brows.insert(begin(brows), BotCommandRow{ self }); // Edit.
 			}
 		}
 	}
@@ -1096,6 +1099,15 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 			} else {
 				auto &row = _brows->at(i);
 				const auto user = row.user;
+				if (user->isSelf() && row.command.isEmpty()) {
+					p.setPen(st::windowActiveTextFg);
+					p.setFont(st::semiboldFont);
+					p.drawText(
+						QRect(0, i * st::mentionHeight, width(), st::mentionHeight),
+						tr::lng_replies_edit_button(tr::now),
+						style::al_center);
+					continue;
+				}
 
 				auto toHighlight = row.command;
 				int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
@@ -1163,7 +1175,13 @@ void FieldAutocomplete::Inner::clearSel(bool hidden) {
 	_overDelete = false;
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
-	setSel((_mrows->empty() && _brows->empty() && _hrows->empty()) ? -1 : 0);
+	setSel((_mrows->empty() && _brows->empty() && _hrows->empty())
+		? -1
+		: (_brows->size() > 1
+			&& _brows->front().user->isSelf()
+			&& _brows->front().command.isEmpty())
+		? 1
+		: 0);
 	if (hidden) {
 		_down = -1;
 		_previewShown = false;
@@ -1269,7 +1287,6 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 			const auto commandString = QString("/%1%2").arg(
 				command,
 				insertUsername ? ('@' + PrimaryUsername(user)) : QString());
-
 			_botCommandChosen.fire({ user, commandString, method });
 			return true;
 		}

@@ -123,6 +123,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "settings/business/settings_quick_replies.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_account.h"
 #include "storage/file_upload.h"
@@ -378,6 +379,11 @@ HistoryWidget::HistoryWidget(
 		checkFieldAutocomplete();
 	}, Qt::QueuedConnection);
 
+	controller->session().data().shortcutMessages().shortcutsChanged(
+	) | rpl::start_with_next([=] {
+		checkFieldAutocomplete();
+	}, lifetime());
+
 	_fieldBarCancel->hide();
 
 	_topBar->hide();
@@ -435,12 +441,15 @@ HistoryWidget::HistoryWidget(
 	) | rpl::start_with_next([=](FieldAutocomplete::BotCommandChosen data) {
 		using Method = FieldAutocomplete::ChooseMethod;
 		const auto messages = &data.user->owner().shortcutMessages();
-		const auto shortcutId = (_peer
-			&& data.user->isSelf()
-			&& data.method != Method::ByTab)
-			? messages->lookupShortcutId(data.command.mid(1))
+		const auto shortcut = data.user->isSelf();
+		const auto command = data.command.mid(1);
+		const auto byTab = (data.method == Method::ByTab);
+		const auto shortcutId = (_peer && shortcut && !byTab)
+			? messages->lookupShortcutId(command)
 			: BusinessShortcutId();
-		if (!shortcutId) {
+		if (shortcut && command.isEmpty()) {
+			controller->showSettings(Settings::QuickRepliesId());
+		} else if (!shortcutId) {
 			insertHashtagOrBotCommand(data.command, data.method);
 		} else if (!_peer->session().premium()) {
 			ShowPremiumPreviewToBuy(
