@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_security.h"
 
 #include "api/api_authorizations.h"
-#include "api/api_blocked_peers.h"
 #include "api/api_cloud_password.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
@@ -24,31 +23,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_controllers.h"
 #include "settings/settings_websites.h"
 #include "base/timer_rpl.h"
-#include "boxes/edit_privacy_box.h"
 #include "boxes/passcode_box.h"
-#include "boxes/auto_lock_box.h"
 #include "boxes/sessions_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/self_destruction_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "ui/chat/chat_style.h"
+#include "ui/effects/premium_top_bar.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/layers/generic_box.h"
 #include "ui/vertical_list.h"
+#include "ui/rect.h"
 #include "calls/calls_instance.h"
-#include "core/core_cloud_password.h"
 #include "core/update_checker.h"
-#include "base/platform/base_platform_last_input.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_chat.h"
@@ -62,9 +55,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 
 #include <QtGui/QGuiApplication>
+#include <QtSvg/QSvgRenderer>
 
 namespace Settings {
 namespace {
@@ -72,6 +65,53 @@ namespace {
 constexpr auto kUpdateTimeout = 60 * crl::time(1000);
 
 using Privacy = Api::UserPrivacy;
+
+[[nodiscard]] QImage PremiumStar() {
+	const auto factor = style::DevicePixelRatio();
+	const auto size = Size(st::settingsButtonNoIcon.style.font->ascent);
+	auto image = QImage(
+		size * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(factor);
+	image.fill(Qt::transparent);
+	{
+		auto p = QPainter(&image);
+		auto star = QSvgRenderer(Ui::Premium::ColorizedSvg());
+		star.render(&p, Rect(size));
+	}
+	return image;
+}
+
+void AddPremiumStar(
+		not_null<Ui::SettingsButton*> button,
+		not_null<Main::Session*> session,
+		rpl::producer<QString> label,
+		const QMargins &padding) {
+	const auto badge = Ui::CreateChild<Ui::RpWidget>(button.get());
+	badge->showOn(Data::AmPremiumValue(session));
+	const auto sampleLeft = st::settingsColorSamplePadding.left();
+	const auto badgeLeft = padding.left() + sampleLeft;
+
+	auto star = PremiumStar();
+	badge->resize(star.size() / style::DevicePixelRatio());
+	badge->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(badge);
+		p.drawImage(0, 0, star);
+	}, badge->lifetime());
+
+	rpl::combine(
+		button->sizeValue(),
+		std::move(label)
+	) | rpl::start_with_next([=](const QSize &s, const QString &) {
+		if (s.isNull()) {
+			return;
+		}
+		badge->moveToLeft(
+			button->fullTextWidth() + badgeLeft,
+			(s.height() - badge->height()) / 2);
+	}, badge->lifetime());
+}
 
 QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 	using Key = Privacy::Key;
@@ -137,6 +177,9 @@ void AddPremiumPrivacyButton(
 		container,
 		rpl::duplicate(label),
 		st));
+
+	AddPremiumStar(button, session, rpl::duplicate(label), st.padding);
+
 	struct State {
 		State(QWidget *parent) : widget(parent) {
 			widget.setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -246,18 +289,22 @@ void AddMessagesPrivacyButton(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto session = &controller->session();
 	const auto privacy = &session->api().globalPrivacy();
-	AddButtonWithLabel(
+	auto label = rpl::conditional(
+		privacy->newRequirePremium(),
+		tr::lng_edit_privacy_premium(),
+		tr::lng_edit_privacy_everyone());
+	const auto &st = st::settingsButtonNoIcon;
+	const auto button = AddButtonWithLabel(
 		container,
 		tr::lng_settings_messages_privacy(),
-		rpl::conditional(
-			privacy->newRequirePremium(),
-			tr::lng_edit_privacy_premium(),
-			tr::lng_edit_privacy_everyone()),
-		st::settingsButtonNoIcon,
-		{}
-	)->addClickHandler([=] {
+		rpl::duplicate(label),
+		st,
+		{});
+	button->addClickHandler([=] {
 		controller->show(Box(EditMessagesPrivacyBox, controller));
 	});
+
+	AddPremiumStar(button, session, rpl::duplicate(label), st.padding);
 }
 
 rpl::producer<int> BlockedPeersCount(not_null<::Main::Session*> session) {
