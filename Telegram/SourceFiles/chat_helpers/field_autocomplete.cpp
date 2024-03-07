@@ -638,7 +638,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				}
 			}
 		}
-		const auto shortcuts = _user
+		const auto shortcuts = (_user && !_user->isBot())
 			? _user->owner().shortcutMessages().shortcuts().list
 			: base::flat_map<BusinessShortcutId, Data::Shortcut>();
 		if (!hasUsername && !shortcuts.empty()) {
