@@ -86,6 +86,34 @@ private:
 		: wrap(time == kDay ? 0 : time);
 }
 
+[[nodiscard]] QString FormatTimeHour(TimeId time) {
+	const auto wrap = [](TimeId value) {
+		return QString::number(value / 3600).rightJustified(2, u'0');
+	};
+	if (time < kDay) {
+		return wrap(time);
+	}
+	const auto wrapped = wrap(time - kDay);
+	const auto result = tr::lng_hours_next_day(tr::now, lt_time, wrapped);
+	const auto i = result.indexOf(wrapped);
+	return (i >= 0) ? (result.left(i) + wrapped) : result;
+}
+
+[[nodiscard]] QString FormatTimeMinute(TimeId time) {
+	const auto wrap = [](TimeId value) {
+		return QString::number(value / 60).rightJustified(2, u'0');
+	};
+	if (time < kDay) {
+		return wrap(time);
+	}
+	const auto wrapped = wrap(time - kDay);
+	const auto result = tr::lng_hours_next_day(tr::now, lt_time, wrapped);
+	const auto i = result.indexOf(wrapped);
+	return (i >= 0)
+		? (wrapped + result.right(result.size() - i - wrapped.size()))
+		: result;
+}
+
 [[nodiscard]] QString JoinIntervals(const Data::WorkingIntervals &data) {
 	auto result = QStringList();
 	result.reserve(data.list.size());
@@ -105,49 +133,97 @@ void EditTimeBox(
 		Fn<void(TimeId)> save) {
 	Expects(low <= high);
 
-	const auto values = (high - low + 60) / 60;
-	const auto startIndex = (value - low) / 60;
-
 	const auto content = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,
 		st::settingsWorkingHoursPicker));
 
 	const auto font = st::boxTextFont;
 	const auto itemHeight = st::settingsWorkingHoursPickerItemHeight;
-	auto paintCallback = [=](
-			QPainter &p,
-			int index,
-			float64 y,
-			float64 distanceFromCenter,
-			int outerWidth) {
-		const auto r = QRectF(0, y, outerWidth, itemHeight);
-		const auto progress = std::abs(distanceFromCenter);
-		const auto revProgress = 1. - progress;
-		p.save();
-		p.translate(r.center());
-		constexpr auto kMinYScale = 0.2;
-		const auto yScale = kMinYScale
-			+ (1. - kMinYScale) * anim::easeOutCubic(1., revProgress);
-		p.scale(1., yScale);
-		p.translate(-r.center());
-		p.setOpacity(revProgress);
-		p.setFont(font);
-		p.setPen(st::defaultFlatLabel.textFg);
-		p.drawText(r, FormatDayTime(low + index * 60, true), style::al_center);
-		p.restore();
+	const auto picker = [=](
+			int count,
+			int startIndex,
+			Fn<void(QPainter &p, QRectF rect, int index)> paint) {
+		auto paintCallback = [=](
+				QPainter &p,
+				int index,
+				float64 y,
+				float64 distanceFromCenter,
+				int outerWidth) {
+			const auto r = QRectF(0, y, outerWidth, itemHeight);
+			const auto progress = std::abs(distanceFromCenter);
+			const auto revProgress = 1. - progress;
+			p.save();
+			p.translate(r.center());
+			constexpr auto kMinYScale = 0.2;
+			const auto yScale = kMinYScale
+				+ (1. - kMinYScale) * anim::easeOutCubic(1., revProgress);
+			p.scale(1., yScale);
+			p.translate(-r.center());
+			p.setOpacity(revProgress);
+			p.setFont(font);
+			p.setPen(st::defaultFlatLabel.textFg);
+			paint(p, r, index);
+			p.restore();
+		};
+		return Ui::CreateChild<Ui::VerticalDrumPicker>(
+			content,
+			std::move(paintCallback),
+			count,
+			itemHeight,
+			startIndex);
 	};
 
-	const auto picker = Ui::CreateChild<Ui::VerticalDrumPicker>(
-		content,
-		std::move(paintCallback),
-		values,
-		itemHeight,
-		startIndex);
+	const auto hoursCount = (high - low + 3600) / 3600;
+	const auto hoursStartIndex = (value - low) / 3600;
+	const auto hoursPaint = [=](QPainter &p, QRectF rect, int index) {
+		p.drawText(
+			rect,
+			FormatTimeHour(((low / 3600) + index) * 3600),
+			style::al_right);
+	};
+	const auto hours = picker(hoursCount, hoursStartIndex, hoursPaint);
+	const auto minutes = content->lifetime().make_state<
+		rpl::variable<Ui::VerticalDrumPicker*>
+	>(nullptr);
+	const auto minutesStart = content->lifetime().make_state<TimeId>();
+	hours->value() | rpl::start_with_next([=](int hoursIndex) {
+		const auto start = std::max(low, (hoursIndex + (low / 3600)) * 3600);
+		const auto end = std::min(high, ((start / 3600) * 60 + 59) * 60);
+		const auto minutesCount = (end - start + 60) / 60;
+		const auto minutesStartIndex = minutes->current()
+			? std::clamp(
+				((((*minutesStart) / 60 + minutes->current()->index()) % 60)
+					- ((start / 60) % 60)),
+				0,
+				(minutesCount - 1))
+			: std::clamp((value - start) / 60, 0, minutesCount - 1);
+		*minutesStart = start;
 
-	content->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		picker->resize(s.width(), s.height());
-		picker->moveToLeft((s.width() - picker->width()) / 2, 0);
+		const auto minutesPaint = [=](QPainter &p, QRectF rect, int index) {
+			p.drawText(
+				rect,
+				FormatTimeMinute((((start / 60) + index) % 60) * 60),
+				style::al_left);
+		};
+		const auto updated = picker(
+			minutesCount,
+			minutesStartIndex,
+			minutesPaint);
+		delete minutes->current();
+		*minutes = updated;
+		minutes->current()->show();
+	}, hours->lifetime());
+
+	const auto separator = u":"_q;
+	const auto separatorWidth = st::boxTextFont->width(separator);
+
+	rpl::combine(
+		content->sizeValue(),
+		minutes->value()
+	) | rpl::start_with_next([=](QSize s, Ui::VerticalDrumPicker *minutes) {
+		const auto half = (s.width() - separatorWidth) / 2;
+		hours->setGeometry(0, 0, half, s.height());
+		minutes->setGeometry(half + separatorWidth, 0, half, s.height());
 	}, content->lifetime());
 
 	content->paintRequest(
@@ -163,28 +239,22 @@ void EditTimeBox(
 			st::defaultInputField.borderActive);
 		p.fillRect(lineRect.translated(0, itemHeight / 2), st::activeLineFg);
 		p.fillRect(lineRect.translated(0, -itemHeight / 2), st::activeLineFg);
+		p.drawText(QRectF(content->rect()), separator, style::al_center);
 	}, content->lifetime());
 
-	base::install_event_filter(content, [=](not_null<QEvent*> e) {
-		if ((e->type() == QEvent::MouseButtonPress)
-			|| (e->type() == QEvent::MouseButtonRelease)
-			|| (e->type() == QEvent::MouseMove)) {
-			picker->handleMouseEvent(static_cast<QMouseEvent*>(e.get()));
-		} else if (e->type() == QEvent::Wheel) {
-			picker->handleWheelEvent(static_cast<QWheelEvent*>(e.get()));
-		}
-		return base::EventFilterResult::Continue;
-	});
 	base::install_event_filter(box, [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::KeyPress) {
-			picker->handleKeyEvent(static_cast<QKeyEvent*>(e.get()));
+			hours->handleKeyEvent(static_cast<QKeyEvent*>(e.get()));
 		}
 		return base::EventFilterResult::Continue;
 	});
 
 	box->addButton(tr::lng_settings_save(), [=] {
 		const auto weak = Ui::MakeWeak(box);
-		save(std::clamp(low + picker->index() * 60, low, high));
+		save(std::clamp(
+			((*minutesStart) / 60 + minutes->current()->index()) * 60,
+			low,
+			high));
 		if (const auto strong = weak.data()) {
 			strong->closeBox();
 		}

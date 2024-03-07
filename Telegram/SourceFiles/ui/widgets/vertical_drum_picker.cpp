@@ -92,6 +92,8 @@ VerticalDrumPicker::VerticalDrumPicker(
 			_loopData.minIndex = -_itemsVisible.centerOffset;
 			_loopData.maxIndex = _itemsCount - 1 - _itemsVisible.centerOffset;
 		}
+
+		_changes.fire({});
 	}, lifetime());
 
 	paintRequest(
@@ -144,7 +146,9 @@ void VerticalDrumPicker::increaseShift(float64 by) {
 		index++;
 		index = normalizedIndex(index);
 	}
-	if (!_loopData.looped && (index <= _loopData.minIndex)) {
+	if (_loopData.minIndex == _loopData.maxIndex) {
+		_shift = 0.;
+	} else if (!_loopData.looped && (index <= _loopData.minIndex)) {
 		_shift = std::min(0., shift);
 		_index = _loopData.minIndex;
 	} else if (!_loopData.looped && (index >= _loopData.maxIndex)) {
@@ -154,6 +158,7 @@ void VerticalDrumPicker::increaseShift(float64 by) {
 		_shift = shift;
 		_index = index;
 	}
+	_changes.fire({});
 	update();
 }
 
@@ -268,6 +273,16 @@ int VerticalDrumPicker::normalizedIndex(int index) const {
 
 int VerticalDrumPicker::index() const {
 	return normalizedIndex(_index + _itemsVisible.centerOffset);
+}
+
+rpl::producer<int> VerticalDrumPicker::changes() const {
+	return _changes.events() | rpl::map([=] { return index(); });
+}
+
+rpl::producer<int> VerticalDrumPicker::value() const {
+	return rpl::single(index())
+		| rpl::then(changes())
+		| rpl::distinct_until_changed();
 }
 
 } // namespace Ui
