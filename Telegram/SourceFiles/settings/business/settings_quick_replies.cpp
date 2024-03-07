@@ -162,6 +162,22 @@ void QuickReplies::setupContent(
 	Ui::ResizeFitChild(this, content);
 }
 
+[[nodiscard]] bool ValidShortcutName(const QString &name) {
+	if (name.isEmpty() || name.size() > 32) {
+		return false;
+	}
+	for (const auto &ch : name) {
+		if (!ch.isLetterOrNumber()
+			&& (ch != '_')
+			&& (ch != 0x200c)
+			&& (ch != 0x00b7)
+			&& (ch < 0x0d80 || ch > 0x0dff)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 } // namespace
 
 Type QuickRepliesId() {
@@ -195,7 +211,7 @@ void EditShortcutNameBox(
 
 	const auto callback = [=] {
 		const auto name = field->getLastText().trimmed();
-		if (name.isEmpty()) {
+		if (!ValidShortcutName(name)) {
 			field->showError();
 		} else {
 			submit(name, [weak = Ui::MakeWeak(box)] {
