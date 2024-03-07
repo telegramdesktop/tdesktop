@@ -76,6 +76,8 @@ public:
 
 	rpl::producer<bool> desiredShadowVisibility() const override;
 
+	bool closeByOutsideClick() const override;
+	void checkBeforeClose(Fn<void()> close) override;
 	rpl::producer<QString> title() override;
 
 	void enableBackButton() override;

@@ -669,17 +669,6 @@ bool ShowSearchTagsPromo(
 	return true;
 }
 
-bool ShowAboutBusinessChatbots(
-		Window::SessionController *controller,
-		const Match &match,
-		const QVariant &context) {
-	if (!controller) {
-		return false;
-	}
-	controller->showToast(u"Cool feature, yeah.."_q); AssertIsDebug();
-	return true;
-}
-
 void ExportTestChatTheme(
 		not_null<Window::SessionController*> controller,
 		not_null<const Data::CloudTheme*> theme) {
@@ -1047,10 +1036,6 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"about_tags"_q,
 			ShowSearchTagsPromo
-		},
-		{
-			u"about_business_chatbots"_q,
-			ShowAboutBusinessChatbots
 		},
 	};
 	return Result;

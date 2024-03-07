@@ -109,20 +109,20 @@ void BusinessInfo::saveAwaySettings(
 	const auto &was = _awaySettings;
 	if (was == data) {
 		return;
+	} else if (!data || data.shortcutId) {
+		using Flag = MTPaccount_UpdateBusinessAwayMessage::Flag;
+		const auto session = &_owner->session();
+		session->api().request(MTPaccount_UpdateBusinessAwayMessage(
+			MTP_flags(data ? Flag::f_message : Flag()),
+			data ? ToMTP(data) : MTPInputBusinessAwayMessage()
+		)).fail([=](const MTP::Error &error) {
+			_awaySettings = was;
+			_awaySettingsChanged.fire({});
+			if (fail) {
+				fail(error.type());
+			}
+		}).send();
 	}
-	using Flag = MTPaccount_UpdateBusinessAwayMessage::Flag;
-	const auto session = &_owner->session();
-	session->api().request(MTPaccount_UpdateBusinessAwayMessage(
-		MTP_flags(data ? Flag::f_message : Flag()),
-		data ? ToMTP(data) : MTPInputBusinessAwayMessage()
-	)).fail([=](const MTP::Error &error) {
-		_awaySettings = was;
-		_awaySettingsChanged.fire({});
-		if (fail) {
-			fail(error.type());
-		}
-	}).send();
-
 	_awaySettings = std::move(data);
 	_awaySettingsChanged.fire({});
 }
@@ -153,20 +153,20 @@ void BusinessInfo::saveGreetingSettings(
 	const auto &was = _greetingSettings;
 	if (was == data) {
 		return;
+	} else if (!data || data.shortcutId) {
+		using Flag = MTPaccount_UpdateBusinessGreetingMessage::Flag;
+		_owner->session().api().request(
+			MTPaccount_UpdateBusinessGreetingMessage(
+				MTP_flags(data ? Flag::f_message : Flag()),
+				data ? ToMTP(data) : MTPInputBusinessGreetingMessage())
+		).fail([=](const MTP::Error &error) {
+			_greetingSettings = was;
+			_greetingSettingsChanged.fire({});
+			if (fail) {
+				fail(error.type());
+			}
+		}).send();
 	}
-	using Flag = MTPaccount_UpdateBusinessGreetingMessage::Flag;
-	_owner->session().api().request(
-		MTPaccount_UpdateBusinessGreetingMessage(
-			MTP_flags(data ? Flag::f_message : Flag()),
-			data ? ToMTP(data) : MTPInputBusinessGreetingMessage())
-	).fail([=](const MTP::Error &error) {
-		_greetingSettings = was;
-		_greetingSettingsChanged.fire({});
-		if (fail) {
-			fail(error.type());
-		}
-	}).send();
-
 	_greetingSettings = std::move(data);
 	_greetingSettingsChanged.fire({});
 }

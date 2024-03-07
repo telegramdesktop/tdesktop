@@ -30,6 +30,10 @@ struct BusinessChats {
 	BusinessChatTypes types;
 	std::vector<not_null<UserData*>> list;
 
+	[[nodiscard]] bool empty() const {
+		return !types && list.empty();
+	}
+
 	friend inline bool operator==(
 		const BusinessChats &a,
 		const BusinessChats &b) = default;
@@ -193,7 +197,7 @@ enum class AwayScheduleType : uchar {
 };
 
 struct AwaySchedule {
-	AwayScheduleType type = AwayScheduleType::Always;
+	AwayScheduleType type = AwayScheduleType::Never;
 	WorkingInterval customInterval;
 
 	friend inline bool operator==(

@@ -53,6 +53,7 @@ public:
 		not_null<Window::SessionController*> controller);
 	~Chatbots();
 
+	[[nodiscard]] bool closeByOutsideClick() const override;
 	[[nodiscard]] rpl::producer<QString> title() override;
 
 	const Ui::RoundRect *bottomSkipRounding() const override {
@@ -380,6 +381,10 @@ Chatbots::~Chatbots() {
 	}
 }
 
+bool Chatbots::closeByOutsideClick() const {
+	return false;
+}
+
 rpl::producer<QString> Chatbots::title() {
 	return tr::lng_chatbots_title();
 }
@@ -402,7 +407,7 @@ void Chatbots::setupContent(
 		.about = tr::lng_chatbots_about(
 			lt_link,
 			tr::lng_chatbots_about_link(
-			) | Ui::Text::ToLink(u"internal:about_business_chatbots"_q),
+			) | Ui::Text::ToLink(tr::lng_chatbots_info_url(tr::now)),
 			Ui::Text::WithEntities),
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
@@ -485,7 +490,7 @@ void Chatbots::save() {
 		.recipients = _recipients.current(),
 		.repliesAllowed = _repliesAllowed.current(),
 	}, [=] {
-	}, [=](QString error) { show->showToast(error); });
+	}, fail);
 }
 
 } // namespace

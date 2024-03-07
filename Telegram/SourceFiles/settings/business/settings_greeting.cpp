@@ -42,6 +42,7 @@ public:
 		not_null<Window::SessionController*> controller);
 	~Greeting();
 
+	[[nodiscard]] bool closeByOutsideClick() const override;
 	[[nodiscard]] rpl::producer<QString> title() override;
 
 	const Ui::RoundRect *bottomSkipRounding() const override {
@@ -103,6 +104,10 @@ Greeting::~Greeting() {
 	if (!Core::Quitting()) {
 		save();
 	}
+}
+
+bool Greeting::closeByOutsideClick() const {
+	return false;
 }
 
 rpl::producer<QString> Greeting::title() {

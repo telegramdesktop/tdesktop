@@ -168,8 +168,10 @@ void AddBusinessRecipientsSelector(
 		modify(now);
 		*data = std::move(now);
 	};
+	const auto &current = data->current();
+	const auto all = current.allButExcluded || current.included.empty();
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(
-		data->current().allButExcluded ? kAllExcept : kSelectedOnly);
+		all ? kAllExcept : kSelectedOnly);
 	const auto everyone = container->add(
 		object_ptr<Ui::Radiobutton>(
 			container,
@@ -281,6 +283,12 @@ void AddBusinessRecipientsSelector(
 	}, lifetime);
 
 	SetupBusinessChatsPreview(includeInner, included);
+	included->value(
+	) | rpl::start_with_next([=](const Data::BusinessChats &value) {
+		if (value.empty() && group->current() == kSelectedOnly) {
+			group->setValue(kAllExcept);
+		}
+	}, lifetime);
 
 	includeWrap->toggleOn(data->value(
 	) | rpl::map([](const Data::BusinessRecipients &value) {
@@ -289,6 +297,20 @@ void AddBusinessRecipientsSelector(
 	includeWrap->finishAnimating();
 
 	group->setChangedCallback([=](int value) {
+		if (value == kSelectedOnly && data->current().included.empty()) {
+			group->setValue(kAllExcept);
+			const auto save = [=](Data::BusinessChats value) {
+				change([&](Data::BusinessRecipients &data) {
+					data.included = std::move(value);
+				});
+				group->setValue(kSelectedOnly);
+			};
+			EditBusinessChats(controller, {
+				.save = crl::guard(includeAdd, save),
+				.include = true,
+			});
+			return;
+		}
 		change([&](Data::BusinessRecipients &data) {
 			data.allButExcluded = (value == kAllExcept);
 		});

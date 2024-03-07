@@ -70,6 +70,12 @@ public:
 	[[nodiscard]] virtual rpl::producer<std::vector<Type>> removeFromStack() {
 		return nullptr;
 	}
+	[[nodiscard]] virtual bool closeByOutsideClick() const {
+		return true;
+	}
+	virtual void checkBeforeClose(Fn<void()> close) {
+		close();
+	}
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	virtual void sectionSaveChanges(FnMut<void()> done) {
 		done();

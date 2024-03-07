@@ -101,6 +101,12 @@ public:
 	}
 	virtual void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction);
 
+	[[nodiscard]] virtual bool closeByOutsideClick() const {
+		return true;
+	}
+	virtual void checkBeforeClose(Fn<void()> close) {
+		close();
+	}
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	[[nodiscard]] virtual rpl::producer<QString> subtitle() {
 		return nullptr;

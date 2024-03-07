@@ -44,6 +44,7 @@ public:
 		not_null<Window::SessionController*> controller);
 	~WorkingHours();
 
+	[[nodiscard]] bool closeByOutsideClick() const override;
 	[[nodiscard]] rpl::producer<QString> title() override;
 
 private:
@@ -527,6 +528,10 @@ WorkingHours::~WorkingHours() {
 	if (!Core::Quitting()) {
 		save();
 	}
+}
+
+bool WorkingHours::closeByOutsideClick() const {
+	return false;
 }
 
 rpl::producer<QString> WorkingHours::title() {

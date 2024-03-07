@@ -232,6 +232,14 @@ rpl::producer<bool> Widget::desiredShadowVisibility() const {
 		: rpl::single(true);
 }
 
+bool Widget::closeByOutsideClick() const {
+	return _inner->closeByOutsideClick();;
+}
+
+void Widget::checkBeforeClose(Fn<void()> close) {
+	_inner->checkBeforeClose(std::move(close));
+}
+
 rpl::producer<QString> Widget::title() {
 	return _inner->title();
 }

@@ -410,8 +410,10 @@ void WrapWidget::setupTopBarMenuToggle() {
 }
 
 void WrapWidget::checkBeforeClose(Fn<void()> close) {
-	_controller->parentController()->hideLayer();
-	close();
+	_content->checkBeforeClose(crl::guard(this, [=] {
+		_controller->parentController()->hideLayer();
+		close();
+	}));
 }
 
 void WrapWidget::addTopBarMenuButton() {
@@ -438,7 +440,7 @@ void WrapWidget::addTopBarMenuButton() {
 }
 
 bool WrapWidget::closeByOutsideClick() const {
-	return true;
+	return _content->closeByOutsideClick();
 }
 
 void WrapWidget::addProfileCallsButton() {
@@ -872,8 +874,12 @@ void WrapWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		if (hasStackHistory() || wrap() != Wrap::Layer) {
 			checkBeforeClose([=] { _controller->showBackFromStack(); });
-			return;
+		} else {
+			checkBeforeClose([=] {
+				_controller->parentController()->hideSpecialLayer();
+			});
 		}
+		return;
 	}
 	SectionWidget::keyPressEvent(e);
 }

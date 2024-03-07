@@ -38,6 +38,7 @@ public:
 		not_null<Window::SessionController*> controller);
 	~AwayMessage();
 
+	[[nodiscard]] bool closeByOutsideClick() const override;
 	[[nodiscard]] rpl::producer<QString> title() override;
 
 private:
@@ -197,6 +198,10 @@ AwayMessage::~AwayMessage() {
 	if (!Core::Quitting()) {
 		save();
 	}
+}
+
+bool AwayMessage::closeByOutsideClick() const {
+	return false;
 }
 
 rpl::producer<QString> AwayMessage::title() {
