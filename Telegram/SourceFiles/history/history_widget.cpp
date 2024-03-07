@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "boxes/edit_caption_box.h"
 #include "boxes/premium_limits_box.h"
+#include "boxes/premium_preview_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h" // ShowAboutGigagroup.
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "core/file_utilities.h"
@@ -439,12 +440,16 @@ HistoryWidget::HistoryWidget(
 			&& data.method != Method::ByTab)
 			? messages->lookupShortcutId(data.command.mid(1))
 			: BusinessShortcutId();
-		if (shortcutId) {
+		if (!shortcutId) {
+			insertHashtagOrBotCommand(data.command, data.method);
+		} else if (!_peer->session().premium()) {
+			ShowPremiumPreviewToBuy(
+				controller,
+				PremiumFeature::QuickReplies);
+		} else {
 			session().api().sendShortcutMessages(_peer, shortcutId);
 			session().api().finishForwarding(prepareSendAction({}));
 			setFieldText(_field->getTextWithTagsPart(_field->textCursor().position()));
-		} else {
-			insertHashtagOrBotCommand(data.command, data.method);
 		}
 	}, lifetime());
 
