@@ -225,9 +225,9 @@ void AddBusinessSummary(
 	icons.reserve(int(entryMap.size()));
 	{
 		const auto &account = controller->session().account();
-		const auto mtpOrder = FallbackOrder(); AssertIsDebug();/* account.appConfig().get<Order>(
+		const auto mtpOrder = account.appConfig().get<Order>(
 			"business_promo_order",
-			FallbackOrder());*/
+			FallbackOrder());
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
 			addRow(entry);
