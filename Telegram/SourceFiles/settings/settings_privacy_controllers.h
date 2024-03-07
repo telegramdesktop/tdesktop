@@ -18,6 +18,9 @@ class SessionController;
 
 namespace Ui {
 class ChatStyle;
+namespace Toast {
+class Instance;
+} // namespace Toast
 } // namespace Ui
 
 namespace Settings {
@@ -280,8 +283,16 @@ public:
 	rpl::producer<QString> exceptionBoxTitle(
 		Exception exception) const override;
 	rpl::producer<QString> exceptionsDescription() const override;
+	object_ptr<Ui::RpWidget> setupBelowWidget(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> parent,
+		rpl::producer<Option> option) override;
+	Fn<void()> premiumClickedCallback(
+		Option option,
+		not_null<Window::SessionController*> controller) override;
 
 private:
+	base::weak_ptr<Ui::Toast::Instance> _toastInstance;
 	rpl::lifetime _lifetime;
 
 };

@@ -164,6 +164,7 @@ rpl::producer<QString> PrivacyString(
 	});
 }
 
+#if 0 // Dead code.
 void AddPremiumPrivacyButton(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -283,6 +284,7 @@ void AddPremiumPrivacyButton(
 		});
 	});
 }
+#endif
 
 void AddMessagesPrivacyButton(
 		not_null<Window::SessionController*> controller,
@@ -328,7 +330,7 @@ void SetupPrivacy(
 			rpl::producer<QString> label,
 			Key key,
 			auto controllerFactory) {
-		AddPrivacyButton(
+		return AddPrivacyButton(
 			controller,
 			container,
 			std::move(label),
@@ -366,12 +368,15 @@ void SetupPrivacy(
 		tr::lng_settings_groups_invite(),
 		Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
-	AddPremiumPrivacyButton(
-		controller,
-		container,
-		tr::lng_settings_voices_privacy(),
-		Key::Voices,
-		[=] { return std::make_unique<VoicesPrivacyController>(session); });
+	{
+		const auto &phrase = tr::lng_settings_voices_privacy;
+		const auto &st = st::settingsButtonNoIcon;
+		auto callback = [=] {
+			return std::make_unique<VoicesPrivacyController>(session);
+		};
+		const auto voices = add(phrase(), Key::Voices, std::move(callback));
+		AddPremiumStar(voices, session, phrase(), st.padding);
+	}
 	AddMessagesPrivacyButton(controller, container);
 
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
@@ -873,7 +878,7 @@ object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox() {
 	});
 }
 
-void AddPrivacyButton(
+not_null<Ui::SettingsButton*> AddPrivacyButton(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> label,
@@ -883,13 +888,14 @@ void AddPrivacyButton(
 		const style::SettingsButton *stOverride) {
 	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 	const auto session = &controller->session();
-	AddButtonWithLabel(
+	const auto button = AddButtonWithLabel(
 		container,
 		std::move(label),
 		PrivacyString(session, key),
 		stOverride ? *stOverride : st::settingsButtonNoIcon,
 		std::move(descriptor)
-	)->addClickHandler([=] {
+	);
+	button->addClickHandler([=] {
 		*shower = session->api().userPrivacy().value(
 			key
 		) | rpl::take(
@@ -901,6 +907,7 @@ void AddPrivacyButton(
 				value));
 		});
 	});
+	return button;
 }
 
 void SetupArchiveAndMute(
