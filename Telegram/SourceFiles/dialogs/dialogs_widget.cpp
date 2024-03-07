@@ -2964,7 +2964,9 @@ void Widget::updateControlsGeometry() {
 	if (_connecting) {
 		_connecting->setBottomSkip(bottomSkip);
 	}
-	controller()->setConnectingBottomSkip(bottomSkip);
+	if (_layout != Layout::Child) {
+		controller()->setConnectingBottomSkip(bottomSkip);
+	}
 
 	const auto wasScrollTop = _scroll->scrollTop();
 	const auto newScrollTop = (_topDelta < 0 && wasScrollTop <= 0)
