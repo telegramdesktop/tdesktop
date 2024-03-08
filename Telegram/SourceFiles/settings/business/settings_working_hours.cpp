@@ -94,20 +94,20 @@ private:
 		return wrap(time);
 	}
 	const auto wrapped = wrap(time - kDay);
-	const auto result = tr::lng_hours_next_day(tr::now, lt_time, wrapped);
+	const auto result = tr::lng_hours_on_next_day(tr::now, lt_time, wrapped);
 	const auto i = result.indexOf(wrapped);
 	return (i >= 0) ? (result.left(i) + wrapped) : result;
 }
 
 [[nodiscard]] QString FormatTimeMinute(TimeId time) {
 	const auto wrap = [](TimeId value) {
-		return QString::number(value / 60).rightJustified(2, u'0');
+		return QString::number((value / 60) % 60).rightJustified(2, u'0');
 	};
 	if (time < kDay) {
 		return wrap(time);
 	}
 	const auto wrapped = wrap(time - kDay);
-	const auto result = tr::lng_hours_next_day(tr::now, lt_time, wrapped);
+	const auto result = tr::lng_hours_on_next_day(tr::now, lt_time, wrapped);
 	const auto i = result.indexOf(wrapped);
 	return (i >= 0)
 		? (wrapped + result.right(result.size() - i - wrapped.size()))
@@ -174,7 +174,7 @@ void EditTimeBox(
 	};
 
 	const auto hoursCount = (high - low + 3600) / 3600;
-	const auto hoursStartIndex = (value - low) / 3600;
+	const auto hoursStartIndex = (value / 3600) - (low / 3600);
 	const auto hoursPaint = [=](QPainter &p, QRectF rect, int index) {
 		p.drawText(
 			rect,
@@ -185,6 +185,23 @@ void EditTimeBox(
 	const auto minutes = content->lifetime().make_state<
 		rpl::variable<Ui::VerticalDrumPicker*>
 	>(nullptr);
+
+	// hours->value() is valid only after size is set.
+	const auto separator = u":"_q;
+	const auto separatorWidth = st::boxTextFont->width(separator);
+	rpl::combine(
+		content->sizeValue(),
+		minutes->value()
+	) | rpl::start_with_next([=](QSize s, Ui::VerticalDrumPicker *minutes) {
+		const auto half = (s.width() - separatorWidth) / 2;
+		hours->setGeometry(0, 0, half, s.height());
+		if (minutes) {
+			minutes->setGeometry(half + separatorWidth, 0, half, s.height());
+		}
+	}, content->lifetime());
+
+	Ui::SendPendingMoveResizeEvents(hours);
+
 	const auto minutesStart = content->lifetime().make_state<TimeId>();
 	hours->value() | rpl::start_with_next([=](int hoursIndex) {
 		const auto start = std::max(low, (hoursIndex + (low / 3600)) * 3600);
@@ -196,13 +213,13 @@ void EditTimeBox(
 					- ((start / 60) % 60)),
 				0,
 				(minutesCount - 1))
-			: std::clamp((value - start) / 60, 0, minutesCount - 1);
+			: std::clamp((value / 60) - (start / 60), 0, minutesCount - 1);
 		*minutesStart = start;
 
 		const auto minutesPaint = [=](QPainter &p, QRectF rect, int index) {
 			p.drawText(
 				rect,
-				FormatTimeMinute((((start / 60) + index) % 60) * 60),
+				FormatTimeMinute(((start / 60) + index) * 60),
 				style::al_left);
 		};
 		const auto updated = picker(
@@ -213,18 +230,6 @@ void EditTimeBox(
 		*minutes = updated;
 		minutes->current()->show();
 	}, hours->lifetime());
-
-	const auto separator = u":"_q;
-	const auto separatorWidth = st::boxTextFont->width(separator);
-
-	rpl::combine(
-		content->sizeValue(),
-		minutes->value()
-	) | rpl::start_with_next([=](QSize s, Ui::VerticalDrumPicker *minutes) {
-		const auto half = (s.width() - separatorWidth) / 2;
-		hours->setGeometry(0, 0, half, s.height());
-		minutes->setGeometry(half + separatorWidth, 0, half, s.height());
-	}, content->lifetime());
 
 	content->paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {

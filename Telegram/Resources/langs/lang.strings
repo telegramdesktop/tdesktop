@@ -2205,6 +2205,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_hours_closed" = "Closed";
 "lng_hours_open_full" = "Open 24 hours";
 "lng_hours_next_day" = "{time} (Next day)";
+"lng_hours_on_next_day" = "Next day {time}";
 "lng_hours_time_zone_title" = "Choose Time Zone";
 "lng_hours_add_button" = "Add a Set of Hours";
 "lng_hours_opening" = "Opening Time";
