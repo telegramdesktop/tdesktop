@@ -94,7 +94,7 @@ settingsPremiumIconTranslations: icon {{ "settings/premium/translations", settin
 settingsPremiumIconTags: icon {{ "settings/premium/tags", settingsIconFg }};
 settingsPremiumIconLastSeen: icon {{ "settings/premium/lastseen", settingsIconFg }};
 settingsPremiumIconPrivacy: icon {{ "settings/premium/privacy", settingsIconFg }};
-settingsPremiumIconBusiness: icon {{ "settings/premium/privacy", settingsIconFg }};
+settingsPremiumIconBusiness: icon {{ "settings/premium/market", settingsIconFg }};
 
 settingsStoriesIconOrder: icon {{ "settings/premium/stories_order", premiumButtonBg1 }};
 settingsStoriesIconStealth: icon {{ "menu/stealth", premiumButtonBg1 }};

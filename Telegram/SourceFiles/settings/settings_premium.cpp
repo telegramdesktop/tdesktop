@@ -371,7 +371,7 @@ using Order = std::vector<QString>;
 		{
 			u"business"_q,
 			Entry{
-				&st::settingsPremiumIconPlay, AssertIsDebug()
+				&st::settingsPremiumIconBusiness,
 				tr::lng_premium_summary_subtitle_business(),
 				tr::lng_premium_summary_about_business(),
 				PremiumFeature::Business,
