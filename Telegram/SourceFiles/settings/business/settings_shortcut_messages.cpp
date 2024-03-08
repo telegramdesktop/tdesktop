@@ -181,7 +181,6 @@ private:
 	void processScroll();
 	void updateInnerVisibleArea();
 
-	void pushReplyReturn(not_null<HistoryItem*> item);
 	void checkReplyReturns();
 	void confirmDeleteSelected();
 	void clearSelected();
@@ -565,7 +564,6 @@ bool ShortcutMessages::paintOuter(
 		not_null<QWidget*> outer,
 		int maxVisibleHeight,
 		QRect clip) {
-	const auto window = outer->window()->height();
 	Window::SectionWidget::PaintBackground(
 		_theme.get(),
 		outer,
@@ -1090,12 +1088,6 @@ bool ShortcutMessages::cornerButtonsUnreadMayBeShown() {
 
 bool ShortcutMessages::cornerButtonsHas(CornerButtonType type) {
 	return (type == CornerButtonType::Down);
-}
-
-void ShortcutMessages::pushReplyReturn(not_null<HistoryItem*> item) {
-	if (item->shortcutId() == _shortcutId.current()) {
-		_cornerButtons.pushReplyReturn(item);
-	}
 }
 
 void ShortcutMessages::checkReplyReturns() {

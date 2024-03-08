@@ -479,7 +479,6 @@ void Chatbots::setupContent(
 
 void Chatbots::save() {
 	const auto show = controller()->uiShow();
-	const auto session = &controller()->session();
 	const auto fail = [=](QString error) {
 		if (error == u"BUSINESS_RECIPIENTS_EMPTY"_q) {
 			show->showToast(tr::lng_greeting_recipients_empty(tr::now));

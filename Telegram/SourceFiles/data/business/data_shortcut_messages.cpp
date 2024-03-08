@@ -262,7 +262,6 @@ void ShortcutMessages::scheduleShortcutsReload() {
 }
 
 void ShortcutMessages::apply(const MTPDupdateNewQuickReply &update) {
-	const auto selfId = _session->userPeerId();
 	const auto &reply = update.vquick_reply();
 	auto foundId = BusinessShortcutId();
 	const auto shortcut = parseShortcut(reply);

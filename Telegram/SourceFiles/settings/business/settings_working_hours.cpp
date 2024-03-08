@@ -60,7 +60,6 @@ private:
 	const auto abs = std::abs(data.utcOffset);
 	const auto hours = abs / 3600;
 	const auto minutes = (abs % 3600) / 60;
-	const auto seconds = abs % 60;
 	const auto sign = (data.utcOffset < 0) ? '-' : '+';
 	const auto prefix = u"(UTC"_q
 		+ sign
@@ -366,7 +365,6 @@ void EditDayBox(
 			const auto from = std::max(
 				std::min(last + 30 * 60, kDay - 30 * 60),
 				last + 60);
-			const auto till = std::min(from + 4 * 3600, kDay + 30 * 60);
 			now.list.push_back({ from, from + 4 * 3600 });
 		}
 		state->data = std::move(now);

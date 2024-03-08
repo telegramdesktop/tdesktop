@@ -171,7 +171,7 @@ void AddBusinessRecipientsSelector(
 	const auto all = current.allButExcluded || current.included.empty();
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(
 		all ? kAllExcept : kSelectedOnly);
-	const auto everyone = container->add(
+	container->add(
 		object_ptr<Ui::Radiobutton>(
 			container,
 			group,
@@ -179,7 +179,7 @@ void AddBusinessRecipientsSelector(
 			tr::lng_chatbots_all_except(tr::now),
 			st::settingsChatbotsAccess),
 		st::settingsChatbotsAccessMargins);
-	const auto selected = container->add(
+	container->add(
 		object_ptr<Ui::Radiobutton>(
 			container,
 			group,

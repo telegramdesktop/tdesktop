@@ -244,10 +244,8 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	const auto st = context.st;
-	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 
-	const auto bubble = st::msgPadding;
 	const auto full = Rect(currentSize());
 	const auto outer = full - inBubblePadding();
 	const auto inner = outer - innerMargin();
@@ -438,7 +436,6 @@ TextState Contact::textState(QPoint point, StateRequest request) const {
 
 	if (_buttons.size() > 1) {
 		const auto end = rect::bottom(inner) + _st.padding.bottom();
-		const auto line = st::historyPageButtonLine;
 		const auto bWidth = inner.width() / float64(_buttons.size());
 		const auto bHeight = rect::bottom(outer) - end;
 		for (auto i = 0; i < _buttons.size(); i++) {

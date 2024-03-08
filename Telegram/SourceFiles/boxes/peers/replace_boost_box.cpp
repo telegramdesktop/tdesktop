@@ -425,14 +425,9 @@ Ui::BoostCounters ParseBoostCounters(
 }
 
 Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
-	const auto group = channel->isMegagroup();
-	const auto appConfig = &channel->session().account().appConfig();
-	const auto get = [&](const QString &key, int fallback, bool ok = true) {
-		return ok ? appConfig->get<int>(key, fallback) : 0;
-	};
-
 	auto nameColorsByLevel = base::flat_map<int, int>();
 	auto linkStylesByLevel = base::flat_map<int, int>();
+	const auto group = channel->isMegagroup();
 	const auto peerColors = &channel->session().api().peerColors();
 	const auto &list = group
 		? peerColors->requiredLevelsGroup()

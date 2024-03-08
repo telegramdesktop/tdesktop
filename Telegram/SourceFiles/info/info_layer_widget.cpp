@@ -138,7 +138,6 @@ void LayerWidget::setContentHeight(int height) {
 	if (_contentWrapHeight == height) {
 		return;
 	}
-	LOG(("CONTENT WRAP HEIGHT: %1 -> %2").arg(_contentWrapHeight).arg(height));
 	_contentWrapHeight = height;
 	if (_inResize) {
 		_pendingResize = true;
@@ -261,35 +260,6 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	auto attempts = 0;
 	while (true) {
 		_inResize = true;
-		{
-			const auto &parentSize = parentWidget()->size();
-			const auto windowWidth = parentSize.width();
-			const auto windowHeight = parentSize.height();
-			const auto newLeft = (windowWidth - newWidth) / 2;
-			const auto newTop = std::clamp(
-				windowHeight / 24,
-				st::infoLayerTopMinimal,
-				st::infoLayerTopMaximal);
-			const auto newBottom = newTop;
-
-			const auto bottomRadius = st::boxRadius;
-			const auto maxVisibleHeight = windowHeight - newTop;
-			// Top rounding is included in _contentWrapHeight.
-			auto desiredHeight = _contentWrapHeight + bottomRadius;
-			accumulate_min(desiredHeight, maxVisibleHeight - newBottom);
-
-			// First resize content to new width and get the new desired height.
-			const auto contentLeft = 0;
-			const auto contentTop = 0;
-			const auto contentBottom = bottomRadius;
-			const auto contentWidth = newWidth;
-			auto contentHeight = desiredHeight - contentTop - contentBottom;
-			LOG(("ATTEMPT %1: WIDTH %2, WRAP HEIGHT %3, SCROLL TILL BOTTOM: %4"
-				).arg(attempts + 1
-				).arg(newWidth
-				).arg(_contentWrapHeight
-				).arg(_contentWrap->scrollTillBottom(contentHeight)));
-		}
 		const auto newGeometry = countGeometry(newWidth);
 		_inResize = false;
 		if (!_pendingResize) {

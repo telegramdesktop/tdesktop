@@ -130,7 +130,6 @@ void QuickReplies::setupContent(
 		auto old = inner->count();
 
 		const auto &shortcuts = messages->shortcuts();
-		auto i = 0;
 		for (const auto &[_, shortcut]
 			: shortcuts.list | ranges::views::reverse) {
 			if (!shortcut.count) {
