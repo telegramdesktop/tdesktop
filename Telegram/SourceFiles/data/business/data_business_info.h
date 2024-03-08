@@ -37,6 +37,7 @@ public:
 	[[nodiscard]] rpl::producer<> greetingSettingsChanged() const;
 
 	void preloadTimezones();
+	[[nodiscard]] bool timezonesLoaded() const;
 	[[nodiscard]] rpl::producer<Timezones> timezonesValue() const;
 
 private:

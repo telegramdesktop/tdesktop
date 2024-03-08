@@ -43,8 +43,19 @@ void Chatbots::preload() {
 				.recipients = FromMTP(_owner, bot.vrecipients()),
 				.repliesAllowed = bot.is_can_reply(),
 			};
+		} else {
+			_settings.force_assign(ChatbotsSettings());
 		}
+	}).fail([=](const MTP::Error &error) {
+		_requestId = 0;
+		LOG(("API Error: Could not get connected bots %1 (%2)"
+			).arg(error.code()
+			).arg(error.type()));
 	}).send();
+}
+
+bool Chatbots::loaded() const {
+	return _loaded;
 }
 
 const ChatbotsSettings &Chatbots::current() const {

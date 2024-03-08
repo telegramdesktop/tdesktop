@@ -220,6 +220,10 @@ rpl::producer<Timezones> BusinessInfo::timezonesValue() const {
 	return _timezones.value();
 }
 
+bool BusinessInfo::timezonesLoaded() const {
+	return !_timezones.current().list.empty();
+}
+
 QString FindClosestTimezoneId(const std::vector<Timezone> &list) {
 	const auto local = QDateTime::currentDateTime();
 	const auto utc = QDateTime(local.date(), local.time(), Qt::UTC);

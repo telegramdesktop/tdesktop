@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_business_info.h"
 #include "data/business/data_business_chatbots.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/data_changes.h"
 #include "data/data_peer_values.h" // AmPremiumValue.
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
@@ -317,6 +319,8 @@ private:
 	rpl::event_stream<> _showFinished;
 	rpl::variable<QString> _buttonText;
 
+	PremiumFeature _waitingToShow = PremiumFeature::Business;
+
 };
 
 Business::Business(
@@ -355,20 +359,14 @@ void Business::setStepDataReference(std::any &data) {
 void Business::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	_controller->session().data().chatbots().preload();
-	_controller->session().data().businessInfo().preload();
-	_controller->session().data().shortcutMessages().preloadShortcuts();
+	const auto owner = &_controller->session().data();
+	owner->chatbots().preload();
+	owner->businessInfo().preload();
+	owner->shortcutMessages().preloadShortcuts();
 
 	Ui::AddSkip(content, st::settingsFromFileTop);
 
-	AddBusinessSummary(content, _controller, [=](PremiumFeature feature) {
-		if (!_controller->session().premium()) {
-			_setPaused(true);
-			const auto hidden = crl::guard(this, [=] { _setPaused(false); });
-
-			ShowPremiumPreviewToBuy(_controller, feature, hidden);
-			return;
-		}
+	const auto showFeature = [=](PremiumFeature feature) {
 		showOther([&] {
 			switch (feature) {
 			case PremiumFeature::AwayMessage: return AwayMessageId();
@@ -378,8 +376,60 @@ void Business::setupContent() {
 			case PremiumFeature::QuickReplies: return QuickRepliesId();
 			case PremiumFeature::BusinessBots: return ChatbotsId();
 			}
-			Unexpected("Feature in Business::setupContent.");
+			Unexpected("Feature in showFeature.");
 		}());
+	};
+	const auto isReady = [=](PremiumFeature feature) {
+		switch (feature) {
+		case PremiumFeature::AwayMessage:
+			return owner->businessInfo().awaySettingsLoaded()
+				&& owner->shortcutMessages().shortcutsLoaded();
+		case PremiumFeature::BusinessHours:
+			return owner->session().user()->isFullLoaded()
+				&& owner->businessInfo().timezonesLoaded();
+		case PremiumFeature::BusinessLocation:
+			return owner->session().user()->isFullLoaded();
+		case PremiumFeature::GreetingMessage:
+			return owner->businessInfo().greetingSettingsLoaded()
+				&& owner->shortcutMessages().shortcutsLoaded();
+		case PremiumFeature::QuickReplies:
+			return owner->shortcutMessages().shortcutsLoaded();
+		case PremiumFeature::BusinessBots:
+			return owner->chatbots().loaded();
+		}
+		Unexpected("Feature in isReady.");
+	};
+	const auto check = [=] {
+		if (_waitingToShow != PremiumFeature::Business
+			&& isReady(_waitingToShow)) {
+			showFeature(
+				std::exchange(_waitingToShow, PremiumFeature::Business));
+		}
+	};
+
+	rpl::merge(
+		owner->businessInfo().awaySettingsChanged(),
+		owner->businessInfo().greetingSettingsChanged(),
+		owner->businessInfo().timezonesValue() | rpl::to_empty,
+		owner->shortcutMessages().shortcutsChanged(),
+		owner->chatbots().changes() | rpl::to_empty,
+		owner->session().changes().peerUpdates(
+			owner->session().user(),
+			Data::PeerUpdate::Flag::FullInfo) | rpl::to_empty
+	) | rpl::start_with_next(check, content->lifetime());
+
+	AddBusinessSummary(content, _controller, [=](PremiumFeature feature) {
+		if (!_controller->session().premium()) {
+			_setPaused(true);
+			const auto hidden = crl::guard(this, [=] { _setPaused(false); });
+
+			ShowPremiumPreviewToBuy(_controller, feature, hidden);
+			return;
+		} else if (!isReady(feature)) {
+			_waitingToShow = feature;
+		} else {
+			showFeature(feature);
+		}
 	});
 
 	Ui::ResizeFitChild(this, content);

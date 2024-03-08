@@ -31,6 +31,7 @@ public:
 	~Chatbots();
 
 	void preload();
+	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] const ChatbotsSettings &current() const;
 	[[nodiscard]] rpl::producer<ChatbotsSettings> changes() const;
 	[[nodiscard]] rpl::producer<ChatbotsSettings> value() const;
