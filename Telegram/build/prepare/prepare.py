@@ -205,7 +205,7 @@ def removeDir(folder):
 def setVar(key, multilineValue):
     singlelineValue = ' '.join(multilineValue.replace('\n', '').split());
     if win:
-        return 'SET ' + key + '="' + singlelineValue + '"';
+        return 'SET "' + key + '=' + singlelineValue + '"';
     return key + '="' + singlelineValue + '"';
 
 def filterByPlatform(commands):
