@@ -60,7 +60,8 @@ using namespace Platform;
 using Platform::internal::WaylandIntegration;
 
 void PortalAutostart(bool enabled, Fn<void(bool)> done) {
-	if (cExeName().isEmpty()) {
+	const auto executable = ExecutablePathForShortcuts();
+	if (executable.isEmpty()) {
 		if (done) {
 			done(false);
 		}
@@ -149,7 +150,7 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 
 
 					std::vector<std::string> commandline;
-					commandline.push_back(cExeName().toStdString());
+					commandline.push_back(executable.toStdString());
 					if (Core::Launcher::Instance().customWorkingDir()) {
 						commandline.push_back("-workdir");
 						commandline.push_back(cWorkingDir().toStdString());
