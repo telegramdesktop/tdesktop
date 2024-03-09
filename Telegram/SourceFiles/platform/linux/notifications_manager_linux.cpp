@@ -117,17 +117,16 @@ void StartServiceAsync(Gio::DBusConnection connection, Fn<void()> callback) {
 		});
 }
 
-std::string GetImageKey(const QVersionNumber &specificationVersion) {
-	const auto normalizedVersion = specificationVersion.normalized();
-
-	if (normalizedVersion.isNull()) {
+std::string GetImageKey() {
+	const auto &specVersion = CurrentServerInformation.specVersion;
+	if (specVersion.isNull()) {
 		LOG(("Native Notification Error: specification version is null"));
 		return {};
 	}
 
-	if (normalizedVersion >= QVersionNumber(1, 2)) {
+	if (specVersion >= QVersionNumber(1, 2)) {
 		return "image-data";
-	} else if (normalizedVersion == QVersionNumber(1, 1)) {
+	} else if (specVersion == QVersionNumber(1, 1)) {
 		return "image_data";
 	}
 
@@ -210,7 +209,8 @@ NotificationData::NotificationData(
 , _guid(_application ? std::string(Gio::dbus_generate_guid()) : std::string())
 , _proxy(proxy)
 , _interface(proxy)
-, _hints(GLib::VariantDict::new_()) {
+, _hints(GLib::VariantDict::new_())
+, _imageKey(GetImageKey()) {
 }
 
 bool NotificationData::init(
@@ -266,8 +266,6 @@ bool NotificationData::init(
 	if (!_interface) {
 		return false;
 	}
-
-	_imageKey = GetImageKey(CurrentServerInformation.specVersion);
 
 	if (HasCapability("body-markup")) {
 		_title = title.toStdString();
@@ -706,9 +704,11 @@ void Create(Window::Notifications::System *system) {
 						std::get<1>(*result),
 						std::get<2>(*result),
 						QVersionNumber::fromString(
-							QString::fromStdString(std::get<3>(*result))),
+							QString::fromStdString(std::get<3>(*result))
+						).normalized(),
 						QVersionNumber::fromString(
-							QString::fromStdString(std::get<4>(*result))),
+							QString::fromStdString(std::get<4>(*result))
+						).normalized(),
 					};
 				} else {
 					Gio::DBusErrorNS_::strip_remote_error(result.error());
