@@ -91,7 +91,7 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 	});
 
 	auto result = interface.call_open_file_sync(
-		std::string(base::Platform::XDP::ParentWindowID()),
+		base::Platform::XDP::ParentWindowID(),
 		GLib::Variant::new_handle(0),
 		GLib::Variant::new_array({
 			GLib::Variant::new_dict_entry(

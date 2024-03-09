@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <ksandbox.h>
 
 #include <glibmm.h>
-#include <giomm.h>
 
 #include <xdgdbus/xdgdbus.hpp>
 #include <xdpbackground/xdpbackground.hpp>
@@ -55,7 +54,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 using namespace gi::repository;
-namespace Gio = gi::repository::Gio;
 using namespace Platform;
 using Platform::internal::WaylandIntegration;
 
@@ -161,7 +159,7 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 					commandline.push_back("-autostart");
 
 					interface.call_request_background(
-						std::string(base::Platform::XDP::ParentWindowID()),
+						base::Platform::XDP::ParentWindowID(),
 						GLib::Variant::new_array({
 							GLib::Variant::new_dict_entry(
 								GLib::Variant::new_string("handle_token"),
@@ -695,7 +693,6 @@ void start() {
 	GLib::set_application_name(AppName.data());
 
 	Glib::init();
-	::Gio::init();
 
 	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
 		QDir::tempPath(),
