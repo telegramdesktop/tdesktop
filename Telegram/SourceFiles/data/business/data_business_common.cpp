@@ -231,8 +231,9 @@ WorkingIntervals ExtractDayIntervals(
 }
 
 bool IsFullOpen(const WorkingIntervals &extractedDay) {
-	return extractedDay
-		&& (extractedDay.list.front() == WorkingInterval{ 0, kDay });
+	return extractedDay // 00:00-23:59 or 00:00-00:00 (next day)
+		&& (extractedDay.list.front() == WorkingInterval{ 0, kDay - 60 }
+			|| extractedDay.list.front() == WorkingInterval{ 0, kDay });
 }
 
 WorkingIntervals RemoveDayIntervals(
