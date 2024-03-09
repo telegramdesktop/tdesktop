@@ -119,17 +119,11 @@ void StartServiceAsync(Gio::DBusConnection connection, Fn<void()> callback) {
 
 std::string GetImageKey() {
 	const auto &specVersion = CurrentServerInformation.specVersion;
-	if (specVersion.isNull()) {
-		LOG(("Native Notification Error: specification version is null"));
-		return {};
-	}
-
 	if (specVersion >= QVersionNumber(1, 2)) {
 		return "image-data";
 	} else if (specVersion == QVersionNumber(1, 1)) {
 		return "image_data";
 	}
-
 	return "icon_data";
 }
 
