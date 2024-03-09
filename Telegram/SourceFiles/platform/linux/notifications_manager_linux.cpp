@@ -624,9 +624,7 @@ bool ByDefault() {
 		// To not to play sound with Don't Disturb activated
 		// (no, using sound capability is not a way)
 		"inhibitions",
-	}, [](const auto *capability) {
-		return HasCapability(capability);
-	});
+	}, HasCapability);
 }
 
 void Create(Window::Notifications::System *system) {
