@@ -139,7 +139,7 @@ struct WorkingHours {
 	}
 
 	explicit operator bool() const {
-		return !timezoneId.isEmpty();
+		return !timezoneId.isEmpty() && !intervals.list.empty();
 	}
 
 	friend inline bool operator==(
