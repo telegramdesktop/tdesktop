@@ -50,8 +50,13 @@ const auto kBadPrefix = u"http://"_q;
 [[nodiscard]] QString UrlWithAutoLoginToken(
 		const QString &url,
 		QUrl parsed,
-		const QString &domain) {
-	const auto &active = Core::App().activeAccount();
+		const QString &domain,
+		QVariant context) {
+	const auto my = context.value<ClickHandlerContext>();
+	const auto window = my.sessionWindow.get();
+	const auto &active = window
+		? window->session().account()
+		: Core::App().activeAccount();
 	const auto token = active.mtp().configValues().autologinToken;
 	const auto domains = active.appConfig().get<std::vector<QString>>(
 		"autologin_domains",
@@ -238,7 +243,8 @@ bool UiIntegration::handleUrlClick(
 	const auto domain = DomainForAutoLogin(parsed);
 	const auto skip = context.value<ClickHandlerContext>().skipBotAutoLogin;
 	if (skip || !BotAutoLogin(url, domain, context)) {
-		File::OpenUrl(UrlWithAutoLoginToken(url, std::move(parsed), domain));
+		File::OpenUrl(
+			UrlWithAutoLoginToken(url, std::move(parsed), domain, context));
 	}
 	return true;
 }
