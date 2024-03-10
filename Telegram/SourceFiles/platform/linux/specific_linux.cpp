@@ -79,8 +79,9 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 
 			if (!proxy) {
 				if (done) {
+					Gio::DBusErrorNS_::strip_remote_error(proxy.error());
 					LOG(("Portal Autostart Error: %1").arg(
-						proxy.error().what()));
+						proxy.error().message_().c_str()));
 					done(false);
 				}
 				return;
@@ -117,8 +118,10 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 
 					if (!requestProxy) {
 						if (done) {
+							Gio::DBusErrorNS_::strip_remote_error(
+								requestProxy.error());
 							LOG(("Portal Autostart Error: %1").arg(
-								requestProxy.error().what()));
+								requestProxy.error().message_().c_str()));
 							done(false);
 						}
 						return;
@@ -192,8 +195,11 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 
 								if (!result) {
 									if (done) {
-										LOG(("Portal Autostart Error: %1")
-											.arg(result.error().what()));
+										const auto &error = result.error();
+										Gio::DBusErrorNS_::strip_remote_error(
+											error);
+										LOG(("Portal Autostart Error: %1").arg(
+											error.message_().c_str()));
 										done(false);
 									}
 
@@ -247,7 +253,7 @@ bool GenerateDesktopFile(
 	
 	if (!loaded) {
 		if (!silent) {
-			LOG(("App Error: %1").arg(loaded.error().what()));
+			LOG(("App Error: %1").arg(loaded.error().message_().c_str()));
 		}
 		return false;
 	}
@@ -257,7 +263,8 @@ bool GenerateDesktopFile(
 			const auto removed = target.remove_group(group);
 			if (!removed) {
 				if (!silent) {
-					LOG(("App Error: %1").arg(removed.error().what()));
+					LOG(("App Error: %1").arg(
+						removed.error().message_().c_str()));
 				}
 				return false;
 			}
@@ -320,7 +327,7 @@ bool GenerateDesktopFile(
 	const auto saved = target.save_to_file(targetFile.toStdString());
 	if (!saved) {
 		if (!silent) {
-			LOG(("App Error: %1").arg(saved.error().what()));
+			LOG(("App Error: %1").arg(saved.error().message_().c_str()));
 		}
 		return false;
 	}
@@ -411,7 +418,7 @@ bool GenerateServiceFile(bool silent = false) {
 	const auto saved = target.save_to_file(targetFile.toStdString());
 	if (!saved) {
 		if (!silent) {
-			LOG(("App Error: %1").arg(saved.error().what()));
+			LOG(("App Error: %1").arg(saved.error().message_().c_str()));
 		}
 		return false;
 	}
