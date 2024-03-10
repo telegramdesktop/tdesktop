@@ -1512,11 +1512,11 @@ mac:
         -system-webp \
         -I "$USED_PREFIX/include" \
         -no-feature-futimens \
+        -no-feature-brotli \
         -nomake examples \
         -nomake tests \
         -platform macx-clang -- \
         -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-        -DQT_FEATURE_brotli=OFF \
         -DCMAKE_PREFIX_PATH="$USED_PREFIX"
 
     ninja
