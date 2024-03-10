@@ -277,89 +277,77 @@ bool NotificationData::init(
 		_body = msg.toStdString();
 	}
 
-	if (HasCapability("actions")) {
-		_actions.push_back("default");
-		_actions.push_back(tr::lng_open_link(tr::now).toStdString());
+	_actions.push_back("default");
+	_actions.push_back(tr::lng_open_link(tr::now).toStdString());
 
-		if (!options.hideMarkAsRead) {
-			// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
-			_actions.push_back("mail-mark-read");
-			_actions.push_back(
-				tr::lng_context_mark_read(tr::now).toStdString());
-		}
+	if (!options.hideMarkAsRead) {
+		// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+		_actions.push_back("mail-mark-read");
+		_actions.push_back(tr::lng_context_mark_read(tr::now).toStdString());
+	}
 
-		if (HasCapability("inline-reply")
-			&& !options.hideReplyButton) {
-			_actions.push_back("inline-reply");
-			_actions.push_back(
-				tr::lng_notification_reply(tr::now).toStdString());
+	if (HasCapability("inline-reply") && !options.hideReplyButton) {
+		_actions.push_back("inline-reply");
+		_actions.push_back(tr::lng_notification_reply(tr::now).toStdString());
 
-			_notificationRepliedSignalId =
-				_interface.signal_notification_replied().connect([=](
-						XdgNotifications::Notifications,
-						uint id,
-						std::string text) {
-					Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-						if (id == _notificationId) {
-							_manager->notificationReplied(
-								_id,
-								{ QString::fromStdString(text), {} });
-						}
-					});
-				});
-		}
-
-		_actionInvokedSignalId = _interface.signal_action_invoked().connect(
-			[=](
+		_notificationRepliedSignalId =
+			_interface.signal_notification_replied().connect([=](
 					XdgNotifications::Notifications,
 					uint id,
-					std::string actionName) {
+					std::string text) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					if (id == _notificationId) {
-						if (actionName == "default") {
-							_manager->notificationActivated(_id);
-						} else if (actionName == "mail-mark-read") {
-							_manager->notificationReplied(_id, {});
-						}
+						_manager->notificationReplied(
+							_id,
+							{ QString::fromStdString(text), {} });
 					}
 				});
 			});
+	}
 
-		_activationTokenSignalId =
-			_interface.signal_activation_token().connect([=](
-					XdgNotifications::Notifications,
-					uint id,
-					std::string token) {
-				if (id == _notificationId) {
-					GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
+	_actionInvokedSignalId = _interface.signal_action_invoked().connect([=](
+			XdgNotifications::Notifications,
+			uint id,
+			std::string actionName) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			if (id == _notificationId) {
+				if (actionName == "default") {
+					_manager->notificationActivated(_id);
+				} else if (actionName == "mail-mark-read") {
+					_manager->notificationReplied(_id, {});
 				}
-			});
-	}
+			}
+		});
+	});
 
-	if (HasCapability("action-icons")) {
-		_hints.insert_value("action-icons", GLib::Variant::new_boolean(true));
-	}
+	_activationTokenSignalId = _interface.signal_activation_token().connect(
+		[=](
+				XdgNotifications::Notifications,
+				uint id,
+				std::string token) {
+			if (id == _notificationId) {
+				GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
+			}
+		});
+
+	_hints.insert_value("action-icons", GLib::Variant::new_boolean(true));
 
 	// suppress system sound if telegram sound activated,
 	// otherwise use system sound
-	if (HasCapability("sound")) {
-		if (Core::App().settings().soundNotify()) {
-			_hints.insert_value(
-				"suppress-sound",
-				GLib::Variant::new_boolean(true));
-		} else {
-			// sound name according to http://0pointer.de/public/sound-naming-spec.html
-			_hints.insert_value(
-				"sound-name",
-				GLib::Variant::new_string("message-new-instant"));
-		}
+	if (Core::App().settings().soundNotify()) {
+		_hints.insert_value(
+			"suppress-sound",
+			GLib::Variant::new_boolean(true));
+	} else {
+		// sound name according to http://0pointer.de/public/sound-naming-spec.html
+		_hints.insert_value(
+			"sound-name",
+			GLib::Variant::new_string("message-new-instant"));
 	}
 
-	if (HasCapability("x-canonical-append")) {
-		_hints.insert_value(
-			"x-canonical-append",
-			GLib::Variant::new_string("true"));
-	}
+	_hints.insert_value(
+		"x-canonical-append",
+		GLib::Variant::new_string("true"));
 
 	_hints.insert_value("category", GLib::Variant::new_string("im.received"));
 
