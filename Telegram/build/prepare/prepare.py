@@ -1516,6 +1516,7 @@ mac:
         -nomake tests \
         -platform macx-clang -- \
         -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+        -DQT_FEATURE_brotli=OFF \
         -DCMAKE_PREFIX_PATH="$USED_PREFIX"
 
     ninja
