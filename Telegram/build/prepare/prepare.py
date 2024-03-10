@@ -1512,6 +1512,7 @@ mac:
         -system-webp \
         -I "$USED_PREFIX/include" \
         -no-feature-futimens \
+        -no-feature-brotli \
         -nomake examples \
         -nomake tests \
         -platform macx-clang -- \
