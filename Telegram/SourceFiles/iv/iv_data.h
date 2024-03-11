@@ -44,6 +44,7 @@ public:
 	~Data();
 
 	[[nodiscard]] QString id() const;
+	[[nodiscard]] bool partial() const;
 
 	void prepare(const Options &options, Fn<void(Prepared)> done) const;
 

@@ -161,9 +161,7 @@ namespace {
 		<meta name="robots" content="noindex, nofollow">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<script src="/iv/page.js"></script>
-		<script src="/iv/highlight.js"></script>
 		<link rel="stylesheet" href="/iv/page.css" />
-		<link rel="stylesheet" href="/iv/highlight.css">
 	</head>
 	<body>
 		<button class="fixed_button hidden" id="top_back" onclick="IV.back();">
@@ -191,6 +189,11 @@ namespace {
 	</body>
 </html>
 )"_q;
+}
+
+[[nodiscard]] QByteArray ReadResource(const QString &name) {
+	auto file = QFile(u":/iv/"_q + name);
+	return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
 }
 
 } // namespace
@@ -225,9 +228,26 @@ void Controller::show(
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues) {
 	page.script = fillInChannelValuesScript(std::move(inChannelValues));
 	_titleText.setText(st::ivTitle.style, page.title);
+	_title->update();
 	InvokeQueued(_container, [=, page = std::move(page)]() mutable {
 		showInWindow(dataPath, std::move(page));
 	});
+}
+
+void Controller::update(Prepared page) {
+	const auto url = page.url;
+	auto i = _indices.find(url);
+	if (i == end(_indices)) {
+		return;
+	}
+	const auto index = i->second;
+	_pages[index] = std::move(page);
+
+	if (_ready) {
+		_webview->eval(reloadScript(index));
+	} else if (!index) {
+		_reloadInitialWhenReady = true;
+	}
 }
 
 QByteArray Controller::fillInChannelValuesScript(
@@ -426,6 +446,9 @@ void Controller::createWebview(const QString &dataPath) {
 						std::exchange(_navigateToIndexWhenReady, -1),
 						base::take(_navigateToHashWhenReady));
 				}
+				if (base::take(_reloadInitialWhenReady)) {
+					script += reloadScript(0);
+				}
 				if (!script.isEmpty()) {
 					_webview->eval(script);
 				}
@@ -501,10 +524,13 @@ void Controller::createWebview(const QString &dataPath) {
 		const auto qstring = QString::fromUtf8(id.data(), id.size());
 		const auto pattern = u"^[a-zA-Z\\.\\-_0-9]+$"_q;
 		if (QRegularExpression(pattern).match(qstring).hasMatch()) {
-			auto file = QFile(u":/iv/"_q + qstring);
-			if (file.open(QIODevice::ReadOnly)) {
+			const auto bytes = ReadResource(qstring);
+			if (!bytes.isEmpty()) {
 				const auto mime = css ? "text/css" : "text/javascript";
-				return finishWith(file.readAll(), mime);
+				const auto full = (qstring == u"page.js"_q)
+					? (ReadResource("morphdom.js") + bytes)
+					: bytes;
+				return finishWith(full, mime);
 			}
 		}
 		return Webview::DataResult::Failed;
@@ -558,6 +584,12 @@ QByteArray Controller::navigateScript(int index, const QString &hash) {
 		+ ", '"
 		+ EscapeForScriptString(hash.toUtf8())
 		+ "');";
+}
+
+QByteArray Controller::reloadScript(int index) {
+	return "IV.reloadPage("
+		+ QByteArray::number(index)
+		+ ");";
 }
 
 void Controller::processKey(const QString &key, const QString &modifier) {

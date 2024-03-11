@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/iv_instance.h"
 
+#include "base/call_delayed.h"
 #include "apiwrap.h"
 #include "core/application.h"
 #include "core/file_utilities.h"
@@ -82,6 +83,7 @@ public:
 	[[nodiscard]] bool active() const;
 
 	void moveTo(not_null<Data*> data, QString hash);
+	void update(not_null<Data*> data);
 
 	void showJoinedTooltip();
 	void minimize();
@@ -149,6 +151,7 @@ private:
 	void sendEmbed(QByteArray hash, Webview::DataRequest request);
 
 	void fillChannelJoinedValues(const Prepared &result);
+	void fillEmbeds(base::flat_map<QByteArray, QByteArray> added);
 	void subscribeToDocuments();
 	[[nodiscard]] QByteArray readFile(
 		const std::shared_ptr<::Data::DocumentMedia> &media);
@@ -206,8 +209,8 @@ void Shown::prepare(not_null<Data*> data, const QString &hash) {
 				return;
 			}
 			_preparing = false;
-			_embeds = std::move(result.embeds);
 			fillChannelJoinedValues(result);
+			fillEmbeds(std::move(result.embeds));
 			if (!base.isEmpty()) {
 				_localBase = base;
 				showLocal(std::move(result));
@@ -231,6 +234,16 @@ void Shown::fillChannelJoinedValues(const Prepared &result) {
 			}).send();
 		}
 		_inChannelValues[id] = Info::Profile::AmInChannelValue(channel);
+	}
+}
+
+void Shown::fillEmbeds(base::flat_map<QByteArray, QByteArray> added) {
+	if (_embeds.empty()) {
+		_embeds = std::move(added);
+	} else {
+		for (auto &[k, v] : added) {
+			_embeds[k] = std::move(v);
+		}
 	}
 }
 
@@ -783,6 +796,23 @@ void Shown::moveTo(not_null<Data*> data, QString hash) {
 	}
 }
 
+void Shown::update(not_null<Data*> data) {
+	const auto weak = base::make_weak(this);
+
+	const auto id = data->id();
+	const auto base = /*local ? LookupLocalPath(show) : */QString();
+	data->prepare({ .saveToFolder = base }, [=](Prepared result) {
+		crl::on_main(weak, [=, result = std::move(result)]() mutable {
+			result.url = id;
+			fillChannelJoinedValues(result);
+			fillEmbeds(std::move(result.embeds));
+			if (_controller) {
+				_controller->update(std::move(result));
+			}
+		});
+	});
+}
+
 void Shown::showJoinedTooltip() {
 	if (_controller) {
 		_controller->showJoinedTooltip();
@@ -804,6 +834,13 @@ void Instance::show(
 		not_null<Data*> data,
 		QString hash) {
 	const auto session = &show->session();
+	const auto guard = gsl::finally([&] {
+		if (data->partial()) {
+			base::call_delayed(10000, [=] {
+				requestFull(session, data->id());
+			});
+		}
+	});
 	if (_shown && _shownSession == session) {
 		_shown->moveTo(data, hash);
 		return;
@@ -891,7 +928,9 @@ void Instance::show(
 	) | rpl::start_with_next([=](const ::Data::PeerUpdate &update) {
 		if (const auto channel = update.peer->asChannel()) {
 			if (channel->amIn()) {
-				if (_joining.remove(not_null(channel))) {
+				const auto i = _joining.find(session);
+				const auto value = not_null{ channel };
+				if (i != end(_joining) && i->second.remove(value)) {
 					_shown->showJoinedTooltip();
 				}
 			}
@@ -902,13 +941,8 @@ void Instance::show(
 		_tracking.emplace(session);
 		session->lifetime().add([=] {
 			_tracking.remove(session);
-			for (auto i = begin(_joining); i != end(_joining);) {
-				if (&(*i)->session() == session) {
-					i = _joining.erase(i);
-				} else {
-					++i;
-				}
-			}
+			_joining.remove(session);
+			_fullRequested.remove(session);
 			if (_shownSession == session) {
 				_shownSession = nullptr;
 			}
@@ -917,6 +951,27 @@ void Instance::show(
 			}
 		});
 	}
+}
+
+void Instance::requestFull(
+		not_null<Main::Session*> session,
+		const QString &id) {
+	if (!_tracking.contains(session)
+		|| !_fullRequested[session].emplace(id).second) {
+		return;
+	}
+	session->api().request(MTPmessages_GetWebPage(
+		MTP_string(id),
+		MTP_int(0)
+	)).done([=](const MTPmessages_WebPage &result) {
+		session->data().processUsers(result.data().vusers());
+		session->data().processChats(result.data().vchats());
+		const auto page = session->data().processWebpage(
+			result.data().vwebpage());
+		if (page && page->iv && _shown && _shownSession == session) {
+			_shown->update(page->iv.get());
+		}
+	}).send();
 }
 
 void Instance::processOpenChannel(const QString &context) {
@@ -949,7 +1004,7 @@ void Instance::processJoinChannel(const QString &context) {
 		return;
 	} else if (const auto channelId = ChannelId(context.toLongLong())) {
 		const auto channel = _shownSession->data().channel(channelId);
-		_joining.emplace(channel);
+		_joining[_shownSession].emplace(channel);
 		if (channel->isLoaded()) {
 			_shownSession->api().joinChannel(channel);
 		} else if (!channel->username().isEmpty()) {

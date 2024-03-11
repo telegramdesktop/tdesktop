@@ -55,6 +55,8 @@ public:
 		const QString &dataPath,
 		Prepared page,
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues);
+	void update(Prepared page);
+
 	[[nodiscard]] bool active() const;
 	void showJoinedTooltip();
 	void minimize();
@@ -73,6 +75,7 @@ private:
 	void createWindow();
 	void createWebview(const QString &dataPath);
 	[[nodiscard]] QByteArray navigateScript(int index, const QString &hash);
+	[[nodiscard]] QByteArray reloadScript(int index);
 
 	void updateTitleGeometry();
 	void paintTitle(Painter &p, QRect clip);
@@ -104,6 +107,7 @@ private:
 	base::flat_map<QByteArray, bool> _inChannelChanged;
 	base::flat_set<QByteArray> _inChannelSubscribed;
 	SingleQueuedInvokation _updateStyles;
+	bool _reloadInitialWhenReady = false;
 	bool _subscribedToColors = false;
 	bool _ready = false;
 

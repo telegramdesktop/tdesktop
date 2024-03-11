@@ -335,39 +335,82 @@ var IV = {
 		}
 		IV.pending = [index, hash];
 		if (!IV.cache[index]) {
-			IV.cache[index] = { loading: true };
-
-			let xhr = new XMLHttpRequest();
-			xhr.onload = function () {
-				IV.cache[index].loading = false;
-				IV.cache[index].content = xhr.responseText;
-				if (IV.pending && IV.pending[0] == index) {
-					IV.navigateToLoaded(index, IV.pending[1]);
-				}
-			}
-
-			xhr.open('GET', 'page' + index + '.json');
-			xhr.send();
+			IV.loadPage(index);
 		} else if (IV.cache[index].dom) {
 			IV.navigateToDOM(index, hash);
 		} else if (IV.cache[index].content) {
 			IV.navigateToLoaded(index, hash);
 		}
 	},
+	applyUpdatedContent: function (index) {
+		if (IV.index != index) {
+			IV.cache[index].contentUpdated = (IV.cache[index].dom !== undefined);
+			return;
+		}
+		var data = JSON.parse(IV.cache[index].content);
+		var article = function (el) {
+			return el.getElementsByTagName('article')[0];
+		};
+		var from = article(IV.findPageScroll());
+		var to = article(IV.makeScrolledContent(data.html));
+		morphdom(from, to, {
+			onBeforeElUpdated: function (fromEl, toEl) {
+				if (fromEl.classList.contains('loaded')) {
+					toEl.classList.add('loaded');
+				}
+				return !fromEl.isEqualNode(toEl);
+			}
+		});
+		IV.initMedia();
+		eval(data.js);
+	},
+	loadPage: function (index) {
+		if (!IV.cache[index]) {
+			IV.cache[index] = {};
+		}
+		IV.cache[index].loading = true;
 
+		let xhr = new XMLHttpRequest();
+		xhr.onload = function () {
+			IV.cache[index].loading = false;
+			IV.cache[index].content = xhr.responseText;
+			IV.applyUpdatedContent(index);
+			if (IV.pending && IV.pending[0] == index) {
+				IV.navigateToLoaded(index, IV.pending[1]);
+			}
+			if (IV.cache[index].reloadPending) {
+				IV.cache[index].reloadPending = false;
+				IV.reloadPage(index);
+			}
+		}
+
+		xhr.open('GET', 'page' + index + '.json');
+		xhr.send();
+	},
+	reloadPage: function (index) {
+		if (IV.cache[index] && IV.cache[index].loading) {
+			IV.cache[index].reloadPending = true;
+			return;
+		}
+		IV.loadPage(index);
+	},
+
+	makeScrolledContent: function (html) {
+		var result = document.createElement('div');
+		result.className = 'page-scroll';
+		result.tabIndex = '-1';
+		result.innerHTML = '<div class="page-slide"><article>'
+			+ html
+			+ '</article></div>';
+		result.onscroll = IV.frameScrolled;
+		return result;
+	},
 	navigateToLoaded: function (index, hash) {
 		if (IV.cache[index].dom) {
 			IV.navigateToDOM(index, hash);
 		} else {
 			var data = JSON.parse(IV.cache[index].content);
-			var el = document.createElement('div');
-			el.className = 'page-scroll';
-			el.tabIndex = '-1';
-			el.innerHTML = '<div class="page-slide"><article>'
-				+ data.html
-				+ '</article></div>';
-			el.onscroll = IV.frameScrolled;
-			IV.cache[index].dom = el;
+			IV.cache[index].dom = IV.makeScrolledContent(data.html);
 
 			IV.navigateToDOM(index, hash);
 			eval(data.js);
@@ -417,6 +460,14 @@ var IV = {
 			was.parentNode.appendChild(now);
 			if (scroll !== undefined) {
 				now.scrollTop = scroll;
+				setTimeout(function () {
+					// When returning by history.back to an URL with a hash
+					// for the first time browser forces the scroll to the
+					// hash instead of the saved scroll position.
+					//
+					// This workaround prevents incorrect scroll position.
+					now.scrollTop = scroll;
+				}, 0);
 			}
 
 			now.classList.add(back ? 'hidden-left' : 'hidden-right');
@@ -446,7 +497,12 @@ var IV = {
 				topBack.classList.remove('hidden');
 			}
 			IV.index = index;
-			IV.initMedia();
+			if (IV.cache[index].contentUpdated) {
+				IV.cache[index].contentUpdated = false;
+				IV.applyUpdatedContent(index);
+			} else {
+				IV.initMedia();
+			}
 			if (scroll === undefined) {
 				IV.jumpToHash(hash, true);
 			} else {

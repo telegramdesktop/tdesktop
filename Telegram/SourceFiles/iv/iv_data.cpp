@@ -55,6 +55,10 @@ QString Data::id() const {
 	return qs(_source->page.data().vurl());
 }
 
+bool Data::partial() const {
+	return _source->page.data().is_part();
+}
+
 Data::~Data() = default;
 
 void Data::prepare(const Options &options, Fn<void(Prepared)> done) const {

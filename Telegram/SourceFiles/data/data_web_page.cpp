@@ -281,6 +281,7 @@ bool WebPageData::applyChanges(
 		&& document == newDocument
 		&& collage.items == newCollage.items
 		&& (!iv == !newIv)
+		&& (!iv || iv->partial() == newIv->partial())
 		&& duration == newDuration
 		&& author == resultAuthor
 		&& hasLargeMedia == (newHasLargeMedia ? 1 : 0)
