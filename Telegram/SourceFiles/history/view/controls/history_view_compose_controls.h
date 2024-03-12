@@ -112,6 +112,7 @@ struct ComposeControlsDescriptor {
 	QString voiceCustomCancelText;
 	bool voiceLockFromBottom = false;
 	ChatHelpers::ComposeFeatures features;
+	rpl::producer<bool> scheduledToggleValue;
 };
 
 class ComposeControls final {
@@ -172,6 +173,7 @@ public:
 	[[nodiscard]] auto replyNextRequests() const
 	-> rpl::producer<ReplyNextRequest>;
 	[[nodiscard]] rpl::producer<> focusRequests() const;
+	[[nodiscard]] rpl::producer<> showScheduledRequests() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
@@ -382,6 +384,7 @@ private:
 	std::unique_ptr<Ui::SilentToggle> _silent;
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;
 	base::unique_qptr<Controls::CharactersLimitLabel> _charsLimitation;
+	base::unique_qptr<Ui::IconButton> _scheduled;
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
@@ -408,6 +411,7 @@ private:
 	rpl::event_stream<> _likeToggled;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
 	rpl::event_stream<> _focusRequests;
+	rpl::event_stream<> _showScheduledRequests;
 	rpl::variable<bool> _recording;
 	rpl::variable<bool> _hasSendText;
 

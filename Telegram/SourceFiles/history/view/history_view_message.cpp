@@ -861,7 +861,9 @@ QSize Message::performCountOptimalSize() {
 
 void Message::refreshTopicButton() {
 	const auto item = data();
-	if (isAttachedToPrevious() || context() != Context::History) {
+	if (isAttachedToPrevious()
+			|| (context() != Context::History)
+			|| item->isScheduled()) {
 		_topicButton = nullptr;
 	} else if (const auto topic = item->topic()) {
 		if (!_topicButton) {

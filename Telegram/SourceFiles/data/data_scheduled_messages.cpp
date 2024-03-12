@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 
 #include "base/unixtime.h"
+#include "data/data_forum_topic.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "api/api_hash.h"
@@ -171,6 +172,16 @@ HistoryItem *ScheduledMessages::lookupItem(FullMsgId itemId) const {
 int ScheduledMessages::count(not_null<History*> history) const {
 	const auto i = _data.find(history);
 	return (i != end(_data)) ? i->second.items.size() : 0;
+}
+
+bool ScheduledMessages::hasFor(not_null<Data::ForumTopic*> topic) const {
+	const auto i = _data.find(topic->owningHistory());
+	if (i == end(_data)) {
+		return false;
+	}
+	return ranges::any_of(i->second.items, [&](const OwnedItem &item) {
+		return item->topic() == topic;
+	});
 }
 
 void ScheduledMessages::sendNowSimpleMessage(
@@ -374,7 +385,8 @@ rpl::producer<> ScheduledMessages::updates(not_null<History*> history) {
 	}) | rpl::to_empty;
 }
 
-Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
+Data::MessagesSlice ScheduledMessages::list(
+		not_null<History*> history) const {
 	auto result = Data::MessagesSlice();
 	const auto i = _data.find(history);
 	if (i == end(_data)) {
@@ -391,6 +403,31 @@ Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
 	result.ids = ranges::views::all(
 		list
 	) | ranges::views::transform(
+		&HistoryItem::fullId
+	) | ranges::to_vector;
+	return result;
+}
+
+Data::MessagesSlice ScheduledMessages::list(
+		not_null<const Data::ForumTopic*> topic) const {
+	auto result = Data::MessagesSlice();
+	const auto i = _data.find(topic->Data::Thread::owningHistory());
+	if (i == end(_data)) {
+		const auto i = _requests.find(topic->Data::Thread::owningHistory());
+		if (i == end(_requests)) {
+			return result;
+		}
+		result.fullCount = result.skippedAfter = result.skippedBefore = 0;
+		return result;
+	}
+	const auto &list = i->second.items;
+	result.skippedAfter = result.skippedBefore = 0;
+	result.fullCount = int(list.size());
+	result.ids = ranges::views::all(
+		list
+	) | ranges::views::filter([&](const OwnedItem &item) {
+		return item->topic() == topic;
+	}) | ranges::views::transform(
 		&HistoryItem::fullId
 	) | ranges::to_vector;
 	return result;

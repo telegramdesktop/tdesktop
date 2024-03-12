@@ -2723,6 +2723,9 @@ void HistoryWidget::setupScheduledToggle() {
 	) | rpl::map([=](Dialogs::Key key) -> rpl::producer<> {
 		if (const auto history = key.history()) {
 			return session().data().scheduledMessages().updates(history);
+		} else if (const auto topic = key.topic()) {
+			return session().data().scheduledMessages().updates(
+				topic->owningHistory());
 		}
 		return rpl::never<rpl::empty_value>();
 	}) | rpl::flatten_latest(

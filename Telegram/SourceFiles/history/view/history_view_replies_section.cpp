@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_sticker_toast.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_contact_status.h"
+#include "history/view/history_view_scheduled_section.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_pinned_tracker.h"
 #include "history/view/history_view_pinned_section.h"
@@ -62,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_shared_media.h"
 #include "data/data_send_action.h"
+#include "data/data_scheduled_messages.h"
 #include "data/data_premium_limits.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
@@ -221,9 +223,19 @@ RepliesWidget::RepliesWidget(
 			listShowPremiumToast(emoji);
 		},
 		.mode = ComposeControls::Mode::Normal,
-		.sendMenuType = SendMenu::Type::SilentOnly,
+		.sendMenuType = _topic
+			? SendMenu::Type::Scheduled
+			: SendMenu::Type::SilentOnly,
 		.regularWindow = controller,
 		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
+		.scheduledToggleValue = _topic
+			? rpl::single(rpl::empty_value()) | rpl::then(
+				session().data().scheduledMessages().updates(
+					_topic->owningHistory())
+			) | rpl::map([=] {
+				return session().data().scheduledMessages().hasFor(_topic);
+			})
+			: rpl::single(false),
 	}))
 , _translateBar(std::make_unique<TranslateBar>(this, controller, history))
 , _scroll(std::make_unique<Ui::ScrollArea>(
@@ -363,6 +375,20 @@ RepliesWidget::RepliesWidget(
 			Data::HistoryUpdate::Flag::OutboxRead
 		) | rpl::start_with_next([=] {
 			_inner->update();
+		}, lifetime());
+	} else {
+		session().api().sendActions(
+		) | rpl::filter([=](const Api::SendAction &action) {
+			return (action.history == _history)
+				&& (action.replyTo.topicRootId == _topic->topicRootId());
+		}) | rpl::start_with_next([=](const Api::SendAction &action) {
+			if (action.options.scheduled) {
+				_composeControls->cancelReplyMessage();
+				crl::on_main(this, [=, t = _topic] {
+					controller->showSection(
+						std::make_shared<HistoryView::ScheduledMemento>(t));
+				});
+			}
 		}, lifetime());
 	}
 
@@ -776,6 +802,14 @@ void RepliesWidget::setupComposeControls() {
 		_inner->replyNextMessage(
 			data.replyId,
 			data.direction == Direction::Next);
+	}, lifetime());
+
+	_composeControls->showScheduledRequests(
+	) | rpl::start_with_next([=] {
+		controller()->showSection(
+			_topic
+				? std::make_shared<HistoryView::ScheduledMemento>(_topic)
+				: std::make_shared<HistoryView::ScheduledMemento>(_history));
 	}, lifetime());
 
 	_composeControls->setMimeDataHook([=](
