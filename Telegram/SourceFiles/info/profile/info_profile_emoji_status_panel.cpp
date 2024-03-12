@@ -159,6 +159,10 @@ void EmojiStatusPanel::show(Descriptor &&descriptor) {
 	_panel->toggleAnimated();
 }
 
+bool EmojiStatusPanel::hasFocus() const {
+	return _panel && Ui::InFocusChain(_panel.get());
+}
+
 void EmojiStatusPanel::repaint() {
 	_panel->selector()->update();
 }

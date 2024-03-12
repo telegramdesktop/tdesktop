@@ -46,6 +46,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> button,
 		Data::CustomEmojiSizeTag animationSizeTag = {});
+	[[nodiscard]] bool hasFocus() const;
 
 	struct Descriptor {
 		not_null<Window::SessionController*> controller;

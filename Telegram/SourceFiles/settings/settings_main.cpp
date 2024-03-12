@@ -174,7 +174,16 @@ Cover::Cover(
 	}, _name->lifetime());
 }
 
-Cover::~Cover() = default;
+Cover::~Cover() {
+	if (_emojiStatusPanel.hasFocus()) {
+		// Panel will try to return focus to the layer widget, the problem is
+		// we are destroying the layer widget probably right now and focusing
+		// it will lead to a crash, because it destroys its children (how we
+		// got here) after it clears focus out of itself. So if you return
+		// the focus inside a child destructor, it won't be cleared at all.
+		window()->setFocus();
+	}
+}
 
 void Cover::setupChildGeometry() {
 	using namespace rpl::mappers;
