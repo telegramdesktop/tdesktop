@@ -829,6 +829,7 @@ void GenerateItems(
 			.id = history->nextNonHistoryEntryId(),
 			.flags = MessageFlag::HasFromId | MessageFlag::AdminLogEntry,
 			.from = from->id,
+			.date = date,
 		}, std::move(text), MTP_messageMediaEmpty());
 	};
 
