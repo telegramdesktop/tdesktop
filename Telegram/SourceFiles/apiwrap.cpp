@@ -2548,6 +2548,10 @@ void ApiWrap::refreshFileReference(
 		request(MTPaccount_GetSavedRingtones(MTP_long(0)));
 	}, [&](Data::FileOriginPremiumPreviews data) {
 		request(MTPhelp_GetPremiumPromo());
+	}, [&](Data::FileOriginWebPage data) {
+		request(MTPmessages_GetWebPage(
+			MTP_string(data.url),
+			MTP_int(0)));
 	}, [&](Data::FileOriginStory data) {
 		request(MTPstories_GetStoriesByID(
 			_session->data().peer(data.peer)->input,

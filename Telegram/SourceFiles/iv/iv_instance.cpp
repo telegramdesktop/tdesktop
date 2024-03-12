@@ -124,8 +124,10 @@ private:
 	void showWindowed(Prepared result);
 	[[nodiscard]] ShareBoxResult shareBox(ShareBoxDescriptor &&descriptor);
 
-	void streamPhoto(PhotoId photoId, Webview::DataRequest request);
-	void streamFile(DocumentId documentId, Webview::DataRequest request);
+	[[nodiscard]] ::Data::FileOrigin fileOrigin(
+		not_null<WebPageData*> page) const;
+	void streamPhoto(QStringView idWithPageId, Webview::DataRequest request);
+	void streamFile(QStringView idWithPageId, Webview::DataRequest request);
 	void streamFile(FileStream &file, Webview::DataRequest request);
 	void processPartInFile(
 		FileStream &file,
@@ -414,9 +416,9 @@ void Shown::createController() {
 		const auto requested = QString::fromStdString(request.id);
 		const auto id = QStringView(requested);
 		if (id.startsWith(u"photo/")) {
-			streamPhoto(id.mid(6).toULongLong(), std::move(request));
+			streamPhoto(id.mid(6), std::move(request));
 		} else if (id.startsWith(u"document/"_q)) {
-			streamFile(id.mid(9).toULongLong(), std::move(request));
+			streamFile(id.mid(9), std::move(request));
 		} else if (id.startsWith(u"map/"_q)) {
 			streamMap(id.mid(4).toUtf8(), std::move(request));
 		} else if (id.startsWith(u"html/"_q)) {
@@ -437,16 +439,28 @@ void Shown::showWindowed(Prepared result) {
 		base::duplicate(_inChannelValues));
 }
 
-void Shown::streamPhoto(PhotoId photoId, Webview::DataRequest request) {
+::Data::FileOrigin Shown::fileOrigin(not_null<WebPageData*> page) const {
+	return ::Data::FileOriginWebPage{ page->url };
+}
+
+void Shown::streamPhoto(
+		QStringView idWithPageId,
+		Webview::DataRequest request) {
 	using namespace Data;
 
-	const auto photo = _session->data().photo(photoId);
-	if (photo->isNull()) {
+	const auto parts = idWithPageId.split('/');
+	if (parts.size() != 2) {
+		requestFail(std::move(request));
+		return;
+	}
+	const auto photo = _session->data().photo(parts[0].toULongLong());
+	const auto page = _session->data().webpage(parts[1].toULongLong());
+	if (photo->isNull() || page->url.isEmpty()) {
 		requestFail(std::move(request));
 		return;
 	}
 	const auto media = photo->createMediaView();
-	media->wanted(PhotoSize::Large, FileOrigin());
+	media->wanted(PhotoSize::Large, fileOrigin(page));
 	const auto check = [=] {
 		if (!media->loaded() && !media->owner()->failed(PhotoSize::Large)) {
 			return false;
@@ -466,17 +480,28 @@ void Shown::streamPhoto(PhotoId photoId, Webview::DataRequest request) {
 }
 
 void Shown::streamFile(
-		DocumentId documentId,
+		QStringView idWithPageId,
 		Webview::DataRequest request) {
 	using namespace Data;
 
+	const auto parts = idWithPageId.split('/');
+	if (parts.size() != 2) {
+		requestFail(std::move(request));
+		return;
+	}
+	const auto documentId = DocumentId(parts[0].toULongLong());
 	const auto i = _streams.find(documentId);
 	if (i != end(_streams)) {
 		streamFile(i->second, std::move(request));
 		return;
 	}
 	const auto document = _session->data().document(documentId);
-	auto loader = document->createStreamingLoader(FileOrigin(), false);
+	const auto page = _session->data().webpage(parts[1].toULongLong());
+	if (page->url.isEmpty()) {
+		requestFail(std::move(request));
+		return;
+	}
+	auto loader = document->createStreamingLoader(fileOrigin(page), false);
 	if (!loader) {
 		if (document->size >= Storage::kMaxFileInMemory) {
 			requestFail(std::move(request));
@@ -493,7 +518,7 @@ void Shown::streamFile(
 				file.media = std::move(media);
 				file.requests.push_back(std::move(request));
 				document->forceToCache(true);
-				document->save(::Data::FileOrigin(), QString());
+				document->save(fileOrigin(page), QString());
 			}
 		}
 		return;
@@ -747,9 +772,7 @@ bool Shown::active() const {
 }
 
 void Shown::moveTo(not_null<Data*> data, QString hash) {
-	if (!_controller || !_controller->showFast(data->id(), hash)) {
-		prepare(data, hash);
-	}
+	prepare(data, hash);
 }
 
 void Shown::update(not_null<Data*> data) {

@@ -13,6 +13,7 @@ struct Options;
 struct Prepared;
 
 struct Source {
+	uint64 pageId = 0;
 	MTPPage page;
 	std::optional<MTPPhoto> webpagePhoto;
 	std::optional<MTPDocument> webpageDocument;

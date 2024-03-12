@@ -281,10 +281,6 @@ void Controller::initControls() {
 	_subtitleLeft.stop();
 }
 
-bool Controller::showFast(const QString &url, const QString &hash) {
-	return false;
-}
-
 void Controller::show(
 		const QString &dataPath,
 		Prepared page,

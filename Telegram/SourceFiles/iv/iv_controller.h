@@ -65,7 +65,6 @@ public:
 		QString context;
 	};
 
-	[[nodiscard]] bool showFast(const QString &url, const QString &hash);
 	void show(
 		const QString &dataPath,
 		Prepared page,

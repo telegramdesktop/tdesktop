@@ -160,6 +160,7 @@ private:
 		const QVector<MTPPageBlock> &items);
 
 	const Options _options;
+	const QByteArray _fileOriginPostfix;
 
 	base::flat_set<QByteArray> _resources;
 
@@ -202,7 +203,8 @@ private:
 }
 
 Parser::Parser(const Source &source, const Options &options)
-: _options(options) {
+: _options(options)
+, _fileOriginPostfix('/' + Number(source.pageId)) {
 	process(source);
 	_result.name = source.name;
 	_result.rtl = source.page.data().is_rtl();
@@ -1146,11 +1148,11 @@ Document Parser::documentById(uint64 id) {
 }
 
 QByteArray Parser::photoFullUrl(const Photo &photo) {
-	return resource("photo/" + Number(photo.id));
+	return resource("photo/" + Number(photo.id) + _fileOriginPostfix);
 }
 
 QByteArray Parser::documentFullUrl(const Document &document) {
-	return resource("document/" + Number(document.id));
+	return resource("document/" + Number(document.id) + _fileOriginPostfix);
 }
 
 QByteArray Parser::embedUrl(const QByteArray &html) {

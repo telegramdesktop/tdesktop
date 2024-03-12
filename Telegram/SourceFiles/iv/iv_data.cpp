@@ -41,6 +41,7 @@ Geo GeoPointFromId(QByteArray data) {
 
 Data::Data(const MTPDwebPage &webpage, const MTPPage &page)
 : _source(std::make_unique<Source>(Source{
+	.pageId = webpage.vid().v,
 	.page = page,
 	.webpagePhoto = (webpage.vphoto()
 		? *webpage.vphoto()
