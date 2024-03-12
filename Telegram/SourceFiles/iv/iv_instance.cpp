@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/iv_instance.h"
 
-#include "base/call_delayed.h"
 #include "apiwrap.h"
+#include "boxes/share_box.h"
 #include "core/application.h"
 #include "core/file_utilities.h"
 #include "core/shortcuts.h"
@@ -20,10 +20,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "data/data_thread.h"
 #include "data/data_web_page.h"
+#include "data/data_user.h"
+#include "history/history_item_helpers.h"
 #include "info/profile/info_profile_values.h"
 #include "iv/iv_controller.h"
 #include "iv/iv_data.h"
+#include "lang/lang_keys.h"
 #include "lottie/lottie_common.h" // Lottie::ReadContent.
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -34,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/layers/layer_widget.h"
+#include "ui/text/text_utilities.h"
 #include "ui/basic_click_handlers.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_interface.h"
@@ -42,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller_link_info.h"
 
 #include <QtGui/QDesktopServices>
+#include <QtGui/QGuiApplication>
 
 namespace Iv {
 namespace {
@@ -124,6 +131,7 @@ private:
 
 	void showLocal(Prepared result);
 	void showWindowed(Prepared result);
+	[[nodiscard]] ShareBoxResult shareBox(ShareBoxDescriptor &&descriptor);
 
 	// Local.
 	void showProgress(int index);
@@ -445,10 +453,185 @@ void Shown::writeEmbed(QString id, QString hash) {
 	}
 }
 
+ShareBoxResult Shown::shareBox(ShareBoxDescriptor &&descriptor) {
+	class Show final : public Ui::Show {
+	public:
+		Show(QPointer<QWidget> parent, Fn<Ui::LayerStackWidget*()> lookup)
+		: _parent(parent)
+		, _lookup(lookup) {
+		}
+		void showOrHideBoxOrLayer(
+				std::variant<
+				v::null_t,
+				object_ptr<Ui::BoxContent>,
+				std::unique_ptr<Ui::LayerWidget>> &&layer,
+				Ui::LayerOptions options,
+				anim::type animated) const {
+			using UniqueLayer = std::unique_ptr<Ui::LayerWidget>;
+			using ObjectBox = object_ptr<Ui::BoxContent>;
+			const auto stack = _lookup();
+			if (!stack) {
+				return;
+			} else if (auto layerWidget = std::get_if<UniqueLayer>(&layer)) {
+				stack->showLayer(std::move(*layerWidget), options, animated);
+			} else if (auto box = std::get_if<ObjectBox>(&layer)) {
+				stack->showBox(std::move(*box), options, animated);
+			} else {
+				stack->hideAll(animated);
+			}
+		}
+		not_null<QWidget*> toastParent() const {
+			return _parent.data();
+		}
+		bool valid() const override {
+			return _lookup() != nullptr;
+		}
+		operator bool() const override {
+			return valid();
+		}
+
+	private:
+		const QPointer<QWidget> _parent;
+		const Fn<Ui::LayerStackWidget*()> _lookup;
+
+	};
+
+	const auto url = descriptor.url;
+	const auto wrap = descriptor.parent;
+
+	struct State {
+		Ui::LayerStackWidget *stack = nullptr;
+		rpl::event_stream<> destroyRequests;
+	};
+	const auto state = wrap->lifetime().make_state<State>();
+
+	const auto weak = QPointer<Ui::RpWidget>(wrap);
+	const auto lookup = crl::guard(weak, [state] { return state->stack; });
+	const auto layer = Ui::CreateChild<Ui::LayerStackWidget>(
+		wrap.get(),
+		[=] { return std::make_shared<Show>(weak.data(), lookup); });
+	state->stack = layer;
+	const auto show = layer->showFactory()();
+
+	layer->setHideByBackgroundClick(false);
+	layer->move(0, 0);
+	wrap->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		layer->resize(size);
+	}, layer->lifetime());
+	layer->hideFinishEvents(
+	) | rpl::filter([=] {
+		return !!lookup(); // Last hide finish is sent from destructor.
+	}) | rpl::start_with_next([=] {
+		state->destroyRequests.fire({});
+	}, wrap->lifetime());
+
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto sending = std::make_shared<bool>();
+	auto copyCallback = [=] {
+		QGuiApplication::clipboard()->setText(url);
+		show->showToast(tr::lng_background_link_copied(tr::now));
+	};
+	auto submitCallback = [=](
+			std::vector<not_null<::Data::Thread*>> &&result,
+			TextWithTags &&comment,
+			Api::SendOptions options,
+			::Data::ForwardOptions) {
+		if (*sending || result.empty()) {
+			return;
+		}
+
+		const auto error = [&] {
+			for (const auto thread : result) {
+				const auto error = GetErrorTextForSending(
+					thread,
+					{ .text = &comment });
+				if (!error.isEmpty()) {
+					return std::make_pair(error, thread);
+				}
+			}
+			return std::make_pair(QString(), result.front());
+		}();
+		if (!error.first.isEmpty()) {
+			auto text = TextWithEntities();
+			if (result.size() > 1) {
+				text.append(
+					Ui::Text::Bold(error.second->chatListName())
+				).append("\n\n");
+			}
+			text.append(error.first);
+			if (const auto weak = *box) {
+				weak->getDelegate()->show(Ui::MakeConfirmBox({
+					.text = text,
+					.inform = true,
+				}));
+			}
+			return;
+		}
+
+		*sending = true;
+		if (!comment.text.isEmpty()) {
+			comment.text = url + "\n" + comment.text;
+			const auto add = url.size() + 1;
+			for (auto &tag : comment.tags) {
+				tag.offset += add;
+			}
+		} else {
+			comment.text = url;
+		}
+		auto &api = _session->api();
+		for (const auto thread : result) {
+			auto message = Api::MessageToSend(
+				Api::SendAction(thread, options));
+			message.textWithTags = comment;
+			message.action.clearDraft = false;
+			api.sendMessage(std::move(message));
+		}
+		if (*box) {
+			(*box)->closeBox();
+		}
+		show->showToast(tr::lng_share_done(tr::now));
+	};
+	auto filterCallback = [](not_null<::Data::Thread*> thread) {
+		if (const auto user = thread->peer()->asUser()) {
+			if (user->canSendIgnoreRequirePremium()) {
+				return true;
+			}
+		}
+		return ::Data::CanSend(thread, ChatRestriction::SendOther);
+	};
+	const auto focus = crl::guard(layer, [=] {
+		if (!layer->window()->isActiveWindow()) {
+			layer->window()->activateWindow();
+			layer->window()->setFocus();
+		}
+		layer->setInnerFocus();
+	});
+	auto result = ShareBoxResult{
+		.focus = focus,
+		.hide = [=] { show->hideLayer(); },
+		.destroyRequests = state->destroyRequests.events(),
+	};
+	*box = show->show(
+		Box<ShareBox>(ShareBox::Descriptor{
+			.session = _session,
+			.copyCallback = std::move(copyCallback),
+			.submitCallback = std::move(submitCallback),
+			.filterCallback = std::move(filterCallback),
+			.premiumRequiredError = SharePremiumRequiredError(),
+		}),
+		Ui::LayerOption::KeepOther,
+		anim::type::normal);
+	return result;
+}
+
 void Shown::createController() {
 	Expects(!_controller);
 
-	_controller = std::make_unique<Controller>();
+	const auto showShareBox = [=](ShareBoxDescriptor &&descriptor) {
+		return shareBox(std::move(descriptor));
+	};
+	_controller = std::make_unique<Controller>(std::move(showShareBox));
 
 	_controller->events(
 	) | rpl::start_to_stream(_events, _controller->lifetime());
@@ -836,9 +1019,7 @@ void Instance::show(
 	const auto session = &show->session();
 	const auto guard = gsl::finally([&] {
 		if (data->partial()) {
-			base::call_delayed(10000, [=] {
-				requestFull(session, data->id());
-			});
+			requestFull(session, data->id());
 		}
 	});
 	if (_shown && _shownSession == session) {

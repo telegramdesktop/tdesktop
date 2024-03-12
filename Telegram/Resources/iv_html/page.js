@@ -206,24 +206,12 @@ var IV = {
 	},
 	stopRipples: function (button) {
 		const id = button.id ? button.id : button;
-		if (IV.frozenRipple === id) {
-			return;
-		}
 		button = document.getElementById(id);
 		const ripples = button.getElementsByClassName('ripple');
 		for (var i = 0; i < ripples.length; ++i) {
 			const ripple = ripples[i];
 			if (!ripple.classList.contains('hiding')) {
 				ripple.classList.add('hiding');
-			}
-		}
-	},
-	clearFrozenRipple: function () {
-		if (IV.frozenRipple) {
-			const button = document.getElementById(IV.frozenRipple);
-			IV.frozenRipple = null;
-			if (button) {
-				IV.stopRipples(button);
 			}
 		}
 	},
@@ -310,12 +298,6 @@ var IV = {
 			behavior: instant ? 'instant' : 'smooth'
 		});
 	},
-	menu: function (button) {
-		IV.frozenRipple = button.id;
-		const state = this.computeCurrentState();
-		IV.notify({ event: 'menu', index: state.index, hash: state.hash });
-	},
-
 	computeCurrentState: function () {
 		var now = IV.findPageScroll();
 		return {
@@ -490,13 +472,13 @@ var IV = {
 			was.classList.add(back ? 'hidden-right' : 'hidden-left');
 			now.classList.remove(back ? 'hidden-left' : 'hidden-right');
 
-			var topBack = document.getElementById('top_back');
-			if (!IV.position) {
-				topBack.classList.add('hidden');
-			} else {
-				topBack.classList.remove('hidden');
-			}
 			IV.index = index;
+			IV.notify({
+				event: 'location_change',
+				index: IV.index,
+				position: IV.position,
+				hash: IV.computeCurrentState().hash,
+			});
 			if (IV.cache[index].contentUpdated) {
 				IV.cache[index].contentUpdated = false;
 				IV.applyUpdatedContent(index);

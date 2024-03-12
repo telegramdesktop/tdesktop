@@ -21,25 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-QString SiteNameFromUrl(const QString &url) {
-	const auto u = QUrl(url);
-	QString pretty = u.isValid() ? u.toDisplayString() : url;
-	const auto m = QRegularExpression(u"^[a-zA-Z0-9]+://"_q).match(pretty);
-	if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
-	int32 slash = pretty.indexOf('/');
-	if (slash > 0) pretty = pretty.mid(0, slash);
-	QStringList components = pretty.split('.', Qt::SkipEmptyParts);
-	if (components.size() >= 2) {
-		components = components.mid(components.size() - 2);
-		return components.at(0).at(0).toUpper()
-			+ components.at(0).mid(1)
-			+ '.'
-			+ components.at(1);
-	}
-	return QString();
-}
-
-WebPageCollage ExtractCollage(
+[[nodiscard]] WebPageCollage ExtractCollage(
 		not_null<Data::Session*> owner,
 		const QVector<MTPPageBlock> &items,
 		const QVector<MTPPhoto> &photos,
@@ -256,7 +238,7 @@ bool WebPageData::applyChanges(
 		} else if (!newDescription.text.isEmpty()
 			&& viewTitleText.isEmpty()
 			&& !resultUrl.isEmpty()) {
-			return SiteNameFromUrl(resultUrl);
+			return Iv::SiteNameFromUrl(resultUrl);
 		}
 		return QString();
 	}();

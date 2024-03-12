@@ -8,94 +8,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 using "ui/widgets/widgets.style";
 
-ivTitleHeight: 24px;
-ivTitleIconShift: point(0px, 0px);
-ivTitleButton: IconButton(windowTitleButton) {
-	height: ivTitleHeight;
-	iconPosition: ivTitleIconShift;
-}
-ivTitleButtonClose: IconButton(windowTitleButtonClose) {
-	height: ivTitleHeight;
-	iconPosition: ivTitleIconShift;
-}
+ivMenuToggle: IconButton(defaultIconButton) {
+	width: 48px;
+	height: 48px;
 
-ivTitleButtonSize: size(windowTitleButtonWidth, ivTitleHeight);
-ivTitle: WindowTitle(defaultWindowTitle) {
-	height: ivTitleHeight;
-	style: TextStyle(defaultTextStyle) {
-		font: font(semibold 12px);
+	icon: icon {{ "title_menu_dots", menuIconColor }};
+	iconOver: icon {{ "title_menu_dots", menuIconColor }};
+
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 36px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
 	}
-	shadow: false;
-	minimize: IconButton(ivTitleButton) {
-		icon: icon {
-			{ ivTitleButtonSize, titleButtonBg },
-			{ "title_button_minimize", titleButtonFg, ivTitleIconShift },
-		};
-		iconOver: icon {
-			{ ivTitleButtonSize, titleButtonBgOver },
-			{ "title_button_minimize", titleButtonFgOver, ivTitleIconShift },
-		};
-	}
-	minimizeIconActive: icon {
-		{ ivTitleButtonSize, titleButtonBgActive },
-		{ "title_button_minimize", titleButtonFgActive, ivTitleIconShift },
-	};
-	minimizeIconActiveOver: icon {
-		{ ivTitleButtonSize, titleButtonBgActiveOver },
-		{ "title_button_minimize", titleButtonFgActiveOver, ivTitleIconShift },
-	};
-	maximize: IconButton(windowTitleButton) {
-		icon: icon {
-			{ ivTitleButtonSize, titleButtonBg },
-			{ "title_button_maximize", titleButtonFg, ivTitleIconShift },
-		};
-		iconOver: icon {
-			{ ivTitleButtonSize, titleButtonBgOver },
-			{ "title_button_maximize", titleButtonFgOver, ivTitleIconShift },
-		};
-	}
-	maximizeIconActive: icon {
-		{ ivTitleButtonSize, titleButtonBgActive },
-		{ "title_button_maximize", titleButtonFgActive, ivTitleIconShift },
-	};
-	maximizeIconActiveOver: icon {
-		{ ivTitleButtonSize, titleButtonBgActiveOver },
-		{ "title_button_maximize", titleButtonFgActiveOver, ivTitleIconShift },
-	};
-	restoreIcon: icon {
-		{ ivTitleButtonSize, titleButtonBg },
-		{ "title_button_restore", titleButtonFg, ivTitleIconShift },
-	};
-	restoreIconOver: icon {
-		{ ivTitleButtonSize, titleButtonBgOver },
-		{ "title_button_restore", titleButtonFgOver, ivTitleIconShift },
-	};
-	restoreIconActive: icon {
-		{ ivTitleButtonSize, titleButtonBgActive },
-		{ "title_button_restore", titleButtonFgActive, ivTitleIconShift },
-	};
-	restoreIconActiveOver: icon {
-		{ ivTitleButtonSize, titleButtonBgActiveOver },
-		{ "title_button_restore", titleButtonFgActiveOver, ivTitleIconShift },
-	};
-	close: IconButton(windowTitleButtonClose) {
-		icon: icon {
-			{ ivTitleButtonSize, titleButtonCloseBg },
-			{ "title_button_close", titleButtonCloseFg, ivTitleIconShift },
-		};
-		iconOver: icon {
-			{ ivTitleButtonSize, titleButtonCloseBgOver },
-			{ "title_button_close", titleButtonCloseFgOver, ivTitleIconShift },
-		};
-	}
-	closeIconActive: icon {
-		{ ivTitleButtonSize, titleButtonCloseBgActive },
-		{ "title_button_close", titleButtonCloseFgActive, ivTitleIconShift },
-	};
-	closeIconActiveOver: icon {
-		{ ivTitleButtonSize, titleButtonCloseBgActiveOver },
-		{ "title_button_close", titleButtonCloseFgActiveOver, ivTitleIconShift },
-	};
 }
-ivTitleExpandedHeight: 76px;
-ivMenuPosition: point(-8px, 36px);
+ivMenuPosition: point(-2px, 40px);
+ivBack: IconButton(ivMenuToggle) {
+	width: 60px;
+	icon: icon {{ "box_button_back", menuIconColor }};
+	iconOver: icon {{ "box_button_back", menuIconColor }};
+	rippleAreaPosition: point(12px, 6px);
+}
+ivSubtitleFont: font(16px semibold);
+ivSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: boxTitleFg;
+	maxHeight: 26px;
+	style: TextStyle(defaultTextStyle) {
+		font: ivSubtitleFont;
+	}
+}
+ivSubtitleHeight: 48px;
+ivSubtitleTop: 12px;
+ivSubtitleLeft: 22px;
+ivSubtitleSkip: 0px;

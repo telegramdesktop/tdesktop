@@ -204,7 +204,7 @@ private:
 Parser::Parser(const Source &source, const Options &options)
 : _options(options) {
 	process(source);
-	_result.title = source.title;
+	_result.name = source.name;
 	_result.rtl = source.page.data().is_rtl();
 	_result.content = list(source.page.data().vblocks());
 }
@@ -998,6 +998,7 @@ QByteArray Parser::rich(const MTPRichText &text) {
 			: QByteArray();
 		return tag("a", {
 			{ "href", utf(data.vurl()) },
+			{ "class", webpageId ? "internal-iv-link" : "" },
 			{ "data-context", context },
 		}, rich(data.vtext()));
 	}, [&](const MTPDtextEmail &data) {

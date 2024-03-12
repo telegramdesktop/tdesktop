@@ -16,7 +16,8 @@ struct Options {
 };
 
 struct Prepared {
-	QString title;
+	QString name;
+	//QString title;
 	QByteArray content;
 	QByteArray script;
 	QString url;
@@ -52,5 +53,7 @@ private:
 	const std::unique_ptr<Source> _source;
 
 };
+
+[[nodiscard]] QString SiteNameFromUrl(const QString &url);
 
 } // namespace Iv

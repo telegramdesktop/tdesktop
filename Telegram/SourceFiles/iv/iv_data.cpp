@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "iv/iv_prepare.h"
 
+#include <QtCore/QRegularExpression>
+#include <QtCore/QUrl>
+
 namespace Iv {
 
 QByteArray GeoPointId(Geo point) {
@@ -45,9 +48,9 @@ Data::Data(const MTPDwebPage &webpage, const MTPPage &page)
 	.webpageDocument = (webpage.vdocument()
 		? *webpage.vdocument()
 		: std::optional<MTPDocument>()),
-	.title = (webpage.vtitle()
-		? qs(*webpage.vtitle())
-		: qs(webpage.vauthor().value_or_empty()))
+	.name = (webpage.vsite_name()
+		? qs(*webpage.vsite_name())
+		: SiteNameFromUrl(qs(webpage.vurl())))
 })) {
 }
 
@@ -65,6 +68,24 @@ void Data::prepare(const Options &options, Fn<void(Prepared)> done) const {
 	crl::async([source = *_source, options, done = std::move(done)] {
 		done(Prepare(source, options));
 	});
+}
+
+QString SiteNameFromUrl(const QString &url) {
+	const auto u = QUrl(url);
+	QString pretty = u.isValid() ? u.toDisplayString() : url;
+	const auto m = QRegularExpression(u"^[a-zA-Z0-9]+://"_q).match(pretty);
+	if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
+	int32 slash = pretty.indexOf('/');
+	if (slash > 0) pretty = pretty.mid(0, slash);
+	QStringList components = pretty.split('.', Qt::SkipEmptyParts);
+	if (components.size() >= 2) {
+		components = components.mid(components.size() - 2);
+		return components.at(0).at(0).toUpper()
+			+ components.at(0).mid(1)
+			+ '.'
+			+ components.at(1);
+	}
+	return QString();
 }
 
 } // namespace Iv

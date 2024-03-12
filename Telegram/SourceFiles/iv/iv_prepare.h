@@ -16,7 +16,7 @@ struct Source {
 	MTPPage page;
 	std::optional<MTPPhoto> webpagePhoto;
 	std::optional<MTPDocument> webpageDocument;
-	QString title;
+	QString name;
 };
 
 [[nodiscard]] Prepared Prepare(

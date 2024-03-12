@@ -13,8 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_data.h"
 #include "lang/lang_keys.h"
 #include "ui/platform/ui_platform_window_title.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/rp_window.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "webview/webview_data_stream_memory.h"
@@ -35,11 +38,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <charconv>
 
+#include "base/call_delayed.h"
+
 namespace Iv {
 namespace {
 
 [[nodiscard]] QByteArray ComputeStyles() {
 	static const auto map = base::flat_map<QByteArray, const style::color*>{
+		{ "shadow-fg", &st::shadowFg },
 		{ "scroll-bg", &st::scrollBg },
 		{ "scroll-bg-over", &st::scrollBgOver },
 		{ "scroll-bar-bg", &st::scrollBarBg },
@@ -54,6 +60,8 @@ namespace {
 		{ "window-shadow-fg", &st::windowShadowFg },
 		{ "box-divider-bg", &st::boxDividerBg },
 		{ "box-divider-fg", &st::boxDividerFg },
+		{ "light-button-fg", &st::lightButtonFg },
+		{ "light-button-bg-over", &st::lightButtonBgOver },
 		{ "menu-icon-fg", &st::menuIconFg },
 		{ "menu-icon-fg-over", &st::menuIconFgOver },
 		{ "menu-bg", &st::menuBg },
@@ -164,19 +172,7 @@ namespace {
 		<link rel="stylesheet" href="/iv/page.css" />
 	</head>
 	<body>
-		<button class="fixed_button hidden" id="top_back" onclick="IV.back();">
-			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-				<line x1="5.37464142" y1="12" x2="18.5" y2="12"></line>
-				<path d="M11.5,18.3 L5.27277119,12.0707223 C5.23375754,12.0316493 5.23375754,11.9683507 5.27277119,11.9292777 L11.5,5.7 L11.5,5.7"></path>
-			</svg>
-		</button>
-		<button class="fixed_button" id="top_menu" onclick="IV.menu(this);">
-			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-				<circle cx="12" cy="17.4" r="1.7"></circle>
-				<circle cx="12" cy="12" r="1.7"></circle>
-				<circle cx="12" cy="6.6" r="1.7"></circle>
-			</svg>
-		</button>
+		<div id="top_shadow"></div>
 		<button class="fixed_button hidden" id="bottom_up" onclick="IV.scrollTo(0);">
 			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 				<path d="M14.9972363,18 L9.13865768,12.1414214 C9.06055283,12.0633165 9.06055283,11.9366835 9.13865768,11.8585786 L14.9972363,6 L14.9972363,6" transform="translate(11.997236, 12.000000) scale(-1, -1) rotate(-90.000000) translate(-11.997236, -12.000000) "></path>
@@ -198,24 +194,91 @@ namespace {
 
 } // namespace
 
-Controller::Controller()
+Controller::Controller(Fn<ShareBoxResult(ShareBoxDescriptor)> showShareBox)
 : _updateStyles([=] {
 	const auto str = EscapeForScriptString(ComputeStyles());
 	if (_webview) {
 		_webview->eval("IV.updateStyles('" + str + "');");
 	}
-}) {
+})
+, _showShareBox(std::move(showShareBox)) {
 	createWindow();
 }
 
 Controller::~Controller() {
+	destroyShareMenu();
 	if (_window) {
 		_window->hide();
 	}
 	_ready = false;
 	_webview = nullptr;
-	_title = nullptr;
+	_back.destroy();
+	_menu = nullptr;
+	_menuToggle.destroy();
+	_subtitle = nullptr;
+	_subtitleWrap = nullptr;
 	_window = nullptr;
+}
+
+void Controller::updateTitleGeometry(int newWidth) const {
+	_subtitleWrap->setGeometry(
+		0,
+		st::windowTitleHeight,
+		newWidth,
+		st::ivSubtitleHeight);
+	_subtitleWrap->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		QPainter(_subtitleWrap.get()).fillRect(clip, st::windowBg);
+	}, _subtitleWrap->lifetime());
+
+	const auto progress = _subtitleLeft.value(_back->toggled() ? 1. : 0.);
+	const auto left = anim::interpolate(
+		st::ivSubtitleLeft,
+		_back->width() + st::ivSubtitleSkip,
+		progress);
+	_subtitle->resizeToWidth(newWidth - left - _menuToggle->width());
+	_subtitle->moveToLeft(left, st::ivSubtitleTop);
+
+	_back->moveToLeft(0, 0);
+	_menuToggle->moveToRight(0, 0);
+}
+
+void Controller::initControls() {
+	_subtitleWrap = std::make_unique<Ui::RpWidget>(_window.get());
+	_subtitle = std::make_unique<Ui::FlatLabel>(
+		_subtitleWrap.get(),
+		_index.value() | rpl::filter(
+			rpl::mappers::_1 >= 0
+		) | rpl::map([=](int index) {
+			return _pages[index].name;
+		}),
+		st::ivSubtitle);
+	_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	_menuToggle.create(_subtitleWrap.get(), st::ivMenuToggle);
+	_menuToggle->setClickedCallback([=] { showMenu(); });
+
+	_back.create(
+		_subtitleWrap.get(),
+		object_ptr<Ui::IconButton>(_subtitleWrap.get(), st::ivBack));
+	_back->entity()->setClickedCallback([=] {
+		if (_webview) {
+			_webview->eval("IV.back();");
+		} else {
+			_back->hide(anim::type::normal);
+		}
+	});
+
+	_back->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		_subtitleLeft.start(
+			[=] { updateTitleGeometry(_window->width()); },
+			toggled ? 0. : 1.,
+			toggled ? 1. : 0.,
+			st::fadeWrapDuration);
+	}, _back->lifetime());
+	_back->hide(anim::type::instant);
+
+	_subtitleLeft.stop();
 }
 
 bool Controller::showFast(const QString &url, const QString &hash) {
@@ -227,8 +290,6 @@ void Controller::show(
 		Prepared page,
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues) {
 	page.script = fillInChannelValuesScript(std::move(inChannelValues));
-	_titleText.setText(st::ivTitle.style, page.title);
-	_title->update();
 	InvokeQueued(_container, [=, page = std::move(page)]() mutable {
 		showInWindow(dataPath, std::move(page));
 	});
@@ -277,35 +338,8 @@ QByteArray Controller::toggleInChannelScript(
 	return "IV.toggleChannelJoined('" + id + "', " + value + ");";
 }
 
-void Controller::updateTitleGeometry() {
-	_title->setGeometry(0, 0, _window->width(), st::ivTitle.height);
-}
-
-void Controller::paintTitle(Painter &p, QRect clip) {
-	const auto active = _window->isActiveWindow();
-	const auto full = _title->width();
-	p.setPen(active ? st::ivTitle.fgActive : st::ivTitle.fg);
-	const auto available = QRect(
-		_titleLeftSkip,
-		0,
-		full - _titleLeftSkip - _titleRightSkip,
-		_title->height());
-	const auto use = std::min(available.width(), _titleText.maxWidth());
-	const auto center = full
-		- 2 * std::max(_titleLeftSkip, _titleRightSkip);
-	const auto left = (use <= center)
-		? ((full - use) / 2)
-		: (use < available.width() && _titleLeftSkip < _titleRightSkip)
-		? (available.x() + available.width() - use)
-		: available.x();
-	const auto titleTextHeight = st::ivTitle.style.font->height;
-	const auto top = (st::ivTitle.height - titleTextHeight) / 2;
-	_titleText.drawLeftElided(p, left, top, available.width(), full);
-}
-
 void Controller::createWindow() {
 	_window = std::make_unique<Ui::RpWindow>();
-	_window->setTitleStyle(st::ivTitle);
 	const auto window = _window.get();
 
 	base::qt_signal_producer(
@@ -314,61 +348,25 @@ void Controller::createWindow() {
 	) | rpl::filter([=] {
 		return _webview && window->window()->windowHandle()->isActive();
 	}) | rpl::start_with_next([=] {
-		_webview->focus();
+		setInnerFocus();
 	}, window->lifetime());
 
-	_title = std::make_unique<Ui::RpWidget>(window);
-	_title->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_title->paintRequest() | rpl::start_with_next([=](QRect clip) {
-		auto p = Painter(_title.get());
-		paintTitle(p, clip);
-	}, _title->lifetime());
-	window->widthValue() | rpl::start_with_next([=] {
-		updateTitleGeometry();
-	}, _title->lifetime());
+	initControls();
 
-#ifdef Q_OS_MAC
-	_titleLeftSkip = 8 + 12 + 8 + 12 + 8 + 12 + 8;
-	_titleRightSkip = st::ivTitle.style.font->spacew;
-#else // Q_OS_MAC
-	using namespace Ui::Platform;
-	TitleControlsLayoutValue(
-	) | rpl::start_with_next([=](TitleControls::Layout layout) {
-		const auto accumulate = [](const auto &list) {
-			auto result = 0;
-			for (const auto control : list) {
-				switch (control) {
-				case TitleControl::Close:
-					result += st::ivTitle.close.width;
-					break;
-				case TitleControl::Minimize:
-					result += st::ivTitle.minimize.width;
-					break;
-				case TitleControl::Maximize:
-					result += st::ivTitle.maximize.width;
-					break;
-				}
-			}
-			return result;
-		};
-		const auto space = st::ivTitle.style.font->spacew;
-		_titleLeftSkip = accumulate(layout.left) + space;
-		_titleRightSkip = accumulate(layout.right) + space;
-		_title->update();
-	}, _title->lifetime());
-#endif // Q_OS_MAC
+	window->widthValue() | rpl::start_with_next([=](int width) {
+		updateTitleGeometry(width);
+	}, _subtitle->lifetime());
 
 	window->setGeometry({ 200, 200, 600, 800 });
 	window->setMinimumSize({ st::windowMinWidth, st::windowMinHeight });
 
-	_container = Ui::CreateChild<Ui::RpWidget>(window->body().get());
+	_container = Ui::CreateChild<Ui::RpWidget>(window->window());
 	rpl::combine(
-		window->body()->sizeValue(),
-		_title->heightValue()
+		window->sizeValue(),
+		_subtitleWrap->heightValue()
 	) | rpl::start_with_next([=](QSize size, int title) {
-		title -= window->body()->y();
 		_container->setGeometry(QRect(QPoint(), size).marginsRemoved(
-			{ 0, title, 0, 0 }));
+			{ 0, title + st::windowTitleHeight, 0, 0 }));
 	}, _container->lifetime());
 
 	_container->paintRequest() | rpl::start_with_next([=](QRect clip) {
@@ -452,10 +450,12 @@ void Controller::createWebview(const QString &dataPath) {
 				if (!script.isEmpty()) {
 					_webview->eval(script);
 				}
-			} else if (event == u"menu"_q) {
-				menu(
-					object.value("index").toInt(),
-					object.value("hash").toString());
+			} else if (event == u"location_change"_q) {
+				_index = object.value("index").toInt();
+				_hash = object.value("hash").toString();
+				_back->toggle(
+					(object.value("position").toInt() > 0),
+					anim::type::normal);
 			}
 		});
 	});
@@ -543,37 +543,47 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 	Expects(_container != nullptr);
 
 	const auto url = page.url;
-	const auto hash = page.hash;
+	_hash = page.hash;
 	auto i = _indices.find(url);
 	if (i == end(_indices)) {
 		_pages.push_back(std::move(page));
 		i = _indices.emplace(url, int(_pages.size() - 1)).first;
 	}
 	const auto index = i->second;
+	_index = index;
 	if (!_webview) {
 		createWebview(dataPath);
 		if (_webview && _webview->widget()) {
 			auto id = u"iv/page%1.html"_q.arg(index);
-			if (!hash.isEmpty()) {
-				id += '#' + hash;
+			if (!_hash.isEmpty()) {
+				id += '#' + _hash;
 			}
 			_webview->navigateToData(id);
-			_webview->focus();
+			activate();
 		} else {
 			_events.fire({ Event::Type::Close });
 		}
 	} else if (_ready) {
-		_webview->eval(navigateScript(index, hash));
-		_window->raise();
-		_window->activateWindow();
-		_window->setFocus();
-		_webview->focus();
+		_webview->eval(navigateScript(index, _hash));
+		activate();
 	} else {
 		_navigateToIndexWhenReady = index;
-		_navigateToHashWhenReady = hash;
-		_window->raise();
-		_window->activateWindow();
-		_window->setFocus();
+		_navigateToHashWhenReady = _hash;
+		activate();
+	}
+}
+
+void Controller::activate() {
+	_window->raise();
+	_window->activateWindow();
+	_window->setFocus();
+	setInnerFocus();
+}
+
+void Controller::setInnerFocus() {
+	if (const auto onstack = _shareFocus) {
+		onstack();
+	} else if (_webview) {
 		_webview->focus();
 	}
 }
@@ -657,8 +667,17 @@ void Controller::minimize() {
 	}
 }
 
-void Controller::menu(int index, const QString &hash) {
-	if (!_webview || _menu || index < 0 || index > _pages.size()) {
+QString Controller::composeCurrentUrl() const {
+	const auto index = _index.current();
+	Assert(index >= 0 && index < _pages.size());
+
+	return _pages[index].url
+		+ (_hash.isEmpty() ? u""_q : ('#' + _hash));
+}
+
+void Controller::showMenu() {
+	const auto index = _index.current();
+	if (_menu || index < 0 || index > _pages.size()) {
 		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
@@ -666,14 +685,15 @@ void Controller::menu(int index, const QString &hash) {
 		st::popupMenuWithIcons);
 	_menu->setDestroyedCallback(crl::guard(_window.get(), [
 			this,
+			weakButton = Ui::MakeWeak(_menuToggle.data()),
 			menu = _menu.get()] {
-		if (_webview) {
-			_webview->eval("IV.clearFrozenRipple();");
+		if (_menu == menu && weakButton) {
+			weakButton->setForceRippled(false);
 		}
 	}));
+	_menuToggle->setForceRippled(true);
 
-	const auto url = _pages[index].url
-		+ (hash.isEmpty() ? u""_q : ('#' + hash));
+	const auto url = composeCurrentUrl();
 	const auto openInBrowser = crl::guard(_window.get(), [=] {
 		_events.fire({ .type = Event::Type::OpenLinkExternal, .url = url });
 	});
@@ -683,6 +703,7 @@ void Controller::menu(int index, const QString &hash) {
 		&st::menuIconIpAddress);
 
 	_menu->addAction(tr::lng_iv_share(tr::now), [=] {
+		showShareMenu();
 	}, &st::menuIconShare);
 
 	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
@@ -691,7 +712,11 @@ void Controller::menu(int index, const QString &hash) {
 }
 
 void Controller::escape() {
-	close();
+	if (const auto onstack = _shareHide) {
+		onstack();
+	} else {
+		close();
+	}
 }
 
 void Controller::close() {
@@ -704,6 +729,58 @@ void Controller::quit() {
 
 rpl::lifetime &Controller::lifetime() {
 	return _lifetime;
+}
+
+void Controller::destroyShareMenu() {
+	_shareHide = nullptr;
+	if (_shareFocus) {
+		_shareFocus = nullptr;
+		setInnerFocus();
+	}
+	if (_shareWrap) {
+		_shareWrap->windowHandle()->setParent(nullptr);
+		_shareWrap = nullptr;
+		_shareContainer = nullptr;
+	}
+}
+
+void Controller::showShareMenu() {
+	const auto index = _index.current();
+	if (_shareWrap || index < 0 || index > _pages.size()) {
+		return;
+	}
+
+	_shareWrap = std::make_unique<Ui::RpWidget>(nullptr);
+	const auto margins = QMargins(0, st::windowTitleHeight, 0, 0);
+	_shareWrap->setGeometry(_window->geometry().marginsRemoved(margins));
+	_shareWrap->setWindowFlag(Qt::FramelessWindowHint);
+	_shareWrap->setAttribute(Qt::WA_TranslucentBackground);
+	_shareWrap->setAttribute(Qt::WA_NoSystemBackground);
+	_shareWrap->createWinId();
+
+	_shareContainer.reset(QWidget::createWindowContainer(
+		_shareWrap->windowHandle(),
+		_window.get(),
+		Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint));
+	_window->sizeValue() | rpl::start_with_next([=](QSize size) {
+		_shareContainer->setGeometry(QRect(QPoint(), size).marginsRemoved(
+			margins));
+	}, _shareWrap->lifetime());
+
+	auto result = _showShareBox({
+		.parent = _shareWrap.get(),
+		.url = composeCurrentUrl(),
+	});
+	_shareFocus = result.focus;
+	_shareHide = result.hide;
+
+	std::move(result.destroyRequests) | rpl::start_with_next([=] {
+		destroyShareMenu();
+	}, _shareWrap->lifetime());
+
+	Ui::ForceFullRepaintSync(_shareWrap.get());
+	_shareContainer->show();
+	activate();
 }
 
 } // namespace Iv
