@@ -241,7 +241,7 @@ ShareBoxResult Shown::shareBox(ShareBoxDescriptor &&descriptor) {
 				object_ptr<Ui::BoxContent>,
 				std::unique_ptr<Ui::LayerWidget>> &&layer,
 				Ui::LayerOptions options,
-				anim::type animated) const {
+				anim::type animated) const override {
 			using UniqueLayer = std::unique_ptr<Ui::LayerWidget>;
 			using ObjectBox = object_ptr<Ui::BoxContent>;
 			const auto stack = _lookup();
@@ -255,7 +255,7 @@ ShareBoxResult Shown::shareBox(ShareBoxDescriptor &&descriptor) {
 				stack->hideAll(animated);
 			}
 		}
-		not_null<QWidget*> toastParent() const {
+		not_null<QWidget*> toastParent() const override {
 			return _parent.data();
 		}
 		bool valid() const override {

@@ -159,7 +159,7 @@ private:
 	[[nodiscard]] QSize computeSlideshowDimensions(
 		const QVector<MTPPageBlock> &items);
 
-	const Options _options;
+	//const Options _options;
 	const QByteArray _fileOriginPostfix;
 
 	base::flat_set<QByteArray> _resources;
@@ -203,8 +203,8 @@ private:
 }
 
 Parser::Parser(const Source &source, const Options &options)
-: _options(options)
-, _fileOriginPostfix('/' + Number(source.pageId)) {
+: /*_options(options)
+, */_fileOriginPostfix('/' + Number(source.pageId)) {
 	process(source);
 	_result.name = source.name;
 	_result.rtl = source.page.data().is_rtl();
