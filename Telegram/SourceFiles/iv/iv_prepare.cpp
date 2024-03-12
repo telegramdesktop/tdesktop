@@ -51,6 +51,26 @@ template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
 	return Number(base::SafeRound(value * 10000.) / 100.);
 };
 
+[[nodiscard]] QByteArray EscapeAttr(QByteArray value) {
+	auto result = QByteArray();
+	result.reserve(value.size());
+	for (const auto &ch : value) {
+		switch (ch) {
+		case '&': result.append("&amp;"); break;
+		case '<': result.append("&lt;"); break;
+		case '>': result.append("&gt;"); break;
+		case '"': result.append("&quot;"); break;
+		case '\'': result.append("&apos;"); break;
+		default: result.append(ch); break;
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] QByteArray EscapeText(QByteArray value) {
+	return EscapeAttr(value);
+}
+
 class Parser final {
 public:
 	Parser(const Source &source, const Options &options);
@@ -134,7 +154,6 @@ private:
 	[[nodiscard]] QByteArray utf(const MTPstring &text);
 	[[nodiscard]] QByteArray utf(const tl::conditional<MTPstring> &text);
 	[[nodiscard]] QByteArray rich(const MTPRichText &text);
-	[[nodiscard]] QByteArray plain(const MTPRichText &text);
 	[[nodiscard]] QByteArray caption(const MTPPageCaption &caption);
 
 	[[nodiscard]] Photo parse(const MTPPhoto &photo);
@@ -376,7 +395,7 @@ QByteArray Parser::block(const MTPDpageBlockAuthorDate &data) {
 	if (const auto date = data.vpublished_date().v) {
 		const auto parsed = base::unixtime::parse(date);
 		inner += " \xE2\x80\xA2 "
-			+ tag("time", langDateTimeFull(parsed).toUtf8());
+			+ tag("time", EscapeText(langDateTimeFull(parsed).toUtf8()));
 	}
 	return tag("address", inner);
 }
@@ -395,7 +414,7 @@ QByteArray Parser::block(const MTPDpageBlockParagraph &data) {
 
 QByteArray Parser::block(const MTPDpageBlockPreformatted &data) {
 	auto list = Attributes();
-	const auto language = utf(data.vlanguage());
+	const auto language = EscapeAttr(utf(data.vlanguage()));
 	if (!language.isEmpty()) {
 		list.push_back({ "data-language", language });
 		list.push_back({ "class", "lang-" + language });
@@ -413,7 +432,7 @@ QByteArray Parser::block(const MTPDpageBlockDivider &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockAnchor &data) {
-	return tag("a", { { "name", utf(data.vname())} });
+	return tag("a", { { "name", EscapeAttr(utf(data.vname())) } });
 }
 
 QByteArray Parser::block(const MTPDpageBlockList &data) {
@@ -617,9 +636,9 @@ QByteArray Parser::block(const MTPDpageBlockEmbed &data) {
 	attributes.push_back({ "height", iframeHeight });
 	if (const auto url = data.vurl()) {
 		if (!autosize) {
-			attributes.push_back({ "src", utf(url) });
+			attributes.push_back({ "src", EscapeAttr(utf(url)) });
 		} else {
-			attributes.push_back({ "srcdoc", utf(url) });
+			attributes.push_back({ "srcdoc", EscapeAttr(utf(url)) });
 		}
 	} else if (const auto html = data.vhtml()) {
 		attributes.push_back({ "src", embedUrl(html->v) });
@@ -657,17 +676,21 @@ QByteArray Parser::block(const MTPDpageBlockEmbedPost &data) {
 		address += tag(
 			"a",
 			{ { "rel", "author" }, { "onclick", "return false;" } },
-			utf(data.vauthor()));
+			EscapeText(utf(data.vauthor())));
 		if (const auto date = data.vdate().v) {
 			const auto parsed = base::unixtime::parse(date);
-			address += tag("time", langDateTimeFull(parsed).toUtf8());
+			address += tag(
+				"time",
+				EscapeText(langDateTimeFull(parsed).toUtf8()));
 		}
 		const auto inner = tag("address", address) + list(data.vblocks());
 		result = tag("blockquote", { { "class", "embed-post" } }, inner);
 	} else {
 		const auto url = utf(data.vurl());
 		const auto inner = tag("strong", utf(data.vauthor()))
-			+ tag("small", tag("a", { { "href", url } }, url));
+			+ tag(
+				"small",
+				tag("a", { { "href", EscapeAttr(url) } }, EscapeText(url)));
 		result = tag("section", { { "class", "embed-post" } }, inner);
 	}
 	result += caption(data.vcaption());
@@ -724,7 +747,7 @@ QByteArray Parser::block(const MTPDpageBlockChannel &data) {
 		: "https://t.me/" + username;
 	result = tag(
 		"a",
-		{ { "href", link }, { "data-context", "channel" + id } },
+		{ { "href", EscapeAttr(link) }, { "data-context", "channel" + id } },
 		result);
 	_result.channelIds.emplace(id);
 	return tag("section", {
@@ -830,13 +853,13 @@ QByteArray Parser::block(const MTPDpageRelatedArticle &data) {
 			inner += tag(
 				"span",
 				{ { "class", "related-link-title" } },
-				utf(*title));
+				EscapeText(utf(*title)));
 		}
 		if (description) {
 			inner += tag(
 				"span",
 				{ { "class", "related-link-desc" } },
-				utf(*description));
+				EscapeText(utf(*description)));
 		}
 		if (author || published) {
 			const auto separator = (author && published) ? ", " : "";
@@ -844,7 +867,9 @@ QByteArray Parser::block(const MTPDpageRelatedArticle &data) {
 			inner += tag(
 				"span",
 				{ { "class", "related-link-source" } },
-				utf(*author) + separator + langDateTimeFull(parsed).toUtf8());
+				EscapeText(utf(*author)
+					+ separator
+					+ langDateTimeFull(parsed).toUtf8()));
 		}
 		result += tag("span", {
 			{ "class", "related-link-content" },
@@ -907,7 +932,7 @@ QByteArray Parser::block(const MTPDpageListOrderedItemText &data) {
 QByteArray Parser::block(const MTPDpageListOrderedItemBlocks &data) {
 	return tag(
 		"li",
-		{ { "value", utf(data.vnum()) } },
+		{ { "value", EscapeAttr(utf(data.vnum())) } },
 		list(data.vblocks()));
 }
 
@@ -954,7 +979,7 @@ QByteArray Parser::rich(const MTPRichText &text) {
 			{ "\xE2\x81\xA8", "<span dir=\"auto\">" },
 			{ "\xE2\x81\xA9", "</span>" },
 		};
-		auto text = utf(data.vtext());
+		auto text = EscapeText(utf(data.vtext()));
 		for (const auto &[from, to] : replacements) {
 			text.replace(from, to);
 		}
@@ -1005,7 +1030,7 @@ QByteArray Parser::rich(const MTPRichText &text) {
 		}, rich(data.vtext()));
 	}, [&](const MTPDtextEmail &data) {
 		return tag("a", {
-			{ "href", "mailto:" + utf(data.vemail()) },
+			{ "href", "mailto:" + EscapeAttr(utf(data.vemail())) },
 			}, rich(data.vtext()));
 	}, [&](const MTPDtextSubscript &data) {
 		return tag("sub", rich(data.vtext()));
@@ -1015,36 +1040,17 @@ QByteArray Parser::rich(const MTPRichText &text) {
 		return tag("mark", rich(data.vtext()));
 	}, [&](const MTPDtextPhone &data) {
 		return tag("a", {
-			{ "href", "tel:" + utf(data.vphone()) },
+			{ "href", "tel:" + EscapeAttr(utf(data.vphone())) },
 		}, rich(data.vtext()));
 	}, [&](const MTPDtextAnchor &data) {
 		const auto inner = rich(data.vtext());
+		const auto name = EscapeAttr(utf(data.vname()));
 		return inner.isEmpty()
-			? tag("a", { { "name", utf(data.vname()) } })
+			? tag("a", { { "name", name } })
 			: tag(
 				"span",
 				{ { "class", "reference" } },
-				tag("a", { { "name", utf(data.vname()) } }) + inner);
-	});
-}
-
-QByteArray Parser::plain(const MTPRichText &text) {
-	return text.match([&](const MTPDtextEmpty &data) {
-		return QByteArray();
-	}, [&](const MTPDtextPlain &data) {
-		return utf(data.vtext());
-	}, [&](const MTPDtextConcat &data) {
-		const auto &list = data.vtexts().v;
-		auto result = QByteArrayList();
-		result.reserve(list.size());
-		for (const auto &item : list) {
-			result.append(plain(item));
-		}
-		return result.join(QByteArray());
-	}, [&](const MTPDtextImage &data) {
-		return QByteArray();
-	}, [&](const auto &data) {
-		return plain(data.vtext());
+				tag("a", { { "name", name } }) + inner);
 	});
 }
 
