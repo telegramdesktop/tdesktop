@@ -772,22 +772,6 @@ MessageToEdit FieldHeader::queryToEdit() {
 
 ComposeControls::ComposeControls(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Window::SessionController*> controller,
-	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted,
-	Mode mode,
-	SendMenu::Type sendMenuType)
-: ComposeControls(parent, ComposeControlsDescriptor{
-	.show = controller->uiShow(),
-	.unavailableEmojiPasted = std::move(unavailableEmojiPasted),
-	.mode = mode,
-	.sendMenuType = sendMenuType,
-	.regularWindow = controller,
-	.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
-}) {
-}
-
-ComposeControls::ComposeControls(
-	not_null<Ui::RpWidget*> parent,
 	ComposeControlsDescriptor descriptor)
 : _st(descriptor.stOverride
 	? *descriptor.stOverride

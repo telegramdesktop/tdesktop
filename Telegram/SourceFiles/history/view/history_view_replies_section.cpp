@@ -215,10 +215,16 @@ RepliesWidget::RepliesWidget(
 , _topBarShadow(this)
 , _composeControls(std::make_unique<ComposeControls>(
 	this,
-	controller,
-	[=](not_null<DocumentData*> emoji) { listShowPremiumToast(emoji); },
-	ComposeControls::Mode::Normal,
-	SendMenu::Type::SilentOnly))
+	ComposeControlsDescriptor{
+		.show = controller->uiShow(),
+		.unavailableEmojiPasted = [=](not_null<DocumentData*> emoji) {
+			listShowPremiumToast(emoji);
+		},
+		.mode = ComposeControls::Mode::Normal,
+		.sendMenuType = SendMenu::Type::SilentOnly,
+		.regularWindow = controller,
+		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
+	}))
 , _translateBar(std::make_unique<TranslateBar>(this, controller, history))
 , _scroll(std::make_unique<Ui::ScrollArea>(
 	this,

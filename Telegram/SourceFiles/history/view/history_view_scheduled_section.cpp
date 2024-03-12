@@ -80,10 +80,16 @@ ScheduledWidget::ScheduledWidget(
 , _topBarShadow(this)
 , _composeControls(std::make_unique<ComposeControls>(
 	this,
-	controller,
-	[=](not_null<DocumentData*> emoji) { listShowPremiumToast(emoji); },
-	ComposeControls::Mode::Scheduled,
-	SendMenu::Type::Disabled))
+	ComposeControlsDescriptor{
+		.show = controller->uiShow(),
+		.unavailableEmojiPasted = [=](not_null<DocumentData*> emoji) {
+			listShowPremiumToast(emoji);
+		},
+		.mode = ComposeControls::Mode::Scheduled,
+		.sendMenuType = SendMenu::Type::Disabled,
+		.regularWindow = controller,
+		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
+	}))
 , _cornerButtons(
 		_scroll.data(),
 		controller->chatStyle(),

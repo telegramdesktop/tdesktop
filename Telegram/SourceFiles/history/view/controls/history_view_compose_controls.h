@@ -130,12 +130,6 @@ public:
 
 	ComposeControls(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller,
-		Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted,
-		Mode mode,
-		SendMenu::Type sendMenuType);
-	ComposeControls(
-		not_null<Ui::RpWidget*> parent,
 		ComposeControlsDescriptor descriptor);
 	~ComposeControls();
 
