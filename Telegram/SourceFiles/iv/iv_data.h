@@ -12,17 +12,14 @@ namespace Iv {
 struct Source;
 
 struct Options {
-	QString saveToFolder;
 };
 
 struct Prepared {
 	QString name;
-	//QString title;
 	QByteArray content;
 	QByteArray script;
 	QString url;
 	QString hash;
-	std::vector<QByteArray> resources;
 	base::flat_map<QByteArray, QByteArray> embeds;
 	base::flat_set<QByteArray> channelIds;
 	bool rtl = false;

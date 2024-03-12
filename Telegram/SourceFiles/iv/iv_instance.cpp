@@ -58,14 +58,6 @@ constexpr auto kGeoPointZoomMin = 13;
 constexpr auto kMaxLoadParts = 3;
 constexpr auto kKeepLoadingParts = 8;
 
-[[nodiscard]] QString LookupLocalPath(
-		const std::shared_ptr<Main::SessionShow> show) {
-	const auto &domain = show->session().account().domain();
-	const auto &base = domain.local().webviewDataPath();
-	static auto counter = 0;
-	return base + u"/iv/"_q + QString::number(++counter);
-}
-
 [[nodiscard]] Storage::Cache::Key IvBaseCacheKey(
 		not_null<DocumentData*> document) {
 	auto big = document->bigFileBaseCacheKey();
@@ -129,23 +121,9 @@ private:
 	void prepare(not_null<Data*> data, const QString &hash);
 	void createController();
 
-	void showLocal(Prepared result);
 	void showWindowed(Prepared result);
 	[[nodiscard]] ShareBoxResult shareBox(ShareBoxDescriptor &&descriptor);
 
-	// Local.
-	void showProgress(int index);
-	void loadResource(int index);
-	void finishLocal(const QString &path);
-	[[nodiscard]] QString localRoot() const;
-	void writeLocal(const QString &relative, const QByteArray &data);
-	void loadPhoto(QString id, PhotoId photoId);
-	void loadDocument(QString id, DocumentId documentId);
-	void loadPage(QString id, QString tag);
-	void loadMap(QString id, QString params);
-	void writeEmbed(QString id, QString hash);
-
-	// Windowed.
 	void streamPhoto(PhotoId photoId, Webview::DataRequest request);
 	void streamFile(DocumentId documentId, Webview::DataRequest request);
 	void streamFile(FileStream &file, Webview::DataRequest request);
@@ -181,7 +159,6 @@ private:
 
 	bool _preparing = false;
 
-	QString _localBase;
 	base::flat_map<QByteArray, QByteArray> _embeds;
 	base::flat_map<QString, MapPreview> _maps;
 	std::vector<QByteArray> _resources;
@@ -208,8 +185,7 @@ void Shown::prepare(not_null<Data*> data, const QString &hash) {
 
 	_preparing = true;
 	const auto id = _id = data->id();
-	const auto base = /*local ? LookupLocalPath(show) : */QString();
-	data->prepare({ .saveToFolder = base }, [=](Prepared result) {
+	data->prepare({}, [=](Prepared result) {
 		result.hash = hash;
 		crl::on_main(weak, [=, result = std::move(result)]() mutable {
 			result.url = id;
@@ -219,12 +195,7 @@ void Shown::prepare(not_null<Data*> data, const QString &hash) {
 			_preparing = false;
 			fillChannelJoinedValues(result);
 			fillEmbeds(std::move(result.embeds));
-			if (!base.isEmpty()) {
-				_localBase = base;
-				showLocal(std::move(result));
-			} else {
-				showWindowed(std::move(result));
-			}
+			showWindowed(std::move(result));
 		});
 	});
 }
@@ -252,204 +223,6 @@ void Shown::fillEmbeds(base::flat_map<QByteArray, QByteArray> added) {
 		for (auto &[k, v] : added) {
 			_embeds[k] = std::move(v);
 		}
-	}
-}
-
-void Shown::showLocal(Prepared result) {
-	showProgress(0);
-
-	QDir(_localBase).removeRecursively();
-	QDir().mkpath(_localBase);
-
-	_resources = std::move(result.resources);
-	writeLocal(localRoot(), result.content);
-}
-
-void Shown::showProgress(int index) {
-	const auto count = int(_resources.size() + 1);
-	_show->showToast(u"Saving %1 / %2..."_q.arg(index + 1).arg(count));
-}
-
-void Shown::finishLocal(const QString &path) {
-	if (path.isEmpty()) {
-		_show->showToast(u"Failed!"_q);
-	} else {
-		_show->showToast(u"Done!"_q);
-		File::Launch(path);
-	}
-	_id = QString();
-}
-
-QString Shown::localRoot() const {
-	return u"page.html"_q;
-}
-
-void Shown::writeLocal(const QString &relative, const QByteArray &data) {
-	const auto path = _localBase + '/' + relative;
-	QFileInfo(path).absoluteDir().mkpath(".");
-
-	auto f = QFile(path);
-	if (!f.open(QIODevice::WriteOnly) || f.write(data) != data.size()) {
-		finishLocal({});
-	} else {
-		crl::on_main(this, [=] {
-			loadResource(_resource + 1);
-		});
-	}
-}
-
-void Shown::loadResource(int index) {
-	_resource = index;
-	if (_resource == _resources.size()) {
-		finishLocal(_localBase + '/' + localRoot());
-		return;
-	}
-	showProgress(_resource + 1);
-	const auto id = QString::fromUtf8(_resources[_resource]);
-	if (id.startsWith(u"photo/"_q)) {
-		loadPhoto(id, id.mid(6).toULongLong());
-	} else if (id.startsWith(u"document/"_q)) {
-		loadDocument(id, id.mid(9).toULongLong());
-	} else if (id.startsWith(u"iv/"_q)) {
-		loadPage(id, id.mid(3));
-	} else if (id.startsWith(u"map/"_q)) {
-		loadMap(id, id.mid(4));
-	} else if (id.startsWith(u"html/"_q)) {
-		writeEmbed(id, id.mid(5));
-	} else {
-		_show->show(
-			Ui::MakeInformBox(u"Skipping resource %1..."_q.arg(id)));
-		crl::on_main(this, [=] {
-			loadResource(index + 1);
-		});
-	}
-}
-
-void Shown::loadPhoto(QString id, PhotoId photoId) {
-	const auto photo = _session->data().photo(photoId);
-	const auto media = photo->createMediaView();
-	media->wanted(::Data::PhotoSize::Large, ::Data::FileOrigin());
-	const auto finish = [=](QByteArray bytes) {
-		writeLocal(id, bytes);
-	};
-	if (media->loaded()) {
-		finish(media->imageBytes(::Data::PhotoSize::Large));
-	} else {
-		photo->session().downloaderTaskFinished(
-		) | rpl::filter([=] {
-			return media->loaded();
-		}) | rpl::take(1) | rpl::start_with_next([=] {
-			finish(media->imageBytes(::Data::PhotoSize::Large));
-		}, _lifetime);
-	}
-}
-
-void Shown::loadDocument(QString id, DocumentId documentId) {
-	const auto path = _localBase + '/' + id;
-	QFileInfo(path).absoluteDir().mkpath(".");
-
-	const auto document = _session->data().document(documentId);
-	document->save(::Data::FileOrigin(), path);
-	if (!document->loading()) {
-		crl::on_main(this, [=] {
-			loadResource(_resource + 1);
-		});
-	}
-	document->session().downloaderTaskFinished(
-	) | rpl::filter([=] {
-		return !document->loading();
-	}) | rpl::take(1) | rpl::start_with_next([=] {
-		crl::on_main(this, [=] {
-			loadResource(_resource + 1);
-		});
-	}, _lifetime);
-}
-
-void Shown::loadPage(QString id, QString tag) {
-	if (!id.endsWith(u".css"_q) && !id.endsWith(u".js"_q)) {
-		finishLocal({});
-		return;
-	}
-	const auto pattern = u"^[a-zA-Z\\.\\-_0-9]+$"_q;
-	if (QRegularExpression(pattern).match(tag).hasMatch()) {
-		auto file = QFile(u":/iv/"_q + tag);
-		if (file.open(QIODevice::ReadOnly)) {
-			writeLocal(id, file.readAll());
-			return;
-		}
-	}
-	finishLocal({});
-}
-
-void Shown::loadMap(QString id, QString params) {
-	using namespace ::Data;
-	const auto i = _maps.find(params);
-	if (i != end(_maps)) {
-		writeLocal(id, i->second.bytes);
-		return;
-	}
-	const auto parts = params.split(u'&');
-	if (parts.size() != 3) {
-		finishLocal({});
-		return;
-	}
-	const auto point = GeoPointFromId(parts[0].toUtf8());
-	const auto size = parts[1].split(',');
-	const auto zoom = parts[2].toInt();
-	if (size.size() != 2) {
-		finishLocal({});
-		return;
-	}
-	const auto location = GeoPointLocation{
-		.lat = point.lat,
-		.lon = point.lon,
-		.access = point.access,
-		.width = size[0].toInt(),
-		.height = size[1].toInt(),
-		.zoom = std::max(zoom, kGeoPointZoomMin),
-		.scale = kGeoPointScale,
-	};
-	const auto prepared = ImageWithLocation{
-		.location = ImageLocation(
-			{ location },
-			location.width,
-			location.height)
-	};
-	auto &preview = _maps.emplace(params, MapPreview()).first->second;
-	preview.file = std::make_unique<CloudFile>();
-
-	UpdateCloudFile(
-		*preview.file,
-		prepared,
-		_session->data().cache(),
-		kImageCacheTag,
-		[=](FileOrigin origin) { /* restartLoader not used here */ });
-	const auto autoLoading = false;
-	const auto finalCheck = [=] { return true; };
-	const auto done = [=](QByteArray bytes) {
-		const auto i = _maps.find(params);
-		Assert(i != end(_maps));
-		i->second.bytes = std::move(bytes);
-		writeLocal(id, i->second.bytes);
-	};
-	LoadCloudFile(
-		_session,
-		*preview.file,
-		FileOrigin(),
-		LoadFromCloudOrLocal,
-		autoLoading,
-		kImageCacheTag,
-		finalCheck,
-		done,
-		[=](bool) { done("failed..."); });
-}
-
-void Shown::writeEmbed(QString id, QString hash) {
-	const auto i = _embeds.find(hash.toUtf8());
-	if (i != end(_embeds)) {
-		writeLocal(id, i->second);
-	} else {
-		finishLocal({});
 	}
 }
 
@@ -860,14 +633,14 @@ void Shown::streamMap(QString params, Webview::DataRequest request) {
 
 	const auto parts = params.split(u'&');
 	if (parts.size() != 3) {
-		finishLocal({});
+		requestFail(std::move(request));
 		return;
 	}
 	const auto point = GeoPointFromId(parts[0].toUtf8());
 	const auto size = parts[1].split(',');
 	const auto zoom = parts[2].toInt();
 	if (size.size() != 2) {
-		finishLocal({});
+		requestFail(std::move(request));
 		return;
 	}
 	const auto location = GeoPointLocation{
@@ -983,8 +756,7 @@ void Shown::update(not_null<Data*> data) {
 	const auto weak = base::make_weak(this);
 
 	const auto id = data->id();
-	const auto base = /*local ? LookupLocalPath(show) : */QString();
-	data->prepare({ .saveToFolder = base }, [=](Prepared result) {
+	data->prepare({}, [=](Prepared result) {
 		crl::on_main(weak, [=, result = std::move(result)]() mutable {
 			result.url = id;
 			fillChannelJoinedValues(result);

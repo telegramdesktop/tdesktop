@@ -19,8 +19,6 @@ struct Source {
 	QString name;
 };
 
-[[nodiscard]] Prepared Prepare(
-	const Source &source,
-	const Options &options);
+[[nodiscard]] Prepared Prepare(const Source &source, const Options &options);
 
 } // namespace Iv

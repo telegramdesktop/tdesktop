@@ -1183,11 +1183,7 @@ QByteArray Parser::mapUrl(const Geo &geo, int width, int height, int zoom) {
 }
 
 QByteArray Parser::resource(QByteArray id) {
-	const auto toFolder = !_options.saveToFolder.isEmpty();
-	if (toFolder && _resources.emplace(id).second) {
-		_result.resources.push_back(id);
-	}
-	return toFolder ? id : ('/' + id);
+	return '/' + id;
 }
 
 std::vector<QSize> Parser::computeCollageDimensions(
