@@ -1058,3 +1058,6 @@ boostMessageIcon: icon {{ "stories/boost_mini", windowFg }};
 boostMessageIconPadding: margins(0px, 2px, 0px, 0px);
 boostsMessageIcon: icon {{ "stories/boosts_mini", windowFg }};
 boostsMessageIconPadding: margins(0px, 2px, 0px, 0px);
+
+historyIvIcon: icon{{ "boosts/boost_mini2", windowFg }};
+historyIvIconPadding: margins(2px, 3px, 2px, 0px);

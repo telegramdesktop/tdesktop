@@ -622,7 +622,7 @@ settingsAddReplyLabel: FlatLabel(defaultFlatLabel) {
 }
 settingsAddReplyField: InputField(defaultInputField) {
 	textBg: transparent;
-	textMargins: margins(0px, 10px, 0px, 2px);
+	textMargins: margins(0px, 10px, 32px, 2px);
 
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;

@@ -3544,9 +3544,13 @@ void Session::webpageApplyFields(
 			process(block, process);
 		}
 	}
+	const auto type = story ? WebPageType::Story : ParseWebPageType(data);
+	auto iv = (data.vcached_page() && !IgnoreIv(type))
+		? std::make_unique<Iv::Data>(data, *data.vcached_page())
+		: nullptr;
 	webpageApplyFields(
 		page,
-		(story ? WebPageType::Story : ParseWebPageType(data)),
+		type,
 		qs(data.vurl()),
 		qs(data.vdisplay_url()),
 		siteName,
@@ -3564,9 +3568,7 @@ void Session::webpageApplyFields(
 			? processDocument(*document).get()
 			: lookupThemeDocument()),
 		WebPageCollage(this, data),
-		(data.vcached_page()
-			? std::make_unique<Iv::Data>(data, *data.vcached_page())
-			: nullptr),
+		std::move(iv),
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
 		data.is_has_large_media(),

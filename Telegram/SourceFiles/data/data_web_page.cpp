@@ -171,6 +171,10 @@ WebPageType ParseWebPageType(
 	}
 }
 
+bool IgnoreIv(WebPageType type) {
+	return (type == WebPageType::Message);
+}
+
 WebPageType ParseWebPageType(const MTPDwebPage &page) {
 	return ParseWebPageType(
 		qs(page.vtype().value_or_empty()),

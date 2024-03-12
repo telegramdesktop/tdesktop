@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_instance.h"
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
@@ -135,12 +136,11 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 	});
 }
 
-[[nodiscard]] QString PageToPhrase(not_null<WebPageData*> webpage) {
-	if (webpage->iv) {
-		return u"Instant View"_q;
-	}
-	const auto type = webpage->type;
-	return Ui::Text::Upper((type == WebPageType::Theme)
+[[nodiscard]] TextWithEntities PageToPhrase(not_null<WebPageData*> page) {
+	const auto type = page->type;
+	const auto text = Ui::Text::Upper(page->iv
+		? tr::lng_view_button_iv(tr::now)
+		: (type == WebPageType::Theme)
 		? tr::lng_view_button_theme(tr::now)
 		: (type == WebPageType::Story)
 		? tr::lng_view_button_story(tr::now)
@@ -170,6 +170,15 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 		: (type == WebPageType::BotApp)
 		? tr::lng_view_button_bot_app(tr::now)
 		: QString());
+	if (page->iv) {
+		const auto manager = &page->owner().customEmojiManager();
+		const auto &icon = st::historyIvIcon;
+		const auto padding = st::historyIvIconPadding;
+		return Ui::Text::SingleCustomEmoji(
+			manager->registerInternalEmoji(icon, padding)
+		).append(text);
+	}
+	return { text };
 }
 
 [[nodiscard]] bool HasButton(not_null<WebPageData*> webpage) {
@@ -238,15 +247,23 @@ QSize WebPage::countOptimalSize() {
 	}
 
 	// Detect _openButtonWidth before counting paddings.
-	_openButton = QString();
-	_openButtonWidth = 0;
+	_openButton = Ui::Text::String();
 	if (HasButton(_data)) {
-		_openButton = PageToPhrase(_data);
-		_openButtonWidth = st::semiboldFont->width(_openButton);
+		const auto context = Core::MarkedTextContext{
+			.session = &_data->session(),
+			.customEmojiRepaint = [] {},
+			.customEmojiLoopLimit = 1,
+		};
+		_openButton.setMarkedText(
+			st::semiboldTextStyle,
+			PageToPhrase(_data),
+			kMarkupTextOptions,
+			context);
 	} else if (_sponsoredData) {
 		if (!_sponsoredData->buttonText.isEmpty()) {
-			_openButton = Ui::Text::Upper(_sponsoredData->buttonText);
-			_openButtonWidth = st::semiboldFont->width(_openButton);
+			_openButton.setText(
+				st::semiboldTextStyle,
+				Ui::Text::Upper(_sponsoredData->buttonText));
 		}
 	}
 
@@ -453,9 +470,9 @@ QSize WebPage::countOptimalSize() {
 		_duration = Ui::FormatDurationText(_data->duration);
 		_durationWidth = st::msgDateFont->width(_duration);
 	}
-	if (_openButtonWidth) {
+	if (!_openButton.isEmpty()) {
 		maxWidth += rect::m::sum::h(st::historyPageButtonPadding)
-			+ _openButtonWidth;
+			+ _openButton.maxWidth();
 	}
 	maxWidth += rect::m::sum::h(padding);
 	minHeight += rect::m::sum::v(padding);
@@ -910,7 +927,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 
-	if (_openButtonWidth) {
+	if (!_openButton.isEmpty()) {
 		p.setFont(st::semiboldFont);
 		p.setPen(cache->icon);
 		const auto end = inner.y() + inner.height() + _st.padding.bottom();
@@ -918,11 +935,13 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		auto color = cache->icon;
 		color.setAlphaF(color.alphaF() * 0.3);
 		p.fillRect(inner.x(), end, inner.width(), line, color);
-		const auto top = end + st::historyPageButtonPadding.top();
-		p.drawText(
-			inner.x() + (inner.width() - _openButtonWidth) / 2,
-			top + st::semiboldFont->ascent,
-			_openButton);
+		_openButton.draw(p, {
+			.position = QPoint(
+				inner.x() + (inner.width() - _openButton.maxWidth()) / 2,
+				end + st::historyPageButtonPadding.top()),
+			.availableWidth = paintw,
+			.now = context.now,
+		});
 	}
 }
 
@@ -1225,7 +1244,9 @@ QMargins WebPage::inBubblePadding() const {
 }
 
 QMargins WebPage::innerMargin() const {
-	const auto button = _openButtonWidth ? st::historyPageButtonHeight : 0;
+	const auto button = _openButton.isEmpty()
+		? 0
+		: st::historyPageButtonHeight;
 	return _st.padding + QMargins(0, 0, 0, button);
 }
 

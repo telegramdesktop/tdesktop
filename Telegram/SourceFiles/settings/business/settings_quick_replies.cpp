@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
+constexpr auto kShortcutLimit = 32;
+
 class QuickReplies : public BusinessSection<QuickReplies> {
 public:
 	QuickReplies(
@@ -162,7 +164,7 @@ void QuickReplies::setupContent(
 }
 
 [[nodiscard]] bool ValidShortcutName(const QString &name) {
-	if (name.isEmpty() || name.size() > 32) {
+	if (name.isEmpty() || name.size() > kShortcutLimit) {
 		return false;
 	}
 	for (const auto &ch : name) {
@@ -207,6 +209,39 @@ void EditShortcutNameBox(
 		field->setFocusFast();
 	});
 	field->selectAll();
+	field->setMaxLength(kShortcutLimit * 2);
+
+	struct State {
+		rpl::variable<int> length;
+	};
+	const auto state = field->lifetime().make_state<State>();
+	state->length = rpl::single(
+		int(name.size())
+	) | rpl::then(field->changes() | rpl::map([=] {
+		return int(field->getLastText().size());
+	}));
+	const auto warning = Ui::CreateChild<Ui::FlatLabel>(
+		field,
+		state->length.value() | rpl::map([](int count) {
+		return (count > kShortcutLimit * 3 / 4)
+			? QString::number(kShortcutLimit - count)
+			: QString();
+	}),
+		st::editTagLimit);
+	state->length.value() | rpl::map(
+		rpl::mappers::_1 > kShortcutLimit
+	) | rpl::start_with_next([=](bool exceeded) {
+		warning->setTextColorOverride(exceeded
+			? st::attentionButtonFg->c
+			: std::optional<QColor>());
+	}, warning->lifetime());
+	rpl::combine(
+		field->sizeValue(),
+		warning->sizeValue()
+	) | rpl::start_with_next([=] {
+		warning->moveToRight(0, 0);
+	}, warning->lifetime());
+	warning->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	const auto callback = [=] {
 		const auto name = field->getLastText().trimmed();

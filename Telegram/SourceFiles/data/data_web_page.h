@@ -53,6 +53,7 @@ enum class WebPageType : uint8 {
 	Livestream,
 };
 [[nodiscard]] WebPageType ParseWebPageType(const MTPDwebPage &type);
+[[nodiscard]] bool IgnoreIv(WebPageType type);
 
 struct WebPageCollage {
 	using Item = std::variant<PhotoData*, DocumentData*>;
