@@ -172,7 +172,7 @@ WebPageType ParseWebPageType(
 }
 
 bool IgnoreIv(WebPageType type) {
-	return (type == WebPageType::Message);
+	return !Iv::ShowButton() || (type == WebPageType::Message);
 }
 
 WebPageType ParseWebPageType(const MTPDwebPage &page) {

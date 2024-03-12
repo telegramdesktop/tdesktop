@@ -8,11 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_data.h"
 
 #include "iv/iv_prepare.h"
+#include "webview/webview_interface.h"
 
 #include <QtCore/QRegularExpression>
 #include <QtCore/QUrl>
 
 namespace Iv {
+namespace {
+
+bool FailureRecorded/* = false*/;
+
+} // namespace
 
 QByteArray GeoPointId(Geo point) {
 	const auto lat = int(point.lat * 1000000);
@@ -87,6 +93,19 @@ QString SiteNameFromUrl(const QString &url) {
 			+ components.at(1);
 	}
 	return QString();
+}
+
+bool ShowButton() {
+	static const auto Supported = Webview::NavigateToDataSupported();
+	return Supported;
+}
+
+void RecordShowFailure() {
+	FailureRecorded = true;
+}
+
+bool FailedToShow() {
+	return FailureRecorded;
 }
 
 } // namespace Iv

@@ -53,4 +53,9 @@ private:
 
 [[nodiscard]] QString SiteNameFromUrl(const QString &url);
 
+[[nodiscard]] bool ShowButton();
+
+void RecordShowFailure();
+[[nodiscard]] bool FailedToShow();
+
 } // namespace Iv
