@@ -534,31 +534,13 @@ QByteArray Parser::block(
 	if (!video.id) {
 		return "Video not found.";
 	}
-	const auto src = documentFullUrl(video);
-	auto vattributes = Attributes{};
-	if (collageSmall) {
-		vattributes.push_back({ "class", "video-small" });
-	}
-	if (data.is_autoplay()) {
-		vattributes.push_back({ "preload", "auto" });
-		vattributes.push_back({ "autoplay", std::nullopt });
-	} else if (!collageSmall) {
-		vattributes.push_back({ "controls", std::nullopt });
-	}
-	if (data.is_loop()) {
-		vattributes.push_back({ "loop", std::nullopt });
-	}
-	vattributes.push_back({ "muted", std::nullopt });
-	auto inner = tag(
-		"video",
-		vattributes,
-		tag("source", { { "src", src }, { "type", "video/mp4" } }));
-	if (collageSmall) {
-		inner += tag(
-			"div",
-			{ { "class", "video-play-outer" } },
-			tag("div", { { "class", "video-play" } }));
-	}
+	auto inner = tag("div", {
+		{ "class", "video" },
+		{ "data-src", documentFullUrl(video) },
+		{ "data-autoplay", data.is_autoplay() ? "1" : "0" },
+		{ "data-loop", data.is_loop() ? "1" : "0" },
+		{ "data-small", collageSmall ? "1" : "0" },
+	});
 	const auto minithumb = Images::ExpandInlineBytes(video.minithumbnail);
 	if (!minithumb.isEmpty()) {
 		const auto image = Images::Read({ .content = minithumb });

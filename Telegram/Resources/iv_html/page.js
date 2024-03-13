@@ -41,6 +41,14 @@ var IV = {
 		}
 		e.preventDefault();
 	},
+	getElementTop: function (element) {
+		var top = 0;
+		while (element && !element.classList.contains('page-scroll')) {
+			top += element.offsetTop;
+			element = element.offsetParent;
+		}
+		return top;
+	},
 	jumpToHash: function (hash, instant) {
 		var current = IV.computeCurrentState();
 		current.hash = hash;
@@ -55,12 +63,7 @@ var IV = {
 
 		var element = document.getElementsByName(hash)[0];
 		if (element) {
-			var y = 0;
-			while (element && !element.classList.contains('page-scroll')) {
-				y += element.offsetTop;
-				element = element.offsetParent;
-			}
-			IV.scrollTo(y, instant);
+			IV.scrollTo(IV.getElementTop(element), instant);
 		}
 	},
 	frameKeyDown: function (e) {
@@ -103,6 +106,7 @@ var IV = {
 		const was = IV.lastScrollTop;
 		IV.lastScrollTop = IV.findPageScroll().scrollTop;
 		IV.updateJumpToTop(was < IV.lastScrollTop);
+		IV.checkVideos();
 	},
 	updateJumpToTop: function (scrolledDown) {
 		if (IV.lastScrollTop < 100) {
@@ -246,9 +250,11 @@ var IV = {
 		IV.notify({ event: 'ready' });
 
 		IV.forceScrollFocus();
+		IV.frameScrolled();
 	},
 	initMedia: function () {
-		const photos = document.getElementsByClassName('photo');
+		var scroll = IV.findPageScroll();
+		const photos = scroll.getElementsByClassName('photo');
 		for (let i = 0; i < photos.length; ++i) {
 			const photo = photos[i];
 			if (photo.classList.contains('loaded')) {
@@ -265,18 +271,70 @@ var IV = {
 			}
 			img.src = url.substr(5, url.length - 7);
 			if (img.complete) {
-				img.onload();
+				photo.classList.add('loaded');
+				IV.stopAnimations(photo);
 			}
 		}
-		const videos = document.getElementsByTagName('video');
+		IV.videos = [];
+		const videos = scroll.getElementsByClassName('video');
+		for (let i = 0; i < videos.length; ++i) {
+			const element = videos[i];
+			IV.videos.push({
+				element: element,
+				src: String(element.getAttribute('data-src')),
+				autoplay: (element.getAttribute('data-autoplay') == '1'),
+				loop: (element.getAttribute('data-loop') == '1'),
+				small: (element.getAttribute('data-small') == '1'),
+				filled: (element.firstChild
+					&& element.firstChild.tagName == 'VIDEO'),
+			});
+		}
+	},
+	checkVideos: function () {
+		const visibleTop = IV.lastScrollTop;
+		const visibleBottom = visibleTop + IV.findPageScroll().offsetHeight;
+		const videos = IV.videos;
 		for (let i = 0; i < videos.length; ++i) {
 			const video = videos[i];
-			if (video.classList.contains('loaded')) {
-				continue;
+			const element = video.element;
+			const wrap = element.offsetParent; // video-wrap
+			const top = IV.getElementTop(wrap);
+			const bottom = top + wrap.offsetHeight;
+			if (top < visibleBottom && bottom > visibleTop) {
+				if (!video.filled) {
+					video.filled = true;
+					element.innerHTML = '<video muted class="'
+						+ (video.small ? 'video-small' : '')
+						+ '"'
+						+ (video.autoplay
+							? ' preload="auto" autoplay'
+							: (video.small
+								? ''
+								: ' controls'))
+						+ (video.loop ? ' loop' : '')
+						+ '><source src="'
+						+ video.src
+						+ '" type="video/mp4" />'
+						+ '</video>';
+					var media = element.firstChild;
+					const HAVE_CURRENT_DATA = 2;
+					if (media && media.readyState >= HAVE_CURRENT_DATA) {
+						media.classList.add('loaded');
+						IV.stopAnimations(media);
+					} else if (media) {
+						const created = new Date();
+						media.addEventListener('canplay', function () {
+							media.classList.add('loaded');
+							if ((new Date() - created) < 100) {
+								IV.stopAnimations(media);
+							}
+						});
+					}
+				}
+			} else if (video.filled && video.autoplay) {
+				video.filled = false;
+				element.innerHTML = '';
 			}
-			video.addEventListener('canplay', function () {
-				video.classList.add('loaded');
-			});
 		}
 	},
 	showTooltip: function (text) {
@@ -346,7 +404,14 @@ var IV = {
 		var to = article(IV.makeScrolledContent(data.html));
 		morphdom(from, to, {
 			onBeforeElUpdated: function (fromEl, toEl) {
-				if (fromEl.classList.contains('loaded')) {
+				if (fromEl.classList.contains('video')
+					&& toEl.classList.contains('video')
+					&& fromEl.hasAttribute('data-src')
+					&& toEl.hasAttribute('data-src')
+					&& (fromEl.getAttribute('data-src')
+						== toEl.getAttribute('data-src'))) {
+					return false;
+				} else if (fromEl.classList.contains('loaded')) {
 					toEl.classList.add('loaded');
 				}
 				return !fromEl.isEqualNode(toEl);
@@ -466,8 +531,7 @@ var IV = {
 
 			now.classList.add(back ? 'hidden-left' : 'hidden-right');
 			now.classList.remove(back ? 'hidden-right' : 'hidden-left');
-			now.firstChild.getAnimations().forEach(
-				(animation) => animation.finish());
+			IV.stopAnimations(now.firstChild);
 
 			if (!was.listening) {
 				was.listening = true;
@@ -476,6 +540,10 @@ var IV = {
 						|| was.classList.contains('hidden-right')) {
 						if (was.parentNode) {
 							was.parentNode.removeChild(was);
+							var videos = was.getElementsByClassName('video');
+							for (var i = 0; i < videos.length; ++i) {
+								videos[i].innerHTML = '';
+                            }
 						}
 					}
 				});
@@ -512,6 +580,7 @@ var IV = {
 		}
 
 		IV.forceScrollFocus();
+		IV.frameScrolled();
 	},
 	forceScrollFocus: function () {
 		IV.findPageScroll().focus();
@@ -520,9 +589,16 @@ var IV = {
 			IV.findPageScroll().focus();
 		}, 100);
 	},
+	stopAnimations: function (element) {
+		element.getAnimations().forEach(
+			(animation) => animation.finish());
+	},
 	back: function () {
         window.history.back();
 	},
+
+	videos: {},
+	videosPlaying: {},
 
 	cache: {},
 	index: 0,
@@ -533,6 +609,7 @@ document.onclick = IV.frameClickHandler;
 document.onkeydown = IV.frameKeyDown;
 document.onmouseenter = IV.frameMouseEnter;
 document.onmouseup = IV.frameMouseUp;
+document.onresize = IV.checkVideos;
 window.onmessage = IV.postMessageHandler;
 window.addEventListener('popstate', function (e) {
 	if (e.state) {
