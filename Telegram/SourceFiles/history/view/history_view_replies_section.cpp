@@ -234,7 +234,7 @@ RepliesWidget::RepliesWidget(
 					_topic->owningHistory())
 			) | rpl::map([=] {
 				return session().data().scheduledMessages().hasFor(_topic);
-			})
+			}) | rpl::type_erased()
 			: rpl::single(false),
 	}))
 , _translateBar(std::make_unique<TranslateBar>(this, controller, history))

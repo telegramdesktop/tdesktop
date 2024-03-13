@@ -58,13 +58,6 @@ constexpr auto kGeoPointZoomMin = 13;
 constexpr auto kMaxLoadParts = 5;
 constexpr auto kKeepLoadingParts = 8;
 
-[[nodiscard]] Storage::Cache::Key IvBaseCacheKey(
-		not_null<DocumentData*> document) {
-	auto big = document->bigFileBaseCacheKey();
-	big.low += 0x7FF;
-	return big;
-}
-
 } // namespace
 
 class Shown final : public base::has_weak_ptr {
@@ -545,9 +538,9 @@ void Shown::streamFile(FileStream &file, Webview::DataRequest request) {
 	constexpr auto kPart = Media::Streaming::Loader::kPartSize;
 	const auto size = file.document->size;
 	const auto last = int((size + kPart - 1) / kPart);
-	const auto from = int(std::min(request.offset, size) / kPart);
+	const auto from = int(std::min(int64(request.offset), size) / kPart);
 	const auto till = (request.limit > 0)
-		? std::min(request.offset + request.limit, size)
+		? std::min(int64(request.offset + request.limit), size)
 		: size;
 	const auto parts = std::min(
 		int((till + kPart - 1) / kPart) - from,

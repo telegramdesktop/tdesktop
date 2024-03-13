@@ -529,7 +529,6 @@ QByteArray Parser::block(
 	const auto collage = !layout.geometry.isEmpty();
 	const auto collageSmall = collage
 		&& (layout.geometry.width() < outer.width());
-	const auto slideshow = !collage && !outer.isEmpty();
 	const auto video = documentById(data.vvideo_id().v);
 	if (!video.id) {
 		return "Video not found.";
@@ -1154,7 +1153,6 @@ QByteArray Parser::embedUrl(const QByteArray &html) {
 	};
 	auto result = QByteArray();
 	result.reserve(binary.size() * 2);
-	auto index = 0;
 	for (const auto byte : binary) {
 		result.push_back(hex(byte / 16));
 		result.push_back(hex(byte % 16));

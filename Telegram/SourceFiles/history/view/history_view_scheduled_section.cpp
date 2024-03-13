@@ -239,7 +239,7 @@ void ScheduledWidget::setupComposeControls() {
 					.text = std::move(*text),
 					.type = Controls::WriteRestrictionType::Rights,
 				} : Controls::WriteRestriction();
-			});
+			}) | rpl::type_erased();
 		}()
 		: [&] {
 			return rpl::combine(
@@ -265,7 +265,7 @@ void ScheduledWidget::setupComposeControls() {
 					.text = std::move(*text),
 					.type = Controls::WriteRestrictionType::Rights,
 				} : Controls::WriteRestriction();
-			});
+			}) | rpl::type_erased();
 		}();
 	_composeControls->setHistory({
 		.history = _history.get(),
