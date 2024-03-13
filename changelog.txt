@@ -1,3 +1,9 @@
+4.15.3 beta (13.03.24)
+
+- Instant View on Windows (with WebView2) and macOS.
+- Allow scheduling messages in topics.
+- Fix system proxy support on Linux.
+
 4.15.2 (12.03.24)
 
 - Telegram Business: Greeting Message.
