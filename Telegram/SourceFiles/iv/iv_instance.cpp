@@ -55,7 +55,7 @@ namespace {
 
 constexpr auto kGeoPointScale = 1;
 constexpr auto kGeoPointZoomMin = 13;
-constexpr auto kMaxLoadParts = 3;
+constexpr auto kMaxLoadParts = 5;
 constexpr auto kKeepLoadingParts = 8;
 
 [[nodiscard]] Storage::Cache::Key IvBaseCacheKey(
