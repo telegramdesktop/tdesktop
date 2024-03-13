@@ -301,8 +301,9 @@ var IV = {
 			const top = IV.getElementTop(wrap);
 			const bottom = top + wrap.offsetHeight;
 			if (top < visibleBottom && bottom > visibleTop) {
-				if (!video.filled) {
-					video.filled = true;
+				if (!video.created) {
+					video.created = new Date();
+					video.loaded = false;
 					element.innerHTML = '<video muted class="'
 						+ (video.small ? 'video-small' : '')
 						+ '"'
@@ -312,28 +313,30 @@ var IV = {
 								? ''
 								: ' controls'))
 						+ (video.loop ? ' loop' : '')
-						+ '><source src="'
-						+ video.src
-						+ '" type="video/mp4" />'
+						+ ' oncanplay="IV.checkVideos();"'
+						+ ' onloadeddata="IV.checkVideos();">'
+							+ '<source src="'
+							+ video.src
+							+ '" type="video/mp4" />'
 						+ '</video>';
 					var media = element.firstChild;
-					const HAVE_CURRENT_DATA = 2;
-					if (media && media.readyState >= HAVE_CURRENT_DATA) {
-						media.classList.add('loaded');
+					media.oncanplay = IV.checkVideos;
+					media.onloadeddata = IV.checkVideos;
+				}
+			} else if (video.created && video.autoplay) {
+				video.created = false;
+				element.innerHTML = '';
+			}
+			if (video.created && !video.loaded) {
+				var media = element.firstChild;
+				const HAVE_CURRENT_DATA = 2;
+				if (media && media.readyState >= HAVE_CURRENT_DATA) {
+					video.loaded = true;
+					media.classList.add('loaded');
+					if ((new Date() - video.created) < 100) {
 						IV.stopAnimations(media);
-					} else if (media) {
-						const created = new Date();
-						media.addEventListener('canplay', function () {
-							media.classList.add('loaded');
-							if ((new Date() - created) < 100) {
-								IV.stopAnimations(media);
-							}
-						});
 					}
 				}
-			} else if (video.filled && video.autoplay) {
-				video.filled = false;
-				element.innerHTML = '';
 			}
 		}
 	},
