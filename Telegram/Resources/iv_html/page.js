@@ -44,7 +44,10 @@ var IV = {
 	jumpToHash: function (hash, instant) {
 		var current = IV.computeCurrentState();
 		current.hash = hash;
-		window.history.replaceState(current, '');
+		window.history.replaceState(
+			current,
+			'',
+			'page' + IV.index + '.html');
 		if (hash == '') {
 			IV.scrollTo(0, instant);
 			return;
@@ -216,11 +219,10 @@ var IV = {
 		}
 	},
 	init: function () {
-		IV.platform = window.navigator.platform.toLowerCase();
-		IV.mac = IV.platform.startsWith('mac');
-		IV.win = IV.platform.startsWith('win');
+		var current = IV.computeCurrentState();
+		window.history.replaceState(current, '', IV.pageUrl(0));
+		IV.jumpToHash(current.hash, true);
 
-		window.history.replaceState(IV.computeCurrentState(), '');
 		IV.lastScrollTop = window.history.state.scroll;
 		IV.findPageScroll().onscroll = IV.frameScrolled;
 
@@ -309,6 +311,13 @@ var IV = {
 				: window.history.state.hash),
 			scroll: now ? now.scrollTop : 0
 		};
+	},
+	pageUrl: function (index, hash) {
+		var result = 'page' + index + '.html';
+		if (hash) {
+			result += '#' + hash;
+		}
+		return result;
 	},
 	navigateTo: function (index, hash) {
 		if (!index && !IV.index) {
@@ -401,17 +410,20 @@ var IV = {
 	navigateToDOM: function (index, hash) {
 		IV.pending = null;
 		if (IV.index == index) {
-			IV.jumpToHash(hash, IV.mac);
+			IV.jumpToHash(hash);
 			IV.forceScrollFocus();
 			return;
 		}
-		window.history.replaceState(IV.computeCurrentState(), '');
+		window.history.replaceState(
+			IV.computeCurrentState(),
+			'',
+			IV.pageUrl(IV.index));
 
 		IV.position = IV.position + 1;
 		window.history.pushState(
 			{ position: IV.position, index: index, hash: hash },
 			'',
-			'page' + index + '.html' + (hash.length ? '#' + hash : ''));
+			IV.pageUrl(index));
 		IV.showDOM(index, hash);
 	},
 	findPageScroll: function () {
@@ -492,11 +504,11 @@ var IV = {
 				IV.updateJumpToTop(true);
 			}
 		} else if (scroll !== undefined) {
-			IV.scrollTo(scroll, IV.mac);
+			IV.scrollTo(scroll);
 			IV.lastScrollTop = scroll;
 			IV.updateJumpToTop(true);
 		} else {
-			IV.jumpToHash(hash, IV.mac);
+			IV.jumpToHash(hash);
 		}
 
 		IV.forceScrollFocus();
