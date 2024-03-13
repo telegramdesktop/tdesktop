@@ -60,6 +60,7 @@ enum class Context : char {
 	SavedSublist,
 	TTLViewer,
 	ShortcutMessages,
+	ScheduledTopic,
 };
 
 enum class OnlyEmojiAndSpaces : char {

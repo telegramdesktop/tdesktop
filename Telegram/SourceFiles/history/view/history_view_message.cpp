@@ -861,9 +861,7 @@ QSize Message::performCountOptimalSize() {
 
 void Message::refreshTopicButton() {
 	const auto item = data();
-	if (isAttachedToPrevious()
-			|| (context() != Context::History)
-			|| item->isScheduled()) {
+	if (isAttachedToPrevious() || context() != Context::History) {
 		_topicButton = nullptr;
 	} else if (const auto topic = item->topic()) {
 		if (!_topicButton) {
@@ -2044,7 +2042,8 @@ bool Message::hasFromPhoto() const {
 	case Context::TTLViewer:
 	case Context::Pinned:
 	case Context::Replies:
-	case Context::SavedSublist: {
+	case Context::SavedSublist:
+	case Context::ScheduledTopic: {
 		const auto item = data();
 		if (item->isPost()) {
 			return false;
@@ -3243,7 +3242,8 @@ bool Message::hasFromName() const {
 	case Context::TTLViewer:
 	case Context::Pinned:
 	case Context::Replies:
-	case Context::SavedSublist: {
+	case Context::SavedSublist:
+	case Context::ScheduledTopic: {
 		const auto item = data();
 		const auto peer = item->history()->peer;
 		if (hasOutLayout() && !item->from()->isChannel()) {
