@@ -25,6 +25,7 @@ enum class WebPageType : uint8 {
 	None,
 
 	Message,
+	Album,
 
 	Group,
 	GroupWithRequest,

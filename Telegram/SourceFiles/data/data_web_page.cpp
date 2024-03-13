@@ -148,6 +148,8 @@ WebPageType ParseWebPageType(
 	} else if (type == u"telegram_megagroup_request"_q
 		|| type == u"telegram_chat_request"_q) {
 		return WebPageType::GroupWithRequest;
+	} else if (type == u"telegram_album"_q) {
+		return WebPageType::Album;
 	} else if (type == u"telegram_message"_q) {
 		return WebPageType::Message;
 	} else if (type == u"telegram_bot"_q) {
@@ -172,7 +174,9 @@ WebPageType ParseWebPageType(
 }
 
 bool IgnoreIv(WebPageType type) {
-	return !Iv::ShowButton() || (type == WebPageType::Message);
+	return !Iv::ShowButton()
+		|| (type == WebPageType::Message)
+		|| (type == WebPageType::Album);
 }
 
 WebPageType ParseWebPageType(const MTPDwebPage &page) {
