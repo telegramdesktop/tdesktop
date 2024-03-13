@@ -127,6 +127,7 @@ namespace {
 			st::boostLevelBadge.style.font->height
 		).marginsAdded(st::boostLevelBadge.margin);
 		auto p = QPainter(label);
+		auto hq = PainterHighQualityEnabler(p);
 		auto gradient = QLinearGradient(
 			rect.topLeft(),
 			rect.topRight());
