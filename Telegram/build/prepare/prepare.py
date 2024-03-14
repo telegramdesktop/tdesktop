@@ -93,14 +93,14 @@ if (win32):
         'SPECIAL_TARGET': 'win',
         'X8664': 'x86',
         'WIN32X64': 'Win32',
-        'JOM_THREADS': '-j16',
+        'JOM_THREADS_CNT': '-j16',
     })
 elif (win64):
     environment.update({
         'SPECIAL_TARGET': 'win64',
         'X8664': 'x64',
         'WIN32X64': 'x64',
-        'JOM_THREADS': '-j16',
+        'JOM_THREADS_CNT': '-j16',
     })
 elif (mac):
     environment.update({
@@ -1456,8 +1456,8 @@ win:
         -nomake tests ^
         -platform win32-msvc
 
-    jom %JOM_THREADS%
-    jom %JOM_THREADS% install
+    jom %JOM_THREADS_CNT%
+    jom %JOM_THREADS_CNT% install
 mac:
     find ../../patches/qtbase_5.15.13 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
