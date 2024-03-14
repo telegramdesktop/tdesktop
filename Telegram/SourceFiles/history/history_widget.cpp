@@ -203,6 +203,18 @@ const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 	});
 }
 
+[[nodiscard]] QString FirstEmoji(const QString &s) {
+	const auto begin = s.data();
+	const auto end = begin + s.size();
+	for (auto ch = begin; ch != end; ch++) {
+		auto length = 0;
+		if (const auto e = Ui::Emoji::Find(ch, end, &length)) {
+			return e->text();
+		}
+	}
+	return QString();
+}
+
 } // namespace
 
 HistoryWidget::HistoryWidget(
@@ -2908,8 +2920,8 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
-		if (_botMenuButton) {
-			_botMenuButton->hide();
+		if (_botMenu.button) {
+			_botMenu.button->hide();
 		}
 		if (_tabbedPanel) {
 			_tabbedPanel->hide();
@@ -2977,8 +2989,8 @@ void HistoryWidget::updateControlsVisibility() {
 		} else {
 			_attachToggle->show();
 		}
-		if (_botMenuButton) {
-			_botMenuButton->show();
+		if (_botMenu.button) {
+			_botMenu.button->show();
 		}
 		if (_sendRestriction) {
 			_sendRestriction->hide();
@@ -3055,8 +3067,8 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_sendAs) {
 			_sendAs->hide();
 		}
-		if (_botMenuButton) {
-			_botMenuButton->hide();
+		if (_botMenu.button) {
+			_botMenu.button->hide();
 		}
 		_kbScroll->hide();
 		if (_replyTo || readyToForward() || _kbReplyTo) {
@@ -4803,28 +4815,35 @@ bool HistoryWidget::updateCmdStartShown() {
 			}
 		}
 	}
+	constexpr auto kSmallMenuAfter = 10;
 	const auto commandsChanged = (_cmdStartShown != cmdStartShown);
 	auto buttonChanged = false;
 	if (!bot
 		|| (bot->botInfo->botMenuButtonUrl.isEmpty()
 			&& bot->botInfo->commands.empty())) {
-		buttonChanged = (_botMenuButton != nullptr);
-		_botMenuButton.destroy();
-	} else if (!_botMenuButton) {
+		buttonChanged = (_botMenu.button != nullptr);
+		_botMenu.button.destroy();
+	} else if (!_botMenu.button) {
 		buttonChanged = true;
-		_botMenuButtonText = bot->botInfo->botMenuButtonText;
-		_botMenuButton.create(
+		_botMenu.text = bot->botInfo->botMenuButtonText;
+		_botMenu.small = (Ui::FieldCharacterCount(_field) > kSmallMenuAfter);
+		if (_botMenu.small) {
+			if (const auto e = FirstEmoji(_botMenu.text); !e.isEmpty()) {
+				_botMenu.text = e;
+			}
+		}
+		_botMenu.button.create(
 			this,
-			(_botMenuButtonText.isEmpty()
+			(_botMenu.text.isEmpty()
 				? tr::lng_bot_menu_button()
-				: rpl::single(_botMenuButtonText)),
+				: rpl::single(_botMenu.text)),
 			st::historyBotMenuButton);
 		orderWidgets();
 
-		_botMenuButton->setTextTransform(
+		_botMenu.button->setTextTransform(
 			Ui::RoundButton::TextTransform::NoTransform);
-		_botMenuButton->setFullRadius(true);
-		_botMenuButton->setClickedCallback([=] {
+		_botMenu.button->setFullRadius(true);
+		_botMenu.button->setClickedCallback([=] {
 			const auto user = _peer ? _peer->asUser() : nullptr;
 			const auto bot = (user && user->isBot()) ? user : nullptr;
 			if (bot && !bot->botInfo->botMenuButtonUrl.isEmpty()) {
@@ -4835,22 +4854,29 @@ bool HistoryWidget::updateCmdStartShown() {
 				_fieldAutocomplete->showFiltered(_peer, "/", true);
 			}
 		});
-		_botMenuButton->widthValue(
+		_botMenu.button->widthValue(
 		) | rpl::start_with_next([=](int width) {
 			if (width > st::historyBotMenuMaxWidth) {
-				_botMenuButton->setFullWidth(st::historyBotMenuMaxWidth);
+				_botMenu.button->setFullWidth(st::historyBotMenuMaxWidth);
 			} else {
 				updateFieldSize();
 			}
-		}, _botMenuButton->lifetime());
+		}, _botMenu.button->lifetime());
 	}
-	const auto textChanged = _botMenuButton
-		&& (_botMenuButtonText != bot->botInfo->botMenuButtonText);
+	const auto textSmall = Ui::FieldCharacterCount(_field) > kSmallMenuAfter;
+	const auto textChanged = _botMenu.button
+		&& ((_botMenu.text != bot->botInfo->botMenuButtonText)
+		|| (_botMenu.small != textSmall));
 	if (textChanged) {
-		_botMenuButtonText = bot->botInfo->botMenuButtonText;
-		_botMenuButton->setText(_botMenuButtonText.isEmpty()
+		_botMenu.text = bot->botInfo->botMenuButtonText;
+		if (_botMenu.small = textSmall) {
+			if (const auto e = FirstEmoji(_botMenu.text); !e.isEmpty()) {
+				_botMenu.text = e;
+			}
+		}
+		_botMenu.button->setText(_botMenu.text.isEmpty()
 			? tr::lng_bot_menu_button()
-			: rpl::single(_botMenuButtonText));
+			: rpl::single(_botMenu.text));
 	}
 	_cmdStartShown = cmdStartShown;
 	return commandsChanged || buttonChanged || textChanged;
@@ -5166,15 +5192,15 @@ void HistoryWidget::moveFieldControls() {
 		_kbScroll->setGeometryToLeft(0, bottom, width(), keyboardHeight);
 	}
 
-// (_botMenuButton) (_attachToggle|_replaceMedia) (_sendAs) ---- _inlineResults ------------------------------ _tabbedPanel ------ _fieldBarCancel
+// (_botMenu.button) (_attachToggle|_replaceMedia) (_sendAs) ---- _inlineResults ------------------------------ _tabbedPanel ------ _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_ttlInfo) (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute|_reportMessages)
 
 	auto buttonsBottom = bottom - _attachToggle->height();
 	auto left = st::historySendRight;
-	if (_botMenuButton) {
+	if (_botMenu.button) {
 		const auto skip = st::historyBotMenuSkip;
-		_botMenuButton->moveToLeft(left + skip, buttonsBottom + skip); left += skip + _botMenuButton->width();
+		_botMenu.button->moveToLeft(left + skip, buttonsBottom + skip); left += skip + _botMenu.button->width();
 	}
 	if (_replaceMedia) {
 		_replaceMedia->moveToLeft(left, buttonsBottom);
@@ -5246,8 +5272,8 @@ void HistoryWidget::updateFieldSize() {
 		- st::historySendRight
 		- _send->width()
 		- _tabbedSelectorToggle->width();
-	if (_botMenuButton) {
-		fieldWidth -= st::historyBotMenuSkip + _botMenuButton->width();
+	if (_botMenu.button) {
+		fieldWidth -= st::historyBotMenuSkip + _botMenu.button->width();
 	}
 	if (_sendAs) {
 		fieldWidth -= _sendAs->width();
