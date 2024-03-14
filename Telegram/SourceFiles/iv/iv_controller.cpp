@@ -494,7 +494,7 @@ void Controller::createWebview(const QString &dataPath) {
 				|| index >= _pages.size()) {
 				return Webview::DataResult::Failed;
 			}
-			return finishWith(WrapPage(_pages[index]), "text/html");
+			return finishWith(WrapPage(_pages[index]), "text/html; charset=utf-8");
 		} else if (id.starts_with("page") && id.ends_with(".json")) {
 			auto index = 0;
 			const auto result = std::from_chars(
