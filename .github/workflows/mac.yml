@@ -64,7 +64,11 @@ jobs:
       - name: First set up.
         run: |
           sudo chown -R `whoami`:admin /usr/local/share
-          brew install automake ninja pkg-config nasm meson
+          brew install automake ninja pkg-config nasm
+          # meson@1.4.0 depends on python 3.12 that is already installed
+          # but howbrew tries to install it again and failed
+          # solution: just install meson w/o dependencies
+          brew install --ignore-dependencies meson
 
           # Disable spotlight.
           sudo mdutil -a -i off
