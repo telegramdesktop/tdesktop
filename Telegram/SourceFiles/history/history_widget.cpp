@@ -4869,7 +4869,7 @@ bool HistoryWidget::updateCmdStartShown() {
 		|| (_botMenu.small != textSmall));
 	if (textChanged) {
 		_botMenu.text = bot->botInfo->botMenuButtonText;
-		if (_botMenu.small = textSmall) {
+		if ((_botMenu.small = textSmall)) {
 			if (const auto e = FirstEmoji(_botMenu.text); !e.isEmpty()) {
 				_botMenu.text = e;
 			}
