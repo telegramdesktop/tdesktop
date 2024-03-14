@@ -793,6 +793,7 @@ void Controller::showShareMenu() {
 		: nullptr);
 	const auto margins = QMargins(0, st::windowTitleHeight, 0, 0);
 	if (!_shareHidesContent) {
+		_shareWrap->setGeometry(_window->geometry().marginsRemoved(margins));
 		_shareWrap->setWindowFlag(Qt::FramelessWindowHint);
 		_shareWrap->setAttribute(Qt::WA_TranslucentBackground);
 		_shareWrap->setAttribute(Qt::WA_NoSystemBackground);
