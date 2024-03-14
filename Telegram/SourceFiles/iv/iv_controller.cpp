@@ -161,7 +161,7 @@ namespace {
 	return R"(<!DOCTYPE html>
 <html)"_q
 	+ classAttribute
-	+ R"("" style=")"
+	+ R"( style=")"
 	+ EscapeForAttribute(ComputeStyles())
 	+ R"(">
 	<head>
