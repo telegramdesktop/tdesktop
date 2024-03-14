@@ -650,6 +650,9 @@ void SetupAccountsWrap(
 		if (which == Qt::LeftButton) {
 			callback(raw->clickModifiers());
 			return;
+		} else if (which == Qt::MiddleButton) {
+			callback(Qt::ControlModifier);
+			return;
 		} else if (which != Qt::RightButton) {
 			return;
 		}
