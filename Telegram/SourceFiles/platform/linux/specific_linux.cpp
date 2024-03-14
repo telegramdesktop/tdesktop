@@ -35,8 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <kshell.h>
 #include <ksandbox.h>
 
-#include <glibmm.h>
-
 #include <xdgdbus/xdgdbus.hpp>
 #include <xdpbackground/xdpbackground.hpp>
 #include <xdprequest/xdprequest.hpp>
@@ -691,8 +689,6 @@ void start() {
 
 	GLib::set_prgname(cExeName().toStdString());
 	GLib::set_application_name(AppName.data());
-
-	Glib::init();
 
 	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
 		QDir::tempPath(),

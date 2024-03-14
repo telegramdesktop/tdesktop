@@ -99,6 +99,7 @@ parts:
       - libboost-regex1.74-dev
       - libfmt-dev
       - libgirepository1.0-dev
+      - libglib2.0-dev
       - libheif-dev
       - libopus-dev
       - libpulse-dev
@@ -113,6 +114,7 @@ parts:
       - libasound2
       - libavif13
       - libboost-regex1.74.0
+      - libglib2.0-0
       - libheif1
       - libopus0
       - libpulse0
@@ -156,7 +158,6 @@ parts:
     after:
       - ffmpeg
       - libjxl
-      - glibmm
       - mozjpeg
       - openal
       - protobuf
@@ -174,18 +175,6 @@ parts:
       cp -r . "$CRAFT_STAGE/patches"
     override-prime: |
       rm -rf patches
-    stage: [-./*]
-
-  meson-deps:
-    source: https://github.com/mesonbuild/meson.git
-    source-depth: 1
-    source-branch: 1.2.3
-    plugin: nil
-    build-packages:
-      - python3-pip
-      - ninja-build
-    override-build: |
-      pip install .
     stage: [-./*]
 
   desktop-qt:
@@ -253,53 +242,6 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
     after:
       - mozjpeg
-
-  glib:
-    source: https://github.com/GNOME/glib.git
-    source-depth: 1
-    source-tag: 2.78.1
-    plugin: meson
-    build-packages:
-      - mm-common
-      - ninja-build
-    meson-parameters:
-      - --buildtype=release
-      - --prefix=/usr
-      - --strip
-      - -Dtests=false
-    prime:
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
-    after:
-      - meson-deps
-
-  glibmm:
-    source: https://github.com/GNOME/glibmm.git
-    source-depth: 1
-    source-tag: 2.78.0
-    plugin: meson
-    build-packages:
-      - mm-common
-      - ninja-build
-      - libxml-parser-perl
-    meson-parameters:
-      - --buildtype=release
-      - --prefix=/usr
-      - --strip
-      - -Dbuild-documentation=false
-      - -Dbuild-examples=false
-      - -Dsigc++-3.0:build-documentation=false
-      - -Dsigc++-3.0:build-examples=false
-      - -Dsigc++-3.0:build-tests=false
-      - -Dsigc++-3.0:validation=false
-    prime:
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
-    after:
-      - meson-deps
-      - glib
 
   libjxl:
     source: https://github.com/libjxl/libjxl.git
@@ -418,6 +360,7 @@ parts:
       - libegl-dev
       - libfontconfig1-dev
       - libfreetype-dev
+      - libglib2.0-dev
       - libglx-dev
       - libgtk-3-dev
       - libharfbuzz-dev
@@ -456,6 +399,7 @@ parts:
       - libegl1
       - libfontconfig1
       - libfreetype6
+      - libglib2.0-0
       - libglx0
       - libgtk-3-0
       - libharfbuzz0b
@@ -535,7 +479,6 @@ parts:
       - -./usr/mkspecs
       - -./usr/modules
     after:
-      - glib
       - mozjpeg
       - patches
 
@@ -579,6 +522,7 @@ parts:
       - libegl-dev
       - libgbm-dev
       - libgl-dev
+      - libglib2.0-dev
       - libopenh264-dev
       - libopus-dev
       - libpipewire-0.3-dev
@@ -597,6 +541,7 @@ parts:
       - libegl1
       - libgbm1
       - libgl1
+      - libglib2.0-0
       - libopenh264-6
       - libopus0
       - libssl3
@@ -620,5 +565,4 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
     after:
       - ffmpeg
-      - glib
       - mozjpeg
