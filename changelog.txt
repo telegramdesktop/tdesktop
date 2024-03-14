@@ -1,3 +1,10 @@
+4.15.4 beta (14.03.24)
+
+- Fix initial text color in dark mode Instant View on macOS.
+- Fix non-English symbols encoding in Instant View on macOS.
+- Fix sharing from Instant View on macOS.
+- Fix crash with long messages on Linux.
+
 4.15.3 beta (13.03.24)
 
 - Instant View on Windows (with WebView2) and macOS.
