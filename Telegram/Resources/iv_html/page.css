@@ -88,6 +88,12 @@ html.custom_scroll ::-webkit-scrollbar-thumb:hover {
 		opacity: 1;
 	}
 }
+#menu_page_blocker {
+	z-index: 999;
+	position: fixed;
+	width: 100%;
+	height: 100%;
+}
 #top_shadow {
 	z-index: 999;
 	position: fixed;

@@ -429,6 +429,10 @@ void Controller::createWebview(const QString &dataPath) {
 				const auto url = object.value("url").toString();
 				const auto context = object.value("context").toString();
 				processLink(url, context);
+			} else if (event == "menu_page_blocker_click") {
+				if (_menu) {
+					_menu->hideMenu();
+				}
 			} else if (event == u"ready"_q) {
 				_ready = true;
 				auto script = QByteArray();
@@ -442,6 +446,9 @@ void Controller::createWebview(const QString &dataPath) {
 				}
 				if (base::take(_reloadInitialWhenReady)) {
 					script += reloadScript(0);
+				}
+				if (_menu) {
+					script += "IV.menuShown(true);";
 				}
 				if (!script.isEmpty()) {
 					_webview->eval(script);
@@ -648,7 +655,7 @@ bool Controller::active() const {
 }
 
 void Controller::showJoinedTooltip() {
-	if (_webview) {
+	if (_webview && _ready) {
 		_webview->eval("IV.showTooltip('"
 			+ EscapeForScriptString(
 				tr::lng_action_you_joined(tr::now).toUtf8())
@@ -679,12 +686,22 @@ void Controller::showMenu() {
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		_window.get(),
 		st::popupMenuWithIcons);
+	if (_webview && _ready) {
+		_webview->eval("IV.menuShown(true);");
+	}
 	_menu->setDestroyedCallback(crl::guard(_window.get(), [
 			this,
 			weakButton = Ui::MakeWeak(_menuToggle.data()),
 			menu = _menu.get()] {
 		if (_menu == menu && weakButton) {
 			weakButton->setForceRippled(false);
+		}
+		if (const auto widget = _webview ? _webview->widget() : nullptr) {
+			InvokeQueued(widget, crl::guard(_window.get(), [=] {
+				if (_webview && _ready) {
+					_webview->eval("IV.menuShown(false);");
+				}
+			}));
 		}
 	}));
 	_menuToggle->setForceRippled(true);

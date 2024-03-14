@@ -8,6 +8,11 @@ var IV = {
 		var target = e.target;
 		var context = '';
 		while (target) {
+			if (target.id == 'menu_page_blocker') {
+				IV.notify({ event: 'menu_page_blocker_click' });
+				IV.menuShown(false);
+				return;
+			}
 			if (target.tagName == 'AUDIO' || target.tagName == 'VIDEO') {
 				return;
 			}
@@ -598,6 +603,20 @@ var IV = {
 	},
 	back: function () {
         window.history.back();
+	},
+	menuShown: function (shown) {
+		var already = document.getElementById('menu_page_blocker');
+		if (already && shown) {
+			return;
+		} else if (already) {
+			document.body.removeChild(already);
+			return;
+		} else if (!shown) {
+			return;
+		}
+		var blocker = document.createElement('div');
+		blocker.id = 'menu_page_blocker';
+		document.body.appendChild(blocker);
 	},
 
 	videos: {},
