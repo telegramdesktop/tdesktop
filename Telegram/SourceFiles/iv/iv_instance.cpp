@@ -833,6 +833,7 @@ void Instance::show(
 			break;
 		case Type::OpenLinkExternal:
 			QDesktopServices::openUrl(event.url);
+			closeAll();
 			break;
 		case Type::OpenMedia:
 			if (const auto window = Core::App().activeWindow()) {
