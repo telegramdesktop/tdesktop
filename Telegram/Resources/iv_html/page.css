@@ -1,5 +1,11 @@
+:root {
+	--font-sans: -apple-system, BlinkMacSystemFont, avenir next, avenir, segoe ui, helvetica neue, helvetica, Cantarell, Ubuntu, roboto, noto, tahoma, arial, sans-serif;
+	--font-serif: Iowan Old Style, Apple Garamond, Baskerville, Georgia, Times New Roman, Droid Serif, Times, Source Serif Pro, serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol;
+	--font-mono: Menlo, Cascadia Code, Consolas, Monaco, Liberation Mono, Lucida Console, monospace;
+}
+
 body {
-	font-family: 'Helvetica Neue';
+	font-family: var(--font-sans);
 	font-size: 17px;
 	line-height: 25px;
 	padding: 0;
@@ -145,7 +151,7 @@ article {
 }
 article h1,
 article h2 {
-	font-family: 'Georgia';
+	font-family: var(--font-serif);
 	font-size: 28px;
 	line-height: 31px;
 	margin: 21px 18px 12px;
@@ -237,7 +243,7 @@ article ol p {
 }
 article pre,
 article pre.hljs {
-	font-family: Menlo;
+	font-family: var(--font-mono);
 	margin: 14px 0;
 	padding: 7px 18px;
 	background: #F5F8FC;
@@ -265,7 +271,7 @@ article pre + pre {
 }
 article h3,
 article h4 {
-	font-family: 'Georgia';
+	font-family: var(--font-serif);
 	font-size: 24px;
 	line-height: 30px;
 	margin: 18px 18px 9px;
@@ -284,7 +290,7 @@ article ol h4 {
 	margin: 10px 0 5px;
 }
 article blockquote {
-	font-family: 'Georgia';
+	font-family: var(--font-serif);
 	margin: 18px 18px 16px;
 	padding-left: 22px;
 	position: relative;
@@ -310,7 +316,7 @@ article.rtl blockquote:before {
 	left: auto;
 }
 article aside {
-	font-family: 'Georgia';
+	font-family: var(--font-serif);
 	margin: 18px 18px 16px;
 	padding: 0 18px;
 	text-align: center;
@@ -326,7 +332,7 @@ article blockquote cite,
 article aside cite,
 article footer cite,
 article .pullquote cite {
-	font-family: 'Helvetica Neue';
+	font-family: var(--font-sans);
 	font-size: 15px;
 	display: block;
 	color: var(--td-window-sub-text-fg);
@@ -601,7 +607,7 @@ ol figcaption {
 	padding-right: 0;
 }
 figcaption > cite {
-	font-family: 'Helvetica Neue';
+	font-family: var(--font-sans);
 	font-size: 12px;
 	display: block;
 	line-height: 15px;
@@ -855,7 +861,7 @@ section.related {
 	margin: 7px 0 12px;
 }
 section.related h4 {
-	font-family: 'Helvetica Neue';
+	font-family: var(--font-sans);
 	font-size: 17px;
 	line-height: 26px;
 	font-weight: 500;
@@ -996,7 +1002,7 @@ section.channel > a > div.join span:before {
 	content: var(--td-lng-group-call-join);
 }
 section.channel > a > h4 {
-	font-family: 'Helvetica Neue';
+	font-family: var(--font-sans);
 	font-size: 17px;
 	line-height: 26px;
 	font-weight: 500;
