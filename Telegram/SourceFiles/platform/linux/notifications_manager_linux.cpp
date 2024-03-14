@@ -469,29 +469,18 @@ void NotificationData::close() {
 }
 
 void NotificationData::setImage(QImage image) {
-	using DestroyNotify = gi::detail::callback<
-		void(),
-		gi::transfer_full_t,
-		std::tuple<>
-	>;
-
 	if (_notification) {
 		const auto imageData = std::make_shared<QByteArray>();
 		QBuffer buffer(imageData.get());
 		buffer.open(QIODevice::WriteOnly);
 		image.save(&buffer, "PNG");
 
-		const auto callbackWrap = gi::unwrap(
-			DestroyNotify([imageData] {}),
-			gi::scope_notified);
-
 		_notification.set_icon(
 			Gio::BytesIcon::new_(
-				gi::wrap(g_bytes_new_with_free_func(
-					imageData->constData(),
+				GLib::Bytes::new_with_free_func(
+					reinterpret_cast<const uchar*>(imageData->constData()),
 					imageData->size(),
-					&callbackWrap->destroy,
-					callbackWrap), gi::transfer_full)));
+					[imageData] {})));
 
 		return;
 	}
@@ -506,10 +495,6 @@ void NotificationData::setImage(QImage image) {
 		image.convertTo(QImage::Format_RGB888);
 	}
 
-	const auto callbackWrap = gi::unwrap(
-		DestroyNotify([image] {}),
-		gi::scope_notified);
-
 	_hints.insert_value(_imageKey, GLib::Variant::new_tuple({
 		GLib::Variant::new_int32(image.width()),
 		GLib::Variant::new_int32(image.height()),
@@ -517,13 +502,12 @@ void NotificationData::setImage(QImage image) {
 		GLib::Variant::new_boolean(image.hasAlphaChannel()),
 		GLib::Variant::new_int32(8),
 		GLib::Variant::new_int32(image.hasAlphaChannel() ? 4 : 3),
-		gi::wrap(g_variant_new_from_data(
-			G_VARIANT_TYPE_BYTESTRING,
-			image.constBits(),
+		GLib::Variant::new_from_data(
+			GLib::VariantType::new_("ay"),
+			reinterpret_cast<const uchar*>(image.constBits()),
 			image.sizeInBytes(),
 			true,
-			&callbackWrap->destroy,
-			callbackWrap), gi::transfer_none),
+			[image] {}),
 	}));
 }
 
