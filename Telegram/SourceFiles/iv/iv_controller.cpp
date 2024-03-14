@@ -76,7 +76,7 @@ namespace {
 		{ "toast-fg", &st::toastFg },
 	};
 	static const auto phrases = base::flat_map<QByteArray, tr::phrase<>>{
-		{ "group-call-join", tr::lng_group_call_join },
+		{ "iv-join-channel", tr::lng_iv_join_channel },
 	};
 	static const auto serialize = [](const style::color *color) {
 		const auto qt = (*color)->c;

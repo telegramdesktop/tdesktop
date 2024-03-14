@@ -4869,6 +4869,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_iv_open_in_browser" = "Open in Browser";
 "lng_iv_share" = "Share";
+"lng_iv_join_channel" = "Join";
 
 // Wnd specific
 

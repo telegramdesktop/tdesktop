@@ -999,7 +999,7 @@ section.channel > a > div.join:hover {
 	text-decoration: underline;
 }
 section.channel > a > div.join span:before {
-	content: var(--td-lng-group-call-join);
+	content: var(--td-lng-iv-join-channel);
 }
 section.channel > a > h4 {
 	font-family: var(--font-sans);
