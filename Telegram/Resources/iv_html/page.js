@@ -330,6 +330,7 @@ var IV = {
 							+ '" type="video/mp4" />'
 						+ '</video>';
 					var media = element.firstChild;
+					media.oncontextmenu = function () { return false; };
 					media.oncanplay = IV.checkVideos;
 					media.onloadeddata = IV.checkVideos;
 				}
