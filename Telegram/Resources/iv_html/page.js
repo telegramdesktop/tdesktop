@@ -127,12 +127,17 @@ var IV = {
 		}
 	},
 	toggleChannelJoined: function (id, joined) {
+		IV.channelsJoined['channel' + id] = joined;
+		IV.checkChannelButtons();
+	},
+	checkChannelButtons: function() {
 		const channels = document.getElementsByClassName('channel');
-		const full = 'channel' + id;
 		for (var i = 0; i < channels.length; ++i) {
 			const channel = channels[i];
-			if (String(channel.getAttribute('data-context')) === full) {
-				channel.classList.toggle('joined', joined);
+			const full = String(channel.getAttribute('data-context'));
+			const value = IV.channelsJoined[full];
+			if (value !== undefined) {
+				channel.classList.toggle('joined', value);
 			}
 		}
 	},
@@ -419,6 +424,15 @@ var IV = {
 					&& (fromEl.getAttribute('data-src')
 						== toEl.getAttribute('data-src'))) {
 					return false;
+				} else if (fromEl.tagName == 'SECTION'
+					&& fromEl.classList.contains('channel')
+					&& fromEl.hasAttribute('data-context')
+					&& toEl.tagName == 'SECTION'
+					&& toEl.classList.contains('channel')
+					&& toEl.hasAttribute('data-context')
+					&& (String(fromEl.getAttribute('data-context'))
+						== String(toEl.getAttribute('data-context')))) {
+					return false;
 				} else if (fromEl.classList.contains('loaded')) {
 					toEl.classList.add('loaded');
 				}
@@ -573,6 +587,7 @@ var IV = {
 			} else {
 				IV.initMedia();
 			}
+			IV.checkChannelButtons();
 			if (scroll === undefined) {
 				IV.jumpToHash(hash, true);
 			} else {
@@ -623,6 +638,7 @@ var IV = {
 	videosPlaying: {},
 
 	cache: {},
+	channelsJoined: {},
 	index: 0,
 	position: 0
 };
