@@ -577,6 +577,11 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 }
 
 void Controller::activate() {
+	if (_window->isMinimized()) {
+		_window->showNormal();
+	} else if (_window->isHidden()) {
+		_window->show();
+	}
 	_window->raise();
 	_window->activateWindow();
 	_window->setFocus();
