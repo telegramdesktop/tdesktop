@@ -197,12 +197,12 @@ LinuxIntegration::LinuxIntegration()
 , _darkModeWatcher(
 	"org.freedesktop.appearance",
 	"color-scheme",
-	[](uint value) {
+	[](GLib::Variant value) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 		QWindowSystemInterface::handleThemeChange();
 #else // Qt >= 6.5.0
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			Core::App().settings().setSystemDarkMode(value == 1);
+			Core::App().settings().setSystemDarkMode(value.get_uint32() == 1);
 		});
 #endif // Qt < 6.5.0
 }) {

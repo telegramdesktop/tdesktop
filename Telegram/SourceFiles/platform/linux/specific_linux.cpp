@@ -512,12 +512,12 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 std::optional<bool> IsDarkMode() {
-	const auto result = base::Platform::XDP::ReadSetting<uint>(
+	const auto result = base::Platform::XDP::ReadSetting(
 		"org.freedesktop.appearance",
 		"color-scheme");
 
 	return result.has_value()
-		? std::make_optional(*result == 1)
+		? std::make_optional(result->get_uint32() == 1)
 		: std::nullopt;
 }
 #endif // Qt < 6.5.0
