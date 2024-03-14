@@ -244,14 +244,20 @@ void Controller::updateTitleGeometry(int newWidth) const {
 
 void Controller::initControls() {
 	_subtitleWrap = std::make_unique<Ui::RpWidget>(_window.get());
+	_subtitleText = _index.value() | rpl::filter(
+		rpl::mappers::_1 >= 0
+	) | rpl::map([=](int index) {
+		return _pages[index].name;
+	});
 	_subtitle = std::make_unique<Ui::FlatLabel>(
 		_subtitleWrap.get(),
-		_index.value() | rpl::filter(
-			rpl::mappers::_1 >= 0
-		) | rpl::map([=](int index) {
-			return _pages[index].name;
-		}),
+		_subtitleText.value(),
 		st::ivSubtitle);
+	_subtitleText.value(
+	) | rpl::start_with_next([=](const QString &subtitle) {
+		const auto prefix = tr::lng_iv_window_title(tr::now);
+		_window->setWindowTitle(prefix + ' ' + QChar(0x2014) + ' ' + subtitle);
+	}, _subtitle->lifetime());
 	_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_menuToggle.create(_subtitleWrap.get(), st::ivMenuToggle);
