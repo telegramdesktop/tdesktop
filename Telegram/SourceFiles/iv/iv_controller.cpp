@@ -762,9 +762,17 @@ void Controller::destroyShareMenu() {
 		setInnerFocus();
 	}
 	if (_shareWrap) {
-		_shareWrap->windowHandle()->setParent(nullptr);
+		if (_shareContainer) {
+			_shareWrap->windowHandle()->setParent(nullptr);
+		}
 		_shareWrap = nullptr;
 		_shareContainer = nullptr;
+	}
+	if (_shareHidesContent) {
+		_shareHidesContent = false;
+		if (const auto content = _webview ? _webview->widget() : nullptr) {
+			content->show();
+		}
 	}
 }
 
@@ -773,22 +781,33 @@ void Controller::showShareMenu() {
 	if (_shareWrap || index < 0 || index > _pages.size()) {
 		return;
 	}
+	_shareHidesContent = Platform::IsMac();
+	if (_shareHidesContent) {
+		if (const auto content = _webview ? _webview->widget() : nullptr) {
+			content->hide();
+		}
+	}
 
-	_shareWrap = std::make_unique<Ui::RpWidget>(nullptr);
+	_shareWrap = std::make_unique<Ui::RpWidget>(_shareHidesContent
+		? _window->window()
+		: nullptr);
 	const auto margins = QMargins(0, st::windowTitleHeight, 0, 0);
-	_shareWrap->setGeometry(_window->geometry().marginsRemoved(margins));
-	_shareWrap->setWindowFlag(Qt::FramelessWindowHint);
-	_shareWrap->setAttribute(Qt::WA_TranslucentBackground);
-	_shareWrap->setAttribute(Qt::WA_NoSystemBackground);
-	_shareWrap->createWinId();
+	if (!_shareHidesContent) {
+		_shareWrap->setWindowFlag(Qt::FramelessWindowHint);
+		_shareWrap->setAttribute(Qt::WA_TranslucentBackground);
+		_shareWrap->setAttribute(Qt::WA_NoSystemBackground);
+		_shareWrap->createWinId();
 
-	_shareContainer.reset(QWidget::createWindowContainer(
-		_shareWrap->windowHandle(),
-		_window.get(),
-		Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint));
+		_shareContainer.reset(QWidget::createWindowContainer(
+			_shareWrap->windowHandle(),
+			_window.get(),
+			Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint));
+	}
 	_window->sizeValue() | rpl::start_with_next([=](QSize size) {
-		_shareContainer->setGeometry(QRect(QPoint(), size).marginsRemoved(
-			margins));
+		const auto widget = _shareHidesContent
+			? _shareWrap.get()
+			: _shareContainer.get();
+		widget->setGeometry(QRect(QPoint(), size).marginsRemoved(margins));
 	}, _shareWrap->lifetime());
 
 	auto result = _showShareBox({
@@ -803,7 +822,12 @@ void Controller::showShareMenu() {
 	}, _shareWrap->lifetime());
 
 	Ui::ForceFullRepaintSync(_shareWrap.get());
-	_shareContainer->show();
+
+	if (_shareHidesContent) {
+		_shareWrap->show();
+	} else {
+		_shareContainer->show();
+	}
 	activate();
 }
 

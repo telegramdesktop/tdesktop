@@ -142,6 +142,7 @@ private:
 	std::unique_ptr<QWidget> _shareContainer;
 	Fn<void()> _shareFocus;
 	Fn<void()> _shareHide;
+	bool _shareHidesContent = false;
 
 	std::vector<Prepared> _pages;
 	base::flat_map<QString, int> _indices;
