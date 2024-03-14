@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QAbstractEventDispatcher>
 #include <qpa/qwindowsysteminterface.h>
 
-#include <glibmm.h>
 #include <gio/gio.hpp>
 #include <xdpinhibit/xdpinhibit.hpp>
 
@@ -27,6 +26,32 @@ namespace Platform {
 namespace {
 
 using namespace gi::repository;
+
+std::vector<std::any> AnyVectorFromVariant(GLib::Variant value) {
+	std::vector<std::any> result;
+
+	auto iter = gi::wrap(
+		g_variant_iter_new(value.gobj_()),
+		gi::transfer_full);
+
+	const auto uint64Type = GLib::VariantType::new_("t");
+	const auto int64Type = GLib::VariantType::new_("x");
+
+	while (auto value = iter.next_value()) {
+		value = value.get_variant();
+		if (value.is_of_type(uint64Type)) {
+			result.push_back(std::make_any<uint64>(value.get_uint64()));
+		} else if (value.is_of_type(int64Type)) {
+			result.push_back(std::make_any<int64>(value.get_int64()));
+		} else if (value.is_container()) {
+			result.push_back(
+				std::make_any<std::vector<std::any>>(
+					AnyVectorFromVariant(value)));
+		}
+	}
+
+	return result;
+}
 
 class Application : public Gio::impl::ApplicationImpl {
 public:
@@ -102,23 +127,8 @@ Application::Application()
 
 	using Window::Notifications::Manager;
 	using NotificationId = Manager::NotificationId;
-	using NotificationIdTuple = std::invoke_result_t<
-		decltype(&NotificationId::toTuple),
-		NotificationId*
-	>;
 
-	const auto notificationIdVariantType = [] {
-		try {
-			return gi::wrap(
-				Glib::create_variant(
-					NotificationId().toTuple()
-				).get_type().gobj_copy(),
-				gi::transfer_full
-			);
-		} catch (...) {
-			return GLib::VariantType();
-		}
-	}();
+	const auto notificationIdVariantType = GLib::VariantType::new_("av");
 
 	auto notificationActivateAction = Gio::SimpleAction::new_(
 		"notification-activate",
@@ -128,17 +138,9 @@ Application::Application()
 			Gio::SimpleAction,
 			GLib::Variant parameter) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			try {
-				const auto &app = Core::App();
-				app.notifications().manager().notificationActivated(
-					NotificationId::FromTuple(
-						Glib::wrap(
-							parameter.gobj_copy_()
-						).get_dynamic<NotificationIdTuple>()
-					)
-				);
-			} catch (...) {
-			}
+			Core::App().notifications().manager().notificationActivated(
+				NotificationId::FromAnyVector(
+					AnyVectorFromVariant(parameter)));
 		});
 	});
 
@@ -152,18 +154,10 @@ Application::Application()
 			Gio::SimpleAction,
 			GLib::Variant parameter) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			try {
-				const auto &app = Core::App();
-				app.notifications().manager().notificationReplied(
-					NotificationId::FromTuple(
-						Glib::wrap(
-							parameter.gobj_copy_()
-						).get_dynamic<NotificationIdTuple>()
-					),
-					{}
-				);
-			} catch (...) {
-			}
+			Core::App().notifications().manager().notificationReplied(
+				NotificationId::FromAnyVector(
+					AnyVectorFromVariant(parameter)),
+				{});
 		});
 	});
 

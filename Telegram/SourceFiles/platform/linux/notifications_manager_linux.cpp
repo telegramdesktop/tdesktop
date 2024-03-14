@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QVersionNumber>
 #include <QtGui/QGuiApplication>
 
-#include <glibmm.h>
 #include <xdgnotifications/xdgnotifications.hpp>
 
 #include <dlfcn.h>
@@ -139,6 +138,32 @@ bool UseGNotification() {
 	return KSandbox::isFlatpak() && !ServiceRegistered;
 }
 
+GLib::Variant AnyVectorToVariant(const std::vector<std::any> &value) {
+	return GLib::Variant::new_array(
+		value | ranges::views::transform([](const std::any &value) {
+			try {
+				return GLib::Variant::new_variant(
+					GLib::Variant::new_uint64(std::any_cast<uint64>(value)));
+			} catch (...) {
+			}
+
+			try {
+				return GLib::Variant::new_variant(
+					GLib::Variant::new_int64(std::any_cast<int64>(value)));
+			} catch (...) {
+			}
+
+			try {
+				return GLib::Variant::new_variant(
+					AnyVectorToVariant(
+						std::any_cast<std::vector<std::any>>(value)));
+			} catch (...) {
+			}
+
+			return GLib::Variant(nullptr);
+		}) | ranges::to_vector);
+}
+
 class NotificationData final : public base::has_weak_ptr {
 public:
 	using NotificationId = Window::Notifications::Manager::NotificationId;
@@ -239,9 +264,7 @@ bool NotificationData::init(
 			set_category(_notification.gobj_(), "im.received");
 		}
 
-		const auto idVariant = gi::wrap(
-			Glib::create_variant(_id.toTuple()).gobj_copy(),
-			gi::transfer_full);
+		const auto idVariant = AnyVectorToVariant(_id.toAnyVector());
 
 		_notification.set_default_action_and_target(
 			"app.notification-activate",

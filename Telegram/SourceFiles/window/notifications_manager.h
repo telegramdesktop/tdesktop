@@ -233,19 +233,19 @@ public:
 			const ContextId&,
 			const ContextId&) = default;
 
-		[[nodiscard]] auto toTuple() const {
-			return std::make_tuple(
-				sessionId,
-				peerId.value,
-				topicRootId.bare);
+		[[nodiscard]] auto toAnyVector() const {
+			return std::vector<std::any>{
+				std::make_any<uint64>(sessionId),
+				std::make_any<uint64>(peerId.value),
+				std::make_any<int64>(topicRootId.bare),
+			};
 		}
 
-		template<typename T>
-		[[nodiscard]] static auto FromTuple(const T &tuple) {
+		[[nodiscard]] static auto FromAnyVector(const auto &vector) {
 			return ContextId{
-				std::get<0>(tuple),
-				PeerIdHelper(std::get<1>(tuple)),
-				std::get<2>(tuple),
+				std::any_cast<uint64>(vector[0]),
+				PeerIdHelper(std::any_cast<uint64>(vector[1])),
+				std::any_cast<int64>(vector[2]),
 			};
 		}
 	};
@@ -257,17 +257,18 @@ public:
 			const NotificationId&,
 			const NotificationId&) = default;
 
-		[[nodiscard]] auto toTuple() const {
-			return std::make_tuple(
-				contextId.toTuple(),
-				msgId.bare);
+		[[nodiscard]] auto toAnyVector() const {
+			return std::vector<std::any>{
+				std::make_any<std::vector<std::any>>(contextId.toAnyVector()),
+				std::make_any<int64>(msgId.bare),
+			};
 		}
 
-		template<typename T>
-		[[nodiscard]] static auto FromTuple(const T &tuple) {
+		[[nodiscard]] static auto FromAnyVector(const auto &vector) {
 			return NotificationId{
-				ContextId::FromTuple(std::get<0>(tuple)),
-				std::get<1>(tuple),
+				ContextId::FromAnyVector(
+					std::any_cast<std::vector<std::any>>(vector[0])),
+				std::any_cast<int64>(vector[1]),
 			};
 		}
 	};
