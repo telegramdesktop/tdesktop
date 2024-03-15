@@ -4509,6 +4509,7 @@ void Session::insertCheckedServiceNotification(
 				MTPPeer(), // saved_peer_id
 				MTPMessageFwdHeader(),
 				MTPlong(), // via_bot_id
+				MTPlong(), // via_business_bot_id
 				MTPMessageReplyHeader(),
 				MTP_int(date),
 				MTP_string(sending.text),

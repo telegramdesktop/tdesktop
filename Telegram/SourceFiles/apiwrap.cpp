@@ -3614,11 +3614,16 @@ void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
 void ApiWrap::sendShortcutMessages(
 		not_null<PeerData*> peer,
 		BusinessShortcutId id) {
+	auto ids = QVector<MTPint>();
+	auto randomIds = QVector<MTPlong>();
 	request(MTPmessages_SendQuickReplyMessages(
 		peer->input,
-		MTP_int(id)
+		MTP_int(id),
+		MTP_vector<MTPint>(ids),
+		MTP_vector<MTPlong>(randomIds)
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
+	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 
@@ -4002,6 +4007,8 @@ void ApiWrap::uploadAlbumMedia(
 
 	};
 	request(MTPmessages_UploadMedia(
+		MTP_flags(0),
+		MTPstring(), // business_connection_id
 		item->history()->peer->input,
 		media
 	)).done([=](const MTPMessageMedia &result) {
