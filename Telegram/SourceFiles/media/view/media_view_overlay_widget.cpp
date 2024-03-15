@@ -915,7 +915,7 @@ void OverlayWidget::updateGeometry(bool inMove) {
 			.arg(_normalGeometry.y())
 			.arg(_normalGeometry.width())
 			.arg(_normalGeometry.height()));
-		_window->setGeometry(_normalGeometry);
+		_window->RpWidget::setGeometry(_normalGeometry);
 	}
 	if constexpr (!Platform::IsMac()) {
 		if (_fullscreen) {
