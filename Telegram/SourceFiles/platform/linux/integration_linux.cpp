@@ -30,9 +30,9 @@ using namespace gi::repository;
 std::vector<std::any> AnyVectorFromVariant(GLib::Variant value) {
 	std::vector<std::any> result;
 
-	auto iter = gi::wrap(
-		g_variant_iter_new(value.gobj_()),
-		gi::transfer_full);
+	GLib::VariantIter iter;
+	iter.allocate_();
+	iter.init(value);
 
 	const auto uint64Type = GLib::VariantType::new_("t");
 	const auto int64Type = GLib::VariantType::new_("x");
