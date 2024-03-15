@@ -208,7 +208,7 @@ private:
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
-	QString _aboutText;
+	Ui::Text::String _about;
 	crl::time _speakingLastTime = 0;
 	uint64 _raisedHandRating = 0;
 	int _volume = Group::kDefaultVolume;

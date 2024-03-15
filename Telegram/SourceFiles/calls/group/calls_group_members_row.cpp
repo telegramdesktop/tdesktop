@@ -129,7 +129,7 @@ MembersRow::MembersRow(
 : PeerListRow(participantPeer)
 , _delegate(delegate) {
 	refreshStatus();
-	_aboutText = participantPeer->about();
+	_about.setText(st::defaultTextStyle, participantPeer->about());
 }
 
 MembersRow::~MembersRow() = default;
@@ -562,10 +562,10 @@ void MembersRow::paintStatusIcon(
 }
 
 void MembersRow::setAbout(const QString &about) {
-	if (_aboutText == about) {
+	if (_about.toString() == about) {
 		return;
 	}
-	_aboutText = about;
+	_about.setText(st::defaultTextStyle, about);
 	_delegate->rowUpdateRow(this);
 }
 
@@ -610,13 +610,11 @@ void MembersRow::paintComplexStatusText(
 	x += skip;
 	availableWidth -= skip;
 	const auto &font = st::normalFont;
-	const auto about = (style == MembersRowStyle::Video)
-		? QString()
+	const auto useAbout = (style == MembersRowStyle::Video)
+		? false
 		: ((_state == State::RaisedHand && !_raisedHandStatus)
-			|| (_state != State::RaisedHand && !_speaking))
-		? _aboutText
-		: QString();
-	if (about.isEmpty()
+			|| (_state != State::RaisedHand && !_speaking));
+	if (!useAbout
 		&& _state != State::Invited
 		&& !_mutedByMe) {
 		paintStatusIcon(p, x, y, st, font, selected, narrowMode);
@@ -641,25 +639,30 @@ void MembersRow::paintComplexStatusText(
 			selected);
 		return;
 	}
-	p.setFont(font);
-	if (style == MembersRowStyle::Video) {
-		p.setPen(st::groupCallVideoSubTextFg);
-	} else if (_mutedByMe) {
-		p.setPen(st::groupCallMemberMutedIcon);
+	p.setPen((style == MembersRowStyle::Video)
+		? st::groupCallVideoSubTextFg
+		: _mutedByMe
+		? st::groupCallMemberMutedIcon
+		: st::groupCallMemberNotJoinedStatus);
+	if (!_mutedByMe && useAbout) {
+		return _about.draw(p, {
+			.position = QPoint(x, y),
+			.outerWidth = outerWidth,
+			.availableWidth = availableWidth,
+			.elisionLines = 1,
+		});
 	} else {
-		p.setPen(st::groupCallMemberNotJoinedStatus);
+		p.setFont(font);
+		p.drawTextLeft(
+			x,
+			y,
+			outerWidth,
+			(_mutedByMe
+				? tr::lng_group_call_muted_by_me_status(tr::now)
+				: _delegate->rowIsMe(peer())
+				? tr::lng_status_connecting(tr::now)
+				: tr::lng_group_call_invited_status(tr::now)));
 	}
-	p.drawTextLeft(
-		x,
-		y,
-		outerWidth,
-		(_mutedByMe
-			? tr::lng_group_call_muted_by_me_status(tr::now)
-			: !about.isEmpty()
-			? font->elided(about, availableWidth)
-			: _delegate->rowIsMe(peer())
-			? tr::lng_status_connecting(tr::now)
-			: tr::lng_group_call_invited_status(tr::now)));
 }
 
 QSize MembersRow::rightActionSize() const {
