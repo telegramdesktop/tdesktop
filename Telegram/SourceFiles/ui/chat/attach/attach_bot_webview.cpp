@@ -1073,7 +1073,7 @@ void Panel::closeWithConfirmation() {
 	});
 	if (!weak) {
 		return;
-	} else if (result.id != "cancel") {
+	} else if (result.id == "close") {
 		_delegate->botClose();
 	} else {
 		_closeWithConfirmationScheduled = false;
