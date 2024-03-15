@@ -851,7 +851,7 @@ QByteArray Parser::block(const MTPDpageRelatedArticle &data) {
 			inner += tag(
 				"span",
 				{ { "class", "related-link-source" } },
-				EscapeText(utf(*author)
+				EscapeText((author ? utf(*author) : QByteArray())
 					+ separator
 					+ langDateTimeFull(parsed).toUtf8()));
 		}
