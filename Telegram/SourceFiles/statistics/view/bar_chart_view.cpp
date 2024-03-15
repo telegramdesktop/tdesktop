@@ -149,7 +149,7 @@ void BarChartView::paintSelectedXIndex(
 
 	if (_isStack) {
 		BarChartView::paintChartAndSelected(p, c);
-	} else {
+	} else if (selectedXIndex >= 0) {
 		const auto linesFilter = linesFilterController();
 		auto hq = PainterHighQualityEnabler(p);
 		auto o = ScopedPainterOpacity(p, progress);
