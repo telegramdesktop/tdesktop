@@ -481,6 +481,10 @@ OverlayWidget::OverlayWidget()
 				moveToScreen(true);
 			}
 		} else if (type == QEvent::Resize) {
+			const auto size = static_cast<QResizeEvent*>(e.get())->size();
+			DEBUG_LOG(("Viewer Pos: Resized to %1, %2")
+				.arg(size.width())
+				.arg(size.height()));
 			if (_windowed) {
 				savePosition();
 			}
@@ -508,9 +512,6 @@ OverlayWidget::OverlayWidget()
 		const auto type = e->type();
 		if (type == QEvent::Resize) {
 			const auto size = static_cast<QResizeEvent*>(e.get())->size();
-			DEBUG_LOG(("Viewer Pos: Resized to %1, %2")
-				.arg(size.width())
-				.arg(size.height()));
 
 			// Somehow Windows 11 knows the geometry of first widget below
 			// the semi-native title control widgets and it uses
@@ -909,6 +910,11 @@ void OverlayWidget::updateGeometry(bool inMove) {
 	if (_fullscreen && (!Platform::IsWindows11OrGreater() || !isHidden())) {
 		updateGeometryToScreen(inMove);
 	} else if (_windowed && _normalGeometryInited) {
+		DEBUG_LOG(("Viewer Pos: Setting %1, %2, %3, %4")
+			.arg(_normalGeometry.x())
+			.arg(_normalGeometry.y())
+			.arg(_normalGeometry.width())
+			.arg(_normalGeometry.height()));
 		_window->setGeometry(_normalGeometry);
 	}
 	if constexpr (!Platform::IsMac()) {
