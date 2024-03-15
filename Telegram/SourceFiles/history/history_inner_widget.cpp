@@ -2277,6 +2277,87 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}
 			}, &st::menuIconSelect);
+			const auto collectBetween = [=](
+					not_null<HistoryItem*> from,
+					not_null<HistoryItem*> to,
+					int max) -> HistoryItemsList {
+				auto current = from;
+				auto collected = HistoryItemsList();
+				collected.reserve(max);
+				collected.push_back(from);
+				collected.push_back(to);
+				const auto toId = to->fullId();
+				while (true) {
+					if (collected.size() > max) {
+						return {};
+					}
+					const auto view = viewByItem(current);
+					const auto nextView = nextItem(view);
+					if (!nextView) {
+						return {};
+					}
+					const auto nextItem = nextView->data();
+					if (nextItem->fullId() == toId) {
+						return collected;
+					}
+					if (nextItem->isRegular() && !nextItem->isService()) {
+						collected.push_back(nextItem);
+					}
+					current = nextItem;
+				}
+			};
+
+			[&] { // Select up to this message.
+				if (selectedState.count <= 0) {
+					return;
+				}
+				const auto toItem = groupLeaderOrSelf(item);
+				auto topToBottom = false;
+				auto nearestItem = (HistoryItem*)(nullptr);
+				{
+					auto minDiff = std::numeric_limits<int>::max();
+					for (const auto &[item, _] : _selected) {
+						const auto diff = item->fullId().msg.bare
+							- toItem->fullId().msg.bare;
+						if (std::abs(diff) < minDiff) {
+							nearestItem = item;
+							minDiff = std::abs(diff);
+							topToBottom = (diff < 0);
+						}
+					}
+				}
+				if (!nearestItem) {
+					return;
+				}
+				const auto start = (topToBottom ? nearestItem : toItem);
+				const auto end = (topToBottom ? toItem : nearestItem);
+				const auto left = MaxSelectedItems
+					- selectedState.count
+					+ (topToBottom ? 0 : 1);
+				if (collectBetween(start, end, left).empty()) {
+					return;
+				}
+				const auto startId = start->fullId();
+				const auto endId = end->fullId();
+				const auto callback = [=] {
+					const auto from = session->data().message(startId);
+					const auto to = session->data().message(endId);
+					if (from && to) {
+						for (const auto &i : collectBetween(from, to, left)) {
+							changeSelectionAsGroup(
+								&_selected,
+								i,
+								SelectAction::Select);
+						}
+						update();
+						_widget->updateTopBarSelection();
+					}
+				};
+				_menu->addAction(
+					tr::lng_context_select_msg_bulk(tr::now),
+					callback,
+					&st::menuIconSelect);
+			}();
 		}
 	};
 
