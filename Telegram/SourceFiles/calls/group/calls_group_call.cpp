@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_create_adm.h"
+#include "webrtc/webrtc_environment.h"
 
 #include <tgcalls/group/GroupInstanceCustomImpl.h>
 #include <tgcalls/VideoCaptureInterface.h>
@@ -667,6 +668,8 @@ GroupCall::GroupCall(
 GroupCall::~GroupCall() {
 	destroyScreencast();
 	destroyController();
+
+	Core::App().mediaDevices().setCaptureMuteTracker(this, false);
 }
 
 bool GroupCall::isSharingScreen() const {
@@ -2087,6 +2090,32 @@ void GroupCall::setupMediaDevices() {
 	}) | rpl::start_with_next([=](const Webrtc::DeviceResolvedId &deviceId) {
 		_cameraCapture->switchToDevice(deviceId.value.toStdString(), false);
 	}, _lifetime);
+
+	_muted.value() | rpl::start_with_next([=](MuteState state) {
+		const auto devices = &Core::App().mediaDevices();
+		const auto muted = (state != MuteState::Active)
+			&& (state != MuteState::PushToTalk);
+		const auto track = !muted || (state == MuteState::Muted);
+		devices->setCaptureMuteTracker(this, track);
+		devices->setCaptureMuted(muted);
+	}, _lifetime);
+}
+
+void GroupCall::captureMuteChanged(bool mute) {
+	const auto oldState = muted();
+	if (mute
+		&& (oldState == MuteState::ForceMuted
+			|| oldState == MuteState::RaisedHand
+			|| oldState == MuteState::Muted)) {
+		return;
+	} else if (!mute && oldState != MuteState::Muted) {
+		return;
+	}
+	setMutedAndUpdate(mute ? MuteState::Muted : MuteState::Active);
+}
+
+rpl::producer<Webrtc::DeviceResolvedId> GroupCall::captureMuteDeviceId() {
+	return _captureDeviceId.value();
 }
 
 int GroupCall::activeVideoSendersCount() const {

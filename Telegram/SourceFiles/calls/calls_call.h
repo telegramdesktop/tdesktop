@@ -59,7 +59,9 @@ enum class CallType {
 	Outgoing,
 };
 
-class Call : public base::has_weak_ptr {
+class Call final
+	: public base::has_weak_ptr
+	, private Webrtc::CaptureMuteTracker {
 public:
 	class Delegate {
 	public:
@@ -249,6 +251,9 @@ private:
 	void setSignalBarCount(int count);
 	void destroyController();
 
+	void captureMuteChanged(bool mute) override;
+	rpl::producer<Webrtc::DeviceResolvedId> captureMuteDeviceId() override;
+
 	void setupMediaDevices();
 	void setupOutgoingVideo();
 	void updateRemoteMediaState(
@@ -298,6 +303,7 @@ private:
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 
+	rpl::lifetime _instanceLifetime;
 	rpl::lifetime _lifetime;
 
 };

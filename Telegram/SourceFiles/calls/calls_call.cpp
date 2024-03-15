@@ -420,6 +420,14 @@ void Call::actuallyAnswer() {
 	}).send();
 }
 
+void Call::captureMuteChanged(bool mute) {
+	setMuted(mute);
+}
+
+rpl::producer<Webrtc::DeviceResolvedId> Call::captureMuteDeviceId() {
+	return _captureDeviceId.value();
+}
+
 void Call::setMuted(bool mute) {
 	_muted = mute;
 	if (_instance) {
@@ -1033,6 +1041,20 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 
 	raw->setIncomingVideoOutput(_videoIncoming->sink());
 	raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
+
+	_state.value() | rpl::start_with_next([=](State state) {
+		const auto track = (state != State::FailedHangingUp)
+			&& (state != State::Failed)
+			&& (state != State::HangingUp)
+			&& (state != State::Ended)
+			&& (state != State::EndedByOtherDevice)
+			&& (state != State::Busy);
+		Core::App().mediaDevices().setCaptureMuteTracker(this, track);
+	}, _instanceLifetime);
+
+	_muted.value() | rpl::start_with_next([=](bool muted) {
+		Core::App().mediaDevices().setCaptureMuted(muted);
+	}, _instanceLifetime);
 }
 
 void Call::handleControllerStateChange(tgcalls::State state) {
@@ -1375,6 +1397,9 @@ void Call::handleControllerError(const QString &error) {
 }
 
 void Call::destroyController() {
+	_instanceLifetime.destroy();
+	Core::App().mediaDevices().setCaptureMuteTracker(this, false);
+
 	if (_instance) {
 		_instance->stop([](tgcalls::FinalState) {
 		});

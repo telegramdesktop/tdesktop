@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "mtproto/sender.h"
 #include "mtproto/mtproto_auth_key.h"
+#include "webrtc/webrtc_device_common.h"
 #include "webrtc/webrtc_device_resolver.h"
 
 class History;
@@ -175,7 +176,9 @@ struct ParticipantVideoParams;
 [[nodiscard]] uint32 GetAdditionalAudioSsrc(
 	const std::shared_ptr<ParticipantVideoParams> &params);
 
-class GroupCall final : public base::has_weak_ptr {
+class GroupCall final
+	: public base::has_weak_ptr
+	, private Webrtc::CaptureMuteTracker {
 public:
 	class Delegate {
 	public:
@@ -549,6 +552,9 @@ private:
 	void sendPendingSelfUpdates();
 	void applySelfUpdate(const MTPDgroupCallParticipant &data);
 	void applyOtherParticipantUpdate(const MTPDgroupCallParticipant &data);
+
+	void captureMuteChanged(bool mute) override;
+	rpl::producer<Webrtc::DeviceResolvedId> captureMuteDeviceId() override;
 
 	void setupMediaDevices();
 	void setupOutgoingVideo();
