@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 
 class DocumentData;
+enum class StickerType : uchar;
 
 namespace Main {
 class Session;
@@ -46,7 +47,7 @@ private:
 
 };
 
-enum class StickersSetFlag {
+enum class StickersSetFlag : ushort {
 	Installed = (1 << 0),
 	Archived = (1 << 1),
 	Masks = (1 << 2),
@@ -55,7 +56,6 @@ enum class StickersSetFlag {
 	Featured = (1 << 5),
 	Unread = (1 << 6),
 	Special = (1 << 7),
-	Webm = (1 << 8),
 	Emoji = (1 << 9),
 	TextColor = (1 << 10),
 	ChannelStatus = (1 << 11),
@@ -89,9 +89,10 @@ public:
 	[[nodiscard]] bool textColor() const;
 	[[nodiscard]] bool channelStatus() const;
 
-	void setThumbnail(const ImageWithLocation &data);
+	void setThumbnail(const ImageWithLocation &data, StickerType type);
 
 	[[nodiscard]] bool hasThumbnail() const;
+	[[nodiscard]] StickerType thumbnailType() const;
 	[[nodiscard]] bool thumbnailLoading() const;
 	[[nodiscard]] bool thumbnailFailed() const;
 	void loadThumbnail();
@@ -111,6 +112,11 @@ public:
 	int count = 0;
 	int locked = 0;
 	StickersSetFlags flags;
+
+private:
+	StickerType _thumbnailType = {};
+
+public:
 	TimeId installDate = 0;
 	StickersPack covers;
 	StickersPack stickers;

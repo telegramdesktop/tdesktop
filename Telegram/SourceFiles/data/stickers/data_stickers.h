@@ -36,6 +36,8 @@ enum class StickersType : uchar {
 	Masks,
 	Emoji,
 };
+[[nodiscard]] StickerType ThumbnailTypeFromPhotoSize(
+	const MTPPhotoSize &size);
 
 class Stickers final {
 public:

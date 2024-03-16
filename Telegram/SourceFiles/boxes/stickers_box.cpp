@@ -178,7 +178,6 @@ private:
 		[[nodiscard]] bool isRecentSet() const;
 		[[nodiscard]] bool isMasksSet() const;
 		[[nodiscard]] bool isEmojiSet() const;
-		[[nodiscard]] bool isWebm() const;
 		[[nodiscard]] bool isInstalled() const;
 		[[nodiscard]] bool isUnread() const;
 		[[nodiscard]] bool isArchived() const;
@@ -1174,10 +1173,6 @@ bool StickersBox::Inner::Row::isEmojiSet() const {
 	return (set->type() == Data::StickersType::Emoji);
 }
 
-bool StickersBox::Inner::Row::isWebm() const {
-	return (set->flags & SetFlag::Webm);
-}
-
 bool StickersBox::Inner::Row::isInstalled() const {
 	return (flagsOverride & SetFlag::Installed);
 }
@@ -1569,7 +1564,7 @@ void StickersBox::Inner::paintRowThumbnail(
 void StickersBox::Inner::validateLottieAnimation(not_null<Row*> row) {
 	if (row->lottie
 		|| !ChatHelpers::HasLottieThumbnail(
-			row->set->flags,
+			row->set->thumbnailType(),
 			row->thumbnailMedia.get(),
 			row->stickerMedia.get())) {
 		return;
@@ -1592,7 +1587,7 @@ void StickersBox::Inner::validateLottieAnimation(not_null<Row*> row) {
 void StickersBox::Inner::validateWebmAnimation(not_null<Row*> row) {
 	if (row->webm
 		|| !ChatHelpers::HasWebmThumbnail(
-			row->set->flags,
+			row->set->thumbnailType(),
 			row->thumbnailMedia.get(),
 			row->stickerMedia.get())) {
 		return;

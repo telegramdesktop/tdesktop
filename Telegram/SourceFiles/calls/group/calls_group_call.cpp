@@ -668,8 +668,9 @@ GroupCall::GroupCall(
 GroupCall::~GroupCall() {
 	destroyScreencast();
 	destroyController();
-
-	Core::App().mediaDevices().setCaptureMuteTracker(this, false);
+	if (!_rtmp) {
+		Core::App().mediaDevices().setCaptureMuteTracker(this, false);
+	}
 }
 
 bool GroupCall::isSharingScreen() const {
@@ -2091,14 +2092,16 @@ void GroupCall::setupMediaDevices() {
 		_cameraCapture->switchToDevice(deviceId.value.toStdString(), false);
 	}, _lifetime);
 
-	_muted.value() | rpl::start_with_next([=](MuteState state) {
-		const auto devices = &Core::App().mediaDevices();
-		const auto muted = (state != MuteState::Active)
-			&& (state != MuteState::PushToTalk);
-		const auto track = !muted || (state == MuteState::Muted);
-		devices->setCaptureMuteTracker(this, track);
-		devices->setCaptureMuted(muted);
-	}, _lifetime);
+	if (!_rtmp) {
+		_muted.value() | rpl::start_with_next([=](MuteState state) {
+			const auto devices = &Core::App().mediaDevices();
+			const auto muted = (state != MuteState::Active)
+				&& (state != MuteState::PushToTalk);
+			const auto track = !muted || (state == MuteState::Muted);
+			devices->setCaptureMuteTracker(this, track);
+			devices->setCaptureMuted(muted);
+		}, _lifetime);
+	}
 }
 
 void GroupCall::captureMuteChanged(bool mute) {

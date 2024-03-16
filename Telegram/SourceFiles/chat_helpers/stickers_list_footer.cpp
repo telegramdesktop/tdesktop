@@ -1182,7 +1182,7 @@ void StickersListFooter::validateIconLottieAnimation(
 	if (icon.lottie
 		|| !icon.sticker
 		|| !HasLottieThumbnail(
-			icon.set ? icon.set->flags : Data::StickersSetFlags(),
+			icon.set ? icon.set->thumbnailType() : StickerType(),
 			icon.thumbnailMedia.get(),
 			icon.stickerMedia.get())) {
 		return;
@@ -1211,7 +1211,7 @@ void StickersListFooter::validateIconWebmAnimation(
 	if (icon.webm
 		|| !icon.sticker
 		|| !HasWebmThumbnail(
-			icon.set ? icon.set->flags : Data::StickersSetFlags(),
+			icon.set ? icon.set->thumbnailType() : StickerType(),
 			icon.thumbnailMedia.get(),
 			icon.stickerMedia.get())) {
 		return;
