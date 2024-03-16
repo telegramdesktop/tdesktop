@@ -1,3 +1,9 @@
+4.15.5 beta (16.03.24)
+
+- Fix a crash in Instant View article parsing.
+- Support AirPods Mute/Unmute toggle in calls on macOS.
+- Disable system proxy on Linux to check if it fixes crashes.
+
 4.15.4 beta (14.03.24)
 
 - Fix initial text color in dark mode Instant View on macOS.
