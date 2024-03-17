@@ -1229,7 +1229,7 @@ void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
 		result.match([&](const MTPDmessages_peerSettings &data) {
 			_session->data().processUsers(data.vusers());
 			_session->data().processChats(data.vchats());
-			peer->setSettings(data.vsettings());
+			peer->setBarSettings(data.vsettings());
 			_requestedPeerSettings.erase(peer);
 		});
 	}).fail([=] {

@@ -49,7 +49,7 @@ namespace HistoryView {
 namespace {
 
 [[nodiscard]] bool BarCurrentlyHidden(not_null<PeerData*> peer) {
-	const auto settings = peer->settings();
+	const auto settings = peer->barSettings();
 	if (!settings) {
 		return false;
 	} else if (!(*settings)) {
@@ -59,10 +59,10 @@ namespace {
 		if (user->isBlocked()) {
 			return true;
 		} else if (user->isContact()
-			&& !((*settings) & PeerSetting::ShareContact)) {
+			&& !((*settings) & PeerBarSetting::ShareContact)) {
 			return true;
 		}
-	} else if (!((*settings) & PeerSetting::ReportSpam)) {
+	} else if (!((*settings) & PeerBarSetting::ReportSpam)) {
 		return true;
 	}
 	return false;
@@ -557,7 +557,7 @@ ContactStatus::ContactStatus(
 
 auto ContactStatus::PeerState(not_null<PeerData*> peer)
 -> rpl::producer<State> {
-	using SettingsChange = PeerData::Settings::Change;
+	using SettingsChange = PeerData::BarSettings::Change;
 	using Type = State::Type;
 	if (const auto user = peer->asUser()) {
 		using FlagsChange = UserData::Flags::Change;
@@ -570,31 +570,31 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 		});
 		return rpl::combine(
 			std::move(changes),
-			user->settingsValue()
+			user->barSettingsValue()
 		) | rpl::map([=](
 				FlagsChange flags,
 				SettingsChange settings) -> State {
 			if (flags.value & Flag::Blocked) {
 				return { Type::None };
 			} else if (user->isContact()) {
-				if (settings.value & PeerSetting::ShareContact) {
+				if (settings.value & PeerBarSetting::ShareContact) {
 					return { Type::SharePhoneNumber };
 				} else {
 					return { Type::None };
 				}
-			} else if (settings.value & PeerSetting::RequestChat) {
+			} else if (settings.value & PeerBarSetting::RequestChat) {
 				return {
 					.type = Type::RequestChatInfo,
 					.requestChatName = peer->requestChatTitle(),
 					.requestChatIsBroadcast = !!(settings.value
-						& PeerSetting::RequestChatIsBroadcast),
+						& PeerBarSetting::RequestChatIsBroadcast),
 					.requestDate = peer->requestChatDate(),
 				};
-			} else if (settings.value & PeerSetting::AutoArchived) {
+			} else if (settings.value & PeerBarSetting::AutoArchived) {
 				return { Type::UnarchiveOrBlock };
-			} else if (settings.value & PeerSetting::BlockContact) {
+			} else if (settings.value & PeerBarSetting::BlockContact) {
 				return { Type::AddOrBlock };
-			} else if (settings.value & PeerSetting::AddContact) {
+			} else if (settings.value & PeerBarSetting::AddContact) {
 				return { Type::Add };
 			} else {
 				return { Type::None };
@@ -602,12 +602,12 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 		});
 	}
 
-	return peer->settingsValue(
+	return peer->barSettingsValue(
 	) | rpl::map([=](SettingsChange settings) {
 		using Type = State::Type;
-		return (settings.value & PeerSetting::AutoArchived)
+		return (settings.value & PeerBarSetting::AutoArchived)
 			? State{ Type::UnarchiveOrReport }
-			: (settings.value & PeerSetting::ReportSpam)
+			: (settings.value & PeerBarSetting::ReportSpam)
 			? State{ Type::ReportSpam }
 			: State{ Type::None };
 	});
@@ -685,7 +685,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 	) | rpl::start_with_next([=] {
 		const auto show = _controller->uiShow();
 		const auto share = [=](Fn<void()> &&close) {
-			user->setSettings(0);
+			user->setBarSettings(0);
 			user->session().api().request(MTPcontacts_AcceptContact(
 				user->inputUser
 			)).done([=](const MTPUpdates &result) {
@@ -718,11 +718,11 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 		using namespace Window;
 		ToggleHistoryArchived(show, peer->owner().history(peer), false);
 		peer->owner().notifySettings().resetToDefault(peer);
-		if (const auto settings = peer->settings()) {
-			const auto flags = PeerSetting::AutoArchived
-				| PeerSetting::BlockContact
-				| PeerSetting::ReportSpam;
-			peer->setSettings(*settings & ~flags);
+		if (const auto settings = peer->barSettings()) {
+			const auto flags = PeerBarSetting::AutoArchived
+				| PeerBarSetting::BlockContact
+				| PeerBarSetting::ReportSpam;
+			peer->setBarSettings(*settings & ~flags);
 		}
 	}, _bar.lifetime());
 }
@@ -773,7 +773,7 @@ void ContactStatus::setupCloseHandler(not_null<PeerData*> peer) {
 	) | rpl::filter([=] {
 		return !(*request);
 	}) | rpl::start_with_next([=] {
-		peer->setSettings(0);
+		peer->setBarSettings(0);
 		*request = peer->session().api().request(
 			MTPmessages_HidePeerSettingsBar(peer->input)
 		).send();
@@ -807,7 +807,7 @@ void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
 				if (*request) {
 					return;
 				}
-				peer->setSettings(0);
+				peer->setBarSettings(0);
 				*request = peer->session().api().request(
 					MTPmessages_HidePeerSettingsBar(peer->input)
 				).send();

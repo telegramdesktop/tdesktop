@@ -634,13 +634,26 @@ void PeerData::saveTranslationDisabled(bool disabled) {
 	)).send();
 }
 
-void PeerData::setSettings(const MTPPeerSettings &data) {
+void PeerData::setBarSettings(const MTPPeerSettings &data) {
 	data.match([&](const MTPDpeerSettings &data) {
-		_requestChatTitle = data.vrequest_chat_title().value_or_empty();
-		_requestChatDate = data.vrequest_chat_date().value_or_empty();
-
-		using Flag = PeerSetting;
-		setSettings((data.is_add_contact() ? Flag::AddContact : Flag())
+		if (!data.vbusiness_bot_id() && !data.vrequest_chat_title()) {
+			_barDetails = nullptr;
+		} else if (!_barDetails) {
+			_barDetails = std::make_unique<PeerBarDetails>();
+		}
+		if (_barDetails) {
+			_barDetails->requestChatTitle
+				= qs(data.vrequest_chat_title().value_or_empty());
+			_barDetails->requestChatDate
+				= data.vrequest_chat_date().value_or_empty();
+			_barDetails->businessBot = data.vbusiness_bot_id()
+				? _owner->user(data.vbusiness_bot_id()->v).get()
+				: nullptr;
+			_barDetails->businessBotManageUrl
+				= qs(data.vbusiness_bot_manage_url().value_or_empty());
+		}
+		using Flag = PeerBarSetting;
+		setBarSettings((data.is_add_contact() ? Flag::AddContact : Flag())
 			| (data.is_autoarchived() ? Flag::AutoArchived : Flag())
 			| (data.is_block_contact() ? Flag::BlockContact : Flag())
 			//| (data.is_invite_members() ? Flag::InviteMembers : Flag())
@@ -651,10 +664,32 @@ void PeerData::setSettings(const MTPPeerSettings &data) {
 			| (data.is_report_spam() ? Flag::ReportSpam : Flag())
 			| (data.is_share_contact() ? Flag::ShareContact : Flag())
 			| (data.vrequest_chat_title() ? Flag::RequestChat : Flag())
+			| (data.vbusiness_bot_id() ? Flag::HasBusinessBot : Flag())
 			| (data.is_request_chat_broadcast()
 				? Flag::RequestChatIsBroadcast
+				: Flag())
+			| (data.is_business_bot_paused()
+				? Flag::BusinessBotPaused
+				: Flag())
+			| (data.is_business_bot_can_reply()
+				? Flag::BusinessBotCanReply
 				: Flag()));
 	});
+}
+QString PeerData::requestChatTitle() const {
+	return _barDetails ? _barDetails->requestChatTitle : QString();
+}
+
+TimeId PeerData::requestChatDate() const {
+	return _barDetails ? _barDetails->requestChatDate : 0;
+}
+
+UserData *PeerData::businessBot() const {
+	return _barDetails ? _barDetails->businessBot : nullptr;
+}
+
+QString PeerData::businessBotManageUrl() const {
+	return _barDetails ? _barDetails->businessBotManageUrl : QString();
 }
 
 bool PeerData::changeColorIndex(

@@ -512,7 +512,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			));
 		}
 	}
-	user->setSettings(update.vsettings());
+	user->setBarSettings(update.vsettings());
 	user->owner().notifySettings().apply(user, update.vnotify_settings());
 
 	user->setMessagesTTL(update.vttl_period().value_or_empty());
