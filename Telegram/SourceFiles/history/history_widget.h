@@ -195,8 +195,9 @@ public:
 		not_null<HistoryItem*> item,
 		TextWithEntities quote = {},
 		int quoteOffset = 0);
-	void editMessage(FullMsgId itemId);
-	void editMessage(not_null<HistoryItem*> item);
+	void editMessage(
+		not_null<HistoryItem*> item,
+		const TextSelection &selection);
 
 	[[nodiscard]] FullReplyTo replyTo() const;
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;

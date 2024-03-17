@@ -394,7 +394,9 @@ ShortcutMessages::ShortcutMessages(
 		if (const auto item = _session->data().message(fullId)) {
 			const auto media = item->media();
 			if (!media || media->webpage() || media->allowsEditCaption()) {
-				_composeControls->editMessage(fullId);
+				_composeControls->editMessage(
+					fullId,
+					_inner->getSelectedTextRange(item));
 			}
 		}
 	}, _inner->lifetime());

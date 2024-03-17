@@ -2857,9 +2857,12 @@ void ComposeControls::updateHeight() {
 	}
 }
 
-void ComposeControls::editMessage(FullMsgId id) {
+void ComposeControls::editMessage(
+		FullMsgId id,
+		const TextSelection &selection) {
 	if (const auto item = session().data().message(id)) {
 		editMessage(item);
+		SelectTextInFieldWithMargins(_field, selection);
 	}
 }
 

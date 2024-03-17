@@ -2131,7 +2131,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (editItem) {
 			const auto editItemId = editItem->fullId();
 			_menu->addAction(tr::lng_context_edit_msg(tr::now), [=] {
-				_widget->editMessage(editItemId);
+				if (const auto item = session->data().message(editItemId)) {
+					auto it = _selected.find(item);
+					const auto selection = ((it != _selected.end())
+							&& (it->second != FullSelection))
+						? it->second
+						: TextSelection();
+					if (!selection.empty()) {
+						clearSelected(true);
+					}
+					_widget->editMessage(item, selection);
+				}
 			}, &st::menuIconEdit);
 		}
 		const auto pinItem = (item->canPin() && item->isPinned())

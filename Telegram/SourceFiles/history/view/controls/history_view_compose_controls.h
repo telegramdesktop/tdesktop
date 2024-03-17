@@ -198,7 +198,7 @@ public:
 	void showFinished();
 	void raisePanels();
 
-	void editMessage(FullMsgId id);
+	void editMessage(FullMsgId id, const TextSelection &selection);
 	void cancelEditMessage();
 	void maybeCancelEditMessage(); // Confirm if changed and cancel.
 

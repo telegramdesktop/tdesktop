@@ -154,3 +154,7 @@ private:
 	QWidget *parent,
 	not_null<UserData*> user,
 	not_null<Window::SessionController*> controller);
+
+void SelectTextInFieldWithMargins(
+	not_null<Ui::InputField*> field,
+	const TextSelection &selection);
