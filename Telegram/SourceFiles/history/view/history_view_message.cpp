@@ -462,8 +462,10 @@ void Message::refreshRightBadge() {
 				: tr::lng_channel_badge(tr::now);
 		} else if (item->author()->isMegagroup()) {
 			if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
-				Assert(msgsigned->isAnonymousRank);
-				return msgsigned->postAuthor;
+				if (!msgsigned->viaBusinessBot) {
+					Assert(msgsigned->isAnonymousRank);
+					return msgsigned->author;
+				}
 			}
 		}
 		const auto channel = item->history()->peer->asMegagroup();

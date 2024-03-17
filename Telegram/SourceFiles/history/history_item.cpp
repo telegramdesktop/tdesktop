@@ -146,6 +146,7 @@ struct HistoryItem::CreateConfig {
 	ReplyFields reply;
 
 	UserId viaBotId = 0;
+	UserId viaBusinessBotId = 0;
 	int viewsCount = -1;
 	int forwardsCount = -1;
 	int boostsApplied = 0;
@@ -2577,8 +2578,8 @@ QString HistoryItem::originalPostAuthor() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		return forwarded->originalPostAuthor;
 	} else if (const auto msgsigned = Get<HistoryMessageSigned>()) {
-		if (!msgsigned->isAnonymousRank) {
-			return msgsigned->postAuthor;
+		if (!msgsigned->isAnonymousRank && !msgsigned->viaBusinessBot) {
+			return msgsigned->author;
 		}
 	}
 	return QString();
@@ -2650,7 +2651,9 @@ void HistoryItem::setForwardsCount(int count) {
 
 void HistoryItem::setPostAuthor(const QString &postAuthor) {
 	auto msgsigned = Get<HistoryMessageSigned>();
-	if (postAuthor.isEmpty()) {
+	if (msgsigned && msgsigned->viaBusinessBot) {
+		return;
+	} else if (postAuthor.isEmpty()) {
 		if (!msgsigned) {
 			return;
 		}
@@ -2661,10 +2664,10 @@ void HistoryItem::setPostAuthor(const QString &postAuthor) {
 	if (!msgsigned) {
 		AddComponents(HistoryMessageSigned::Bit());
 		msgsigned = Get<HistoryMessageSigned>();
-	} else if (msgsigned->postAuthor == postAuthor) {
+	} else if (msgsigned->author == postAuthor) {
 		return;
 	}
-	msgsigned->postAuthor = postAuthor;
+	msgsigned->author = postAuthor;
 	msgsigned->isAnonymousRank = !isDiscussionPost()
 		&& this->author()->isMegagroup();
 	history()->owner().requestItemResize(this);
@@ -3272,7 +3275,7 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 	if (config.viewsCount >= 0 || !config.replies.isNull) {
 		mask |= HistoryMessageViews::Bit();
 	}
-	if (!config.postAuthor.isEmpty()) {
+	if (!config.postAuthor.isEmpty() || config.viaBusinessBotId) {
 		mask |= HistoryMessageSigned::Bit();
 	} else if (_history->peer->isMegagroup() // Discussion posts signatures.
 		&& config.savedFromPeer
@@ -3345,11 +3348,17 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 		edited->date = config.editDate;
 	}
 	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
-		msgsigned->postAuthor = config.postAuthor.isEmpty()
-			? config.originalPostAuthor
-			: config.postAuthor;
-		msgsigned->isAnonymousRank = !isDiscussionPost()
-			&& author()->isMegagroup();
+		if (config.viaBusinessBotId) {
+			msgsigned->viaBusinessBot = _history->owner().user(
+				config.viaBusinessBotId);
+			msgsigned->author = msgsigned->viaBusinessBot->name();
+		} else {
+			msgsigned->author = config.postAuthor.isEmpty()
+				? config.originalPostAuthor
+				: config.postAuthor;
+			msgsigned->isAnonymousRank = !isDiscussionPost()
+				&& author()->isMegagroup();
+		}
 	}
 	setupForwardedComponent(config);
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
@@ -3636,6 +3645,7 @@ void HistoryItem::createComponents(const MTPDmessage &data) {
 		config.reply = ReplyFieldsFromMTP(this, *reply);
 	}
 	config.viaBotId = data.vvia_bot_id().value_or_empty();
+	config.viaBusinessBotId = data.vvia_business_bot_id().value_or_empty();
 	config.viewsCount = data.vviews().value_or(-1);
 	config.forwardsCount = data.vforwards().value_or(-1);
 	config.replies = isScheduled()

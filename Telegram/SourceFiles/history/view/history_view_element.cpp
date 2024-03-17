@@ -279,7 +279,7 @@ QString DateTooltipText(not_null<Element*> view) {
 			dateText += '\n' + tr::lng_signed_author(
 				tr::now,
 				lt_user,
-				msgsigned->postAuthor);
+				msgsigned->author);
 		}
 	}
 	if (item->isScheduled() && item->isSilent()) {
