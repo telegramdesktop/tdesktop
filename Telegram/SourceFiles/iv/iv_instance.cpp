@@ -47,7 +47,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_session_controller_link_info.h"
 
-#include <QtGui/QDesktopServices>
 #include <QtGui/QGuiApplication>
 
 namespace Iv {
@@ -832,7 +831,7 @@ void Instance::show(
 			processJoinChannel(event.context);
 			break;
 		case Type::OpenLinkExternal:
-			QDesktopServices::openUrl(event.url);
+			File::OpenUrl(event.url);
 			closeAll();
 			break;
 		case Type::OpenMedia:
