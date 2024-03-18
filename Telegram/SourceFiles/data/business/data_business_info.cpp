@@ -49,14 +49,14 @@ namespace {
 		MTP_flags(data.offlineOnly ? Flag::f_offline_only : Flag()),
 		MTP_int(data.shortcutId),
 		ToMTP(data.schedule),
-		ToMTP(data.recipients));
+		ForMessagesToMTP(data.recipients));
 }
 
 [[nodiscard]] MTPInputBusinessGreetingMessage ToMTP(
 		const GreetingSettings &data) {
 	return MTP_inputBusinessGreetingMessage(
 		MTP_int(data.shortcutId),
-		ToMTP(data.recipients),
+		ForMessagesToMTP(data.recipients),
 		MTP_int(data.noActivityDays));
 }
 

@@ -373,6 +373,7 @@ public:
 	[[nodiscard]] TimeId requestChatDate() const;
 	[[nodiscard]] UserData *businessBot() const;
 	[[nodiscard]] QString businessBotManageUrl() const;
+	void clearBusinessBot();
 
 	enum class TranslationFlag : uchar {
 		Unknown,

@@ -2288,6 +2288,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chatbots_not_found" = "Chatbot not found.";
 "lng_chatbots_add" = "Add";
 "lng_chatbots_info_url" = "https://telegram.org/privacy";
+"lng_chatbot_status_can_reply" = "bot manages this chat";
+"lng_chatbot_status_paused" = "bot stopped";
+"lng_chatbot_status_views" = "bot has access to this chat";
+"lng_chatbot_button_pause" = "Stop";
+"lng_chatbot_button_resume" = "Start";
+"lng_chatbot_menu_manage" = "Manage bot";
+"lng_chatbot_menu_remove" = "Remove bot from this chat";
+"lng_chatbot_menu_revoke" = "Revoke access to this chat";
 
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_group_button" = "Boost Group";

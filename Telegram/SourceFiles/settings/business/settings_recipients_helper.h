@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/required.h"
 #include "data/business/data_business_common.h"
 #include "settings/settings_common_session.h"
 
@@ -52,6 +53,7 @@ private:
 struct BusinessChatsDescriptor {
 	Data::BusinessChats current;
 	Fn<void(const Data::BusinessChats&)> save;
+	bool usersOnly = false;
 	bool include = false;
 };
 void EditBusinessChats(
@@ -66,6 +68,7 @@ struct BusinessRecipientsSelectorDescriptor {
 	not_null<Window::SessionController*> controller;
 	rpl::producer<QString> title;
 	not_null<rpl::variable<Data::BusinessRecipients>*> data;
+	base::required<Data::BusinessRecipientsType> type;
 };
 void AddBusinessRecipientsSelector(
 	not_null<Ui::VerticalLayout*> container,

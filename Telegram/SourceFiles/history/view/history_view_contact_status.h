@@ -124,6 +124,43 @@ private:
 
 };
 
+class BusinessBotStatus final {
+public:
+	BusinessBotStatus(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::RpWidget*> parent,
+		not_null<PeerData*> peer);
+
+	void show();
+	void hide();
+
+	[[nodiscard]] SlidingBar &bar() {
+		return _bar;
+	}
+
+private:
+	class Bar;
+
+	struct State {
+		UserData *bot = nullptr;
+		QString manageUrl;
+		bool canReply = false;
+		bool paused = false;
+	};
+
+	void setupState(not_null<PeerData*> peer);
+	void setupHandlers(not_null<PeerData*> peer);
+
+	static rpl::producer<State> PeerState(not_null<PeerData*> peer);
+
+	const not_null<Window::SessionController*> _controller;
+	State _state;
+	QPointer<Bar> _inner;
+	SlidingBar _bar;
+	bool _shown = false;
+
+};
+
 class TopicReopenBar final {
 public:
 	TopicReopenBar(

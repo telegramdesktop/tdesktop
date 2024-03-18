@@ -1704,7 +1704,7 @@ inputQuickReplyShortcutId#1190cf1 shortcut_id:int = InputQuickReplyShortcut;
 messages.quickReplies#c68d6695 quick_replies:Vector<QuickReply> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.QuickReplies;
 messages.quickRepliesNotModified#5f91eb5b = messages.QuickReplies;
 
-connectedBot#e7e999e7 flags:# can_reply:flags.0?true bot_id:long recipients:BusinessRecipients = ConnectedBot;
+connectedBot#bd068601 flags:# can_reply:flags.0?true bot_id:long recipients:BusinessBotRecipients = ConnectedBot;
 
 account.connectedBots#17d7f87b connected_bots:Vector<ConnectedBot> users:Vector<User> = account.ConnectedBots;
 
@@ -1722,6 +1722,10 @@ inputCollectibleUsername#e39460a9 username:string = InputCollectible;
 inputCollectiblePhone#a2e214a4 phone:string = InputCollectible;
 
 fragment.collectibleInfo#6ebdff91 purchase_date:int currency:string amount:long crypto_currency:string crypto_amount:long url:string = fragment.CollectibleInfo;
+
+inputBusinessBotRecipients#c4e5921e flags:# existing_chats:flags.0?true new_chats:flags.1?true contacts:flags.2?true non_contacts:flags.3?true exclude_selected:flags.5?true users:flags.4?Vector<InputUser> exclude_users:flags.6?Vector<InputUser> = InputBusinessBotRecipients;
+
+businessBotRecipients#b88cf373 flags:# existing_chats:flags.0?true new_chats:flags.1?true contacts:flags.2?true non_contacts:flags.3?true exclude_selected:flags.5?true users:flags.4?Vector<long> exclude_users:flags.6?Vector<long> = BusinessBotRecipients;
 
 ---functions---
 
@@ -1853,7 +1857,7 @@ account.updateBusinessWorkHours#4b00e066 flags:# business_work_hours:flags.0?Bus
 account.updateBusinessLocation#9e6b131a flags:# geo_point:flags.1?InputGeoPoint address:flags.0?string = Bool;
 account.updateBusinessGreetingMessage#66cdafc4 flags:# message:flags.0?InputBusinessGreetingMessage = Bool;
 account.updateBusinessAwayMessage#a26a7fa5 flags:# message:flags.0?InputBusinessAwayMessage = Bool;
-account.updateConnectedBot#9c2d527d flags:# can_reply:flags.0?true deleted:flags.1?true bot:InputUser recipients:InputBusinessRecipients = Updates;
+account.updateConnectedBot#43d8521d flags:# can_reply:flags.0?true deleted:flags.1?true bot:InputUser recipients:InputBusinessBotRecipients = Updates;
 account.getConnectedBots#4ea4c80f = account.ConnectedBots;
 account.getBotBusinessConnection#76a86270 connection_id:string = Updates;
 account.updateBusinessIntro#a614d034 flags:# intro:flags.0?InputBusinessIntro = Bool;

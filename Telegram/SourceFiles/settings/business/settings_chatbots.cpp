@@ -448,6 +448,7 @@ void Chatbots::setupContent(
 		.controller = controller,
 		.title = tr::lng_chatbots_access_title(),
 		.data = &_recipients,
+		.type = Data::BusinessRecipientsType::Bots,
 	});
 
 	Ui::AddSkip(content, st::settingsChatbotsAccessSkip);

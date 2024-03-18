@@ -49,11 +49,21 @@ struct BusinessRecipients {
 		const BusinessRecipients &b) = default;
 };
 
-[[nodiscard]] MTPInputBusinessRecipients ToMTP(
+enum class BusinessRecipientsType : uchar {
+	Messages,
+	Bots,
+};
+
+[[nodiscard]] MTPInputBusinessRecipients ForMessagesToMTP(
+	const BusinessRecipients &data);
+[[nodiscard]] MTPInputBusinessBotRecipients ForBotsToMTP(
 	const BusinessRecipients &data);
 [[nodiscard]] BusinessRecipients FromMTP(
 	not_null<Session*> owner,
 	const MTPBusinessRecipients &recipients);
+[[nodiscard]] BusinessRecipients FromMTP(
+	not_null<Session*> owner,
+	const MTPBusinessBotRecipients &recipients);
 
 struct Timezone {
 	QString id;

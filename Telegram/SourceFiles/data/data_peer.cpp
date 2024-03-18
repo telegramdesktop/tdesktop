@@ -608,6 +608,23 @@ void PeerData::checkFolder(FolderId folderId) {
 	}
 }
 
+void PeerData::clearBusinessBot() {
+	if (const auto details = _barDetails.get()) {
+		if (details->requestChatDate) {
+			details->businessBot = nullptr;
+			details->businessBotManageUrl = QString();
+		} else {
+			_barDetails = nullptr;
+		}
+	}
+	if (const auto settings = barSettings()) {
+		setBarSettings(*settings
+			& ~PeerBarSetting::BusinessBotPaused
+			& ~PeerBarSetting::BusinessBotCanReply
+			& ~PeerBarSetting::HasBusinessBot);
+	}
+}
+
 void PeerData::setTranslationDisabled(bool disabled) {
 	const auto flag = disabled
 		? TranslationFlag::Disabled

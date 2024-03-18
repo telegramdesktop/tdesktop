@@ -336,6 +336,7 @@ void AwayMessage::setupContent(
 		.controller = controller,
 		.title = tr::lng_away_recipients(),
 		.data = &_recipients,
+		.type = Data::BusinessRecipientsType::Messages,
 	});
 
 	Ui::AddSkip(inner, st::settingsChatbotsAccessSkip);
