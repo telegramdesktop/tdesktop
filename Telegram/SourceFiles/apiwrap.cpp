@@ -1746,7 +1746,7 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 					}
 					return QString();
 				}();
-				if (!text.isEmpty()) {
+				if (show && !text.isEmpty()) {
 					show->showToast(text, kJoinErrorDuration);
 				}
 			}
