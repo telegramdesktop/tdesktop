@@ -47,7 +47,6 @@ public:
 	void showFinished() override;
 
 	[[nodiscard]] not_null<PeerData*> peer() const;
-	[[nodiscard]] FullMsgId contextId() const;
 
 	void setInternalState(
 		const QRect &geometry,

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/boosts/info_boosts_inner_widget.h"
+#include "info/channel_statistics/boosts/info_boosts_inner_widget.h"
 
 #include "api/api_premium.h"
 #include "api/api_statistics.h"
@@ -14,10 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "info/boosts/create_giveaway_box.h"
-#include "info/boosts/giveaway/boost_badge.h"
-#include "info/boosts/giveaway/giveaway_type_row.h"
-#include "info/boosts/info_boosts_widget.h"
+#include "info/channel_statistics/boosts/create_giveaway_box.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h"
+#include "info/channel_statistics/boosts/giveaway/giveaway_type_row.h"
+#include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.

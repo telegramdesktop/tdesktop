@@ -861,14 +861,14 @@ PRIVATE
     history/history_view_highlight_manager.h
     history/history_widget.cpp
     history/history_widget.h
-    info/boosts/giveaway/giveaway_list_controllers.cpp
-    info/boosts/giveaway/giveaway_list_controllers.h
-    info/boosts/create_giveaway_box.cpp
-    info/boosts/create_giveaway_box.h
-    info/boosts/info_boosts_inner_widget.cpp
-    info/boosts/info_boosts_inner_widget.h
-    info/boosts/info_boosts_widget.cpp
-    info/boosts/info_boosts_widget.h
+    info/channel_statistics/boosts/create_giveaway_box.cpp
+    info/channel_statistics/boosts/create_giveaway_box.h
+    info/channel_statistics/boosts/giveaway/giveaway_list_controllers.cpp
+    info/channel_statistics/boosts/giveaway/giveaway_list_controllers.h
+    info/channel_statistics/boosts/info_boosts_inner_widget.cpp
+    info/channel_statistics/boosts/info_boosts_inner_widget.h
+    info/channel_statistics/boosts/info_boosts_widget.cpp
+    info/channel_statistics/boosts/info_boosts_widget.h
     info/common_groups/info_common_groups_inner_widget.cpp
     info/common_groups/info_common_groups_inner_widget.h
     info/common_groups/info_common_groups_widget.cpp

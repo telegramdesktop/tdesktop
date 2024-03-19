@@ -23,7 +23,7 @@ set(style_files
     calls/calls.style
     export/view/export.style
     info/info.style
-    info/boosts/giveaway/giveaway.style
+    info/channel_statistics/boosts/giveaway/giveaway.style
     info/userpic/info_userpic_builder.style
     intro/intro.style
     iv/iv.style
@@ -122,12 +122,12 @@ PRIVATE
     info/userpic/info_userpic_emoji_builder_layer.cpp
     info/userpic/info_userpic_emoji_builder_layer.h
 
-    info/boosts/giveaway/boost_badge.cpp
-    info/boosts/giveaway/boost_badge.h
-    info/boosts/giveaway/giveaway_type_row.cpp
-    info/boosts/giveaway/giveaway_type_row.h
-    info/boosts/giveaway/select_countries_box.cpp
-    info/boosts/giveaway/select_countries_box.h
+    info/channel_statistics/boosts/giveaway/boost_badge.cpp
+    info/channel_statistics/boosts/giveaway/boost_badge.h
+    info/channel_statistics/boosts/giveaway/giveaway_type_row.cpp
+    info/channel_statistics/boosts/giveaway/giveaway_type_row.h
+    info/channel_statistics/boosts/giveaway/select_countries_box.cpp
+    info/channel_statistics/boosts/giveaway/select_countries_box.h
 
     intro/intro_code_input.cpp
     intro/intro_code_input.h

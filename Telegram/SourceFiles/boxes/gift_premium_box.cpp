@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_subscription_option.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
-#include "info/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"

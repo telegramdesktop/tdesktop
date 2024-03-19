@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "info/boosts/info_boosts_widget.h"
+#include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/info_memento.h"
 #include "iv/iv_data.h"

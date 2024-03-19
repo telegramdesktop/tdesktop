@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/boosts/giveaway/select_countries_box.h"
+#include "info/channel_statistics/boosts/giveaway/select_countries_box.h"
 
 #include "countries/countries_instance.h"
 #include "lang/lang_keys.h"
