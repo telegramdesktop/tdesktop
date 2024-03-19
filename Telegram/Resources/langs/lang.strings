@@ -4951,6 +4951,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boosts_prepaid_giveaway_status#one" = "{count} subscription {duration}";
 "lng_boosts_prepaid_giveaway_status#other" = "{count} subscriptions {duration}";
 
+"lng_channel_earn_title" = "Monetization";
+"lng_channel_earn_about" = "Telegram shares 50% of the revenue from ads displayed in your channel. {link}";
+"lng_channel_earn_about_link" = "Learn more {emoji}";
+"lng_channel_earn_overview_title" = "Proceeds overview";
+"lng_channel_earn_available" = "Balance available to withdraw";
+"lng_channel_earn_reward" = "Proceeds since last withdrawal";
+"lng_channel_earn_total" = "Total lifetime proceeds";
+"lng_channel_earn_balance_title" = "Available balance";
+"lng_channel_earn_balance_placeholder" = "Enter your TON address";
+"lng_channel_earn_balance_button" = "Withdraw";
+"lng_channel_earn_balance_about" = "By the end of May, you will be able to collect your reward using Fragment, a third-party platform used by the advertiser to pay for the ad. {link}";
+"lng_channel_earn_history_title" = "Transaction history";
+"lng_channel_earn_history_in" = "Proceeds from ads";
+"lng_channel_earn_history_in_about" = "Proceeds from ads displayed in";
+"lng_channel_earn_history_out" = "Balance withdrawal to";
+"lng_channel_earn_off" = "Switch Off Ads";
+"lng_channel_earn_off_about" = "You will not be eligible for any rewards if you switch off ads.";
+"lng_channel_earn_cpm_min" = "No Ads";
+"lng_channel_earn_cpm#one" = "{count} CPM";
+"lng_channel_earn_cpm#other" = "{count} CPM";
+"lng_channel_earn_learn_title" = "Earn From Your Channel";
+"lng_channel_earn_learn_in_subtitle" = "Telegram Ads";
+"lng_channel_earn_learn_in_about" = "Telegram can display ads in your channel.";
+"lng_channel_earn_learn_split_subtitle" = "50:50 revenue split";
+"lng_channel_earn_learn_split_about" = "You can receive 50% of the ad revenue in TON.";
+"lng_channel_earn_learn_out_subtitle" = "Flexible withdrawals";
+"lng_channel_earn_learn_out_about" = "You can withdraw your TON any time.";
+"lng_channel_earn_learn_coin_title" = "What is {emoji} TON?";
+"lng_channel_earn_learn_coin_about" = "TON is a blockchain platform and cryptocurrency that Telegram uses for its record scalability and ultra low commissions on transactions. {link}";
+"lng_channel_earn_learn_close" = "Got it";
+
 "lng_contact_add" = "Add";
 "lng_contact_send_message" = "message";
 
