@@ -381,13 +381,14 @@ QString FormatImageSizeText(const QSize &size) {
 		+ QString::number(size.height());
 }
 
-QString FormatPhone(const QString &phone) {
+QString FormatPhone(QString phone) {
 	if (phone.isEmpty()) {
 		return QString();
 	}
 	if (phone.at(0) == '0') {
 		return phone;
 	}
+	phone = phone.remove(QChar::Space);
 	return Countries::Instance().format({
 		.phone = (phone.at(0) == '+') ? phone.mid(1) : phone,
 	}).formatted;
