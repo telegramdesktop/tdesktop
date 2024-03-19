@@ -252,4 +252,22 @@ struct GreetingSettings {
 	not_null<Session*> owner,
 	const tl::conditional<MTPBusinessGreetingMessage> &message);
 
+struct ChatIntro {
+	QString title;
+	QString description;
+	DocumentData *sticker = nullptr;
+
+	explicit operator bool() const {
+		return !title.isEmpty() || !description.isEmpty();
+	}
+
+	friend inline bool operator==(
+		const ChatIntro &a,
+		const ChatIntro &b) = default;
+};
+
+[[nodiscard]] ChatIntro FromMTP(
+	not_null<Session*> owner,
+	const tl::conditional<MTPBusinessIntro> &intro);
+
 } // namespace Data

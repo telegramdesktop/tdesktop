@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
-class AwayMessage : public BusinessSection<AwayMessage> {
+class AwayMessage final : public BusinessSection<AwayMessage> {
 public:
 	AwayMessage(
 		QWidget *parent,

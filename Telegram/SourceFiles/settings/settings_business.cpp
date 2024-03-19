@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/business/settings_away_message.h"
+#include "settings/business/settings_chat_intro.h"
 #include "settings/business/settings_chatbots.h"
 #include "settings/business/settings_greeting.h"
 #include "settings/business/settings_location.h"
@@ -69,6 +70,7 @@ using Order = std::vector<QString>;
 		u"business_hours"_q,
 		u"business_location"_q,
 		u"business_bots"_q,
+		u"intro"_q,
 	};
 }
 
@@ -126,6 +128,15 @@ using Order = std::vector<QString>;
 				tr::lng_business_subtitle_chatbots(),
 				tr::lng_business_about_chatbots(),
 				PremiumFeature::BusinessBots,
+			},
+		},
+		{
+			u"intro"_q,
+			Entry{
+				&st::settingsBusinessIconChatIntro,
+				tr::lng_business_subtitle_chat_intro(),
+				tr::lng_business_about_chat_intro(),
+				PremiumFeature::ChatIntro,
 			},
 		},
 	};
@@ -227,9 +238,9 @@ void AddBusinessSummary(
 	icons.reserve(int(entryMap.size()));
 	{
 		const auto &account = controller->session().account();
-		const auto mtpOrder = account.appConfig().get<Order>(
+		const auto mtpOrder = /*account.appConfig().get<Order>(
 			"business_promo_order",
-			FallbackOrder());
+			FallbackOrder())*/FallbackOrder(); AssertIsDebug();
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
 			addRow(entry);
@@ -375,6 +386,7 @@ void Business::setupContent() {
 			case PremiumFeature::GreetingMessage: return GreetingId();
 			case PremiumFeature::QuickReplies: return QuickRepliesId();
 			case PremiumFeature::BusinessBots: return ChatbotsId();
+			case PremiumFeature::ChatIntro: return ChatIntroId();
 			}
 			Unexpected("Feature in showFeature.");
 		}());
@@ -396,6 +408,8 @@ void Business::setupContent() {
 			return owner->shortcutMessages().shortcutsLoaded();
 		case PremiumFeature::BusinessBots:
 			return owner->chatbots().loaded();
+		case PremiumFeature::ChatIntro:
+			return owner->session().user()->isFullLoaded();
 		}
 		Unexpected("Feature in isReady.");
 	};
@@ -670,6 +684,8 @@ std::vector<PremiumFeature> BusinessFeaturesOrder(
 			return PremiumFeature::BusinessLocation;
 		} else if (s == u"business_bots"_q) {
 			return PremiumFeature::BusinessBots;
+		} else if (s == u"chat_intro"_q) {
+			return PremiumFeature::ChatIntro;
 		}
 		return PremiumFeature::kCount;
 	}) | ranges::views::filter([](PremiumFeature feature) {

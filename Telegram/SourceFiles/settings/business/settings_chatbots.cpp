@@ -46,7 +46,7 @@ struct BotState {
 	LookupState state = LookupState::Empty;
 };
 
-class Chatbots : public BusinessSection<Chatbots> {
+class Chatbots final : public BusinessSection<Chatbots> {
 public:
 	Chatbots(
 		QWidget *parent,

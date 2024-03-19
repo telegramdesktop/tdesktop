@@ -884,6 +884,9 @@ BusinessBotStatus::Bar::Bar(QWidget *parent)
 , _settings(this, st::historyBusinessBotSettings) {
 	_name->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_togglePaused->setFullRadius(true);
+	_togglePaused->setTextTransform(
+		Ui::RoundButton::TextTransform::NoTransform);
 	_settings->setClickedCallback([=] {
 		showMenu();
 	});
@@ -984,7 +987,9 @@ int BusinessBotStatus::Bar::resizeGetHeight(int newWidth) {
 	}
 	auto available = newWidth - _settings->width() - st.namePosition.x();
 	if (!_togglePaused->isHidden()) {
-		_togglePaused->moveToRight(_settings->width(), 0);
+		_togglePaused->moveToRight(
+			_settings->width(),
+			(st.height - _togglePaused->height()) / 2);
 		available -= _togglePaused->width();
 	}
 	_name->resizeToWidth(available);

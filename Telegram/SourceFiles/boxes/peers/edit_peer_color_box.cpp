@@ -808,34 +808,6 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	return st;
 }
 
-struct ButtonWithEmoji {
-	not_null<const style::SettingsButton*> st;
-	int emojiWidth = 0;
-	int noneWidth = 0;
-	int added = 0;
-};
-
-[[nodiscard]] ButtonWithEmoji ButtonStyleWithRightEmoji(
-		not_null<Ui::RpWidget*> parent) {
-	const auto ratio = style::DevicePixelRatio();
-	const auto emojiWidth = Data::FrameSizeFromTag({}) / ratio;
-
-	const auto noneWidth = st::normalFont->width(
-		tr::lng_settings_color_emoji_off(tr::now));
-
-	const auto added = st::normalFont->spacew;
-	const auto rightAdded = std::max(noneWidth, emojiWidth);
-	return {
-		.st = ButtonStyleWithAddedPadding(
-			parent,
-			st::peerAppearanceButton,
-			QMargins(0, 0, added + rightAdded, 0)),
-		.emojiWidth = emojiWidth,
-		.noneWidth = noneWidth,
-		.added = added,
-	};
-}
-
 [[nodiscard]] object_ptr<Ui::SettingsButton> CreateEmojiIconButton(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -844,7 +816,9 @@ struct ButtonWithEmoji {
 		rpl::producer<uint8> colorIndexValue,
 		rpl::producer<DocumentId> emojiIdValue,
 		Fn<void(DocumentId)> emojiIdChosen) {
-	const auto button = ButtonStyleWithRightEmoji(parent);
+	const auto button = ButtonStyleWithRightEmoji(
+		parent,
+		tr::lng_settings_color_emoji_off(tr::now));
 	auto result = Settings::CreateButtonWithIcon(
 		parent,
 		tr::lng_settings_color_emoji(),
@@ -962,7 +936,9 @@ struct ButtonWithEmoji {
 		rpl::producer<DocumentId> statusIdValue,
 		Fn<void(DocumentId,TimeId)> statusIdChosen,
 		bool group) {
-	const auto button = ButtonStyleWithRightEmoji(parent);
+	const auto button = ButtonStyleWithRightEmoji(
+		parent,
+		tr::lng_settings_color_emoji_off(tr::now));
 	const auto &phrase = group
 		? tr::lng_edit_channel_status_group
 		: tr::lng_edit_channel_status;
@@ -1073,7 +1049,9 @@ struct ButtonWithEmoji {
 		not_null<ChannelData*> channel) {
 	Expects(channel->mgInfo != nullptr);
 
-	const auto button = ButtonStyleWithRightEmoji(parent);
+	const auto button = ButtonStyleWithRightEmoji(
+		parent,
+		tr::lng_settings_color_emoji_off(tr::now));
 	auto result = Settings::CreateButtonWithIcon(
 		parent,
 		tr::lng_group_emoji(),
@@ -1508,4 +1486,26 @@ void CheckBoostLevel(
 		show->showToast(error.type());
 		cancel();
 	}).send();
+}
+
+ButtonWithEmoji ButtonStyleWithRightEmoji(
+		not_null<Ui::RpWidget*> parent,
+		const QString &noneString,
+		const style::SettingsButton &parentSt) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto emojiWidth = Data::FrameSizeFromTag({}) / ratio;
+
+	const auto noneWidth = st::normalFont->width(noneString);
+
+	const auto added = st::normalFont->spacew;
+	const auto rightAdded = std::max(noneWidth, emojiWidth);
+	return {
+		.st = ButtonStyleWithAddedPadding(
+			parent,
+			parentSt,
+			QMargins(0, 0, added + rightAdded, 0)),
+		.emojiWidth = emojiWidth,
+		.noneWidth = noneWidth,
+		.added = added,
+	};
 }

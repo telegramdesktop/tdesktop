@@ -7,6 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace style {
+struct SettingsButton;
+} // namespace style
+
+namespace st {
+extern const style::SettingsButton &peerAppearanceButton;
+} // namespace st
+
 namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
@@ -17,6 +25,7 @@ class ChatStyle;
 class ChatTheme;
 class VerticalLayout;
 struct AskBoostReason;
+class RpWidget;
 } // namespace Ui
 
 void EditPeerColorBox(
@@ -36,3 +45,14 @@ void CheckBoostLevel(
 	not_null<PeerData*> peer,
 	Fn<std::optional<Ui::AskBoostReason>(int level)> askMore,
 	Fn<void()> cancel);
+
+struct ButtonWithEmoji {
+	not_null<const style::SettingsButton*> st;
+	int emojiWidth = 0;
+	int noneWidth = 0;
+	int added = 0;
+};
+[[nodiscard]] ButtonWithEmoji ButtonStyleWithRightEmoji(
+	not_null<Ui::RpWidget*> parent,
+	const QString &noneString,
+	const style::SettingsButton &parentSt = st::peerAppearanceButton);

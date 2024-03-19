@@ -110,6 +110,7 @@ settingsBusinessIconReplies: icon {{ "settings/premium/business/business_quick",
 settingsBusinessIconGreeting: icon {{ "settings/premium/status", settingsIconFg }};
 settingsBusinessIconAway: icon {{ "settings/premium/business/business_away", settingsIconFg }};
 settingsBusinessIconChatbots: icon {{ "settings/premium/business/business_chatbots", settingsIconFg }};
+settingsBusinessIconChatIntro: icon {{ "settings/premium/intro", settingsIconFg }};
 
 settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(semiboldTextStyle) {
@@ -638,3 +639,7 @@ settingsChatbotsNotFound: FlatLabel(defaultFlatLabel) {
 }
 settingsChatbotsDeleteIcon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
 settingsChatbotsDeleteIconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};
+
+settingsChatIntroField: InputField(defaultMultiSelectSearchField) {
+}
+settingsChatIntroFieldMargins: margins(20px, 8px, 20px, 8px);

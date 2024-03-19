@@ -601,6 +601,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			FromMTP(&user->owner(), update.vbusiness_away_message()));
 		user->owner().businessInfo().applyGreetingSettings(
 			FromMTP(&user->owner(), update.vbusiness_greeting_message()));
+		user->owner().businessInfo().applyChatIntro(
+			FromMTP(&user->owner(), update.vbusiness_intro()));
 	}
 
 	user->owner().stories().apply(user, update.vstories());

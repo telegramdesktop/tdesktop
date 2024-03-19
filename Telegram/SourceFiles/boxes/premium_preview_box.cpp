@@ -144,6 +144,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_business_subtitle_away_messages();
 	case PremiumFeature::BusinessBots:
 		return tr::lng_business_subtitle_chatbots();
+	case PremiumFeature::ChatIntro:
+		return tr::lng_business_subtitle_chat_intro();
 	}
 	Unexpected("PremiumFeature in SectionTitle.");
 }
@@ -201,6 +203,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_business_about_away_messages();
 	case PremiumFeature::BusinessBots:
 		return tr::lng_business_about_chatbots();
+	case PremiumFeature::ChatIntro:
+		return tr::lng_business_about_chat_intro();
 	}
 	Unexpected("PremiumFeature in SectionTitle.");
 }
@@ -528,6 +532,7 @@ struct VideoPreviewDocument {
 		case PremiumFeature::GreetingMessage: return "greeting_message";
 		case PremiumFeature::AwayMessage: return "away_message";
 		case PremiumFeature::BusinessBots: return "business_bots";
+		case PremiumFeature::ChatIntro: return "chat_intro";
 		}
 		return "";
 	}();

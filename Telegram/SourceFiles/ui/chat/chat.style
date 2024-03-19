@@ -1061,3 +1061,6 @@ boostsMessageIconPadding: margins(0px, 2px, 0px, 0px);
 
 historyIvIcon: icon{{ "boosts/boost_mini2", windowFg }};
 historyIvIconPadding: margins(2px, 2px, 2px, 0px);
+
+chatIntroStickerSize: 96px;
+chatIntroWidth: 224px;

@@ -1293,6 +1293,8 @@ PRIVATE
     settings/business/settings_away_message.h
     settings/business/settings_shortcut_messages.cpp
     settings/business/settings_shortcut_messages.h
+    settings/business/settings_chat_intro.cpp
+    settings/business/settings_chat_intro.h
     settings/business/settings_chatbots.cpp
     settings/business/settings_chatbots.h
     settings/business/settings_greeting.cpp

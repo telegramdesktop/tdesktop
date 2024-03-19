@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/business/data_business_common.h"
 
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 
@@ -331,6 +332,24 @@ WorkingIntervals ReplaceDayIntervals(
 		interval = interval.shifted(dayIndex * kDay);
 	}
 	return result.normalized();
+}
+
+ChatIntro FromMTP(
+		not_null<Session*> owner,
+		const tl::conditional<MTPBusinessIntro> &intro) {
+	auto result = ChatIntro();
+	if (intro) {
+		const auto &data = intro->data();
+		result.title = qs(data.vtitle());
+		result.description = qs(data.vdescription());
+		if (const auto document = data.vsticker()) {
+			result.sticker = owner->processDocument(*document);
+			if (!result.sticker->sticker()) {
+				result.sticker = nullptr;
+			}
+		}
+	}
+	return result;
 }
 
 } // namespace Data

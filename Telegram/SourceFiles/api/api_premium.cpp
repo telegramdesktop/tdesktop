@@ -109,6 +109,18 @@ rpl::producer<> Premium::cloudSetUpdated() const {
 	return _cloudSetUpdated.events();
 }
 
+auto Premium::helloStickers() const
+-> const std::vector<not_null<DocumentData*>> & {
+	if (_helloStickers.empty()) {
+		const_cast<Premium*>(this)->reloadHelloStickers();
+	}
+	return _helloStickers;
+}
+
+rpl::producer<> Premium::helloStickersUpdated() const {
+	return _helloStickersUpdated.events();
+}
+
 int64 Premium::monthlyAmount() const {
 	return _monthlyAmount;
 }
@@ -222,6 +234,33 @@ void Premium::reloadCloudSet() {
 		});
 	}).fail([=] {
 		_cloudSetRequestId = 0;
+	}).send();
+}
+
+void Premium::reloadHelloStickers() {
+	if (_helloStickersRequestId) {
+		return;
+	}
+	_helloStickersRequestId = _api.request(MTPmessages_GetStickers(
+		MTP_string("\xf0\x9f\x91\x8b\xe2\xad\x90\xef\xb8\x8f"),
+		MTP_long(_helloStickersHash)
+	)).done([=](const MTPmessages_Stickers &result) {
+		_helloStickersRequestId = 0;
+		result.match([&](const MTPDmessages_stickersNotModified &) {
+		}, [&](const MTPDmessages_stickers &data) {
+			_helloStickersHash = data.vhash().v;
+			const auto owner = &_session->data();
+			_helloStickers.clear();
+			for (const auto &sticker : data.vstickers().v) {
+				const auto document = owner->processDocument(sticker);
+				if (document->sticker()) {
+					_helloStickers.push_back(document);
+				}
+			}
+			_helloStickersUpdated.fire({});
+		});
+	}).fail([=] {
+		_helloStickersRequestId = 0;
 	}).send();
 }
 
@@ -607,6 +646,26 @@ RequirePremiumState ResolveRequiresPremiumToWrite(
 		update(true);
 	}
 	return RequirePremiumState::Unknown;
+}
+
+rpl::producer<DocumentData*> RandomHelloStickerValue(
+		not_null<Main::Session*> session) {
+	const auto premium = &session->api().premium();
+	const auto random = [=] {
+		const auto &v = premium->helloStickers();
+		Assert(!v.empty());
+		return v[base::RandomIndex(v.size())].get();
+	};
+	const auto &v = premium->helloStickers();
+	if (!v.empty()) {
+		return rpl::single(random());
+	}
+	return rpl::single<DocumentData*>(
+		nullptr
+	) | rpl::then(premium->helloStickersUpdated(
+	) | rpl::filter([=] {
+		return !premium->helloStickers().empty();
+	}) | rpl::take(1) | rpl::map(random));
 }
 
 } // namespace Api

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/business/data_business_common.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
@@ -181,6 +182,54 @@ GreetingSettings BusinessInfo::greetingSettings() const {
 
 rpl::producer<> BusinessInfo::greetingSettingsChanged() const {
 	return _greetingSettingsChanged.events();
+}
+
+void BusinessInfo::saveChatIntro(ChatIntro data, Fn<void(QString)> fail) {
+	const auto &was = _chatIntro;
+	if (was == data) {
+		return;
+	} else {
+		const auto session = &_owner->session();
+		using Flag = MTPaccount_UpdateBusinessIntro::Flag;
+		session->api().request(MTPaccount_UpdateBusinessIntro(
+			MTP_flags(data ? Flag::f_intro : Flag()),
+			MTP_inputBusinessIntro(
+				MTP_flags(data.sticker ? MTPDinputBusinessIntro::Flag::f_sticker : MTPDinputBusinessIntro::Flag()),
+				MTP_string(data.title),
+				MTP_string(data.description),
+				(data.sticker
+					? data.sticker->mtpInput()
+					: MTP_inputDocumentEmpty()))
+		)).fail([=](const MTP::Error &error) {
+			_chatIntro = was;
+			_chatIntroChanged.fire({});
+			if (fail) {
+				fail(error.type());
+			}
+		}).send();
+	}
+	_chatIntro = std::move(data);
+	_chatIntroChanged.fire({});
+}
+
+void BusinessInfo::applyChatIntro(ChatIntro data) {
+	if (_chatIntro == data) {
+		return;
+	}
+	_chatIntro = data;
+	_chatIntroChanged.fire({});
+}
+
+ChatIntro BusinessInfo::chatIntro() const {
+	return _chatIntro.value_or(ChatIntro());
+}
+
+bool BusinessInfo::chatIntroLoaded() const {
+	return _chatIntro.has_value();
+}
+
+rpl::producer<> BusinessInfo::chatIntroChanged() const {
+	return _chatIntroChanged.events();
 }
 
 void BusinessInfo::preload() {
