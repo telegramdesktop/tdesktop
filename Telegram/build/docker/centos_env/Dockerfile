@@ -257,6 +257,7 @@ RUN git clone -b v1.16.2 --depth=1 {{ GIT }}/strukturag/libheif.git \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
 		-DBUILD_SHARED_LIBS=OFF \
+		-DBUILD_TESTING=OFF \
 		-DENABLE_PLUGIN_LOADING=OFF \
 		-DWITH_X265=OFF \
 		-DWITH_AOM_DECODER=OFF \
