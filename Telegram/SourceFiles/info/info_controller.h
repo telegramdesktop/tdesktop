@@ -134,6 +134,7 @@ public:
 		PollResults,
 		Statistics,
 		Boosts,
+		ChannelEarn,
 	};
 	using SettingsType = ::Settings::Type;
 	using MediaType = Storage::SharedMediaType;

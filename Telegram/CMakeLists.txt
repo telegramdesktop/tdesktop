@@ -869,6 +869,10 @@ PRIVATE
     info/channel_statistics/boosts/info_boosts_inner_widget.h
     info/channel_statistics/boosts/info_boosts_widget.cpp
     info/channel_statistics/boosts/info_boosts_widget.h
+    info/channel_statistics/earn/info_earn_inner_widget.cpp
+    info/channel_statistics/earn/info_earn_inner_widget.h
+    info/channel_statistics/earn/info_earn_widget.cpp
+    info/channel_statistics/earn/info_earn_widget.h
     info/common_groups/info_common_groups_inner_widget.cpp
     info/common_groups/info_common_groups_inner_widget.h
     info/common_groups/info_common_groups_widget.cpp
