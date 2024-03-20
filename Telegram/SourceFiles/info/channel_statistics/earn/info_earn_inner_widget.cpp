@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/info_earn_inner_widget.h"
 
 #include "base/random.h"
+#include "base/unixtime.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_peer.h"
@@ -21,12 +22,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_statistics.h"
+
+#include <QUuid>
 
 namespace Info::ChannelEarn {
 namespace {
@@ -63,6 +67,16 @@ void AddEmojiToMajor(
 		});
 }
 
+[[nodiscard]] QString FormatDate(TimeId date) {
+	const auto parsedDate = base::unixtime::parse(date);
+	return tr::lng_group_call_starts_short_date(
+		tr::now,
+		lt_date,
+		langDayOfMonth(parsedDate.date()),
+		lt_time,
+		QLocale().toString(parsedDate.time(), QLocale::ShortFormat));
+}
+
 } // namespace
 
 InnerWidget::InnerWidget(
@@ -80,6 +94,9 @@ void InnerWidget::load() {
 
 void InnerWidget::fill() {
 	const auto container = this;
+
+	constexpr auto kMinus = QChar(0x2212);
+	const auto currency = u"TON"_q;
 
 	const auto session = &_peer->session();
 	{
@@ -159,8 +176,8 @@ void InnerWidget::fill() {
 					- minorLabel->width());
 				secondMinorLabel->moveToLeft(
 					rect::right(minorLabel)
-						+ st::channelEarnOverviewSubMinorLabelSkip,
-					st::channelEarnOverviewSubMinorLabelSkip);
+						+ st::channelEarnOverviewSubMinorLabelPos.x(),
+					st::channelEarnOverviewSubMinorLabelPos.y());
 			}, minorLabel->lifetime());
 
 			Ui::AddSkip(container);
@@ -180,6 +197,144 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 		addOverviewEntry(0, tr::lng_channel_earn_total);
 		Ui::AddSkip(container);
+	}
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
+	{
+		Ui::AddSkip(container);
+		AddHeader(container, tr::lng_channel_earn_history_title);
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+
+		struct HistoryEntry final {
+			TimeId from = 0;
+			TimeId to = 0;
+			float64 value = 0;
+			QString recipient;
+			bool in = false;
+		};
+
+		const auto addHistoryEntry = [&](
+				const HistoryEntry &entry,
+				const tr::phrase<> &text) {
+			const auto wrap = container->add(
+				object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+					container,
+					object_ptr<Ui::VerticalLayout>(container),
+					QMargins()));
+			const auto inner = wrap->entity();
+			inner->setAttribute(Qt::WA_TransparentForMouseEvents);
+			inner->add(object_ptr<Ui::FlatLabel>(
+				inner,
+				text(),
+				st::channelEarnHistoryLabel));
+
+			if (!entry.recipient.isEmpty()) {
+				Ui::AddSkip(inner, st::channelEarnHistoryThreeSkip);
+				const auto label = inner->add(object_ptr<Ui::FlatLabel>(
+					inner,
+					rpl::single(
+						Ui::Text::Wrapped(
+							{ entry.recipient },
+							EntityType::Code)),
+					st::channelEarnHistoryRecipientLabel));
+				label->setBreakEverywhere(true);
+				label->setTryMakeSimilarLines(true);
+				Ui::AddSkip(inner, st::channelEarnHistoryThreeSkip);
+			} else {
+				Ui::AddSkip(inner, st::channelEarnHistoryTwoSkip);
+			}
+
+			inner->add(object_ptr<Ui::FlatLabel>(
+				inner,
+				entry.to
+					? (FormatDate(entry.from)
+						+ ' '
+						+ QChar(8212)
+						+ ' '
+						+ FormatDate(entry.to))
+					: FormatDate(entry.from),
+				st::channelEarnHistorySubLabel));
+
+			const auto color = (entry.in
+				? st::boxTextFgGood
+				: st::menuIconAttentionColor)->c;
+			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
+				wrap,
+				(entry.in ? '+' : kMinus)
+					+ QString::number(int64(entry.value)),
+				st::channelEarnHistoryMajorLabel);
+			majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+			majorLabel->setTextColorOverride(color);
+			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
+				wrap,
+				QString::number(entry.value - int64(entry.value)).mid(1)
+					+ ' '
+					+ currency,
+				st::channelEarnHistoryMinorLabel);
+			minorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+			minorLabel->setTextColorOverride(color);
+			const auto button = Ui::CreateChild<Ui::SettingsButton>(
+				wrap,
+				rpl::single(QString()));
+			button->setClickedCallback([=] {
+			});
+			wrap->geometryValue(
+			) | rpl::start_with_next([=](const QRect &g) {
+				const auto &padding = st::boxRowPadding;
+				const auto majorTop = (g.height() - majorLabel->height()) / 2;
+				minorLabel->moveToRight(
+					padding.right(),
+					majorTop + st::channelEarnHistoryMinorLabelSkip);
+				majorLabel->moveToRight(
+					padding.right() + minorLabel->width(),
+					majorTop);
+				const auto rightWrapPadding = rect::m::sum::h(padding)
+					+ minorLabel->width()
+					+ majorLabel->width();
+				wrap->setPadding(
+					st::channelEarnHistoryOuter
+						+ QMargins(padding.left(), 0, rightWrapPadding, 0));
+				button->resize(g.size());
+				button->lower();
+			}, wrap->lifetime());
+		};
+		const auto randomRecipient = [&] { // Debug.
+			const auto format = QUuid::StringFormat::Id128;
+			return (QUuid::createUuid().toString(format)
+				+ QUuid::createUuid().toString(format)).mid(0, 48);
+		};
+		addHistoryEntry(
+			{
+				.from = base::unixtime::now(),
+				.to = base::unixtime::now() - base::RandomIndex(200000),
+				.value = base::RandomIndex(1000000) / 1000.,
+				.in = true,
+			},
+			tr::lng_channel_earn_history_in);
+		addHistoryEntry(
+			{
+				.from = base::unixtime::now(),
+				.recipient = randomRecipient(),
+				.value = base::RandomIndex(1000000) / 1000.,
+			},
+			tr::lng_channel_earn_history_out);
+		addHistoryEntry(
+			{
+				.from = base::unixtime::now(),
+				.to = base::unixtime::now() - base::RandomIndex(200000),
+				.value = base::RandomIndex(1000000) / 1000.,
+				.in = true,
+			},
+			tr::lng_channel_earn_history_in);
+		addHistoryEntry(
+			{
+				.from = base::unixtime::now(),
+				.recipient = randomRecipient(),
+				.value = base::RandomIndex(1000000) / 1000.,
+			},
+			tr::lng_channel_earn_history_out);
 	}
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
