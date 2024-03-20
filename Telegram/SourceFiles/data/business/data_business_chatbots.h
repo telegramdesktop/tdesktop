@@ -55,6 +55,8 @@ private:
 		mtpRequestId requestId = 0;
 	};
 
+	void reload();
+
 	const not_null<Session*> _owner;
 
 	rpl::variable<ChatbotsSettings> _settings;

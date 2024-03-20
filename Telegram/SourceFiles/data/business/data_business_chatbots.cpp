@@ -164,11 +164,18 @@ void Chatbots::removeFrom(not_null<PeerData*> peer) {
 			api->requestPeerSettings(peer);
 		}
 		_sentRequests.remove(peer);
+		reload();
 	}).fail([=] {
 		api->requestPeerSettings(peer);
 		_sentRequests.remove(peer);
 	}).send();
 	_sentRequests[peer] = SentRequest{ type, id };
+}
+
+void Chatbots::reload() {
+	_loaded = false;
+	_owner->session().api().request(base::take(_requestId)).cancel();
+	preload();
 }
 
 } // namespace Data
