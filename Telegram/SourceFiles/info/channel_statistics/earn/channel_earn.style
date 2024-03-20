@@ -59,3 +59,32 @@ channelEarnHistoryMinorLabelSkip: 1px;
 channelEarnHistoryOuter: margins(0px, 6px, 0px, 6px);
 channelEarnHistoryTwoSkip: 5px;
 channelEarnHistoryThreeSkip: 3px;
+
+channelEarnHistoryRecipientButton: RoundButton {
+	textFg: transparent;
+	textFgOver: transparent;
+	numbersTextFg: transparent;
+	numbersTextFgOver: transparent;
+	textBg: windowBgOver;
+	textBgOver: windowBgOver;
+
+	numbersSkip: 7px;
+
+	width: 190px;
+	height: 34px;
+	padding: margins(0px, 0px, 0px, 0px);
+
+	textTop: 8px;
+	radius: 8px;
+
+	iconPosition: point(0px, 0px);
+
+	font: semiboldFont;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+channelEarnHistoryRecipientButtonLabel: FlatLabel(channelEarnHistoryRecipientLabel) {
+	align: align(center);
+}
