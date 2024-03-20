@@ -9,3 +9,24 @@ using "ui/basic.style";
 using "boxes/boxes.style";
 
 channelEarnLearnArrowMargins: margins(-2px, 5px, 0px, 0px);
+
+channelEarnOverviewMajorLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 30px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+	}
+}
+channelEarnOverviewMinorLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	maxHeight: 30px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+}
+channelEarnOverviewMinorLabelSkip: 3px;
+channelEarnOverviewSubMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+}
+channelEarnOverviewSubMinorLabelSkip: 4px;
