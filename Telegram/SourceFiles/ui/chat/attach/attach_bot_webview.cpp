@@ -525,6 +525,9 @@ bool Panel::showWebview(
 				_webview->window.navigate(url);
 			}
 		}, &st::menuIconRestore);
+		callback(tr::lng_bot_terms(tr::now), [=] {
+			File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
+		}, &st::menuIconGroupLog);
 		const auto main = (_menuButtons & MenuButton::RemoveFromMainMenu);
 		if (main || (_menuButtons & MenuButton::RemoveFromMenu)) {
 			const auto handler = [=] {
