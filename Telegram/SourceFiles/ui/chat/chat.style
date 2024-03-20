@@ -1064,3 +1064,5 @@ historyIvIconPadding: margins(2px, 2px, 2px, 0px);
 
 chatIntroStickerSize: 96px;
 chatIntroWidth: 224px;
+chatIntroTitleMargin: margins(11px, 16px, 11px, 4px);
+chatIntroMargin: margins(11px, 0px, 11px, 0px);

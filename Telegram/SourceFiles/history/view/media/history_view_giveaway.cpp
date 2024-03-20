@@ -73,10 +73,21 @@ bool MediaInBubble::Part::hasHeavyPart() {
 void MediaInBubble::Part::unloadHeavyPart() {
 }
 
+auto MediaInBubble::Part::stickerTakePlayer(
+	not_null<DocumentData*> data,
+	const Lottie::ColorReplacements *replacements
+) -> std::unique_ptr<StickerPlayer> {
+	return nullptr;
+}
+
 MediaInBubble::MediaInBubble(
 	not_null<Element*> parent,
-	Fn<void(Fn<void(std::unique_ptr<Part>)>)> generate)
-: Media(parent) {
+	Fn<void(Fn<void(std::unique_ptr<Part>)>)> generate,
+	MediaInBubbleDescriptor &&descriptor)
+: Media(parent)
+, _maxWidthCap(descriptor.maxWidth)
+, _service(descriptor.service)
+, _hideServiceText(descriptor.hideServiceText) {
 	generate([&](std::unique_ptr<Part> part) {
 		_entries.push_back({
 			.object = std::move(part),
@@ -92,7 +103,9 @@ MediaInBubble::~MediaInBubble() {
 }
 
 QSize MediaInBubble::countOptimalSize() {
-	const auto maxWidth = st::chatGiveawayWidth;
+	const auto maxWidth = _maxWidthCap
+		? _maxWidthCap
+		: st::chatGiveawayWidth;
 
 	auto top = 0;
 	for (auto &entry : _entries) {
@@ -104,19 +117,26 @@ QSize MediaInBubble::countOptimalSize() {
 }
 
 QSize MediaInBubble::countCurrentSize(int newWidth) {
-	return { maxWidth(), minHeight()};
+	return { maxWidth(), minHeight() };
 }
 
 void MediaInBubble::draw(Painter &p, const PaintContext &context) const {
 	const auto outer = width();
 	if (outer < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return;
+	} else {
+		PainterHighQualityEnabler hq(p);
+		const auto radius = st::msgServiceGiftBoxRadius;
+		p.setPen(Qt::NoPen);
+		p.setBrush(context.st->msgServiceBg());
+		p.drawRoundedRect(QRect(0, 0, width(), height()), radius, radius);
 	}
+
 	auto translated = 0;
 	for (const auto &entry : _entries) {
 		const auto raw = entry.object.get();
 		const auto height = raw->height();
-		raw->draw(p, context, outer);
+		raw->draw(p, this, context, outer);
 		translated += height;
 		p.translate(0, height);
 	}
@@ -159,8 +179,26 @@ void MediaInBubble::clickHandlerPressedChanged(
 	}
 }
 
+
+std::unique_ptr<StickerPlayer> MediaInBubble::stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
+	for (const auto &entry : _entries) {
+		if (auto result = entry.object->stickerTakePlayer(
+				data,
+				replacements)) {
+			return result;
+		}
+	}
+	return nullptr;
+}
+
 bool MediaInBubble::hideFromName() const {
 	return !parent()->data()->Has<HistoryMessageForwarded>();
+}
+
+bool MediaInBubble::hideServiceText() const {
+	return _hideServiceText;
 }
 
 bool MediaInBubble::hasHeavyPart() const {
@@ -200,15 +238,21 @@ TextMediaInBubblePart::TextMediaInBubblePart(
 
 void TextMediaInBubblePart::draw(
 		Painter &p,
+		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const {
-	p.setPen(context.messageStyle()->historyTextFg);
+	const auto service = owner->service();
+	p.setPen(service
+		? context.st->msgServiceFg()
+		: context.messageStyle()->historyTextFg);
 	_text.draw(p, {
 		.position = { (outerWidth - width()) / 2, _margins.top() },
 		.outerWidth = outerWidth,
 		.availableWidth = width(),
 		.align = style::al_top,
-		.palette = &context.messageStyle()->textPalette,
+		.palette = &(service
+			? context.st->serviceTextPalette()
+			: context.messageStyle()->textPalette),
 		.now = context.now,
 	});
 }
@@ -253,6 +297,7 @@ TextDelimeterPart::TextDelimeterPart(
 
 void TextDelimeterPart::draw(
 		Painter &p,
+		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const {
 	const auto stm = context.messageStyle();
@@ -294,18 +339,18 @@ QSize TextDelimeterPart::countCurrentSize(int newWidth) {
 	return { newWidth, minHeight() };
 }
 
-StickerWithBadgePart::StickerWithBadgePart(
+StickerInBubblePart::StickerInBubblePart(
 	not_null<Element*> parent,
-	Fn<Data()> lookup,
-	QString badge)
+	Element *replacing,
+	Fn<Data()> lookup)
 : _parent(parent)
-, _lookup(std::move(lookup))
-, _badgeText(badge) {
-	ensureCreated();
+, _lookup(std::move(lookup)) {
+	ensureCreated(replacing);
 }
 
-void StickerWithBadgePart::draw(
+void StickerInBubblePart::draw(
 		Painter &p,
+		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const {
 	const auto stickerSize = st::msgServiceGiftBoxStickerSize;
@@ -314,49 +359,97 @@ void StickerWithBadgePart::draw(
 		st::chatGiveawayStickerTop + _skipTop,
 		stickerSize,
 		stickerSize);
-
+	ensureCreated();
 	if (_sticker) {
 		_sticker->draw(p, context, sticker);
-		paintBadge(p, context);
-	} else {
-		ensureCreated();
 	}
 }
 
-bool StickerWithBadgePart::hasHeavyPart() {
+bool StickerInBubblePart::hasHeavyPart() {
 	return _sticker && _sticker->hasHeavyPart();
 }
 
-void StickerWithBadgePart::unloadHeavyPart() {
+void StickerInBubblePart::unloadHeavyPart() {
 	if (_sticker) {
 		_sticker->unloadHeavyPart();
 	}
 }
 
-QSize StickerWithBadgePart::countOptimalSize() {
+std::unique_ptr<StickerPlayer> StickerInBubblePart::stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
+	return _sticker
+		? _sticker->stickerTakePlayer(data, replacements)
+		: nullptr;
+}
+
+QSize StickerInBubblePart::countOptimalSize() {
 	const auto size = st::msgServiceGiftBoxStickerSize;
 	return { size, st::chatGiveawayStickerTop + size };
 }
 
-QSize StickerWithBadgePart::countCurrentSize(int newWidth) {
+QSize StickerInBubblePart::countCurrentSize(int newWidth) {
 	return { newWidth, minHeight() };
 }
 
-void StickerWithBadgePart::ensureCreated() const {
+void StickerInBubblePart::ensureCreated(Element *replacing) const {
 	if (_sticker) {
 		return;
 	} else if (const auto data = _lookup()) {
-		const auto document = data.sticker;
-		if (const auto sticker = document->sticker()) {
-			const auto skipPremiumEffect = false;
+		const auto sticker = data.sticker;
+		if (const auto info = sticker->sticker()) {
+			const auto skipPremiumEffect = true;
 			_skipTop = data.skipTop;
-			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
-			_sticker->setDiceIndex(sticker->alt, 1);
-			_sticker->initSize(data.isGiftBoxSticker
-				? st::msgServiceGiftBoxStickerSize
-				: 0);
+			_sticker.emplace(_parent, sticker, skipPremiumEffect, replacing);
+			if (data.singleTimePlayback) {
+				_sticker->setDiceIndex(info->alt, 1);
+			}
+			_sticker->initSize(data.size);
+			_sticker->setCustomCachingTag(data.cacheTag);
 		}
 	}
+}
+
+StickerWithBadgePart::StickerWithBadgePart(
+	not_null<Element*> parent,
+	Element *replacing,
+	Fn<Data()> lookup,
+	QString badge)
+: _sticker(parent, replacing, std::move(lookup))
+, _badgeText(badge) {
+}
+
+void StickerWithBadgePart::draw(
+		Painter &p,
+		not_null<const MediaInBubble*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	_sticker.draw(p, owner, context, outerWidth);
+	if (_sticker.resolved()) {
+		paintBadge(p, context);
+	}
+}
+
+bool StickerWithBadgePart::hasHeavyPart() {
+	return _sticker.hasHeavyPart();
+}
+
+void StickerWithBadgePart::unloadHeavyPart() {
+	_sticker.unloadHeavyPart();
+}
+
+std::unique_ptr<StickerPlayer> StickerWithBadgePart::stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
+	return _sticker.stickerTakePlayer(data, replacements);
+}
+
+QSize StickerWithBadgePart::countOptimalSize() {
+	return _sticker.countOptimalSize();
+}
+
+QSize StickerWithBadgePart::countCurrentSize(int newWidth) {
+	return _sticker.countCurrentSize(newWidth);
 }
 
 void StickerWithBadgePart::paintBadge(
@@ -383,7 +476,7 @@ void StickerWithBadgePart::paintBadge(
 		p.drawRoundedRect(inner, radius, radius);
 	}
 
-	if (!_parent->usesBubblePattern(context)) {
+	if (!_sticker.parent()->usesBubblePattern(context)) {
 		paintContent(p);
 	} else {
 		Ui::PaintPatternBubblePart(
@@ -458,6 +551,7 @@ PeerBubbleListPart::~PeerBubbleListPart() = default;
 
 void PeerBubbleListPart::draw(
 		Painter &p,
+		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const {
 	if (_peers.empty()) {
@@ -647,10 +741,15 @@ auto GenerateGiveawayStart(
 		const auto sticker = [=] {
 			const auto &session = parent->history()->session();
 			auto &packs = session.giftBoxStickersPacks();
-			return Data{ packs.lookup(months), 0, true };
+			return Data{
+				.sticker = packs.lookup(months),
+				.size = st::msgServiceGiftBoxStickerSize,
+				.singleTimePlayback = true,
+			};
 		};
 		push(std::make_unique<StickerWithBadgePart>(
 			parent,
+			nullptr,
 			sticker,
 			tr::lng_prizes_badge(
 				tr::now,
@@ -778,11 +877,15 @@ auto GenerateGiveawayResults(
 			const auto &session = parent->history()->session();
 			auto &packs = session.diceStickersPacks();
 			const auto &emoji = Stickers::DicePacks::kPartyPopper;
-			const auto skip = st::chatGiveawayWinnersTopSkip;
-			return Data{ packs.lookup(emoji, 0), skip };
+			return Data{
+				.sticker = packs.lookup(emoji, 0),
+				.skipTop = st::chatGiveawayWinnersTopSkip,
+				.singleTimePlayback = true,
+			};
 		};
 		push(std::make_unique<StickerWithBadgePart>(
 			parent,
+			nullptr,
 			sticker,
 			tr::lng_prizes_badge(
 				tr::now,

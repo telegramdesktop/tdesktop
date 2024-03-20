@@ -22,6 +22,12 @@ class RippleAnimation;
 
 namespace HistoryView {
 
+struct MediaInBubbleDescriptor {
+	int maxWidth = 0;
+	bool service = false;
+	bool hideServiceText = false;
+};
+
 class MediaInBubble final : public Media {
 public:
 	class Part : public Object {
@@ -30,6 +36,7 @@ public:
 
 		virtual void draw(
 			Painter &p,
+			not_null<const MediaInBubble*> owner,
 			const PaintContext &context,
 			int outerWidth) const = 0;
 		[[nodiscard]] virtual TextState textState(
@@ -41,12 +48,21 @@ public:
 			bool pressed);
 		[[nodiscard]] virtual bool hasHeavyPart();
 		virtual void unloadHeavyPart();
+		[[nodiscard]] virtual auto stickerTakePlayer(
+			not_null<DocumentData*> data,
+			const Lottie::ColorReplacements *replacements
+		) -> std::unique_ptr<StickerPlayer>;
 	};
 
 	MediaInBubble(
 		not_null<Element*> parent,
-		Fn<void(Fn<void(std::unique_ptr<Part>)>)> generate);
+		Fn<void(Fn<void(std::unique_ptr<Part>)>)> generate,
+		MediaInBubbleDescriptor &&descriptor = {});
 	~MediaInBubble();
+
+	[[nodiscard]] bool service() const {
+		return _service;
+	}
 
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
@@ -59,11 +75,15 @@ public:
 		bool pressed) override;
 
 	bool needsBubble() const override {
-		return true;
+		return !_service;;
 	}
 	bool customInfoLayout() const override {
 		return false;
 	}
+
+	std::unique_ptr<StickerPlayer> stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) override;
 
 	bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const override {
@@ -74,6 +94,7 @@ public:
 	}
 
 	bool hideFromName() const override;
+	bool hideServiceText() const override;
 
 	void unloadHeavyPart() override;
 	bool hasHeavyPart() const override;
@@ -89,6 +110,9 @@ private:
 	[[nodiscard]] QMargins inBubblePadding() const;
 
 	std::vector<Entry> _entries;
+	int _maxWidthCap = 0;
+	bool _service : 1 = false;
+	bool _hideServiceText : 1 = false;
 
 };
 
@@ -101,6 +125,7 @@ public:
 
 	void draw(
 		Painter &p,
+		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const override;
 	TextState textState(
@@ -123,6 +148,7 @@ public:
 
 	void draw(
 		Painter &p,
+		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const override;
 
@@ -135,24 +161,34 @@ private:
 
 };
 
-class StickerWithBadgePart final : public MediaInBubble::Part {
+class StickerInBubblePart final : public MediaInBubble::Part {
 public:
 	struct Data {
 		DocumentData *sticker = nullptr;
 		int skipTop = 0;
-		bool isGiftBoxSticker = false;
+		int size = 0;
+		ChatHelpers::StickerLottieSize cacheTag = {};
+		bool singleTimePlayback = false;
 
 		explicit operator bool() const {
 			return sticker != nullptr;
 		}
 	};
-	StickerWithBadgePart(
+	StickerInBubblePart(
 		not_null<Element*> parent,
-		Fn<Data()> lookup,
-		QString badge);
+		Element *replacing,
+		Fn<Data()> lookup);
+
+	[[nodiscard]] not_null<Element*> parent() const {
+		return _parent;
+	}
+	[[nodiscard]] bool resolved() const {
+		return _sticker.has_value();
+	}
 
 	void draw(
 		Painter &p,
+		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const override;
 	bool hasHeavyPart() override;
@@ -161,16 +197,50 @@ public:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
+	std::unique_ptr<StickerPlayer> stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) override;
+
 private:
-	void ensureCreated() const;
-	void validateBadge(const PaintContext &context) const;
-	void paintBadge(Painter &p, const PaintContext &context) const;
+	void ensureCreated(Element *replacing = nullptr) const;
 
 	const not_null<Element*> _parent;
 	Fn<Data()> _lookup;
-	QString _badgeText;
 	mutable int _skipTop = 0;
 	mutable std::optional<Sticker> _sticker;
+
+};
+
+class StickerWithBadgePart final : public MediaInBubble::Part {
+public:
+	using Data = StickerInBubblePart::Data;
+	StickerWithBadgePart(
+		not_null<Element*> parent,
+		Element *replacing,
+		Fn<Data()> lookup,
+		QString badge);
+
+	void draw(
+		Painter &p,
+		not_null<const MediaInBubble*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+	bool hasHeavyPart() override;
+	void unloadHeavyPart() override;
+
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+	std::unique_ptr<StickerPlayer> stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) override;
+
+private:
+	void validateBadge(const PaintContext &context) const;
+	void paintBadge(Painter &p, const PaintContext &context) const;
+
+	StickerInBubblePart _sticker;
+	QString _badgeText;
 	mutable QColor _badgeFg;
 	mutable QColor _badgeBorder;
 	mutable QImage _badge;
@@ -187,6 +257,7 @@ public:
 
 	void draw(
 		Painter &p,
+		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const override;
 	TextState textState(

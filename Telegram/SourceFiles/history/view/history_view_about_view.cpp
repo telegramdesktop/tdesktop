@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "history/view/media/history_view_giveaway.h"
 #include "history/view/media/history_view_service_box.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
 #include "history/view/media/history_view_sticker.h"
@@ -105,6 +106,49 @@ private:
 	mutable std::optional<Sticker> _sticker;
 
 };
+
+auto GenerateChatIntro(
+	not_null<Element*> parent,
+	Element *replacing,
+	const Data::ChatIntro &data)
+-> Fn<void(Fn<void(std::unique_ptr<MediaInBubble::Part>)>)> {
+	return [=](Fn<void(std::unique_ptr<MediaInBubble::Part>)> push) {
+		auto pushText = [&](
+				TextWithEntities text,
+				QMargins margins = {},
+				const base::flat_map<uint16, ClickHandlerPtr> &links = {}) {
+			if (text.empty()) {
+				return;
+			}
+			push(std::make_unique<TextMediaInBubblePart>(
+				std::move(text),
+				margins,
+				links));
+		};
+		const auto title = data
+			? data.title
+			: tr::lng_chat_intro_default_title(tr::now);
+		const auto description = data
+			? data.description
+			: tr::lng_chat_intro_default_message(tr::now);
+		pushText(Ui::Text::Bold(title), st::chatIntroTitleMargin);
+		pushText({ description }, title.isEmpty()
+			? st::chatIntroTitleMargin
+			: st::chatIntroMargin);
+		const auto sticker = [=] {
+			using Tag = ChatHelpers::StickerLottieSize;
+			return StickerInBubblePart::Data{
+				.sticker = data.sticker,
+				.size = st::chatIntroStickerSize,
+				.cacheTag = Tag::ChatIntroHelloSticker,
+			};
+		};
+		push(std::make_unique<StickerInBubblePart>(
+			parent,
+			replacing,
+			sticker));
+	};
+}
 
 PremiumRequiredBox::PremiumRequiredBox(not_null<Element*> parent)
 : _parent(parent) {
@@ -330,13 +374,18 @@ void AboutView::make(Data::ChatIntro data) {
 			| MessageFlag::FakeHistoryItem
 			| MessageFlag::Local),
 		.from = _history->peer->id,
-	}, PreparedServiceText{ { data.description } });
+	}, PreparedServiceText{ { } });
 
-	setItem(AdminLog::OwnedItem(_delegate, item), data.sticker);
-
-	_item->overrideMedia(std::make_unique<ServiceBox>(
-		_item.get(),
-		std::make_unique<ChatIntroBox>(_item.get(), data)));
+	auto owned = AdminLog::OwnedItem(_delegate, item);
+	owned->overrideMedia(std::make_unique<HistoryView::MediaInBubble>(
+		owned.get(),
+		GenerateChatIntro(owned.get(), _item.get(), data),
+		HistoryView::MediaInBubbleDescriptor{
+			.maxWidth = st::chatIntroWidth,
+			.service = true,
+			.hideServiceText = true,
+		}));
+	setItem(std::move(owned), data.sticker);
 }
 
 void AboutView::setItem(AdminLog::OwnedItem item, DocumentData *sticker) {
