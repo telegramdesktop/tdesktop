@@ -39,7 +39,9 @@ int PremiumGift::top() {
 }
 
 QSize PremiumGift::size() {
-	return st::msgServiceGiftBoxStickerSize;
+	return QSize(
+		st::msgServiceGiftBoxStickerSize,
+		st::msgServiceGiftBoxStickerSize);
 }
 
 QString PremiumGift::title() {
@@ -172,8 +174,7 @@ void PremiumGift::ensureStickerCreated() const {
 			const auto skipPremiumEffect = false;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
 			_sticker->setDiceIndex(sticker->alt, 1);
-			_sticker->setGiftBoxSticker(true);
-			_sticker->initSize();
+			_sticker->initSize(st::msgServiceGiftBoxStickerSize);
 		}
 	}
 }

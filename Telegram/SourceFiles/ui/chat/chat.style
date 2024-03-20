@@ -923,7 +923,7 @@ msgServiceGiftBoxButtonPadding: margins(2px, 0px, 2px, 0px);
 msgServiceGiftBoxButtonMargins: margins(0px, 13px, 0px, 17px);
 msgServiceGiftBoxTitlePadding: margins(0px, 5px, 0px, 2px);
 msgServiceGiftBoxStickerTop: -19px;
-msgServiceGiftBoxStickerSize: size(140px, 140px);
+msgServiceGiftBoxStickerSize: 140px;
 
 historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {

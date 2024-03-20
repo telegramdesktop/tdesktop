@@ -310,10 +310,10 @@ void StickerWithBadgePart::draw(
 		int outerWidth) const {
 	const auto stickerSize = st::msgServiceGiftBoxStickerSize;
 	const auto sticker = QRect(
-		(outerWidth - stickerSize.width()) / 2,
+		(outerWidth - stickerSize) / 2,
 		st::chatGiveawayStickerTop + _skipTop,
-		stickerSize.width(),
-		stickerSize.height());
+		stickerSize,
+		stickerSize);
 
 	if (_sticker) {
 		_sticker->draw(p, context, sticker);
@@ -335,7 +335,7 @@ void StickerWithBadgePart::unloadHeavyPart() {
 
 QSize StickerWithBadgePart::countOptimalSize() {
 	const auto size = st::msgServiceGiftBoxStickerSize;
-	return { size.width(), st::chatGiveawayStickerTop + size.height() };
+	return { size, st::chatGiveawayStickerTop + size };
 }
 
 QSize StickerWithBadgePart::countCurrentSize(int newWidth) {
@@ -352,8 +352,9 @@ void StickerWithBadgePart::ensureCreated() const {
 			_skipTop = data.skipTop;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
 			_sticker->setDiceIndex(sticker->alt, 1);
-			_sticker->setGiftBoxSticker(data.isGiftBoxSticker);
-			_sticker->initSize();
+			_sticker->initSize(data.isGiftBoxSticker
+				? st::msgServiceGiftBoxStickerSize
+				: 0);
 		}
 	}
 }

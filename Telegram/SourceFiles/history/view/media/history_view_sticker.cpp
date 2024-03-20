@@ -130,20 +130,18 @@ bool Sticker::hasPremiumEffect() const {
 }
 
 bool Sticker::customEmojiPart() const {
-	return (_cachingTag != ChatHelpers::StickerLottieSize::MessageHistory);
+	return _customEmojiPart;
 }
 
-bool Sticker::isEmojiSticker() const {
-	return (_parent->data()->media() == nullptr);
+bool Sticker::emojiSticker() const {
+	return _emojiSticker;
 }
 
-void Sticker::initSize() {
-	if (isEmojiSticker() || _diceIndex >= 0) {
-		if (_giftBoxSticker) {
-			_size = st::msgServiceGiftBoxStickerSize;
-		} else {
-			_size = EmojiSize();
-		}
+void Sticker::initSize(int customSize) {
+	if (customSize > 0) {
+		_size = { customSize, customSize };
+	} else if (emojiSticker() || _diceIndex >= 0) {
+		_size = EmojiSize();
 		if (_diceIndex > 0) {
 			[[maybe_unused]] bool result = readyToDrawAnimationFrame();
 		}
@@ -252,7 +250,7 @@ void Sticker::paintAnimationFrame(
 		: (context.selected() && !_nextLastDiceFrame)
 		? context.st->msgStickerOverlay()->c
 		: QColor(0, 0, 0, 0);
-	const auto powerSavingFlag = (isEmojiSticker() || _diceIndex >= 0)
+	const auto powerSavingFlag = (emojiSticker() || _diceIndex >= 0)
 		? PowerSaving::kEmojiChat
 		: PowerSaving::kStickersChat;
 	const auto paused = context.paused || On(powerSavingFlag);
@@ -298,7 +296,7 @@ void Sticker::paintAnimationFrame(
 		? true
 		: (_diceIndex == 0)
 		? false
-		: ((!customEmojiPart() && isEmojiSticker())
+		: ((!customEmojiPart() && emojiSticker())
 			|| !Core::App().settings().loopAnimatedStickers());
 	const auto lastDiceFrame = (_diceIndex > 0) && atTheEnd();
 	const auto switchToNext = !playOnce
@@ -421,7 +419,7 @@ void Sticker::refreshLink() {
 		return;
 	}
 	const auto sticker = _data->sticker();
-	if (isEmojiSticker()) {
+	if (emojiSticker()) {
 		const auto weak = base::make_weak(this);
 		_link = std::make_shared<LambdaClickHandler>([weak] {
 			if (const auto that = weak.get()) {
@@ -499,15 +497,16 @@ void Sticker::setDiceIndex(const QString &emoji, int index) {
 	_diceIndex = index;
 }
 
-void Sticker::setCustomEmojiPart(
-		int size,
-		ChatHelpers::StickerLottieSize tag) {
-	_size = { size, size };
+void Sticker::setCustomCachingTag(ChatHelpers::StickerLottieSize tag) {
 	_cachingTag = tag;
 }
 
-void Sticker::setGiftBoxSticker(bool giftBoxSticker) {
-	_giftBoxSticker = giftBoxSticker;
+void Sticker::setCustomEmojiPart() {
+	_customEmojiPart = true;
+}
+
+void Sticker::setEmojiSticker() {
+	_emojiSticker = true;
 }
 
 void Sticker::setupPlayer() {

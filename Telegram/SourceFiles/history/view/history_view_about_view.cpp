@@ -180,13 +180,10 @@ ChatIntroBox::ChatIntroBox(not_null<Element*> parent, Data::ChatIntro data)
 , _data(data) {
 	if (const auto document = data.sticker) {
 		if (const auto sticker = document->sticker()) {
-			const auto skipPremiumEffect = false;
+			const auto skipPremiumEffect = true;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
-			_sticker->setDiceIndex(sticker->alt, 0);
-			_sticker->setGiftBoxSticker(true);
-			_sticker->initSize();
-			_sticker->setCustomEmojiPart(
-				st::chatIntroStickerSize,
+			_sticker->initSize(st::chatIntroStickerSize);
+			_sticker->setCustomCachingTag(
 				ChatHelpers::StickerLottieSize::ChatIntroHelloSticker);
 		}
 	}

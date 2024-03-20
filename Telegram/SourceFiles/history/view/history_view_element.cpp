@@ -753,14 +753,16 @@ void Element::refreshMedia(Element *replacing) {
 		const auto emojiStickers = &history()->session().emojiStickersPack();
 		const auto skipPremiumEffect = false;
 		if (const auto sticker = emojiStickers->stickerForEmoji(emoji)) {
+			auto content = std::make_unique<Sticker>(
+				this,
+				sticker.document,
+				skipPremiumEffect,
+				replacing,
+				sticker.replacements);
+			content->setEmojiSticker();
 			_media = std::make_unique<UnwrappedMedia>(
 				this,
-				std::make_unique<Sticker>(
-					this,
-					sticker.document,
-					skipPremiumEffect,
-					replacing,
-					sticker.replacements));
+				std::move(content));
 		} else {
 			_media = std::make_unique<UnwrappedMedia>(
 				this,
