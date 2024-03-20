@@ -1019,14 +1019,8 @@ void EditTagBox(
 	struct State {
 		std::unique_ptr<Ui::Text::CustomEmoji> custom;
 		QImage image;
-		rpl::variable<int> length;
 	};
 	const auto state = field->lifetime().make_state<State>();
-	state->length = rpl::single(
-		int(title.size())
-	) | rpl::then(field->changes() | rpl::map([=] {
-		return int(field->getLastText().size());
-	}));
 
 	if (const auto customId = id.custom()) {
 		state->custom = owner->customEmojiManager().create(
@@ -1059,28 +1053,8 @@ void EditTagBox(
 			}
 		}
 	}, field->lifetime());
-	const auto warning = Ui::CreateChild<Ui::FlatLabel>(
-		field,
-		state->length.value() | rpl::map([](int count) {
-			return (count > kTagNameLimit / 2)
-				? QString::number(kTagNameLimit - count)
-				: QString();
-			}),
-		st::editTagLimit);
-	state->length.value() | rpl::map(
-		rpl::mappers::_1 > kTagNameLimit
-	) | rpl::start_with_next([=](bool exceeded) {
-		warning->setTextColorOverride(exceeded
-			? st::attentionButtonFg->c
-			: std::optional<QColor>());
-	}, warning->lifetime());
-	rpl::combine(
-		field->sizeValue(),
-		warning->sizeValue()
-	) | rpl::start_with_next([=] {
-		warning->moveToRight(0, st::editTagField.textMargins.top());
-	}, warning->lifetime());
-	warning->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	AddLengthLimitLabel(field, kTagNameLimit);
 
 	const auto save = [=] {
 		const auto text = field->getLastText();
@@ -1838,6 +1812,42 @@ bool ItemHasTtl(HistoryItem *item) {
 	return (item && item->media())
 		? (item->media()->ttlSeconds() > 0)
 		: false;
+}
+
+void AddLengthLimitLabel(not_null<Ui::InputField*> field, int limit) {
+	struct State {
+		rpl::variable<int> length;
+	};
+	const auto state = field->lifetime().make_state<State>();
+	state->length = rpl::single(
+		rpl::empty
+	) | rpl::then(field->changes()) | rpl::map([=] {
+		return int(field->getLastText().size());
+	});
+	auto warningText = state->length.value() | rpl::map([=](int count) {
+		const auto threshold = std::min(limit / 2, 9);
+		const auto left = limit - count;
+		return (left < threshold) ? QString::number(left) : QString();
+	});
+	const auto warning = Ui::CreateChild<Ui::FlatLabel>(
+		field.get(),
+		std::move(warningText),
+		st::editTagLimit);
+	state->length.value() | rpl::map(
+		rpl::mappers::_1 > limit
+	) | rpl::start_with_next([=](bool exceeded) {
+		warning->setTextColorOverride(exceeded
+			? st::attentionButtonFg->c
+			: std::optional<QColor>());
+	}, warning->lifetime());
+	rpl::combine(
+		field->sizeValue(),
+		warning->sizeValue()
+	) | rpl::start_with_next([=] {
+		warning->moveToRight(0, 0);
+	}, warning->lifetime());
+	warning->setAttribute(Qt::WA_TransparentForMouseEvents);
+
 }
 
 } // namespace HistoryView

@@ -16,9 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "history/view/history_view_about_view.h"
+#include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/business/settings_recipients_helper.h"
 #include "ui/chat/chat_style.h"
@@ -140,6 +143,30 @@ private:
 	rpl::variable<Data::ChatIntro> _intro;
 
 };
+
+[[nodiscard]] int PartLimit(
+		not_null<Main::Session*> session,
+		const QString &key,
+		int defaultValue) {
+	return session->account().appConfig().get<int>(key, defaultValue);
+}
+
+[[nodiscard]] not_null<Ui::InputField*> AddPartInput(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> placeholder,
+		QString current,
+		int limit) {
+	const auto field = container->add(
+		object_ptr<Ui::InputField>(
+			container,
+			st::settingsChatIntroField,
+			tr::lng_chat_intro_enter_title(),
+			current),
+		st::settingsChatIntroFieldMargins);
+	field->setMaxLength(limit);
+	HistoryView::AddLengthLimitLabel(field, limit);
+	return field;
+}
 
 [[nodiscard]] object_ptr<Ui::SettingsButton> CreateIntroStickerButton(
 		not_null<Ui::RpWidget*> parent,
@@ -264,6 +291,10 @@ PreviewWrap::PreviewWrap(
 		if (view == _view->view()) {
 			update();
 		}
+	}, lifetime());
+
+	session->downloaderTaskFinished() | rpl::start_with_next([=] {
+		update();
 	}, lifetime());
 
 	prepare(std::move(value));
@@ -438,19 +469,28 @@ rpl::producer<QString> ChatIntro::title() {
 [[nodiscard]] rpl::producer<Data::ChatIntro> IntroWithRandomSticker(
 		not_null<Main::Session*> session,
 		rpl::producer<Data::ChatIntro> intro) {
-	return std::move(intro) | rpl::map([=](Data::ChatIntro intro)
-	-> rpl::producer<Data::ChatIntro> {
-		if (intro.sticker) {
-			return rpl::single(std::move(intro));
+	auto random = rpl::single(
+		Api::RandomHelloStickerValue(session)
+	) | rpl::then(rpl::duplicate(
+		intro
+	) | rpl::map([=](const Data::ChatIntro &intro) {
+		return intro.sticker;
+	}) | rpl::distinct_until_changed(
+	) | rpl::filter([](DocumentData *sticker) {
+		return !sticker;
+	}) | rpl::map([=] {
+		return Api::RandomHelloStickerValue(session);
+	})) | rpl::flatten_latest();
+
+	return rpl::combine(
+		std::move(intro),
+		std::move(random)
+	) | rpl::map([=](Data::ChatIntro intro, DocumentData *hello) {
+		if (!intro.sticker) {
+			intro.sticker = hello;
 		}
-		return Api::RandomHelloStickerValue(
-			session
-		) | rpl::map([=](DocumentData *sticker) {
-			auto copy = intro;
-			copy.sticker = sticker;
-			return copy;
-		});
-	}) | rpl::flatten_latest();
+		return intro;
+	});
 }
 
 void ChatIntro::setupContent(
@@ -458,7 +498,8 @@ void ChatIntro::setupContent(
 	using namespace rpl::mappers;
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-	const auto info = &controller->session().data().businessInfo();
+	const auto session = &controller->session();
+	const auto info = &session->data().businessInfo();
 	const auto current = info->chatIntro();
 
 	_intro = info->chatIntro();
@@ -471,24 +512,20 @@ void ChatIntro::setupContent(
 	const auto preview = content->add(
 		object_ptr<PreviewWrap>(
 			content,
-			&controller->session(),
-			IntroWithRandomSticker(&controller->session(), _intro.value())),
+			session,
+			IntroWithRandomSticker(session, _intro.value())),
 		{});
 
-	const auto title = content->add(
-		object_ptr<Ui::InputField>(
-			content,
-			st::settingsChatIntroField,
-			tr::lng_chat_intro_enter_title(),
-			current.title),
-		st::settingsChatIntroFieldMargins);
-	const auto description = content->add(
-		object_ptr<Ui::InputField>(
-			content,
-			st::settingsChatIntroField,
-			tr::lng_chat_intro_enter_message(),
-			current.description),
-		st::settingsChatIntroFieldMargins);
+	const auto title = AddPartInput(
+		content,
+		tr::lng_chat_intro_enter_title(),
+		current.title,
+		PartLimit(session, u"intro_title_length_limit"_q, 32));
+	const auto description = AddPartInput(
+		content,
+		tr::lng_chat_intro_enter_message(),
+		current.description,
+		PartLimit(session, u"intro_description_length_limit"_q, 70));
 	content->add(CreateIntroStickerButton(
 		content,
 		controller->uiShow(),
@@ -538,6 +575,9 @@ void ChatIntro::setupContent(
 		}));
 	resetWrap->entity()->setClickedCallback([=] {
 		_intro = Data::ChatIntro();
+		title->clear();
+		description->clear();
+		title->setFocus();
 	});
 
 	Ui::ResizeFitChild(this, content);

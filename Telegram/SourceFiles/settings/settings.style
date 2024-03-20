@@ -641,5 +641,6 @@ settingsChatbotsDeleteIcon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenu
 settingsChatbotsDeleteIconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};
 
 settingsChatIntroField: InputField(defaultMultiSelectSearchField) {
+	textMargins: margins(2px, 0px, 32px, 0px);
 }
-settingsChatIntroFieldMargins: margins(20px, 8px, 20px, 8px);
+settingsChatIntroFieldMargins: margins(20px, 15px, 20px, 8px);
