@@ -171,7 +171,7 @@ RUN git clone -b v1.4 --depth=1 {{ GIT }}/xiph/opus.git \
 FROM builder AS dav1d
 COPY --link --from=nasm {{ LibrariesPath }}/nasm-cache /
 
-RUN git clone -b 1.2.1 --depth=1 {{ GIT }}/videolan/dav1d.git \
+RUN git clone -b 1.4.1 --depth=1 {{ GIT }}/videolan/dav1d.git \
 	&& cd dav1d \
 	&& meson build \
 		--buildtype=plain \
@@ -184,7 +184,7 @@ RUN git clone -b 1.2.1 --depth=1 {{ GIT }}/videolan/dav1d.git \
 	&& rm -rf dav1d
 
 FROM builder AS libde265
-RUN git clone -b v1.0.12 --depth=1 {{ GIT }}/strukturag/libde265.git \
+RUN git clone -b v1.0.15 --depth=1 {{ GIT }}/strukturag/libde265.git \
 	&& cd libde265 \
 	&& cmake -GNinja . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -238,7 +238,7 @@ RUN git clone -b chrome-m116-5845 --depth=1 {{ GIT }}/webmproject/libwebp.git \
 FROM builder AS libavif
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 
-RUN git clone -b v1.0.1 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
+RUN git clone -b v1.0.4 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
 	&& cd libavif \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -252,7 +252,7 @@ RUN git clone -b v1.0.1 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
 FROM builder AS libheif
 COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
 
-RUN git clone -b v1.16.2 --depth=1 {{ GIT }}/strukturag/libheif.git \
+RUN git clone -b v1.17.6 --depth=1 {{ GIT }}/strukturag/libheif.git \
 	&& cd libheif \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
