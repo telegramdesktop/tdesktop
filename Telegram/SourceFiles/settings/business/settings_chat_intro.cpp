@@ -9,12 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_premium.h"
 #include "boxes/peers/edit_peer_color_box.h" // ButtonStyleWithRightEmoji
+#include "chat_helpers/stickers_lottie.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/application.h"
 #include "data/business/data_business_info.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
+#include "history/view/media/history_view_media_common.h"
+#include "history/view/media/history_view_sticker_player.h"
 #include "history/view/history_view_about_view.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
@@ -97,7 +101,6 @@ public:
 	struct Descriptor {
 		not_null<Window::SessionController*> controller;
 		not_null<QWidget*> button;
-		DocumentId ensureAddedId = 0;
 	};
 	void show(Descriptor &&descriptor);
 	void repaint();
@@ -164,8 +167,47 @@ private:
 			current),
 		st::settingsChatIntroFieldMargins);
 	field->setMaxLength(limit);
-	HistoryView::AddLengthLimitLabel(field, limit);
+	AddLengthLimitLabel(field, limit);
 	return field;
+}
+
+
+rpl::producer<std::shared_ptr<StickerPlayer>> IconPlayerValue(
+		not_null<DocumentData*> sticker,
+		Fn<void()> update) {
+	const auto media = sticker->createMediaView();
+	media->checkStickerLarge();
+	media->goodThumbnailWanted();
+
+	return rpl::single() | rpl::then(
+		sticker->owner().session().downloaderTaskFinished()
+	) | rpl::filter([=] {
+		return media->loaded();
+	}) | rpl::take(1) | rpl::map([=] {
+		auto result = std::shared_ptr<StickerPlayer>();
+		const auto info = sticker->sticker();
+		const auto box = QSize(st::emojiSize, st::emojiSize);
+		if (info->isLottie()) {
+			result = std::make_shared<LottiePlayer>(
+				ChatHelpers::LottiePlayerFromDocument(
+					media.get(),
+					ChatHelpers::StickerLottieSize::StickerEmojiSize,
+					box,
+					Lottie::Quality::High));
+		} else if (info->isWebm()) {
+			result = std::make_shared<WebmPlayer>(
+				media->owner()->location(),
+				media->bytes(),
+				box);
+		} else {
+			result = std::make_shared<StaticStickerPlayer>(
+				media->owner()->location(),
+				media->bytes(),
+				box);
+		}
+		result->setRepaintCallback(update);
+		return result;
+	});
 }
 
 [[nodiscard]] object_ptr<Ui::SettingsButton> CreateIntroStickerButton(
@@ -188,7 +230,9 @@ private:
 
 	struct State {
 		StickerPanel panel;
-		DocumentId stickerId = 0;
+		DocumentData *sticker = nullptr;
+		std::shared_ptr<StickerPlayer> player;
+		rpl::lifetime playerLifetime;
 	};
 	const auto state = right->lifetime().make_state<State>();
 	state->panel.someCustomChosen(
@@ -200,11 +244,23 @@ private:
 	std::move(
 		stickerValue
 	) | rpl::start_with_next([=](DocumentData *sticker) {
-		state->stickerId = sticker ? sticker->id : 0;
-		right->resize(
-			(sticker ? button.emojiWidth : button.noneWidth) + button.added,
-			right->height());
-		right->update();
+		state->sticker = sticker;
+		if (sticker) {
+			right->resize(button.emojiWidth + button.added, right->height());
+			IconPlayerValue(
+				sticker,
+				[=] { right->update(); }
+			) | rpl::start_with_next([=](
+					std::shared_ptr<StickerPlayer> player) {
+				state->player = std::move(player);
+				right->update();
+			}, state->playerLifetime);
+		} else {
+			state->playerLifetime.destroy();
+			state->player = nullptr;
+			right->resize(button.noneWidth + button.added, right->height());
+			right->update();
+		}
 	}, right->lifetime());
 
 	rpl::combine(
@@ -220,8 +276,26 @@ private:
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(right);
 		const auto height = right->height();
-		if (false) {
-			// #TODO paint small sticker
+		if (state->player) {
+			if (state->player->ready()) {
+				const auto frame = state->player->frame(
+					QSize(st::emojiSize, st::emojiSize),
+					QColor(0, 0, 0, 0),
+					false,
+					crl::now(),
+					!right->window()->isActiveWindow()).image;
+				const auto target = DownscaledSize(
+					frame.size(),
+					QSize(st::emojiSize, st::emojiSize));
+				p.drawImage(
+					QRect(
+						button.added + (st::emojiSize - target.width()) / 2,
+						(height - target.height()) / 2,
+						target.width(),
+						target.height()),
+					frame);
+				state->player->markFrameShown();
+			}
 		} else {
 			const auto &font = st::normalFont;
 			p.setFont(font);
@@ -241,7 +315,6 @@ private:
 			state->panel.show({
 				.controller = controller,
 				.button = right,
-				.ensureAddedId = state->stickerId,
 			});
 		}
 	});
@@ -384,14 +457,6 @@ void StickerPanel::show(Descriptor &&descriptor) {
 		}
 	}
 	_panelButton = button;
-	const auto feed = [=, now = descriptor.ensureAddedId](
-			std::vector<DocumentId> list) {
-		list.insert(begin(list), 0);
-		if (now && !ranges::contains(list, now)) {
-			list.push_back(now);
-		}
-		_panel->selector()->provideRecentEmoji(list);
-	};
 	const auto parent = _panel->parentWidget();
 	const auto global = button->mapToGlobal(QPoint());
 	const auto local = parent->mapFromGlobal(global);

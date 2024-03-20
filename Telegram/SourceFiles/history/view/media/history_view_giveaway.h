@@ -177,7 +177,8 @@ public:
 	StickerInBubblePart(
 		not_null<Element*> parent,
 		Element *replacing,
-		Fn<Data()> lookup);
+		Fn<Data()> lookup,
+		QMargins padding);
 
 	[[nodiscard]] not_null<Element*> parent() const {
 		return _parent;
@@ -207,6 +208,7 @@ private:
 	const not_null<Element*> _parent;
 	Fn<Data()> _lookup;
 	mutable int _skipTop = 0;
+	mutable QMargins _padding;
 	mutable std::optional<Sticker> _sticker;
 
 };
@@ -218,6 +220,7 @@ public:
 		not_null<Element*> parent,
 		Element *replacing,
 		Fn<Data()> lookup,
+		QMargins padding,
 		QString badge);
 
 	void draw(

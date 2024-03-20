@@ -146,7 +146,8 @@ auto GenerateChatIntro(
 		push(std::make_unique<StickerInBubblePart>(
 			parent,
 			replacing,
-			sticker));
+			sticker,
+			st::chatIntroStickerPadding));
 	};
 }
 

@@ -342,9 +342,11 @@ QSize TextDelimeterPart::countCurrentSize(int newWidth) {
 StickerInBubblePart::StickerInBubblePart(
 	not_null<Element*> parent,
 	Element *replacing,
-	Fn<Data()> lookup)
+	Fn<Data()> lookup,
+	QMargins padding)
 : _parent(parent)
-, _lookup(std::move(lookup)) {
+, _lookup(std::move(lookup))
+, _padding(padding) {
 	ensureCreated(replacing);
 }
 
@@ -353,14 +355,14 @@ void StickerInBubblePart::draw(
 		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const {
-	const auto stickerSize = st::msgServiceGiftBoxStickerSize;
-	const auto sticker = QRect(
-		(outerWidth - stickerSize) / 2,
-		st::chatGiveawayStickerTop + _skipTop,
-		stickerSize,
-		stickerSize);
 	ensureCreated();
 	if (_sticker) {
+		const auto stickerSize = _sticker->countOptimalSize();
+		const auto sticker = QRect(
+			(outerWidth - stickerSize.width()) / 2,
+			_padding.top() + _skipTop,
+			stickerSize.width(),
+			stickerSize.height());
 		_sticker->draw(p, context, sticker);
 	}
 }
@@ -384,8 +386,15 @@ std::unique_ptr<StickerPlayer> StickerInBubblePart::stickerTakePlayer(
 }
 
 QSize StickerInBubblePart::countOptimalSize() {
-	const auto size = st::msgServiceGiftBoxStickerSize;
-	return { size, st::chatGiveawayStickerTop + size };
+	ensureCreated();
+	const auto size = _sticker ? _sticker->countOptimalSize() : [&] {
+		const auto fallback = _lookup().size;
+		return QSize{ fallback, fallback };
+	}();
+	return {
+		_padding.left() + size.width() + _padding.right(),
+		_padding.top() + size.height() + _padding.bottom(),
+	};
 }
 
 QSize StickerInBubblePart::countCurrentSize(int newWidth) {
@@ -414,8 +423,9 @@ StickerWithBadgePart::StickerWithBadgePart(
 	not_null<Element*> parent,
 	Element *replacing,
 	Fn<Data()> lookup,
+	QMargins padding,
 	QString badge)
-: _sticker(parent, replacing, std::move(lookup))
+: _sticker(parent, replacing, std::move(lookup), padding)
 , _badgeText(badge) {
 }
 
@@ -751,6 +761,7 @@ auto GenerateGiveawayStart(
 			parent,
 			nullptr,
 			sticker,
+			QMargins(0, st::chatGiveawayStickerTop, 0, 0),
 			tr::lng_prizes_badge(
 				tr::now,
 				lt_amount,
@@ -887,6 +898,7 @@ auto GenerateGiveawayResults(
 			parent,
 			nullptr,
 			sticker,
+			QMargins(0, st::chatGiveawayStickerTop, 0, 0),
 			tr::lng_prizes_badge(
 				tr::now,
 				lt_amount,

@@ -1066,3 +1066,4 @@ chatIntroStickerSize: 96px;
 chatIntroWidth: 224px;
 chatIntroTitleMargin: margins(11px, 16px, 11px, 4px);
 chatIntroMargin: margins(11px, 0px, 11px, 0px);
+chatIntroStickerPadding: margins(10px, 8px, 10px, 16px);

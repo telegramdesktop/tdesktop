@@ -139,7 +139,11 @@ bool Sticker::emojiSticker() const {
 
 void Sticker::initSize(int customSize) {
 	if (customSize > 0) {
-		_size = { customSize, customSize };
+		const auto original = Size(_data);
+		const auto proposed = QSize{ customSize, customSize };
+		_size = original.isEmpty()
+			? proposed
+			: DownscaledSize(original, proposed);
 	} else if (emojiSticker() || _diceIndex >= 0) {
 		_size = EmojiSize();
 		if (_diceIndex > 0) {
