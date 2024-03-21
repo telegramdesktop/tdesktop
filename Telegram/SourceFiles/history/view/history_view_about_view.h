@@ -36,11 +36,15 @@ public:
 private:
 	[[nodiscard]] AdminLog::OwnedItem makeAboutBot(not_null<BotInfo*> info);
 	[[nodiscard]] AdminLog::OwnedItem makePremiumRequired();
+	void makeIntro(not_null<UserData*> user);
 	void setItem(AdminLog::OwnedItem item, DocumentData *sticker);
+	void setHelloChosen(not_null<DocumentData*> sticker);
+	void toggleStickerRegistered(bool registered);
 
 	const not_null<History*> _history;
 	const not_null<ElementDelegate*> _delegate;
 	AdminLog::OwnedItem _item;
+	DocumentData *_helloChosen = nullptr;
 	DocumentData *_sticker = nullptr;
 	int _version = 0;
 

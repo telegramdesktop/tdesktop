@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_about_view.h"
 
+#include "api/api_premium.h"
+#include "apiwrap.h"
+#include "base/random.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/click_handler_types.h"
 #include "data/business/data_business_common.h"
@@ -70,47 +73,11 @@ private:
 
 };
 
-class ChatIntroBox final : public ServiceBoxContent {
-public:
-	ChatIntroBox(not_null<Element*> parent, Data::ChatIntro data);
-	~ChatIntroBox();
-
-	int width() override;
-	int top() override;
-	QSize size() override;
-	QString title() override;
-	TextWithEntities subtitle() override;
-	int buttonSkip() override;
-	rpl::producer<QString> button() override;
-	void draw(
-		Painter &p,
-		const PaintContext &context,
-		const QRect &geometry) override;
-	ClickHandlerPtr createViewLink() override;
-
-	bool hideServiceText() override {
-		return true;
-	}
-
-	void stickerClearLoopPlayed() override;
-	std::unique_ptr<StickerPlayer> stickerTakePlayer(
-		not_null<DocumentData*> data,
-		const Lottie::ColorReplacements *replacements) override;
-
-	bool hasHeavyPart() override;
-	void unloadHeavyPart() override;
-
-private:
-	const not_null<Element*> _parent;
-	const Data::ChatIntro _data;
-	mutable std::optional<Sticker> _sticker;
-
-};
-
 auto GenerateChatIntro(
 	not_null<Element*> parent,
 	Element *replacing,
-	const Data::ChatIntro &data)
+	const Data::ChatIntro &data,
+	Fn<void(not_null<DocumentData*>)> helloChosen)
 -> Fn<void(Fn<void(std::unique_ptr<MediaInBubble::Part>)>)> {
 	return [=](Fn<void(std::unique_ptr<MediaInBubble::Part>)> push) {
 		auto pushText = [&](
@@ -137,8 +104,19 @@ auto GenerateChatIntro(
 			: st::chatIntroMargin);
 		const auto sticker = [=] {
 			using Tag = ChatHelpers::StickerLottieSize;
+			auto sticker = data.sticker;
+			if (!sticker) {
+				const auto api = &parent->history()->session().api();
+				const auto &list = api->premium().helloStickers();
+				if (!list.empty()) {
+					sticker = list[base::RandomIndex(list.size())];
+					if (helloChosen) {
+						helloChosen(sticker);
+					}
+				}
+			}
 			return StickerInBubblePart::Data{
-				.sticker = data.sticker,
+				.sticker = sticker,
 				.size = st::chatIntroStickerSize,
 				.cacheTag = Tag::ChatIntroHelloSticker,
 			};
@@ -220,96 +198,6 @@ bool PremiumRequiredBox::hasHeavyPart() {
 void PremiumRequiredBox::unloadHeavyPart() {
 }
 
-ChatIntroBox::ChatIntroBox(not_null<Element*> parent, Data::ChatIntro data)
-: _parent(parent)
-, _data(data) {
-	if (const auto document = data.sticker) {
-		if (const auto sticker = document->sticker()) {
-			const auto skipPremiumEffect = true;
-			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
-			_sticker->initSize(st::chatIntroStickerSize);
-			_sticker->setCustomCachingTag(
-				ChatHelpers::StickerLottieSize::ChatIntroHelloSticker);
-		}
-	}
-}
-
-ChatIntroBox::~ChatIntroBox() = default;
-
-int ChatIntroBox::width() {
-	return st::chatIntroWidth;
-}
-
-int ChatIntroBox::top() {
-	return st::msgServiceGiftBoxButtonMargins.top();
-}
-
-QSize ChatIntroBox::size() {
-	return { st::msgServicePhotoWidth, st::msgServicePhotoWidth };
-}
-
-QString ChatIntroBox::title() {
-	return _data ? _data.title : tr::lng_chat_intro_default_title(tr::now);
-}
-
-int ChatIntroBox::buttonSkip() {
-	return st::storyMentionButtonSkip;
-}
-
-rpl::producer<QString> ChatIntroBox::button() {
-	return nullptr;
-}
-
-TextWithEntities ChatIntroBox::subtitle() {
-	return {
-		(_data
-			? _data.description
-			: tr::lng_chat_intro_default_message(tr::now))
-	};
-}
-
-ClickHandlerPtr ChatIntroBox::createViewLink() {
-	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
-		const auto my = context.other.value<ClickHandlerContext>();
-		if (const auto controller = my.sessionWindow.get()) {
-			Settings::ShowPremium(controller, u"require_premium"_q);
-		}
-	});
-}
-
-void ChatIntroBox::draw(
-		Painter &p,
-		const PaintContext &context,
-		const QRect &geometry) {
-	if (_sticker) {
-		_sticker->draw(p, context, geometry);
-	}
-}
-
-void ChatIntroBox::stickerClearLoopPlayed() {
-	if (_sticker) {
-		_sticker->stickerClearLoopPlayed();
-	}
-}
-
-std::unique_ptr<StickerPlayer> ChatIntroBox::stickerTakePlayer(
-		not_null<DocumentData*> data,
-		const Lottie::ColorReplacements *replacements) {
-	return _sticker
-		? _sticker->stickerTakePlayer(data, replacements)
-		: nullptr;
-}
-
-bool ChatIntroBox::hasHeavyPart() {
-	return _sticker && _sticker->hasHeavyPart();
-}
-
-void ChatIntroBox::unloadHeavyPart() {
-	if (_sticker) {
-		_sticker->unloadHeavyPart();
-	}
-}
-
 } // namespace
 
 AboutView::AboutView(
@@ -339,21 +227,22 @@ HistoryItem *AboutView::item() const {
 }
 
 bool AboutView::refresh() {
-	const auto bot = _history->peer->asUser();
-	const auto info = bot ? bot->botInfo.get() : nullptr;
+	const auto user = _history->peer->asUser();
+	const auto info = user ? user->botInfo.get() : nullptr;
 	if (!info) {
-		if (bot
-			&& bot->meRequiresPremiumToWrite()
-			&& !bot->session().premium()
-			&& _history->isDisplayedEmpty()) {
+		if (user && _history->isDisplayedEmpty()) {
 			if (_item) {
 				return false;
+			} else if (user->meRequiresPremiumToWrite()
+				&& !user->session().premium()) {
+				setItem(makePremiumRequired(), nullptr);
+			} else {
+				makeIntro(user);
 			}
-			_item = makePremiumRequired();
 			return true;
 		}
 		if (_item) {
-			_item = {};
+			setItem({}, nullptr);
 			return true;
 		}
 		_version = 0;
@@ -364,8 +253,12 @@ bool AboutView::refresh() {
 		return false;
 	}
 	_version = version;
-	_item = makeAboutBot(info);
+	setItem(makeAboutBot(info), nullptr);
 	return true;
+}
+
+void AboutView::makeIntro(not_null<UserData*> user) {
+	make(user->businessDetails().intro);
 }
 
 void AboutView::make(Data::ChatIntro data) {
@@ -377,31 +270,58 @@ void AboutView::make(Data::ChatIntro data) {
 		.from = _history->peer->id,
 	}, PreparedServiceText{ { } });
 
+	if (data.sticker) {
+		_helloChosen = nullptr;
+	} else if (_helloChosen) {
+		data.sticker = _helloChosen;
+	}
+
 	auto owned = AdminLog::OwnedItem(_delegate, item);
+	const auto helloChosen = [=](not_null<DocumentData*> sticker) {
+		setHelloChosen(sticker);
+	};
 	owned->overrideMedia(std::make_unique<HistoryView::MediaInBubble>(
 		owned.get(),
-		GenerateChatIntro(owned.get(), _item.get(), data),
+		GenerateChatIntro(owned.get(), _item.get(), data, helloChosen),
 		HistoryView::MediaInBubbleDescriptor{
 			.maxWidth = st::chatIntroWidth,
 			.service = true,
 			.hideServiceText = true,
 		}));
+	if (!data.sticker && _helloChosen) {
+		data.sticker = _helloChosen;
+	}
 	setItem(std::move(owned), data.sticker);
 }
 
-void AboutView::setItem(AdminLog::OwnedItem item, DocumentData *sticker) {
-	if (const auto was = _item ? _item->data().get() : nullptr) {
+void AboutView::toggleStickerRegistered(bool registered) {
+	if (const auto item = _item ? _item->data().get() : nullptr) {
 		if (_sticker) {
-			was->history()->owner().unregisterDocumentItem(_sticker, was);
+			const auto owner = &item->history()->owner();
+			if (registered) {
+				owner->registerDocumentItem(_sticker, item);
+			} else {
+				owner->unregisterDocumentItem(_sticker, item);
+			}
 		}
 	}
+	if (!registered) {
+		_sticker = nullptr;
+	}
+}
+
+void AboutView::setHelloChosen(not_null<DocumentData*> sticker) {
+	_helloChosen = sticker;
+	toggleStickerRegistered(false);
+	_sticker = sticker;
+	toggleStickerRegistered(true);
+}
+
+void AboutView::setItem(AdminLog::OwnedItem item, DocumentData *sticker) {
+	toggleStickerRegistered(false);
 	_item = std::move(item);
 	_sticker = sticker;
-	if (const auto now = _item ? _item->data().get() : nullptr) {
-		if (_sticker) {
-			now->history()->owner().registerDocumentItem(_sticker, now);
-		}
-	}
+	toggleStickerRegistered(true);
 }
 
 AdminLog::OwnedItem AboutView::makeAboutBot(not_null<BotInfo*> info) {

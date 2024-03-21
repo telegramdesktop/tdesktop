@@ -96,6 +96,40 @@ void BusinessInfo::saveWorkingHours(
 	session->user()->setBusinessDetails(std::move(details));
 }
 
+void BusinessInfo::saveChatIntro(ChatIntro data, Fn<void(QString)> fail) {
+	const auto session = &_owner->session();
+	auto details = session->user()->businessDetails();
+	const auto &was = details.intro;
+	if (was == data) {
+		return;
+	} else {
+		const auto session = &_owner->session();
+		using Flag = MTPaccount_UpdateBusinessIntro::Flag;
+		session->api().request(MTPaccount_UpdateBusinessIntro(
+			MTP_flags(data ? Flag::f_intro : Flag()),
+			MTP_inputBusinessIntro(
+				MTP_flags(data.sticker
+					? MTPDinputBusinessIntro::Flag::f_sticker
+					: MTPDinputBusinessIntro::Flag()),
+				MTP_string(data.title),
+				MTP_string(data.description),
+				(data.sticker
+					? data.sticker->mtpInput()
+					: MTP_inputDocumentEmpty()))
+		)).fail([=](const MTP::Error &error) {
+			auto details = session->user()->businessDetails();
+			details.intro = was;
+			session->user()->setBusinessDetails(std::move(details));
+			if (fail) {
+				fail(error.type());
+			}
+		}).send();
+	}
+
+	details.intro = std::move(data);
+	session->user()->setBusinessDetails(std::move(details));
+}
+
 void BusinessInfo::applyAwaySettings(AwaySettings data) {
 	if (_awaySettings == data) {
 		return;
@@ -182,54 +216,6 @@ GreetingSettings BusinessInfo::greetingSettings() const {
 
 rpl::producer<> BusinessInfo::greetingSettingsChanged() const {
 	return _greetingSettingsChanged.events();
-}
-
-void BusinessInfo::saveChatIntro(ChatIntro data, Fn<void(QString)> fail) {
-	const auto &was = _chatIntro;
-	if (was == data) {
-		return;
-	} else {
-		const auto session = &_owner->session();
-		using Flag = MTPaccount_UpdateBusinessIntro::Flag;
-		session->api().request(MTPaccount_UpdateBusinessIntro(
-			MTP_flags(data ? Flag::f_intro : Flag()),
-			MTP_inputBusinessIntro(
-				MTP_flags(data.sticker ? MTPDinputBusinessIntro::Flag::f_sticker : MTPDinputBusinessIntro::Flag()),
-				MTP_string(data.title),
-				MTP_string(data.description),
-				(data.sticker
-					? data.sticker->mtpInput()
-					: MTP_inputDocumentEmpty()))
-		)).fail([=](const MTP::Error &error) {
-			_chatIntro = was;
-			_chatIntroChanged.fire({});
-			if (fail) {
-				fail(error.type());
-			}
-		}).send();
-	}
-	_chatIntro = std::move(data);
-	_chatIntroChanged.fire({});
-}
-
-void BusinessInfo::applyChatIntro(ChatIntro data) {
-	if (_chatIntro == data) {
-		return;
-	}
-	_chatIntro = data;
-	_chatIntroChanged.fire({});
-}
-
-ChatIntro BusinessInfo::chatIntro() const {
-	return _chatIntro.value_or(ChatIntro());
-}
-
-bool BusinessInfo::chatIntroLoaded() const {
-	return _chatIntro.has_value();
-}
-
-rpl::producer<> BusinessInfo::chatIntroChanged() const {
-	return _chatIntroChanged.events();
 }
 
 void BusinessInfo::preload() {

@@ -182,12 +182,27 @@ struct BusinessLocation {
 		const BusinessLocation &b) = default;
 };
 
+struct ChatIntro {
+	QString title;
+	QString description;
+	DocumentData *sticker = nullptr;
+
+	explicit operator bool() const {
+		return !title.isEmpty() || !description.isEmpty();
+	}
+
+	friend inline bool operator==(
+		const ChatIntro &a,
+		const ChatIntro &b) = default;
+};
+
 struct BusinessDetails {
 	WorkingHours hours;
 	BusinessLocation location;
+	ChatIntro intro;
 
 	explicit operator bool() const {
-		return hours || location;
+		return hours || location || intro;
 	}
 
 	friend inline bool operator==(
@@ -196,8 +211,10 @@ struct BusinessDetails {
 };
 
 [[nodiscard]] BusinessDetails FromMTP(
+	not_null<Session*> owner,
 	const tl::conditional<MTPBusinessWorkHours> &hours,
-	const tl::conditional<MTPBusinessLocation> &location);
+	const tl::conditional<MTPBusinessLocation> &location,
+	const tl::conditional<MTPBusinessIntro> &intro);
 
 enum class AwayScheduleType : uchar {
 	Never = 0,
@@ -251,23 +268,5 @@ struct GreetingSettings {
 [[nodiscard]] GreetingSettings FromMTP(
 	not_null<Session*> owner,
 	const tl::conditional<MTPBusinessGreetingMessage> &message);
-
-struct ChatIntro {
-	QString title;
-	QString description;
-	DocumentData *sticker = nullptr;
-
-	explicit operator bool() const {
-		return !title.isEmpty() || !description.isEmpty();
-	}
-
-	friend inline bool operator==(
-		const ChatIntro &a,
-		const ChatIntro &b) = default;
-};
-
-[[nodiscard]] ChatIntro FromMTP(
-	not_null<Session*> owner,
-	const tl::conditional<MTPBusinessIntro> &intro);
 
 } // namespace Data

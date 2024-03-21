@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "history/view/history_view_about_view.h"
@@ -564,10 +565,8 @@ void ChatIntro::setupContent(
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	const auto session = &controller->session();
-	const auto info = &session->data().businessInfo();
-	const auto current = info->chatIntro();
+	_intro = controller->session().user()->businessDetails().intro;
 
-	_intro = info->chatIntro();
 	const auto change = [=](Fn<void(Data::ChatIntro &)> modify) {
 		auto intro = _intro.current();
 		modify(intro);
@@ -584,12 +583,12 @@ void ChatIntro::setupContent(
 	const auto title = AddPartInput(
 		content,
 		tr::lng_chat_intro_enter_title(),
-		current.title,
+		_intro.current().title,
 		PartLimit(session, u"intro_title_length_limit"_q, 32));
 	const auto description = AddPartInput(
 		content,
 		tr::lng_chat_intro_enter_message(),
-		current.description,
+		_intro.current().description,
 		PartLimit(session, u"intro_description_length_limit"_q, 70));
 	content->add(CreateIntroStickerButton(
 		content,

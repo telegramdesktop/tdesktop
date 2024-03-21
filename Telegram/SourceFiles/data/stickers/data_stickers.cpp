@@ -502,7 +502,7 @@ void Stickers::undoInstallLocally(uint64 setId) {
 		Ui::LayerOption::KeepOther);
 }
 
-bool Stickers::isFaved(not_null<const DocumentData*> document) {
+bool Stickers::isFaved(not_null<const DocumentData*> document) const {
 	const auto &sets = this->sets();
 	const auto it = sets.find(FavedSetId);
 	if (it == sets.cend()) {

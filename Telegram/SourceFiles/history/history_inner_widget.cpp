@@ -4072,7 +4072,7 @@ void HistoryInner::refreshAboutView() {
 					_history->delegateMixin()->delegate());
 			}
 			if (!info->inited) {
-				session().api().requestFullPeer(_peer);
+				session().api().requestFullPeer(user);
 			}
 		} else if (user->meRequiresPremiumToWrite()
 			&& !user->session().premium()
@@ -4082,8 +4082,15 @@ void HistoryInner::refreshAboutView() {
 					_history,
 					_history->delegateMixin()->delegate());
 			}
-		} else {
-			_aboutView = nullptr;
+		} else if (!historyHeight()) {
+			if (!_aboutView) {
+				_aboutView = std::make_unique<HistoryView::AboutView>(
+					_history,
+					_history->delegateMixin()->delegate());
+			}
+			if (!user->isFullLoaded()) {
+				session().api().requestFullPeer(user);
+			}
 		}
 	}
 }

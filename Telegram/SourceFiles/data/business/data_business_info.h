@@ -21,6 +21,7 @@ public:
 	void preload();
 
 	void saveWorkingHours(WorkingHours data, Fn<void(QString)> fail);
+	void saveChatIntro(ChatIntro data, Fn<void(QString)> fail);
 
 	void saveAwaySettings(AwaySettings data, Fn<void(QString)> fail);
 	void applyAwaySettings(AwaySettings data);
@@ -36,12 +37,6 @@ public:
 	[[nodiscard]] bool greetingSettingsLoaded() const;
 	[[nodiscard]] rpl::producer<> greetingSettingsChanged() const;
 
-	void saveChatIntro(ChatIntro data, Fn<void(QString)> fail);
-	void applyChatIntro(ChatIntro data);
-	[[nodiscard]] ChatIntro chatIntro() const;
-	[[nodiscard]] bool chatIntroLoaded() const;
-	[[nodiscard]] rpl::producer<> chatIntroChanged() const;
-
 	void preloadTimezones();
 	[[nodiscard]] bool timezonesLoaded() const;
 	[[nodiscard]] rpl::producer<Timezones> timezonesValue() const;
@@ -56,9 +51,6 @@ private:
 
 	std::optional<GreetingSettings> _greetingSettings;
 	rpl::event_stream<> _greetingSettingsChanged;
-
-	std::optional<ChatIntro> _chatIntro;
-	rpl::event_stream<> _chatIntroChanged;
 
 	mtpRequestId _timezonesRequestId = 0;
 	int32 _timezonesHash = 0;

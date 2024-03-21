@@ -2302,7 +2302,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_intro_title" = "Intro";
 "lng_chat_intro_subtitle" = "Customize your intro";
 "lng_chat_intro_default_title" = "No messages here yet...";
-"lng_chat_intro_default_message" = "Send a message or tap on the greeting below";
+"lng_chat_intro_default_message" = "Send a message or click on the greeting below";
 "lng_chat_intro_enter_title" = "Enter Title";
 "lng_chat_intro_enter_message" = "Enter Message";
 "lng_chat_intro_choose_sticker" = "Choose Sticker";

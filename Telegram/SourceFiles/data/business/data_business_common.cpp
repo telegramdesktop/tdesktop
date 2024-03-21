@@ -153,8 +153,10 @@ BusinessRecipients FromMTP(
 }
 
 BusinessDetails FromMTP(
+		not_null<Session*> owner,
 		const tl::conditional<MTPBusinessWorkHours> &hours,
-		const tl::conditional<MTPBusinessLocation> &location) {
+		const tl::conditional<MTPBusinessLocation> &location,
+		const tl::conditional<MTPBusinessIntro> &intro) {
 	auto result = BusinessDetails();
 	if (hours) {
 		const auto &data = hours->data();
@@ -177,6 +179,17 @@ BusinessDetails FromMTP(
 				result.location.point = LocationPoint(data);
 			}, [&](const MTPDgeoPointEmpty &) {
 			});
+		}
+	}
+	if (intro) {
+		const auto &data = intro->data();
+		result.intro.title = qs(data.vtitle());
+		result.intro.description = qs(data.vdescription());
+		if (const auto document = data.vsticker()) {
+			result.intro.sticker = owner->processDocument(*document);
+			if (!result.intro.sticker->sticker()) {
+				result.intro.sticker = nullptr;
+			}
 		}
 	}
 	return result;
@@ -332,24 +345,6 @@ WorkingIntervals ReplaceDayIntervals(
 		interval = interval.shifted(dayIndex * kDay);
 	}
 	return result.normalized();
-}
-
-ChatIntro FromMTP(
-		not_null<Session*> owner,
-		const tl::conditional<MTPBusinessIntro> &intro) {
-	auto result = ChatIntro();
-	if (intro) {
-		const auto &data = intro->data();
-		result.title = qs(data.vtitle());
-		result.description = qs(data.vdescription());
-		if (const auto document = data.vsticker()) {
-			result.sticker = owner->processDocument(*document);
-			if (!result.sticker->sticker()) {
-				result.sticker = nullptr;
-			}
-		}
-	}
-	return result;
 }
 
 } // namespace Data
