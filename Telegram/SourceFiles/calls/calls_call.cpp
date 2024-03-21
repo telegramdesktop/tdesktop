@@ -982,6 +982,16 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 				updateRemoteMediaState(audio, video);
 			});
 		},
+		.remoteBatteryLevelIsLowUpdated = [=](bool isLow) {
+#ifdef _DEBUG
+			isLow = true;
+#endif
+			crl::on_main(weak, [=] {
+				_remoteBatteryState = isLow
+					? RemoteBatteryState::Low
+					: RemoteBatteryState::Normal;
+			});
+		},
 		.signalingDataEmitted = [=](const std::vector<uint8_t> &data) {
 			const auto bytes = QByteArray(
 				reinterpret_cast<const char*>(data.data()),

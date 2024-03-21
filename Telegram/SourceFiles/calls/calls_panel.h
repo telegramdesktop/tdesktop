@@ -122,6 +122,8 @@ private:
 	void refreshOutgoingPreviewInBody(State state);
 	void toggleFullScreen(bool fullscreen);
 	void createRemoteAudioMute();
+	void createRemoteLowBattery();
+	void showRemoteLowBattery();
 	void refreshAnswerHangupRedialLabel();
 
 	[[nodiscard]] QRect incomingFrameGeometry() const;
@@ -160,6 +162,8 @@ private:
 	object_ptr<Ui::FlatLabel> _status;
 	object_ptr<Ui::RpWidget> _fingerprint = { nullptr };
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteAudioMute = { nullptr };
+	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteLowBattery =
+		{ nullptr };
 	std::unique_ptr<Userpic> _userpic;
 	std::unique_ptr<VideoBubble> _outgoingVideoBubble;
 	QPixmap _bottomShadow;

@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -57,8 +58,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
 #include <QtCore/QTimer>
+#include <QtSvg/QSvgRenderer>
 
 namespace Calls {
+namespace {
+
+[[nodiscard]] QByteArray BatterySvg(
+		const QSize &s,
+		const QColor &c) {
+	const auto color = u"rgb(%1,%2,%3)"_q
+		.arg(c.red())
+		.arg(c.green())
+		.arg(c.blue())
+		.toUtf8();
+	const auto width = QString::number(s.width()).toUtf8();
+	const auto height = QString::number(s.height()).toUtf8();
+	return R"(
+<svg width=")" + width + R"(" height=")" + height
+	+ R"(" viewBox="0 0 )" + width + R"( )" + height + R"(" fill="none">
+	<rect x="1.33598" y="0.5" width="24" height="12" rx="4" stroke=")" + color + R"("/>
+	<path
+		d="M26.836 4.66666V8.66666C27.6407 8.32788 28.164 7.53979 28.164 6.66666C28.164 5.79352 27.6407 5.00543 26.836 4.66666Z"
+		fill=")" + color + R"("/>
+	<path
+		d="M 5.5 3.5 H 5.5 A 0.5 0.5 0 0 1 6 4 V 9 A 0.5 0.5 0 0 1 5.5 9.5 H 5.5 A 0.5 0.5 0 0 1 5 9 V 4 A 0.5 0.5 0 0 1 5.5 3.5 Z M 5 4 V 9 A 0.5 0.5 0 0 0 5.5 9.5 H 5.5 A 0.5 0.5 0 0 0 6 9 V 4 A 0.5 0.5 0 0 0 5.5 3.5 H 5.5 A 0.5 0.5 0 0 0 5 4 Z"
+		transform="matrix(1, 0, 0, 1, 0, 0)" + ")\" stroke=\"" + color + R"("/>
+</svg>)";
+}
+
+} // namespace
 
 Panel::Panel(not_null<Call*> call)
 : _call(call)
@@ -392,9 +420,7 @@ void Panel::reinitWithCall(Call *call) {
 	_user = _call->user();
 
 	auto remoteMuted = _call->remoteAudioStateValue(
-	) | rpl::map([=](Call::RemoteAudioState state) {
-		return (state == Call::RemoteAudioState::Muted);
-	});
+	) | rpl::map(rpl::mappers::_1 == Call::RemoteAudioState::Muted);
 	rpl::duplicate(
 		remoteMuted
 	) | rpl::start_with_next([=](bool muted) {
@@ -402,6 +428,15 @@ void Panel::reinitWithCall(Call *call) {
 			createRemoteAudioMute();
 		} else {
 			_remoteAudioMute.destroy();
+			showRemoteLowBattery();
+		}
+	}, _callLifetime);
+	_call->remoteBatteryStateValue(
+	) | rpl::start_with_next([=](Call::RemoteBatteryState state) {
+		if (state == Call::RemoteBatteryState::Low) {
+			createRemoteLowBattery();
+		} else {
+			_remoteLowBattery.destroy();
 		}
 	}, _callLifetime);
 	_userpic = std::make_unique<Userpic>(
@@ -550,7 +585,10 @@ void Panel::createRemoteAudioMute() {
 			widget(),
 			tr::lng_call_microphone_off(
 				lt_user,
-				rpl::single(_user->shortName())),
+				_user->session().changes().peerFlagsValue(
+					_user,
+					Data::PeerUpdate::Flag::Name
+				) | rpl::map([=] { return _user->shortName(); })),
 			st::callRemoteAudioMute),
 		st::callTooltipPadding);
 	_remoteAudioMute->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -558,12 +596,12 @@ void Panel::createRemoteAudioMute() {
 	_remoteAudioMute->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(_remoteAudioMute);
-		const auto height = _remoteAudioMute->height();
+		const auto r = _remoteAudioMute->rect();
 
 		auto hq = PainterHighQualityEnabler(p);
 		p.setBrush(st::videoPlayIconBg);
 		p.setPen(Qt::NoPen);
-		p.drawRoundedRect(_remoteAudioMute->rect(), height / 2, height / 2);
+		p.drawRoundedRect(r, r.height() / 2, r.height() / 2);
 
 		st::callTooltipMutedIcon.paint(
 			p,
@@ -573,6 +611,71 @@ void Panel::createRemoteAudioMute() {
 
 	showControls();
 	updateControlsGeometry();
+}
+
+void Panel::createRemoteLowBattery() {
+	_remoteLowBattery.create(
+		widget(),
+		object_ptr<Ui::FlatLabel>(
+			widget(),
+			tr::lng_call_battery_level_low(
+				lt_user,
+				_user->session().changes().peerFlagsValue(
+					_user,
+					Data::PeerUpdate::Flag::Name
+				) | rpl::map([=] { return _user->shortName(); })),
+			st::callRemoteAudioMute),
+		st::callTooltipPadding);
+	_remoteLowBattery->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_remoteLowBattery.destroy();
+		createRemoteLowBattery();
+	}, _remoteLowBattery->lifetime());
+
+	constexpr auto kBatterySize = QSize(29, 13);
+
+	const auto icon = [&] {
+		auto svg = QSvgRenderer(
+			BatterySvg(kBatterySize, st::videoPlayIconFg->c));
+		auto image = QImage(
+			kBatterySize * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		image.setDevicePixelRatio(style::DevicePixelRatio());
+		image.fill(Qt::transparent);
+		{
+			auto p = QPainter(&image);
+			svg.render(&p, Rect(kBatterySize));
+		}
+		return image;
+	}();
+
+	_remoteLowBattery->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_remoteLowBattery);
+		const auto r = _remoteLowBattery->rect();
+
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::videoPlayIconBg);
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(r, r.height() / 2, r.height() / 2);
+
+		p.drawImage(
+			st::callTooltipMutedIconPosition.x(),
+			(r.height() - kBatterySize.height()) / 2,
+			icon);
+	}, _remoteLowBattery->lifetime());
+
+	showControls();
+	updateControlsGeometry();
+}
+
+void Panel::showRemoteLowBattery() {
+	if (_remoteLowBattery) {
+		_remoteLowBattery->setVisible(!_remoteAudioMute
+			|| _remoteAudioMute->isHidden());
+	}
 }
 
 void Panel::initLayout() {
@@ -613,6 +716,7 @@ void Panel::showControls() {
 	if (_remoteAudioMute) {
 		_remoteAudioMute->setVisible(shown);
 	}
+	showRemoteLowBattery();
 }
 
 void Panel::closeBeforeDestroy() {
@@ -749,6 +853,13 @@ void Panel::updateControlsGeometry() {
 				- st::callRemoteAudioMuteSkip
 				- _remoteAudioMute->height()));
 	}
+	if (_remoteLowBattery) {
+		_remoteLowBattery->moveToLeft(
+			(widget()->width() - _remoteLowBattery->width()) / 2,
+			(_buttonsTop
+				- st::callRemoteAudioMuteSkip
+				- _remoteLowBattery->height()));
+	}
 
 	if (_outgoingPreviewInBody) {
 		_outgoingVideoBubble->updateGeometry(
@@ -768,16 +879,10 @@ void Panel::updateControlsGeometry() {
 void Panel::updateOutgoingVideoBubbleGeometry() {
 	Expects(!_outgoingPreviewInBody);
 
-	const auto margins = QMargins{
-		st::callInnerPadding,
-		st::callInnerPadding,
-		st::callInnerPadding,
-		st::callInnerPadding,
-	};
 	const auto size = st::callOutgoingDefaultSize;
 	_outgoingVideoBubble->updateGeometry(
 		VideoBubble::DragMode::SnapToCorners,
-		widget()->rect().marginsRemoved(margins),
+		widget()->rect() - Margins(st::callInnerPadding),
 		size);
 }
 

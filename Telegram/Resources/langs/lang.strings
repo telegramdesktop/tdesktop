@@ -3512,6 +3512,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_cancel" = "Cancel";
 
 "lng_call_microphone_off" = "{user}'s microphone is off";
+"lng_call_battery_level_low" = "{user}'s battery level is low";
 
 "lng_group_call_title" = "Voice Chat";
 "lng_group_call_title_channel" = "Live Stream";
