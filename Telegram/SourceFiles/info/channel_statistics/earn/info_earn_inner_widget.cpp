@@ -21,17 +21,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/animation_value.h"
+#include "ui/effects/animation_value_f.h"
+#include "ui/effects/animations.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_statistics.h"
 
@@ -50,6 +55,41 @@ void AddHeader(
 	header->resizeToWidth(header->width());
 	header->setTitle(text(tr::now));
 	header->setSubTitle({});
+}
+
+void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
+	const auto wrap = box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+			box,
+			object_ptr<Ui::RoundButton>(
+				box,
+				rpl::single(QString()),
+				st::channelEarnHistoryRecipientButton)));
+	const auto container = wrap->entity();
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		container,
+		rpl::single(t),
+		st::channelEarnHistoryRecipientButtonLabel);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setBreakEverywhere(true);
+	label->setTryMakeSimilarLines(true);
+	label->resizeToWidth(container->width());
+	label->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		const auto padding = QMargins(
+			st::chatGiveawayPeerPadding.right(),
+			st::chatGiveawayPeerPadding.top(),
+			st::chatGiveawayPeerPadding.right(),
+			st::chatGiveawayPeerPadding.top());
+		container->resize(
+			container->width(),
+			(Rect(s) + padding).height());
+		label->moveToLeft(0, padding.top());
+	}, container->lifetime());
+	container->setClickedCallback([=] {
+		QGuiApplication::clipboard()->setText(t.text);
+		box->showToast(tr::lng_text_copied(tr::now));
+	});
 }
 
 void AddEmojiToMajor(
@@ -103,9 +143,11 @@ void InnerWidget::fill() {
 
 	constexpr auto kMinus = QChar(0x2212);
 	const auto currency = u"TON"_q;
+	const auto multiplier = 3.8; // Debug.
 
 	const auto session = &_peer->session();
-	{
+
+	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
 		const auto emoji = Ui::Text::SingleCustomEmoji(
 			session->data().customEmojiManager().registerInternalEmoji(
 				st::topicButtonArrow,
@@ -115,7 +157,7 @@ void InnerWidget::fill() {
 			container,
 			st::boxDividerLabel);
 		const auto raw = label.data();
-		tr::lng_channel_earn_about(
+		text(
 			lt_link,
 			tr::lng_channel_earn_about_link(
 				lt_emoji,
@@ -137,9 +179,149 @@ void InnerWidget::fill() {
 			std::move(label),
 			st::defaultBoxDividerLabelPadding,
 			RectPart::Top | RectPart::Bottom));
-	}
+	};
+	addAboutWithLearn(tr::lng_channel_earn_about);
 	Ui::AddSkip(container);
-	Ui::AddDivider(container);
+	{
+		const auto value = 54.12; // Debug.
+		Ui::AddSkip(container);
+		AddHeader(container, tr::lng_channel_earn_balance_title);
+		Ui::AddSkip(container);
+
+		const auto labels = container->add(
+			object_ptr<Ui::CenterWrap<Ui::RpWidget>>(
+				container,
+				object_ptr<Ui::RpWidget>(container)))->entity();
+
+		const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
+			labels,
+			st::channelEarnBalanceMajorLabel);
+		AddEmojiToMajor(majorLabel, session, value);
+		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+		const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
+			labels,
+			QString::number(value - int64(value)).mid(1),
+			st::channelEarnBalanceMinorLabel);
+		minorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+		rpl::combine(
+			majorLabel->sizeValue(),
+			minorLabel->sizeValue()
+		) | rpl::start_with_next([=](
+				const QSize &majorSize,
+				const QSize &minorSize) {
+			labels->resize(
+				majorSize.width() + minorSize.width(),
+				majorSize.height());
+			majorLabel->moveToLeft(0, 0);
+			minorLabel->moveToRight(
+				0,
+				st::channelEarnBalanceMinorLabelSkip);
+		}, labels->lifetime());
+
+		Ui::AddSkip(container);
+		container->add(
+			object_ptr<Ui::CenterWrap<>>(
+				container,
+				object_ptr<Ui::FlatLabel>(
+					container,
+					QString(QChar(0x2248))
+						+ QChar('$')
+						+ QString::number(value * multiplier),
+					st::channelEarnOverviewSubMinorLabel)));
+
+		Ui::AddSkip(container);
+
+		const auto input = container->add(
+			object_ptr<Ui::InputField>(
+				container,
+				st::defaultComposeFiles.caption,
+				Ui::InputField::Mode::MultiLine,
+				tr::lng_channel_earn_balance_placeholder()),
+			st::boxRowPadding);
+
+		Ui::AddSkip(container);
+
+		const auto &stButton = st::defaultActiveButton;
+		const auto button = container->add(
+			object_ptr<Ui::RoundButton>(
+				container,
+				rpl::never<QString>(),
+				stButton),
+			st::boxRowPadding);
+
+		const auto label = Ui::CreateChild<Ui::FlatLabel>(
+			button,
+			tr::lng_channel_earn_balance_button(tr::now),
+			st::channelEarnSemiboldLabel);
+		label->setTextColorOverride(stButton.textFg->c);
+		label->setAttribute(Qt::WA_TransparentForMouseEvents);
+		rpl::combine(
+			button->sizeValue(),
+			label->sizeValue()
+		) | rpl::start_with_next([=](const QSize &b, const QSize &l) {
+			label->moveToLeft(
+				(b.width() - l.width()) / 2,
+				(b.height() - l.height()) / 2);
+		}, label->lifetime());
+
+		const auto fadeAnimation =
+			label->lifetime().make_state<Ui::Animations::Simple>();
+
+		const auto colorText = [=](float64 value) {
+			label->setTextColorOverride(
+				anim::with_alpha(
+					stButton.textFg->c,
+					anim::interpolateF(.5, 1., value)));
+		};
+		colorText(0);
+
+		rpl::single(
+			rpl::empty_value()
+		) | rpl::then(
+			input->changes()
+		) | rpl::map([=, end = (u".ton"_q)] {
+			const auto text = input->getLastText();
+			return (text.size() == 48)
+				|| text.endsWith(end, Qt::CaseInsensitive);
+		}) | rpl::distinct_until_changed(
+		) | rpl::start_with_next([=](bool enabled) {
+			fadeAnimation->stop();
+			const auto from = enabled ? 0. : 1.;
+			const auto to = enabled ? 1. : 0.;
+			fadeAnimation->start(colorText, from, to, st::slideWrapDuration);
+
+			button->setAttribute(Qt::WA_TransparentForMouseEvents, !enabled);
+		}, button->lifetime());
+
+		button->setClickedCallback([=] {
+			_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(tr::lng_channel_earn_balance_button());
+				box->addRow(object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_channel_earn_transfer_sure_about1(tr::now),
+					st::boxLabel));
+				Ui::AddSkip(box->verticalLayout());
+				AddRecipient(
+					box,
+					Ui::Text::Wrapped(
+						{ input->getLastText() },
+						EntityType::Code));
+				Ui::AddSkip(box->verticalLayout());
+				box->addRow(object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_channel_earn_transfer_sure_about2(tr::now),
+					st::boxLabel));
+				box->addButton(
+					tr::lng_send_button(),
+					[=] { box->closeBox(); });
+				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+			}));
+		});
+
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+	}
+	addAboutWithLearn(tr::lng_channel_earn_balance_about);
 	Ui::AddSkip(container);
 	{
 		Ui::AddSkip(container);
@@ -147,7 +329,6 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 
-		const auto multiplier = 3.8; // Debug.
 		const auto addOverviewEntry = [&](
 				float64 value,
 				const tr::phrase<> &text) {
@@ -234,7 +415,7 @@ void InnerWidget::fill() {
 			inner->add(object_ptr<Ui::FlatLabel>(
 				inner,
 				text(),
-				st::channelEarnHistoryLabel));
+				st::channelEarnSemiboldLabel));
 
 			const auto recipient = Ui::Text::Wrapped(
 				{ entry.recipient },
@@ -349,38 +530,7 @@ void InnerWidget::fill() {
 				}
 
 				if (!entry.recipient.isEmpty()) {
-					const auto wrap = box->addRow(
-						object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
-							box,
-							object_ptr<Ui::RoundButton>(
-								box,
-								rpl::single(QString()),
-								st::channelEarnHistoryRecipientButton)));
-					const auto container = wrap->entity();
-					const auto label = Ui::CreateChild<Ui::FlatLabel>(
-						container,
-						rpl::single(recipient),
-						st::channelEarnHistoryRecipientButtonLabel);
-					label->setAttribute(Qt::WA_TransparentForMouseEvents);
-					label->setBreakEverywhere(true);
-					label->setTryMakeSimilarLines(true);
-					label->resizeToWidth(container->width());
-					label->sizeValue(
-					) | rpl::start_with_next([=](const QSize &s) {
-						const auto padding = QMargins(
-							st::chatGiveawayPeerPadding.right(),
-							st::chatGiveawayPeerPadding.top(),
-							st::chatGiveawayPeerPadding.right(),
-							st::chatGiveawayPeerPadding.top());
-						container->resize(
-							container->width(),
-							(Rect(s) + padding).height());
-						label->moveToLeft(0, padding.top());
-					}, container->lifetime());
-					container->setClickedCallback([=] {
-						QGuiApplication::clipboard()->setText(recipient.text);
-						box->showToast(tr::lng_text_copied(tr::now));
-					});
+					AddRecipient(box, recipient);
 				}
 				if (entry.in) {
 					const auto peerBubble = box->addRow(
@@ -396,7 +546,7 @@ void InnerWidget::fill() {
 					const auto right = Ui::CreateChild<Ui::FlatLabel>(
 						peerBubble,
 						Info::Profile::NameValue(peer),
-						st::channelEarnHistoryLabel);
+						st::channelEarnSemiboldLabel);
 					rpl::combine(
 						left->sizeValue(),
 						right->sizeValue()

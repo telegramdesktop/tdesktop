@@ -29,7 +29,7 @@ channelEarnOverviewSubMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
 	}
 }
 channelEarnOverviewSubMinorLabelPos: point(4px, 2px);
-channelEarnHistoryLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+channelEarnSemiboldLabel: FlatLabel(channelEarnOverviewMajorLabel) {
 	style: TextStyle(semiboldTextStyle) {
 	}
 }
@@ -88,3 +88,15 @@ channelEarnHistoryRecipientButton: RoundButton {
 channelEarnHistoryRecipientButtonLabel: FlatLabel(channelEarnHistoryRecipientLabel) {
 	align: align(center);
 }
+
+channelEarnBalanceMajorLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(22px semibold);
+	}
+}
+channelEarnBalanceMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+	}
+}
+channelEarnBalanceMinorLabelSkip: 6px;

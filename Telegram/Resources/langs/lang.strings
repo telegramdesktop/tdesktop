@@ -4962,6 +4962,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_balance_placeholder" = "Enter your TON address";
 "lng_channel_earn_balance_button" = "Withdraw";
 "lng_channel_earn_balance_about" = "By the end of May, you will be able to collect your reward using Fragment, a third-party platform used by the advertiser to pay for the ad. {link}";
+"lng_channel_earn_transfer_sure_about1" = "Check the address of the recipient:";
+"lng_channel_earn_transfer_sure_about2" = "This action can not be undone. If the address above is incorrect you will lose your TON.";
 "lng_channel_earn_history_title" = "Transaction history";
 "lng_channel_earn_history_in" = "Proceeds from ads";
 "lng_channel_earn_history_in_about" = "Proceeds from ads displayed in";
