@@ -38,6 +38,7 @@ public:
 	[[nodiscard]] rpl::producer<ShowRequest> showRequests() const;
 
 	void showFinished();
+	void setInnerFocus();
 
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
@@ -55,6 +56,7 @@ private:
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<ShowRequest> _showRequests;
 	rpl::event_stream<> _showFinished;
+	rpl::event_stream<> _focusRequested;
 	rpl::event_stream<bool> _loaded;
 
 };

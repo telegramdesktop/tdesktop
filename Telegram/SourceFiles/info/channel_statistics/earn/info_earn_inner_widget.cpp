@@ -449,6 +449,10 @@ void InnerWidget::fill() {
 				Ui::InputField::Mode::MultiLine,
 				tr::lng_channel_earn_balance_placeholder()),
 			st::boxRowPadding);
+		_focusRequested.events(
+		) | rpl::start_with_next([=] {
+			input->setFocusFast();
+		}, input->lifetime());
 
 		Ui::AddSkip(container);
 
@@ -940,6 +944,10 @@ auto InnerWidget::showRequests() const -> rpl::producer<ShowRequest> {
 
 void InnerWidget::showFinished() {
 	_showFinished.fire({});
+}
+
+void InnerWidget::setInnerFocus() {
+	_focusRequested.fire({});
 }
 
 not_null<PeerData*> InnerWidget::peer() const {

@@ -95,6 +95,10 @@ void Widget::showFinished() {
 	_inner->showFinished();
 }
 
+void Widget::setInnerFocus() {
+	_inner->setInnerFocus();
+}
+
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_shared<Memento>(controller());
 	saveState(result.get());

@@ -47,6 +47,7 @@ public:
 	rpl::producer<QString> title() override;
 	rpl::producer<bool> desiredShadowVisibility() const override;
 	void showFinished() override;
+	void setInnerFocus() override;
 
 	[[nodiscard]] not_null<PeerData*> peer() const;
 
