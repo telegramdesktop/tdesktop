@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/rate_call_box.h"
 #include "calls/calls_instance.h"
+#include "base/battery_saving.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
 #include "mtproto/mtproto_dh_utils.h"
@@ -1069,6 +1070,15 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 
 	_muted.value() | rpl::start_with_next([=](bool muted) {
 		Core::App().mediaDevices().setCaptureMuted(muted);
+	}, _instanceLifetime);
+
+	Core::App().batterySaving().value(
+	) | rpl::start_with_next([=](bool isSaving) {
+		crl::on_main(weak, [=] {
+			if (_instance) {
+				_instance->setIsLowBatteryLevel(isSaving);
+			}
+		});
 	}, _instanceLifetime);
 }
 
