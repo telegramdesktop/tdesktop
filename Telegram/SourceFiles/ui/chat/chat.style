@@ -1001,6 +1001,7 @@ storyMentionButtonSkip: 5px;
 
 chatGiveawayWidth: 292px;
 chatGiveawayStickerTop: -16px;
+chatGiveawayStickerPadding: margins(14px, -2px, 14px, 14px);
 chatGiveawayWinnersTopSkip: 25px;
 chatGiveawayBadgeFont: font(12px bold);
 chatGiveawayBadgeTop: 106px;

@@ -482,7 +482,8 @@ std::unique_ptr<StickerPlayer> StickerWithBadgePart::stickerTakePlayer(
 }
 
 QSize StickerWithBadgePart::countOptimalSize() {
-	return _sticker.countOptimalSize();
+	_sticker.initDimensions();
+	return { _sticker.maxWidth(), _sticker.minHeight() };
 }
 
 QSize StickerWithBadgePart::countCurrentSize(int newWidth) {
@@ -788,7 +789,7 @@ auto GenerateGiveawayStart(
 			parent,
 			nullptr,
 			sticker,
-			QMargins(0, st::chatGiveawayStickerTop, 0, 0),
+			st::chatGiveawayStickerPadding,
 			tr::lng_prizes_badge(
 				tr::now,
 				lt_amount,
@@ -925,7 +926,7 @@ auto GenerateGiveawayResults(
 			parent,
 			nullptr,
 			sticker,
-			QMargins(0, st::chatGiveawayStickerTop, 0, 0),
+			st::chatGiveawayStickerPadding,
 			tr::lng_prizes_badge(
 				tr::now,
 				lt_amount,
