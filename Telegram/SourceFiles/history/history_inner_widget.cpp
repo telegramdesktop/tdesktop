@@ -4083,13 +4083,12 @@ void HistoryInner::refreshAboutView() {
 					_history->delegateMixin()->delegate());
 			}
 		} else if (!historyHeight()) {
-			if (!_aboutView) {
+			if (!user->isFullLoaded()) {
+				session().api().requestFullPeer(user);
+			} else if (!_aboutView) {
 				_aboutView = std::make_unique<HistoryView::AboutView>(
 					_history,
 					_history->delegateMixin()->delegate());
-			}
-			if (!user->isFullLoaded()) {
-				session().api().requestFullPeer(user);
 			}
 		}
 	}
