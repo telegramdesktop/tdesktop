@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "history/view/media/history_view_giveaway.h"
+#include "history/view/media/history_view_media_generic.h"
 #include "history/view/media/history_view_service_box.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
 #include "history/view/media/history_view_sticker.h"
@@ -79,8 +79,8 @@ auto GenerateChatIntro(
 	Element *replacing,
 	const Data::ChatIntro &data,
 	Fn<void(not_null<DocumentData*>)> helloChosen)
--> Fn<void(Fn<void(std::unique_ptr<MediaInBubble::Part>)>)> {
-	return [=](Fn<void(std::unique_ptr<MediaInBubble::Part>)> push) {
+-> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
+	return [=](Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
 		auto pushText = [&](
 				TextWithEntities text,
 				QMargins margins = {},
@@ -88,7 +88,7 @@ auto GenerateChatIntro(
 			if (text.empty()) {
 				return;
 			}
-			push(std::make_unique<TextMediaInBubblePart>(
+			push(std::make_unique<MediaGenericTextPart>(
 				std::move(text),
 				margins,
 				links));
@@ -287,10 +287,10 @@ void AboutView::make(Data::ChatIntro data) {
 	const auto helloChosen = [=](not_null<DocumentData*> sticker) {
 		setHelloChosen(sticker);
 	};
-	owned->overrideMedia(std::make_unique<HistoryView::MediaInBubble>(
+	owned->overrideMedia(std::make_unique<HistoryView::MediaGeneric>(
 		owned.get(),
 		GenerateChatIntro(owned.get(), _item.get(), data, helloChosen),
-		HistoryView::MediaInBubbleDescriptor{
+		HistoryView::MediaGenericDescriptor{
 			.maxWidth = st::chatIntroWidth,
 			.service = true,
 			.hideServiceText = true,

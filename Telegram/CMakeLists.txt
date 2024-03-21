@@ -718,6 +718,8 @@ PRIVATE
     history/view/media/history_view_media.h
     history/view/media/history_view_media_common.cpp
     history/view/media/history_view_media_common.h
+    history/view/media/history_view_media_generic.cpp
+    history/view/media/history_view_media_generic.h
     history/view/media/history_view_media_grouped.cpp
     history/view/media/history_view_media_grouped.h
     history/view/media/history_view_media_spoiler.cpp
