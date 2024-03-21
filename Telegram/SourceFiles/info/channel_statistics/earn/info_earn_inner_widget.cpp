@@ -54,12 +54,14 @@ namespace {
 void AddHeader(
 		not_null<Ui::VerticalLayout*> content,
 		tr::phrase<> text) {
+	Ui::AddSkip(content);
 	const auto header = content->add(
-		object_ptr<Statistic::Header>(content),
-		st::statisticsLayerMargins + st::boostsChartHeaderPadding);
+		object_ptr<Ui::FlatLabel>(
+			content,
+			text(),
+			st::channelEarnSemiboldLabel),
+		st::boxRowPadding);
 	header->resizeToWidth(header->width());
-	header->setTitle(text(tr::now));
-	header->setSubTitle({});
 }
 
 void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
@@ -193,6 +195,69 @@ void InnerWidget::fill() {
 			RectPart::Top | RectPart::Bottom));
 	};
 	addAboutWithLearn(tr::lng_channel_earn_about);
+	Ui::AddSkip(container);
+	{
+		AddHeader(container, tr::lng_channel_earn_overview_title);
+		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
+
+		const auto addOverviewEntry = [&](
+				float64 value,
+				const tr::phrase<> &text) {
+			value = base::RandomIndex(1000000) / 1000.; // Debug.
+			const auto line = container->add(
+				Ui::CreateSkipWidget(container, 0),
+				st::boxRowPadding);
+			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
+				line,
+				st::channelEarnOverviewMajorLabel);
+			AddEmojiToMajor(majorLabel, session, value);
+			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
+				line,
+				QString::number(value - int64(value)).mid(1),
+				st::channelEarnOverviewMinorLabel);
+			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
+				line,
+				QString(kApproximately)
+					+ QChar('$')
+					+ QString::number(value * multiplier),
+				st::channelEarnOverviewSubMinorLabel);
+			rpl::combine(
+				line->widthValue(),
+				majorLabel->sizeValue()
+			) | rpl::start_with_next([=](int available, const QSize &size) {
+				line->resize(line->width(), size.height());
+				minorLabel->moveToLeft(
+					size.width(),
+					st::channelEarnOverviewMinorLabelSkip);
+				secondMinorLabel->resizeToWidth(available
+					- size.width()
+					- minorLabel->width());
+				secondMinorLabel->moveToLeft(
+					rect::right(minorLabel)
+						+ st::channelEarnOverviewSubMinorLabelPos.x(),
+					st::channelEarnOverviewSubMinorLabelPos.y());
+			}, minorLabel->lifetime());
+
+			Ui::AddSkip(container);
+			const auto sub = container->add(
+				object_ptr<Ui::FlatLabel>(
+					container,
+					text(),
+					st::channelEarnOverviewSubMinorLabel),
+				st::boxRowPadding);
+			sub->setTextColorOverride(st::windowSubTextFg->c);
+		};
+		addOverviewEntry(0, tr::lng_channel_earn_available);
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		addOverviewEntry(0, tr::lng_channel_earn_reward);
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		addOverviewEntry(0, tr::lng_channel_earn_total);
+		Ui::AddSkip(container);
+	}
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 	{
 		const auto value = 54.12; // Debug.
@@ -332,78 +397,14 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
-	}
-	addAboutWithLearn(tr::lng_channel_earn_balance_about);
-	Ui::AddSkip(container);
-	{
-		Ui::AddSkip(container);
-		AddHeader(container, tr::lng_channel_earn_overview_title);
-		Ui::AddSkip(container);
-		Ui::AddSkip(container);
-
-		const auto addOverviewEntry = [&](
-				float64 value,
-				const tr::phrase<> &text) {
-			value = base::RandomIndex(1000000) / 1000.; // Debug.
-			const auto line = container->add(
-				Ui::CreateSkipWidget(container, 0),
-				st::boxRowPadding);
-			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
-				line,
-				st::channelEarnOverviewMajorLabel);
-			AddEmojiToMajor(majorLabel, session, value);
-			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
-				line,
-				QString::number(value - int64(value)).mid(1),
-				st::channelEarnOverviewMinorLabel);
-			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
-				line,
-				QString(kApproximately)
-					+ QChar('$')
-					+ QString::number(value * multiplier),
-				st::channelEarnOverviewSubMinorLabel);
-			rpl::combine(
-				line->widthValue(),
-				majorLabel->sizeValue()
-			) | rpl::start_with_next([=](int available, const QSize &size) {
-				line->resize(line->width(), size.height());
-				minorLabel->moveToLeft(
-					size.width(),
-					st::channelEarnOverviewMinorLabelSkip);
-				secondMinorLabel->resizeToWidth(available
-					- size.width()
-					- minorLabel->width());
-				secondMinorLabel->moveToLeft(
-					rect::right(minorLabel)
-						+ st::channelEarnOverviewSubMinorLabelPos.x(),
-					st::channelEarnOverviewSubMinorLabelPos.y());
-			}, minorLabel->lifetime());
-
-			Ui::AddSkip(container);
-			const auto sub = container->add(
-				object_ptr<Ui::FlatLabel>(
-					container,
-					text(),
-					st::channelEarnOverviewSubMinorLabel),
-				st::boxRowPadding);
-			sub->setTextColorOverride(st::windowSubTextFg->c);
-		};
-		addOverviewEntry(0, tr::lng_channel_earn_available);
-		Ui::AddSkip(container);
-		Ui::AddSkip(container);
-		addOverviewEntry(0, tr::lng_channel_earn_reward);
-		Ui::AddSkip(container);
-		Ui::AddSkip(container);
-		addOverviewEntry(0, tr::lng_channel_earn_total);
+		addAboutWithLearn(tr::lng_channel_earn_balance_about);
 		Ui::AddSkip(container);
 	}
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 	{
-		Ui::AddSkip(container);
 		AddHeader(container, tr::lng_channel_earn_history_title);
-		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 
 		struct HistoryEntry final {
@@ -690,7 +691,6 @@ void InnerWidget::fill() {
 		Ui::AddSkip(inner);
 		const auto line = inner->add(object_ptr<Ui::RpWidget>(inner));
 		Ui::AddSkip(inner);
-		Ui::AddSkip(inner);
 		const auto left = Ui::CreateChild<Ui::FlatLabel>(
 			line,
 			tr::lng_channel_earn_cpm_min(),
@@ -779,6 +779,7 @@ void InnerWidget::fill() {
 			wrap->toggle(toggled, anim::type::normal);
 		}, container->lifetime());
 
+		Ui::AddSkip(container);
 		Ui::AddDividerText(container, tr::lng_channel_earn_off_about());
 	}
 	Ui::AddSkip(container);

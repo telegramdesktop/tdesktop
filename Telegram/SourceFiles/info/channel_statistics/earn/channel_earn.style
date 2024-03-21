@@ -10,6 +10,7 @@ using "boxes/boxes.style";
 
 channelEarnLearnArrowMargins: margins(-2px, 5px, 0px, 0px);
 
+channelEarnOverviewTitleSkip: 11px;
 channelEarnOverviewMajorLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 30px;
 	style: TextStyle(defaultTextStyle) {
