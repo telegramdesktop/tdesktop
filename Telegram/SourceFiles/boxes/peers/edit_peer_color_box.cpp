@@ -521,39 +521,6 @@ void LevelBadge::paintEvent(QPaintEvent *e) {
 	_text.draw(p, context);
 }
 
-void AddLevelBadge(
-		int level,
-		not_null<Ui::SettingsButton*> button,
-		Ui::RpWidget *right,
-		not_null<ChannelData*> channel,
-		const QMargins &padding,
-		rpl::producer<QString> text) {
-	if (channel->levelHint() >= level) {
-		return;
-	}
-	const auto badge = Ui::CreateChild<LevelBadge>(
-		button.get(),
-		level,
-		&channel->session());
-	badge->show();
-	const auto sampleLeft = st::settingsColorSamplePadding.left();
-	const auto badgeLeft = padding.left() + sampleLeft;
-	rpl::combine(
-		button->sizeValue(),
-		std::move(text)
-	) | rpl::start_with_next([=](const QSize &s, const QString &) {
-		if (s.isNull()) {
-			return;
-		}
-		badge->moveToLeft(
-			button->fullTextWidth() + badgeLeft,
-			(s.height() - badge->height()) / 2);
-		const auto rightEdge = right ? right->pos().x() : button->width();
-		badge->setMinimal((rect::right(badge) + sampleLeft) > rightEdge);
-		badge->setVisible((rect::right(badge) + sampleLeft) < rightEdge);
-	}, badge->lifetime());
-}
-
 struct SetValues {
 	uint8 colorIndex = 0;
 	DocumentId backgroundEmojiId = 0;
@@ -1164,6 +1131,39 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 }
 
 } // namespace
+
+void AddLevelBadge(
+		int level,
+		not_null<Ui::SettingsButton*> button,
+		Ui::RpWidget *right,
+		not_null<ChannelData*> channel,
+		const QMargins &padding,
+		rpl::producer<QString> text) {
+	if (channel->levelHint() >= level) {
+		return;
+	}
+	const auto badge = Ui::CreateChild<LevelBadge>(
+		button.get(),
+		level,
+		&channel->session());
+	badge->show();
+	const auto sampleLeft = st::settingsColorSamplePadding.left();
+	const auto badgeLeft = padding.left() + sampleLeft;
+	rpl::combine(
+		button->sizeValue(),
+		std::move(text)
+	) | rpl::start_with_next([=](const QSize &s, const QString &) {
+		if (s.isNull()) {
+			return;
+		}
+		badge->moveToLeft(
+			button->fullTextWidth() + badgeLeft,
+			(s.height() - badge->height()) / 2);
+		const auto rightEdge = right ? right->pos().x() : button->width();
+		badge->setMinimal((rect::right(badge) + sampleLeft) > rightEdge);
+		badge->setVisible((rect::right(badge) + sampleLeft) < rightEdge);
+	}, badge->lifetime());
+}
 
 void EditPeerColorBox(
 		not_null<Ui::GenericBox*> box,

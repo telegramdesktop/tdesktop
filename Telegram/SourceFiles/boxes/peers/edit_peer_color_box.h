@@ -20,13 +20,23 @@ class Show;
 } // namespace ChatHelpers
 
 namespace Ui {
+class RpWidget;
 class GenericBox;
 class ChatStyle;
 class ChatTheme;
 class VerticalLayout;
 struct AskBoostReason;
 class RpWidget;
+class SettingsButton;
 } // namespace Ui
+
+void AddLevelBadge(
+	int level,
+	not_null<Ui::SettingsButton*> button,
+	Ui::RpWidget *right,
+	not_null<ChannelData*> channel,
+	const QMargins &padding,
+	rpl::producer<QString> text);
 
 void EditPeerColorBox(
 	not_null<Ui::GenericBox*> box,

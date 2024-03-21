@@ -4971,8 +4971,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_off" = "Switch Off Ads";
 "lng_channel_earn_off_about" = "You will not be eligible for any rewards if you switch off ads.";
 "lng_channel_earn_cpm_min" = "No Ads";
-"lng_channel_earn_cpm#one" = "{count} CPM";
-"lng_channel_earn_cpm#other" = "{count} CPM";
+"lng_channel_earn_cpm#one" = "{emoji} {count} CPM";
+"lng_channel_earn_cpm#other" = "{emoji} {count} CPM";
 "lng_channel_earn_learn_title" = "Earn From Your Channel";
 "lng_channel_earn_learn_in_subtitle" = "Telegram Ads";
 "lng_channel_earn_learn_in_about" = "Telegram can display ads in your channel.";

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/random.h"
 #include "base/unixtime.h"
+#include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_peer.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_common.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value.h"
@@ -30,14 +32,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+#include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 
 #include <QUuid>
@@ -92,10 +97,8 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 	});
 }
 
-void AddEmojiToMajor(
-		not_null<Ui::FlatLabel*> label,
-		not_null<Main::Session*> session,
-		float64 value) {
+[[nodiscard]] TextWithEntities EmojiCurrency(
+		not_null<Main::Session*> session) {
 	auto emoji = TextWithEntities{
 		.text = (QString(QChar(0xD83D)) + QChar(0xDC8E)),
 	};
@@ -105,6 +108,14 @@ void AddEmojiToMajor(
 			emoji = Data::SingleCustomEmoji(sticker.document);
 		}
 	}
+	return emoji;
+}
+
+void AddEmojiToMajor(
+		not_null<Ui::FlatLabel*> label,
+		not_null<Main::Session*> session,
+		float64 value) {
+	auto emoji = EmojiCurrency(session);
 	label->setMarkedText(
 		emoji.append(' ').append(QString::number(int64(value))),
 		Core::MarkedTextContext{
@@ -142,6 +153,7 @@ void InnerWidget::fill() {
 	const auto container = this;
 
 	constexpr auto kMinus = QChar(0x2212);
+	constexpr auto kApproximately = QChar(0x2248);
 	const auto currency = u"TON"_q;
 	const auto multiplier = 3.8; // Debug.
 
@@ -224,7 +236,7 @@ void InnerWidget::fill() {
 				container,
 				object_ptr<Ui::FlatLabel>(
 					container,
-					QString(QChar(0x2248))
+					QString(kApproximately)
 						+ QChar('$')
 						+ QString::number(value * multiplier),
 					st::channelEarnOverviewSubMinorLabel)));
@@ -346,7 +358,7 @@ void InnerWidget::fill() {
 				st::channelEarnOverviewMinorLabel);
 			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				QString(QChar(0x2248))
+				QString(kApproximately)
 					+ QChar('$')
 					+ QString::number(value * multiplier),
 				st::channelEarnOverviewSubMinorLabel);
@@ -650,6 +662,125 @@ void InnerWidget::fill() {
 	}
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
+	Ui::AddSkip(container);
+	if (const auto channel = _peer->asChannel()) {
+		constexpr auto kMaxCPM = 50; // Debug.
+		const auto &phrase = tr::lng_channel_earn_off;
+		const auto button = container->add(object_ptr<Ui::SettingsButton>(
+			container,
+			phrase(),
+			st::settingsButtonNoIcon));
+
+		constexpr auto kMinLevel = 30; // Debug.
+		AddLevelBadge(
+			kMinLevel,
+			button,
+			nullptr,
+			channel,
+			QMargins(st::boxRowPadding.left(), 0, 0, 0),
+			phrase());
+
+		const auto wrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)),
+			st::boxRowPadding);
+		const auto inner = wrap->entity();
+		Ui::AddSkip(inner);
+		Ui::AddSkip(inner);
+		const auto line = inner->add(object_ptr<Ui::RpWidget>(inner));
+		Ui::AddSkip(inner);
+		Ui::AddSkip(inner);
+		const auto left = Ui::CreateChild<Ui::FlatLabel>(
+			line,
+			tr::lng_channel_earn_cpm_min(),
+			st::defaultFlatLabel);
+		const auto center = Ui::CreateChild<Ui::FlatLabel>(
+			line,
+			st::defaultFlatLabel);
+		const auto right = Ui::CreateChild<Ui::FlatLabel>(
+			line,
+			st::defaultFlatLabel);
+		AddEmojiToMajor(right, session, kMaxCPM);
+		const auto slider = Ui::CreateChild<Ui::MediaSlider>(
+			line,
+			st::settingsScale);
+		rpl::combine(
+			line->sizeValue(),
+			left->sizeValue(),
+			center->sizeValue(),
+			right->sizeValue()
+		) | rpl::start_with_next([=](
+				const QSize &s,
+				const QSize &leftSize,
+				const QSize &centerSize,
+				const QSize &rightSize) {
+			const auto sliderHeight = st::settingsScale.seekSize.height();
+			line->resize(
+				line->width(),
+				leftSize.height() + sliderHeight * 2);
+			{
+				const auto r = line->rect();
+				slider->setGeometry(
+					0,
+					r.height() - sliderHeight,
+					r.width(),
+					sliderHeight);
+			}
+			left->moveToLeft(0, 0);
+			right->moveToRight(0, 0);
+			center->moveToLeft((s.width() - centerSize.width()) / 2, 0);
+		}, line->lifetime());
+
+		const auto updateLabels = [=](int cpm) {
+			const auto activeColor = st::windowActiveTextFg->c;
+			left->setTextColorOverride(!cpm
+				? std::make_optional(activeColor)
+				: std::nullopt);
+
+			if (cpm > 0 && cpm < kMaxCPM) {
+				center->setMarkedText(
+					tr::lng_channel_earn_cpm(
+						tr::now,
+						lt_count,
+						cpm,
+						lt_emoji,
+						EmojiCurrency(session),
+						Ui::Text::RichLangValue),
+					Core::MarkedTextContext{
+						.session = session,
+						.customEmojiRepaint = [center] { center->update(); },
+					});
+			} else {
+				center->setText({});
+			}
+			center->setTextColorOverride(activeColor);
+
+			right->setTextColorOverride((cpm == kMaxCPM)
+				? std::make_optional(activeColor)
+				: std::nullopt);
+		};
+		const auto current = kMaxCPM / 2;
+		slider->setPseudoDiscrete(
+			kMaxCPM + 1,
+			[=](int index) { return index; },
+			current,
+			updateLabels,
+			updateLabels);
+		updateLabels(current);
+
+		wrap->toggle(false, anim::type::instant);
+		button->toggleOn(
+			rpl::single(false) // Debug.
+		)->toggledChanges(
+		) | rpl::filter([=](bool toggled) {
+			return true;
+		}) | rpl::start_with_next([=](bool toggled) {
+			wrap->toggle(toggled, anim::type::normal);
+		}, container->lifetime());
+
+		Ui::AddDividerText(container, tr::lng_channel_earn_off_about());
+	}
 	Ui::AddSkip(container);
 }
 
