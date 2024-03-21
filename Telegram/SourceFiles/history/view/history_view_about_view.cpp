@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_about_view.h"
 
 #include "api/api_premium.h"
+#include "api/api_sending.h"
 #include "apiwrap.h"
 #include "base/random.h"
 #include "chat_helpers/stickers_lottie.h"
@@ -115,10 +116,16 @@ auto GenerateChatIntro(
 					}
 				}
 			}
+			const auto send = [=] {
+				Api::SendExistingDocument(Api::MessageToSend(
+					Api::SendAction(parent->history())
+				), sticker);
+			};
 			return StickerInBubblePart::Data{
 				.sticker = sticker,
 				.size = st::chatIntroStickerSize,
 				.cacheTag = Tag::ChatIntroHelloSticker,
+				.link = std::make_shared<LambdaClickHandler>(send),
 			};
 		};
 		push(std::make_unique<StickerInBubblePart>(

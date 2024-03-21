@@ -75,7 +75,7 @@ public:
 		bool pressed) override;
 
 	bool needsBubble() const override {
-		return !_service;;
+		return !_service;
 	}
 	bool customInfoLayout() const override {
 		return false;
@@ -169,6 +169,7 @@ public:
 		int size = 0;
 		ChatHelpers::StickerLottieSize cacheTag = {};
 		bool singleTimePlayback = false;
+		ClickHandlerPtr link;
 
 		explicit operator bool() const {
 			return sticker != nullptr;
@@ -192,6 +193,10 @@ public:
 		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
 		int outerWidth) const override;
+	TextState textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const override;
 	bool hasHeavyPart() override;
 	void unloadHeavyPart() override;
 
@@ -210,6 +215,7 @@ private:
 	mutable int _skipTop = 0;
 	mutable QMargins _padding;
 	mutable std::optional<Sticker> _sticker;
+	mutable ClickHandlerPtr _link;
 
 };
 
@@ -227,6 +233,10 @@ public:
 		Painter &p,
 		not_null<const MediaInBubble*> owner,
 		const PaintContext &context,
+		int outerWidth) const override;
+	TextState textState(
+		QPoint point,
+		StateRequest request,
 		int outerWidth) const override;
 	bool hasHeavyPart() override;
 	void unloadHeavyPart() override;

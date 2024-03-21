@@ -124,7 +124,7 @@ void MediaInBubble::draw(Painter &p, const PaintContext &context) const {
 	const auto outer = width();
 	if (outer < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return;
-	} else {
+	} else if (_service) {
 		PainterHighQualityEnabler hq(p);
 		const auto radius = st::msgServiceGiftBoxRadius;
 		p.setPen(Qt::NoPen);
@@ -367,6 +367,25 @@ void StickerInBubblePart::draw(
 	}
 }
 
+TextState StickerInBubblePart::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	auto result = TextState(_parent);
+	if (_sticker) {
+		const auto stickerSize = _sticker->countOptimalSize();
+		const auto sticker = QRect(
+			(outerWidth - stickerSize.width()) / 2,
+			_padding.top() + _skipTop,
+			stickerSize.width(),
+			stickerSize.height());
+		if (sticker.contains(point)) {
+			result.link = _link;
+		}
+	}
+	return result;
+}
+
 bool StickerInBubblePart::hasHeavyPart() {
 	return _sticker && _sticker->hasHeavyPart();
 }
@@ -408,6 +427,7 @@ void StickerInBubblePart::ensureCreated(Element *replacing) const {
 		const auto sticker = data.sticker;
 		if (const auto info = sticker->sticker()) {
 			const auto skipPremiumEffect = true;
+			_link = data.link;
 			_skipTop = data.skipTop;
 			_sticker.emplace(_parent, sticker, skipPremiumEffect, replacing);
 			if (data.singleTimePlayback) {
@@ -438,6 +458,13 @@ void StickerWithBadgePart::draw(
 	if (_sticker.resolved()) {
 		paintBadge(p, context);
 	}
+}
+
+TextState StickerWithBadgePart::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	return _sticker.textState(point, request, outerWidth);
 }
 
 bool StickerWithBadgePart::hasHeavyPart() {
