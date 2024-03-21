@@ -14,28 +14,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
-#include "statistics/widgets/chart_header_widget.h"
 #include "ui/controls/userpic_button.h"
-#include "ui/effects/animation_value.h"
 #include "ui/effects/animation_value_f.h"
-#include "ui/effects/animations.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/widgets/labels.h"
-#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
@@ -113,19 +105,6 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 	return emoji;
 }
 
-void AddEmojiToMajor(
-		not_null<Ui::FlatLabel*> label,
-		not_null<Main::Session*> session,
-		float64 value) {
-	auto emoji = EmojiCurrency(session);
-	label->setMarkedText(
-		emoji.append(' ').append(QString::number(int64(value))),
-		Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = [label] { label->update(); },
-		});
-}
-
 [[nodiscard]] QString FormatDate(TimeId date) {
 	const auto parsedDate = base::unixtime::parse(date);
 	return tr::lng_group_call_starts_short_date(
@@ -160,13 +139,27 @@ void InnerWidget::fill() {
 	const auto multiplier = 3.8; // Debug.
 
 	const auto session = &_peer->session();
+	const auto makeContext = [=](not_null<Ui::FlatLabel*> l) {
+		return Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [=] { l->update(); },
+		};
+	};
+	const auto addEmojiToMajor = [=](
+			not_null<Ui::FlatLabel*> label,
+			float64 value) {
+		auto emoji = EmojiCurrency(session);
+		label->setMarkedText(
+			emoji.append(' ').append(QString::number(int64(value))),
+			makeContext(label));
+	};
 
+	const auto arrow = Ui::Text::SingleCustomEmoji(
+		session->data().customEmojiManager().registerInternalEmoji(
+			st::topicButtonArrow,
+			st::channelEarnLearnArrowMargins,
+			false));
 	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
-		const auto emoji = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				st::topicButtonArrow,
-				st::channelEarnLearnArrowMargins,
-				false));
 		auto label = object_ptr<Ui::FlatLabel>(
 			container,
 			st::boxDividerLabel);
@@ -175,18 +168,159 @@ void InnerWidget::fill() {
 			lt_link,
 			tr::lng_channel_earn_about_link(
 				lt_emoji,
-				rpl::single(emoji),
+				rpl::single(arrow),
 				Ui::Text::RichLangValue
 			) | rpl::map([](TextWithEntities text) {
 				return Ui::Text::Link(std::move(text), 1);
 			}),
 			Ui::Text::RichLangValue
 		) | rpl::start_with_next([=](const TextWithEntities &text) {
-			raw->setMarkedText(
-				text,
-				Core::MarkedTextContext{ .session = session });
+			raw->setMarkedText(text, makeContext(raw));
 		}, label->lifetime());
 		label->setLink(1, std::make_shared<LambdaClickHandler>([=] {
+			_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setNoContentMargin(true);
+
+				const auto content = box->verticalLayout().get();
+
+				Ui::AddSkip(content);
+				Ui::AddSkip(content);
+				Ui::AddSkip(content);
+				box->addRow(object_ptr<Ui::CenterWrap<>>(
+					content,
+					object_ptr<Ui::FlatLabel>(
+						content,
+						tr::lng_channel_earn_learn_title(),
+						st::boxTitle)));
+				Ui::AddSkip(content);
+				Ui::AddSkip(content);
+				Ui::AddSkip(content);
+				Ui::AddSkip(content);
+				{
+					const auto padding = QMargins(
+						st::settingsButton.padding.left(),
+						st::boxRowPadding.top(),
+						st::boxRowPadding.right(),
+						st::boxRowPadding.bottom());
+					const auto addEntry = [&](
+							rpl::producer<QString> title,
+							rpl::producer<QString> about,
+							const style::icon &icon) {
+						const auto top = content->add(
+							object_ptr<Ui::FlatLabel>(
+								content,
+								std::move(title),
+								st::channelEarnSemiboldLabel),
+							padding);
+						Ui::AddSkip(content, st::channelEarnHistoryThreeSkip);
+						content->add(
+							object_ptr<Ui::FlatLabel>(
+								content,
+								std::move(about),
+								st::channelEarnHistoryRecipientLabel),
+							padding);
+						const auto left = Ui::CreateChild<Ui::RpWidget>(
+							box->verticalLayout().get());
+						left->paintRequest(
+						) | rpl::start_with_next([=] {
+							auto p = Painter(left);
+							icon.paint(p, 0, 0, left->width());
+						}, left->lifetime());
+						left->resize(icon.size());
+						top->geometryValue(
+						) | rpl::start_with_next([=](const QRect &g) {
+							left->moveToLeft(
+								(g.left() - left->width()) / 2,
+								g.top() + st::channelEarnHistoryThreeSkip);
+						}, left->lifetime());
+					};
+					addEntry(
+						tr::lng_channel_earn_learn_in_subtitle(),
+						tr::lng_channel_earn_learn_in_about(),
+						st::getBoostsButtonIcon);
+					Ui::AddSkip(content);
+					Ui::AddSkip(content);
+					addEntry(
+						tr::lng_channel_earn_learn_split_subtitle(),
+						tr::lng_channel_earn_learn_split_about(),
+						st::getBoostsButtonIcon);
+					Ui::AddSkip(content);
+					Ui::AddSkip(content);
+					addEntry(
+						tr::lng_channel_earn_learn_out_subtitle(),
+						tr::lng_channel_earn_learn_out_about(),
+						st::getBoostsButtonIcon);
+					Ui::AddSkip(content);
+					Ui::AddSkip(content);
+				}
+				Ui::AddSkip(content);
+				Ui::AddSkip(content);
+				{
+					const auto l = box->addRow(
+						object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+							content,
+							object_ptr<Ui::FlatLabel>(
+								content,
+								st::boxTitle)))->entity();
+					tr::lng_channel_earn_learn_coin_title(
+						lt_emoji,
+						rpl::single(
+							Ui::Text::Link(EmojiCurrency(session), 1)),
+						Ui::Text::RichLangValue
+					) | rpl::start_with_next([=](TextWithEntities t) {
+						l->setMarkedText(std::move(t), makeContext(l));
+					}, l->lifetime());
+					const auto diamonds = l->lifetime().make_state<int>(0);
+					l->setLink(1, std::make_shared<LambdaClickHandler>([=] {
+						const auto count = (*diamonds);
+						box->showToast((count == 100)
+							? u"You are rich now!"_q
+							: (u"You have earned "_q
+								+ QString::number(++(*diamonds))
+								+ (!count
+									? u" diamond!"_q
+									: u" diamonds!"_q)));
+					}));
+				}
+				Ui::AddSkip(content);
+				{
+					const auto label = box->addRow(
+						object_ptr<Ui::FlatLabel>(
+							content,
+							st::channelEarnLearnDescription));
+					tr::lng_channel_earn_learn_coin_about(
+						lt_link,
+						tr::lng_channel_earn_about_link(
+							lt_emoji,
+							rpl::single(arrow),
+							Ui::Text::RichLangValue
+						) | rpl::map([](TextWithEntities text) {
+							return Ui::Text::Link(std::move(text), 1);
+						}),
+						Ui::Text::RichLangValue
+					) | rpl::start_with_next([=, l = label](
+							TextWithEntities t) {
+						l->setMarkedText(std::move(t), makeContext(l));
+						l->resizeToWidth(box->width()
+							- rect::m::sum::h(st::boxRowPadding));
+					}, label->lifetime());
+				}
+				Ui::AddSkip(content);
+				Ui::AddSkip(content);
+				{
+					const auto &st = st::premiumPreviewDoubledLimitsBox;
+					box->setStyle(st);
+					auto button = object_ptr<Ui::RoundButton>(
+						container,
+						tr::lng_channel_earn_learn_close(),
+						st::defaultActiveButton);
+					button->resizeToWidth(box->width()
+						- st.buttonPadding.left()
+						- st.buttonPadding.left());
+					button->setClickedCallback([=] { box->closeBox(); });
+					box->addButton(std::move(button));
+				}
+			}));
 		}));
 		container->add(object_ptr<Ui::DividerLabel>(
 			container,
@@ -210,7 +344,7 @@ void InnerWidget::fill() {
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				st::channelEarnOverviewMajorLabel);
-			AddEmojiToMajor(majorLabel, session, value);
+			addEmojiToMajor(majorLabel, value);
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				QString::number(value - int64(value)).mid(1),
@@ -273,7 +407,7 @@ void InnerWidget::fill() {
 		const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 			labels,
 			st::channelEarnBalanceMajorLabel);
-		AddEmojiToMajor(majorLabel, session, value);
+		addEmojiToMajor(majorLabel, value);
 		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 			labels,
@@ -701,7 +835,7 @@ void InnerWidget::fill() {
 		const auto right = Ui::CreateChild<Ui::FlatLabel>(
 			line,
 			st::defaultFlatLabel);
-		AddEmojiToMajor(right, session, kMaxCPM);
+		addEmojiToMajor(right, kMaxCPM);
 		const auto slider = Ui::CreateChild<Ui::MediaSlider>(
 			line,
 			st::settingsScale);
@@ -747,10 +881,7 @@ void InnerWidget::fill() {
 						lt_emoji,
 						EmojiCurrency(session),
 						Ui::Text::RichLangValue),
-					Core::MarkedTextContext{
-						.session = session,
-						.customEmojiRepaint = [center] { center->update(); },
-					});
+					makeContext(center));
 			} else {
 				center->setText({});
 			}
