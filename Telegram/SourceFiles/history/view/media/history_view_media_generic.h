@@ -45,6 +45,7 @@ public:
 
 struct MediaGenericDescriptor {
 	int maxWidth = 0;
+	ClickHandlerPtr serviceLink;
 	bool service = false;
 	bool hideServiceText = false;
 };

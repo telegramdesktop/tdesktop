@@ -80,6 +80,10 @@ MediaGeneric::MediaGeneric(
 			.object = std::move(part),
 		});
 	});
+	if (descriptor.serviceLink) {
+		parent->data()->setCustomServiceLink(
+			std::move(descriptor.serviceLink));
+	}
 }
 
 MediaGeneric::~MediaGeneric() {

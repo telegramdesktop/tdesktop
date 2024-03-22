@@ -1549,6 +1549,11 @@ void HistoryItem::setRealShortcutId(BusinessShortcutId id) {
 	_shortcutId = id;
 }
 
+void HistoryItem::setCustomServiceLink(ClickHandlerPtr link) {
+	AddComponents(HistoryServiceCustomLink::Bit());
+	Get<HistoryServiceCustomLink>()->link = std::move(link);
+}
+
 void HistoryItem::destroy() {
 	_history->destroyMessage(this);
 }
@@ -4849,6 +4854,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareGiveawayLaunch,
 		prepareGiveawayResults,
 		prepareBoostApply,
+		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 
 	// Additional information.

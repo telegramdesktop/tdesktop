@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "base/random.h"
+#include "boxes/premium_preview_box.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/click_handler_types.h"
 #include "data/business/data_business_common.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_reply_markup.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/business/settings_chat_intro.h"
 #include "settings/settings_premium.h"
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_utilities.h"
@@ -237,7 +239,7 @@ bool AboutView::refresh() {
 	const auto user = _history->peer->asUser();
 	const auto info = user ? user->botInfo.get() : nullptr;
 	if (!info) {
-		if (user && _history->isDisplayedEmpty()) {
+		if (user && !user->isSelf() && _history->isDisplayedEmpty()) {
 			if (_item) {
 				return false;
 			} else if (user->meRequiresPremiumToWrite()
@@ -269,13 +271,16 @@ void AboutView::makeIntro(not_null<UserData*> user) {
 }
 
 void AboutView::make(Data::ChatIntro data) {
+	const auto text = data
+		? tr::lng_action_set_chat_intro(tr::now, lt_from, _history->peer->name())
+		: QString();
 	const auto item = _history->makeMessage({
 		.id = _history->nextNonHistoryEntryId(),
 		.flags = (MessageFlag::FakeAboutView
 			| MessageFlag::FakeHistoryItem
 			| MessageFlag::Local),
 		.from = _history->peer->id,
-	}, PreparedServiceText{ { } });
+	}, PreparedServiceText{ { text }});
 
 	if (data.sticker) {
 		_helloChosen = nullptr;
@@ -287,13 +292,26 @@ void AboutView::make(Data::ChatIntro data) {
 	const auto helloChosen = [=](not_null<DocumentData*> sticker) {
 		setHelloChosen(sticker);
 	};
+	const auto handler = [=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (controller->session().premium()) {
+				controller->showSettings(Settings::ChatIntroId());
+			} else {
+				ShowPremiumPreviewBox(
+					controller->uiShow(),
+					PremiumFeature::ChatIntro);
+			}
+		}
+	};
 	owned->overrideMedia(std::make_unique<HistoryView::MediaGeneric>(
 		owned.get(),
 		GenerateChatIntro(owned.get(), _item.get(), data, helloChosen),
 		HistoryView::MediaGenericDescriptor{
 			.maxWidth = st::chatIntroWidth,
+			.serviceLink = std::make_shared<LambdaClickHandler>(handler),
 			.service = true,
-			.hideServiceText = true,
+			.hideServiceText = text.isEmpty(),
 		}));
 	if (!data.sticker && _helloChosen) {
 		data.sticker = _helloChosen;

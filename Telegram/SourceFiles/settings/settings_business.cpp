@@ -684,7 +684,7 @@ std::vector<PremiumFeature> BusinessFeaturesOrder(
 			return PremiumFeature::BusinessLocation;
 		} else if (s == u"business_bots"_q) {
 			return PremiumFeature::BusinessBots;
-		} else if (s == u"chat_intro"_q) {
+		} else if (s == u"business_intro"_q) {
 			return PremiumFeature::ChatIntro;
 		}
 		return PremiumFeature::kCount;

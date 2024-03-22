@@ -677,6 +677,8 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				result.link = same->lnk;
 			} else if (const auto results = item->Get<HistoryServiceGiveawayResults>()) {
 				result.link = results->lnk;
+			} else if (const auto custom = item->Get<HistoryServiceCustomLink>()) {
+				result.link = custom->link;
 			} else if (media && data()->showSimilarChannels()) {
 				result = media->textState(mediaPoint, request);
 			}

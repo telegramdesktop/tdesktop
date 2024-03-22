@@ -629,6 +629,11 @@ struct HistoryServiceGiveawayResults
 , public HistoryServiceDependentData {
 };
 
+struct HistoryServiceCustomLink
+: public RuntimeComponent<HistoryServiceCustomLink, HistoryItem> {
+	ClickHandlerPtr link;
+};
+
 enum class HistorySelfDestructType {
 	Photo,
 	Video,
