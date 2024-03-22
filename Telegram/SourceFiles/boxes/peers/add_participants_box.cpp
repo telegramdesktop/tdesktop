@@ -561,33 +561,18 @@ void AddParticipantsBoxController::Start(
 
 std::vector<not_null<UserData*>> CollectForbiddenUsers(
 		not_null<Main::Session*> session,
-		const MTPUpdates &updates) {
+		const MTPmessages_InvitedUsers &result) {
+	const auto &data = result.data();
 	const auto owner = &session->data();
-	auto result = std::vector<not_null<UserData*>>();
-	const auto add = [&](const MTPUpdate &update) {
-		if (update.type() == mtpc_updateGroupInvitePrivacyForbidden) {
-			const auto user = owner->userLoaded(UserId(
-				update.c_updateGroupInvitePrivacyForbidden().vuser_id()));
-			if (user) {
-				result.push_back(user);
-			}
+	auto forbidden = std::vector<not_null<UserData*>>();
+	for (const auto &missing : data.vmissing_invitees().v) {
+		const auto user = owner->userLoaded(missing.data().vuser_id());
+		if (user) {
+			// #TODO invites
+			forbidden.push_back(user);
 		}
-	};
-	const auto collect = [&](const MTPVector<MTPUpdate> &updates) {
-		for (const auto &update : updates.v) {
-			add(update);
-		}
-	};
-	updates.match([&](const MTPDupdates &data) {
-		collect(data.vupdates());
-	}, [&](const MTPDupdatesCombined &data) {
-		collect(data.vupdates());
-	}, [&](const MTPDupdateShort &data) {
-		add(data.vupdate());
-	}, [](const auto &other) {
-		LOG(("Api Error: CollectForbiddenUsers for wrong updates type."));
-	});
-	return result;
+	}
+	return forbidden;
 }
 
 bool ChatInviteForbidden(

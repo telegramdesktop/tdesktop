@@ -84,6 +84,8 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		case Option::Contacts: return MTP_inputPrivacyValueAllowContacts();
 		case Option::CloseFriends:
 			return MTP_inputPrivacyValueAllowCloseFriends();
+		case Option::ContactsAndPremium:
+			return MTP_inputPrivacyValueAllowPremium();
 		case Option::Nobody: return MTP_inputPrivacyValueDisallowAll();
 		}
 		Unexpected("Option value in Api::UserPrivacy::RulesToTL.");
@@ -101,7 +103,9 @@ UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
 	auto result = UserPrivacy::Rule();
 	auto optionSet = false;
 	const auto setOption = [&](Option option) {
-		if (optionSet) return;
+		if (optionSet) {
+			return;
+		}
 		optionSet = true;
 		result.option = option;
 	};
@@ -114,6 +118,8 @@ UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
 			setOption(Option::Contacts);
 		}, [&](const MTPDprivacyValueAllowCloseFriends &) {
 			setOption(Option::CloseFriends);
+		}, [&](const MTPDprivacyValueAllowPremium &) {
+			setOption(Option::ContactsAndPremium);
 		}, [&](const MTPDprivacyValueAllowUsers &data) {
 			const auto &users = data.vusers().v;
 			always.reserve(always.size() + users.size());

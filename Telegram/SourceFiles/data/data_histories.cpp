@@ -729,8 +729,9 @@ void Histories::deleteAllMessages(
 						chat->inputChat,
 						MTP_inputUserSelf(),
 						MTP_int(0)
-					)).done([=](const MTPUpdates &updates) {
-						session().api().applyUpdates(updates);
+					)).done([=](const MTPmessages_InvitedUsers &result) {
+						const auto &data = result.data();
+						session().api().applyUpdates(data.vupdates());
 						deleteAllMessages(
 							history,
 							deleteTillId,

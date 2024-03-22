@@ -532,7 +532,7 @@ struct VideoPreviewDocument {
 		case PremiumFeature::GreetingMessage: return "greeting_message";
 		case PremiumFeature::AwayMessage: return "away_message";
 		case PremiumFeature::BusinessBots: return "business_bots";
-		case PremiumFeature::ChatIntro: return "chat_intro";
+		case PremiumFeature::ChatIntro: return "business_intro";
 		}
 		return "";
 	}();

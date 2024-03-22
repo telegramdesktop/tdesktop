@@ -35,6 +35,7 @@ public:
 		Everyone,
 		Contacts,
 		CloseFriends,
+		ContactsAndPremium,
 		Nobody,
 	};
 	struct Rule {

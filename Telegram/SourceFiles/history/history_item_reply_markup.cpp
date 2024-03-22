@@ -209,6 +209,9 @@ void HistoryMessageMarkupData::fillRows(
 						Type::SimpleWebView,
 						qs(data.vtext()),
 						data.vurl().v);
+				}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
+					LOG(("API Error: inputKeyboardButtonRequestPeer."));
+					// Should not get those for the users.
 				});
 			}
 			if (!row.empty()) {

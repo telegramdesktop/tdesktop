@@ -80,8 +80,9 @@ void AddChatParticipant(
 		chat->inputChat,
 		user->inputUser,
 		MTP_int(kForwardMessagesOnAdd)
-	)).done([=](const MTPUpdates &result) {
-		chat->session().api().applyUpdates(result);
+	)).done([=](const MTPmessages_InvitedUsers &result) {
+		const auto &data = result.data();
+		chat->session().api().applyUpdates(data.vupdates());
 		if (onDone) {
 			onDone();
 		}

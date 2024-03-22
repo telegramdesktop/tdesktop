@@ -66,11 +66,12 @@ void ChatCreateDone(
 		not_null<Window::SessionNavigation*> navigation,
 		QImage image,
 		TimeId ttlPeriod,
-		const MTPUpdates &updates,
+		const MTPmessages_InvitedUsers &result,
 		Fn<void(not_null<PeerData*>)> done) {
-	navigation->session().api().applyUpdates(updates);
+	const auto &data = result.data();
+	navigation->session().api().applyUpdates(data.vupdates());
 
-	const auto success = base::make_optional(&updates)
+	const auto success = base::make_optional(&data.vupdates())
 		| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
 			switch (updates->type()) {
 			case mtpc_updates:
@@ -109,7 +110,7 @@ void ChatCreateDone(
 				ChatInviteForbidden(
 					show,
 					chat,
-					CollectForbiddenUsers(&chat->session(), updates));
+					CollectForbiddenUsers(&chat->session(), result));
 			}
 		};
 	if (!success) {
@@ -708,7 +709,7 @@ void GroupInfoBox::createGroup(
 		MTP_vector<TLUsers>(inputs),
 		MTP_string(title),
 		MTP_int(ttlPeriod())
-	)).done([=](const MTPUpdates &result) {
+	)).done([=](const MTPmessages_InvitedUsers &result) {
 		auto image = _photo->takeResultImage();
 		const auto period = ttlPeriod();
 		const auto navigation = _navigation;

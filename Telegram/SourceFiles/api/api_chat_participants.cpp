@@ -498,8 +498,9 @@ void ChatParticipants::add(
 				chat->inputChat,
 				user->inputUser,
 				MTP_int(passGroupHistory ? kForwardMessagesOnAdd : 0)
-			)).done([=](const MTPUpdates &result) {
-				chat->session().api().applyUpdates(result);
+			)).done([=](const MTPmessages_InvitedUsers &result) {
+				const auto &data = result.data();
+				chat->session().api().applyUpdates(data.vupdates());
 				if (done) done(true);
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
@@ -520,8 +521,9 @@ void ChatParticipants::add(
 			_api.request(MTPchannels_InviteToChannel(
 				channel->inputChannel,
 				MTP_vector<MTPInputUser>(list)
-			)).done([=](const MTPUpdates &result) {
-				channel->session().api().applyUpdates(result);
+			)).done([=](const MTPmessages_InvitedUsers &result) {
+				const auto &data = result.data();
+				channel->session().api().applyUpdates(data.vupdates());
 				requestCountDelayed(channel);
 				if (callback) callback(true);
 				ChatInviteForbidden(

@@ -75,7 +75,7 @@ private:
 
 [[nodiscard]] std::vector<not_null<UserData*>> CollectForbiddenUsers(
 	not_null<Main::Session*> session,
-	const MTPUpdates &updates);
+	const MTPmessages_InvitedUsers &result);
 bool ChatInviteForbidden(
 	std::shared_ptr<Ui::Show> show,
 	not_null<PeerData*> peer,
