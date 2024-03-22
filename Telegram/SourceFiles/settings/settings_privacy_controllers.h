@@ -30,7 +30,7 @@ public:
 	explicit BlockedBoxController(
 		not_null<Window::SessionController*> window);
 
-	Main::Session &session() const override;
+	::Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowRightActionClicked(not_null<PeerListRow*> row) override;

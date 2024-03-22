@@ -30,6 +30,9 @@ public:
 	friend inline constexpr auto operator<=>(Birthday, Birthday) = default;
 	friend inline constexpr bool operator==(Birthday, Birthday) = default;
 
+	static constexpr auto kYearMin = 1900;
+	static constexpr auto kYearMax = 2100;
+
 private:
 	int _value = 0;
 

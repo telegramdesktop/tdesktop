@@ -343,6 +343,15 @@ rpl::producer<bool> CanAddContactValue(not_null<UserData*> user) {
 	) | rpl::map(!_1);
 }
 
+rpl::producer<Data::Birthday> BirthdayValue(not_null<UserData*> user) {
+	return user->session().changes().peerFlagsValue(
+		user,
+		UpdateFlag::Birthday
+	) | rpl::map([=] {
+		return user->birthday();
+	});
+}
+
 rpl::producer<bool> AmInChannelValue(not_null<ChannelData*> channel) {
 	return channel->session().changes().peerFlagsValue(
 		channel,

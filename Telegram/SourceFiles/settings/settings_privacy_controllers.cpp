@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -1522,21 +1523,19 @@ object_ptr<Ui::RpWidget> BirthdayPrivacyController::setupAboveWidget(
 		not_null<QWidget*> outerContainer) {
 	const auto session = &controller->session();
 	const auto user = session->user();
-	auto result = object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+	auto result = object_ptr<Ui::SlideWrap<Ui::DividerLabel>>(
 		parent,
-		object_ptr<Ui::FlatLabel>(
+		object_ptr<Ui::DividerLabel>(
 			parent,
-			tr::lng_edit_privacy_birthday_yet(
-				lt_link,
-				tr::lng_edit_privacy_birthday_yet_link(
-				) | Ui::Text::ToLink("internal:edit_birthday"),
-				Ui::Text::WithEntities),
-			st::settingsPrivacyAddBirthday),
-		st::boxRowPadding + style::margins(
-			0,
-			st::defaultVerticalListSkip,
-			0,
-			st::settingsPrivacySkipTop));
+			object_ptr<Ui::FlatLabel>(
+				parent,
+				tr::lng_edit_privacy_birthday_yet(
+					lt_link,
+					tr::lng_edit_privacy_birthday_yet_link(
+					) | Ui::Text::ToLink("internal:edit_birthday"),
+					Ui::Text::WithEntities),
+				st::boxDividerLabel),
+			st::defaultBoxDividerLabelPadding));
 	result->toggleOn(session->changes().peerFlagsValue(
 		user,
 		Data::PeerUpdate::Flag::Birthday

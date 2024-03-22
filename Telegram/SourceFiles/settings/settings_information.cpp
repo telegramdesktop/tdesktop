@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/unread_badge_paint.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/core_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "boxes/add_contact_box.h"
@@ -48,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
 #include "api/api_user_names.h"
+#include "api/api_user_privacy.h"
 #include "base/call_delayed.h"
 #include "base/options.h"
 #include "base/unixtime.h"
@@ -351,6 +353,84 @@ void AddRow(
 	}) | rpl::start_with_next([=](const TextWithEntities &text) {
 		*forcopy = text.text;
 	}, wrap->lifetime());
+}
+
+void SetupBirthday(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> self) {
+	const auto session = &self->session();
+
+	Ui::AddSkip(container);
+
+	auto value = rpl::combine(
+		Info::Profile::BirthdayValue(self),
+		tr::lng_settings_birthday_add()
+	) | rpl::map([](Data::Birthday birthday, const QString &add) {
+		const auto wrap = &Ui::Text::WithEntities;
+		if (const auto year = birthday.year()) {
+			return wrap(tr::lng_month_day_year(
+				tr::now,
+				lt_month,
+				Lang::MonthSmall(birthday.month())(tr::now),
+				lt_day,
+				QString::number(birthday.day()),
+				lt_year,
+				QString::number(year)));
+		} else if (birthday) {
+			return wrap(tr::lng_month_day(
+				tr::now,
+				lt_month,
+				Lang::MonthSmall(birthday.month())(tr::now),
+				lt_day,
+				QString::number(birthday.day())));
+		}
+		auto result = TextWithEntities{ add };
+		result.entities.push_back({
+			EntityType::CustomUrl,
+			0,
+			int(add.size()),
+			"internal:edit_username" });
+		return result;
+	});
+	const auto edit = [=] {
+		Core::App().openInternalUrl(
+			u"internal:edit_birthday"_q,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(controller),
+			}));
+	};
+	AddRow(
+		container,
+		tr::lng_settings_birthday_label(),
+		std::move(value),
+		tr::lng_mediaview_copy(tr::now),
+		edit,
+		{ &st::menuIconGiftPremium });
+
+	const auto key = Api::UserPrivacy::Key::Birthday;
+	session->api().userPrivacy().reload(key);
+	auto isExactlyContacts = session->api().userPrivacy().value(
+		key
+	) | rpl::map([=](const Api::UserPrivacy::Rule &value) {
+		return (value.option == Api::UserPrivacy::Option::Contacts)
+			&& value.always.empty()
+			&& value.never.empty();
+	}) | rpl::distinct_until_changed();
+
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, rpl::conditional(
+		std::move(isExactlyContacts),
+		tr::lng_settings_birthday_contacts(
+			lt_link,
+			tr::lng_settings_birthday_contacts_link(
+			) | Ui::Text::ToLink(u"internal:edit_privacy_birthday"_q),
+			Ui::Text::WithEntities),
+		tr::lng_settings_birthday_about(
+			lt_link,
+			tr::lng_settings_birthday_about_link(
+			) | Ui::Text::ToLink(u"internal:edit_privacy_birthday"_q),
+			Ui::Text::WithEntities)));
 }
 
 void SetupRows(
@@ -954,6 +1034,7 @@ void Information::setupContent(
 	SetupPhoto(content, controller, self);
 	SetupBio(content, self);
 	SetupRows(content, controller, self);
+	SetupBirthday(content, controller, self);
 	SetupAccountsWrap(content, controller);
 
 	Ui::ResizeFitChild(this, content);

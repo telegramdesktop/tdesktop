@@ -21,17 +21,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "boxes/background_preview_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/boxes/edit_birthday_box.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
+#include "boxes/edit_privacy_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/sessions_box.h"
 #include "boxes/language_box.h"
 #include "passport/passport_form_controller.h"
 #include "ui/toast/toast.h"
-#include "data/data_session.h"
-#include "data/data_document.h"
+#include "data/data_birthday.h"
 #include "data/data_channel.h"
+#include "data/data_document.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
 #include "window/window_session_controller.h"
@@ -44,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_global_ttl.h"
 #include "settings/settings_folders.h"
 #include "settings/settings_main.h"
+#include "settings/settings_privacy_controllers.h"
 #include "settings/settings_privacy_security.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_premium.h"
@@ -669,6 +674,59 @@ bool ShowSearchTagsPromo(
 	return true;
 }
 
+bool ShowEditBirthday(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto user = controller->session().user();
+	const auto save = [=](Data::Birthday result) {
+		user->setBirthday(result);
+
+		using Flag = MTPaccount_UpdateBirthday::Flag;
+		using BFlag = MTPDbirthday::Flag;
+		user->session().api().request(MTPaccount_UpdateBirthday(
+			MTP_flags(result ? Flag::f_birthday : Flag()),
+			MTP_birthday(
+				MTP_flags(result.year() ? BFlag::f_year : BFlag()),
+				MTP_int(result.day()),
+				MTP_int(result.month()),
+				MTP_int(result.year()))
+		)).done(crl::guard(controller, [=] {
+			controller->showToast(tr::lng_settings_birthday_saved(tr::now));
+		})).fail(crl::guard(controller, [=](const MTP::Error &error) {
+			controller->showToast(u"Error: "_q + error.type());
+		})).send();
+	};
+	controller->show(Box(
+		Ui::EditBirthdayBox,
+		user->birthday(),
+		save));
+	return true;
+}
+
+bool ShowEditBirthdayPrivacy(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	auto syncLifetime = controller->session().api().userPrivacy().value(
+		Api::UserPrivacy::Key::Birthday
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=](const Api::UserPrivacy::Rule &value) {
+		controller->show(Box<EditPrivacyBox>(
+			controller,
+			std::make_unique<::Settings::BirthdayPrivacyController>(),
+			value));
+	});
+	return true;
+}
+
 void ExportTestChatTheme(
 		not_null<Window::SessionController*> controller,
 		not_null<const Data::CloudTheme*> theme) {
@@ -1034,8 +1092,16 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 			CopyPeerId
 		},
 		{
-			u"about_tags"_q,
+			u"^about_tags$"_q,
 			ShowSearchTagsPromo
+		},
+		{
+			u"^edit_birthday$"_q,
+			ShowEditBirthday,
+		},
+		{
+			u"^edit_privacy_birthday$"_q,
+			ShowEditBirthdayPrivacy,
 		},
 	};
 	return Result;

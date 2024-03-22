@@ -11,7 +11,8 @@ namespace Data {
 namespace {
 
 [[nodiscard]] bool Validate(int day, int month, int year) {
-	if (year != 0 && (year < 1900 || year > 2100)) {
+	if (year != 0
+		&& (year < Birthday::kYearMin || year > Birthday::kYearMax)) {
 		return false;
 	} else if (day < 1) {
 		return false;

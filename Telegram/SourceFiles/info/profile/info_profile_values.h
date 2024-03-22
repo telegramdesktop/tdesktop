@@ -17,6 +17,7 @@ struct ChannelLocation;
 namespace Data {
 class ForumTopic;
 class Thread;
+class Birthday;
 } // namespace Data
 
 namespace Main {
@@ -82,6 +83,8 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<bool> CanShareContactValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<bool> CanAddContactValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<Data::Birthday> BirthdayValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<bool> AmInChannelValue(
 	not_null<ChannelData*> channel);

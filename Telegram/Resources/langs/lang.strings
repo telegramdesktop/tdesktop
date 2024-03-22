@@ -671,6 +671,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_birthday_about_link" = "Settings";
 "lng_settings_birthday_contacts" = "Only your contacts can see your birthday. {link}";
 "lng_settings_birthday_contacts_link" = "Change >";
+"lng_settings_birthday_saved" = "Your date of birth was updated.";
+"lng_settings_birthday_reset" = "Reset";
 "lng_settings_add_account_about" = "You can add up to four accounts with different phone numbers.";
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
 "lng_settings_advanced" = "Advanced";

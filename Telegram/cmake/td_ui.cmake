@@ -241,6 +241,8 @@ PRIVATE
     ui/boxes/confirm_phone_box.h
     ui/boxes/country_select_box.cpp
     ui/boxes/country_select_box.h
+    ui/boxes/edit_birthday_box.cpp
+    ui/boxes/edit_birthday_box.h
     ui/boxes/edit_invite_link.cpp
     ui/boxes/edit_invite_link.h
     ui/boxes/rate_call_box.cpp
