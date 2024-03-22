@@ -121,4 +121,9 @@ enum class BadgeType;
 [[nodiscard]] rpl::producer<DocumentId> EmojiStatusIdValue(
 	not_null<PeerData*> peer);
 
+[[nodiscard]] rpl::producer<QString> BirthdayLabelText(
+	rpl::producer<Data::Birthday> birthday);
+[[nodiscard]] rpl::producer<QString> BirthdayValueText(
+	rpl::producer<Data::Birthday> birthday);
+
 } // namespace Info::Profile

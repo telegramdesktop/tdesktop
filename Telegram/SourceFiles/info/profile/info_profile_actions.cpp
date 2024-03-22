@@ -1003,6 +1003,14 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				return false;
 			});
 		} else {
+			addInfoOneLine(
+				BirthdayLabelText(BirthdayValue(user)),
+				BirthdayValueText(
+					BirthdayValue(user)
+				) | Ui::Text::ToWithEntities(),
+				tr::lng_mediaview_copy(tr::now),
+				st::infoProfileLabeledUsernamePadding);
+
 			tracker.track(result->add(CreateWorkingHours(result, user)));
 
 			auto locationText = user->session().changes().peerFlagsValue(

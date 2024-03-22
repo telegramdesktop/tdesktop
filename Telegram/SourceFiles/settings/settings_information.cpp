@@ -367,23 +367,9 @@ void SetupBirthday(
 		Info::Profile::BirthdayValue(self),
 		tr::lng_settings_birthday_add()
 	) | rpl::map([](Data::Birthday birthday, const QString &add) {
-		const auto wrap = &Ui::Text::WithEntities;
-		if (const auto year = birthday.year()) {
-			return wrap(tr::lng_month_day_year(
-				tr::now,
-				lt_month,
-				Lang::MonthSmall(birthday.month())(tr::now),
-				lt_day,
-				QString::number(birthday.day()),
-				lt_year,
-				QString::number(year)));
-		} else if (birthday) {
-			return wrap(tr::lng_month_day(
-				tr::now,
-				lt_month,
-				Lang::MonthSmall(birthday.month())(tr::now),
-				lt_day,
-				QString::number(birthday.day())));
+		const auto text = Data::BirthdayText(birthday);
+		if (!text.isEmpty()) {
+			return TextWithEntities{ text };
 		}
 		auto result = TextWithEntities{ add };
 		result.entities.push_back({

@@ -203,7 +203,8 @@ void ProcessFullPhoto(
 		(UpdateFlag::Name
 			| UpdateFlag::PhoneNumber
 			| UpdateFlag::Username
-			| UpdateFlag::About)
+			| UpdateFlag::About
+			| UpdateFlag::Birthday)
 	) | rpl::map([=] {
 		const auto user = peer->asUser();
 		const auto username = peer->userName();
@@ -217,6 +218,7 @@ void ProcessFullPhoto(
 			.username = ((user && !username.isEmpty())
 				? ('@' + username)
 				: QString()),
+			.birthday = user ? user->birthday() : Data::Birthday(),
 			.isBio = (user && !user->isBot()),
 		};
 	});

@@ -38,4 +38,10 @@ private:
 
 };
 
+[[nodiscard]] QString BirthdayText(Birthday date);
+[[nodiscard]] QString BirthdayCake();
+[[nodiscard]] int BirthdayAge(Birthday date);
+[[nodiscard]] bool IsBirthdayToday(Birthday date);
+[[nodiscard]] rpl::producer<bool> IsBirthdayTodayValue(Birthday date);
+
 } // namespace Data

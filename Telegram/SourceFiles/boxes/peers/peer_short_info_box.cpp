@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "info/profile/info_profile_text.h"
+#include "info/profile/info_profile_values.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "base/event_filter.h"
@@ -788,6 +789,10 @@ void PeerShortInfoBox::prepareRows() {
 		tr::lng_info_username_label(),
 		usernameValue() | Ui::Text::ToWithEntities(),
 		tr::lng_context_copy_mention(tr::now));
+	addInfoOneLine(
+		birthdayLabel(),
+		birthdayValue() | Ui::Text::ToWithEntities(),
+		tr::lng_mediaview_copy(tr::now));
 }
 
 RectParts PeerShortInfoBox::customCornersFilling() {
@@ -827,27 +832,45 @@ void PeerShortInfoBox::refreshRoundedTopImage(const QColor &color) {
 }
 
 rpl::producer<QString> PeerShortInfoBox::nameValue() const {
-	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
+	return _fields.value(
+	) | rpl::map([](const PeerShortInfoFields &fields) {
 		return fields.name;
 	}) | rpl::distinct_until_changed();
 }
 
 rpl::producer<TextWithEntities> PeerShortInfoBox::linkValue() const {
-	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
+	return _fields.value(
+	) | rpl::map([](const PeerShortInfoFields &fields) {
 		return Ui::Text::Link(fields.link, fields.link);
 	}) | rpl::distinct_until_changed();
 }
 
 rpl::producer<QString> PeerShortInfoBox::phoneValue() const {
-	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
+	return _fields.value(
+	) | rpl::map([](const PeerShortInfoFields &fields) {
 		return fields.phone;
 	}) | rpl::distinct_until_changed();
 }
 
 rpl::producer<QString> PeerShortInfoBox::usernameValue() const {
-	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
+	return _fields.value(
+	) | rpl::map([](const PeerShortInfoFields &fields) {
 		return fields.username;
 	}) | rpl::distinct_until_changed();
+}
+
+rpl::producer<QString> PeerShortInfoBox::birthdayLabel() const {
+	return Info::Profile::BirthdayLabelText(_fields.value(
+	) | rpl::map([](const PeerShortInfoFields &fields) {
+		return fields.birthday;
+	}) | rpl::distinct_until_changed());
+}
+
+rpl::producer<QString> PeerShortInfoBox::birthdayValue() const {
+	return Info::Profile::BirthdayValueText(_fields.value(
+	) | rpl::map([](const PeerShortInfoFields &fields) {
+		return fields.birthday;
+	}) | rpl::distinct_until_changed());
 }
 
 rpl::producer<TextWithEntities> PeerShortInfoBox::aboutValue() const {
