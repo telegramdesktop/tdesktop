@@ -384,7 +384,7 @@ void PreviewWrap::prepare(rpl::producer<Data::ChatIntro> value) {
 		_delegate.get());
 
 	std::move(value) | rpl::start_with_next([=](Data::ChatIntro intro) {
-		_view->make(std::move(intro));
+		_view->make(std::move(intro), true);
 		if (width() >= st::msgMinWidth) {
 			resizeTo(width());
 		}

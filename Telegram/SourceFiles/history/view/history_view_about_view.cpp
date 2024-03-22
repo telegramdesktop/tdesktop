@@ -270,9 +270,12 @@ void AboutView::makeIntro(not_null<UserData*> user) {
 	make(user->businessDetails().intro);
 }
 
-void AboutView::make(Data::ChatIntro data) {
+void AboutView::make(Data::ChatIntro data, bool preview) {
 	const auto text = data
-		? tr::lng_action_set_chat_intro(tr::now, lt_from, _history->peer->name())
+		? tr::lng_action_set_chat_intro(
+			tr::now,
+			lt_from,
+			_history->peer->name())
 		: QString();
 	const auto item = _history->makeMessage({
 		.id = _history->nextNonHistoryEntryId(),
@@ -311,7 +314,7 @@ void AboutView::make(Data::ChatIntro data) {
 			.maxWidth = st::chatIntroWidth,
 			.serviceLink = std::make_shared<LambdaClickHandler>(handler),
 			.service = true,
-			.hideServiceText = text.isEmpty(),
+			.hideServiceText = preview || text.isEmpty(),
 		}));
 	if (!data.sticker && _helloChosen) {
 		data.sticker = _helloChosen;

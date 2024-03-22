@@ -28,7 +28,7 @@ public:
 
 	bool refresh();
 
-	void make(Data::ChatIntro data);
+	void make(Data::ChatIntro data, bool preview = false);
 
 	int top = 0;
 	int height = 0;
