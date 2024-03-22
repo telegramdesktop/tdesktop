@@ -194,6 +194,7 @@ MTPInputPrivacyKey KeyToTL(UserPrivacy::Key key) {
 	case Key::ProfilePhoto: return MTP_inputPrivacyKeyProfilePhoto();
 	case Key::Voices: return MTP_inputPrivacyKeyVoiceMessages();
 	case Key::About: return MTP_inputPrivacyKeyAbout();
+	case Key::Birthday: return MTP_inputPrivacyKeyBirthday();
 	}
 	Unexpected("Key in Api::UserPrivacy::KetToTL.");
 }
@@ -221,6 +222,8 @@ std::optional<UserPrivacy::Key> TLToKey(mtpTypeId type) {
 	case mtpc_inputPrivacyKeyVoiceMessages: return Key::Voices;
 	case mtpc_privacyKeyAbout:
 	case mtpc_inputPrivacyKeyAbout: return Key::About;
+	case mtpc_privacyKeyBirthday:
+	case mtpc_inputPrivacyKeyBirthday: return Key::Birthday;
 	}
 	return std::nullopt;
 }

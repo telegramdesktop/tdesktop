@@ -152,6 +152,10 @@ settingsPrivacySecurityPadding: 12px;
 settingsPrivacySkip: 14px;
 settingsPrivacySkipTop: 4px;
 
+settingsPrivacyAddBirthday: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+}
+
 settingsCloudPasswordIconSize: 100px;
 
 settingLocalPasscodeInputField: InputField(defaultInputField) {

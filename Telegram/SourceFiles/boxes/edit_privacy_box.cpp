@@ -374,6 +374,7 @@ void EditPrivacyBox::setupContent() {
 	};
 
 	auto above = _controller->setupAboveWidget(
+		_window,
 		content,
 		rpl::duplicate(optionValue),
 		getDelegate()->outerContainer());

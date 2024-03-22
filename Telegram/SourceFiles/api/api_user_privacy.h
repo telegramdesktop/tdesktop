@@ -30,6 +30,7 @@ public:
 		ProfilePhoto,
 		Voices,
 		About,
+		Birthday,
 	};
 	enum class Option {
 		Everyone,

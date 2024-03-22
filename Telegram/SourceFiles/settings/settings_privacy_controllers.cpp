@@ -975,6 +975,7 @@ auto ForwardsPrivacyController::exceptionsDescription() const
 }
 
 object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
+		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> parent,
 		rpl::producer<Option> optionValue,
 		not_null<QWidget*> outerContainer) {
@@ -982,7 +983,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 
 	auto message = GenerateForwardedItem(
 		delegate(),
-		_controller->session().data().history(
+		controller->session().data().history(
 			PeerData::kServiceNotificationsId),
 		tr::lng_edit_privacy_forwards_sample_message(tr::now));
 	const auto view = message.get();
@@ -1072,18 +1073,18 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 	) | rpl::start_with_next([=](QRect rect) {
 		// #TODO themes
 		Window::SectionWidget::PaintBackground(
-			_controller,
-			_controller->defaultChatTheme().get(), // #TODO themes
+			controller,
+			controller->defaultChatTheme().get(), // #TODO themes
 			widget,
 			rect);
 
 		Painter p(widget);
-		const auto theme = _controller->defaultChatTheme().get();
+		const auto theme = controller->defaultChatTheme().get();
 		auto context = theme->preparePaintContext(
 			_chatStyle.get(),
 			widget->rect(),
 			widget->rect(),
-			_controller->isGifPausedAtLeastFor(
+			controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Layer));
 		p.translate(padding / 2, padding + view->marginBottom());
 		context.outbg = view->hasOutLayout();
@@ -1115,6 +1116,7 @@ rpl::producer<QString> ProfilePhotoPrivacyController::optionsTitleKey() const {
 }
 
 object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupAboveWidget(
+		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> parent,
 		rpl::producer<Option> optionValue,
 		not_null<QWidget*> outerContainer) {
@@ -1475,7 +1477,74 @@ rpl::producer<QString> AboutPrivacyController::exceptionBoxTitle(
 
 auto AboutPrivacyController::exceptionsDescription() const
 -> rpl::producer<QString> {
-	return tr::lng_edit_privacy_about_exceptions();
+	return tr::lng_edit_privacy_birthday_exceptions();
+}
+
+UserPrivacy::Key BirthdayPrivacyController::key() const {
+	return Key::Birthday;
+}
+
+rpl::producer<QString> BirthdayPrivacyController::title() const {
+	return tr::lng_edit_privacy_birthday_title();
+}
+
+rpl::producer<QString> BirthdayPrivacyController::optionsTitleKey() const {
+	return tr::lng_edit_privacy_birthday_header();
+}
+
+rpl::producer<QString> BirthdayPrivacyController::exceptionButtonTextKey(
+	Exception exception) const {
+	switch (exception) {
+	case Exception::Always: return tr::lng_edit_privacy_birthday_always_empty();
+	case Exception::Never: return tr::lng_edit_privacy_birthday_never_empty();
+	}
+	Unexpected("Invalid exception value.");
+}
+
+rpl::producer<QString> BirthdayPrivacyController::exceptionBoxTitle(
+	Exception exception) const {
+	switch (exception) {
+	case Exception::Always: return tr::lng_edit_privacy_birthday_always_title();
+	case Exception::Never: return tr::lng_edit_privacy_birthday_never_title();
+	}
+	Unexpected("Invalid exception value.");
+}
+
+auto BirthdayPrivacyController::exceptionsDescription() const
+-> rpl::producer<QString> {
+	return tr::lng_edit_privacy_birthday_exceptions();
+}
+
+object_ptr<Ui::RpWidget> BirthdayPrivacyController::setupAboveWidget(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> parent,
+		rpl::producer<Option> optionValue,
+		not_null<QWidget*> outerContainer) {
+	const auto session = &controller->session();
+	const auto user = session->user();
+	auto result = object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+		parent,
+		object_ptr<Ui::FlatLabel>(
+			parent,
+			tr::lng_edit_privacy_birthday_yet(
+				lt_link,
+				tr::lng_edit_privacy_birthday_yet_link(
+				) | Ui::Text::ToLink("internal:edit_birthday"),
+				Ui::Text::WithEntities),
+			st::settingsPrivacyAddBirthday),
+		st::boxRowPadding + style::margins(
+			0,
+			st::defaultVerticalListSkip,
+			0,
+			st::settingsPrivacySkipTop));
+	result->toggleOn(session->changes().peerFlagsValue(
+		user,
+		Data::PeerUpdate::Flag::Birthday
+	) | rpl::map([=] {
+		return !user->birthday();
+	}));
+	result->finishAnimating();
+	return result;
 }
 
 } // namespace Settings

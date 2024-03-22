@@ -482,6 +482,30 @@ void UserData::setCallsStatus(CallsStatus callsStatus) {
 	}
 }
 
+
+Data::Birthday UserData::birthday() const {
+	return _birthday;
+}
+
+void UserData::setBirthday(Data::Birthday value) {
+	if (_birthday != value) {
+		_birthday = value;
+		session().changes().peerUpdated(this, UpdateFlag::Birthday);
+	}
+}
+
+void UserData::setBirthday(const tl::conditional<MTPBirthday> &value) {
+	if (!value) {
+		setBirthday(Data::Birthday());
+	} else {
+		const auto &data = value->data();
+		setBirthday(Data::Birthday(
+			data.vday().v,
+			data.vmonth().v,
+			data.vyear().value_or_empty()));
+	}
+}
+
 bool UserData::hasCalls() const {
 	return (callsStatus() != CallsStatus::Disabled)
 		&& (callsStatus() != CallsStatus::Unknown);
@@ -598,6 +622,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		update.vbusiness_work_hours(),
 		update.vbusiness_location(),
 		update.vbusiness_intro()));
+	user->setBirthday(update.vbirthday());
 	if (user->isSelf()) {
 		user->owner().businessInfo().applyAwaySettings(
 			FromMTP(&user->owner(), update.vbusiness_away_message()));

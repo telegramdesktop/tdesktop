@@ -652,6 +652,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_messages_privacy" = "Messages";
 "lng_settings_voices_privacy" = "Voice messages";
 "lng_settings_bio_privacy" = "Bio";
+"lng_settings_birthday_privacy" = "Date of Birth";
 "lng_settings_privacy_premium" = "Only subscribers of {link} can restrict receiving voice messages.";
 "lng_settings_privacy_premium_link" = "Telegram Premium";
 "lng_settings_passcode_disable" = "Disable Passcode";
@@ -664,6 +665,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_phone_label" = "Phone number";
 "lng_settings_username_add" = "Add username";
 "lng_settings_username_about" = "Username lets people contact you on Telegram without needing your phone number.";
+"lng_settings_birthday_label" = "Date of Birth";
+"lng_settings_birthday_add" = "Add";
+"lng_settings_birthday_about" = "Choose who can see your birthday in {link}.";
+"lng_settings_birthday_about_link" = "Settings";
+"lng_settings_birthday_contacts" = "Only your contacts can see your birthday. {link}";
+"lng_settings_birthday_contacts_link" = "Change >";
 "lng_settings_add_account_about" = "You can add up to four accounts with different phone numbers.";
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
 "lng_settings_advanced" = "Advanced";
@@ -1087,6 +1094,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_everyone" = "Everybody";
 "lng_edit_privacy_contacts" = "My contacts";
 "lng_edit_privacy_close_friends" = "Close friends";
+"lng_edit_privacy_contacts_and_premium" = "Contacts and Premium";
 "lng_edit_privacy_nobody" = "Nobody";
 "lng_edit_privacy_premium" = "Premium users";
 "lng_edit_privacy_exceptions" = "Add exceptions";
@@ -1135,6 +1143,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_about_exceptions" = "These users will or will not be able to see your profile bio regardless of the settings above.";
 "lng_edit_privacy_about_always_title" = "Always allow";
 "lng_edit_privacy_about_never_title" = "Never allow";
+
+"lng_edit_privacy_birthday_title" = "Date of birth privacy";
+"lng_edit_privacy_birthday_header" = "Who can see my date of birth";
+"lng_edit_privacy_birthday_always_empty" = "Always allow";
+"lng_edit_privacy_birthday_never_empty" = "Never allow";
+"lng_edit_privacy_birthday_exceptions" = "These users will or will not be able to see your date of birth regardless of the settings above.";
+"lng_edit_privacy_birthday_always_title" = "Always allow";
+"lng_edit_privacy_birthday_never_title" = "Never allow";
+"lng_edit_privacy_birthday_yet" = "You haven't entered your date of birth yet.\n{link}";
+"lng_edit_privacy_birthday_yet_link" = "Add my birthday >";
 
 "lng_edit_privacy_calls_title" = "Voice calls privacy";
 "lng_edit_privacy_calls_header" = "Who can call you";

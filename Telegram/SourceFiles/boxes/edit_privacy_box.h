@@ -62,6 +62,7 @@ public:
 	}
 
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupAboveWidget(
+			not_null<Window::SessionController*> controller,
 			not_null<QWidget*> parent,
 			rpl::producer<Option> option,
 			not_null<QWidget*> outerContainer) {

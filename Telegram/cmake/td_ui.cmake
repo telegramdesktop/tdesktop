@@ -76,6 +76,8 @@ PRIVATE
     countries/countries_instance.cpp
     countries/countries_instance.h
 
+    data/data_birthday.cpp
+    data/data_birthday.h
     data/data_statistics_chart.cpp
     data/data_statistics_chart.h
     data/data_subscription_option.h

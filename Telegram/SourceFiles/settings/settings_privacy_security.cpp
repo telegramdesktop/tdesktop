@@ -135,6 +135,8 @@ QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 		case Option::Contacts: return tr::lng_edit_privacy_contacts(tr::now);
 		case Option::CloseFriends:
 			return tr::lng_edit_privacy_close_friends(tr::now);
+		case Option::ContactsAndPremium:
+			return tr::lng_edit_privacy_contacts_and_premium(tr::now);
 		case Option::Nobody: return tr::lng_edit_privacy_nobody(tr::now);
 		}
 		Unexpected("Value in Privacy::Option.");
@@ -355,6 +357,10 @@ void SetupPrivacy(
 		tr::lng_settings_bio_privacy(),
 		Key::About,
 		[] { return std::make_unique<AboutPrivacyController>(); });
+	add(
+		tr::lng_settings_birthday_privacy(),
+		Key::Birthday,
+		[] { return std::make_unique<BirthdayPrivacyController>(); });
 	add(
 		tr::lng_settings_forwards_privacy(),
 		Key::Forwards,
