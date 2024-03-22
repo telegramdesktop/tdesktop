@@ -1698,6 +1698,7 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 }
 
 void HistoryItem::applyEdition(const MTPDmessageService &message) {
+	const auto wasSublist = savedSublist();
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		const auto wasGrouped = history()->owner().groups().isGrouped(this);
 		setReplyMarkup({});
@@ -1728,6 +1729,11 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		applyServiceDateEdition(message);
 		finishEdition(-1);
 		_flags &= ~MessageFlag::DisplayFromChecked;
+	}
+	const auto nowSublist = savedSublist();
+	if (wasSublist && nowSublist != wasSublist) {
+		wasSublist->removeOne(this);
+		nowSublist->applyMaybeLast(this);
 	}
 }
 
@@ -3097,6 +3103,13 @@ bool HistoryItem::isEmpty() const {
 Data::SavedSublist *HistoryItem::savedSublist() const {
 	if (const auto saved = Get<HistoryMessageSaved>()) {
 		return saved->sublist;
+	} else if (_history->peer->isSelf()) {
+		const auto sublist = _history->owner().savedMessages().sublist(
+			_history->peer);
+		const auto that = const_cast<HistoryItem*>(this);
+		that->AddComponents(HistoryMessageSaved::Bit());
+		that->Get<HistoryMessageSaved>()->sublist = sublist;
+		return sublist;
 	}
 	return nullptr;
 }
