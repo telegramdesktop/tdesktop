@@ -517,6 +517,7 @@ bool MainWindow::markingAsRead() const {
 		&& !_layer
 		&& !isHidden()
 		&& !isMinimized()
+		&& windowHandle()->isExposed()
 		&& (AutoScrollInactiveChat.value()
 			|| (isActive() && !_main->session().updates().isIdle()));
 }
