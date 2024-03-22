@@ -187,11 +187,7 @@ void EmojiUserpic::result(int size, Fn<void(UserpicBuilder::Result)> done) {
 
 		{
 			auto p = QPainter(&background);
-			while (true) {
-				if (painter->paintForeground(p)) {
-					break;
-				}
-			}
+			painter->paintForeground(p);
 		}
 		if (*_playOnce && document) {
 			done({ std::move(background), document->id, _colors });
