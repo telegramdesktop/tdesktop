@@ -63,6 +63,8 @@ PRIVATE
     calls/group/ui/desktop_capture_choose_source.cpp
     calls/group/ui/desktop_capture_choose_source.h
 
+    chat_helpers/field_characters_count_manager.cpp
+    chat_helpers/field_characters_count_manager.h
     chat_helpers/stickers_emoji_image_loader.cpp
     chat_helpers/stickers_emoji_image_loader.h
 
