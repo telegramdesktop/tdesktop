@@ -1495,8 +1495,6 @@ PRIVATE
     window/window_session_controller.cpp
     window/window_session_controller.h
     window/window_session_controller_link_info.h
-    window/window_slide_animation.cpp
-    window/window_slide_animation.h
     window/window_top_bar_wrap.h
     window/themes/window_theme.cpp
     window/themes/window_theme.h

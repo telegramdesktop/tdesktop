@@ -402,6 +402,9 @@ PRIVATE
     ui/widgets/fields/time_part_input_with_placeholder.cpp
     ui/widgets/fields/time_part_input_with_placeholder.h
 
+    window/window_slide_animation.cpp
+    window/window_slide_animation.h
+
     ui/ui_pch.h
 )
 
