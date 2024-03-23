@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 using namespace gi::repository;
+namespace GObject = gi::repository::GObject;
 using namespace Platform;
 using Platform::internal::WaylandIntegration;
 
