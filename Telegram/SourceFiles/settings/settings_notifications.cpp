@@ -390,8 +390,10 @@ int NotificationsCount::resizeGetHeight(int newWidth) {
 void NotificationsCount::prepareNotificationSampleSmall() {
 	auto width = st::notificationSampleSize.width();
 	auto height = st::notificationSampleSize.height();
-	auto sampleImage = QImage(width * cIntRetinaFactor(), height * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	sampleImage.setDevicePixelRatio(cRetinaFactor());
+	auto sampleImage = QImage(
+		QSize(width, height) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	sampleImage.setDevicePixelRatio(style::DevicePixelRatio());
 	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);
@@ -422,28 +424,29 @@ void NotificationsCount::prepareNotificationSampleSmall() {
 		p.fillRect(style::rtlrect(closeLeft, padding, padding, padding, width), st::notificationSampleCloseFg);
 	}
 	_notificationSampleSmall = Ui::PixmapFromImage(std::move(sampleImage));
-	_notificationSampleSmall.setDevicePixelRatio(cRetinaFactor());
+	_notificationSampleSmall.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
 void NotificationsCount::prepareNotificationSampleUserpic() {
 	if (_notificationSampleUserpic.isNull()) {
 		_notificationSampleUserpic = Ui::PixmapFromImage(
 			Window::LogoNoMargin().scaled(
-				st::notifyPhotoSize * cIntRetinaFactor(),
-				st::notifyPhotoSize * cIntRetinaFactor(),
+				st::notifyPhotoSize * style::DevicePixelRatio(),
+				st::notifyPhotoSize * style::DevicePixelRatio(),
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation));
-		_notificationSampleUserpic.setDevicePixelRatio(cRetinaFactor());
+		_notificationSampleUserpic.setDevicePixelRatio(
+			style::DevicePixelRatio());
 	}
 }
 
 void NotificationsCount::prepareNotificationSampleLarge() {
 	int w = st::notifyWidth, h = st::notifyMinHeight;
 	auto sampleImage = QImage(
-		w * cIntRetinaFactor(),
-		h * cIntRetinaFactor(),
+		w * style::DevicePixelRatio(),
+		h * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	sampleImage.setDevicePixelRatio(cRetinaFactor());
+	sampleImage.setDevicePixelRatio(style::DevicePixelRatio());
 	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);

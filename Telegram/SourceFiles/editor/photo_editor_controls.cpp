@@ -87,9 +87,9 @@ void EdgeButton::init() {
 
 QImage EdgeButton::rounded(std::optional<QColor> color) const {
 	auto result = QImage(
-		_rippleRect.size() * cIntRetinaFactor(),
+		_rippleRect.size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cIntRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(color.value_or(Qt::white));
 
 	const auto parts = RectPart::None
@@ -170,9 +170,9 @@ ButtonBar::ButtonBar(
 		}
 
 		auto result = QImage(
-			size * cIntRetinaFactor(),
+			size * style::DevicePixelRatio(),
 			QImage::Format_ARGB32_Premultiplied);
-		result.setDevicePixelRatio(cIntRetinaFactor());
+		result.setDevicePixelRatio(style::DevicePixelRatio());
 		result.fill(bg->c);
 
 		_roundedBg = Images::Round(

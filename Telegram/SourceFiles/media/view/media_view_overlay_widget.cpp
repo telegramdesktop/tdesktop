@@ -443,9 +443,9 @@ OverlayWidget::OverlayWidget()
 	});
 
 	_docRectImage = QImage(
-		st::mediaviewFileSize * cIntRetinaFactor(),
+		st::mediaviewFileSize * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	_docRectImage.setDevicePixelRatio(cIntRetinaFactor());
+	_docRectImage.setDevicePixelRatio(style::DevicePixelRatio());
 
 	Shortcuts::Requests(
 	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
@@ -1129,7 +1129,7 @@ void OverlayWidget::setStaticContent(QImage image) {
 		&& image.format() != QImage::Format_RGB32) {
 		image = std::move(image).convertToFormat(kGood);
 	}
-	image.setDevicePixelRatio(cRetinaFactor());
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	_staticContent = std::move(image);
 	_staticContentTransparent = IsSemitransparent(_staticContent);
 }
@@ -4496,7 +4496,7 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 		return;
 	}
 	const auto use = flipSizeByRotation({ _width, _height })
-		* cIntRetinaFactor();
+		* style::DevicePixelRatio();
 	setStaticContent(image->pixNoCache(
 		use,
 		{ .options = (blurred ? Images::Option::Blur : Images::Option()) }
@@ -4833,7 +4833,7 @@ void OverlayWidget::paintDocumentBubbleContent(
 				}
 			}
 		} else if (const auto thumbnail = _documentMedia->thumbnail()) {
-			int32 rf(cIntRetinaFactor());
+			int32 rf(style::DevicePixelRatio());
 			p.drawPixmap(icon.topLeft(), thumbnail->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
 		}
 	}

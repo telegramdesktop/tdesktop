@@ -1479,9 +1479,9 @@ void Widget::startWidthAnimation() {
 	_inner->setNarrowRatio(0.);
 	Ui::SendPendingMoveResizeEvents(_scroll);
 	auto image = QImage(
-		grabGeometry.size() * cIntRetinaFactor(),
+		grabGeometry.size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(cRetinaFactor());
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
 	{
 		QPainter p(&image);
@@ -3097,7 +3097,8 @@ void Widget::paintEvent(QPaintEvent *e) {
 	auto belowTop = _scroll->y() + _scroll->height();
 	if (!_widthAnimationCache.isNull()) {
 		p.drawPixmapLeft(0, _scroll->y(), width(), _widthAnimationCache);
-		belowTop = _scroll->y() + (_widthAnimationCache.height() / cIntRetinaFactor());
+		belowTop = _scroll->y()
+			+ (_widthAnimationCache.height() / style::DevicePixelRatio());
 	}
 
 	auto below = QRect(0, belowTop, width(), height() - belowTop);

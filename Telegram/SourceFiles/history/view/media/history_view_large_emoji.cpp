@@ -75,7 +75,7 @@ QSize LargeEmoji::countOptimalSize() {
 	const auto count = _images.size()
 		- ranges::count(_images, LargeEmojiMedia());
 
-	const auto single = LargeEmojiImage::Size() / cIntRetinaFactor();
+	const auto single = LargeEmojiImage::Size() / style::DevicePixelRatio();
 	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
 	const auto inner = count * single.width() + (count - 1) * skip;
 	const auto &padding = st::largeEmojiPadding;
@@ -95,7 +95,7 @@ void LargeEmoji::draw(
 	auto x = r.x() + (r.width() - _size.width()) / 2 + padding.left();
 	const auto y = r.y() + (r.height() - _size.height()) / 2 + padding.top();
 	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
-	const auto size = LargeEmojiImage::Size() / cIntRetinaFactor();
+	const auto size = LargeEmojiImage::Size() / style::DevicePixelRatio();
 	const auto selected = context.selected();
 	if (!selected) {
 		_selectedFrame = QImage();

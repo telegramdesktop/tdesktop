@@ -365,7 +365,8 @@ int32 Photo::resizeGetHeight(int32 width) {
 
 void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	const auto selected = (selection == FullSelection);
-	const auto widthChanged = _pix.width() != _width * cIntRetinaFactor();
+	const auto widthChanged = (_pix.width()
+		!= (_width * style::DevicePixelRatio()));
 	if (!_goodLoaded || widthChanged) {
 		ensureDataMediaCreated();
 		const auto good = !_spoiler
@@ -515,7 +516,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	const auto radialOpacity = radial ? _radial->opacity() : 0.;
 
 	if ((blurred || thumbnail || good)
-		&& ((_pix.width() != _width * cIntRetinaFactor())
+		&& ((_pix.width() != _width * style::DevicePixelRatio())
 			|| (_pixBlurred && (thumbnail || good)))) {
 		auto img = good
 			? good->original()
@@ -1847,7 +1848,7 @@ void Link::validateThumbnail() {
 		delegate()->unregisterHeavyItem(this);
 	} else {
 		const auto size = QSize(st::linksPhotoSize, st::linksPhotoSize);
-		_thumbnail = QPixmap(size * cIntRetinaFactor());
+		_thumbnail = QPixmap(size * style::DevicePixelRatio());
 		_thumbnail.fill(Qt::transparent);
 		auto p = Painter(&_thumbnail);
 		const auto index = _letter.isEmpty()
@@ -2061,7 +2062,7 @@ void Gif::validateThumbnail(
 		bool good) {
 	if (!image || (_thumbGood && !good)) {
 		return;
-	} else if ((_thumb.size() == size * cIntRetinaFactor())
+	} else if ((_thumb.size() == size * style::DevicePixelRatio())
 		&& (_thumbGood || !good)) {
 		return;
 	}

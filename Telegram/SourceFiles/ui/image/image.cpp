@@ -58,13 +58,13 @@ Image::Image(QImage &&data)
 
 not_null<Image*> Image::Empty() {
 	static auto result = Image([] {
-		const auto factor = cIntRetinaFactor();
+		const auto factor = style::DevicePixelRatio();
 		auto data = QImage(
 			factor,
 			factor,
 			QImage::Format_ARGB32_Premultiplied);
 		data.fill(Qt::transparent);
-		data.setDevicePixelRatio(cRetinaFactor());
+		data.setDevicePixelRatio(style::DevicePixelRatio());
 		return data;
 	}());
 	return &result;
@@ -72,13 +72,13 @@ not_null<Image*> Image::Empty() {
 
 not_null<Image*> Image::BlankMedia() {
 	static auto result = Image([] {
-		const auto factor = cIntRetinaFactor();
+		const auto factor = style::DevicePixelRatio();
 		auto data = QImage(
 			factor,
 			factor,
 			QImage::Format_ARGB32_Premultiplied);
 		data.fill(Qt::black);
-		data.setDevicePixelRatio(cRetinaFactor());
+		data.setDevicePixelRatio(style::DevicePixelRatio());
 		return data;
 	}());
 	return &result;

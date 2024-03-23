@@ -383,10 +383,20 @@ void Step::hideDescription() {
 
 void Step::paintContentSnapshot(QPainter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden) {
 	if (!snapshot.isNull()) {
-		auto contentTop = anim::interpolate(height() - (snapshot.height() / cIntRetinaFactor()), height(), howMuchHidden);
+		const auto contentTop = anim::interpolate(
+			height() - (snapshot.height() / style::DevicePixelRatio()),
+			height(),
+			howMuchHidden);
 		if (contentTop < height()) {
 			p.setOpacity(alpha);
-			p.drawPixmap(QPoint(contentLeft(), contentTop), snapshot, QRect(0, 0, snapshot.width(), (height() - contentTop) * cIntRetinaFactor()));
+			p.drawPixmap(
+				QPoint(contentLeft(), contentTop),
+				snapshot,
+				QRect(
+					0,
+					0,
+					snapshot.width(),
+					(height() - contentTop) * style::DevicePixelRatio()));
 		}
 	}
 }
@@ -394,8 +404,8 @@ void Step::paintContentSnapshot(QPainter &p, const QPixmap &snapshot, float64 al
 void Step::prepareCoverMask() {
 	if (!_coverMask.isNull()) return;
 
-	auto maskWidth = cIntRetinaFactor();
-	auto maskHeight = st::introCoverHeight * cIntRetinaFactor();
+	auto maskWidth = style::DevicePixelRatio();
+	auto maskHeight = st::introCoverHeight * style::DevicePixelRatio();
 	auto mask = QImage(maskWidth, maskHeight, QImage::Format_ARGB32_Premultiplied);
 	auto maskInts = reinterpret_cast<uint32*>(mask.bits());
 	Assert(mask.depth() == (sizeof(uint32) << 3));
@@ -416,7 +426,14 @@ void Step::prepareCoverMask() {
 void Step::paintCover(QPainter &p, int top) {
 	auto coverHeight = top + st::introCoverHeight;
 	if (coverHeight > 0) {
-		p.drawPixmap(QRect(0, 0, width(), coverHeight), _coverMask, QRect(0, -top * cIntRetinaFactor(), _coverMask.width(), coverHeight * cIntRetinaFactor()));
+		p.drawPixmap(
+			QRect(0, 0, width(), coverHeight),
+			_coverMask,
+			QRect(
+				0,
+				-top * style::DevicePixelRatio(),
+				_coverMask.width(),
+				coverHeight * style::DevicePixelRatio()));
 	}
 
 	auto left = 0;

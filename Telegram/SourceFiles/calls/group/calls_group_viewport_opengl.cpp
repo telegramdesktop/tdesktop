@@ -585,11 +585,12 @@ void Viewport::RendererGL::paintTile(
 		_paused);
 	const auto pauseRect = transformRect(pauseIcon.geometry);
 
+	const auto factor = style::DevicePixelRatio();
 	const auto pausedPosition = QPoint(
-		x + (width - (_pausedTextRect.width() / cIntRetinaFactor())) / 2,
+		x + (width - (_pausedTextRect.width() / factor)) / 2,
 		pauseTextTop);
 	const auto pausedText = _names.texturedRect(
-		QRect(pausedPosition, _pausedTextRect.size() / cIntRetinaFactor()),
+		QRect(pausedPosition, _pausedTextRect.size() / factor),
 		_pausedTextRect);
 	const auto pausedRect = transformRect(pausedText.geometry);
 
@@ -627,7 +628,7 @@ void Viewport::RendererGL::paintTile(
 		x + st.namePosition.x(),
 		nameTop + nameShift);
 	const auto name = _names.texturedRect(
-		QRect(namePosition, tileData.nameRect.size() / cIntRetinaFactor()),
+		QRect(namePosition, tileData.nameRect.size() / factor),
 		tileData.nameRect,
 		geometry);
 	const auto nameRect = transformRect(name.geometry);
@@ -1194,7 +1195,7 @@ void Viewport::RendererGL::validateDatas() {
 	const auto &tiles = _owner->_tiles;
 	const auto &st = st::groupCallVideoTile;
 	const auto count = int(tiles.size());
-	const auto factor = cIntRetinaFactor();
+	const auto factor = style::DevicePixelRatio();
 	const auto nameHeight = st::semiboldFont->height * factor;
 	const auto pausedText = tr::lng_group_call_video_paused(tr::now);
 	const auto pausedBottom = nameHeight;

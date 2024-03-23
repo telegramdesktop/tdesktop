@@ -972,7 +972,9 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				if (sticker.lottie && sticker.lottie->ready()) {
 					lottieFrame = sticker.lottie->frame();
 					p.drawImage(
-						QRect(ppos, lottieFrame.size() / cIntRetinaFactor()),
+						QRect(
+							ppos,
+							lottieFrame.size() / style::DevicePixelRatio()),
 						lottieFrame);
 					if (!paused) {
 						sticker.lottie->markFrameShown();
@@ -1465,7 +1467,7 @@ void FieldAutocomplete::Inner::setupLottie(StickerSuggestion &suggestion) {
 	suggestion.lottie = ChatHelpers::LottiePlayerFromDocument(
 		suggestion.documentMedia.get(),
 		ChatHelpers::StickerLottieSize::InlineResults,
-		stickerBoundingBox() * cIntRetinaFactor(),
+		stickerBoundingBox() * style::DevicePixelRatio(),
 		Lottie::Quality::Default,
 		getLottieRenderer());
 

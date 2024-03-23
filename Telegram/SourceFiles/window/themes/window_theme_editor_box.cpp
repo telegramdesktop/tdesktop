@@ -156,9 +156,9 @@ int BackgroundSelector::resizeGetHeight(int newWidth) {
 void BackgroundSelector::updateThumbnail() {
 	const auto size = _thumbnailSize;
 	auto back = QImage(
-		QSize(size, size) * cIntRetinaFactor(),
+		QSize(size, size) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	back.setDevicePixelRatio(cRetinaFactor());
+	back.setDevicePixelRatio(style::DevicePixelRatio());
 	{
 		Painter p(&back);
 		PainterHighQualityEnabler hq(p);
@@ -171,7 +171,7 @@ void BackgroundSelector::updateThumbnail() {
 	}
 	_thumbnail = Ui::PixmapFromImage(
 		Images::Round(std::move(back), ImageRoundRadius::Small));
-	_thumbnail.setDevicePixelRatio(cRetinaFactor());
+	_thumbnail.setDevicePixelRatio(style::DevicePixelRatio());
 	update();
 }
 

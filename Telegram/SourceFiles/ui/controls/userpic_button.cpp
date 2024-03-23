@@ -109,9 +109,9 @@ void CameraBox(
 
 template <typename Callback>
 QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
-	auto size = QSize(width, width) * cIntRetinaFactor();
+	const auto size = QSize(width, width) * style::DevicePixelRatio();
 	auto image = QImage(size, QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(cRetinaFactor());
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
@@ -931,7 +931,7 @@ void UserpicButton::showCustom(QImage &&image) {
 	if (_userpicHasImage) {
 		auto size = QSize(_st.photoSize, _st.photoSize);
 		auto small = image.scaled(
-			size * cIntRetinaFactor(),
+			size * style::DevicePixelRatio(),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 		_userpic = Ui::PixmapFromImage(useForumShape()
@@ -945,7 +945,7 @@ void UserpicButton::showCustom(QImage &&image) {
 			fillShape(p, _st.changeButton.textBg);
 		});
 	}
-	_userpic.setDevicePixelRatio(cRetinaFactor());
+	_userpic.setDevicePixelRatio(style::DevicePixelRatio());
 	_userpicUniqueKey = {};
 	_result = std::move(image);
 

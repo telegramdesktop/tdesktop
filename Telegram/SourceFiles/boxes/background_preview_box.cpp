@@ -467,14 +467,14 @@ void BackgroundPreviewBox::generateBackground() {
 		return;
 	}
 	const auto size = QSize(st::boxWideWidth, st::boxWideWidth)
-		* cIntRetinaFactor();
+		* style::DevicePixelRatio();
 	_generated = Ui::PixmapFromImage((_paper.patternOpacity() >= 0.)
 		? Ui::GenerateBackgroundImage(
 			size,
 			_paper.backgroundColors(),
 			_paper.gradientRotation())
 		: BlackImage(size));
-	_generated.setDevicePixelRatio(cRetinaFactor());
+	_generated.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
 not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {
@@ -889,7 +889,7 @@ void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
 void BackgroundPreviewBox::paintImage(Painter &p) {
 	Expects(!_scaled.isNull());
 
-	const auto factor = cIntRetinaFactor();
+	const auto factor = style::DevicePixelRatio();
 	const auto size = st::boxWideWidth;
 	const auto from = QRect(
 		0,

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/image/image.h"
+#include "ui/rect.h"
 #include "main/main_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
@@ -53,10 +54,7 @@ constexpr auto kPremiumCachesCount = 8;
 [[nodiscard]] QSize SingleSize() {
 	const auto single = st::largeEmojiSize;
 	const auto outline = st::largeEmojiOutline;
-	return QSize(
-		2 * outline + single,
-		2 * outline + single
-	) * cIntRetinaFactor();
+	return Size(2 * outline + single) * style::DevicePixelRatio();
 }
 
 [[nodiscard]] const Lottie::ColorReplacements *ColorReplacements(int index) {

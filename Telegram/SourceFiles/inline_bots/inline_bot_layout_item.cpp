@@ -165,9 +165,9 @@ QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 				BareId(qHash(_result->_id)))),
 			_result->getLayoutTitle()
 		).generate(width);
-		if (result.height() != height * cIntRetinaFactor()) {
+		if (result.height() != height * style::DevicePixelRatio()) {
 			result = result.scaled(
-				QSize(width, height) * cIntRetinaFactor(),
+				QSize(width, height) * style::DevicePixelRatio(),
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		}

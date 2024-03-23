@@ -284,7 +284,7 @@ std::unique_ptr<Result> Result::Create(
 	});
 
 	if (const auto point = result->getLocationPoint()) {
-		const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
+		const auto scale = 1 + (cScale() * style::DevicePixelRatio()) / 200;
 		const auto zoom = 15 + (scale - 1);
 		const auto w = st::inlineThumbSize / scale;
 		const auto h = st::inlineThumbSize / scale;

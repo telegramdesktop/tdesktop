@@ -251,9 +251,9 @@ void Pip::RendererGL::createShadowTexture() {
 	const auto size = 2 * st::callShadow.topLeft.size()
 		+ QSize(st::roundRadiusLarge, st::roundRadiusLarge);
 	auto image = QImage(
-		size * cIntRetinaFactor(),
+		size * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(cRetinaFactor());
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
 	{
 		auto p = QPainter(&image);
@@ -433,7 +433,7 @@ void Pip::RendererGL::paintTransformedContent(
 	_f->glActiveTexture(rgbaFrame ? GL_TEXTURE1 : GL_TEXTURE3);
 	_shadowImage.bind(*_f);
 
-	const auto globalFactor = cIntRetinaFactor();
+	const auto globalFactor = style::DevicePixelRatio();
 	const auto fadeAlpha = st::radialBg->c.alphaF() * geometry.fade;
 	const auto roundRect = transformRect(RoundingRect(geometry));
 	program->setUniformValue("roundRect", Uniform(roundRect));

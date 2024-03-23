@@ -126,14 +126,6 @@ inline bool passcodeCanTry() {
 	return dt >= 30000;
 }
 
-inline float64 cRetinaFactor() {
-	return style::DevicePixelRatio();
-}
-
-inline int32 cIntRetinaFactor() {
-	return style::DevicePixelRatio();
-}
-
 inline int cEvalScale(int scale) {
 	return (scale == style::kScaleAuto) ? cScreenScale() : scale;
 }

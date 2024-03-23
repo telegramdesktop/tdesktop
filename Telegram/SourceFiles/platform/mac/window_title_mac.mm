@@ -32,7 +32,7 @@ int PreviewTitleHeight() {
 
 QImage PreviewWindowSystemButton(QColor inner, QColor border) {
 	auto buttonSize = 12;
-	auto fullSize = buttonSize * cIntRetinaFactor();
+	auto fullSize = buttonSize * style::DevicePixelRatio();
 	auto result = QImage(fullSize, fullSize, QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
 	{
@@ -43,7 +43,7 @@ QImage PreviewWindowSystemButton(QColor inner, QColor border) {
 		p.setBrush(inner);
 		p.drawEllipse(QRectF(0.5, 0.5, fullSize - 1., fullSize - 1.));
 	}
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	return result;
 }
 
@@ -93,17 +93,32 @@ void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, i
 	auto maximizeBorder = isGraphite ? graphiteBorder : QColor(21, 164, 41);
 	auto close = PreviewWindowSystemButton(closeInner, closeBorder);
 	auto left = buttonSkip;
-	p.drawImage(titleRect.x() + left, titleRect.y() + (titleRect.height() - (close.height() / cIntRetinaFactor())) / 2, close);
-	left += (close.width() / cIntRetinaFactor()) + buttonSkip;
+	p.drawImage(
+		titleRect.x() + left,
+		titleRect.y()
+			+ (titleRect.height()
+				- (close.height() / style::DevicePixelRatio())) / 2,
+		close);
+	left += (close.width() / style::DevicePixelRatio()) + buttonSkip;
 	auto minimize = PreviewWindowSystemButton(minimizeInner, minimizeBorder);
-	p.drawImage(titleRect.x() + left, titleRect.y() + (titleRect.height() - (minimize.height() / cIntRetinaFactor())) / 2, minimize);
-	left += (minimize.width() / cIntRetinaFactor()) + buttonSkip;
+	p.drawImage(
+		titleRect.x() + left,
+		titleRect.y()
+			+ (titleRect.height()
+				- (minimize.height() / style::DevicePixelRatio())) / 2,
+		minimize);
+	left += (minimize.width() / style::DevicePixelRatio()) + buttonSkip;
 	auto maximize = PreviewWindowSystemButton(maximizeInner, maximizeBorder);
-	p.drawImage(titleRect.x() + left, titleRect.y() + (titleRect.height() - (maximize.height() / cIntRetinaFactor())) / 2, maximize);
+	p.drawImage(
+		titleRect.x() + left,
+		titleRect.y()
+			+ (titleRect.height()
+				- (maximize.height() / style::DevicePixelRatio())) / 2,
+		maximize);
 }
 
 void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth) {
-	auto retina = cIntRetinaFactor();
+	auto retina = style::DevicePixelRatio();
 	auto titleHeight = PreviewTitleHeight();
 	{
 		Painter p(&preview);
@@ -113,7 +128,7 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 
 	auto retinaRadius = st::macWindowRoundRadius * retina;
 	auto roundMask = QImage(2 * retinaRadius, 2 * retinaRadius, QImage::Format_ARGB32_Premultiplied);
-	roundMask.setDevicePixelRatio(cRetinaFactor());
+	roundMask.setDevicePixelRatio(style::DevicePixelRatio());
 	roundMask.fill(Qt::transparent);
 	{
 		Painter p(&roundMask);
@@ -135,7 +150,7 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 			inner.width() * retina,
 			inner.height() * retina),
 			corners);
-	rounded.setDevicePixelRatio(cRetinaFactor());
+	rounded.setDevicePixelRatio(style::DevicePixelRatio());
 	preview.fill(st::themePreviewBg->c);
 
 	auto topLeft = st::macWindowShadowTopLeft.instance(QColor(0, 0, 0), 100);

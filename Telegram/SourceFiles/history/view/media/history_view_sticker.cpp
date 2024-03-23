@@ -276,7 +276,7 @@ void Sticker::paintAnimationFrame(
 			base::duplicate(image),
 			context.st->msgStickerOverlay()->c)
 		: image;
-	const auto size = prepared.size() / cIntRetinaFactor();
+	const auto size = prepared.size() / style::DevicePixelRatio();
 	p.drawImage(
 		QRect(
 			QPoint(

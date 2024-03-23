@@ -208,8 +208,8 @@ bool ItemSingleMediaPreview::tryPaintAnimation(QPainter &p) {
 		const auto paused = _gifPaused();
 
 		auto request = ::Media::Streaming::FrameRequest();
-		request.outer = s * cIntRetinaFactor();
-		request.resize = s * cIntRetinaFactor();
+		request.outer = s * style::DevicePixelRatio();
+		request.resize = s * style::DevicePixelRatio();
 		p.drawImage(
 			QRect(
 				previewLeft(),

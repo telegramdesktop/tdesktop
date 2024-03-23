@@ -1191,7 +1191,7 @@ void StickersListFooter::validateIconLottieAnimation(
 		icon.thumbnailMedia.get(),
 		icon.stickerMedia.get(),
 		StickerLottieSize::StickersFooter,
-		QSize(icon.pixw, icon.pixh) * cIntRetinaFactor(),
+		QSize(icon.pixw, icon.pixh) * style::DevicePixelRatio(),
 		_renderer());
 	if (!player) {
 		return;
@@ -1357,10 +1357,11 @@ void StickersListFooter::paintSetIconToCache(
 			});
 		} else if (icon.lottie && icon.lottie->ready()) {
 			const auto frame = icon.lottie->frame();
-			const auto size = frame.size() / cIntRetinaFactor();
+			const auto size = frame.size() / style::DevicePixelRatio();
 			if (icon.savedFrame.isNull()) {
 				icon.savedFrame = frame;
-				icon.savedFrame.setDevicePixelRatio(cRetinaFactor());
+				icon.savedFrame.setDevicePixelRatio(
+					style::DevicePixelRatio());
 			}
 			p.drawImage(
 				QRect(
@@ -1378,7 +1379,8 @@ void StickersListFooter::paintSetIconToCache(
 				paused ? 0 : now);
 			if (icon.savedFrame.isNull()) {
 				icon.savedFrame = frame;
-				icon.savedFrame.setDevicePixelRatio(cRetinaFactor());
+				icon.savedFrame.setDevicePixelRatio(
+					style::DevicePixelRatio());
 			}
 			p.drawImage(x, y, frame);
 		} else if (!icon.savedFrame.isNull()) {

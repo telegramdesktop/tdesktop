@@ -352,7 +352,7 @@ QImage ThemeDocument::finishServiceThumbnail(QImage image) const {
 	if (!_serviceWidth) {
 		return image;
 	} else if (_isDark && _dimmingIntensity > 0) {
-		image.setDevicePixelRatio(cIntRetinaFactor());
+		image.setDevicePixelRatio(style::DevicePixelRatio());
 		auto p = QPainter(&image);
 		const auto alpha = 255 * _dimmingIntensity / 100;
 		p.fillRect(0, 0, _pixw, _pixh, QColor(0, 0, 0, alpha));
@@ -366,13 +366,13 @@ QImage ThemeDocument::finishServiceThumbnail(QImage image) const {
 
 void ThemeDocument::generateThumbnail() const {
 	auto image = Ui::GenerateBackgroundImage(
-		QSize(_pixw, _pixh) * cIntRetinaFactor(),
+		QSize(_pixw, _pixh) * style::DevicePixelRatio(),
 		_background,
 		_gradientRotation,
 		_patternOpacity);
 	_thumbnail = Ui::PixmapFromImage(
 		finishServiceThumbnail(std::move(image)));
-	_thumbnail.setDevicePixelRatio(cRetinaFactor());
+	_thumbnail.setDevicePixelRatio(style::DevicePixelRatio());
 	_thumbnailGood = 1;
 }
 

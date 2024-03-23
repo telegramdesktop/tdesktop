@@ -1539,7 +1539,7 @@ void StickersBox::Inner::paintRowThumbnail(
 	const auto y = _st.photoPosition.y() + (_st.photoSize - row->pixh) / 2;
 	if (row->lottie && row->lottie->ready()) {
 		const auto frame = row->lottie->frame();
-		const auto size = frame.size() / cIntRetinaFactor();
+		const auto size = frame.size() / style::DevicePixelRatio();
 		p.drawImage(
 			QRect(
 				left + (_st.photoSize - size.width()) / 2,
@@ -1578,7 +1578,7 @@ void StickersBox::Inner::validateLottieAnimation(not_null<Row*> row) {
 		row->thumbnailMedia.get(),
 		row->stickerMedia.get(),
 		ChatHelpers::StickerLottieSize::SetsListThumbnail,
-		QSize(_st.photoSize, _st.photoSize) * cIntRetinaFactor());
+		QSize(_st.photoSize, _st.photoSize) * style::DevicePixelRatio());
 	if (!player) {
 		return;
 	}

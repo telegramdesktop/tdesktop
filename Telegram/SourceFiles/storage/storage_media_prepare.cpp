@@ -306,10 +306,10 @@ void PrepareDetails(PreparedFile &file, int previewWidth, int sideLimit) {
 				video->thumbnail,
 				sideLimit);
 			file.preview = std::move(blurred).scaledToWidth(
-				previewWidth * cIntRetinaFactor(),
+				previewWidth * style::DevicePixelRatio(),
 				Qt::SmoothTransformation);
 			Assert(!file.preview.isNull());
-			file.preview.setDevicePixelRatio(cRetinaFactor());
+			file.preview.setDevicePixelRatio(style::DevicePixelRatio());
 			file.type = PreparedFile::Type::Video;
 		}
 	} else if (const auto song = std::get_if<Song>(&file.information->media)) {
@@ -335,14 +335,14 @@ void UpdateImageDetails(
 	const auto toWidth = std::min(
 		previewWidth,
 		style::ConvertScale(preview.width())
-	) * cIntRetinaFactor();
+	) * style::DevicePixelRatio();
 	auto scaled = preview.scaledToWidth(
 		toWidth,
 		Qt::SmoothTransformation);
 	if (scaled.isNull()) {
 		CrashReports::SetAnnotation("Info", QString("%1x%2:%3*%4->%5;%6x%7"
 		).arg(preview.width()).arg(preview.height()
-		).arg(previewWidth).arg(cIntRetinaFactor()
+		).arg(previewWidth).arg(style::DevicePixelRatio()
 		).arg(toWidth
 		).arg(scaled.width()).arg(scaled.height()));
 		Unexpected("Scaled is null.");
@@ -350,7 +350,7 @@ void UpdateImageDetails(
 	Assert(!scaled.isNull());
 	file.preview = Images::Opaque(std::move(scaled));
 	Assert(!file.preview.isNull());
-	file.preview.setDevicePixelRatio(cRetinaFactor());
+	file.preview.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
 bool ApplyModifications(PreparedList &list) {

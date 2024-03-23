@@ -289,15 +289,15 @@ void GroupThumbs::Thumb::validateImage() {
 		const auto takeWidth = originalWidth * st::mediaviewGroupWidthMax
 			/ pixSize.width();
 		auto original = _image->original();
-		original.setDevicePixelRatio(cRetinaFactor());
+		original.setDevicePixelRatio(style::DevicePixelRatio());
 		_full = Ui::PixmapFromImage(original.copy(
 			(originalWidth - takeWidth) / 2,
 			0,
 			takeWidth,
 			originalHeight
 		).scaled(
-			st::mediaviewGroupWidthMax * cIntRetinaFactor(),
-			pixSize.height() * cIntRetinaFactor(),
+			st::mediaviewGroupWidthMax * style::DevicePixelRatio(),
+			pixSize.height() * style::DevicePixelRatio(),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation));
 	} else {
@@ -428,7 +428,7 @@ void GroupThumbs::Thumb::paint(
 	if (width == _fullWidth) {
 		p.drawPixmap(left, y, _full);
 	} else {
-		const auto takeWidth = width * cIntRetinaFactor();
+		const auto takeWidth = width * style::DevicePixelRatio();
 		const auto from = QRect(
 			(_full.width() - takeWidth) / 2,
 			0,

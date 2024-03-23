@@ -87,8 +87,8 @@ void TabbedSelector::SlideAnimation::setFinalImages(Direction direction, QImage 
 	Assert(!_rightImage.isNull());
 	_width = _leftImage.width();
 	_height = _rightImage.height();
-	Assert(!(_width % cIntRetinaFactor()));
-	Assert(!(_height % cIntRetinaFactor()));
+	Assert(!(_width % style::DevicePixelRatio()));
+	Assert(!(_height % style::DevicePixelRatio()));
 	Assert(_leftImage.devicePixelRatio() == _rightImage.devicePixelRatio());
 	Assert(_rightImage.width() == _width);
 	Assert(_rightImage.height() == _height);
@@ -97,19 +97,19 @@ void TabbedSelector::SlideAnimation::setFinalImages(Direction direction, QImage 
 	_innerTop = inner.y();
 	_innerWidth = inner.width();
 	_innerHeight = inner.height();
-	Assert(!(_innerLeft % cIntRetinaFactor()));
-	Assert(!(_innerTop % cIntRetinaFactor()));
-	Assert(!(_innerWidth % cIntRetinaFactor()));
-	Assert(!(_innerHeight % cIntRetinaFactor()));
+	Assert(!(_innerLeft % style::DevicePixelRatio()));
+	Assert(!(_innerTop % style::DevicePixelRatio()));
+	Assert(!(_innerWidth % style::DevicePixelRatio()));
+	Assert(!(_innerHeight % style::DevicePixelRatio()));
 	_innerRight = _innerLeft + _innerWidth;
 	_innerBottom = _innerTop + _innerHeight;
 
-	_painterInnerLeft = _innerLeft / cIntRetinaFactor();
-	_painterInnerTop = _innerTop / cIntRetinaFactor();
-	_painterInnerRight = _innerRight / cIntRetinaFactor();
-	_painterInnerBottom = _innerBottom / cIntRetinaFactor();
-	_painterInnerWidth = _innerWidth / cIntRetinaFactor();
-	_painterInnerHeight = _innerHeight / cIntRetinaFactor();
+	_painterInnerLeft = _innerLeft / style::DevicePixelRatio();
+	_painterInnerTop = _innerTop / style::DevicePixelRatio();
+	_painterInnerRight = _innerRight / style::DevicePixelRatio();
+	_painterInnerBottom = _innerBottom / style::DevicePixelRatio();
+	_painterInnerWidth = _innerWidth / style::DevicePixelRatio();
+	_painterInnerHeight = _innerHeight / style::DevicePixelRatio();
 	_painterCategoriesTop = _painterInnerBottom - st::defaultEmojiPan.footer;
 
 	_wasSectionIcons = wasSectionIcons;
@@ -148,10 +148,10 @@ void TabbedSelector::SlideAnimation::paintFrame(
 
 	auto arrivingCoord = anim::interpolate(_innerWidth, 0, easeOut);
 	auto departingCoord = anim::interpolate(0, _innerWidth, easeIn);
-	if (auto decrease = (arrivingCoord % cIntRetinaFactor())) {
+	if (auto decrease = (arrivingCoord % style::DevicePixelRatio())) {
 		arrivingCoord -= decrease;
 	}
-	if (auto decrease = (departingCoord % cIntRetinaFactor())) {
+	if (auto decrease = (departingCoord % style::DevicePixelRatio())) {
 		departingCoord -= decrease;
 	}
 	auto arrivingAlpha = easeIn;
@@ -165,7 +165,7 @@ void TabbedSelector::SlideAnimation::paintFrame(
 	auto leftTo = _innerLeft
 		+ std::clamp(_innerWidth + leftCoord, 0, _innerWidth);
 	auto rightFrom = _innerLeft + std::clamp(rightCoord, 0, _innerWidth);
-	auto painterRightFrom = rightFrom / cIntRetinaFactor();
+	auto painterRightFrom = rightFrom / style::DevicePixelRatio();
 	if (opacity < 1.) {
 		_frame.fill(Qt::transparent);
 	}
@@ -202,18 +202,18 @@ void TabbedSelector::SlideAnimation::paintFrame(
 		outerRight += _shadow.extend.right();
 		outerBottom += _shadow.extend.bottom();
 	}
-	if (cIntRetinaFactor() > 1) {
-		if (auto skipLeft = (outerLeft % cIntRetinaFactor())) {
+	if (style::DevicePixelRatio() > 1) {
+		if (auto skipLeft = (outerLeft % style::DevicePixelRatio())) {
 			outerLeft -= skipLeft;
 		}
-		if (auto skipTop = (outerTop % cIntRetinaFactor())) {
+		if (auto skipTop = (outerTop % style::DevicePixelRatio())) {
 			outerTop -= skipTop;
 		}
-		if (auto skipRight = (outerRight % cIntRetinaFactor())) {
-			outerRight += (cIntRetinaFactor() - skipRight);
+		if (auto skipRight = (outerRight % style::DevicePixelRatio())) {
+			outerRight += (style::DevicePixelRatio() - skipRight);
 		}
-		if (auto skipBottom = (outerBottom % cIntRetinaFactor())) {
-			outerBottom += (cIntRetinaFactor() - skipBottom);
+		if (auto skipBottom = (outerBottom % style::DevicePixelRatio())) {
+			outerBottom += (style::DevicePixelRatio() - skipBottom);
 		}
 	}
 
@@ -262,7 +262,14 @@ void TabbedSelector::SlideAnimation::paintFrame(
 	//	frameInts += _frameIntsPerLineAdded;
 	//}
 
-	p.drawImage(outerLeft / cIntRetinaFactor(), outerTop / cIntRetinaFactor(), _frame, outerLeft, outerTop, outerRight - outerLeft, outerBottom - outerTop);
+	p.drawImage(
+		outerLeft / style::DevicePixelRatio(),
+		outerTop / style::DevicePixelRatio(),
+		_frame,
+		outerLeft,
+		outerTop,
+		outerRight - outerLeft,
+		outerBottom - outerTop);
 }
 
 TabbedSelector::Tab::Tab(
@@ -893,9 +900,9 @@ QImage TabbedSelector::grabForAnimation() {
 	Ui::SendPendingMoveResizeEvents(this);
 
 	auto result = QImage(
-		size() * cIntRetinaFactor(),
+		size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	render(&result);
 
@@ -1179,9 +1186,9 @@ void TabbedSelector::switchTab() {
 	_slideAnimation = std::make_unique<SlideAnimation>();
 	const auto slidingRect = QRect(
 		0,
-		_scroll->y() * cIntRetinaFactor(),
-		width() * cIntRetinaFactor(),
-		(height() - _scroll->y()) * cIntRetinaFactor());
+		_scroll->y() * style::DevicePixelRatio(),
+		width() * style::DevicePixelRatio(),
+		(height() - _scroll->y()) * style::DevicePixelRatio());
 	_slideAnimation->setFinalImages(
 		direction,
 		std::move(wasCache),

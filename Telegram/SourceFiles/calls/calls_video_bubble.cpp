@@ -126,7 +126,7 @@ void VideoBubble::paint() {
 		const auto padding = st::boxRoundShadow.extend;
 		const auto inner = _content.rect().marginsRemoved(padding);
 		Ui::Shadow::paint(p, inner, _content.width(), st::boxRoundShadow);
-		const auto factor = cIntRetinaFactor();
+		const auto factor = style::DevicePixelRatio();
 		const auto left = _mirrored
 			? (_frame.width() - (inner.width() * factor))
 			: 0;
@@ -145,8 +145,8 @@ void VideoBubble::prepareFrame() {
 		return;
 	}
 	const auto padding = st::boxRoundShadow.extend;
-	const auto size = _content.rect().marginsRemoved(padding).size()
-		* cIntRetinaFactor();
+	const auto size = (_content.rect() - padding).size()
+		* style::DevicePixelRatio();
 
 	// Should we check 'original' and 'size' aspect ratios?..
 	const auto request = Webrtc::FrameRequest{

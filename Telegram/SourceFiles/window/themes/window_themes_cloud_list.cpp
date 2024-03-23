@@ -54,7 +54,7 @@ constexpr auto kShowPerRow = 4;
 		return source;
 	}
 	const auto from = source.size();
-	const auto to = st::settingsThemePreviewSize * cIntRetinaFactor();
+	const auto to = st::settingsThemePreviewSize * style::DevicePixelRatio();
 	if (to.width() * from.height() > to.height() * from.width()) {
 		const auto small = (from.width() > to.width())
 			? source.scaledToWidth(to.width(), Qt::SmoothTransformation)
@@ -130,7 +130,7 @@ CloudListColors ColorsFromScheme(const EmbeddedScheme &scheme) {
 	result.radiobuttonActive = scheme.radiobuttonActive;
 	result.radiobuttonInactive = scheme.radiobuttonInactive;
 	result.background = QImage(
-		QSize(1, 1) * cIntRetinaFactor(),
+		QSize(1, 1) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	result.background.fill(scheme.background);
 	return result;
@@ -160,7 +160,8 @@ CloudListCheck::CloudListCheck(bool checked)
 void CloudListCheck::setColors(const Colors &colors) {
 	_colors = colors;
 	if (!_colors->background.isNull()) {
-		const auto size = st::settingsThemePreviewSize * cIntRetinaFactor();
+		const auto size = st::settingsThemePreviewSize
+			* style::DevicePixelRatio();
 		_backgroundFull = (_colors->background.size() == size)
 			? _colors->background
 			: _colors->background.scaled(
@@ -183,8 +184,8 @@ void CloudListCheck::ensureContrast() {
 		- radio.height()
 		- st::settingsThemeRadioBottom;
 	const auto under = QRect(
-		QPoint(x, y) * cIntRetinaFactor(),
-		radio * cIntRetinaFactor());
+		QPoint(x, y) * style::DevicePixelRatio(),
+		radio * style::DevicePixelRatio());
 	const auto image = _backgroundFull.copy(under).convertToFormat(
 		QImage::Format_ARGB32_Premultiplied);
 	const auto active = style::internal::EnsureContrast(
@@ -207,7 +208,7 @@ void CloudListCheck::validateBackgroundCache(int width) {
 		return;
 	}
 	_backgroundCacheWidth = width;
-	const auto imageWidth = width * cIntRetinaFactor();
+	const auto imageWidth = width * style::DevicePixelRatio();
 	_backgroundCache = (width == st::settingsThemePreviewSize.width())
 		? _backgroundFull
 		: _backgroundFull.copy(
@@ -218,7 +219,7 @@ void CloudListCheck::validateBackgroundCache(int width) {
 	_backgroundCache = Images::Round(
 		std::move(_backgroundCache),
 		ImageRoundRadius::Large);
-	_backgroundCache.setDevicePixelRatio(cRetinaFactor());
+	_backgroundCache.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
 void CloudListCheck::paint(QPainter &p, int left, int top, int outerWidth) {

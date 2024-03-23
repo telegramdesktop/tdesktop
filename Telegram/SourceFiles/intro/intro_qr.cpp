@@ -119,7 +119,7 @@ namespace {
 			1,
 			st::introQrPixel);
 		const auto size = has
-			? (state->qr.size() / cIntRetinaFactor())
+			? (state->qr.size() / style::DevicePixelRatio())
 			: QSize(usualSize * pixel, usualSize * pixel);
 		const auto qr = QRect(
 			(result->width() - size.width()) / 2,

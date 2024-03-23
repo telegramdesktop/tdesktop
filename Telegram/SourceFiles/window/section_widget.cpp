@@ -357,7 +357,7 @@ void SectionWidget::PaintBackground(
 	const auto paintCache = [&](const Ui::CachedBackground &cache) {
 		const auto to = QRect(
 			QPoint(cache.x, cache.y),
-			cache.pixmap.size() / cIntRetinaFactor());
+			cache.pixmap.size() / style::DevicePixelRatio());
 		if (cache.waitingForNegativePattern) {
 			// While we wait for pattern being loaded we paint just gradient.
 			// But in case of negative patter opacity we just fill-black.
@@ -416,8 +416,8 @@ void SectionWidget::PaintBackground(
 		const auto top = clip.top();
 		const auto right = clip.left() + clip.width();
 		const auto bottom = clip.top() + clip.height();
-		const auto w = tiled.width() / cRetinaFactor();
-		const auto h = tiled.height() / cRetinaFactor();
+		const auto w = tiled.width() / float64(style::DevicePixelRatio());
+		const auto h = tiled.height() / float64(style::DevicePixelRatio());
 		const auto sx = qFloor(left / w);
 		const auto sy = qFloor(top / h);
 		const auto cx = qCeil(right / w);

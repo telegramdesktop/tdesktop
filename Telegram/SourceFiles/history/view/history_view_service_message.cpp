@@ -73,14 +73,14 @@ int PaintBubbleSide(
 	if (style == SideStyle::Rounded) {
 		const auto &corners = st->serviceBgCornersNormal();
 		const auto left = corners.p[(side == CornerTop) ? 0 : 2];
-		const auto leftWidth = left.width() / cIntRetinaFactor();
+		const auto leftWidth = left.width() / style::DevicePixelRatio();
 		p.drawPixmap(x, y, left);
 
 		const auto right = corners.p[(side == CornerTop) ? 1 : 3];
-		const auto rightWidth = right.width() / cIntRetinaFactor();
+		const auto rightWidth = right.width() / style::DevicePixelRatio();
 		p.drawPixmap(x + width - rightWidth, y, right);
 
-		const auto cornerHeight = left.height() / cIntRetinaFactor();
+		const auto cornerHeight = left.height() / style::DevicePixelRatio();
 		p.fillRect(
 			x + leftWidth,
 			y,
@@ -92,7 +92,7 @@ int PaintBubbleSide(
 		// CornerLeft and CornerRight are inverted in the top part.
 		const auto &corners = st->serviceBgCornersInverted();
 		const auto left = corners.p[(side == CornerTop) ? 1 : 2];
-		const auto leftWidth = left.width() / cIntRetinaFactor();
+		const auto leftWidth = left.width() / style::DevicePixelRatio();
 		p.drawPixmap(x - leftWidth, y, left);
 
 		const auto right = corners.p[(side == CornerTop) ? 0 : 3];

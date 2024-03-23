@@ -210,7 +210,7 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 	// Geometry.
 	const auto print = ComputeEmojiFingerprint(call);
 	auto realSize = Ui::Emoji::GetSizeNormal();
-	auto size = realSize / cIntRetinaFactor();
+	auto size = realSize / style::DevicePixelRatio();
 	auto count = print.size();
 	const auto printSize = QSize(
 		count * size + (count - 1) * st::callFingerprintSkip,
@@ -234,9 +234,9 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 
 	// Paint.
 	const auto background = raw->lifetime().make_state<QImage>(
-		fullSize * cIntRetinaFactor(),
+		fullSize * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	background->setDevicePixelRatio(cRetinaFactor());
+	background->setDevicePixelRatio(style::DevicePixelRatio());
 	rpl::merge(
 		rpl::single(rpl::empty),
 		Ui::Emoji::Updated(),
@@ -274,7 +274,7 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 
 		// Emoji.
 		const auto realSize = Ui::Emoji::GetSizeNormal();
-		const auto size = realSize / cIntRetinaFactor();
+		const auto size = realSize / style::DevicePixelRatio();
 		auto left = st::callFingerprintPadding.left();
 		const auto top = st::callFingerprintPadding.top();
 		p.setClipping(false);
