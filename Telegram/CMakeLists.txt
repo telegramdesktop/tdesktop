@@ -392,8 +392,6 @@ PRIVATE
     chat_helpers/spellchecker_common.h
     chat_helpers/stickers_dice_pack.cpp
     chat_helpers/stickers_dice_pack.h
-    chat_helpers/stickers_emoji_image_loader.cpp
-    chat_helpers/stickers_emoji_image_loader.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
     chat_helpers/stickers_gift_box_pack.cpp

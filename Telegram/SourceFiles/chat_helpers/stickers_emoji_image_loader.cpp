@@ -28,7 +28,7 @@ void EmojiImageLoader::init(
 
 QImage EmojiImageLoader::prepare(EmojiPtr emoji) const {
 	const auto loaded = _images->ensureLoaded();
-	const auto factor = cIntRetinaFactor();
+	const auto factor = style::DevicePixelRatio();
 	const auto side = st::largeEmojiSize + 2 * st::largeEmojiOutline;
 	auto tinted = QImage(
 		QSize(st::largeEmojiSize, st::largeEmojiSize) * factor,

@@ -63,6 +63,9 @@ PRIVATE
     calls/group/ui/desktop_capture_choose_source.cpp
     calls/group/ui/desktop_capture_choose_source.h
 
+    chat_helpers/stickers_emoji_image_loader.cpp
+    chat_helpers/stickers_emoji_image_loader.h
+
     core/file_location.cpp
     core/file_location.h
     core/mime_type.cpp
