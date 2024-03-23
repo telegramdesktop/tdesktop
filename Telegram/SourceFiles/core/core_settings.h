@@ -863,6 +863,13 @@ public:
 		_ttlVoiceClickTooltipHidden = value;
 	}
 
+	[[nodiscard]] const WindowPosition &ivPosition() const {
+		return _ivPosition;
+	}
+	void setIvPosition(const WindowPosition &position) {
+		_ivPosition = position;
+	}
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 
@@ -990,6 +997,7 @@ private:
 	std::optional<uint64> _macRoundIconDigest;
 	rpl::variable<bool> _storiesClickTooltipHidden = false;
 	rpl::variable<bool> _ttlVoiceClickTooltipHidden = false;
+	WindowPosition _ivPosition;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

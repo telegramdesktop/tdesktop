@@ -319,6 +319,11 @@ windowArchiveToast: Toast(defaultToast) {
 	maxWidth: boxWideWidth;
 }
 
+ivWidthMin: 380px;
+ivHeightMin: 480px;
+ivWidthDefault: 600px;
+ivHeightDefault: 800px;
+
 // Windows specific
 
 winQuitIcon: icon {{ "win_quit", windowFg }};

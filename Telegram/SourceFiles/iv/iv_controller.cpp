@@ -194,8 +194,11 @@ namespace {
 
 } // namespace
 
-Controller::Controller(Fn<ShareBoxResult(ShareBoxDescriptor)> showShareBox)
-: _updateStyles([=] {
+Controller::Controller(
+	not_null<Delegate*> delegate,
+	Fn<ShareBoxResult(ShareBoxDescriptor)> showShareBox)
+: _delegate(delegate)
+, _updateStyles([=] {
 	const auto str = EscapeForScriptString(ComputeStyles());
 	if (_webview) {
 		_webview->eval("IV.updateStyles('" + str + "');");
@@ -359,8 +362,14 @@ void Controller::createWindow() {
 		updateTitleGeometry(width);
 	}, _subtitle->lifetime());
 
-	window->setGeometry({ 200, 200, 600, 800 });
+	window->setGeometry(_delegate->ivGeometry());
 	window->setMinimumSize({ st::windowMinWidth, st::windowMinHeight });
+
+	window->geometryValue(
+	) | rpl::distinct_until_changed(
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		_delegate->ivSaveGeometry(window);
+	}, window->lifetime());
 
 	_container = Ui::CreateChild<Ui::RpWidget>(window->window());
 	rpl::combine(

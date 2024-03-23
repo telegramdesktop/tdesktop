@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/invoke_queued.h"
 #include "base/object_ptr.h"
 #include "base/unique_qptr.h"
+#include "iv/iv_delegate.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text.h"
 
@@ -46,7 +47,9 @@ struct ShareBoxDescriptor {
 
 class Controller final {
 public:
-	explicit Controller(Fn<ShareBoxResult(ShareBoxDescriptor)> showShareBox);
+	Controller(
+		not_null<Delegate*> delegate,
+		Fn<ShareBoxResult(ShareBoxDescriptor)> showShareBox);
 	~Controller();
 
 	struct Event {
@@ -114,6 +117,8 @@ private:
 	[[nodiscard]] QString composeCurrentUrl() const;
 	void showShareMenu();
 	void destroyShareMenu();
+
+	const not_null<Delegate*> _delegate;
 
 	std::unique_ptr<Ui::RpWindow> _window;
 	std::unique_ptr<Ui::RpWidget> _subtitleWrap;

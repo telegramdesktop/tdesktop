@@ -62,6 +62,7 @@ constexpr auto kKeepLoadingParts = 8;
 class Shown final : public base::has_weak_ptr {
 public:
 	Shown(
+		not_null<Delegate*> delegate,
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Data*> data,
 		QString hash);
@@ -143,6 +144,7 @@ private:
 		int64 total = 0);
 	void requestFail(Webview::DataRequest request);
 
+	const not_null<Delegate*> _delegate;
 	const not_null<Main::Session*> _session;
 	std::shared_ptr<Main::SessionShow> _show;
 	QString _id;
@@ -166,10 +168,12 @@ private:
 };
 
 Shown::Shown(
+	not_null<Delegate*> delegate,
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<Data*> data,
 	QString hash)
-: _session(&show->session())
+: _delegate(delegate)
+, _session(&show->session())
 , _show(show) {
 	prepare(data, hash);
 }
@@ -398,7 +402,9 @@ void Shown::createController() {
 	const auto showShareBox = [=](ShareBoxDescriptor &&descriptor) {
 		return shareBox(std::move(descriptor));
 	};
-	_controller = std::make_unique<Controller>(std::move(showShareBox));
+	_controller = std::make_unique<Controller>(
+		_delegate,
+		std::move(showShareBox));
 
 	_controller->events(
 	) | rpl::start_to_stream(_events, _controller->lifetime());
@@ -795,9 +801,18 @@ void Shown::minimize() {
 	}
 }
 
-Instance::Instance() = default;
+Instance::Instance(not_null<Delegate*> delegate) : _delegate(delegate) {
+}
 
 Instance::~Instance() = default;
+
+void Instance::show(
+		not_null<Window::SessionController*> controller,
+		not_null<Data*> data,
+		QString hash) {
+	_delegate->ivSetLastSourceWindow(controller->widget());
+	show(controller->uiShow(), data, hash);
+}
 
 void Instance::show(
 		std::shared_ptr<Main::SessionShow> show,
@@ -813,7 +828,7 @@ void Instance::show(
 		_shown->moveTo(data, hash);
 		return;
 	}
-	_shown = std::make_unique<Shown>(show, data, hash);
+	_shown = std::make_unique<Shown>(_delegate, show, data, hash);
 	_shownSession = session;
 	_shown->events() | rpl::start_with_next([=](Controller::Event event) {
 		using Type = Controller::Event::Type;

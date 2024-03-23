@@ -7,10 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "iv/iv_delegate.h"
+
 namespace Main {
 class Session;
 class SessionShow;
 } // namespace Main
+
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace Iv {
 
@@ -19,9 +25,13 @@ class Shown;
 
 class Instance final {
 public:
-	Instance();
+	explicit Instance(not_null<Delegate*> delegate);
 	~Instance();
 
+	void show(
+		not_null<Window::SessionController*> controller,
+		not_null<Data*> data,
+		QString hash);
 	void show(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Data*> data,
@@ -41,6 +51,8 @@ private:
 	void processOpenChannel(const QString &context);
 	void processJoinChannel(const QString &context);
 	void requestFull(not_null<Main::Session*> session, const QString &id);
+
+	const not_null<Delegate*> _delegate;
 
 	std::unique_ptr<Shown> _shown;
 	Main::Session *_shownSession = nullptr;

@@ -127,7 +127,7 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 		if (const auto controller = my.sessionWindow.get()) {
 			if (const auto iv = webpage->iv.get()) {
 				const auto hash = ExtractHash(webpage, text);
-				Core::App().iv().show(controller->uiShow(), iv, hash);
+				Core::App().iv().show(controller, iv, hash);
 				return;
 			} else {
 				HiddenUrlClickHandler::Open(webpage->url, context.other);

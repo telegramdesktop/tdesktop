@@ -47,6 +47,7 @@ class Session;
 
 namespace Iv {
 class Instance;
+class DelegateImpl;
 } // namespace Iv
 
 namespace Ui {
@@ -165,6 +166,8 @@ public:
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
 	[[nodiscard]] bool savingPositionFor(
 		not_null<Window::Controller*> window) const;
+	[[nodiscard]] Window::Controller *findWindow(
+		not_null<QWidget*> widget) const;
 	[[nodiscard]] Window::Controller *activeWindow() const;
 	[[nodiscard]] Window::Controller *activePrimaryWindow() const;
 	[[nodiscard]] Window::Controller *separateWindowForAccount(
