@@ -26,6 +26,7 @@ namespace Platform {
 namespace {
 
 using namespace gi::repository;
+namespace GObject = gi::repository::GObject;
 
 std::vector<std::any> AnyVectorFromVariant(GLib::Variant value) {
 	std::vector<std::any> result;
