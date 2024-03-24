@@ -107,6 +107,27 @@ private:
 
 };
 
+class EarnStatistics final : public StatisticsRequestSender {
+public:
+	explicit EarnStatistics(not_null<ChannelData*> channel);
+
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
+	void requestBoosts(
+		const Data::EarnHistorySlice::OffsetToken &token,
+		Fn<void(Data::EarnHistorySlice)> done);
+
+	[[nodiscard]] Data::EarnStatistics data() const;
+
+	static constexpr auto kFirstSlice = int(10);
+	static constexpr auto kLimit = int(40);
+
+private:
+	Data::EarnStatistics _data;
+
+	mtpRequestId _requestId = 0;
+
+};
+
 class Boosts final {
 public:
 	explicit Boosts(not_null<PeerData*> peer);

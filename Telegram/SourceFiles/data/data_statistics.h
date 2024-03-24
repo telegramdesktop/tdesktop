@@ -155,4 +155,53 @@ struct PublicForwardsSlice final {
 	OffsetToken token;
 };
 
+struct EarnHistoryEntry final {
+	enum class Type {
+		In,
+		Out,
+		Return,
+	};
+
+	enum class Status {
+		Success,
+		Failed,
+		Pending,
+	};
+
+	Type type;
+	Status status;
+
+	uint64 amount = 0;
+	QDateTime date;
+	QDateTime dateTo;
+
+	QString provider;
+
+	QDateTime successDate;
+	QString successLink;
+
+};
+
+struct EarnHistorySlice final {
+	using OffsetToken = int;
+	std::vector<EarnHistoryEntry> list;
+	int total = 0;
+	bool allLoaded = false;
+	OffsetToken token;
+};
+
+struct EarnStatistics final {
+	explicit operator bool() const {
+		return !!usdRate;
+	}
+	Data::StatisticalGraph topHoursGraph;
+	Data::StatisticalGraph revenueGraph;
+	uint64 currentBalance = 0;
+	uint64 availableBalance = 0;
+	uint64 overallRevenue = 0;
+	float64 usdRate = 0.;
+
+	EarnHistorySlice firstHistorySlice;
+};
+
 } // namespace Data
