@@ -42,7 +42,7 @@ var IV = {
 		} else if (target.hash.length < 2) {
 			IV.jumpToHash('');
 		} else {
-			IV.jumpToHash(target.hash.substr(1));
+			IV.jumpToHash(decodeURIComponent(target.hash.substr(1)));
 		}
 		e.preventDefault();
 	},

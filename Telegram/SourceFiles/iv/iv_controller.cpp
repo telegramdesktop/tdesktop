@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
+#include "base/qthelp_url.h"
 #include "iv/iv_data.h"
 #include "lang/lang_keys.h"
 #include "ui/platform/ui_platform_window_title.h"
@@ -615,7 +616,7 @@ QByteArray Controller::navigateScript(int index, const QString &hash) {
 	return "IV.navigateTo("
 		+ QByteArray::number(index)
 		+ ", '"
-		+ EscapeForScriptString(hash.toUtf8())
+		+ EscapeForScriptString(qthelp::url_decode(hash).toUtf8())
 		+ "');";
 }
 
