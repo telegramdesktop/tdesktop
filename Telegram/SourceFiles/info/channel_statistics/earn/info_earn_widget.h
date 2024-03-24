@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_statistics.h"
 #include "info/info_content_widget.h"
 
 namespace Info::ChannelEarn {
@@ -26,10 +27,7 @@ public:
 
 	Section section() const override;
 
-	struct ChannelEarnStatus{
-	};
-
-	using SavedState = ChannelEarnStatus;
+	using SavedState = Data::EarnStatistics;
 
 	void setState(SavedState states);
 	[[nodiscard]] SavedState state();

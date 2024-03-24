@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/channel_statistics/earn/info_earn_inner_widget.h"
 
+#include "api/api_statistics.h"
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
@@ -15,8 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "info/channel_statistics/earn/info_earn_widget.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
+#include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/controls/userpic_button.h"
@@ -37,11 +40,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 
-#include <QUuid>
 #include <QtWidgets/QApplication>
 
 namespace Info::ChannelEarn {
 namespace {
+
+constexpr auto kMinorPartLength = 9;
 
 void AddHeader(
 		not_null<Ui::VerticalLayout*> content,
@@ -105,14 +109,13 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 	return emoji;
 }
 
-[[nodiscard]] QString FormatDate(TimeId date) {
-	const auto parsedDate = base::unixtime::parse(date);
+[[nodiscard]] QString FormatDate(const QDateTime &date) {
 	return tr::lng_group_call_starts_short_date(
 		tr::now,
 		lt_date,
-		langDayOfMonth(parsedDate.date()),
+		langDayOfMonth(date.date()),
 		lt_time,
-		QLocale().toString(parsedDate.time(), QLocale::ShortFormat));
+		QLocale().toString(date.time(), QLocale::ShortFormat));
 }
 
 } // namespace
@@ -128,15 +131,34 @@ InnerWidget::InnerWidget(
 }
 
 void InnerWidget::load() {
+	const auto api = lifetime().make_state<Api::EarnStatistics>(
+		_peer->asChannel());
+
+	Info::Statistics::FillLoading(
+		this,
+		_loaded.events_starting_with(false) | rpl::map(!rpl::mappers::_1),
+		_showFinished.events());
+
+	_showFinished.events(
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		api->request(
+		) | rpl::start_with_error_done([](const QString &error) {
+		}, [=] {
+			_state = api->data();
+			_loaded.fire(true);
+			fill();
+		}, lifetime());
+	}, lifetime());
 }
 
 void InnerWidget::fill() {
 	const auto container = this;
+	const auto &data = _state;
 
 	constexpr auto kMinus = QChar(0x2212);
 	constexpr auto kApproximately = QChar(0x2248);
 	const auto currency = u"TON"_q;
-	const auto multiplier = 3.8; // Debug.
+	const auto multiplier = data.usdRate;
 
 	const auto session = &_peer->session();
 	const auto makeContext = [=](not_null<Ui::FlatLabel*> l) {
@@ -150,7 +172,7 @@ void InnerWidget::fill() {
 			float64 value) {
 		auto emoji = EmojiCurrency(session);
 		label->setMarkedText(
-			emoji.append(' ').append(QString::number(int64(value))),
+			emoji.append(' ').append(QString::number(uint64(value))),
 			makeContext(label));
 	};
 
@@ -334,10 +356,9 @@ void InnerWidget::fill() {
 		AddHeader(container, tr::lng_channel_earn_overview_title);
 		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
 
-		const auto addOverviewEntry = [&](
+		const auto addOverview = [&](
 				float64 value,
 				const tr::phrase<> &text) {
-			value = base::RandomIndex(1000000) / 1000.; // Debug.
 			const auto line = container->add(
 				Ui::CreateSkipWidget(container, 0),
 				st::boxRowPadding);
@@ -347,7 +368,7 @@ void InnerWidget::fill() {
 			addEmojiToMajor(majorLabel, value);
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				QString::number(value - int64(value)).mid(1),
+				QString::number(value - uint64(value)).mid(1),
 				st::channelEarnOverviewMinorLabel);
 			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
@@ -371,6 +392,7 @@ void InnerWidget::fill() {
 						+ st::channelEarnOverviewSubMinorLabelPos.x(),
 					st::channelEarnOverviewSubMinorLabelPos.y());
 			}, minorLabel->lifetime());
+			Ui::ToggleChildrenVisibility(line, true);
 
 			Ui::AddSkip(container);
 			const auto sub = container->add(
@@ -381,20 +403,20 @@ void InnerWidget::fill() {
 				st::boxRowPadding);
 			sub->setTextColorOverride(st::windowSubTextFg->c);
 		};
-		addOverviewEntry(0, tr::lng_channel_earn_available);
+		addOverview(data.availableBalance, tr::lng_channel_earn_available);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
-		addOverviewEntry(0, tr::lng_channel_earn_reward);
+		addOverview(data.currentBalance, tr::lng_channel_earn_reward);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
-		addOverviewEntry(0, tr::lng_channel_earn_total);
+		addOverview(data.overallRevenue, tr::lng_channel_earn_total);
 		Ui::AddSkip(container);
 	}
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 	{
-		const auto value = 54.12; // Debug.
+		const auto value = data.availableBalance;
 		Ui::AddSkip(container);
 		AddHeader(container, tr::lng_channel_earn_balance_title);
 		Ui::AddSkip(container);
@@ -411,7 +433,7 @@ void InnerWidget::fill() {
 		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 			labels,
-			QString::number(value - int64(value)).mid(1),
+			QString::number(value - uint64(value)).mid(1),
 			st::channelEarnBalanceMinorLabel);
 		minorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		rpl::combine(
@@ -428,6 +450,7 @@ void InnerWidget::fill() {
 				0,
 				st::channelEarnBalanceMinorLabelSkip);
 		}, labels->lifetime());
+		Ui::ToggleChildrenVisibility(labels, true);
 
 		Ui::AddSkip(container);
 		container->add(
@@ -532,6 +555,7 @@ void InnerWidget::fill() {
 				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 			}));
 		});
+		Ui::ToggleChildrenVisibility(button, true);
 
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
@@ -545,16 +569,8 @@ void InnerWidget::fill() {
 		AddHeader(container, tr::lng_channel_earn_history_title);
 		Ui::AddSkip(container);
 
-		struct HistoryEntry final {
-			TimeId from = 0;
-			TimeId to = 0;
-			float64 value = 0;
-			QString recipient;
-			bool in = false;
-		};
-
 		const auto addHistoryEntry = [&](
-				const HistoryEntry &entry,
+				const Data::EarnHistoryEntry &entry,
 				const tr::phrase<> &text) {
 			const auto wrap = container->add(
 				object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
@@ -568,10 +584,11 @@ void InnerWidget::fill() {
 				text(),
 				st::channelEarnSemiboldLabel));
 
+			const auto isIn = entry.type == Data::EarnHistoryEntry::Type::In;
 			const auto recipient = Ui::Text::Wrapped(
-				{ entry.recipient },
+				{ entry.provider },
 				EntityType::Code);
-			if (!entry.recipient.isEmpty()) {
+			if (!recipient.text.isEmpty()) {
 				Ui::AddSkip(inner, st::channelEarnHistoryThreeSkip);
 				const auto label = inner->add(object_ptr<Ui::FlatLabel>(
 					inner,
@@ -584,23 +601,23 @@ void InnerWidget::fill() {
 				Ui::AddSkip(inner, st::channelEarnHistoryTwoSkip);
 			}
 
-			const auto dateText = entry.to
-				? (FormatDate(entry.from)
+			const auto dateText = !entry.dateTo.isNull()
+				? (FormatDate(entry.date)
 					+ ' '
 					+ QChar(8212)
 					+ ' '
-					+ FormatDate(entry.to))
-				: FormatDate(entry.from);
+					+ FormatDate(entry.dateTo))
+				: FormatDate(entry.date);
 			inner->add(object_ptr<Ui::FlatLabel>(
 				inner,
 				dateText,
 				st::channelEarnHistorySubLabel));
 
-			const auto color = (entry.in
+			const auto color = (isIn
 				? st::boxTextFgGood
 				: st::menuIconAttentionColor)->c;
-			const auto majorText = (entry.in ? '+' : kMinus)
-				+ QString::number(int64(entry.value));
+			const auto majorText = (isIn ? '+' : kMinus)
+				+ QString::number(uint64(entry.amount));
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				wrap,
 				majorText,
@@ -608,7 +625,7 @@ void InnerWidget::fill() {
 			majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 			majorLabel->setTextColorOverride(color);
 			const auto minorText =
-				QString::number(entry.value - int64(entry.value)).mid(1)
+				QString::number(entry.amount - uint64(entry.amount)).mid(1)
 					+ ' '
 					+ currency;
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
@@ -620,6 +637,7 @@ void InnerWidget::fill() {
 			const auto button = Ui::CreateChild<Ui::SettingsButton>(
 				wrap,
 				rpl::single(QString()));
+			Ui::ToggleChildrenVisibility(wrap, true);
 
 			const auto detailsBox = [=, peer = _peer](
 					not_null<Ui::GenericBox*> box) {
@@ -671,19 +689,19 @@ void InnerWidget::fill() {
 					box,
 					object_ptr<Ui::FlatLabel>(
 						box,
-						entry.in
+						isIn
 							? tr::lng_channel_earn_history_in_about()
 							: tr::lng_channel_earn_history_out(),
 						st::channelEarnHistoryMajorLabel)));
 				Ui::AddSkip(box->verticalLayout());
-				if (entry.in) {
+				if (isIn) {
 					Ui::AddSkip(box->verticalLayout());
 				}
 
-				if (!entry.recipient.isEmpty()) {
+				if (!recipient.text.isEmpty()) {
 					AddRecipient(box, recipient);
 				}
-				if (entry.in) {
+				if (isIn) {
 					const auto peerBubble = box->addRow(
 						object_ptr<Ui::CenterWrap<>>(
 							box,
@@ -763,41 +781,13 @@ void InnerWidget::fill() {
 				button->lower();
 			}, wrap->lifetime());
 		};
-		const auto randomRecipient = [&] { // Debug.
-			const auto format = QUuid::StringFormat::Id128;
-			return (QUuid::createUuid().toString(format)
-				+ QUuid::createUuid().toString(format)).mid(0, 48);
-		};
-		addHistoryEntry(
-			{
-				.from = base::unixtime::now(),
-				.to = base::unixtime::now() - base::RandomIndex(200000),
-				.value = base::RandomIndex(1000000) / 1000.,
-				.in = true,
-			},
-			tr::lng_channel_earn_history_in);
-		addHistoryEntry(
-			{
-				.from = base::unixtime::now(),
-				.recipient = randomRecipient(),
-				.value = base::RandomIndex(1000000) / 1000.,
-			},
-			tr::lng_channel_earn_history_out);
-		addHistoryEntry(
-			{
-				.from = base::unixtime::now(),
-				.to = base::unixtime::now() - base::RandomIndex(200000),
-				.value = base::RandomIndex(1000000) / 1000.,
-				.in = true,
-			},
-			tr::lng_channel_earn_history_in);
-		addHistoryEntry(
-			{
-				.from = base::unixtime::now(),
-				.recipient = randomRecipient(),
-				.value = base::RandomIndex(1000000) / 1000.,
-			},
-			tr::lng_channel_earn_history_out);
+		for (const auto &entry : data.firstHistorySlice.list) {
+			addHistoryEntry(
+				entry,
+				(entry.type == Data::EarnHistoryEntry::Type::In)
+					? tr::lng_channel_earn_history_in
+					: tr::lng_channel_earn_history_out);
+		}
 	}
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
@@ -916,21 +906,25 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(container);
 		Ui::AddDividerText(container, tr::lng_channel_earn_off_about());
+		Ui::ToggleChildrenVisibility(line, true);
 	}
 	Ui::AddSkip(container);
+
+	Ui::ToggleChildrenVisibility(container, true);
+	Ui::RpWidget::resizeToWidth(width());
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
-	// memento->setState(base::take(_state));
+	memento->setState(base::take(_state));
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
-	// _state = memento->state();
-	// if (!_state.link.isEmpty()) {
+	_state = memento->state();
+	if (_state) {
 		fill();
-	// } else {
-	// 	load();
-	// }
+	} else {
+		load();
+	}
 	Ui::RpWidget::resizeToWidth(width());
 }
 
