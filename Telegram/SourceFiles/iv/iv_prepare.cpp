@@ -110,13 +110,11 @@ private:
 	[[nodiscard]] QByteArray block(
 		const MTPDpageBlockPhoto &data,
 		const Ui::GroupMediaLayout &layout = {},
-		QSize outer = {},
-		int slideshowIndex = -1);
+		QSize outer = {});
 	[[nodiscard]] QByteArray block(
 		const MTPDpageBlockVideo &data,
 		const Ui::GroupMediaLayout &layout = {},
-		QSize outer = {},
-		int slideshowIndex = -1);
+		QSize outer = {});
 	[[nodiscard]] QByteArray block(const MTPDpageBlockCover &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockEmbed &data);
 	[[nodiscard]] QByteArray block(const MTPDpageBlockEmbedPost &data);
@@ -461,8 +459,7 @@ QByteArray Parser::block(const MTPDpageBlockPullquote &data) {
 QByteArray Parser::block(
 		const MTPDpageBlockPhoto &data,
 		const Ui::GroupMediaLayout &layout,
-		QSize outer,
-		int slideshowIndex) {
+		QSize outer) {
 	const auto collage = !layout.geometry.isEmpty();
 	const auto slideshow = !collage && !outer.isEmpty();
 	const auto photo = photoById(data.vphoto_id().v);
@@ -518,16 +515,19 @@ QByteArray Parser::block(
 		{ "href", href },
 		{ "oncontextmenu", data.vurl() ? QByteArray() : "return false;" },
 		{ "data-context", data.vurl() ? QByteArray() : "viewer-photo" + id },
-	}, result) + caption(data.vcaption());
+		}, result);
+	if (!slideshow) {
+		result += caption(data.vcaption());
+	}
 	return result;
 }
 
 QByteArray Parser::block(
 		const MTPDpageBlockVideo &data,
 		const Ui::GroupMediaLayout &layout,
-		QSize outer,
-		int slideshowIndex) {
+		QSize outer) {
 	const auto collage = !layout.geometry.isEmpty();
+	const auto slideshow = !collage && !outer.isEmpty();
 	const auto collageSmall = collage
 		&& (layout.geometry.width() < outer.width());
 	const auto video = documentById(data.vvideo_id().v);
@@ -581,7 +581,9 @@ QByteArray Parser::block(
 			{ "data-context", "viewer-video" + id },
 		}, result);
 	}
-	result += caption(data.vcaption());
+	if (!slideshow) {
+		result += caption(data.vcaption());
+	}
 	return result;
 }
 

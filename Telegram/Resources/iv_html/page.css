@@ -652,7 +652,7 @@ figure.slideshow .video-wrap {
 	bottom: 10px;
 	white-space: nowrap;
 	overflow: hidden;
-	z-index: 3;
+	z-index: 5;
 }
 .slideshow-buttons > fieldset {
 	padding: 0;
