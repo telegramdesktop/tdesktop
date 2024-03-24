@@ -46,6 +46,50 @@ namespace Info::ChannelEarn {
 namespace {
 
 constexpr auto kMinorPartLength = 9;
+constexpr auto kZero = QChar('0');
+constexpr auto kDot = QChar('.');
+
+[[nodiscard]] QString MajorPart(uint64 value) {
+	const auto string = QString::number(value);
+	return (string.size() < kMinorPartLength)
+		? QString(kZero)
+		: string.mid(0, kMinorPartLength);
+}
+
+[[nodiscard]] QString MinorPart(uint64 value) {
+	if (!value) {
+		return QString(kDot) + kZero;
+	}
+	const auto string = QString::number(value);
+	const auto diff = int(string.size()) - kMinorPartLength;
+	const auto result = (diff < 0)
+		? kDot + u"%1"_q.arg(0, std::abs(diff), 10, kZero) + string
+		: kDot + string.mid(diff);
+	const auto begin = (result.constData());
+	const auto end = (begin + result.size());
+	auto ch = end - 1;
+	auto zeroCount = 0;
+	while (ch != begin) {
+		if ((*ch) == kZero) {
+			zeroCount++;
+		} else {
+			break;
+		}
+		ch--;
+	}
+	return result.chopped(zeroCount);
+}
+
+[[nodiscard]] QString ToUsd(uint64 value, float64 rate) {
+	constexpr auto kApproximately = QChar(0x2248);
+	constexpr auto kMultiplier = uint64(1000000000);
+	const auto multiplier = uint64(rate * kMultiplier);
+	const auto result = (value * multiplier) / kMultiplier;
+	return QString(kApproximately)
+		+ QChar('$')
+		+ MajorPart(result)
+		+ MinorPart(result);
+}
 
 void AddHeader(
 		not_null<Ui::VerticalLayout*> content,
@@ -169,10 +213,10 @@ void InnerWidget::fill() {
 	};
 	const auto addEmojiToMajor = [=](
 			not_null<Ui::FlatLabel*> label,
-			float64 value) {
+			uint64 value) {
 		auto emoji = EmojiCurrency(session);
 		label->setMarkedText(
-			emoji.append(' ').append(QString::number(uint64(value))),
+			emoji.append(' ').append(MajorPart(value)),
 			makeContext(label));
 	};
 
@@ -357,7 +401,7 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
 
 		const auto addOverview = [&](
-				float64 value,
+				uint64 value,
 				const tr::phrase<> &text) {
 			const auto line = container->add(
 				Ui::CreateSkipWidget(container, 0),
@@ -368,13 +412,11 @@ void InnerWidget::fill() {
 			addEmojiToMajor(majorLabel, value);
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				QString::number(value - uint64(value)).mid(1),
+				MinorPart(value),
 				st::channelEarnOverviewMinorLabel);
 			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				QString(kApproximately)
-					+ QChar('$')
-					+ QString::number(value * multiplier),
+				ToUsd(value, multiplier),
 				st::channelEarnOverviewSubMinorLabel);
 			rpl::combine(
 				line->widthValue(),
@@ -433,7 +475,7 @@ void InnerWidget::fill() {
 		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 			labels,
-			QString::number(value - uint64(value)).mid(1),
+			MinorPart(value),
 			st::channelEarnBalanceMinorLabel);
 		minorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		rpl::combine(
@@ -458,9 +500,7 @@ void InnerWidget::fill() {
 				container,
 				object_ptr<Ui::FlatLabel>(
 					container,
-					QString(kApproximately)
-						+ QChar('$')
-						+ QString::number(value * multiplier),
+					ToUsd(value, multiplier),
 					st::channelEarnOverviewSubMinorLabel)));
 
 		Ui::AddSkip(container);
@@ -617,17 +657,16 @@ void InnerWidget::fill() {
 				? st::boxTextFgGood
 				: st::menuIconAttentionColor)->c;
 			const auto majorText = (isIn ? '+' : kMinus)
-				+ QString::number(uint64(entry.amount));
+				+ MajorPart(entry.amount);
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				wrap,
 				majorText,
 				st::channelEarnHistoryMajorLabel);
 			majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 			majorLabel->setTextColorOverride(color);
-			const auto minorText =
-				QString::number(entry.amount - uint64(entry.amount)).mid(1)
-					+ ' '
-					+ currency;
+			const auto minorText = MinorPart(entry.amount)
+				+ ' '
+				+ currency;
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				wrap,
 				minorText,
