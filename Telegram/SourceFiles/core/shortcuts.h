@@ -67,6 +67,7 @@ enum class Command {
 	ScheduleMessage,
 
 	ReadChat,
+	ArchiveChat,
 
 	MediaViewerFullscreen,
 

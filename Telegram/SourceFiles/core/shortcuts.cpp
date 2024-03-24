@@ -106,6 +106,7 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"message_scheduled"_q             , Command::ScheduleMessage },
 	{ u"media_viewer_video_fullscreen"_q , Command::MediaViewerFullscreen },
 	{ u"show_scheduled"_q                , Command::ShowScheduled },
+	{ u"archive_chat"_q                  , Command::ArchiveChat },
 	//
 };
 
