@@ -57,6 +57,8 @@ enum class Command {
 	FolderNext,
 	FolderPrevious,
 
+	ShowScheduled,
+
 	ShowArchive,
 	ShowContacts,
 
