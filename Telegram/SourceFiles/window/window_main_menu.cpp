@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_stories.h"
 #include "mainwidget.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
@@ -107,6 +108,109 @@ public:
 	}
 
 };
+
+not_null<Ui::SettingsButton*> AddMyChannelsBox(
+		not_null<Ui::SettingsButton*> button,
+		not_null<SessionController*> controller) {
+	button->setAcceptBoth(true);
+
+	const auto myChannelsBox = [=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_notification_channels());
+
+		const auto st = box->lifetime().make_state<style::UserpicButton>(
+			st::defaultUserpicButton);
+		st->photoSize = st::defaultPeerListItem.photoSize;
+		st->size = QSize(st->photoSize, st->photoSize);
+
+		class Button final : public Ui::SettingsButton {
+		public:
+			using Ui::SettingsButton::SettingsButton;
+
+			void setPeer(not_null<ChannelData*> c) {
+				_text.setText(st::defaultPeerListItem.nameStyle, c->name());
+				_status.setText(
+					st::defaultTextStyle,
+					!c->username().isEmpty()
+						? ('@' + c->username())
+						: tr::lng_chat_status_subscribers(
+							tr::now,
+							lt_count,
+							c->membersCount()));
+			}
+
+			int resizeGetHeight(int) override {
+				return st::defaultPeerListItem.height;
+			}
+
+			void paintEvent(QPaintEvent *e) override {
+				Ui::SettingsButton::paintEvent(e);
+				auto p = Painter(this);
+				const auto &st = st::defaultPeerListItem;
+				const auto availableWidth = width()
+					- st::boxRowPadding.right()
+					- st.namePosition.x();
+				p.setPen(st.nameFg);
+				auto context = Ui::Text::PaintContext{
+					.position = st.namePosition,
+					.outerWidth = availableWidth,
+					.availableWidth = availableWidth,
+					.elisionLines = 1,
+				};
+				_text.draw(p, context);
+				p.setPen(st.statusFg);
+				context.position = st.statusPosition;
+				_status.draw(p, context);
+			}
+
+		private:
+			Ui::Text::String _text;
+			Ui::Text::String _status;
+
+		};
+
+		controller->session().data().enumerateBroadcasts([&](
+				not_null<ChannelData*> channel) {
+			if (!channel->amCreator()) {
+				return;
+			}
+
+			const auto row = box->addRow(
+				object_ptr<Button>(box, rpl::single(QString())),
+				{});
+			row->setPeer(channel);
+			row->setClickedCallback([=] {
+				controller->showPeerHistory(channel);
+			});
+			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+				row,
+				channel,
+				*st);
+			userpic->move(st::defaultPeerListItem.photoPosition);
+			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+		});
+	};
+
+	using Menu = base::unique_qptr<Ui::PopupMenu>;
+	const auto menu = button->lifetime().make_state<Menu>();
+	button->addClickHandler([=](Qt::MouseButton which) {
+		if ((which != Qt::RightButton)
+			|| !((button->clickModifiers() & Qt::ShiftModifier)
+				&& (button->clickModifiers() & Qt::AltModifier))) {
+			return;
+		}
+
+		(*menu) = base::make_unique_q<Ui::PopupMenu>(
+			button,
+			st::defaultPopupMenu);
+		(*menu)->addAction(
+			u"My Channels"_q,
+			[=] { controller->uiShow()->showBox(Box(myChannelsBox)); },
+			nullptr);
+		(*menu)->popup(QCursor::pos());
+	});
+
+	return button;
+}
 
 [[nodiscard]] bool CanCheckSpecialEvent() {
 	static const auto result = [] {
@@ -859,11 +963,13 @@ void MainMenu::setupMenu() {
 		)->setClickedCallback([=] {
 			controller->showNewGroup();
 		});
-		addAction(
+		AddMyChannelsBox(addAction(
 			tr::lng_create_channel_title(),
 			{ &st::menuIconChannel }
-		)->setClickedCallback([=] {
-			controller->showNewChannel();
+		), controller)->addClickHandler([=](Qt::MouseButton which) {
+			if (which == Qt::LeftButton) {
+				controller->showNewChannel();
+			}
 		});
 
 		const auto wrap = _menu->add(
