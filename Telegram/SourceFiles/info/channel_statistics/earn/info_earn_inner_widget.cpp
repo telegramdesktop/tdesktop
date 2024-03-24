@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_peer.h"
+#include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "info/channel_statistics/earn/info_earn_widget.h"
@@ -839,9 +840,8 @@ void InnerWidget::fill() {
 			phrase(),
 			st::settingsButtonNoIcon));
 
-		constexpr auto kMinLevel = 30; // Debug.
 		AddLevelBadge(
-			kMinLevel,
+			Data::LevelLimits(session).channelRestrictSponsoredLevelMin(),
 			button,
 			nullptr,
 			channel,

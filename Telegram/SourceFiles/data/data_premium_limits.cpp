@@ -256,6 +256,12 @@ int LevelLimits::channelCustomWallpaperLevelMin() const {
 		10);
 }
 
+int LevelLimits::channelRestrictSponsoredLevelMin() const {
+	return _session->appConfig().get<int>(
+		u"channel_restrict_sponsored_level_min"_q,
+		20);
+}
+
 int LevelLimits::groupTranscribeLevelMin() const {
 	return _session->appConfig().get<int>(
 		u"group_transcribe_level_min"_q,
