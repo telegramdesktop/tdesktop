@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "ui/platform/ui_platform_window_title.h"
-#include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -728,22 +727,13 @@ bool OpenSystemSettings(SystemSettingsType type) {
 			}
 			options.push_back(std::move(command));
 		};
-		for (const auto &type : DesktopEnvironment::Get()) {
-			using DesktopEnvironment::Type;
-			if (type == Type::Unity) {
-				add("unity-control-center", "sound");
-			} else if (type == Type::KDE) {
-				add("kcmshell6", "kcm_pulseaudio");
-				add("kcmshell5", "kcm_pulseaudio");
-				add("kcmshell4", "phonon");
-			} else if (type == Type::Gnome) {
-				add("gnome-control-center", "sound");
-			} else if (type == Type::Cinnamon) {
-				add("cinnamon-settings", "sound");
-			} else if (type == Type::MATE) {
-				add("mate-volume-control");
-			}
-		}
+		add("unity-control-center", "sound");
+		add("kcmshell6", "kcm_pulseaudio");
+		add("kcmshell5", "kcm_pulseaudio");
+		add("kcmshell4", "phonon");
+		add("gnome-control-center", "sound");
+		add("cinnamon-settings", "sound");
+		add("mate-volume-control");
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");

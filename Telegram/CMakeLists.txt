@@ -1187,8 +1187,6 @@ PRIVATE
     payments/payments_checkout_process.h
     payments/payments_form.cpp
     payments/payments_form.h
-    platform/linux/linux_desktop_environment.cpp
-    platform/linux/linux_desktop_environment.h
     platform/linux/linux_wayland_integration_dummy.cpp
     platform/linux/linux_wayland_integration.cpp
     platform/linux/linux_wayland_integration.h
