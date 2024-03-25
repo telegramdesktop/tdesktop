@@ -733,6 +733,7 @@ bool OpenSystemSettings(SystemSettingsType type) {
 			if (type == Type::Unity) {
 				add("unity-control-center", "sound");
 			} else if (type == Type::KDE) {
+				add("kcmshell6", "kcm_pulseaudio");
 				add("kcmshell5", "kcm_pulseaudio");
 				add("kcmshell4", "phonon");
 			} else if (type == Type::Gnome) {
