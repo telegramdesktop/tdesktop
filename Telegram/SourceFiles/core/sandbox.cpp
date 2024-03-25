@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QSessionManager>
 #include <QtGui/QScreen>
 #include <QtGui/qpa/qplatformscreen.h>
-#include <ksandbox.h>
 
 namespace Core {
 namespace {
@@ -518,10 +517,8 @@ void Sandbox::refreshGlobalProxy() {
 		|| proxy.type == MTP::ProxyData::Type::Http) {
 		QNetworkProxy::setApplicationProxy(
 			MTP::ToNetworkProxy(MTP::ToDirectIpProxy(proxy)));
-	} else if ((!Core::IsAppLaunched()
-		|| Core::App().settings().proxy().isSystem())
-		// this works stable only in sandboxed environment where it works through portal
-		&& (!Platform::IsLinux() || KSandbox::isInside() || cDebugMode())) {
+	} else if (!Core::IsAppLaunched()
+		|| Core::App().settings().proxy().isSystem()) {
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 	} else {
 		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
