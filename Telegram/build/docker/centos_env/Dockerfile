@@ -2,7 +2,6 @@
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set QT = "6.7.0" -%}
 {%- set QT_TAG = "v" ~ QT ~ "-rc2" -%}
-{%- set QT_PREFIX = "/usr/local/desktop-app/Qt-" ~ QT -%}
 {%- set CMAKE_VER = "3.27.6" -%}
 {%- set CMAKE_FILE = "cmake-" ~ CMAKE_VER ~ "-Linux-x86_64.sh" -%}
 {%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -D_GLIBCXX_ASSERTIONS" -%}
@@ -729,15 +728,15 @@ COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 COPY --link --from=libwebp {{ LibrariesPath }}/libwebp-cache /
 
-RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git qt_{{ QT }} \
-	&& cd qt_{{ QT }} \
+RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git \
+	&& cd qt5 \
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \
 	&& cd qtbase \
 	&& find ../../patches/qtbase_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd ../qtwayland \
 	&& find ../../patches/qtwayland_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
-	&& ./configure -prefix "{{ QT_PREFIX }}" \
+	&& ./configure \
 		CMAKE_BUILD_TYPE=None \
 		-opensource \
 		-confirm-license \
@@ -756,7 +755,7 @@ RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git qt_{{ QT }} \
 	&& cmake --build . --parallel \
 	&& DESTDIR="{{ LibrariesPath }}/qt-cache" cmake --install . \
 	&& cd .. \
-	&& rm -rf qt_{{ QT }}
+	&& rm -rf qt5
 
 FROM builder AS breakpad
 RUN git clone -b v2023.06.01 --depth=1 https://chromium.googlesource.com/breakpad/breakpad.git \
