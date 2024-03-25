@@ -976,21 +976,21 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 				handleControllerBarCountChange(count);
 			});
 		},
-		.remoteMediaStateUpdated = [=](
-				tgcalls::AudioState audio,
-				tgcalls::VideoState video) {
-			crl::on_main(weak, [=] {
-				updateRemoteMediaState(audio, video);
-			});
-		},
 		.remoteBatteryLevelIsLowUpdated = [=](bool isLow) {
 #ifdef _DEBUG
-			isLow = true;
+//			isLow = true;
 #endif
 			crl::on_main(weak, [=] {
 				_remoteBatteryState = isLow
 					? RemoteBatteryState::Low
 					: RemoteBatteryState::Normal;
+			});
+		},
+		.remoteMediaStateUpdated = [=](
+				tgcalls::AudioState audio,
+				tgcalls::VideoState video) {
+			crl::on_main(weak, [=] {
+				updateRemoteMediaState(audio, video);
 			});
 		},
 		.signalingDataEmitted = [=](const std::vector<uint8_t> &data) {
