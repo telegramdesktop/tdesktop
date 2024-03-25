@@ -3,8 +3,6 @@
 {%- set QT = "6.7.0" -%}
 {%- set QT_TAG = "v" ~ QT ~ "-rc2" -%}
 {%- set QT_PREFIX = "/usr/local/desktop-app/Qt-" ~ QT -%}
-{%- set OPENSSL_VER = "3.2.1" -%}
-{%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-3.2.1" -%}
 {%- set CMAKE_VER = "3.27.6" -%}
 {%- set CMAKE_FILE = "cmake-" ~ CMAKE_VER ~ "-Linux-x86_64.sh" -%}
 {%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -D_GLIBCXX_ASSERTIONS" -%}
@@ -661,18 +659,16 @@ RUN git clone -b 1.23.1 --depth=1 {{ GIT }}/kcat/openal-soft.git \
 	&& rm -rf openal-soft
 
 FROM builder AS openssl
-ENV opensslDir openssl-{{ OPENSSL_VER }}
-RUN git clone -b openssl-{{ OPENSSL_VER }} --depth=1 {{ GIT }}/openssl/openssl.git $opensslDir \
-	&& cd $opensslDir \
+RUN git clone -b openssl-3.2.1 --depth=1 {{ GIT }}/openssl/openssl.git \
+	&& cd openssl \
 	&& ./config \
-		--prefix="{{ OPENSSL_PREFIX }}" \
 		--openssldir=/etc/ssl \
 		no-tests \
 		no-dso \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/openssl-cache" install_sw \
 	&& cd .. \
-	&& rm -rf $opensslDir
+	&& rm -rf openssl
 
 FROM builder AS xkbcommon
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
@@ -732,8 +728,6 @@ COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 COPY --link --from=libwebp {{ LibrariesPath }}/libwebp-cache /
-
-ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
 
 RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git qt_{{ QT }} \
 	&& cd qt_{{ QT }} \
@@ -798,7 +792,7 @@ RUN git init tg_owt \
 		-DCMAKE_CXX_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
 		-DTG_OWT_SPECIAL_TARGET=linux \
 		-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
-		-DTG_OWT_OPENSSL_INCLUDE_PATH={{ OPENSSL_PREFIX }}/include \
+		-DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/include \
 		-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
 		-DTG_OWT_LIBVPX_INCLUDE_PATH=/usr/local/include \
 		-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
@@ -866,7 +860,6 @@ COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/
 
 WORKDIR ../tdesktop
 ENV QT {{ QT }}
-ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
 ENV BOOST_INCLUDEDIR /usr/include/boost1.78
 ENV BOOST_LIBRARYDIR /usr/lib64/boost1.78
 
