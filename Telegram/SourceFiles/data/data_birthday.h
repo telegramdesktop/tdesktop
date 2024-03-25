@@ -11,7 +11,7 @@ namespace Data {
 
 class Birthday final {
 public:
-	Birthday();
+	constexpr Birthday() = default;
 	Birthday(int day, int month, int year = 0);
 
 	[[nodiscard]] static Birthday FromSerialized(int value);

@@ -41,8 +41,6 @@ namespace {
 
 } // namespace
 
-Birthday::Birthday() = default;
-
 Birthday::Birthday(int day, int month, int year)
 : _value(Validate(day, month, year) ? Serialize(day, month, year) : 0) {
 }
