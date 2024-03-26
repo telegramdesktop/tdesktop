@@ -13,9 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
+#include "data/data_channel.h"
 #include "data/data_peer.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
+#include "data/data_sponsored_messages.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "info/channel_statistics/earn/info_earn_widget.h"
 #include "info/info_controller.h"
@@ -24,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "statistics/chart_widget.h"
+#include "ui/boxes/boost_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/fade_animation.h"
@@ -822,121 +825,56 @@ void InnerWidget::fill() {
 	Ui::AddSkip(container);
 	if (const auto channel = _peer->asChannel()) {
 		constexpr auto kMaxCPM = 50; // Debug.
+		const auto requiredLevel = Data::LevelLimits(session)
+			.channelRestrictSponsoredLevelMin();
 		const auto &phrase = tr::lng_channel_earn_off;
 		const auto button = container->add(object_ptr<Ui::SettingsButton>(
 			container,
 			phrase(),
-			st::settingsButtonNoIcon));
+			st::settingsButtonNoIconLocked));
+		const auto toggled = lifetime().make_state<rpl::event_stream<bool>>();
+		const auto isLocked = channel->levelHint() < requiredLevel;
+		const auto reason = Ui::AskBoostReason{
+			.data = Ui::AskBoostCpm{ .requiredLevel = requiredLevel },
+		};
 
 		AddLevelBadge(
-			Data::LevelLimits(session).channelRestrictSponsoredLevelMin(),
+			requiredLevel,
 			button,
 			nullptr,
 			channel,
 			QMargins(st::boxRowPadding.left(), 0, 0, 0),
 			phrase());
 
-		const auto wrap = container->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				container,
-				object_ptr<Ui::VerticalLayout>(container)),
-			st::boxRowPadding);
-		const auto inner = wrap->entity();
-		Ui::AddSkip(inner);
-		Ui::AddSkip(inner);
-		const auto line = inner->add(object_ptr<Ui::RpWidget>(inner));
-		Ui::AddSkip(inner);
-		const auto left = Ui::CreateChild<Ui::FlatLabel>(
-			line,
-			tr::lng_channel_earn_cpm_min(),
-			st::defaultFlatLabel);
-		const auto center = Ui::CreateChild<Ui::FlatLabel>(
-			line,
-			st::defaultFlatLabel);
-		const auto fade = lifetime().make_state<Ui::FadeAnimation>(center);
-		fade->setUpdatedCallback([=](float64 o) { center->setOpacity(o); });
-		const auto right = Ui::CreateChild<Ui::FlatLabel>(
-			line,
-			st::defaultFlatLabel);
-		addEmojiToMajor(right, kMaxCPM * Data::kEarnMultiplier);
-		const auto slider = Ui::CreateChild<Ui::MediaSlider>(
-			line,
-			st::settingsScale);
-		rpl::combine(
-			line->sizeValue(),
-			left->sizeValue(),
-			center->sizeValue(),
-			right->sizeValue()
-		) | rpl::start_with_next([=](
-				const QSize &s,
-				const QSize &leftSize,
-				const QSize &centerSize,
-				const QSize &rightSize) {
-			const auto sliderHeight = st::settingsScale.seekSize.height();
-			line->resize(
-				line->width(),
-				leftSize.height() + sliderHeight * 2);
-			{
-				const auto r = line->rect();
-				slider->setGeometry(
-					0,
-					r.height() - sliderHeight,
-					r.width(),
-					sliderHeight);
+		button->toggleOn(rpl::single(
+			data.switchedOff
+		) | rpl::then(toggled->events()));
+		button->setToggleLocked(isLocked);
+
+		button->toggledChanges(
+		) | rpl::start_with_next([=](bool value) {
+			if (isLocked && value) {
+				toggled->fire(false);
+				CheckBoostLevel(
+					_controller->uiShow(),
+					_peer,
+					[=](int level) {
+						return (level < requiredLevel)
+							? std::make_optional(reason)
+							: std::nullopt;
+					},
+					[] {});
 			}
-			left->moveToLeft(0, 0);
-			right->moveToRight(0, 0);
-			center->moveToLeft((s.width() - centerSize.width()) / 2, 0);
-		}, line->lifetime());
-
-		const auto updateLabels = [=](int cpm) {
-			const auto activeColor = st::windowActiveTextFg->c;
-			left->setTextColorOverride(!cpm
-				? std::make_optional(activeColor)
-				: std::nullopt);
-
-			if (cpm > 0 && cpm < kMaxCPM) {
-				center->setMarkedText(
-					tr::lng_channel_earn_cpm(
-						tr::now,
-						lt_count,
-						cpm,
-						lt_emoji,
-						EmojiCurrency(session),
-						Ui::Text::RichLangValue),
-					makeContext(center));
-				fade->fadeIn(st::channelEarnFadeDuration);
-			} else {
-				fade->fadeOut(st::channelEarnFadeDuration);
+			if (!isLocked) {
+				Api::RestrictSponsored(channel, value, [=](const QString &e) {
+					toggled->fire(false);
+					_controller->uiShow()->showToast(e);
+				});
 			}
-			center->setTextColorOverride(activeColor);
-
-			right->setTextColorOverride((cpm == kMaxCPM)
-				? std::make_optional(activeColor)
-				: std::nullopt);
-		};
-		const auto current = std::max(0, data.minCpm);
-		slider->setPseudoDiscrete(
-			kMaxCPM + 1,
-			[=](int index) { return index; },
-			current,
-			updateLabels,
-			updateLabels);
-		updateLabels(current);
-
-		wrap->toggle(false, anim::type::instant);
-		button->toggleOn(
-			rpl::single(false) // Debug.
-		)->toggledChanges(
-		) | rpl::filter([=](bool toggled) {
-			return true;
-		}) | rpl::start_with_next([=](bool toggled) {
-			wrap->toggle(toggled, anim::type::normal);
-		}, container->lifetime());
+		}, button->lifetime());
 
 		Ui::AddSkip(container);
 		Ui::AddDividerText(container, tr::lng_channel_earn_off_about());
-		Ui::ToggleChildrenVisibility(line, true);
 	}
 	Ui::AddSkip(container);
 

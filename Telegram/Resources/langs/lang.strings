@@ -2475,6 +2475,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_channel_needs_level_reactions#one" = "Your channel needs to reach **Level {count}** to add **{same_count}** custom emoji as a reaction.";
 "lng_boost_channel_needs_level_reactions#other" = "Your channel needs to reach **Level {count}** to add **{same_count}** custom emoji as reactions.";
 
+"lng_boost_channel_title_cpm" = "Boost Channel";
+"lng_boost_channel_needs_level_cpm#one" = "Your channel needs to reach **Level {count}** to switch off ads.";
+"lng_boost_channel_needs_level_cpm#other" = "Your channel needs to reach **Level {count}** to switch off ads.";
+
 "lng_boost_group_title_emoji" = "Enable emoji pack";
 "lng_boost_group_needs_level_emoji#one" = "Your group needs to reach **Level {count}** to set emoji pack.";
 "lng_boost_group_needs_level_emoji#other" = "Your group needs to reach **Level {count}** to set emoji pack.";

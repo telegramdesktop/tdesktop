@@ -62,7 +62,7 @@ struct EarnStatistics final {
 	EarnInt availableBalance = 0;
 	EarnInt overallRevenue = 0;
 	float64 usdRate = 0.;
-	int minCpm = -1;
+	bool switchedOff = false;
 
 	EarnHistorySlice firstHistorySlice;
 };

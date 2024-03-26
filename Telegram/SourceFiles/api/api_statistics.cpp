@@ -779,7 +779,7 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 				).done([=](const MTPmessages_ChatFull &result) {
 					result.data().vfull_chat().match([&](
 							const MTPDchannelFull &d) {
-						_data.minCpm = d.vsponsored_min_cpm().value_or(-1);
+						_data.switchedOff = d.is_restricted_sponsored();
 					}, [](const auto &) {
 					});
 					consumer.put_done();
