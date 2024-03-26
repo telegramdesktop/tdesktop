@@ -792,14 +792,23 @@ void ChatLinks::setupContent(
 	auto links = !username.isEmpty()
 		? make({ username, '+' + self->phone() })
 		: make({ '+' + self->phone() });
-	Ui::AddDividerText(
+	auto label = object_ptr<Ui::FlatLabel>(
 		content,
 		tr::lng_chat_links_footer(
 			lt_links,
 			rpl::single(std::move(links)),
 			Ui::Text::WithEntities),
+		st::boxDividerLabel);
+	label->setClickHandlerFilter([=](ClickHandlerPtr handler, auto) {
+		QGuiApplication::clipboard()->setText(handler->url());
+		controller->showToast(tr::lng_chat_link_copied(tr::now));
+		return false;
+	});
+	content->add(object_ptr<Ui::DividerLabel>(
+		content,
+		std::move(label),
 		st::settingsChatbotsBottomTextMargin,
-		RectPart::Top);
+		RectPart::Top));
 
 	Ui::ResizeFitChild(this, content);
 }
