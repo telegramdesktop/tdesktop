@@ -41,12 +41,15 @@ void AddPermanentLinkBlock(
 void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link);
 [[nodiscard]] object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 	not_null<PeerData*> peer,
-	const QString &link);
+	const QString &link,
+	const QString &copied = {});
 [[nodiscard]] object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 	not_null<Main::Session*> session,
-	const QString &link);
+	const QString &link,
+	const QString &copied = {});
 [[nodiscard]] object_ptr<Ui::BoxContent> InviteLinkQrBox(
 	const QString &link,
+	rpl::producer<QString> title,
 	rpl::producer<QString> about);
 [[nodiscard]] object_ptr<Ui::BoxContent> RevokeLinkBox(
 	not_null<PeerData*> peer,

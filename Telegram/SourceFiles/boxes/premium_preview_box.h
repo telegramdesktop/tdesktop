@@ -75,6 +75,7 @@ enum class PremiumFeature {
 	AwayMessage,
 	BusinessBots,
 	ChatIntro,
+	ChatLinks,
 
 	kCount,
 };

@@ -111,8 +111,10 @@ void QuickReplies::setupContent(
 					showOther(ShortcutMessagesId(id));
 					close();
 				};
-				controller->show(
-					Box(EditShortcutNameBox, QString(), crl::guard(this, submit)));
+				controller->show(Box(
+					EditShortcutNameBox,
+					QString(),
+					crl::guard(this, submit)));
 			});
 			if (count > 0) {
 				AddSkip(addWrap);

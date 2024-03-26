@@ -110,6 +110,8 @@ PRIVATE
     api/api_chat_filters.h
     api/api_chat_invite.cpp
     api/api_chat_invite.h
+    api/api_chat_links.cpp
+    api/api_chat_links.h
     api/api_chat_participants.cpp
     api/api_chat_participants.h
     api/api_cloud_password.cpp
@@ -1297,6 +1299,8 @@ PRIVATE
     settings/business/settings_shortcut_messages.h
     settings/business/settings_chat_intro.cpp
     settings/business/settings_chat_intro.h
+    settings/business/settings_chat_links.cpp
+    settings/business/settings_chat_links.h
     settings/business/settings_chatbots.cpp
     settings/business/settings_chatbots.h
     settings/business/settings_greeting.cpp

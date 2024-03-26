@@ -111,6 +111,7 @@ settingsBusinessIconGreeting: icon {{ "settings/premium/status", settingsIconFg 
 settingsBusinessIconAway: icon {{ "settings/premium/business/business_away", settingsIconFg }};
 settingsBusinessIconChatbots: icon {{ "settings/premium/business/business_chatbots", settingsIconFg }};
 settingsBusinessIconChatIntro: icon {{ "settings/premium/intro", settingsIconFg }};
+settingsBusinessIconChatLinks: icon {{ "settings/premium/links", settingsIconFg }};
 
 settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(semiboldTextStyle) {
@@ -648,3 +649,23 @@ settingsChatIntroField: InputField(defaultMultiSelectSearchField) {
 	textMargins: margins(2px, 0px, 32px, 0px);
 }
 settingsChatIntroFieldMargins: margins(20px, 15px, 20px, 8px);
+
+settingsChatLinkEmojiTop: 2px;
+settingsChatLinkField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 8px, 2px, 8px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 32px;
+
+	font: normalFont;
+}

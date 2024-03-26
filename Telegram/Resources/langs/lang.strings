@@ -2211,8 +2211,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_business_about_away_messages" = "Define messages that are automatically sent when you are off.";
 "lng_business_subtitle_chatbots" = "Chatbots";
 "lng_business_about_chatbots" = "Add any third party chatbots that will process customer interactions.";
-"lng_business_subtitle_chat_intro" = "Intro";
+"lng_business_subtitle_chat_intro" = "Custom Intro";
 "lng_business_about_chat_intro" = "Customize the message people see before they start a chat with you.";
+"lng_business_subtitle_chat_links" = "Links to Chat";
+"lng_business_about_chat_links" = "Create links that start a chat with you, suggesting the first message.";
 
 "lng_location_title" = "Location";
 "lng_location_about" = "Display the location of your business on your account.";
@@ -2325,7 +2327,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chatbot_menu_remove" = "Remove bot from this chat";
 "lng_chatbot_menu_revoke" = "Revoke access to this chat";
 
-"lng_chat_intro_title" = "Intro";
+"lng_chat_intro_title" = "Custom Intro";
 "lng_chat_intro_subtitle" = "Customize your intro";
 "lng_chat_intro_default_title" = "No messages here yet...";
 "lng_chat_intro_default_message" = "Send a message or click on the greeting below";
@@ -2335,6 +2337,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_intro_random_sticker" = "Random";
 "lng_chat_intro_about" = "You can customize the message people see before they start a chat with you.";
 "lng_chat_intro_reset" = "Reset to Default";
+
+"lng_chat_links_title" = "Links to Chat";
+"lng_chat_links_about" = "Give your customers short links that start a chat with you – and suggest the first message from them to you.";
+"lng_chat_links_create_link" = "Create a Link to Chat";
+"lng_chat_links_footer" = "You can also use a simple link for a chat with you – {links}";
+"lng_chat_links_footer_both" = "{username} or {link}";
+"lng_chat_links_no_clicks" = "no clicks";
+"lng_chat_links_clicks#one" = "{count} click";
+"lng_chat_links_clicks#other" = "{count} clicks";
+"lng_chat_link_new_title" = "New Link";
+"lng_chat_link_edit_title" = "Edit Link";
+"lng_chat_link_description" = "Add a message that will be entered in the message field for anyone who starts a chat with you using this link.";
+"lng_chat_link_placeholder" = "Add Preset Message";
+"lng_chat_link_saved" = "Chat link saved.";
+"lng_chat_link_copy" = "Copy";
+"lng_chat_link_share" = "Share";
+"lng_chat_link_rename" = "Rename";
+"lng_chat_link_delete" = "Delete";
+"lng_chat_link_name" = "Link Name (optional)";
+"lng_chat_link_name_about" = "Add a name for this link that only you will see.";
+"lng_chat_link_delete_sure" = "Are you sure you want to delete this chat link?";
+"lng_chat_link_qr_title" = "Chat Link QR Code";
+"lng_chat_link_qr_about" = "Everyone on Telegram can scan this code to contact you.";
+"lng_chat_link_copied" = "Chat link copied to clipboard.";
 
 "lng_boost_channel_button" = "Boost Channel";
 "lng_boost_group_button" = "Boost Group";
