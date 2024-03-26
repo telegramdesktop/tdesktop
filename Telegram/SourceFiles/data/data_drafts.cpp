@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_item_components.h"
 #include "main/main_session.h"
+#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "mainwidget.h"
@@ -126,6 +127,31 @@ void ClearPeerCloudDraft(
 
 	history->clearCloudDraft(topicRootId);
 	history->applyCloudDraft(topicRootId);
+}
+
+void SetChatLinkDraft(
+		not_null<PeerData*> peer,
+		const TextWithEntities &draft) {
+	const auto textWithTags = TextWithTags{
+		draft.text,
+		TextUtilities::ConvertEntitiesToTextTags(draft.entities)
+	};
+	const auto cursor = MessageCursor{
+		int(textWithTags.text.size()),
+		int(textWithTags.text.size()),
+		Ui::kQFixedMax
+	};
+	const auto history = peer->owner().history(peer->id);
+	const auto topicRootId = MsgId();
+	history->setLocalDraft(std::make_unique<Data::Draft>(
+		textWithTags,
+		FullReplyTo{ .topicRootId = topicRootId },
+		cursor,
+		Data::WebPageDraft()));
+	history->clearLocalEditDraft(topicRootId);
+	history->session().changes().entryUpdated(
+		history,
+		Data::EntryUpdate::Flag::LocalDraftSet);
 }
 
 } // namespace Data

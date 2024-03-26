@@ -977,6 +977,24 @@ bool ResolveBoost(
 	return true;
 }
 
+bool ResolveChatLink(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto myContext = context.value<ClickHandlerContext>();
+	const auto slug = match->captured(1);
+	controller->window().activate();
+	controller->showPeerByLink(Window::PeerByLinkInfo{
+		.chatLinkSlug = match->captured(1),
+		.clickFromMessageId = myContext.itemId,
+		.clickFromAttachBotWebviewUrl = myContext.attachBotWebviewUrl,
+	});
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -1046,11 +1064,11 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolveTestChatTheme,
 		},
 		{
-			u"invoice/?\\?(.+)(#|$)"_q,
+			u"^invoice/?\\?(.+)(#|$)"_q,
 			ResolveInvoice,
 		},
 		{
-			u"premium_offer/?(\\?.+)?(#|$)"_q,
+			u"^premium_offer/?(\\?.+)?(#|$)"_q,
 			ResolvePremiumOffer,
 		},
 		{
@@ -1064,6 +1082,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^boost/?\\?(.+)(#|$)"_q,
 			ResolveBoost,
+		},
+		{
+			u"^message/?\\?slug=([a-zA-Z0-9\\.\\_]+)(&|$)"_q,
+			ResolveChatLink
 		},
 		{
 			u"^([^\\?]+)(\\?|#|$)"_q,
@@ -1176,6 +1198,9 @@ QString TryConvertUrlToLocal(QString url) {
 				? "gradient"
 				: "slug";
 			return u"tg://bg?"_q + type + '=' + bg + (params.isEmpty() ? QString() : '&' + params);
+		} else if (const auto chatlinkMatch = regex_match(u"^m/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
+			const auto slug = chatlinkMatch->captured(1);
+			return u"tg://message?slug="_q + slug;
 		} else if (const auto privateMatch = regex_match(u"^"
 			"c/(\\-?\\d+)"
 			"("
