@@ -773,7 +773,19 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 
 			requestBoosts({}, [=](Data::EarnHistorySlice &&slice) {
 				_data.firstHistorySlice = std::move(slice);
-				consumer.put_done();
+
+				api().request(
+					MTPchannels_GetFullChannel(channel()->inputChannel)
+				).done([=](const MTPmessages_ChatFull &result) {
+					result.data().vfull_chat().match([&](
+							const MTPDchannelFull &d) {
+						_data.minCpm = d.vsponsored_min_cpm().value_or(-1);
+					}, [](const auto &) {
+					});
+					consumer.put_done();
+				}).fail([=](const MTP::Error &error) {
+					consumer.put_error_copy(error.type());
+				}).send();
 			});
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());

@@ -49,20 +49,20 @@ namespace {
 
 using EarnInt = Data::EarnInt;
 
+constexpr auto kMultiplier = EarnInt(1000000000);
 constexpr auto kMinorPartLength = 9;
 constexpr auto kZero = QChar('0');
 constexpr auto kDot = QChar('.');
 
 [[nodiscard]] QString MajorPart(EarnInt value) {
 	const auto string = QString::number(value);
-	return (string.size() < kMinorPartLength)
-		? QString(kZero)
-		: string.mid(0, kMinorPartLength);
+	const auto diff = int(string.size()) - kMinorPartLength;
+	return (diff <= 0) ? QString(kZero) : string.mid(0, diff);
 }
 
 [[nodiscard]] QString MinorPart(EarnInt value) {
 	if (!value) {
-		return QString(kDot) + kZero;
+		return QString(kDot) + kZero + kZero;
 	}
 	const auto string = QString::number(value);
 	const auto diff = int(string.size()) - kMinorPartLength;
@@ -86,7 +86,6 @@ constexpr auto kDot = QChar('.');
 
 [[nodiscard]] QString ToUsd(EarnInt value, float64 rate) {
 	constexpr auto kApproximately = QChar(0x2248);
-	constexpr auto kMultiplier = EarnInt(1000000000);
 	const auto multiplier = EarnInt(rate * kMultiplier);
 	const auto result = (value * multiplier) / kMultiplier;
 	return QString(kApproximately)
@@ -857,7 +856,7 @@ void InnerWidget::fill() {
 		const auto right = Ui::CreateChild<Ui::FlatLabel>(
 			line,
 			st::defaultFlatLabel);
-		addEmojiToMajor(right, kMaxCPM);
+		addEmojiToMajor(right, kMaxCPM * kMultiplier);
 		const auto slider = Ui::CreateChild<Ui::MediaSlider>(
 			line,
 			st::settingsScale);
@@ -913,7 +912,7 @@ void InnerWidget::fill() {
 				? std::make_optional(activeColor)
 				: std::nullopt);
 		};
-		const auto current = kMaxCPM / 2;
+		const auto current = std::max(0, data.minCpm);
 		slider->setPseudoDiscrete(
 			kMaxCPM + 1,
 			[=](int index) { return index; },
