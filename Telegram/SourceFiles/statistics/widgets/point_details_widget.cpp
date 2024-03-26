@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/widgets/point_details_widget.h"
 
+#include "data/data_channel_earn.h" // Data::kEarnMultiplier.
 #include "statistics/statistics_common.h"
 #include "statistics/statistics_format_values.h"
 #include "statistics/view/stack_linear_chart_common.h"
@@ -270,6 +271,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 			nullptr,
 			{ float64(xIndex), float64(xIndex) }).parts
 		: std::vector<PiePartData::Part>();
+	const auto multiplier = float64(Data::kEarnMultiplier);
 	for (auto i = 0; i < _chartData.lines.size(); i++) {
 		const auto &dataLine = _chartData.lines[i];
 		auto textLine = Line();
@@ -281,7 +283,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 		textLine.value.setText(
 			_textStyle,
 			_chartData.isCurrency
-				? QString::number(dataLine.y[xIndex] / float64(1000000000))
+				? QString::number(dataLine.y[xIndex] / multiplier)
 				: QString("%L1").arg(dataLine.y[xIndex]));
 		hasPositiveValues |= (dataLine.y[xIndex] > 0);
 		textLine.valueColor = QColor(dataLine.color);

@@ -49,7 +49,6 @@ namespace {
 
 using EarnInt = Data::EarnInt;
 
-constexpr auto kMultiplier = EarnInt(1000000000);
 constexpr auto kMinorPartLength = 9;
 constexpr auto kZero = QChar('0');
 constexpr auto kDot = QChar('.');
@@ -86,8 +85,8 @@ constexpr auto kDot = QChar('.');
 
 [[nodiscard]] QString ToUsd(EarnInt value, float64 rate) {
 	constexpr auto kApproximately = QChar(0x2248);
-	const auto multiplier = EarnInt(rate * kMultiplier);
-	const auto result = (value * multiplier) / kMultiplier;
+	const auto multiplier = EarnInt(rate * Data::kEarnMultiplier);
+	const auto result = (value * multiplier) / Data::kEarnMultiplier;
 	return QString(kApproximately)
 		+ QChar('$')
 		+ MajorPart(result)
@@ -856,7 +855,7 @@ void InnerWidget::fill() {
 		const auto right = Ui::CreateChild<Ui::FlatLabel>(
 			line,
 			st::defaultFlatLabel);
-		addEmojiToMajor(right, kMaxCPM * kMultiplier);
+		addEmojiToMajor(right, kMaxCPM * Data::kEarnMultiplier);
 		const auto slider = Ui::CreateChild<Ui::MediaSlider>(
 			line,
 			st::settingsScale);

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/view/chart_rulers_view.h"
 
-#include "data/data_statistics_chart.h"
+#include "data/data_channel_earn.h" // Data::kEarnMultiplier.
 #include "statistics/chart_lines_filter_controller.h"
 #include "statistics/statistics_common.h"
 #include "styles/style_basic.h"
@@ -142,7 +142,7 @@ void ChartRulersView::add(Limits newHeight, bool animated) {
 		newHeight.min,
 		true,
 		_isDouble ? _scaledLineRatio : 0.,
-		_currencyIcon ? 1000000000 : 0);
+		_currencyIcon ? Data::kEarnMultiplier : 0);
 	if (_isDouble) {
 		const auto &font = st::statisticsDetailsBottomCaptionStyle.font;
 		for (auto &line : newLinesData.lines) {

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "data/data_boosts.h"
+#include "data/data_channel_earn.h"
 #include "data/data_statistics.h"
 #include "mtproto/sender.h"
 

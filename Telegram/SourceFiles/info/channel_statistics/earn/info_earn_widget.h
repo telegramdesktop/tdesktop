@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_statistics.h"
+#include "data/data_channel_earn.h"
 #include "info/info_content_widget.h"
 
 namespace Info::ChannelEarn {
