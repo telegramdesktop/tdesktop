@@ -101,6 +101,7 @@ channelEarnBalanceMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
 	}
 }
 channelEarnBalanceMinorLabelSkip: 6px;
+channelEarnFadeDuration: 60;
 
 channelEarnLearnDescription: FlatLabel(defaultFlatLabel) {
 	maxHeight: 0px;

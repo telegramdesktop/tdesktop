@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/chart_widget.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value_f.h"
+#include "ui/effects/fade_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -852,6 +853,8 @@ void InnerWidget::fill() {
 		const auto center = Ui::CreateChild<Ui::FlatLabel>(
 			line,
 			st::defaultFlatLabel);
+		const auto fade = lifetime().make_state<Ui::FadeAnimation>(center);
+		fade->setUpdatedCallback([=](float64 o) { center->setOpacity(o); });
 		const auto right = Ui::CreateChild<Ui::FlatLabel>(
 			line,
 			st::defaultFlatLabel);
@@ -902,8 +905,9 @@ void InnerWidget::fill() {
 						EmojiCurrency(session),
 						Ui::Text::RichLangValue),
 					makeContext(center));
+				fade->fadeIn(st::channelEarnFadeDuration);
 			} else {
-				center->setText({});
+				fade->fadeOut(st::channelEarnFadeDuration);
 			}
 			center->setTextColorOverride(activeColor);
 
