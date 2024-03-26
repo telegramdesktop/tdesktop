@@ -273,6 +273,7 @@ void SponsoredMessages::append(
 			.isRecommended = data.is_recommended(),
 			.isForceUserpicDisplay = data.is_show_peer_photo(),
 			.buttonText = qs(data.vbutton_text().value_or_empty()),
+			.canReport = data.is_can_report(),
 		};
 	};
 	const auto externalLink = data.vwebpage()
@@ -289,6 +290,7 @@ void SponsoredMessages::append(
 				.externalLink = externalLink,
 				.webpageOrBotPhotoId = photoId,
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
+				.canReport = message.data().is_can_report(),
 			};
 		} else if (const auto fromId = data.vfrom_id()) {
 			const auto peerId = peerFromMTP(*fromId);
@@ -327,6 +329,7 @@ void SponsoredMessages::append(
 				.isChannel = data.is_channel(),
 				.isPublic = data.is_public(),
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
+				.canReport = message.data().is_can_report(),
 			};
 		}, [&](const MTPDchatInviteAlready &data) {
 			const auto chat = _session->data().processChat(data.vchat());
@@ -461,6 +464,7 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 			? tr::lng_view_button_bot(tr::now)
 			: QString(),
 		.botLinkInfo = data.from.botLinkInfo,
+		.canReport = data.from.canReport,
 	};
 }
 

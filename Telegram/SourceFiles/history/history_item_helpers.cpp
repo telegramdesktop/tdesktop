@@ -367,6 +367,11 @@ ClickHandlerPtr HideSponsoredClickHandler() {
 	});
 }
 
+ClickHandlerPtr ReportSponsoredClickHandler() {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+	});
+}
+
 MessageFlags FlagsFromMTP(
 		MsgId id,
 		MTPDmessage::Flags flags,

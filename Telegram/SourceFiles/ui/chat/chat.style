@@ -578,6 +578,7 @@ historyGoToOriginalIcon: icon {{ "fast_to_original", msgServiceFg, point(1px, 0p
 historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
 historyFastCloseSize: 30px;
 historyFastCloseIcon: icon {{ "box_button_close", msgServiceFg }};
+historyFastMoreIcon: icon {{ "title_menu_dots", msgServiceFg, point(0px, -2px)  }};
 historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
 historyFastTranscribeLock: icon {{ "chat/mini_lock", msgServiceFg }};
 historyFastTranscribeLockPos: point(18px, 13px);

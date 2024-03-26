@@ -397,6 +397,9 @@ public:
 	[[nodiscard]] const style::icon &historyFastCloseIcon() const {
 		return _historyFastCloseIcon;
 	}
+	[[nodiscard]] const style::icon &historyFastMoreIcon() const {
+		return _historyFastMoreIcon;
+	}
 	[[nodiscard]] const style::icon &historyMapPoint() const {
 		return _historyMapPoint;
 	}
@@ -519,6 +522,7 @@ private:
 	style::icon _msgBotKbWebviewIcon = { Qt::Uninitialized };
 	style::icon _historyFastCommentsIcon = { Qt::Uninitialized };
 	style::icon _historyFastShareIcon = { Qt::Uninitialized };
+	style::icon _historyFastMoreIcon = { Qt::Uninitialized };
 	style::icon _historyFastTranscribeIcon = { Qt::Uninitialized };
 	style::icon _historyFastTranscribeLock = { Qt::Uninitialized };
 	style::icon _historyGoToOriginalIcon = { Qt::Uninitialized };

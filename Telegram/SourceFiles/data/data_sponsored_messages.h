@@ -36,6 +36,7 @@ struct SponsoredFrom {
 	PhotoId webpageOrBotPhotoId = PhotoId(0);
 	bool isForceUserpicDisplay = false;
 	QString buttonText;
+	bool canReport = false;
 };
 
 struct SponsoredMessage {
@@ -66,6 +67,7 @@ public:
 		bool isForceUserpicDisplay = false;
 		QString buttonText;
 		std::optional<Window::PeerByLinkInfo> botLinkInfo;
+		bool canReport = false;
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);
