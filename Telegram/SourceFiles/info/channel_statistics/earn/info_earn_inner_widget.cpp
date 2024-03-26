@@ -46,18 +46,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::ChannelEarn {
 namespace {
 
+using EarnInt = Data::EarnInt;
+
 constexpr auto kMinorPartLength = 9;
 constexpr auto kZero = QChar('0');
 constexpr auto kDot = QChar('.');
 
-[[nodiscard]] QString MajorPart(uint64 value) {
+[[nodiscard]] QString MajorPart(EarnInt value) {
 	const auto string = QString::number(value);
 	return (string.size() < kMinorPartLength)
 		? QString(kZero)
 		: string.mid(0, kMinorPartLength);
 }
 
-[[nodiscard]] QString MinorPart(uint64 value) {
+[[nodiscard]] QString MinorPart(EarnInt value) {
 	if (!value) {
 		return QString(kDot) + kZero;
 	}
@@ -81,10 +83,10 @@ constexpr auto kDot = QChar('.');
 	return result.chopped(zeroCount);
 }
 
-[[nodiscard]] QString ToUsd(uint64 value, float64 rate) {
+[[nodiscard]] QString ToUsd(EarnInt value, float64 rate) {
 	constexpr auto kApproximately = QChar(0x2248);
-	constexpr auto kMultiplier = uint64(1000000000);
-	const auto multiplier = uint64(rate * kMultiplier);
+	constexpr auto kMultiplier = EarnInt(1000000000);
+	const auto multiplier = EarnInt(rate * kMultiplier);
 	const auto result = (value * multiplier) / kMultiplier;
 	return QString(kApproximately)
 		+ QChar('$')
@@ -214,7 +216,7 @@ void InnerWidget::fill() {
 	};
 	const auto addEmojiToMajor = [=](
 			not_null<Ui::FlatLabel*> label,
-			uint64 value) {
+			EarnInt value) {
 		auto emoji = EmojiCurrency(session);
 		label->setMarkedText(
 			emoji.append(' ').append(MajorPart(value)),
@@ -402,7 +404,7 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
 
 		const auto addOverview = [&](
-				uint64 value,
+				EarnInt value,
 				const tr::phrase<> &text) {
 			const auto line = container->add(
 				Ui::CreateSkipWidget(container, 0),
@@ -506,20 +508,6 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(container);
 
-		const auto input = container->add(
-			object_ptr<Ui::InputField>(
-				container,
-				st::defaultComposeFiles.caption,
-				Ui::InputField::Mode::MultiLine,
-				tr::lng_channel_earn_balance_placeholder()),
-			st::boxRowPadding);
-		_focusRequested.events(
-		) | rpl::start_with_next([=] {
-			input->setFocusFast();
-		}, input->lifetime());
-
-		Ui::AddSkip(container);
-
 		const auto &stButton = st::defaultActiveButton;
 		const auto button = container->add(
 			object_ptr<Ui::RoundButton>(
@@ -552,49 +540,9 @@ void InnerWidget::fill() {
 					stButton.textFg->c,
 					anim::interpolateF(.5, 1., value)));
 		};
-		colorText(0);
-
-		rpl::single(
-			rpl::empty_value()
-		) | rpl::then(
-			input->changes()
-		) | rpl::map([=, end = (u".ton"_q)] {
-			const auto text = input->getLastText();
-			return (text.size() == 48)
-				|| text.endsWith(end, Qt::CaseInsensitive);
-		}) | rpl::distinct_until_changed(
-		) | rpl::start_with_next([=](bool enabled) {
-			fadeAnimation->stop();
-			const auto from = enabled ? 0. : 1.;
-			const auto to = enabled ? 1. : 0.;
-			fadeAnimation->start(colorText, from, to, st::slideWrapDuration);
-
-			button->setAttribute(Qt::WA_TransparentForMouseEvents, !enabled);
-		}, button->lifetime());
+		colorText(1.);
 
 		button->setClickedCallback([=] {
-			_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
-				box->setTitle(tr::lng_channel_earn_balance_button());
-				box->addRow(object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_channel_earn_transfer_sure_about1(tr::now),
-					st::boxLabel));
-				Ui::AddSkip(box->verticalLayout());
-				AddRecipient(
-					box,
-					Ui::Text::Wrapped(
-						{ input->getLastText() },
-						EntityType::Code));
-				Ui::AddSkip(box->verticalLayout());
-				box->addRow(object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_channel_earn_transfer_sure_about2(tr::now),
-					st::boxLabel));
-				box->addButton(
-					tr::lng_send_button(),
-					[=] { box->closeBox(); });
-				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-			}));
 		});
 		Ui::ToggleChildrenVisibility(button, true);
 
@@ -642,17 +590,28 @@ void InnerWidget::fill() {
 				Ui::AddSkip(inner, st::channelEarnHistoryTwoSkip);
 			}
 
-			const auto dateText = !entry.dateTo.isNull()
+			const auto isFailed = entry.status
+				== Data::EarnHistoryEntry::Status::Failed;
+			const auto isPending = entry.status
+				== Data::EarnHistoryEntry::Status::Pending;
+			const auto dateText = (!entry.dateTo.isNull() || isFailed)
 				? (FormatDate(entry.date)
 					+ ' '
 					+ QChar(8212)
 					+ ' '
-					+ FormatDate(entry.dateTo))
+					+ (isFailed
+						? tr::lng_channel_earn_history_out_failed(tr::now)
+						: FormatDate(entry.dateTo)))
+				: isPending
+				? tr::lng_channel_earn_history_pending(tr::now)
 				: FormatDate(entry.date);
 			inner->add(object_ptr<Ui::FlatLabel>(
 				inner,
 				dateText,
-				st::channelEarnHistorySubLabel));
+				st::channelEarnHistorySubLabel)
+			)->setTextColorOverride(isFailed
+				? std::make_optional<QColor>(st::menuIconAttentionColor->c)
+				: std::nullopt);
 
 			const auto color = (isIn
 				? st::boxTextFgGood
@@ -826,6 +785,8 @@ void InnerWidget::fill() {
 				entry,
 				(entry.type == Data::EarnHistoryEntry::Type::In)
 					? tr::lng_channel_earn_history_in
+					: (entry.type == Data::EarnHistoryEntry::Type::Return)
+					? tr::lng_channel_earn_history_return
 					: tr::lng_channel_earn_history_out);
 		}
 	}

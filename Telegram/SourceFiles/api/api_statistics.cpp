@@ -819,9 +819,13 @@ void EarnStatistics::requestBoosts(
 						: d.is_failed()
 						? Data::EarnHistoryEntry::Status::Failed
 						: Data::EarnHistoryEntry::Status::Success,
-					.amount = d.vamount().v,
+					.amount = d.is_failed()
+						? (std::numeric_limits<Data::EarnInt>::max()
+							- d.vamount().v
+							+ 1)
+						: d.vamount().v,
 					.date = base::unixtime::parse(d.vdate().v),
-					.provider = qs(d.vprovider()),
+					// .provider = qs(d.vprovider()),
 					.successDate = d.vtransaction_date()
 						? base::unixtime::parse(d.vtransaction_date()->v)
 						: QDateTime(),
@@ -834,7 +838,7 @@ void EarnStatistics::requestBoosts(
 					.type = Data::EarnHistoryEntry::Type::Return,
 					.amount = d.vamount().v,
 					.date = base::unixtime::parse(d.vdate().v),
-					.provider = qs(d.vprovider()),
+					// .provider = qs(d.vprovider()),
 				};
 			}));
 		}

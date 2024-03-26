@@ -4967,7 +4967,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_history_title" = "Transaction history";
 "lng_channel_earn_history_in" = "Proceeds from ads";
 "lng_channel_earn_history_in_about" = "Proceeds from ads displayed in";
-"lng_channel_earn_history_out" = "Balance withdrawal to";
+"lng_channel_earn_history_out" = "Withdrawal";
+"lng_channel_earn_history_out_failed" = "Not Completed";
+"lng_channel_earn_history_out_about_failed" = "Withdrawal failed";
+"lng_channel_earn_history_return" = "Refund";
+"lng_channel_earn_history_return_about" = "Refunded back";
+"lng_channel_earn_history_pending" = "Pending";
 "lng_channel_earn_off" = "Switch Off Ads";
 "lng_channel_earn_off_about" = "You will not be eligible for any rewards if you switch off ads.";
 "lng_channel_earn_cpm_min" = "No Ads";

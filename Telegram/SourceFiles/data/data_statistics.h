@@ -155,6 +155,8 @@ struct PublicForwardsSlice final {
 	OffsetToken token;
 };
 
+using EarnInt = uint64;
+
 struct EarnHistoryEntry final {
 	enum class Type {
 		In,
@@ -171,7 +173,7 @@ struct EarnHistoryEntry final {
 	Type type;
 	Status status;
 
-	uint64 amount = 0;
+	EarnInt amount = 0;
 	QDateTime date;
 	QDateTime dateTo;
 
@@ -196,9 +198,9 @@ struct EarnStatistics final {
 	}
 	Data::StatisticalGraph topHoursGraph;
 	Data::StatisticalGraph revenueGraph;
-	uint64 currentBalance = 0;
-	uint64 availableBalance = 0;
-	uint64 overallRevenue = 0;
+	EarnInt currentBalance = 0;
+	EarnInt availableBalance = 0;
+	EarnInt overallRevenue = 0;
 	float64 usdRate = 0.;
 
 	EarnHistorySlice firstHistorySlice;

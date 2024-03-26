@@ -48,7 +48,7 @@ channelEarnHistoryRecipientLabel: FlatLabel(channelEarnOverviewSubMinorLabel) {
 }
 channelEarnHistoryMajorLabel: FlatLabel(channelEarnOverviewMajorLabel) {
 	style: TextStyle(defaultTextStyle) {
-		font: font(13px semibold);
+		font: font(14px semibold);
 	}
 }
 channelEarnHistoryMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
@@ -56,7 +56,7 @@ channelEarnHistoryMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
 		font: font(12px semibold);
 	}
 }
-channelEarnHistoryMinorLabelSkip: 1px;
+channelEarnHistoryMinorLabelSkip: 2px;
 channelEarnHistoryOuter: margins(0px, 6px, 0px, 6px);
 channelEarnHistoryTwoSkip: 5px;
 channelEarnHistoryThreeSkip: 3px;
