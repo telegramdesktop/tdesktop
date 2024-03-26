@@ -65,6 +65,7 @@ struct StatisticalChart {
 	bool isFooterHidden = false;
 	bool hasPercentages = false;
 	bool weekFormat = false;
+	bool isCurrency = false;
 
 	// View data.
 	int dayStringMaxWidth = 0;

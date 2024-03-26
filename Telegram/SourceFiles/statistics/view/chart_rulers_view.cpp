@@ -23,6 +23,9 @@ void ChartRulersView::setChartData(
 		std::shared_ptr<LinesFilterController> linesFilter) {
 	_rulers.clear();
 	_isDouble = (type == ChartViewType::DoubleLinear);
+	_currencyIcon = chartData.isCurrency
+		? &st::statisticsCurrencyIcon
+		: nullptr;
 	if (_isDouble && (chartData.lines.size() == 2)) {
 		_linesFilter = std::move(linesFilter);
 		_leftPen = QPen(chartData.lines.front().color);
@@ -69,6 +72,7 @@ void ChartRulersView::paintCaptionsToRulers(
 	for (auto &ruler : _rulers) {
 		const auto rulerAlpha = alpha * ruler.alpha;
 		p.setOpacity(rulerAlpha);
+		const auto left = _currencyIcon ? _currencyIcon->width() : 0;
 		for (const auto &line : ruler.lines) {
 			const auto y = offset + r.height() * line.relativeValue;
 			const auto hasLinesFilter = _isDouble && _linesFilter;
@@ -78,8 +82,14 @@ void ChartRulersView::paintCaptionsToRulers(
 			} else {
 				p.setPen(st::windowSubTextFg);
 			}
+			if (_currencyIcon) {
+				const auto iconTop = y
+					- _currencyIcon->height()
+					+ st::statisticsChartRulerCaptionSkip;
+				_currencyIcon->paint(p, 0, iconTop, r.width());
+			}
 			p.drawText(
-				0,
+				left,
 				y,
 				(!_isDouble)
 					? line.caption
@@ -131,7 +141,8 @@ void ChartRulersView::add(Limits newHeight, bool animated) {
 		newHeight.max,
 		newHeight.min,
 		true,
-		_isDouble ? _scaledLineRatio : 0.);
+		_isDouble ? _scaledLineRatio : 0.,
+		_currencyIcon ? 1000000000 : 0);
 	if (_isDouble) {
 		const auto &font = st::statisticsDetailsBottomCaptionStyle.font;
 		for (auto &line : newLinesData.lines) {

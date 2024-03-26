@@ -42,6 +42,7 @@ private:
 	QPen _rightPen;
 	int _leftLineId = 0;
 	int _rightLineId = 0;
+	const style::icon *_currencyIcon = nullptr;
 
 	std::vector<ChartRulersData> _rulers;
 

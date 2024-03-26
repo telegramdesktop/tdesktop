@@ -4988,6 +4988,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_learn_coin_title" = "What is {emoji} TON?";
 "lng_channel_earn_learn_coin_about" = "TON is a blockchain platform and cryptocurrency that Telegram uses for its record scalability and ultra low commissions on transactions. {link}";
 "lng_channel_earn_learn_close" = "Got it";
+"lng_channel_earn_chart_top_hours" = "Ad impressions";
+"lng_channel_earn_chart_revenue" = "Ad revenue";
 
 "lng_contact_add" = "Add";
 "lng_contact_send_message" = "message";

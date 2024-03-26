@@ -28,13 +28,21 @@ constexpr auto kStep = 5.;
 		: QString::number(absoluteValue);
 }
 
+[[nodiscard]] QString FormatF(float64 absoluteValue) {
+	constexpr auto kTooMuch = int(10'000);
+	return (absoluteValue >= kTooMuch)
+		? Lang::FormatCountToShort(absoluteValue).string
+		: QString::number(absoluteValue);
+}
+
 } // namespace
 
 ChartRulersData::ChartRulersData(
 		int newMaxHeight,
 		int newMinHeight,
 		bool useMinHeight,
-		float64 rightRatio) {
+		float64 rightRatio,
+		int valueDivider) {
 	if (!useMinHeight) {
 		const auto v = (newMaxHeight > 100)
 			? Round(newMaxHeight)
@@ -92,7 +100,9 @@ ChartRulersData::ChartRulersData(
 			const auto value = int(i * step);
 			line.absoluteValue = newMinHeight + value;
 			line.relativeValue = 1. - value / float64(diffAbsoluteValue);
-			line.caption = Format(line.absoluteValue);
+			line.caption = valueDivider
+				? FormatF(line.absoluteValue / float64(valueDivider))
+				: Format(line.absoluteValue);
 			if (rightRatio > 0) {
 				const auto v = (newMinHeight + i * step) / rightRatio;
 				line.scaledLineCaption = (!skipFloatValues)

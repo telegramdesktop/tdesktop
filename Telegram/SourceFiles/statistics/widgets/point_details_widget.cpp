@@ -132,7 +132,8 @@ PointDetailsWidget::PointDetailsWidget(
 , _zoomEnabled(zoomEnabled)
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
-, _headerStyle(st::statisticsDetailsPopupHeaderStyle) {
+, _headerStyle(st::statisticsDetailsPopupHeaderStyle)
+, _valueIcon(chartData.isCurrency ? &st::statisticsCurrencyIcon : nullptr) {
 
 	if (zoomEnabled) {
 		rpl::single(rpl::empty_value()) | rpl::then(
@@ -201,6 +202,7 @@ PointDetailsWidget::PointDetailsWidget(
 			+ rect::m::sum::h(st::statisticsDetailsPopupPadding)
 			+ st::statisticsDetailsPopupPadding.left() // Between strings.
 			+ maxNameTextWidth
+			+ (_valueIcon ? _valueIcon->width() : 0)
 			+ _maxPercentageWidth;
 	}();
 	sizeValue(
@@ -278,7 +280,9 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 		textLine.name.setText(_textStyle, dataLine.name);
 		textLine.value.setText(
 			_textStyle,
-			QString("%L1").arg(dataLine.y[xIndex]));
+			_chartData.isCurrency
+				? QString::number(dataLine.y[xIndex] / float64(1000000000))
+				: QString("%L1").arg(dataLine.y[xIndex]));
 		hasPositiveValues |= (dataLine.y[xIndex] > 0);
 		textLine.valueColor = QColor(dataLine.color);
 		_lines.push_back(std::move(textLine));
@@ -381,6 +385,14 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 				.outerWidth = _textRect.width(),
 				.availableWidth = valueWidth,
 			};
+			if (_valueIcon) {
+				_valueIcon->paint(
+					p,
+					valueContext.position.x() - _valueIcon->width(),
+					lineY,
+					valueContext.outerWidth,
+					line.valueColor);
+			}
 			const auto nameContext = Ui::Text::PaintContext{
 				.position = QPoint(
 					_textRect.x() + _maxPercentageWidth,

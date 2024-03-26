@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "statistics/chart_widget.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/layers/generic_box.h"
@@ -222,6 +223,33 @@ void InnerWidget::fill() {
 			emoji.append(' ').append(MajorPart(value)),
 			makeContext(label));
 	};
+
+	{
+		using Type = Statistic::ChartViewType;
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		if (data.topHoursGraph.chart) {
+			const auto widget = container->add(
+				object_ptr<Statistic::ChartWidget>(container),
+				st::statisticsLayerMargins);
+
+			widget->setChartData(data.topHoursGraph.chart, Type::Linear);
+			widget->setTitle(tr::lng_channel_earn_chart_top_hours());
+		}
+		if (data.revenueGraph.chart) {
+			Ui::AddSkip(container);
+			Ui::AddDivider(container);
+			Ui::AddSkip(container);
+			Ui::AddSkip(container);
+			const auto widget = container->add(
+				object_ptr<Statistic::ChartWidget>(container),
+				st::statisticsLayerMargins);
+
+			widget->setChartData(data.revenueGraph.chart, Type::StackBar);
+			widget->setTitle(tr::lng_channel_earn_chart_revenue());
+		}
+		Ui::AddSkip(container);
+	}
 
 	const auto arrow = Ui::Text::SingleCustomEmoji(
 		session->data().customEmojiManager().registerInternalEmoji(

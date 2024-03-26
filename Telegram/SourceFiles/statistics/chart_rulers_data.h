@@ -15,7 +15,8 @@ public:
 		int newMaxHeight,
 		int newMinHeight,
 		bool useMinHeight,
-		float64 rightRatio);
+		float64 rightRatio,
+		int valueDivider);
 
 	void computeRelative(
 		int newMaxHeight,

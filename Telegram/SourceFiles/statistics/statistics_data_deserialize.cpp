@@ -61,7 +61,7 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 			line.isHiddenOnStart = ranges::contains(hiddenLines, columnId);
 			line.y.resize(length);
 			for (auto i = 0; i < length; i++) {
-				const auto value = array.at(i + 1).toInt();
+				const auto value = array.at(i + 1).toInteger();
 				line.y[i] = value;
 				if (value > line.maxValue) {
 					line.maxValue = value;
@@ -130,6 +130,13 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 		if (tooltipFormatIt != root.constEnd()) {
 			const auto tooltipFormat = tooltipFormatIt->toString();
 			result.weekFormat = tooltipFormat.contains(u"'week'"_q);
+		}
+	}
+	{
+		const auto tickFormatIt = root.constFind(u"yTickFormatter"_q);
+		if (tickFormatIt != root.constEnd()) {
+			const auto tickFormat = tickFormatIt->toString();
+			result.isCurrency = tickFormat.contains(u"TON"_q);
 		}
 	}
 
