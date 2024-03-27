@@ -142,7 +142,8 @@ ClickHandlerPtr JumpToStoryClickHandler(
 	not_null<PeerData*> peer,
 	StoryId storyId);
 [[nodiscard]] ClickHandlerPtr HideSponsoredClickHandler();
-[[nodiscard]] ClickHandlerPtr ReportSponsoredClickHandler();
+[[nodiscard]] ClickHandlerPtr ReportSponsoredClickHandler(
+	not_null<HistoryItem*> item);
 
 [[nodiscard]] not_null<HistoryItem*> GenerateJoinedMessage(
 	not_null<History*> history,

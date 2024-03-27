@@ -4656,6 +4656,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sponsored_info_description2" = "Sponsored Messages are currently in test mode. Once they are fully launched and allow Telegram to cover its basic costs, we will start sharing ad revenue with the owners of public channels in which sponsored messages are displayed.\n\nOnline ads should no longer be synonymous with abuse of user privacy. Let us redefine how a tech company should operate – together.";
 "lng_sponsored_info_menu" = "About this ad";
 "lng_sponsored_info_submenu" = "Advertiser: {text}";
+"lng_sponsored_menu_revenued_about" = "About These Ads";
+"lng_sponsored_revenued_subtitle" = "Telegram Ads are very different from ads on other platforms. Ads such as this one:";
+"lng_sponsored_revenued_info1_title" = "Respect Your Privacy";
+"lng_sponsored_revenued_info1_description" = "Ads on Telegram do not use your personal information and are abased on the channel in which you see them.";
+"lng_sponsored_revenued_info2_title" = "Help the Channel Creator";
+"lng_sponsored_revenued_info2_description" = "50% of the revenue from Telegram Ads goes to the owner of the channel where they are displayed.";
+"lng_sponsored_revenued_info3_title" = "Can Be Removed";
+"lng_sponsored_revenued_info3_description#one" = "You can turn off ads by subscribing to {link}, and Level {count} channels can remove them for their subscribers.";
+"lng_sponsored_revenued_info3_description#other" = "You can turn off ads by subscribing to {link}, and Level {count} channels can remove them for their subscribers.";
+"lng_sponsored_revenued_footer_title" = "Can I Launch an Ad?";
+"lng_sponsored_revenued_footer_description" = "Anyone can create an ad to display in this channel — with minimal budgets. Check out the **Telegram Ad Platform** for details. {link}";
 
 "lng_telegram_features_url" = "https://t.me/TelegramTips";
 

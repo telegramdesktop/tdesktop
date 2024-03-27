@@ -441,7 +441,7 @@ Message::Message(
 			_rightAction = std::make_unique<RightAction>();
 			_rightAction->second = std::make_unique<SecondRightAction>();
 
-			_rightAction->second->link = ReportSponsoredClickHandler();
+			_rightAction->second->link = ReportSponsoredClickHandler(data);
 		}
 	}
 }

@@ -1141,6 +1141,8 @@ PRIVATE
     menu/menu_mute.h
     menu/menu_send.cpp
     menu/menu_send.h
+    menu/menu_sponsored.cpp
+    menu/menu_sponsored.h
     menu/menu_ttl_validator.cpp
     menu/menu_ttl_validator.h
     mtproto/config_loader.cpp
