@@ -158,13 +158,3 @@ private:
 };
 
 } // namespace Data
-
-namespace Api {
-
-void RestrictSponsored(
-	not_null<ChannelData*> channel,
-	bool restricted,
-	Fn<void(QString)> failed);
-
-} // namespace Api
-

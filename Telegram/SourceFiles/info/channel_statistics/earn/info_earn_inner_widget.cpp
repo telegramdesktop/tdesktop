@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/channel_statistics/earn/info_earn_inner_widget.h"
 
+#include "api/api_earn.h"
 #include "api/api_statistics.h"
 #include "base/random.h"
 #include "base/unixtime.h"
@@ -17,13 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
-#include "data/data_sponsored_messages.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "info/channel_statistics/earn/info_earn_widget.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "statistics/chart_widget.h"
 #include "ui/boxes/boost_box.h"
@@ -36,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/continuous_sliders.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
@@ -95,6 +98,11 @@ constexpr auto kDot = QChar('.');
 		+ QChar('$')
 		+ MajorPart(result)
 		+ MinorPart(result);
+}
+
+[[nodiscard]] bool WithdrawalEnabled(not_null<Main::Session*> session) {
+	const auto key = u"channel_revenue_withdrawal_enabled"_q;
+	return session->appConfig().get<bool>(key, false);
 }
 
 void AddHeader(
@@ -211,6 +219,8 @@ void InnerWidget::fill() {
 	const auto multiplier = data.usdRate;
 
 	const auto session = &_peer->session();
+	const auto channel = _peer->asChannel();
+	const auto withdrawalEnabled = WithdrawalEnabled(session);
 	const auto makeContext = [=](not_null<Ui::FlatLabel*> l) {
 		return Core::MarkedTextContext{
 			.session = session,
@@ -511,7 +521,7 @@ void InnerWidget::fill() {
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
-	{
+	if (channel) {
 		const auto value = data.availableBalance;
 		Ui::AddSkip(container);
 		AddHeader(container, tr::lng_channel_earn_balance_title);
@@ -591,15 +601,21 @@ void InnerWidget::fill() {
 					stButton.textFg->c,
 					anim::interpolateF(.5, 1., value)));
 		};
-		colorText(1.);
+		colorText(withdrawalEnabled ? 1. : 0.);
+#ifndef _DEBUG
+		button->setAttribute(
+			Qt::WA_TransparentForMouseEvents,
+			!withdrawalEnabled);
+#endif
 
-		button->setClickedCallback([=] {
-		});
+		Api::HandleWithdrawalButton(channel, button, _controller->uiShow());
 		Ui::ToggleChildrenVisibility(button, true);
 
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
-		addAboutWithLearn(tr::lng_channel_earn_balance_about);
+		addAboutWithLearn(withdrawalEnabled
+			? tr::lng_channel_earn_balance_about
+			: tr::lng_channel_earn_balance_about_temp);
 		Ui::AddSkip(container);
 	}
 	Ui::AddSkip(container);
@@ -844,7 +860,7 @@ void InnerWidget::fill() {
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
-	if (const auto channel = _peer->asChannel()) {
+	if (channel) {
 		constexpr auto kMaxCPM = 50; // Debug.
 		const auto requiredLevel = Data::LevelLimits(session)
 			.channelRestrictSponsoredLevelMin();

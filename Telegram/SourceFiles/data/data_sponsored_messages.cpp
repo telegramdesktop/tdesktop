@@ -566,21 +566,3 @@ SponsoredMessages::State SponsoredMessages::state(
 }
 
 } // namespace Data
-
-namespace Api {
-
-void RestrictSponsored(
-		not_null<ChannelData*> channel,
-		bool restricted,
-		Fn<void(QString)> failed) {
-	channel->session().api().request(MTPchannels_RestrictSponsoredMessages(
-		channel->inputChannel,
-		MTP_bool(restricted))
-	).done([=](const MTPUpdates &updates) {
-		channel->session().api().applyUpdates(updates);
-	}).fail([=](const MTP::Error &error) {
-		failed(error.type());
-	}).send();
-}
-
-} // namespace Api

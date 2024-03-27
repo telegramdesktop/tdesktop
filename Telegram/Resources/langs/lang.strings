@@ -4979,9 +4979,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_reward" = "Proceeds since last withdrawal";
 "lng_channel_earn_total" = "Total lifetime proceeds";
 "lng_channel_earn_balance_title" = "Available balance";
-"lng_channel_earn_balance_placeholder" = "Enter your TON address";
 "lng_channel_earn_balance_button" = "Withdraw";
-"lng_channel_earn_balance_about" = "By the end of May, you will be able to collect your reward using Fragment, a third-party platform used by the advertiser to pay for the ad. {link}";
+"lng_channel_earn_balance_password_title" = "Two-step verification";
+"lng_channel_earn_balance_password_description" = "Please enter your password to withdraw.";
+"lng_channel_earn_balance_about" = "Collect your reward using Fragment, a third-party platform used by the advertiser to pay for the ad. {link}";
+"lng_channel_earn_balance_about_temp" = "By the end of May, you will be able to collect your reward using Fragment, a third-party platform used by the advertiser to pay for the ad. {link}";
 "lng_channel_earn_transfer_sure_about1" = "Check the address of the recipient:";
 "lng_channel_earn_transfer_sure_about2" = "This action can not be undone. If the address above is incorrect you will lose your TON.";
 "lng_channel_earn_history_title" = "Transaction history";

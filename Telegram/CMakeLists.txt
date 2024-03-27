@@ -120,6 +120,8 @@ PRIVATE
     api/api_common.h
     api/api_confirm_phone.cpp
     api/api_confirm_phone.h
+    api/api_earn.cpp
+    api/api_earn.h
     api/api_editing.cpp
     api/api_editing.h
     api/api_global_privacy.cpp
