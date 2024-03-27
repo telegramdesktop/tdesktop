@@ -113,3 +113,7 @@ sponsoredAboutTitleIcon: icon {{ "sponsored/large_about", activeButtonFg }};
 sponsoredAboutPrivacyIcon: icon {{ "sponsored/privacy_about", boxTextFg }};
 sponsoredAboutRemoveIcon: icon {{ "sponsored/remove_about", boxTextFg }};
 sponsoredAboutSplitIcon: icon {{ "sponsored/revenue_split", boxTextFg }};
+
+channelEarnLearnTitleIcon: icon {{ "sponsored/large_earn", activeButtonFg }};
+channelEarnLearnChannelIcon: icon {{ "sponsored/channel", boxTextFg }};
+channelEarnLearnWithdrawalsIcon: icon {{ "sponsored/withdrawals", boxTextFg }};

@@ -226,33 +226,6 @@ void InnerWidget::fill() {
 			makeContext(label));
 	};
 
-	{
-		using Type = Statistic::ChartViewType;
-		Ui::AddSkip(container);
-		Ui::AddSkip(container);
-		if (data.topHoursGraph.chart) {
-			const auto widget = container->add(
-				object_ptr<Statistic::ChartWidget>(container),
-				st::statisticsLayerMargins);
-
-			widget->setChartData(data.topHoursGraph.chart, Type::Linear);
-			widget->setTitle(tr::lng_channel_earn_chart_top_hours());
-		}
-		if (data.revenueGraph.chart) {
-			Ui::AddSkip(container);
-			Ui::AddDivider(container);
-			Ui::AddSkip(container);
-			Ui::AddSkip(container);
-			const auto widget = container->add(
-				object_ptr<Statistic::ChartWidget>(container),
-				st::statisticsLayerMargins);
-
-			widget->setChartData(data.revenueGraph.chart, Type::StackBar);
-			widget->setTitle(tr::lng_channel_earn_chart_revenue());
-		}
-		Ui::AddSkip(container);
-	}
-
 	const auto arrow = Ui::Text::SingleCustomEmoji(
 		session->data().customEmojiManager().registerInternalEmoji(
 			st::topicButtonArrow,
@@ -283,6 +256,26 @@ void InnerWidget::fill() {
 				const auto content = box->verticalLayout().get();
 
 				Ui::AddSkip(content);
+				Ui::AddSkip(content);
+				Ui::AddSkip(content);
+				{
+					const auto &icon = st::channelEarnLearnTitleIcon;
+					const auto rect = Rect(icon.size() * 1.4);
+					auto owned = object_ptr<Ui::RpWidget>(content);
+					owned->resize(rect.size());
+					const auto widget = box->addRow(
+						object_ptr<Ui::CenterWrap<>>(
+							content,
+							std::move(owned)))->entity();
+					widget->paintRequest(
+					) | rpl::start_with_next([=] {
+						auto p = Painter(widget);
+						p.setPen(Qt::NoPen);
+						p.setBrush(st::activeButtonBg);
+						p.drawEllipse(rect);
+						icon.paintInCenter(p, rect);
+					}, widget->lifetime());
+				}
 				Ui::AddSkip(content);
 				Ui::AddSkip(content);
 				box->addRow(object_ptr<Ui::CenterWrap<>>(
@@ -336,19 +329,19 @@ void InnerWidget::fill() {
 					addEntry(
 						tr::lng_channel_earn_learn_in_subtitle(),
 						tr::lng_channel_earn_learn_in_about(),
-						st::getBoostsButtonIcon);
+						st::channelEarnLearnChannelIcon);
 					Ui::AddSkip(content);
 					Ui::AddSkip(content);
 					addEntry(
 						tr::lng_channel_earn_learn_split_subtitle(),
 						tr::lng_channel_earn_learn_split_about(),
-						st::getBoostsButtonIcon);
+						st::sponsoredAboutSplitIcon);
 					Ui::AddSkip(content);
 					Ui::AddSkip(content);
 					addEntry(
 						tr::lng_channel_earn_learn_out_subtitle(),
 						tr::lng_channel_earn_learn_out_about(),
-						st::getBoostsButtonIcon);
+						st::channelEarnLearnWithdrawalsIcon);
 					Ui::AddSkip(content);
 					Ui::AddSkip(content);
 				}
@@ -428,6 +421,34 @@ void InnerWidget::fill() {
 			RectPart::Top | RectPart::Bottom));
 	};
 	addAboutWithLearn(tr::lng_channel_earn_about);
+	{
+		using Type = Statistic::ChartViewType;
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		if (data.topHoursGraph.chart) {
+			const auto widget = container->add(
+				object_ptr<Statistic::ChartWidget>(container),
+				st::statisticsLayerMargins);
+
+			widget->setChartData(data.topHoursGraph.chart, Type::Linear);
+			widget->setTitle(tr::lng_channel_earn_chart_top_hours());
+		}
+		if (data.revenueGraph.chart) {
+			Ui::AddSkip(container);
+			Ui::AddDivider(container);
+			Ui::AddSkip(container);
+			Ui::AddSkip(container);
+			const auto widget = container->add(
+				object_ptr<Statistic::ChartWidget>(container),
+				st::statisticsLayerMargins);
+
+			widget->setChartData(data.revenueGraph.chart, Type::StackBar);
+			widget->setTitle(tr::lng_channel_earn_chart_revenue());
+		}
+		Ui::AddSkip(container);
+	}
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 	{
 		AddHeader(container, tr::lng_channel_earn_overview_title);
