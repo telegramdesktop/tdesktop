@@ -482,6 +482,83 @@ void SponsoredMessages::clicked(const FullMsgId &fullId) {
 	)).send();
 }
 
+
+auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
+-> Fn<void(SponsoredReportResult::Id, Fn<void(SponsoredReportResult)>)> {
+	using TLChoose = MTPDchannels_sponsoredMessageReportResultChooseOption;
+	using TLAdsHidden = MTPDchannels_sponsoredMessageReportResultAdsHidden;
+	using TLReported = MTPDchannels_sponsoredMessageReportResultReported;
+	using Result = SponsoredReportResult;
+
+	struct State final {
+#ifdef _DEBUG
+		~State() {
+			qDebug() << "SponsoredMessages Report ~State().";
+		}
+#endif
+		mtpRequestId requestId = 0;
+	};
+	const auto state = std::make_shared<State>();
+
+	return [=](Result::Id optionId, Fn<void(Result)> done) {
+		const auto entry = find(fullId);
+		if (!entry) {
+			return;
+		}
+
+		const auto history = entry->item->history();
+		const auto channel = history->peer->asChannel();
+		if (!channel) {
+			return;
+		}
+
+		state->requestId = _session->api().request(
+			MTPchannels_ReportSponsoredMessage(
+				channel->inputChannel,
+				MTP_bytes(entry->sponsored.randomId),
+				MTP_bytes(optionId))
+		).done([=](
+				const MTPchannels_SponsoredMessageReportResult &result,
+				mtpRequestId requestId) {
+			if (state->requestId != requestId) {
+				return;
+			}
+			state->requestId = 0;
+			done(result.match([&](const TLChoose &data) {
+				const auto t = qs(data.vtitle());
+				auto list = Result::Options();
+				list.reserve(data.voptions().v.size());
+				for (const auto &tl : data.voptions().v) {
+					list.emplace_back(Result::Option{
+						.id = tl.data().voption().v,
+						.text = qs(tl.data().vtext()),
+					});
+				}
+				return Result{ .options = std::move(list), .title = t };
+			}, [](const TLAdsHidden &data) -> Result {
+				return { .result = Result::FinalStep::Hidden };
+			}, [&](const TLReported &data) -> Result {
+				const auto it = _data.find(history);
+				if (it != end(_data)) {
+					auto &list = it->second.entries;
+					const auto proj = [&](const Entry &e) {
+						return e.itemFullId == fullId;
+					};
+					list.erase(ranges::remove_if(list, proj), end(list));
+				}
+				return { .result = Result::FinalStep::Reported };
+			}));
+		}).fail([=](const MTP::Error &error) {
+			state->requestId = 0;
+			if (error.type() == u"PREMIUM_ACCOUNT_REQUIRED"_q) {
+				done({ .result = Result::FinalStep::Premium });
+			} else {
+				done({ .error = error.type() });
+			}
+		}).send();
+	};
+}
+
 SponsoredMessages::State SponsoredMessages::state(
 		not_null<History*> history) const {
 	const auto it = _data.find(history);

@@ -22,6 +22,24 @@ namespace Data {
 
 class Session;
 
+struct SponsoredReportResult final {
+	using Id = QByteArray;
+	struct Option final {
+		Id id = 0;
+		QString text;
+	};
+	using Options = std::vector<Option>;
+	enum class FinalStep {
+		Hidden,
+		Reported,
+		Premium,
+	};
+	Options options;
+	QString title;
+	QString error;
+	FinalStep result;
+};
+
 struct SponsoredFrom {
 	PeerData *peer = nullptr;
 	QString title;
@@ -91,6 +109,9 @@ public:
 	void view(const FullMsgId &fullId);
 
 	[[nodiscard]] State state(not_null<History*> history) const;
+
+	[[nodiscard]] auto createReportCallback(const FullMsgId &fullId)
+	-> Fn<void(SponsoredReportResult::Id, Fn<void(SponsoredReportResult)>)>;
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;

@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Ui {
 class RpWidget;
-class Show;
 } // namespace Ui
 
 class HistoryItem;
@@ -18,7 +21,7 @@ namespace Menu {
 
 void ShowSponsored(
 	not_null<Ui::RpWidget*> parent,
-	std::shared_ptr<Ui::Show> show,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<HistoryItem*> item);
 
 } // namespace Menu

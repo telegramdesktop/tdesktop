@@ -7,18 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_sponsored.h"
 
+#include "boxes/premium_preview_box.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
+#include "data/data_sponsored_messages.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -209,11 +212,75 @@ void AboutBox(
 
 }
 
+void ShowReportSponsoredBox(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<HistoryItem*> item) {
+	const auto peer = item->history()->peer;
+	auto &sponsoredMessages = peer->session().data().sponsoredMessages();
+	const auto fullId = item->fullId();
+	const auto report = sponsoredMessages.createReportCallback(fullId);
+
+	auto performRequest = [=](
+			const auto &repeatRequest,
+			Data::SponsoredReportResult::Id id) -> void {
+		report(id, [=](const Data::SponsoredReportResult &result) {
+			if (!result.error.isEmpty()) {
+				show->showToast(result.error);
+			}
+			if (!result.options.empty()) {
+				show->show(Box([=](not_null<Ui::GenericBox*> box) {
+					box->setTitle(rpl::single(result.title));
+
+					for (const auto &option : result.options) {
+						const auto button = box->verticalLayout()->add(
+							object_ptr<Ui::SettingsButton>(
+								box,
+								rpl::single(option.text),
+								st::settingsButtonNoIcon));
+						button->setClickedCallback([=] {
+							repeatRequest(repeatRequest, option.id);
+						});
+					}
+					if (!id.isNull()) {
+						box->addLeftButton(
+							tr::lng_create_group_back(),
+							[=] { box->closeBox(); });
+					}
+					box->addButton(
+						tr::lng_close(),
+						[=] { show->hideLayer(); });
+				}));
+			} else {
+				switch (result.result) {
+				case Data::SponsoredReportResult::FinalStep::Hidden: {
+					show->showToast(tr::lng_report_sponsored_hidden(tr::now));
+				} break;
+				case Data::SponsoredReportResult::FinalStep::Reported: {
+					auto text = tr::lng_report_sponsored_reported(
+						tr::now,
+						lt_link,
+						Ui::Text::Link(
+							tr::lng_report_sponsored_reported_link(tr::now),
+							u"https://promote.telegram.org/guidelines"_q),
+						Ui::Text::WithEntities);
+					show->showToast({ .text = std::move(text) });
+				} break;
+				case Data::SponsoredReportResult::FinalStep::Premium: {
+					ShowPremiumPreviewBox(show, PremiumFeature::NoAds);
+				} break;
+				}
+				show->hideLayer();
+			}
+		});
+	};
+	performRequest(performRequest, Data::SponsoredReportResult::Id());
+}
+
 } // namespace
 
 void ShowSponsored(
 		not_null<Ui::RpWidget*> parent,
-		std::shared_ptr<Ui::Show> show,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<HistoryItem*> item) {
 	Expects(item->isSponsored());
 
@@ -228,6 +295,16 @@ void ShowSponsored(
 	menu->addAction(tr::lng_sponsored_menu_revenued_about(tr::now), [=] {
 		show->show(Box(AboutBox, &item->history()->session()));
 	}, &st::menuIconInfo);
+
+	menu->addAction(tr::lng_sponsored_menu_revenued_report(tr::now), [=] {
+		ShowReportSponsoredBox(show, item);
+	}, &st::menuIconBlock);
+
+	menu->addSeparator(&st::expandedMenuSeparator);
+
+	menu->addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
+		ShowPremiumPreviewBox(show, PremiumFeature::NoAds);
+	}, &st::menuIconCancel);
 
 	menu->popup(QCursor::pos());
 }

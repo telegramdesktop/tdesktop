@@ -1575,6 +1575,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_button" = "Report";
 "lng_report_thanks" = "Thank you! Your report will be reviewed by our team very soon.";
 
+"lng_report_sponsored_hidden" = "Sponsored messages will be hidden.";
+"lng_report_sponsored_reported" = "We will review this ad to ensure it matches out {link}.";
+"lng_report_sponsored_reported_link" = "Ad Policies and Guidelines";
+
 "lng_channel_add_members" = "Add members";
 "lng_channel_add_users" = "Add users";
 "lng_channel_add_removed" = "Remove user";
@@ -4657,6 +4661,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sponsored_info_menu" = "About this ad";
 "lng_sponsored_info_submenu" = "Advertiser: {text}";
 "lng_sponsored_menu_revenued_about" = "About These Ads";
+"lng_sponsored_menu_revenued_report" = "Report Ad";
 "lng_sponsored_revenued_subtitle" = "Telegram Ads are very different from ads on other platforms. Ads such as this one:";
 "lng_sponsored_revenued_info1_title" = "Respect Your Privacy";
 "lng_sponsored_revenued_info1_description" = "Ads on Telegram do not use your personal information and are abased on the channel in which you see them.";
