@@ -64,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
+#include "info/channel_statistics/earn/info_earn_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/statistics/info_statistics_widget.h"
 #include "info/stories/info_stories_widget.h"
@@ -1039,6 +1040,7 @@ void Filler::addViewStatistics() {
 		const auto peer = _peer;
 		using Flag = ChannelDataFlag;
 		const auto canGetStats = (channel->flags() & Flag::CanGetStatistics);
+		const auto canViewEarn = (channel->flags() & Flag::CanViewRevenue);
 		if (canGetStats) {
 			_addAction(tr::lng_stats_title(tr::now), [=] {
 				if (const auto strong = weak.get()) {
@@ -1061,6 +1063,13 @@ void Filler::addViewStatistics() {
 					controller->resolveBoostState(channel);
 				}
 			}, &st::menuIconBoosts);
+		}
+		if (canViewEarn) {
+			_addAction(tr::lng_channel_earn_title(tr::now), [=] {
+				if (const auto strong = weak.get()) {
+					controller->showSection(Info::ChannelEarn::Make(peer));
+				}
+			}, &st::menuIconEarn);
 		}
 	}
 }
