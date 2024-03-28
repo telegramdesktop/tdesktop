@@ -9,13 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_earn.h"
 #include "api/api_statistics.h"
-#include "base/random.h"
-#include "base/unixtime.h"
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_channel.h"
-#include "data/data_peer.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -24,20 +21,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "lang/lang_keys.h"
+#include "ui/widgets/popup_menu.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "statistics/chart_widget.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value_f.h"
-#include "ui/effects/fade_animation.h"
 #include "ui/effects/toggle_arrow.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
-#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
@@ -104,6 +101,16 @@ constexpr auto kDot = QChar('.');
 	const auto key = u"channel_revenue_withdrawal_enabled"_q;
 	return session->appConfig().get<bool>(key, false);
 }
+
+void ShowMenu(not_null<Ui::GenericBox*> box, const QString &text) {
+	const auto menu = Ui::CreateChild<Ui::PopupMenu>(box.get());
+	menu->addAction(tr::lng_context_copy_link(tr::now), [=] {
+		TextUtilities::SetClipboardText(TextForMimeData::Simple(text));
+		box->uiShow()->showToast(tr::lng_background_link_copied(tr::now));
+	});
+	menu->popup(QCursor::pos());
+}
+
 
 void AddArrow(not_null<Ui::RpWidget*> parent) {
 	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
@@ -841,6 +848,32 @@ void InnerWidget::fill() {
 						const auto radius = rect.height() / 2;
 						p.drawRoundedRect(rect, radius, radius);
 					}, peerBubble->lifetime());
+				}
+				{
+					const auto &st = st::premiumPreviewDoubledLimitsBox;
+					box->setStyle(st);
+					auto button = object_ptr<Ui::RoundButton>(
+						container,
+						(!entry.successLink.isEmpty())
+							? tr::lng_channel_earn_history_out_button()
+							: tr::lng_box_ok(),
+						st::defaultActiveButton);
+					button->resizeToWidth(box->width()
+						- st.buttonPadding.left()
+						- st.buttonPadding.left());
+					if (!entry.successLink.isEmpty()) {
+						button->setAcceptBoth();
+						button->addClickHandler([=](Qt::MouseButton button) {
+							if (button == Qt::LeftButton) {
+								UrlClickHandler::Open(entry.successLink);
+							} else if (button == Qt::RightButton) {
+								ShowMenu(box, entry.successLink);
+							}
+						});
+					} else {
+						button->setClickedCallback([=] { box->closeBox(); });
+					}
+					box->addButton(std::move(button));
 				}
 				Ui::AddSkip(box->verticalLayout());
 				Ui::AddSkip(box->verticalLayout());
