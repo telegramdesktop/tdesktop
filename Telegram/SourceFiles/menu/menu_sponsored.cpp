@@ -219,6 +219,9 @@ void ShowReportSponsoredBox(
 	auto &sponsoredMessages = peer->session().data().sponsoredMessages();
 	const auto fullId = item->fullId();
 	const auto report = sponsoredMessages.createReportCallback(fullId);
+	const auto guideLink = Ui::Text::Link(
+		tr::lng_report_sponsored_reported_link(tr::now),
+		u"https://promote.telegram.org/guidelines"_q);
 
 	auto performRequest = [=](
 			const auto &repeatRequest,
@@ -245,6 +248,20 @@ void ShowReportSponsoredBox(
 						box->addLeftButton(
 							tr::lng_create_group_back(),
 							[=] { box->closeBox(); });
+					} else {
+						const auto container = box->verticalLayout();
+						Ui::AddSkip(container);
+						container->add(object_ptr<Ui::DividerLabel>(
+							container,
+							object_ptr<Ui::FlatLabel>(
+								container,
+								tr::lng_report_sponsored_reported_learn(
+									lt_link,
+									rpl::single(guideLink),
+									Ui::Text::WithEntities),
+								st::boxDividerLabel),
+							st::defaultBoxDividerLabelPadding,
+							RectPart::Top | RectPart::Bottom));
 					}
 					box->addButton(
 						tr::lng_close(),
@@ -259,9 +276,7 @@ void ShowReportSponsoredBox(
 					auto text = tr::lng_report_sponsored_reported(
 						tr::now,
 						lt_link,
-						Ui::Text::Link(
-							tr::lng_report_sponsored_reported_link(tr::now),
-							u"https://promote.telegram.org/guidelines"_q),
+						guideLink,
 						Ui::Text::WithEntities);
 					show->showToast({ .text = std::move(text) });
 				} break;

@@ -1578,6 +1578,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_sponsored_hidden" = "Sponsored messages will be hidden.";
 "lng_report_sponsored_reported" = "We will review this ad to ensure it matches out {link}.";
 "lng_report_sponsored_reported_link" = "Ad Policies and Guidelines";
+"lng_report_sponsored_reported_learn" = "Learn more about our {link}.";
 
 "lng_channel_add_members" = "Add members";
 "lng_channel_add_users" = "Add users";
