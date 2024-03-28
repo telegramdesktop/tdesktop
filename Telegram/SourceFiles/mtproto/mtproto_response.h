@@ -39,7 +39,8 @@ private:
 };
 
 inline bool IsFloodError(const QString &type) {
-	return type.startsWith(u"FLOOD_WAIT_"_q);
+	return type.startsWith(u"FLOOD_WAIT_"_q)
+		|| type.startsWith(u"FLOOD_PREMIUM_WAIT_"_q);
 }
 
 inline bool IsFloodError(const Error &error) {
