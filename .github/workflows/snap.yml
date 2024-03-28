@@ -36,6 +36,9 @@ on:
       - 'Telegram/configure.bat'
       - 'Telegram/Telegram.plist'
 
+permissions:
+  contents: read
+
 jobs:
 
   snap:
