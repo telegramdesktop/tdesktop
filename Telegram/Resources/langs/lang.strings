@@ -2316,6 +2316,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chatbots_reply_about" = "The bot will be able to view all new incoming messages, but not the messages that had been sent before you added the bot.";
 "lng_chatbots_remove" = "Remove Bot";
 "lng_chatbots_not_found" = "Chatbot not found.";
+"lng_chatbots_not_supported" = "This bot doesn't support Telegram Business yet.";
 "lng_chatbots_add" = "Add";
 "lng_chatbots_info_url" = "https://telegram.org/privacy";
 "lng_chatbot_status_can_reply" = "bot manages this chat";

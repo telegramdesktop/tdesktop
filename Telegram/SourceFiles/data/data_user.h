@@ -22,13 +22,6 @@ struct BusinessDetails;
 struct BotInfo {
 	BotInfo();
 
-	bool inited = false;
-	bool readsAllHistory = false;
-	bool cantJoinGroups = false;
-	bool supportsAttachMenu = false;
-	bool canEditInformation = false;
-	int version = 0;
-	int descriptionVersion = 0;
 	QString description;
 	QString inlinePlaceholder;
 	std::vector<Data::BotCommand> commands;
@@ -44,6 +37,15 @@ struct BotInfo {
 
 	ChatAdminRights groupAdminRights;
 	ChatAdminRights channelAdminRights;
+
+	int version = 0;
+	int descriptionVersion = 0;
+	bool inited : 1 = false;
+	bool readsAllHistory : 1 = false;
+	bool cantJoinGroups : 1 = false;
+	bool supportsAttachMenu : 1 = false;
+	bool canEditInformation : 1 = false;
+	bool supportsBusiness : 1 = false;
 };
 
 enum class UserDataFlag : uint32 {
