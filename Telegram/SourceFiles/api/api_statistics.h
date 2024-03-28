@@ -113,14 +113,14 @@ public:
 	explicit EarnStatistics(not_null<ChannelData*> channel);
 
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
-	void requestBoosts(
+	void requestHistory(
 		const Data::EarnHistorySlice::OffsetToken &token,
 		Fn<void(Data::EarnHistorySlice)> done);
 
 	[[nodiscard]] Data::EarnStatistics data() const;
 
-	static constexpr auto kFirstSlice = int(10);
-	static constexpr auto kLimit = int(40);
+	static constexpr auto kFirstSlice = int(5);
+	static constexpr auto kLimit = int(10);
 
 private:
 	Data::EarnStatistics _data;

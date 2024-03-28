@@ -771,7 +771,7 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 				.usdRate = data.vusd_rate().v,
 			};
 
-			requestBoosts({}, [=](Data::EarnHistorySlice &&slice) {
+			requestHistory({}, [=](Data::EarnHistorySlice &&slice) {
 				_data.firstHistorySlice = std::move(slice);
 
 				api().request(
@@ -795,7 +795,7 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 	};
 }
 
-void EarnStatistics::requestBoosts(
+void EarnStatistics::requestHistory(
 		const Data::EarnHistorySlice::OffsetToken &token,
 		Fn<void(Data::EarnHistorySlice)> done) {
 	if (_requestId) {
@@ -831,11 +831,9 @@ void EarnStatistics::requestBoosts(
 						: d.is_failed()
 						? Data::EarnHistoryEntry::Status::Failed
 						: Data::EarnHistoryEntry::Status::Success,
-					.amount = d.is_failed()
-						? (std::numeric_limits<Data::EarnInt>::max()
-							- d.vamount().v
-							+ 1)
-						: d.vamount().v,
+					.amount = (std::numeric_limits<Data::EarnInt>::max()
+						- d.vamount().v
+						+ 1),
 					.date = base::unixtime::parse(d.vdate().v),
 					// .provider = qs(d.vprovider()),
 					.successDate = d.vtransaction_date()

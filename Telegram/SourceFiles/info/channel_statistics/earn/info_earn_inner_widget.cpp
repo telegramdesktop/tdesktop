@@ -31,14 +31,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/fade_animation.h"
+#include "ui/effects/toggle_arrow.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/continuous_sliders.h"
-#include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
@@ -48,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
+#include "styles/style_window.h" // mainMenuToggleFourStrokes.
 
 #include <QtWidgets/QApplication>
 
@@ -103,6 +103,27 @@ constexpr auto kDot = QChar('.');
 [[nodiscard]] bool WithdrawalEnabled(not_null<Main::Session*> session) {
 	const auto key = u"channel_revenue_withdrawal_enabled"_q;
 	return session->appConfig().get<bool>(key, false);
+}
+
+void AddArrow(not_null<Ui::RpWidget*> parent) {
+	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	arrow->paintRequest(
+	) | rpl::start_with_next([=](const QRect &r) {
+		auto p = QPainter(arrow);
+
+		const auto path = Ui::ToggleUpDownArrowPath(
+			st::statisticsShowMoreButtonArrowSize,
+			st::statisticsShowMoreButtonArrowSize,
+			st::statisticsShowMoreButtonArrowSize,
+			st::mainMenuToggleFourStrokes,
+			0.);
+
+		auto hq = PainterHighQualityEnabler(p);
+		p.fillPath(path, st::lightButtonFg);
+	}, arrow->lifetime());
+	arrow->resize(Size(st::statisticsShowMoreButtonArrowSize * 2));
+	arrow->move(st::statisticsShowMoreButtonArrowPosition);
+	arrow->show();
 }
 
 void AddHeader(
@@ -625,13 +646,15 @@ void InnerWidget::fill() {
 		AddHeader(container, tr::lng_channel_earn_history_title);
 		Ui::AddSkip(container);
 
-		const auto addHistoryEntry = [&](
+		const auto historyList = container->add(
+			object_ptr<Ui::VerticalLayout>(container));
+		const auto addHistoryEntry = [=](
 				const Data::EarnHistoryEntry &entry,
 				const tr::phrase<> &text) {
-			const auto wrap = container->add(
+			const auto wrap = historyList->add(
 				object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
-					container,
-					object_ptr<Ui::VerticalLayout>(container),
+					historyList,
+					object_ptr<Ui::VerticalLayout>(historyList),
 					QMargins()));
 			const auto inner = wrap->entity();
 			inner->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -847,14 +870,62 @@ void InnerWidget::fill() {
 				button->lower();
 			}, wrap->lifetime());
 		};
-		for (const auto &entry : data.firstHistorySlice.list) {
-			addHistoryEntry(
-				entry,
-				(entry.type == Data::EarnHistoryEntry::Type::In)
-					? tr::lng_channel_earn_history_in
-					: (entry.type == Data::EarnHistoryEntry::Type::Return)
-					? tr::lng_channel_earn_history_return
-					: tr::lng_channel_earn_history_out);
+		const auto handleSlice = [=](const Data::EarnHistorySlice &slice) {
+			for (const auto &entry : slice.list) {
+				addHistoryEntry(
+					entry,
+					(entry.type == Data::EarnHistoryEntry::Type::In)
+						? tr::lng_channel_earn_history_in
+						: (entry.type == Data::EarnHistoryEntry::Type::Return)
+						? tr::lng_channel_earn_history_return
+						: tr::lng_channel_earn_history_out);
+			}
+			historyList->resizeToWidth(container->width());
+		};
+		handleSlice(data.firstHistorySlice);
+		if (!data.firstHistorySlice.allLoaded) {
+			struct ShowMoreState final {
+				ShowMoreState(not_null<ChannelData*> channel)
+				: api(channel) {
+				}
+				Api::EarnStatistics api;
+				bool loading = false;
+				Data::EarnHistorySlice::OffsetToken token;
+				rpl::variable<int> showed = 0;
+			};
+			const auto state = lifetime().make_state<ShowMoreState>(channel);
+			state->token = data.firstHistorySlice.token;
+			state->showed = data.firstHistorySlice.list.size();
+			const auto max = data.firstHistorySlice.total;
+			const auto wrap = container->add(
+				object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+					container,
+					object_ptr<Ui::SettingsButton>(
+						container,
+						tr::lng_channel_earn_history_show_more(
+							lt_count,
+							state->showed.value(
+							) | rpl::map(
+								max - rpl::mappers::_1
+							) | tr::to_count()),
+						st::statisticsShowMoreButton)));
+			const auto button = wrap->entity();
+			AddArrow(button);
+
+			wrap->toggle(true, anim::type::instant);
+			const auto handleReceived = [=](Data::EarnHistorySlice slice) {
+				state->loading = false;
+				handleSlice(slice);
+				wrap->toggle(!slice.allLoaded, anim::type::instant);
+				state->token = slice.token;
+				state->showed = state->showed.current() + slice.list.size();
+			};
+			button->setClickedCallback([=] {
+				if (!state->loading) {
+					state->loading = true;
+					state->api.requestHistory(state->token, handleReceived);
+				}
+			});
 		}
 	}
 	Ui::AddSkip(container);
