@@ -8,12 +8,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/view/chart_rulers_view.h"
 
 #include "data/data_channel_earn.h" // Data::kEarnMultiplier.
+#include "info/channel_statistics/earn/earn_format.h"
+#include "lang/lang_keys.h"
 #include "statistics/chart_lines_filter_controller.h"
 #include "statistics/statistics_common.h"
 #include "styles/style_basic.h"
 #include "styles/style_statistics.h"
 
 namespace Statistic {
+namespace {
+
+[[nodiscard]] QString FormatF(float64 absoluteValue) {
+	constexpr auto kTooMuch = int(10'000);
+	return (absoluteValue >= kTooMuch)
+		? Lang::FormatCountToShort(absoluteValue).string
+		: QString::number(absoluteValue);
+}
+
+} // namespace
 
 ChartRulersView::ChartRulersView() = default;
 
@@ -22,10 +34,18 @@ void ChartRulersView::setChartData(
 		ChartViewType type,
 		std::shared_ptr<LinesFilterController> linesFilter) {
 	_rulers.clear();
-	_isDouble = (type == ChartViewType::DoubleLinear);
-	_currencyIcon = chartData.isCurrency
-		? &st::statisticsCurrencyIcon
-		: nullptr;
+	_isDouble = (type == ChartViewType::DoubleLinear)
+		|| chartData.currencyRate;
+	if (chartData.currencyRate) {
+		_currencyIcon = &st::statisticsCurrencyIcon;
+		_leftCustomCaption = [=](float64 value) {
+			return FormatF(value / float64(Data::kEarnMultiplier));
+		};
+		_rightCustomCaption = [=, rate = chartData.currencyRate](float64 v) {
+			return Info::ChannelEarn::ToUsd(v, rate).mid(1);
+		};
+		_rightPen = QPen(st::windowSubTextFg);
+	}
 	if (_isDouble && (chartData.lines.size() == 2)) {
 		_linesFilter = std::move(linesFilter);
 		_leftPen = QPen(chartData.lines.front().color);
@@ -96,8 +116,10 @@ void ChartRulersView::paintCaptionsToRulers(
 					: _isLeftLineScaled
 					? line.scaledLineCaption
 					: line.caption);
-			if (hasLinesFilter) {
-				p.setOpacity(rulerAlpha * _linesFilter->alpha(_rightLineId));
+			if (hasLinesFilter || _rightCustomCaption) {
+				if (_linesFilter) {
+					p.setOpacity(rulerAlpha * _linesFilter->alpha(_rightLineId));
+				}
 				p.setPen(_rightPen);
 				p.drawText(
 					r.width() - line.rightCaptionWidth,
@@ -142,7 +164,8 @@ void ChartRulersView::add(Limits newHeight, bool animated) {
 		newHeight.min,
 		true,
 		_isDouble ? _scaledLineRatio : 0.,
-		_currencyIcon ? Data::kEarnMultiplier : 0);
+		_leftCustomCaption,
+		_rightCustomCaption);
 	if (_isDouble) {
 		const auto &font = st::statisticsDetailsBottomCaptionStyle.font;
 		for (auto &line : newLinesData.lines) {

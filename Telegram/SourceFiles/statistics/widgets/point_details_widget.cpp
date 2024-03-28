@@ -134,7 +134,7 @@ PointDetailsWidget::PointDetailsWidget(
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
 , _headerStyle(st::statisticsDetailsPopupHeaderStyle)
-, _valueIcon(chartData.isCurrency ? &st::statisticsCurrencyIcon : nullptr) {
+, _valueIcon(chartData.currencyRate ? &st::statisticsCurrencyIcon : nullptr) {
 
 	if (zoomEnabled) {
 		rpl::single(rpl::empty_value()) | rpl::then(
@@ -282,7 +282,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 		textLine.name.setText(_textStyle, dataLine.name);
 		textLine.value.setText(
 			_textStyle,
-			_chartData.isCurrency
+			_chartData.currencyRate
 				? QString::number(dataLine.y[xIndex] / multiplier)
 				: QString("%L1").arg(dataLine.y[xIndex]));
 		hasPositiveValues |= (dataLine.y[xIndex] > 0);

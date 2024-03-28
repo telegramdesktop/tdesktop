@@ -44,6 +44,9 @@ private:
 	int _rightLineId = 0;
 	const style::icon *_currencyIcon = nullptr;
 
+	Fn<QString(float64)> _leftCustomCaption = nullptr;
+	Fn<QString(float64)> _rightCustomCaption = nullptr;
+
 	std::vector<ChartRulersData> _rulers;
 
 	std::shared_ptr<LinesFilterController> _linesFilter;

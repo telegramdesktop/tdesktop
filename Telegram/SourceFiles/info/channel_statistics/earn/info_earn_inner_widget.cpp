@@ -16,12 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/info_earn_widget.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "lang/lang_keys.h"
-#include "ui/widgets/popup_menu.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "statistics/chart_widget.h"
@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
@@ -52,50 +53,6 @@ namespace Info::ChannelEarn {
 namespace {
 
 using EarnInt = Data::EarnInt;
-
-constexpr auto kMinorPartLength = 9;
-constexpr auto kZero = QChar('0');
-constexpr auto kDot = QChar('.');
-
-[[nodiscard]] QString MajorPart(EarnInt value) {
-	const auto string = QString::number(value);
-	const auto diff = int(string.size()) - kMinorPartLength;
-	return (diff <= 0) ? QString(kZero) : string.mid(0, diff);
-}
-
-[[nodiscard]] QString MinorPart(EarnInt value) {
-	if (!value) {
-		return QString(kDot) + kZero + kZero;
-	}
-	const auto string = QString::number(value);
-	const auto diff = int(string.size()) - kMinorPartLength;
-	const auto result = (diff < 0)
-		? kDot + u"%1"_q.arg(0, std::abs(diff), 10, kZero) + string
-		: kDot + string.mid(diff);
-	const auto begin = (result.constData());
-	const auto end = (begin + result.size());
-	auto ch = end - 1;
-	auto zeroCount = 0;
-	while (ch != begin) {
-		if ((*ch) == kZero) {
-			zeroCount++;
-		} else {
-			break;
-		}
-		ch--;
-	}
-	return result.chopped(zeroCount);
-}
-
-[[nodiscard]] QString ToUsd(EarnInt value, float64 rate) {
-	constexpr auto kApproximately = QChar(0x2248);
-	const auto multiplier = EarnInt(rate * Data::kEarnMultiplier);
-	const auto result = (value * multiplier) / Data::kEarnMultiplier;
-	return QString(kApproximately)
-		+ QChar('$')
-		+ MajorPart(result)
-		+ MinorPart(result);
-}
 
 [[nodiscard]] bool WithdrawalEnabled(not_null<Main::Session*> session) {
 	const auto key = u"channel_revenue_withdrawal_enabled"_q;
@@ -480,7 +437,10 @@ void InnerWidget::fill() {
 				object_ptr<Statistic::ChartWidget>(container),
 				st::statisticsLayerMargins);
 
-			widget->setChartData(data.revenueGraph.chart, Type::StackBar);
+			auto chart = data.revenueGraph.chart;
+			chart.currencyRate = multiplier;
+
+			widget->setChartData(chart, Type::StackBar);
 			widget->setTitle(tr::lng_channel_earn_chart_revenue());
 		}
 		Ui::AddSkip(container);

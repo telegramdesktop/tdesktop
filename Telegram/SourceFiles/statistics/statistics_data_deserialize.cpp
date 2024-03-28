@@ -132,13 +132,6 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 			result.weekFormat = tooltipFormat.contains(u"'week'"_q);
 		}
 	}
-	{
-		const auto tickFormatIt = root.constFind(u"yTickFormatter"_q);
-		if (tickFormatIt != root.constEnd()) {
-			const auto tickFormat = tickFormatIt->toString();
-			result.isCurrency = tickFormat.contains(u"TON"_q);
-		}
-	}
 
 	const auto colors = root.value(u"colors"_q).toObject();
 	const auto names = root.value(u"names"_q).toObject();
