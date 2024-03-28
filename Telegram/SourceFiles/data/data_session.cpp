@@ -1679,6 +1679,20 @@ bool Session::queryItemVisibility(not_null<HistoryItem*> item) const {
 	return result;
 }
 
+bool Session::queryDocumentVisibility(
+		not_null<DocumentData*> document) const {
+	const auto i = _documentItems.find(document);
+	if (i != end(_documentItems)) {
+		for (const auto &item : i->second) {
+			if (queryItemVisibility(item)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+
 [[nodiscard]] auto Session::itemVisibilityQueries() const
 -> rpl::producer<Session::ItemVisibilityQuery> {
 	return _itemVisibilityQueries.events();

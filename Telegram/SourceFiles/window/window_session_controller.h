@@ -650,6 +650,10 @@ private:
 		CachedTheme &theme,
 		bool generateGradient = true) const;
 
+	[[nodiscard]] bool skipNonPremiumLimitToast(bool download) const;
+	void checkNonPremiumLimitToastDownload(DocumentId id);
+	void checkNonPremiumLimitToastUpload(FullMsgId id);
+
 	const not_null<Controller*> _window;
 	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
 	const bool _isPrimary = false;

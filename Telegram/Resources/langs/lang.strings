@@ -4948,6 +4948,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_iv_join_channel" = "Join";
 "lng_iv_window_title" = "Instant View";
 
+"lng_limit_download_title" = "Download speed limited";
+"lng_limit_download_subscribe" = "Subscribe to {link} and increase download speed {increase}.";
+"lng_limit_download_increase_times#one" = "**{count}** time";
+"lng_limit_download_increase_times#other" = "**{count}** times";
+"lng_limit_download_increase_speed" = "by **{percent}**";
+"lng_limit_download_subscribe_link" = "Telegram Premium";
+"lng_limit_upload_title" = "Upload speed limited";
+"lng_limit_upload_subscribe" = "Subscribe to {link} and increase upload speed {increase}.";
+"lng_limit_upload_increase_times#one" = "**{count}** time";
+"lng_limit_upload_increase_times#other" = "**{count}** times";
+"lng_limit_upload_increase_speed" = "by **{percent}**";
+"lng_limit_upload_subscribe_link" = "Telegram Premium";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

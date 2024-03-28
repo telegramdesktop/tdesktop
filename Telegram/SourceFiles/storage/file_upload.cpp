@@ -206,6 +206,13 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
 		processDocumentFailed(fullId);
 	}, _lifetime);
+
+	_api->instance().nonPremiumDelayedRequests(
+	) | rpl::start_with_next([=](mtpRequestId id) {
+		if (dcMap.contains(id)) {
+			_nonPremiumDelayed.emplace(id);
+		}
+	}, _lifetime);
 }
 
 void Uploader::processPhotoProgress(const FullMsgId &newId) {
@@ -359,7 +366,7 @@ void Uploader::upload(
 void Uploader::currentFailed() {
 	auto j = queue.find(uploadingId);
 	if (j != queue.end()) {
-		const auto &[msgId, file] = std::move(*j);
+		const auto [msgId, file] = std::move(*j);
 		queue.erase(j);
 		notifyFailed(msgId, file);
 	}
@@ -640,7 +647,7 @@ void Uploader::cancelAll() {
 		currentFailed();
 	}
 	while (!queue.empty()) {
-		const auto &[msgId, file] = std::move(*queue.begin());
+		const auto [msgId, file] = std::move(*queue.begin());
 		queue.erase(queue.begin());
 		notifyFailed(msgId, file);
 	}
@@ -689,6 +696,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 	if (i == requestsSent.cend()) {
 		j = docRequestsSent.find(requestId);
 	}
+	const auto wasNonPremiumDelayed = _nonPremiumDelayed.remove(requestId);
 	if (i != requestsSent.cend() || j != docRequestsSent.cend()) {
 		if (mtpIsFalse(result)) { // failed to upload current file
 			currentFailed();
@@ -742,6 +750,9 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 					file.fileSentSize,
 					file.file->partssize });
 			}
+			if (wasNonPremiumDelayed) {
+				_nonPremiumDelays.fire_copy(fullId);
+			}
 		}
 	}
 
@@ -750,6 +761,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 
 void Uploader::partFailed(const MTP::Error &error, mtpRequestId requestId) {
 	// failed to upload current file
+	_nonPremiumDelayed.remove(requestId);
 	if ((requestsSent.find(requestId) != requestsSent.cend())
 		|| (docRequestsSent.find(requestId) != docRequestsSent.cend())) {
 		currentFailed();

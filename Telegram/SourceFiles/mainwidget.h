@@ -233,6 +233,8 @@ public:
 		Fn<void()> callback,
 		const SectionShow &params) const;
 
+	void showNonPremiumLimitToast(bool download);
+
 	void dialogsCancelled();
 
 protected:
