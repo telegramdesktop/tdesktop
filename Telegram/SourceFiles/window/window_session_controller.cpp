@@ -1346,6 +1346,12 @@ void SessionController::showGiftPremiumsBox(const QString &ref) {
 	_giftPremiumValidator.showChoosePeerBox(ref);
 }
 
+void SessionController::showGiftPremiumsBox(
+		not_null<UserData*> user,
+		const QString &ref) {
+	_giftPremiumValidator.showChosenPeerBox(user, ref);
+}
+
 void SessionController::init() {
 	if (session().supportMode()) {
 		session().supportHelper().registerWindow(this);

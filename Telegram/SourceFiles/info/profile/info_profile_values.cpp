@@ -668,12 +668,14 @@ rpl::producer<QString> BirthdayValueText(
 		) | rpl::map([=](bool today) {
 			auto text = Data::BirthdayText(value);
 			if (const auto age = Data::BirthdayAge(value)) {
-				text = tr::lng_info_birthday_years(
-					tr::now,
-					lt_count,
-					age,
-					lt_date,
-					text);
+				text = (today
+					? tr::lng_info_birthday_today_years
+					: tr::lng_info_birthday_years)(
+						tr::now,
+						lt_count,
+						age,
+						lt_date,
+						text);
 			}
 			if (today) {
 				text = tr::lng_info_birthday_today(

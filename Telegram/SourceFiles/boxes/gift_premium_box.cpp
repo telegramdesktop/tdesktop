@@ -1014,6 +1014,30 @@ void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
 	}, _manyGiftsLifetime);
 }
 
+void GiftPremiumValidator::showChosenPeerBox(
+		not_null<UserData*> user,
+		const QString &ref) {
+	if (_manyGiftsLifetime) {
+		return;
+	}
+	using namespace Api;
+	const auto api = _manyGiftsLifetime.make_state<PremiumGiftCodeOptions>(
+		_controller->session().user());
+	const auto show = _controller->uiShow();
+	api->request(
+	) | rpl::start_with_error_done([=](const QString &error) {
+		show->showToast(error);
+	}, [=] {
+		const auto users = std::vector<not_null<UserData*>>{ user };
+		const auto giftBox = show->show(
+			Box(GiftsBox, _controller, users, api, ref));
+		giftBox->boxClosing(
+		) | rpl::start_with_next([=] {
+			_manyGiftsLifetime.destroy();
+		}, giftBox->lifetime());
+	}, _manyGiftsLifetime);
+}
+
 void GiftPremiumValidator::showBox(not_null<UserData*> user) {
 	if (_requestId) {
 		return;

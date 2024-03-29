@@ -395,6 +395,9 @@ public:
 	void showGiftPremiumBox(UserData *user);
 	void showGiftPremiumsBox(const QString &ref);
 
+	// Single user gift as if was selected in multiple recipients chooser.
+	void showGiftPremiumsBox(not_null<UserData*> user, const QString &ref);
+
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
 	rpl::producer<> gifPauseLevelChanged() const {

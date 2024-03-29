@@ -1020,3 +1020,11 @@ shortInfoBox: ShortInfoBox {
 	labeled: infoLabeled;
 	labeledOneLine: infoLabeledOneLine;
 }
+
+birthdayLabeled: FlatLabel(infoLabeled) {
+	margin: margins(0px, 0px, 0px, 0px);
+}
+birthdayLabel: FlatLabel(infoLabel) {
+	margin: margins(0px, 0px, 0px, 0px);
+}
+birthdayTodayIcon: icon {{ "menu/gift_premium", windowActiveTextFg }};

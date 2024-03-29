@@ -35,6 +35,7 @@ public:
 
 	void showBox(not_null<UserData*> user);
 	void showChoosePeerBox(const QString &ref);
+	void showChosenPeerBox(not_null<UserData*> user, const QString &ref);
 	void cancel();
 
 private:

@@ -598,6 +598,104 @@ base::options::toggle ShowPeerIdBelowAbout({
 	return result;
 }
 
+[[nodiscard]] object_ptr<Ui::SlideWrap<>> CreateBirthday(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user) {
+	using namespace Data;
+
+	auto result = object_ptr<Ui::SlideWrap<Ui::RoundButton>>(
+		parent,
+		object_ptr<Ui::RoundButton>(
+			parent,
+			rpl::single(QString()),
+			st::infoHoursOuter),
+		st::infoProfileLabeledPadding - st::infoHoursOuterMargin);
+	result->setDuration(st::infoSlideDuration);
+	const auto button = result->entity();
+
+	auto outer = Ui::CreateChild<Ui::SlideWrap<Ui::VerticalLayout>>(
+		button,
+		object_ptr<Ui::VerticalLayout>(button),
+		st::infoHoursOuterMargin);
+	const auto layout = outer->entity();
+	layout->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	auto birthday = BirthdayValue(
+		user
+	) | rpl::start_spawning(result->lifetime());
+
+	auto label = BirthdayLabelText(rpl::duplicate(birthday));
+	auto text = BirthdayValueText(
+		rpl::duplicate(birthday)
+	) | Ui::Text::ToWithEntities();
+
+	const auto giftIcon = Ui::CreateChild<Ui::RpWidget>(layout);
+	giftIcon->resize(st::birthdayTodayIcon.size());
+	layout->sizeValue() | rpl::start_with_next([=](QSize size) {
+		giftIcon->moveToRight(
+			0,
+			(size.height() - giftIcon->height()) / 2,
+			size.width());
+	}, giftIcon->lifetime());
+	giftIcon->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(giftIcon);
+		st::birthdayTodayIcon.paint(p, 0, 0, giftIcon->width());
+	}, giftIcon->lifetime());
+
+	rpl::duplicate(
+		birthday
+	) | rpl::map([](Data::Birthday value) {
+		return Data::IsBirthdayTodayValue(value);
+	}) | rpl::flatten_latest(
+	) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool today) {
+		const auto disable = !today && user->session().premiumCanBuy();
+		button->setDisabled(disable);
+		button->setAttribute(Qt::WA_TransparentForMouseEvents, disable);
+		button->clearState();
+		giftIcon->setVisible(!disable);
+	}, result->lifetime());
+
+	auto nonEmptyText = std::move(
+		text
+	) | rpl::before_next([slide = result.data()](
+			const TextWithEntities &value) {
+		if (value.text.isEmpty()) {
+			slide->hide(anim::type::normal);
+		}
+	}) | rpl::filter([](const TextWithEntities &value) {
+		return !value.text.isEmpty();
+	}) | rpl::after_next([slide = result.data()](
+			const TextWithEntities &value) {
+		slide->show(anim::type::normal);
+	});
+	auto labeled = layout->add(object_ptr<Ui::FlatLabel>(
+		layout,
+		std::move(nonEmptyText),
+		st::birthdayLabeled));
+	layout->add(Ui::CreateSkipWidget(layout, st::infoLabelSkip));
+	const auto subtext = layout->add(object_ptr<Ui::FlatLabel>(
+		layout,
+		std::move(
+			label
+		) | rpl::after_next([=] {
+			layout->resizeToWidth(layout->widthNoMargins());
+		}),
+		st::birthdayLabel));
+	result->finishAnimating();
+
+	Ui::ResizeFitChild(button, outer);
+
+	button->setClickedCallback([=] {
+		if (!button->isDisabled()) {
+			controller->showGiftPremiumsBox(user, u"birthday"_q);
+		}
+	});
+
+	return result;
+}
+
 template <typename Text, typename ToggleOn, typename Callback>
 auto AddActionButton(
 		not_null<Ui::VerticalLayout*> parent,
@@ -1004,14 +1102,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				return false;
 			});
 		} else {
-			addInfoOneLine(
-				BirthdayLabelText(BirthdayValue(user)),
-				BirthdayValueText(
-					BirthdayValue(user)
-				) | Ui::Text::ToWithEntities(),
-				tr::lng_mediaview_copy(tr::now),
-				st::infoProfileLabeledUsernamePadding);
-
+			tracker.track(result->add(
+				CreateBirthday(result, controller, user)));
 			tracker.track(result->add(CreateWorkingHours(result, user)));
 
 			auto locationText = user->session().changes().peerFlagsValue(
