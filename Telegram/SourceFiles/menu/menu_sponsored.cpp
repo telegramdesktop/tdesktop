@@ -324,4 +324,10 @@ void ShowSponsored(
 	menu->popup(QCursor::pos());
 }
 
+void ShowSponsoredAbout(std::shared_ptr<ChatHelpers::Show> show) {
+	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		AboutBox(box, &show->session());
+	}));
+}
+
 } // namespace Menu

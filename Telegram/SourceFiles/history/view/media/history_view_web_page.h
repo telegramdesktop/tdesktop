@@ -135,6 +135,13 @@ private:
 		Ui::PeerUserpicView userpicView;
 		QString buttonText;
 		bool hasExternalLink = false;
+
+		bool canReport = false;
+		QSize hintSize;
+		QPoint lastHintPos;
+		int widthBeforeHint = 0;
+		std::unique_ptr<Ui::RippleAnimation> hintRipple;
+		ClickHandlerPtr hintLink;
 	};
 	mutable std::optional<SponsoredData> _sponsoredData;
 

@@ -24,4 +24,6 @@ void ShowSponsored(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<HistoryItem*> item);
 
+void ShowSponsoredAbout(std::shared_ptr<ChatHelpers::Show> show);
+
 } // namespace Menu

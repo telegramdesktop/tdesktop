@@ -602,6 +602,7 @@ historyPsaForwardPalette: TextPalette(defaultTextPalette) {
 
 webPageTitleFont: semiboldFont;
 webPageTitleStyle: semiboldTextStyle;
+webPageSponsoredHintFont: font(10px);
 webPageDescriptionFont: normalFont;
 webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoDelta: 8px;

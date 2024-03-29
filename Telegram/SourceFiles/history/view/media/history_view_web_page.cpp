@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "menu/menu_sponsored.h"
 #include "ui/chat/chat_style.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -136,6 +137,15 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 	});
 }
 
+[[nodiscard]] ClickHandlerPtr AboutSponsoredClickHandler() {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			Menu::ShowSponsoredAbout(controller->uiShow());
+		}
+	});
+}
+
 [[nodiscard]] TextWithEntities PageToPhrase(not_null<WebPageData*> page) {
 	const auto type = page->type;
 	const auto text = Ui::Text::Upper(page->iv
@@ -223,6 +233,7 @@ WebPage::WebPage(
 	auto result = std::make_optional<SponsoredData>();
 	result->buttonText = details.buttonText;
 	result->hasExternalLink = (details.externalLink == _data->url);
+	result->canReport = details.canReport;
 #ifdef _DEBUG
 	if (details.peer) {
 #else
@@ -337,6 +348,10 @@ QSize WebPage::countOptimalSize() {
 			_openl = SponsoredLink(_sponsoredData->hasExternalLink
 				? _data->url
 				: QString());
+
+			if (_sponsoredData->canReport) {
+				_sponsoredData->hintLink = AboutSponsoredClickHandler();
+			}
 		}
 	}
 
@@ -479,6 +494,16 @@ QSize WebPage::countOptimalSize() {
 
 	if (_asArticle) {
 		minHeight = resizeGetHeight(maxWidth);
+	}
+	if (_sponsoredData && _sponsoredData->canReport) {
+		_sponsoredData->widthBeforeHint =
+			st::webPageTitleStyle.font->width(siteName);
+		const auto &font = st::webPageSponsoredHintFont;
+		_sponsoredData->hintSize = QSize(
+			font->width(tr::lng_sponsored_message_revenue_button(tr::now))
+				+ font->height,
+			font->height);
+		maxWidth += _sponsoredData->hintSize.width();
 	}
 	return { maxWidth, minHeight };
 }
@@ -790,6 +815,50 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			endskip,
 			false,
 			context.selection);
+		if (asSponsored
+			&& _sponsoredData->canReport
+			&& (paintw >
+					_sponsoredData->widthBeforeHint
+						+ _sponsoredData->hintSize.width())) {
+			if (_sponsoredData->hintRipple) {
+				_sponsoredData->hintRipple->paint(
+					p,
+					_sponsoredData->lastHintPos.x(),
+					_sponsoredData->lastHintPos.y(),
+					width(),
+					&cache->bg);
+				if (_sponsoredData->hintRipple->empty()) {
+					_sponsoredData->hintRipple = nullptr;
+				}
+			}
+
+			auto color = cache->icon;
+			color.setAlphaF(color.alphaF() * 0.15);
+
+			const auto height = st::webPageSponsoredHintFont->height;
+			const auto radius = height / 2;
+
+			_sponsoredData->lastHintPos = QPoint(
+				radius + inner.left() + _sponsoredData->widthBeforeHint,
+				tshift
+					+ (_siteName.style()->font->height - height) / 2
+					+ st::webPageSponsoredHintFont->descent / 2);
+			const auto rect = QRect(
+				_sponsoredData->lastHintPos,
+				_sponsoredData->hintSize);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(color);
+			p.drawRoundedRect(rect, radius, radius);
+
+			p.setPen(cache->icon);
+			p.setBrush(Qt::NoBrush);
+			p.setFont(st::webPageSponsoredHintFont);
+			p.drawText(
+				rect,
+				tr::lng_sponsored_message_revenue_button(tr::now),
+				style::al_center);
+		}
 		tshift += lineHeight;
 
 		p.setTextPalette(stm->textPalette);
@@ -1076,6 +1145,15 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	if ((!result.link || _sponsoredData) && outer.contains(point)) {
 		result.link = _openl;
 	}
+	if (_sponsoredData && _sponsoredData->canReport) {
+		const auto contains = QRect(
+			_sponsoredData->lastHintPos,
+			_sponsoredData->hintSize).contains(point
+				- QPoint(0, st::msgDateFont->height));
+		if (contains) {
+			result.link = _sponsoredData->hintLink;
+		}
+	}
 	_lastPoint = point - outer.topLeft();
 
 	result.symbol += symbolAdd;
@@ -1145,6 +1223,28 @@ void WebPage::clickHandlerActiveChanged(
 void WebPage::clickHandlerPressedChanged(
 		const ClickHandlerPtr &p,
 		bool pressed) {
+	if (_sponsoredData && _sponsoredData->hintLink == p) {
+		if (pressed) {
+			if (!_sponsoredData->hintRipple) {
+				const auto owner = &parent()->history()->owner();
+				auto ripple = std::make_unique<Ui::RippleAnimation>(
+					st::defaultRippleAnimation,
+					Ui::RippleAnimation::RoundRectMask(
+						_sponsoredData->hintSize,
+						_st.radius),
+					[=] { owner->requestViewRepaint(parent()); });
+				_sponsoredData->hintRipple = std::move(ripple);
+			}
+			const auto full = Rect(currentSize());
+			const auto outer = full - inBubblePadding();
+			_sponsoredData->hintRipple->add(_lastPoint
+				+ outer.topLeft()
+				- _sponsoredData->lastHintPos);
+		} else if (_sponsoredData->hintRipple) {
+			_sponsoredData->hintRipple->lastStop();
+		}
+		return;
+	}
 	if (p == _openl) {
 		if (pressed) {
 			if (!_ripple) {
