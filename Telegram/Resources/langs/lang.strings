@@ -1340,6 +1340,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_birthday_label" = "Date of birth";
 "lng_info_birthday_years#one" = "{date} ({count} year old)";
 "lng_info_birthday_years#other" = "{date} ({count} years old)";
+"lng_info_birthday_today_years#one" = "{date}\n({count} year old)";
+"lng_info_birthday_today_years#other" = "{date}\n({count} years old)";
 "lng_info_birthday_today_label" = "Birthday today";
 "lng_info_birthday_today" = "{emoji} {date}";
 "lng_info_bio_label" = "Bio";

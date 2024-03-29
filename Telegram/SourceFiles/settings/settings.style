@@ -110,8 +110,8 @@ settingsBusinessIconReplies: icon {{ "settings/premium/business/business_quick",
 settingsBusinessIconGreeting: icon {{ "settings/premium/status", settingsIconFg }};
 settingsBusinessIconAway: icon {{ "settings/premium/business/business_away", settingsIconFg }};
 settingsBusinessIconChatbots: icon {{ "settings/premium/business/business_chatbots", settingsIconFg }};
-settingsBusinessIconChatIntro: icon {{ "settings/premium/intro", settingsIconFg }};
-settingsBusinessIconChatLinks: icon {{ "settings/premium/links", settingsIconFg }};
+settingsBusinessIconChatIntro: icon {{ "settings/premium/business/business_intro", settingsIconFg }};
+settingsBusinessIconChatLinks: icon {{ "settings/premium/business/business_links", settingsIconFg }};
 
 settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(semiboldTextStyle) {
