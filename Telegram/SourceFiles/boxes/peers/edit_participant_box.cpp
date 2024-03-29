@@ -668,8 +668,8 @@ void EditAdminBox::sendTransferRequestFrom(
 		}();
 		const auto recoverable = [&] {
 			return (type == u"PASSWORD_MISSING"_q)
-				|| (type == u"PASSWORD_TOO_FRESH_XXX"_q)
-				|| (type == u"SESSION_TOO_FRESH_XXX"_q);
+				|| type.startsWith(u"PASSWORD_TOO_FRESH_"_q)
+				|| type.startsWith(u"SESSION_TOO_FRESH_"_q);
 		}();
 		const auto weak = Ui::MakeWeak(this);
 		getDelegate()->show(Ui::MakeInformBox(problem));
