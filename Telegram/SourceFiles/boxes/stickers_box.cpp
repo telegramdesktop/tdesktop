@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
+#include "data/data_premium_limits.h"
 #include "data/stickers/data_stickers.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
@@ -40,8 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/unread_badge_paint.h"
 #include "media/clip/media_clip_reader.h"
-#include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -1540,7 +1539,7 @@ void StickersBox::Inner::paintRowThumbnail(
 	const auto y = _st.photoPosition.y() + (_st.photoSize - row->pixh) / 2;
 	if (row->lottie && row->lottie->ready()) {
 		const auto frame = row->lottie->frame();
-		const auto size = frame.size() / cIntRetinaFactor();
+		const auto size = frame.size() / style::DevicePixelRatio();
 		p.drawImage(
 			QRect(
 				left + (_st.photoSize - size.width()) / 2,
@@ -1579,7 +1578,7 @@ void StickersBox::Inner::validateLottieAnimation(not_null<Row*> row) {
 		row->thumbnailMedia.get(),
 		row->stickerMedia.get(),
 		ChatHelpers::StickerLottieSize::SetsListThumbnail,
-		QSize(_st.photoSize, _st.photoSize) * cIntRetinaFactor());
+		QSize(_st.photoSize, _st.photoSize) * style::DevicePixelRatio());
 	if (!player) {
 		return;
 	}
@@ -2050,10 +2049,8 @@ void StickersBox::Inner::checkGroupLevel(Fn<void()> done) {
 			return std::optional<Ui::AskBoostReason>();
 		}
 		_checkingGroupLevel = false;
-		const auto appConfig = &peer->session().account().appConfig();
-		const auto required = appConfig->get<int>(
-			"group_emoji_stickers_level_min",
-			4);
+		const auto required = Data::LevelLimits(
+			&peer->session()).groupEmojiStickersLevelMin();
 		if (level >= required) {
 			save();
 			return std::optional<Ui::AskBoostReason>();

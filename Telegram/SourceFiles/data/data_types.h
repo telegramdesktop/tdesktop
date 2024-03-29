@@ -109,10 +109,13 @@ using FilterId = int32;
 
 using MessageIdsList = std::vector<FullMsgId>;
 
-PeerId PeerFromMessage(const MTPmessage &message);
-MTPDmessage::Flags FlagsFromMessage(const MTPmessage &message);
-MsgId IdFromMessage(const MTPmessage &message);
-TimeId DateFromMessage(const MTPmessage &message);
+[[nodiscard]] PeerId PeerFromMessage(const MTPmessage &message);
+[[nodiscard]] MTPDmessage::Flags FlagsFromMessage(
+	const MTPmessage &message);
+[[nodiscard]] MsgId IdFromMessage(const MTPmessage &message);
+[[nodiscard]] TimeId DateFromMessage(const MTPmessage &message);
+[[nodiscard]] BusinessShortcutId BusinessShortcutIdFromMessage(
+	const MTPmessage &message);
 
 [[nodiscard]] inline MTPint MTP_int(MsgId id) noexcept {
 	return MTP_int(id.bare);
@@ -315,6 +318,8 @@ enum class MessageFlag : uint64 {
 	Sponsored             = (1ULL << 42),
 
 	ReactionsAreTags      = (1ULL << 43),
+
+	ShortcutMessage       = (1ULL << 44),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

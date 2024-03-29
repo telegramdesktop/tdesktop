@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_location_manager.h"
 
-struct HistoryMessageMarkupData;
+struct HistoryItemCommonFields;
 
 namespace Main {
 class Session;
@@ -43,14 +43,7 @@ public:
 	virtual void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MessageFlags flags,
-		MsgId msgId,
-		PeerId fromId,
-		TimeId date,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		const QString &postAuthor,
-		HistoryMessageMarkupData &&markup) const = 0;
+		HistoryItemCommonFields &&fields) const = 0;
 	virtual QString getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const = 0;
@@ -85,14 +78,7 @@ public:
 	void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MessageFlags flags,
-		MsgId msgId,
-		PeerId fromId,
-		TimeId date,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		const QString &postAuthor,
-		HistoryMessageMarkupData &&markup) const override;
+		HistoryItemCommonFields &&fields) const override;
 
 	QString getErrorOnSend(
 		const Result *owner,
@@ -253,14 +239,7 @@ public:
 	void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MessageFlags flags,
-		MsgId msgId,
-		PeerId fromId,
-		TimeId date,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		const QString &postAuthor,
-		HistoryMessageMarkupData &&markup) const override;
+		HistoryItemCommonFields &&fields) const override;
 
 	QString getErrorOnSend(
 		const Result *owner,
@@ -294,14 +273,7 @@ public:
 	void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MessageFlags flags,
-		MsgId msgId,
-		PeerId fromId,
-		TimeId date,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		const QString &postAuthor,
-		HistoryMessageMarkupData &&markup) const override;
+		HistoryItemCommonFields &&fields) const override;
 
 	QString getErrorOnSend(
 		const Result *owner,
@@ -329,14 +301,7 @@ public:
 	void addToHistory(
 		const Result *owner,
 		not_null<History*> history,
-		MessageFlags flags,
-		MsgId msgId,
-		PeerId fromId,
-		TimeId date,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		const QString &postAuthor,
-		HistoryMessageMarkupData &&markup) const override;
+		HistoryItemCommonFields &&fields) const override;
 
 	QString getErrorOnSend(
 		const Result *owner,

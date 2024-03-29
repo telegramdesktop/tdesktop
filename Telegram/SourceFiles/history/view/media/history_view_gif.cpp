@@ -536,7 +536,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (streamed && !skipDrawingContent && !fullHiddenBySpoiler) {
 		auto paused = context.paused;
 		auto request = ::Media::Streaming::FrameRequest{
-			.outer = QSize(usew, painth) * cIntRetinaFactor(),
+			.outer = QSize(usew, painth) * style::DevicePixelRatio(),
 			.blurredBackground = true,
 		};
 		if (isRound) {
@@ -1384,8 +1384,8 @@ void Gif::drawGrouped(
 			{ originalWidth, originalHeight },
 			{ geometry.width(), geometry.height() });
 		auto request = ::Media::Streaming::FrameRequest{
-			.resize = pixSize * cIntRetinaFactor(),
-			.outer = geometry.size() * cIntRetinaFactor(),
+			.resize = pixSize * style::DevicePixelRatio(),
+			.outer = geometry.size() * style::DevicePixelRatio(),
 			.rounding = MediaRoundingMask(rounding),
 		};
 		if (activeOwnPlaying->instance.playerLocked()) {

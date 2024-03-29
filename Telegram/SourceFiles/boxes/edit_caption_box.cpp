@@ -682,7 +682,7 @@ void EditCaptionBox::setupEmojiPanel() {
 			&& !_controller->session().premium()) {
 			ShowPremiumPreviewBox(
 				_controller,
-				PremiumPreview::AnimatedEmoji);
+				PremiumFeature::AnimatedEmoji);
 		} else {
 			Data::InsertCustomEmoji(_field.get(), data.document);
 		}
@@ -895,6 +895,7 @@ void EditCaptionBox::save() {
 
 	auto options = Api::SendOptions();
 	options.scheduled = item->isScheduled() ? item->date() : 0;
+	options.shortcutId = item->shortcutId();
 
 	if (!_preparedList.files.empty()) {
 		if ((_albumType != Ui::AlbumType::None)

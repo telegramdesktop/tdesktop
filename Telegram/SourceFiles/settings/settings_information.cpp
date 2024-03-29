@@ -483,7 +483,8 @@ void SetupBio(
 		}
 		changed->fire(*current != text);
 		const auto limit = self->isPremium() ? premiumLimit : defaultLimit;
-		const auto countLeft = limit - int(text.size());
+		const auto countLeft = limit
+			- bio->lastTextSizeWithoutSurrogatePairsCount();
 		countdown->setText(QString::number(countLeft));
 		countdown->setTextColorOverride(
 			countLeft < 0 ? st::boxTextFgError->c : std::optional<QColor>());
@@ -648,6 +649,9 @@ void SetupAccountsWrap(
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		if (which == Qt::LeftButton) {
 			callback(raw->clickModifiers());
+			return;
+		} else if (which == Qt::MiddleButton) {
+			callback(Qt::ControlModifier);
 			return;
 		} else if (which != Qt::RightButton) {
 			return;

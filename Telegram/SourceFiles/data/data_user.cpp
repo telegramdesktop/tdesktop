@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_user_photos.h"
 #include "main/main_session.h"
+#include "data/business/data_business_common.h"
+#include "data/business/data_business_info.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_peer_bot_command.h"
@@ -61,6 +63,8 @@ UserData::UserData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
 , _flags((id == owner->session().userPeerId()) ? Flag::Self : Flag(0)) {
 }
+
+UserData::~UserData() = default;
 
 bool UserData::canShareThisContact() const {
 	return canShareThisContactFast()
@@ -172,6 +176,23 @@ void UserData::setStoriesState(StoriesState state) {
 		}
 		session().changes().peerUpdated(this, UpdateFlag::StoriesState);
 	}
+}
+
+const Data::BusinessDetails &UserData::businessDetails() const {
+	static const auto empty = Data::BusinessDetails();
+	return _businessDetails ? *_businessDetails : empty;
+}
+
+void UserData::setBusinessDetails(Data::BusinessDetails details) {
+	details.hours = details.hours.normalized();
+	if ((!details && !_businessDetails)
+		|| (details && _businessDetails && details == *_businessDetails)) {
+		return;
+	}
+	_businessDetails = details
+		? std::make_unique<Data::BusinessDetails>(std::move(details))
+		: nullptr;
+	session().changes().peerUpdated(this, UpdateFlag::BusinessDetails);
 }
 
 void UserData::setName(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
@@ -570,6 +591,16 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			update.is_wallpaper_overridden());
 	} else {
 		user->setWallPaper({});
+	}
+
+	user->setBusinessDetails(FromMTP(
+		update.vbusiness_work_hours(),
+		update.vbusiness_location()));
+	if (user->isSelf()) {
+		user->owner().businessInfo().applyAwaySettings(
+			FromMTP(&user->owner(), update.vbusiness_away_message()));
+		user->owner().businessInfo().applyGreetingSettings(
+			FromMTP(&user->owner(), update.vbusiness_greeting_message()));
 	}
 
 	user->owner().stories().apply(user, update.vstories());

@@ -303,6 +303,8 @@ windowFilterTypeBots: icon {{ "folders/folders_type_bots", historyPeerUserpicFg 
 windowFilterTypeNoMuted: icon {{ "folders/folders_type_muted", historyPeerUserpicFg }};
 windowFilterTypeNoArchived: icon {{ "folders/folders_type_archived", historyPeerUserpicFg }};
 windowFilterTypeNoRead: icon {{ "folders/folders_type_read", historyPeerUserpicFg }};
+windowFilterTypeNewChats: icon {{ "folders/folder_new_chats", historyPeerUserpicFg }};
+windowFilterTypeExistingChats: icon {{ "folders/folder_existing_chats", historyPeerUserpicFg }};
 windowFilterChatsSectionSubtitleHeight: 28px;
 windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
@@ -316,6 +318,11 @@ windowArchiveToast: Toast(defaultToast) {
 	minWidth: boxWideWidth;
 	maxWidth: boxWideWidth;
 }
+
+ivWidthMin: 380px;
+ivHeightMin: 480px;
+ivWidthDefault: 600px;
+ivHeightDefault: 800px;
 
 // Windows specific
 

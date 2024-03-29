@@ -44,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "calls/calls_instance.h"
 #include "countries/countries_manager.h"
+#include "iv/iv_delegate_impl.h"
+#include "iv/iv_instance.h"
 #include "lang/lang_file_parser.h"
 #include "lang/lang_translator.h"
 #include "lang/lang_cloud_manager.h"
@@ -162,6 +164,8 @@ Application::Application()
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
 , _exportManager(std::make_unique<Export::Manager>())
 , _calls(std::make_unique<Calls::Instance>())
+, _iv(std::make_unique<Iv::Instance>(
+	Ui::CreateChild<Iv::DelegateImpl>(this)))
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
@@ -218,6 +222,7 @@ Application::~Application() {
 	// Domain::finish() and there is a violation on Ensures(started()).
 	Payments::CheckoutProcess::ClearAll();
 	InlineBots::AttachWebView::ClearAll();
+	_iv->closeAll();
 
 	_domain->finish();
 
@@ -1272,6 +1277,8 @@ bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 		return false;
 	} else if (_calls->hasActivePanel(session)) {
 		return true;
+	} else if (_iv->hasActiveWindow(session)) {
+		return true;
 	} else if (const auto window = _lastActiveWindow) {
 		return (window->account().maybeSession() == session)
 			&& window->widget()->isActive();
@@ -1361,6 +1368,25 @@ Window::Controller *Application::windowFor(
 		return separate;
 	}
 	return activePrimaryWindow();
+}
+
+Window::Controller *Application::findWindow(
+		not_null<QWidget*> widget) const {
+	const auto window = widget->window();
+	if (_lastActiveWindow && _lastActiveWindow->widget() == window) {
+		return _lastActiveWindow;
+	}
+	for (const auto &[account, primary] : _primaryWindows) {
+		if (primary->widget() == window) {
+			return primary.get();
+		}
+	}
+	for (const auto &[history, secondary] : _secondaryWindows) {
+		if (secondary->widget() == window) {
+			return secondary.get();
+		}
+	}
+	return nullptr;
 }
 
 Window::Controller *Application::activeWindow() const {
@@ -1542,12 +1568,12 @@ bool Application::closeActiveWindow() {
 	if (_mediaView && _mediaView->isActive()) {
 		_mediaView->close();
 		return true;
-	} else if (!calls().closeCurrentActiveCall()) {
-		if (const auto window = activeWindow()) {
-			if (window->widget()->isActive()) {
-				window->close();
-				return true;
-			}
+	} else if (_iv->closeActive() || calls().closeCurrentActiveCall()) {
+		return true;
+	} else if (const auto window = activeWindow()) {
+		if (window->widget()->isActive()) {
+			window->close();
+			return true;
 		}
 	}
 	return false;
@@ -1557,7 +1583,8 @@ bool Application::minimizeActiveWindow() {
 	if (_mediaView && _mediaView->isActive()) {
 		_mediaView->minimize();
 		return true;
-	} else if (calls().minimizeCurrentActiveCall()) {
+	} else if (_iv->minimizeActive()
+		|| calls().minimizeCurrentActiveCall()) {
 		return true;
 	} else {
 		if (const auto window = activeWindow()) {

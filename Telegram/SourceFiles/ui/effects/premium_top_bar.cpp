@@ -25,6 +25,21 @@ constexpr auto kBodyAnimationPart = 0.90;
 constexpr auto kTitleAdditionalScale = 0.15;
 constexpr auto kMinAcceptableContrast = 4.5; // 1.14;
 
+[[nodiscard]] QImage ScaleTo(QImage image) {
+	using namespace style;
+	const auto size = image.size();
+	const auto scale = DevicePixelRatio() * Scale() / 300.;
+	const auto scaled = QSize(
+		int(base::SafeRound(size.width() * scale)),
+		int(base::SafeRound(size.height() * scale)));
+	image = image.scaled(
+		scaled,
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
+	image.setDevicePixelRatio(DevicePixelRatio());
+	return image;
+}
+
 } // namespace
 
 QString Svg() {
@@ -157,27 +172,41 @@ TopBar::TopBar(
 	rpl::producer<TextWithEntities> about,
 	bool light,
 	bool optimizeMinistars)
+: TopBar(parent, st, {
+	.clickContextOther = std::move(clickContextOther),
+	.title = std::move(title),
+	.about = std::move(about),
+	.light = light,
+	.optimizeMinistars = optimizeMinistars,
+}) {
+}
+
+TopBar::TopBar(
+	not_null<QWidget*> parent,
+	const style::PremiumCover &st,
+	TopBarDescriptor &&descriptor)
 : TopBarAbstract(parent, st)
-, _light(light)
+, _light(descriptor.light)
+, _logo(descriptor.logo)
 , _titleFont(st.titleFont)
 , _titlePadding(st.titlePadding)
-, _about(this, std::move(about), st.about)
-, _ministars(this, optimizeMinistars) {
+, _about(this, std::move(descriptor.about), st.about)
+, _ministars(this, descriptor.optimizeMinistars) {
 	std::move(
-		title
+		descriptor.title
 	) | rpl::start_with_next([=](QString text) {
 		_titlePath = QPainterPath();
 		_titlePath.addText(0, _titleFont->ascent, _titleFont, text);
 		update();
 	}, lifetime());
 
-	if (clickContextOther) {
+	if (const auto other = descriptor.clickContextOther) {
 		_about->setClickHandlerFilter([=](
 				const ClickHandlerPtr &handler,
 				Qt::MouseButton button) {
 			ActivateClickHandler(_about, handler, {
 				button,
-				clickContextOther()
+				other()
 			});
 			return false;
 		});
@@ -188,7 +217,10 @@ TopBar::TopBar(
 	) | rpl::start_with_next([=] {
 		TopBarAbstract::computeIsDark();
 
-		if (!_light && !TopBarAbstract::isDark()) {
+		if (_logo == u"dollar"_q) {
+			_dollar = ScaleTo(QImage(u":/gui/art/business_logo.png"_q));
+			_ministars.setColorOverride(st::premiumButtonFg->c);
+		} else if (!_light && !TopBarAbstract::isDark()) {
 			_star.load(Svg());
 			_ministars.setColorOverride(st::premiumButtonFg->c);
 		} else {
@@ -232,8 +264,11 @@ rpl::producer<int> TopBar::additionalHeight() const {
 }
 
 void TopBar::resizeEvent(QResizeEvent *e) {
-	const auto progress = (e->size().height() - minimumHeight())
-		/ float64(maximumHeight() - minimumHeight());
+	const auto max = maximumHeight();
+	const auto min = minimumHeight();
+	const auto progress = (max > min)
+		? ((e->size().height() - min) / float64(max - min))
+		: 1.;
 	_progress.top = 1. -
 		std::clamp(
 			(1. - progress) / kBodyAnimationPart,
@@ -291,7 +326,12 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	}
 	p.resetTransform();
 
-	_star.render(&p, _starRect);
+	if (!_dollar.isNull()) {
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(_starRect, _dollar);
+	} else {
+		_star.render(&p, _starRect);
+	}
 
 	const auto color = _light
 		? st::settingsPremiumUserTitle.textFg

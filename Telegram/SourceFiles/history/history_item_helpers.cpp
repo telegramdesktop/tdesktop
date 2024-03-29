@@ -362,7 +362,7 @@ ClickHandlerPtr HideSponsoredClickHandler() {
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			ShowPremiumPreviewBox(controller, PremiumPreview::NoAds);
+			ShowPremiumPreviewBox(controller, PremiumFeature::NoAds);
 		}
 	});
 }
@@ -386,6 +386,9 @@ MessageFlags FlagsFromMTP(
 		| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag())
 		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag())
 		| ((flags & MTP::f_reply_markup) ? Flag::HasReplyMarkup : Flag())
+		| ((flags & MTP::f_quick_reply_shortcut_id)
+			? Flag::ShortcutMessage
+			: Flag())
 		| ((flags & MTP::f_from_scheduled)
 			? Flag::IsOrWasScheduled
 			: Flag())
@@ -598,11 +601,11 @@ not_null<HistoryItem*> GenerateJoinedMessage(
 		TimeId inviteDate,
 		not_null<UserData*> inviter,
 		bool viaRequest) {
-	return history->makeMessage(
-		history->owner().nextLocalMessageId(),
-		MessageFlag::Local | MessageFlag::ShowSimilarChannels,
-		inviteDate,
-		GenerateJoinedText(history, inviter, viaRequest));
+	return history->makeMessage({
+		.id = history->owner().nextLocalMessageId(),
+		.flags = MessageFlag::Local | MessageFlag::ShowSimilarChannels,
+		.date = inviteDate,
+	}, GenerateJoinedText(history, inviter, viaRequest));
 }
 
 std::optional<bool> PeerHasThisCall(
@@ -657,6 +660,7 @@ std::optional<bool> PeerHasThisCall(
 		MessageFlags flags) {
 	if (!(flags & MessageFlag::FakeHistoryItem)
 		&& !(flags & MessageFlag::IsOrWasScheduled)
+		&& !(flags & MessageFlag::ShortcutMessage)
 		&& !(flags & MessageFlag::AdminLogEntry)) {
 		flags |= MessageFlag::HistoryEntry;
 		if (history->peer->isSelf()) {
@@ -789,7 +793,7 @@ void ShowTrialTranscribesToast(int left, TimeId until) {
 	}
 	const auto filter = [=](const auto &...) {
 		if (const auto controller = window->sessionController()) {
-			ShowPremiumPreviewBox(controller, PremiumPreview::VoiceToText);
+			ShowPremiumPreviewBox(controller, PremiumFeature::VoiceToText);
 			window->activate();
 		}
 		return false;

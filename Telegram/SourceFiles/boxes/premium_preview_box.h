@@ -45,7 +45,8 @@ void UpgradedStoriesPreviewBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
 
-enum class PremiumPreview {
+enum class PremiumFeature {
+	// Premium features.
 	Stories,
 	DoubleLimits,
 	MoreUpload,
@@ -64,24 +65,33 @@ enum class PremiumPreview {
 	TagsForMessages,
 	LastSeen,
 	MessagePrivacy,
+	Business,
+
+	// Business features.
+	BusinessLocation,
+	BusinessHours,
+	QuickReplies,
+	GreetingMessage,
+	AwayMessage,
+	BusinessBots,
 
 	kCount,
 };
 
 void ShowPremiumPreviewBox(
 	not_null<Window::SessionController*> controller,
-	PremiumPreview section,
+	PremiumFeature section,
 	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
 
 void ShowPremiumPreviewBox(
 	std::shared_ptr<ChatHelpers::Show> show,
-	PremiumPreview section,
+	PremiumFeature section,
 	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr,
 	bool hideSubscriptionButton = false);
 
 void ShowPremiumPreviewToBuy(
 	not_null<Window::SessionController*> controller,
-	PremiumPreview section,
+	PremiumFeature section,
 	Fn<void()> hiddenCallback = nullptr);
 
 void PremiumUnavailableBox(not_null<Ui::GenericBox*> box);

@@ -2042,7 +2042,8 @@ bool Message::hasFromPhoto() const {
 	case Context::TTLViewer:
 	case Context::Pinned:
 	case Context::Replies:
-	case Context::SavedSublist: {
+	case Context::SavedSublist:
+	case Context::ScheduledTopic: {
 		const auto item = data();
 		if (item->isPost()) {
 			return false;
@@ -2061,6 +2062,7 @@ bool Message::hasFromPhoto() const {
 		return !item->out() && !item->history()->peer->isUser();
 	} break;
 	case Context::ContactPreview:
+	case Context::ShortcutMessages:
 		return false;
 	}
 	Unexpected("Context in Message::hasFromPhoto.");
@@ -3030,7 +3032,7 @@ void Message::refreshReactions() {
 							= ExtractController(context)) {
 							ShowPremiumPreviewBox(
 								controller,
-								PremiumPreview::TagsForMessages);
+								PremiumFeature::TagsForMessages);
 						}
 						return;
 					}
@@ -3240,7 +3242,8 @@ bool Message::hasFromName() const {
 	case Context::TTLViewer:
 	case Context::Pinned:
 	case Context::Replies:
-	case Context::SavedSublist: {
+	case Context::SavedSublist:
+	case Context::ScheduledTopic: {
 		const auto item = data();
 		const auto peer = item->history()->peer;
 		if (hasOutLayout() && !item->from()->isChannel()) {
@@ -3268,6 +3271,7 @@ bool Message::hasFromName() const {
 		return false;
 	} break;
 	case Context::ContactPreview:
+	case Context::ShortcutMessages:
 		return false;
 	}
 	Unexpected("Context in Message::hasFromName.");
@@ -3306,6 +3310,9 @@ bool Message::hasOutLayout() const {
 	const auto item = data();
 	if (item->history()->peer->isSelf()) {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+			if (context() == Context::ShortcutMessages) {
+				return true;
+			}
 			return (context() == Context::SavedSublist)
 				&& (!forwarded->forwardOfForward()
 					? (forwarded->originalSender

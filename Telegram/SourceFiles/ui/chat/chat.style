@@ -301,6 +301,7 @@ historySentInvertedIcon: icon {{ "history_sent", historyIconFgInverted, point(2p
 historyReceivedIcon: icon {{ "history_received", historyOutIconFg, point(2px, 4px) }};
 historyReceivedSelectedIcon: icon {{ "history_received", historyOutIconFgSelected, point(2px, 4px) }};
 historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, point(2px, 4px) }};
+historyShortcutStateSpace: 18px;
 
 historyViewsSpace: 8px;
 historyViewsWidth: 20px;
@@ -1043,7 +1044,20 @@ premiumRequiredWidth: 186px;
 premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
 premiumRequiredCircle: 60px;
 
+repliesEmptyIcon: icon{{ "chat/large_quickreply", msgServiceFg }};
+greetingEmptyIcon: icon{{ "chat/large_greeting", msgServiceFg }};
+awayEmptyIcon: icon{{ "chat/large_away", msgServiceFg }};
+repliesEmptyWidth: 264px;
+repliesEmptySkip: 16px;
+repliesEmptyPadding: margins(10px, 20px, 10px, 16px);
+repliesComposeControls: ComposeControls(defaultComposeControls) {
+	tabbedHeightMin: 220px;
+}
+
 boostMessageIcon: icon {{ "stories/boost_mini", windowFg }};
 boostMessageIconPadding: margins(0px, 2px, 0px, 0px);
 boostsMessageIcon: icon {{ "stories/boosts_mini", windowFg }};
 boostsMessageIconPadding: margins(0px, 2px, 0px, 0px);
+
+historyIvIcon: icon{{ "boosts/boost_mini2", windowFg }};
+historyIvIconPadding: margins(2px, 2px, 2px, 0px);

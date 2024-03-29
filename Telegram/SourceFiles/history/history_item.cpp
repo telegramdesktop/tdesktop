@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/history_unread_things.h"
 #include "history/history.h"
+#include "iv/iv_data.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_isolated_emoji.h"
@@ -123,6 +124,14 @@ template <typename T>
 		}
 	}
 	return false;
+}
+
+[[nodiscard]] HistoryItemCommonFields ForwardedFields(
+		HistoryItemCommonFields fields,
+		not_null<History*> history,
+		not_null<HistoryItem*> original) {
+	fields.flags |= NewForwardedFlags(history->peer, fields.from, original);
+	return fields;
 }
 
 } // namespace
@@ -347,12 +356,13 @@ HistoryItem::HistoryItem(
 	MsgId id,
 	const MTPDmessage &data,
 	MessageFlags localFlags)
-: HistoryItem(
-		history,
-		id,
-		FlagsFromMTP(id, data.vflags().v, localFlags),
-		data.vdate().v,
-		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
+: HistoryItem(history, {
+	.id = id,
+	.flags = FlagsFromMTP(id, data.vflags().v, localFlags),
+	.from = data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0),
+	.date = data.vdate().v,
+	.shortcutId = data.vquick_reply_shortcut_id().value_or_empty(),
+}) {
 	_boostsApplied = data.vfrom_boosts_applied().value_or_empty();
 
 	const auto media = data.vmedia();
@@ -406,12 +416,12 @@ HistoryItem::HistoryItem(
 	MsgId id,
 	const MTPDmessageService &data,
 	MessageFlags localFlags)
-: HistoryItem(
-		history,
-		id,
-		FlagsFromMTP(id, data.vflags().v, localFlags),
-		data.vdate().v,
-		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
+: HistoryItem(history, {
+	.id = id,
+	.flags = FlagsFromMTP(id, data.vflags().v, localFlags),
+	.from = data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0),
+	.date = data.vdate().v,
+}) {
 	if (data.vaction().type() != mtpc_messageActionPhoneCall) {
 		createServiceFromMtp(data);
 	} else {
@@ -431,9 +441,7 @@ HistoryItem::HistoryItem(
 	MessageFlags localFlags)
 : HistoryItem(
 	history,
-	id,
-	localFlags,
-	TimeId(0),
+	{ .id = id, .flags = localFlags },
 	PreparedServiceText{ tr::lng_message_empty(
 		tr::now,
 		Ui::Text::WithEntities) }) {
@@ -441,13 +449,10 @@ HistoryItem::HistoryItem(
 
 HistoryItem::HistoryItem(
 	not_null<History*> history,
-	MsgId id,
-	MessageFlags flags,
-	TimeId date,
+	HistoryItemCommonFields &&fields,
 	PreparedServiceText &&message,
-	PeerId from,
 	PhotoData *photo)
-: HistoryItem(history, id, flags, date, from) {
+: HistoryItem(history, fields) {
 	setServiceText(std::move(message));
 	if (photo) {
 		_media = std::make_unique<Data::MediaPhoto>(
@@ -459,25 +464,16 @@ HistoryItem::HistoryItem(
 
 HistoryItem::HistoryItem(
 	not_null<History*> history,
-	MsgId id,
-	MessageFlags flags,
-	TimeId date,
-	PeerId from,
-	const QString &postAuthor,
-	not_null<HistoryItem*> original,
-	MsgId topicRootId)
-: HistoryItem(
-		history,
-		id,
-		(NewForwardedFlags(history->peer, from, original) | flags),
-		date,
-		from) {
+	HistoryItemCommonFields &&fields,
+	not_null<HistoryItem*> original)
+: HistoryItem(history, ForwardedFields(fields, history, original)) {
 	const auto peer = history->peer;
 
 	auto config = CreateConfig();
 
 	const auto originalMedia = original->media();
 	const auto dropForwardInfo = original->computeDropForwardedInfo();
+	const auto topicRootId = fields.replyTo.topicRootId;
 	config.reply.messageId = config.reply.topMessageId = topicRootId;
 	config.reply.topicPost = (topicRootId != 0) ? 1 : 0;
 	if (const auto originalReply = original->Get<HistoryMessageReply>()) {
@@ -520,8 +516,8 @@ HistoryItem::HistoryItem(
 			? original->author()->id
 			: PeerId();
 	}
-	if (flags & MessageFlag::HasPostAuthor) {
-		config.postAuthor = postAuthor;
+	if (_flags & MessageFlag::HasPostAuthor) {
+		config.postAuthor = fields.postAuthor;
 	}
 	if (const auto fwdViaBot = original->viaBot()) {
 		config.viaBotId = peerToUser(fwdViaBot->id);
@@ -571,63 +567,28 @@ HistoryItem::HistoryItem(
 
 HistoryItem::HistoryItem(
 	not_null<History*> history,
-	MsgId id,
-	MessageFlags flags,
-	FullReplyTo replyTo,
-	UserId viaBotId,
-	TimeId date,
-	PeerId from,
-	const QString &postAuthor,
+	HistoryItemCommonFields &&fields,
 	const TextWithEntities &textWithEntities,
-	const MTPMessageMedia &media,
-	HistoryMessageMarkupData &&markup,
-	uint64 groupedId)
-: HistoryItem(
-		history,
-		id,
-		flags,
-		date,
-		(flags & MessageFlag::HasFromId) ? from : 0) {
-	createComponentsHelper(
-		flags,
-		replyTo,
-		viaBotId,
-		postAuthor,
-		std::move(markup));
+	const MTPMessageMedia &media)
+: HistoryItem(history, fields) {
+	createComponentsHelper(std::move(fields));
 	setMedia(media);
 	setText(textWithEntities);
-	if (groupedId) {
+	if (fields.groupedId) {
 		setGroupId(MessageGroupId::FromRaw(
 			history->peer->id,
-			groupedId,
-			flags & MessageFlag::IsOrWasScheduled));
+			fields.groupedId,
+			_flags & MessageFlag::IsOrWasScheduled));
 	}
 }
 
 HistoryItem::HistoryItem(
 	not_null<History*> history,
-	MsgId id,
-	MessageFlags flags,
-	FullReplyTo replyTo,
-	UserId viaBotId,
-	TimeId date,
-	PeerId from,
-	const QString &postAuthor,
+	HistoryItemCommonFields &&fields,
 	not_null<DocumentData*> document,
-	const TextWithEntities &caption,
-	HistoryMessageMarkupData &&markup)
-: HistoryItem(
-		history,
-		id,
-		flags,
-		date,
-		(flags & MessageFlag::HasFromId) ? from : 0) {
-	createComponentsHelper(
-		flags,
-		replyTo,
-		viaBotId,
-		postAuthor,
-		std::move(markup));
+	const TextWithEntities &caption)
+: HistoryItem(history, fields) {
+	createComponentsHelper(std::move(fields));
 
 	const auto skipPremiumEffect = !history->session().premium();
 	const auto spoiler = false;
@@ -642,28 +603,11 @@ HistoryItem::HistoryItem(
 
 HistoryItem::HistoryItem(
 	not_null<History*> history,
-	MsgId id,
-	MessageFlags flags,
-	FullReplyTo replyTo,
-	UserId viaBotId,
-	TimeId date,
-	PeerId from,
-	const QString &postAuthor,
+	HistoryItemCommonFields &&fields,
 	not_null<PhotoData*> photo,
-	const TextWithEntities &caption,
-	HistoryMessageMarkupData &&markup)
-: HistoryItem(
-		history,
-		id,
-		flags,
-		date,
-		(flags & MessageFlag::HasFromId) ? from : 0) {
-	createComponentsHelper(
-		flags,
-		replyTo,
-		viaBotId,
-		postAuthor,
-		std::move(markup));
+	const TextWithEntities &caption)
+: HistoryItem(history, fields) {
+	createComponentsHelper(std::move(fields));
 
 	const auto spoiler = false;
 	_media = std::make_unique<Data::MediaPhoto>(this, photo, spoiler);
@@ -672,27 +616,10 @@ HistoryItem::HistoryItem(
 
 HistoryItem::HistoryItem(
 	not_null<History*> history,
-	MsgId id,
-	MessageFlags flags,
-	FullReplyTo replyTo,
-	UserId viaBotId,
-	TimeId date,
-	PeerId from,
-	const QString &postAuthor,
-	not_null<GameData*> game,
-	HistoryMessageMarkupData &&markup)
-: HistoryItem(
-		history,
-		id,
-		flags,
-		date,
-		(flags & MessageFlag::HasFromId) ? from : 0) {
-	createComponentsHelper(
-		flags,
-		replyTo,
-		viaBotId,
-		postAuthor,
-		std::move(markup));
+	HistoryItemCommonFields &&fields,
+	not_null<GameData*> game)
+: HistoryItem(history, fields) {
+	createComponentsHelper(std::move(fields));
 
 	_media = std::make_unique<Data::MediaGame>(this, game);
 	setTextValue({});
@@ -704,18 +631,15 @@ HistoryItem::HistoryItem(
 	Data::SponsoredFrom from,
 	const TextWithEntities &textWithEntities,
 	HistoryItem *injectedAfter)
-: HistoryItem(
-		history,
-		id,
-		((history->peer->isChannel() ? MessageFlag::Post : MessageFlag(0))
-			//| (from.peer ? MessageFlag::HasFromId : MessageFlag(0))
-			| MessageFlag::Local),
-		HistoryItem::NewMessageDate(injectedAfter
-			? injectedAfter->date()
-			: 0),
-		/*from.peer ? from.peer->id : */PeerId(0)) {
-	_flags |= MessageFlag::Sponsored;
-
+: HistoryItem(history, {
+	.id = id,
+	.flags = (MessageFlag::Local
+		| MessageFlag::Sponsored
+		| (history->peer->isChannel() ? MessageFlag::Post : MessageFlag(0))),
+	.date = HistoryItem::NewMessageDate(injectedAfter
+		? injectedAfter->date()
+		: 0),
+}) {
 	const auto webPageType = !from.externalLink.isEmpty()
 		? WebPageType::None
 		: from.isExactPost
@@ -745,6 +669,7 @@ HistoryItem::HistoryItem(
 			: nullptr),
 		nullptr,
 		WebPageCollage(),
+		nullptr,
 		0,
 		QString(),
 		false,
@@ -758,15 +683,15 @@ HistoryItem::HistoryItem(
 
 HistoryItem::HistoryItem(
 	not_null<History*> history,
-	MsgId id,
-	MessageFlags flags,
-	TimeId date,
-	PeerId from)
-: id(id)
+	const HistoryItemCommonFields &fields)
+: id(fields.id)
 , _history(history)
-, _from(from ? history->owner().peer(from) : history->peer)
-, _flags(FinalizeMessageFlags(history, flags))
-, _date(date) {
+, _from((fields.flags & MessageFlag::HasFromId && fields.from)
+	? history->owner().peer(fields.from)
+	: history->peer)
+, _flags(FinalizeMessageFlags(history, fields.flags))
+, _date(fields.date)
+, _shortcutId(fields.shortcutId) {
 	if (isHistoryEntry() && IsClientMsgId(id)) {
 		_history->registerClientSideMessage(this);
 	}
@@ -774,15 +699,18 @@ HistoryItem::HistoryItem(
 
 HistoryItem::HistoryItem(
 	not_null<History*> history,
+	MsgId id,
 	not_null<Data::Story*> story)
-: id(StoryIdToMsgId(story->id()))
-, _history(history)
-, _from(history->peer)
-, _flags(MessageFlag::Local
-	| MessageFlag::Outgoing
-	| MessageFlag::FakeHistoryItem
-	| MessageFlag::StoryItem)
-, _date(story->date()) {
+: HistoryItem(history, {
+	.id = id,
+	.flags = (MessageFlag::Local
+		| MessageFlag::Outgoing
+		| MessageFlag::HasFromId
+		| MessageFlag::FakeHistoryItem
+		| MessageFlag::StoryItem),
+	.from = history->peer->id,
+	.date = story->date(),
+}) {
 	setStoryFields(story);
 }
 
@@ -805,6 +733,11 @@ TimeId HistoryItem::date() const {
 
 TimeId HistoryItem::NewMessageDate(TimeId scheduled) {
 	return scheduled ? scheduled : base::unixtime::now();
+}
+
+TimeId HistoryItem::NewMessageDate(
+		const Api::SendOptions &options) {
+	return options.shortcutId ? 1 : NewMessageDate(options.scheduled);
 }
 
 HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
@@ -1603,6 +1536,18 @@ bool HistoryItem::isUserpicSuggestion() const {
 	return (_flags & MessageFlag::IsUserpicSuggestion);
 }
 
+BusinessShortcutId HistoryItem::shortcutId() const {
+	return _shortcutId;
+}
+
+bool HistoryItem::isBusinessShortcut() const {
+	return _shortcutId != 0;
+}
+
+void HistoryItem::setRealShortcutId(BusinessShortcutId id) {
+	_shortcutId = id;
+}
+
 void HistoryItem::destroy() {
 	_history->destroyMessage(this);
 }
@@ -1753,6 +1698,7 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 }
 
 void HistoryItem::applyEdition(const MTPDmessageService &message) {
+	const auto wasSublist = savedSublist();
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		const auto wasGrouped = history()->owner().groups().isGrouped(this);
 		setReplyMarkup({});
@@ -1783,6 +1729,11 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		applyServiceDateEdition(message);
 		finishEdition(-1);
 		_flags &= ~MessageFlag::DisplayFromChecked;
+	}
+	const auto nowSublist = savedSublist();
+	if (wasSublist && nowSublist != wasSublist) {
+		wasSublist->removeOne(this);
+		nowSublist->applyMaybeLast(this);
 	}
 }
 
@@ -2098,6 +2049,9 @@ void HistoryItem::setRealId(MsgId newId) {
 
 	const auto oldId = std::exchange(id, newId);
 	_flags &= ~(MessageFlag::BeingSent | MessageFlag::Local);
+	if (isBusinessShortcut()) {
+		_date = 0;
+	}
 	if (isRegular()) {
 		_history->unregisterClientSideMessage(this);
 	}
@@ -2162,7 +2116,7 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 }
 
 bool HistoryItem::canBeEdited() const {
-	if ((!isRegular() && !isScheduled())
+	if ((!isRegular() && !isScheduled() && !isBusinessShortcut())
 		|| Has<HistoryMessageVia>()
 		|| Has<HistoryMessageForwarded>()) {
 		return false;
@@ -2215,7 +2169,9 @@ bool HistoryItem::canDelete() const {
 		return false;
 	} else if (topicRootId() == id) {
 		return false;
-	} else if (!isHistoryEntry() && !isScheduled()) {
+	} else if (!isHistoryEntry()
+		&& !isScheduled()
+		&& !isBusinessShortcut()) {
 		return false;
 	}
 	auto channel = _history->peer->asChannel();
@@ -3147,6 +3103,13 @@ bool HistoryItem::isEmpty() const {
 Data::SavedSublist *HistoryItem::savedSublist() const {
 	if (const auto saved = Get<HistoryMessageSaved>()) {
 		return saved->sublist;
+	} else if (_history->peer->isSelf()) {
+		const auto sublist = _history->owner().savedMessages().sublist(
+			_history->peer);
+		const auto that = const_cast<HistoryItem*>(this);
+		that->AddComponents(HistoryMessageSaved::Bit());
+		that->Get<HistoryMessageSaved>()->sublist = sublist;
+		return sublist;
 	}
 	return nullptr;
 }
@@ -3520,15 +3483,11 @@ TextWithEntities HistoryItem::withLocalEntities(
 	return textWithEntities;
 }
 
-void HistoryItem::createComponentsHelper(
-		MessageFlags flags,
-		FullReplyTo replyTo,
-		UserId viaBotId,
-		const QString &postAuthor,
-		HistoryMessageMarkupData &&markup) {
+void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
+	const auto &replyTo = fields.replyTo;
 	auto config = CreateConfig();
-	config.viaBotId = viaBotId;
-	if (flags & MessageFlag::HasReplyInfo) {
+	config.viaBotId = fields.viaBotId;
+	if (fields.flags & MessageFlag::HasReplyInfo) {
 		config.reply.messageId = replyTo.messageId.msg;
 		config.reply.storyId = replyTo.storyId.story;
 		config.reply.externalPeerId = replyTo.storyId
@@ -3567,9 +3526,13 @@ void HistoryItem::createComponentsHelper(
 		config.reply.quoteOffset = replyTo.quoteOffset;
 		config.reply.quote = std::move(replyTo.quote);
 	}
-	config.markup = std::move(markup);
-	if (flags & MessageFlag::HasPostAuthor) config.postAuthor = postAuthor;
-	if (flags & MessageFlag::HasViews) config.viewsCount = 1;
+	config.markup = std::move(fields.markup);
+	if (fields.flags & MessageFlag::HasPostAuthor) {
+		config.postAuthor = fields.postAuthor;
+	}
+	if (fields.flags & MessageFlag::HasViews) {
+		config.viewsCount = 1;
+	}
 
 	createComponents(std::move(config));
 }
@@ -4678,7 +4641,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareRequestedPeer = [&](
 			const MTPDmessageActionRequestedPeer &action) {
 		auto result = PreparedServiceText{};
-		result.links.push_back(fromLink());
+		result.links.push_back(history()->peer->createOpenLink());
 
 		const auto &list = action.vpeers().v;
 		for (auto i = 0, count = int(list.size()); i != count; ++i) {
@@ -4714,7 +4677,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			lt_chat,
 			result.text,
 			lt_bot,
-			Ui::Text::Link(history()->peer->name(), 2),
+			Ui::Text::Link(history()->peer->name(), 1),
 			Ui::Text::WithEntities);
 		return result;
 	};

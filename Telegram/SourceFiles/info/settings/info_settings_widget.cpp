@@ -44,7 +44,14 @@ Widget::Widget(
 , _self(controller->key().settingsSelf())
 , _type(controller->section().settingsType())
 , _inner([&] {
-	auto inner = _type->create(this, controller->parentController());
+	auto inner = _type->create(
+		this,
+		controller->parentController(),
+		scroll(),
+		controller->wrapValue(
+		) | rpl::map([](Wrap wrap) { return (wrap == Wrap::Layer)
+			? ::Settings::Container::Layer
+			: ::Settings::Container::Section; }));
 	if (inner->hasFlexibleTopBar()) {
 		auto filler = setInnerWidget(object_ptr<Ui::RpWidget>(this));
 		filler->resize(1, 1);
@@ -114,17 +121,17 @@ Widget::Widget(
 	}
 
 	if (_pinnedToBottom) {
-		const auto processHeight = [=](int bottomHeight, int height) {
-			setScrollBottomSkip(bottomHeight);
+		const auto processHeight = [=] {
+			setScrollBottomSkip(_pinnedToBottom->height());
 			_pinnedToBottom->moveToLeft(
 				_pinnedToBottom->x(),
-				height - bottomHeight);
+				height() - _pinnedToBottom->height());
 		};
 
 		_inner->sizeValue(
 		) | rpl::start_with_next([=](const QSize &s) {
 			_pinnedToBottom->resizeToWidth(s.width());
-			processHeight(_pinnedToBottom->height(), height());
+			//processHeight();
 		}, _pinnedToBottom->lifetime());
 
 		rpl::combine(
@@ -225,8 +232,22 @@ rpl::producer<bool> Widget::desiredShadowVisibility() const {
 		: rpl::single(true);
 }
 
+bool Widget::closeByOutsideClick() const {
+	return _inner->closeByOutsideClick();;
+}
+
+void Widget::checkBeforeClose(Fn<void()> close) {
+	_inner->checkBeforeClose(std::move(close));
+}
+
 rpl::producer<QString> Widget::title() {
 	return _inner->title();
+}
+
+void Widget::paintEvent(QPaintEvent *e) {
+	if (!_inner->paintOuter(this, maxVisibleHeight(), e->rect())) {
+		ContentWidget::paintEvent(e);
+	}
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
@@ -237,6 +258,18 @@ std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
 
 void Widget::enableBackButton() {
 	_flexibleScroll.backButtonEnables.fire({});
+}
+
+rpl::producer<SelectedItems> Widget::selectedListValue() const {
+	return _inner->selectedListValue();
+}
+
+void Widget::selectionAction(SelectionAction action) {
+	_inner->selectionAction(action);
+}
+
+void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
+	_inner->fillTopBarMenu(addAction);
 }
 
 void Widget::saveState(not_null<Memento*> memento) {

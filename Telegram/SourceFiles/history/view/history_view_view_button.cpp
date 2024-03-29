@@ -11,12 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
+#include "iv/iv_data.h"
+#include "iv/iv_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+
+#include "core/application.h"
+#include "iv/iv_instance.h"
 
 namespace HistoryView {
 namespace {

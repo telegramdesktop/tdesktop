@@ -1008,3 +1008,21 @@ similarChannelsLockAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 128px;
 }
 similarChannelsLockAboutPadding: margins(12px, 12px, 12px, 12px);
+
+infoHoursState: FlatLabel(infoLabeled) {
+	minWidth: 0px;
+}
+infoHoursValue: FlatLabel(infoHoursState) {
+	textFg: windowSubTextFg;
+	align: align(topright);
+}
+infoHoursDayLabel: infoHoursState;
+infoHoursOuter: RoundButton(defaultActiveButton) {
+	textBg: transparent;
+	textBgOver: transparent;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+infoHoursOuterMargin: margins(8px, 4px, 8px, 4px);
+infoHoursDaySkip: 6px;

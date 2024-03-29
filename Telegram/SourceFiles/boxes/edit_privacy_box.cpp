@@ -10,28 +10,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "history/history.h"
 #include "boxes/peer_list_controllers.h"
-#include "settings/settings_common.h"
 #include "settings/settings_premium.h"
 #include "settings/settings_privacy_security.h"
 #include "calls/calls_instance.h"
-#include "base/binary_guard.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_peer_values.h"
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
@@ -65,6 +61,32 @@ void CreateRadiobuttonLock(
 			icon.width(),
 			icon.height()), image);
 	}, lock->lifetime());
+}
+
+void AddPremiumRequiredRow(
+		not_null<Ui::RpWidget*> widget,
+		not_null<Main::Session*> session,
+		Fn<void()> clickedCallback,
+		Fn<void()> setDefaultOption,
+		const style::Checkbox &st) {
+	const auto row = Ui::CreateChild<Ui::AbstractButton>(widget.get());
+
+	widget->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		row->resize(s);
+	}, row->lifetime());
+	row->setClickedCallback(std::move(clickedCallback));
+
+	CreateRadiobuttonLock(row, st);
+
+	Data::AmPremiumValue(
+		session
+	) | rpl::start_with_next([=](bool premium) {
+		row->setVisible(!premium);
+		if (!premium) {
+			setDefaultOption();
+		}
+	}, row->lifetime());
 }
 
 } // namespace
@@ -363,10 +385,29 @@ void EditPrivacyBox::setupContent() {
 		content,
 		_controller->optionsTitleKey(),
 		{ 0, st::settingsPrivacySkipTop, 0, 0 });
-	addOptionRow(Option::Everyone);
-	addOptionRow(Option::Contacts);
-	addOptionRow(Option::CloseFriends);
-	addOptionRow(Option::Nobody);
+
+	const auto options = {
+		Option::Everyone,
+		Option::Contacts,
+		Option::CloseFriends,
+		Option::Nobody,
+	};
+	for (const auto &option : options) {
+		if (const auto row = addOptionRow(option)) {
+			const auto premiumCallback = _controller->premiumClickedCallback(
+				option,
+				_window);
+			if (premiumCallback) {
+				AddPremiumRequiredRow(
+					row,
+					&_window->session(),
+					premiumCallback,
+					[=] { group->setValue(Option::Everyone); },
+					st::messagePrivacyCheck);
+			}
+		}
+	}
+
 	const auto warning = addLabelOrDivider(
 		content,
 		_controller->warning(),
@@ -541,7 +582,7 @@ void EditMessagesPrivacyBox(
 		box->addButton(tr::lng_settings_save(), [=] {
 			if (controller->session().premium()) {
 				privacy->updateNewRequirePremium(
-					group->value() == kOptionPremium);
+					group->current() == kOptionPremium);
 				box->closeBox();
 			} else {
 				showToast();

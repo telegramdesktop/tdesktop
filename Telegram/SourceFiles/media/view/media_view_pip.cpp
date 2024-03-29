@@ -505,11 +505,9 @@ void PipPanel::setPositionDefault() {
 		if (!widget) {
 			return nullptr;
 		}
-		if (!Platform::IsWayland()) {
-			if (const auto screen = QGuiApplication::screenAt(
+		if (const auto screen = QGuiApplication::screenAt(
 				widget->geometry().center())) {
-				return screen;
-			}
+			return screen;
 		}
 		return widget->screen();
 	};

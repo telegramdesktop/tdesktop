@@ -23,6 +23,7 @@ struct ComposeFeatures {
 	bool autocompleteHashtags = true;
 	bool autocompleteMentions = true;
 	bool autocompleteCommands = true;
+	bool commonTabbedPanel = true;
 };
 
 } // namespace ChatHelpers

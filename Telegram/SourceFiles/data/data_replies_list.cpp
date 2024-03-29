@@ -34,11 +34,11 @@ constexpr auto kMaxMessagesToDeleteMyTopic = 10;
 		not_null<History*> history,
 		TimeId date,
 		const QString &text) {
-	return history->makeMessage(
-		history->nextNonHistoryEntryId(),
-		MessageFlag::FakeHistoryItem,
-		date,
-		PreparedServiceText{ { .text = text } });
+	return history->makeMessage({
+		.id = history->nextNonHistoryEntryId(),
+		.flags = MessageFlag::FakeHistoryItem,
+		.date = date,
+	}, PreparedServiceText{ { .text = text } });
 }
 
 [[nodiscard]] bool IsCreating(not_null<History*> history, MsgId rootId) {

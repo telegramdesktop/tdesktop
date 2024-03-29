@@ -15,30 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "lang/lang_keys.h"
+#include "iv/iv_data.h"
 #include "ui/image/image.h"
 #include "ui/text/text_entity.h"
 
 namespace {
 
-QString SiteNameFromUrl(const QString &url) {
-	const auto u = QUrl(url);
-	QString pretty = u.isValid() ? u.toDisplayString() : url;
-	const auto m = QRegularExpression(u"^[a-zA-Z0-9]+://"_q).match(pretty);
-	if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
-	int32 slash = pretty.indexOf('/');
-	if (slash > 0) pretty = pretty.mid(0, slash);
-	QStringList components = pretty.split('.', Qt::SkipEmptyParts);
-	if (components.size() >= 2) {
-		components = components.mid(components.size() - 2);
-		return components.at(0).at(0).toUpper()
-			+ components.at(0).mid(1)
-			+ '.'
-			+ components.at(1);
-	}
-	return QString();
-}
-
-WebPageCollage ExtractCollage(
+[[nodiscard]] WebPageCollage ExtractCollage(
 		not_null<Data::Session*> owner,
 		const QVector<MTPPageBlock> &items,
 		const QVector<MTPPhoto> &photos,
@@ -165,6 +148,8 @@ WebPageType ParseWebPageType(
 	} else if (type == u"telegram_megagroup_request"_q
 		|| type == u"telegram_chat_request"_q) {
 		return WebPageType::GroupWithRequest;
+	} else if (type == u"telegram_album"_q) {
+		return WebPageType::Album;
 	} else if (type == u"telegram_message"_q) {
 		return WebPageType::Message;
 	} else if (type == u"telegram_bot"_q) {
@@ -188,6 +173,12 @@ WebPageType ParseWebPageType(
 	}
 }
 
+bool IgnoreIv(WebPageType type) {
+	return !Iv::ShowButton()
+		|| (type == WebPageType::Message)
+		|| (type == WebPageType::Album);
+}
+
 WebPageType ParseWebPageType(const MTPDwebPage &page) {
 	return ParseWebPageType(
 		qs(page.vtype().value_or_empty()),
@@ -205,6 +196,8 @@ WebPageData::WebPageData(not_null<Data::Session*> owner, const WebPageId &id)
 : id(id)
 , _owner(owner) {
 }
+
+WebPageData::~WebPageData() = default;
 
 Data::Session &WebPageData::owner() const {
 	return *_owner;
@@ -225,6 +218,7 @@ bool WebPageData::applyChanges(
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
 		WebPageCollage &&newCollage,
+		std::unique_ptr<Iv::Data> newIv,
 		int newDuration,
 		const QString &newAuthor,
 		bool newHasLargeMedia,
@@ -252,7 +246,7 @@ bool WebPageData::applyChanges(
 		} else if (!newDescription.text.isEmpty()
 			&& viewTitleText.isEmpty()
 			&& !resultUrl.isEmpty()) {
-			return SiteNameFromUrl(resultUrl);
+			return Iv::SiteNameFromUrl(resultUrl);
 		}
 		return QString();
 	}();
@@ -276,6 +270,8 @@ bool WebPageData::applyChanges(
 		&& photo == newPhoto
 		&& document == newDocument
 		&& collage.items == newCollage.items
+		&& (!iv == !newIv)
+		&& (!iv || iv->partial() == newIv->partial())
 		&& duration == newDuration
 		&& author == resultAuthor
 		&& hasLargeMedia == (newHasLargeMedia ? 1 : 0)
@@ -296,6 +292,7 @@ bool WebPageData::applyChanges(
 	photo = newPhoto;
 	document = newDocument;
 	collage = std::move(newCollage);
+	iv = std::move(newIv);
 	duration = newDuration;
 	author = resultAuthor;
 	pendingTill = newPendingTill;

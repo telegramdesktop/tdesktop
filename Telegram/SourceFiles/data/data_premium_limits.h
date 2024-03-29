@@ -91,4 +91,26 @@ private:
 
 };
 
+class LevelLimits final {
+public:
+	LevelLimits(not_null<Main::Session*> session);
+
+	[[nodiscard]] int channelColorLevelMin() const;
+	[[nodiscard]] int channelBgIconLevelMin() const;
+	[[nodiscard]] int channelProfileBgIconLevelMin() const;
+	[[nodiscard]] int channelEmojiStatusLevelMin() const;
+	[[nodiscard]] int channelWallpaperLevelMin() const;
+	[[nodiscard]] int channelCustomWallpaperLevelMin() const;
+	[[nodiscard]] int groupTranscribeLevelMin() const;
+	[[nodiscard]] int groupEmojiStickersLevelMin() const;
+	[[nodiscard]] int groupProfileBgIconLevelMin() const;
+	[[nodiscard]] int groupEmojiStatusLevelMin() const;
+	[[nodiscard]] int groupWallpaperLevelMin() const;
+	[[nodiscard]] int groupCustomWallpaperLevelMin() const;
+
+private:
+	const not_null<Main::Session*> _session;
+
+};
+
 } // namespace Data

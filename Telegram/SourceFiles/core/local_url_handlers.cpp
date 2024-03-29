@@ -665,7 +665,7 @@ bool ShowSearchTagsPromo(
 	if (!controller) {
 		return false;
 	}
-	ShowPremiumPreviewBox(controller, PremiumPreview::TagsForMessages);
+	ShowPremiumPreviewBox(controller, PremiumFeature::TagsForMessages);
 	return true;
 }
 
@@ -1036,7 +1036,7 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"about_tags"_q,
 			ShowSearchTagsPromo
-		}
+		},
 	};
 	return Result;
 }

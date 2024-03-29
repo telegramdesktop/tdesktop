@@ -121,12 +121,12 @@ void Manage::setupContent() {
 		showOther(type);
 	};
 
-	AddDividerTextWithLottie(
-		content,
-		showFinishes(),
-		tr::lng_settings_cloud_password_manage_about1(
+	AddDividerTextWithLottie(content, {
+		.lottie = u"cloud_password/intro"_q,
+		.showFinished = showFinishes(),
+		.about = tr::lng_settings_cloud_password_manage_about1(
 			TextWithEntities::Simple),
-		u"cloud_password/intro"_q);
+	});
 
 	Ui::AddSkip(content);
 	AddButtonWithIcon(

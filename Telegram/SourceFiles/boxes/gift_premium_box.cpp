@@ -386,7 +386,7 @@ void GiftBox(
 		state->buttonText.events(),
 		Ui::Premium::GiftGradientStops(),
 		[=] {
-			const auto value = group->value();
+			const auto value = group->current();
 			return (value < options.size() && value >= 0)
 				? options[value].botUrl
 				: QString();
@@ -587,7 +587,7 @@ void GiftsBox(
 		const auto content = box->addRow(
 			object_ptr<Ui::VerticalLayout>(box),
 			{});
-		auto buttonCallback = [=](PremiumPreview section) {
+		auto buttonCallback = [=](PremiumFeature section) {
 			stars->setPaused(true);
 			const auto previewBoxShown = [=](
 					not_null<Ui::BoxContent*> previewBox) {
@@ -665,7 +665,7 @@ void GiftsBox(
 		}
 		auto invoice = api->invoice(
 			users.size(),
-			api->monthsFromPreset(group->value()));
+			api->monthsFromPreset(group->current()));
 		invoice.purpose = Payments::InvoicePremiumGiftCodeUsers{ users };
 
 		state->confirmButtonBusy = true;

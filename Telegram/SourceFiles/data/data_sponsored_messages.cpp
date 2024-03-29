@@ -80,7 +80,7 @@ bool SponsoredMessages::append(not_null<History*> history) {
 	entryIt->itemFullId = FullMsgId(
 		history->peer->id,
 		_session->data().nextLocalMessageId());
-	entryIt->item.reset(history->addNewLocalMessage(
+	entryIt->item.reset(history->addSponsoredMessage(
 		entryIt->itemFullId.msg,
 		entryIt->sponsored.from,
 		entryIt->sponsored.textWithEntities));

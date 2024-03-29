@@ -54,6 +54,7 @@ Q_DECLARE_METATYPE(MsgId);
 }
 
 using StoryId = int32;
+using BusinessShortcutId = int32;
 
 struct FullStoryId {
 	PeerId peer = 0;
@@ -77,7 +78,8 @@ constexpr auto ServerMaxStoryId = StoryId(1 << 30);
 constexpr auto StoryMsgIds = int64(ServerMaxStoryId);
 constexpr auto EndStoryMsgId = MsgId(StartStoryMsgId.bare + StoryMsgIds);
 constexpr auto ServerMaxMsgId = MsgId(1LL << 56);
-constexpr auto ScheduledMsgIdsRange = (1LL << 32);
+constexpr auto ScheduledMaxMsgId = MsgId(ServerMaxMsgId + (1LL << 32));
+constexpr auto ShortcutMaxMsgId = MsgId(ScheduledMaxMsgId + (1LL << 32));
 constexpr auto ShowAtUnreadMsgId = MsgId(0);
 
 constexpr auto SpecialMsgIdShift = EndStoryMsgId.bare;

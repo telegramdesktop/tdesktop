@@ -38,13 +38,13 @@ void GenerateUserpicsInRow(
 	const auto single = st.size;
 	const auto shift = st.shift;
 	const auto width = single + (limit - 1) * (single - shift);
-	if (result.width() != width * cIntRetinaFactor()) {
+	if (result.width() != width * style::DevicePixelRatio()) {
 		result = QImage(
-			QSize(width, single) * cIntRetinaFactor(),
+			QSize(width, single) * style::DevicePixelRatio(),
 			QImage::Format_ARGB32_Premultiplied);
 	}
 	result.fill(Qt::transparent);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 
 	auto q = Painter(&result);
 	auto hq = PainterHighQualityEnabler(q);

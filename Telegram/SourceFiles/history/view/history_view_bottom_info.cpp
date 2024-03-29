@@ -442,7 +442,7 @@ void BottomInfo::paintReactions(
 }
 
 QSize BottomInfo::countCurrentSize(int newWidth) {
-	if (newWidth >= maxWidth()) {
+	if (newWidth >= maxWidth() || (_data.flags & Data::Flag::Shortcut)) {
 		return optimalSize();
 	}
 	const auto dateHeight = (_data.flags & Data::Flag::Sponsored)
@@ -509,7 +509,8 @@ void BottomInfo::layoutRepliesText() {
 	if (!_data.replies
 		|| !*_data.replies
 		|| (_data.flags & Data::Flag::RepliesContext)
-		|| (_data.flags & Data::Flag::Sending)) {
+		|| (_data.flags & Data::Flag::Sending)
+		|| (_data.flags & Data::Flag::Shortcut)) {
 		_replies.clear();
 		return;
 	}
@@ -549,6 +550,9 @@ void BottomInfo::layoutReactionsText() {
 }
 
 QSize BottomInfo::countOptimalSize() {
+	if (_data.flags & Data::Flag::Shortcut) {
+		return { st::historyShortcutStateSpace, st::msgDateFont->height };
+	}
 	auto width = 0;
 	if (_data.flags & (Data::Flag::OutLayout | Data::Flag::Sending)) {
 		width += st::historySendStateSpace;
@@ -653,6 +657,9 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	}
 	if (item->isPinned() && message->context() != Context::Pinned) {
 		result.flags |= Flag::Pinned;
+	}
+	if (message->context() == Context::ShortcutMessages) {
+		result.flags |= Flag::Shortcut;
 	}
 	if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
 		 if (!msgsigned->isAnonymousRank) {

@@ -1,0 +1,42 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "ui/widgets/widgets.style";
+
+ivMenuToggle: IconButton(defaultIconButton) {
+	width: 48px;
+	height: 48px;
+
+	icon: icon {{ "title_menu_dots", menuIconColor }};
+	iconOver: icon {{ "title_menu_dots", menuIconColor }};
+
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 36px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+ivMenuPosition: point(-2px, 40px);
+ivBack: IconButton(ivMenuToggle) {
+	width: 60px;
+	icon: icon {{ "box_button_back", menuIconColor }};
+	iconOver: icon {{ "box_button_back", menuIconColor }};
+	rippleAreaPosition: point(12px, 6px);
+}
+ivSubtitleFont: font(16px semibold);
+ivSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: boxTitleFg;
+	maxHeight: 26px;
+	style: TextStyle(defaultTextStyle) {
+		font: ivSubtitleFont;
+	}
+}
+ivSubtitleHeight: 48px;
+ivSubtitleTop: 12px;
+ivSubtitleLeft: 22px;
+ivSubtitleSkip: 0px;

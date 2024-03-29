@@ -44,12 +44,13 @@ namespace {
 	auto result = ContentWithoutPreview(item, repaint);
 	if (!preview) {
 		static const auto kEmpty = [&] {
-			const auto size = st::historyReplyHeight * cIntRetinaFactor();
+			const auto size = st::historyReplyHeight
+				* style::DevicePixelRatio();
 			auto result = QImage(
 				QSize(size, size),
 				QImage::Format_ARGB32_Premultiplied);
 			result.fill(Qt::transparent);
-			result.setDevicePixelRatio(cRetinaFactor());
+			result.setDevicePixelRatio(style::DevicePixelRatio());
 			return result;
 		}();
 		result.preview = kEmpty;

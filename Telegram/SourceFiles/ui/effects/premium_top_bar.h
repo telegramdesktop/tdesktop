@@ -64,6 +64,15 @@ private:
 
 };
 
+struct TopBarDescriptor {
+	Fn<QVariant()> clickContextOther;
+	QString logo;
+	rpl::producer<QString> title;
+	rpl::producer<TextWithEntities> about;
+	bool light = false;
+	bool optimizeMinistars = true;
+};
+
 class TopBar final : public TopBarAbstract {
 public:
 	TopBar(
@@ -74,6 +83,10 @@ public:
 		rpl::producer<TextWithEntities> about,
 		bool light = false,
 		bool optimizeMinistars = true);
+	TopBar(
+		not_null<QWidget*> parent,
+		const style::PremiumCover &st,
+		TopBarDescriptor &&descriptor);
 	~TopBar();
 
 	void setPaused(bool paused) override;
@@ -87,11 +100,13 @@ protected:
 
 private:
 	const bool _light = false;
+	const QString _logo;
 	const style::font &_titleFont;
 	const style::margins &_titlePadding;
 	object_ptr<FlatLabel> _about;
 	ColoredMiniStars _ministars;
 	QSvgRenderer _star;
+	QImage _dollar;
 
 	struct {
 		float64 top = 0.;

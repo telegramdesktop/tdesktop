@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "history/view/history_view_quick_action.h"
 #include "lang/lang_keys.h"
 #include "export/export_manager.h"
@@ -477,7 +478,7 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 			const auto &pix = backThumb->pix(
 				st::settingsBackgroundThumb,
 				{ .options = Images::Option::Blur });
-			const auto factor = cIntRetinaFactor();
+			const auto factor = style::DevicePixelRatio();
 			p.drawPixmap(
 				0,
 				0,
@@ -584,7 +585,7 @@ void BackgroundRow::radialAnimationCallback(crl::time now) {
 
 void BackgroundRow::updateImage() {
 	const auto size = st::settingsBackgroundThumb;
-	const auto fullsize = size * cIntRetinaFactor();
+	const auto fullsize = size * style::DevicePixelRatio();
 
 	const auto &background = *Window::Theme::Background();
 	const auto &paper = background.paper();
@@ -618,7 +619,7 @@ void BackgroundRow::updateImage() {
 		auto result = QImage(
 			QSize{ fullsize, fullsize },
 			QImage::Format_ARGB32_Premultiplied);
-		result.setDevicePixelRatio(cRetinaFactor());
+		result.setDevicePixelRatio(style::DevicePixelRatio());
 		if (const auto color = background.colorForFill()) {
 			result.fill(*color);
 			return result;
@@ -643,7 +644,7 @@ void BackgroundRow::updateImage() {
 		: prepareNormal();
 	_background = Ui::PixmapFromImage(
 		Images::Round(std::move(back), ImageRoundRadius::Small));
-	_background.setDevicePixelRatio(cRetinaFactor());
+	_background.setDevicePixelRatio(style::DevicePixelRatio());
 
 	rtlupdate(radialRect());
 
@@ -1732,12 +1733,21 @@ void SetupSupport(
 }
 
 Chat::Chat(QWidget *parent, not_null<Window::SessionController*> controller)
-: Section(parent) {
+: Section(parent)
+, _controller(controller) {
 	setupContent(controller);
 }
 
 rpl::producer<QString> Chat::title() {
 	return tr::lng_settings_section_chat_settings();
+}
+
+void Chat::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
+	const auto window = &_controller->window();
+	addAction(
+		tr::lng_settings_bg_theme_create(tr::now),
+		[=] { window->show(Box(Window::Theme::CreateBox, window)); },
+		&st::menuIconChangeColors);
 }
 
 void Chat::setupContent(not_null<Window::SessionController*> controller) {

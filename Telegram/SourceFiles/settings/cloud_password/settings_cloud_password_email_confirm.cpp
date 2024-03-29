@@ -7,10 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 
+#include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "base/unixtime.h"
 #include "core/core_cloud_password.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/cloud_password/settings_cloud_password_email.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
@@ -20,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/sent_code_field.h"
 #include "ui/wrap/padding_wrap.h"
@@ -27,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 /*
@@ -55,6 +59,10 @@ public:
 	using TypedAbstractStep::TypedAbstractStep;
 
 	[[nodiscard]] rpl::producer<QString> title() override;
+
+	void fillTopBarMenu(
+		const Ui::Menu::MenuCallback &addAction) override;
+
 	void setupContent();
 
 protected:
@@ -67,6 +75,20 @@ private:
 
 rpl::producer<QString> EmailConfirm::title() {
 	return tr::lng_settings_cloud_password_email_title();
+}
+
+void EmailConfirm::fillTopBarMenu(
+		const Ui::Menu::MenuCallback &addAction) {
+	const auto api = &controller()->session().api();
+	if (const auto state = api->cloudPassword().stateCurrent()) {
+		if (state->unconfirmedPattern.isEmpty()) {
+			return;
+		}
+	}
+	addAction(
+		tr::lng_settings_password_abort(tr::now),
+		[=] { api->cloudPassword().clearUnconfirmedPassword(); },
+		&st::menuIconCancel);
 }
 
 rpl::producer<std::vector<Type>> EmailConfirm::removeTypes() {

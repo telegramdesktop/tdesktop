@@ -100,3 +100,6 @@
 [submodule "Telegram/ThirdParty/libprisma"]
 	path = Telegram/ThirdParty/libprisma
 	url = https://github.com/desktop-app/libprisma.git
+[submodule "Telegram/ThirdParty/xdg-desktop-portal"]
+	path = Telegram/ThirdParty/xdg-desktop-portal
+	url = https://github.com/flatpak/xdg-desktop-portal.git

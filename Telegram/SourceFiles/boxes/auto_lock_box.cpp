@@ -81,9 +81,9 @@ void AutoLockBox::prepare() {
 
 		const auto timeInput = Ui::CreateChild<Ui::TimeInput>(
 			this,
-			(group->value() == kCustom)
+			(group->current() == kCustom
 				? TimeString(currentTime)
-				: kDefaultCustom.utf8(),
+				: kDefaultCustom.utf8()),
 			st::autolockTimeField,
 			st::autolockDateField,
 			st::scheduleTimeSeparator,
@@ -115,7 +115,9 @@ void AutoLockBox::prepare() {
 	});
 
 	rpl::merge(
-		boxClosing() | rpl::filter([=] { return group->value() == kCustom; }),
+		boxClosing() | rpl::filter(
+			[=] { return group->current() == kCustom; }
+		),
 		timeInput->submitRequests()
 	) | rpl::start_with_next([=] {
 		if (const auto result = collect()) {

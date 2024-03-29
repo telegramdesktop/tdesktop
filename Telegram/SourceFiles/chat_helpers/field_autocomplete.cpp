@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/field_autocomplete.h"
 
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_channel.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
 #include "media/clip/media_clip_reader.h"
 #include "ui/widgets/popup_menu.h"
@@ -636,6 +638,30 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				}
 			}
 		}
+		const auto shortcuts = (_user && !_user->isBot())
+			? _user->owner().shortcutMessages().shortcuts().list
+			: base::flat_map<BusinessShortcutId, Data::Shortcut>();
+		if (!hasUsername && brows.empty() && !shortcuts.empty()) {
+			const auto self = _user->session().user();
+			for (const auto &[id, shortcut] : shortcuts) {
+				if (shortcut.count < 1) {
+					continue;
+				} else if (!listAllSuggestions) {
+					if (!shortcut.name.startsWith(_filter, Qt::CaseInsensitive)) {
+						continue;
+					}
+				}
+				brows.push_back(BotCommandRow{
+					self,
+					shortcut.name,
+					tr::lng_forum_messages(tr::now, lt_count, shortcut.count),
+					self->activeUserpicView()
+				});
+			}
+			if (!brows.empty()) {
+				brows.insert(begin(brows), BotCommandRow{ self }); // Edit.
+			}
+		}
 	}
 	rowsUpdated(
 		std::move(mrows),
@@ -946,7 +972,9 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				if (sticker.lottie && sticker.lottie->ready()) {
 					lottieFrame = sticker.lottie->frame();
 					p.drawImage(
-						QRect(ppos, lottieFrame.size() / cIntRetinaFactor()),
+						QRect(
+							ppos,
+							lottieFrame.size() / style::DevicePixelRatio()),
 						lottieFrame);
 					if (!paused) {
 						sticker.lottie->markFrameShown();
@@ -1073,6 +1101,15 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 			} else {
 				auto &row = _brows->at(i);
 				const auto user = row.user;
+				if (user->isSelf() && row.command.isEmpty()) {
+					p.setPen(st::windowActiveTextFg);
+					p.setFont(st::semiboldFont);
+					p.drawText(
+						QRect(0, i * st::mentionHeight, width(), st::mentionHeight),
+						tr::lng_replies_edit_button(tr::now),
+						style::al_center);
+					continue;
+				}
 
 				auto toHighlight = row.command;
 				int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
@@ -1140,7 +1177,13 @@ void FieldAutocomplete::Inner::clearSel(bool hidden) {
 	_overDelete = false;
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
-	setSel((_mrows->empty() && _brows->empty() && _hrows->empty()) ? -1 : 0);
+	setSel((_mrows->empty() && _brows->empty() && _hrows->empty())
+		? -1
+		: (_brows->size() > 1
+			&& _brows->front().user->isSelf()
+			&& _brows->front().command.isEmpty())
+		? 1
+		: 0);
 	if (hidden) {
 		_down = -1;
 		_previewShown = false;
@@ -1246,8 +1289,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 			const auto commandString = QString("/%1%2").arg(
 				command,
 				insertUsername ? ('@' + PrimaryUsername(user)) : QString());
-
-			_botCommandChosen.fire({ commandString, method });
+			_botCommandChosen.fire({ user, commandString, method });
 			return true;
 		}
 	}
@@ -1425,7 +1467,7 @@ void FieldAutocomplete::Inner::setupLottie(StickerSuggestion &suggestion) {
 	suggestion.lottie = ChatHelpers::LottiePlayerFromDocument(
 		suggestion.documentMedia.get(),
 		ChatHelpers::StickerLottieSize::InlineResults,
-		stickerBoundingBox() * cIntRetinaFactor(),
+		stickerBoundingBox() * style::DevicePixelRatio(),
 		Lottie::Quality::Default,
 		getLottieRenderer());
 

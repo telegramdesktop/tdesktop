@@ -134,6 +134,8 @@ QByteArray Settings::serialize() const {
 	LogPosition(_windowPosition, u"Window"_q);
 	const auto mediaViewPosition = Serialize(_mediaViewPosition);
 	LogPosition(_mediaViewPosition, u"Viewer"_q);
+	const auto ivPosition = Serialize(_ivPosition);
+	LogPosition(_ivPosition, u"IV"_q);
 	const auto proxy = _proxy.serialize();
 	const auto skipLanguages = _skipTranslationLanguages.current();
 
@@ -209,7 +211,8 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_playbackDeviceId.current())
 		+ Serialize::stringSize(_captureDeviceId.current())
 		+ Serialize::stringSize(_callPlaybackDeviceId.current())
-		+ Serialize::stringSize(_callCaptureDeviceId.current());
+		+ Serialize::stringSize(_callCaptureDeviceId.current())
+		+ Serialize::bytearraySize(ivPosition);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -353,7 +356,8 @@ QByteArray Settings::serialize() const {
 			<< _playbackDeviceId.current()
 			<< _captureDeviceId.current()
 			<< _callPlaybackDeviceId.current()
-			<< _callCaptureDeviceId.current();
+			<< _callCaptureDeviceId.current()
+			<< ivPosition;
 	}
 
 	Ensures(result.size() == size);
@@ -469,6 +473,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	base::flat_set<QString> recentEmojiSkip;
 	qint32 trayIconMonochrome = (_trayIconMonochrome.current() ? 1 : 0);
 	qint32 ttlVoiceClickTooltipHidden = _ttlVoiceClickTooltipHidden.current() ? 1 : 0;
+	QByteArray ivPosition;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -747,6 +752,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			? QString()
 			: legacyCallCaptureDeviceId;
 	}
+	if (!stream.atEnd()) {
+		stream >> ivPosition;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -945,6 +953,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_recentEmojiSkip = std::move(recentEmojiSkip);
 	_trayIconMonochrome = (trayIconMonochrome == 1);
 	_ttlVoiceClickTooltipHidden = (ttlVoiceClickTooltipHidden == 1);
+	if (!ivPosition.isEmpty()) {
+		_ivPosition = Deserialize(ivPosition);
+	}
 }
 
 QString Settings::getSoundPath(const QString &key) const {

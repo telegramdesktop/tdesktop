@@ -572,6 +572,11 @@ base::unique_qptr<Ui::PopupMenu> BoxController::rowContextMenu(
 		_window->show(
 			Box<DeleteMessagesBox>(session, base::duplicate(ids)));
 	}, &st::menuIconDelete);
+	result->addAction(tr::lng_context_to_msg(tr::now), [=, window = _window] {
+		if (const auto item = session->data().message(ids.front())) {
+			window->showMessage(item);
+		}
+	}, &st::menuIconShowInChat);
 	return result;
 }
 

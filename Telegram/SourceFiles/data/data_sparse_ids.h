@@ -27,8 +27,7 @@ using SparseUnsortedIdsSlice = AbstractSparseIds<std::vector<MsgId>>;
 class SparseIdsMergedSlice {
 public:
 	using UniversalMsgId = MsgId;
-	static constexpr MsgId kScheduledTopicId
-		= ServerMaxMsgId + ScheduledMsgIdsRange;
+	static constexpr MsgId kScheduledTopicId = ScheduledMaxMsgId;
 
 	struct Key {
 		Key(

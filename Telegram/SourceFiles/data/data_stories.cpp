@@ -970,7 +970,7 @@ std::shared_ptr<HistoryItem> Stories::resolveItem(not_null<Story*> story) {
 	}
 	const auto history = _owner->history(story->peer());
 	auto result = std::shared_ptr<HistoryItem>(
-		history->makeMessage(story).get(),
+		history->makeMessage(StoryIdToMsgId(story->id()), story).get(),
 		HistoryItem::Destroyer());
 	i->second = result;
 	return result;

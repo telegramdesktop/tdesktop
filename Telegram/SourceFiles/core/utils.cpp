@@ -335,6 +335,7 @@ namespace {
 	QHash<QChar, QString> fastLetterRusEng;
 	QMap<uint32, QString> fastDoubleLetterRusEng;
 	QHash<QChar, QChar> fastRusKeyboardSwitch;
+	QHash<QChar, QChar> fastUkrKeyboardSwitch;
 }
 
 QString translitLetterRusEng(QChar letter, QChar next, int32 &toSkip) {
@@ -466,151 +467,49 @@ QString translitRusEng(const QString &rus) {
 	return result;
 }
 
-QString rusKeyboardLayoutSwitch(const QString &from) {
-	if (fastRusKeyboardSwitch.isEmpty()) {
-		fastRusKeyboardSwitch.insert('Q', QString::fromUtf8("Й").at(0));
-		fastRusKeyboardSwitch.insert('W', QString::fromUtf8("Ц").at(0));
-		fastRusKeyboardSwitch.insert('E', QString::fromUtf8("У").at(0));
-		fastRusKeyboardSwitch.insert('R', QString::fromUtf8("К").at(0));
-		fastRusKeyboardSwitch.insert('T', QString::fromUtf8("Е").at(0));
-		fastRusKeyboardSwitch.insert('Y', QString::fromUtf8("Н").at(0));
-		fastRusKeyboardSwitch.insert('U', QString::fromUtf8("Г").at(0));
-		fastRusKeyboardSwitch.insert('I', QString::fromUtf8("Ш").at(0));
-		fastRusKeyboardSwitch.insert('O', QString::fromUtf8("Щ").at(0));
-		fastRusKeyboardSwitch.insert('P', QString::fromUtf8("З").at(0));
-		fastRusKeyboardSwitch.insert('{', QString::fromUtf8("Х").at(0));
-		fastRusKeyboardSwitch.insert('}', QString::fromUtf8("Ъ").at(0));
-		fastRusKeyboardSwitch.insert('A', QString::fromUtf8("Ф").at(0));
-		fastRusKeyboardSwitch.insert('S', QString::fromUtf8("Ы").at(0));
-		fastRusKeyboardSwitch.insert('D', QString::fromUtf8("В").at(0));
-		fastRusKeyboardSwitch.insert('F', QString::fromUtf8("А").at(0));
-		fastRusKeyboardSwitch.insert('G', QString::fromUtf8("П").at(0));
-		fastRusKeyboardSwitch.insert('H', QString::fromUtf8("Р").at(0));
-		fastRusKeyboardSwitch.insert('J', QString::fromUtf8("О").at(0));
-		fastRusKeyboardSwitch.insert('K', QString::fromUtf8("Л").at(0));
-		fastRusKeyboardSwitch.insert('L', QString::fromUtf8("Д").at(0));
-		fastRusKeyboardSwitch.insert(':', QString::fromUtf8("Ж").at(0));
-		fastRusKeyboardSwitch.insert('"', QString::fromUtf8("Э").at(0));
-		fastRusKeyboardSwitch.insert('Z', QString::fromUtf8("Я").at(0));
-		fastRusKeyboardSwitch.insert('X', QString::fromUtf8("Ч").at(0));
-		fastRusKeyboardSwitch.insert('C', QString::fromUtf8("С").at(0));
-		fastRusKeyboardSwitch.insert('V', QString::fromUtf8("М").at(0));
-		fastRusKeyboardSwitch.insert('B', QString::fromUtf8("И").at(0));
-		fastRusKeyboardSwitch.insert('N', QString::fromUtf8("Т").at(0));
-		fastRusKeyboardSwitch.insert('M', QString::fromUtf8("Ь").at(0));
-		fastRusKeyboardSwitch.insert('<', QString::fromUtf8("Б").at(0));
-		fastRusKeyboardSwitch.insert('>', QString::fromUtf8("Ю").at(0));
-		fastRusKeyboardSwitch.insert('q', QString::fromUtf8("й").at(0));
-		fastRusKeyboardSwitch.insert('w', QString::fromUtf8("ц").at(0));
-		fastRusKeyboardSwitch.insert('e', QString::fromUtf8("у").at(0));
-		fastRusKeyboardSwitch.insert('r', QString::fromUtf8("к").at(0));
-		fastRusKeyboardSwitch.insert('t', QString::fromUtf8("е").at(0));
-		fastRusKeyboardSwitch.insert('y', QString::fromUtf8("н").at(0));
-		fastRusKeyboardSwitch.insert('u', QString::fromUtf8("г").at(0));
-		fastRusKeyboardSwitch.insert('i', QString::fromUtf8("ш").at(0));
-		fastRusKeyboardSwitch.insert('o', QString::fromUtf8("щ").at(0));
-		fastRusKeyboardSwitch.insert('p', QString::fromUtf8("з").at(0));
-		fastRusKeyboardSwitch.insert('[', QString::fromUtf8("х").at(0));
-		fastRusKeyboardSwitch.insert(']', QString::fromUtf8("ъ").at(0));
-		fastRusKeyboardSwitch.insert('a', QString::fromUtf8("ф").at(0));
-		fastRusKeyboardSwitch.insert('s', QString::fromUtf8("ы").at(0));
-		fastRusKeyboardSwitch.insert('d', QString::fromUtf8("в").at(0));
-		fastRusKeyboardSwitch.insert('f', QString::fromUtf8("а").at(0));
-		fastRusKeyboardSwitch.insert('g', QString::fromUtf8("п").at(0));
-		fastRusKeyboardSwitch.insert('h', QString::fromUtf8("р").at(0));
-		fastRusKeyboardSwitch.insert('j', QString::fromUtf8("о").at(0));
-		fastRusKeyboardSwitch.insert('k', QString::fromUtf8("л").at(0));
-		fastRusKeyboardSwitch.insert('l', QString::fromUtf8("д").at(0));
-		fastRusKeyboardSwitch.insert(';', QString::fromUtf8("ж").at(0));
-		fastRusKeyboardSwitch.insert('\'', QString::fromUtf8("э").at(0));
-		fastRusKeyboardSwitch.insert('z', QString::fromUtf8("я").at(0));
-		fastRusKeyboardSwitch.insert('x', QString::fromUtf8("ч").at(0));
-		fastRusKeyboardSwitch.insert('c', QString::fromUtf8("с").at(0));
-		fastRusKeyboardSwitch.insert('v', QString::fromUtf8("м").at(0));
-		fastRusKeyboardSwitch.insert('b', QString::fromUtf8("и").at(0));
-		fastRusKeyboardSwitch.insert('n', QString::fromUtf8("т").at(0));
-		fastRusKeyboardSwitch.insert('m', QString::fromUtf8("ь").at(0));
-		fastRusKeyboardSwitch.insert(',', QString::fromUtf8("б").at(0));
-		fastRusKeyboardSwitch.insert('.', QString::fromUtf8("ю").at(0));
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Й").at(0), 'Q');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ц").at(0), 'W');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("У").at(0), 'E');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("К").at(0), 'R');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Е").at(0), 'T');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Н").at(0), 'Y');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Г").at(0), 'U');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ш").at(0), 'I');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Щ").at(0), 'O');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("З").at(0), 'P');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Х").at(0), '{');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ъ").at(0), '}');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ф").at(0), 'A');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ы").at(0), 'S');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("В").at(0), 'D');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("А").at(0), 'F');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("П").at(0), 'G');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Р").at(0), 'H');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("О").at(0), 'J');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Л").at(0), 'K');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Д").at(0), 'L');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ж").at(0), ':');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Э").at(0), '"');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Я").at(0), 'Z');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ч").at(0), 'X');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("С").at(0), 'C');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("М").at(0), 'V');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("И").at(0), 'B');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Т").at(0), 'N');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ь").at(0), 'M');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Б").at(0), '<');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ю").at(0), '>');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("й").at(0), 'q');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ц").at(0), 'w');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("у").at(0), 'e');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("к").at(0), 'r');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("е").at(0), 't');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("н").at(0), 'y');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("г").at(0), 'u');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ш").at(0), 'i');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("щ").at(0), 'o');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("з").at(0), 'p');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("х").at(0), '[');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ъ").at(0), ']');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ф").at(0), 'a');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ы").at(0), 's');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("в").at(0), 'd');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("а").at(0), 'f');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("п").at(0), 'g');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("р").at(0), 'h');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("о").at(0), 'j');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("л").at(0), 'k');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("д").at(0), 'l');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ж").at(0), ';');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("э").at(0), '\'');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("я").at(0), 'z');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ч").at(0), 'x');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("с").at(0), 'c');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("м").at(0), 'v');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("и").at(0), 'b');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("т").at(0), 'n');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ь").at(0), 'm');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("б").at(0), ',');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ю").at(0), '.');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("І").at(0), 'S');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("і").at(0), 's');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ї").at(0), ']');
-		fastRusKeyboardSwitch.insert(QString::fromUtf8("ї").at(0), ']');
-	}
+QString engAlphabet = "qwertyuiop[]asdfghjkl;'zxcvbnm,.";
+QString engAlphabetUpper = engAlphabet.toUpper();
 
+void initializeKeyboardSwitch() {
+	if (fastRusKeyboardSwitch.isEmpty()) {
+		QString rusAlphabet = "йцукенгшщзхъфывапролджэячсмитьбю";
+		QString rusAlphabetUpper = rusAlphabet.toUpper();
+		for (int i = 0; i < rusAlphabet.size(); ++i) {
+			fastRusKeyboardSwitch.insert(engAlphabetUpper[i], rusAlphabetUpper[i]);
+			fastRusKeyboardSwitch.insert(engAlphabet[i], rusAlphabet[i]);
+			fastRusKeyboardSwitch.insert(rusAlphabetUpper[i], engAlphabetUpper[i]);
+			fastRusKeyboardSwitch.insert(rusAlphabet[i], engAlphabet[i]);
+		}
+	}
+	if (fastUkrKeyboardSwitch.isEmpty()) {
+		QString ukrAlphabet = "йцукенгшщзхїфівапролджєячсмитьбю";
+		QString ukrAlphabetUpper = ukrAlphabet.toUpper();
+		for (int i = 0; i < ukrAlphabet.size(); ++i) {
+			fastUkrKeyboardSwitch.insert(engAlphabetUpper[i], ukrAlphabetUpper[i]);
+			fastUkrKeyboardSwitch.insert(engAlphabet[i], ukrAlphabet[i]);
+			fastUkrKeyboardSwitch.insert(ukrAlphabetUpper[i], engAlphabetUpper[i]);
+			fastUkrKeyboardSwitch.insert(ukrAlphabet[i], engAlphabet[i]);
+		}
+	}
+}
+
+QString switchKeyboardLayout(const QString& from, QHash<QChar, QChar>& keyboardSwitch) {
 	QString result;
 	result.reserve(from.size());
 	for (QString::const_iterator i = from.cbegin(), e = from.cend(); i != e; ++i) {
-		QHash<QChar, QChar>::const_iterator j = fastRusKeyboardSwitch.constFind(*i);
-		if (j == fastRusKeyboardSwitch.cend()) {
+		QHash<QChar, QChar>::const_iterator j = keyboardSwitch.constFind(*i);
+		if (j == keyboardSwitch.cend()) {
 			result += *i;
 		} else {
 			result += j.value();
 		}
 	}
 	return result;
+}
+
+QString rusKeyboardLayoutSwitch(const QString& from) {
+	initializeKeyboardSwitch();
+	QString rus = switchKeyboardLayout(from, fastRusKeyboardSwitch);
+	QString ukr = switchKeyboardLayout(from, fastUkrKeyboardSwitch);
+	return rus == ukr ? rus : rus + ' ' + ukr;
 }

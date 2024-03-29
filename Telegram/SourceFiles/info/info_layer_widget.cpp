@@ -30,7 +30,7 @@ LayerWidget::LayerWidget(
 	not_null<Window::SessionController*> controller,
 	not_null<Memento*> memento)
 : _controller(controller)
-, _content(this, controller, Wrap::Layer, memento) {
+, _contentWrap(this, controller, Wrap::Layer, memento) {
 	setupHeightConsumers();
 	controller->window().replaceFloatPlayerDelegate(floatPlayerDelegate());
 }
@@ -39,7 +39,7 @@ LayerWidget::LayerWidget(
 	not_null<Window::SessionController*> controller,
 	not_null<MoveMemento*> memento)
 : _controller(controller)
-, _content(memento->takeContent(this, Wrap::Layer)) {
+, _contentWrap(memento->takeContent(this, Wrap::Layer)) {
 	setupHeightConsumers();
 	controller->window().replaceFloatPlayerDelegate(floatPlayerDelegate());
 }
@@ -64,17 +64,17 @@ void LayerWidget::floatPlayerToggleGifsPaused(bool paused) {
 
 auto LayerWidget::floatPlayerGetSection(Window::Column column)
 -> not_null<::Media::Player::FloatSectionDelegate*> {
-	Expects(_content != nullptr);
+	Expects(_contentWrap != nullptr);
 
-	return _content;
+	return _contentWrap;
 }
 
 void LayerWidget::floatPlayerEnumerateSections(Fn<void(
 		not_null<::Media::Player::FloatSectionDelegate*> widget,
 		Window::Column widgetColumn)> callback) {
-	Expects(_content != nullptr);
+	Expects(_contentWrap != nullptr);
 
-	callback(_content, Window::Column::Second);
+	callback(_contentWrap, Window::Column::Second);
 }
 
 bool LayerWidget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
@@ -87,9 +87,9 @@ void LayerWidget::floatPlayerDoubleClickEvent(
 }
 
 void LayerWidget::setupHeightConsumers() {
-	Expects(_content != nullptr);
+	Expects(_contentWrap != nullptr);
 
-	_content->scrollTillBottomChanges(
+	_contentWrap->scrollTillBottomChanges(
 	) | rpl::filter([this] {
 		if (!_inResize) {
 			return true;
@@ -100,10 +100,10 @@ void LayerWidget::setupHeightConsumers() {
 		resizeToWidth(width());
 	}, lifetime());
 
-	_content->grabbingForExpanding(
+	_contentWrap->grabbingForExpanding(
 	) | rpl::start_with_next([=](bool grabbing) {
 		if (grabbing) {
-			_savedHeight = _contentHeight;
+			_savedHeight = _contentWrapHeight;
 			_savedHeightAnimation = base::take(_heightAnimation);
 			setContentHeight(_desiredHeight);
 		} else {
@@ -112,7 +112,7 @@ void LayerWidget::setupHeightConsumers() {
 		}
 	}, lifetime());
 
-	_content->desiredHeightValue(
+	_contentWrap->desiredHeightValue(
 	) | rpl::start_with_next([this](int height) {
 		if (!height) {
 			// New content arrived.
@@ -128,32 +128,31 @@ void LayerWidget::setupHeightConsumers() {
 			_heightAnimated = true;
 			_heightAnimation.start([=] {
 				setContentHeight(_heightAnimation.value(_desiredHeight));
-			}, _contentHeight, _desiredHeight, st::slideDuration);
+			}, _contentWrapHeight, _desiredHeight, st::slideDuration);
 			resizeToWidth(width());
 		}
 	}, lifetime());
 }
 
 void LayerWidget::setContentHeight(int height) {
-	if (_contentHeight == height) {
+	if (_contentWrapHeight == height) {
 		return;
 	}
-
-	_contentHeight = height;
+	_contentWrapHeight = height;
 	if (_inResize) {
 		_pendingResize = true;
-	} else if (_content) {
+	} else if (_contentWrap) {
 		resizeToWidth(width());
 	}
 }
 
 void LayerWidget::showFinished() {
 	floatPlayerShowVisible();
-	_content->showFast();
+	_contentWrap->showFast();
 }
 
 void LayerWidget::parentResized() {
-	if (!_content) {
+	if (!_contentWrap) {
 		return;
 	}
 
@@ -163,7 +162,7 @@ void LayerWidget::parentResized() {
 		Ui::FocusPersister persister(this);
 		restoreFloatPlayerDelegate();
 
-		auto memento = std::make_shared<MoveMemento>(std::move(_content));
+		auto memento = std::make_shared<MoveMemento>(std::move(_contentWrap));
 
 		// We want to call hideSpecialLayer synchronously to avoid glitches,
 		// but we can't destroy LayerStackWidget from its' resizeEvent,
@@ -209,7 +208,7 @@ bool LayerWidget::takeToThirdSection() {
 	//
 	//Ui::FocusPersister persister(this);
 	//auto localCopy = _controller;
-	//auto memento = MoveMemento(std::move(_content));
+	//auto memento = MoveMemento(std::move(_contentWrap));
 	//localCopy->hideSpecialLayer(anim::type::instant);
 
 	//// When creating third section in response to the window
@@ -235,7 +234,7 @@ bool LayerWidget::takeToThirdSection() {
 bool LayerWidget::showSectionInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
-	if (_content && _content->showInternal(memento, params)) {
+	if (_contentWrap && _contentWrap->showInternal(memento, params)) {
 		if (params.activation != anim::activation::background) {
 			_controller->parentController()->hideLayer();
 		}
@@ -245,7 +244,7 @@ bool LayerWidget::showSectionInternal(
 }
 
 bool LayerWidget::closeByOutsideClick() const {
-	return _content ? _content->closeByOutsideClick() : true;
+	return _contentWrap ? _contentWrap->closeByOutsideClick() : true;
 }
 
 int LayerWidget::MinimalSupportedWidth() {
@@ -254,7 +253,7 @@ int LayerWidget::MinimalSupportedWidth() {
 }
 
 int LayerWidget::resizeGetHeight(int newWidth) {
-	if (!parentWidget() || !_content || !newWidth) {
+	if (!parentWidget() || !_contentWrap || !newWidth) {
 		return 0;
 	}
 	constexpr auto kMaxAttempts = 16;
@@ -266,7 +265,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 		if (!_pendingResize) {
 			const auto oldGeometry = geometry();
 			if (newGeometry != oldGeometry) {
-				_content->forceContentRepaint();
+				_contentWrap->forceContentRepaint();
 			}
 			if (newGeometry.topLeft() != oldGeometry.topLeft()) {
 				move(newGeometry.topLeft());
@@ -291,9 +290,10 @@ QRect LayerWidget::countGeometry(int newWidth) {
 	const auto newBottom = newTop;
 
 	const auto bottomRadius = st::boxRadius;
-	// Top rounding is included in _contentHeight.
-	auto desiredHeight = _contentHeight + bottomRadius;
-	accumulate_min(desiredHeight, windowHeight - newTop - newBottom);
+	const auto maxVisibleHeight = windowHeight - newTop;
+	// Top rounding is included in _contentWrapHeight.
+	auto desiredHeight = _contentWrapHeight + bottomRadius;
+	accumulate_min(desiredHeight, maxVisibleHeight - newBottom);
 
 	// First resize content to new width and get the new desired height.
 	const auto contentLeft = 0;
@@ -301,34 +301,35 @@ QRect LayerWidget::countGeometry(int newWidth) {
 	const auto contentBottom = bottomRadius;
 	const auto contentWidth = newWidth;
 	auto contentHeight = desiredHeight - contentTop - contentBottom;
-	const auto scrollTillBottom = _content->scrollTillBottom(contentHeight);
+	const auto scrollTillBottom = _contentWrap->scrollTillBottom(
+		contentHeight);
 	auto additionalScroll = std::min(scrollTillBottom, newBottom);
 
-	const auto expanding = (_desiredHeight > _contentHeight);
+	const auto expanding = (_desiredHeight > _contentWrapHeight);
 
 	desiredHeight += additionalScroll;
 	contentHeight += additionalScroll;
-	_tillBottom = (newTop + desiredHeight >= windowHeight);
+	_tillBottom = (desiredHeight >= maxVisibleHeight);
 	if (_tillBottom) {
 		additionalScroll += contentBottom;
 	}
-	_contentTillBottom = _tillBottom && !_content->scrollBottomSkip();
+	_contentTillBottom = _tillBottom && !_contentWrap->scrollBottomSkip();
 	if (_contentTillBottom) {
 		contentHeight += contentBottom;
 	}
-	_content->updateGeometry({
+	_contentWrap->updateGeometry({
 		contentLeft,
 		contentTop,
 		contentWidth,
 		contentHeight,
-	}, expanding, additionalScroll);
+	}, expanding, additionalScroll, maxVisibleHeight);
 
 	return QRect(newLeft, newTop, newWidth, desiredHeight);
 }
 
 void LayerWidget::doSetInnerFocus() {
-	if (_content) {
-		_content->setInnerFocus();
+	if (_contentWrap) {
+		_contentWrap->setInnerFocus();
 	}
 }
 
@@ -341,7 +342,7 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 	if (!_tillBottom) {
 		const auto bottom = QRect{ 0, height() - radius, width(), radius };
 		if (clip.intersects(bottom)) {
-			if (const auto rounding = _content->bottomSkipRounding()) {
+			if (const auto rounding = _contentWrap->bottomSkipRounding()) {
 				rounding->paint(p, rect(), RectPart::FullBottom);
 			} else {
 				Ui::FillRoundRect(p, bottom, st::boxBg, {
@@ -350,11 +351,11 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 			}
 		}
 	} else if (!_contentTillBottom) {
-		const auto rounding = _content->bottomSkipRounding();
+		const auto rounding = _contentWrap->bottomSkipRounding();
 		const auto &color = rounding ? rounding->color() : st::boxBg;
 		p.fillRect(0, height() - radius, width(), radius, color);
 	}
-	if (_content->animatingShow()) {
+	if (_contentWrap->animatingShow()) {
 		const auto top = QRect{ 0, 0, width(), radius };
 		if (clip.intersects(top)) {
 			Ui::FillRoundRect(p, top, st::boxBg, {

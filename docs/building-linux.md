@@ -36,9 +36,6 @@ Or, to create a debug build, run (also using [your **api_id** and **api_hash**](
         -D TDESKTOP_API_ID=YOUR_API_ID \
         -D TDESKTOP_API_HASH=YOUR_API_HASH
 
-If you need a backward compatible binary (running on older OS like the official one), you should build the binary with LTO.  
-To do this, add `-D CMAKE_INTERPROCEDURAL_OPTIMIZATION=ON` option.
-
 The built files will be in the `out` directory.
 
 [api_credentials]: api_credentials.md

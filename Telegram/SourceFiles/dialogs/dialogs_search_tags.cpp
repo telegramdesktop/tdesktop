@@ -47,7 +47,7 @@ namespace {
 		if (const auto controller = my.sessionWindow.get()) {
 			ShowPremiumPreviewBox(
 				controller,
-				PremiumPreview::TagsForMessages);
+				PremiumFeature::TagsForMessages);
 		}
 	});
 }

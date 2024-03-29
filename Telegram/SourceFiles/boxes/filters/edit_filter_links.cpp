@@ -982,8 +982,7 @@ bool GoodForExportFilterLink(
 		not_null<Window::SessionController*> window,
 		const Data::ChatFilter &filter) {
 	using Flag = Data::ChatFilter::Flag;
-	const auto listflags = Flag::Chatlist | Flag::HasMyLinks;
-	if (!filter.never().empty() || (filter.flags() & ~listflags)) {
+	if (!filter.never().empty() || (filter.flags() & Flag::RulesMask)) {
 		window->showToast(tr::lng_filters_link_cant(tr::now));
 		return false;
 	}

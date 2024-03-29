@@ -1221,7 +1221,7 @@ void StickerSetBox::Inner::setupLottie(int index) {
 		getLottiePlayer(),
 		element.documentMedia.get(),
 		ChatHelpers::StickerLottieSize::StickerSet,
-		boundingBoxSize() * cIntRetinaFactor());
+		boundingBoxSize() * style::DevicePixelRatio());
 }
 
 void StickerSetBox::Inner::setupWebm(int index) {
@@ -1345,7 +1345,7 @@ void StickerSetBox::Inner::paintSticker(
 	} else if (element.lottie && element.lottie->ready()) {
 		lottieFrame = element.lottie->frame();
 		p.drawImage(
-			QRect(ppos, lottieFrame.size() / cIntRetinaFactor()),
+			QRect(ppos, lottieFrame.size() / style::DevicePixelRatio()),
 			lottieFrame);
 
 		_lottiePlayer->unpause(element.lottie);

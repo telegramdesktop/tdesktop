@@ -45,6 +45,11 @@ class Account;
 class Session;
 } // namespace Main
 
+namespace Iv {
+class Instance;
+class DelegateImpl;
+} // namespace Iv
+
 namespace Ui {
 namespace Animations {
 class Manager;
@@ -161,6 +166,8 @@ public:
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
 	[[nodiscard]] bool savingPositionFor(
 		not_null<Window::Controller*> window) const;
+	[[nodiscard]] Window::Controller *findWindow(
+		not_null<QWidget*> widget) const;
 	[[nodiscard]] Window::Controller *activeWindow() const;
 	[[nodiscard]] Window::Controller *activePrimaryWindow() const;
 	[[nodiscard]] Window::Controller *separateWindowForAccount(
@@ -278,6 +285,11 @@ public:
 	// Calls.
 	Calls::Instance &calls() const {
 		return *_calls;
+	}
+
+	// Iv.
+	Iv::Instance &iv() const {
+		return *_iv;
 	}
 
 	void logout(Main::Account *account = nullptr);
@@ -409,6 +421,7 @@ private:
 	const std::unique_ptr<Main::Domain> _domain;
 	const std::unique_ptr<Export::Manager> _exportManager;
 	const std::unique_ptr<Calls::Instance> _calls;
+	const std::unique_ptr<Iv::Instance> _iv;
 	base::flat_map<
 		Main::Account*,
 		std::unique_ptr<Window::Controller>> _primaryWindows;

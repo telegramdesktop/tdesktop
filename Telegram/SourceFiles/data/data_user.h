@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 struct BotCommand;
+struct BusinessDetails;
 } // namespace Data
 
 struct BotInfo {
@@ -84,6 +85,8 @@ public:
 	using Flags = Data::Flags<UserDataFlags>;
 
 	UserData(not_null<Data::Session*> owner, PeerId id);
+	~UserData();
+
 	void setPhoto(const MTPUserProfilePhoto &photo);
 
 	void setName(
@@ -192,6 +195,9 @@ public:
 	[[nodiscard]] bool hasUnreadStories() const;
 	void setStoriesState(StoriesState state);
 
+	[[nodiscard]] const Data::BusinessDetails &businessDetails() const;
+	void setBusinessDetails(Data::BusinessDetails details);
+
 private:
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;
@@ -201,6 +207,7 @@ private:
 
 	Data::UsernamesInfo _username;
 
+	std::unique_ptr<Data::BusinessDetails> _businessDetails;
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
 	QString _privateForwardName;

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
@@ -413,9 +414,9 @@ QImage Generator::generate() {
 	prepare();
 
 	auto result = QImage(
-		_rect.size() * cIntRetinaFactor(),
+		_rect.size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(st::themePreviewBg->c);
 
 	{
@@ -482,13 +483,17 @@ void Generator::paintHistoryBackground() {
 	}
 	background = std::move(background).convertToFormat(
 		QImage::Format_ARGB32_Premultiplied);
-	background.setDevicePixelRatio(cRetinaFactor());
+	background.setDevicePixelRatio(style::DevicePixelRatio());
 	_p->setClipRect(_history);
 	if (tiled) {
 		auto width = background.width();
 		auto height = background.height();
-		auto repeatTimesX = qCeil(_history.width() * cIntRetinaFactor() / float64(width));
-		auto repeatTimesY = qCeil((_history.height() - fromy) * cIntRetinaFactor() / float64(height));
+		auto repeatTimesX = qCeil(_history.width()
+			* style::DevicePixelRatio()
+			/ float64(width));
+		auto repeatTimesY = qCeil((_history.height() - fromy)
+			* style::DevicePixelRatio()
+			/ float64(height));
 		auto imageForTiled = QImage(
 			width * repeatTimesX,
 			height * repeatTimesY,
@@ -993,8 +998,12 @@ void Generator::paintBubble(const Bubble &bubble) {
 	_historyBottom = y - (bubble.attachToTop ? st::msgMarginTopAttached : st::msgMargin.top());
 
 	if (isPhoto) {
-		auto image = bubble.photo.scaled(bubble.photoWidth * cIntRetinaFactor(), bubble.photoHeight * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-		image.setDevicePixelRatio(cRetinaFactor());
+		auto image = bubble.photo.scaled(
+			QSize(bubble.photoWidth, bubble.photoHeight)
+				* style::DevicePixelRatio(),
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		image.setDevicePixelRatio(style::DevicePixelRatio());
 		_p->drawImage(x, y - bubble.photoHeight, image);
 		_historyBottom -= bubble.photoHeight;
 	}
@@ -1025,7 +1034,7 @@ void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString le
 	auto image = QImage(
 		QSize(size, size) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(cRetinaFactor());
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
@@ -1139,8 +1148,10 @@ void DefaultPreviewWindowTitle(Painter &p, const style::palette &palette, QRect 
 }
 
 void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth) {
-	auto mask = QImage(st::windowShadow.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	mask.setDevicePixelRatio(cRetinaFactor());
+	auto mask = QImage(
+		st::windowShadow.size() * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	mask.setDevicePixelRatio(style::DevicePixelRatio());
 	{
 		Painter p(&mask);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
@@ -1156,18 +1167,20 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 		currentInt = *lastLineInts;
 		++maxSize;
 	}
-	if (maxSize % cIntRetinaFactor()) {
-		maxSize -= (maxSize % cIntRetinaFactor());
+	if (maxSize % style::DevicePixelRatio()) {
+		maxSize -= (maxSize % style::DevicePixelRatio());
 	}
-	auto size = maxSize / cIntRetinaFactor();
+	auto size = maxSize / style::DevicePixelRatio();
 	auto bottom = size;
 	auto left = size - st::windowShadowShift;
 	auto right = left;
 	auto top = size - 2 * st::windowShadowShift;
 
 	auto sprite = st::windowShadow[palette];
-	auto topLeft = QImage(sprite.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	topLeft.setDevicePixelRatio(cRetinaFactor());
+	auto topLeft = QImage(
+		sprite.size() * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	topLeft.setDevicePixelRatio(style::DevicePixelRatio());
 	{
 		Painter p(&topLeft);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
@@ -1182,16 +1195,74 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 	Painter p(&preview);
 	DefaultPreviewWindowTitle(p, palette, body, outerWidth);
 
-	auto inner = QRect(body.x(), body.y() - st::defaultWindowTitle.height, body.width(), body.height() + st::defaultWindowTitle.height);
-	p.setClipRegion(QRegion(inner.marginsAdded(QMargins(size, size, size, size))) - inner);
+	auto inner = QRect(
+		body.x(),
+		body.y() - st::defaultWindowTitle.height,
+		body.width(),
+		body.height() + st::defaultWindowTitle.height);
+	p.setClipRegion(QRegion(inner + Margins(size)) - inner);
 	p.drawImage(inner.x() - left, inner.y() - top, topLeft);
-	p.drawImage(inner.x() + inner.width() + right - width, inner.y() - top, topRight);
-	p.drawImage(inner.x() + inner.width() + right - width, inner.y() + inner.height() + bottom - height, bottomRight);
-	p.drawImage(inner.x() - left, inner.y() + inner.height() + bottom - height, bottomLeft);
-	p.drawImage(QRect(inner.x() - left, inner.y() - top + height, left, top + inner.height() + bottom - 2 * height), topLeft, QRect(0, topLeft.height() - cIntRetinaFactor(), left * cIntRetinaFactor(), cIntRetinaFactor()));
-	p.drawImage(QRect(inner.x() - left + width, inner.y() - top, left + inner.width() + right - 2 * width, top), topLeft, QRect(topLeft.width() - cIntRetinaFactor(), 0, cIntRetinaFactor(), top * cIntRetinaFactor()));
-	p.drawImage(QRect(inner.x() + inner.width(), inner.y() - top + height, right, top + inner.height() + bottom - 2 * height), topRight, QRect(topRight.width() - right * cIntRetinaFactor(), topRight.height() - cIntRetinaFactor(), right * cIntRetinaFactor(), cIntRetinaFactor()));
-	p.drawImage(QRect(inner.x() - left + width, inner.y() + inner.height(), left + inner.width() + right - 2 * width, bottom), bottomRight, QRect(0, bottomRight.height() - bottom * cIntRetinaFactor(), cIntRetinaFactor(), bottom * cIntRetinaFactor()));
+	p.drawImage(
+		inner.x() + inner.width() + right - width,
+		inner.y() - top,
+		topRight);
+	p.drawImage(
+		inner.x() + inner.width() + right - width,
+		inner.y() + inner.height() + bottom - height,
+		bottomRight);
+	p.drawImage(
+		inner.x() - left,
+		inner.y() + inner.height() + bottom - height,
+		bottomLeft);
+	p.drawImage(
+		QRect(
+			inner.x() - left,
+			inner.y() - top + height,
+			left,
+			top + inner.height() + bottom - 2 * height),
+		topLeft,
+		QRect(
+			0,
+			topLeft.height() - style::DevicePixelRatio(),
+			left * style::DevicePixelRatio(),
+			style::DevicePixelRatio()));
+	p.drawImage(
+		QRect(
+			inner.x() - left + width,
+			inner.y() - top,
+			left + inner.width() + right - 2 * width,
+			top),
+		topLeft,
+		QRect(
+			topLeft.width() - style::DevicePixelRatio(),
+			0,
+			style::DevicePixelRatio(),
+			top * style::DevicePixelRatio()));
+	p.drawImage(
+		QRect(
+			inner.x() + inner.width(),
+			inner.y() - top + height,
+			right,
+			top + inner.height() + bottom - 2 * height),
+		topRight,
+		QRect(
+			topRight.width() - right * style::DevicePixelRatio(),
+			topRight.height() - style::DevicePixelRatio(),
+			right * style::DevicePixelRatio(),
+			style::DevicePixelRatio()));
+	p.drawImage(
+		QRect(
+			inner.x() - left + width,
+			inner.y() + inner.height(),
+			left + inner.width() + right - 2 * width,
+			bottom),
+		bottomRight,
+		QRect(
+			0,
+			bottomRight.height() - bottom * style::DevicePixelRatio(),
+			style::DevicePixelRatio(),
+			bottom * style::DevicePixelRatio()));
+
 }
 
 } // namespace Theme

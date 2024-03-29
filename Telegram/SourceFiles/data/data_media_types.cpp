@@ -1253,7 +1253,7 @@ const SharedContact *MediaContact::sharedContact() const {
 }
 
 TextWithEntities MediaContact::notificationText() const {
-	return tr::lng_in_dlg_contact(tr::now, Ui::Text::WithEntities);
+	return Ui::Text::Colorized(tr::lng_in_dlg_contact(tr::now));
 }
 
 QString MediaContact::pinnedTextSubstring() const {

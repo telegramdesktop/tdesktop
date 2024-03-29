@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/share_message_phrase_factory.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_channel.h"
 #include "data/data_game.h"
 #include "data/data_histories.h"
@@ -1543,11 +1544,15 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 			const auto threadHistory = thread->owningHistory();
 			histories.sendRequest(threadHistory, requestType, [=](
 					Fn<void()> finish) {
-				auto &api = threadHistory->session().api();
+				const auto session = &threadHistory->session();
+				auto &api = session->api();
 				const auto sendFlags = commonSendFlags
 					| (topMsgId ? Flag::f_top_msg_id : Flag(0))
 					| (ShouldSendSilent(peer, options)
 						? Flag::f_silent
+						: Flag(0))
+					| (options.shortcutId
+						? Flag::f_quick_reply_shortcut
 						: Flag(0));
 				threadHistory->sendRequestId = api.request(
 					MTPmessages_ForwardMessages(
@@ -1558,7 +1563,8 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 						peer->input,
 						MTP_int(topMsgId),
 						MTP_int(options.scheduled),
-						MTP_inputPeerEmpty() // send_as
+						MTP_inputPeerEmpty(), // send_as
+						Data::ShortcutIdToMTP(session, options.shortcutId)
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
 					threadHistory->session().api().applyUpdates(updates);
 					state->requests.remove(reqId);

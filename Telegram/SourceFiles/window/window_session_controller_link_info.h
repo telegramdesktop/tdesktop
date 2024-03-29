@@ -38,6 +38,7 @@ struct PeerByLinkInfo {
 	QString startToken;
 	ChatAdminRights startAdminRights;
 	bool startAutoSubmit = false;
+	bool joinChannel = false;
 	QString botAppName;
 	bool botAppForceConfirmation = false;
 	QString attachBotUsername;

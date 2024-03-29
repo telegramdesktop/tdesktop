@@ -517,6 +517,7 @@ FileLoadTask::FileLoadTask(
 , _caption(caption)
 , _spoiler(spoiler) {
 	Expects(to.options.scheduled
+		|| to.options.shortcutId
 		|| !to.replaceMediaOf
 		|| IsServerMsgId(to.replaceMediaOf));
 
@@ -902,11 +903,11 @@ void FileLoadTask::process(Args &&args) {
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
 		if (ValidateThumbDimensions(w, h)) {
-			isSticker = (_type == SendMediaType::File)
-				&& Core::IsMimeSticker(filemime)
+			isSticker = Core::IsMimeSticker(filemime)
 				&& (filesize < Storage::kMaxStickerBytesSize)
 				&& (Core::IsMimeStickerAnimated(filemime)
-					|| GoodStickerDimensions(w, h));
+					|| (_type == SendMediaType::File
+						&& GoodStickerDimensions(w, h)));
 			if (isSticker) {
 				attributes.push_back(MTP_documentAttributeSticker(
 					MTP_flags(0),

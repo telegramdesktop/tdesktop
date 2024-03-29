@@ -40,11 +40,11 @@ namespace {
 constexpr auto kBackgroundsInRow = 3;
 
 QImage TakeMiddleSample(QImage original, QSize size) {
-	size *= cIntRetinaFactor();
+	size *= style::DevicePixelRatio();
 	const auto from = original.size();
 	if (from.isEmpty()) {
 		auto result = original.scaled(size);
-		result.setDevicePixelRatio(cRetinaFactor());
+		result.setDevicePixelRatio(style::DevicePixelRatio());
 		return result;
 	}
 
@@ -58,7 +58,7 @@ QImage TakeMiddleSample(QImage original, QSize size) {
 		take.width(),
 		take.height()
 	).scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	return result;
 }
 
@@ -657,10 +657,10 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 		} else if (!paper.data.backgroundColors().empty()) {
 			paper.thumbnail = Ui::PixmapFromImage(
 				Ui::GenerateBackgroundImage(
-					st::backgroundSize * cIntRetinaFactor(),
+					st::backgroundSize * style::DevicePixelRatio(),
 					paper.data.backgroundColors(),
 					paper.data.gradientRotation()));
-			paper.thumbnail.setDevicePixelRatio(cRetinaFactor());
+			paper.thumbnail.setDevicePixelRatio(style::DevicePixelRatio());
 			return;
 		} else {
 			return;
@@ -680,7 +680,7 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 	paper.thumbnail = Ui::PixmapFromImage(TakeMiddleSample(
 		original,
 		st::backgroundSize));
-	paper.thumbnail.setDevicePixelRatio(cRetinaFactor());
+	paper.thumbnail.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
 bool BackgroundBox::Inner::forChannel() const {

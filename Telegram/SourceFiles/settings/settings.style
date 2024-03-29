@@ -94,6 +94,7 @@ settingsPremiumIconTranslations: icon {{ "settings/premium/translations", settin
 settingsPremiumIconTags: icon {{ "settings/premium/tags", settingsIconFg }};
 settingsPremiumIconLastSeen: icon {{ "settings/premium/lastseen", settingsIconFg }};
 settingsPremiumIconPrivacy: icon {{ "settings/premium/privacy", settingsIconFg }};
+settingsPremiumIconBusiness: icon {{ "settings/premium/market", settingsIconFg }};
 
 settingsStoriesIconOrder: icon {{ "settings/premium/stories_order", premiumButtonBg1 }};
 settingsStoriesIconStealth: icon {{ "menu/stealth", premiumButtonBg1 }};
@@ -102,6 +103,13 @@ settingsStoriesIconExpiration: icon {{ "settings/premium/timer", premiumButtonBg
 settingsStoriesIconDownload: icon {{ "menu/download", premiumButtonBg1 }};
 settingsStoriesIconCaption: icon {{ "settings/premium/stories_caption", premiumButtonBg1 }};
 settingsStoriesIconLinks: icon {{ "menu/links_profile", premiumButtonBg1 }};
+
+settingsBusinessIconLocation: icon {{ "settings/premium/business/business_location", settingsIconFg }};
+settingsBusinessIconHours: icon {{ "settings/premium/business/business_hours", settingsIconFg }};
+settingsBusinessIconReplies: icon {{ "settings/premium/business/business_quick", settingsIconFg }};
+settingsBusinessIconGreeting: icon {{ "settings/premium/status", settingsIconFg }};
+settingsBusinessIconAway: icon {{ "settings/premium/business/business_away", settingsIconFg }};
+settingsBusinessIconChatbots: icon {{ "settings/premium/business/business_chatbots", settingsIconFg }};
 
 settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(semiboldTextStyle) {
@@ -562,6 +570,8 @@ settingsColorButton: SettingsButton(settingsButton) {
 settingsColorRadioMargin: 17px;
 settingsColorRadioSkip: 13px;
 settingsColorRadioStroke: 2px;
+settingsLevelBadgeLock: icon {{ "chat/mini_lock", premiumButtonFg }};
+settingsLevelBadgeLockSkip: 4px;
 
 messagePrivacyTopSkip: 8px;
 messagePrivacyRadioSkip: 6px;
@@ -579,9 +589,52 @@ peerAppearanceButton: SettingsButton(settingsButtonLight) {
 	padding: margins(60px, 8px, 22px, 8px);
 	iconLeft: 20px;
 }
-peerAppearanceCoverLabel: FlatLabel(boxDividerLabel) {
-	align: align(top);
-}
 peerAppearanceCoverLabelMargin: margins(22px, 0px, 22px, 17px);
 peerAppearanceIconPadding: margins(0px, 15px, 0px, 5px);
 peerAppearanceDividerTextMargin: margins(22px, 8px, 22px, 11px);
+
+settingsChatbotsUsername: InputField(defaultMultiSelectSearchField) {
+}
+settingsChatbotsAccess: Checkbox(defaultCheckbox) {
+	textPosition: point(18px, 2px);
+}
+settingsLocationAddress: InputField(defaultMultiSelectSearchField) {
+}
+settingsChatbotsUsernameMargins: margins(20px, 8px, 20px, 8px);
+settingsChatbotsAccessMargins: margins(22px, 5px, 22px, 9px);
+settingsChatbotsAccessSkip: 4px;
+settingsChatbotsBottomTextMargin: margins(22px, 8px, 22px, 3px);
+settingsChatbotsAdd: SettingsButton(settingsButton) {
+	iconLeft: 22px;
+}
+settingsWorkingHoursWeek: SettingsButton(settingsButtonNoIcon) {
+	height: 40px;
+	padding: margins(22px, 4px, 22px, 4px);
+}
+settingsWorkingHoursDetails: settingsNotificationTypeDetails;
+settingsWorkingHoursPicker: 200px;
+settingsWorkingHoursPickerItemHeight: 40px;
+
+settingsAwaySchedulePadding: margins(0px, 8px, 0px, 8px);
+
+settingsAddReplyLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+}
+settingsAddReplyField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(0px, 10px, 32px, 2px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+
+	heightMin: 36px;
+}
+settingsChatbotsNotFound: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+}
+settingsChatbotsDeleteIcon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
+settingsChatbotsDeleteIconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};

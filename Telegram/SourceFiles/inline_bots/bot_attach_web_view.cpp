@@ -566,9 +566,16 @@ bool AttachWebView::botHandleLocalUri(QString uri, bool keepOpen) {
 	if (!keepOpen) {
 		botClose();
 	}
-	crl::on_main([=, shownUrl = _lastShownUrl] {
+	crl::on_main([=, shownUrl = _lastShownUrl, bot = _bot] {
+		if (bot->session().windows().empty()) {
+			Core::App().domain().activate(&bot->session().account());
+		}
+		const auto window = !bot->session().windows().empty()
+			? bot->session().windows().front().get()
+			: nullptr;
 		const auto variant = QVariant::fromValue(ClickHandlerContext{
 			.attachBotWebviewUrl = shownUrl,
+			.sessionWindow = window,
 		});
 		UrlClickHandler::Open(local, variant);
 	});

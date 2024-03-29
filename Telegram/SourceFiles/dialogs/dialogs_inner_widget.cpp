@@ -4011,6 +4011,24 @@ void InnerWidget::setupShortcuts() {
 			return true;
 		});
 
+		(!_openedForum)
+			&& request->check(Command::ArchiveChat)
+			&& request->handle([=] {
+				const auto thread = _selected ? _selected->thread() : nullptr;
+				if (!thread) {
+					return false;
+				}
+				const auto history = thread->owningHistory();
+				const auto isArchived = history->folder()
+					&& (history->folder()->id() == Data::Folder::kId);
+				
+				Window::ToggleHistoryArchived(
+					_controller->uiShow(),
+					history,
+					!isArchived);
+				return true;
+			});
+
 		request->check(Command::ShowContacts) && request->handle([=] {
 			_controller->show(PrepareContactsBox(_controller));
 			return true;

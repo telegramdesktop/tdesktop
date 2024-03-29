@@ -164,6 +164,9 @@ struct FileReferenceAccumulator {
 	void push(const MTPhelp_PremiumPromo &data) {
 		push(data.data().vvideos());
 	}
+	void push(const MTPmessages_WebPage &data) {
+		push(data.data().vwebpage());
+	}
 	void push(const MTPstories_Stories &data) {
 		push(data.data().vstories());
 	}
@@ -225,6 +228,10 @@ UpdatedFileReferences GetFileReferences(
 }
 
 UpdatedFileReferences GetFileReferences(const MTPhelp_PremiumPromo &data) {
+	return GetFileReferencesHelper(data);
+}
+
+UpdatedFileReferences GetFileReferences(const MTPmessages_WebPage &data) {
 	return GetFileReferencesHelper(data);
 }
 

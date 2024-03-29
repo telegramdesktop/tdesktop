@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <crl/crl_object_on_queue.h>
 #include "ui/emoji_config.h"
 
 namespace Stickers {

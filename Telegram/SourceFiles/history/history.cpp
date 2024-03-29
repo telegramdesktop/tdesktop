@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_translation.h"
 #include "history/history_unread_things.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -70,6 +71,12 @@ constexpr auto kNewBlockEachMessage = 50;
 constexpr auto kSkipCloudDraftsFor = TimeId(2);
 
 using UpdateFlag = Data::HistoryUpdate::Flag;
+
+[[nodiscard]] HistoryItemCommonFields WithLocalFlag(
+		HistoryItemCommonFields fields) {
+	fields.flags |= MessageFlag::Local;
+	return fields;
+}
 
 } // namespace
 
@@ -446,17 +453,17 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 
 not_null<HistoryItem*> History::addNewMessage(
 		MsgId id,
-		const MTPMessage &msg,
+		const MTPMessage &message,
 		MessageFlags localFlags,
 		NewMessageType type) {
-	const auto detachExistingItem = (type == NewMessageType::Unread);
-	const auto item = createItem(id, msg, localFlags, detachExistingItem);
+	const auto detachExisting = (type == NewMessageType::Unread);
+	const auto item = createItem(id, message, localFlags, detachExisting);
 	if (type == NewMessageType::Existing || item->mainView()) {
 		return item;
 	}
 	const auto unread = (type == NewMessageType::Unread);
 	if (unread && item->isHistoryEntry()) {
-		applyMessageChanges(item, msg);
+		applyMessageChanges(item, message);
 	}
 	return addNewItem(item, unread);
 }
@@ -585,6 +592,9 @@ not_null<HistoryItem*> History::addNewItem(
 	if (item->isScheduled()) {
 		owner().scheduledMessages().appendSending(item);
 		return item;
+	} else if (item->isBusinessShortcut()) {
+		owner().shortcutMessages().appendSending(item);
+		return item;
 	} else if (!item->isHistoryEntry()) {
 		return item;
 	}
@@ -635,139 +645,54 @@ void History::checkForLoadedAtTop(not_null<HistoryItem*> added) {
 }
 
 not_null<HistoryItem*> History::addNewLocalMessage(
-		MsgId id,
-		MessageFlags flags,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		TimeId date,
-		PeerId from,
-		const QString &postAuthor,
+		HistoryItemCommonFields &&fields,
 		const TextWithEntities &text,
-		const MTPMessageMedia &media,
-		HistoryMessageMarkupData &&markup,
-		uint64 groupedId) {
+		const MTPMessageMedia &media) {
 	return addNewItem(
-		makeMessage(
-			id,
-			flags | MessageFlag::Local,
-			replyTo,
-			viaBotId,
-			date,
-			from,
-			postAuthor,
-			text,
-			media,
-			std::move(markup),
-			groupedId),
+		makeMessage(WithLocalFlag(std::move(fields)), text, media),
 		true);
 }
 
 not_null<HistoryItem*> History::addNewLocalMessage(
-		MsgId id,
-		MessageFlags flags,
-		TimeId date,
-		PeerId from,
-		const QString &postAuthor,
-		not_null<HistoryItem*> forwardOriginal,
-		MsgId topicRootId) {
+		HistoryItemCommonFields &&fields,
+		not_null<HistoryItem*> forwardOriginal) {
 	return addNewItem(
-		makeMessage(
-			id,
-			flags | MessageFlag::Local,
-			date,
-			from,
-			postAuthor,
-			forwardOriginal,
-			topicRootId),
+		makeMessage(WithLocalFlag(std::move(fields)), forwardOriginal),
 		true);
 }
 
 not_null<HistoryItem*> History::addNewLocalMessage(
-		MsgId id,
-		MessageFlags flags,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		TimeId date,
-		PeerId from,
-		const QString &postAuthor,
+		HistoryItemCommonFields &&fields,
 		not_null<DocumentData*> document,
-		const TextWithEntities &caption,
-		HistoryMessageMarkupData &&markup) {
+		const TextWithEntities &caption) {
 	return addNewItem(
-		makeMessage(
-			id,
-			flags | MessageFlag::Local,
-			replyTo,
-			viaBotId,
-			date,
-			from,
-			postAuthor,
-			document,
-			caption,
-			std::move(markup)),
+		makeMessage(WithLocalFlag(std::move(fields)), document, caption),
 		true);
 }
 
 not_null<HistoryItem*> History::addNewLocalMessage(
-		MsgId id,
-		MessageFlags flags,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		TimeId date,
-		PeerId from,
-		const QString &postAuthor,
+		HistoryItemCommonFields &&fields,
 		not_null<PhotoData*> photo,
-		const TextWithEntities &caption,
-		HistoryMessageMarkupData &&markup) {
+		const TextWithEntities &caption) {
 	return addNewItem(
-		makeMessage(
-			id,
-			flags | MessageFlag::Local,
-			replyTo,
-			viaBotId,
-			date,
-			from,
-			postAuthor,
-			photo,
-			caption,
-			std::move(markup)),
+		makeMessage(WithLocalFlag(std::move(fields)), photo, caption),
 		true);
 }
 
 not_null<HistoryItem*> History::addNewLocalMessage(
-		MsgId id,
-		MessageFlags flags,
-		UserId viaBotId,
-		FullReplyTo replyTo,
-		TimeId date,
-		PeerId from,
-		const QString &postAuthor,
-		not_null<GameData*> game,
-		HistoryMessageMarkupData &&markup) {
+		HistoryItemCommonFields &&fields,
+		not_null<GameData*> game) {
 	return addNewItem(
-		makeMessage(
-			id,
-			flags | MessageFlag::Local,
-			replyTo,
-			viaBotId,
-			date,
-			from,
-			postAuthor,
-			game,
-			std::move(markup)),
+		makeMessage(WithLocalFlag(std::move(fields)), game),
 		true);
 }
 
-not_null<HistoryItem*> History::addNewLocalMessage(
+not_null<HistoryItem*> History::addSponsoredMessage(
 		MsgId id,
 		Data::SponsoredFrom from,
 		const TextWithEntities &textWithEntities) {
 	return addNewItem(
-		makeMessage(
-			id,
-			from,
-			textWithEntities,
-			nullptr),
+		makeMessage(id, from, textWithEntities, nullptr),
 		true);
 }
 

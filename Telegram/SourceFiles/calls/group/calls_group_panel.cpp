@@ -1871,7 +1871,7 @@ void Panel::setupControlsBackgroundNarrow() {
 	_controlsBackgroundNarrow->blocker.show();
 	auto &lifetime = _controlsBackgroundNarrow->shadow.lifetime();
 
-	const auto factor = cIntRetinaFactor();
+	const auto factor = style::DevicePixelRatio();
 	const auto height = std::max(
 		st::groupCallMembersShadowHeight,
 		st::groupCallMembersFadeSkip + st::groupCallMembersFadeHeight);
@@ -1929,7 +1929,7 @@ void Panel::setupControlsBackgroundNarrow() {
 			_members->y() - _controlsBackgroundNarrow->shadow.y());
 		const auto faded = clip.intersected(inner);
 		if (!faded.isEmpty()) {
-			const auto factor = cIntRetinaFactor();
+			const auto factor = style::DevicePixelRatio();
 			p.drawImage(
 				faded,
 				*full,

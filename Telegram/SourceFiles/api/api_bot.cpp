@@ -421,10 +421,10 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				MTP_int(itemId),
 				MTP_int(id),
 				MTP_vector_from_range(
-					result
-					| ranges::views::transform([](
-						not_null<PeerData*> peer) {
-				return MTPInputPeer(peer->input); }))
+					result | ranges::views::transform([](
+							not_null<PeerData*> peer) {
+						return MTPInputPeer(peer->input);
+					}))
 			)).done([=](const MTPUpdates &result) {
 				peer->session().api().applyUpdates(result);
 			}).send();

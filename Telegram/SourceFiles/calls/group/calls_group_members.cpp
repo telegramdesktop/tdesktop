@@ -1865,11 +1865,11 @@ void Members::updateControlsGeometry() {
 void Members::setupFakeRoundCorners() {
 	const auto size = st::roundRadiusLarge;
 	const auto full = 3 * size;
-	const auto imagePartSize = size * cIntRetinaFactor();
-	const auto imageSize = full * cIntRetinaFactor();
+	const auto imagePartSize = size * style::DevicePixelRatio();
+	const auto imageSize = full * style::DevicePixelRatio();
 	const auto image = std::make_shared<QImage>(
 		QImage(imageSize, imageSize, QImage::Format_ARGB32_Premultiplied));
-	image->setDevicePixelRatio(cRetinaFactor());
+	image->setDevicePixelRatio(style::DevicePixelRatio());
 
 	const auto refreshImage = [=] {
 		image->fill(st::groupCallBg->c);

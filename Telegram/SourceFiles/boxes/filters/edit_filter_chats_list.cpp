@@ -28,6 +28,8 @@ using Flag = Data::ChatFilter::Flag;
 using Flags = Data::ChatFilter::Flags;
 
 constexpr auto kAllTypes = {
+	Flag::NewChats,
+	Flag::ExistingChats,
 	Flag::Contacts,
 	Flag::NonContacts,
 	Flag::Groups,
@@ -119,7 +121,7 @@ PaintRoundImageCallback TypeRow::generatePaintUserpicCallback(
 }
 
 Flag TypeRow::flag() const {
-	return static_cast<Flag>(id() & 0xFF);
+	return static_cast<Flag>(id() & 0xFFFF);
 }
 
 ExceptionRow::ExceptionRow(not_null<History*> history) : Row(history) {
@@ -219,6 +221,8 @@ auto TypeController::rowSelectionChanges() const
 
 [[nodiscard]] QString FilterChatsTypeName(Flag flag) {
 	switch (flag) {
+	case Flag::NewChats: return tr::lng_filters_type_new(tr::now);
+	case Flag::ExistingChats: return tr::lng_filters_type_existing(tr::now);
 	case Flag::Contacts: return tr::lng_filters_type_contacts(tr::now);
 	case Flag::NonContacts:
 		return tr::lng_filters_type_non_contacts(tr::now);
@@ -241,6 +245,8 @@ void PaintFilterChatsTypeIcon(
 		int size) {
 	const auto &color1 = [&]() -> const style::color& {
 		switch (flag) {
+		case Flag::NewChats: return st::historyPeer5UserpicBg;
+		case Flag::ExistingChats: return st::historyPeer8UserpicBg;
 		case Flag::Contacts: return st::historyPeer4UserpicBg;
 		case Flag::NonContacts: return st::historyPeer7UserpicBg;
 		case Flag::Groups: return st::historyPeer2UserpicBg;
@@ -254,6 +260,8 @@ void PaintFilterChatsTypeIcon(
 	}();
 	const auto &color2 = [&]() -> const style::color& {
 		switch (flag) {
+		case Flag::NewChats: return st::historyPeer5UserpicBg2;
+		case Flag::ExistingChats: return st::historyPeer8UserpicBg2;
 		case Flag::Contacts: return st::historyPeer4UserpicBg2;
 		case Flag::NonContacts: return st::historyPeer7UserpicBg2;
 		case Flag::Groups: return st::historyPeer2UserpicBg2;
@@ -267,6 +275,8 @@ void PaintFilterChatsTypeIcon(
 	}();
 	const auto &icon = [&]() -> const style::icon& {
 		switch (flag) {
+		case Flag::NewChats: return st::windowFilterTypeNewChats;
+		case Flag::ExistingChats: return st::windowFilterTypeExistingChats;
 		case Flag::Contacts: return st::windowFilterTypeContacts;
 		case Flag::NonContacts: return st::windowFilterTypeNonContacts;
 		case Flag::Groups: return st::windowFilterTypeGroups;
@@ -323,17 +333,17 @@ EditFilterChatsListController::EditFilterChatsListController(
 	Flags options,
 	Flags selected,
 	const base::flat_set<not_null<History*>> &peers,
-	LimitBoxFactory limitBox)
+	int limit,
+	Fn<void()> showLimitReached)
 : ChatsListBoxController(session)
 , _session(session)
-, _limitBox(std::move(limitBox))
+, _showLimitReached(std::move(showLimitReached))
 , _title(std::move(title))
 , _peers(peers)
 , _options(options & ~Flag::Chatlist)
 , _selected(selected)
-, _limit(Data::PremiumLimits(session).dialogFiltersChatsCurrent())
+, _limit(limit)
 , _chatlist(options & Flag::Chatlist) {
-	Expects(_limitBox != nullptr);
 }
 
 Main::Session &EditFilterChatsListController::session() const {
@@ -361,8 +371,8 @@ void EditFilterChatsListController::rowClicked(not_null<PeerListRow*> row) {
 	if (count < _limit || row->checked()) {
 		delegate()->peerListSetRowChecked(row, !row->checked());
 		updateTitle();
-	} else {
-		delegate()->peerListUiShow()->showBox(_limitBox(count));
+	} else if (const auto copy = _showLimitReached) {
+		copy();
 	}
 }
 
@@ -469,6 +479,10 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 
 auto EditFilterChatsListController::createRow(not_null<History*> history)
 -> std::unique_ptr<Row> {
+	const auto business = _options & (Flag::NewChats | Flag::ExistingChats);
+	if (business && (history->peer->isSelf() || !history->peer->isUser())) {
+		return nullptr;
+	}
 	return history->inChatList()
 		? std::make_unique<ExceptionRow>(history)
 		: nullptr;

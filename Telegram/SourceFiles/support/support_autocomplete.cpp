@@ -273,24 +273,14 @@ AdminLog::OwnedItem GenerateCommentItem(
 	if (data.comment.isEmpty()) {
 		return nullptr;
 	}
-	const auto flags = MessageFlag::HasFromId
-		| MessageFlag::Outgoing
-		| MessageFlag::FakeHistoryItem;
-	const auto replyTo = FullReplyTo();
-	const auto viaBotId = UserId();
-	const auto groupedId = uint64();
-	const auto item = history->makeMessage(
-		history->nextNonHistoryEntryId(),
-		flags,
-		replyTo,
-		viaBotId,
-		base::unixtime::now(),
-		history->session().userId(),
-		QString(),
-		TextWithEntities{ data.comment },
-		MTP_messageMediaEmpty(),
-		HistoryMessageMarkupData(),
-		groupedId);
+	const auto item = history->makeMessage({
+		.id = history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::HasFromId
+			| MessageFlag::Outgoing
+			| MessageFlag::FakeHistoryItem),
+		.from = history->session().userPeerId(),
+		.date = base::unixtime::now(),
+	}, TextWithEntities{ data.comment }, MTP_messageMediaEmpty());
 	return AdminLog::OwnedItem(delegate, item);
 }
 
@@ -298,29 +288,19 @@ AdminLog::OwnedItem GenerateContactItem(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		const Contact &data) {
-	const auto replyTo = FullReplyTo();
-	const auto viaBotId = UserId();
-	const auto postAuthor = QString();
-	const auto groupedId = uint64();
-	const auto item = history->makeMessage(
-		history->nextNonHistoryEntryId(),
-		(MessageFlag::HasFromId
+	const auto item = history->makeMessage({
+		.id = history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::HasFromId
 			| MessageFlag::Outgoing
 			| MessageFlag::FakeHistoryItem),
-		replyTo,
-		viaBotId,
-		base::unixtime::now(),
-		history->session().userPeerId(),
-		postAuthor,
-		TextWithEntities(),
-		MTP_messageMediaContact(
-			MTP_string(data.phone),
-			MTP_string(data.firstName),
-			MTP_string(data.lastName),
-			MTP_string(), // vcard
-			MTP_long(0)), // user_id
-		HistoryMessageMarkupData(),
-		groupedId);
+		.from = history->session().userPeerId(),
+		.date = base::unixtime::now(),
+	}, TextWithEntities(), MTP_messageMediaContact(
+		MTP_string(data.phone),
+		MTP_string(data.firstName),
+		MTP_string(data.lastName),
+		MTP_string(), // vcard
+		MTP_long(0))); // user_id
 	return AdminLog::OwnedItem(delegate, item);
 }
 

@@ -294,7 +294,7 @@ void GlobalTTL::rebuildButtons(TimeId currentTTL) const {
 					rpl::single(ttlText)),
 			st::settingsButtonNoIcon));
 		button->setClickedCallback([=] {
-			if (_group->value() == ttl) {
+			if (_group->current() == ttl) {
 				return;
 			}
 			if (!ttl) {
@@ -357,7 +357,7 @@ void GlobalTTL::setupContent() {
 
 		show->showBox(Box(TTLMenu::TTLBox, TTLMenu::Args{
 			.show = show,
-			.startTtl = _group->value(),
+			.startTtl = _group->current(),
 			.callback = [=](TimeId ttl, Fn<void()>) { showSure(ttl, true); },
 			.hideDisable = true,
 		}));

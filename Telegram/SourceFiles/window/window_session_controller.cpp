@@ -314,6 +314,8 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 					peer,
 					[=](bool) { showPeerByLinkResolved(peer, info); },
 					true);
+			} else if (info.joinChannel && peer->isChannel()) {
+				peer->session().api().joinChannel(peer->asChannel());
 			} else {
 				showPeerByLinkResolved(peer, info);
 			}
@@ -1427,8 +1429,10 @@ void SessionController::setupPremiumToast() {
 		session().mtp().requestConfig();
 		return premium;
 	}) | rpl::start_with_next([=] {
-		MainWindowShow(this).showToast(
-			{ tr::lng_premium_success(tr::now) });
+		MainWindowShow(this).showToast({
+			.text = { tr::lng_premium_success(tr::now) },
+			.adaptive = true,
+		});
 	}, _lifetime);
 }
 

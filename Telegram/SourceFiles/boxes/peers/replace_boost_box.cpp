@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
+#include "data/data_premium_limits.h"
 #include "boxes/peer_list_box.h"
 #include "data/data_channel.h"
 #include "data/data_cloud_themes.h"
@@ -424,14 +425,9 @@ Ui::BoostCounters ParseBoostCounters(
 }
 
 Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
-	const auto group = channel->isMegagroup();
-	const auto appConfig = &channel->session().account().appConfig();
-	const auto get = [&](const QString &key, int fallback, bool ok = true) {
-		return ok ? appConfig->get<int>(key, fallback) : 0;
-	};
-
 	auto nameColorsByLevel = base::flat_map<int, int>();
 	auto linkStylesByLevel = base::flat_map<int, int>();
+	const auto group = channel->isMegagroup();
 	const auto peerColors = &channel->session().api().peerColors();
 	const auto &list = group
 		? peerColors->requiredLevelsGroup()
@@ -447,22 +443,23 @@ Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
 	if (themes.empty()) {
 		channel->owner().cloudThemes().refreshChatThemes();
 	}
+	const auto levelLimits = Data::LevelLimits(&channel->session());
 	return Ui::BoostFeatures{
 		.nameColorsByLevel = std::move(nameColorsByLevel),
 		.linkStylesByLevel = std::move(linkStylesByLevel),
-		.linkLogoLevel = get(u"channel_bg_icon_level_min"_q, 4, !group),
-		.transcribeLevel = get(u"group_transcribe_level_min"_q, 6, group),
-		.emojiPackLevel = get(u"group_emoji_stickers_level_min"_q, 4, group),
-		.emojiStatusLevel = get(group
-			? u"group_emoji_status_level_min"_q
-			: u"channel_emoji_status_level_min"_q, 8),
-		.wallpaperLevel = get(group
-			? u"group_wallpaper_level_min"_q
-			: u"channel_wallpaper_level_min"_q, 9),
+		.linkLogoLevel = group ? 0 : levelLimits.channelBgIconLevelMin(),
+		.transcribeLevel = group ? levelLimits.groupTranscribeLevelMin() : 0,
+		.emojiPackLevel = group ? levelLimits.groupEmojiStickersLevelMin() : 0,
+		.emojiStatusLevel = group
+			? levelLimits.groupEmojiStatusLevelMin()
+			: levelLimits.channelEmojiStatusLevelMin(),
+		.wallpaperLevel = group
+			? levelLimits.groupWallpaperLevelMin()
+			: levelLimits.channelWallpaperLevelMin(),
 		.wallpapersCount = themes.empty() ? 8 : int(themes.size()),
-		.customWallpaperLevel = get(group
-			? u"channel_custom_wallpaper_level_min"_q
-			: u"group_custom_wallpaper_level_min"_q, 10),
+		.customWallpaperLevel = group
+			? levelLimits.groupCustomWallpaperLevelMin()
+			: levelLimits.channelCustomWallpaperLevelMin(),
 	};
 }
 

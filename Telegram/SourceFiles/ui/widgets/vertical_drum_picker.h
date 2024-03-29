@@ -52,6 +52,8 @@ public:
 		bool looped = false);
 
 	[[nodiscard]] int index() const;
+	[[nodiscard]] rpl::producer<int> changes() const;
+	[[nodiscard]] rpl::producer<int> value() const;
 
 	void handleWheelEvent(not_null<QWheelEvent*> e);
 	void handleMouseEvent(not_null<QMouseEvent*> e);
@@ -75,7 +77,7 @@ private:
 
 	PaintItemCallback _paintCallback;
 
-	int _pendingStartIndex = 0;
+	int _pendingStartIndex = -1;
 
 	struct {
 		int count = 0;
@@ -84,6 +86,7 @@ private:
 
 	int _index = 0;
 	float64 _shift = 0.;
+	rpl::event_stream<> _changes;
 
 	struct {
 		const bool looped;

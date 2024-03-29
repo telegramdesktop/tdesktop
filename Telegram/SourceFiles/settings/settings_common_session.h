@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "settings/settings_type.h"
 
+namespace Ui {
+class ScrollArea;
+} // namespace Ui
+
 namespace Ui::Menu {
 struct MenuCallback;
 } // namespace Ui::Menu
@@ -22,12 +26,19 @@ class SessionController;
 
 namespace Settings {
 
+enum class Container {
+	Section,
+	Layer,
+};
+
 class AbstractSection;
 
 struct AbstractSectionFactory {
 	[[nodiscard]] virtual object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller) const = 0;
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::ScrollArea*> scroll,
+		rpl::producer<Container> containerValue) const = 0;
 	[[nodiscard]] virtual bool hasCustomTopBar() const {
 		return false;
 	}
@@ -39,7 +50,9 @@ template <typename SectionType>
 struct SectionFactory : AbstractSectionFactory {
 	object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::ScrollArea*> scroll,
+		rpl::producer<Container> containerValue
 	) const final override {
 		return object_ptr<SectionType>(parent, controller);
 	}
@@ -48,6 +61,7 @@ struct SectionFactory : AbstractSectionFactory {
 		static const auto result = std::make_shared<SectionFactory>();
 		return result;
 	}
+
 };
 
 template <typename SectionType>
@@ -61,12 +75,24 @@ public:
 	[[nodiscard]] Type id() const final override {
 		return Id();
 	}
+
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() final override {
+		return _showOtherRequests.events();
+	}
+	void showOther(Type type) {
+		_showOtherRequests.fire_copy(type);
+	}
+	[[nodiscard]] Fn<void(Type)> showOtherMethod() {
+		return crl::guard(this, [=](Type type) {
+			showOther(type);
+		});
+	}
+
+private:
+	rpl::event_stream<Type> _showOtherRequests;
+
 };
 
-void FillMenu(
-	not_null<Window::SessionController*> controller,
-	Type type,
-	Fn<void(Type)> showOther,
-	Ui::Menu::MenuCallback addAction);
+bool HasMenu(Type type);
 
 } // namespace Settings

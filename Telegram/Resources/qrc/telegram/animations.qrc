@@ -14,5 +14,12 @@
     <file alias="voice_ttl_idle.tgs">../../animations/voice_ttl_idle.tgs</file>
     <file alias="voice_ttl_start.tgs">../../animations/voice_ttl_start.tgs</file>
     <file alias="palette.tgs">../../animations/palette.tgs</file>
+    <file alias="sleep.tgs">../../animations/sleep.tgs</file>
+	<file alias="greeting.tgs">../../animations/greeting.tgs</file>
+	<file alias="location.tgs">../../animations/location.tgs</file>
+	<file alias="robot.tgs">../../animations/robot.tgs</file>
+	<file alias="writing.tgs">../../animations/writing.tgs</file>
+	<file alias="hours.tgs">../../animations/hours.tgs</file>
+	<file alias="phone.tgs">../../animations/phone.tgs</file>
   </qresource>
 </RCC>

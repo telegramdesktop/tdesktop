@@ -1,0 +1,59 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <interface name="org.freedesktop.Notifications">
+    <signal name="NotificationClosed">
+      <arg direction="out" type="u" name="id"/>
+      <arg direction="out" type="u" name="reason"/>
+    </signal>
+    <signal name="ActionInvoked">
+      <arg direction="out" type="u" name="id"/>
+      <arg direction="out" type="s" name="action_key"/>
+    </signal>
+    <signal name="NotificationReplied">
+      <arg direction="out" type="u" name="id"/>
+      <arg direction="out" type="s" name="text"/>
+    </signal>
+    <signal name="ActivationToken">
+      <arg direction="out" type="u" name="id"/>
+      <arg direction="out" type="s" name="activation_token"/>
+    </signal>
+    <method name="Notify">
+      <annotation value="QVariantMap" name="org.qtproject.QtDBus.QtTypeName.In6"/>
+      <arg direction="out" type="u"/>
+      <arg direction="in" type="s" name="app_name"/>
+      <arg direction="in" type="u" name="replaces_id"/>
+      <arg direction="in" type="s" name="app_icon"/>
+      <arg direction="in" type="s" name="summary"/>
+      <arg direction="in" type="s" name="body"/>
+      <arg direction="in" type="as" name="actions"/>
+      <arg direction="in" type="a{sv}" name="hints"/>
+      <arg direction="in" type="i" name="timeout"/>
+    </method>
+    <method name="CloseNotification">
+      <arg direction="in" type="u" name="id"/>
+    </method>
+    <method name="GetCapabilities">
+      <arg direction="out" type="as" name="caps"/>
+    </method>
+    <method name="GetServerInformation">
+      <arg direction="out" type="s" name="name"/>
+      <arg direction="out" type="s" name="vendor"/>
+      <arg direction="out" type="s" name="version"/>
+      <arg direction="out" type="s" name="spec_version"/>
+    </method>
+    <method name="Inhibit">
+      <annotation value="QVariantMap" name="org.qtproject.QtDBus.QtTypeName.In2"/>
+      <arg direction="out" type="u"/>
+      <arg direction="in" type="s" name="desktop_entry"/>
+      <arg direction="in" type="s" name="reason"/>
+      <arg direction="in" type="a{sv}" name="hints"/>
+    </method>
+    <method name="UnInhibit">
+      <arg direction="in" type="u"/>
+    </method>
+    <property access="read" type="b" name="Inhibited">
+      <annotation value="true" name="org.freedesktop.DBus.Property.EmitsChangedSignal"/>
+    </property>
+  </interface>
+</node>

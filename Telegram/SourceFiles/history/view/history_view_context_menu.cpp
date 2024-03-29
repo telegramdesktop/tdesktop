@@ -102,7 +102,10 @@ bool HasEditMessageAction(
 		|| item->hasFailed()
 		|| item->isEditingMedia()
 		|| !request.selectedItems.empty()
-		|| (context != Context::History && context != Context::Replies)) {
+		|| (context != Context::History
+			&& context != Context::Replies
+			&& context != Context::ShortcutMessages
+			&& context != Context::ScheduledTopic)) {
 		return false;
 	}
 	const auto peer = item->history()->peer;
@@ -1338,7 +1341,8 @@ void AddPollActions(
 	}
 	if ((context != Context::History)
 		&& (context != Context::Replies)
-		&& (context != Context::Pinned)) {
+		&& (context != Context::Pinned)
+		&& (context != Context::ScheduledTopic)) {
 		return;
 	}
 	if (poll->closed()) {

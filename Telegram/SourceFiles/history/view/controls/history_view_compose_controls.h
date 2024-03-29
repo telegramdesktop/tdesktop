@@ -37,6 +37,7 @@ class TabbedSelector;
 struct FileChosen;
 struct PhotoChosen;
 class Show;
+enum class PauseReason;
 } // namespace ChatHelpers
 
 namespace Data {
@@ -95,6 +96,8 @@ enum class ComposeControlsMode {
 	Scheduled,
 };
 
+extern const ChatHelpers::PauseReason kDefaultPanelsLevel;
+
 struct ComposeControlsDescriptor {
 	const style::ComposeControls *stOverride = nullptr;
 	std::shared_ptr<ChatHelpers::Show> show;
@@ -104,9 +107,12 @@ struct ComposeControlsDescriptor {
 	Window::SessionController *regularWindow = nullptr;
 	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
 	rpl::producer<QString> customPlaceholder;
+	QWidget *panelsParent = nullptr;
+	ChatHelpers::PauseReason panelsLevel = kDefaultPanelsLevel;
 	QString voiceCustomCancelText;
 	bool voiceLockFromBottom = false;
 	ChatHelpers::ComposeFeatures features;
+	rpl::producer<bool> scheduledToggleValue;
 };
 
 class ComposeControls final {
@@ -125,18 +131,13 @@ public:
 
 	ComposeControls(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller,
-		Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted,
-		Mode mode,
-		SendMenu::Type sendMenuType);
-	ComposeControls(
-		not_null<Ui::RpWidget*> parent,
 		ComposeControlsDescriptor descriptor);
 	~ComposeControls();
 
 	[[nodiscard]] Main::Session &session() const;
 	void setHistory(SetHistoryArgs &&args);
 	void updateTopicRootId(MsgId topicRootId);
+	void updateShortcutId(BusinessShortcutId shortcutId);
 	void setCurrentDialogsEntryState(Dialogs::EntryState state);
 	[[nodiscard]] PeerData *sendAsPeer() const;
 
@@ -172,6 +173,7 @@ public:
 	[[nodiscard]] auto replyNextRequests() const
 	-> rpl::producer<ReplyNextRequest>;
 	[[nodiscard]] rpl::producer<> focusRequests() const;
+	[[nodiscard]] rpl::producer<> showScheduledRequests() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
@@ -196,7 +198,7 @@ public:
 	void showFinished();
 	void raisePanels();
 
-	void editMessage(FullMsgId id);
+	void editMessage(FullMsgId id, const TextSelection &selection);
 	void cancelEditMessage();
 	void maybeCancelEditMessage(); // Confirm if changed and cancel.
 
@@ -228,6 +230,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 	[[nodiscard]] rpl::producer<bool> fieldMenuShownValue() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> likeAnimationTarget() const;
+	[[nodiscard]] int fieldCharacterCount() const;
 
 	[[nodiscard]] TextWithEntities prepareTextForEditMsg() const;
 
@@ -342,6 +345,7 @@ private:
 	const style::ComposeControls &_st;
 	const ChatHelpers::ComposeFeatures _features;
 	const not_null<QWidget*> _parent;
+	const not_null<QWidget*> _panelsParent;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
 
@@ -352,6 +356,7 @@ private:
 
 	History *_history = nullptr;
 	MsgId _topicRootId = 0;
+	BusinessShortcutId _shortcutId = 0;
 	Fn<bool()> _showSlowmodeError;
 	Fn<Api::SendAction()> _sendActionFactory;
 	rpl::variable<int> _slowmodeSecondsLeft;
@@ -379,6 +384,7 @@ private:
 	std::unique_ptr<Ui::SilentToggle> _silent;
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;
 	base::unique_qptr<Controls::CharactersLimitLabel> _charsLimitation;
+	base::unique_qptr<Ui::IconButton> _scheduled;
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
@@ -405,6 +411,7 @@ private:
 	rpl::event_stream<> _likeToggled;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
 	rpl::event_stream<> _focusRequests;
+	rpl::event_stream<> _showScheduledRequests;
 	rpl::variable<bool> _recording;
 	rpl::variable<bool> _hasSendText;
 

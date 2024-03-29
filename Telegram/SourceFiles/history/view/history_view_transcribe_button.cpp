@@ -272,7 +272,7 @@ ClickHandlerPtr TranscribeButton::link() {
 			if (const auto controller = my.sessionWindow.get()) {
 				ShowPremiumPreviewBox(
 					controller,
-					PremiumPreview::VoiceToText);
+					PremiumFeature::VoiceToText);
 			}
 		} else {
 			const auto max = session->api().transcribes().trialsMaxLengthMs();

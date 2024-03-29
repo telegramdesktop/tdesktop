@@ -294,15 +294,15 @@ QImage Form::prepareThumbnail(
 		Qt::KeepAspectRatio,
 		Qt::SmoothTransformation);
 	result = Images::Round(std::move(result), ImageRoundRadius::Large);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	return result;
 }
 
 QImage Form::prepareEmptyThumbnail() const {
 	auto result = QImage(
-		st::paymentsThumbnailSize * cIntRetinaFactor(),
+		st::paymentsThumbnailSize * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	return result;
 }

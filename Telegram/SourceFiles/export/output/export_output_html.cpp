@@ -1443,6 +1443,55 @@ auto HtmlWriter::Wrap::pushMessage(
 		block.append(text);
 		block.append(popTag());
 	}
+	if (!message.inlineButtonRows.empty()) {
+		using Type = HistoryMessageMarkupButton::Type;
+		const auto endline = u" | "_q;
+		block.append(pushTag("table", { { "class", "bot_buttons_table" } }));
+		block.append(pushTag("tbody"));
+		for (const auto &row : message.inlineButtonRows) {
+			block.append(pushTag("tr"));
+			block.append(pushTag("td", { { "class", "bot_button_row" } }));
+			for (const auto &button : row) {
+				using Attribute = std::pair<QByteArray, QByteArray>;
+				const auto content = (!button.data.isEmpty()
+						? (u"Data: "_q + button.data + endline)
+						: QString())
+					+ (!button.forwardText.isEmpty()
+						? (u"Forward text: "_q + button.forwardText + endline)
+						: QString())
+					+ (u"Type: "_q
+						+ HistoryMessageMarkupButton::TypeToString(button));
+				const auto link = (button.type == Type::Url)
+					? button.data
+					: QByteArray();
+				const auto onclick = (button.type != Type::Url)
+					? ("return ShowTextCopied('" + content + "');").toUtf8()
+					: QByteArray();
+				block.append(pushTag("div", { { "class", "bot_button" } }));
+				block.append(pushTag("a", {
+					link.isEmpty() ? Attribute() : Attribute{ "href", link },
+					onclick.isEmpty()
+						? Attribute()
+						: Attribute{ "onclick", onclick },
+				}));
+				block.append(pushTag("div"));
+				block.append(button.text.toUtf8());
+				block.append(popTag());
+				block.append(popTag());
+				block.append(popTag());
+
+				if (&button != &row.back()) {
+					block.append(pushTag("div", {
+						{ "class", "bot_button_column_separator" }
+					}));
+					block.append(popTag());
+				}
+			}
+			block.append(popTag());
+			block.append(popTag());
+		}
+		block.append(popTag());
+	}
 	if (!message.signature.isEmpty()) {
 		block.append(pushDiv("signature details"));
 		block.append(SerializeString(message.signature));

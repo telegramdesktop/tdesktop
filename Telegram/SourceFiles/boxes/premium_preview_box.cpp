@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
+#include "settings/settings_business.h"
 #include "settings/settings_premium.h"
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"
@@ -59,7 +60,7 @@ constexpr auto kStarPeriod = 3 * crl::time(1000);
 using Data::ReactionId;
 
 struct Descriptor {
-	PremiumPreview section = PremiumPreview::Stickers;
+	PremiumFeature section = PremiumFeature::Stickers;
 	DocumentData *requestedSticker = nullptr;
 	bool fromSettings = false;
 	Fn<void()> hiddenCallback;
@@ -90,88 +91,118 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 	media->videoThumbnailWanted(origin);
 }
 
-[[nodiscard]] rpl::producer<QString> SectionTitle(PremiumPreview section) {
+[[nodiscard]] rpl::producer<QString> SectionTitle(PremiumFeature section) {
 	switch (section) {
-	case PremiumPreview::Wallpapers:
+	case PremiumFeature::Wallpapers:
 		return tr::lng_premium_summary_subtitle_wallpapers();
-	case PremiumPreview::Stories:
+	case PremiumFeature::Stories:
 		return tr::lng_premium_summary_subtitle_stories();
-	case PremiumPreview::DoubleLimits:
+	case PremiumFeature::DoubleLimits:
 		return tr::lng_premium_summary_subtitle_double_limits();
-	case PremiumPreview::MoreUpload:
+	case PremiumFeature::MoreUpload:
 		return tr::lng_premium_summary_subtitle_more_upload();
-	case PremiumPreview::FasterDownload:
+	case PremiumFeature::FasterDownload:
 		return tr::lng_premium_summary_subtitle_faster_download();
-	case PremiumPreview::VoiceToText:
+	case PremiumFeature::VoiceToText:
 		return tr::lng_premium_summary_subtitle_voice_to_text();
-	case PremiumPreview::NoAds:
+	case PremiumFeature::NoAds:
 		return tr::lng_premium_summary_subtitle_no_ads();
-	case PremiumPreview::EmojiStatus:
+	case PremiumFeature::EmojiStatus:
 		return tr::lng_premium_summary_subtitle_emoji_status();
-	case PremiumPreview::InfiniteReactions:
+	case PremiumFeature::InfiniteReactions:
 		return tr::lng_premium_summary_subtitle_infinite_reactions();
-	case PremiumPreview::TagsForMessages:
+	case PremiumFeature::TagsForMessages:
 		return tr::lng_premium_summary_subtitle_tags_for_messages();
-	case PremiumPreview::LastSeen:
+	case PremiumFeature::LastSeen:
 		return tr::lng_premium_summary_subtitle_last_seen();
-	case PremiumPreview::MessagePrivacy:
+	case PremiumFeature::MessagePrivacy:
 		return tr::lng_premium_summary_subtitle_message_privacy();
-	case PremiumPreview::Stickers:
+	case PremiumFeature::Stickers:
 		return tr::lng_premium_summary_subtitle_premium_stickers();
-	case PremiumPreview::AnimatedEmoji:
+	case PremiumFeature::AnimatedEmoji:
 		return tr::lng_premium_summary_subtitle_animated_emoji();
-	case PremiumPreview::AdvancedChatManagement:
+	case PremiumFeature::AdvancedChatManagement:
 		return tr::lng_premium_summary_subtitle_advanced_chat_management();
-	case PremiumPreview::ProfileBadge:
+	case PremiumFeature::ProfileBadge:
 		return tr::lng_premium_summary_subtitle_profile_badge();
-	case PremiumPreview::AnimatedUserpics:
+	case PremiumFeature::AnimatedUserpics:
 		return tr::lng_premium_summary_subtitle_animated_userpics();
-	case PremiumPreview::RealTimeTranslation:
+	case PremiumFeature::RealTimeTranslation:
 		return tr::lng_premium_summary_subtitle_translation();
+	case PremiumFeature::Business:
+		return tr::lng_premium_summary_subtitle_business();
+
+	case PremiumFeature::BusinessLocation:
+		return tr::lng_business_subtitle_location();
+	case PremiumFeature::BusinessHours:
+		return tr::lng_business_subtitle_opening_hours();
+	case PremiumFeature::QuickReplies:
+		return tr::lng_business_subtitle_quick_replies();
+	case PremiumFeature::GreetingMessage:
+		return tr::lng_business_subtitle_greeting_messages();
+	case PremiumFeature::AwayMessage:
+		return tr::lng_business_subtitle_away_messages();
+	case PremiumFeature::BusinessBots:
+		return tr::lng_business_subtitle_chatbots();
 	}
-	Unexpected("PremiumPreview in SectionTitle.");
+	Unexpected("PremiumFeature in SectionTitle.");
 }
 
-[[nodiscard]] rpl::producer<QString> SectionAbout(PremiumPreview section) {
+[[nodiscard]] rpl::producer<QString> SectionAbout(PremiumFeature section) {
 	switch (section) {
-	case PremiumPreview::Wallpapers:
+	case PremiumFeature::Wallpapers:
 		return tr::lng_premium_summary_about_wallpapers();
-	case PremiumPreview::Stories:
+	case PremiumFeature::Stories:
 		return tr::lng_premium_summary_about_stories();
-	case PremiumPreview::DoubleLimits:
+	case PremiumFeature::DoubleLimits:
 		return tr::lng_premium_summary_about_double_limits();
-	case PremiumPreview::MoreUpload:
+	case PremiumFeature::MoreUpload:
 		return tr::lng_premium_summary_about_more_upload();
-	case PremiumPreview::FasterDownload:
+	case PremiumFeature::FasterDownload:
 		return tr::lng_premium_summary_about_faster_download();
-	case PremiumPreview::VoiceToText:
+	case PremiumFeature::VoiceToText:
 		return tr::lng_premium_summary_about_voice_to_text();
-	case PremiumPreview::NoAds:
+	case PremiumFeature::NoAds:
 		return tr::lng_premium_summary_about_no_ads();
-	case PremiumPreview::EmojiStatus:
+	case PremiumFeature::EmojiStatus:
 		return tr::lng_premium_summary_about_emoji_status();
-	case PremiumPreview::InfiniteReactions:
+	case PremiumFeature::InfiniteReactions:
 		return tr::lng_premium_summary_about_infinite_reactions();
-	case PremiumPreview::TagsForMessages:
+	case PremiumFeature::TagsForMessages:
 		return tr::lng_premium_summary_about_tags_for_messages();
-	case PremiumPreview::LastSeen:
+	case PremiumFeature::LastSeen:
 		return tr::lng_premium_summary_about_last_seen();
-	case PremiumPreview::MessagePrivacy:
+	case PremiumFeature::MessagePrivacy:
 		return tr::lng_premium_summary_about_message_privacy();
-	case PremiumPreview::Stickers:
+	case PremiumFeature::Stickers:
 		return tr::lng_premium_summary_about_premium_stickers();
-	case PremiumPreview::AnimatedEmoji:
+	case PremiumFeature::AnimatedEmoji:
 		return tr::lng_premium_summary_about_animated_emoji();
-	case PremiumPreview::AdvancedChatManagement:
+	case PremiumFeature::AdvancedChatManagement:
 		return tr::lng_premium_summary_about_advanced_chat_management();
-	case PremiumPreview::ProfileBadge:
+	case PremiumFeature::ProfileBadge:
 		return tr::lng_premium_summary_about_profile_badge();
-	case PremiumPreview::AnimatedUserpics:
+	case PremiumFeature::AnimatedUserpics:
 		return tr::lng_premium_summary_about_animated_userpics();
-	case PremiumPreview::RealTimeTranslation:
+	case PremiumFeature::RealTimeTranslation:
 		return tr::lng_premium_summary_about_translation();
+	case PremiumFeature::Business:
+		return tr::lng_premium_summary_about_business();
+
+	case PremiumFeature::BusinessLocation:
+		return tr::lng_business_about_location();
+	case PremiumFeature::BusinessHours:
+		return tr::lng_business_about_opening_hours();
+	case PremiumFeature::QuickReplies:
+		return tr::lng_business_about_quick_replies();
+	case PremiumFeature::GreetingMessage:
+		return tr::lng_business_about_greeting_messages();
+	case PremiumFeature::AwayMessage:
+		return tr::lng_business_about_away_messages();
+	case PremiumFeature::BusinessBots:
+		return tr::lng_business_about_chatbots();
 	}
-	Unexpected("PremiumPreview in SectionTitle.");
+	Unexpected("PremiumFeature in SectionTitle.");
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> ChatBackPreview(
@@ -463,33 +494,40 @@ struct VideoPreviewDocument {
 	RectPart align = RectPart::Bottom;
 };
 
-[[nodiscard]] bool VideoAlignToTop(PremiumPreview section) {
-	return (section == PremiumPreview::MoreUpload)
-		|| (section == PremiumPreview::NoAds)
-		|| (section == PremiumPreview::AnimatedEmoji);
+[[nodiscard]] bool VideoAlignToTop(PremiumFeature section) {
+	return (section == PremiumFeature::MoreUpload)
+		|| (section == PremiumFeature::NoAds)
+		|| (section == PremiumFeature::AnimatedEmoji);
 }
 
 [[nodiscard]] DocumentData *LookupVideo(
 		not_null<Main::Session*> session,
-		PremiumPreview section) {
+		PremiumFeature section) {
 	const auto name = [&] {
 		switch (section) {
-		case PremiumPreview::MoreUpload: return "more_upload";
-		case PremiumPreview::FasterDownload: return "faster_download";
-		case PremiumPreview::VoiceToText: return "voice_to_text";
-		case PremiumPreview::NoAds: return "no_ads";
-		case PremiumPreview::AnimatedEmoji: return "animated_emoji";
-		case PremiumPreview::AdvancedChatManagement:
+		case PremiumFeature::MoreUpload: return "more_upload";
+		case PremiumFeature::FasterDownload: return "faster_download";
+		case PremiumFeature::VoiceToText: return "voice_to_text";
+		case PremiumFeature::NoAds: return "no_ads";
+		case PremiumFeature::AnimatedEmoji: return "animated_emoji";
+		case PremiumFeature::AdvancedChatManagement:
 			return "advanced_chat_management";
-		case PremiumPreview::EmojiStatus: return "emoji_status";
-		case PremiumPreview::InfiniteReactions: return "infinite_reactions";
-		case PremiumPreview::TagsForMessages: return "saved_tags";
-		case PremiumPreview::ProfileBadge: return "profile_badge";
-		case PremiumPreview::AnimatedUserpics: return "animated_userpics";
-		case PremiumPreview::RealTimeTranslation: return "translations";
-		case PremiumPreview::Wallpapers: return "wallpapers";
-		case PremiumPreview::LastSeen: return "last_seen";
-		case PremiumPreview::MessagePrivacy: return "message_privacy";
+		case PremiumFeature::EmojiStatus: return "emoji_status";
+		case PremiumFeature::InfiniteReactions: return "infinite_reactions";
+		case PremiumFeature::TagsForMessages: return "saved_tags";
+		case PremiumFeature::ProfileBadge: return "profile_badge";
+		case PremiumFeature::AnimatedUserpics: return "animated_userpics";
+		case PremiumFeature::RealTimeTranslation: return "translations";
+		case PremiumFeature::Wallpapers: return "wallpapers";
+		case PremiumFeature::LastSeen: return "last_seen";
+		case PremiumFeature::MessagePrivacy: return "message_privacy";
+
+		case PremiumFeature::BusinessLocation: return "business_location";
+		case PremiumFeature::BusinessHours: return "business_hours";
+		case PremiumFeature::QuickReplies: return "quick_replies";
+		case PremiumFeature::GreetingMessage: return "greeting_message";
+		case PremiumFeature::AwayMessage: return "away_message";
+		case PremiumFeature::BusinessBots: return "business_bots";
 		}
 		return "";
 	}();
@@ -716,7 +754,7 @@ struct VideoPreviewDocument {
 [[nodiscard]] not_null<Ui::RpWidget*> GenericPreview(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<ChatHelpers::Show> show,
-		PremiumPreview section,
+		PremiumFeature section,
 		Fn<void()> readyCallback) {
 	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	result->show();
@@ -757,10 +795,10 @@ struct VideoPreviewDocument {
 [[nodiscard]] not_null<Ui::RpWidget*> GenerateDefaultPreview(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<ChatHelpers::Show> show,
-		PremiumPreview section,
+		PremiumFeature section,
 		Fn<void()> readyCallback) {
 	switch (section) {
-	case PremiumPreview::Stickers:
+	case PremiumFeature::Stickers:
 		return StickersPreview(parent, std::move(show), readyCallback);
 	default:
 		return GenericPreview(
@@ -784,8 +822,8 @@ struct VideoPreviewDocument {
 
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateSwitch(
 		not_null<Ui::RpWidget*> parent,
-		not_null<rpl::variable<PremiumPreview>*> selected,
-		std::vector<PremiumPreview> order) {
+		not_null<rpl::variable<PremiumFeature>*> selected,
+		std::vector<PremiumFeature> order) {
 	const auto padding = st::premiumDotPadding;
 	const auto width = padding.left() + st::premiumDot + padding.right();
 	const auto height = padding.top() + st::premiumDot + padding.bottom();
@@ -856,14 +894,20 @@ void PreviewBox(
 		Ui::Animations::Simple animation;
 		Fn<void()> preload;
 		std::vector<Hiding> hiding;
-		rpl::variable<PremiumPreview> selected;
-		std::vector<PremiumPreview> order;
+		rpl::variable<PremiumFeature> selected;
+		std::vector<PremiumFeature> order;
 	};
 	const auto state = outer->lifetime().make_state<State>();
 	state->selected = descriptor.section;
-	state->order = Settings::PremiumPreviewOrder(&show->session());
+	auto premiumOrder = Settings::PremiumFeaturesOrder(&show->session());
+	auto businessOrder = Settings::BusinessFeaturesOrder(&show->session());
+	state->order = ranges::contains(businessOrder, descriptor.section)
+		? std::move(businessOrder)
+		: ranges::contains(businessOrder, descriptor.section)
+		? std::move(premiumOrder)
+		: std::vector{ descriptor.section };
 
-	const auto index = [=](PremiumPreview section) {
+	const auto index = [=](PremiumFeature section) {
 		const auto it = ranges::find(state->order, section);
 		return (it == end(state->order))
 			? 0
@@ -906,7 +950,7 @@ void PreviewBox(
 			return;
 		}
 		const auto now = state->selected.current();
-		if (now != PremiumPreview::Stickers && !state->stickersPreload) {
+		if (now != PremiumFeature::Stickers && !state->stickersPreload) {
 			const auto ready = [=] {
 				if (state->stickersPreload) {
 					state->stickersPreloadReady = true;
@@ -917,14 +961,14 @@ void PreviewBox(
 			state->stickersPreload = GenerateDefaultPreview(
 				outer,
 				show,
-				PremiumPreview::Stickers,
+				PremiumFeature::Stickers,
 				ready);
 			state->stickersPreload->hide();
 		}
 	};
 
 	switch (descriptor.section) {
-	case PremiumPreview::Stickers:
+	case PremiumFeature::Stickers:
 		state->content = media
 			? StickerPreview(outer, show, media, state->preload)
 			: StickersPreview(outer, show, state->preload);
@@ -940,7 +984,7 @@ void PreviewBox(
 
 	state->selected.value(
 	) | rpl::combine_previous(
-	) | rpl::start_with_next([=](PremiumPreview was, PremiumPreview now) {
+	) | rpl::start_with_next([=](PremiumFeature was, PremiumFeature now) {
 		const auto animationCallback = [=] {
 			if (!state->animation.animating()) {
 				for (const auto &hiding : base::take(state->hiding)) {
@@ -982,7 +1026,7 @@ void PreviewBox(
 			.leftTill = state->content->x() - start,
 		});
 		state->leftFrom = start;
-		if (now == PremiumPreview::Stickers && state->stickersPreload) {
+		if (now == PremiumFeature::Stickers && state->stickersPreload) {
 			state->content = base::take(state->stickersPreload);
 			state->content->show();
 			if (base::take(state->stickersPreloadReady)) {
@@ -1053,14 +1097,14 @@ void PreviewBox(
 			return Settings::LookupPremiumRef(state->selected.current());
 		};
 		auto unlock = state->selected.value(
-		) | rpl::map([=](PremiumPreview section) {
-			return (section == PremiumPreview::InfiniteReactions)
+		) | rpl::map([=](PremiumFeature section) {
+			return (section == PremiumFeature::InfiniteReactions)
 				? tr::lng_premium_unlock_reactions()
-				: (section == PremiumPreview::Stickers)
+				: (section == PremiumFeature::Stickers)
 				? tr::lng_premium_unlock_stickers()
-				: (section == PremiumPreview::AnimatedEmoji)
+				: (section == PremiumFeature::AnimatedEmoji)
 				? tr::lng_premium_unlock_emoji()
-				: (section == PremiumPreview::EmojiStatus)
+				: (section == PremiumFeature::EmojiStatus)
 				? tr::lng_premium_unlock_status()
 				: tr::lng_premium_more_about();
 		}) | rpl::flatten_latest();
@@ -1207,17 +1251,24 @@ void Show(
 			descriptor.shownCallback(raw);
 		}
 		return;
-	} else if (descriptor.section == PremiumPreview::DoubleLimits) {
+	} else if (descriptor.section == PremiumFeature::DoubleLimits) {
 		show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 			DoubledLimitsPreviewBox(box, &show->session());
 			DecorateListPromoBox(box, show, descriptor);
 		}));
 		return;
-	} else if (descriptor.section == PremiumPreview::Stories) {
+	} else if (descriptor.section == PremiumFeature::Stories) {
 		show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 			UpgradedStoriesPreviewBox(box, &show->session());
 			DecorateListPromoBox(box, show, descriptor);
 		}));
+		return;
+	} else if (descriptor.section == PremiumFeature::Business) {
+		const auto window = show->resolveWindow(
+			ChatHelpers::WindowUsage::PremiumPromo);
+		if (window) {
+			Settings::ShowBusiness(window);
+		}
 		return;
 	}
 	auto &list = Preloads();
@@ -1286,21 +1337,21 @@ void ShowStickerPreviewBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document) {
 	Show(std::move(show), Descriptor{
-		.section = PremiumPreview::Stickers,
+		.section = PremiumFeature::Stickers,
 		.requestedSticker = document,
 	});
 }
 
 void ShowPremiumPreviewBox(
 		not_null<Window::SessionController*> controller,
-		PremiumPreview section,
+		PremiumFeature section,
 		Fn<void(not_null<Ui::BoxContent*>)> shown) {
 	ShowPremiumPreviewBox(controller->uiShow(), section, std::move(shown));
 }
 
 void ShowPremiumPreviewBox(
 		std::shared_ptr<ChatHelpers::Show> show,
-		PremiumPreview section,
+		PremiumFeature section,
 		Fn<void(not_null<Ui::BoxContent*>)> shown,
 		bool hideSubscriptionButton) {
 	Show(std::move(show), Descriptor{
@@ -1312,7 +1363,7 @@ void ShowPremiumPreviewBox(
 
 void ShowPremiumPreviewToBuy(
 		not_null<Window::SessionController*> controller,
-		PremiumPreview section,
+		PremiumFeature section,
 		Fn<void()> hiddenCallback) {
 	Show(controller->uiShow(), Descriptor{
 		.section = section,

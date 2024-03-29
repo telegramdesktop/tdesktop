@@ -34,6 +34,7 @@ public:
 	[[nodiscard]] HistoryItem *lookupItem(PeerId peer, MsgId msg) const;
 	[[nodiscard]] HistoryItem *lookupItem(FullMsgId itemId) const;
 	[[nodiscard]] int count(not_null<History*> history) const;
+	[[nodiscard]] bool hasFor(not_null<Data::ForumTopic*> topic) const;
 	[[nodiscard]] MsgId localMessageId(MsgId remoteId) const;
 
 	void checkEntitiesAndUpdate(const MTPDmessage &data);
@@ -51,7 +52,9 @@ public:
 		not_null<HistoryItem*> local);
 
 	[[nodiscard]] rpl::producer<> updates(not_null<History*> history);
-	[[nodiscard]] Data::MessagesSlice list(not_null<History*> history);
+	[[nodiscard]] Data::MessagesSlice list(not_null<History*> history) const;
+	[[nodiscard]] Data::MessagesSlice list(
+		not_null<const Data::ForumTopic*> topic) const;
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;

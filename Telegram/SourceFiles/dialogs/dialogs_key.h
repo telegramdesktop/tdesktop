@@ -108,6 +108,7 @@ struct EntryState {
 		Replies,
 		SavedSublist,
 		ContextMenu,
+		ShortcutMessages,
 	};
 
 	Key key;

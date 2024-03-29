@@ -20,7 +20,7 @@ int WidthFromString(NSString *s) {
 
 NSImage *CreateNSImageFromStyleIcon(const style::icon &icon, int size) {
 	auto instance = icon.instance(QColor(255, 255, 255, 255), 100);
-	instance.setDevicePixelRatio(cRetinaFactor());
+	instance.setDevicePixelRatio(style::DevicePixelRatio());
 	NSImage *image = Platform::Q2NSImage(instance);
 	[image setSize:NSMakeSize(size, size)];
 	return image;

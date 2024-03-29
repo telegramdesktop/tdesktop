@@ -76,7 +76,7 @@ public:
 	}
 
 	[[nodiscard]] Privacy getPrivacy() const {
-		return _controls.privacy->value();
+		return _controls.privacy->current();
 	}
 
 	[[nodiscard]] bool noForwards() const {
@@ -238,7 +238,7 @@ void Controller::createContent() {
 				}, wrap->lifetime());
 			} else {
 				_controls.whoSendWrap->toggle(
-					(_controls.privacy->value() == Privacy::HasUsername),
+					(_controls.privacy->current() == Privacy::HasUsername),
 					anim::type::instant);
 			}
 			auto joinToWrite = _controls.joinToWrite
@@ -299,7 +299,7 @@ void Controller::createContent() {
 	if (_linkOnly) {
 		_controls.inviteLinkWrap->show(anim::type::instant);
 	} else {
-		if (_controls.privacy->value() == Privacy::NoUsername) {
+		if (_controls.privacy->current() == Privacy::NoUsername) {
 			checkUsernameAvailability();
 		}
 		const auto forShowing = _dataSavedValue
@@ -474,7 +474,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		&Ui::UsernameInput::changed,
 		[this] { usernameChanged(); });
 
-	const auto shown = (_controls.privacy->value() == Privacy::HasUsername);
+	const auto shown = (_controls.privacy->current() == Privacy::HasUsername);
 	result->toggle(shown, anim::type::instant);
 
 	return result;
@@ -539,7 +539,7 @@ void Controller::checkUsernameAvailability() {
 	if (!_controls.usernameInput) {
 		return;
 	}
-	const auto initial = (_controls.privacy->value() != Privacy::HasUsername);
+	const auto initial = (_controls.privacy->current() != Privacy::HasUsername);
 	const auto checking = initial
 		? u".bad."_q
 		: getUsernameInput();
@@ -573,11 +573,11 @@ void Controller::checkUsernameAvailability() {
 			_controls.privacy->setValue(Privacy::NoUsername);
 		} else if (type == u"CHANNELS_ADMIN_PUBLIC_TOO_MUCH"_q) {
 			_usernameState = UsernameState::TooMany;
-			if (_controls.privacy->value() == Privacy::HasUsername) {
+			if (_controls.privacy->current() == Privacy::HasUsername) {
 				askUsernameRevoke();
 			}
 		} else if (initial) {
-			if (_controls.privacy->value() == Privacy::HasUsername) {
+			if (_controls.privacy->current() == Privacy::HasUsername) {
 				showUsernameEmpty();
 				setFocusUsername();
 			}

@@ -155,9 +155,9 @@ ConnectionState::Widget::ProxyIcon::ProxyIcon(QWidget *parent) : RpWidget(parent
 void ConnectionState::Widget::ProxyIcon::refreshCacheImages() {
 	const auto prepareCache = [&](const style::icon &icon) {
 		auto image = QImage(
-			size() * cIntRetinaFactor(),
+			size() * style::DevicePixelRatio(),
 			QImage::Format_ARGB32_Premultiplied);
-		image.setDevicePixelRatio(cRetinaFactor());
+		image.setDevicePixelRatio(style::DevicePixelRatio());
 		image.fill(st::windowBg->c);
 		{
 			auto p = QPainter(&image);

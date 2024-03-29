@@ -57,7 +57,7 @@ inline bool IsRepliesPeer(PeerData *peer) {
 }
 
 QImage PrepareImage() {
-	const auto s = kCircleDiameter * cIntRetinaFactor();
+	const auto s = kCircleDiameter * style::DevicePixelRatio();
 	auto result = QImage(QSize(s, s), QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
 	return result;
@@ -102,15 +102,15 @@ QImage UnreadBadge(not_null<PeerData*> peer) {
 	unreadSt.sizeId = Ui::UnreadBadgeSize::TouchBar;
 	unreadSt.muted = state.unreadMuted;
 	// Use constant values to draw badge regardless of cConfigScale().
-	unreadSt.size = kUnreadBadgeSize * cRetinaFactor();
-	unreadSt.padding = 4 * cRetinaFactor();
+	unreadSt.size = kUnreadBadgeSize * float64(style::DevicePixelRatio());
+	unreadSt.padding = 4 * float64(style::DevicePixelRatio());
 	unreadSt.font = style::font(
-		9.5 * cRetinaFactor(),
+		9.5 * float64(style::DevicePixelRatio()),
 		unreadSt.font->flags(),
 		unreadSt.font->family());
 
 	auto result = QImage(
-		QSize(kCircleDiameter, kUnreadBadgeSize) * cIntRetinaFactor(),
+		QSize(kCircleDiameter, kUnreadBadgeSize) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
 	Painter p(&result);
@@ -516,7 +516,7 @@ NSRect PeerRectByIndex(int index) {
 		Painter p(&userpic);
 
 		pin->peer->paintUserpic(p, pin->userpicView, 0, 0, userpic.width());
-		userpic.setDevicePixelRatio(cRetinaFactor());
+		userpic.setDevicePixelRatio(style::DevicePixelRatio());
 		pin->userpic = std::move(userpic);
 		const auto userpicIndex = pin->index + [self shift];
 		[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
@@ -816,12 +816,14 @@ NSRect PeerRectByIndex(int index) {
 		const auto rectRight = NSMaxX(rect);
 		if (!pin->unreadBadge.isNull()) {
 			CGImageRef image = pin->unreadBadge.toCGImage();
-			const auto w = CGImageGetWidth(image) / cRetinaFactor();
+			const auto w = CGImageGetWidth(image)
+				/ float64(style::DevicePixelRatio());
 			const auto borderRect = CGRectMake(
 				rectRight - w,
 				0,
 				w,
-				CGImageGetHeight(image) / cRetinaFactor());
+				CGImageGetHeight(image)
+					/ float64(style::DevicePixelRatio()));
 			CGContextDrawImage(context, borderRect, image);
 			CGImageRelease(image);
 			return;

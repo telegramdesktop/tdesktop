@@ -1142,7 +1142,7 @@ void AccountsLimitBox(
 		const auto ref = QString();
 
 		const auto wasAccount = &session->account();
-		const auto nowAccount = accounts[group->value()];
+		const auto nowAccount = accounts[group->current()];
 		if (wasAccount == nowAccount) {
 			Settings::ShowPremium(session, ref);
 			return;

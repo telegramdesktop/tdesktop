@@ -49,7 +49,7 @@ public:
 	void submit();
 
 	QString savedMessagesChatStatus() const override {
-		return tr::lng_saved_forward_here(tr::now);
+		return {};
 	}
 
 private:
@@ -295,6 +295,8 @@ object_ptr<Ui::BoxContent> CreatePeerByQueryBox(
 	case Type::User: {
 		const auto user = peer->asUser();
 		return user
+			&& !user->isInaccessible()
+			&& !user->isNotificationsUser()
 			&& checkRestriction(query.userIsBot, user->isBot())
 			&& checkRestriction(query.userIsPremium, user->isPremium());
 	}

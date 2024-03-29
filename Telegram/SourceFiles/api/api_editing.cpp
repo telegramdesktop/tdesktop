@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_media.h"
 #include "api/api_text_entities.h"
 #include "ui/boxes/confirm_box.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/data_histories.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
@@ -88,10 +89,15 @@ mtpRequestId EditMessage(
 		: emptyFlag)
 	| (options.scheduled
 		? MTPmessages_EditMessage::Flag::f_schedule_date
+		: emptyFlag)
+	| (item->isBusinessShortcut()
+		? MTPmessages_EditMessage::Flag::f_quick_reply_shortcut_id
 		: emptyFlag);
 
 	const auto id = item->isScheduled()
 		? session->data().scheduledMessages().lookupId(item)
+		: item->isBusinessShortcut()
+		? session->data().shortcutMessages().lookupId(item)
 		: item->id;
 	return api->request(MTPmessages_EditMessage(
 		MTP_flags(flags),
@@ -101,7 +107,8 @@ mtpRequestId EditMessage(
 		inputMedia.value_or(Data::WebPageForMTP(webpage, text.isEmpty())),
 		MTPReplyMarkup(),
 		sentEntities,
-		MTP_int(options.scheduled)
+		MTP_int(options.scheduled),
+		MTP_int(item->shortcutId())
 	)).done([=](
 			const MTPUpdates &result,
 			[[maybe_unused]] mtpRequestId requestId) {

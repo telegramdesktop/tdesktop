@@ -772,7 +772,11 @@ Storage::Cache::Key DocumentData::bigFileBaseCacheKey() const {
 }
 
 void DocumentData::forceToCache(bool force) {
-	_flags |= Flag::ForceToCache;
+	if (force) {
+		_flags |= Flag::ForceToCache;
+	} else {
+		_flags &= ~Flag::ForceToCache;
+	}
 }
 
 bool DocumentData::saveToCache() const {

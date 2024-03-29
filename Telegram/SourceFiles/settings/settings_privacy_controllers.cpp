@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/prepare_short_info_box.h"
 #include "calls/calls_instance.h"
 #include "core/application.h"
-#include "core/core_settings.h"
 #include "data/data_changes.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
@@ -31,34 +30,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_layer_widget.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_premium.h"
 #include "settings/settings_privacy_security.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/cached_round_corners.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
-#include "ui/image/image_prepare.h"
-#include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/vertical_layout.h"
 #include "window/section_widget.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
@@ -203,7 +195,8 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPlong(), // grouped_id
 		MTPMessageReactions(),
 		MTPVector<MTPRestrictionReason>(),
-		MTPint() // ttl_period
+		MTPint(), // ttl_period
+		MTPint() // quick_reply_shortcut_id
 	).match([&](const MTPDmessage &data) {
 		return history->makeMessage(
 			history->nextNonHistoryEntryId(),
@@ -605,7 +598,7 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 	_saveAdditional = [=] {
 		controller->session().api().userPrivacy().save(
 			Api::UserPrivacy::Key::AddedByPhone,
-			Api::UserPrivacy::Rule{ .option = group->value() });
+			Api::UserPrivacy::Rule{ .option = group->current() });
 	};
 
 	return widget;
@@ -1375,6 +1368,78 @@ rpl::producer<QString> VoicesPrivacyController::exceptionBoxTitle(
 auto VoicesPrivacyController::exceptionsDescription() const
 -> rpl::producer<QString> {
 	return tr::lng_edit_privacy_voices_exceptions();
+}
+
+object_ptr<Ui::RpWidget> VoicesPrivacyController::setupBelowWidget(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> parent,
+		rpl::producer<Option> option) {
+	using namespace rpl::mappers;
+
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		parent,
+		object_ptr<Ui::VerticalLayout>(parent));
+	result->toggleOn(
+		Data::AmPremiumValue(&controller->session()) | rpl::map(!_1),
+		anim::type::instant);
+
+	const auto content = result->entity();
+
+	Ui::AddSkip(content);
+	Settings::AddButtonWithIcon(
+		content,
+		tr::lng_messages_privacy_premium_button(),
+		st::messagePrivacySubscribe,
+		{ .icon = &st::menuBlueIconPremium }
+	)->setClickedCallback([=] {
+		Settings::ShowPremium(
+			controller,
+			u"voice_restrictions_require_premium"_q);
+	});
+	Ui::AddSkip(content);
+	Ui::AddDividerText(content, tr::lng_messages_privacy_premium_about());
+
+	return result;
+}
+
+Fn<void()> VoicesPrivacyController::premiumClickedCallback(
+		Option option,
+		not_null<Window::SessionController*> controller) {
+	if (option == Option::Everyone) {
+		return nullptr;
+	}
+	const auto showToast = [=] {
+		auto link = Ui::Text::Link(
+			Ui::Text::Semibold(
+				tr::lng_settings_privacy_premium_link(tr::now)));
+		_toastInstance = controller->showToast({
+			.text = tr::lng_settings_privacy_premium(
+				tr::now,
+				lt_link,
+				link,
+				Ui::Text::WithEntities),
+			.st = &st::defaultMultilineToast,
+			.duration = Ui::Toast::kDefaultDuration * 2,
+			.multiline = true,
+			.filter = crl::guard(&controller->session(), [=](
+					const ClickHandlerPtr &,
+					Qt::MouseButton button) {
+				if (button == Qt::LeftButton) {
+					if (const auto strong = _toastInstance.get()) {
+						strong->hideAnimated();
+						_toastInstance = nullptr;
+						Settings::ShowPremium(
+							controller,
+							u"voice_restrictions_require_premium"_q);
+						return true;
+					}
+				}
+				return false;
+			}),
+		});
+	};
+
+	return showToast;
 }
 
 UserPrivacy::Key AboutPrivacyController::key() const {

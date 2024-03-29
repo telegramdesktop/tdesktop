@@ -257,38 +257,32 @@ rpl::producer<QString> PreviewWrap::showLinkSelector(
 		was->destroy();
 	}
 	using Flag = MTPDmessageMediaWebPage::Flag;
-	_draftItem = _history->addNewLocalMessage(
-		_history->nextNonHistoryEntryId(),
-		(MessageFlag::FakeHistoryItem
+	_draftItem = _history->addNewLocalMessage({
+		.id = _history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeHistoryItem
 			| MessageFlag::Outgoing
 			| MessageFlag::HasFromId
 			| (webpage.invert ? MessageFlag::InvertMedia : MessageFlag())),
-		UserId(), // via
-		FullReplyTo(),
-		base::unixtime::now(), // date
-		_history->session().userPeerId(),
-		QString(), // postAuthor
-		HighlightParsedLinks({
-			message.text,
-			TextUtilities::ConvertTextTagsToEntities(message.tags),
-		}, links),
-		MTP_messageMediaWebPage(
-			MTP_flags(Flag()
-				| (webpage.forceLargeMedia
-					? Flag::f_force_large_media
-					: Flag())
-				| (webpage.forceSmallMedia
-					? Flag::f_force_small_media
-					: Flag())),
-			MTP_webPagePending(
-				MTP_flags(webpage.url.isEmpty()
-					? MTPDwebPagePending::Flag()
-					: MTPDwebPagePending::Flag::f_url),
-				MTP_long(webpage.id),
-				MTP_string(webpage.url),
-				MTP_int(0))),
-		HistoryMessageMarkupData(),
-		uint64(0)); // groupedId
+		.from = _history->session().userPeerId(),
+		.date = base::unixtime::now(),
+	}, HighlightParsedLinks({
+		message.text,
+		TextUtilities::ConvertTextTagsToEntities(message.tags),
+	}, links), MTP_messageMediaWebPage(
+		MTP_flags(Flag()
+			| (webpage.forceLargeMedia
+				? Flag::f_force_large_media
+				: Flag())
+			| (webpage.forceSmallMedia
+				? Flag::f_force_small_media
+				: Flag())),
+		MTP_webPagePending(
+			MTP_flags(webpage.url.isEmpty()
+				? MTPDwebPagePending::Flag()
+				: MTPDwebPagePending::Flag::f_url),
+			MTP_long(webpage.id),
+			MTP_string(webpage.url),
+			MTP_int(0))));
 	_element = _draftItem->createView(_delegate.get());
 	_selectType = TextSelectType::Letters;
 	_symbol = _selectionStartSymbol = 0;

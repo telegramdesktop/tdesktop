@@ -159,6 +159,10 @@ void EmojiStatusPanel::show(Descriptor &&descriptor) {
 	_panel->toggleAnimated();
 }
 
+bool EmojiStatusPanel::hasFocus() const {
+	return _panel && Ui::InFocusChain(_panel.get());
+}
+
 void EmojiStatusPanel::repaint() {
 	_panel->selector()->update();
 }
@@ -281,7 +285,7 @@ bool EmojiStatusPanel::filter(
 	if (_chooseFilter) {
 		return _chooseFilter(chosenId);
 	} else if (chosenId && !controller->session().premium()) {
-		ShowPremiumPreviewBox(controller, PremiumPreview::EmojiStatus);
+		ShowPremiumPreviewBox(controller, PremiumFeature::EmojiStatus);
 		return false;
 	}
 	return true;

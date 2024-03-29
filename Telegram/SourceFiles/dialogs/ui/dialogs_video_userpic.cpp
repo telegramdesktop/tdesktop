@@ -99,7 +99,7 @@ Media::Clip::FrameRequest VideoUserpic::request(int size) const {
 	return {
 		.frame = { size, size },
 		.outer = { size, size },
-		.factor = cIntRetinaFactor(),
+		.factor = style::DevicePixelRatio(),
 		.radius = ImageRoundRadius::Ellipse,
 	};
 }

@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "ui/platform/ui_platform_window_title.h"
-#include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -35,8 +34,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <kshell.h>
 #include <ksandbox.h>
 
-#include <glibmm.h>
-#include <giomm.h>
+#include <xdgdbus/xdgdbus.hpp>
+#include <xdpbackground/xdpbackground.hpp>
+#include <xdprequest/xdprequest.hpp>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -48,141 +48,163 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <iostream>
 
+namespace {
+
+using namespace gi::repository;
+namespace GObject = gi::repository::GObject;
 using namespace Platform;
 using Platform::internal::WaylandIntegration;
 
-namespace Platform {
-namespace {
-
 void PortalAutostart(bool enabled, Fn<void(bool)> done) {
-	if (cExeName().isEmpty()) {
+	const auto executable = ExecutablePathForShortcuts();
+	if (executable.isEmpty()) {
 		if (done) {
 			done(false);
 		}
 		return;
 	}
 
-	const auto connection = [&] {
-		try {
-			return Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::SESSION);
-		} catch (const std::exception &e) {
-			if (done) {
-				LOG(("Portal Autostart Error: %1").arg(e.what()));
+	XdpBackground::BackgroundProxy::new_for_bus(
+		Gio::BusType::SESSION_,
+		Gio::DBusProxyFlags::NONE_,
+		base::Platform::XDP::kService,
+		base::Platform::XDP::kObjectPath,
+		[=](GObject::Object, Gio::AsyncResult res) {
+			auto proxy = XdpBackground::BackgroundProxy::new_for_bus_finish(
+				res);
+
+			if (!proxy) {
+				if (done) {
+					Gio::DBusErrorNS_::strip_remote_error(proxy.error());
+					LOG(("Portal Autostart Error: %1").arg(
+						proxy.error().message_().c_str()));
+					done(false);
+				}
+				return;
 			}
-			return Glib::RefPtr<Gio::DBus::Connection>();
-		}
-	}();
 
-	if (!connection) {
-		if (done) {
-			done(false);
-		}
-		return;
-	}
+			auto interface = XdpBackground::Background(*proxy);
 
-	const auto handleToken = Glib::ustring("tdesktop")
-		+ std::to_string(base::RandomValue<uint>());
+			const auto handleToken = "tdesktop"
+				+ std::to_string(base::RandomValue<uint>());
 
-	std::vector<Glib::ustring> commandline;
-	commandline.push_back(cExeName().toStdString());
-	if (Core::Launcher::Instance().customWorkingDir()) {
-		commandline.push_back("-workdir");
-		commandline.push_back(cWorkingDir().toStdString());
-	}
-	commandline.push_back("-autostart");
+			auto uniqueName = std::string(
+				proxy->get_connection().get_unique_name());
+			uniqueName.erase(0, 1);
+			uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
 
-	std::map<Glib::ustring, Glib::VariantBase> options;
-	options["handle_token"] = Glib::create_variant(handleToken);
-	options["reason"] = Glib::create_variant(
-		Glib::ustring(
-			tr::lng_settings_auto_start(tr::now).toStdString()));
-	options["autostart"] = Glib::create_variant(enabled);
-	options["commandline"] = Glib::create_variant(commandline);
-	options["dbus-activatable"] = Glib::create_variant(false);
+			const auto window = std::make_shared<QWidget>();
+			window->setAttribute(Qt::WA_DontShowOnScreen);
+			window->setWindowModality(Qt::ApplicationModal);
+			window->show();
 
-	auto uniqueName = connection->get_unique_name();
-	uniqueName.erase(0, 1);
-	uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
+			XdpRequest::RequestProxy::new_(
+				proxy->get_connection(),
+				Gio::DBusProxyFlags::NONE_,
+				base::Platform::XDP::kService,
+				base::Platform::XDP::kObjectPath
+					+ std::string("/request/")
+					+ uniqueName
+					+ '/'
+					+ handleToken,
+				nullptr,
+				[=](GObject::Object, Gio::AsyncResult res) mutable {
+					auto requestProxy = XdpRequest::RequestProxy::new_finish(
+						res);
 
-	const auto requestPath = Glib::ustring(
-			"/org/freedesktop/portal/desktop/request/")
-		+ uniqueName
-		+ '/'
-		+ handleToken;
-
-	const auto window = std::make_shared<QWidget>();
-	window->setAttribute(Qt::WA_DontShowOnScreen);
-	window->setWindowModality(Qt::ApplicationModal);
-	window->show();
-
-	const auto signalId = std::make_shared<uint>();
-	*signalId = connection->signal_subscribe(
-		[=](
-			const Glib::RefPtr<Gio::DBus::Connection> &connection,
-			const Glib::ustring &sender_name,
-			const Glib::ustring &object_path,
-			const Glib::ustring &interface_name,
-			const Glib::ustring &signal_name,
-			const Glib::VariantContainerBase &parameters) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				(void)window; // don't destroy until finish
-
-				try {
-					const auto response = parameters.get_child(
-						0
-					).get_dynamic<uint>();
-
-					if (response) {
+					if (!requestProxy) {
 						if (done) {
-							LOG(("Portal Autostart Error: Request denied"));
+							Gio::DBusErrorNS_::strip_remote_error(
+								requestProxy.error());
+							LOG(("Portal Autostart Error: %1").arg(
+								requestProxy.error().message_().c_str()));
 							done(false);
 						}
-					} else if (done) {
-						done(enabled);
-					}
-				} catch (const std::exception &e) {
-					if (done) {
-						LOG(("Portal Autostart Error: %1").arg(e.what()));
-						done(false);
-					}
-				}
-
-				if (*signalId) {
-					connection->signal_unsubscribe(*signalId);
-				}
-			});
-		},
-		base::Platform::XDP::kService,
-		base::Platform::XDP::kRequestInterface,
-		"Response",
-		requestPath);
-
-	connection->call(
-		base::Platform::XDP::kObjectPath,
-		"org.freedesktop.portal.Background",
-		"RequestBackground",
-		Glib::create_variant(std::tuple{
-			base::Platform::XDP::ParentWindowID(),
-			options,
-		}),
-		[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				try {
-					connection->call_finish(result);
-				} catch (const std::exception &e) {
-					if (done) {
-						LOG(("Portal Autostart Error: %1").arg(e.what()));
-						done(false);
+						return;
 					}
 
-					if (*signalId) {
-						connection->signal_unsubscribe(*signalId);
+					auto request = XdpRequest::Request(*requestProxy);
+					const auto signalId = std::make_shared<ulong>();
+					*signalId = request.signal_response().connect([=](
+							XdpRequest::Request,
+							guint response,
+							GLib::Variant) mutable {
+						auto &sandbox = Core::Sandbox::Instance();
+						sandbox.customEnterFromEventLoop([&] {
+							(void)window; // don't destroy until finish
+
+							if (response) {
+								if (done) {
+									LOG(("Portal Autostart Error: "
+										"Request denied"));
+									done(false);
+								}
+							} else if (done) {
+								done(enabled);
+							}
+
+							request.disconnect(*signalId);
+						});
+					});
+
+
+					std::vector<std::string> commandline;
+					commandline.push_back(executable.toStdString());
+					if (Core::Launcher::Instance().customWorkingDir()) {
+						commandline.push_back("-workdir");
+						commandline.push_back(cWorkingDir().toStdString());
 					}
-				}
-			});
-		},
-		base::Platform::XDP::kService);
+					commandline.push_back("-autostart");
+
+					interface.call_request_background(
+						base::Platform::XDP::ParentWindowID(),
+						GLib::Variant::new_array({
+							GLib::Variant::new_dict_entry(
+								GLib::Variant::new_string("handle_token"),
+								GLib::Variant::new_variant(
+									GLib::Variant::new_string(handleToken))),
+							GLib::Variant::new_dict_entry(
+								GLib::Variant::new_string("reason"),
+								GLib::Variant::new_variant(
+									GLib::Variant::new_string(
+										tr::lng_settings_auto_start(tr::now)
+											.toStdString()))),
+							GLib::Variant::new_dict_entry(
+								GLib::Variant::new_string("autostart"),
+								GLib::Variant::new_variant(
+									GLib::Variant::new_boolean(enabled))),
+							GLib::Variant::new_dict_entry(
+								GLib::Variant::new_string("commandline"),
+								GLib::Variant::new_variant(
+									GLib::Variant::new_strv(commandline))),
+							GLib::Variant::new_dict_entry(
+								GLib::Variant::new_string("dbus-activatable"),
+								GLib::Variant::new_variant(
+									GLib::Variant::new_boolean(false))),
+						}),
+						[=](GObject::Object, Gio::AsyncResult res) mutable {
+							auto &sandbox = Core::Sandbox::Instance();
+							sandbox.customEnterFromEventLoop([&] {
+								const auto result =
+									interface.call_request_background_finish(
+										res);
+
+								if (!result) {
+									if (done) {
+										const auto &error = result.error();
+										Gio::DBusErrorNS_::strip_remote_error(
+											error);
+										LOG(("Portal Autostart Error: %1").arg(
+											error.message_().c_str()));
+										done(false);
+									}
+
+									request.disconnect(*signalId);
+								}
+							});
+						});
+				});
+		});
 }
 
 bool GenerateDesktopFile(
@@ -218,77 +240,90 @@ bool GenerateDesktopFile(
 		return false;
 	}
 
-	try {
-		const auto target = Glib::KeyFile::create();
-		target->load_from_data(
-			sourceText,
-			Glib::KeyFile::Flags::KEEP_COMMENTS
-				| Glib::KeyFile::Flags::KEEP_TRANSLATIONS);
+	auto target = GLib::KeyFile::new_();
+	const auto loaded = target.load_from_data(
+		sourceText,
+		-1,
+		GLib::KeyFileFlags::KEEP_COMMENTS_
+			| GLib::KeyFileFlags::KEEP_TRANSLATIONS_);
+	
+	if (!loaded) {
+		if (!silent) {
+			LOG(("App Error: %1").arg(loaded.error().message_().c_str()));
+		}
+		return false;
+	}
 
-		for (const auto &group : target->get_groups()) {
-			if (onlyMainGroup && group != "Desktop Entry") {
-				target->remove_group(group);
-				continue;
+	for (const auto &group : target.get_groups(nullptr)) {
+		if (onlyMainGroup && group != "Desktop Entry") {
+			const auto removed = target.remove_group(group);
+			if (!removed) {
+				if (!silent) {
+					LOG(("App Error: %1").arg(
+						removed.error().message_().c_str()));
+				}
+				return false;
 			}
+			continue;
+		}
 
-			if (target->has_key(group, "TryExec")) {
-				target->set_string(
+		if (target.has_key(group, "TryExec", nullptr)) {
+			target.set_string(
+				group,
+				"TryExec",
+				KShell::joinArgs({ executable }).replace(
+					'\\',
+					qstr("\\\\")).toStdString());
+		}
+
+		if (target.has_key(group, "Exec", nullptr)) {
+			if (group == "Desktop Entry" && !args.isEmpty()) {
+				QStringList exec;
+				exec.append(executable);
+				if (Core::Launcher::Instance().customWorkingDir()) {
+					exec.append(u"-workdir"_q);
+					exec.append(cWorkingDir());
+				}
+				exec.append(args);
+				target.set_string(
 					group,
-					"TryExec",
-					KShell::joinArgs({ executable }).replace(
+					"Exec",
+					KShell::joinArgs(exec).replace(
 						'\\',
 						qstr("\\\\")).toStdString());
-			}
+			} else {
+				auto exec = KShell::splitArgs(
+					QString::fromStdString(
+						target.get_string(group, "Exec", nullptr)
+					).replace(
+						qstr("\\\\"),
+						qstr("\\")));
 
-			if (target->has_key(group, "Exec")) {
-				if (group == "Desktop Entry" && !args.isEmpty()) {
-					QStringList exec;
-					exec.append(executable);
+				if (!exec.isEmpty()) {
+					exec[0] = executable;
 					if (Core::Launcher::Instance().customWorkingDir()) {
-						exec.append(u"-workdir"_q);
-						exec.append(cWorkingDir());
+						exec.insert(1, u"-workdir"_q);
+						exec.insert(2, cWorkingDir());
 					}
-					exec.append(args);
-					target->set_string(
+					target.set_string(
 						group,
 						"Exec",
 						KShell::joinArgs(exec).replace(
 							'\\',
 							qstr("\\\\")).toStdString());
-				} else {
-					auto exec = KShell::splitArgs(
-						QString::fromStdString(
-							target->get_string(group, "Exec")
-						).replace(
-							qstr("\\\\"),
-							qstr("\\")));
-
-					if (!exec.isEmpty()) {
-						exec[0] = executable;
-						if (Core::Launcher::Instance().customWorkingDir()) {
-							exec.insert(1, u"-workdir"_q);
-							exec.insert(2, cWorkingDir());
-						}
-						target->set_string(
-							group,
-							"Exec",
-							KShell::joinArgs(exec).replace(
-								'\\',
-								qstr("\\\\")).toStdString());
-					}
 				}
 			}
 		}
+	}
 
-		if (!args.isEmpty()
-				&& target->has_key("Desktop Entry", "DBusActivatable")) {
-			target->remove_key("Desktop Entry", "DBusActivatable");
-		}
+	if (!args.isEmpty()) {
+		target.remove_key("Desktop Entry", "DBusActivatable");
+	}
 
-		target->save_to_file(targetFile.toStdString());
-	} catch (const std::exception &e) {
+	const auto saved = target.save_to_file(targetFile.toStdString());
+	if (!saved) {
 		if (!silent) {
-			LOG(("App Error: %1").arg(e.what()));
+			LOG(("App Error: %1").arg(saved.error().message_().c_str()));
 		}
 		return false;
 	}
@@ -357,10 +392,10 @@ bool GenerateServiceFile(bool silent = false) {
 	DEBUG_LOG(("App Info: placing D-Bus service file to %1").arg(targetPath));
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
-	const auto target = Glib::KeyFile::create();
+	auto target = GLib::KeyFile::new_();
 	constexpr auto group = "D-BUS Service";
 
-	target->set_string(
+	target.set_string(
 		group,
 		"Name",
 		QGuiApplication::desktopFileName().toStdString());
@@ -371,21 +406,21 @@ bool GenerateServiceFile(bool silent = false) {
 		exec.append(u"-workdir"_q);
 		exec.append(cWorkingDir());
 	}
-	target->set_string(
+	target.set_string(
 		group,
 		"Exec",
 		KShell::joinArgs(exec).toStdString());
 
-	try {
-		target->save_to_file(targetFile.toStdString());
-	} catch (const std::exception &e) {
+	const auto saved = target.save_to_file(targetFile.toStdString());
+	if (!saved) {
 		if (!silent) {
-			LOG(("App Error: %1").arg(e.what()));
+			LOG(("App Error: %1").arg(saved.error().message_().c_str()));
 		}
 		return false;
 	}
 
-	if (!Core::UpdaterDisabled() && !Core::Launcher::Instance().customWorkingDir()) {
+	if (!Core::UpdaterDisabled()
+			&& !Core::Launcher::Instance().customWorkingDir()) {
 		DEBUG_LOG(("App Info: removing old D-Bus service files"));
 
 		char md5Hash[33] = { 0 };
@@ -397,19 +432,21 @@ bool GenerateServiceFile(bool silent = false) {
 			md5Hash));
 	}
 
-	try {
-		Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::SESSION
-		)->call(
-			base::Platform::DBus::kObjectPath,
-			base::Platform::DBus::kInterface,
-			"ReloadConfig",
-			{},
-			{},
-			base::Platform::DBus::kService
-		);
-	} catch (...) {
-	}
+	XdgDBus::DBusProxy::new_for_bus(
+		Gio::BusType::SESSION_,
+		Gio::DBusProxyFlags::NONE_,
+		base::Platform::DBus::kService,
+		base::Platform::DBus::kObjectPath,
+		[=](GObject::Object, Gio::AsyncResult res) {
+			auto interface = XdgDBus::DBus(
+				XdgDBus::DBusProxy::new_for_bus_finish(res, nullptr));
+
+			if (!interface) {
+				return;
+			}
+
+			interface.call_reload_config(nullptr);
+		});
 
 	return true;
 }
@@ -447,6 +484,8 @@ void InstallLauncher() {
 
 } // namespace
 
+namespace Platform {
+
 void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
 }
@@ -471,12 +510,12 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 std::optional<bool> IsDarkMode() {
-	const auto result = base::Platform::XDP::ReadSetting<uint>(
+	const auto result = base::Platform::XDP::ReadSetting(
 		"org.freedesktop.appearance",
 		"color-scheme");
 
 	return result.has_value()
-		? std::make_optional(*result == 1)
+		? std::make_optional(result->get_uint32() == 1)
 		: std::nullopt;
 }
 #endif // Qt < 6.5.0
@@ -648,11 +687,8 @@ void start() {
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", base::IconName().toLatin1());
 
-	Glib::set_prgname(cExeName().toStdString());
-	Glib::set_application_name(AppName.data());
-
-	Glib::init();
-	Gio::init();
+	GLib::set_prgname(cExeName().toStdString());
+	GLib::set_application_name(AppName.data());
 
 	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
 		QDir::tempPath(),
@@ -691,21 +727,13 @@ bool OpenSystemSettings(SystemSettingsType type) {
 			}
 			options.push_back(std::move(command));
 		};
-		for (const auto &type : DesktopEnvironment::Get()) {
-			using DesktopEnvironment::Type;
-			if (type == Type::Unity) {
-				add("unity-control-center", "sound");
-			} else if (type == Type::KDE) {
-				add("kcmshell5", "kcm_pulseaudio");
-				add("kcmshell4", "phonon");
-			} else if (type == Type::Gnome) {
-				add("gnome-control-center", "sound");
-			} else if (type == Type::Cinnamon) {
-				add("cinnamon-settings", "sound");
-			} else if (type == Type::MATE) {
-				add("mate-volume-control");
-			}
-		}
+		add("unity-control-center", "sound");
+		add("kcmshell6", "kcm_pulseaudio");
+		add("kcmshell5", "kcm_pulseaudio");
+		add("kcmshell4", "phonon");
+		add("gnome-control-center", "sound");
+		add("cinnamon-settings", "sound");
+		add("mate-volume-control");
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");

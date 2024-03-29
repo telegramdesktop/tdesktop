@@ -147,10 +147,9 @@ private:
 	Ui::Text::String _siteName;
 	Ui::Text::String _title;
 	Ui::Text::String _description;
+	Ui::Text::String _openButton;
 
-	QString _openButton;
 	QString _duration;
-	int _openButtonWidth = 0;
 	int _durationWidth = 0;
 
 	mutable QPoint _lastPoint;

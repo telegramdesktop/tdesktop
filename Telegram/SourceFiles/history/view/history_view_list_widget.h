@@ -248,6 +248,8 @@ public:
 	[[nodiscard]] TextForMimeData getSelectedText() const;
 	[[nodiscard]] MessageIdsList getSelectedIds() const;
 	[[nodiscard]] SelectedItems getSelectedItems() const;
+	[[nodiscard]] const TextSelection &getSelectedTextRange(
+		not_null<HistoryItem*> item) const;
 	void cancelSelection();
 	void selectItem(not_null<HistoryItem*> item);
 	void selectItemAsGroup(not_null<HistoryItem*> item);
@@ -343,6 +345,7 @@ public:
 	QString elementAuthorRank(not_null<const Element*> view) override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
+	void overrideIsChatWide(bool isWide);
 
 	~ListWidget();
 
@@ -600,6 +603,15 @@ private:
 	void showPremiumStickerTooltip(
 		not_null<const HistoryView::Element*> view);
 
+	void paintUserpics(
+		Painter &p,
+		const Ui::ChatPaintContext &context,
+		QRect clip);
+	void paintDates(
+		Painter &p,
+		const Ui::ChatPaintContext &context,
+		QRect clip);
+
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
@@ -631,11 +643,11 @@ private:
 	const not_null<ListDelegate*> _delegate;
 	const not_null<Window::SessionController*> _controller;
 	const std::unique_ptr<EmojiInteractions> _emojiInteractions;
+	const Context _context;
 
 	Data::MessagePosition _aroundPosition;
 	Data::MessagePosition _shownAtPosition;
 	Data::MessagePosition _initialAroundPosition;
-	Context _context;
 	int _aroundIndex = -1;
 	int _idsLimit = kMinimalIdsLimit;
 	Data::MessagesSlice _slice;
@@ -716,6 +728,7 @@ private:
 	bool _refreshingViewer = false;
 	bool _showFinished = false;
 	bool _resizePending = false;
+	std::optional<bool> _overrideIsChatWide;
 
 	// _menu must be destroyed before _whoReactedMenuLifetime.
 	rpl::lifetime _whoReactedMenuLifetime;

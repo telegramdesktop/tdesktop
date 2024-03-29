@@ -472,7 +472,7 @@ void Panel::Incoming::RendererSW::paintFallback(
 
 void Panel::Incoming::RendererSW::initBottomShadow() {
 	auto image = QImage(
-		QSize(1, st::callBottomShadowSize) * cIntRetinaFactor(),
+		QSize(1, st::callBottomShadowSize) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	const auto colorFrom = uint32(0);
 	const auto colorTill = uint32(kBottomShadowAlphaMax);
@@ -527,7 +527,7 @@ void Panel::Incoming::RendererSW::fillBottomShadow(QPainter &p) {
 	if (fill.isEmpty()) {
 		return;
 	}
-	const auto factor = cIntRetinaFactor();
+	const auto factor = style::DevicePixelRatio();
 	p.drawImage(
 		fill,
 		_bottomShadow,

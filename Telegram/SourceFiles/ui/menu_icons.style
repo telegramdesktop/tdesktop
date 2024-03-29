@@ -137,6 +137,7 @@ menuIconAntispam: icon {{ "menu/antispam", menuIconColor }};
 menuIconChatDiscuss: icon {{ "menu/chat_discuss", menuIconColor }};
 menuIconBotCommands: icon {{ "menu/bot_commands", menuIconColor }};
 menuIconPremium: icon {{ "menu/premium", menuIconColor }};
+menuIconShop: icon {{ "menu/shop", menuIconColor }};
 menuIconIpAddress: icon {{ "menu/ip_address", menuIconColor }};
 menuIconAddress: icon {{ "menu/payment_address", menuIconColor }};
 menuIconShowAll: icon {{ "menu/all_media", menuIconColor }};

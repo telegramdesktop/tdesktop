@@ -59,6 +59,8 @@ enum class Context : char {
 	ContactPreview,
 	SavedSublist,
 	TTLViewer,
+	ShortcutMessages,
+	ScheduledTopic,
 };
 
 enum class OnlyEmojiAndSpaces : char {

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
 #include "data/data_media_types.h"
@@ -301,9 +302,11 @@ ReplyFields ReplyFieldsFromMTP(
 		if (const auto id = data.vreply_to_msg_id().value_or_empty()) {
 			result.messageId = data.is_reply_to_scheduled()
 				? owner->scheduledMessages().localMessageId(id)
+				: item->shortcutId()
+				? owner->shortcutMessages().localMessageId(id)
 				: id;
 			result.topMessageId
-				= data.vreply_to_top_id().value_or(id);
+				= data.vreply_to_top_id().value_or(result.messageId.bare);
 			result.topicPost = data.is_forum_topic() ? 1 : 0;
 		}
 		if (const auto header = data.vreply_from()) {

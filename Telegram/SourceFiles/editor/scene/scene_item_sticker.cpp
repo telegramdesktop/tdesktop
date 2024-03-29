@@ -43,7 +43,7 @@ ItemSticker::ItemSticker(
 				_mediaView.get(),
 				ChatHelpers::StickerLottieSize::MessageHistory,
 				QSize(kStickerSideSize, kStickerSideSize)
-					* cIntRetinaFactor(),
+					* style::DevicePixelRatio(),
 				Lottie::Quality::High);
 			_lottie.player->updates(
 			) | rpl::start_with_next([=] {

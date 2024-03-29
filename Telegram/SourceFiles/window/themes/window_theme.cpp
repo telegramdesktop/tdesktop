@@ -450,7 +450,7 @@ bool InitializeFromSaved(Saved &&saved) {
 		image = std::move(image).convertToFormat(
 			QImage::Format_ARGB32_Premultiplied);
 	}
-	image.setDevicePixelRatio(cRetinaFactor());
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	if (Data::IsLegacy3DefaultWallPaper(paper)) {
 		return Images::DitherImage(std::move(image));
 	}
@@ -662,7 +662,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 	} else {
 		if (Data::IsLegacy1DefaultWallPaper(_paper)) {
 			image.load(u":/gui/art/bg_initial.jpg"_q);
-			const auto scale = cScale() * cIntRetinaFactor();
+			const auto scale = cScale() * style::DevicePixelRatio();
 			if (scale != 100) {
 				image = image.scaledToWidth(
 					style::ConvertScale(image.width(), scale),
