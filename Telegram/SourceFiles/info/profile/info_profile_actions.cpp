@@ -661,6 +661,7 @@ public:
 	object_ptr<Ui::RpWidget> fill();
 
 private:
+	object_ptr<Ui::RpWidget> setupPersonalChannel(not_null<UserData*> user);
 	object_ptr<Ui::RpWidget> setupInfo();
 	object_ptr<Ui::RpWidget> setupMuteToggle();
 	void setupMainButtons();
@@ -1115,6 +1116,73 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	return result;
 }
 
+object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
+		not_null<UserData*> user) {
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		_wrap,
+		object_ptr<Ui::VerticalLayout>(_wrap));
+	const auto container = result->entity();
+
+	result->toggleOn(PersonalChannelValue(
+		user
+	) | rpl::map(rpl::mappers::_1 != nullptr));
+	result->finishAnimating();
+
+	Ui::AddDivider(container);
+
+	auto channel = PersonalChannelValue(
+		user
+	) | rpl::start_spawning(result->lifetime());
+	auto text = rpl::duplicate(
+		channel
+	) | rpl::map([=](ChannelData *channel) {
+		return channel ? NameValue(channel) : rpl::single(QString());
+	}) | rpl::flatten_latest() | rpl::map([](const QString &name) {
+		return name.isEmpty() ? TextWithEntities() : Ui::Text::Link(name);
+	});
+	auto label = rpl::combine(
+		tr::lng_info_personal_channel_label(Ui::Text::WithEntities),
+		rpl::duplicate(channel)
+	) | rpl::map([](TextWithEntities &&text, ChannelData *channel) {
+		const auto count = channel ? channel->membersCount() : 0;
+		if (count > 1) {
+			text.append(
+				QString::fromUtf8(" \xE2\x80\xA2 ")
+			).append(tr::lng_chat_status_subscribers(
+				tr::now,
+				lt_count_decimal,
+				count));
+		}
+		return text;
+	});
+	auto line = CreateTextWithLabel(
+		result,
+		std::move(label),
+		std::move(text),
+		st::infoLabel,
+		st::infoLabeled,
+		st::infoProfileLabeledPadding);
+	container->add(std::move(line.wrap));
+
+	line.text->setClickHandlerFilter([
+		=,
+		window = _controller->parentController()](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton button) {
+		if (const auto channelId = user->personalChannelId()) {
+			window->showPeerInfo(peerFromChannel(channelId));
+		}
+		return false;
+	});
+
+	object_ptr<FloatingIcon>(
+		result,
+		st::infoIconMediaChannel,
+		st::infoPersonalChannelIconPosition);
+
+	return result;
+}
+
 object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	const auto peer = _peer;
 	const auto topicRootId = _topic ? _topic->rootId() : MsgId();
@@ -1349,6 +1417,9 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 	Expects(!_topic || !_topic->creating());
 
+	if (const auto user = _peer->asUser()) {
+		add(setupPersonalChannel(user));
+	}
 	add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	add(CreateSkipWidget(_wrap));
 	add(setupInfo());
