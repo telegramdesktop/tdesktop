@@ -113,6 +113,15 @@ settingsBusinessIconChatbots: icon {{ "settings/premium/business/business_chatbo
 settingsBusinessIconChatIntro: icon {{ "settings/premium/business/business_intro", settingsIconFg }};
 settingsBusinessIconChatLinks: icon {{ "settings/premium/business/business_links", settingsIconFg }};
 
+settingsBusinessPromoLocation: icon {{ "settings/premium/promo/business_location", premiumButtonBg1 }};
+settingsBusinessPromoHours: icon {{ "settings/premium/promo/business_hours", premiumButtonBg1 }};
+settingsBusinessPromoReplies: icon {{ "settings/premium/promo/business_quickreply", premiumButtonBg1 }};
+settingsBusinessPromoGreeting: icon {{ "settings/premium/promo/business_greeting", premiumButtonBg1 }};
+settingsBusinessPromoAway: icon {{ "settings/premium/promo/business_away", premiumButtonBg1 }};
+settingsBusinessPromoChatbots: icon {{ "settings/premium/promo/business_chatbot", premiumButtonBg1 }};
+settingsBusinessPromoChatIntro: icon {{ "settings/premium/promo/business_intro", premiumButtonBg1 }};
+settingsBusinessPromoChatLinks: icon {{ "settings/premium/promo/business_chatlink", premiumButtonBg1 }};
+
 settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(semiboldTextStyle) {
 		font: font(10px semibold);

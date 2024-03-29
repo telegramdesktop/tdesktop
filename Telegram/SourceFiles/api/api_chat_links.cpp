@@ -55,7 +55,6 @@ namespace {
 ChatLinks::ChatLinks(not_null<ApiWrap*> api) : _api(api) {
 }
 
-
 void ChatLinks::create(
 		const QString &title,
 		const TextWithEntities &message,
