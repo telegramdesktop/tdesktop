@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
@@ -113,7 +112,7 @@ std::optional<EmojiSection> SetIdEmojiSection(uint64 id) {
 
 rpl::producer<std::vector<GifSection>> GifSectionsValue(
 		not_null<Main::Session*> session) {
-	const auto config = &session->account().appConfig();
+	const auto config = &session->appConfig();
 	return config->value(
 	) | rpl::map([=] {
 		return config->get<std::vector<QString>>(

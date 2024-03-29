@@ -375,7 +375,7 @@ void SetupSections(
 	} else {
 		const auto enabled = [=] {
 			const auto result = account->appConfig().get<bool>(
-				"dialog_filters_enabled",
+				u"dialog_filters_enabled"_q,
 				false);
 			if (result) {
 				preload();

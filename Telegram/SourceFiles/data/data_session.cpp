@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -242,7 +241,7 @@ Session::Session(not_null<Main::Session*> session)
 , _bigFileCache(Core::App().databases().get(
 	_session->local().cacheBigFilePath(),
 	_session->local().cacheBigFileSettings()))
-, _groupFreeTranscribeLevel(session->account().appConfig().value(
+, _groupFreeTranscribeLevel(session->appConfig().value(
 ) | rpl::map([limits = Data::LevelLimits(session)] {
 	return limits.groupTranscribeLevelMin();
 }))
@@ -2205,7 +2204,7 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 	// We always use premium limit in the MainList limit producer,
 	// because it slices the list to that limit. We don't want to slice
 	// premium-ly added chats from the pinned list because of sync issues.
-	return _session->account().appConfig().value(
+	return _session->appConfig().value(
 	) | rpl::map([folder, limits = Data::PremiumLimits(_session)] {
 		return folder
 			? limits.dialogsFolderPinnedPremium()
@@ -2219,7 +2218,7 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 	// We always use premium limit in the MainList limit producer,
 	// because it slices the list to that limit. We don't want to slice
 	// premium-ly added chats from the pinned list because of sync issues.
-	return _session->account().appConfig().value(
+	return _session->appConfig().value(
 	) | rpl::map([limits = Data::PremiumLimits(_session)] {
 		return limits.dialogFiltersChatsPremium();
 	});
@@ -2227,7 +2226,7 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 
 rpl::producer<int> Session::maxPinnedChatsLimitValue(
 		not_null<Data::Forum*> forum) const {
-	return _session->account().appConfig().value(
+	return _session->appConfig().value(
 	) | rpl::map([limits = Data::PremiumLimits(_session)] {
 		return limits.topicsPinnedCurrent();
 	});
@@ -2239,7 +2238,7 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 	// We always use premium limit in the MainList limit producer,
 	// because it slices the list to that limit. We don't want to slice
 	// premium-ly added chats from the pinned list because of sync issues.
-	return _session->account().appConfig().value(
+	return _session->appConfig().value(
 	) | rpl::map([limits = Data::PremiumLimits(_session)] {
 		return limits.savedSublistsPinnedPremium();
 	});

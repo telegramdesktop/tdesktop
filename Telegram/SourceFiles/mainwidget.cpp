@@ -82,7 +82,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/main_app_config.h"
-#include "main/main_account.h"
 #include "settings/settings_premium.h"
 #include "support/support_helper.h"
 #include "storage/storage_user_photos.h"
@@ -1885,7 +1884,7 @@ void MainWidget::showNonPremiumLimitToast(bool download) {
 	const auto link = download
 		? tr::lng_limit_download_subscribe_link(tr::now)
 		: tr::lng_limit_upload_subscribe_link(tr::now);
-	const auto better = session().account().appConfig().get<double>(download
+	const auto better = session().appConfig().get<double>(download
 		? u"upload_premium_speedup_download"_q
 		: u"upload_premium_speedup_upload"_q, 10.);
 	const auto percent = int(base::SafeRound(better * 100.));

@@ -223,4 +223,10 @@ void AppConfig::dismissSuggestion(const QString &key) {
 	)).send();
 }
 
+bool AppConfig::newRequirePremiumFree() const {
+	return get<bool>(
+		u"new_noncontact_peers_require_premium_without_ownpremium"_q,
+		false);
+}
+
 } // namespace Main

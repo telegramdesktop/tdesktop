@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/session/session_show.h"
@@ -464,8 +463,7 @@ Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
 }
 
 int BoostsForGift(not_null<Main::Session*> session) {
-	const auto key = u"boosts_per_sent_gift"_q;
-	return session->account().appConfig().get<int>(key, 0);
+	return session->appConfig().get<int>(u"boosts_per_sent_gift"_q, 0);
 }
 
 struct Sources {

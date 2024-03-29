@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_app_config_values.h"
 #include "main/main_session.h"
@@ -118,7 +117,7 @@ void AddPhoneMenu(not_null<Ui::PopupMenu*> menu, not_null<UserData*> user) {
 		return;
 	}
 	using Strings = std::vector<QString>;
-	const auto prefixes = user->session().account().appConfig().get<Strings>(
+	const auto prefixes = user->session().appConfig().get<Strings>(
 		u"fragment_prefixes"_q,
 		std::vector<QString>());
 	{

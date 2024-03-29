@@ -64,7 +64,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/calendar_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
@@ -1230,7 +1229,7 @@ bool SessionController::skipNonPremiumLimitToast(bool download) const {
 	const auto last = download
 		? session().settings().lastNonPremiumLimitDownload()
 		: session().settings().lastNonPremiumLimitUpload();
-	const auto delay = session().account().appConfig().get<int>(
+	const auto delay = session().appConfig().get<int>(
 		u"upload_premium_speedup_notify_period"_q,
 		3600);
 	return (last && now < last + delay && now > last - delay);

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 
 #include "chat_helpers/stickers_emoji_pack.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "data/data_channel.h"
@@ -441,7 +440,7 @@ Ui::CustomEmoji::Preview CustomEmojiLoader::preview() {
 CustomEmojiManager::CustomEmojiManager(not_null<Session*> owner)
 : _owner(owner)
 , _repaintTimer([=] { invokeRepaints(); }) {
-	const auto appConfig = &owner->session().account().appConfig();
+	const auto appConfig = &owner->session().appConfig();
 	appConfig->value(
 	) | rpl::take_while([=] {
 		return !_coloredSetId;

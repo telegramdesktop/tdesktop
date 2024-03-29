@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/business/settings_away_message.h"
@@ -256,10 +255,10 @@ void AddBusinessSummary(
 	auto icons = std::vector<const style::icon *>();
 	icons.reserve(int(entryMap.size()));
 	{
-		const auto &account = controller->session().account();
-		const auto mtpOrder = /*account.appConfig().get<Order>(
+		const auto session = &controller->session();
+		const auto mtpOrder = session->appConfig().get<Order>(
 			"business_promo_order",
-			FallbackOrder())*/FallbackOrder(); AssertIsDebug();
+			FallbackOrder());
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
 			addRow(entry);
@@ -690,7 +689,7 @@ void ShowBusiness(not_null<Window::SessionController*> controller) {
 
 std::vector<PremiumFeature> BusinessFeaturesOrder(
 		not_null<::Main::Session*> session) {
-	const auto mtpOrder = session->account().appConfig().get<Order>(
+	const auto mtpOrder = session->appConfig().get<Order>(
 		"business_promo_order",
 		FallbackOrder());
 	return ranges::views::all(

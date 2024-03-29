@@ -44,7 +44,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/boost_box.h"
@@ -78,7 +77,7 @@ constexpr auto kBotManagerUsername = "BotFather"_cs;
 }
 
 [[nodiscard]] int EnableForumMinMembers(not_null<PeerData*> peer) {
-	return peer->session().account().appConfig().get<int>(
+	return peer->session().appConfig().get<int>(
 		u"forum_upgrade_participants_min"_q,
 		200);
 }

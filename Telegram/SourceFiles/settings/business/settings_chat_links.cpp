@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/business/settings_recipients_helper.h"
@@ -726,7 +725,7 @@ void ChatLinks::setupContent(
 
 	Ui::AddSkip(content);
 
-	const auto limit = controller->session().account().appConfig().get<int>(
+	const auto limit = controller->session().appConfig().get<int>(
 		u"business_chat_links_limit"_q,
 		100);
 	const auto add = content->add(

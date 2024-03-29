@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/main_app_config_values.h"
 
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 
@@ -15,7 +14,7 @@ namespace AppConfig {
 
 std::optional<QString> FragmentLink(not_null<Main::Session*> session) {
 	using Strings = std::vector<QString>;
-	const auto domains = session->account().appConfig().get<Strings>(
+	const auto domains = session->appConfig().get<Strings>(
 		u"whitelisted_domains"_q,
 		std::vector<QString>());
 	const auto proj = [&, domain = u"fragment"_q](const QString &p) {

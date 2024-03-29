@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "main/main_session.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 
 namespace Api {
@@ -40,9 +39,9 @@ void GlobalPrivacy::reload(Fn<void()> callback) {
 		}
 	}).send();
 
-	_session->account().appConfig().value(
+	_session->appConfig().value(
 	) | rpl::start_with_next([=] {
-		_showArchiveAndMute = _session->account().appConfig().get<bool>(
+		_showArchiveAndMute = _session->appConfig().get<bool>(
 			u"autoarchive_setting_available"_q,
 			false);
 	}, _session->lifetime());
@@ -75,12 +74,12 @@ rpl::producer<bool> GlobalPrivacy::showArchiveAndMute() const {
 }
 
 rpl::producer<> GlobalPrivacy::suggestArchiveAndMute() const {
-	return _session->account().appConfig().suggestionRequested(
+	return _session->appConfig().suggestionRequested(
 		u"AUTOARCHIVE_POPULAR"_q);
 }
 
 void GlobalPrivacy::dismissArchiveAndMuteSuggestion() {
-	_session->account().appConfig().dismissSuggestion(
+	_session->appConfig().dismissSuggestion(
 		u"AUTOARCHIVE_POPULAR"_q);
 }
 

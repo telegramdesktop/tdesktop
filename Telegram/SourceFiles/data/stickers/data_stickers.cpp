@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/toast/toast.h"
@@ -1321,7 +1320,7 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 
 	ranges::sort(result, std::greater<>(), &StickerWithDate::date);
 
-	const auto appConfig = &session().account().appConfig();
+	const auto appConfig = &session().appConfig();
 	auto mixed = std::vector<not_null<DocumentData*>>();
 	mixed.reserve(result.size());
 	auto premiumIndex = 0, nonPremiumIndex = 0;

@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_app_config.h"
 #include "mtproto/mtproto_config.h"
@@ -501,7 +500,7 @@ auto PeerData::unavailableReasons() const
 
 QString PeerData::computeUnavailableReason() const {
 	const auto &list = unavailableReasons();
-	const auto &config = session().account().appConfig();
+	const auto &config = session().appConfig();
 	const auto skip = config.get<std::vector<QString>>(
 		"ignore_restriction_reasons",
 		std::vector<QString>());

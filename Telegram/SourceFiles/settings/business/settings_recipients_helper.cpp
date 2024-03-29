@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
@@ -395,25 +394,25 @@ rpl::producer<bool> ShortcutExistsValue(
 }
 
 int ShortcutsLimit(not_null<Main::Session*> session) {
-	const auto appConfig = &session->account().appConfig();
+	const auto appConfig = &session->appConfig();
 	return appConfig->get<int>("quick_replies_limit", 100);
 }
 
 rpl::producer<int> ShortcutsLimitValue(not_null<Main::Session*> session) {
-	const auto appConfig = &session->account().appConfig();
+	const auto appConfig = &session->appConfig();
 	return appConfig->value() | rpl::map([=] {
 		return ShortcutsLimit(session);
 	});
 }
 
 int ShortcutMessagesLimit(not_null<Main::Session*> session) {
-	const auto appConfig = &session->account().appConfig();
+	const auto appConfig = &session->appConfig();
 	return appConfig->get<int>("quick_reply_messages_limit", 20);
 }
 
 rpl::producer<int> ShortcutMessagesLimitValue(
 		not_null<Main::Session*> session) {
-	const auto appConfig = &session->account().appConfig();
+	const auto appConfig = &session->appConfig();
 	return appConfig->value() | rpl::map([=] {
 		return ShortcutMessagesLimit(session);
 	});

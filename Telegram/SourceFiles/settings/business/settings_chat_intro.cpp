@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/business/settings_recipients_helper.h"
@@ -152,7 +151,7 @@ private:
 		not_null<Main::Session*> session,
 		const QString &key,
 		int defaultValue) {
-	return session->account().appConfig().get<int>(key, defaultValue);
+	return session->appConfig().get<int>(key, defaultValue);
 }
 
 [[nodiscard]] not_null<Ui::InputField*> AddPartInput(

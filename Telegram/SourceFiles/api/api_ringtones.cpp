@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/notify/data_notify_settings.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "storage/file_upload.h"
@@ -191,20 +190,20 @@ void Ringtones::remove(DocumentId id) {
 }
 
 int64 Ringtones::maxSize() const {
-	return _session->account().appConfig().get<int>(
-		"ringtone_size_max",
+	return _session->appConfig().get<int>(
+		u"ringtone_size_max"_q,
 		100 * 1024);
 }
 
 int Ringtones::maxSavedCount() const {
-	return _session->account().appConfig().get<int>(
-		"ringtone_saved_count_max",
+	return _session->appConfig().get<int>(
+		u"ringtone_saved_count_max"_q,
 		100);
 }
 
 crl::time Ringtones::maxDuration() const {
-	return crl::time(1000) * _session->account().appConfig().get<int>(
-		"ringtone_duration_max",
+	return crl::time(1000) * _session->appConfig().get<int>(
+		u"ringtone_duration_max"_q,
 		5);
 }
 
