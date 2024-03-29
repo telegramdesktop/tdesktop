@@ -697,8 +697,11 @@ bool ShowEditBirthday(
 		)).done(crl::guard(controller, [=] {
 			controller->showToast(tr::lng_settings_birthday_saved(tr::now));
 		})).fail(crl::guard(controller, [=](const MTP::Error &error) {
-			controller->showToast(u"Error: "_q + error.type());
-		})).send();
+			const auto type = error.type();
+			controller->showToast(type.startsWith(u"FLOOD_WAIT_"_q)
+				? tr::lng_flood_error(tr::now)
+				: (u"Error: "_q + error.type()));
+		})).handleFloodErrors().send();
 	};
 	controller->show(Box(
 		Ui::EditBirthdayBox,
