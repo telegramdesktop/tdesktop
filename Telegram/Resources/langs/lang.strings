@@ -676,7 +676,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_channel_label" = "Personal channel";
 "lng_settings_channel_add" = "Add";
 "lng_settings_channel_remove" = "Remove";
-"lng_settings_channel_no_yet" = "You don't have any channels yet.";
+"lng_settings_channel_no_yet" = "You don't have any public channels yet.";
 "lng_settings_channel_start" = "Start a Channel";
 "lng_settings_channel_saved" = "Your personal channel was updated.";
 "lng_settings_channel_removed" = "Your personal channel was removed.";

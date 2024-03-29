@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sessions_box.h"
 #include "boxes/language_box.h"
 #include "passport/passport_form_controller.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "data/data_birthday.h"
 #include "data/data_channel.h"
@@ -71,7 +72,8 @@ using Match = qthelp::RegularExpressionMatch;
 
 class PersonalChannelController final : public PeerListController {
 public:
-	explicit PersonalChannelController(not_null<Main::Session*> session);
+	explicit PersonalChannelController(
+		not_null<Window::SessionController*> window);
 	~PersonalChannelController();
 
 	Main::Session &session() const override;
@@ -80,45 +82,75 @@ public:
 	[[nodiscard]] rpl::producer<not_null<ChannelData*>> chosen() const;
 
 private:
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _window;
 	rpl::event_stream<not_null<ChannelData*>> _chosen;
 	mtpRequestId _requestId = 0;
 
 };
 
 PersonalChannelController::PersonalChannelController(
-	not_null<Main::Session*> session)
-: _session(session) {
+	not_null<Window::SessionController*> window)
+: _window(window) {
 }
 
 PersonalChannelController::~PersonalChannelController() {
 	if (_requestId) {
-		_session->api().request(_requestId).cancel();
+		_window->session().api().request(_requestId).cancel();
 	}
 }
 
 Main::Session &PersonalChannelController::session() const {
-	return *_session;
+	return _window->session();
 }
 
 void PersonalChannelController::prepare() {
+	setDescription(object_ptr<Ui::FlatLabel>(
+		nullptr,
+		tr::lng_contacts_loading(),
+		computeListSt().about));
+
 	using Flag = MTPchannels_GetAdminedPublicChannels::Flag;
-	_requestId = _session->api().request(
+	_requestId = _window->session().api().request(
 		MTPchannels_GetAdminedPublicChannels(
 			MTP_flags(Flag::f_for_personal))
 	).done([=](const MTPmessages_Chats &result) {
 		_requestId = 0;
 
+		setDescription(nullptr);
 		const auto &chats = result.match([](const auto &data) {
 			return data.vchats().v;
 		});
+		const auto owner = &_window->session().data();
 		for (const auto &chat : chats) {
-			if (const auto peer = _session->data().processChat(chat)) {
-				if (!delegate()->peerListFindRow(peer->id.value)) {
-					delegate()->peerListAppendRow(
-						std::make_unique<PeerListRow>(peer));
+			if (const auto peer = owner->processChat(chat)) {
+				const auto rowId = peer->id.value;
+				const auto channel = peer->asChannel();
+				if (channel && !delegate()->peerListFindRow(rowId)) {
+					auto row = std::make_unique<PeerListRow>(peer);
+					row->setCustomStatus(tr::lng_chat_status_subscribers(
+						tr::now,
+						lt_count,
+						channel->membersCount()));
+					delegate()->peerListAppendRow(std::move(row));
 				}
 			}
+		}
+		if (!delegate()->peerListFullRowsCount()) {
+			auto none = rpl::combine(
+				tr::lng_settings_channel_no_yet(Ui::Text::WithEntities),
+				tr::lng_settings_channel_start()
+			) | rpl::map([](TextWithEntities &&text, const QString &link) {
+				return text.append('\n').append(Ui::Text::Link(link));
+			});
+			auto label = object_ptr<Ui::FlatLabel>(
+				nullptr,
+				std::move(none),
+				computeListSt().about);
+			label->setClickHandlerFilter([=](const auto &...) {
+				_window->showNewChannel();
+				return false;
+			});
+			setDescription(std::move(label));
 		}
 		delegate()->peerListRefreshRows();
 	}).send();
@@ -835,7 +867,7 @@ bool ShowEditPersonalChannel(
 	}
 
 	auto listController = std::make_unique<PersonalChannelController>(
-		&controller->session());
+		controller);
 	const auto rawController = listController.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->setTitle(tr::lng_settings_channel_label());
