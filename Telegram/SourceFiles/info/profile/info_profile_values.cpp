@@ -352,6 +352,16 @@ rpl::producer<Data::Birthday> BirthdayValue(not_null<UserData*> user) {
 	});
 }
 
+rpl::producer<ChannelData*> PersonalChannelValue(not_null<UserData*> user) {
+	return user->session().changes().peerFlagsValue(
+		user,
+		UpdateFlag::PersonalChannel
+	) | rpl::map([=] {
+		const auto channelId = user->personalChannelId();
+		return channelId ? user->owner().channel(channelId).get() : nullptr;
+	});
+}
+
 rpl::producer<bool> AmInChannelValue(not_null<ChannelData*> channel) {
 	return channel->session().changes().peerFlagsValue(
 		channel,

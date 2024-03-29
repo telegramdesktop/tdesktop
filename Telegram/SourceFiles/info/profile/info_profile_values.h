@@ -86,6 +86,8 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<Data::Birthday> BirthdayValue(
 	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<ChannelData*> PersonalChannelValue(
+	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<bool> AmInChannelValue(
 	not_null<ChannelData*> channel);
 [[nodiscard]] rpl::producer<int> MembersCountValue(not_null<PeerData*> peer);

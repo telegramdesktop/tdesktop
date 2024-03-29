@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_premium_limits.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_badge.h"
@@ -368,16 +369,7 @@ void SetupBirthday(
 		tr::lng_settings_birthday_add()
 	) | rpl::map([](Data::Birthday birthday, const QString &add) {
 		const auto text = Data::BirthdayText(birthday);
-		if (!text.isEmpty()) {
-			return TextWithEntities{ text };
-		}
-		auto result = TextWithEntities{ add };
-		result.entities.push_back({
-			EntityType::CustomUrl,
-			0,
-			int(add.size()),
-			"internal:edit_username" });
-		return result;
+		return TextWithEntities{ !text.isEmpty() ? text : add };
 	});
 	const auto edit = [=] {
 		Core::App().openInternalUrl(
@@ -417,6 +409,39 @@ void SetupBirthday(
 			tr::lng_settings_birthday_about_link(
 			) | Ui::Text::ToLink(u"internal:edit_privacy_birthday"_q),
 			Ui::Text::WithEntities)));
+}
+
+void SetupPersonalChannel(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> self) {
+	const auto session = &self->session();
+
+	Ui::AddSkip(container);
+
+	auto value = rpl::combine(
+		Info::Profile::PersonalChannelValue(self),
+		tr::lng_settings_channel_add()
+	) | rpl::map([](ChannelData *channel, const QString &add) {
+		return TextWithEntities{ channel ? channel->name() : add };
+	});
+	const auto edit = [=] {
+		Core::App().openInternalUrl(
+			u"internal:edit_personal_channel"_q,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(controller),
+			}));
+	};
+	AddRow(
+		container,
+		tr::lng_settings_channel_label(),
+		std::move(value),
+		tr::lng_mediaview_copy(tr::now),
+		edit,
+		{ &st::menuIconChannel });
+
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
 }
 
 void SetupRows(
@@ -1020,6 +1045,7 @@ void Information::setupContent(
 	SetupPhoto(content, controller, self);
 	SetupBio(content, self);
 	SetupRows(content, controller, self);
+	SetupPersonalChannel(content, controller, self);
 	SetupBirthday(content, controller, self);
 	SetupAccountsWrap(content, controller);
 

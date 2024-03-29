@@ -205,6 +205,10 @@ public:
 	[[nodiscard]] const Data::BusinessDetails &businessDetails() const;
 	void setBusinessDetails(Data::BusinessDetails details);
 
+	[[nodiscard]] ChannelId personalChannelId() const;
+	[[nodiscard]] MsgId personalChannelMessageId() const;
+	void setPersonalChannel(ChannelId channelId, MsgId messageId);
+
 private:
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;
@@ -222,6 +226,9 @@ private:
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
 	QString _privateForwardName;
+
+	ChannelId _personalChannelId = 0;
+	MsgId _personalChannelMessageId = 0;
 
 	uint64 _accessHash = 0;
 	static constexpr auto kInaccessibleAccessHashOld

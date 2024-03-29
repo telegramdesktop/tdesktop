@@ -69,6 +69,102 @@ namespace {
 
 using Match = qthelp::RegularExpressionMatch;
 
+class PersonalChannelController final : public PeerListController {
+public:
+	explicit PersonalChannelController(not_null<Main::Session*> session);
+	~PersonalChannelController();
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	[[nodiscard]] rpl::producer<not_null<ChannelData*>> chosen() const;
+
+private:
+	const not_null<Main::Session*> _session;
+	rpl::event_stream<not_null<ChannelData*>> _chosen;
+	mtpRequestId _requestId = 0;
+
+};
+
+PersonalChannelController::PersonalChannelController(
+	not_null<Main::Session*> session)
+: _session(session) {
+}
+
+PersonalChannelController::~PersonalChannelController() {
+	if (_requestId) {
+		_session->api().request(_requestId).cancel();
+	}
+}
+
+Main::Session &PersonalChannelController::session() const {
+	return *_session;
+}
+
+void PersonalChannelController::prepare() {
+	using Flag = MTPchannels_GetAdminedPublicChannels::Flag;
+	_requestId = _session->api().request(
+		MTPchannels_GetAdminedPublicChannels(
+			MTP_flags(Flag::f_for_personal))
+	).done([=](const MTPmessages_Chats &result) {
+		_requestId = 0;
+
+		const auto &chats = result.match([](const auto &data) {
+			return data.vchats().v;
+		});
+		for (const auto &chat : chats) {
+			if (const auto peer = _session->data().processChat(chat)) {
+				if (!delegate()->peerListFindRow(peer->id.value)) {
+					delegate()->peerListAppendRow(
+						std::make_unique<PeerListRow>(peer));
+				}
+			}
+		}
+		delegate()->peerListRefreshRows();
+	}).send();
+}
+
+void PersonalChannelController::rowClicked(not_null<PeerListRow*> row) {
+	if (const auto channel = row->peer()->asChannel()) {
+		_chosen.fire_copy(channel);
+	}
+}
+
+auto PersonalChannelController::chosen() const
+-> rpl::producer<not_null<ChannelData*>> {
+	return _chosen.events();
+}
+
+void SavePersonalChannel(
+		not_null<Window::SessionController*> window,
+		ChannelData *channel) {
+	const auto self = window->session().user();
+	const auto history = channel
+		? channel->owner().history(channel->id).get()
+		: nullptr;
+	const auto item = history
+		? history->lastServerMessage()
+		: nullptr;
+	const auto channelId = channel
+		? peerToChannel(channel->id)
+		: ChannelId();
+	const auto messageId = item ? item->id : MsgId();
+	if (self->personalChannelId() != channelId
+		|| (messageId
+			&& self->personalChannelMessageId() != messageId)) {
+		self->setPersonalChannel(channelId, messageId);
+		self->session().api().request(MTPaccount_UpdatePersonalChannel(
+			channel ? channel->inputChannel : MTP_inputChannelEmpty()
+		)).done(crl::guard(window, [=] {
+			window->showToast((channel
+				? tr::lng_settings_channel_saved
+				: tr::lng_settings_channel_removed)(tr::now));
+		})).fail(crl::guard(window, [=](const MTP::Error &error) {
+			window->showToast(u"Error: "_q + error.type());
+		})).send();
+	}
+}
+
 bool JoinGroupByHash(
 		Window::SessionController *controller,
 		const Match &match,
@@ -730,6 +826,45 @@ bool ShowEditBirthdayPrivacy(
 	return true;
 }
 
+bool ShowEditPersonalChannel(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+
+	auto listController = std::make_unique<PersonalChannelController>(
+		&controller->session());
+	const auto rawController = listController.get();
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->setTitle(tr::lng_settings_channel_label());
+		box->addButton(tr::lng_box_done(), [=] {
+			box->closeBox();
+		});
+
+		const auto save = [=](ChannelData *channel) {
+			SavePersonalChannel(controller, channel);
+			box->closeBox();
+		};
+
+		rawController->chosen(
+		) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
+			save(channel);
+		}, box->lifetime());
+
+		if (controller->session().user()->personalChannelId()) {
+			box->addLeftButton(tr::lng_settings_channel_remove(), [=] {
+				save(nullptr);
+			});
+		}
+	};
+	controller->show(Box<PeerListBox>(
+		std::move(listController),
+		std::move(initBox)));
+	return true;
+}
+
 void ExportTestChatTheme(
 		not_null<Window::SessionController*> controller,
 		not_null<const Data::CloudTheme*> theme) {
@@ -1127,6 +1262,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^edit_privacy_birthday$"_q,
 			ShowEditBirthdayPrivacy,
+		},
+		{
+			u"^edit_personal_channel$"_q,
+			ShowEditPersonalChannel,
 		},
 	};
 	return Result;

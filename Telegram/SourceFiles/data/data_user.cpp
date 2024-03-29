@@ -195,6 +195,23 @@ void UserData::setBusinessDetails(Data::BusinessDetails details) {
 	session().changes().peerUpdated(this, UpdateFlag::BusinessDetails);
 }
 
+ChannelId UserData::personalChannelId() const {
+	return _personalChannelId;
+}
+
+MsgId UserData::personalChannelMessageId() const {
+	return _personalChannelMessageId;
+}
+
+void UserData::setPersonalChannel(ChannelId channelId, MsgId messageId) {
+	if (_personalChannelId != channelId
+		|| _personalChannelMessageId != messageId) {
+		_personalChannelId = channelId;
+		_personalChannelMessageId = messageId;
+		session().changes().peerUpdated(this, UpdateFlag::PersonalChannel);
+	}
+}
+
 void UserData::setName(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
 	bool changeName = !newFirstName.isEmpty() || !newLastName.isEmpty();
 
@@ -623,6 +640,9 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		update.vbusiness_location(),
 		update.vbusiness_intro()));
 	user->setBirthday(update.vbirthday());
+	user->setPersonalChannel(
+		update.vpersonal_channel_id().value_or_empty(),
+		update.vpersonal_channel_message().value_or_empty());
 	if (user->isSelf()) {
 		user->owner().businessInfo().applyAwaySettings(
 			FromMTP(&user->owner(), update.vbusiness_away_message()));
