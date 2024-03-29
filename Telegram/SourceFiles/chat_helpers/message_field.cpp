@@ -505,7 +505,11 @@ void InitMessageFieldFade(
 	}, topFade->lifetime());
 
 	topFade->show();
-	bottomFade->show();
+	bottomFade->showOn(
+	field->scrollTop().value(
+	) | rpl::map([field, descent = field->st().font->descent](int scroll) {
+		return (scroll + descent) < field->scrollTopMax();
+	}) | rpl::distinct_until_changed());
 }
 
 InlineBotQuery ParseInlineBotQuery(
