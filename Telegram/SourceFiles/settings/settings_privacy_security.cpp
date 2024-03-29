@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_peer_values.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "storage/storage_domain.h"
@@ -307,8 +308,9 @@ void AddMessagesPrivacyButton(
 	button->addClickHandler([=] {
 		controller->show(Box(EditMessagesPrivacyBox, controller));
 	});
-
-	AddPremiumStar(button, session, rpl::duplicate(label), st.padding);
+	if (!session->appConfig().newRequirePremiumFree()) {
+		AddPremiumStar(button, session, rpl::duplicate(label), st.padding);
+	}
 }
 
 rpl::producer<int> BlockedPeersCount(not_null<::Main::Session*> session) {

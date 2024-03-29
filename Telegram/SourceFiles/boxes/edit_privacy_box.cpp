@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -488,7 +489,10 @@ void EditMessagesPrivacyBox(
 	constexpr auto kOptionAll = 0;
 	constexpr auto kOptionPremium = 1;
 
-	const auto premium = controller->session().premium();
+	const auto allowed = [=] {
+		return controller->session().premium()
+			|| controller->session().appConfig().newRequirePremiumFree();
+	};
 	const auto privacy = &controller->session().api().globalPrivacy();
 	const auto inner = box->verticalLayout();
 	inner->add(object_ptr<Ui::PlainShadow>(box));
@@ -550,7 +554,7 @@ void EditMessagesPrivacyBox(
 			}),
 		});
 	};
-	if (!premium) {
+	if (!allowed()) {
 		CreateRadiobuttonLock(restricted, st::messagePrivacyCheck);
 
 		group->setChangedCallback([=](int value) {
@@ -562,7 +566,7 @@ void EditMessagesPrivacyBox(
 	}
 
 	Ui::AddDividerText(inner, tr::lng_messages_privacy_about());
-	if (!premium) {
+	if (!allowed()) {
 		Ui::AddSkip(inner);
 		Settings::AddButtonWithIcon(
 			inner,
@@ -581,7 +585,7 @@ void EditMessagesPrivacyBox(
 		});
 	} else {
 		box->addButton(tr::lng_settings_save(), [=] {
-			if (controller->session().premium()) {
+			if (allowed()) {
 				privacy->updateNewRequirePremium(
 					group->current() == kOptionPremium);
 				box->closeBox();

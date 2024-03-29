@@ -141,6 +141,8 @@ void GlobalPrivacy::update(
 	using Flag = MTPDglobalPrivacySettings::Flag;
 
 	_api.request(_requestId).cancel();
+	const auto newRequirePremiumAllowed = _session->premium()
+		|| _session->appConfig().newRequirePremiumFree();
 	const auto flags = Flag()
 		| (archiveAndMute
 			? Flag::f_archive_and_mute_new_noncontact_peers
@@ -152,7 +154,7 @@ void GlobalPrivacy::update(
 			? Flag::f_keep_archived_folders
 			: Flag())
 		| (hideReadTime ? Flag::f_hide_read_marks : Flag())
-		| ((newRequirePremium && _session->premium())
+		| ((newRequirePremium && newRequirePremiumAllowed)
 			? Flag::f_new_noncontact_peers_require_premium
 			: Flag());
 	_requestId = _api.request(MTPaccount_SetGlobalPrivacySettings(
