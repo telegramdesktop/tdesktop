@@ -130,8 +130,9 @@ bool IconGraphic::isRefreshNeeded(
 	return _trayIcon.isNull()
 		|| iconThemeName != _themeName
 		|| systemIcon.name() != _systemIcon.name()
-		|| muted != _muted
-		|| counterSlice(counter) != _count;
+		|| (systemIcon.name() != PanelIconName(counter, muted)
+			? muted != _muted || counterSlice(counter) != _count
+			: false);
 }
 
 void IconGraphic::updateIconRegenerationNeeded(
