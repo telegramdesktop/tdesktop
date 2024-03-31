@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_earn.h"
 #include "api/api_statistics.h"
+#include "base/unixtime.h"
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
@@ -203,9 +204,13 @@ void InnerWidget::fill() {
 	const auto currency = u"TON"_q;
 	const auto multiplier = data.usdRate;
 
+	constexpr auto kNonInteractivePeriod = 1717200000;
+	const auto nonInteractive = base::unixtime::now() < kNonInteractivePeriod;
+
 	const auto session = &_peer->session();
 	const auto channel = _peer->asChannel();
-	const auto withdrawalEnabled = WithdrawalEnabled(session);
+	const auto withdrawalEnabled = WithdrawalEnabled(session)
+		&& !nonInteractive;
 	const auto makeContext = [=](not_null<Ui::FlatLabel*> l) {
 		return Core::MarkedTextContext{
 			.session = session,
@@ -505,6 +510,11 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 		addOverview(data.overallRevenue, tr::lng_channel_earn_total);
 		Ui::AddSkip(container);
+	}
+	if (!channel->amCreator()) {
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		return;
 	}
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);

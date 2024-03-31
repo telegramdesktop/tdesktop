@@ -4985,7 +4985,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_balance_password_title" = "Two-step verification";
 "lng_channel_earn_balance_password_description" = "Please enter your password to withdraw.";
 "lng_channel_earn_balance_about" = "Collect your reward using Fragment, a third-party platform used by the advertiser to pay for the ad. {link}";
-"lng_channel_earn_balance_about_temp" = "By the end of May, you will be able to collect your reward using Fragment, a third-party platform used by the advertiser to pay for the ad. {link}";
+"lng_channel_earn_balance_about_temp" = "In the coming weeks you will be able to collect your reward using Fragment, a third-party platform used by advertisers to pay ads. {link}";
 "lng_channel_earn_transfer_sure_about1" = "Check the address of the recipient:";
 "lng_channel_earn_transfer_sure_about2" = "This action can not be undone. If the address above is incorrect you will lose your TON.";
 "lng_channel_earn_history_title" = "Transaction history";
@@ -5013,7 +5013,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_learn_out_subtitle" = "Flexible withdrawals";
 "lng_channel_earn_learn_out_about" = "You can withdraw your TON any time.";
 "lng_channel_earn_learn_coin_title" = "What is {emoji} TON?";
-"lng_channel_earn_learn_coin_about" = "TON is a blockchain platform and cryptocurrency that Telegram uses for its record scalability and ultra low commissions on transactions. {link}";
+"lng_channel_earn_learn_coin_about" = "TON is a blockchain platform and cryptocurrency that Telegram uses for its high speed and low commissions on transactions. {link}";
 "lng_channel_earn_learn_close" = "Got it";
 "lng_channel_earn_chart_top_hours" = "Ad impressions";
 "lng_channel_earn_chart_revenue" = "Ad revenue";
