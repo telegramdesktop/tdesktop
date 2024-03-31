@@ -804,7 +804,22 @@ QByteArray SerializeMessage(
 					});
 				}
 				if (!entry.data.isEmpty()) {
-					pairs.push_back({ "data", SerializeString(entry.data) });
+					using Type = HistoryMessageMarkupButton::Type;
+					const auto isCallback = (entry.type == Type::Callback)
+						|| (entry.type == Type::CallbackWithPassword);
+					const auto data = isCallback
+						? entry.data.toBase64(QByteArray::Base64UrlEncoding
+							| QByteArray::OmitTrailingEquals)
+						: entry.data;
+					if (isCallback) {
+						pairs.push_back({
+							"dataBase64",
+							SerializeString(data),
+						});
+						pairs.push_back({ "data", SerializeString({}) });
+					} else {
+						pairs.push_back({ "data", SerializeString(data) });
+					}
 				}
 				if (!entry.forwardText.isEmpty()) {
 					pairs.push_back({
