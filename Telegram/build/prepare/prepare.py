@@ -59,6 +59,7 @@ for arg in sys.argv[1:]:
         options.append(arg)
     elif arg == 'run':
         customRunCommand = True
+
 buildQt5 = not 'skip-qt5' in options if win else 'build-qt5' in options
 buildQt6 = 'build-qt6' in options if win else not 'skip-qt6' in options
 
@@ -1405,7 +1406,7 @@ if buildQt5:
     stage('qt_5_15_13', """
     git clone -b v5.15.13-lts-lgpl https://github.com/qt/qt5.git qt_5_15_13
     cd qt_5_15_13
-    perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
+    git submodule update --init --recursive qtbase qtimageformats qtsvg
 depends:patches/qtbase_5.15.13/*.patch
     cd qtbase
 win:
@@ -1491,7 +1492,7 @@ if buildQt6:
 mac:
     git clone -b v6.2.7-lts-lgpl https://github.com/qt/qt5.git qt_6_2_7
     cd qt_6_2_7
-    perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
+    git submodule update --init --recursive qtbase qtimageformats qtsvg
 depends:patches/qtbase_6.2.7/*.patch
     cd qtbase
     find ../../patches/qtbase_6.2.7 -type f -print0 | sort -z | xargs -0 git apply -v
