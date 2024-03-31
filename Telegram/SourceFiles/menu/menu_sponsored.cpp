@@ -238,8 +238,42 @@ void ShowReportSponsoredBox(
 						const auto button = box->verticalLayout()->add(
 							object_ptr<Ui::SettingsButton>(
 								box,
-								rpl::single(option.text),
+								rpl::single(QString()),
 								st::settingsButtonNoIcon));
+						const auto label = Ui::CreateChild<Ui::FlatLabel>(
+							button,
+							rpl::single(option.text),
+							st::sponsoredReportLabel);
+						const auto icon = Ui::CreateChild<Ui::RpWidget>(
+							button);
+						icon->resize(st::settingsPremiumArrow.size());
+						icon->paintRequest(
+						) | rpl::start_with_next([=, w = icon->width()] {
+							auto p = Painter(icon);
+							st::settingsPremiumArrow.paint(p, 0, 0, w);
+						}, icon->lifetime());
+						button->sizeValue(
+						) | rpl::start_with_next([=](const QSize &size) {
+							const auto left = button->st().padding.left();
+							const auto right = button->st().padding.right();
+							icon->moveToRight(
+								right,
+								(size.height() - icon->height()) / 2);
+							label->resizeToWidth(size.width()
+								- icon->width()
+								- left
+								- st::settingsButtonRightSkip
+								- right);
+							label->moveToLeft(
+								left,
+								(size.height() - label->height()) / 2);
+							button->resize(
+								button->width(),
+								rect::m::sum::v(button->st().padding)
+									+ label->height());
+						}, button->lifetime());
+						label->setAttribute(Qt::WA_TransparentForMouseEvents);
+						icon->setAttribute(Qt::WA_TransparentForMouseEvents);
 						button->setClickedCallback([=] {
 							repeatRequest(repeatRequest, option.id);
 						});
@@ -268,9 +302,12 @@ void ShowReportSponsoredBox(
 						[=] { show->hideLayer(); });
 				}));
 			} else {
+				constexpr auto kToastDuration = crl::time(4000);
 				switch (result.result) {
 				case Data::SponsoredReportResult::FinalStep::Hidden: {
-					show->showToast(tr::lng_report_sponsored_hidden(tr::now));
+					show->showToast(
+						tr::lng_report_sponsored_hidden(tr::now),
+						kToastDuration);
 				} break;
 				case Data::SponsoredReportResult::FinalStep::Reported: {
 					auto text = tr::lng_report_sponsored_reported(
@@ -278,7 +315,10 @@ void ShowReportSponsoredBox(
 						lt_link,
 						guideLink,
 						Ui::Text::WithEntities);
-					show->showToast({ .text = std::move(text) });
+					show->showToast({
+						.text = std::move(text),
+						.duration = kToastDuration,
+					});
 				} break;
 				case Data::SponsoredReportResult::FinalStep::Premium: {
 					ShowPremiumPreviewBox(show, PremiumFeature::NoAds);

@@ -33,6 +33,7 @@ struct SponsoredReportResult final {
 		Hidden,
 		Reported,
 		Premium,
+		Silence,
 	};
 	Options options;
 	QString title;

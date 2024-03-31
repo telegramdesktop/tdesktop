@@ -117,3 +117,8 @@ sponsoredAboutSplitIcon: icon {{ "sponsored/revenue_split", boxTextFg }};
 channelEarnLearnTitleIcon: icon {{ "sponsored/large_earn", activeButtonFg }};
 channelEarnLearnChannelIcon: icon {{ "sponsored/channel", boxTextFg }};
 channelEarnLearnWithdrawalsIcon: icon {{ "sponsored/withdrawals", boxTextFg }};
+
+sponsoredReportLabel: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+	minWidth: 150px;
+}

@@ -546,6 +546,9 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 					};
 					list.erase(ranges::remove_if(list, proj), end(list));
 				}
+				if (optionId == Result::Id("1")) { // I don't like it.
+					return { .result = Result::FinalStep::Silence };
+				}
 				return { .result = Result::FinalStep::Reported };
 			}));
 		}).fail([=](const MTP::Error &error) {
