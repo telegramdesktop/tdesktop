@@ -430,7 +430,7 @@ void InnerWidget::fill() {
 				object_ptr<Statistic::ChartWidget>(container),
 				st::statisticsLayerMargins);
 
-			widget->setChartData(data.topHoursGraph.chart, Type::Linear);
+			widget->setChartData(data.topHoursGraph.chart, Type::Bar);
 			widget->setTitle(tr::lng_channel_earn_chart_top_hours());
 		}
 		if (data.revenueGraph.chart) {

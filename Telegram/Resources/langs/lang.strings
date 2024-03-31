@@ -5017,6 +5017,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_learn_close" = "Got it";
 "lng_channel_earn_chart_top_hours" = "Ad impressions";
 "lng_channel_earn_chart_revenue" = "Ad revenue";
+"lng_channel_earn_chart_overriden_detail_currency" = "Revenue in TON";
+"lng_channel_earn_chart_overriden_detail_usd" = "Revenue in USD";
 
 "lng_contact_add" = "Add";
 "lng_contact_send_message" = "message";

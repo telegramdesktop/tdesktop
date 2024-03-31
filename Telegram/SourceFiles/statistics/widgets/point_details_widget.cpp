@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/widgets/point_details_widget.h"
 
 #include "data/data_channel_earn.h" // Data::kEarnMultiplier.
+#include "info/channel_statistics/earn/earn_format.h"
+#include "lang/lang_keys.h"
 #include "statistics/statistics_common.h"
 #include "statistics/statistics_format_values.h"
 #include "statistics/view/stack_linear_chart_common.h"
@@ -237,7 +239,7 @@ void PointDetailsWidget::setLineAlpha(int lineId, float64 alpha) {
 void PointDetailsWidget::resizeHeight() {
 	resize(
 		width(),
-		lineYAt(_chartData.lines.size())
+		lineYAt(_chartData.lines.size() + (_chartData.currencyRate ? 1 : 0))
 			+ st::statisticsDetailsPopupMargins.bottom());
 }
 
@@ -282,11 +284,30 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 		textLine.name.setText(_textStyle, dataLine.name);
 		textLine.value.setText(
 			_textStyle,
-			_chartData.currencyRate
-				? QString::number(dataLine.y[xIndex] / multiplier)
-				: QString("%L1").arg(dataLine.y[xIndex]));
+			QString("%L1").arg(dataLine.y[xIndex]));
 		hasPositiveValues |= (dataLine.y[xIndex] > 0);
 		textLine.valueColor = QColor(dataLine.color);
+		if (_chartData.currencyRate) {
+			auto copy = Line();
+			copy.id = dataLine.id * 100;
+			copy.valueColor = QColor(dataLine.color);
+			copy.name.setText(
+				_textStyle,
+				tr::lng_channel_earn_chart_overriden_detail_currency(
+					tr::now));
+			copy.value.setText(
+				_textStyle,
+				QString::number(dataLine.y[xIndex] / multiplier));
+			_lines.push_back(std::move(copy));
+			textLine.name.setText(
+				_textStyle,
+				tr::lng_channel_earn_chart_overriden_detail_usd(tr::now));
+			textLine.value.setText(
+				_textStyle,
+				Info::ChannelEarn::ToUsd(
+					dataLine.y[xIndex],
+					_chartData.currencyRate));
+		}
 		_lines.push_back(std::move(textLine));
 	}
 	const auto clickable = _zoomEnabled && hasPositiveValues;
@@ -387,7 +408,7 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 				.outerWidth = _textRect.width(),
 				.availableWidth = valueWidth,
 			};
-			if (_valueIcon) {
+			if (!i && _valueIcon) {
 				_valueIcon->paint(
 					p,
 					valueContext.position.x() - _valueIcon->width(),
