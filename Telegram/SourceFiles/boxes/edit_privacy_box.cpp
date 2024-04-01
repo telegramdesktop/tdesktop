@@ -407,6 +407,11 @@ EditPrivacyBox::EditPrivacyBox(
 : _window(window)
 , _controller(std::move(controller))
 , _value(value) {
+	if (_controller->allowPremiumsToggle(Exception::Always)
+		&& _value.option == Option::Everyone) {
+		// If we switch from Everyone to Contacts or Nobody suggest Premiums.
+		_value.always.premiums = true;
+	}
 }
 
 void EditPrivacyBox::prepare() {
