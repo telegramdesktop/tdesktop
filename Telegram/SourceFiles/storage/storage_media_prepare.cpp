@@ -293,8 +293,11 @@ void PrepareDetails(PreparedFile &file, int previewWidth, int sideLimit) {
 		if (ValidPhotoForAlbum(*image, file.information->filemime)) {
 			UpdateImageDetails(file, previewWidth, sideLimit);
 			file.type = PreparedFile::Type::Photo;
-		} else if (image->animated) {
-			file.type = PreparedFile::Type::None;
+		} else {
+			file.originalDimensions = image->data.size();
+			if (image->animated) {
+				file.type = PreparedFile::Type::None;
+			}
 		}
 	} else if (const auto video = std::get_if<Video>(
 			&file.information->media)) {
