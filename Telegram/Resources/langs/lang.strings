@@ -1103,7 +1103,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_everyone" = "Everybody";
 "lng_edit_privacy_contacts" = "My contacts";
 "lng_edit_privacy_close_friends" = "Close friends";
-"lng_edit_privacy_contacts_and_premium" = "Contacts and Premium";
+"lng_edit_privacy_contacts_and_premium" = "Contacts & Premium";
 "lng_edit_privacy_nobody" = "Nobody";
 "lng_edit_privacy_premium" = "Premium users";
 "lng_edit_privacy_exceptions" = "Add exceptions";
@@ -2687,6 +2687,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_link_also_send" = "You can also {link} to a friend as a gift.";
 "lng_gift_link_also_send_link" = "send this link";
 "lng_gift_link_use" = "Use Link";
+"lng_gift_link_already_title" = "You already have Telegram Premium";
+"lng_gift_link_already_about" = "You can activate this link after {date} or {link} to a friend.";
+"lng_gift_link_already_link" = "send the link";
 "lng_gift_link_used_title" = "Used Gift Link";
 "lng_gift_link_used_about" = "This link was used to activate\na **Telegram Premium** subscription.";
 "lng_gift_link_used_footer" = "This link was used on {date}.";
