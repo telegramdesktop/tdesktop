@@ -673,7 +673,6 @@ void LinksController::rowPaintIcon(
 	const auto skip = st::inviteLinkIconSkip;
 	const auto inner = size - 2 * skip;
 	const auto bg = &st::msgFile1Bg;
-	const auto stroke = st::inviteLinkIconStroke;
 	if (_icon.isNull()) {
 		_icon = QImage(
 			QSize(inner, inner) * style::DevicePixelRatio(),

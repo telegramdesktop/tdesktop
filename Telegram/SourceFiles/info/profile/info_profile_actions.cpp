@@ -670,12 +670,12 @@ base::options::toggle ShowPeerIdBelowAbout({
 			const TextWithEntities &value) {
 		slide->show(anim::type::normal);
 	});
-	auto labeled = layout->add(object_ptr<Ui::FlatLabel>(
+	layout->add(object_ptr<Ui::FlatLabel>(
 		layout,
 		std::move(nonEmptyText),
 		st::birthdayLabeled));
 	layout->add(Ui::CreateSkipWidget(layout, st::infoLabelSkip));
-	const auto subtext = layout->add(object_ptr<Ui::FlatLabel>(
+	layout->add(object_ptr<Ui::FlatLabel>(
 		layout,
 		std::move(
 			label

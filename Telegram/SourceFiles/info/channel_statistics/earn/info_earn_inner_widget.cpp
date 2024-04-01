@@ -281,7 +281,7 @@ void InnerWidget::fill() {
 	const auto &data = _state;
 
 	constexpr auto kMinus = QChar(0x2212);
-	constexpr auto kApproximately = QChar(0x2248);
+	//constexpr auto kApproximately = QChar(0x2248);
 	const auto multiplier = data.usdRate;
 
 	constexpr auto kNonInteractivePeriod = 1717200000;
@@ -706,9 +706,6 @@ void InnerWidget::fill() {
 				(b.height() - l.height()) / 2);
 		}, label->lifetime());
 
-		const auto fadeAnimation =
-			label->lifetime().make_state<Ui::Animations::Simple>();
-
 		const auto colorText = [=](float64 value) {
 			label->setTextColorOverride(
 				anim::with_alpha(
@@ -1044,7 +1041,7 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 	}
 	if (channel) {
-		constexpr auto kMaxCPM = 50; // Debug.
+		//constexpr auto kMaxCPM = 50; // Debug.
 		const auto requiredLevel = Data::LevelLimits(session)
 			.channelRestrictSponsoredLevelMin();
 		const auto &phrase = tr::lng_channel_earn_off;

@@ -906,7 +906,7 @@ void ShareWithFriend(
 	Window::ShowChooseRecipientBox(navigation, chosen);
 }
 
-[[nodiscard]] void ShowAlreadyPremiumToast(
+void ShowAlreadyPremiumToast(
 		not_null<Window::SessionNavigation*> navigation,
 		const QString &slug,
 		TimeId date) {

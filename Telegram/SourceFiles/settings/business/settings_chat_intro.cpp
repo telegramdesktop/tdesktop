@@ -103,9 +103,6 @@ public:
 		not_null<QWidget*> button;
 	};
 	void show(Descriptor &&descriptor);
-	void repaint();
-
-	[[nodiscard]] bool hasFocus() const;
 
 	struct CustomChosen {
 		not_null<DocumentData*> sticker;
@@ -240,7 +237,6 @@ rpl::producer<std::shared_ptr<StickerPlayer>> IconPlayerValue(
 		stickerChosen(chosen.sticker);
 	}, raw->lifetime());
 
-	const auto session = &show->session();
 	std::move(
 		stickerValue
 	) | rpl::start_with_next([=](DocumentData *sticker) {
@@ -435,7 +431,6 @@ StickerPanel::StickerPanel() = default;
 StickerPanel::~StickerPanel() = default;
 
 void StickerPanel::show(Descriptor &&descriptor) {
-	const auto controller = descriptor.controller;
 	if (!_panel) {
 		create(descriptor);
 
@@ -464,14 +459,6 @@ void StickerPanel::show(Descriptor &&descriptor) {
 		local.y() + (st::normalFont->height / 2),
 		local.x() + button->width() * 3);
 	_panel->toggleAnimated();
-}
-
-bool StickerPanel::hasFocus() const {
-	return _panel && Ui::InFocusChain(_panel.get());
-}
-
-void StickerPanel::repaint() {
-	_panel->selector()->update();
 }
 
 void StickerPanel::create(const Descriptor &descriptor) {
@@ -572,7 +559,7 @@ void ChatIntro::setupContent(
 		_intro = intro;
 	};
 
-	const auto preview = content->add(
+	content->add(
 		object_ptr<PreviewWrap>(
 			content,
 			session,

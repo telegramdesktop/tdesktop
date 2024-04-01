@@ -689,7 +689,6 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 		+ st::lineWidth;
 	auto result = object_ptr<Ui::FixedHeightWidget>(parent, full);
 	const auto raw = result.data();
-	const auto &st = st::boostReplaceUserpic;
 	const auto overlay = CreateChild<Ui::RpWidget>(raw);
 
 	const auto state = raw->lifetime().make_state<State>();

@@ -106,7 +106,6 @@ UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
 	using Option = UserPrivacy::Option;
 	auto result = UserPrivacy::Rule();
 	auto optionSet = false;
-	auto allowPremium = false;
 	const auto setOption = [&](Option option) {
 		if (optionSet) {
 			return;

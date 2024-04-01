@@ -1,3 +1,12 @@
+4.16 (01.04.24)
+
+- Instant View on Windows 10+ and macOS.
+- Allow scheduling messages in topics.
+- Telegram Business: Links to Chats.
+- Telegram Business: Custom Intro.
+- Telegram Business: Chatbots.
+- Sharing Revenue with Channel Owners.
+
 4.15.7 beta (01.04.24)
 
 - Test crashfix on Linux.
