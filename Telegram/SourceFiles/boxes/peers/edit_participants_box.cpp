@@ -87,8 +87,12 @@ void AddChatParticipant(
 		if (onDone) {
 			onDone();
 		}
+		ChatInviteForbidden(
+			show,
+			chat,
+			CollectForbiddenUsers(&chat->session(), result));
 	}).fail([=](const MTP::Error &error) {
-		ShowAddParticipantsError(show, error.type(), chat, { 1, user });
+		ShowAddParticipantsError(show, error.type(), chat, user);
 		if (onFail) {
 			onFail();
 		}
@@ -155,7 +159,7 @@ void SaveChannelAdmin(
 			onDone();
 		}
 	}).fail([=](const MTP::Error &error) {
-		ShowAddParticipantsError(show, error.type(), channel, { 1, user });
+		ShowAddParticipantsError(show, error.type(), channel, user);
 		if (onFail) {
 			onFail();
 		}

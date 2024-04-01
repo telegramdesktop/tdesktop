@@ -1319,6 +1319,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_photo_by_you" = "photo set by you";
 "lng_profile_public_photo" = "public photo";
 
+"lng_invite_upgrade_title" = "Upgrade to Premium";
+"lng_invite_upgrade_group_invite#one" = "{users} only accepts invitations to groups from Contacts and **Premium** users.";
+"lng_invite_upgrade_group_invite#other" = "{users} only accept invitations to groups from Contacts and **Premium** users.";
+"lng_invite_upgrade_group_write#one" = "{users} only accepts messages and invitations to groups from Contacts and **Premium** users.";
+"lng_invite_upgrade_group_write#other" = "{users} only accept messages and invitations to groups from Contacts and **Premium** users.";
+"lng_invite_upgrade_channel_invite#one" = "{users} only accepts invitations to channels from Contacts and **Premium** users.";
+"lng_invite_upgrade_channel_invite#other" = "{users} only accept invitations to channels from Contacts and **Premium** users.";
+"lng_invite_upgrade_channel_write#one" = "{users} only accepts messages and invitations to channels from Contacts and **Premium** users.";
+"lng_invite_upgrade_channel_write#other" = "{users} only accept messages and invitations to channels from Contacts and **Premium** users.";
+"lng_invite_upgrade_users_few" = "{users} and {last}";
+"lng_invite_upgrade_users_many#one" = "{users} and **{count}** more person";
+"lng_invite_upgrade_users_many#other" = "{users} and **{count}** more people";
+"lng_invite_upgrade_or" = "or";
+"lng_invite_upgrade_via_title" = "Invite via Link";
+"lng_invite_upgrade_via_group_about" = "You can send an invite link to the group in a private message instead.";
+"lng_invite_upgrade_via_channel_about" = "You can send an invite link to the channel in a private message instead.";
+"lng_invite_status_disabled" = "available only to Premium users";
+
 "lng_via_link_group_one" = "**{user}** restricts adding them to groups.\nYou can send them an invite link as message instead.";
 "lng_via_link_group_many#one" = "**{count} user** restricts adding them to groups.\nYou can send them an invite link as message instead.";
 "lng_via_link_group_many#other" = "**{count} users** restrict adding them to groups.\nYou can send them an invite link as message instead.";

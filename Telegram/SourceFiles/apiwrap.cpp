@@ -3862,7 +3862,7 @@ void ApiWrap::sendBotStart(
 	Expects(bot->isBot());
 
 	if (chat && chat->isChannel() && !chat->isMegagroup()) {
-		ShowAddParticipantsError(show, "USER_BOT", chat, { 1, bot });
+		ShowAddParticipantsError(show, "USER_BOT", chat, bot);
 		return;
 	}
 
@@ -3894,7 +3894,7 @@ void ApiWrap::sendBotStart(
 	}).fail([=](const MTP::Error &error) {
 		if (chat) {
 			const auto type = error.type();
-			ShowAddParticipantsError(show, type, chat, { 1, bot });
+			ShowAddParticipantsError(show, type, chat, bot);
 		}
 	}).send();
 }

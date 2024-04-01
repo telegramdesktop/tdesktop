@@ -1028,3 +1028,19 @@ birthdayLabel: FlatLabel(infoLabel) {
 	margin: margins(0px, 0px, 0px, 0px);
 }
 birthdayTodayIcon: icon {{ "menu/gift_premium", windowActiveTextFg }};
+
+inviteForbiddenUserpicsPadding: margins(10px, 10px, 10px, 0px);
+inviteForbiddenInfo: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	align: align(top);
+}
+inviteForbiddenInfoPadding: margins(32px, 10px, 32px, 4px);
+inviteForbiddenSubscribePadding: margins(16px, 12px, 16px, 16px);
+inviteForbiddenOrLabelPadding: margins(32px, 0px, 32px, 0px);
+inviteForbiddenTitle: FlatLabel(boxTitle) {
+	minWidth: 120px;
+	align: align(top);
+}
+inviteForbiddenTitlePadding: margins(32px, 4px, 32px, 0px);
+inviteForbiddenLockBg: dialogsUnreadBgMuted;
+inviteForbiddenLockIcon: icon {{ "emoji/premium_lock", dialogsUnreadFg }};

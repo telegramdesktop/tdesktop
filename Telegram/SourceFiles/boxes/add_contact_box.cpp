@@ -172,16 +172,28 @@ void ShowAddParticipantsError(
 		std::shared_ptr<Ui::Show> show,
 		const QString &error,
 		not_null<PeerData*> chat,
-		const std::vector<not_null<UserData*>> &users) {
+		not_null<UserData*> user) {
+	ShowAddParticipantsError(
+		std::move(show),
+		error,
+		chat,
+		{ .users = { 1, user } });
+}
+
+void ShowAddParticipantsError(
+		std::shared_ptr<Ui::Show> show,
+		const QString &error,
+		not_null<PeerData*> chat,
+		const ForbiddenInvites &forbidden) {
 	if (error == u"USER_BOT"_q) {
 		const auto channel = chat->asChannel();
-		if ((users.size() == 1)
-			&& users.front()->isBot()
+		if ((forbidden.users.size() == 1)
+			&& forbidden.users.front()->isBot()
 			&& channel
 			&& !channel->isMegagroup()
 			&& channel->canAddAdmins()) {
 			const auto makeAdmin = [=] {
-				const auto user = users.front();
+				const auto user = forbidden.users.front();
 				const auto weak = std::make_shared<QPointer<EditAdminBox>>();
 				const auto close = [=](auto&&...) {
 					if (*weak) {
@@ -213,7 +225,7 @@ void ShowAddParticipantsError(
 			return;
 		}
 	}
-	const auto hasBot = ranges::any_of(users, &UserData::isBot);
+	const auto hasBot = ranges::any_of(forbidden.users, &UserData::isBot);
 	if (error == u"PEER_FLOOD"_q) {
 		const auto type = (chat->isChat() || chat->isMegagroup())
 			? PeerFloodType::InviteGroup
@@ -222,7 +234,7 @@ void ShowAddParticipantsError(
 		Ui::show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
 		return;
 	} else if (error == u"USER_PRIVACY_RESTRICTED"_q) {
-		ChatInviteForbidden(show, chat, users);
+		ChatInviteForbidden(show, chat, forbidden);
 		return;
 	}
 	const auto text = [&] {

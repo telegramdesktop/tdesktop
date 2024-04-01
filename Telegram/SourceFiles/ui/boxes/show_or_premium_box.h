@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
+
 namespace Ui {
 
+class RpWidget;
 class GenericBox;
 
 enum class ShowOrPremium : uchar {
@@ -21,5 +24,9 @@ void ShowOrPremiumBox(
 	QString shortName,
 	Fn<void()> justShow,
 	Fn<void()> toPremium);
+
+[[nodiscard]] object_ptr<RpWidget> MakeShowOrLabel(
+	not_null<RpWidget*> parent,
+	rpl::producer<QString> text);
 
 } // namespace Ui

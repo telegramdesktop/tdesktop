@@ -43,6 +43,8 @@ enum class PeerFloodType {
 	InviteChannel,
 };
 
+struct ForbiddenInvites;
+
 [[nodiscard]] TextWithEntities PeerFloodErrorText(
 	not_null<Main::Session*> session,
 	PeerFloodType type);
@@ -50,7 +52,12 @@ void ShowAddParticipantsError(
 	std::shared_ptr<Ui::Show> show,
 	const QString &error,
 	not_null<PeerData*> chat,
-	const std::vector<not_null<UserData*>> &users);
+	const ForbiddenInvites &forbidden);
+void ShowAddParticipantsError(
+	std::shared_ptr<Ui::Show> show,
+	const QString &error,
+	not_null<PeerData*> chat,
+	not_null<UserData*> user);
 
 class AddContactBox : public Ui::BoxContent {
 public:

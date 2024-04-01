@@ -502,16 +502,24 @@ void ChatParticipants::add(
 				const auto &data = result.data();
 				chat->session().api().applyUpdates(data.vupdates());
 				if (done) done(true);
+				ChatInviteForbidden(
+					show,
+					chat,
+					CollectForbiddenUsers(&chat->session(), result));
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
-				ShowAddParticipantsError(show, type, peer, { 1, user });
+				ShowAddParticipantsError(show, type, peer, user);
 				if (done) done(false);
 			}).afterDelay(kSmallDelayMs).send();
 		}
 	} else if (const auto channel = peer->asChannel()) {
 		const auto hasBot = ranges::any_of(users, &UserData::isBot);
 		if (!peer->isMegagroup() && hasBot) {
-			ShowAddParticipantsError(show, "USER_BOT", peer, users);
+			ShowAddParticipantsError(
+				show,
+				u"USER_BOT"_q,
+				peer,
+				{ .users = users });
 			return;
 		}
 		auto list = QVector<MTPInputUser>();
@@ -531,7 +539,9 @@ void ChatParticipants::add(
 					channel,
 					CollectForbiddenUsers(&channel->session(), result));
 			}).fail([=](const MTP::Error &error) {
-				ShowAddParticipantsError(show, error.type(), peer, users);
+				ShowAddParticipantsError(show, error.type(), peer, {
+					.users = users,
+				});
 				if (callback) callback(false);
 			}).afterDelay(kSmallDelayMs).send();
 		};

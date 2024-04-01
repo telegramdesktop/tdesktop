@@ -57,3 +57,8 @@ object_ptr<Ui::BoxContent> ReassignBoostsBox(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<std::vector<not_null<PeerData*>>> from,
 	not_null<PeerData*> to);
+
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
+	not_null<Ui::RpWidget*> parent,
+	rpl::producer<std::vector<not_null<PeerData*>>> peers,
+	int limit);

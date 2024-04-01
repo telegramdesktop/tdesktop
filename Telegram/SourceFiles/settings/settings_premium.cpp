@@ -1464,9 +1464,26 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 		SubscribeButtonArgs &&args) {
 	Expects(args.show || args.controller);
 
-	if (!args.show && args.controller) {
-		args.show = args.controller->uiShow();
-	}
+	auto show = args.show ? std::move(args.show) : args.controller->uiShow();
+	auto resolve = [show](
+			not_null<Main::Session*> session,
+			ChatHelpers::WindowUsage usage) {
+		Expects(session == &show->session());
+
+		return show->resolveWindow(usage);
+	};
+	return CreateSubscribeButton(
+		std::move(show),
+		std::move(resolve),
+		std::move(args));
+}
+
+not_null<Ui::GradientButton*> CreateSubscribeButton(
+		std::shared_ptr<::Main::SessionShow> show,
+		Fn<Window::SessionController*(
+			not_null<::Main::Session*>,
+			ChatHelpers::WindowUsage)> resolveWindow,
+		SubscribeButtonArgs &&args) {
 	const auto result = Ui::CreateChild<Ui::GradientButton>(
 		args.parent.get(),
 		args.gradientStops
@@ -1474,12 +1491,18 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			: Ui::Premium::ButtonGradientStops());
 
 	result->setClickedCallback([
-			show = args.show,
+			show,
+			resolveWindow,
+			promo = args.showPromo,
 			computeRef = args.computeRef,
 			computeBotUrl = args.computeBotUrl] {
-		const auto window = show->resolveWindow(
+		const auto window = resolveWindow(
+			&show->session(),
 			ChatHelpers::WindowUsage::PremiumPromo);
 		if (!window) {
+			return;
+		} else if (promo) {
+			Settings::ShowPremium(window, computeRef());
 			return;
 		}
 		const auto url = computeBotUrl ? computeBotUrl() : QString();
@@ -1503,7 +1526,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 	const auto &st = st::premiumPreviewBox.button;
 	result->resize(args.parent->width(), st.height);
 
-	const auto premium = &args.show->session().api().premium();
+	const auto premium = &show->session().api().premium();
 	premium->reload();
 	const auto computeCost = [=] {
 		const auto amount = premium->monthlyAmount();
