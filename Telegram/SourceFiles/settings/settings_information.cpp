@@ -392,8 +392,9 @@ void SetupBirthday(
 		key
 	) | rpl::map([=](const Api::UserPrivacy::Rule &value) {
 		return (value.option == Api::UserPrivacy::Option::Contacts)
-			&& value.always.empty()
-			&& value.never.empty();
+			&& value.always.peers.empty()
+			&& !value.always.premiums
+			&& value.never.peers.empty();
 	}) | rpl::distinct_until_changed();
 
 	Ui::AddSkip(container);

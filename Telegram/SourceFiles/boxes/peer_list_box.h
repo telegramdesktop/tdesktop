@@ -166,6 +166,8 @@ public:
 		return _name;
 	}
 
+	virtual bool useForumLikeUserpic() const;
+
 	enum class StatusType {
 		Online,
 		LastSeen,
@@ -1042,6 +1044,7 @@ public:
 		std::unique_ptr<PeerListController> controller,
 		Fn<void(not_null<PeerListBox*>)> init);
 
+	[[nodiscard]] std::vector<PeerListRowId> collectSelectedIds();
 	[[nodiscard]] std::vector<not_null<PeerData*>> collectSelectedRows();
 
 	void peerListSetTitle(rpl::producer<QString> title) override {

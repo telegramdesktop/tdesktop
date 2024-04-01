@@ -161,6 +161,7 @@ settingsPrivacyOption: Checkbox(settingsCheckbox) {
 settingsPrivacySecurityPadding: 12px;
 settingsPrivacySkip: 14px;
 settingsPrivacySkipTop: 4px;
+settingsPrivacyPremium: icon{{ "profile_premium", premiumButtonFg }};
 
 settingsPrivacyAddBirthday: FlatLabel(defaultFlatLabel) {
 	minWidth: 256px;

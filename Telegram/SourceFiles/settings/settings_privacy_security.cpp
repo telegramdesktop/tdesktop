@@ -114,31 +114,33 @@ void AddPremiumStar(
 	}, badge->lifetime());
 }
 
-QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
+QString PrivacyBase(Privacy::Key key, const Privacy::Rule &rule) {
 	using Key = Privacy::Key;
 	using Option = Privacy::Option;
 	switch (key) {
 	case Key::CallsPeer2Peer:
-		switch (option) {
+		switch (rule.option) {
 		case Option::Everyone:
 			return tr::lng_edit_privacy_calls_p2p_everyone(tr::now);
 		case Option::Contacts:
 			return tr::lng_edit_privacy_calls_p2p_contacts(tr::now);
-		case Option::CloseFriends:
-			return tr::lng_edit_privacy_close_friends(tr::now); // unused
 		case Option::Nobody:
 			return tr::lng_edit_privacy_calls_p2p_nobody(tr::now);
 		}
-		Unexpected("Value in Privacy::Option.");
+		[[fallthrough]];
 	default:
-		switch (option) {
+		switch (rule.option) {
 		case Option::Everyone: return tr::lng_edit_privacy_everyone(tr::now);
-		case Option::Contacts: return tr::lng_edit_privacy_contacts(tr::now);
+		case Option::Contacts:
+			return rule.always.premiums
+				? tr::lng_edit_privacy_contacts_and_premium(tr::now)
+				: tr::lng_edit_privacy_contacts(tr::now);
 		case Option::CloseFriends:
 			return tr::lng_edit_privacy_close_friends(tr::now);
-		case Option::ContactsAndPremium:
-			return tr::lng_edit_privacy_contacts_and_premium(tr::now);
-		case Option::Nobody: return tr::lng_edit_privacy_nobody(tr::now);
+		case Option::Nobody:
+			return rule.always.premiums
+				? tr::lng_edit_privacy_premium(tr::now)
+				: tr::lng_edit_privacy_nobody(tr::now);
 		}
 		Unexpected("Value in Privacy::Option.");
 	}
@@ -152,17 +154,17 @@ rpl::producer<QString> PrivacyString(
 		key
 	) | rpl::map([=](const Privacy::Rule &value) {
 		auto add = QStringList();
-		if (const auto never = ExceptionUsersCount(value.never)) {
+		if (const auto never = ExceptionUsersCount(value.never.peers)) {
 			add.push_back("-" + QString::number(never));
 		}
-		if (const auto always = ExceptionUsersCount(value.always)) {
+		if (const auto always = ExceptionUsersCount(value.always.peers)) {
 			add.push_back("+" + QString::number(always));
 		}
 		if (!add.isEmpty()) {
-			return PrivacyBase(key, value.option)
+			return PrivacyBase(key, value)
 				+ " (" + add.join(", ") + ")";
 		} else {
-			return PrivacyBase(key, value.option);
+			return PrivacyBase(key, value);
 		}
 	});
 }

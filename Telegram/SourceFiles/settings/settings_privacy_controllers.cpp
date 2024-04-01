@@ -795,6 +795,11 @@ auto GroupsInvitePrivacyController::exceptionsDescription() const
 	return tr::lng_edit_privacy_groups_exceptions();
 }
 
+bool GroupsInvitePrivacyController::allowPremiumsToggle(
+		Exception exception) const {
+	return (exception == Exception::Always);
+}
+
 UserPrivacy::Key CallsPrivacyController::key() const {
 	return Key::Calls;
 }

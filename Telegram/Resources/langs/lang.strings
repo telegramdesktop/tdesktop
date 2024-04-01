@@ -1107,9 +1107,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_nobody" = "Nobody";
 "lng_edit_privacy_premium" = "Premium users";
 "lng_edit_privacy_exceptions" = "Add exceptions";
+"lng_edit_privacy_user_types" = "User types";
+"lng_edit_privacy_users_and_groups" = "Users and groups";
+"lng_edit_privacy_premium_status" = "all Telegram Premium subscribers";
 
 "lng_edit_privacy_exceptions_count#one" = "{count} user";
 "lng_edit_privacy_exceptions_count#other" = "{count} users";
+"lng_edit_privacy_exceptions_premium_and" = "Premium & {users}";
 "lng_edit_privacy_exceptions_add" = "Add users or groups";
 
 "lng_edit_privacy_phone_number_title" = "Phone number privacy";

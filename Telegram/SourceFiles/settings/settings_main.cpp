@@ -440,10 +440,7 @@ void SetupPremium(
 	button->addClickHandler([=] {
 		showOther(BusinessId());
 	});
-	constexpr auto kNewExpiresAt = int(1711958400);
-	if (base::unixtime::now() < kNewExpiresAt) {
-		Ui::NewBadge::AddToRight(button);
-	}
+	Ui::NewBadge::AddToRight(button);
 
 	if (controller->session().premiumCanBuy()) {
 		const auto button = AddButtonWithIcon(
