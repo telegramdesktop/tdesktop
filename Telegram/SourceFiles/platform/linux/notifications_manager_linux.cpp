@@ -100,14 +100,15 @@ void StartServiceAsync(Gio::DBusConnection connection, Fn<void()> callback) {
 			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 				// get the error if any
 				if (const auto ret = result(); !ret) {
-					const auto error = static_cast<GLib::Error*>(
+					const auto &error = *static_cast<GLib::Error*>(
 						ret.error().get());
 
-					if (error->gobj_()->domain != G_DBUS_ERROR
-							|| error->code_()
+					if (error.gobj_()->domain != G_DBUS_ERROR
+							|| error.code_()
 								!= G_DBUS_ERROR_SERVICE_UNKNOWN) {
+						Gio::DBusErrorNS_::strip_remote_error(error);
 						LOG(("Native Notification Error: %1").arg(
-							error->what()));
+							error.message_().c_str()));
 					}
 				}
 
