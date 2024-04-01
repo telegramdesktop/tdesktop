@@ -296,7 +296,7 @@ void AddMessagesPrivacyButton(
 	const auto privacy = &session->api().globalPrivacy();
 	auto label = rpl::conditional(
 		privacy->newRequirePremium(),
-		tr::lng_edit_privacy_premium(),
+		tr::lng_edit_privacy_contacts_and_premium(),
 		tr::lng_edit_privacy_everyone());
 	const auto &st = st::settingsButtonNoIcon;
 	const auto button = AddButtonWithLabel(
