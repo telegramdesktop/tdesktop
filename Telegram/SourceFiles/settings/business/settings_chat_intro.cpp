@@ -649,9 +649,6 @@ void ChatIntro::setupContent(
 void ChatIntro::save() {
 	const auto show = controller()->uiShow();
 	const auto fail = [=](QString error) {
-		if (error == u"BUSINESS_RECIPIENTS_EMPTY"_q) {
-			show->showToast(tr::lng_greeting_recipients_empty(tr::now));
-		}
 	};
 	controller()->session().data().businessInfo().saveChatIntro(
 		_intro.current(),

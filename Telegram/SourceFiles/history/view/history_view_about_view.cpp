@@ -95,10 +95,10 @@ auto GenerateChatIntro(
 				margins,
 				links));
 		};
-		const auto title = data
+		const auto title = data.customPhrases()
 			? data.title
 			: tr::lng_chat_intro_default_title(tr::now);
-		const auto description = data
+		const auto description = data.customPhrases()
 			? data.description
 			: tr::lng_chat_intro_default_message(tr::now);
 		pushText(Ui::Text::Bold(title), st::chatIntroTitleMargin);

@@ -187,8 +187,12 @@ struct ChatIntro {
 	QString description;
 	DocumentData *sticker = nullptr;
 
-	explicit operator bool() const {
+	[[nodiscard]] bool customPhrases() const {
 		return !title.isEmpty() || !description.isEmpty();
+	}
+
+	explicit operator bool() const {
+		return customPhrases() || sticker;
 	}
 
 	friend inline bool operator==(
