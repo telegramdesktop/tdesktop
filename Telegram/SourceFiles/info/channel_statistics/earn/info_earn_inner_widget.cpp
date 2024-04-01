@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_statistics.h"
 #include "styles/style_window.h" // mainMenuToggleFourStrokes.
 
+#include <QtSvg/QSvgRenderer>
 #include <QtWidgets/QApplication>
 
 namespace Info::ChannelEarn {
@@ -69,6 +70,30 @@ void ShowMenu(not_null<Ui::GenericBox*> box, const QString &text) {
 	menu->popup(QCursor::pos());
 }
 
+[[nodiscard]] QByteArray CurrencySvg(const QColor &c) {
+	const auto color = u"rgb(%1,%2,%3)"_q
+		.arg(c.red())
+		.arg(c.green())
+		.arg(c.blue())
+		.toUtf8();
+	return R"(
+<svg width="72px" height="72px" viewBox="0 0 72 72">
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g transform="translate(9.000000, 14.000000)
+        " stroke-width="7.2" stroke=")" + color + R"(">
+            <path d="M2.96014341,0 L50.9898193,0 C51.9732032,-7.06402744e-15
+ 52.7703933,0.797190129 52.7703933,1.78057399 C52.7703933,2.08038611
+ 52.6946886,2.3753442 52.5502994,2.63809702 L29.699977,44.2200383
+ C28.7527832,45.9436969 26.5876295,46.5731461 24.8639708,45.6259523
+ C24.2556953,45.2916896 23.7583564,44.7869606 23.4331014,44.1738213
+ L1.38718565,2.61498853 C0.926351231,1.74626794 1.25700829,0.668450654
+ 2.12572888,0.20761623 C2.38272962,0.0712838007 2.6692209,4.97530809e-16
+ 2.96014341,0 Z"></path>
+            <line x1="27" y1="44.4532875" x2="27" y2="0"></line>
+        </g>
+    </g>
+</svg>)";
+}
 
 void AddArrow(not_null<Ui::RpWidget*> parent) {
 	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
@@ -139,6 +164,7 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 	});
 }
 
+#if 0
 [[nodiscard]] TextWithEntities EmojiCurrency(
 		not_null<Main::Session*> session) {
 	auto emoji = TextWithEntities{
@@ -151,6 +177,24 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 		}
 	}
 	return emoji;
+}
+#endif
+
+[[nodiscard]] QImage IconCurrency(
+		const style::FlatLabel &label,
+		const QColor &c) {
+	const auto s = Size(label.style.font->ascent);
+	auto svg = QSvgRenderer(CurrencySvg(c));
+	auto image = QImage(
+		s * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(style::DevicePixelRatio());
+	image.fill(Qt::transparent);
+	{
+		auto p = QPainter(&image);
+		svg.render(&p, Rect(s));
+	}
+	return image;
 }
 
 [[nodiscard]] QString FormatDate(const QDateTime &date) {
@@ -201,7 +245,6 @@ void InnerWidget::fill() {
 
 	constexpr auto kMinus = QChar(0x2212);
 	constexpr auto kApproximately = QChar(0x2248);
-	const auto currency = u"TON"_q;
 	const auto multiplier = data.usdRate;
 
 	constexpr auto kNonInteractivePeriod = 1717200000;
@@ -219,12 +262,34 @@ void InnerWidget::fill() {
 	};
 	const auto addEmojiToMajor = [=](
 			not_null<Ui::FlatLabel*> label,
-			EarnInt value) {
-		auto emoji = EmojiCurrency(session);
+			EarnInt value,
+			std::optional<bool> isIn,
+			std::optional<QMargins> margins) {
+		const auto &st = label->st();
+		auto icon = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				IconCurrency(
+					st,
+					!isIn
+						? st::activeButtonBg->c
+						: (*isIn)
+						? st::boxTextFgGood->c
+						: st::menuIconAttentionColor->c),
+				margins ? *margins : st::channelEarnCurrencyCommonMargins,
+				false));
+		auto prepended = !isIn
+			? TextWithEntities()
+			: TextWithEntities::Simple((*isIn) ? QChar('+') : kMinus);
 		label->setMarkedText(
-			emoji.append(' ').append(MajorPart(value)),
+			prepended.append(icon).append(MajorPart(value)),
 			makeContext(label));
 	};
+
+	const auto bigCurrencyIcon = Ui::Text::SingleCustomEmoji(
+		session->data().customEmojiManager().registerInternalEmoji(
+			IconCurrency(st::boxTitle, st::activeButtonBg->c),
+			st::channelEarnCurrencyLearnMargins,
+			false));
 
 	const auto arrow = Ui::Text::SingleCustomEmoji(
 		session->data().customEmojiManager().registerInternalEmoji(
@@ -357,7 +422,7 @@ void InnerWidget::fill() {
 					tr::lng_channel_earn_learn_coin_title(
 						lt_emoji,
 						rpl::single(
-							Ui::Text::Link(EmojiCurrency(session), 1)),
+							Ui::Text::Link(bigCurrencyIcon, 1)),
 						Ui::Text::RichLangValue
 					) | rpl::start_with_next([=](TextWithEntities t) {
 						l->setMarkedText(std::move(t), makeContext(l));
@@ -406,6 +471,8 @@ void InnerWidget::fill() {
 						container,
 						tr::lng_channel_earn_learn_close(),
 						st::defaultActiveButton);
+					button->setTextTransform(
+						Ui::RoundButton::TextTransform::NoTransform);
 					button->resizeToWidth(box->width()
 						- st.buttonPadding.left()
 						- st.buttonPadding.left());
@@ -466,7 +533,7 @@ void InnerWidget::fill() {
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				st::channelEarnOverviewMajorLabel);
-			addEmojiToMajor(majorLabel, value);
+			addEmojiToMajor(majorLabel, value, {}, {});
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				MinorPart(value),
@@ -511,17 +578,18 @@ void InnerWidget::fill() {
 		addOverview(data.overallRevenue, tr::lng_channel_earn_total);
 		Ui::AddSkip(container);
 	}
+#ifndef _DEBUG
 	if (!channel->amCreator()) {
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 		return;
 	}
+#endif
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 	if (channel) {
 		const auto value = data.availableBalance;
-		Ui::AddSkip(container);
 		AddHeader(container, tr::lng_channel_earn_balance_title);
 		Ui::AddSkip(container);
 
@@ -533,7 +601,11 @@ void InnerWidget::fill() {
 		const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 			labels,
 			st::channelEarnBalanceMajorLabel);
-		addEmojiToMajor(majorLabel, value);
+		{
+			const auto &m = st::channelEarnCurrencyCommonMargins;
+			const auto p = QMargins(m.left(), 0, m.right(), m.bottom());
+			addEmojiToMajor(majorLabel, value, {}, p);
+		}
 		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 			labels,
@@ -616,9 +688,6 @@ void InnerWidget::fill() {
 			: tr::lng_channel_earn_balance_about_temp);
 		Ui::AddSkip(container);
 	}
-	Ui::AddSkip(container);
-	Ui::AddDivider(container);
-	Ui::AddSkip(container);
 	{
 		AddHeader(container, tr::lng_channel_earn_history_title);
 		Ui::AddSkip(container);
@@ -683,20 +752,16 @@ void InnerWidget::fill() {
 			const auto color = (isIn
 				? st::boxTextFgGood
 				: st::menuIconAttentionColor)->c;
-			const auto majorText = (isIn ? '+' : kMinus)
-				+ MajorPart(entry.amount);
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				wrap,
-				majorText,
 				st::channelEarnHistoryMajorLabel);
+			addEmojiToMajor(majorLabel, entry.amount, isIn, {});
 			majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 			majorLabel->setTextColorOverride(color);
-			const auto minorText = MinorPart(entry.amount)
-				+ ' '
-				+ currency;
+			const auto minorText = MinorPart(entry.amount);
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				wrap,
-				minorText,
+				rpl::single(minorText),
 				st::channelEarnHistoryMinorLabel);
 			minorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 			minorLabel->setTextColorOverride(color);
@@ -705,7 +770,7 @@ void InnerWidget::fill() {
 				rpl::single(QString()));
 			Ui::ToggleChildrenVisibility(wrap, true);
 
-			const auto detailsBox = [=, peer = _peer](
+			const auto detailsBox = [=, amount = entry.amount, peer = _peer](
 					not_null<Ui::GenericBox*> box) {
 				Ui::AddSkip(box->verticalLayout());
 				Ui::AddSkip(box->verticalLayout());
@@ -716,8 +781,8 @@ void InnerWidget::fill() {
 
 				const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 					labels,
-					majorText,
 					st::channelEarnOverviewMajorLabel);
+				addEmojiToMajor(majorLabel, amount, isIn, {});
 				majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 				majorLabel->setTextColorOverride(color);
 				const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(

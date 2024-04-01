@@ -109,6 +109,9 @@ channelEarnLearnDescription: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 }
 
+channelEarnCurrencyCommonMargins: margins(0px, 3px, 1px, 0px);
+channelEarnCurrencyLearnMargins: margins(0px, 2px, 0px, 0px);
+
 sponsoredAboutTitleIcon: icon {{ "sponsored/large_about", activeButtonFg }};
 sponsoredAboutPrivacyIcon: icon {{ "sponsored/privacy_about", boxTextFg }};
 sponsoredAboutRemoveIcon: icon {{ "sponsored/remove_about", boxTextFg }};
