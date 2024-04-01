@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 using "boxes/boxes.style";
+using "statistics/statistics.style";
 
 channelEarnLearnArrowMargins: margins(-2px, 5px, 0px, 0px);
 
@@ -32,6 +33,10 @@ channelEarnOverviewSubMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
 channelEarnOverviewSubMinorLabelPos: point(4px, 2px);
 channelEarnSemiboldLabel: FlatLabel(channelEarnOverviewMajorLabel) {
 	style: TextStyle(semiboldTextStyle) {
+	}
+}
+channelEarnHeaderLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	style: TextStyle(statisticsHeaderTitleTextStyle) {
 	}
 }
 channelEarnHistorySubLabel: FlatLabel(channelEarnOverviewSubMinorLabel) {

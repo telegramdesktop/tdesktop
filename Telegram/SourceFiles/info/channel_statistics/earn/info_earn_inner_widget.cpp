@@ -124,7 +124,7 @@ void AddHeader(
 		object_ptr<Ui::FlatLabel>(
 			content,
 			text(),
-			st::channelEarnSemiboldLabel),
+			st::channelEarnHeaderLabel),
 		st::boxRowPadding);
 	header->resizeToWidth(header->width());
 }
@@ -515,11 +515,13 @@ void InnerWidget::fill() {
 			widget->setChartData(chart, Type::StackBar);
 			widget->setTitle(tr::lng_channel_earn_chart_revenue());
 		}
+	}
+	if (data.topHoursGraph.chart || data.revenueGraph.chart) {
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		Ui::AddDivider(container);
 		Ui::AddSkip(container);
 	}
-	Ui::AddSkip(container);
-	Ui::AddDivider(container);
-	Ui::AddSkip(container);
 	{
 		AddHeader(container, tr::lng_channel_earn_overview_title);
 		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
@@ -540,7 +542,7 @@ void InnerWidget::fill() {
 				st::channelEarnOverviewMinorLabel);
 			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				ToUsd(value, multiplier),
+				value ? ToUsd(value, multiplier) : QString(),
 				st::channelEarnOverviewSubMinorLabel);
 			rpl::combine(
 				line->widthValue(),
@@ -688,7 +690,7 @@ void InnerWidget::fill() {
 			: tr::lng_channel_earn_balance_about_temp);
 		Ui::AddSkip(container);
 	}
-	{
+	if (!data.firstHistorySlice.list.empty()) {
 		AddHeader(container, tr::lng_channel_earn_history_title);
 		Ui::AddSkip(container);
 
@@ -995,10 +997,10 @@ void InnerWidget::fill() {
 				}
 			});
 		}
+		Ui::AddSkip(container);
+		Ui::AddDivider(container);
+		Ui::AddSkip(container);
 	}
-	Ui::AddSkip(container);
-	Ui::AddDivider(container);
-	Ui::AddSkip(container);
 	if (channel) {
 		constexpr auto kMaxCPM = 50; // Debug.
 		const auto requiredLevel = Data::LevelLimits(session)
