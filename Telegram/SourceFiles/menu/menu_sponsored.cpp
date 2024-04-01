@@ -143,7 +143,7 @@ void AboutBox(
 				lt_link,
 				tr::lng_settings_privacy_premium_link(
 				) | rpl::map([=](QString t) {
-					return Ui::Text::Link(t, kUrl.utf8());
+					return Ui::Text::Link(t, kUrl.utf16());
 				}),
 				Ui::Text::RichLangValue),
 			st::sponsoredAboutRemoveIcon);
@@ -179,7 +179,7 @@ void AboutBox(
 				rpl::single(arrow),
 				Ui::Text::RichLangValue
 			) | rpl::map([=](TextWithEntities text) {
-				return Ui::Text::Link(std::move(text), kUrl.utf8());
+				return Ui::Text::Link(std::move(text), kUrl.utf16());
 			}),
 			Ui::Text::RichLangValue
 		) | rpl::start_with_next([=, l = label](
