@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "mtproto/mtproto_config.h"
+#include "data/data_chat.h"
 #include "data/data_document_media.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
@@ -111,7 +112,8 @@ public:
 
 not_null<Ui::SettingsButton*> AddMyChannelsBox(
 		not_null<Ui::SettingsButton*> button,
-		not_null<SessionController*> controller) {
+		not_null<SessionController*> controller,
+		bool chats) {
 	button->setAcceptBoth(true);
 
 	const auto myChannelsBox = [=](not_null<Ui::GenericBox*> box) {
@@ -126,16 +128,21 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 		public:
 			using Ui::SettingsButton::SettingsButton;
 
-			void setPeer(not_null<ChannelData*> c) {
-				_text.setText(st::defaultPeerListItem.nameStyle, c->name());
+			void setPeer(not_null<PeerData*> p) {
+				const auto c = p->asChannel();
+				const auto g = p->asChat();
+				_text.setText(st::defaultPeerListItem.nameStyle, p->name());
+				const auto count = c ? c->membersCount() : g->count;
 				_status.setText(
 					st::defaultTextStyle,
-					!c->username().isEmpty()
-						? ('@' + c->username())
-						: tr::lng_chat_status_subscribers(
+					!p->userName().isEmpty()
+						? ('@' + p->userName())
+						: count
+						? tr::lng_chat_status_subscribers(
 							tr::now,
 							lt_count,
-							c->membersCount()));
+							count)
+						: QString());
 			}
 
 			int resizeGetHeight(int) override {
@@ -168,34 +175,42 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 
 		};
 
-		controller->session().data().enumerateBroadcasts([&](
-				not_null<ChannelData*> channel) {
-			if (!channel->amCreator()) {
-				return;
-			}
-
+		const auto add = [&](not_null<PeerData*> peer) {
 			const auto row = box->addRow(
 				object_ptr<Button>(box, rpl::single(QString())),
 				{});
-			row->setPeer(channel);
+			row->setPeer(peer);
 			row->setClickedCallback([=] {
-				controller->showPeerHistory(channel);
+				controller->showPeerHistory(peer);
 			});
-			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-				row,
-				channel,
-				*st);
+			using Button = Ui::UserpicButton;
+			const auto userpic = Ui::CreateChild<Button>(row, peer, *st);
 			userpic->move(st::defaultPeerListItem.photoPosition);
 			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
-		});
+		};
+
+		const auto &data = controller->session().data();
+		if (chats) {
+			data.enumerateGroups([&](not_null<PeerData*> peer) {
+				const auto c = peer->asChannel();
+				const auto g = peer->asChat();
+				if ((c && c->amCreator()) || (g && g->amCreator())) {
+					add(peer);
+				}
+			});
+		} else {
+			data.enumerateBroadcasts([&](not_null<ChannelData*> channel) {
+				if (channel->amCreator()) {
+					add(channel);
+				}
+			});
+		}
 	};
 
 	using Menu = base::unique_qptr<Ui::PopupMenu>;
 	const auto menu = button->lifetime().make_state<Menu>();
 	button->addClickHandler([=](Qt::MouseButton which) {
-		if ((which != Qt::RightButton)
-			|| !((button->clickModifiers() & Qt::ShiftModifier)
-				&& (button->clickModifiers() & Qt::AltModifier))) {
+		if (which != Qt::RightButton) {
 			return;
 		}
 
@@ -203,7 +218,7 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 			button,
 			st::defaultPopupMenu);
 		(*menu)->addAction(
-			u"My Channels"_q,
+			chats ? u"My Groups"_q : u"My Channels"_q,
 			[=] { controller->uiShow()->showBox(Box(myChannelsBox)); },
 			nullptr);
 		(*menu)->popup(QCursor::pos());
@@ -957,16 +972,19 @@ void MainMenu::setupMenu() {
 			std::move(descriptor));
 	};
 	if (!_controller->session().supportMode()) {
-		addAction(
+		AddMyChannelsBox(addAction(
 			tr::lng_create_group_title(),
 			{ &st::menuIconGroups }
-		)->setClickedCallback([=] {
-			controller->showNewGroup();
+		), controller, true)->addClickHandler([=](Qt::MouseButton which) {
+			if (which == Qt::LeftButton) {
+				controller->showNewGroup();
+			}
 		});
+
 		AddMyChannelsBox(addAction(
 			tr::lng_create_channel_title(),
 			{ &st::menuIconChannel }
-		), controller)->addClickHandler([=](Qt::MouseButton which) {
+		), controller, false)->addClickHandler([=](Qt::MouseButton which) {
 			if (which == Qt::LeftButton) {
 				controller->showNewChannel();
 			}
