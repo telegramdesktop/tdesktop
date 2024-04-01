@@ -12,16 +12,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
+#include "core/application.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_channel.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "history/view/controls/history_view_webpage_processor.h"
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/info_earn_widget.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
+#include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -68,6 +72,39 @@ void ShowMenu(not_null<Ui::GenericBox*> box, const QString &text) {
 		box->uiShow()->showToast(tr::lng_background_link_copied(tr::now));
 	});
 	menu->popup(QCursor::pos());
+}
+
+[[nodiscard]] ClickHandlerPtr LearnMoreCurrencyLink(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::GenericBox*> box) {
+	const auto url = u"https://telegram.org/blog/monetization-for-channels"_q;
+
+	using Resolver = HistoryView::Controls::WebpageResolver;
+	const auto resolver = box->lifetime().make_state<Resolver>(
+		&controller->session());
+	resolver->request(url);
+	return std::make_shared<GenericClickHandler>([=](ClickContext context) {
+		if (context.button != Qt::LeftButton) {
+			return;
+		}
+		const auto data = resolver->lookup(url);
+		const auto iv = data ? (*data)->iv.get() : nullptr;
+		if (iv) {
+			Core::App().iv().show(controller, iv, QString());
+		} else {
+			resolver->resolved(
+			) | rpl::start_with_next([=](const QString &s) {
+				if (s == url) {
+					if (const auto d = resolver->lookup(url)) {
+						if (const auto iv = (*d)->iv.get()) {
+							Core::App().iv().show(controller, iv, QString());
+						}
+					}
+				}
+			}, box->lifetime());
+			resolver->request(url);
+		}
+	});
 }
 
 [[nodiscard]] QByteArray CurrencySvg(const QColor &c) {
@@ -461,6 +498,11 @@ void InnerWidget::fill() {
 						l->resizeToWidth(box->width()
 							- rect::m::sum::h(st::boxRowPadding));
 					}, label->lifetime());
+					label->setLink(
+						1,
+						LearnMoreCurrencyLink(
+							_controller->parentController(),
+							box));
 				}
 				Ui::AddSkip(content);
 				Ui::AddSkip(content);
