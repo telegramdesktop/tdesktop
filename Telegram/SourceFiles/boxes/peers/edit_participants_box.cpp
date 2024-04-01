@@ -72,6 +72,7 @@ void RemoveAdmin(
 }
 
 void AddChatParticipant(
+		std::shared_ptr<Ui::Show> show,
 		not_null<ChatData*> chat,
 		not_null<UserData*> user,
 		Fn<void()> onDone,
@@ -87,7 +88,7 @@ void AddChatParticipant(
 			onDone();
 		}
 	}).fail([=](const MTP::Error &error) {
-		ShowAddParticipantsError(error.type(), chat, { 1, user });
+		ShowAddParticipantsError(show, error.type(), chat, { 1, user });
 		if (onFail) {
 			onFail();
 		}
@@ -95,6 +96,7 @@ void AddChatParticipant(
 }
 
 void SaveChatAdmin(
+		std::shared_ptr<Ui::Show> show,
 		not_null<ChatData*> chat,
 		not_null<UserData*> user,
 		bool isAdmin,
@@ -115,8 +117,15 @@ void SaveChatAdmin(
 		if (retryOnNotParticipant
 			&& isAdmin
 			&& (type == u"USER_NOT_PARTICIPANT"_q)) {
-			AddChatParticipant(chat, user, [=] {
-				SaveChatAdmin(chat, user, isAdmin, onDone, onFail, false);
+			AddChatParticipant(show, chat, user, [=] {
+				SaveChatAdmin(
+					show,
+					chat,
+					user,
+					isAdmin,
+					onDone,
+					onFail,
+					false);
 			}, onFail);
 		} else if (onFail) {
 			onFail();
@@ -125,6 +134,7 @@ void SaveChatAdmin(
 }
 
 void SaveChannelAdmin(
+		std::shared_ptr<Ui::Show> show,
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
 		ChatAdminRightsInfo oldRights,
@@ -145,7 +155,7 @@ void SaveChannelAdmin(
 			onDone();
 		}
 	}).fail([=](const MTP::Error &error) {
-		ShowAddParticipantsError(error.type(), channel, { 1, user });
+		ShowAddParticipantsError(show, error.type(), channel, { 1, user });
 		if (onFail) {
 			onFail();
 		}
@@ -206,6 +216,7 @@ Fn<void(
 	ChatAdminRightsInfo oldRights,
 	ChatAdminRightsInfo newRights,
 	const QString &rank)> SaveAdminCallback(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		Fn<void(
@@ -219,6 +230,7 @@ Fn<void(
 		const auto done = [=] { if (onDone) onDone(newRights, rank); };
 		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
 			SaveChannelAdmin(
+				show,
 				channel,
 				user,
 				oldRights,
@@ -229,7 +241,7 @@ Fn<void(
 		};
 		if (const auto chat = peer->asChatNotMigrated()) {
 			const auto saveChatAdmin = [&](bool isAdmin) {
-				SaveChatAdmin(chat, user, isAdmin, done, onFail);
+				SaveChatAdmin(show, chat, user, isAdmin, done, onFail);
 			};
 			if (newRights.flags == chat->defaultAdminRights(user).flags
 				&& rank.isEmpty()) {
@@ -1743,7 +1755,9 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 				_editParticipantBox->closeBox();
 			}
 		});
-		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
+		const auto show = delegate()->peerListUiShow();
+		box->setSaveCallback(
+			SaveAdminCallback(show, _peer, user, done, fail));
 	}
 	_editParticipantBox = showBox(std::move(box));
 }
@@ -1863,7 +1877,8 @@ void ParticipantsBoxController::unkickParticipant(not_null<UserData*> user) {
 		delegate()->peerListRemoveRow(row);
 		refreshRows();
 	}
-	_peer->session().api().chatParticipants().add(_peer, { 1, user });
+	const auto show = delegate()->peerListUiShow();
+	_peer->session().api().chatParticipants().add(show, _peer, { 1, user });
 }
 
 void ParticipantsBoxController::kickParticipantSure(
@@ -1906,7 +1921,8 @@ void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
 	_editBox = nullptr;
 
 	if (const auto chat = _peer->asChat()) {
-		SaveChatAdmin(chat, user, false, crl::guard(this, [=] {
+		const auto show = delegate()->peerListUiShow();
+		SaveChatAdmin(show, chat, user, false, crl::guard(this, [=] {
 			editAdminDone(
 				user,
 				ChatAdminRightsInfo(),

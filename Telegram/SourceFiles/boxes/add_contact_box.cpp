@@ -169,10 +169,10 @@ TextWithEntities PeerFloodErrorText(
 }
 
 void ShowAddParticipantsError(
+		std::shared_ptr<Ui::Show> show,
 		const QString &error,
 		not_null<PeerData*> chat,
-		const std::vector<not_null<UserData*>> &users,
-		std::shared_ptr<Ui::Show> show) {
+		const std::vector<not_null<UserData*>> &users) {
 	if (error == u"USER_BOT"_q) {
 		const auto channel = chat->asChannel();
 		if ((users.size() == 1)
@@ -189,6 +189,7 @@ void ShowAddParticipantsError(
 					}
 				};
 				const auto saveCallback = SaveAdminCallback(
+					show,
 					channel,
 					user,
 					close,
@@ -199,9 +200,10 @@ void ShowAddParticipantsError(
 					ChatAdminRightsInfo(),
 					QString());
 				box->setSaveCallback(saveCallback);
-				*weak = Ui::show(std::move(box));
+				*weak = box.data();
+				show->showBox(std::move(box));
 			};
-			Ui::show(
+			show->showBox(
 				Ui::MakeConfirmBox({
 					.text = tr::lng_cant_invite_offer_admin(),
 					.confirmed = makeAdmin,
@@ -219,7 +221,7 @@ void ShowAddParticipantsError(
 		const auto text = PeerFloodErrorText(&chat->session(), type);
 		Ui::show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
 		return;
-	} else if (error == u"USER_PRIVACY_RESTRICTED"_q && show) {
+	} else if (error == u"USER_PRIVACY_RESTRICTED"_q) {
 		ChatInviteForbidden(show, chat, users);
 		return;
 	}
@@ -231,8 +233,6 @@ void ShowAddParticipantsError(
 		} else if (error == u"USER_KICKED"_q) {
 			// Trying to return a user who was kicked by admin.
 			return tr::lng_cant_invite_banned(tr::now);
-		} else if (error == u"USER_PRIVACY_RESTRICTED"_q) {
-			return tr::lng_cant_invite_privacy(tr::now);
 		} else if (error == u"USER_NOT_MUTUAL_CONTACT"_q) {
 			// Trying to return user who does not have me in contacts.
 			return tr::lng_failed_add_not_mutual(tr::now);
@@ -247,7 +247,7 @@ void ShowAddParticipantsError(
 		}
 		return tr::lng_failed_add_participant(tr::now);
 	}();
-	Ui::show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
+	show->show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
 }
 
 AddContactBox::AddContactBox(

@@ -781,8 +781,9 @@ void Filler::addBlockUser() {
 				: tr::lng_profile_block_user(tr::now));
 	};
 	const auto blockAction = _addAction(blockText(user), [=] {
+		const auto show = window->uiShow();
 		if (user->isBlocked()) {
-			PeerMenuUnblockUserWithBotRestart(user);
+			PeerMenuUnblockUserWithBotRestart(show, user);
 		} else if (user->isBot()) {
 			user->session().api().blockedPeers().block(user);
 		} else {
@@ -1700,10 +1701,12 @@ void PeerMenuBlockUserBox(
 	});
 }
 
-void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user) {
+void PeerMenuUnblockUserWithBotRestart(
+		std::shared_ptr<Ui::Show> show,
+		not_null<UserData*> user) {
 	user->session().api().blockedPeers().unblock(user, [=](bool success) {
 		if (success && user->isBot() && !user->isSupport()) {
-			user->session().api().sendBotStart(user);
+			user->session().api().sendBotStart(show, user);
 		}
 	});
 }

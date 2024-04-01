@@ -4224,7 +4224,8 @@ SendMenu::Type HistoryWidget::sendButtonMenuType() const {
 
 void HistoryWidget::unblockUser() {
 	if (const auto user = _peer ? _peer->asUser() : nullptr) {
-		Window::PeerMenuUnblockUserWithBotRestart(user);
+		const auto show = controller()->uiShow();
+		Window::PeerMenuUnblockUserWithBotRestart(show, user);
 	} else {
 		updateControlsVisibility();
 	}
@@ -4238,7 +4239,7 @@ void HistoryWidget::sendBotStartCommand() {
 		updateControlsVisibility();
 		return;
 	}
-	session().api().sendBotStart(_peer->asUser());
+	session().api().sendBotStart(controller()->uiShow(), _peer->asUser());
 	updateControlsVisibility();
 	updateControlsGeometry();
 }

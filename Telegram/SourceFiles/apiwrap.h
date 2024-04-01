@@ -53,6 +53,7 @@ class Key;
 
 namespace Ui {
 struct PreparedList;
+class Show;
 } // namespace Ui
 
 namespace Api {
@@ -343,6 +344,7 @@ public:
 		BusinessShortcutId id);
 	void sendMessage(MessageToSend &&message);
 	void sendBotStart(
+		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
 		PeerData *chat = nullptr,
 		const QString &startTokenForChat = QString());

@@ -3855,13 +3855,14 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 }
 
 void ApiWrap::sendBotStart(
+		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
 		PeerData *chat,
 		const QString &startTokenForChat) {
 	Expects(bot->isBot());
 
 	if (chat && chat->isChannel() && !chat->isMegagroup()) {
-		ShowAddParticipantsError("USER_BOT", chat, { 1, bot });
+		ShowAddParticipantsError(show, "USER_BOT", chat, { 1, bot });
 		return;
 	}
 
@@ -3893,7 +3894,7 @@ void ApiWrap::sendBotStart(
 	}).fail([=](const MTP::Error &error) {
 		if (chat) {
 			const auto type = error.type();
-			ShowAddParticipantsError(type, chat, { 1, bot });
+			ShowAddParticipantsError(show, type, chat, { 1, bot });
 		}
 	}).send();
 }

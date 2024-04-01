@@ -433,9 +433,9 @@ void AddParticipantsBoxController::inviteSelectedUsers(
 	const auto show = box->uiShow();
 	const auto request = [=](bool checked) {
 		_peer->session().api().chatParticipants().add(
+			show,
 			_peer,
 			users,
-			show,
 			checked);
 	};
 	if (_peer->isChannel()) {
@@ -945,6 +945,7 @@ void AddSpecialBoxController::showAdmin(
 		user,
 		currentRights,
 		_additional.adminRank(user));
+	const auto show = delegate()->peerListUiShow();
 	if (_additional.canAddOrEditAdmin(user)) {
 		const auto done = crl::guard(this, [=](
 				ChatAdminRightsInfo newRights,
@@ -956,7 +957,8 @@ void AddSpecialBoxController::showAdmin(
 				_editParticipantBox->closeBox();
 			}
 		});
-		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
+		box->setSaveCallback(
+			SaveAdminCallback(show, _peer, user, done, fail));
 	}
 	_editParticipantBox = showBox(std::move(box));
 }

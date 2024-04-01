@@ -1963,7 +1963,8 @@ void Controller::toggleBotManager(const QString &command) {
 		const auto botPeer = _peer->owner().peerLoaded(
 			peerFromMTP(result.data().vpeer()));
 		if (const auto bot = botPeer ? botPeer->asUser() : nullptr) {
-			_peer->session().api().sendBotStart(bot, bot, command);
+			const auto show = controller->uiShow();
+			_peer->session().api().sendBotStart(show, bot, bot, command);
 			controller->showPeerHistory(bot);
 		}
 	}).send();

@@ -34,6 +34,7 @@ template <typename Enum>
 class Radioenum;
 class LinkButton;
 class UserpicButton;
+class Show;
 } // namespace Ui
 
 enum class PeerFloodType {
@@ -46,10 +47,10 @@ enum class PeerFloodType {
 	not_null<Main::Session*> session,
 	PeerFloodType type);
 void ShowAddParticipantsError(
+	std::shared_ptr<Ui::Show> show,
 	const QString &error,
 	not_null<PeerData*> chat,
-	const std::vector<not_null<UserData*>> &users,
-	std::shared_ptr<Ui::Show> show = nullptr);
+	const std::vector<not_null<UserData*>> &users);
 
 class AddContactBox : public Ui::BoxContent {
 public:

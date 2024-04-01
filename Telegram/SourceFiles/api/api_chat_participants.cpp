@@ -487,9 +487,9 @@ void ChatParticipants::requestCountDelayed(
 }
 
 void ChatParticipants::add(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
-		std::shared_ptr<Ui::Show> show,
 		bool passGroupHistory,
 		Fn<void(bool)> done) {
 	if (const auto chat = peer->asChat()) {
@@ -504,14 +504,14 @@ void ChatParticipants::add(
 				if (done) done(true);
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
-				ShowAddParticipantsError(type, peer, { 1, user }, show);
+				ShowAddParticipantsError(show, type, peer, { 1, user });
 				if (done) done(false);
 			}).afterDelay(kSmallDelayMs).send();
 		}
 	} else if (const auto channel = peer->asChannel()) {
 		const auto hasBot = ranges::any_of(users, &UserData::isBot);
 		if (!peer->isMegagroup() && hasBot) {
-			ShowAddParticipantsError("USER_BOT", peer, users, show);
+			ShowAddParticipantsError(show, "USER_BOT", peer, users);
 			return;
 		}
 		auto list = QVector<MTPInputUser>();
@@ -531,7 +531,7 @@ void ChatParticipants::add(
 					channel,
 					CollectForbiddenUsers(&channel->session(), result));
 			}).fail([=](const MTP::Error &error) {
-				ShowAddParticipantsError(error.type(), peer, users, show);
+				ShowAddParticipantsError(show, error.type(), peer, users);
 				if (callback) callback(false);
 			}).afterDelay(kSmallDelayMs).send();
 		};

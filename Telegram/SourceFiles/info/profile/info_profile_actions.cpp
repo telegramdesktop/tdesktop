@@ -1688,7 +1688,8 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	});
 	auto callback = [=] {
 		if (user->isBlocked()) {
-			Window::PeerMenuUnblockUserWithBotRestart(user);
+			const auto show = controller->uiShow();
+			Window::PeerMenuUnblockUserWithBotRestart(show, user);
 			if (user->isBot()) {
 				controller->showPeerHistory(user);
 			}
