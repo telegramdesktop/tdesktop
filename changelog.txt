@@ -1,3 +1,10 @@
+4.16.1 (02.04.24)
+
+- Show information about Fragment phone numbers and usernames.
+- Fix jump to original story from a story repost.
+- Fix old image display in viewer in some cases.
+- Fix several crashes.
+
 4.16 (01.04.24)
 
 - Instant View on Windows 10+ and macOS.
