@@ -141,6 +141,7 @@ public:
 		-> HistoryView::Reactions::CachedIconFactory &;
 
 	void show(not_null<Data::Story*> story, Data::StoriesContext context);
+	void jumpTo(not_null<Data::Story*> story, Data::StoriesContext context);
 	void ready();
 
 	void updateVideoPlayback(const Player::TrackState &state);
