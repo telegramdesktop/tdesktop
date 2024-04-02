@@ -100,7 +100,7 @@ void Controller::prepare() {
 			return;
 		}
 		auto row = std::make_unique<PeerListRow>(chat);
-		const auto username = chat->userName();
+		const auto username = chat->username();
 		row->setCustomStatus(!username.isEmpty()
 			? ('@' + username)
 			: (chat->isChannel() && !chat->isMegagroup())

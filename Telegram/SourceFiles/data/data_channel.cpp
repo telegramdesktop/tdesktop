@@ -139,6 +139,10 @@ const std::vector<QString> &ChannelData::usernames() const {
 	return _username.usernames();
 }
 
+bool ChannelData::isUsernameEditable(QString username) const {
+	return _username.isEditable(username);
+}
+
 void ChannelData::setAccessHash(uint64 accessHash) {
 	access = accessHash;
 	input = MTP_inputPeerChannel(

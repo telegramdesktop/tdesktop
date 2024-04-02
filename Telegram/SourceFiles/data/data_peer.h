@@ -279,7 +279,11 @@ public:
 	[[nodiscard]] const QString &name() const;
 	[[nodiscard]] const QString &shortName() const;
 	[[nodiscard]] const QString &topBarNameText() const;
-	[[nodiscard]] QString userName() const;
+
+	[[nodiscard]] QString username() const;
+	[[nodiscard]] QString editableUsername() const;
+	[[nodiscard]] const std::vector<QString> &usernames() const;
+	[[nodiscard]] bool isUsernameEditable(QString username) const;
 
 	[[nodiscard]] const base::flat_set<QString> &nameWords() const {
 		return _nameWords;

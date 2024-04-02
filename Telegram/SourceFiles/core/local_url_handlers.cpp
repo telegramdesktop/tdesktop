@@ -897,6 +897,34 @@ bool ShowEditPersonalChannel(
 	return true;
 }
 
+bool ShowCollectiblePhone(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto phone = match->captured(1);
+	const auto peerId = PeerId(match->captured(2).toULongLong());
+	controller->resolveCollectible(
+		peerId,
+		phone.startsWith('+') ? phone : '+' + phone);
+	return true;
+}
+
+bool ShowCollectibleUsername(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto username = match->captured(1);
+	const auto peerId = PeerId(match->captured(2).toULongLong());
+	controller->resolveCollectible(peerId, username);
+	return true;
+}
+
 void ExportTestChatTheme(
 		not_null<Window::SessionController*> controller,
 		not_null<const Data::CloudTheme*> theme) {
@@ -1298,6 +1326,14 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^edit_personal_channel$"_q,
 			ShowEditPersonalChannel,
+		},
+		{
+			u"^collectible_phone/([\\+0-9\\-\\s]+)@([0-9]+)$"_q,
+			ShowCollectiblePhone,
+		},
+		{
+			u"^collectible_username/([a-zA-Z0-9\\-\\_\\.]+)@([0-9]+)$"_q,
+			ShowCollectibleUsername,
 		},
 	};
 	return Result;

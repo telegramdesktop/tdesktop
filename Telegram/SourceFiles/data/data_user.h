@@ -150,15 +150,11 @@ public:
 	// a full check by canShareThisContact() call.
 	[[nodiscard]] bool canShareThisContactFast() const;
 
-	MTPInputUser inputUser = MTP_inputUserEmpty();
-
-	QString firstName;
-	QString lastName;
 	[[nodiscard]] const QString &phone() const;
 	[[nodiscard]] QString username() const;
 	[[nodiscard]] QString editableUsername() const;
 	[[nodiscard]] const std::vector<QString> &usernames() const;
-	QString nameOrPhone;
+	[[nodiscard]] bool isUsernameEditable(QString username) const;
 
 	enum class ContactStatus : char {
 		Unknown,
@@ -186,8 +182,6 @@ public:
 	void setBirthday(Data::Birthday value);
 	void setBirthday(const tl::conditional<MTPBirthday> &value);
 
-	std::unique_ptr<BotInfo> botInfo;
-
 	void setUnavailableReasons(
 		std::vector<Data::UnavailableReason> &&reasons);
 
@@ -208,6 +202,14 @@ public:
 	[[nodiscard]] ChannelId personalChannelId() const;
 	[[nodiscard]] MsgId personalChannelMessageId() const;
 	void setPersonalChannel(ChannelId channelId, MsgId messageId);
+
+	MTPInputUser inputUser = MTP_inputUserEmpty();
+
+	QString firstName;
+	QString lastName;
+	QString nameOrPhone;
+
+	std::unique_ptr<BotInfo> botInfo;
 
 private:
 	auto unavailableReasons() const

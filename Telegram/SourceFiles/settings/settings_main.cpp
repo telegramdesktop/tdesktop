@@ -224,7 +224,7 @@ void Cover::initViewers() {
 	}, lifetime());
 
 	_username->overrideLinkClickHandler([=] {
-		const auto username = _user->userName();
+		const auto username = _user->username();
 		if (username.isEmpty()) {
 			_controller->show(Box(UsernamesBox, _user));
 		} else {

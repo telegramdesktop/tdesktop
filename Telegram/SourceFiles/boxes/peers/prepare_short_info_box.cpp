@@ -207,7 +207,7 @@ void ProcessFullPhoto(
 			| UpdateFlag::Birthday)
 	) | rpl::map([=] {
 		const auto user = peer->asUser();
-		const auto username = peer->userName();
+		const auto username = peer->username();
 		return PeerShortInfoFields{
 			.name = peer->name(),
 			.phone = user ? Ui::FormatPhone(user->phone()) : QString(),

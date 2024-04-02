@@ -61,6 +61,9 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	bool primary = false);
 [[nodiscard]] rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
 	not_null<PeerData*> peer);
+[[nodiscard]] QString UsernameUrl(
+	not_null<PeerData*> peer,
+	const QString &username);
 [[nodiscard]] TextWithEntities AboutWithEntities(
 	not_null<PeerData*> peer,
 	const QString &value);

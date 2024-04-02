@@ -135,8 +135,8 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 				const auto count = c ? c->membersCount() : g->count;
 				_status.setText(
 					st::defaultTextStyle,
-					!p->userName().isEmpty()
-						? ('@' + p->userName())
+					!p->username().isEmpty()
+						? ('@' + p->username())
 						: count
 						? tr::lng_chat_status_subscribers(
 							tr::now,

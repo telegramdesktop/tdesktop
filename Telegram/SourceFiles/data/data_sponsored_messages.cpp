@@ -303,7 +303,7 @@ void SponsoredMessages::append(
 					? _session->data().processBotApp(peerId, *data.vapp())
 					: nullptr;
 				result.botLinkInfo = Window::PeerByLinkInfo{
-					.usernameOrId = user->userName(),
+					.usernameOrId = user->username(),
 					.resolveType = botAppData
 						? Window::ResolveType::BotApp
 						: data.vstart_param()

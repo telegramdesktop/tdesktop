@@ -1044,3 +1044,33 @@ inviteForbiddenTitle: FlatLabel(boxTitle) {
 inviteForbiddenTitlePadding: margins(32px, 4px, 32px, 0px);
 inviteForbiddenLockBg: dialogsUnreadBgMuted;
 inviteForbiddenLockIcon: icon {{ "emoji/premium_lock", dialogsUnreadFg }};
+
+collectibleIconDiameter: 72px;
+collectibleIcon: 64px;
+collectibleIconPadding: margins(24px, 32px, 24px, 12px);
+collectibleHeader: FlatLabel(boxTitle) {
+	minWidth: 120px;
+	maxHeight: 0px;
+	align: align(top);
+}
+collectibleHeaderPadding: margins(24px, 16px, 24px, 12px);
+collectibleOwnerPadding: margins(24px, 4px, 24px, 8px);
+collectibleInfo: inviteForbiddenInfo;
+collectibleInfoPadding: margins(24px, 12px, 24px, 12px);
+collectibleInfoTonMargins: margins(0px, 3px, 0px, 0px);
+collectibleMore: RoundButton(defaultActiveButton) {
+	height: 36px;
+	textTop: 9px;
+	radius: 6px;
+}
+collectibleMorePadding: margins(24px, 12px, 24px, 0px);
+collectibleCopy: RoundButton(defaultLightButton) {
+	height: 36px;
+	textTop: 9px;
+	radius: 6px;
+}
+collectibleBox: Box(defaultBox) {
+	buttonPadding: margins(24px, 12px, 24px, 12px);
+	buttonHeight: 36px;
+	button: collectibleCopy;
+}

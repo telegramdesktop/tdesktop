@@ -940,13 +940,41 @@ const QString &PeerData::shortName() const {
 	return _name;
 }
 
-QString PeerData::userName() const {
+QString PeerData::username() const {
 	if (const auto user = asUser()) {
 		return user->username();
 	} else if (const auto channel = asChannel()) {
 		return channel->username();
 	}
 	return QString();
+}
+
+QString PeerData::editableUsername() const {
+	if (const auto user = asUser()) {
+		return user->editableUsername();
+	} else if (const auto channel = asChannel()) {
+		return channel->editableUsername();
+	}
+	return QString();
+}
+
+const std::vector<QString> &PeerData::usernames() const {
+	if (const auto user = asUser()) {
+		return user->usernames();
+	} else if (const auto channel = asChannel()) {
+		return channel->usernames();
+	}
+	static const auto kEmpty = std::vector<QString>();
+	return kEmpty;
+}
+
+bool PeerData::isUsernameEditable(QString username) const {
+	if (const auto user = asUser()) {
+		return user->isUsernameEditable(username);
+	} else if (const auto channel = asChannel()) {
+		return channel->isUsernameEditable(username);
+	}
+	return false;
 }
 
 bool PeerData::changeColorIndex(uint8 index) {

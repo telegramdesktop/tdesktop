@@ -245,6 +245,11 @@ public:
 
 	void resolveBoostState(not_null<ChannelData*> channel);
 
+	void resolveCollectible(
+		PeerId ownerId,
+		const QString &entity,
+		Fn<void(QString)> fail = nullptr);
+
 	base::weak_ptr<Ui::Toast::Instance> showToast(
 		Ui::Toast::Config &&config);
 	base::weak_ptr<Ui::Toast::Instance> showToast(
@@ -303,6 +308,9 @@ private:
 	mtpRequestId _showingRepliesRequestId = 0;
 
 	ChannelData *_boostStateResolving = nullptr;
+
+	QString _collectibleEntity;
+	mtpRequestId _collectibleRequestId = 0;
 
 };
 

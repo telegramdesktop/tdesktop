@@ -23,6 +23,10 @@ namespace Info::ChannelEarn {
 
 class Memento;
 
+[[nodiscard]] QImage IconCurrency(
+	const style::FlatLabel &label,
+	const QColor &c);
+
 class InnerWidget final : public Ui::VerticalLayout {
 public:
 	struct ShowRequest final {

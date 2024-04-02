@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_participants.h"
 #include "apiwrap.h"
+#include "info/profile/info_profile_phone_menu.h"
 #include "info/profile/info_profile_badge.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -55,7 +56,7 @@ auto PlainUsernameValue(not_null<PeerData*> peer) {
 		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Username),
 		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Usernames)
 	) | rpl::map([=] {
-		return peer->userName();
+		return peer->username();
 	});
 }
 
@@ -136,14 +137,19 @@ rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 		PlainUsernameValue(user),
 		PlainAboutValue(user),
 		tr::lng_info_mobile_hidden()
-	) | rpl::map([](
+	) | rpl::map([user](
 			const TextWithEntities &phone,
 			const QString &username,
 			const QString &about,
 			const QString &hidden) {
-		return (phone.text.isEmpty() && username.isEmpty() && about.isEmpty())
-			? Ui::Text::WithEntities(hidden)
-			: phone;
+		if (phone.text.isEmpty() && username.isEmpty() && about.isEmpty()) {
+			return Ui::Text::WithEntities(hidden);
+		} else if (IsCollectiblePhone(user)) {
+			return Ui::Text::Link(phone, u"internal:collectible_phone/"_q
+				+ user->phone() + '@' + QString::number(user->id.value));
+		} else {
+			return phone;
+		}
 	});
 }
 
@@ -160,15 +166,22 @@ rpl::producer<TextWithEntities> UsernameValue(
 	}) | Ui::Text::ToWithEntities();
 }
 
+QString UsernameUrl(not_null<PeerData*> peer, const QString &username) {
+	return peer->isUsernameEditable(username)
+		? peer->session().createInternalLinkFull(username)
+		: (u"internal:collectible_username/"_q
+			+ username
+			+ "@"
+			+ QString::number(peer->id.value));
+}
+
 rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
 		not_null<PeerData*> peer) {
 	const auto map = [=](const std::vector<QString> &usernames) {
 		return ranges::views::all(
 			usernames
 		) | ranges::views::transform([&](const QString &u) {
-			return Ui::Text::Link(
-				u,
-				peer->session().createInternalLinkFull(u));
+			return Ui::Text::Link(u, UsernameUrl(peer, u));
 		}) | ranges::to_vector;
 	};
 	auto value = rpl::merge(
@@ -224,9 +237,7 @@ rpl::producer<QString> LinkValue(not_null<PeerData*> peer, bool primary) {
 		? PlainPrimaryUsernameValue(peer)
 		: PlainUsernameValue(peer) | rpl::type_erased()
 	) | rpl::map([=](QString &&username) {
-		return username.isEmpty()
-			? QString()
-			: peer->session().createInternalLinkFull(username);
+		return username.isEmpty() ? QString() : UsernameUrl(peer, username);
 	});
 }
 

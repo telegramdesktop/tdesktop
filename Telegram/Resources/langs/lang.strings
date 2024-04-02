@@ -471,6 +471,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_bio_placeholder" = "Bio";
 
+"lng_collectible_username_title" = "{username} is a collectible username that belongs to";
+"lng_collectible_username_info" = "This username was bought on **Fragment** on {date} for {price}";
+"lng_collectible_username_copy" = "Copy Link";
+"lng_collectible_phone_title" = "{phone} is a collectible phone number that belongs to";
+"lng_collectible_phone_info" = "This phone number was bought on **Fragment** on {date} for {price}";
+"lng_collectible_phone_copy" = "Copy Phone Number";
+"lng_collectible_learn_more" = "Learn More";
+
 "lng_settings_section_info" = "My info";
 
 "lng_settings_section_notify" = "Notifications";

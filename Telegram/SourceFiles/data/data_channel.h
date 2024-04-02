@@ -182,6 +182,7 @@ public:
 	[[nodiscard]] QString username() const;
 	[[nodiscard]] QString editableUsername() const;
 	[[nodiscard]] const std::vector<QString> &usernames() const;
+	[[nodiscard]] bool isUsernameEditable(QString username) const;
 
 	[[nodiscard]] int membersCount() const {
 		return std::max(_membersCount, 1);

@@ -240,6 +240,8 @@ PRIVATE
     ui/boxes/choose_language_box.h
     ui/boxes/choose_time.cpp
     ui/boxes/choose_time.h
+    ui/boxes/collectible_info_box.cpp
+    ui/boxes/collectible_info_box.h
     ui/boxes/confirm_box.cpp
     ui/boxes/confirm_box.h
     ui/boxes/confirm_phone_box.cpp

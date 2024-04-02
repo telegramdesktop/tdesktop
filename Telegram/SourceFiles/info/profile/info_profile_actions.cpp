@@ -116,16 +116,25 @@ base::options::toggle ShowPeerIdBelowAbout({
 
 [[nodiscard]] Fn<void(QString)> UsernamesLinkCallback(
 		not_null<PeerData*> peer,
-		std::shared_ptr<Ui::Show> show,
+		not_null<Window::SessionController*> controller,
 		const QString &addToLink) {
+	const auto weak = base::make_weak(controller);
 	return [=](QString link) {
-		if (!link.startsWith(u"https://"_q)) {
-			link = peer->session().createInternalLinkFull(peer->userName())
+		if (link.startsWith(u"internal:"_q)) {
+			Core::App().openInternalUrl(link,
+				QVariant::fromValue(ClickHandlerContext{
+					.sessionWindow = weak,
+				}));
+			return;
+		} else if (!link.startsWith(u"https://"_q)) {
+			link = peer->session().createInternalLinkFull(peer->username())
 				+ addToLink;
 		}
 		if (!link.isEmpty()) {
 			QGuiApplication::clipboard()->setText(link);
-			show->showToast(tr::lng_username_copied(tr::now));
+			if (const auto window = weak.get()) {
+				window->showToast(tr::lng_username_copied(tr::now));
+			}
 		}
 	};
 }
@@ -1041,16 +1050,13 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			UsernameValue(user, true) | rpl::map([=](TextWithEntities u) {
 				return u.text.isEmpty()
 					? TextWithEntities()
-					: Ui::Text::Link(
-						u,
-						user->session().createInternalLinkFull(
-							u.text.mid(1)));
+					: Ui::Text::Link(u, UsernameUrl(user, u.text.mid(1)));
 			}),
 			QString(),
 			st::infoProfileLabeledUsernamePadding);
 		const auto callback = UsernamesLinkCallback(
 			_peer,
-			controller->uiShow(),
+			controller,
 			QString());
 		const auto hook = [=](Ui::FlatLabel::ContextMenuRequest request) {
 			if (!request.link) {
@@ -1094,7 +1100,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			}, copyUsername->lifetime());
 			copyUsername->setClickedCallback([=] {
 				const auto link = user->session().createInternalLinkFull(
-					user->userName());
+					user->username());
 				if (!link.isEmpty()) {
 					QGuiApplication::clipboard()->setText(link);
 					controller->showToast(tr::lng_username_copied(tr::now));
@@ -1159,7 +1165,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		const auto controller = _controller->parentController();
 		const auto linkCallback = UsernamesLinkCallback(
 			_peer,
-			controller->uiShow(),
+			controller,
 			addToLink);
 		linkLine.text->overrideLinkClickHandler(linkCallback);
 		linkLine.subtext->overrideLinkClickHandler(linkCallback);

@@ -53,7 +53,7 @@ Domain::Domain(const QString &dataName)
 			: rpl::never<Data::PeerUpdate>();
 	}) | rpl::flatten_latest(
 	) | rpl::start_with_next([](const Data::PeerUpdate &update) {
-		CrashReports::SetAnnotation("Username", update.peer->userName());
+		CrashReports::SetAnnotation("Username", update.peer->username());
 	}, _lifetime);
 }
 
