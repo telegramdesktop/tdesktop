@@ -37,6 +37,7 @@ namespace Notifications {
 namespace {
 
 using namespace gi::repository;
+namespace GObject = gi::repository::GObject;
 
 constexpr auto kService = "org.freedesktop.Notifications";
 constexpr auto kObjectPath = "/org/freedesktop/Notifications";
