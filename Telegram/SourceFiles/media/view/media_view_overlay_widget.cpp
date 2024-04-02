@@ -3253,7 +3253,7 @@ not_null<QWidget*> OverlayWidget::widget() const {
 
 void OverlayWidget::hide() {
 	clearBeforeHide();
-	//applyHideWindowWorkaround();
+	applyHideWindowWorkaround();
 	_window->hide();
 }
 
