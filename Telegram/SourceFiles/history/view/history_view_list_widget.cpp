@@ -1839,16 +1839,18 @@ void ListWidget::startItemRevealAnimations() {
 void ListWidget::startMessageSendingAnimation(
 		not_null<HistoryItem*> item) {
 	auto &sendingAnimation = controller()->sendingAnimation();
-	if (!sendingAnimation.hasLocalMessage(item->fullId().msg)
-		|| !sendingAnimation.checkExpectedType(item)) {
+	if (!sendingAnimation.checkExpectedType(item)) {
 		return;
 	}
 
 	auto globalEndTopLeft = rpl::merge(
 		session().data().newItemAdded() | rpl::to_empty,
 		geometryValue() | rpl::to_empty
-	) | rpl::map([=] {
+	) | rpl::map([=]() -> std::optional<QPoint> {
 		const auto view = viewForItem(item);
+		if (!view) {
+			return std::nullopt;
+		}
 		const auto additional = !_visibleTop ? view->height() : 0;
 		return mapToGlobal(QPoint(0, itemTop(view) - additional));
 	});
