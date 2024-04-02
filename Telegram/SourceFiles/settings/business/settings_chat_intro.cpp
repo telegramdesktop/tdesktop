@@ -160,7 +160,7 @@ private:
 		object_ptr<Ui::InputField>(
 			container,
 			st::settingsChatIntroField,
-			tr::lng_chat_intro_enter_title(),
+			std::move(placeholder),
 			current),
 		st::settingsChatIntroFieldMargins);
 	field->setMaxLength(limit);
