@@ -1760,8 +1760,11 @@ void StickersBox::Inner::setActionDown(int newActionDown) {
 				const auto &st = installedSet
 					? st::stickersTrendingInstalled
 					: st::stickersTrendingAdd;
+				const auto buttonTextWidth = installedSet
+					? _installedWidth
+					: _addWidth;
 				auto rippleMask = Ui::RippleAnimation::RoundRectMask(
-					QSize(_addWidth - st.width, st.height),
+					QSize(buttonTextWidth - st.width, st.height),
 					st::roundRadiusLarge);
 				ensureRipple(
 					st.ripple,
