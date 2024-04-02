@@ -1123,13 +1123,14 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 				state->thumbnail = Images::Prepare(embed->original(), 0, {
 					.options = Images::Option::Blur,
 				});
+			} else if (!state->downloadTaskLifetime) {
+				state->document->session().downloaderTaskFinished(
+				) | rpl::filter([=] {
+					return self(self);
+				}) | rpl::start_with_next(
+					state->push,
+					state->downloadTaskLifetime);
 			}
-			state->document->session().downloaderTaskFinished(
-			) | rpl::filter([=] {
-				return self(self);
-			}) | rpl::start_with_next(
-				state->push,
-				state->downloadTaskLifetime);
 			return !state->thumbnail.isNull();
 		};
 		const auto resolveThumbnail = [=] {
