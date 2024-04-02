@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_menu_set_status" = "Set Emoji Status";
 "lng_menu_change_status" = "Change Emoji Status";
 "lng_menu_my_stories" = "My Stories";
+"lng_menu_my_groups" = "My Groups";
+"lng_menu_my_channels" = "My Channels";
 
 "lng_disable_notifications_from_tray" = "Disable notifications";
 "lng_enable_notifications_from_tray" = "Enable notifications";

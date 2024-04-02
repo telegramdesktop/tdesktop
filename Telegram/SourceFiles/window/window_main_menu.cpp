@@ -218,7 +218,8 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 			button,
 			st::defaultPopupMenu);
 		(*menu)->addAction(
-			chats ? u"My Groups"_q : u"My Channels"_q,
+			(chats ? tr::lng_menu_my_groups : tr::lng_menu_my_channels)(
+				tr::now),
 			[=] { controller->uiShow()->showBox(Box(myChannelsBox)); },
 			nullptr);
 		(*menu)->popup(QCursor::pos());
