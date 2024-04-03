@@ -372,6 +372,7 @@ void InnerWidget::fill() {
 					widget->paintRequest(
 					) | rpl::start_with_next([=] {
 						auto p = Painter(widget);
+						auto hq = PainterHighQualityEnabler(p);
 						p.setPen(Qt::NoPen);
 						p.setBrush(st::activeButtonBg);
 						p.drawEllipse(rect);
