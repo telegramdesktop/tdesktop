@@ -77,7 +77,7 @@ void ShowMenu(not_null<Ui::GenericBox*> box, const QString &text) {
 [[nodiscard]] ClickHandlerPtr LearnMoreCurrencyLink(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::GenericBox*> box) {
-	const auto url = u"https://telegram.org/blog/monetization-for-channels"_q;
+	const auto url = tr::lng_channel_earn_learn_coin_link(tr::now);
 
 	using Resolver = HistoryView::Controls::WebpageResolver;
 	const auto resolver = box->lifetime().make_state<Resolver>(
