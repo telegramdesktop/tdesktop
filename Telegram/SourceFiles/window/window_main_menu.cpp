@@ -117,7 +117,9 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 	button->setAcceptBoth(true);
 
 	const auto myChannelsBox = [=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(tr::lng_notification_channels());
+		box->setTitle(chats
+			? tr::lng_notification_groups()
+			: tr::lng_notification_channels());
 
 		const auto st = box->lifetime().make_state<style::UserpicButton>(
 			st::defaultUserpicButton);
@@ -191,10 +193,16 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 
 		const auto &data = controller->session().data();
 		if (chats) {
+			auto ids = std::vector<PeerId>();
 			data.enumerateGroups([&](not_null<PeerData*> peer) {
+				peer = peer->migrateToOrMe();
 				const auto c = peer->asChannel();
 				const auto g = peer->asChat();
+				if (ranges::contains(ids, peer->id)) {
+					return;
+				}
 				if ((c && c->amCreator()) || (g && g->amCreator())) {
+					ids.push_back(peer->id);
 					add(peer);
 				}
 			});
