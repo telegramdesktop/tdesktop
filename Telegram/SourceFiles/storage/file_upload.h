@@ -12,8 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/facade.h"
 
 class ApiWrap;
-struct FileLoadResult;
-struct SendMediaReady;
+struct FilePrepareResult;
 
 namespace Api {
 enum class SendProgressType;
@@ -58,10 +57,9 @@ public:
 		return uploadingId;
 	}
 
-	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
 	void upload(
 		const FullMsgId &msgId,
-		const std::shared_ptr<FileLoadResult> &file);
+		const std::shared_ptr<FilePrepareResult> &file);
 
 	void cancel(const FullMsgId &msgId);
 	void pause(const FullMsgId &msgId);
