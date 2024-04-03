@@ -28,9 +28,6 @@ void SetupInterfaceScale(
 	not_null<Window::Controller*> window,
 	not_null<Ui::VerticalLayout*> container,
 	bool icon = true);
-void SetupFaq(
-	not_null<Ui::VerticalLayout*> container,
-	bool icon = true);
 
 class Main : public Section<Main> {
 public:

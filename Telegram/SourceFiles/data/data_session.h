@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_databases.h"
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
+#include "data/data_faq.h"
 #include "data/data_cloud_file.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
@@ -100,6 +101,9 @@ public:
 	}
 	[[nodiscard]] const Groups &groups() const {
 		return _groups;
+	}
+	[[nodiscard]] Faq &faq() {
+		return _faq;
 	}
 	[[nodiscard]] ChatFilters &chatsFilters() const {
 		return *_chatsFilters;
@@ -1068,6 +1072,7 @@ private:
 		mtpRequestId> _viewAsMessagesRequests;
 
 	Groups _groups;
+	Faq _faq;
 	const std::unique_ptr<ChatFilters> _chatsFilters;
 	const std::unique_ptr<CloudThemes> _cloudThemes;
 	const std::unique_ptr<SendActionManager> _sendActionManager;
