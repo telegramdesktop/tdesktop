@@ -52,7 +52,7 @@ jobs:
           - "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
 
     env:
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
 
     steps:
       - name: Get repository name.
