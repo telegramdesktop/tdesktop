@@ -12,6 +12,7 @@ namespace Info::ChannelEarn {
 using EarnInt = Data::EarnInt;
 
 constexpr auto kMinorPartLength = 9;
+constexpr auto kMaxChoppedZero = kMinorPartLength - 2;
 constexpr auto kZero = QChar('0');
 constexpr auto kDot = QChar('.');
 
@@ -35,7 +36,7 @@ QString MinorPart(EarnInt value) {
 	auto ch = end - 1;
 	auto zeroCount = 0;
 	while (ch != begin) {
-		if ((*ch) == kZero) {
+		if (((*ch) == kZero) && (zeroCount < kMaxChoppedZero)) {
 			zeroCount++;
 		} else {
 			break;
