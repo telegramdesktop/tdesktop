@@ -434,8 +434,10 @@ void FilePrepareResult::setFileData(const QByteArray &filedata) {
 		partssize = 0;
 	} else {
 		partssize = filedata.size();
+		fileparts.reserve(
+			(partssize + kPhotoUploadPartSize - 1) / kPhotoUploadPartSize);
 		for (int32 i = 0, part = 0; i < partssize; i += kPhotoUploadPartSize, ++part) {
-			fileparts.insert(part, filedata.mid(i, kPhotoUploadPartSize));
+			fileparts.push_back(filedata.mid(i, kPhotoUploadPartSize));
 		}
 		filemd5.resize(32);
 		hashMd5Hex(filedata.constData(), filedata.size(), filemd5.data());
@@ -446,8 +448,10 @@ void FilePrepareResult::setThumbData(const QByteArray &thumbdata) {
 	if (!thumbdata.isEmpty()) {
 		thumbbytes = thumbdata;
 		int32 size = thumbdata.size();
+		thumbparts.reserve(
+			(size + kPhotoUploadPartSize - 1) / kPhotoUploadPartSize);
 		for (int32 i = 0, part = 0; i < size; i += kPhotoUploadPartSize, ++part) {
-			thumbparts.insert(part, thumbdata.mid(i, kPhotoUploadPartSize));
+			thumbparts.push_back(thumbdata.mid(i, kPhotoUploadPartSize));
 		}
 		thumbmd5.resize(32);
 		hashMd5Hex(thumbdata.constData(), thumbdata.size(), thumbmd5.data());
