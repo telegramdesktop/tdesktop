@@ -49,11 +49,21 @@ struct BusinessRecipients {
 		const BusinessRecipients &b) = default;
 };
 
-[[nodiscard]] MTPInputBusinessRecipients ToMTP(
+enum class BusinessRecipientsType : uchar {
+	Messages,
+	Bots,
+};
+
+[[nodiscard]] MTPInputBusinessRecipients ForMessagesToMTP(
+	const BusinessRecipients &data);
+[[nodiscard]] MTPInputBusinessBotRecipients ForBotsToMTP(
 	const BusinessRecipients &data);
 [[nodiscard]] BusinessRecipients FromMTP(
 	not_null<Session*> owner,
 	const MTPBusinessRecipients &recipients);
+[[nodiscard]] BusinessRecipients FromMTP(
+	not_null<Session*> owner,
+	const MTPBusinessBotRecipients &recipients);
 
 struct Timezone {
 	QString id;
@@ -172,12 +182,31 @@ struct BusinessLocation {
 		const BusinessLocation &b) = default;
 };
 
+struct ChatIntro {
+	QString title;
+	QString description;
+	DocumentData *sticker = nullptr;
+
+	[[nodiscard]] bool customPhrases() const {
+		return !title.isEmpty() || !description.isEmpty();
+	}
+
+	explicit operator bool() const {
+		return customPhrases() || sticker;
+	}
+
+	friend inline bool operator==(
+		const ChatIntro &a,
+		const ChatIntro &b) = default;
+};
+
 struct BusinessDetails {
 	WorkingHours hours;
 	BusinessLocation location;
+	ChatIntro intro;
 
 	explicit operator bool() const {
-		return hours || location;
+		return hours || location || intro;
 	}
 
 	friend inline bool operator==(
@@ -186,8 +215,10 @@ struct BusinessDetails {
 };
 
 [[nodiscard]] BusinessDetails FromMTP(
+	not_null<Session*> owner,
 	const tl::conditional<MTPBusinessWorkHours> &hours,
-	const tl::conditional<MTPBusinessLocation> &location);
+	const tl::conditional<MTPBusinessLocation> &location,
+	const tl::conditional<MTPBusinessIntro> &intro);
 
 enum class AwayScheduleType : uchar {
 	Never = 0,

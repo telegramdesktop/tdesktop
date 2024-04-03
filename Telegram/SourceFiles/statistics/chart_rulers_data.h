@@ -15,7 +15,9 @@ public:
 		int newMaxHeight,
 		int newMinHeight,
 		bool useMinHeight,
-		float64 rightRatio);
+		float64 rightRatio,
+		Fn<QString(float64)> leftCustomCaption = nullptr,
+		Fn<QString(float64)> rightCustomCaption = nullptr);
 
 	void computeRelative(
 		int newMaxHeight,

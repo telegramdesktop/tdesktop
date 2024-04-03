@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "menu/menu_sponsored.h"
 #include "platform/platform_notifications_manager.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -363,6 +364,18 @@ ClickHandlerPtr HideSponsoredClickHandler() {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			ShowPremiumPreviewBox(controller, PremiumFeature::NoAds);
+		}
+	});
+}
+
+ClickHandlerPtr ReportSponsoredClickHandler(not_null<HistoryItem*> item) {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			Menu::ShowSponsored(
+				controller->widget(),
+				controller->uiShow(),
+				item);
 		}
 	});
 }

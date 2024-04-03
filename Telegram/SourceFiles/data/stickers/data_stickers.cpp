@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/toast/toast.h"
@@ -502,7 +501,7 @@ void Stickers::undoInstallLocally(uint64 setId) {
 		Ui::LayerOption::KeepOther);
 }
 
-bool Stickers::isFaved(not_null<const DocumentData*> document) {
+bool Stickers::isFaved(not_null<const DocumentData*> document) const {
 	const auto &sets = this->sets();
 	const auto it = sets.find(FavedSetId);
 	if (it == sets.cend()) {
@@ -1003,6 +1002,7 @@ void Stickers::featuredReceived(
 		auto it = sets.find(data->vid().v);
 		const auto title = getSetTitle(*data);
 		const auto installDate = data->vinstalled_date().value_or_empty();
+		auto thumbnailType = StickerType::Webp;
 		const auto thumbnail = [&] {
 			if (const auto thumbs = data->vthumbs()) {
 				for (const auto &thumb : thumbs->v) {
@@ -1011,6 +1011,7 @@ void Stickers::featuredReceived(
 						*data,
 						thumb);
 					if (result.location.valid()) {
+						thumbnailType = ThumbnailTypeFromPhotoSize(thumb);
 						return result;
 					}
 				}
@@ -1046,7 +1047,7 @@ void Stickers::featuredReceived(
 				set->flags |= SetFlag::NotLoaded; // need to request this set
 			}
 		}
-		it->second->setThumbnail(thumbnail);
+		it->second->setThumbnail(thumbnail, thumbnailType);
 		it->second->thumbnailDocumentId = data->vthumb_document_id().value_or_empty();
 		featuredOrder.push_back(data->vid().v);
 		if (it->second->stickers.isEmpty()
@@ -1319,7 +1320,7 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 
 	ranges::sort(result, std::greater<>(), &StickerWithDate::date);
 
-	const auto appConfig = &session().account().appConfig();
+	const auto appConfig = &session().appConfig();
 	auto mixed = std::vector<not_null<DocumentData*>>();
 	mixed.reserve(result.size());
 	auto premiumIndex = 0, nonPremiumIndex = 0;
@@ -1415,6 +1416,7 @@ not_null<StickersSet*> Stickers::feedSet(const MTPStickerSet &info) {
 	auto it = sets.find(data.vid().v);
 	auto title = getSetTitle(data);
 	auto oldFlags = StickersSetFlags(0);
+	auto thumbnailType = StickerType::Webp;
 	const auto thumbnail = [&] {
 		if (const auto thumbs = data.vthumbs()) {
 			for (const auto &thumb : thumbs->v) {
@@ -1423,6 +1425,7 @@ not_null<StickersSet*> Stickers::feedSet(const MTPStickerSet &info) {
 					data,
 					thumb);
 				if (result.location.valid()) {
+					thumbnailType = Data::ThumbnailTypeFromPhotoSize(thumb);
 					return result;
 				}
 			}
@@ -1467,7 +1470,7 @@ not_null<StickersSet*> Stickers::feedSet(const MTPStickerSet &info) {
 		}
 	}
 	const auto set = it->second.get();
-	set->setThumbnail(thumbnail);
+	set->setThumbnail(thumbnail, thumbnailType);
 	set->thumbnailDocumentId = data.vthumb_document_id().value_or_empty();
 	auto changedFlags = (oldFlags ^ set->flags);
 	if (changedFlags & SetFlag::Archived) {
@@ -1681,6 +1684,19 @@ RecentStickerPack &Stickers::getRecentPack() const {
 		}
 	}
 	return cRefRecentStickers();
+}
+
+StickerType ThumbnailTypeFromPhotoSize(const MTPPhotoSize &size) {
+	const auto &type = size.match([&](const auto &data) {
+		return data.vtype().v;
+	});
+	const auto ch = type.isEmpty() ? char() : type[0];
+	switch (ch) {
+	case 's': return StickerType::Webp;
+	case 'a': return StickerType::Tgs;
+	case 'v': return StickerType::Webm;
+	}
+	return StickerType::Webp;
 }
 
 } // namespace Stickers

@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_subscription_option.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
-#include "info/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
@@ -892,6 +893,52 @@ void AddTable(
 	}
 }
 
+void ShareWithFriend(
+		not_null<Window::SessionNavigation*> navigation,
+		const QString &slug) {
+	const auto chosen = [=](not_null<Data::Thread*> thread) {
+		const auto content = navigation->parentController()->content();
+		return content->shareUrl(
+			thread,
+			MakeGiftCodeLink(&navigation->session(), slug).link,
+			QString());
+	};
+	Window::ShowChooseRecipientBox(navigation, chosen);
+}
+
+void ShowAlreadyPremiumToast(
+		not_null<Window::SessionNavigation*> navigation,
+		const QString &slug,
+		TimeId date) {
+	const auto instance = std::make_shared<
+		base::weak_ptr<Ui::Toast::Instance>
+	>();
+	const auto shareLink = [=](
+			const ClickHandlerPtr &,
+			Qt::MouseButton button) {
+		if (button == Qt::LeftButton) {
+			if (const auto strong = instance->get()) {
+				strong->hideAnimated();
+			}
+			ShareWithFriend(navigation, slug);
+		}
+		return false;
+	};
+	*instance = navigation->showToast({
+		.title = tr::lng_gift_link_already_title(tr::now),
+		.text = tr::lng_gift_link_already_about(
+			tr::now,
+			lt_date,
+			Ui::Text::Bold(langDateTime(base::unixtime::parse(date))),
+			lt_link,
+			Ui::Text::Link(
+				Ui::Text::Bold(tr::lng_gift_link_already_link(tr::now))),
+			Ui::Text::WithEntities),
+		.duration = 6 * crl::time(1000),
+		.filter = crl::guard(navigation, shareLink),
+	});
+}
+
 } // namespace
 
 GiftPremiumValidator::GiftPremiumValidator(
@@ -1014,6 +1061,30 @@ void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
 	}, _manyGiftsLifetime);
 }
 
+void GiftPremiumValidator::showChosenPeerBox(
+		not_null<UserData*> user,
+		const QString &ref) {
+	if (_manyGiftsLifetime) {
+		return;
+	}
+	using namespace Api;
+	const auto api = _manyGiftsLifetime.make_state<PremiumGiftCodeOptions>(
+		_controller->session().user());
+	const auto show = _controller->uiShow();
+	api->request(
+	) | rpl::start_with_error_done([=](const QString &error) {
+		show->showToast(error);
+	}, [=] {
+		const auto users = std::vector<not_null<UserData*>>{ user };
+		const auto giftBox = show->show(
+			Box(GiftsBox, _controller, users, api, ref));
+		giftBox->boxClosing(
+		) | rpl::start_with_next([=] {
+			_manyGiftsLifetime.destroy();
+		}, giftBox->lifetime());
+	}, _manyGiftsLifetime);
+}
+
 void GiftPremiumValidator::showBox(not_null<UserData*> user) {
 	if (_requestId) {
 		return;
@@ -1133,14 +1204,7 @@ void GiftCodeBox(
 			st::giveawayGiftCodeFooter),
 		st::giveawayGiftCodeFooterMargin);
 	footer->setClickHandlerFilter([=](const auto &...) {
-		const auto chosen = [=](not_null<Data::Thread*> thread) {
-			const auto content = controller->parentController()->content();
-			return content->shareUrl(
-				thread,
-				MakeGiftCodeLink(&controller->session(), slug).link,
-				QString());
-		};
-		Window::ShowChooseRecipientBox(controller, chosen);
+		ShareWithFriend(controller, slug);
 		return false;
 	});
 
@@ -1165,14 +1229,20 @@ void GiftCodeBox(
 		} else if (!state->sent) {
 			state->sent = true;
 			const auto done = crl::guard(box, [=](const QString &error) {
+				const auto activePrefix = u"PREMIUM_SUB_ACTIVE_UNTIL_"_q;
 				if (error.isEmpty()) {
 					auto copy = state->data.current();
 					copy.used = base::unixtime::now();
 					state->data = std::move(copy);
 
 					Ui::StartFireworks(box->parentWidget());
+				} else if (error.startsWith(activePrefix)) {
+					const auto date = error.mid(activePrefix.size()).toInt();
+					ShowAlreadyPremiumToast(controller, slug, date);
+					state->sent = false;
 				} else {
 					box->uiShow()->showToast(error);
+					state->sent = false;
 				}
 			});
 			controller->session().api().premium().applyGiftCode(slug, done);

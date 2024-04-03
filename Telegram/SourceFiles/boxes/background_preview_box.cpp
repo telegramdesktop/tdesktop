@@ -593,11 +593,11 @@ void BackgroundPreviewBox::uploadForPeer(bool both) {
 	const auto ready = Window::Theme::PrepareWallPaper(
 		session->mainDcId(),
 		_paper.localThumbnail()->original());
-	const auto documentId = ready.id;
+	const auto documentId = ready->id;
 	_uploadId = FullMsgId(
 		session->userPeerId(),
 		session->data().nextLocalMessageId());
-	session->uploader().uploadMedia(_uploadId, ready);
+	session->uploader().upload(_uploadId, ready);
 	if (_uploadLifetime) {
 		return;
 	}

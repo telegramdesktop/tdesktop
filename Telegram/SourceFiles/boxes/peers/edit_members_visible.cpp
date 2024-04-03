@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/vertical_list.h"
 #include "settings/settings_common.h" // IconDescriptor.
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -26,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 [[nodiscard]] int EnableHideMembersMin(not_null<ChannelData*> channel) {
-	return channel->session().account().appConfig().get<int>(
+	return channel->session().appConfig().get<int>(
 		u"hidden_members_group_size_min"_q,
 		100);
 }

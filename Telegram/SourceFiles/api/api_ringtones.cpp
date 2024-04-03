@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/notify/data_notify_settings.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "storage/file_upload.h"
@@ -25,16 +24,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
-SendMediaReady PrepareRingtoneDocument(
+std::shared_ptr<FilePrepareResult> PrepareRingtoneDocument(
 		MTP::DcId dcId,
 		const QString &filename,
 		const QString &filemime,
 		const QByteArray &content) {
+	const auto id = base::RandomValue<DocumentId>();
 	auto attributes = QVector<MTPDocumentAttribute>(
 		1,
 		MTP_documentAttributeFilename(MTP_string(filename)));
-	const auto id = base::RandomValue<DocumentId>();
-	const auto document = MTP_document(
+
+	auto result = MakePreparedFile({
+		.id = id,
+		.type = SendMediaType::File,
+	});
+	result->filename = filename;
+	result->content = content;
+	result->filesize = content.size();
+	result->setFileData(content);
+	result->document = MTP_document(
 		MTP_flags(0),
 		MTP_long(id),
 		MTP_long(0),
@@ -46,21 +54,7 @@ SendMediaReady PrepareRingtoneDocument(
 		MTPVector<MTPVideoSize>(),
 		MTP_int(dcId),
 		MTP_vector<MTPDocumentAttribute>(std::move(attributes)));
-
-	return SendMediaReady(
-		SendMediaType::File,
-		QString(), // filepath
-		filename,
-		content.size(),
-		content,
-		id,
-		0,
-		QString(),
-		PeerId(),
-		MTP_photoEmpty(MTP_long(0)),
-		PreparedPhotoThumbs(),
-		document,
-		QByteArray());
+	return result;
 }
 
 } // namespace
@@ -103,7 +97,7 @@ void Ringtones::upload(
 		_uploads.erase(already);
 	}
 	_uploads.emplace(fakeId, uploadedData);
-	_session->uploader().uploadMedia(fakeId, ready);
+	_session->uploader().upload(fakeId, ready);
 }
 
 void Ringtones::ready(const FullMsgId &msgId, const MTPInputFile &file) {
@@ -191,20 +185,20 @@ void Ringtones::remove(DocumentId id) {
 }
 
 int64 Ringtones::maxSize() const {
-	return _session->account().appConfig().get<int>(
-		"ringtone_size_max",
+	return _session->appConfig().get<int>(
+		u"ringtone_size_max"_q,
 		100 * 1024);
 }
 
 int Ringtones::maxSavedCount() const {
-	return _session->account().appConfig().get<int>(
-		"ringtone_saved_count_max",
+	return _session->appConfig().get<int>(
+		u"ringtone_saved_count_max"_q,
 		100);
 }
 
 crl::time Ringtones::maxDuration() const {
-	return crl::time(1000) * _session->account().appConfig().get<int>(
-		"ringtone_duration_max",
+	return crl::time(1000) * _session->appConfig().get<int>(
+		u"ringtone_duration_max"_q,
 		5);
 }
 

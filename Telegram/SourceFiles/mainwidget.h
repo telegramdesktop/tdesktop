@@ -16,7 +16,6 @@ struct HistoryMessageMarkupButton;
 class MainWindow;
 class HistoryWidget;
 class StackItem;
-struct FileLoadResult;
 class History;
 class Image;
 
@@ -232,6 +231,8 @@ public:
 	bool preventsCloseSection(
 		Fn<void()> callback,
 		const SectionShow &params) const;
+
+	void showNonPremiumLimitToast(bool download);
 
 	void dialogsCancelled();
 

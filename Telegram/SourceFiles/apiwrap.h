@@ -53,6 +53,7 @@ class Key;
 
 namespace Ui {
 struct PreparedList;
+class Show;
 } // namespace Ui
 
 namespace Api {
@@ -69,6 +70,7 @@ class SensitiveContent;
 class GlobalPrivacy;
 class UserPrivacy;
 class InviteLinks;
+class ChatLinks;
 class ViewsManager;
 class ConfirmPhone;
 class PeerPhoto;
@@ -342,6 +344,7 @@ public:
 		BusinessShortcutId id);
 	void sendMessage(MessageToSend &&message);
 	void sendBotStart(
+		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
 		PeerData *chat = nullptr,
 		const QString &startTokenForChat = QString());
@@ -384,6 +387,7 @@ public:
 	[[nodiscard]] Api::GlobalPrivacy &globalPrivacy();
 	[[nodiscard]] Api::UserPrivacy &userPrivacy();
 	[[nodiscard]] Api::InviteLinks &inviteLinks();
+	[[nodiscard]] Api::ChatLinks &chatLinks();
 	[[nodiscard]] Api::ViewsManager &views();
 	[[nodiscard]] Api::ConfirmPhone &confirmPhone();
 	[[nodiscard]] Api::PeerPhoto &peerPhoto();
@@ -703,6 +707,7 @@ private:
 	const std::unique_ptr<Api::GlobalPrivacy> _globalPrivacy;
 	const std::unique_ptr<Api::UserPrivacy> _userPrivacy;
 	const std::unique_ptr<Api::InviteLinks> _inviteLinks;
+	const std::unique_ptr<Api::ChatLinks> _chatLinks;
 	const std::unique_ptr<Api::ViewsManager> _views;
 	const std::unique_ptr<Api::ConfirmPhone> _confirmPhone;
 	const std::unique_ptr<Api::PeerPhoto> _peerPhoto;

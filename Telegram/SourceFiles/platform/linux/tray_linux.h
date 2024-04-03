@@ -67,8 +67,4 @@ private:
 
 };
 
-inline bool HasMonochromeSetting() {
-	return false;
-}
-
 } // namespace Platform

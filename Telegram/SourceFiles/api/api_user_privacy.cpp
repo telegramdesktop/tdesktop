@@ -26,7 +26,9 @@ using TLInputRules = MTPVector<MTPInputPrivacyRule>;
 using TLRules = MTPVector<MTPPrivacyRule>;
 
 TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
-	const auto collectInputUsers = [](const auto &peers) {
+	using Exceptions = UserPrivacy::Exceptions;
+	const auto collectInputUsers = [](const Exceptions &exceptions) {
+		const auto &peers = exceptions.peers;
 		auto result = QVector<MTPInputUser>();
 		result.reserve(peers.size());
 		for (const auto &peer : peers) {
@@ -36,7 +38,8 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		}
 		return result;
 	};
-	const auto collectInputChats = [](const auto &peers) {
+	const auto collectInputChats = [](const Exceptions &exceptions) {
+		const auto &peers = exceptions.peers;
 		auto result = QVector<MTPlong>();
 		result.reserve(peers.size());
 		for (const auto &peer : peers) {
@@ -47,6 +50,7 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		return result;
 	};
 
+	using Option = UserPrivacy::Option;
 	auto result = QVector<MTPInputPrivacyRule>();
 	result.reserve(kMaxRules);
 	if (!rule.ignoreAlways) {
@@ -61,6 +65,9 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 			result.push_back(
 				MTP_inputPrivacyValueAllowChatParticipants(
 					MTP_vector<MTPlong>(chats)));
+		}
+		if (rule.always.premiums && (rule.option != Option::Everyone)) {
+			result.push_back(MTP_inputPrivacyValueAllowPremium());
 		}
 	}
 	if (!rule.ignoreNever) {
@@ -78,7 +85,6 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		}
 	}
 	result.push_back([&] {
-		using Option = UserPrivacy::Option;
 		switch (rule.option) {
 		case Option::Everyone: return MTP_inputPrivacyValueAllowAll();
 		case Option::Contacts: return MTP_inputPrivacyValueAllowContacts();
@@ -101,12 +107,14 @@ UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
 	auto result = UserPrivacy::Rule();
 	auto optionSet = false;
 	const auto setOption = [&](Option option) {
-		if (optionSet) return;
+		if (optionSet) {
+			return;
+		}
 		optionSet = true;
 		result.option = option;
 	};
-	auto &always = result.always;
-	auto &never = result.never;
+	auto &always = result.always.peers;
+	auto &never = result.never.peers;
 	const auto feed = [&](const MTPPrivacyRule &rule) {
 		rule.match([&](const MTPDprivacyValueAllowAll &) {
 			setOption(Option::Everyone);
@@ -114,6 +122,8 @@ UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
 			setOption(Option::Contacts);
 		}, [&](const MTPDprivacyValueAllowCloseFriends &) {
 			setOption(Option::CloseFriends);
+		}, [&](const MTPDprivacyValueAllowPremium &) {
+			result.always.premiums = true;
 		}, [&](const MTPDprivacyValueAllowUsers &data) {
 			const auto &users = data.vusers().v;
 			always.reserve(always.size() + users.size());
@@ -188,6 +198,7 @@ MTPInputPrivacyKey KeyToTL(UserPrivacy::Key key) {
 	case Key::ProfilePhoto: return MTP_inputPrivacyKeyProfilePhoto();
 	case Key::Voices: return MTP_inputPrivacyKeyVoiceMessages();
 	case Key::About: return MTP_inputPrivacyKeyAbout();
+	case Key::Birthday: return MTP_inputPrivacyKeyBirthday();
 	}
 	Unexpected("Key in Api::UserPrivacy::KetToTL.");
 }
@@ -215,6 +226,8 @@ std::optional<UserPrivacy::Key> TLToKey(mtpTypeId type) {
 	case mtpc_inputPrivacyKeyVoiceMessages: return Key::Voices;
 	case mtpc_privacyKeyAbout:
 	case mtpc_inputPrivacyKeyAbout: return Key::About;
+	case mtpc_privacyKeyBirthday:
+	case mtpc_inputPrivacyKeyBirthday: return Key::Birthday;
 	}
 	return std::nullopt;
 }

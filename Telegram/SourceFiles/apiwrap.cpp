@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_authorizations.h"
 #include "api/api_attached_stickers.h"
 #include "api/api_blocked_peers.h"
+#include "api/api_chat_links.h"
 #include "api/api_chat_participants.h"
 #include "api/api_cloud_password.h"
 #include "api/api_hash.h"
@@ -163,6 +164,7 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _globalPrivacy(std::make_unique<Api::GlobalPrivacy>(this))
 , _userPrivacy(std::make_unique<Api::UserPrivacy>(this))
 , _inviteLinks(std::make_unique<Api::InviteLinks>(this))
+, _chatLinks(std::make_unique<Api::ChatLinks>(this))
 , _views(std::make_unique<Api::ViewsManager>(this))
 , _confirmPhone(std::make_unique<Api::ConfirmPhone>(this))
 , _peerPhoto(std::make_unique<Api::PeerPhoto>(this))
@@ -794,7 +796,7 @@ QString ApiWrap::exportDirectStoryLink(not_null<Data::Story*> story) {
 	const auto storyId = story->fullId();
 	const auto peer = story->peer();
 	const auto fallback = [&] {
-		const auto base = peer->userName();
+		const auto base = peer->username();
 		const auto story = QString::number(storyId.story);
 		const auto query = base + "/s/" + story;
 		return session().createInternalLinkFull(query);
@@ -1229,7 +1231,7 @@ void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
 		result.match([&](const MTPDmessages_peerSettings &data) {
 			_session->data().processUsers(data.vusers());
 			_session->data().processChats(data.vchats());
-			peer->setSettings(data.vsettings());
+			peer->setBarSettings(data.vsettings());
 			_requestedPeerSettings.erase(peer);
 		});
 	}).fail([=] {
@@ -3614,11 +3616,16 @@ void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
 void ApiWrap::sendShortcutMessages(
 		not_null<PeerData*> peer,
 		BusinessShortcutId id) {
+	auto ids = QVector<MTPint>();
+	auto randomIds = QVector<MTPlong>();
 	request(MTPmessages_SendQuickReplyMessages(
 		peer->input,
-		MTP_int(id)
+		MTP_int(id),
+		MTP_vector<MTPint>(ids),
+		MTP_vector<MTPlong>(randomIds)
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
+	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 
@@ -3848,13 +3855,14 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 }
 
 void ApiWrap::sendBotStart(
+		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
 		PeerData *chat,
 		const QString &startTokenForChat) {
 	Expects(bot->isBot());
 
 	if (chat && chat->isChannel() && !chat->isMegagroup()) {
-		ShowAddParticipantsError("USER_BOT", chat, { 1, bot });
+		ShowAddParticipantsError(show, "USER_BOT", chat, bot);
 		return;
 	}
 
@@ -3886,7 +3894,7 @@ void ApiWrap::sendBotStart(
 	}).fail([=](const MTP::Error &error) {
 		if (chat) {
 			const auto type = error.type();
-			ShowAddParticipantsError(type, chat, { 1, bot });
+			ShowAddParticipantsError(show, type, chat, bot);
 		}
 	}).send();
 }
@@ -4002,6 +4010,8 @@ void ApiWrap::uploadAlbumMedia(
 
 	};
 	request(MTPmessages_UploadMedia(
+		MTP_flags(0),
+		MTPstring(), // business_connection_id
 		item->history()->peer->input,
 		media
 	)).done([=](const MTPMessageMedia &result) {
@@ -4415,6 +4425,10 @@ Api::UserPrivacy &ApiWrap::userPrivacy() {
 
 Api::InviteLinks &ApiWrap::inviteLinks() {
 	return *_inviteLinks;
+}
+
+Api::ChatLinks &ApiWrap::chatLinks() {
+	return *_chatLinks;
 }
 
 Api::ViewsManager &ApiWrap::views() {

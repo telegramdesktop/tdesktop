@@ -12,8 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/facade.h"
 
 class ApiWrap;
-struct FileLoadResult;
-struct SendMediaReady;
+struct FilePrepareResult;
 
 namespace Api {
 enum class SendProgressType;
@@ -55,13 +54,12 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 
 	[[nodiscard]] FullMsgId currentUploadId() const {
-		return uploadingId;
+		return _uploadingId;
 	}
 
-	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
 	void upload(
 		const FullMsgId &msgId,
-		const std::shared_ptr<FileLoadResult> &file);
+		const std::shared_ptr<FilePrepareResult> &file);
 
 	void cancel(const FullMsgId &msgId);
 	void pause(const FullMsgId &msgId);
@@ -98,6 +96,10 @@ public:
 		return _secureFailed.events();
 	}
 
+	[[nodiscard]] rpl::producer<FullMsgId> nonPremiumDelays() const {
+		return _nonPremiumDelays.events();
+	}
+
 	void unpause();
 	void sendNext();
 	void stopSessions();
@@ -123,13 +125,14 @@ private:
 		int progress = 0);
 
 	const not_null<ApiWrap*> _api;
-	base::flat_map<mtpRequestId, QByteArray> requestsSent;
-	base::flat_map<mtpRequestId, int32> docRequestsSent;
-	base::flat_map<mtpRequestId, int32> dcMap;
-	uint32 sentSize = 0; // FileSize: Right now any file size fits 32 bit.
-	uint32 sentSizes[MTP::kUploadSessionsCount] = { 0 };
+	base::flat_map<mtpRequestId, int> _sentSizes;
+	base::flat_set<mtpRequestId> _docSentRequests;
+	base::flat_map<mtpRequestId, int> _dcIndices;
+	base::flat_set<mtpRequestId> _nonPremiumDelayed;
+	uint32 _sentTotal = 0; // FileSize: Right now any file size fits 32 bit.
+	uint32 _sentPerDc[MTP::kUploadSessionsCount] = { 0 };
 
-	FullMsgId uploadingId;
+	FullMsgId _uploadingId;
 	FullMsgId _pausedId;
 	std::map<FullMsgId, File> queue;
 	base::Timer _nextTimer, _stopSessionsTimer;
@@ -143,6 +146,7 @@ private:
 	rpl::event_stream<FullMsgId> _photoFailed;
 	rpl::event_stream<FullMsgId> _documentFailed;
 	rpl::event_stream<FullMsgId> _secureFailed;
+	rpl::event_stream<FullMsgId> _nonPremiumDelays;
 
 	rpl::lifetime _lifetime;
 

@@ -1020,3 +1020,57 @@ shortInfoBox: ShortInfoBox {
 	labeled: infoLabeled;
 	labeledOneLine: infoLabeledOneLine;
 }
+
+birthdayLabeled: FlatLabel(infoLabeled) {
+	margin: margins(0px, 0px, 0px, 0px);
+}
+birthdayLabel: FlatLabel(infoLabel) {
+	margin: margins(0px, 0px, 0px, 0px);
+}
+birthdayTodayIcon: icon {{ "menu/gift_premium", windowActiveTextFg }};
+
+inviteForbiddenUserpicsPadding: margins(10px, 10px, 10px, 0px);
+inviteForbiddenInfo: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	align: align(top);
+}
+inviteForbiddenInfoPadding: margins(32px, 10px, 32px, 4px);
+inviteForbiddenSubscribePadding: margins(16px, 12px, 16px, 16px);
+inviteForbiddenOrLabelPadding: margins(32px, 0px, 32px, 0px);
+inviteForbiddenTitle: FlatLabel(boxTitle) {
+	minWidth: 120px;
+	align: align(top);
+}
+inviteForbiddenTitlePadding: margins(32px, 4px, 32px, 0px);
+inviteForbiddenLockBg: dialogsUnreadBgMuted;
+inviteForbiddenLockIcon: icon {{ "emoji/premium_lock", dialogsUnreadFg }};
+
+collectibleIconDiameter: 72px;
+collectibleIcon: 64px;
+collectibleIconPadding: margins(24px, 32px, 24px, 12px);
+collectibleHeader: FlatLabel(boxTitle) {
+	minWidth: 120px;
+	maxHeight: 0px;
+	align: align(top);
+}
+collectibleHeaderPadding: margins(24px, 16px, 24px, 12px);
+collectibleOwnerPadding: margins(24px, 4px, 24px, 8px);
+collectibleInfo: inviteForbiddenInfo;
+collectibleInfoPadding: margins(24px, 12px, 24px, 12px);
+collectibleInfoTonMargins: margins(0px, 3px, 0px, 0px);
+collectibleMore: RoundButton(defaultActiveButton) {
+	height: 36px;
+	textTop: 9px;
+	radius: 6px;
+}
+collectibleMorePadding: margins(24px, 12px, 24px, 0px);
+collectibleCopy: RoundButton(defaultLightButton) {
+	height: 36px;
+	textTop: 9px;
+	radius: 6px;
+}
+collectibleBox: Box(defaultBox) {
+	buttonPadding: margins(24px, 12px, 24px, 12px);
+	buttonHeight: 36px;
+	button: collectibleCopy;
+}

@@ -574,10 +574,11 @@ historyFastShareSize: 31px;
 historyFastShareLeft: 13px;
 historyFastShareBottom: 5px;
 historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
-historyGoToOriginalIcon: icon {{ "fast_to_original", msgServiceFg, point(1px, 0px) }};
+historyGoToOriginalIcon: icon {{ "filled_go_to_message", msgServiceFg, point(0px, 0px) }};
 historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
 historyFastCloseSize: 30px;
 historyFastCloseIcon: icon {{ "box_button_close", msgServiceFg }};
+historyFastMoreIcon: icon {{ "title_menu_dots", msgServiceFg, point(0px, -2px)  }};
 historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
 historyFastTranscribeLock: icon {{ "chat/mini_lock", msgServiceFg }};
 historyFastTranscribeLockPos: point(18px, 13px);
@@ -601,6 +602,7 @@ historyPsaForwardPalette: TextPalette(defaultTextPalette) {
 
 webPageTitleFont: semiboldFont;
 webPageTitleStyle: semiboldTextStyle;
+webPageSponsoredHintFont: font(10px);
 webPageDescriptionFont: normalFont;
 webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoDelta: 8px;
@@ -923,7 +925,7 @@ msgServiceGiftBoxButtonPadding: margins(2px, 0px, 2px, 0px);
 msgServiceGiftBoxButtonMargins: margins(0px, 13px, 0px, 17px);
 msgServiceGiftBoxTitlePadding: margins(0px, 5px, 0px, 2px);
 msgServiceGiftBoxStickerTop: -19px;
-msgServiceGiftBoxStickerSize: size(140px, 140px);
+msgServiceGiftBoxStickerSize: 140px;
 
 historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
@@ -1001,6 +1003,7 @@ storyMentionButtonSkip: 5px;
 
 chatGiveawayWidth: 292px;
 chatGiveawayStickerTop: -16px;
+chatGiveawayStickerPadding: margins(14px, -2px, 14px, 14px);
 chatGiveawayWinnersTopSkip: 25px;
 chatGiveawayBadgeFont: font(12px bold);
 chatGiveawayBadgeTop: 106px;
@@ -1061,3 +1064,9 @@ boostsMessageIconPadding: margins(0px, 2px, 0px, 0px);
 
 historyIvIcon: icon{{ "boosts/boost_mini2", windowFg }};
 historyIvIconPadding: margins(2px, 2px, 2px, 0px);
+
+chatIntroStickerSize: 96px;
+chatIntroWidth: 224px;
+chatIntroTitleMargin: margins(11px, 16px, 11px, 4px);
+chatIntroMargin: margins(11px, 0px, 11px, 0px);
+chatIntroStickerPadding: margins(10px, 8px, 10px, 16px);

@@ -32,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "window/window_connecting_widget.h"
 #include "window/window_top_bar_wrap.h"
 #include "window/notifications_manager.h"
@@ -79,7 +81,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_panel_controller.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "main/main_account.h"
+#include "main/main_app_config.h"
+#include "settings/settings_premium.h"
 #include "support/support_helper.h"
 #include "storage/storage_user_photos.h"
 #include "styles/style_dialogs.h"
@@ -1870,6 +1873,63 @@ bool MainWidget::preventsCloseSection(
 	return !params.thirdColumn
 		&& (params.activation != anim::activation::background)
 		&& preventsCloseSection(std::move(callback));
+}
+
+void MainWidget::showNonPremiumLimitToast(bool download) {
+	const auto parent = _mainSection
+		? ((QWidget*)_mainSection.data())
+		: (_dialogs && _history->isHidden())
+		? ((QWidget*)_dialogs.get())
+		: ((QWidget*)_history.get());
+	const auto link = download
+		? tr::lng_limit_download_subscribe_link(tr::now)
+		: tr::lng_limit_upload_subscribe_link(tr::now);
+	const auto better = session().appConfig().get<double>(download
+		? u"upload_premium_speedup_download"_q
+		: u"upload_premium_speedup_upload"_q, 10.);
+	const auto percent = int(base::SafeRound(better * 100.));
+	if (percent <= 100) {
+		return;
+	}
+	const auto increase = ((percent % 100) || percent <= 400)
+		? (download
+			? tr::lng_limit_download_increase_speed
+			: tr::lng_limit_upload_increase_speed)(
+				tr::now,
+				lt_percent,
+				TextWithEntities{ QString::number(percent - 100) },
+				Ui::Text::RichLangValue)
+		: (download
+			? tr::lng_limit_download_increase_times
+			: tr::lng_limit_upload_increase_times)(
+				tr::now,
+				lt_count,
+				percent / 100,
+				Ui::Text::RichLangValue);
+	auto text = (download
+		? tr::lng_limit_download_subscribe
+		: tr::lng_limit_upload_subscribe)(
+			tr::now,
+			lt_link,
+			Ui::Text::Link(Ui::Text::Bold(link)),
+			lt_increase,
+			TextWithEntities{ increase },
+			Ui::Text::RichLangValue);
+	auto filter = [=](ClickHandlerPtr handler, Qt::MouseButton button) {
+		Settings::ShowPremium(
+			controller(),
+			download ? u"download_limit"_q : u"upload_limit"_q);
+		return false;
+	};
+	Ui::Toast::Show(parent, {
+		.title = (download
+			? tr::lng_limit_download_title
+			: tr::lng_limit_upload_title)(tr::now),
+		.text = std::move(text),
+		.duration = 5 * crl::time(1000),
+		.slideSide = RectPart::Top,
+		.filter = std::move(filter),
+	});
 }
 
 void MainWidget::showBackFromStack(

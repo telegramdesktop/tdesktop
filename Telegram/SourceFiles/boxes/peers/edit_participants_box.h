@@ -17,6 +17,10 @@ class PeerListStories;
 struct ChatAdminRightsInfo;
 struct ChatRestrictionsInfo;
 
+namespace Ui {
+class Show;
+} // namespace Ui
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
@@ -29,6 +33,7 @@ Fn<void(
 	ChatAdminRightsInfo oldRights,
 	ChatAdminRightsInfo newRights,
 	const QString &rank)> SaveAdminCallback(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		Fn<void(

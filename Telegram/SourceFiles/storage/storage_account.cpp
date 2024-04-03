@@ -44,7 +44,7 @@ using Database = Cache::Database;
 constexpr auto kDelayedWriteTimeout = crl::time(1000);
 
 constexpr auto kStickersVersionTag = quint32(-1);
-constexpr auto kStickersSerializeVersion = 3;
+constexpr auto kStickersSerializeVersion = 4;
 constexpr auto kMaxSavedStickerSetsCount = 1000;
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
 
@@ -1683,7 +1683,8 @@ void Account::writeStickerSet(
 			<< qint32(count)
 			<< qint32(set.flags)
 			<< qint32(set.installDate)
-			<< quint64(set.thumbnailDocumentId);
+			<< quint64(set.thumbnailDocumentId)
+			<< qint32(set.thumbnailType());
 		Serialize::writeImageLocation(stream, set.thumbnailLocation());
 	};
 	if (set.flags & SetFlag::NotLoaded) {
@@ -1752,11 +1753,23 @@ void Account::writeStickerSets(
 			continue;
 		}
 
-		// id + accessHash + hash + title + shortName + stickersCount + flags + installDate
+		// id
+		// + accessHash
+		// + hash
+		// + title
+		// + shortName
+		// + stickersCount
+		// + flags
+		// + installDate
+		// + thumbnailDocumentId
+		// + thumbnailType
+		// + thumbnailLocation
 		size += sizeof(quint64) * 3
 			+ Serialize::stringSize(raw->title)
 			+ Serialize::stringSize(raw->shortName)
 			+ sizeof(qint32) * 3
+			+ sizeof(quint64)
+			+ sizeof(qint32)
 			+ Serialize::imageLocationSize(raw->thumbnailLocation());
 		if (raw->flags & SetFlag::NotLoaded) {
 			continue;
@@ -1838,8 +1851,7 @@ void Account::readStickerSets(
 	quint32 versionTag = 0;
 	qint32 version = 0;
 	stickers.stream >> versionTag >> version;
-	if (versionTag != kStickersVersionTag
-		|| (version != 2 && version != kStickersSerializeVersion)) {
+	if (versionTag != kStickersVersionTag || version < 2) {
 		// Old data, without sticker set thumbnails.
 		return failed();
 	}
@@ -1858,6 +1870,7 @@ void Account::readStickerSets(
 		qint32 setInstallDate = 0;
 		Data::StickersSetFlags setFlags = 0;
 		qint32 setFlagsValue = 0;
+		qint32 setThumbnailType = qint32(StickerType::Webp);
 		ImageLocation setThumbnail;
 
 		stickers.stream
@@ -1871,6 +1884,14 @@ void Account::readStickerSets(
 			>> setInstallDate;
 		if (version > 2) {
 			stickers.stream >> setThumbnailDocumentId;
+			if (version > 3) {
+				stickers.stream >> setThumbnailType;
+			}
+		}
+
+		constexpr auto kLegacyFlagWebm = (1 << 8);
+		if ((version < 4) && (setFlagsValue & kLegacyFlagWebm)) {
+			setThumbnailType = qint32(StickerType::Webm);
 		}
 		const auto thumbnail = Serialize::readImageLocation(
 			stickers.version,
@@ -1903,7 +1924,8 @@ void Account::readStickerSets(
 		}
 
 		auto it = sets.find(setId);
-		if (it == sets.cend()) {
+		auto settingSet = (it == sets.cend());
+		if (settingSet) {
 			// We will set this flags from order lists when reading those stickers.
 			setFlags &= ~(SetFlag::Installed | SetFlag::Featured);
 			it = sets.emplace(setId, std::make_unique<Data::StickersSet>(
@@ -1916,8 +1938,6 @@ void Account::readStickerSets(
 				0,
 				setFlags,
 				setInstallDate)).first;
-			it->second->setThumbnail(
-				ImageWithLocation{ .location = setThumbnail });
 			it->second->thumbnailDocumentId = setThumbnailDocumentId;
 		}
 		const auto set = it->second.get();
@@ -2013,6 +2033,26 @@ void Account::readStickerSets(
 					set->emoji[emoji] = std::move(pack);
 				}
 			}
+		}
+
+		if (settingSet) {
+			if (version < 4
+				&& setThumbnailType == qint32(StickerType::Webp)
+				&& !set->stickers.empty()
+				&& set->stickers.front()->sticker()) {
+				const auto first = set->stickers.front();
+				setThumbnailType = qint32(first->sticker()->type);
+			}
+			const auto thumbType = [&] {
+				switch (setThumbnailType) {
+				case qint32(StickerType::Webp): return StickerType::Webp;
+				case qint32(StickerType::Tgs): return StickerType::Tgs;
+				case qint32(StickerType::Webm): return StickerType::Webm;
+				}
+				return StickerType::Webp;
+			}();
+			set->setThumbnail(
+				ImageWithLocation{ .location = setThumbnail }, thumbType);
 		}
 	}
 

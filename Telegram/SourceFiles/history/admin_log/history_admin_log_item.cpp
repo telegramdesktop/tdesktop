@@ -121,6 +121,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTPPeer(), // saved_peer_id
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
 			MTP_long(data.vvia_bot_id().value_or_empty()),
+			MTP_long(data.vvia_business_bot_id().value_or_empty()),
 			MTPMessageReplyHeader(),
 			MTP_int(newDate),
 			data.vmessage(),
@@ -495,7 +496,7 @@ auto GenerateParticipantString(
 			data,
 		});
 	}
-	const auto username = peer->userName();
+	const auto username = peer->username();
 	if (username.isEmpty()) {
 		return name;
 	}

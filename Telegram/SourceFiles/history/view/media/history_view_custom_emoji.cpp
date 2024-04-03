@@ -128,7 +128,9 @@ std::unique_ptr<Sticker> CustomEmoji::createStickerPart(
 		_parent,
 		document,
 		skipPremiumEffect);
-	result->setCustomEmojiPart(_singleSize, _cachingTag);
+	result->initSize(_singleSize);
+	result->setCustomCachingTag(_cachingTag);
+	result->setCustomEmojiPart();
 	return result;
 }
 

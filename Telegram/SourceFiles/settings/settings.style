@@ -110,6 +110,17 @@ settingsBusinessIconReplies: icon {{ "settings/premium/business/business_quick",
 settingsBusinessIconGreeting: icon {{ "settings/premium/status", settingsIconFg }};
 settingsBusinessIconAway: icon {{ "settings/premium/business/business_away", settingsIconFg }};
 settingsBusinessIconChatbots: icon {{ "settings/premium/business/business_chatbots", settingsIconFg }};
+settingsBusinessIconChatIntro: icon {{ "settings/premium/business/business_intro", settingsIconFg }};
+settingsBusinessIconChatLinks: icon {{ "settings/premium/business/business_links", settingsIconFg }};
+
+settingsBusinessPromoLocation: icon {{ "settings/premium/promo/business_location", premiumButtonBg1 }};
+settingsBusinessPromoHours: icon {{ "settings/premium/promo/business_hours", premiumButtonBg1 }};
+settingsBusinessPromoReplies: icon {{ "settings/premium/promo/business_quickreply", premiumButtonBg1 }};
+settingsBusinessPromoGreeting: icon {{ "settings/premium/promo/business_greeting", premiumButtonBg1 }};
+settingsBusinessPromoAway: icon {{ "settings/premium/promo/business_away", premiumButtonBg1 }};
+settingsBusinessPromoChatbots: icon {{ "settings/premium/promo/business_chatbot", premiumButtonBg1 }};
+settingsBusinessPromoChatIntro: icon {{ "settings/premium/promo/business_intro", premiumButtonBg1 }};
+settingsBusinessPromoChatLinks: icon {{ "settings/premium/promo/business_chatlink", premiumButtonBg1 }};
 
 settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(semiboldTextStyle) {
@@ -150,6 +161,11 @@ settingsPrivacyOption: Checkbox(settingsCheckbox) {
 settingsPrivacySecurityPadding: 12px;
 settingsPrivacySkip: 14px;
 settingsPrivacySkipTop: 4px;
+settingsPrivacyPremium: icon{{ "profile_premium", premiumButtonFg }};
+
+settingsPrivacyAddBirthday: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+}
 
 settingsCloudPasswordIconSize: 100px;
 
@@ -638,3 +654,28 @@ settingsChatbotsNotFound: FlatLabel(defaultFlatLabel) {
 }
 settingsChatbotsDeleteIcon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
 settingsChatbotsDeleteIconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};
+
+settingsChatIntroField: InputField(defaultMultiSelectSearchField) {
+	textMargins: margins(2px, 0px, 32px, 0px);
+}
+settingsChatIntroFieldMargins: margins(20px, 15px, 20px, 8px);
+
+settingsChatLinkEmojiTop: 2px;
+settingsChatLinkField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 8px, 2px, 8px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 32px;
+
+	font: normalFont;
+}

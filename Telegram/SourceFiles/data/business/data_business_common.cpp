@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/business/data_business_common.h"
 
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 
@@ -51,16 +52,13 @@ constexpr auto kInNextDayMax = WorkingInterval::kInNextDayMax;
 	return intervals;
 }
 
-} // namespace
-
-MTPInputBusinessRecipients ToMTP(
-		const BusinessRecipients &data) {
-	using Flag = MTPDinputBusinessRecipients::Flag;
-	using Type = BusinessChatType;
+template <typename Flag>
+auto RecipientsFlags(const BusinessRecipients &data) {
 	const auto &chats = data.allButExcluded
 		? data.excluded
 		: data.included;
-	const auto flags = Flag()
+	using Type = BusinessChatType;
+	return Flag()
 		| ((chats.types & Type::NewChats) ? Flag::f_new_chats : Flag())
 		| ((chats.types & Type::ExistingChats)
 			? Flag::f_existing_chats
@@ -69,12 +67,30 @@ MTPInputBusinessRecipients ToMTP(
 		| ((chats.types & Type::NonContacts) ? Flag::f_non_contacts : Flag())
 		| (chats.list.empty() ? Flag() : Flag::f_users)
 		| (data.allButExcluded ? Flag::f_exclude_selected : Flag());
-	const auto &users = data.allButExcluded
-		? data.excluded
-		: data.included;
+}
+
+} // namespace
+
+MTPInputBusinessRecipients ForMessagesToMTP(const BusinessRecipients &data) {
+	using Flag = MTPDinputBusinessRecipients::Flag;
+	const auto &chats = data.allButExcluded ? data.excluded : data.included;
 	return MTP_inputBusinessRecipients(
-		MTP_flags(flags),
-		MTP_vector_from_range(users.list
+		MTP_flags(RecipientsFlags<Flag>(data)),
+		MTP_vector_from_range(chats.list
+			| ranges::views::transform(&UserData::inputUser)));
+}
+
+MTPInputBusinessBotRecipients ForBotsToMTP(const BusinessRecipients &data) {
+	using Flag = MTPDinputBusinessBotRecipients::Flag;
+	const auto &chats = data.allButExcluded ? data.excluded : data.included;
+	return MTP_inputBusinessBotRecipients(
+		MTP_flags(RecipientsFlags<Flag>(data)
+			| ((data.allButExcluded || data.excluded.empty())
+				? Flag()
+				: Flag::f_exclude_users)),
+		MTP_vector_from_range(chats.list
+			| ranges::views::transform(&UserData::inputUser)),
+		MTP_vector_from_range(data.excluded.list
 			| ranges::views::transform(&UserData::inputUser)));
 }
 
@@ -103,9 +119,44 @@ BusinessRecipients FromMTP(
 	return result;
 }
 
-[[nodiscard]] BusinessDetails FromMTP(
+BusinessRecipients FromMTP(
+		not_null<Session*> owner,
+		const MTPBusinessBotRecipients &recipients) {
+	using Type = BusinessChatType;
+
+	const auto &data = recipients.data();
+	auto result = BusinessRecipients{
+		.allButExcluded = data.is_exclude_selected(),
+	};
+	auto &chats = result.allButExcluded
+		? result.excluded
+		: result.included;
+	chats.types = Type()
+		| (data.is_new_chats() ? Type::NewChats : Type())
+		| (data.is_existing_chats() ? Type::ExistingChats : Type())
+		| (data.is_contacts() ? Type::Contacts : Type())
+		| (data.is_non_contacts() ? Type::NonContacts : Type());
+	if (const auto users = data.vusers()) {
+		for (const auto &userId : users->v) {
+			chats.list.push_back(owner->user(UserId(userId.v)));
+		}
+	}
+	if (!result.allButExcluded) {
+		if (const auto excluded = data.vexclude_users()) {
+			for (const auto &userId : excluded->v) {
+				result.excluded.list.push_back(
+					owner->user(UserId(userId.v)));
+			}
+		}
+	}
+	return result;
+}
+
+BusinessDetails FromMTP(
+		not_null<Session*> owner,
 		const tl::conditional<MTPBusinessWorkHours> &hours,
-		const tl::conditional<MTPBusinessLocation> &location) {
+		const tl::conditional<MTPBusinessLocation> &location,
+		const tl::conditional<MTPBusinessIntro> &intro) {
 	auto result = BusinessDetails();
 	if (hours) {
 		const auto &data = hours->data();
@@ -128,6 +179,17 @@ BusinessRecipients FromMTP(
 				result.location.point = LocationPoint(data);
 			}, [&](const MTPDgeoPointEmpty &) {
 			});
+		}
+	}
+	if (intro) {
+		const auto &data = intro->data();
+		result.intro.title = qs(data.vtitle());
+		result.intro.description = qs(data.vdescription());
+		if (const auto document = data.vsticker()) {
+			result.intro.sticker = owner->processDocument(*document);
+			if (!result.intro.sticker->sticker()) {
+				result.intro.sticker = nullptr;
+			}
 		}
 	}
 	return result;

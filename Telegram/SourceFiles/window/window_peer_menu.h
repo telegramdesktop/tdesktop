@@ -18,6 +18,7 @@ namespace Ui {
 class RpWidget;
 class BoxContent;
 class GenericBox;
+class Show;
 } // namespace Ui
 
 namespace Data {
@@ -109,7 +110,9 @@ void PeerMenuBlockUserBox(
 	not_null<PeerData*> peer,
 	std::variant<v::null_t, bool> suggestReport,
 	std::variant<v::null_t, ClearChat, ClearReply> suggestClear);
-void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user);
+void PeerMenuUnblockUserWithBotRestart(
+	std::shared_ptr<Ui::Show> show,
+	not_null<UserData*> user);
 
 void BlockSenderFromRepliesBox(
 	not_null<Ui::GenericBox*> box,

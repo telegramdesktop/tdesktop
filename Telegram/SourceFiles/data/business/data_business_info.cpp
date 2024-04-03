@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/business/data_business_common.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
@@ -49,14 +50,14 @@ namespace {
 		MTP_flags(data.offlineOnly ? Flag::f_offline_only : Flag()),
 		MTP_int(data.shortcutId),
 		ToMTP(data.schedule),
-		ToMTP(data.recipients));
+		ForMessagesToMTP(data.recipients));
 }
 
 [[nodiscard]] MTPInputBusinessGreetingMessage ToMTP(
 		const GreetingSettings &data) {
 	return MTP_inputBusinessGreetingMessage(
 		MTP_int(data.shortcutId),
-		ToMTP(data.recipients),
+		ForMessagesToMTP(data.recipients),
 		MTP_int(data.noActivityDays));
 }
 
@@ -92,6 +93,40 @@ void BusinessInfo::saveWorkingHours(
 	}).send();
 
 	details.hours = std::move(data);
+	session->user()->setBusinessDetails(std::move(details));
+}
+
+void BusinessInfo::saveChatIntro(ChatIntro data, Fn<void(QString)> fail) {
+	const auto session = &_owner->session();
+	auto details = session->user()->businessDetails();
+	const auto &was = details.intro;
+	if (was == data) {
+		return;
+	} else {
+		const auto session = &_owner->session();
+		using Flag = MTPaccount_UpdateBusinessIntro::Flag;
+		session->api().request(MTPaccount_UpdateBusinessIntro(
+			MTP_flags(data ? Flag::f_intro : Flag()),
+			MTP_inputBusinessIntro(
+				MTP_flags(data.sticker
+					? MTPDinputBusinessIntro::Flag::f_sticker
+					: MTPDinputBusinessIntro::Flag()),
+				MTP_string(data.title),
+				MTP_string(data.description),
+				(data.sticker
+					? data.sticker->mtpInput()
+					: MTP_inputDocumentEmpty()))
+		)).fail([=](const MTP::Error &error) {
+			auto details = session->user()->businessDetails();
+			details.intro = was;
+			session->user()->setBusinessDetails(std::move(details));
+			if (fail) {
+				fail(error.type());
+			}
+		}).send();
+	}
+
+	details.intro = std::move(data);
 	session->user()->setBusinessDetails(std::move(details));
 }
 

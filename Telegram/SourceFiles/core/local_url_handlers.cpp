@@ -21,17 +21,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "boxes/background_preview_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/boxes/edit_birthday_box.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
+#include "boxes/edit_privacy_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/sessions_box.h"
 #include "boxes/language_box.h"
 #include "passport/passport_form_controller.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "data/data_session.h"
-#include "data/data_document.h"
+#include "data/data_birthday.h"
 #include "data/data_channel.h"
+#include "data/data_document.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
 #include "window/window_session_controller.h"
@@ -44,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_global_ttl.h"
 #include "settings/settings_folders.h"
 #include "settings/settings_main.h"
+#include "settings/settings_privacy_controllers.h"
 #include "settings/settings_privacy_security.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_premium.h"
@@ -63,6 +69,133 @@ namespace Core {
 namespace {
 
 using Match = qthelp::RegularExpressionMatch;
+
+class PersonalChannelController final : public PeerListController {
+public:
+	explicit PersonalChannelController(
+		not_null<Window::SessionController*> window);
+	~PersonalChannelController();
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	[[nodiscard]] rpl::producer<not_null<ChannelData*>> chosen() const;
+
+private:
+	const not_null<Window::SessionController*> _window;
+	rpl::event_stream<not_null<ChannelData*>> _chosen;
+	mtpRequestId _requestId = 0;
+
+};
+
+PersonalChannelController::PersonalChannelController(
+	not_null<Window::SessionController*> window)
+: _window(window) {
+}
+
+PersonalChannelController::~PersonalChannelController() {
+	if (_requestId) {
+		_window->session().api().request(_requestId).cancel();
+	}
+}
+
+Main::Session &PersonalChannelController::session() const {
+	return _window->session();
+}
+
+void PersonalChannelController::prepare() {
+	setDescription(object_ptr<Ui::FlatLabel>(
+		nullptr,
+		tr::lng_contacts_loading(),
+		computeListSt().about));
+
+	using Flag = MTPchannels_GetAdminedPublicChannels::Flag;
+	_requestId = _window->session().api().request(
+		MTPchannels_GetAdminedPublicChannels(
+			MTP_flags(Flag::f_for_personal))
+	).done([=](const MTPmessages_Chats &result) {
+		_requestId = 0;
+
+		setDescription(nullptr);
+		const auto &chats = result.match([](const auto &data) {
+			return data.vchats().v;
+		});
+		const auto owner = &_window->session().data();
+		for (const auto &chat : chats) {
+			if (const auto peer = owner->processChat(chat)) {
+				const auto rowId = peer->id.value;
+				const auto channel = peer->asChannel();
+				if (channel && !delegate()->peerListFindRow(rowId)) {
+					auto row = std::make_unique<PeerListRow>(peer);
+					row->setCustomStatus(tr::lng_chat_status_subscribers(
+						tr::now,
+						lt_count,
+						channel->membersCount()));
+					delegate()->peerListAppendRow(std::move(row));
+				}
+			}
+		}
+		if (!delegate()->peerListFullRowsCount()) {
+			auto none = rpl::combine(
+				tr::lng_settings_channel_no_yet(Ui::Text::WithEntities),
+				tr::lng_settings_channel_start()
+			) | rpl::map([](TextWithEntities &&text, const QString &link) {
+				return text.append('\n').append(Ui::Text::Link(link));
+			});
+			auto label = object_ptr<Ui::FlatLabel>(
+				nullptr,
+				std::move(none),
+				computeListSt().about);
+			label->setClickHandlerFilter([=](const auto &...) {
+				_window->showNewChannel();
+				return false;
+			});
+			setDescription(std::move(label));
+		}
+		delegate()->peerListRefreshRows();
+	}).send();
+}
+
+void PersonalChannelController::rowClicked(not_null<PeerListRow*> row) {
+	if (const auto channel = row->peer()->asChannel()) {
+		_chosen.fire_copy(channel);
+	}
+}
+
+auto PersonalChannelController::chosen() const
+-> rpl::producer<not_null<ChannelData*>> {
+	return _chosen.events();
+}
+
+void SavePersonalChannel(
+		not_null<Window::SessionController*> window,
+		ChannelData *channel) {
+	const auto self = window->session().user();
+	const auto history = channel
+		? channel->owner().history(channel->id).get()
+		: nullptr;
+	const auto item = history
+		? history->lastServerMessage()
+		: nullptr;
+	const auto channelId = channel
+		? peerToChannel(channel->id)
+		: ChannelId();
+	const auto messageId = item ? item->id : MsgId();
+	if (self->personalChannelId() != channelId
+		|| (messageId
+			&& self->personalChannelMessageId() != messageId)) {
+		self->setPersonalChannel(channelId, messageId);
+		self->session().api().request(MTPaccount_UpdatePersonalChannel(
+			channel ? channel->inputChannel : MTP_inputChannelEmpty()
+		)).done(crl::guard(window, [=] {
+			window->showToast((channel
+				? tr::lng_settings_channel_saved
+				: tr::lng_settings_channel_removed)(tr::now));
+		})).fail(crl::guard(window, [=](const MTP::Error &error) {
+			window->showToast(u"Error: "_q + error.type());
+		})).send();
+	}
+}
 
 bool JoinGroupByHash(
 		Window::SessionController *controller,
@@ -669,6 +802,129 @@ bool ShowSearchTagsPromo(
 	return true;
 }
 
+bool ShowEditBirthday(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto user = controller->session().user();
+	const auto save = [=](Data::Birthday result) {
+		user->setBirthday(result);
+
+		using Flag = MTPaccount_UpdateBirthday::Flag;
+		using BFlag = MTPDbirthday::Flag;
+		user->session().api().request(MTPaccount_UpdateBirthday(
+			MTP_flags(result ? Flag::f_birthday : Flag()),
+			MTP_birthday(
+				MTP_flags(result.year() ? BFlag::f_year : BFlag()),
+				MTP_int(result.day()),
+				MTP_int(result.month()),
+				MTP_int(result.year()))
+		)).done(crl::guard(controller, [=] {
+			controller->showToast(tr::lng_settings_birthday_saved(tr::now));
+		})).fail(crl::guard(controller, [=](const MTP::Error &error) {
+			const auto type = error.type();
+			controller->showToast(type.startsWith(u"FLOOD_WAIT_"_q)
+				? tr::lng_flood_error(tr::now)
+				: (u"Error: "_q + error.type()));
+		})).handleFloodErrors().send();
+	};
+	controller->show(Box(
+		Ui::EditBirthdayBox,
+		user->birthday(),
+		save));
+	return true;
+}
+
+bool ShowEditBirthdayPrivacy(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	auto syncLifetime = controller->session().api().userPrivacy().value(
+		Api::UserPrivacy::Key::Birthday
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=](const Api::UserPrivacy::Rule &value) {
+		controller->show(Box<EditPrivacyBox>(
+			controller,
+			std::make_unique<::Settings::BirthdayPrivacyController>(),
+			value));
+	});
+	return true;
+}
+
+bool ShowEditPersonalChannel(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+
+	auto listController = std::make_unique<PersonalChannelController>(
+		controller);
+	const auto rawController = listController.get();
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->setTitle(tr::lng_settings_channel_label());
+		box->addButton(tr::lng_box_done(), [=] {
+			box->closeBox();
+		});
+
+		const auto save = [=](ChannelData *channel) {
+			SavePersonalChannel(controller, channel);
+			box->closeBox();
+		};
+
+		rawController->chosen(
+		) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
+			save(channel);
+		}, box->lifetime());
+
+		if (controller->session().user()->personalChannelId()) {
+			box->addLeftButton(tr::lng_settings_channel_remove(), [=] {
+				save(nullptr);
+			});
+		}
+	};
+	controller->show(Box<PeerListBox>(
+		std::move(listController),
+		std::move(initBox)));
+	return true;
+}
+
+bool ShowCollectiblePhone(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto phone = match->captured(1);
+	const auto peerId = PeerId(match->captured(2).toULongLong());
+	controller->resolveCollectible(
+		peerId,
+		phone.startsWith('+') ? phone : '+' + phone);
+	return true;
+}
+
+bool ShowCollectibleUsername(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto username = match->captured(1);
+	const auto peerId = PeerId(match->captured(2).toULongLong());
+	controller->resolveCollectible(peerId, username);
+	return true;
+}
+
 void ExportTestChatTheme(
 		not_null<Window::SessionController*> controller,
 		not_null<const Data::CloudTheme*> theme) {
@@ -919,6 +1175,24 @@ bool ResolveBoost(
 	return true;
 }
 
+bool ResolveChatLink(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto myContext = context.value<ClickHandlerContext>();
+	const auto slug = match->captured(1);
+	controller->window().activate();
+	controller->showPeerByLink(Window::PeerByLinkInfo{
+		.chatLinkSlug = match->captured(1),
+		.clickFromMessageId = myContext.itemId,
+		.clickFromAttachBotWebviewUrl = myContext.attachBotWebviewUrl,
+	});
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -988,11 +1262,11 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolveTestChatTheme,
 		},
 		{
-			u"invoice/?\\?(.+)(#|$)"_q,
+			u"^invoice/?\\?(.+)(#|$)"_q,
 			ResolveInvoice,
 		},
 		{
-			u"premium_offer/?(\\?.+)?(#|$)"_q,
+			u"^premium_offer/?(\\?.+)?(#|$)"_q,
 			ResolvePremiumOffer,
 		},
 		{
@@ -1006,6 +1280,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^boost/?\\?(.+)(#|$)"_q,
 			ResolveBoost,
+		},
+		{
+			u"^message/?\\?slug=([a-zA-Z0-9\\.\\_]+)(&|$)"_q,
+			ResolveChatLink
 		},
 		{
 			u"^([^\\?]+)(\\?|#|$)"_q,
@@ -1034,8 +1312,28 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 			CopyPeerId
 		},
 		{
-			u"about_tags"_q,
+			u"^about_tags$"_q,
 			ShowSearchTagsPromo
+		},
+		{
+			u"^edit_birthday$"_q,
+			ShowEditBirthday,
+		},
+		{
+			u"^edit_privacy_birthday$"_q,
+			ShowEditBirthdayPrivacy,
+		},
+		{
+			u"^edit_personal_channel$"_q,
+			ShowEditPersonalChannel,
+		},
+		{
+			u"^collectible_phone/([\\+0-9\\-\\s]+)@([0-9]+)$"_q,
+			ShowCollectiblePhone,
+		},
+		{
+			u"^collectible_username/([a-zA-Z0-9\\-\\_\\.]+)@([0-9]+)$"_q,
+			ShowCollectibleUsername,
 		},
 	};
 	return Result;
@@ -1110,6 +1408,9 @@ QString TryConvertUrlToLocal(QString url) {
 				? "gradient"
 				: "slug";
 			return u"tg://bg?"_q + type + '=' + bg + (params.isEmpty() ? QString() : '&' + params);
+		} else if (const auto chatlinkMatch = regex_match(u"^m/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
+			const auto slug = chatlinkMatch->captured(1);
+			return u"tg://message?slug="_q + slug;
 		} else if (const auto privateMatch = regex_match(u"^"
 			"c/(\\-?\\d+)"
 			"("

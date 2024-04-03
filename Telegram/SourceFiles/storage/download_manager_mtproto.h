@@ -57,6 +57,13 @@ public:
 	void checkSendNextAfterSuccess(MTP::DcId dcId);
 	[[nodiscard]] int chooseSessionIndex(MTP::DcId dcId) const;
 
+	void notifyNonPremiumDelay(DocumentId id) {
+		_nonPremiumDelays.fire_copy(id);
+	}
+	[[nodiscard]] rpl::producer<DocumentId> nonPremiumDelays() const {
+		return _nonPremiumDelays.events();
+	}
+
 private:
 	class Queue final {
 	public:
@@ -109,6 +116,7 @@ private:
 	const not_null<ApiWrap*> _api;
 
 	rpl::event_stream<> _taskFinished;
+	rpl::event_stream<DocumentId> _nonPremiumDelays;
 
 	base::flat_map<MTP::DcId, DcBalanceData> _balanceData;
 	base::Timer _resetGenerationTimer;
@@ -253,6 +261,8 @@ private:
 		int64 offset,
 		bytes::const_span buffer);
 
+	void subscribeToNonPremiumLimit();
+
 	const not_null<DownloadManagerMtproto*> _owner;
 	const MTP::DcId _dcId = 0;
 
@@ -270,6 +280,8 @@ private:
 	base::flat_map<int64, CdnFileHash> _cdnFileHashes;
 	base::flat_map<RequestData, QByteArray> _cdnUncheckedParts;
 	mtpRequestId _cdnHashesRequestId = 0;
+
+	rpl::lifetime _nonPremiumLimitSubscription;
 
 };
 

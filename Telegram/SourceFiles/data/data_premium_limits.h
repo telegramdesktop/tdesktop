@@ -101,6 +101,7 @@ public:
 	[[nodiscard]] int channelEmojiStatusLevelMin() const;
 	[[nodiscard]] int channelWallpaperLevelMin() const;
 	[[nodiscard]] int channelCustomWallpaperLevelMin() const;
+	[[nodiscard]] int channelRestrictSponsoredLevelMin() const;
 	[[nodiscard]] int groupTranscribeLevelMin() const;
 	[[nodiscard]] int groupEmojiStickersLevelMin() const;
 	[[nodiscard]] int groupProfileBgIconLevelMin() const;

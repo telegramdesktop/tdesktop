@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/widgets/point_details_widget.h"
 
+#include "data/data_channel_earn.h" // Data::kEarnMultiplier.
+#include "info/channel_statistics/earn/earn_format.h"
+#include "lang/lang_keys.h"
 #include "statistics/statistics_common.h"
 #include "statistics/statistics_format_values.h"
 #include "statistics/view/stack_linear_chart_common.h"
@@ -132,7 +135,8 @@ PointDetailsWidget::PointDetailsWidget(
 , _zoomEnabled(zoomEnabled)
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
-, _headerStyle(st::statisticsDetailsPopupHeaderStyle) {
+, _headerStyle(st::statisticsDetailsPopupHeaderStyle)
+, _valueIcon(chartData.currencyRate ? &st::statisticsCurrencyIcon : nullptr) {
 
 	if (zoomEnabled) {
 		rpl::single(rpl::empty_value()) | rpl::then(
@@ -201,6 +205,7 @@ PointDetailsWidget::PointDetailsWidget(
 			+ rect::m::sum::h(st::statisticsDetailsPopupPadding)
 			+ st::statisticsDetailsPopupPadding.left() // Between strings.
 			+ maxNameTextWidth
+			+ (_valueIcon ? _valueIcon->width() : 0)
 			+ _maxPercentageWidth;
 	}();
 	sizeValue(
@@ -234,7 +239,7 @@ void PointDetailsWidget::setLineAlpha(int lineId, float64 alpha) {
 void PointDetailsWidget::resizeHeight() {
 	resize(
 		width(),
-		lineYAt(_chartData.lines.size())
+		lineYAt(_chartData.lines.size() + (_chartData.currencyRate ? 1 : 0))
 			+ st::statisticsDetailsPopupMargins.bottom());
 }
 
@@ -268,6 +273,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 			nullptr,
 			{ float64(xIndex), float64(xIndex) }).parts
 		: std::vector<PiePartData::Part>();
+	const auto multiplier = float64(Data::kEarnMultiplier);
 	for (auto i = 0; i < _chartData.lines.size(); i++) {
 		const auto &dataLine = _chartData.lines[i];
 		auto textLine = Line();
@@ -281,6 +287,27 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 			QString("%L1").arg(dataLine.y[xIndex]));
 		hasPositiveValues |= (dataLine.y[xIndex] > 0);
 		textLine.valueColor = QColor(dataLine.color);
+		if (_chartData.currencyRate) {
+			auto copy = Line();
+			copy.id = dataLine.id * 100;
+			copy.valueColor = QColor(dataLine.color);
+			copy.name.setText(
+				_textStyle,
+				tr::lng_channel_earn_chart_overriden_detail_currency(
+					tr::now));
+			copy.value.setText(
+				_textStyle,
+				QString::number(dataLine.y[xIndex] / multiplier));
+			_lines.push_back(std::move(copy));
+			textLine.name.setText(
+				_textStyle,
+				tr::lng_channel_earn_chart_overriden_detail_usd(tr::now));
+			textLine.value.setText(
+				_textStyle,
+				Info::ChannelEarn::ToUsd(
+					dataLine.y[xIndex],
+					_chartData.currencyRate));
+		}
 		_lines.push_back(std::move(textLine));
 	}
 	const auto clickable = _zoomEnabled && hasPositiveValues;
@@ -381,6 +408,14 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 				.outerWidth = _textRect.width(),
 				.availableWidth = valueWidth,
 			};
+			if (!i && _valueIcon) {
+				_valueIcon->paint(
+					p,
+					valueContext.position.x() - _valueIcon->width(),
+					lineY,
+					valueContext.outerWidth,
+					line.valueColor);
+			}
 			const auto nameContext = Ui::Text::PaintContext{
 				.position = QPoint(
 					_textRect.x() + _maxPercentageWidth,

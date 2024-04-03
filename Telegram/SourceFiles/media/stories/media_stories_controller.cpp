@@ -933,6 +933,13 @@ void Controller::show(
 	peer->updateFull();
 }
 
+void Controller::jumpTo(
+		not_null<Data::Story*> story,
+		Data::StoriesContext context) {
+	show(story, std::move(context));
+	_delegate->storiesRedisplay(story);
+}
+
 bool Controller::changeShown(Data::Story *story) {
 	const auto id = story ? story->fullId() : FullStoryId();
 	const auto session = story ? &story->session() : nullptr;

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+enum class StickerType : uchar;
+
 namespace base {
 template <typename Enum>
 class Flags;
@@ -43,7 +45,7 @@ class PathShiftGradient;
 namespace Data {
 class DocumentMedia;
 class StickersSetThumbnailView;
-enum class StickersSetFlag;
+enum class StickersSetFlag : ushort;
 using StickersSetFlags = base::flags<StickersSetFlag>;
 } // namespace Data
 
@@ -64,7 +66,8 @@ enum class StickerLottieSize : uint8 {
 	EmojiInteractionReserved5,
 	EmojiInteractionReserved6,
 	EmojiInteractionReserved7,
-	PremiumReactionPreview,
+	ChatIntroHelloSticker,
+	StickerEmojiSize,
 };
 [[nodiscard]] uint8 LottieCacheKeyShift(
 	uint8 replacementsTag,
@@ -90,7 +93,7 @@ enum class StickerLottieSize : uint8 {
 	QSize box);
 
 [[nodiscard]] bool HasLottieThumbnail(
-	Data::StickersSetFlags flags,
+	StickerType thumbType,
 	Data::StickersSetThumbnailView *thumb,
 	Data::DocumentMedia *media);
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
@@ -101,7 +104,7 @@ enum class StickerLottieSize : uint8 {
 	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);
 
 [[nodiscard]] bool HasWebmThumbnail(
-	Data::StickersSetFlags flags,
+	StickerType thumbType,
 	Data::StickersSetThumbnailView *thumb,
 	Data::DocumentMedia *media);
 [[nodiscard]] Media::Clip::ReaderPointer WebmThumbnail(

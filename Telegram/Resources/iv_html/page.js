@@ -149,7 +149,6 @@ var IV = {
 			var s = form.s;
 			const next = +s.value + delta;
 			s.value = (next == s.length) ? 0 : (next == -1) ? (s.length - 1) : next;
-			s.forEach(function(el){ el.checked && el.parentNode.scrollIntoView && el.parentNode.scrollIntoView({behavior: 'smooth', block: 'center', inline: 'center'}); });
 			form.nextSibling.firstChild.style[marginProp] = (-100 * s.value) + '%';
 		} else {
 			el.form.nextSibling.firstChild.style[marginProp] = (-100 * el.value) + '%';

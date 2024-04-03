@@ -31,6 +31,7 @@ using RepliesByLinkInfo = std::variant<v::null_t, CommentId, ThreadId>;
 struct PeerByLinkInfo {
 	std::variant<QString, ChannelId> usernameOrId;
 	QString phone;
+	QString chatLinkSlug;
 	MsgId messageId = ShowAtUnreadMsgId;
 	StoryId storyId = 0;
 	RepliesByLinkInfo repliesInfo;

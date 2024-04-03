@@ -63,6 +63,7 @@ struct ColorIndicesCompressed;
 namespace Main {
 
 class Account;
+class AppConfig;
 class Domain;
 class SessionSettings;
 class SendAsPeers;
@@ -82,6 +83,8 @@ public:
 	[[nodiscard]] Storage::Account &local() const;
 	[[nodiscard]] Domain &domain() const;
 	[[nodiscard]] Storage::Domain &domainLocal() const;
+
+	[[nodiscard]] AppConfig &appConfig() const;
 
 	[[nodiscard]] bool premium() const;
 	[[nodiscard]] bool premiumPossible() const;

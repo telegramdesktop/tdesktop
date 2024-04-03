@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_app_config_values.h"
 #include "main/main_session.h"
@@ -113,23 +112,22 @@ int TextItem::contentHeight() const {
 
 } // namespace
 
-void AddPhoneMenu(not_null<Ui::PopupMenu*> menu, not_null<UserData*> user) {
-	if (user->isSelf()) {
-		return;
-	}
+bool IsCollectiblePhone(not_null<UserData*> user) {
 	using Strings = std::vector<QString>;
-	const auto prefixes = user->session().account().appConfig().get<Strings>(
+	const auto prefixes = user->session().appConfig().get<Strings>(
 		u"fragment_prefixes"_q,
-		std::vector<QString>());
-	{
-		const auto proj = [&phone = user->phone()](const QString &p) {
-			return phone.startsWith(p);
-		};
-		if (ranges::none_of(prefixes, proj)) {
-			return;
-		}
-	}
-	if (const auto url = AppConfig::FragmentLink(&user->session())) {
+		Strings{ u"888"_q });
+	const auto phone = user->phone();
+	const auto proj = [&](const QString &p) {
+		return phone.startsWith(p);
+	};
+	return ranges::any_of(prefixes, proj);
+}
+
+void AddPhoneMenu(not_null<Ui::PopupMenu*> menu, not_null<UserData*> user) {
+	if (user->isSelf() || !IsCollectiblePhone(user)) {
+		return;
+	} else if (const auto url = AppConfig::FragmentLink(&user->session())) {
 		menu->addSeparator(&st::expandedMenuSeparator);
 		const auto link = Ui::Text::Link(
 			tr::lng_info_mobile_context_menu_fragment_about_link(tr::now),

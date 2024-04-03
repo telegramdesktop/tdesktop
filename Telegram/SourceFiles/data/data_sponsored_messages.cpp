@@ -273,6 +273,7 @@ void SponsoredMessages::append(
 			.isRecommended = data.is_recommended(),
 			.isForceUserpicDisplay = data.is_show_peer_photo(),
 			.buttonText = qs(data.vbutton_text().value_or_empty()),
+			.canReport = data.is_can_report(),
 		};
 	};
 	const auto externalLink = data.vwebpage()
@@ -289,6 +290,7 @@ void SponsoredMessages::append(
 				.externalLink = externalLink,
 				.webpageOrBotPhotoId = photoId,
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
+				.canReport = message.data().is_can_report(),
 			};
 		} else if (const auto fromId = data.vfrom_id()) {
 			const auto peerId = peerFromMTP(*fromId);
@@ -301,7 +303,7 @@ void SponsoredMessages::append(
 					? _session->data().processBotApp(peerId, *data.vapp())
 					: nullptr;
 				result.botLinkInfo = Window::PeerByLinkInfo{
-					.usernameOrId = user->userName(),
+					.usernameOrId = user->username(),
 					.resolveType = botAppData
 						? Window::ResolveType::BotApp
 						: data.vstart_param()
@@ -327,6 +329,7 @@ void SponsoredMessages::append(
 				.isChannel = data.is_channel(),
 				.isPublic = data.is_public(),
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
+				.canReport = message.data().is_can_report(),
 			};
 		}, [&](const MTPDchatInviteAlready &data) {
 			const auto chat = _session->data().processChat(data.vchat());
@@ -461,6 +464,7 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 			? tr::lng_view_button_bot(tr::now)
 			: QString(),
 		.botLinkInfo = data.from.botLinkInfo,
+		.canReport = data.from.canReport,
 	};
 }
 
@@ -476,6 +480,86 @@ void SponsoredMessages::clicked(const FullMsgId &fullId) {
 		channel->inputChannel,
 		MTP_bytes(randomId)
 	)).send();
+}
+
+
+auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
+-> Fn<void(SponsoredReportResult::Id, Fn<void(SponsoredReportResult)>)> {
+	using TLChoose = MTPDchannels_sponsoredMessageReportResultChooseOption;
+	using TLAdsHidden = MTPDchannels_sponsoredMessageReportResultAdsHidden;
+	using TLReported = MTPDchannels_sponsoredMessageReportResultReported;
+	using Result = SponsoredReportResult;
+
+	struct State final {
+#ifdef _DEBUG
+		~State() {
+			qDebug() << "SponsoredMessages Report ~State().";
+		}
+#endif
+		mtpRequestId requestId = 0;
+	};
+	const auto state = std::make_shared<State>();
+
+	return [=](Result::Id optionId, Fn<void(Result)> done) {
+		const auto entry = find(fullId);
+		if (!entry) {
+			return;
+		}
+
+		const auto history = entry->item->history();
+		const auto channel = history->peer->asChannel();
+		if (!channel) {
+			return;
+		}
+
+		state->requestId = _session->api().request(
+			MTPchannels_ReportSponsoredMessage(
+				channel->inputChannel,
+				MTP_bytes(entry->sponsored.randomId),
+				MTP_bytes(optionId))
+		).done([=](
+				const MTPchannels_SponsoredMessageReportResult &result,
+				mtpRequestId requestId) {
+			if (state->requestId != requestId) {
+				return;
+			}
+			state->requestId = 0;
+			done(result.match([&](const TLChoose &data) {
+				const auto t = qs(data.vtitle());
+				auto list = Result::Options();
+				list.reserve(data.voptions().v.size());
+				for (const auto &tl : data.voptions().v) {
+					list.emplace_back(Result::Option{
+						.id = tl.data().voption().v,
+						.text = qs(tl.data().vtext()),
+					});
+				}
+				return Result{ .options = std::move(list), .title = t };
+			}, [](const TLAdsHidden &data) -> Result {
+				return { .result = Result::FinalStep::Hidden };
+			}, [&](const TLReported &data) -> Result {
+				const auto it = _data.find(history);
+				if (it != end(_data)) {
+					auto &list = it->second.entries;
+					const auto proj = [&](const Entry &e) {
+						return e.itemFullId == fullId;
+					};
+					list.erase(ranges::remove_if(list, proj), end(list));
+				}
+				if (optionId == Result::Id("1")) { // I don't like it.
+					return { .result = Result::FinalStep::Silence };
+				}
+				return { .result = Result::FinalStep::Reported };
+			}));
+		}).fail([=](const MTP::Error &error) {
+			state->requestId = 0;
+			if (error.type() == u"PREMIUM_ACCOUNT_REQUIRED"_q) {
+				done({ .result = Result::FinalStep::Premium });
+			} else {
+				done({ .error = error.type() });
+			}
+		}).send();
+	};
 }
 
 SponsoredMessages::State SponsoredMessages::state(

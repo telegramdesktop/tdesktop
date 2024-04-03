@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_peer_values.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "storage/storage_domain.h"
@@ -113,29 +114,33 @@ void AddPremiumStar(
 	}, badge->lifetime());
 }
 
-QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
+QString PrivacyBase(Privacy::Key key, const Privacy::Rule &rule) {
 	using Key = Privacy::Key;
 	using Option = Privacy::Option;
 	switch (key) {
 	case Key::CallsPeer2Peer:
-		switch (option) {
+		switch (rule.option) {
 		case Option::Everyone:
 			return tr::lng_edit_privacy_calls_p2p_everyone(tr::now);
 		case Option::Contacts:
 			return tr::lng_edit_privacy_calls_p2p_contacts(tr::now);
-		case Option::CloseFriends:
-			return tr::lng_edit_privacy_close_friends(tr::now); // unused
 		case Option::Nobody:
 			return tr::lng_edit_privacy_calls_p2p_nobody(tr::now);
 		}
-		Unexpected("Value in Privacy::Option.");
+		[[fallthrough]];
 	default:
-		switch (option) {
+		switch (rule.option) {
 		case Option::Everyone: return tr::lng_edit_privacy_everyone(tr::now);
-		case Option::Contacts: return tr::lng_edit_privacy_contacts(tr::now);
+		case Option::Contacts:
+			return rule.always.premiums
+				? tr::lng_edit_privacy_contacts_and_premium(tr::now)
+				: tr::lng_edit_privacy_contacts(tr::now);
 		case Option::CloseFriends:
 			return tr::lng_edit_privacy_close_friends(tr::now);
-		case Option::Nobody: return tr::lng_edit_privacy_nobody(tr::now);
+		case Option::Nobody:
+			return rule.always.premiums
+				? tr::lng_edit_privacy_premium(tr::now)
+				: tr::lng_edit_privacy_nobody(tr::now);
 		}
 		Unexpected("Value in Privacy::Option.");
 	}
@@ -149,17 +154,17 @@ rpl::producer<QString> PrivacyString(
 		key
 	) | rpl::map([=](const Privacy::Rule &value) {
 		auto add = QStringList();
-		if (const auto never = ExceptionUsersCount(value.never)) {
+		if (const auto never = ExceptionUsersCount(value.never.peers)) {
 			add.push_back("-" + QString::number(never));
 		}
-		if (const auto always = ExceptionUsersCount(value.always)) {
+		if (const auto always = ExceptionUsersCount(value.always.peers)) {
 			add.push_back("+" + QString::number(always));
 		}
 		if (!add.isEmpty()) {
-			return PrivacyBase(key, value.option)
+			return PrivacyBase(key, value)
 				+ " (" + add.join(", ") + ")";
 		} else {
-			return PrivacyBase(key, value.option);
+			return PrivacyBase(key, value);
 		}
 	});
 }
@@ -293,7 +298,7 @@ void AddMessagesPrivacyButton(
 	const auto privacy = &session->api().globalPrivacy();
 	auto label = rpl::conditional(
 		privacy->newRequirePremium(),
-		tr::lng_edit_privacy_premium(),
+		tr::lng_edit_privacy_contacts_and_premium(),
 		tr::lng_edit_privacy_everyone());
 	const auto &st = st::settingsButtonNoIcon;
 	const auto button = AddButtonWithLabel(
@@ -305,8 +310,9 @@ void AddMessagesPrivacyButton(
 	button->addClickHandler([=] {
 		controller->show(Box(EditMessagesPrivacyBox, controller));
 	});
-
-	AddPremiumStar(button, session, rpl::duplicate(label), st.padding);
+	if (!session->appConfig().newRequirePremiumFree()) {
+		AddPremiumStar(button, session, rpl::duplicate(label), st.padding);
+	}
 }
 
 rpl::producer<int> BlockedPeersCount(not_null<::Main::Session*> session) {
@@ -355,6 +361,10 @@ void SetupPrivacy(
 		tr::lng_settings_bio_privacy(),
 		Key::About,
 		[] { return std::make_unique<AboutPrivacyController>(); });
+	add(
+		tr::lng_settings_birthday_privacy(),
+		Key::Birthday,
+		[] { return std::make_unique<BirthdayPrivacyController>(); });
 	add(
 		tr::lng_settings_forwards_privacy(),
 		Key::Forwards,

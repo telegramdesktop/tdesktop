@@ -168,7 +168,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 7b8f30b787691a325d17e20ddd455e87738e7432
+    source-commit: 174d6e51435e6eab0596904f9fba80a927ef4177
     plugin: dump
     override-pull: |
       craftctl default
@@ -440,7 +440,7 @@ parts:
     override-pull: |
       QT=6.7.0
 
-      git clone -b v${QT}-rc2 --depth=1 https://github.com/qt/qt5.git .
+      git clone -b v${QT} --depth=1 https://github.com/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 
       cd qtbase

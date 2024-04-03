@@ -217,6 +217,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		? bot->botInfo->groupAdminRights
 		: ChatAdminRights();
 	const auto addingAdmin = requestedAddAdmin || (rights != 0);
+	const auto show = controller->uiShow();
 	if (addingAdmin) {
 		const auto scope = _scope;
 		const auto token = _token;
@@ -224,11 +225,12 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 				ChatAdminRightsInfo newRights,
 				const QString &rank) {
 			if (scope == Scope::GroupAdmin) {
-				chat->session().api().sendBotStart(bot, chat, token);
+				chat->session().api().sendBotStart(show, bot, chat, token);
 			}
 			close();
 		};
 		const auto saveCallback = SaveAdminCallback(
+			show,
 			chat,
 			bot,
 			done,
@@ -245,7 +247,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		controller->show(std::move(box));
 	} else {
 		auto callback = crl::guard(this, [=] {
-			AddBotToGroup(bot, chat, _token);
+			AddBotToGroup(show, bot, chat, _token);
 			controller->hideLayer();
 		});
 		controller->show(Ui::MakeConfirmBox({
@@ -394,13 +396,14 @@ void AddBotToGroupBoxController::prepareViewHook() {
 }
 
 void AddBotToGroup(
+		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
 		not_null<PeerData*> chat,
 		const QString &startToken) {
 	if (!startToken.isEmpty()) {
-		chat->session().api().sendBotStart(bot, chat, startToken);
+		chat->session().api().sendBotStart(show, bot, chat, startToken);
 	} else {
-		chat->session().api().chatParticipants().add(chat, { 1, bot });
+		chat->session().api().chatParticipants().add(show, chat, { 1, bot });
 	}
 	if (const auto window = chat->session().tryResolveWindow()) {
 		window->showPeerHistory(chat);

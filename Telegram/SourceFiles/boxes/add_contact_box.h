@@ -34,6 +34,7 @@ template <typename Enum>
 class Radioenum;
 class LinkButton;
 class UserpicButton;
+class Show;
 } // namespace Ui
 
 enum class PeerFloodType {
@@ -42,14 +43,21 @@ enum class PeerFloodType {
 	InviteChannel,
 };
 
+struct ForbiddenInvites;
+
 [[nodiscard]] TextWithEntities PeerFloodErrorText(
 	not_null<Main::Session*> session,
 	PeerFloodType type);
 void ShowAddParticipantsError(
+	std::shared_ptr<Ui::Show> show,
 	const QString &error,
 	not_null<PeerData*> chat,
-	const std::vector<not_null<UserData*>> &users,
-	std::shared_ptr<Ui::Show> show = nullptr);
+	const ForbiddenInvites &forbidden);
+void ShowAddParticipantsError(
+	std::shared_ptr<Ui::Show> show,
+	const QString &error,
+	not_null<PeerData*> chat,
+	not_null<UserData*> user);
 
 class AddContactBox : public Ui::BoxContent {
 public:

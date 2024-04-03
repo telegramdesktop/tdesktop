@@ -22,6 +22,25 @@ namespace Data {
 
 class Session;
 
+struct SponsoredReportResult final {
+	using Id = QByteArray;
+	struct Option final {
+		Id id = 0;
+		QString text;
+	};
+	using Options = std::vector<Option>;
+	enum class FinalStep {
+		Hidden,
+		Reported,
+		Premium,
+		Silence,
+	};
+	Options options;
+	QString title;
+	QString error;
+	FinalStep result;
+};
+
 struct SponsoredFrom {
 	PeerData *peer = nullptr;
 	QString title;
@@ -36,6 +55,7 @@ struct SponsoredFrom {
 	PhotoId webpageOrBotPhotoId = PhotoId(0);
 	bool isForceUserpicDisplay = false;
 	QString buttonText;
+	bool canReport = false;
 };
 
 struct SponsoredMessage {
@@ -66,6 +86,7 @@ public:
 		bool isForceUserpicDisplay = false;
 		QString buttonText;
 		std::optional<Window::PeerByLinkInfo> botLinkInfo;
+		bool canReport = false;
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);
@@ -89,6 +110,9 @@ public:
 	void view(const FullMsgId &fullId);
 
 	[[nodiscard]] State state(not_null<History*> history) const;
+
+	[[nodiscard]] auto createReportCallback(const FullMsgId &fullId)
+	-> Fn<void(SponsoredReportResult::Id, Fn<void(SponsoredReportResult)>)>;
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;

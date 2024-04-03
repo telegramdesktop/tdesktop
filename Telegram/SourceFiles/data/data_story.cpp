@@ -450,7 +450,7 @@ bool Story::hasDirectLink() const {
 	if (!_privacyPublic || (!_pinned && expired())) {
 		return false;
 	}
-	return !_peer->userName().isEmpty();
+	return !_peer->username().isEmpty();
 }
 
 std::optional<QString> Story::errorTextForForward(

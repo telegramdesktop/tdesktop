@@ -378,6 +378,9 @@ TabbedSelector::TabbedSelector(
 		tabs.reserve(2);
 		tabs.push_back(createTab(SelectorTab::Stickers, 0));
 		tabs.push_back(createTab(SelectorTab::Masks, 1));
+	} else if (_mode == Mode::StickersOnly) {
+		tabs.reserve(1);
+		tabs.push_back(createTab(SelectorTab::Stickers, 0));
 	} else {
 		tabs.reserve(1);
 		tabs.push_back(createTab(SelectorTab::Emoji, 0));
@@ -385,10 +388,10 @@ TabbedSelector::TabbedSelector(
 	return tabs;
 }())
 , _currentTabType(full()
-		? session().settings().selectorTab()
-		: mediaEditor()
-		? SelectorTab::Stickers
-		: SelectorTab::Emoji)
+	? session().settings().selectorTab()
+	: (mediaEditor() || _mode == Mode::StickersOnly)
+	? SelectorTab::Stickers
+	: SelectorTab::Emoji)
 , _hasEmojiTab(ranges::contains(_tabs, SelectorTab::Emoji, &Tab::type))
 , _hasStickersTab(ranges::contains(_tabs, SelectorTab::Stickers, &Tab::type))
 , _hasGifsTab(ranges::contains(_tabs, SelectorTab::Gifs, &Tab::type))
@@ -661,7 +664,7 @@ void TabbedSelector::updateTabsSliderGeometry() {
 	if (!_tabsSlider) {
 		return;
 	}
-	const auto w = mediaEditor() && hasMasksTab() && masks()->mySetsEmpty()
+	const auto w = (mediaEditor() && hasMasksTab() && masks()->mySetsEmpty())
 		? width() / 2
 		: width();
 	_tabsSlider->resizeToWidth(w);

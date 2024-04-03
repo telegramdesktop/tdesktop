@@ -225,9 +225,9 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			const std::vector<not_null<UserData*>> &nonMembers,
 			Fn<void()> finish) {
 		peer->session().api().chatParticipants().add(
+			show,
 			peer,
 			nonMembers,
-			show,
 			true,
 			[=](bool) { invite(users); finish(); });
 	};

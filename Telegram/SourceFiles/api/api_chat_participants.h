@@ -97,9 +97,9 @@ public:
 		not_null<ChannelData*> channel,
 		const TLMembers &data);
 	void add(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
-		std::shared_ptr<Ui::Show> show = nullptr,
 		bool passGroupHistory = true,
 		Fn<void(bool)> done = nullptr);
 

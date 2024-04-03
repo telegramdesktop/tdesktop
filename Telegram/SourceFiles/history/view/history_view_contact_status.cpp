@@ -8,9 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_contact_status.h"
 
 #include "lang/lang_keys.h"
+#include "ui/controls/userpic_button.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
@@ -18,7 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "core/click_handler_types.h"
 #include "core/ui_integration.h"
+#include "data/business/data_business_chatbots.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
@@ -49,7 +54,7 @@ namespace HistoryView {
 namespace {
 
 [[nodiscard]] bool BarCurrentlyHidden(not_null<PeerData*> peer) {
-	const auto settings = peer->settings();
+	const auto settings = peer->barSettings();
 	if (!settings) {
 		return false;
 	} else if (!(*settings)) {
@@ -59,10 +64,10 @@ namespace {
 		if (user->isBlocked()) {
 			return true;
 		} else if (user->isContact()
-			&& !((*settings) & PeerSetting::ShareContact)) {
+			&& !((*settings) & PeerBarSetting::ShareContact)) {
 			return true;
 		}
-	} else if (!((*settings) & PeerSetting::ReportSpam)) {
+	} else if (!((*settings) & PeerBarSetting::ReportSpam)) {
 		return true;
 	}
 	return false;
@@ -557,7 +562,7 @@ ContactStatus::ContactStatus(
 
 auto ContactStatus::PeerState(not_null<PeerData*> peer)
 -> rpl::producer<State> {
-	using SettingsChange = PeerData::Settings::Change;
+	using SettingsChange = PeerData::BarSettings::Change;
 	using Type = State::Type;
 	if (const auto user = peer->asUser()) {
 		using FlagsChange = UserData::Flags::Change;
@@ -570,31 +575,31 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 		});
 		return rpl::combine(
 			std::move(changes),
-			user->settingsValue()
+			user->barSettingsValue()
 		) | rpl::map([=](
 				FlagsChange flags,
 				SettingsChange settings) -> State {
 			if (flags.value & Flag::Blocked) {
 				return { Type::None };
 			} else if (user->isContact()) {
-				if (settings.value & PeerSetting::ShareContact) {
+				if (settings.value & PeerBarSetting::ShareContact) {
 					return { Type::SharePhoneNumber };
 				} else {
 					return { Type::None };
 				}
-			} else if (settings.value & PeerSetting::RequestChat) {
+			} else if (settings.value & PeerBarSetting::RequestChat) {
 				return {
 					.type = Type::RequestChatInfo,
 					.requestChatName = peer->requestChatTitle(),
 					.requestChatIsBroadcast = !!(settings.value
-						& PeerSetting::RequestChatIsBroadcast),
+						& PeerBarSetting::RequestChatIsBroadcast),
 					.requestDate = peer->requestChatDate(),
 				};
-			} else if (settings.value & PeerSetting::AutoArchived) {
+			} else if (settings.value & PeerBarSetting::AutoArchived) {
 				return { Type::UnarchiveOrBlock };
-			} else if (settings.value & PeerSetting::BlockContact) {
+			} else if (settings.value & PeerBarSetting::BlockContact) {
 				return { Type::AddOrBlock };
-			} else if (settings.value & PeerSetting::AddContact) {
+			} else if (settings.value & PeerBarSetting::AddContact) {
 				return { Type::Add };
 			} else {
 				return { Type::None };
@@ -602,12 +607,12 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 		});
 	}
 
-	return peer->settingsValue(
+	return peer->barSettingsValue(
 	) | rpl::map([=](SettingsChange settings) {
 		using Type = State::Type;
-		return (settings.value & PeerSetting::AutoArchived)
+		return (settings.value & PeerBarSetting::AutoArchived)
 			? State{ Type::UnarchiveOrReport }
-			: (settings.value & PeerSetting::ReportSpam)
+			: (settings.value & PeerBarSetting::ReportSpam)
 			? State{ Type::ReportSpam }
 			: State{ Type::None };
 	});
@@ -685,7 +690,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 	) | rpl::start_with_next([=] {
 		const auto show = _controller->uiShow();
 		const auto share = [=](Fn<void()> &&close) {
-			user->setSettings(0);
+			user->setBarSettings(0);
 			user->session().api().request(MTPcontacts_AcceptContact(
 				user->inputUser
 			)).done([=](const MTPUpdates &result) {
@@ -718,11 +723,11 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 		using namespace Window;
 		ToggleHistoryArchived(show, peer->owner().history(peer), false);
 		peer->owner().notifySettings().resetToDefault(peer);
-		if (const auto settings = peer->settings()) {
-			const auto flags = PeerSetting::AutoArchived
-				| PeerSetting::BlockContact
-				| PeerSetting::ReportSpam;
-			peer->setSettings(*settings & ~flags);
+		if (const auto settings = peer->barSettings()) {
+			const auto flags = PeerBarSetting::AutoArchived
+				| PeerBarSetting::BlockContact
+				| PeerBarSetting::ReportSpam;
+			peer->setBarSettings(*settings & ~flags);
 		}
 	}, _bar.lifetime());
 }
@@ -773,7 +778,7 @@ void ContactStatus::setupCloseHandler(not_null<PeerData*> peer) {
 	) | rpl::filter([=] {
 		return !(*request);
 	}) | rpl::start_with_next([=] {
-		peer->setSettings(0);
+		peer->setBarSettings(0);
 		*request = peer->session().api().request(
 			MTPmessages_HidePeerSettingsBar(peer->input)
 		).send();
@@ -807,7 +812,7 @@ void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
 				if (*request) {
 					return;
 				}
-				peer->setSettings(0);
+				peer->setBarSettings(0);
 				*request = peer->session().api().request(
 					MTPmessages_HidePeerSettingsBar(peer->input)
 				).send();
@@ -836,6 +841,246 @@ void ContactStatus::show() {
 }
 
 void ContactStatus::hide() {
+	_bar.hide();
+}
+
+class BusinessBotStatus::Bar final : public Ui::RpWidget {
+public:
+	Bar(QWidget *parent);
+
+	void showState(State state);
+
+	[[nodiscard]] rpl::producer<> pauseClicks() const;
+	[[nodiscard]] rpl::producer<> resumeClicks() const;
+	[[nodiscard]] rpl::producer<> removeClicks() const;
+	[[nodiscard]] rpl::producer<> manageClicks() const;
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+	int resizeGetHeight(int newWidth) override;
+
+	void showMenu();
+
+	object_ptr<Ui::UserpicButton> _userpic = { nullptr };
+	object_ptr<Ui::FlatLabel> _name;
+	object_ptr<Ui::FlatLabel> _status;
+	object_ptr<Ui::RoundButton> _togglePaused;
+	object_ptr<Ui::IconButton> _settings;
+	rpl::event_stream<> _removeClicks;
+	rpl::event_stream<> _manageClicks;
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	bool _paused = false;
+
+};
+
+BusinessBotStatus::Bar::Bar(QWidget *parent)
+: RpWidget(parent)
+, _name(this, st::historyBusinessBotName)
+, _status(this, st::historyBusinessBotStatus)
+, _togglePaused(
+	this,
+	rpl::single(QString()),
+	st::historyBusinessBotToggle)
+, _settings(this, st::historyBusinessBotSettings) {
+	_name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_togglePaused->setFullRadius(true);
+	_togglePaused->setTextTransform(
+		Ui::RoundButton::TextTransform::NoTransform);
+	_settings->setClickedCallback([=] {
+		showMenu();
+	});
+}
+
+void BusinessBotStatus::Bar::showState(State state) {
+	Expects(state.bot != nullptr);
+
+	_userpic = object_ptr<Ui::UserpicButton>(
+		this,
+		state.bot,
+		st::historyBusinessBotPhoto);
+	_userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_userpic->show();
+	_name->setText(state.bot->name());
+	_status->setText(!state.canReply
+		? tr::lng_chatbot_status_views(tr::now)
+		: state.paused
+		? tr::lng_chatbot_status_paused(tr::now)
+		: tr::lng_chatbot_status_can_reply(tr::now));
+	_togglePaused->setText(state.paused
+		? tr::lng_chatbot_button_resume()
+		: tr::lng_chatbot_button_pause());
+	_togglePaused->setVisible(state.canReply);
+	_paused = state.paused;
+	resizeToWidth(width());
+}
+
+rpl::producer<> BusinessBotStatus::Bar::pauseClicks() const {
+	return _togglePaused->clicks() | rpl::filter([=] {
+		return !_paused;
+	}) | rpl::to_empty;
+}
+
+rpl::producer<> BusinessBotStatus::Bar::resumeClicks() const {
+	return _togglePaused->clicks() | rpl::filter([=] {
+		return _paused;
+	}) | rpl::to_empty;
+}
+
+rpl::producer<> BusinessBotStatus::Bar::removeClicks() const {
+	return _removeClicks.events();
+}
+
+rpl::producer<> BusinessBotStatus::Bar::manageClicks() const {
+	return _manageClicks.events();
+}
+
+void BusinessBotStatus::Bar::showMenu() {
+	if (_menu) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuExpandedSeparator);
+	_menu->setDestroyedCallback([
+		weak = Ui::MakeWeak(this),
+		weakButton = Ui::MakeWeak(_settings.data()),
+		menu = _menu.get()] {
+		if (weak && weak->_menu == menu) {
+			if (weakButton) {
+				weakButton->setForceRippled(false);
+			}
+		}
+	});
+	_settings->setForceRippled(true);
+
+	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+
+	addAction(tr::lng_chatbot_menu_manage(tr::now), crl::guard(this, [=] {
+		_manageClicks.fire({});
+	}), &st::menuIconSettings);
+	addAction({
+		.text = (_togglePaused->isHidden()
+			? tr::lng_chatbot_menu_revoke(tr::now)
+			: tr::lng_chatbot_menu_remove(tr::now)),
+		.handler = crl::guard(this, [=] { _removeClicks.fire({}); }),
+		.icon = &st::menuIconDisableAttention,
+		.isAttention = true,
+	});
+
+	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+	_menu->popup(mapToGlobal(QPoint(
+		width() + st::topBarMenuPosition.x(),
+		st::topBarMenuPosition.y())));
+}
+
+void BusinessBotStatus::Bar::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+	p.fillRect(e->rect(), st::historyContactStatusButton.bgColor);
+}
+
+int BusinessBotStatus::Bar::resizeGetHeight(int newWidth) {
+	const auto &st = st::defaultPeerList.item;
+	_settings->moveToRight(0, 0, newWidth);
+	if (_userpic) {
+		_userpic->moveToLeft(st.photoPosition.x(), st.photoPosition.y());
+	}
+	auto available = newWidth - _settings->width() - st.namePosition.x();
+	if (!_togglePaused->isHidden()) {
+		_togglePaused->moveToRight(
+			_settings->width(),
+			(st.height - _togglePaused->height()) / 2);
+		available -= _togglePaused->width();
+	}
+	_name->resizeToWidth(available);
+	_name->moveToLeft(st.namePosition.x(), st.namePosition.y());
+	_status->resizeToWidth(available);
+	_status->moveToLeft(st.statusPosition.x(), st.statusPosition.y());
+	return st.height;
+}
+
+BusinessBotStatus::BusinessBotStatus(
+	not_null<Window::SessionController*> window,
+	not_null<Ui::RpWidget*> parent,
+	not_null<PeerData*> peer)
+: _controller(window)
+, _inner(Ui::CreateChild<Bar>(parent.get()))
+, _bar(parent, object_ptr<Bar>::fromRaw(_inner)) {
+	setupState(peer);
+	setupHandlers(peer);
+}
+
+auto BusinessBotStatus::PeerState(not_null<PeerData*> peer)
+-> rpl::producer<State> {
+	using SettingsChange = PeerData::BarSettings::Change;
+	return peer->barSettingsValue(
+	) | rpl::map([=](SettingsChange settings) -> State {
+		using Flag = PeerBarSetting;
+		return {
+			.bot = peer->businessBot(),
+			.manageUrl = peer->businessBotManageUrl(),
+			.canReply = ((settings.value & Flag::BusinessBotCanReply) != 0),
+			.paused = ((settings.value & Flag::BusinessBotPaused) != 0),
+		};
+	});
+}
+
+void BusinessBotStatus::setupState(not_null<PeerData*> peer) {
+	if (!BarCurrentlyHidden(peer)) {
+		peer->session().api().requestPeerSettings(peer);
+	}
+	PeerState(
+		peer
+	) | rpl::start_with_next([=](State state) {
+		_state = state;
+		if (!state.bot) {
+			_bar.toggleContent(false);
+		} else {
+			_inner->showState(state);
+			_bar.toggleContent(true);
+		}
+	}, _bar.lifetime());
+}
+
+void BusinessBotStatus::setupHandlers(not_null<PeerData*> peer) {
+	_inner->pauseClicks(
+	) | rpl::start_with_next([=] {
+		peer->owner().chatbots().togglePaused(peer, true);
+	}, _bar.lifetime());
+
+	_inner->resumeClicks(
+	) | rpl::start_with_next([=] {
+		peer->owner().chatbots().togglePaused(peer, false);
+	}, _bar.lifetime());
+
+	_inner->removeClicks(
+	) | rpl::start_with_next([=] {
+		peer->owner().chatbots().removeFrom(peer);
+	}, _bar.lifetime());
+
+	_inner->manageClicks(
+	) | rpl::start_with_next([=] {
+		UrlClickHandler::Open(
+			_state.manageUrl,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(_controller),
+				.botStartAutoSubmit = true,
+			}));
+	}, _bar.lifetime());
+}
+
+void BusinessBotStatus::show() {
+	if (!_shown) {
+		_shown = true;
+		if (_state.bot) {
+			_inner->showState(_state);
+			_bar.toggleContent(true);
+		}
+	}
+	_bar.show();
+}
+
+void BusinessBotStatus::hide() {
 	_bar.hide();
 }
 

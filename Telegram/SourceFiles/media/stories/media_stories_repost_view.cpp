@@ -178,7 +178,7 @@ RepostClickHandler RepostView::lookupHandler(QPoint position) {
 				const auto of = owner->stories().lookup({ peer->id, id });
 				if (of) {
 					using namespace Data;
-					_controller->show(*of, { StoriesContextSingle() });
+					_controller->jumpTo(*of, { StoriesContextSingle() });
 				} else {
 					_controller->uiShow()->show(PrepareShortInfoBox(peer));
 				}

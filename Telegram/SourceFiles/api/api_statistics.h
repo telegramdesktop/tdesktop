@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "data/data_boosts.h"
+#include "data/data_channel_earn.h"
 #include "data/data_statistics.h"
 #include "mtproto/sender.h"
 
@@ -102,6 +103,27 @@ private:
 	const FullStoryId _storyId;
 
 	Data::PublicForwardsSlice _firstSlice;
+
+	mtpRequestId _requestId = 0;
+
+};
+
+class EarnStatistics final : public StatisticsRequestSender {
+public:
+	explicit EarnStatistics(not_null<ChannelData*> channel);
+
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
+	void requestHistory(
+		const Data::EarnHistorySlice::OffsetToken &token,
+		Fn<void(Data::EarnHistorySlice)> done);
+
+	[[nodiscard]] Data::EarnStatistics data() const;
+
+	static constexpr auto kFirstSlice = int(5);
+	static constexpr auto kLimit = int(10);
+
+private:
+	Data::EarnStatistics _data;
 
 	mtpRequestId _requestId = 0;
 

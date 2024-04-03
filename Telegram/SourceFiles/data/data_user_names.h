@@ -27,6 +27,7 @@ public:
 	[[nodiscard]] QString username() const;
 	[[nodiscard]] QString editableUsername() const;
 	[[nodiscard]] const std::vector<QString> &usernames() const;
+	[[nodiscard]] bool isEditable(const QString &username) const;
 
 private:
 	std::vector<QString> _usernames;

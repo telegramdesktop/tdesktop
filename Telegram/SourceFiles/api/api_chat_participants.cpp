@@ -487,9 +487,9 @@ void ChatParticipants::requestCountDelayed(
 }
 
 void ChatParticipants::add(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
-		std::shared_ptr<Ui::Show> show,
 		bool passGroupHistory,
 		Fn<void(bool)> done) {
 	if (const auto chat = peer->asChat()) {
@@ -498,19 +498,28 @@ void ChatParticipants::add(
 				chat->inputChat,
 				user->inputUser,
 				MTP_int(passGroupHistory ? kForwardMessagesOnAdd : 0)
-			)).done([=](const MTPUpdates &result) {
-				chat->session().api().applyUpdates(result);
+			)).done([=](const MTPmessages_InvitedUsers &result) {
+				const auto &data = result.data();
+				chat->session().api().applyUpdates(data.vupdates());
 				if (done) done(true);
+				ChatInviteForbidden(
+					show,
+					chat,
+					CollectForbiddenUsers(&chat->session(), result));
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
-				ShowAddParticipantsError(type, peer, { 1, user }, show);
+				ShowAddParticipantsError(show, type, peer, user);
 				if (done) done(false);
 			}).afterDelay(kSmallDelayMs).send();
 		}
 	} else if (const auto channel = peer->asChannel()) {
 		const auto hasBot = ranges::any_of(users, &UserData::isBot);
 		if (!peer->isMegagroup() && hasBot) {
-			ShowAddParticipantsError("USER_BOT", peer, users, show);
+			ShowAddParticipantsError(
+				show,
+				u"USER_BOT"_q,
+				peer,
+				{ .users = users });
 			return;
 		}
 		auto list = QVector<MTPInputUser>();
@@ -520,8 +529,9 @@ void ChatParticipants::add(
 			_api.request(MTPchannels_InviteToChannel(
 				channel->inputChannel,
 				MTP_vector<MTPInputUser>(list)
-			)).done([=](const MTPUpdates &result) {
-				channel->session().api().applyUpdates(result);
+			)).done([=](const MTPmessages_InvitedUsers &result) {
+				const auto &data = result.data();
+				channel->session().api().applyUpdates(data.vupdates());
 				requestCountDelayed(channel);
 				if (callback) callback(true);
 				ChatInviteForbidden(
@@ -529,7 +539,9 @@ void ChatParticipants::add(
 					channel,
 					CollectForbiddenUsers(&channel->session(), result));
 			}).fail([=](const MTP::Error &error) {
-				ShowAddParticipantsError(error.type(), peer, users, show);
+				ShowAddParticipantsError(show, error.type(), peer, {
+					.users = users,
+				});
 				if (callback) callback(false);
 			}).afterDelay(kSmallDelayMs).send();
 		};

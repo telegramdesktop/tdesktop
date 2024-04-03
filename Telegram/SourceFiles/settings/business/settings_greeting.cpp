@@ -229,6 +229,7 @@ void Greeting::setupContent(
 		.controller = controller,
 		.title = tr::lng_greeting_recipients(),
 		.data = &_recipients,
+		.type = Data::BusinessRecipientsType::Messages,
 	});
 
 	Ui::AddSkip(inner);

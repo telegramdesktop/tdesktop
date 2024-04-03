@@ -17,6 +17,7 @@ struct ChannelLocation;
 namespace Data {
 class ForumTopic;
 class Thread;
+class Birthday;
 } // namespace Data
 
 namespace Main {
@@ -60,6 +61,9 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	bool primary = false);
 [[nodiscard]] rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
 	not_null<PeerData*> peer);
+[[nodiscard]] QString UsernameUrl(
+	not_null<PeerData*> peer,
+	const QString &username);
 [[nodiscard]] TextWithEntities AboutWithEntities(
 	not_null<PeerData*> peer,
 	const QString &value);
@@ -82,6 +86,10 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<bool> CanShareContactValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<bool> CanAddContactValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<Data::Birthday> BirthdayValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<ChannelData*> PersonalChannelValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<bool> AmInChannelValue(
 	not_null<ChannelData*> channel);
@@ -117,5 +125,10 @@ enum class BadgeType;
 [[nodiscard]] rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<DocumentId> EmojiStatusIdValue(
 	not_null<PeerData*> peer);
+
+[[nodiscard]] rpl::producer<QString> BirthdayLabelText(
+	rpl::producer<Data::Birthday> birthday);
+[[nodiscard]] rpl::producer<QString> BirthdayValueText(
+	rpl::producer<Data::Birthday> birthday);
 
 } // namespace Info::Profile

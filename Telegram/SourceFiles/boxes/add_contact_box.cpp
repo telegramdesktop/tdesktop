@@ -66,11 +66,12 @@ void ChatCreateDone(
 		not_null<Window::SessionNavigation*> navigation,
 		QImage image,
 		TimeId ttlPeriod,
-		const MTPUpdates &updates,
+		const MTPmessages_InvitedUsers &result,
 		Fn<void(not_null<PeerData*>)> done) {
-	navigation->session().api().applyUpdates(updates);
+	const auto &data = result.data();
+	navigation->session().api().applyUpdates(data.vupdates());
 
-	const auto success = base::make_optional(&updates)
+	const auto success = base::make_optional(&data.vupdates())
 		| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
 			switch (updates->type()) {
 			case mtpc_updates:
@@ -109,7 +110,7 @@ void ChatCreateDone(
 				ChatInviteForbidden(
 					show,
 					chat,
-					CollectForbiddenUsers(&chat->session(), updates));
+					CollectForbiddenUsers(&chat->session(), result));
 			}
 		};
 	if (!success) {
@@ -168,19 +169,31 @@ TextWithEntities PeerFloodErrorText(
 }
 
 void ShowAddParticipantsError(
+		std::shared_ptr<Ui::Show> show,
 		const QString &error,
 		not_null<PeerData*> chat,
-		const std::vector<not_null<UserData*>> &users,
-		std::shared_ptr<Ui::Show> show) {
+		not_null<UserData*> user) {
+	ShowAddParticipantsError(
+		std::move(show),
+		error,
+		chat,
+		{ .users = { 1, user } });
+}
+
+void ShowAddParticipantsError(
+		std::shared_ptr<Ui::Show> show,
+		const QString &error,
+		not_null<PeerData*> chat,
+		const ForbiddenInvites &forbidden) {
 	if (error == u"USER_BOT"_q) {
 		const auto channel = chat->asChannel();
-		if ((users.size() == 1)
-			&& users.front()->isBot()
+		if ((forbidden.users.size() == 1)
+			&& forbidden.users.front()->isBot()
 			&& channel
 			&& !channel->isMegagroup()
 			&& channel->canAddAdmins()) {
 			const auto makeAdmin = [=] {
-				const auto user = users.front();
+				const auto user = forbidden.users.front();
 				const auto weak = std::make_shared<QPointer<EditAdminBox>>();
 				const auto close = [=](auto&&...) {
 					if (*weak) {
@@ -188,6 +201,7 @@ void ShowAddParticipantsError(
 					}
 				};
 				const auto saveCallback = SaveAdminCallback(
+					show,
 					channel,
 					user,
 					close,
@@ -198,9 +212,10 @@ void ShowAddParticipantsError(
 					ChatAdminRightsInfo(),
 					QString());
 				box->setSaveCallback(saveCallback);
-				*weak = Ui::show(std::move(box));
+				*weak = box.data();
+				show->showBox(std::move(box));
 			};
-			Ui::show(
+			show->showBox(
 				Ui::MakeConfirmBox({
 					.text = tr::lng_cant_invite_offer_admin(),
 					.confirmed = makeAdmin,
@@ -210,7 +225,7 @@ void ShowAddParticipantsError(
 			return;
 		}
 	}
-	const auto hasBot = ranges::any_of(users, &UserData::isBot);
+	const auto hasBot = ranges::any_of(forbidden.users, &UserData::isBot);
 	if (error == u"PEER_FLOOD"_q) {
 		const auto type = (chat->isChat() || chat->isMegagroup())
 			? PeerFloodType::InviteGroup
@@ -218,8 +233,8 @@ void ShowAddParticipantsError(
 		const auto text = PeerFloodErrorText(&chat->session(), type);
 		Ui::show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
 		return;
-	} else if (error == u"USER_PRIVACY_RESTRICTED"_q && show) {
-		ChatInviteForbidden(show, chat, users);
+	} else if (error == u"USER_PRIVACY_RESTRICTED"_q) {
+		ChatInviteForbidden(show, chat, forbidden);
 		return;
 	}
 	const auto text = [&] {
@@ -230,8 +245,6 @@ void ShowAddParticipantsError(
 		} else if (error == u"USER_KICKED"_q) {
 			// Trying to return a user who was kicked by admin.
 			return tr::lng_cant_invite_banned(tr::now);
-		} else if (error == u"USER_PRIVACY_RESTRICTED"_q) {
-			return tr::lng_cant_invite_privacy(tr::now);
 		} else if (error == u"USER_NOT_MUTUAL_CONTACT"_q) {
 			// Trying to return user who does not have me in contacts.
 			return tr::lng_failed_add_not_mutual(tr::now);
@@ -246,7 +259,7 @@ void ShowAddParticipantsError(
 		}
 		return tr::lng_failed_add_participant(tr::now);
 	}();
-	Ui::show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
+	show->show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
 }
 
 AddContactBox::AddContactBox(
@@ -708,7 +721,7 @@ void GroupInfoBox::createGroup(
 		MTP_vector<TLUsers>(inputs),
 		MTP_string(title),
 		MTP_int(ttlPeriod())
-	)).done([=](const MTPUpdates &result) {
+	)).done([=](const MTPmessages_InvitedUsers &result) {
 		auto image = _photo->takeResultImage();
 		const auto period = ttlPeriod();
 		const auto navigation = _navigation;

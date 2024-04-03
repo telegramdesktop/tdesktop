@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_business.h"
 
+#include "api/api_chat_links.h"
 #include "boxes/premium_preview_box.h"
 #include "core/click_handler_types.h"
 #include "data/business/data_business_info.h"
@@ -19,10 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/business/settings_away_message.h"
+#include "settings/business/settings_chat_intro.h"
+#include "settings/business/settings_chat_links.h"
 #include "settings/business/settings_chatbots.h"
 #include "settings/business/settings_greeting.h"
 #include "settings/business/settings_location.h"
@@ -40,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/new_badges.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
@@ -57,6 +60,7 @@ struct Entry {
 	rpl::producer<QString> title;
 	rpl::producer<QString> description;
 	PremiumFeature feature = PremiumFeature::BusinessLocation;
+	bool newBadge = false;
 };
 
 using Order = std::vector<QString>;
@@ -69,6 +73,8 @@ using Order = std::vector<QString>;
 		u"business_hours"_q,
 		u"business_location"_q,
 		u"business_bots"_q,
+		u"business_intro"_q,
+		u"business_links"_q,
 	};
 }
 
@@ -126,6 +132,27 @@ using Order = std::vector<QString>;
 				tr::lng_business_subtitle_chatbots(),
 				tr::lng_business_about_chatbots(),
 				PremiumFeature::BusinessBots,
+				true
+			},
+		},
+		{
+			u"business_intro"_q,
+			Entry{
+				&st::settingsBusinessIconChatIntro,
+				tr::lng_business_subtitle_chat_intro(),
+				tr::lng_business_about_chat_intro(),
+				PremiumFeature::ChatIntro,
+				true
+			},
+		},
+		{
+			u"business_links"_q,
+			Entry{
+				&st::settingsBusinessIconChatLinks,
+				tr::lng_business_subtitle_chat_links(),
+				tr::lng_business_about_chat_links(),
+				PremiumFeature::ChatLinks,
+				true
 			},
 		},
 	};
@@ -166,6 +193,9 @@ void AddBusinessSummary(
 			descriptionPadding);
 		description->setAttribute(Qt::WA_TransparentForMouseEvents);
 
+		if (entry.newBadge) {
+			Ui::NewBadge::AddAfterLabel(content, label);
+		}
 		const auto dummy = Ui::CreateChild<Ui::AbstractButton>(content.get());
 		dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
 
@@ -226,8 +256,8 @@ void AddBusinessSummary(
 	auto icons = std::vector<const style::icon *>();
 	icons.reserve(int(entryMap.size()));
 	{
-		const auto &account = controller->session().account();
-		const auto mtpOrder = account.appConfig().get<Order>(
+		const auto session = &controller->session();
+		const auto mtpOrder = session->appConfig().get<Order>(
 			"business_promo_order",
 			FallbackOrder());
 		const auto processEntry = [&](Entry &entry) {
@@ -363,6 +393,7 @@ void Business::setupContent() {
 	owner->chatbots().preload();
 	owner->businessInfo().preload();
 	owner->shortcutMessages().preloadShortcuts();
+	owner->session().api().chatLinks().preload();
 
 	Ui::AddSkip(content, st::settingsFromFileTop);
 
@@ -375,6 +406,8 @@ void Business::setupContent() {
 			case PremiumFeature::GreetingMessage: return GreetingId();
 			case PremiumFeature::QuickReplies: return QuickRepliesId();
 			case PremiumFeature::BusinessBots: return ChatbotsId();
+			case PremiumFeature::ChatIntro: return ChatIntroId();
+			case PremiumFeature::ChatLinks: return ChatLinksId();
 			}
 			Unexpected("Feature in showFeature.");
 		}());
@@ -396,6 +429,10 @@ void Business::setupContent() {
 			return owner->shortcutMessages().shortcutsLoaded();
 		case PremiumFeature::BusinessBots:
 			return owner->chatbots().loaded();
+		case PremiumFeature::ChatIntro:
+			return owner->session().user()->isFullLoaded();
+		case PremiumFeature::ChatLinks:
+			return owner->session().api().chatLinks().loaded();
 		}
 		Unexpected("Feature in isReady.");
 	};
@@ -415,7 +452,8 @@ void Business::setupContent() {
 		owner->chatbots().changes() | rpl::to_empty,
 		owner->session().changes().peerUpdates(
 			owner->session().user(),
-			Data::PeerUpdate::Flag::FullInfo) | rpl::to_empty
+			Data::PeerUpdate::Flag::FullInfo) | rpl::to_empty,
+		owner->session().api().chatLinks().loadedUpdates()
 	) | rpl::start_with_next(check, content->lifetime());
 
 	AddBusinessSummary(content, _controller, [=](PremiumFeature feature) {
@@ -652,7 +690,7 @@ void ShowBusiness(not_null<Window::SessionController*> controller) {
 
 std::vector<PremiumFeature> BusinessFeaturesOrder(
 		not_null<::Main::Session*> session) {
-	const auto mtpOrder = session->account().appConfig().get<Order>(
+	const auto mtpOrder = session->appConfig().get<Order>(
 		"business_promo_order",
 		FallbackOrder());
 	return ranges::views::all(
@@ -670,6 +708,10 @@ std::vector<PremiumFeature> BusinessFeaturesOrder(
 			return PremiumFeature::BusinessLocation;
 		} else if (s == u"business_bots"_q) {
 			return PremiumFeature::BusinessBots;
+		} else if (s == u"business_intro"_q) {
+			return PremiumFeature::ChatIntro;
+		} else if (s == "business_links"_q) {
+			return PremiumFeature::ChatLinks;
 		}
 		return PremiumFeature::kCount;
 	}) | ranges::views::filter([](PremiumFeature feature) {

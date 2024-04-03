@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "payments/payments_form.h"
@@ -107,6 +106,18 @@ auto Premium::cloudSet() const
 
 rpl::producer<> Premium::cloudSetUpdated() const {
 	return _cloudSetUpdated.events();
+}
+
+auto Premium::helloStickers() const
+-> const std::vector<not_null<DocumentData*>> & {
+	if (_helloStickers.empty()) {
+		const_cast<Premium*>(this)->reloadHelloStickers();
+	}
+	return _helloStickers;
+}
+
+rpl::producer<> Premium::helloStickersUpdated() const {
+	return _helloStickersUpdated.events();
 }
 
 int64 Premium::monthlyAmount() const {
@@ -222,6 +233,33 @@ void Premium::reloadCloudSet() {
 		});
 	}).fail([=] {
 		_cloudSetRequestId = 0;
+	}).send();
+}
+
+void Premium::reloadHelloStickers() {
+	if (_helloStickersRequestId) {
+		return;
+	}
+	_helloStickersRequestId = _api.request(MTPmessages_GetStickers(
+		MTP_string("\xf0\x9f\x91\x8b\xe2\xad\x90\xef\xb8\x8f"),
+		MTP_long(_helloStickersHash)
+	)).done([=](const MTPmessages_Stickers &result) {
+		_helloStickersRequestId = 0;
+		result.match([&](const MTPDmessages_stickersNotModified &) {
+		}, [&](const MTPDmessages_stickers &data) {
+			_helloStickersHash = data.vhash().v;
+			const auto owner = &_session->data();
+			_helloStickers.clear();
+			for (const auto &sticker : data.vstickers().v) {
+				const auto document = owner->processDocument(sticker);
+				if (document->sticker()) {
+					_helloStickers.push_back(document);
+				}
+			}
+			_helloStickersUpdated.fire({});
+		});
+	}).fail([=] {
+		_helloStickersRequestId = 0;
 	}).send();
 }
 
@@ -532,34 +570,34 @@ Data::SubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 
 int PremiumGiftCodeOptions::giveawayBoostsPerPremium() const {
 	constexpr auto kFallbackCount = 4;
-	return _peer->session().account().appConfig().get<int>(
+	return _peer->session().appConfig().get<int>(
 		u"giveaway_boosts_per_premium"_q,
 		kFallbackCount);
 }
 
 int PremiumGiftCodeOptions::giveawayCountriesMax() const {
 	constexpr auto kFallbackCount = 10;
-	return _peer->session().account().appConfig().get<int>(
+	return _peer->session().appConfig().get<int>(
 		u"giveaway_countries_max"_q,
 		kFallbackCount);
 }
 
 int PremiumGiftCodeOptions::giveawayAddPeersMax() const {
 	constexpr auto kFallbackCount = 10;
-	return _peer->session().account().appConfig().get<int>(
+	return _peer->session().appConfig().get<int>(
 		u"giveaway_add_peers_max"_q,
 		kFallbackCount);
 }
 
 int PremiumGiftCodeOptions::giveawayPeriodMax() const {
 	constexpr auto kFallbackCount = 3600 * 24 * 7;
-	return _peer->session().account().appConfig().get<int>(
+	return _peer->session().appConfig().get<int>(
 		u"giveaway_period_max"_q,
 		kFallbackCount);
 }
 
 bool PremiumGiftCodeOptions::giveawayGiftsPurchaseAvailable() const {
-	return _peer->session().account().appConfig().get<bool>(
+	return _peer->session().appConfig().get<bool>(
 		u"giveaway_gifts_purchase_available"_q,
 		false);
 }
@@ -607,6 +645,26 @@ RequirePremiumState ResolveRequiresPremiumToWrite(
 		update(true);
 	}
 	return RequirePremiumState::Unknown;
+}
+
+rpl::producer<DocumentData*> RandomHelloStickerValue(
+		not_null<Main::Session*> session) {
+	const auto premium = &session->api().premium();
+	const auto random = [=] {
+		const auto &v = premium->helloStickers();
+		Assert(!v.empty());
+		return v[base::RandomIndex(v.size())].get();
+	};
+	const auto &v = premium->helloStickers();
+	if (!v.empty()) {
+		return rpl::single(random());
+	}
+	return rpl::single<DocumentData*>(
+		nullptr
+	) | rpl::then(premium->helloStickersUpdated(
+	) | rpl::filter([=] {
+		return !premium->helloStickers().empty();
+	}) | rpl::take(1) | rpl::map(random));
 }
 
 } // namespace Api

@@ -144,6 +144,10 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_business_subtitle_away_messages();
 	case PremiumFeature::BusinessBots:
 		return tr::lng_business_subtitle_chatbots();
+	case PremiumFeature::ChatIntro:
+		return tr::lng_business_subtitle_chat_intro();
+	case PremiumFeature::ChatLinks:
+		return tr::lng_business_subtitle_chat_links();
 	}
 	Unexpected("PremiumFeature in SectionTitle.");
 }
@@ -201,6 +205,10 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_business_about_away_messages();
 	case PremiumFeature::BusinessBots:
 		return tr::lng_business_about_chatbots();
+	case PremiumFeature::ChatIntro:
+		return tr::lng_business_about_chat_intro();
+	case PremiumFeature::ChatLinks:
+		return tr::lng_business_about_chat_links();
 	}
 	Unexpected("PremiumFeature in SectionTitle.");
 }
@@ -528,6 +536,8 @@ struct VideoPreviewDocument {
 		case PremiumFeature::GreetingMessage: return "greeting_message";
 		case PremiumFeature::AwayMessage: return "away_message";
 		case PremiumFeature::BusinessBots: return "business_bots";
+		case PremiumFeature::ChatIntro: return "business_intro";
+		case PremiumFeature::ChatLinks: return "business_links";
 		}
 		return "";
 	}();
@@ -1200,11 +1210,13 @@ void DecorateListPromoBox(
 		box->closeBox();
 	});
 
-	Data::AmPremiumValue(
-		session
-	) | rpl::skip(1) | rpl::start_with_next([=] {
-		box->closeBox();
-	}, box->lifetime());
+	if (!descriptor.hideSubscriptionButton) {
+		Data::AmPremiumValue(
+			session
+		) | rpl::skip(1) | rpl::start_with_next([=] {
+			box->closeBox();
+		}, box->lifetime());
+	}
 
 	if (const auto &hidden = descriptor.hiddenCallback) {
 		box->boxClosing() | rpl::start_with_next(hidden, box->lifetime());
@@ -1264,11 +1276,10 @@ void Show(
 		}));
 		return;
 	} else if (descriptor.section == PremiumFeature::Business) {
-		const auto window = show->resolveWindow(
-			ChatHelpers::WindowUsage::PremiumPromo);
-		if (window) {
-			Settings::ShowBusiness(window);
-		}
+		show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+			TelegramBusinessPreviewBox(box, &show->session());
+			DecorateListPromoBox(box, show, descriptor);
+		}));
 		return;
 	}
 	auto &list = Preloads();
@@ -1564,6 +1575,75 @@ void UpgradedStoriesPreviewBox(
 	Ui::AddDividerText(
 		box->verticalLayout(),
 		tr::lng_premium_stories_about_mobile());
+}
+
+void TelegramBusinessPreviewBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	using namespace Ui::Text;
+
+	box->setTitle(tr::lng_business_title());
+
+	auto entries = std::vector<Ui::Premium::ListEntry>();
+	const auto push = [&](
+			tr::phrase<> title,
+			tr::phrase<> description,
+			const style::icon &icon) {
+		entries.push_back({
+			.title = title(),
+			.about = description(WithEntities),
+			.icon = &icon,
+		});
+	};
+	for (const auto feature : Settings::BusinessFeaturesOrder(session)) {
+		switch (feature) {
+		case PremiumFeature::GreetingMessage: push(
+			tr::lng_business_subtitle_greeting_messages,
+			tr::lng_business_about_greeting_messages,
+			st::settingsBusinessPromoGreeting);
+			break;
+		case PremiumFeature::AwayMessage: push(
+			tr::lng_business_subtitle_away_messages,
+			tr::lng_business_about_away_messages,
+			st::settingsBusinessPromoAway);
+			break;
+		case PremiumFeature::QuickReplies: push(
+			tr::lng_business_subtitle_quick_replies,
+			tr::lng_business_about_quick_replies,
+			st::settingsBusinessPromoReplies);
+			break;
+		case PremiumFeature::BusinessHours: push(
+			tr::lng_business_subtitle_opening_hours,
+			tr::lng_business_about_opening_hours,
+			st::settingsBusinessPromoHours);
+			break;
+		case PremiumFeature::BusinessLocation: push(
+			tr::lng_business_subtitle_location,
+			tr::lng_business_about_location,
+			st::settingsBusinessPromoLocation);
+			break;
+		case PremiumFeature::BusinessBots: push(
+			tr::lng_business_subtitle_chatbots,
+			tr::lng_business_about_chatbots,
+			st::settingsBusinessPromoChatbots);
+			break;
+		case PremiumFeature::ChatIntro: push(
+			tr::lng_business_subtitle_chat_intro,
+			tr::lng_business_about_chat_intro,
+			st::settingsBusinessPromoChatIntro);
+			break;
+		case PremiumFeature::ChatLinks: push(
+			tr::lng_business_subtitle_chat_links,
+			tr::lng_business_about_chat_links,
+			st::settingsBusinessPromoChatLinks);
+			break;
+		}
+	}
+
+	Ui::Premium::ShowListBox(
+		box,
+		st::defaultPremiumLimits,
+		std::move(entries));
 }
 
 object_ptr<Ui::GradientButton> CreateUnlockButton(

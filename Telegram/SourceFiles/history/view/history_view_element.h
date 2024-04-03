@@ -632,6 +632,4 @@ private:
 
 };
 
-constexpr auto size = sizeof(Element);
-
 } // namespace HistoryView

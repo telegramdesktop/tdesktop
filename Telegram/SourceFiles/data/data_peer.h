@@ -139,7 +139,7 @@ private:
 
 };
 
-enum class PeerSetting {
+enum class PeerBarSetting {
 	ReportSpam = (1 << 0),
 	AddContact = (1 << 1),
 	BlockContact = (1 << 2),
@@ -148,10 +148,20 @@ enum class PeerSetting {
 	AutoArchived = (1 << 5),
 	RequestChat = (1 << 6),
 	RequestChatIsBroadcast = (1 << 7),
-	Unknown = (1 << 8),
+	HasBusinessBot = (1 << 8),
+	BusinessBotPaused = (1 << 9),
+	BusinessBotCanReply = (1 << 10),
+	Unknown = (1 << 11),
 };
-inline constexpr bool is_flag_type(PeerSetting) { return true; };
-using PeerSettings = base::flags<PeerSetting>;
+inline constexpr bool is_flag_type(PeerBarSetting) { return true; };
+using PeerBarSettings = base::flags<PeerBarSetting>;
+
+struct PeerBarDetails {
+	QString requestChatTitle;
+	TimeId requestChatDate;
+	UserData *businessBot = nullptr;
+	QString businessBotManageUrl;
+};
 
 class PeerData {
 protected:
@@ -160,7 +170,7 @@ protected:
 	PeerData &operator=(const PeerData &other) = delete;
 
 public:
-	using Settings = Data::Flags<PeerSettings>;
+	using BarSettings = Data::Flags<PeerBarSettings>;
 
 	virtual ~PeerData();
 
@@ -269,7 +279,11 @@ public:
 	[[nodiscard]] const QString &name() const;
 	[[nodiscard]] const QString &shortName() const;
 	[[nodiscard]] const QString &topBarNameText() const;
-	[[nodiscard]] QString userName() const;
+
+	[[nodiscard]] QString username() const;
+	[[nodiscard]] QString editableUsername() const;
+	[[nodiscard]] const std::vector<QString> &usernames() const;
+	[[nodiscard]] bool isUsernameEditable(QString username) const;
 
 	[[nodiscard]] const base::flat_set<QString> &nameWords() const {
 		return _nameWords;
@@ -346,25 +360,24 @@ public:
 
 	void checkFolder(FolderId folderId);
 
-	void setSettings(PeerSettings which) {
-		_settings.set(which);
+	void setBarSettings(PeerBarSettings which) {
+		_barSettings.set(which);
 	}
-	[[nodiscard]] auto settings() const {
-		return (_settings.current() & PeerSetting::Unknown)
+	[[nodiscard]] auto barSettings() const {
+		return (_barSettings.current() & PeerBarSetting::Unknown)
 			? std::nullopt
-			: std::make_optional(_settings.current());
+			: std::make_optional(_barSettings.current());
 	}
-	[[nodiscard]] auto settingsValue() const {
-		return (_settings.current() & PeerSetting::Unknown)
-			? _settings.changes()
-			: (_settings.value() | rpl::type_erased());
+	[[nodiscard]] auto barSettingsValue() const {
+		return (_barSettings.current() & PeerBarSetting::Unknown)
+			? _barSettings.changes()
+			: (_barSettings.value() | rpl::type_erased());
 	}
-	[[nodiscard]] QString requestChatTitle() const {
-		return _requestChatTitle;
-	}
-	[[nodiscard]] TimeId requestChatDate() const {
-		return _requestChatDate;
-	}
+	[[nodiscard]] QString requestChatTitle() const;
+	[[nodiscard]] TimeId requestChatDate() const;
+	[[nodiscard]] UserData *businessBot() const;
+	[[nodiscard]] QString businessBotManageUrl() const;
+	void clearBusinessBot();
 
 	enum class TranslationFlag : uchar {
 		Unknown,
@@ -375,7 +388,7 @@ public:
 	[[nodiscard]] TranslationFlag translationFlag() const;
 	void saveTranslationDisabled(bool disabled);
 
-	void setSettings(const MTPPeerSettings &data);
+	void setBarSettings(const MTPPeerSettings &data);
 	bool changeColorIndex(const tl::conditional<MTPint> &cloudColorIndex);
 	bool changeBackgroundEmojiId(
 		const tl::conditional<MTPlong> &cloudBackgroundEmoji);
@@ -485,10 +498,8 @@ private:
 
 	TimeId _ttlPeriod = 0;
 
-	QString _requestChatTitle;
-	TimeId _requestChatDate = 0;
-
-	Settings _settings = PeerSettings(PeerSetting::Unknown);
+	BarSettings _barSettings = PeerBarSettings(PeerBarSetting::Unknown);
+	std::unique_ptr<PeerBarDetails> _barDetails;
 
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;

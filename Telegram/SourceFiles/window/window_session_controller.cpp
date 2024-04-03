@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_session_controller.h"
 
+#include "api/api_text_entities.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
@@ -14,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "window/window_controller.h"
 #include "window/window_filters_menu.h"
+#include "info/channel_statistics/earn/info_earn_inner_widget.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "inline_bots/bot_attach_web_view.h"
@@ -25,7 +27,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_scheduled_section.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_document_resolver.h"
+#include "data/data_download_manager.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_folder.h"
@@ -47,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "base/unixtime.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/text/text_utilities.h"
@@ -60,9 +65,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
 #include "calls/group/calls_group_call.h"
 #include "ui/boxes/calendar_box.h"
+#include "ui/boxes/collectible_info_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/dynamic_thumbnails.h"
 #include "mainwidget.h"
-#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -73,6 +80,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_blocked_peers.h"
 #include "support/support_helper.h"
 #include "storage/file_upload.h"
+#include "storage/download_manager_mtproto.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller_link_info.h"
@@ -80,6 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "settings/settings_privacy_security.h"
 #include "styles/style_window.h"
+#include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
 
@@ -88,20 +97,6 @@ namespace {
 
 constexpr auto kCustomThemesInMemory = 5;
 constexpr auto kMaxChatEntryHistorySize = 50;
-
-[[nodiscard]] Ui::ChatThemeBubblesData PrepareBubblesData(
-		const Data::CloudTheme &theme,
-		Data::CloudThemeType type) {
-	const auto i = theme.settings.find(type);
-	return {
-		.colors = (i != end(theme.settings)
-			? i->second.outgoingMessagesColors
-			: std::vector<QColor>()),
-		.accent = (i != end(theme.settings)
-			? i->second.outgoingAccentColor
-			: std::optional<QColor>()),
-	};
-}
 
 class MainWindowShow final : public ChatHelpers::Show {
 public:
@@ -142,6 +137,70 @@ private:
 	const base::weak_ptr<SessionController> _window;
 
 };
+
+[[nodiscard]] Ui::ChatThemeBubblesData PrepareBubblesData(
+		const Data::CloudTheme &theme,
+		Data::CloudThemeType type) {
+	const auto i = theme.settings.find(type);
+	return {
+		.colors = (i != end(theme.settings)
+			? i->second.outgoingMessagesColors
+			: std::vector<QColor>()),
+		.accent = (i != end(theme.settings)
+			? i->second.outgoingAccentColor
+			: std::optional<QColor>()),
+	};
+}
+
+[[nodiscard]] bool DownloadingDocument(not_null<DocumentData*> document) {
+	for (const auto id : Core::App().downloadManager().loadingList()) {
+		if (id->object.document == document.get()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+[[nodiscard]] Ui::CollectibleDetails PrepareCollectibleDetails(
+		not_null<Main::Session*> session) {
+	const auto makeContext = [=] {
+		return Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [] {},
+		};
+	};
+	return {
+		.tonEmoji = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				Info::ChannelEarn::IconCurrency(
+					st::collectibleInfo,
+					st::collectibleInfo.textFg->c),
+				st::collectibleInfoTonMargins,
+				true)),
+		.tonEmojiContext = makeContext,
+	};
+}
+
+[[nodiscard]] Ui::CollectibleInfo Parse(
+		const QString &entity,
+		not_null<PeerData*> owner,
+		const MTPfragment_CollectibleInfo &info) {
+	const auto &data = info.data();
+	return {
+		.entity = entity,
+		.copyText = (entity.startsWith('+')
+			? QString()
+			: owner->session().createInternalLinkFull(entity)),
+		.ownerUserpic = Ui::MakeUserpicThumbnail(owner, true),
+		.ownerName = owner->name(),
+		.cryptoAmount = data.vcrypto_amount().v,
+		.amount = data.vamount().v,
+		.cryptoCurrency = qs(data.vcrypto_currency()),
+		.currency = qs(data.vcurrency()),
+		.url = qs(data.vurl()),
+		.date = data.vpurchase_date().v,
+	};
+}
 
 MainWindowShow::MainWindowShow(not_null<SessionController*> controller)
 : _window(base::make_weak(controller)) {
@@ -307,6 +366,13 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 		resolvePhone(info.phone, [=](not_null<PeerData*> peer) {
 			showPeerByLinkResolved(peer, info);
 		});
+	} else if (!info.chatLinkSlug.isEmpty()) {
+		resolveChatLink(info.chatLinkSlug, [=](
+				not_null<PeerData*> peer,
+				TextWithEntities draft) {
+			Data::SetChatLinkDraft(peer, draft);
+			showPeerByLinkResolved(peer, info);
+		});
 	} else if (const auto name = std::get_if<QString>(&info.usernameOrId)) {
 		resolveUsername(*name, [=](not_null<PeerData*> peer) {
 			if (info.startAutoSubmit) {
@@ -348,6 +414,33 @@ void SessionNavigation::resolvePhone(
 					lt_phone,
 					Ui::FormatPhone(phone))),
 				Ui::LayerOption::CloseOther);
+		}
+	}).send();
+}
+
+void SessionNavigation::resolveChatLink(
+		const QString &slug,
+		Fn<void(not_null<PeerData*> peer, TextWithEntities draft)> done) {
+	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(MTPaccount_ResolveBusinessChatLink(
+		MTP_string(slug)
+	)).done([=](const MTPaccount_ResolvedBusinessChatLinks &result) {
+		_resolveRequestId = 0;
+		parentController()->hideLayer();
+		const auto &data = result.data();
+		_session->data().processUsers(data.vusers());
+		_session->data().processChats(data.vchats());
+
+		using namespace Api;
+		const auto peerId = peerFromMTP(data.vpeer());
+		done(_session->data().peer(peerId), {
+			qs(data.vmessage()),
+			EntitiesFromMTP(_session, data.ventities().value_or_empty())
+		});
+	}).fail([=](const MTP::Error &error) {
+		_resolveRequestId = 0;
+		if (error.code() == 400) {
+			showToast(tr::lng_confirm_phone_link_invalid(tr::now));
 		}
 	}).send();
 }
@@ -639,6 +732,36 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 	}).fail([=](const MTP::Error &error) {
 		_boostStateResolving = nullptr;
 		showToast(u"Error: "_q + error.type());
+	}).send();
+}
+
+void SessionNavigation::resolveCollectible(
+		PeerId ownerId,
+		const QString &entity,
+		Fn<void(QString)> fail) {
+	if (_collectibleEntity == entity) {
+		return;
+	} else {
+		_api.request(base::take(_collectibleRequestId)).cancel();
+	}
+	_collectibleEntity = entity;
+	_collectibleRequestId = _api.request(MTPfragment_GetCollectibleInfo(
+		((Ui::DetectCollectibleType(entity) == Ui::CollectibleType::Phone)
+			? MTP_inputCollectiblePhone(MTP_string(entity))
+			: MTP_inputCollectibleUsername(MTP_string(entity)))
+	)).done([=](const MTPfragment_CollectibleInfo &result) {
+		const auto entity = base::take(_collectibleEntity);
+		_collectibleRequestId = 0;
+		uiShow()->show(Box(
+			Ui::CollectibleInfoBox,
+			Parse(entity, _session->data().peer(ownerId), result),
+			PrepareCollectibleDetails(_session)));
+	}).fail([=](const MTP::Error &error) {
+		_collectibleEntity = QString();
+		_collectibleRequestId = 0;
+		if (fail) {
+			fail(error.type());
+		}
 	}).send();
 }
 
@@ -1157,12 +1280,66 @@ SessionController::SessionController(
 		}));
 	}, _lifetime);
 
+	session->downloader().nonPremiumDelays(
+	) | rpl::start_with_next([=](DocumentId id) {
+		checkNonPremiumLimitToastDownload(id);
+	}, _lifetime);
+
+	session->uploader().nonPremiumDelays(
+	) | rpl::start_with_next([=](FullMsgId id) {
+		checkNonPremiumLimitToastUpload(id);
+	}, _lifetime);
+
 	session->addWindow(this);
 
 	crl::on_main(this, [=] {
 		activateFirstChatsFilter();
 		setupPremiumToast();
 	});
+}
+
+bool SessionController::skipNonPremiumLimitToast(bool download) const {
+	if (session().premium()) {
+		return true;
+	}
+	const auto now = base::unixtime::now();
+	const auto last = download
+		? session().settings().lastNonPremiumLimitDownload()
+		: session().settings().lastNonPremiumLimitUpload();
+	const auto delay = session().appConfig().get<int>(
+		u"upload_premium_speedup_notify_period"_q,
+		3600);
+	return (last && now < last + delay && now > last - delay);
+}
+
+void SessionController::checkNonPremiumLimitToastDownload(DocumentId id) {
+	if (skipNonPremiumLimitToast(true)) {
+		return;
+	}
+	const auto document = session().data().document(id);
+	const auto visible = session().data().queryDocumentVisibility(document)
+		|| DownloadingDocument(document);
+	if (!visible) {
+		return;
+	}
+	content()->showNonPremiumLimitToast(true);
+	const auto now = base::unixtime::now();
+	session().settings().setLastNonPremiumLimitDownload(now);
+	session().saveSettingsDelayed();
+}
+
+void SessionController::checkNonPremiumLimitToastUpload(FullMsgId id) {
+	if (skipNonPremiumLimitToast(false)) {
+		return;
+	} else if (const auto item = session().data().message(id)) {
+		if (!session().data().queryItemVisibility(item)) {
+			return;
+		}
+		content()->showNonPremiumLimitToast(false);
+		const auto now = base::unixtime::now();
+		session().settings().setLastNonPremiumLimitUpload(now);
+		session().saveSettingsDelayed();
+	}
 }
 
 void SessionController::suggestArchiveAndMute() {
@@ -1244,6 +1421,12 @@ void SessionController::showGiftPremiumBox(UserData *user) {
 
 void SessionController::showGiftPremiumsBox(const QString &ref) {
 	_giftPremiumValidator.showChoosePeerBox(ref);
+}
+
+void SessionController::showGiftPremiumsBox(
+		not_null<UserData*> user,
+		const QString &ref) {
+	_giftPremiumValidator.showChosenPeerBox(user, ref);
 }
 
 void SessionController::init() {

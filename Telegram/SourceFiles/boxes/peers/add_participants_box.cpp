@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_invite_links.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_peer_type_box.h"
-#include "ui/boxes/confirm_box.h"
+#include "boxes/peers/replace_boost_box.h"
 #include "boxes/max_invite_box.h"
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
@@ -20,32 +20,56 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_changes.h"
+#include "data/data_peer_values.h"
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/boxes/show_or_premium_box.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/painter.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
+#include "settings/settings_premium.h"
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_icon.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_premium.h"
 
 namespace {
 
 constexpr auto kParticipantsFirstPageCount = 16;
 constexpr auto kParticipantsPerPage = 200;
+constexpr auto kUserpicsLimit = 3;
+
+class ForbiddenRow final : public PeerListRow {
+public:
+	ForbiddenRow(not_null<PeerData*> peer, bool locked);
+
+	PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
+
+private:
+	const bool _locked = false;
+	QImage _disabledFrame;
+	InMemoryKey _userpicKey;
+	int _paletteVersion = 0;
+
+};
 
 class InviteForbiddenController final : public PeerListController {
 public:
 	InviteForbiddenController(
 		not_null<PeerData*> peer,
-		std::vector<not_null<UserData*>> users);
+		ForbiddenInvites forbidden);
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -67,9 +91,14 @@ private:
 	void appendRow(not_null<UserData*> user);
 	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
 		not_null<UserData*> user) const;
+	[[nodiscard]] bool canInvite(not_null<PeerData*> peer) const;
+
+	void setSimpleCover();
+	void setComplexCover();
 
 	const not_null<PeerData*> _peer;
-	const std::vector<not_null<UserData*>> _users;
+	const ForbiddenInvites _forbidden;
+	const std::vector<not_null<UserData*>> &_users;
 	const bool _can = false;
 	rpl::variable<int> _selected;
 	bool _sending = false;
@@ -91,22 +120,226 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 	return {};
 }
 
+void FillUpgradeToPremiumCover(
+		not_null<Ui::VerticalLayout*> container,
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<PeerData*> peer,
+		const ForbiddenInvites &forbidden) {
+	const auto noneCanSend = (forbidden.premiumAllowsWrite.size()
+		== forbidden.users.size());
+	const auto &userpicUsers = (forbidden.premiumAllowsInvite.empty()
+		|| noneCanSend)
+		? forbidden.premiumAllowsWrite
+		: forbidden.premiumAllowsInvite;
+	Assert(!userpicUsers.empty());
+
+	auto userpicPeers = userpicUsers | ranges::views::transform([](auto u) {
+		return not_null<PeerData*>(u);
+	}) | ranges::to_vector;
+	container->add(object_ptr<Ui::PaddingWrap<>>(
+		container,
+		CreateUserpicsWithMoreBadge(
+			container,
+			rpl::single(std::move(userpicPeers)),
+			kUserpicsLimit),
+		st::inviteForbiddenUserpicsPadding)
+	)->entity()->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto users = int(userpicUsers.size());
+	const auto names = std::min(users, kUserpicsLimit);
+	const auto remaining = std::max(users - kUserpicsLimit, 0);
+	auto text = TextWithEntities();
+	for (auto i = 0; i != names; ++i) {
+		const auto name = userpicUsers[i]->shortName();
+		if (text.empty()) {
+			text = Ui::Text::Bold(name);
+		} else if (i == names - 1 && !remaining) {
+			text = tr::lng_invite_upgrade_users_few(
+				tr::now,
+				lt_users,
+				text,
+				lt_last,
+				Ui::Text::Bold(name),
+				Ui::Text::RichLangValue);
+		} else {
+			text.append(", ").append(Ui::Text::Bold(name));
+		}
+	}
+	if (remaining > 0) {
+		text = tr::lng_invite_upgrade_users_many(
+			tr::now,
+			lt_count,
+			remaining,
+			lt_users,
+			text,
+			Ui::Text::RichLangValue);
+	}
+	const auto inviteOnly = !forbidden.premiumAllowsInvite.empty()
+		&& (forbidden.premiumAllowsWrite.size() != forbidden.users.size());
+	text = (peer->isBroadcast()
+		? (inviteOnly
+			? tr::lng_invite_upgrade_channel_invite
+			: tr::lng_invite_upgrade_channel_write)
+		: (inviteOnly
+			? tr::lng_invite_upgrade_group_invite
+			: tr::lng_invite_upgrade_group_write))(
+				tr::now,
+				lt_count,
+				int(userpicUsers.size()),
+				lt_users,
+				text,
+				Ui::Text::RichLangValue);
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			rpl::single(text),
+			st::inviteForbiddenInfo),
+		st::inviteForbiddenInfoPadding);
+}
+
+void SimpleForbiddenBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> peer,
+		const ForbiddenInvites &forbidden) {
+	box->setTitle(tr::lng_invite_upgrade_title());
+	box->setWidth(st::boxWideWidth);
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
+
+	auto sshow = Main::MakeSessionShow(box->uiShow(), &peer->session());
+	const auto container = box->verticalLayout();
+	FillUpgradeToPremiumCover(container, sshow, peer, forbidden);
+
+	const auto &stButton = st::premiumGiftBox;
+	box->setStyle(stButton);
+	auto raw = Settings::CreateSubscribeButton(
+		sshow,
+		ChatHelpers::ResolveWindowDefault(),
+		{
+			.parent = container,
+			.computeRef = [] { return u"invite_privacy"_q; },
+			.text = tr::lng_messages_privacy_premium_button(),
+			.showPromo = true,
+		});
+	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
+	button->resizeToWidth(st::boxWideWidth
+		- stButton.buttonPadding.left()
+		- stButton.buttonPadding.right());
+	box->setShowFinishedCallback([raw = button.data()] {
+		raw->startGlareAnimation();
+	});
+	box->addButton(std::move(button));
+
+	Data::AmPremiumValue(
+		&peer->session()
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		box->closeBox();
+	}, box->lifetime());
+}
+
 InviteForbiddenController::InviteForbiddenController(
 	not_null<PeerData*> peer,
-	std::vector<not_null<UserData*>> users)
+	ForbiddenInvites forbidden)
 : _peer(peer)
-, _users(std::move(users))
+, _forbidden(std::move(forbidden))
+, _users(_forbidden.users)
 , _can(peer->isChat()
 	? peer->asChat()->canHaveInviteLink()
 	: peer->asChannel()->canHaveInviteLink())
-, _selected(_can ? int(_users.size()) : 0) {
+, _selected(_can
+	? (int(_users.size()) - int(_forbidden.premiumAllowsWrite.size()))
+	: 0) {
 }
 
 Main::Session &InviteForbiddenController::session() const {
 	return _peer->session();
 }
 
-void InviteForbiddenController::prepare() {
+ForbiddenRow::ForbiddenRow(not_null<PeerData*> peer, bool locked)
+: PeerListRow(peer)
+, _locked(locked) {
+	if (_locked) {
+		setCustomStatus(tr::lng_invite_status_disabled(tr::now));
+	}
+}
+
+PaintRoundImageCallback ForbiddenRow::generatePaintUserpicCallback(
+		bool forceRound) {
+	const auto peer = this->peer();
+	const auto saved = peer->isSelf();
+	const auto replies = peer->isRepliesChat();
+	auto userpic = (saved || replies)
+		? Ui::PeerUserpicView()
+		: ensureUserpicView();
+	auto paint = [=](
+			Painter &p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) mutable {
+		peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
+	};
+	if (!_locked) {
+		return paint;
+	}
+	return [=](
+			Painter &p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) mutable {
+		const auto wide = size + style::ConvertScale(3);
+		const auto full = QSize(wide, wide) * style::DevicePixelRatio();
+		auto repaint = false;
+		if (_disabledFrame.size() != full) {
+			repaint = true;
+			_disabledFrame = QImage(
+				full,
+				QImage::Format_ARGB32_Premultiplied);
+			_disabledFrame.setDevicePixelRatio(style::DevicePixelRatio());
+		} else {
+			repaint = (_paletteVersion != style::PaletteVersion())
+				|| (!saved
+					&& !replies
+					&& (_userpicKey != peer->userpicUniqueKey(userpic)));
+		}
+		if (repaint) {
+			_paletteVersion = style::PaletteVersion();
+			_userpicKey = peer->userpicUniqueKey(userpic);
+
+			_disabledFrame.fill(Qt::transparent);
+			auto p = Painter(&_disabledFrame);
+			paint(p, 0, 0, wide, size);
+
+			auto hq = PainterHighQualityEnabler(p);
+			p.setBrush(st::boxBg);
+			p.setPen(Qt::NoPen);
+			const auto lock = st::inviteForbiddenLockIcon.size();
+			const auto stroke = style::ConvertScale(2);
+			const auto inner = QRect(
+				size + (stroke / 2) - lock.width(),
+				size + (stroke / 2) - lock.height(),
+				lock.width(),
+				lock.height());
+			const auto half = stroke / 2.;
+			const auto rect = QRectF(inner).marginsAdded(
+				{ half, half, half, half });
+			auto pen = st::boxBg->p;
+			pen.setWidthF(stroke);
+			p.setPen(pen);
+			p.setBrush(st::inviteForbiddenLockBg);
+			p.drawEllipse(rect);
+
+			st::inviteForbiddenLockIcon.paintInCenter(p, inner);
+		}
+		p.drawImage(x, y, _disabledFrame);
+	};
+}
+
+void InviteForbiddenController::setSimpleCover() {
+	delegate()->peerListSetTitle(
+		_can ? tr::lng_profile_add_via_link() : tr::lng_via_link_cant());
 	const auto broadcast = _peer->isBroadcast();
 	const auto count = int(_users.size());
 	const auto phraseCounted = !_can
@@ -135,8 +368,78 @@ void InviteForbiddenController::prepare() {
 			std::move(text),
 			st::requestPeerRestriction),
 		st::boxRowPadding));
-	delegate()->peerListSetTitle(
-		_can ? tr::lng_profile_add_via_link() : tr::lng_via_link_cant());
+}
+
+void InviteForbiddenController::setComplexCover() {
+	delegate()->peerListSetTitle(tr::lng_invite_upgrade_title());
+
+	auto cover = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
+	const auto container = cover.data();
+	const auto show = delegate()->peerListUiShow();
+	FillUpgradeToPremiumCover(container, show, _peer, _forbidden);
+
+	container->add(
+		object_ptr<Ui::GradientButton>::fromRaw(
+			Settings::CreateSubscribeButton(
+				show,
+				ChatHelpers::ResolveWindowDefault(),
+				{
+					.parent = container,
+					.computeRef = [] { return u"invite_privacy"_q; },
+					.text = tr::lng_messages_privacy_premium_button(),
+				})),
+				st::inviteForbiddenSubscribePadding);
+
+	if (_forbidden.users.size() > _forbidden.premiumAllowsWrite.size()) {
+		if (_can) {
+			container->add(
+				MakeShowOrLabel(container, tr::lng_invite_upgrade_or()),
+				st::inviteForbiddenOrLabelPadding);
+		}
+		container->add(
+			object_ptr<Ui::FlatLabel>(
+				container,
+				(_can
+					? tr::lng_invite_upgrade_via_title()
+					: tr::lng_via_link_cant()),
+				st::inviteForbiddenTitle),
+			st::inviteForbiddenTitlePadding);
+
+		const auto about = _can
+			? (_peer->isBroadcast()
+				? tr::lng_invite_upgrade_via_channel_about
+				: tr::lng_invite_upgrade_via_group_about)(
+					tr::now,
+					Ui::Text::WithEntities)
+			: (_forbidden.users.size() == 1
+				? tr::lng_via_link_cant_one(
+					tr::now,
+					lt_user,
+					TextWithEntities{ _forbidden.users.front()->shortName() },
+					Ui::Text::RichLangValue)
+				: tr::lng_via_link_cant_many(
+					tr::now,
+					lt_count,
+					int(_forbidden.users.size()),
+					Ui::Text::RichLangValue));
+		container->add(
+			object_ptr<Ui::FlatLabel>(
+				container,
+				rpl::single(about),
+				st::inviteForbiddenInfo),
+			st::inviteForbiddenInfoPadding);
+	}
+	delegate()->peerListSetAboveWidget(std::move(cover));
+}
+
+void InviteForbiddenController::prepare() {
+	if (session().premium()
+		|| (_forbidden.premiumAllowsInvite.empty()
+			&& _forbidden.premiumAllowsWrite.empty())) {
+		setSimpleCover();
+	} else {
+		setComplexCover();
+	}
 
 	for (const auto &user : _users) {
 		appendRow(user);
@@ -144,8 +447,16 @@ void InviteForbiddenController::prepare() {
 	delegate()->peerListRefreshRows();
 }
 
+bool InviteForbiddenController::canInvite(not_null<PeerData*> peer) const {
+	const auto user = peer->asUser();
+	Assert(user != nullptr);
+
+	return _can
+		&& !ranges::contains(_forbidden.premiumAllowsWrite, not_null(user));
+}
+
 void InviteForbiddenController::rowClicked(not_null<PeerListRow*> row) {
-	if (!_can) {
+	if (!canInvite(row->peer())) {
 		return;
 	}
 	const auto checked = row->checked();
@@ -158,7 +469,7 @@ void InviteForbiddenController::appendRow(not_null<UserData*> user) {
 		auto row = createRow(user);
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
-		if (_can) {
+		if (canInvite(user)) {
 			delegate()->peerListSetRowChecked(raw, true);
 		}
 	}
@@ -228,7 +539,8 @@ void InviteForbiddenController::send(
 
 std::unique_ptr<PeerListRow> InviteForbiddenController::createRow(
 		not_null<UserData*> user) const {
-	return std::make_unique<PeerListRow>(user);
+	const auto locked = _can && !canInvite(user);
+	return std::make_unique<ForbiddenRow>(user, locked);
 }
 
 } // namespace
@@ -433,9 +745,9 @@ void AddParticipantsBoxController::inviteSelectedUsers(
 	const auto show = box->uiShow();
 	const auto request = [=](bool checked) {
 		_peer->session().api().chatParticipants().add(
+			show,
 			_peer,
 			users,
-			show,
 			checked);
 	};
 	if (_peer->isChannel()) {
@@ -559,43 +871,39 @@ void AddParticipantsBoxController::Start(
 	Start(navigation, channel, {}, true);
 }
 
-std::vector<not_null<UserData*>> CollectForbiddenUsers(
+ForbiddenInvites CollectForbiddenUsers(
 		not_null<Main::Session*> session,
-		const MTPUpdates &updates) {
+		const MTPmessages_InvitedUsers &result) {
+	const auto &data = result.data();
 	const auto owner = &session->data();
-	auto result = std::vector<not_null<UserData*>>();
-	const auto add = [&](const MTPUpdate &update) {
-		if (update.type() == mtpc_updateGroupInvitePrivacyForbidden) {
-			const auto user = owner->userLoaded(UserId(
-				update.c_updateGroupInvitePrivacyForbidden().vuser_id()));
-			if (user) {
-				result.push_back(user);
+	auto forbidden = ForbiddenInvites();
+	for (const auto &missing : data.vmissing_invitees().v) {
+		const auto &data = missing.data();
+		const auto user = owner->userLoaded(data.vuser_id());
+		if (user) {
+			forbidden.users.push_back(user);
+			if (data.is_premium_would_allow_invite()) {
+				forbidden.premiumAllowsInvite.push_back(user);
+			}
+			if (data.is_premium_required_for_pm()) {
+				forbidden.premiumAllowsWrite.push_back(user);
 			}
 		}
-	};
-	const auto collect = [&](const MTPVector<MTPUpdate> &updates) {
-		for (const auto &update : updates.v) {
-			add(update);
-		}
-	};
-	updates.match([&](const MTPDupdates &data) {
-		collect(data.vupdates());
-	}, [&](const MTPDupdatesCombined &data) {
-		collect(data.vupdates());
-	}, [&](const MTPDupdateShort &data) {
-		add(data.vupdate());
-	}, [](const auto &other) {
-		LOG(("Api Error: CollectForbiddenUsers for wrong updates type."));
-	});
-	return result;
+	}
+	return forbidden;
 }
 
 bool ChatInviteForbidden(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
-		std::vector<not_null<UserData*>> forbidden) {
+		ForbiddenInvites forbidden) {
 	if (forbidden.empty() || !show || !show->valid()) {
 		return false;
+	} else if (forbidden.users.size() <= kUserpicsLimit
+		&& (forbidden.premiumAllowsWrite.size()
+			== forbidden.users.size())) {
+		show->show(Box(SimpleForbiddenBox, peer, forbidden));
+		return true;
 	}
 	auto controller = std::make_unique<InviteForbiddenController>(
 		peer,
@@ -626,6 +934,12 @@ bool ChatInviteForbidden(
 			box->addButton(tr::lng_create_group_skip(), [=] {
 				box->closeBox();
 			});
+		}, box->lifetime());
+
+		Data::AmPremiumValue(
+			&peer->session()
+		) | rpl::skip(1) | rpl::start_with_next([=] {
+			box->closeBox();
 		}, box->lifetime());
 	};
 	show->showBox(
@@ -960,6 +1274,7 @@ void AddSpecialBoxController::showAdmin(
 		user,
 		currentRights,
 		_additional.adminRank(user));
+	const auto show = delegate()->peerListUiShow();
 	if (_additional.canAddOrEditAdmin(user)) {
 		const auto done = crl::guard(this, [=](
 				ChatAdminRightsInfo newRights,
@@ -971,7 +1286,8 @@ void AddSpecialBoxController::showAdmin(
 				_editParticipantBox->closeBox();
 			}
 		});
-		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
+		box->setSaveCallback(
+			SaveAdminCallback(show, _peer, user, done, fail));
 	}
 	_editParticipantBox = showBox(std::move(box));
 }

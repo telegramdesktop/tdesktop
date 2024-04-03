@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/chat/more_chats_bar.h"
 #include "main/main_session.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "apiwrap.h"
 
@@ -33,7 +32,7 @@ constexpr auto kLoadExceptionsAfter = 100;
 constexpr auto kLoadExceptionsPerRequest = 100;
 
 [[nodiscard]] crl::time RequestUpdatesEach(not_null<Session*> owner) {
-	const auto appConfig = &owner->session().account().appConfig();
+	const auto appConfig = &owner->session().appConfig();
 	return appConfig->get<int>(u"chatlist_update_period"_q, 3600)
 		* crl::time(1000);
 }
@@ -320,7 +319,7 @@ not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
 	auto &pointer = _chatsLists[filterId];
 	if (!pointer) {
 		auto limit = rpl::single(rpl::empty_value()) | rpl::then(
-			_owner->session().account().appConfig().refreshed()
+			_owner->session().appConfig().refreshed()
 		) | rpl::map([=] {
 			return _owner->pinnedChatsLimit(filterId);
 		});

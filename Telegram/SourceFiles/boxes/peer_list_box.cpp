@@ -506,6 +506,22 @@ int PeerListBox::peerListSelectedRowsCount() {
 	return _select ? _select->entity()->getItemsCount() : 0;
 }
 
+std::vector<PeerListRowId> PeerListBox::collectSelectedIds() {
+	auto result = std::vector<PeerListRowId>();
+	auto items = _select
+		? _select->entity()->getItems()
+		: QVector<uint64>();
+	if (!items.empty()) {
+		result.reserve(items.size());
+		for (const auto itemId : items) {
+			if (!_controller->isForeignRow(itemId)) {
+				result.push_back(itemId);
+			}
+		}
+	}
+	return result;
+}
+
 auto PeerListBox::collectSelectedRows()
 -> std::vector<not_null<PeerData*>> {
 	auto result = std::vector<not_null<PeerData*>>();
@@ -887,11 +903,15 @@ void PeerListRow::lazyInitialize(const style::PeerListItem &st) {
 	refreshStatus();
 }
 
+bool PeerListRow::useForumLikeUserpic() const {
+	return !special() && peer()->isForum();
+}
+
 void PeerListRow::createCheckbox(
 		const style::RoundImageCheckbox &st,
 		Fn<void()> updateCallback) {
 	const auto generateRadius = [=](int size) {
-		return (!special() && peer()->isForum())
+		return useForumLikeUserpic()
 			? int(size * Ui::ForumUserpicRadiusMultiplier())
 			: std::optional<int>();
 	};
@@ -1769,10 +1789,10 @@ crl::time PeerListContent::paintRow(
 	if (row->isSearchResult()
 		&& !_mentionHighlight.isEmpty()
 		&& peer
-		&& peer->userName().startsWith(
+		&& peer->username().startsWith(
 			_mentionHighlight,
 			Qt::CaseInsensitive)) {
-		const auto username = peer->userName();
+		const auto username = peer->username();
 		const auto availableWidth = statusw;
 		auto highlightedPart = '@' + username.mid(0, _mentionHighlight.size());
 		auto grayedPart = username.mid(_mentionHighlight.size());

@@ -85,6 +85,10 @@ public:
 		-> const std::vector<not_null<DocumentData*>> &;
 	[[nodiscard]] rpl::producer<> cloudSetUpdated() const;
 
+	[[nodiscard]] auto helloStickers() const
+		-> const std::vector<not_null<DocumentData*>> &;
+	[[nodiscard]] rpl::producer<> helloStickersUpdated() const;
+
 	[[nodiscard]] int64 monthlyAmount() const;
 	[[nodiscard]] QString monthlyCurrency() const;
 
@@ -111,6 +115,7 @@ private:
 	void reloadPromo();
 	void reloadStickers();
 	void reloadCloudSet();
+	void reloadHelloStickers();
 	void requestPremiumRequiredSlice();
 
 	const not_null<Main::Session*> _session;
@@ -132,6 +137,11 @@ private:
 	uint64 _cloudSetHash = 0;
 	std::vector<not_null<DocumentData*>> _cloudSet;
 	rpl::event_stream<> _cloudSetUpdated;
+
+	mtpRequestId _helloStickersRequestId = 0;
+	uint64 _helloStickersHash = 0;
+	std::vector<not_null<DocumentData*>> _helloStickers;
+	rpl::event_stream<> _helloStickersUpdated;
 
 	int64 _monthlyAmount = 0;
 	QString _monthlyCurrency;
@@ -214,5 +224,8 @@ enum class RequirePremiumState {
 [[nodiscard]] RequirePremiumState ResolveRequiresPremiumToWrite(
 	not_null<PeerData*> peer,
 	History *maybeHistory);
+
+[[nodiscard]] rpl::producer<DocumentData*> RandomHelloStickerValue(
+	not_null<Main::Session*> session);
 
 } // namespace Api

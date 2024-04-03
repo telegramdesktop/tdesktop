@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_entity.h" // TextWithEntities.
 #include "ui/item_text_options.h" // Ui::ItemTextOptions.
 #include "main/main_session.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "storage/localimageloader.h"
 #include "storage/file_upload.h"
@@ -239,8 +238,7 @@ bool SendDice(MessageToSend &message) {
 		|| !message.textWithTags.tags.isEmpty()) {
 		return false;
 	}
-	auto &account = message.action.history->session().account();
-	auto &config = account.appConfig();
+	auto &config = message.action.history->session().appConfig();
 	static const auto hardcoded = std::vector<QString>{
 		Stickers::DicePacks::kDiceString,
 		Stickers::DicePacks::kDartString,
@@ -355,7 +353,7 @@ void FillMessagePostFlags(
 
 void SendConfirmedFile(
 		not_null<Main::Session*> session,
-		const std::shared_ptr<FileLoadResult> &file) {
+		const std::shared_ptr<FilePrepareResult> &file) {
 	const auto isEditing = (file->type != SendMediaType::Audio)
 		&& (file->to.replaceMediaOf != 0);
 	const auto newId = FullMsgId(

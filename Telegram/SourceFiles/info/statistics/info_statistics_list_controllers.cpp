@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories.h"
 #include "data/data_user.h"
 #include "history/history_item.h"
-#include "info/boosts/giveaway/boost_badge.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/effects/outline_segments.h" // Ui::UnreadStoryOutlineGradient.

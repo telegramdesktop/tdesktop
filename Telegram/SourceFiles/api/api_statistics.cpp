@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_statistics.h"
 
 #include "apiwrap.h"
+#include "base/unixtime.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -744,6 +745,127 @@ void Boosts::requestBoosts(
 
 Data::BoostStatus Boosts::boostStatus() const {
 	return _boostStatus;
+}
+
+EarnStatistics::EarnStatistics(not_null<ChannelData*> channel)
+: StatisticsRequestSender(channel) {
+}
+
+rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		makeRequest(MTPstats_GetBroadcastRevenueStats(
+			MTP_flags(0),
+			channel()->inputChannel
+		)).done([=](const MTPstats_BroadcastRevenueStats &result) {
+			const auto &data = result.data();
+
+			_data = Data::EarnStatistics{
+				.topHoursGraph = StatisticalGraphFromTL(
+					data.vtop_hours_graph()),
+				.revenueGraph = StatisticalGraphFromTL(data.vrevenue_graph()),
+				.currentBalance = data.vcurrent_balance().v,
+				.availableBalance = data.vavailable_balance().v,
+				.overallRevenue = data.voverall_revenue().v,
+				.usdRate = data.vusd_rate().v,
+			};
+
+			requestHistory({}, [=](Data::EarnHistorySlice &&slice) {
+				_data.firstHistorySlice = std::move(slice);
+
+				api().request(
+					MTPchannels_GetFullChannel(channel()->inputChannel)
+				).done([=](const MTPmessages_ChatFull &result) {
+					result.data().vfull_chat().match([&](
+							const MTPDchannelFull &d) {
+						_data.switchedOff = d.is_restricted_sponsored();
+					}, [](const auto &) {
+					});
+					consumer.put_done();
+				}).fail([=](const MTP::Error &error) {
+					consumer.put_error_copy(error.type());
+				}).send();
+			});
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
+void EarnStatistics::requestHistory(
+		const Data::EarnHistorySlice::OffsetToken &token,
+		Fn<void(Data::EarnHistorySlice)> done) {
+	if (_requestId) {
+		return;
+	}
+	constexpr auto kTlFirstSlice = tl::make_int(kFirstSlice);
+	constexpr auto kTlLimit = tl::make_int(kLimit);
+	_requestId = api().request(MTPstats_GetBroadcastRevenueTransactions(
+		channel()->inputChannel,
+		MTP_int(token),
+		(!token) ? kTlFirstSlice : kTlLimit
+	)).done([=](const MTPstats_BroadcastRevenueTransactions &result) {
+		_requestId = 0;
+
+		const auto &tlTransactions = result.data().vtransactions().v;
+
+		auto list = std::vector<Data::EarnHistoryEntry>();
+		list.reserve(tlTransactions.size());
+		for (const auto &tlTransaction : tlTransactions) {
+			list.push_back(tlTransaction.match([&](
+					const MTPDbroadcastRevenueTransactionProceeds &d) {
+				return Data::EarnHistoryEntry{
+					.type = Data::EarnHistoryEntry::Type::In,
+					.amount = d.vamount().v,
+					.date = base::unixtime::parse(d.vfrom_date().v),
+					.dateTo = base::unixtime::parse(d.vto_date().v),
+				};
+			}, [&](const MTPDbroadcastRevenueTransactionWithdrawal &d) {
+				return Data::EarnHistoryEntry{
+					.type = Data::EarnHistoryEntry::Type::Out,
+					.status = d.is_pending()
+						? Data::EarnHistoryEntry::Status::Pending
+						: d.is_failed()
+						? Data::EarnHistoryEntry::Status::Failed
+						: Data::EarnHistoryEntry::Status::Success,
+					.amount = (std::numeric_limits<Data::EarnInt>::max()
+						- d.vamount().v
+						+ 1),
+					.date = base::unixtime::parse(d.vdate().v),
+					// .provider = qs(d.vprovider()),
+					.successDate = d.vtransaction_date()
+						? base::unixtime::parse(d.vtransaction_date()->v)
+						: QDateTime(),
+					.successLink = d.vtransaction_url()
+						? qs(*d.vtransaction_url())
+						: QString(),
+				};
+			}, [&](const MTPDbroadcastRevenueTransactionRefund &d) {
+				return Data::EarnHistoryEntry{
+					.type = Data::EarnHistoryEntry::Type::Return,
+					.amount = d.vamount().v,
+					.date = base::unixtime::parse(d.vdate().v),
+					// .provider = qs(d.vprovider()),
+				};
+			}));
+		}
+		const auto nextToken = token + tlTransactions.size();
+		done(Data::EarnHistorySlice{
+			.list = std::move(list),
+			.total = result.data().vcount().v,
+			.allLoaded = (result.data().vcount().v == nextToken),
+			.token = Data::EarnHistorySlice::OffsetToken(nextToken),
+		});
+	}).fail([=] {
+		_requestId = 0;
+	}).send();
+}
+
+Data::EarnStatistics EarnStatistics::data() const {
+	return _data;
 }
 
 } // namespace Api

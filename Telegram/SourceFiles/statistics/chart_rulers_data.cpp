@@ -34,7 +34,9 @@ ChartRulersData::ChartRulersData(
 		int newMaxHeight,
 		int newMinHeight,
 		bool useMinHeight,
-		float64 rightRatio) {
+		float64 rightRatio,
+		Fn<QString(float64)> leftCustomCaption,
+		Fn<QString(float64)> rightCustomCaption) {
 	if (!useMinHeight) {
 		const auto v = (newMaxHeight > 100)
 			? Round(newMaxHeight)
@@ -92,10 +94,14 @@ ChartRulersData::ChartRulersData(
 			const auto value = int(i * step);
 			line.absoluteValue = newMinHeight + value;
 			line.relativeValue = 1. - value / float64(diffAbsoluteValue);
-			line.caption = Format(line.absoluteValue);
-			if (rightRatio > 0) {
+			line.caption = leftCustomCaption
+				? leftCustomCaption(line.absoluteValue)
+				: Format(line.absoluteValue);
+			if (rightRatio > 0 || rightCustomCaption) {
 				const auto v = (newMinHeight + i * step) / rightRatio;
-				line.scaledLineCaption = (!skipFloatValues)
+				line.scaledLineCaption = rightCustomCaption
+					? rightCustomCaption(line.absoluteValue)
+					: (!skipFloatValues)
 					? Format(v)
 					: ((v - int(v)) < 0.01)
 					? Format(v)

@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 
@@ -36,10 +35,10 @@ bool Transcribes::freeFor(not_null<HistoryItem*> item) const {
 
 bool Transcribes::trialsSupport() {
 	if (!_trialsSupport) {
-		const auto count = _session->account().appConfig().get<int>(
+		const auto count = _session->appConfig().get<int>(
 			u"transcribe_audio_trial_weekly_number"_q,
 			0);
-		const auto until = _session->account().appConfig().get<int>(
+		const auto until = _session->appConfig().get<int>(
 			u"transcribe_audio_trial_cooldown_until"_q,
 			0);
 		_trialsSupport = (count > 0) || (until > 0);
@@ -49,7 +48,7 @@ bool Transcribes::trialsSupport() {
 
 TimeId Transcribes::trialsRefreshAt() {
 	if (_trialsRefreshAt < 0) {
-		_trialsRefreshAt = _session->account().appConfig().get<int>(
+		_trialsRefreshAt = _session->appConfig().get<int>(
 			u"transcribe_audio_trial_cooldown_until"_q,
 			0);
 	}
@@ -58,7 +57,7 @@ TimeId Transcribes::trialsRefreshAt() {
 
 int Transcribes::trialsCount() {
 	if (_trialsCount < 0) {
-		_trialsCount = _session->account().appConfig().get<int>(
+		_trialsCount = _session->appConfig().get<int>(
 			u"transcribe_audio_trial_weekly_number"_q,
 			-1);
 		return std::max(_trialsCount, 0);
@@ -67,7 +66,7 @@ int Transcribes::trialsCount() {
 }
 
 crl::time Transcribes::trialsMaxLengthMs() const {
-	return 1000 * _session->account().appConfig().get<int>(
+	return 1000 * _session->appConfig().get<int>(
 		u"transcribe_audio_trial_duration_max"_q,
 		300);
 }

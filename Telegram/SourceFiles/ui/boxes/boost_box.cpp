@@ -678,17 +678,18 @@ void AskBoostBox(
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
-	auto title = v::match(data.reason.data, [&](
-			AskBoostChannelColor data) {
+	auto title = v::match(data.reason.data, [](AskBoostChannelColor) {
 		return tr::lng_boost_channel_title_color();
-	}, [&](AskBoostWallpaper data) {
+	}, [](AskBoostWallpaper) {
 		return tr::lng_boost_channel_title_wallpaper();
-	}, [&](AskBoostEmojiStatus data) {
+	}, [](AskBoostEmojiStatus) {
 		return tr::lng_boost_channel_title_status();
-	}, [&](AskBoostEmojiPack data) {
+	}, [](AskBoostEmojiPack) {
 		return tr::lng_boost_group_title_emoji();
-	}, [&](AskBoostCustomReactions data) {
+	}, [](AskBoostCustomReactions) {
 		return tr::lng_boost_channel_title_reactions();
+	}, [](AskBoostCpm) {
+		return tr::lng_boost_channel_title_cpm();
 	});
 	auto reasonText = v::match(data.reason.data, [&](
 			AskBoostChannelColor data) {
@@ -721,6 +722,11 @@ void AskBoostBox(
 			rpl::single(float64(data.count)),
 			lt_same_count,
 			rpl::single(TextWithEntities{ QString::number(data.count) }),
+			Ui::Text::RichLangValue);
+	}, [&](AskBoostCpm data) {
+		return tr::lng_boost_channel_needs_level_cpm(
+			lt_count,
+			rpl::single(float64(data.requiredLevel)),
 			Ui::Text::RichLangValue);
 	});
 	auto text = rpl::combine(

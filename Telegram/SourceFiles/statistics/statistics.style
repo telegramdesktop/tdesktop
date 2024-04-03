@@ -172,3 +172,5 @@ boostsListGiftMiniIcon: icon{{ "boosts/mini_gift", historyPeer8UserpicBg2 }};
 boostsListGiveawayMiniIcon: icon{{ "boosts/mini_giveaway", historyPeer4UserpicBg2 }};
 boostsListUnclaimedIcon: icon{{ "boosts/boost_unknown", premiumButtonFg }};
 boostsListUnknownIcon: icon{{ "boosts/boost_unclaimed", premiumButtonFg }};
+
+statisticsCurrencyIcon: icon {{ "statistics/mini_currency_graph", windowSubTextFg }};

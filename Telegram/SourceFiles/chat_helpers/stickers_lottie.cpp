@@ -138,11 +138,11 @@ not_null<Lottie::Animation*> LottieAnimationFromDocument(
 }
 
 bool HasLottieThumbnail(
-		Data::StickersSetFlags flags,
+		StickerType thumbType,
 		Data::StickersSetThumbnailView *thumb,
 		Data::DocumentMedia *media) {
 	if (thumb) {
-		return !(flags & Data::StickersSetFlag::Webm)
+		return (thumbType == StickerType::Tgs)
 			&& !thumb->content().isEmpty();
 	} else if (!media) {
 		return false;
@@ -200,11 +200,11 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 }
 
 bool HasWebmThumbnail(
-		Data::StickersSetFlags flags,
+		StickerType thumbType,
 		Data::StickersSetThumbnailView *thumb,
 		Data::DocumentMedia *media) {
 	if (thumb) {
-		return (flags & Data::StickersSetFlag::Webm)
+		return (thumbType == StickerType::Webm)
 			&& !thumb->content().isEmpty();
 	} else if (!media) {
 		return false;

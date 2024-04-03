@@ -46,7 +46,8 @@ QByteArray SessionSettings::serialize() const {
 		+ sizeof(qint32) * 2
 		+ _hiddenPinnedMessages.size() * (sizeof(quint64) * 3)
 		+ sizeof(qint32)
-		+ _groupEmojiSectionHidden.size() * sizeof(quint64);
+		+ _groupEmojiSectionHidden.size() * sizeof(quint64)
+		+ sizeof(qint32) * 2;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -98,6 +99,9 @@ QByteArray SessionSettings::serialize() const {
 		for (const auto &peerId : _groupEmojiSectionHidden) {
 			stream << SerializePeerId(peerId);
 		}
+		stream
+			<< qint32(_lastNonPremiumLimitDownload)
+			<< qint32(_lastNonPremiumLimitUpload);
 	}
 	return result;
 }
@@ -161,6 +165,8 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 photoEditorHintShowsCount = _photoEditorHintShowsCount;
 	std::vector<TimeId> mutePeriods;
 	qint32 legacySkipPremiumStickersSet = 0;
+	qint32 lastNonPremiumLimitDownload = 0;
+	qint32 lastNonPremiumLimitUpload = 0;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -434,6 +440,11 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream
+			>> lastNonPremiumLimitDownload
+			>> lastNonPremiumLimitUpload;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -479,6 +490,8 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_supportAllSilent = (supportAllSilent == 1);
 	_photoEditorHintShowsCount = std::move(photoEditorHintShowsCount);
 	_mutePeriods = std::move(mutePeriods);
+	_lastNonPremiumLimitDownload = lastNonPremiumLimitDownload;
+	_lastNonPremiumLimitUpload = lastNonPremiumLimitUpload;
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);

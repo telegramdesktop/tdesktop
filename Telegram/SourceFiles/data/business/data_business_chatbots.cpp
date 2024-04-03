@@ -87,7 +87,7 @@ void Chatbots::save(
 				? Flag::f_can_reply
 				: Flag()),
 			(settings.bot ? settings.bot : was.bot)->inputUser,
-			ToMTP(settings.recipients)
+			ForBotsToMTP(settings.recipients)
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result);
 			if (done) {
@@ -101,6 +101,81 @@ void Chatbots::save(
 		}).send();
 	}
 	_settings = settings;
+}
+
+void Chatbots::togglePaused(not_null<PeerData*> peer, bool paused) {
+	const auto type = paused
+		? SentRequestType::Pause
+		: SentRequestType::Unpause;
+	const auto api = &_owner->session().api();
+	const auto i = _sentRequests.find(peer);
+	if (i != end(_sentRequests)) {
+		const auto already = i->second.type;
+		if (already == SentRequestType::Remove || already == type) {
+			return;
+		}
+		api->request(i->second.requestId).cancel();
+		_sentRequests.erase(i);
+	}
+	const auto id = api->request(MTPaccount_ToggleConnectedBotPaused(
+		peer->input,
+		MTP_bool(paused)
+	)).done([=] {
+		if (_sentRequests[peer].type != type) {
+			return;
+		} else if (const auto settings = peer->barSettings()) {
+			peer->setBarSettings(paused
+				? (*settings | PeerBarSetting::BusinessBotPaused)
+				: (*settings & ~PeerBarSetting::BusinessBotPaused));
+		} else {
+			api->requestPeerSettings(peer);
+		}
+		_sentRequests.remove(peer);
+	}).fail([=] {
+		if (_sentRequests[peer].type != type) {
+			return;
+		}
+		api->requestPeerSettings(peer);
+		_sentRequests.remove(peer);
+	}).send();
+	_sentRequests[peer] = SentRequest{ type, id };
+}
+
+void Chatbots::removeFrom(not_null<PeerData*> peer) {
+	const auto type = SentRequestType::Remove;
+	const auto api = &_owner->session().api();
+	const auto i = _sentRequests.find(peer);
+	if (i != end(_sentRequests)) {
+		const auto already = i->second.type;
+		if (already == type) {
+			return;
+		}
+		api->request(i->second.requestId).cancel();
+		_sentRequests.erase(i);
+	}
+	const auto id = api->request(MTPaccount_DisablePeerConnectedBot(
+		peer->input
+	)).done([=] {
+		if (_sentRequests[peer].type != type) {
+			return;
+		} else if (const auto settings = peer->barSettings()) {
+			peer->clearBusinessBot();
+		} else {
+			api->requestPeerSettings(peer);
+		}
+		_sentRequests.remove(peer);
+		reload();
+	}).fail([=] {
+		api->requestPeerSettings(peer);
+		_sentRequests.remove(peer);
+	}).send();
+	_sentRequests[peer] = SentRequest{ type, id };
+}
+
+void Chatbots::reload() {
+	_loaded = false;
+	_owner->session().api().request(base::take(_requestId)).cancel();
+	preload();
 }
 
 } // namespace Data

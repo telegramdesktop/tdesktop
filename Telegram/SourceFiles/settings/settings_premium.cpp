@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common_session.h"
@@ -1331,12 +1330,12 @@ void ShowEmojiStatusPremium(
 void StartPremiumPayment(
 		not_null<Window::SessionController*> controller,
 		const QString &ref) {
-	const auto account = &controller->session().account();
-	const auto username = account->appConfig().get<QString>(
-		"premium_bot_username",
+	const auto session = &controller->session();
+	const auto username = session->appConfig().get<QString>(
+		u"premium_bot_username"_q,
 		QString());
-	const auto slug = account->appConfig().get<QString>(
-		"premium_invoice_slug",
+	const auto slug = session->appConfig().get<QString>(
+		u"premium_invoice_slug"_q,
 		QString());
 	if (!username.isEmpty()) {
 		controller->showPeerByLink(Window::PeerByLinkInfo{
@@ -1465,9 +1464,26 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 		SubscribeButtonArgs &&args) {
 	Expects(args.show || args.controller);
 
-	if (!args.show && args.controller) {
-		args.show = args.controller->uiShow();
-	}
+	auto show = args.show ? std::move(args.show) : args.controller->uiShow();
+	auto resolve = [show](
+			not_null<Main::Session*> session,
+			ChatHelpers::WindowUsage usage) {
+		Expects(session == &show->session());
+
+		return show->resolveWindow(usage);
+	};
+	return CreateSubscribeButton(
+		std::move(show),
+		std::move(resolve),
+		std::move(args));
+}
+
+not_null<Ui::GradientButton*> CreateSubscribeButton(
+		std::shared_ptr<::Main::SessionShow> show,
+		Fn<Window::SessionController*(
+			not_null<::Main::Session*>,
+			ChatHelpers::WindowUsage)> resolveWindow,
+		SubscribeButtonArgs &&args) {
 	const auto result = Ui::CreateChild<Ui::GradientButton>(
 		args.parent.get(),
 		args.gradientStops
@@ -1475,12 +1491,18 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			: Ui::Premium::ButtonGradientStops());
 
 	result->setClickedCallback([
-			show = args.show,
+			show,
+			resolveWindow,
+			promo = args.showPromo,
 			computeRef = args.computeRef,
 			computeBotUrl = args.computeBotUrl] {
-		const auto window = show->resolveWindow(
+		const auto window = resolveWindow(
+			&show->session(),
 			ChatHelpers::WindowUsage::PremiumPromo);
 		if (!window) {
+			return;
+		} else if (promo) {
+			Settings::ShowPremium(window, computeRef());
 			return;
 		}
 		const auto url = computeBotUrl ? computeBotUrl() : QString();
@@ -1504,7 +1526,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 	const auto &st = st::premiumPreviewBox.button;
 	result->resize(args.parent->width(), st.height);
 
-	const auto premium = &args.show->session().api().premium();
+	const auto premium = &show->session().api().premium();
 	premium->reload();
 	const auto computeCost = [=] {
 		const auto amount = premium->monthlyAmount();
@@ -1539,7 +1561,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 
 std::vector<PremiumFeature> PremiumFeaturesOrder(
 		not_null<Main::Session*> session) {
-	const auto mtpOrder = session->account().appConfig().get<Order>(
+	const auto mtpOrder = session->appConfig().get<Order>(
 		"premium_promo_order",
 		FallbackOrder());
 	return ranges::views::all(
@@ -1683,8 +1705,8 @@ void AddSummaryPremium(
 	auto icons = std::vector<const style::icon *>();
 	icons.reserve(int(entryMap.size()));
 	{
-		const auto &account = controller->session().account();
-		const auto mtpOrder = account.appConfig().get<Order>(
+		const auto session = &controller->session();
+		const auto mtpOrder = session->appConfig().get<Order>(
 			"premium_promo_order",
 			FallbackOrder());
 		const auto processEntry = [&](Entry &entry) {

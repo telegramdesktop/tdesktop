@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
 
-struct FileLoadResult;
 enum class SendMediaType;
 class MessageLinksParser;
 struct InlineBotQuery;
@@ -89,6 +88,7 @@ namespace HistoryView {
 class StickerToast;
 class TopBarWidget;
 class ContactStatus;
+class BusinessBotStatus;
 class Element;
 class PinnedTracker;
 class TranslateBar;
@@ -744,6 +744,7 @@ private:
 	bool _isInlineBot = false;
 
 	std::unique_ptr<HistoryView::ContactStatus> _contactStatus;
+	std::unique_ptr<HistoryView::BusinessBotStatus> _businessBotStatus;
 
 	const std::shared_ptr<Ui::SendButton> _send;
 	object_ptr<Ui::FlatButton> _unblock;
