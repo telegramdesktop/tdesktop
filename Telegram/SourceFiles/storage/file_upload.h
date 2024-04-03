@@ -103,8 +103,30 @@ private:
 	struct Entry;
 	struct Request;
 
+	enum class SendResult : uchar {
+		Success,
+		Failed,
+		DcIndexFull,
+	};
+
+	void maybeSend();
+	[[nodiscard]] bool canAddDcIndex() const;
+	[[nodiscard]] std::optional<uchar> chooseDcIndexForNextRequest(
+		const base::flat_set<uchar> &used);
+	[[nodiscard]] Entry *chooseEntryForNextRequest();
+	[[nodiscard]] SendResult sendPart(not_null<Entry*> entry, uchar dcIndex);
+	[[nodiscard]] auto sendPendingPart(not_null<Entry*> entry, uchar dcIndex)
+		-> SendResult;
+	[[nodiscard]] auto sendDocPart(not_null<Entry*> entry, uchar dcIndex)
+		-> SendResult;
+	[[nodiscard]] auto sendSlicedPart(not_null<Entry*> entry, uchar dcIndex)
+		-> SendResult;
 	[[nodiscard]] QByteArray readDocPart(not_null<Entry*> entry);
-	void maybeSendNext();
+	void removeDcIndex();
+
+	template <typename Prepared>
+	void sendPreparedRequest(Prepared &&prepared, Request &&request);
+
 	void maybeFinishFront();
 	void finishFront();
 
@@ -134,6 +156,12 @@ private:
 
 	base::flat_map<mtpRequestId, Request> _requests;
 	std::vector<int> _sentPerDcIndex;
+
+	// Fast requests since the latest dc index addition.
+	base::flat_set<uchar> _dcIndicesWithFastRequests;
+	crl::time _latestDcIndexAdded = 0;
+	crl::time _latestDcIndexRemoved = 0;
+	std::vector<Request> _pendingFromRemovedDcIndices;
 
 	FullMsgId _pausedId;
 	base::Timer _nextTimer, _stopSessionsTimer;
