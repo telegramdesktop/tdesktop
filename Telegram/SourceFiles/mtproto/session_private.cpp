@@ -1108,9 +1108,6 @@ void SessionPrivate::onSentSome(uint64 size) {
 				DEBUG_LOG(("Checking connect for request with size %1 bytes, delay will be %2").arg(size).arg(remain));
 			}
 		}
-		if (isUploadDcId(_shiftedDcId)) {
-			remain *= kUploadSessionsCount;
-		}
 		_waitForReceivedTimer.callOnce(remain);
 	}
 	if (!_firstSentAt) {
