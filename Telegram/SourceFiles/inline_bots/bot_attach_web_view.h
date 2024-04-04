@@ -267,10 +267,6 @@ private:
 	rpl::event_stream<> _attachBotsUpdates;
 	base::flat_set<not_null<UserData*>> _disclaimerAccepted;
 
-	base::flat_map<QString, WebPageData*> _ivCache;
-	QString _ivRequestUri;
-	mtpRequestId _ivRequestId = 0;
-
 	std::unique_ptr<Ui::BotWebView::Panel> _panel;
 	bool _catchingCancelInShowCall = false;
 

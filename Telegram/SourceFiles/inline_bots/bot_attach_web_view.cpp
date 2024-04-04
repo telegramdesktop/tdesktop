@@ -656,50 +656,12 @@ void AttachWebView::botHandleMenuButton(Ui::BotWebView::MenuButton button) {
 }
 
 void AttachWebView::botOpenIvLink(QString uri) {
-	const auto parts = uri.split('#');
-	if (parts.isEmpty()) {
-		return;
+	const auto window = _context ? _context->controller.get() : nullptr;
+	if (window) {
+		Core::App().iv().openWithIvPreferred(window, uri);
+	} else {
+		Core::App().iv().openWithIvPreferred(_session, uri);
 	}
-	const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
-	const auto url = parts[0];
-	if (const auto i = _ivCache.find(url); i != end(_ivCache)) {
-		const auto page = i->second;
-		if (page && page->iv) {
-			const auto window = _context
-				? _context->controller.get()
-				: nullptr;
-			if (window) {
-				Core::App().iv().show(window, page->iv.get(), hash);
-			} else {
-				Core::App().iv().show(_session, page->iv.get(), hash);
-			}
-		} else {
-			UrlClickHandler::Open(uri);
-		}
-		return;
-	} else if (_ivRequestUri == uri) {
-		return;
-	} else if (_ivRequestId) {
-		_session->api().request(_ivRequestId).cancel();
-	}
-	const auto finish = [=](WebPageData *page) {
-		_ivRequestId = 0;
-		_ivRequestUri = QString();
-		_ivCache[url] = page;
-		botOpenIvLink(uri);
-	};
-	_ivRequestUri = uri;
-	_ivRequestId = _session->api().request(MTPmessages_GetWebPage(
-		MTP_string(url),
-		MTP_int(0)
-	)).done([=](const MTPmessages_WebPage &result) {
-		const auto &data = result.data();
-		_session->data().processUsers(data.vusers());
-		_session->data().processChats(data.vchats());
-		finish(_session->data().processWebpage(data.vwebpage()));
-	}).fail([=] {
-		finish(nullptr);
-	}).send();
 }
 
 void AttachWebView::botSendData(QByteArray data) {
