@@ -26,8 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Storage {
 namespace {
 
-// max 512kb uploaded at the same time in each session
-constexpr auto kMaxUploadPerSession = 512 * 1024;
+// max 1mb uploaded at the same time in each session
+constexpr auto kMaxUploadPerSession = 1024 * 1024;
 
 constexpr auto kDocumentMaxPartsCountDefault = 4000;
 
@@ -47,7 +47,7 @@ constexpr auto kDocumentUploadPartSize3 = 256 * 1024;
 constexpr auto kDocumentUploadPartSize4 = 512 * 1024;
 
 // One part each half second, if not uploaded faster.
-constexpr auto kUploadRequestInterval = crl::time(200);
+constexpr auto kUploadRequestInterval = crl::time(250);
 
 // How much time without upload causes additional session kill.
 constexpr auto kKillSessionTimeout = 15 * crl::time(1000);
@@ -58,6 +58,10 @@ constexpr auto kWaitForNormalizeTimeout = 8 * crl::time(1000);
 constexpr auto kMaxSessionsCount = 8;
 constexpr auto kFastRequestThreshold = 1 * crl::time(1000);
 constexpr auto kSlowRequestThreshold = 8 * crl::time(1000);
+
+// Request is 'fast' if it was done in less than 1s and
+// (it-s size + queued before size) >= 512kb.
+constexpr auto kAcceptAsFastIfTotalAtLeast = 512 * 1024;
 
 [[nodiscard]] const char *ThumbnailFormat(const QString &mime) {
 	return Core::IsMimeSticker(mime) ? "WEBP" : "JPG";
@@ -97,6 +101,7 @@ struct Uploader::Request {
 	FullMsgId itemId;
 	crl::time sent = 0;
 	QByteArray bytes;
+	int queued = 0;
 	ushort part = 0;
 	uchar dcIndex = 0;
 	bool docPart = false;
@@ -467,7 +472,9 @@ auto Uploader::sendPart(not_null<Entry*> entry, uchar dcIndex)
 
 template <typename Prepared>
 void Uploader::sendPreparedRequest(Prepared &&prepared, Request &&request) {
-	_sentPerDcIndex[request.dcIndex] += int(request.bytes.size());
+	auto &sentInSession = _sentPerDcIndex[request.dcIndex];
+	const auto queued = sentInSession;
+	sentInSession += int(request.bytes.size());
 
 	const auto requestId = _api->request(
 		std::move(prepared)
@@ -478,6 +485,7 @@ void Uploader::sendPreparedRequest(Prepared &&prepared, Request &&request) {
 	}).toDC(MTP::uploadDcId(request.dcIndex)).send();
 
 	request.sent = crl::now();
+	request.queued = queued;
 	_requests.emplace(requestId, std::move(request));
 }
 
@@ -515,7 +523,7 @@ auto Uploader::sendDocPart(not_null<Entry*> entry, uchar dcIndex)
 	const auto itemId = entry->itemId;
 	const auto alreadySent = _sentPerDcIndex[dcIndex];
 	const auto willProbablyBeSent = entry->docPartSize;
-	if (alreadySent + willProbablyBeSent >= kMaxUploadPerSession) {
+	if (alreadySent + willProbablyBeSent > kMaxUploadPerSession) {
 		return SendResult::DcIndexFull;
 	}
 
@@ -614,9 +622,13 @@ void Uploader::maybeSend() {
 			}
 			// If this entry failed, we try the next one.
 		}
-		usedDcIndices.emplace(dcIndex);
+		if (_sentPerDcIndex[dcIndex] >= kAcceptAsFastIfTotalAtLeast) {
+			usedDcIndices.emplace(dcIndex);
+		}
 	}
-	if (!usedDcIndices.empty()) {
+	if (usedDcIndices.empty()) {
+		_nextTimer.cancel();
+	} else {
 		_nextTimer.callOnce(kUploadRequestInterval);
 	}
 }
@@ -718,7 +730,8 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 		} else {
 			DEBUG_LOG(("Uploader: Slow-ish request, clear fast records."));
 		}
-	} else if (request.sent > _latestDcIndexAdded) {
+	} else if (request.sent > _latestDcIndexAdded
+		&& (request.queued + bytes >= kAcceptAsFastIfTotalAtLeast)) {
 		if (_dcIndicesWithFastRequests.emplace(request.dcIndex).second) {
 			DEBUG_LOG(("Uploader: Mark %1 of %2 as fast."
 				).arg(request.dcIndex

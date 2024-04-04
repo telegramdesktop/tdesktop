@@ -60,6 +60,8 @@ constexpr auto kSendStateRequestWaiting = crl::time(1000);
 // How much time to wait for some more requests, when sending msg acks.
 constexpr auto kAckSendWaiting = 10 * crl::time(1000);
 
+constexpr auto kCutContainerOnSize = 16 * 1024;
+
 auto SyncTimeRequestDuration = kFastRequestDuration;
 
 using namespace details;
@@ -696,7 +698,8 @@ void SessionPrivate::tryToSend() {
 		initSize = initSizeInInts * sizeof(mtpPrime);
 	}
 
-	bool needAnyResponse = false;
+	auto needAnyResponse = false;
+	auto someSkipped = false;
 	SerializedRequest toSendRequest;
 	{
 		QWriteLocker locker1(_sessionData->toSendMutex());
@@ -711,15 +714,33 @@ void SessionPrivate::tryToSend() {
 			locker1.unlock();
 		}
 
-		uint32 toSendCount = toSend.size();
-		if (pingRequest) ++toSendCount;
-		if (ackRequest) ++toSendCount;
-		if (resendRequest) ++toSendCount;
-		if (stateRequest) ++toSendCount;
-		if (httpWaitRequest) ++toSendCount;
-		if (bindDcKeyRequest) ++toSendCount;
+		auto totalSending = int(toSend.size());
+		auto sendingFrom = begin(toSend);
+		auto sendingTill = end(toSend);
+		auto combinedLength = 0;
+		for (auto i = sendingFrom; i != sendingTill; ++i) {
+			combinedLength += i->second->size();
+			if (combinedLength >= kCutContainerOnSize) {
+				++i;
+				if (const auto skipping = int(sendingTill - i)) {
+					sendingTill = i;
+					totalSending -= skipping;
+					Assert(totalSending > 0);
+					someSkipped = true;
+				}
+				break;
+			}
+		}
+		auto sendingRange = ranges::make_subrange(sendingFrom, sendingTill);
+		const auto sendingCount = totalSending;
+		if (pingRequest) ++totalSending;
+		if (ackRequest) ++totalSending;
+		if (resendRequest) ++totalSending;
+		if (stateRequest) ++totalSending;
+		if (httpWaitRequest) ++totalSending;
+		if (bindDcKeyRequest) ++totalSending;
 
-		if (!toSendCount) {
+		if (!totalSending) {
 			return; // nothing to send
 		}
 
@@ -735,11 +756,11 @@ void SessionPrivate::tryToSend() {
 			? httpWaitRequest
 			: bindDcKeyRequest
 			? bindDcKeyRequest
-			: toSend.begin()->second;
-		if (toSendCount == 1 && !first->forceSendInContainer) {
+			: sendingRange.begin()->second;
+		if (totalSending == 1 && !first->forceSendInContainer) {
 			toSendRequest = first;
 			if (sendAll) {
-				toSend.clear();
+				toSend.erase(sendingFrom, sendingTill);
 				locker1.unlock();
 			}
 
@@ -808,7 +829,7 @@ void SessionPrivate::tryToSend() {
 			if (stateRequest) containerSize += stateRequest.messageSize();
 			if (httpWaitRequest) containerSize += httpWaitRequest.messageSize();
 			if (bindDcKeyRequest) containerSize += bindDcKeyRequest.messageSize();
-			for (const auto &[requestId, request] : toSend) {
+			for (const auto &[requestId, request] : sendingRange) {
 				containerSize += request.messageSize();
 				if (needsLayer && request->needsLayer) {
 					containerSize += initSizeInInts;
@@ -825,9 +846,9 @@ void SessionPrivate::tryToSend() {
 			// prepare container + each in invoke after
 			toSendRequest = SerializedRequest::Prepare(
 				containerSize,
-				containerSize + 3 * toSend.size());
+				containerSize + 3 * sendingCount);
 			toSendRequest->push_back(mtpc_msg_container);
-			toSendRequest->push_back(toSendCount);
+			toSendRequest->push_back(totalSending);
 
 			// check for a valid container
 			auto bigMsgId = base::unixtime::mtproto_msg_id();
@@ -839,7 +860,7 @@ void SessionPrivate::tryToSend() {
 			// prepare sent container
 			auto sentIdsWrap = SentContainer();
 			sentIdsWrap.sent = crl::now();
-			sentIdsWrap.messages.reserve(toSendCount);
+			sentIdsWrap.messages.reserve(totalSending);
 
 			if (bindDcKeyRequest) {
 				_bindMsgId = placeToContainer(
@@ -859,7 +880,7 @@ void SessionPrivate::tryToSend() {
 				needAnyResponse = true;
 			}
 
-			for (auto &[requestId, request] : toSend) {
+			for (auto &[requestId, request] : sendingRange) {
 				const auto msgId = prepareToSend(
 					request,
 					bigMsgId,
@@ -904,7 +925,7 @@ void SessionPrivate::tryToSend() {
 					memcpy(toSendRequest->data() + from, request->constData() + 4, len * sizeof(mtpPrime));
 				}
 			}
-			toSend.clear();
+			toSend.erase(sendingFrom, sendingTill);
 
 			if (stateRequest) {
 				const auto msgId = placeToContainer(
@@ -951,6 +972,11 @@ void SessionPrivate::tryToSend() {
 		}
 	}
 	sendSecureRequest(std::move(toSendRequest), needAnyResponse);
+	if (someSkipped) {
+		InvokeQueued(this, [=] {
+			tryToSend();
+		});
+	}
 }
 
 void SessionPrivate::retryByTimer() {
