@@ -54,7 +54,7 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 
 	[[nodiscard]] FullMsgId currentUploadId() const {
-		return _uploadingId;
+		return uploadingId;
 	}
 
 	void upload(
@@ -125,14 +125,14 @@ private:
 		int progress = 0);
 
 	const not_null<ApiWrap*> _api;
-	base::flat_map<mtpRequestId, int> _sentSizes;
-	base::flat_set<mtpRequestId> _docSentRequests;
-	base::flat_map<mtpRequestId, int> _dcIndices;
+	base::flat_map<mtpRequestId, QByteArray> requestsSent;
+	base::flat_map<mtpRequestId, int32> docRequestsSent;
+	base::flat_map<mtpRequestId, int32> dcMap;
 	base::flat_set<mtpRequestId> _nonPremiumDelayed;
-	uint32 _sentTotal = 0; // FileSize: Right now any file size fits 32 bit.
-	uint32 _sentPerDc[MTP::kUploadSessionsCount] = { 0 };
+	uint32 sentSize = 0; // FileSize: Right now any file size fits 32 bit.
+	uint32 sentSizes[MTP::kUploadSessionsCount] = { 0 };
 
-	FullMsgId _uploadingId;
+	FullMsgId uploadingId;
 	FullMsgId _pausedId;
 	std::map<FullMsgId, File> queue;
 	base::Timer _nextTimer, _stopSessionsTimer;

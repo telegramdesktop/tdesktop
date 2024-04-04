@@ -147,7 +147,7 @@ struct FileLoadTo {
 	MsgId replaceMediaOf;
 };
 
-using UploadFileParts = std::vector<QByteArray>;
+using UploadFileParts = QMap<int, QByteArray>;
 struct FilePrepareDescriptor {
 	TaskId taskId = kEmptyTaskId;
 	base::required<uint64> id;

@@ -65,10 +65,7 @@ struct Uploader::File {
 	bool setPartSize(uint32 partSize);
 
 	std::shared_ptr<FilePrepareResult> file;
-	const std::vector<QByteArray> &parts;
-	const uint64 partsOfId = 0;
-	int partsSent = 0;
-
+	int32 partsCount = 0;
 	mutable int64 fileSentSize = 0;
 
 	HashMd5 md5Hash;
@@ -82,15 +79,11 @@ struct Uploader::File {
 };
 
 Uploader::File::File(const std::shared_ptr<FilePrepareResult> &file)
-: file(file)
-, parts((file->type == SendMediaType::Photo
-	|| file->type == SendMediaType::Secure)
-		? file->fileparts
-		: file->thumbparts)
-, partsOfId((file->type == SendMediaType::Photo
-	|| file->type == SendMediaType::Secure)
-		? file->id
-		: file->thumbId) {
+: file(file) {
+	partsCount = (file->type == SendMediaType::Photo
+		|| file->type == SendMediaType::Secure)
+		? file->fileparts.size()
+		: file->thumbparts.size();
 	if (file->type == SendMediaType::File
 		|| file->type == SendMediaType::ThemeFile
 		|| file->type == SendMediaType::Audio) {
@@ -181,7 +174,7 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 
 	_api->instance().nonPremiumDelayedRequests(
 	) | rpl::start_with_next([=](mtpRequestId id) {
-		if (_dcIndices.contains(id)) {
+		if (dcMap.contains(id)) {
 			_nonPremiumDelayed.emplace(id);
 		}
 	}, _lifetime);
@@ -306,7 +299,7 @@ void Uploader::upload(
 }
 
 void Uploader::currentFailed() {
-	auto j = queue.find(_uploadingId);
+	auto j = queue.find(uploadingId);
 	if (j != queue.end()) {
 		const auto [msgId, file] = std::move(*j);
 		queue.erase(j);
@@ -314,11 +307,11 @@ void Uploader::currentFailed() {
 	}
 
 	cancelRequests();
-	_dcIndices.clear();
-	_uploadingId = FullMsgId();
-	_sentTotal = 0;
+	dcMap.clear();
+	uploadingId = FullMsgId();
+	sentSize = 0;
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
-		_sentPerDc[i] = 0;
+		sentSizes[i] = 0;
 	}
 
 	sendNext();
@@ -350,7 +343,7 @@ void Uploader::stopSessions() {
 }
 
 void Uploader::sendNext() {
-	if (_sentTotal >= kMaxUploadFileParallelSize || _pausedId.msg) {
+	if (sentSize >= kMaxUploadFileParallelSize || _pausedId.msg) {
 		return;
 	}
 
@@ -365,25 +358,33 @@ void Uploader::sendNext() {
 	if (stopping) {
 		_stopSessionsTimer.cancel();
 	}
-	auto i = _uploadingId.msg ? queue.find(_uploadingId) : queue.begin();
-	if (!_uploadingId.msg) {
-		_uploadingId = i->first;
+	auto i = uploadingId.msg ? queue.find(uploadingId) : queue.begin();
+	if (!uploadingId.msg) {
+		uploadingId = i->first;
 	} else if (i == queue.end()) {
 		i = queue.begin();
-		_uploadingId = i->first;
+		uploadingId = i->first;
 	}
 	auto &uploadingData = i->second;
 
 	auto todc = 0;
 	for (auto dc = 1; dc != MTP::kUploadSessionsCount; ++dc) {
-		if (_sentPerDc[dc] < _sentPerDc[todc]) {
+		if (sentSizes[dc] < sentSizes[todc]) {
 			todc = dc;
 		}
 	}
 
-	if (uploadingData.partsSent >= uploadingData.parts.size()) {
+	auto &parts = (uploadingData.file->type == SendMediaType::Photo
+		|| uploadingData.file->type == SendMediaType::Secure)
+		? uploadingData.file->fileparts
+		: uploadingData.file->thumbparts;
+	const auto partsOfId = (uploadingData.file->type == SendMediaType::Photo
+		|| uploadingData.file->type == SendMediaType::Secure)
+		? uploadingData.file->id
+		: uploadingData.file->thumbId;
+	if (parts.isEmpty()) {
 		if (uploadingData.docSentParts >= uploadingData.docPartsCount) {
-			if (_sentSizes.empty()) {
+			if (requestsSent.empty() && docRequestsSent.empty()) {
 				const auto options = uploadingData.file
 					? uploadingData.file->to.options
 					: Api::SendOptions();
@@ -403,11 +404,11 @@ void Uploader::sendNext() {
 					const auto md5 = uploadingData.file->filemd5;
 					const auto file = MTP_inputFile(
 						MTP_long(uploadingData.file->id),
-						MTP_int(uploadingData.parts.size()),
+						MTP_int(uploadingData.partsCount),
 						MTP_string(photoFilename),
 						MTP_bytes(md5));
 					_photoReady.fire({
-						.fullId = _uploadingId,
+						.fullId = uploadingId,
 						.info = {
 							.file = file,
 							.attachedStickers = attachedStickers,
@@ -432,19 +433,19 @@ void Uploader::sendNext() {
 							MTP_string(uploadingData.file->filename),
 							MTP_bytes(docMd5));
 					const auto thumb = [&]() -> std::optional<MTPInputFile> {
-						if (uploadingData.parts.empty()) {
+						if (!uploadingData.partsCount) {
 							return std::nullopt;
 						}
 						const auto thumbFilename = uploadingData.file->thumbname;
 						const auto thumbMd5 = uploadingData.file->thumbmd5;
 						return MTP_inputFile(
 							MTP_long(uploadingData.file->thumbId),
-							MTP_int(uploadingData.parts.size()),
+							MTP_int(uploadingData.partsCount),
 							MTP_string(thumbFilename),
 							MTP_bytes(thumbMd5));
 					}();
 					_documentReady.fire({
-						.fullId = _uploadingId,
+						.fullId = uploadingId,
 						.info = {
 							.file = file,
 							.thumb = thumb,
@@ -455,13 +456,12 @@ void Uploader::sendNext() {
 					});
 				} else if (uploadingData.file->type == SendMediaType::Secure) {
 					_secureReady.fire({
-						_uploadingId,
+						uploadingId,
 						uploadingData.file->id,
-						int(uploadingData.parts.size()),
-					});
+						uploadingData.partsCount });
 				}
-				queue.erase(_uploadingId);
-				_uploadingId = FullMsgId();
+				queue.erase(uploadingId);
+				uploadingId = FullMsgId();
 				sendNext();
 			}
 			return;
@@ -522,37 +522,36 @@ void Uploader::sendNext() {
 				partFailed(error, requestId);
 			}).toDC(MTP::uploadDcId(todc)).send();
 		}
-		_sentSizes.emplace(requestId, uploadingData.docPartSize);
-		_docSentRequests.emplace(requestId);
-		_dcIndices.emplace(requestId, todc);
-		_sentTotal += uploadingData.docPartSize;
-		_sentPerDc[todc] += uploadingData.docPartSize;
+		docRequestsSent.emplace(requestId, uploadingData.docSentParts);
+		dcMap.emplace(requestId, todc);
+		sentSize += uploadingData.docPartSize;
+		sentSizes[todc] += uploadingData.docPartSize;
 
 		uploadingData.docSentParts++;
 	} else {
-		const auto index = uploadingData.partsSent++;
-		const auto partBytes = uploadingData.parts[index];
-		const auto partSize = int(partBytes.size());
+		auto part = parts.begin();
 
 		const auto requestId = _api->request(MTPupload_SaveFilePart(
-			MTP_long(uploadingData.partsOfId),
-			MTP_int(index),
-			MTP_bytes(partBytes)
+			MTP_long(partsOfId),
+			MTP_int(part.key()),
+			MTP_bytes(part.value())
 		)).done([=](const MTPBool &result, mtpRequestId requestId) {
 			partLoaded(result, requestId);
 		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 			partFailed(error, requestId);
 		}).toDC(MTP::uploadDcId(todc)).send();
-		_sentSizes.emplace(requestId, partSize);
-		_dcIndices.emplace(requestId, todc);
-		_sentTotal += partSize;
-		_sentPerDc[todc] += partSize;
+		requestsSent.emplace(requestId, part.value());
+		dcMap.emplace(requestId, todc);
+		sentSize += part.value().size();
+		sentSizes[todc] += part.value().size();
+
+		parts.erase(part);
 	}
 	_nextTimer.callOnce(kUploadRequestInterval);
 }
 
 void Uploader::cancel(const FullMsgId &msgId) {
-	if (_uploadingId == msgId) {
+	if (uploadingId == msgId) {
 		currentFailed();
 	} else {
 		queue.erase(msgId);
@@ -560,12 +559,12 @@ void Uploader::cancel(const FullMsgId &msgId) {
 }
 
 void Uploader::cancelAll() {
-	const auto single = queue.empty() ? _uploadingId : queue.begin()->first;
+	const auto single = queue.empty() ? uploadingId : queue.begin()->first;
 	if (!single) {
 		return;
 	}
 	_pausedId = single;
-	if (_uploadingId) {
+	if (uploadingId) {
 		currentFailed();
 	}
 	while (!queue.empty()) {
@@ -590,49 +589,61 @@ void Uploader::confirm(const FullMsgId &msgId) {
 }
 
 void Uploader::cancelRequests() {
-	_docSentRequests.clear();
-	for (const auto &requestData : _sentSizes) {
+	for (const auto &requestData : requestsSent) {
 		_api->request(requestData.first).cancel();
 	}
-	_sentSizes.clear();
+	requestsSent.clear();
+	for (const auto &requestData : docRequestsSent) {
+		_api->request(requestData.first).cancel();
+	}
+	docRequestsSent.clear();
 }
 
 void Uploader::clear() {
 	queue.clear();
 	cancelRequests();
-	_dcIndices.clear();
-	_sentTotal = 0;
+	dcMap.clear();
+	sentSize = 0;
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
 		_api->instance().stopSession(MTP::uploadDcId(i));
-		_sentPerDc[i] = 0;
+		sentSizes[i] = 0;
 	}
 	_stopSessionsTimer.cancel();
 }
 
 void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
-	_docSentRequests.remove(requestId);
-	auto i = _sentSizes.find(requestId);
+	auto j = docRequestsSent.end();
+	auto i = requestsSent.find(requestId);
+	if (i == requestsSent.cend()) {
+		j = docRequestsSent.find(requestId);
+	}
 	const auto wasNonPremiumDelayed = _nonPremiumDelayed.remove(requestId);
-	if (i != _sentSizes.cend()) {
+	if (i != requestsSent.cend() || j != docRequestsSent.cend()) {
 		if (mtpIsFalse(result)) { // failed to upload current file
 			currentFailed();
 			return;
 		} else {
-			auto dcIt = _dcIndices.find(requestId);
-			if (dcIt == _dcIndices.cend()) { // must not happen
+			auto dcIt = dcMap.find(requestId);
+			if (dcIt == dcMap.cend()) { // must not happen
 				currentFailed();
 				return;
 			}
 			auto dc = dcIt->second;
-			_dcIndices.erase(dcIt);
+			dcMap.erase(dcIt);
 
-			int64 sentPartSize = i->second;
-			auto k = queue.find(_uploadingId);
+			int64 sentPartSize = 0;
+			auto k = queue.find(uploadingId);
 			Assert(k != queue.cend());
 			auto &[fullId, file] = *k;
-			_sentSizes.erase(i);
-			_sentTotal -= sentPartSize;
-			_sentPerDc[dc] -= sentPartSize;
+			if (i != requestsSent.cend()) {
+				sentPartSize = i->second.size();
+				requestsSent.erase(i);
+			} else {
+				sentPartSize = file.docPartSize;
+				docRequestsSent.erase(j);
+			}
+			sentSize -= sentPartSize;
+			sentSizes[dc] -= sentPartSize;
 			if (file.file->type == SendMediaType::Photo) {
 				file.fileSentSize += sentPartSize;
 				const auto photo = session().data().photo(file.file->id);
@@ -647,7 +658,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 				const auto document = session().data().document(file.file->id);
 				if (document->uploading()) {
 					const auto doneParts = file.docSentParts
-						- int(_docSentRequests.size());
+						- int(docRequestsSent.size());
 					document->uploadingData->offset = std::min(
 						document->uploadingData->size,
 						doneParts * file.docPartSize);
@@ -672,7 +683,8 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 void Uploader::partFailed(const MTP::Error &error, mtpRequestId requestId) {
 	// failed to upload current file
 	_nonPremiumDelayed.remove(requestId);
-	if (_sentSizes.find(requestId) != _sentSizes.cend()) {
+	if ((requestsSent.find(requestId) != requestsSent.cend())
+		|| (docRequestsSent.find(requestId) != docRequestsSent.cend())) {
 		currentFailed();
 	}
 	sendNext();
