@@ -69,9 +69,15 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	const QString &value);
 [[nodiscard]] rpl::producer<TextWithEntities> AboutValue(
 	not_null<PeerData*> peer);
-[[nodiscard]] rpl::producer<QString> LinkValue(
+
+struct LinkWithUrl {
+	QString text;
+	QString url;
+};
+[[nodiscard]] rpl::producer<LinkWithUrl> LinkValue(
 	not_null<PeerData*> peer,
 	bool primary = false);
+
 [[nodiscard]] rpl::producer<const ChannelLocation*> LocationValue(
 	not_null<ChannelData*> channel);
 [[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
