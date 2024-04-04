@@ -16,7 +16,6 @@ struct HistoryMessageMarkupButton;
 class MainWindow;
 class HistoryWidget;
 class StackItem;
-struct FileLoadResult;
 class History;
 class Image;
 

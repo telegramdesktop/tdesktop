@@ -1581,14 +1581,10 @@ void FormController::uploadEncryptedFile(
 		&session(),
 		std::make_unique<UploadScanData>(std::move(data)));
 
-	auto prepared = std::make_shared<FileLoadResult>(
-		TaskId(),
-		file.uploadData->fileId,
-		FileLoadTo(PeerId(), Api::SendOptions(), FullReplyTo(), MsgId()),
-		TextWithTags(),
-		false,
-		std::shared_ptr<SendingAlbum>(nullptr));
-	prepared->type = SendMediaType::Secure;
+	auto prepared = MakePreparedFile({
+		.id = file.uploadData->fileId,
+		.type = SendMediaType::Secure,
+	});
 	prepared->content = QByteArray::fromRawData(
 		reinterpret_cast<char*>(file.uploadData->bytes.data()),
 		file.uploadData->bytes.size());

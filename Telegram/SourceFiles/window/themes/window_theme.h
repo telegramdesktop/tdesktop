@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_palette.h"
 
 class QFileSystemWatcher;
-struct SendMediaReady;
+struct FilePrepareResult;
 
 namespace style {
 struct colorizer;
@@ -298,7 +298,7 @@ private:
 
 };
 
-[[nodiscard]] SendMediaReady PrepareWallPaper(
+[[nodiscard]] std::shared_ptr<FilePrepareResult> PrepareWallPaper(
 	MTP::DcId dcId,
 	const QImage &image);
 
