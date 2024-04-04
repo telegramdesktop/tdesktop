@@ -63,7 +63,7 @@ class Shown final : public base::has_weak_ptr {
 public:
 	Shown(
 		not_null<Delegate*> delegate,
-		std::shared_ptr<Main::SessionShow> show,
+		not_null<Main::Session*> session,
 		not_null<Data*> data,
 		QString hash);
 
@@ -169,12 +169,11 @@ private:
 
 Shown::Shown(
 	not_null<Delegate*> delegate,
-	std::shared_ptr<Main::SessionShow> show,
+	not_null<Main::Session*> session,
 	not_null<Data*> data,
 	QString hash)
 : _delegate(delegate)
-, _session(&show->session())
-, _show(show) {
+, _session(session) {
 	prepare(data, hash);
 }
 
@@ -818,7 +817,13 @@ void Instance::show(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Data*> data,
 		QString hash) {
-	const auto session = &show->session();
+	this->show(&show->session(), data, hash);
+}
+
+void Instance::show(
+		not_null<Main::Session*> session,
+		not_null<Data*> data,
+		QString hash) {
 	const auto guard = gsl::finally([&] {
 		if (data->partial()) {
 			requestFull(session, data->id());
@@ -828,7 +833,7 @@ void Instance::show(
 		_shown->moveTo(data, hash);
 		return;
 	}
-	_shown = std::make_unique<Shown>(_delegate, show, data, hash);
+	_shown = std::make_unique<Shown>(_delegate, session, data, hash);
 	_shownSession = session;
 	_shown->events() | rpl::start_with_next([=](Controller::Event event) {
 		using Type = Controller::Event::Type;
@@ -896,7 +901,7 @@ void Instance::show(
 				if (page && page->iv) {
 					const auto parts = event.url.split('#');
 					const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
-					this->show(show, page->iv.get(), hash);
+					this->show(_shownSession, page->iv.get(), hash);
 				} else {
 					UrlClickHandler::Open(event.url);
 				}

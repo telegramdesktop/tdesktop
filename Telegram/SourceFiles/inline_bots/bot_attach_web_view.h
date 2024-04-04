@@ -165,6 +165,7 @@ private:
 	bool botHandleLocalUri(QString uri, bool keepOpen) override;
 	void botHandleInvoice(QString slug) override;
 	void botHandleMenuButton(Ui::BotWebView::MenuButton button) override;
+	void botOpenIvLink(QString uri) override;
 	void botSendData(QByteArray data) override;
 	void botSwitchInlineQuery(
 		std::vector<QString> chatTypes,
@@ -265,6 +266,10 @@ private:
 	std::vector<AttachWebViewBot> _attachBots;
 	rpl::event_stream<> _attachBotsUpdates;
 	base::flat_set<not_null<UserData*>> _disclaimerAccepted;
+
+	base::flat_map<QString, WebPageData*> _ivCache;
+	QString _ivRequestUri;
+	mtpRequestId _ivRequestId = 0;
 
 	std::unique_ptr<Ui::BotWebView::Panel> _panel;
 	bool _catchingCancelInShowCall = false;

@@ -17,10 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
 #include "info/profile/info_profile_values.h"
+#include "iv/iv_instance.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/widgets/checkbox.h"
@@ -651,6 +653,53 @@ void AttachWebView::botHandleMenuButton(Ui::BotWebView::MenuButton button) {
 		}));
 		break;
 	}
+}
+
+void AttachWebView::botOpenIvLink(QString uri) {
+	const auto parts = uri.split('#');
+	if (parts.isEmpty()) {
+		return;
+	}
+	const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
+	const auto url = parts[0];
+	if (const auto i = _ivCache.find(url); i != end(_ivCache)) {
+		const auto page = i->second;
+		if (page && page->iv) {
+			const auto window = _context
+				? _context->controller.get()
+				: nullptr;
+			if (window) {
+				Core::App().iv().show(window, page->iv.get(), hash);
+			} else {
+				Core::App().iv().show(_session, page->iv.get(), hash);
+			}
+		} else {
+			UrlClickHandler::Open(uri);
+		}
+		return;
+	} else if (_ivRequestUri == uri) {
+		return;
+	} else if (_ivRequestId) {
+		_session->api().request(_ivRequestId).cancel();
+	}
+	const auto finish = [=](WebPageData *page) {
+		_ivRequestId = 0;
+		_ivRequestUri = QString();
+		_ivCache[url] = page;
+		botOpenIvLink(uri);
+	};
+	_ivRequestUri = uri;
+	_ivRequestId = _session->api().request(MTPmessages_GetWebPage(
+		MTP_string(url),
+		MTP_int(0)
+	)).done([=](const MTPmessages_WebPage &result) {
+		const auto &data = result.data();
+		_session->data().processUsers(data.vusers());
+		_session->data().processChats(data.vchats());
+		finish(_session->data().processWebpage(data.vwebpage()));
+	}).fail([=] {
+		finish(nullptr);
+	}).send();
 }
 
 void AttachWebView::botSendData(QByteArray data) {
