@@ -1651,7 +1651,9 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 		}
 
 		_sessionSalt = data.vnew_server_salt().v;
-		correctUnixtimeWithBadLocal(info.serverTime);
+
+		// Don't force time update here.
+		base::unixtime::update(info.serverTime);
 
 		if (_bindMsgId) {
 			LOG(("Message Info: bad_server_salt received while binding temp key, restarting."));
@@ -2079,7 +2081,7 @@ void SessionPrivate::correctUnixtimeByFastRequest(
 		locker.unlock();
 
 		SyncTimeRequestDuration = duration;
-		base::unixtime::update(serverTime, true);
+		base::unixtime::update(serverTime);
 		return;
 	}
 }
