@@ -508,8 +508,6 @@ PRIVATE
     data/data_drafts.h
     data/data_emoji_statuses.cpp
     data/data_emoji_statuses.h
-    data/data_faq.cpp
-    data/data_faq.h
     data/data_folder.cpp
     data/data_folder.h
     data/data_forum.cpp

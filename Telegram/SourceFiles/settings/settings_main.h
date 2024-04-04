@@ -29,6 +29,8 @@ void SetupInterfaceScale(
 	not_null<Ui::VerticalLayout*> container,
 	bool icon = true);
 
+void OpenFaq(base::weak_ptr<Window::SessionController> weak);
+
 class Main : public Section<Main> {
 public:
 	Main(QWidget *parent, not_null<Window::SessionController*> controller);

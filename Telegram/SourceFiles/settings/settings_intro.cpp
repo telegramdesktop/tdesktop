@@ -110,7 +110,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 		tr::lng_settings_faq(),
 		st::settingsButtonNoIcon
 	)->addClickHandler([] {
-		UrlClickHandler::Open(tr::lng_telegram_features_url(tr::now));
+		OpenFaq(nullptr);
 	});
 
 	return result;

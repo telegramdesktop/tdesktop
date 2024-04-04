@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_main.h"
 
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "settings/settings_business.h"
 #include "settings/settings_codes.h"
 #include "settings/settings_chat.h"
@@ -613,7 +614,7 @@ void SetupHelp(
 		st::settingsButton,
 		{ &st::menuIconFaq }
 	)->addClickHandler([=] {
-		controller->session().data().faq().open(controller->uiShow());
+		OpenFaq(controller);
 	});
 
 	AddButtonWithIcon(
@@ -659,7 +660,7 @@ void SetupHelp(
 			.text = tr::lng_settings_ask_sure(),
 			.confirmed = sure,
 			.cancelled = [=](Fn<void()> close) {
-				controller->session().data().faq().open(controller->uiShow());
+				OpenFaq(controller);
 				close();
 			},
 			.confirmText = tr::lng_settings_ask_ok(),
@@ -738,6 +739,14 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 	controller->session().api().sensitiveContent().reload();
 	controller->session().api().globalPrivacy().reload();
 	controller->session().data().cloudThemes().refresh();
+}
+
+void OpenFaq(base::weak_ptr<Window::SessionController> weak) {
+	UrlClickHandler::Open(
+		tr::lng_settings_faq_link(tr::now),
+		QVariant::fromValue(ClickHandlerContext{
+			.sessionWindow = weak,
+		}));
 }
 
 } // namespace Settings
