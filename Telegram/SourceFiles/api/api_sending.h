@@ -14,7 +14,7 @@ class Session;
 class History;
 class PhotoData;
 class DocumentData;
-struct FilePrepareResult;
+struct FileLoadResult;
 
 namespace Api {
 
@@ -40,6 +40,6 @@ void FillMessagePostFlags(
 
 void SendConfirmedFile(
 	not_null<Main::Session*> session,
-	const std::shared_ptr<FilePrepareResult> &file);
+	const std::shared_ptr<FileLoadResult> &file);
 
 } // namespace Api

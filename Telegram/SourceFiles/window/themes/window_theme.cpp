@@ -585,11 +585,11 @@ void ChatBackground::checkUploadWallPaper() {
 	}
 
 	const auto ready = PrepareWallPaper(_session->mainDcId(), _original);
-	const auto documentId = ready->id;
+	const auto documentId = ready.id;
 	_wallPaperUploadId = FullMsgId(
 		_session->userPeerId(),
 		_session->data().nextLocalMessageId());
-	_session->uploader().upload(_wallPaperUploadId, ready);
+	_session->uploader().uploadMedia(_wallPaperUploadId, ready);
 	if (_wallPaperUploadLifetime) {
 		return;
 	}
@@ -1529,9 +1529,7 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 	};
 }
 
-std::shared_ptr<FilePrepareResult> PrepareWallPaper(
-		MTP::DcId dcId,
-		const QImage &image) {
+SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 	PreparedPhotoThumbs thumbnails;
 	QVector<MTPPhotoSize> sizes;
 
@@ -1557,7 +1555,6 @@ std::shared_ptr<FilePrepareResult> PrepareWallPaper(
 	};
 	push("s", scaled(320));
 
-	const auto id = base::RandomValue<DocumentId>();
 	const auto filename = u"wallpaper.jpg"_q;
 	auto attributes = QVector<MTPDocumentAttribute>(
 		1,
@@ -1565,20 +1562,8 @@ std::shared_ptr<FilePrepareResult> PrepareWallPaper(
 	attributes.push_back(MTP_documentAttributeImageSize(
 		MTP_int(image.width()),
 		MTP_int(image.height())));
-
-	auto result = MakePreparedFile({
-		.id = id,
-		.type = SendMediaType::ThemeFile,
-	});
-	result->filename = filename;
-	result->content = jpeg;
-	result->filesize = jpeg.size();
-	result->setFileData(jpeg);
-	if (thumbnails.empty()) {
-		result->thumb = thumbnails.front().second.image;
-		result->thumbbytes = thumbnails.front().second.bytes;
-	}
-	result->document = MTP_document(
+	const auto id = base::RandomValue<DocumentId>();
+	const auto document = MTP_document(
 		MTP_flags(0),
 		MTP_long(id),
 		MTP_long(0),
@@ -1590,7 +1575,21 @@ std::shared_ptr<FilePrepareResult> PrepareWallPaper(
 		MTPVector<MTPVideoSize>(),
 		MTP_int(dcId),
 		MTP_vector<MTPDocumentAttribute>(attributes));
-	return result;
+
+	return SendMediaReady(
+		SendMediaType::ThemeFile,
+		QString(), // filepath
+		filename,
+		jpeg.size(),
+		jpeg,
+		id,
+		0,
+		QString(),
+		PeerId(),
+		MTP_photoEmpty(MTP_long(0)),
+		thumbnails,
+		document,
+		QByteArray());
 }
 
 std::unique_ptr<Ui::ChatTheme> DefaultChatThemeOn(rpl::lifetime &lifetime) {

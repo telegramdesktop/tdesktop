@@ -59,14 +59,21 @@ constexpr auto kKillSessionTimeout = 15 * crl::time(1000);
 } // namespace
 
 struct Uploader::File {
-	explicit File(const std::shared_ptr<FilePrepareResult> &file);
+	File(const SendMediaReady &media);
+	File(const std::shared_ptr<FileLoadResult> &file);
 
 	void setDocSize(int64 size);
 	bool setPartSize(uint32 partSize);
 
-	std::shared_ptr<FilePrepareResult> file;
+	std::shared_ptr<FileLoadResult> file;
+	SendMediaReady media;
 	int32 partsCount = 0;
 	mutable int64 fileSentSize = 0;
+
+	uint64 id() const;
+	SendMediaType type() const;
+	uint64 thumbId() const;
+	const QString &filename() const;
 
 	HashMd5 md5Hash;
 
@@ -78,15 +85,27 @@ struct Uploader::File {
 
 };
 
-Uploader::File::File(const std::shared_ptr<FilePrepareResult> &file)
+Uploader::File::File(const SendMediaReady &media) : media(media) {
+	partsCount = media.parts.size();
+	if (type() == SendMediaType::File
+		|| type() == SendMediaType::ThemeFile
+		|| type() == SendMediaType::Audio) {
+		setDocSize(media.file.isEmpty()
+			? media.data.size()
+			: media.filesize);
+	} else {
+		docSize = docPartSize = docPartsCount = 0;
+	}
+}
+Uploader::File::File(const std::shared_ptr<FileLoadResult> &file)
 : file(file) {
-	partsCount = (file->type == SendMediaType::Photo
-		|| file->type == SendMediaType::Secure)
+	partsCount = (type() == SendMediaType::Photo
+		|| type() == SendMediaType::Secure)
 		? file->fileparts.size()
 		: file->thumbparts.size();
-	if (file->type == SendMediaType::File
-		|| file->type == SendMediaType::ThemeFile
-		|| file->type == SendMediaType::Audio) {
+	if (type() == SendMediaType::File
+		|| type() == SendMediaType::ThemeFile
+		|| type() == SendMediaType::Audio) {
 		setDocSize(file->filesize);
 	} else {
 		docSize = docPartSize = docPartsCount = 0;
@@ -113,6 +132,22 @@ bool Uploader::File::setPartSize(uint32 partSize) {
 	docPartsCount = (docSize / docPartSize)
 		+ ((docSize % docPartSize) ? 1 : 0);
 	return (docPartsCount <= kDocumentMaxPartsCountDefault);
+}
+
+uint64 Uploader::File::id() const {
+	return file ? file->id : media.id;
+}
+
+SendMediaType Uploader::File::type() const {
+	return file ? file->type : media.type;
+}
+
+uint64 Uploader::File::thumbId() const {
+	return file ? file->thumbId : media.thumbId;
+}
+
+const QString &Uploader::File::filename() const {
+	return file ? file->filename : media.filename;
 }
 
 Uploader::Uploader(not_null<ApiWrap*> api)
@@ -247,9 +282,39 @@ Main::Session &Uploader::session() const {
 	return _api->session();
 }
 
+void Uploader::uploadMedia(
+		const FullMsgId &msgId,
+		const SendMediaReady &media) {
+	if (media.type == SendMediaType::Photo) {
+		session().data().processPhoto(media.photo, media.photoThumbs);
+	} else if (media.type == SendMediaType::File
+		|| media.type == SendMediaType::ThemeFile
+		|| media.type == SendMediaType::Audio) {
+		const auto document = media.photoThumbs.empty()
+			? session().data().processDocument(media.document)
+			: session().data().processDocument(
+				media.document,
+				Images::FromImageInMemory(
+					media.photoThumbs.front().second.image,
+					"JPG",
+					media.photoThumbs.front().second.bytes));
+		if (!media.data.isEmpty()) {
+			document->setDataAndCache(media.data);
+			if (media.type == SendMediaType::ThemeFile) {
+				document->checkWallPaperProperties();
+			}
+		}
+		if (!media.file.isEmpty()) {
+			document->setLocation(Core::FileLocation(media.file));
+		}
+	}
+	queue.emplace(msgId, File(media));
+	sendNext();
+}
+
 void Uploader::upload(
 		const FullMsgId &msgId,
-		const std::shared_ptr<FilePrepareResult> &file) {
+		const std::shared_ptr<FileLoadResult> &file) {
 	if (file->type == SendMediaType::Photo) {
 		const auto photo = session().data().processPhoto(
 			file->photo,
@@ -318,13 +383,13 @@ void Uploader::currentFailed() {
 }
 
 void Uploader::notifyFailed(FullMsgId id, const File &file) {
-	const auto type = file.file->type;
+	const auto type = file.type();
 	if (type == SendMediaType::Photo) {
 		_photoFailed.fire_copy(id);
 	} else if (type == SendMediaType::File
 		|| type == SendMediaType::ThemeFile
 		|| type == SendMediaType::Audio) {
-		const auto document = session().data().document(file.file->id);
+		const auto document = session().data().document(file.id());
 		if (document->uploading()) {
 			document->status = FileUploadFailed;
 		}
@@ -374,14 +439,18 @@ void Uploader::sendNext() {
 		}
 	}
 
-	auto &parts = (uploadingData.file->type == SendMediaType::Photo
-		|| uploadingData.file->type == SendMediaType::Secure)
-		? uploadingData.file->fileparts
-		: uploadingData.file->thumbparts;
-	const auto partsOfId = (uploadingData.file->type == SendMediaType::Photo
-		|| uploadingData.file->type == SendMediaType::Secure)
-		? uploadingData.file->id
-		: uploadingData.file->thumbId;
+	auto &parts = uploadingData.file
+		? ((uploadingData.type() == SendMediaType::Photo
+			|| uploadingData.type() == SendMediaType::Secure)
+			? uploadingData.file->fileparts
+			: uploadingData.file->thumbparts)
+		: uploadingData.media.parts;
+	const auto partsOfId = uploadingData.file
+		? ((uploadingData.type() == SendMediaType::Photo
+			|| uploadingData.type() == SendMediaType::Secure)
+			? uploadingData.file->id
+			: uploadingData.file->thumbId)
+		: uploadingData.media.thumbId;
 	if (parts.isEmpty()) {
 		if (uploadingData.docSentParts >= uploadingData.docPartsCount) {
 			if (requestsSent.empty() && docRequestsSent.empty()) {
@@ -393,17 +462,19 @@ void Uploader::sendNext() {
 				const auto attachedStickers = uploadingData.file
 					? uploadingData.file->attachedStickers
 					: std::vector<MTPInputDocument>();
-				if (uploadingData.file->type == SendMediaType::Photo) {
-					auto photoFilename = uploadingData.file->filename;
+				if (uploadingData.type() == SendMediaType::Photo) {
+					auto photoFilename = uploadingData.filename();
 					if (!photoFilename.endsWith(u".jpg"_q, Qt::CaseInsensitive)) {
 						// Server has some extensions checking for inputMediaUploadedPhoto,
 						// so force the extension to be .jpg anyway. It doesn't matter,
 						// because the filename from inputFile is not used anywhere.
 						photoFilename += u".jpg"_q;
 					}
-					const auto md5 = uploadingData.file->filemd5;
+					const auto md5 = uploadingData.file
+						? uploadingData.file->filemd5
+						: uploadingData.media.jpeg_md5;
 					const auto file = MTP_inputFile(
-						MTP_long(uploadingData.file->id),
+						MTP_long(uploadingData.id()),
 						MTP_int(uploadingData.partsCount),
 						MTP_string(photoFilename),
 						MTP_bytes(md5));
@@ -416,30 +487,34 @@ void Uploader::sendNext() {
 						.options = options,
 						.edit = edit,
 					});
-				} else if (uploadingData.file->type == SendMediaType::File
-					|| uploadingData.file->type == SendMediaType::ThemeFile
-					|| uploadingData.file->type == SendMediaType::Audio) {
+				} else if (uploadingData.type() == SendMediaType::File
+					|| uploadingData.type() == SendMediaType::ThemeFile
+					|| uploadingData.type() == SendMediaType::Audio) {
 					QByteArray docMd5(32, Qt::Uninitialized);
 					hashMd5Hex(uploadingData.md5Hash.result(), docMd5.data());
 
 					const auto file = (uploadingData.docSize > kUseBigFilesFrom)
 						? MTP_inputFileBig(
-							MTP_long(uploadingData.file->id),
+							MTP_long(uploadingData.id()),
 							MTP_int(uploadingData.docPartsCount),
-							MTP_string(uploadingData.file->filename))
+							MTP_string(uploadingData.filename()))
 						: MTP_inputFile(
-							MTP_long(uploadingData.file->id),
+							MTP_long(uploadingData.id()),
 							MTP_int(uploadingData.docPartsCount),
-							MTP_string(uploadingData.file->filename),
+							MTP_string(uploadingData.filename()),
 							MTP_bytes(docMd5));
 					const auto thumb = [&]() -> std::optional<MTPInputFile> {
 						if (!uploadingData.partsCount) {
 							return std::nullopt;
 						}
-						const auto thumbFilename = uploadingData.file->thumbname;
-						const auto thumbMd5 = uploadingData.file->thumbmd5;
+						const auto thumbFilename = uploadingData.file
+							? uploadingData.file->thumbname
+							: (u"thumb."_q + uploadingData.media.thumbExt);
+						const auto thumbMd5 = uploadingData.file
+							? uploadingData.file->thumbmd5
+							: uploadingData.media.jpeg_md5;
 						return MTP_inputFile(
-							MTP_long(uploadingData.file->thumbId),
+							MTP_long(uploadingData.thumbId()),
 							MTP_int(uploadingData.partsCount),
 							MTP_string(thumbFilename),
 							MTP_bytes(thumbMd5));
@@ -454,10 +529,10 @@ void Uploader::sendNext() {
 						.options = options,
 						.edit = edit,
 					});
-				} else if (uploadingData.file->type == SendMediaType::Secure) {
+				} else if (uploadingData.type() == SendMediaType::Secure) {
 					_secureReady.fire({
 						uploadingId,
-						uploadingData.file->id,
+						uploadingData.id(),
 						uploadingData.partsCount });
 				}
 				queue.erase(uploadingId);
@@ -467,11 +542,15 @@ void Uploader::sendNext() {
 			return;
 		}
 
-		auto &content = uploadingData.file->content;
+		auto &content = uploadingData.file
+			? uploadingData.file->content
+			: uploadingData.media.data;
 		QByteArray toSend;
 		if (content.isEmpty()) {
 			if (!uploadingData.docFile) {
-				const auto filepath = uploadingData.file->filepath;
+				const auto filepath = uploadingData.file
+					? uploadingData.file->filepath
+					: uploadingData.media.file;
 				uploadingData.docFile = std::make_unique<QFile>(filepath);
 				if (!uploadingData.docFile->open(QIODevice::ReadOnly)) {
 					currentFailed();
@@ -486,9 +565,9 @@ void Uploader::sendNext() {
 			const auto offset = uploadingData.docSentParts
 				* uploadingData.docPartSize;
 			toSend = content.mid(offset, uploadingData.docPartSize);
-			if ((uploadingData.file->type == SendMediaType::File
-				|| uploadingData.file->type == SendMediaType::ThemeFile
-				|| uploadingData.file->type == SendMediaType::Audio)
+			if ((uploadingData.type() == SendMediaType::File
+				|| uploadingData.type() == SendMediaType::ThemeFile
+				|| uploadingData.type() == SendMediaType::Audio)
 				&& uploadingData.docSentParts <= kUseBigFilesFrom) {
 				uploadingData.md5Hash.feed(toSend.constData(), toSend.size());
 			}
@@ -502,7 +581,7 @@ void Uploader::sendNext() {
 		mtpRequestId requestId;
 		if (uploadingData.docSize > kUseBigFilesFrom) {
 			requestId = _api->request(MTPupload_SaveBigFilePart(
-				MTP_long(uploadingData.file->id),
+				MTP_long(uploadingData.id()),
 				MTP_int(uploadingData.docSentParts),
 				MTP_int(uploadingData.docPartsCount),
 				MTP_bytes(toSend)
@@ -513,7 +592,7 @@ void Uploader::sendNext() {
 			}).toDC(MTP::uploadDcId(todc)).send();
 		} else {
 			requestId = _api->request(MTPupload_SaveFilePart(
-				MTP_long(uploadingData.file->id),
+				MTP_long(uploadingData.id()),
 				MTP_int(uploadingData.docSentParts),
 				MTP_bytes(toSend)
 			)).done([=](const MTPBool &result, mtpRequestId requestId) {
@@ -644,18 +723,18 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 			}
 			sentSize -= sentPartSize;
 			sentSizes[dc] -= sentPartSize;
-			if (file.file->type == SendMediaType::Photo) {
+			if (file.type() == SendMediaType::Photo) {
 				file.fileSentSize += sentPartSize;
-				const auto photo = session().data().photo(file.file->id);
+				const auto photo = session().data().photo(file.id());
 				if (photo->uploading() && file.file) {
 					photo->uploadingData->size = file.file->partssize;
 					photo->uploadingData->offset = file.fileSentSize;
 				}
 				_photoProgress.fire_copy(fullId);
-			} else if (file.file->type == SendMediaType::File
-				|| file.file->type == SendMediaType::ThemeFile
-				|| file.file->type == SendMediaType::Audio) {
-				const auto document = session().data().document(file.file->id);
+			} else if (file.type() == SendMediaType::File
+				|| file.type() == SendMediaType::ThemeFile
+				|| file.type() == SendMediaType::Audio) {
+				const auto document = session().data().document(file.id());
 				if (document->uploading()) {
 					const auto doneParts = file.docSentParts
 						- int(docRequestsSent.size());
@@ -664,7 +743,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 						doneParts * file.docPartSize);
 				}
 				_documentProgress.fire_copy(fullId);
-			} else if (file.file->type == SendMediaType::Secure) {
+			} else if (file.type() == SendMediaType::Secure) {
 				file.fileSentSize += sentPartSize;
 				_secureProgress.fire_copy({
 					fullId,

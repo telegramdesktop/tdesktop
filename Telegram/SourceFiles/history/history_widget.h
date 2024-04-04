@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
 
+struct FileLoadResult;
 enum class SendMediaType;
 class MessageLinksParser;
 struct InlineBotQuery;

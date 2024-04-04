@@ -34,7 +34,7 @@ namespace {
 
 constexpr auto kSharedMediaLimit = 100;
 
-[[nodiscard]] std::shared_ptr<FilePrepareResult> PreparePeerPhoto(
+[[nodiscard]] SendMediaReady PreparePeerPhoto(
 		MTP::DcId dcId,
 		PeerId peerId,
 		QImage &&image) {
@@ -80,17 +80,24 @@ constexpr auto kSharedMediaLimit = 100;
 		MTPVector<MTPVideoSize>(),
 		MTP_int(dcId));
 
-	auto result = MakePreparedFile({
-		.id = id,
-		.type = SendMediaType::Photo,
-	});
-	result->type = SendMediaType::Photo;
-	result->setFileData(jpeg);
-	result->thumbId = id;
-	result->thumbname = "thumb.jpg";
-	result->photo = photo;
-	result->photoThumbs = photoThumbs;
-	return result;
+	QString file, filename;
+	int64 filesize = 0;
+	QByteArray data;
+
+	return SendMediaReady(
+		SendMediaType::Photo,
+		file,
+		filename,
+		filesize,
+		data,
+		id,
+		id,
+		u"jpg"_q,
+		peerId,
+		photo,
+		photoThumbs,
+		MTP_documentEmpty(MTP_long(0)),
+		jpeg);
 }
 
 [[nodiscard]] std::optional<MTPVideoSize> PrepareMtpMarkup(
@@ -232,7 +239,7 @@ void PeerPhoto::upload(
 			_api.instance().mainDcId(),
 			peer->id,
 			base::take(photo.image));
-		_session->uploader().upload(fakeId, ready);
+		_session->uploader().uploadMedia(fakeId, ready);
 	}
 }
 

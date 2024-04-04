@@ -24,25 +24,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
-std::shared_ptr<FilePrepareResult> PrepareRingtoneDocument(
+SendMediaReady PrepareRingtoneDocument(
 		MTP::DcId dcId,
 		const QString &filename,
 		const QString &filemime,
 		const QByteArray &content) {
-	const auto id = base::RandomValue<DocumentId>();
 	auto attributes = QVector<MTPDocumentAttribute>(
 		1,
 		MTP_documentAttributeFilename(MTP_string(filename)));
-
-	auto result = MakePreparedFile({
-		.id = id,
-		.type = SendMediaType::File,
-	});
-	result->filename = filename;
-	result->content = content;
-	result->filesize = content.size();
-	result->setFileData(content);
-	result->document = MTP_document(
+	const auto id = base::RandomValue<DocumentId>();
+	const auto document = MTP_document(
 		MTP_flags(0),
 		MTP_long(id),
 		MTP_long(0),
@@ -54,7 +45,21 @@ std::shared_ptr<FilePrepareResult> PrepareRingtoneDocument(
 		MTPVector<MTPVideoSize>(),
 		MTP_int(dcId),
 		MTP_vector<MTPDocumentAttribute>(std::move(attributes)));
-	return result;
+
+	return SendMediaReady(
+		SendMediaType::File,
+		QString(), // filepath
+		filename,
+		content.size(),
+		content,
+		id,
+		0,
+		QString(),
+		PeerId(),
+		MTP_photoEmpty(MTP_long(0)),
+		PreparedPhotoThumbs(),
+		document,
+		QByteArray());
 }
 
 } // namespace
@@ -97,7 +102,7 @@ void Ringtones::upload(
 		_uploads.erase(already);
 	}
 	_uploads.emplace(fakeId, uploadedData);
-	_session->uploader().upload(fakeId, ready);
+	_session->uploader().uploadMedia(fakeId, ready);
 }
 
 void Ringtones::ready(const FullMsgId &msgId, const MTPInputFile &file) {
