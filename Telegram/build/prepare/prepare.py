@@ -1095,6 +1095,7 @@ depends:yasm/yasm
         --disable-network \
         --disable-everything \
         --enable-protocol=file \
+        --enable-libdav1d \
         --enable-libopus \
         --enable-libvpx \
         --enable-hwaccel=h264_videotoolbox \
@@ -1116,6 +1117,7 @@ depends:yasm/yasm
         --enable-decoder=gif \
         --enable-decoder=h264 \
         --enable-decoder=hevc \
+        --enable-decoder=libdav1d \
         --enable-decoder=libvpx_vp8 \
         --enable-decoder=libvpx_vp9 \
         --enable-decoder=mp1 \
