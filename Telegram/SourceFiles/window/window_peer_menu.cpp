@@ -300,6 +300,7 @@ private:
 	void addDeleteTopic();
 	void addVideoChat();
 	void addViewStatistics();
+	void addBoostChat();
 
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
@@ -1034,6 +1035,20 @@ void Filler::addManageChat() {
 	}, &st::menuIconManage);
 }
 
+void Filler::addBoostChat() {
+	if (const auto channel = _peer->asChannel()) {
+		const auto text = channel->isMegagroup()
+			? tr::lng_boost_group_button(tr::now)
+			: tr::lng_boost_channel_button(tr::now);
+		const auto weak = base::make_weak(_controller);
+		_addAction(text, [=] {
+			if (const auto strong = weak.get()) {
+				strong->resolveBoostState(channel);
+			}
+		}, &st::menuIconBoosts);
+	}
+}
+
 void Filler::addViewStatistics() {
 	if (const auto channel = _peer->asChannel()) {
 		const auto controller = _controller;
@@ -1056,12 +1071,6 @@ void Filler::addViewStatistics() {
 			_addAction(tr::lng_boosts_title(tr::now), [=] {
 				if (const auto strong = weak.get()) {
 					controller->showSection(Info::Boosts::Make(peer));
-				}
-			}, &st::menuIconBoosts);
-		} else if (channel->isMegagroup()) {
-			_addAction(tr::lng_boost_group_button(tr::now), [=] {
-				if (const auto strong = weak.get()) {
-					controller->resolveBoostState(channel);
 				}
 			}, &st::menuIconBoosts);
 		}
@@ -1312,6 +1321,7 @@ void Filler::fillHistoryActions() {
 	addStoryArchive();
 	addSupportInfo();
 	addManageChat();
+	addBoostChat();
 	addCreatePoll();
 	addThemeEdit();
 	addViewDiscussion();
