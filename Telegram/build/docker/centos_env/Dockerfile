@@ -479,7 +479,7 @@ RUN git clone -b 1.19.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
 	&& rm -rf wayland
 
 FROM builder AS nv-codec-headers
-RUN git clone -b n12.0.16.0 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
+RUN git clone -b n12.1.14.0 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
 	&& DESTDIR="{{ LibrariesPath }}/nv-codec-headers-cache" make -C nv-codec-headers install \
 	&& rm -rf nv-codec-headers
 
@@ -491,7 +491,7 @@ COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
 COPY --link --from=libXv {{ LibrariesPath }}/libXv-cache /
 COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 
-RUN git clone -b n5.1.3 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
+RUN git clone -b n6.1.1 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 	&& cd FFmpeg \
 	&& ./configure \
 		--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
