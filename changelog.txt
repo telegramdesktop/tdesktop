@@ -1,3 +1,8 @@
+4.16.3 beta (05.04.24)
+
+- Improve media upload speed.
+- Update FFmpeg to 6.1.1.
+
 4.16.2 (04.04.24)
 
 - Use IV by default for Telegraph and some Telegram links.
