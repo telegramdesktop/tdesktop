@@ -1,3 +1,7 @@
+4.16.4 (06.04.24)
+
+- Bug fixes and other minor improvements.
+
 4.16.3 beta (05.04.24)
 
 - Improve media upload speed.
