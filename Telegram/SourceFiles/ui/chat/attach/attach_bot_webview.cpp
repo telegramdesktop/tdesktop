@@ -800,12 +800,11 @@ void Panel::openExternalLink(const QJsonObject &args) {
 		_delegate->botClose();
 		return;
 	}
-	const auto url = args["url"].toString();
 	const auto iv = args["try_instant_view"].toBool();
+	const auto url = args["url"].toString();
 	const auto lower = url.toLower();
-	if (url.isEmpty()
-		|| (!lower.startsWith("http://") && !lower.startsWith("https://"))) {
-		LOG(("BotWebView Error: Bad 'url' in openExternalLink."));
+	if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+		LOG(("BotWebView Error: Bad url in openExternalLink: %1").arg(url));
 		_delegate->botClose();
 		return;
 	} else if (!allowOpenLink()) {
