@@ -1,0 +1,37 @@
+set(TG_LOCAL_LIB_SOURCES
+    tg_local_lib/coder.h
+    tg_local_lib/key_manager.h
+    tg_local_lib/local.h
+    tg_local_lib/coder.cpp
+    tg_local_lib/key_manager.cpp
+    tg_local_lib/local.cpp
+)
+
+add_library(tg_local_lib OBJECT ${TG_LOCAL_LIB_SOURCES})
+init_target(tg_local_lib)
+
+get_filename_component(src_loc . REALPATH)
+
+nice_target_sources(tg_local_lib ${src_loc}
+PRIVATE
+    ${TG_LOCAL_LIB_SOURCES}
+)
+
+find_package(OpenSSL REQUIRED)
+find_package(Qt6 COMPONENTS REQUIRED Core Gui Widgets)
+find_package(SQLite3 REQUIRED)
+
+target_include_directories(tg_local_lib
+PUBLIC
+    ${src_loc}
+)
+
+target_link_libraries(tg_local_lib
+PUBLIC
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    SQLite::SQLite3
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)

@@ -1,8 +1,8 @@
 #pragma once
 #include <utility>
 #include <QByteArray>
-#include "coder/coder.h"
-#include "key_manager/key_manager.h"
+#include "coder.h"
+#include "key_manager.h"
 
 namespace local {
 namespace api {

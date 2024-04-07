@@ -1,4 +1,4 @@
-#include "coder/coder.h"
+#include "coder.h"
 #include <iostream>
 #include <openssl/bio.h>
 #include <openssl/pem.h>
@@ -50,8 +50,11 @@ bool rsa_2048::encryptPublic(const QByteArray& data, const QByteArray& key, QByt
         rsa,
         RSA_PKCS1_PADDING);
     RSA_free(rsa);
+    if (rsa_size == -1) {
+        return false;
+    }
     encrypted.resize(rsa_size);
-    return rsa_size != -1;
+    return true;
 }
 
 bool rsa_2048::decryptPrivate(
@@ -68,8 +71,11 @@ bool rsa_2048::decryptPrivate(
         rsa,
         RSA_PKCS1_PADDING);
     RSA_free(rsa);
+    if (rsa_size == -1) {
+        return false;
+    }
     decrypted.resize(rsa_size);
-    return rsa_size != -1;
+    return true;
 }
 
 bool aes_128::genKey(QByteArray& key) {

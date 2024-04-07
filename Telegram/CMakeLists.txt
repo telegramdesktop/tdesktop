@@ -19,6 +19,7 @@ add_subdirectory(lib_qr)
 add_subdirectory(lib_webrtc)
 add_subdirectory(lib_webview)
 add_subdirectory(codegen)
+add_subdirectory(local)
 
 get_filename_component(src_loc SourceFiles REALPATH)
 get_filename_component(res_loc Resources REALPATH)
@@ -89,6 +90,7 @@ PRIVATE
     desktop-app::external_openssl
     desktop-app::external_openal
     desktop-app::external_xxhash
+    tg_local_lib
 )
 
 target_precompile_headers(Telegram PRIVATE $<$<COMPILE_LANGUAGE:CXX,OBJCXX>:${src_loc}/stdafx.h>)

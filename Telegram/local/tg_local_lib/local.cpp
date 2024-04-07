@@ -1,5 +1,5 @@
-#include "main/local.h"
-#include "coder/coder.h"
+#include "local.h"
+#include "coder.h"
 #include <iostream>
 
 namespace local::api {
