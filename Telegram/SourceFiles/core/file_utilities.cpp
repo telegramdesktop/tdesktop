@@ -159,7 +159,7 @@ void Launch(const QString &filepath) {
 void ShowInFolder(const QString &filepath) {
 	crl::on_main([=] {
 		Ui::PreventDelayedActivation();
-		if (Platform::IsLinux()) {
+		if (Platform::IsX11()) {
 			// Hide mediaview to make other apps visible.
 			Core::App().hideMediaView();
 		}
