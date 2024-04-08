@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_main_menu.h"
 
+#include "apiwrap.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/new_badges.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "ui/unread_badge_paint.h"
 #include "inline_bots/bot_attach_web_view.h"
@@ -45,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "calls/calls_box_controller.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "core/click_handler_types.h"
 #include "core/application.h"
 #include "main/main_session.h"
@@ -56,6 +59,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
+#include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -116,10 +121,76 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 		bool chats) {
 	button->setAcceptBoth(true);
 
+	const auto requestIcon = [=, session = &controller->session()](
+			not_null<Ui::GenericBox*> box,
+			Fn<void(not_null<DocumentData*>)> done) {
+		const auto api = box->lifetime().make_state<MTP::Sender>(
+			&session->mtp());
+		api->request(MTPmessages_GetStickerSet(
+			Data::InputStickerSet({
+				.shortName = u"tg_placeholders_android"_q,
+			}),
+			MTP_int(0)
+		)).done([=](const MTPmessages_StickerSet &result) {
+			result.match([&](const MTPDmessages_stickerSet &data) {
+				const auto &v = data.vdocuments().v;
+				if (v.size() > 1) {
+					done(session->data().processDocument(v[1]));
+				}
+			}, [](const MTPDmessages_stickerSetNotModified &) {
+			});
+		}).send();
+	};
+	const auto addIcon = [=](not_null<Ui::GenericBox*> box) {
+		const auto widget = box->addRow(object_ptr<Ui::RpWidget>(box));
+		widget->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(widget);
+			p.setFont(st::boxTextFont);
+			p.setPen(st::windowSubTextFg);
+			p.drawText(
+				widget->rect(),
+				tr::lng_contacts_loading(tr::now),
+				style::al_center);
+		}, widget->lifetime());
+		widget->resize(Size(st::maxStickerSize));
+		widget->show();
+		box->verticalLayout()->resizeToWidth(box->width());
+		requestIcon(box, [=](not_null<DocumentData*> document) {
+			const auto view = document->createMediaView();
+			const auto origin = document->stickerSetOrigin();
+			controller->session().downloaderTaskFinished(
+			) | rpl::take_while([=] {
+				if (view->bytes().isEmpty()) {
+					return true;
+				}
+				auto owned = Lottie::MakeIcon({
+					.json = Images::UnpackGzip(view->bytes()),
+					.sizeOverride = Size(st::maxStickerSize),
+				});
+				const auto icon = owned.get();
+				widget->lifetime().add([kept = std::move(owned)]{});
+				widget->paintRequest(
+				) | rpl::start_with_next([=] {
+					auto p = QPainter(widget);
+					icon->paint(p, (widget->width() - icon->width()) / 2, 0);
+				}, widget->lifetime());
+				icon->animate(
+					[=] { widget->update(); },
+					0,
+					icon->framesCount());
+				return false;
+			}) | rpl::start(widget->lifetime());
+			view->automaticLoad(origin, nullptr);
+			view->videoThumbnailWanted(origin);
+		});
+	};
+
 	const auto myChannelsBox = [=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(chats
 			? tr::lng_notification_groups()
 			: tr::lng_notification_channels());
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 
 		const auto st = box->lifetime().make_state<style::UserpicButton>(
 			st::defaultUserpicButton);
@@ -133,17 +204,22 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 			void setPeer(not_null<PeerData*> p) {
 				const auto c = p->asChannel();
 				const auto g = p->asChat();
-				_text.setText(st::defaultPeerListItem.nameStyle, p->name());
+				_text.setText(
+					st::defaultPeerListItem.nameStyle,
+					((c && c->isMegagroup()) ? u"[s] "_q : QString())
+						+ p->name());
 				const auto count = c ? c->membersCount() : g->count;
 				_status.setText(
 					st::defaultTextStyle,
 					!p->username().isEmpty()
 						? ('@' + p->username())
-						: count
-						? tr::lng_chat_status_subscribers(
-							tr::now,
-							lt_count,
-							count)
+						: (count > 0)
+						? ((c && !c->isMegagroup())
+							? tr::lng_chat_status_subscribers
+							: tr::lng_chat_status_members)(
+								tr::now,
+								lt_count,
+								count)
 						: QString());
 			}
 
@@ -192,15 +268,15 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 		};
 
 		const auto &data = controller->session().data();
+		auto ids = std::vector<PeerId>();
 		if (chats) {
-			auto ids = std::vector<PeerId>();
 			data.enumerateGroups([&](not_null<PeerData*> peer) {
 				peer = peer->migrateToOrMe();
-				const auto c = peer->asChannel();
-				const auto g = peer->asChat();
 				if (ranges::contains(ids, peer->id)) {
 					return;
 				}
+				const auto c = peer->asChannel();
+				const auto g = peer->asChat();
 				if ((c && c->amCreator()) || (g && g->amCreator())) {
 					ids.push_back(peer->id);
 					add(peer);
@@ -208,10 +284,15 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 			});
 		} else {
 			data.enumerateBroadcasts([&](not_null<ChannelData*> channel) {
-				if (channel->amCreator()) {
+				if (channel->amCreator()
+					&& !ranges::contains(ids, channel->id)) {
+					ids.push_back(channel->id);
 					add(channel);
 				}
 			});
+		}
+		if (ids.empty()) {
+			addIcon(box);
 		}
 	};
 
@@ -224,12 +305,12 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 
 		(*menu) = base::make_unique_q<Ui::PopupMenu>(
 			button,
-			st::defaultPopupMenu);
+			st::popupMenuWithIcons);
 		(*menu)->addAction(
 			(chats ? tr::lng_menu_my_groups : tr::lng_menu_my_channels)(
 				tr::now),
 			[=] { controller->uiShow()->showBox(Box(myChannelsBox)); },
-			nullptr);
+			chats ? &st::menuIconGroups : &st::menuIconChannel);
 		(*menu)->popup(QCursor::pos());
 	});
 
