@@ -1503,6 +1503,8 @@ PRIVATE
     window/window_lock_widgets.h
     window/window_main_menu.cpp
     window/window_main_menu.h
+    window/window_main_menu_helpers.cpp
+    window/window_main_menu_helpers.h
     window/window_media_preview.cpp
     window/window_media_preview.h
     window/window_peer_menu.cpp
