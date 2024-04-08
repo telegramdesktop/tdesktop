@@ -1,3 +1,9 @@
+4.16.5 (08.04.24)
+
+- Fix editing privacy for groups and channels invitations.
+- Possible fix for the network unresponsiveness after sleep.
+- Possible fix for wide range of memory allocator crashes on Linux.
+
 4.16.4 (06.04.24)
 
 - Bug fixes and other minor improvements.

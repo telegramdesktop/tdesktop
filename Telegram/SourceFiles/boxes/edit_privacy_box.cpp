@@ -160,7 +160,6 @@ public:
 
 private:
 	const not_null<Main::Session*> _session;
-	bool _premiums = false;
 
 	rpl::event_stream<> _selectionChanged;
 	rpl::event_stream<RowSelectionChange> _rowSelectionChanges;
@@ -207,8 +206,7 @@ bool PremiumsRow::useForumLikeUserpic() const {
 TypesController::TypesController(
 	not_null<Main::Session*> session,
 	bool premiums)
-: _session(session)
-, _premiums(premiums) {
+: _session(session) {
 }
 
 Main::Session &TypesController::session() const {
