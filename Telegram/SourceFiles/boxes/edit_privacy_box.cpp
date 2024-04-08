@@ -159,8 +159,6 @@ public:
 		-> rpl::producer<RowSelectionChange>;
 
 private:
-	[[nodiscard]] std::unique_ptr<PeerListRow> createRow() const;
-
 	const not_null<Main::Session*> _session;
 	bool _premiums = false;
 
@@ -331,6 +329,9 @@ auto PrivacyExceptionsBoxController::preparePremiumsRowList()
 
 	_deselectOption = [=](PeerListRowId itemId) {
 		if (const auto row = _typesDelegate->peerListFindRow(itemId)) {
+			if (itemId == kPremiumsRowId) {
+				_selected.premiums = false;
+			}
 			_typesDelegate->peerListSetRowChecked(row, false);
 		}
 	};
