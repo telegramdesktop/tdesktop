@@ -233,6 +233,7 @@ private:
 		mtpRequestId requestId);
 	void peopleFailed(const MTP::Error &error, mtpRequestId requestId);
 
+	void updateForceDisplayWide();
 	void scrollToDefault(bool verytop = false);
 	void scrollToDefaultChecked(bool verytop = false);
 	void setupScrollUpButton();

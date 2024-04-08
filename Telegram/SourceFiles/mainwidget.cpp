@@ -296,11 +296,11 @@ MainWidget::MainWidget(
 		_player->finishAnimating();
 	}
 
-	rpl::merge(
-		_controller->dialogsListFocusedChanges(),
-		_controller->dialogsListDisplayForcedChanges()
+	_controller->chatsForceDisplayWideChanges(
 	) | rpl::start_with_next([=] {
-		updateDialogsWidthAnimated();
+		crl::on_main(this, [=] {
+			updateDialogsWidthAnimated();
+		});
 	}, lifetime());
 
 	rpl::merge(
@@ -1315,7 +1315,6 @@ void MainWidget::showHistory(
 		}
 	}
 
-	_controller->setDialogsListFocused(false);
 	_a_dialogsWidth.stop();
 
 	using Way = SectionShow::Way;
@@ -1708,7 +1707,6 @@ void MainWidget::showNewSection(
 		_controller->window().hideSettingsAndLayer();
 	}
 
-	_controller->setDialogsListFocused(false);
 	_a_dialogsWidth.stop();
 
 	auto mainSectionTop = getMainSectionTop();
@@ -2626,23 +2624,7 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 	const auto widget = o->isWidgetType()
 		? static_cast<QWidget*>(o)
 		: nullptr;
-	if (e->type() == QEvent::FocusIn) {
-		if (widget && (widget->window() == window())) {
-			if (_history == widget || _history->isAncestorOf(widget)
-				|| (_mainSection
-					&& (_mainSection == widget
-						|| _mainSection->isAncestorOf(widget)))
-				|| (_thirdSection
-					&& (_thirdSection == widget
-						|| _thirdSection->isAncestorOf(widget)))) {
-				_controller->setDialogsListFocused(false);
-			} else if (_dialogs
-				&& (_dialogs == widget
-					|| _dialogs->isAncestorOf(widget))) {
-				_controller->setDialogsListFocused(true);
-			}
-		}
-	} else if (e->type() == QEvent::MouseButtonPress) {
+	if (e->type() == QEvent::MouseButtonPress) {
 		if (widget && (widget->window() == window())) {
 			const auto event = static_cast<QMouseEvent*>(e);
 			if (event->button() == Qt::BackButton) {
@@ -2749,7 +2731,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 
 	auto useSmallColumnWidth = !isOneColumn()
 		&& !dialogsWidthRatio
-		&& !_controller->forceWideDialogs();
+		&& !_controller->chatsForceDisplayWide();
 	_dialogsWidth = !_dialogs
 		? 0
 		: useSmallColumnWidth

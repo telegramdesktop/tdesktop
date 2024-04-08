@@ -1892,11 +1892,6 @@ int SessionController::minimalThreeColumnWidth() const {
 		+ st::columnMinimalWidthThird;
 }
 
-bool SessionController::forceWideDialogs() const {
-	return _dialogsListDisplayForced.current()
-		|| _dialogsListFocused.current();
-}
-
 auto SessionController::computeColumnLayout() const -> ColumnLayout {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 

@@ -423,7 +423,6 @@ public:
 	};
 	[[nodiscard]] ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
-	bool forceWideDialogs() const;
 	void updateColumnLayout() const;
 	bool canShowThirdSection() const;
 	bool canShowThirdSectionWithoutResize() const;
@@ -516,24 +515,15 @@ public:
 		std::optional<bool> show = std::nullopt) const;
 	void finishChatThemeEdit(not_null<PeerData*> peer);
 
-	[[nodiscard]] bool dialogsListFocused() const {
-		return _dialogsListFocused.current();
+	[[nodiscard]] bool chatsForceDisplayWide() const {
+		return _chatsForceDisplayWide.current();
 	}
-	[[nodiscard]] rpl::producer<bool> dialogsListFocusedChanges() const {
-		return _dialogsListFocused.changes();
-	}
-	void setDialogsListFocused(bool value) {
-		_dialogsListFocused = value;
-	}
-	[[nodiscard]] bool dialogsListDisplayForced() const {
-		return _dialogsListDisplayForced.current();
-	}
-	[[nodiscard]] auto dialogsListDisplayForcedChanges() const
+	[[nodiscard]] auto chatsForceDisplayWideChanges() const
 	-> rpl::producer<bool> {
-		return _dialogsListDisplayForced.changes();
+		return _chatsForceDisplayWide.changes();
 	}
-	void setDialogsListDisplayForced(bool value) {
-		_dialogsListDisplayForced = value;
+	void setChatsForceDisplayWide(bool value) {
+		_chatsForceDisplayWide = value;
 	}
 
 	not_null<SessionController*> parentController() override {
@@ -688,8 +678,7 @@ private:
 	rpl::variable<Dialogs::Key> _searchInChat;
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	rpl::lifetime _activeHistoryLifetime;
-	rpl::variable<bool> _dialogsListFocused = false;
-	rpl::variable<bool> _dialogsListDisplayForced = false;
+	rpl::variable<bool> _chatsForceDisplayWide = false;
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
 	bool _filtersActivated = false;

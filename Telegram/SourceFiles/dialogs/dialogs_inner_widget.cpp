@@ -2871,8 +2871,6 @@ void InnerWidget::refresh(bool toTop) {
 		jumpToTop();
 		preloadRowsData();
 	}
-	_controller->setDialogsListDisplayForced(
-		_searchInChat || !_filter.isEmpty());
 	update();
 }
 
@@ -3060,9 +3058,6 @@ void InnerWidget::searchInChat(
 		_searchInChatUserpic = {};
 	}
 	moveCancelSearchButtons();
-
-	_controller->setDialogsListDisplayForced(
-		_searchInChat || !_filter.isEmpty());
 }
 
 auto InnerWidget::searchTagsChanges() const

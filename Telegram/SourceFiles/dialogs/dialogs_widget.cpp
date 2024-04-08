@@ -357,8 +357,14 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		applySearchUpdate();
 	}, _search->lifetime());
+
+	_search->focusedChanges() | rpl::start_with_next([=](bool focused) {
+		updateForceDisplayWide();
+	}, _search->lifetime());
+
 	_search->submits(
 	) | rpl::start_with_next([=] { submit(); }, _search->lifetime());
+
 	QObject::connect(
 		_search->rawTextEdit().get(),
 		&QTextEdit::cursorPositionChanged,
@@ -2469,6 +2475,13 @@ void Widget::applySearchUpdate(bool force) {
 		}
 	}
 	_lastSearchText = filterText;
+	updateForceDisplayWide();
+}
+
+void Widget::updateForceDisplayWide() {
+	controller()->setChatsForceDisplayWide(_search->hasFocus()
+		|| !_search->getLastText().isEmpty()
+		|| _searchInChat);
 }
 
 void Widget::showForum(
@@ -2687,11 +2700,12 @@ bool Widget::setSearchInChat(
 		&& _lastSearchText == HistoryView::SwitchToChooseFromQuery()) {
 		cancelSearch();
 	}
-	if (_searchInChat) {
+	if (_searchInChat || !_search->getLastText().isEmpty()) {
 		_search->setFocus();
 	} else {
 		setFocus();
 	}
+	updateForceDisplayWide();
 	return true;
 }
 
@@ -3209,7 +3223,7 @@ void Widget::cancelSearchInChat() {
 		setSearchInChat(Key());
 	}
 	applySearchUpdate(true);
-	if (!isOneColumn) {
+	if (!isOneColumn && _search->getLastText().isEmpty()) {
 		controller()->content()->dialogsCancelled();
 	}
 }
