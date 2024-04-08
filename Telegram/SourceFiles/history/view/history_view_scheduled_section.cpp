@@ -58,11 +58,19 @@ namespace HistoryView {
 ScheduledMemento::ScheduledMemento(not_null<History*> history)
 : _history(history)
 , _forumTopic(nullptr) {
+	const auto list = _history->owner().scheduledMessages().list(_history);
+	if (!list.ids.empty()) {
+		_list.setScrollTopState({ .item = { .fullId = list.ids.front() } });
+	}
 }
 
 ScheduledMemento::ScheduledMemento(not_null<Data::ForumTopic*> forumTopic)
 : _history(forumTopic->owningHistory())
 , _forumTopic(forumTopic) {
+	const auto list = _history->owner().scheduledMessages().list(_forumTopic);
+	if (!list.ids.empty()) {
+		_list.setScrollTopState({ .item = { .fullId = list.ids.front() } });
+	}
 }
 
 object_ptr<Window::SectionWidget> ScheduledMemento::createWidget(
@@ -1154,9 +1162,7 @@ Context ScheduledWidget::listContext() {
 }
 
 bool ScheduledWidget::listScrollTo(int top, bool syntetic) {
-	top = (top == ScrollMax && syntetic)
-		? 0
-		: std::clamp(top, 0, _scroll->scrollTopMax());
+	top = std::clamp(top, 0, _scroll->scrollTopMax());
 	if (_scroll->scrollTop() == top) {
 		updateInnerVisibleArea();
 		return false;
