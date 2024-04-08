@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/file_utilities.h"
 #include "core/shortcuts.h"
+#include "core/click_handler_types.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_cloud_file.h"
@@ -63,7 +64,7 @@ class Shown final : public base::has_weak_ptr {
 public:
 	Shown(
 		not_null<Delegate*> delegate,
-		std::shared_ptr<Main::SessionShow> show,
+		not_null<Main::Session*> session,
 		not_null<Data*> data,
 		QString hash);
 
@@ -169,12 +170,11 @@ private:
 
 Shown::Shown(
 	not_null<Delegate*> delegate,
-	std::shared_ptr<Main::SessionShow> show,
+	not_null<Main::Session*> session,
 	not_null<Data*> data,
 	QString hash)
 : _delegate(delegate)
-, _session(&show->session())
-, _show(show) {
+, _session(session) {
 	prepare(data, hash);
 }
 
@@ -818,7 +818,13 @@ void Instance::show(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Data*> data,
 		QString hash) {
-	const auto session = &show->session();
+	this->show(&show->session(), data, hash);
+}
+
+void Instance::show(
+		not_null<Main::Session*> session,
+		not_null<Data*> data,
+		QString hash) {
 	const auto guard = gsl::finally([&] {
 		if (data->partial()) {
 			requestFull(session, data->id());
@@ -828,10 +834,13 @@ void Instance::show(
 		_shown->moveTo(data, hash);
 		return;
 	}
-	_shown = std::make_unique<Shown>(_delegate, show, data, hash);
+	_shown = std::make_unique<Shown>(_delegate, session, data, hash);
 	_shownSession = session;
 	_shown->events() | rpl::start_with_next([=](Controller::Event event) {
 		using Type = Controller::Event::Type;
+		const auto lower = event.url.toLower();
+		const auto urlChecked = lower.startsWith("http://")
+			|| lower.startsWith("https://");
 		switch (event.type) {
 		case Type::Close:
 			_shown = nullptr;
@@ -846,7 +855,9 @@ void Instance::show(
 			processJoinChannel(event.context);
 			break;
 		case Type::OpenLinkExternal:
-			File::OpenUrl(event.url);
+			if (urlChecked) {
+				File::OpenUrl(event.url);
+			}
 			closeAll();
 			break;
 		case Type::OpenMedia:
@@ -885,6 +896,9 @@ void Instance::show(
 			break;
 		case Type::OpenPage:
 		case Type::OpenLink:
+			if (!urlChecked) {
+				break;
+			}
 			_shownSession->api().request(MTPmessages_GetWebPage(
 				MTP_string(event.url),
 				MTP_int(0)
@@ -896,7 +910,7 @@ void Instance::show(
 				if (page && page->iv) {
 					const auto parts = event.url.split('#');
 					const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
-					this->show(show, page->iv.get(), hash);
+					this->show(_shownSession, page->iv.get(), hash);
 				} else {
 					UrlClickHandler::Open(event.url);
 				}
@@ -921,20 +935,104 @@ void Instance::show(
 		}
 	}, _shown->lifetime());
 
-	if (!_tracking.contains(session)) {
-		_tracking.emplace(session);
-		session->lifetime().add([=] {
-			_tracking.remove(session);
-			_joining.remove(session);
-			_fullRequested.remove(session);
-			if (_shownSession == session) {
-				_shownSession = nullptr;
-			}
-			if (_shown && _shown->showingFrom(session)) {
-				_shown = nullptr;
-			}
-		});
+	trackSession(session);
+}
+
+void Instance::trackSession(not_null<Main::Session*> session) {
+	if (!_tracking.emplace(session).second) {
+		return;
 	}
+	session->lifetime().add([=] {
+		_tracking.remove(session);
+		_joining.remove(session);
+		_fullRequested.remove(session);
+		_ivCache.remove(session);
+		if (_ivRequestSession == session) {
+			session->api().request(_ivRequestId).cancel();
+			_ivRequestSession = nullptr;
+			_ivRequestUri = QString();
+			_ivRequestId = 0;
+		}
+		if (_shownSession == session) {
+			_shownSession = nullptr;
+		}
+		if (_shown && _shown->showingFrom(session)) {
+			_shown = nullptr;
+		}
+	});
+}
+
+void Instance::openWithIvPreferred(
+		not_null<Window::SessionController*> controller,
+		QString uri,
+		QVariant context) {
+	auto my = context.value<ClickHandlerContext>();
+	my.sessionWindow = controller;
+	openWithIvPreferred(
+		&controller->session(),
+		uri,
+		QVariant::fromValue(my));
+}
+
+void Instance::openWithIvPreferred(
+		not_null<Main::Session*> session,
+		QString uri,
+		QVariant context) {
+	const auto openExternal = [=] {
+		auto my = context.value<ClickHandlerContext>();
+		my.ignoreIv = true;
+		UrlClickHandler::Open(uri, QVariant::fromValue(my));
+	};
+	const auto parts = uri.split('#');
+	if (parts.isEmpty() || parts[0].isEmpty()) {
+		return;
+	} else if (!ShowButton()) {
+		return openExternal();
+	}
+	trackSession(session);
+	const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
+	const auto url = parts[0];
+	auto &cache = _ivCache[session];
+	if (const auto i = cache.find(url); i != end(cache)) {
+		const auto page = i->second;
+		if (page && page->iv) {
+			auto my = context.value<ClickHandlerContext>();
+			if (const auto window = my.sessionWindow.get()) {
+				show(window, page->iv.get(), hash);
+			} else {
+				show(session, page->iv.get(), hash);
+			}
+		} else {
+			openExternal();
+		}
+		return;
+	} else if (_ivRequestSession == session.get() && _ivRequestUri == uri) {
+		return;
+	} else if (_ivRequestId) {
+		_ivRequestSession->api().request(_ivRequestId).cancel();
+	}
+	const auto finish = [=](WebPageData *page) {
+		Expects(_ivRequestSession == session);
+
+		_ivRequestId = 0;
+		_ivRequestUri = QString();
+		_ivRequestSession = nullptr;
+		_ivCache[session][url] = page;
+		openWithIvPreferred(session, uri, context);
+	};
+	_ivRequestSession = session;
+	_ivRequestUri = uri;
+	_ivRequestId = session->api().request(MTPmessages_GetWebPage(
+		MTP_string(url),
+		MTP_int(0)
+	)).done([=](const MTPmessages_WebPage &result) {
+		const auto &data = result.data();
+		session->data().processUsers(data.vusers());
+		session->data().processChats(data.vchats());
+		finish(session->data().processWebpage(data.vwebpage()));
+	}).fail([=] {
+		finish(nullptr);
+	}).send();
 }
 
 void Instance::requestFull(
@@ -1026,6 +1124,19 @@ bool Instance::minimizeActive() {
 
 void Instance::closeAll() {
 	_shown = nullptr;
+}
+
+bool PreferForUri(const QString &uri) {
+	const auto url = QUrl(uri);
+	const auto host = url.host().toLower();
+	const auto path = url.path().toLower();
+	return (host == u"telegra.ph"_q)
+		|| (host == u"te.legra.ph"_q)
+		|| (host == u"graph.org"_q)
+		|| (host == u"telegram.org"_q
+			&& (path.startsWith(u"/faq"_q)
+				|| path.startsWith(u"/privacy"_q)
+				|| path.startsWith(u"/blog"_q)));
 }
 
 } // namespace Iv

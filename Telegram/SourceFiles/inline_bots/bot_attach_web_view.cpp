@@ -17,10 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
 #include "info/profile/info_profile_values.h"
+#include "iv/iv_instance.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/widgets/checkbox.h"
@@ -650,6 +652,15 @@ void AttachWebView::botHandleMenuButton(Ui::BotWebView::MenuButton button) {
 			done,
 		}));
 		break;
+	}
+}
+
+void AttachWebView::botOpenIvLink(QString uri) {
+	const auto window = _context ? _context->controller.get() : nullptr;
+	if (window) {
+		Core::App().iv().openWithIvPreferred(window, uri);
+	} else {
+		Core::App().iv().openWithIvPreferred(_session, uri);
 	}
 }
 

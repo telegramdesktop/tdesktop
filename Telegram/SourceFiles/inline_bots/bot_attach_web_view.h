@@ -165,6 +165,7 @@ private:
 	bool botHandleLocalUri(QString uri, bool keepOpen) override;
 	void botHandleInvoice(QString slug) override;
 	void botHandleMenuButton(Ui::BotWebView::MenuButton button) override;
+	void botOpenIvLink(QString uri) override;
 	void botSendData(QByteArray data) override;
 	void botSwitchInlineQuery(
 		std::vector<QString> chatTypes,

@@ -1,3 +1,18 @@
+4.16.4 (06.04.24)
+
+- Bug fixes and other minor improvements.
+
+4.16.3 beta (05.04.24)
+
+- Improve media upload speed.
+- Update FFmpeg to 6.1.1.
+
+4.16.2 (04.04.24)
+
+- Use IV by default for Telegraph and some Telegram links.
+- Support IV links in bot web-apps.
+- Some bug fixes.
+
 4.16.1 (02.04.24)
 
 - Show information about Fragment phone numbers and usernames.

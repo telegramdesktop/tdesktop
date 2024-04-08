@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-20.04
 
     env:
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
 
     steps:
       - name: Clone.

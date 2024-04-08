@@ -52,7 +52,7 @@ jobs:
           - "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
 
     env:
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
 
     steps:
       - name: Get repository name.
@@ -115,8 +115,8 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           cd $REPO_NAME/out/Debug
-          mkdir artifact
-          mv {Telegram,Updater} artifact/
+          sudo mkdir artifact
+          sudo mv {Telegram,Updater} artifact/
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.

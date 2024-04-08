@@ -1147,14 +1147,15 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		auto linkText = LinkValue(
 			_peer,
 			true
-		) | rpl::map([=](const QString &link) {
-			return link.isEmpty()
+		) | rpl::map([=](const LinkWithUrl &link) {
+			const auto text = link.text;
+			return text.isEmpty()
 				? TextWithEntities()
 				: Ui::Text::Link(
-					(link.startsWith(u"https://"_q)
-						? link.mid(u"https://"_q.size())
-						: link) + addToLink,
-					link + addToLink);
+					(text.startsWith(u"https://"_q)
+						? text.mid(u"https://"_q.size())
+						: text) + addToLink,
+					(addToLink.isEmpty() ? link.url : (text + addToLink)));
 		});
 		auto linkLine = addInfoOneLine(
 			(topicRootId

@@ -127,4 +127,3 @@ rpl::producer<bool> IsBirthdayTodayValue(Birthday date) {
 }
 
 } // namespace Data
-

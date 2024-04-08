@@ -510,7 +510,7 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 std::optional<bool> IsDarkMode() {
-	const auto result = base::Platform::XDP::ReadSetting(
+	auto result = base::Platform::XDP::ReadSetting(
 		"org.freedesktop.appearance",
 		"color-scheme");
 

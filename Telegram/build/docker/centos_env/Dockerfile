@@ -19,13 +19,13 @@ ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/loc
 RUN dnf -y install epel-release \
 	&& dnf config-manager --set-enabled powertools \
 	&& dnf -y install autoconf automake libtool pkgconfig make patch git \
-		python3.11-pip python3.11-devel gperf flex bison clang lld yasm \
+		python3.11-pip python3.11-devel gperf flex bison clang lld nasm yasm \
 		file which perl-open perl-XML-Parser perl-IPC-Cmd xorg-x11-util-macros \
 		gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils \
-		libffi-devel fontconfig-devel freetype-devel libX11-devel \
-		alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
-		mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel libvdpau-devel \
-		glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
+		gcc-toolset-12-libasan-devel libffi-devel fontconfig-devel freetype-devel \
+		libX11-devel alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel \
+		mesa-libEGL-devel mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel \
+		libvdpau-devel glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
 	&& dnf clean all
 
 SHELL [ "bash", "-c", ". /opt/rh/gcc-toolset-12/enable; exec bash -c \"$@\"", "-s"]
@@ -51,20 +51,9 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 174d6e51435e6eab0596904f9fba80a927ef4177 \
+	&& git fetch --depth=1 origin b8e22ca1511513024b22b5381153163ad3406a8c \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
-
-FROM builder AS nasm
-RUN git clone -b nasm-2.15.05 --depth=1 {{ GIT }}/netwide-assembler/nasm.git \
-	&& cd nasm \
-	&& ./autogen.sh \
-	&& ./configure \
-	&& make -j$(nproc) \
-	&& mkdir -p "{{ LibrariesPath }}/nasm-cache/usr/local/bin" \
-	&& install -c nasm "{{ LibrariesPath }}/nasm-cache/usr/local/bin/nasm" \
-	&& cd .. \
-	&& rm -rf nasm
 
 FROM builder AS zlib
 RUN git init zlib \
@@ -166,8 +155,6 @@ RUN git clone -b v1.4 --depth=1 {{ GIT }}/xiph/opus.git \
 	&& rm -rf opus
 
 FROM builder AS dav1d
-COPY --link --from=nasm {{ LibrariesPath }}/nasm-cache /
-
 RUN git clone -b 1.4.1 --depth=1 {{ GIT }}/videolan/dav1d.git \
 	&& cd dav1d \
 	&& meson build \
@@ -479,7 +466,7 @@ RUN git clone -b 1.19.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
 	&& rm -rf wayland
 
 FROM builder AS nv-codec-headers
-RUN git clone -b n12.0.16.0 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
+RUN git clone -b n12.1.14.0 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
 	&& DESTDIR="{{ LibrariesPath }}/nv-codec-headers-cache" make -C nv-codec-headers install \
 	&& rm -rf nv-codec-headers
 
@@ -491,7 +478,7 @@ COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
 COPY --link --from=libXv {{ LibrariesPath }}/libXv-cache /
 COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 
-RUN git clone -b n5.1.3 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
+RUN git clone -b n6.1.1 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 	&& cd FFmpeg \
 	&& ./configure \
 		--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \

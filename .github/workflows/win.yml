@@ -50,7 +50,7 @@ jobs:
         generator: ["", "Ninja Multi-Config"]
 
     env:
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
 

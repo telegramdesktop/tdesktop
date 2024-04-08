@@ -57,6 +57,7 @@ public:
 	virtual bool botHandleLocalUri(QString uri, bool keepOpen) = 0;
 	virtual void botHandleInvoice(QString slug) = 0;
 	virtual void botHandleMenuButton(MenuButton button) = 0;
+	virtual void botOpenIvLink(QString uri) = 0;
 	virtual void botSendData(QByteArray data) = 0;
 	virtual void botSwitchInlineQuery(
 		std::vector<QString> chatTypes,

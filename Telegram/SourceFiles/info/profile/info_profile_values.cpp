@@ -232,12 +232,19 @@ rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 	});
 }
 
-rpl::producer<QString> LinkValue(not_null<PeerData*> peer, bool primary) {
+rpl::producer<LinkWithUrl> LinkValue(not_null<PeerData*> peer, bool primary) {
 	return (primary
 		? PlainPrimaryUsernameValue(peer)
 		: PlainUsernameValue(peer) | rpl::type_erased()
 	) | rpl::map([=](QString &&username) {
-		return username.isEmpty() ? QString() : UsernameUrl(peer, username);
+		return LinkWithUrl{
+			.text = (username.isEmpty()
+				? QString()
+				: peer->session().createInternalLinkFull(username)),
+			.url = (username.isEmpty()
+				? QString()
+				: UsernameUrl(peer, username)),
+		};
 	});
 }
 

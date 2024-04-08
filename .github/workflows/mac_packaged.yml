@@ -50,7 +50,7 @@ jobs:
     env:
       GIT: "https://github.com"
       OPENALDIR: "/usr/local/opt/openal-soft"
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
       MANUAL_CACHING: "1"
       AUTO_CACHING: "1"
