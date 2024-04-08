@@ -17,8 +17,6 @@ PRIVATE
     ${TG_LOCAL_LIB_SOURCES}
 )
 
-find_package(OpenSSL REQUIRED)
-find_package(Qt6 COMPONENTS REQUIRED Core Gui Widgets)
 find_package(SQLite3 REQUIRED)
 
 target_include_directories(tg_local_lib
@@ -28,10 +26,8 @@ PUBLIC
 
 target_link_libraries(tg_local_lib
 PUBLIC
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Widgets
+    desktop-app::external_qt_static_plugins
+    desktop-app::external_qt
     SQLite::SQLite3
-    OpenSSL::SSL
-    OpenSSL::Crypto
+    desktop-app::external_openssl
 )

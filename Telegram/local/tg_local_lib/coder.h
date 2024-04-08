@@ -2,10 +2,10 @@
 #include <openssl/aes.h>
 #include <openssl/rsa.h>
 #include <vector>
-#include <QByteArray>
+#include <QtCore/QByteArray>
 
 namespace local {
-    
+
 namespace rsa_2048 {
 bool genKeys(QByteArray& public_key, QByteArray& private_key);
 bool encryptPublic(const QByteArray& data, const QByteArray& key, QByteArray& encrypted);

@@ -1,6 +1,6 @@
 #pragma once
 #include <utility>
-#include <QByteArray>
+#include <QtCore/QByteArray>
 #include "coder.h"
 #include "key_manager.h"
 
