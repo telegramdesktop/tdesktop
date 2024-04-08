@@ -358,8 +358,11 @@ Widget::Widget(
 		applySearchUpdate();
 	}, _search->lifetime());
 
-	_search->focusedChanges() | rpl::start_with_next([=](bool focused) {
-		updateForceDisplayWide();
+	_search->focusedChanges(
+	) | rpl::start_with_next([=](bool focused) {
+		if (focused) {
+			updateHasFocus(_search.data());
+		}
 	}, _search->lifetime());
 
 	_search->submits(
@@ -1020,7 +1023,7 @@ void Widget::updateControlsVisibility(bool fast) {
 	updateLoadMoreChatsVisibility();
 	_scroll->show();
 	updateStoriesVisibility();
-	if ((_openedFolder || _openedForum) && _search->hasFocus()) {
+	if ((_openedFolder || _openedForum) && _searchHasFocus.current()) {
 		setInnerFocus();
 	}
 	if (_updateTelegram) {
@@ -1059,7 +1062,7 @@ void Widget::updateControlsVisibility(bool fast) {
 	if (_hideChildListCanvas) {
 		_hideChildListCanvas->show();
 	}
-	if (_childList && _search->hasFocus()) {
+	if (_childList && _searchHasFocus.current()) {
 		setInnerFocus();
 	}
 	updateLockUnlockPosition();
@@ -1079,6 +1082,11 @@ void Widget::updateLockUnlockPosition() {
 	_lockUnlock->move(
 		right - _lockUnlock->width(),
 		st::dialogsFilterPadding.y());
+}
+
+void Widget::updateHasFocus(not_null<QWidget*> focused) {
+	_searchHasFocus = (focused == _search.data());
+	updateForceDisplayWide();
 }
 
 void Widget::changeOpenedSubsection(
@@ -1637,7 +1645,7 @@ void Widget::slideFinished() {
 	_shownProgressValue = 1.;
 	updateControlsVisibility(true);
 	if ((!_subsectionTopBar || !_subsectionTopBar->searchHasFocus())
-		&& !_search->hasFocus()) {
+		&& !_searchHasFocus.current()) {
 		controller()->widget()->setInnerFocus();
 	}
 }
@@ -2479,7 +2487,7 @@ void Widget::applySearchUpdate(bool force) {
 }
 
 void Widget::updateForceDisplayWide() {
-	controller()->setChatsForceDisplayWide(_search->hasFocus()
+	controller()->setChatsForceDisplayWide(_searchHasFocus.current()
 		|| !_search->getLastText().isEmpty()
 		|| _searchInChat);
 }
@@ -3203,7 +3211,7 @@ bool Widget::cancelSearch() {
 	_inner->clearFilter();
 	clearSearchField();
 	applySearchUpdate();
-	if (!_searchInChat && _search->hasFocus()) {
+	if (!_searchInChat && _searchHasFocus.current()) {
 		setFocus();
 	}
 	return clearingQuery || clearingInChat;

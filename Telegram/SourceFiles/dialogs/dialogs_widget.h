@@ -123,6 +123,7 @@ public:
 
 	[[nodiscard]] RowDescriptor resolveChatNext(RowDescriptor from = {}) const;
 	[[nodiscard]] RowDescriptor resolveChatPrevious(RowDescriptor from = {}) const;
+	void updateHasFocus(not_null<QWidget*> focused);
 
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
@@ -296,6 +297,7 @@ private:
 	std::vector<Data::ReactionId> _searchTags;
 	rpl::lifetime _searchTagsLifetime;
 	QString _lastSearchText;
+	rpl::variable<bool> _searchHasFocus = false;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
 	base::flat_map<PeerId, Ui::PeerUserpicView> _storiesUserpicsViewsHidden;

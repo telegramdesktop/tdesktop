@@ -2624,7 +2624,11 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 	const auto widget = o->isWidgetType()
 		? static_cast<QWidget*>(o)
 		: nullptr;
-	if (e->type() == QEvent::MouseButtonPress) {
+	if (e->type() == QEvent::FocusIn) {
+		if (widget && _dialogs && widget->window() == window()) {
+			_dialogs->updateHasFocus(widget);
+		}
+	} else if (e->type() == QEvent::MouseButtonPress) {
 		if (widget && (widget->window() == window())) {
 			const auto event = static_cast<QMouseEvent*>(e);
 			if (event->button() == Qt::BackButton) {
