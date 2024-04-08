@@ -1893,12 +1893,8 @@ int SessionController::minimalThreeColumnWidth() const {
 }
 
 bool SessionController::forceWideDialogs() const {
-	if (_dialogsListDisplayForced.current()) {
-		return true;
-	} else if (_dialogsListFocused.current()) {
-		return true;
-	}
-	return !content()->isMainSectionShown();
+	return _dialogsListDisplayForced.current()
+		|| _dialogsListFocused.current();
 }
 
 auto SessionController::computeColumnLayout() const -> ColumnLayout {

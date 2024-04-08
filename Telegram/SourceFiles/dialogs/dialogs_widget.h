@@ -145,7 +145,7 @@ private:
 	void chosenRow(const ChosenRow &row);
 	void listScrollUpdated();
 	void cancelSearchInChat();
-	void filterCursorMoved();
+	void searchCursorMoved();
 	void completeHashtag(QString tag);
 
 	[[nodiscard]] QString currentSearchQuery() const;
@@ -223,7 +223,7 @@ private:
 	void closeChildList(anim::type animated);
 
 	void fullSearchRefreshOn(rpl::producer<> events);
-	void applyFilterUpdate(bool force = false);
+	void applySearchUpdate(bool force = false);
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
 	void loadMoreBlockedByDate();
 
@@ -255,8 +255,8 @@ private:
 		object_ptr<Ui::IconButton> toggle;
 		object_ptr<Ui::AbstractButton> under;
 	} _mainMenu;
-	object_ptr<Ui::IconButton> _searchForNarrowFilters;
-	object_ptr<Ui::InputField> _filter;
+	object_ptr<Ui::IconButton> _searchForNarrowLayout;
+	object_ptr<Ui::InputField> _search;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
@@ -294,7 +294,7 @@ private:
 	PeerData *_searchFromAuthor = nullptr;
 	std::vector<Data::ReactionId> _searchTags;
 	rpl::lifetime _searchTagsLifetime;
-	QString _lastFilterText;
+	QString _lastSearchText;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
 	base::flat_map<PeerId, Ui::PeerUserpicView> _storiesUserpicsViewsHidden;
