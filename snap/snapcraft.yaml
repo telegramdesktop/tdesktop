@@ -131,6 +131,7 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
@@ -153,12 +154,9 @@ parts:
     override-build: |
       craftctl default
       rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
     after:
       - ffmpeg
       - libjxl
-      - mozjpeg
       - openal
       - protobuf
       - qt
@@ -168,7 +166,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: b8e22ca1511513024b22b5381153163ad3406a8c
+    source-commit: f81dfc6f7061d7f70c7e952cee9c1c2689f937a2
     plugin: dump
     override-pull: |
       craftctl default
@@ -209,8 +207,6 @@ parts:
         fi
       done
       GTK_PATH=$PWD/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0 /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libgtk-3-0/gtk-query-immodules-3.0 > usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0/3.0.0/immodules/immodules.cache
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
     after:
       - telegram
 
@@ -238,10 +234,6 @@ parts:
       rmdir "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/blas"
       mv "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/lapack/"* "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
       rmdir "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/lapack"
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
-    after:
-      - mozjpeg
 
   libjxl:
     source: https://github.com/libjxl/libjxl.git
@@ -257,7 +249,7 @@ parts:
       - -DBUILD_TESTING=OFF
       - -DJPEGXL_ENABLE_DEVTOOLS=OFF
       - -DJPEGXL_ENABLE_TOOLS=OFF
-      - -DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF
+      - -DJPEGXL_INSTALL_JPEGLI_LIBJPEG=ON
       - -DJPEGXL_ENABLE_DOXYGEN=OFF
       - -DJPEGXL_ENABLE_MANPAGES=OFF
       - -DJPEGXL_ENABLE_BENCHMARK=OFF
@@ -266,6 +258,9 @@ parts:
       - -DJPEGXL_ENABLE_SJPEG=OFF
       - -DJPEGXL_ENABLE_OPENEXR=OFF
       - -DJPEGXL_ENABLE_SKCMS=OFF
+    override-pull: |
+      craftctl default
+      git apply $CRAFT_STAGE/patches/libjxl.patch
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libbrotli*
     prime:
@@ -275,27 +270,8 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
       - -./usr/share
-
-  mozjpeg:
-    source: https://github.com/mozilla/mozjpeg.git
-    source-depth: 1
-    source-tag: v4.1.4
-    plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DENABLE_STATIC=OFF
-      - -DWITH_JPEG8=ON
-      - -DPNG_SUPPORTED=OFF
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
-      - -./usr/share
+    after:
+      - patches
 
   openal:
     source: https://github.com/kcat/openal-soft.git
@@ -458,12 +434,12 @@ parts:
         -confirm-license \
         -openssl-linked \
         -nomake examples \
-        -nomake tests
+        -nomake tests \
+        -- \
+        -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
 
       cmake --build . -j$CRAFT_PARALLEL_BUILD_COUNT
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install .
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
     prime:
       - -./usr/bin
       - -./usr/doc
@@ -479,7 +455,7 @@ parts:
       - -./usr/mkspecs
       - -./usr/modules
     after:
-      - mozjpeg
+      - libjxl
       - patches
 
   rnnoise:
@@ -559,10 +535,11 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
     after:
       - ffmpeg
-      - mozjpeg
+      - libjxl
