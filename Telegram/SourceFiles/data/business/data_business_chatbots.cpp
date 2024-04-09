@@ -125,8 +125,10 @@ void Chatbots::togglePaused(not_null<PeerData*> peer, bool paused) {
 			return;
 		} else if (const auto settings = peer->barSettings()) {
 			peer->setBarSettings(paused
-				? (*settings | PeerBarSetting::BusinessBotPaused)
-				: (*settings & ~PeerBarSetting::BusinessBotPaused));
+				? ((*settings | PeerBarSetting::BusinessBotPaused)
+					& ~PeerBarSetting::BusinessBotCanReply)
+				: ((*settings & ~PeerBarSetting::BusinessBotPaused)
+					| PeerBarSetting::BusinessBotCanReply));
 		} else {
 			api->requestPeerSettings(peer);
 		}

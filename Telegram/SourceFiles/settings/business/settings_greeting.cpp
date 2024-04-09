@@ -125,7 +125,7 @@ void Greeting::setupContent(
 
 	_recipients = disabled
 		? Data::BusinessRecipients{ .allButExcluded = true }
-		: current.recipients;
+		: Data::BusinessRecipients::MakeValid(current.recipients);
 	_noActivityDays = disabled
 		? kDefaultNoActivityDays
 		: current.noActivityDays;

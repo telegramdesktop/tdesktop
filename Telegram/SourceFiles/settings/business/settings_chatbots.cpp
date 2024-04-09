@@ -408,7 +408,7 @@ void Chatbots::setupContent(
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	const auto current = controller->session().data().chatbots().current();
 
-	_recipients = current.recipients;
+	_recipients = Data::BusinessRecipients::MakeValid(current.recipients);
 	_repliesAllowed = current.repliesAllowed;
 
 	AddDividerTextWithLottie(content, {

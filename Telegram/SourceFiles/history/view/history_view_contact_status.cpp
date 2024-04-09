@@ -902,15 +902,15 @@ void BusinessBotStatus::Bar::showState(State state) {
 	_userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_userpic->show();
 	_name->setText(state.bot->name());
-	_status->setText(!state.canReply
-		? tr::lng_chatbot_status_views(tr::now)
-		: state.paused
+	_status->setText(state.paused
 		? tr::lng_chatbot_status_paused(tr::now)
-		: tr::lng_chatbot_status_can_reply(tr::now));
+		: state.canReply
+		? tr::lng_chatbot_status_can_reply(tr::now)
+		: tr::lng_chatbot_status_views(tr::now));
 	_togglePaused->setText(state.paused
 		? tr::lng_chatbot_button_resume()
 		: tr::lng_chatbot_button_pause());
-	_togglePaused->setVisible(state.canReply);
+	_togglePaused->setVisible(state.canReply || state.paused);
 	_paused = state.paused;
 	resizeToWidth(width());
 }
