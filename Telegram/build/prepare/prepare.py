@@ -59,6 +59,9 @@ for arg in sys.argv[1:]:
         options.append(arg)
     elif arg == 'run':
         customRunCommand = True
+    elif arg == 'shell':
+        customRunCommand = True
+        runCommand.append('shell')
 
 buildQt5 = not 'skip-qt5' in options if win else 'build-qt5' in options
 buildQt6 = 'build-qt6' in options if win else not 'skip-qt6' in options
@@ -416,8 +419,15 @@ def runStages():
 
 if customRunCommand:
     os.chdir(executePath)
-    command = ' '.join(runCommand) + '\n'
-    if not run(command):
+    if len(runCommand) == 1 and runCommand[0] == 'shell':
+        print('Preparing interactive mode..')
+        if win:
+            modifiedEnv['PROMPT'] = '(prepare) $P$G'
+            subprocess.run("cmd.exe", shell=True, env=modifiedEnv)
+        else:
+            modifiedEnv['PS1'] = '(prepare) \\w \\$ '
+            subprocess.run("bash --noprofile --norc", env=modifiedEnv)
+    elif not run(command):
         print('FAILED :(')
         finish(1)
     finish(0)
