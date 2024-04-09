@@ -1,3 +1,9 @@
+4.16.6 (09.04.24)
+
+- Show custom emoji preview on long press.
+- Fix resume chat bot button disappearance.
+- Fix GIF files playback. (regression in 4.16.3.beta)
+
 4.16.5 (08.04.24)
 
 - Fix editing privacy for groups and channels invitations.
