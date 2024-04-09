@@ -55,7 +55,6 @@ include(cmake/generate_target.cmake)
 include(cmake/nuget.cmake)
 include(cmake/validate_d3d_compiler.cmake)
 include(cmake/target_prepare_qrc.cmake)
-
 include(cmake/options.cmake)
 
 if (NOT DESKTOP_APP_USE_PACKAGED)
