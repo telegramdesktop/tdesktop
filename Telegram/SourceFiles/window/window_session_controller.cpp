@@ -702,7 +702,11 @@ void SessionNavigation::showPeerByLinkResolved(
 						contextUser->owner().history(contextUser))
 					: std::optional<Api::SendAction>()));
 		} else {
+			const auto draft = info.text;
 			crl::on_main(this, [=] {
+				if (peer->isUser() && !draft.isEmpty()) {
+					Data::SetChatLinkDraft(peer, { draft });
+				}
 				showPeerHistory(peer, params, msgId);
 			});
 		}

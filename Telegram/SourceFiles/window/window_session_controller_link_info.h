@@ -34,6 +34,7 @@ struct PeerByLinkInfo {
 	QString chatLinkSlug;
 	MsgId messageId = ShowAtUnreadMsgId;
 	StoryId storyId = 0;
+	QString text;
 	RepliesByLinkInfo repliesInfo;
 	ResolveType resolveType = ResolveType::Default;
 	QString startToken;
