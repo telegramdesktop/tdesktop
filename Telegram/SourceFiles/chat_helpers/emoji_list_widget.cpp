@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer_values.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -51,12 +52,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
+#include <QtWidgets/QApplication>
+
 namespace ChatHelpers {
 namespace {
 
 constexpr auto kCollapsedRows = 3;
 constexpr auto kAppearDuration = 0.3;
 constexpr auto kCustomSearchLimit = 256;
+constexpr auto kColorPickerDelay = crl::time(500);
 
 using Core::RecentEmojiId;
 using Core::RecentEmojiDocument;
@@ -477,7 +481,8 @@ EmojiListWidget::EmojiListWidget(
 , _overBg(st::emojiPanRadius, st().overBg)
 , _collapsedBg(st::emojiPanExpand.height / 2, st().headerFg)
 , _picker(this, st())
-, _showPickerTimer([=] { showPicker(); }) {
+, _showPickerTimer([=] { showPicker(); })
+, _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
 	if (st().bg->c.alpha() > 0) {
 		setAttribute(Qt::WA_OpaquePaintEvent);
@@ -620,6 +625,15 @@ void EmojiListWidget::applyNextSearchQuery() {
 			_searchResults.push_back({
 				.id = { emoji },
 			});
+		}
+	}
+}
+
+void EmojiListWidget::showPreview() {
+	if (const auto over = std::get_if<OverEmoji>(&_pressed)) {
+		if (const auto custom = lookupCustomEmoji(over)) {
+			_show->showMediaPreview(custom->stickerSetOrigin(), custom);
+			_previewShown = true;
 		}
 	}
 }
@@ -1119,7 +1133,7 @@ void EmojiListWidget::fillRecentMenu(
 	const auto addAction = Ui::Menu::CreateAddActionCallback(menu);
 	const auto over = OverEmoji{ section, index };
 	const auto emoji = lookupOverEmoji(&over);
-	const auto custom = lookupCustomEmoji(index, section);
+	const auto custom = lookupCustomEmoji(&over);
 	if (custom && custom->sticker()) {
 		const auto sticker = custom->sticker();
 		const auto emoji = sticker->alt;
@@ -1493,6 +1507,11 @@ bool EmojiListWidget::checkPickerHide() {
 }
 
 DocumentData *EmojiListWidget::lookupCustomEmoji(
+		const OverEmoji *over) const {
+	return over ? lookupCustomEmoji(over->index, over->section) : nullptr;
+}
+
+DocumentData *EmojiListWidget::lookupCustomEmoji(
 		int index,
 		int section) const {
 	if (_searchMode) {
@@ -1594,13 +1613,19 @@ void EmojiListWidget::mousePressEvent(QMouseEvent *e) {
 			if (!Core::App().settings().hasChosenEmojiVariant(emoji)) {
 				showPicker();
 			} else {
-				_showPickerTimer.callOnce(500);
+				_previewTimer.cancel();
+				_showPickerTimer.callOnce(kColorPickerDelay);
 			}
+		} else if (lookupCustomEmoji(over)) {
+			_showPickerTimer.cancel();
+			_previewTimer.callOnce(QApplication::startDragTime());
 		}
 	}
 }
 
 void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
+	_previewTimer.cancel();
+
 	auto pressed = _pressed;
 	setPressed(v::null);
 	_lastMousePos = e->globalPos();
@@ -1625,7 +1650,10 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 		_picker->hide();
 	}
 
-	if (v::is_null(_selected) || _selected != pressed) {
+	if (_previewShown) {
+		_previewShown = false;
+		return;
+	} else if (v::is_null(_selected) || _selected != pressed) {
 		return;
 	}
 
@@ -1644,7 +1672,7 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 				return;
 			}
 			selectEmoji(lookupChosen(emoji, over));
-		} else if (const auto custom = lookupCustomEmoji(index, section)) {
+		} else if (const auto custom = lookupCustomEmoji(over)) {
 			selectCustom(lookupChosen(custom, over));
 		}
 	} else if (const auto set = std::get_if<OverSet>(&pressed)) {
@@ -2478,7 +2506,9 @@ bool EmojiListWidget::eventHook(QEvent *e) {
 
 void EmojiListWidget::updateSelected() {
 	if (!v::is_null(_pressed) || !v::is_null(_pickerSelected)) {
-		return;
+		if (!_previewShown) {
+			return;
+		}
 	}
 
 	auto newSelected = OverState{ v::null };
@@ -2536,6 +2566,13 @@ void EmojiListWidget::setSelected(OverState newSelected) {
 			_picker->hideAnimated();
 		} else {
 			_picker->showAnimated();
+		}
+	} else if (_previewShown && _pressed != _selected) {
+		if (const auto over = std::get_if<OverEmoji>(&_selected)) {
+			if (const auto custom = lookupCustomEmoji(over)) {
+				_pressed = _selected;
+				_show->showMediaPreview(custom->stickerSetOrigin(), custom);
+			}
 		}
 	}
 }
