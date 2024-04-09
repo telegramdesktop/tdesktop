@@ -460,10 +460,14 @@ PRIVATE
     data/business/data_business_info.h
     data/business/data_shortcut_messages.cpp
     data/business/data_shortcut_messages.h
+    data/components/recent_peers.cpp
+    data/components/recent_peers.h
     data/components/scheduled_messages.cpp
     data/components/scheduled_messages.h
     data/components/sponsored_messages.cpp
     data/components/sponsored_messages.h
+    data/components/top_peers.cpp
+    data/components/top_peers.h
     data/notify/data_notify_settings.cpp
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
@@ -608,6 +612,18 @@ PRIVATE
     data/data_wall_paper.h
     data/data_web_page.cpp
     data/data_web_page.h
+    dialogs/ui/dialogs_layout.cpp
+    dialogs/ui/dialogs_layout.h
+    dialogs/ui/dialogs_message_view.cpp
+    dialogs/ui/dialogs_message_view.h
+    dialogs/ui/dialogs_stories_content.cpp
+    dialogs/ui/dialogs_stories_content.h
+    dialogs/ui/dialogs_suggestions.cpp
+    dialogs/ui/dialogs_suggestions.h
+    dialogs/ui/dialogs_topics_view.cpp
+    dialogs/ui/dialogs_topics_view.h
+    dialogs/ui/dialogs_video_userpic.cpp
+    dialogs/ui/dialogs_video_userpic.h
     dialogs/dialogs_entry.cpp
     dialogs/dialogs_entry.h
     dialogs/dialogs_indexed_list.cpp
@@ -630,16 +646,6 @@ PRIVATE
     dialogs/dialogs_search_tags.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
-    dialogs/ui/dialogs_layout.cpp
-    dialogs/ui/dialogs_layout.h
-    dialogs/ui/dialogs_message_view.cpp
-    dialogs/ui/dialogs_message_view.h
-    dialogs/ui/dialogs_stories_content.cpp
-    dialogs/ui/dialogs_stories_content.h
-    dialogs/ui/dialogs_topics_view.cpp
-    dialogs/ui/dialogs_topics_view.h
-    dialogs/ui/dialogs_video_userpic.cpp
-    dialogs/ui/dialogs_video_userpic.h
     editor/color_picker.cpp
     editor/color_picker.h
     editor/controllers/controllers.h

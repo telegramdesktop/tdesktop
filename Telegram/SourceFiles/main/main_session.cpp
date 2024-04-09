@@ -28,8 +28,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/storage_account.h"
 #include "storage/storage_facade.h"
+#include "data/components/recent_peers.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
+#include "data/components/top_peers.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
@@ -100,6 +102,7 @@ Session::Session(
 , _attachWebView(std::make_unique<InlineBots::AttachWebView>(this))
 , _scheduledMessages(std::make_unique<Data::ScheduledMessages>(this))
 , _sponsoredMessages(std::make_unique<Data::SponsoredMessages>(this))
+, _topPeers(std::make_unique<Data::TopPeers>(this))
 , _supportHelper(Support::Helper::Create(this))
 , _saveSettingsTimer([=] { saveSettings(); }) {
 	Expects(_settings != nullptr);

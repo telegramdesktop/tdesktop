@@ -591,6 +591,11 @@ dialogsStoriesFull: DialogsStories {
 		font: font(11px);
 	}
 }
+topPeers: DialogsStories(dialogsStoriesFull) {
+	photo: 46px;
+	photoLeft: 10px;
+	photoTop: 8px;
+}
 
 dialogsStoriesList: DialogsStoriesList {
 	small: dialogsStories;
@@ -633,3 +638,4 @@ dialogsSearchTagArrowPadding: margins(-6px, 3px, 0px, 0px);
 dialogsSearchTagPromoLeft: 6px;
 dialogsSearchTagPromoRight: 1px;
 dialogsSearchTagPromoSkip: 6px;
+

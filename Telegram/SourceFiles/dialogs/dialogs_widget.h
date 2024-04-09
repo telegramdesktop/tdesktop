@@ -75,6 +75,7 @@ class Key;
 struct ChosenRow;
 class InnerWidget;
 enum class SearchRequestType;
+class Suggestions;
 
 class Widget final : public Window::AbstractSectionWidget {
 public:
@@ -242,6 +243,7 @@ private:
 	void startScrollUpButtonAnimation(bool shown);
 	void updateScrollUpPosition();
 	void updateLockUnlockPosition();
+	void updateSuggestions(anim::type animated);
 
 	MTP::Sender _api;
 
@@ -273,6 +275,7 @@ private:
 
 	object_ptr<Ui::ElasticScroll> _scroll;
 	QPointer<InnerWidget> _inner;
+	std::unique_ptr<Suggestions> _suggestions;
 	class BottomButton;
 	object_ptr<BottomButton> _updateTelegram = { nullptr };
 	object_ptr<BottomButton> _loadMoreChats = { nullptr };
@@ -291,7 +294,7 @@ private:
 
 	Data::Folder *_openedFolder = nullptr;
 	Data::Forum *_openedForum = nullptr;
-	Dialogs::Key _searchInChat;
+	Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromAuthor = nullptr;
 	std::vector<Data::ReactionId> _searchTags;

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
+#include "dialogs/ui/dialogs_suggestions.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "dialogs/dialogs_key.h"
@@ -1021,7 +1022,10 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 
 void Widget::updateControlsVisibility(bool fast) {
 	updateLoadMoreChatsVisibility();
-	_scroll->show();
+	_scroll->setVisible(!_suggestions);
+	if (_suggestions) {
+		_suggestions->show();
+	}
 	updateStoriesVisibility();
 	if ((_openedFolder || _openedForum) && _searchHasFocus.current()) {
 		setInnerFocus();
@@ -1085,8 +1089,36 @@ void Widget::updateLockUnlockPosition() {
 }
 
 void Widget::updateHasFocus(not_null<QWidget*> focused) {
-	_searchHasFocus = (focused == _search.data());
-	updateForceDisplayWide();
+	const auto has = (focused == _search.data());
+	if (_searchHasFocus.current() != has) {
+		_searchHasFocus = (focused == _search.data());
+		updateStoriesVisibility();
+		updateForceDisplayWide();
+		updateSuggestions(anim::type::normal);
+	}
+}
+
+void Widget::updateSuggestions(anim::type animated) {
+	const auto suggest = _searchHasFocus.current()
+		&& !_searchInChat
+		&& (_inner->state() == WidgetState::Default);
+	if (!suggest && _suggestions) {
+		_suggestions = nullptr;
+		_scroll->show();
+	} else if (suggest && !_suggestions) {
+		_suggestions = std::make_unique<Suggestions>(
+			this,
+			rpl::single(TopPeersContent(&session())));
+
+		_suggestions->topPeerChosen(
+		) | rpl::start_with_next([=](PeerId id) {
+			controller()->showPeerHistory(id);
+		}, _suggestions->lifetime());
+
+		_suggestions->show();
+		_scroll->hide();
+		updateControlsGeometry();
+	}
 }
 
 void Widget::changeOpenedSubsection(
@@ -1513,7 +1545,10 @@ void Widget::startWidthAnimation() {
 void Widget::stopWidthAnimation() {
 	_widthAnimationCache = QPixmap();
 	if (!_showAnimation) {
-		_scroll->show();
+		_scroll->setVisible(!_suggestions);
+		if (_suggestions) {
+			_suggestions->show();
+		}
 	}
 	updateStoriesVisibility();
 	update();
@@ -1528,6 +1563,7 @@ void Widget::updateStoriesVisibility() {
 		|| _openedForum
 		|| !_widthAnimationCache.isNull()
 		|| _childList
+		|| _searchHasFocus.current()
 		|| !_search->getLastText().isEmpty()
 		|| _searchInChat
 		|| _stories->empty();
@@ -2460,6 +2496,7 @@ void Widget::applySearchUpdate(bool force) {
 		clearSearchCache();
 	}
 	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
+	updateSuggestions(anim::type::instant);
 	updateLoadMoreChatsVisibility();
 	updateJumpToDateVisibility();
 	updateLockUnlockPosition();
@@ -2675,6 +2712,7 @@ bool Widget::setSearchInChat(
 	if (searchInPeerUpdated) {
 		_searchInChat = chat;
 		controller()->setSearchInChat(_searchInChat);
+		updateSuggestions(anim::type::instant);
 		updateJumpToDateVisibility();
 		updateStoriesVisibility();
 	}
@@ -3041,6 +3079,14 @@ void Widget::updateControlsGeometry() {
 	};
 	_updateScrollGeometryCached();
 
+	if (_suggestions) {
+		_suggestions->setGeometry(
+			0,
+			expandedStoriesTop,
+			scrollWidth,
+			height() - expandedStoriesTop - bottomSkip);
+	}
+
 	_inner->resize(scrollWidth, _inner->height());
 	_inner->setNarrowRatio(narrowRatio);
 	if (newScrollTop != wasScrollTop) {
@@ -3097,6 +3143,7 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		&& !_openedFolder
 		&& !_openedForum
 		&& _search->isVisible()
+		&& !_search->hasFocus()
 		&& !e->text().isEmpty()) {
 		_search->setFocusFast();
 		QCoreApplication::sendEvent(_search->rawTextEdit(), e);

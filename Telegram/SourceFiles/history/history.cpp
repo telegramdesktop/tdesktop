@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
+#include "data/components/top_peers.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -429,9 +430,13 @@ not_null<HistoryItem*> History::createItem(
 		}
 		return result;
 	}
-	return message.match([&](const auto &data) {
+	const auto result = message.match([&](const auto &data) {
 		return makeMessage(id, data, localFlags);
 	});
+	if (result->out() && result->isRegular()) {
+		session().topPeers().increment(peer, result->date());
+	}
+	return result;
 }
 
 std::vector<not_null<HistoryItem*>> History::createItems(
