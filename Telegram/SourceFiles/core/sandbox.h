@@ -107,6 +107,7 @@ private:
 	void readClients();
 	void removeClients();
 
+	QEventLoopLocker _eventLoopLocker;
 	const Qt::HANDLE _mainThreadId = nullptr;
 	int _eventNestingLevel = 0;
 	int _loopNestingLevel = 0;
