@@ -730,8 +730,11 @@ void ChatParticipants::loadSimilarChannels(not_null<ChannelData*> channel) {
 			return;
 		}
 	}
+	using Flag = MTPchannels_GetChannelRecommendations::Flag;
 	_similar[channel].requestId = _api.request(
-		MTPchannels_GetChannelRecommendations(channel->inputChannel)
+		MTPchannels_GetChannelRecommendations(
+			MTP_flags(Flag::f_channel),
+			channel->inputChannel)
 	).done([=](const MTPmessages_Chats &result) {
 		auto &similar = _similar[channel];
 		similar.requestId = 0;

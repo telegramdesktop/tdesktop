@@ -792,8 +792,10 @@ void SaveAllowedReactions(
 		? MTP_chatReactionsNone()
 		: MTP_chatReactionsSome(MTP_vector<MTPReaction>(ids));
 	peer->session().api().request(MTPmessages_SetChatAvailableReactions(
+		MTP_flags(0),
 		peer->input,
-		updated
+		updated,
+		MTP_int(0) // reactions_limit
 	)).done([=](const MTPUpdates &result) {
 		peer->session().api().applyUpdates(result);
 		if (const auto chat = peer->asChat()) {
