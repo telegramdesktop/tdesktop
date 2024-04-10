@@ -1,10 +1,21 @@
+include(FetchContent)
+
+FetchContent_Declare(
+  sqlite_orm
+  GIT_REPOSITORY https://github.com/fnc12/sqlite_orm.git
+  GIT_TAG master
+)
+
+FetchContent_MakeAvailable(sqlite_orm)
+
 set(TG_LOCAL_LIB_SOURCES
-    tg_local_lib/coder.h
-    tg_local_lib/key_manager.h
-    tg_local_lib/local.h
     tg_local_lib/coder.cpp
     tg_local_lib/key_manager.cpp
     tg_local_lib/local.cpp
+    tg_local_lib/coder.h
+    tg_local_lib/key_manager.h
+    tg_local_lib/local.h
+    tg_local_lib/log.h
 )
 
 add_library(tg_local_lib OBJECT ${TG_LOCAL_LIB_SOURCES})
@@ -26,8 +37,8 @@ PUBLIC
 
 target_link_libraries(tg_local_lib
 PUBLIC
-    desktop-app::external_qt_static_plugins
     desktop-app::external_qt
-    SQLite::SQLite3
     desktop-app::external_openssl
+    sqlite_orm::sqlite_orm
 )
+

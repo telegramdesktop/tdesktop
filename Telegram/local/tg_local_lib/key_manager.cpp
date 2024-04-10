@@ -1,5 +1,4 @@
 #include "key_manager.h"
-#include <iostream>
 
 namespace local {
 
@@ -8,88 +7,105 @@ KeyManager& KeyManager::getInstance() {
     return instance;
 }
 
-void KeyManager::setPath(const char* path) { path_ = path; }
+void KeyManager::setPeer(size_t peer_id, size_t current_key_id) {
+    db_.replace(Peer{peer_id, current_key_id});
+}
 
-KeyManager::KeyManager() {
-    int rc = sqlite3_open(path_, &db_);
-    if (rc != SQLITE_OK) {
-        // HANDLE ERROR
-        return;
+std::unique_ptr<Peer> KeyManager::getPeer(size_t peer_id) {
+    return db_.get_pointer<Peer>(where(c(&Peer::peer_id) == peer_id));
+}
+
+std::optional<size_t> KeyManager::getCurentKeyId(size_t peer_id) {
+    auto peer = getPeer(peer_id);
+    if (peer) {
+        return peer->current_key_id;
     }
-    rc = sqlite3_exec(db_, kCreateTableSql, nullptr, nullptr, nullptr);
-    if (rc != SQLITE_OK) {
-        // HANDLE ERROR
-        return;
+    return std::nullopt;
+}
+
+void KeyManager::setCurrentKeyId(size_t peer_id, size_t current_key_id) {
+    auto peer = getPeer(peer_id);
+    if (peer) {
+        peer->current_key_id = current_key_id;
+        db_.update(*peer);
     }
 }
 
-KeyManager::~KeyManager() { sqlite3_close(db_); }
+bool KeyManager::hasPeer(size_t peer_id) { return getPeer(peer_id) != nullptr; }
 
-void KeyManager::setKey(size_t id, const QByteArray& key) {
-    if (hasKey(id)) {
-        // HANDLE ERROR
-        return;
-    }
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(db_, kInsertKeySql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        // HANDLE ERROR
-        return;
-    }
-    sqlite3_bind_int(stmt, 1, id);
-    sqlite3_bind_blob(stmt, 2, key.data(), key.size(), SQLITE_STATIC);
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        // HANDLE ERROR
-        return;
-    }
-    sqlite3_finalize(stmt);
+void KeyManager::setPeerPassword(
+    size_t peer_id, size_t key_index, const std::vector<char>& key, int key_status) {
+    db_.replace(PeerPassword{std::make_shared<size_t>(peer_id), key_index, key, key_status});
 }
 
-QByteArray KeyManager::getKey(size_t id) {
-    if (!hasKey(id)) {
-        // HANDLE ERROR
-        return {};
-    }
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(db_, kSelectKeySql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        // HANDLE ERROR
-        return {};
-    }
-    sqlite3_bind_int(stmt, 1, id);
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_ROW) {
-        // HANDLE ERROR
-        sqlite3_finalize(stmt);
-        return {};
-    }
-    const void* keyData = sqlite3_column_blob(stmt, 0);
-    int keySize = sqlite3_column_bytes(stmt, 0);
-    QByteArray key((char*)keyData, keySize);
-    sqlite3_finalize(stmt);
-    return key;
+std::unique_ptr<PeerPassword> KeyManager::getPeerPassword(size_t peer_id, size_t key_id) {
+    auto peer_password = db_.get_pointer<PeerPassword>(
+        where(c(&PeerPassword::peer_id) == peer_id and c(&PeerPassword::key_id) == key_id));
+    return peer_password;
 }
 
-bool KeyManager::hasKey(size_t id) {
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(db_, kSelectKeyIdSql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        // HANDLE ERROR
-        return false;
+std::vector<char> KeyManager::getKeyForPeer(size_t peer_id, size_t key_id) {
+    if (auto peer_password = getPeerPassword(peer_id, key_id)) {
+        return peer_password->key;
     }
-    sqlite3_bind_int(stmt, 1, id);
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    return rc == SQLITE_ROW;
+    return {};
 }
 
-void KeyManager::clear() {
-    int rc = sqlite3_exec(db_, "DELETE FROM keys", nullptr, nullptr, nullptr);
-    if (rc != SQLITE_OK) {
-        // HANDLE ERROR
-        return;
+std::vector<char> KeyManager::getCurrentKeyForPeer(size_t peer_id) {
+    if (auto current_key_id = getCurentKeyId(peer_id)) {
+        return getKeyForPeer(peer_id, *current_key_id);
     }
+    return {};
 }
+
+bool KeyManager::changeKeyStatus(size_t peer_id, size_t key_id, int new_key_status) {
+    auto peer_password = getPeerPassword(peer_id, key_id);
+    if (peer_password) {
+        peer_password->key_status = new_key_status;
+        db_.update(*peer_password);
+        return true;
+    }
+    return false;
+}
+
+void KeyManager::setMessageToHide(size_t peer_id, size_t message_id) {
+    db_.replace(MessageToHide{std::make_shared<size_t>(peer_id), message_id});
+}
+
+std::unique_ptr<MessageToHide> KeyManager::getMessageToHide(size_t message_id, size_t peer_id) {
+    return db_.get_pointer<MessageToHide>(where(
+        c(&MessageToHide::message_id) == message_id and c(&MessageToHide::peer_id) == peer_id));
+}
+
+bool KeyManager::hasMessageToHide(size_t peer_id, size_t message_id) {
+    return getMessageToHide(message_id, peer_id) != nullptr;
+}
+
+void KeyManager::setCryptoMessage(size_t peer_id, size_t message_id, size_t key_id) {
+    db_.replace(CryptoMessage{std::make_shared<size_t>(peer_id), message_id, key_id});
+}
+
+std::unique_ptr<CryptoMessage> KeyManager::getCryptoMessage(size_t peer_id, size_t message_id) {
+    return db_.get_pointer<CryptoMessage>(where(
+        c(&CryptoMessage::peer_id) == peer_id and c(&CryptoMessage::message_id) == message_id));
+}
+
+std::optional<size_t> KeyManager::getKeyIdForCryptoMessage(size_t peer_id, size_t message_id) {
+    auto crypto_message = getCryptoMessage(peer_id, message_id);
+    if (crypto_message) {
+        return crypto_message->key_id;
+    }
+    return std::nullopt;
+}
+
+std::vector<char> KeyManager::getKeyForCryptoMessage(size_t peer_id, size_t message_id) {
+    auto crypto_message = getCryptoMessage(peer_id, message_id);
+    if (crypto_message) {
+        return getKeyForPeer(peer_id, crypto_message->key_id);
+    }
+    return {};
+}
+
+KeyManager::KeyManager() { db_.sync_schema(); }
 
 }  // namespace local
