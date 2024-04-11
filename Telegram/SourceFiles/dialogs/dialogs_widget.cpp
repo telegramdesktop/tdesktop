@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_widget.h"
 
+#include "base/qt/qt_key_modifiers.h"
 #include "base/options.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
@@ -1123,7 +1124,12 @@ void Widget::updateSuggestions(anim::type animated) {
 
 		_suggestions->topPeerChosen(
 		) | rpl::start_with_next([=](PeerId id) {
-			controller()->showPeerHistory(id);
+			const auto peer = session().data().peer(id);
+			if (base::IsCtrlPressed()) {
+				controller()->showInNewWindow(peer);
+			} else {
+				controller()->showPeerHistory(peer);
+			}
 		}, _suggestions->lifetime());
 
 		_suggestions->show();

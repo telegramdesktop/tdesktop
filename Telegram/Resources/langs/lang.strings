@@ -5094,8 +5094,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_recent_clear" = "Clear";
 "lng_recent_clear_sure" = "Do you want to clear your search history?";
 "lng_recent_remove" = "Remove from Recent";
-"lng_recent_hide_top" = "Hide all";
-"lng_recent_hide_sure" = "Are you sure you want to hide frequent contacts list?\n\nYou can always return this list in Settings > Privacy > Suggest Frequent Contacts.";
+"lng_recent_hide_top" = "Remove all & Disable";
+"lng_recent_hide_sure" = "Are you sure you want to clear and disable frequent contacts list?\n\nYou can always turn this feature back on in Settings > Privacy > Suggest Frequent Contacts.";
 "lng_recent_hide_button" = "Hide";
 
 // Wnd specific

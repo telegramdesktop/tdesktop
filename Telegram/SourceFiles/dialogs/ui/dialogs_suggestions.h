@@ -52,8 +52,6 @@ private:
 
 	[[nodiscard]] object_ptr<Ui::RpWidget> setupDivider();
 
-	void updateControlsGeometry();
-
 	const std::unique_ptr<Ui::ElasticScroll> _scroll;
 	const not_null<Ui::VerticalLayout*> _content;
 	const not_null<Ui::SlideWrap<TopPeersStrip>*> _topPeersWrap;

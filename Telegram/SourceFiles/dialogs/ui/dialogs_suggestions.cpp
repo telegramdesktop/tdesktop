@@ -22,8 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/delayed_activation.h"
 #include "ui/dynamic_thumbnails.h"
 #include "window/window_session_controller.h"
+#include "window/window_peer_menu.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
@@ -43,14 +45,11 @@ void FillTopPeerMenu(
 	const auto group = peer->isMegagroup();
 	const auto channel = peer->isChannel();
 
-	add({
-		.text = tr::lng_recent_remove(tr::now),
-		.handler = [=] { remove(peer); },
-		.icon = &st::menuIconDeleteAttention,
-		.isAttention = true,
-	});
-
-	add({ .separatorSt = &st::expandedMenuSeparator });
+	add(tr::lng_context_new_window(tr::now), [=] {
+		Ui::PreventDelayedActivation();
+		controller->showInNewWindow(peer);
+	}, &st::menuIconNewWindow);
+	Window::AddSeparatorAndShiftUp(add);
 
 	const auto showHistoryText = group
 		? tr::lng_context_open_group(tr::now)
@@ -72,12 +71,25 @@ void FillTopPeerMenu(
 
 	add({ .separatorSt = &st::expandedMenuSeparator });
 
-	add(tr::lng_recent_hide_top(tr::now), [=] {
+	add({
+		.text = tr::lng_recent_remove(tr::now),
+		.handler = [=] { remove(peer); },
+		.icon = &st::menuIconDeleteAttention,
+		.isAttention = true,
+	});
+
+	const auto hideAllConfirmed = [=] {
 		controller->show(Ui::MakeConfirmBox({
 			.text = tr::lng_recent_hide_sure(),
 			.confirmed = [=](Fn<void()> close) { hideAll(); close(); }
 		}));
-	}, &st::menuIconCancel);
+	};
+	add({
+		.text = tr::lng_recent_hide_top(tr::now).replace('&', u"&&"_q),
+		.handler = hideAllConfirmed,
+		.icon = &st::menuIconCancelAttention,
+		.isAttention = true,
+	});
 }
 
 } // namespace
