@@ -5087,6 +5087,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_limit_upload_increase_speed" = "by **{percent}**";
 "lng_limit_upload_subscribe_link" = "Telegram Premium";
 
+"lng_recent_title" = "Recent";
+"lng_recent_clear" = "Clear";
+"lng_recent_clear_sure" = "Do you want to clear your search history?";
+"lng_recent_remove" = "Remove from Recent";
+"lng_recent_hide_top" = "Hide all";
+"lng_recent_hide_sure" = "Are you sure you want to hide frequent contacts list?\n\nYou can always return this list in Settings > Privacy > Suggest Frequent Contacts.";
+"lng_recent_hide_button" = "Hide";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

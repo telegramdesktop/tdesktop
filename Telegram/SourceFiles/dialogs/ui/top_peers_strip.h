@@ -21,7 +21,7 @@ struct TopPeersEntry {
 	uint64 id = 0;
 	QString name;
 	std::shared_ptr<Ui::DynamicImage> userpic;
-	uint32 badge : 30 = 0;
+	uint32 badge : 28 = 0;
 	uint32 muted : 1 = 0;
 	uint32 online : 1 = 0;
 };
@@ -63,6 +63,9 @@ private:
 	void updateSelected();
 	void checkDragging();
 	bool finishDragging();
+	void subscribeUserpic(Entry &entry);
+	void unsubscribeUserpics(bool all = false);
+	void paintUserpic(Painter &p, int index, int x);
 
 	void apply(const TopPeersList &list);
 	void apply(Entry &entry, const TopPeersEntry &data);

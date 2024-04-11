@@ -595,6 +595,7 @@ topPeers: DialogsStories(dialogsStoriesFull) {
 	photo: 46px;
 	photoLeft: 10px;
 	photoTop: 8px;
+	nameLeft: 4px;
 }
 
 dialogsStoriesList: DialogsStoriesList {
@@ -628,6 +629,15 @@ dialogsStoriesTooltipHide: IconButton(defaultIconButton) {
 searchedBarHeight: 32px;
 searchedBarFont: normalFont;
 searchedBarPosition: point(17px, 7px);
+searchedBarLabel: FlatLabel(defaultFlatLabel) {
+	textFg: searchedBarFg;
+	margin: margins(17px, 7px, 17px, 7px);
+}
+searchedBarLink: LinkButton(defaultLinkButton) {
+	color: searchedBarFg;
+	overColor: searchedBarFg;
+	padding: margins(17px, 7px, 17px, 7px);
+}
 
 dialogsSearchTagSkip: point(8px, 4px);
 dialogsSearchTagBottom: 10px;

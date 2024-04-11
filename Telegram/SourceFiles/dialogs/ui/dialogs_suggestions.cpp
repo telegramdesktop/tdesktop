@@ -9,12 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/components/top_peers.h"
 #include "data/data_user.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/dynamic_thumbnails.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 
 namespace Dialogs {
@@ -51,27 +54,45 @@ void Suggestions::resizeEvent(QResizeEvent *e) {
 }
 
 object_ptr<Ui::RpWidget> Suggestions::setupDivider() {
-	auto result = object_ptr<Ui::DividerLabel>(
+	auto result = object_ptr<Ui::FixedHeightWidget>(
 		this,
-		object_ptr<Ui::FlatLabel>(
-			this,
-			rpl::single(u"Recent"_q),
-			st::boxDividerLabel),
-		st::defaultBoxDividerLabelPadding);
-
+		st::searchedBarHeight);
+	const auto raw = result.data();
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		tr::lng_recent_title(),
+		st::searchedBarLabel);
+	const auto clear = Ui::CreateChild<Ui::LinkButton>(
+		raw,
+		tr::lng_recent_clear(tr::now),
+		st::searchedBarLink);
+	rpl::combine(
+		raw->sizeValue(),
+		clear->widthValue()
+	) | rpl::start_with_next([=](QSize size, int width) {
+		const auto x = st::searchedBarPosition.x();
+		const auto y = st::searchedBarPosition.y();
+		clear->moveToRight(0, 0, size.width());
+		label->resizeToWidth(size.width() - x - width);
+		label->moveToLeft(x, y, size.width());
+	}, raw->lifetime());
+	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		QPainter(raw).fillRect(clip, st::searchedBarBg);
+	}, raw->lifetime());
 	return result;
 }
 
 TopPeersList TopPeersContent(not_null<Main::Session*> session) {
-	auto result = TopPeersList();
-	for (const auto &peer : session->topPeers().list()) {
-		result.entries.push_back(TopPeersEntry{
+	auto base = TopPeersList();
+	const auto top = session->topPeers().list();
+	for (const auto &peer : top) {
+		base.entries.push_back(TopPeersEntry{
 			.id = peer->id.value,
 			.name = peer->shortName(),
 			.userpic = Ui::MakeUserpicThumbnail(peer),
 		});
 	}
-	return result;
+	return base;
 }
 
 } // namespace Dialogs
