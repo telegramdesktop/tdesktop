@@ -51,7 +51,10 @@ public:
 		TimeId pendingResetDate = 0;
 
 		// Check cloud password for some action.
-		Fn<void(const Core::CloudPasswordResult &)> customCheckCallback;
+		using CustomCheck = Fn<void(
+			const Core::CloudPasswordResult &,
+			QPointer<PasscodeBox>)>;
+		CustomCheck customCheckCallback;
 		rpl::producer<QString> customTitle;
 		std::optional<QString> customDescription;
 		rpl::producer<QString> customSubmitButton;

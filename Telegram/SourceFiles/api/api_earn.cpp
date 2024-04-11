@@ -64,19 +64,27 @@ void HandleWithdrawalButton(
 				= tr::lng_channel_earn_balance_password_description(tr::now);
 			fields.customSubmitButton = tr::lng_passcode_submit();
 			fields.customCheckCallback = crl::guard(button, [=](
-					const Core::CloudPasswordResult &result) {
+					const Core::CloudPasswordResult &result,
+					QPointer<PasscodeBox> box) {
+				const auto done = [=](const QString &result) {
+					if (!result.isEmpty()) {
+						UrlClickHandler::Open(result);
+						if (box) {
+							box->closeBox();
+						}
+					}
+				};
+				const auto fail = [=](const QString &error) {
+					show->showToast(error);
+				};
 				session->api().request(
 					MTPstats_GetBroadcastRevenueWithdrawalUrl(
 						channel->inputChannel,
 						result.result
 				)).done([=](const MTPstats_BroadcastRevenueWithdrawalUrl &r) {
-					const auto url = qs(r.data().vurl());
-
-					if (!url.isEmpty()) {
-						UrlClickHandler::Open(url);
-					}
+					done(qs(r.data().vurl()));
 				}).fail([=](const MTP::Error &error) {
-					show->showToast(error.type());
+					fail(error.type());
 				}).send();
 			});
 			show->show(Box<PasscodeBox>(session, fields));
