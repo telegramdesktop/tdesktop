@@ -243,7 +243,12 @@ QByteArray TopPeers::serialize() const {
 }
 
 void TopPeers::applyLocal(QByteArray serialized) {
-	if (_lastReceived || serialized.isEmpty()) {
+	if (_lastReceived) {
+		return;
+	}
+	_list.clear();
+	_disabled = false;
+	if (serialized.isEmpty()) {
 		return;
 	}
 	auto stream = Serialize::ByteArrayReader(serialized);

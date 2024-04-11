@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/file_location.h"
+#include "data/components/recent_peers.h"
 #include "data/components/top_peers.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_session.h"
@@ -2881,7 +2882,7 @@ void Account::writeSearchSuggestions() {
 	Expects(_owner->sessionExists());
 
 	const auto top = _owner->session().topPeers().serialize();
-	const auto recent = QByteArray();// _owner->session().recentPeers().serialize();
+	const auto recent = _owner->session().recentPeers().serialize();
 	if (top.isEmpty() && recent.isEmpty()) {
 		if (_searchSuggestionsKey) {
 			ClearKey(_searchSuggestionsKey, _basePath);
@@ -2925,7 +2926,7 @@ void Account::readSearchSuggestions() {
 	suggestions.stream >> top >> recent;
 	if (CheckStreamStatus(suggestions.stream)) {
 		_owner->session().topPeers().applyLocal(top);
-		//_owner->session().recentPeers().applyLocal(recent);
+		_owner->session().recentPeers().applyLocal(recent);
 	}
 }
 
