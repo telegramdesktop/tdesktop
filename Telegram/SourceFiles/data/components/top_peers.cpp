@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
+#include "storage/serialize_common.h"
+#include "storage/serialize_peer.h"
+#include "storage/storage_account.h"
 
 namespace Data {
 namespace {
@@ -23,6 +26,19 @@ constexpr auto kRequestTimeLimit = 10 * crl::time(1000);
 
 [[nodiscard]] float64 RatingDelta(TimeId now, TimeId was, int decay) {
 	return std::exp((now - was) * 1. / decay);
+}
+
+[[nodiscard]] quint64 SerializeRating(float64 rating) {
+	return quint64(
+		base::SafeRound(std::clamp(rating, 0., 1'000'000.) * 1'000'000.));
+}
+
+[[nodiscard]] float64 DeserializeRating(quint64 rating) {
+	return std::clamp(
+		rating,
+		quint64(),
+		quint64(1'000'000'000'000ULL)
+	) / 1'000'000.;
 }
 
 } // namespace
@@ -43,12 +59,16 @@ TopPeers::TopPeers(not_null<Main::Session*> session)
 TopPeers::~TopPeers() = default;
 
 std::vector<not_null<PeerData*>> TopPeers::list() const {
+	_session->local().readSearchSuggestions();
+
 	return _list
 		| ranges::view::transform(&TopPeer::peer)
 		| ranges::to_vector;
 }
 
 bool TopPeers::disabled() const {
+	_session->local().readSearchSuggestions();
+
 	return _disabled;
 }
 
@@ -67,9 +87,13 @@ void TopPeers::remove(not_null<PeerData*> peer) {
 		MTP_topPeerCategoryCorrespondents(),
 		peer->input
 	)).send();
+
+	_session->local().writeSearchSuggestionsDelayed();
 }
 
 void TopPeers::increment(not_null<PeerData*> peer, TimeId date) {
+	_session->local().readSearchSuggestions();
+
 	if (_disabled || date <= _lastReceivedDate) {
 		return;
 	}
@@ -95,6 +119,8 @@ void TopPeers::increment(not_null<PeerData*> peer, TimeId date) {
 		if (changed) {
 			_updates.fire({});
 		}
+
+		_session->local().writeSearchSuggestionsDelayed();
 	}
 }
 
@@ -108,6 +134,8 @@ void TopPeers::reload() {
 }
 
 void TopPeers::toggleDisabled(bool disabled) {
+	_session->local().readSearchSuggestions();
+
 	if (disabled) {
 		if (!_disabled || !_list.empty()) {
 			_disabled = true;
@@ -126,6 +154,8 @@ void TopPeers::toggleDisabled(bool disabled) {
 			request();
 		}
 	}).send();
+
+	_session->local().writeSearchSuggestionsDelayed();
 }
 
 void TopPeers::request() {
@@ -182,10 +212,67 @@ void TopPeers::request() {
 uint64 TopPeers::countHash() const {
 	using namespace Api;
 	auto hash = HashInit();
-	for (const auto &top : _list) {
+	for (const auto &top : _list | ranges::views::take(kLimit)) {
 		HashUpdate(hash, peerToUser(top.peer->id).bare);
 	}
 	return HashFinalize(hash);
+}
+
+QByteArray TopPeers::serialize() const {
+	_session->local().readSearchSuggestions();
+
+	if (!_disabled && _list.empty()) {
+		return {};
+	}
+	auto size = 3 * sizeof(quint32); // AppVersion, disabled, count
+	const auto count = std::min(int(_list.size()), kLimit);
+	auto &&list = _list | ranges::views::take(count);
+	for (const auto &top : list) {
+		size += Serialize::peerSize(top.peer) + sizeof(quint64);
+	}
+	auto stream = Serialize::ByteArrayWriter(size);
+	stream
+		<< quint32(AppVersion)
+		<< quint32(_disabled ? 1 : 0)
+		<< quint32(_list.size());
+	for (const auto &top : list) {
+		Serialize::writePeer(stream, top.peer);
+		stream << SerializeRating(top.rating);
+	}
+	return std::move(stream).result();
+}
+
+void TopPeers::applyLocal(QByteArray serialized) {
+	if (_lastReceived || serialized.isEmpty()) {
+		return;
+	}
+	auto stream = Serialize::ByteArrayReader(serialized);
+	auto streamAppVersion = quint32();
+	auto disabled = quint32();
+	auto count = quint32();
+	stream >> streamAppVersion >> disabled >> count;
+	if (!stream.ok()) {
+		return;
+	}
+	_list.reserve(count);
+	for (auto i = 0; i != int(count); ++i) {
+		auto rating = quint64();
+		const auto peer = Serialize::readPeer(
+			_session,
+			streamAppVersion,
+			stream);
+		stream >> rating;
+		if (stream.ok() && peer) {
+			_list.push_back({
+				.peer = peer,
+				.rating = DeserializeRating(rating),
+			});
+		} else {
+			_list.clear();
+			return;
+		}
+	}
+	_disabled = (disabled == 1);
 }
 
 } // namespace Data

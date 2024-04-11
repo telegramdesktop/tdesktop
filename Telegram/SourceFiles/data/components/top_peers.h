@@ -27,6 +27,9 @@ public:
 	void reload();
 	void toggleDisabled(bool disabled);
 
+	[[nodiscard]] QByteArray serialize() const;
+	void applyLocal(QByteArray serialized);
+
 private:
 	struct TopPeer {
 		not_null<PeerData*> peer;
