@@ -25,6 +25,7 @@ public:
 	void remove(not_null<PeerData*> peer);
 	void increment(not_null<PeerData*> peer, TimeId date);
 	void reload();
+	void toggleDisabled(bool disabled);
 
 private:
 	struct TopPeer {

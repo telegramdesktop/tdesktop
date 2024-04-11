@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "core/update_checker.h"
 #include "lang/lang_keys.h"
+#include "data/components/top_peers.h"
 #include "data/data_session.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
@@ -544,6 +545,35 @@ void SetupCloudPassword(
 		reloadOnActivation);
 
 	session->api().cloudPassword().reload();
+}
+
+void SetupTopPeers(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	Ui::AddSkip(container);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_top_peers_title());
+
+	const auto session = &controller->session();
+
+	container->add(object_ptr<Button>(
+		container,
+		tr::lng_settings_top_peers_suggest(),
+		st::settingsButtonNoIcon
+	))->toggleOn(rpl::single(
+		rpl::empty
+	) | rpl::then(
+		session->topPeers().updates()
+	) | rpl::map([=] {
+		return !session->topPeers().disabled();
+	}))->toggledChanges(
+	) | rpl::filter([=](bool enabled) {
+		return enabled == session->topPeers().disabled();
+	}) | rpl::start_with_next([=](bool enabled) {
+		session->topPeers().toggleDisabled(!enabled);
+	}, container->lifetime());
+
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, tr::lng_settings_top_peers_about());
 }
 
 void SetupSensitiveContent(
@@ -1065,6 +1095,7 @@ void PrivacySecurity::setupContent(
 
 	SetupSecurity(controller, content, trigger(), showOtherMethod());
 	SetupPrivacy(controller, content, trigger());
+	SetupTopPeers(controller, content);
 #if !defined OS_MAC_STORE && !defined OS_WIN_STORE
 	SetupSensitiveContent(controller, content, trigger());
 #else // !OS_MAC_STORE && !OS_WIN_STORE

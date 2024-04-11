@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/dynamic_thumbnails.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -33,12 +35,22 @@ namespace {
 void FillTopPeerMenu(
 		not_null<Window::SessionController*> controller,
 		const ShowTopPeerMenuRequest &request,
-		Fn<void(not_null<PeerData*>)> remove) {
+		Fn<void(not_null<PeerData*>)> remove,
+		Fn<void()> hideAll) {
 	const auto owner = &controller->session().data();
 	const auto peer = owner->peer(PeerId(request.id));
 	const auto &add = request.callback;
 	const auto group = peer->isMegagroup();
 	const auto channel = peer->isChannel();
+
+	add({
+		.text = tr::lng_recent_remove(tr::now),
+		.handler = [=] { remove(peer); },
+		.icon = &st::menuIconDeleteAttention,
+		.isAttention = true,
+	});
+
+	add({ .separatorSt = &st::expandedMenuSeparator });
 
 	const auto showHistoryText = group
 		? tr::lng_context_open_group(tr::now)
@@ -58,12 +70,14 @@ void FillTopPeerMenu(
 		controller->showPeerInfo(peer);
 	}, channel ? &st::menuIconInfo : &st::menuIconProfile);
 
-	add({
-		.text = tr::lng_recent_remove(tr::now),
-		.handler = [=] { remove(peer); },
-		.icon = &st::menuIconDeleteAttention,
-		.isAttention = true,
-	});
+	add({ .separatorSt = &st::expandedMenuSeparator });
+
+	add(tr::lng_recent_hide_top(tr::now), [=] {
+		controller->show(Ui::MakeConfirmBox({
+			.text = tr::lng_recent_hide_sure(),
+			.confirmed = [=](Fn<void()> close) { hideAll(); close(); }
+		}));
+	}, &st::menuIconCancel);
 }
 
 } // namespace
@@ -90,11 +104,21 @@ Suggestions::Suggestions(
 
 	_topPeers->showMenuRequests(
 	) | rpl::start_with_next([=](const ShowTopPeerMenuRequest &request) {
-		const auto remove = crl::guard(this, [=](not_null<PeerData*> peer) {
+		const auto weak = Ui::MakeWeak(this);
+		const auto remove = [=](not_null<PeerData*> peer) {
 			peer->session().topPeers().remove(peer);
-			_topPeers->removeLocally(peer->id.value);
+			if (weak) {
+				_topPeers->removeLocally(peer->id.value);
+			}
+		};
+		const auto session = &controller->session();
+		const auto hideAll = crl::guard(session, [=] {
+			session->topPeers().toggleDisabled(true);
+			if (weak) {
+				_topPeers->removeLocally();
+			}
 		});
-		FillTopPeerMenu(controller, request, remove);
+		FillTopPeerMenu(controller, request, remove, hideAll);
 	}, _topPeers->lifetime());
 }
 

@@ -730,6 +730,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_angle_backend_d3d11on12" = "D3D11on12";
 "lng_settings_angle_backend_opengl" = "OpenGL";
 "lng_settings_angle_backend_disabled" = "Disabled";
+"lng_settings_top_peers_title" = "Frequent contacts";
+"lng_settings_top_peers_suggest" = "Suggest frequent contacts";
+"lng_settings_top_peers_about" = "Display people you message frequently at the top of the search section for quick access.";
 "lng_settings_sensitive_title" = "Sensitive content";
 "lng_settings_sensitive_disable_filtering" = "Disable filtering";
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";

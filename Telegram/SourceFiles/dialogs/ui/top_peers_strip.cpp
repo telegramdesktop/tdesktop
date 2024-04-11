@@ -246,6 +246,15 @@ auto TopPeersStrip::showMenuRequests() const
 }
 
 void TopPeersStrip::removeLocally(uint64 id) {
+	if (!id) {
+		unsubscribeUserpics(true);
+		setSelected(-1);
+		_pressed = -1;
+		_entries.clear();
+		_hiddenLocally = true;
+		_empty = true;
+		return;
+	}
 	_removed.emplace(id);
 	const auto i = ranges::find(_entries, id, &Entry::id);
 	if (i == end(_entries)) {
@@ -321,6 +330,9 @@ bool TopPeersStrip::chooseRow() {
 }
 
 void TopPeersStrip::apply(const TopPeersList &list) {
+	if (_hiddenLocally) {
+		return;
+	}
 	auto now = std::vector<Entry>();
 
 	auto selectedId = (_selected >= 0) ? _entries[_selected].id : 0;

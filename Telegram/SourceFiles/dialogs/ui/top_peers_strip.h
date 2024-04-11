@@ -50,7 +50,7 @@ public:
 	[[nodiscard]] auto showMenuRequests() const
 		-> rpl::producer<ShowTopPeerMenuRequest>;
 
-	void removeLocally(uint64 id);
+	void removeLocally(uint64 id = 0);
 
 	[[nodiscard]] bool selectedByKeyboard() const;
 	void selectByKeyboard(int delta);
@@ -105,6 +105,7 @@ private:
 	int _selected = -1;
 	int _pressed = -1;
 	bool _selectionByKeyboard = false;
+	bool _hiddenLocally = false;
 
 	Ui::RoundRect _selection;
 	base::unique_qptr<Ui::PopupMenu> _menu;

@@ -70,7 +70,7 @@ void TopPeers::remove(not_null<PeerData*> peer) {
 }
 
 void TopPeers::increment(not_null<PeerData*> peer, TimeId date) {
-	if (date <= _lastReceivedDate) {
+	if (_disabled || date <= _lastReceivedDate) {
 		return;
 	}
 	if (const auto user = peer->asUser(); user && !user->isBot()) {
@@ -105,6 +105,27 @@ void TopPeers::reload() {
 		return;
 	}
 	request();
+}
+
+void TopPeers::toggleDisabled(bool disabled) {
+	if (disabled) {
+		if (!_disabled || !_list.empty()) {
+			_disabled = true;
+			_list.clear();
+			_updates.fire({});
+		}
+	} else if (_disabled) {
+		_disabled = false;
+		_updates.fire({});
+	}
+
+	_session->api().request(MTPcontacts_ToggleTopPeers(
+		MTP_bool(!disabled)
+	)).done([=] {
+		if (!_disabled) {
+			request();
+		}
+	}).send();
 }
 
 void TopPeers::request() {
