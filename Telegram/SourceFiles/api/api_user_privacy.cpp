@@ -307,8 +307,8 @@ void UserPrivacy::reload(Key key) {
 }
 
 void UserPrivacy::pushPrivacy(Key key, const TLRules &rules) {
-	const auto &saved = (_privacyValues[key] =
-		TLToRules(rules, _session->data()));
+	const auto &saved
+		= (_privacyValues[key] = TLToRules(rules, _session->data()));
 	const auto i = _privacyChanges.find(key);
 	if (i != end(_privacyChanges)) {
 		i->second.fire_copy(saved);

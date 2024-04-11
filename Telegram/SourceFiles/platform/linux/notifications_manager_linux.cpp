@@ -315,19 +315,19 @@ bool NotificationData::init(
 		_actions.push_back("inline-reply");
 		_actions.push_back(tr::lng_notification_reply(tr::now).toStdString());
 
-		_notificationRepliedSignalId =
-			_interface.signal_notification_replied().connect([=](
-					XdgNotifications::Notifications,
-					uint id,
-					std::string text) {
-				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-					if (id == _notificationId) {
-						_manager->notificationReplied(
-							_id,
-							{ QString::fromStdString(text), {} });
-					}
+		_notificationRepliedSignalId
+			= _interface.signal_notification_replied().connect([=](
+						XdgNotifications::Notifications,
+						uint id,
+						std::string text) {
+					Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+						if (id == _notificationId) {
+							_manager->notificationReplied(
+								_id,
+								{ QString::fromStdString(text), {} });
+						}
+					});
 				});
-			});
 	}
 
 	_actionInvokedSignalId = _interface.signal_action_invoked().connect([=](

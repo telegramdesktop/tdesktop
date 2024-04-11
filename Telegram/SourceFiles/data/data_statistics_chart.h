@@ -37,8 +37,8 @@ struct StatisticalChart {
 		QString idString;
 		QString name;
 		Statistic::ChartValue maxValue = 0;
-		Statistic::ChartValue minValue =
-			std::numeric_limits<Statistic::ChartValue>::max();
+		Statistic::ChartValue minValue
+			= std::numeric_limits<Statistic::ChartValue>::max();
 		QString colorKey;
 		QColor color;
 		QColor colorDark;
@@ -57,8 +57,8 @@ struct StatisticalChart {
 	} defaultZoomXIndex;
 
 	Statistic::ChartValue maxValue = 0;
-	Statistic::ChartValue minValue =
-		std::numeric_limits<Statistic::ChartValue>::max();
+	Statistic::ChartValue minValue
+		= std::numeric_limits<Statistic::ChartValue>::max();
 
 	float64 oneDayPercentage = 0.;
 

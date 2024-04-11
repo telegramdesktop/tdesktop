@@ -121,8 +121,8 @@ bool PollData::applyResults(const MTPPollResults &results) {
 	return results.match([&](const MTPDpollResults &results) {
 		_lastResultsUpdate = crl::now();
 
-		const auto newTotalVoters =
-			results.vtotal_voters().value_or(totalVoters);
+		const auto newTotalVoters
+			= results.vtotal_voters().value_or(totalVoters);
 		auto changed = (newTotalVoters != totalVoters);
 		if (const auto list = results.vresults()) {
 			for (const auto &result : list->v) {

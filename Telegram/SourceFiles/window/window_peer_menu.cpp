@@ -143,8 +143,8 @@ void ShareBotGame(
 
 } // namespace
 
-const char kOptionViewProfileInChatsListContextMenu[] =
-	"view-profile-in-chats-list-context-menu";
+const char kOptionViewProfileInChatsListContextMenu[]
+	= "view-profile-in-chats-list-context-menu";
 
 namespace {
 

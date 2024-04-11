@@ -135,8 +135,8 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 
 	if (isEqual(kMainItemIdentifier)) {
 		auto *item = [[GroupTouchBarItem alloc] initWithIdentifier:itemId];
-		item.groupTouchBar =
-			[[[TouchBarMain alloc]
+		item.groupTouchBar
+			= [[[TouchBarMain alloc]
 				init:_controller
 				touchBarSwitches:_touchBarSwitches.events()] autorelease];
 		rpl::combine(

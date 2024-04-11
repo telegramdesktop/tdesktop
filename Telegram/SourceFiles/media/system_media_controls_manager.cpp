@@ -44,8 +44,8 @@ bool SystemMediaControlsManager::Supported() {
 SystemMediaControlsManager::SystemMediaControlsManager()
 : _controls(std::make_unique<base::Platform::SystemMediaControls>()) {
 
-	using PlaybackStatus =
-		base::Platform::SystemMediaControls::PlaybackStatus;
+	using PlaybackStatus
+		= base::Platform::SystemMediaControls::PlaybackStatus;
 	using Command = base::Platform::SystemMediaControls::Command;
 
 	_controls->setApplicationName(AppName.utf16());

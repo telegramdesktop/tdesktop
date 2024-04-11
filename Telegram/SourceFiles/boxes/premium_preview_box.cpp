@@ -1240,8 +1240,8 @@ void DecorateListPromoBox(
 		box->setStyle(st::premiumPreviewDoubledLimitsBox);
 		box->widthValue(
 		) | rpl::start_with_next([=](int width) {
-			const auto &padding =
-				st::premiumPreviewDoubledLimitsBox.buttonPadding;
+			const auto &padding
+				= st::premiumPreviewDoubledLimitsBox.buttonPadding;
 			button->resizeToWidth(width
 				- padding.left()
 				- padding.right());

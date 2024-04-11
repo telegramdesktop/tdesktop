@@ -2686,8 +2686,8 @@ bool FormController::applyPassword(const MTPDaccount_password &result) {
 	settings.notEmptyPassport = result.is_has_secure_values();
 	settings.request = Core::ParseCloudPasswordCheckRequest(result);
 	settings.unknownAlgo = result.vcurrent_algo() && !settings.request;
-	settings.unconfirmedPattern =
-		qs(result.vemail_unconfirmed_pattern().value_or_empty());
+	settings.unconfirmedPattern = qs(
+		result.vemail_unconfirmed_pattern().value_or_empty());
 	settings.newAlgo = Core::ValidateNewCloudPasswordAlgo(
 		Core::ParseCloudPasswordAlgo(result.vnew_algo()));
 	settings.newSecureAlgo = Core::ValidateNewSecureSecretAlgo(

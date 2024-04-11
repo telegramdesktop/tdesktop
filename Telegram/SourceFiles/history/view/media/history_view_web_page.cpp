@@ -496,8 +496,8 @@ QSize WebPage::countOptimalSize() {
 		minHeight = resizeGetHeight(maxWidth);
 	}
 	if (_sponsoredData && _sponsoredData->canReport) {
-		_sponsoredData->widthBeforeHint =
-			st::webPageTitleStyle.font->width(siteName);
+		_sponsoredData->widthBeforeHint
+			= st::webPageTitleStyle.font->width(siteName);
 		const auto &font = st::webPageSponsoredHintFont;
 		_sponsoredData->hintSize = QSize(
 			font->width(tr::lng_sponsored_message_revenue_button(tr::now))

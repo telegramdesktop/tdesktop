@@ -945,8 +945,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	tgcalls::Descriptor descriptor = {
 		.version = versionString,
 		.config = tgcalls::Config{
-			.initializationTimeout =
-				serverConfig.callConnectTimeoutMs / 1000.,
+			.initializationTimeout
+				= serverConfig.callConnectTimeoutMs / 1000.,
 			.receiveTimeout = serverConfig.callPacketTimeoutMs / 1000.,
 			.dataSaving = tgcalls::DataSaving::Never,
 			.enableP2P = call.is_p2p_allowed(),

@@ -277,11 +277,11 @@ private:
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
 	rpl::variable<State> _state = State::Starting;
-	rpl::variable<RemoteAudioState> _remoteAudioState =
-		RemoteAudioState::Active;
+	rpl::variable<RemoteAudioState> _remoteAudioState
+		= RemoteAudioState::Active;
 	rpl::variable<Webrtc::VideoState> _remoteVideoState;
-	rpl::variable<RemoteBatteryState> _remoteBatteryState =
-		RemoteBatteryState::Normal;
+	rpl::variable<RemoteBatteryState> _remoteBatteryState
+		= RemoteBatteryState::Normal;
 	rpl::event_stream<Error> _errors;
 	FinishType _finishAfterRequestingCall = FinishType::None;
 	bool _answerAfterDhConfigReceived = false;

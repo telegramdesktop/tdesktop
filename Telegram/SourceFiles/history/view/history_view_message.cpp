@@ -1849,8 +1849,8 @@ void Message::clickHandlerPressedChanged(
 			if (pressed) {
 				if (!_rightAction->second->ripple) {
 					// Create a ripple.
-					_rightAction->second->ripple =
-						std::make_unique<Ui::RippleAnimation>(
+					_rightAction->second->ripple
+						= std::make_unique<Ui::RippleAnimation>(
 							st::defaultRippleAnimation,
 							Ui::RippleAnimation::RoundRectMask(
 								Size(rightSize->width()),

@@ -29,20 +29,20 @@ namespace {
 using namespace rpl::details;
 
 template <typename T>
-constexpr auto WithId =
-	is_callable_plain_v<T, Fn<void()>, mtpRequestId>;
+constexpr auto WithId
+	= is_callable_plain_v<T, Fn<void()>, mtpRequestId>;
 template <typename T>
-constexpr auto WithoutId =
-	is_callable_plain_v<T, Fn<void()>>;
+constexpr auto WithoutId
+	= is_callable_plain_v<T, Fn<void()>>;
 template <typename T>
-constexpr auto WithoutCallback =
-	is_callable_plain_v<T>;
+constexpr auto WithoutCallback
+	= is_callable_plain_v<T>;
 template <typename T>
-constexpr auto ErrorWithId =
-	is_callable_plain_v<T, QString, mtpRequestId>;
+constexpr auto ErrorWithId
+	= is_callable_plain_v<T, QString, mtpRequestId>;
 template <typename T>
-constexpr auto ErrorWithoutId =
-	is_callable_plain_v<T, QString>;
+constexpr auto ErrorWithoutId
+	= is_callable_plain_v<T, QString>;
 
 template <typename DoneCallback, typename FailCallback>
 mtpRequestId EditMessage(

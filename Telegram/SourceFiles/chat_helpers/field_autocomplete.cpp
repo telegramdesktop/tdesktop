@@ -437,8 +437,8 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 
 		auto filterNotPassedByUsername = [this](UserData *user) -> bool {
 			if (PrimaryUsername(user).startsWith(_filter, Qt::CaseInsensitive)) {
-				const auto exactUsername =
-					(PrimaryUsername(user).size() == _filter.size());
+				const auto exactUsername
+					= (PrimaryUsername(user).size() == _filter.size());
 				return exactUsername;
 			}
 			return true;
@@ -446,8 +446,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		auto filterNotPassedByName = [&](UserData *user) -> bool {
 			for (const auto &nameWord : user->nameWords()) {
 				if (nameWord.startsWith(_filter, Qt::CaseInsensitive)) {
-					const auto exactUsername =
-						(PrimaryUsername(user).compare(_filter, Qt::CaseInsensitive) == 0);
+					const auto exactUsername = PrimaryUsername(user).compare(
+						_filter,
+						Qt::CaseInsensitive) == 0;
 					return exactUsername;
 				}
 			}

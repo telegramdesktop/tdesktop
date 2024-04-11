@@ -23,8 +23,8 @@ public:
 		DragArea *photo;
 	};
 
-	using CallbackComputeState =
-		Fn<Storage::MimeDataState(const QMimeData *data)>;
+	using CallbackComputeState
+		= Fn<Storage::MimeDataState(const QMimeData *data)>;
 
 	static Areas SetupDragAreaToContainer(
 		not_null<Ui::RpWidget*> container,

@@ -232,8 +232,8 @@ void DeleteMessagesBox::prepare() {
 			if (hasScheduledMessages()) {
 			} else if (auto revoke = revokeText(peer)) {
 				const auto &settings = Core::App().settings();
-				const auto revokeByDefault =
-					!settings.rememberedDeleteMessageOnlyForYou();
+				const auto revokeByDefault
+					= !settings.rememberedDeleteMessageOnlyForYou();
 				_revoke.create(
 					this,
 					revoke->checkbox,

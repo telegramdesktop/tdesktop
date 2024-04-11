@@ -1544,8 +1544,8 @@ void ApiWrap::saveStickerSets(
 				writeRecent = true;
 			}
 
-			const auto isAttached =
-				(removedSetId == Data::Stickers::CloudRecentAttachedSetId);
+			const auto isAttached
+				= (removedSetId == Data::Stickers::CloudRecentAttachedSetId);
 			const auto flags = isAttached
 				? MTPmessages_ClearRecentStickers::Flag::f_attached
 				: MTPmessages_ClearRecentStickers::Flags(0);
@@ -2494,8 +2494,8 @@ void ApiWrap::refreshFileReference(
 	}, [&](Data::FileOriginPeerPhoto data) {
 		fail();
 	}, [&](Data::FileOriginStickerSet data) {
-		const auto isRecentAttached =
-			(data.setId == Data::Stickers::CloudRecentAttachedSetId);
+		const auto isRecentAttached
+			= (data.setId == Data::Stickers::CloudRecentAttachedSetId);
 		if (data.setId == Data::Stickers::CloudRecentSetId
 			|| data.setId == Data::Stickers::RecentSetId
 			|| isRecentAttached) {

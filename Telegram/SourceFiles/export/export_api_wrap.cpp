@@ -541,8 +541,8 @@ void ApiWrap::requestDialogsCount() {
 	Expects(_startProcess != nullptr);
 
 	if (_settings->onlySinglePeer()) {
-		_startProcess->info.dialogsCount =
-			(_settings->singlePeer.type() == mtpc_inputPeerChannel
+		_startProcess->info.dialogsCount
+			= (_settings->singlePeer.type() == mtpc_inputPeerChannel
 				? 1
 				: _splits.size());
 		sendNextStartRequest();

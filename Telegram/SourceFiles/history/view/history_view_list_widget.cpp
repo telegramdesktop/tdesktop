@@ -3898,8 +3898,8 @@ bool ListWidget::lastMessageEditRequestNotify() const {
 	if (it == end(list)) {
 		return false;
 	} else {
-		const auto item =
-			session().data().groups().findItemToEdit((*it)->data()).get();
+		const auto item
+			= session().data().groups().findItemToEdit((*it)->data()).get();
 		editMessageRequestNotify(item->fullId());
 		return true;
 	}

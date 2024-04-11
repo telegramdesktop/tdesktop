@@ -1211,8 +1211,8 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 #endif
 	{
 		const auto callback = [=](int value) {
-			const auto options =
-				_controller->session().api().premium().subscriptionOptions();
+			auto &api = _controller->session().api();
+			const auto options = api.premium().subscriptionOptions();
 			if (options.empty()) {
 				return;
 			}

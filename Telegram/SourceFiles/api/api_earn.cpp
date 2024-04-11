@@ -58,10 +58,10 @@ void HandleWithdrawalButton(
 			state->loading = false;
 
 			auto fields = PasscodeBox::CloudFields::From(pass);
-			fields.customTitle =
-				tr::lng_channel_earn_balance_password_title();
-			fields.customDescription =
-				tr::lng_channel_earn_balance_password_description(tr::now);
+			fields.customTitle
+				= tr::lng_channel_earn_balance_password_title();
+			fields.customDescription
+				= tr::lng_channel_earn_balance_password_description(tr::now);
 			fields.customSubmitButton = tr::lng_passcode_submit();
 			fields.customCheckCallback = crl::guard(button, [=](
 					const Core::CloudPasswordResult &result) {

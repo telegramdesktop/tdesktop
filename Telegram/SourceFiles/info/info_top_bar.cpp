@@ -683,13 +683,13 @@ void TopBar::createSelectionControls() {
 		_selectionActionRequests,
 		_cancelSelection->lifetime());
 	_delete->entity()->setVisible(_canDelete);
-	const auto archive =
-	_toggleStoryPin = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
-		this,
-		object_ptr<Ui::IconButton>(
+	const auto archive = _toggleStoryPin = wrap(
+		Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 			this,
-			_storiesArchive ? _st.storiesSave : _st.storiesArchive),
-		st::infoTopBarScale));
+			object_ptr<Ui::IconButton>(
+				this,
+				_storiesArchive ? _st.storiesSave : _st.storiesArchive),
+			st::infoTopBarScale));
 	registerToggleControlCallback(
 		_toggleStoryPin.data(),
 		[this] { return selectionMode() && _canToggleStoryPin; });
