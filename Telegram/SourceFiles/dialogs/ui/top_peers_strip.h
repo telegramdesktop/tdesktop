@@ -49,6 +49,8 @@ public:
 	[[nodiscard]] auto showMenuRequests() const
 		-> rpl::producer<ShowTopPeerMenuRequest>;
 
+	void removeLocally(uint64 id);
+
 private:
 	struct Entry;
 
@@ -73,6 +75,7 @@ private:
 
 	std::vector<Entry> _entries;
 	rpl::variable<bool> _empty = true;
+	base::flat_set<uint64> _removed;
 
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<ShowTopPeerMenuRequest> _showMenuRequests;

@@ -22,12 +22,17 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Dialogs {
 
 class Suggestions final : public Ui::RpWidget {
 public:
 	Suggestions(
 		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller,
 		rpl::producer<TopPeersList> topPeers);
 	~Suggestions();
 

@@ -56,6 +56,19 @@ rpl::producer<> TopPeers::updates() const {
 	return _updates.events();
 }
 
+void TopPeers::remove(not_null<PeerData*> peer) {
+	const auto i = ranges::find(_list, peer, &TopPeer::peer);
+	if (i != end(_list)) {
+		_list.erase(i);
+		_updates.fire({});
+	}
+
+	_requestId = _session->api().request(MTPcontacts_ResetTopPeerRating(
+		MTP_topPeerCategoryCorrespondents(),
+		peer->input
+	)).send();
+}
+
 void TopPeers::increment(not_null<PeerData*> peer, TimeId date) {
 	if (date <= _lastReceivedDate) {
 		return;

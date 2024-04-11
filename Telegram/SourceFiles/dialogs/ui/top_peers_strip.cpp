@@ -212,13 +212,29 @@ auto TopPeersStrip::showMenuRequests() const
 	return _showMenuRequests.events();
 }
 
+void TopPeersStrip::removeLocally(uint64 id) {
+	_removed.emplace(id);
+	const auto i = ranges::find(_entries, id, &Entry::id);
+	if (i == end(_entries)) {
+		return;
+	} else if (i->subscribed) {
+		i->userpic->subscribeToUpdates(nullptr);
+	}
+	_entries.erase(i);
+	updateScrollMax();
+	if (_entries.empty()) {
+		_empty = true;
+	}
+	update();
+}
+
 void TopPeersStrip::apply(const TopPeersList &list) {
 	auto now = std::vector<Entry>();
 
-	if (list.entries.empty()) {
-		_empty = true;
-	}
 	for (const auto &entry : list.entries) {
+		if (_removed.contains(entry.id)) {
+			continue;
+		}
 		const auto i = ranges::find(_entries, entry.id, &Entry::id);
 		if (i != end(_entries)) {
 			now.push_back(base::take(*i));
@@ -227,6 +243,9 @@ void TopPeersStrip::apply(const TopPeersList &list) {
 		}
 		apply(now.back(), entry);
 	}
+	if (now.empty()) {
+		_empty = true;
+	}
 	for (auto &entry : _entries) {
 		if (entry.subscribed) {
 			entry.userpic->subscribeToUpdates(nullptr);
@@ -234,6 +253,7 @@ void TopPeersStrip::apply(const TopPeersList &list) {
 		}
 	}
 	_entries = std::move(now);
+	updateScrollMax();
 	unsubscribeUserpics();
 	if (!_entries.empty()) {
 		_empty = false;
@@ -289,9 +309,10 @@ void TopPeersStrip::paintEvent(QPaintEvent *e) {
 	const auto single = st.photoLeft * 2 + st.photo;
 
 	const auto from = std::min(_scrollLeft / single, int(_entries.size()));
-	const auto till = std::max(
+	const auto till = std::clamp(
 		(_scrollLeft + width() + single - 1) / single + 1,
-		from);
+		from,
+		int(_entries.size()));
 
 	auto x = -_scrollLeft + from * single;
 	for (auto i = from; i != till; ++i) {

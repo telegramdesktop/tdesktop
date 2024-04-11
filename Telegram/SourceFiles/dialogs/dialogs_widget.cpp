@@ -1027,7 +1027,7 @@ void Widget::updateControlsVisibility(bool fast) {
 		_suggestions->show();
 	}
 	updateStoriesVisibility();
-	if ((_openedFolder || _openedForum) && _searchHasFocus.current()) {
+	if ((_openedFolder || _openedForum) && _searchHasFocus) {
 		setInnerFocus();
 	}
 	if (_updateTelegram) {
@@ -1066,7 +1066,7 @@ void Widget::updateControlsVisibility(bool fast) {
 	if (_hideChildListCanvas) {
 		_hideChildListCanvas->show();
 	}
-	if (_childList && _searchHasFocus.current()) {
+	if (_childList && _searchHasFocus) {
 		setInnerFocus();
 	}
 	updateLockUnlockPosition();
@@ -1090,16 +1090,26 @@ void Widget::updateLockUnlockPosition() {
 
 void Widget::updateHasFocus(not_null<QWidget*> focused) {
 	const auto has = (focused == _search.data());
-	if (_searchHasFocus.current() != has) {
-		_searchHasFocus = (focused == _search.data());
-		updateStoriesVisibility();
-		updateForceDisplayWide();
-		updateSuggestions(anim::type::normal);
+	if (_searchHasFocus != has) {
+		_searchHasFocus = has;
+		const auto update = [=] {
+			updateStoriesVisibility();
+			updateForceDisplayWide();
+			updateSuggestions(anim::type::normal);
+		};
+		if (has) {
+			update();
+		} else {
+			// Search field may loose focus from the destructor of some
+			// widget, in that case we don't want to destroy _suggestions
+			// syncrhonously, because it may lead to a crash.
+			crl::on_main(this, update);
+		}
 	}
 }
 
 void Widget::updateSuggestions(anim::type animated) {
-	const auto suggest = _searchHasFocus.current()
+	const auto suggest = _searchHasFocus
 		&& !_searchInChat
 		&& (_inner->state() == WidgetState::Default);
 	if (!suggest && _suggestions) {
@@ -1108,6 +1118,7 @@ void Widget::updateSuggestions(anim::type animated) {
 	} else if (suggest && !_suggestions) {
 		_suggestions = std::make_unique<Suggestions>(
 			this,
+			controller(),
 			TopPeersContent(&session()));
 
 		_suggestions->topPeerChosen(
@@ -1563,7 +1574,7 @@ void Widget::updateStoriesVisibility() {
 		|| _openedForum
 		|| !_widthAnimationCache.isNull()
 		|| _childList
-		|| _searchHasFocus.current()
+		|| _searchHasFocus
 		|| !_search->getLastText().isEmpty()
 		|| _searchInChat
 		|| _stories->empty();
@@ -1681,7 +1692,7 @@ void Widget::slideFinished() {
 	_shownProgressValue = 1.;
 	updateControlsVisibility(true);
 	if ((!_subsectionTopBar || !_subsectionTopBar->searchHasFocus())
-		&& !_searchHasFocus.current()) {
+		&& !_searchHasFocus) {
 		controller()->widget()->setInnerFocus();
 	}
 }
@@ -2524,7 +2535,7 @@ void Widget::applySearchUpdate(bool force) {
 }
 
 void Widget::updateForceDisplayWide() {
-	controller()->setChatsForceDisplayWide(_searchHasFocus.current()
+	controller()->setChatsForceDisplayWide(_searchHasFocus
 		|| !_search->getLastText().isEmpty()
 		|| _searchInChat);
 }
@@ -3258,7 +3269,7 @@ bool Widget::cancelSearch() {
 	_inner->clearFilter();
 	clearSearchField();
 	applySearchUpdate();
-	if (!_searchInChat && _searchHasFocus.current()) {
+	if (!_searchInChat && _searchHasFocus) {
 		setFocus();
 	}
 	return clearingQuery || clearingInChat;

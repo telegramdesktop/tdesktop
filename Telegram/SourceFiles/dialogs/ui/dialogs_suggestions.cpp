@@ -22,13 +22,55 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/dynamic_thumbnails.h"
+#include "window/window_session_controller.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 
 namespace Dialogs {
+namespace {
+
+void FillTopPeerMenu(
+		not_null<Window::SessionController*> controller,
+		const ShowTopPeerMenuRequest &request,
+		Fn<void(not_null<PeerData*>)> remove) {
+	const auto owner = &controller->session().data();
+	const auto peer = owner->peer(PeerId(request.id));
+	const auto &add = request.callback;
+	const auto group = peer->isMegagroup();
+	const auto channel = peer->isChannel();
+
+	const auto showHistoryText = group
+		? tr::lng_context_open_group(tr::now)
+		: channel
+		? tr::lng_context_open_channel(tr::now)
+		: tr::lng_profile_send_message(tr::now);
+	add(showHistoryText, [=] {
+		controller->showPeerHistory(peer);
+	}, channel ? &st::menuIconChannel : &st::menuIconChatBubble);
+
+	const auto viewProfileText = group
+		? tr::lng_context_view_group(tr::now)
+		: channel
+		? tr::lng_context_view_channel(tr::now)
+		: tr::lng_context_view_profile(tr::now);
+	add(viewProfileText, [=] {
+		controller->showPeerInfo(peer);
+	}, channel ? &st::menuIconInfo : &st::menuIconProfile);
+
+	add({
+		.text = tr::lng_recent_remove(tr::now),
+		.handler = [=] { remove(peer); },
+		.icon = &st::menuIconDeleteAttention,
+		.isAttention = true,
+	});
+}
+
+} // namespace
 
 Suggestions::Suggestions(
 	not_null<QWidget*> parent,
+	not_null<Window::SessionController*> controller,
 	rpl::producer<TopPeersList> topPeers)
 : RpWidget(parent)
 , _scroll(std::make_unique<Ui::ElasticScroll>(this))
@@ -44,6 +86,15 @@ Suggestions::Suggestions(
 
 	_topPeers->clicks() | rpl::start_with_next([=](uint64 peerIdRaw) {
 		_topPeerChosen.fire(PeerId(peerIdRaw));
+	}, _topPeers->lifetime());
+
+	_topPeers->showMenuRequests(
+	) | rpl::start_with_next([=](const ShowTopPeerMenuRequest &request) {
+		const auto remove = crl::guard(this, [=](not_null<PeerData*> peer) {
+			peer->session().topPeers().remove(peer);
+			_topPeers->removeLocally(peer->id.value);
+		});
+		FillTopPeerMenu(controller, request, remove);
 	}, _topPeers->lifetime());
 }
 
@@ -111,6 +162,9 @@ rpl::producer<TopPeersList> TopPeersContent(
 		const auto now = base::unixtime::now();
 		for (const auto &peer : top) {
 			const auto user = peer->asUser();
+			if (user->isInaccessible()) {
+				continue;
+			}
 			const auto self = user && user->isSelf();
 			const auto history = peer->owner().history(peer);
 			const auto badges = history->chatListBadgesState();

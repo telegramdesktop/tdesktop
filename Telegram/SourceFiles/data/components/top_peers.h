@@ -22,6 +22,7 @@ public:
 	[[nodiscard]] bool disabled() const;
 	[[nodiscard]] rpl::producer<> updates() const;
 
+	void remove(not_null<PeerData*> peer);
 	void increment(not_null<PeerData*> peer, TimeId date);
 	void reload();
 

@@ -300,7 +300,7 @@ private:
 	std::vector<Data::ReactionId> _searchTags;
 	rpl::lifetime _searchTagsLifetime;
 	QString _lastSearchText;
-	rpl::variable<bool> _searchHasFocus = false;
+	bool _searchHasFocus = false;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
 	base::flat_map<PeerId, Ui::PeerUserpicView> _storiesUserpicsViewsHidden;
