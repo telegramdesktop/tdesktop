@@ -27,10 +27,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/wrap/slide_wrap.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_chat.h" // popupMenuExpandedSeparator
-#include "styles/style_info.h" // infoTopBarMenu
+#include "styles/style_chat.h"
+#include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
 
@@ -177,7 +178,9 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 				const auto count = c ? c->membersCount() : g->count;
 				_status.setText(
 					st::defaultTextStyle,
-					!p->username().isEmpty()
+					(g && !g->amIn())
+						? tr::lng_chat_status_unaccessible(tr::now)
+						: !p->username().isEmpty()
 						? ('@' + p->username())
 						: (count > 0)
 						? ((c && !c->isMegagroup())
@@ -219,10 +222,11 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 
 		};
 
-		const auto add = [&](not_null<PeerData*> peer) {
-			const auto row = box->addRow(
-				object_ptr<Button>(box, rpl::single(QString())),
-				{});
+		const auto add = [&](
+				not_null<PeerData*> peer,
+				not_null<Ui::VerticalLayout*> container) {
+			const auto row = container->add(
+				object_ptr<Button>(container, rpl::single(QString())));
 			row->setPeer(peer);
 			row->setClickedCallback([=] {
 				controller->showPeerHistory(peer);
@@ -233,8 +237,16 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 		};
 
+		const auto inaccessibleWrap = box->verticalLayout()->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				box->verticalLayout(),
+				object_ptr<Ui::VerticalLayout>(box->verticalLayout())));
+		inaccessibleWrap->toggle(false, anim::type::instant);
+
 		const auto &data = controller->session().data();
 		auto ids = std::vector<PeerId>();
+		auto inaccessibleIds = std::vector<PeerId>();
+
 		if (chats) {
 			data.enumerateGroups([&](not_null<PeerData*> peer) {
 				peer = peer->migrateToOrMe();
@@ -244,8 +256,13 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 				const auto c = peer->asChannel();
 				const auto g = peer->asChat();
 				if ((c && c->amCreator()) || (g && g->amCreator())) {
+					if (g && !g->amIn()) {
+						inaccessibleIds.push_back(peer->id);
+						add(peer, inaccessibleWrap->entity());
+					} else {
+						add(peer, box->verticalLayout());
+					}
 					ids.push_back(peer->id);
-					add(peer);
 				}
 			});
 		} else {
@@ -253,12 +270,28 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 				if (channel->amCreator()
 					&& !ranges::contains(ids, channel->id)) {
 					ids.push_back(channel->id);
-					add(channel);
+					add(channel, box->verticalLayout());
 				}
 			});
 		}
 		if (ids.empty()) {
 			addIcon(box);
+		}
+		if (!inaccessibleIds.empty()) {
+			const auto icon = [=] {
+				return !inaccessibleWrap->toggled()
+					? &st::menuIconGroups
+					: &st::menuIconGroupsHide;
+			};
+			auto button = object_ptr<Ui::IconButton>(box, st::backgroundSwitchToDark);
+			button->setClickedCallback([=, raw = button.data()] {
+				inaccessibleWrap->toggle(
+					!inaccessibleWrap->toggled(),
+					anim::type::normal);
+				raw->setIconOverride(icon(), icon());
+			});
+			button->setIconOverride(icon(), icon());
+			box->addTopButton(std::move(button));
 		}
 	};
 
