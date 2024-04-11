@@ -134,7 +134,10 @@ private:
 		PeerData *peer = nullptr;
 		Ui::PeerUserpicView userpicView;
 		QString buttonText;
-		bool hasExternalLink = false;
+		bool isLinkInternal = false;
+
+		uint64 backgroundEmojiId = 0;
+		uint8 colorIndex : 6 = 0;
 
 		bool canReport = false;
 		QSize hintSize;

@@ -232,17 +232,10 @@ WebPage::WebPage(
 		_parent->data()->fullId());
 	auto result = std::make_optional<SponsoredData>();
 	result->buttonText = details.buttonText;
-	result->hasExternalLink = (details.externalLink == _data->url);
+	result->isLinkInternal = details.isLinkInternal;
+	result->backgroundEmojiId = details.backgroundEmojiId;
+	result->colorIndex = details.colorIndex;
 	result->canReport = details.canReport;
-#ifdef _DEBUG
-	if (details.peer) {
-#else
-	if (details.isForceUserpicDisplay && details.peer) {
-#endif
-		result->peer = details.peer;
-		result->userpicView = details.peer->createUserpicView();
-		details.peer->loadUserpic();
-	}
 	return result;
 }())
 , _siteName(st::msgMinWidth - _st.padding.left() - _st.padding.right())
@@ -345,9 +338,9 @@ QSize WebPage::countOptimalSize() {
 				_parent->data()->fullId());
 		}
 		if (_sponsoredData) {
-			_openl = SponsoredLink(_sponsoredData->hasExternalLink
-				? _data->url
-				: QString());
+			_openl = SponsoredLink(
+				_data->url,
+				_sponsoredData->isLinkInternal);
 
 			if (_sponsoredData->canReport) {
 				_sponsoredData->hintLink = AboutSponsoredClickHandler();
@@ -683,14 +676,23 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	auto tshift = inner.top();
 	auto paintw = inner.width();
 
+	const auto asSponsored = (!!_sponsoredData);
+
 	const auto selected = context.selected();
 	const auto view = parent();
 	const auto from = view->data()->contentColorsFrom();
-	const auto colorIndex = from ? from->colorIndex() : view->colorIndex();
+	const auto colorIndex = (asSponsored && _sponsoredData->colorIndex)
+		? _sponsoredData->colorIndex
+		: from
+		? from->colorIndex()
+		: view->colorIndex();
 	const auto cache = context.outbg
 		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
 		: st->coloredReplyCache(selected, colorIndex).get();
-	const auto backgroundEmojiId = from
+	const auto backgroundEmojiId = (asSponsored
+			&& _sponsoredData->backgroundEmojiId)
+		? _sponsoredData->backgroundEmojiId
+		: from
 		? from->backgroundEmojiId()
 		: DocumentId();
 	const auto backgroundEmoji = backgroundEmojiId
@@ -723,8 +725,6 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			_ripple = nullptr;
 		}
 	}
-
-	const auto asSponsored = (!!_sponsoredData);
 
 	auto lineHeight = UnitedLineHeight();
 	if (asArticle()) {

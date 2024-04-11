@@ -641,32 +641,18 @@ HistoryItem::HistoryItem(
 		? injectedAfter->date()
 		: 0),
 }) {
-	const auto webPageType = !from.externalLink.isEmpty()
-		? WebPageType::None
-		: from.isExactPost
-		? WebPageType::Message
-		: (from.botLinkInfo && !from.botLinkInfo->botAppName.isEmpty())
-		? WebPageType::BotApp
-		: from.botLinkInfo
-		? WebPageType::Bot
-		: from.isBroadcast
-		? WebPageType::Channel
-		: (from.peer && from.peer->isUser())
-		? WebPageType::User
-		: WebPageType::Group;
-
 	const auto webpage = history->peer->owner().webpage(
 		history->peer->owner().nextLocalMessageId().bare,
-		webPageType,
-		from.externalLink,
-		from.externalLink,
+		WebPageType::None,
+		from.link,
+		from.link,
 		from.isRecommended
 			? tr::lng_recommended_message_title(tr::now)
 			: tr::lng_sponsored_message_title(tr::now),
 		from.title,
 		textWithEntities,
-		(from.webpageOrBotPhotoId
-			? history->owner().photo(from.webpageOrBotPhotoId).get()
+		(from.photoId
+			? history->owner().photo(from.photoId).get()
 			: nullptr),
 		nullptr,
 		WebPageCollage(),
