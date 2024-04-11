@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_story.h"
 #include "main/main_session.h"
+#include "ui/empty_userpic.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/userpic_view.h"
@@ -39,6 +40,7 @@ private:
 		Ui::PeerUserpicView view;
 		Fn<void()> callback;
 		InMemoryKey key;
+		int paletteVersion = 0;
 		rpl::lifetime photoLifetime;
 		rpl::lifetime downloadLifetime;
 	};
@@ -117,6 +119,17 @@ private:
 
 };
 
+class SavedMessagesUserpic final : public DynamicImage {
+public:
+	QImage image(int size) override;
+	void subscribeToUpdates(Fn<void()> callback) override;
+
+private:
+	QImage _frame;
+	int _paletteVersion = 0;
+
+};
+
 PeerUserpic::PeerUserpic(not_null<PeerData*> peer, bool forceRound)
 : _peer(peer)
 , _forceRound(forceRound) {
@@ -127,13 +140,21 @@ QImage PeerUserpic::image(int size) {
 
 	const auto good = (_frame.width() == size * _frame.devicePixelRatio());
 	const auto key = _peer->userpicUniqueKey(_subscribed->view);
-	if (!good || (_subscribed->key != key && !waitingUserpicLoad())) {
-		const auto ratio = style::DevicePixelRatio();
+	const auto paletteVersion = style::PaletteVersion();
+	if (!good
+		|| (_subscribed->paletteVersion != paletteVersion
+			&& _peer->useEmptyUserpic(_subscribed->view))
+		|| (_subscribed->key != key && !waitingUserpicLoad())) {
 		_subscribed->key = key;
-		_frame = QImage(
-			QSize(size, size) * ratio,
-			QImage::Format_ARGB32_Premultiplied);
-		_frame.setDevicePixelRatio(ratio);
+		_subscribed->paletteVersion = paletteVersion;
+
+		const auto ratio = style::DevicePixelRatio();
+		if (!good) {
+			_frame = QImage(
+				QSize(size, size) * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			_frame.setDevicePixelRatio(ratio);
+		}
 		_frame.fill(Qt::transparent);
 
 		auto p = Painter(&_frame);
@@ -313,12 +334,40 @@ QImage EmptyThumbnail::image(int size) {
 void EmptyThumbnail::subscribeToUpdates(Fn<void()> callback) {
 }
 
+QImage SavedMessagesUserpic::image(int size) {
+	const auto good = (_frame.width() == size * _frame.devicePixelRatio());
+	const auto paletteVersion = style::PaletteVersion();
+	if (!good || _paletteVersion != paletteVersion) {
+		_paletteVersion = paletteVersion;
+
+		const auto ratio = style::DevicePixelRatio();
+		if (!good) {
+			_frame = QImage(
+				QSize(size, size) * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			_frame.setDevicePixelRatio(ratio);
+		}
+		_frame.fill(Qt::transparent);
+
+		auto p = Painter(&_frame);
+		Ui::EmptyUserpic::PaintSavedMessages(p, 0, 0, size, size);
+	}
+	return _frame;
+}
+
+void SavedMessagesUserpic::subscribeToUpdates(Fn<void()> callback) {
+}
+
 } // namespace
 
 std::shared_ptr<DynamicImage> MakeUserpicThumbnail(
 		not_null<PeerData*> peer,
 		bool forceRound) {
 	return std::make_shared<PeerUserpic>(peer, forceRound);
+}
+
+std::shared_ptr<DynamicImage> MakeSavedMessagesThumbnail() {
+	return std::make_shared<SavedMessagesUserpic>();
 }
 
 std::shared_ptr<DynamicImage> MakeStoryThumbnail(

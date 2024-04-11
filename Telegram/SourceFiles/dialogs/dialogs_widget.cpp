@@ -1108,7 +1108,7 @@ void Widget::updateSuggestions(anim::type animated) {
 	} else if (suggest && !_suggestions) {
 		_suggestions = std::make_unique<Suggestions>(
 			this,
-			rpl::single(TopPeersContent(&session())));
+			TopPeersContent(&session()));
 
 		_suggestions->topPeerChosen(
 		) | rpl::start_with_next([=](PeerId id) {

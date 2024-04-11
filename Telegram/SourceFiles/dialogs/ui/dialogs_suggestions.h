@@ -53,7 +53,7 @@ private:
 
 };
 
-[[nodiscard]] TopPeersList TopPeersContent(
+[[nodiscard]] rpl::producer<TopPeersList> TopPeersContent(
 	not_null<Main::Session*> session);
 
 } // namespace Dialogs

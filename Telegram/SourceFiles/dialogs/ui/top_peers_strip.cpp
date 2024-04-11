@@ -445,7 +445,7 @@ void TopPeersStrip::updateSelected() {
 	const auto p = mapFromGlobal(_lastMousePosition);
 	const auto x = p.x();
 	const auto single = st.photoLeft * 2 + st.photo;
-	const auto index = (x - _scrollLeft) / single;
+	const auto index = (_scrollLeft + x) / single;
 	const auto selected = (index < 0 || index >= _entries.size())
 		? -1
 		: index;

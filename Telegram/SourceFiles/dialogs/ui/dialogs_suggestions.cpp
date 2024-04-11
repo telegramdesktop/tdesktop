@@ -7,8 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_suggestions.h"
 
+#include "base/unixtime.h"
 #include "data/components/top_peers.h"
+#include "data/data_changes.h"
+#include "data/data_peer_values.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/widgets/buttons.h"
@@ -82,17 +87,146 @@ object_ptr<Ui::RpWidget> Suggestions::setupDivider() {
 	return result;
 }
 
-TopPeersList TopPeersContent(not_null<Main::Session*> session) {
-	auto base = TopPeersList();
-	const auto top = session->topPeers().list();
-	for (const auto &peer : top) {
-		base.entries.push_back(TopPeersEntry{
-			.id = peer->id.value,
-			.name = peer->shortName(),
-			.userpic = Ui::MakeUserpicThumbnail(peer),
-		});
-	}
-	return base;
+rpl::producer<TopPeersList> TopPeersContent(
+		not_null<Main::Session*> session) {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		struct Entry {
+			not_null<History*> history;
+			int index = 0;
+		};
+		struct State {
+			TopPeersList data;
+			base::flat_map<not_null<PeerData*>, Entry> indices;
+			base::has_weak_ptr guard;
+			bool scheduled = true;
+		};
+		auto state = lifetime.make_state<State>();
+		const auto top = session->topPeers().list();
+		auto &entries = state->data.entries;
+		auto &indices = state->indices;
+		entries.reserve(top.size());
+		indices.reserve(top.size());
+		const auto now = base::unixtime::now();
+		for (const auto &peer : top) {
+			const auto user = peer->asUser();
+			const auto self = user && user->isSelf();
+			const auto history = peer->owner().history(peer);
+			const auto badges = history->chatListBadgesState();
+			entries.push_back({
+				.id = peer->id.value,
+				.name = (self
+					? tr::lng_saved_messages(tr::now)
+					: peer->shortName()),
+				.userpic = (self
+					? Ui::MakeSavedMessagesThumbnail()
+					: Ui::MakeUserpicThumbnail(peer)),
+				.badge = uint32(badges.unreadCounter),
+				.unread = badges.unread,
+				.muted = !self && history->muted(),
+				.online = user && !self && Data::IsUserOnline(user, now),
+			});
+			if (entries.back().online) {
+				user->owner().watchForOffline(user, now);
+			}
+			indices.emplace(peer, Entry{
+				.history = peer->owner().history(peer),
+				.index = int(entries.size()) - 1,
+			});
+		}
+
+		const auto push = [=] {
+			if (!state->scheduled) {
+				return;
+			}
+			state->scheduled = false;
+			consumer.put_next_copy(state->data);
+		};
+		const auto schedule = [=] {
+			if (state->scheduled) {
+				return;
+			}
+			state->scheduled = true;
+			crl::on_main(&state->guard, push);
+		};
+
+		using Flag = Data::PeerUpdate::Flag;
+		session->changes().peerUpdates(
+			Flag::Name
+			| Flag::Photo
+			| Flag::Notifications
+			| Flag::OnlineStatus
+		) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+			const auto peer = update.peer;
+			if (peer->isSelf()) {
+				return;
+			}
+			const auto i = state->indices.find(peer);
+			if (i == end(state->indices)) {
+				return;
+			}
+			auto changed = false;
+			auto &entry = state->data.entries[i->second.index];
+			const auto flags = update.flags;
+			if (flags & Flag::Name) {
+				const auto now = peer->shortName();
+				if (entry.name != now) {
+					entry.name = now;
+					changed = true;
+				}
+			}
+			if (flags & Flag::Photo) {
+				entry.userpic = Ui::MakeUserpicThumbnail(peer);
+				changed = true;
+			}
+			if (flags & Flag::Notifications) {
+				const auto now = i->second.history->muted();
+				if (entry.muted != now) {
+					entry.muted = now;
+					changed = true;
+				}
+			}
+			if (flags & Flag::OnlineStatus) {
+				if (const auto user = peer->asUser()) {
+					const auto now = base::unixtime::now();
+					const auto value = Data::IsUserOnline(user, now);
+					if (entry.online != value) {
+						entry.online = value;
+						changed = true;
+						if (value) {
+							user->owner().watchForOffline(user, now);
+						}
+					}
+				}
+			}
+			if (changed) {
+				schedule();
+			}
+		}, lifetime);
+
+		session->data().unreadBadgeChanges(
+		) | rpl::start_with_next([=] {
+			auto changed = false;
+			auto &entries = state->data.entries;
+			for (const auto &[peer, data] : state->indices) {
+				const auto badges = data.history->chatListBadgesState();
+				auto &entry = entries[data.index];
+				if (entry.badge != badges.unreadCounter
+					|| entry.unread != badges.unread) {
+					entry.badge = badges.unreadCounter;
+					entry.unread = badges.unread;
+					changed = true;
+				}
+			}
+			if (changed) {
+				schedule();
+			}
+		}, lifetime);
+
+		push();
+		return lifetime;
+	};
 }
 
 } // namespace Dialogs

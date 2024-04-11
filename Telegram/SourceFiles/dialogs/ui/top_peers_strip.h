@@ -22,6 +22,7 @@ struct TopPeersEntry {
 	QString name;
 	std::shared_ptr<Ui::DynamicImage> userpic;
 	uint32 badge : 28 = 0;
+	uint32 unread : 1 = 0;
 	uint32 muted : 1 = 0;
 	uint32 online : 1 = 0;
 };
