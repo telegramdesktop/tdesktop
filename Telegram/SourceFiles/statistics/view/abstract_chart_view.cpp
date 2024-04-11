@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_statistics_chart.h"
 #include "statistics/chart_lines_filter_controller.h"
+#include "statistics/statistics_types.h"
 
 namespace Statistic {
 
@@ -71,11 +72,11 @@ AbstractChartView::HeightLimits DefaultHeightLimits(
 		const std::shared_ptr<LinesFilterController> &linesFilter,
 		Data::StatisticalChart &chartData,
 		Limits xIndices) {
-	auto minValue = std::numeric_limits<int>::max();
-	auto maxValue = 0;
+	auto minValue = std::numeric_limits<ChartValue>::max();
+	auto maxValue = ChartValue(0);
 
-	auto minValueFull = std::numeric_limits<int>::max();
-	auto maxValueFull = 0;
+	auto minValueFull = std::numeric_limits<ChartValue>::max();
+	auto maxValueFull = ChartValue(0);
 	for (auto &l : chartData.lines) {
 		if (!linesFilter->isEnabled(l.id)) {
 			continue;
@@ -83,11 +84,11 @@ AbstractChartView::HeightLimits DefaultHeightLimits(
 		const auto r = ratios.ratio(l.id);
 		const auto lineMax = l.segmentTree.rMaxQ(xIndices.min, xIndices.max);
 		const auto lineMin = l.segmentTree.rMinQ(xIndices.min, xIndices.max);
-		maxValue = std::max(int(lineMax * r), maxValue);
-		minValue = std::min(int(lineMin * r), minValue);
+		maxValue = std::max(ChartValue(lineMax * r), maxValue);
+		minValue = std::min(ChartValue(lineMin * r), minValue);
 
-		maxValueFull = std::max(int(l.maxValue * r), maxValueFull);
-		minValueFull = std::min(int(l.minValue * r), minValueFull);
+		maxValueFull = std::max(ChartValue(l.maxValue * r), maxValueFull);
+		minValueFull = std::min(ChartValue(l.minValue * r), minValueFull);
 	}
 	if (maxValue == minValue) {
 		maxValue = chartData.maxValue;

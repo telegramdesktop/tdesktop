@@ -12,17 +12,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Statistic {
 namespace {
 
-constexpr auto kMinLines = int(2);
-constexpr auto kMaxLines = int(6);
+constexpr auto kMinLines = ChartValue(2);
+constexpr auto kMaxLines = ChartValue(6);
 constexpr auto kStep = 5.;
 
-[[nodiscard]] int Round(int maxValue) {
-	const auto k = int(maxValue / kStep);
+[[nodiscard]] ChartValue Round(ChartValue maxValue) {
+	const auto k = ChartValue(maxValue / kStep);
 	return (k % 10 == 0) ? maxValue : ((maxValue / 10 + 1) * 10);
 }
 
-[[nodiscard]] QString Format(int absoluteValue) {
-	constexpr auto kTooMuch = int(10'000);
+[[nodiscard]] QString Format(ChartValue absoluteValue) {
+	constexpr auto kTooMuch = ChartValue(10'000);
 	return (absoluteValue >= kTooMuch)
 		? Lang::FormatCountToShort(absoluteValue).string
 		: QString::number(absoluteValue);
@@ -31,8 +31,8 @@ constexpr auto kStep = 5.;
 } // namespace
 
 ChartRulersData::ChartRulersData(
-		int newMaxHeight,
-		int newMinHeight,
+		ChartValue newMaxHeight,
+		ChartValue newMinHeight,
 		bool useMinHeight,
 		float64 rightRatio,
 		Fn<QString(float64)> leftCustomCaption,
@@ -42,11 +42,13 @@ ChartRulersData::ChartRulersData(
 			? Round(newMaxHeight)
 			: newMaxHeight;
 
-		const auto step = std::max(1, int(std::ceil(v / kStep)));
+		const auto step = std::max(
+			ChartValue(1),
+			ChartValue(std::ceil(v / kStep)));
 
 		auto n = kMaxLines;
 		if (v < kMaxLines) {
-			n = std::max(2, v + 1);
+			n = std::max(2, int(v + 1));
 		} else if (v / 2 < kMaxLines) {
 			n = v / 2 + 1;
 			if (v % 2 != 0) {
@@ -87,11 +89,11 @@ ChartRulersData::ChartRulersData(
 		}
 
 		lines.resize(n);
-		const auto diffAbsoluteValue = int((n - 1) * step);
+		const auto diffAbsoluteValue = ChartValue((n - 1) * step);
 		const auto skipFloatValues = (step / rightRatio) < 1;
 		for (auto i = 0; i < n; i++) {
 			auto &line = lines[i];
-			const auto value = int(i * step);
+			const auto value = ChartValue(i * step);
 			line.absoluteValue = newMinHeight + value;
 			line.relativeValue = 1. - value / float64(diffAbsoluteValue);
 			line.caption = leftCustomCaption
@@ -103,7 +105,7 @@ ChartRulersData::ChartRulersData(
 					? rightCustomCaption(line.absoluteValue)
 					: (!skipFloatValues)
 					? Format(v)
-					: ((v - int(v)) < 0.01)
+					: ((v - ChartValue(v)) < 0.01)
 					? Format(v)
 					: QString();
 			}
@@ -112,8 +114,8 @@ ChartRulersData::ChartRulersData(
 }
 
 void ChartRulersData::computeRelative(
-		int newMaxHeight,
-		int newMinHeight) {
+		ChartValue newMaxHeight,
+		ChartValue newMinHeight) {
 	for (auto &line : lines) {
 		line.relativeValue = 1.
 			- ((line.absoluteValue - newMinHeight)
@@ -121,10 +123,10 @@ void ChartRulersData::computeRelative(
 	}
 }
 
-int ChartRulersData::LookupHeight(int maxValue) {
+ChartValue ChartRulersData::LookupHeight(ChartValue maxValue) {
 	const auto v = (maxValue > 100) ? Round(maxValue) : maxValue;
 
-	const auto step = int(std::ceil(v / kStep));
+	const auto step = ChartValue(std::ceil(v / kStep));
 	return step * kStep;
 }
 

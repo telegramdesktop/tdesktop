@@ -256,9 +256,9 @@ AbstractChartView::HeightLimits BarChartView::heightLimits(
 	if (_cachedHeightLimits.ySum.empty()) {
 		_cachedHeightLimits.ySum.reserve(chartData.x.size());
 
-		auto maxValueFull = 0;
+		auto maxValueFull = ChartValue(0);
 		for (auto i = 0; i < chartData.x.size(); i++) {
-			auto sum = 0;
+			auto sum = ChartValue(0);
 			for (const auto &line : chartData.lines) {
 				if (linesFilterController()->isEnabled(line.id)) {
 					sum += line.y[i];
@@ -276,7 +276,7 @@ AbstractChartView::HeightLimits BarChartView::heightLimits(
 		_cachedHeightLimits.ySumSegmentTree.rMaxQ(
 			xIndices.min,
 			xIndices.max),
-		1);
+		ChartValue(1));
 	return {
 		.full = _cachedHeightLimits.full,
 		.ranged = { 0., float64(max) },

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "statistics/segment_tree.h"
 #include "statistics/statistics_common.h"
+#include "statistics/statistics_types.h"
 #include "statistics/view/abstract_chart_view.h"
 #include "ui/effects/animation_value.h"
 
@@ -48,7 +49,7 @@ private:
 
 	struct {
 		Limits full;
-		std::vector<int> ySum;
+		std::vector<ChartValue> ySum;
 		SegmentTree ySumSegmentTree;
 	} _cachedHeightLimits;
 

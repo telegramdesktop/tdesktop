@@ -14,7 +14,7 @@ constexpr auto kMinArraySize = size_t(30);
 
 } // namespace
 
-SegmentTree::SegmentTree(std::vector<int> array)
+SegmentTree::SegmentTree(std::vector<ChartValue> array)
 : _array(std::move(array)) {
 	if (_array.size() < kMinArraySize) {
 		return;
@@ -28,7 +28,7 @@ SegmentTree::SegmentTree(std::vector<int> array)
 	build(1, 0, _array.size());
 }
 
-void SegmentTree::build(int v, int from, int size) {
+void SegmentTree::build(ChartValue v, int from, int size) {
 	_heap[v].from = from;
 	_heap[v].to = (from + size - 1);
 
@@ -48,9 +48,9 @@ void SegmentTree::build(int v, int from, int size) {
 	}
 }
 
-int SegmentTree::rMaxQ(int from, int to) {
+ChartValue SegmentTree::rMaxQ(int from, int to) {
 	if (_array.size() < kMinArraySize) {
-		auto max = 0;
+		auto max = ChartValue(0);
 		from = std::max(from, 0);
 		to = std::min(to, int(_array.size() - 1));
 		for (auto i = from; i <= to; i++) {
@@ -61,7 +61,7 @@ int SegmentTree::rMaxQ(int from, int to) {
 	return rMaxQ(1, from, to);
 }
 
-int SegmentTree::rMaxQ(int v, int from, int to) {
+ChartValue SegmentTree::rMaxQ(ChartValue v, int from, int to) {
 	const auto &n = _heap[v];
 	// If you did a range update that contained this node,
 	// you can infer the Min value without going down the tree.
@@ -84,9 +84,9 @@ int SegmentTree::rMaxQ(int v, int from, int to) {
 	return 0;
 }
 
-int SegmentTree::rMinQ(int from, int to) {
+ChartValue SegmentTree::rMinQ(int from, int to) {
 	if (_array.size() < kMinArraySize) {
-		auto min = std::numeric_limits<int>::max();
+		auto min = std::numeric_limits<ChartValue>::max();
 		from = std::max(from, 0);
 		to = std::min(to, int(_array.size() - 1));
 		for (auto i = from; i <= to; i++) {
@@ -97,7 +97,7 @@ int SegmentTree::rMinQ(int from, int to) {
 	return rMinQ(1, from, to);
 }
 
-int SegmentTree::rMinQ(int v, int from, int to) {
+ChartValue SegmentTree::rMinQ(ChartValue v, int from, int to) {
 	const auto &n = _heap[v];
 	// If you did a range update that contained this node,
 	// you can infer the Min value without going down the tree.
@@ -117,10 +117,10 @@ int SegmentTree::rMinQ(int v, int from, int to) {
 		return std::min(leftMin, rightMin);
 	}
 
-	return std::numeric_limits<int>::max();
+	return std::numeric_limits<ChartValue>::max();
 }
 
-void SegmentTree::propagate(int v) {
+void SegmentTree::propagate(ChartValue v) {
 	auto &n = _heap[v];
 
 	if (n.pendingVal) {
@@ -131,7 +131,7 @@ void SegmentTree::propagate(int v) {
 	}
 }
 
-void SegmentTree::change(SegmentTree::Node &n, int value) {
+void SegmentTree::change(SegmentTree::Node &n, ChartValue value) {
 	n.pendingVal = { value, true };
 	n.sum = n.size() * value;
 	n.max = value;
