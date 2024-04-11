@@ -40,7 +40,8 @@ struct TopPeersStrip::Entry {
 TopPeersStrip::TopPeersStrip(
 	not_null<QWidget*> parent,
 	rpl::producer<TopPeersList> content)
-: RpWidget(parent) {
+: RpWidget(parent)
+, _selection(st::topPeersRadius, st::windowBgOver) {
 	resize(0, st::topPeers.height);
 
 	std::move(content) | rpl::start_with_next([=](const TopPeersList &list) {
@@ -102,6 +103,23 @@ void TopPeersStrip::mousePressEvent(QMouseEvent *e) {
 
 	_mouseDownPosition = _lastMousePosition;
 	_pressed = _selected;
+
+	if (_selected >= 0) {
+		Assert(_selected < _entries.size());
+		auto &entry = _entries[_selected];
+		if (!entry.ripple) {
+			entry.ripple = std::make_unique<Ui::RippleAnimation>(
+				st::defaultRippleAnimation,
+				Ui::RippleAnimation::RoundRectMask(
+					innerRounded().size(),
+					st::topPeersRadius),
+				[=] { update(); });
+		}
+		const auto single = outer().width();
+		entry.ripple->add(e->pos() - QPoint(
+			_selected * single - _scrollLeft + st::topPeersMargin.left(),
+			st::topPeersMargin.top()));
+	}
 }
 
 void TopPeersStrip::mouseMoveEvent(QMouseEvent *e) {
@@ -174,14 +192,20 @@ void TopPeersStrip::mouseReleaseEvent(QMouseEvent *e) {
 	});
 
 	const auto pressed = std::exchange(_pressed, -1);
+	if (pressed >= 0) {
+		Assert(pressed < _entries.size());
+		auto &entry = _entries[pressed];
+		if (entry.ripple) {
+			entry.ripple->lastStop();
+		}
+	}
 	if (finishDragging()) {
 		return;
 	}
 	updateSelected();
-	if (_selected == pressed) {
-		if (_selected < _entries.size()) {
-			_clicks.fire_copy(_entries[_selected].id);
-		}
+	if (_selected >= 0 && _selected == pressed) {
+		Assert(_selected < _entries.size());
+		_clicks.fire_copy(_entries[_selected].id);
 	}
 }
 
@@ -220,7 +244,14 @@ void TopPeersStrip::removeLocally(uint64 id) {
 	} else if (i->subscribed) {
 		i->userpic->subscribeToUpdates(nullptr);
 	}
+	const auto index = int(i - begin(_entries));
 	_entries.erase(i);
+	if (_selected > index) {
+		--_selected;
+	}
+	if (_pressed > index) {
+		--_pressed;
+	}
 	updateScrollMax();
 	if (_entries.empty()) {
 		_empty = true;
@@ -231,6 +262,8 @@ void TopPeersStrip::removeLocally(uint64 id) {
 void TopPeersStrip::apply(const TopPeersList &list) {
 	auto now = std::vector<Entry>();
 
+	auto selectedId = (_selected >= 0) ? _entries[_selected].id : 0;
+	auto pressedId = (_pressed >= 0) ? _entries[_pressed].id : 0;
 	for (const auto &entry : list.entries) {
 		if (_removed.contains(entry.id)) {
 			continue;
@@ -253,6 +286,18 @@ void TopPeersStrip::apply(const TopPeersList &list) {
 		}
 	}
 	_entries = std::move(now);
+	if (selectedId) {
+		const auto i = ranges::find(_entries, selectedId, &Entry::id);
+		if (i != end(_entries)) {
+			_selected = int(i - begin(_entries));
+		}
+	}
+	if (pressedId) {
+		const auto i = ranges::find(_entries, pressedId, &Entry::id);
+		if (i != end(_entries)) {
+			_pressed = int(i - begin(_entries));
+		}
+	}
 	updateScrollMax();
 	unsubscribeUserpics();
 	if (!_entries.empty()) {
@@ -302,10 +347,19 @@ void TopPeersStrip::apply(Entry &entry, const TopPeersEntry &data) {
 	}
 }
 
+QRect TopPeersStrip::outer() const {
+	const auto &st = st::topPeers;
+	const auto single = st.photoLeft * 2 + st.photo;
+	return QRect(0, 0, single, height());
+}
+
+QRect TopPeersStrip::innerRounded() const {
+	return outer().marginsRemoved(st::topPeersMargin);
+}
+
 void TopPeersStrip::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 	const auto &st = st::topPeers;
-	const auto line = st.lineTwice / 2;
 	const auto single = st.photoLeft * 2 + st.photo;
 
 	const auto from = std::min(_scrollLeft / single, int(_entries.size()));
@@ -315,12 +369,28 @@ void TopPeersStrip::paintEvent(QPaintEvent *e) {
 		int(_entries.size()));
 
 	auto x = -_scrollLeft + from * single;
+	const auto highlighted = (_pressed >= 0) ? _pressed : _selected;
 	for (auto i = from; i != till; ++i) {
 		auto &entry = _entries[i];
+		const auto selected = (i == highlighted);
+		if (selected) {
+			_selection.paint(p, innerRounded().translated(x, 0));
+		}
+		if (entry.ripple) {
+			entry.ripple->paint(
+				p,
+				x + st::topPeersMargin.left(),
+				st::topPeersMargin.top(),
+				width());
+			if (entry.ripple->empty()) {
+				entry.ripple = nullptr;
+			}
+		}
+
 		if (!entry.subscribed) {
 			subscribeUserpic(entry);
 		}
-		paintUserpic(p, i, x);
+		paintUserpic(p, x, i, selected);
 
 		const auto nameLeft = x + st.nameLeft;
 		const auto nameWidth = single - 2 * st.nameLeft;
@@ -335,7 +405,11 @@ void TopPeersStrip::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void TopPeersStrip::paintUserpic(Painter &p, int index, int x) {
+void TopPeersStrip::paintUserpic(
+		Painter &p,
+		int x,
+		int index,
+		bool selected) {
 	Expects(index >= 0 && index < _entries.size());
 
 	auto &entry = _entries[index];
@@ -401,7 +475,7 @@ void TopPeersStrip::paintUserpic(Painter &p, int index, int x) {
 				: (QString::number(entry.badge / 1000) + 'K');
 		}
 		auto st = Ui::UnreadBadgeStyle();
-		st.selected = (_selected == index);
+		st.selected = selected;
 		st.muted = entry.muted;
 		const auto &counter = entry.badgeString;
 		const auto badge = PaintUnreadBadge(q, counter, size, 0, st);
@@ -422,6 +496,7 @@ void TopPeersStrip::contextMenuEvent(QContextMenuEvent *e) {
 	if (_selected < 0 || _entries.empty()) {
 		return;
 	}
+	Assert(_selected < _entries.size());
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
@@ -476,6 +551,7 @@ void TopPeersStrip::updateSelected() {
 			setCursor(over ? style::cur_pointer : style::cur_default);
 		}
 		_selected = selected;
+		update();
 	}
 }
 

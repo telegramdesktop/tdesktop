@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/round_rect.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {
@@ -68,8 +69,10 @@ private:
 	bool finishDragging();
 	void subscribeUserpic(Entry &entry);
 	void unsubscribeUserpics(bool all = false);
-	void paintUserpic(Painter &p, int index, int x);
+	void paintUserpic(Painter &p, int x, int index, bool selected);
 
+	[[nodiscard]] QRect outer() const;
+	[[nodiscard]] QRect innerRounded() const;
 	void apply(const TopPeersList &list);
 	void apply(Entry &entry, const TopPeersEntry &data);
 
@@ -92,6 +95,7 @@ private:
 	int _selected = -1;
 	int _pressed = -1;
 
+	Ui::RoundRect _selection;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	base::has_weak_ptr _menuGuard;
 

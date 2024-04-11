@@ -595,8 +595,10 @@ topPeers: DialogsStories(dialogsStoriesFull) {
 	photo: 46px;
 	photoLeft: 10px;
 	photoTop: 8px;
-	nameLeft: 4px;
+	nameLeft: 6px;
 }
+topPeersRadius: 4px;
+topPeersMargin: margins(3px, 3px, 3px, 4px);
 
 dialogsStoriesList: DialogsStoriesList {
 	small: dialogsStories;
