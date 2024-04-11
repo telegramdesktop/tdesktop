@@ -36,6 +36,12 @@ public:
 		rpl::producer<TopPeersList> topPeers);
 	~Suggestions();
 
+	void selectSkip(int delta);
+	void selectSkipPage(int height, int direction);
+	void selectLeft();
+	void selectRight();
+	void chooseRow();
+
 	[[nodiscard]] rpl::producer<PeerId> topPeerChosen() const {
 		return _topPeerChosen.events();
 	}

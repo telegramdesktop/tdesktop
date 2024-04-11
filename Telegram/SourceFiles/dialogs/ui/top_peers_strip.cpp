@@ -94,6 +94,11 @@ void TopPeersStrip::wheelEvent(QWheelEvent *e) {
 	e->accept();
 }
 
+void TopPeersStrip::leaveEventHook(QEvent *e) {
+	setSelected(-1);
+	_selectionByKeyboard = false;
+}
+
 void TopPeersStrip::mousePressEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton) {
 		return;
@@ -123,7 +128,11 @@ void TopPeersStrip::mousePressEvent(QMouseEvent *e) {
 }
 
 void TopPeersStrip::mouseMoveEvent(QMouseEvent *e) {
+	if (_lastMousePosition == e->globalPos() && _selectionByKeyboard) {
+		return;
+	}
 	_lastMousePosition = e->globalPos();
+	_selectionByKeyboard = false;
 	updateSelected();
 
 	if (!_dragging && _mouseDownPosition) {
@@ -257,6 +266,58 @@ void TopPeersStrip::removeLocally(uint64 id) {
 		_empty = true;
 	}
 	update();
+}
+
+bool TopPeersStrip::selectedByKeyboard() const {
+	return _selectionByKeyboard && _selected >= 0;
+}
+
+void TopPeersStrip::selectByKeyboard(int delta) {
+	if (_entries.empty()) {
+		return;
+	}
+	_selectionByKeyboard = true;
+	if (!delta) {
+		if (_selected < 0) {
+			setSelected(0);
+			scrollToSelected();
+		}
+		return;
+	}
+	setSelected(std::clamp(_selected + delta, 0, int(_entries.size()) - 1));
+	scrollToSelected();
+}
+
+void TopPeersStrip::deselectByKeyboard() {
+	if (_selectionByKeyboard) {
+		_selectionByKeyboard = false;
+		setSelected(-1);
+	}
+}
+
+void TopPeersStrip::selectLeft() {
+	if (_selected > 0) {
+		_selectionByKeyboard = true;
+		setSelected(_selected - 1);
+		scrollToSelected();
+	}
+}
+
+void TopPeersStrip::selectRight() {
+	if (_selected + 1 < _entries.size()) {
+		_selectionByKeyboard = true;
+		setSelected(_selected + 1);
+		scrollToSelected();
+	}
+}
+
+bool TopPeersStrip::chooseRow() {
+	if (_selected >= 0) {
+		Assert(_selected < _entries.size());
+		_clicks.fire_copy(_entries[_selected].id);
+		return true;
+	}
+	return false;
 }
 
 void TopPeersStrip::apply(const TopPeersList &list) {
@@ -542,9 +603,10 @@ void TopPeersStrip::updateSelected() {
 	const auto x = p.x();
 	const auto single = st.photoLeft * 2 + st.photo;
 	const auto index = (_scrollLeft + x) / single;
-	const auto selected = (index < 0 || index >= _entries.size())
-		? -1
-		: index;
+	setSelected((index < 0 || index >= _entries.size()) ? -1 : index);
+}
+
+void TopPeersStrip::setSelected(int selected) {
 	if (_selected != selected) {
 		const auto over = (selected >= 0);
 		if (over != (_selected >= 0)) {
@@ -552,6 +614,21 @@ void TopPeersStrip::updateSelected() {
 		}
 		_selected = selected;
 		update();
+	}
+}
+
+void TopPeersStrip::scrollToSelected() {
+	if (_selected < 0) {
+		return;
+	}
+	const auto &st = st::topPeers;
+	const auto single = st.photoLeft * 2 + st.photo;
+	const auto left = _selected * single;
+	const auto right = left + single;
+	if (_scrollLeft > left) {
+		_scrollLeft = std::clamp(left, 0, _scrollLeftMax);
+	} else if (_scrollLeft + width() < right) {
+		_scrollLeft = std::clamp(right - width(), 0, _scrollLeftMax);
 	}
 }
 

@@ -1720,7 +1720,10 @@ void Widget::escape() {
 }
 
 void Widget::submit() {
-	if (_inner->chooseRow()) {
+	if (_suggestions) {
+		_suggestions->chooseRow();
+		return;
+	} else if (_inner->chooseRow()) {
 		return;
 	}
 	const auto state = _inner->state();
@@ -3142,13 +3145,34 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		submit();
 	} else if (e->key() == Qt::Key_Down) {
-		_inner->selectSkip(1);
+		if (_suggestions) {
+			_suggestions->selectSkip(1);
+		} else {
+			_inner->selectSkip(1);
+		}
 	} else if (e->key() == Qt::Key_Up) {
+		if (_suggestions) {
+			_suggestions->selectSkip(-1);
+		} else {
+			_inner->selectSkip(-1);
+		}
 		_inner->selectSkip(-1);
+	} else if (e->key() == Qt::Key_Left && _suggestions) {
+		_suggestions->selectLeft();
+	} else if (e->key() == Qt::Key_Right && _suggestions) {
+		_suggestions->selectRight();
 	} else if (e->key() == Qt::Key_PageDown) {
-		_inner->selectSkipPage(_scroll->height(), 1);
+		if (_suggestions) {
+			_suggestions->selectSkipPage(_scroll->height(), 1);
+		} else {
+			_inner->selectSkipPage(_scroll->height(), 1);
+		}
 	} else if (e->key() == Qt::Key_PageUp) {
-		_inner->selectSkipPage(_scroll->height(), -1);
+		if (_suggestions) {
+			_suggestions->selectSkipPage(_scroll->height(), -1);
+		} else {
+			_inner->selectSkipPage(_scroll->height(), -1);
+		}
 	} else if (!(e->modifiers() & ~Qt::ShiftModifier)
 		&& e->key() != Qt::Key_Shift
 		&& !_openedFolder

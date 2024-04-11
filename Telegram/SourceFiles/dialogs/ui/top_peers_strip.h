@@ -52,6 +52,13 @@ public:
 
 	void removeLocally(uint64 id);
 
+	[[nodiscard]] bool selectedByKeyboard() const;
+	void selectByKeyboard(int delta);
+	void selectLeft();
+	void selectRight();
+	void deselectByKeyboard();
+	bool chooseRow();
+
 private:
 	struct Entry;
 
@@ -62,9 +69,12 @@ private:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 	void updateScrollMax();
 	void updateSelected();
+	void setSelected(int selected);
+	void scrollToSelected();
 	void checkDragging();
 	bool finishDragging();
 	void subscribeUserpic(Entry &entry);
@@ -94,6 +104,7 @@ private:
 
 	int _selected = -1;
 	int _pressed = -1;
+	bool _selectionByKeyboard = false;
 
 	Ui::RoundRect _selection;
 	base::unique_qptr<Ui::PopupMenu> _menu;

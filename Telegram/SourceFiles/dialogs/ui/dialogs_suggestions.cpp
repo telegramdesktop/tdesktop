@@ -100,6 +100,43 @@ Suggestions::Suggestions(
 
 Suggestions::~Suggestions() = default;
 
+void Suggestions::selectSkip(int delta) {
+	if (!delta) {
+		return;
+	} else if (delta > 0) {
+		const auto hasRecent = false;
+		if (hasRecent && (_topPeers->selectedByKeyboard() || delta > 1)) {
+			_topPeers->deselectByKeyboard();
+		} else {
+			_topPeers->selectByKeyboard(0);
+		}
+	} else {
+		if (_topPeers->selectedByKeyboard()) {
+			_topPeers->deselectByKeyboard();
+		}
+	}
+}
+
+void Suggestions::selectSkipPage(int height, int direction) {
+	if (_topPeers->selectedByKeyboard()) {
+		_topPeers->deselectByKeyboard();
+	}
+}
+
+void Suggestions::chooseRow() {
+	if (_topPeers->chooseRow()) {
+		return;
+	}
+}
+
+void Suggestions::selectLeft() {
+	_topPeers->selectLeft();
+}
+
+void Suggestions::selectRight() {
+	_topPeers->selectRight();
+}
+
 void Suggestions::paintEvent(QPaintEvent *e) {
 	QPainter(this).fillRect(e->rect(), st::windowBg);
 }
