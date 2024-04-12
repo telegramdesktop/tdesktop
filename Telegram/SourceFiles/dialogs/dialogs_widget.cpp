@@ -1453,11 +1453,17 @@ void Widget::setInnerFocus() {
 	} else if ((_openedFolder || _openedForum)
 		&& _subsectionTopBar->searchSetFocus()) {
 		return;
-	} else if (!_search->getLastText().isEmpty() || _searchInChat) {
+	} else if (!_search->getLastText().isEmpty()
+		|| _searchInChat
+		|| _searchHasFocus) {
 		_search->setFocus();
 	} else {
 		setFocus();
 	}
+}
+
+bool Widget::searchHasFocus() const {
+	return _searchHasFocus;
 }
 
 void Widget::jumpToTop(bool belowPinned) {

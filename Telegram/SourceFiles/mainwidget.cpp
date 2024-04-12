@@ -1167,7 +1167,9 @@ Image *MainWidget::newBackgroundThumb() {
 }
 
 void MainWidget::setInnerFocus() {
-	if (_hider || !_history->peer()) {
+	if (_dialogs && _dialogs->searchHasFocus()) {
+		_dialogs->setInnerFocus();
+	} else if (_hider || !_history->peer()) {
 		if (!_hider && _mainSection) {
 			_mainSection->setInnerFocus();
 		} else if (!_hider && _thirdSection) {
@@ -2620,12 +2622,29 @@ void MainWidget::returnTabbedSelector() {
 	}
 }
 
+bool MainWidget::relevantForDialogsFocus(not_null<QWidget*> widget) const {
+	if (!_dialogs || widget->window() != window()) {
+		return false;
+	}
+	while (true) {
+		if (widget.get() == this) {
+			return true;
+		}
+		const auto parent = widget->parentWidget();
+		if (!parent) {
+			return false;
+		}
+		widget = parent;
+	}
+	Unexpected("Should never be here.");
+}
+
 bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 	const auto widget = o->isWidgetType()
 		? static_cast<QWidget*>(o)
 		: nullptr;
 	if (e->type() == QEvent::FocusIn) {
-		if (widget && _dialogs && widget->window() == window()) {
+		if (widget && relevantForDialogsFocus(widget)) {
 			_dialogs->updateHasFocus(widget);
 		}
 	} else if (e->type() == QEvent::MouseButtonPress) {

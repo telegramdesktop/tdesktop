@@ -100,6 +100,7 @@ public:
 		const Window::SectionShow &params);
 	void searchInChat(Key chat);
 	void setInnerFocus();
+	[[nodiscard]] bool searchHasFocus() const;
 
 	void jumpToTop(bool belowPinned = false);
 	void raiseWithTooltip();

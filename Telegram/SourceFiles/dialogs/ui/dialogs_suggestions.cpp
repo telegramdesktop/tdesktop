@@ -21,9 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/delayed_activation.h"
@@ -70,10 +72,12 @@ private:
 
 };
 
-class RecentsController final : public PeerListController {
+class RecentsController final
+	: public PeerListController
+	, public base::has_weak_ptr {
 public:
 	RecentsController(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> window,
 		RecentPeersList list);
 
 	[[nodiscard]] rpl::producer<int> count() const {
@@ -95,8 +99,9 @@ public:
 private:
 	void setupDivider();
 	void subscribeToEvents();
+	[[nodiscard]] Fn<void()> removeAllCallback();
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _window;
 	RecentPeersList _recent;
 	rpl::variable<int> _count;
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -105,14 +110,33 @@ private:
 
 };
 
-void FillTopPeerMenu(
+struct EntryMenuDescriptor {
+	not_null<Window::SessionController*> controller;
+	not_null<PeerData*> peer;
+	QString removeOneText;
+	Fn<void()> removeOne;
+	QString removeAllText;
+	QString removeAllConfirm;
+	Fn<void()> removeAll;
+};
+
+[[nodiscard]] Fn<void()> RemoveAllConfirm(
 		not_null<Window::SessionController*> controller,
-		const ShowTopPeerMenuRequest &request,
-		Fn<void(not_null<PeerData*>)> remove,
-		Fn<void()> hideAll) {
-	const auto owner = &controller->session().data();
-	const auto peer = owner->peer(PeerId(request.id));
-	const auto &add = request.callback;
+		QString removeAllConfirm,
+		Fn<void()> removeAll) {
+	return [=] {
+		controller->show(Ui::MakeConfirmBox({
+			.text = removeAllConfirm,
+			.confirmed = [=](Fn<void()> close) { removeAll(); close(); }
+		}));
+	};
+}
+
+void FillEntryMenu(
+		const Ui::Menu::MenuCallback &add,
+		EntryMenuDescriptor &&descriptor) {
+	const auto peer = descriptor.peer;
+	const auto controller = descriptor.controller;
 	const auto group = peer->isMegagroup();
 	const auto channel = peer->isChannel();
 
@@ -143,21 +167,18 @@ void FillTopPeerMenu(
 	add({ .separatorSt = &st::expandedMenuSeparator });
 
 	add({
-		.text = tr::lng_recent_remove(tr::now),
-		.handler = [=] { remove(peer); },
+		.text = descriptor.removeOneText,
+		.handler = descriptor.removeOne,
 		.icon = &st::menuIconDeleteAttention,
 		.isAttention = true,
 	});
 
-	const auto hideAllConfirmed = [=] {
-		controller->show(Ui::MakeConfirmBox({
-			.text = tr::lng_recent_hide_sure(),
-			.confirmed = [=](Fn<void()> close) { hideAll(); close(); }
-		}));
-	};
 	add({
-		.text = tr::lng_recent_hide_top(tr::now).replace('&', u"&&"_q),
-		.handler = hideAllConfirmed,
+		.text = descriptor.removeAllText,
+		.handler = RemoveAllConfirm(
+			descriptor.controller,
+			descriptor.removeAllConfirm,
+			descriptor.removeAll),
 		.icon = &st::menuIconCancelAttention,
 		.isAttention = true,
 	});
@@ -257,9 +278,9 @@ QPoint RecentRow::computeNamePosition(const style::PeerListItem &st) const {
 }
 
 RecentsController::RecentsController(
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> window,
 	RecentPeersList list)
-: _session(session)
+: _window(window)
 , _recent(std::move(list)) {
 }
 
@@ -279,14 +300,55 @@ void RecentsController::rowClicked(not_null<PeerListRow*> row) {
 	_chosen.fire(row->peer());
 }
 
+Fn<void()> RecentsController::removeAllCallback() {
+	const auto weak = base::make_weak(this);
+	const auto session = &_window->session();
+	return crl::guard(session, [=] {
+		if (weak) {
+			_count = 0;
+			while (delegate()->peerListFullRowsCount() > 0) {
+				delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
+			}
+			delegate()->peerListRefreshRows();
+		}
+		session->recentPeers().clear();
+	});
+}
+
 base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
-	return nullptr;
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
+	const auto peer = row->peer();
+	const auto weak = base::make_weak(this);
+	const auto session = &_window->session();
+	const auto removeOne = crl::guard(session, [=] {
+		if (weak) {
+			const auto rowId = peer->id.value;
+			if (const auto row = delegate()->peerListFindRow(rowId)) {
+				_count = std::max(0, _count.current() - 1);
+				delegate()->peerListRemoveRow(row);
+				delegate()->peerListRefreshRows();
+			}
+		}
+		session->recentPeers().remove(peer);
+	});
+	FillEntryMenu(Ui::Menu::CreateAddActionCallback(result), {
+		.controller = _window,
+		.peer = peer,
+		.removeOneText = tr::lng_recent_remove(tr::now),
+		.removeOne = removeOne,
+		.removeAllText = tr::lng_recent_clear_all(tr::now),
+		.removeAllConfirm = tr::lng_recent_clear_sure(tr::now),
+		.removeAll = removeAllCallback(),
+	});
+	return result;
 }
 
 Main::Session &RecentsController::session() const {
-	return *_session;
+	return _window->session();
 }
 
 QString RecentsController::savedMessagesChatStatus() const {
@@ -306,6 +368,10 @@ void RecentsController::setupDivider() {
 		raw,
 		tr::lng_recent_clear(tr::now),
 		st::searchedBarLink);
+	clear->setClickedCallback(RemoveAllConfirm(
+		_window,
+		tr::lng_recent_clear_sure(tr::now),
+		removeAllCallback()));
 	rpl::combine(
 		raw->sizeValue(),
 		clear->widthValue()
@@ -325,7 +391,7 @@ void RecentsController::setupDivider() {
 
 void RecentsController::subscribeToEvents() {
 	using Flag = Data::PeerUpdate::Flag;
-	_session->changes().peerUpdates(
+	session().changes().peerUpdates(
 		Flag::Notifications
 		| Flag::OnlineStatus
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
@@ -349,7 +415,7 @@ void RecentsController::subscribeToEvents() {
 		}
 	}, _lifetime);
 
-	_session->data().unreadBadgeChanges(
+	session().data().unreadBadgeChanges(
 	) | rpl::start_with_next([=] {
 		for (auto i = 0; i != _count.current(); ++i) {
 			const auto row = delegate()->peerListRowAt(i);
@@ -395,20 +461,31 @@ Suggestions::Suggestions(
 	_topPeers->showMenuRequests(
 	) | rpl::start_with_next([=](const ShowTopPeerMenuRequest &request) {
 		const auto weak = Ui::MakeWeak(this);
-		const auto remove = [=](not_null<PeerData*> peer) {
+		const auto owner = &controller->session().data();
+		const auto peer = owner->peer(PeerId(request.id));
+		const auto removeOne = [=] {
 			peer->session().topPeers().remove(peer);
 			if (weak) {
 				_topPeers->removeLocally(peer->id.value);
 			}
 		};
 		const auto session = &controller->session();
-		const auto hideAll = crl::guard(session, [=] {
+		const auto removeAll = crl::guard(session, [=] {
 			session->topPeers().toggleDisabled(true);
 			if (weak) {
 				_topPeers->removeLocally();
 			}
 		});
-		FillTopPeerMenu(controller, request, remove, hideAll);
+		FillEntryMenu(request.callback, {
+			.controller = controller,
+			.peer = peer,
+			.removeOneText = tr::lng_recent_remove(tr::now),
+			.removeOne = removeOne,
+			.removeAllText = tr::lng_recent_hide_top(
+				tr::now).replace('&', u"&&"_q),
+			.removeAllConfirm = tr::lng_recent_hide_sure(tr::now),
+			.removeAll = removeAll,
+		});
 	}, _topPeers->lifetime());
 }
 
@@ -469,7 +546,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 		PeerListContentDelegateSimple
 	>();
 	const auto controller = lifetime.make_state<RecentsController>(
-		&window->session(),
+		window,
 		std::move(recentPeers));
 	controller->setStyleOverrides(&st::recentPeersList);
 
