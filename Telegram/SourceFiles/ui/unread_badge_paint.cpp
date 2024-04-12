@@ -79,8 +79,8 @@ void CreateCircleMask(UnreadBadgeSizeData *data, int size) {
 }
 
 [[nodiscard]] QString ComputeUnreadBadgeText(
-	const QString &unreadCount,
-	int allowDigits) {
+		const QString &unreadCount,
+		int allowDigits) {
 	return (allowDigits > 0) && (unreadCount.size() > allowDigits + 1)
 		? u".."_q + unreadCount.mid(unreadCount.size() - allowDigits)
 		: unreadCount;

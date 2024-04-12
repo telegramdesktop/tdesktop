@@ -30,9 +30,10 @@ struct TopPeersStrip::Entry {
 	QImage userpicFrame;
 	float64 userpicFrameOnline = 0.;
 	QString badgeString;
-	uint32 badge : 28 = 0;
+	uint32 badge : 27 = 0;
 	uint32 userpicFrameDirty : 1 = 0;
 	uint32 subscribed : 1 = 0;
+	uint32 unread : 1 = 0;
 	uint32 online : 1 = 0;
 	uint32 muted : 1 = 0;
 };
@@ -412,9 +413,15 @@ void TopPeersStrip::apply(Entry &entry, const TopPeersEntry &data) {
 		entry.badgeString = QString();
 		entry.userpicFrameDirty = 1;
 	}
+	if (entry.unread != data.unread) {
+		entry.unread = data.unread;
+		if (!entry.badge) {
+			entry.userpicFrameDirty = 1;
+		}
+	}
 	if (entry.muted != data.muted) {
 		entry.muted = data.muted;
-		if (entry.badge) {
+		if (entry.badge || entry.unread) {
 			entry.userpicFrameDirty = 1;
 		}
 	}
@@ -500,7 +507,7 @@ void TopPeersStrip::paintUserpic(
 	}
 	const auto simple = entry.userpic->image(size);
 	const auto ratio = style::DevicePixelRatio();
-	const auto renderFrame = (online > 0) || entry.badge;
+	const auto renderFrame = (online > 0) || entry.badge || entry.unread;
 	if (!renderFrame) {
 		entry.userpicFrame = QImage();
 		p.drawImage(rect, simple);
@@ -541,9 +548,11 @@ void TopPeersStrip::paintUserpic(
 		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
 	}
 
-	if (entry.badge) {
+	if (entry.badge || entry.unread) {
 		if (entry.badgeString.isEmpty()) {
-			entry.badgeString = (entry.badge < 1000)
+			entry.badgeString = !entry.badge
+				? u" "_q
+				: (entry.badge < 1000)
 				? QString::number(entry.badge)
 				: (QString::number(entry.badge / 1000) + 'K');
 		}
@@ -551,7 +560,7 @@ void TopPeersStrip::paintUserpic(
 		st.selected = selected;
 		st.muted = entry.muted;
 		const auto &counter = entry.badgeString;
-		const auto badge = PaintUnreadBadge(q, counter, size, 0, st);
+		PaintUnreadBadge(q, counter, size, 0, st);
 	}
 
 	q.end();

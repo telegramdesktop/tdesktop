@@ -600,6 +600,30 @@ topPeers: DialogsStories(dialogsStoriesFull) {
 topPeersRadius: 4px;
 topPeersMargin: margins(3px, 3px, 3px, 4px);
 
+recentPeersEmptySize: 100px;
+recentPeersEmptyMargin: margins(10px, 10px, 10px, 10px);
+recentPeersEmptySkip: 10px;
+recentPeersItem: PeerListItem(defaultPeerListItem) {
+	height: 56px;
+	photoSize: 42px;
+	photoPosition: point(10px, 7px);
+	namePosition: point(64px, 9px);
+	statusPosition: point(64px, 30px);
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBgOver;
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: contactsStatusFg;
+	statusFgOver: contactsStatusFgOver;
+	statusFgActive: contactsStatusFgOnline;
+}
+recentPeersList: PeerList(defaultPeerList) {
+	padding: margins(0px, 4px, 0px, 4px);
+	item: recentPeersItem;
+}
+recentPeersSpecialNamePosition: point(64px, 19px);
+
 dialogsStoriesList: DialogsStoriesList {
 	small: dialogsStories;
 	full: dialogsStoriesFull;

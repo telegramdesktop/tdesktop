@@ -734,6 +734,10 @@ auto PeerListRow::generateNameWords() const
 	return peer()->nameWords();
 }
 
+QPoint PeerListRow::computeNamePosition(
+		const style::PeerListItem &st) const {
+	return st.namePosition;
+}
 
 void PeerListRow::invalidatePixmapsCache() {
 	if (_checkbox) {
@@ -1745,8 +1749,9 @@ crl::time PeerListContent::paintRow(
 		? QMargins()
 		: row->rightActionMargins();
 	const auto &name = row->name();
-	const auto namex = _st.item.namePosition.x();
-	const auto namey = _st.item.namePosition.y();
+	const auto namePosition = row->computeNamePosition(_st.item);
+	const auto namex = namePosition.x();
+	const auto namey = namePosition.y();
 	auto namew = outerWidth - namex - skipRight;
 	if (!rightActionSize.isEmpty()
 		&& (namey < rightActionMargins.top() + rightActionSize.height())

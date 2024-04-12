@@ -80,15 +80,13 @@ void TopPeers::remove(not_null<PeerData*> peer) {
 	const auto i = ranges::find(_list, peer, &TopPeer::peer);
 	if (i != end(_list)) {
 		_list.erase(i);
-		_updates.fire({});
+		updated();
 	}
 
 	_requestId = _session->api().request(MTPcontacts_ResetTopPeerRating(
 		MTP_topPeerCategoryCorrespondents(),
 		peer->input
 	)).send();
-
-	_session->local().writeSearchSuggestionsDelayed();
 }
 
 void TopPeers::increment(not_null<PeerData*> peer, TimeId date) {
@@ -117,10 +115,10 @@ void TopPeers::increment(not_null<PeerData*> peer, TimeId date) {
 			}
 		}
 		if (changed) {
-			_updates.fire({});
+			updated();
+		} else {
+			_session->local().writeSearchSuggestionsDelayed();
 		}
-
-		_session->local().writeSearchSuggestionsDelayed();
 	}
 }
 
@@ -140,11 +138,11 @@ void TopPeers::toggleDisabled(bool disabled) {
 		if (!_disabled || !_list.empty()) {
 			_disabled = true;
 			_list.clear();
-			_updates.fire({});
+			updated();
 		}
 	} else if (_disabled) {
 		_disabled = false;
-		_updates.fire({});
+		updated();
 	}
 
 	_session->api().request(MTPcontacts_ToggleTopPeers(
@@ -154,8 +152,6 @@ void TopPeers::toggleDisabled(bool disabled) {
 			request();
 		}
 	}).send();
-
-	_session->local().writeSearchSuggestionsDelayed();
 }
 
 void TopPeers::request() {
@@ -194,12 +190,12 @@ void TopPeers::request() {
 					LOG(("API Error: Unexpected top peer category."));
 				});
 			}
-			_updates.fire({});
+			updated();
 		}, [&](const MTPDcontacts_topPeersDisabled &) {
 			if (!_disabled) {
 				_list.clear();
 				_disabled = true;
-				_updates.fire({});
+				updated();
 			}
 		}, [](const MTPDcontacts_topPeersNotModified &) {
 		});
@@ -216,6 +212,11 @@ uint64 TopPeers::countHash() const {
 		HashUpdate(hash, peerToUser(top.peer->id).bare);
 	}
 	return HashFinalize(hash);
+}
+
+void TopPeers::updated() {
+	_updates.fire({});
+	_session->local().writeSearchSuggestionsDelayed();
 }
 
 QByteArray TopPeers::serialize() const {

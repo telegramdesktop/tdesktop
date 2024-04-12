@@ -38,6 +38,7 @@ private:
 
 	void request();
 	[[nodiscard]] uint64 countHash() const;
+	void updated();
 
 	const not_null<Main::Session*> _session;
 

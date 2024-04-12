@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_suggestions.h"
 
 #include "base/unixtime.h"
+#include "boxes/peer_list_box.h"
+#include "data/components/recent_peers.h"
 #include "data/components/top_peers.h"
 #include "data/data_changes.h"
 #include "data/data_peer_values.h"
@@ -15,7 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
+#include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/elastic_scroll.h"
@@ -24,15 +28,82 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/delayed_activation.h"
 #include "ui/dynamic_thumbnails.h"
+#include "ui/painter.h"
+#include "ui/unread_badge_paint.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_window.h"
 
 namespace Dialogs {
 namespace {
+
+class RecentRow final : public PeerListRow {
+public:
+	explicit RecentRow(not_null<PeerData*> peer);
+
+	bool refreshBadge();
+
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+	bool rightActionDisabled() const override;
+
+	QPoint computeNamePosition(const style::PeerListItem &st) const override;
+
+private:
+	const not_null<History*> _history;
+	QString _badgeString;
+	QSize _badgeSize;
+	uint32 _counter : 30 = 0;
+	uint32 _unread : 1 = 0;
+	uint32 _muted : 1 = 0;
+
+};
+
+class RecentsController final : public PeerListController {
+public:
+	RecentsController(
+		not_null<Main::Session*> session,
+		RecentPeersList list);
+
+	[[nodiscard]] rpl::producer<int> count() const {
+		return _count.value();
+	}
+	[[nodiscard]] rpl::producer<not_null<PeerData*>> chosen() const {
+		return _chosen.events();
+	}
+
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override;
+	Main::Session &session() const override;
+
+	QString savedMessagesChatStatus() const override;
+
+private:
+	void setupDivider();
+	void subscribeToEvents();
+
+	const not_null<Main::Session*> _session;
+	RecentPeersList _recent;
+	rpl::variable<int> _count;
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	rpl::event_stream<not_null<PeerData*>> _chosen;
+	rpl::lifetime _lifetime;
+
+};
 
 void FillTopPeerMenu(
 		not_null<Window::SessionController*> controller,
@@ -92,12 +163,210 @@ void FillTopPeerMenu(
 	});
 }
 
+RecentRow::RecentRow(not_null<PeerData*> peer)
+: PeerListRow(peer)
+, _history(peer->owner().history(peer)) {
+	if (peer->isSelf() || peer->isRepliesChat()) {
+		setCustomStatus(u" "_q);
+	}
+	refreshBadge();
+}
+
+bool RecentRow::refreshBadge() {
+	if (_history->peer->isSelf()) {
+		return false;
+	}
+	auto result = false;
+	const auto muted = _history->muted() ? 1 : 0;
+	if (_muted != muted) {
+		_muted = muted;
+		if (_counter || _unread) {
+			result = true;
+		}
+	}
+	const auto badges = _history->chatListBadgesState();
+	const auto unread = badges.unread ? 1 : 0;
+	if (_counter != badges.unreadCounter || _unread != unread) {
+		_counter = badges.unreadCounter;
+		_unread = unread;
+		result = true;
+
+		_badgeString = !_counter
+			? (_unread ? u" "_q : QString())
+			: (_counter < 1000)
+			? QString::number(_counter)
+			: (QString::number(_counter / 1000) + 'K');
+		if (_badgeString.isEmpty()) {
+			_badgeSize = QSize();
+		} else {
+			auto st = Ui::UnreadBadgeStyle();
+			const auto unreadRectHeight = st.size;
+			const auto unreadWidth = st.font->width(_badgeString);
+			_badgeSize = QSize(
+				std::max(unreadWidth + 2 * st.padding, unreadRectHeight),
+				unreadRectHeight);
+		}
+	}
+	return result;
+}
+
+QSize RecentRow::rightActionSize() const {
+	return _badgeSize;
+}
+
+QMargins RecentRow::rightActionMargins() const {
+	if (_badgeSize.isEmpty()) {
+		return {};
+	}
+	const auto x = st::recentPeersItem.photoPosition.x();
+	const auto y = (st::recentPeersItem.height - _badgeSize.height()) / 2;
+	return QMargins(x, y, x, y);
+}
+
+void RecentRow::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (!_counter && !_unread) {
+		return;
+	} else if (_badgeString.isEmpty()) {
+		_badgeString = !_counter
+			? u" "_q
+			: (_counter < 1000)
+			? QString::number(_counter)
+			: (QString::number(_counter / 1000) + 'K');
+	}
+	auto st = Ui::UnreadBadgeStyle();
+	st.selected = selected;
+	st.muted = _muted;
+	const auto &counter = _badgeString;
+	PaintUnreadBadge(p, counter, x + _badgeSize.width(), y, st);
+}
+
+bool RecentRow::rightActionDisabled() const {
+	return true;
+}
+
+QPoint RecentRow::computeNamePosition(const style::PeerListItem &st) const {
+	return (peer()->isSelf() || peer()->isRepliesChat())
+		? st::recentPeersSpecialNamePosition
+		: st.namePosition;
+}
+
+RecentsController::RecentsController(
+	not_null<Main::Session*> session,
+	RecentPeersList list)
+: _session(session)
+, _recent(std::move(list)) {
+}
+
+void RecentsController::prepare() {
+	setupDivider();
+
+	for (const auto &peer : _recent.list) {
+		delegate()->peerListAppendRow(std::make_unique<RecentRow>(peer));
+	}
+	delegate()->peerListRefreshRows();
+	_count = _recent.list.size();
+
+	subscribeToEvents();
+}
+
+void RecentsController::rowClicked(not_null<PeerListRow*> row) {
+	_chosen.fire(row->peer());
+}
+
+base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) {
+	return nullptr;
+}
+
+Main::Session &RecentsController::session() const {
+	return *_session;
+}
+
+QString RecentsController::savedMessagesChatStatus() const {
+	return tr::lng_saved_forward_here(tr::now);
+}
+
+void RecentsController::setupDivider() {
+	auto result = object_ptr<Ui::FixedHeightWidget>(
+		(QWidget*)nullptr,
+		st::searchedBarHeight);
+	const auto raw = result.data();
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		tr::lng_recent_title(),
+		st::searchedBarLabel);
+	const auto clear = Ui::CreateChild<Ui::LinkButton>(
+		raw,
+		tr::lng_recent_clear(tr::now),
+		st::searchedBarLink);
+	rpl::combine(
+		raw->sizeValue(),
+		clear->widthValue()
+	) | rpl::start_with_next([=](QSize size, int width) {
+		const auto x = st::searchedBarPosition.x();
+		const auto y = st::searchedBarPosition.y();
+		clear->moveToRight(0, 0, size.width());
+		label->resizeToWidth(size.width() - x - width);
+		label->moveToLeft(x, y, size.width());
+	}, raw->lifetime());
+	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		QPainter(raw).fillRect(clip, st::searchedBarBg);
+	}, raw->lifetime());
+
+	delegate()->peerListSetAboveWidget(std::move(result));
+}
+
+void RecentsController::subscribeToEvents() {
+	using Flag = Data::PeerUpdate::Flag;
+	_session->changes().peerUpdates(
+		Flag::Notifications
+		| Flag::OnlineStatus
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		const auto peer = update.peer;
+		if (peer->isSelf()) {
+			return;
+		}
+		auto refreshed = false;
+		const auto row = delegate()->peerListFindRow(update.peer->id.value);
+		if (!row) {
+			return;
+		} else if (update.flags & Flag::Notifications) {
+			refreshed = static_cast<RecentRow*>(row)->refreshBadge();
+		}
+		if (!peer->isRepliesChat() && (update.flags & Flag::OnlineStatus)) {
+			row->clearCustomStatus();
+			refreshed = true;
+		}
+		if (refreshed) {
+			delegate()->peerListUpdateRow(row);
+		}
+	}, _lifetime);
+
+	_session->data().unreadBadgeChanges(
+	) | rpl::start_with_next([=] {
+		for (auto i = 0; i != _count.current(); ++i) {
+			const auto row = delegate()->peerListRowAt(i);
+			if (static_cast<RecentRow*>(row.get())->refreshBadge()) {
+				delegate()->peerListUpdateRow(row);
+			}
+		}
+	}, _lifetime);
+}
+
 } // namespace
 
 Suggestions::Suggestions(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> controller,
-	rpl::producer<TopPeersList> topPeers)
+	rpl::producer<TopPeersList> topPeers,
+	RecentPeersList recentPeers)
 : RpWidget(parent)
 , _scroll(std::make_unique<Ui::ElasticScroll>(this))
 , _content(_scroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
@@ -105,13 +374,22 @@ Suggestions::Suggestions(
 	this,
 	object_ptr<TopPeersStrip>(this, std::move(topPeers)))))
 , _topPeers(_topPeersWrap->entity())
-, _divider(_content->add(setupDivider())) {
+, _recentPeers(
+	_content->add(
+		setupRecentPeers(controller, std::move(recentPeers))))
+, _emptyRecent(_content->add(setupEmptyRecent(controller))) {
+	_recentCount.value() | rpl::start_with_next([=](int count) {
+		_recentPeers->toggle(count > 0, anim::type::instant);
+		_emptyRecent->toggle(count == 0, anim::type::instant);
+	}, _recentPeers->lifetime());
+
 	_topPeers->emptyValue() | rpl::start_with_next([=](bool empty) {
 		_topPeersWrap->toggle(!empty, anim::type::instant);
 	}, _topPeers->lifetime());
 
 	_topPeers->clicks() | rpl::start_with_next([=](uint64 peerIdRaw) {
-		_topPeerChosen.fire(PeerId(peerIdRaw));
+		const auto peerId = PeerId(peerIdRaw);
+		_topPeerChosen.fire(controller->session().data().peer(peerId));
 	}, _topPeers->lifetime());
 
 	_topPeers->showMenuRequests(
@@ -178,36 +456,79 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 }
 
 void Suggestions::resizeEvent(QResizeEvent *e) {
-	_scroll->setGeometry(rect());
-	_content->resizeToWidth(width());
+	const auto w = std::max(width(), st::columnMinimalWidthLeft);
+	_scroll->setGeometry(0, 0, w, height());
+	_content->resizeToWidth(w);
 }
 
-object_ptr<Ui::RpWidget> Suggestions::setupDivider() {
-	auto result = object_ptr<Ui::FixedHeightWidget>(
-		this,
-		st::searchedBarHeight);
-	const auto raw = result.data();
+object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
+		not_null<Window::SessionController*> window,
+		RecentPeersList recentPeers) {
+	auto &lifetime = _content->lifetime();
+	const auto delegate = lifetime.make_state<
+		PeerListContentDelegateSimple
+	>();
+	const auto controller = lifetime.make_state<RecentsController>(
+		&window->session(),
+		std::move(recentPeers));
+	controller->setStyleOverrides(&st::recentPeersList);
+
+	_recentCount = controller->count();
+
+	controller->chosen(
+	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		window->session().recentPeers().bump(peer);
+		_recentPeerChosen.fire_copy(peer);
+	}, lifetime);
+
+	auto content = object_ptr<PeerListContent>(_content, controller);
+	delegate->setContent(content);
+	controller->setDelegate(delegate);
+
+	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
+}
+
+object_ptr<Ui::SlideWrap<>> Suggestions::setupEmptyRecent(
+		not_null<Window::SessionController*> window) {
+	auto content = object_ptr<Ui::RpWidget>(_content);
+	const auto raw = content.data();
+
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		tr::lng_recent_title(),
-		st::searchedBarLabel);
-	const auto clear = Ui::CreateChild<Ui::LinkButton>(
+		tr::lng_recent_none(),
+		st::defaultPeerListAbout);
+	const auto size = st::recentPeersEmptySize;
+	const auto [widget, animate] = Settings::CreateLottieIcon(
 		raw,
-		tr::lng_recent_clear(tr::now),
-		st::searchedBarLink);
-	rpl::combine(
-		raw->sizeValue(),
-		clear->widthValue()
-	) | rpl::start_with_next([=](QSize size, int width) {
-		const auto x = st::searchedBarPosition.x();
-		const auto y = st::searchedBarPosition.y();
-		clear->moveToRight(0, 0, size.width());
-		label->resizeToWidth(size.width() - x - width);
-		label->moveToLeft(x, y, size.width());
+		{
+			.name = u"search"_q,
+			.sizeOverride = { size, size },
+		},
+		st::recentPeersEmptyMargin);
+	const auto icon = widget.data();
+
+	_scroll->heightValue() | rpl::start_with_next([=](int height) {
+		raw->resize(raw->width(), height - st::topPeers.height);
 	}, raw->lifetime());
-	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
-		QPainter(raw).fillRect(clip, st::searchedBarBg);
+
+	raw->sizeValue() | rpl::start_with_next([=](QSize size) {
+		const auto x = (size.width() - icon->width()) / 2;
+		const auto y = (size.height() - icon->height()) / 3;
+		icon->move(x, y);
+		label->move(
+			(size.width() - label->width()) / 2,
+			y + icon->height() + st::recentPeersEmptySkip);
 	}, raw->lifetime());
+
+	auto result = object_ptr<Ui::SlideWrap<>>(_content, std::move(content));
+	result->toggle(false, anim::type::instant);
+
+	result->toggledValue() | rpl::filter([=](bool shown) {
+		return shown && window->session().data().chatsListLoaded();
+	}) | rpl::start_with_next([=] {
+		animate(anim::repeat::once);
+	}, raw->lifetime());
+
 	return result;
 }
 
@@ -354,6 +675,10 @@ rpl::producer<TopPeersList> TopPeersContent(
 		push();
 		return lifetime;
 	};
+}
+
+RecentPeersList RecentPeersContent(not_null<Main::Session*> session) {
+	return RecentPeersList{ session->recentPeers().list() };
 }
 
 } // namespace Dialogs

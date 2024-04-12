@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
+#include "data/components/recent_peers.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -513,6 +514,12 @@ Widget::Widget(
 
 void Widget::chosenRow(const ChosenRow &row) {
 	storiesToggleExplicitExpand(false);
+
+	if (!_search->getLastText().isEmpty()) {
+		if (const auto history = row.key.history()) {
+			session().recentPeers().bump(history->peer);
+		}
+	}
 
 	const auto history = row.key.history();
 	const auto topicJump = history
@@ -1120,11 +1127,13 @@ void Widget::updateSuggestions(anim::type animated) {
 		_suggestions = std::make_unique<Suggestions>(
 			this,
 			controller(),
-			TopPeersContent(&session()));
+			TopPeersContent(&session()),
+			RecentPeersContent(&session()));
 
-		_suggestions->topPeerChosen(
-		) | rpl::start_with_next([=](PeerId id) {
-			const auto peer = session().data().peer(id);
+		rpl::merge(
+			_suggestions->topPeerChosen(),
+			_suggestions->recentPeerChosen()
+		) | rpl::start_with_next([=](not_null<PeerData*> peer) {
 			if (base::IsCtrlPressed()) {
 				controller()->showInNewWindow(peer);
 			} else {
