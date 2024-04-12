@@ -105,6 +105,7 @@ public:
 	void jumpToTop(bool belowPinned = false);
 	void raiseWithTooltip();
 
+	[[nodiscard]] QPixmap grabNonNarrowScrollFrame();
 	void startWidthAnimation();
 	void stopWidthAnimation();
 
@@ -277,6 +278,7 @@ private:
 	object_ptr<Ui::ElasticScroll> _scroll;
 	QPointer<InnerWidget> _inner;
 	std::unique_ptr<Suggestions> _suggestions;
+	std::vector<std::unique_ptr<Suggestions>> _hidingSuggestions;
 	class BottomButton;
 	object_ptr<BottomButton> _updateTelegram = { nullptr };
 	object_ptr<BottomButton> _loadMoreChats = { nullptr };

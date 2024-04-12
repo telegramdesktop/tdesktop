@@ -545,8 +545,61 @@ void Suggestions::chooseRow() {
 	}
 }
 
+void Suggestions::show(anim::type animated, Fn<void()> finish) {
+	RpWidget::show();
+
+	_hidden = false;
+	if (animated == anim::type::instant) {
+		_shownAnimation.stop();
+		_scroll->show();
+	} else {
+		_shownAnimation.start([=] {
+			update();
+			if (!_shownAnimation.animating() && finish) {
+				finish();
+				_cache = QPixmap();
+				_scroll->show();
+			}
+		}, 0., 1., st::slideDuration, anim::easeOutQuint);
+		_cache = Ui::GrabWidget(_scroll.get());
+		_scroll->hide();
+	}
+}
+
+void Suggestions::hide(anim::type animated, Fn<void()> finish) {
+	_hidden = true;
+	if (isHidden()) {
+		return;
+	} else if (animated == anim::type::instant) {
+		RpWidget::hide();
+	} else {
+		_shownAnimation.start([=] {
+			update();
+			if (!_shownAnimation.animating() && finish) {
+				finish();
+			}
+		}, 1., 0., st::slideDuration, anim::easeOutQuint);
+		_cache = Ui::GrabWidget(_scroll.get());
+		_scroll->hide();
+	}
+}
+
+float64 Suggestions::shownOpacity() const {
+	return _shownAnimation.value(_hidden ? 0. : 1.);
+}
+
 void Suggestions::paintEvent(QPaintEvent *e) {
-	QPainter(this).fillRect(e->rect(), st::windowBg);
+	const auto opacity = shownOpacity();
+	auto color = st::windowBg->c;
+	color.setAlphaF(color.alphaF() * opacity);
+
+	auto p = QPainter(this);
+	p.fillRect(e->rect(), color);
+	if (_scroll->isHidden()) {
+		const auto slide = st::topPeers.height + st::searchedBarHeight;
+		p.setOpacity(opacity);
+		p.drawPixmap(0, (opacity - 1.) * slide, _cache);
+	}
 }
 
 void Suggestions::resizeEvent(QResizeEvent *e) {

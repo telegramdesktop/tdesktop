@@ -1030,10 +1030,7 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 
 void Widget::updateControlsVisibility(bool fast) {
 	updateLoadMoreChatsVisibility();
-	_scroll->setVisible(!_suggestions);
-	if (_suggestions) {
-		_suggestions->show();
-	}
+	_scroll->setVisible(!_suggestions && _hidingSuggestions.empty());
 	updateStoriesVisibility();
 	if ((_openedFolder || _openedForum) && _searchHasFocus) {
 		setInnerFocus();
@@ -1120,10 +1117,32 @@ void Widget::updateSuggestions(anim::type animated) {
 	const auto suggest = _searchHasFocus
 		&& !_searchInChat
 		&& (_inner->state() == WidgetState::Default);
+	if (anim::Disabled() || !session().data().chatsListLoaded()) {
+		animated = anim::type::instant;
+	}
 	if (!suggest && _suggestions) {
-		_suggestions = nullptr;
-		_scroll->show();
+		if (animated == anim::type::normal) {
+			startWidthAnimation();
+			_suggestions->hide(animated, [=, raw = _suggestions.get()] {
+				stopWidthAnimation();
+				_hidingSuggestions.erase(
+					ranges::remove(
+						_hidingSuggestions,
+						raw,
+						&std::unique_ptr<Suggestions>::get),
+					end(_hidingSuggestions));
+				updateControlsVisibility();
+			});
+			_hidingSuggestions.push_back(std::move(_suggestions));
+		} else {
+			_suggestions = nullptr;
+			_hidingSuggestions.clear();
+			_scroll->show();
+		}
 	} else if (suggest && !_suggestions) {
+		if (animated == anim::type::normal) {
+			startWidthAnimation();
+		}
 		_suggestions = std::make_unique<Suggestions>(
 			this,
 			controller(),
@@ -1141,9 +1160,12 @@ void Widget::updateSuggestions(anim::type animated) {
 			}
 		}, _suggestions->lifetime());
 
-		_suggestions->show();
-		_scroll->hide();
 		updateControlsGeometry();
+
+		_suggestions->show(animated, [=] {
+			stopWidthAnimation();
+		});
+		_scroll->hide();
 	}
 }
 
@@ -1542,18 +1564,15 @@ void Widget::scrollToDefault(bool verytop) {
 		anim::sineInOut);
 }
 
-void Widget::startWidthAnimation() {
-	if (!_widthAnimationCache.isNull()) {
-		return;
-	}
+[[nodiscard]] QPixmap Widget::grabNonNarrowScrollFrame() {
 	auto scrollGeometry = _scroll->geometry();
 	auto grabGeometry = QRect(
 		scrollGeometry.x(),
 		scrollGeometry.y(),
-		st::columnMinimalWidthLeft,
+		std::max(scrollGeometry.width(), st::columnMinimalWidthLeft),
 		scrollGeometry.height());
 	_scroll->setGeometry(grabGeometry);
-	_inner->resize(st::columnMinimalWidthLeft, _inner->height());
+	_inner->resize(grabGeometry.width(), _inner->height());
 	_inner->setNarrowRatio(0.);
 	Ui::SendPendingMoveResizeEvents(_scroll);
 	auto image = QImage(
@@ -1565,11 +1584,18 @@ void Widget::startWidthAnimation() {
 		QPainter p(&image);
 		Ui::RenderWidget(p, _scroll);
 	}
-	_widthAnimationCache = Ui::PixmapFromImage(std::move(image));
 	if (scrollGeometry != grabGeometry) {
 		_scroll->setGeometry(scrollGeometry);
 		updateControlsGeometry();
 	}
+	return Ui::PixmapFromImage(std::move(image));
+}
+
+void Widget::startWidthAnimation() {
+	if (!_widthAnimationCache.isNull()) {
+		return;
+	}
+	_widthAnimationCache = grabNonNarrowScrollFrame();
 	_scroll->hide();
 	updateStoriesVisibility();
 }
@@ -1578,9 +1604,6 @@ void Widget::stopWidthAnimation() {
 	_widthAnimationCache = QPixmap();
 	if (!_showAnimation) {
 		_scroll->setVisible(!_suggestions);
-		if (_suggestions) {
-			_suggestions->show();
-		}
 	}
 	updateStoriesVisibility();
 	update();
@@ -3226,7 +3249,15 @@ void Widget::paintEvent(QPaintEvent *e) {
 
 	auto belowTop = _scroll->y() + _scroll->height();
 	if (!_widthAnimationCache.isNull()) {
-		p.drawPixmapLeft(0, _scroll->y(), width(), _widthAnimationCache);
+		const auto suggestionsShown = _suggestions
+			? _suggestions->shownOpacity()
+			: !_hidingSuggestions.empty()
+			? _hidingSuggestions.back()->shownOpacity()
+			: 0.;
+		const auto suggestionsSkip = suggestionsShown
+			* (st::topPeers.height + st::searchedBarHeight);
+		const auto top = _scroll->y() + suggestionsSkip;
+		p.drawPixmapLeft(0, top, width(), _widthAnimationCache);
 		belowTop = _scroll->y()
 			+ (_widthAnimationCache.height() / style::DevicePixelRatio());
 	}
@@ -3302,12 +3333,17 @@ bool Widget::cancelSearch() {
 		setFocus();
 		clearingInChat = true;
 	}
+	const auto clearSearchFocus = !_searchInChat && _searchHasFocus;
+	if (!_suggestions && clearSearchFocus) {
+		// Don't create suggestions in unfocus case.
+		setFocus();
+	}
 	_lastSearchPeer = nullptr;
 	_lastSearchId = _lastSearchMigratedId = 0;
 	_inner->clearFilter();
 	clearSearchField();
 	applySearchUpdate();
-	if (!_searchInChat && _searchHasFocus) {
+	if (_suggestions && clearSearchFocus) {
 		setFocus();
 	}
 	return clearingQuery || clearingInChat;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 #include "dialogs/ui/top_peers_strip.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
 namespace Main {
@@ -43,6 +44,10 @@ public:
 
 	void selectJump(Qt::Key direction, int pageSize = 0);
 	void chooseRow();
+
+	void show(anim::type animated, Fn<void()> finish);
+	void hide(anim::type animated, Fn<void()> finish);
+	[[nodiscard]] float64 shownOpacity() const;
 
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> topPeerChosen() const {
 		return _topPeerChosen.events();
@@ -80,6 +85,11 @@ private:
 
 	rpl::event_stream<not_null<PeerData*>> _topPeerChosen;
 	rpl::event_stream<not_null<PeerData*>> _recentPeerChosen;
+
+	Ui::Animations::Simple _shownAnimation;
+	Fn<void()> _showFinished;
+	bool _hidden = false;
+	QPixmap _cache;
 
 };
 
