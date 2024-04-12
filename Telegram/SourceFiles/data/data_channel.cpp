@@ -1198,10 +1198,14 @@ void ApplyChannelUpdate(
 	}
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	channel->setTranslationDisabled(update.is_translations_disabled());
+
+	const auto reactionsLimit = update.vreactions_limit().value_or_empty();
 	if (const auto allowed = update.vavailable_reactions()) {
-		channel->setAllowedReactions(Data::Parse(*allowed));
+		auto parsed = Data::Parse(*allowed);
+		parsed.maxCount = reactionsLimit;
+		channel->setAllowedReactions(std::move(parsed));
 	} else {
-		channel->setAllowedReactions({});
+		channel->setAllowedReactions({ .maxCount = reactionsLimit });
 	}
 	channel->owner().stories().apply(channel, update.vstories());
 	channel->fullUpdated();
