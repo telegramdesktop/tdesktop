@@ -165,14 +165,14 @@ bool IsExecutableName(const QString &filepath) {
 ad ade adp app application appref-ms asp asx bas bat bin cab cdxml cer cfg \
 chi chm cmd cnt com cpl crt csh der diagcab dll drv eml exe fon fxp gadget \
 grp hlp hpj hta htt inf ini ins inx isp isu its jar jnlp job js jse key ksh \
-lnk local lua mad maf mag mam manifest maq mar mas mat mau mav maw mcf mda \
-mdb mde mdt mdw mdz mht mhtml mjs mmc mof msc msg msh msh1 msh2 msh1xml \
+lexe lnk local lua mad maf mag mam manifest maq mar mas mat mau mav maw mcf \
+mda mdb mde mdt mdw mdz mht mhtml mjs mmc mof msc msg msh msh1 msh2 msh1xml \
 msh2xml mshxml msi msp mst ops osd paf pcd phar php php3 php4 php5 php7 phps \
 php-s pht phtml pif pl plg pm pod prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 \
 psd1 psm1 pssc pst py py3 pyc pyd pyi pyo pyw pyzw pyz rb reg rgs scf scr \
 sct search-ms settingcontent-ms sh shb shs slk sys t tmp u3p url vb vbe vbp \
 vbs vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx \
-vtx website ws wsc wsf wsh xbap xll xnk xs"_q;
+vtx website wlua ws wsc wsf wsh xbap xll xnk xs"_q;
 #elif defined Q_OS_MAC // Q_OS_MAC
 			u"\
 applescript action app bin command csh osx workflow terminal url caction \
