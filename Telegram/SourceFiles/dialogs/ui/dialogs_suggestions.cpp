@@ -491,41 +491,58 @@ Suggestions::Suggestions(
 
 Suggestions::~Suggestions() = default;
 
-void Suggestions::selectSkip(int delta) {
-	if (!delta) {
-		return;
-	} else if (delta > 0) {
-		const auto hasRecent = false;
-		if (hasRecent && (_topPeers->selectedByKeyboard() || delta > 1)) {
+void Suggestions::selectJump(Qt::Key direction, int pageSize) {
+	const auto recentHasSelection = [=] {
+		return _recentSelectJump(Qt::Key(), 0) == JumpResult::Applied;
+	};
+	if (pageSize) {
+		if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
 			_topPeers->deselectByKeyboard();
+			if (!recentHasSelection()) {
+				if (direction == Qt::Key_Down) {
+					_recentSelectJump(direction, 0);
+				} else {
+					return;
+				}
+			}
+			if (_recentSelectJump(direction, pageSize) == JumpResult::AppliedAndOut) {
+				if (direction == Qt::Key_Up) {
+					_scroll->scrollTo(0);
+				}
+			}
+		}
+	} else if (direction == Qt::Key_Up) {
+		if (_recentSelectJump(direction, pageSize)
+			== JumpResult::AppliedAndOut) {
+			_topPeers->selectByKeyboard(Qt::Key());
+			_scroll->scrollTo(0);
 		} else {
-			_topPeers->selectByKeyboard(0);
-		}
-	} else {
-		if (_topPeers->selectedByKeyboard()) {
 			_topPeers->deselectByKeyboard();
 		}
-	}
-}
-
-void Suggestions::selectSkipPage(int height, int direction) {
-	if (_topPeers->selectedByKeyboard()) {
-		_topPeers->deselectByKeyboard();
+	} else if (direction == Qt::Key_Down) {
+		if (_topPeers->selectedByKeyboard()) {
+			if (_recentCount.current() > 0) {
+				_topPeers->deselectByKeyboard();
+				_recentSelectJump(direction, pageSize);
+			}
+		} else if (!_topPeersWrap->toggled() || recentHasSelection()) {
+			_recentSelectJump(direction, pageSize);
+		} else {
+			_topPeers->selectByKeyboard(Qt::Key());
+			_scroll->scrollTo(0);
+		}
+	} else if (direction == Qt::Key_Left || direction == Qt::Key_Right) {
+		if (!recentHasSelection()) {
+			_topPeers->selectByKeyboard(direction);
+			_scroll->scrollTo(0);
+		}
 	}
 }
 
 void Suggestions::chooseRow() {
-	if (_topPeers->chooseRow()) {
-		return;
+	if (!_topPeers->chooseRow()) {
+		_recentPeersChoose();
 	}
-}
-
-void Suggestions::selectLeft() {
-	_topPeers->selectLeft();
-}
-
-void Suggestions::selectRight() {
-	_topPeers->selectRight();
 }
 
 void Suggestions::paintEvent(QPaintEvent *e) {
@@ -559,7 +576,39 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 	}, lifetime);
 
 	auto content = object_ptr<PeerListContent>(_content, controller);
-	delegate->setContent(content);
+
+	const auto raw = content.data();
+	_recentPeersChoose = [=] {
+		return raw->submitted();
+	};
+	_recentSelectJump = [raw](Qt::Key direction, int pageSize) {
+		const auto had = raw->hasSelection();
+		if (direction == Qt::Key()) {
+			return had ? JumpResult::Applied : JumpResult::NotApplied;
+		} else if (direction == Qt::Key_Up && !had) {
+			return JumpResult::NotApplied;
+		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
+			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
+			if (pageSize > 0) {
+				raw->selectSkipPage(pageSize, delta);
+			} else {
+				raw->selectSkip(delta);
+			}
+			return raw->hasSelection()
+				? JumpResult::Applied
+				: had
+				? JumpResult::AppliedAndOut
+				: JumpResult::NotApplied;
+		}
+		return JumpResult::NotApplied;
+	};
+	raw->scrollToRequests(
+	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+		const auto add = _topPeersWrap->toggled() ? _topPeers->height() : 0;
+		_scroll->scrollToY(request.ymin + add, request.ymax + add);
+	}, lifetime);
+
+	delegate->setContent(raw);
 	controller->setDelegate(delegate);
 
 	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));

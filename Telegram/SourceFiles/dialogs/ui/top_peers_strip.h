@@ -53,9 +53,7 @@ public:
 	void removeLocally(uint64 id = 0);
 
 	[[nodiscard]] bool selectedByKeyboard() const;
-	void selectByKeyboard(int delta);
-	void selectLeft();
-	void selectRight();
+	void selectByKeyboard(Qt::Key direction);
 	void deselectByKeyboard();
 	bool chooseRow();
 

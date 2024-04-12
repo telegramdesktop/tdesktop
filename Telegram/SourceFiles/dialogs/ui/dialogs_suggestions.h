@@ -41,10 +41,7 @@ public:
 		RecentPeersList recentPeers);
 	~Suggestions();
 
-	void selectSkip(int delta);
-	void selectSkipPage(int height, int direction);
-	void selectLeft();
-	void selectRight();
+	void selectJump(Qt::Key direction, int pageSize = 0);
 	void chooseRow();
 
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> topPeerChosen() const {
@@ -55,6 +52,12 @@ public:
 	}
 
 private:
+	enum class JumpResult {
+		NotApplied,
+		Applied,
+		AppliedAndOut,
+	};
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
@@ -70,6 +73,8 @@ private:
 	const not_null<TopPeersStrip*> _topPeers;
 
 	rpl::variable<int> _recentCount;
+	Fn<bool()> _recentPeersChoose;
+	Fn<JumpResult(Qt::Key, int)> _recentSelectJump;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _recentPeers;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyRecent;
 

@@ -282,42 +282,35 @@ bool TopPeersStrip::selectedByKeyboard() const {
 	return _selectionByKeyboard && _selected >= 0;
 }
 
-void TopPeersStrip::selectByKeyboard(int delta) {
+void TopPeersStrip::selectByKeyboard(Qt::Key direction) {
 	if (_entries.empty()) {
 		return;
 	}
-	_selectionByKeyboard = true;
-	if (!delta) {
+	if (direction == Qt::Key()) {
+		_selectionByKeyboard = true;
 		if (_selected < 0) {
 			setSelected(0);
 			scrollToSelected();
 		}
-		return;
+	} else if (direction == Qt::Key_Left) {
+		if (_selected > 0) {
+			_selectionByKeyboard = true;
+			setSelected(_selected - 1);
+			scrollToSelected();
+		}
+	} else if (direction == Qt::Key_Right) {
+		if (_selected + 1 < _entries.size()) {
+			_selectionByKeyboard = true;
+			setSelected(_selected + 1);
+			scrollToSelected();
+		}
 	}
-	setSelected(std::clamp(_selected + delta, 0, int(_entries.size()) - 1));
-	scrollToSelected();
 }
 
 void TopPeersStrip::deselectByKeyboard() {
 	if (_selectionByKeyboard) {
 		_selectionByKeyboard = false;
 		setSelected(-1);
-	}
-}
-
-void TopPeersStrip::selectLeft() {
-	if (_selected > 0) {
-		_selectionByKeyboard = true;
-		setSelected(_selected - 1);
-		scrollToSelected();
-	}
-}
-
-void TopPeersStrip::selectRight() {
-	if (_selected + 1 < _entries.size()) {
-		_selectionByKeyboard = true;
-		setSelected(_selected + 1);
-		scrollToSelected();
 	}
 }
 

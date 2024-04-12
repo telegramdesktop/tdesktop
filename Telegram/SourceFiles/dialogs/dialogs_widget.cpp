@@ -3165,32 +3165,25 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		//}
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		submit();
+	} else if (_suggestions
+		&& (e->key() == Qt::Key_Down
+			|| e->key() == Qt::Key_Up
+			|| e->key() == Qt::Key_Left
+			|| e->key() == Qt::Key_Right)) {
+		_suggestions->selectJump(Qt::Key(e->key()));
 	} else if (e->key() == Qt::Key_Down) {
-		if (_suggestions) {
-			_suggestions->selectSkip(1);
-		} else {
-			_inner->selectSkip(1);
-		}
+		_inner->selectSkip(1);
 	} else if (e->key() == Qt::Key_Up) {
-		if (_suggestions) {
-			_suggestions->selectSkip(-1);
-		} else {
-			_inner->selectSkip(-1);
-		}
 		_inner->selectSkip(-1);
-	} else if (e->key() == Qt::Key_Left && _suggestions) {
-		_suggestions->selectLeft();
-	} else if (e->key() == Qt::Key_Right && _suggestions) {
-		_suggestions->selectRight();
 	} else if (e->key() == Qt::Key_PageDown) {
 		if (_suggestions) {
-			_suggestions->selectSkipPage(_scroll->height(), 1);
+			_suggestions->selectJump(Qt::Key_Down, _scroll->height());
 		} else {
 			_inner->selectSkipPage(_scroll->height(), 1);
 		}
 	} else if (e->key() == Qt::Key_PageUp) {
 		if (_suggestions) {
-			_suggestions->selectSkipPage(_scroll->height(), -1);
+			_suggestions->selectJump(Qt::Key_Up, _scroll->height());
 		} else {
 			_inner->selectSkipPage(_scroll->height(), -1);
 		}
