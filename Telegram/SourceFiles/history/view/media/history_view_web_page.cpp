@@ -13,11 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_instance.h"
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
+#include "data/components/sponsored_messages.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
-#include "data/data_sponsored_messages.h"
 #include "data/data_web_page.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
@@ -227,8 +227,8 @@ WebPage::WebPage(
 	if (!(flags & MediaWebPageFlag::Sponsored)) {
 		return std::nullopt;
 	}
-	const auto &data = _parent->data()->history()->owner();
-	const auto details = data.sponsoredMessages().lookupDetails(
+	const auto &session = _parent->data()->history()->session();
+	const auto details = session.sponsoredMessages().lookupDetails(
 		_parent->data()->fullId());
 	auto result = std::make_optional<SponsoredData>();
 	result->buttonText = details.buttonText;

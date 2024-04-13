@@ -25,10 +25,6 @@ struct HistoryMessageMarkupData;
 class HistoryMainElementDelegateMixin;
 struct LanguageId;
 
-namespace Main {
-class Session;
-} // namespace Main
-
 namespace Data {
 struct Draft;
 class Session;

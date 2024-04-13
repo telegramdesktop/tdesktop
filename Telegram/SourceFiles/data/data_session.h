@@ -50,7 +50,6 @@ class WallPaper;
 class ScheduledMessages;
 class ShortcutMessages;
 class SendActionManager;
-class SponsoredMessages;
 class Reactions;
 class EmojiStatuses;
 class ForumIcons;
@@ -127,9 +126,6 @@ public:
 	}
 	[[nodiscard]] Stickers &stickers() const {
 		return *_stickers;
-	}
-	[[nodiscard]] SponsoredMessages &sponsoredMessages() const {
-		return *_sponsoredMessages;
 	}
 	[[nodiscard]] Reactions &reactions() const {
 		return *_reactions;
@@ -1086,7 +1082,6 @@ private:
 	const std::unique_ptr<BusinessInfo> _businessInfo;
 	std::unique_ptr<ScheduledMessages> _scheduledMessages;
 	std::unique_ptr<ShortcutMessages> _shortcutMessages;
-	std::unique_ptr<SponsoredMessages> _sponsoredMessages;
 
 	MsgId _nonHistoryEntryId = ShortcutMaxMsgId;
 

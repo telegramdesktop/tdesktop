@@ -27,12 +27,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/power_saving.h"
+#include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
 #include "data/data_message_reactions.h"
-#include "data/data_sponsored_messages.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
@@ -435,8 +435,9 @@ Message::Message(
 		}
 	}
 	if (data->isSponsored()) {
-		const auto &messages = data->history()->owner().sponsoredMessages();
-		const auto details = messages.lookupDetails(data->fullId());
+		const auto &session = data->history()->session();
+		const auto details = session.sponsoredMessages().lookupDetails(
+			data->fullId());
 		if (details.canReport) {
 			_rightAction = std::make_unique<RightAction>();
 			_rightAction->second = std::make_unique<SecondRightAction>();

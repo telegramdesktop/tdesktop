@@ -460,6 +460,8 @@ PRIVATE
     data/business/data_business_info.h
     data/business/data_shortcut_messages.cpp
     data/business/data_shortcut_messages.h
+    data/components/sponsored_messages.cpp
+    data/components/sponsored_messages.h
     data/notify/data_notify_settings.cpp
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
@@ -583,8 +585,6 @@ PRIVATE
     data/data_shared_media.h
     data/data_sparse_ids.cpp
     data/data_sparse_ids.h
-    data/data_sponsored_messages.cpp
-    data/data_sponsored_messages.h
     data/data_statistics.h
     data/data_stories.cpp
     data/data_stories.h
