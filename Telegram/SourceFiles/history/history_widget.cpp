@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
@@ -69,7 +70,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_chat_filters.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
@@ -2772,9 +2772,9 @@ void HistoryWidget::setupScheduledToggle() {
 	controller()->activeChatValue(
 	) | rpl::map([=](Dialogs::Key key) -> rpl::producer<> {
 		if (const auto history = key.history()) {
-			return session().data().scheduledMessages().updates(history);
+			return session().scheduledMessages().updates(history);
 		} else if (const auto topic = key.topic()) {
-			return session().data().scheduledMessages().updates(
+			return session().scheduledMessages().updates(
 				topic->owningHistory());
 		}
 		return rpl::never<rpl::empty_value>();
@@ -2789,7 +2789,7 @@ void HistoryWidget::setupScheduledToggle() {
 void HistoryWidget::refreshScheduledToggle() {
 	const auto has = _history
 		&& _canSendMessages
-		&& (session().data().scheduledMessages().count(_history) > 0);
+		&& (session().scheduledMessages().count(_history) > 0);
 	if (!_scheduled && has) {
 		_scheduled.create(this, st::historyScheduledToggle);
 		_scheduled->show();

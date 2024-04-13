@@ -47,7 +47,6 @@ namespace Data {
 class Folder;
 class LocationPoint;
 class WallPaper;
-class ScheduledMessages;
 class ShortcutMessages;
 class SendActionManager;
 class Reactions;
@@ -102,9 +101,6 @@ public:
 	}
 	[[nodiscard]] ChatFilters &chatsFilters() const {
 		return *_chatsFilters;
-	}
-	[[nodiscard]] ScheduledMessages &scheduledMessages() const {
-		return *_scheduledMessages;
 	}
 	[[nodiscard]] ShortcutMessages &shortcutMessages() const {
 		return *_shortcutMessages;
@@ -1080,7 +1076,6 @@ private:
 	const std::unique_ptr<SavedMessages> _savedMessages;
 	const std::unique_ptr<Chatbots> _chatbots;
 	const std::unique_ptr<BusinessInfo> _businessInfo;
-	std::unique_ptr<ScheduledMessages> _scheduledMessages;
 	std::unique_ptr<ShortcutMessages> _shortcutMessages;
 
 	MsgId _nonHistoryEntryId = ShortcutMaxMsgId;

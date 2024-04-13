@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/scheduled_messages.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
 #include "data/data_media_types.h"
@@ -42,7 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_web_page.h"
 #include "data/data_file_click_handler.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "main/main_session.h"
@@ -301,7 +301,7 @@ ReplyFields ReplyFieldsFromMTP(
 		const auto owner = &item->history()->owner();
 		if (const auto id = data.vreply_to_msg_id().value_or_empty()) {
 			result.messageId = data.is_reply_to_scheduled()
-				? owner->scheduledMessages().localMessageId(id)
+				? owner->session().scheduledMessages().localMessageId(id)
 				: item->shortcutId()
 				? owner->shortcutMessages().localMessageId(id)
 				: id;

@@ -33,11 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "main/main_session.h"
+#include "data/components/scheduled_messages.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_user.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_values.h"
@@ -58,7 +58,7 @@ namespace HistoryView {
 ScheduledMemento::ScheduledMemento(not_null<History*> history)
 : _history(history)
 , _forumTopic(nullptr) {
-	const auto list = _history->owner().scheduledMessages().list(_history);
+	const auto list = _history->session().scheduledMessages().list(_history);
 	if (!list.ids.empty()) {
 		_list.setScrollTopState({ .item = { .fullId = list.ids.front() } });
 	}
@@ -67,7 +67,8 @@ ScheduledMemento::ScheduledMemento(not_null<History*> history)
 ScheduledMemento::ScheduledMemento(not_null<Data::ForumTopic*> forumTopic)
 : _history(forumTopic->owningHistory())
 , _forumTopic(forumTopic) {
-	const auto list = _history->owner().scheduledMessages().list(_forumTopic);
+	const auto list = _history->session().scheduledMessages().list(
+		_forumTopic);
 	if (!list.ids.empty()) {
 		_list.setScrollTopState({ .item = { .fullId = list.ids.front() } });
 	}
@@ -1193,13 +1194,13 @@ rpl::producer<Data::MessagesSlice> ScheduledWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
-	const auto data = &controller()->session().data();
+	const auto session = &controller()->session();
 	return rpl::single(rpl::empty) | rpl::then(
-		data->scheduledMessages().updates(_history)
+		session->scheduledMessages().updates(_history)
 	) | rpl::map([=] {
 		return _forumTopic
-			? data->scheduledMessages().list(_forumTopic)
-			: data->scheduledMessages().list(_history);
+			? session->scheduledMessages().list(_forumTopic)
+			: session->scheduledMessages().list(_history);
 	}) | rpl::after_next([=](const Data::MessagesSlice &slice) {
 		highlightSingleNewMessage(slice);
 	});

@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_user_names.h"
 #include "api/api_websites.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/scheduled_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_web_page.h"
@@ -43,7 +44,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_search_controller.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -542,7 +542,7 @@ void ApiWrap::sendMessageFail(
 			}
 		}
 	} else if (error == u"SCHEDULE_STATUS_PRIVATE"_q) {
-		auto &scheduled = _session->data().scheduledMessages();
+		auto &scheduled = _session->scheduledMessages();
 		Assert(peer->isUser());
 		if (const auto item = scheduled.lookupItem(peer->id, itemId.msg)) {
 			scheduled.removeSending(item);
@@ -2447,8 +2447,8 @@ void ApiWrap::refreshFileReference(
 					_session->data().peer(storyId.peer)->input,
 					MTP_vector<MTPint>(1, MTP_int(storyId.story))));
 			} else if (item->isScheduled()) {
-				const auto &scheduled = _session->data().scheduledMessages();
-				const auto realId = scheduled.lookupId(item);
+				const auto realId = _session->scheduledMessages().lookupId(
+					item);
 				request(MTPmessages_GetScheduledMessages(
 					item->history()->peer->input,
 					MTP_vector<MTPint>(1, MTP_int(realId))));

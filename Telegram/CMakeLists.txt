@@ -460,6 +460,8 @@ PRIVATE
     data/business/data_business_info.h
     data/business/data_shortcut_messages.cpp
     data/business/data_shortcut_messages.h
+    data/components/scheduled_messages.cpp
+    data/components/scheduled_messages.h
     data/components/sponsored_messages.cpp
     data/components/sponsored_messages.h
     data/notify/data_notify_settings.cpp
@@ -579,8 +581,6 @@ PRIVATE
     data/data_send_action.h
     data/data_session.cpp
     data/data_session.h
-    data/data_scheduled_messages.cpp
-    data/data_scheduled_messages.h
     data/data_shared_media.cpp
     data/data_shared_media.h
     data/data_sparse_ids.cpp

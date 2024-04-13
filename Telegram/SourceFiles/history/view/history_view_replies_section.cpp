@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "data/components/scheduled_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -63,7 +64,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_shared_media.h"
 #include "data/data_send_action.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_premium_limits.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
@@ -230,10 +230,9 @@ RepliesWidget::RepliesWidget(
 		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
 		.scheduledToggleValue = _topic
 			? rpl::single(rpl::empty_value()) | rpl::then(
-				session().data().scheduledMessages().updates(
-					_topic->owningHistory())
+				session().scheduledMessages().updates(_topic->owningHistory())
 			) | rpl::map([=] {
-				return session().data().scheduledMessages().hasFor(_topic);
+				return session().scheduledMessages().hasFor(_topic);
 			}) | rpl::type_erased()
 			: rpl::single(false),
 	}))

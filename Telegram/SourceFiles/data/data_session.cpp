@@ -56,7 +56,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_replies_list.h"
 #include "data/data_chat_filters.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
 #include "data/data_message_reactions.h"
 #include "data/data_emoji_statuses.h"
@@ -271,7 +270,6 @@ Session::Session(not_null<Main::Session*> session)
 , _savedMessages(std::make_unique<SavedMessages>(this))
 , _chatbots(std::make_unique<Chatbots>(this))
 , _businessInfo(std::make_unique<BusinessInfo>(this))
-, _scheduledMessages(std::make_unique<ScheduledMessages>(this))
 , _shortcutMessages(std::make_unique<ShortcutMessages>(this)) {
 	_cache->open(_session->local().cacheKey());
 	_bigFileCache->open(_session->local().cacheBigFileKey());
@@ -395,7 +393,6 @@ void Session::clear() {
 	_sendActionManager->clear();
 
 	_histories->unloadAll();
-	_scheduledMessages = nullptr;
 	_shortcutMessages = nullptr;
 	_dependentMessages.clear();
 	base::take(_messages);

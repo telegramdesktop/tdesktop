@@ -12,12 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "ui/boxes/confirm_box.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/scheduled_messages.h"
 #include "data/data_histories.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
@@ -95,7 +94,7 @@ mtpRequestId EditMessage(
 		: emptyFlag);
 
 	const auto id = item->isScheduled()
-		? session->data().scheduledMessages().lookupId(item)
+		? session->scheduledMessages().lookupId(item)
 		: item->isBusinessShortcut()
 		? session->data().shortcutMessages().lookupId(item)
 		: item->id;
