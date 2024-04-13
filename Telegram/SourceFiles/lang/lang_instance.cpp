@@ -101,7 +101,7 @@ bool ValueParser::readTag() {
 	auto isTagChar = [](QChar ch) {
 		if (ch >= 'a' && ch <= 'z') {
 			return true;
-		} else if (ch >= 'A' && ch <= 'z') {
+		} else if (ch >= 'A' && ch <= 'Z') {
 			return true;
 		} else if (ch >= '0' && ch <= '9') {
 			return true;
