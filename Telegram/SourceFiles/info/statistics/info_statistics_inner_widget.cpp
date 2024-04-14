@@ -349,12 +349,14 @@ void FillOverview(
 		const auto diffText = diffAbs > kTooMuchDiff
 			? Lang::FormatCountToShort(std::abs(diff)).string
 			: QString::number(diffAbs);
+		const auto percentage = std::abs(v.growthRatePercentage);
+		const auto precision = (percentage == int(percentage)) ? 0 : 1;
 		return {
 			(diff < 0 ? st::menuIconAttentionColor : st::settingsIconBg2)->c,
 			QString("%1%2 (%3%)")
 				.arg((diff < 0) ? QChar(0x2212) : QChar(0x002B))
 				.arg(diffText)
-				.arg(std::abs(std::round(v.growthRatePercentage * 10.) / 10.))
+				.arg(QString::number(percentage, 'f', precision))
 		};
 	};
 
