@@ -1,3 +1,7 @@
+4.16.7 (15.04.24)
+
+- Reimplement file open confirmations.
+
 4.16.6 (09.04.24)
 
 - Show custom emoji preview on long press.
