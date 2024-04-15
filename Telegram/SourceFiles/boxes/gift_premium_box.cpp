@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/prepare_short_info_box.h"
 #include "boxes/peers/replace_boost_box.h" // BoostsForGift.
 #include "boxes/premium_preview_box.h" // ShowPremiumPreviewBox.
-#include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -48,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/gradient_round_button.h"
+#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
@@ -319,21 +319,20 @@ void GiftBox(
 			std::move(titleLabel)),
 		st::premiumGiftTitlePadding);
 
-	auto textLabel = object_ptr<Ui::FlatLabel>(box, st::premiumPreviewAbout);
-	tr::lng_premium_gift_about(
-		lt_user,
-		user->session().changes().peerFlagsValue(
-			user,
-			Data::PeerUpdate::Flag::Name
-		) | rpl::map([=] { return TextWithEntities{ user->firstName }; }),
-		Ui::Text::RichLangValue
-	) | rpl::map(
-		BoostsForGiftText({ user })
-	) | rpl::start_with_next([
-			raw = textLabel.data(),
-			session = &user->session()](const TextWithEntities &t) {
-		raw->setMarkedText(t, Core::MarkedTextContext{ .session = session });
-	}, textLabel->lifetime());
+	auto textLabel = Ui::CreateLabelWithCustomEmoji(
+		box,
+		tr::lng_premium_gift_about(
+			lt_user,
+			user->session().changes().peerFlagsValue(
+				user,
+				Data::PeerUpdate::Flag::Name
+			) | rpl::map([=] { return TextWithEntities{ user->firstName }; }),
+			Ui::Text::RichLangValue
+		) | rpl::map(
+			BoostsForGiftText({ user })
+		),
+		{ .session = &user->session() },
+		st::premiumPreviewAbout);
 	textLabel->setTextColorOverride(stTitle.textFg->c);
 	textLabel->resizeToWidth(available);
 	box->addRow(
@@ -536,14 +535,12 @@ void GiftsBox(
 		const auto label = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 				box,
-				object_ptr<Ui::FlatLabel>(box, st::premiumPreviewAbout)),
+				Ui::CreateLabelWithCustomEmoji(
+					box,
+					std::move(text),
+					{ .session = session },
+					st::premiumPreviewAbout)),
 			padding)->entity();
-		std::move(
-			text
-		) | rpl::start_with_next([=](const TextWithEntities &t) {
-			using namespace Core;
-			label->setMarkedText(t, MarkedTextContext{ .session = session });
-		}, label->lifetime());
 		label->setTextColorOverride(stTitle.textFg->c);
 		label->resizeToWidth(available);
 	}

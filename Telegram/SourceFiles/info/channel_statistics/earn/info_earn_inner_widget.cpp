@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/application.h"
-#include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_channel.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -31,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "statistics/chart_widget.h"
 #include "ui/basic_click_handlers.h"
+#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value_f.h"
@@ -334,23 +334,21 @@ void InnerWidget::fill() {
 			st::channelEarnLearnArrowMargins,
 			false));
 	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
-		auto label = object_ptr<Ui::FlatLabel>(
+		auto label = Ui::CreateLabelWithCustomEmoji(
 			container,
-			st::boxDividerLabel);
-		const auto raw = label.data();
-		text(
-			lt_link,
-			tr::lng_channel_earn_about_link(
-				lt_emoji,
-				rpl::single(arrow),
+			text(
+				lt_link,
+				tr::lng_channel_earn_about_link(
+					lt_emoji,
+					rpl::single(arrow),
+					Ui::Text::RichLangValue
+				) | rpl::map([](TextWithEntities text) {
+					return Ui::Text::Link(std::move(text), 1);
+				}),
 				Ui::Text::RichLangValue
-			) | rpl::map([](TextWithEntities text) {
-				return Ui::Text::Link(std::move(text), 1);
-			}),
-			Ui::Text::RichLangValue
-		) | rpl::start_with_next([=](const TextWithEntities &text) {
-			raw->setMarkedText(text, makeContext(raw));
-		}, label->lifetime());
+			),
+			{ .session = session },
+			st::boxDividerLabel);
 		label->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 			_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 				box->setNoContentMargin(true);
@@ -454,17 +452,16 @@ void InnerWidget::fill() {
 					const auto l = box->addRow(
 						object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 							content,
-							object_ptr<Ui::FlatLabel>(
+							Ui::CreateLabelWithCustomEmoji(
 								content,
+								tr::lng_channel_earn_learn_coin_title(
+									lt_emoji,
+									rpl::single(
+										Ui::Text::Link(bigCurrencyIcon, 1)),
+									Ui::Text::RichLangValue
+								),
+								{ .session = session },
 								st::boxTitle)))->entity();
-					tr::lng_channel_earn_learn_coin_title(
-						lt_emoji,
-						rpl::single(
-							Ui::Text::Link(bigCurrencyIcon, 1)),
-						Ui::Text::RichLangValue
-					) | rpl::start_with_next([=](TextWithEntities t) {
-						l->setMarkedText(std::move(t), makeContext(l));
-					}, l->lifetime());
 					const auto diamonds = l->lifetime().make_state<int>(0);
 					l->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 						const auto count = (*diamonds);
@@ -480,25 +477,23 @@ void InnerWidget::fill() {
 				Ui::AddSkip(content);
 				{
 					const auto label = box->addRow(
-						object_ptr<Ui::FlatLabel>(
+						Ui::CreateLabelWithCustomEmoji(
 							content,
+							tr::lng_channel_earn_learn_coin_about(
+								lt_link,
+								tr::lng_channel_earn_about_link(
+									lt_emoji,
+									rpl::single(arrow),
+									Ui::Text::RichLangValue
+								) | rpl::map([](TextWithEntities text) {
+									return Ui::Text::Link(std::move(text), 1);
+								}),
+								Ui::Text::RichLangValue
+							),
+							{ .session = session },
 							st::channelEarnLearnDescription));
-					tr::lng_channel_earn_learn_coin_about(
-						lt_link,
-						tr::lng_channel_earn_about_link(
-							lt_emoji,
-							rpl::single(arrow),
-							Ui::Text::RichLangValue
-						) | rpl::map([](TextWithEntities text) {
-							return Ui::Text::Link(std::move(text), 1);
-						}),
-						Ui::Text::RichLangValue
-					) | rpl::start_with_next([=, l = label](
-							TextWithEntities t) {
-						l->setMarkedText(std::move(t), makeContext(l));
-						l->resizeToWidth(box->width()
-							- rect::m::sum::h(st::boxRowPadding));
-					}, label->lifetime());
+					label->resizeToWidth(box->width()
+						- rect::m::sum::h(st::boxRowPadding));
 					label->setLink(
 						1,
 						LearnMoreCurrencyLink(
