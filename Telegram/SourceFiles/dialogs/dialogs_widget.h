@@ -246,6 +246,7 @@ private:
 	void updateScrollUpPosition();
 	void updateLockUnlockPosition();
 	void updateSuggestions(anim::type animated);
+	void processSearchFocusChange();
 
 	MTP::Sender _api;
 
@@ -315,6 +316,7 @@ private:
 	int _storiesExplicitExpandScrollTop = 0;
 	int _aboveScrollAdded = 0;
 	bool _storiesExplicitExpand = false;
+	bool _postponeProcessSearchFocusChange = false;
 
 	base::Timer _searchTimer;
 

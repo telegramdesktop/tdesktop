@@ -361,13 +361,6 @@ Widget::Widget(
 		applySearchUpdate();
 	}, _search->lifetime());
 
-	_search->focusedChanges(
-	) | rpl::start_with_next([=](bool focused) {
-		if (focused) {
-			updateHasFocus(_search.data());
-		}
-	}, _search->lifetime());
-
 	_search->submits(
 	) | rpl::start_with_next([=] { submit(); }, _search->lifetime());
 
@@ -1097,23 +1090,27 @@ void Widget::updateLockUnlockPosition() {
 }
 
 void Widget::updateHasFocus(not_null<QWidget*> focused) {
-	const auto has = (focused == _search.data());
+	const auto has = (focused == _search.data())
+		|| (focused == _search->rawTextEdit());
 	if (_searchHasFocus != has) {
 		_searchHasFocus = has;
-		const auto update = [=] {
-			updateStoriesVisibility();
-			updateForceDisplayWide();
-			updateSuggestions(anim::type::normal);
-		};
-		if (has) {
-			update();
+		if (_postponeProcessSearchFocusChange) {
+			return;
+		} else if (has) {
+			processSearchFocusChange();
 		} else {
 			// Search field may loose focus from the destructor of some
 			// widget, in that case we don't want to destroy _suggestions
-			// syncrhonously, because it may lead to a crash.
-			crl::on_main(this, update);
+			// synchronously, because it may lead to a crash.
+			crl::on_main(this, [=] { processSearchFocusChange(); });
 		}
 	}
+}
+
+void Widget::processSearchFocusChange() {
+	updateStoriesVisibility();
+	updateForceDisplayWide();
+	updateSuggestions(anim::type::normal);
 }
 
 void Widget::updateSuggestions(anim::type animated) {
@@ -2556,7 +2553,9 @@ void Widget::applySearchUpdate(bool force) {
 		clearSearchCache();
 	}
 	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
-	updateSuggestions(anim::type::instant);
+	if (!_postponeProcessSearchFocusChange) {
+		updateSuggestions(anim::type::instant);
+	}
 	updateLoadMoreChatsVisibility();
 	updateJumpToDateVisibility();
 	updateLockUnlockPosition();
@@ -3219,8 +3218,14 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		&& _search->isVisible()
 		&& !_search->hasFocus()
 		&& !e->text().isEmpty()) {
+		// This delay in search focus processing allows us not to create
+		// _suggestions in case the event inserts some non-whitespace search
+		// query while still show _suggestions animated, if it is a space.
+		_postponeProcessSearchFocusChange = true;
 		_search->setFocusFast();
 		QCoreApplication::sendEvent(_search->rawTextEdit(), e);
+		_postponeProcessSearchFocusChange = false;
+		processSearchFocusChange();
 	} else {
 		e->ignore();
 	}
