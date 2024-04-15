@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_preview.h"
 #include "core/core_settings.h"
 #include "core/application.h"
+#include "core/mime_type.h"
 #include "storage/file_download.h"
 #include "ui/chat/attach/attach_prepare.h"
 
@@ -295,10 +296,12 @@ void DocumentMedia::automaticLoad(
 		// No automatic download in this case.
 		return;
 	}
+	const auto indata = _owner->filename();
 	const auto filename = toCache
 		? QString()
 		: DocumentFileNameForSave(_owner);
-	const auto shouldLoadFromCloud = !Data::IsExecutableName(filename)
+	const auto shouldLoadFromCloud = (indata.isEmpty()
+		|| Core::DetectNameType(indata) != Core::NameType::Executable)
 		&& (item
 			? Data::AutoDownload::Should(
 				_owner->session().settings().autoDownload(),

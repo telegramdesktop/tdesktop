@@ -69,4 +69,21 @@ struct MimeImageData {
 [[nodiscard]] QList<QUrl> ReadMimeUrls(not_null<const QMimeData*> data);
 [[nodiscard]] bool CanSendFiles(not_null<const QMimeData*> data);
 
+enum class NameType : uchar {
+	Unknown,
+	Executable,
+	Image,
+	Video,
+	Audio,
+	Document,
+	Archive,
+	ThemeFile,
+	OtherBenign,
+};
+
+[[nodiscard]] QString FileExtension(const QString &filepath);
+[[nodiscard]] NameType DetectNameType(const QString &filepath);
+[[nodiscard]] bool NameTypeAllowsThumbnail(NameType type);
+[[nodiscard]] bool IsIpRevealingPath(const QString &filepath);
+
 } // namespace Core

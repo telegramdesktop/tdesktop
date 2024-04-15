@@ -37,6 +37,12 @@ namespace {
 		&& data->hasImage();
 }
 
+[[nodiscard]] base::flat_set<QString> SplitExtensions(
+		const QString &joined) {
+	const auto list = joined.split(' ');
+	return base::flat_set<QString>(list.begin(), list.end());
+}
+
 } // namespace
 
 MimeType::MimeType(const QMimeType &type) : _typeStruct(type) {
@@ -162,22 +168,9 @@ bool IsMimeAcceptedForPhotoVideoAlbum(const QString &mime) {
 }
 
 bool FileIsImage(const QString &name, const QString &mime) {
-	QString lowermime = mime.toLower(), namelower = name.toLower();
-	if (lowermime.startsWith(u"image/"_q)) {
-		return true;
-	} else if (namelower.endsWith(u".bmp"_q)
-		|| namelower.endsWith(u".jpg"_q)
-		|| namelower.endsWith(u".jpeg"_q)
-		|| namelower.endsWith(u".gif"_q)
-		|| namelower.endsWith(u".webp"_q)
-		|| namelower.endsWith(u".tga"_q)
-		|| namelower.endsWith(u".tiff"_q)
-		|| namelower.endsWith(u".tif"_q)
-		|| namelower.endsWith(u".psd"_q)
-		|| namelower.endsWith(u".png"_q)) {
-		return true;
-	}
-	return false;
+	return name.isEmpty()
+		? mime.toLower().startsWith(u"image/"_q)
+		: (DetectNameType(name) == NameType::Image);
 }
 
 std::shared_ptr<QMimeData> ShareMimeMediaData(
@@ -194,10 +187,10 @@ std::shared_ptr<QMimeData> ShareMimeMediaData(
 		result->setData(u"application/x-td-use-jpeg"_q, "1");
 		result->setData(u"image/jpeg"_q, original->data(u"image/jpeg"_q));
 	}
-	if (auto list = Core::ReadMimeUrls(original); !list.isEmpty()) {
+	if (auto list = ReadMimeUrls(original); !list.isEmpty()) {
 		result->setUrls(std::move(list));
 	}
-	result->setText(Core::ReadMimeText(original));
+	result->setText(ReadMimeText(original));
 	return result;
 }
 
@@ -238,6 +231,118 @@ bool CanSendFiles(not_null<const QMimeData*> data) {
 		}
 	}
 	return false;
+}
+
+QString FileExtension(const QString &filepath) {
+	const auto reversed = ranges::views::reverse(filepath);
+	const auto last = ranges::find_first_of(reversed, ".\\/");
+	if (last == reversed.end() || *last != '.') {
+		return QString();
+	}
+	return QString(last.base(), last - reversed.begin());
+}
+
+NameType DetectNameType(const QString &filepath) {
+	static const auto kImage = SplitExtensions(u"\
+afdesign ai avif bmp dng gif heic icns ico jfif jpeg jpg jpg-large nef png \
+png-large psd raw sketch svg tga tif tiff webp"_q);
+	static const auto kVideo = SplitExtensions(u"\
+3g2 3gp 3gpp aep avi flv h264 m4s m4v mkv mov mp4 mpeg mpg ogv srt tgs tgv \
+vob webm wmv"_q);
+	static const auto kAudio = SplitExtensions(u"\
+aac ac3 aif amr caf cda cue flac m4a m4b mid midi mp3 ogg opus wav wma"_q);
+	static const auto kDocument = SplitExtensions(u"\
+pdf doc docx ppt pptx pps ppsx xls xlsx txt rtf odt ods odp csv text log tl \
+tex xspf xml djvu diag ps ost kml pub epub mobi cbr cbz fb2 prc ris pem p7b \
+m3u m3u8 wpd wpl htm html xhtml key"_q);
+	static const auto kArchive = SplitExtensions(u"\
+7z arj bz2 gz rar tar xz z zip zst"_q);
+	static const auto kThemeFile = SplitExtensions(u"\
+tdesktop-theme tdesktop-palette tgios-theme attheme"_q);
+	static const auto kOtherBenign = SplitExtensions(u"\
+c cc cpp cxx h m mm swift cs ts class java css ninja cmake patch diff plist \
+gyp gitignore strings asoundrc torrent csr json xaml md keylayout sql \
+sln xib mk \
+\
+dmg img iso vcd \
+\
+pdb eot ics ips ipa core mem pcap ovpn part pcapng dmp pkpass dat zxp crash \
+file bak gbr plain dlc fon fnt otf ttc ttf gpx db rss cur \
+\
+tdesktop-endpoints"_q);
+
+	static const auto kExecutable = SplitExtensions(
+#ifdef Q_OS_WIN
+		u"\
+ad ade adp ahk app application appref-ms asp aspx asx bas bat bin cab cdxml \
+cer cfg cgi chi chm cmd cnt com conf cpl crt csh der diagcab dll drv eml \
+exe fon fxp gadget grp hlp hpj hta htt inf ini ins inx isp isu its jar jnlp \
+job js jse jsp key ksh lexe library-ms lnk local lua mad maf mag mam \
+manifest maq mar mas mat mau mav maw mcf mda mdb mde mdt mdw mdz mht mhtml \
+mjs mmc mof msc msg msh msh1 msh2 msh1xml msh2xml mshxml msi msp mst ops \
+osd paf pcd phar php php3 php4 php5 php7 phps php-s pht phtml pif pl plg pm \
+pod prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 psd1 psm1 pssc pst py py3 pyc \
+pyd pyi pyo pyw pyzw pyz rb reg rgs scf scr sct search-ms settingcontent-ms \
+sh shb shs slk sys swf t tmp u3p url vb vbe vbp vbs vbscript vdx vsmacros \
+vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx website wlua ws wsc \
+wsf wsh xbap xll xlsm xnk xs"_q
+#elif defined Q_OS_MAC // Q_OS_MAC
+		u"\
+applescript action app bin command csh osx workflow terminal url caction \
+mpkg pkg scpt scptd xhtm xhtml webarchive"_q
+#else // Q_OS_WIN || Q_OS_MAC
+		u"bin csh deb desktop ksh out pet pkg pup rpm run sh shar slp zsh"_q
+#endif // !Q_OS_WIN && !Q_OS_MAC
+	);
+
+	const auto extension = FileExtension(filepath).toLower();
+	if (kExecutable.contains(extension)) {
+		return NameType::Executable;
+	} else if (kImage.contains(extension)) {
+		return NameType::Image;
+	} else if (kVideo.contains(extension)) {
+		return NameType::Video;
+	} else if (kAudio.contains(extension)) {
+		return NameType::Audio;
+	} else if (kDocument.contains(extension)) {
+		return NameType::Document;
+	} else if (kArchive.contains(extension)) {
+		return NameType::Archive;
+	} else if (kThemeFile.contains(extension)) {
+		return NameType::ThemeFile;
+	} else if (kOtherBenign.contains(extension)) {
+		return NameType::OtherBenign;
+	}
+	return NameType::Unknown;
+}
+
+bool NameTypeAllowsThumbnail(NameType type) {
+	return type == NameType::Image
+		|| type == NameType::Video
+		|| type == NameType::Audio
+		|| type == NameType::Document
+		|| type == NameType::ThemeFile;
+}
+
+bool IsIpRevealingPath(const QString &filepath) {
+	static const auto kExtensions = [] {
+		const auto joined = u"htm html svg m4v m3u8 xhtml"_q;
+		const auto list = joined.split(' ');
+		return base::flat_set<QString>(list.begin(), list.end());
+	}();
+	static const auto kMimeTypes = [] {
+		const auto joined = u"text/html image/svg+xml"_q;
+		const auto list = joined.split(' ');
+		return base::flat_set<QString>(list.begin(), list.end());
+	}();
+
+	return ranges::binary_search(
+		kExtensions,
+		FileExtension(filepath).toLower()
+	) || ranges::binary_search(
+		kMimeTypes,
+		QMimeDatabase().mimeTypeForFile(QFileInfo(filepath)).name()
+	);
 }
 
 } // namespace Core

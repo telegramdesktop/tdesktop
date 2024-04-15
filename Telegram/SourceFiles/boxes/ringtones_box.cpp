@@ -90,7 +90,7 @@ QString ExtractRingtoneName(not_null<DocumentData*> document) {
 	}
 	const auto name = document->filename();
 	if (!name.isEmpty()) {
-		const auto extension = Data::FileExtension(name);
+		const auto extension = Core::FileExtension(name);
 		if (extension.isEmpty()) {
 			return name;
 		} else if (name.size() > extension.size() + 1) {
