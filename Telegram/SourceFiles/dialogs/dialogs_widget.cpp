@@ -655,6 +655,9 @@ void Widget::setupMoreChatsBar() {
 	controller()->activeChatsFilter(
 	) | rpl::start_with_next([=](FilterId id) {
 		storiesToggleExplicitExpand(false);
+		if (!_searchInChat) {
+			cancelSearch();
+		}
 
 		if (!id) {
 			_moreChatsBar = nullptr;
@@ -3345,7 +3348,7 @@ bool Widget::cancelSearch() {
 	if (_suggestions && clearSearchFocus) {
 		setFocus();
 	}
-	return clearingQuery || clearingInChat;
+	return clearingQuery || clearingInChat || clearSearchFocus;
 }
 
 void Widget::cancelSearchInChat() {
