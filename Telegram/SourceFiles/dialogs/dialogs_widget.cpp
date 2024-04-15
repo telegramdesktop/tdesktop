@@ -1153,11 +1153,10 @@ void Widget::updateSuggestions(anim::type animated) {
 			_suggestions->topPeerChosen(),
 			_suggestions->recentPeerChosen()
 		) | rpl::start_with_next([=](not_null<PeerData*> peer) {
-			if (base::IsCtrlPressed()) {
-				controller()->showInNewWindow(peer);
-			} else {
-				controller()->showPeerHistory(peer);
-			}
+			chosenRow({
+				.key = peer->owner().history(peer),
+				.newWindow = base::IsCtrlPressed(),
+			});
 		}, _suggestions->lifetime());
 
 		updateControlsGeometry();
