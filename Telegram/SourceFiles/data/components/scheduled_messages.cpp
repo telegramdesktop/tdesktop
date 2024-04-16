@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "data/data_scheduled_messages.h"
+#include "data/components/scheduled_messages.h"
 
 #include "base/unixtime.h"
 #include "data/data_forum_topic.h"
@@ -101,10 +101,10 @@ bool IsScheduledMsgId(MsgId id) {
 	return (id > ServerMaxMsgId) && (id < ScheduledMaxMsgId);
 }
 
-ScheduledMessages::ScheduledMessages(not_null<Session*> owner)
-: _session(&owner->session())
+ScheduledMessages::ScheduledMessages(not_null<Main::Session*> session)
+: _session(session)
 , _clearTimer([=] { clearOldRequests(); }) {
-	owner->itemRemoved(
+	_session->data().itemRemoved(
 	) | rpl::filter([](not_null<const HistoryItem*> item) {
 		return item->isScheduled();
 	}) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {

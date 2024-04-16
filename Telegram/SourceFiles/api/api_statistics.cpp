@@ -860,6 +860,7 @@ void EarnStatistics::requestHistory(
 			.token = Data::EarnHistorySlice::OffsetToken(nextToken),
 		});
 	}).fail([=] {
+		done({});
 		_requestId = 0;
 	}).send();
 }

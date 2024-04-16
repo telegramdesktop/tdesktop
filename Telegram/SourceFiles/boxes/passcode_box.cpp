@@ -740,7 +740,7 @@ void PasscodeBox::submitOnlyCheckCloudPassword(const QString &oldPassword) {
 void PasscodeBox::sendOnlyCheckCloudPassword(const QString &oldPassword) {
 	checkPassword(oldPassword, [=](const Core::CloudPasswordResult &check) {
 		if (const auto onstack = _cloudFields.customCheckCallback) {
-			onstack(check);
+			onstack(check, Ui::MakeWeak(this));
 		} else {
 			Assert(_cloudFields.turningOff);
 			sendClearCloudPassword(check);

@@ -7,23 +7,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "statistics/statistics_types.h"
+
 namespace Statistic {
 
 struct ChartRulersData final {
 public:
 	ChartRulersData(
-		int newMaxHeight,
-		int newMinHeight,
+		ChartValue newMaxHeight,
+		ChartValue newMinHeight,
 		bool useMinHeight,
 		float64 rightRatio,
 		Fn<QString(float64)> leftCustomCaption = nullptr,
 		Fn<QString(float64)> rightCustomCaption = nullptr);
 
 	void computeRelative(
-		int newMaxHeight,
-		int newMinHeight);
+		ChartValue newMaxHeight,
+		ChartValue newMinHeight);
 
-	[[nodiscard]] static int LookupHeight(int maxValue);
+	[[nodiscard]] static ChartValue LookupHeight(ChartValue maxValue);
 
 	struct Line final {
 		float64 absoluteValue = 0.;

@@ -71,6 +71,13 @@ auto RecipientsFlags(const BusinessRecipients &data) {
 
 } // namespace
 
+BusinessRecipients BusinessRecipients::MakeValid(BusinessRecipients value) {
+	if (value.included.empty()) {
+		value.allButExcluded = true;
+	}
+	return value;
+}
+
 MTPInputBusinessRecipients ForMessagesToMTP(const BusinessRecipients &data) {
 	using Flag = MTPDinputBusinessRecipients::Flag;
 	const auto &chats = data.allButExcluded ? data.excluded : data.included;

@@ -814,8 +814,8 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	}
 
 	if (_dateBadge->goodType && clip.intersects(_dateBadge->rect)) {
-		const auto scrollDateOpacity =
-			_dateBadge->opacity.value(_dateBadge->shown ? 1. : 0.);
+		const auto scrollDateOpacity
+			= _dateBadge->opacity.value(_dateBadge->shown ? 1. : 0.);
 		if (scrollDateOpacity > 0.) {
 			p.setOpacity(scrollDateOpacity);
 			if (_dateBadge->corners.p[0].isNull()) {

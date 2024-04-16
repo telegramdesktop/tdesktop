@@ -35,8 +35,8 @@ constexpr auto kSpeedDebounceTimeout = crl::time(1000);
 	return base::SafeRound(speed * 10) / 10.;
 }
 
-constexpr auto kSpeedStickedValues =
-	std::array<std::pair<float64, float64>, 7>{{
+constexpr auto kSpeedStickedValues
+	= std::array<std::pair<float64, float64>, 7>{{
 		{ 0.8, 0.05 },
 		{ 1.0, 0.05 },
 		{ 1.2, 0.05 },

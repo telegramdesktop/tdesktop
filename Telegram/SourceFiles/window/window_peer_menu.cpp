@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "info/statistics/info_statistics_widget.h"
 #include "info/stories/info_stories_widget.h"
+#include "data/components/scheduled_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -79,7 +80,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_saved_sublist.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_histories.h"
 #include "data/data_chat_filters.h"
 #include "dialogs/dialogs_key.h"
@@ -143,8 +143,8 @@ void ShareBotGame(
 
 } // namespace
 
-const char kOptionViewProfileInChatsListContextMenu[] =
-	"view-profile-in-chats-list-context-menu";
+const char kOptionViewProfileInChatsListContextMenu[]
+	= "view-profile-in-chats-list-context-menu";
 
 namespace {
 
@@ -2255,8 +2255,8 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		auto ids = QVector<MTPint>();
 		for (const auto item : session->data().idsToItems(list)) {
 			if (item->allowsSendNow()) {
-				ids.push_back(MTP_int(
-					session->data().scheduledMessages().lookupId(item)));
+				ids.push_back(
+					MTP_int(session->scheduledMessages().lookupId(item)));
 			}
 		}
 		session->api().request(MTPmessages_SendScheduledMessages(

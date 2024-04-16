@@ -372,8 +372,8 @@ TTLButton::TTLButton(
 			return (r.left() + r.width() > parentWidget()->width());
 		}) | rpl::distinct_until_changed(
 		) | rpl::start_with_next([=](bool toHide) {
-			const auto isFirstTooltip =
-				!Core::App().settings().ttlVoiceClickTooltipHidden();
+			const auto isFirstTooltip
+				= !Core::App().settings().ttlVoiceClickTooltipHidden();
 			if (isFirstTooltip || (!isFirstTooltip && toHide)) {
 				_tooltip->toggleAnimated(!toHide);
 			}

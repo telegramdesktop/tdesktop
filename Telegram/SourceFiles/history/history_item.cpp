@@ -40,11 +40,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "api/api_text_entities.h"
 #include "api/api_updates.h"
+#include "data/components/scheduled_messages.h"
+#include "data/components/sponsored_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_bot_app.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_message_reactions.h"
@@ -57,7 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "data/data_poll.h" // PollData::publicVotes.
-#include "data/data_sponsored_messages.h"
 #include "data/data_stories.h"
 #include "data/data_web_page.h"
 #include "chat_helpers/stickers_gift_box_pack.h"

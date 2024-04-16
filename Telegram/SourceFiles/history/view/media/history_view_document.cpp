@@ -380,12 +380,9 @@ void Document::createComponents(bool caption) {
 		mask |= HistoryDocumentVoice::Bit();
 	} else {
 		mask |= HistoryDocumentNamed::Bit();
-		if (_data->hasThumbnail()) {
-			if (!_data->isSong()
-				&& !Data::IsExecutableName(_data->filename())) {
-				_data->loadThumbnail(_realParent->fullId());
-				mask |= HistoryDocumentThumbed::Bit();
-			}
+		if (_data->hasThumbnail() && !_data->isSong()) {
+			_data->loadThumbnail(_realParent->fullId());
+			mask |= HistoryDocumentThumbed::Bit();
 		}
 	}
 	if (caption) {

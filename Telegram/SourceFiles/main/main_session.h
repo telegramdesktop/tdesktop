@@ -31,6 +31,8 @@ class Templates;
 namespace Data {
 class Session;
 class Changes;
+class ScheduledMessages;
+class SponsoredMessages;
 } // namespace Data
 
 namespace Storage {
@@ -103,6 +105,12 @@ public:
 
 	[[nodiscard]] Data::Changes &changes() const {
 		return *_changes;
+	}
+	[[nodiscard]] Data::SponsoredMessages &sponsoredMessages() const {
+		return *_sponsoredMessages;
+	}
+	[[nodiscard]] Data::ScheduledMessages &scheduledMessages() const {
+		return *_scheduledMessages;
 	}
 	[[nodiscard]] Api::Updates &updates() const {
 		return *_updates;
@@ -224,6 +232,8 @@ private:
 	const std::unique_ptr<Stickers::GiftBoxPack> _giftBoxStickersPacks;
 	const std::unique_ptr<SendAsPeers> _sendAsPeers;
 	const std::unique_ptr<InlineBots::AttachWebView> _attachWebView;
+	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
+	const std::unique_ptr<Data::SponsoredMessages> _sponsoredMessages;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 

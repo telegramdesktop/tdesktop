@@ -460,6 +460,10 @@ PRIVATE
     data/business/data_business_info.h
     data/business/data_shortcut_messages.cpp
     data/business/data_shortcut_messages.h
+    data/components/scheduled_messages.cpp
+    data/components/scheduled_messages.h
+    data/components/sponsored_messages.cpp
+    data/components/sponsored_messages.h
     data/notify/data_notify_settings.cpp
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
@@ -577,14 +581,10 @@ PRIVATE
     data/data_send_action.h
     data/data_session.cpp
     data/data_session.h
-    data/data_scheduled_messages.cpp
-    data/data_scheduled_messages.h
     data/data_shared_media.cpp
     data/data_shared_media.h
     data/data_sparse_ids.cpp
     data/data_sparse_ids.h
-    data/data_sponsored_messages.cpp
-    data/data_sponsored_messages.h
     data/data_statistics.h
     data/data_stories.cpp
     data/data_stories.h
@@ -1503,6 +1503,8 @@ PRIVATE
     window/window_lock_widgets.h
     window/window_main_menu.cpp
     window/window_main_menu.h
+    window/window_main_menu_helpers.cpp
+    window/window_main_menu_helpers.h
     window/window_media_preview.cpp
     window/window_media_preview.h
     window/window_peer_menu.cpp

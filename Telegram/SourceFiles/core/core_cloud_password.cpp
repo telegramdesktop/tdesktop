@@ -313,8 +313,8 @@ CloudPasswordState ParseCloudPasswordState(
 		ParseCloudPasswordAlgo(data.vnew_algo()));
 	result.mtp.newSecureSecret = ValidateNewSecureSecretAlgo(
 		ParseSecureSecretAlgo(data.vnew_secure_algo()));
-	result.unconfirmedPattern =
-		qs(data.vemail_unconfirmed_pattern().value_or_empty());
+	result.unconfirmedPattern = qs(
+		data.vemail_unconfirmed_pattern().value_or_empty());
 	result.pendingResetDate = data.vpending_reset_date().value_or_empty();
 
 	result.outdatedClient = [&] {

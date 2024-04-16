@@ -18,14 +18,13 @@ class Session;
 
 namespace Data {
 
-class Session;
 struct MessagesSlice;
 
 [[nodiscard]] bool IsScheduledMsgId(MsgId id);
 
 class ScheduledMessages final {
 public:
-	explicit ScheduledMessages(not_null<Session*> owner);
+	explicit ScheduledMessages(not_null<Main::Session*> session);
 	ScheduledMessages(const ScheduledMessages &other) = delete;
 	ScheduledMessages &operator=(const ScheduledMessages &other) = delete;
 	~ScheduledMessages();

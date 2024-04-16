@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_who_reacted.h"
 #include "api/api_views.h"
 #include "lang/lang_keys.h"
+#include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_channel.h"
@@ -79,7 +80,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
-#include "data/data_sponsored_messages.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -118,7 +118,7 @@ void FillSponsoredMessagesMenu(
 		not_null<Window::SessionController*> controller,
 		FullMsgId itemId,
 		not_null<Ui::PopupMenu*> menu) {
-	const auto &data = controller->session().data().sponsoredMessages();
+	const auto &data = controller->session().sponsoredMessages();
 	const auto info = data.lookupDetails(itemId).info;
 	const auto show = controller->uiShow();
 	if (!info.empty()) {
@@ -979,7 +979,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			: yShown(top + height / 2);
 		if (markShown) {
 			if (isSponsored) {
-				session().data().sponsoredMessages().view(item->fullId());
+				session().sponsoredMessages().view(item->fullId());
 			} else if (isUnread) {
 				readTill = item;
 			}

@@ -1157,7 +1157,7 @@ void ChartWidget::setupDetails() {
 		return;
 	}
 	const auto maxAbsoluteValue = [&] {
-		auto maxValue = 0;
+		auto maxValue = ChartValue(0);
 		for (const auto &l : _chartData.lines) {
 			maxValue = std::max(l.maxValue, maxValue);
 		}

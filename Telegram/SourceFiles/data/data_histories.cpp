@@ -9,13 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_text_entities.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/scheduled_messages.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_user.h"
 #include "base/unixtime.h"
 #include "base/random.h"
@@ -830,11 +830,12 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 			if (item->isScheduled()) {
 				const auto wasOnServer = !item->isSending()
 					&& !item->hasFailed();
+				auto &scheduled = _owner->session().scheduledMessages();
 				if (wasOnServer) {
-					scheduledIdsByPeer[history->peer].push_back(MTP_int(
-						_owner->scheduledMessages().lookupId(item)));
+					scheduledIdsByPeer[history->peer].push_back(
+						MTP_int(scheduled.lookupId(item)));
 				} else {
-					_owner->scheduledMessages().removeSending(item);
+					scheduled.removeSending(item);
 				}
 				continue;
 			} else if (item->isBusinessShortcut()) {

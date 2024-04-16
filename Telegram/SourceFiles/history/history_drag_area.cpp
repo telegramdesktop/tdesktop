@@ -52,8 +52,8 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	auto &lifetime = container->lifetime();
 	container->setAcceptDrops(true);
 
-	const auto attachDragDocument =
-		Ui::CreateChild<DragArea>(container.get());
+	const auto attachDragDocument
+		= Ui::CreateChild<DragArea>(container.get());
 	const auto attachDragPhoto = Ui::CreateChild<DragArea>(container.get());
 
 	attachDragDocument->hide();
@@ -62,8 +62,8 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	attachDragDocument->raise();
 	attachDragPhoto->raise();
 
-	const auto attachDragState =
-		lifetime.make_state<DragState>(DragState::None);
+	const auto attachDragState
+		= lifetime.make_state<DragState>(DragState::None);
 
 	const auto width = [=] {
 		return container->width();

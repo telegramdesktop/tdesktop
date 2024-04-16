@@ -7,66 +7,61 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_main_menu.h"
 
-#include "window/themes/window_theme.h"
-#include "window/window_peer_menu.h"
-#include "window/window_session_controller.h"
-#include "window/window_controller.h"
+#include "apiwrap.h"
+#include "base/qt_signal_producer.h"
+#include "boxes/about_box.h"
+#include "boxes/peer_list_controllers.h"
+#include "boxes/premium_preview_box.h"
+#include "calls/calls_box_controller.h"
+#include "core/application.h"
+#include "core/click_handler_types.h"
+#include "data/data_changes.h"
+#include "data/data_document_media.h"
+#include "data/data_folder.h"
+#include "data/data_session.h"
+#include "data/data_stories.h"
+#include "data/data_user.h"
+#include "info/info_memento.h"
+#include "info/profile/info_profile_badge.h"
+#include "info/profile/info_profile_emoji_status_panel.h"
+#include "info/stories/info_stories_widget.h"
+#include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "main/main_domain.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
+#include "mtproto/mtproto_config.h"
+#include "settings/settings_advanced.h"
+#include "settings/settings_calls.h"
+#include "settings/settings_information.h"
+#include "storage/localstorage.h"
+#include "storage/storage_account.h"
+#include "support/support_templates.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/snowflakes.h"
 #include "ui/effects/toggle_arrow.h"
+#include "ui/painter.h"
+#include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
+#include "ui/unread_badge_paint.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
-#include "ui/widgets/tooltip.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/text/text_utilities.h"
-#include "ui/text/text_options.h"
-#include "ui/new_badges.h"
-#include "ui/painter.h"
-#include "ui/vertical_list.h"
-#include "ui/unread_badge_paint.h"
-#include "inline_bots/bot_attach_web_view.h"
-#include "storage/localstorage.h"
-#include "storage/storage_account.h"
-#include "support/support_templates.h"
-#include "settings/settings_advanced.h"
-#include "settings/settings_calls.h"
-#include "settings/settings_information.h"
-#include "info/profile/info_profile_badge.h"
-#include "info/profile/info_profile_emoji_status_panel.h"
-#include "info/stories/info_stories_widget.h"
-#include "info/info_memento.h"
-#include "base/platform/base_platform_info.h"
-#include "base/qt_signal_producer.h"
-#include "boxes/about_box.h"
-#include "ui/boxes/confirm_box.h"
-#include "boxes/peer_list_controllers.h"
-#include "boxes/premium_preview_box.h"
-#include "calls/calls_box_controller.h"
-#include "lang/lang_keys.h"
-#include "core/click_handler_types.h"
-#include "core/application.h"
-#include "main/main_session.h"
-#include "main/main_session_settings.h"
-#include "main/main_account.h"
-#include "main/main_domain.h"
-#include "mtproto/mtproto_config.h"
-#include "data/data_chat.h"
-#include "data/data_document_media.h"
-#include "data/data_folder.h"
-#include "data/data_session.h"
-#include "data/data_user.h"
-#include "data/data_changes.h"
-#include "data/data_channel.h"
-#include "data/data_stories.h"
-#include "mainwidget.h"
+#include "window/themes/window_theme.h"
+#include "window/window_controller.h"
+#include "window/window_main_menu_helpers.h"
+#include "window/window_peer_menu.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
-#include "styles/style_window.h"
-#include "styles/style_settings.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
+#include "styles/style_window.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -78,163 +73,6 @@ namespace Window {
 namespace {
 
 constexpr auto kPlayStatusLimit = 2;
-
-class VersionLabel final
-	: public Ui::FlatLabel
-	, public Ui::AbstractTooltipShower {
-public:
-	using Ui::FlatLabel::FlatLabel;
-
-	void clickHandlerActiveChanged(
-			const ClickHandlerPtr &action,
-			bool active) override {
-		update();
-		if (active && action && !action->dragText().isEmpty()) {
-			Ui::Tooltip::Show(1000, this);
-		} else {
-			Ui::Tooltip::Hide();
-		}
-	}
-
-	QString tooltipText() const override {
-		return u"Build date: %1."_q.arg(__DATE__);
-	}
-
-	QPoint tooltipPos() const override {
-		return QCursor::pos();
-	}
-
-	bool tooltipWindowActive() const override {
-		return Ui::AppInFocus() && Ui::InFocusChain(window());
-	}
-
-};
-
-not_null<Ui::SettingsButton*> AddMyChannelsBox(
-		not_null<Ui::SettingsButton*> button,
-		not_null<SessionController*> controller,
-		bool chats) {
-	button->setAcceptBoth(true);
-
-	const auto myChannelsBox = [=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(chats
-			? tr::lng_notification_groups()
-			: tr::lng_notification_channels());
-
-		const auto st = box->lifetime().make_state<style::UserpicButton>(
-			st::defaultUserpicButton);
-		st->photoSize = st::defaultPeerListItem.photoSize;
-		st->size = QSize(st->photoSize, st->photoSize);
-
-		class Button final : public Ui::SettingsButton {
-		public:
-			using Ui::SettingsButton::SettingsButton;
-
-			void setPeer(not_null<PeerData*> p) {
-				const auto c = p->asChannel();
-				const auto g = p->asChat();
-				_text.setText(st::defaultPeerListItem.nameStyle, p->name());
-				const auto count = c ? c->membersCount() : g->count;
-				_status.setText(
-					st::defaultTextStyle,
-					!p->username().isEmpty()
-						? ('@' + p->username())
-						: count
-						? tr::lng_chat_status_subscribers(
-							tr::now,
-							lt_count,
-							count)
-						: QString());
-			}
-
-			int resizeGetHeight(int) override {
-				return st::defaultPeerListItem.height;
-			}
-
-			void paintEvent(QPaintEvent *e) override {
-				Ui::SettingsButton::paintEvent(e);
-				auto p = Painter(this);
-				const auto &st = st::defaultPeerListItem;
-				const auto availableWidth = width()
-					- st::boxRowPadding.right()
-					- st.namePosition.x();
-				p.setPen(st.nameFg);
-				auto context = Ui::Text::PaintContext{
-					.position = st.namePosition,
-					.outerWidth = availableWidth,
-					.availableWidth = availableWidth,
-					.elisionLines = 1,
-				};
-				_text.draw(p, context);
-				p.setPen(st.statusFg);
-				context.position = st.statusPosition;
-				_status.draw(p, context);
-			}
-
-		private:
-			Ui::Text::String _text;
-			Ui::Text::String _status;
-
-		};
-
-		const auto add = [&](not_null<PeerData*> peer) {
-			const auto row = box->addRow(
-				object_ptr<Button>(box, rpl::single(QString())),
-				{});
-			row->setPeer(peer);
-			row->setClickedCallback([=] {
-				controller->showPeerHistory(peer);
-			});
-			using Button = Ui::UserpicButton;
-			const auto userpic = Ui::CreateChild<Button>(row, peer, *st);
-			userpic->move(st::defaultPeerListItem.photoPosition);
-			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
-		};
-
-		const auto &data = controller->session().data();
-		if (chats) {
-			auto ids = std::vector<PeerId>();
-			data.enumerateGroups([&](not_null<PeerData*> peer) {
-				peer = peer->migrateToOrMe();
-				const auto c = peer->asChannel();
-				const auto g = peer->asChat();
-				if (ranges::contains(ids, peer->id)) {
-					return;
-				}
-				if ((c && c->amCreator()) || (g && g->amCreator())) {
-					ids.push_back(peer->id);
-					add(peer);
-				}
-			});
-		} else {
-			data.enumerateBroadcasts([&](not_null<ChannelData*> channel) {
-				if (channel->amCreator()) {
-					add(channel);
-				}
-			});
-		}
-	};
-
-	using Menu = base::unique_qptr<Ui::PopupMenu>;
-	const auto menu = button->lifetime().make_state<Menu>();
-	button->addClickHandler([=](Qt::MouseButton which) {
-		if (which != Qt::RightButton) {
-			return;
-		}
-
-		(*menu) = base::make_unique_q<Ui::PopupMenu>(
-			button,
-			st::defaultPopupMenu);
-		(*menu)->addAction(
-			(chats ? tr::lng_menu_my_groups : tr::lng_menu_my_channels)(
-				tr::now),
-			[=] { controller->uiShow()->showBox(Box(myChannelsBox)); },
-			nullptr);
-		(*menu)->popup(QCursor::pos());
-	});
-
-	return button;
-}
 
 [[nodiscard]] bool CanCheckSpecialEvent() {
 	static const auto result = [] {
@@ -347,88 +185,6 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 			? tr::lng_menu_change_status
 			: tr::lng_menu_set_status)(makeLink);
 	}) | rpl::flatten_latest();
-}
-
-void SetupMenuBots(
-		not_null<Ui::VerticalLayout*> container,
-		not_null<Window::SessionController*> controller) {
-	const auto wrap = container->add(
-		object_ptr<Ui::VerticalLayout>(container));
-	const auto bots = &controller->session().attachWebView();
-	const auto iconLoadLifetime = wrap->lifetime().make_state<
-		rpl::lifetime
-	>();
-
-	rpl::single(
-		rpl::empty
-	) | rpl::then(
-		bots->attachBotsUpdates()
-	) | rpl::start_with_next([=] {
-		const auto width = container->widthNoMargins();
-		wrap->clear();
-		for (const auto &bot : bots->attachBots()) {
-			const auto user = bot.user;
-			if (!bot.inMainMenu || !bot.media) {
-				continue;
-			} else if (const auto media = bot.media; !media->loaded()) {
-				if (!*iconLoadLifetime) {
-					auto &session = user->session();
-					*iconLoadLifetime = session.downloaderTaskFinished(
-					) | rpl::start_with_next([=] {
-						if (media->loaded()) {
-							iconLoadLifetime->destroy();
-							bots->notifyBotIconLoaded();
-						}
-					});
-				}
-				continue;
-			}
-			const auto button = wrap->add(object_ptr<Ui::SettingsButton>(
-				wrap,
-				rpl::single(bot.name),
-				st::mainMenuButton));
-			const auto menu = button->lifetime().make_state<
-				base::unique_qptr<Ui::PopupMenu>
-			>();
-			const auto icon = Ui::CreateChild<InlineBots::MenuBotIcon>(
-				button,
-				bot.media);
-			button->heightValue(
-			) | rpl::start_with_next([=](int height) {
-				icon->move(
-					st::mainMenuButton.iconLeft,
-					(height - icon->height()) / 2);
-			}, button->lifetime());
-			const auto weak = Ui::MakeWeak(container);
-			button->setAcceptBoth(true);
-			button->clicks(
-			) | rpl::start_with_next([=](Qt::MouseButton which) {
-				if (which == Qt::LeftButton) {
-					bots->requestSimple(controller, user, {
-						.fromMainMenu = true,
-					});
-					if (weak) {
-						controller->window().hideSettingsAndLayer();
-					}
-				} else {
-					(*menu) = nullptr;
-					(*menu) = base::make_unique_q<Ui::PopupMenu>(
-						button,
-						st::popupMenuWithIcons);
-					(*menu)->addAction(
-						tr::lng_bot_remove_from_menu(tr::now),
-						[=] { bots->removeFromMenu(user); },
-						&st::menuIconDelete);
-					(*menu)->popup(QCursor::pos());
-				}
-			}, button->lifetime());
-
-			if (bots->showMainMenuNewBadge(bot)) {
-				Ui::NewBadge::AddToRight(button);
-			}
-		}
-		wrap->resizeToWidth(width);
-	}, wrap->lifetime());
 }
 
 } // namespace
@@ -650,13 +406,7 @@ MainMenu::MainMenu(
 , _footer(_inner->add(object_ptr<Ui::RpWidget>(_inner.get())))
 , _telegram(
 	Ui::CreateChild<Ui::FlatLabel>(_footer.get(), st::mainMenuTelegramLabel))
-, _version((Platform::IsMacStoreBuild() || Platform::IsWindowsStoreBuild())
-	? Ui::CreateChild<Ui::FlatLabel>(
-		_footer.get(),
-		st::mainMenuVersionLabel)
-	: Ui::CreateChild<VersionLabel>(
-		_footer.get(),
-		st::mainMenuVersionLabel)) {
+, _version(AddVersionLabel(_footer)) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	setupUserpicButton();

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/debug_log.h"
 #include "data/data_statistics_chart.h"
+#include "statistics/statistics_types.h"
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
@@ -61,7 +62,7 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 			line.isHiddenOnStart = ranges::contains(hiddenLines, columnId);
 			line.y.resize(length);
 			for (auto i = 0; i < length; i++) {
-				const auto value = int(base::SafeRound(
+				const auto value = ChartValue(base::SafeRound(
 					array.at(i + 1).toDouble()));
 				line.y[i] = value;
 				if (value > line.maxValue) {

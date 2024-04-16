@@ -1973,6 +1973,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	const auto guard = gsl::finally([&] {
 		updateSendButtonType();
 		updateReplaceMediaButton();
+		updateFieldPlaceholder();
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
 	});

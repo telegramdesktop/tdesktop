@@ -20,6 +20,10 @@ namespace Images {
 class Source;
 } // namespace Images
 
+namespace Core {
+enum class NameType : uchar;
+} // namespace Core
+
 namespace Storage {
 namespace Cache {
 struct Key;
@@ -255,6 +259,7 @@ public:
 	void collectLocalData(not_null<DocumentData*> local);
 
 	[[nodiscard]] QString filename() const;
+	[[nodiscard]] Core::NameType nameType() const;
 	[[nodiscard]] QString mimeString() const;
 	[[nodiscard]] bool hasMimeType(const QString &mime) const;
 	void setMimeString(const QString &mime);
@@ -369,6 +374,7 @@ private:
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	mutable Flags _flags = kStreamingSupportedUnknown;
 	GoodThumbnailState _goodThumbnailState = GoodThumbnailState();
+	Core::NameType _nameType = Core::NameType();
 	std::unique_ptr<FileLoader> _loader;
 
 };

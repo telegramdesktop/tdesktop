@@ -734,6 +734,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sensitive_disable_filtering" = "Disable filtering";
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 "lng_settings_security_bots" = "Bots and websites";
+"lng_settings_file_confirmations" = "File open confirmations";
+"lng_settings_edit_extensions" = "Extensions whitelist";
+"lng_settings_edit_extensions_about" = "Open files with the following extensions without additional confirmation.";
+"lng_settings_edit_ip_confirm" = "IP reveal warning";
+"lng_settings_edit_ip_confirm_about" = "Show confirmation when opening files that may reveal your IP address.";
 "lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
 "lng_settings_logged_in" = "Connected websites";
 "lng_settings_logged_in_title" = "Logged in with Telegram";
@@ -4480,10 +4485,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_translate_settings_about" = "The 'Translate' button will appear when you open a context menu on a text message.";
 "lng_translate_settings_one" = "Please choose at least one language so that it can be used as the \"Translate to\" language.";
 
-"lng_launch_exe_warning" = "This file has a {extension} extension.\nAre you sure you want to run it?";
+"lng_launch_exe_warning" = "This file has {extension} extension.\nAre you sure you want to run it?";
+"lng_launch_other_warning" = "This file has {extension} extension.\nAre you sure you want to open it?";
 "lng_launch_svg_warning" = "Opening this file can potentially expose your IP address to its sender. Continue?";
 "lng_launch_exe_sure" = "Run";
+"lng_launch_other_sure" = "Open";
 "lng_launch_exe_dont_ask" = "Don't ask me again";
+"lng_launch_dont_ask" = "Remember for this file type";
+"lng_launch_dont_ask_settings" = "You can later edit trusted file types in Settings > Privacy and Security > File open confirmations.";
 
 "lng_polls_anonymous" = "Anonymous Poll";
 "lng_polls_public" = "Poll";

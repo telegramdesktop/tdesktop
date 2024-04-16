@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/vertical_list.h"
@@ -112,6 +113,56 @@ void AddPremiumStar(
 			button->fullTextWidth() + badgeLeft,
 			(s.height() - badge->height()) / 2);
 	}, badge->lifetime());
+}
+
+void OpenFileConfirmationsBox(not_null<Ui::GenericBox*> box) {
+	box->setTitle(tr::lng_settings_file_confirmations());
+
+	const auto settings = &Core::App().settings();
+	const auto &list = settings->noWarningExtensions();
+	const auto text = QStringList(begin(list), end(list)).join(' ');
+	const auto layout = box->verticalLayout();
+	const auto extensions = box->addRow(
+		object_ptr<Ui::InputField>(
+			box,
+			st::defaultInputField,
+			Ui::InputField::Mode::MultiLine,
+			tr::lng_settings_edit_extensions(),
+			TextWithTags{ text }),
+		st::boxRowPadding + QMargins(0, 0, 0, st::settingsPrivacySkip));
+	Ui::AddDividerText(layout, tr::lng_settings_edit_extensions_about());
+	Ui::AddSkip(layout);
+	const auto ip = layout->add(object_ptr<Ui::SettingsButton>(
+		box,
+		tr::lng_settings_edit_ip_confirm(),
+		st::settingsButtonNoIcon
+	))->toggleOn(rpl::single(settings->ipRevealWarning()));
+	Ui::AddSkip(layout);
+	Ui::AddDividerText(layout, tr::lng_settings_edit_ip_confirm_about());
+
+	box->setFocusCallback([=] {
+		extensions->setFocusFast();
+	});
+
+	box->addButton(tr::lng_settings_save(), [=] {
+		const auto extensionsList = extensions->getLastText()
+			.mid(0, 10240)
+			.split(' ', Qt::SkipEmptyParts)
+			.mid(0, 1024);
+		auto extensions = base::flat_set<QString>(
+			extensionsList.begin(),
+			extensionsList.end());
+		const auto ipRevealWarning = ip->toggled();
+		if (extensions != settings->noWarningExtensions()
+			|| ipRevealWarning != settings->ipRevealWarning()) {
+			settings->setNoWarningExtensions(std::move(extensions));
+			settings->setIpRevealWarning(ipRevealWarning);
+			Core::App().saveSettingsDelayed();
+		}
+		box->closeBox();
+
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 QString PrivacyBase(Privacy::Key key, const Privacy::Rule &rule) {
@@ -645,6 +696,30 @@ void SetupBotsAndWebsites(
 	});
 
 	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+}
+
+void SetupConfirmationExtensions(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	if (Core::App().settings().noWarningExtensions().empty()
+		&& Core::App().settings().ipRevealWarning()) {
+		return;
+	}
+
+	Ui::AddSkip(container);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_file_confirmations());
+
+	container->add(object_ptr<Button>(
+		container,
+		tr::lng_settings_edit_extensions(),
+		st::settingsButtonNoIcon
+	))->addClickHandler([=] {
+		controller->show(Box(OpenFileConfirmationsBox));
+	});
+
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, tr::lng_settings_edit_extensions_about());
 }
 
 void SetupBlockedList(
@@ -996,8 +1071,8 @@ void PrivacySecurity::setupContent(
 	AddDivider(content);
 #endif // !OS_MAC_STORE && !OS_WIN_STORE
 	SetupArchiveAndMute(controller, content);
+	SetupConfirmationExtensions(controller, content);
 	SetupBotsAndWebsites(controller, content);
-	AddDivider(content);
 	SetupSelfDestruction(controller, content, trigger());
 
 	Ui::ResizeFitChild(this, content);

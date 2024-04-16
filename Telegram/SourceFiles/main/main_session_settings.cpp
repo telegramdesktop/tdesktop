@@ -140,7 +140,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 supportChatsTimeSlice = _supportChatsTimeSlice.current();
 	qint32 appIncludeMutedCounter = app.includeMutedCounter() ? 1 : 0;
 	qint32 appCountUnreadMessages = app.countUnreadMessages() ? 1 : 0;
-	qint32 appExeLaunchWarning = app.exeLaunchWarning() ? 1 : 0;
+	qint32 legacyAppExeLaunchWarning = 1;
 	QByteArray autoDownload;
 	qint32 supportAllSearchResults = _supportAllSearchResults.current() ? 1 : 0;
 	qint32 archiveCollapsed = _archiveCollapsed.current() ? 1 : 0;
@@ -262,7 +262,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			stream >> appCountUnreadMessages;
 		}
 		if (!stream.atEnd()) {
-			stream >> appExeLaunchWarning;
+			stream >> legacyAppExeLaunchWarning;
 		}
 	}
 	if (!stream.atEnd()) {
@@ -509,7 +509,6 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		}
 		app.setIncludeMutedCounter(appIncludeMutedCounter == 1);
 		app.setCountUnreadMessages(appCountUnreadMessages == 1);
-		app.setExeLaunchWarning(appExeLaunchWarning == 1);
 		app.setNotifyAboutPinned(appNotifyAboutPinned == 1);
 		app.setLoopAnimatedStickers(appLoopAnimatedStickers == 1);
 		app.setLargeEmoji(appLargeEmoji == 1);

@@ -869,6 +869,7 @@ void SessionPrivate::tryToSend() {
 					false,
 					bindDcKeyRequest);
 				_bindMessageSent = crl::now();
+				sentIdsWrap.messages.push_back(_bindMsgId);
 				needAnyResponse = true;
 			}
 			if (pingRequest) {
@@ -877,6 +878,7 @@ void SessionPrivate::tryToSend() {
 					bigMsgId,
 					forceNewMsgId,
 					pingRequest);
+				sentIdsWrap.messages.push_back(_pingMsgId);
 				needAnyResponse = true;
 			}
 
@@ -1600,13 +1602,22 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 					correctUnixtimeWithBadLocal(info.serverTime);
 					info.badTime = false;
 				}
+				if (_bindMsgId) {
+					LOG(("Message Info: bad message notification received"
+						" while binding temp key, restarting."));
+					return HandleResult::RestartConnection;
+				}
 				LOG(("Message Info: bad message notification received, msgId %1, error_code %2").arg(data.vbad_msg_id().v).arg(errorCode));
 				return HandleResult::ResetSession;
 			}
 		} else { // fatal (except 48, but it must not get here)
 			const auto badMsgId = mtpMsgId(data.vbad_msg_id().v);
 			const auto requestId = wasSent(resendId);
-			if (requestId) {
+			if (_bindMsgId) {
+				LOG(("Message Error: fatal bad message notification received"
+					" while binding temp key, restarting."));
+				return HandleResult::RestartConnection;
+			} else if (requestId) {
 				LOG(("Message Error: "
 					"fatal bad message notification received, "
 					"msgId %1, error_code %2, requestId: %3"

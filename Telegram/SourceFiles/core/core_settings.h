@@ -398,11 +398,12 @@ public:
 	}
 	[[nodiscard]] QString getSoundPath(const QString &key) const;
 
-	[[nodiscard]] bool exeLaunchWarning() const {
-		return _exeLaunchWarning;
+	[[nodiscard]] auto noWarningExtensions() const
+	-> const base::flat_set<QString> & {
+		return _noWarningExtensions;
 	}
-	void setExeLaunchWarning(bool warning) {
-		_exeLaunchWarning = warning;
+	void setNoWarningExtensions(base::flat_set<QString> extensions) {
+		_noWarningExtensions = std::move(extensions);
 	}
 	[[nodiscard]] bool ipRevealWarning() const {
 		return _ipRevealWarning;
@@ -933,7 +934,7 @@ private:
 	Ui::SendFilesWay _sendFilesWay = Ui::SendFilesWay();
 	Ui::InputSubmitSettings _sendSubmitWay = Ui::InputSubmitSettings();
 	base::flat_map<QString, QString> _soundOverrides;
-	bool _exeLaunchWarning = true;
+	base::flat_set<QString> _noWarningExtensions;
 	bool _ipRevealWarning = true;
 	bool _loopAnimatedStickers = true;
 	rpl::variable<bool> _largeEmoji = true;
@@ -984,8 +985,8 @@ private:
 #else // Q_OS_MAC
 	bool _hardwareAcceleratedVideo = false;
 #endif // Q_OS_MAC
-	HistoryView::DoubleClickQuickAction _chatQuickAction =
-		HistoryView::DoubleClickQuickAction();
+	HistoryView::DoubleClickQuickAction _chatQuickAction
+		= HistoryView::DoubleClickQuickAction();
 	bool _translateButtonEnabled = false;
 	rpl::variable<bool> _translateChatEnabled = true;
 	rpl::variable<int> _translateToRaw = 0;

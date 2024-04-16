@@ -48,8 +48,11 @@ QString MinorPart(EarnInt value) {
 
 QString ToUsd(EarnInt value, float64 rate) {
 	constexpr auto kApproximately = QChar(0x2248);
-	const auto multiplier = EarnInt(rate * Data::kEarnMultiplier);
-	const auto result = (value * multiplier) / Data::kEarnMultiplier;
+
+	const auto result = value
+		/ float64(Data::kEarnMultiplier)
+		* rate
+		* Data::kEarnMultiplier;
 	return QString(kApproximately)
 		+ QChar('$')
 		+ MajorPart(result)

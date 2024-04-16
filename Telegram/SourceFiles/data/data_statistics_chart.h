@@ -30,14 +30,15 @@ struct StatisticalChart {
 	[[nodiscard]] int findIndex(int left, int right, float64 v) const;
 
 	struct Line final {
-		std::vector<int> y;
+		std::vector<Statistic::ChartValue> y;
 
 		Statistic::SegmentTree segmentTree;
 		int id = 0;
 		QString idString;
 		QString name;
-		int maxValue = 0;
-		int minValue = std::numeric_limits<int>::max();
+		Statistic::ChartValue maxValue = 0;
+		Statistic::ChartValue minValue
+			= std::numeric_limits<Statistic::ChartValue>::max();
 		QString colorKey;
 		QColor color;
 		QColor colorDark;
@@ -55,8 +56,9 @@ struct StatisticalChart {
 		float64 max = 0.;
 	} defaultZoomXIndex;
 
-	int maxValue = 0;
-	int minValue = std::numeric_limits<int>::max();
+	Statistic::ChartValue maxValue = 0;
+	Statistic::ChartValue minValue
+		= std::numeric_limits<Statistic::ChartValue>::max();
 
 	float64 oneDayPercentage = 0.;
 

@@ -766,12 +766,12 @@ void CheckoutProcess::requestPassword() {
 			(index < list.size()) ? list[index].title : QString());
 		fields.customSubmitButton = tr::lng_payments_password_submit();
 		fields.customCheckCallback = [=](
-				const Core::CloudPasswordResult &result) {
+				const Core::CloudPasswordResult &result,
+				QPointer<PasscodeBox> box) {
+			_enterPasswordBox = box;
 			_form->submit(result);
 		};
-		auto owned = Box<PasscodeBox>(_session, fields);
-		_enterPasswordBox = owned.data();
-		_panel->showBox(std::move(owned));
+		_panel->showBox(Box<PasscodeBox>(_session, fields));
 	});
 }
 

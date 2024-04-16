@@ -569,8 +569,8 @@ void StickerSetBox::updateButtons() {
 
 			if (!_inner->shortName().isEmpty()) {
 				const auto top = addTopButton(st::infoTopBarMenu);
-				const auto menu =
-					std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+				const auto menu
+					= std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 				top->setClickedCallback([=] {
 					*menu = base::make_unique_q<Ui::PopupMenu>(
 						top,
@@ -613,8 +613,8 @@ void StickerSetBox::updateButtons() {
 						_show->showBox(std::move(box));
 					}
 				};
-				const auto menu =
-					std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+				const auto menu
+					= std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 				top->setClickedCallback([=] {
 					*menu = base::make_unique_q<Ui::PopupMenu>(
 						top,

@@ -288,6 +288,8 @@ private:
 
 	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
 	[[nodiscard]] DocumentData *lookupCustomEmoji(
+		const OverEmoji *over) const;
+	[[nodiscard]] DocumentData *lookupCustomEmoji(
 		int index,
 		int section) const;
 	[[nodiscard]] EmojiChosen lookupChosen(
@@ -371,6 +373,8 @@ private:
 		DocumentId documentId,
 		uint64 setId);
 
+	void showPreview();
+
 	void applyNextSearchQuery();
 
 	const std::shared_ptr<Show> _show;
@@ -440,6 +444,8 @@ private:
 
 	object_ptr<EmojiColorPicker> _picker;
 	base::Timer _showPickerTimer;
+	base::Timer _previewTimer;
+	bool _previewShown = false;
 
 	rpl::event_stream<EmojiChosen> _chosen;
 	rpl::event_stream<FileChosen> _customChosen;

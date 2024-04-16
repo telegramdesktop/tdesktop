@@ -159,10 +159,7 @@ public:
 		-> rpl::producer<RowSelectionChange>;
 
 private:
-	[[nodiscard]] std::unique_ptr<PeerListRow> createRow() const;
-
 	const not_null<Main::Session*> _session;
-	bool _premiums = false;
 
 	rpl::event_stream<> _selectionChanged;
 	rpl::event_stream<RowSelectionChange> _rowSelectionChanges;
@@ -209,8 +206,7 @@ bool PremiumsRow::useForumLikeUserpic() const {
 TypesController::TypesController(
 	not_null<Main::Session*> session,
 	bool premiums)
-: _session(session)
-, _premiums(premiums) {
+: _session(session) {
 }
 
 Main::Session &TypesController::session() const {
@@ -331,6 +327,9 @@ auto PrivacyExceptionsBoxController::preparePremiumsRowList()
 
 	_deselectOption = [=](PeerListRowId itemId) {
 		if (const auto row = _typesDelegate->peerListFindRow(itemId)) {
+			if (itemId == kPremiumsRowId) {
+				_selected.premiums = false;
+			}
 			_typesDelegate->peerListSetRowChecked(row, false);
 		}
 	};

@@ -770,8 +770,8 @@ void Widget::updateScrollUpPosition() {
 	_scrollToTop->moveToRight(
 		st::historyToDownPosition.x(),
 		_scroll->height() - top);
-	const auto shouldBeHidden =
-		!_scrollToTopIsShown && !_scrollToTopShown.animating();
+	const auto shouldBeHidden
+		= !_scrollToTopIsShown && !_scrollToTopShown.animating();
 	if (shouldBeHidden != _scrollToTop->isHidden()) {
 		_scrollToTop->setVisible(!shouldBeHidden);
 	}

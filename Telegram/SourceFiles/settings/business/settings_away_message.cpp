@@ -220,7 +220,7 @@ void AwayMessage::setupContent(
 
 	_recipients = disabled
 		? Data::BusinessRecipients{ .allButExcluded = true }
-		: current.recipients;
+		: Data::BusinessRecipients::MakeValid(current.recipients);
 	auto initialSchedule = disabled ? AwaySchedule{
 		.type = AwayScheduleType::Always,
 	} : current.schedule;

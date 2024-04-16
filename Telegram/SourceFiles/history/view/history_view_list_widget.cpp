@@ -56,8 +56,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "core/crash_reports.h"
+#include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
-#include "data/data_sponsored_messages.h"
 #include "data/data_changes.h"
 #include "data/data_folder.h"
 #include "data/data_media_types.h"
@@ -2138,8 +2138,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			: yShown(top + height / 2);
 		if (markShown) {
 			if (isSponsored) {
-				session->data().sponsoredMessages().view(
-					item->fullId());
+				session->sponsoredMessages().view(item->fullId());
 			} else if (isUnread) {
 				readTill = item;
 			}
@@ -3898,8 +3897,8 @@ bool ListWidget::lastMessageEditRequestNotify() const {
 	if (it == end(list)) {
 		return false;
 	} else {
-		const auto item =
-			session().data().groups().findItemToEdit((*it)->data()).get();
+		const auto item
+			= session().data().groups().findItemToEdit((*it)->data()).get();
 		editMessageRequestNotify(item->fullId());
 		return true;
 	}

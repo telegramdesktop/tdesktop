@@ -280,7 +280,7 @@ private:
 
 };
 
-class ScheduledMemento : public Window::SectionMemento {
+class ScheduledMemento final : public Window::SectionMemento {
 public:
 	ScheduledMemento(not_null<History*> history);
 	ScheduledMemento(not_null<Data::ForumTopic*> forumTopic);

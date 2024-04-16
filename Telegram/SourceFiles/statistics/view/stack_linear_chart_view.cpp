@@ -165,8 +165,8 @@ void StackLinearChartView::prepareZoom(
 		_transition.zoomedOutXIndices = c.xIndices;
 		_transition.zoomedOutXPercentage = c.xPercentageLimits;
 	} else if (step == TransitionStep::PrepareToZoomIn) {
-		const auto &[zoomedStart, zoomedEnd] =
-			_transition.zoomedOutXIndices;
+		const auto &[zoomedStart, zoomedEnd]
+			= _transition.zoomedOutXIndices;
 		_transition.lines = std::vector<Transition::TransitionLine>(
 			c.chartData.lines.size(),
 			Transition::TransitionLine());
@@ -624,7 +624,7 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 
 	if (selectedLineIndex >= 0) {
 		const auto &line = c.chartData.lines[selectedLineIndex];
-		auto sum = 0;
+		auto sum = ChartValue(0);
 		for (auto i = zoomedStart; i <= zoomedEnd; i++) {
 			sum += line.y[i];
 		}
@@ -669,8 +669,8 @@ void StackLinearChartView::paintZoomedFooter(
 			0);
 
 		const auto next = std::clamp(i + offset, zoomedStart, zoomedEnd);
-		const auto xPointPercentage =
-			(xPercentage[next] - xPercentage[zoomedStart])
+		const auto xPointPercentage
+			= (xPercentage[next] - xPercentage[zoomedStart])
 				/ (xPercentage[zoomedEnd] - xPercentage[zoomedStart]);
 		const auto xPoint = leftStart + width * xPointPercentage;
 

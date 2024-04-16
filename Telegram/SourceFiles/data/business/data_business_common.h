@@ -44,6 +44,9 @@ struct BusinessRecipients {
 	BusinessChats excluded;
 	bool allButExcluded = false;
 
+	[[nodiscard]] static BusinessRecipients MakeValid(
+		BusinessRecipients value);
+
 	friend inline bool operator==(
 		const BusinessRecipients &a,
 		const BusinessRecipients &b) = default;

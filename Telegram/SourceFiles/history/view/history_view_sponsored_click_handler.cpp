@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 #include "core/click_handler_types.h"
 #include "core/file_utilities.h"
+#include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
-#include "data/data_sponsored_messages.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 
@@ -37,8 +37,8 @@ ClickHandlerPtr SponsoredLink(const QString &externalLink) {
 			if (!controller) {
 				return;
 			}
-			const auto &data = controller->session().data();
-			const auto details = data.sponsoredMessages().lookupDetails(
+			const auto &session = controller->session();
+			const auto details = session.sponsoredMessages().lookupDetails(
 				my.itemId);
 			if (!details.externalLink.isEmpty()) {
 				File::OpenUrl(details.externalLink);

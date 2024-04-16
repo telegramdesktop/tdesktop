@@ -551,13 +551,11 @@ NSRect PeerRectByIndex(int index) {
 	const auto processOnline = [=](const auto &pin) {
 		// TODO: this should be replaced
 		// with the global application timer for online statuses.
-		const auto onlineChanges =
-			peerChangedLifetime->make_state<rpl::event_stream<PeerData*>>();
+		const auto onlineChanges
+			= peerChangedLifetime->make_state<rpl::event_stream<PeerData*>>();
 		const auto peer = pin->peer;
-		const auto onlineTimer =
-			peerChangedLifetime->make_state<base::Timer>([=] {
-				onlineChanges->fire_copy({ peer });
-			});
+		const auto onlineTimer = peerChangedLifetime->make_state<base::Timer>(
+			[=] { onlineChanges->fire_copy({ peer }); });
 
 		const auto callTimer = [=](const auto &pin) {
 			onlineTimer->cancel();

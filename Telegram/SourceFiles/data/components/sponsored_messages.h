@@ -20,8 +20,6 @@ class Session;
 
 namespace Data {
 
-class Session;
-
 struct SponsoredReportResult final {
 	using Id = QByteArray;
 	struct Option final {
@@ -89,7 +87,7 @@ public:
 		bool canReport = false;
 	};
 	using RandomId = QByteArray;
-	explicit SponsoredMessages(not_null<Session*> owner);
+	explicit SponsoredMessages(not_null<Main::Session*> session);
 	SponsoredMessages(const SponsoredMessages &other) = delete;
 	SponsoredMessages &operator=(const SponsoredMessages &other) = delete;
 	~SponsoredMessages();
