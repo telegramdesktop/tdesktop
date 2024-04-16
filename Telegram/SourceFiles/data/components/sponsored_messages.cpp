@@ -379,8 +379,8 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 	return {
 		.info = std::move(info),
 		.link = data.link,
-		.photoId = data.from.photoId,
 		.buttonText = data.from.buttonText,
+		.photoId = data.from.photoId,
 		.backgroundEmojiId = data.from.backgroundEmojiId,
 		.colorIndex = data.from.colorIndex,
 		.isLinkInternal = data.from.isLinkInternal,
