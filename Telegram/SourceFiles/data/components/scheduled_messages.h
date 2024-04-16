@@ -55,6 +55,8 @@ public:
 	[[nodiscard]] Data::MessagesSlice list(
 		not_null<const Data::ForumTopic*> topic) const;
 
+	void clear();
+
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
 	struct List {

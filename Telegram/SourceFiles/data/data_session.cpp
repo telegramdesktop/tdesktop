@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_business_chatbots.h"
 #include "data/business/data_business_info.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/scheduled_messages.h"
 #include "data/stickers/data_stickers.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_bot_app.h"
@@ -394,6 +395,7 @@ void Session::clear() {
 
 	_histories->unloadAll();
 	_shortcutMessages = nullptr;
+	_session->scheduledMessages().clear();
 	_dependentMessages.clear();
 	base::take(_messages);
 	base::take(_nonChannelMessages);
