@@ -172,7 +172,7 @@ public:
 	void shareRequested();
 	void deleteRequested();
 	void reportRequested();
-	void togglePinnedRequested(bool pinned);
+	void toggleInProfileRequested(bool inProfile);
 
 	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
 	void tryProcessKeyInput(not_null<QKeyEvent*> e);
@@ -328,10 +328,10 @@ private:
 
 };
 
-[[nodiscard]] Ui::Toast::Config PrepareTogglePinnedToast(
+[[nodiscard]] Ui::Toast::Config PrepareToggleInProfileToast(
 	bool channel,
 	int count,
-	bool pinned);
+	bool inProfile);
 void ReportRequested(
 	std::shared_ptr<Main::SessionShow> show,
 	FullStoryId id,

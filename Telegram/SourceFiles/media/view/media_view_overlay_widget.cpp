@@ -1498,17 +1498,17 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			&st::mediaMenuIconShowInChat);
 	}
 	if (story && story->peer()->isSelf()) {
-		const auto pinned = story->pinned();
-		const auto text = pinned
+		const auto inProfile = story->inProfile();
+		const auto text = inProfile
 			? tr::lng_mediaview_archive_story(tr::now)
 			: tr::lng_mediaview_save_to_profile(tr::now);
 		addAction(text, [=] {
 			if (_stories) {
-				_stories->togglePinnedRequested(!pinned);
+				_stories->toggleInProfileRequested(!inProfile);
 			}
-		}, pinned
+		}, (inProfile
 			? &st::mediaMenuIconArchiveStory
-			: &st::mediaMenuIconSaveStory);
+			: &st::mediaMenuIconSaveStory));
 	}
 	if ((!story || story->canDownloadChecked())
 		&& _document

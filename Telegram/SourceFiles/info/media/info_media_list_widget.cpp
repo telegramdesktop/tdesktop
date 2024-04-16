@@ -1213,26 +1213,28 @@ void ListWidget::toggleStoryPin(
 	}
 	const auto channel = peerIsChannel(list.front().peer);
 	const auto count = int(list.size());
-	const auto pin = (_controller->storiesTab() == Stories::Tab::Archive);
+	const auto toProfile = (_controller->storiesTab() == Stories::Tab::Archive);
 	const auto controller = _controller;
 	const auto sure = [=](Fn<void()> close) {
 		using namespace ::Media::Stories;
-		controller->session().data().stories().togglePinnedList(list, pin);
+		controller->session().data().stories().toggleInProfileList(
+			list,
+			toProfile);
 		controller->showToast(
-			PrepareTogglePinnedToast(channel, count, pin));
+			PrepareToggleInProfileToast(channel, count, toProfile));
 		close();
 		if (confirmed) {
 			confirmed();
 		}
 	};
-	const auto onePhrase = pin
+	const auto onePhrase = toProfile
 		? (channel
 			? tr::lng_stories_channel_save_sure
 			: tr::lng_stories_save_sure)
 		: (channel
 			? tr::lng_stories_channel_archive_sure
 			: tr::lng_stories_archive_sure);
-	const auto manyPhrase = pin
+	const auto manyPhrase = toProfile
 		? (channel
 			? tr::lng_stories_channel_save_sure_many
 			: tr::lng_stories_save_sure_many)

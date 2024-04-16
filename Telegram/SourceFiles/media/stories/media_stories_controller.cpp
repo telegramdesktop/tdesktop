@@ -1696,17 +1696,19 @@ void Controller::reportRequested() {
 	ReportRequested(uiShow(), _shown, &st::storiesReportBox);
 }
 
-void Controller::togglePinnedRequested(bool pinned) {
+void Controller::toggleInProfileRequested(bool inProfile) {
 	const auto story = this->story();
 	if (!story || !story->peer()->isSelf()) {
 		return;
 	}
-	if (!pinned && v::is<Data::StoriesContextSaved>(_context.data)) {
+	if (!inProfile && v::is<Data::StoriesContextSaved>(_context.data)) {
 		moveFromShown();
 	}
-	story->owner().stories().togglePinnedList({ story->fullId() }, pinned);
+	story->owner().stories().toggleInProfileList(
+		{ story->fullId() },
+		inProfile);
 	const auto channel = story->peer()->isChannel();
-	uiShow()->showToast(PrepareTogglePinnedToast(channel, 1, pinned));
+	uiShow()->showToast(PrepareToggleInProfileToast(channel, 1, inProfile));
 }
 
 void Controller::moveFromShown() {
@@ -1757,12 +1759,12 @@ void Controller::updatePowerSaveBlocker(const Player::TrackState &state) {
 		[=] { return _wrap->window()->windowHandle(); });
 }
 
-Ui::Toast::Config PrepareTogglePinnedToast(
+Ui::Toast::Config PrepareToggleInProfileToast(
 		bool channel,
 		int count,
-		bool pinned) {
+		bool inProfile) {
 	return {
-		.text = (pinned
+		.text = (inProfile
 			? (count == 1
 				? (channel
 					? tr::lng_stories_channel_save_done
@@ -1793,8 +1795,8 @@ Ui::Toast::Config PrepareTogglePinnedToast(
 						count,
 						Ui::Text::WithEntities))),
 		.st = &st::storiesActionToast,
-		.duration = (pinned
-			? Data::Stories::kPinnedToastDuration
+		.duration = (inProfile
+			? Data::Stories::kInProfileToastDuration
 			: Ui::Toast::kDefaultDuration),
 	};
 }

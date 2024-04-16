@@ -103,8 +103,8 @@ void View::reportRequested() {
 	_controller->reportRequested();
 }
 
-void View::togglePinnedRequested(bool pinned) {
-	_controller->togglePinnedRequested(pinned);
+void View::toggleInProfileRequested(bool inProfile) {
+	_controller->toggleInProfileRequested(inProfile);
 }
 
 bool View::ignoreWindowMove(QPoint position) const {

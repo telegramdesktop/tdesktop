@@ -340,7 +340,7 @@ void Stories::clearArchive(not_null<PeerData*> peer) {
 	_archive.erase(i);
 	for (const auto &id : archive.ids.list) {
 		if (const auto story = lookup({ peerId, id })) {
-			if ((*story)->expired() && !(*story)->pinned()) {
+			if ((*story)->expired() && !(*story)->inProfile()) {
 				applyDeleted(peer, id);
 			}
 		}
@@ -558,8 +558,8 @@ void Stories::unregisterDependentMessage(
 void Stories::savedStateChanged(not_null<Story*> story) {
 	const auto id = story->id();
 	const auto peer = story->peer()->id;
-	const auto pinned = story->pinned();
-	if (pinned) {
+	const auto inProfile = story->inProfile();
+	if (inProfile) {
 		auto &saved = _saved[peer];
 		const auto added = saved.ids.list.emplace(id).second;
 		if (added) {
@@ -794,7 +794,7 @@ void Stories::applyDeleted(not_null<PeerData*> peer, StoryId id) {
 					}
 				}
 			}
-			if (story->pinned()) {
+			if (story->inProfile()) {
 				if (const auto k = _saved.find(peerId); k != end(_saved)) {
 					const auto saved = &k->second;
 					if (saved->ids.list.remove(id)) {
@@ -832,7 +832,7 @@ void Stories::applyDeleted(not_null<PeerData*> peer, StoryId id) {
 void Stories::applyExpired(FullStoryId id) {
 	if (const auto maybeStory = lookup(id)) {
 		const auto story = *maybeStory;
-		if (!hasArchive(story->peer()) && !story->pinned()) {
+		if (!hasArchive(story->peer()) && !story->inProfile()) {
 			applyDeleted(story->peer(), id.story);
 			return;
 		}
@@ -1099,7 +1099,7 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 		return;
 	}
 	const auto story = *maybeStory;
-	if (story->expired() && story->pinned()) {
+	if (story->expired() && story->inProfile()) {
 		_incrementViewsPending[id.peer].emplace(id.story);
 		if (!_incrementViewsTimer.isActive()) {
 			_incrementViewsTimer.callOnce(kIncrementViewsDelay);
@@ -1724,9 +1724,9 @@ void Stories::deleteList(const std::vector<FullStoryId> &ids) {
 	}).send();
 }
 
-void Stories::togglePinnedList(
+void Stories::toggleInProfileList(
 		const std::vector<FullStoryId> &ids,
-		bool pinned) {
+		bool inProfile) {
 	if (ids.empty()) {
 		return;
 	}
@@ -1745,7 +1745,7 @@ void Stories::togglePinnedList(
 	api->request(MTPstories_TogglePinned(
 		peer->input,
 		MTP_vector<MTPint>(list),
-		MTP_bool(pinned)
+		MTP_bool(inProfile)
 	)).done([=](const MTPVector<MTPint> &result) {
 		const auto peerId = peer->id;
 		auto &saved = _saved[peerId];
@@ -1759,8 +1759,8 @@ void Stories::togglePinnedList(
 		for (const auto &id : result.v) {
 			if (const auto maybeStory = lookup({ peerId, id.v })) {
 				const auto story = *maybeStory;
-				story->setPinned(pinned);
-				if (pinned) {
+				story->setInProfile(inProfile);
+				if (inProfile) {
 					const auto add = loaded || (id.v >= lastId);
 					if (!add) {
 						dirty = true;
