@@ -132,6 +132,19 @@ RUN git clone -b 1.0.7 --depth=1 {{ GIT }}/google/highway.git \
 	&& cd .. \
 	&& rm -rf highway
 
+FROM builder AS mozjpeg
+RUN git clone -b v4.1.4 --depth=1 {{ GIT }}/mozilla/mozjpeg.git \
+	&& cd mozjpeg \
+	&& cmake -GNinja -B build . \
+		-DCMAKE_BUILD_TYPE=None \
+		-DCMAKE_INSTALL_PREFIX=/usr/local \
+		-DWITH_JPEG8=ON \
+		-DPNG_SUPPORTED=OFF \
+	&& cmake --build build --parallel \
+	&& DESTDIR="{{ LibrariesPath }}/mozjpeg-cache" cmake --install build \
+	&& cd .. \
+	&& rm -rf mozjpeg
+
 FROM builder AS opus
 RUN git clone -b v1.4 --depth=1 {{ GIT }}/xiph/opus.git \
 	&& cd opus \
@@ -252,14 +265,13 @@ COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
 
 RUN git clone -b v0.10.2 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 	&& cd libjxl \
-	&& git submodule update --init --recursive --depth=1 third_party/libjpeg-turbo \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DBUILD_TESTING=OFF \
 		-DJPEGXL_ENABLE_DEVTOOLS=OFF \
 		-DJPEGXL_ENABLE_TOOLS=OFF \
-		-DJPEGXL_INSTALL_JPEGLI_LIBJPEG=ON \
+		-DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF \
 		-DJPEGXL_ENABLE_DOXYGEN=OFF \
 		-DJPEGXL_ENABLE_MANPAGES=OFF \
 		-DJPEGXL_ENABLE_BENCHMARK=OFF \
@@ -269,10 +281,7 @@ RUN git clone -b v0.10.2 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 		-DJPEGXL_ENABLE_OPENEXR=OFF \
 		-DJPEGXL_ENABLE_SKCMS=OFF \
 	&& cmake --build build --parallel \
-	&& export DESTDIR="{{ LibrariesPath }}/libjxl-cache" \
-	&& cmake --install build \
-	&& cp build/lib/libjpegli-static.a $DESTDIR/usr/local/lib64/libjpeg.a \
-	&& ar rcs $DESTDIR/usr/local/lib64/libjpeg.a build/lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o \
+	&& DESTDIR="{{ LibrariesPath }}/libjxl-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf libjxl
 
@@ -695,7 +704,7 @@ RUN git clone -b 1.78.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
 FROM patches AS qt
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
-COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
+COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
 COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
 COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
@@ -748,9 +757,9 @@ RUN git clone -b v2023.06.01 --depth=1 https://chromium.googlesource.com/breakpa
 	&& rm -rf breakpad
 
 FROM builder AS webrtc
+COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
 COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
@@ -796,6 +805,7 @@ COPY --link --from=protobuf {{ LibrariesPath }}/protobuf-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
 COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
+COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
