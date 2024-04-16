@@ -647,12 +647,22 @@ manageGroupReactions: IconButton(defaultIconButton) {
 	iconOver: icon{{ "info/edit/stickers_add", historyComposeIconFgOver }};
 }
 manageGroupReactionsField: InputField(defaultInputField) {
-	textMargins: margins(1px, 38px, 24px, 8px);
-	placeholderShift: -32px;
-	heightMin: 66px;
+	textMargins: margins(1px, 12px, 24px, 8px);
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(1px, 0px, 7px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	placeholderShift: -50px;
+	font: normalFont;
+	heightMin: 36px;
 	heightMax: 158px;
 }
+manageGroupReactionsFieldPadding: margins(0px, 0px, 0px, -9px);
 manageGroupReactionsTextSkip: 16px;
+manageGroupReactionsMaxSubtitlePadding: margins(0px, 0px, 0px, -3px);
 
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info/info_media_photo_empty", infoEmptyFg }};
