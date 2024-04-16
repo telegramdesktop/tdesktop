@@ -261,6 +261,9 @@ void ListWidget::selectionAction(SelectionAction action) {
 	case SelectionAction::Clear: clearSelected(); return;
 	case SelectionAction::Forward: forwardSelected(); return;
 	case SelectionAction::Delete: deleteSelected(); return;
+	case SelectionAction::ToggleStoryInProfile:
+		toggleStoryInProfileSelected();
+		return;
 	case SelectionAction::ToggleStoryPin: toggleStoryPinSelected(); return;
 	}
 }
@@ -340,6 +343,7 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 		result.canDelete = selection.canDelete;
 		result.canForward = selection.canForward;
 		result.canToggleStoryPin = selection.canToggleStoryPin;
+		result.canUnpinStory = selection.canUnpinStory;
 		return result;
 	};
 	auto transformation = [&](const auto &item) {
@@ -908,19 +912,24 @@ void ListWidget::showContextMenu(
 		}
 	}
 
-	auto canDeleteAll = [&] {
+	const auto canDeleteAll = [&] {
 		return ranges::none_of(_selected, [](auto &&item) {
 			return !item.second.canDelete;
 		});
 	};
-	auto canForwardAll = [&] {
+	const auto canForwardAll = [&] {
 		return ranges::none_of(_selected, [](auto &&item) {
 			return !item.second.canForward;
 		}) && (!_controller->key().storiesPeer() || _selected.size() == 1);
 	};
-	auto canToggleStoryPinAll = [&] {
+	const auto canToggleStoryPinAll = [&] {
 		return ranges::none_of(_selected, [](auto &&item) {
 			return !item.second.canToggleStoryPin;
+		});
+	};
+	const auto canUnpinStoryAll = [&] {
+		return ranges::any_of(_selected, [](auto &&item) {
+			return item.second.canUnpinStory;
 		});
 	};
 
@@ -1024,15 +1033,26 @@ void ListWidget::showContextMenu(
 	if (overSelected == SelectionState::OverSelectedItems) {
 		if (canToggleStoryPinAll()) {
 			const auto tab = _controller->key().storiesTab();
-			const auto pin = (tab == Stories::Tab::Archive);
+			const auto toProfile = (tab == Stories::Tab::Archive);
 			_contextMenu->addAction(
-				(pin
+				(toProfile
 					? tr::lng_mediaview_save_to_profile
 					: tr::lng_archived_add)(tr::now),
-				crl::guard(this, [this] { toggleStoryPinSelected(); }),
-				(pin
+				crl::guard(this, [this] { toggleStoryInProfileSelected(); }),
+				(toProfile
 					? &st::menuIconStoriesSave
 					: &st::menuIconStoriesArchive));
+			if (!toProfile) {
+				const auto unpin = canUnpinStoryAll();
+				_contextMenu->addAction(
+					(unpin
+						? tr::lng_context_unpin_from_top
+						: tr::lng_context_pin_to_top)(tr::now),
+					crl::guard(
+						this,
+						[this] { toggleStoryPinSelected(); }),
+					(unpin ? &st::menuIconUnpin : &st::menuIconPin));
+			}
 		}
 		if (canForwardAll()) {
 			_contextMenu->addAction(
@@ -1065,17 +1085,28 @@ void ListWidget::showContextMenu(
 				FullSelection);
 			if (selectionData.canToggleStoryPin) {
 				const auto tab = _controller->key().storiesTab();
-				const auto pin = (tab == Stories::Tab::Archive);
+				const auto toProfile = (tab == Stories::Tab::Archive);
 				_contextMenu->addAction(
-					(pin
+					(toProfile
 						? tr::lng_mediaview_save_to_profile
 						: tr::lng_mediaview_archive_story)(tr::now),
 					crl::guard(this, [=] {
-						toggleStoryPin({ 1, globalId.itemId });
+						toggleStoryInProfile({ 1, globalId.itemId });
 					}),
-					(pin
+					(toProfile
 						? &st::menuIconStoriesSave
 						: &st::menuIconStoriesArchive));
+				if (!toProfile) {
+					const auto unpin = selectionData.canUnpinStory;
+					_contextMenu->addAction(
+						(unpin
+							? tr::lng_context_unpin_from_top
+							: tr::lng_context_pin_to_top)(tr::now),
+						crl::guard(this, [=] { toggleStoryPin(
+							{ 1, globalId.itemId },
+							!unpin); }),
+						(unpin ? &st::menuIconUnpin : &st::menuIconPin));
+				}
 			}
 			if (selectionData.canForward) {
 				_contextMenu->addAction(
@@ -1193,13 +1224,23 @@ void ListWidget::deleteSelected() {
 	}));
 }
 
-void ListWidget::toggleStoryPinSelected() {
-	toggleStoryPin(collectSelectedIds(), crl::guard(this, [=] {
+void ListWidget::toggleStoryInProfileSelected() {
+	toggleStoryInProfile(collectSelectedIds(), crl::guard(this, [=] {
 		clearSelected();
 	}));
 }
 
-void ListWidget::toggleStoryPin(
+void ListWidget::toggleStoryPinSelected() {
+	const auto items = collectSelectedItems();
+	const auto pin = ranges::none_of(
+		items.list,
+		&SelectedItem::canUnpinStory);
+	toggleStoryPin(collectSelectedIds(items), pin, crl::guard(this, [=] {
+		clearSelected();
+	}));
+}
+
+void ListWidget::toggleStoryInProfile(
 		MessageIdsList &&items,
 		Fn<void()> confirmed) {
 	auto list = std::vector<FullStoryId>();
@@ -1248,6 +1289,37 @@ void ListWidget::toggleStoryPin(
 		.confirmed = sure,
 		.confirmText = tr::lng_box_ok(),
 	}));
+}
+
+void ListWidget::toggleStoryPin(
+		MessageIdsList &&items,
+		bool pin,
+		Fn<void()> confirmed) {
+	auto list = std::vector<FullStoryId>();
+	for (const auto &id : items) {
+		if (IsStoryMsgId(id.msg)) {
+			list.push_back({ id.peer, StoryIdFromMsgId(id.msg) });
+		}
+	}
+	if (list.empty()) {
+		return;
+	}
+	const auto channel = peerIsChannel(list.front().peer);
+	const auto count = int(list.size());
+	const auto controller = _controller;
+	const auto stories = &controller->session().data().stories();
+	if (stories->canTogglePinnedList(list, pin)) {
+		using namespace ::Media::Stories;
+		stories->togglePinnedList(list, pin);
+		controller->showToast(PrepareTogglePinToast(channel, count, pin));
+		if (confirmed) {
+			confirmed();
+		}
+	} else {
+		const auto limit = stories->maxPinnedCount();
+		controller->showToast(
+			tr::lng_mediaview_pin_limit(tr::now, lt_count, limit));
+	}
 }
 
 void ListWidget::deleteItem(GlobalMsgId globalId) {

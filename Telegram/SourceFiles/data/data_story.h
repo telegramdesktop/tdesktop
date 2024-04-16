@@ -153,6 +153,9 @@ public:
 	[[nodiscard]] Image *replyPreview() const;
 	[[nodiscard]] TextWithEntities inReplyText() const;
 
+	void setPinnedToTop(bool pinned);
+	bool pinnedToTop() const;
+
 	void setInProfile(bool value);
 	[[nodiscard]] bool inProfile() const;
 	[[nodiscard]] StoryPrivacy privacy() const;
@@ -251,6 +254,7 @@ private:
 	TimeId _lastUpdateTime = 0;
 	bool _out : 1 = false;
 	bool _inProfile : 1 = false;
+	bool _pinnedToTop : 1 = false;
 	bool _privacyPublic : 1 = false;
 	bool _privacyCloseFriends : 1 = false;
 	bool _privacyContacts : 1 = false;

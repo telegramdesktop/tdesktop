@@ -3424,6 +3424,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_forward" = "Forward";
 "lng_mediaview_delete" = "Delete";
 "lng_mediaview_save_to_profile" = "Save to Profile";
+"lng_mediaview_pin_story_done" = "Story pinned";
+"lng_mediaview_pin_story_about" = "Now it will be always shown on the top.";
+"lng_mediaview_pin_stories_done#one" = "{count} story pinned";
+"lng_mediaview_pin_stories_done#other" = "{count} stories pinned";
+"lng_mediaview_pin_stories_about#one" = "Now it will be always shown on the top.";
+"lng_mediaview_pin_stories_about#other" = "Now they will be always shown on the top.";
+"lng_mediaview_unpin_story_done" = "Story unpinned.";
+"lng_mediaview_unpin_stories_done#one" = "{count} story unpinned";
+"lng_mediaview_unpin_stories_done#other" = "{count} stories unpinned";
+"lng_mediaview_pin_limit#one" = "You can't pin more than {count} story.";
+"lng_mediaview_pin_limit#other" = "You can't pin more than {count} stories.";
 "lng_mediaview_archive_story" = "Archive Story";
 "lng_mediaview_photos_all" = "View all photos";
 "lng_mediaview_files_all" = "View all files";

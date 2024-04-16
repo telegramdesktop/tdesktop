@@ -332,6 +332,10 @@ private:
 	bool channel,
 	int count,
 	bool inProfile);
+[[nodiscard]] Ui::Toast::Config PrepareTogglePinToast(
+	bool channel,
+	int count,
+	bool pin);
 void ReportRequested(
 	std::shared_ptr<Main::SessionShow> show,
 	FullStoryId id,

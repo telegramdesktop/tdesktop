@@ -80,13 +80,18 @@ struct SameDayRange {
 		int index) {
 	Expects(index >= 0 && index < ids.list.size());
 
+	const auto pinned = int(ids.pinnedToTop.size());
+	if (index < pinned) {
+		return SameDayRange{ .from = 0, .till = pinned - 1 };
+	}
+
 	auto result = SameDayRange{ .from = index, .till = index };
 	const auto peerId = story->peer()->id;
 	const auto stories = &story->owner().stories();
 	const auto now = base::unixtime::parse(story->date());
-	const auto b = begin(ids.list);
-	for (auto i = b + index; i != b;) {
-		if (const auto maybeStory = stories->lookup({ peerId, *--i })) {
+	for (auto i = index; i != 0;) {
+		const auto storyId = IdRespectingPinned(ids, --i);
+		if (const auto maybeStory = stories->lookup({ peerId, storyId })) {
 			const auto day = base::unixtime::parse((*maybeStory)->date());
 			if (day.date() != now.date()) {
 				break;
@@ -94,8 +99,9 @@ struct SameDayRange {
 		}
 		--result.from;
 	}
-	for (auto i = b + index + 1, e = end(ids.list); i != e; ++i) {
-		if (const auto maybeStory = stories->lookup({ peerId, *i })) {
+	for (auto i = index + 1, c = int(ids.list.size()); i != c; ++i) {
+		const auto storyId = IdRespectingPinned(ids, i);
+		if (const auto maybeStory = stories->lookup({ peerId, storyId })) {
 			const auto day = base::unixtime::parse((*maybeStory)->date());
 			if (day.date() != now.date()) {
 				break;
@@ -694,17 +700,16 @@ void Controller::rebuildFromContext(
 	}, [&](StoriesContextSaved) {
 		if (stories.savedCountKnown(peerId)) {
 			const auto &saved = stories.saved(peerId);
-			const auto &ids = saved.list;
-			const auto i = ids.find(id);
-			if (i != end(ids)) {
+			const auto i = IndexRespectingPinned(saved, id);
+			if (i < saved.list.size()) {
 				list = StoriesList{
 					.peer = peer,
 					.ids = saved,
 					.total = stories.savedCount(peerId),
 				};
-				_index = int(i - begin(ids));
-				if (ids.size() < list->total
-					&& (end(ids) - i) < kPreloadStoriesCount) {
+				_index = i;
+				if (saved.list.size() < list->total
+					&& (saved.list.size() - i) < kPreloadStoriesCount) {
 					stories.savedLoadMore(peerId);
 				}
 			}
@@ -713,17 +718,16 @@ void Controller::rebuildFromContext(
 	}, [&](StoriesContextArchive) {
 		if (stories.archiveCountKnown(peerId)) {
 			const auto &archive = stories.archive(peerId);
-			const auto &ids = archive.list;
-			const auto i = ids.find(id);
-			if (i != end(ids)) {
+			const auto i = IndexRespectingPinned(archive, id);
+			if (i < archive.list.size()) {
 				list = StoriesList{
 					.peer = peer,
 					.ids = archive,
 					.total = stories.archiveCount(peerId),
 				};
-				_index = int(i - begin(ids));
-				if (ids.size() < list->total
-					&& (end(ids) - i) < kPreloadStoriesCount) {
+				_index = i;
+				if (archive.list.size() < list->total
+					&& (archive.list.size() - i) < kPreloadStoriesCount) {
 					stories.archiveLoadMore(peerId);
 				}
 			}
@@ -1520,7 +1524,7 @@ StoryId Controller::shownId(int index) const {
 	return _source
 		? (_source->ids.begin() + index)->id
 		: (index < int(_list->ids.list.size()))
-		? *(_list->ids.list.begin() + index)
+		? IdRespectingPinned(_list->ids, index)
 		: StoryId();
 }
 
@@ -1796,6 +1800,39 @@ Ui::Toast::Config PrepareToggleInProfileToast(
 						Ui::Text::WithEntities))),
 		.st = &st::storiesActionToast,
 		.duration = (inProfile
+			? Data::Stories::kInProfileToastDuration
+			: Ui::Toast::kDefaultDuration),
+	};
+}
+
+Ui::Toast::Config PrepareTogglePinToast(
+		bool channel,
+		int count,
+		bool pin) {
+	return {
+		.title = (pin
+			? (count == 1
+				? tr::lng_mediaview_pin_story_done(tr::now)
+				: tr::lng_mediaview_pin_stories_done(
+					tr::now,
+					lt_count,
+					count))
+			: QString()),
+		.text = (pin
+			? (count == 1
+				? tr::lng_mediaview_pin_story_about(tr::now)
+				: tr::lng_mediaview_pin_stories_about(
+					tr::now,
+					lt_count,
+					count))
+			: (count == 1
+				? tr::lng_mediaview_unpin_story_done(tr::now)
+				: tr::lng_mediaview_unpin_stories_done(
+					tr::now,
+					lt_count,
+					count))),
+		.st = &st::storiesActionToast,
+		.duration = (pin
 			? Data::Stories::kInProfileToastDuration
 			: Ui::Toast::kDefaultDuration),
 	};

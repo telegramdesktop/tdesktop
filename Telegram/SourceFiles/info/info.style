@@ -44,6 +44,8 @@ InfoTopBar {
 	mediaDelete: IconButton;
 	storiesSave: IconButton;
 	storiesArchive: IconButton;
+	storiesPin: IconButton;
+	storiesUnpin: IconButton;
 	search: IconButton;
 	searchRow: SearchFieldRow;
 	highlightBg: color;
@@ -185,6 +187,14 @@ infoTopBarArchiveStories: IconButton(infoTopBarForward) {
 	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
 }
+infoTopBarPinStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "menu/pin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/pin", boxTitleCloseFgOver }};
+}
+infoTopBarUnpinStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "menu/unpin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/unpin", boxTitleCloseFgOver }};
+}
 infoTopBar: InfoTopBar {
 	height: infoTopBarHeight;
 	back: infoTopBarBack;
@@ -205,6 +215,8 @@ infoTopBar: InfoTopBar {
 	mediaDelete: infoTopBarDelete;
 	storiesSave: infoTopBarSaveStories;
 	storiesArchive: infoTopBarArchiveStories;
+	storiesPin: infoTopBarPinStories;
+	storiesUnpin: infoTopBarUnpinStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
 	highlightBg: windowBgOver;
@@ -268,6 +280,14 @@ infoLayerTopBarArchiveStories: IconButton(infoLayerTopBarForward) {
 	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
 }
+infoLayerTopBarPinStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "menu/pin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/pin", boxTitleCloseFgOver }};
+}
+infoLayerTopBarUnpinStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "menu/unpin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/unpin", boxTitleCloseFgOver }};
+}
 infoLayerTopBar: InfoTopBar(infoTopBar) {
 	height: infoLayerTopBarHeight;
 	back: infoLayerTopBarBack;
@@ -282,6 +302,8 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	mediaDelete: infoLayerTopBarDelete;
 	storiesSave: infoLayerTopBarSaveStories;
 	storiesArchive: infoLayerTopBarArchiveStories;
+	storiesPin: infoLayerTopBarPinStories;
+	storiesUnpin: infoLayerTopBarUnpinStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
 	radius: boxRadius;

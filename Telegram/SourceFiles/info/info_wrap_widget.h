@@ -59,6 +59,7 @@ struct SelectedItem {
 	bool canDelete = false;
 	bool canForward = false;
 	bool canToggleStoryPin = false;
+	bool canUnpinStory = false;
 };
 
 struct SelectedItems {
@@ -74,6 +75,7 @@ enum class SelectionAction {
 	Forward,
 	Delete,
 	ToggleStoryPin,
+	ToggleStoryInProfile,
 };
 
 class WrapWidget final : public Window::SectionWidget {

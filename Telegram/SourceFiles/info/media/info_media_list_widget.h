@@ -190,10 +190,15 @@ private:
 	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
 	void toggleStoryPinSelected();
+	void toggleStoryInProfileSelected();
 	void deleteItem(GlobalMsgId globalId);
 	void deleteItems(SelectedItems &&items, Fn<void()> confirmed = nullptr);
+	void toggleStoryInProfile(
+		MessageIdsList &&items,
+		Fn<void()> confirmed = nullptr);
 	void toggleStoryPin(
 		MessageIdsList &&items,
+		bool pin,
 		Fn<void()> confirmed = nullptr);
 	void applyItemSelection(
 		HistoryItem *item,

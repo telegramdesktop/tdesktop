@@ -389,6 +389,14 @@ TextWithEntities Story::inReplyText() const {
 			Ui::Text::WithEntities);
 }
 
+void Story::setPinnedToTop(bool pinned) {
+	_pinnedToTop = pinned;
+}
+
+bool Story::pinnedToTop() const {
+	return _pinnedToTop;
+}
+
 void Story::setInProfile(bool value) {
 	_inProfile = value;
 }
@@ -431,8 +439,8 @@ bool Story::canDownloadChecked() const {
 }
 
 bool Story::canShare() const {
-	return _privacyPublic 
-		&& !forbidsForward() 
+	return _privacyPublic
+		&& !forbidsForward()
 		&& (inProfile() || !expired());
 }
 

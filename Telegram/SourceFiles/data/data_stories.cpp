@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
@@ -76,6 +77,47 @@ using UpdateFlag = StoryUpdate::Flag;
 }
 
 } // namespace
+
+int IndexRespectingPinned(const StoriesIds &ids, StoryId id) {
+	const auto i = ids.list.find(id);
+	if (ids.pinnedToTop.empty() || i == end(ids.list)) {
+		return int(i - begin(ids.list));
+	}
+	const auto j = ranges::find(ids.pinnedToTop, id);
+	if (j != end(ids.pinnedToTop)) {
+		return int(j - begin(ids.pinnedToTop));
+	}
+	auto result = int(i - begin(ids.list));
+	for (const auto &pinnedId : ids.pinnedToTop) {
+		if (pinnedId < id) {
+			++result;
+		}
+	}
+
+	Ensures(result < int(ids.list.size()));
+	return result;
+}
+
+StoryId IdRespectingPinned(const StoriesIds &ids, int index) {
+	Expects(index >= 0 && index < int(ids.list.size()));
+
+	if (ids.pinnedToTop.empty()) {
+		return *(begin(ids.list) + index);
+	} else if (index < int(ids.pinnedToTop.size())) {
+		return ids.pinnedToTop[index];
+	}
+	auto i = begin(ids.list) + index - int(ids.pinnedToTop.size());
+	auto sorted = ids.pinnedToTop;
+	ranges::sort(sorted, ranges::greater());
+	for (const auto &pinnedId : sorted) {
+		if (pinnedId >= *i) {
+			++i;
+		}
+	}
+
+	Ensures(i != end(ids.list));
+	return *i;
+}
 
 StoriesSourceInfo StoriesSource::info() const {
 	return {
@@ -1674,6 +1716,10 @@ void Stories::savedLoadMore(PeerId peerId) {
 
 		const auto &data = result.data();
 		const auto now = base::unixtime::now();
+		auto pinnedToTopIds = data.vpinned_to_top().value_or_empty();
+		auto pinnedToTop = pinnedToTopIds
+			| ranges::views::transform(&MTPint::v)
+			| ranges::to_vector;
 		saved.total = data.vcount().v;
 		for (const auto &story : data.vstories().v) {
 			const auto id = story.match([&](const auto &id) {
@@ -1691,6 +1737,7 @@ void Stories::savedLoadMore(PeerId peerId) {
 		const auto ids = int(saved.ids.list.size());
 		saved.loaded = data.vstories().v.empty();
 		saved.total = saved.loaded ? ids : std::max(saved.total, ids);
+		setPinnedToTop(peerId, std::move(pinnedToTop));
 		_savedChanged.fire_copy(peerId);
 	}).fail([=] {
 		auto &saved = _saved[peerId];
@@ -1699,6 +1746,33 @@ void Stories::savedLoadMore(PeerId peerId) {
 		saved.total = int(saved.ids.list.size());
 		_savedChanged.fire_copy(peerId);
 	}).send();
+}
+
+void Stories::setPinnedToTop(
+		PeerId peerId,
+		std::vector<StoryId> &&pinnedToTop) {
+	const auto i = _saved.find(peerId);
+	if (i == end(_saved) && pinnedToTop.empty()) {
+		return;
+	}
+	auto &saved = (i == end(_saved)) ? _saved[peerId] : i->second;
+	if (saved.ids.pinnedToTop != pinnedToTop) {
+		for (const auto id : saved.ids.pinnedToTop) {
+			if (!ranges::contains(pinnedToTop, id)) {
+				if (const auto maybeStory = lookup({ peerId, id })) {
+					(*maybeStory)->setPinnedToTop(false);
+				}
+			}
+		}
+		for (const auto id : pinnedToTop) {
+			if (!ranges::contains(saved.ids.pinnedToTop, id)) {
+				if (const auto maybeStory = lookup({ peerId, id })) {
+					(*maybeStory)->setPinnedToTop(true);
+				}
+			}
+		}
+		saved.ids.pinnedToTop = std::move(pinnedToTop);
+	}
 }
 
 void Stories::deleteList(const std::vector<FullStoryId> &ids) {
@@ -1786,6 +1860,75 @@ void Stories::toggleInProfileList(
 			_savedChanged.fire_copy(peerId);
 		}
 	}).send();
+}
+
+bool Stories::canTogglePinnedList(
+		const std::vector<FullStoryId> &ids,
+		bool pin) const {
+	Expects(!ids.empty());
+
+	if (!pin) {
+		return true;
+	}
+
+	const auto peerId = ids.front().peer;
+	const auto i = _saved.find(peerId);
+	if (i == end(_saved)) {
+		return false;
+	}
+
+	auto &already = i->second.ids.pinnedToTop;
+	auto count = int(already.size());
+	for (const auto &id : ids) {
+		if (!ranges::contains(already, id.story)) {
+			++count;
+		}
+	}
+	return count <= maxPinnedCount();
+}
+
+int Stories::maxPinnedCount() const {
+	const auto appConfig = &_owner->session().appConfig();
+	return appConfig->get<int>(u"stories_pinned_to_top_count_max"_q, 3);
+}
+
+void Stories::togglePinnedList(
+		const std::vector<FullStoryId> &ids,
+		bool pin) {
+	if (ids.empty()) {
+		return;
+	}
+	const auto peerId = ids.front().peer;
+	auto &saved = _saved[peerId];
+	auto list = QVector<MTPint>();
+	list.reserve(maxPinnedCount());
+	for (const auto &id : saved.ids.pinnedToTop) {
+		if (pin || !ranges::contains(ids, FullStoryId{ peerId, id })) {
+			list.push_back(MTP_int(id));
+		}
+	}
+	if (pin) {
+		auto copy = ids;
+		ranges::sort(copy, ranges::greater());
+		for (const auto &id : copy) {
+			if (id.peer == peerId
+				&& !ranges::contains(saved.ids.pinnedToTop, id.story)) {
+				list.push_back(MTP_int(id.story));
+			}
+		}
+	}
+	const auto api = &_owner->session().api();
+	const auto peer = session().data().peer(peerId);
+	api->request(MTPstories_TogglePinnedToTop(
+		peer->input,
+		MTP_vector<MTPint>(list)
+	)).done([=] {
+		setPinnedToTop(peerId, list
+			| ranges::views::transform(&MTPint::v)
+			| ranges::to_vector);
+		_savedChanged.fire_copy(peerId);
+	}).send();
+
 }
 
 void Stories::report(

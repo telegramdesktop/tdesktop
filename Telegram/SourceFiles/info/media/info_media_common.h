@@ -31,6 +31,7 @@ struct ListItemSelectionData {
 	bool canDelete = false;
 	bool canForward = false;
 	bool canToggleStoryPin = false;
+	bool canUnpinStory = false;
 
 	friend inline bool operator==(
 		ListItemSelectionData,

@@ -33,11 +33,16 @@ class StoryPreload;
 
 struct StoriesIds {
 	base::flat_set<StoryId, std::greater<>> list;
+	std::vector<StoryId> pinnedToTop;
 
 	friend inline bool operator==(
 		const StoriesIds&,
 		const StoriesIds&) = default;
 };
+
+// ids.list.size() if not found.
+[[nodiscard]] int IndexRespectingPinned(const StoriesIds &ids, StoryId id);
+[[nodiscard]] StoryId IdRespectingPinned(const StoriesIds &ids, int index);
 
 struct StoriesSourceInfo {
 	PeerId id = 0;
@@ -208,6 +213,11 @@ public:
 	void toggleInProfileList(
 		const std::vector<FullStoryId> &ids,
 		bool inProfile);
+	[[nodiscard]] bool canTogglePinnedList(
+		const std::vector<FullStoryId> &ids,
+		bool pin) const;
+	[[nodiscard]] int maxPinnedCount() const;
+	void togglePinnedList(const std::vector<FullStoryId> &ids, bool pin);
 	void report(
 		std::shared_ptr<Ui::Show> show,
 		FullStoryId id,
@@ -314,6 +324,9 @@ private:
 
 	void notifySourcesChanged(StorySourcesList list);
 	void pushHiddenCountsToFolder();
+	void setPinnedToTop(
+		PeerId peerId,
+		std::vector<StoryId> &&pinnedToTop);
 
 	[[nodiscard]] int pollingInterval(
 		const PollingSettings &settings) const;

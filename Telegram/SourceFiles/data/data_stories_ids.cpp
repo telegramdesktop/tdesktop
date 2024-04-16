@@ -40,18 +40,23 @@ rpl::producer<StoriesIdsSlice> SavedStoriesIds(
 
 			const auto &saved = stories->saved(peerId);
 			const auto count = stories->savedCount(peerId);
-			const auto around = saved.list.lower_bound(aroundId);
-			const auto hasBefore = int(around - begin(saved.list));
-			const auto hasAfter = int(end(saved.list) - around);
+			auto aroundIndex = IndexRespectingPinned(saved, aroundId);
+			if (aroundIndex == int(saved.list.size())) {
+				const auto around = saved.list.lower_bound(aroundId);
+				aroundIndex = int(around - begin(saved.list));
+			}
+			const auto hasBefore = aroundIndex;
+			const auto hasAfter = int(saved.list.size()) - aroundIndex;
 			if (hasAfter < limit) {
 				stories->savedLoadMore(peerId);
 			}
 			const auto takeBefore = std::min(hasBefore, limit);
 			const auto takeAfter = std::min(hasAfter, limit);
-			auto ids = base::flat_set<StoryId>{
-				std::make_reverse_iterator(around + takeAfter),
-				std::make_reverse_iterator(around - takeBefore)
-			};
+			auto ids = std::vector<StoryId>();
+			ids.reserve(takeBefore + takeAfter);
+			for (auto i = aroundIndex - takeBefore; i != aroundIndex + takeAfter; ++i) {
+				ids.push_back(IdRespectingPinned(saved, i));
+			}
 			const auto added = int(ids.size());
 			state->slice = StoriesIdsSlice(
 				std::move(ids),
@@ -114,18 +119,23 @@ rpl::producer<StoriesIdsSlice> ArchiveStoriesIds(
 
 			const auto &archive = stories->archive(peerId);
 			const auto count = stories->archiveCount(peerId);
-			const auto i = archive.list.lower_bound(aroundId);
-			const auto hasBefore = int(i - begin(archive.list));
-			const auto hasAfter = int(end(archive.list) - i);
+			auto aroundIndex = IndexRespectingPinned(archive, aroundId);
+			if (aroundIndex == int(archive.list.size())) {
+				const auto around = archive.list.lower_bound(aroundId);
+				aroundIndex = int(around - begin(archive.list));
+			}
+			const auto hasBefore = aroundIndex;
+			const auto hasAfter = int(archive.list.size()) - aroundIndex;
 			if (hasAfter < limit) {
 				stories->archiveLoadMore(peerId);
 			}
 			const auto takeBefore = std::min(hasBefore, limit);
 			const auto takeAfter = std::min(hasAfter, limit);
-			auto ids = base::flat_set<StoryId>{
-				std::make_reverse_iterator(i + takeAfter),
-				std::make_reverse_iterator(i - takeBefore)
-			};
+			auto ids = std::vector<StoryId>();
+			ids.reserve(takeBefore + takeAfter);
+			for (auto i = aroundIndex - takeBefore; i != aroundIndex + takeAfter; ++i) {
+				ids.push_back(IdRespectingPinned(archive, i));
+			}
 			const auto added = int(ids.size());
 			state->slice = StoriesIdsSlice(
 				std::move(ids),
