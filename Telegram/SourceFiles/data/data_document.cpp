@@ -484,13 +484,13 @@ void DocumentData::setattributes(
 			|| type == AnimatedDocument
 			|| type == RoundVideoDocument
 			|| isAnimation()) {
-			if (_nameType != Type::Video) {
+			if (!enforceNameType(Type::Video)) {
 				type = FileDocument;
 				_additional = nullptr;
 			}
 		}
 		if (type == SongDocument || type == VoiceDocument || isAudioFile()) {
-			if (_nameType != Type::Audio) {
+			if (!enforceNameType(Type::Audio)) {
 				type = FileDocument;
 				_additional = nullptr;
 			}
@@ -949,6 +949,24 @@ void DocumentData::setFileName(const QString &remoteFileName) {
 		_filename = std::move(_filename).replace(ch, "_");
 	}
 	_nameType = Core::DetectNameType(_filename);
+}
+
+bool DocumentData::enforceNameType(Core::NameType nameType) {
+	if (_nameType == nameType) {
+		return true;
+	}
+	const auto base = _filename.isEmpty() ? u"file"_q : _filename;
+	const auto mime = Core::MimeTypeForName(mimeString());
+	const auto patterns = mime.globPatterns();
+	for (const auto &pattern : mime.globPatterns()) {
+		const auto now = base + QString(pattern).replace('*', QString());
+		if (Core::DetectNameType(now) == nameType) {
+			_filename = now;
+			_nameType = nameType;
+			return true;
+		}
+	}
+	return false;
 }
 
 void DocumentData::setLoadedInMediaCacheLocation() {
