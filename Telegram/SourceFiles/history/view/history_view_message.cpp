@@ -1843,27 +1843,27 @@ void Message::clickHandlerPressedChanged(
 	Element::clickHandlerPressedChanged(handler, pressed);
 	if (!handler) {
 		return;
-	} else if (_rightAction) {
-		if (_rightAction->second && (handler == _rightAction->second->link)) {
-			const auto rightSize = rightActionSize();
-			Assert(rightSize != std::nullopt);
-			if (pressed) {
-				if (!_rightAction->second->ripple) {
-					// Create a ripple.
-					_rightAction->second->ripple
-						= std::make_unique<Ui::RippleAnimation>(
-							st::defaultRippleAnimation,
-							Ui::RippleAnimation::RoundRectMask(
-								Size(rightSize->width()),
-								rightSize->width() / 2),
-							[=] { repaint(); });
-				}
-				_rightAction->second->ripple->add(_rightAction->lastPoint);
-			} else if (_rightAction->second->ripple) {
-				_rightAction->second->ripple->lastStop();
+	} else if (_rightAction && (handler == _rightAction->link)) {
+		toggleRightActionRipple(pressed);
+	} else if (_rightAction
+		&& _rightAction->second
+		&& (handler == _rightAction->second->link)) {
+		const auto rightSize = rightActionSize();
+		Assert(rightSize != std::nullopt);
+		if (pressed) {
+			if (!_rightAction->second->ripple) {
+				// Create a ripple.
+				_rightAction->second->ripple
+					= std::make_unique<Ui::RippleAnimation>(
+						st::defaultRippleAnimation,
+						Ui::RippleAnimation::RoundRectMask(
+							Size(rightSize->width()),
+							rightSize->width() / 2),
+						[=] { repaint(); });
 			}
-		} else if (handler == _rightAction->link) {
-			toggleRightActionRipple(pressed);
+			_rightAction->second->ripple->add(_rightAction->lastPoint);
+		} else if (_rightAction->second->ripple) {
+			_rightAction->second->ripple->lastStop();
 		}
 	} else if (_comments && (handler == _comments->link)) {
 		toggleCommentsButtonRipple(pressed);
