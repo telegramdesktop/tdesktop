@@ -602,6 +602,41 @@ bool PremiumGiftCodeOptions::giveawayGiftsPurchaseAvailable() const {
 		false);
 }
 
+SponsoredToggle::SponsoredToggle(not_null<Main::Session*> session)
+: _api(&session->api().instance()) {
+}
+
+rpl::producer<bool> SponsoredToggle::toggled() {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		_api.request(MTPusers_GetFullUser(
+			MTP_inputUserSelf()
+		)).done([=](const MTPusers_UserFull &result) {
+			consumer.put_next_copy(
+				result.data().vfull_user().data().is_sponsored_enabled());
+		}).fail([=] { consumer.put_next(false); }).send();
+
+		return lifetime;
+	};
+}
+
+rpl::producer<rpl::no_value, QString> SponsoredToggle::setToggled(bool v) {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		_api.request(MTPaccount_ToggleSponsoredMessages(
+			MTP_bool(v)
+		)).done([=] {
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
 RequirePremiumState ResolveRequiresPremiumToWrite(
 		not_null<PeerData*> peer,
 		History *maybeHistory) {

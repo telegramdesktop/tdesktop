@@ -2272,6 +2272,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_business_about_chat_intro" = "Customize the message people see before they start a chat with you.";
 "lng_business_subtitle_chat_links" = "Links to Chat";
 "lng_business_about_chat_links" = "Create links that start a chat with you, suggesting the first message.";
+"lng_business_subtitle_sponsored" = "Ads in Channels";
+"lng_business_button_sponsored" = "Do Not Hide Ads";
+"lng_business_about_sponsored" = "As a Premium subscriber, you don’t see any ads on Telegram, but you can turn them on, for example, to view your own ads that you launched on the {link}";
+"lng_business_about_sponsored_link" = "Telegram Ad Platform {emoji}";
+"lng_business_about_sponsored_url" = "https://ads.telegram.org";
 
 "lng_location_title" = "Location";
 "lng_location_about" = "Display the location of your business on your account.";
