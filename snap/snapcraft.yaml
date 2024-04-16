@@ -154,6 +154,8 @@ parts:
     override-build: |
       craftctl default
       rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
+    stage:
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
     after:
       - ffmpeg
       - libjxl
@@ -207,6 +209,8 @@ parts:
         fi
       done
       GTK_PATH=$PWD/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0 /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libgtk-3-0/gtk-query-immodules-3.0 > usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0/3.0.0/immodules/immodules.cache
+    stage:
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
     after:
       - telegram
 
@@ -435,6 +439,8 @@ parts:
 
       cmake --build . -j$CRAFT_PARALLEL_BUILD_COUNT
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install .
+    stage:
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
     prime:
       - -./usr/bin
       - -./usr/doc
