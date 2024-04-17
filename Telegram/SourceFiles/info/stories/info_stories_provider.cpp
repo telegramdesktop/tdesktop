@@ -343,7 +343,10 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	};
 	using namespace Overview::Layout;
-	const auto options = MediaOptions{ .story = true };
+	const auto options = MediaOptions{
+		.pinned = item->isPinned(),
+		.story = true,
+	};
 	if (const auto photo = getPhoto()) {
 		return std::make_unique<Photo>(delegate, item, photo, options);
 	} else if (const auto file = getFile()) {

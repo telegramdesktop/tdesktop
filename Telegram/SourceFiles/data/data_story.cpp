@@ -390,7 +390,12 @@ TextWithEntities Story::inReplyText() const {
 }
 
 void Story::setPinnedToTop(bool pinned) {
-	_pinnedToTop = pinned;
+	if (_pinnedToTop != pinned) {
+		_pinnedToTop = pinned;
+		if (const auto item = _peer->owner().stories().lookupItem(this)) {
+			item->setIsPinned(pinned);
+		}
+	}
 }
 
 bool Story::pinnedToTop() const {

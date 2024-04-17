@@ -339,6 +339,7 @@ Photo::Photo(
 , _spoiler(options.spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
 	delegate->repaintItem(this);
 }) : nullptr)
+, _pinned(options.pinned)
 , _story(options.story) {
 	if (_data->inlineThumbnailBytes().isEmpty()
 		&& (_data->hasExact(Data::PhotoSize::Small)
@@ -407,6 +408,14 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	if (selected) {
 		p.fillRect(0, 0, _width, _height, st::overviewPhotoSelectOverlay);
 	}
+
+	if (_pinned) {
+		const auto &icon = selected
+			? st::storyPinnedIconSelected
+			: st::storyPinnedIcon;
+		icon.paint(p, _width - icon.width(), 0, _width);
+	}
+
 	const auto checkDelta = st::overviewCheckSkip + st::overviewCheck.size;
 	const auto checkLeft = _width - checkDelta;
 	const auto checkTop = _height - checkDelta;
@@ -475,6 +484,7 @@ Video::Video(
 , _spoiler(options.spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
 	delegate->repaintItem(this);
 }) : nullptr)
+, _pinned(options.pinned)
 , _story(options.story) {
 	setDocumentLinks(_data);
 	_data->loadThumbnail(parent->fullId());
@@ -545,6 +555,13 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 	if (selected) {
 		p.fillRect(QRect(0, 0, _width, _height), st::overviewPhotoSelectOverlay);
+	}
+
+	if (_pinned) {
+		const auto &icon = selected
+			? st::storyPinnedIconSelected
+			: st::storyPinnedIcon;
+		icon.paint(p, _width - icon.width(), 0, _width);
 	}
 
 	if (!selected && !context->selecting && radialOpacity < 1.) {

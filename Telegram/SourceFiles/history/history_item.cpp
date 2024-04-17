@@ -1360,6 +1360,10 @@ void HistoryItem::setIsPinned(bool pinned) {
 	const auto changed = (isPinned() != pinned);
 	if (pinned) {
 		_flags |= MessageFlag::Pinned;
+		if (_flags & MessageFlag::StoryItem) {
+			return;
+		}
+
 		auto &storage = _history->session().storage();
 		storage.add(Storage::SharedMediaAddExisting(
 			_history->peer->id,
@@ -1379,6 +1383,10 @@ void HistoryItem::setIsPinned(bool pinned) {
 		}
 	} else {
 		_flags &= ~MessageFlag::Pinned;
+		if (_flags & MessageFlag::StoryItem) {
+			return;
+		}
+
 		_history->session().storage().remove(Storage::SharedMediaRemoveOne(
 			_history->peer->id,
 			Storage::SharedMediaType::Pinned,
@@ -1687,6 +1695,11 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 			/*ttlSeconds = */0);
 	}
 	setText(story->caption());
+	if (story->pinnedToTop()) {
+		_flags |= MessageFlag::Pinned;
+	} else {
+		_flags &= ~MessageFlag::Pinned;
+	}
 }
 
 void HistoryItem::applyEdition(const MTPDmessageService &message) {

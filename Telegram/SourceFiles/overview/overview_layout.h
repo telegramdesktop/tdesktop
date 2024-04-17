@@ -185,6 +185,7 @@ struct Info : public RuntimeComponent<Info, LayoutItemBase> {
 
 struct MediaOptions {
 	bool spoiler = false;
+	bool pinned = false;
 	bool story = false;
 };
 
@@ -218,6 +219,7 @@ private:
 
 	QPixmap _pix;
 	bool _goodLoaded = false;
+	bool _pinned = false;
 	bool _story = false;
 
 };
@@ -318,6 +320,7 @@ private:
 
 	QPixmap _pix;
 	bool _pixBlurred = true;
+	bool _pinned = false;
 	bool _story = false;
 
 };

@@ -140,3 +140,12 @@ overviewVideoPlaySelected: icon {{ "overview_video_play", historyFileThumbIconFg
 overviewVideoDownload: icon {{ "overview_video_download", historyFileThumbIconFg }};
 overviewVideoDownloadSelected: icon {{ "overview_video_download", historyFileThumbIconFgSelected }};
 overviewVideoRadialSize: 36px;
+
+storyPinnedIcon: icon{
+	{ "dialogs/dialogs_pinned_shadow", windowShadowFg },
+	{ "dialogs/dialogs_pinned", historyFileThumbIconFg }
+};
+storyPinnedIconSelected: icon{
+	{ "dialogs/dialogs_pinned_shadow", windowShadowFg },
+	{ "dialogs/dialogs_pinned", historyFileThumbIconFgSelected }
+};
