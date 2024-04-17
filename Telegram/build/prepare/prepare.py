@@ -812,7 +812,8 @@ mac:
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
         -D AVIF_ENABLE_WERROR=OFF \\
-        -D AVIF_CODEC_DAV1D=ON
+        -D AVIF_CODEC_DAV1D=ON \\
+        -D CMAKE_DISABLE_FIND_PACKAGE_libsharpyuv=ON
     cmake --build . --config MinSizeRel $MAKE_THREADS_CNT
     cmake --install . --config MinSizeRel
 """)
