@@ -500,37 +500,52 @@ void RegenerateUserpics(not_null<State*> state, int small, int large) {
 	}
 }
 
+void UpdateExistingParticipants(State& state, const QDateTime& currentDate) {
+    auto& participants = state.current.participants;
+    for (auto& userpic : state.userpics) {
+        const auto peer = userpic.peer;
+        const auto id = peer->id.value;
+        const auto wasParticipant = ranges::find(participants, id, &Ui::WhoReadParticipant::id);
+        if (wasParticipant != end(participants)) {
+            wasParticipant->name = peer->name();
+            wasParticipant->date = FormatReadDate(userpic.date, currentDate);
+            wasParticipant->dateReacted = userpic.dateReacted;
+            participants.push_back(std::move(*wasParticipant));
+        }
+    }
+}
+
+void AddNewParticipants(State& state, const QDateTime& currentDate, int small, int large) {
+    auto& participants = state.current.participants;
+    for (auto& userpic : state.userpics) {
+        const auto peer = userpic.peer;
+        const auto id = peer->id.value;
+        const auto wasParticipant = ranges::find(participants, id, &Ui::WhoReadParticipant::id);
+        if (wasParticipant == end(participants)) {
+            Ui::WhoReadParticipant newParticipant {
+                .name = peer->name(),
+                .date = FormatReadDate(userpic.date, currentDate),
+                .dateReacted = userpic.dateReacted,
+                .customEntityData = userpic.customEntityData,
+                .userpicLarge = GenerateUserpic(userpic, large),
+                .userpicKey = userpic.uniqueKey,
+                .id = id,
+            };
+            participants.push_back(newParticipant);
+            if (participants.size() <= Ui::WhoReadParticipant::kMaxSmallUserpics) {
+                participants.back().userpicSmall = GenerateUserpic(userpic, small);
+            }
+        }
+    }
+}
+
 void RegenerateParticipants(not_null<State*> state, int small, int large) {
-	const auto currentDate = QDateTime::currentDateTime();
-	auto old = base::take(state->current.participants);
-	auto &now = state->current.participants;
-	now.reserve(state->userpics.size());
-	for (auto &userpic : state->userpics) {
-		const auto peer = userpic.peer;
-		const auto date = userpic.date;
-		const auto id = peer->id.value;
-		const auto was = ranges::find(old, id, &Ui::WhoReadParticipant::id);
-		if (was != end(old)) {
-			was->name = peer->name();
-			was->date = FormatReadDate(date, currentDate);
-			was->dateReacted = userpic.dateReacted;
-			now.push_back(std::move(*was));
-			continue;
-		}
-		now.push_back({
-			.name = peer->name(),
-			.date = FormatReadDate(date, currentDate),
-			.dateReacted = userpic.dateReacted,
-			.customEntityData = userpic.customEntityData,
-			.userpicLarge = GenerateUserpic(userpic, large),
-			.userpicKey = userpic.uniqueKey,
-			.id = id,
-		});
-		if (now.size() <= Ui::WhoReadParticipant::kMaxSmallUserpics) {
-			now.back().userpicSmall = GenerateUserpic(userpic, small);
-		}
-	}
-	RegenerateUserpics(state, small, large);
+    const QDateTime currentDate = QDateTime::currentDateTime();
+
+    UpdateExistingParticipants(*state, currentDate);
+    AddNewParticipants(*state, currentDate, small, large);
+
+    RegenerateUserpics(state, small, large);
 }
 
 rpl::producer<Ui::WhoReadContent> WhoReacted(
