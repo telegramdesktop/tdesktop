@@ -233,6 +233,13 @@ void ListWidget::subscribeToSession(
 	) | rpl::start_with_next([this](auto item) {
 		repaintItem(item);
 	}, lifetime);
+
+	session->data().itemDataChanges(
+	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		if (const auto found = findItemByItem(item)) {
+			found->layout->itemDataChanged();
+		}
+	}, lifetime);
 }
 
 void ListWidget::setupSelectRestriction() {

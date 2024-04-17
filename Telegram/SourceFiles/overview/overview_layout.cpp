@@ -460,6 +460,14 @@ void Photo::clearSpoiler() {
 	}
 }
 
+void Photo::itemDataChanged() {
+	const auto pinned = parent()->isPinned();
+	if (_pinned != pinned) {
+		_pinned = pinned;
+		delegate()->repaintItem(this);
+	}
+}
+
 void Photo::clearHeavyPart() {
 	_dataMedia = nullptr;
 }
@@ -633,6 +641,14 @@ void Video::clearSpoiler() {
 	if (_spoiler) {
 		_spoiler = nullptr;
 		_pix = QPixmap();
+		delegate()->repaintItem(this);
+	}
+}
+
+void Video::itemDataChanged() {
+	const auto pinned = parent()->isPinned();
+	if (_pinned != pinned) {
+		_pinned = pinned;
 		delegate()->repaintItem(this);
 	}
 }

@@ -1358,6 +1358,11 @@ bool HistoryItem::markContentsRead(bool fromThisClient) {
 
 void HistoryItem::setIsPinned(bool pinned) {
 	const auto changed = (isPinned() != pinned);
+	const auto guard = gsl::finally([&] {
+		if (changed) {
+			_history->owner().notifyItemDataChange(this);
+		}
+	});
 	if (pinned) {
 		_flags |= MessageFlag::Pinned;
 		if (_flags & MessageFlag::StoryItem) {
@@ -1391,9 +1396,6 @@ void HistoryItem::setIsPinned(bool pinned) {
 			_history->peer->id,
 			Storage::SharedMediaType::Pinned,
 			id));
-	}
-	if (changed) {
-		_history->owner().notifyItemDataChange(this);
 	}
 }
 

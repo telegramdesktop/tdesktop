@@ -71,6 +71,8 @@ public:
 
 	void invalidateCache();
 
+	virtual void itemDataChanged() {
+	}
 	virtual void clearHeavyPart() {
 	}
 
@@ -205,6 +207,7 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
+	void itemDataChanged() override;
 	void clearHeavyPart() override;
 
 private:
@@ -298,6 +301,7 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
+	void itemDataChanged() override;
 	void clearHeavyPart() override;
 	void clearSpoiler() override;
 
