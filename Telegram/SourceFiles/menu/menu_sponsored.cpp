@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/components/sponsored_messages.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -25,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/label_with_custom_emoji.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
@@ -169,31 +169,23 @@ void AboutBox(
 				st::topicButtonArrow,
 				st::channelEarnLearnArrowMargins,
 				false));
-		const auto label = box->addRow(
-			object_ptr<Ui::FlatLabel>(
+		const auto available = box->width()
+			- rect::m::sum::h(st::boxRowPadding);
+		box->addRow(
+			Ui::CreateLabelWithCustomEmoji(
 				content,
-				st::channelEarnLearnDescription));
-		tr::lng_sponsored_revenued_footer_description(
-			lt_link,
-			tr::lng_channel_earn_about_link(
-				lt_emoji,
-				rpl::single(arrow),
-				Ui::Text::RichLangValue
-			) | rpl::map([=](TextWithEntities text) {
-				return Ui::Text::Link(std::move(text), kUrl.utf16());
-			}),
-			Ui::Text::RichLangValue
-		) | rpl::start_with_next([=, l = label](
-				TextWithEntities t) {
-			l->setMarkedText(
-				std::move(t),
-				Core::MarkedTextContext{
-					.session = session,
-					.customEmojiRepaint = [=] { l->update(); },
-				});
-			l->resizeToWidth(box->width()
-				- rect::m::sum::h(st::boxRowPadding));
-		}, label->lifetime());
+				tr::lng_sponsored_revenued_footer_description(
+					lt_link,
+					tr::lng_channel_earn_about_link(
+						lt_emoji,
+						rpl::single(arrow),
+						Ui::Text::RichLangValue
+					) | rpl::map([=](TextWithEntities text) {
+						return Ui::Text::Link(std::move(text), kUrl.utf16());
+					}),
+					Ui::Text::RichLangValue),
+				{ .session = session },
+				st::channelEarnLearnDescription))->resizeToWidth(available);
 	}
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);

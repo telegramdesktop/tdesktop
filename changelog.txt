@@ -1,3 +1,9 @@
+4.16.8 (16.04.24)
+
+- Fix in-app playing of some video and audio files.
+- Fix crash on Linux opening chats with custom backgrounds.
+- Fix crash on quit after using scheduled messages.
+
 4.16.7 (15.04.24)
 
 - Reimplement file open confirmations.

@@ -811,6 +811,13 @@ void MainWidget::createPlayer() {
 		});
 		_player->entity()->setShowItemCallback([=](
 				not_null<const HistoryItem*> item) {
+			const auto peer = item->history()->peer;
+			if (const auto window = Core::App().windowFor(peer)) {
+				if (const auto controller = window->sessionController()) {
+					controller->showMessage(item);
+					return;
+				}
+			}
 			_controller->showMessage(item);
 		});
 

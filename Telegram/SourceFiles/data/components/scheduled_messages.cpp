@@ -113,9 +113,16 @@ ScheduledMessages::ScheduledMessages(not_null<Main::Session*> session)
 }
 
 ScheduledMessages::~ScheduledMessages() {
-	for (const auto &request : _requests) {
+	Expects(_data.empty());
+	Expects(_requests.empty());
+}
+
+void ScheduledMessages::clear() {
+	_lifetime.destroy();
+	for (const auto &request : base::take(_requests)) {
 		_session->api().request(request.second.requestId).cancel();
 	}
+	base::take(_data);
 }
 
 void ScheduledMessages::clearOldRequests() {

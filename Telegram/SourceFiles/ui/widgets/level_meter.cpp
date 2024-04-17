@@ -24,7 +24,7 @@ void LevelMeter::setValue(float value) {
 
 void LevelMeter::paintEvent(QPaintEvent* event) {
 	auto p = QPainter(this);
-	PainterHighQualityEnabler hq(p);
+	auto hq = PainterHighQualityEnabler(p);
 
 	p.setPen(Qt::NoPen);
 
@@ -34,7 +34,7 @@ void LevelMeter::paintEvent(QPaintEvent* event) {
 	const auto rect = QRect(0, 0, _st.lineWidth, height());
 	p.setBrush(activeFg);
 	for (auto i = 0; i < _st.lineCount; ++i) {
-		const auto valueAtLine = (float)(i + 1) / _st.lineCount;
+		const auto valueAtLine = (float64)(i + 1) / _st.lineCount;
 		if (valueAtLine > _value) {
 			p.setBrush(inactiveFg);
 		}
