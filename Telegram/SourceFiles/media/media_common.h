@@ -24,7 +24,7 @@ enum class OrderMode {
 };
 
 inline constexpr auto kSpeedMin = 0.1;
-inline constexpr auto kSpeedMax = 6.0;
+inline constexpr auto kSpeedMax = 8.0;
 inline constexpr auto kSpedUpDefault = 4.0;
 
 [[nodiscard]] inline bool EqualSpeeds(float64 a, float64 b) {
