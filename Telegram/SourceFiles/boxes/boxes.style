@@ -691,6 +691,10 @@ createPollOptionField: InputField(createPollField) {
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	heightMax: 68px;
 }
+createPollOptionFieldPremium: InputField(createPollOptionField) {
+	textMargins: margins(22px, 11px, 68px, 11px);
+}
+createPollOptionFieldPremiumEmojiPosition: point(15px, -1px);
 createPollSolutionField: InputField(createPollField) {
 	textMargins: margins(0px, 4px, 0px, 4px);
 	border: 1px;
@@ -704,7 +708,7 @@ createPollOptionRemove: CrossButton {
 	cross: CrossAnimation {
 		size: 22px;
 		skip: 6px;
-		stroke: 1.;
+		stroke: 1.5;
 		minScale: 0.3;
 	}
 	crossFg: boxTitleCloseFg;
@@ -718,6 +722,7 @@ createPollOptionRemove: CrossButton {
 	}
 }
 createPollOptionRemovePosition: point(11px, 9px);
+createPollOptionEmojiPositionSkip: 4px;
 createPollWarning: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	palette: TextPalette(defaultTextPalette) {

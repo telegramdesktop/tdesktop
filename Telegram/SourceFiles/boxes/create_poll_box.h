@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct PollData;
 
+namespace ChatHelpers {
+class TabbedPanel;
+} // namespace ChatHelpers
+
 namespace Ui {
 class VerticalLayout;
 } // namespace Ui
@@ -72,6 +76,7 @@ private:
 	const PollData::Flags _disabled = PollData::Flags();
 	const Api::SendType _sendType = Api::SendType();
 	const SendMenu::Type _sendMenuType;
+	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	Fn<void()> _setInnerFocus;
 	Fn<rpl::producer<bool>()> _dataIsValidValue;
 	rpl::event_stream<Result> _submitRequests;
