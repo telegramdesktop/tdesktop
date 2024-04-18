@@ -3377,6 +3377,7 @@ not_null<WebPageData*> Session::processWebpage(
 		nullptr,
 		WebPageCollage(),
 		nullptr,
+		nullptr,
 		0,
 		QString(),
 		false,
@@ -3402,6 +3403,7 @@ not_null<WebPageData*> Session::webpage(
 		nullptr,
 		WebPageCollage(),
 		nullptr,
+		nullptr,
 		0,
 		QString(),
 		false,
@@ -3420,6 +3422,7 @@ not_null<WebPageData*> Session::webpage(
 		DocumentData *document,
 		WebPageCollage &&collage,
 		std::unique_ptr<Iv::Data> iv,
+		std::unique_ptr<WebPageStickerSet> stickerSet,
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
@@ -3438,6 +3441,7 @@ not_null<WebPageData*> Session::webpage(
 		document,
 		std::move(collage),
 		std::move(iv),
+		std::move(stickerSet),
 		duration,
 		author,
 		hasLargeMedia,
@@ -3484,6 +3488,29 @@ void Session::webpageApplyFields(
 					return (DocumentData*)nullptr;
 				});
 				if (result) {
+					return result;
+				}
+			}
+		}
+		return nullptr;
+	};
+	using WebPageStickerSetPtr = std::unique_ptr<WebPageStickerSet>;
+	const auto lookupStickerSet = [&]() -> WebPageStickerSetPtr {
+		if (const auto attributes = data.vattributes()) {
+			for (const auto &attribute : attributes->v) {
+				auto result = attribute.match([&](
+						const MTPDwebPageAttributeStickerSet &data) {
+					auto result = std::make_unique<WebPageStickerSet>();
+					result->isEmoji = data.is_emojis();
+					result->isTextColor = data.is_text_color();
+					for (const auto &tl : data.vstickers().v) {
+						result->items.push_back(processDocument(tl));
+					}
+					return result;
+				}, [](const auto &) {
+					return WebPageStickerSetPtr(nullptr);
+				});
+				if (!result->items.empty()) {
 					return result;
 				}
 			}
@@ -3581,6 +3608,7 @@ void Session::webpageApplyFields(
 			: lookupThemeDocument()),
 		WebPageCollage(this, data),
 		std::move(iv),
+		lookupStickerSet(),
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
 		data.is_has_large_media(),
@@ -3600,6 +3628,7 @@ void Session::webpageApplyFields(
 		DocumentData *document,
 		WebPageCollage &&collage,
 		std::unique_ptr<Iv::Data> iv,
+		std::unique_ptr<WebPageStickerSet> stickerSet,
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
@@ -3617,6 +3646,7 @@ void Session::webpageApplyFields(
 		document,
 		std::move(collage),
 		std::move(iv),
+		std::move(stickerSet),
 		duration,
 		author,
 		hasLargeMedia,

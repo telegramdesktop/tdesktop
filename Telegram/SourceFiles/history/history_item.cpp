@@ -657,6 +657,7 @@ HistoryItem::HistoryItem(
 		nullptr,
 		WebPageCollage(),
 		nullptr,
+		nullptr,
 		0,
 		QString(),
 		false,

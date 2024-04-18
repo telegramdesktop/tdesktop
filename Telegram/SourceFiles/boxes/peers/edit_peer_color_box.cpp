@@ -312,6 +312,7 @@ PreviewWrap::PreviewWrap(
 	nullptr, // document
 	WebPageCollage(),
 	nullptr, // iv
+	nullptr, // stickerSet
 	0, // duration
 	QString(), // author
 	false, // hasLargeMedia
