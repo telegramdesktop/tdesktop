@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_chat.h"
 
+#include "core/application.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
@@ -130,6 +131,18 @@ void ChatData::invalidateParticipants() {
 	session().changes().peerUpdated(
 		this,
 		UpdateFlag::Members | UpdateFlag::Admins);
+}
+
+void ChatData::setFlags(ChatDataFlags which) {
+	const auto wasIn = amIn();
+	_flags.set(which);
+	if (wasIn && !amIn()) {
+		crl::on_main(&session(), [=] {
+			if (!amIn()) {
+				Core::App().closeChatFromWindows(this);
+			}
+		});
+	}
 }
 
 void ChatData::setInviteLink(const QString &newInviteLink) {

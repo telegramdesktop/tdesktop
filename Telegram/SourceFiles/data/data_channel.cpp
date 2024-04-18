@@ -165,6 +165,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 	const auto taken = ((diff & Flag::Forum) && !(which & Flag::Forum))
 		? mgInfo->takeForumData()
 		: nullptr;
+	const auto wasIn = amIn();
 	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
 		mgInfo->ensureForum(this);
 	}
@@ -173,6 +174,14 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 		if (const auto chat = getMigrateFromChat()) {
 			session().changes().peerUpdated(chat, UpdateFlag::Migration);
 			session().changes().peerUpdated(this, UpdateFlag::Migration);
+		}
+
+		if (wasIn && !amIn()) {
+			crl::on_main(&session(), [=] {
+				if (!amIn()) {
+					Core::App().closeChatFromWindows(this);
+				}
+			});
 		}
 	}
 	if (diff & (Flag::Forum | Flag::CallNotEmpty | Flag::SimilarExpanded)) {
