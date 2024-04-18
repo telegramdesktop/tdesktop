@@ -49,7 +49,7 @@ jobs:
 
     env:
       GIT: "https://github.com"
-      OPENALDIR: "/usr/local/opt/openal-soft"
+      CMAKE_PREFIX_PATH: "/usr/local/opt/ffmpeg@6:/usr/local/opt/openal-soft"
       UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
       MANUAL_CACHING: "1"
@@ -69,7 +69,7 @@ jobs:
         run: |
           brew update
           brew upgrade || true
-          brew install autoconf automake boost cmake ffmpeg openal-soft openssl opus ninja pkg-config python qt yasm xz
+          brew install autoconf automake boost cmake ffmpeg@6 openal-soft openssl opus ninja pkg-config python qt yasm xz
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
           xcodebuild -version > CACHE_KEY.txt
