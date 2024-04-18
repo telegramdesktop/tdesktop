@@ -42,6 +42,7 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kMaxOriginalEntryLines = 8192;
+constexpr auto kStickerSetLines = 3;
 
 [[nodiscard]] int ArticleThumbWidth(not_null<PhotoData*> thumb, int height) {
 	const auto size = thumb->location(Data::PhotoSize::Thumbnail);
@@ -300,8 +301,8 @@ QSize WebPage::countOptimalSize() {
 			_stickerSet->views.push_back(
 				std::make_unique<Sticker>(_parent, sticker, true));
 		}
-		const auto side = std::ceil(_stickerSet->views.size() / 2.);
-		const auto box = lineHeight * 2;
+		const auto side = std::ceil(std::sqrt(_stickerSet->views.size()));
+		const auto box = lineHeight * kStickerSetLines;
 		const auto single = box / side;
 		for (const auto &view : _stickerSet->views) {
 			view->setWebpagePart();
@@ -547,7 +548,11 @@ QSize WebPage::countCurrentSize(int newWidth) {
 			&& _sponsoredData->peer);
 		constexpr auto kSponsoredUserpicLines = 2;
 		_pixh = lineHeight
-			* (specialRightPix ? kSponsoredUserpicLines : linesMax);
+			* (_stickerSet
+				? kStickerSetLines
+				: specialRightPix
+				? kSponsoredUserpicLines
+				: linesMax);
 		do {
 			_pixw = specialRightPix
 				? _pixh
@@ -755,9 +760,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	auto lineHeight = UnitedLineHeight();
 	if (_stickerSet) {
 		const auto viewsCount = _stickerSet->views.size();
-		const auto topLeft = QPoint(inner.left() + paintw - _pixh, tshift);
-		const auto side = std::ceil(viewsCount / 2.);
-		const auto box = lineHeight * 2;
+		const auto box = _pixh;
+		const auto topLeft = QPoint(inner.left() + paintw - box, tshift);
+		const auto side = std::ceil(std::sqrt(viewsCount));
 		const auto single = box / side;
 		for (auto i = 0; i < side; i++) {
 			for (auto j = 0; j < side; j++) {
@@ -769,15 +774,15 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				const auto size = view->countOptimalSize();
 				const auto offsetX = (single - size.width()) / 2.;
 				const auto offsetY = (single - size.height()) / 2.;
-				const auto x = j * size.width() + offsetX;
-				const auto y = i * size.height() + offsetY;
+				const auto x = j * single + offsetX;
+				const auto y = i * single + offsetY;
 				const auto w = size.width();
 				const auto h = size.height();
 				view->draw(p, context, QRect(QPoint(x, y) + topLeft, size));
 			}
 		}
-	}
-	if (asArticle()) {
+		paintw -= box;
+	} else if (asArticle()) {
 		ensurePhotoMediaCreated();
 
 		auto pix = QPixmap();
