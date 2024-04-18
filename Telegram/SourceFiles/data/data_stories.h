@@ -40,9 +40,7 @@ struct StoriesIds {
 		const StoriesIds&) = default;
 };
 
-// ids.list.size() if not found.
-[[nodiscard]] int IndexRespectingPinned(const StoriesIds &ids, StoryId id);
-[[nodiscard]] StoryId IdRespectingPinned(const StoriesIds &ids, int index);
+[[nodiscard]] std::vector<StoryId> RespectingPinned(const StoriesIds &ids);
 
 struct StoriesSourceInfo {
 	PeerId id = 0;

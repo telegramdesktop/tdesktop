@@ -78,45 +78,19 @@ using UpdateFlag = StoryUpdate::Flag;
 
 } // namespace
 
-int IndexRespectingPinned(const StoriesIds &ids, StoryId id) {
-	const auto i = ids.list.find(id);
-	if (ids.pinnedToTop.empty() || i == end(ids.list)) {
-		return int(i - begin(ids.list));
-	}
-	const auto j = ranges::find(ids.pinnedToTop, id);
-	if (j != end(ids.pinnedToTop)) {
-		return int(j - begin(ids.pinnedToTop));
-	}
-	auto result = int(i - begin(ids.list));
-	for (const auto &pinnedId : ids.pinnedToTop) {
-		if (pinnedId < id) {
-			++result;
-		}
-	}
-
-	Ensures(result < int(ids.list.size()));
-	return result;
-}
-
-StoryId IdRespectingPinned(const StoriesIds &ids, int index) {
-	Expects(index >= 0 && index < int(ids.list.size()));
-
+std::vector<StoryId> RespectingPinned(const StoriesIds &ids) {
 	if (ids.pinnedToTop.empty()) {
-		return *(begin(ids.list) + index);
-	} else if (index < int(ids.pinnedToTop.size())) {
-		return ids.pinnedToTop[index];
+		return ids.list | ranges::to_vector;
 	}
-	auto i = begin(ids.list) + index - int(ids.pinnedToTop.size());
-	auto sorted = ids.pinnedToTop;
-	ranges::sort(sorted, ranges::greater());
-	for (const auto &pinnedId : sorted) {
-		if (pinnedId >= *i) {
-			++i;
+	auto result = std::vector<StoryId>();
+	result.reserve(ids.list.size());
+	result.insert(end(result), begin(ids.pinnedToTop), end(ids.pinnedToTop));
+	for (const auto &id : ids.list) {
+		if (!ranges::contains(ids.pinnedToTop, id)) {
+			result.push_back(id);
 		}
 	}
-
-	Ensures(i != end(ids.list));
-	return *i;
+	return result;
 }
 
 StoriesSourceInfo StoriesSource::info() const {

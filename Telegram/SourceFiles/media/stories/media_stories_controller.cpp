@@ -77,8 +77,10 @@ struct SameDayRange {
 [[nodiscard]] SameDayRange ComputeSameDayRange(
 		not_null<Data::Story*> story,
 		const Data::StoriesIds &ids,
+		const std::vector<StoryId> &sorted,
 		int index) {
 	Expects(index >= 0 && index < ids.list.size());
+	Expects(index >= 0 && index < sorted.size());
 
 	const auto pinned = int(ids.pinnedToTop.size());
 	if (index < pinned) {
@@ -90,7 +92,7 @@ struct SameDayRange {
 	const auto stories = &story->owner().stories();
 	const auto now = base::unixtime::parse(story->date());
 	for (auto i = index; i != 0;) {
-		const auto storyId = IdRespectingPinned(ids, --i);
+		const auto storyId = sorted[--i];
 		if (const auto maybeStory = stories->lookup({ peerId, storyId })) {
 			const auto day = base::unixtime::parse((*maybeStory)->date());
 			if (day.date() != now.date()) {
@@ -99,8 +101,8 @@ struct SameDayRange {
 		}
 		--result.from;
 	}
-	for (auto i = index + 1, c = int(ids.list.size()); i != c; ++i) {
-		const auto storyId = IdRespectingPinned(ids, i);
+	for (auto i = index + 1, c = int(sorted.size()); i != c; ++i) {
+		const auto storyId = sorted[i];
 		if (const auto maybeStory = stories->lookup({ peerId, storyId })) {
 			const auto day = base::unixtime::parse((*maybeStory)->date());
 			if (day.date() != now.date()) {
@@ -700,16 +702,19 @@ void Controller::rebuildFromContext(
 	}, [&](StoriesContextSaved) {
 		if (stories.savedCountKnown(peerId)) {
 			const auto &saved = stories.saved(peerId);
-			const auto i = IndexRespectingPinned(saved, id);
-			if (i < saved.list.size()) {
+			auto sorted = RespectingPinned(saved);
+			const auto i = ranges::find(sorted, id);
+			const auto tillEnd = int(end(sorted) - i);
+			if (tillEnd > 0) {
+				_index = int(i - begin(sorted));
 				list = StoriesList{
 					.peer = peer,
 					.ids = saved,
+					.sorted = std::move(sorted),
 					.total = stories.savedCount(peerId),
 				};
-				_index = i;
 				if (saved.list.size() < list->total
-					&& (saved.list.size() - i) < kPreloadStoriesCount) {
+					&& tillEnd < kPreloadStoriesCount) {
 					stories.savedLoadMore(peerId);
 				}
 			}
@@ -718,16 +723,19 @@ void Controller::rebuildFromContext(
 	}, [&](StoriesContextArchive) {
 		if (stories.archiveCountKnown(peerId)) {
 			const auto &archive = stories.archive(peerId);
-			const auto i = IndexRespectingPinned(archive, id);
-			if (i < archive.list.size()) {
+			auto sorted = RespectingPinned(archive);
+			const auto i = ranges::find(sorted, id);
+			const auto tillEnd = int(end(sorted) - i);
+			if (tillEnd > 0) {
+				_index = int(i - begin(sorted));
 				list = StoriesList{
 					.peer = peer,
 					.ids = archive,
+					.sorted = std::move(sorted),
 					.total = stories.archiveCount(peerId),
 				};
-				_index = i;
 				if (archive.list.size() < list->total
-					&& (archive.list.size() - i) < kPreloadStoriesCount) {
+					&& tillEnd < kPreloadStoriesCount) {
 					stories.archiveLoadMore(peerId);
 				}
 			}
@@ -761,7 +769,11 @@ void Controller::rebuildFromContext(
 		}
 		if (const auto maybe = peer->owner().stories().lookup(storyId)) {
 			const auto now = *maybe;
-			const auto range = ComputeSameDayRange(now, _list->ids, _index);
+			const auto range = ComputeSameDayRange(
+				now,
+				_list->ids,
+				_list->sorted,
+				_index);
 			_sliderCount = range.till - range.from + 1;
 			_sliderIndex = _index - range.from;
 		}
@@ -779,6 +791,7 @@ void Controller::rebuildFromContext(
 			_list = StoriesList{
 				.peer = peer,
 				.ids = { { id } },
+				.sorted = { id },
 				.total = 1,
 			};
 			_index = 0;
@@ -1523,8 +1536,8 @@ StoryId Controller::shownId(int index) const {
 
 	return _source
 		? (_source->ids.begin() + index)->id
-		: (index < int(_list->ids.list.size()))
-		? IdRespectingPinned(_list->ids, index)
+		: (index < int(_list->sorted.size()))
+		? _list->sorted[index]
 		: StoryId();
 }
 

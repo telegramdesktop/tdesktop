@@ -194,6 +194,7 @@ private:
 	struct StoriesList {
 		not_null<PeerData*> peer;
 		Data::StoriesIds ids;
+		std::vector<StoryId> sorted;
 		int total = 0;
 
 		friend inline bool operator==(
