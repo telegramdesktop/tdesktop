@@ -21,6 +21,8 @@ class RippleAnimation;
 
 namespace HistoryView {
 
+class Sticker;
+
 class WebPage : public Media {
 public:
 	WebPage(
@@ -129,6 +131,12 @@ private:
 	std::unique_ptr<Media> _attach;
 	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
+
+	struct StickerSet final {
+		std::vector<std::unique_ptr<Sticker>> views;
+	};
+
+	std::unique_ptr<StickerSet> _stickerSet;
 
 	struct SponsoredData final {
 		PeerData *peer = nullptr;

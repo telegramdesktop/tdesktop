@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_reply.h"
 #include "history/view/history_view_sponsored_click_handler.h"
 #include "history/view/media/history_view_media_common.h"
+#include "history/view/media/history_view_sticker.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_sponsored.h"
@@ -179,6 +180,10 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 		? tr::lng_view_button_user(tr::now)
 		: (type == WebPageType::BotApp)
 		? tr::lng_view_button_bot_app(tr::now)
+		: (page->stickerSet && page->stickerSet->isEmoji)
+		? tr::lng_view_button_emojipack(tr::now)
+		: (type == WebPageType::StickerSet)
+		? tr::lng_view_button_stickerset(tr::now)
 		: QString());
 	if (page->iv) {
 		const auto manager = &page->owner().customEmojiManager();
@@ -211,7 +216,8 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 			&& (webpage->photo || webpage->document))
 		|| ((type == WebPageType::WallPaper)
 			&& webpage->document
-			&& webpage->document->isWallPaper());
+			&& webpage->document->isWallPaper())
+		|| (type == WebPageType::StickerSet);
 }
 
 } // namespace
@@ -284,6 +290,24 @@ QSize WebPage::countOptimalSize() {
 		_description = Ui::Text::String(min);
 	}
 	const auto lineHeight = UnitedLineHeight();
+
+	if (_data->stickerSet && !_stickerSet) {
+		_stickerSet = std::make_unique<StickerSet>();
+		for (const auto &sticker : _data->stickerSet->items) {
+			if (!sticker->sticker()) {
+				continue;
+			}
+			_stickerSet->views.push_back(
+				std::make_unique<Sticker>(_parent, sticker, true));
+		}
+		const auto side = std::ceil(_stickerSet->views.size() / 2.);
+		const auto box = lineHeight * 2;
+		const auto single = box / side;
+		for (const auto &view : _stickerSet->views) {
+			view->setWebpagePart();
+			view->initSize(single);
+		}
+	}
 
 	if (!_openl && (!_data->url.isEmpty() || _sponsoredData)) {
 		const auto original = _parent->data()->originalText();
@@ -510,21 +534,22 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	const auto innerWidth = newWidth - rect::m::sum::h(padding);
 	auto newHeight = 0;
 
+	const auto specialRightPix = (_sponsoredData || _stickerSet);
 	const auto lineHeight = UnitedLineHeight();
-	const auto linesMax = (_sponsoredData || isLogEntryOriginal())
+	const auto linesMax = (specialRightPix || isLogEntryOriginal())
 		? kMaxOriginalEntryLines
 		: 5;
 	const auto siteNameHeight = _siteNameLines ? lineHeight : 0;
 	const auto twoTitleLines = 2 * st::webPageTitleFont->height;
 	const auto descriptionLineHeight = st::webPageDescriptionFont->height;
-	const auto asSponsored = (!!_sponsoredData);
-	if (asArticle() || asSponsored) {
-		const auto sponsoredUserpic = (asSponsored && _sponsoredData->peer);
+	if (asArticle() || specialRightPix) {
+		const auto sponsoredUserpic = (_sponsoredData
+			&& _sponsoredData->peer);
 		constexpr auto kSponsoredUserpicLines = 2;
 		_pixh = lineHeight
-			* (asSponsored ? kSponsoredUserpicLines : linesMax);
+			* (specialRightPix ? kSponsoredUserpicLines : linesMax);
 		do {
-			_pixw = asSponsored
+			_pixw = specialRightPix
 				? _pixh
 				: ArticleThumbWidth(_data->photo, _pixh);
 			const auto wleft = innerWidth
@@ -644,6 +669,7 @@ void WebPage::ensurePhotoMediaCreated() const {
 bool WebPage::hasHeavyPart() const {
 	return _photoMedia
 		|| (_sponsoredData && !_sponsoredData->userpicView.null())
+		|| (_stickerSet)
 		|| (_attach ? _attach->hasHeavyPart() : false);
 }
 
@@ -727,6 +753,30 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	auto lineHeight = UnitedLineHeight();
+	if (_stickerSet) {
+		const auto viewsCount = _stickerSet->views.size();
+		const auto topLeft = QPoint(inner.left() + paintw - _pixh, tshift);
+		const auto side = std::ceil(viewsCount / 2.);
+		const auto box = lineHeight * 2;
+		const auto single = box / side;
+		for (auto i = 0; i < side; i++) {
+			for (auto j = 0; j < side; j++) {
+				const auto index = i * side + j;
+				if (viewsCount <= index) {
+					break;
+				}
+				const auto &view = _stickerSet->views[index];
+				const auto size = view->countOptimalSize();
+				const auto offsetX = (single - size.width()) / 2.;
+				const auto offsetY = (single - size.height()) / 2.;
+				const auto x = j * size.width() + offsetX;
+				const auto y = i * size.height() + offsetY;
+				const auto w = size.width();
+				const auto h = size.height();
+				view->draw(p, context, QRect(QPoint(x, y) + topLeft, size));
+			}
+		}
+	}
 	if (asArticle()) {
 		ensurePhotoMediaCreated();
 
