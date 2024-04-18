@@ -77,7 +77,7 @@ RUN git clone -b v5.4.4 --depth=1 https://git.tukaani.org/xz.git \
 	&& rm -rf xz
 
 FROM builder AS protobuf
-RUN git clone -b v21.9 --depth=1 --recursive {{ GIT }}/protocolbuffers/protobuf.git \
+RUN git clone -b v21.9 --depth=1 --recursive --shallow-submodules {{ GIT }}/protocolbuffers/protobuf.git \
 	&& cd protobuf \
 	&& git init third_party/abseil-cpp \
 	&& cd third_party/abseil-cpp \
@@ -310,7 +310,7 @@ RUN git clone -b libxcb-1.16 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
 	&& rm -rf libxcb
 
 FROM builder AS xcb-wm
-RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
+RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
 	&& cd libxcb-wm \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -319,7 +319,7 @@ RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/l
 	&& rm -rf libxcb-wm
 
 FROM builder AS xcb-util
-RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-util.git \
+RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-util.git \
 	&& cd libxcb-util \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -330,7 +330,7 @@ RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libx
 FROM builder AS xcb-image
 COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 
-RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-image.git \
+RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-image.git \
 	&& cd libxcb-image \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -339,7 +339,7 @@ RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }
 	&& rm -rf libxcb-image
 
 FROM builder AS xcb-keysyms
-RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
+RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
 	&& cd libxcb-keysyms \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -348,7 +348,7 @@ RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP
 	&& rm -rf libxcb-keysyms
 
 FROM builder AS xcb-render-util
-RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
+RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
 	&& cd libxcb-render-util \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -361,7 +361,7 @@ COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
 COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
 
-RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-cursor.git \
+RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-cursor.git \
 	&& cd libxcb-cursor \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
