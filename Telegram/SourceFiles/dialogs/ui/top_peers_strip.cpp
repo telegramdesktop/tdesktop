@@ -467,6 +467,7 @@ void TopPeersStrip::paintEvent(QPaintEvent *e) {
 
 		const auto nameLeft = x + st.nameLeft;
 		const auto nameWidth = single - 2 * st.nameLeft;
+		p.setPen(st::dialogsNameFg);
 		entry.name.drawElided(
 			p,
 			nameLeft,

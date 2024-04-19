@@ -624,6 +624,26 @@ recentPeersList: PeerList(defaultPeerList) {
 }
 recentPeersSpecialNamePosition: point(64px, 19px);
 
+dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
+	height: 33px;
+	barTop: 30px;
+	barSkip: 0px;
+	barStroke: 6px;
+	barRadius: 2px;
+	barFg: transparent;
+	barSnapToLabel: true;
+	strictSkip: 34px;
+	labelTop: 7px;
+	labelStyle: semiboldTextStyle;
+	labelFg: windowSubTextFg;
+	labelFgActive: lightButtonFg;
+	rippleBottomSkip: 1px;
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	ripple: defaultRippleAnimation;
+}
+
+
 dialogsStoriesList: DialogsStoriesList {
 	small: dialogsStories;
 	full: dialogsStoriesFull;

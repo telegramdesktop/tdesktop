@@ -1151,7 +1151,9 @@ void Widget::updateSuggestions(anim::type animated) {
 
 		rpl::merge(
 			_suggestions->topPeerChosen(),
-			_suggestions->recentPeerChosen()
+			_suggestions->recentPeerChosen(),
+			_suggestions->myChannelChosen(),
+			_suggestions->recommendationChosen()
 		) | rpl::start_with_next([=](not_null<PeerData*> peer) {
 			chosenRow({
 				.key = peer->owner().history(peer),

@@ -5123,6 +5123,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_recent_hide_sure" = "Are you sure you want to clear and disable frequent contacts list?\n\nYou can always turn this feature back on in Settings > Privacy > Suggest Frequent Contacts.";
 "lng_recent_hide_button" = "Hide";
 "lng_recent_none" = "Recent search results\nwill appear here.";
+"lng_recent_chats" = "Chats";
+"lng_recent_channels" = "Channels";
+"lng_channels_none_title" = "No channels yet...";
+"lng_channels_none_about" = "You are not currently subscribed to any channels.";
+"lng_channels_your_title" = "Channels you joined";
+"lng_channels_your_more" = "Show more";
+"lng_channels_your_less" = "Show less";
+"lng_channels_recommended" = "Recommended channels";
 
 // Wnd specific
 
