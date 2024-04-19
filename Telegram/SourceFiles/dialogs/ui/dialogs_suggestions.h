@@ -108,6 +108,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 
 	const std::unique_ptr<Ui::SettingsSlider> _tabs;
+	rpl::variable<Tab> _tab = Tab::Chats;
 
 	const std::unique_ptr<Ui::ElasticScroll> _chatsScroll;
 	const not_null<Ui::VerticalLayout*> _chatsContent;
@@ -142,7 +143,6 @@ private:
 
 	Ui::Animations::Simple _shownAnimation;
 	Fn<void()> _showFinished;
-	Tab _tab = Tab::Chats;
 	bool _hidden = false;
 	bool _persist = false;
 	QPixmap _cache;

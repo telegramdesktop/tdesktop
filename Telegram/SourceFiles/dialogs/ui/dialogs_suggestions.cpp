@@ -177,12 +177,16 @@ public:
 		not_null<PeerListRow*> row) override;
 	Main::Session &session() const override;
 
+	void load();
+
 private:
+	void fill();
 	void setupDivider();
 	void appendRow(not_null<ChannelData*> channel);
 
 	const not_null<Window::SessionController*> _window;
 	rpl::variable<int> _count;
+	bool _requested = false;
 	rpl::event_stream<not_null<PeerData*>> _chosen;
 	rpl::lifetime _lifetime;
 
@@ -730,28 +734,35 @@ RecommendationsController::RecommendationsController(
 
 void RecommendationsController::prepare() {
 	setupDivider();
-
-	const auto participants = &session().api().chatParticipants();
-	const auto fill = [=] {
-		const auto &list = participants->recommendations().list;
-		if (list.empty()) {
-			return;
-		}
-		for (const auto &peer : list) {
-			if (const auto channel = peer->asBroadcast()) {
-				appendRow(channel);
-			}
-		}
-		delegate()->peerListRefreshRows();
-		_count = delegate()->peerListFullRowsCount();
-	};
-
 	fill();
-	if (!_count.current()) {
-		participants->loadRecommendations();
-		participants->recommendationsLoaded(
-		) | rpl::take(1) | rpl::start_with_next(fill, _lifetime);
+}
+
+void RecommendationsController::load() {
+	if (_requested || _count.current()) {
+		return;
 	}
+	_requested = true;
+	const auto participants = &session().api().chatParticipants();
+	participants->loadRecommendations();
+	participants->recommendationsLoaded(
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		fill();
+	}, _lifetime);
+}
+
+void RecommendationsController::fill() {
+	const auto participants = &session().api().chatParticipants();
+	const auto &list = participants->recommendations().list;
+	if (list.empty()) {
+		return;
+	}
+	for (const auto &peer : list) {
+		if (const auto channel = peer->asBroadcast()) {
+			appendRow(channel);
+		}
+	}
+	delegate()->peerListRefreshRows();
+	_count = delegate()->peerListFullRowsCount();
 }
 
 void RecommendationsController::appendRow(not_null<ChannelData*> channel) {
@@ -852,7 +863,7 @@ void Suggestions::setupTabs() {
 	_tabs->setSections({
 		tr::lng_recent_chats(tr::now),
 		tr::lng_recent_channels(tr::now),
-		});
+	});
 	_tabs->sectionActivated(
 	) | rpl::start_with_next([=](int section) {
 		switchTab(section ? Tab::Channels : Tab::Chats);
@@ -904,7 +915,7 @@ void Suggestions::setupChats() {
 		});
 	}, _topPeers->lifetime());
 
-	_chatsScroll->setVisible(_tab == Tab::Chats);
+	_chatsScroll->setVisible(_tab.current() == Tab::Chats);
 }
 
 void Suggestions::setupChannels() {
@@ -923,7 +934,7 @@ void Suggestions::setupChannels() {
 			rpl::mappers::_1 + rpl::mappers::_2 == 0),
 		anim::type::instant);
 
-	_channelsScroll->setVisible(_tab == Tab::Channels);
+	_channelsScroll->setVisible(_tab.current() == Tab::Channels);
 }
 
 void Suggestions::selectJump(Qt::Key direction, int pageSize) {
@@ -1003,7 +1014,7 @@ void Suggestions::hide(anim::type animated, Fn<void()> finish) {
 }
 
 void Suggestions::switchTab(Tab tab) {
-	if (_tab == tab) {
+	if (_tab.current() == tab) {
 		return;
 	}
 	_tab = tab;
@@ -1021,8 +1032,9 @@ void Suggestions::startSlideAnimation() {
 		_chatsScroll->hide();
 		_channelsScroll->hide();
 	}
-	const auto from = (_tab == Tab::Channels) ? 0. : 1.;
-	const auto to = (_tab == Tab::Channels) ? 1. : 0.;
+	const auto channels = (_tab.current() == Tab::Channels);
+	const auto from = channels ? 0. : 1.;
+	const auto to = channels ? 1. : 0.;
 	_slideAnimation.start([=] {
 		update();
 		if (!_slideAnimation.animating() && !_shownAnimation.animating()) {
@@ -1067,8 +1079,9 @@ void Suggestions::finishShow() {
 	_cache = QPixmap();
 
 	_tabs->show();
-	_chatsScroll->setVisible(_tab == Tab::Chats);
-	_channelsScroll->setVisible(_tab == Tab::Channels);
+	const auto channels = (_tab.current() == Tab::Channels);
+	_chatsScroll->setVisible(!channels);
+	_channelsScroll->setVisible(channels);
 }
 
 float64 Suggestions::shownOpacity() const {
@@ -1088,7 +1101,7 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(0, (opacity - 1.) * slide, _cache);
 	} else if (!_slideLeft.isNull()) {
 		const auto slide = st::topPeers.height + st::searchedBarHeight;
-		const auto right = (_tab == Tab::Channels);
+		const auto right = (_tab.current() == Tab::Channels);
 		const auto progress = _slideAnimation.value(right ? 1. : 0.);
 		const auto shift = st::topPeers.height + st::searchedBarHeight;
 		p.setOpacity(1. - progress);
@@ -1298,6 +1311,12 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecommendations() {
 	controller->setStyleOverrides(&st::recentPeersList);
 
 	_recommendationsCount = controller->count();
+
+	_tab.value() | rpl::filter(
+		rpl::mappers::_1 == Tab::Channels
+	) | rpl::start_with_next([=] {
+		controller->load();
+	}, lifetime);
 
 	controller->chosen(
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
