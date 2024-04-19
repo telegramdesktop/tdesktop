@@ -227,6 +227,7 @@ private:
 	void closeChildList(anim::type animated);
 
 	void fullSearchRefreshOn(rpl::producer<> events);
+	void updateCancelSearch();
 	void applySearchUpdate(bool force = false);
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
 	void loadMoreBlockedByDate();

@@ -1109,6 +1109,7 @@ void Widget::updateHasFocus(not_null<QWidget*> focused) {
 
 void Widget::processSearchFocusChange() {
 	_searchSuggestionsLocked = _suggestions && _suggestions->persist();
+	updateCancelSearch();
 	updateStoriesVisibility();
 	updateForceDisplayWide();
 	updateSuggestions(anim::type::normal);
@@ -2550,6 +2551,13 @@ void Widget::listScrollUpdated() {
 	_scrollToTop->update();
 }
 
+void Widget::updateCancelSearch() {
+	const auto shown = _searchHasFocus
+		|| _searchSuggestionsLocked
+		|| !_search->getLastText().isEmpty();
+	_cancelSearch->toggle(shown, anim::type::normal);
+}
+
 void Widget::applySearchUpdate(bool force) {
 	if (_showAnimation && !force) {
 		return;
@@ -2562,7 +2570,7 @@ void Widget::applySearchUpdate(bool force) {
 	if (filterText.isEmpty() && !_searchFromAuthor && _searchTags.empty()) {
 		clearSearchCache();
 	}
-	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
+	updateCancelSearch();
 	if (!_postponeProcessSearchFocusChange) {
 		updateSuggestions(anim::type::instant);
 	}
