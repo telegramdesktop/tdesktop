@@ -1831,7 +1831,7 @@ Ui::Toast::Config PrepareTogglePinToast(
 					lt_count,
 					count))
 			: QString()),
-		.text = (pin
+		.text = { (pin
 			? (count == 1
 				? tr::lng_mediaview_pin_story_about(tr::now)
 				: tr::lng_mediaview_pin_stories_about(
@@ -1843,7 +1843,7 @@ Ui::Toast::Config PrepareTogglePinToast(
 				: tr::lng_mediaview_unpin_stories_done(
 					tr::now,
 					lt_count,
-					count))),
+					count))) },
 		.st = &st::storiesActionToast,
 		.duration = (pin
 			? Data::Stories::kInProfileToastDuration

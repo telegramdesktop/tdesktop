@@ -18,6 +18,8 @@ DiscreteSlider::DiscreteSlider(QWidget *parent, bool snapToLabel)
 	setCursor(style::cur_pointer);
 }
 
+DiscreteSlider::~DiscreteSlider() = default;
+
 void DiscreteSlider::setActiveSection(int index) {
 	_activeIndex = index;
 	activateCallback();

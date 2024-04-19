@@ -19,6 +19,7 @@ class RippleAnimation;
 class DiscreteSlider : public RpWidget {
 public:
 	DiscreteSlider(QWidget *parent, bool snapToLabel);
+	~DiscreteSlider();
 
 	void addSection(const QString &label);
 	void setSections(const std::vector<QString> &labels);
