@@ -37,6 +37,7 @@ struct SendOptions;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Dialogs {
@@ -68,6 +69,12 @@ void ShareGameScoreByHash(
 void FastShareMessage(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item);
+void FastShareLink(
+	not_null<Window::SessionController*> controller,
+	const QString &url);
+void FastShareLink(
+	std::shared_ptr<Main::SessionShow> show,
+	const QString &url);
 
 struct RecipientPremiumRequiredError;
 [[nodiscard]] auto SharePremiumRequiredError()
