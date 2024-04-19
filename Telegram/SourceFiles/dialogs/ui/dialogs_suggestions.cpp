@@ -71,7 +71,8 @@ public:
 		bool actionSelected) override;
 	bool rightActionDisabled() const override;
 
-	QPoint computeNamePosition(const style::PeerListItem &st) const override;
+	const style::PeerListItem &computeSt(
+		const style::PeerListItem &st) const override;
 
 private:
 	const not_null<History*> _history;
@@ -117,6 +118,20 @@ private:
 	rpl::variable<int> _count;
 	rpl::event_stream<not_null<PeerData*>> _chosen;
 	rpl::lifetime _lifetime;
+
+};
+
+class ChannelRow final : public PeerListRow {
+public:
+	using PeerListRow::PeerListRow;
+
+	void setActive(bool active);
+
+	const style::PeerListItem &computeSt(
+		const style::PeerListItem &st) const override;
+
+private:
+	bool _active = false;
 
 };
 
@@ -186,6 +201,7 @@ private:
 
 	const not_null<Window::SessionController*> _window;
 	rpl::variable<int> _count;
+	History *_activeHistory = nullptr;
 	bool _requested = false;
 	rpl::event_stream<not_null<PeerData*>> _chosen;
 	rpl::lifetime _lifetime;
@@ -367,10 +383,20 @@ bool RecentRow::rightActionDisabled() const {
 	return true;
 }
 
-QPoint RecentRow::computeNamePosition(const style::PeerListItem &st) const {
+const style::PeerListItem &RecentRow::computeSt(
+		const style::PeerListItem &st) const {
 	return (peer()->isSelf() || peer()->isRepliesChat())
-		? st::recentPeersSpecialNamePosition
-		: st.namePosition;
+		? st::recentPeersSpecialName
+		: st;
+}
+
+void ChannelRow::setActive(bool active) {
+	_active = active;
+}
+
+const style::PeerListItem &ChannelRow::computeSt(
+		const style::PeerListItem &st) const {
+	return _active ? st::recentPeersItemActive : st::recentPeersItem;
 }
 
 RecentsController::RecentsController(
@@ -763,10 +789,31 @@ void RecommendationsController::fill() {
 	}
 	delegate()->peerListRefreshRows();
 	_count = delegate()->peerListFullRowsCount();
+
+	_window->activeChatValue() | rpl::start_with_next([=](const Key &key) {
+		const auto history = key.history();
+		if (_activeHistory == history) {
+			return;
+		} else if (_activeHistory) {
+			const auto id = _activeHistory->peer->id.value;
+			if (const auto row = delegate()->peerListFindRow(id)) {
+				static_cast<ChannelRow*>(row)->setActive(false);
+				delegate()->peerListUpdateRow(row);
+			}
+		}
+		_activeHistory = history;
+		if (_activeHistory) {
+			const auto id = _activeHistory->peer->id.value;
+			if (const auto row = delegate()->peerListFindRow(id)) {
+				static_cast<ChannelRow*>(row)->setActive(true);
+				delegate()->peerListUpdateRow(row);
+			}
+		}
+	}, _lifetime);
 }
 
 void RecommendationsController::appendRow(not_null<ChannelData*> channel) {
-	auto row = std::make_unique<PeerListRow>(channel);
+	auto row = std::make_unique<ChannelRow>(channel);
 	if (channel->membersCountKnown()) {
 		row->setCustomStatus((channel->isBroadcast()
 			? tr::lng_chat_status_subscribers

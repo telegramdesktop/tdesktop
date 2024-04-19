@@ -622,7 +622,23 @@ recentPeersList: PeerList(defaultPeerList) {
 	padding: margins(0px, 4px, 0px, 4px);
 	item: recentPeersItem;
 }
-recentPeersSpecialNamePosition: point(64px, 19px);
+recentPeersItemActive: PeerListItem(recentPeersItem) {
+	nameFg: dialogsNameFgActive;
+	nameFgChecked: dialogsNameFgActive;
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: dialogsBgActive;
+		textBgOver: dialogsBgActive;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: dialogsRippleBgActive;
+		}
+	}
+	statusFg: dialogsTextFgActive;
+	statusFgOver: dialogsTextFgActive;
+	statusFgActive: dialogsTextFgActive;
+}
+recentPeersSpecialName: PeerListItem(recentPeersItem) {
+	namePosition: point(64px, 19px);
+}
 
 dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
 	height: 33px;

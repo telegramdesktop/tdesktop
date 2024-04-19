@@ -100,7 +100,7 @@ public:
 		-> const base::flat_set<QChar> &;
 	[[nodiscard]] virtual auto generateNameWords() const
 		-> const base::flat_set<QString> &;
-	[[nodiscard]] virtual QPoint computeNamePosition(
+	[[nodiscard]] virtual const style::PeerListItem &computeSt(
 		const style::PeerListItem &st) const;
 
 	virtual void preloadUserpic();
