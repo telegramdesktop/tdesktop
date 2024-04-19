@@ -985,8 +985,16 @@ void Suggestions::setupChannels() {
 }
 
 void Suggestions::selectJump(Qt::Key direction, int pageSize) {
+	if (_tab.current() == Tab::Chats) {
+		selectJumpChats(direction, pageSize);
+	} else {
+		selectJumpChannels(direction, pageSize);
+	}
+}
+
+void Suggestions::selectJumpChats(Qt::Key direction, int pageSize) {
 	const auto recentHasSelection = [=] {
-		return _recentSelectJump(Qt::Key(), 0) == JumpResult::Applied;
+		return _recentSelectJump({}, 0) == JumpResult::Applied;
 	};
 	if (pageSize) {
 		if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
@@ -1007,7 +1015,7 @@ void Suggestions::selectJump(Qt::Key direction, int pageSize) {
 	} else if (direction == Qt::Key_Up) {
 		if (_recentSelectJump(direction, pageSize)
 			== JumpResult::AppliedAndOut) {
-			_topPeers->selectByKeyboard(Qt::Key());
+			_topPeers->selectByKeyboard({});
 			_chatsScroll->scrollTo(0);
 		} else {
 			_topPeers->deselectByKeyboard();
@@ -1021,13 +1029,76 @@ void Suggestions::selectJump(Qt::Key direction, int pageSize) {
 		} else if (!_topPeersWrap->toggled() || recentHasSelection()) {
 			_recentSelectJump(direction, pageSize);
 		} else {
-			_topPeers->selectByKeyboard(Qt::Key());
+			_topPeers->selectByKeyboard({});
 			_chatsScroll->scrollTo(0);
 		}
 	} else if (direction == Qt::Key_Left || direction == Qt::Key_Right) {
 		if (!recentHasSelection()) {
 			_topPeers->selectByKeyboard(direction);
 			_chatsScroll->scrollTo(0);
+		}
+	}
+}
+
+void Suggestions::selectJumpChannels(Qt::Key direction, int pageSize) {
+	const auto myChannelsHasSelection = [=] {
+		return _myChannelsSelectJump({}, 0) == JumpResult::Applied;
+	};
+	const auto recommendationsHasSelection = [=] {
+		return _recommendationsSelectJump({}, 0) == JumpResult::Applied;
+	};
+	if (pageSize) {
+		if (direction == Qt::Key_Down) {
+			if (recommendationsHasSelection()) {
+				_recommendationsSelectJump(direction, pageSize);
+			} else if (myChannelsHasSelection()) {
+				if (_myChannelsSelectJump(direction, pageSize)
+					== JumpResult::AppliedAndOut) {
+					_recommendationsSelectJump(direction, 0);
+				}
+			} else if (_myChannelsCount.current()) {
+				_myChannelsSelectJump(direction, 0);
+				_myChannelsSelectJump(direction, pageSize);
+			} else if (_recommendationsCount.current()) {
+				_recommendationsSelectJump(direction, 0);
+				_recommendationsSelectJump(direction, pageSize);
+			}
+		} else if (direction == Qt::Key_Up) {
+			if (myChannelsHasSelection()) {
+				if (_myChannelsSelectJump(direction, pageSize)
+					== JumpResult::AppliedAndOut) {
+					_channelsScroll->scrollTo(0);
+				}
+			} else if (recommendationsHasSelection()) {
+				if (_recommendationsSelectJump(direction, pageSize)
+					== JumpResult::AppliedAndOut) {
+					_myChannelsSelectJump(direction, -1);
+				}
+			}
+		}
+	} else if (direction == Qt::Key_Up) {
+		if (myChannelsHasSelection()) {
+			_myChannelsSelectJump(direction, 0);
+		} else if (_recommendationsSelectJump(direction, 0)
+			== JumpResult::AppliedAndOut) {
+			_myChannelsSelectJump(direction, -1);
+		} else if (!recommendationsHasSelection()) {
+			if (_myChannelsSelectJump(direction, 0)
+				== JumpResult::AppliedAndOut) {
+				_channelsScroll->scrollTo(0);
+			}
+		}
+	} else if (direction == Qt::Key_Down) {
+		if (recommendationsHasSelection()) {
+			_recommendationsSelectJump(direction, 0);
+		} else if (_myChannelsSelectJump(direction, 0)
+			== JumpResult::AppliedAndOut) {
+			_recommendationsSelectJump(direction, 0);
+		} else if (!myChannelsHasSelection()) {
+			if (_recommendationsSelectJump(direction, 0)
+				== JumpResult::AppliedAndOut) {
+				_myChannelsSelectJump(direction, 0);
+			}
 		}
 	}
 }
@@ -1316,18 +1387,32 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupMyChannels() {
 	_myChannelsChoose = [=] {
 		return raw->submitted();
 	};
-	_myChannelsSelectJump = [raw](Qt::Key direction, int pageSize) {
+	_myChannelsSelectJump = [=](Qt::Key direction, int pageSize) {
 		const auto had = raw->hasSelection();
 		if (direction == Qt::Key()) {
 			return had ? JumpResult::Applied : JumpResult::NotApplied;
 		} else if (direction == Qt::Key_Up && !had) {
+			if (pageSize < 0) {
+				raw->selectLast();
+				return raw->hasSelection()
+					? JumpResult::Applied
+					: JumpResult::NotApplied;
+			}
 			return JumpResult::NotApplied;
 		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
+			const auto was = raw->selectedIndex();
 			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
 			if (pageSize > 0) {
 				raw->selectSkipPage(pageSize, delta);
 			} else {
 				raw->selectSkip(delta);
+			}
+			if (had
+				&& delta > 0
+				&& _recommendationsCount.current()
+				&& raw->selectedIndex() == was) {
+				raw->clearSelection();
+				return JumpResult::AppliedAndOut;
 			}
 			return raw->hasSelection()
 				? JumpResult::Applied

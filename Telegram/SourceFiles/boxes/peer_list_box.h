@@ -603,6 +603,7 @@ public:
 	};
 	SkipResult selectSkip(int direction);
 	void selectSkipPage(int height, int direction);
+	void selectLast();
 
 	enum class Mode {
 		Default,
@@ -611,6 +612,7 @@ public:
 	void setMode(Mode mode);
 
 	[[nodiscard]] rpl::producer<int> selectedIndexValue() const;
+	[[nodiscard]] int selectedIndex() const;
 	[[nodiscard]] bool hasSelection() const;
 	[[nodiscard]] bool hasPressed() const;
 	void clearSelection();

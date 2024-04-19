@@ -87,6 +87,9 @@ private:
 	void setupChats();
 	void setupChannels();
 
+	void selectJumpChats(Qt::Key direction, int pageSize);
+	void selectJumpChannels(Qt::Key direction, int pageSize);
+
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupRecentPeers(
 		RecentPeersList recentPeers);
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupEmptyRecent();

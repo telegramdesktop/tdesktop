@@ -1912,8 +1912,28 @@ void PeerListContent::selectSkipPage(int height, int direction) {
 	selectSkip(rowsToSkip * direction);
 }
 
+void PeerListContent::selectLast() {
+	const auto rowsCount = shownRowsCount();
+	const auto newSelectedIndex = rowsCount - 1;
+	_selected.index.value = newSelectedIndex;
+	_selected.element = 0;
+	if (newSelectedIndex >= 0) {
+		auto top = (newSelectedIndex > 0) ? getRowTop(RowIndex(newSelectedIndex)) : 0;
+		auto bottom = (newSelectedIndex + 1 < rowsCount) ? getRowTop(RowIndex(newSelectedIndex + 1)) : height();
+		_scrollToRequests.fire({ top, bottom });
+	}
+
+	update();
+
+	_selectedIndex = _selected.index.value;
+}
+
 rpl::producer<int> PeerListContent::selectedIndexValue() const {
 	return _selectedIndex.value();
+}
+
+int PeerListContent::selectedIndex() const {
+	return _selectedIndex.current();
 }
 
 bool PeerListContent::hasSelection() const {
