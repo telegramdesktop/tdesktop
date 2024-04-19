@@ -369,6 +369,10 @@ void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 		bad("FirebaseSms");
 	}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
 		bad("EmailCode");
+	}, [&](const MTPDauth_sentCodeTypeSmsWord &) {
+		bad("SmsWord");
+	}, [&](const MTPDauth_sentCodeTypeSmsPhrase &) {
+		bad("SmsPhrase");
 	}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
 		bad("SetUpEmailRequired");
 	});

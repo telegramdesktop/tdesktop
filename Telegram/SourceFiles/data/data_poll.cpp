@@ -69,7 +69,7 @@ bool PollData::closeByTimer() {
 bool PollData::applyChanges(const MTPDpoll &poll) {
 	Expects(poll.vid().v == id);
 
-	const auto newQuestion = qs(poll.vquestion());
+	const auto newQuestion = qs(poll.vquestion().data().vtext());
 	const auto newFlags = (poll.is_closed() ? Flag::Closed : Flag(0))
 		| (poll.is_public_voters() ? Flag::PublicVotes : Flag(0))
 		| (poll.is_multiple_choice() ? Flag::MultiChoice : Flag(0))
@@ -82,7 +82,7 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 		return data.match([](const MTPDpollAnswer &answer) {
 			auto result = PollAnswer();
 			result.option = answer.voption().v;
-			result.text = qs(answer.vtext());
+			result.text = qs(answer.vtext().data().vtext());
 			return result;
 		});
 	}) | ranges::views::take(
@@ -253,7 +253,9 @@ bool PollData::quiz() const {
 MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 	const auto convert = [](const PollAnswer &answer) {
 		return MTP_pollAnswer(
-			MTP_string(answer.text),
+			MTP_textWithEntities(
+				MTP_string(answer.text),
+				MTP_vector<MTPMessageEntity>()),
 			MTP_bytes(answer.option));
 	};
 	auto answers = QVector<MTPPollAnswer>();
@@ -272,7 +274,9 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 	return MTP_poll(
 		MTP_long(poll->id),
 		MTP_flags(flags),
-		MTP_string(poll->question),
+		MTP_textWithEntities(
+			MTP_string(poll->question),
+			MTP_vector<MTPMessageEntity>()),
 		MTP_vector<MTPPollAnswer>(answers),
 		MTP_int(poll->closePeriod),
 		MTP_int(poll->closeDate));
