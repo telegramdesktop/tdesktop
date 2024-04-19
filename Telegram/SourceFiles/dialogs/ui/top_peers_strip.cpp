@@ -520,7 +520,7 @@ void TopPeersStrip::paintUserpic(
 	const auto inner = QRect(0, 0, size, size);
 	q.drawImage(inner, simple);
 
-	auto hq = PainterHighQualityEnabler(p);
+	auto hq = PainterHighQualityEnabler(q);
 
 	if (online > 0) {
 		q.setCompositionMode(QPainter::CompositionMode_Source);
@@ -554,7 +554,16 @@ void TopPeersStrip::paintUserpic(
 		st.selected = selected;
 		st.muted = entry.muted;
 		const auto &counter = entry.badgeString;
-		PaintUnreadBadge(q, counter, size, 0, st);
+		const auto badge = PaintUnreadBadge(q, counter, size, 0, st);
+
+		const auto width = style::ConvertScaleExact(2.);
+		const auto add = (width - style::ConvertScaleExact(1.)) / 2.;
+		auto pen = QPen(Qt::transparent);
+		pen.setWidthF(width);
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		q.setPen(pen);
+		q.setBrush(Qt::NoBrush);
+		q.drawEllipse(QRectF(badge).marginsAdded({ add, add, add, add }));
 	}
 
 	q.end();
