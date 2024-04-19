@@ -3510,7 +3510,7 @@ void Session::webpageApplyFields(
 				}, [](const auto &) {
 					return WebPageStickerSetPtr(nullptr);
 				});
-				if (!result->items.empty()) {
+				if (result && !result->items.empty()) {
 					return result;
 				}
 			}
