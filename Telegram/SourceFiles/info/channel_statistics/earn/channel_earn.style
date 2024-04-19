@@ -61,6 +61,12 @@ channelEarnHistoryMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
 		font: font(12px semibold);
 	}
 }
+channelEarnHistoryDescriptionLabel: FlatLabel(channelEarnHistoryMajorLabel) {
+	// boxWidth - boxRowPadding = 320 - 24 * 2
+	minWidth: 272px;
+	maxHeight: 0px;
+	align: align(center);
+}
 channelEarnHistoryMinorLabelSkip: 2px;
 channelEarnHistoryOuter: margins(0px, 6px, 0px, 6px);
 channelEarnHistoryTwoSkip: 5px;
