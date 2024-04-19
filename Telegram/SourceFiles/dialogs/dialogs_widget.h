@@ -304,6 +304,7 @@ private:
 	std::vector<Data::ReactionId> _searchTags;
 	rpl::lifetime _searchTagsLifetime;
 	QString _lastSearchText;
+	bool _searchSuggestionsLocked = false;
 	bool _searchHasFocus = false;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;

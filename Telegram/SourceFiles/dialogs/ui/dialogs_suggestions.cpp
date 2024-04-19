@@ -115,7 +115,6 @@ private:
 	const not_null<Window::SessionController*> _window;
 	RecentPeersList _recent;
 	rpl::variable<int> _count;
-	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<not_null<PeerData*>> _chosen;
 	rpl::lifetime _lifetime;
 
@@ -145,14 +144,13 @@ public:
 private:
 	void setupDivider();
 	void appendRow(not_null<ChannelData*> channel);
-	void fill();
+	void fill(bool force = false);
 
 	const not_null<Window::SessionController*> _window;
 	std::vector<not_null<History*>> _channels;
 	rpl::variable<Ui::RpWidget*> _toggleExpanded = nullptr;
 	rpl::variable<int> _count = 0;
 	rpl::variable<bool> _expanded = false;
-	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<not_null<PeerData*>> _chosen;
 	rpl::lifetime _lifetime;
 
@@ -185,7 +183,6 @@ private:
 
 	const not_null<Window::SessionController*> _window;
 	rpl::variable<int> _count;
-	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<not_null<PeerData*>> _chosen;
 	rpl::lifetime _lifetime;
 
@@ -529,6 +526,27 @@ MyChannelsController::MyChannelsController(
 void MyChannelsController::prepare() {
 	setupDivider();
 
+	session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::ChannelAmIn
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		const auto channel = update.peer->asBroadcast();
+		if (!channel || channel->amIn()) {
+			return;
+		}
+		const auto history = channel->owner().history(channel);
+		const auto i = ranges::remove(_channels, history);
+		if (i == end(_channels)) {
+			return;
+		}
+		_channels.erase(i, end(_channels));
+		const auto row = delegate()->peerListFindRow(channel->id.value);
+		if (row) {
+			delegate()->peerListRemoveRow(row);
+		}
+		_count = int(_channels.size());
+		fill(true);
+	}, _lifetime);
+
 	_channels.reserve(kProbablyMaxChannels);
 	const auto owner = &session().data();
 	const auto add = [&](not_null<Dialogs::MainList*> list) {
@@ -579,20 +597,20 @@ void MyChannelsController::prepare() {
 	}, _lifetime);
 }
 
-void MyChannelsController::fill() {
+void MyChannelsController::fill(bool force) {
 	const auto count = _count.current();
 	const auto limit = _expanded.current()
 		? count
 		: std::min(count, kCollapsedChannelsCount);
 	const auto already = delegate()->peerListFullRowsCount();
 	const auto delta = limit - already;
-	if (!delta) {
+	if (!delta && !force) {
 		return;
 	} else if (delta > 0) {
 		for (auto i = already; i != limit; ++i) {
 			appendRow(_channels[i]->peer->asBroadcast());
 		}
-	} else {
+	} else if (delta < 0) {
 		for (auto i = already; i != limit;) {
 			delegate()->peerListRemoveRow(delegate()->peerListRowAt(--i));
 		}
@@ -620,7 +638,19 @@ void MyChannelsController::rowClicked(not_null<PeerListRow*> row) {
 base::unique_qptr<Ui::PopupMenu> MyChannelsController::rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
-	return nullptr;
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
+	const auto peer = row->peer();
+	const auto addAction = Ui::Menu::CreateAddActionCallback(result);
+	Window::FillDialogsEntryMenu(
+		_window,
+		Dialogs::EntryState{
+			.key = peer->owner().history(peer),
+			.section = Dialogs::EntryState::Section::ContextMenu,
+		},
+		addAction);
+	return result;
 }
 
 Main::Session &MyChannelsController::session() const {
@@ -977,6 +1007,7 @@ void Suggestions::switchTab(Tab tab) {
 		return;
 	}
 	_tab = tab;
+	_persist = false;
 	if (_tabs->isHidden()) {
 		return;
 	}
@@ -1215,6 +1246,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupMyChannels() {
 
 	controller->chosen(
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		_persist = false;
 		_myChannelChosen.fire_copy(peer);
 	}, lifetime);
 
@@ -1269,6 +1301,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecommendations() {
 
 	controller->chosen(
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		_persist = true;
 		_recommendationChosen.fire_copy(peer);
 	}, lifetime);
 
@@ -1309,6 +1342,14 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecommendations() {
 	controller->setDelegate(delegate);
 
 	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
+}
+
+bool Suggestions::persist() const {
+	return _persist;
+}
+
+void Suggestions::clearPersistance() {
+	_persist = false;
 }
 
 rpl::producer<TopPeersList> TopPeersContent(

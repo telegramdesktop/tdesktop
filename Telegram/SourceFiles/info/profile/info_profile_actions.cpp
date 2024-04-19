@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/report_messages_box.h"
+#include "boxes/share_box.h"
 #include "boxes/translate_box.h"
 #include "lang/lang_keys.h"
 #include "menu/menu_mute.h"
@@ -131,9 +132,8 @@ base::options::toggle ShowPeerIdBelowAbout({
 				+ addToLink;
 		}
 		if (!link.isEmpty()) {
-			QGuiApplication::clipboard()->setText(link);
-			if (const auto window = weak.get()) {
-				window->showToast(tr::lng_username_copied(tr::now));
+			if (const auto strong = weak.get()) {
+				FastShareLink(strong, link);
 			}
 		}
 	};

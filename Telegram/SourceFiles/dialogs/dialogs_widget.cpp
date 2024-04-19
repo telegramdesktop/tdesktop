@@ -1108,13 +1108,14 @@ void Widget::updateHasFocus(not_null<QWidget*> focused) {
 }
 
 void Widget::processSearchFocusChange() {
+	_searchSuggestionsLocked = _suggestions && _suggestions->persist();
 	updateStoriesVisibility();
 	updateForceDisplayWide();
 	updateSuggestions(anim::type::normal);
 }
 
 void Widget::updateSuggestions(anim::type animated) {
-	const auto suggest = _searchHasFocus
+	const auto suggest = (_searchHasFocus || _searchSuggestionsLocked)
 		&& !_searchInChat
 		&& (_inner->state() == WidgetState::Default);
 	if (anim::Disabled() || !session().data().chatsListLoaded()) {
@@ -1148,6 +1149,7 @@ void Widget::updateSuggestions(anim::type animated) {
 			controller(),
 			TopPeersContent(&session()),
 			RecentPeersContent(&session()));
+		_searchSuggestionsLocked = false;
 
 		rpl::merge(
 			_suggestions->topPeerChosen(),
@@ -1155,6 +1157,10 @@ void Widget::updateSuggestions(anim::type animated) {
 			_suggestions->myChannelChosen(),
 			_suggestions->recommendationChosen()
 		) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+			if (_searchSuggestionsLocked
+				&& (!_suggestions || !_suggestions->persist())) {
+				processSearchFocusChange();
+			}
 			chosenRow({
 				.key = peer->owner().history(peer),
 				.newWindow = base::IsCtrlPressed(),
@@ -1478,7 +1484,8 @@ void Widget::setInnerFocus() {
 		return;
 	} else if (!_search->getLastText().isEmpty()
 		|| _searchInChat
-		|| _searchHasFocus) {
+		|| _searchHasFocus
+		|| _searchSuggestionsLocked) {
 		_search->setFocus();
 	} else {
 		setFocus();
@@ -1620,6 +1627,7 @@ void Widget::updateStoriesVisibility() {
 		|| !_widthAnimationCache.isNull()
 		|| _childList
 		|| _searchHasFocus
+		|| _searchSuggestionsLocked
 		|| !_search->getLastText().isEmpty()
 		|| _searchInChat
 		|| _stories->empty();
@@ -2586,6 +2594,7 @@ void Widget::applySearchUpdate(bool force) {
 
 void Widget::updateForceDisplayWide() {
 	controller()->setChatsForceDisplayWide(_searchHasFocus
+		|| _searchSuggestionsLocked
 		|| !_search->getLastText().isEmpty()
 		|| _searchInChat);
 }
@@ -3342,7 +3351,12 @@ bool Widget::cancelSearch() {
 		setFocus();
 		clearingInChat = true;
 	}
-	const auto clearSearchFocus = !_searchInChat && _searchHasFocus;
+	const auto clearSearchFocus = !_searchInChat
+		&& (_searchHasFocus || _searchSuggestionsLocked);
+	if (!_searchInChat && _suggestions) {
+		_suggestions->clearPersistance();
+		_searchSuggestionsLocked = false;
+	}
 	if (!_suggestions && clearSearchFocus) {
 		// Don't create suggestions in unfocus case.
 		setFocus();

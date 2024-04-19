@@ -167,7 +167,8 @@ constexpr auto kStickerSetLines = 3;
 		: (type == WebPageType::GroupWithRequest
 			|| type == WebPageType::ChannelWithRequest)
 		? tr::lng_view_button_request_join(tr::now)
-		: (type == WebPageType::ChannelBoost)
+		: (type == WebPageType::GroupBoost
+			|| type == WebPageType::ChannelBoost)
 		? tr::lng_view_button_boost(tr::now)
 		: (type == WebPageType::Giftcode)
 		? tr::lng_view_button_giftcode(tr::now)
@@ -202,8 +203,11 @@ constexpr auto kStickerSetLines = 3;
 	return webpage->iv
 		|| (type == WebPageType::Message)
 		|| (type == WebPageType::Group)
+		|| (type == WebPageType::GroupWithRequest)
+		|| (type == WebPageType::GroupBoost)
 		|| (type == WebPageType::Channel)
 		|| (type == WebPageType::ChannelBoost)
+		|| (type == WebPageType::ChannelWithRequest)
 		|| (type == WebPageType::Giftcode)
 		// || (type == WebPageType::Bot)
 		|| (type == WebPageType::User)

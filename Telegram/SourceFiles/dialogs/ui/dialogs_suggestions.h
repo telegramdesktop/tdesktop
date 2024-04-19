@@ -50,6 +50,9 @@ public:
 	void hide(anim::type animated, Fn<void()> finish);
 	[[nodiscard]] float64 shownOpacity() const;
 
+	[[nodiscard]] bool persist() const;
+	void clearPersistance();
+
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> topPeerChosen() const {
 		return _topPeerChosen.events();
 	}
@@ -141,6 +144,7 @@ private:
 	Fn<void()> _showFinished;
 	Tab _tab = Tab::Chats;
 	bool _hidden = false;
+	bool _persist = false;
 	QPixmap _cache;
 
 	Ui::Animations::Simple _slideAnimation;
