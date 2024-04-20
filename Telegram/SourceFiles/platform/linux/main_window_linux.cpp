@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_window.h"
 #include "platform/linux/specific_linux.h"
-#include "platform/linux/linux_wayland_integration.h"
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
@@ -48,7 +47,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace {
 
-using internal::WaylandIntegration;
 using WorkMode = Core::Settings::WorkMode;
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -102,11 +100,6 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 void SkipTaskbar(QWindow *window, bool skip) {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		integration->skipTaskbar(window, skip);
-		return;
-	}
-
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (IsX11()) {
 		XCBSkipTaskbar(window, skip);
