@@ -1857,23 +1857,21 @@ TextWithEntities MediaPoll::notificationText() const {
 }
 
 QString MediaPoll::pinnedTextSubstring() const {
-	return QChar(171) + _poll->question + QChar(187);
+	return QChar(171) + _poll->question.text + QChar(187);
 }
 
 TextForMimeData MediaPoll::clipboardText() const {
-	const auto text = u"[ "_q
-		+ tr::lng_in_dlg_poll(tr::now)
-		+ u" : "_q
-		+ _poll->question
-		+ u" ]"_q
-		+ ranges::accumulate(
-			ranges::views::all(
-				_poll->answers
-			) | ranges::views::transform([](const PollAnswer &answer) {
-				return "\n- " + answer.text;
-			}),
-			QString());
-	return TextForMimeData::Simple(text);
+	auto result = TextWithEntities();
+	result
+		.append(u"[ "_q)
+		.append(tr::lng_in_dlg_poll(tr::now))
+		.append(u" : "_q)
+		.append(_poll->question)
+		.append(u" ]"_q);
+	for (const auto &answer : _poll->answers) {
+		result.append(u"\n- "_q).append(answer.text);
+	}
+	return TextForMimeData::Rich(std::move(result));
 }
 
 bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {

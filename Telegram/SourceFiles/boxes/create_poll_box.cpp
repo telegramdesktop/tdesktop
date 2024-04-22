@@ -456,10 +456,16 @@ void Options::Option::removePlaceholder() const {
 PollAnswer Options::Option::toPollAnswer(int index) const {
 	Expects(index >= 0 && index < kMaxOptionsCount);
 
+	const auto text = field()->getTextWithTags();
+
 	auto result = PollAnswer{
-		field()->getLastText().trimmed(),
-		QByteArray(1, ('0' + index))
+		TextWithEntities{
+			.text = text.text,
+			.entities = TextUtilities::ConvertTextTagsToEntities(text.tags),
+		},
+		QByteArray(1, ('0' + index)),
 	};
+	TextUtilities::Trim(result.text);
 	result.correct = _correct ? _correct->entity()->Checkbox::checked() : false;
 	return result;
 }
@@ -1029,9 +1035,13 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	};
 
 	const auto collectResult = [=] {
+		const auto textWithTags = question->getTextWithTags();
 		using Flag = PollData::Flag;
 		auto result = PollData(&_controller->session().data(), id);
-		result.question = question->getLastText().trimmed();
+		result.question.text = textWithTags.text;
+		result.question.entities = TextUtilities::ConvertTextTagsToEntities(
+			textWithTags.tags);
+		TextUtilities::Trim(result.question);
 		result.answers = options->toPollAnswers();
 		const auto solutionWithTags = quiz->checked()
 			? solution->getTextWithAppliedMarkdown()

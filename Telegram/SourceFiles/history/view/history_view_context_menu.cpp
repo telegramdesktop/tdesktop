@@ -1307,15 +1307,15 @@ void AddPollActions(
 		const auto radio = QString::fromUtf8(kRadio);
 		auto text = poll->question;
 		for (const auto &answer : poll->answers) {
-			text += '\n' + radio + answer.text;
+			text.append('\n').append(radio).append(answer.text);
 		}
-		if (!Ui::SkipTranslate({ text })) {
+		if (!Ui::SkipTranslate(text)) {
 			menu->addAction(tr::lng_context_translate(tr::now), [=] {
 				controller->show(Box(
 					Ui::TranslateBox,
 					item->history()->peer,
 					MsgId(),
-					TextWithEntities{ .text = text },
+					std::move(text),
 					item->forbidsForward()));
 			}, &st::menuIconTranslate);
 		}

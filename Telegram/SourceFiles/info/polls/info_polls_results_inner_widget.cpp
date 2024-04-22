@@ -8,17 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/polls/info_polls_results_inner_widget.h"
 
 #include "info/polls/info_polls_results_widget.h"
-#include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "data/data_poll.h"
-#include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "ui/controls/peer_list_dummy.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "boxes/peer_list_box.h"
@@ -26,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
 namespace Info {
@@ -461,10 +456,11 @@ ListController *CreateAnswerRows(
 		container.get(),
 		object_ptr<Ui::FlatLabel>(
 			container,
-			(answer.text
-				+ QString::fromUtf8(" \xe2\x80\x94 ")
-				+ QString::number(percent)
-				+ "%"),
+			rpl::single(
+				TextWithEntities(answer.text)
+					.append(QString::fromUtf8(" \xe2\x80\x94 "))
+					.append(QString::number(percent))
+					.append('%')),
 			st::boxDividerLabel),
 		style::margins(
 			st::pollResultsHeaderPadding.left(),
@@ -613,7 +609,7 @@ void InnerWidget::setupContent() {
 	_content->add(
 		object_ptr<Ui::FlatLabel>(
 			_content,
-			_poll->question,
+			rpl::single(_poll->question),
 			st::pollResultsQuestion),
 		style::margins{
 			st::boxRowPadding.left(),
