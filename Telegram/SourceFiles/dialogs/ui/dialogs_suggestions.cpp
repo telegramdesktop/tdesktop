@@ -902,7 +902,7 @@ void Suggestions::setupTabs() {
 
 	_tabs->sizeValue() | rpl::start_with_next([=](QSize size) {
 		const auto line = st::lineWidth;
-		shadow->setGeometry(0, size.height() - line, width(), line);
+		shadow->setGeometry(0, size.height() - line, size.width(), line);
 	}, shadow->lifetime());
 
 	shadow->showOn(_tabs->shownValue());
