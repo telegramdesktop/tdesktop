@@ -1125,6 +1125,7 @@ void Widget::updateSuggestions(anim::type animated) {
 		if (animated == anim::type::normal) {
 			auto taken = base::take(_suggestions);
 			taken->setVisible(false);
+			storiesExplicitCollapse();
 			updateStoriesVisibility();
 			startWidthAnimation();
 			taken->setVisible(true);
