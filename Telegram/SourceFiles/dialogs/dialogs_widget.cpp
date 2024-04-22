@@ -1173,6 +1173,10 @@ void Widget::updateSuggestions(anim::type animated) {
 				.key = peer->owner().history(peer),
 				.newWindow = base::IsCtrlPressed(),
 			});
+			if (!_searchSuggestionsLocked && _searchHasFocus) {
+				setFocus();
+				controller()->widget()->setInnerFocus();
+			}
 		}, _suggestions->lifetime());
 
 		updateControlsGeometry();
