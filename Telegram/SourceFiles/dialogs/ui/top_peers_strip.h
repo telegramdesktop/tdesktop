@@ -8,12 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "ui/effects/animations.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/round_rect.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {
 class DynamicImage;
+class LinkButton;
 } // namespace Ui
 
 namespace Dialogs {
@@ -59,34 +61,46 @@ public:
 
 private:
 	struct Entry;
+	struct Layout;
 
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void wheelEvent(QWheelEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
+	int resizeGetHeight(int newWidth) override;
 
-	void updateScrollMax();
+	void setupHeader();
+	void setupStrip();
+
+	void paintStrip(QRect clip);
+	void stripWheelEvent(QWheelEvent *e);
+	void stripMousePressEvent(QMouseEvent *e);
+	void stripMouseMoveEvent(QMouseEvent *e);
+	void stripMouseReleaseEvent(QMouseEvent *e);
+	void stripContextMenuEvent(QContextMenuEvent *e);
+	void stripLeaveEvent(QEvent *e);
+
+	void updateScrollMax(int newWidth = 0);
 	void updateSelected();
 	void setSelected(int selected);
+	void setExpanded(bool expanded);
 	void scrollToSelected();
 	void checkDragging();
 	bool finishDragging();
 	void subscribeUserpic(Entry &entry);
 	void unsubscribeUserpics(bool all = false);
-	void paintUserpic(Painter &p, int x, int index, bool selected);
+	void paintUserpic(Painter &p, int x, int y, int index, bool selected);
 
 	[[nodiscard]] QRect outer() const;
 	[[nodiscard]] QRect innerRounded() const;
+	[[nodiscard]] int scrollLeft() const;
+	[[nodiscard]] Layout currentLayout() const;
 	void apply(const TopPeersList &list);
 	void apply(Entry &entry, const TopPeersEntry &data);
 
+	Ui::RpWidget _header;
+	Ui::RpWidget _strip;
+
 	std::vector<Entry> _entries;
-	rpl::variable<bool> _empty = true;
+	rpl::variable<int> _count = 0;
 	base::flat_set<uint64> _removed;
+	rpl::variable<Ui::LinkButton*> _toggleExpanded = nullptr;
 
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<ShowTopPeerMenuRequest> _showMenuRequests;
@@ -104,6 +118,9 @@ private:
 	int _pressed = -1;
 	bool _selectionByKeyboard = false;
 	bool _hiddenLocally = false;
+
+	Ui::Animations::Simple _expandAnimation;
+	rpl::variable<bool> _expanded = false;
 
 	Ui::RoundRect _selection;
 	base::unique_qptr<Ui::PopupMenu> _menu;

@@ -603,6 +603,7 @@ topPeersMargin: margins(3px, 3px, 3px, 4px);
 recentPeersEmptySize: 100px;
 recentPeersEmptyMargin: margins(10px, 10px, 10px, 10px);
 recentPeersEmptySkip: 10px;
+recentPeersEmptyHeightMin: 220px;
 recentPeersItem: PeerListItem(defaultPeerListItem) {
 	height: 56px;
 	photoSize: 42px;

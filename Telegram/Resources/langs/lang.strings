@@ -5114,6 +5114,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_limit_upload_increase_speed" = "by **{percent}**";
 "lng_limit_upload_subscribe_link" = "Telegram Premium";
 
+"lng_recent_frequent" = "Frequent contacts";
+"lng_recent_frequent_all" = "Show all";
+"lng_recent_frequent_collapse" = "Collapse";
 "lng_recent_title" = "Recent";
 "lng_recent_clear" = "Clear";
 "lng_recent_clear_sure" = "Do you want to clear your search history?";

@@ -1337,8 +1337,13 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupEmpty(
 		st::recentPeersEmptyMargin);
 	const auto icon = widget.data();
 
-	_chatsScroll->heightValue() | rpl::start_with_next([=](int height) {
-		raw->resize(raw->width(), height - st::topPeers.height);
+	rpl::combine(
+		_chatsScroll->heightValue(),
+		_topPeersWrap->heightValue()
+	) | rpl::start_with_next([=](int height, int top) {
+		raw->resize(
+			raw->width(),
+			std::max(height - top, st::recentPeersEmptyHeightMin));
 	}, raw->lifetime());
 
 	raw->sizeValue() | rpl::start_with_next([=](QSize size) {

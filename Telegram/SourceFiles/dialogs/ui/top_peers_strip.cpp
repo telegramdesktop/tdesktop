@@ -7,8 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/top_peers_strip.h"
 
+#include "base/event_filter.h"
+#include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/dynamic_image.h"
@@ -38,29 +42,169 @@ struct TopPeersStrip::Entry {
 	uint32 muted : 1 = 0;
 };
 
+struct TopPeersStrip::Layout {
+	int single = 0;
+	int inrow = 0;
+	float64 fsingle = 0.;
+	float64 added = 0.;
+};
+
 TopPeersStrip::TopPeersStrip(
 	not_null<QWidget*> parent,
 	rpl::producer<TopPeersList> content)
 : RpWidget(parent)
+, _header(this)
+, _strip(this)
 , _selection(st::topPeersRadius, st::windowBgOver) {
-	resize(0, st::topPeers.height);
+	setupHeader();
+	setupStrip();
 
 	std::move(content) | rpl::start_with_next([=](const TopPeersList &list) {
 		apply(list);
 	}, lifetime());
 
-	setMouseTracking(true);
+	rpl::combine(
+		_count.value(),
+		_expanded.value()
+	) | rpl::start_with_next([=] {
+		resizeToWidth(width());
+	}, _strip.lifetime());
+
+	resize(0, _header.height() + _strip.height());
+}
+
+void TopPeersStrip::setupHeader() {
+	_header.resize(0, st::searchedBarHeight);
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		&_header,
+		tr::lng_recent_frequent(),
+		st::searchedBarLabel);
+	const auto single = outer().width();
+
+	rpl::combine(
+		_count.value(),
+		widthValue()
+	) | rpl::map(
+		(rpl::mappers::_1 * single) > (rpl::mappers::_2 + (single * 2) / 3)
+	) | rpl::distinct_until_changed() | rpl::start_with_next([=](bool more) {
+		setExpanded(false);
+		if (!more) {
+			const auto toggle = _toggleExpanded.current();
+			_toggleExpanded = nullptr;
+			delete toggle;
+			return;
+		} else if (_toggleExpanded.current()) {
+			return;
+		}
+		const auto toggle = Ui::CreateChild<Ui::LinkButton>(
+			&_header,
+			tr::lng_channels_your_more(tr::now),
+			st::searchedBarLink);
+		toggle->show();
+		toggle->setClickedCallback([=] {
+			const auto expand = !_expanded.current();
+			toggle->setText(expand
+				? tr::lng_recent_frequent_collapse(tr::now)
+				: tr::lng_recent_frequent_all(tr::now));
+			setExpanded(expand);
+		});
+		rpl::combine(
+			_header.sizeValue(),
+			toggle->widthValue()
+		) | rpl::start_with_next([=](QSize size, int width) {
+			const auto x = st::searchedBarPosition.x();
+			const auto y = st::searchedBarPosition.y();
+			toggle->moveToRight(0, 0, size.width());
+			label->resizeToWidth(size.width() - x - width);
+			label->moveToLeft(x, y, size.width());
+		}, toggle->lifetime());
+		_toggleExpanded = toggle;
+	}, _header.lifetime());
+
+	rpl::combine(
+		_header.sizeValue(),
+		_toggleExpanded.value()
+	) | rpl::filter(
+		rpl::mappers::_2 == nullptr
+	) | rpl::start_with_next([=](QSize size, const auto) {
+		const auto x = st::searchedBarPosition.x();
+		const auto y = st::searchedBarPosition.y();
+		label->resizeToWidth(size.width() - x * 2);
+		label->moveToLeft(x, y, size.width());
+	}, _header.lifetime());
+
+	_header.paintRequest() | rpl::start_with_next([=](QRect clip) {
+		QPainter(&_header).fillRect(clip, st::searchedBarBg);
+	}, _header.lifetime());
+}
+
+void TopPeersStrip::setExpanded(bool expanded) {
+	if (_expanded.current() == expanded) {
+		return;
+	}
+	const auto from = expanded ? 0. : 1.;
+	const auto to = expanded ? 1. : 0.;
+	_expandAnimation.start([=] {
+		if (!_expandAnimation.animating()) {
+			updateScrollMax();
+		}
+		resizeToWidth(width());
+		update();
+	}, from, to, st::slideDuration, anim::easeOutQuint);
+	_expanded = expanded;
+}
+
+void TopPeersStrip::setupStrip() {
+	_strip.resize(0, st::topPeers.height);
+
+	_strip.setMouseTracking(true);
+
+	base::install_event_filter(&_strip, [=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Wheel) {
+			stripWheelEvent(static_cast<QWheelEvent*>(e.get()));
+		} else if (type == QEvent::MouseButtonPress) {
+			stripMousePressEvent(static_cast<QMouseEvent*>(e.get()));
+		} else if (type == QEvent::MouseMove) {
+			stripMouseMoveEvent(static_cast<QMouseEvent*>(e.get()));
+		} else if (type == QEvent::MouseButtonRelease) {
+			stripMouseReleaseEvent(static_cast<QMouseEvent*>(e.get()));
+		} else if (type == QEvent::ContextMenu) {
+			stripContextMenuEvent(static_cast<QContextMenuEvent*>(e.get()));
+		} else if (type == QEvent::Leave) {
+			stripLeaveEvent(e.get());
+		} else {
+			return base::EventFilterResult::Continue;
+		}
+		return base::EventFilterResult::Cancel;
+	});
+
+	_strip.paintRequest() | rpl::start_with_next([=](QRect clip) {
+		paintStrip(clip);
+	}, _strip.lifetime());
 }
 
 TopPeersStrip::~TopPeersStrip() {
 	unsubscribeUserpics(true);
 }
 
-void TopPeersStrip::resizeEvent(QResizeEvent *e) {
-	updateScrollMax();
+int TopPeersStrip::resizeGetHeight(int newWidth) {
+	_header.resize(newWidth, _header.height());
+	const auto single = QSize(outer().width(), st::topPeers.height);
+	const auto inRow = newWidth / single.width();
+	const auto rows = (inRow > 0)
+		? ((std::max(_count.current(), 1) + inRow - 1) / inRow)
+		: 1;
+	const auto height = single.height() * rows;
+	const auto value = _expandAnimation.value(_expanded.current() ? 1. : 0.);
+	const auto result = anim::interpolate(single.height(), height, value);
+	_strip.setGeometry(0, _header.height(), newWidth, result);
+	updateScrollMax(newWidth);
+	return _strip.y() + _strip.height();
 }
 
-void TopPeersStrip::wheelEvent(QWheelEvent *e) {
+void TopPeersStrip::stripWheelEvent(QWheelEvent *e) {
 	const auto phase = e->phase();
 	const auto fullDelta = e->pixelDelta().isNull()
 		? e->angleDelta()
@@ -77,6 +221,8 @@ void TopPeersStrip::wheelEvent(QWheelEvent *e) {
 	}
 	if (_scrollingLock == Qt::Vertical || (vertical && !_scrollLeftMax)) {
 		_verticalScrollEvents.fire(e);
+		return;
+	} else if (_expandAnimation.animating()) {
 		return;
 	}
 	const auto delta = vertical
@@ -95,12 +241,12 @@ void TopPeersStrip::wheelEvent(QWheelEvent *e) {
 	e->accept();
 }
 
-void TopPeersStrip::leaveEventHook(QEvent *e) {
+void TopPeersStrip::stripLeaveEvent(QEvent *e) {
 	setSelected(-1);
 	_selectionByKeyboard = false;
 }
 
-void TopPeersStrip::mousePressEvent(QMouseEvent *e) {
+void TopPeersStrip::stripMousePressEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton) {
 		return;
 	}
@@ -121,14 +267,19 @@ void TopPeersStrip::mousePressEvent(QMouseEvent *e) {
 					st::topPeersRadius),
 				[=] { update(); });
 		}
-		const auto single = outer().width();
+		const auto layout = currentLayout();
+		const auto expanded = _expanded.current();
+		const auto row = expanded ? (_selected / layout.inrow) : 0;
+		const auto column = (_selected - (row * layout.inrow));
+		const auto x = layout.added + column * layout.fsingle - scrollLeft();
+		const auto y = row * st::topPeers.height;
 		entry.ripple->add(e->pos() - QPoint(
-			_selected * single - _scrollLeft + st::topPeersMargin.left(),
-			st::topPeersMargin.top()));
+			x + st::topPeersMargin.left(),
+			y + st::topPeersMargin.top()));
 	}
 }
 
-void TopPeersStrip::mouseMoveEvent(QMouseEvent *e) {
+void TopPeersStrip::stripMouseMoveEvent(QMouseEvent *e) {
 	if (_lastMousePosition == e->globalPos() && _selectionByKeyboard) {
 		return;
 	}
@@ -139,15 +290,17 @@ void TopPeersStrip::mouseMoveEvent(QMouseEvent *e) {
 	if (!_dragging && _mouseDownPosition) {
 		if ((_lastMousePosition - *_mouseDownPosition).manhattanLength()
 			>= QApplication::startDragDistance()) {
-			_dragging = true;
-			_startDraggingLeft = _scrollLeft;
+			if (!_expandAnimation.animating()) {
+				_dragging = true;
+				_startDraggingLeft = _scrollLeft;
+			}
 		}
 	}
 	checkDragging();
 }
 
 void TopPeersStrip::checkDragging() {
-	if (_dragging) {
+	if (_dragging && !_expandAnimation.animating()) {
 		const auto sign = (style::RightToLeft() ? -1 : 1);
 		const auto newLeft = std::clamp(
 			(sign * (_mouseDownPosition->x() - _lastMousePosition.x())
@@ -163,8 +316,10 @@ void TopPeersStrip::checkDragging() {
 }
 
 void TopPeersStrip::unsubscribeUserpics(bool all) {
-	const auto &st = st::topPeers;
-	const auto single = st.photoLeft * 2 + st.photo;
+	if (!all && (_expandAnimation.animating() || _expanded.current())) {
+		return;
+	}
+	const auto single = outer().width();
 	auto x = -_scrollLeft;
 	for (auto &entry : _entries) {
 		if (all || x + single <= 0 || x >= width()) {
@@ -195,7 +350,7 @@ void TopPeersStrip::subscribeUserpic(Entry &entry) {
 	entry.subscribed = true;
 }
 
-void TopPeersStrip::mouseReleaseEvent(QMouseEvent *e) {
+void TopPeersStrip::stripMouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePosition = e->globalPos();
 	const auto guard = gsl::finally([&] {
 		_mouseDownPosition = std::nullopt;
@@ -219,22 +374,33 @@ void TopPeersStrip::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void TopPeersStrip::updateScrollMax() {
-	const auto &st = st::topPeers;
-	const auto single = st.photoLeft * 2 + st.photo;
-	const auto widthFull = int(_entries.size()) * single;
-	_scrollLeftMax = std::max(widthFull - width(), 0);
-	_scrollLeft = std::clamp(_scrollLeft, 0, _scrollLeftMax);
+void TopPeersStrip::updateScrollMax(int newWidth) {
+	if (_expandAnimation.animating()) {
+		return;
+	} else if (!newWidth) {
+		newWidth = width();
+	}
+	if (_expanded.current()) {
+		_scrollLeft = 0;
+		_scrollLeftMax = 0;
+	} else {
+		const auto single = outer().width();
+		const auto widthFull = int(_entries.size()) * single;
+		_scrollLeftMax = std::max(widthFull - newWidth, 0);
+		_scrollLeft = std::clamp(_scrollLeft, 0, _scrollLeftMax);
+	}
 	unsubscribeUserpics();
 	update();
 }
 
 bool TopPeersStrip::empty() const {
-	return _empty.current();
+	return !_count.current();
 }
 
 rpl::producer<bool> TopPeersStrip::emptyValue() const {
-	return _empty.value();
+	return _count.value()
+		| rpl::map(!rpl::mappers::_1)
+		| rpl::distinct_until_changed();
 }
 
 rpl::producer<uint64> TopPeersStrip::clicks() const {
@@ -253,7 +419,7 @@ void TopPeersStrip::removeLocally(uint64 id) {
 		_pressed = -1;
 		_entries.clear();
 		_hiddenLocally = true;
-		_empty = true;
+		_count = 0;
 		return;
 	}
 	_removed.emplace(id);
@@ -272,9 +438,7 @@ void TopPeersStrip::removeLocally(uint64 id) {
 		--_pressed;
 	}
 	updateScrollMax();
-	if (_entries.empty()) {
-		_empty = true;
-	}
+	_count = int(_entries.size());
 	update();
 }
 
@@ -344,7 +508,7 @@ void TopPeersStrip::apply(const TopPeersList &list) {
 		apply(now.back(), entry);
 	}
 	if (now.empty()) {
-		_empty = true;
+		_count = 0;
 	}
 	for (auto &entry : _entries) {
 		if (entry.subscribed) {
@@ -367,9 +531,7 @@ void TopPeersStrip::apply(const TopPeersList &list) {
 	}
 	updateScrollMax();
 	unsubscribeUserpics();
-	if (!_entries.empty()) {
-		_empty = false;
-	}
+	_count = int(_entries.size());
 	update();
 }
 
@@ -423,65 +585,87 @@ void TopPeersStrip::apply(Entry &entry, const TopPeersEntry &data) {
 QRect TopPeersStrip::outer() const {
 	const auto &st = st::topPeers;
 	const auto single = st.photoLeft * 2 + st.photo;
-	return QRect(0, 0, single, height());
+	return QRect(0, 0, single, st::topPeers.height);
 }
 
 QRect TopPeersStrip::innerRounded() const {
 	return outer().marginsRemoved(st::topPeersMargin);
 }
 
-void TopPeersStrip::paintEvent(QPaintEvent *e) {
-	auto p = Painter(this);
+int TopPeersStrip::scrollLeft() const {
+	const auto value = _expandAnimation.value(_expanded.current() ? 1. : 0.);
+	return anim::interpolate(_scrollLeft, 0, value);
+}
+
+void TopPeersStrip::paintStrip(QRect clip) {
+	auto p = Painter(&_strip);
+
 	const auto &st = st::topPeers;
-	const auto single = st.photoLeft * 2 + st.photo;
+	const auto scroll = scrollLeft();
 
-	const auto from = std::min(_scrollLeft / single, int(_entries.size()));
-	const auto till = std::clamp(
-		(_scrollLeft + width() + single - 1) / single + 1,
-		from,
-		int(_entries.size()));
+	const auto rows = (height() + st.height - 1) / st.height;
+	const auto fromrow = std::min(clip.y() / st.height, rows);
+	const auto tillrow = std::min(
+		(clip.y() + clip.height() + st.height - 1) / st.height,
+		rows);
+	const auto layout = currentLayout();
+	const auto fsingle = layout.fsingle;
+	const auto added = layout.added;
 
-	auto x = -_scrollLeft + from * single;
-	const auto highlighted = (_pressed >= 0) ? _pressed : _selected;
-	for (auto i = from; i != till; ++i) {
-		auto &entry = _entries[i];
-		const auto selected = (i == highlighted);
-		if (selected) {
-			_selection.paint(p, innerRounded().translated(x, 0));
-		}
-		if (entry.ripple) {
-			entry.ripple->paint(
-				p,
-				x + st::topPeersMargin.left(),
-				st::topPeersMargin.top(),
-				width());
-			if (entry.ripple->empty()) {
-				entry.ripple = nullptr;
+	for (auto row = fromrow; row != tillrow; ++row) {
+		const auto shift = scroll + row * layout.inrow * fsingle;
+		const auto from = std::min(
+			int(std::floor((shift + clip.x()) / fsingle)),
+			int(_entries.size()));
+		const auto till = std::clamp(
+			int(std::ceil(
+				(shift + clip.x() + clip.width() + fsingle - 1) / fsingle + 1
+			)),
+			from,
+			int(_entries.size()));
+
+		auto x = int(base::SafeRound(-shift + from * fsingle + added));
+		auto y = row * st.height;
+		const auto highlighted = (_pressed >= 0) ? _pressed : _selected;
+		for (auto i = from; i != till; ++i) {
+			auto &entry = _entries[i];
+			const auto selected = (i == highlighted);
+			if (selected) {
+				_selection.paint(p, innerRounded().translated(x, y));
 			}
-		}
+			if (entry.ripple) {
+				entry.ripple->paint(
+					p,
+					x + st::topPeersMargin.left(),
+					y + st::topPeersMargin.top(),
+					width());
+				if (entry.ripple->empty()) {
+					entry.ripple = nullptr;
+				}
+			}
 
-		if (!entry.subscribed) {
-			subscribeUserpic(entry);
-		}
-		paintUserpic(p, x, i, selected);
+			if (!entry.subscribed) {
+				subscribeUserpic(entry);
+			}
+			paintUserpic(p, x, y, i, selected);
 
-		const auto nameLeft = x + st.nameLeft;
-		const auto nameWidth = single - 2 * st.nameLeft;
-		p.setPen(st::dialogsNameFg);
-		entry.name.drawElided(
-			p,
-			nameLeft,
-			st.nameTop,
-			nameWidth,
-			1,
-			style::al_top);
-		x += single;
+			p.setPen(st::dialogsNameFg);
+			entry.name.drawElided(
+				p,
+				x + st.nameLeft,
+				y + st.nameTop,
+				layout.single - 2 * st.nameLeft,
+				1,
+				style::al_top);
+			x += fsingle;
+		}
 	}
 }
 
 void TopPeersStrip::paintUserpic(
 		Painter &p,
 		int x,
+		int y,
 		int index,
 		bool selected) {
 	Expects(index >= 0 && index < _entries.size());
@@ -489,7 +673,7 @@ void TopPeersStrip::paintUserpic(
 	auto &entry = _entries[index];
 	const auto &st = st::topPeers;
 	const auto size = st.photo;
-	const auto rect = QRect(x + st.photoLeft, st.photoTop, size, size);
+	const auto rect = QRect(x + st.photoLeft, y + st.photoTop, size, size);
 
 	const auto online = entry.onlineShown.value(entry.online ? 1. : 0.);
 	const auto useFrame = !entry.userpicFrame.isNull()
@@ -571,7 +755,7 @@ void TopPeersStrip::paintUserpic(
 	p.drawImage(rect, entry.userpicFrame);
 }
 
-void TopPeersStrip::contextMenuEvent(QContextMenuEvent *e) {
+void TopPeersStrip::stripContextMenuEvent(QContextMenuEvent *e) {
 	_menu = nullptr;
 
 	if (e->reason() == QContextMenuEvent::Mouse) {
@@ -618,15 +802,31 @@ bool TopPeersStrip::finishDragging() {
 	return true;
 }
 
+TopPeersStrip::Layout TopPeersStrip::currentLayout() const {
+	const auto single = outer().width();
+	const auto inrow = std::max(width() / single, 1);
+	const auto value = _expandAnimation.value(_expanded.current() ? 1. : 0.);
+	const auto esingle = (width() / float64(inrow));
+	const auto fsingle = single + (esingle - single) * value;
+
+	return {
+		.single = single,
+		.inrow = inrow,
+		.fsingle = fsingle,
+		.added = (fsingle - single) / 2.,
+	};
+}
+
 void TopPeersStrip::updateSelected() {
 	if (_pressed >= 0) {
 		return;
 	}
-	const auto &st = st::topPeers;
-	const auto p = mapFromGlobal(_lastMousePosition);
-	const auto x = p.x();
-	const auto single = st.photoLeft * 2 + st.photo;
-	const auto index = (_scrollLeft + x) / single;
+	const auto p = _strip.mapFromGlobal(_lastMousePosition);
+	const auto expanded = _expanded.current();
+	const auto row = expanded ? (p.y() / st::topPeers.height) : 0;
+	const auto layout = currentLayout();
+	const auto column = (_scrollLeft + p.x()) / layout.fsingle;
+	const auto index = row * layout.inrow + int(std::floor(column));
 	setSelected((index < 0 || index >= _entries.size()) ? -1 : index);
 }
 
@@ -645,8 +845,7 @@ void TopPeersStrip::scrollToSelected() {
 	if (_selected < 0) {
 		return;
 	}
-	const auto &st = st::topPeers;
-	const auto single = st.photoLeft * 2 + st.photo;
+	const auto single = outer().width();
 	const auto left = _selected * single;
 	const auto right = left + single;
 	if (_scrollLeft > left) {
