@@ -820,9 +820,14 @@ void PeerListRow::stopLastRipple() {
 	}
 }
 
-void PeerListRow::paintRipple(Painter &p, int x, int y, int outerWidth) {
+void PeerListRow::paintRipple(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth) {
 	if (_ripple) {
-		_ripple->paint(p, x, y, outerWidth);
+		_ripple->paint(p, x, y, outerWidth, &st.button.ripple.color->c);
 		if (_ripple->empty()) {
 			_ripple.reset();
 		}
@@ -1735,7 +1740,7 @@ crl::time PeerListContent::paintRow(
 	});
 
 	p.fillRect(0, 0, outerWidth, _rowHeight, bg);
-	row->paintRipple(p, 0, 0, outerWidth);
+	row->paintRipple(p, st, 0, 0, outerWidth);
 	row->paintUserpic(
 		p,
 		st,

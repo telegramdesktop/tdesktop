@@ -230,7 +230,12 @@ public:
 		QPoint point,
 		UpdateCallback &&updateCallback);
 	void stopLastRipple();
-	void paintRipple(Painter &p, int x, int y, int outerWidth);
+	void paintRipple(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth);
 	void paintUserpic(
 		Painter &p,
 		const style::PeerListItem &st,
