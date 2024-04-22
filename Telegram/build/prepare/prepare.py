@@ -435,7 +435,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b35735cd14
+    git checkout bc31d0a7fd
 """)
 
 stage('msys64', """
@@ -1503,14 +1503,14 @@ mac:
 """)
 
 if buildQt6:
-    stage('qt_6_2_7', """
+    stage('qt_6_2_8', """
 mac:
-    git clone -b v6.2.7-lts-lgpl https://github.com/qt/qt5.git qt_6_2_7
-    cd qt_6_2_7
+    git clone -b v6.2.8-lts-lgpl https://github.com/qt/qt5.git qt_6_2_8
+    cd qt_6_2_8
     git submodule update --init --recursive qtbase qtimageformats qtsvg
-depends:patches/qtbase_6.2.7/*.patch
+depends:patches/qtbase_6.2.8/*.patch
     cd qtbase
-    find ../../patches/qtbase_6.2.7 -type f -print0 | sort -z | xargs -0 git apply -v
+    find ../../patches/qtbase_6.2.8 -type f -print0 | sort -z | xargs -0 git apply -v
     cd ..
     sed -i.bak 's/tqtc-//' {qtimageformats,qtsvg}/dependencies.yaml
 
@@ -1518,7 +1518,7 @@ depends:patches/qtbase_6.2.7/*.patch
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.2.7" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.8" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
