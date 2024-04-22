@@ -1065,6 +1065,53 @@ depends:yasm/yasm
     make install
 """)
 
+stage('liblcms2', """
+mac:
+    git clone -b lcms2.16 https://github.com/mm2/Little-CMS.git liblcms2
+    cd liblcms2
+
+    buildOneArch() {
+        arch=$1
+        folder=`pwd`/$2
+
+        TARGET="\'${arch}\'"
+        MIN="\'${MIN_VER}\'"
+        FILE=cross-file.txt
+        echo "[binaries]" > $FILE
+        echo "c = ['clang', '-arch', ${TARGET}]" >> $FILE
+        echo "cpp = ['clang++', '-arch', ${TARGET}]" >> $FILE
+        echo "ar = 'ar'" >> $FILE
+        echo "strip = 'strip'" >> $FILE
+        echo "[built-in options]" >> $FILE
+        echo "c_args = [${MIN}]" >> $FILE
+        echo "cpp_args = [${MIN}]" >> $FILE
+        echo "c_link_args = [${MIN}]" >> $FILE
+        echo "cpp_link_args = [${MIN}]" >> $FILE
+        echo "[host_machine]" >> $FILE
+        echo "system = 'darwin'" >> $FILE
+        echo "subsystem = 'macos'" >> $FILE
+        echo "cpu_family = ${TARGET}" >> $FILE
+        echo "cpu = ${TARGET}" >> $FILE
+        echo "endian = 'little'" >> $FILE
+
+        meson setup \\
+            --cross-file $FILE \\
+            --prefix ${USED_PREFIX} \\
+            --default-library=static \\
+            --buildtype=minsize \\
+            ${folder}
+        meson compile -C ${folder}
+        meson install -C ${folder}
+
+        mv ${USED_PREFIX}/lib/liblcms2.a ${folder}/liblcms2.a
+    }
+
+    buildOneArch arm64 build.arm64
+    buildOneArch x86_64 build
+
+    lipo -create build.arm64/liblcms2.a build/liblcms2.a -output ${USED_PREFIX}/lib/liblcms2.a
+""")
+
 stage('nv-codec-headers', """
 win:
     git clone -b n12.1.14.0 https://github.com/FFmpeg/nv-codec-headers.git
