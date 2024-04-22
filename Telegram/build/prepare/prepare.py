@@ -435,7 +435,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout bc31d0a7fd
+    git checkout ab24db42b9
 """)
 
 stage('msys64', """
@@ -747,28 +747,8 @@ mac:
         arch=$1
         folder=`pwd`/$2
 
-        TARGET="\'${arch}\'"
-        MIN="\'${MIN_VER}\'"
-        FILE=cross-file.txt
-        echo "[binaries]" > $FILE
-        echo "c = ['clang', '-arch', ${TARGET}]" >> $FILE
-        echo "cpp = ['clang++', '-arch', ${TARGET}]" >> $FILE
-        echo "ar = 'ar'" >> $FILE
-        echo "strip = 'strip'" >> $FILE
-        echo "[built-in options]" >> $FILE
-        echo "c_args = [${MIN}]" >> $FILE
-        echo "cpp_args = [${MIN}]" >> $FILE
-        echo "c_link_args = [${MIN}]" >> $FILE
-        echo "cpp_link_args = [${MIN}]" >> $FILE
-        echo "[host_machine]" >> $FILE
-        echo "system = 'darwin'" >> $FILE
-        echo "subsystem = 'macos'" >> $FILE
-        echo "cpu_family = ${TARGET}" >> $FILE
-        echo "cpu = ${TARGET}" >> $FILE
-        echo "endian = 'little'" >> $FILE
-
         meson setup \\
-            --cross-file $FILE \\
+            --cross-file ../patches/macos_meson_${arch}.txt \\
             --prefix ${USED_PREFIX} \\
             --default-library=static \\
             --buildtype=minsize \\
@@ -1074,28 +1054,8 @@ mac:
         arch=$1
         folder=`pwd`/$2
 
-        TARGET="\'${arch}\'"
-        MIN="\'${MIN_VER}\'"
-        FILE=cross-file.txt
-        echo "[binaries]" > $FILE
-        echo "c = ['clang', '-arch', ${TARGET}]" >> $FILE
-        echo "cpp = ['clang++', '-arch', ${TARGET}]" >> $FILE
-        echo "ar = 'ar'" >> $FILE
-        echo "strip = 'strip'" >> $FILE
-        echo "[built-in options]" >> $FILE
-        echo "c_args = [${MIN}]" >> $FILE
-        echo "cpp_args = [${MIN}]" >> $FILE
-        echo "c_link_args = [${MIN}]" >> $FILE
-        echo "cpp_link_args = [${MIN}]" >> $FILE
-        echo "[host_machine]" >> $FILE
-        echo "system = 'darwin'" >> $FILE
-        echo "subsystem = 'macos'" >> $FILE
-        echo "cpu_family = ${TARGET}" >> $FILE
-        echo "cpu = ${TARGET}" >> $FILE
-        echo "endian = 'little'" >> $FILE
-
         meson setup \\
-            --cross-file $FILE \\
+            --cross-file ../patches/macos_meson_${arch}.txt \\
             --prefix ${USED_PREFIX} \\
             --default-library=static \\
             --buildtype=minsize \\
