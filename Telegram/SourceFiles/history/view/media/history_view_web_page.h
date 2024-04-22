@@ -149,7 +149,7 @@ private:
 
 		bool canReport = false;
 		QSize hintSize;
-		QPoint lastHintPos;
+		QPointF lastHintPos;
 		int widthBeforeHint = 0;
 		std::unique_ptr<Ui::RippleAnimation> hintRipple;
 		ClickHandlerPtr hintLink;

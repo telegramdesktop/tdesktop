@@ -897,12 +897,10 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			const auto height = st::webPageSponsoredHintFont->height;
 			const auto radius = height / 2;
 
-			_sponsoredData->lastHintPos = QPoint(
+			_sponsoredData->lastHintPos = QPointF(
 				radius + inner.left() + _sponsoredData->widthBeforeHint,
-				tshift
-					+ (_siteName.style()->font->height - height) / 2
-					+ st::webPageSponsoredHintFont->descent / 2);
-			const auto rect = QRect(
+				tshift + (_siteName.style()->font->height - height) / 2.);
+			const auto rect = QRectF(
 				_sponsoredData->lastHintPos,
 				_sponsoredData->hintSize);
 			auto hq = PainterHighQualityEnabler(p);
@@ -1205,7 +1203,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 		result.link = _openl;
 	}
 	if (_sponsoredData && _sponsoredData->canReport) {
-		const auto contains = QRect(
+		const auto contains = QRectF(
 			_sponsoredData->lastHintPos,
 			_sponsoredData->hintSize).contains(point
 				- QPoint(0, st::msgDateFont->height));
@@ -1298,7 +1296,7 @@ void WebPage::clickHandlerPressedChanged(
 			const auto outer = full - inBubblePadding();
 			_sponsoredData->hintRipple->add(_lastPoint
 				+ outer.topLeft()
-				- _sponsoredData->lastHintPos);
+				- _sponsoredData->lastHintPos.toPoint());
 		} else if (_sponsoredData->hintRipple) {
 			_sponsoredData->hintRipple->lastStop();
 		}
