@@ -1110,7 +1110,6 @@ void Widget::updateHasFocus(not_null<QWidget*> focused) {
 void Widget::processSearchFocusChange() {
 	_searchSuggestionsLocked = _suggestions && _suggestions->persist();
 	updateCancelSearch();
-	updateStoriesVisibility();
 	updateForceDisplayWide();
 	updateSuggestions(anim::type::normal);
 }
@@ -1124,7 +1123,13 @@ void Widget::updateSuggestions(anim::type animated) {
 	}
 	if (!suggest && _suggestions) {
 		if (animated == anim::type::normal) {
+			auto taken = base::take(_suggestions);
+			taken->setVisible(false);
+			updateStoriesVisibility();
 			startWidthAnimation();
+			taken->setVisible(true);
+			_suggestions = base::take(taken);
+
 			_suggestions->hide(animated, [=, raw = _suggestions.get()] {
 				stopWidthAnimation();
 				_hidingSuggestions.erase(
@@ -1144,6 +1149,7 @@ void Widget::updateSuggestions(anim::type animated) {
 	} else if (suggest && !_suggestions) {
 		if (animated == anim::type::normal) {
 			startWidthAnimation();
+			updateStoriesVisibility();
 		}
 		_suggestions = std::make_unique<Suggestions>(
 			this,
@@ -1174,6 +1180,8 @@ void Widget::updateSuggestions(anim::type animated) {
 			stopWidthAnimation();
 		});
 		_scroll->hide();
+	} else {
+		updateStoriesVisibility();
 	}
 }
 
@@ -1575,25 +1583,35 @@ void Widget::scrollToDefault(bool verytop) {
 
 [[nodiscard]] QPixmap Widget::grabNonNarrowScrollFrame() {
 	auto scrollGeometry = _scroll->geometry();
-	auto grabGeometry = QRect(
+	const auto top = _searchControls->y() + _searchControls->height();
+	const auto skip = scrollGeometry.y() - top;
+	auto wideGeometry = QRect(
 		scrollGeometry.x(),
 		scrollGeometry.y(),
 		std::max(scrollGeometry.width(), st::columnMinimalWidthLeft),
 		scrollGeometry.height());
-	_scroll->setGeometry(grabGeometry);
-	_inner->resize(grabGeometry.width(), _inner->height());
+	_scroll->setGeometry(wideGeometry);
+	_inner->resize(wideGeometry.width(), _inner->height());
 	_inner->setNarrowRatio(0.);
 	Ui::SendPendingMoveResizeEvents(_scroll);
+	const auto grabSize = QSize(
+		wideGeometry.width(),
+		skip + wideGeometry.height());
 	auto image = QImage(
-		grabGeometry.size() * style::DevicePixelRatio(),
+		grabSize * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
 	{
 		QPainter p(&image);
-		Ui::RenderWidget(p, _scroll);
+		Ui::RenderWidget(
+			p,
+			this,
+			QPoint(),
+			QRect(0, top, wideGeometry.width(), skip));
+		Ui::RenderWidget(p, _scroll, QPoint(0, skip));
 	}
-	if (scrollGeometry != grabGeometry) {
+	if (scrollGeometry != wideGeometry) {
 		_scroll->setGeometry(scrollGeometry);
 		updateControlsGeometry();
 	}
@@ -3282,9 +3300,11 @@ void Widget::paintEvent(QPaintEvent *e) {
 			: 0.;
 		const auto suggestionsSkip = suggestionsShown
 			* (st::topPeers.height + st::searchedBarHeight);
-		const auto top = _scroll->y() + suggestionsSkip;
+		const auto top = _searchControls->y()
+			+ _searchControls->height()
+			+ suggestionsSkip;
 		p.drawPixmapLeft(0, top, width(), _widthAnimationCache);
-		belowTop = _scroll->y()
+		belowTop = top
 			+ (_widthAnimationCache.height() / style::DevicePixelRatio());
 	}
 
