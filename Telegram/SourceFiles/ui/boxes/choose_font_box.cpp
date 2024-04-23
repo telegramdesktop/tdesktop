@@ -129,7 +129,6 @@ private:
 	[[nodiscard]] bool searching() const;
 	[[nodiscard]] int shownRowsCount() const;
 	[[nodiscard]] Entry &shownRowAt(int index);
-	[[nodiscard]] const Entry &shownRowAt(int index) const;
 
 	void applyFilter(const QString &query);
 	void updateSelected(int selected);
@@ -179,8 +178,6 @@ Selector::Selector(
 , _scrollTo(std::move(scrollTo))
 , _rowsSkip(st::settingsInfoPhotoSkip)
 , _rowHeight(_st.height + _st.padding.top() + _st.padding.bottom()) {
-	Expects(_chosen >= 0 && _chosen < _rows.size());
-
 	setMouseTracking(true);
 
 	std::move(filter) | rpl::start_with_next([=](const QString &query) {
@@ -342,10 +339,6 @@ int Selector::shownRowsCount() const {
 
 Selector::Entry &Selector::shownRowAt(int index) {
 	return searching() ? *_filtered[index] : _rows[index];
-}
-
-const Selector::Entry &Selector::shownRowAt(int index) const {
-	return const_cast<Selector*>(this)->shownRowAt(index);
 }
 
 void Selector::setMinHeight(int height) {
@@ -797,7 +790,6 @@ void PreviewPainter::layout() {
 	_bubble = _content.marginsAdded(msgPadding);
 	_content.moveTopLeft(-_bubble.topLeft());
 	_bubble.moveTopLeft({});
-	const auto bubbleShadow = st::msgShadow;
 
 	_outer = QSize(st::boxWidth, st::boxWidth / 2);
 

@@ -1225,7 +1225,6 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 		const auto slide = st::topPeers.height + st::searchedBarHeight;
 		const auto right = (_tab.current() == Tab::Channels);
 		const auto progress = _slideAnimation.value(right ? 1. : 0.);
-		const auto shift = st::topPeers.height + st::searchedBarHeight;
 		p.setOpacity(1. - progress);
 		p.drawPixmap(
 			anim::interpolate(0, -slide, progress),

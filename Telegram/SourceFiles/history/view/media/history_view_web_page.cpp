@@ -780,8 +780,6 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				const auto offsetY = (single - size.height()) / 2.;
 				const auto x = j * single + offsetX;
 				const auto y = i * single + offsetY;
-				const auto w = size.width();
-				const auto h = size.height();
 				view->draw(p, context, QRect(QPoint(x, y) + topLeft, size));
 			}
 		}
