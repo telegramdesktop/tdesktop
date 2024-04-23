@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/unread_badge_paint.h"
@@ -242,8 +243,12 @@ void TopPeersStrip::stripWheelEvent(QWheelEvent *e) {
 }
 
 void TopPeersStrip::stripLeaveEvent(QEvent *e) {
-	setSelected(-1);
-	_selectionByKeyboard = false;
+	if (!_selectionByKeyboard) {
+		setSelected(-1);
+	}
+	if (!_dragging) {
+		_lastMousePosition = std::nullopt;
+	}
 }
 
 void TopPeersStrip::stripMousePressEvent(QMouseEvent *e) {
@@ -251,6 +256,7 @@ void TopPeersStrip::stripMousePressEvent(QMouseEvent *e) {
 		return;
 	}
 	_lastMousePosition = e->globalPos();
+	_selectionByKeyboard = false;
 	updateSelected();
 
 	_mouseDownPosition = _lastMousePosition;
@@ -280,7 +286,13 @@ void TopPeersStrip::stripMousePressEvent(QMouseEvent *e) {
 }
 
 void TopPeersStrip::stripMouseMoveEvent(QMouseEvent *e) {
-	if (_lastMousePosition == e->globalPos() && _selectionByKeyboard) {
+	if (!_lastMousePosition) {
+		_lastMousePosition = e->globalPos();
+		if (_selectionByKeyboard) {
+			return;
+		}
+	} else if (_selectionByKeyboard
+		&& (_lastMousePosition == e->globalPos())) {
 		return;
 	}
 	_lastMousePosition = e->globalPos();
@@ -288,7 +300,7 @@ void TopPeersStrip::stripMouseMoveEvent(QMouseEvent *e) {
 	updateSelected();
 
 	if (!_dragging && _mouseDownPosition) {
-		if ((_lastMousePosition - *_mouseDownPosition).manhattanLength()
+		if ((*_lastMousePosition - *_mouseDownPosition).manhattanLength()
 			>= QApplication::startDragDistance()) {
 			if (!_expandAnimation.animating()) {
 				_dragging = true;
@@ -303,7 +315,7 @@ void TopPeersStrip::checkDragging() {
 	if (_dragging && !_expandAnimation.animating()) {
 		const auto sign = (style::RightToLeft() ? -1 : 1);
 		const auto newLeft = std::clamp(
-			(sign * (_mouseDownPosition->x() - _lastMousePosition.x())
+			(sign * (_mouseDownPosition->x() - _lastMousePosition->x())
 				+ _startDraggingLeft),
 			0,
 			_scrollLeftMax);
@@ -367,6 +379,7 @@ void TopPeersStrip::stripMouseReleaseEvent(QMouseEvent *e) {
 	if (finishDragging()) {
 		return;
 	}
+	_selectionByKeyboard = false;
 	updateSelected();
 	if (_selected >= 0 && _selected == pressed) {
 		Assert(_selected < _entries.size());
@@ -412,6 +425,11 @@ auto TopPeersStrip::showMenuRequests() const
 	return _showMenuRequests.events();
 }
 
+auto TopPeersStrip::scrollToRequests() const
+-> rpl::producer<Ui::ScrollToRequest> {
+	return _scrollToRequests.events();
+}
+
 void TopPeersStrip::removeLocally(uint64 id) {
 	if (!id) {
 		unsubscribeUserpics(true);
@@ -446,34 +464,76 @@ bool TopPeersStrip::selectedByKeyboard() const {
 	return _selectionByKeyboard && _selected >= 0;
 }
 
-void TopPeersStrip::selectByKeyboard(Qt::Key direction) {
+bool TopPeersStrip::selectByKeyboard(Qt::Key direction) {
 	if (_entries.empty()) {
-		return;
-	}
-	if (direction == Qt::Key()) {
+		return false;
+	} else if (direction == Qt::Key()) {
 		_selectionByKeyboard = true;
 		if (_selected < 0) {
 			setSelected(0);
 			scrollToSelected();
+			return true;
 		}
 	} else if (direction == Qt::Key_Left) {
 		if (_selected > 0) {
 			_selectionByKeyboard = true;
 			setSelected(_selected - 1);
 			scrollToSelected();
+			return true;
 		}
 	} else if (direction == Qt::Key_Right) {
 		if (_selected + 1 < _entries.size()) {
 			_selectionByKeyboard = true;
 			setSelected(_selected + 1);
 			scrollToSelected();
+			return true;
+		}
+	} else if (direction == Qt::Key_Up) {
+		const auto layout = currentLayout();
+		if (_selected < 0) {
+			_selectionByKeyboard = true;
+			const auto rows = _expanded.current()
+				? ((int(_entries.size()) + layout.inrow - 1) / layout.inrow)
+				: 1;
+			setSelected((rows - 1) * layout.inrow);
+			scrollToSelected();
+			return true;
+		} else if (!_expanded.current()) {
+			deselectByKeyboard();
+		} else if (_selected >= 0) {
+			const auto row = _selected / layout.inrow;
+			if (row > 0) {
+				_selectionByKeyboard = true;
+				setSelected(_selected - layout.inrow);
+				scrollToSelected();
+				return true;
+			} else {
+				deselectByKeyboard();
+			}
+		}
+	} else if (direction == Qt::Key_Down) {
+		if (_selected >= 0 && _expanded.current()) {
+			const auto layout = currentLayout();
+			const auto row = _selected / layout.inrow;
+			const auto rows = (int(_entries.size()) + layout.inrow - 1)
+				/ layout.inrow;
+			if (row + 1 < rows) {
+				_selectionByKeyboard = true;
+				setSelected(std::min(
+					_selected + layout.inrow,
+					int(_entries.size()) - 1));
+				scrollToSelected();
+				return true;
+			} else {
+				deselectByKeyboard();
+			}
 		}
 	}
+	return false;
 }
 
 void TopPeersStrip::deselectByKeyboard() {
 	if (_selectionByKeyboard) {
-		_selectionByKeyboard = false;
 		setSelected(-1);
 	}
 }
@@ -760,6 +820,7 @@ void TopPeersStrip::stripContextMenuEvent(QContextMenuEvent *e) {
 
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		_lastMousePosition = e->globalPos();
+		_selectionByKeyboard = false;
 		updateSelected();
 	}
 	if (_selected < 0 || _entries.empty()) {
@@ -781,6 +842,7 @@ void TopPeersStrip::stripContextMenuEvent(QContextMenuEvent *e) {
 		const auto globalPosition = QCursor::pos();
 		if (rect().contains(mapFromGlobal(globalPosition))) {
 			_lastMousePosition = globalPosition;
+			_selectionByKeyboard = false;
 			updateSelected();
 		}
 	};
@@ -798,6 +860,7 @@ bool TopPeersStrip::finishDragging() {
 	}
 	checkDragging();
 	_dragging = false;
+	_selectionByKeyboard = false;
 	updateSelected();
 	return true;
 }
@@ -818,10 +881,10 @@ TopPeersStrip::Layout TopPeersStrip::currentLayout() const {
 }
 
 void TopPeersStrip::updateSelected() {
-	if (_pressed >= 0) {
+	if (_pressed >= 0 || !_lastMousePosition || _selectionByKeyboard) {
 		return;
 	}
-	const auto p = _strip.mapFromGlobal(_lastMousePosition);
+	const auto p = _strip.mapFromGlobal(*_lastMousePosition);
 	const auto expanded = _expanded.current();
 	const auto row = expanded ? (p.y() / st::topPeers.height) : 0;
 	const auto layout = currentLayout();
@@ -844,14 +907,24 @@ void TopPeersStrip::setSelected(int selected) {
 void TopPeersStrip::scrollToSelected() {
 	if (_selected < 0) {
 		return;
-	}
-	const auto single = outer().width();
-	const auto left = _selected * single;
-	const auto right = left + single;
-	if (_scrollLeft > left) {
-		_scrollLeft = std::clamp(left, 0, _scrollLeftMax);
-	} else if (_scrollLeft + width() < right) {
-		_scrollLeft = std::clamp(right - width(), 0, _scrollLeftMax);
+	} else if (_expanded.current()) {
+		const auto layout = currentLayout();
+		const auto row = _selected / layout.inrow;
+		const auto header = _header.height();
+		const auto top = header + row * st::topPeers.height;
+		const auto bottom = top + st::topPeers.height;
+		_scrollToRequests.fire({ top - (row ? 0 : header), bottom});
+	} else {
+		const auto single = outer().width();
+		const auto left = _selected * single;
+		const auto right = left + single;
+		if (_scrollLeft > left) {
+			_scrollLeft = std::clamp(left, 0, _scrollLeftMax);
+		} else if (_scrollLeft + width() < right) {
+			_scrollLeft = std::clamp(right - width(), 0, _scrollLeftMax);
+		}
+		const auto height = _header.height() + st::topPeers.height;
+		_scrollToRequests.fire({ 0, height });
 	}
 }
 

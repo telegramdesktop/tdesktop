@@ -962,6 +962,11 @@ void Suggestions::setupChats() {
 		});
 	}, _topPeers->lifetime());
 
+	_topPeers->scrollToRequests(
+	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+		_chatsScroll->scrollToY(request.ymin, request.ymax);
+	}, _topPeers->lifetime());
+
 	_chatsScroll->setVisible(_tab.current() == Tab::Chats);
 }
 
@@ -1015,19 +1020,19 @@ void Suggestions::selectJumpChats(Qt::Key direction, int pageSize) {
 	} else if (direction == Qt::Key_Up) {
 		if (_recentSelectJump(direction, pageSize)
 			== JumpResult::AppliedAndOut) {
-			_topPeers->selectByKeyboard({});
-			_chatsScroll->scrollTo(0);
-		} else {
-			_topPeers->deselectByKeyboard();
+			_topPeers->selectByKeyboard(direction);
+		} else if (_topPeers->selectedByKeyboard()) {
+			_topPeers->selectByKeyboard(direction);
 		}
 	} else if (direction == Qt::Key_Down) {
-		if (_topPeers->selectedByKeyboard()) {
-			if (_recentCount.current() > 0) {
+		if (!_topPeersWrap->toggled() || recentHasSelection()) {
+			_recentSelectJump(direction, pageSize);
+		} else if (_topPeers->selectedByKeyboard()) {
+			if (!_topPeers->selectByKeyboard(direction)
+				&& _recentCount.current() > 0) {
 				_topPeers->deselectByKeyboard();
 				_recentSelectJump(direction, pageSize);
 			}
-		} else if (!_topPeersWrap->toggled() || recentHasSelection()) {
-			_recentSelectJump(direction, pageSize);
 		} else {
 			_topPeers->selectByKeyboard({});
 			_chatsScroll->scrollTo(0);
@@ -1035,7 +1040,6 @@ void Suggestions::selectJumpChats(Qt::Key direction, int pageSize) {
 	} else if (direction == Qt::Key_Left || direction == Qt::Key_Right) {
 		if (!recentHasSelection()) {
 			_topPeers->selectByKeyboard(direction);
-			_chatsScroll->scrollTo(0);
 		}
 	}
 }

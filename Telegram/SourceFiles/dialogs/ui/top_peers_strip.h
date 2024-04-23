@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class DynamicImage;
 class LinkButton;
+struct ScrollToRequest;
 } // namespace Ui
 
 namespace Dialogs {
@@ -51,11 +52,13 @@ public:
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
 	[[nodiscard]] auto showMenuRequests() const
 		-> rpl::producer<ShowTopPeerMenuRequest>;
+	[[nodiscard]] auto scrollToRequests() const
+		-> rpl::producer<Ui::ScrollToRequest>;
 
 	void removeLocally(uint64 id = 0);
 
 	[[nodiscard]] bool selectedByKeyboard() const;
-	void selectByKeyboard(Qt::Key direction);
+	bool selectByKeyboard(Qt::Key direction);
 	void deselectByKeyboard();
 	bool chooseRow();
 
@@ -106,7 +109,7 @@ private:
 	rpl::event_stream<ShowTopPeerMenuRequest> _showMenuRequests;
 	rpl::event_stream<not_null<QWheelEvent*>> _verticalScrollEvents;
 
-	QPoint _lastMousePosition;
+	std::optional<QPoint> _lastMousePosition;
 	std::optional<QPoint> _mouseDownPosition;
 	int _startDraggingLeft = 0;
 	int _scrollLeft = 0;
@@ -121,6 +124,8 @@ private:
 
 	Ui::Animations::Simple _expandAnimation;
 	rpl::variable<bool> _expanded = false;
+
+	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 
 	Ui::RoundRect _selection;
 	base::unique_qptr<Ui::PopupMenu> _menu;
