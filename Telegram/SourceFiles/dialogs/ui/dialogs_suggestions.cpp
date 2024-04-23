@@ -290,7 +290,10 @@ RecentRow::RecentRow(not_null<PeerData*> peer)
 	} else if (const auto chat = peer->asChat()) {
 		if (chat->count > 0) {
 			setCustomStatus(
-				tr::lng_chat_status_members(tr::now, lt_count, chat->count));
+				tr::lng_chat_status_members(
+					tr::now,
+					lt_count_decimal,
+					chat->count));
 		}
 	} else if (const auto channel = peer->asChannel()) {
 		if (channel->membersCountKnown()) {
@@ -298,7 +301,7 @@ RecentRow::RecentRow(not_null<PeerData*> peer)
 				? tr::lng_chat_status_subscribers
 				: tr::lng_chat_status_members)(
 					tr::now,
-					lt_count,
+					lt_count_decimal,
 					channel->membersCount()));
 		}
 	}
@@ -655,7 +658,7 @@ void MyChannelsController::appendRow(not_null<ChannelData*> channel) {
 			? tr::lng_chat_status_subscribers
 			: tr::lng_chat_status_members)(
 				tr::now,
-				lt_count,
+				lt_count_decimal,
 				channel->membersCount()));
 	}
 	delegate()->peerListAppendRow(std::move(row));
@@ -819,7 +822,7 @@ void RecommendationsController::appendRow(not_null<ChannelData*> channel) {
 			? tr::lng_chat_status_subscribers
 			: tr::lng_chat_status_members)(
 				tr::now,
-				lt_count,
+				lt_count_decimal,
 				channel->membersCount()));
 	}
 	delegate()->peerListAppendRow(std::move(row));
