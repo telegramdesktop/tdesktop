@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/boxes/choose_font_box.h"
 
+#include "base/event_filter.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
+#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
@@ -98,16 +100,11 @@ public:
 		rpl::producer<QString> filter,
 		rpl::producer<> submits,
 		Fn<void(QString)> chosen,
-		Fn<void(Ui::ScrollToRequest)> scrollTo);
+		Fn<void(Ui::ScrollToRequest, anim::type)> scrollTo);
 
-	void initScroll();
+	void initScroll(anim::type animated);
 	void setMinHeight(int height);
-	void selectSkip(Qt::Key direction, int pageSize);
-
-	[[nodiscard]] auto scrollToRequests() const
-	-> rpl::producer<Ui::ScrollToRequest> {
-		return _scrollToRequests.events();
-	}
+	void selectSkip(Qt::Key direction);
 
 private:
 	struct Entry {
@@ -124,6 +121,7 @@ private:
 
 	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -149,8 +147,11 @@ private:
 	int _selected = -1;
 	int _pressed = -1;
 
+	std::optional<QPoint> _lastGlobalPoint;
+	bool _selectedByKeyboard = false;
+
 	Fn<void(QString)> _callback;
-	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
+	Fn<void(Ui::ScrollToRequest, anim::type)> _scrollTo;
 
 	int _rowsSkip = 0;
 	int _rowHeight = 0;
@@ -169,12 +170,13 @@ Selector::Selector(
 	rpl::producer<QString> filter,
 	rpl::producer<> submits,
 	Fn<void(QString)> chosen,
-	Fn<void(Ui::ScrollToRequest)> scrollTo)
+	Fn<void(Ui::ScrollToRequest, anim::type)> scrollTo)
 : RpWidget(parent)
 , _st(st::settingsButton)
 , _rows(FullList(now))
 , _chosen(now)
 , _callback(std::move(chosen))
+, _scrollTo(std::move(scrollTo))
 , _rowsSkip(st::settingsInfoPhotoSkip)
 , _rowHeight(_st.height + _st.padding.top() + _st.padding.bottom()) {
 	Expects(_chosen >= 0 && _chosen < _rows.size());
@@ -185,15 +187,14 @@ Selector::Selector(
 		applyFilter(query);
 	}, _lifetime);
 
-	std::move(submits) | rpl::filter([=] {
-		return searching() && !_filtered.empty();
-	}) | rpl::start_with_next([=] {
-		choose(*_filtered.front());
-	}, _lifetime);
-
-	_scrollToRequests.events(
-	) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
-		scrollTo(request);
+	std::move(
+		submits
+	) | rpl::start_with_next([=] {
+		if (_selected >= 0) {
+			choose(shownRowAt(_selected));
+		} else if (searching() && !_filtered.empty()) {
+			choose(*_filtered.front());
+		}
 	}, _lifetime);
 }
 
@@ -258,6 +259,17 @@ void Selector::updateSelected(int selected) {
 	if (was != now) {
 		setCursor(now ? style::cur_pointer : style::cur_default);
 	}
+	if (_selectedByKeyboard) {
+		const auto top = (_selected > 0)
+			? (_rowsSkip + _selected * _rowHeight)
+			: 0;
+		const auto bottom = (_selected > 0)
+			? (top + _rowHeight)
+			: _selected
+			? 0
+			: _rowHeight;
+		_scrollTo({ top, bottom }, anim::type::instant);
+	}
 }
 
 void Selector::updatePressed(int pressed) {
@@ -313,9 +325,10 @@ void Selector::validateCache(Entry &row) {
 
 	const auto textw = width() - _st.padding.left() - _st.padding.right();
 	const auto metrics = QFontMetrics(font);
+	const auto textt = (_rowHeight - metrics.height()) / 2.;
 	p.drawText(
 		_st.padding.left(),
-		_st.padding.top() + metrics.ascent(),
+		int(base::SafeRound(textt)) + metrics.ascent(),
 		metrics.elidedText(row.text, Qt::ElideRight, textw));
 }
 
@@ -342,7 +355,37 @@ void Selector::setMinHeight(int height) {
 	}
 }
 
-void Selector::initScroll() {
+void Selector::selectSkip(Qt::Key key) {
+	const auto count = shownRowsCount();
+	if (key == Qt::Key_Down) {
+		if (_selected + 1 < count) {
+			_selectedByKeyboard = true;
+			updateSelected(_selected + 1);
+		}
+	} else if (key == Qt::Key_Up) {
+		if (_selected >= 0) {
+			_selectedByKeyboard = true;
+			updateSelected(_selected - 1);
+		}
+	} else if (key == Qt::Key_PageDown) {
+		const auto change = _minHeight / _rowHeight;
+		if (_selected + 1 < count) {
+			_selectedByKeyboard = true;
+			updateSelected(std::min(_selected + change, count - 1));
+		}
+	} else if (key == Qt::Key_PageUp) {
+		const auto change = _minHeight / _rowHeight;
+		if (_selected > 0) {
+			_selectedByKeyboard = true;
+			updateSelected(std::max(_selected - change, 0));
+		} else if (!_selected) {
+			_selectedByKeyboard = true;
+			updateSelected(-1);
+		}
+	}
+}
+
+void Selector::initScroll(anim::type animated) {
 	const auto index = [&] {
 		if (searching()) {
 			const auto i = ranges::find(_filtered, _chosen, &Entry::id);
@@ -358,7 +401,7 @@ void Selector::initScroll() {
 	if (index >= 0) {
 		const auto top = _rowsSkip + index * _rowHeight;
 		const auto use = std::max(top - (_minHeight - _rowHeight) / 2, 0);
-		_scrollToRequests.fire({ use, use + _minHeight });
+		_scrollTo({ use, use + _minHeight }, animated);
 	}
 }
 
@@ -371,6 +414,15 @@ void Selector::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
 	const auto rows = shownRowsCount();
+	if (!rows) {
+		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
+		p.drawText(
+			QRect(0, 0, width(), height() * 2 / 3),
+			tr::lng_font_not_found(tr::now),
+			style::al_center);
+		return;
+	}
 	const auto clip = e->rect();
 	const auto clipped = std::max(clip.y() - _rowsSkip, 0);
 	const auto from = std::min(clipped / _rowHeight, rows);
@@ -397,19 +449,37 @@ void Selector::paintEvent(QPaintEvent *e) {
 
 		if (!row.check) {
 			row.check = std::make_unique<Ui::RadioView>(
-				st::defaultRadio,
+				st::langsRadio,
 				(row.id == _chosen),
 				[=, row = &row] { updateRow(row, i); });
 		}
 		row.check->paint(
 			p,
 			_st.iconLeft,
-			y + (_rowHeight - st::defaultRadio.diameter) / 2,
+			y + (_rowHeight - st::langsRadio.diameter) / 2,
 			width());
 	}
 }
 
+void Selector::leaveEventHook(QEvent *e) {
+	_lastGlobalPoint = std::nullopt;
+	if (!_selectedByKeyboard) {
+		updateSelected(-1);
+	}
+}
+
 void Selector::mouseMoveEvent(QMouseEvent *e) {
+	if (!_lastGlobalPoint) {
+		_lastGlobalPoint = e->globalPos();
+		if (_selectedByKeyboard) {
+			return;
+		}
+	} else if (*_lastGlobalPoint == e->globalPos() && _selectedByKeyboard) {
+		return;
+	} else {
+		_lastGlobalPoint = e->globalPos();
+	}
+	_selectedByKeyboard = false;
 	const auto y = e->y() - _rowsSkip;
 	const auto index = (y >= 0) ? (y / _rowHeight) : -1;
 	updateSelected((index >= 0 && index < shownRowsCount()) ? index : -1);
@@ -443,8 +513,11 @@ void Selector::choose(Entry &row) {
 			row.check->setChecked(true, anim::type::normal);
 		}
 	}
+	const auto animated = searching()
+		? anim::type::instant
+		: anim::type::normal;
 	_callback(id);
-	initScroll();
+	initScroll(animated);
 }
 
 void Selector::addRipple(int index, QPoint position) {
@@ -839,8 +912,10 @@ void ChooseFontBox(
 		state->family = value;
 		filter->clearQuery();
 	};
-	const auto scrollTo = [=](Ui::ScrollToRequest request) {
-		box->scrollToY(request.ymin, request.ymax);
+	const auto scrollTo = [=](
+			Ui::ScrollToRequest request,
+			anim::type animated) {
+		box->scrollTo(request, animated);
 	};
 	const auto selector = box->addRow(
 		object_ptr<Selector>(
@@ -854,6 +929,20 @@ void ChooseFontBox(
 	box->setMinHeight(st::boxMaxListHeight);
 	box->setMaxHeight(st::boxMaxListHeight);
 
+	base::install_event_filter(filter, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::KeyPress) {
+			const auto key = static_cast<QKeyEvent*>(e.get())->key();
+			if (key == Qt::Key_Up
+				|| key == Qt::Key_Down
+				|| key == Qt::Key_PageUp
+				|| key == Qt::Key_PageDown) {
+				selector->selectSkip(Qt::Key(key));
+				return base::EventFilterResult::Cancel;
+			}
+		}
+		return base::EventFilterResult::Continue;
+	});
+
 	rpl::combine(
 		box->heightValue(),
 		top->heightValue()
@@ -861,27 +950,41 @@ void ChooseFontBox(
 		selector->setMinHeight(box - top);
 	}, selector->lifetime());
 
-	box->addButton(tr::lng_settings_save(), [=] {
-		if (state->family.current() == family) {
+	const auto apply = [=](QString chosen) {
+		if (chosen == family) {
 			box->closeBox();
 			return;
 		}
 		box->getDelegate()->show(Ui::MakeConfirmBox({
 			.text = tr::lng_settings_need_restart(),
-			.confirmed = [=] { save(state->family.current()); },
+			.confirmed = [=] { save(chosen); },
 			.confirmText = tr::lng_settings_restart_now(),
 		}));
-	});
-	box->addButton(tr::lng_cancel(), [=] {
-		box->closeBox();
-	});
+	};
+	const auto refreshButtons = [=](QString chosen) {
+		box->clearButtons();
+		// Doesn't fit in most languages.
+		//if (!chosen.isEmpty()) {
+		//	box->addLeftButton(tr::lng_background_reset_default(), [=] {
+		//		apply(QString());
+		//	});
+		//}
+		box->addButton(tr::lng_settings_save(), [=] {
+			apply(chosen);
+		});
+		box->addButton(tr::lng_cancel(), [=] {
+			box->closeBox();
+		});
+	};
+	state->family.value(
+	) | rpl::start_with_next(refreshButtons, box->lifetime());
 
 	box->setFocusCallback([=] {
 		filter->setInnerFocus();
 	});
 	box->setInitScrollCallback([=] {
 		SendPendingMoveResizeEvents(box);
-		selector->initScroll();
+		selector->initScroll(anim::type::instant);
 	});
 }
 

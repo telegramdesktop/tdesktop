@@ -1619,7 +1619,7 @@ void SetupThemeSettings(
 		tr::lng_settings_font_family(),
 		std::move(label),
 		st::settingsButton,
-		{ &st::menuIconTranslate }
+		{ &st::menuIconFont }
 	)->setClickedCallback([=] {
 		const auto save = [=](QString chosen) {
 			*family = chosen;
