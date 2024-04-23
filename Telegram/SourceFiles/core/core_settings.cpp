@@ -217,7 +217,8 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_callPlaybackDeviceId.current())
 		+ Serialize::stringSize(_callCaptureDeviceId.current())
 		+ Serialize::bytearraySize(ivPosition)
-		+ Serialize::stringSize(noWarningExtensions);
+		+ Serialize::stringSize(noWarningExtensions)
+		+ Serialize::stringSize(_customFontFamily);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -363,7 +364,8 @@ QByteArray Settings::serialize() const {
 			<< _callPlaybackDeviceId.current()
 			<< _callCaptureDeviceId.current()
 			<< ivPosition
-			<< noWarningExtensions;
+			<< noWarningExtensions
+			<< _customFontFamily;
 	}
 
 	Ensures(result.size() == size);
@@ -481,6 +483,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 trayIconMonochrome = (_trayIconMonochrome.current() ? 1 : 0);
 	qint32 ttlVoiceClickTooltipHidden = _ttlVoiceClickTooltipHidden.current() ? 1 : 0;
 	QByteArray ivPosition;
+	QString customFontFamily = _customFontFamily;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -766,6 +769,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		noWarningExtensions = QString();
 		stream >> *noWarningExtensions;
 	}
+	if (!stream.atEnd()) {
+		stream >> customFontFamily;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -972,6 +978,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!ivPosition.isEmpty()) {
 		_ivPosition = Deserialize(ivPosition);
 	}
+	_customFontFamily = customFontFamily;
 }
 
 QString Settings::getSoundPath(const QString &key) const {

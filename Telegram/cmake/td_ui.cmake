@@ -239,6 +239,8 @@ PRIVATE
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp
     ui/boxes/choose_date_time.h
+    ui/boxes/choose_font_box.cpp
+    ui/boxes/choose_font_box.h
     ui/boxes/choose_language_box.cpp
     ui/boxes/choose_language_box.h
     ui/boxes/choose_time.cpp

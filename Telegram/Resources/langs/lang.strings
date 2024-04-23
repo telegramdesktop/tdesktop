@@ -843,6 +843,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_auto_night_mode_on" = "System";
 "lng_settings_auto_night_warning" = "You have enabled auto-night mode. If you want to change the dark mode settings, you'll need to disable it first.";
 "lng_settings_auto_night_disable" = "Disable";
+"lng_settings_font_family" = "Font family";
 
 "lng_settings_color_title" = "Color preview";
 "lng_settings_color_reply" = "Reply to your message";
@@ -5134,6 +5135,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channels_your_more" = "Show more";
 "lng_channels_your_less" = "Show less";
 "lng_channels_recommended" = "Recommended channels";
+
+"lng_font_box_title" = "Choose font family";
+"lng_font_default" = "Default";
+"lng_font_system" = "System font";
+"lng_font_not_found" = "Font not found.";
 
 // Wnd specific
 
