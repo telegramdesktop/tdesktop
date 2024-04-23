@@ -747,8 +747,10 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		result->setLoadedStatus(PeerData::LoadedStatus::Normal);
 	}
 
-	if (status && !minimal) {
-		const auto lastseen = LastseenFromMTP(*status, result->lastseen());
+	if (!minimal) {
+		const auto lastseen = status
+			? LastseenFromMTP(*status, result->lastseen())
+			: Data::LastseenStatus::LongAgo(false);
 		if (result->updateLastseen(lastseen)) {
 			flags |= UpdateFlag::OnlineStatus;
 		}
