@@ -546,7 +546,7 @@ rightsToggle: Toggle(defaultToggle) {
 	vsize: 5px;
 	vshift: 1px;
 	stroke: 2px;
-	duration: 120;
+	duration: universalDuration;
 }
 
 rightsButton: SettingsButton(defaultSettingsButton) {

@@ -137,7 +137,7 @@ void ColorsLine::fillButtons() {
 					wasChosen->setSelectedProgress(1. - progress);
 				}
 				nowChosen->setSelectedProgress(progress);
-			}, 0., 1., st::userpicBuilderEmojiSlideDuration);
+			}, 0., 1., st::universalDuration);
 		});
 		if (i < _colors->size()) {
 			button->setBrush((*_colors)[i]);
@@ -164,7 +164,7 @@ void ColorsLine::fillButtons() {
 		setLastChosen();
 	});
 	for (const auto &wrap : _wraps) {
-		wrap->setDuration(st::userpicBuilderEmojiSlideDuration);
+		wrap->setDuration(st::universalDuration);
 	}
 }
 
@@ -213,7 +213,7 @@ void ColorsLine::processChange(
 			const auto left = anim::interpolate(wasLeft, nowLeft, value);
 			_wraps[i]->moveToLeft(left, 0);
 		}
-	}, 0., 1., st::userpicBuilderEmojiSlideDuration);
+	}, 0., 1., st::universalDuration);
 }
 
 void ColorsLine::setLastChosen() const {

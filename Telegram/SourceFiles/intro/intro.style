@@ -119,7 +119,6 @@ introCodeDigitFont: font(20px);
 introCodeDigitHeight: 50px;
 introCodeDigitBorderWidth: 4px;
 introCodeDigitSkip: 10px;
-introCodeDigitAnimatioDuration: 120;
 
 introPasswordHint: FlatLabel(introDescription) {
 	textFg: windowFg;

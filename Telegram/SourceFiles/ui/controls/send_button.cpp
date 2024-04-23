@@ -40,7 +40,7 @@ void SendButton::setType(Type type) {
 			[=] { update(); },
 			0.,
 			1.,
-			st::historyRecordVoiceDuration);
+			st::universalDuration);
 		setPointerCursor(_type != Type::Slowmode);
 		update();
 	}

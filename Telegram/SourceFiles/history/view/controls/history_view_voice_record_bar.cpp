@@ -302,7 +302,7 @@ TTLButton::TTLButton(
 			[=] { update(); },
 			isActive ? 0. : 1.,
 			isActive ? 1. : 0.,
-			st::historyRecordVoiceShowDuration);
+			st::universalDuration);
 	});
 
 	Ui::RpWidget::shownValue() | rpl::start_with_next([=](bool shown) {
@@ -1058,9 +1058,11 @@ void RecordLock::drawProgress(QPainter &p) {
 }
 
 void RecordLock::startLockingAnimation(float64 to) {
-	auto callback = [=](float64 value) { setProgress(value); };
-	const auto &duration = st::historyRecordVoiceShowDuration;
-	_lockEnderAnimation.start(std::move(callback), 0., to, duration);
+	_lockEnderAnimation.start(
+		[=](float64 value) { setProgress(value); },
+		0.,
+		to,
+		st::universalDuration);
 }
 
 void RecordLock::requestPaintProgress(float64 progress) {
@@ -1453,7 +1455,7 @@ void VoiceRecordBar::init() {
 				if (!value) {
 					_listen = nullptr;
 				}
-			}, 1., 0., st::historyRecordVoiceShowDuration * 2);
+			}, 1., 0., st::universalDuration * 2);
 			setLevelAsSend();
 
 			return;
@@ -1473,7 +1475,6 @@ void VoiceRecordBar::init() {
 		// _lockShowing = false;
 
 		const auto to = 1.;
-		const auto &duration = st::historyRecordVoiceShowDuration;
 		auto callback = [=](float64 value) {
 			paintShowListenCallback(value);
 			if (to == value) {
@@ -1481,7 +1482,11 @@ void VoiceRecordBar::init() {
 			}
 		};
 		_showListenAnimation.stop();
-		_showListenAnimation.start(std::move(callback), 0., to, duration);
+		_showListenAnimation.start(
+			std::move(callback),
+			0.,
+			to,
+			st::universalDuration);
 	}, lifetime());
 
 	_lock->locks(
@@ -1498,15 +1503,16 @@ void VoiceRecordBar::init() {
 
 		setLevelAsSend();
 
-		const auto &duration = st::historyRecordVoiceShowDuration;
-		const auto from = 0.;
-		const auto to = 1.;
 		auto callback = [=](float64 value) {
 			_lock->requestPaintLockToStopProgress(value);
 			update();
 			updateTTLGeometry(TTLAnimationType::RightLeft, value);
 		};
-		_lockToStopAnimation.start(std::move(callback), from, to, duration);
+		_lockToStopAnimation.start(
+			std::move(callback),
+			0.,
+			1.,
+			st::universalDuration);
 	}, lifetime());
 
 	_send->events(
@@ -1523,7 +1529,7 @@ void VoiceRecordBar::init() {
 				return;
 			}
 			_recordingTipRequired = true;
-			_startTimer.callOnce(st::historyRecordVoiceShowDuration);
+			_startTimer.callOnce(st::universalDuration);
 		} else if (e->type() == QEvent::MouseButtonRelease) {
 			if (base::take(_recordingTipRequired)) {
 				_recordingTipRequests.fire({});
@@ -1556,23 +1562,24 @@ void VoiceRecordBar::init() {
 
 void VoiceRecordBar::activeAnimate(bool active) {
 	const auto to = active ? 1. : 0.;
-	const auto &duration = st::historyRecordVoiceDuration;
 	if (_activeAnimation.animating()) {
-		_activeAnimation.change(to, duration);
+		_activeAnimation.change(to, st::universalDuration);
 	} else {
 		auto callback = [=] {
 			update(_messageRect);
 			_level->requestPaintColor(activeAnimationRatio());
 		};
-		const auto from = active ? 0. : 1.;
-		_activeAnimation.start(std::move(callback), from, to, duration);
+		_activeAnimation.start(
+			std::move(callback),
+			active ? 0. : 1.,
+			to,
+			st::universalDuration);
 	}
 }
 
 void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
 	const auto to = show ? 1. : 0.;
 	const auto from = show ? 0. : 1.;
-	const auto &duration = st::historyRecordVoiceShowDuration;
 	auto animationCallback = [=, callback = std::move(callback)](auto value) {
 		if (!_listen) {
 			_level->requestPaintProgress(value);
@@ -1589,7 +1596,11 @@ void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
 			}
 		}
 	};
-	_showAnimation.start(std::move(animationCallback), from, to, duration);
+	_showAnimation.start(
+		std::move(animationCallback),
+		from,
+		to,
+		st::universalDuration);
 }
 
 void VoiceRecordBar::setStartRecordingFilter(FilterCallback &&callback) {

@@ -632,7 +632,7 @@ historyPollRadio: Radio(defaultRadio) {
 	diameter: 18px;
 	thickness: 2px;
 	skip: 65px; // * 0.1
-	duration: 120;
+	duration: universalDuration;
 	rippleAreaPadding: 8px;
 }
 historyPollRadioOpacity: 0.7;
