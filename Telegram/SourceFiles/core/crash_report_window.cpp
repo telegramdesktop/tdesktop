@@ -100,6 +100,7 @@ PreLaunchWindow::~PreLaunchWindow() {
 PreLaunchLabel::PreLaunchLabel(QWidget *parent) : QLabel(parent) {
 	QFont labelFont(font());
 	labelFont.setFamily(style::internal::GetFontOverride(style::internal::FontSemibold));
+	labelFont.setWeight(QFont::DemiBold);
 	labelFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(labelFont);
 
@@ -163,6 +164,7 @@ PreLaunchButton::PreLaunchButton(QWidget *parent, bool confirm) : QPushButton(pa
 
 	QFont closeFont(font());
 	closeFont.setFamily(style::internal::GetFontOverride(style::internal::FontSemibold));
+	closeFont.setWeight(QFont::DemiBold);
 	closeFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(closeFont);
 
@@ -182,6 +184,7 @@ PreLaunchCheckbox::PreLaunchCheckbox(QWidget *parent) : QCheckBox(parent) {
 
 	QFont closeFont(font());
 	closeFont.setFamily(style::internal::GetFontOverride(style::internal::FontSemibold));
+	closeFont.setWeight(QFont::DemiBold);
 	closeFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(closeFont);
 
