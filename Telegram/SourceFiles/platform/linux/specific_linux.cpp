@@ -755,9 +755,6 @@ namespace ThirdParty {
 void start() {
 }
 
-void finish() {
-}
-
 } // namespace ThirdParty
 
 } // namespace Platform

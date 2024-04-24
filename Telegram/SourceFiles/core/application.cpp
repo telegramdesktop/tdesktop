@@ -243,14 +243,10 @@ Application::~Application() {
 	Media::Player::finish(_audio.get());
 	style::stopManager();
 
-	ThirdParty::finish();
-
 	Instance = nullptr;
 }
 
 void Application::run() {
-	ThirdParty::start();
-
 	// Depends on OpenSSL on macOS, so on ThirdParty::start().
 	// Depends on notifications settings.
 	_notifications = std::make_unique<Window::Notifications::System>();
