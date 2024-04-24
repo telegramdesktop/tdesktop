@@ -86,6 +86,7 @@ enum class TabbedSelectorMode {
 	BackgroundEmoji,
 	FullReactions,
 	RecentReactions,
+	PeerTitle,
 };
 
 struct TabbedSelectorDescriptor {

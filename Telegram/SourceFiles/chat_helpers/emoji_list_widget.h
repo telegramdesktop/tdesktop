@@ -76,6 +76,7 @@ enum class EmojiListMode {
 	RecentReactions,
 	UserpicBuilder,
 	BackgroundEmoji,
+	PeerTitle,
 };
 
 struct EmojiListDescriptor {
@@ -379,6 +380,7 @@ private:
 
 	const std::shared_ptr<Show> _show;
 	const ComposeFeatures _features;
+	const bool _onlyUnicodeEmoji;
 	Mode _mode = Mode::Full;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 	MTP::Sender _api;

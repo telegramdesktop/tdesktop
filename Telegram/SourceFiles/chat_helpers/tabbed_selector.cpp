@@ -540,6 +540,8 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 					? EmojiMode::FullReactions
 					: _mode == Mode::RecentReactions
 					? EmojiMode::RecentReactions
+					: _mode == Mode::PeerTitle
+					? EmojiMode::PeerTitle
 					: EmojiMode::Full),
 				.customTextColor = _customTextColor,
 				.paused = paused,
