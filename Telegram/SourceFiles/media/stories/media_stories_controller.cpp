@@ -1891,16 +1891,12 @@ ClickHandlerPtr MakeChannelPostHandler(
 		FullMsgId item) {
 	return std::make_shared<LambdaClickHandler>(crl::guard(session, [=] {
 		const auto peer = session->data().peer(item.peer);
-		if (const auto window = Core::App().windowFor(peer)) {
-			if (const auto controller = window->sessionController()) {
-				if (&controller->session() == &peer->session()) {
-					Core::App().hideMediaView();
-					controller->showPeerHistory(
-						item.peer,
-						Window::SectionShow::Way::ClearStack,
-						item.msg);
-				}
-			}
+		if (const auto controller = session->tryResolveWindow(peer)) {
+			Core::App().hideMediaView();
+			controller->showPeerHistory(
+				peer,
+				Window::SectionShow::Way::ClearStack,
+				item.msg);
 		}
 	}));
 }

@@ -980,20 +980,16 @@ void Instance::processOpenChannel(const QString &context) {
 	} else if (const auto channelId = ChannelId(context.toLongLong())) {
 		const auto channel = _shownSession->data().channel(channelId);
 		if (channel->isLoaded()) {
-			if (const auto window = Core::App().windowFor(channel)) {
-				if (const auto controller = window->sessionController()) {
-					controller->showPeerHistory(channel);
-					_shown = nullptr;
-				}
+			if (const auto controller = _shownSession->tryResolveWindow(channel)) {
+				controller->showPeerHistory(channel);
+				_shown = nullptr;
 			}
 		} else if (!channel->username().isEmpty()) {
-			if (const auto window = Core::App().windowFor(channel)) {
-				if (const auto controller = window->sessionController()) {
-					controller->showPeerByLink({
-						.usernameOrId = channel->username(),
-					});
-					_shown = nullptr;
-				}
+			if (const auto controller = _shownSession->tryResolveWindow(channel)) {
+				controller->showPeerByLink({
+					.usernameOrId = channel->username(),
+				});
+				_shown = nullptr;
 			}
 		}
 	}
@@ -1008,13 +1004,11 @@ void Instance::processJoinChannel(const QString &context) {
 		if (channel->isLoaded()) {
 			_shownSession->api().joinChannel(channel);
 		} else if (!channel->username().isEmpty()) {
-			if (const auto window = Core::App().windowFor(channel)) {
-				if (const auto controller = window->sessionController()) {
-					controller->showPeerByLink({
-						.usernameOrId = channel->username(),
-						.joinChannel = true,
-					});
-				}
+			if (const auto controller = _shownSession->tryResolveWindow(channel)) {
+				controller->showPeerByLink({
+					.usernameOrId = channel->username(),
+					.joinChannel = true,
+				});
 			}
 		}
 	}

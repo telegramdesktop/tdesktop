@@ -810,7 +810,7 @@ HistoryWidget::HistoryWidget(
 				const auto account = &_peer->account();
 				closeCurrent();
 				if (const auto primary = Core::App().windowFor(account)) {
-					controller->showToast(unavailable);
+					primary->showToast(unavailable);
 				}
 				return;
 			}
@@ -3316,7 +3316,7 @@ void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 		auto was = _peer;
 		closeCurrent();
 		if (const auto primary = Core::App().windowFor(&was->account())) {
-			controller()->showToast((was && was->isMegagroup())
+			primary->showToast((was && was->isMegagroup())
 				? tr::lng_group_not_accessible(tr::now)
 				: tr::lng_channel_not_accessible(tr::now));
 		}

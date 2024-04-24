@@ -1527,14 +1527,14 @@ void Application::closeChatFromWindows(not_null<PeerData*> peer) {
 		}
 	}
 	if (const auto window = windowFor(&peer->account())) {
-		const auto primary = window->sessionController();
-		if ((primary->activeChatCurrent().peer() == peer)
-			&& (&primary->session() == &peer->session())) {
-			primary->clearSectionStack();
-		}
-		if (const auto forum = primary->shownForum().current()) {
-			if (peer->forum() == forum) {
-				primary->closeForum();
+		if (const auto primary = window->sessionController()) {
+			if (primary->activeChatCurrent().peer() == peer) {
+				primary->clearSectionStack();
+			}
+			if (const auto forum = primary->shownForum().current()) {
+				if (peer->forum() == forum) {
+					primary->closeForum();
+				}
 			}
 		}
 	}

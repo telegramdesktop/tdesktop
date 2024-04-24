@@ -164,7 +164,8 @@ public:
 	void addWindow(not_null<Window::SessionController*> controller);
 	[[nodiscard]] auto windows() const
 		-> const base::flat_set<not_null<Window::SessionController*>> &;
-	[[nodiscard]] Window::SessionController *tryResolveWindow() const;
+	[[nodiscard]] Window::SessionController *tryResolveWindow(
+		PeerData *forPeer = nullptr) const;
 
 	// Shortcuts.
 	void notifyDownloaderTaskFinished();

@@ -434,6 +434,10 @@ void Session::uploadsStopWithConfirmation(Fn<void()> done) {
 	const auto window = message
 		? Core::App().windowFor(message->history()->peer)
 		: Core::App().activePrimaryWindow();
+	if (!window) {
+		done();
+		return;
+	}
 	auto box = Box([=](not_null<Ui::GenericBox*> box) {
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
@@ -476,8 +480,22 @@ auto Session::windows() const
 	return _windows;
 }
 
-Window::SessionController *Session::tryResolveWindow() const {
-	if (_windows.empty()) {
+Window::SessionController *Session::tryResolveWindow(
+		PeerData *forPeer) const {
+	if (forPeer) {
+		auto primary = (Window::SessionController*)nullptr;
+		for (const auto &window : _windows) {
+			if (window->singlePeer() == forPeer) {
+				return window;
+			} else if (window->isPrimary()) {
+				primary = window;
+			}
+		}
+		if (primary) {
+			return primary;
+		}
+	}
+	if (_windows.empty() || forPeer) {
 		domain().activate(_account);
 		if (_windows.empty()) {
 			return nullptr;
