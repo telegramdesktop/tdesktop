@@ -80,8 +80,6 @@ public:
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Main::Session*> session);
-	SponsoredMessages(const SponsoredMessages &other) = delete;
-	SponsoredMessages &operator=(const SponsoredMessages &other) = delete;
 	~SponsoredMessages();
 
 	[[nodiscard]] bool canHaveFor(not_null<History*> history) const;
@@ -103,6 +101,8 @@ public:
 
 	[[nodiscard]] auto createReportCallback(const FullMsgId &fullId)
 	-> Fn<void(SponsoredReportResult::Id, Fn<void(SponsoredReportResult)>)>;
+
+	void clear();
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;

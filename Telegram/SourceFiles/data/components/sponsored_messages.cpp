@@ -37,9 +37,20 @@ SponsoredMessages::SponsoredMessages(not_null<Main::Session*> session)
 }
 
 SponsoredMessages::~SponsoredMessages() {
-	for (const auto &request : _requests) {
+	Expects(_data.empty());
+	Expects(_requests.empty());
+	Expects(_viewRequests.empty());
+}
+
+void SponsoredMessages::clear() {
+	_lifetime.destroy();
+	for (const auto &request : base::take(_requests)) {
 		_session->api().request(request.second.requestId).cancel();
 	}
+	for (const auto &request : base::take(_viewRequests)) {
+		_session->api().request(request.second.requestId).cancel();
+	}
+	base::take(_data);
 }
 
 void SponsoredMessages::clearOldRequests() {
