@@ -548,8 +548,6 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	const auto twoTitleLines = 2 * st::webPageTitleFont->height;
 	const auto descriptionLineHeight = st::webPageDescriptionFont->height;
 	if (asArticle() || specialRightPix) {
-		const auto sponsoredUserpic = (_sponsoredData
-			&& _sponsoredData->peer);
 		constexpr auto kSponsoredUserpicLines = 2;
 		_pixh = lineHeight
 			* (_stickerSet
@@ -576,8 +574,7 @@ QSize WebPage::countCurrentSize(int newWidth) {
 				newHeight += _titleLines * lineHeight;
 			}
 
-			const auto descriptionHeight = _description.countHeight(
-				sponsoredUserpic ? innerWidth : wleft);
+			const auto descriptionHeight = _description.countHeight(wleft);
 			const auto restLines = (linesMax - _siteNameLines - _titleLines);
 			if (descriptionHeight < restLines * descriptionLineHeight) {
 				// We have height for all the lines.
@@ -677,7 +674,6 @@ void WebPage::ensurePhotoMediaCreated() const {
 
 bool WebPage::hasHeavyPart() const {
 	return _photoMedia
-		|| (_sponsoredData && !_sponsoredData->userpicView.null())
 		|| (_stickerSet)
 		|| (_attach ? _attach->hasHeavyPart() : false);
 }
@@ -688,9 +684,6 @@ void WebPage::unloadHeavyPart() {
 	}
 	_description.unloadPersistentAnimation();
 	_photoMedia = nullptr;
-	if (_sponsoredData) {
-		_sponsoredData->userpicView = Ui::PeerUserpicView();
-	}
 }
 
 void WebPage::draw(Painter &p, const PaintContext &context) const {
@@ -834,21 +827,6 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			// as its width only affects the title.
 			paintw -= pw + st::webPagePhotoDelta;
 		}
-	} else if (asSponsored && _sponsoredData->peer) {
-		const auto size = _pixh;
-		const auto sizeHq = size * style::DevicePixelRatio();
-		const auto userpicPos = QPoint(inner.left() + paintw - size, tshift);
-		const auto &peer = _sponsoredData->peer;
-		auto &view = _sponsoredData->userpicView;
-		if (const auto cloud = peer->userpicCloudImage(view)) {
-			Ui::ValidateUserpicCache(view, cloud, nullptr, sizeHq, true);
-			p.drawImage(QRect(userpicPos, QSize(size, size)), view.cached);
-		} else {
-			const auto r = sizeHq * Ui::ForumUserpicRadiusMultiplier();
-			const auto empty = peer->generateUserpicImage(view, sizeHq, r);
-			p.drawImage(QRect(userpicPos, QSize(size, size)), empty);
-		}
-		// paintw -= size + st::webPagePhotoDelta;
 	}
 	if (_siteNameLines) {
 		p.setPen(cache->icon);
