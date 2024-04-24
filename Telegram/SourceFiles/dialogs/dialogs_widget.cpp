@@ -2575,9 +2575,9 @@ void Widget::listScrollUpdated() {
 }
 
 void Widget::updateCancelSearch() {
-	const auto shown = _searchHasFocus
-		|| _searchSuggestionsLocked
-		|| !_search->getLastText().isEmpty();
+	const auto shown = !_search->getLastText().isEmpty()
+		|| (!_searchInChat
+			&& (_searchHasFocus || _searchSuggestionsLocked));
 	_cancelSearch->toggle(shown, anim::type::normal);
 }
 
@@ -2970,12 +2970,14 @@ void Widget::updateLockUnlockVisibility(anim::type animated) {
 		return;
 	}
 	const auto hidden = !session().domain().local().hasLocalPasscode()
-		|| (_showAnimation != nullptr)
+		|| _showAnimation
 		|| _openedForum
 		|| !_widthAnimationCache.isNull()
 		|| _childList
-		|| !_search->getLastText().isEmpty()
-		|| _searchInChat;
+		|| _searchHasFocus
+		|| _searchSuggestionsLocked
+		|| _searchInChat
+		|| !_search->getLastText().isEmpty();
 	if (_lockUnlock->toggled() == hidden) {
 		const auto stories = _stories && !_stories->empty();
 		_lockUnlock->toggle(
