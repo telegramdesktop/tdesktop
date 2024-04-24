@@ -133,6 +133,7 @@ public:
 	QRect floatPlayerAvailableRect() override;
 
 	bool cancelSearch();
+	bool cancelSearchByMouseBack();
 
 	~Widget();
 

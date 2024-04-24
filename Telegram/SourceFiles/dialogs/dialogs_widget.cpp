@@ -1107,6 +1107,13 @@ void Widget::updateHasFocus(not_null<QWidget*> focused) {
 	}
 }
 
+bool Widget::cancelSearchByMouseBack() {
+	return _searchHasFocus
+		&& !_searchSuggestionsLocked
+		&& !_searchInChat
+		&& cancelSearch();
+}
+
 void Widget::processSearchFocusChange() {
 	_searchSuggestionsLocked = _suggestions && _suggestions->persist();
 	updateCancelSearch();

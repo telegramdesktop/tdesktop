@@ -2649,7 +2649,8 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 		if (widget && (widget->window() == window())) {
 			const auto event = static_cast<QMouseEvent*>(e);
 			if (event->button() == Qt::BackButton) {
-				if (!Core::App().hideMediaView()) {
+				if (!Core::App().hideMediaView()
+					&& (!_dialogs || !_dialogs->cancelSearchByMouseBack())) {
 					handleHistoryBack();
 				}
 				return true;
