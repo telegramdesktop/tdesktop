@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kLimit = 32;
+constexpr auto kLimit = 64;
 constexpr auto kRequestTimeLimit = 10 * crl::time(1000);
 
 [[nodiscard]] float64 RatingDelta(TimeId now, TimeId was, int decay) {
