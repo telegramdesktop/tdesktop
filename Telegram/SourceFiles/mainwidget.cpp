@@ -1180,10 +1180,8 @@ void MainWidget::setInnerFocus() {
 		}
 	} else if (_mainSection) {
 		_mainSection->setInnerFocus();
-	} else if (_history->peer() || !_thirdSection) {
-		_history->setInnerFocus();
 	} else {
-		_thirdSection->setInnerFocus();
+		_history->setInnerFocus();
 	}
 }
 

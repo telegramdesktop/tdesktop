@@ -6552,6 +6552,14 @@ bool HistoryWidget::cornerButtonsHas(HistoryView::CornerButtonType type) {
 }
 
 void HistoryWidget::mousePressEvent(QMouseEvent *e) {
+	if (!_list) {
+		// Remove focus from the chats list search.
+		setFocus();
+
+		// Set it back to the chats list so that typing filter chats.
+		controller()->widget()->setInnerFocus();
+		return;
+	}
 	const auto isReadyToForward = readyToForward();
 	if (_inPhotoEdit && _photoEditMedia) {
 		EditCaptionBox::StartPhotoEdit(
