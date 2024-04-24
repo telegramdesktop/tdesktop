@@ -185,7 +185,7 @@ introQrTitle: FlatLabel(defaultFlatLabel) {
 introQrErrorTop: 336px;
 introQrTitleTop: 196px;
 introQrStep: FlatLabel(defaultFlatLabel) {
-	minWidth: introQrLabelsWidth;
+	minWidth: 200px;
 }
 introQrStepsTop: 232px;
 introQrStepMargins: margins(20px, 8px, 0px, 0px);
