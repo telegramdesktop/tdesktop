@@ -940,7 +940,7 @@ int BackgroundPreviewBox::textsTop() const {
 		- st::historyPaddingBottom
 		- (_service ? _service->height() : 0)
 		- _text1->height()
-		- (forChannel() ? _text2->height() : 0);
+		- (forChannel() ? 0 : _text2->height());
 }
 
 QRect BackgroundPreviewBox::radialRect() const {

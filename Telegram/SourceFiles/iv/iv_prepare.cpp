@@ -377,7 +377,7 @@ QByteArray Parser::slideshow(
 }
 
 QByteArray Parser::block(const MTPDpageBlockUnsupported &data) {
-	return "Unsupported."_q;
+	return QByteArray();
 }
 
 QByteArray Parser::block(const MTPDpageBlockTitle &data) {

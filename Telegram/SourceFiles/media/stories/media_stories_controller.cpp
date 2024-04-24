@@ -77,16 +77,23 @@ struct SameDayRange {
 [[nodiscard]] SameDayRange ComputeSameDayRange(
 		not_null<Data::Story*> story,
 		const Data::StoriesIds &ids,
+		const std::vector<StoryId> &sorted,
 		int index) {
 	Expects(index >= 0 && index < ids.list.size());
+	Expects(index >= 0 && index < sorted.size());
+
+	const auto pinned = int(ids.pinnedToTop.size());
+	if (index < pinned) {
+		return SameDayRange{ .from = 0, .till = pinned - 1 };
+	}
 
 	auto result = SameDayRange{ .from = index, .till = index };
 	const auto peerId = story->peer()->id;
 	const auto stories = &story->owner().stories();
 	const auto now = base::unixtime::parse(story->date());
-	const auto b = begin(ids.list);
-	for (auto i = b + index; i != b;) {
-		if (const auto maybeStory = stories->lookup({ peerId, *--i })) {
+	for (auto i = index; i != 0;) {
+		const auto storyId = sorted[--i];
+		if (const auto maybeStory = stories->lookup({ peerId, storyId })) {
 			const auto day = base::unixtime::parse((*maybeStory)->date());
 			if (day.date() != now.date()) {
 				break;
@@ -94,8 +101,9 @@ struct SameDayRange {
 		}
 		--result.from;
 	}
-	for (auto i = b + index + 1, e = end(ids.list); i != e; ++i) {
-		if (const auto maybeStory = stories->lookup({ peerId, *i })) {
+	for (auto i = index + 1, c = int(sorted.size()); i != c; ++i) {
+		const auto storyId = sorted[i];
+		if (const auto maybeStory = stories->lookup({ peerId, storyId })) {
 			const auto day = base::unixtime::parse((*maybeStory)->date());
 			if (day.date() != now.date()) {
 				break;
@@ -694,17 +702,19 @@ void Controller::rebuildFromContext(
 	}, [&](StoriesContextSaved) {
 		if (stories.savedCountKnown(peerId)) {
 			const auto &saved = stories.saved(peerId);
-			const auto &ids = saved.list;
-			const auto i = ids.find(id);
-			if (i != end(ids)) {
+			auto sorted = RespectingPinned(saved);
+			const auto i = ranges::find(sorted, id);
+			const auto tillEnd = int(end(sorted) - i);
+			if (tillEnd > 0) {
+				_index = int(i - begin(sorted));
 				list = StoriesList{
 					.peer = peer,
 					.ids = saved,
+					.sorted = std::move(sorted),
 					.total = stories.savedCount(peerId),
 				};
-				_index = int(i - begin(ids));
-				if (ids.size() < list->total
-					&& (end(ids) - i) < kPreloadStoriesCount) {
+				if (saved.list.size() < list->total
+					&& tillEnd < kPreloadStoriesCount) {
 					stories.savedLoadMore(peerId);
 				}
 			}
@@ -713,17 +723,19 @@ void Controller::rebuildFromContext(
 	}, [&](StoriesContextArchive) {
 		if (stories.archiveCountKnown(peerId)) {
 			const auto &archive = stories.archive(peerId);
-			const auto &ids = archive.list;
-			const auto i = ids.find(id);
-			if (i != end(ids)) {
+			auto sorted = RespectingPinned(archive);
+			const auto i = ranges::find(sorted, id);
+			const auto tillEnd = int(end(sorted) - i);
+			if (tillEnd > 0) {
+				_index = int(i - begin(sorted));
 				list = StoriesList{
 					.peer = peer,
 					.ids = archive,
+					.sorted = std::move(sorted),
 					.total = stories.archiveCount(peerId),
 				};
-				_index = int(i - begin(ids));
-				if (ids.size() < list->total
-					&& (end(ids) - i) < kPreloadStoriesCount) {
+				if (archive.list.size() < list->total
+					&& tillEnd < kPreloadStoriesCount) {
 					stories.archiveLoadMore(peerId);
 				}
 			}
@@ -757,7 +769,11 @@ void Controller::rebuildFromContext(
 		}
 		if (const auto maybe = peer->owner().stories().lookup(storyId)) {
 			const auto now = *maybe;
-			const auto range = ComputeSameDayRange(now, _list->ids, _index);
+			const auto range = ComputeSameDayRange(
+				now,
+				_list->ids,
+				_list->sorted,
+				_index);
 			_sliderCount = range.till - range.from + 1;
 			_sliderIndex = _index - range.from;
 		}
@@ -775,6 +791,7 @@ void Controller::rebuildFromContext(
 			_list = StoriesList{
 				.peer = peer,
 				.ids = { { id } },
+				.sorted = { id },
 				.total = 1,
 			};
 			_index = 0;
@@ -1519,8 +1536,8 @@ StoryId Controller::shownId(int index) const {
 
 	return _source
 		? (_source->ids.begin() + index)->id
-		: (index < int(_list->ids.list.size()))
-		? *(_list->ids.list.begin() + index)
+		: (index < int(_list->sorted.size()))
+		? _list->sorted[index]
 		: StoryId();
 }
 
@@ -1696,17 +1713,19 @@ void Controller::reportRequested() {
 	ReportRequested(uiShow(), _shown, &st::storiesReportBox);
 }
 
-void Controller::togglePinnedRequested(bool pinned) {
+void Controller::toggleInProfileRequested(bool inProfile) {
 	const auto story = this->story();
 	if (!story || !story->peer()->isSelf()) {
 		return;
 	}
-	if (!pinned && v::is<Data::StoriesContextSaved>(_context.data)) {
+	if (!inProfile && v::is<Data::StoriesContextSaved>(_context.data)) {
 		moveFromShown();
 	}
-	story->owner().stories().togglePinnedList({ story->fullId() }, pinned);
+	story->owner().stories().toggleInProfileList(
+		{ story->fullId() },
+		inProfile);
 	const auto channel = story->peer()->isChannel();
-	uiShow()->showToast(PrepareTogglePinnedToast(channel, 1, pinned));
+	uiShow()->showToast(PrepareToggleInProfileToast(channel, 1, inProfile));
 }
 
 void Controller::moveFromShown() {
@@ -1757,12 +1776,12 @@ void Controller::updatePowerSaveBlocker(const Player::TrackState &state) {
 		[=] { return _wrap->window()->windowHandle(); });
 }
 
-Ui::Toast::Config PrepareTogglePinnedToast(
+Ui::Toast::Config PrepareToggleInProfileToast(
 		bool channel,
 		int count,
-		bool pinned) {
+		bool inProfile) {
 	return {
-		.text = (pinned
+		.text = (inProfile
 			? (count == 1
 				? (channel
 					? tr::lng_stories_channel_save_done
@@ -1793,8 +1812,41 @@ Ui::Toast::Config PrepareTogglePinnedToast(
 						count,
 						Ui::Text::WithEntities))),
 		.st = &st::storiesActionToast,
-		.duration = (pinned
-			? Data::Stories::kPinnedToastDuration
+		.duration = (inProfile
+			? Data::Stories::kInProfileToastDuration
+			: Ui::Toast::kDefaultDuration),
+	};
+}
+
+Ui::Toast::Config PrepareTogglePinToast(
+		bool channel,
+		int count,
+		bool pin) {
+	return {
+		.title = (pin
+			? (count == 1
+				? tr::lng_mediaview_pin_story_done(tr::now)
+				: tr::lng_mediaview_pin_stories_done(
+					tr::now,
+					lt_count,
+					count))
+			: QString()),
+		.text = { (pin
+			? (count == 1
+				? tr::lng_mediaview_pin_story_about(tr::now)
+				: tr::lng_mediaview_pin_stories_about(
+					tr::now,
+					lt_count,
+					count))
+			: (count == 1
+				? tr::lng_mediaview_unpin_story_done(tr::now)
+				: tr::lng_mediaview_unpin_stories_done(
+					tr::now,
+					lt_count,
+					count))) },
+		.st = &st::storiesActionToast,
+		.duration = (pin
+			? Data::Stories::kInProfileToastDuration
 			: Ui::Toast::kDefaultDuration),
 	};
 }
@@ -1839,16 +1891,12 @@ ClickHandlerPtr MakeChannelPostHandler(
 		FullMsgId item) {
 	return std::make_shared<LambdaClickHandler>(crl::guard(session, [=] {
 		const auto peer = session->data().peer(item.peer);
-		if (const auto window = Core::App().windowFor(peer)) {
-			if (const auto controller = window->sessionController()) {
-				if (&controller->session() == &peer->session()) {
-					Core::App().hideMediaView();
-					controller->showPeerHistory(
-						item.peer,
-						Window::SectionShow::Way::ClearStack,
-						item.msg);
-				}
-			}
+		if (const auto controller = session->tryResolveWindow(peer)) {
+			Core::App().hideMediaView();
+			controller->showPeerHistory(
+				peer,
+				Window::SectionShow::Way::ClearStack,
+				item.msg);
 		}
 	}));
 }

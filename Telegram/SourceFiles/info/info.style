@@ -44,6 +44,8 @@ InfoTopBar {
 	mediaDelete: IconButton;
 	storiesSave: IconButton;
 	storiesArchive: IconButton;
+	storiesPin: IconButton;
+	storiesUnpin: IconButton;
 	search: IconButton;
 	searchRow: SearchFieldRow;
 	highlightBg: color;
@@ -185,6 +187,14 @@ infoTopBarArchiveStories: IconButton(infoTopBarForward) {
 	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
 }
+infoTopBarPinStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "menu/pin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/pin", boxTitleCloseFgOver }};
+}
+infoTopBarUnpinStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "menu/unpin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/unpin", boxTitleCloseFgOver }};
+}
 infoTopBar: InfoTopBar {
 	height: infoTopBarHeight;
 	back: infoTopBarBack;
@@ -205,6 +215,8 @@ infoTopBar: InfoTopBar {
 	mediaDelete: infoTopBarDelete;
 	storiesSave: infoTopBarSaveStories;
 	storiesArchive: infoTopBarArchiveStories;
+	storiesPin: infoTopBarPinStories;
+	storiesUnpin: infoTopBarUnpinStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
 	highlightBg: windowBgOver;
@@ -268,6 +280,14 @@ infoLayerTopBarArchiveStories: IconButton(infoLayerTopBarForward) {
 	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
 }
+infoLayerTopBarPinStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "menu/pin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/pin", boxTitleCloseFgOver }};
+}
+infoLayerTopBarUnpinStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "menu/unpin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/unpin", boxTitleCloseFgOver }};
+}
 infoLayerTopBar: InfoTopBar(infoTopBar) {
 	height: infoLayerTopBarHeight;
 	back: infoLayerTopBarBack;
@@ -282,6 +302,8 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	mediaDelete: infoLayerTopBarDelete;
 	storiesSave: infoLayerTopBarSaveStories;
 	storiesArchive: infoLayerTopBarArchiveStories;
+	storiesPin: infoLayerTopBarPinStories;
+	storiesUnpin: infoLayerTopBarUnpinStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
 	radius: boxRadius;
@@ -647,12 +669,22 @@ manageGroupReactions: IconButton(defaultIconButton) {
 	iconOver: icon{{ "info/edit/stickers_add", historyComposeIconFgOver }};
 }
 manageGroupReactionsField: InputField(defaultInputField) {
-	textMargins: margins(1px, 38px, 24px, 8px);
-	placeholderShift: -32px;
-	heightMin: 66px;
+	textMargins: margins(1px, 12px, 24px, 8px);
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(1px, 0px, 7px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	placeholderShift: -50px;
+	font: normalFont;
+	heightMin: 36px;
 	heightMax: 158px;
 }
+manageGroupReactionsFieldPadding: margins(0px, 0px, 0px, -9px);
 manageGroupReactionsTextSkip: 16px;
+manageGroupReactionsMaxSubtitlePadding: margins(0px, 0px, 0px, -3px);
 
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info/info_media_photo_empty", infoEmptyFg }};

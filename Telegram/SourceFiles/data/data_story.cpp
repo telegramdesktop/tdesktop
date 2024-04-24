@@ -389,12 +389,25 @@ TextWithEntities Story::inReplyText() const {
 			Ui::Text::WithEntities);
 }
 
-void Story::setPinned(bool pinned) {
-	_pinned = pinned;
+void Story::setPinnedToTop(bool pinned) {
+	if (_pinnedToTop != pinned) {
+		_pinnedToTop = pinned;
+		if (const auto item = _peer->owner().stories().lookupItem(this)) {
+			item->setIsPinned(pinned);
+		}
+	}
 }
 
-bool Story::pinned() const {
-	return _pinned;
+bool Story::pinnedToTop() const {
+	return _pinnedToTop;
+}
+
+void Story::setInProfile(bool value) {
+	_inProfile = value;
+}
+
+bool Story::inProfile() const {
+	return _inProfile;
 }
 
 StoryPrivacy Story::privacy() const {
@@ -431,7 +444,9 @@ bool Story::canDownloadChecked() const {
 }
 
 bool Story::canShare() const {
-	return _privacyPublic && !forbidsForward() && (pinned() || !expired());
+	return _privacyPublic
+		&& !forbidsForward()
+		&& (inProfile() || !expired());
 }
 
 bool Story::canDelete() const {
@@ -447,7 +462,7 @@ bool Story::canReport() const {
 }
 
 bool Story::hasDirectLink() const {
-	if (!_privacyPublic || (!_pinned && expired())) {
+	if (!_privacyPublic || (!_inProfile && expired())) {
 		return false;
 	}
 	return !_peer->username().isEmpty();
@@ -707,7 +722,7 @@ void Story::applyFields(
 		: data.vsent_reaction()
 		? Data::ReactionFromMTP(*data.vsent_reaction())
 		: Data::ReactionId();
-	const auto pinned = data.is_pinned();
+	const auto inProfile = data.is_pinned();
 	const auto edited = data.is_edited();
 	const auto privacy = data.is_public()
 		? StoryPrivacy::Public
@@ -767,7 +782,7 @@ void Story::applyFields(
 		}
 	}
 
-	const auto pinnedChanged = (_pinned != pinned);
+	const auto inProfileChanged = (_inProfile != inProfile);
 	const auto editedChanged = (_edited != edited);
 	const auto mediaChanged = (_media != media);
 	const auto captionChanged = (_caption != caption);
@@ -783,7 +798,7 @@ void Story::applyFields(
 	_privacyContacts = (privacy == StoryPrivacy::Contacts);
 	_privacySelectedContacts = (privacy == StoryPrivacy::SelectedContacts);
 	_edited = edited;
-	_pinned = pinned;
+	_inProfile = inProfile;
 	_noForwards = noForwards;
 	if (mediaChanged) {
 		_media = std::move(media);
@@ -823,7 +838,7 @@ void Story::applyFields(
 		}
 		_peer->owner().refreshStoryItemViews(fullId());
 	}
-	if (pinnedChanged) {
+	if (inProfileChanged) {
 		_peer->owner().stories().savedStateChanged(this);
 	}
 }

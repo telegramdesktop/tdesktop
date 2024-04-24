@@ -100,6 +100,8 @@ public:
 		-> const base::flat_set<QChar> &;
 	[[nodiscard]] virtual auto generateNameWords() const
 		-> const base::flat_set<QString> &;
+	[[nodiscard]] virtual const style::PeerListItem &computeSt(
+		const style::PeerListItem &st) const;
 
 	virtual void preloadUserpic();
 
@@ -228,7 +230,12 @@ public:
 		QPoint point,
 		UpdateCallback &&updateCallback);
 	void stopLastRipple();
-	void paintRipple(Painter &p, int x, int y, int outerWidth);
+	void paintRipple(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth);
 	void paintUserpic(
 		Painter &p,
 		const style::PeerListItem &st,
@@ -601,6 +608,7 @@ public:
 	};
 	SkipResult selectSkip(int direction);
 	void selectSkipPage(int height, int direction);
+	void selectLast();
 
 	enum class Mode {
 		Default,
@@ -609,6 +617,7 @@ public:
 	void setMode(Mode mode);
 
 	[[nodiscard]] rpl::producer<int> selectedIndexValue() const;
+	[[nodiscard]] int selectedIndex() const;
 	[[nodiscard]] bool hasSelection() const;
 	[[nodiscard]] bool hasPressed() const;
 	void clearSelection();

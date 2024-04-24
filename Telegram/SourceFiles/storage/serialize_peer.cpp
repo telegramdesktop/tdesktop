@@ -118,12 +118,16 @@ uint32 peerSize(not_null<PeerData*> peer) {
 		+ imageLocationSize(peer->userpicLocation())
 		+ sizeof(qint32); // userpic has video
 	if (const auto user = peer->asUser()) {
+		const auto botInlinePlaceholder = user->isBot()
+			? user->botInfo->inlinePlaceholder
+			: QString();
 		result += stringSize(user->firstName)
 			+ stringSize(user->lastName)
 			+ stringSize(user->phone())
 			+ stringSize(user->username())
 			+ sizeof(quint64) // access
 			+ sizeof(qint32) // flags
+			+ stringSize(botInlinePlaceholder)
 			+ sizeof(quint32) // lastseen
 			+ sizeof(qint32) // contact
 			+ sizeof(qint32); // botInfoVersion

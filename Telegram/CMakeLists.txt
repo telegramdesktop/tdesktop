@@ -460,10 +460,14 @@ PRIVATE
     data/business/data_business_info.h
     data/business/data_shortcut_messages.cpp
     data/business/data_shortcut_messages.h
+    data/components/recent_peers.cpp
+    data/components/recent_peers.h
     data/components/scheduled_messages.cpp
     data/components/scheduled_messages.h
     data/components/sponsored_messages.cpp
     data/components/sponsored_messages.h
+    data/components/top_peers.cpp
+    data/components/top_peers.h
     data/notify/data_notify_settings.cpp
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
@@ -608,6 +612,18 @@ PRIVATE
     data/data_wall_paper.h
     data/data_web_page.cpp
     data/data_web_page.h
+    dialogs/ui/dialogs_layout.cpp
+    dialogs/ui/dialogs_layout.h
+    dialogs/ui/dialogs_message_view.cpp
+    dialogs/ui/dialogs_message_view.h
+    dialogs/ui/dialogs_stories_content.cpp
+    dialogs/ui/dialogs_stories_content.h
+    dialogs/ui/dialogs_suggestions.cpp
+    dialogs/ui/dialogs_suggestions.h
+    dialogs/ui/dialogs_topics_view.cpp
+    dialogs/ui/dialogs_topics_view.h
+    dialogs/ui/dialogs_video_userpic.cpp
+    dialogs/ui/dialogs_video_userpic.h
     dialogs/dialogs_entry.cpp
     dialogs/dialogs_entry.h
     dialogs/dialogs_indexed_list.cpp
@@ -630,16 +646,6 @@ PRIVATE
     dialogs/dialogs_search_tags.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
-    dialogs/ui/dialogs_layout.cpp
-    dialogs/ui/dialogs_layout.h
-    dialogs/ui/dialogs_message_view.cpp
-    dialogs/ui/dialogs_message_view.h
-    dialogs/ui/dialogs_stories_content.cpp
-    dialogs/ui/dialogs_stories_content.h
-    dialogs/ui/dialogs_topics_view.cpp
-    dialogs/ui/dialogs_topics_view.h
-    dialogs/ui/dialogs_video_userpic.cpp
-    dialogs/ui/dialogs_video_userpic.h
     editor/color_picker.cpp
     editor/color_picker.h
     editor/controllers/controllers.h
@@ -1199,11 +1205,6 @@ PRIVATE
     payments/payments_checkout_process.h
     payments/payments_form.cpp
     payments/payments_form.h
-    platform/linux/linux_wayland_integration_dummy.cpp
-    platform/linux/linux_wayland_integration.cpp
-    platform/linux/linux_wayland_integration.h
-    platform/linux/linux_xdp_open_with_dialog.cpp
-    platform/linux/linux_xdp_open_with_dialog.h
     platform/linux/file_utilities_linux.cpp
     platform/linux/file_utilities_linux.h
     platform/linux/launcher_linux.cpp
@@ -1556,16 +1557,6 @@ if (NOT build_winstore)
     )
 endif()
 
-if (DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
-    remove_target_sources(Telegram ${src_loc}
-        platform/linux/linux_wayland_integration.cpp
-    )
-else()
-    remove_target_sources(Telegram ${src_loc}
-        platform/linux/linux_wayland_integration_dummy.cpp
-    )
-endif()
-
 if (DESKTOP_APP_USE_PACKAGED)
     remove_target_sources(Telegram ${src_loc}
         platform/mac/mac_iconv_helper.c
@@ -1701,19 +1692,6 @@ else()
         target_link_libraries(Telegram
         PRIVATE
             desktop-app::external_xcb
-        )
-    endif()
-
-    if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
-        qt_generate_wayland_protocol_client_sources(Telegram
-        FILES
-            ${third_party_loc}/wayland/protocol/wayland.xml
-            ${third_party_loc}/plasma-wayland-protocols/src/protocols/plasma-shell.xml
-        )
-
-        target_link_libraries(Telegram
-        PRIVATE
-            desktop-app::external_wayland_client
         )
     endif()
 endif()

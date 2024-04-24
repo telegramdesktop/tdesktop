@@ -40,19 +40,14 @@ struct SponsoredReportResult final {
 };
 
 struct SponsoredFrom {
-	PeerData *peer = nullptr;
 	QString title;
-	bool isBroadcast = false;
-	bool isMegagroup = false;
-	bool isChannel = false;
-	bool isPublic = false;
-	std::optional<Window::PeerByLinkInfo> botLinkInfo;
-	bool isExactPost = false;
-	bool isRecommended = false;
-	QString externalLink;
-	PhotoId webpageOrBotPhotoId = PhotoId(0);
-	bool isForceUserpicDisplay = false;
+	QString link;
 	QString buttonText;
+	PhotoId photoId = PhotoId(0);
+	uint64 backgroundEmojiId = 0;
+	uint8 colorIndex : 6 = 0;
+	bool isLinkInternal = false;
+	bool isRecommended = false;
 	bool canReport = false;
 };
 
@@ -61,9 +56,7 @@ struct SponsoredMessage {
 	SponsoredFrom from;
 	TextWithEntities textWithEntities;
 	History *history = nullptr;
-	MsgId msgId;
-	QString chatInviteHash;
-	QString externalLink;
+	QString link;
 	TextWithEntities sponsorInfo;
 	TextWithEntities additionalInfo;
 };
@@ -76,20 +69,17 @@ public:
 		InjectToMiddle,
 	};
 	struct Details {
-		std::optional<QString> hash;
-		PeerData *peer = nullptr;
-		MsgId msgId;
 		std::vector<TextWithEntities> info;
-		QString externalLink;
-		bool isForceUserpicDisplay = false;
+		QString link;
 		QString buttonText;
-		std::optional<Window::PeerByLinkInfo> botLinkInfo;
+		PhotoId photoId = PhotoId(0);
+		uint64 backgroundEmojiId = 0;
+		uint8 colorIndex : 6 = 0;
+		bool isLinkInternal = false;
 		bool canReport = false;
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Main::Session*> session);
-	SponsoredMessages(const SponsoredMessages &other) = delete;
-	SponsoredMessages &operator=(const SponsoredMessages &other) = delete;
 	~SponsoredMessages();
 
 	[[nodiscard]] bool canHaveFor(not_null<History*> history) const;
@@ -111,6 +101,8 @@ public:
 
 	[[nodiscard]] auto createReportCallback(const FullMsgId &fullId)
 	-> Fn<void(SponsoredReportResult::Id, Fn<void(SponsoredReportResult)>)>;
+
+	void clear();
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;

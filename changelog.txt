@@ -1,3 +1,10 @@
+4.16.9 beta (23.04.24)
+
+- Show "Frequent contacts" when you focus the search field.
+- Show "Recent chats" when you focus the search field.
+- Show "Channels" and channel recommendations.
+- Allow changing font in Settings > Chat settings > Font family.
+
 4.16.8 (16.04.24)
 
 - Fix in-app playing of some video and audio files.

@@ -82,12 +82,6 @@
 [submodule "Telegram/ThirdParty/dispatch"]
 	path = Telegram/ThirdParty/dispatch
 	url = https://github.com/apple/swift-corelibs-libdispatch
-[submodule "Telegram/ThirdParty/plasma-wayland-protocols"]
-	path = Telegram/ThirdParty/plasma-wayland-protocols
-	url = https://github.com/KDE/plasma-wayland-protocols.git
-[submodule "Telegram/ThirdParty/wayland-protocols"]
-	path = Telegram/ThirdParty/wayland-protocols
-	url = https://github.com/gitlab-freedesktop-mirrors/wayland-protocols.git
 [submodule "Telegram/ThirdParty/kimageformats"]
 	path = Telegram/ThirdParty/kimageformats
 	url = https://github.com/KDE/kimageformats.git
@@ -97,9 +91,6 @@
 [submodule "Telegram/ThirdParty/cld3"]
 	path = Telegram/ThirdParty/cld3
 	url = https://github.com/google/cld3.git
-[submodule "Telegram/ThirdParty/wayland"]
-	path = Telegram/ThirdParty/wayland
-	url = https://github.com/gitlab-freedesktop-mirrors/wayland.git
 [submodule "Telegram/ThirdParty/libprisma"]
 	path = Telegram/ThirdParty/libprisma
 	url = https://github.com/desktop-app/libprisma.git

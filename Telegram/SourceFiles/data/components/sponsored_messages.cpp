@@ -9,8 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
-#include "data/data_bot_app.h"
+#include "core/click_handler_types.h"
 #include "data/data_channel.h"
+#include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
@@ -36,9 +37,20 @@ SponsoredMessages::SponsoredMessages(not_null<Main::Session*> session)
 }
 
 SponsoredMessages::~SponsoredMessages() {
-	for (const auto &request : _requests) {
+	Expects(_data.empty());
+	Expects(_requests.empty());
+	Expects(_viewRequests.empty());
+}
+
+void SponsoredMessages::clear() {
+	_lifetime.destroy();
+	for (const auto &request : base::take(_requests)) {
 		_session->api().request(request.second.requestId).cancel();
 	}
+	for (const auto &request : base::take(_viewRequests)) {
+		_session->api().request(request.second.requestId).cancel();
+	}
+	base::take(_data);
 }
 
 void SponsoredMessages::clearOldRequests() {
@@ -257,94 +269,23 @@ void SponsoredMessages::append(
 		const MTPSponsoredMessage &message) {
 	const auto &data = message.data();
 	const auto randomId = data.vrandom_id().v;
-	const auto hash = qs(data.vchat_invite_hash().value_or_empty());
-	const auto makeFrom = [&](
-			not_null<PeerData*> peer,
-			bool exactPost = false) {
-		const auto channel = peer->asChannel();
-		return SponsoredFrom{
-			.peer = peer,
-			.title = peer->name(),
-			.isBroadcast = (channel && channel->isBroadcast()),
-			.isMegagroup = (channel && channel->isMegagroup()),
-			.isChannel = (channel != nullptr),
-			.isPublic = (channel && channel->isPublic()),
-			.isExactPost = exactPost,
-			.isRecommended = data.is_recommended(),
-			.isForceUserpicDisplay = data.is_show_peer_photo(),
-			.buttonText = qs(data.vbutton_text().value_or_empty()),
-			.canReport = data.is_can_report(),
-		};
+	const auto from = SponsoredFrom{
+		.title = qs(data.vtitle()),
+		.link = qs(data.vurl()),
+		.buttonText = qs(data.vbutton_text()),
+		.photoId = data.vphoto()
+			? history->session().data().processPhoto(*data.vphoto())->id
+			: PhotoId(0),
+		.backgroundEmojiId = data.vcolor().has_value()
+			? data.vcolor()->data().vbackground_emoji_id().value_or_empty()
+			: uint64(0),
+		.colorIndex = uint8(data.vcolor().has_value()
+			? data.vcolor()->data().vcolor().value_or_empty()
+			: 0),
+		.isLinkInternal = !UrlRequiresConfirmation(qs(data.vurl())),
+		.isRecommended = data.is_recommended(),
+		.canReport = data.is_can_report(),
 	};
-	const auto externalLink = data.vwebpage()
-		? qs(data.vwebpage()->data().vurl())
-		: QString();
-	const auto from = [&]() -> SponsoredFrom {
-		if (const auto webpage = data.vwebpage()) {
-			const auto &data = webpage->data();
-			const auto photoId = data.vphoto()
-				? _session->data().processPhoto(*data.vphoto())->id
-				: PhotoId(0);
-			return SponsoredFrom{
-				.title = qs(data.vsite_name()),
-				.externalLink = externalLink,
-				.webpageOrBotPhotoId = photoId,
-				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
-				.canReport = message.data().is_can_report(),
-			};
-		} else if (const auto fromId = data.vfrom_id()) {
-			const auto peerId = peerFromMTP(*fromId);
-			auto result = makeFrom(
-				_session->data().peer(peerId),
-				(data.vchannel_post() != nullptr));
-			const auto user = result.peer->asUser();
-			if (user && user->isBot()) {
-				const auto botAppData = data.vapp()
-					? _session->data().processBotApp(peerId, *data.vapp())
-					: nullptr;
-				result.botLinkInfo = Window::PeerByLinkInfo{
-					.usernameOrId = user->username(),
-					.resolveType = botAppData
-						? Window::ResolveType::BotApp
-						: data.vstart_param()
-						? Window::ResolveType::BotStart
-						: Window::ResolveType::Default,
-					.startToken = qs(data.vstart_param().value_or_empty()),
-					.botAppName = botAppData
-						? botAppData->shortName
-						: QString(),
-				};
-				result.webpageOrBotPhotoId = (botAppData && botAppData->photo)
-					? botAppData->photo->id
-					: PhotoId(0);
-			}
-			return result;
-		}
-		Assert(data.vchat_invite());
-		return data.vchat_invite()->match([&](const MTPDchatInvite &data) {
-			return SponsoredFrom{
-				.title = qs(data.vtitle()),
-				.isBroadcast = data.is_broadcast(),
-				.isMegagroup = data.is_megagroup(),
-				.isChannel = data.is_channel(),
-				.isPublic = data.is_public(),
-				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
-				.canReport = message.data().is_can_report(),
-			};
-		}, [&](const MTPDchatInviteAlready &data) {
-			const auto chat = _session->data().processChat(data.vchat());
-			if (const auto channel = chat->asChannel()) {
-				channel->clearInvitePeek();
-			}
-			return makeFrom(chat);
-		}, [&](const MTPDchatInvitePeek &data) {
-			const auto chat = _session->data().processChat(data.vchat());
-			if (const auto channel = chat->asChannel()) {
-				channel->setInvitePeek(hash, data.vexpires().v);
-			}
-			return makeFrom(chat);
-		});
-	}();
 	auto sponsorInfo = data.vsponsor_info()
 		? tr::lng_sponsored_info_submenu(
 			tr::now,
@@ -364,9 +305,7 @@ void SponsoredMessages::append(
 				data.ventities().value_or_empty()),
 		},
 		.history = history,
-		.msgId = data.vchannel_post().value_or_empty(),
-		.chatInviteHash = hash,
-		.externalLink = externalLink,
+		.link = from.link,
 		.sponsorInfo = std::move(sponsorInfo),
 		.additionalInfo = std::move(additionalInfo),
 	};
@@ -438,7 +377,6 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		return {};
 	}
 	const auto &data = entryPtr->sponsored;
-	const auto &hash = data.chatInviteHash;
 
 	using InfoList = std::vector<TextWithEntities>;
 	auto info = (!data.sponsorInfo.text.isEmpty()
@@ -450,20 +388,13 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		? InfoList{ data.additionalInfo }
 		: InfoList{};
 	return {
-		.hash = hash.isEmpty() ? std::nullopt : std::make_optional(hash),
-		.peer = data.from.peer,
-		.msgId = data.msgId,
 		.info = std::move(info),
-		.externalLink = data.externalLink,
-		.isForceUserpicDisplay = data.from.isForceUserpicDisplay,
-		.buttonText = !data.from.buttonText.isEmpty()
-			? data.from.buttonText
-			: !data.externalLink.isEmpty()
-			? tr::lng_view_button_external_link(tr::now)
-			: data.from.botLinkInfo
-			? tr::lng_view_button_bot(tr::now)
-			: QString(),
-		.botLinkInfo = data.from.botLinkInfo,
+		.link = data.link,
+		.buttonText = data.from.buttonText,
+		.photoId = data.from.photoId,
+		.backgroundEmojiId = data.from.backgroundEmojiId,
+		.colorIndex = data.from.colorIndex,
+		.isLinkInternal = data.from.isLinkInternal,
 		.canReport = data.from.canReport,
 	};
 }

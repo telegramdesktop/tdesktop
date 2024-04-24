@@ -2046,7 +2046,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			state->menu.get(),
 			type,
 			SendMenu::DefaultSilentCallback(submit),
-			SendMenu::DefaultScheduleCallback(state->box, type, submit),
+			SendMenu::DefaultScheduleCallback(show, type, submit),
 			SendMenu::DefaultWhenOnlineCallback(submit));
 		const auto success = (result == SendMenu::FillMenuResult::Success);
 		if (showForwardOptions || success) {
@@ -2608,7 +2608,9 @@ void MarkAsReadThread(not_null<Data::Thread*> thread) {
 }
 
 void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction) {
-	addAction({ .isSeparator = true });
+	addAction({
+		.separatorSt = &st::popupMenuExpandedSeparator.menu.separator,
+	});
 
 	const auto &st = st::popupMenuExpandedSeparator.menu;
 	const auto shift = st::popupMenuExpandedSeparator.scrollPadding.top()

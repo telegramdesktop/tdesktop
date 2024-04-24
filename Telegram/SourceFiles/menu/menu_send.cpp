@@ -34,12 +34,11 @@ Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send) {
 }
 
 Fn<void()> DefaultScheduleCallback(
-		not_null<Ui::RpWidget*> parent,
+		std::shared_ptr<Ui::Show> show,
 		Type type,
 		Fn<void(Api::SendOptions)> send) {
-	const auto weak = Ui::MakeWeak(parent);
-	return [=] {
-		Ui::show(
+	return [=, weak = Ui::MakeWeak(show->toastParent())] {
+		show->showBox(
 			HistoryView::PrepareScheduleBox(
 				weak,
 				type,

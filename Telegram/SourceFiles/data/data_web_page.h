@@ -29,6 +29,7 @@ enum class WebPageType : uint8 {
 
 	Group,
 	GroupWithRequest,
+	GroupBoost,
 	Channel,
 	ChannelWithRequest,
 	ChannelBoost,
@@ -46,6 +47,7 @@ enum class WebPageType : uint8 {
 	WallPaper,
 	Theme,
 	Story,
+	StickerSet,
 
 	Article,
 	ArticleWithIV,
@@ -68,6 +70,15 @@ struct WebPageCollage {
 
 };
 
+struct WebPageStickerSet {
+	WebPageStickerSet() = default;
+
+	std::vector<not_null<DocumentData*>> items;
+	bool isEmoji = false;
+	bool isTextColor = false;
+
+};
+
 struct WebPageData {
 	WebPageData(not_null<Data::Session*> owner, const WebPageId &id);
 	~WebPageData();
@@ -87,6 +98,7 @@ struct WebPageData {
 		DocumentData *newDocument,
 		WebPageCollage &&newCollage,
 		std::unique_ptr<Iv::Data> newIv,
+		std::unique_ptr<WebPageStickerSet> newStickerSet,
 		int newDuration,
 		const QString &newAuthor,
 		bool newHasLargeMedia,
@@ -114,6 +126,7 @@ struct WebPageData {
 	DocumentData *document = nullptr;
 	WebPageCollage collage;
 	std::unique_ptr<Iv::Data> iv;
+	std::unique_ptr<WebPageStickerSet> stickerSet;
 	int duration = 0;
 	TimeId pendingTill = 0;
 	uint32 version : 30 = 0;

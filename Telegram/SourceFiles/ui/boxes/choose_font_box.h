@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Platform {
-namespace File {
-namespace internal {
+namespace Ui {
 
-bool ShowXDPOpenWithDialog(const QString &filepath);
+class GenericBox;
 
-} // namespace internal
-} // namespace File
-} // namespace Platform
+void ChooseFontBox(
+	not_null<GenericBox*> box,
+	Fn<QImage()> generatePreviewBg,
+	const QString &family,
+	Fn<void(QString)> save);
+
+} // namespace Ui

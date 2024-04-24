@@ -216,6 +216,18 @@ private:
 
 };
 
+class SponsoredToggle final {
+public:
+	explicit SponsoredToggle(not_null<Main::Session*> session);
+
+	[[nodiscard]] rpl::producer<bool> toggled();
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> setToggled(bool);
+
+private:
+	MTP::Sender _api;
+
+};
+
 enum class RequirePremiumState {
 	Unknown,
 	Yes,

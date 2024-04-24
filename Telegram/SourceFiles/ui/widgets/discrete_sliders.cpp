@@ -18,6 +18,8 @@ DiscreteSlider::DiscreteSlider(QWidget *parent, bool snapToLabel)
 	setCursor(style::cur_pointer);
 }
 
+DiscreteSlider::~DiscreteSlider() = default;
+
 void DiscreteSlider::setActiveSection(int index) {
 	_activeIndex = index;
 	activateCallback();
@@ -243,8 +245,10 @@ std::vector<float64> SettingsSlider::countSectionsWidths(
 		return true;
 	});
 	// If labelsWidth > sectionsWidth we're screwed anyway.
-	if (!commonWidth && labelsWidth <= sectionsWidth) {
-		auto padding = (sectionsWidth - labelsWidth) / (2. * count);
+	if (_st.strictSkip || (!commonWidth && labelsWidth <= sectionsWidth)) {
+		auto padding = _st.strictSkip
+			? (_st.strictSkip / 2.)
+			: (sectionsWidth - labelsWidth) / (2. * count);
 		auto currentWidth = result.begin();
 		enumerateSections([&](const Section &section) {
 			Expects(currentWidth != result.end());
@@ -334,7 +338,7 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 			+ (section.width - activeWidth) / 2;
 		auto active = 1.
 			- std::clamp(
-				qAbs(range.left - activeLeft) / float64(section.width),
+				qAbs(range.left - activeLeft) / float64(range.width),
 				0.,
 				1.);
 		if (section.ripple) {

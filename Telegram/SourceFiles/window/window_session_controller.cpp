@@ -572,7 +572,7 @@ void SessionNavigation::showPeerByLinkResolved(
 			info.messageId,
 			commentId->id,
 			params);
-	} else if (peer->isForum()) {
+	} else if (peer->isForum() && resolveType != ResolveType::Boost) {
 		const auto itemId = info.messageId;
 		if (!itemId) {
 			parentController()->showForum(peer->forum(), params);
@@ -1890,15 +1890,6 @@ int SessionController::minimalThreeColumnWidth() const {
 	return (_isPrimary ? st::columnMinimalWidthLeft : 0)
 		+ st::columnMinimalWidthMain
 		+ st::columnMinimalWidthThird;
-}
-
-bool SessionController::forceWideDialogs() const {
-	if (_dialogsListDisplayForced.current()) {
-		return true;
-	} else if (_dialogsListFocused.current()) {
-		return true;
-	}
-	return !content()->isMainSectionShown();
 }
 
 auto SessionController::computeColumnLayout() const -> ColumnLayout {

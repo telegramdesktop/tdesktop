@@ -57,6 +57,8 @@ struct FileReferenceAccumulator {
 			push(data.vstory());
 		}, [&](const MTPDwebPageAttributeTheme &data) {
 			push(data.vdocuments());
+		}, [&](const MTPDwebPageAttributeStickerSet &data) {
+			push(data.vstickers());
 		});
 	}
 	void push(const MTPWebPage &data) {

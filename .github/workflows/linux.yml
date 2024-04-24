@@ -49,7 +49,6 @@ jobs:
         defines:
           - ""
           - "DESKTOP_APP_DISABLE_X11_INTEGRATION"
-          - "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
 
     env:
       UPLOAD_ARTIFACT: "true"

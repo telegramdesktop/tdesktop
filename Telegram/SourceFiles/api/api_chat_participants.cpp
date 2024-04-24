@@ -212,7 +212,7 @@ void ApplyBotsList(
 }
 
 [[nodiscard]] ChatParticipants::Channels ParseSimilar(
-		not_null<ChannelData*> channel,
+		not_null<Main::Session*> session,
 		const MTPmessages_Chats &chats) {
 	auto result = ChatParticipants::Channels();
 	std::vector<not_null<ChannelData*>>();
@@ -220,18 +220,24 @@ void ApplyBotsList(
 		const auto &list = data.vchats().v;
 		result.list.reserve(list.size());
 		for (const auto &chat : list) {
-			const auto peer = channel->owner().processChat(chat);
+			const auto peer = session->data().processChat(chat);
 			if (const auto channel = peer->asChannel()) {
 				result.list.push_back(channel);
 			}
 		}
 		if constexpr (MTPDmessages_chatsSlice::Is<decltype(data)>()) {
-			if (channel->session().premiumPossible()) {
+			if (session->premiumPossible()) {
 				result.more = data.vcount().v - data.vchats().v.size();
 			}
 		}
 	});
 	return result;
+}
+
+[[nodiscard]] ChatParticipants::Channels ParseSimilar(
+		not_null<ChannelData*> channel,
+		const MTPmessages_Chats &chats) {
+	return ParseSimilar(&channel->session(), chats);
 }
 
 } // namespace
@@ -351,7 +357,8 @@ QString ChatParticipant::rank() const {
 }
 
 ChatParticipants::ChatParticipants(not_null<ApiWrap*> api)
-: _api(&api->instance()) {
+: _session(&api->session())
+, _api(&api->instance()) {
 }
 
 void ChatParticipants::requestForAdd(
@@ -730,8 +737,11 @@ void ChatParticipants::loadSimilarChannels(not_null<ChannelData*> channel) {
 			return;
 		}
 	}
+	using Flag = MTPchannels_GetChannelRecommendations::Flag;
 	_similar[channel].requestId = _api.request(
-		MTPchannels_GetChannelRecommendations(channel->inputChannel)
+		MTPchannels_GetChannelRecommendations(
+			MTP_flags(Flag::f_channel),
+			channel->inputChannel)
 	).done([=](const MTPmessages_Chats &result) {
 		auto &similar = _similar[channel];
 		similar.requestId = 0;
@@ -764,6 +774,31 @@ auto ChatParticipants::similar(not_null<ChannelData*> channel)
 auto ChatParticipants::similarLoaded() const
 -> rpl::producer<not_null<ChannelData*>> {
 	return _similarLoaded.events();
+}
+
+void ChatParticipants::loadRecommendations() {
+	if (_recommendationsLoaded.current() || _recommendations.requestId) {
+		return;
+	}
+	_recommendations.requestId = _api.request(
+		MTPchannels_GetChannelRecommendations(
+			MTP_flags(0),
+			MTP_inputChannelEmpty())
+	).done([=](const MTPmessages_Chats &result) {
+		_recommendations.requestId = 0;
+		auto parsed = ParseSimilar(_session, result);
+		_recommendations.channels = std::move(parsed);
+		_recommendations.channels.more = 0;
+		_recommendationsLoaded = true;
+	}).send();
+}
+
+const ChatParticipants::Channels &ChatParticipants::recommendations() const {
+	return _recommendations.channels;
+}
+
+rpl::producer<> ChatParticipants::recommendationsLoaded() const {
+	return _recommendationsLoaded.changes() | rpl::to_empty;
 }
 
 } // namespace Api

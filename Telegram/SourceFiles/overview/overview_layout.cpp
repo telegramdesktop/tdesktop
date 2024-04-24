@@ -339,6 +339,7 @@ Photo::Photo(
 , _spoiler(options.spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
 	delegate->repaintItem(this);
 }) : nullptr)
+, _pinned(options.pinned)
 , _story(options.story) {
 	if (_data->inlineThumbnailBytes().isEmpty()
 		&& (_data->hasExact(Data::PhotoSize::Small)
@@ -407,6 +408,14 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	if (selected) {
 		p.fillRect(0, 0, _width, _height, st::overviewPhotoSelectOverlay);
 	}
+
+	if (_pinned) {
+		const auto &icon = selected
+			? st::storyPinnedIconSelected
+			: st::storyPinnedIcon;
+		icon.paint(p, _width - icon.width(), 0, _width);
+	}
+
 	const auto checkDelta = st::overviewCheckSkip + st::overviewCheck.size;
 	const auto checkLeft = _width - checkDelta;
 	const auto checkTop = _height - checkDelta;
@@ -451,6 +460,14 @@ void Photo::clearSpoiler() {
 	}
 }
 
+void Photo::itemDataChanged() {
+	const auto pinned = parent()->isPinned();
+	if (_pinned != pinned) {
+		_pinned = pinned;
+		delegate()->repaintItem(this);
+	}
+}
+
 void Photo::clearHeavyPart() {
 	_dataMedia = nullptr;
 }
@@ -475,6 +492,7 @@ Video::Video(
 , _spoiler(options.spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
 	delegate->repaintItem(this);
 }) : nullptr)
+, _pinned(options.pinned)
 , _story(options.story) {
 	setDocumentLinks(_data);
 	_data->loadThumbnail(parent->fullId());
@@ -547,6 +565,13 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.fillRect(QRect(0, 0, _width, _height), st::overviewPhotoSelectOverlay);
 	}
 
+	if (_pinned) {
+		const auto &icon = selected
+			? st::storyPinnedIconSelected
+			: st::storyPinnedIcon;
+		icon.paint(p, _width - icon.width(), 0, _width);
+	}
+
 	if (!selected && !context->selecting && radialOpacity < 1.) {
 		if (clip.intersects(QRect(0, _height - st::normalFont->height, _width, st::normalFont->height))) {
 			const auto download = !loaded && !_dataMedia->canBePlayed(parent());
@@ -616,6 +641,14 @@ void Video::clearSpoiler() {
 	if (_spoiler) {
 		_spoiler = nullptr;
 		_pix = QPixmap();
+		delegate()->repaintItem(this);
+	}
+}
+
+void Video::itemDataChanged() {
+	const auto pinned = parent()->isPinned();
+	if (_pinned != pinned) {
+		_pinned = pinned;
 		delegate()->repaintItem(this);
 	}
 }

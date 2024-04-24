@@ -33,11 +33,14 @@ class StoryPreload;
 
 struct StoriesIds {
 	base::flat_set<StoryId, std::greater<>> list;
+	std::vector<StoryId> pinnedToTop;
 
 	friend inline bool operator==(
 		const StoriesIds&,
 		const StoriesIds&) = default;
 };
+
+[[nodiscard]] std::vector<StoryId> RespectingPinned(const StoriesIds &ids);
 
 struct StoriesSourceInfo {
 	PeerId id = 0;
@@ -131,7 +134,7 @@ public:
 	explicit Stories(not_null<Session*> owner);
 	~Stories();
 
-	static constexpr auto kPinnedToastDuration = 4 * crl::time(1000);
+	static constexpr auto kInProfileToastDuration = 4 * crl::time(1000);
 
 	[[nodiscard]] Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -205,7 +208,14 @@ public:
 	void savedLoadMore(PeerId peerId);
 
 	void deleteList(const std::vector<FullStoryId> &ids);
-	void togglePinnedList(const std::vector<FullStoryId> &ids, bool pinned);
+	void toggleInProfileList(
+		const std::vector<FullStoryId> &ids,
+		bool inProfile);
+	[[nodiscard]] bool canTogglePinnedList(
+		const std::vector<FullStoryId> &ids,
+		bool pin) const;
+	[[nodiscard]] int maxPinnedCount() const;
+	void togglePinnedList(const std::vector<FullStoryId> &ids, bool pin);
 	void report(
 		std::shared_ptr<Ui::Show> show,
 		FullStoryId id,
@@ -312,6 +322,9 @@ private:
 
 	void notifySourcesChanged(StorySourcesList list);
 	void pushHiddenCountsToFolder();
+	void setPinnedToTop(
+		PeerId peerId,
+		std::vector<StoryId> &&pinnedToTop);
 
 	[[nodiscard]] int pollingInterval(
 		const PollingSettings &settings) const;

@@ -31,8 +31,10 @@ class Templates;
 namespace Data {
 class Session;
 class Changes;
+class RecentPeers;
 class ScheduledMessages;
 class SponsoredMessages;
+class TopPeers;
 } // namespace Data
 
 namespace Storage {
@@ -106,11 +108,17 @@ public:
 	[[nodiscard]] Data::Changes &changes() const {
 		return *_changes;
 	}
+	[[nodiscard]] Data::RecentPeers &recentPeers() const {
+		return *_recentPeers;
+	}
 	[[nodiscard]] Data::SponsoredMessages &sponsoredMessages() const {
 		return *_sponsoredMessages;
 	}
 	[[nodiscard]] Data::ScheduledMessages &scheduledMessages() const {
 		return *_scheduledMessages;
+	}
+	[[nodiscard]] Data::TopPeers &topPeers() const {
+		return *_topPeers;
 	}
 	[[nodiscard]] Api::Updates &updates() const {
 		return *_updates;
@@ -156,7 +164,8 @@ public:
 	void addWindow(not_null<Window::SessionController*> controller);
 	[[nodiscard]] auto windows() const
 		-> const base::flat_set<not_null<Window::SessionController*>> &;
-	[[nodiscard]] Window::SessionController *tryResolveWindow() const;
+	[[nodiscard]] Window::SessionController *tryResolveWindow(
+		PeerData *forPeer = nullptr) const;
 
 	// Shortcuts.
 	void notifyDownloaderTaskFinished();
@@ -232,8 +241,10 @@ private:
 	const std::unique_ptr<Stickers::GiftBoxPack> _giftBoxStickersPacks;
 	const std::unique_ptr<SendAsPeers> _sendAsPeers;
 	const std::unique_ptr<InlineBots::AttachWebView> _attachWebView;
+	const std::unique_ptr<Data::RecentPeers> _recentPeers;
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
 	const std::unique_ptr<Data::SponsoredMessages> _sponsoredMessages;
+	const std::unique_ptr<Data::TopPeers> _topPeers;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 

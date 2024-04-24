@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
+#include "data/components/top_peers.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -422,16 +423,21 @@ not_null<HistoryItem*> History::createItem(
 		MsgId id,
 		const MTPMessage &message,
 		MessageFlags localFlags,
-		bool detachExistingItem) {
+		bool detachExistingItem,
+		bool newMessage) {
 	if (const auto result = owner().message(peer, id)) {
 		if (detachExistingItem) {
 			result->removeMainView();
 		}
 		return result;
 	}
-	return message.match([&](const auto &data) {
+	const auto result = message.match([&](const auto &data) {
 		return makeMessage(id, data, localFlags);
 	});
+	if (newMessage && result->out() && result->isRegular()) {
+		session().topPeers().increment(peer, result->date());
+	}
+	return result;
 }
 
 std::vector<not_null<HistoryItem*>> History::createItems(
@@ -456,16 +462,21 @@ not_null<HistoryItem*> History::addNewMessage(
 		const MTPMessage &message,
 		MessageFlags localFlags,
 		NewMessageType type) {
-	const auto detachExisting = (type == NewMessageType::Unread);
-	const auto item = createItem(id, message, localFlags, detachExisting);
+	const auto newMessage = (type == NewMessageType::Unread);
+	const auto detachExisting = newMessage;
+	const auto item = createItem(
+		id,
+		message,
+		localFlags,
+		detachExisting,
+		newMessage);
 	if (type == NewMessageType::Existing || item->mainView()) {
 		return item;
 	}
-	const auto unread = (type == NewMessageType::Unread);
-	if (unread && item->isHistoryEntry()) {
+	if (newMessage && item->isHistoryEntry()) {
 		applyMessageChanges(item, message);
 	}
-	return addNewItem(item, unread);
+	return addNewItem(item, newMessage);
 }
 
 not_null<HistoryItem*> History::insertItem(

@@ -108,7 +108,7 @@ class ItemBase;
 } // namespace Layout
 } // namespace InlineBots
 
-class MainWidget
+class MainWidget final
 	: public Ui::RpWidget
 	, private Media::Player::FloatDelegate {
 public:
@@ -236,12 +236,14 @@ public:
 
 	void dialogsCancelled();
 
-protected:
+private:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	bool eventFilter(QObject *o, QEvent *e) override;
 
-private:
+	[[nodiscard]] bool relevantForDialogsFocus(
+		not_null<QWidget*> widget) const;
+
 	void showFinished();
 	void handleAdaptiveLayoutUpdate();
 	void updateWindowAdaptiveLayout();

@@ -24,5 +24,7 @@
     <file alias="chat_link.tgs">../../animations/chat_link.tgs</file>
     <file alias="collectible_username.tgs">../../animations/collectible_username.tgs</file>
     <file alias="collectible_phone.tgs">../../animations/collectible_phone.tgs</file>
+    <file alias="search.tgs">../../animations/search.tgs</file>
+    <file alias="noresults.tgs">../../animations/noresults.tgs</file>
   </qresource>
 </RCC>

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_reply.h"
 #include "history/view/history_view_sponsored_click_handler.h"
 #include "history/view/media/history_view_media_common.h"
+#include "history/view/media/history_view_sticker.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_sponsored.h"
@@ -41,6 +42,7 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kMaxOriginalEntryLines = 8192;
+constexpr auto kStickerSetLines = 3;
 
 [[nodiscard]] int ArticleThumbWidth(not_null<PhotoData*> thumb, int height) {
 	const auto size = thumb->location(Data::PhotoSize::Thumbnail);
@@ -165,7 +167,8 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 		: (type == WebPageType::GroupWithRequest
 			|| type == WebPageType::ChannelWithRequest)
 		? tr::lng_view_button_request_join(tr::now)
-		: (type == WebPageType::ChannelBoost)
+		: (type == WebPageType::GroupBoost
+			|| type == WebPageType::ChannelBoost)
 		? tr::lng_view_button_boost(tr::now)
 		: (type == WebPageType::Giftcode)
 		? tr::lng_view_button_giftcode(tr::now)
@@ -179,6 +182,10 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 		? tr::lng_view_button_user(tr::now)
 		: (type == WebPageType::BotApp)
 		? tr::lng_view_button_bot_app(tr::now)
+		: (page->stickerSet && page->stickerSet->isEmoji)
+		? tr::lng_view_button_emojipack(tr::now)
+		: (type == WebPageType::StickerSet)
+		? tr::lng_view_button_stickerset(tr::now)
 		: QString());
 	if (page->iv) {
 		const auto manager = &page->owner().customEmojiManager();
@@ -196,8 +203,11 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 	return webpage->iv
 		|| (type == WebPageType::Message)
 		|| (type == WebPageType::Group)
+		|| (type == WebPageType::GroupWithRequest)
+		|| (type == WebPageType::GroupBoost)
 		|| (type == WebPageType::Channel)
 		|| (type == WebPageType::ChannelBoost)
+		|| (type == WebPageType::ChannelWithRequest)
 		|| (type == WebPageType::Giftcode)
 		// || (type == WebPageType::Bot)
 		|| (type == WebPageType::User)
@@ -211,7 +221,8 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 			&& (webpage->photo || webpage->document))
 		|| ((type == WebPageType::WallPaper)
 			&& webpage->document
-			&& webpage->document->isWallPaper());
+			&& webpage->document->isWallPaper())
+		|| (type == WebPageType::StickerSet);
 }
 
 } // namespace
@@ -232,17 +243,10 @@ WebPage::WebPage(
 		_parent->data()->fullId());
 	auto result = std::make_optional<SponsoredData>();
 	result->buttonText = details.buttonText;
-	result->hasExternalLink = (details.externalLink == _data->url);
+	result->isLinkInternal = details.isLinkInternal;
+	result->backgroundEmojiId = details.backgroundEmojiId;
+	result->colorIndex = details.colorIndex;
 	result->canReport = details.canReport;
-#ifdef _DEBUG
-	if (details.peer) {
-#else
-	if (details.isForceUserpicDisplay && details.peer) {
-#endif
-		result->peer = details.peer;
-		result->userpicView = details.peer->createUserpicView();
-		details.peer->loadUserpic();
-	}
 	return result;
 }())
 , _siteName(st::msgMinWidth - _st.padding.left() - _st.padding.right())
@@ -291,6 +295,24 @@ QSize WebPage::countOptimalSize() {
 		_description = Ui::Text::String(min);
 	}
 	const auto lineHeight = UnitedLineHeight();
+
+	if (_data->stickerSet && !_stickerSet) {
+		_stickerSet = std::make_unique<StickerSet>();
+		for (const auto &sticker : _data->stickerSet->items) {
+			if (!sticker->sticker()) {
+				continue;
+			}
+			_stickerSet->views.push_back(
+				std::make_unique<Sticker>(_parent, sticker, true));
+		}
+		const auto side = std::ceil(std::sqrt(_stickerSet->views.size()));
+		const auto box = lineHeight * kStickerSetLines;
+		const auto single = box / side;
+		for (const auto &view : _stickerSet->views) {
+			view->setWebpagePart();
+			view->initSize(single);
+		}
+	}
 
 	if (!_openl && (!_data->url.isEmpty() || _sponsoredData)) {
 		const auto original = _parent->data()->originalText();
@@ -345,9 +367,9 @@ QSize WebPage::countOptimalSize() {
 				_parent->data()->fullId());
 		}
 		if (_sponsoredData) {
-			_openl = SponsoredLink(_sponsoredData->hasExternalLink
-				? _data->url
-				: QString());
+			_openl = SponsoredLink(
+				_data->url,
+				_sponsoredData->isLinkInternal);
 
 			if (_sponsoredData->canReport) {
 				_sponsoredData->hintLink = AboutSponsoredClickHandler();
@@ -517,21 +539,26 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	const auto innerWidth = newWidth - rect::m::sum::h(padding);
 	auto newHeight = 0;
 
+	const auto specialRightPix = (_sponsoredData || _stickerSet);
 	const auto lineHeight = UnitedLineHeight();
-	const auto linesMax = (_sponsoredData || isLogEntryOriginal())
+	const auto linesMax = (specialRightPix || isLogEntryOriginal())
 		? kMaxOriginalEntryLines
 		: 5;
 	const auto siteNameHeight = _siteNameLines ? lineHeight : 0;
 	const auto twoTitleLines = 2 * st::webPageTitleFont->height;
 	const auto descriptionLineHeight = st::webPageDescriptionFont->height;
-	const auto asSponsored = (!!_sponsoredData);
-	if (asArticle() || asSponsored) {
-		const auto sponsoredUserpic = (asSponsored && _sponsoredData->peer);
+	if (asArticle() || specialRightPix) {
+		const auto sponsoredUserpic = (_sponsoredData
+			&& _sponsoredData->peer);
 		constexpr auto kSponsoredUserpicLines = 2;
 		_pixh = lineHeight
-			* (asSponsored ? kSponsoredUserpicLines : linesMax);
+			* (_stickerSet
+				? kStickerSetLines
+				: specialRightPix
+				? kSponsoredUserpicLines
+				: linesMax);
 		do {
-			_pixw = asSponsored
+			_pixw = specialRightPix
 				? _pixh
 				: ArticleThumbWidth(_data->photo, _pixh);
 			const auto wleft = innerWidth
@@ -651,6 +678,7 @@ void WebPage::ensurePhotoMediaCreated() const {
 bool WebPage::hasHeavyPart() const {
 	return _photoMedia
 		|| (_sponsoredData && !_sponsoredData->userpicView.null())
+		|| (_stickerSet)
 		|| (_attach ? _attach->hasHeavyPart() : false);
 }
 
@@ -683,14 +711,23 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	auto tshift = inner.top();
 	auto paintw = inner.width();
 
+	const auto asSponsored = (!!_sponsoredData);
+
 	const auto selected = context.selected();
 	const auto view = parent();
 	const auto from = view->data()->contentColorsFrom();
-	const auto colorIndex = from ? from->colorIndex() : view->colorIndex();
+	const auto colorIndex = (asSponsored && _sponsoredData->colorIndex)
+		? _sponsoredData->colorIndex
+		: from
+		? from->colorIndex()
+		: view->colorIndex();
 	const auto cache = context.outbg
 		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
 		: st->coloredReplyCache(selected, colorIndex).get();
-	const auto backgroundEmojiId = from
+	const auto backgroundEmojiId = (asSponsored
+			&& _sponsoredData->backgroundEmojiId)
+		? _sponsoredData->backgroundEmojiId
+		: from
 		? from->backgroundEmojiId()
 		: DocumentId();
 	const auto backgroundEmoji = backgroundEmojiId
@@ -724,10 +761,30 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 
-	const auto asSponsored = (!!_sponsoredData);
-
 	auto lineHeight = UnitedLineHeight();
-	if (asArticle()) {
+	if (_stickerSet) {
+		const auto viewsCount = _stickerSet->views.size();
+		const auto box = _pixh;
+		const auto topLeft = QPoint(inner.left() + paintw - box, tshift);
+		const auto side = std::ceil(std::sqrt(viewsCount));
+		const auto single = box / side;
+		for (auto i = 0; i < side; i++) {
+			for (auto j = 0; j < side; j++) {
+				const auto index = i * side + j;
+				if (viewsCount <= index) {
+					break;
+				}
+				const auto &view = _stickerSet->views[index];
+				const auto size = view->countOptimalSize();
+				const auto offsetX = (single - size.width()) / 2.;
+				const auto offsetY = (single - size.height()) / 2.;
+				const auto x = j * single + offsetX;
+				const auto y = i * single + offsetY;
+				view->draw(p, context, QRect(QPoint(x, y) + topLeft, size));
+			}
+		}
+		paintw -= box;
+	} else if (asArticle()) {
 		ensurePhotoMediaCreated();
 
 		auto pix = QPixmap();
@@ -838,12 +895,10 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			const auto height = st::webPageSponsoredHintFont->height;
 			const auto radius = height / 2;
 
-			_sponsoredData->lastHintPos = QPoint(
+			_sponsoredData->lastHintPos = QPointF(
 				radius + inner.left() + _sponsoredData->widthBeforeHint,
-				tshift
-					+ (_siteName.style()->font->height - height) / 2
-					+ st::webPageSponsoredHintFont->descent / 2);
-			const auto rect = QRect(
+				tshift + (_siteName.style()->font->height - height) / 2.);
+			const auto rect = QRectF(
 				_sponsoredData->lastHintPos,
 				_sponsoredData->hintSize);
 			auto hq = PainterHighQualityEnabler(p);
@@ -1146,7 +1201,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 		result.link = _openl;
 	}
 	if (_sponsoredData && _sponsoredData->canReport) {
-		const auto contains = QRect(
+		const auto contains = QRectF(
 			_sponsoredData->lastHintPos,
 			_sponsoredData->hintSize).contains(point
 				- QPoint(0, st::msgDateFont->height));
@@ -1239,7 +1294,7 @@ void WebPage::clickHandlerPressedChanged(
 			const auto outer = full - inBubblePadding();
 			_sponsoredData->hintRipple->add(_lastPoint
 				+ outer.topLeft()
-				- _sponsoredData->lastHintPos);
+				- _sponsoredData->lastHintPos.toPoint());
 		} else if (_sponsoredData->hintRipple) {
 			_sponsoredData->hintRipple->lastStop();
 		}

@@ -87,6 +87,8 @@ PRIVATE
     dialogs/dialogs_three_state_icon.h
     dialogs/ui/dialogs_stories_list.cpp
     dialogs/ui/dialogs_stories_list.h
+    dialogs/ui/top_peers_strip.cpp
+    dialogs/ui/top_peers_strip.h
 
     editor/controllers/undo_controller.cpp
     editor/controllers/undo_controller.h
@@ -237,6 +239,8 @@ PRIVATE
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp
     ui/boxes/choose_date_time.h
+    ui/boxes/choose_font_box.cpp
+    ui/boxes/choose_font_box.h
     ui/boxes/choose_language_box.cpp
     ui/boxes/choose_language_box.h
     ui/boxes/choose_time.cpp

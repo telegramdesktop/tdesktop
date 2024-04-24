@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_business_info.h"
 #include "data/business/data_business_chatbots.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_peer_values.h" // AmPremiumValue.
 #include "data/data_session.h"
@@ -39,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h" // Ui::RadiobuttonGroup.
 #include "ui/widgets/gradient_round_button.h"
+#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -51,6 +53,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "styles/style_chat.h"
+#include "styles/style_channel_earn.h"
 
 namespace Settings {
 namespace {
@@ -469,6 +473,100 @@ void Business::setupContent() {
 			showFeature(feature);
 		}
 	});
+
+	const auto sponsoredWrap = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content)));
+	const auto fillSponsoredWrap = [=] {
+		while (sponsoredWrap->entity()->count()) {
+			delete sponsoredWrap->entity()->widgetAt(0);
+		}
+		Ui::AddDivider(sponsoredWrap->entity());
+		const auto loading = sponsoredWrap->entity()->add(
+			object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+				sponsoredWrap->entity(),
+				object_ptr<Ui::FlatLabel>(
+					sponsoredWrap->entity(),
+					tr::lng_contacts_loading())),
+			st::boxRowPadding);
+		loading->entity()->setTextColorOverride(st::windowSubTextFg->c);
+
+		const auto wrap = sponsoredWrap->entity()->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				sponsoredWrap->entity(),
+				object_ptr<Ui::VerticalLayout>(sponsoredWrap->entity())));
+		wrap->toggle(false, anim::type::instant);
+		const auto inner = wrap->entity();
+		Ui::AddSkip(inner);
+		Ui::AddSubsectionTitle(
+			inner,
+			tr::lng_business_subtitle_sponsored());
+		const auto button = inner->add(object_ptr<Ui::SettingsButton>(
+			inner,
+			tr::lng_business_button_sponsored()));
+		Ui::AddSkip(inner);
+
+		const auto session = &_controller->session();
+		{
+			const auto arrow = Ui::Text::SingleCustomEmoji(
+				session->data().customEmojiManager().registerInternalEmoji(
+					st::topicButtonArrow,
+					st::channelEarnLearnArrowMargins,
+					false));
+			inner->add(object_ptr<Ui::DividerLabel>(
+				inner,
+				Ui::CreateLabelWithCustomEmoji(
+					inner,
+					tr::lng_business_about_sponsored(
+						lt_link,
+						rpl::combine(
+							tr::lng_business_about_sponsored_link(
+								lt_emoji,
+								rpl::single(arrow),
+								Ui::Text::RichLangValue),
+							tr::lng_business_about_sponsored_url()
+						) | rpl::map([](TextWithEntities text, QString url) {
+							return Ui::Text::Link(text, url);
+						}),
+						Ui::Text::RichLangValue),
+					{ .session = session },
+					st::boxDividerLabel),
+				st::defaultBoxDividerLabelPadding,
+				RectPart::Top | RectPart::Bottom));
+		}
+
+		const auto api = inner->lifetime().make_state<Api::SponsoredToggle>(
+			session);
+
+		api->toggled(
+		) | rpl::start_with_next([=](bool enabled) {
+			button->toggleOn(rpl::single(enabled));
+			wrap->toggle(true, anim::type::instant);
+			loading->toggle(false, anim::type::instant);
+
+			button->toggledChanges(
+			) | rpl::start_with_next([=](bool toggled) {
+				api->setToggled(
+					toggled
+				) | rpl::start_with_error_done([=](const QString &error) {
+					_controller->showToast(error);
+				}, [] {
+				}, button->lifetime());
+			}, button->lifetime());
+		}, inner->lifetime());
+
+		Ui::ToggleChildrenVisibility(sponsoredWrap->entity(), true);
+		sponsoredWrap->entity()->resizeToWidth(content->width());
+	};
+	Data::AmPremiumValue(
+		&_controller->session()
+	) | rpl::start_with_next([=](bool isPremium) {
+		sponsoredWrap->toggle(isPremium, anim::type::normal);
+		if (isPremium) {
+			fillSponsoredWrap();
+		}
+	}, content->lifetime());
 
 	Ui::ResizeFitChild(this, content);
 }

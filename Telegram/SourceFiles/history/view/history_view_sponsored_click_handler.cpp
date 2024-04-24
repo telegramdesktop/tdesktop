@@ -7,53 +7,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_sponsored_click_handler.h"
 
-#include "api/api_chat_invite.h"
 #include "core/click_handler_types.h"
-#include "core/file_utilities.h"
-#include "data/components/sponsored_messages.h"
-#include "data/data_session.h"
-#include "main/main_session.h"
-#include "window/window_session_controller.h"
 
 namespace HistoryView {
 
-ClickHandlerPtr SponsoredLink(const QString &externalLink) {
-	if (!externalLink.isEmpty()) {
-		class ClickHandler : public UrlClickHandler {
-		public:
-			using UrlClickHandler::UrlClickHandler;
+ClickHandlerPtr SponsoredLink(const QString &link, bool isInternal) {
+	class ClickHandler final : public UrlClickHandler {
+	public:
+		ClickHandler(const QString &link, bool isInternal)
+		: UrlClickHandler(link, false)
+		, _isInternal(isInternal) {
+		}
 
-			QString copyToClipboardContextItemText() const override {
-				return QString();
-			}
+		QString copyToClipboardContextItemText() const override final {
+			return QString();
+		}
 
-		};
+		QString tooltip() const override final {
+			return _isInternal ? QString() : url();
+		}
 
-		return std::make_shared<ClickHandler>(externalLink, false);
-	} else {
-		return std::make_shared<LambdaClickHandler>([](ClickContext context) {
-			const auto my = context.other.value<ClickHandlerContext>();
-			const auto controller = my.sessionWindow.get();
-			if (!controller) {
-				return;
-			}
-			const auto &session = controller->session();
-			const auto details = session.sponsoredMessages().lookupDetails(
-				my.itemId);
-			if (!details.externalLink.isEmpty()) {
-				File::OpenUrl(details.externalLink);
-			} else if (details.hash) {
-				Api::CheckChatInvite(controller, *details.hash);
-			} else if (details.botLinkInfo) {
-				controller->showPeerByLink(*details.botLinkInfo);
-			} else if (details.peer) {
-				controller->showPeerHistory(
-					details.peer,
-					Window::SectionShow::Way::Forward,
-					details.msgId);
-			}
-		});
-	}
+	private:
+		const bool _isInternal;
+
+	};
+
+	return std::make_shared<ClickHandler>(link, isInternal);
 }
 
 } // namespace HistoryView

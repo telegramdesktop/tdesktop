@@ -104,7 +104,9 @@ bool operator<(
 bool operator==(
 		const AllowedReactions &a,
 		const AllowedReactions &b) {
-	return (a.type == b.type) && (a.some == b.some);
+	return (a.type == b.type)
+		&& (a.some == b.some)
+		&& (a.maxCount == b.maxCount);
 }
 
 AllowedReactions Parse(const MTPChatReactions &value) {

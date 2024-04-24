@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "ui/platform/ui_platform_window_title.h"
-#include "platform/linux/linux_wayland_integration.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
@@ -53,7 +52,6 @@ namespace {
 using namespace gi::repository;
 namespace GObject = gi::repository::GObject;
 using namespace Platform;
-using Platform::internal::WaylandIntegration;
 
 void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 	const auto executable = ExecutablePathForShortcuts();
@@ -563,10 +561,6 @@ bool TrayIconSupported() {
 }
 
 bool SkipTaskbarSupported() {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		return integration->skipTaskbarSupported();
-	}
-
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (IsX11()) {
 		return base::Platform::XCB::IsSupportedByWM(
@@ -759,9 +753,6 @@ QImage DefaultApplicationIcon() {
 namespace ThirdParty {
 
 void start() {
-}
-
-void finish() {
 }
 
 } // namespace ThirdParty

@@ -110,6 +110,7 @@ enum class AllowedReactionsType {
 struct AllowedReactions {
 	std::vector<ReactionId> some;
 	AllowedReactionsType type = AllowedReactionsType::Some;
+	int maxCount = 0;
 };
 
 bool operator<(const AllowedReactions &a, const AllowedReactions &b);

@@ -95,9 +95,6 @@ SettingsProxy::SettingsProxy()
 }
 
 QByteArray SettingsProxy::serialize() const {
-	auto result = QByteArray();
-	auto stream = QDataStream(&result, QIODevice::WriteOnly);
-
 	const auto serializedSelected = SerializeProxyData(_selected);
 	const auto serializedList = ranges::views::all(
 		_list
@@ -111,9 +108,7 @@ QByteArray SettingsProxy::serialize() const {
 			0,
 			ranges::plus(),
 			&Serialize::bytearraySize);
-	result.reserve(size);
-
-	stream.setVersion(QDataStream::Qt_5_1);
+	auto stream = Serialize::ByteArrayWriter(size);
 	stream
 		<< qint32(_tryIPv6 ? 1 : 0)
 		<< qint32(_useProxyForCalls ? 1 : 0)
@@ -123,9 +118,7 @@ QByteArray SettingsProxy::serialize() const {
 	for (const auto &i : serializedList) {
 		stream << i;
 	}
-
-	stream.device()->close();
-	return result;
+	return std::move(stream).result();
 }
 
 bool SettingsProxy::setFromSerialized(const QByteArray &serialized) {
@@ -133,7 +126,7 @@ bool SettingsProxy::setFromSerialized(const QByteArray &serialized) {
 		return true;
 	}
 
-	auto stream = QDataStream(serialized);
+	auto stream = Serialize::ByteArrayReader(serialized);
 
 	auto tryIPv6 = qint32(_tryIPv6 ? 1 : 0);
 	auto useProxyForCalls = qint32(_useProxyForCalls ? 1 : 0);
@@ -148,7 +141,7 @@ bool SettingsProxy::setFromSerialized(const QByteArray &serialized) {
 			>> settings
 			>> selectedProxy
 			>> listCount;
-		if (stream.status() == QDataStream::Ok) {
+		if (stream.ok()) {
 			for (auto i = 0; i != listCount; ++i) {
 				QByteArray data;
 				stream >> data;
@@ -157,7 +150,7 @@ bool SettingsProxy::setFromSerialized(const QByteArray &serialized) {
 		}
 	}
 
-	if (stream.status() != QDataStream::Ok) {
+	if (!stream.ok()) {
 		LOG(("App Error: "
 			"Bad data for Core::SettingsProxy::setFromSerialized()"));
 		return false;

@@ -730,6 +730,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_angle_backend_d3d11on12" = "D3D11on12";
 "lng_settings_angle_backend_opengl" = "OpenGL";
 "lng_settings_angle_backend_disabled" = "Disabled";
+"lng_settings_top_peers_title" = "Frequent contacts";
+"lng_settings_top_peers_suggest" = "Suggest frequent contacts";
+"lng_settings_top_peers_about" = "Display people you message frequently at the top of the search section for quick access.";
 "lng_settings_sensitive_title" = "Sensitive content";
 "lng_settings_sensitive_disable_filtering" = "Disable filtering";
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
@@ -840,6 +843,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_auto_night_mode_on" = "System";
 "lng_settings_auto_night_warning" = "You have enabled auto-night mode. If you want to change the dark mode settings, you'll need to disable it first.";
 "lng_settings_auto_night_disable" = "Disable";
+"lng_settings_font_family" = "Font family";
 
 "lng_settings_color_title" = "Color preview";
 "lng_settings_color_reply" = "Reply to your message";
@@ -1492,6 +1496,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_reactions_none_about" = "Members of the group can't add any reactions to messages.";
 "lng_manage_peer_reactions_some_title" = "Only allow these reactions";
 "lng_manage_peer_reactions_available" = "Available reactions";
+"lng_manage_peer_reactions_available_ph" = "Add reactions...";
 "lng_manage_peer_reactions_own" = "You can also {link} emoji packs and use them as reactions.";
 "lng_manage_peer_reactions_own_link" = "create your own";
 "lng_manage_peer_reactions_level#one" = "Your channel needs to reach level **{count}** to use **{same_count}** custom reaction.";
@@ -1499,6 +1504,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_reactions_boost" = "Boost your channel {link}.";
 "lng_manage_peer_reactions_boost_link" = "here";
 "lng_manage_peer_reactions_limit" = "Channels can't have more custom reactions.";
+
+"lng_manage_peer_reactions_max_title" = "Maximum number of reactions";
+"lng_manage_peer_reactions_max_slider#one" = "{count} reaction per post";
+"lng_manage_peer_reactions_max_slider#other" = "{count} reactions per post";
+"lng_manage_peer_reactions_max_about" = "Limit the number of different reactions that can be added to a post, including already published ones.";
 
 "lng_manage_peer_antispam" = "Aggressive Anti-Spam";
 "lng_manage_peer_antispam_about" = "Telegram will filter more spam but may occasionally affect ordinary messages. You can report False Positives in Recent Actions.";
@@ -2269,6 +2279,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_business_about_chat_intro" = "Customize the message people see before they start a chat with you.";
 "lng_business_subtitle_chat_links" = "Links to Chat";
 "lng_business_about_chat_links" = "Create links that start a chat with you, suggesting the first message.";
+"lng_business_subtitle_sponsored" = "Ads in Channels";
+"lng_business_button_sponsored" = "Do Not Hide Ads";
+"lng_business_about_sponsored" = "As a Premium subscriber, you don’t see any ads on Telegram, but you can turn them on, for example, to view your own ads that you launched on the {link}";
+"lng_business_about_sponsored_link" = "Telegram Ad Platform {emoji}";
+"lng_business_about_sponsored_url" = "https://ads.telegram.org";
 
 "lng_location_title" = "Location";
 "lng_location_about" = "Display the location of your business on your account.";
@@ -3410,6 +3425,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_forward" = "Forward";
 "lng_mediaview_delete" = "Delete";
 "lng_mediaview_save_to_profile" = "Save to Profile";
+"lng_mediaview_pin_story_done" = "Story pinned";
+"lng_mediaview_pin_story_about" = "Now it will be always shown on the top.";
+"lng_mediaview_pin_stories_done#one" = "{count} story pinned";
+"lng_mediaview_pin_stories_done#other" = "{count} stories pinned";
+"lng_mediaview_pin_stories_about#one" = "Now it will be always shown on the top.";
+"lng_mediaview_pin_stories_about#other" = "Now they will be always shown on the top.";
+"lng_mediaview_unpin_story_done" = "Story unpinned.";
+"lng_mediaview_unpin_stories_done#one" = "{count} story unpinned";
+"lng_mediaview_unpin_stories_done#other" = "{count} stories unpinned";
+"lng_mediaview_pin_limit#one" = "You can't pin more than {count} story.";
+"lng_mediaview_pin_limit#other" = "You can't pin more than {count} stories.";
 "lng_mediaview_archive_story" = "Archive Story";
 "lng_mediaview_photos_all" = "View all photos";
 "lng_mediaview_files_all" = "View all files";
@@ -4704,6 +4730,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_boost" = "Boost";
 "lng_view_button_giftcode" = "Open";
 "lng_view_button_iv" = "Instant View";
+"lng_view_button_stickerset" = "View stickers";
+"lng_view_button_emojipack" = "View emoji";
 
 "lng_sponsored_hide_ads" = "Hide";
 "lng_sponsored_title" = "What are sponsored messages?";
@@ -5086,6 +5114,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_limit_upload_increase_times#other" = "**{count}** times";
 "lng_limit_upload_increase_speed" = "by **{percent}**";
 "lng_limit_upload_subscribe_link" = "Telegram Premium";
+
+"lng_recent_frequent" = "Frequent contacts";
+"lng_recent_frequent_all" = "Show all";
+"lng_recent_frequent_collapse" = "Collapse";
+"lng_recent_title" = "Recent";
+"lng_recent_clear" = "Clear";
+"lng_recent_clear_sure" = "Do you want to clear your search history?";
+"lng_recent_remove" = "Remove from Recent";
+"lng_recent_clear_all" = "Clear all";
+"lng_recent_hide_top" = "Remove all & Disable";
+"lng_recent_hide_sure" = "Are you sure you want to clear and disable frequent contacts list?\n\nYou can always turn this feature back on in Settings > Privacy > Suggest Frequent Contacts.";
+"lng_recent_hide_button" = "Hide";
+"lng_recent_none" = "Recent search results\nwill appear here.";
+"lng_recent_chats" = "Chats";
+"lng_recent_channels" = "Channels";
+"lng_channels_none_title" = "No channels yet...";
+"lng_channels_none_about" = "You are not currently subscribed to any channels.";
+"lng_channels_your_title" = "Channels you joined";
+"lng_channels_your_more" = "Show more";
+"lng_channels_your_less" = "Show less";
+"lng_channels_recommended" = "Recommended channels";
+
+"lng_font_box_title" = "Choose font family";
+"lng_font_default" = "Default";
+"lng_font_system" = "System font";
+"lng_font_not_found" = "Font not found.";
 
 // Wnd specific
 

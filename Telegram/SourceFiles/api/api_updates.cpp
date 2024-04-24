@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
+#include "data/components/top_peers.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_saved_messages.h"
@@ -1577,6 +1578,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 					} else {
 						if (existing) {
 							existing->destroy();
+						} else {
+							// Not the server-side date, but close enough.
+							session().topPeers().increment(
+								local->history()->peer,
+								local->date());
 						}
 						local->setRealId(d.vid().v);
 					}

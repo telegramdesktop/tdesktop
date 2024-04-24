@@ -435,7 +435,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b35735cd14
+    git checkout 5d64e21844
 """)
 
 stage('msys64', """
@@ -747,28 +747,8 @@ mac:
         arch=$1
         folder=`pwd`/$2
 
-        TARGET="\'${arch}\'"
-        MIN="\'${MIN_VER}\'"
-        FILE=cross-file.txt
-        echo "[binaries]" > $FILE
-        echo "c = ['clang', '-arch', ${TARGET}]" >> $FILE
-        echo "cpp = ['clang++', '-arch', ${TARGET}]" >> $FILE
-        echo "ar = 'ar'" >> $FILE
-        echo "strip = 'strip'" >> $FILE
-        echo "[built-in options]" >> $FILE
-        echo "c_args = [${MIN}]" >> $FILE
-        echo "cpp_args = [${MIN}]" >> $FILE
-        echo "c_link_args = [${MIN}]" >> $FILE
-        echo "cpp_link_args = [${MIN}]" >> $FILE
-        echo "[host_machine]" >> $FILE
-        echo "system = 'darwin'" >> $FILE
-        echo "subsystem = 'macos'" >> $FILE
-        echo "cpu_family = ${TARGET}" >> $FILE
-        echo "cpu = ${TARGET}" >> $FILE
-        echo "endian = 'little'" >> $FILE
-
         meson setup \\
-            --cross-file $FILE \\
+            --cross-file ../patches/macos_meson_${arch}.txt \\
             --prefix ${USED_PREFIX} \\
             --default-library=static \\
             --buildtype=minsize \\
@@ -812,7 +792,8 @@ mac:
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
         -D AVIF_ENABLE_WERROR=OFF \\
-        -D AVIF_CODEC_DAV1D=ON
+        -D AVIF_CODEC_DAV1D=ON \\
+        -D CMAKE_DISABLE_FIND_PACKAGE_libsharpyuv=ON
     cmake --build . --config MinSizeRel $MAKE_THREADS_CNT
     cmake --install . --config MinSizeRel
 """)
@@ -846,6 +827,7 @@ mac:
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D DISABLE_SSE=ON \\
+        -D ENABLE_SDL=OFF \\
         -D BUILD_SHARED_LIBS=OFF \\
         -D ENABLE_DECODER=ON \\
         -D ENABLE_ENCODER=OFF
@@ -1061,6 +1043,33 @@ depends:yasm/yasm
     lipo -create out.arm64/libvpx.a out.x86_64/libvpx.a -output libvpx.a
 
     make install
+""")
+
+stage('liblcms2', """
+mac:
+    git clone -b lcms2.16 https://github.com/mm2/Little-CMS.git liblcms2
+    cd liblcms2
+
+    buildOneArch() {
+        arch=$1
+        folder=`pwd`/$2
+
+        meson setup \\
+            --cross-file ../patches/macos_meson_${arch}.txt \\
+            --prefix ${USED_PREFIX} \\
+            --default-library=static \\
+            --buildtype=minsize \\
+            ${folder}
+        meson compile -C ${folder}
+        meson install -C ${folder}
+
+        mv ${USED_PREFIX}/lib/liblcms2.a ${folder}/liblcms2.a
+    }
+
+    buildOneArch arm64 build.arm64
+    buildOneArch x86_64 build
+
+    lipo -create build.arm64/liblcms2.a build/liblcms2.a -output ${USED_PREFIX}/lib/liblcms2.a
 """)
 
 stage('nv-codec-headers', """
@@ -1501,14 +1510,14 @@ mac:
 """)
 
 if buildQt6:
-    stage('qt_6_2_7', """
+    stage('qt_6_2_8', """
 mac:
-    git clone -b v6.2.7-lts-lgpl https://github.com/qt/qt5.git qt_6_2_7
-    cd qt_6_2_7
+    git clone -b v6.2.8-lts-lgpl https://github.com/qt/qt5.git qt_6_2_8
+    cd qt_6_2_8
     git submodule update --init --recursive qtbase qtimageformats qtsvg
-depends:patches/qtbase_6.2.7/*.patch
+depends:patches/qtbase_6.2.8/*.patch
     cd qtbase
-    find ../../patches/qtbase_6.2.7 -type f -print0 | sort -z | xargs -0 git apply -v
+    find ../../patches/qtbase_6.2.8 -type f -print0 | sort -z | xargs -0 git apply -v
     cd ..
     sed -i.bak 's/tqtc-//' {qtimageformats,qtsvg}/dependencies.yaml
 
@@ -1516,7 +1525,7 @@ depends:patches/qtbase_6.2.7/*.patch
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.2.7" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.8" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \

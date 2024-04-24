@@ -148,6 +148,11 @@ public:
 	void writeExportSettings(const Export::Settings &settings);
 	[[nodiscard]] Export::Settings readExportSettings();
 
+	void writeSearchSuggestionsDelayed();
+	void writeSearchSuggestionsIfNeeded();
+	void writeSearchSuggestions();
+	void readSearchSuggestions();
+
 	void writeSelf();
 
 	// Read self is special, it can't get session from account, because
@@ -291,6 +296,7 @@ private:
 	FileKey _installedCustomEmojiKey = 0;
 	FileKey _featuredCustomEmojiKey = 0;
 	FileKey _archivedCustomEmojiKey = 0;
+	FileKey _searchSuggestionsKey = 0;
 
 	qint64 _cacheTotalSizeLimit = 0;
 	qint64 _cacheBigFileTotalSizeLimit = 0;
@@ -301,11 +307,13 @@ private:
 	bool _trustedBotsRead = false;
 	bool _readingUserSettings = false;
 	bool _recentHashtagsAndBotsWereRead = false;
+	bool _searchSuggestionsRead = false;
 
 	int _oldMapVersion = 0;
 
 	base::Timer _writeMapTimer;
 	base::Timer _writeLocationsTimer;
+	base::Timer _writeSearchSuggestionsTimer;
 	bool _mapChanged = false;
 	bool _locationsChanged = false;
 

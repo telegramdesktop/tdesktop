@@ -591,6 +591,75 @@ dialogsStoriesFull: DialogsStories {
 		font: font(11px);
 	}
 }
+topPeers: DialogsStories(dialogsStoriesFull) {
+	photo: 46px;
+	photoLeft: 10px;
+	photoTop: 8px;
+	nameLeft: 6px;
+}
+topPeersRadius: 4px;
+topPeersMargin: margins(3px, 3px, 3px, 4px);
+
+recentPeersEmptySize: 100px;
+recentPeersEmptyMargin: margins(10px, 10px, 10px, 10px);
+recentPeersEmptySkip: 10px;
+recentPeersEmptyHeightMin: 220px;
+recentPeersItem: PeerListItem(defaultPeerListItem) {
+	height: 56px;
+	photoSize: 42px;
+	photoPosition: point(10px, 7px);
+	namePosition: point(64px, 9px);
+	statusPosition: point(64px, 30px);
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBgOver;
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: contactsStatusFg;
+	statusFgOver: contactsStatusFgOver;
+	statusFgActive: contactsStatusFgOnline;
+}
+recentPeersList: PeerList(defaultPeerList) {
+	padding: margins(0px, 4px, 0px, 4px);
+	item: recentPeersItem;
+}
+recentPeersItemActive: PeerListItem(recentPeersItem) {
+	nameFg: dialogsNameFgActive;
+	nameFgChecked: dialogsNameFgActive;
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: dialogsBgActive;
+		textBgOver: dialogsBgActive;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: dialogsRippleBgActive;
+		}
+	}
+	statusFg: dialogsTextFgActive;
+	statusFgOver: dialogsTextFgActive;
+	statusFgActive: dialogsTextFgActive;
+}
+recentPeersSpecialName: PeerListItem(recentPeersItem) {
+	namePosition: point(64px, 19px);
+}
+
+dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
+	height: 33px;
+	barTop: 30px;
+	barSkip: 0px;
+	barStroke: 6px;
+	barRadius: 2px;
+	barFg: transparent;
+	barSnapToLabel: true;
+	strictSkip: 34px;
+	labelTop: 7px;
+	labelStyle: semiboldTextStyle;
+	labelFg: windowSubTextFg;
+	labelFgActive: lightButtonFg;
+	rippleBottomSkip: 1px;
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	ripple: defaultRippleAnimation;
+}
+
 
 dialogsStoriesList: DialogsStoriesList {
 	small: dialogsStories;
@@ -623,6 +692,15 @@ dialogsStoriesTooltipHide: IconButton(defaultIconButton) {
 searchedBarHeight: 32px;
 searchedBarFont: normalFont;
 searchedBarPosition: point(17px, 7px);
+searchedBarLabel: FlatLabel(defaultFlatLabel) {
+	textFg: searchedBarFg;
+	margin: margins(17px, 7px, 17px, 7px);
+}
+searchedBarLink: LinkButton(defaultLinkButton) {
+	color: searchedBarFg;
+	overColor: searchedBarFg;
+	padding: margins(17px, 7px, 17px, 7px);
+}
 
 dialogsSearchTagSkip: point(8px, 4px);
 dialogsSearchTagBottom: 10px;
@@ -633,3 +711,4 @@ dialogsSearchTagArrowPadding: margins(-6px, 3px, 0px, 0px);
 dialogsSearchTagPromoLeft: 6px;
 dialogsSearchTagPromoRight: 1px;
 dialogsSearchTagPromoSkip: 6px;
+

@@ -17,7 +17,7 @@ class Session;
 
 namespace Data {
 
-using StoriesIdsSlice = AbstractSparseIds<base::flat_set<StoryId>>;
+using StoriesIdsSlice = AbstractSparseIds<std::vector<StoryId>>;
 
 [[nodiscard]] rpl::producer<StoriesIdsSlice> SavedStoriesIds(
 	not_null<PeerData*> peer,

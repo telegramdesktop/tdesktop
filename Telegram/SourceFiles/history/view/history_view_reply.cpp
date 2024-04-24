@@ -761,6 +761,14 @@ void Reply::paint(
 					: useColorIndex
 					? st->coloredTextPalette(selected, colorIndexPlusOne - 1)
 					: stm->replyTextPalette);
+				auto owned = std::optional<style::owned_color>();
+				auto copy = std::optional<style::TextPalette>();
+				if (inBubble && colorIndexPlusOne) {
+					copy.emplace(*replyToTextPalette);
+					owned.emplace(cache->icon);
+					copy->linkFg = owned->color();
+					replyToTextPalette = &*copy;
+				}
 				if (_replyToStory) {
 					st::dialogsMiniReplyStory.icon.icon.paint(
 						p,
@@ -770,14 +778,6 @@ void Reply::paint(
 						replyToTextPalette->linkFg->c);
 					firstLineSkip += st::dialogsMiniReplyStory.skipText
 						+ st::dialogsMiniReplyStory.icon.icon.width();
-				}
-				auto owned = std::optional<style::owned_color>();
-				auto copy = std::optional<style::TextPalette>();
-				if (inBubble && colorIndexPlusOne) {
-					copy.emplace(*replyToTextPalette);
-					owned.emplace(cache->icon);
-					copy->linkFg = owned->color();
-					replyToTextPalette = &*copy;
 				}
 				_text.draw(p, {
 					.position = { textLeft, textTop },

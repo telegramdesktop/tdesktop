@@ -653,6 +653,7 @@ QByteArray SerializeMessage(
 		pushTTL();
 	}, [&](const Document &data) {
 		pushPath(data.file, "file");
+		push("file_name", data.name);
 		if (data.thumb.width > 0) {
 			pushPath(data.thumb.file, "thumbnail");
 		}
@@ -675,9 +676,7 @@ QByteArray SerializeMessage(
 			push("performer", data.songPerformer);
 			push("title", data.songTitle);
 		}
-		if (!data.isSticker) {
-			push("mime_type", data.mime);
-		}
+		push("mime_type", data.mime);
 		if (data.duration) {
 			push("duration_seconds", data.duration);
 		}
