@@ -17,12 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "ui/empty_userpic.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "base/weak_ptr.h"
 #include "window/notifications_utilities.h"
-#include "styles/style_window.h"
 
 #include <QtCore/QBuffer>
 #include <QtCore/QVersionNumber>
