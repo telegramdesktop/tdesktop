@@ -436,9 +436,9 @@ void NotificationData::show() {
 	const auto weak = base::make_weak(this);
 	StartServiceAsync(_proxy.get_connection(), crl::guard(weak, [=] {
 		const auto iconName = _imageKey.empty()
-			|| _hints.lookup_value(_imageKey)
-				? std::string()
-				: base::IconName().toStdString();
+			|| !_hints.lookup_value(_imageKey)
+				? base::IconName().toStdString()
+				: std::string();
 
 		auto actions = _actions
 			| ranges::views::transform(&std::string::c_str)
