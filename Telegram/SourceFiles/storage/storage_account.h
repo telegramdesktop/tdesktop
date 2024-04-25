@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_database.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_drafts.h"
+#include "webview/webview_common.h"
 
 class History;
 
@@ -169,6 +170,10 @@ public:
 	void markBotTrustedOpenWebView(PeerId botId);
 	[[nodiscard]] bool isBotTrustedOpenWebView(PeerId botId);
 
+	void enforceModernStorageIdBots();
+	[[nodiscard]] Webview::StorageId resolveStorageIdBots();
+	[[nodiscard]] Webview::StorageId resolveStorageIdOther();
+
 	[[nodiscard]] bool encrypt(
 		const void *src,
 		void *dst,
@@ -308,6 +313,9 @@ private:
 	bool _readingUserSettings = false;
 	bool _recentHashtagsAndBotsWereRead = false;
 	bool _searchSuggestionsRead = false;
+
+	Webview::StorageId _webviewStorageIdBots;
+	Webview::StorageId _webviewStorageIdOther;
 
 	int _oldMapVersion = 0;
 

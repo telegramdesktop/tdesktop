@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_delegate.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text.h"
+#include "webview/webview_common.h"
 
 class Painter;
 
@@ -69,7 +70,7 @@ public:
 	};
 
 	void show(
-		const QString &dataPath,
+		const Webview::StorageId &storageId,
 		Prepared page,
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues);
 	void update(Prepared page);
@@ -90,11 +91,11 @@ public:
 
 private:
 	void createWindow();
-	void createWebview(const QString &dataPath);
+	void createWebview(const Webview::StorageId &storageId);
 	[[nodiscard]] QByteArray navigateScript(int index, const QString &hash);
 	[[nodiscard]] QByteArray reloadScript(int index);
 
-	void showInWindow(const QString &dataPath, Prepared page);
+	void showInWindow(const Webview::StorageId &storageId, Prepared page);
 	[[nodiscard]] QByteArray fillInChannelValuesScript(
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues);
 	[[nodiscard]] QByteArray toggleInChannelScript(

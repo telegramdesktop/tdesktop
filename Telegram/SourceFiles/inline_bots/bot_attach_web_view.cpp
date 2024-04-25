@@ -1491,7 +1491,7 @@ void AttachWebView::show(
 	_catchingCancelInShowCall = true;
 	_panel = Ui::BotWebView::Show({
 		.url = url,
-		.userDataPath = _session->domain().local().webviewDataPath(),
+		.storageId = _session->local().resolveStorageIdBots(),
 		.title = std::move(title),
 		.bottom = rpl::single('@' + _bot->username()),
 		.delegate = static_cast<Ui::BotWebView::Delegate*>(this),

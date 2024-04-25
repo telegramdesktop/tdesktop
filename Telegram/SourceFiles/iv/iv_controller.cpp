@@ -292,12 +292,12 @@ void Controller::initControls() {
 }
 
 void Controller::show(
-		const QString &dataPath,
+		const Webview::StorageId &storageId,
 		Prepared page,
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues) {
 	page.script = fillInChannelValuesScript(std::move(inChannelValues));
 	InvokeQueued(_container, [=, page = std::move(page)]() mutable {
-		showInWindow(dataPath, std::move(page));
+		showInWindow(storageId, std::move(page));
 	});
 }
 
@@ -389,7 +389,7 @@ void Controller::createWindow() {
 	window->show();
 }
 
-void Controller::createWebview(const QString &dataPath) {
+void Controller::createWebview(const Webview::StorageId &storageId) {
 	Expects(!_webview);
 
 	const auto window = _window.get();
@@ -397,7 +397,7 @@ void Controller::createWebview(const QString &dataPath) {
 		_container,
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
-			.userDataPath = dataPath,
+			.storageId = storageId,
 		});
 	const auto raw = _webview.get();
 
@@ -558,7 +558,9 @@ void Controller::createWebview(const QString &dataPath) {
 	raw->init(R"()");
 }
 
-void Controller::showInWindow(const QString &dataPath, Prepared page) {
+void Controller::showInWindow(
+		const Webview::StorageId &storageId,
+		Prepared page) {
 	Expects(_container != nullptr);
 
 	const auto url = page.url;
@@ -571,7 +573,7 @@ void Controller::showInWindow(const QString &dataPath, Prepared page) {
 	const auto index = i->second;
 	_index = index;
 	if (!_webview) {
-		createWebview(dataPath);
+		createWebview(storageId);
 		if (_webview && _webview->widget()) {
 			auto id = u"iv/page%1.html"_q.arg(index);
 			if (!_hash.isEmpty()) {

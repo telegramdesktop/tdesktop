@@ -547,7 +547,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		container,
 		Webview::WindowConfig{
 			.opaqueBg = params.opaqueBg,
-			.userDataPath = _delegate->panelWebviewDataPath(),
+			.storageId = _delegate->panelWebviewStorageId(),
 		});
 
 	const auto raw = &_webview->window;

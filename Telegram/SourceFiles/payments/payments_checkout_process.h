@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "payments/ui/payments_panel_delegate.h"
 #include "base/weak_ptr.h"
+#include "payments/ui/payments_panel_delegate.h"
+#include "webview/webview_common.h"
 
 class HistoryItem;
 class PasscodeBox;
@@ -153,7 +154,7 @@ private:
 	void panelShowBox(object_ptr<Ui::BoxContent> box) override;
 	QVariant panelClickHandlerContext() override;
 
-	QString panelWebviewDataPath() override;
+	Webview::StorageId panelWebviewStorageId() override;
 	Webview::ThemeParams panelWebviewThemeParams() override;
 
 	std::optional<QDate> panelOverrideExpireDateThreshold() override;

@@ -224,6 +224,7 @@ void Step::createSession(
 	account->createSession(user, std::move(settings));
 
 	// "this" is already deleted here by creating the main widget.
+	account->local().enforceModernStorageIdBots();
 	account->local().writeMtpData();
 	auto &session = account->session();
 	session.data().chatsFilters().setPreloaded(filters);

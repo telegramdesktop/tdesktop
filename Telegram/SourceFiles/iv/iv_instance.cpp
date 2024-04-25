@@ -31,13 +31,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_common.h" // Lottie::ReadContent.
 #include "main/main_account.h"
-#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/session/session_show.h"
 #include "media/streaming/media_streaming_loader.h"
 #include "media/view/media_view_open_common.h"
 #include "storage/file_download.h"
-#include "storage/storage_domain.h"
+#include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/text/text_utilities.h"
@@ -348,9 +347,8 @@ void Shown::showWindowed(Prepared result) {
 		createController();
 	}
 
-	const auto domain = &_session->domain();
 	_controller->show(
-		domain->local().webviewDataPath(),
+		_session->local().resolveStorageIdOther(),
 		std::move(result),
 		base::duplicate(_inChannelValues));
 }
