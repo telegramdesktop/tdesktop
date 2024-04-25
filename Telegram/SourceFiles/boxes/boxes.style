@@ -1074,3 +1074,16 @@ collectibleBox: Box(defaultBox) {
 	buttonHeight: 36px;
 	button: collectibleCopy;
 }
+
+moderateBoxUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(34px, 42px);
+	photoSize: 34px;
+	photoPosition: point(0px, 4px);
+}
+moderateBoxExpand: icon {{ "chat/reply_type_group", boxTextFg }};
+moderateBoxExpandHeight: 20px;
+moderateBoxExpandRight: 10px;
+moderateBoxExpandInnerSkip: 2px;
+moderateBoxExpandFont: font(11px);
+moderateBoxExpandToggleSize: 4px;
+moderateBoxExpandToggleFourStrokes: 3px;
