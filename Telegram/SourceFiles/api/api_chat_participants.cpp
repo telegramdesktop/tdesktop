@@ -592,6 +592,33 @@ ChatParticipants::Parsed ChatParticipants::ParseRecent(
 	return result;
 }
 
+void ChatParticipants::Restrict(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> participant,
+		ChatRestrictionsInfo oldRights,
+		ChatRestrictionsInfo newRights,
+		Fn<void()> onDone,
+		Fn<void()> onFail) {
+	channel->session().api().request(MTPchannels_EditBanned(
+		channel->inputChannel,
+		participant->input,
+		MTP_chatBannedRights(
+			MTP_flags(MTPDchatBannedRights::Flags::from_raw(
+				uint32(newRights.flags))),
+			MTP_int(newRights.until))
+	)).done([=](const MTPUpdates &result) {
+		channel->session().api().applyUpdates(result);
+		channel->applyEditBanned(participant, oldRights, newRights);
+		if (onDone) {
+			onDone();
+		}
+	}).fail([=] {
+		if (onFail) {
+			onFail();
+		}
+	}).send();
+}
+
 void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 	if (_selfParticipantRequests.contains(channel)) {
 		return;

@@ -14,6 +14,7 @@ class GenericBox;
 
 void CreateModerateMessagesBox(
 	not_null<Ui::GenericBox*> box,
-	const HistoryItemsList &items);
+	const HistoryItemsList &items,
+	Fn<void()> confirmed);
 
 [[nodiscard]] bool CanCreateModerateMessagesBox(const HistoryItemsList &);

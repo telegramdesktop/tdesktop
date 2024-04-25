@@ -166,33 +166,6 @@ void SaveChannelAdmin(
 	}).send();
 }
 
-void SaveChannelRestriction(
-		not_null<ChannelData*> channel,
-		not_null<PeerData*> participant,
-		ChatRestrictionsInfo oldRights,
-		ChatRestrictionsInfo newRights,
-		Fn<void()> onDone,
-		Fn<void()> onFail) {
-	channel->session().api().request(MTPchannels_EditBanned(
-		channel->inputChannel,
-		participant->input,
-		MTP_chatBannedRights(
-			MTP_flags(MTPDchatBannedRights::Flags::from_raw(
-				uint32(newRights.flags))),
-			MTP_int(newRights.until))
-	)).done([=](const MTPUpdates &result) {
-		channel->session().api().applyUpdates(result);
-		channel->applyEditBanned(participant, oldRights, newRights);
-		if (onDone) {
-			onDone();
-		}
-	}).fail([=] {
-		if (onFail) {
-			onFail();
-		}
-	}).send();
-}
-
 void SaveChatParticipantKick(
 		not_null<ChatData*> chat,
 		not_null<UserData*> user,
@@ -275,7 +248,7 @@ Fn<void(
 			ChatRestrictionsInfo newRights) {
 		const auto done = [=] { if (onDone) onDone(newRights); };
 		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
-			SaveChannelRestriction(
+			Api::ChatParticipants::Restrict(
 				channel,
 				participant,
 				oldRights,
