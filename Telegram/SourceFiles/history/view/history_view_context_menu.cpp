@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/power_saving.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/moderate_messages_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
@@ -828,9 +829,15 @@ bool AddDeleteMessageAction(
 				controller->cancelUploadLayer(item);
 				return;
 			}
-			const auto suggestModerateActions = true;
-			controller->show(
-				Box<DeleteMessagesBox>(item, suggestModerateActions));
+			const auto list = HistoryItemsList{ item };
+			if (CanCreateModerateMessagesBox(list)) {
+				controller->show(
+					Box(CreateModerateMessagesBox, list, nullptr));
+			} else {
+				const auto suggestModerateActions = false;
+				controller->show(
+					Box<DeleteMessagesBox>(item, suggestModerateActions));
+			}
 		}
 	});
 	if (item->isUploading()) {
