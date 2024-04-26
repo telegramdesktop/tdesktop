@@ -1087,3 +1087,10 @@ moderateBoxExpandInnerSkip: 2px;
 moderateBoxExpandFont: font(11px);
 moderateBoxExpandToggleSize: 4px;
 moderateBoxExpandToggleFourStrokes: 3px;
+moderateBoxExpandIcon: icon{{ "info/edit/expand_arrow_small-flip_vertical", windowActiveTextFg }};
+moderateBoxExpandIconDown: icon{{ "info/edit/expand_arrow_small", windowActiveTextFg }};
+moderateBoxDividerLabel: FlatLabel(boxDividerLabel) {
+	palette: TextPalette(defaultTextPalette) {
+		selectLinkFg: windowActiveTextFg;
+	}
+}

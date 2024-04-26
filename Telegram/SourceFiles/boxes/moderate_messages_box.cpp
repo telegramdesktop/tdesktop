@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
+#include "core/ui_integration.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_chat_participant_status.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -481,21 +483,29 @@ void CreateModerateMessagesBox(
 		const auto wrap = inner->add(std::move(ownedWrap));
 		const auto container = wrap->entity();
 		wrap->toggle(false, anim::type::instant);
+
+		const auto session = &users.front()->session();
+		const auto emojiMargin = QMargins(
+			-st::moderateBoxExpandInnerSkip,
+			-st::moderateBoxExpandInnerSkip / 2,
+			0,
+			0);
+		const auto emojiUp = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				st::moderateBoxExpandIcon,
+				emojiMargin,
+				false));
+		const auto emojiDown = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				st::moderateBoxExpandIconDown,
+				emojiMargin,
+				false));
+
 		auto label = object_ptr<Ui::FlatLabel>(
 			inner,
-			wrap->toggledValue(
-			) | rpl::map([isSingle](bool toggled) {
-				return Ui::Text::Link(
-					((toggled && isSingle)
-						? tr::lng_restrict_user_part
-						: (toggled && !isSingle)
-						? tr::lng_restrict_users_part
-						: isSingle
-						? tr::lng_restrict_user_full
-						: tr::lng_restrict_users_full)(tr::now),
-					u"internal:"_q);
-			}),
-			st::boxDividerLabel);
+			QString(),
+			st::moderateBoxDividerLabel);
+		const auto raw = label.data();
 
 		auto &lifetime = wrap->lifetime();
 		const auto scrollLifetime = lifetime.make_state<rpl::lifetime>();
@@ -521,6 +531,27 @@ void CreateModerateMessagesBox(
 			}
 			return true;
 		});
+		wrap->toggledValue(
+		) | rpl::map([isSingle, emojiUp, emojiDown](bool toggled) {
+			return ((toggled && isSingle)
+				? tr::lng_restrict_user_part
+				: (toggled && !isSingle)
+				? tr::lng_restrict_users_part
+				: isSingle
+				? tr::lng_restrict_user_full
+				: tr::lng_restrict_users_full)(
+					lt_emoji,
+					rpl::single(toggled ? emojiUp : emojiDown),
+					Ui::Text::WithEntities);
+		}) | rpl::flatten_latest(
+		) | rpl::start_with_next([=](const TextWithEntities &text) {
+			raw->setMarkedText(
+				Ui::Text::Link(text, u"internal:"_q),
+				Core::MarkedTextContext{
+					.session = session,
+					.customEmojiRepaint = [=] { raw->update(); },
+				});
+		}, label->lifetime());
 
 		Ui::AddSkip(inner);
 		inner->add(object_ptr<Ui::DividerLabel>(
