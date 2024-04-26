@@ -3264,13 +3264,7 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		} else {
 			_inner->selectSkipPage(_scroll->height(), -1);
 		}
-	} else if (!(e->modifiers() & ~Qt::ShiftModifier)
-		&& e->key() != Qt::Key_Shift
-		&& !_openedFolder
-		&& !_openedForum
-		&& _search->isVisible()
-		&& !_search->hasFocus()
-		&& !e->text().isEmpty()) {
+	} else if (redirectKeyToSearch(e)) {
 		// This delay in search focus processing allows us not to create
 		// _suggestions in case the event inserts some non-whitespace search
 		// query while still show _suggestions animated, if it is a space.
@@ -3282,6 +3276,31 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 	} else {
 		e->ignore();
 	}
+}
+
+bool Widget::redirectKeyToSearch(QKeyEvent *e) const {
+	if (_openedFolder
+		|| _openedForum
+		|| !_search->isVisible()
+		|| _search->hasFocus()) {
+		return false;
+	}
+	const auto character = !(e->modifiers() & ~Qt::ShiftModifier)
+		&& (e->key() != Qt::Key_Shift)
+		&& !e->text().isEmpty();
+	if (character) {
+		return true;
+	} else if (e != QKeySequence::Paste) {
+		return false;
+	}
+	const auto useSelectionMode = (e->key() == Qt::Key_Insert)
+		&& (e->modifiers() == (Qt::CTRL | Qt::SHIFT))
+		&& QGuiApplication::clipboard()->supportsSelection();
+	const auto pasteMode = useSelectionMode
+		? QClipboard::Selection
+		: QClipboard::Clipboard;
+	const auto data = QGuiApplication::clipboard()->mimeData(pasteMode);
+	return data && data->hasText();
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
