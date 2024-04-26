@@ -813,6 +813,7 @@ void Instance::show(
 			if (!urlChecked) {
 				break;
 			}
+			_fullRequested[_shownSession].emplace(event.url);
 			_shownSession->api().request(MTPmessages_GetWebPage(
 				MTP_string(event.url),
 				MTP_int(0)
@@ -947,6 +948,7 @@ void Instance::openWithIvPreferred(
 	};
 	_ivRequestSession = session;
 	_ivRequestUri = uri;
+	_fullRequested[session].emplace(url);
 	_ivRequestId = session->api().request(MTPmessages_GetWebPage(
 		MTP_string(url),
 		MTP_int(0)
