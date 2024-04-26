@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
 #include "main/session/send_as_peers.h"
@@ -137,7 +138,14 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		return {};
 	}
 	auto result = PossibleItemReactionsRef();
-	const auto peer = item->history()->peer;
+	auto peer = item->history()->peer;
+	if (item->isDiscussionPost()) {
+		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+			if (forwarded->savedFromPeer) {
+				peer = forwarded->savedFromPeer;
+			}
+		}
+	}
 	const auto session = &peer->session();
 	const auto reactions = &session->data().reactions();
 	const auto &full = reactions->list(Reactions::Type::Active);
