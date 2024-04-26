@@ -520,6 +520,9 @@ QByteArray Parser::block(
 	}, result);
 	if (!slideshow) {
 		result += caption(data.vcaption());
+		if (!collage) {
+			result = tag("div", { { "class", "media-outer" } }, result);
+		}
 	}
 	return result;
 }
@@ -585,6 +588,9 @@ QByteArray Parser::block(
 	}
 	if (!slideshow) {
 		result += caption(data.vcaption());
+		if (!collage) {
+			result = tag("div", { { "class", "media-outer" } }, result);
+		}
 	}
 	return result;
 }

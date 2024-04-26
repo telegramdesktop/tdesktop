@@ -1053,6 +1053,9 @@ section.channel > a > h4 {
 	display: block;
 	margin: 0 auto;
 }
+.media-outer {
+	margin-bottom: 16px;
+}
 .photo-wrap,
 .video-wrap {
 	width: 100%;
