@@ -958,6 +958,9 @@ void TabbedSelector::beforeHiding() {
 			_beforeHidingCallback(_currentTabType);
 		}
 	}
+	if (Ui::InFocusChain(this)) {
+		window()->setFocus();
+	}
 }
 
 void TabbedSelector::afterShown() {
