@@ -15,6 +15,7 @@ struct Options {
 };
 
 struct Prepared {
+	uint64 pageId = 0;
 	QString name;
 	QByteArray content;
 	QByteArray script;

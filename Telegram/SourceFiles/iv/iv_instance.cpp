@@ -742,9 +742,7 @@ void Instance::show(
 		not_null<Data*> data,
 		QString hash) {
 	const auto guard = gsl::finally([&] {
-		if (data->partial()) {
-			requestFull(session, data->id());
-		}
+		requestFull(session, data->id());
 	});
 	if (_shown && _shownSession == session) {
 		_shown->moveTo(data, hash);
@@ -833,6 +831,17 @@ void Instance::show(
 			}).fail([=] {
 				UrlClickHandler::Open(event.url);
 			}).send();
+			break;
+		case Type::Report:
+			if (const auto controller = _shownSession->tryResolveWindow()) {
+				controller->window().activate();
+				controller->showPeerByLink(Window::PeerByLinkInfo{
+					.usernameOrId = "previews",
+					.resolveType = Window::ResolveType::BotStart,
+					.startToken = ("webpage"
+						+ QString::number(event.context.toULongLong())),
+				});
+			}
 			break;
 		}
 	}, _shown->lifetime());

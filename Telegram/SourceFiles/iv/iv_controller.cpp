@@ -155,10 +155,6 @@ namespace {
 		+ "IV.init();"
 		+ page.script;
 
-	const auto contentAttributes = page.rtl
-		? " dir=\"rtl\" class=\"rtl\""_q
-		: QByteArray();
-
 	return R"(<!DOCTYPE html>
 <html)"_q
 	+ classAttribute
@@ -179,9 +175,7 @@ namespace {
 				<path d="M14.9972363,18 L9.13865768,12.1414214 C9.06055283,12.0633165 9.06055283,11.9366835 9.13865768,11.8585786 L14.9972363,6 L14.9972363,6" transform="translate(11.997236, 12.000000) scale(-1, -1) rotate(-90.000000) translate(-11.997236, -12.000000) "></path>
 			</svg>
 		</button>
-		<div class="page-scroll" tabindex="-1"><div class="page-slide">
-			<article)"_q + contentAttributes + ">"_q + page.content + R"(</article>
-		</div></div>
+		<div class="page-scroll" tabindex="-1">)"_q + page.content.trimmed() + R"(</div>
 		<script>)"_q + js + R"(</script>
 	</body>
 </html>
@@ -646,7 +640,12 @@ void Controller::processLink(const QString &url, const QString &context) {
 	const auto joinPrefix = u"join_link"_q;
 	const auto webpagePrefix = u"webpage"_q;
 	const auto viewerPrefix = u"viewer"_q;
-	if (context.startsWith(channelPrefix)) {
+	if (context == u"report-iv") {
+		_events.fire({
+			.type = Event::Type::Report,
+			.context = QString::number(compuseCurrentPageId()),
+		});
+	} else if (context.startsWith(channelPrefix)) {
 		_events.fire({
 			.type = Event::Type::OpenChannel,
 			.context = context.mid(channelPrefix.size()),
@@ -699,6 +698,13 @@ QString Controller::composeCurrentUrl() const {
 
 	return _pages[index].url
 		+ (_hash.isEmpty() ? u""_q : ('#' + _hash));
+}
+
+uint64 Controller::compuseCurrentPageId() const {
+	const auto index = _index.current();
+	Assert(index >= 0 && index < _pages.size());
+
+	return _pages[index].pageId;
 }
 
 void Controller::showMenu() {

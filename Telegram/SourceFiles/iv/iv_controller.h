@@ -63,6 +63,7 @@ public:
 			OpenLink,
 			OpenLinkExternal,
 			OpenMedia,
+			Report,
 		};
 		Type type = Type::Close;
 		QString url;
@@ -116,6 +117,7 @@ private:
 	void quit();
 
 	[[nodiscard]] QString composeCurrentUrl() const;
+	[[nodiscard]] uint64 compuseCurrentPageId() const;
 	void showShareMenu();
 	void destroyShareMenu();
 

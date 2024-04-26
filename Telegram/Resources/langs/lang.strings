@@ -5111,6 +5111,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_iv_share" = "Share";
 "lng_iv_join_channel" = "Join";
 "lng_iv_window_title" = "Instant View";
+"lng_iv_wrong_layout" = "Wrong layout?";
 
 "lng_limit_download_title" = "Download speed limited";
 "lng_limit_download_subscribe" = "Subscribe to {link} and increase download speed {increase}.";
