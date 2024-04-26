@@ -517,7 +517,6 @@ void CreateModerateMessagesBox(
 			}
 			wrap->toggle(!wrap->toggled(), anim::type::normal);
 			{
-				const auto start = crl::now();
 				inner->heightValue() | rpl::start_with_next([=] {
 					if (!wrap->animating()) {
 						scrollLifetime->destroy();
