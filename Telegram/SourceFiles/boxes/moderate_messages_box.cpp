@@ -43,36 +43,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-enum class ModerateOption {
-	Ban = (1 << 0),
-	DeleteAll = (1 << 1),
+using Users = std::vector<not_null<UserData*>>;
+
+struct ModerateOptions final {
+	bool allCanBan = false;
+	bool allCanDelete = false;
+	Users users;
 };
-inline constexpr bool is_flag_type(ModerateOption) { return true; }
-using ModerateOptions = base::flags<ModerateOption>;
 
 ModerateOptions CalculateModerateOptions(const HistoryItemsList &items) {
 	Expects(!items.empty());
 
+	auto result = ModerateOptions{
+		.allCanBan = true,
+		.allCanDelete = true,
+	};
+
 	const auto peer = items.front()->history()->peer;
-	auto allCanBan = true;
-	auto allCanDelete = true;
 	for (const auto &item : items) {
-		if (!allCanBan && !allCanDelete) {
-			return ModerateOptions(0);
+		if (!result.allCanBan && !result.allCanDelete) {
+			return {};
 		}
 		if (peer != item->history()->peer) {
-			return ModerateOptions(0);
+			return {};
 		}
 		if (!item->suggestBanReport()) {
-			allCanBan = false;
+			result.allCanBan = false;
 		}
 		if (!item->suggestDeleteAllReport()) {
-			allCanDelete = false;
+			result.allCanDelete = false;
+		}
+		if (const auto user = item->from()->asUser()) {
+			if (!ranges::contains(result.users, not_null{ user })) {
+				result.users.push_back(user);
+			}
 		}
 	}
-	return ModerateOptions(0)
-		| (allCanBan ? ModerateOption::Ban : ModerateOptions(0))
-		| (allCanDelete ? ModerateOption::DeleteAll : ModerateOptions(0));
+	return result;
 }
 
 class Button final : public Ui::RippleButton {
@@ -180,27 +187,16 @@ void CreateModerateMessagesBox(
 		not_null<Ui::GenericBox*> box,
 		const HistoryItemsList &items,
 		Fn<void()> confirmed) {
-	using Users = std::vector<not_null<UserData*>>;
 	struct Controller final {
 		rpl::event_stream<bool> toggleRequestsFromTop;
 		rpl::event_stream<bool> toggleRequestsFromInner;
 		rpl::event_stream<bool> checkAllRequests;
 		Fn<Users()> collectRequests;
 	};
-	const auto options = CalculateModerateOptions(items);
+	const auto [allCanBan, allCanDelete, users] = CalculateModerateOptions(
+		items);
 	const auto inner = box->verticalLayout();
 
-	const auto users = [&] {
-		auto result = Users();
-		for (const auto &item : items) {
-			if (const auto user = item->from()->asUser()) {
-				if (!ranges::contains(result, not_null{ user })) {
-					result.push_back(user);
-				}
-			}
-		}
-		return result;
-	}();
 	Assert(!users.empty());
 
 	const auto confirms = inner->lifetime().make_state<rpl::event_stream<>>();
@@ -460,7 +456,7 @@ void CreateModerateMessagesBox(
 		});
 	}
 
-	if (options & ModerateOption::DeleteAll) {
+	if (allCanDelete) {
 		Ui::AddSkip(inner);
 		Ui::AddSkip(inner);
 
@@ -490,7 +486,7 @@ void CreateModerateMessagesBox(
 			u->session().api().deleteAllFromParticipant(c, u);
 		});
 	}
-	if (options & ModerateOption::Ban) {
+	if (allCanBan) {
 		auto ownedWrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			inner,
 			object_ptr<Ui::VerticalLayout>(inner));
@@ -680,6 +676,6 @@ void CreateModerateMessagesBox(
 
 bool CanCreateModerateMessagesBox(const HistoryItemsList &items) {
 	const auto options = CalculateModerateOptions(items);
-	return (options & ModerateOption::Ban)
-		|| (options & ModerateOption::DeleteAll);
+	return (options.allCanBan || options.allCanDelete)
+		&& !options.users.empty();
 }
