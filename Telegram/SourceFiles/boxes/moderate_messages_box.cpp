@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_participants.h"
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "base/timer.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/toggle_arrow.h"
@@ -249,6 +251,42 @@ void CreateModerateMessagesBox(
 		}, checkbox->lifetime());
 	};
 
+	const auto isEnter = [=](not_null<QEvent*> event) {
+		if (event->type() == QEvent::KeyPress) {
+			if (const auto k = static_cast<QKeyEvent*>(event.get())) {
+				return (k->key() == Qt::Key_Enter)
+					|| (k->key() == Qt::Key_Return);
+			}
+		}
+		return false;
+	};
+
+	base::install_event_filter(box, [=](not_null<QEvent*> event) {
+		if (isEnter(event)) {
+			box->triggerButton(0);
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+
+	const auto handleSubmition = [=](not_null<Ui::Checkbox*> checkbox) {
+		base::install_event_filter(box, [=](not_null<QEvent*> event) {
+			if (!isEnter(event) || !checkbox->checked()) {
+				return base::EventFilterResult::Continue;
+			}
+			box->uiShow()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_gigagroup_warning_title(),
+				.confirmed = [=](Fn<void()> close) {
+					box->triggerButton(0);
+					close();
+				},
+				.confirmText = tr::lng_box_yes(),
+				.cancelText = tr::lng_box_no(),
+			}));
+			return base::EventFilterResult::Cancel;
+		});
+	};
+
 	const auto createUsersList = [&](not_null<Controller*> controller) {
 		const auto wrap = inner->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -399,6 +437,7 @@ void CreateModerateMessagesBox(
 			st::boxRowPadding + buttonPadding);
 		const auto controller = box->lifetime().make_state<Controller>();
 		appendList(report, controller);
+		handleSubmition(report);
 
 		const auto ids = items.front()->from()->owner().itemsToIds(items);
 		handleConfirmation(report, controller, [=](
@@ -443,6 +482,7 @@ void CreateModerateMessagesBox(
 
 		const auto controller = box->lifetime().make_state<Controller>();
 		appendList(deleteAll, controller);
+		handleSubmition(deleteAll);
 
 		handleConfirmation(deleteAll, controller, [=](
 				not_null<UserData*> u,
@@ -472,6 +512,7 @@ void CreateModerateMessagesBox(
 			st::boxRowPadding + buttonPadding);
 		const auto controller = box->lifetime().make_state<Controller>();
 		appendList(ban, controller);
+		handleSubmition(ban);
 
 		Ui::AddSkip(inner);
 		Ui::AddSkip(inner);
