@@ -185,7 +185,6 @@ void CreateModerateMessagesBox(
 		rpl::event_stream<bool> checkAllRequests;
 		Fn<Users()> collectRequests;
 	};
-	constexpr auto kSmallDelayMs = 5;
 	const auto options = CalculateModerateOptions(items);
 	const auto inner = box->verticalLayout();
 
@@ -211,6 +210,7 @@ void CreateModerateMessagesBox(
 
 	using Request = Fn<void(not_null<UserData*>, not_null<ChannelData*>)>;
 	const auto sequentiallyRequest = [=](Request request, Users users) {
+		constexpr auto kSmallDelayMs = 5;
 		const auto session = &items.front()->history()->session();
 		const auto history = items.front()->history();
 		const auto peerId = history->peer->id;
@@ -243,14 +243,8 @@ void CreateModerateMessagesBox(
 			not_null<Controller*> controller,
 			Request request) {
 		confirms->events() | rpl::start_with_next([=] {
-			if (checkbox->checked()) {
-				if (isSingle) {
-					const auto item = items.front();
-					const auto channel = item->history()->peer->asChannel();
-					request(users.front(), channel);
-				} else if (const auto collect = controller->collectRequests) {
-					sequentiallyRequest(request, collect());
-				}
+			if (checkbox->checked() && controller->collectRequests) {
+				sequentiallyRequest(request, controller->collectRequests());
 			}
 		}, checkbox->lifetime());
 	};
@@ -345,6 +339,11 @@ void CreateModerateMessagesBox(
 	const auto appendList = [&](
 			not_null<Ui::Checkbox*> checkbox,
 			not_null<Controller*> controller) {
+		if (isSingle) {
+			const auto user = users.front();
+			controller->collectRequests = [=] { return Users{ user }; };
+			return;
+		}
 		const auto button = Ui::CreateChild<Button>(inner, users.size());
 		button->resize(Button::ComputeSize(users.size()));
 
@@ -399,9 +398,8 @@ void CreateModerateMessagesBox(
 				st::defaultBoxCheckbox),
 			st::boxRowPadding + buttonPadding);
 		const auto controller = box->lifetime().make_state<Controller>();
-		if (!isSingle) {
-			appendList(report, controller);
-		}
+		appendList(report, controller);
+
 		const auto ids = items.front()->from()->owner().itemsToIds(items);
 		handleConfirmation(report, controller, [=](
 				not_null<UserData*> u,
@@ -444,9 +442,8 @@ void CreateModerateMessagesBox(
 			st::boxRowPadding + buttonPadding);
 
 		const auto controller = box->lifetime().make_state<Controller>();
-		if (!isSingle) {
-			appendList(deleteAll, controller);
-		}
+		appendList(deleteAll, controller);
+
 		handleConfirmation(deleteAll, controller, [=](
 				not_null<UserData*> u,
 				not_null<ChannelData*> c) {
@@ -474,9 +471,8 @@ void CreateModerateMessagesBox(
 				st::defaultBoxCheckbox),
 			st::boxRowPadding + buttonPadding);
 		const auto controller = box->lifetime().make_state<Controller>();
-		if (!isSingle) {
-			appendList(ban, controller);
-		}
+		appendList(ban, controller);
+
 		Ui::AddSkip(inner);
 		Ui::AddSkip(inner);
 
@@ -629,7 +625,6 @@ void CreateModerateMessagesBox(
 	const auto close = crl::guard(box, [=] { box->closeBox(); });
 	box->addButton(tr::lng_box_delete(), [=] {
 		confirms->fire({});
-		box->closeBox();
 		const auto data = &users.front()->session().data();
 		const auto ids = data->itemsToIds(items);
 		if (confirmed) {
