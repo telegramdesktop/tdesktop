@@ -2281,7 +2281,9 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 	](Fn<void()> &&close) {
 		close();
 		auto ids = QVector<MTPint>();
-		for (const auto item : session->data().idsToItems(list)) {
+		auto sorted = session->data().idsToItems(list);
+		ranges::sort(sorted, ranges::less(), &HistoryItem::date);
+		for (const auto &item : sorted) {
 			if (item->allowsSendNow()) {
 				ids.push_back(
 					MTP_int(session->scheduledMessages().lookupId(item)));
