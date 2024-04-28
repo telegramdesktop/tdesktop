@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/moderate_messages_box.h"
 
 #include "api/api_chat_participants.h"
+#include "api/api_messages_search.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/timer.h"
@@ -80,6 +81,24 @@ ModerateOptions CalculateModerateOptions(const HistoryItemsList &items) {
 		}
 	}
 	return result;
+}
+
+[[nodiscard]] rpl::producer<int> MessagesCountValue(
+		not_null<History*> history,
+		not_null<PeerData*> from) {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		auto search = lifetime.make_state<Api::MessagesSearch>(history);
+		consumer.put_next(0);
+
+		search->messagesFounds(
+		) | rpl::start_with_next([=](const Api::FoundMessages &found) {
+			consumer.put_next_copy(found.total);
+		}, lifetime);
+		search->searchMessages({ .from = from });
+
+		return lifetime;
+	};
 }
 
 class Button final : public Ui::RippleButton {
@@ -411,7 +430,7 @@ void CreateModerateMessagesBox(
 	};
 
 	Ui::AddSkip(inner);
-	box->addRow(
+	const auto title = box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			(items.size() == 1)
@@ -475,6 +494,22 @@ void CreateModerateMessagesBox(
 				false,
 				st::defaultBoxCheckbox),
 			st::boxRowPadding + buttonPadding);
+		if (isSingle) {
+			const auto history = items.front()->history();
+			tr::lng_selected_delete_sure(
+				lt_count,
+				rpl::combine(
+					MessagesCountValue(history, users.front()),
+					deleteAll->checkedValue()
+				) | rpl::map([s = items.size()](int all, bool checked) {
+					return float64((checked && all) ? all : s);
+				})
+			) | rpl::start_with_next([=](const QString &text) {
+				title->setText(text);
+				title->resizeToWidth(inner->width()
+					- rect::m::sum::h(st::boxRowPadding));
+			}, title->lifetime());
+		}
 
 		const auto controller = box->lifetime().make_state<Controller>();
 		appendList(deleteAll, controller);
