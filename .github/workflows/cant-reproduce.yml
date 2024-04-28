@@ -1,32 +1,11 @@
-name: No Response
+name: Can't reproduce.
 
-# Both `issue_comment` and `scheduled` event types are required for this Action
-# to work properly.
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 3 * * *'
 
 jobs:
-  waiting-for-answer:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: lee-dohm/no-response@v0.5.0
-        with:
-          token: ${{ github.token }}
-          responseRequiredLabel: waiting for answer
-
-  needs-user-action:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: lee-dohm/no-response@v0.5.0
-        with:
-          token: ${{ github.token }}
-          responseRequiredLabel: needs user action
-
   cant-reproduce:
-    if: github.event_name != 'issue_comment'
     runs-on: ubuntu-latest
     steps:
       - uses: lee-dohm/no-response@v0.5.0
