@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
+#include "core/application.h"
 #include "core/ui_integration.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -41,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_window.h"
 
 namespace {
 
@@ -713,4 +715,130 @@ bool CanCreateModerateMessagesBox(const HistoryItemsList &items) {
 	const auto options = CalculateModerateOptions(items);
 	return (options.allCanBan || options.allCanDelete)
 		&& !options.users.empty();
+}
+
+void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
+	const auto container = box->verticalLayout();
+
+	const auto maybeUser = peer->asUser();
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+
+	base::install_event_filter(box, [=](not_null<QEvent*> event) {
+		if (event->type() == QEvent::KeyPress) {
+			if (const auto k = static_cast<QKeyEvent*>(event.get())) {
+				if ((k->key() == Qt::Key_Enter)
+					|| (k->key() == Qt::Key_Return)) {
+					box->uiShow()->show(Ui::MakeConfirmBox({
+						.text = tr::lng_gigagroup_warning_title(),
+						.confirmed = [=](Fn<void()> close) {
+							box->triggerButton(0);
+							close();
+						},
+						.confirmText = tr::lng_box_yes(),
+						.cancelText = tr::lng_box_no(),
+					}));
+				}
+			}
+		}
+		return base::EventFilterResult::Continue;
+	});
+
+	const auto line = container->add(object_ptr<Ui::RpWidget>(container));
+	const auto &st = st::mainMenuUserpic;
+	line->resize(line->width(), st.size.height());
+
+	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+		line,
+		peer,
+		st);
+	userpic->showSavedMessagesOnSelf(true);
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		line,
+		peer->isSelf()
+			? tr::lng_saved_messages() | rpl::map(Ui::Text::Bold)
+			: maybeUser
+			? tr::lng_profile_delete_conversation() | rpl::map(Ui::Text::Bold)
+			: rpl::single(Ui::Text::Bold(peer->name())),
+		box->getDelegate()->style().title);
+	line->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		userpic->moveToLeft(st::boxRowPadding.left(), 0);
+		const auto skip = st::defaultBoxCheckbox.textPosition.x();
+		label->resizeToWidth(width
+			- rect::right(userpic)
+			- skip
+			- st::boxRowPadding.right());
+		label->moveToLeft(
+			rect::right(userpic) + skip,
+			((userpic->height() - label->height()) / 2));
+	}, label->lifetime());
+
+	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			peer->isSelf()
+				? tr::lng_sure_delete_saved_messages()
+				: maybeUser
+				? tr::lng_sure_delete_history(
+					lt_contact,
+					rpl::single(peer->name()))
+				: (peer->isChannel() && !peer->isMegagroup())
+				? tr::lng_sure_leave_channel()
+				: tr::lng_sure_leave_group(),
+			st::boxLabel));
+
+	const auto maybeCheckbox = [&]() -> Ui::Checkbox* {
+		if (!peer->canRevokeFullHistory()) {
+			return nullptr;
+		}
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		return box->addRow(
+			object_ptr<Ui::Checkbox>(
+				container,
+				maybeUser
+					? tr::lng_delete_for_other_check(
+						tr::now,
+						lt_user,
+						TextWithEntities{ maybeUser->firstName },
+						Ui::Text::RichLangValue)
+					: tr::lng_delete_for_everyone_check(
+						tr::now,
+						Ui::Text::WithEntities),
+				false,
+				st::defaultBoxCheckbox));
+	}();
+
+	Ui::AddSkip(container);
+
+	auto buttonText = maybeUser
+		? tr::lng_box_delete()
+		: !maybeCheckbox
+		? tr::lng_box_leave()
+		: maybeCheckbox->checkedValue() | rpl::map([](bool checked) {
+			return checked ? tr::lng_box_delete() : tr::lng_box_leave();
+		}) | rpl::flatten_latest();
+
+	const auto close = crl::guard(box, [=] { box->closeBox(); });
+	box->addButton(std::move(buttonText), [=] {
+		const auto revoke = maybeCheckbox && maybeCheckbox->checked();
+		Core::App().closeChatFromWindows(peer);
+		// Don't delete old history by default,
+		// because Android app doesn't.
+		//
+		//if (const auto from = peer->migrateFrom()) {
+		//	peer->session().api().deleteConversation(from, false);
+		//}
+		peer->session().api().deleteConversation(peer, revoke);
+		close();
+	}, st::attentionBoxButton);
+	box->addButton(tr::lng_cancel(), close);
 }

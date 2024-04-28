@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/max_invite_box.h"
+#include "boxes/moderate_messages_box.h"
 #include "boxes/choose_filter_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/pin_messages_box.h"
@@ -2549,9 +2550,7 @@ Fn<void()> ClearHistoryHandler(
 Fn<void()> DeleteAndLeaveHandler(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
-	return [=] {
-		controller->show(Box<DeleteMessagesBox>(peer, false));
-	};
+	return [=] { controller->show(Box(DeleteChatBox, peer)); };
 }
 
 void FillDialogsEntryMenu(
