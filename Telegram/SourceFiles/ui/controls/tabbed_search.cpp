@@ -273,6 +273,11 @@ void GroupsStrip::fireChosenGroup() {
 
 } // namespace
 
+const QString &PremiumGroupFakeEmoticon() {
+	static const auto result = u"*premium"_q;
+	return result;
+}
+
 SearchWithGroups::SearchWithGroups(
 	QWidget *parent,
 	SearchDescriptor descriptor)
@@ -359,7 +364,9 @@ void SearchWithGroups::initGroups() {
 	widget->chosen(
 	) | rpl::start_with_next([=](const GroupsStrip::Chosen &chosen) {
 		_chosenGroup = chosen.group->iconId;
-		_query = chosen.group->emoticons;
+		_query = (chosen.group->type == EmojiGroupType::Premium)
+			? std::vector{ PremiumGroupFakeEmoticon() }
+			: chosen.group->emoticons;
 		_debouncedQuery = chosen.group->emoticons;
 		_debounceTimer.cancel();
 		scrollGroupsToIcon(chosen.iconLeft, chosen.iconRight);

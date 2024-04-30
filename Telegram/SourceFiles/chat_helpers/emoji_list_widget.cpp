@@ -573,12 +573,17 @@ EmojiListWidget::~EmojiListWidget() {
 
 void EmojiListWidget::setupSearch() {
 	const auto session = &_show->session();
+	const auto type = (_mode == Mode::EmojiStatus)
+		? TabbedSearchType::Status
+		: (_mode == Mode::UserpicBuilder)
+		? TabbedSearchType::ProfilePhoto
+		: TabbedSearchType::Emoji;
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
 		_nextSearchQuery = std::move(query);
 		InvokeQueued(this, [=] {
 			applyNextSearchQuery();
 		});
-	}, session, (_mode == Mode::EmojiStatus), _mode == Mode::UserpicBuilder);
+	}, session, type);
 }
 
 void EmojiListWidget::applyNextSearchQuery() {

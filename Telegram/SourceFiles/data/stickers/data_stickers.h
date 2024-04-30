@@ -235,6 +235,8 @@ public:
 		const MTPmessages_FeaturedStickers &result);
 	void gifsReceived(const QVector<MTPDocument> &items, uint64 hash);
 
+	[[nodiscard]] std::vector<not_null<DocumentData*>> getPremiumList(
+		uint64 seed);
 	[[nodiscard]] std::vector<not_null<DocumentData*>> getListByEmoji(
 		std::vector<EmojiPtr> emoji,
 		uint64 seed,

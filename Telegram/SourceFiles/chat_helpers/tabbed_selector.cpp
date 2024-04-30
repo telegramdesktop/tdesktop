@@ -307,16 +307,17 @@ std::unique_ptr<Ui::TabbedSearch> MakeSearch(
 		const style::EmojiPan &st,
 		Fn<void(std::vector<QString>&&)> callback,
 		not_null<Main::Session*> session,
-		bool statusCategories,
-		bool profilePhotoCategories) {
+		TabbedSearchType type) {
 	using Descriptor = Ui::SearchDescriptor;
 	const auto owner = &session->data();
 	auto result = std::make_unique<Ui::TabbedSearch>(parent, st, Descriptor{
 		.st = st.search,
-		.groups = (profilePhotoCategories
+		.groups = ((type == TabbedSearchType::ProfilePhoto)
 			? owner->emojiStatuses().profilePhotoGroupsValue()
-			: statusCategories
+			: (type == TabbedSearchType::Status)
 			? owner->emojiStatuses().statusGroupsValue()
+			: (type == TabbedSearchType::Stickers)
+			? owner->emojiStatuses().stickerGroupsValue()
 			: owner->emojiStatuses().emojiGroupsValue()),
 		.customEmojiFactory = owner->customEmojiManager().factory(
 			Data::CustomEmojiManager::SizeTag::SetIcon,

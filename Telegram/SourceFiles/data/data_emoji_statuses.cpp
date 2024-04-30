@@ -153,6 +153,11 @@ auto EmojiStatuses::statusGroupsValue() const -> rpl::producer<Groups> {
 	return _statusGroups.data.value();
 }
 
+auto EmojiStatuses::stickerGroupsValue() const -> rpl::producer<Groups> {
+	const_cast<EmojiStatuses*>(this)->requestStickerGroups();
+	return _stickerGroups.data.value();
+}
+
 auto EmojiStatuses::profilePhotoGroupsValue() const
 -> rpl::producer<Groups> {
 	const_cast<EmojiStatuses*>(this)->requestProfilePhotoGroups();
@@ -172,6 +177,12 @@ void EmojiStatuses::requestStatusGroups() {
 		MTPmessages_GetEmojiStatusGroups(MTP_int(_statusGroups.hash)));
 }
 
+void EmojiStatuses::requestStickerGroups() {
+	requestGroups(
+		&_stickerGroups,
+		MTPmessages_GetEmojiStickerGroups(MTP_int(_stickerGroups.hash)));
+}
+
 void EmojiStatuses::requestProfilePhotoGroups() {
 	requestGroups(
 		&_profilePhotoGroups,
@@ -185,15 +196,24 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 	auto result = std::vector<Ui::EmojiGroup>();
 	result.reserve(list.size());
 	for (const auto &group : list) {
-		const auto &data = group.data();
-		auto emoticons = ranges::views::all(
-			data.vemoticons().v
-		) | ranges::views::transform([](const MTPstring &emoticon) {
-			return qs(emoticon);
-		}) | ranges::to_vector;
-		result.push_back({
-			.iconId = QString::number(data.vicon_emoji_id().v),
-			.emoticons = std::move(emoticons),
+		group.match([&](const MTPDemojiGroupPremium &data) {
+			result.push_back({
+				.iconId = QString::number(data.vicon_emoji_id().v),
+				.type = Ui::EmojiGroupType::Premium,
+			});
+		}, [&](const auto &data) {
+			auto emoticons = ranges::views::all(
+				data.vemoticons().v
+			) | ranges::views::transform([](const MTPstring &emoticon) {
+				return qs(emoticon);
+			}) | ranges::to_vector;
+			result.push_back({
+				.iconId = QString::number(data.vicon_emoji_id().v),
+				.emoticons = std::move(emoticons),
+				.type = (MTPDemojiGroupGreeting::Is<decltype(data)>()
+					? Ui::EmojiGroupType::Greeting
+					: Ui::EmojiGroupType::Normal),
+			});
 		});
 	}
 	return result;

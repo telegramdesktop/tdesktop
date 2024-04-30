@@ -1519,6 +1519,8 @@ emojiListNotModified#481eadfa = EmojiList;
 emojiList#7a1e11d1 hash:long document_id:Vector<long> = EmojiList;
 
 emojiGroup#7a9abda9 title:string icon_emoji_id:long emoticons:Vector<string> = EmojiGroup;
+emojiGroupGreeting#80d26cc7 title:string icon_emoji_id:long emoticons:Vector<string> = EmojiGroup;
+emojiGroupPremium#93bcf34 title:string icon_emoji_id:long = EmojiGroup;
 
 messages.emojiGroupsNotModified#6fb4ad87 = messages.EmojiGroups;
 messages.emojiGroups#881fb94b hash:int groups:Vector<EmojiGroup> = messages.EmojiGroups;
@@ -1762,7 +1764,7 @@ channels.sponsoredMessageReportResultChooseOption#846f9e42 title:string options:
 channels.sponsoredMessageReportResultAdsHidden#3e3bcf2f = channels.SponsoredMessageReportResult;
 channels.sponsoredMessageReportResultReported#ad798849 = channels.SponsoredMessageReportResult;
 
-stats.broadcastRevenueStats#d07b4bad top_hours_graph:StatsGraph revenue_graph:StatsGraph current_balance:long available_balance:long overall_revenue:long usd_rate:double = stats.BroadcastRevenueStats;
+stats.broadcastRevenueStats#5407e297 top_hours_graph:StatsGraph revenue_graph:StatsGraph balances:BroadcastRevenueBalances usd_rate:double = stats.BroadcastRevenueStats;
 
 stats.broadcastRevenueWithdrawalUrl#ec659737 url:string = stats.BroadcastRevenueWithdrawalUrl;
 
@@ -1776,6 +1778,8 @@ reactionNotificationsFromContacts#bac3a61a = ReactionNotificationsFrom;
 reactionNotificationsFromAll#4b9e22a0 = ReactionNotificationsFrom;
 
 reactionsNotifySettings#56e34970 flags:# messages_notify_from:flags.0?ReactionNotificationsFrom stories_notify_from:flags.1?ReactionNotificationsFrom sound:NotificationSound show_previews:Bool = ReactionsNotifySettings;
+
+broadcastRevenueBalances#8438f1c6 current_balance:long available_balance:long overall_revenue:long = BroadcastRevenueBalances;
 
 ---functions---
 
@@ -2165,6 +2169,7 @@ messages.sendQuickReplyMessages#6c750de1 peer:InputPeer shortcut_id:int id:Vecto
 messages.deleteQuickReplyMessages#e105e910 shortcut_id:int id:Vector<int> = Updates;
 messages.toggleDialogFilterTags#fd2dda49 enabled:Bool = Bool;
 messages.getMyStickers#d0b5e1fc offset_id:long limit:int = messages.MyStickers;
+messages.getEmojiStickerGroups#1dd840f5 hash:int = messages.EmojiGroups;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#19c2f763 flags:# pts:int pts_limit:flags.1?int pts_total_limit:flags.0?int date:int qts:int qts_limit:flags.2?int = updates.Difference;

@@ -1132,6 +1132,141 @@ void Stickers::gifsReceived(const QVector<MTPDocument> &items, uint64 hash) {
 	notifySavedGifsUpdated();
 }
 
+std::vector<not_null<DocumentData*>> Stickers::getPremiumList(uint64 seed) {
+	struct StickerWithDate {
+		not_null<DocumentData*> document;
+		TimeId date = 0;
+	};
+	auto result = std::vector<StickerWithDate>();
+	auto &sets = setsRef();
+	auto setsToRequest = base::flat_map<uint64, uint64>();
+
+	const auto add = [&](not_null<DocumentData*> document, TimeId date) {
+		if (ranges::find(result, document, [](const StickerWithDate &data) {
+			return data.document;
+		}) == result.end()) {
+			result.push_back({ document, date });
+		}
+	};
+
+	constexpr auto kSlice = 65536;
+	const auto CreateSortKey = [&](
+			not_null<DocumentData*> document,
+			int base) {
+		if (document->sticker() && document->sticker()->isAnimated()) {
+			base += kSlice;
+		}
+		return TimeId(base + int((document->id ^ seed) % kSlice));
+	};
+	const auto CreateRecentSortKey = [&](not_null<DocumentData*> document) {
+		return CreateSortKey(document, kSlice * 6);
+	};
+	auto myCounter = 0;
+	const auto CreateMySortKey = [&](not_null<DocumentData*> document) {
+		auto base = kSlice * 6;
+		if (!document->sticker() || !document->sticker()->isAnimated()) {
+			base -= kSlice;
+		}
+		return (base - (++myCounter));
+	};
+	const auto CreateFeaturedSortKey = [&](not_null<DocumentData*> document) {
+		return CreateSortKey(document, kSlice * 2);
+	};
+	const auto CreateOtherSortKey = [&](not_null<DocumentData*> document) {
+		return CreateSortKey(document, 0);
+	};
+	const auto InstallDateAdjusted = [&](
+			TimeId date,
+			not_null<DocumentData*> document) {
+		return (document->sticker() && document->sticker()->isAnimated())
+			? date
+			: date / 2;
+	};
+	const auto RecentInstallDate = [&](not_null<DocumentData*> document) {
+		Expects(document->sticker() != nullptr);
+
+		const auto sticker = document->sticker();
+		if (sticker->set.id) {
+			const auto setIt = sets.find(sticker->set.id);
+			if (setIt != sets.end()) {
+				return InstallDateAdjusted(setIt->second->installDate, document);
+			}
+		}
+		return TimeId(0);
+	};
+
+	auto recentIt = sets.find(Stickers::CloudRecentSetId);
+	if (recentIt != sets.cend()) {
+		const auto recent = recentIt->second.get();
+		const auto count = int(recent->stickers.size());
+		result.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			const auto document = recent->stickers[i];
+			auto index = i;
+			if (!document->isPremiumSticker()) {
+				continue;
+			} else {
+				index = recent->stickers.indexOf(document);
+			}
+			const auto usageDate = (recent->dates.empty() || index < 0)
+				? 0
+				: recent->dates[index];
+			const auto date = usageDate
+				? usageDate
+				: RecentInstallDate(document);
+			result.push_back({
+				document,
+				date ? date : CreateRecentSortKey(document) });
+		}
+	}
+	const auto addList = [&](
+			const StickersSetsOrder &order,
+			SetFlag skip) {
+		for (const auto setId : order) {
+			auto it = sets.find(setId);
+			if (it == sets.cend() || (it->second->flags & skip)) {
+				continue;
+			}
+			const auto set = it->second.get();
+			if (set->emoji.empty()) {
+				setsToRequest.emplace(set->id, set->accessHash);
+				set->flags |= SetFlag::NotLoaded;
+				continue;
+			}
+			const auto my = (set->flags & SetFlag::Installed);
+			result.reserve(result.size() + set->stickers.size());
+			for (const auto document : set->stickers) {
+				if (!document->isPremiumSticker()) {
+					continue;
+				}
+				const auto installDate = my ? set->installDate : TimeId(0);
+				const auto date = (installDate > 1)
+					? InstallDateAdjusted(installDate, document)
+					: my
+					? CreateMySortKey(document)
+					: CreateFeaturedSortKey(document);
+				add(document, date);
+			}
+		}
+	};
+
+	addList(setsOrder(), SetFlag::Archived);
+	addList(featuredSetsOrder(), SetFlag::Installed);
+
+	if (!setsToRequest.empty()) {
+		for (const auto &[setId, accessHash] : setsToRequest) {
+			session().api().scheduleStickerSetRequest(setId, accessHash);
+		}
+		session().api().requestStickerSets();
+	}
+
+	ranges::sort(result, std::greater<>(), &StickerWithDate::date);
+
+	return result
+		| ranges::views::transform(&StickerWithDate::document)
+		| ranges::to_vector;
+}
+
 std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		std::vector<EmojiPtr> emoji,
 		uint64 seed,
