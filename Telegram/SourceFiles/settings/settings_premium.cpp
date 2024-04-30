@@ -986,7 +986,7 @@ void Premium::setupContent() {
 		object_ptr<Ui::FlatLabel>(
 			content,
 			tr::lng_premium_summary_bottom_subtitle(
-			) | rpl::map(Ui::Text::Bold),
+			) | Ui::Text::ToBold(),
 			stLabel),
 		st::defaultSubsectionTitlePadding);
 	content->add(
@@ -1630,7 +1630,7 @@ void AddSummaryPremium(
 		const auto label = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				std::move(entry.title) | rpl::map(Ui::Text::Bold),
+				std::move(entry.title) | Ui::Text::ToBold(),
 				stLabel),
 			titlePadding);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);

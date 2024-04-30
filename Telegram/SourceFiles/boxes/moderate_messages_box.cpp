@@ -757,9 +757,9 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		line,
 		peer->isSelf()
-			? tr::lng_saved_messages() | rpl::map(Ui::Text::Bold)
+			? tr::lng_saved_messages() | Ui::Text::ToBold()
 			: maybeUser
-			? tr::lng_profile_delete_conversation() | rpl::map(Ui::Text::Bold)
+			? tr::lng_profile_delete_conversation() | Ui::Text::ToBold()
 			: rpl::single(Ui::Text::Bold(peer->name())),
 		box->getDelegate()->style().title);
 	line->widthValue(

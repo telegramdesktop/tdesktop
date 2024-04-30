@@ -185,7 +185,7 @@ void AddBusinessSummary(
 		const auto label = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				std::move(entry.title) | rpl::map(Ui::Text::Bold),
+				std::move(entry.title) | Ui::Text::ToBold(),
 				stLabel),
 			titlePadding);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);
