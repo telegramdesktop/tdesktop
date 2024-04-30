@@ -224,10 +224,12 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaGeoLive &media) -> Result {
+		const auto period = media.vperiod().v;
 		return media.vgeo().match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				Data::LocationPoint(point));
+				Data::LocationPoint(point),
+				media.vperiod().v);
 		}, [](const MTPDgeoPointEmpty &) -> Result {
 			return nullptr;
 		});
