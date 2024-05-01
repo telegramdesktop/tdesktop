@@ -632,7 +632,7 @@ historyPollRadio: Radio(defaultRadio) {
 	diameter: 18px;
 	thickness: 2px;
 	skip: 65px; // * 0.1
-	duration: 120;
+	duration: universalDuration;
 	rippleAreaPadding: 8px;
 }
 historyPollRadioOpacity: 0.7;
@@ -1070,3 +1070,9 @@ chatIntroWidth: 224px;
 chatIntroTitleMargin: margins(11px, 16px, 11px, 4px);
 chatIntroMargin: margins(11px, 0px, 11px, 0px);
 chatIntroStickerPadding: margins(10px, 8px, 10px, 16px);
+
+liveLocationLongInIcon: icon {{ "chat/live_location_long", msgInServiceFg }};
+liveLocationLongInIconSelected: icon {{ "chat/live_location_long", msgInServiceFgSelected }};
+liveLocationLongOutIcon: icon {{ "chat/live_location_long", msgOutServiceFg }};
+liveLocationLongOutIconSelected: icon {{ "chat/live_location_long", msgOutServiceFgSelected }};
+liveLocationRemainingSize: 28px;

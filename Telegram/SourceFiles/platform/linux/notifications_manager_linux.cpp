@@ -17,12 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "ui/empty_userpic.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "base/weak_ptr.h"
 #include "window/notifications_utilities.h"
-#include "styles/style_window.h"
 
 #include <QtCore/QBuffer>
 #include <QtCore/QVersionNumber>
@@ -302,21 +300,25 @@ bool NotificationData::init(
 		_body = msg.toStdString();
 	}
 
-	_actions.push_back("default");
-	_actions.push_back(tr::lng_open_link(tr::now).toStdString());
+	if (HasCapability("actions")) {
+		_actions.push_back("default");
+		_actions.push_back(tr::lng_open_link(tr::now).toStdString());
 
-	if (!options.hideMarkAsRead) {
-		// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
-		_actions.push_back("mail-mark-read");
-		_actions.push_back(tr::lng_context_mark_read(tr::now).toStdString());
-	}
+		if (!options.hideMarkAsRead) {
+			// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+			_actions.push_back("mail-mark-read");
+			_actions.push_back(
+				tr::lng_context_mark_read(tr::now).toStdString());
+		}
 
-	if (HasCapability("inline-reply") && !options.hideReplyButton) {
-		_actions.push_back("inline-reply");
-		_actions.push_back(tr::lng_notification_reply(tr::now).toStdString());
+		if (HasCapability("inline-reply")
+				&& !options.hideReplyButton) {
+			_actions.push_back("inline-reply");
+			_actions.push_back(
+				tr::lng_notification_reply(tr::now).toStdString());
 
-		_notificationRepliedSignalId
-			= _interface.signal_notification_replied().connect([=](
+			_notificationRepliedSignalId
+				= _interface.signal_notification_replied().connect([=](
 						XdgNotifications::Notifications,
 						uint id,
 						std::string text) {
@@ -328,51 +330,59 @@ bool NotificationData::init(
 						}
 					});
 				});
+		}
+
+		_actionInvokedSignalId = _interface.signal_action_invoked().connect(
+			[=](
+					XdgNotifications::Notifications,
+					uint id,
+					std::string actionName) {
+				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+					if (id == _notificationId) {
+						if (actionName == "default") {
+							_manager->notificationActivated(_id);
+						} else if (actionName == "mail-mark-read") {
+							_manager->notificationReplied(_id, {});
+						}
+					}
+				});
+			});
+
+		_activationTokenSignalId
+			= _interface.signal_activation_token().connect([=](
+					XdgNotifications::Notifications,
+					uint id,
+					std::string token) {
+				if (id == _notificationId) {
+					GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
+				}
+			});
 	}
 
-	_actionInvokedSignalId = _interface.signal_action_invoked().connect([=](
-			XdgNotifications::Notifications,
-			uint id,
-			std::string actionName) {
-		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			if (id == _notificationId) {
-				if (actionName == "default") {
-					_manager->notificationActivated(_id);
-				} else if (actionName == "mail-mark-read") {
-					_manager->notificationReplied(_id, {});
-				}
-			}
-		});
-	});
-
-	_activationTokenSignalId = _interface.signal_activation_token().connect(
-		[=](
-				XdgNotifications::Notifications,
-				uint id,
-				std::string token) {
-			if (id == _notificationId) {
-				GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
-			}
-		});
-
-	_hints.insert_value("action-icons", GLib::Variant::new_boolean(true));
+	if (HasCapability("action-icons")) {
+		_hints.insert_value("action-icons", GLib::Variant::new_boolean(true));
+	}
 
 	// suppress system sound if telegram sound activated,
 	// otherwise use system sound
-	if (Core::App().settings().soundNotify()) {
-		_hints.insert_value(
-			"suppress-sound",
-			GLib::Variant::new_boolean(true));
-	} else {
-		// sound name according to http://0pointer.de/public/sound-naming-spec.html
-		_hints.insert_value(
-			"sound-name",
-			GLib::Variant::new_string("message-new-instant"));
+	if (HasCapability("sound")) {
+		if (Core::App().settings().soundNotify()) {
+			_hints.insert_value(
+				"suppress-sound",
+				GLib::Variant::new_boolean(true));
+		} else {
+			// sound name according to http://0pointer.de/public/sound-naming-spec.html
+			_hints.insert_value(
+				"sound-name",
+				GLib::Variant::new_string("message-new-instant"));
+		}
 	}
 
-	_hints.insert_value(
-		"x-canonical-append",
-		GLib::Variant::new_string("true"));
+	if (HasCapability("x-canonical-append")) {
+		_hints.insert_value(
+			"x-canonical-append",
+			GLib::Variant::new_string("true"));
+	}
 
 	_hints.insert_value("category", GLib::Variant::new_string("im.received"));
 
@@ -438,9 +448,9 @@ void NotificationData::show() {
 	const auto weak = base::make_weak(this);
 	StartServiceAsync(_proxy.get_connection(), crl::guard(weak, [=] {
 		const auto iconName = _imageKey.empty()
-			|| _hints.lookup_value(_imageKey)
-				? std::string()
-				: base::IconName().toStdString();
+			|| !_hints.lookup_value(_imageKey)
+				? base::IconName().toStdString()
+				: std::string();
 
 		auto actions = _actions
 			| ranges::views::transform(&std::string::c_str)

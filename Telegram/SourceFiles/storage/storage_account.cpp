@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_peer.h"
 #include "storage/serialize_document.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
@@ -35,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_drafts.h"
 #include "export/export_settings.h"
+#include "webview/webview_interface.h"
 #include "window/themes/window_theme.h"
 
 namespace Storage {
@@ -91,6 +93,7 @@ enum { // Local Storage Keys
 	lskMasksKeys = 0x16, // no data
 	lskCustomEmojiKeys = 0x17, // no data
 	lskSearchSuggestions = 0x18, // no data
+	lskWebviewTokens = 0x19, // data: QByteArray bots, QByteArray other
 };
 
 auto EmptyMessageDraftSources()
@@ -303,6 +306,7 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 legacyBackgroundKeyDay = 0, legacyBackgroundKeyNight = 0;
 	quint64 userSettingsKey = 0, recentHashtagsAndBotsKey = 0, exportSettingsKey = 0;
 	quint64 searchSuggestionsKey = 0;
+	QByteArray webviewStorageTokenBots, webviewStorageTokenOther;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
 		map.stream >> keyType;
@@ -411,6 +415,11 @@ Account::ReadMapResult Account::readMapWith(
 		case lskSearchSuggestions: {
 			map.stream >> searchSuggestionsKey;
 		} break;
+		case lskWebviewTokens: {
+			map.stream
+				>> webviewStorageTokenBots
+				>> webviewStorageTokenOther;
+		} break;
 		default:
 			LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 			return ReadMapResult::Failed;
@@ -448,6 +457,8 @@ Account::ReadMapResult Account::readMapWith(
 	_exportSettingsKey = exportSettingsKey;
 	_searchSuggestionsKey = searchSuggestionsKey;
 	_oldMapVersion = mapData.version;
+	_webviewStorageIdBots.token = webviewStorageTokenBots;
+	_webviewStorageIdOther.token = webviewStorageTokenOther;
 
 	if (_oldMapVersion < AppVersion) {
 		writeMapDelayed();
@@ -553,6 +564,12 @@ void Account::writeMap() {
 		mapSize += sizeof(quint32) + 3 * sizeof(quint64);
 	}
 	if (_searchSuggestionsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+	if (!_webviewStorageIdBots.token.isEmpty()
+		|| !_webviewStorageIdOther.token.isEmpty()) {
+		mapSize += sizeof(quint32)
+			+ Serialize::bytearraySize(_webviewStorageIdBots.token)
+			+ Serialize::bytearraySize(_webviewStorageIdOther.token);
+	}
 
 	EncryptedDescriptor mapData(mapSize);
 	if (!self.isEmpty()) {
@@ -616,6 +633,13 @@ void Account::writeMap() {
 		mapData.stream << quint32(lskSearchSuggestions);
 		mapData.stream << quint64(_searchSuggestionsKey);
 	}
+	if (!_webviewStorageIdBots.token.isEmpty()
+		|| !_webviewStorageIdOther.token.isEmpty()) {
+		mapData.stream << quint32(lskWebviewTokens);
+		mapData.stream
+			<< _webviewStorageIdBots.token
+			<< _webviewStorageIdOther.token;
+	}
 	map.writeEncrypted(mapData, _localKey);
 
 	_mapChanged = false;
@@ -655,11 +679,27 @@ void Account::reset() {
 	_cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
 	_cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
 	_cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
+
+	const auto wvbots = _webviewStorageIdBots.path;
+	const auto wvother = _webviewStorageIdOther.path;
+	const auto wvclear = [](Webview::StorageId &storageId) {
+		Webview::ClearStorageDataByToken(
+			base::take(storageId).token.toStdString());
+	};
+	wvclear(_webviewStorageIdBots);
+	wvclear(_webviewStorageIdOther);
+
 	_mapChanged = true;
 	writeMap();
 	writeMtpData();
 
-	crl::async([base = _basePath, temp = _tempPath, names = std::move(names)] {
+	crl::async([
+		base = _basePath,
+		temp = _tempPath,
+		names = std::move(names),
+		wvbots,
+		wvother
+	] {
 		for (const auto &name : names) {
 			if (!name.endsWith(u"map0"_q)
 				&& !name.endsWith(u"map1"_q)
@@ -669,6 +709,12 @@ void Account::reset() {
 			}
 		}
 		QDir(LegacyTempDirectory()).removeRecursively();
+		if (!wvbots.isEmpty()) {
+			QDir(wvbots).removeRecursively();
+		}
+		if (!wvother.isEmpty()) {
+			QDir(wvother).removeRecursively();
+		}
 		QDir(temp).removeRecursively();
 	});
 
@@ -3078,6 +3124,54 @@ bool Account::isBotTrustedOpenWebView(PeerId botId) {
 	const auto i = _trustedBots.find(botId);
 	return (i != end(_trustedBots))
 		&& ((i->second & BotTrustFlag::OpenWebView) != 0);
+}
+
+void Account::enforceModernStorageIdBots() {
+	if (_webviewStorageIdBots.token.isEmpty()) {
+		_webviewStorageIdBots.token = QByteArray::fromStdString(
+			Webview::GenerateStorageToken());
+		writeMapDelayed();
+	}
+}
+
+Webview::StorageId Account::resolveStorageIdBots() {
+	if (!_webviewStorageIdBots) {
+		auto &token = _webviewStorageIdBots.token;
+		const auto legacy = Webview::LegacyStorageIdToken();
+		if (token.isEmpty()) {
+			auto legacyTaken = false;
+			const auto &list = _owner->domain().accounts();
+			for (const auto &[index, account] : list) {
+				if (account.get() != _owner.get()) {
+					const auto &id = account->local()._webviewStorageIdBots;
+					if (id.token == legacy) {
+						legacyTaken = true;
+						break;
+					}
+				}
+			}
+			token = legacyTaken
+				? QByteArray::fromStdString(Webview::GenerateStorageToken())
+				: legacy;
+			writeMapDelayed();
+		}
+		_webviewStorageIdBots.path = (token == legacy)
+			? (BaseGlobalPath() + u"webview"_q)
+			: (_databasePath + u"wvbots"_q);
+	}
+	return _webviewStorageIdBots;
+}
+
+Webview::StorageId Account::resolveStorageIdOther() {
+	if (!_webviewStorageIdOther) {
+		if (_webviewStorageIdOther.token.isEmpty()) {
+			_webviewStorageIdOther.token = QByteArray::fromStdString(
+				Webview::GenerateStorageToken());
+			writeMapDelayed();
+		}
+		_webviewStorageIdOther.path = _databasePath + u"wvother"_q;
+	}
+	return _webviewStorageIdOther;
 }
 
 bool Account::encrypt(

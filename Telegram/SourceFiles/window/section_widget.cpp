@@ -201,10 +201,12 @@ rpl::producer<const Data::WallPaper*> WallPaperResolved(
 		return result;
 	}
 	themes->refreshChatThemes();
-	return themes->chatThemesUpdated(
+	return rpl::single<const Data::WallPaper*>(
+		nullptr
+	) | rpl::then(themes->chatThemesUpdated(
 	) | rpl::take(1) | rpl::map([=] {
 		return fromThemes(true);
-	}) | rpl::flatten_latest();
+	}) | rpl::flatten_latest());
 }
 
 AbstractSectionWidget::AbstractSectionWidget(

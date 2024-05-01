@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
+#include "boxes/moderate_messages_box.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions_button.h"
@@ -4269,8 +4270,13 @@ void HistoryInner::deleteItem(not_null<HistoryItem*> item) {
 		_controller->cancelUploadLayer(item);
 		return;
 	}
-	const auto suggestModerateActions = true;
-	_controller->show(Box<DeleteMessagesBox>(item, suggestModerateActions));
+	const auto list = HistoryItemsList{ item };
+	if (CanCreateModerateMessagesBox(list)) {
+		_controller->show(Box(CreateModerateMessagesBox, list, nullptr));
+	} else {
+		const auto suggestModerate = false;
+		_controller->show(Box<DeleteMessagesBox>(item, suggestModerate));
+	}
 }
 
 bool HistoryInner::hasPendingResizedItems() const {

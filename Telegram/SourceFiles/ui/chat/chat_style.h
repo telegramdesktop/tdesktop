@@ -92,6 +92,7 @@ struct MessageStyle {
 	style::icon historyTranscribeLock = { Qt::Uninitialized };
 	style::icon historyTranscribeHide = { Qt::Uninitialized };
 	style::icon historyVoiceMessageTTL = { Qt::Uninitialized };
+	style::icon liveLocationLongIcon = { Qt::Uninitialized };
 	std::array<
 		std::unique_ptr<Text::QuotePaintCache>,
 		kColorPatternsCount> quoteCache;

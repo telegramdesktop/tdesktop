@@ -314,6 +314,7 @@ void Selector::validateCache(Entry &row) {
 	} else if (row.paletteVersion == version) {
 		return;
 	}
+	row.paletteVersion = version;
 	row.cache.fill(Qt::transparent);
 	auto font = style::ResolveFont(row.id, 0, st::boxFontSize);
 	auto p = QPainter(&row.cache);

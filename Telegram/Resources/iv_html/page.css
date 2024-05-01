@@ -134,8 +134,31 @@ html.custom_scroll ::-webkit-scrollbar-thumb:hover {
 .page-slide {
 	position: relative;
 	width: 100%;
+	min-height: 100%;
 	margin-left: 0%;
 	transition: margin 240ms ease-in-out;
+}
+.page-footer {
+	height: 32px;
+	margin-top: -32px;
+	background: var(--td-window-bg-over);
+}
+.page-footer .content {
+	padding: 3px 18px;
+	font-size: 15px;
+	color: var(--td-window-sub-text-fg);
+	text-align: center;
+}
+.page-footer .wrong {
+	position: relative;
+	padding: 5px;
+	margin: -5px;
+	color: var(--td-window-sub-text-fg);
+	text-decoration: none;
+	cursor: pointer;
+}
+.page-footer .wrong:hover {
+	text-decoration: underline;
 }
 .hidden-left,
 .hidden-right {
@@ -148,7 +171,7 @@ html.custom_scroll ::-webkit-scrollbar-thumb:hover {
 	margin-left: 100%;
 }
 article {
-	padding-bottom: 12px;
+	padding-bottom: 40px;
 	overflow-y: hidden;
 	overflow-x: auto;
 	white-space: pre-wrap;
@@ -893,6 +916,9 @@ section.related a.related-link:after {
 	right: 0;
 	bottom: 0;
 }
+section.related a.related-link:last-child:after {
+	border-bottom: 0px;
+}
 section.related .related-link-url {
 	display: block;
 	font-size: 15px;
@@ -1026,6 +1052,9 @@ section.channel > a > h4 {
 	font-size: 19px;
 	display: block;
 	margin: 0 auto;
+}
+.media-outer {
+	margin-bottom: 16px;
 }
 .photo-wrap,
 .video-wrap {

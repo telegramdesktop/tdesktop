@@ -139,8 +139,6 @@ private:
 	std::unique_ptr<StickerSet> _stickerSet;
 
 	struct SponsoredData final {
-		PeerData *peer = nullptr;
-		Ui::PeerUserpicView userpicView;
 		QString buttonText;
 		bool isLinkInternal = false;
 

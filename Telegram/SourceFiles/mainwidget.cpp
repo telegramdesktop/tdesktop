@@ -2644,6 +2644,10 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 	if (e->type() == QEvent::FocusIn) {
 		if (widget && relevantForDialogsFocus(widget)) {
 			_dialogs->updateHasFocus(widget);
+		} else if (widget == window()) {
+			crl::on_main(this, [=] {
+				_controller->widget()->setInnerFocus();
+			});
 		}
 	} else if (e->type() == QEvent::MouseButtonPress) {
 		if (widget && (widget->window() == window())) {

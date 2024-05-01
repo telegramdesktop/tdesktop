@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_user_names.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
+#include "base/event_filter.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/peers/edit_peer_common.h"
@@ -27,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/stickers_box.h"
 #include "boxes/username_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/tabbed_panel.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_channel.h"
@@ -47,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/boost_box.h"
+#include "ui/controls/emoji_button.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/rp_widget.h"
 #include "ui/vertical_list.h"
@@ -61,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "api/api_invite_links.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
@@ -533,7 +538,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 		_wrap,
 		object_ptr<Ui::InputField>(
 			_wrap,
-			st::defaultInputField,
+			st::editPeerTitleField,
 			(_isBot
 				? tr::lng_dlg_new_bot_name
 				: _isGroup
@@ -554,6 +559,76 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 	) | rpl::start_with_next([=] {
 		submitTitle();
 	}, result->entity()->lifetime());
+
+	{
+		const auto field = result->entity();
+		const auto container = _box->getDelegate()->outerContainer();
+		using Selector = ChatHelpers::TabbedSelector;
+		using PanelPtr = base::unique_qptr<ChatHelpers::TabbedPanel>;
+		const auto emojiPanelPtr = field->lifetime().make_state<PanelPtr>(
+			base::make_unique_q<ChatHelpers::TabbedPanel>(
+				container,
+				ChatHelpers::TabbedPanelDescriptor{
+					.ownedSelector = object_ptr<Selector>(
+						nullptr,
+						ChatHelpers::TabbedSelectorDescriptor{
+							.show = _navigation->uiShow(),
+							.st = st::defaultComposeControls.tabbed,
+							.level = Window::GifPauseReason::Layer,
+							.mode = Selector::Mode::PeerTitle,
+						}),
+				}));
+		const auto emojiPanel = emojiPanelPtr->get();
+		emojiPanel->setDesiredHeightValues(
+			1.,
+			st::emojiPanMinHeight / 2,
+			st::emojiPanMinHeight);
+		emojiPanel->hide();
+		emojiPanel->selector()->setCurrentPeer(_peer);
+		emojiPanel->selector()->emojiChosen(
+		) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
+			Ui::InsertEmojiAtCursor(field->textCursor(), data.emoji);
+			field->setFocus();
+		}, field->lifetime());
+		emojiPanel->setDropDown(true);
+
+		const auto emojiToggle = Ui::CreateChild<Ui::EmojiButton>(
+			field,
+			st::defaultComposeControls.files.emoji);
+		emojiToggle->show();
+		emojiToggle->installEventFilter(emojiPanel);
+		emojiToggle->addClickHandler([=] { emojiPanel->toggleAnimated(); });
+
+		const auto updateEmojiPanelGeometry = [=] {
+			const auto parent = emojiPanel->parentWidget();
+			const auto global = emojiToggle->mapToGlobal({ 0, 0 });
+			const auto local = parent->mapFromGlobal(global);
+			emojiPanel->moveTopRight(
+				local.y() + emojiToggle->height(),
+				local.x() + emojiToggle->width() * 3);
+		};
+
+		base::install_event_filter(container, [=](not_null<QEvent*> event) {
+			const auto type = event->type();
+			if (type == QEvent::Move || type == QEvent::Resize) {
+				crl::on_main(field, [=] { updateEmojiPanelGeometry(); });
+			}
+			return base::EventFilterResult::Continue;
+		});
+
+		field->widthValue() | rpl::start_with_next([=](int width) {
+			const auto &p = st::editPeerTitleEmojiPosition;
+			emojiToggle->moveToRight(p.x(), p.y(), width);
+			updateEmojiPanelGeometry();
+		}, emojiToggle->lifetime());
+
+		base::install_event_filter(emojiToggle, [=](not_null<QEvent*> event) {
+			if (event->type() == QEvent::Enter) {
+				updateEmojiPanelGeometry();
+			}
+			return base::EventFilterResult::Continue;
+		});
+	}
 
 	_controls.title = result->entity();
 	return result;

@@ -965,13 +965,20 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			if (Ui::SkipTranslate(state->labelText.current())) {
 				return;
 			}
-			auto item = tr::lng_context_translate(tr::now);
+			auto item = (request.selection.empty()
+				? tr::lng_context_translate
+				: tr::lng_context_translate_selected)(tr::now);
 			request.menu->addAction(std::move(item), [=] {
 				controller->window().show(Box(
 					Ui::TranslateBox,
 					peer,
 					MsgId(),
-					state->labelText.current(),
+					request.selection.empty()
+						? state->labelText.current()
+						: Ui::Text::Mid(
+							state->labelText.current(),
+							request.selection.from,
+							request.selection.to - request.selection.from),
 					false));
 			});
 		});

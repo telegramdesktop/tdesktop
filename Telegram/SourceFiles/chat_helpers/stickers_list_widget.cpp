@@ -547,6 +547,15 @@ void StickersListWidget::sendSearchRequest() {
 	}
 
 	_search->setLoading(true);
+
+	if (_searchQuery == Ui::PremiumGroupFakeEmoticon()) {
+		_search->setLoading(false);
+		_searchRequestId = 0;
+		_searchCache.emplace(_searchQuery, std::vector<uint64>());
+		showSearchResults();
+		return;
+	}
+
 	const auto hash = uint64(0);
 	_searchRequestId = _api.request(MTPmessages_SearchStickerSets(
 		MTP_flags(0),
@@ -570,10 +579,14 @@ void StickersListWidget::searchForSets(
 		return;
 	}
 
-	_filteredStickers = session().data().stickers().getListByEmoji(
-		std::move(emoji),
-		0,
-		true);
+	if (query == Ui::PremiumGroupFakeEmoticon()) {
+		_filteredStickers = session().data().stickers().getPremiumList(0);
+	} else {
+		_filteredStickers = session().data().stickers().getListByEmoji(
+			std::move(emoji),
+			0,
+			true);
+	}
 	if (_searchQuery != cleaned) {
 		_search->setLoading(false);
 		if (const auto requestId = base::take(_searchRequestId)) {
@@ -2604,15 +2617,20 @@ void StickersListWidget::beforeHiding() {
 
 void StickersListWidget::setupSearch() {
 	const auto session = &_show->session();
+	const auto type = (_mode == Mode::UserpicBuilder)
+		? TabbedSearchType::ProfilePhoto
+		: (_mode == Mode::ChatIntro)
+		? TabbedSearchType::Greeting
+		: TabbedSearchType::Stickers;
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
 		auto set = base::flat_set<EmojiPtr>();
 		auto text = ranges::accumulate(query, QString(), [](
-				QString a,
-				QString b) {
+			QString a,
+			QString b) {
 			return a.isEmpty() ? b : (a + ' ' + b);
 		});
 		searchForSets(std::move(text), SearchEmoji(query, set));
-	}, session, false, (_mode == Mode::UserpicBuilder));
+	}, session, type);
 }
 
 void StickersListWidget::displaySet(uint64 setId) {

@@ -62,6 +62,10 @@ void ConfirmPhone::resolve(
 				return bad("FirebaseSms");
 			}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
 				return bad("EmailCode");
+			}, [&](const MTPDauth_sentCodeTypeSmsWord &) {
+				return bad("SmsWord");
+			}, [&](const MTPDauth_sentCodeTypeSmsPhrase &) {
+				return bad("SmsPhrase");
 			}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
 				return bad("SetUpEmailRequired");
 			});

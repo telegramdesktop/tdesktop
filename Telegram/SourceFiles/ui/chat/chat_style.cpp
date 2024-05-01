@@ -543,6 +543,12 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		st::historyVoiceMessageInTTLSelected,
 		st::historyVoiceMessageOutTTL,
 		st::historyVoiceMessageOutTTLSelected);
+	make(
+		&MessageStyle::liveLocationLongIcon,
+		st::liveLocationLongInIcon,
+		st::liveLocationLongInIconSelected,
+		st::liveLocationLongOutIcon,
+		st::liveLocationLongOutIconSelected);
 
 	updateDarkValue();
 }

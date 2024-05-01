@@ -1108,8 +1108,6 @@ historyRecordVoiceFgOver: historyComposeIconFgOver;
 historyRecordVoiceFgInactive: attentionButtonFg;
 historyRecordVoiceFgActive: windowBgActive;
 historyRecordVoiceFgActiveIcon: windowFgActive;
-historyRecordVoiceShowDuration: 120;
-historyRecordVoiceDuration: 120;
 historyRecordVoice: icon {{ "chat/input_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "chat/input_record", historyRecordVoiceFgOver }};
 historyRecordVoiceOnceBg: icon {{ "voice_lock/audio_once_bg", historySendIconFg }};

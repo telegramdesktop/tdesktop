@@ -250,6 +250,8 @@ private:
 	void updateSuggestions(anim::type animated);
 	void processSearchFocusChange();
 
+	[[nodiscard]] bool redirectKeyToSearch(QKeyEvent *e) const;
+
 	MTP::Sender _api;
 
 	bool _dragInScroll = false;

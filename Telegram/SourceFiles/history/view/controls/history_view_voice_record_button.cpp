@@ -196,8 +196,8 @@ void VoiceRecordButton::init() {
 			}
 			update();
 		};
-		const auto duration = st::historyRecordVoiceDuration * 2;
-		_stateChangedAnimation.start(std::move(callback), 0., to, duration);
+		constexpr auto kDuration = st::universalDuration * 2;
+		_stateChangedAnimation.start(std::move(callback), 0., to, kDuration);
 	}, lifetime());
 }
 

@@ -100,6 +100,13 @@ public:
 	static Parsed ParseRecent(
 		not_null<ChannelData*> channel,
 		const TLMembers &data);
+	static void Restrict(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> participant,
+		ChatRestrictionsInfo oldRights,
+		ChatRestrictionsInfo newRights,
+		Fn<void()> onDone,
+		Fn<void()> onFail);
 	void add(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,

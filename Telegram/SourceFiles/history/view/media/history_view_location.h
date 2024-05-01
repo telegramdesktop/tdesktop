@@ -22,8 +22,14 @@ public:
 		not_null<Element*> parent,
 		not_null<Data::CloudImage*> data,
 		Data::LocationPoint point,
-		const QString &title = QString(),
-		const QString &description = QString());
+		Element *replacing = nullptr,
+		TimeId livePeriod = 0);
+	Location(
+		not_null<Element*> parent,
+		not_null<Data::CloudImage*> data,
+		Data::LocationPoint point,
+		const QString &title,
+		const QString &description);
 	~Location();
 
 	void draw(Painter &p, const PaintContext &context) const override;
@@ -58,15 +64,33 @@ public:
 		return isRoundedInBubbleBottom();
 	}
 
+	QImage locationTakeImage() override;
+
 	void unloadHeavyPart() override;
 	bool hasHeavyPart() const override;
 
 private:
+	struct Live;
+	[[nodiscard]] static std::unique_ptr<Live> CreateLiveTracker(
+		not_null<Element*> parent,
+		TimeId period);
+
 	void ensureMediaCreated() const;
 
 	void validateImageCache(
 		QSize outer,
 		Ui::BubbleRounding rounding) const;
+	void validateImageCache(
+		const QImage &source,
+		QImage &cache,
+		Ui::BubbleRounding &cacheRounding,
+		QSize outer,
+		Ui::BubbleRounding rounding) const;
+
+	void paintLiveRemaining(
+		QPainter &p,
+		const PaintContext &context,
+		QRect bottom) const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -79,7 +103,12 @@ private:
 	[[nodiscard]] int fullWidth() const;
 	[[nodiscard]] int fullHeight() const;
 
+	void checkLiveCrossfadeStart() const;
+	void updateLiveStatus();
+	void checkLiveFinish();
+
 	const not_null<Data::CloudImage*> _data;
+	mutable std::unique_ptr<Live> _live;
 	mutable std::shared_ptr<QImage> _media;
 	Ui::Text::String _title, _description;
 	ClickHandlerPtr _link;

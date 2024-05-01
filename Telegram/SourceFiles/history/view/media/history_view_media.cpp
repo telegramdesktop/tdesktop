@@ -356,6 +356,10 @@ std::unique_ptr<StickerPlayer> Media::stickerTakePlayer(
 	return nullptr;
 }
 
+QImage Media::locationTakeImage() {
+	return QImage();
+}
+
 TextState Media::getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,

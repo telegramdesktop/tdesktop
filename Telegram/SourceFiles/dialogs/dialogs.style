@@ -116,7 +116,7 @@ dialogsSpeakingDenominator: 8.;
 
 dialogsImportantBarHeight: 37px;
 
-dialogsWidthDuration: 120;
+dialogsWidthDuration: universalDuration;
 dialogsTextWidthMin: 150px;
 
 dialogsTextPalette: TextPalette(defaultTextPalette) {

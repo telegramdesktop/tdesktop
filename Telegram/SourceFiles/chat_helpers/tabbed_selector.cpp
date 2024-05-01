@@ -302,21 +302,39 @@ void TabbedSelector::Tab::saveScrollTop() {
 	_scrollTop = widget()->getVisibleTop();
 }
 
+[[nodiscard]] rpl::producer<std::vector<Ui::EmojiGroup>> GreetingGroupFirst(
+		not_null<Data::Session*> owner) {
+	return owner->emojiStatuses().stickerGroupsValue(
+	) | rpl::map([](std::vector<Ui::EmojiGroup> &&groups) {
+		const auto i = ranges::find(
+			groups,
+			Ui::EmojiGroupType::Greeting,
+			&Ui::EmojiGroup::type);
+		if (i != begin(groups) && i != end(groups)) {
+			ranges::rotate(begin(groups), i, i + 1);
+		}
+		return std::move(groups);
+	});
+}
+
 std::unique_ptr<Ui::TabbedSearch> MakeSearch(
 		not_null<Ui::RpWidget*> parent,
 		const style::EmojiPan &st,
 		Fn<void(std::vector<QString>&&)> callback,
 		not_null<Main::Session*> session,
-		bool statusCategories,
-		bool profilePhotoCategories) {
+		TabbedSearchType type) {
 	using Descriptor = Ui::SearchDescriptor;
 	const auto owner = &session->data();
 	auto result = std::make_unique<Ui::TabbedSearch>(parent, st, Descriptor{
 		.st = st.search,
-		.groups = (profilePhotoCategories
+		.groups = ((type == TabbedSearchType::ProfilePhoto)
 			? owner->emojiStatuses().profilePhotoGroupsValue()
-			: statusCategories
+			: (type == TabbedSearchType::Status)
 			? owner->emojiStatuses().statusGroupsValue()
+			: (type == TabbedSearchType::Stickers)
+			? owner->emojiStatuses().stickerGroupsValue()
+			: (type == TabbedSearchType::Greeting)
+			? GreetingGroupFirst(owner)
 			: owner->emojiStatuses().emojiGroupsValue()),
 		.customEmojiFactory = owner->customEmojiManager().factory(
 			Data::CustomEmojiManager::SizeTag::SetIcon,
@@ -378,7 +396,7 @@ TabbedSelector::TabbedSelector(
 		tabs.reserve(2);
 		tabs.push_back(createTab(SelectorTab::Stickers, 0));
 		tabs.push_back(createTab(SelectorTab::Masks, 1));
-	} else if (_mode == Mode::StickersOnly) {
+	} else if (_mode == Mode::StickersOnly || _mode == Mode::ChatIntro) {
 		tabs.reserve(1);
 		tabs.push_back(createTab(SelectorTab::Stickers, 0));
 	} else {
@@ -389,7 +407,9 @@ TabbedSelector::TabbedSelector(
 }())
 , _currentTabType(full()
 	? session().settings().selectorTab()
-	: (mediaEditor() || _mode == Mode::StickersOnly)
+	: (mediaEditor()
+		|| _mode == Mode::StickersOnly
+		|| _mode == Mode::ChatIntro)
 	? SelectorTab::Stickers
 	: SelectorTab::Emoji)
 , _hasEmojiTab(ranges::contains(_tabs, SelectorTab::Emoji, &Tab::type))
@@ -540,6 +560,8 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 					? EmojiMode::FullReactions
 					: _mode == Mode::RecentReactions
 					? EmojiMode::RecentReactions
+					: _mode == Mode::PeerTitle
+					? EmojiMode::PeerTitle
 					: EmojiMode::Full),
 				.customTextColor = _customTextColor,
 				.paused = paused,
@@ -552,7 +574,9 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 			using Descriptor = StickersListDescriptor;
 			return object_ptr<StickersListWidget>(this, Descriptor{
 				.show = _show,
-				.mode = StickersMode::Full,
+				.mode = (_mode == Mode::ChatIntro
+					? StickersMode::ChatIntro
+					: StickersMode::Full),
 				.paused = paused,
 				.st = &_st,
 				.features = _features,
@@ -957,6 +981,9 @@ void TabbedSelector::beforeHiding() {
 		if (_beforeHidingCallback) {
 			_beforeHidingCallback(_currentTabType);
 		}
+	}
+	if (Ui::InFocusChain(this)) {
+		window()->setFocus();
 	}
 }
 

@@ -1311,8 +1311,9 @@ std::unique_ptr<HistoryView::Media> MediaContact::createView(
 
 MediaLocation::MediaLocation(
 	not_null<HistoryItem*> parent,
-	const LocationPoint &point)
-: MediaLocation(parent, point, QString(), QString()) {
+	const LocationPoint &point,
+	TimeId livePeriod)
+: MediaLocation({}, parent, point, livePeriod, QString(), QString()) {
 }
 
 MediaLocation::MediaLocation(
@@ -1320,17 +1321,30 @@ MediaLocation::MediaLocation(
 	const LocationPoint &point,
 	const QString &title,
 	const QString &description)
+: MediaLocation({}, parent, point, TimeId(), title, description) {
+}
+
+MediaLocation::MediaLocation(
+	PrivateTag,
+	not_null<HistoryItem*> parent,
+	const LocationPoint &point,
+	TimeId livePeriod,
+	const QString &title,
+	const QString &description)
 : Media(parent)
 , _point(point)
 , _location(parent->history()->owner().location(point))
+, _livePeriod(livePeriod)
 , _title(title)
 , _description(description) {
 }
 
 std::unique_ptr<Media> MediaLocation::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaLocation>(
+		PrivateTag(),
 		parent,
 		_point,
+		_livePeriod,
 		_title,
 		_description);
 }
@@ -1339,8 +1353,14 @@ CloudImage *MediaLocation::location() const {
 	return _location;
 }
 
+QString MediaLocation::typeString() const {
+	return _livePeriod
+		? tr::lng_live_location(tr::now)
+		: tr::lng_maps_point(tr::now);
+}
+
 ItemPreview MediaLocation::toPreview(ToPreviewOptions options) const {
-	const auto type = tr::lng_maps_point(tr::now);
+	const auto type = typeString();
 	const auto hasMiniImages = false;
 	const auto text = TextWithEntities{ .text = _title };
 	return {
@@ -1349,9 +1369,7 @@ ItemPreview MediaLocation::toPreview(ToPreviewOptions options) const {
 }
 
 TextWithEntities MediaLocation::notificationText() const {
-	return WithCaptionNotificationText(
-		tr::lng_maps_point(tr::now),
-		{ .text = _title });
+	return WithCaptionNotificationText(typeString(), { .text = _title });
 }
 
 QString MediaLocation::pinnedTextSubstring() const {
@@ -1360,7 +1378,7 @@ QString MediaLocation::pinnedTextSubstring() const {
 
 TextForMimeData MediaLocation::clipboardText() const {
 	auto result = TextForMimeData::Simple(
-		u"[ "_q + tr::lng_maps_point(tr::now) + u" ]\n"_q);
+		u"[ "_q + typeString() + u" ]\n"_q);
 	auto titleResult = TextUtilities::ParseEntities(
 		_title,
 		Ui::WebpageTextTitleOptions().flags);
@@ -1389,12 +1407,19 @@ std::unique_ptr<HistoryView::Media> MediaLocation::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	return std::make_unique<HistoryView::Location>(
-		message,
-		_location,
-		_point,
-		_title,
-		_description);
+	return _livePeriod
+		? std::make_unique<HistoryView::Location>(
+			message,
+			_location,
+			_point,
+			replacing,
+			_livePeriod)
+		: std::make_unique<HistoryView::Location>(
+			message,
+			_location,
+			_point,
+			_title,
+			_description);
 }
 
 MediaCall::MediaCall(not_null<HistoryItem*> parent, const Call &call)
@@ -1857,23 +1882,21 @@ TextWithEntities MediaPoll::notificationText() const {
 }
 
 QString MediaPoll::pinnedTextSubstring() const {
-	return QChar(171) + _poll->question + QChar(187);
+	return QChar(171) + _poll->question.text + QChar(187);
 }
 
 TextForMimeData MediaPoll::clipboardText() const {
-	const auto text = u"[ "_q
-		+ tr::lng_in_dlg_poll(tr::now)
-		+ u" : "_q
-		+ _poll->question
-		+ u" ]"_q
-		+ ranges::accumulate(
-			ranges::views::all(
-				_poll->answers
-			) | ranges::views::transform([](const PollAnswer &answer) {
-				return "\n- " + answer.text;
-			}),
-			QString());
-	return TextForMimeData::Simple(text);
+	auto result = TextWithEntities();
+	result
+		.append(u"[ "_q)
+		.append(tr::lng_in_dlg_poll(tr::now))
+		.append(u" : "_q)
+		.append(_poll->question)
+		.append(u" ]"_q);
+	for (const auto &answer : _poll->answers) {
+		result.append(u"\n- "_q).append(answer.text);
+	}
+	return TextForMimeData::Rich(std::move(result));
 }
 
 bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {

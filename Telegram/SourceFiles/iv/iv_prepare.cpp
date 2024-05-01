@@ -142,6 +142,8 @@ private:
 	[[nodiscard]] QByteArray block(
 		const MTPDpageListOrderedItemBlocks &data);
 
+	[[nodiscard]] QByteArray wrap(const QByteArray &content, int views);
+
 	[[nodiscard]] QByteArray tag(
 		const QByteArray &name,
 		const QByteArray &body = {});
@@ -223,9 +225,13 @@ Parser::Parser(const Source &source, const Options &options)
 : /*_options(options)
 , */_fileOriginPostfix('/' + Number(source.pageId)) {
 	process(source);
+	_result.pageId = source.pageId;
 	_result.name = source.name;
 	_result.rtl = source.page.data().is_rtl();
-	_result.content = list(source.page.data().vblocks());
+
+	const auto views = source.page.data().vviews().value_or_empty();
+	const auto content = list(source.page.data().vblocks());
+	_result.content = wrap(content, views);
 }
 
 Prepared Parser::result() {
@@ -514,6 +520,9 @@ QByteArray Parser::block(
 	}, result);
 	if (!slideshow) {
 		result += caption(data.vcaption());
+		if (!collage) {
+			result = tag("div", { { "class", "media-outer" } }, result);
+		}
 	}
 	return result;
 }
@@ -579,6 +588,9 @@ QByteArray Parser::block(
 	}
 	if (!slideshow) {
 		result += caption(data.vcaption());
+		if (!collage) {
+			result = tag("div", { { "class", "media-outer" } }, result);
+		}
 	}
 	return result;
 }
@@ -923,6 +935,26 @@ QByteArray Parser::utf(const MTPstring &text) {
 
 QByteArray Parser::utf(const tl::conditional<MTPstring> &text) {
 	return text ? utf(*text) : QByteArray();
+}
+
+QByteArray Parser::wrap(const QByteArray &content, int views) {
+	const auto sep = " \xE2\x80\xA2 ";
+	const auto viewsText = views
+		? (tr::lng_stories_views(tr::now, lt_count_decimal, views) + sep)
+		: QString();
+	return R"(
+<div class="page-slide">
+	<article>)"_q + content + R"(</article>
+</div>
+<div class="page-footer">
+	<div class="content">
+		)"_q
+		+ viewsText.toUtf8()
+		+ R"(<a class="wrong" data-context="report-iv">)"_q
+		+ tr::lng_iv_wrong_layout(tr::now).toUtf8()
+		+ R"(</a>
+	</div>
+</div>)"_q;
 }
 
 QByteArray Parser::tag(

@@ -668,14 +668,14 @@ Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 	auto result = Poll();
 	data.vpoll().match([&](const MTPDpoll &poll) {
 		result.id = poll.vid().v;
-		result.question = ParseString(poll.vquestion());
+		result.question = ParseString(poll.vquestion().data().vtext());
 		result.closed = poll.is_closed();
 		result.answers = ranges::views::all(
 			poll.vanswers().v
 		) | ranges::views::transform([](const MTPPollAnswer &answer) {
 			return answer.match([](const MTPDpollAnswer &answer) {
 				auto result = Poll::Answer();
-				result.text = ParseString(answer.vtext());
+				result.text = ParseString(answer.vtext().data().vtext());
 				result.option = answer.voption().v;
 				return result;
 			});

@@ -2854,7 +2854,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_audio_count#other" = "{count} audio";
 
 "lng_ban_user" = "Ban User";
+"lng_ban_users" = "Ban users";
+"lng_restrict_users" = "Restrict users";
 "lng_delete_all_from_user" = "Delete all from {user}";
+"lng_delete_all_from_users" = "Delete all from users";
+"lng_restrict_user_part" = "Partially restrict this user {emoji}";
+"lng_restrict_users_part" = "Partially restrict users {emoji}";
+"lng_restrict_user_full" = "Fully ban this user {emoji}";
+"lng_restrict_users_full" = "Fully ban users {emoji}";
+"lng_restrict_users_part_single_header" = "What can this user do?";
+"lng_restrict_users_part_header#one" = "What can {count} selected user do?";
+"lng_restrict_users_part_header#other" = "What can {count} selected users do?";
 "lng_report_spam" = "Report Spam";
 "lng_report_spam_and_leave" = "Report spam and leave";
 "lng_report_spam_done" = "Thank you for your report.";
@@ -3082,6 +3092,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_unread_bar_some" = "Unread messages";
 
 "lng_maps_point" = "Location";
+"lng_live_location" = "Live Location";
+"lng_live_location_now" = "updated just now";
+"lng_live_location_minutes#one" = "updated {count} minute ago";
+"lng_live_location_minutes#other" = "updated {count} minutes ago";
+"lng_live_location_hours#one" = "updated {count} hour ago";
+"lng_live_location_hours#other" = "updated {count} hours ago";
+"lng_live_location_today" = "updated today at {time}";
+"lng_live_location_yesterday" = "updated yesterday at {time}";
+"lng_live_location_date_time" = "updated {date} at {time}";
 "lng_save_photo" = "Save image";
 "lng_save_video" = "Save video";
 "lng_save_audio_file" = "Save audio file";
@@ -5101,6 +5120,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_iv_share" = "Share";
 "lng_iv_join_channel" = "Join";
 "lng_iv_window_title" = "Instant View";
+"lng_iv_wrong_layout" = "Wrong layout?";
 
 "lng_limit_download_title" = "Download speed limited";
 "lng_limit_download_subscribe" = "Subscribe to {link} and increase download speed {increase}.";

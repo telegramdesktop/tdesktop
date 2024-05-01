@@ -224,10 +224,12 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaGeoLive &media) -> Result {
+		const auto period = media.vperiod().v;
 		return media.vgeo().match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				Data::LocationPoint(point));
+				Data::LocationPoint(point),
+				media.vperiod().v);
 		}, [](const MTPDgeoPointEmpty &) -> Result {
 			return nullptr;
 		});
@@ -3427,6 +3429,14 @@ void HistoryItem::setupForwardedComponent(const CreateConfig &config) {
 	forwarded->savedFromMsgId = config.savedFromMsgId;
 	forwarded->savedFromSender = _history->owner().peerLoaded(
 		config.savedFromSenderId);
+	if (forwarded->savedFromPeer
+		&& !forwarded->savedFromPeer->isFullLoaded()
+		&& forwarded->savedFromPeer->isChannel()) {
+		_history->session().api().requestFullPeer(forwarded->savedFromPeer);
+	} else if (config.savedFromPeer) {
+		_history->session().api().requestFullPeer(
+			_history->owner().peer(config.savedFromPeer));
+	}
 	forwarded->savedFromOutgoing = config.savedFromOutgoing;
 	if (!forwarded->savedFromSender
 		&& !config.savedFromSenderName.isEmpty()) {

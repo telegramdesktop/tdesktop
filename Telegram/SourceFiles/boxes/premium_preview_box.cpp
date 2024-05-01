@@ -913,7 +913,7 @@ void PreviewBox(
 	auto businessOrder = Settings::BusinessFeaturesOrder(&show->session());
 	state->order = ranges::contains(businessOrder, descriptor.section)
 		? std::move(businessOrder)
-		: ranges::contains(businessOrder, descriptor.section)
+		: ranges::contains(premiumOrder, descriptor.section)
 		? std::move(premiumOrder)
 		: std::vector{ descriptor.section };
 

@@ -190,6 +190,7 @@ public:
 	virtual std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements);
+	virtual QImage locationTakeImage();
 	virtual void checkAnimation() {
 	}
 

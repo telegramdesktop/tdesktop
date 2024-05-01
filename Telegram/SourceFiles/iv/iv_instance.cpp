@@ -31,13 +31,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_common.h" // Lottie::ReadContent.
 #include "main/main_account.h"
-#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/session/session_show.h"
 #include "media/streaming/media_streaming_loader.h"
 #include "media/view/media_view_open_common.h"
 #include "storage/file_download.h"
-#include "storage/storage_domain.h"
+#include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/text/text_utilities.h"
@@ -348,9 +347,8 @@ void Shown::showWindowed(Prepared result) {
 		createController();
 	}
 
-	const auto domain = &_session->domain();
 	_controller->show(
-		domain->local().webviewDataPath(),
+		_session->local().resolveStorageIdOther(),
 		std::move(result),
 		base::duplicate(_inChannelValues));
 }
@@ -744,9 +742,7 @@ void Instance::show(
 		not_null<Data*> data,
 		QString hash) {
 	const auto guard = gsl::finally([&] {
-		if (data->partial()) {
-			requestFull(session, data->id());
-		}
+		requestFull(session, data->id());
 	});
 	if (_shown && _shownSession == session) {
 		_shown->moveTo(data, hash);
@@ -817,6 +813,7 @@ void Instance::show(
 			if (!urlChecked) {
 				break;
 			}
+			_fullRequested[_shownSession].emplace(event.url);
 			_shownSession->api().request(MTPmessages_GetWebPage(
 				MTP_string(event.url),
 				MTP_int(0)
@@ -835,6 +832,17 @@ void Instance::show(
 			}).fail([=] {
 				UrlClickHandler::Open(event.url);
 			}).send();
+			break;
+		case Type::Report:
+			if (const auto controller = _shownSession->tryResolveWindow()) {
+				controller->window().activate();
+				controller->showPeerByLink(Window::PeerByLinkInfo{
+					.usernameOrId = "previews",
+					.resolveType = Window::ResolveType::BotStart,
+					.startToken = ("webpage"
+						+ QString::number(event.context.toULongLong())),
+				});
+			}
 			break;
 		}
 	}, _shown->lifetime());
@@ -940,6 +948,7 @@ void Instance::openWithIvPreferred(
 	};
 	_ivRequestSession = session;
 	_ivRequestUri = uri;
+	_fullRequested[session].emplace(url);
 	_ivRequestId = session->api().request(MTPmessages_GetWebPage(
 		MTP_string(url),
 		MTP_int(0)

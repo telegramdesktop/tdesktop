@@ -546,7 +546,7 @@ rightsToggle: Toggle(defaultToggle) {
 	vsize: 5px;
 	vshift: 1px;
 	stroke: 2px;
-	duration: 120;
+	duration: universalDuration;
 }
 
 rightsButton: SettingsButton(defaultSettingsButton) {
@@ -691,6 +691,10 @@ createPollOptionField: InputField(createPollField) {
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	heightMax: 68px;
 }
+createPollOptionFieldPremium: InputField(createPollOptionField) {
+	textMargins: margins(22px, 11px, 68px, 11px);
+}
+createPollOptionFieldPremiumEmojiPosition: point(15px, -1px);
 createPollSolutionField: InputField(createPollField) {
 	textMargins: margins(0px, 4px, 0px, 4px);
 	border: 1px;
@@ -704,7 +708,7 @@ createPollOptionRemove: CrossButton {
 	cross: CrossAnimation {
 		size: 22px;
 		skip: 6px;
-		stroke: 1.;
+		stroke: 1.5;
 		minScale: 0.3;
 	}
 	crossFg: boxTitleCloseFg;
@@ -718,6 +722,7 @@ createPollOptionRemove: CrossButton {
 	}
 }
 createPollOptionRemovePosition: point(11px, 9px);
+createPollOptionEmojiPositionSkip: 4px;
 createPollWarning: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	palette: TextPalette(defaultTextPalette) {
@@ -1073,4 +1078,24 @@ collectibleBox: Box(defaultBox) {
 	buttonPadding: margins(24px, 12px, 24px, 12px);
 	buttonHeight: 36px;
 	button: collectibleCopy;
+}
+
+moderateBoxUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(34px, 42px);
+	photoSize: 34px;
+	photoPosition: point(0px, 4px);
+}
+moderateBoxExpand: icon {{ "chat/reply_type_group", boxTextFg }};
+moderateBoxExpandHeight: 20px;
+moderateBoxExpandRight: 10px;
+moderateBoxExpandInnerSkip: 2px;
+moderateBoxExpandFont: font(11px);
+moderateBoxExpandToggleSize: 4px;
+moderateBoxExpandToggleFourStrokes: 3px;
+moderateBoxExpandIcon: icon{{ "info/edit/expand_arrow_small-flip_vertical", windowActiveTextFg }};
+moderateBoxExpandIconDown: icon{{ "info/edit/expand_arrow_small", windowActiveTextFg }};
+moderateBoxDividerLabel: FlatLabel(boxDividerLabel) {
+	palette: TextPalette(defaultTextPalette) {
+		selectLinkFg: windowActiveTextFg;
+	}
 }

@@ -476,7 +476,7 @@ void StickerPanel::create(const Descriptor &descriptor) {
 				.show = controller->uiShow(),
 				.st = st::backgroundEmojiPan,
 				.level = Window::GifPauseReason::Layer,
-				.mode = Mode::StickersOnly,
+				.mode = Mode::ChatIntro,
 				.features = {
 					.megagroupSet = false,
 					.stickersSettings = false,

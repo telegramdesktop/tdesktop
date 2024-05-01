@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "boxes/share_box.h"
 #include "boxes/edit_caption_box.h"
+#include "boxes/moderate_messages_box.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h" // ShowAboutGigagroup.
@@ -7953,15 +7954,23 @@ void HistoryWidget::forwardSelected() {
 void HistoryWidget::confirmDeleteSelected() {
 	if (!_list) return;
 
-	auto items = _list->getSelectedItems();
-	if (items.empty()) {
+	auto ids = _list->getSelectedItems();
+	if (ids.empty()) {
 		return;
 	}
-	auto box = Box<DeleteMessagesBox>(&session(), std::move(items));
-	box->setDeleteConfirmedCallback(crl::guard(this, [=] {
-		clearSelected();
-	}));
-	controller()->show(std::move(box));
+	const auto items = session().data().idsToItems(ids);
+	if (CanCreateModerateMessagesBox(items)) {
+		controller()->show(Box(
+			CreateModerateMessagesBox,
+			items,
+			crl::guard(this, [=] { clearSelected(); })));
+	} else {
+		auto box = Box<DeleteMessagesBox>(&session(), std::move(ids));
+		box->setDeleteConfirmedCallback(crl::guard(this, [=] {
+			clearSelected();
+		}));
+		controller()->show(std::move(box));
+	}
 }
 
 void HistoryWidget::escape() {

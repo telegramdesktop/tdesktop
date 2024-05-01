@@ -35,9 +35,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_palette_colorizer.h"
 #include "ui/ui_utility.h"
 #include "ui/boxes/confirm_box.h"
-#include "webview/webview_interface.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
+#include "webview/webview_common.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 

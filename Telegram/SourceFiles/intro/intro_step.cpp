@@ -224,6 +224,7 @@ void Step::createSession(
 	account->createSession(user, std::move(settings));
 
 	// "this" is already deleted here by creating the main widget.
+	account->local().enforceModernStorageIdBots();
 	account->local().writeMtpData();
 	auto &session = account->session();
 	session.data().chatsFilters().setPreloaded(filters);
@@ -368,6 +369,10 @@ void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 		bad("FirebaseSms");
 	}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
 		bad("EmailCode");
+	}, [&](const MTPDauth_sentCodeTypeSmsWord &) {
+		bad("SmsWord");
+	}, [&](const MTPDauth_sentCodeTypeSmsPhrase &) {
+		bad("SmsPhrase");
 	}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
 		bad("SetUpEmailRequired");
 	});
