@@ -7,66 +7,70 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_actions.h"
 
+#include "api/api_blocked_peers.h"
 #include "api/api_chat_participants.h"
+#include "apiwrap.h"
 #include "base/options.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
-#include "data/business/data_business_common.h"
-#include "data/business/data_business_info.h"
-#include "data/data_peer_values.h"
-#include "data/data_session.h"
-#include "data/data_folder.h"
-#include "data/data_forum_topic.h"
-#include "data/data_channel.h"
-#include "data/data_changes.h"
-#include "data/data_chat.h"
-#include "data/data_user.h"
-#include "data/notify/data_notify_settings.h"
-#include "ui/vertical_list.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/padding_wrap.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/widgets/shadow.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/popup_menu.h"
-#include "ui/boxes/report_box.h"
-#include "ui/layers/generic_box.h"
-#include "ui/toast/toast.h"
-#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
-#include "ui/text/text_variant.h"
-#include "history/history_location_manager.h" // LocationClickHandler.
-#include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/share_box.h"
 #include "boxes/translate_box.h"
-#include "lang/lang_keys.h"
-#include "menu/menu_mute.h"
+#include "core/application.h"
+#include "core/click_handler_types.h"
+#include "data/business/data_business_common.h"
+#include "data/business/data_business_info.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_folder.h"
+#include "data/data_forum_topic.h"
+#include "data/data_peer_values.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
+#include "data/notify/data_notify_settings.h"
+#include "dialogs/ui/dialogs_layout.h"
+#include "dialogs/ui/dialogs_message_view.h"
 #include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
+#include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
+#include "history/view/history_view_item_preview.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_phone_menu.h"
-#include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_text.h"
+#include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_widget.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "menu/menu_mute.h"
 #include "support/support_helper.h"
-#include "window/window_session_controller.h"
+#include "ui/boxes/report_box.h"
+#include "ui/controls/userpic_button.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/text/text_variant.h"
+#include "ui/toast/toast.h"
+#include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h" // Window::Controller::show.
 #include "window/window_peer_menu.h"
-#include "mainwidget.h"
-#include "mainwindow.h" // MainWindow::controller.
-#include "main/main_session.h"
-#include "core/application.h"
-#include "core/click_handler_types.h"
-#include "apiwrap.h"
-#include "api/api_blocked_peers.h"
+#include "window/window_session_controller.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -1228,63 +1232,250 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 		_wrap,
 		object_ptr<Ui::VerticalLayout>(_wrap));
 	const auto container = result->entity();
+	const auto window = _controller->parentController();
 
 	result->toggleOn(PersonalChannelValue(
 		user
 	) | rpl::map(rpl::mappers::_1 != nullptr));
 	result->finishAnimating();
 
-	Ui::AddDivider(container);
-
+	auto channelToggleValue = PersonalChannelValue(
+		user
+	) | rpl::map([=] { return !!user->personalChannelId(); });
 	auto channel = PersonalChannelValue(
 		user
 	) | rpl::start_spawning(result->lifetime());
-	auto text = rpl::duplicate(
-		channel
-	) | rpl::map([=](ChannelData *channel) {
-		return channel ? NameValue(channel) : rpl::single(QString());
-	}) | rpl::flatten_latest() | rpl::map([](const QString &name) {
-		return name.isEmpty() ? TextWithEntities() : Ui::Text::Link(name);
-	});
-	auto label = rpl::combine(
-		tr::lng_info_personal_channel_label(Ui::Text::WithEntities),
-		rpl::duplicate(channel)
-	) | rpl::map([](TextWithEntities &&text, ChannelData *channel) {
-		const auto count = channel ? channel->membersCount() : 0;
-		if (count > 1) {
-			text.append(
-				QString::fromUtf8(" \xE2\x80\xA2 ")
-			).append(tr::lng_chat_status_subscribers(
-				tr::now,
-				lt_count_decimal,
-				count));
-		}
-		return text;
-	});
-	auto line = CreateTextWithLabel(
-		result,
-		std::move(label),
-		std::move(text),
-		st::infoLabel,
-		st::infoLabeled,
-		st::infoProfileLabeledPadding);
-	container->add(std::move(line.wrap));
 
-	line.text->setClickHandlerFilter([
-		=,
-		window = _controller->parentController()](
-			const ClickHandlerPtr &handler,
-			Qt::MouseButton button) {
-		if (const auto channelId = user->personalChannelId()) {
-			window->showPeerInfo(peerFromChannel(channelId));
-		}
-		return false;
-	});
+	const auto channelLabelFactory = [=](rpl::producer<ChannelData*> c) {
+		return rpl::combine(
+			tr::lng_info_personal_channel_label(Ui::Text::WithEntities),
+			std::move(c)
+		) | rpl::map([](TextWithEntities &&text, ChannelData *channel) {
+			const auto count = channel ? channel->membersCount() : 0;
+			if (count > 1) {
+				text.append(
+					QString::fromUtf8(" \xE2\x80\xA2 ")
+				).append(tr::lng_chat_status_subscribers(
+					tr::now,
+					lt_count_decimal,
+					count));
+			}
+			return text;
+		});
+	};
 
-	object_ptr<FloatingIcon>(
-		result,
-		st::infoIconMediaChannel,
-		st::infoPersonalChannelIconPosition);
+	{
+		const auto onlyChannelWrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		onlyChannelWrap->toggleOn(rpl::duplicate(channelToggleValue)
+			| rpl::map(!rpl::mappers::_1));
+		onlyChannelWrap->finishAnimating();
+
+		Ui::AddDivider(onlyChannelWrap->entity());
+
+		auto text = rpl::duplicate(
+			channel
+		) | rpl::map([=](ChannelData *channel) {
+			return channel ? NameValue(channel) : rpl::single(QString());
+		}) | rpl::flatten_latest() | rpl::map([](const QString &name) {
+			return name.isEmpty() ? TextWithEntities() : Ui::Text::Link(name);
+		});
+		auto line = CreateTextWithLabel(
+			result,
+			channelLabelFactory(rpl::duplicate(channel)),
+			std::move(text),
+			st::infoLabel,
+			st::infoLabeled,
+			st::infoProfileLabeledPadding);
+		onlyChannelWrap->entity()->add(std::move(line.wrap));
+
+		line.text->setClickHandlerFilter([=](
+				const ClickHandlerPtr &handler,
+				Qt::MouseButton button) {
+			if (const auto channelId = user->personalChannelId()) {
+				window->showPeerInfo(peerFromChannel(channelId));
+			}
+			return false;
+		});
+
+		object_ptr<FloatingIcon>(
+			onlyChannelWrap,
+			st::infoIconMediaChannel,
+			st::infoPersonalChannelIconPosition);
+	}
+
+	{
+		const auto messageChannelWrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		messageChannelWrap->toggleOn(rpl::duplicate(channelToggleValue));
+		messageChannelWrap->finishAnimating();
+
+		const auto clear = [=] {
+			while (messageChannelWrap->entity()->count()) {
+				delete messageChannelWrap->entity()->widgetAt(0);
+			}
+		};
+
+		const auto rebuild = [=](
+				not_null<HistoryItem*> item,
+				anim::type animated) {
+			const auto &stUserpic = st::infoPersonalChannelUserpic;
+			const auto &stLabeled = st::infoProfileLabeledPadding;
+
+			messageChannelWrap->toggle(false, anim::type::instant);
+			clear();
+			Ui::AddDivider(messageChannelWrap->entity());
+			Ui::AddSkip(messageChannelWrap->entity());
+
+			const auto inner = messageChannelWrap->entity()->add(
+				object_ptr<Ui::VerticalLayout>(messageChannelWrap->entity()));
+
+			const auto line = inner->add(
+				object_ptr<Ui::FixedHeightWidget>(
+					inner,
+					stUserpic.photoSize + rect::m::sum::v(stLabeled)));
+			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+				line,
+				item->history()->peer,
+				st::infoPersonalChannelUserpic);
+
+			userpic->moveToLeft(
+				-st::infoPersonalChannelUserpicSkip
+					+ (stLabeled.left() - stUserpic.photoSize) / 2,
+				stLabeled.top());
+			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+			const auto date = Ui::CreateChild<Ui::FlatLabel>(
+				line,
+				Ui::FormatDialogsDate(ItemDateTime(item)),
+				st::infoPersonalChannelDateLabel);
+
+			const auto name = Ui::CreateChild<Ui::FlatLabel>(
+				line,
+				NameValue(item->history()->peer),
+				st::infoPersonalChannelNameLabel);
+
+			const auto preview = Ui::CreateChild<Ui::RpWidget>(line);
+			auto &lifetime = preview->lifetime();
+			using namespace Dialogs::Ui;
+			const auto previewView = lifetime.make_state<MessageView>();
+			preview->resize(0, st::infoLabeled.style.font->height);
+			preview->paintRequest(
+			) | rpl::start_with_next([=](const QRect &rect) {
+				auto p = Painter(preview);
+				if (previewView->prepared(item, nullptr)) {
+					previewView->paint(p, preview->rect(), {
+						.st = &st::defaultDialogRow,
+						.currentBg = st::boxBg->b,
+					});
+				} else if (!previewView->dependsOn(item)) {
+					p.setPen(st::infoPersonalChannelDateLabel.textFg);
+					p.setBrush(Qt::NoBrush);
+					p.setFont(st::infoPersonalChannelDateLabel.style.font);
+					p.drawText(
+						preview->rect(),
+						tr::lng_contacts_loading(tr::now),
+						style::al_left);
+					previewView->prepare(
+						item,
+						nullptr,
+						[=] { preview->update(); },
+						{});
+					preview->update();
+				}
+			}, preview->lifetime());
+
+			line->sizeValue(
+			) | rpl::start_with_next([=](const QSize &size) {
+				const auto left = stLabeled.left();
+				const auto right = st::infoPersonalChannelDateSkip;
+				const auto top = stLabeled.top();
+				date->moveToRight(right, top);
+
+				name->resizeToWidth(size.width()
+					- left
+					- date->width()
+					- st::defaultVerticalListSkip
+					- right);
+				name->moveToLeft(left, top);
+
+				preview->resize(
+					size.width() - left - right,
+					st::infoLabeled.style.font->height);
+				preview->moveToLeft(
+					left,
+					size.height() - stLabeled.bottom() - preview->height());
+			}, preview->lifetime());
+
+			{
+				inner->add(
+					object_ptr<Ui::FlatLabel>(
+						inner,
+						channelLabelFactory(
+							rpl::single(item->history()->peer->asChannel())),
+						st::infoLabel),
+					QMargins(
+						st::infoProfileLabeledPadding.left(),
+						0,
+						st::infoProfileLabeledPadding.right(),
+						st::infoProfileLabeledPadding.bottom()));
+			}
+			{
+				const auto button = Ui::CreateChild<Ui::RippleButton>(
+					messageChannelWrap->entity(),
+					st::defaultRippleAnimation);
+				button->paintRequest(
+				) | rpl::start_with_next([=](const QRect &rect) {
+					auto p = QPainter(button);
+					button->paintRipple(p, 0, 0);
+				}, button->lifetime());
+				inner->geometryValue(
+				) | rpl::start_with_next([=](const QRect &rect) {
+					button->setGeometry(rect);
+				}, button->lifetime());
+				button->setClickedCallback([=, msg = item->fullId().msg] {
+					window->showPeerHistory(
+						item->history()->peer,
+						Window::SectionShow::Way::Forward,
+						msg);
+				});
+				button->lower();
+			}
+			inner->setAttribute(Qt::WA_TransparentForMouseEvents);
+			Ui::AddSkip(messageChannelWrap->entity());
+
+			Ui::ToggleChildrenVisibility(messageChannelWrap->entity(), true);
+			Ui::ToggleChildrenVisibility(line, true);
+			messageChannelWrap->toggle(true, animated);
+		};
+
+		rpl::duplicate(
+			channel
+		) | rpl::start_with_next([=](ChannelData *channel) {
+			clear();
+			if (!channel) {
+				return;
+			}
+			const auto id = FullMsgId(
+				channel->id,
+				user->personalChannelMessageId());
+			if (const auto item = user->session().data().message(id)) {
+				return rebuild(item, anim::type::instant);
+			}
+			user->session().api().requestMessageData(
+				channel,
+				user->personalChannelMessageId(),
+				[=] {
+					if (const auto i = user->session().data().message(id)) {
+						rebuild(i, anim::type::normal);
+					}
+				});
+		}, messageChannelWrap->lifetime());
+	}
 
 	return result;
 }
