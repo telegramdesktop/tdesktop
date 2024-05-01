@@ -1795,8 +1795,6 @@ void Widget::escape() {
 			const auto first = list.empty() ? FilterId() : list.front().id();
 			if (controller()->activeChatsFilterCurrent() != first) {
 				controller()->setActiveChatsFilter(first);
-			} else {
-				_search->setFocus();
 			}
 		}
 	} else if (!_searchInChat
