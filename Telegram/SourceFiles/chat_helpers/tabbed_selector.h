@@ -87,6 +87,7 @@ enum class TabbedSelectorMode {
 	FullReactions,
 	RecentReactions,
 	PeerTitle,
+	ChatIntro,
 };
 
 struct TabbedSelectorDescriptor {
@@ -103,6 +104,7 @@ enum class TabbedSearchType {
 	Status,
 	ProfilePhoto,
 	Stickers,
+	Greeting,
 };
 [[nodiscard]] std::unique_ptr<Ui::TabbedSearch> MakeSearch(
 	not_null<Ui::RpWidget*> parent,

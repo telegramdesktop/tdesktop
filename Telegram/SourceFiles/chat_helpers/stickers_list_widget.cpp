@@ -2619,6 +2619,8 @@ void StickersListWidget::setupSearch() {
 	const auto session = &_show->session();
 	const auto type = (_mode == Mode::UserpicBuilder)
 		? TabbedSearchType::ProfilePhoto
+		: (_mode == Mode::ChatIntro)
+		? TabbedSearchType::Greeting
 		: TabbedSearchType::Stickers;
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
 		auto set = base::flat_set<EmojiPtr>();

@@ -65,6 +65,7 @@ enum class StickersListMode {
 	Full,
 	Masks,
 	UserpicBuilder,
+	ChatIntro,
 };
 
 struct StickersListDescriptor {
