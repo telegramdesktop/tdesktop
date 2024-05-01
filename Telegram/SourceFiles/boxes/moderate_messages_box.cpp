@@ -227,12 +227,12 @@ void CreateModerateMessagesBox(
 		? QMargins()
 		: QMargins(0, 0, Button::ComputeSize(users.size()).width(), 0);
 
+	const auto session = &items.front()->history()->session();
+	const auto historyPeerId = items.front()->history()->peer->id;
+
 	using Request = Fn<void(not_null<UserData*>, not_null<ChannelData*>)>;
 	const auto sequentiallyRequest = [=](Request request, Users users) {
 		constexpr auto kSmallDelayMs = 5;
-		const auto session = &items.front()->history()->session();
-		const auto history = items.front()->history();
-		const auto peerId = history->peer->id;
 		const auto userIds = ranges::views::all(
 			users
 		) | ranges::views::transform([](not_null<UserData*> user) {
@@ -243,7 +243,7 @@ void CreateModerateMessagesBox(
 		const auto timer = lifetime->make_state<base::Timer>();
 		timer->setCallback(crl::guard(session, [=] {
 			if ((*counter) < userIds.size()) {
-				const auto peer = session->data().peer(peerId);
+				const auto peer = session->data().peer(historyPeerId);
 				const auto channel = peer ? peer->asChannel() : nullptr;
 				const auto from = session->data().peer(userIds[*counter]);
 				if (const auto user = from->asUser(); channel && user) {
@@ -697,17 +697,19 @@ void CreateModerateMessagesBox(
 	}
 
 	const auto close = crl::guard(box, [=] { box->closeBox(); });
-	box->addButton(tr::lng_box_delete(), [=] {
-		confirms->fire({});
+	{
 		const auto data = &users.front()->session().data();
-		const auto ids = data->itemsToIds(items);
-		if (confirmed) {
-			confirmed();
-		}
-		data->histories().deleteMessages(ids, true);
-		data->sendHistoryChangeNotifications();
-		close();
-	});
+		const auto ids = users.front()->session().data().itemsToIds(items);
+		box->addButton(tr::lng_box_delete(), [=] {
+			confirms->fire({});
+			if (confirmed) {
+				confirmed();
+			}
+			data->histories().deleteMessages(ids, true);
+			data->sendHistoryChangeNotifications();
+			close();
+		});
+	}
 	box->addButton(tr::lng_cancel(), close);
 }
 
