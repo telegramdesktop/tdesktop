@@ -700,7 +700,7 @@ private:
 
 	rpl::event_stream<> _filtersMenuChanged;
 
-	std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
+	const std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
 	base::flat_map<CachedThemeKey, CachedTheme> _customChatThemes;
 	rpl::event_stream<std::shared_ptr<Ui::ChatTheme>> _cachedThemesStream;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
