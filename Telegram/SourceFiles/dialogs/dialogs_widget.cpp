@@ -995,11 +995,17 @@ void Widget::setupShortcuts() {
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
-		if (_openedForum && !controller()->activeChatCurrent()) {
+		if (!controller()->activeChatCurrent()) {
 			request->check(Command::Search) && request->handle([=] {
-				const auto history = _openedForum->history();
-				controller()->searchInChat(history);
-				return true;
+				if (const auto forum = _openedForum) {
+					const auto history = forum->history();
+					controller()->searchInChat(history);
+					return true;
+				} else if (!_openedFolder && _search->isVisible()) {
+					_search->setFocus();
+					return true;
+				}
+				return false;
 			});
 		}
 	}, lifetime());
