@@ -3270,7 +3270,9 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		// query while still show _suggestions animated, if it is a space.
 		_postponeProcessSearchFocusChange = true;
 		_search->setFocusFast();
-		QCoreApplication::sendEvent(_search->rawTextEdit(), e);
+		if (e->key() != Qt::Key_Space) {
+			QCoreApplication::sendEvent(_search->rawTextEdit(), e);
+		}
 		_postponeProcessSearchFocusChange = false;
 		processSearchFocusChange();
 	} else {
