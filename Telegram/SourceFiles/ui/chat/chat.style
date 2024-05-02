@@ -1076,3 +1076,12 @@ liveLocationLongInIconSelected: icon {{ "chat/live_location_long", msgInServiceF
 liveLocationLongOutIcon: icon {{ "chat/live_location_long", msgOutServiceFg }};
 liveLocationLongOutIconSelected: icon {{ "chat/live_location_long", msgOutServiceFgSelected }};
 liveLocationRemainingSize: 28px;
+
+previewMenu: PopupMenu(defaultPopupMenu) {
+	scrollPadding: margins(0px, 0px, 0px, 0px);
+	menu: Menu(defaultMenu) {
+		widthMin: 380px;
+		widthMax: 380px;
+	}
+	maxHeight: 420px;
+}

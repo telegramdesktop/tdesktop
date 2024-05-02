@@ -781,6 +781,8 @@ PRIVATE
     history/view/history_view_about_view.h
     history/view/history_view_bottom_info.cpp
     history/view/history_view_bottom_info.h
+    history/view/history_view_chat_preview.cpp
+    history/view/history_view_chat_preview.h
     history/view/history_view_contact_status.cpp
     history/view/history_view_contact_status.h
     history/view/history_view_context_menu.cpp

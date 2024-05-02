@@ -7,14 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
+#include "base/object_ptr.h"
+#include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "data/data_messages.h"
 #include "ui/dragging_scroll_manager.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "ui/userpic_view.h"
-#include "base/flags.h"
-#include "base/object_ptr.h"
 
 namespace style {
 struct DialogRow;
@@ -121,6 +122,10 @@ public:
 	void refreshEmptyLabel();
 	void resizeEmptyLabel();
 
+	[[nodiscard]] bool isUserpicPress() const;
+	[[nodiscard]] bool pressShowsPreview() const;
+	void cancelChatPreview();
+	void showChatPreview();
 	bool chooseRow(
 		Qt::KeyboardModifiers modifiers = {},
 		MsgId pressedTopicRootId = {});
@@ -513,6 +518,10 @@ private:
 	rpl::event_stream<> _searchMessages;
 	rpl::event_stream<QString> _completeHashtagRequests;
 	rpl::event_stream<> _refreshHashtagsRequests;
+
+	base::Timer _chatPreviewTimer;
+	Key _chatPreviewWillBeFor;
+	Key _chatPreviewKey;
 
 	rpl::variable<ChildListShown> _childListShown;
 	float64 _narrowRatio = 0.;
