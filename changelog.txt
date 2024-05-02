@@ -1,3 +1,13 @@
+5.0 (02.05.24)
+
+- Choose custom font family in Settings > Chat settings > Font family.
+- Show "Frequent contacts" when you focus the search field.
+- Show "Recent chats" when you focus the search field.
+- Show "Channels" list and similar channels.
+- Premium users can use animated emoji in polls.
+- Group admins can mass-moderate many messages.
+- Fix frequent crashes on some Linux systems.
+
 4.16.10 beta (26.04.24)
 
 - Group admins can mass-moderate many messages.
