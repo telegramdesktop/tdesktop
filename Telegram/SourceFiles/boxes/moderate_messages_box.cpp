@@ -465,14 +465,11 @@ void CreateModerateMessagesBox(
 		handleConfirmation(report, controller, [=](
 				not_null<PeerData*> p,
 				not_null<ChannelData*> c) {
-			auto filtered = QVector<MTPint>();
-			for (const auto &id : ids) {
-				if (const auto item = p->session().data().message(id)) {
-					if (item->from() == p) {
-						filtered.push_back(MTP_int(item->fullId().msg));
-					}
-				}
-			}
+			auto filtered = ranges::views::all(
+				ids
+			) | ranges::views::transform([](const FullMsgId &id) {
+				return MTP_int(id.msg);
+			}) | ranges::to<QVector<MTPint>>();
 			c->session().api().request(
 				MTPchannels_ReportSpam(
 					c->inputChannel,
