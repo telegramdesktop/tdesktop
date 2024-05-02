@@ -473,7 +473,7 @@ parts:
       - libopenh264-7
       - libopus0
       - libssl3
-      - libvpx8
+      - libvpx9
       - libx11-6
       - libxcomposite1
       - libxdamage1
