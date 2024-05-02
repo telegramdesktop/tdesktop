@@ -328,7 +328,7 @@ parts:
       - libfreetype6
       - libglib2.0-0
       - libglx0
-      - libgtk-3-0
+      - libgtk-3-0t64
       - libharfbuzz0b
       - libice6
       - libicu74
