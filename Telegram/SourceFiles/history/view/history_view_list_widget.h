@@ -25,11 +25,14 @@ class Session;
 } // namespace Main
 
 namespace Ui {
+class Show;
 class PopupMenu;
 class ChatTheme;
 struct ChatPaintContext;
+struct ChatPaintContextArgs;
 enum class TouchScrollState;
 struct PeerUserpicView;
+class MessageSendingAnimationController;
 } // namespace Ui
 
 namespace Window {
@@ -40,6 +43,7 @@ namespace Data {
 struct Group;
 struct Reaction;
 struct AllowedReactions;
+struct ReactionId;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -154,6 +158,71 @@ public:
 	virtual History *listTranslateHistory() = 0;
 	virtual void listAddTranslatedItems(
 		not_null<TranslateTracker*> tracker) = 0;
+
+	// Methods that use Window::SessionController by default.
+	virtual not_null<Window::SessionController*> listWindow() = 0;
+	virtual not_null<const Ui::ChatStyle*> listChatStyle() = 0;
+	virtual rpl::producer<bool> listChatWideValue() = 0;
+	virtual std::unique_ptr<Reactions::Manager> listMakeReactionsManager(
+		QWidget *wheelEventsTarget,
+		Fn<void(QRect)> update) = 0;
+	virtual void listVisibleAreaUpdated() = 0;
+	virtual std::shared_ptr<Ui::Show> listUiShow() = 0;
+	virtual void listShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) = 0;
+	virtual void listCancelUploadLayer(not_null<HistoryItem*> item) = 0;
+	virtual bool listAnimationsPaused() = 0;
+	virtual auto listSendingAnimation()
+		-> Ui::MessageSendingAnimationController* = 0;
+	virtual Ui::ChatPaintContext listPreparePaintContext(
+		Ui::ChatPaintContextArgs &&args) = 0;
+	virtual bool listMarkingContentRead() = 0;
+	virtual bool listIgnorePaintEvent(QWidget *w, QPaintEvent *e) = 0;
+	virtual bool listShowReactPremiumError(
+		not_null<HistoryItem*> item,
+		const Data::ReactionId &id) = 0;
+	virtual void listWindowSetInnerFocus() = 0;
+	virtual bool listAllowsDragForward() = 0;
+	virtual void listLaunchDrag(
+		std::unique_ptr<QMimeData> data,
+		Fn<void()> finished) = 0;
+};
+
+class WindowListDelegate : public ListDelegate {
+public:
+	explicit WindowListDelegate(not_null<Window::SessionController*> window);
+
+	not_null<Window::SessionController*> listWindow() override;
+	not_null<const Ui::ChatStyle*> listChatStyle() override;
+	rpl::producer<bool> listChatWideValue() override;
+	std::unique_ptr<Reactions::Manager> listMakeReactionsManager(
+		QWidget *wheelEventsTarget,
+		Fn<void(QRect)> update) override;
+	void listVisibleAreaUpdated() override;
+	std::shared_ptr<Ui::Show> listUiShow() override;
+	void listShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) override;
+	void listCancelUploadLayer(not_null<HistoryItem*> item) override;
+	bool listAnimationsPaused() override;
+	Ui::MessageSendingAnimationController *listSendingAnimation() override;
+	Ui::ChatPaintContext listPreparePaintContext(
+		Ui::ChatPaintContextArgs &&args) override;
+	bool listMarkingContentRead() override;
+	bool listIgnorePaintEvent(QWidget *w, QPaintEvent *e) override;
+	bool listShowReactPremiumError(
+		not_null<HistoryItem*> item,
+		const Data::ReactionId &id) override;
+	void listWindowSetInnerFocus() override;
+	bool listAllowsDragForward() override;
+	void listLaunchDrag(
+		std::unique_ptr<QMimeData> data,
+		Fn<void()> finished) override;
+
+private:
+	const not_null<Window::SessionController*> _window;
+
 };
 
 struct SelectionData {
@@ -211,7 +280,7 @@ class ListWidget final
 public:
 	ListWidget(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
+		not_null<Main::Session*> session,
 		not_null<ListDelegate*> delegate);
 
 	static const crl::time kItemRevealDuration;
@@ -648,7 +717,7 @@ private:
 	static constexpr auto kMinimalIdsLimit = 24;
 
 	const not_null<ListDelegate*> _delegate;
-	const not_null<Window::SessionController*> _controller;
+	const not_null<Main::Session*> _session;
 	const std::unique_ptr<EmojiInteractions> _emojiInteractions;
 	const Context _context;
 

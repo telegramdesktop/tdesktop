@@ -2951,7 +2951,7 @@ void SessionController::openPeerStories(
 }
 
 HistoryView::PaintContext SessionController::preparePaintContext(
-		PaintContextArgs &&args) {
+		Ui::ChatPaintContextArgs &&args) {
 	const auto visibleAreaTopLocal = content()->mapFromGlobal(
 		args.visibleAreaPositionGlobal).y();
 	const auto viewport = QRect(

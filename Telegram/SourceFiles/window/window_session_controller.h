@@ -64,6 +64,7 @@ struct ChatThemeBackground;
 struct ChatThemeBackgroundData;
 class MessageSendingAnimationController;
 struct BoostCounters;
+struct ChatPaintContextArgs;
 } // namespace Ui
 
 namespace Data {
@@ -586,15 +587,8 @@ public:
 		PeerId peerId,
 		std::optional<Data::StorySourcesList> list = std::nullopt);
 
-	struct PaintContextArgs {
-		not_null<Ui::ChatTheme*> theme;
-		QRect clip;
-		QPoint visibleAreaPositionGlobal;
-		int visibleAreaTop = 0;
-		int visibleAreaWidth = 0;
-	};
 	[[nodiscard]] Ui::ChatPaintContext preparePaintContext(
-		PaintContextArgs &&args);
+		Ui::ChatPaintContextArgs &&args);
 	[[nodiscard]] not_null<const Ui::ChatStyle*> chatStyle() const {
 		return _chatStyle.get();
 	}

@@ -97,6 +97,7 @@ ScheduledWidget::ScheduledWidget(
 	not_null<History*> history,
 	const Data::ForumTopic *forumTopic)
 : Window::SectionWidget(parent, controller, history->peer)
+, WindowListDelegate(controller)
 , _history(history)
 , _forumTopic(forumTopic)
 , _scroll(
@@ -167,7 +168,7 @@ ScheduledWidget::ScheduledWidget(
 
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
-		controller,
+		&controller->session(),
 		static_cast<ListDelegate*>(this)));
 	_scroll->move(0, _topBar->height());
 	_scroll->show();

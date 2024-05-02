@@ -72,7 +72,7 @@ using namespace HistoryView;
 
 class ShortcutMessages
 	: public AbstractSection
-	, private ListDelegate
+	, private WindowListDelegate
 	, private CornerButtonsDelegate {
 public:
 	ShortcutMessages(
@@ -164,6 +164,7 @@ private:
 	History *listTranslateHistory() override;
 	void listAddTranslatedItems(
 		not_null<TranslateTracker*> tracker) override;
+	bool listIgnorePaintEvent(QWidget *w, QPaintEvent *e) override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(
@@ -330,6 +331,7 @@ ShortcutMessages::ShortcutMessages(
 	rpl::producer<Container> containerValue,
 	BusinessShortcutId shortcutId)
 : AbstractSection(parent)
+, WindowListDelegate(controller)
 , _controller(controller)
 , _session(&controller->session())
 , _scroll(scroll)
@@ -370,7 +372,7 @@ ShortcutMessages::ShortcutMessages(
 
 	_inner = Ui::CreateChild<ListWidget>(
 		this,
-		controller,
+		&controller->session(),
 		static_cast<ListDelegate*>(this));
 	_inner->overrideIsChatWide(false);
 
@@ -1051,6 +1053,10 @@ History *ShortcutMessages::listTranslateHistory() {
 
 void ShortcutMessages::listAddTranslatedItems(
 	not_null<TranslateTracker*> tracker) {
+}
+
+bool ShortcutMessages::listIgnorePaintEvent(QWidget *w, QPaintEvent *e) {
+	return false;
 }
 
 void ShortcutMessages::cornerButtonsShowAtPosition(

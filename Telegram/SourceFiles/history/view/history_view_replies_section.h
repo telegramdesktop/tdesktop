@@ -71,7 +71,7 @@ class TranslateBar;
 
 class RepliesWidget final
 	: public Window::SectionWidget
-	, private ListDelegate
+	, private WindowListDelegate
 	, private CornerButtonsDelegate {
 public:
 	RepliesWidget(

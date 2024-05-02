@@ -205,6 +205,7 @@ RepliesWidget::RepliesWidget(
 	not_null<History*> history,
 	MsgId rootId)
 : Window::SectionWidget(parent, controller, history->peer)
+, WindowListDelegate(controller)
 , _history(history)
 , _rootId(rootId)
 , _root(lookupRoot())
@@ -299,7 +300,7 @@ RepliesWidget::RepliesWidget(
 
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
-		controller,
+		&controller->session(),
 		static_cast<ListDelegate*>(this)));
 	_scroll->move(0, _topBar->height());
 	_scroll->show();

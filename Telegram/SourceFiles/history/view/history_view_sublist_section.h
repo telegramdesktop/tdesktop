@@ -37,7 +37,7 @@ class ComposeSearch;
 
 class SublistWidget final
 	: public Window::SectionWidget
-	, private ListDelegate
+	, private WindowListDelegate
 	, private CornerButtonsDelegate {
 public:
 	SublistWidget(

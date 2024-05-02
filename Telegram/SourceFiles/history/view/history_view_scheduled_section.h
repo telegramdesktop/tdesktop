@@ -52,7 +52,7 @@ class StickerToast;
 
 class ScheduledWidget final
 	: public Window::SectionWidget
-	, private ListDelegate
+	, private WindowListDelegate
 	, private CornerButtonsDelegate {
 public:
 	ScheduledWidget(
