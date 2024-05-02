@@ -349,7 +349,7 @@ QImage Sibling::nameImage(const SiblingLayout &layout) {
 		const auto family = 0; // Default font family.
 		const auto font = style::font(
 			_nameFontSize,
-			style::internal::FontSemibold,
+			style::FontFlag::Semibold,
 			family);
 		_name.reset();
 		_nameStyle = std::make_unique<style::TextStyle>(style::TextStyle{

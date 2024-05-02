@@ -269,6 +269,9 @@ SpeedButtonLayout::SpeedButtonLayout(
 , _text(SpeedText(speed))
 , _textWidth(_metrics.horizontalAdvance(_text))
 , _callback(std::move(callback)) {
+	const auto result = style::FindAdjustResult(_st.font->f);
+	_adjustedAscent = result ? result->ascent : _metrics.ascent();
+	_adjustedHeight = result ? result->height : _metrics.height();
 }
 
 void SpeedButtonLayout::setSpeed(float64 speed) {
@@ -292,7 +295,7 @@ void SpeedButtonLayout::paint(QPainter &p, bool over, bool active) {
 	p.drawText(
 		QPointF(inner.topLeft()) + QPointF(
 			(inner.width() - _textWidth) / 2.,
-			(inner.height() - _metrics.height()) / 2. + _metrics.ascent()),
+			(inner.height() - _adjustedHeight) / 2. + _adjustedAscent),
 		_text);
 }
 
