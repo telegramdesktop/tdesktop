@@ -764,7 +764,7 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 			? tr::lng_saved_messages() | Ui::Text::ToBold()
 			: maybeUser
 			? tr::lng_profile_delete_conversation() | Ui::Text::ToBold()
-			: rpl::single(Ui::Text::Bold(peer->name())),
+			: rpl::single(Ui::Text::Bold(peer->name())) | rpl::type_erased(),
 		box->getDelegate()->style().title);
 	line->widthValue(
 	) | rpl::start_with_next([=](int width) {
