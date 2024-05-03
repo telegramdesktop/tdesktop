@@ -123,9 +123,9 @@ public:
 	void resizeEmptyLabel();
 
 	[[nodiscard]] bool isUserpicPress() const;
-	[[nodiscard]] bool pressShowsPreview() const;
+	[[nodiscard]] bool pressShowsPreview(bool onlyUserpic) const;
 	void cancelChatPreview();
-	void showChatPreview();
+	void showChatPreview(bool onlyUserpic);
 	bool chooseRow(
 		Qt::KeyboardModifiers modifiers = {},
 		MsgId pressedTopicRootId = {});

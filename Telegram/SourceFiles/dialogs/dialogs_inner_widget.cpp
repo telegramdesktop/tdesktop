@@ -159,7 +159,7 @@ InnerWidget::InnerWidget(
 	+ st::defaultDialogRow.padding.left())
 , _cancelSearchInChat(this, st::dialogsCancelSearchInPeer)
 , _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer)
-, _chatPreviewTimer([=] { showChatPreview(); })
+, _chatPreviewTimer([=] { showChatPreview(true); })
 , _childListShown(std::move(childListShown)) {
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 
@@ -1435,6 +1435,18 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	setFilteredPressed(_filteredSelected, _selectedTopicJump);
 	setPeerSearchPressed(_peerSearchSelected);
 	setSearchedPressed(_searchedSelected);
+
+	const auto alt = (e->modifiers() & Qt::AltModifier);
+	const auto onlyUserpic = !alt;
+	if (pressShowsPreview(onlyUserpic)) {
+		_chatPreviewWillBeFor = computeChosenRow().key;
+		if (alt) {
+			showChatPreview(onlyUserpic);
+			return;
+		}
+		_chatPreviewTimer.callOnce(kChatPreviewDelay);
+	}
+
 	if (base::in_range(_collapsedSelected, 0, _collapsedRows.size())) {
 		auto row = &_collapsedRows[_collapsedSelected]->row;
 		row->addRipple(e->pos(), QSize(width(), st::dialogsImportantBarHeight), [this, index = _collapsedSelected] {
@@ -1503,10 +1515,8 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 			row->repaint());
 	}
 	ClickHandler::pressed();
-	if (pressShowsPreview()) {
-		_chatPreviewWillBeFor = computeChosenRow().key;
-		_chatPreviewTimer.callOnce(kChatPreviewDelay);
-	} else if (anim::Disabled()
+	if (anim::Disabled()
+		&& !_chatPreviewTimer.isActive()
 		&& (!_pressed || !_pressed->entry()->isPinnedDialog(_filterId))) {
 		mousePressReleased(e->globalPos(), e->button(), e->modifiers());
 	}
@@ -2306,10 +2316,10 @@ void InnerWidget::fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu) {
 	});
 }
 
-void InnerWidget::showChatPreview() {
+void InnerWidget::showChatPreview(bool onlyUserpic) {
 	const auto key = base::take(_chatPreviewWillBeFor);
 	cancelChatPreview();
-	if (!pressShowsPreview() || key != computeChosenRow().key) {
+	if (!pressShowsPreview(onlyUserpic) || key != computeChosenRow().key) {
 		return;
 	}
 	ClickHandler::unpressed();
@@ -3558,15 +3568,15 @@ bool InnerWidget::isUserpicPress() const {
 		&& (width() > _narrowWidth);
 }
 
-bool InnerWidget::pressShowsPreview() const {
-	if (!isUserpicPress()) {
+bool InnerWidget::pressShowsPreview(bool onlyUserpic) const {
+	if (onlyUserpic && !isUserpicPress()) {
 		return false;
 	}
 	const auto key = computeChosenRow().key;
 	if (const auto history = key.history()) {
 		return !history->peer->isForum();
 	}
-	return key.topic() != nullptr;;
+	return key.topic() != nullptr;
 }
 
 bool InnerWidget::chooseRow(
