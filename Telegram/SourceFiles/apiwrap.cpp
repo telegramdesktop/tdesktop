@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat_filters.h"
 #include "data/data_histories.h"
+#include "data/data_history_messages.h"
 #include "core/core_cloud_password.h"
 #include "core/application.h"
 #include "base/unixtime.h"
@@ -3076,6 +3077,46 @@ void ApiWrap::resolveJumpToHistoryDate(
 	} else {
 		jumpToDateInPeer();
 	}
+}
+
+void ApiWrap::requestHistory(
+		not_null<History*> history,
+		MsgId messageId,
+		SliceType slice) {
+	const auto peer = history->peer;
+	const auto key = HistoryRequest{
+		peer,
+		messageId,
+		slice,
+	};
+	if (_historyRequests.contains(key)) {
+		return;
+	}
+
+	const auto prepared = Api::PrepareHistoryRequest(peer, messageId, slice);
+	auto &histories = history->owner().histories();
+	const auto requestType = Data::Histories::RequestType::History;
+	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+		return request(
+			std::move(prepared)
+		).done([=](const Api::HistoryRequestResult &result) {
+			_historyRequests.remove(key);
+			auto parsed = Api::ParseHistoryResult(
+				peer,
+				messageId,
+				slice,
+				result);
+			history->messages().addSlice(
+				std::move(parsed.messageIds),
+				parsed.noSkipRange,
+				parsed.fullCount);
+			finish();
+		}).fail([=] {
+			_historyRequests.remove(key);
+			finish();
+		}).send();
+	});
+	_historyRequests.emplace(key);
 }
 
 void ApiWrap::requestSharedMedia(

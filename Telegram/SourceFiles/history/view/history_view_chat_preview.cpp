@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_chat_preview.h"
 
 #include "data/data_forum_topic.h"
+#include "data/data_history_messages.h"
 #include "data/data_peer.h"
 #include "data/data_replies_list.h"
 #include "data/data_thread.h"
@@ -15,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -136,6 +138,7 @@ private:
 	const not_null<QAction*> _dummyAction;
 	const not_null<Main::Session*> _session;
 	const not_null<Data::Thread*> _thread;
+	const std::shared_ptr<Data::RepliesList> _replies;
 	const not_null<History*> _history;
 	const not_null<PeerData*> _peer;
 	const std::shared_ptr<Ui::ChatTheme> _theme;
@@ -153,6 +156,7 @@ Item::Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread)
 , _dummyAction(new QAction(parent))
 , _session(&thread->session())
 , _thread(thread)
+, _replies(thread->asTopic() ? thread->asTopic()->replies() : nullptr)
 , _history(thread->owningHistory())
 , _peer(thread->peer())
 , _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
@@ -253,52 +257,13 @@ rpl::producer<Data::MessagesSlice> Item::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
-	if (const auto topic = _thread->asTopic()) {
-		return topic->replies()->source(
+	return _replies
+		? _replies->source(aroundId, limitBefore, limitAfter)
+		: Data::HistoryMessagesViewer(
+			_thread->asHistory(),
 			aroundId,
 			limitBefore,
-			limitAfter
-		) | rpl::before_next([=] { // after_next makes a copy of value.
-			//if (!_loaded) {
-			//	_loaded = true;
-			//	crl::on_main(this, [=] {
-			//		updatePinnedVisibility();
-			//	});
-			//}
-		});
-	}
-	// #TODO
-	//const auto messageId = aroundId.fullId.msg
-	//	? aroundId.fullId.msg
-	//	: (ServerMaxMsgId - 1);
-
-	//return SharedMediaMergedViewer(
-	//	&_thread->session(),
-	//	SharedMediaMergedKey(
-	//		SparseIdsMergedSlice::Key(
-	//			_history->peer->id,
-	//			_thread->topicRootId(),
-	//			_migratedPeer ? _migratedPeer->id : 0,
-	//			messageId),
-	//		Storage::SharedMediaType::Pinned),
-	//	limitBefore,
-	//	limitAfter
-	//) | rpl::map([=](SparseIdsMergedSlice &&slice) {
-	//	auto result = Data::MessagesSlice();
-	//	result.fullCount = slice.fullCount();
-	//	result.skippedAfter = slice.skippedAfter();
-	//	result.skippedBefore = slice.skippedBefore();
-	//	const auto count = slice.size();
-	//	result.ids.reserve(count);
-	//	if (const auto msgId = slice.nearest(messageId)) {
-	//		result.nearestToAround = *msgId;
-	//	}
-	//	for (auto i = 0; i != count; ++i) {
-	//		result.ids.push_back(slice[i]);
-	//	}
-	//	return result;
-	//});
-	return rpl::single(Data::MessagesSlice());
+			limitAfter);
 }
 
 bool Item::listAllowsMultiSelect() {
@@ -341,7 +306,44 @@ void Item::listMarkContentsRead(
 
 MessagesBarData Item::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) {
-	return {};// #TODO
+	if (elements.empty()) {
+		return {};
+	} else if (!_replies && !_history->unreadCount()) {
+		return {};
+	}
+	const auto repliesTill = _replies
+		? _replies->computeInboxReadTillFull()
+		: MsgId();
+	const auto migrated = _replies ? nullptr : _history->migrateFrom();
+	const auto migratedTill = migrated ? migrated->inboxReadTillId() : 0;
+	const auto historyTill = _replies ? 0 : _history->inboxReadTillId();
+	if (!_replies && !migratedTill && !historyTill) {
+		return {};
+	}
+
+	const auto hidden = _replies && (repliesTill < 2);
+	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
+		const auto item = elements[i]->data();
+		if (!item->isRegular()
+			|| item->out()
+			|| (_replies && !item->replyToId())) {
+			continue;
+		}
+		const auto inHistory = (item->history() == _history);
+		if ((_replies && item->id > repliesTill)
+			|| (migratedTill && (inHistory || item->id > migratedTill))
+			|| (historyTill && inHistory && item->id > historyTill)) {
+			return {
+				.bar = {
+					.element = elements[i],
+					.hidden = hidden,
+					.focus = true,
+				},
+				.text = tr::lng_unread_bar_some(),
+			};
+		}
+	}
+	return {};
 }
 
 void Item::listContentRefreshed() {

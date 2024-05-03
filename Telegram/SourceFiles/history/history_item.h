@@ -359,6 +359,7 @@ public:
 
 	void indexAsNewItem();
 	void addToSharedMediaIndex();
+	void addToMessagesIndex();
 	void removeFromSharedMediaIndex();
 
 	struct NotificationTextOptions {

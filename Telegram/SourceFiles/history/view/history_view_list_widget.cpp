@@ -939,7 +939,9 @@ void ListWidget::restoreScrollState() {
 		}
 		_scrollInited = true;
 		_scrollTopState.item = _bar.element->data()->position();
-		_scrollTopState.shift = st::lineWidth + st::historyUnreadBarMargin;
+		_scrollTopState.shift = st::lineWidth
+			+ st::historyUnreadBarMargin
+			+ _bar.element->displayedDateHeight();
 	}
 	const auto index = findNearestItem(_scrollTopState.item);
 	if (index >= 0) {

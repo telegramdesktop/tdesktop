@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_game.h"
+#include "data/data_history_messages.h"
 #include "data/data_user.h"
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "data/data_poll.h" // PollData::publicVotes.
@@ -1791,6 +1792,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	setIsPinned(data.is_pinned());
 	contributeToSlowmode(data.vdate().v);
 	addToSharedMediaIndex();
+	addToMessagesIndex();
 	invalidateChatListEntry();
 	if (const auto period = data.vttl_period(); period && period->v > 0) {
 		applyTTL(data.vdate().v + period->v);
@@ -1815,6 +1817,7 @@ void HistoryItem::applySentMessage(
 	contributeToSlowmode(data.vdate().v);
 	if (!wasAlready) {
 		addToSharedMediaIndex();
+		addToMessagesIndex();
 	}
 	invalidateChatListEntry();
 	if (const auto period = data.vttl_period(); period && period->v > 0) {
@@ -2007,6 +2010,14 @@ void HistoryItem::removeFromSharedMediaIndex() {
 					_history->peer->id,
 					types,
 					id));
+		}
+	}
+}
+
+void HistoryItem::addToMessagesIndex() {
+	if (isRegular()) {
+		if (const auto messages = _history->maybeMessages()) {
+			messages->addNew(id);
 		}
 	}
 }
