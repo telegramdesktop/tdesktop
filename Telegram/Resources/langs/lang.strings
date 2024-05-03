@@ -304,6 +304,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_ban_admin" = "This user is an admin. Are you sure you want to go ahead and restrict them?";
 "lng_sure_enable_socks" = "Are you sure you want to enable this proxy?\n\nServer: {server}\nPort: {port}\n\nYou can change your proxy server later in the Settings (Connection Type).";
 "lng_sure_enable" = "Enable";
+"lng_proxy_box_title" = "Enable proxy";
+"lng_proxy_box_server" = "Server";
+"lng_proxy_box_port" = "Port";
+"lng_proxy_box_secret" = "Secret";
+"lng_proxy_box_status" = "Status";
+"lng_proxy_box_username" = "Username";
+"lng_proxy_box_password" = "Password";
 "lng_proxy_invalid" = "The proxy link is invalid.";
 "lng_proxy_unsupported" = "Your Telegram Desktop version doesn't support this proxy type or the proxy link is invalid. Please update Telegram Desktop to the latest version.";
 

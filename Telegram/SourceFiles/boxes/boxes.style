@@ -642,6 +642,10 @@ proxyDropdownUpPosition: point(-2px, 20px);
 proxyAboutPadding: margins(22px, 7px, 22px, 14px);
 proxyAboutSponsorPadding: margins(22px, 7px, 22px, 0px);
 
+proxyApplyBoxLabel : FlatLabel(defaultFlatLabel) {
+	maxHeight: 30px;
+}
+
 markdownLinkFieldPadding: margins(22px, 0px, 22px, 10px);
 
 termsContent: FlatLabel(defaultFlatLabel) {
