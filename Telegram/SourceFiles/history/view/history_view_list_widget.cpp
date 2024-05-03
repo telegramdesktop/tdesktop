@@ -1584,6 +1584,10 @@ bool ListWidget::hasSelectRestriction() const {
 		!= CopyRestrictionType::None;
 }
 
+Element *ListWidget::lookupItemByY(int y) const {
+	return strictFindItemByY(y);
+}
+
 auto ListWidget::findViewForPinnedTracking(int top) const
 -> std::pair<Element*, int> {
 	const auto findScrollTopItem = [&](int top)

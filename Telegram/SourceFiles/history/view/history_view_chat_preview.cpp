@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_item_base.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -36,8 +37,12 @@ class Item final
 public:
 	Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread);
 
-	not_null<QAction*> action() const override;
-	bool isEnabled() const override;
+	[[nodiscard]] not_null<QAction*> action() const override;
+	[[nodiscard]] bool isEnabled() const override;
+
+	[[nodiscard]] rpl::producer<ChatPreviewAction> actions() {
+		return _actions.events();
+	}
 
 private:
 	int contentHeight() const override;
@@ -146,6 +151,7 @@ private:
 	const std::unique_ptr<Ui::ElasticScroll> _scroll;
 
 	QPointer<HistoryView::ListWidget> _inner;
+	rpl::event_stream<ChatPreviewAction> _actions;
 
 	QImage _bg;
 
@@ -179,6 +185,22 @@ Item::Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread)
 	_scroll->setOverscrollBg(QColor(0, 0, 0, 0));
 	using Type = Ui::ElasticScroll::OverscrollType;
 	_scroll->setOverscrollTypes(Type::Real, Type::Real);
+
+	_scroll->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseButtonPress) {
+			const auto relative = Ui::MapFrom(
+				_inner.data(),
+				_scroll.get(),
+				static_cast<QMouseEvent*>(e.get())->pos());
+			if (const auto view = _inner->lookupItemByY(relative.y())) {
+				_actions.fire(ChatPreviewAction{
+					.openItemId = view->data()->fullId(),
+				});
+			} else {
+				_actions.fire(ChatPreviewAction{});
+			}
+		}
+	}, lifetime());
 
 	_inner->resizeToWidth(_scroll->width(), _scroll->height());
 
@@ -519,31 +541,36 @@ void Item::listLaunchDrag(
 
 } // namespace
 
-base::unique_qptr<Ui::PopupMenu> MakeChatPreview(
+ChatPreview MakeChatPreview(
 		QWidget *parent,
 		not_null<Dialogs::Entry*> entry) {
 	const auto thread = entry->asThread();
 	if (!thread) {
-		return nullptr;
+		return {};
 	} else if (const auto history = entry->asHistory()) {
 		if (history->peer->isForum()) {
-			return nullptr;
+			return {};
 		}
 	}
 
-	auto result = base::make_unique_q<Ui::PopupMenu>(
-		parent,
-		st::previewMenu);
+	auto result = ChatPreview{
+		.menu = base::make_unique_q<Ui::PopupMenu>(
+			parent,
+			st::previewMenu),
+	};
+	const auto menu = result.menu.get();
 
-	result->addAction(base::make_unique_q<Item>(result.get(), thread));
+	auto action = base::make_unique_q<Item>(menu, thread);
+	result.actions = action->actions();
+	menu->addAction(std::move(action));
 	if (const auto topic = thread->asTopic()) {
-		const auto weak = Ui::MakeWeak(result.get());
+		const auto weak = Ui::MakeWeak(menu);
 		topic->destroyed() | rpl::start_with_next([weak] {
 			if (const auto strong = weak.data()) {
 				LOG(("Preview hidden for a destroyed topic."));
 				strong->hideMenu(true);
 			}
-		}, result->lifetime());
+		}, menu->lifetime());
 	}
 
 	return result;

@@ -344,6 +344,7 @@ public:
 	[[nodiscard]] bool hasCopyRestrictionForSelected() const;
 	[[nodiscard]] bool showCopyRestrictionForSelected();
 	[[nodiscard]] bool hasSelectRestriction() const;
+	[[nodiscard]] Element *lookupItemByY(int y) const;
 
 	[[nodiscard]] std::pair<Element*, int> findViewForPinnedTracking(
 		int top) const;

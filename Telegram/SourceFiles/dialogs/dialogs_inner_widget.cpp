@@ -2326,10 +2326,34 @@ void InnerWidget::showChatPreview(bool onlyUserpic) {
 	mousePressReleased(QCursor::pos(), Qt::NoButton, Qt::NoModifier);
 
 	_chatPreviewKey = key;
-	_menu = HistoryView::MakeChatPreview(this, key.entry());
-	if (!_menu) {
+	auto preview = HistoryView::MakeChatPreview(this, key.entry());
+	if (!preview.menu) {
 		return;
 	}
+	_menu = std::move(preview.menu);
+	const auto weakMenu = Ui::MakeWeak(_menu.get());
+	const auto weakThread = base::make_weak(key.entry()->asThread());
+	const auto weakController = base::make_weak(_controller);
+	std::move(
+		preview.actions
+	) | rpl::start_with_next([=](HistoryView::ChatPreviewAction action) {
+		if (const auto controller = weakController.get()) {
+			if (const auto thread = weakThread.get()) {
+				const auto itemId = action.openItemId;
+				const auto owner = &thread->owner();
+				if (action.openInfo) {
+					controller->showPeerInfo(thread);
+				} else if (const auto item = owner->message(itemId)) {
+					controller->showMessage(item);
+				} else {
+					controller->showThread(thread);
+				}
+			}
+		}
+		if (const auto strong = weakMenu.data()) {
+			strong->hideMenu();
+		}
+	}, _menu->lifetime());
 	QObject::connect(_menu.get(), &QObject::destroyed, [=] {
 		if (_chatPreviewKey) {
 			updateDialogRow(RowDescriptor(base::take(_chatPreviewKey), {}));

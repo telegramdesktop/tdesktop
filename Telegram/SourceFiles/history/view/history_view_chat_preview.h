@@ -19,7 +19,17 @@ class PopupMenu;
 
 namespace HistoryView {
 
-[[nodiscard]] base::unique_qptr<Ui::PopupMenu> MakeChatPreview(
+struct ChatPreviewAction {
+	FullMsgId openItemId;
+	bool openInfo = false;
+};
+
+struct ChatPreview {
+	base::unique_qptr<Ui::PopupMenu> menu;
+	rpl::producer<ChatPreviewAction> actions;
+};
+
+[[nodiscard]] ChatPreview MakeChatPreview(
 	QWidget *parent,
 	not_null<Dialogs::Entry*> entry);
 
