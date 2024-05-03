@@ -727,6 +727,8 @@ private:
 	int _aroundIndex = -1;
 	int _idsLimit = kMinimalIdsLimit;
 	Data::MessagesSlice _slice;
+	bool _itemsKnownTillEnd = false;
+
 	std::vector<not_null<Element*>> _items;
 	ViewsMap _views, _viewsCapacity;
 	int _itemsTop = 0;

@@ -589,6 +589,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 
 	auto destroyingBarElement = _bar.element;
 	auto clearingOverElement = _overElement;
+	_itemsKnownTillEnd = (_slice.skippedAfter == 0);
 	_resizePending = true;
 	_items.clear();
 	_items.reserve(_slice.ids.size());
@@ -1107,7 +1108,7 @@ void ListWidget::applyUpdatedScrollState() {
 }
 
 void ListWidget::updateVisibleTopItem() {
-	if (_visibleBottom == height()) {
+	if (_itemsKnownTillEnd && _visibleBottom == height()) {
 		_visibleTopItem = nullptr;
 	} else if (_items.empty()) {
 		_visibleTopItem = nullptr;
@@ -2558,7 +2559,8 @@ Element *ListWidget::strictFindItemByY(int y) const {
 }
 
 auto ListWidget::countScrollState() const -> ScrollTopState {
-	if (_items.empty() || _visibleBottom == height()) {
+	if (_items.empty()
+		|| (_itemsKnownTillEnd && _visibleBottom == height())) {
 		return { Data::MessagePosition(), 0 };
 	}
 	const auto topItem = findItemByY(_visibleTop);
