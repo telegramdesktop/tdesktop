@@ -151,7 +151,7 @@ rpl::producer<SparseIdsMergedSlice> HistoryMergedViewer(
 		const auto chosen = (history->peer->id == peerId)
 			? history
 			: history->owner().history(peerId);
-		return HistoryViewer(history, simpleKey, limitBefore, limitAfter);
+		return HistoryViewer(chosen, simpleKey, limitBefore, limitAfter);
 	};
 	const auto peerId = history->peer->id;
 	const auto topicRootId = MsgId();

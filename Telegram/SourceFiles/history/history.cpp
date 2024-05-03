@@ -3107,8 +3107,9 @@ Data::HistoryMessages &History::messages() {
 	if (!_messages) {
 		_messages = std::make_unique<Data::HistoryMessages>();
 
+		const auto max = maxMsgId();
 		const auto from = loadedAtTop() ? 0 : minMsgId();
-		const auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
+		const auto till = loadedAtBottom() ? ServerMaxMsgId : max;
 		auto list = std::vector<MsgId>();
 		list.reserve(std::min(
 			int(_items.size()),
@@ -3122,13 +3123,14 @@ Data::HistoryMessages &History::messages() {
 					if (!list.empty() && list.back() >= id) {
 						sort = true;
 					}
+					list.push_back(id);
 				}
 			}
 		}
 		if (sort) {
 			ranges::sort(list);
 		}
-		if (till) {
+		if (max || (loadedAtTop() && loadedAtBottom())) {
 			_messages->addSlice(std::move(list), { from, till }, {});
 		}
 	}
