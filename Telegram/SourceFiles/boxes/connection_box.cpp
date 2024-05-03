@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "boxes/abstract_box.h" // Ui::show().
+#include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
@@ -1186,59 +1187,68 @@ ProxiesBoxController::ProxiesBoxController(not_null<Main::Account*> account)
 }
 
 void ProxiesBoxController::ShowApplyConfirmation(
+		Window::SessionController *controller,
 		Type type,
 		const QMap<QString, QString> &fields) {
 	const auto proxy = ProxyDataFromFields(type, fields);
-	if (proxy) {
-		static const auto UrlStartRegExp = QRegularExpression(
-			"^https://",
-			QRegularExpression::CaseInsensitiveOption);
-		static const auto UrlEndRegExp = QRegularExpression("/$");
-		const auto displayed = "https://" + proxy.host + "/";
-		const auto parsed = QUrl::fromUserInput(displayed);
-		const auto displayUrl = !UrlClickHandler::IsSuspicious(displayed)
-			? displayed
-			: parsed.isValid()
-			? QString::fromUtf8(parsed.toEncoded())
-			: UrlClickHandler::ShowEncoded(displayed);
-		const auto displayServer = QString(
-			displayUrl
-		).replace(
-			UrlStartRegExp,
-			QString()
-		).replace(UrlEndRegExp, QString());
-		const auto text = tr::lng_sure_enable_socks(
-			tr::now,
-			lt_server,
-			displayServer,
-			lt_port,
-			QString::number(proxy.port))
-			+ (proxy.type == Type::Mtproto
-				? "\n\n" + tr::lng_proxy_sponsor_warning(tr::now)
-				: QString());
-		auto callback = [=](Fn<void()> &&close) {
-			auto &proxies = Core::App().settings().proxy().list();
-			if (!ranges::contains(proxies, proxy)) {
-				proxies.push_back(proxy);
-			}
-			Core::App().setCurrentProxy(
-				proxy,
-				ProxyData::Settings::Enabled);
-			Local::writeSettings();
-			close();
-		};
-		Ui::show(
-			Ui::MakeConfirmBox({
-				.text = text,
-				.confirmed = std::move(callback),
-				.confirmText = tr::lng_sure_enable(),
-			}),
-			Ui::LayerOption::KeepOther);
-	} else {
-		Ui::show(Ui::MakeInformBox(
+	if (!proxy) {
+		auto box = Ui::MakeInformBox(
 			(proxy.status() == ProxyData::Status::Unsupported
 				? tr::lng_proxy_unsupported(tr::now)
-				: tr::lng_proxy_invalid(tr::now))));
+				: tr::lng_proxy_invalid(tr::now)));
+		if (controller) {
+			controller->uiShow()->showBox(std::move(box));
+		} else {
+			Ui::show(std::move(box));
+		}
+		return;
+	}
+	static const auto UrlStartRegExp = QRegularExpression(
+		"^https://",
+		QRegularExpression::CaseInsensitiveOption);
+	static const auto UrlEndRegExp = QRegularExpression("/$");
+	const auto displayed = "https://" + proxy.host + "/";
+	const auto parsed = QUrl::fromUserInput(displayed);
+	const auto displayUrl = !UrlClickHandler::IsSuspicious(displayed)
+		? displayed
+		: parsed.isValid()
+		? QString::fromUtf8(parsed.toEncoded())
+		: UrlClickHandler::ShowEncoded(displayed);
+	const auto displayServer = QString(
+		displayUrl
+	).replace(
+		UrlStartRegExp,
+		QString()
+	).replace(UrlEndRegExp, QString());
+	const auto text = tr::lng_sure_enable_socks(
+		tr::now,
+		lt_server,
+		displayServer,
+		lt_port,
+		QString::number(proxy.port))
+		+ (proxy.type == Type::Mtproto
+			? "\n\n" + tr::lng_proxy_sponsor_warning(tr::now)
+			: QString());
+	auto callback = [=](Fn<void()> &&close) {
+		auto &proxies = Core::App().settings().proxy().list();
+		if (!ranges::contains(proxies, proxy)) {
+			proxies.push_back(proxy);
+		}
+		Core::App().setCurrentProxy(
+			proxy,
+			ProxyData::Settings::Enabled);
+		Local::writeSettings();
+		close();
+	};
+	auto box = Ui::MakeConfirmBox({
+		.text = text,
+		.confirmed = std::move(callback),
+		.confirmText = tr::lng_sure_enable(),
+	});
+	if (controller) {
+		controller->uiShow()->showBox(std::move(box));
+	} else {
+		Ui::show(std::move(box));
 	}
 }
 

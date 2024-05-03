@@ -30,6 +30,10 @@ namespace Main {
 class Account;
 } // namespace Main
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 class ProxiesBoxController {
 public:
 	using ProxyData = MTP::ProxyData;
@@ -38,6 +42,7 @@ public:
 	explicit ProxiesBoxController(not_null<Main::Account*> account);
 
 	static void ShowApplyConfirmation(
+		Window::SessionController *controller,
 		Type type,
 		const QMap<QString, QString> &fields);
 
