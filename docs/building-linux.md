@@ -20,7 +20,7 @@ Install [poetry](https://python-poetry.org), go to ***BuildPath*** and run
 Go to ***BuildPath*/tdesktop** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
     docker run --rm -it \
-        -v $PWD:/usr/src/tdesktop \
+        -v "$PWD:/usr/src/tdesktop" \
         tdesktop:centos_env \
         /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
         -D TDESKTOP_API_ID=YOUR_API_ID \
@@ -29,7 +29,7 @@ Go to ***BuildPath*/tdesktop** and run (using [your **api_id** and **api_hash**]
 Or, to create a debug build, run (also using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
     docker run --rm -it \
-        -v $PWD:/usr/src/tdesktop \
+        -v "$PWD:/usr/src/tdesktop" \
         -e CONFIG=Debug \
         tdesktop:centos_env \
         /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
