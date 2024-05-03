@@ -1084,4 +1084,6 @@ previewMenu: PopupMenu(defaultPopupMenu) {
 		widthMax: 380px;
 	}
 	maxHeight: 420px;
+	radius: boxRadius;
+	shadow: boxRoundShadow;
 }

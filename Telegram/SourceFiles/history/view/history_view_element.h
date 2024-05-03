@@ -61,6 +61,7 @@ enum class Context : char {
 	TTLViewer,
 	ShortcutMessages,
 	ScheduledTopic,
+	ChatPreview,
 };
 
 enum class OnlyEmojiAndSpaces : char {
