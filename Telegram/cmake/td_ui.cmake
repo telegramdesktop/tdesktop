@@ -396,7 +396,6 @@ PRIVATE
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
 
-    ui/arc_angles.h
     ui/cached_round_corners.cpp
     ui/cached_round_corners.h
     ui/color_contrast.cpp
