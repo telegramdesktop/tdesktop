@@ -1,3 +1,9 @@
+5.0.1 (04.05.24)
+
+- Fix several crashes in new interfaces.
+- Fix monospace font size.
+- Fix possible problem with underline font size.
+
 5.0 (02.05.24)
 
 - Choose custom font family in Settings > Chat settings > Font family.
