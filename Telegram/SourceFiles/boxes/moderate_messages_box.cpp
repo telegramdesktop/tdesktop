@@ -678,24 +678,32 @@ void CreateModerateMessagesBox(
 		Ui::AddSkip(container);
 		container->add(std::move(checkboxes));
 
-		handleConfirmation(ban, controller, [=](
-				not_null<PeerData*> peer,
-				not_null<ChannelData*> channel) {
-			if (wrap->toggled()) {
-				Api::ChatParticipants::Restrict(
-					channel,
-					peer,
-					ChatRestrictionsInfo(), // Unused.
-					ChatRestrictionsInfo(getRestrictions(), 0),
-					nullptr,
-					nullptr);
-			} else {
-				channel->session().api().chatParticipants().kick(
-					channel,
-					peer,
-					{ channel->restrictions(), 0 });
+		// Handle confirmation manually.
+		confirms->events() | rpl::start_with_next([=] {
+			if (ban->checked() && controller->collectRequests) {
+				const auto kick = !wrap->toggled();
+				const auto restrictions = getRestrictions();
+				const auto request = [=](
+						not_null<PeerData*> peer,
+						not_null<ChannelData*> channel) {
+					if (!kick) {
+						Api::ChatParticipants::Restrict(
+							channel,
+							peer,
+							ChatRestrictionsInfo(), // Unused.
+							ChatRestrictionsInfo(restrictions, 0),
+							nullptr,
+							nullptr);
+					} else {
+						channel->session().api().chatParticipants().kick(
+							channel,
+							peer,
+							{ channel->restrictions(), 0 });
+					}
+				};
+				sequentiallyRequest(request, controller->collectRequests());
 			}
-		});
+		}, ban->lifetime());
 	}
 
 	const auto close = crl::guard(box, [=] { box->closeBox(); });
