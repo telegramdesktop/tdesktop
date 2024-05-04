@@ -1090,3 +1090,25 @@ previewMenu: PopupMenu(defaultPopupMenu) {
 		shadow: boxRoundShadow;
 	}
 }
+previewTop: PeerListItem(defaultPeerListItem) {
+	height: 52px;
+	photoPosition: point(10px, 6px);
+	namePosition: point(60px, 9px);
+	statusPosition: point(60px, 27px);
+	photoSize: 40px;
+}
+previewMarkRead: FlatButton(historyComposeButton) {
+	height: 40px;
+	textTop: 10px;
+}
+previewName: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowFg;
+}
+previewStatus: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+previewUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(40px, 40px);
+	photoSize: 40px;
+}

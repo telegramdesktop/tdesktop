@@ -2341,7 +2341,15 @@ void InnerWidget::showChatPreview(bool onlyUserpic) {
 			if (const auto thread = weakThread.get()) {
 				const auto itemId = action.openItemId;
 				const auto owner = &thread->owner();
-				if (action.openInfo) {
+				if (action.markRead) {
+					Window::MarkAsReadThread(thread);
+				} else if (action.markUnread) {
+					if (const auto history = thread->asHistory()) {
+						history->owner().histories().changeDialogUnreadMark(
+							history,
+							true);
+					}
+				} else if (action.openInfo) {
 					controller->showPeerInfo(thread);
 				} else if (const auto item = owner->message(itemId)) {
 					controller->showMessage(item);

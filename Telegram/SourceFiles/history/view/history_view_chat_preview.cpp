@@ -7,26 +7,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_chat_preview.h"
 
+#include "base/unixtime.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_forum_topic.h"
 #include "data/data_history_messages.h"
 #include "data/data_peer.h"
+#include "data/data_peer_values.h"
 #include "data/data_replies_list.h"
+#include "data/data_session.h"
 #include "data/data_thread.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "info/profile/info_profile_cover.h"
+#include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
-#include "ui/widgets/popup_menu.h"
-#include "ui/widgets/elastic_scroll.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/menu/menu_item_base.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/elastic_scroll.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
 namespace {
@@ -48,7 +61,10 @@ private:
 	int contentHeight() const override;
 	void paintEvent(QPaintEvent *e) override;
 
+	void setupTop();
+	void setupMarkRead();
 	void setupBackground();
+	void setupHistory();
 	void updateInnerVisibleArea();
 
 	Context listContext() override;
@@ -148,7 +164,9 @@ private:
 	const not_null<PeerData*> _peer;
 	const std::shared_ptr<Ui::ChatTheme> _theme;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
+	const std::unique_ptr<Ui::AbstractButton> _top;
 	const std::unique_ptr<Ui::ElasticScroll> _scroll;
+	const std::unique_ptr<Ui::FlatButton> _markRead;
 
 	QPointer<HistoryView::ListWidget> _inner;
 	rpl::event_stream<ChatPreviewAction> _actions;
@@ -156,6 +174,56 @@ private:
 	QImage _bg;
 
 };
+
+struct StatusFields {
+	QString text;
+	bool active = false;
+};
+
+[[nodiscard]] rpl::producer<StatusFields> StatusValue(
+		not_null<PeerData*> peer) {
+	peer->updateFull();
+
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		UpdateFlag::OnlineStatus | UpdateFlag::Members
+	) | rpl::map([=](const Data::PeerUpdate &update)
+	-> StatusFields {
+		const auto wrap = [](QString text) {
+			return StatusFields{ .text = text };
+		};
+		if (const auto user = peer->asUser()) {
+			const auto now = base::unixtime::now();
+			return {
+				.text = Data::OnlineText(user, now),
+				.active = Data::OnlineTextActive(user, now),
+			};
+		} else if (const auto chat = peer->asChat()) {
+			return wrap(!chat->amIn()
+				? tr::lng_chat_status_unaccessible(tr::now)
+				: (chat->count <= 0)
+				? tr::lng_group_status(tr::now)
+				: tr::lng_chat_status_members(
+					tr::now,
+					lt_count_decimal,
+					chat->count));
+		} else if (const auto channel = peer->asChannel()) {
+			return wrap((channel->membersCount() > 0)
+				? ((channel->isMegagroup()
+					? tr::lng_chat_status_members
+					: tr::lng_chat_status_subscribers)(
+						tr::now,
+						lt_count_decimal,
+						channel->membersCount()))
+				: (channel->isMegagroup()
+					? tr::lng_group_status(tr::now)
+					: tr::lng_channel_status(tr::now)));
+		}
+		Unexpected("Peer type in ChatPreview Item.");
+	});
+
+}
 
 Item::Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread)
 : Ui::Menu::ItemBase(parent, st::previewMenu.menu)
@@ -167,17 +235,187 @@ Item::Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread)
 , _peer(thread->peer())
 , _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
 , _chatStyle(std::make_unique<Ui::ChatStyle>(_session->colorIndicesValue()))
-, _scroll(std::make_unique<Ui::ElasticScroll>(this)) {
+, _top(std::make_unique<Ui::AbstractButton>(this))
+, _scroll(std::make_unique<Ui::ElasticScroll>(this))
+, _markRead(
+	std::make_unique<Ui::FlatButton>(
+		this,
+		tr::lng_context_mark_read(tr::now),
+		st::previewMarkRead)) {
 	setPointerCursor(false);
 	setMinWidth(st::previewMenu.menu.widthMin);
 	resize(minWidth(), contentHeight());
+	setupTop();
+	setupMarkRead();
 	setupBackground();
+	setupHistory();
+}
 
+not_null<QAction*> Item::action() const {
+	return _dummyAction;
+}
+
+bool Item::isEnabled() const {
+	return false;
+}
+
+int Item::contentHeight() const {
+	return st::previewMenu.maxHeight;
+}
+
+void Item::setupTop() {
+	_top->setGeometry(0, 0, width(), st::previewTop.height);
+	_top->setClickedCallback([=] {
+		_actions.fire({ .openInfo = true });
+	});
+	_top->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		const auto &st = st::previewTop;
+		auto p = QPainter(_top.get());
+		p.fillRect(clip, st::topBarBg);
+	}, _top->lifetime());
+
+	const auto topic = _thread->asTopic();
+	const auto name = Ui::CreateChild<Ui::FlatLabel>(
+		_top.get(),
+		(topic
+			? Info::Profile::TitleValue(topic)
+			: Info::Profile::NameValue(_thread->peer())),
+		st::previewName);
+	name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	auto statusFields = StatusValue(
+		_thread->peer()
+	) | rpl::start_spawning(lifetime());
+	auto statusText = rpl::duplicate(
+		statusFields
+	) | rpl::map([](StatusFields &&fields) {
+		return fields.text;
+	});
+	const auto status = Ui::CreateChild<Ui::FlatLabel>(
+		_top.get(),
+		(topic
+			? Info::Profile::NameValue(topic->channel())
+			: std::move(statusText)),
+		st::previewStatus);
+	std::move(statusFields) | rpl::start_with_next([=](const StatusFields &fields) {
+		status->setTextColorOverride(fields.active
+			? st::windowActiveTextFg->c
+			: std::optional<QColor>());
+	}, status->lifetime());
+	status->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto userpic = topic
+		? nullptr
+		: Ui::CreateChild<Ui::UserpicButton>(
+			_top.get(),
+			_thread->peer(),
+			st::previewUserpic);
+	if (userpic) {
+		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+	const auto icon = topic
+		? Ui::CreateChild<Info::Profile::TopicIconButton>(
+			this,
+			topic,
+			[=] { return false; })
+		: nullptr;
+	if (icon) {
+		icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+
+	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
+	_top->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+		const auto &st = st::previewTop;
+		name->resizeToWidth(geometry.width()
+			- st.namePosition.x()
+			- st.photoPosition.x());
+		name->move(st::previewTop.namePosition);
+		status->resizeToWidth(geometry.width()
+			- st.statusPosition.x()
+			- st.photoPosition.x());
+		status->move(st.statusPosition);
+		shadow->setGeometry(
+			geometry.x(),
+			geometry.y() + geometry.height(),
+			geometry.width(),
+			st::lineWidth);
+		if (userpic) {
+			userpic->move(st.photoPosition);
+		} else {
+			icon->move(
+				st.photoPosition.x() + (st.photoSize - icon->width()) / 2,
+				st.photoPosition.y() + (st.photoSize - icon->height()) / 2);
+		}
+	}, shadow->lifetime());
+}
+
+void Item::setupMarkRead() {
+	_markRead->resizeToWidth(width());
+	_markRead->move(0, height() - _markRead->height());
+
+	rpl::single(
+		rpl::empty
+	) | rpl::then(
+		_thread->owner().chatsListFor(_thread)->unreadStateChanges(
+		) | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		const auto state = _thread->chatListBadgesState();
+		const auto unread = (state.unreadCounter || state.unread);
+		if (_thread->asTopic() && !unread) {
+			_markRead->hide();
+			return;
+		}
+		_markRead->setText(unread
+			? tr::lng_context_mark_read(tr::now)
+			: tr::lng_context_mark_unread(tr::now));
+		_markRead->setClickedCallback([=] {
+			_actions.fire({ .markRead = unread, .markUnread = !unread });
+		});
+		_markRead->show();
+	}, _markRead->lifetime());
+
+	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
+	_markRead->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+		shadow->setGeometry(
+			geometry.x(),
+			geometry.y() - st::lineWidth,
+			geometry.width(),
+			st::lineWidth);
+	}, shadow->lifetime());
+	shadow->showOn(_markRead->shownValue());
+}
+
+void Item::setupBackground() {
+	const auto ratio = style::DevicePixelRatio();
+	_bg = QImage(
+		size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+
+	const auto paint = [=] {
+		auto p = QPainter(&_bg);
+		Window::SectionWidget::PaintBackground(
+			p,
+			_theme.get(),
+			QSize(width(), height() * 2),
+			QRect(QPoint(), size()));
+	};
+	paint();
+	_theme->repaintBackgroundRequests() | rpl::start_with_next([=] {
+		paint();
+		update();
+	}, lifetime());
+}
+
+void Item::setupHistory() {
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
 		_session,
 		static_cast<ListDelegate*>(this)));
-	_scroll->setGeometry(rect());
+
+	_markRead->shownValue() | rpl::start_with_next([=](bool shown) {
+		const auto top = _top->height();
+		const auto bottom = shown ? _markRead->height() : 0;
+		_scroll->setGeometry(rect().marginsRemoved({ 0, top, 0, bottom }));
+	}, _markRead->lifetime());
+
 	_scroll->scrolls(
 	) | rpl::start_with_next([=] {
 		updateInnerVisibleArea();
@@ -207,39 +445,6 @@ Item::Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread)
 	_inner->refreshViewer();
 
 	_inner->setAttribute(Qt::WA_TransparentForMouseEvents);
-}
-
-not_null<QAction*> Item::action() const {
-	return _dummyAction;
-}
-
-bool Item::isEnabled() const {
-	return false;
-}
-
-int Item::contentHeight() const {
-	return st::previewMenu.maxHeight;
-}
-
-void Item::setupBackground() {
-	const auto ratio = style::DevicePixelRatio();
-	_bg = QImage(
-		size() * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-
-	const auto paint = [=] {
-		auto p = QPainter(&_bg);
-		Window::SectionWidget::PaintBackground(
-			p,
-			_theme.get(),
-			QSize(width(), height() * 2),
-			QRect(QPoint(), size()));
-	};
-	paint();
-	_theme->repaintBackgroundRequests() | rpl::start_with_next([=] {
-		paint();
-		update();
-	}, lifetime());
 }
 
 void Item::paintEvent(QPaintEvent *e) {
