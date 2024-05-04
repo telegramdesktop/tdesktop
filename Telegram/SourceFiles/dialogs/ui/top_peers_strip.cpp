@@ -205,6 +205,10 @@ int TopPeersStrip::resizeGetHeight(int newWidth) {
 	return _strip.y() + _strip.height();
 }
 
+rpl::producer<not_null<QWheelEvent*>> TopPeersStrip::verticalScrollEvents() const {
+	return _verticalScrollEvents.events();
+}
+
 void TopPeersStrip::stripWheelEvent(QWheelEvent *e) {
 	const auto phase = e->phase();
 	const auto fullDelta = e->pixelDelta().isNull()

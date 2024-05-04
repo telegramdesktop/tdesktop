@@ -62,6 +62,9 @@ public:
 	void deselectByKeyboard();
 	bool chooseRow();
 
+	[[nodiscard]] auto verticalScrollEvents() const
+		-> rpl::producer<not_null<QWheelEvent*>>;
+
 private:
 	struct Entry;
 	struct Layout;
