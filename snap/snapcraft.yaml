@@ -79,10 +79,6 @@ layout:
   /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkitgtk-6.0:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkitgtk-6.0
 
-package-repositories:
-  - type: apt
-    ppa: kisak/kisak-mesa
-
 parts:
   telegram:
     plugin: cmake
