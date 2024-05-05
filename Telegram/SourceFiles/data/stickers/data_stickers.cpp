@@ -1172,9 +1172,6 @@ std::vector<not_null<DocumentData*>> Stickers::getPremiumList(uint64 seed) {
 	const auto CreateFeaturedSortKey = [&](not_null<DocumentData*> document) {
 		return CreateSortKey(document, kSlice * 2);
 	};
-	const auto CreateOtherSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, 0);
-	};
 	const auto InstallDateAdjusted = [&](
 			TimeId date,
 			not_null<DocumentData*> document) {

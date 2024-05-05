@@ -1510,82 +1510,22 @@ mac:
 """)
 
 if buildQt6:
-    qt6version = '6.2.8' if mac else '6.7.0'
-    qt6version_ = '6_2_8' if mac else '6_7_0'
-    arg0 = 'qt_' + qt6version_
-    arg1 = qt6version
-
-    stage('qt_' + qt6version_, """
-win:
-    git clone -b v{1} https://github.com/qt/qt5.git {0}
+    stage('qt_6_2_8', """
 mac:
-    git clone -b v{1}-lts-lgpl https://github.com/qt/qt5.git {0}
-common:
-    cd {0}
+    git clone -b v6.2.8-lts-lgpl https://github.com/qt/qt5.git qt_6_2_8
+    cd qt_6_2_8
     git submodule update --init --recursive qtbase qtimageformats qtsvg
-depends:patches/qtbase_{1}/*.patch
+depends:patches/qtbase_6.2.8/*.patch
     cd qtbase
-win:
-    for /r %%i in (..\\..\\patches\\qtbase_{1}\\*) do git apply %%i -v
+    find ../../patches/qtbase_6.2.8 -type f -print0 | sort -z | xargs -0 git apply -v
     cd ..
-
-    SET CONFIGURATIONS=-debug
-release:
-    SET CONFIGURATIONS=-debug-and-release
-win:
-    """.format(arg0, arg1) + removeDir("\"%LIBS_DIR%\\Qt-\"" + qt6version) + """
-    SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
-    SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
-    SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
-    SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
-    SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
-    SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
-    SET WEBP_DIR=%LIBS_DIR%\\libwebp
-    configure -prefix "%LIBS_DIR%\\Qt-{1}" ^
-        %CONFIGURATIONS% ^
-        -force-debug-info ^
-        -opensource ^
-        -confirm-license ^
-        -static ^
-        -static-runtime ^
-        -opengl es2 -no-angle ^
-        -I "%ANGLE_DIR%\\include" ^
-        -D "KHRONOS_STATIC=" ^
-        -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
-        QMAKE_LIBS_OPENGL_ES2_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib d3d9.lib dxgi.lib dxguid.lib" ^
-        QMAKE_LIBS_OPENGL_ES2_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib d3d9.lib dxgi.lib dxguid.lib" ^
-        -egl ^
-        QMAKE_LIBS_EGL_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
-        QMAKE_LIBS_EGL_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
-        -openssl-linked ^
-        -I "%OPENSSL_DIR%\\include" ^
-        OPENSSL_LIBS_DEBUG="%OPENSSL_LIBS_DIR%.dbg\\libssl.lib %OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
-        OPENSSL_LIBS_RELEASE="%OPENSSL_LIBS_DIR%\\libssl.lib %OPENSSL_LIBS_DIR%\\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
-        -I "%MOZJPEG_DIR%" ^
-        LIBJPEG_LIBS_DEBUG="%MOZJPEG_DIR%\\Debug\\jpeg-static.lib" ^
-        LIBJPEG_LIBS_RELEASE="%MOZJPEG_DIR%\\Release\\jpeg-static.lib" ^
-        -system-webp ^
-        -I "%WEBP_DIR%\\src" ^
-        -L "%WEBP_DIR%\\out\\release-static\\$X8664\\lib" ^
-        -mp ^
-        -no-feature-netlistmgr ^
-        -nomake examples ^
-        -nomake tests ^
-        -platform win32-msvc
-
-    jom -j%NUMBER_OF_PROCESSORS%
-    jom -j%NUMBER_OF_PROCESSORS% install
-
-mac:
-    find ../../patches/qtbase_{1} -type f -print0 | sort -z | xargs -0 git apply -v
-    cd ..
-    sed -i.bak 's/tqtc-//' {{qtimageformats,qtsvg}}/dependencies.yaml
+    sed -i.bak 's/tqtc-//' {qtimageformats,qtsvg}/dependencies.yaml
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-{1}" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.8" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1606,7 +1546,7 @@ mac:
 
     ninja
     ninja install
-""".format(arg0, arg1))
+""")
 
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git

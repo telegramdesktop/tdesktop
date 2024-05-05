@@ -2367,9 +2367,7 @@ const GiveawayResults *MediaGiveawayResults::giveawayResults() const {
 }
 
 TextWithEntities MediaGiveawayResults::notificationText() const {
-	return {
-		.text = tr::lng_prizes_results_title(tr::now),
-	};
+	return Ui::Text::Colorized({ tr::lng_prizes_results_title(tr::now) });
 }
 
 QString MediaGiveawayResults::pinnedTextSubstring() const {

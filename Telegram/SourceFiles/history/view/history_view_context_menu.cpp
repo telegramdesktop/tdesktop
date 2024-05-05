@@ -553,10 +553,17 @@ bool AddRescheduleAction(
 		}
 		const auto callback = [=](Api::SendOptions options) {
 			list->cancelSelection();
+			auto groupedIds = std::vector<MessageGroupId>();
 			for (const auto &id : ids) {
 				const auto item = owner->message(id);
 				if (!item || !item->isScheduled()) {
 					continue;
+				}
+				if (const auto groupId = item->groupId()) {
+					if (ranges::contains(groupedIds, groupId)) {
+						continue;
+					}
+					groupedIds.push_back(groupId);
 				}
 				Api::RescheduleMessage(item, options);
 				// Increase the scheduled date by 1s to keep the order.

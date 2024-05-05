@@ -31,6 +31,7 @@ inline constexpr auto FileStatusSizeFailed = 0xFFFFFFF2LL;
 [[nodiscard]] QString FormatMuteFor(float64 sec);
 [[nodiscard]] QString FormatMuteForTiny(float64 sec);
 [[nodiscard]] QString FormatResetCloudPasswordIn(float64 sec);
+[[nodiscard]] QString FormatDialogsDate(const QDateTime &lastTime);
 
 struct CurrencyRule {
 	const char *international = "";

@@ -484,4 +484,22 @@ QString FormatResetCloudPasswordIn(float64 sec) {
 	return (sec >= 3600) ? FormatTTL(sec) : FormatDurationText(sec);
 }
 
+QString FormatDialogsDate(const QDateTime &lastTime) {
+	// Show all dates that are in the last 20 hours in time format.
+	constexpr int kRecentlyInSeconds = 20 * 3600;
+
+	const auto now = QDateTime::currentDateTime();
+	const auto nowDate = now.date();
+	const auto lastDate = lastTime.date();
+
+	if ((lastDate == nowDate)
+		|| (std::abs(lastTime.secsTo(now)) < kRecentlyInSeconds)) {
+		return QLocale().toString(lastTime.time(), QLocale::ShortFormat);
+	} else if (std::abs(lastDate.daysTo(nowDate)) < 7) {
+		return langDayOfWeek(lastDate);
+	} else {
+		return QLocale().toString(lastDate, QLocale::ShortFormat);
+	}
+}
+
 } // namespace Ui

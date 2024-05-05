@@ -46,12 +46,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-using Users = std::vector<not_null<UserData*>>;
+using Participants = std::vector<not_null<PeerData*>>;
 
 struct ModerateOptions final {
 	bool allCanBan = false;
 	bool allCanDelete = false;
-	Users users;
+	Participants participants;
 };
 
 ModerateOptions CalculateModerateOptions(const HistoryItemsList &items) {
@@ -76,9 +76,9 @@ ModerateOptions CalculateModerateOptions(const HistoryItemsList &items) {
 		if (!item->suggestDeleteAllReport()) {
 			result.allCanDelete = false;
 		}
-		if (const auto user = item->from()->asUser()) {
-			if (!ranges::contains(result.users, not_null{ user })) {
-				result.users.push_back(user);
+		if (const auto p = item->from()) {
+			if (!ranges::contains(result.participants, not_null{ p })) {
+				result.participants.push_back(p);
 			}
 		}
 	}
@@ -212,42 +212,45 @@ void CreateModerateMessagesBox(
 		rpl::event_stream<bool> toggleRequestsFromTop;
 		rpl::event_stream<bool> toggleRequestsFromInner;
 		rpl::event_stream<bool> checkAllRequests;
-		Fn<Users()> collectRequests;
+		Fn<Participants()> collectRequests;
 	};
-	const auto [allCanBan, allCanDelete, users] = CalculateModerateOptions(
-		items);
+	const auto [allCanBan, allCanDelete, participants]
+		= CalculateModerateOptions(items);
 	const auto inner = box->verticalLayout();
 
-	Assert(!users.empty());
+	Assert(!participants.empty());
 
 	const auto confirms = inner->lifetime().make_state<rpl::event_stream<>>();
 
-	const auto isSingle = users.size() == 1;
+	const auto isSingle = participants.size() == 1;
 	const auto buttonPadding = isSingle
 		? QMargins()
-		: QMargins(0, 0, Button::ComputeSize(users.size()).width(), 0);
+		: QMargins(0, 0, Button::ComputeSize(participants.size()).width(), 0);
 
 	const auto session = &items.front()->history()->session();
 	const auto historyPeerId = items.front()->history()->peer->id;
 
-	using Request = Fn<void(not_null<UserData*>, not_null<ChannelData*>)>;
-	const auto sequentiallyRequest = [=](Request request, Users users) {
+	using Request = Fn<void(not_null<PeerData*>, not_null<ChannelData*>)>;
+	const auto sequentiallyRequest = [=](
+			Request request,
+			Participants participants) {
 		constexpr auto kSmallDelayMs = 5;
-		const auto userIds = ranges::views::all(
-			users
-		) | ranges::views::transform([](not_null<UserData*> user) {
-			return user->id;
+		const auto participantIds = ranges::views::all(
+			participants
+		) | ranges::views::transform([](not_null<PeerData*> peer) {
+			return peer->id;
 		}) | ranges::to_vector;
 		const auto lifetime = std::make_shared<rpl::lifetime>();
 		const auto counter = lifetime->make_state<int>(0);
 		const auto timer = lifetime->make_state<base::Timer>();
 		timer->setCallback(crl::guard(session, [=] {
-			if ((*counter) < userIds.size()) {
+			if ((*counter) < participantIds.size()) {
 				const auto peer = session->data().peer(historyPeerId);
 				const auto channel = peer ? peer->asChannel() : nullptr;
-				const auto from = session->data().peer(userIds[*counter]);
-				if (const auto user = from->asUser(); channel && user) {
-					request(user, channel);
+				const auto from = session->data().peer(
+					participantIds[*counter]);
+				if (channel && from) {
+					request(from, channel);
 				}
 				(*counter)++;
 			} else {
@@ -304,7 +307,8 @@ void CreateModerateMessagesBox(
 		});
 	};
 
-	const auto createUsersList = [&](not_null<Controller*> controller) {
+	const auto createParticipantsList = [&](
+			not_null<Controller*> controller) {
 		const auto wrap = inner->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				inner,
@@ -322,8 +326,8 @@ void CreateModerateMessagesBox(
 		auto &lifetime = wrap->lifetime();
 		const auto clicks = lifetime.make_state<rpl::event_stream<>>();
 		const auto checkboxes = ranges::views::all(
-			users
-		) | ranges::views::transform([&](not_null<UserData*> user) {
+			participants
+		) | ranges::views::transform([&](not_null<PeerData*> peer) {
 			const auto line = container->add(
 				object_ptr<Ui::AbstractButton>(container));
 			const auto &st = st::moderateBoxUserpic;
@@ -331,11 +335,11 @@ void CreateModerateMessagesBox(
 
 			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 				line,
-				user,
+				peer,
 				st);
 			const auto checkbox = Ui::CreateChild<Ui::Checkbox>(
 				line,
-				user->name(),
+				peer->name(),
 				false,
 				st::defaultBoxCheckbox);
 			line->widthValue(
@@ -381,10 +385,10 @@ void CreateModerateMessagesBox(
 		}, container->lifetime());
 
 		controller->collectRequests = [=] {
-			auto result = Users();
+			auto result = Participants();
 			for (auto i = 0; i < checkboxes.size(); i++) {
 				if (checkboxes[i]->checked()) {
-					result.push_back(users[i]);
+					result.push_back(participants[i]);
 				}
 			}
 			return result;
@@ -395,12 +399,13 @@ void CreateModerateMessagesBox(
 			not_null<Ui::Checkbox*> checkbox,
 			not_null<Controller*> controller) {
 		if (isSingle) {
-			const auto user = users.front();
-			controller->collectRequests = [=] { return Users{ user }; };
+			const auto p = participants.front();
+			controller->collectRequests = [=] { return Participants{ p }; };
 			return;
 		}
-		const auto button = Ui::CreateChild<Button>(inner, users.size());
-		button->resize(Button::ComputeSize(users.size()));
+		const auto count = int(participants.size());
+		const auto button = Ui::CreateChild<Button>(inner, count);
+		button->resize(Button::ComputeSize(count));
 
 		const auto overlay = Ui::CreateChild<Ui::AbstractButton>(inner);
 
@@ -428,7 +433,7 @@ void CreateModerateMessagesBox(
 			checkbox->setChecked(!checkbox->checked());
 			controller->checkAllRequests.fire_copy(checkbox->checked());
 		});
-		createUsersList(controller);
+		createParticipantsList(controller);
 	};
 
 	Ui::AddSkip(inner);
@@ -458,20 +463,17 @@ void CreateModerateMessagesBox(
 
 		const auto ids = items.front()->from()->owner().itemsToIds(items);
 		handleConfirmation(report, controller, [=](
-				not_null<UserData*> u,
+				not_null<PeerData*> p,
 				not_null<ChannelData*> c) {
-			auto filtered = QVector<MTPint>();
-			for (const auto &id : ids) {
-				if (const auto item = u->session().data().message(id)) {
-					if (item->from()->asUser() == u) {
-						filtered.push_back(MTP_int(item->fullId().msg));
-					}
-				}
-			}
-			u->session().api().request(
+			auto filtered = ranges::views::all(
+				ids
+			) | ranges::views::transform([](const FullMsgId &id) {
+				return MTP_int(id.msg);
+			}) | ranges::to<QVector<MTPint>>();
+			c->session().api().request(
 				MTPchannels_ReportSpam(
 					c->inputChannel,
-					u->input,
+					p->input,
 					MTP_vector<MTPint>(std::move(filtered)))
 			).send();
 		});
@@ -501,7 +503,7 @@ void CreateModerateMessagesBox(
 			tr::lng_selected_delete_sure(
 				lt_count,
 				rpl::combine(
-					MessagesCountValue(history, users.front()),
+					MessagesCountValue(history, participants.front()),
 					deleteAll->checkedValue()
 				) | rpl::map([s = items.size()](int all, bool checked) {
 					return float64((checked && all) ? all : s);
@@ -518,9 +520,9 @@ void CreateModerateMessagesBox(
 		handleSubmition(deleteAll);
 
 		handleConfirmation(deleteAll, controller, [=](
-				not_null<UserData*> u,
+				not_null<PeerData*> p,
 				not_null<ChannelData*> c) {
-			u->session().api().deleteAllFromParticipant(c, u);
+			p->session().api().deleteAllFromParticipant(c, p);
 		});
 	}
 	if (allCanBan) {
@@ -554,7 +556,7 @@ void CreateModerateMessagesBox(
 		const auto container = wrap->entity();
 		wrap->toggle(false, anim::type::instant);
 
-		const auto session = &users.front()->session();
+		const auto session = &participants.front()->session();
 		const auto emojiMargin = QMargins(
 			-st::moderateBoxExpandInnerSkip,
 			-st::moderateBoxExpandInnerSkip / 2,
@@ -664,7 +666,7 @@ void CreateModerateMessagesBox(
 				tr::lng_restrict_users_part_single_header(),
 				tr::lng_restrict_users_part_header(
 					lt_count,
-					rpl::single(users.size()) | tr::to_count())),
+					rpl::single(participants.size()) | tr::to_count())),
 			prepareFlags,
 			disabledMessages,
 			{ .isForum = peer->isForum() });
@@ -676,30 +678,38 @@ void CreateModerateMessagesBox(
 		Ui::AddSkip(container);
 		container->add(std::move(checkboxes));
 
-		handleConfirmation(ban, controller, [=](
-				not_null<UserData*> user,
-				not_null<ChannelData*> channel) {
-			if (wrap->toggled()) {
-				Api::ChatParticipants::Restrict(
-					channel,
-					user,
-					ChatRestrictionsInfo(), // Unused.
-					ChatRestrictionsInfo(getRestrictions(), 0),
-					nullptr,
-					nullptr);
-			} else {
-				channel->session().api().chatParticipants().kick(
-					channel,
-					user,
-					{ channel->restrictions(), 0 });
+		// Handle confirmation manually.
+		confirms->events() | rpl::start_with_next([=] {
+			if (ban->checked() && controller->collectRequests) {
+				const auto kick = !wrap->toggled();
+				const auto restrictions = getRestrictions();
+				const auto request = [=](
+						not_null<PeerData*> peer,
+						not_null<ChannelData*> channel) {
+					if (!kick) {
+						Api::ChatParticipants::Restrict(
+							channel,
+							peer,
+							ChatRestrictionsInfo(), // Unused.
+							ChatRestrictionsInfo(restrictions, 0),
+							nullptr,
+							nullptr);
+					} else {
+						channel->session().api().chatParticipants().kick(
+							channel,
+							peer,
+							{ channel->restrictions(), 0 });
+					}
+				};
+				sequentiallyRequest(request, controller->collectRequests());
 			}
-		});
+		}, ban->lifetime());
 	}
 
 	const auto close = crl::guard(box, [=] { box->closeBox(); });
 	{
-		const auto data = &users.front()->session().data();
-		const auto ids = users.front()->session().data().itemsToIds(items);
+		const auto data = &participants.front()->session().data();
+		const auto ids = data->itemsToIds(items);
 		box->addButton(tr::lng_box_delete(), [=] {
 			confirms->fire({});
 			if (confirmed) {
@@ -716,7 +726,7 @@ void CreateModerateMessagesBox(
 bool CanCreateModerateMessagesBox(const HistoryItemsList &items) {
 	const auto options = CalculateModerateOptions(items);
 	return (options.allCanBan || options.allCanDelete)
-		&& !options.users.empty();
+		&& !options.participants.empty();
 }
 
 void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
@@ -762,7 +772,7 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 			? tr::lng_saved_messages() | Ui::Text::ToBold()
 			: maybeUser
 			? tr::lng_profile_delete_conversation() | Ui::Text::ToBold()
-			: rpl::single(Ui::Text::Bold(peer->name())),
+			: rpl::single(Ui::Text::Bold(peer->name())) | rpl::type_erased(),
 		box->getDelegate()->style().title);
 	line->widthValue(
 	) | rpl::start_with_next([=](int width) {

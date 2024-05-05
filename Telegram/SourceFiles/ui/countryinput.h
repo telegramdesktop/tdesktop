@@ -53,7 +53,6 @@ private:
 	bool _active = false;
 	QString _text;
 	QString _chosenIso;
-	QPainterPath _placeholderPath;
 
 	rpl::event_stream<QString> _codeChanged;
 

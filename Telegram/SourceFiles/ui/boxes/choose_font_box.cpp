@@ -53,10 +53,10 @@ public:
 private:
 	void layout();
 
-	void paintBubble(QPainter &p);
-	void paintContent(QPainter &p);
-	void paintReply(QPainter &p);
-	void paintMessage(QPainter &p);
+	void paintBubble(Painter &p);
+	void paintContent(Painter &p);
+	void paintReply(Painter &p);
+	void paintMessage(Painter &p);
 
 	void validateBubbleCache();
 
@@ -64,18 +64,16 @@ private:
 	const style::owned_color _msgBg;
 	const style::owned_color _msgShadow;
 
-	QFont _nameFont;
-	QFontMetricsF _nameMetrics;
-	int _nameFontHeight = 0;
-	QFont _textFont;
-	QFontMetricsF _textMetrics;
-	int _textFontHeight = 0;
+	style::owned_font _nameFontOwned;
+	style::font _nameFont;
+	style::TextStyle _nameStyle;
+	style::owned_font _textFontOwned;
+	style::font _textFont;
+	style::TextStyle _textStyle;
 
-	QString _nameText;
-	QString _replyText;
-	QString _messageText;
-
-	int _boundingLimit = 0;
+	Ui::Text::String _nameText;
+	Ui::Text::String _replyText;
+	Ui::Text::String _messageText;
 
 	QRect _replyRect;
 	QRect _name;
@@ -316,18 +314,18 @@ void Selector::validateCache(Entry &row) {
 	}
 	row.paletteVersion = version;
 	row.cache.fill(Qt::transparent);
-	auto font = style::ResolveFont(row.id, 0, st::boxFontSize);
+	auto owned = style::owned_font(row.id, 0, st::boxFontSize);
+	const auto font = owned.font();
 	auto p = QPainter(&row.cache);
 	p.setFont(font);
 	p.setPen(st::windowFg);
 
 	const auto textw = width() - _st.padding.left() - _st.padding.right();
-	const auto metrics = QFontMetrics(font);
-	const auto textt = (_rowHeight - metrics.height()) / 2.;
+	const auto textt = (_rowHeight - font->height) / 2.;
 	p.drawText(
 		_st.padding.left(),
-		int(base::SafeRound(textt)) + metrics.ascent(),
-		metrics.elidedText(row.text, Qt::ElideRight, textw));
+		textt + font->ascent,
+		font->elided(row.text, textw));
 }
 
 bool Selector::searching() const {
@@ -576,15 +574,15 @@ PreviewPainter::PreviewPainter(const QImage &bg, PreviewRequest request)
 : _request(request)
 , _msgBg(_request.msgBg)
 , _msgShadow(_request.msgShadow)
-, _nameFont(style::ResolveFont(
-	_request.family,
-	style::internal::FontSemibold,
-	st::fsize))
-, _nameMetrics(_nameFont)
-, _nameFontHeight(base::SafeRound(_nameMetrics.height()))
-, _textFont(style::ResolveFont(_request.family, 0, st::fsize))
-, _textMetrics(_textFont)
-, _textFontHeight(base::SafeRound(_textMetrics.height())) {
+, _nameFontOwned(_request.family, style::FontFlag::Semibold, st::fsize)
+, _nameFont(_nameFontOwned.font())
+, _nameStyle(st::semiboldTextStyle)
+, _textFontOwned(_request.family, 0, st::fsize)
+, _textFont(_textFontOwned.font())
+, _textStyle(st::defaultTextStyle) {
+	_nameStyle.font = _nameFont;
+	_textStyle.font = _textFont;
+
 	layout();
 
 	const auto ratio = style::DevicePixelRatio();
@@ -593,14 +591,14 @@ PreviewPainter::PreviewPainter(const QImage &bg, PreviewRequest request)
 		QImage::Format_ARGB32_Premultiplied);
 	_result.setDevicePixelRatio(ratio);
 
-	auto p = QPainter(&_result);
+	auto p = Painter(&_result);
 	p.drawImage(0, 0, bg);
 
 	p.translate(_bubble.topLeft());
 	paintBubble(p);
 }
 
-void PreviewPainter::paintBubble(QPainter &p) {
+void PreviewPainter::paintBubble(Painter &p) {
 	validateBubbleCache();
 	const auto bubble = QRect(QPoint(), _bubble.size());
 	const auto cornerShadow = _bubbleShadowBottomRight.size()
@@ -636,7 +634,7 @@ void PreviewPainter::validateBubbleCache() {
 		= Ui::PrepareCornerPixmaps(radius, _msgShadow.color()).p[3];
 }
 
-void PreviewPainter::paintContent(QPainter &p) {
+void PreviewPainter::paintContent(Painter &p) {
 	paintReply(p);
 
 	p.translate(_message.topLeft());
@@ -645,7 +643,7 @@ void PreviewPainter::paintContent(QPainter &p) {
 	paintMessage(p);
 }
 
-void PreviewPainter::paintReply(QPainter &p) {
+void PreviewPainter::paintReply(Painter &p) {
 	{
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
@@ -672,26 +670,25 @@ void PreviewPainter::paintReply(QPainter &p) {
 	p.setClipping(false);
 
 	p.setPen(_request.replyNameFg);
-	p.setFont(_nameFont);
-	const auto name = _nameMetrics.elidedText(
-		_nameText,
-		Qt::ElideRight,
-		_name.width());
-	p.drawText(_name.x(), _name.y() + _nameMetrics.ascent(), name);
+	_nameText.drawLeftElided(
+		p,
+		_name.x(),
+		_name.y(),
+		_name.width(),
+		_outer.width());
 
 	p.setPen(_request.textFg);
-	p.setFont(_textFont);
-	const auto reply = _textMetrics.elidedText(
-		_replyText,
-		Qt::ElideRight,
-		_reply.width());
-	p.drawText(_reply.x(), _reply.y() + _textMetrics.ascent(), reply);
+	_replyText.drawLeftElided(
+		p,
+		_reply.x(),
+		_reply.y(),
+		_reply.width(),
+		_outer.width());
 }
 
-void PreviewPainter::paintMessage(QPainter &p) {
+void PreviewPainter::paintMessage(Painter &p) {
 	p.setPen(_request.textFg);
-	p.setFont(_textFont);
-	p.drawText(QRect(0, 0, _message.width(), _boundingLimit), _messageText);
+	_messageText.drawLeft(p, 0, 0, _message.width(), _message.width());
 }
 
 QImage PreviewPainter::takeResult() {
@@ -705,79 +702,54 @@ void PreviewPainter::layout() {
 		- 2 * skip
 		- st::msgPadding.left()
 		- st::msgPadding.right();
-	_boundingLimit = 100 * maxTextWidth;
 
-	const auto textSize = [&](
-			const QFontMetricsF &metrics,
-			const QString &text,
-			int availableWidth,
-			bool oneline = false) {
-		const auto result = metrics.boundingRect(
-			QRect(0, 0, availableWidth, _boundingLimit),
-			(Qt::AlignLeft
-				| Qt::AlignTop
-				| (oneline ? Qt::TextSingleLine : Qt::TextWordWrap)),
-			text);
-		return QSize(
-			int(std::ceil(result.x() + result.width())),
-			int(std::ceil(result.y() + result.height())));
-	};
-	const auto naturalSize = [&](
-			const QFontMetricsF &metrics,
-			const QString &text,
-			bool oneline = false) {
-		return textSize(metrics, text, _boundingLimit, oneline);
-	};
-
-	_nameText = tr::lng_settings_chat_message_reply_from(tr::now);
-	_replyText = tr::lng_background_text2(tr::now);
-	_messageText = tr::lng_background_text1(tr::now);
-
-	const auto nameSize = naturalSize(_nameMetrics, _nameText, true);
-	const auto nameMaxWidth = nameSize.width();
-	const auto replySize = naturalSize(_textMetrics, _replyText, true);
-	const auto replyMaxWidth = replySize.width();
-	const auto messageSize = naturalSize(_textMetrics, _messageText);
-	const auto messageMaxWidth = messageSize.width();
+	_nameText = Ui::Text::String(
+		_nameStyle,
+		tr::lng_settings_chat_message_reply_from(tr::now));
+	_replyText = Ui::Text::String(
+		_textStyle,
+		tr::lng_background_text2(tr::now));
+	_messageText = Ui::Text::String(
+		_textStyle,
+		tr::lng_background_text1(tr::now),
+		kDefaultTextOptions,
+		st::msgMinWidth / 2);
 
 	const auto namePosition = QPoint(
 		st::historyReplyPadding.left(),
 		st::historyReplyPadding.top());
 	const auto replyPosition = QPoint(
 		st::historyReplyPadding.left(),
-		(st::historyReplyPadding.top() + _nameFontHeight));
+		(st::historyReplyPadding.top() + _nameFont->height));
 	const auto paddingRight = st::historyReplyPadding.right();
 
 	const auto wantedWidth = std::max({
-		namePosition.x() + nameMaxWidth + paddingRight,
-		replyPosition.x() + replyMaxWidth + paddingRight,
-		messageMaxWidth
+		namePosition.x() + _nameText.maxWidth() + paddingRight,
+		replyPosition.x() + _replyText.maxWidth() + paddingRight,
+		_messageText.maxWidth()
 	});
 
 	const auto messageWidth = std::clamp(
 		wantedWidth,
 		minTextWidth,
 		maxTextWidth);
-	const auto messageHeight = textSize(
-		_textMetrics,
-		_messageText,
-		maxTextWidth).height();
+	const auto messageHeight = _messageText.countHeight(messageWidth);
 
 	_replyRect = QRect(
 		st::msgReplyBarPos.x(),
 		st::historyReplyTop,
 		messageWidth,
 		(st::historyReplyPadding.top()
-			+ _nameFontHeight
-			+ _textFontHeight
+			+ _nameFont->height
+			+ _textFont->height
 			+ st::historyReplyPadding.bottom()));
 
 	_name = QRect(
 		_replyRect.topLeft() + namePosition,
-		QSize(messageWidth - namePosition.x(), _nameFontHeight));
+		QSize(messageWidth - namePosition.x(), _nameFont->height));
 	_reply = QRect(
 		_replyRect.topLeft() + replyPosition,
-		QSize(messageWidth - replyPosition.x(), _textFontHeight));
+		QSize(messageWidth - replyPosition.x(), _textFont->height));
 	_message = QRect(0, 0, messageWidth, messageHeight);
 
 	const auto replySkip = _replyRect.y()

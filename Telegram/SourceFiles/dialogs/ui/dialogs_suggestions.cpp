@@ -970,6 +970,11 @@ void Suggestions::setupChats() {
 		_chatsScroll->scrollToY(request.ymin, request.ymax);
 	}, _topPeers->lifetime());
 
+	_topPeers->verticalScrollEvents(
+	) | rpl::start_with_next([=](not_null<QWheelEvent*> e) {
+		_chatsScroll->viewportEvent(e);
+	}, _topPeers->lifetime());
+
 	_chatsScroll->setVisible(_tab.current() == Tab::Chats);
 }
 

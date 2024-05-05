@@ -69,6 +69,8 @@ private:
 	float64 _speed = 1.;
 
 	QFontMetricsF _metrics;
+	float64 _adjustedAscent = 0.;
+	float64 _adjustedHeight = 0.;
 
 	QString _text;
 	float64 _textWidth = 0;

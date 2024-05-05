@@ -244,8 +244,8 @@ QString FileExtension(const QString &filepath) {
 
 NameType DetectNameType(const QString &filepath) {
 	static const auto kImage = SplitExtensions(u"\
-afdesign ai avif bmp dng gif heic icns ico jfif jpeg jpg jpg-large nef png \
-png-large psd raw sketch svg tga tif tiff webp"_q);
+afdesign ai avif bmp dng gif heic icns ico jfif jpeg jpg jpg-large jxl nef \
+png png-large psd qoi raw sketch svg tga tif tiff webp"_q);
 	static const auto kVideo = SplitExtensions(u"\
 3g2 3gp 3gpp aep avi flv h264 m4s m4v mkv mov mp4 mpeg mpg ogv srt tgs tgv \
 vob webm wmv"_q);

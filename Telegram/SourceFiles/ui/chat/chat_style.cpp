@@ -649,7 +649,7 @@ void ChatStyle::clearColorIndexCaches() {
 
 void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	*static_cast<style::palette*>(this) = *palette;
-	style::internal::resetIcons();
+	style::internal::ResetIcons();
 
 	clearColorIndexCaches();
 	for (auto &style : _messageStyles) {
