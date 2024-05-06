@@ -4571,7 +4571,8 @@ void Session::insertCheckedServiceNotification(
 				MTPMessageReactions(),
 				MTPVector<MTPRestrictionReason>(),
 				MTPint(), // ttl_period
-				MTPint()), // quick_reply_shortcut_id
+				MTPint(), // quick_reply_shortcut_id
+				MTPlong()), // effect
 			localFlags,
 			NewMessageType::Unread);
 	}

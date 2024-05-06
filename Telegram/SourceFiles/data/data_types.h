@@ -138,6 +138,7 @@ using PollId = uint64;
 using WallPaperId = uint64;
 using CallId = uint64;
 using BotAppId = uint64;
+using EffectId = uint64;
 
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 

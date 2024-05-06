@@ -163,12 +163,17 @@ namespace Media::Stories {
 					MTPVector<MTPMessageEntity>(),
 					MTP_int(action.options.scheduled),
 					MTP_inputPeerEmpty(),
-					Data::ShortcutIdToMTP(session, action.options.shortcutId)
+					Data::ShortcutIdToMTP(
+						session,
+						action.options.shortcutId),
+					MTP_long(action.options.effectId)
 				), [=](
 						const MTPUpdates &result,
 						const MTP::Response &response) {
 					done();
-				}, [=](const MTP::Error &error, const MTP::Response &response) {
+				}, [=](
+						const MTP::Error &error,
+						const MTP::Response &response) {
 					api->sendMessageFail(error, threadPeer, randomId);
 					done();
 				});

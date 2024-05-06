@@ -101,6 +101,7 @@ struct HistoryItemCommonFields {
 	UserId viaBotId = 0;
 	QString postAuthor;
 	uint64 groupedId = 0;
+	EffectId effectId = 0;
 	HistoryMessageMarkupData markup;
 };
 
@@ -493,8 +494,8 @@ public:
 		not_null<const HistoryMessageForwarded*> forwarded) const;
 
 	[[nodiscard]] bool isEmpty() const;
-
 	[[nodiscard]] MessageGroupId groupId() const;
+	[[nodiscard]] EffectId effectId() const;
 
 	[[nodiscard]] const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
 		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();
@@ -647,8 +648,9 @@ private:
 	int _boostsApplied = 0;
 	BusinessShortcutId _shortcutId = 0;
 
-	HistoryView::Element *_mainView = nullptr;
 	MessageGroupId _groupId = MessageGroupId();
+	EffectId _effectId = 0;
+	HistoryView::Element *_mainView = nullptr;
 
 	friend class HistoryView::Element;
 	friend class HistoryView::Message;

@@ -165,7 +165,8 @@ void SendExistingMedia(
 				sentEntities,
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-				Data::ShortcutIdToMTP(session, action.options.shortcutId)
+				Data::ShortcutIdToMTP(session, action.options.shortcutId),
+				MTP_long(action.options.effectId)
 			), [=](const MTPUpdates &result, const MTP::Response &response) {
 		}, [=](const MTP::Error &error, const MTP::Response &response) {
 			if (error.code() == 400
@@ -335,7 +336,8 @@ bool SendDice(MessageToSend &message) {
 			MTP_vector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-			Data::ShortcutIdToMTP(session, action.options.shortcutId)
+			Data::ShortcutIdToMTP(session, action.options.shortcutId),
+			MTP_long(action.options.effectId)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		api->sendMessageFail(error, peer, randomId, newId);

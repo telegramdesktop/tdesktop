@@ -3116,6 +3116,10 @@ MessageGroupId HistoryItem::groupId() const {
 	return _groupId;
 }
 
+EffectId HistoryItem::effectId() const {
+	return _effectId;
+}
+
 bool HistoryItem::isEmpty() const {
 	return _text.empty()
 		&& !_media
@@ -4972,7 +4976,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 }
 
 void HistoryItem::setSelfDestruct(
-		HistoryServiceSelfDestruct::Type type,
+		HistorySelfDestructType type,
 		MTPint mtpTTLvalue) {
 	UpdateComponents(HistoryServiceSelfDestruct::Bit());
 	const auto selfdestruct = Get<HistoryServiceSelfDestruct>();

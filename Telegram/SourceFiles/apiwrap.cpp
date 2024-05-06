@@ -3869,7 +3869,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					sentEntities,
 					MTP_int(action.options.scheduled),
 					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-					mtpShortcut
+					mtpShortcut,
+					MTP_long(action.options.effectId)
 				), done, fail);
 		} else {
 			histories.sendPreparedMessage(
@@ -3886,7 +3887,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					sentEntities,
 					MTP_int(action.options.scheduled),
 					(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-					mtpShortcut
+					mtpShortcut,
+					MTP_long(action.options.effectId)
 				), done, fail);
 		}
 		isFirst = false;
@@ -4180,7 +4182,8 @@ void ApiWrap::sendMediaWithRandomId(
 			sentEntities,
 			MTP_int(options.scheduled),
 			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty()),
-			Data::ShortcutIdToMTP(_session, options.shortcutId)
+			Data::ShortcutIdToMTP(_session, options.shortcutId),
+			MTP_long(options.effectId)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (done) done(true);
 		if (updateRecentStickers) {
@@ -4282,7 +4285,8 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			MTP_vector<MTPInputSingleMedia>(medias),
 			MTP_int(album->options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-			Data::ShortcutIdToMTP(_session, album->options.shortcutId)
+			Data::ShortcutIdToMTP(_session, album->options.shortcutId),
+			MTP_long(album->options.effectId)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		_sendingAlbums.remove(groupId);
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
