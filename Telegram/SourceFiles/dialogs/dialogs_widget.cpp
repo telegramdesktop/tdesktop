@@ -1001,7 +1001,9 @@ void Widget::setupShortcuts() {
 					const auto history = forum->history();
 					controller()->searchInChat(history);
 					return true;
-				} else if (!_openedFolder && _search->isVisible()) {
+				} else if (!_openedFolder
+					&& !_childList
+					&& _search->isVisible()) {
 					_search->setFocus();
 					return true;
 				}
@@ -3291,6 +3293,7 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 bool Widget::redirectKeyToSearch(QKeyEvent *e) const {
 	if (_openedFolder
 		|| _openedForum
+		|| _childList
 		|| !_search->isVisible()
 		|| _search->hasFocus()) {
 		return false;
