@@ -545,6 +545,11 @@ public:
 		Data::ReactionId,
 		std::unique_ptr<Ui::ReactionFlyAnimation>>;
 
+	virtual void animateEffect(Ui::ReactionFlyAnimationArgs &&args);
+	void animateUnreadEffect();
+	[[nodiscard]] virtual auto takeEffectAnimation()
+	-> std::unique_ptr<Ui::ReactionFlyAnimation>;
+
 	void overrideMedia(std::unique_ptr<Media> media);
 
 	virtual bool consumeHorizontalScroll(QPoint position, int delta) {

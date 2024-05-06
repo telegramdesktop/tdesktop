@@ -423,6 +423,7 @@ Message::Message(
 		: base::flat_map<
 			Data::ReactionId,
 			std::unique_ptr<Ui::ReactionFlyAnimation>>();
+	auto animation = replacing ? replacing->takeEffectAnimation() : nullptr;
 	if (!animations.empty()) {
 		const auto repainter = [=] { repaint(); };
 		for (const auto &[id, animation] : animations) {
@@ -430,9 +431,10 @@ Message::Message(
 		}
 		if (_reactions) {
 			_reactions->continueAnimations(std::move(animations));
-		} else {
-			_bottomInfo.continueReactionAnimations(std::move(animations));
 		}
+	}
+	if (animation) {
+		_bottomInfo.continueEffectAnimation(std::move(animation));
 	}
 	if (data->isSponsored()) {
 		const auto &session = data->history()->session();
@@ -582,9 +584,6 @@ void Message::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
 		return;
 	}
 
-	const auto animateInBottomInfo = [&](QPoint bottomRight) {
-		_bottomInfo.animateReaction(args.translated(-bottomRight), repainter);
-	};
 	if (bubble) {
 		auto entry = logEntryOriginal();
 
@@ -609,6 +608,50 @@ void Message::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
 			_reactions->animate(args.translated(-reactionsPosition), repainter);
 			return;
 		}
+	}
+}
+
+void Message::animateEffect(Ui::ReactionFlyAnimationArgs &&args) {
+	const auto item = data();
+	const auto media = this->media();
+
+	auto g = countGeometry();
+	if (g.width() < 1 || isHidden()) {
+		return;
+	}
+	const auto repainter = [=] { repaint(); };
+
+	const auto bubble = drawBubble();
+	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
+	const auto mediaDisplayed = media && media->isDisplayed();
+	const auto keyboard = item->inlineReplyKeyboard();
+	auto keyboardHeight = 0;
+	if (keyboard) {
+		keyboardHeight = keyboard->naturalHeight();
+		g.setHeight(g.height() - st::msgBotKbButton.margin - keyboardHeight);
+	}
+
+	const auto animateInBottomInfo = [&](QPoint bottomRight) {
+		_bottomInfo.animateEffect(args.translated(-bottomRight), repainter);
+	};
+	if (bubble) {
+		auto entry = logEntryOriginal();
+
+		// Entry page is always a bubble bottom.
+		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
+		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
+
+		auto inner = g;
+		if (_comments) {
+			inner.setHeight(inner.height() - st::historyCommentsButtonHeight);
+		}
+		auto trect = inner.marginsRemoved(st::msgPadding);
+		const auto reactionsTop = (reactionsInBubble && !_viewButton)
+			? st::mediaInBubbleSkip
+			: 0;
+		const auto reactionsHeight = reactionsInBubble
+			? (reactionsTop + _reactions->height())
+			: 0;
 		if (_viewButton) {
 			const auto belowInfo = _viewButton->belowMessageInfo();
 			const auto infoHeight = reactionsInBubble
@@ -653,9 +696,15 @@ auto Message::takeReactionAnimations()
 -> base::flat_map<
 		Data::ReactionId,
 		std::unique_ptr<Ui::ReactionFlyAnimation>> {
-	return _reactions
-		? _reactions->takeAnimations()
-		: _bottomInfo.takeReactionAnimations();
+	if (_reactions) {
+		return _reactions->takeAnimations();
+	}
+	return {};
+}
+
+auto Message::takeEffectAnimation()
+-> std::unique_ptr<Ui::ReactionFlyAnimation> {
+	return _bottomInfo.takeEffectAnimation();
 }
 
 QSize Message::performCountOptimalSize() {

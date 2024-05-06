@@ -74,6 +74,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
+#include "data/data_message_reactions.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_premium_limits.h" // Data::PremiumLimits.
 #include "data/stickers/data_stickers.h"
@@ -1398,7 +1399,7 @@ int HistoryWidget::itemTopForHighlight(
 	if (heightLeft >= 0) {
 		return std::max(itemTop - (heightLeft / 2), 0);
 	} else if (reactionCenter >= 0) {
-		const auto maxSize = st::reactionInfoImage;
+		const auto maxSize = st::reactionInlineImage;
 
 		// Show message right till the bottom.
 		const auto forBottom = itemTop + viewHeight - visibleAreaHeight;
@@ -2374,6 +2375,8 @@ void HistoryWidget::showHistory(
 				_migrated->forgetScrollState();
 			}
 		}
+
+		session().data().reactions().refreshEffects();
 
 		_scroll->hide();
 		_list = _scroll->setOwnedWidget(

@@ -1770,6 +1770,17 @@ auto Element::takeReactionAnimations()
 	return {};
 }
 
+void Element::animateEffect(Ui::ReactionFlyAnimationArgs &&args) {
+}
+
+void Element::animateUnreadEffect() {
+}
+
+auto Element::takeEffectAnimation()
+-> std::unique_ptr<Ui::ReactionFlyAnimation> {
+	return nullptr;
+}
+
 Element::~Element() {
 	// Delete media while owner still exists.
 	clearSpecialOnlyEmoji();

@@ -37,6 +37,8 @@ struct Reaction {
 	DocumentData *aroundAnimation = nullptr;
 	int count = 0;
 	bool active = false;
+	bool effect = false;
+	bool premium = false;
 };
 
 struct PossibleItemReactionsRef {
@@ -80,6 +82,7 @@ public:
 	void refreshMyTags(SavedSublist *sublist = nullptr);
 	void refreshMyTagsDelayed();
 	void refreshTags();
+	void refreshEffects();
 
 	enum class Type {
 		Active,
@@ -88,6 +91,7 @@ public:
 		All,
 		MyTags,
 		Tags,
+		Effects,
 	};
 	[[nodiscard]] const std::vector<Reaction> &list(Type type) const;
 	[[nodiscard]] const std::vector<MyTagInfo> &myTagsInfo() const;
@@ -108,16 +112,15 @@ public:
 	[[nodiscard]] rpl::producer<> myTagsUpdates() const;
 	[[nodiscard]] rpl::producer<> tagsUpdates() const;
 	[[nodiscard]] rpl::producer<ReactionId> myTagRenamed() const;
+	[[nodiscard]] rpl::producer<> effectsUpdates() const;
 
-	enum class ImageSize {
-		BottomInfo,
-		InlineList,
-	};
-	void preloadImageFor(const ReactionId &emoji);
+	void preloadReactionImageFor(const ReactionId &emoji);
+	[[nodiscard]] QImage resolveReactionImageFor(const ReactionId &emoji);
+
+	void preloadEffectImageFor(EffectId id);
+	[[nodiscard]] QImage resolveEffectImageFor(EffectId id);
+
 	void preloadAnimationsFor(const ReactionId &emoji);
-	[[nodiscard]] QImage resolveImageFor(
-		const ReactionId &emoji,
-		ImageSize size);
 
 	void send(not_null<HistoryItem*> item, bool addToRecent);
 	[[nodiscard]] bool sending(not_null<HistoryItem*> item) const;
@@ -139,11 +142,11 @@ public:
 
 private:
 	struct ImageSet {
-		QImage bottomInfo;
-		QImage inlineList;
+		QImage image;
 		std::shared_ptr<DocumentMedia> media;
 		std::unique_ptr<Ui::AnimatedIcon> icon;
 		bool fromSelectAnimation = false;
+		bool effect = false;
 	};
 	struct TagsBySublist {
 		TagsBySublist() = default;
@@ -169,6 +172,7 @@ private:
 	void requestGeneric();
 	void requestMyTags(SavedSublist *sublist = nullptr);
 	void requestTags();
+	void requestEffects();
 
 	void updateTop(const MTPDmessages_reactions &data);
 	void updateRecent(const MTPDmessages_reactions &data);
@@ -178,11 +182,13 @@ private:
 		SavedSublist *sublist,
 		const MTPDmessages_savedReactionTags &data);
 	void updateTags(const MTPDmessages_reactions &data);
+	void updateEffects(const MTPDmessages_availableEffects &data);
 
 	void recentUpdated();
 	void defaultUpdated();
 	void myTagsUpdated();
 	void tagsUpdated();
+	void effectsUpdated();
 
 	[[nodiscard]] std::optional<Reaction> resolveById(const ReactionId &id);
 	[[nodiscard]] std::vector<Reaction> resolveByIds(
@@ -203,13 +209,19 @@ private:
 
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
+	[[nodiscard]] std::optional<Reaction> parse(
+		const MTPAvailableEffect &entry);
 
+	void preloadImageFor(const ReactionId &id);
+	[[nodiscard]] QImage resolveImageFor(const ReactionId &id);
 	void loadImage(
 		ImageSet &set,
 		not_null<DocumentData*> document,
 		bool fromSelectAnimation);
+	void generateImage(ImageSet &set, const QString &emoji);
 	void setAnimatedIcon(ImageSet &set);
-	void resolveImages();
+	void resolveReactionImages();
+	void resolveEffectImages();
 	void downloadTaskFinished();
 
 	void repaintCollected();
@@ -233,6 +245,7 @@ private:
 	std::vector<ReactionId> _topIds;
 	base::flat_set<ReactionId> _unresolvedTop;
 	std::vector<not_null<DocumentData*>> _genericAnimations;
+	std::vector<Reaction> _effects;
 	ReactionId _favoriteId;
 	ReactionId _unresolvedFavoriteId;
 	std::optional<Reaction> _favorite;
@@ -249,6 +262,7 @@ private:
 	rpl::event_stream<SavedSublist*> _myTagsUpdated;
 	rpl::event_stream<> _tagsUpdated;
 	rpl::event_stream<ReactionId> _myTagRenamed;
+	rpl::event_stream<> _effectsUpdated;
 
 	// We need &i->second stay valid while inserting new items.
 	// So we use std::map instead of base::flat_map here.
@@ -271,9 +285,13 @@ private:
 	mtpRequestId _tagsRequestId = 0;
 	uint64 _tagsHash = 0;
 
+	mtpRequestId _effectsRequestId = 0;
+	int32 _effectsHash = 0;
+
 	base::flat_map<ReactionId, ImageSet> _images;
 	rpl::lifetime _imagesLoadLifetime;
-	bool _waitingForList = false;
+	bool _waitingForReactions = false;
+	bool _waitingForEffects = false;
 
 	base::flat_map<FullMsgId, mtpRequestId> _sentRequests;
 

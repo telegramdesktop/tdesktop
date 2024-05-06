@@ -1038,7 +1038,7 @@ void EditTagBox(
 			customId,
 			[=] { field->update(); });
 	} else {
-		owner->reactions().preloadImageFor(id);
+		owner->reactions().preloadReactionImageFor(id);
 	}
 	field->paintRequest() | rpl::start_with_next([=](QRect clip) {
 		auto p = QPainter(field);
@@ -1053,9 +1053,8 @@ void EditTagBox(
 			});
 		} else {
 			if (state->image.isNull()) {
-				state->image = owner->reactions().resolveImageFor(
-					id,
-					::Data::Reactions::ImageSize::InlineList);
+				state->image = owner->reactions().resolveReactionImageFor(
+					id);
 			}
 			if (!state->image.isNull()) {
 				const auto size = st::reactionInlineSize;
