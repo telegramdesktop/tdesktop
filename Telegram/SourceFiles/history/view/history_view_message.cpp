@@ -3013,6 +3013,8 @@ bool Message::isSignedAuthorElided() const {
 }
 
 bool Message::embedReactionsInBottomInfo() const {
+	return false;
+#if 0 // legacy
 	const auto item = data();
 	const auto user = item->history()->peer->asUser();
 	if (!user
@@ -3045,6 +3047,7 @@ bool Message::embedReactionsInBottomInfo() const {
 		}
 	}
 	return true;
+#endif
 }
 
 bool Message::embedReactionsInBubble() const {
