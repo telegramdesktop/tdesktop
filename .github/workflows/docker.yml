@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.4
         with:
           submodules: recursive
 
