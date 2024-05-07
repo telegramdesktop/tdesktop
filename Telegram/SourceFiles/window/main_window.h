@@ -119,7 +119,8 @@ public:
 
 	void launchDrag(std::unique_ptr<QMimeData> data, Fn<void()> &&callback);
 
-	rpl::producer<> leaveEvents() const;
+	[[nodiscard]] rpl::producer<> leaveEvents() const;
+	[[nodiscard]] rpl::producer<> imeCompositionStarts() const;
 
 	virtual void updateWindowIcon() = 0;
 	void updateTitle();
@@ -185,6 +186,7 @@ protected:
 		return false;
 	}
 
+	void imeCompositionStartReceived();
 	void setPositionInited();
 
 	virtual QRect computeDesktopRect() const;
@@ -214,6 +216,7 @@ private:
 	bool _isActive = false;
 
 	rpl::event_stream<> _leaveEvents;
+	rpl::event_stream<> _imeCompositionStartReceived;
 
 	bool _maximizedBeforeHide = false;
 

@@ -795,8 +795,16 @@ void MainWindow::setPositionInited() {
 	_positionInited = true;
 }
 
+void MainWindow::imeCompositionStartReceived() {
+	_imeCompositionStartReceived.fire({});
+}
+
 rpl::producer<> MainWindow::leaveEvents() const {
 	return _leaveEvents.events();
+}
+
+rpl::producer<> MainWindow::imeCompositionStarts() const {
+	return _imeCompositionStartReceived.events();
 }
 
 void MainWindow::leaveEventHook(QEvent *e) {

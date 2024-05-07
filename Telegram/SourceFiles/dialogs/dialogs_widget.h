@@ -250,7 +250,9 @@ private:
 	void updateSuggestions(anim::type animated);
 	void processSearchFocusChange();
 
+	[[nodiscard]] bool redirectToSearchPossible() const;
 	[[nodiscard]] bool redirectKeyToSearch(QKeyEvent *e) const;
+	[[nodiscard]] bool redirectImeToSearch() const;
 
 	MTP::Sender _api;
 
