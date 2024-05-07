@@ -707,6 +707,88 @@ auto Message::takeEffectAnimation()
 	return _bottomInfo.takeEffectAnimation();
 }
 
+QRect Message::effectIconGeometry() const {
+	const auto item = data();
+	const auto media = this->media();
+
+	auto g = countGeometry();
+	if (g.width() < 1 || isHidden()) {
+		return {};
+	}
+	const auto bubble = drawBubble();
+	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
+	const auto mediaDisplayed = media && media->isDisplayed();
+	const auto keyboard = item->inlineReplyKeyboard();
+	auto keyboardHeight = 0;
+	if (keyboard) {
+		keyboardHeight = keyboard->naturalHeight();
+		g.setHeight(g.height() - st::msgBotKbButton.margin - keyboardHeight);
+	}
+
+	const auto fromBottomInfo = [&](QPoint bottomRight) {
+		const auto size = _bottomInfo.currentSize();
+		return _bottomInfo.effectIconGeometry().translated(
+			bottomRight - QPoint(size.width(), size.height()));
+	};
+	if (bubble) {
+		auto entry = logEntryOriginal();
+
+		// Entry page is always a bubble bottom.
+		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
+		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
+
+		auto inner = g;
+		if (_comments) {
+			inner.setHeight(inner.height() - st::historyCommentsButtonHeight);
+		}
+		auto trect = inner.marginsRemoved(st::msgPadding);
+		const auto reactionsTop = (reactionsInBubble && !_viewButton)
+			? st::mediaInBubbleSkip
+			: 0;
+		const auto reactionsHeight = reactionsInBubble
+			? (reactionsTop + _reactions->height())
+			: 0;
+		if (_viewButton) {
+			const auto belowInfo = _viewButton->belowMessageInfo();
+			const auto infoHeight = reactionsInBubble
+				? (reactionsHeight + 2 * st::mediaInBubbleSkip)
+				: _bottomInfo.height();
+			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
+			if (belowInfo) {
+				inner -= heightMargins;
+			}
+			trect.setHeight(trect.height() - _viewButton->height());
+			if (reactionsInBubble) {
+				trect.setHeight(trect.height() - st::mediaInBubbleSkip + st::msgPadding.bottom());
+			} else if (mediaDisplayed) {
+				trect.setHeight(trect.height() - st::mediaInBubbleSkip);
+			}
+		}
+		if (mediaOnBottom) {
+			trect.setHeight(trect.height()
+				+ st::msgPadding.bottom()
+				- viewButtonHeight());
+		}
+		if (mediaOnTop) {
+			trect.setY(trect.y() - st::msgPadding.top());
+		}
+		if (mediaDisplayed && mediaOnBottom && media->customInfoLayout()) {
+			auto mediaHeight = media->height();
+			auto mediaLeft = trect.x() - st::msgPadding.left();
+			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
+			return fromBottomInfo(QPoint(mediaLeft, mediaTop) + media->resolveCustomInfoRightBottom());
+		} else {
+			return fromBottomInfo({
+				inner.left() + inner.width() - (st::msgPadding.right() - st::msgDateDelta.x()),
+				inner.top() + inner.height() - (st::msgPadding.bottom() - st::msgDateDelta.y()),
+			});
+		}
+	} else if (mediaDisplayed) {
+		return fromBottomInfo(g.topLeft() + media->resolveCustomInfoRightBottom());
+	}
+	return {};
+}
+
 QSize Message::performCountOptimalSize() {
 	const auto item = data();
 

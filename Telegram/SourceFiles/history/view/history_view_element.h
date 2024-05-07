@@ -523,6 +523,7 @@ public:
 	void previousInBlocksChanged();
 	void nextInBlocksRemoved();
 
+	[[nodiscard]] virtual QRect effectIconGeometry() const;
 	[[nodiscard]] virtual QRect innerGeometry() const = 0;
 
 	void customEmojiRepaint();

@@ -119,7 +119,7 @@ bool EmojiInteractions::playPremiumEffect(
 					document->createMediaView()->videoThumbnailContent(),
 					QString(),
 					false,
-					true);
+					Stickers::EffectType::PremiumSticker);
 			}
 		}
 	}
@@ -147,7 +147,7 @@ void EmojiInteractions::play(
 		media->bytes(),
 		media->owner()->filepath(),
 		incoming,
-		false);
+		Stickers::EffectType::EmojiInteraction);
 }
 
 void EmojiInteractions::playEffectOnRead(not_null<const Element*> view) {
@@ -214,7 +214,7 @@ void EmojiInteractions::playEffect(
 		resolved.content,
 		resolved.filepath,
 		false,
-		false);
+		Stickers::EffectType::MessageEffect);
 }
 
 void EmojiInteractions::addPendingEffect(not_null<const Element*> view) {
@@ -272,7 +272,7 @@ void EmojiInteractions::play(
 		QByteArray data,
 		QString filepath,
 		bool incoming,
-		bool premium) {
+		Stickers::EffectType type) {
 	const auto top = _itemTop(view);
 	const auto bottom = top + view->height();
 	if (_visibleTop >= bottom
@@ -286,12 +286,14 @@ void EmojiInteractions::play(
 		document,
 		data,
 		filepath,
-		premium);
+		type);
 
-	const auto inner = premium
+	const auto inner = (type == Stickers::EffectType::PremiumSticker)
 		? HistoryView::Sticker::Size(document)
 		: HistoryView::Sticker::EmojiSize();
-	const auto shift = premium ? QPoint() : GenerateRandomShift(inner);
+	const auto shift = (type == Stickers::EffectType::EmojiInteraction)
+		? GenerateRandomShift(inner)
+		: QPoint();
 	const auto raw = lottie.get();
 	lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
@@ -312,16 +314,18 @@ void EmojiInteractions::play(
 		.lottie = std::move(lottie),
 		.shift = shift,
 		.inner = inner,
-		.outer = (premium
+		.outer = ((type == Stickers::EffectType::PremiumSticker)
 			? HistoryView::Sticker::PremiumEffectSize(document)
-			: HistoryView::Sticker::EmojiEffectSize()),
-		.premium = premium,
+			: (type == Stickers::EffectType::EmojiInteraction)
+			? HistoryView::Sticker::EmojiEffectSize()
+			: HistoryView::Sticker::MessageEffectSize()),
+		.type = type,
 	});
 	if (incoming) {
 		_playStarted.fire(std::move(emoticon));
 	}
 	if (const auto media = view->media()) {
-		if (!premium) {
+		if (type == Stickers::EffectType::EmojiInteraction) {
 			media->stickerClearLoopPlayed();
 		}
 	}
@@ -336,9 +340,28 @@ void EmojiInteractions::visibleAreaUpdated(
 
 QRect EmojiInteractions::computeRect(const Play &play) const {
 	const auto view = play.view;
+	const auto viewTop = _itemTop(view);
+	if (viewTop < 0) {
+		return QRect();
+	}
+	if (play.type == Stickers::EffectType::MessageEffect) {
+		const auto icon = view->effectIconGeometry();
+		if (icon.isEmpty()) {
+			return QRect();
+		}
+		const auto size = play.outer;
+		const auto shift = view->hasRightLayout()
+			? (-size.width() / 3)
+			: (size.width() / 3);
+		return QRect(
+			shift + icon.x() + (icon.width() - size.width()) / 2,
+			viewTop + icon.y() + (icon.height() - size.height()) / 2,
+			size.width(),
+			size.height());
+	}
 	const auto sticker = play.inner;
 	const auto size = play.outer;
-	const auto shift = play.premium
+	const auto shift = (play.type == Stickers::EffectType::PremiumSticker)
 		? int(sticker.width() * kPremiumShift)
 		: (size.width() / 40);
 	const auto inner = view->innerGeometry();
@@ -346,11 +369,9 @@ QRect EmojiInteractions::computeRect(const Play &play) const {
 	const auto left = rightAligned
 		? (inner.x() + inner.width() + shift - size.width())
 		: (inner.x() - shift);
-	const auto viewTop = _itemTop(view) + inner.y();
-	if (viewTop < 0) {
-		return QRect();
-	}
-	const auto top = viewTop + (sticker.height() - size.height()) / 2;
+	const auto top = viewTop
+		+ inner.y()
+		+ (sticker.height() - size.height()) / 2;
 	return QRect(QPoint(left, top), size).translated(play.shift);
 }
 

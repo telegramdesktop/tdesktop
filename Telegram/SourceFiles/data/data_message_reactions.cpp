@@ -737,6 +737,9 @@ void Reactions::resolveEffectImages() {
 			LOG(("API Error: Effect '%1' not found!"
 				).arg(ReactionIdToLog(id)));
 		}
+		if (i != end(_effects)) {
+			preloadEffect(*i);
+		}
 	}
 }
 

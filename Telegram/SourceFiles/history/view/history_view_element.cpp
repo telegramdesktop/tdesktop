@@ -1786,6 +1786,10 @@ auto Element::takeEffectAnimation()
 	return nullptr;
 }
 
+QRect Element::effectIconGeometry() const {
+	return QRect();
+}
+
 Element::~Element() {
 	// Delete media while owner still exists.
 	clearSpecialOnlyEmoji();

@@ -162,6 +162,7 @@ public:
 	auto takeEffectAnimation()
 	-> std::unique_ptr<Ui::ReactionFlyAnimation> override;
 
+	QRect effectIconGeometry() const override;
 	QRect innerGeometry() const override;
 	[[nodiscard]] BottomRippleMask bottomRippleMask(int buttonHeight) const;
 

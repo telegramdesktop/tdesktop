@@ -23,6 +23,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Stickers {
+enum class EffectType : uint8;
+} // namespace Stickers
+
 namespace HistoryView {
 
 class Element;
@@ -60,7 +64,7 @@ private:
 		int frame = 0;
 		int framesCount = 0;
 		int frameRate = 0;
-		bool premium = false;
+		Stickers::EffectType type = {};
 		bool started = false;
 		bool finished = false;
 	};
@@ -96,7 +100,7 @@ private:
 		QByteArray data,
 		QString filepath,
 		bool incoming,
-		bool premium);
+		Stickers::EffectType type);
 	void checkDelayed();
 	void addPendingEffect(not_null<const Element*> view);
 

@@ -173,20 +173,10 @@ ClickHandlerPtr BottomInfo::replayEffectLink(
 		left += width() - available;
 		top += st::msgDateFont->height;
 	}
-	auto x = left;
-	auto y = top;
-	auto widthLeft = available;
 	if (_effect) {
-		const auto add = st::reactionInfoBetween;
-		const auto width = st::reactionInfoSize;
-		if (x > left && widthLeft < width) {
-			x = left;
-			y += st::msgDateFont->height;
-			widthLeft = available;
-		}
 		const auto image = QRect(
-			x,
-			y,
+			left,
+			top,
 			st::reactionInfoSize,
 			st::msgDateFont->height);
 		if (image.contains(position)) {
@@ -195,8 +185,6 @@ ClickHandlerPtr BottomInfo::replayEffectLink(
 			}
 			return _replayLink;
 		}
-		x += width + add;
-		widthLeft -= width + add;
 	}
 	return nullptr;
 }
@@ -542,6 +530,25 @@ void BottomInfo::continueEffectAnimation(
 	if (_effect) {
 		_effect->animation = std::move(animation);
 	}
+}
+
+QRect BottomInfo::effectIconGeometry() const {
+	if (!_effect) {
+		return {};
+	}
+	auto left = 0;
+	auto top = 0;
+	auto available = width();
+	if (height() != minHeight()) {
+		available = std::min(available, _effectMaxWidth);
+		left += width() - available;
+		top += st::msgDateFont->height;
+	}
+	return QRect(
+		left + (st::reactionInfoSize - st::effectInfoImage) / 2,
+		top + (st::msgDateFont->height - st::effectInfoImage) / 2,
+		st::effectInfoImage,
+		st::effectInfoImage);
 }
 
 BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {

@@ -82,6 +82,8 @@ public:
 	void continueEffectAnimation(
 		std::unique_ptr<Ui::ReactionFlyAnimation> animation);
 
+	QRect effectIconGeometry() const;
+
 private:
 	struct Effect;
 
