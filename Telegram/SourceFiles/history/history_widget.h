@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/view/controls/history_view_compose_media_edit_manager.h"
 #include "history/view/history_view_corner_buttons.h"
 #include "history/history_drag_area.h"
 #include "history/history_view_highlight_manager.h"
@@ -103,6 +104,7 @@ class ForwardPanel;
 class TTLButton;
 class WebpageProcessor;
 class CharactersLimitLabel;
+class PhotoEditSpoilerManager;
 } // namespace HistoryView::Controls
 
 class BotKeyboard;
@@ -660,6 +662,7 @@ private:
 	MsgId _editMsgId = 0;
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
 	bool _canReplaceMedia = false;
+	HistoryView::MediaEditSpoilerManager _mediaEditSpoiler;
 
 	HistoryItem *_replyEditMsg = nullptr;
 	Ui::Text::String _replyEditMsgText;

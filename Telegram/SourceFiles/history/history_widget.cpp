@@ -2656,6 +2656,7 @@ void HistoryWidget::setEditMsgId(MsgId msgId) {
 	unregisterDraftSources();
 	_editMsgId = msgId;
 	if (!msgId) {
+		_mediaEditSpoiler.setSpoilerOverride(std::nullopt);
 		_canReplaceMedia = false;
 		if (_preview) {
 			_preview->setDisabled(false);
@@ -4043,7 +4044,8 @@ void HistoryWidget::saveEditMsg() {
 		webPageDraft,
 		options,
 		done,
-		fail);
+		fail,
+		_mediaEditSpoiler.spoilerOverride());
 }
 
 void HistoryWidget::hideChildWidgets() {
@@ -6562,7 +6564,14 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		return;
 	}
 	const auto isReadyToForward = readyToForward();
-	if (_inPhotoEdit && _photoEditMedia) {
+	if (_editMsgId
+		&& (_inDetails || _inPhotoEdit)
+		&& (e->button() == Qt::RightButton)) {
+		_mediaEditSpoiler.showMenu(
+			_list,
+			session().data().message(_history->peer, _editMsgId),
+			[=](bool) { mouseMoveEvent(nullptr); });
+	} else if (_inPhotoEdit && _photoEditMedia) {
 		EditCaptionBox::StartPhotoEdit(
 			controller(),
 			_photoEditMedia,
@@ -8235,8 +8244,14 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		? drawMsgText->media()
 		: nullptr;
 	const auto hasPreview = media && media->hasReplyPreview();
-	const auto preview = hasPreview ? media->replyPreview() : nullptr;
-	const auto spoilered = preview && media->hasSpoiler();
+	const auto preview = _mediaEditSpoiler.spoilerOverride()
+		? _mediaEditSpoiler.mediaPreview(drawMsgText)
+		: hasPreview
+		? media->replyPreview()
+		: nullptr;
+	const auto spoilered = _mediaEditSpoiler.spoilerOverride()
+		? (*_mediaEditSpoiler.spoilerOverride())
+		: (preview && media->hasSpoiler());
 	if (!spoilered) {
 		_replySpoiler = nullptr;
 	} else if (!_replySpoiler) {

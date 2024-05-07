@@ -252,12 +252,47 @@ mtpRequestId EditTextMessage(
 		Data::WebPageDraft webpage,
 		SendOptions options,
 		Fn<void(mtpRequestId requestId)> done,
-		Fn<void(const QString &, mtpRequestId requestId)> fail) {
+		Fn<void(const QString &error, mtpRequestId requestId)> fail,
+		std::optional<bool> spoilerMediaOverride) {
 	const auto callback = [=](Fn<void()> applyUpdates, mtpRequestId id) {
 		applyUpdates();
 		done(id);
 	};
-	return EditMessage(item, caption, webpage, options, callback, fail);
+	auto inputMedia = std::optional<MTPInputMedia>();
+	if (spoilerMediaOverride) {
+		const auto spoiler = *spoilerMediaOverride;
+		if (const auto media = item->media()) {
+			if (const auto photo = media->photo()) {
+				using Flag = MTPDinputMediaPhoto::Flag;
+				const auto flags = Flag()
+					| (media->ttlSeconds() ? Flag::f_ttl_seconds : Flag())
+					| (spoiler ? Flag::f_spoiler : Flag());
+				inputMedia = MTP_inputMediaPhoto(
+					MTP_flags(flags),
+					photo->mtpInput(),
+					MTP_int(media->ttlSeconds()));
+			} else if (const auto document = media->document()) {
+				using Flag = MTPDinputMediaDocument::Flag;
+				const auto flags = Flag()
+					| (media->ttlSeconds() ? Flag::f_ttl_seconds : Flag())
+					| (spoiler ? Flag::f_spoiler : Flag());
+				inputMedia = MTP_inputMediaDocument(
+					MTP_flags(flags),
+					document->mtpInput(),
+					MTP_int(media->ttlSeconds()),
+					MTPstring()); // query
+			}
+		}
+	}
+
+	return EditMessage(
+		item,
+		caption,
+		webpage,
+		options,
+		callback,
+		fail,
+		inputMedia);
 }
 
 } // namespace Api

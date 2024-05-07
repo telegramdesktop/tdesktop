@@ -238,7 +238,8 @@ private:
 	void edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
-		mtpRequestId *const saveEditMsgRequestId);
+		mtpRequestId *const saveEditMsgRequestId,
+		std::optional<bool> spoilerMediaOverride);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] FullReplyTo replyTo() const;
@@ -673,7 +674,8 @@ void ShortcutMessages::setupComposeControls() {
 	) | rpl::start_with_next([=](auto data) {
 		if (const auto item = _session->data().message(data.fullId)) {
 			if (item->isBusinessShortcut()) {
-				edit(item, data.options, saveEditMsgRequestId);
+				const auto spoiler = data.spoilerMediaOverride;
+				edit(item, data.options, saveEditMsgRequestId, spoiler);
 			}
 		}
 	}, lifetime());
@@ -1213,7 +1215,8 @@ void ShortcutMessages::send(Api::SendOptions options) {
 void ShortcutMessages::edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
-		mtpRequestId *const saveEditMsgRequestId) {
+		mtpRequestId *const saveEditMsgRequestId,
+		std::optional<bool> spoilerMediaOverride) {
 	if (*saveEditMsgRequestId) {
 		return;
 	}
@@ -1281,7 +1284,8 @@ void ShortcutMessages::edit(
 		webpage,
 		options,
 		crl::guard(this, done),
-		crl::guard(this, fail));
+		crl::guard(this, fail),
+		spoilerMediaOverride);
 
 	_composeControls->hidePanelsAnimated();
 	doSetInnerFocus();

@@ -55,6 +55,7 @@ mtpRequestId EditTextMessage(
 	Data::WebPageDraft webpage,
 	SendOptions options,
 	Fn<void(mtpRequestId requestId)> done,
-	Fn<void(const QString &error, mtpRequestId requestId)> fail);
+	Fn<void(const QString &error, mtpRequestId requestId)> fail,
+	std::optional<bool> spoilerMediaOverride);
 
 } // namespace Api
