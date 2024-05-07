@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer_values.h"
 #include "data/data_saved_sublist.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -594,12 +595,24 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 		} else {
 			generateImage(set, i->title);
 		}
+		if (set.effect) {
+			preloadEffect(*i);
+		}
 	} else if (set.effect && !_waitingForEffects) {
 		_waitingForEffects = true;
 		refreshEffects();
 	} else if (!set.effect && !_waitingForReactions) {
 		_waitingForReactions = true;
 		refreshDefault();
+	}
+}
+
+void Reactions::preloadEffect(const Reaction &effect) {
+	if (effect.aroundAnimation) {
+		effect.aroundAnimation->createMediaView()->checkStickerLarge();
+	} else {
+		const auto premium = effect.selectAnimation;
+		premium->loadVideoThumbnail(premium->stickerSetOrigin());
 	}
 }
 

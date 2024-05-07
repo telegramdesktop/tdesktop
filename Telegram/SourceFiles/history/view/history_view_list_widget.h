@@ -419,6 +419,9 @@ public:
 		not_null<const Element*> view,
 		Element *replacing) override;
 	void elementCancelPremium(not_null<const Element*> view) override;
+	void elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing) override;
 	QString elementAuthorRank(not_null<const Element*> view) override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);

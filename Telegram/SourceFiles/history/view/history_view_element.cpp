@@ -192,6 +192,11 @@ void DefaultElementDelegate::elementCancelPremium(
 	not_null<const Element*> view) {
 }
 
+void DefaultElementDelegate::elementStartEffect(
+	not_null<const Element*> view,
+	Element *replacing) {
+}
+
 QString DefaultElementDelegate::elementAuthorRank(
 	not_null<const Element*> view) {
 	return {};

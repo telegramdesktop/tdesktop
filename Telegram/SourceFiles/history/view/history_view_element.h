@@ -113,6 +113,9 @@ public:
 		not_null<const Element*> view,
 		Element *replacing) = 0;
 	virtual void elementCancelPremium(not_null<const Element*> view) = 0;
+	virtual void elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing) = 0;
 	virtual QString elementAuthorRank(not_null<const Element*> view) = 0;
 
 	virtual ~ElementDelegate() {
@@ -163,6 +166,9 @@ public:
 		not_null<const Element*> view,
 		Element *replacing) override;
 	void elementCancelPremium(not_null<const Element*> view) override;
+	void elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing) override;
 	QString elementAuthorRank(not_null<const Element*> view) override;
 
 };

@@ -3038,7 +3038,7 @@ TextState Message::bottomInfoTextState(
 	const auto infoLeft = infoRight - size.width();
 	const auto infoTop = infoBottom - size.height();
 	return _bottomInfo.textState(
-		data(),
+		this,
 		point - QPoint{ infoLeft, infoTop });
 }
 

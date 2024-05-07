@@ -170,6 +170,9 @@ public:
 		not_null<const Element*> view,
 		Element *replacing);
 	void elementCancelPremium(not_null<const Element*> view);
+	void elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing);
 
 	void updateBotInfo(bool recount = true);
 

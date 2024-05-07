@@ -43,6 +43,9 @@ public:
 	void cancelPremiumEffect(not_null<const Element*> view);
 	void visibleAreaUpdated(int visibleTop, int visibleBottom);
 
+	void playEffectOnRead(not_null<const Element*> view);
+	void playEffect(not_null<const Element*> view);
+
 	void paint(QPainter &p);
 	[[nodiscard]] rpl::producer<QRect> updateRequests() const;
 	[[nodiscard]] rpl::producer<QString> playStarted() const;
@@ -68,6 +71,16 @@ private:
 		crl::time shouldHaveStartedAt = 0;
 		bool incoming = false;
 	};
+	struct ResolvedEffect {
+		QString emoticon;
+		DocumentData *document = nullptr;
+		QByteArray content;
+		QString filepath;
+
+		explicit operator bool() const {
+			return document && (!content.isEmpty() || !filepath.isEmpty());
+		}
+	};
 
 	[[nodiscard]] QRect computeRect(const Play &play) const;
 
@@ -85,6 +98,14 @@ private:
 		bool incoming,
 		bool premium);
 	void checkDelayed();
+	void addPendingEffect(not_null<const Element*> view);
+
+	[[nodiscard]] ResolvedEffect resolveEffect(
+		not_null<const Element*> view);
+	void playEffect(
+		not_null<const Element*> view,
+		const ResolvedEffect &resolved);
+	void checkPendingEffects();
 
 	const not_null<Main::Session*> _session;
 	const Fn<int(not_null<const Element*>)> _itemTop;
@@ -96,6 +117,9 @@ private:
 	std::vector<Delayed> _delayed;
 	rpl::event_stream<QRect> _updateRequests;
 	rpl::event_stream<QString> _playStarted;
+
+	std::vector<base::weak_ptr<const Element>> _pendingEffects;
+	rpl::lifetime _downloadLifetime;
 
 	rpl::lifetime _lifetime;
 

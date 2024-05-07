@@ -62,7 +62,7 @@ public:
 	[[nodiscard]] int firstLineWidth() const;
 	[[nodiscard]] bool isWide() const;
 	[[nodiscard]] TextState textState(
-		not_null<const HistoryItem*> item,
+		not_null<const Message*> view,
 		QPoint position) const;
 	[[nodiscard]] bool isSignedAuthorElided() const;
 
@@ -106,10 +106,10 @@ private:
 
 	[[nodiscard]] Effect prepareEffectWithId(EffectId id);
 	[[nodiscard]] ClickHandlerPtr replayEffectLink(
-		not_null<const HistoryItem*> item,
+		not_null<const Message*> view,
 		QPoint position) const;
 	[[nodiscard]] ClickHandlerPtr replayEffectLink(
-		not_null<const HistoryItem*> item) const;
+		not_null<const Message*> view) const;
 
 	const not_null<::Data::Reactions*> _reactionsOwner;
 	Data _data;

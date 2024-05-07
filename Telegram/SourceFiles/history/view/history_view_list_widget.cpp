@@ -1857,6 +1857,12 @@ void ListWidget::elementCancelPremium(not_null<const Element*> view) {
 	_emojiInteractions->cancelPremiumEffect(view);
 }
 
+void ListWidget::elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing) {
+	_emojiInteractions->playEffect(view);
+}
+
 QString ListWidget::elementAuthorRank(not_null<const Element*> view) {
 	return _delegate->listElementAuthorRank(view);
 }

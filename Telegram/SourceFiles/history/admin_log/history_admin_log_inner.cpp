@@ -674,6 +674,11 @@ void InnerWidget::elementStartPremium(
 void InnerWidget::elementCancelPremium(not_null<const Element*> view) {
 }
 
+void InnerWidget::elementStartEffect(
+	not_null<const Element*> view,
+	Element *replacing) {
+}
+
 QString InnerWidget::elementAuthorRank(not_null<const Element*> view) {
 	return {};
 }

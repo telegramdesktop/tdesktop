@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "chat_helpers/emoji_interactions.h"
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
 #include "lottie/lottie_icon.h"
@@ -104,10 +105,11 @@ bool BottomInfo::isWide() const {
 }
 
 TextState BottomInfo::textState(
-		not_null<const HistoryItem*> item,
+		not_null<const Message*> view,
 		QPoint position) const {
+	const auto item = view->data();
 	auto result = TextState(item);
-	if (const auto link = replayEffectLink(item, position)) {
+	if (const auto link = replayEffectLink(view, position)) {
 		result.link = link;
 		return result;
 	}
@@ -158,7 +160,7 @@ TextState BottomInfo::textState(
 }
 
 ClickHandlerPtr BottomInfo::replayEffectLink(
-		not_null<const HistoryItem*> item,
+		not_null<const Message*> view,
 		QPoint position) const {
 	if (!_effect) {
 		return nullptr;
@@ -189,7 +191,7 @@ ClickHandlerPtr BottomInfo::replayEffectLink(
 			st::msgDateFont->height);
 		if (image.contains(position)) {
 			if (!_replayLink) {
-				_replayLink = replayEffectLink(item);
+				_replayLink = replayEffectLink(view);
 			}
 			return _replayLink;
 		}
@@ -200,15 +202,17 @@ ClickHandlerPtr BottomInfo::replayEffectLink(
 }
 
 ClickHandlerPtr BottomInfo::replayEffectLink(
-		not_null<const HistoryItem*> item) const {
+		not_null<const Message*> view) const {
+	const auto item = view->data();
 	const auto itemId = item->fullId();
 	const auto sessionId = item->history()->session().uniqueId();
-	return std::make_shared<LambdaClickHandler>([=](
-		ClickContext context) {
+	const auto weak = base::make_weak(view);
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			controller->showToast("playing nice effect..");
-			AssertIsDebug();
+			if (const auto strong = weak.get()) {
+				strong->delegate()->elementStartEffect(strong, nullptr);
+			}
 		}
 	});
 }

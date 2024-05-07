@@ -212,6 +212,7 @@ private:
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableEffect &entry);
 
+	void preloadEffect(const Reaction &effect);
 	void preloadImageFor(const ReactionId &id);
 	[[nodiscard]] QImage resolveImageFor(const ReactionId &id);
 	void loadImage(

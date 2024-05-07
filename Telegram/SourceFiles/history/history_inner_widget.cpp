@@ -304,10 +304,16 @@ public:
 			_widget->elementStartPremium(view, replacing);
 		}
 	}
-
 	void elementCancelPremium(not_null<const Element*> view) override {
 		if (_widget) {
 			_widget->elementCancelPremium(view);
+		}
+	}
+	void elementStartEffect(
+			not_null<const Element*> view,
+			Element *replacing) override {
+		if (_widget) {
+			_widget->elementStartEffect(view, replacing);
 		}
 	}
 
@@ -950,6 +956,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	_translateTracker->startBunch();
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
+	auto startEffects = base::flat_set<not_null<const Element*>>();
 	const auto markingAsViewed = _widget->markingContentsRead();
 	const auto guard = gsl::finally([&] {
 		if (_pinnedItem) {
@@ -958,6 +965,11 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		_translateTracker->finishBunch();
 		if (readTill && _widget->markingMessagesRead()) {
 			session().data().histories().readInboxTill(readTill);
+			if (!startEffects.empty()) {
+				for (const auto &view : startEffects) {
+					_emojiInteractions->playEffectOnRead(view);
+				}
+			}
 		}
 		if (markingAsViewed && !readContents.empty()) {
 			session().api().markContentsRead(readContents);
@@ -991,6 +1003,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				session().sponsoredMessages().view(item->fullId());
 			} else if (isUnread) {
 				readTill = item;
+				if (item->hasUnwatchedEffect()) {
+					startEffects.emplace(view);
+				}
 			}
 			if (markingAsViewed && item->hasViews()) {
 				session().api().views().scheduleIncrement(item);
@@ -3566,6 +3581,12 @@ void HistoryInner::elementStartPremium(
 
 void HistoryInner::elementCancelPremium(not_null<const Element*> view) {
 	_emojiInteractions->cancelPremiumEffect(view);
+}
+
+void HistoryInner::elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing) {
+	_emojiInteractions->playEffect(view);
 }
 
 auto HistoryInner::getSelectionState() const

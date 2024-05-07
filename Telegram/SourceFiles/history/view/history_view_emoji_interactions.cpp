@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "chat_helpers/stickers_lottie.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_message_reactions.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_single_player.h"
 #include "base/random.h"
@@ -45,8 +47,8 @@ constexpr auto kDropDelayedAfterDelay = crl::time(2000);
 EmojiInteractions::EmojiInteractions(
 	not_null<Main::Session*> session,
 	Fn<int(not_null<const Element*>)> itemTop)
-	: _session(session)
-	, _itemTop(std::move(itemTop)) {
+: _session(session)
+, _itemTop(std::move(itemTop)) {
 	_session->data().viewRemoved(
 	) | rpl::filter([=] {
 		return !_plays.empty() || !_delayed.empty();
@@ -55,6 +57,11 @@ EmojiInteractions::EmojiInteractions(
 		_delayed.erase(
 			ranges::remove(_delayed, view, &Delayed::view),
 			end(_delayed));
+	}, _lifetime);
+
+	_session->data().reactions().effectsUpdates(
+	) | rpl::start_with_next([=] {
+		checkPendingEffects();
 	}, _lifetime);
 }
 
@@ -141,6 +148,121 @@ void EmojiInteractions::play(
 		media->owner()->filepath(),
 		incoming,
 		false);
+}
+
+void EmojiInteractions::playEffectOnRead(not_null<const Element*> view) {
+	if (view->data()->markEffectWatched()) {
+		playEffect(view);
+	}
+}
+
+void EmojiInteractions::playEffect(not_null<const Element*> view) {
+	if (const auto resolved = resolveEffect(view)) {
+		playEffect(view, resolved);
+	} else if (view->data()->effectId()) {
+		if (resolved.document && !_downloadLifetime) {
+			_downloadLifetime = _session->downloaderTaskFinished(
+			) | rpl::start_with_next([=] {
+				checkPendingEffects();
+			});
+		}
+		addPendingEffect(view);
+	}
+}
+
+EmojiInteractions::ResolvedEffect EmojiInteractions::resolveEffect(
+		not_null<const Element*> view) {
+	const auto item = view->data();
+	const auto effectId = item->effectId();
+	if (!effectId) {
+		return {};
+	}
+	using Type = Data::Reactions::Type;
+	const auto &effects = _session->data().reactions().list(Type::Effects);
+	const auto i = ranges::find(
+		effects,
+		Data::ReactionId{ effectId },
+		&Data::Reaction::id);
+	if (i == end(effects)) {
+		return {};
+	}
+	auto document = (DocumentData*)nullptr;
+	auto content = QByteArray();
+	auto filepath = QString();
+	if ((document = i->aroundAnimation)) {
+		content = document->createMediaView()->bytes();
+		filepath = document->filepath();
+	} else {
+		document = i->selectAnimation;
+		content = document->createMediaView()->videoThumbnailContent();
+	}
+	return {
+		.emoticon = i->title,
+		.document = document,
+		.content = content,
+		.filepath = filepath,
+	};
+}
+
+void EmojiInteractions::playEffect(
+		not_null<const Element*> view,
+		const ResolvedEffect &resolved) {
+	play(
+		resolved.emoticon,
+		view,
+		resolved.document,
+		resolved.content,
+		resolved.filepath,
+		false,
+		false);
+}
+
+void EmojiInteractions::addPendingEffect(not_null<const Element*> view) {
+	auto found = false;
+	const auto predicate = [&](base::weak_ptr<const Element> weak) {
+		const auto strong = weak.get();
+		if (strong == view) {
+			found = true;
+		}
+		return !strong;
+	};
+	_pendingEffects.erase(
+		ranges::remove_if(_pendingEffects, predicate),
+		end(_pendingEffects));
+	if (!found) {
+		_pendingEffects.push_back(view);
+	}
+}
+
+void EmojiInteractions::checkPendingEffects() {
+	auto waitingDownload = false;
+	const auto predicate = [&](base::weak_ptr<const Element> weak) {
+		const auto strong = weak.get();
+		if (!strong) {
+			return true;
+		}
+		const auto resolved = resolveEffect(strong);
+		if (resolved) {
+			playEffect(strong, resolved);
+			return true;
+		} else if (!strong->data()->effectId()) {
+			return true;
+		} else if (resolved.document) {
+			waitingDownload = true;
+		}
+		return false;
+	};
+	_pendingEffects.erase(
+		ranges::remove_if(_pendingEffects, predicate),
+		end(_pendingEffects));
+	if (!waitingDownload) {
+		_downloadLifetime.destroy();
+	} else if (!_downloadLifetime) {
+		_downloadLifetime = _session->downloaderTaskFinished(
+		) | rpl::start_with_next([=] {
+			checkPendingEffects();
+		});
+	}
 }
 
 void EmojiInteractions::play(

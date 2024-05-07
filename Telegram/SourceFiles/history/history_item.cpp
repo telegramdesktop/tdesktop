@@ -687,6 +687,9 @@ HistoryItem::HistoryItem(
 	if (isHistoryEntry() && IsClientMsgId(id)) {
 		_history->registerClientSideMessage(this);
 	}
+	if (_effectId) {
+		_history->owner().reactions().preloadEffectImageFor(_effectId);
+	}
 }
 
 HistoryItem::HistoryItem(
@@ -1281,6 +1284,21 @@ bool HistoryItem::isUnreadMention() const {
 
 bool HistoryItem::hasUnreadReaction() const {
 	return (_flags & MessageFlag::HasUnreadReaction);
+}
+
+bool HistoryItem::hasUnwatchedEffect() const {
+	return !out()
+		&& effectId()
+		&& !(_flags & MessageFlag::EffectWatchedLocal)
+		&& unread(history());
+}
+
+bool HistoryItem::markEffectWatched() {
+	if (!hasUnwatchedEffect()) {
+		return false;
+	}
+	_flags |= MessageFlag::EffectWatchedLocal;
+	return true;
 }
 
 bool HistoryItem::mentionsMe() const {

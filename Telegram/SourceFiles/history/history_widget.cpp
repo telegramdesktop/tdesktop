@@ -1389,7 +1389,10 @@ int HistoryWidget::itemTopForHighlight(
 	const auto itemTop = _list->itemTop(view);
 	Assert(itemTop >= 0);
 
-	const auto reactionCenter = view->data()->hasUnreadReaction()
+	const auto item = view->data();
+	const auto unwatchedEffect = item->hasUnwatchedEffect();
+	const auto showReactions = item->hasUnreadReaction() || unwatchedEffect;
+	const auto reactionCenter = showReactions
 		? view->reactionButtonParameters({}, {}).center.y()
 		: -1;
 
@@ -2375,8 +2378,6 @@ void HistoryWidget::showHistory(
 				_migrated->forgetScrollState();
 			}
 		}
-
-		session().data().reactions().refreshEffects();
 
 		_scroll->hide();
 		_list = _scroll->setOwnedWidget(
