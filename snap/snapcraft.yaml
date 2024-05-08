@@ -331,7 +331,7 @@ parts:
       - liblcms2-2
       - libopengl0
       - libpcre2-16-0
-      - libpng16-16
+      - libpng16-16t64
       - libsm6
       - libssl3
       - libvulkan1
