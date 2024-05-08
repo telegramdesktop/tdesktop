@@ -1760,6 +1760,8 @@ void InnerWidget::mousePressReleased(
 		QPoint globalPosition,
 		Qt::MouseButton button,
 		Qt::KeyboardModifiers modifiers) {
+	_chatPreviewTimer.cancel();
+
 	auto wasDragging = (_dragging != nullptr);
 	if (wasDragging) {
 		updateReorderIndexGetCount();
