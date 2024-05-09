@@ -529,6 +529,7 @@ void SendFilesBox::refreshButtons() {
 	if (_sendType == Api::SendType::Normal) {
 		SendMenu::SetupMenuAndShortcuts(
 			_send,
+			_show,
 			[=] { return _sendMenuType; },
 			[=] { sendSilent(); },
 			[=] { sendScheduled(); },
@@ -1472,7 +1473,7 @@ void SendFilesBox::sendScheduled() {
 		? SendMenu::Type::ScheduledToUser
 		: _sendMenuType;
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	auto box = HistoryView::PrepareScheduleBox(this, type, callback);
+	auto box = HistoryView::PrepareScheduleBox(this, _show, type, callback);
 	const auto weak = Ui::MakeWeak(box.data());
 	_show->showBox(std::move(box));
 	if (const auto strong = weak.data()) {

@@ -323,6 +323,7 @@ HistoryWidget::HistoryWidget(
 
 	SendMenu::SetupMenuAndShortcuts(
 		_send.get(),
+		controller->uiShow(),
 		[=] { return sendButtonMenuType(); },
 		[=] { sendSilent(); },
 		[=] { sendScheduled(); },
@@ -4192,7 +4193,11 @@ void HistoryWidget::sendScheduled() {
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	controller()->show(
-		HistoryView::PrepareScheduleBox(_list, sendMenuType(), callback));
+		HistoryView::PrepareScheduleBox(
+			_list,
+			controller()->uiShow(),
+			sendMenuType(),
+			callback));
 }
 
 void HistoryWidget::sendWhenOnline() {

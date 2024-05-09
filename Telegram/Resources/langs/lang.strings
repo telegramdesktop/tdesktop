@@ -561,6 +561,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_reaction_invoice" = "{reaction} to your invoice";
 "lng_reaction_gif" = "{reaction} to your GIF";
 
+"lng_effect_add_title" = "Add an animated effect";
+"lng_effect_stickers_title" = "Message Effects";
+
 "lng_languages" = "Languages";
 "lng_languages_none" = "No languages found.";
 "lng_languages_count#one" = "{count} language";

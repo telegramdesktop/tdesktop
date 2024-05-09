@@ -115,8 +115,7 @@ auto WindowListDelegate::listMakeReactionsManager(
 -> std::unique_ptr<Reactions::Manager> {
 	return std::make_unique<Reactions::Manager>(
 		wheelEventsTarget,
-		std::move(update),
-		_window->cachedReactionIconFactory().createMethod());
+		std::move(update));
 }
 
 void WindowListDelegate::listVisibleAreaUpdated() {
@@ -2780,8 +2779,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			desiredPosition,
 			reactItem,
 			[=](ChosenReaction reaction) { reactionChosen(reaction); },
-			ItemReactionsAbout(reactItem),
-			controller()->cachedReactionIconFactory().createMethod())
+			ItemReactionsAbout(reactItem))
 		: AttachSelectorResult::Skipped;
 	if (attached == AttachSelectorResult::Failed) {
 		_menu = nullptr;

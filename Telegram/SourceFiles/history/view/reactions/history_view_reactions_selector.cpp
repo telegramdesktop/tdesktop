@@ -200,8 +200,8 @@ Selector::Selector(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::PossibleItemReactionsRef &reactions,
 	TextWithEntities about,
-	IconFactory iconFactory,
 	Fn<void(bool fast)> close,
+	IconFactory iconFactory,
 	bool child)
 : Selector(
 	parent,
@@ -261,14 +261,12 @@ Selector::Selector(
 	QSize(2 * st::reactStripSkip + st::reactStripSize, st::reactStripHeight),
 	st::reactionCornerShadow,
 	st::reactStripHeight)
-, _strip(iconFactory
-	? std::make_unique<Strip>(
-		_st,
-		QRect(0, 0, st::reactStripSize, st::reactStripSize),
-		st::reactStripImage,
-		crl::guard(this, [=] { update(_inner); }),
-		std::move(iconFactory))
-	: nullptr)
+, _strip(std::make_unique<Strip>(
+	_st,
+	QRect(0, 0, st::reactStripSize, st::reactStripSize),
+	st::reactStripImage,
+	crl::guard(this, [=] { update(_inner); }),
+	std::move(iconFactory)))
 , _about(about.empty()
 	? nullptr
 	: std::make_unique<Ui::FlatLabel>(
@@ -1221,8 +1219,8 @@ auto AttachSelectorToMenu(
 		std::move(show),
 		std::move(reactions),
 		std::move(about),
-		std::move(iconFactory),
 		[=](bool fast) { menu->hideMenu(fast); },
+		std::move(iconFactory),
 		false); // child
 	if (!AdjustMenuGeometryForSelector(menu, desiredPosition, selector)) {
 		return base::make_unexpected(AttachSelectorResult::Failed);

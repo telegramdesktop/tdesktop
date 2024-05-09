@@ -30,7 +30,6 @@ class DocumentMedia;
 } // namespace Data
 
 namespace HistoryView::Reactions {
-class CachedIconFactory;
 struct ChosenReaction;
 enum class AttachSelectorResult;
 } // namespace HistoryView::Reactions
@@ -137,8 +136,6 @@ public:
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 	[[nodiscard]] auto stickerOrEmojiChosen() const
 	-> rpl::producer<ChatHelpers::FileChosen>;
-	[[nodiscard]] auto cachedReactionIconFactory() const
-		-> HistoryView::Reactions::CachedIconFactory &;
 
 	void show(not_null<Data::Story*> story, Data::StoriesContext context);
 	void jumpTo(not_null<Data::Story*> story, Data::StoriesContext context);

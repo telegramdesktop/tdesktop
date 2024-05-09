@@ -1295,6 +1295,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		_controller->show(
 			HistoryView::PrepareScheduleBox(
 				this,
+				_controller->uiShow(),
 				SendMenu::Type::Scheduled,
 				send));
 	};
@@ -1327,6 +1328,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	};
 	SendMenu::SetupMenuAndShortcuts(
 		submit.data(),
+		_controller->uiShow(),
 		sendMenuType,
 		sendSilent,
 		sendScheduled,

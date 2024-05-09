@@ -18,6 +18,10 @@ namespace Api {
 struct SendOptions;
 } // namespace Api
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
@@ -36,6 +40,7 @@ struct ScheduleBoxStyleArgs {
 
 void ScheduleBox(
 	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<ChatHelpers::Show> show,
 	SendMenu::Type type,
 	Fn<void(Api::SendOptions)> done,
 	TimeId time,
@@ -44,12 +49,14 @@ void ScheduleBox(
 template <typename Guard, typename Submit>
 [[nodiscard]] object_ptr<Ui::GenericBox> PrepareScheduleBox(
 		Guard &&guard,
+		std::shared_ptr<ChatHelpers::Show> show,
 		SendMenu::Type type,
 		Submit &&submit,
 		TimeId scheduleTime = DefaultScheduleTime(),
 		ScheduleBoxStyleArgs style = ScheduleBoxStyleArgs()) {
 	return Box(
 		ScheduleBox,
+		std::move(show),
 		type,
 		crl::guard(std::forward<Guard>(guard), std::forward<Submit>(submit)),
 		scheduleTime,

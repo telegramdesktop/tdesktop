@@ -589,6 +589,7 @@ bool AddRescheduleAction(
 		const auto box = request.navigation->parentController()->show(
 			HistoryView::PrepareScheduleBox(
 				&request.navigation->session(),
+				request.navigation->uiShow(),
 				sendMenuType,
 				callback,
 				date));

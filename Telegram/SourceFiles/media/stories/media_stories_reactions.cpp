@@ -667,7 +667,6 @@ void Reactions::Panel::create() {
 		TextWithEntities{ (mode == Mode::Message
 			? tr::lng_stories_reaction_as_message(tr::now)
 			: QString()) },
-		_controller->cachedReactionIconFactory().createMethod(),
 		[=](bool fast) { hide(mode); });
 
 	_selector->chosen(
@@ -867,8 +866,7 @@ auto Reactions::attachToMenu(
 		st::storiesReactionsPan,
 		show,
 		LookupPossibleReactions(&show->session()),
-		TextWithEntities(),
-		_controller->cachedReactionIconFactory().createMethod());
+		TextWithEntities());
 	if (!result) {
 		return result.error();
 	}

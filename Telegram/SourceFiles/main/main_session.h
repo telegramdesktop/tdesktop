@@ -37,6 +37,10 @@ class SponsoredMessages;
 class TopPeers;
 } // namespace Data
 
+namespace HistoryView::Reactions {
+class CachedIconFactory;
+} // namespace HistoryView::Reactions
+
 namespace Storage {
 class DownloadManagerMtproto;
 class Uploader;
@@ -156,6 +160,10 @@ public:
 	[[nodiscard]] InlineBots::AttachWebView &attachWebView() const {
 		return *_attachWebView;
 	}
+	[[nodiscard]] auto cachedReactionIconFactory() const
+	-> HistoryView::Reactions::CachedIconFactory & {
+		return *_cachedReactionIconFactory;
+	}
 
 	void saveSettings();
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
@@ -217,8 +225,6 @@ public:
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
 
-	void parseColorIndices(const MTPDhelp_peerColors &data);
-
 	const UserId _userId;
 	const not_null<Account*> _account;
 
@@ -245,6 +251,9 @@ private:
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
 	const std::unique_ptr<Data::SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Data::TopPeers> _topPeers;
+
+	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
+	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 

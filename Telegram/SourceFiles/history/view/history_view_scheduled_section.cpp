@@ -98,6 +98,7 @@ ScheduledWidget::ScheduledWidget(
 	const Data::ForumTopic *forumTopic)
 : Window::SectionWidget(parent, controller, history->peer)
 , WindowListDelegate(controller)
+, _show(controller->uiShow())
 , _history(history)
 , _forumTopic(forumTopic)
 , _scroll(
@@ -600,7 +601,8 @@ void ScheduledWidget::uploadFile(
 			type,
 			prepareSendAction(options));
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuType(), callback));
 }
 
 bool ScheduledWidget::showSendingFilesError(
@@ -678,7 +680,8 @@ void ScheduledWidget::send() {
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuType(), callback));
 }
 
 void ScheduledWidget::send(Api::SendOptions options) {
@@ -709,7 +712,8 @@ void ScheduledWidget::sendVoice(
 	const auto callback = [=](Api::SendOptions options) {
 		sendVoice(bytes, waveform, duration, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuType(), callback));
 }
 
 void ScheduledWidget::sendVoice(
@@ -809,7 +813,8 @@ void ScheduledWidget::sendExistingDocument(
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingDocument(document, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuType(), callback));
 }
 
 bool ScheduledWidget::sendExistingDocument(
@@ -838,7 +843,8 @@ void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingPhoto(photo, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuType(), callback));
 }
 
 bool ScheduledWidget::sendExistingPhoto(
@@ -872,7 +878,8 @@ void ScheduledWidget::sendInlineResult(
 	const auto callback = [=](Api::SendOptions options) {
 		sendInlineResult(result, bot, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuType(), callback));
 }
 
 void ScheduledWidget::sendInlineResult(
@@ -1360,7 +1367,8 @@ void ScheduledWidget::listSendBotCommand(
 		message.textWithTags = { text };
 		session().api().sendMessage(std::move(message));
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuType(), callback));
 }
 
 void ScheduledWidget::listSearch(

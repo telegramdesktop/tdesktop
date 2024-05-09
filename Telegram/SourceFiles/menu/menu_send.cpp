@@ -10,13 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "base/event_filter.h"
 #include "boxes/abstract_box.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "core/shortcuts.h"
+#include "history/view/reactions/history_view_reactions_selector.h"
 #include "history/view/history_view_schedule_box.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -28,19 +31,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QApplication>
 
 namespace SendMenu {
+namespace {
+
+[[nodiscard]] Data::PossibleItemReactionsRef LookupPossibleEffects(
+		not_null<Main::Session*> session) {
+	auto result = Data::PossibleItemReactionsRef();
+	const auto reactions = &session->data().reactions();
+	const auto &full = reactions->list(Data::Reactions::Type::Active);
+	const auto &top = reactions->list(Data::Reactions::Type::Top);
+	const auto &recent = reactions->list(Data::Reactions::Type::Recent);
+	const auto premiumPossible = session->premiumPossible();
+	auto added = base::flat_set<Data::ReactionId>();
+	result.recent.reserve(full.size());
+	for (const auto &reaction : ranges::views::concat(top, recent, full)) {
+		if (premiumPossible || !reaction.id.custom()) {
+			if (added.emplace(reaction.id).second) {
+				result.recent.push_back(&reaction);
+			}
+		}
+	}
+	result.customAllowed = premiumPossible;
+	const auto i = ranges::find(
+		result.recent,
+		reactions->favoriteId(),
+		&Data::Reaction::id);
+	if (i != end(result.recent) && i != begin(result.recent)) {
+		std::rotate(begin(result.recent), i, i + 1);
+	}
+	return result;
+}
+
+} // namespace
 
 Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send) {
 	return [=] { send({ .silent = true }); };
 }
 
 Fn<void()> DefaultScheduleCallback(
-		std::shared_ptr<Ui::Show> show,
+		std::shared_ptr<ChatHelpers::Show> show,
 		Type type,
 		Fn<void(Api::SendOptions)> send) {
 	return [=, weak = Ui::MakeWeak(show->toastParent())] {
 		show->showBox(
 			HistoryView::PrepareScheduleBox(
 				weak,
+				show,
 				type,
 				[=](Api::SendOptions options) { send(options); }),
 			Ui::LayerOption::KeepOther);
@@ -95,6 +130,7 @@ FillMenuResult FillSendMenu(
 
 void SetupMenuAndShortcuts(
 		not_null<Ui::RpWidget*> button,
+		std::shared_ptr<ChatHelpers::Show> show,
 		Fn<Type()> type,
 		Fn<void()> silent,
 		Fn<void()> schedule,
@@ -107,12 +143,35 @@ void SetupMenuAndShortcuts(
 		*menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
 			st::popupMenuWithIcons);
-		const auto result = FillSendMenu(*menu, type(), silent, schedule, whenOnline);
-		const auto success = (result == FillMenuResult::Success);
-		if (success) {
-			(*menu)->popup(QCursor::pos());
+		const auto result = FillSendMenu(
+			*menu,
+			type(),
+			silent,
+			schedule,
+			whenOnline);
+		if (result != FillMenuResult::Success) {
+			return false;
 		}
-		return success;
+		const auto desiredPosition = QCursor::pos();
+		using namespace HistoryView::Reactions;
+		const auto selector = show
+			? AttachSelectorToMenu(
+				menu->get(),
+				desiredPosition,
+				st::reactPanelEmojiPan,
+				show,
+				LookupPossibleEffects(&show->session()),
+				{ tr::lng_effect_add_title(tr::now) })
+			: base::make_unexpected(AttachSelectorResult::Skipped);
+		if (selector) {
+			//(*selector)->chosen();
+			(*menu)->popupPrepared();
+		} else if (selector.error() == AttachSelectorResult::Failed) {
+			return false;
+		} else {
+			(*menu)->popup(desiredPosition);
+		}
+		return true;
 	};
 	base::install_event_filter(button, [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::ContextMenu && showMenu()) {

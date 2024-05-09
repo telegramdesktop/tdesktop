@@ -17,6 +17,10 @@ class History;
 enum class SendMediaType;
 struct SendingAlbum;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
@@ -262,6 +266,7 @@ private:
 		not_null<UserData*> bot,
 		Api::SendOptions options);
 
+	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<History*> _history;
 	const Data::ForumTopic *_forumTopic;
 	std::shared_ptr<Ui::ChatTheme> _theme;

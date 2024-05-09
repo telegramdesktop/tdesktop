@@ -616,6 +616,7 @@ void ShareBox::submitScheduled() {
 	uiShow()->showBox(
 		HistoryView::PrepareScheduleBox(
 			this,
+			nullptr, // ChatHelpers::Show for effect attachment.
 			sendMenuType(),
 			callback,
 			HistoryView::DefaultScheduleTime(),

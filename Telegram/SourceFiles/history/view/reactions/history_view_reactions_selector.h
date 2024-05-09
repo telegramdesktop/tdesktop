@@ -82,8 +82,8 @@ public:
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::PossibleItemReactionsRef &reactions,
 		TextWithEntities about,
-		IconFactory iconFactory,
 		Fn<void(bool fast)> close,
+		IconFactory iconFactory = nullptr,
 		bool child = false);
 	Selector(
 		not_null<QWidget*> parent,
@@ -253,7 +253,7 @@ AttachSelectorResult AttachSelectorToMenu(
 	not_null<HistoryItem*> item,
 	Fn<void(ChosenReaction)> chosen,
 	TextWithEntities about,
-	IconFactory iconFactory);
+	IconFactory iconFactory = nullptr);
 
 [[nodiscard]] auto AttachSelectorToMenu(
 	not_null<Ui::PopupMenu*> menu,
@@ -262,7 +262,7 @@ AttachSelectorResult AttachSelectorToMenu(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::PossibleItemReactionsRef &reactions,
 	TextWithEntities about,
-	IconFactory iconFactory
+	IconFactory iconFactory = nullptr
 ) -> base::expected<not_null<Selector*>, AttachSelectorResult>;
 
 [[nodiscard]] TextWithEntities ItemReactionsAbout(

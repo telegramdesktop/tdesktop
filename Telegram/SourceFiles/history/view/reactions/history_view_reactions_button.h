@@ -138,7 +138,7 @@ public:
 	Manager(
 		QWidget *wheelEventsTarget,
 		Fn<void(QRect)> buttonUpdate,
-		IconFactory iconFactory);
+		IconFactory iconFactory = nullptr);
 	~Manager();
 
 	using ReactionId = ::Data::ReactionId;

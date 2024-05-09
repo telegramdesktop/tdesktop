@@ -15,6 +15,10 @@ namespace Api {
 struct SendOptions;
 } // namespace Api
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Ui {
 class PopupMenu;
 class RpWidget;
@@ -42,7 +46,7 @@ enum class FillMenuResult {
 
 Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send);
 Fn<void()> DefaultScheduleCallback(
-	std::shared_ptr<Ui::Show> show,
+	std::shared_ptr<ChatHelpers::Show> show,
 	Type type,
 	Fn<void(Api::SendOptions)> send);
 Fn<void()> DefaultWhenOnlineCallback(Fn<void(Api::SendOptions)> send);
@@ -57,6 +61,7 @@ FillMenuResult FillSendMenu(
 
 void SetupMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,
+	std::shared_ptr<ChatHelpers::Show> show,
 	Fn<Type()> type,
 	Fn<void()> silent,
 	Fn<void()> schedule,

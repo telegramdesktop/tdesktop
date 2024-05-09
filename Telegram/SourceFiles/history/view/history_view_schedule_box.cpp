@@ -69,6 +69,7 @@ bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
 
 void ScheduleBox(
 		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<ChatHelpers::Show> show,
 		SendMenu::Type type,
 		Fn<void(Api::SendOptions)> done,
 		TimeId time,
@@ -98,6 +99,7 @@ void ScheduleBox(
 	using T = SendMenu::Type;
 	SendMenu::SetupMenuAndShortcuts(
 		descriptor.submit.data(),
+		show,
 		[t = type == T::Disabled ? T::Disabled : T::SilentOnly] { return t; },
 		[=] { save(true, descriptor.collect()); },
 		nullptr,

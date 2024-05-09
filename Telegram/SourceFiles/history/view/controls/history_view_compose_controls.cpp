@@ -2197,6 +2197,7 @@ void ComposeControls::initSendButton() {
 
 	SendMenu::SetupMenuAndShortcuts(
 		_send.get(),
+		_show,
 		[=] { return sendButtonMenuType(); },
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(_show, sendMenuType(), send),

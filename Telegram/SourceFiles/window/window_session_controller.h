@@ -593,11 +593,6 @@ public:
 		return _chatStyle.get();
 	}
 
-	[[nodiscard]] auto cachedReactionIconFactory() const
-	-> HistoryView::Reactions::CachedIconFactory & {
-		return *_cachedReactionIconFactory;
-	}
-
 	[[nodiscard]] QString authedName() const {
 		return _authedName;
 	}
@@ -712,9 +707,6 @@ private:
 	std::weak_ptr<Ui::ChatTheme> _chatStyleTheme;
 	std::deque<std::shared_ptr<Ui::ChatTheme>> _lastUsedCustomChatThemes;
 	rpl::variable<PeerThemeOverride> _peerThemeOverride;
-
-	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
-	std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
 
 	base::has_weak_ptr _storyOpenGuard;
 
