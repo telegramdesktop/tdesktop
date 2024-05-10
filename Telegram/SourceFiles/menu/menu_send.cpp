@@ -11,15 +11,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "boxes/abstract_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "core/shortcuts.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
 #include "history/view/history_view_schedule_box.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_single_player.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
+#include "ui/painter.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_peer.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
@@ -48,24 +55,76 @@ public:
 		Details details,
 		QPoint position,
 		const Data::Reaction &effect,
-		Fn<void(Action, Details)> action);
+		Fn<void(Action, Details)> action,
+		Fn<void()> done);
+
 private:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 
 	void setupGeometry(QPoint position);
 	void setupBackground();
+	void repaintBackground();
+	void setupLottie();
 	void setupSend(Details details);
+	void createLottie();
 
+	[[nodiscard]] bool checkReady();
+
+	const Data::Reaction _effect;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Ui::ChatTheme> _theme;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
 	const std::unique_ptr<Ui::FlatButton> _send;
 	const Fn<void(Action, Details)> _actionWithEffect;
+
+	QImage _icon;
+	std::shared_ptr<Data::DocumentMedia> _media;
+	QByteArray _bytes;
+	QString _filepath;
+	std::unique_ptr<Lottie::SinglePlayer> _lottie;
+
 	QRect _inner;
 	QImage _bg;
 
+	rpl::lifetime _readyCheckLifetime;
+
 };
+
+class BottomRounded final : public Ui::FlatButton {
+public:
+	using FlatButton::FlatButton;
+
+private:
+	QImage prepareRippleMask() const override;
+	void paintEvent(QPaintEvent *e) override;
+
+};
+
+QImage BottomRounded::prepareRippleMask() const {
+	const auto fill = false;
+	return Ui::RippleAnimation::MaskByDrawer(size(), fill, [&](QPainter &p) {
+		const auto radius = st::previewMenu.radius;
+		const auto expanded = rect().marginsAdded({ 0, 2 * radius, 0, 0 });
+		p.drawRoundedRect(expanded, radius, radius);
+	});
+}
+
+void BottomRounded::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto radius = st::previewMenu.radius;
+	const auto expanded = rect().marginsAdded({ 0, 2 * radius, 0, 0 });
+	p.setPen(Qt::NoPen);
+	const auto &st = st::previewMarkRead;
+	if (isOver()) {
+		p.setBrush(st.overBgColor);
+	}
+	p.drawRoundedRect(expanded, radius, radius);
+	p.end();
+
+	Ui::FlatButton::paintEvent(e);
+}
 
 [[nodiscard]] Data::PossibleItemReactionsRef LookupPossibleEffects(
 		not_null<Main::Session*> session) {
@@ -85,35 +144,19 @@ private:
 	return result;
 }
 
-void ShowEffectPreview(
-		not_null<QWidget*> parent,
-		std::shared_ptr<ChatHelpers::Show> show,
-		Details details,
-		QPoint position,
-		const Data::Reaction &effect,
-		Fn<void(Action, Details)> action) {
-	const auto widget = Ui::CreateChild<EffectPreview>(
-		parent,
-		show,
-		details,
-		position,
-		effect,
-		action);
-	widget->raise();
-	widget->show();
-}
-
 [[nodiscard]] Fn<void(Action, Details)> ComposeActionWithEffect(
 		Fn<void(Action, Details)> sendAction,
-		EffectId id) {
-	if (!id) {
-		return sendAction;
-	}
+		EffectId id,
+		Fn<void()> done) {
 	return [=](Action action, Details details) {
 		if (const auto options = std::get_if<Api::SendOptions>(&action)) {
 			options->effectId = id;
 		}
+		const auto onstack = done;
 		sendAction(action, details);
+		if (onstack) {
+			onstack();
+		}
 	};
 }
 
@@ -123,27 +166,49 @@ EffectPreview::EffectPreview(
 	Details details,
 	QPoint position,
 	const Data::Reaction &effect,
-	Fn<void(Action, Details)> action)
+	Fn<void(Action, Details)> action,
+	Fn<void()> done)
 : RpWidget(parent)
+, _effect(effect)
 , _show(show)
 , _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
 , _chatStyle(
 	std::make_unique<Ui::ChatStyle>(
 		_show->session().colorIndicesValue()))
 , _send(
-	std::make_unique<Ui::FlatButton>(
+	std::make_unique<BottomRounded>(
 		this,
-		u"Send with Effect"_q,AssertIsDebug()
-		st::previewMarkRead))
-, _actionWithEffect(ComposeActionWithEffect(action, effect.id.custom())) {
+		tr::lng_effect_send(tr::now),
+		st::effectPreviewSend))
+, _actionWithEffect(
+	ComposeActionWithEffect(
+		action,
+		effect.id.custom(),
+		done)) {
 	setupGeometry(position);
 	setupBackground();
+	setupLottie();
 	setupSend(details);
 }
 
 void EffectPreview::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	p.drawImage(0, 0, _bg);
+
+	if (_lottie && _lottie->ready()) {
+		const auto factor = style::DevicePixelRatio();
+		auto request = Lottie::FrameRequest();
+		request.box = _inner.size() * factor;
+		const auto rightAligned = false;// hasRightLayout();
+		if (!rightAligned) {
+			request.mirrorHorizontal = true;
+		}
+		const auto frame = _lottie->frameInfo(request);
+		p.drawImage(
+			QRect(_inner.topLeft(), frame.image.size() / factor),
+			frame.image);
+		_lottie->markFrameShown();
+	}
 }
 
 void EffectPreview::mousePressEvent(QMouseEvent *e) {
@@ -156,7 +221,8 @@ void EffectPreview::setupGeometry(QPoint position) {
 	const auto shadow = st::previewMenu.shadow;
 	const auto extend = shadow.extend;
 	_inner = QRect(QPoint(extend.left(), extend.top()), innerSize);
-	const auto size = _inner.marginsAdded(extend).size();
+	const auto size = _inner.marginsAdded(extend).size()
+		+ QSize(0, _send->height());
 	const auto left = std::max(
 		std::min(
 			position.x() - size.width() / 2,
@@ -168,29 +234,112 @@ void EffectPreview::setupGeometry(QPoint position) {
 			position.y() - size.height() / 2,
 			parent->height() - size.height()),
 		topMin);
-	setGeometry(left, top, size.width(), size.height() + _send->height());
-	_send->setGeometry(0, size.height(), size.width(), _send->height());
+	setGeometry(left, top, size.width(), size.height());
+	_send->setGeometry(
+		_inner.x(),
+		_inner.y() + _inner.height(),
+		_inner.width(),
+		_send->height());
 }
 
 void EffectPreview::setupBackground() {
 	const auto ratio = style::DevicePixelRatio();
 	_bg = QImage(
-		_inner.size() * ratio,
+		size() * ratio,
 		QImage::Format_ARGB32_Premultiplied);
+	_bg.setDevicePixelRatio(ratio);
+	repaintBackground();
+	_theme->repaintBackgroundRequests() | rpl::start_with_next([=] {
+		repaintBackground();
+		update();
+	}, lifetime());
+}
 
-	const auto paint = [=] {
-		auto p = QPainter(&_bg);
+void EffectPreview::repaintBackground() {
+	const auto ratio = style::DevicePixelRatio();
+	const auto inner = _inner.size() + QSize(0, _send->height());
+	auto bg = QImage(
+		inner * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	bg.setDevicePixelRatio(ratio);
+
+	{
+		auto p = QPainter(&bg);
 		Window::SectionWidget::PaintBackground(
 			p,
 			_theme.get(),
-			QSize(width(), height() * 5),
-			QRect(QPoint(), size()));
-	};
-	paint();
-	_theme->repaintBackgroundRequests() | rpl::start_with_next([=] {
-		paint();
-		update();
-	}, lifetime());
+			QSize(inner.width(), inner.height() * 5),
+			QRect(QPoint(), inner));
+
+		{ // bubble
+			const auto radius = st::bubbleRadiusLarge;
+			const auto out = 2 * radius;
+			p.setPen(Qt::NoPen);
+			p.setBrush(_chatStyle->msgInShadow());
+			const auto skip = st::msgPadding.bottom() - st::msgDateDelta.y();
+			p.drawRoundedRect(-out, -out, out + inner.width() / 3, out + inner.height() / 2 + st::normalFont->height / 2 + st::msgShadow, radius, radius);
+			p.setBrush(_chatStyle->msgInBg());
+			p.drawRoundedRect(-out, -out, out + inner.width() / 3, out + inner.height() / 2 + st::normalFont->height / 2, radius, radius);
+
+			if (!_icon.isNull()) {
+				p.drawImage(
+					inner.width() / 3 - _icon.width(),
+					inner.height() / 2 + st::normalFont->height / 2 - _icon.height(),
+					_icon);
+			}
+		}
+
+		p.fillRect(
+			QRect(0, _inner.height(), _inner.width(), _send->height()),
+			st::previewMarkRead.bgColor);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		auto roundRect = Ui::RoundRect(st::previewMenu.radius, st::menuBg);
+		roundRect.paint(p, QRect(QPoint(), inner), RectPart::AllCorners);
+	}
+
+	_bg.fill(Qt::transparent);
+	auto p = QPainter(&_bg);
+	const auto &shadow = st::previewMenu.animation.shadow;
+	const auto shadowed = QRect(_inner.topLeft(), inner);
+	Ui::Shadow::paint(p, shadowed, width(), shadow);
+	p.drawImage(_inner.topLeft(), bg);
+}
+
+void EffectPreview::setupLottie() {
+	const auto id = _effect.id.custom();
+	const auto reactions = &_show->session().data().reactions();
+	reactions->preloadEffectImageFor(id);
+
+	if (const auto document = _effect.aroundAnimation) {
+		_media = document->createMediaView();
+	} else {
+		_media = _effect.selectAnimation->createMediaView();
+	}
+	rpl::single(rpl::empty) | rpl::then(
+		_show->session().downloaderTaskFinished()
+	) | rpl::start_with_next([=] {
+		if (checkReady()) {
+			_readyCheckLifetime.destroy();
+			createLottie();
+		}
+	}, _readyCheckLifetime);
+}
+
+void EffectPreview::createLottie() {
+	_lottie = _show->session().emojiStickersPack().effectPlayer(
+		_media->owner(),
+		_bytes,
+		_filepath,
+		Stickers::EffectType::MessageEffect);
+	const auto raw = _lottie.get();
+	raw->updates(
+	) | rpl::start_with_next([=](Lottie::Update update) {
+		v::match(update.data, [&](const Lottie::Information &information) {
+		}, [&](const Lottie::DisplayFrameRequest &request) {
+			this->update();
+		});
+	}, raw->lifetime());
 }
 
 void EffectPreview::setupSend(Details details) {
@@ -201,6 +350,22 @@ void EffectPreview::setupSend(Details details) {
 	SetupMenuAndShortcuts(_send.get(), _show, [=] {
 		return Details{ .type = type };
 	}, _actionWithEffect);
+}
+
+bool EffectPreview::checkReady() {
+	if (_icon.isNull()) {
+		const auto reactions = &_show->session().data().reactions();
+		_icon = reactions->resolveEffectImageFor(_effect.id.custom());
+		repaintBackground();
+		update();
+	}
+	if (_effect.aroundAnimation) {
+		_bytes = _media->bytes();
+		_filepath = _media->owner()->filepath();
+	} else {
+		_bytes = _media->videoThumbnailContent();
+	}
+	return !_icon.isNull() && (!_bytes.isEmpty() || !_filepath.isEmpty());
 }
 
 } // namespace
@@ -281,19 +446,32 @@ FillMenuResult FillSendMenu(
 		return FillMenuResult::Prepared;
 	}
 
+	const auto effect = std::make_shared<QPointer<EffectPreview>>();
 	(*selector)->chosen(
 	) | rpl::start_with_next([=](ChosenReaction chosen) {
 		const auto &reactions = showForEffect->session().data().reactions();
 		const auto &effects = reactions.list(Data::Reactions::Type::Effects);
 		const auto i = ranges::find(effects, chosen.id, &Data::Reaction::id);
 		if (i != end(effects)) {
-			ShowEffectPreview(
+			if (const auto strong = effect->data()) {
+				delete strong;
+			}
+			const auto weak = Ui::MakeWeak(menu);
+			const auto done = [=] {
+				delete effect->data();
+				if (const auto strong = weak.data()) {
+					strong->hideMenu(true);
+				}
+			};
+			*effect = Ui::CreateChild<EffectPreview>(
 				menu,
 				showForEffect,
 				details,
 				menu->mapFromGlobal(chosen.globalGeometry.center()),
 				*i,
-				action);
+				action,
+				crl::guard(menu, done));
+			(*effect)->show();
 		}
 	}, menu->lifetime());
 

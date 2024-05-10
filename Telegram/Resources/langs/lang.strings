@@ -563,6 +563,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_effect_add_title" = "Add an animated effect";
 "lng_effect_stickers_title" = "Message Effects";
+"lng_effect_send" = "Send with Effect";
 
 "lng_languages" = "Languages";
 "lng_languages_none" = "No languages found.";

@@ -228,6 +228,9 @@ void ScheduledMessages::sendNowSimpleMessage(
 			: MTPDmessage::Flag(0))
 		| ((localFlags & MessageFlag::Outgoing)
 			? MTPDmessage::Flag::f_out
+			: MTPDmessage::Flag(0))
+		| (local->effectId()
+			? MTPDmessage::Flag::f_effect
 			: MTPDmessage::Flag(0));
 	const auto views = 1;
 	const auto forwards = 0;
