@@ -22,8 +22,14 @@ extern "C" {
 #include <libavutil/version.h>
 } // extern "C"
 
-#define DA_FFMPEG_NEW_CHANNEL_LAYOUT (LIBAVUTIL_VERSION_MAJOR > 57 \
-	|| (LIBAVUTIL_VERSION_MAJOR == 57 && LIBAVUTIL_VERSION_MINOR >= 28))
+#define DA_FFMPEG_NEW_CHANNEL_LAYOUT (LIBAVUTIL_VERSION_INT >= \
+	AV_VERSION_INT(57, 28, 100))
+
+#define DA_FFMPEG_CONST_WRITE_CALLBACK (LIBAVFORMAT_VERSION_INT >= \
+	AV_VERSION_INT(61, 01, 100))
+
+#define DA_FFMPEG_HAVE_DURATION (LIBAVUTIL_VERSION_INT >= \
+	AV_VERSION_INT(58, 02, 100))
 
 class QImage;
 
@@ -112,7 +118,11 @@ using IOPointer = std::unique_ptr<AVIOContext, IODeleter>;
 [[nodiscard]] IOPointer MakeIOPointer(
 	void *opaque,
 	int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+	int(*write)(void *opaque, const uint8_t *buffer, int bufferSize),
+#else
 	int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+#endif
 	int64_t(*seek)(void *opaque, int64_t offset, int whence));
 
 struct FormatDeleter {
@@ -122,7 +132,11 @@ using FormatPointer = std::unique_ptr<AVFormatContext, FormatDeleter>;
 [[nodiscard]] FormatPointer MakeFormatPointer(
 	void *opaque,
 	int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+	int(*write)(void *opaque, const uint8_t *buffer, int bufferSize),
+#else
 	int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+#endif
 	int64_t(*seek)(void *opaque, int64_t offset, int whence));
 
 struct CodecDeleter {

@@ -230,7 +230,11 @@ enum AVPixelFormat GetFormatImplementation(
 IOPointer MakeIOPointer(
 		void *opaque,
 		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+		int(*write)(void *opaque, const uint8_t *buffer, int bufferSize),
+#else
 		int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+#endif
 		int64_t(*seek)(void *opaque, int64_t offset, int whence)) {
 	auto buffer = reinterpret_cast<uchar*>(av_malloc(kAvioBlockSize));
 	if (!buffer) {
@@ -263,7 +267,11 @@ void IODeleter::operator()(AVIOContext *value) {
 FormatPointer MakeFormatPointer(
 		void *opaque,
 		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+		int(*write)(void *opaque, const uint8_t *buffer, int bufferSize),
+#else
 		int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+#endif
 		int64_t(*seek)(void *opaque, int64_t offset, int whence)) {
 	auto io = MakeIOPointer(opaque, read, write, seek);
 	if (!io) {
