@@ -3383,6 +3383,7 @@ void ApiWrap::forwardMessages(
 				.date = HistoryItem::NewMessageDate(action.options),
 				.shortcutId = action.options.shortcutId,
 				.postAuthor = messagePostAuthor,
+				.effectId = action.options.effectId,
 			}, item);
 			_session->data().registerMessageRandomId(randomId, newId);
 			if (!localIds) {
@@ -3483,6 +3484,7 @@ void ApiWrap::sendSharedContact(
 		.date = HistoryItem::NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
 		.postAuthor = messagePostAuthor,
+		.effectId = action.options.effectId,
 	}, TextWithEntities(), MTP_messageMediaContact(
 		MTP_string(phone),
 		MTP_string(firstName),
@@ -3816,6 +3818,10 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_quick_reply_shortcut;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
 		}
+		if (action.options.effectId) {
+			sendFlags |= MTPmessages_SendMessage::Flag::f_effect;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_effect;
+		}
 		lastMessage = history->addNewLocalMessage({
 			.id = newId.msg,
 			.flags = flags,
@@ -3824,6 +3830,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			.date = HistoryItem::NewMessageDate(action.options),
 			.shortcutId = action.options.shortcutId,
 			.postAuthor = messagePostAuthor,
+			.effectId = action.options.effectId,
 		}, sending, media);
 		const auto done = [=](
 				const MTPUpdates &result,
@@ -4162,7 +4169,8 @@ void ApiWrap::sendMediaWithRandomId(
 		| (!sentEntities.v.isEmpty() ? Flag::f_entities : Flag(0))
 		| (options.scheduled ? Flag::f_schedule_date : Flag(0))
 		| (options.sendAs ? Flag::f_send_as : Flag(0))
-		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0));
+		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0))
+		| (options.effectId ? Flag::f_effect : Flag(0));
 
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
@@ -4271,7 +4279,8 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		| (sendAs ? Flag::f_send_as : Flag(0))
 		| (album->options.shortcutId
 			? Flag::f_quick_reply_shortcut
-			: Flag(0));
+			: Flag(0))
+		| (album->options.effectId ? Flag::f_effect : Flag(0));
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
 	histories.sendPreparedMessage(

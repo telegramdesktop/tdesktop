@@ -12,9 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/shortcuts.h"
+#include "history/view/media/history_view_sticker.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
 #include "history/view/history_view_schedule_box.h"
 #include "lang/lang_keys.h"
+#include "ui/chat/chat_style.h"
+#include "ui/chat/chat_theme.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer.h"
 #include "data/data_forum.h"
@@ -25,6 +29,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_unread_things.h"
 #include "apiwrap.h"
+#include "window/themes/window_theme.h"
+#include "window/section_widget.h"
+#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
@@ -32,6 +39,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace SendMenu {
 namespace {
+
+class EffectPreview final : public Ui::RpWidget {
+public:
+	EffectPreview(
+		not_null<QWidget*> parent,
+		std::shared_ptr<ChatHelpers::Show> show,
+		Details details,
+		QPoint position,
+		const Data::Reaction &effect,
+		Fn<void(Action, Details)> action);
+private:
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+
+	void setupGeometry(QPoint position);
+	void setupBackground();
+	void setupSend(Details details);
+
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const std::shared_ptr<Ui::ChatTheme> _theme;
+	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
+	const std::unique_ptr<Ui::FlatButton> _send;
+	const Fn<void(Action, Details)> _actionWithEffect;
+	QRect _inner;
+	QImage _bg;
+
+};
 
 [[nodiscard]] Data::PossibleItemReactionsRef LookupPossibleEffects(
 		not_null<Main::Session*> session) {
@@ -49,6 +83,124 @@ namespace {
 		}
 	}
 	return result;
+}
+
+void ShowEffectPreview(
+		not_null<QWidget*> parent,
+		std::shared_ptr<ChatHelpers::Show> show,
+		Details details,
+		QPoint position,
+		const Data::Reaction &effect,
+		Fn<void(Action, Details)> action) {
+	const auto widget = Ui::CreateChild<EffectPreview>(
+		parent,
+		show,
+		details,
+		position,
+		effect,
+		action);
+	widget->raise();
+	widget->show();
+}
+
+[[nodiscard]] Fn<void(Action, Details)> ComposeActionWithEffect(
+		Fn<void(Action, Details)> sendAction,
+		EffectId id) {
+	if (!id) {
+		return sendAction;
+	}
+	return [=](Action action, Details details) {
+		if (const auto options = std::get_if<Api::SendOptions>(&action)) {
+			options->effectId = id;
+		}
+		sendAction(action, details);
+	};
+}
+
+EffectPreview::EffectPreview(
+	not_null<QWidget*> parent,
+	std::shared_ptr<ChatHelpers::Show> show,
+	Details details,
+	QPoint position,
+	const Data::Reaction &effect,
+	Fn<void(Action, Details)> action)
+: RpWidget(parent)
+, _show(show)
+, _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
+, _chatStyle(
+	std::make_unique<Ui::ChatStyle>(
+		_show->session().colorIndicesValue()))
+, _send(
+	std::make_unique<Ui::FlatButton>(
+		this,
+		u"Send with Effect"_q,AssertIsDebug()
+		st::previewMarkRead))
+, _actionWithEffect(ComposeActionWithEffect(action, effect.id.custom())) {
+	setupGeometry(position);
+	setupBackground();
+	setupSend(details);
+}
+
+void EffectPreview::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	p.drawImage(0, 0, _bg);
+}
+
+void EffectPreview::mousePressEvent(QMouseEvent *e) {
+	delete this;
+}
+
+void EffectPreview::setupGeometry(QPoint position) {
+	const auto parent = parentWidget();
+	const auto innerSize = HistoryView::Sticker::MessageEffectSize();
+	const auto shadow = st::previewMenu.shadow;
+	const auto extend = shadow.extend;
+	_inner = QRect(QPoint(extend.left(), extend.top()), innerSize);
+	const auto size = _inner.marginsAdded(extend).size();
+	const auto left = std::max(
+		std::min(
+			position.x() - size.width() / 2,
+			parent->width() - size.width()),
+		0);
+	const auto topMin = std::min((parent->height() - size.height()) / 2, 0);
+	const auto top = std::max(
+		std::min(
+			position.y() - size.height() / 2,
+			parent->height() - size.height()),
+		topMin);
+	setGeometry(left, top, size.width(), size.height() + _send->height());
+	_send->setGeometry(0, size.height(), size.width(), _send->height());
+}
+
+void EffectPreview::setupBackground() {
+	const auto ratio = style::DevicePixelRatio();
+	_bg = QImage(
+		_inner.size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+
+	const auto paint = [=] {
+		auto p = QPainter(&_bg);
+		Window::SectionWidget::PaintBackground(
+			p,
+			_theme.get(),
+			QSize(width(), height() * 5),
+			QRect(QPoint(), size()));
+	};
+	paint();
+	_theme->repaintBackgroundRequests() | rpl::start_with_next([=] {
+		paint();
+		update();
+	}, lifetime());
+}
+
+void EffectPreview::setupSend(Details details) {
+	_send->setClickedCallback([=] {
+		_actionWithEffect(Api::SendOptions(), details);
+	});
+	const auto type = details.type;
+	SetupMenuAndShortcuts(_send.get(), _show, [=] {
+		return Details{ .type = type };
+	}, _actionWithEffect);
 }
 
 } // namespace
@@ -131,7 +283,18 @@ FillMenuResult FillSendMenu(
 
 	(*selector)->chosen(
 	) | rpl::start_with_next([=](ChosenReaction chosen) {
-
+		const auto &reactions = showForEffect->session().data().reactions();
+		const auto &effects = reactions.list(Data::Reactions::Type::Effects);
+		const auto i = ranges::find(effects, chosen.id, &Data::Reaction::id);
+		if (i != end(effects)) {
+			ShowEffectPreview(
+				menu,
+				showForEffect,
+				details,
+				menu->mapFromGlobal(chosen.globalGeometry.center()),
+				*i,
+				action);
+		}
 	}, menu->lifetime());
 
 	return FillMenuResult::Prepared;

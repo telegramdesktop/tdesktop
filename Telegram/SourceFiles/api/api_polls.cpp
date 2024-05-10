@@ -68,6 +68,9 @@ void Polls::create(
 	if (action.options.shortcutId) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
 	}
+	if (action.options.effectId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
 	const auto sendAs = action.options.sendAs;
 	if (sendAs) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;

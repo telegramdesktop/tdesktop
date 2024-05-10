@@ -133,6 +133,9 @@ void SendExistingMedia(
 		flags |= MessageFlag::ShortcutMessage;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
 	}
+	if (action.options.effectId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
@@ -144,6 +147,7 @@ void SendExistingMedia(
 		.date = HistoryItem::NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
 		.postAuthor = messagePostAuthor,
+		.effectId = action.options.effectId,
 	}, media, caption);
 
 	const auto performRequest = [=](const auto &repeatRequest) -> void {
@@ -307,6 +311,9 @@ bool SendDice(MessageToSend &message) {
 		flags |= MessageFlag::ShortcutMessage;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
 	}
+	if (action.options.effectId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
@@ -318,6 +325,7 @@ bool SendDice(MessageToSend &message) {
 		.date = HistoryItem::NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
 		.postAuthor = messagePostAuthor,
+		.effectId = action.options.effectId,
 	}, TextWithEntities(), MTP_messageMediaDice(
 		MTP_int(0),
 		MTP_string(emoji)));
@@ -512,6 +520,7 @@ void SendConfirmedFile(
 			.shortcutId = file->to.options.shortcutId,
 			.postAuthor = messagePostAuthor,
 			.groupedId = groupId,
+			.effectId = file->to.options.effectId,
 		}, caption, media);
 	}
 
