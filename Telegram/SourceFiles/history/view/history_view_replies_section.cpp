@@ -224,9 +224,11 @@ RepliesWidget::RepliesWidget(
 			listShowPremiumToast(emoji);
 		},
 		.mode = ComposeControls::Mode::Normal,
-		.sendMenuType = _topic
-			? SendMenu::Type::Scheduled
-			: SendMenu::Type::SilentOnly,
+		.sendMenuDetails = [=] {
+			using Type = SendMenu::Type;
+			const auto type = _topic ? Type::Scheduled : Type::SilentOnly;
+			return SendMenu::Details{ .type = type };
+		},
 		.regularWindow = controller,
 		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
 		.scheduledToggleValue = _topic
@@ -950,7 +952,7 @@ bool RepliesWidget::confirmSendingFiles(
 		_composeControls->getTextWithAppliedMarkdown(),
 		_history->peer,
 		Api::SendType::Normal,
-		SendMenu::Type::SilentOnly); // #TODO replies schedule
+		SendMenu::Details{ SendMenu::Type::SilentOnly }); // #TODO replies schedule
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
@@ -1445,13 +1447,14 @@ void RepliesWidget::sendInlineResult(
 	finishSending();
 }
 
-SendMenu::Type RepliesWidget::sendMenuType() const {
+SendMenu::Details RepliesWidget::sendMenuDetails() const {
 	// #TODO replies schedule
-	return _history->peer->isSelf()
+	const auto type = _history->peer->isSelf()
 		? SendMenu::Type::Reminder
 		: HistoryView::CanScheduleUntilOnline(_history->peer)
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
+	return { .type = type, .effectAllowed = _history->peer->isUser() };
 }
 
 FullReplyTo RepliesWidget::replyTo() const {

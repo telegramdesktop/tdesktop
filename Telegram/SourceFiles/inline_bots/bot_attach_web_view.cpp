@@ -1703,7 +1703,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 				flag,
 				flag,
 				source,
-				sendMenuType);
+				{ sendMenuType });
 		}, &st::menuIconCreatePoll);
 	}
 	for (const auto &bot : bots->attachBots()) {

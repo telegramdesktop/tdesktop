@@ -116,7 +116,7 @@ public:
 	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
 
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
-		SendMenu::Type type) override;
+		const SendMenu::Details &details) override;
 
 	bool mySetsEmpty() const;
 

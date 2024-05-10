@@ -22,7 +22,7 @@ class Show;
 } // namespace ChatHelpers
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace Api {
@@ -221,7 +221,7 @@ private:
 		std::optional<bool> spoilerMediaOverride);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	void chooseAttach();
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	void checkReplyReturns();

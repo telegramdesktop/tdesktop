@@ -321,14 +321,22 @@ HistoryWidget::HistoryWidget(
 	_fieldBarCancel->addClickHandler([=] { cancelFieldAreaState(); });
 	_send->addClickHandler([=] { sendButtonClicked(); });
 
-	SendMenu::SetupMenuAndShortcuts(
-		_send.get(),
-		controller->uiShow(),
-		[=] { return sendButtonMenuType(); },
-		[=] { sendSilent(); },
-		[=] { sendScheduled(); },
-		[=] { sendWhenOnline(); });
-
+	{
+		using namespace SendMenu;
+		const auto sendAction = [=](Action action, Details) {
+			const auto options = std::get_if<Api::SendOptions>(&action);
+			if (options || v::get<ActionType>(action) == ActionType::Send) {
+				send(options ? *options : Api::SendOptions());
+			} else {
+				sendScheduled();
+			}
+		};
+		SetupMenuAndShortcuts(
+			_send.get(),
+			controller->uiShow(),
+			[=] { return sendButtonMenuDetails(); },
+			sendAction);
+	}
 	_unblock->addClickHandler([=] { unblockUser(); });
 	_botStart->addClickHandler([=] { sendBotStartCommand(); });
 	_joinChannel->addClickHandler([=] { joinChannel(); });
@@ -514,7 +522,9 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
-	_fieldAutocomplete->setSendMenuType([=] { return sendMenuType(); });
+	_fieldAutocomplete->setSendMenuDetails([=] {
+		return sendMenuDetails();
+	});
 
 	if (_supportAutocomplete) {
 		supportInitAutocomplete();
@@ -1185,7 +1195,7 @@ void HistoryWidget::initTabbedSelector() {
 
 	selector->contextMenuRequested(
 	) | filter | rpl::start_with_next([=] {
-		selector->showMenuWithType(sendMenuType());
+		selector->showMenuWithDetails(sendMenuDetails());
 	}, lifetime());
 
 	selector->choosingStickerUpdated(
@@ -1564,7 +1574,9 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 					sendInlineResult(result);
 				}
 			});
-			_inlineResults->setSendMenuType([=] { return sendMenuType(); });
+			_inlineResults->setSendMenuDetails([=] {
+				return sendMenuDetails();
+			});
 			_inlineResults->requesting(
 			) | rpl::start_with_next([=](bool requesting) {
 				_tabbedSelectorToggle->setLoading(requesting);
@@ -4177,10 +4189,6 @@ void HistoryWidget::sendWithModifiers(Qt::KeyboardModifiers modifiers) {
 	send({ .handleSupportSwitch = Support::HandleSwitch(modifiers) });
 }
 
-void HistoryWidget::sendSilent() {
-	send({ .silent = true });
-}
-
 void HistoryWidget::sendScheduled() {
 	if (!_list) {
 		return;
@@ -4196,22 +4204,20 @@ void HistoryWidget::sendScheduled() {
 		HistoryView::PrepareScheduleBox(
 			_list,
 			controller()->uiShow(),
-			sendMenuType(),
+			sendMenuDetails(),
 			callback));
 }
 
-void HistoryWidget::sendWhenOnline() {
-	send(Api::DefaultSendWhenOnlineOptions());
-}
-
-SendMenu::Type HistoryWidget::sendMenuType() const {
-	return !_peer
+SendMenu::Details HistoryWidget::sendMenuDetails() const {
+	const auto type = !_peer
 		? SendMenu::Type::Disabled
 		: _peer->isSelf()
 		? SendMenu::Type::Reminder
 		: HistoryView::CanScheduleUntilOnline(_peer)
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
+	const auto effectAllowed = _peer && _peer->isUser();
+	return { .type = type, .effectAllowed = effectAllowed };
 }
 
 auto HistoryWidget::computeSendButtonType() const {
@@ -4227,10 +4233,11 @@ auto HistoryWidget::computeSendButtonType() const {
 	return Type::Send;
 }
 
-SendMenu::Type HistoryWidget::sendButtonMenuType() const {
-	return (computeSendButtonType() == Ui::SendButton::Type::Send)
-		? sendMenuType()
-		: SendMenu::Type::Disabled;
+SendMenu::Details HistoryWidget::sendButtonMenuDetails() const {
+	if (computeSendButtonType() != Ui::SendButton::Type::Send) {
+		return {};
+	}
+	return sendMenuDetails();
 }
 
 void HistoryWidget::unblockUser() {
@@ -5609,7 +5616,7 @@ bool HistoryWidget::confirmSendingFiles(
 		text,
 		_peer,
 		Api::SendType::Normal,
-		sendMenuType());
+		sendMenuDetails());
 	_field->setTextWithTags({});
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,

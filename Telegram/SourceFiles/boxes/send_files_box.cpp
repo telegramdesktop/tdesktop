@@ -328,7 +328,7 @@ SendFilesBox::SendFilesBox(
 	const TextWithTags &caption,
 	not_null<PeerData*> toPeer,
 	Api::SendType sendType,
-	SendMenu::Type sendMenuType)
+	SendMenu::Details sendMenuDetails)
 : SendFilesBox(nullptr, {
 	.show = controller->uiShow(),
 	.list = std::move(list),
@@ -337,7 +337,7 @@ SendFilesBox::SendFilesBox(
 	.limits = DefaultLimitsForPeer(toPeer),
 	.check = DefaultCheckForPeer(controller, toPeer),
 	.sendType = sendType,
-	.sendMenuType = sendMenuType,
+	.sendMenuDetails = [=] { return sendMenuDetails; },
 }) {
 }
 
@@ -350,7 +350,9 @@ SendFilesBox::SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor)
 , _titleHeight(st::boxTitleHeight)
 , _list(std::move(descriptor.list))
 , _limits(descriptor.limits)
-, _sendMenuType(descriptor.sendMenuType)
+, _sendMenuDetails(descriptor.sendMenuDetails
+	? descriptor.sendMenuDetails
+	: [] { return SendMenu::Details(); })
 , _captionToPeer(descriptor.captionToPeer)
 , _check(std::move(descriptor.check))
 , _confirmedCallback(std::move(descriptor.confirmed))
@@ -530,10 +532,8 @@ void SendFilesBox::refreshButtons() {
 		SendMenu::SetupMenuAndShortcuts(
 			_send,
 			_show,
-			[=] { return _sendMenuType; },
-			[=] { sendSilent(); },
-			[=] { sendScheduled(); },
-			[=] { sendWhenOnline(); });
+			_sendMenuDetails,
+			SendMenu::DefaultCallback(_show, sendCallback()));
 	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	_addFile = addLeftButton(
@@ -546,7 +546,7 @@ void SendFilesBox::refreshButtons() {
 }
 
 bool SendFilesBox::hasSendMenu() const {
-	return (_sendMenuType != SendMenu::Type::Disabled);
+	return (_sendMenuDetails().type != SendMenu::Type::Disabled);
 }
 
 bool SendFilesBox::hasSpoilerMenu() const {
@@ -607,11 +607,11 @@ void SendFilesBox::addMenuButton() {
 		if (hasSendMenu()) {
 			SendMenu::FillSendMenu(
 				_menu.get(),
-				_sendMenuType,
-				[=] { sendSilent(); },
-				[=] { sendScheduled(); },
-				[=] { sendWhenOnline(); },
-				&_st.tabbed.icons);
+				_show,
+				_sendMenuDetails(),
+				SendMenu::DefaultCallback(_show, sendCallback()),
+				&_st.tabbed.icons,
+				QCursor::pos());
 		}
 		_menu->popup(QCursor::pos());
 		return true;
@@ -1426,7 +1426,9 @@ void SendFilesBox::send(
 	if ((_sendType == Api::SendType::Scheduled
 		|| _sendType == Api::SendType::ScheduledToUser)
 		&& !options.scheduled) {
-		return sendScheduled();
+		return SendMenu::DefaultCallback(_show, sendCallback())(
+			SendMenu::ActionType::Schedule,
+			_sendMenuDetails());
 	}
 	if (_preparing) {
 		_whenReadySend = [=] {
@@ -1464,25 +1466,10 @@ void SendFilesBox::send(
 	closeBox();
 }
 
-void SendFilesBox::sendSilent() {
-	send({ .silent = true });
-}
-
-void SendFilesBox::sendScheduled() {
-	const auto type = (_sendType == Api::SendType::ScheduledToUser)
-		? SendMenu::Type::ScheduledToUser
-		: _sendMenuType;
-	const auto callback = [=](Api::SendOptions options) { send(options); };
-	auto box = HistoryView::PrepareScheduleBox(this, _show, type, callback);
-	const auto weak = Ui::MakeWeak(box.data());
-	_show->showBox(std::move(box));
-	if (const auto strong = weak.data()) {
-		strong->setCloseByOutsideClick(false);
-	}
-}
-
-void SendFilesBox::sendWhenOnline() {
-	send(Api::DefaultSendWhenOnlineOptions());
+Fn<void(Api::SendOptions)> SendFilesBox::sendCallback() {
+	return crl::guard(this, [=](Api::SendOptions options) {
+		send(options, false);
+	});
 }
 
 SendFilesBox::~SendFilesBox() = default;

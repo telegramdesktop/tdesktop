@@ -1634,7 +1634,7 @@ void StickersListWidget::showStickerSetBox(not_null<DocumentData*> document) {
 }
 
 base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillContextMenu(
-		SendMenu::Type type) {
+		const SendMenu::Details &details) {
 	auto selected = _selected;
 	auto &sets = shownSets();
 	if (v::is_null(selected) || !v::is_null(_pressed)) {
@@ -1653,7 +1653,7 @@ base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillContextMenu(
 	auto menu = base::make_unique_q<Ui::PopupMenu>(this, st().menu);
 
 	const auto document = set.stickers[sticker->index].document;
-	const auto send = [=](Api::SendOptions options) {
+	const auto send = crl::guard(this, [=](Api::SendOptions options) {
 		_chosen.fire({
 			.document = document,
 			.options = options,
@@ -1661,14 +1661,13 @@ base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillContextMenu(
 				? Ui::MessageSendingAnimationFrom()
 				: messageSentAnimationInfo(section, index, document),
 		});
-	};
+	});
 	const auto icons = &st().icons;
 	SendMenu::FillSendMenu(
 		menu,
-		type,
-		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(_show, type, send),
-		SendMenu::DefaultWhenOnlineCallback(send),
+		_show,
+		details,
+		SendMenu::DefaultCallback(_show, send),
 		icons);
 
 	const auto show = _show;

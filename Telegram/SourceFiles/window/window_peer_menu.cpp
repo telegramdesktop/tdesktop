@@ -1141,7 +1141,7 @@ void Filler::addCreatePoll() {
 			flag,
 			flag,
 			source,
-			sendMenuType);
+			{ sendMenuType });
 	};
 	_addAction(
 		tr::lng_polls_create(tr::now),
@@ -1589,7 +1589,7 @@ void PeerMenuCreatePoll(
 		PollData::Flags chosen,
 		PollData::Flags disabled,
 		Api::SendType sendType,
-		SendMenu::Type sendMenuType) {
+		SendMenu::Details sendMenuDetails) {
 	if (peer->isChannel() && !peer->isMegagroup()) {
 		chosen &= ~PollData::Flag::PublicVotes;
 		disabled |= PollData::Flag::PublicVotes;
@@ -1599,7 +1599,7 @@ void PeerMenuCreatePoll(
 		chosen,
 		disabled,
 		sendType,
-		sendMenuType);
+		sendMenuDetails);
 	const auto weak = Ui::MakeWeak(box.data());
 	const auto lock = box->lifetime().make_state<bool>(false);
 	box->submitRequests(
@@ -2071,17 +2071,14 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 
 			state->menu->addSeparator();
 		}
-		const auto type = sendMenuType();
+		state->menu->setForcedVerticalOrigin(
+			Ui::PopupMenu::VerticalOrigin::Bottom);
 		const auto result = SendMenu::FillSendMenu(
 			state->menu.get(),
-			type,
-			SendMenu::DefaultSilentCallback(submit),
-			SendMenu::DefaultScheduleCallback(show, type, submit),
-			SendMenu::DefaultWhenOnlineCallback(submit));
-		const auto success = (result == SendMenu::FillMenuResult::Success);
-		if (showForwardOptions || success) {
-			state->menu->setForcedVerticalOrigin(
-				Ui::PopupMenu::VerticalOrigin::Bottom);
+			show,
+			SendMenu::Details{ sendMenuType() },
+			SendMenu::DefaultCallback(show, crl::guard(parent, submit)));
+		if (showForwardOptions || !state->menu->empty()) {
 			state->menu->popup(QCursor::pos());
 		}
 	};

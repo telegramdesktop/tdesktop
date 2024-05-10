@@ -33,7 +33,7 @@ class PhotoMedia;
 } // namespace Data
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace Api {
@@ -268,7 +268,7 @@ public:
 	void confirmDeleteSelected();
 	void clearSelected();
 
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options,
@@ -395,10 +395,8 @@ private:
 		Api::SendOptions options) const;
 	void send(Api::SendOptions options);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
-	void sendSilent();
 	void sendScheduled();
-	void sendWhenOnline();
-	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
+	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;
 	void handlePendingHistoryUpdate();
 	void fullInfoUpdated();
 	void toggleTabbedSelectorMode();

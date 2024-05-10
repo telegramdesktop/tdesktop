@@ -39,33 +39,39 @@ enum class Type {
 	Reminder,
 };
 
-enum class FillMenuResult {
-	Success,
-	None,
+struct Details {
+	Type type = Type::Disabled;
+	bool effectAllowed = false;
 };
 
-Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send);
-Fn<void()> DefaultScheduleCallback(
+enum class FillMenuResult {
+	Prepared,
+	Skipped,
+	Failed,
+};
+
+enum class ActionType {
+	Send,
+	Schedule,
+};
+using Action = std::variant<Api::SendOptions, ActionType>;
+[[nodiscard]] Fn<void(Action, Details)> DefaultCallback(
 	std::shared_ptr<ChatHelpers::Show> show,
-	Type type,
 	Fn<void(Api::SendOptions)> send);
-Fn<void()> DefaultWhenOnlineCallback(Fn<void(Api::SendOptions)> send);
 
 FillMenuResult FillSendMenu(
 	not_null<Ui::PopupMenu*> menu,
-	Type type,
-	Fn<void()> silent,
-	Fn<void()> schedule,
-	Fn<void()> whenOnline,
-	const style::ComposeIcons *iconsOverride = nullptr);
+	std::shared_ptr<ChatHelpers::Show> showForEffect,
+	Details details,
+	Fn<void(Action, Details)> action,
+	const style::ComposeIcons *iconsOverride = nullptr,
+	std::optional<QPoint> desiredPositionOverride = std::nullopt);
 
 void SetupMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,
 	std::shared_ptr<ChatHelpers::Show> show,
-	Fn<Type()> type,
-	Fn<void()> silent,
-	Fn<void()> schedule,
-	Fn<void()> whenOnline);
+	Fn<Details()> details,
+	Fn<void(Action, Details)> action);
 
 void SetupUnreadMentionsMenu(
 	not_null<Ui::RpWidget*> button,

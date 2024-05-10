@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "menu/menu_send.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_footer.h"
 #include "window/window_session_controller.h"
@@ -123,15 +124,11 @@ UnifiedFactoryOwner::UnifiedFactoryOwner(
 	const auto inStrip = _strip ? _strip->count() : 0;
 	_unifiedIdsList.reserve(reactions.size());
 	for (const auto &reaction : reactions) {
-		if (const auto id = reaction.id.custom()) {
-			_unifiedIdsList.push_back(id);
-		} else {
-			_unifiedIdsList.push_back(reaction.selectAnimation->id);
-		}
+		_unifiedIdsList.push_back(reaction.selectAnimation->id);
 
 		const auto unifiedId = _unifiedIdsList.back();
-		if (!reaction.id.custom()) {
-			_defaultReactionIds.emplace(unifiedId, reaction.id.emoji());
+		if (unifiedId != reaction.id.custom()) {
+			_defaultReactionIds.emplace(unifiedId, reaction.id);
 		}
 		if (index + 1 < inStrip) {
 			_defaultReactionInStripMap.emplace(unifiedId, index++);
@@ -165,7 +162,7 @@ Data::ReactionId UnifiedFactoryOwner::lookupReactionId(
 		DocumentId unifiedId) const {
 	const auto i = _defaultReactionIds.find(unifiedId);
 	return (i != end(_defaultReactionIds))
-		? Data::ReactionId{ i->second }
+		? i->second
 		: Data::ReactionId{ unifiedId };
 }
 
@@ -174,21 +171,23 @@ UnifiedFactoryOwner::RecentFactory UnifiedFactoryOwner::factory() {
 	-> std::unique_ptr<Ui::Text::CustomEmoji> {
 		const auto tag = Data::CustomEmojiManager::SizeTag::Large;
 		const auto sizeOverride = st::reactStripImage;
-		const auto isDefaultReaction = _defaultReactionIds.contains(id);
+		const auto i = _defaultReactionIds.find(id);
+		const auto isDefaultReaction = (i != end(_defaultReactionIds))
+			&& !i->second.custom();
 		const auto manager = &_session->data().customEmojiManager();
 		auto result = isDefaultReaction
 			? std::make_unique<Ui::Text::ShiftedEmoji>(
 				manager->create(id, std::move(repaint), tag, sizeOverride),
 				_defaultReactionShift)
 			: manager->create(id, std::move(repaint), tag);
-		const auto i = _defaultReactionInStripMap.find(id);
-		if (i != end(_defaultReactionInStripMap)) {
+		const auto j = _defaultReactionInStripMap.find(id);
+		if (j != end(_defaultReactionInStripMap)) {
 			Assert(_strip != nullptr);
 			return std::make_unique<StripEmoji>(
 				std::move(result),
 				_strip,
 				-_stripPaintOneShift,
-				i->second);
+				j->second);
 		}
 		return result;
 	};

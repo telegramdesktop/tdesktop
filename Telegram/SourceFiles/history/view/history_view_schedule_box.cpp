@@ -70,7 +70,7 @@ bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
 void ScheduleBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
-		SendMenu::Type type,
+		const SendMenu::Details &details,
 		Fn<void(Api::SendOptions)> done,
 		TimeId time,
 		ScheduleBoxStyleArgs style) {
@@ -87,7 +87,7 @@ void ScheduleBox(
 		copy(result);
 	};
 	auto descriptor = Ui::ChooseDateTimeBox(box, {
-		.title = (type == SendMenu::Type::Reminder
+		.title = (details.type == SendMenu::Type::Reminder
 			? tr::lng_remind_title()
 			: tr::lng_schedule_title()),
 		.submit = tr::lng_schedule_button(),
@@ -96,16 +96,26 @@ void ScheduleBox(
 		.style = style.chooseDateTimeArgs,
 	});
 
-	using T = SendMenu::Type;
-	SendMenu::SetupMenuAndShortcuts(
+	using namespace SendMenu;
+	const auto childType = (details.type == Type::Disabled)
+		? Type::Disabled
+		: Type::SilentOnly;
+	const auto childDetails = Details{
+		.type = childType,
+		.effectAllowed = details.effectAllowed,
+	};
+	const auto sendAction = crl::guard(box, [=](Action action, Details) {
+		save(
+			v::get<Api::SendOptions>(action).silent,
+			descriptor.collect());
+	});
+	SetupMenuAndShortcuts(
 		descriptor.submit.data(),
 		show,
-		[t = type == T::Disabled ? T::Disabled : T::SilentOnly] { return t; },
-		[=] { save(true, descriptor.collect()); },
-		nullptr,
-		nullptr);
+		[=] { return childDetails; },
+		sendAction);
 
-	if (type == SendMenu::Type::ScheduledToUser) {
+	if (details.type == Type::ScheduledToUser) {
 		const auto sendUntilOnline = box->addTopButton(*style.topButtonStyle);
 		const auto timestamp = Api::kScheduledUntilOnlineTimestamp;
 		FillSendUntilOnlineMenu(

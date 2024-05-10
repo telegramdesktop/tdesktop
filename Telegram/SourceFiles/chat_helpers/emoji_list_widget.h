@@ -144,7 +144,7 @@ public:
 		RectPart origin);
 
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
-		SendMenu::Type type) override;
+		const SendMenu::Details &details) override;
 
 protected:
 	void visibleTopBottomUpdated(

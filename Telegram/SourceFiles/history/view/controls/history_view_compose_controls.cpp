@@ -854,7 +854,7 @@ ComposeControls::ComposeControls(
 		.recorderHeight = st::historySendSize.height(),
 		.lockFromBottom = descriptor.voiceLockFromBottom,
 	}))
-, _sendMenuType(descriptor.sendMenuType)
+, _sendMenuDetails(descriptor.sendMenuDetails)
 , _unavailableEmojiPasted(std::move(descriptor.unavailableEmojiPasted))
 , _saveDraftTimer([=] { saveDraft(); })
 , _saveCloudDraftTimer([=] { saveCloudDraft(); }) {
@@ -1719,7 +1719,7 @@ void ComposeControls::initAutocomplete() {
 		}
 	}, _autocomplete->lifetime());
 
-	_autocomplete->setSendMenuType([=] { return sendMenuType(); });
+	_autocomplete->setSendMenuDetails([=] { return sendMenuDetails(); });
 
 	//_autocomplete->setModerateKeyActivateCallback([=](int key) {
 	//	return _keyboard->isHidden()
@@ -2162,7 +2162,7 @@ void ComposeControls::initTabbedSelector() {
 
 	_selector->contextMenuRequested(
 	) | rpl::start_with_next([=] {
-		_selector->showMenuWithType(sendMenuType());
+		_selector->showMenuWithDetails(sendMenuDetails());
 	}, wrap->lifetime());
 
 	_selector->choosingStickerUpdated(
@@ -2191,17 +2191,15 @@ void ComposeControls::initSendButton() {
 		cancelInlineBot();
 	}, _send->lifetime());
 
-	const auto send = [=](Api::SendOptions options) {
+	const auto send = crl::guard(_send.get(), [=](Api::SendOptions options) {
 		_sendCustomRequests.fire(std::move(options));
-	};
+	});
 
 	SendMenu::SetupMenuAndShortcuts(
 		_send.get(),
 		_show,
-		[=] { return sendButtonMenuType(); },
-		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(_show, sendMenuType(), send),
-		SendMenu::DefaultWhenOnlineCallback(send));
+		[=] { return sendButtonMenuDetails(); },
+		SendMenu::DefaultCallback(_show, send));
 }
 
 void ComposeControls::initSendAsButton(not_null<PeerData*> peer) {
@@ -2510,14 +2508,14 @@ auto ComposeControls::computeSendButtonType() const {
 	return (_mode == Mode::Normal) ? Type::Send : Type::Schedule;
 }
 
-SendMenu::Type ComposeControls::sendMenuType() const {
-	return !_history ? SendMenu::Type::Disabled : _sendMenuType;
+SendMenu::Details ComposeControls::sendMenuDetails() const {
+	return !_history ? SendMenu::Details() : _sendMenuDetails();
 }
 
-SendMenu::Type ComposeControls::sendButtonMenuType() const {
+SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
 	return (computeSendButtonType() == Ui::SendButton::Type::Send)
-		? sendMenuType()
-		: SendMenu::Type::Disabled;
+		? sendMenuDetails()
+		: SendMenu::Details();
 }
 
 void ComposeControls::updateSendButtonType() {
@@ -3325,7 +3323,9 @@ void ComposeControls::applyInlineBotQuery(
 					_inlineResultChosen.fire_copy(result);
 				}
 			});
-			_inlineResults->setSendMenuType([=] { return sendMenuType(); });
+			_inlineResults->setSendMenuDetails([=] {
+				return sendMenuDetails();
+			});
 			_inlineResults->requesting(
 			) | rpl::start_with_next([=](bool requesting) {
 				_tabbedSelectorToggle->setLoading(requesting);

@@ -36,7 +36,7 @@ class TabbedSearch;
 } // namespace Ui
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace style {
@@ -178,7 +178,7 @@ public:
 		_beforeHidingCallback = std::move(callback);
 	}
 
-	void showMenuWithType(SendMenu::Type type);
+	void showMenuWithDetails(SendMenu::Details details);
 	void setDropDown(bool dropDown);
 
 	// Float player interface.
@@ -380,7 +380,7 @@ public:
 	virtual void beforeHiding() {
 	}
 	[[nodiscard]] virtual base::unique_qptr<Ui::PopupMenu> fillContextMenu(
-			SendMenu::Type type) {
+			const SendMenu::Details &details) {
 		return nullptr;
 	}
 

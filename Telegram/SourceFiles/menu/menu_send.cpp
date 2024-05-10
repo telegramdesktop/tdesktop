@@ -37,140 +37,121 @@ namespace {
 		not_null<Main::Session*> session) {
 	auto result = Data::PossibleItemReactionsRef();
 	const auto reactions = &session->data().reactions();
-	const auto &full = reactions->list(Data::Reactions::Type::Active);
-	const auto &top = reactions->list(Data::Reactions::Type::Top);
-	const auto &recent = reactions->list(Data::Reactions::Type::Recent);
+	const auto &effects = reactions->list(Data::Reactions::Type::Effects);
 	const auto premiumPossible = session->premiumPossible();
 	auto added = base::flat_set<Data::ReactionId>();
-	result.recent.reserve(full.size());
-	for (const auto &reaction : ranges::views::concat(top, recent, full)) {
-		if (premiumPossible || !reaction.id.custom()) {
+	result.recent.reserve(effects.size());
+	for (const auto &reaction : effects) {
+		if (premiumPossible || !reaction.premium) {
 			if (added.emplace(reaction.id).second) {
 				result.recent.push_back(&reaction);
 			}
 		}
-	}
-	result.customAllowed = premiumPossible;
-	const auto i = ranges::find(
-		result.recent,
-		reactions->favoriteId(),
-		&Data::Reaction::id);
-	if (i != end(result.recent) && i != begin(result.recent)) {
-		std::rotate(begin(result.recent), i, i + 1);
 	}
 	return result;
 }
 
 } // namespace
 
-Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send) {
-	return [=] { send({ .silent = true }); };
-}
-
-Fn<void()> DefaultScheduleCallback(
+Fn<void(Action, Details)> DefaultCallback(
 		std::shared_ptr<ChatHelpers::Show> show,
-		Type type,
 		Fn<void(Api::SendOptions)> send) {
-	return [=, weak = Ui::MakeWeak(show->toastParent())] {
-		show->showBox(
-			HistoryView::PrepareScheduleBox(
-				weak,
-				show,
-				type,
-				[=](Api::SendOptions options) { send(options); }),
-			Ui::LayerOption::KeepOther);
+	const auto guard = Ui::MakeWeak(show->toastParent());
+	return [=](Action action, Details details) {
+		if (const auto options = std::get_if<Api::SendOptions>(&action)) {
+			send(*options);
+		} else if (v::get<ActionType>(action) == ActionType::Send) {
+			send({});
+		} else {
+			using namespace HistoryView;
+			auto box = PrepareScheduleBox(guard, show, details, send);
+			const auto weak = Ui::MakeWeak(box.data());
+			show->showBox(std::move(box));
+			if (const auto strong = weak.data()) {
+				strong->setCloseByOutsideClick(false);
+			}
+		}
 	};
-}
-
-Fn<void()> DefaultWhenOnlineCallback(Fn<void(Api::SendOptions)> send) {
-	return [=] { send(Api::DefaultSendWhenOnlineOptions()); };
 }
 
 FillMenuResult FillSendMenu(
 		not_null<Ui::PopupMenu*> menu,
-		Type type,
-		Fn<void()> silent,
-		Fn<void()> schedule,
-		Fn<void()> whenOnline,
-		const style::ComposeIcons *iconsOverride) {
-	if (!silent && !schedule) {
-		return FillMenuResult::None;
+		std::shared_ptr<ChatHelpers::Show> showForEffect,
+		Details details,
+		Fn<void(Action, Details)> action,
+		const style::ComposeIcons *iconsOverride,
+		std::optional<QPoint> desiredPositionOverride) {
+	const auto type = details.type;
+	if (type == Type::Disabled || !action) {
+		return FillMenuResult::Skipped;
 	}
 	const auto &icons = iconsOverride
 		? *iconsOverride
 		: st::defaultComposeIcons;
-	const auto now = type;
-	if (now == Type::Disabled
-		|| (!silent && now == Type::SilentOnly)) {
-		return FillMenuResult::None;
-	}
 
-	if (silent && now != Type::Reminder) {
+	if (type != Type::Reminder) {
 		menu->addAction(
 			tr::lng_send_silent_message(tr::now),
-			silent,
+			[=] { action(Api::SendOptions{ .silent = true }, details); },
 			&icons.menuMute);
 	}
-	if (schedule && now != Type::SilentOnly) {
+	if (type != Type::SilentOnly) {
 		menu->addAction(
-			(now == Type::Reminder
+			(type == Type::Reminder
 				? tr::lng_reminder_message(tr::now)
 				: tr::lng_schedule_message(tr::now)),
-			schedule,
+			[=] { action(ActionType::Schedule, details); },
 			&icons.menuSchedule);
 	}
-	if (whenOnline && now == Type::ScheduledToUser) {
+	if (type == Type::ScheduledToUser) {
 		menu->addAction(
 			tr::lng_scheduled_send_until_online(tr::now),
-			whenOnline,
+			[=] { action(Api::DefaultSendWhenOnlineOptions(), details); },
 			&icons.menuWhenOnline);
 	}
-	return FillMenuResult::Success;
+
+	using namespace HistoryView::Reactions;
+	const auto position = desiredPositionOverride.value_or(QCursor::pos());
+	const auto selector = (showForEffect && details.effectAllowed)
+		? AttachSelectorToMenu(
+			menu,
+			position,
+			st::reactPanelEmojiPan,
+			showForEffect,
+			LookupPossibleEffects(&showForEffect->session()),
+			{ tr::lng_effect_add_title(tr::now) })
+		: base::make_unexpected(AttachSelectorResult::Skipped);
+	if (!selector) {
+		if (selector.error() == AttachSelectorResult::Failed) {
+			return FillMenuResult::Failed;
+		}
+		menu->prepareGeometryFor(position);
+		return FillMenuResult::Prepared;
+	}
+
+	(*selector)->chosen(
+	) | rpl::start_with_next([=](ChosenReaction chosen) {
+
+	}, menu->lifetime());
+
+	return FillMenuResult::Prepared;
 }
 
 void SetupMenuAndShortcuts(
 		not_null<Ui::RpWidget*> button,
 		std::shared_ptr<ChatHelpers::Show> show,
-		Fn<Type()> type,
-		Fn<void()> silent,
-		Fn<void()> schedule,
-		Fn<void()> whenOnline) {
-	if (!silent && !schedule && !whenOnline) {
-		return;
-	}
+		Fn<Details()> details,
+		Fn<void(Action, Details)> action) {
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 	const auto showMenu = [=] {
 		*menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
 			st::popupMenuWithIcons);
-		const auto result = FillSendMenu(
-			*menu,
-			type(),
-			silent,
-			schedule,
-			whenOnline);
-		if (result != FillMenuResult::Success) {
+		const auto result = FillSendMenu(*menu, show, details(), action);
+		if (result != FillMenuResult::Prepared) {
 			return false;
 		}
-		const auto desiredPosition = QCursor::pos();
-		using namespace HistoryView::Reactions;
-		const auto selector = show
-			? AttachSelectorToMenu(
-				menu->get(),
-				desiredPosition,
-				st::reactPanelEmojiPan,
-				show,
-				LookupPossibleEffects(&show->session()),
-				{ tr::lng_effect_add_title(tr::now) })
-			: base::make_unexpected(AttachSelectorResult::Skipped);
-		if (selector) {
-			//(*selector)->chosen();
-			(*menu)->popupPrepared();
-		} else if (selector.error() == AttachSelectorResult::Failed) {
-			return false;
-		} else {
-			(*menu)->popup(desiredPosition);
-		}
+		(*menu)->popupPrepared();
 		return true;
 	};
 	base::install_event_filter(button, [=](not_null<QEvent*> e) {
@@ -186,24 +167,21 @@ void SetupMenuAndShortcuts(
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
-		const auto now = type();
-		if (now == Type::Disabled
-			|| (!silent && now == Type::SilentOnly)) {
+		const auto now = details().type;
+		if (now == Type::Disabled) {
 			return;
 		}
-		(silent
-			&& (now != Type::Reminder)
+		((now != Type::Reminder)
 			&& request->check(Command::SendSilentMessage)
 			&& request->handle([=] {
-				silent();
+				action(Api::SendOptions{ .silent = true }, details());
 				return true;
 			}))
 		||
-		(schedule
-			&& (now != Type::SilentOnly)
+		((now != Type::SilentOnly)
 			&& request->check(Command::ScheduleMessage)
 			&& request->handle([=] {
-				schedule();
+				action(ActionType::Schedule, details());
 				return true;
 			}))
 		||

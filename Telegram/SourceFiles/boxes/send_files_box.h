@@ -47,7 +47,7 @@ class SessionController;
 } // namespace Window
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace HistoryView::Controls {
@@ -96,7 +96,7 @@ struct SendFilesBoxDescriptor {
 	SendFilesLimits limits = {};
 	SendFilesCheck check;
 	Api::SendType sendType = {};
-	SendMenu::Type sendMenuType = {};
+	Fn<SendMenu::Details()> sendMenuDetails = nullptr;
 	const style::ComposeControls *stOverride = nullptr;
 	SendFilesConfirmed confirmed;
 	Fn<void()> cancelled;
@@ -115,7 +115,7 @@ public:
 		const TextWithTags &caption,
 		not_null<PeerData*> toPeer,
 		Api::SendType sendType,
-		SendMenu::Type sendMenuType);
+		SendMenu::Details sendMenuDetails);
 	SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor);
 
 	void setConfirmedCallback(SendFilesConfirmed callback) {
@@ -202,9 +202,7 @@ private:
 	void generatePreviewFrom(int fromBlock);
 
 	void send(Api::SendOptions options, bool ctrlShiftEnter = false);
-	void sendSilent();
-	void sendScheduled();
-	void sendWhenOnline();
+	[[nodiscard]] Fn<void(Api::SendOptions)> sendCallback();
 	void captionResized();
 	void saveSendWaySettings();
 
@@ -238,7 +236,7 @@ private:
 	std::optional<int> _removingIndex;
 
 	SendFilesLimits _limits = {};
-	SendMenu::Type _sendMenuType = {};
+	Fn<SendMenu::Details()> _sendMenuDetails = nullptr;
 	PeerData *_captionToPeer = nullptr;
 	SendFilesCheck _check;
 	SendFilesConfirmed _confirmedCallback;

@@ -122,7 +122,7 @@ public:
 	rpl::producer<> pauseChanged() const override;
 
 	rpl::producer<bool> adjustShadowLeft() const override;
-	SendMenu::Type sendMenuType() const override;
+	SendMenu::Details sendMenuDetails() const override;
 
 	bool showMediaPreview(
 		Data::FileOrigin origin,
@@ -272,12 +272,12 @@ rpl::producer<bool> MainWindowShow::adjustShadowLeft() const {
 	});
 }
 
-SendMenu::Type MainWindowShow::sendMenuType() const {
+SendMenu::Details MainWindowShow::sendMenuDetails() const {
 	const auto window = _window.get();
 	if (!window) {
-		return SendMenu::Type::Disabled;
+		return SendMenu::Details();
 	}
-	return window->content()->sendMenuType();
+	return window->content()->sendMenuDetails();
 }
 
 bool MainWindowShow::showMediaPreview(

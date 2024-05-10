@@ -590,7 +590,7 @@ bool AddRescheduleAction(
 			HistoryView::PrepareScheduleBox(
 				&request.navigation->session(),
 				request.navigation->uiShow(),
-				sendMenuType,
+				{ .type = sendMenuType, .effectAllowed = false },
 				callback,
 				date));
 

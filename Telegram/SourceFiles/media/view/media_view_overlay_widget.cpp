@@ -348,8 +348,8 @@ public:
 	rpl::producer<bool> adjustShadowLeft() const override {
 		return rpl::single(false);
 	}
-	SendMenu::Type sendMenuType() const override {
-		return SendMenu::Type::SilentOnly;
+	SendMenu::Details sendMenuDetails() const override {
+		return { SendMenu::Type::SilentOnly };
 	}
 
 	bool showMediaPreview(

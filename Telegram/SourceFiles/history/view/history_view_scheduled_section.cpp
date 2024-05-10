@@ -115,7 +115,7 @@ ScheduledWidget::ScheduledWidget(
 			listShowPremiumToast(emoji);
 		},
 		.mode = ComposeControls::Mode::Scheduled,
-		.sendMenuType = SendMenu::Type::Disabled,
+		.sendMenuDetails = [] { return SendMenu::Details(); },
 		.regularWindow = controller,
 		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
 	}))
@@ -493,7 +493,7 @@ bool ScheduledWidget::confirmSendingFiles(
 		(CanScheduleUntilOnline(_history->peer)
 			? Api::SendType::ScheduledToUser
 			: Api::SendType::Scheduled),
-		SendMenu::Type::Disabled);
+		SendMenu::Details());
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
@@ -602,7 +602,7 @@ void ScheduledWidget::uploadFile(
 			prepareSendAction(options));
 	};
 	controller()->show(
-		PrepareScheduleBox(this, _show, sendMenuType(), callback));
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::showSendingFilesError(
@@ -681,7 +681,7 @@ void ScheduledWidget::send() {
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	controller()->show(
-		PrepareScheduleBox(this, _show, sendMenuType(), callback));
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::send(Api::SendOptions options) {
@@ -713,7 +713,7 @@ void ScheduledWidget::sendVoice(
 		sendVoice(bytes, waveform, duration, options);
 	};
 	controller()->show(
-		PrepareScheduleBox(this, _show, sendMenuType(), callback));
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::sendVoice(
@@ -814,7 +814,7 @@ void ScheduledWidget::sendExistingDocument(
 		sendExistingDocument(document, options);
 	};
 	controller()->show(
-		PrepareScheduleBox(this, _show, sendMenuType(), callback));
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::sendExistingDocument(
@@ -844,7 +844,7 @@ void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 		sendExistingPhoto(photo, options);
 	};
 	controller()->show(
-		PrepareScheduleBox(this, _show, sendMenuType(), callback));
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::sendExistingPhoto(
@@ -879,7 +879,7 @@ void ScheduledWidget::sendInlineResult(
 		sendInlineResult(result, bot, options);
 	};
 	controller()->show(
-		PrepareScheduleBox(this, _show, sendMenuType(), callback));
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::sendInlineResult(
@@ -911,12 +911,14 @@ void ScheduledWidget::sendInlineResult(
 	_composeControls->focus();
 }
 
-SendMenu::Type ScheduledWidget::sendMenuType() const {
-	return _history->peer->isSelf()
+SendMenu::Details ScheduledWidget::sendMenuDetails() const {
+	const auto type = _history->peer->isSelf()
 		? SendMenu::Type::Reminder
 		: HistoryView::CanScheduleUntilOnline(_history->peer)
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
+	const auto effectAllowed = _history->peer->isUser();
+	return { .type = type, .effectAllowed = effectAllowed };
 }
 
 void ScheduledWidget::cornerButtonsShowAtPosition(
@@ -1368,7 +1370,7 @@ void ScheduledWidget::listSendBotCommand(
 		session().api().sendMessage(std::move(message));
 	};
 	controller()->show(
-		PrepareScheduleBox(this, _show, sendMenuType(), callback));
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::listSearch(

@@ -23,7 +23,7 @@ class Show;
 } // namespace ChatHelpers
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace HistoryView {
@@ -41,7 +41,7 @@ struct ScheduleBoxStyleArgs {
 void ScheduleBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
-	SendMenu::Type type,
+	const SendMenu::Details &details,
 	Fn<void(Api::SendOptions)> done,
 	TimeId time,
 	ScheduleBoxStyleArgs style);
@@ -50,14 +50,14 @@ template <typename Guard, typename Submit>
 [[nodiscard]] object_ptr<Ui::GenericBox> PrepareScheduleBox(
 		Guard &&guard,
 		std::shared_ptr<ChatHelpers::Show> show,
-		SendMenu::Type type,
+		const SendMenu::Details &details,
 		Submit &&submit,
 		TimeId scheduleTime = DefaultScheduleTime(),
 		ScheduleBoxStyleArgs style = ScheduleBoxStyleArgs()) {
 	return Box(
 		ScheduleBox,
 		std::move(show),
-		type,
+		details,
 		crl::guard(std::forward<Guard>(guard), std::forward<Submit>(submit)),
 		scheduleTime,
 		std::move(style));

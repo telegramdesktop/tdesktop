@@ -19,7 +19,7 @@ enum class SendMediaType;
 struct SendingAlbum;
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace Api {
@@ -249,7 +249,7 @@ private:
 		mtpRequestId *const saveEditMsgRequestId,
 		std::optional<bool> spoilerMediaOverride);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 	[[nodiscard]] FullReplyTo replyTo() const;
 	[[nodiscard]] HistoryItem *lookupRoot() const;
 	[[nodiscard]] Data::ForumTopic *lookupTopic();

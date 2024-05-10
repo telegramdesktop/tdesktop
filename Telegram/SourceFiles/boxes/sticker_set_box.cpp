@@ -1014,7 +1014,7 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
-	const auto type = _show->sendMenuType();
+	const auto details = _show->sendMenuDetails();
 	if (setType() == Data::StickersType::Emoji) {
 		if (const auto t = PrepareTextFromEmoji(_pack[index]); !t.empty()) {
 			_menu->addAction(tr::lng_mediaview_copy(tr::now), [=] {
@@ -1023,17 +1023,16 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 				}
 			}, &st::menuIconCopy);
 		}
-	} else if (type != SendMenu::Type::Disabled) {
+	} else if (details.type != SendMenu::Type::Disabled) {
 		const auto document = _pack[index];
-		const auto sendSelected = [=](Api::SendOptions options) {
+		const auto send = crl::guard(this, [=](Api::SendOptions options) {
 			chosen(index, document, options);
-		};
+		});
 		SendMenu::FillSendMenu(
 			_menu.get(),
-			type,
-			SendMenu::DefaultSilentCallback(sendSelected),
-			SendMenu::DefaultScheduleCallback(_show, type, sendSelected),
-			SendMenu::DefaultWhenOnlineCallback(sendSelected));
+			_show,
+			details,
+			SendMenu::DefaultCallback(_show, send));
 
 		const auto show = _show;
 		const auto toggleFavedSticker = [=] {

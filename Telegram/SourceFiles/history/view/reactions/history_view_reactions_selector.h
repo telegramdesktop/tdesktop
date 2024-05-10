@@ -66,7 +66,7 @@ private:
 	Strip *_strip = nullptr;
 
 	std::vector<DocumentId> _unifiedIdsList;
-	base::flat_map<DocumentId, QString> _defaultReactionIds;
+	base::flat_map<DocumentId, Data::ReactionId> _defaultReactionIds;
 	base::flat_map<DocumentId, int> _defaultReactionInStripMap;
 
 	QPoint _defaultReactionShift;

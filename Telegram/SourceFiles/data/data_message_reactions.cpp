@@ -1297,9 +1297,10 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableEffect &entry) {
 		return std::nullopt;
 	}
 	const auto id = DocumentId(data.vid().v);
-	const auto document = _owner->document(id);
+	const auto stickerId = data.veffect_sticker_id().v;
+	const auto document = _owner->document(stickerId);
 	if (!document->sticker()) {
-		LOG(("API Error: Bad sticker in effects: %1").arg(id));
+		LOG(("API Error: Bad sticker in effects: %1").arg(stickerId));
 		return std::nullopt;
 	}
 	const auto aroundId = data.veffect_animation_id().value_or_empty();

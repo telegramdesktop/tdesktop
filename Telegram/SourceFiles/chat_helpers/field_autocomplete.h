@@ -42,7 +42,7 @@ class DocumentMedia;
 } // namespace Data
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace ChatHelpers {
@@ -123,7 +123,7 @@ public:
 	void setModerateKeyActivateCallback(Fn<bool(int)> callback) {
 		_moderateKeyActivateCallback = std::move(callback);
 	}
-	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
+	void setSendMenuDetails(Fn<SendMenu::Details()> &&callback);
 
 	void hideFast();
 	void showAnimated();

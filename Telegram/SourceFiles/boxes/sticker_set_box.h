@@ -23,10 +23,6 @@ namespace Data {
 class StickersSet;
 } // namespace Data
 
-namespace SendMenu {
-enum class Type;
-} // namespace SendMenu
-
 namespace ChatHelpers {
 struct FileChosen;
 class Show;

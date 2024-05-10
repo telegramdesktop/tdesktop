@@ -242,7 +242,6 @@ private:
 		mtpRequestId *const saveEditMsgRequestId,
 		std::optional<bool> spoilerMediaOverride);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] FullReplyTo replyTo() const;
 	void doSetInnerFocus();
 	void showAtPosition(
@@ -792,7 +791,7 @@ QPointer<Ui::RpWidget> ShortcutMessages::createPinnedToBottom(
 				listShowPremiumToast(emoji);
 			},
 			.mode = HistoryView::ComposeControlsMode::Normal,
-			.sendMenuType = SendMenu::Type::Disabled,
+			.sendMenuDetails = [] { return SendMenu::Details(); },
 			.regularWindow = _controller,
 			.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
 			.customPlaceholder = std::move(placeholder),
@@ -1346,7 +1345,7 @@ bool ShortcutMessages::confirmSendingFiles(
 		_composeControls->getTextWithAppliedMarkdown(),
 		_history->peer,
 		Api::SendType::Normal,
-		SendMenu::Type::Disabled);
+		SendMenu::Details());
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
@@ -1543,12 +1542,6 @@ void ShortcutMessages::sendInlineResult(
 		return;
 	}
 	sendInlineResult(result, bot, {}, std::nullopt);
-	//const auto callback = [=](Api::SendOptions options) {
-	//	sendInlineResult(result, bot, options);
-	//};
-	//Ui::show(
-	//	PrepareScheduleBox(this, sendMenuType(), callback),
-	//	Ui::LayerOption::KeepOther);
 }
 
 void ShortcutMessages::sendInlineResult(

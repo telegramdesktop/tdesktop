@@ -1047,8 +1047,8 @@ void MainWidget::exportTopBarHeightUpdated() {
 	}
 }
 
-SendMenu::Type MainWidget::sendMenuType() const {
-	return _history->sendMenuType();
+SendMenu::Details MainWidget::sendMenuDetails() const {
+	return _history->sendMenuDetails();
 }
 
 bool MainWidget::sendExistingDocument(not_null<DocumentData*> document) {

@@ -1104,7 +1104,7 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 }
 
 base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
-		SendMenu::Type type) {
+		const SendMenu::Details &details) {
 	if (v::is_null(_selected)) {
 		return nullptr;
 	}
