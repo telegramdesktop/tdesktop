@@ -9,17 +9,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 #include "base/event_filter.h"
+#include "base/unixtime.h"
 #include "boxes/abstract_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/shortcuts.h"
+#include "history/admin_log/history_admin_log_item.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
+#include "history/view/history_view_element.h"
+#include "history/view/history_view_fake_items.h"
 #include "history/view/history_view_schedule_box.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_unread_things.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -33,19 +41,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
-#include "history/history.h"
-#include "history/history_unread_things.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_window.h"
 
 #include <QtWidgets/QApplication>
 
 namespace SendMenu {
 namespace {
+
+class Delegate final : public HistoryView::DefaultElementDelegate {
+public:
+	Delegate(not_null<Ui::PathShiftGradient*> pathGradient)
+	: _pathGradient(pathGradient) {
+	}
+
+private:
+	bool elementAnimationsPaused() override {
+		return false;
+	}
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override {
+		return _pathGradient;
+	}
+	HistoryView::Context elementContext() override {
+		return HistoryView::Context::ContactPreview;
+	}
+
+	const not_null<Ui::PathShiftGradient*> _pathGradient;
+};
 
 class EffectPreview final : public Ui::RpWidget {
 public:
@@ -64,6 +91,7 @@ private:
 
 	void setupGeometry(QPoint position);
 	void setupBackground();
+	void setupItem();
 	void repaintBackground();
 	void setupLottie();
 	void setupSend(Details details);
@@ -71,10 +99,16 @@ private:
 
 	[[nodiscard]] bool checkReady();
 
+	const EffectId _effectId = 0;
 	const Data::Reaction _effect;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Ui::ChatTheme> _theme;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	const std::unique_ptr<Delegate> _delegate;
+	const not_null<History*> _history;
+	const AdminLog::OwnedItem _replyTo;
+	const AdminLog::OwnedItem _item;
 	const std::unique_ptr<Ui::FlatButton> _send;
 	const Fn<void(Action, Details)> _actionWithEffect;
 
@@ -86,6 +120,7 @@ private:
 
 	QRect _inner;
 	QImage _bg;
+	QPoint _itemShift;
 
 	rpl::lifetime _readyCheckLifetime;
 
@@ -169,37 +204,67 @@ EffectPreview::EffectPreview(
 	Fn<void(Action, Details)> action,
 	Fn<void()> done)
 : RpWidget(parent)
+, _effectId(effect.id.custom())
 , _effect(effect)
 , _show(show)
 , _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
 , _chatStyle(
 	std::make_unique<Ui::ChatStyle>(
 		_show->session().colorIndicesValue()))
+, _pathGradient(
+	HistoryView::MakePathShiftGradient(_chatStyle.get(), [=] { update(); }))
+, _delegate(std::make_unique<Delegate>(_pathGradient.get()))
+, _history(show->session().data().history(
+	PeerData::kServiceNotificationsId))
+, _replyTo(HistoryView::GenerateItem(
+	_delegate.get(),
+	_history,
+	HistoryView::GenerateUser(
+		_history,
+		tr::lng_settings_chat_message_reply_from(tr::now)),
+	FullMsgId(),
+	tr::lng_settings_chat_message(tr::now)))
+, _item(HistoryView::GenerateItem(
+	_delegate.get(),
+	_history,
+	_history->peer->id,
+	_replyTo->data()->fullId(),
+	tr::lng_settings_chat_message_reply(tr::now),
+	_effectId))
 , _send(
 	std::make_unique<BottomRounded>(
 		this,
 		tr::lng_effect_send(tr::now),
 		st::effectPreviewSend))
-, _actionWithEffect(
-	ComposeActionWithEffect(
-		action,
-		effect.id.custom(),
-		done)) {
+, _actionWithEffect(ComposeActionWithEffect(action, _effectId, done)) {
 	setupGeometry(position);
 	setupBackground();
+	setupItem();
 	setupLottie();
 	setupSend(details);
 }
 
 void EffectPreview::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
+	auto p = Painter(this);
 	p.drawImage(0, 0, _bg);
+
+	p.setClipRect(_inner);
+	p.translate(_itemShift);
+	auto rect = QRect(0, 0, st::windowMinWidth, _inner.height());
+	auto context = _theme->preparePaintContext(
+		_chatStyle.get(),
+		rect,
+		rect,
+		false);
+	context.outbg = _item->hasOutLayout();
+	_item->draw(p, context);
+	p.translate(-_itemShift);
 
 	if (_lottie && _lottie->ready()) {
 		const auto factor = style::DevicePixelRatio();
 		auto request = Lottie::FrameRequest();
 		request.box = _inner.size() * factor;
-		const auto rightAligned = false;// hasRightLayout();
+		const auto rightAligned = _item->hasRightLayout();
 		if (!rightAligned) {
 			request.mirrorHorizontal = true;
 		}
@@ -255,6 +320,22 @@ void EffectPreview::setupBackground() {
 	}, lifetime());
 }
 
+void EffectPreview::setupItem() {
+	_item->resizeGetHeight(st::windowMinWidth);
+
+	const auto icon = _item->effectIconGeometry();
+	Assert(!icon.isEmpty());
+
+	const auto size = _inner.size();
+	const auto shift = _item->hasRightLayout()
+		? (-size.width() / 3)
+		: (size.width() / 3);
+	const auto position = QPoint(
+		shift + icon.x() + (icon.width() - size.width()) / 2,
+		icon.y() + (icon.height() - size.height()) / 2);
+	_itemShift = _inner.topLeft() - position;
+}
+
 void EffectPreview::repaintBackground() {
 	const auto ratio = style::DevicePixelRatio();
 	const auto inner = _inner.size() + QSize(0, _send->height());
@@ -270,25 +351,6 @@ void EffectPreview::repaintBackground() {
 			_theme.get(),
 			QSize(inner.width(), inner.height() * 5),
 			QRect(QPoint(), inner));
-
-		{ // bubble
-			const auto radius = st::bubbleRadiusLarge;
-			const auto out = 2 * radius;
-			p.setPen(Qt::NoPen);
-			p.setBrush(_chatStyle->msgInShadow());
-			const auto skip = st::msgPadding.bottom() - st::msgDateDelta.y();
-			p.drawRoundedRect(-out, -out, out + inner.width() / 3, out + inner.height() / 2 + st::normalFont->height / 2 + st::msgShadow, radius, radius);
-			p.setBrush(_chatStyle->msgInBg());
-			p.drawRoundedRect(-out, -out, out + inner.width() / 3, out + inner.height() / 2 + st::normalFont->height / 2, radius, radius);
-
-			if (!_icon.isNull()) {
-				p.drawImage(
-					inner.width() / 3 - _icon.width(),
-					inner.height() / 2 + st::normalFont->height / 2 - _icon.height(),
-					_icon);
-			}
-		}
-
 		p.fillRect(
 			QRect(0, _inner.height(), _inner.width(), _send->height()),
 			st::previewMarkRead.bgColor);
@@ -300,6 +362,7 @@ void EffectPreview::repaintBackground() {
 
 	_bg.fill(Qt::transparent);
 	auto p = QPainter(&_bg);
+
 	const auto &shadow = st::previewMenu.animation.shadow;
 	const auto shadowed = QRect(_inner.topLeft(), inner);
 	Ui::Shadow::paint(p, shadowed, width(), shadow);
@@ -307,9 +370,8 @@ void EffectPreview::repaintBackground() {
 }
 
 void EffectPreview::setupLottie() {
-	const auto id = _effect.id.custom();
 	const auto reactions = &_show->session().data().reactions();
-	reactions->preloadEffectImageFor(id);
+	reactions->preloadEffectImageFor(_effectId);
 
 	if (const auto document = _effect.aroundAnimation) {
 		_media = document->createMediaView();
