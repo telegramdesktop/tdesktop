@@ -908,6 +908,14 @@ Ui::ChatPaintContext HistoryInner::preparePaintContext(
 	});
 }
 
+void HistoryInner::startEffectOnRead(not_null<HistoryItem*> item) {
+	if (item->history() == _history) {
+		if (const auto view = item->mainView()) {
+			_emojiInteractions->playEffectOnRead(view);
+		}
+	}
+}
+
 void HistoryInner::paintEvent(QPaintEvent *e) {
 	if (_controller->contentOverlapped(this, e)
 		|| hasPendingResizedItems()) {
@@ -962,13 +970,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			_translateTracker->add(_pinnedItem);
 		}
 		_translateTracker->finishBunch();
+		if (!startEffects.empty()) {
+			for (const auto &view : startEffects) {
+				_emojiInteractions->playEffectOnRead(view);
+			}
+		}
 		if (readTill && _widget->markingMessagesRead()) {
 			session().data().histories().readInboxTill(readTill);
-			if (!startEffects.empty()) {
-				for (const auto &view : startEffects) {
-					_emojiInteractions->playEffectOnRead(view);
-				}
-			}
 		}
 		if (markingAsViewed && !readContents.empty()) {
 			session().api().markContentsRead(readContents);
@@ -1002,9 +1010,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				session().sponsoredMessages().view(item->fullId());
 			} else if (isUnread) {
 				readTill = item;
-				if (item->hasUnwatchedEffect()) {
-					startEffects.emplace(view);
-				}
+			}
+			if (markingAsViewed && item->hasUnwatchedEffect()) {
+				startEffects.emplace(view);
 			}
 			if (markingAsViewed && item->hasViews()) {
 				session().api().views().scheduleIncrement(item);

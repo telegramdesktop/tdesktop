@@ -400,6 +400,7 @@ public:
 	void setPostAuthor(const QString &author);
 	void setRealId(MsgId newId);
 	void incrementReplyToTopCounter();
+	void applyEffectWatchedOnUnreadKnown();
 
 	[[nodiscard]] bool emptyText() const {
 		return _text.empty();
@@ -547,6 +548,7 @@ private:
 	void createComponentsHelper(HistoryItemCommonFields &&fields);
 	void createComponents(CreateConfig &&config);
 	void setupForwardedComponent(const CreateConfig &config);
+	void applyInitialEffectWatched();
 
 	[[nodiscard]] bool generateLocalEntitiesByReply() const;
 	[[nodiscard]] TextWithEntities withLocalEntities(

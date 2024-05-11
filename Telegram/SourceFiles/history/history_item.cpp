@@ -369,6 +369,9 @@ HistoryItem::HistoryItem(
 }) {
 	_boostsApplied = data.vfrom_boosts_applied().value_or_empty();
 
+	// Called only for server-received messages, not locally created ones.
+	applyInitialEffectWatched();
+
 	const auto media = data.vmedia();
 	const auto checked = media
 		? CheckMessageMedia(*media)
@@ -1287,17 +1290,14 @@ bool HistoryItem::hasUnreadReaction() const {
 }
 
 bool HistoryItem::hasUnwatchedEffect() const {
-	return !out()
-		&& effectId()
-		&& !(_flags & MessageFlag::EffectWatchedLocal)
-		&& unread(history());
+	return effectId() && !(_flags & MessageFlag::EffectWatched);
 }
 
 bool HistoryItem::markEffectWatched() {
 	if (!hasUnwatchedEffect()) {
 		return false;
 	}
-	_flags |= MessageFlag::EffectWatchedLocal;
+	_flags |= MessageFlag::EffectWatched;
 	return true;
 }
 
@@ -3478,6 +3478,23 @@ void HistoryItem::setupForwardedComponent(const CreateConfig &config) {
 			= std::make_unique<HiddenSenderInfo>(config.savedFromSenderName, false);
 	}
 	forwarded->imported = config.imported;
+}
+
+void HistoryItem::applyInitialEffectWatched() {
+	if (!effectId()) {
+		return;
+	} else if (out()) {
+		// If this message came from the server, not generated on send.
+		_flags |= MessageFlag::EffectWatched;
+	} else if (_history->inboxReadTillId() && !unread(_history)) {
+		_flags |= MessageFlag::EffectWatched;
+	}
+}
+
+void HistoryItem::applyEffectWatchedOnUnreadKnown() {
+	if (effectId() && !out() && !unread(_history)) {
+		_flags |= MessageFlag::EffectWatched;
+	}
 }
 
 bool HistoryItem::generateLocalEntitiesByReply() const {

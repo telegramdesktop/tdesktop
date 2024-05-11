@@ -322,7 +322,7 @@ enum class MessageFlag : uint64 {
 
 	ShortcutMessage       = (1ULL << 44),
 
-	EffectWatchedLocal    = (1ULL << 45),
+	EffectWatched         = (1ULL << 45),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

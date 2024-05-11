@@ -174,6 +174,7 @@ public:
 		not_null<const Element*> view,
 		Element *replacing);
 
+	void startEffectOnRead(not_null<HistoryItem*> item);
 	void updateBotInfo(bool recount = true);
 
 	bool wasSelectedText() const;
