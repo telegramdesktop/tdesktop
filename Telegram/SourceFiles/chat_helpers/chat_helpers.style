@@ -489,6 +489,7 @@ hashtagClose: IconButton {
 
 stickerPanWidthMin: 64px;
 stickerPanSize: size(stickerPanWidthMin, stickerPanWidthMin);
+stickerEffectWidthMin: 48px;
 stickerPanPadding: 11px;
 stickerPanDeleteIconBg: icon {{ "emoji/emoji_delete_bg", stickerPanDeleteBg }};
 stickerPanDeleteIconFg: icon {{ "emoji/emoji_delete", stickerPanDeleteFg }};

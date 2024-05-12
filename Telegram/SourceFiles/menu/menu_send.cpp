@@ -169,10 +169,15 @@ void BottomRounded::paintEvent(QPaintEvent *e) {
 	const auto premiumPossible = session->premiumPossible();
 	auto added = base::flat_set<Data::ReactionId>();
 	result.recent.reserve(effects.size());
+	result.stickers.reserve(effects.size());
 	for (const auto &reaction : effects) {
 		if (premiumPossible || !reaction.premium) {
 			if (added.emplace(reaction.id).second) {
-				result.recent.push_back(&reaction);
+				if (reaction.aroundAnimation) {
+					result.recent.push_back(&reaction);
+				} else {
+					result.stickers.push_back(&reaction);
+				}
 			}
 		}
 	}

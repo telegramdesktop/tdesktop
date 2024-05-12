@@ -66,12 +66,19 @@ enum class StickersListMode {
 	Masks,
 	UserpicBuilder,
 	ChatIntro,
+	MessageEffects,
+};
+
+struct StickerCustomRecentDescriptor {
+	not_null<DocumentData*> document;
+	QString cornerEmoji;
 };
 
 struct StickersListDescriptor {
 	std::shared_ptr<Show> show;
 	StickersListMode mode = StickersListMode::Full;
 	Fn<bool()> paused;
+	std::vector<StickerCustomRecentDescriptor> customRecentList;
 	const style::EmojiPan *st = nullptr;
 	ComposeFeatures features;
 };
@@ -239,8 +246,10 @@ private:
 
 	bool setHasTitle(const Set &set) const;
 	bool stickerHasDeleteButton(const Set &set, int index) const;
-	std::vector<Sticker> collectRecentStickers();
+	[[nodiscard]] std::vector<Sticker> collectRecentStickers();
+	[[nodiscard]] std::vector<Sticker> collectCustomRecents();
 	void refreshRecentStickers(bool resize = true);
+	void refreshEffects();
 	void refreshFavedStickers();
 	enum class GroupStickersPlace {
 		Visible,
@@ -364,11 +373,13 @@ private:
 	std::unique_ptr<LocalStickersManager> _localSetsManager;
 	ChannelData *_megagroupSet = nullptr;
 	uint64 _megagroupSetIdRequested = 0;
+	std::vector<StickerCustomRecentDescriptor> _customRecentIds;
 	std::vector<Set> _mySets;
 	std::vector<Set> _officialSets;
 	std::vector<Set> _searchSets;
 	int _featuredSetsCount = 0;
 	std::vector<bool> _custom;
+	std::vector<EmojiPtr> _cornerEmoji;
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
 	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
 
@@ -381,6 +392,7 @@ private:
 
 	Section _section = Section::Stickers;
 	const bool _isMasks;
+	const bool _isEffects;
 
 	base::Timer _updateItemsTimer;
 	base::Timer _updateSetsTimer;

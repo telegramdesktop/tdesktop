@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
 #include "ui/platform/ui_platform_utility.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_footer.h"
+#include "chat_helpers/stickers_list_widget.h"
 #include "window/window_session_controller.h"
 #include "boxes/premium_preview_box.h"
 #include "mainwidget.h"
@@ -217,6 +219,7 @@ Selector::Selector(
 	child) {
 }
 
+#if 0 // not ready
 Selector::Selector(
 	not_null<QWidget*> parent,
 	const style::EmojiPan &st,
@@ -237,6 +240,7 @@ Selector::Selector(
 	close,
 	child) {
 }
+#endif
 
 Selector::Selector(
 	not_null<QWidget*> parent,
@@ -931,8 +935,10 @@ void Selector::createList() {
 	if (!_reactions.customAllowed) {
 		st->bg = st::transparent;
 	}
-	_list = _scroll->setOwnedWidget(
-		object_ptr<EmojiListWidget>(_scroll, EmojiListDescriptor{
+	auto lists = _scroll->setOwnedWidget(
+		object_ptr<Ui::VerticalLayout>(_scroll));
+	_list = lists->add(
+		object_ptr<EmojiListWidget>(lists, EmojiListDescriptor{
 			.show = _show,
 			.mode = _listMode,
 			.paused = [] { return false; },
@@ -941,12 +947,35 @@ void Selector::createList() {
 				: _recent),
 			.customRecentFactory = _unifiedFactoryOwner->factory(),
 			.st = st,
-		})
-	).data();
+		}));
+	if (!_reactions.stickers.empty()) {
+		auto descriptors = ranges::views::all(
+			_reactions.stickers
+		) | ranges::view::transform([](const Data::Reaction &reaction) {
+			return ChatHelpers::StickerCustomRecentDescriptor{
+				reaction.selectAnimation,
+				reaction.title
+			};
+		}) | ranges::to_vector;
+		_stickers = lists->add(
+			object_ptr<StickersListWidget>(
+				lists,
+				StickersListDescriptor{
+					.show = _show,
+					.mode = StickersListMode::MessageEffects,
+					.paused = [] { return false; },
+					.customRecentList = std::move(descriptors),
+					.st = st,
+				}));
+	}
 
 	_list->escapes() | rpl::start_to_stream(_escapes, _list->lifetime());
 
-	_list->customChosen(
+	rpl::merge(
+		_list->customChosen(),
+		(_stickers
+			? _stickers->chosen()
+			: rpl::never<ChatHelpers::FileChosen>())
 	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
 		_chosen.fire({
 			.id = _unifiedFactoryOwner->lookupReactionId(data.document->id),
@@ -986,24 +1015,35 @@ void Selector::createList() {
 		_shadow->show();
 	}
 	const auto geometry = inner.marginsRemoved(_st.margin);
-	_list->move(0, 0);
-	_list->resizeToWidth(geometry.width());
+	lists->move(0, 0);
+	lists->resizeToWidth(geometry.width());
 	_list->refreshEmoji();
-	_list->show();
+	lists->show();
 
 	const auto updateVisibleTopBottom = [=] {
 		const auto scrollTop = _scroll->scrollTop();
 		const auto scrollBottom = scrollTop + _scroll->height();
-		_list->setVisibleTopBottom(scrollTop, scrollBottom);
+		lists->setVisibleTopBottom(scrollTop, scrollBottom);
 	};
 	_scroll->scrollTopChanges(
-	) | rpl::start_with_next(updateVisibleTopBottom, _list->lifetime());
+	) | rpl::start_with_next(updateVisibleTopBottom, lists->lifetime());
 
 	_list->scrollToRequests(
 	) | rpl::start_with_next([=](int y) {
 		_scroll->scrollToY(y);
-		_shadow->update();
+		if (_shadow) {
+			_shadow->update();
+		}
 	}, _list->lifetime());
+	if (_stickers) {
+		_stickers->scrollToRequests(
+		) | rpl::start_with_next([=](int y) {
+			_scroll->scrollToY(_list->height() + y);
+			if (_shadow) {
+				_shadow->update();
+			}
+		}, _stickers->lifetime());
+	}
 
 	_scroll->setGeometry(inner.marginsRemoved({
 		_st.margin.left(),

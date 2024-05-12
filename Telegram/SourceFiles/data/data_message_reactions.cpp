@@ -249,6 +249,9 @@ PossibleItemReactions::PossibleItemReactions(
 : recent(other.recent | ranges::views::transform([](const auto &value) {
 	return *value;
 }) | ranges::to_vector)
+, stickers(other.stickers | ranges::views::transform([](const auto &value) {
+	return *value;
+}) | ranges::to_vector)
 , customAllowed(other.customAllowed)
 , tags(other.tags){
 }

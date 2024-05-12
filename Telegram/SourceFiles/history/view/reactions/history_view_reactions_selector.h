@@ -24,6 +24,7 @@ namespace ChatHelpers {
 class Show;
 class TabbedPanel;
 class EmojiListWidget;
+class StickersListWidget;
 class StickersListFooter;
 enum class EmojiListMode;
 } // namespace ChatHelpers
@@ -85,6 +86,7 @@ public:
 		Fn<void(bool fast)> close,
 		IconFactory iconFactory = nullptr,
 		bool child = false);
+#if 0 // not ready
 	Selector(
 		not_null<QWidget*> parent,
 		const style::EmojiPan &st,
@@ -93,6 +95,7 @@ public:
 		std::vector<DocumentId> recent,
 		Fn<void(bool fast)> close,
 		bool child = false);
+#endif
 	~Selector();
 
 	[[nodiscard]] bool useTransparency() const;
@@ -193,6 +196,7 @@ private:
 
 	Ui::ScrollArea *_scroll = nullptr;
 	ChatHelpers::EmojiListWidget *_list = nullptr;
+	ChatHelpers::StickersListWidget *_stickers = nullptr;
 	ChatHelpers::StickersListFooter *_footer = nullptr;
 	std::unique_ptr<UnifiedFactoryOwner> _unifiedFactoryOwner;
 	Ui::PlainShadow *_shadow = nullptr;
