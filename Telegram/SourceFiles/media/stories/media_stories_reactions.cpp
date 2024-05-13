@@ -667,7 +667,9 @@ void Reactions::Panel::create() {
 		TextWithEntities{ (mode == Mode::Message
 			? tr::lng_stories_reaction_as_message(tr::now)
 			: QString()) },
-		[=](bool fast) { hide(mode); });
+		[=](bool fast) { hide(mode); },
+		nullptr,
+		true);
 
 	_selector->chosen(
 	) | rpl::start_with_next([=](

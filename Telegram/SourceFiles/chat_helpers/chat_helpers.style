@@ -670,7 +670,7 @@ defaultEmojiPan: EmojiPan {
 	boxLabel: boxLabel;
 	icons: defaultComposeIcons;
 	about: defaultEmojiPanAbout;
-	aboutPadding: margins(12px, 2px, 12px, 2px);
+	aboutPadding: margins(12px, 3px, 12px, 2px);
 	autocompleteBottomSkip: 0px;
 }
 statusEmojiPan: EmojiPan(defaultEmojiPan) {

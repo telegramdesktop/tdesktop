@@ -377,6 +377,32 @@ int Selector::extendTopForCategoriesAndAbout(int width) const {
 	return std::max(extendTopForCategories(), _aboutExtend);
 }
 
+int Selector::opaqueExtendTopAbout(int width) const {
+	if (_about) {
+		const auto padding = _st.aboutPadding;
+		const auto available = width - padding.left() - padding.right();
+		const auto countAboutHeight = [&](int width) {
+			_about->resizeToWidth(width);
+			return _about->height();
+		};
+		const auto desired = Ui::FindNiceTooltipWidth(
+			std::min(available, _st.about.minWidth * 2),
+			available,
+			countAboutHeight);
+
+		_about->resizeToWidth(desired);
+		_aboutExtend = padding.top() + _about->height() + padding.bottom();
+	} else {
+		_aboutExtend = 0;
+	}
+	return _aboutExtend;
+}
+
+void Selector::setOpaqueHeightExpand(int expand, Fn<void(int)> apply) {
+	_opaqueHeightExpand = expand;
+	_opaqueApplyHeightExpand = std::move(apply);
+}
+
 int Selector::minimalHeight() const {
 	return _skipy
 		+ std::min(_recentRows * _size, st::emojiPanMinHeight)
@@ -399,15 +425,19 @@ void Selector::initGeometry(int innerTop) {
 	const auto forAbout = width - margins.left() - margins.right();
 	_collapsedTopSkip = _useTransparency
 		? (extendTopForCategoriesAndAbout(forAbout) + _specialExpandTopSkip)
-		: 0;
+		: opaqueExtendTopAbout(forAbout);
 	_topAddOnExpand = _collapsedTopSkip - _aboutExtend;
 	const auto height = margins.top()
 		+ _aboutExtend
 		+ innerHeight
 		+ margins.bottom();
 	const auto left = style::RightToLeft() ? 0 : (parent.width() - width);
-	const auto top = innerTop - margins.top() - _collapsedTopSkip;
-	const auto add = _st.icons.stripBubble.height() - margins.bottom();
+	const auto top = innerTop
+		- margins.top()
+		- (_useTransparency ? _collapsedTopSkip : 0);
+	const auto add = _useTransparency
+		? (_st.icons.stripBubble.height() - margins.bottom())
+		: 0;
 	_outer = QRect(0, _collapsedTopSkip - _aboutExtend, width, height);
 	_outerWithBubble = _outer.marginsAdded({ 0, 0, 0, add });
 	setGeometry(_outerWithBubble.marginsAdded(
@@ -568,7 +598,7 @@ void Selector::paintCollapsed(QPainter &p) {
 		}
 		p.drawImage(_outer.topLeft(), _paintBuffer);
 	} else {
-		p.fillRect(_inner, _st.bg);
+		p.fillRect(_outer.marginsRemoved(marginsForShadow()), _st.bg);
 	}
 	_strip->paint(
 		p,
@@ -647,6 +677,13 @@ Selector::ExpandingRects Selector::updateExpandingRects(float64 progress) {
 		? int(base::SafeRound(
 			radius - sqrt(categories * (2 * radius - categories))))
 		: 0;
+
+	if (!_useTransparency && _opaqueApplyHeightExpand) {
+		Ui::PostponeCall(this, [=] {
+			_opaqueApplyHeightExpand(y() + outer.y() + outer.height());
+		});
+	}
+
 	return {
 		.categories = QRect(inner.x(), inner.y(), inner.width(), categories),
 		.list = list,
@@ -877,8 +914,9 @@ void Selector::expand() {
 	const auto heightLimit = _reactions.customAllowed
 		? st::emojiPanMaxHeight
 		: minimalHeight();
+	const auto opaqueAdded = _useTransparency ? 0 : _opaqueHeightExpand;
 	const auto willBeHeight = std::min(
-		parent.height() - y(),
+		parent.height() - y() + opaqueAdded,
 		margins.top() + heightLimit + margins.bottom());
 	const auto additionalBottom = willBeHeight - height();
 	const auto additional = _specialExpandTopSkip + additionalBottom;
@@ -903,7 +941,9 @@ void Selector::expand() {
 		}
 		_expanded = true;
 		_paintBuffer = _cachedRound.PrepareImage(size());
-		_expanding.start([=] { update(); }, 0., full, full);
+		_expanding.start([=] {
+			update();
+		}, 0., full, full);
 	});
 }
 
@@ -923,7 +963,9 @@ void Selector::createList() {
 		&_show->session(),
 		_strip ? _reactions.recent : std::vector<Data::Reaction>(),
 		_strip.get());
-	_scroll = Ui::CreateChild<Ui::ScrollArea>(this, _reactions.customAllowed
+	_scroll = Ui::CreateChild<Ui::ScrollArea>(this, !_useTransparency
+		? st::emojiScroll
+		: _reactions.customAllowed
 		? st::reactPanelScroll
 		: st::reactPanelScrollRounded);
 	_scroll->hide();
@@ -1069,7 +1111,7 @@ bool AdjustMenuGeometryForSelector(
 	const auto margins = selector->marginsForShadow();
 	const auto categoriesAboutTop = selector->useTransparency()
 		? selector->extendTopForCategoriesAndAbout(width)
-		: 0;
+		: selector->opaqueExtendTopAbout(width);
 	menu->setForceWidth(width - added);
 	const auto height = menu->height();
 	const auto fullTop = margins.top() + categoriesAboutTop + extend.top();
@@ -1082,9 +1124,7 @@ bool AdjustMenuGeometryForSelector(
 	const auto additionalPaddingBottom
 		= (willBeHeightWithoutBottomPadding >= minimalHeight
 			? 0
-			: useTransparency
-			? (minimalHeight - willBeHeightWithoutBottomPadding)
-			: 0);
+			: (minimalHeight - willBeHeightWithoutBottomPadding));
 	menu->setAdditionalMenuPadding(QMargins(
 		margins.left() + extend.left(),
 		fullTop,
@@ -1100,9 +1140,32 @@ bool AdjustMenuGeometryForSelector(
 		return false;
 	}
 	const auto origin = menu->preparedOrigin();
-	if (!additionalPaddingBottom
-		|| origin == Ui::PanelAnimation::Origin::TopLeft
-		|| origin == Ui::PanelAnimation::Origin::TopRight) {
+	const auto expandDown = (origin == Ui::PanelAnimation::Origin::TopLeft)
+		|| (origin == Ui::PanelAnimation::Origin::TopRight);
+	if (!useTransparency) {
+		const auto expandBy = additionalPaddingBottom;
+		selector->setOpaqueHeightExpand(expandBy, [=](int bottom) {
+			const auto add = bottom - menu->height();
+			if (add > 0) {
+				const auto updated = menu->geometry().marginsAdded({
+					0, expandDown ? 0 : add, 0, expandDown ? add : 0 });
+				menu->setFixedSize(updated.size());
+				menu->setGeometry(updated);
+			}
+		});
+		menu->setAdditionalMenuPadding(QMargins(
+			margins.left() + extend.left(),
+			fullTop,
+			margins.right() + extend.right(),
+			0
+		), QMargins(
+			margins.left(),
+			margins.top(),
+			margins.right(),
+			0
+		));
+		return menu->prepareGeometryFor(desiredPosition);
+	} else if (!additionalPaddingBottom || expandDown) {
 		return true;
 	}
 	menu->setAdditionalMenuPadding(QMargins(

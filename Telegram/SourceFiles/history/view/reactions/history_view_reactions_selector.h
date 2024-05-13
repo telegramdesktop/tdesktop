@@ -104,11 +104,14 @@ public:
 	[[nodiscard]] QMargins marginsForShadow() const;
 	[[nodiscard]] int extendTopForCategories() const;
 	[[nodiscard]] int extendTopForCategoriesAndAbout(int width) const;
+	[[nodiscard]] int opaqueExtendTopAbout(int width) const;
 	[[nodiscard]] int minimalHeight() const;
 	[[nodiscard]] int countAppearedWidth(float64 progress) const;
 	void setSpecialExpandTopSkip(int skip);
 	void initGeometry(int innerTop);
 	void beforeDestroy();
+
+	void setOpaqueHeightExpand(int expand, Fn<void(int)> apply);
 
 	[[nodiscard]] rpl::producer<ChosenReaction> chosen() const {
 		return _chosen.events();
@@ -216,6 +219,10 @@ private:
 	int _specialExpandTopSkip = 0;
 	int _collapsedTopSkip = 0;
 	int _topAddOnExpand = 0;
+
+	int _opaqueHeightExpand = 0;
+	Fn<void(int)> _opaqueApplyHeightExpand;
+
 	const int _size = 0;
 	int _recentRows = 0;
 	int _columns = 0;
