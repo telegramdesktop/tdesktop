@@ -440,6 +440,7 @@ QSize Document::countOptimalSize() {
 		const auto session = &history->session();
 		const auto transcribes = &session->api().transcribes();
 		if (_parent->data()->media()->ttlSeconds()
+			|| _realParent->isScheduled()
 			|| (!session->premium()
 				&& !transcribes->freeFor(_realParent)
 				&& !transcribes->trialsSupport())) {
