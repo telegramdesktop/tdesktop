@@ -583,7 +583,7 @@ QSize Reply::countMultilineOptimalSize(
 		textGeometry(max, previewSkip, &elided));
 	_minHeightExpandable = elided ? 1 : 0;
 	return {
-		result.width,
+		result.width + st::historyReplyPadding.right(),
 		std::max(result.height, st::normalFont->height),
 	};
 }
