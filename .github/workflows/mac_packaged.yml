@@ -60,7 +60,7 @@ jobs:
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Clone.
-        uses: actions/checkout@v4.1.4
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
@@ -99,7 +99,7 @@ jobs:
 
       - name: WebRTC cache.
         id: cache-webrtc
-        uses: actions/cache@v4.0.2
+        uses: actions/cache@v4
         with:
           path: ${{ env.LibrariesPath }}/tg_owt
           key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}-${{ hashFiles('**/tg_owt-version.json') }}
@@ -153,7 +153,7 @@ jobs:
           cd $REPO_NAME/build
           mkdir artifact
           mv Telegram.dmg artifact/
-      - uses: actions/upload-artifact@master
+      - uses: actions/upload-artifact@v2
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:

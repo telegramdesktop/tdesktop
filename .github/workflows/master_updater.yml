@@ -11,7 +11,7 @@ jobs:
       SKIP: "0"
       to_branch: "master"
     steps:
-      - uses: actions/checkout@v4.1.4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
         if: env.SKIP == '0'
