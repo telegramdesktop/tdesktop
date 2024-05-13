@@ -924,7 +924,9 @@ void Selector::createList() {
 		&_show->session(),
 		_strip ? _reactions.recent : std::vector<Data::Reaction>(),
 		_strip.get());
-	_scroll = Ui::CreateChild<Ui::ScrollArea>(this, st::reactPanelScroll);
+	_scroll = Ui::CreateChild<Ui::ScrollArea>(this, _reactions.customAllowed
+		? st::reactPanelScroll
+		: st::reactPanelScrollRounded);
 	_scroll->hide();
 
 	const auto st = lifetime().make_state<style::EmojiPan>(_st);

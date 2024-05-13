@@ -785,6 +785,12 @@ emojiScroll: ScrollArea(defaultSolidScroll) {
 reactPanelScroll: ScrollArea(emojiScroll) {
 	deltab: 7px;
 }
+reactPanelScrollRounded: ScrollArea(emojiScroll) {
+	width: 8px;
+	deltax: 3px;
+	deltat: 14px;
+	deltab: 14px;
+}
 
 choosePeerGroupIcon: icon {{ "info/edit/create_group", lightButtonFg }};
 choosePeerChannelIcon: icon {{ "info/edit/create_channel", lightButtonFg }};
