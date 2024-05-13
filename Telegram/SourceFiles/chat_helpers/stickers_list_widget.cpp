@@ -547,7 +547,7 @@ int StickersListWidget::countDesiredHeight(int newWidth) {
 }
 
 void StickersListWidget::sendSearchRequest() {
-	if (_searchRequestId || _searchNextQuery.isEmpty()) {
+	if (_searchRequestId || _searchNextQuery.isEmpty() || _isEffects) {
 		return;
 	}
 
@@ -556,14 +556,12 @@ void StickersListWidget::sendSearchRequest() {
 
 	auto it = _searchCache.find(_searchQuery);
 	if (it != _searchCache.cend()) {
-		_search->setLoading(false);
+		toggleSearchLoading(false);
 		return;
 	}
-
-	_search->setLoading(true);
-
+	toggleSearchLoading(true);
 	if (_searchQuery == Ui::PremiumGroupFakeEmoticon()) {
-		_search->setLoading(false);
+		toggleSearchLoading(false);
 		_searchRequestId = 0;
 		_searchCache.emplace(_searchQuery, std::vector<uint64>());
 		showSearchResults();
@@ -579,7 +577,7 @@ void StickersListWidget::sendSearchRequest() {
 		searchResultsDone(result);
 	}).fail([=] {
 		// show error?
-		_search->setLoading(false);
+		toggleSearchLoading(false);
 		_searchRequestId = 0;
 	}).handleAllErrors().send();
 }
@@ -593,7 +591,10 @@ void StickersListWidget::searchForSets(
 		return;
 	}
 
-	if (query == Ui::PremiumGroupFakeEmoticon()) {
+	_filterStickersCornerEmoji.clear();
+	if (_isEffects) {
+		filterEffectsByEmoji(std::move(emoji));
+	} else if (query == Ui::PremiumGroupFakeEmoticon()) {
 		_filteredStickers = session().data().stickers().getPremiumList(0);
 	} else {
 		_filteredStickers = session().data().stickers().getListByEmoji(
@@ -602,7 +603,7 @@ void StickersListWidget::searchForSets(
 			true);
 	}
 	if (_searchQuery != cleaned) {
-		_search->setLoading(false);
+		toggleSearchLoading(false);
 		if (const auto requestId = base::take(_searchRequestId)) {
 			_api.request(requestId).cancel();
 		}
@@ -618,13 +619,14 @@ void StickersListWidget::searchForSets(
 }
 
 void StickersListWidget::cancelSetsSearch() {
-	_search->setLoading(false);
+	toggleSearchLoading(false);
 	if (const auto requestId = base::take(_searchRequestId)) {
 		_api.request(requestId).cancel();
 	}
 	_searchRequestTimer.cancel();
 	_searchQuery = _searchNextQuery = QString();
 	_filteredStickers.clear();
+	_filterStickersCornerEmoji.clear();
 	_searchCache.clear();
 	refreshSearchRows(nullptr);
 }
@@ -655,8 +657,9 @@ void StickersListWidget::refreshSearchRows(
 	});
 
 	fillFilteredStickersRow();
-	fillLocalSearchRows(_searchNextQuery);
-
+	if (!_isEffects) {
+		fillLocalSearchRows(_searchNextQuery);
+	}
 	if (!cloudSets && _searchNextQuery.isEmpty()) {
 		showStickerSet(!_mySets.empty()
 			? _mySets[0].id
@@ -665,11 +668,10 @@ void StickersListWidget::refreshSearchRows(
 	}
 
 	setSection(Section::Search);
-	if (cloudSets) {
+	if (!_isEffects && cloudSets) {
 		fillCloudSearchRows(*cloudSets);
 	}
 	refreshIcons(ValidateIconAnimations::Scroll);
-
 	_lastMousePosition = QCursor::pos();
 
 	resizeToWidth(width());
@@ -735,7 +737,7 @@ void StickersListWidget::fillFilteredStickersRow() {
 		SearchEmojiSectionSetId(),
 		nullptr,
 		Data::StickersSetFlag::Special,
-		QString(), // title
+		_isEffects ? tr::lng_effect_stickers_title(tr::now) : QString(),
 		QString(), // shortName
 		_filteredStickers.size(),
 		false, // externalLayout
@@ -756,6 +758,12 @@ void StickersListWidget::addSearchRow(not_null<StickersSet*> set) {
 		set->count,
 		!SetInMyList(set->flags),
 		std::move(elements));
+}
+
+void StickersListWidget::toggleSearchLoading(bool loading) {
+	if (_search) {
+		_search->setLoading(loading);
+	}
 }
 
 void StickersListWidget::takeHeavyData(
@@ -839,7 +847,7 @@ auto StickersListWidget::shownSets() -> std::vector<Set> & {
 
 void StickersListWidget::searchResultsDone(
 		const MTPmessages_FoundStickerSets &result) {
-	_search->setLoading(false);
+	toggleSearchLoading(false);
 	_searchRequestId = 0;
 
 	if (result.type() == mtpc_messages_foundStickerSetsNotModified) {
@@ -1476,9 +1484,14 @@ void StickersListWidget::paintSticker(
 	}
 
 	auto cornerPainted = false;
-	if (set.id == Data::Stickers::RecentSetId && !_cornerEmoji.empty()) {
-		Assert(index < _cornerEmoji.size());
-		if (const auto emoji = _cornerEmoji[index]) {
+	const auto corner = (set.id == Data::Stickers::RecentSetId)
+		? &_cornerEmoji
+		: (set.id == SearchEmojiSectionSetId())
+		? &_filterStickersCornerEmoji
+		: nullptr;
+	if (corner && !corner->empty()) {
+		Assert(index < corner->size());
+		if (const auto emoji = (*corner)[index]) {
 			const auto size = Ui::Emoji::GetSizeNormal();
 			const auto ratio = style::DevicePixelRatio();
 			const auto radius = st::roundRadiusSmall;
@@ -2492,14 +2505,14 @@ void StickersListWidget::updateSelected() {
 }
 
 bool StickersListWidget::setHasTitle(const Set &set) const {
-	if (set.id == Data::Stickers::FavedSetId
+	if (_isEffects) {
+		return true;
+	} else if (set.id == Data::Stickers::FavedSetId
 		|| set.id == SearchEmojiSectionSetId()) {
 		return false;
 	} else if (set.id == Data::Stickers::RecentSetId) {
 		return !_mySets.empty()
-			&& (_isMasks
-				|| _isEffects
-				|| (_mySets[0].id == Data::Stickers::FavedSetId));
+			&& (_isMasks || (_mySets[0].id == Data::Stickers::FavedSetId));
 	}
 	return true;
 }
@@ -2581,9 +2594,10 @@ void StickersListWidget::showStickerSet(uint64 setId) {
 	const auto guard = gsl::finally([&] { _showingSetById = false; });
 
 	clearSelection();
-	if (_search
-		&& (!_searchQuery.isEmpty() || !_searchNextQuery.isEmpty())) {
-		_search->cancel();
+	if (!_searchQuery.isEmpty() || !_searchNextQuery.isEmpty()) {
+		if (_search) {
+			_search->cancel();
+		}
 		cancelSetsSearch();
 	}
 
@@ -2686,14 +2700,18 @@ void StickersListWidget::setupSearch() {
 		? TabbedSearchType::Greeting
 		: TabbedSearchType::Stickers;
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
-		auto set = base::flat_set<EmojiPtr>();
-		auto text = ranges::accumulate(query, QString(), [](
+		applySearchQuery(std::move(query));
+	}, session, type);
+}
+
+void StickersListWidget::applySearchQuery(std::vector<QString> &&query) {
+	auto set = base::flat_set<EmojiPtr>();
+	auto text = ranges::accumulate(query, QString(), [](
 			QString a,
 			QString b) {
-			return a.isEmpty() ? b : (a + ' ' + b);
-		});
-		searchForSets(std::move(text), SearchEmoji(query, set));
-	}, session, type);
+		return a.isEmpty() ? b : (a + ' ' + b);
+	});
+	searchForSets(std::move(text), SearchEmoji(query, set));
 }
 
 void StickersListWidget::displaySet(uint64 setId) {
@@ -2766,6 +2784,32 @@ Data::StickersSetsOrder &StickersListWidget::defaultSetsOrderRef() {
 
 bool StickersListWidget::mySetsEmpty() const {
 	return _mySets.empty();
+}
+
+void StickersListWidget::filterEffectsByEmoji(
+		const std::vector<EmojiPtr> &emoji) {
+	_filteredStickers.clear();
+	_filterStickersCornerEmoji.clear();
+	if (_mySets.empty()
+		|| _mySets.front().id != Data::Stickers::RecentSetId
+		|| _mySets.front().stickers.empty()) {
+		return;
+	}
+	const auto &list = _mySets.front().stickers;
+	auto all = base::flat_set<EmojiPtr>();
+	for (const auto &one : emoji) {
+		all.emplace(one->original());
+	}
+	const auto count = int(list.size());
+	_filteredStickers.reserve(count);
+	_filterStickersCornerEmoji.reserve(count);
+	for (auto i = 0; i != count; ++i) {
+		Assert(i < _cornerEmoji.size());
+		if (all.contains(_cornerEmoji[i])) {
+			_filteredStickers.push_back(list[i].document);
+			_filterStickersCornerEmoji.push_back(_cornerEmoji[i]);
+		}
+	}
 }
 
 StickersListWidget::~StickersListWidget() = default;

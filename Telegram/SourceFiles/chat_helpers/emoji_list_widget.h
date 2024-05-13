@@ -77,6 +77,7 @@ enum class EmojiListMode {
 	UserpicBuilder,
 	BackgroundEmoji,
 	PeerTitle,
+	MessageEffects,
 };
 
 struct EmojiListDescriptor {
@@ -145,6 +146,8 @@ public:
 
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
 		const SendMenu::Details &details) override;
+
+	[[nodiscard]] rpl::producer<std::vector<QString>> searchQueries() const;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -418,6 +421,7 @@ private:
 	bool _colorAllRippleForced = false;
 	rpl::lifetime _colorAllRippleForcedLifetime;
 
+	rpl::event_stream<std::vector<QString>> _searchQueries;
 	std::vector<QString> _nextSearchQuery;
 	std::vector<QString> _searchQuery;
 	base::flat_set<EmojiPtr> _searchEmoji;

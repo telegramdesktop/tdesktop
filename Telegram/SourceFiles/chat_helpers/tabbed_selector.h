@@ -422,7 +422,7 @@ private:
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	int _minimalHeight = 0;
+	std::optional<int> _minimalHeight;
 
 	rpl::event_stream<int> _scrollToRequests;
 	rpl::event_stream<bool> _disableScrollRequests;

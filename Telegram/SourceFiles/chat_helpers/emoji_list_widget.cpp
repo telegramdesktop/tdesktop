@@ -583,7 +583,12 @@ void EmojiListWidget::setupSearch() {
 		InvokeQueued(this, [=] {
 			applyNextSearchQuery();
 		});
+		_searchQueries.fire_copy(_nextSearchQuery);
 	}, session, type);
+}
+
+rpl::producer<std::vector<QString>> EmojiListWidget::searchQueries() const {
+	return _searchQueries.events();
 }
 
 void EmojiListWidget::applyNextSearchQuery() {
@@ -834,7 +839,8 @@ void EmojiListWidget::unloadCustomIn(const SectionInfo &info) {
 object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 	Expects(_footer == nullptr);
 
-	if (_mode == EmojiListMode::RecentReactions) {
+	if (_mode == EmojiListMode::RecentReactions
+		|| _mode == EmojiListMode::MessageEffects) {
 		return { nullptr };
 	}
 
@@ -2131,7 +2137,7 @@ void EmojiListWidget::refreshRecent() {
 }
 
 void EmojiListWidget::refreshCustom() {
-	if (_mode == Mode::RecentReactions) {
+	if (_mode == Mode::RecentReactions || _mode == Mode::MessageEffects) {
 		return;
 	}
 	auto old = base::take(_custom);

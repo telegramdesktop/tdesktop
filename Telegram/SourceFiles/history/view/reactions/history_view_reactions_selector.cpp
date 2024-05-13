@@ -211,7 +211,9 @@ Selector::Selector(
 	reactions,
 	(reactions.customAllowed
 		? ChatHelpers::EmojiListMode::FullReactions
-		: ChatHelpers::EmojiListMode::RecentReactions),
+		: reactions.stickers.empty()
+		? ChatHelpers::EmojiListMode::RecentReactions
+		: ChatHelpers::EmojiListMode::MessageEffects),
 	{},
 	std::move(about),
 	iconFactory,
@@ -1075,15 +1077,6 @@ void Selector::createList() {
 			_shadow->update();
 		}
 	}, _list->lifetime());
-	if (_stickers) {
-		_stickers->scrollToRequests(
-		) | rpl::start_with_next([=](int y) {
-			_scroll->scrollToY(_list->height() + y);
-			if (_shadow) {
-				_shadow->update();
-			}
-		}, _stickers->lifetime());
-	}
 
 	_scroll->setGeometry(inner.marginsRemoved({
 		_st.margin.left(),
@@ -1091,7 +1084,17 @@ void Selector::createList() {
 		0,
 		0,
 	}));
-	_list->setMinimalHeight(geometry.width(), _scroll->height());
+	if (_stickers) {
+		_list->setMinimalHeight(geometry.width(), 0);
+		_stickers->setMinimalHeight(geometry.width(), 0);
+
+		_list->searchQueries(
+		) | rpl::start_with_next([=](std::vector<QString> &&query) {
+			_stickers->applySearchQuery(std::move(query));
+		}, _stickers->lifetime());
+	} else {
+		_list->setMinimalHeight(geometry.width(), _scroll->height());
+	}
 
 	updateVisibleTopBottom();
 }

@@ -127,6 +127,8 @@ public:
 
 	bool mySetsEmpty() const;
 
+	void applySearchQuery(std::vector<QString> &&query);
+
 	~StickersListWidget();
 
 protected:
@@ -261,12 +263,13 @@ private:
 	void updateSelected();
 	void setSelected(OverState newSelected);
 	void setPressed(OverState newPressed);
-	std::unique_ptr<Ui::RippleAnimation> createButtonRipple(int section);
-	QPoint buttonRippleTopLeft(int section) const;
+	[[nodiscard]] std::unique_ptr<Ui::RippleAnimation> createButtonRipple(
+		int section);
+	[[nodiscard]] QPoint buttonRippleTopLeft(int section) const;
 
-	std::vector<Set> &shownSets();
-	const std::vector<Set> &shownSets() const;
-	int featuredRowHeight() const;
+	[[nodiscard]] std::vector<Set> &shownSets();
+	[[nodiscard]] const std::vector<Set> &shownSets() const;
+	[[nodiscard]] int featuredRowHeight() const;
 	void checkVisibleFeatured(int visibleTop, int visibleBottom);
 	void readVisibleFeatured(int visibleTop, int visibleBottom);
 
@@ -324,6 +327,7 @@ private:
 
 	[[nodiscard]] const Data::StickersSetsOrder &defaultSetsOrder() const;
 	[[nodiscard]] Data::StickersSetsOrder &defaultSetsOrderRef();
+	void filterEffectsByEmoji(const std::vector<EmojiPtr> &emoji);
 
 	enum class AppendSkip {
 		None,
@@ -356,6 +360,7 @@ private:
 	void fillLocalSearchRows(const QString &query);
 	void fillCloudSearchRows(const std::vector<uint64> &cloudSets);
 	void addSearchRow(not_null<Data::StickersSet*> set);
+	void toggleSearchLoading(bool loading);
 
 	void showPreview();
 
@@ -431,6 +436,7 @@ private:
 	std::unique_ptr<StickerPremiumMark> _premiumMark;
 
 	std::vector<not_null<DocumentData*>> _filteredStickers;
+	std::vector<EmojiPtr> _filterStickersCornerEmoji;
 	std::map<QString, std::vector<uint64>> _searchCache;
 	std::vector<std::pair<uint64, QStringList>> _searchIndex;
 	base::Timer _searchRequestTimer;

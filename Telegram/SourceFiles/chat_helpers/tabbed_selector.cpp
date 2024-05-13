@@ -1460,9 +1460,7 @@ int TabbedSelector::Inner::resizeGetHeight(int newWidth) {
 }
 
 int TabbedSelector::Inner::minimalHeight() const {
-	return (_minimalHeight > 0)
-		? _minimalHeight
-		: defaultMinimalHeight();
+	return _minimalHeight.value_or(defaultMinimalHeight());
 }
 
 int TabbedSelector::Inner::defaultMinimalHeight() const {
