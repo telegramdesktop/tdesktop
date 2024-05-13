@@ -2239,7 +2239,9 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 			Data::Stickers::RecentSetId,
 			nullptr,
 			(SetFlag::Official | SetFlag::Special),
-			tr::lng_recent_stickers(tr::now),
+			(_isEffects
+				? tr::lng_effect_stickers_title(tr::now)
+				: tr::lng_recent_stickers(tr::now)),
 			shortName,
 			recentPack.size(),
 			externalLayout,
