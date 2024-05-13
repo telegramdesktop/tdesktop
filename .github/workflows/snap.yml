@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v4.1.4
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
@@ -75,7 +75,7 @@ jobs:
           mkdir artifact
           mv $artifact_name artifact
 
-      - uses: actions/upload-artifact@master
+      - uses: actions/upload-artifact@v2
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:
