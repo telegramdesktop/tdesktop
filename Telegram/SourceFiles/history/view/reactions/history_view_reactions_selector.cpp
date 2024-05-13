@@ -400,9 +400,7 @@ void Selector::initGeometry(int innerTop) {
 	_collapsedTopSkip = _useTransparency
 		? (extendTopForCategoriesAndAbout(forAbout) + _specialExpandTopSkip)
 		: 0;
-	_topAddOnExpand = extendTopForCategories()
-		- _aboutExtend
-		+ _specialExpandTopSkip;
+	_topAddOnExpand = _collapsedTopSkip - _aboutExtend;
 	const auto height = margins.top()
 		+ _aboutExtend
 		+ innerHeight
