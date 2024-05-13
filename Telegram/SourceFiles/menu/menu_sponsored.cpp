@@ -332,9 +332,7 @@ void ShowSponsored(
 		not_null<HistoryItem*> item) {
 	Expects(item->isSponsored());
 
-	struct State final {
-	};
-	const auto state = std::make_shared<State>();
+	const auto session = &item->history()->session();
 
 	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
 		parent.get(),
@@ -351,7 +349,13 @@ void ShowSponsored(
 	menu->addSeparator(&st::expandedMenuSeparator);
 
 	menu->addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
-		ShowPremiumPreviewBox(show, PremiumFeature::NoAds);
+		if (session->premium()) {
+			using Result = Data::SponsoredReportResult;
+			session->sponsoredMessages().createReportCallback(
+				item->fullId())(Result::Id("-1"), [](const auto &) {});
+		} else {
+			ShowPremiumPreviewBox(show, PremiumFeature::NoAds);
+		}
 	}, &st::menuIconCancel);
 
 	menu->popup(QCursor::pos());
