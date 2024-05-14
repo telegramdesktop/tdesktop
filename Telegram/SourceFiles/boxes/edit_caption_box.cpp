@@ -206,6 +206,9 @@ void EditPhotoImage(
 		Storage::UpdateImageDetails(file, previewWidth, sideLimit);
 		done(std::move(list));
 	};
+	if (!large) {
+		return;
+	}
 	const auto fileImage = std::make_shared<Image>(*large);
 	auto editor = base::make_unique_q<Editor::PhotoEditor>(
 		parent,
