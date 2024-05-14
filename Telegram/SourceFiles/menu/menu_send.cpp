@@ -281,6 +281,8 @@ EffectPreview::EffectPreview(
 , _bottom(_send ? ((Ui::RpWidget*)_send.get()) : _premiumPromoLabel.get())
 , _close(done)
 , _actionWithEffect(ComposeActionWithEffect(action, _effectId, done)) {
+	_chatStyle->apply(_theme.get());
+
 	setupGeometry(position);
 	setupItem();
 	setupBackground();
