@@ -101,6 +101,10 @@ not_null<Window::SessionController*> WindowListDelegate::listWindow() {
 	return _window;
 }
 
+not_null<QWidget*> WindowListDelegate::listEmojiInteractionsParent() {
+	return _window->content();
+}
+
 not_null<const Ui::ChatStyle*> WindowListDelegate::listChatStyle() {
 	return _window->chatStyle();
 }
@@ -376,7 +380,7 @@ ListWidget::ListWidget(
 , _session(session)
 , _emojiInteractions(std::make_unique<EmojiInteractions>(
 	this,
-	_delegate->listWindow()->content(),
+	_delegate->listEmojiInteractionsParent(),
 	session,
 	[=](not_null<const Element*> view) { return itemTop(view); }))
 , _context(_delegate->listContext())
