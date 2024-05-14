@@ -668,7 +668,8 @@ void Reactions::Panel::create() {
 			? tr::lng_stories_reaction_as_message(tr::now)
 			: QString()) },
 		[=](bool fast) { hide(mode); },
-		nullptr,
+		nullptr, // iconFactory
+		nullptr, // paused
 		true);
 
 	_selector->chosen(

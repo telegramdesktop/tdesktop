@@ -85,6 +85,7 @@ public:
 		TextWithEntities about,
 		Fn<void(bool fast)> close,
 		IconFactory iconFactory = nullptr,
+		Fn<bool()> paused = nullptr,
 		bool child = false);
 #if 0 // not ready
 	Selector(
@@ -149,6 +150,7 @@ private:
 		std::vector<DocumentId> recent,
 		TextWithEntities about,
 		IconFactory iconFactory,
+		Fn<bool()> paused,
 		Fn<void(bool fast)> close,
 		bool child);
 
@@ -187,6 +189,7 @@ private:
 	const Data::PossibleItemReactions _reactions;
 	const std::vector<DocumentId> _recent;
 	const ChatHelpers::EmojiListMode _listMode;
+	const Fn<bool()> _paused;
 	Fn<void()> _jumpedToPremium;
 	Ui::RoundAreaWithShadow _cachedRound;
 	std::unique_ptr<Strip> _strip;
@@ -274,7 +277,8 @@ AttachSelectorResult AttachSelectorToMenu(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::PossibleItemReactionsRef &reactions,
 	TextWithEntities about,
-	IconFactory iconFactory = nullptr
+	IconFactory iconFactory = nullptr,
+	Fn<bool()> paused = nullptr
 ) -> base::expected<not_null<Selector*>, AttachSelectorResult>;
 
 [[nodiscard]] TextWithEntities ItemReactionsAbout(

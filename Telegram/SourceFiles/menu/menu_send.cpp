@@ -59,6 +59,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace SendMenu {
 namespace {
 
+constexpr auto kToggleDuration = crl::time(400);
+
 class Delegate final : public HistoryView::DefaultElementDelegate {
 public:
 	Delegate(not_null<Ui::PathShiftGradient*> pathGradient)
@@ -90,6 +92,8 @@ public:
 		Fn<void(Action, Details)> action,
 		Fn<void()> done);
 
+	void hideAnimated();
+
 private:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -104,8 +108,12 @@ private:
 	void setupSend(Details details);
 	void createLottie();
 
+	[[nodiscard]] bool ready() const;
+	void paintLoading(QPainter &p);
+	void paintLottie(QPainter &p);
 	bool checkIconBecameLoaded();
-	[[nodiscard]] bool checkReady();
+	[[nodiscard]] bool checkLoaded();
+	void toggle(bool shown);
 
 	const EffectId _effectId = 0;
 	const Data::Reaction _effect;
@@ -134,6 +142,10 @@ private:
 	QPoint _itemShift;
 	QRect _iconRect;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _loading;
+
+	Ui::Animations::Simple _shownAnimation;
+	QPixmap _bottomCache;
+	bool _hiding = false;
 
 	rpl::lifetime _readyCheckLifetime;
 
@@ -248,7 +260,7 @@ EffectPreview::EffectPreview(
 	_history->peer->id,
 	_replyTo->data()->fullId(),
 	tr::lng_settings_chat_message_reply(tr::now),
-	_effectId))
+	Data::Reactions::kFakeEffectId))
 , _send(canSend()
 	? std::make_unique<BottomRounded>(
 		this,
@@ -271,68 +283,87 @@ EffectPreview::EffectPreview(
 , _close(done)
 , _actionWithEffect(ComposeActionWithEffect(action, _effectId, done)) {
 	setupGeometry(position);
-	setupBackground();
 	setupItem();
+	setupBackground();
 	setupLottie();
 	setupSend(details);
+
+	toggle(true);
 }
 
 void EffectPreview::paintEvent(QPaintEvent *e) {
-	auto p = Painter(this);
+	checkIconBecameLoaded();
+
+	const auto progress = _shownAnimation.value(_hiding ? 0. : 1.);
+	if (!progress) {
+		return;
+	}
+
+	auto p = QPainter(this);
+	p.setOpacity(progress);
 	p.drawImage(0, 0, _bg);
 
-	p.setClipRect(_inner);
-	p.translate(_itemShift);
-	auto rect = QRect(0, 0, st::windowMinWidth, _inner.height());
-	auto context = _theme->preparePaintContext(
-		_chatStyle.get(),
-		rect,
-		rect,
-		false);
-	context.outbg = _item->hasOutLayout();
-	_item->draw(p, context);
-	p.translate(-_itemShift);
+	if (!_bottomCache.isNull()) {
+		p.drawPixmap(_bottom->pos(), _bottomCache);
+	}
 
-	checkIconBecameLoaded();
-	if (_icon.isNull()) {
-		if (!_loading) {
-			_loading = std::make_unique<Ui::InfiniteRadialAnimation>([=] {
-				update();
-			}, st::effectPreviewLoading);
-			_loading->start(st::defaultInfiniteRadialAnimation.linearPeriod);
-		}
-		const auto loading = _iconRect.marginsRemoved(
-			{ st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth });
-		auto hq = PainterHighQualityEnabler(p);
-		Ui::InfiniteRadialAnimation::Draw(
-			p,
-			_loading->computeState(),
-			loading.topLeft(),
-			loading.size(),
-			width(),
-			_chatStyle->msgInDateFg(),
-			st::effectPreviewLoading.thickness);
+	if (!ready()) {
+		paintLoading(p);
 	} else {
 		_loading = nullptr;
-	}
-	if (_lottie && _lottie->ready()) {
-		const auto factor = style::DevicePixelRatio();
-		auto request = Lottie::FrameRequest();
-		request.box = _inner.size() * factor;
-		const auto rightAligned = _item->hasRightLayout();
-		if (!rightAligned) {
-			request.mirrorHorizontal = true;
+		p.drawImage(_iconRect, _icon);
+		if (!_hiding) {
+			p.setOpacity(1.);
 		}
-		const auto frame = _lottie->frameInfo(request);
-		p.drawImage(
-			QRect(_inner.topLeft(), frame.image.size() / factor),
-			frame.image);
-		_lottie->markFrameShown();
+		paintLottie(p);
 	}
 }
 
+bool EffectPreview::ready() const {
+	return !_icon.isNull() && _lottie && _lottie->ready();
+}
+
+void EffectPreview::paintLoading(QPainter &p) {
+	if (!_loading) {
+		_loading = std::make_unique<Ui::InfiniteRadialAnimation>([=] {
+			update();
+		}, st::effectPreviewLoading);
+		_loading->start(st::defaultInfiniteRadialAnimation.linearPeriod);
+	}
+	const auto loading = _iconRect.marginsRemoved(
+		{ st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth });
+	auto hq = PainterHighQualityEnabler(p);
+	Ui::InfiniteRadialAnimation::Draw(
+		p,
+		_loading->computeState(),
+		loading.topLeft(),
+		loading.size(),
+		width(),
+		_chatStyle->msgInDateFg(),
+		st::effectPreviewLoading.thickness);
+}
+
+void EffectPreview::paintLottie(QPainter &p) {
+	const auto factor = style::DevicePixelRatio();
+	auto request = Lottie::FrameRequest();
+	request.box = _inner.size() * factor;
+	const auto rightAligned = _item->hasRightLayout();
+	if (!rightAligned) {
+		request.mirrorHorizontal = true;
+	}
+	const auto frame = _lottie->frameInfo(request);
+	p.drawImage(
+		QRect(_inner.topLeft(), frame.image.size() / factor),
+		frame.image);
+	_lottie->markFrameShown();
+}
+
+void EffectPreview::hideAnimated() {
+	toggle(false);
+}
+
 void EffectPreview::mousePressEvent(QMouseEvent *e) {
-	delete this;
+	hideAnimated();
 }
 
 void EffectPreview::setupGeometry(QPoint position) {
@@ -402,7 +433,7 @@ void EffectPreview::repaintBackground() {
 	bg.setDevicePixelRatio(ratio);
 
 	{
-		auto p = QPainter(&bg);
+		auto p = Painter(&bg);
 		Window::SectionWidget::PaintBackground(
 			p,
 			_theme.get(),
@@ -411,6 +442,18 @@ void EffectPreview::repaintBackground() {
 		p.fillRect(
 			QRect(0, _inner.height(), _inner.width(), _bottom->height()),
 			st::previewMarkRead.bgColor);
+
+		p.translate(_itemShift - _inner.topLeft());
+		auto rect = QRect(0, 0, st::windowMinWidth, _inner.height());
+		auto context = _theme->preparePaintContext(
+			_chatStyle.get(),
+			rect,
+			rect,
+			false);
+		context.outbg = _item->hasOutLayout();
+		_item->draw(p, context);
+		p.translate(_inner.topLeft() - _itemShift);
+
 		auto hq = PainterHighQualityEnabler(p);
 		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 		auto roundRect = Ui::RoundRect(st::previewMenu.radius, st::menuBg);
@@ -438,7 +481,7 @@ void EffectPreview::setupLottie() {
 	rpl::single(rpl::empty) | rpl::then(
 		_show->session().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
-		if (checkReady()) {
+		if (checkLoaded()) {
 			_readyCheckLifetime.destroy();
 			createLottie();
 		}
@@ -495,10 +538,14 @@ bool EffectPreview::checkIconBecameLoaded() {
 	}
 	const auto reactions = &_show->session().data().reactions();
 	_icon = reactions->resolveEffectImageFor(_effect.id.custom());
-	return !_icon.isNull();
+	if (_icon.isNull()) {
+		return false;
+	}
+	repaintBackground();
+	return true;
 }
 
-bool EffectPreview::checkReady() {
+bool EffectPreview::checkLoaded() {
 	if (checkIconBecameLoaded()) {
 		update();
 	}
@@ -509,6 +556,29 @@ bool EffectPreview::checkReady() {
 		_bytes = _media->videoThumbnailContent();
 	}
 	return !_icon.isNull() && (!_bytes.isEmpty() || !_filepath.isEmpty());
+}
+
+void EffectPreview::toggle(bool shown) {
+	if (!shown && _hiding) {
+		return;
+	}
+	_hiding = !shown;
+	if (_bottomCache.isNull()) {
+		_bottomCache = Ui::GrabWidget(_bottom);
+		_bottom->hide();
+	}
+	_shownAnimation.start([=] {
+		update();
+		if (!_shownAnimation.animating()) {
+			if (_hiding) {
+				delete this;
+			} else {
+				_bottomCache = QPixmap();
+				_bottom->show();
+			}
+		}
+	}, shown ? 0. : 1., shown ? 1. : 0., kToggleDuration, anim::easeOutCirc);
+	show();
 }
 
 } // namespace
@@ -571,6 +641,7 @@ FillMenuResult FillSendMenu(
 	}
 
 	using namespace HistoryView::Reactions;
+	const auto effect = std::make_shared<QPointer<EffectPreview>>();
 	const auto position = desiredPositionOverride.value_or(QCursor::pos());
 	const auto selector = (showForEffect && details.effectAllowed)
 		? AttachSelectorToMenu(
@@ -579,7 +650,9 @@ FillMenuResult FillSendMenu(
 			st::reactPanelEmojiPan,
 			showForEffect,
 			LookupPossibleEffects(&showForEffect->session()),
-			{ tr::lng_effect_add_title(tr::now) })
+			{ tr::lng_effect_add_title(tr::now) },
+			nullptr, // iconFactory
+			[=] { return (*effect) != nullptr; }) // paused
 		: base::make_unexpected(AttachSelectorResult::Skipped);
 	if (!selector) {
 		if (selector.error() == AttachSelectorResult::Failed) {
@@ -589,7 +662,6 @@ FillMenuResult FillSendMenu(
 		return FillMenuResult::Prepared;
 	}
 
-	const auto effect = std::make_shared<QPointer<EffectPreview>>();
 	(*selector)->chosen(
 	) | rpl::start_with_next([=](ChosenReaction chosen) {
 		const auto &reactions = showForEffect->session().data().reactions();
@@ -597,7 +669,7 @@ FillMenuResult FillSendMenu(
 		const auto i = ranges::find(effects, chosen.id, &Data::Reaction::id);
 		if (i != end(effects)) {
 			if (const auto strong = effect->data()) {
-				delete strong;
+				strong->hideAnimated();
 			}
 			const auto weak = Ui::MakeWeak(menu);
 			const auto done = [=] {

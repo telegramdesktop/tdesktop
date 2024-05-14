@@ -203,6 +203,7 @@ Selector::Selector(
 	TextWithEntities about,
 	Fn<void(bool fast)> close,
 	IconFactory iconFactory,
+	Fn<bool()> paused,
 	bool child)
 : Selector(
 	parent,
@@ -216,8 +217,9 @@ Selector::Selector(
 		: ChatHelpers::EmojiListMode::MessageEffects),
 	{},
 	std::move(about),
-	iconFactory,
-	close,
+	std::move(iconFactory),
+	std::move(paused),
+	std::move(close),
 	child) {
 }
 
@@ -253,6 +255,7 @@ Selector::Selector(
 	std::vector<DocumentId> recent,
 	TextWithEntities about,
 	IconFactory iconFactory,
+	Fn<bool()> paused,
 	Fn<void(bool fast)> close,
 	bool child)
 : RpWidget(parent)
@@ -261,6 +264,7 @@ Selector::Selector(
 , _reactions(reactions)
 , _recent(std::move(recent))
 , _listMode(mode)
+, _paused(std::move(paused))
 , _jumpedToPremium([=] { close(false); })
 , _cachedRound(
 	QSize(2 * st::reactStripSkip + st::reactStripSize, st::reactStripHeight),
@@ -1005,7 +1009,7 @@ void Selector::createList() {
 		object_ptr<EmojiListWidget>(lists, EmojiListDescriptor{
 			.show = _show,
 			.mode = _listMode,
-			.paused = [] { return false; },
+			.paused = _paused ? _paused : [] { return false; },
 			.customRecentList = std::move(recentList),
 			.customRecentFactory = _unifiedFactoryOwner->factory(),
 			.freeEffects = std::move(freeEffects),
@@ -1026,7 +1030,7 @@ void Selector::createList() {
 				StickersListDescriptor{
 					.show = _show,
 					.mode = StickersListMode::MessageEffects,
-					.paused = [] { return false; },
+					.paused = _paused ? _paused : [] { return false; },
 					.customRecentList = std::move(descriptors),
 					.st = st,
 				}));
@@ -1352,7 +1356,8 @@ auto AttachSelectorToMenu(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::PossibleItemReactionsRef &reactions,
 	TextWithEntities about,
-	IconFactory iconFactory)
+	IconFactory iconFactory,
+	Fn<bool()> paused)
 -> base::expected<not_null<Selector*>, AttachSelectorResult> {
 	if (reactions.recent.empty()) {
 		return base::make_unexpected(AttachSelectorResult::Skipped);
@@ -1366,6 +1371,7 @@ auto AttachSelectorToMenu(
 		std::move(about),
 		[=](bool fast) { menu->hideMenu(fast); },
 		std::move(iconFactory),
+		std::move(paused),
 		false); // child
 	if (!AdjustMenuGeometryForSelector(menu, desiredPosition, selector)) {
 		return base::make_unexpected(AttachSelectorResult::Failed);

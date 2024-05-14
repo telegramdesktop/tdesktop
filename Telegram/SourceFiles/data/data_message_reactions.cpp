@@ -575,7 +575,9 @@ void Reactions::preloadReactionImageFor(const ReactionId &emoji) {
 }
 
 void Reactions::preloadEffectImageFor(EffectId id) {
-	preloadImageFor({ DocumentId(id) });
+	if (id != kFakeEffectId) {
+		preloadImageFor({ DocumentId(id) });
+	}
 }
 
 void Reactions::preloadImageFor(const ReactionId &id) {
@@ -651,7 +653,9 @@ QImage Reactions::resolveReactionImageFor(const ReactionId &emoji) {
 }
 
 QImage Reactions::resolveEffectImageFor(EffectId id) {
-	return resolveImageFor({ DocumentId(id) });
+	return (id == kFakeEffectId)
+		? QImage()
+		: resolveImageFor({ DocumentId(id) });
 }
 
 QImage Reactions::resolveImageFor(const ReactionId &id) {

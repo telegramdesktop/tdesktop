@@ -119,6 +119,10 @@ public:
 	void preloadReactionImageFor(const ReactionId &emoji);
 	[[nodiscard]] QImage resolveReactionImageFor(const ReactionId &emoji);
 
+	// This is used to reserve space for the effect in BottomInfo but not
+	// actually paint anything, used in case we want to paint icon ourselves.
+	static constexpr auto kFakeEffectId = EffectId(1);
+
 	void preloadEffectImageFor(EffectId id);
 	[[nodiscard]] QImage resolveEffectImageFor(EffectId id);
 
