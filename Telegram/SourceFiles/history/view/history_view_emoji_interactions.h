@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/unique_qptr.h"
+
 namespace Data {
 class DocumentMedia;
 } // namespace Data
@@ -27,6 +29,10 @@ namespace Stickers {
 enum class EffectType : uint8;
 } // namespace Stickers
 
+namespace Ui {
+class RpWidget;
+} // namespace Ui
+
 namespace HistoryView {
 
 class Element;
@@ -34,6 +40,8 @@ class Element;
 class EmojiInteractions final {
 public:
 	EmojiInteractions(
+		not_null<QWidget*> parent,
+		not_null<QWidget*> layerParent,
 		not_null<Main::Session*> session,
 		Fn<int(not_null<const Element*>)> itemTop);
 	~EmojiInteractions();
@@ -50,14 +58,14 @@ public:
 	void playEffectOnRead(not_null<const Element*> view);
 	void playEffect(not_null<const Element*> view);
 
-	void paint(QPainter &p);
-	[[nodiscard]] rpl::producer<QRect> updateRequests() const;
+	void paint(not_null<QWidget*> layer, QRect clip);
 	[[nodiscard]] rpl::producer<QString> playStarted() const;
 
 private:
 	struct Play {
 		not_null<const Element*> view;
 		std::unique_ptr<Lottie::SinglePlayer> lottie;
+		mutable QRect lastTarget;
 		QPoint shift;
 		QSize inner;
 		QSize outer;
@@ -111,15 +119,21 @@ private:
 		const ResolvedEffect &resolved);
 	void checkPendingEffects();
 
+	void refreshLayerShift();
+	void refreshLayerGeometryAndUpdate(QRect rect);
+
+	const not_null<QWidget*> _parent;
+	const not_null<QWidget*> _layerParent;
 	const not_null<Main::Session*> _session;
 	const Fn<int(not_null<const Element*>)> _itemTop;
 
+	base::unique_qptr<Ui::RpWidget> _layer;
+	QPoint _layerShift;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 
 	std::vector<Play> _plays;
 	std::vector<Delayed> _delayed;
-	rpl::event_stream<QRect> _updateRequests;
 	rpl::event_stream<QString> _playStarted;
 
 	std::vector<base::weak_ptr<const Element>> _pendingEffects;

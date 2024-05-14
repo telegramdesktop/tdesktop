@@ -375,6 +375,8 @@ ListWidget::ListWidget(
 , _delegate(delegate)
 , _session(session)
 , _emojiInteractions(std::make_unique<EmojiInteractions>(
+	this,
+	_delegate->listWindow()->content(),
 	session,
 	[=](not_null<const Element*> view) { return itemTop(view); }))
 , _context(_delegate->listContext())
@@ -499,11 +501,6 @@ ListWidget::ListWidget(
 	_delegate->listChatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
 		_isChatWide = wide;
-	}, lifetime());
-
-	_emojiInteractions->updateRequests(
-	) | rpl::start_with_next([=](QRect rect) {
-		update(rect);
 	}, lifetime());
 
 	_selectScroll.scrolls(
@@ -2278,7 +2275,6 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	if (_reactionsManager) {
 		_reactionsManager->paint(p, context);
 	}
-	_emojiInteractions->paint(p);
 }
 
 void ListWidget::paintUserpics(

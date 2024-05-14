@@ -45,9 +45,13 @@ constexpr auto kDropDelayedAfterDelay = crl::time(2000);
 } // namespace
 
 EmojiInteractions::EmojiInteractions(
+	not_null<QWidget*> parent,
+	not_null<QWidget*> layerParent,
 	not_null<Main::Session*> session,
 	Fn<int(not_null<const Element*>)> itemTop)
-: _session(session)
+: _parent(parent)
+, _layerParent(layerParent)
+, _session(session)
 , _itemTop(std::move(itemTop)) {
 	_session->data().viewRemoved(
 	) | rpl::filter([=] {
@@ -282,6 +286,18 @@ void EmojiInteractions::play(
 		return;
 	}
 
+	if (!_layer) {
+		_layer = base::make_unique_q<Ui::RpWidget>(_layerParent);
+		const auto raw = _layer.get();
+		raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+		raw->show();
+		raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+			paint(raw, clip);
+		}, raw->lifetime());
+	}
+	refreshLayerShift();
+	_layer->setGeometry(_layerParent->rect());
+
 	auto lottie = document->session().emojiStickersPack().effectPlayer(
 		document,
 		data,
@@ -302,11 +318,12 @@ void EmojiInteractions::play(
 			const auto i = ranges::find(_plays, raw, [](const Play &p) {
 				return p.lottie.get();
 			});
-			const auto rect = computeRect(*i).translated(shift);
-			if (rect.y() + rect.height() >= _visibleTop
-				&& rect.y() <= _visibleBottom) {
-				_updateRequests.fire_copy(rect);
+			auto update = computeRect(*i).translated(shift + _layerShift);
+			if (!i->lastTarget.isEmpty()) {
+				update = i->lastTarget.united(update);
 			}
+			_layer->update(update);
+			i->lastTarget = QRect();
 		});
 	}, lottie->lifetime());
 	_plays.push_back({
@@ -328,6 +345,16 @@ void EmojiInteractions::play(
 		if (type == Stickers::EffectType::EmojiInteraction) {
 			media->stickerClearLoopPlayed();
 		}
+	}
+}
+
+void EmojiInteractions::refreshLayerShift() {
+	_layerShift = Ui::MapFrom(_layerParent, _parent, QPoint(0, 0));
+}
+
+void EmojiInteractions::refreshLayerGeometryAndUpdate(QRect rect) {
+	if (!rect.isEmpty()) {
+		_layer->update(rect.translated(_layerShift));
 	}
 }
 
@@ -375,10 +402,32 @@ QRect EmojiInteractions::computeRect(const Play &play) const {
 	return QRect(QPoint(left, top), size).translated(play.shift);
 }
 
-void EmojiInteractions::paint(QPainter &p) {
+void EmojiInteractions::paint(not_null<QWidget*> layer, QRect clip) {
+	refreshLayerShift();
+
 	const auto factor = style::DevicePixelRatio();
+	const auto whole = layer->rect();
+
+	auto p = QPainter(layer);
+
+	auto updated = QRect();
+	const auto addRect = [&](QRect rect) {
+		if (updated.isEmpty()) {
+			updated = rect;
+		} else {
+			updated = rect.united(updated);
+		}
+	};
 	for (auto &play : _plays) {
 		if (!play.lottie->ready()) {
+			continue;
+		}
+		const auto target = computeRect(play).translated(_layerShift);
+		if (!target.intersects(whole)) {
+			play.finished = true;
+			addRect(target);
+			continue;
+		} else if (!target.intersects(clip)) {
 			continue;
 		}
 		auto request = Lottie::FrameRequest();
@@ -394,18 +443,18 @@ void EmojiInteractions::paint(QPainter &p) {
 			play.framesCount = information.framesCount;
 			play.frameRate = information.frameRate;
 		}
-		const auto rect = computeRect(play);
 		if (play.started && !play.frame) {
 			play.finished = true;
-			_updateRequests.fire_copy(rect);
+			addRect(target);
 			continue;
 		} else if (play.frame > 0) {
 			play.started = true;
 		}
 		p.drawImage(
-			QRect(rect.topLeft(), frame.image.size() / factor),
+			QRect(target.topLeft(), frame.image.size() / factor),
 			frame.image);
 		play.lottie->markFrameShown();
+		play.lastTarget = target.translated(_layerShift);
 	}
 	_plays.erase(ranges::remove_if(_plays, [](const Play &play) {
 		if (!play.finished) {
@@ -414,6 +463,18 @@ void EmojiInteractions::paint(QPainter &p) {
 		return true;
 	}), end(_plays));
 	checkDelayed();
+
+	if (_plays.empty()) {
+		layer->hide();
+		if (_layer.get() == layer) {
+			crl::on_main([moved = std::move(_layer)] {});
+		}
+	} else if (!updated.isEmpty()) {
+		const auto translated = updated.translated(_layerShift);
+		if (translated.intersects(whole)) {
+			_layer->update(translated);
+		}
+	}
 }
 
 void EmojiInteractions::checkDelayed() {
@@ -454,10 +515,6 @@ void EmojiInteractions::checkDelayed() {
 		good.view,
 		std::move(good.media),
 		good.incoming);
-}
-
-rpl::producer<QRect> EmojiInteractions::updateRequests() const {
-	return _updateRequests.events();
 }
 
 rpl::producer<QString> EmojiInteractions::playStarted() const {
