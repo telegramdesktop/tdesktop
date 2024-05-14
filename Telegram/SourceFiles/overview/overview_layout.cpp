@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_resolver.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
-#include "data/data_media_types.h"
 #include "data/data_peer.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
@@ -21,9 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_selection.h"
-#include "mainwidget.h"
 #include "storage/file_upload.h"
-#include "mainwindow.h"
 #include "main/main_session.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
@@ -999,23 +996,19 @@ const style::RoundCheckbox &Voice::checkboxStyle() const {
 
 void Voice::updateName() {
 	if (const auto forwarded = parent()->Get<HistoryMessageForwarded>()) {
-		if (parent()->fromOriginal()->isChannel()) {
-			_name.setText(
-				st::semiboldTextStyle,
-				tr::lng_forwarded_channel(
-					tr::now,
-					lt_channel,
-					parent()->fromOriginal()->name()),
-				Ui::NameTextOptions());
-		} else {
-			_name.setText(
-				st::semiboldTextStyle,
-				tr::lng_forwarded(
-					tr::now,
-					lt_user,
-					parent()->fromOriginal()->name()),
-				Ui::NameTextOptions());
-		}
+		const auto info = parent()->originalHiddenSenderInfo();
+		const auto name = info
+			? tr::lng_forwarded(tr::now, lt_user, info->nameText().toString())
+			: parent()->fromOriginal()->isChannel()
+			? tr::lng_forwarded_channel(
+				tr::now,
+				lt_channel,
+				parent()->fromOriginal()->name())
+			: tr::lng_forwarded(
+				tr::now,
+				lt_user,
+				parent()->fromOriginal()->name());
+		_name.setText(st::semiboldTextStyle, name, Ui::NameTextOptions());
 	} else {
 		_name.setText(
 			st::semiboldTextStyle,
