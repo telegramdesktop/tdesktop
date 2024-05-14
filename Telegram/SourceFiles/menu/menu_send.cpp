@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -103,6 +104,7 @@ private:
 	void setupSend(Details details);
 	void createLottie();
 
+	bool checkIconBecameLoaded();
 	[[nodiscard]] bool checkReady();
 
 	const EffectId _effectId = 0;
@@ -130,6 +132,8 @@ private:
 	QRect _inner;
 	QImage _bg;
 	QPoint _itemShift;
+	QRect _iconRect;
+	std::unique_ptr<Ui::InfiniteRadialAnimation> _loading;
 
 	rpl::lifetime _readyCheckLifetime;
 
@@ -289,6 +293,28 @@ void EffectPreview::paintEvent(QPaintEvent *e) {
 	_item->draw(p, context);
 	p.translate(-_itemShift);
 
+	checkIconBecameLoaded();
+	if (_icon.isNull()) {
+		if (!_loading) {
+			_loading = std::make_unique<Ui::InfiniteRadialAnimation>([=] {
+				update();
+			}, st::effectPreviewLoading);
+			_loading->start(st::defaultInfiniteRadialAnimation.linearPeriod);
+		}
+		const auto loading = _iconRect.marginsRemoved(
+			{ st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth });
+		auto hq = PainterHighQualityEnabler(p);
+		Ui::InfiniteRadialAnimation::Draw(
+			p,
+			_loading->computeState(),
+			loading.topLeft(),
+			loading.size(),
+			width(),
+			_chatStyle->msgInDateFg(),
+			st::effectPreviewLoading.thickness);
+	} else {
+		_loading = nullptr;
+	}
 	if (_lottie && _lottie->ready()) {
 		const auto factor = style::DevicePixelRatio();
 		auto request = Lottie::FrameRequest();
@@ -364,6 +390,7 @@ void EffectPreview::setupItem() {
 		shift + icon.x() + (icon.width() - size.width()) / 2,
 		icon.y() + (icon.height() - size.height()) / 2);
 	_itemShift = _inner.topLeft() - position;
+	_iconRect = icon.translated(_itemShift);
 }
 
 void EffectPreview::repaintBackground() {
@@ -462,11 +489,17 @@ void EffectPreview::setupSend(Details details) {
 	}
 }
 
+bool EffectPreview::checkIconBecameLoaded() {
+	if (!_icon.isNull()) {
+		return false;
+	}
+	const auto reactions = &_show->session().data().reactions();
+	_icon = reactions->resolveEffectImageFor(_effect.id.custom());
+	return !_icon.isNull();
+}
+
 bool EffectPreview::checkReady() {
-	if (_icon.isNull()) {
-		const auto reactions = &_show->session().data().reactions();
-		_icon = reactions->resolveEffectImageFor(_effect.id.custom());
-		repaintBackground();
+	if (checkIconBecameLoaded()) {
 		update();
 	}
 	if (_effect.aroundAnimation) {

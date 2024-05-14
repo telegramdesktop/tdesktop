@@ -1129,3 +1129,6 @@ effectPreviewPromoLabel: FlatLabel(defaultFlatLabel) {
 	}
 }
 effectPreviewPromoPadding: margins(4px, 6px, 4px, 6px);
+effectPreviewLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	thickness: 2px;
+}
