@@ -205,6 +205,7 @@ private:
 	Ui::PlainShadow *_shadow = nullptr;
 	rpl::variable<int> _shadowTop = 0;
 	rpl::variable<int> _shadowSkip = 0;
+	bool _showEmptySearch = false;
 
 	QImage _paintBuffer;
 	Ui::Animations::Simple _expanding;

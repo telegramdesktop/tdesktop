@@ -754,6 +754,7 @@ inlineResultsMinWidth: 48px;
 inlineDurationMargin: 3px;
 
 stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};
+emojiPremiumLock: icon{{ "chat/mini_lock", premiumButtonFg }};
 
 reactStripExtend: margins(21px, 49px, 39px, 0px);
 reactStripHeight: 40px;

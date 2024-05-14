@@ -219,7 +219,9 @@ StickersListWidget::StickersListWidget(
 , _installedWidth(st::stickersTrendingInstalled.font->width(_installedText))
 , _settings(this, tr::lng_stickers_you_have(tr::now))
 , _previewTimer([=] { showPreview(); })
-, _premiumMark(std::make_unique<StickerPremiumMark>(&session()))
+, _premiumMark(std::make_unique<StickerPremiumMark>(
+	&session(),
+	st::stickersPremiumLock))
 , _searchRequestTimer([=] { sendSearchRequest(); }) {
 	setMouseTracking(true);
 	if (st().bg->c.alpha() > 0) {
@@ -542,8 +544,8 @@ int StickersListWidget::countDesiredHeight(int newWidth) {
 	const auto minimalLastHeight = (_section == Section::Stickers)
 		? minimalHeight
 		: 0;
-	return qMax(minimalHeight, countResult(minimalLastHeight))
-		+ st::stickerPanPadding;
+	const auto result = qMax(minimalHeight, countResult(minimalLastHeight));
+	return result ? (result + st::stickerPanPadding) : 0;
 }
 
 void StickersListWidget::sendSearchRequest() {
@@ -675,7 +677,12 @@ void StickersListWidget::refreshSearchRows(
 	_lastMousePosition = QCursor::pos();
 
 	resizeToWidth(width());
+	_recentShownCount = _filteredStickers.size();
 	updateSelected();
+}
+
+rpl::producer<int> StickersListWidget::recentShownCount() const {
+	return _recentShownCount.value();
 }
 
 void StickersListWidget::fillLocalSearchRows(const QString &query) {
@@ -910,6 +917,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		toColumn = _columnCount - toColumn;
 	}
 
+	_paintAsPremium = session().premium();
 	_pathGradient->startFrame(0, width(), width() / 2);
 
 	auto &sets = shownSets();
@@ -1489,7 +1497,7 @@ void StickersListWidget::paintSticker(
 		: (set.id == SearchEmojiSectionSetId())
 		? &_filterStickersCornerEmoji
 		: nullptr;
-	if (corner && !corner->empty()) {
+	if (corner && !corner->empty() && _paintAsPremium) {
 		Assert(index < corner->size());
 		if (const auto emoji = (*corner)[index]) {
 			const auto size = Ui::Emoji::GetSizeNormal();
@@ -1960,6 +1968,11 @@ void StickersListWidget::setSection(Section section) {
 	}
 	clearHeavyData();
 	_section = section;
+	_recentShownCount = (section == Section::Search)
+		? _filteredStickers.size()
+		: _mySets.empty()
+		? 0
+		: _mySets.front().stickers.size();
 }
 
 void StickersListWidget::clearHeavyData() {
@@ -2242,6 +2255,9 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 	clearSelection();
 
 	auto recentPack = collectRecentStickers();
+	if (_section == Section::Stickers) {
+		_recentShownCount = recentPack.size();
+	}
 	auto recentIt = std::find_if(_mySets.begin(), _mySets.end(), [](auto &set) {
 		return set.id == Data::Stickers::RecentSetId;
 	});

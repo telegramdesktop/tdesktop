@@ -128,6 +128,7 @@ public:
 	bool mySetsEmpty() const;
 
 	void applySearchQuery(std::vector<QString> &&query);
+	[[nodiscard]] rpl::producer<int> recentShownCount() const;
 
 	~StickersListWidget();
 
@@ -388,6 +389,7 @@ private:
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
 	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
 
+	bool _paintAsPremium = false;
 	bool _showingSetById = false;
 	crl::time _lastScrolledAt = 0;
 	crl::time _lastFullUpdatedAt = 0;
@@ -437,6 +439,7 @@ private:
 
 	std::vector<not_null<DocumentData*>> _filteredStickers;
 	std::vector<EmojiPtr> _filterStickersCornerEmoji;
+	rpl::variable<int> _recentShownCount;
 	std::map<QString, std::vector<uint64>> _searchCache;
 	std::vector<std::pair<uint64, QStringList>> _searchIndex;
 	base::Timer _searchRequestTimer;

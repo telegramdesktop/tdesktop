@@ -1120,3 +1120,12 @@ effectPreviewSend: FlatButton(previewMarkRead) {
 	bgColor: transparent;
 	overBgColor: transparent;
 }
+effectPreviewPromoLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 64px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+effectPreviewPromoPadding: margins(4px, 6px, 4px, 6px);

@@ -564,6 +564,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_effect_add_title" = "Add an animated effect";
 "lng_effect_stickers_title" = "Effects from stickers";
 "lng_effect_send" = "Send with Effect";
+"lng_effect_none" = "No effects found.";
+"lng_effect_premium" = "Subscribe to {link} to add this animated effect.";
+"lng_effect_premium_link" = "Telegram Premium";
 
 "lng_languages" = "Languages";
 "lng_languages_none" = "No languages found.";

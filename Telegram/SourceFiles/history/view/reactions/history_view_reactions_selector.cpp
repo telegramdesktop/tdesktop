@@ -972,6 +972,7 @@ void Selector::createList() {
 		: st::reactPanelScrollRounded);
 	_scroll->hide();
 
+	const auto effects = !_reactions.stickers.empty();
 	const auto st = lifetime().make_state<style::EmojiPan>(_st);
 	st->padding.setTop(_skipy);
 	if (!_reactions.customAllowed) {
@@ -979,15 +980,35 @@ void Selector::createList() {
 	}
 	auto lists = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(_scroll));
+	auto recentList = _strip
+		? _unifiedFactoryOwner->unifiedIdsList()
+		: _recent;
+	auto freeEffects = base::flat_set<DocumentId>();
+	if (effects) {
+		auto free = base::flat_set<Data::ReactionId>();
+		free.reserve(_reactions.recent.size());
+		for (const auto &reaction : _reactions.recent) {
+			if (!reaction.premium) {
+				free.emplace(reaction.id);
+			}
+		}
+		for (const auto &id : recentList) {
+			const auto reactionId = _strip
+				? _unifiedFactoryOwner->lookupReactionId(id)
+				: Data::ReactionId{ id };
+			if (free.contains(reactionId)) {
+				freeEffects.insert(id);
+			}
+		}
+	}
 	_list = lists->add(
 		object_ptr<EmojiListWidget>(lists, EmojiListDescriptor{
 			.show = _show,
 			.mode = _listMode,
 			.paused = [] { return false; },
-			.customRecentList = (_strip
-				? _unifiedFactoryOwner->unifiedIdsList()
-				: _recent),
+			.customRecentList = std::move(recentList),
 			.customRecentFactory = _unifiedFactoryOwner->factory(),
+			.freeEffects = std::move(freeEffects),
 			.st = st,
 		}));
 	if (!_reactions.stickers.empty()) {
@@ -1092,6 +1113,27 @@ void Selector::createList() {
 		) | rpl::start_with_next([=](std::vector<QString> &&query) {
 			_stickers->applySearchQuery(std::move(query));
 		}, _stickers->lifetime());
+
+
+		rpl::combine(
+			_list->recentShownCount(),
+			_stickers->recentShownCount()
+		) | rpl::start_with_next([=](int emoji, int stickers) {
+			_showEmptySearch = !emoji && !stickers;
+			_scroll->update();
+		}, _scroll->lifetime());
+
+		_scroll->paintRequest() | rpl::filter([=] {
+			return _showEmptySearch;
+		}) | rpl::start_with_next([=] {
+			auto p = QPainter(_scroll);
+			p.setPen(st::windowSubTextFg);
+			p.setFont(st::normalFont);
+			p.drawText(
+				_scroll->rect(),
+				tr::lng_effect_none(tr::now),
+				style::al_center);
+		}, _scroll->lifetime());
 	} else {
 		_list->setMinimalHeight(geometry.width(), _scroll->height());
 	}

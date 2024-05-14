@@ -29,9 +29,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/painter.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -42,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "settings/settings_premium.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "styles/style_chat.h"
@@ -89,6 +93,8 @@ private:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 
+	[[nodiscard]] bool canSend() const;
+
 	void setupGeometry(QPoint position);
 	void setupBackground();
 	void setupItem();
@@ -110,6 +116,9 @@ private:
 	const AdminLog::OwnedItem _replyTo;
 	const AdminLog::OwnedItem _item;
 	const std::unique_ptr<Ui::FlatButton> _send;
+	const std::unique_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _premiumPromoLabel;
+	const not_null<Ui::RpWidget*> _bottom;
+	const Fn<void()> _close;
 	const Fn<void(Action, Details)> _actionWithEffect;
 
 	QImage _icon;
@@ -236,11 +245,26 @@ EffectPreview::EffectPreview(
 	_replyTo->data()->fullId(),
 	tr::lng_settings_chat_message_reply(tr::now),
 	_effectId))
-, _send(
-	std::make_unique<BottomRounded>(
+, _send(canSend()
+	? std::make_unique<BottomRounded>(
 		this,
 		tr::lng_effect_send(tr::now),
-		st::effectPreviewSend))
+		st::effectPreviewSend)
+	: nullptr)
+, _premiumPromoLabel(canSend()
+	? nullptr
+	: std::make_unique<Ui::PaddingWrap<Ui::FlatLabel>>(
+		this,
+		object_ptr<Ui::FlatLabel>(
+			this,
+			tr::lng_effect_premium(
+				lt_link,
+				tr::lng_effect_premium_link() | Ui::Text::ToLink(),
+				Ui::Text::WithEntities),
+			st::effectPreviewPromoLabel),
+		st::effectPreviewPromoPadding))
+, _bottom(_send ? ((Ui::RpWidget*)_send.get()) : _premiumPromoLabel.get())
+, _close(done)
 , _actionWithEffect(ComposeActionWithEffect(action, _effectId, done)) {
 	setupGeometry(position);
 	setupBackground();
@@ -291,8 +315,9 @@ void EffectPreview::setupGeometry(QPoint position) {
 	const auto shadow = st::previewMenu.shadow;
 	const auto extend = shadow.extend;
 	_inner = QRect(QPoint(extend.left(), extend.top()), innerSize);
+	_bottom->resizeToWidth(_inner.width());
 	const auto size = _inner.marginsAdded(extend).size()
-		+ QSize(0, _send->height());
+		+ QSize(0, _bottom->height());
 	const auto left = std::max(
 		std::min(
 			position.x() - size.width() / 2,
@@ -305,11 +330,11 @@ void EffectPreview::setupGeometry(QPoint position) {
 			parent->height() - size.height()),
 		topMin);
 	setGeometry(left, top, size.width(), size.height());
-	_send->setGeometry(
+	_bottom->setGeometry(
 		_inner.x(),
 		_inner.y() + _inner.height(),
 		_inner.width(),
-		_send->height());
+		_bottom->height());
 }
 
 void EffectPreview::setupBackground() {
@@ -343,7 +368,7 @@ void EffectPreview::setupItem() {
 
 void EffectPreview::repaintBackground() {
 	const auto ratio = style::DevicePixelRatio();
-	const auto inner = _inner.size() + QSize(0, _send->height());
+	const auto inner = _inner.size() + QSize(0, _bottom->height());
 	auto bg = QImage(
 		inner * ratio,
 		QImage::Format_ARGB32_Premultiplied);
@@ -357,7 +382,7 @@ void EffectPreview::repaintBackground() {
 			QSize(inner.width(), inner.height() * 5),
 			QRect(QPoint(), inner));
 		p.fillRect(
-			QRect(0, _inner.height(), _inner.width(), _send->height()),
+			QRect(0, _inner.height(), _inner.width(), _bottom->height()),
 			st::previewMarkRead.bgColor);
 		auto hq = PainterHighQualityEnabler(p);
 		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
@@ -409,14 +434,32 @@ void EffectPreview::createLottie() {
 	}, raw->lifetime());
 }
 
+bool EffectPreview::canSend() const {
+	return !_effect.premium || _show->session().premium();
+}
+
 void EffectPreview::setupSend(Details details) {
-	_send->setClickedCallback([=] {
-		_actionWithEffect(Api::SendOptions(), details);
-	});
-	const auto type = details.type;
-	SetupMenuAndShortcuts(_send.get(), _show, [=] {
-		return Details{ .type = type };
-	}, _actionWithEffect);
+	if (_send) {
+		_send->setClickedCallback([=] {
+			_actionWithEffect(Api::SendOptions(), details);
+		});
+		const auto type = details.type;
+		SetupMenuAndShortcuts(_send.get(), _show, [=] {
+			return Details{ .type = type };
+		}, _actionWithEffect);
+	} else {
+		_premiumPromoLabel->entity()->setClickHandlerFilter([=](auto&&...) {
+			const auto window = _show->resolveWindow(
+				ChatHelpers::WindowUsage::PremiumPromo);
+			if (window) {
+				if (const auto onstack = _close) {
+					onstack();
+				}
+				Settings::ShowPremium(window, "message_effect");
+			}
+			return false;
+		});
+	}
 }
 
 bool EffectPreview::checkReady() {

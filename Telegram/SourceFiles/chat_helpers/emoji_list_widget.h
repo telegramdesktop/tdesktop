@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "base/timer.h"
 
+class StickerPremiumMark;
+
 namespace style {
 struct EmojiPan;
 } // namespace style
@@ -89,6 +91,7 @@ struct EmojiListDescriptor {
 	Fn<std::unique_ptr<Ui::Text::CustomEmoji>(
 		DocumentId,
 		Fn<void()>)> customRecentFactory;
+	base::flat_set<DocumentId> freeEffects;
 	const style::EmojiPan *st = nullptr;
 	ComposeFeatures features;
 };
@@ -148,6 +151,7 @@ public:
 		const SendMenu::Details &details) override;
 
 	[[nodiscard]] rpl::producer<std::vector<QString>> searchQueries() const;
+	[[nodiscard]] rpl::producer<int> recentShownCount() const;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -400,10 +404,13 @@ private:
 	int _counts[kEmojiSectionCount];
 	std::vector<RecentOne> _recent;
 	base::flat_set<DocumentId> _recentCustomIds;
+	base::flat_set<DocumentId> _freeEffects;
 	base::flat_set<uint64> _repaintsScheduled;
+	rpl::variable<int> _recentShownCount;
 	std::unique_ptr<Ui::Text::CustomEmojiPaintContext> _emojiPaintContext;
 	bool _recentPainted = false;
 	bool _grabbingChosen = false;
+	bool _paintAsPremium = false;
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
 	base::flat_set<DocumentId> _restrictedCustomList;
@@ -417,6 +424,8 @@ private:
 	Ui::RoundRect _overBg;
 	QImage _searchExpandCache;
 
+	std::unique_ptr<StickerPremiumMark> _premiumMark;
+	QImage _premiumMarkFrameCache;
 	mutable std::unique_ptr<Ui::RippleAnimation> _colorAllRipple;
 	bool _colorAllRippleForced = false;
 	rpl::lifetime _colorAllRippleForcedLifetime;
