@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "overview/overview_layout.h"
 
 #include "overview/overview_layout_delegate.h"
+#include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_document.h"
 #include "data/data_document_resolver.h"
 #include "data/data_session.h"
@@ -867,6 +868,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.drawTextLeft(nameleft, statustop, _width, _status.text(), statusw);
 			unreadx += statusw;
 		}
+		auto captionLeft = unreadx + st::mediaUnreadSkip;
 		if (parent()->hasUnreadMediaFlag() && unreadx + st::mediaUnreadSkip + st::mediaUnreadSize <= _width) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(selected ? st::msgFileInBgSelected : st::msgFileInBg);
@@ -875,6 +877,22 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 				PainterHighQualityEnabler hq(p);
 				p.drawEllipse(style::rtlrect(unreadx + st::mediaUnreadSkip, statustop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
 			}
+			captionLeft += st::mediaUnreadSkip + st::mediaUnreadSize;
+		}
+		if (!_caption.isEmpty()) {
+			p.setPen(st::historyFileNameInFg);
+			const auto w = _width - captionLeft - st::defaultScrollArea.width;
+			_caption.draw(p, Ui::Text::PaintContext{
+				.position = QPoint(captionLeft, statustop),
+				.availableWidth = w,
+				.spoiler = Ui::Text::DefaultSpoilerCache(),
+				.paused = context
+					? context->paused
+					: On(PowerSaving::kEmojiChat),
+				.pausedEmoji = On(PowerSaving::kEmojiChat),
+				.pausedSpoiler = On(PowerSaving::kChatSpoiler),
+				.elisionLines = 1,
+			});
 		}
 	}
 
@@ -1005,6 +1023,14 @@ void Voice::updateName() {
 			Ui::NameTextOptions());
 	}
 	_nameVersion = parent()->fromOriginal()->nameVersion();
+	_caption.setMarkedText(
+		st::defaultTextStyle,
+		parent()->originalText(),
+		Ui::DialogTextOptions(),
+		Core::MarkedTextContext{
+			.session = &parent()->history()->session(),
+			.customEmojiRepaint = [=] { delegate()->repaintItem(this); },
+		});
 }
 
 bool Voice::updateStatusText() {
