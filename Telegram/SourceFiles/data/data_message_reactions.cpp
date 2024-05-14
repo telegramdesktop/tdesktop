@@ -584,15 +584,14 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 	}
 	auto &set = _images.emplace(id).first->second;
 	set.effect = (id.custom() != 0);
-	const auto i = set.effect
-		? ranges::find(_effects, id, &Reaction::id)
-		: ranges::find(_available, id, &Reaction::id);
-	const auto document = (i == end(set.effect ? _effects : _available))
+	auto &list = set.effect ? _effects : _available;
+	const auto i = ranges::find(list, id, &Reaction::id);
+	const auto document = (i == end(list))
 		? nullptr
 		: i->centerIcon
 		? i->centerIcon
 		: i->selectAnimation.get();
-	if (document || (set.effect && i != end(_effects))) {
+	if (document || (set.effect && i != end(list))) {
 		if (!set.effect || i->centerIcon) {
 			loadImage(set, document, !i->centerIcon);
 		} else {
@@ -656,11 +655,13 @@ QImage Reactions::resolveEffectImageFor(EffectId id) {
 }
 
 QImage Reactions::resolveImageFor(const ReactionId &id) {
-	const auto i = _images.find(id);
+	auto i = _images.find(id);
 	if (i == end(_images)) {
 		preloadImageFor(id);
+		i = _images.find(id);
+		Assert(i != end(_images));
 	}
-	auto &set = (i != end(_images)) ? i->second : _images[id];
+	auto &set = i->second;
 	set.effect = (id.custom() != 0);
 
 	const auto resolve = [&](QImage &image, int size) {
