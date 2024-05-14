@@ -214,9 +214,8 @@ void BottomRounded::paintEvent(QPaintEvent *e) {
 		EffectId id,
 		Fn<void()> done) {
 	return [=](Action action, Details details) {
-		if (const auto options = std::get_if<Api::SendOptions>(&action)) {
-			options->effectId = id;
-		}
+		action.options.effectId = id;
+
 		const auto onstack = done;
 		sendAction(action, details);
 		if (onstack) {
@@ -511,7 +510,7 @@ bool EffectPreview::canSend() const {
 void EffectPreview::setupSend(Details details) {
 	if (_send) {
 		_send->setClickedCallback([=] {
-			_actionWithEffect(Api::SendOptions(), details);
+			_actionWithEffect({}, details);
 		});
 		const auto type = details.type;
 		SetupMenuAndShortcuts(_send.get(), _show, [=] {
@@ -588,18 +587,20 @@ Fn<void(Action, Details)> DefaultCallback(
 		Fn<void(Api::SendOptions)> send) {
 	const auto guard = Ui::MakeWeak(show->toastParent());
 	return [=](Action action, Details details) {
-		if (const auto options = std::get_if<Api::SendOptions>(&action)) {
-			send(*options);
-		} else if (v::get<ActionType>(action) == ActionType::Send) {
-			send({});
-		} else {
-			using namespace HistoryView;
-			auto box = PrepareScheduleBox(guard, show, details, send);
-			const auto weak = Ui::MakeWeak(box.data());
-			show->showBox(std::move(box));
-			if (const auto strong = weak.data()) {
-				strong->setCloseByOutsideClick(false);
-			}
+		if (action.type == ActionType::Send) {
+			send(action.options);
+			return;
+		}
+		auto box = HistoryView::PrepareScheduleBox(
+			guard,
+			show,
+			details,
+			send,
+			action.options);
+		const auto weak = Ui::MakeWeak(box.data());
+		show->showBox(std::move(box));
+		if (const auto strong = weak.data()) {
+			strong->setCloseByOutsideClick(false);
 		}
 	};
 }
@@ -622,7 +623,9 @@ FillMenuResult FillSendMenu(
 	if (type != Type::Reminder) {
 		menu->addAction(
 			tr::lng_send_silent_message(tr::now),
-			[=] { action(Api::SendOptions{ .silent = true }, details); },
+			[=] { action(
+				{ Api::SendOptions{ .silent = true } },
+				details); },
 			&icons.menuMute);
 	}
 	if (type != Type::SilentOnly) {
@@ -630,13 +633,15 @@ FillMenuResult FillSendMenu(
 			(type == Type::Reminder
 				? tr::lng_reminder_message(tr::now)
 				: tr::lng_schedule_message(tr::now)),
-			[=] { action(ActionType::Schedule, details); },
+			[=] { action({ .type = ActionType::Schedule }, details); },
 			&icons.menuSchedule);
 	}
 	if (type == Type::ScheduledToUser) {
 		menu->addAction(
 			tr::lng_scheduled_send_until_online(tr::now),
-			[=] { action(Api::DefaultSendWhenOnlineOptions(), details); },
+			[=] { action(
+				{ Api::DefaultSendWhenOnlineOptions() },
+				details); },
 			&icons.menuWhenOnline);
 	}
 
@@ -730,14 +735,14 @@ void SetupMenuAndShortcuts(
 		((now != Type::Reminder)
 			&& request->check(Command::SendSilentMessage)
 			&& request->handle([=] {
-				action(Api::SendOptions{ .silent = true }, details());
+				action({ Api::SendOptions{ .silent = true } }, details());
 				return true;
 			}))
 		||
 		((now != Type::SilentOnly)
 			&& request->check(Command::ScheduleMessage)
 			&& request->handle([=] {
-				action(ActionType::Schedule, details());
+				action({ .type = ActionType::Schedule }, details());
 				return true;
 			}))
 		||

@@ -1304,7 +1304,9 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 
 	const auto isNormal = (_sendType == Api::SendType::Normal);
 	const auto schedule = [=] {
-		sendAction(SendMenu::ActionType::Schedule, _sendMenuDetails());
+		sendAction(
+			{ .type = SendMenu::ActionType::Schedule },
+			_sendMenuDetails());
 	};
 	const auto submit = addButton(
 		(isNormal

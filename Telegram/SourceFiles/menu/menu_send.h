@@ -7,13 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
+
 namespace style {
 struct ComposeIcons;
 } // namespace style
-
-namespace Api {
-struct SendOptions;
-} // namespace Api
 
 namespace ChatHelpers {
 class Show;
@@ -54,7 +52,12 @@ enum class ActionType {
 	Send,
 	Schedule,
 };
-using Action = std::variant<Api::SendOptions, ActionType>;
+struct Action {
+	using Type = ActionType;
+
+	Api::SendOptions options;
+	Type type = Type::Send;
+};
 [[nodiscard]] Fn<void(Action, Details)> DefaultCallback(
 	std::shared_ptr<ChatHelpers::Show> show,
 	Fn<void(Api::SendOptions)> send);

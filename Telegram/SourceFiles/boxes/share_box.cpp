@@ -523,12 +523,19 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 
 	using namespace SendMenu;
 	const auto sendAction = crl::guard(this, [=](Action action, Details) {
-		const auto options = std::get_if<Api::SendOptions>(&action);
-		if (options || v::get<ActionType>(action) == ActionType::Send) {
-			submit(options ? *options : Api::SendOptions());
-		} else {
-			submitScheduled();
+		if (action.type == ActionType::Send) {
+			submit(action.options);
+			return;
 		}
+		uiShow()->showBox(
+			HistoryView::PrepareScheduleBox(
+				this,
+				nullptr, // ChatHelpers::Show for effect attachment.
+				sendMenuDetails(),
+				[=](Api::SendOptions options) { submit(options); },
+				action.options,
+				HistoryView::DefaultScheduleTime(),
+				_descriptor.scheduleBoxStyle));
 	});
 	_menu->setForcedVerticalOrigin(Ui::PopupMenu::VerticalOrigin::Bottom);
 	const auto result = FillSendMenu(
@@ -618,18 +625,6 @@ void ShareBox::submit(Api::SendOptions options) {
 			options,
 			forwardOptions);
 	}
-}
-
-void ShareBox::submitScheduled() {
-	const auto callback = [=](Api::SendOptions options) { submit(options); };
-	uiShow()->showBox(
-		HistoryView::PrepareScheduleBox(
-			this,
-			nullptr, // ChatHelpers::Show for effect attachment.
-			sendMenuDetails(),
-			callback,
-			HistoryView::DefaultScheduleTime(),
-			_descriptor.scheduleBoxStyle));
 }
 
 void ShareBox::copyLink() const {

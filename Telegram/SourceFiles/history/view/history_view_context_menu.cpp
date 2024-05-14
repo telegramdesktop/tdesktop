@@ -592,6 +592,7 @@ bool AddRescheduleAction(
 				request.navigation->uiShow(),
 				{ .type = sendMenuType, .effectAllowed = false },
 				callback,
+				{}, // initial options
 				date));
 
 		owner->itemRemoved(

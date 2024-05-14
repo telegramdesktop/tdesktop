@@ -324,11 +324,10 @@ HistoryWidget::HistoryWidget(
 	{
 		using namespace SendMenu;
 		const auto sendAction = [=](Action action, Details) {
-			const auto options = std::get_if<Api::SendOptions>(&action);
-			if (options || v::get<ActionType>(action) == ActionType::Send) {
-				send(options ? *options : Api::SendOptions());
+			if (action.type == ActionType::Send) {
+				send(action.options);
 			} else {
-				sendScheduled();
+				sendScheduled(action.options);
 			}
 		};
 		SetupMenuAndShortcuts(
@@ -4192,7 +4191,7 @@ void HistoryWidget::sendWithModifiers(Qt::KeyboardModifiers modifiers) {
 	send({ .handleSupportSwitch = Support::HandleSwitch(modifiers) });
 }
 
-void HistoryWidget::sendScheduled() {
+void HistoryWidget::sendScheduled(Api::SendOptions initialOptions) {
 	if (!_list) {
 		return;
 	}
@@ -4202,13 +4201,13 @@ void HistoryWidget::sendScheduled() {
 			ignoreSlowmodeCountdown)) {
 		return;
 	}
-	const auto callback = [=](Api::SendOptions options) { send(options); };
 	controller()->show(
 		HistoryView::PrepareScheduleBox(
 			_list,
 			controller()->uiShow(),
 			sendMenuDetails(),
-			callback));
+			[=](Api::SendOptions options) { send(options); },
+			initialOptions));
 }
 
 SendMenu::Details HistoryWidget::sendMenuDetails() const {

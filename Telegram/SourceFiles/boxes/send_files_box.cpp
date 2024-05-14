@@ -1427,7 +1427,7 @@ void SendFilesBox::send(
 		|| _sendType == Api::SendType::ScheduledToUser)
 		&& !options.scheduled) {
 		return SendMenu::DefaultCallback(_show, sendCallback())(
-			SendMenu::ActionType::Schedule,
+			{ .type = SendMenu::ActionType::Schedule },
 			_sendMenuDetails());
 	}
 	if (_preparing) {

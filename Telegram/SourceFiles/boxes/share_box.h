@@ -130,7 +130,6 @@ private:
 	void scrollAnimationCallback();
 
 	void submit(Api::SendOptions options);
-	void submitScheduled();
 	void copyLink() const;
 	bool searchByUsername(bool useCache = false);
 

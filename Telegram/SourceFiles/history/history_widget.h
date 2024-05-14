@@ -395,7 +395,7 @@ private:
 		Api::SendOptions options) const;
 	void send(Api::SendOptions options);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
-	void sendScheduled();
+	void sendScheduled(Api::SendOptions initialOptions);
 	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;
 	void handlePendingHistoryUpdate();
 	void fullInfoUpdated();
