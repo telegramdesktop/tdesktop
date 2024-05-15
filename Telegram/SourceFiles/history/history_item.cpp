@@ -3543,7 +3543,8 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 		const auto topicPost = config.reply.externalPeerId
 			? (replyTo.topicRootId
 				&& (replyTo.topicRootId != Data::ForumTopic::kGeneralId))
-			: (LookupReplyIsTopicPost(to)
+			: (topic
+				|| LookupReplyIsTopicPost(to)
 				|| (to && to->Has<HistoryServiceTopicInfo>())
 				|| (forum && forum->creating(config.reply.topMessageId)));
 		config.reply.topicPost = topicPost ? 1 : 0;
