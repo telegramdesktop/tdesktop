@@ -167,23 +167,6 @@ void TopBarAbstract::computeIsDark() {
 TopBar::TopBar(
 	not_null<QWidget*> parent,
 	const style::PremiumCover &st,
-	Fn<QVariant()> clickContextOther,
-	rpl::producer<QString> title,
-	rpl::producer<TextWithEntities> about,
-	bool light,
-	bool optimizeMinistars)
-: TopBar(parent, st, {
-	.clickContextOther = std::move(clickContextOther),
-	.title = std::move(title),
-	.about = std::move(about),
-	.light = light,
-	.optimizeMinistars = optimizeMinistars,
-}) {
-}
-
-TopBar::TopBar(
-	not_null<QWidget*> parent,
-	const style::PremiumCover &st,
 	TopBarDescriptor &&descriptor)
 : TopBarAbstract(parent, st)
 , _light(descriptor.light)

@@ -78,14 +78,6 @@ public:
 	TopBar(
 		not_null<QWidget*> parent,
 		const style::PremiumCover &st,
-		Fn<QVariant()> clickContextOther,
-		rpl::producer<QString> title,
-		rpl::producer<TextWithEntities> about,
-		bool light = false,
-		bool optimizeMinistars = true);
-	TopBar(
-		not_null<QWidget*> parent,
-		const style::PremiumCover &st,
 		TopBarDescriptor &&descriptor);
 	~TopBar();
 

@@ -1147,16 +1147,18 @@ void GiftCodeBox(
 		object_ptr<Ui::Premium::TopBar>(
 			box,
 			st::giveawayGiftCodeCover,
-			nullptr,
-			rpl::conditional(
-				state->used.value(),
-				tr::lng_gift_link_used_title(),
-				tr::lng_gift_link_title()),
-			rpl::conditional(
-				state->used.value(),
-				tr::lng_gift_link_used_about(Ui::Text::RichLangValue),
-				tr::lng_gift_link_about(Ui::Text::RichLangValue)),
-			true));
+			Ui::Premium::TopBarDescriptor{
+				.clickContextOther = nullptr,
+				.title = rpl::conditional(
+					state->used.value(),
+					tr::lng_gift_link_used_title(),
+					tr::lng_gift_link_title()),
+				.about = rpl::conditional(
+					state->used.value(),
+					tr::lng_gift_link_used_about(Ui::Text::RichLangValue),
+					tr::lng_gift_link_about(Ui::Text::RichLangValue)),
+				.light = true,
+			}));
 
 	const auto max = st::giveawayGiftCodeTopHeight;
 	bar->setMaximumHeight(max);
@@ -1283,13 +1285,15 @@ void GiftCodePendingBox(
 			object_ptr<Ui::Premium::TopBar>(
 				box,
 				st,
-				clickContext,
-				tr::lng_gift_link_title(),
-				tr::lng_gift_link_pending_about(
-					lt_user,
-					rpl::single(Ui::Text::Link(resultToName)),
-					Ui::Text::RichLangValue),
-				true));
+				Ui::Premium::TopBarDescriptor{
+					.clickContextOther = clickContext,
+					.title = tr::lng_gift_link_title(),
+					.about = tr::lng_gift_link_pending_about(
+						lt_user,
+						rpl::single(Ui::Text::Link(resultToName)),
+						Ui::Text::RichLangValue),
+					.light = true,
+				}));
 
 		const auto max = st::giveawayGiftCodeTopHeight;
 		bar->setMaximumHeight(max);
