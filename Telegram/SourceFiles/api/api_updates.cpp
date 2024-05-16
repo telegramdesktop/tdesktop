@@ -1138,7 +1138,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPVector<MTPRestrictionReason>(),
 				MTP_int(d.vttl_period().value_or_empty()),
 				MTPint(), // quick_reply_shortcut_id
-				MTPlong()), // effect
+				MTPlong(), // effect
+				MTPFactCheck()),
 			MessageFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -1174,7 +1175,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPVector<MTPRestrictionReason>(),
 				MTP_int(d.vttl_period().value_or_empty()),
 				MTPint(), // quick_reply_shortcut_id
-				MTPlong()), // effect
+				MTPlong(), // effect
+				MTPFactCheck()),
 			MessageFlags(),
 			NewMessageType::Unread);
 	} break;

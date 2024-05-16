@@ -140,7 +140,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTPVector<MTPRestrictionReason>(),
 			MTPint(), // ttl_period
 			MTPint(), // quick_reply_shortcut_id
-			MTP_long(data.veffect().value_or_empty()));
+			MTP_long(data.veffect().value_or_empty()),
+			data.vfactcheck() ? *data.vfactcheck() : MTPFactCheck());
 	});
 }
 

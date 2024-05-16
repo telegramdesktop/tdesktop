@@ -359,8 +359,11 @@ void Form::requestForm() {
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		hideProgress();
-		result.match([&](const auto &data) {
+		result.match([&](const MTPDpayments_paymentForm &data) {
 			processForm(data);
+		}, [&](const MTPDpayments_paymentFormStars &data) {
+			// #TODO stars
+			_updates.fire(Error{ Error::Type::Form });
 		});
 	}).fail([=](const MTP::Error &error) {
 		hideProgress();

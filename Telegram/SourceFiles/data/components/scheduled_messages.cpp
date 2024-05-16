@@ -92,7 +92,8 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			MTPVector<MTPRestrictionReason>(),
 			MTP_int(data.vttl_period().value_or_empty()),
 			MTPint(), // quick_reply_shortcut_id
-			MTP_long(data.veffect().value_or_empty())); // effect
+			MTP_long(data.veffect().value_or_empty()), // effect
+			data.vfactcheck() ? *data.vfactcheck() : MTPFactCheck());
 	});
 }
 
@@ -264,7 +265,8 @@ void ScheduledMessages::sendNowSimpleMessage(
 			MTPVector<MTPRestrictionReason>(),
 			MTP_int(update.vttl_period().value_or_empty()),
 			MTPint(), // quick_reply_shortcut_id
-			MTP_long(local->effectId())), // effect
+			MTP_long(local->effectId()), // effect
+			MTPFactCheck()),
 		localFlags,
 		NewMessageType::Unread);
 
