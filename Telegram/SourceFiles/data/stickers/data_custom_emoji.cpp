@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/stickers/data_custom_emoji.h"
 
+#include "boxes/peers/edit_forum_topic_box.h" // MakeTopicIconEmoji.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -15,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_forum_topic.h" // ParseTopicIconEmojiEntity.
 #include "data/data_peer.h"
 #include "data/data_message_reactions.h"
 #include "data/stickers/data_stickers.h"
@@ -539,6 +541,8 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		const auto ratio = style::DevicePixelRatio();
 		const auto size = EmojiSizeFromTag(tag) / ratio;
 		return userpic(data, std::move(update), size);
+	} else if (const auto parsed = Data::ParseTopicIconEmojiEntity(data)) {
+		return MakeTopicIconEmoji(parsed, std::move(update));
 	}
 	const auto parsed = ParseCustomEmojiData(data);
 	return parsed

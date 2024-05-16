@@ -5174,6 +5174,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_font_system" = "System font";
 "lng_font_not_found" = "Font not found.";
 
+"lng_search_tab_my_messages" = "My Messages";
+"lng_search_tab_this_topic" = "This Topic";
+"lng_search_tab_this_chat" = "This Chat";
+"lng_search_tab_this_channel" = "This Channel";
+"lng_search_tab_this_group" = "This Group";
+"lng_search_tab_public_posts" = "Public Posts";
+"lng_search_tab_no_results" = "No Results";
+"lng_search_tab_no_results_text" = "There were no results for \"{query}\".";
+"lng_search_tab_no_results_retry" = "Try another hashtag.";
+"lng_search_tab_by_hashtag" = "Enter a hashtag to find messages containing it.";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

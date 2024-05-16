@@ -85,6 +85,8 @@ PRIVATE
     data/data_subscription_option.h
 
     dialogs/dialogs_three_state_icon.h
+    dialogs/ui/chat_search_tabs.cpp
+    dialogs/ui/chat_search_tabs.h
     dialogs/ui/dialogs_stories_list.cpp
     dialogs/ui/dialogs_stories_list.h
     dialogs/ui/top_peers_strip.cpp

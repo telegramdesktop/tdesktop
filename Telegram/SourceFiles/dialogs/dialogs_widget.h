@@ -76,6 +76,8 @@ struct ChosenRow;
 class InnerWidget;
 enum class SearchRequestType;
 class Suggestions;
+class ChatSearchTabs;
+enum class ChatSearchTab : uchar;
 
 class Widget final : public Window::AbstractSectionWidget {
 public:
@@ -225,6 +227,7 @@ private:
 		QPixmap newContentCache,
 		Window::SlideDirection direction);
 
+	void applySearchTab();
 	void openChildList(
 		not_null<Data::Forum*> forum,
 		const Window::SectionShow &params);
@@ -232,6 +235,7 @@ private:
 
 	void fullSearchRefreshOn(rpl::producer<> events);
 	void updateCancelSearch();
+	bool fixSearchQuery();
 	void applySearchUpdate(bool force = false);
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
 	void loadMoreBlockedByDate();
@@ -251,6 +255,7 @@ private:
 	void updateScrollUpPosition();
 	void updateLockUnlockPosition();
 	void updateSuggestions(anim::type animated);
+	void updateSearchTabs();
 	void processSearchFocusChange();
 
 	[[nodiscard]] bool redirectToSearchPossible() const;
@@ -289,6 +294,7 @@ private:
 	QPointer<InnerWidget> _inner;
 	std::unique_ptr<Suggestions> _suggestions;
 	std::vector<std::unique_ptr<Suggestions>> _hidingSuggestions;
+	std::unique_ptr<ChatSearchTabs> _searchTabs;
 	class BottomButton;
 	object_ptr<BottomButton> _updateTelegram = { nullptr };
 	object_ptr<BottomButton> _loadMoreChats = { nullptr };
@@ -304,6 +310,9 @@ private:
 	object_ptr<Ui::JumpDownButton> _scrollToTop;
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
+	bool _fixingSearchQuery = false;
+	bool _searchingHashtag = false;
+	ChatSearchTab _searchTab = ChatSearchTab();
 
 	Data::Folder *_openedFolder = nullptr;
 	Data::Forum *_openedForum = nullptr;
@@ -315,6 +324,10 @@ private:
 	QString _lastSearchText;
 	bool _searchSuggestionsLocked = false;
 	bool _searchHasFocus = false;
+
+	Key _hiddenSearchInChat;
+	PeerData *_hiddenSearchFromAuthor = nullptr;
+	std::vector<Data::ReactionId> _hiddenSearchTags;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
 	base::flat_map<PeerId, Ui::PeerUserpicView> _storiesUserpicsViewsHidden;

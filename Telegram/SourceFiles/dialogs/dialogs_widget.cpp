@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/qt/qt_key_modifiers.h"
 #include "base/options.h"
+#include "dialogs/ui/chat_search_tabs.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
 #include "dialogs/ui/dialogs_suggestions.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_requests_bar.h"
 #include "history/view/history_view_group_call_bar.h"
 #include "boxes/peers/edit_peer_requests_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/fields/input_field.h"
@@ -62,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
@@ -1075,6 +1078,9 @@ void Widget::updateControlsVisibility(bool fast) {
 		updateJumpToDateVisibility(fast);
 		updateSearchFromVisibility(fast);
 	}
+	if (_searchTabs) {
+		_searchTabs->show();
+	}
 	if (_connecting) {
 		_connecting->setForceHidden(false);
 	}
@@ -1215,6 +1221,114 @@ void Widget::updateSuggestions(anim::type animated) {
 		_scroll->hide();
 	} else {
 		updateStoriesVisibility();
+	}
+}
+
+void Widget::updateSearchTabs() {
+	const auto has = _searchInChat
+		|| _hiddenSearchInChat
+		|| _searchingHashtag;
+	if (!has) {
+		_searchTab = ChatSearchTab::MyMessages;
+		if (_searchTabs) {
+			_searchTabs = nullptr;
+			updateControlsGeometry();
+		}
+		return;
+	} else if (!_searchTabs) {
+		_searchTabs = std::make_unique<ChatSearchTabs>(this, _searchTab);
+		_searchTabs->setVisible(!_showAnimation);
+		_searchTabs->tabChanges(
+		) | rpl::start_with_next([=](ChatSearchTab tab) {
+			if (_searchTab != tab) {
+				_searchTab = tab;
+				applySearchTab();
+			}
+		}, _searchTabs->lifetime());
+	}
+	const auto topic = _searchInChat.topic()
+		? _searchInChat.topic()
+		: _hiddenSearchInChat.topic();
+	const auto peer = _searchInChat.owningHistory()
+		? _searchInChat.owningHistory()->peer.get()
+		: _hiddenSearchInChat.owningHistory()
+		? _hiddenSearchInChat.owningHistory()->peer.get()
+		: nullptr;
+	const auto topicShortLabel = topic
+		? Ui::Text::SingleCustomEmoji(Data::TopicIconEmojiEntity({
+			.title = (topic->isGeneral()
+				? Data::ForumGeneralIconTitle()
+				: topic->title()),
+			.colorId = (topic->isGeneral()
+				? Data::ForumGeneralIconColor(st::windowSubTextFg->c)
+				: topic->colorId()),
+			}))
+		: TextWithEntities();
+	const auto peerShortLabel = peer
+		? Ui::Text::SingleCustomEmoji(
+			session().data().customEmojiManager().peerUserpicEmojiData(
+				peer))
+		: TextWithEntities();
+	const auto myShortLabel = DefaultShortLabel(ChatSearchTab::MyMessages);
+	const auto publicShortLabel = _searchingHashtag
+		? DefaultShortLabel(ChatSearchTab::PublicPosts)
+		: TextWithEntities();
+	_searchTab = _searchInChat.topic()
+		? ChatSearchTab::ThisTopic
+		: _searchInChat.owningHistory()
+		? ChatSearchTab::ThisPeer
+		: (_searchingHashtag && _searchTab == ChatSearchTab::PublicPosts)
+		? ChatSearchTab::PublicPosts
+		: ChatSearchTab::MyMessages;
+	_searchTabs->setTabShortLabels({
+		{ ChatSearchTab::ThisTopic, topicShortLabel },
+		{ ChatSearchTab::ThisPeer, peerShortLabel },
+		{ ChatSearchTab::MyMessages, myShortLabel },
+		{ ChatSearchTab::PublicPosts, publicShortLabel },
+	}, _searchTab);
+
+	updateControlsGeometry();
+}
+
+void Widget::applySearchTab() {
+	switch (_searchTab) {
+	case ChatSearchTab::ThisTopic:
+		if (_searchInChat.topic()) {
+		} else if (_hiddenSearchInChat.topic()) {
+			setSearchInChat(
+				base::take(_hiddenSearchInChat),
+				base::take(_hiddenSearchFromAuthor),
+				base::take(_hiddenSearchTags));
+		} else {
+			updateSearchTabs();
+		}
+	case ChatSearchTab::ThisPeer:
+		if (_searchInChat.topic()) {
+			_hiddenSearchInChat = _searchInChat;
+			_hiddenSearchFromAuthor = _searchFromAuthor;
+			_hiddenSearchTags = _searchTags;
+			setSearchInChat(
+				_searchInChat.owningHistory(),
+				_searchFromAuthor,
+				_searchTags);
+		} else if (_searchInChat) {
+			return;
+		} else if (_hiddenSearchInChat) {
+			setSearchInChat(
+				_hiddenSearchInChat.owningHistory(),
+				_hiddenSearchFromAuthor,
+				_hiddenSearchTags);
+		}
+	case ChatSearchTab::MyMessages:
+		if (_searchInChat) {
+			_hiddenSearchInChat = (_hiddenSearchInChat.topic()
+				&& _hiddenSearchInChat.owningHistory() == _searchInChat.history())
+				? _hiddenSearchInChat
+				: _searchInChat;
+			_hiddenSearchFromAuthor = _searchFromAuthor;
+			_hiddenSearchTags = _searchTags;
+			setSearchInChat({});
+		}
 	}
 }
 
@@ -2619,8 +2733,31 @@ void Widget::updateCancelSearch() {
 	_cancelSearch->toggle(shown, anim::type::normal);
 }
 
+bool Widget::fixSearchQuery() {
+	if (_fixingSearchQuery) {
+		return false;
+	}
+	_fixingSearchQuery = true;
+	const auto query = _search->getLastText();
+	if (_searchTab == ChatSearchTab::PublicPosts) {
+		const auto fixed = FixHashtagSearchQuery(
+			query,
+			_search->textCursor().position());
+		if (fixed.text != query) {
+			_search->setText(fixed.text);
+			_search->setCursorPosition(fixed.cursorPosition);
+		}
+		_searchingHashtag = true;
+	} else if (_searchingHashtag != IsHashtagSearchQuery(query)) {
+		_searchingHashtag = !_searchingHashtag;
+		updateSearchTabs();
+	}
+	_fixingSearchQuery = false;
+	return true;
+}
+
 void Widget::applySearchUpdate(bool force) {
-	if (_showAnimation && !force) {
+	if (!fixSearchQuery() || (_showAnimation && !force)) {
 		return;
 	}
 
@@ -2852,8 +2989,17 @@ bool Widget::setSearchInChat(
 	}
 	if (searchInPeerUpdated) {
 		_searchInChat = chat;
+		if (chat) {
+			_hiddenSearchFromAuthor = {};
+			_hiddenSearchTags = {};
+			const auto hiddenTopic = _hiddenSearchInChat.topic();
+			if (!hiddenTopic || hiddenTopic->history() != chat.history()) {
+				_hiddenSearchInChat = {};
+			}
+		}
 		controller()->setSearchInChat(_searchInChat);
 		updateSuggestions(anim::type::instant);
+		updateSearchTabs();
 		updateJumpToDateVisibility();
 		updateStoriesVisibility();
 	}
@@ -3190,6 +3336,9 @@ void Widget::updateControlsGeometry() {
 	if (_forumRequestsBar) {
 		_forumRequestsBar->resizeToWidth(barw);
 	}
+	if (_searchTabs) {
+		_searchTabs->resizeToWidth(barw);
+	}
 	_updateScrollGeometryCached = [=] {
 		const auto moreChatsBarTop = expandedStoriesTop
 			+ ((!_stories || _stories->isHidden()) ? 0 : _aboveScrollAdded);
@@ -3211,8 +3360,13 @@ void Widget::updateControlsGeometry() {
 		if (_forumReportBar) {
 			_forumReportBar->bar().move(0, forumReportTop);
 		}
-		const auto scrollTop = forumReportTop
+		const auto searchTabsTop = forumReportTop
 			+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
+		if (_searchTabs) {
+			_searchTabs->move(0, searchTabsTop);
+		}
+		const auto scrollTop = searchTabsTop
+			+ (_searchTabs ? _searchTabs->height() : 0);
 		const auto scrollHeight = height() - scrollTop - bottomSkip;
 		const auto wasScrollHeight = _scroll->height();
 		_scroll->setGeometry(0, scrollTop, scrollWidth, scrollHeight);
