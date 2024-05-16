@@ -135,6 +135,8 @@ public:
 	bool cancelSearch();
 	bool cancelSearchByMouseBack();
 
+	QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
+
 	~Widget();
 
 protected:
@@ -144,6 +146,7 @@ protected:
 	void dropEvent(QDropEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	void inputMethodEvent(QInputMethodEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
 private:
