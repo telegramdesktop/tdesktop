@@ -515,6 +515,16 @@ public:
 		std::optional<bool> show = std::nullopt) const;
 	void finishChatThemeEdit(not_null<PeerData*> peer);
 
+	[[nodiscard]] bool mainSectionShown() const {
+		return _mainSectionShown.current();
+	}
+	[[nodiscard]] rpl::producer<bool> mainSectionShownChanges() const {
+		return _mainSectionShown.changes();
+	}
+	void setMainSectionShown(bool value) {
+		_mainSectionShown = value;
+	}
+
 	[[nodiscard]] bool chatsForceDisplayWide() const {
 		return _chatsForceDisplayWide.current();
 	}
@@ -678,6 +688,7 @@ private:
 	rpl::variable<Dialogs::Key> _searchInChat;
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	rpl::lifetime _activeHistoryLifetime;
+	rpl::variable<bool> _mainSectionShown = false;
 	rpl::variable<bool> _chatsForceDisplayWide = false;
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;

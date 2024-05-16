@@ -2667,8 +2667,9 @@ void Widget::updateForceDisplayWide() {
 void Widget::showForum(
 		not_null<Data::Forum*> forum,
 		const Window::SectionShow &params) {
+	const auto nochat = !controller()->mainSectionShown();
 	if (!params.childColumn
-		|| !Core::App().settings().dialogsWidthRatio()
+		|| !Core::App().settings().dialogsWidthRatio(nochat)
 		|| (_layout != Layout::Main)
 		|| OptionForumHideChatsList.value()) {
 		changeOpenedForum(forum, params.animated);

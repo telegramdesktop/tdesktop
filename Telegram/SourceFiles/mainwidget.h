@@ -250,6 +250,7 @@ private:
 	void handleAudioUpdate(const Media::Player::TrackState &state);
 	void updateMediaPlaylistPosition(int x);
 	void updateControlsGeometry();
+	void updateMainSectionShown();
 	void updateDialogsWidthAnimated();
 	void updateThirdColumnToCurrentChat(
 		Dialogs::Key key,
@@ -278,7 +279,6 @@ private:
 	void showNewSection(
 		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params);
-	void dropMainSection(Window::SectionWidget *widget);
 
 	Window::SectionSlideParams prepareThirdSectionAnimation(Window::SectionWidget *section);
 

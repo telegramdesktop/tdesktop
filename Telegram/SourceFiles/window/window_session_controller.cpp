@@ -1946,7 +1946,10 @@ int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
 	if (!_isPrimary) {
 		return 0;
 	}
-	auto result = qRound(bodyWidth * Core::App().settings().dialogsWidthRatio());
+	const auto nochat = !mainSectionShown();
+	const auto width = bodyWidth
+		* Core::App().settings().dialogsWidthRatio(nochat);
+	auto result = qRound(width);
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
@@ -2035,10 +2038,12 @@ void SessionController::resizeForThirdSection() {
 		if (extendBy != settings.thirdColumnWidth()) {
 			settings.setThirdColumnWidth(extendBy);
 		}
+		const auto nochat = !mainSectionShown();
 		auto newBodyWidth = layout.bodyWidth + extendedBy;
-		auto currentRatio = settings.dialogsWidthRatio();
-		settings.setDialogsWidthRatio(
-			(currentRatio * layout.bodyWidth) / newBodyWidth);
+		auto currentRatio = settings.dialogsWidthRatio(nochat);
+		settings.updateDialogsWidthRatio(
+			(currentRatio * layout.bodyWidth) / newBodyWidth,
+			nochat);
 	}
 	auto savedValue = (extendedBy == extendBy) ? -1 : extendedBy;
 	settings.setThirdSectionExtendedBy(savedValue);
@@ -2054,6 +2059,7 @@ void SessionController::closeThirdSection() {
 	auto newWindowSize = widget()->size();
 	auto layout = computeColumnLayout();
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
+		const auto nochat = !mainSectionShown();
 		auto noResize = widget()->isFullScreen()
 			|| widget()->isMaximized();
 		auto savedValue = settings.thirdSectionExtendedBy();
@@ -2063,9 +2069,10 @@ void SessionController::closeThirdSection() {
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
 			: (layout.bodyWidth - extendedBy);
-		auto currentRatio = settings.dialogsWidthRatio();
-		settings.setDialogsWidthRatio(
-			(currentRatio * layout.bodyWidth) / newBodyWidth);
+		auto currentRatio = settings.dialogsWidthRatio(nochat);
+		settings.updateDialogsWidthRatio(
+			(currentRatio * layout.bodyWidth) / newBodyWidth,
+			nochat);
 		newWindowSize = QSize(
 			widget()->width() + (newBodyWidth - layout.bodyWidth),
 			widget()->height());
