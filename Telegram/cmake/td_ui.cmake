@@ -16,6 +16,7 @@ set(style_files
     ui/filter_icons.style
     ui/menu_icons.style
     ui/chat/chat.style
+    ui/effects/credits.style
     ui/effects/premium.style
     boxes/boxes.style
     dialogs/dialogs.style

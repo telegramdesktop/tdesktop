@@ -16,21 +16,55 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common_session.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
+#include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "styles/style_credits.h"
 #include "styles/style_info.h"
-#include "styles/style_premium.h"
+#include "styles/style_layers.h"
 #include "styles/style_settings.h"
+
+#include <QtSvg/QSvgRenderer>
 
 namespace Settings {
 namespace {
 
 using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
+
+[[nodiscard]] QImage GenerateStarForLightTopBar(QRectF rect) {
+	const auto strokeWidth = 3;
+
+	auto colorized = qs(Ui::Premium::ColorizedSvg(
+		Ui::Premium::CreditsIconGradientStops()));
+	colorized.replace(
+		"stroke=\"none\"",
+		"stroke=\"" + st::creditsStroke->c.name() + "\"");
+	colorized.replace("stroke-width=\"1\"", "stroke-width=\"3\"");
+	auto svg = QSvgRenderer(colorized.toUtf8());
+	svg.setViewBox(svg.viewBox() + Margins(strokeWidth));
+
+	const auto size = Size(st::settingsButton.height);
+	auto frame = QImage(
+		size * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	frame.setDevicePixelRatio(style::DevicePixelRatio());
+
+	frame.fill(Qt::transparent);
+	{
+		auto q = QPainter(&frame);
+		svg.render(&q, Rect(size));
+	}
+	return frame;
+}
 
 class Credits : public Section<Credits> {
 public:
@@ -57,6 +91,8 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 
+	QImage _star;
+
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	base::unique_qptr<Ui::IconButton> _close;
 	rpl::variable<bool> _backToggles;
@@ -73,7 +109,8 @@ Credits::Credits(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Section(parent)
-, _controller(controller) {
+, _controller(controller)
+, _star(GenerateStarForLightTopBar({})) {
 	setupContent();
 }
 
@@ -100,10 +137,82 @@ void Credits::setStepDataReference(std::any &data) {
 }
 
 void Credits::setupOptions(not_null<Ui::VerticalLayout*> container) {
+	const auto options = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto content = options->entity();
+
+	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
+
+	const auto fill = [=](Data::CreditTopupOptions options) {
+		while (content->count()) {
+			delete content->widgetAt(0);
+		}
+		Ui::AddSubsectionTitle(
+			content,
+			tr::lng_credits_summary_options_subtitle());
+		for (const auto &option : options) {
+			const auto button = content->add(object_ptr<Ui::SettingsButton>(
+				content,
+				tr::lng_credits_summary_options_credits(
+					lt_count_decimal,
+					rpl::single(option.credits) | tr::to_count()),
+				st::creditsTopupButton));
+			const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
+			icon->resize(Size(button->st().height));
+			icon->paintRequest(
+			) | rpl::start_with_next([=](const QRect &rect) {
+				auto p = QPainter(icon);
+				p.drawImage(0, 0, _star);
+			}, icon->lifetime());
+			const auto price = Ui::CreateChild<Ui::FlatLabel>(
+				button,
+				Ui::FillAmountAndCurrency(option.amount, option.currency),
+				st::creditsTopupPrice);
+			button->sizeValue(
+			) | rpl::start_with_next([=](const QSize &size) {
+				const auto &st = button->st();
+				price->moveToRight(st.padding.right(), st.padding.top());
+				icon->moveToLeft(st.iconLeft, st.padding.top());
+			}, button->lifetime());
+			button->setClickedCallback([=] {
+			});
+			Ui::ToggleChildrenVisibility(button, true);
+		}
+
+		// Footer.
+		{
+			auto text = tr::lng_credits_summary_options_about(
+				lt_link,
+				tr::lng_credits_summary_options_about_link(
+				) | rpl::map([](const QString &t) {
+					using namespace Ui::Text;
+					return Link(t, u"https://telegram.org/tos"_q);
+				}),
+				Ui::Text::RichLangValue);
+			Ui::AddSkip(content);
+			Ui::AddDividerText(content, std::move(text));
+		}
+
+		content->resizeToWidth(container->width());
+	};
+
+	using ApiOptions = Api::CreditsTopupOptions;
+	const auto apiCredits = content->lifetime().make_state<ApiOptions>(
+		_controller->session().user());
+
+	apiCredits->request(
+	) | rpl::start_with_error_done([=](const QString &error) {
+		_controller->showToast(error);
+	}, [=] {
+		fill(apiCredits->options());
+	}, content->lifetime());
 }
 
 void Credits::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	setupOptions(content);
 
 	Ui::ResizeFitChild(this, content);
 }
