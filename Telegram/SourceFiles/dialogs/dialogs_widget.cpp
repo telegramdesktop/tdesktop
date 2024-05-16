@@ -581,14 +581,6 @@ void Widget::chosenRow(const ChosenRow &row) {
 				history,
 				ShowAtUnreadMsgId,
 				Window::SectionShow::Way::ClearStack);
-		} else if (!controller()->adaptive().isOneColumn()) {
-			const auto item = history->chatListMessage();
-			if (const auto topic = item ? item->topic() : nullptr) {
-				controller()->showThread(
-					topic,
-					ShowAtUnreadMsgId,
-					Window::SectionShow::Way::ClearStack);
-			}
 		}
 		return;
 	} else if (history) {
