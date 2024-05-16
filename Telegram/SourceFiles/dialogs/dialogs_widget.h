@@ -99,7 +99,7 @@ public:
 		not_null<Data::Forum*> forum,
 		const Window::SectionShow &params);
 	void searchInChat(Key chat);
-	void setInnerFocus();
+	void setInnerFocus(bool unfocusSearch = false);
 	[[nodiscard]] bool searchHasFocus() const;
 
 	void jumpToTop(bool belowPinned = false);
