@@ -105,7 +105,6 @@ parts:
       - libprotobuf-dev
       - libpulse-dev
       - libssl-dev
-      - libwayland-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
@@ -122,7 +121,6 @@ parts:
       - libprotobuf-lite32t64
       - libpulse0
       - libssl3t64
-      - libwayland-client0
       - libwebkitgtk-6.0-4
       - libxcb1
       - libxcb-keysyms1
