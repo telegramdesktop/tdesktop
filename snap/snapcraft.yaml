@@ -115,13 +115,13 @@ parts:
       - libasound2
       - libavif16
       - libboost-regex1.83.0
-      - libglib2.0-0
+      - libglib2.0-0t64
       - libheif1
       - libopenal1
       - libopus0
-      - libprotobuf-lite32
+      - libprotobuf-lite32t64
       - libpulse0
-      - libssl3
+      - libssl3t64
       - libwayland-client0
       - libwebkitgtk-6.0-4
       - libxcb1
@@ -322,7 +322,7 @@ parts:
       - libegl1
       - libfontconfig1
       - libfreetype6
-      - libglib2.0-0
+      - libglib2.0-0t64
       - libglx0
       - libgtk-3-0t64
       - libharfbuzz0b
@@ -333,7 +333,7 @@ parts:
       - libpcre2-16-0
       - libpng16-16t64
       - libsm6
-      - libssl3
+      - libssl3t64
       - libvulkan1
       - libwayland-client0
       - libwayland-cursor0
@@ -465,10 +465,10 @@ parts:
       - libegl1
       - libgbm1
       - libgl1
-      - libglib2.0-0
+      - libglib2.0-0t64
       - libopenh264-7
       - libopus0
-      - libssl3
+      - libssl3t64
       - libvpx9
       - libx11-6
       - libxcomposite1
