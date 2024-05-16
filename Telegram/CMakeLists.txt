@@ -120,6 +120,8 @@ PRIVATE
     api/api_common.h
     api/api_confirm_phone.cpp
     api/api_confirm_phone.h
+    api/api_credits.cpp
+    api/api_credits.h
     api/api_earn.cpp
     api/api_earn.h
     api/api_editing.cpp
@@ -1360,6 +1362,8 @@ PRIVATE
     settings/settings_codes.h
     settings/settings_common_session.cpp
     settings/settings_common_session.h
+    settings/settings_credits.cpp
+    settings/settings_credits.h
     settings/settings_experimental.cpp
     settings/settings_experimental.h
     settings/settings_folders.cpp
