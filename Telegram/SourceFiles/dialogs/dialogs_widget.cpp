@@ -82,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_common_adapters.h"
 
 #include <QtCore/QMimeData>
+#include <QtGui/QTextBlock>
 #include <QtWidgets/QScrollBar>
 #include <QtWidgets/QTextEdit>
 
@@ -239,6 +240,8 @@ Widget::Widget(
 	: nullptr)
 , _searchTimer([=] { searchMessages(); })
 , _singleMessageSearch(&controller->session()) {
+	setAttribute(Qt::WA_InputMethodEnabled);
+
 	const auto makeChildListShown = [](PeerId peerId, float64 shown) {
 		return InnerWidget::ChildListShown{ peerId, shown };
 	};
@@ -3296,6 +3299,31 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 	} else {
 		e->ignore();
 	}
+}
+
+void Widget::inputMethodEvent(QInputMethodEvent *e) {
+	const auto cursor = _search->rawTextEdit()->textCursor();
+	bool isGettingInput = !e->commitString().isEmpty()
+		|| e->preeditString() != cursor.block().layout()->preeditAreaText()
+		|| e->replacementLength() > 0;
+
+	if (!isGettingInput || _postponeProcessSearchFocusChange) {
+		Window::AbstractSectionWidget::inputMethodEvent(e);
+		return;
+	}
+
+	// This delay in search focus processing allows us not to create
+	// _suggestions in case the event inserts some non-whitespace search
+	// query while still show _suggestions animated, if it is a space.
+	_postponeProcessSearchFocusChange = true;
+	_search->setFocusFast();
+	QCoreApplication::sendEvent(_search->rawTextEdit(), e);
+	_postponeProcessSearchFocusChange = false;
+	processSearchFocusChange();
+}
+
+QVariant Widget::inputMethodQuery(Qt::InputMethodQuery query) const {
+	return _search->rawTextEdit()->inputMethodQuery(query);
 }
 
 bool Widget::redirectToSearchPossible() const {
