@@ -46,15 +46,15 @@ QString Svg() {
 	return u":/gui/icons/settings/star.svg"_q;
 }
 
-QByteArray ColorizedSvg() {
+QByteArray ColorizedSvg(const QGradientStops &gradientStops) {
 	auto f = QFile(Svg());
 	if (!f.open(QIODevice::ReadOnly)) {
 		return QByteArray();
 	}
 	auto content = QString::fromUtf8(f.readAll());
-	auto stops = [] {
+	auto stops = [&] {
 		auto s = QString();
-		for (const auto &stop : Ui::Premium::ButtonGradientStops()) {
+		for (const auto &stop : gradientStops) {
 			s += QString("<stop offset='%1' stop-color='%2'/>")
 				.arg(QString::number(stop.first), stop.second.name());
 		}
@@ -209,8 +209,10 @@ TopBar::TopBar(
 			_ministars.setColorOverride(
 				QGradientStops{{ 0, st::premiumButtonFg->c }});
 		} else {
-			_star.load(ColorizedSvg());
-			_ministars.setColorOverride(std::nullopt);
+			_star.load(ColorizedSvg(descriptor.gradientStops
+				? (*descriptor.gradientStops)
+				: Ui::Premium::ButtonGradientStops()));
+			_ministars.setColorOverride(descriptor.gradientStops);
 		}
 		auto event = QResizeEvent(size(), size());
 		resizeEvent(&event);
