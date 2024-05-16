@@ -2298,6 +2298,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_business_about_sponsored_link" = "Telegram Ad Platform {emoji}";
 "lng_business_about_sponsored_url" = "https://ads.telegram.org";
 
+"lng_credits_summary_title" = "Telegram Stars";
+"lng_credits_summary_about" = "Buy Stars to unlock content and services in miniapps on Telegram.";
+"lng_credits_summary_options_subtitle" = "Choose package";
+"lng_credits_summary_options_credits#one" = "{count} Star";
+"lng_credits_summary_options_credits#other" = "{count} Stars";
+"lng_credits_summary_options_more" = "More Options";
+"lng_credits_summary_options_about" = "By proceeding and purchasing Stars, you agree with the {link}.";
+"lng_credits_summary_options_about_link" = "Terms and Conditions";
+"lng_credits_summary_history_tab_full" = "All Transactions";
+"lng_credits_summary_history_tab_in" = "Incoming";
+"lng_credits_summary_history_tab_out" = "Outgoing";
+"lng_credits_summary_history_entry_inner_in" = "In-App Purchase";
+"lng_credits_summary_balance" = "Balance";
+"lng_credits_box_out_title" = "Confirm Your Purchase";
+"lng_credits_box_out_sure#one" = "Do you want to buy **\"{text}\"** in **{bot}** for **{count} Star**?";
+"lng_credits_box_out_sure#other" = "Do you want to buy **\"{text}\"** in **{bot}** for **{count} Stars**?";
+"lng_credits_box_out_confirm#one" = "Confirm and Pay {emoji} {count} Star";
+"lng_credits_box_out_confirm#other" = "Confirm and Pay {emoji} {count} Stars";
+"lng_credits_summary_in_toast_title" = "Stars Acquired";
+"lng_credits_summary_in_toast_about#one" = "**{count}** Star added to your balance.";
+"lng_credits_summary_in_toast_about#other" = "**{count}** Stars added to your balance.";
+
 "lng_location_title" = "Location";
 "lng_location_about" = "Display the location of your business on your account.";
 "lng_location_address" = "Enter Address";
