@@ -202,10 +202,12 @@ TopBar::TopBar(
 
 		if (_logo == u"dollar"_q) {
 			_dollar = ScaleTo(QImage(u":/gui/art/business_logo.png"_q));
-			_ministars.setColorOverride(st::premiumButtonFg->c);
+			_ministars.setColorOverride(
+				QGradientStops{{ 0, st::premiumButtonFg->c }});
 		} else if (!_light && !TopBarAbstract::isDark()) {
 			_star.load(Svg());
-			_ministars.setColorOverride(st::premiumButtonFg->c);
+			_ministars.setColorOverride(
+				QGradientStops{{ 0, st::premiumButtonFg->c }});
 		} else {
 			_star.load(ColorizedSvg());
 			_ministars.setColorOverride(std::nullopt);
