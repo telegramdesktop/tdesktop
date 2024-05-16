@@ -9,17 +9,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "settings/settings_advanced.h"
 #include "settings/settings_business.h"
-#include "settings/settings_codes.h"
+#include "settings/settings_calls.h"
 #include "settings/settings_chat.h"
+#include "settings/settings_codes.h"
+#include "settings/settings_credits.h"
+#include "settings/settings_folders.h"
 #include "settings/settings_information.h"
 #include "settings/settings_notifications.h"
-#include "settings/settings_privacy_security.h"
-#include "settings/settings_advanced.h"
-#include "settings/settings_folders.h"
-#include "settings/settings_calls.h"
 #include "settings/settings_power_saving.h"
 #include "settings/settings_premium.h"
+#include "settings/settings_privacy_security.h"
 #include "settings/settings_scale_preview.h"
 #include "boxes/language_box.h"
 #include "boxes/username_box.h"
@@ -413,6 +414,15 @@ void SetupPremium(
 	)->addClickHandler([=] {
 		controller->setPremiumRef("settings");
 		showOther(PremiumId());
+	});
+	AddButtonWithIcon(
+		container,
+		tr::lng_credits_summary_title(),
+		st::settingsButton,
+		{ .icon = &st::menuIconPremium }
+	)->addClickHandler([=] {
+		controller->setPremiumRef("settings");
+		showOther(CreditsId());
 	});
 	const auto button = AddButtonWithIcon(
 		container,

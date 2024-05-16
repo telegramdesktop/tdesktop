@@ -124,6 +124,7 @@ void AddAccountsRow(
 [[nodiscard]] QGradientStops LockGradientStops();
 [[nodiscard]] QGradientStops FullHeightGradientStops();
 [[nodiscard]] QGradientStops GiftGradientStops();
+[[nodiscard]] QGradientStops CreditsIconGradientStops();
 
 struct ListEntry final {
 	rpl::producer<QString> title;

@@ -1177,6 +1177,13 @@ QGradientStops StoriesIconsGradientStops() {
 	};
 }
 
+QGradientStops CreditsIconGradientStops() {
+	return {
+		{ 0., st::creditsBg1->c },
+		{ 1., st::creditsBg2->c },
+	};
+}
+
 void ShowListBox(
 		not_null<Ui::GenericBox*> box,
 		const style::PremiumLimits &st,

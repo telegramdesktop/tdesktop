@@ -364,3 +364,9 @@ boostFeatureLink: icon{{ "settings/premium/features/feature_links", windowBgActi
 boostFeatureName: icon{{ "settings/premium/features/feature_color_names", windowBgActive }};
 boostFeatureStories: icon{{ "settings/premium/features/feature_stories", windowBgActive }};
 boostFeatureTranscribe: icon{{ "settings/premium/features/feature_voice", windowBgActive }};
+
+creditsPremiumCover: PremiumCover(defaultPremiumCover) {
+	about: FlatLabel(userPremiumCoverAbout) {
+		textFg: boxTitleFg;
+	}
+}
