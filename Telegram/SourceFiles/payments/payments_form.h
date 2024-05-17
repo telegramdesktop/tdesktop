@@ -285,10 +285,10 @@ private:
 
 	void requestForm();
 	void requestReceipt();
-	void processForm(const MTPDpayments_paymentForm &data);
+	void processForm(const MTPpayments_PaymentForm &result);
 	void processReceipt(const MTPDpayments_paymentReceipt &data);
 	void processInvoice(const MTPDinvoice &data);
-	void processDetails(const MTPDpayments_paymentForm &data);
+	void processDetails(const MTPpayments_PaymentForm &result);
 	void processDetails(const MTPDpayments_paymentReceipt &data);
 	void processSavedInformation(const MTPDpaymentRequestedInfo &data);
 	void processAdditionalPaymentMethods(
