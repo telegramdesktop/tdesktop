@@ -544,6 +544,7 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 		0.f, 0.f,
 	};
 
+	_contentBuffer->bind();
 	_contentBuffer->write(0, coords, sizeof(coords));
 
 	program->setUniformValue("viewport", _uniformViewport);
@@ -712,6 +713,7 @@ void OverlayWidget::RendererGL::paintControl(
 	};
 	_controlsProgram->bind();
 	_controlsProgram->setUniformValue("viewport", _uniformViewport);
+	_contentBuffer->bind();
 	if (!over.isEmpty() && overOpacity > 0) {
 		_contentBuffer->write(
 			offset * 4 * sizeof(GLfloat),
@@ -915,6 +917,7 @@ void OverlayWidget::RendererGL::paintRoundedCorners(int radius) {
 	const auto offset = kControlsOffset
 		+ (kControlsCount * kControlValues) / 4;
 	const auto byteOffset = offset * 4 * sizeof(GLfloat);
+	_contentBuffer->bind();
 	_contentBuffer->write(byteOffset, coords, sizeof(coords));
 	_roundedCornersProgram->bind();
 	_roundedCornersProgram->setUniformValue("viewport", _uniformViewport);
@@ -981,6 +984,7 @@ void OverlayWidget::RendererGL::paintStoriesSiblingPart(
 		+ (6 * 2 * 4) / 4 // rounding
 		+ (index * 4);
 	const auto byteOffset = offset * 4 * sizeof(GLfloat);
+	_contentBuffer->bind();
 	_contentBuffer->write(byteOffset, coords, sizeof(coords));
 
 	_controlsProgram->bind();
@@ -1059,6 +1063,7 @@ void OverlayWidget::RendererGL::paintUsingRaster(
 		geometry.left(), geometry.bottom(),
 		textured.texture.left(), textured.texture.top(),
 	};
+	_contentBuffer->bind();
 	_contentBuffer->write(
 		bufferOffset * 4 * sizeof(GLfloat),
 		coords,
