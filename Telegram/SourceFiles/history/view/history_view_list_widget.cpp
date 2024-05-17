@@ -4008,7 +4008,8 @@ void ListWidget::editMessageRequestNotify(FullMsgId item) const {
 bool ListWidget::lastMessageEditRequestNotify() const {
 	const auto now = base::unixtime::now();
 	auto proj = [&](not_null<Element*> view) {
-		return view->data()->allowsEdit(now);
+		return view->data()->allowsEdit(now)
+			&& !view->data()->isUploading();
 	};
 	const auto &list = ranges::views::reverse(_items);
 	const auto it = ranges::find_if(list, std::move(proj));
