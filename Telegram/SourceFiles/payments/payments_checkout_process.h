@@ -37,6 +37,7 @@ namespace Payments {
 class Form;
 struct FormUpdate;
 struct Error;
+struct InvoiceCredits;
 struct InvoiceId;
 struct InvoicePremiumGiftCode;
 
@@ -72,6 +73,9 @@ public:
 		Fn<void(CheckoutResult)> reactivate);
 	static void Start(
 		InvoicePremiumGiftCode giftCodeInvoice,
+		Fn<void(CheckoutResult)> reactivate);
+	static void Start(
+		InvoiceCredits creditsInvoice,
 		Fn<void(CheckoutResult)> reactivate);
 	[[nodiscard]] static std::optional<PaidInvoice> InvoicePaid(
 		not_null<const HistoryItem*> item);

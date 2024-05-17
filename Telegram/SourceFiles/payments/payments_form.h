@@ -216,8 +216,21 @@ struct InvoicePremiumGiftCode {
 	int months = 0;
 };
 
+struct InvoiceCredits {
+	not_null<Main::Session*> session;
+	uint64 randomId = 0;
+	uint64 credits = 0;
+	QString product;
+	QString currency;
+	uint64 amount = 0;
+};
+
 struct InvoiceId {
-	std::variant<InvoiceMessage, InvoiceSlug, InvoicePremiumGiftCode> value;
+	std::variant<
+		InvoiceMessage,
+		InvoiceSlug,
+		InvoicePremiumGiftCode,
+		InvoiceCredits> value;
 };
 
 [[nodiscard]] not_null<Main::Session*> SessionFromId(const InvoiceId &id);

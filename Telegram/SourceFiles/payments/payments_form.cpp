@@ -117,6 +117,8 @@ not_null<Main::Session*> SessionFromId(const InvoiceId &id) {
 		return &message->peer->session();
 	} else if (const auto slug = std::get_if<InvoiceSlug>(&id.value)) {
 		return slug->session;
+	} else if (const auto slug = std::get_if<InvoiceCredits>(&id.value)) {
+		return slug->session;
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(id.value);
 	const auto users = std::get_if<InvoicePremiumGiftCodeUsers>(
@@ -314,6 +316,15 @@ MTPInputInvoice Form::inputInvoice() const {
 			MTP_int(message->itemId.bare));
 	} else if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
 		return MTP_inputInvoiceSlug(MTP_string(slug->slug));
+	} else if (const auto credits = std::get_if<InvoiceCredits>(&_id.value)) {
+		return MTP_inputInvoiceStars(MTP_starsTopupOption(
+			credits->product.isEmpty()
+				? MTP_flags(0)
+				: MTP_flags(MTPDstarsTopupOption::Flag::f_store_product),
+			MTP_long(credits->credits),
+			MTP_string(credits->product),
+			MTP_string(credits->currency),
+			MTP_long(credits->amount)));
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
 	using Flag = MTPDpremiumGiftCodeOption::Flag;

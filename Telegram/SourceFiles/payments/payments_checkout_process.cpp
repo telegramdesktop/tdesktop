@@ -139,6 +139,28 @@ void CheckoutProcess::Start(
 	j->second->requestActivate();
 }
 
+void CheckoutProcess::Start(
+		InvoiceCredits creditsInvoice,
+		Fn<void(CheckoutResult)> reactivate) {
+	const auto randomId = creditsInvoice.randomId;
+	auto id = InvoiceId{ std::move(creditsInvoice) };
+	auto &processes = LookupSessionProcesses(SessionFromId(id));
+	const auto i = processes.byRandomId.find(randomId);
+	if (i != end(processes.byRandomId)) {
+		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->requestActivate();
+		return;
+	}
+	const auto j = processes.byRandomId.emplace(
+		randomId,
+		std::make_unique<CheckoutProcess>(
+			std::move(id),
+			Mode::Payment,
+			std::move(reactivate),
+			PrivateTag{})).first;
+	j->second->requestActivate();
+}
+
 std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
 		not_null<const HistoryItem*> item) {
 	const auto session = &item->history()->session();

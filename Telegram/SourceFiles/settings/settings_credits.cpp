@@ -13,7 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "payments/payments_checkout_process.h"
+#include "payments/payments_form.h"
 #include "settings/settings_common_session.h"
+#include "ui/boxes/boost_box.h" // Ui::StartFireworks.
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/image/image_prepare.h"
@@ -33,12 +36,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
+#include <xxhash.h> // XXH64.
+
 #include <QtSvg/QSvgRenderer>
 
 namespace Settings {
 namespace {
 
 using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
+
+[[nodiscard]] uint64 UniqueIdFromOption(
+		const Data::CreditTopupOption &d) {
+	const auto string = QString::number(d.credits)
+		+ d.product
+		+ d.currency
+		+ QString::number(d.amount);
+
+	return XXH64(string.data(), string.size() * sizeof(ushort), 0);
+}
 
 [[nodiscard]] QImage GenerateStarForLightTopBar(QRectF rect) {
 	const auto strokeWidth = 3;
@@ -177,6 +192,26 @@ void Credits::setupOptions(not_null<Ui::VerticalLayout*> container) {
 				icon->moveToLeft(st.iconLeft, st.padding.top());
 			}, button->lifetime());
 			button->setClickedCallback([=] {
+				const auto invoice = Payments::InvoiceCredits{
+					.session = &_controller->session(),
+					.randomId = UniqueIdFromOption(option),
+					.credits = option.credits,
+					.product = option.product,
+					.currency = option.currency,
+					.amount = option.amount,
+				};
+
+				const auto weak = Ui::MakeWeak(button);
+				const auto done = [=](Payments::CheckoutResult result) {
+					if (const auto strong = weak.data()) {
+						strong->window()->setFocus();
+						if (result == Payments::CheckoutResult::Paid) {
+							Ui::StartFireworks(this);
+						}
+					}
+				};
+
+				Payments::CheckoutProcess::Start(std::move(invoice), done);
 			});
 			Ui::ToggleChildrenVisibility(button, true);
 		}
