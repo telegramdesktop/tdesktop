@@ -250,7 +250,7 @@ Widget::Widget(
 		st::dialogsStoriesList,
 		_storiesContents.events() | rpl::flatten_latest())
 	: nullptr)
-, _searchTimer([=] { searchMessages(); })
+, _searchTimer([=] { search(); })
 , _singleMessageSearch(&controller->session()) {
 	const auto makeChildListShown = [](PeerId peerId, float64 shown) {
 		return InnerWidget::ChildListShown{ peerId, shown };
@@ -325,11 +325,7 @@ Widget::Widget(
 	}, lifetime());
 	_inner->searchMessages(
 	) | rpl::start_with_next([=] {
-		needSearchMessages();
-	}, lifetime());
-	_inner->cancelSearchInChatRequests(
-	) | rpl::start_with_next([=] {
-		cancelSearchInChat();
+		searchRequested();
 	}, lifetime());
 	_inner->completeHashtagRequests(
 	) | rpl::start_with_next([=](const QString &tag) {
@@ -341,12 +337,12 @@ Widget::Widget(
 	}, lifetime());
 	_inner->cancelSearchFromUserRequests(
 	) | rpl::start_with_next([=] {
-		setSearchInChat((_openedForum && !_searchInChat)
-			? Key(_openedForum->history())
-			: _searchInChat.sublist()
-			? Key(session().data().history(session().user()))
-			: _searchInChat, nullptr);
-		applySearchUpdate(true);
+		auto copy = _searchState;
+		copy.fromPeer = nullptr;
+		if (copy.inChat.sublist()) {
+			copy.inChat = session().data().history(session().user());
+		}
+		applySearchState(std::move(copy));
 	}, lifetime());
 	_inner->chosenRow(
 	) | rpl::start_with_next([=](const ChosenRow &row) {
@@ -528,7 +524,7 @@ Widget::Widget(
 void Widget::chosenRow(const ChosenRow &row) {
 	storiesToggleExplicitExpand(false);
 
-	if (!_search->getLastText().isEmpty()) {
+	if (!currentSearchQuery().isEmpty()) {
 		if (const auto history = row.key.history()) {
 			session().recentPeers().bump(history->peer);
 		}
@@ -660,7 +656,7 @@ void Widget::setupMoreChatsBar() {
 	controller()->activeChatsFilter(
 	) | rpl::start_with_next([=](FilterId id) {
 		storiesToggleExplicitExpand(false);
-		if (!_searchInChat) {
+		if (!_searchState.inChat) {
 			cancelSearch();
 		}
 
@@ -1041,7 +1037,7 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 		_searchQuery = QString();
 		_scroll->scrollToY(0);
 		cancelSearchRequest();
-		searchMessages();
+		search();
 	}, lifetime());
 }
 
@@ -1134,7 +1130,7 @@ void Widget::updateHasFocus(not_null<QWidget*> focused) {
 bool Widget::cancelSearchByMouseBack() {
 	return _searchHasFocus
 		&& !_searchSuggestionsLocked
-		&& !_searchInChat
+		&& !_searchState.inChat
 		&& cancelSearch();
 }
 
@@ -1147,7 +1143,7 @@ void Widget::processSearchFocusChange() {
 
 void Widget::updateSuggestions(anim::type animated) {
 	const auto suggest = (_searchHasFocus || _searchSuggestionsLocked)
-		&& !_searchInChat
+		&& !_searchState.inChat
 		&& (_inner->state() == WidgetState::Default);
 	if (anim::Disabled() || !session().data().chatsListLoaded()) {
 		animated = anim::type::instant;
@@ -1225,34 +1221,28 @@ void Widget::updateSuggestions(anim::type animated) {
 }
 
 void Widget::updateSearchTabs() {
-	const auto has = _searchInChat
-		|| _hiddenSearchInChat
-		|| _searchingHashtag;
+	const auto has = _searchState.inChat || _searchingHashtag;
 	if (!has) {
-		_searchTab = ChatSearchTab::MyMessages;
 		if (_searchTabs) {
 			_searchTabs = nullptr;
 			updateControlsGeometry();
 		}
 		return;
 	} else if (!_searchTabs) {
-		_searchTabs = std::make_unique<ChatSearchTabs>(this, _searchTab);
+		_searchTabs = std::make_unique<ChatSearchTabs>(
+			this,
+			_searchState.tab);
 		_searchTabs->setVisible(!_showAnimation);
 		_searchTabs->tabChanges(
 		) | rpl::start_with_next([=](ChatSearchTab tab) {
-			if (_searchTab != tab) {
-				_searchTab = tab;
-				applySearchTab();
-			}
+			auto copy = _searchState;
+			copy.tab = tab;
+			applySearchState(std::move(copy));
 		}, _searchTabs->lifetime());
 	}
-	const auto topic = _searchInChat.topic()
-		? _searchInChat.topic()
-		: _hiddenSearchInChat.topic();
-	const auto peer = _searchInChat.owningHistory()
-		? _searchInChat.owningHistory()->peer.get()
-		: _hiddenSearchInChat.owningHistory()
-		? _hiddenSearchInChat.owningHistory()->peer.get()
+	const auto topic = _searchState.inChat.topic();
+	const auto peer = _searchState.inChat.owningHistory()
+		? _searchState.inChat.owningHistory()->peer.get()
 		: nullptr;
 	const auto topicShortLabel = topic
 		? Ui::Text::SingleCustomEmoji(Data::TopicIconEmojiEntity({
@@ -1273,63 +1263,26 @@ void Widget::updateSearchTabs() {
 	const auto publicShortLabel = _searchingHashtag
 		? DefaultShortLabel(ChatSearchTab::PublicPosts)
 		: TextWithEntities();
-	_searchTab = _searchInChat.topic()
-		? ChatSearchTab::ThisTopic
-		: _searchInChat.owningHistory()
-		? ChatSearchTab::ThisPeer
-		: (_searchingHashtag && _searchTab == ChatSearchTab::PublicPosts)
-		? ChatSearchTab::PublicPosts
-		: ChatSearchTab::MyMessages;
+	if ((_searchState.tab == ChatSearchTab::ThisTopic
+		&& !_searchState.inChat.topic())
+		|| (_searchState.tab == ChatSearchTab::ThisPeer
+			&& !_searchState.inChat)
+		|| (_searchState.tab == ChatSearchTab::PublicPosts
+			&& !_searchingHashtag)) {
+		_searchState.tab = _searchState.inChat.topic()
+			? ChatSearchTab::ThisTopic
+			: _searchState.inChat.owningHistory()
+			? ChatSearchTab::ThisPeer
+			: ChatSearchTab::MyMessages;
+	}
 	_searchTabs->setTabShortLabels({
 		{ ChatSearchTab::ThisTopic, topicShortLabel },
 		{ ChatSearchTab::ThisPeer, peerShortLabel },
 		{ ChatSearchTab::MyMessages, myShortLabel },
 		{ ChatSearchTab::PublicPosts, publicShortLabel },
-	}, _searchTab);
+	}, _searchState.tab);
 
 	updateControlsGeometry();
-}
-
-void Widget::applySearchTab() {
-	switch (_searchTab) {
-	case ChatSearchTab::ThisTopic:
-		if (_searchInChat.topic()) {
-		} else if (_hiddenSearchInChat.topic()) {
-			setSearchInChat(
-				base::take(_hiddenSearchInChat),
-				base::take(_hiddenSearchFromAuthor),
-				base::take(_hiddenSearchTags));
-		} else {
-			updateSearchTabs();
-		}
-	case ChatSearchTab::ThisPeer:
-		if (_searchInChat.topic()) {
-			_hiddenSearchInChat = _searchInChat;
-			_hiddenSearchFromAuthor = _searchFromAuthor;
-			_hiddenSearchTags = _searchTags;
-			setSearchInChat(
-				_searchInChat.owningHistory(),
-				_searchFromAuthor,
-				_searchTags);
-		} else if (_searchInChat) {
-			return;
-		} else if (_hiddenSearchInChat) {
-			setSearchInChat(
-				_hiddenSearchInChat.owningHistory(),
-				_hiddenSearchFromAuthor,
-				_hiddenSearchTags);
-		}
-	case ChatSearchTab::MyMessages:
-		if (_searchInChat) {
-			_hiddenSearchInChat = (_hiddenSearchInChat.topic()
-				&& _hiddenSearchInChat.owningHistory() == _searchInChat.history())
-				? _hiddenSearchInChat
-				: _searchInChat;
-			_hiddenSearchFromAuthor = _searchFromAuthor;
-			_hiddenSearchTags = _searchTags;
-			setSearchInChat({});
-		}
-	}
 }
 
 void Widget::changeOpenedSubsection(
@@ -1575,7 +1528,8 @@ void Widget::showSearchInTopBar(anim::type animated) {
 	_subsectionTopBar->toggleSearch(true, animated);
 	_subsectionTopBar->searchEnableChooseFromUser(
 		true,
-		!_searchFromAuthor);
+		!_searchState.fromPeer);
+	updateForceDisplayWide();
 }
 
 QPixmap Widget::grabForFolderSlideAnimation() {
@@ -1640,7 +1594,7 @@ void Widget::setInnerFocus(bool unfocusSearch) {
 		return;
 	} else if (!unfocusSearch
 		&& (!_search->getLastText().isEmpty()
-			|| _searchInChat
+			|| _searchState.inChat
 			|| _searchHasFocus
 			|| _searchSuggestionsLocked)) {
 		_search->setFocus();
@@ -1657,7 +1611,7 @@ void Widget::jumpToTop(bool belowPinned) {
 	if (session().supportMode()) {
 		return;
 	}
-	if ((currentSearchQuery().trimmed().isEmpty() && !_searchInChat)) {
+	if ((currentSearchQuery().trimmed().isEmpty() && !_searchState.inChat)) {
 		auto to = 0;
 		if (belowPinned) {
 			const auto list = _openedForum
@@ -1795,8 +1749,8 @@ void Widget::updateStoriesVisibility() {
 		|| _childList
 		|| _searchHasFocus
 		|| _searchSuggestionsLocked
-		|| !_search->getLastText().isEmpty()
-		|| _searchInChat
+		|| !currentSearchQuery().isEmpty()
+		|| _searchState.inChat
 		|| _stories->empty();
 	if (_stories->isHidden() != hidden) {
 		_stories->setVisible(!hidden);
@@ -1933,7 +1887,7 @@ void Widget::escape() {
 				controller()->setActiveChatsFilter(first);
 			}
 		}
-	} else if (!_searchInChat
+	} else if (!_searchState.inChat
 		&& controller()->activeChatEntryCurrent().key) {
 		controller()->content()->dialogsCancelled();
 	}
@@ -1953,7 +1907,7 @@ void Widget::submit() {
 		_inner->selectSkip(1);
 		_inner->chooseRow();
 	} else {
-		searchMessages();
+		search();
 	}
 }
 
@@ -1996,55 +1950,63 @@ void Widget::loadMoreBlockedByDate() {
 	session().api().requestMoreBlockedByDateDialogs();
 }
 
-bool Widget::searchMessages(bool searchCache) {
+bool Widget::search(bool inCache) {
 	auto result = false;
-	auto q = currentSearchQuery().trimmed();
-	if (q.isEmpty() && !_searchFromAuthor && _searchTags.empty()) {
+	const auto query = currentSearchQuery().trimmed();
+	const auto inPeer = searchInPeer();
+	const auto fromPeer = searchFromPeer();
+	const auto &inTags = searchInTags();
+	const auto tab = _searchState.tab;
+	const auto skipRequest = (query.isEmpty() && !fromPeer && inTags.empty())
+		|| (tab == ChatSearchTab::PublicPosts && query.size() < 2);
+	if (skipRequest) {
 		cancelSearchRequest();
 		_api.request(base::take(_peerSearchRequest)).cancel();
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		return true;
-	}
-	if (searchCache) {
-		const auto success = _singleMessageSearch.lookup(q, [=] {
-			needSearchMessages();
+	} else if (inCache) {
+		const auto success = _singleMessageSearch.lookup(query, [=] {
+			searchRequested();
 		});
 		if (!success) {
 			return false;
 		}
-		const auto i = _searchCache.find(q);
+		const auto i = _searchCache.find(query);
 		if (i != _searchCache.end()) {
-			_searchQuery = q;
-			_searchQueryFrom = _searchFromAuthor;
-			_searchQueryTags = _searchTags;
+			_searchQuery = query;
+			_searchQueryFrom = fromPeer;
+			_searchQueryTags = inTags;
+			_searchQueryTab = tab;
 			_searchNextRate = 0;
 			_searchFull = _searchFullMigrated = false;
 			cancelSearchRequest();
 			searchReceived(
-				((_searchInChat || _openedForum)
+				(inPeer
 					? SearchRequestType::PeerFromStart
 					: SearchRequestType::FromStart),
 				i->second,
 				0);
 			result = true;
 		}
-	} else if (_searchQuery != q
-		|| _searchQueryFrom != _searchFromAuthor
-		|| _searchQueryTags != _searchTags) {
-		_searchQuery = q;
-		_searchQueryFrom = _searchFromAuthor;
-		_searchQueryTags = _searchTags;
+	} else if (_searchQuery != query
+		|| _searchQueryFrom != fromPeer
+		|| _searchQueryTags != inTags
+		|| _searchQueryTab != tab) {
+		_searchQuery = query;
+		_searchQueryFrom = fromPeer;
+		_searchQueryTags = inTags;
+		_searchQueryTab = tab;
 		_searchNextRate = 0;
 		_searchFull = _searchFullMigrated = false;
 		cancelSearchRequest();
-		if (const auto peer = searchInPeer()) {
+		if (inPeer) {
 			const auto topic = searchInTopic();
 			auto &histories = session().data().histories();
 			const auto type = Data::Histories::RequestType::History;
-			const auto history = session().data().history(peer);
+			const auto history = session().data().history(inPeer);
 			const auto sublist = _openedForum
 				? nullptr
-				: _searchInChat.sublist();
+				: _searchState.inChat.sublist();
 			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			const auto savedPeer = sublist
 				? sublist->peer().get()
@@ -2059,7 +2021,7 @@ bool Widget::searchMessages(bool searchCache) {
 						| (_searchQueryTags.empty()
 							? Flag()
 							: Flag::f_saved_reaction)),
-					peer->input,
+					inPeer->input,
 					MTP_string(_searchQuery),
 					(fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
 					(savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
@@ -2089,6 +2051,20 @@ bool Widget::searchMessages(bool searchCache) {
 				_searchQueries.emplace(_searchRequest, _searchQuery);
 				return _searchRequest;
 			});
+		} else if (_searchState.tab == ChatSearchTab::PublicPosts) {
+			const auto type = SearchRequestType::FromStart;
+			_searchRequest = session().api().request(MTPchannels_SearchPosts(
+				MTP_string(_searchState.query.trimmed().mid(1)),
+				MTP_int(0), // offset_rate
+				MTP_inputPeerEmpty(), // offset_peer
+				MTP_int(0), // offset_id
+				MTP_int(kSearchPerPage)
+			)).done([=](const MTPmessages_Messages &result) {
+				searchReceived(type, result, _searchRequest);
+			}).fail([=](const MTP::Error &error) {
+				searchFailed(type, error, _searchRequest);
+			}).send();
+			_searchQueries.emplace(_searchRequest, _searchQuery);
 		} else {
 			const auto type = SearchRequestType::FromStart;
 			const auto flags = session().settings().skipArchiveInSearch()
@@ -2102,9 +2078,9 @@ bool Widget::searchMessages(bool searchCache) {
 				MTP_inputMessagesFilterEmpty(),
 				MTP_int(0), // min_date
 				MTP_int(0), // max_date
-				MTP_int(0),
-				MTP_inputPeerEmpty(),
-				MTP_int(0),
+				MTP_int(0), // offset_rate
+				MTP_inputPeerEmpty(), // offset_peer
+				MTP_int(0), // offset_id
 				MTP_int(kSearchPerPage)
 			)).done([=](const MTPmessages_Messages &result) {
 				searchReceived(type, result, _searchRequest);
@@ -2114,18 +2090,18 @@ bool Widget::searchMessages(bool searchCache) {
 			_searchQueries.emplace(_searchRequest, _searchQuery);
 		}
 	}
-	const auto query = Api::ConvertPeerSearchQuery(q);
-	if (searchForPeersRequired(query)) {
-		if (searchCache) {
-			auto i = _peerSearchCache.find(query);
+	const auto peerQuery = Api::ConvertPeerSearchQuery(query);
+	if (searchForPeersRequired(peerQuery)) {
+		if (inCache) {
+			auto i = _peerSearchCache.find(peerQuery);
 			if (i != _peerSearchCache.end()) {
-				_peerSearchQuery = query;
+				_peerSearchQuery = peerQuery;
 				_peerSearchRequest = 0;
 				peerSearchReceived(i->second, 0);
 				result = true;
 			}
-		} else if (_peerSearchQuery != query) {
-			_peerSearchQuery = query;
+		} else if (_peerSearchQuery != peerQuery) {
+			_peerSearchQuery = peerQuery;
 			_peerSearchFull = false;
 			_peerSearchRequest = _api.request(MTPcontacts_Search(
 				MTP_string(_peerSearchQuery),
@@ -2139,7 +2115,7 @@ bool Widget::searchMessages(bool searchCache) {
 		}
 	} else {
 		_api.request(base::take(_peerSearchRequest)).cancel();
-		_peerSearchQuery = query;
+		_peerSearchQuery = peerQuery;
 		_peerSearchFull = true;
 		peerSearchReceived(
 			MTP_contacts_found(
@@ -2149,45 +2125,41 @@ bool Widget::searchMessages(bool searchCache) {
 				MTP_vector<MTPUser>(0)),
 			0);
 	}
-	if (searchForTopicsRequired(query)) {
-		if (searchCache) {
-			if (_topicSearchQuery != query) {
+	if (searchForTopicsRequired(peerQuery)) {
+		if (inCache) {
+			if (_topicSearchQuery != peerQuery) {
 				result = false;
 			}
-		} else if (_topicSearchQuery != query) {
-			_topicSearchQuery = query;
+		} else if (_topicSearchQuery != peerQuery) {
+			_topicSearchQuery = peerQuery;
 			_topicSearchFull = false;
 			searchTopics();
 		}
 	} else {
 		_api.request(base::take(_topicSearchRequest)).cancel();
-		_topicSearchQuery = query;
+		_topicSearchQuery = peerQuery;
 		_topicSearchFull = true;
 	}
 	return result;
 }
 
 bool Widget::searchForPeersRequired(const QString &query) const {
-	return !_searchInChat
-		&& !_searchFromAuthor
-		&& _searchTags.empty()
+	return _searchState.filterChatsList()
 		&& !_openedForum
 		&& !query.isEmpty()
-		&& (query[0] != '#');
+		&& !IsHashtagSearchQuery(query);
 }
 
 bool Widget::searchForTopicsRequired(const QString &query) const {
-	return !_searchInChat
-		&& !_searchFromAuthor
-		&& _searchTags.empty()
+	return _searchState.filterChatsList()
 		&& _openedForum
 		&& !query.isEmpty()
-		&& (query[0] != '#')
+		&& !IsHashtagSearchQuery(query)
 		&& !_openedForum->topicsList()->loaded();
 }
 
-void Widget::needSearchMessages() {
-	if (!searchMessages(true)) {
+void Widget::searchRequested() {
+	if (!search(true)) {
 		_searchTimer.callOnce(AutoSearchTimeout);
 	}
 }
@@ -2196,63 +2168,66 @@ void Widget::showMainMenu() {
 	controller()->widget()->showMainMenu();
 }
 
-void Widget::searchMessages(QString query, Key inChat) {
-	if (_childList) {
-		const auto forum = controller()->shownForum().current();
-		const auto topic = inChat.topic();
-		if ((forum && forum->channel() == inChat.peer())
-			|| (topic && topic->forum() == forum)) {
-			_childList->searchMessages(query, inChat);
-			return;
-		}
-		hideChildList();
-	}
-	if (_openedFolder) {
-		controller()->closeFolder();
-	}
+void Widget::searchMessages(SearchState state) {
+	applySearchState(std::move(state));
+	session().local().saveRecentSearchHashtags(state.query);
+	//if (_childList) {
+	//	const auto forum = controller()->shownForum().current();
+	//	const auto topic = inChat.topic();
+	//	if ((forum && forum->channel() == inChat.peer())
+	//		|| (topic && topic->forum() == forum)) {
+	//		_childList->searchMessages(query, inChat);
+	//		return;
+	//	}
+	//	hideChildList();
+	//}
+	//if (_openedFolder) {
+	//	controller()->closeFolder();
+	//}
 
-	auto tags = Data::SearchTagsFromQuery(query);
-	if (!tags.empty()) {
-		if (!inChat.sublist()) {
-			inChat = session().data().history(session().user());
-		}
-		query = QString();
-	}
-	const auto inChatChanged = [&] {
-		const auto inPeer = inChat.peer();
-		const auto inTopic = inChat.topic();
-		if (!inTopic
-			&& _openedForum
-			&& inPeer == _openedForum->channel()
-			&& _subsectionTopBar
-			&& _subsectionTopBar->searchMode()) {
-			return false;
-		} else if ((inTopic || (inPeer && !inPeer->isForum()))
-			&& (inChat == _searchInChat)) {
-			return false;
-		} else if (inPeer) {
-			if (const auto to = inPeer->migrateTo()) {
-				if (to == _searchInChat.peer() && !_searchInChat.topic()) {
-					return false;
-				}
-			}
-		}
-		return true;
-	}();
-	if ((currentSearchQuery() != query)
-		|| inChatChanged
-		|| _searchTags != tags) {
-		if (inChat) {
-			cancelSearch();
-			setSearchInChat(inChat, nullptr, tags);
-		}
-		setSearchQuery(query);
-		applySearchUpdate(true);
-		_searchTimer.cancel();
-		searchMessages();
+	//auto tags = Data::SearchTagsFromQuery(query);
+	//if (!tags.empty()) {
+	//	if (!inChat.sublist()) {
+	//		inChat = session().data().history(session().user());
+	//	}
+	//	query = QString();
+	//}
+	//const auto inChatChanged = [&] {
+	//	const auto inPeer = inChat.peer();
+	//	const auto inTopic = inChat.topic();
+	//	if (!inTopic
+	//		&& _openedForum
+	//		&& inPeer == _openedForum->channel()
+	//		&& _subsectionTopBar
+	//		&& _subsectionTopBar->searchMode()) {
+	//		return false;
+	//	} else if ((inTopic || (inPeer && !inPeer->isForum()))
+	//		&& (inChat == _searchState.inChat)) {
+	//		return false;
+	//	} else if (inPeer) {
+	//		if (const auto to = inPeer->migrateTo()) {
+	//			if (to == _searchState.inChat.peer()
+	//				&& !_searchState.inChat.topic()) {
+	//				return false;
+	//			}
+	//		}
+	//	}
+	//	return true;
+	//}();
+	//if ((currentSearchQuery() != query)
+	//	|| inChatChanged
+	//	|| _searchState.tags != tags) {
+	//	if (inChat) {
+	//		cancelSearch();
+	//		setSearchInChat(inChat, nullptr, tags);
+	//	}
+	//	setSearchQuery(query);
+	//	applySearchUpdate(true);
+	//	_searchTimer.cancel();
+	//	searchMessages();
 
-		session().local().saveRecentSearchHashtags(query);
-	}
+	//	session().local().saveRecentSearchHashtags(query);
+	//}
 }
 
 void Widget::searchTopics() {
@@ -2308,7 +2283,7 @@ void Widget::searchMore() {
 			const auto history = session().data().history(peer);
 			const auto sublist = _openedForum
 				? nullptr
-				: _searchInChat.sublist();
+				: _searchState.inChat.sublist();
 			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			const auto savedPeer = sublist
 				? sublist->peer().get()
@@ -2728,7 +2703,7 @@ void Widget::listScrollUpdated() {
 
 void Widget::updateCancelSearch() {
 	const auto shown = !_search->getLastText().isEmpty()
-		|| (!_searchInChat
+		|| (!_searchState.inChat
 			&& (_searchHasFocus || _searchSuggestionsLocked));
 	_cancelSearch->toggle(shown, anim::type::normal);
 }
@@ -2738,14 +2713,13 @@ bool Widget::fixSearchQuery() {
 		return false;
 	}
 	_fixingSearchQuery = true;
-	const auto query = _search->getLastText();
-	if (_searchTab == ChatSearchTab::PublicPosts) {
+	const auto query = currentSearchQuery();
+	if (_searchState.tab == ChatSearchTab::PublicPosts) {
 		const auto fixed = FixHashtagSearchQuery(
 			query,
-			_search->textCursor().position());
+			currentSearchQueryCursorPosition());
 		if (fixed.text != query) {
-			_search->setText(fixed.text);
-			_search->setCursorPosition(fixed.cursorPosition);
+			setSearchQuery(fixed.text, fixed.cursorPosition);
 		}
 		_searchingHashtag = true;
 	} else if (_searchingHashtag != IsHashtagSearchQuery(query)) {
@@ -2756,53 +2730,33 @@ bool Widget::fixSearchQuery() {
 	return true;
 }
 
-void Widget::applySearchUpdate(bool force) {
-	if (!fixSearchQuery() || (_showAnimation && !force)) {
+void Widget::applySearchUpdate() {
+	if (!fixSearchQuery()) {
 		return;
 	}
-
-	updateLockUnlockVisibility(anim::type::normal);
-	updateStoriesVisibility();
-	const auto filterText = currentSearchQuery();
-	_inner->applyFilterUpdate(filterText, force);
-	if (filterText.isEmpty() && !_searchFromAuthor && _searchTags.empty()) {
-		clearSearchCache();
-	}
-	updateCancelSearch();
-	if (!_postponeProcessSearchFocusChange) {
-		updateSuggestions(anim::type::instant);
-	}
-	updateLoadMoreChatsVisibility();
-	updateJumpToDateVisibility();
-	updateLockUnlockPosition();
-
-	if (filterText.isEmpty()) {
-		_peerSearchCache.clear();
-		for (const auto &[requestId, query] : base::take(_peerSearchQueries)) {
-			_api.request(requestId).cancel();
-		}
-		_peerSearchQuery = QString();
-	}
+	auto copy = _searchState;
+	copy.query = currentSearchQuery();
+	applySearchState(std::move(copy));
 
 	if (_chooseFromUser->toggled()
-		|| _searchFromAuthor
-		|| !_searchTags.empty()) {
+		|| _searchState.fromPeer
+		|| !_searchState.tags.empty()) {
 		auto switchToChooseFrom = HistoryView::SwitchToChooseFromQuery();
 		if (_lastSearchText != switchToChooseFrom
 			&& switchToChooseFrom.startsWith(_lastSearchText)
-			&& filterText == switchToChooseFrom) {
+			&& _searchState.query == switchToChooseFrom) {
 			showSearchFrom();
 		}
 	}
-	_lastSearchText = filterText;
-	updateForceDisplayWide();
+	_lastSearchText = _searchState.query;
 }
 
 void Widget::updateForceDisplayWide() {
 	controller()->setChatsForceDisplayWide(_searchHasFocus
+		|| (_subsectionTopBar && _subsectionTopBar->searchHasFocus())
 		|| _searchSuggestionsLocked
-		|| !_search->getLastText().isEmpty()
-		|| _searchInChat);
+		|| !currentSearchQuery().isEmpty()
+		|| _searchState.inChat);
 }
 
 void Widget::showForum(
@@ -2936,116 +2890,133 @@ void Widget::closeChildList(anim::type animated) {
 	updateStoriesVisibility();
 }
 
-void Widget::searchInChat(Key chat) {
-	searchMessages(QString(), chat);
-}
-
-bool Widget::setSearchInChat(
-		Key chat,
-		PeerData *from,
-		std::vector<Data::ReactionId> tags) {
-	if (_childList) {
-		if (_childList->setSearchInChat(chat, from, tags)) {
+bool Widget::applySearchState(SearchState state) {
+	if (_searchState == state) {
+		return true;
+	} else if (_childList) {
+		if (_childList->applySearchState(state)) {
 			return true;
 		}
 		hideChildList();
 	}
-	const auto peer = chat.peer();
-	const auto topic = chat.topic();
+
+	// Adjust state to be consistent.
+	if (const auto peer = state.inChat.peer()) {
+		if (const auto to = peer->migrateTo()) {
+			state.inChat = peer->owner().history(to);
+		}
+	}
+	const auto peer = state.inChat.peer();
+	const auto topic = state.inChat.topic();
 	const auto forum = peer ? peer->forum() : nullptr;
-	if (chat.folder() || (forum && !topic)) {
-		chat = Key();
+	if (state.inChat.folder() || (forum && !topic)) {
+		state.inChat = {};
 	}
-	const auto searchInPeerUpdated = (_searchInChat != chat);
-	if (searchInPeerUpdated) {
-		from = nullptr;
-	} else if (!chat && !forum) {
-		from = nullptr;
+	if (!state.inChat && !forum) {
+		state.fromPeer = nullptr;
 	}
-	const auto searchFromUpdated = searchInPeerUpdated
-		|| (_searchFromAuthor != from);
-	_searchFromAuthor = from;
+	if (state.tab == ChatSearchTab::PublicPosts
+		&& !IsHashtagSearchQuery(state.query)) {
+		state.tab = ChatSearchTab::MyMessages;
+	}
+	if (!state.tags.empty()) {
+		state.inChat = session().data().history(session().user());
+	}
+
+	const auto inChatChanged = (_searchState.inChat != state.inChat);
+	const auto fromPeerChanged = (_searchState.fromPeer != state.fromPeer);
+	const auto tagsChanged = (_searchState.tags != state.tags);
+	const auto queryChanged = (_searchState.query != state.query);
+	const auto tabChanged = (_searchState.tab != state.tab);
 
 	if (forum) {
 		if (_openedForum == forum) {
+			_searchState.fromPeer = state.fromPeer; // showSearchInTopBar
 			showSearchInTopBar(anim::type::normal);
 		} else if (_layout == Layout::Main) {
 			_forumSearchRequested = true;
+			_searchState.fromPeer = state.fromPeer; // showSearchInTopBar
 			controller()->showForum(forum);
 		} else {
 			return false;
 		}
+	} else if (peer && (_layout != Layout::Main)) {
+		return false;
 	}
-	_searchInMigrated = nullptr;
-	if (peer && !forum) {
-		if (_layout != Layout::Main) {
-			return false;
-		} else if (const auto migrateTo = peer->migrateTo()) {
-			const auto to = peer->owner().history(migrateTo);
-			return setSearchInChat(to, from, tags);
-		} else if (const auto migrateFrom = peer->migrateFrom()) {
-			_searchInMigrated = peer->owner().history(migrateFrom);
-		}
+
+	const auto migrateFrom = (peer && !topic)
+		? peer->migrateFrom()
+		: nullptr;
+	_searchInMigrated = migrateFrom
+		? peer->owner().history(migrateFrom).get()
+		: nullptr;
+	_searchState = state;
+	if (queryChanged) {
+		updateLockUnlockVisibility(anim::type::normal);
+		updateLoadMoreChatsVisibility();
+		updateCancelSearch();
 	}
-	if (searchInPeerUpdated) {
-		_searchInChat = chat;
-		if (chat) {
-			_hiddenSearchFromAuthor = {};
-			_hiddenSearchTags = {};
-			const auto hiddenTopic = _hiddenSearchInChat.topic();
-			if (!hiddenTopic || hiddenTopic->history() != chat.history()) {
-				_hiddenSearchInChat = {};
-			}
-		}
-		controller()->setSearchInChat(_searchInChat);
-		updateSuggestions(anim::type::instant);
+	if (inChatChanged) {
+		controller()->setSearchInChat(_searchState.inChat);
 		updateSearchTabs();
+	}
+	if (queryChanged || inChatChanged) {
 		updateJumpToDateVisibility();
 		updateStoriesVisibility();
 	}
-	if (searchFromUpdated) {
+	if (fromPeerChanged) {
 		updateSearchFromVisibility();
-		clearSearchCache();
 	}
 	updateLockUnlockPosition();
-	if (_searchInChat && _layout == Layout::Main) {
+
+	if ((state.query.isEmpty() && !state.fromPeer && state.tags.empty())
+		|| inChatChanged
+		|| fromPeerChanged
+		|| tagsChanged
+		|| tabChanged) {
+		clearSearchCache();
+	}
+	if (state.query.isEmpty()) {
+		_peerSearchCache.clear();
+		for (const auto &[requestId, query] : base::take(_peerSearchQueries)) {
+			_api.request(requestId).cancel();
+		}
+		_peerSearchQuery = QString();
+	}
+
+	if (_searchState.inChat && _layout == Layout::Main) {
 		controller()->closeFolder();
 	}
-	_searchTags = std::move(tags);
-	_inner->searchInChat(_searchInChat, _searchFromAuthor, _searchTags);
+
+	_inner->applySearchState(_searchState);
+
+	if (!_postponeProcessSearchFocusChange) {
+		// Suggestions depend on _inner->state(), not on _searchState.
+		updateSuggestions(anim::type::instant);
+	}
+
 	_searchTagsLifetime = _inner->searchTagsChanges(
 	) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
-		if (_searchTags != list) {
-			clearSearchCache();
-			_searchTags = std::move(list);
-			if (_searchTags.empty()) {
-				applySearchUpdate(true);
-			} else {
-				searchMessages();
-			}
-		}
+		auto copy = _searchState;
+		copy.tags = std::move(list);
+		applySearchState(std::move(copy));
 	});
 	if (_subsectionTopBar) {
 		_subsectionTopBar->searchEnableJumpToDate(
-			_openedForum && _searchInChat);
+			_openedForum && _searchState.inChat);
 	}
-	if (_searchFromAuthor
+	if (_searchState.fromPeer
 		&& _lastSearchText == HistoryView::SwitchToChooseFromQuery()) {
 		cancelSearch();
 	}
-	if (_searchInChat || !_search->getLastText().isEmpty()) {
+	if (_searchState.inChat || !_search->getLastText().isEmpty()) {
 		_search->setFocus();
 	} else {
-		setInnerFocus(true);
+		setInnerFocus();
 	}
 	updateForceDisplayWide();
+	applySearchUpdate();
 	return true;
-}
-
-bool Widget::setSearchInChat(
-		Key chat,
-		PeerData *from) {
-	return setSearchInChat(chat, from, {});
 }
 
 void Widget::clearSearchCache() {
@@ -3066,27 +3037,31 @@ void Widget::clearSearchCache() {
 }
 
 void Widget::showCalendar() {
-	if (_searchInChat) {
-		controller()->showCalendar(_searchInChat, QDate());
+	if (_searchState.inChat) {
+		controller()->showCalendar(_searchState.inChat, QDate());
 	}
 }
 
 void Widget::showSearchFrom() {
 	if (const auto peer = searchInPeer()) {
-		const auto weak = base::make_weak(_searchInChat.topic());
-		const auto chat = (!_searchInChat && _openedForum)
+		const auto weak = base::make_weak(_searchState.inChat.topic());
+		const auto chat = (!_searchState.inChat && _openedForum)
 			? Key(_openedForum->history())
-			: _searchInChat;
+			: _searchState.inChat;
 		auto box = SearchFromBox(
 			peer,
 			crl::guard(this, [=](not_null<PeerData*> from) {
 				controller()->hideLayer();
+				auto copy = _searchState;
 				if (!chat.topic()) {
-					setSearchInChat(chat, from);
+					copy.inChat = chat;
+					copy.fromPeer = from;
+					applySearchState(std::move(copy));
 				} else if (const auto strong = weak.get()) {
-					setSearchInChat(strong, from);
+					copy.inChat = strong;
+					copy.fromPeer = from;
+					applySearchState(std::move(copy));
 				}
-				applySearchUpdate(true);
 			}),
 			crl::guard(this, [=] { _search->setFocus(); }));
 		if (box) {
@@ -3132,9 +3107,8 @@ void Widget::completeHashtag(QString tag) {
 				}
 				if (cur - start - 1 == tag.size() && cur < t.size() && t.at(cur) == ' ') ++cur;
 				hashtag = t.mid(0, start + 1) + tag + ' ' + t.mid(cur);
-				_search->setText(hashtag);
-				_search->setCursorPosition(start + 1 + tag.size() + 1);
-				applySearchUpdate(true);
+				setSearchQuery(hashtag, start + 1 + tag.size() + 1);
+				applySearchUpdate();
 				return;
 			}
 			break;
@@ -3142,9 +3116,10 @@ void Widget::completeHashtag(QString tag) {
 			break;
 		}
 	}
-	_search->setText(t.mid(0, cur) + '#' + tag + ' ' + t.mid(cur));
-	_search->setCursorPosition(cur + 1 + tag.size() + 1);
-	applySearchUpdate(true);
+	setSearchQuery(
+		t.mid(0, cur) + '#' + tag + ' ' + t.mid(cur),
+		cur + 1 + tag.size() + 1);
+	applySearchUpdate();
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
@@ -3162,7 +3137,7 @@ void Widget::updateLockUnlockVisibility(anim::type animated) {
 		|| _childList
 		|| _searchHasFocus
 		|| _searchSuggestionsLocked
-		|| _searchInChat
+		|| _searchState.inChat
 		|| !_search->getLastText().isEmpty();
 	if (_lockUnlock->toggled() == hidden) {
 		const auto stories = _stories && !_stories->empty();
@@ -3195,7 +3170,7 @@ void Widget::updateJumpToDateVisibility(bool fast) {
 	}
 
 	_jumpToDate->toggle(
-		(_searchInChat && _search->getLastText().isEmpty()),
+		(_searchState.inChat && _search->getLastText().isEmpty()),
 		fast ? anim::type::instant : anim::type::normal);
 }
 
@@ -3203,7 +3178,7 @@ void Widget::updateSearchFromVisibility(bool fast) {
 	auto visible = [&] {
 		if (const auto peer = searchInPeer()) {
 			if (peer->isChat() || peer->isMegagroup()) {
-				return !_searchFromAuthor;
+				return !_searchState.fromPeer;
 			}
 		}
 		return false;
@@ -3427,7 +3402,7 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		//}
 	} else if ((e->key() == Qt::Key_Backspace || e->key() == Qt::Key_Tab)
 		&& _searchHasFocus
-		&& !_searchInChat) {
+		&& !_searchState.inChat) {
 		escape();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		submit();
@@ -3586,21 +3561,51 @@ void Widget::cancelSearchRequest() {
 }
 
 PeerData *Widget::searchInPeer() const {
-	return _openedForum
+	return (_searchState.tab == ChatSearchTab::MyMessages
+		|| _searchState.tab == ChatSearchTab::PublicPosts)
+		? nullptr
+		: _openedForum
 		? _openedForum->channel().get()
-		: _searchInChat.sublist()
+		: _searchState.inChat.sublist()
 		? session().user().get()
-		: _searchInChat.peer();
+		: _searchState.inChat.peer();
 }
 
 Data::ForumTopic *Widget::searchInTopic() const {
-	return _searchInChat.topic();
+	return (_searchState.tab != ChatSearchTab::ThisTopic)
+		? nullptr
+		: _searchState.inChat.topic();
+}
+
+PeerData *Widget::searchFromPeer() const {
+	if (const auto peer = searchInPeer()) {
+		if (peer->isChat() || peer->isMegagroup()) {
+			return _searchState.fromPeer;
+		}
+	}
+	return nullptr;
+}
+
+const std::vector<Data::ReactionId> &Widget::searchInTags() const {
+	if (const auto peer = searchInPeer()) {
+		if (peer->isSelf() && _searchState.tab == ChatSearchTab::ThisPeer) {
+			return _searchState.tags;
+		}
+	}
+	static const auto kEmpty = std::vector<Data::ReactionId>();
+	return kEmpty;
 }
 
 QString Widget::currentSearchQuery() const {
 	return _subsectionTopBar
 		? _subsectionTopBar->searchQueryCurrent()
 		: _search->getLastText();
+}
+
+int Widget::currentSearchQueryCursorPosition() const {
+	return _subsectionTopBar
+		? _subsectionTopBar->searchQueryCursorPosition()
+		: _search->textCursor().position();
 }
 
 void Widget::clearSearchField() {
@@ -3611,28 +3616,36 @@ void Widget::clearSearchField() {
 	}
 }
 
-void Widget::setSearchQuery(const QString &query) {
+void Widget::setSearchQuery(const QString &query, int cursorPosition) {
+	if (cursorPosition < 0) {
+		cursorPosition = query.size();
+	}
 	if (_subsectionTopBar) {
-		_subsectionTopBar->searchSetText(query);
+		_subsectionTopBar->searchSetText(query, cursorPosition);
 	} else {
 		_search->setText(query);
+		_search->setCursorPosition(cursorPosition);
 	}
 }
 
 bool Widget::cancelSearch() {
-	auto clearingQuery = !currentSearchQuery().isEmpty();
-	auto clearingInChat = false;
 	cancelSearchRequest();
-	if (!clearingQuery && (_searchInChat || _searchFromAuthor)) {
-		if (_searchInChat && controller()->adaptive().isOneColumn()) {
-			if (const auto thread = _searchInChat.thread()) {
+	auto updatedState = _searchState;
+	const auto clearingQuery = !updatedState.query.isEmpty();
+	auto clearingInChat = !clearingQuery
+		&& (updatedState.inChat || updatedState.fromPeer);
+	if (clearingQuery) {
+		updatedState.query = QString();
+	} else if (clearingInChat) {
+		if (updatedState.inChat && controller()->adaptive().isOneColumn()) {
+			if (const auto thread = updatedState.inChat.thread()) {
 				controller()->showThread(thread);
 			} else {
 				Unexpected("Empty key in cancelSearch().");
 			}
 		}
-		setSearchInChat(Key());
-		clearingInChat = true;
+		updatedState.inChat = {};
+		updatedState.fromPeer = nullptr;
 	}
 	if (!clearingQuery
 		&& _subsectionTopBar
@@ -3640,9 +3653,9 @@ bool Widget::cancelSearch() {
 		setInnerFocus(true);
 		clearingInChat = true;
 	}
-	const auto clearSearchFocus = !_searchInChat
+	const auto clearSearchFocus = !updatedState.inChat
 		&& (_searchHasFocus || _searchSuggestionsLocked);
-	if (!_searchInChat && _suggestions) {
+	if (!updatedState.inChat && _suggestions) {
 		_suggestions->clearPersistance();
 		_searchSuggestionsLocked = false;
 	}
@@ -3654,30 +3667,11 @@ bool Widget::cancelSearch() {
 	_lastSearchId = _lastSearchMigratedId = 0;
 	_inner->clearFilter();
 	clearSearchField();
-	applySearchUpdate();
+	applySearchState(std::move(updatedState));
 	if (_suggestions && clearSearchFocus) {
 		setInnerFocus(true);
 	}
 	return clearingQuery || clearingInChat || clearSearchFocus;
-}
-
-void Widget::cancelSearchInChat() {
-	cancelSearchRequest();
-	const auto isOneColumn = controller()->adaptive().isOneColumn();
-	if (_searchInChat) {
-		if (isOneColumn && currentSearchQuery().trimmed().isEmpty()) {
-			if (const auto thread = _searchInChat.thread()) {
-				controller()->showThread(thread);
-			} else {
-				Unexpected("Empty key in cancelSearchInPeer().");
-			}
-		}
-		setSearchInChat(Key());
-	}
-	applySearchUpdate(true);
-	if (!isOneColumn && _search->getLastText().isEmpty()) {
-		controller()->content()->dialogsCancelled();
-	}
 }
 
 Widget::~Widget() {

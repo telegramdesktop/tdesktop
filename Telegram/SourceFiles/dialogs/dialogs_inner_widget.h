@@ -145,6 +145,7 @@ public:
 	}
 	[[nodiscard]] bool hasFilteredResults() const;
 
+	void applySearchState(SearchState state);
 	void searchInChat(
 		Key key,
 		PeerData *from,
@@ -152,7 +153,6 @@ public:
 	[[nodiscard]] auto searchTagsChanges() const
 		-> rpl::producer<std::vector<Data::ReactionId>>;
 
-	void applyFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringView newFilter);
 	void appendToFiltered(Key key);
 
@@ -169,7 +169,6 @@ public:
 	[[nodiscard]] rpl::producer<Ui::ScrollToRequest> mustScrollTo() const;
 	[[nodiscard]] rpl::producer<Ui::ScrollToRequest> dialogMoved() const;
 	[[nodiscard]] rpl::producer<> searchMessages() const;
-	[[nodiscard]] rpl::producer<> cancelSearchInChatRequests() const;
 	[[nodiscard]] rpl::producer<QString> completeHashtagRequests() const;
 	[[nodiscard]] rpl::producer<> refreshHashtagsRequests() const;
 
@@ -486,21 +485,16 @@ private:
 	WidgetState _state = WidgetState::Default;
 
 	object_ptr<Ui::FlatLabel> _empty = { nullptr };
-	object_ptr<Ui::IconButton> _cancelSearchInChat;
 	object_ptr<Ui::IconButton> _cancelSearchFromUser;
 
 	Ui::DraggingScrollManager _draggingScroll;
 
-	Key _searchInChat;
+	SearchState _searchState;
 	History *_searchInMigrated = nullptr;
-	PeerData *_searchFromPeer = nullptr;
 	PeerData *_searchFromShown = nullptr;
-	mutable Ui::PeerUserpicView _searchInChatUserpic;
 	mutable Ui::PeerUserpicView _searchFromUserUserpic;
-	Ui::Text::String _searchInChatText;
 	Ui::Text::String _searchFromUserText;
 	std::unique_ptr<SearchTags> _searchTags;
-	std::vector<Data::ReactionId> _searchTagsSelected;
 	int _searchTagsLeft = 0;
 	RowDescriptor _menuRow;
 

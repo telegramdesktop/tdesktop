@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/qt/qt_compare.h"
+
 class History;
 class PeerData;
 
@@ -15,11 +17,13 @@ class Thread;
 class Folder;
 class ForumTopic;
 class SavedSublist;
+struct ReactionId;
 } // namespace Data
 
 namespace Dialogs {
 
 class Entry;
+enum class ChatSearchTab : uchar;
 
 class Key {
 public:
@@ -119,5 +123,30 @@ struct EntryState {
 	friend inline auto operator<=>(EntryState, EntryState) noexcept
 		= default;
 };
+
+struct SearchState {
+	Key inChat;
+	PeerData *fromPeer = nullptr;
+	std::vector<Data::ReactionId> tags;
+	ChatSearchTab tab = {};
+	QString query;
+
+	[[nodiscard]] bool empty() const;
+	[[nodiscard]] ChatSearchTab defaultTabForMe() const;
+	[[nodiscard]] bool filterChatsList() const;
+
+	explicit operator bool() const {
+		return !empty();
+	}
+
+	friend inline auto operator<=>(
+		const SearchState&,
+		const SearchState&) noexcept = default;
+	friend inline bool operator==(
+		const SearchState&,
+		const SearchState&) = default;
+};
+
+;
 
 } // namespace Dialogs

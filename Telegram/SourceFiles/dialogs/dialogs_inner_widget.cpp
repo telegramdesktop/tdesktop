@@ -157,13 +157,11 @@ InnerWidget::InnerWidget(
 , _narrowWidth(st::defaultDialogRow.padding.left()
 	+ st::defaultDialogRow.photoSize
 	+ st::defaultDialogRow.padding.left())
-, _cancelSearchInChat(this, st::dialogsCancelSearchInPeer)
 , _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer)
 , _chatPreviewTimer([=] { showChatPreview(true); })
 , _childListShown(std::move(childListShown)) {
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 
-	_cancelSearchInChat->hide();
 	_cancelSearchFromUser->hide();
 
 	style::PaletteChanged(
@@ -509,13 +507,7 @@ int InnerWidget::searchInChatSkip() const {
 	if (_searchTags) {
 		result += _searchTags->height();
 	}
-	if (_searchInChat) {
-		result += st::searchedBarHeight + st::dialogsSearchInHeight;
-	}
 	if (_searchFromShown) {
-		if (_searchInChat) {
-			result += st::lineWidth;
-		}
 		result += st::dialogsSearchInHeight;
 	}
 	return result;
@@ -856,7 +848,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 		}
 
-		if (_searchInChat || _searchFromPeer) {
+		if (_searchFromShown) {
 			paintSearchInChat(p, {
 				.st = &st::forumTopicRow,
 				.currentBg = currentBg(),
@@ -1141,37 +1133,8 @@ void InnerWidget::paintSearchInChat(
 		top += height;
 	}
 	p.setFont(st::searchedBarFont);
-	if (_searchInChat) {
-		const auto bar = st::searchedBarHeight;
-		p.fillRect(0, top, width(), top + bar, st::searchedBarBg);
-		p.setPen(st::searchedBarFg);
-		p.drawTextLeft(st::searchedBarPosition.x(), top + st::searchedBarPosition.y(), width(), tr::lng_dlg_search_in(tr::now));
-		top += bar;
-	}
 	auto fullRect = QRect(0, top, width(), height - top);
 	p.fillRect(fullRect, currentBg());
-	if (_searchInChat) {
-		if (_searchFromShown) {
-			p.fillRect(QRect(0, top + st::dialogsSearchInHeight, width(), st::lineWidth), st::shadowFg);
-		}
-		p.setPen(st::dialogsNameFg);
-		if (const auto topic = _searchInChat.topic()) {
-			paintSearchInTopic(p, context, topic, _searchInChatUserpic, top, _searchInChatText);
-		} else if (const auto peer = _searchInChat.peer()) {
-			if (peer->isSelf()) {
-				paintSearchInSaved(p, top, _searchInChatText);
-			} else if (peer->isRepliesChat()) {
-				paintSearchInReplies(p, top, _searchInChatText);
-			} else {
-				paintSearchInPeer(p, peer, _searchInChatUserpic, top, _searchInChatText);
-			}
-		} else if (const auto sublist = _searchInChat.sublist()) {
-			paintSearchInSaved(p, top, _searchInChatText);
-		} else {
-			Unexpected("Empty Key in paintSearchInChat.");
-		}
-		top += st::dialogsSearchInHeight + st::lineWidth;
-	}
 	if (_searchFromShown) {
 		p.setPen(st::dialogsTextFg);
 		p.setTextPalette(st::dialogsSearchFromPalette);
@@ -1930,12 +1893,10 @@ void InnerWidget::moveCancelSearchButtons() {
 	const auto widthForCancelButton = qMax(
 		width(),
 		st::columnMinimalWidthLeft - _narrowWidth);
-	const auto left = widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchInChat->width();
+	const auto left = widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchFromUser->width();
 	const auto top = (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2;
 	const auto skip = st::searchedBarHeight + (_searchTags ? _searchTags->height() : 0);
-	_cancelSearchInChat->moveToLeft(left, skip + top);
-	const auto next = _searchInChat ? (skip + st::dialogsSearchInHeight + st::lineWidth) : 0;
-	_cancelSearchFromUser->moveToLeft(left, next + top);
+	_cancelSearchFromUser->moveToLeft(left, skip + top);
 }
 
 void InnerWidget::dialogRowReplaced(
@@ -2334,7 +2295,7 @@ void InnerWidget::fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu) {
 	const auto folder = session().data().folderLoaded(Data::Folder::kId);
 	if (!folder
 		|| !folder->chatsList()->fullSize().current()
-		|| _searchInChat) {
+		|| _searchState.inChat) {
 		return;
 	}
 	const auto skip = session().settings().skipArchiveInSearch();
@@ -2491,17 +2452,26 @@ void InnerWidget::parentGeometryChanged() {
 	}
 }
 
-void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
+void InnerWidget::applySearchState(SearchState state) {
+	if (_searchState == state) {
+		return;
+	}
+	auto withSameQuery = state;
+	withSameQuery.query = _searchState.query;
+	const auto otherChanged = (_searchState != withSameQuery);
+
+	_searchState = std::move(state);
+	auto newFilter = _searchState.query;
 	const auto mentionsSearch = (newFilter == u"@"_q);
 	const auto words = mentionsSearch
 		? QStringList(newFilter)
 		: TextUtilities::PrepareSearchWords(newFilter);
 	newFilter = words.isEmpty() ? QString() : words.join(' ');
-	if (newFilter != _filter || force) {
+	if (newFilter != _filter || otherChanged) {
 		_filter = newFilter;
 		if (_filter.isEmpty()
-			&& !_searchFromPeer
-			&& _searchTagsSelected.empty()) {
+			&& !_searchState.fromPeer
+			&& _searchState.tags.empty()) {
 			clearFilter();
 		} else {
 			setState(WidgetState::Filtered);
@@ -2521,9 +2491,7 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 					top += i->row->height();
 				}
 			};
-			if (!_searchInChat
-				&& !_searchFromPeer
-				&& !words.isEmpty()) {
+			if (_searchState.filterChatsList() && !words.isEmpty()) {
 				if (_savedSublists) {
 					const auto owner = &session().data();
 					append(owner->savedMessages().chatsList()->indexed());
@@ -2549,7 +2517,9 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 }
 
 void InnerWidget::onHashtagFilterUpdate(QStringView newFilter) {
-	if (newFilter.isEmpty() || newFilter.at(0) != '#' || _searchInChat) {
+	if (newFilter.isEmpty()
+		|| newFilter.at(0) != '#'
+		|| _searchState.inChat) {
 		_hashtagFilter = QString();
 		if (!_hashtagResults.empty()) {
 			_hashtagResults.clear();
@@ -2751,10 +2721,6 @@ rpl::producer<> InnerWidget::searchMessages() const {
 	return _searchMessages.events();
 }
 
-rpl::producer<> InnerWidget::cancelSearchInChatRequests() const {
-	return _cancelSearchInChat->clicks() | rpl::to_empty;
-}
-
 rpl::producer<QString> InnerWidget::completeHashtagRequests() const {
 	return _completeHashtagRequests.events();
 }
@@ -2847,12 +2813,12 @@ void InnerWidget::searchReceived(
 	const auto isMigratedSearch = (type == SearchRequestType::MigratedFromStart)
 		|| (type == SearchRequestType::MigratedFromOffset);
 
-	const auto key = (!_openedForum || _searchInChat.topic())
-		? _searchInChat
+	const auto key = (!_openedForum || _searchState.inChat.topic())
+		? _searchState.inChat
 		: Key(_openedForum->history());
 	if (inject
-		&& (!_searchInChat
-			|| inject->history() == _searchInChat.history())) {
+		&& (!_searchState.inChat
+			|| inject->history() == _searchState.inChat.history())) {
 		Assert(_searchResults.empty());
 		const auto index = int(_searchResults.size());
 		_searchResults.push_back(
@@ -2984,7 +2950,7 @@ void InnerWidget::refresh(bool toTop) {
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (_waitingForSearch) {
-			h = searchedOffset() + (_searchResults.size() * _st->height) + ((_searchResults.empty() && !_searchInChat) ? -st::searchedBarHeight : 0);
+			h = searchedOffset() + (_searchResults.size() * _st->height) + ((_searchResults.empty() && !_searchState.inChat) ? -st::searchedBarHeight : 0);
 		} else {
 			h = searchedOffset() + (_searchResults.size() * _st->height);
 		}
@@ -3124,7 +3090,7 @@ void InnerWidget::searchInChat(
 
 			_searchTags->selectedChanges(
 			) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
-				_searchTagsSelected = std::move(list);
+				_searchState.tags = std::move(list);
 			}, _searchTags->lifetime());
 
 			_searchTags->repaintRequests() | rpl::start_with_next([=] {
@@ -3150,20 +3116,17 @@ void InnerWidget::searchInChat(
 			}, _searchTags->lifetime());
 		} else {
 			_searchTags = nullptr;
-			_searchTagsSelected.clear();
+			_searchState.tags.clear();
 		}
 	} else {
 		_searchTags = nullptr;
-		_searchTagsSelected.clear();
+		_searchState.tags.clear();
 	}
-	_searchInChat = key;
-	_searchFromPeer = from;
+	_searchState.inChat = key;
+	_searchState.fromPeer = from;
 	_searchFromShown = key.sublist() ? key.sublist()->peer().get() : from;
-	if (_searchInChat) {
+	if (_searchState.inChat) {
 		onHashtagFilterUpdate(QStringView());
-		_cancelSearchInChat->show();
-	} else {
-		_cancelSearchInChat->hide();
 	}
 	if (_searchFromShown) {
 		_cancelSearchFromUser->show();
@@ -3172,14 +3135,8 @@ void InnerWidget::searchInChat(
 		_cancelSearchFromUser->hide();
 		_searchFromUserUserpic = {};
 	}
-	if (_searchInChat || _searchFromPeer) {
+	if (_searchState.inChat || _searchState.fromPeer) {
 		refreshSearchInChatLabel();
-	}
-
-	if (peer) {
-		_searchInChatUserpic = peer->createUserpicView();
-	} else {
-		_searchInChatUserpic = {};
 	}
 	moveCancelSearchButtons();
 }
@@ -3192,27 +3149,6 @@ auto InnerWidget::searchTagsChanges() const
 }
 
 void InnerWidget::refreshSearchInChatLabel() {
-	const auto dialog = [&] {
-		if (const auto topic = _searchInChat.topic()) {
-			return topic->title();
-		} else if (const auto peer = _searchInChat.peer()) {
-			if (peer->isSelf()) {
-				return tr::lng_saved_messages(tr::now);
-			} else if (peer->isRepliesChat()) {
-				return tr::lng_replies_messages(tr::now);
-			}
-			return peer->name();
-		} else if (_searchInChat.sublist()) {
-			return tr::lng_saved_messages(tr::now);
-		}
-		return QString();
-	}();
-	if (!dialog.isEmpty()) {
-		_searchInChatText.setText(
-			st::semiboldTextStyle,
-			dialog,
-			Ui::DialogTextOptions());
-	}
 	const auto from = _searchFromShown ? _searchFromShown->name() : u""_q;
 	if (!from.isEmpty()) {
 		const auto fromUserText = tr::lng_dlg_search_from(
@@ -3236,8 +3172,8 @@ void InnerWidget::repaintSearchResult(int index) {
 }
 
 void InnerWidget::clearFilter() {
-	if (_state == WidgetState::Filtered || _searchInChat) {
-		if (_searchInChat) {
+	if (_state == WidgetState::Filtered || _searchState.inChat) {
+		if (_searchState.inChat) {
 			setState(WidgetState::Filtered);
 			_waitingForSearch = true;
 		} else {
