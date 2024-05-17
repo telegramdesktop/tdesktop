@@ -331,6 +331,7 @@ void Panel::Incoming::RendererGL::paint(
 		shadow.texture.left(), shadow.texture.top(),
 	};
 
+	_contentBuffer->bind();
 	_contentBuffer->write(0, coords, sizeof(coords));
 
 	const auto bottomShadowArea = QRect(
