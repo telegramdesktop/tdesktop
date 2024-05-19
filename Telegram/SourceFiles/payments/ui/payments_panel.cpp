@@ -70,8 +70,8 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 Panel::Panel(not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
 , _widget(std::make_unique<SeparatePanel>()) {
-	_widget->setInnerSize(st::paymentsPanelSize);
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
+	_widget->setInnerSize(st::paymentsPanelSize);
 
 	_widget->closeRequests(
 	) | rpl::start_with_next([=] {
