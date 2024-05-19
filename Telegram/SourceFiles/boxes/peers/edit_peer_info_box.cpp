@@ -1016,7 +1016,11 @@ void Controller::fillColorIndexButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
 	const auto show = _navigation->uiShow();
-	AddPeerColorButton(_controls.buttonsLayout, show, _peer);
+	AddPeerColorButton(
+		_controls.buttonsLayout,
+		_navigation->uiShow(),
+		_peer,
+		st::managePeerColorsButton);
 }
 
 void Controller::fillSignaturesButton() {
