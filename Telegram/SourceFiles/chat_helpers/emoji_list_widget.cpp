@@ -1134,9 +1134,7 @@ void EmojiListWidget::fillRecentMenu(
 		not_null<Ui::PopupMenu*> menu,
 		int section,
 		int index) {
-	if (section != int(Section::Recent)) {
-		return;
-	}
+	const auto recent = (section == int(Section::Recent));
 	const auto addAction = Ui::Menu::CreateAddActionCallback(menu);
 	const auto over = OverEmoji{ section, index };
 	const auto emoji = lookupOverEmoji(&over);
@@ -1157,17 +1155,20 @@ void EmojiListWidget::fillRecentMenu(
 				TextUtilities::SetClipboardText(data);
 			}, &st::menuIconCopy);
 		}
-		if (setId && _features.openStickerSets) {
+		if (recent && setId && _features.openStickerSets) {
 			addAction(
 				tr::lng_emoji_view_pack(tr::now),
 				crl::guard(this, [=] { displaySet(setId); }),
 				&st::menuIconShowAll);
 		}
-	} else if (emoji) {
+	} else if (recent && emoji) {
 		addAction(tr::lng_emoji_copy(tr::now), [=] {
 			const auto text = emoji->text();
 			TextUtilities::SetClipboardText({ text, { text } });
 		}, &st::menuIconCopy);
+	}
+	if (!recent) {
+		return;
 	}
 	auto id = RecentEmojiId{ emoji };
 	if (custom) {
@@ -1194,7 +1195,7 @@ void EmojiListWidget::fillRecentMenu(
 			.confirmed = crl::guard(this, sure),
 			.confirmText = tr::lng_emoji_reset_recent_button(tr::now),
 			.labelStyle = &st().boxLabel,
-			}));
+		}));
 	};
 	addAction({
 		.text = tr::lng_emoji_reset_recent(tr::now),
