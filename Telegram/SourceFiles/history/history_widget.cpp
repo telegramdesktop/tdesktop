@@ -8150,12 +8150,14 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		}
 	}
 	if (_replyEditMsg) {
-		const auto media = _replyEditMsg->media();
-		_canReplaceMedia = media && media->allowsEditMedia();
+		const auto editMedia = _editMsgId
+			? _replyEditMsg->media()
+			: nullptr;
+		_canReplaceMedia = editMedia && editMedia->allowsEditMedia();
 		_photoEditMedia = (_canReplaceMedia
-			&& media->photo()
-			&& !media->photo()->isNull())
-			? media->photo()->createMediaView()
+			&& editMedia->photo()
+			&& !editMedia->photo()->isNull())
+			? editMedia->photo()->createMediaView()
 			: nullptr;
 		if (_photoEditMedia) {
 			_photoEditMedia->wanted(
