@@ -37,8 +37,6 @@ public:
 	ChatSearchTabs(QWidget *parent, ChatSearchTab active);
 	~ChatSearchTabs();
 
-	void setPeerTabType(ChatSearchPeerTabType type);
-
 	// A [custom] emoji to use when there is not enough space for text.
 	// Only tabs with available short labels are shown.
 	struct ShortLabel {
@@ -47,7 +45,8 @@ public:
 	};
 	void setTabShortLabels(
 		std::vector<ShortLabel> labels,
-		ChatSearchTab active);
+		ChatSearchTab active,
+		ChatSearchPeerTabType peerTabType);
 
 	[[nodiscard]] rpl::producer<ChatSearchTab> tabChanges() const;
 
@@ -60,13 +59,13 @@ private:
 
 	void refreshTabs(ChatSearchTab active);
 	int resizeGetHeight(int newWidth) override;
+	void paintEvent(QPaintEvent *e) override;
 
 	const std::unique_ptr<Ui::SettingsSlider> _tabs;
 	const std::unique_ptr<Ui::PlainShadow> _shadow;
 
 	std::vector<Tab> _list;
 	rpl::variable<ChatSearchTab> _active;
-	ChatSearchPeerTabType _type = {};
 
 };
 

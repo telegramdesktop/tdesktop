@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_inner_widget.h"
 
 #include "dialogs/dialogs_three_state_icon.h"
+#include "dialogs/ui/chat_search_tabs.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
@@ -747,6 +748,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.fillRect(dialogsClip, currentBg());
 		}
 	} else if (_state == WidgetState::Filtered) {
+		auto top = 0;
 		if (!_hashtagResults.empty()) {
 			auto from = floorclamp(r.y(), st::mentionHeight, 0, _hashtagResults.size());
 			auto to = ceilclamp(r.y() + r.height(), st::mentionHeight, 0, _hashtagResults.size());
@@ -791,6 +793,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						p.drawText(htagleft + firstwidth, st::mentionTop + st::mentionFont->ascent, second);
 					}
 					p.translate(0, st::mentionHeight);
+					top += st::mentionHeight;
 				}
 			}
 		}
@@ -800,7 +803,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			auto to = std::min(
 				filteredIndex(r.y() + r.height() - skip) + 1,
 				int(_filterResults.size()));
-			p.translate(0, filteredHeight(from));
+			const auto height = filteredHeight(from);
+			p.translate(0, height);
+			top += height;
 			for (; from < to; ++from) {
 				const auto selected = isPressed()
 					? (from == _filteredPressed)
@@ -808,6 +813,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				const auto row = _filterResults[from].row;
 				paintRow(row, selected, !activeEntry.fullId);
 				p.translate(0, row->height());
+				top += row->height();
 			}
 		}
 
@@ -817,11 +823,13 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.setPen(st::searchedBarFg);
 			p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), tr::lng_search_global_results(tr::now));
 			p.translate(0, st::searchedBarHeight);
+			top += st::searchedBarHeight;
 
 			auto skip = peerSearchOffset();
 			auto from = floorclamp(r.y() - skip, st::dialogsRowHeight, 0, _peerSearchResults.size());
 			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _peerSearchResults.size());
 			p.translate(0, from * st::dialogsRowHeight);
+			top += from * st::dialogsRowHeight;
 			if (from < _peerSearchResults.size()) {
 				const auto activePeer = activeEntry.key.peer();
 				for (; from < to; ++from) {
@@ -844,6 +852,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.paused = videoPaused,
 					});
 					p.translate(0, st::dialogsRowHeight);
+					top += st::dialogsRowHeight;
 				}
 			}
 		}
@@ -857,29 +866,15 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				.paused = videoPaused,
 			});
 			p.translate(0, searchInChatSkip());
-			if (_waitingForSearch && _searchResults.empty()) {
-				p.fillRect(
-					0,
-					0,
-					fullWidth,
-					st::searchedBarHeight,
-					st::searchedBarBg);
-				p.setFont(st::searchedBarFont);
-				p.setPen(st::searchedBarFg);
-				p.drawTextLeft(
-					st::searchedBarPosition.x(),
-					st::searchedBarPosition.y(),
-					width(),
-					tr::lng_dlg_search_for_messages(tr::now));
-				p.translate(0, st::searchedBarHeight);
+			top += searchInChatSkip();
+			if (_searchResults.empty()) {
+				p.fillRect(0, 0, fullWidth, st::lineWidth, st::shadowFg);
 			}
 		}
 
 		const auto showUnreadInSearchResults = uniqueSearchResults();
-		if (!_waitingForSearch || !_searchResults.empty()) {
-			const auto text = _searchResults.empty()
-				? tr::lng_search_no_results(tr::now)
-				: showUnreadInSearchResults
+		if (!_searchResults.empty()) {
+			const auto text = showUnreadInSearchResults
 				? u"Search results"_q
 				: tr::lng_search_found_results(
 					tr::now,
@@ -890,11 +885,13 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.setPen(st::searchedBarFg);
 			p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), text);
 			p.translate(0, st::searchedBarHeight);
+			top += st::searchedBarHeight;
 
 			auto skip = searchedOffset();
 			auto from = floorclamp(r.y() - skip, _st->height, 0, _searchResults.size());
 			auto to = ceilclamp(r.y() + r.height() - skip, _st->height, 0, _searchResults.size());
 			p.translate(0, from * _st->height);
+			top += from * _st->height;
 			if (from < _searchResults.size()) {
 				for (; from < to; ++from) {
 					const auto &result = _searchResults[from];
@@ -920,6 +917,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.displayUnreadInfo = showUnreadInSearchResults,
 					});
 					p.translate(0, _st->height);
+					top += _st->height;
 				}
 			}
 		}
@@ -1127,10 +1125,11 @@ void InnerWidget::paintSearchInChat(
 	auto top = 0;
 	if (_searchTags) {
 		const auto height = _searchTags->height();
+		top += st::dialogsSearchTagBottom;
 		p.fillRect(0, top, width(), height, currentBg());
-		const auto position = QPoint(_searchTagsLeft, 0);
+		const auto position = QPoint(_searchTagsLeft, top);
 		_searchTags->paint(p, position, context.now, context.paused);
-		top += height;
+		top += height - st::dialogsSearchTagBottom;
 	}
 	p.setFont(st::searchedBarFont);
 	auto fullRect = QRect(0, top, width(), height - top);
@@ -1279,7 +1278,9 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 	_lastMousePosition = globalPosition;
 	_lastRowLocalMouseX = local.x();
 
-	const auto tagBase = QPoint(_searchTagsLeft, searchInChatOffset());
+	const auto tagBase = QPoint(
+		_searchTagsLeft,
+		searchInChatOffset() + st::dialogsSearchTagBottom);
 	const auto tagPoint = local - tagBase;
 	const auto inTags = _searchTags
 		&& QRect(
@@ -1895,7 +1896,7 @@ void InnerWidget::moveCancelSearchButtons() {
 		st::columnMinimalWidthLeft - _narrowWidth);
 	const auto left = widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchFromUser->width();
 	const auto top = (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2;
-	const auto skip = st::searchedBarHeight + (_searchTags ? _searchTags->height() : 0);
+	const auto skip = (_searchTags ? _searchTags->height() : 0);
 	_cancelSearchFromUser->moveToLeft(left, skip + top);
 }
 
@@ -2460,6 +2461,74 @@ void InnerWidget::applySearchState(SearchState state) {
 	withSameQuery.query = _searchState.query;
 	const auto otherChanged = (_searchState != withSameQuery);
 
+	const auto ignoreInChat = (state.tab == ChatSearchTab::MyMessages)
+		|| (state.tab == ChatSearchTab::PublicPosts);
+	const auto sublist = ignoreInChat ? nullptr : state.inChat.sublist();
+	const auto peer = ignoreInChat
+		? nullptr
+		: sublist
+		? session().user().get()
+		: state.inChat.peer();
+	if (const auto migrateFrom = peer ? peer->migrateFrom() : nullptr) {
+		_searchInMigrated = peer->owner().history(migrateFrom);
+	} else {
+		_searchInMigrated = nullptr;
+	}
+	if (peer && peer->isSelf()) {
+		const auto reactions = &peer->owner().reactions();
+		_searchTags = std::make_unique<SearchTags>(
+			&peer->owner(),
+			reactions->myTagsValue(sublist),
+			state.tags);
+
+		_searchTags->selectedChanges(
+		) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
+			_searchState.tags = std::move(list);
+		}, _searchTags->lifetime());
+
+		_searchTags->repaintRequests() | rpl::start_with_next([=] {
+			const auto height = _searchTags->height();
+			update(0, searchInChatOffset(), width(), height);
+		}, _searchTags->lifetime());
+
+		_searchTags->menuRequests(
+		) | rpl::start_with_next([=](Data::ReactionId id) {
+			HistoryView::ShowTagInListMenu(
+				&_menu,
+				_lastMousePosition.value_or(QCursor::pos()),
+				this,
+				id,
+				_controller);
+		}, _searchTags->lifetime());
+
+		_searchTags->heightValue() | rpl::skip(
+			1
+		) | rpl::start_with_next([=] {
+			refresh();
+			moveCancelSearchButtons();
+		}, _searchTags->lifetime());
+	} else {
+		_searchTags = nullptr;
+		state.tags.clear();
+	}
+	_searchFromShown = ignoreInChat
+		? nullptr
+		: sublist
+		? sublist->peer().get()
+		: state.fromPeer;
+	if (state.inChat) {
+		onHashtagFilterUpdate(QStringView());
+	}
+	if (_searchFromShown) {
+		_cancelSearchFromUser->show();
+		_searchFromUserUserpic = _searchFromShown->createUserpicView();
+	} else {
+		_cancelSearchFromUser->hide();
+		_searchFromUserUserpic = {};
+	}
+	refreshSearchInChatLabel();
+	moveCancelSearchButtons();
+
 	_searchState = std::move(state);
 	auto newFilter = _searchState.query;
 	const auto mentionsSearch = (newFilter == u"@"_q);
@@ -2569,7 +2638,9 @@ InnerWidget::~InnerWidget() {
 }
 
 void InnerWidget::clearSearchResults(bool clearPeerSearchResults) {
-	if (clearPeerSearchResults) _peerSearchResults.clear();
+	if (clearPeerSearchResults) {
+		_peerSearchResults.clear();
+	}
 	_searchResults.clear();
 	_searchResultsLifetime.destroy();
 	_searchResultsHistories.clear();
@@ -2807,7 +2878,8 @@ void InnerWidget::searchReceived(
 		SearchRequestType type,
 		int fullCount) {
 	const auto uniquePeers = uniqueSearchResults();
-	if (type == SearchRequestType::FromStart || type == SearchRequestType::PeerFromStart) {
+	if (type == SearchRequestType::FromStart
+		|| type == SearchRequestType::PeerFromStart) {
 		clearSearchResults(false);
 	}
 	const auto isMigratedSearch = (type == SearchRequestType::MigratedFromStart)
@@ -3064,81 +3136,6 @@ WidgetState InnerWidget::state() const {
 
 bool InnerWidget::hasFilteredResults() const {
 	return !_filterResults.empty() && _hashtagResults.empty();
-}
-
-void InnerWidget::searchInChat(
-		Key key,
-		PeerData *from,
-		std::vector<Data::ReactionId> tags) {
-	_searchInMigrated = nullptr;
-	const auto sublist = key.sublist();
-	const auto peer = sublist ? session().user().get() : key.peer();
-	if (peer) {
-		if (const auto migrateTo = peer->migrateTo()) {
-			const auto to = peer->owner().history(migrateTo);
-			return searchInChat(to, from, tags);
-		} else if (const auto migrateFrom = peer->migrateFrom()) {
-			_searchInMigrated = peer->owner().history(migrateFrom);
-		}
-
-		if (peer->isSelf()) {
-			const auto reactions = &peer->owner().reactions();
-			_searchTags = std::make_unique<SearchTags>(
-				&peer->owner(),
-				reactions->myTagsValue(sublist),
-				tags);
-
-			_searchTags->selectedChanges(
-			) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
-				_searchState.tags = std::move(list);
-			}, _searchTags->lifetime());
-
-			_searchTags->repaintRequests() | rpl::start_with_next([=] {
-				const auto height = _searchTags->height();
-				update(0, searchInChatOffset(), width(), height);
-			}, _searchTags->lifetime());
-
-			_searchTags->menuRequests(
-			) | rpl::start_with_next([=](Data::ReactionId id) {
-				HistoryView::ShowTagInListMenu(
-					&_menu,
-					_lastMousePosition.value_or(QCursor::pos()),
-					this,
-					id,
-					_controller);
-			}, _searchTags->lifetime());
-
-			_searchTags->heightValue() | rpl::skip(
-				1
-			) | rpl::start_with_next([=] {
-				refresh();
-				moveCancelSearchButtons();
-			}, _searchTags->lifetime());
-		} else {
-			_searchTags = nullptr;
-			_searchState.tags.clear();
-		}
-	} else {
-		_searchTags = nullptr;
-		_searchState.tags.clear();
-	}
-	_searchState.inChat = key;
-	_searchState.fromPeer = from;
-	_searchFromShown = key.sublist() ? key.sublist()->peer().get() : from;
-	if (_searchState.inChat) {
-		onHashtagFilterUpdate(QStringView());
-	}
-	if (_searchFromShown) {
-		_cancelSearchFromUser->show();
-		_searchFromUserUserpic = _searchFromShown->createUserpicView();
-	} else {
-		_cancelSearchFromUser->hide();
-		_searchFromUserUserpic = {};
-	}
-	if (_searchState.inChat || _searchState.fromPeer) {
-		refreshSearchInChatLabel();
-	}
-	moveCancelSearchButtons();
 }
 
 auto InnerWidget::searchTagsChanges() const

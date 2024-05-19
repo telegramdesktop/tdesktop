@@ -146,10 +146,6 @@ public:
 	[[nodiscard]] bool hasFilteredResults() const;
 
 	void applySearchState(SearchState state);
-	void searchInChat(
-		Key key,
-		PeerData *from,
-		std::vector<Data::ReactionId> tags);
 	[[nodiscard]] auto searchTagsChanges() const
 		-> rpl::producer<std::vector<Data::ReactionId>>;
 
@@ -386,6 +382,7 @@ private:
 		const Ui::Text::String &text) const;
 	void refreshSearchInChatLabel();
 	void repaintSearchResult(int index);
+	void paintEmpty(QPainter &p, int top);
 
 	Ui::VideoUserpic *validateVideoUserpic(not_null<Row*> row);
 	Ui::VideoUserpic *validateVideoUserpic(not_null<History*> history);

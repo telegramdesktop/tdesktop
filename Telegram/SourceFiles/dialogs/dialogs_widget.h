@@ -232,7 +232,7 @@ private:
 
 	void fullSearchRefreshOn(rpl::producer<> events);
 	void updateCancelSearch();
-	bool fixSearchQuery();
+	[[nodiscard]] QString validateSearchQuery();
 	void applySearchUpdate();
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
 	void loadMoreBlockedByDate();
@@ -241,7 +241,9 @@ private:
 		SearchRequestType type,
 		const MTP::Error &error,
 		mtpRequestId requestId);
-	void peopleFailed(const MTP::Error &error, mtpRequestId requestId);
+	void peerSearchFailed(const MTP::Error &error, mtpRequestId requestId);
+	void searchApplyEmpty(SearchRequestType type, mtpRequestId id);
+	void peerSearchApplyEmpty(mtpRequestId id);
 
 	void updateForceDisplayWide();
 	void scrollToDefault(bool verytop = false);
@@ -307,7 +309,6 @@ private:
 	object_ptr<Ui::JumpDownButton> _scrollToTop;
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
-	bool _fixingSearchQuery = false;
 	bool _searchingHashtag = false;
 
 	Data::Folder *_openedFolder = nullptr;

@@ -77,6 +77,10 @@ FixedHashtagSearchQuery FixHashtagSearchQuery(
 			result += ch;
 		}
 	}
+	if (result.size() == start) {
+		result += '#';
+		++cursorPosition;
+	}
 	return { result, cursorPosition };
 }
 
@@ -123,23 +127,17 @@ ChatSearchTabs::ChatSearchTabs(QWidget *parent, ChatSearchTab active)
 
 ChatSearchTabs::~ChatSearchTabs() = default;
 
-void ChatSearchTabs::setPeerTabType(ChatSearchPeerTabType type) {
-	_type = type;
-	const auto i = ranges::find(_list, ChatSearchTab::ThisPeer, &Tab::value);
-	Assert(i != end(_list));
-	i->label = TabLabel(ChatSearchTab::ThisPeer, type);
-	if (!i->shortLabel.empty()) {
-		refreshTabs(_active.current());
-	}
-}
-
 void ChatSearchTabs::setTabShortLabels(
 		std::vector<ShortLabel> labels,
-		ChatSearchTab active) {
+		ChatSearchTab active,
+		ChatSearchPeerTabType peerTabType) {
 	for (const auto &label : labels) {
 		const auto i = ranges::find(_list, label.tab, &Tab::value);
 		Assert(i != end(_list));
 		i->shortLabel = std::move(label.label);
+		if (i->value == ChatSearchTab::ThisPeer) {
+			i->label = TabLabel(label.tab, peerTabType);
+		}
 	}
 	refreshTabs(active);
 }
@@ -173,6 +171,10 @@ int ChatSearchTabs::resizeGetHeight(int newWidth) {
 		_tabs->width(),
 		st::lineWidth);
 	return _tabs->height();
+}
+
+void ChatSearchTabs::paintEvent(QPaintEvent *e) {
+	QPainter(this).fillRect(e->rect(), st::dialogsBg);
 }
 
 } // namespace Dialogs
