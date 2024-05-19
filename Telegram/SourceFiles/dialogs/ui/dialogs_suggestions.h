@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
+namespace Data {
+class Thread;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -45,6 +49,9 @@ public:
 
 	void selectJump(Qt::Key direction, int pageSize = 0);
 	void chooseRow();
+
+	[[nodiscard]] Data::Thread *updateFromParentDrag(QPoint globalPosition);
+	void dragLeft();
 
 	void show(anim::type animated, Fn<void()> finish);
 	void hide(anim::type animated, Fn<void()> finish);
@@ -90,6 +97,11 @@ private:
 	void selectJumpChats(Qt::Key direction, int pageSize);
 	void selectJumpChannels(Qt::Key direction, int pageSize);
 
+	[[nodiscard]] Data::Thread *updateFromChatsDrag(QPoint globalPosition);
+	[[nodiscard]] Data::Thread *updateFromChannelsDrag(
+		QPoint globalPosition);
+	[[nodiscard]] Data::Thread *fromListId(uint64 peerListRowId);
+
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupRecentPeers(
 		RecentPeersList recentPeers);
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupEmptyRecent();
@@ -121,6 +133,8 @@ private:
 	rpl::variable<int> _recentCount;
 	Fn<bool()> _recentPeersChoose;
 	Fn<JumpResult(Qt::Key, int)> _recentSelectJump;
+	Fn<uint64(QPoint)> _recentUpdateFromParentDrag;
+	Fn<void()> _recentDragLeft;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _recentPeers;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyRecent;
 
@@ -130,11 +144,15 @@ private:
 	rpl::variable<int> _myChannelsCount;
 	Fn<bool()> _myChannelsChoose;
 	Fn<JumpResult(Qt::Key, int)> _myChannelsSelectJump;
+	Fn<uint64(QPoint)> _myChannelsUpdateFromParentDrag;
+	Fn<void()> _myChannelsDragLeft;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _myChannels;
 
 	rpl::variable<int> _recommendationsCount;
 	Fn<bool()> _recommendationsChoose;
 	Fn<JumpResult(Qt::Key, int)> _recommendationsSelectJump;
+	Fn<uint64(QPoint)> _recommendationsUpdateFromParentDrag;
+	Fn<void()> _recommendationsDragLeft;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _recommendations;
 
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyChannels;

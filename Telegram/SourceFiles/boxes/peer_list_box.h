@@ -625,6 +625,9 @@ public:
 	void searchQueryChanged(QString query);
 	bool submitted();
 
+	PeerListRowId updateFromParentDrag(QPoint globalPosition);
+	void dragLeft();
+
 	// Interface for the controller.
 	void appendRow(std::unique_ptr<PeerListRow> row);
 	void appendSearchRow(std::unique_ptr<PeerListRow> row);

@@ -62,6 +62,9 @@ public:
 	void deselectByKeyboard();
 	bool chooseRow();
 
+	uint64 updateFromParentDrag(QPoint globalPosition);
+	void dragLeft();
+
 	[[nodiscard]] auto verticalScrollEvents() const
 		-> rpl::producer<not_null<QWheelEvent*>>;
 
@@ -92,6 +95,8 @@ private:
 	void subscribeUserpic(Entry &entry);
 	void unsubscribeUserpics(bool all = false);
 	void paintUserpic(Painter &p, int x, int y, int index, bool selected);
+	void clearSelection();
+	void selectByMouse(QPoint globalPosition);
 
 	[[nodiscard]] QRect outer() const;
 	[[nodiscard]] QRect innerRounded() const;

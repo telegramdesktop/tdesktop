@@ -2543,14 +2543,17 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 		} else {
 			_chooseByDragTimer.callOnce(ChoosePeerByDragTimeout);
 		}
-		if (_inner->updateFromParentDrag(mapToGlobal(e->pos()))) {
-			e->setDropAction(Qt::CopyAction);
-		} else {
-			e->setDropAction(Qt::IgnoreAction);
-		}
+		const auto global = mapToGlobal(e->pos());
+		const auto thread = _suggestions
+			? _suggestions->updateFromParentDrag(global)
+			: _inner->updateFromParentDrag(global);
+		e->setDropAction(thread ? Qt::CopyAction : Qt::IgnoreAction);
 	} else {
 		if (_dragForward) {
 			updateDragInScroll(false);
+		}
+		if (_suggestions) {
+			_suggestions->dragLeft();
 		}
 		_inner->dragLeft();
 		e->setDropAction(Qt::IgnoreAction);
@@ -2563,6 +2566,9 @@ void Widget::dragLeaveEvent(QDragLeaveEvent *e) {
 		updateDragInScroll(false);
 	} else {
 		_chooseByDragTimer.cancel();
+	}
+	if (_suggestions) {
+		_suggestions->dragLeft();
 	}
 	_inner->dragLeft();
 	e->accept();
@@ -2582,8 +2588,11 @@ void Widget::updateDragInScroll(bool inScroll) {
 void Widget::dropEvent(QDropEvent *e) {
 	_chooseByDragTimer.cancel();
 	if (_scroll->geometry().contains(e->pos())) {
-		const auto point = mapToGlobal(e->pos());
-		if (const auto thread = _inner->updateFromParentDrag(point)) {
+		const auto globalPosition = mapToGlobal(e->pos());
+		const auto thread = _suggestions
+			? _suggestions->updateFromParentDrag(globalPosition)
+			: _inner->updateFromParentDrag(globalPosition);
+		if (thread) {
 			e->setDropAction(Qt::CopyAction);
 			e->accept();
 			controller()->content()->filesOrForwardDrop(

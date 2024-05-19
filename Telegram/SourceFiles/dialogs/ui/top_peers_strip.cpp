@@ -248,7 +248,7 @@ void TopPeersStrip::stripWheelEvent(QWheelEvent *e) {
 
 void TopPeersStrip::stripLeaveEvent(QEvent *e) {
 	if (!_selectionByKeyboard) {
-		setSelected(-1);
+		clearSelection();
 	}
 	if (!_dragging) {
 		_lastMousePosition = std::nullopt;
@@ -299,9 +299,7 @@ void TopPeersStrip::stripMouseMoveEvent(QMouseEvent *e) {
 		&& (_lastMousePosition == e->globalPos())) {
 		return;
 	}
-	_lastMousePosition = e->globalPos();
-	_selectionByKeyboard = false;
-	updateSelected();
+	selectByMouse(e->globalPos());
 
 	if (!_dragging && _mouseDownPosition) {
 		if ((*_lastMousePosition - *_mouseDownPosition).manhattanLength()
@@ -313,6 +311,12 @@ void TopPeersStrip::stripMouseMoveEvent(QMouseEvent *e) {
 		}
 	}
 	checkDragging();
+}
+
+void TopPeersStrip::selectByMouse(QPoint globalPosition) {
+	_lastMousePosition = globalPosition;
+	_selectionByKeyboard = false;
+	updateSelected();
 }
 
 void TopPeersStrip::checkDragging() {
@@ -549,6 +553,20 @@ bool TopPeersStrip::chooseRow() {
 		return true;
 	}
 	return false;
+}
+
+uint64 TopPeersStrip::updateFromParentDrag(QPoint globalPosition) {
+	if (!rect().contains(mapFromGlobal(globalPosition))) {
+		dragLeft();
+		return 0;
+	}
+	selectByMouse(globalPosition);
+
+	return (_selected >= 0) ? _entries[_selected].id : 0;
+}
+
+void TopPeersStrip::dragLeft() {
+	clearSelection();
 }
 
 void TopPeersStrip::apply(const TopPeersList &list) {
@@ -906,6 +924,10 @@ void TopPeersStrip::setSelected(int selected) {
 		_selected = selected;
 		update();
 	}
+}
+
+void TopPeersStrip::clearSelection() {
+	setSelected(-1);
 }
 
 void TopPeersStrip::scrollToSelected() {
