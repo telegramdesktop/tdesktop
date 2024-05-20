@@ -1408,6 +1408,9 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 		cancelSearch();
 		closeChildList(anim::type::instant);
 		_openedForum = forum;
+		_searchState.tab = forum
+			? ChatSearchTab::ThisPeer
+			: ChatSearchTab::MyMessages;
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		_inner->changeOpenedForum(forum);
 		storiesToggleExplicitExpand(false);
@@ -1468,6 +1471,7 @@ void Widget::refreshTopBars() {
 			setFocus();
 		}
 		_subsectionTopBar.destroy();
+		updateSearchFromVisibility(true);
 	}
 	_forumSearchRequested = false;
 	if (_openedForum) {
@@ -1542,9 +1546,6 @@ void Widget::showSearchInTopBar(anim::type animated) {
 	Expects(_subsectionTopBar != nullptr);
 
 	_subsectionTopBar->toggleSearch(true, animated);
-	_subsectionTopBar->searchEnableChooseFromUser(
-		true,
-		!_searchState.fromPeer);
 	updateForceDisplayWide();
 }
 
@@ -2888,12 +2889,18 @@ bool Widget::applySearchState(SearchState state) {
 	if (state.inChat.folder() || (forum && !topic)) {
 		state.inChat = {};
 	}
-	if (!state.inChat && !forum) {
+	if (!state.inChat && !forum && !_openedForum) {
 		state.fromPeer = nullptr;
 	}
 	if (state.tab == ChatSearchTab::PublicPosts
 		&& !IsHashtagSearchQuery(state.query)) {
-		state.tab = ChatSearchTab::MyMessages;
+		state.tab = (_openedForum && !state.inChat)
+			? ChatSearchTab::ThisPeer
+			: ChatSearchTab::MyMessages;
+	} else if (!state.inChat && !_searchTabs) {
+		state.tab = (forum || _openedForum)
+			? ChatSearchTab::ThisPeer
+			: ChatSearchTab::MyMessages;
 	}
 	if (!state.tags.empty()) {
 		state.inChat = session().data().history(session().user());
@@ -2913,11 +2920,9 @@ bool Widget::applySearchState(SearchState state) {
 
 	if (forum) {
 		if (_openedForum == forum) {
-			_searchState.fromPeer = state.fromPeer; // showSearchInTopBar
 			showSearchInTopBar(anim::type::normal);
 		} else if (_layout == Layout::Main) {
 			_forumSearchRequested = true;
-			_searchState.fromPeer = state.fromPeer; // showSearchInTopBar
 			controller()->showForum(forum);
 		} else {
 			return false;
@@ -3162,11 +3167,13 @@ void Widget::updateSearchFromVisibility(bool fast) {
 		}
 		return false;
 	}();
-	auto changed = (visible == !_chooseFromUser->toggled());
+	const auto changed = (visible == !_chooseFromUser->toggled());
 	_chooseFromUser->toggle(
 		visible,
 		fast ? anim::type::instant : anim::type::normal);
-	if (changed) {
+	if (_subsectionTopBar) {
+		_subsectionTopBar->searchEnableChooseFromUser(true, visible);
+	} else if (changed) {
 		auto additional = QMargins();
 		if (visible) {
 			additional.setRight(_chooseFromUser->width());
