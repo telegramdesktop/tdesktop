@@ -1599,8 +1599,7 @@ void Widget::checkUpdateStatus() {
 void Widget::setInnerFocus(bool unfocusSearch) {
 	if (_childList) {
 		_childList->setInnerFocus();
-	} else if ((_openedFolder || _openedForum)
-		&& _subsectionTopBar->searchSetFocus()) {
+	} else if (_subsectionTopBar && _subsectionTopBar->searchSetFocus()) {
 		return;
 	} else if (!unfocusSearch
 		&& (!_search->getLastText().isEmpty()
@@ -2967,10 +2966,10 @@ bool Widget::applySearchState(SearchState state) {
 		&& _lastSearchText == HistoryView::SwitchToChooseFromQuery()) {
 		cancelSearch();
 	}
-	if (_searchState.inChat || !_searchState.query.isEmpty()) {
-		_search->setFocus();
-	} else {
+	if (!_searchState.inChat && _searchState.query.isEmpty()) {
 		setInnerFocus();
+	} else if (!_subsectionTopBar || !_subsectionTopBar->searchSetFocus()) {
+		_search->setFocus();
 	}
 	updateForceDisplayWide();
 	applySearchUpdate();
