@@ -22,3 +22,5 @@ creditsTopupButton: SettingsButton(settingsButton) {
 creditsTopupPrice: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
+
+creditsHistoryRightSkip: 10px;
