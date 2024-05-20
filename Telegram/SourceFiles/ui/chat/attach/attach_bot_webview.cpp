@@ -505,7 +505,7 @@ bool Panel::showWebview(
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
 	_widget->setMenuAllowed([=](const Ui::Menu::MenuCallback &callback) {
-		if (_hasSettingsButton) {
+		if (_webview && _webview->window.widget() && _hasSettingsButton) {
 			callback(tr::lng_bot_settings(tr::now), [=] {
 				postEvent("settings_button_pressed");
 			}, &st::menuIconSettings);
@@ -1294,6 +1294,11 @@ void Panel::postEvent(const QString &event) {
 }
 
 void Panel::postEvent(const QString &event, EventData data) {
+	if (!_webview) {
+		LOG(("BotWebView Error: Post event \"%1\" on crashed webview."
+			).arg(event));
+		return;
+	}
 	auto written = v::is<QString>(data)
 		? v::get<QString>(data).toUtf8()
 		: QJsonDocument(
