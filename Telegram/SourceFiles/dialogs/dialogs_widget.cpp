@@ -3623,7 +3623,9 @@ bool Widget::cancelSearch() {
 	auto updatedState = _searchState;
 	const auto clearingQuery = !updatedState.query.isEmpty();
 	auto clearingInChat = !clearingQuery
-		&& (updatedState.inChat || updatedState.fromPeer);
+		&& (updatedState.inChat
+			|| updatedState.fromPeer
+			|| !updatedState.tags.empty());
 	if (clearingQuery) {
 		updatedState.query = QString();
 	} else if (clearingInChat) {
@@ -3636,6 +3638,7 @@ bool Widget::cancelSearch() {
 		}
 		updatedState.inChat = {};
 		updatedState.fromPeer = nullptr;
+		updatedState.tags = {};
 	}
 	if (!clearingQuery
 		&& _subsectionTopBar
