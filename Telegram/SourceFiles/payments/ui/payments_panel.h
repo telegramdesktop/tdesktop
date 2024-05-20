@@ -115,11 +115,13 @@ private:
 	[[nodiscard]] bool progressWithBackground() const;
 	[[nodiscard]] QRect progressRect() const;
 	void setupProgressGeometry();
+	void updateFooterHeight();
 
 	const not_null<PanelDelegate*> _delegate;
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<RpWidget> _webviewBottom;
+	rpl::variable<int> _footerHeight;
 	std::unique_ptr<Progress> _progress;
 	QPointer<Checkbox> _saveWebviewInformation;
 	QPointer<FormSummary> _weakFormSummary;

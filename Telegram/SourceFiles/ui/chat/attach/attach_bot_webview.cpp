@@ -570,17 +570,15 @@ void Panel::createWebviewBottom() {
 	label->show();
 	_webviewBottom->resize(_webviewBottom->width(), height);
 
-	bottom->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		const auto inner = _widget->innerGeometry();
-		if (_mainButton && !_mainButton->isHidden()) {
-			height = _mainButton->height();
-		}
+	rpl::combine(
+		_webviewParent->geometryValue() | rpl::map([=] {
+			return _widget->innerGeometry();
+		}),
+		bottom->heightValue()
+	) | rpl::start_with_next([=](QRect inner, int height) {
 		bottom->move(inner.x(), inner.y() + inner.height() - height);
-		if (const auto container = _webviewParent.data()) {
-			container->setFixedSize(inner.width(), inner.height() - height);
-		}
 		bottom->resizeToWidth(inner.width());
+		updateFooterHeight();
 	}, bottom->lifetime());
 }
 
@@ -636,10 +634,13 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		});
 	});
 
-	container->geometryValue(
-	) | rpl::start_with_next([=](QRect geometry) {
-		if (raw->widget()) {
-			raw->widget()->setGeometry(geometry);
+	updateFooterHeight();
+	rpl::combine(
+		container->geometryValue(),
+		_footerHeight.value()
+	) | rpl::start_with_next([=](QRect geometry, int footer) {
+		if (const auto view = raw->widget()) {
+			view->setGeometry(geometry.marginsRemoved({ 0, 0, 0, footer }));
 		}
 	}, _webview->lifetime);
 
@@ -1185,20 +1186,23 @@ void Panel::createMainButton() {
 	button->hide();
 
 	rpl::combine(
+		_webviewParent->geometryValue() | rpl::map([=] {
+			return _widget->innerGeometry();
+		}),
 		button->shownValue(),
 		button->heightValue()
-	) | rpl::start_with_next([=](bool shown, int height) {
-		const auto inner = _widget->innerGeometry();
-		if (!shown) {
-			height = _webviewBottom->height();
-		}
+	) | rpl::start_with_next([=](QRect inner, bool shown, int height) {
 		button->move(inner.x(), inner.y() + inner.height() - height);
-		if (const auto raw = _webviewParent.data()) {
-			raw->setFixedSize(inner.width(), inner.height() - height);
-		}
 		button->resizeToWidth(inner.width());
 		_webviewBottom->setVisible(!shown);
+		updateFooterHeight();
 	}, button->lifetime());
+}
+
+void Panel::updateFooterHeight() {
+	_footerHeight = (_mainButton && !_mainButton->isHidden())
+		? _mainButton->height()
+		: _webviewBottom->height();
 }
 
 void Panel::showBox(object_ptr<BoxContent> box) {
