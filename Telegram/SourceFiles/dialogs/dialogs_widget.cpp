@@ -1169,13 +1169,16 @@ void Widget::updateSuggestions(anim::type animated) {
 		} else {
 			_suggestions = nullptr;
 			_hidingSuggestions.clear();
+			storiesExplicitCollapse();
+			updateStoriesVisibility();
 			_scroll->show();
 		}
 	} else if (suggest && !_suggestions) {
 		if (animated == anim::type::normal) {
 			startWidthAnimation();
-			updateStoriesVisibility();
 		}
+		// Hides stories and passcode lock.
+		updateStoriesVisibility();
 		_suggestions = std::make_unique<Suggestions>(
 			this,
 			controller(),
