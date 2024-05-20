@@ -110,7 +110,7 @@ ChatSearchTabs::ChatSearchTabs(QWidget *parent, ChatSearchTab active)
 	}) {
 		_list.push_back({ tab, TabLabel(tab) });
 	}
-	_tabs->move(0, 0);
+	_tabs->move(st::dialogsSearchTabsPadding, 0);
 	_tabs->sectionActivated(
 	) | rpl::start_with_next([=](int index) {
 		for (const auto &tab : _list) {
@@ -166,9 +166,9 @@ void ChatSearchTabs::refreshTabs(ChatSearchTab active) {
 int ChatSearchTabs::resizeGetHeight(int newWidth) {
 	_tabs->resizeToWidth(newWidth);
 	_shadow->setGeometry(
-		_tabs->x(),
+		0,
 		_tabs->y() + _tabs->height() - st::lineWidth,
-		_tabs->width(),
+		newWidth,
 		st::lineWidth);
 	return _tabs->height();
 }

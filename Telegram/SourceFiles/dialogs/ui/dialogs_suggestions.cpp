@@ -903,9 +903,13 @@ void Suggestions::setupTabs() {
 	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
 	shadow->lower();
 
-	_tabs->sizeValue() | rpl::start_with_next([=](QSize size) {
+	_tabs->move(st::dialogsSearchTabsPadding, 0);
+	rpl::combine(
+		widthValue(),
+		_tabs->heightValue()
+	) | rpl::start_with_next([=](int width, int height) {
 		const auto line = st::lineWidth;
-		shadow->setGeometry(0, size.height() - line, size.width(), line);
+		shadow->setGeometry(0, height - line, width, line);
 	}, shadow->lifetime());
 
 	shadow->showOn(_tabs->shownValue());

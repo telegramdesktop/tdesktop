@@ -649,7 +649,7 @@ dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
 	barRadius: 2px;
 	barFg: transparent;
 	barSnapToLabel: true;
-	strictSkip: 34px;
+	strictSkip: 18px;
 	labelTop: 7px;
 	labelStyle: semiboldTextStyle;
 	labelFg: windowSubTextFg;
@@ -659,7 +659,7 @@ dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
 	rippleBgActive: lightButtonBgOver;
 	ripple: defaultRippleAnimation;
 }
-
+dialogsSearchTabsPadding: 8px;
 
 dialogsStoriesList: DialogsStoriesList {
 	small: dialogsStories;
