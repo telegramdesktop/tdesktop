@@ -116,7 +116,7 @@ jobs:
           cd $REPO_NAME/out/Debug
           sudo mkdir artifact
           sudo mv {Telegram,Updater} artifact/
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:
