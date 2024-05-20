@@ -134,7 +134,7 @@ jobs:
           mkdir artifact
           mv Telegram.app artifact/
           mv Updater artifact/
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:
