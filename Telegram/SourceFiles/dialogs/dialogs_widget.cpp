@@ -615,6 +615,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 			escape();
 		}
 	}
+	updateForceDisplayWide();
 }
 
 void Widget::setGeometryWithTopMoved(
@@ -1234,7 +1235,9 @@ void Widget::updateSearchTabs() {
 			_searchState.tab);
 		_searchTabs->setVisible(!_showAnimation);
 		_searchTabs->tabChanges(
-		) | rpl::start_with_next([=](ChatSearchTab tab) {
+		) | rpl::filter([=](ChatSearchTab tab) {
+			return (_searchState.tab != tab);
+		}) | rpl::start_with_next([=](ChatSearchTab tab) {
 			auto copy = _searchState;
 			copy.tab = tab;
 			applySearchState(std::move(copy));
@@ -1244,6 +1247,8 @@ void Widget::updateSearchTabs() {
 	const auto topic = _searchState.inChat.topic();
 	const auto peer = _searchState.inChat.owningHistory()
 		? _searchState.inChat.owningHistory()->peer.get()
+		: _openedForum
+		? _openedForum->channel().get()
 		: nullptr;
 	const auto topicShortLabel = topic
 		? Ui::Text::SingleCustomEmoji(Data::TopicIconEmojiEntity({
@@ -1271,7 +1276,8 @@ void Widget::updateSearchTabs() {
 	if ((_searchState.tab == ChatSearchTab::ThisTopic
 		&& !_searchState.inChat.topic())
 		|| (_searchState.tab == ChatSearchTab::ThisPeer
-			&& !_searchState.inChat)
+			&& !_searchState.inChat
+			&& !_openedForum)
 		|| (_searchState.tab == ChatSearchTab::PublicPosts
 			&& !_searchingHashtag)) {
 		_searchState.tab = _searchState.inChat.topic()
@@ -1960,6 +1966,12 @@ void Widget::loadMoreBlockedByDate() {
 }
 
 bool Widget::search(bool inCache) {
+	_processingSearch = true;
+	const auto guard = gsl::finally([&] {
+		_processingSearch = false;
+		listScrollUpdated();
+	});
+
 	auto result = false;
 	const auto query = _searchState.query.trimmed();
 	const auto inPeer = searchInPeer();
@@ -2710,6 +2722,10 @@ void Widget::applySearchUpdate() {
 }
 
 void Widget::updateForceDisplayWide() {
+	if (_childList) {
+		_childList->updateForceDisplayWide();
+		return;
+	}
 	controller()->setChatsForceDisplayWide(_searchHasFocus
 		|| (_subsectionTopBar && _subsectionTopBar->searchHasFocus())
 		|| _searchSuggestionsLocked
@@ -2791,6 +2807,7 @@ void Widget::openChildList(
 	if (hasFocus()) {
 		setInnerFocus();
 	}
+	updateForceDisplayWide();
 }
 
 void Widget::closeChildList(anim::type animated) {
@@ -2846,6 +2863,7 @@ void Widget::closeChildList(anim::type animated) {
 		_childListShadow = nullptr;
 	}
 	updateStoriesVisibility();
+	updateForceDisplayWide();
 }
 
 bool Widget::applySearchState(SearchState state) {
@@ -2970,8 +2988,10 @@ bool Widget::applySearchState(SearchState state) {
 	}
 	if (!_searchState.inChat && _searchState.query.isEmpty()) {
 		setInnerFocus();
-	} else if (!_subsectionTopBar || !_subsectionTopBar->searchSetFocus()) {
+	} else if (!_subsectionTopBar) {
 		_search->setFocus();
+	} else if (_openedForum && !_subsectionTopBar->searchSetFocus()) {
+		_subsectionTopBar->toggleSearch(true, anim::type::normal);
 	}
 	updateForceDisplayWide();
 	applySearchUpdate();
@@ -3633,6 +3653,7 @@ bool Widget::cancelSearch() {
 	if (_suggestions && clearSearchFocus) {
 		setInnerFocus(true);
 	}
+	updateForceDisplayWide();
 	return clearingQuery || clearingInChat || clearSearchFocus;
 }
 

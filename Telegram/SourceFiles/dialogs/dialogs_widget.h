@@ -319,6 +319,7 @@ private:
 	QString _lastSearchText;
 	bool _searchSuggestionsLocked = false;
 	bool _searchHasFocus = false;
+	bool _processingSearch = false;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
 	base::flat_map<PeerId, Ui::PeerUserpicView> _storiesUserpicsViewsHidden;

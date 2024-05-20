@@ -114,13 +114,13 @@ ChatSearchTabs::ChatSearchTabs(QWidget *parent, ChatSearchTab active)
 	_tabs->sectionActivated(
 	) | rpl::start_with_next([=](int index) {
 		for (const auto &tab : _list) {
-			if (!index) {
+			if (tab.shortLabel.empty()) {
+				continue;
+			} else if (!index) {
 				_active = tab.value;
 				return;
 			}
-			if (!tab.shortLabel.empty()) {
-				--index;
-			}
+			--index;
 		}
 	}, lifetime());
 }
