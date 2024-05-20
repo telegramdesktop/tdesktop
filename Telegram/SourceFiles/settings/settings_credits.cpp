@@ -11,11 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "data/data_user.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
+#include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
 #include "settings/settings_common_session.h"
+#include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/boost_box.h" // Ui::StartFireworks.
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
@@ -26,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -35,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "styles/style_statistics.h"
 
 #include <xxhash.h> // XXH64.
 
@@ -103,6 +107,7 @@ public:
 private:
 	void setupContent();
 	void setupOptions(not_null<Ui::VerticalLayout*> container);
+	void setupHistory(not_null<Ui::VerticalLayout*> container);
 
 	const not_null<Window::SessionController*> _controller;
 
@@ -245,9 +250,169 @@ void Credits::setupOptions(not_null<Ui::VerticalLayout*> container) {
 	}, content->lifetime());
 }
 
+void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
+	const auto history = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto content = history->entity();
+
+	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
+
+	const auto fill = [=](
+			const Data::CreditsStatusSlice &fullSlice,
+			const Data::CreditsStatusSlice &inSlice,
+			const Data::CreditsStatusSlice &outSlice) {
+		const auto inner = content;
+		if (fullSlice.list.empty()) {
+			return;
+		}
+		const auto hasOneTab = inSlice.list.empty() && outSlice.list.empty();
+		const auto hasIn = !inSlice.list.empty();
+		const auto hasOut = !outSlice.list.empty();
+		const auto fullTabText = tr::lng_credits_summary_history_tab_full(
+			tr::now);
+		const auto inTabText = tr::lng_credits_summary_history_tab_in(
+			tr::now);
+		const auto outTabText = tr::lng_credits_summary_history_tab_out(
+			tr::now);
+		if (hasOneTab) {
+			Ui::AddSkip(inner);
+			const auto header = inner->add(
+				object_ptr<Statistic::Header>(inner),
+				st::statisticsLayerMargins
+					+ st::boostsChartHeaderPadding);
+			header->resizeToWidth(header->width());
+			header->setTitle(fullTabText);
+			header->setSubTitle({});
+		}
+
+		class Slider final : public Ui::SettingsSlider {
+		public:
+			using Ui::SettingsSlider::SettingsSlider;
+			void setNaturalWidth(int w) {
+				_naturalWidth = w;
+			}
+			int naturalWidth() const override {
+				return _naturalWidth;
+			}
+
+		private:
+			int _naturalWidth = 0;
+
+		};
+
+		const auto slider = inner->add(
+			object_ptr<Ui::SlideWrap<Slider>>(
+				inner,
+				object_ptr<Slider>(inner, st::defaultTabsSlider)),
+			st::boxRowPadding);
+		slider->toggle(!hasOneTab, anim::type::instant);
+
+		slider->entity()->addSection(fullTabText);
+		if (hasIn) {
+			slider->entity()->addSection(inTabText);
+		}
+		if (hasOut) {
+			slider->entity()->addSection(outTabText);
+		}
+
+		{
+			const auto &st = st::defaultTabsSlider;
+			slider->entity()->setNaturalWidth(0
+				+ st.labelStyle.font->width(fullTabText)
+				+ (hasIn ? st.labelStyle.font->width(inTabText) : 0)
+				+ (hasOut ? st.labelStyle.font->width(outTabText) : 0)
+				+ rect::m::sum::h(st::boxRowPadding));
+		}
+
+		const auto fullWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto inWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto outWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+
+		rpl::single(0) | rpl::then(
+			slider->entity()->sectionActivated()
+		) | rpl::start_with_next([=](int index) {
+			if (index == 0) {
+				fullWrap->toggle(true, anim::type::instant);
+				inWrap->toggle(false, anim::type::instant);
+				outWrap->toggle(false, anim::type::instant);
+			} else if (index == 1) {
+				inWrap->toggle(true, anim::type::instant);
+				fullWrap->toggle(false, anim::type::instant);
+				outWrap->toggle(false, anim::type::instant);
+			} else {
+				outWrap->toggle(true, anim::type::instant);
+				fullWrap->toggle(false, anim::type::instant);
+				inWrap->toggle(false, anim::type::instant);
+			}
+		}, inner->lifetime());
+
+		const auto entryClicked = [=](const Data::CreditsHistoryEntry &e) {
+		};
+
+		Info::Statistics::AddCreditsHistoryList(
+			fullSlice,
+			fullWrap->entity(),
+			entryClicked,
+			_controller->session().user(),
+			&_star,
+			true,
+			true);
+		Info::Statistics::AddCreditsHistoryList(
+			inSlice,
+			inWrap->entity(),
+			entryClicked,
+			_controller->session().user(),
+			&_star,
+			true,
+			false);
+		Info::Statistics::AddCreditsHistoryList(
+			outSlice,
+			outWrap->entity(),
+			std::move(entryClicked),
+			_controller->session().user(),
+			&_star,
+			false,
+			true);
+
+		Ui::AddSkip(inner);
+		Ui::AddSkip(inner);
+
+		inner->resizeToWidth(container->width());
+	};
+
+	const auto apiLifetime = content->lifetime().make_state<rpl::lifetime>();
+	{
+		using Api = Api::CreditsHistory;
+		const auto self = _controller->session().user();
+		const auto apiFull = apiLifetime->make_state<Api>(self, true, true);
+		const auto apiIn = apiLifetime->make_state<Api>(self, true, false);
+		const auto apiOut = apiLifetime->make_state<Api>(self, false, true);
+		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
+			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
+				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
+					fill(fullSlice, inSlice, outSlice);
+					apiLifetime->destroy();
+				});
+			});
+		});
+	}
+}
+
 void Credits::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	setupOptions(content);
+	setupHistory(content);
 
 	Ui::ResizeFitChild(this, content);
 }
