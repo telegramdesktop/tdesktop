@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#if _DEBUG
+#include "base/random.h"
+#endif
 
 namespace Api {
 namespace {
@@ -107,6 +110,10 @@ void CreditsStatus::request(
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input
 	)).done([=](const TLResult &result) {
 		_requestId = 0;
+#if _DEBUG
+		done({ .balance = uint64(base::RandomIndex(9999)) });
+		return;
+#endif
 		done(StatusFromTL(result, _peer));
 	}).fail([=] {
 		_requestId = 0;
@@ -134,6 +141,46 @@ void CreditsHistory::request(
 		MTP_string(token)
 	)).done([=](const MTPpayments_StarsStatus &result) {
 		_requestId = 0;
+#if _DEBUG
+		done({
+			.list = [&] {
+				auto a = std::vector<Data::CreditsHistoryEntry>();
+				const auto isIn = _flags & HistoryTL::Flag::f_inbound;
+				const auto isOut = _flags & HistoryTL::Flag::f_outbound;
+				for (auto i = 0; i < base::RandomIndex(10) + 1; i++) {
+					const auto type = (isIn && isOut)
+						? base::RandomIndex(4)
+						: isOut
+						? 0
+						: (base::RandomIndex(3) + 1);
+					a.push_back(Data::CreditsHistoryEntry{
+						.id = QString::number(base::RandomValue<uint64>()),
+						.credits = uint64(
+							std::max(base::RandomIndex(15000), 1)),
+						.date = base::unixtime::parse(
+							std::abs(base::RandomValue<TimeId>())),
+						.peerType = ((type == 0)
+							? Data::CreditsHistoryEntry::PeerType::Peer
+							: (type == 1)
+							? Data::CreditsHistoryEntry::PeerType::PlayMarket
+							: (type == 2)
+							? Data::CreditsHistoryEntry::PeerType::Fragment
+							: Data::CreditsHistoryEntry::PeerType::AppStore),
+						.peerId = (type == 0)
+							? peerFromUser(5000233800)
+							: PeerId(0),
+					});
+				}
+				return a;
+			}(),
+			.balance = 47890,
+			.allLoaded = !token.isEmpty(),
+			.token = token.isEmpty()
+				? QString::number(base::RandomValue<uint64>())
+				: QString(),
+		});
+		return;
+#endif
 		done(StatusFromTL(result, _peer));
 	}).fail([=] {
 		_requestId = 0;
