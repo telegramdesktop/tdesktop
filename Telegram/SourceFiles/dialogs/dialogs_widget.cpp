@@ -2881,6 +2881,12 @@ bool Widget::applySearchState(SearchState state) {
 		state.inChat = session().data().history(session().user());
 	}
 
+	const auto clearQuery = state.fromPeer
+		&& (_lastSearchText == HistoryView::SwitchToChooseFromQuery());
+	if (clearQuery) {
+		state.query = _lastSearchText = QString();
+	}
+
 	const auto inChatChanged = (_searchState.inChat != state.inChat);
 	const auto fromPeerChanged = (_searchState.fromPeer != state.fromPeer);
 	const auto tagsChanged = (_searchState.tags != state.tags);
@@ -2961,10 +2967,6 @@ bool Widget::applySearchState(SearchState state) {
 	if (_subsectionTopBar) {
 		_subsectionTopBar->searchEnableJumpToDate(
 			_openedForum && _searchState.inChat);
-	}
-	if (_searchState.fromPeer
-		&& _lastSearchText == HistoryView::SwitchToChooseFromQuery()) {
-		cancelSearch();
 	}
 	if (!_searchState.inChat && _searchState.query.isEmpty()) {
 		setInnerFocus();
