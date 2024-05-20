@@ -18,4 +18,26 @@ struct CreditTopupOption final {
 
 using CreditTopupOptions = std::vector<CreditTopupOption>;
 
+struct CreditsHistoryEntry final {
+	enum class PeerType {
+		Peer,
+		AppStore,
+		PlayMarket,
+		Fragment,
+	};
+	QString id;
+	uint64 credits = 0;
+	QDateTime date;
+	PeerType peerType;
+	PeerId peerId = PeerId(0);
+};
+
+struct CreditsStatusSlice final {
+	using OffsetToken = QString;
+	std::vector<CreditsHistoryEntry> list;
+	uint64 balance = 0;
+	bool allLoaded = false;
+	OffsetToken token;
+};
+
 } // namespace Data

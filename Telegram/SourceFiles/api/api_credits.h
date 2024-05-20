@@ -32,4 +32,40 @@ private:
 
 };
 
+class CreditsStatus final {
+public:
+	CreditsStatus(not_null<PeerData*> peer);
+
+	void request(
+		const Data::CreditsStatusSlice::OffsetToken &token,
+		Fn<void(Data::CreditsStatusSlice)> done);
+
+private:
+	const not_null<PeerData*> _peer;
+
+	mtpRequestId _requestId = 0;
+
+	MTP::Sender _api;
+
+};
+
+class CreditsHistory final {
+public:
+	CreditsHistory(not_null<PeerData*> peer, bool in, bool out);
+
+	void request(
+		const Data::CreditsStatusSlice::OffsetToken &token,
+		Fn<void(Data::CreditsStatusSlice)> done);
+
+private:
+	using HistoryTL = MTPpayments_GetStarsTransactions;
+	const not_null<PeerData*> _peer;
+	const HistoryTL::Flags _flags;
+
+	mtpRequestId _requestId = 0;
+
+	MTP::Sender _api;
+
+};
+
 } // namespace Api
