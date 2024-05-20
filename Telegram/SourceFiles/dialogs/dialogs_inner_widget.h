@@ -334,6 +334,7 @@ private:
 	[[nodiscard]] int filteredIndex(int y) const;
 	[[nodiscard]] int filteredHeight(int till = -1) const;
 	[[nodiscard]] int peerSearchOffset() const;
+	[[nodiscard]] int searchTagsOffset() const;
 	[[nodiscard]] int searchInChatOffset() const;
 	[[nodiscard]] int searchedOffset() const;
 	[[nodiscard]] int searchInChatSkip() const;
@@ -349,6 +350,9 @@ private:
 		Painter &p,
 		not_null<const PeerSearchResult*> result,
 		const Ui::PaintContext &context);
+	void paintSearchTags(
+		Painter &p,
+		const Ui::PaintContext &context) const;
 	void paintSearchInChat(
 		Painter &p,
 		const Ui::PaintContext &context) const;

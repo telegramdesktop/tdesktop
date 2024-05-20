@@ -1282,7 +1282,8 @@ void Widget::updateSearchTabs() {
 			&& !_searchingHashtag)) {
 		_searchState.tab = _searchState.inChat.topic()
 			? ChatSearchTab::ThisTopic
-			: _searchState.inChat.owningHistory()
+			: (_searchState.inChat.owningHistory()
+				|| _searchState.inChat.sublist())
 			? ChatSearchTab::ThisPeer
 			: ChatSearchTab::MyMessages;
 	}

@@ -93,7 +93,7 @@ PeerData *Key::peer() const {
 ChatSearchTab SearchState::defaultTabForMe() const {
 	return inChat.topic()
 		? ChatSearchTab::ThisTopic
-		: inChat.history()
+		: (inChat.history() || inChat.sublist())
 		? ChatSearchTab::ThisPeer
 		: ChatSearchTab::MyMessages;
 }

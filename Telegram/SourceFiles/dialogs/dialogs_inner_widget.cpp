@@ -488,11 +488,19 @@ int InnerWidget::peerSearchOffset() const {
 		+ st::searchedBarHeight;
 }
 
-int InnerWidget::searchInChatOffset() const {
+int InnerWidget::searchTagsOffset() const {
 	auto result = peerSearchOffset() - st::searchedBarHeight;
 	if (!_peerSearchResults.empty()) {
 		result += (_peerSearchResults.size() * st::dialogsRowHeight)
 			+ st::searchedBarHeight;
+	}
+	return result;
+}
+
+int InnerWidget::searchInChatOffset() const {
+	auto result = searchTagsOffset();
+	if (_searchTags) {
+		result += _searchTags->height();
 	}
 	return result;
 }
@@ -505,9 +513,6 @@ int InnerWidget::searchedOffset() const {
 
 int InnerWidget::searchInChatSkip() const {
 	auto result = 0;
-	if (_searchTags) {
-		result += _searchTags->height();
-	}
 	if (_searchFromShown) {
 		result += st::dialogsSearchInHeight;
 	}
@@ -857,6 +862,17 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 		}
 
+		if (_searchTags) {
+			paintSearchTags(p, {
+				.st = &st::forumTopicRow,
+				.currentBg = currentBg(),
+				.now = ms,
+				.width = fullWidth,
+				.paused = videoPaused,
+			});
+			p.translate(0, _searchTags->height());
+			top += _searchTags->height();
+		}
 		if (_searchFromShown) {
 			paintSearchInChat(p, {
 				.st = &st::forumTopicRow,
@@ -1117,20 +1133,24 @@ QBrush InnerWidget::currentBg() const {
 		_childListShown.current().shown);
 }
 
+void InnerWidget::paintSearchTags(
+		Painter &p,
+		const Ui::PaintContext &context) const {
+	Expects(_searchTags != nullptr);
+
+	const auto height = _searchTags->height();
+	p.fillRect(0, 0, width(), height, currentBg());
+	const auto top = st::dialogsSearchTagBottom / 2;
+	const auto position = QPoint(_searchTagsLeft, top);
+	_searchTags->paint(p, position, context.now, context.paused);
+}
+
 void InnerWidget::paintSearchInChat(
 		Painter &p,
 		const Ui::PaintContext &context) const {
 	auto height = searchInChatSkip();
 
 	auto top = 0;
-	if (_searchTags) {
-		const auto height = _searchTags->height();
-		top += st::dialogsSearchTagBottom;
-		p.fillRect(0, top, width(), height, currentBg());
-		const auto position = QPoint(_searchTagsLeft, top);
-		_searchTags->paint(p, position, context.now, context.paused);
-		top += height - st::dialogsSearchTagBottom;
-	}
 	p.setFont(st::searchedBarFont);
 	auto fullRect = QRect(0, top, width(), height - top);
 	p.fillRect(fullRect, currentBg());
@@ -1280,7 +1300,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 
 	const auto tagBase = QPoint(
 		_searchTagsLeft,
-		searchInChatOffset() + st::dialogsSearchTagBottom);
+		searchTagsOffset() + st::dialogsSearchTagBottom / 2);
 	const auto tagPoint = local - tagBase;
 	const auto inTags = _searchTags
 		&& QRect(
@@ -2464,11 +2484,7 @@ void InnerWidget::applySearchState(SearchState state) {
 	const auto ignoreInChat = (state.tab == ChatSearchTab::MyMessages)
 		|| (state.tab == ChatSearchTab::PublicPosts);
 	const auto sublist = ignoreInChat ? nullptr : state.inChat.sublist();
-	const auto peer = ignoreInChat
-		? nullptr
-		: sublist
-		? session().user().get()
-		: state.inChat.peer();
+	const auto peer = ignoreInChat ? nullptr : state.inChat.peer();
 	if (const auto migrateFrom = peer ? peer->migrateFrom() : nullptr) {
 		_searchInMigrated = peer->owner().history(migrateFrom);
 	} else {
@@ -2481,14 +2497,9 @@ void InnerWidget::applySearchState(SearchState state) {
 			reactions->myTagsValue(sublist),
 			state.tags);
 
-		_searchTags->selectedChanges(
-		) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
-			_searchState.tags = std::move(list);
-		}, _searchTags->lifetime());
-
 		_searchTags->repaintRequests() | rpl::start_with_next([=] {
 			const auto height = _searchTags->height();
-			update(0, searchInChatOffset(), width(), height);
+			update(0, searchTagsOffset(), width(), height);
 		}, _searchTags->lifetime());
 
 		_searchTags->menuRequests(
