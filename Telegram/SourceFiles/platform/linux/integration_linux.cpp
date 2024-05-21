@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 
 #include <QtCore/QAbstractEventDispatcher>
-#include <qpa/qwindowsysteminterface.h>
 
 #include <gio/gio.hpp>
 #include <xdpinhibit/xdpinhibit.hpp>
@@ -190,23 +189,24 @@ private:
 
 	const gi::ref_ptr<Application> _application;
 	XdpInhibit::InhibitProxy _inhibitProxy;
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 	base::Platform::XDP::SettingWatcher _darkModeWatcher;
+#endif // Qt < 6.5.0
 };
 
 LinuxIntegration::LinuxIntegration()
 : _application(MakeApplication())
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 , _darkModeWatcher(
 	"org.freedesktop.appearance",
 	"color-scheme",
 	[](GLib::Variant value) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-		QWindowSystemInterface::handleThemeChange();
-#else // Qt >= 6.5.0
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			Core::App().settings().setSystemDarkMode(value.get_uint32() == 1);
 		});
+})
 #endif // Qt < 6.5.0
-}) {
+{
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
 
