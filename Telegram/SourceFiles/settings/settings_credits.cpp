@@ -139,6 +139,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 
 	QImage _star;
+	QImage _balanceStar;
 
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	base::unique_qptr<Ui::IconButton> _close;
@@ -157,7 +158,8 @@ Credits::Credits(
 	not_null<Window::SessionController*> controller)
 : Section(parent)
 , _controller(controller)
-, _star(GenerateStars(st::creditsTopupButton.height, 1)) {
+, _star(GenerateStars(st::creditsTopupButton.height, 1))
+, _balanceStar(GenerateStars(st::creditsBalanceStarHeight, 1)) {
 	setupContent();
 }
 
@@ -513,6 +515,71 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 			content->resize(content->width(), content->maximumHeight());
 		}
 	}, content->lifetime());
+
+	const auto balance = Ui::CreateChild<Ui::RpWidget>(content);
+	{
+		const auto starSize = _balanceStar.size() / style::DevicePixelRatio();
+		const auto label = balance->lifetime().make_state<Ui::Text::String>(
+			st::defaultTextStyle,
+			tr::lng_credits_summary_balance(tr::now));
+		const auto count = balance->lifetime().make_state<Ui::Text::String>(
+			st::semiboldTextStyle,
+			tr::lng_contacts_loading(tr::now));
+		const auto api = balance->lifetime().make_state<Api::CreditsStatus>(
+			_controller->session().user());
+		const auto diffBetweenStarAndCount = count->style()->font->spacew;
+		const auto resize = [=] {
+			balance->resize(
+				std::max(
+					label->maxWidth(),
+					count->maxWidth()
+						+ starSize.width()
+						+ diffBetweenStarAndCount),
+				label->style()->font->height + starSize.height());
+		};
+		api->request({}, [=](Data::CreditsStatusSlice slice) {
+			count->setText(
+				st::semiboldTextStyle,
+				Lang::FormatCountToShort(slice.balance).string);
+			resize();
+		});
+		balance->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(balance);
+
+			p.setPen(st::boxTextFg);
+
+			label->draw(p, {
+				.position = QPoint(balance->width() - label->maxWidth(), 0),
+				.availableWidth = balance->width(),
+			});
+			count->draw(p, {
+				.position = QPoint(
+					balance->width() - count->maxWidth(),
+					label->minHeight()
+						+ (starSize.height() - count->minHeight()) / 2),
+				.availableWidth = balance->width(),
+			});
+			p.drawImage(
+				balance->width()
+					- count->maxWidth()
+					- starSize.width()
+					- diffBetweenStarAndCount,
+				label->minHeight(),
+				_balanceStar);
+		}, balance->lifetime());
+		rpl::combine(
+			balance->sizeValue(),
+			content->sizeValue()
+		) | rpl::start_with_next([=](const QSize &, const QSize &) {
+			balance->moveToRight(
+				(_close
+					? _close->width() + st::creditsHistoryRightSkip
+					: st::creditsHistoryRightSkip * 2),
+				st::creditsHistoryRightSkip);
+			balance->update();
+		}, balance->lifetime());
+	}
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {

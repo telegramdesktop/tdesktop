@@ -256,11 +256,8 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 	const auto progress = (max > min)
 		? ((e->size().height() - min) / float64(max - min))
 		: 1.;
-	_progress.top = 1. -
-		std::clamp(
-			(1. - progress) / kBodyAnimationPart,
-			0.,
-			1.);
+	_progress.top = 1.
+		- std::clamp((1. - progress) / kBodyAnimationPart, 0., 1.);
 	_progress.body = _progress.top;
 	_progress.title = 1. - progress;
 	_progress.scaleTitle = 1. + kTitleAdditionalScale * progress;

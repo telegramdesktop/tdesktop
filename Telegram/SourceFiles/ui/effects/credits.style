@@ -24,3 +24,4 @@ creditsTopupPrice: FlatLabel(defaultFlatLabel) {
 }
 
 creditsHistoryRightSkip: 10px;
+creditsBalanceStarHeight: 20px;
