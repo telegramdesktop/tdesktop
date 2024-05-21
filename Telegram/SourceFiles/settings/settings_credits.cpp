@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -48,6 +49,45 @@ namespace Settings {
 namespace {
 
 using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
+
+class Balance final
+	: public Ui::RpWidget
+	, public Ui::AbstractTooltipShower {
+public:
+	using Ui::RpWidget::RpWidget;
+
+	void setBalance(uint64 balance) {
+		_balance = balance;
+		_tooltip = Lang::FormatCountDecimal(balance);
+	}
+
+	void enterEventHook(QEnterEvent *e) override {
+		if (_balance >= 10'000) {
+			Ui::Tooltip::Show(1000, this);
+		}
+	}
+
+	void leaveEventHook(QEvent *e) override {
+		Ui::Tooltip::Hide();
+	}
+
+	QString tooltipText() const override {
+		return _tooltip;
+	}
+
+	QPoint tooltipPos() const override {
+		return QCursor::pos();
+	}
+
+	bool tooltipWindowActive() const override {
+		return Ui::AppInFocus() && Ui::InFocusChain(window());
+	}
+
+private:
+	QString _tooltip;
+	uint64 _balance = 0;
+
+};
 
 [[nodiscard]] uint64 UniqueIdFromOption(
 		const Data::CreditTopupOption &d) {
@@ -516,7 +556,7 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 		}
 	}, content->lifetime());
 
-	const auto balance = Ui::CreateChild<Ui::RpWidget>(content);
+	const auto balance = Ui::CreateChild<Balance>(content);
 	{
 		const auto starSize = _balanceStar.size() / style::DevicePixelRatio();
 		const auto label = balance->lifetime().make_state<Ui::Text::String>(
@@ -541,6 +581,7 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 			count->setText(
 				st::semiboldTextStyle,
 				Lang::FormatCountToShort(slice.balance).string);
+			balance->setBalance(slice.balance);
 			resize();
 		});
 		balance->paintRequest(
