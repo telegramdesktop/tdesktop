@@ -240,8 +240,6 @@ Widget::Widget(
 	: nullptr)
 , _searchTimer([=] { searchMessages(); })
 , _singleMessageSearch(&controller->session()) {
-	setAttribute(Qt::WA_InputMethodEnabled);
-
 	const auto makeChildListShown = [](PeerId peerId, float64 shown) {
 		return InnerWidget::ChildListShown{ peerId, shown };
 	};
