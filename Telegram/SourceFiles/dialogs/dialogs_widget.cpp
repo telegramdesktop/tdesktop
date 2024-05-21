@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
 #include "boxes/peer_list_box.h"
@@ -1230,9 +1231,17 @@ void Widget::updateSearchTabs() {
 		}
 		return;
 	} else if (!_searchTabs) {
+		const auto savedSession = &session();
+		const auto markedTextContext = [=](Fn<void()> repaint) {
+			return Core::MarkedTextContext{
+				.session = savedSession,
+				.customEmojiRepaint = std::move(repaint),
+			};
+		};
 		_searchTabs = std::make_unique<ChatSearchTabs>(
 			this,
-			_searchState.tab);
+			_searchState.tab,
+			std::move(markedTextContext));
 		_searchTabs->setVisible(!_showAnimation);
 		_searchTabs->tabChanges(
 		) | rpl::filter([=](ChatSearchTab tab) {
@@ -1250,16 +1259,19 @@ void Widget::updateSearchTabs() {
 		: _openedForum
 		? _openedForum->channel().get()
 		: nullptr;
-	const auto topicShortLabel = topic
-		? Ui::Text::SingleCustomEmoji(Data::TopicIconEmojiEntity({
+	const auto topicShortLabel = !topic
+		? TextWithEntities()
+		: topic->iconId()
+		? Ui::Text::SingleCustomEmoji(
+			Data::SerializeCustomEmojiId(topic->iconId()))
+		: Ui::Text::SingleCustomEmoji(Data::TopicIconEmojiEntity({
 			.title = (topic->isGeneral()
 				? Data::ForumGeneralIconTitle()
 				: topic->title()),
 			.colorId = (topic->isGeneral()
 				? Data::ForumGeneralIconColor(st::windowSubTextFg->c)
 				: topic->colorId()),
-			}))
-		: TextWithEntities();
+			}));
 	const auto peerShortLabel = peer
 		? Ui::Text::SingleCustomEmoji(
 			session().data().customEmojiManager().peerUserpicEmojiData(

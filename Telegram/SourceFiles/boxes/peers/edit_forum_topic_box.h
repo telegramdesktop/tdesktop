@@ -13,6 +13,7 @@ class History;
 
 namespace Data {
 struct TopicIconDescriptor;
+enum class CustomEmojiSizeTag : uchar;
 } // namespace Data
 
 namespace Window {
@@ -32,4 +33,5 @@ void EditForumTopicBox(
 
 [[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> MakeTopicIconEmoji(
 	Data::TopicIconDescriptor descriptor,
-	Fn<void()> repaint);
+	Fn<void()> repaint,
+	Data::CustomEmojiSizeTag tag);

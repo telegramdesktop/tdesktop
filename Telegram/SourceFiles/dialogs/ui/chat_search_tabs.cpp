@@ -97,31 +97,19 @@ bool IsHashtagSearchQuery(const QString &query) {
 	return true;
 }
 
-ChatSearchTabs::ChatSearchTabs(QWidget *parent, ChatSearchTab active)
+ChatSearchTabs::ChatSearchTabs(
+	QWidget *parent,
+	ChatSearchTab active,
+	Fn<std::any(Fn<void()>)> markedTextContext)
 : RpWidget(parent)
 , _tabs(std::make_unique<Ui::SettingsSlider>(this, st::dialogsSearchTabs))
 , _shadow(std::make_unique<Ui::PlainShadow>(this))
+, _markedTextContext(std::move(markedTextContext))
 , _active(active) {
-	for (const auto tab : {
-		ChatSearchTab::ThisTopic,
-		ChatSearchTab::ThisPeer,
-		ChatSearchTab::MyMessages,
-		ChatSearchTab::PublicPosts,
-	}) {
-		_list.push_back({ tab, TabLabel(tab) });
-	}
 	_tabs->move(st::dialogsSearchTabsPadding, 0);
 	_tabs->sectionActivated(
 	) | rpl::start_with_next([=](int index) {
-		for (const auto &tab : _list) {
-			if (tab.shortLabel.empty()) {
-				continue;
-			} else if (!index) {
-				_active = tab.value;
-				return;
-			}
-			--index;
-		}
+		_active = _list[index].value;
 	}, lifetime());
 }
 
@@ -131,40 +119,73 @@ void ChatSearchTabs::setTabShortLabels(
 		std::vector<ShortLabel> labels,
 		ChatSearchTab active,
 		ChatSearchPeerTabType peerTabType) {
-	for (const auto &label : labels) {
-		const auto i = ranges::find(_list, label.tab, &Tab::value);
-		Assert(i != end(_list));
-		i->shortLabel = std::move(label.label);
-		if (i->value == ChatSearchTab::ThisPeer) {
-			i->label = TabLabel(label.tab, peerTabType);
+	const auto &st = st::dialogsSearchTabs;
+	const auto &font = st.labelStyle.font;
+	_list.clear();
+	_list.reserve(labels.size());
+
+	auto widthTotal = 0;
+	for (const auto tab : {
+		ChatSearchTab::ThisTopic,
+		ChatSearchTab::ThisPeer,
+		ChatSearchTab::MyMessages,
+		ChatSearchTab::PublicPosts,
+	}) {
+		const auto i = ranges::find(labels, tab, &ShortLabel::tab);
+		if (i != end(labels) && !i->label.empty()) {
+			const auto label = TabLabel(tab, peerTabType);
+			const auto widthFull = font->width(label) + st.strictSkip;
+			_list.push_back({
+				.value = tab,
+				.label = label,
+				.shortLabel = i->label,
+				.widthFull = widthFull,
+			});
+			widthTotal += widthFull;
 		}
 	}
-	refreshTabs(active);
+	const auto widthSingleEmoji = st::emojiSize + st.strictSkip;
+	for (const auto tab : {
+		ChatSearchTab::PublicPosts,
+		ChatSearchTab::ThisTopic,
+		ChatSearchTab::ThisPeer,
+		ChatSearchTab::MyMessages,
+	}) {
+		const auto i = ranges::find(_list, tab, &Tab::value);
+		if (i != end(_list)) {
+			i->widthThresholdForShort = widthTotal;
+			widthTotal -= i->widthFull;
+			widthTotal += widthSingleEmoji;
+		}
+	}
+	refillTabs(active, width());
 }
 
 rpl::producer<ChatSearchTab> ChatSearchTabs::tabChanges() const {
 	return _active.changes();
 }
 
-void ChatSearchTabs::refreshTabs(ChatSearchTab active) {
-	auto index = 0;
-	auto labels = std::vector<QString>();
+void ChatSearchTabs::refillTabs(
+		ChatSearchTab active,
+		int newWidth) {
+	auto labels = std::vector<TextWithEntities>();
+	const auto available = newWidth - 2 * st::dialogsSearchTabsPadding;
 	for (const auto &tab : _list) {
-		if (tab.value == active) {
-			index = int(labels.size());
-			Assert(!tab.shortLabel.empty());
-			labels.push_back(tab.label);
-		} else if (!tab.shortLabel.empty()) {
-			labels.push_back(tab.label);
-		}
+		auto label = (available < tab.widthThresholdForShort)
+			? tab.shortLabel
+			: TextWithEntities{ tab.label };
+		labels.push_back(std::move(label));
 	}
-	_tabs->setSections(labels);
-	_tabs->setActiveSectionFast(index);
-	resizeToWidth(width());
+	_tabs->setSections(labels, _markedTextContext([=] { update(); }));
+
+	const auto i = ranges::find(_list, active, &Tab::value);
+	Assert(i != end(_list));
+	_tabs->setActiveSectionFast(i - begin(_list));
+	_tabs->resizeToWidth(newWidth);
 }
 
 int ChatSearchTabs::resizeGetHeight(int newWidth) {
-	_tabs->resizeToWidth(newWidth);
+	refillTabs(_active.current(), newWidth);
 	_shadow->setGeometry(
 		0,
 		_tabs->y() + _tabs->height() - st::lineWidth,

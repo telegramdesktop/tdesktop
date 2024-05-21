@@ -46,6 +46,11 @@ defaultForumTopicIcon: ForumTopicIcon {
 	font: font(bold 11px);
 	textTop: 2px;
 }
+normalForumTopicIcon: ForumTopicIcon {
+	size: 19px;
+	font: font(bold 10px);
+	textTop: 2px;
+}
 largeForumTopicIcon: ForumTopicIcon {
 	size: 26px;
 	font: font(bold 13px);

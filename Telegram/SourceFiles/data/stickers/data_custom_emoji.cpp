@@ -542,7 +542,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		const auto size = EmojiSizeFromTag(tag) / ratio;
 		return userpic(data, std::move(update), size);
 	} else if (const auto parsed = Data::ParseTopicIconEmojiEntity(data)) {
-		return MakeTopicIconEmoji(parsed, std::move(update));
+		return MakeTopicIconEmoji(parsed, std::move(update), tag);
 	}
 	const auto parsed = ParseCustomEmojiData(data);
 	return parsed

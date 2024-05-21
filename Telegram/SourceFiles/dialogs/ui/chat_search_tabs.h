@@ -34,7 +34,10 @@ enum class ChatSearchPeerTabType : uchar {
 
 class ChatSearchTabs final : public Ui::RpWidget {
 public:
-	ChatSearchTabs(QWidget *parent, ChatSearchTab active);
+	ChatSearchTabs(
+		QWidget *parent,
+		ChatSearchTab active,
+		Fn<std::any(Fn<void()>)> markedTextContext);
 	~ChatSearchTabs();
 
 	// A [custom] emoji to use when there is not enough space for text.
@@ -55,14 +58,18 @@ private:
 		ChatSearchTab value = {};
 		QString label;
 		TextWithEntities shortLabel;
+		int widthFull = 0;
+		int widthThresholdForShort = 0;
 	};
 
 	void refreshTabs(ChatSearchTab active);
+	void refillTabs(ChatSearchTab active, int newWidth);
 	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
 
 	const std::unique_ptr<Ui::SettingsSlider> _tabs;
 	const std::unique_ptr<Ui::PlainShadow> _shadow;
+	const Fn<std::any(Fn<void()>)> _markedTextContext;
 
 	std::vector<Tab> _list;
 	rpl::variable<ChatSearchTab> _active;
