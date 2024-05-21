@@ -81,7 +81,7 @@ void PaintDetails(
 		line.name);
 	auto value = Ui::Text::String(
 		st::statisticsDetailsPopupStyle,
-		QString("%L1").arg(absoluteValue));
+		Lang::FormatCountDecimal(absoluteValue));
 	const auto nameWidth = name.maxWidth();
 	const auto valueWidth = value.maxWidth();
 
@@ -177,7 +177,7 @@ PointDetailsWidget::PointDetailsWidget(
 	const auto calculatedWidth = [&]{
 		const auto maxValueText = Ui::Text::String(
 			_textStyle,
-			QString("%L1").arg(maxAbsoluteValue));
+			Lang::FormatCountDecimal(maxAbsoluteValue));
 		const auto maxValueTextWidth = maxValueText.maxWidth();
 
 		auto maxNameTextWidth = 0;
@@ -284,7 +284,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 		textLine.name.setText(_textStyle, dataLine.name);
 		textLine.value.setText(
 			_textStyle,
-			QString("%L1").arg(dataLine.y[xIndex]));
+			Lang::FormatCountDecimal(dataLine.y[xIndex]));
 		hasPositiveValues |= (dataLine.y[xIndex] > 0);
 		textLine.valueColor = QColor(dataLine.color);
 		if (_chartData.currencyRate) {
