@@ -60,6 +60,7 @@ class Row;
 class FakeRow;
 class IndexedList;
 class SearchTags;
+class SearchEmpty;
 
 struct ChosenRow {
 	Key key;
@@ -119,8 +120,8 @@ public:
 
 	void clearFilter();
 	void refresh(bool toTop = false);
-	void refreshEmptyLabel();
-	void resizeEmptyLabel();
+	void refreshEmpty();
+	void resizeEmpty();
 
 	[[nodiscard]] bool isUserpicPress() const;
 	[[nodiscard]] bool isUserpicPressOnWide() const;
@@ -158,6 +159,7 @@ public:
 	void setLoadMoreFilteredCallback(Fn<void()> callback);
 	[[nodiscard]] rpl::producer<> listBottomReached() const;
 	[[nodiscard]] rpl::producer<> cancelSearchFromUserRequests() const;
+	[[nodiscard]] rpl::producer<> cancelSearchRequests() const;
 	[[nodiscard]] rpl::producer<ChosenRow> chosenRow() const;
 	[[nodiscard]] rpl::producer<> updated() const;
 
@@ -386,7 +388,6 @@ private:
 		const Ui::Text::String &text) const;
 	void refreshSearchInChatLabel();
 	void repaintSearchResult(int index);
-	void paintEmpty(QPainter &p, int top);
 
 	Ui::VideoUserpic *validateVideoUserpic(not_null<Row*> row);
 	Ui::VideoUserpic *validateVideoUserpic(not_null<History*> history);
@@ -395,7 +396,6 @@ private:
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(Key key = Key());
 	void trackSearchResultsHistory(not_null<History*> history);
-	void trackSearchResultsForum(Data::Forum *forum);
 
 	[[nodiscard]] QBrush currentBg() const;
 	[[nodiscard]] Key computeChatPreviewRow() const;
@@ -485,8 +485,11 @@ private:
 
 	WidgetState _state = WidgetState::Default;
 
+	object_ptr<SearchEmpty> _searchEmpty = { nullptr };
+	SearchState _searchEmptyState;
 	object_ptr<Ui::FlatLabel> _empty = { nullptr };
 	object_ptr<Ui::IconButton> _cancelSearchFromUser;
+	rpl::event_stream<> _cancelSearch;
 
 	Ui::DraggingScrollManager _draggingScroll;
 
@@ -526,6 +529,7 @@ private:
 	bool _geometryInited = false;
 
 	bool _savedSublists = false;
+	bool _searchLoading = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

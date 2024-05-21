@@ -147,6 +147,4 @@ struct SearchState {
 		const SearchState&) = default;
 };
 
-;
-
 } // namespace Dialogs

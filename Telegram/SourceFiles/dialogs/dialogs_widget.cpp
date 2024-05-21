@@ -345,6 +345,10 @@ Widget::Widget(
 		}
 		applySearchState(std::move(copy));
 	}, lifetime());
+	_inner->cancelSearchRequests(
+	) | rpl::start_with_next([=] {
+		applySearchState({});
+	}, lifetime());
 	_inner->chosenRow(
 	) | rpl::start_with_next([=](const ChosenRow &row) {
 		chosenRow(row);
@@ -1988,6 +1992,9 @@ bool Widget::search(bool inCache) {
 
 	auto result = false;
 	const auto query = _searchState.query.trimmed();
+	const auto trimmed = (query.isEmpty() || query[0] != '#')
+		? query
+		: query.mid(1).trimmed();
 	const auto inPeer = searchInPeer();
 	const auto fromPeer = searchFromPeer();
 	const auto &inTags = searchInTags();
@@ -1995,9 +2002,7 @@ bool Widget::search(bool inCache) {
 	const auto fromStartType = inPeer
 		? SearchRequestType::PeerFromStart
 		: SearchRequestType::FromStart;
-	const auto skipRequest = (query.isEmpty() && !fromPeer && inTags.empty())
-		|| (tab == ChatSearchTab::PublicPosts && query.size() < 2);
-	if (skipRequest) {
+	if (trimmed.isEmpty() && !fromPeer && inTags.empty()) {
 		cancelSearchRequest();
 		searchApplyEmpty(fromStartType, 0);
 		_api.request(base::take(_peerSearchRequest)).cancel();
@@ -2021,10 +2026,7 @@ bool Widget::search(bool inCache) {
 			_searchNextRate = 0;
 			_searchFull = _searchFullMigrated = false;
 			cancelSearchRequest();
-			searchReceived(
-				fromStartType,
-				i->second,
-				0);
+			searchReceived(fromStartType, i->second, 0);
 			result = true;
 		}
 	} else if (_searchQuery != query

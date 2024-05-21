@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_inner_widget.h"
 
 #include "dialogs/dialogs_three_state_icon.h"
+#include "dialogs/ui/chat_search_empty.h"
 #include "dialogs/ui/chat_search_tabs.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_stories_content.h"
@@ -84,7 +85,7 @@ constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
 constexpr auto kChatPreviewDelay = crl::time(1000);
 
-int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
+[[nodiscard]] int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
 	auto result = 0;
 	for (const auto &row : *list) {
 		if (!row->entry()->fixedOnTopIndex()) {
@@ -95,7 +96,7 @@ int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
 	return result;
 }
 
-int PinnedDialogsCount(
+[[nodiscard]] int PinnedDialogsCount(
 		FilterId filterId,
 		not_null<Dialogs::IndexedList*> list) {
 	auto result = 0;
@@ -107,6 +108,52 @@ int PinnedDialogsCount(
 		}
 		++result;
 	}
+	return result;
+}
+
+[[nodiscard]] object_ptr<SearchEmpty> MakeSearchEmpty(
+		QWidget *parent,
+		SearchState state) {
+	const auto query = state.query.trimmed();
+	const auto hashtag = !query.isEmpty() && (query[0] == '#');
+	const auto trimmed = hashtag ? query.mid(1).trimmed() : query;
+	const auto waiting = trimmed.isEmpty()
+		&& state.tags.empty()
+		&& !state.fromPeer;
+	const auto icon = waiting
+		? SearchEmptyIcon::Search
+		: SearchEmptyIcon::NoResults;
+	auto text = TextWithEntities();
+	if (waiting) {
+		if (hashtag) {
+			text.append(tr::lng_search_tab_by_hashtag(tr::now));
+		} else {
+			text.append(
+				tr::lng_dlg_search_for_messages(tr::now)
+			).append('\n').append(Ui::Text::Link(tr::lng_cancel(tr::now)));
+		}
+	} else {
+		text.append(tr::lng_search_tab_no_results(
+			tr::now,
+			Ui::Text::Bold));
+		if (!trimmed.isEmpty()) {
+			text.append("\n").append(
+				tr::lng_search_tab_no_results_text(
+					tr::now,
+					lt_query,
+					trimmed));
+			if (hashtag) {
+				text.append("\n").append(
+					tr::lng_search_tab_no_results_retry(tr::now));
+			}
+		}
+	}
+	auto result = object_ptr<SearchEmpty>(
+		parent,
+		icon,
+		rpl::single(std::move(text)));
+	result->show();
+	result->resizeToWidth(parent->width());
 	return result;
 }
 
@@ -186,7 +233,7 @@ InnerWidget::InnerWidget(
 	session().data().contactsLoaded().changes(
 	) | rpl::start_with_next([=] {
 		refresh();
-		refreshEmptyLabel();
+		refreshEmpty();
 	}, lifetime());
 
 	session().data().itemRemoved(
@@ -1906,7 +1953,7 @@ void InnerWidget::resizeEvent(QResizeEvent *e) {
 	if (_searchTags) {
 		_searchTags->resizeToWidth(width() - 2 * _searchTagsLeft);
 	}
-	resizeEmptyLabel();
+	resizeEmpty();
 	moveCancelSearchButtons();
 }
 
@@ -2587,12 +2634,13 @@ void InnerWidget::applySearchState(SearchState state) {
 					append(owner->contactsNoChatsList());
 				}
 			}
-			refresh(true);
 		}
 		clearMouseSelection(true);
 	}
 	if (_state != WidgetState::Default) {
+		_searchLoading = true;
 		_searchMessages.fire({});
+		refresh(true);
 	}
 }
 
@@ -2791,6 +2839,10 @@ rpl::producer<> InnerWidget::cancelSearchFromUserRequests() const {
 	return _cancelSearchFromUser->clicks() | rpl::to_empty;
 }
 
+rpl::producer<> InnerWidget::cancelSearchRequests() const {
+	return _cancelSearch.events();
+}
+
 rpl::producer<Ui::ScrollToRequest> InnerWidget::mustScrollTo() const {
 	return _mustScrollTo.events();
 }
@@ -2888,6 +2940,8 @@ void InnerWidget::searchReceived(
 		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount) {
+	_searchLoading = false;
+
 	const auto uniquePeers = uniqueSearchResults();
 	if (type == SearchRequestType::FromStart
 		|| type == SearchRequestType::PeerFromStart) {
@@ -3018,7 +3072,7 @@ void InnerWidget::refresh(bool toTop) {
 	} else if (needCollapsedRowsRefresh()) {
 		return refreshWithCollapsedRows(toTop);
 	}
-	refreshEmptyLabel();
+	refreshEmpty();
 	if (_searchTags) {
 		_searchTagsLeft = st::dialogsFilterSkip
 			+ st::dialogsFilterPadding.x();
@@ -3032,7 +3086,11 @@ void InnerWidget::refresh(bool toTop) {
 			h = dialogsOffset() + _shownList->height();
 		}
 	} else if (_state == WidgetState::Filtered) {
-		if (_waitingForSearch) {
+		if (_searchEmpty && !_searchEmpty->isHidden()) {
+			h = searchedOffset() + st::recentPeersEmptyHeightMin;
+			_searchEmpty->setMinimalHeight(st::recentPeersEmptyHeightMin);
+			_searchEmpty->move(0, h - st::recentPeersEmptyHeightMin);
+		} else if (_waitingForSearch) {
 			h = searchedOffset() + (_searchResults.size() * _st->height) + ((_searchResults.empty() && !_searchState.inChat) ? -st::searchedBarHeight : 0);
 		} else {
 			h = searchedOffset() + (_searchResults.size() * _st->height);
@@ -3047,7 +3105,32 @@ void InnerWidget::refresh(bool toTop) {
 	update();
 }
 
-void InnerWidget::refreshEmptyLabel() {
+void InnerWidget::refreshEmpty() {
+	if (_state == WidgetState::Filtered) {
+		const auto empty = _filterResults.empty()
+			&& _searchResults.empty()
+			&& _peerSearchResults.empty()
+			&& _hashtagResults.empty();
+		if (_searchLoading || !empty) {
+			if (_searchEmpty) {
+				_searchEmpty->hide();
+			}
+		} else if (_searchEmptyState != _searchState) {
+			_searchEmptyState = _searchState;
+			_searchEmpty = MakeSearchEmpty(this, _searchState);
+			_searchEmpty->linkClicks() | rpl::start_with_next([=] {
+				_cancelSearch.fire({});
+			}, _searchEmpty->lifetime());
+			if (_controller->session().data().chatsListLoaded()) {
+				_searchEmpty->animate();
+			}
+		} else if (_searchEmpty) {
+			_searchEmpty->show();
+		}
+	} else {
+		_searchEmpty.destroy();
+	}
+
 	const auto data = &session().data();
 	const auto state = !_shownList->empty()
 		? EmptyState::None
@@ -3100,7 +3183,7 @@ void InnerWidget::refreshEmptyLabel() {
 		return result;
 	});
 	_empty.create(this, std::move(full), st::dialogsEmptyLabel);
-	resizeEmptyLabel();
+	resizeEmpty();
 	_empty->overrideLinkClickHandler([=] {
 		if (_emptyState == EmptyState::NoContacts) {
 			_controller->showAddContact();
@@ -3114,13 +3197,16 @@ void InnerWidget::refreshEmptyLabel() {
 	_empty->setVisible(_state == WidgetState::Default);
 }
 
-void InnerWidget::resizeEmptyLabel() {
-	if (!_empty) {
-		return;
+void InnerWidget::resizeEmpty() {
+	if (_empty) {
+		const auto skip = st::dialogsEmptySkip;
+		_empty->resizeToWidth(width() - 2 * skip);
+		_empty->move(skip, (st::dialogsEmptyHeight - _empty->height()) / 2);
 	}
-	const auto skip = st::dialogsEmptySkip;
-	_empty->resizeToWidth(width() - 2 * skip);
-	_empty->move(skip, (st::dialogsEmptyHeight - _empty->height()) / 2);
+	if (_searchEmpty) {
+		_searchEmpty->resizeToWidth(width());
+		_searchEmpty->move(0, searchedOffset());
+	}
 }
 
 void InnerWidget::clearMouseSelection(bool clearSelection) {
@@ -3481,7 +3567,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		refreshShownList();
 		refreshWithCollapsedRows(true);
 	}
-	refreshEmptyLabel();
+	refreshEmpty();
 	{
 		const auto skip = found
 			// Don't save a scroll state for very flexible chat filters.

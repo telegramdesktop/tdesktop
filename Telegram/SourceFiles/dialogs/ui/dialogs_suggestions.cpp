@@ -20,12 +20,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "dialogs/ui/chat_search_empty.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
-#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
@@ -1360,53 +1361,30 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 }
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmptyRecent() {
-	return setupEmpty(_chatsContent, "search", tr::lng_recent_none());
+	const auto icon = SearchEmptyIcon::Search;
+	return setupEmpty(_chatsContent, icon, tr::lng_recent_none());
 }
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmptyChannels() {
-	return setupEmpty(
-		_channelsContent,
-		"noresults",
-		tr::lng_channels_none_about());
+	const auto icon = SearchEmptyIcon::NoResults;
+	return setupEmpty(_channelsContent, icon, tr::lng_channels_none_about());
 }
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmpty(
 		not_null<QWidget*> parent,
-		const QString &animation,
+		SearchEmptyIcon icon,
 		rpl::producer<QString> text) {
-	auto content = object_ptr<Ui::RpWidget>(parent);
+	auto content = object_ptr<SearchEmpty>(
+		parent,
+		icon,
+		std::move(text) | Ui::Text::ToWithEntities());
+
 	const auto raw = content.data();
-
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		raw,
-		std::move(text),
-		st::defaultPeerListAbout);
-	const auto size = st::recentPeersEmptySize;
-	const auto [widget, animate] = Settings::CreateLottieIcon(
-		raw,
-		{
-			.name = animation,
-			.sizeOverride = { size, size },
-		},
-		st::recentPeersEmptyMargin);
-	const auto icon = widget.data();
-
 	rpl::combine(
 		_chatsScroll->heightValue(),
 		_topPeersWrap->heightValue()
 	) | rpl::start_with_next([=](int height, int top) {
-		raw->resize(
-			raw->width(),
-			std::max(height - top, st::recentPeersEmptyHeightMin));
-	}, raw->lifetime());
-
-	raw->sizeValue() | rpl::start_with_next([=](QSize size) {
-		const auto x = (size.width() - icon->width()) / 2;
-		const auto y = (size.height() - icon->height()) / 3;
-		icon->move(x, y);
-		label->move(
-			(size.width() - label->width()) / 2,
-			y + icon->height() + st::recentPeersEmptySkip);
+		raw->setMinimalHeight(height - top);
 	}, raw->lifetime());
 
 	auto result = object_ptr<Ui::SlideWrap<>>(
@@ -1417,7 +1395,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupEmpty(
 	result->toggledValue() | rpl::filter([=](bool shown) {
 		return shown && _controller->session().data().chatsListLoaded();
 	}) | rpl::start_with_next([=] {
-		animate(anim::repeat::once);
+		raw->animate();
 	}, raw->lifetime());
 
 	return result;

@@ -34,6 +34,8 @@ class SessionController;
 
 namespace Dialogs {
 
+enum class SearchEmptyIcon;
+
 struct RecentPeersList {
 	std::vector<not_null<PeerData*>> list;
 };
@@ -112,7 +114,7 @@ private:
 		-> object_ptr<Ui::SlideWrap<Ui::RpWidget>>;
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupEmpty(
 		not_null<QWidget*> parent,
-		const QString &animation,
+		SearchEmptyIcon icon,
 		rpl::producer<QString> text);
 
 	void switchTab(Tab tab);
