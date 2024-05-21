@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/power_saving.h"
+#include "data/components/factchecks.h"
 #include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -799,6 +800,24 @@ QSize Message::performCountOptimalSize() {
 		RemoveComponents(Reply::Bit());
 	}
 
+	const auto factcheck = item->Get<HistoryMessageFactcheck>();
+	if (factcheck && !factcheck->data.text.empty()) {
+		AddComponents(Factcheck::Bit());
+		Get<Factcheck>()->page = history()->session().factchecks().makeMedia(
+			this,
+			factcheck);
+
+		auto copy = data()->originalText();
+		if (!copy.text.contains("FACT CHECK")) {
+			copy.append("\n\nFACT CHECK!!\n\n").append(factcheck->data.text);
+			crl::on_main(this, [=] {
+				data()->setText(std::move(copy));
+			});
+		}
+	} else {
+		RemoveComponents(Factcheck::Bit());
+	}
+
 	const auto markup = item->inlineReplyMarkup();
 	const auto reactionsKey = [&] {
 		return embedReactionsInBottomInfo()
@@ -1068,6 +1087,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 	const auto item = data();
 	const auto media = this->media();
+
+	if (item->hasUnrequestedFactcheck()) {
+		item->history()->session().factchecks().requestFor(item);
+	}
 
 	const auto stm = context.messageStyle();
 	const auto bubble = drawBubble();

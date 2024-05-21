@@ -415,6 +415,11 @@ HistoryItem::HistoryItem(
 		}
 		setReactions(data.vreactions());
 		applyTTL(data);
+
+		if (const auto check = FromMTP(this, data.vfactcheck())) {
+			AddComponents(HistoryMessageFactcheck::Bit());
+			Get<HistoryMessageFactcheck>()->data = check;
+		}
 	}
 }
 
@@ -1492,6 +1497,33 @@ void HistoryItem::addLogEntryOriginal(
 		localId,
 		label,
 		content);
+}
+
+void HistoryItem::setFactcheck(MessageFactcheck info) {
+	if (!info) {
+		if (Has<HistoryMessageFactcheck>()) {
+			RemoveComponents(HistoryMessageFactcheck::Bit());
+			history()->owner().requestItemResize(this);
+		}
+	} else {
+		AddComponents(HistoryMessageFactcheck::Bit());
+		const auto factcheck = Get<HistoryMessageFactcheck>();
+		if (factcheck->data.hash == info.hash
+			&& (info.needCheck || !factcheck->data.needCheck)) {
+			return;
+		} else if (factcheck->data.text != info.text
+			|| factcheck->data.country != info.country
+			|| factcheck->data.hash != info.hash) {
+			factcheck->data = std::move(info);
+			factcheck->requested = false;
+			history()->owner().requestItemResize(this);
+		}
+	}
+}
+
+bool HistoryItem::hasUnrequestedFactcheck() const {
+	const auto factcheck = Get<HistoryMessageFactcheck>();
+	return factcheck && factcheck->data.needCheck && !factcheck->requested;
 }
 
 PeerData *HistoryItem::specialNotificationPeer() const {
@@ -3143,6 +3175,8 @@ EffectId HistoryItem::effectId() const {
 bool HistoryItem::isEmpty() const {
 	return _text.empty()
 		&& !_media
+		&& (!Has<HistoryMessageFactcheck>()
+			|| Get<HistoryMessageFactcheck>()->data.text.empty())
 		&& !Has<HistoryMessageLogEntryOriginal>();
 }
 

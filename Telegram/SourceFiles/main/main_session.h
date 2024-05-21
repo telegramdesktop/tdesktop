@@ -35,6 +35,7 @@ class RecentPeers;
 class ScheduledMessages;
 class SponsoredMessages;
 class TopPeers;
+class Factchecks;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -126,6 +127,9 @@ public:
 	}
 	[[nodiscard]] Data::TopPeers &topPeers() const {
 		return *_topPeers;
+	}
+	[[nodiscard]] Data::Factchecks &factchecks() const {
+		return *_factchecks;
 	}
 	[[nodiscard]] Api::Updates &updates() const {
 		return *_updates;
@@ -254,6 +258,7 @@ private:
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
 	const std::unique_ptr<Data::SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Data::TopPeers> _topPeers;
+	const std::unique_ptr<Data::Factchecks> _factchecks;
 
 	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
 	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;

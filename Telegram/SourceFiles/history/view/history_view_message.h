@@ -44,6 +44,11 @@ struct LogEntryOriginal
 	std::unique_ptr<WebPage> page;
 };
 
+struct Factcheck
+: public RuntimeComponent<Factcheck, Element> {
+	std::unique_ptr<WebPage> page;
+};
+
 struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
 	QString type;
 	mutable ClickHandlerPtr link;

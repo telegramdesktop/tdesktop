@@ -1306,6 +1306,8 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					&& !link
 					&& (view->hasVisibleText()
 						|| mediaHasTextForCopy
+						|| (item->Has<HistoryMessageFactcheck>()
+							&& !item->Get<HistoryMessageFactcheck>()->data.text.empty())
 						|| item->Has<HistoryMessageLogEntryOriginal>())) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);

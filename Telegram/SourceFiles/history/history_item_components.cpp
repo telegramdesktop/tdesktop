@@ -1062,6 +1062,31 @@ HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(
 
 HistoryMessageLogEntryOriginal::~HistoryMessageLogEntryOriginal() = default;
 
+MessageFactcheck FromMTP(
+		not_null<HistoryItem*> item,
+		const tl::conditional<MTPFactCheck> &factcheck) {
+	auto result = MessageFactcheck();
+	if (!factcheck) {
+		return result;
+	}
+	const auto &data = factcheck->data();
+	if (const auto text = data.vtext()) {
+		const auto &data = text->data();
+		result.text = {
+			qs(data.vtext()),
+			Api::EntitiesFromMTP(
+				&item->history()->session(),
+				data.ventities().v),
+		};
+	}
+	if (const auto country = data.vcountry()) {
+		result.country = qs(country->v);
+	}
+	result.hash = data.vhash().v;
+	result.needCheck = data.is_need_check();
+	return result;
+}
+
 HistoryDocumentCaptioned::HistoryDocumentCaptioned()
 : caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
 }

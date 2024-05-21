@@ -23,9 +23,11 @@ struct HistoryMessageReplyMarkup;
 struct HistoryMessageTranslation;
 struct HistoryMessageForwarded;
 struct HistoryMessageSavedMediaData;
+struct HistoryMessageFactcheck;
 struct HistoryServiceDependentData;
 enum class HistorySelfDestructType;
 struct PreparedServiceText;
+struct MessageFactcheck;
 class ReplyKeyboard;
 struct LanguageId;
 
@@ -204,6 +206,8 @@ public:
 		WebPageId localId,
 		const QString &label,
 		const TextWithEntities &content);
+	void setFactcheck(MessageFactcheck info);
+	[[nodiscard]] bool hasUnrequestedFactcheck() const;
 
 	[[nodiscard]] not_null<Data::Thread*> notificationThread() const;
 	[[nodiscard]] not_null<History*> history() const {
