@@ -34,6 +34,10 @@ namespace {
 			return Data::CreditsHistoryEntry::PeerType::Fragment;
 		}, [](const MTPDstarsTransactionPeerAppStore &) {
 			return Data::CreditsHistoryEntry::PeerType::AppStore;
+		}, [](const MTPDstarsTransactionPeerUnsupported &) {
+			return Data::CreditsHistoryEntry::PeerType::Unsupported;
+		}, [](const MTPDstarsTransactionPeerPremiumBot &) {
+			return Data::CreditsHistoryEntry::PeerType::PremiumBot;
 		}),
 		.peerId = tl.data().vpeer().match([](const HistoryPeerTL &p) {
 			return peerFromMTP(p.vpeer());

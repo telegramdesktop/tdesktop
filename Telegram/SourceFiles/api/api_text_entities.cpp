@@ -311,7 +311,8 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 					MTP_string(entity.data())));
 		} break;
 		case EntityType::Blockquote: {
-			v.push_back(MTP_messageEntityBlockquote(offset, length));
+			v.push_back(
+				MTP_messageEntityBlockquote(MTP_flags(0), offset, length));
 		} break;
 		case EntityType::Spoiler: {
 			v.push_back(MTP_messageEntitySpoiler(offset, length));

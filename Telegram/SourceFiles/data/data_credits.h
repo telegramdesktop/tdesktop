@@ -24,6 +24,8 @@ struct CreditsHistoryEntry final {
 		AppStore,
 		PlayMarket,
 		Fragment,
+		Unsupported,
+		PremiumBot,
 	};
 	QString id;
 	uint64 credits = 0;
