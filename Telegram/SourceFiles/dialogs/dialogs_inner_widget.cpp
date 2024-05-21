@@ -801,7 +801,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.fillRect(dialogsClip, currentBg());
 		}
 	} else if (_state == WidgetState::Filtered) {
-		auto top = 0;
+		[[maybe_unused]] auto top = 0;
 		if (!_hashtagResults.empty()) {
 			auto from = floorclamp(r.y(), st::mentionHeight, 0, _hashtagResults.size());
 			auto to = ceilclamp(r.y() + r.height(), st::mentionHeight, 0, _hashtagResults.size());

@@ -733,7 +733,6 @@ void MainWidget::hideSingleUseKeyboard(FullMsgId replyToId) {
 void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 	auto tags = Data::SearchTagsFromQuery(query);
 	if (controller()->isPrimary()) {
-		using Tab = Dialogs::ChatSearchTab;
 		auto state = Dialogs::SearchState{
 			.inChat = ((tags.empty() || inChat.sublist())
 				? inChat

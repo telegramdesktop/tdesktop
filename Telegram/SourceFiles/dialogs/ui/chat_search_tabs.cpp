@@ -56,9 +56,9 @@ FixedHashtagSearchQuery FixHashtagSearchQuery(
 		const QString &query,
 		int cursorPosition) {
 	const auto trimmed = query.trimmed();
-	const auto hash = trimmed.isEmpty()
+	const auto hash = int(trimmed.isEmpty()
 		? query.size()
-		: query.indexOf(trimmed);
+		: query.indexOf(trimmed));
 	const auto start = std::min(cursorPosition, hash);
 	auto result = query.mid(0, start);
 	for (const auto &ch : query.mid(start)) {
