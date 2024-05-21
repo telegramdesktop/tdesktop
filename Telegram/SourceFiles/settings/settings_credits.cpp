@@ -59,28 +59,55 @@ using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
 	return XXH64(string.data(), string.size() * sizeof(ushort), 0);
 }
 
-[[nodiscard]] QImage GenerateStarForLightTopBar(QRectF rect) {
-	const auto strokeWidth = 3;
+[[nodiscard]] QImage GenerateStars(int height, int count) {
+	constexpr auto kOutlineWidth = .6;
+	constexpr auto kStrokeWidth = 3;
+	constexpr auto kShift = 3;
 
 	auto colorized = qs(Ui::Premium::ColorizedSvg(
 		Ui::Premium::CreditsIconGradientStops()));
 	colorized.replace(
-		"stroke=\"none\"",
-		"stroke=\"" + st::creditsStroke->c.name() + "\"");
-	colorized.replace("stroke-width=\"1\"", "stroke-width=\"3\"");
+		u"stroke=\"none\""_q,
+		u"stroke=\"%1\""_q.arg(st::creditsStroke->c.name()));
+	colorized.replace(
+		u"stroke-width=\"1\""_q,
+		u"stroke-width=\"%1\""_q.arg(kStrokeWidth));
 	auto svg = QSvgRenderer(colorized.toUtf8());
-	svg.setViewBox(svg.viewBox() + Margins(strokeWidth));
+	svg.setViewBox(svg.viewBox() + Margins(kStrokeWidth));
 
-	const auto size = Size(st::settingsButton.height);
+	const auto starSize = Size(height - kOutlineWidth * 2);
+
 	auto frame = QImage(
-		size * style::DevicePixelRatio(),
+		QSize(
+			(height + kShift * (count - 1)) * style::DevicePixelRatio(),
+			height * style::DevicePixelRatio()),
 		QImage::Format_ARGB32_Premultiplied);
 	frame.setDevicePixelRatio(style::DevicePixelRatio());
-
 	frame.fill(Qt::transparent);
+	const auto drawSingle = [&](QPainter &q) {
+		const auto s = kOutlineWidth;
+		q.save();
+		q.translate(s, s);
+		q.setCompositionMode(QPainter::CompositionMode_Clear);
+		svg.render(&q, QRectF(QPointF(s, 0), starSize));
+		svg.render(&q, QRectF(QPointF(s, s), starSize));
+		svg.render(&q, QRectF(QPointF(0, s), starSize));
+		svg.render(&q, QRectF(QPointF(-s, s), starSize));
+		svg.render(&q, QRectF(QPointF(-s, 0), starSize));
+		svg.render(&q, QRectF(QPointF(-s, -s), starSize));
+		svg.render(&q, QRectF(QPointF(0, -s), starSize));
+		svg.render(&q, QRectF(QPointF(s, -s), starSize));
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		svg.render(&q, Rect(starSize));
+		q.restore();
+	};
 	{
 		auto q = QPainter(&frame);
-		svg.render(&q, Rect(size));
+		q.translate(frame.width() / style::DevicePixelRatio() - height, 0);
+		for (auto i = count; i > 0; --i) {
+			drawSingle(q);
+			q.translate(-kShift, 0);
+		}
 	}
 	return frame;
 }
@@ -130,7 +157,7 @@ Credits::Credits(
 	not_null<Window::SessionController*> controller)
 : Section(parent)
 , _controller(controller)
-, _star(GenerateStarForLightTopBar({})) {
+, _star(GenerateStars(st::creditsTopupButton.height, 1)) {
 	setupContent();
 }
 
@@ -172,29 +199,53 @@ void Credits::setupOptions(not_null<Ui::VerticalLayout*> container) {
 		Ui::AddSubsectionTitle(
 			content,
 			tr::lng_credits_summary_options_subtitle());
-		for (const auto &option : options) {
+		const auto &st = st::creditsTopupButton;
+		const auto diffBetweenTextAndStar = st.padding.left()
+			- st.iconLeft
+			- (_star.width() / style::DevicePixelRatio());
+		const auto buttonHeight = st.height + rect::m::sum::v(st.padding);
+		for (auto i = 0; i < options.size(); i++) {
+			const auto &option = options[i];
 			const auto button = content->add(object_ptr<Ui::SettingsButton>(
 				content,
+				rpl::never<QString>(),
+				st));
+			const auto text = button->lifetime().make_state<Ui::Text::String>(
+				st.style,
 				tr::lng_credits_summary_options_credits(
+					tr::now,
 					lt_count_decimal,
-					rpl::single(option.credits) | tr::to_count()),
-				st::creditsTopupButton));
-			const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
-			icon->resize(Size(button->st().height));
-			icon->paintRequest(
-			) | rpl::start_with_next([=](const QRect &rect) {
-				auto p = QPainter(icon);
-				p.drawImage(0, 0, _star);
-			}, icon->lifetime());
+					option.credits));
 			const auto price = Ui::CreateChild<Ui::FlatLabel>(
 				button,
 				Ui::FillAmountAndCurrency(option.amount, option.currency),
 				st::creditsTopupPrice);
+			const auto inner = Ui::CreateChild<Ui::RpWidget>(button);
+			const auto stars = GenerateStars(st.height, (i + 1));
+			inner->paintRequest(
+			) | rpl::start_with_next([=](const QRect &rect) {
+				auto p = QPainter(inner);
+				p.drawImage(
+					0,
+					(buttonHeight - stars.height()) / 2,
+					stars);
+				const auto textLeft = diffBetweenTextAndStar
+					+ stars.width() / style::DevicePixelRatio();
+				p.setPen(st.textFg);
+				text->draw(p, {
+					.position = QPoint(textLeft, 0),
+					.availableWidth = inner->width() - textLeft,
+				});
+			}, inner->lifetime());
 			button->sizeValue(
 			) | rpl::start_with_next([=](const QSize &size) {
-				const auto &st = button->st();
 				price->moveToRight(st.padding.right(), st.padding.top());
-				icon->moveToLeft(st.iconLeft, st.padding.top());
+				inner->moveToLeft(st.iconLeft, st.padding.top());
+				inner->resize(
+					size.width()
+						- rect::m::sum::h(st.padding)
+						- price->width(),
+					buttonHeight);
 			}, button->lifetime());
 			button->setClickedCallback([=] {
 				const auto invoice = Payments::InvoiceCredits{
