@@ -57,7 +57,7 @@ namespace {
 			status.data().vhistory().v
 		) | ranges::views::transform(HistoryFromTL) | ranges::to_vector,
 		.balance = status.data().vbalance().v,
-		.allLoaded = status.data().vnext_offset().has_value(),
+		.allLoaded = !status.data().vnext_offset().has_value(),
 		.token = qs(status.data().vnext_offset().value_or_empty()),
 	};
 }
@@ -85,6 +85,7 @@ rpl::producer<rpl::no_value, QString> CreditsTopupOptions::request() {
 						option.data().vstore_product().value_or_empty()),
 					.currency = qs(option.data().vcurrency()),
 					.amount = option.data().vamount().v,
+					.extended = option.data().is_extended(),
 				};
 			}) | ranges::to_vector;
 			consumer.put_done();
@@ -114,10 +115,6 @@ void CreditsStatus::request(
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input
 	)).done([=](const TLResult &result) {
 		_requestId = 0;
-#if _DEBUG
-		done({ .balance = uint64(base::RandomIndex(9999)) });
-		return;
-#endif
 		done(StatusFromTL(result, _peer));
 	}).fail([=] {
 		_requestId = 0;
@@ -127,9 +124,11 @@ void CreditsStatus::request(
 
 CreditsHistory::CreditsHistory(not_null<PeerData*> peer, bool in, bool out)
 : _peer(peer)
-, _flags(HistoryTL::Flags(0)
-	| (in ? HistoryTL::Flag::f_inbound : HistoryTL::Flags(0))
-	| (out ? HistoryTL::Flag::f_outbound : HistoryTL::Flags(0)))
+, _flags((in == out)
+	? HistoryTL::Flags(0)
+	: HistoryTL::Flags(0)
+		| (in ? HistoryTL::Flag::f_inbound : HistoryTL::Flags(0))
+		| (out ? HistoryTL::Flag::f_outbound : HistoryTL::Flags(0)))
 , _api(&peer->session().api().instance()) {
 }
 
@@ -145,46 +144,6 @@ void CreditsHistory::request(
 		MTP_string(token)
 	)).done([=](const MTPpayments_StarsStatus &result) {
 		_requestId = 0;
-#if _DEBUG
-		done({
-			.list = [&] {
-				auto a = std::vector<Data::CreditsHistoryEntry>();
-				const auto isIn = _flags & HistoryTL::Flag::f_inbound;
-				const auto isOut = _flags & HistoryTL::Flag::f_outbound;
-				for (auto i = 0; i < base::RandomIndex(10) + 1; i++) {
-					const auto type = (isIn && isOut)
-						? base::RandomIndex(4)
-						: isOut
-						? 0
-						: (base::RandomIndex(3) + 1);
-					a.push_back(Data::CreditsHistoryEntry{
-						.id = QString::number(base::RandomValue<uint64>()),
-						.credits = uint64(
-							std::max(base::RandomIndex(15000), 1)),
-						.date = base::unixtime::parse(
-							std::abs(base::RandomValue<TimeId>())),
-						.peerType = ((type == 0)
-							? Data::CreditsHistoryEntry::PeerType::Peer
-							: (type == 1)
-							? Data::CreditsHistoryEntry::PeerType::PlayMarket
-							: (type == 2)
-							? Data::CreditsHistoryEntry::PeerType::Fragment
-							: Data::CreditsHistoryEntry::PeerType::AppStore),
-						.peerId = (type == 0)
-							? peerFromUser(5000233800)
-							: PeerId(0),
-					});
-				}
-				return a;
-			}(),
-			.balance = 47890,
-			.allLoaded = !token.isEmpty(),
-			.token = token.isEmpty()
-				? QString::number(base::RandomValue<uint64>())
-				: QString(),
-		});
-		return;
-#endif
 		done(StatusFromTL(result, _peer));
 	}).fail([=] {
 		_requestId = 0;

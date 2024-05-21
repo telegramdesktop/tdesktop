@@ -297,6 +297,7 @@ void Credits::setupOptions(not_null<Ui::VerticalLayout*> container) {
 					.product = option.product,
 					.currency = option.currency,
 					.amount = option.amount,
+					.extended = option.extended,
 				};
 
 				const auto weak = Ui::MakeWeak(button);

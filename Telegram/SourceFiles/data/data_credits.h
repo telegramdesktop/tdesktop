@@ -14,6 +14,7 @@ struct CreditTopupOption final {
 	QString product;
 	QString currency;
 	uint64 amount = 0;
+	bool extended = false;
 };
 
 using CreditTopupOptions = std::vector<CreditTopupOption>;
