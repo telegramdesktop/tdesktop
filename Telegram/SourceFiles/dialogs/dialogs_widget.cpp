@@ -448,7 +448,7 @@ Widget::Widget(
 	_inner->setLoadMoreCallback([=] {
 		const auto state = _inner->state();
 		if (state == WidgetState::Filtered
-			&& (!_inner->waitingForSearch()
+			&& (!_searchFull
 				|| (_searchInMigrated
 					&& _searchFull
 					&& !_searchFullMigrated))) {
@@ -1936,7 +1936,7 @@ void Widget::submit() {
 	const auto state = _inner->state();
 	if (state == WidgetState::Default
 		|| (state == WidgetState::Filtered
-			&& (!_inner->waitingForSearch() || _inner->hasFilteredResults()))) {
+			&& _inner->hasFilteredResults())) {
 		_inner->selectSkip(1);
 		_inner->chooseRow();
 	} else {

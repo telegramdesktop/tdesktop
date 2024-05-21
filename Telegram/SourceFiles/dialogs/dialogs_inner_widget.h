@@ -141,9 +141,6 @@ public:
 	[[nodiscard]] not_null<const style::DialogRow*> st() const {
 		return _st;
 	}
-	[[nodiscard]] bool waitingForSearch() const {
-		return _waitingForSearch;
-	}
 	[[nodiscard]] bool hasFilteredResults() const;
 
 	void applySearchState(SearchState state);
@@ -467,7 +464,6 @@ private:
 	int _filteredSelected = -1;
 	int _filteredPressed = -1;
 
-	bool _waitingForSearch = false;
 	EmptyState _emptyState = EmptyState::None;
 
 	QString _peerSearchQuery;
@@ -485,6 +481,7 @@ private:
 
 	WidgetState _state = WidgetState::Default;
 
+	object_ptr<Ui::RpWidget> _loadingAnimation = { nullptr };
 	object_ptr<SearchEmpty> _searchEmpty = { nullptr };
 	SearchState _searchEmptyState;
 	object_ptr<Ui::FlatLabel> _empty = { nullptr };

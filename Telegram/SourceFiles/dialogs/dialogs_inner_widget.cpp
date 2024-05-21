@@ -64,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
+#include "ui/effects/loading_element.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/empty_userpic.h"
@@ -936,7 +937,17 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		}
 
 		const auto showUnreadInSearchResults = uniqueSearchResults();
-		if (!_searchResults.empty()) {
+		if (_searchResults.empty()) {
+			if (_loadingAnimation) {
+				const auto text = tr::lng_contacts_loading(tr::now);
+				p.fillRect(0, 0, fullWidth, st::searchedBarHeight, st::searchedBarBg);
+				p.setFont(st::searchedBarFont);
+				p.setPen(st::searchedBarFg);
+				p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), text);
+				p.translate(0, st::searchedBarHeight);
+				top += st::searchedBarHeight;
+			}
+		} else {
 			const auto text = showUnreadInSearchResults
 				? u"Search results"_q
 				: tr::lng_search_found_results(
@@ -1442,7 +1453,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 				updateSelectedRow();
 			}
 		}
-		if (!_waitingForSearch && !_searchResults.empty()) {
+		if (!_searchResults.empty()) {
 			auto skip = searchedOffset();
 			auto searchedSelected = (mouseY >= skip) ? ((mouseY - skip) / _st->height) : -1;
 			if (searchedSelected < 0 || searchedSelected >= _searchResults.size()) {
@@ -2602,7 +2613,6 @@ void InnerWidget::applySearchState(SearchState state) {
 			clearFilter();
 		} else {
 			setState(WidgetState::Filtered);
-			_waitingForSearch = true;
 			_filterResults.clear();
 			_filterResultsGlobal.clear();
 			const auto append = [&](not_null<IndexedList*> list) {
@@ -2986,13 +2996,6 @@ void InnerWidget::searchReceived(
 	} else {
 		_searchedCount = fullCount;
 	}
-	if (_waitingForSearch
-		&& (!_searchResults.empty()
-			|| !_searchInMigrated
-			|| type == SearchRequestType::MigratedFromStart
-			|| type == SearchRequestType::MigratedFromOffset)) {
-		_waitingForSearch = false;
-	}
 
 	refresh();
 }
@@ -3090,8 +3093,8 @@ void InnerWidget::refresh(bool toTop) {
 			h = searchedOffset() + st::recentPeersEmptyHeightMin;
 			_searchEmpty->setMinimalHeight(st::recentPeersEmptyHeightMin);
 			_searchEmpty->move(0, h - st::recentPeersEmptyHeightMin);
-		} else if (_waitingForSearch) {
-			h = searchedOffset() + (_searchResults.size() * _st->height) + ((_searchResults.empty() && !_searchState.inChat) ? -st::searchedBarHeight : 0);
+		} else if (_loadingAnimation) {
+			h = searchedOffset() + _loadingAnimation->height();
 		} else {
 			h = searchedOffset() + (_searchResults.size() * _st->height);
 		}
@@ -3127,8 +3130,21 @@ void InnerWidget::refreshEmpty() {
 		} else if (_searchEmpty) {
 			_searchEmpty->show();
 		}
+
+		if (!_searchLoading || !empty) {
+			_loadingAnimation.destroy();
+		} else if (!_loadingAnimation) {
+			_loadingAnimation = Ui::CreateLoadingDialogRowWidget(
+				this,
+				*_st,
+				2);
+			_loadingAnimation->resizeToWidth(width());
+			_loadingAnimation->move(0, searchedOffset());
+			_loadingAnimation->show();
+		}
 	} else {
 		_searchEmpty.destroy();
+		_loadingAnimation.destroy();
 	}
 
 	const auto data = &session().data();
@@ -3207,6 +3223,10 @@ void InnerWidget::resizeEmpty() {
 		_searchEmpty->resizeToWidth(width());
 		_searchEmpty->move(0, searchedOffset());
 	}
+	if (_loadingAnimation) {
+		_loadingAnimation->resizeToWidth(width());
+		_loadingAnimation->move(0, searchedOffset());
+	}
 }
 
 void InnerWidget::clearMouseSelection(bool clearSelection) {
@@ -3269,7 +3289,6 @@ void InnerWidget::clearFilter() {
 	if (_state == WidgetState::Filtered || _searchState.inChat) {
 		if (_searchState.inChat) {
 			setState(WidgetState::Filtered);
-			_waitingForSearch = true;
 		} else {
 			setState(WidgetState::Default);
 		}
