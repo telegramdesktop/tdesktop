@@ -847,8 +847,8 @@ void CreditsRow::rightActionPaint(
 	x += st::creditsHistoryRightSkip;
 	_rightText.draw(p, Ui::Text::PaintContext{
 		.position = QPoint(x, y - font->height / 2),
-		.availableWidth = outerWidth,
 		.outerWidth = outerWidth,
+		.availableWidth = outerWidth,
 	});
 	x += _rightText.maxWidth() + font->spacew * 2;
 	p.drawImage(
