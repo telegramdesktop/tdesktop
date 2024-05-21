@@ -3145,6 +3145,7 @@ void InnerWidget::refreshEmpty() {
 	} else {
 		_searchEmpty.destroy();
 		_loadingAnimation.destroy();
+		_searchEmptyState = {};
 	}
 
 	const auto data = &session().data();

@@ -598,13 +598,21 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::userpic(
 	if (v.size() != 5 && v.size() != 1) {
 		return nullptr;
 	}
-	const auto id = PeerId(v[0].toULongLong());
+	auto image = std::shared_ptr<Ui::DynamicImage>();
+	if (v[0] == u"self"_q) {
+		image = Ui::MakeSavedMessagesThumbnail();
+	} else if (v[0] == u"replies"_q) {
+		image = Ui::MakeRepliesThumbnail();
+	} else {
+		const auto id = PeerId(v[0].toULongLong());
+		image = Ui::MakeUserpicThumbnail(_owner->peer(id));
+	}
 	const auto padding = (v.size() == 5)
 		? QMargins(v[1].toInt(), v[2].toInt(), v[3].toInt(), v[4].toInt())
 		: QMargins();
 	return std::make_unique<Ui::CustomEmoji::DynamicImageEmoji>(
 		data.toString(),
-		Ui::MakeUserpicThumbnail(_owner->peer(id)),
+		std::move(image),
 		std::move(update),
 		padding,
 		size);
@@ -992,10 +1000,16 @@ QString CustomEmojiManager::registerInternalEmoji(
 
 [[nodiscard]] QString CustomEmojiManager::peerUserpicEmojiData(
 		not_null<PeerData*> peer,
-		QMargins padding) {
-	return UserpicEmojiPrefix()
-		+ QString::number(peer->id.value)
-		+ InternalPadding(padding);
+		QMargins padding,
+		bool respectSavedRepliesEtc) {
+	const auto id = !respectSavedRepliesEtc
+		? QString::number(peer->id.value)
+		: peer->isSelf()
+		? u"self"_q
+		: peer->isRepliesChat()
+		? u"replies"_q
+		: QString::number(peer->id.value);
+	return UserpicEmojiPrefix() + id + InternalPadding(padding);
 }
 
 int FrameSizeFromTag(SizeTag tag) {

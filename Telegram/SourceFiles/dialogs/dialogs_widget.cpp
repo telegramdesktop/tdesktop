@@ -1279,11 +1279,15 @@ void Widget::updateSearchTabs() {
 	const auto peerShortLabel = peer
 		? Ui::Text::SingleCustomEmoji(
 			session().data().customEmojiManager().peerUserpicEmojiData(
-				peer))
+				peer,
+				{},
+				true))
 		: sublist
 		? Ui::Text::SingleCustomEmoji(
 			session().data().customEmojiManager().peerUserpicEmojiData(
-				sublist->peer()))
+				sublist->peer(),
+				{},
+				true))
 		: TextWithEntities();
 	const auto myShortLabel = DefaultShortLabel(ChatSearchTab::MyMessages);
 	const auto publicShortLabel = _searchingHashtag

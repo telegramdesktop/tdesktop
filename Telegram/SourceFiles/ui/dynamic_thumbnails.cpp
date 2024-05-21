@@ -130,6 +130,17 @@ private:
 
 };
 
+class RepliesUserpic final : public DynamicImage {
+public:
+	QImage image(int size) override;
+	void subscribeToUpdates(Fn<void()> callback) override;
+
+private:
+	QImage _frame;
+	int _paletteVersion = 0;
+
+};
+
 PeerUserpic::PeerUserpic(not_null<PeerData*> peer, bool forceRound)
 : _peer(peer)
 , _forceRound(forceRound) {
@@ -358,6 +369,30 @@ QImage SavedMessagesUserpic::image(int size) {
 void SavedMessagesUserpic::subscribeToUpdates(Fn<void()> callback) {
 }
 
+QImage RepliesUserpic::image(int size) {
+	const auto good = (_frame.width() == size * _frame.devicePixelRatio());
+	const auto paletteVersion = style::PaletteVersion();
+	if (!good || _paletteVersion != paletteVersion) {
+		_paletteVersion = paletteVersion;
+
+		const auto ratio = style::DevicePixelRatio();
+		if (!good) {
+			_frame = QImage(
+				QSize(size, size) * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			_frame.setDevicePixelRatio(ratio);
+		}
+		_frame.fill(Qt::transparent);
+
+		auto p = Painter(&_frame);
+		Ui::EmptyUserpic::PaintRepliesMessages(p, 0, 0, size, size);
+	}
+	return _frame;
+}
+
+void RepliesUserpic::subscribeToUpdates(Fn<void()> callback) {
+}
+
 } // namespace
 
 std::shared_ptr<DynamicImage> MakeUserpicThumbnail(
@@ -368,6 +403,10 @@ std::shared_ptr<DynamicImage> MakeUserpicThumbnail(
 
 std::shared_ptr<DynamicImage> MakeSavedMessagesThumbnail() {
 	return std::make_shared<SavedMessagesUserpic>();
+}
+
+std::shared_ptr<DynamicImage> MakeRepliesThumbnail() {
+	return std::make_shared<RepliesUserpic>();
 }
 
 std::shared_ptr<DynamicImage> MakeStoryThumbnail(

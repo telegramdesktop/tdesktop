@@ -21,6 +21,7 @@ class DynamicImage;
 	not_null<PeerData*> peer,
 	bool forceRound = false);
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeSavedMessagesThumbnail();
+[[nodiscard]] std::shared_ptr<DynamicImage> MakeRepliesThumbnail();
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeStoryThumbnail(
 	not_null<Data::Story*> story);
 
