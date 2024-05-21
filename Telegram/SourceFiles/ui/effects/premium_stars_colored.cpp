@@ -15,14 +15,16 @@ namespace Premium {
 
 ColoredMiniStars::ColoredMiniStars(
 	not_null<Ui::RpWidget*> parent,
-	bool optimizeUpdate)
+	bool optimizeUpdate,
+	MiniStars::Type type)
 : _ministars(
 	optimizeUpdate
 		? Fn<void(const QRect &)>([=](const QRect &r) {
 			parent->update(r.translated(_position));
 		})
 		: Fn<void(const QRect &)>([=](const QRect &) { parent->update(); }),
-	true) {
+	true,
+	type) {
 }
 
 void ColoredMiniStars::setSize(const QSize &size) {

@@ -174,7 +174,7 @@ TopBar::TopBar(
 , _titleFont(st.titleFont)
 , _titlePadding(st.titlePadding)
 , _about(this, std::move(descriptor.about), st.about)
-, _ministars(this, descriptor.optimizeMinistars) {
+, _ministars(this, descriptor.optimizeMinistars, MiniStars::Type::BiStars) {
 	std::move(
 		descriptor.title
 	) | rpl::start_with_next([=](QString text) {
