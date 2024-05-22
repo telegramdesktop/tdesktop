@@ -178,6 +178,8 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 
+	QWidget *_parent = nullptr;
+
 	QImage _star;
 	QImage _balanceStar;
 
@@ -305,7 +307,9 @@ void Credits::setupOptions(not_null<Ui::VerticalLayout*> container) {
 					if (const auto strong = weak.data()) {
 						strong->window()->setFocus();
 						if (result == Payments::CheckoutResult::Paid) {
-							Ui::StartFireworks(this);
+							if (_parent) {
+								Ui::StartFireworks(_parent);
+							}
 						}
 					}
 				};
@@ -513,6 +517,7 @@ void Credits::setupContent() {
 
 QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 		not_null<QWidget*> parent) {
+	_parent = parent;
 
 	const auto content = [&]() -> Ui::Premium::TopBarAbstract* {
 		const auto weak = base::make_weak(_controller);
