@@ -1195,7 +1195,7 @@ void Filler::addCreateEvent() {
 	const auto flag = PollData::Flags();
 	const auto replyTo = _request.currentReplyTo;
 	auto callback = [=] {
-		PeerMenuCreatePoll(
+		PeerMenuCreatePoll( // should call `PeerMenuCreateEvent`
 			controller,
 			peer,
 			replyTo,
@@ -1690,6 +1690,9 @@ void PeerMenuCreatePoll(
 	}, box->lifetime());
 	controller->show(std::move(box), Ui::LayerOption::CloseOther);
 }
+
+// TODO. See above PeerMenuCreatePoll function for reference.
+void PeerMenuCreateEvent() {}
 
 void PeerMenuBlockUserBox(
 		not_null<Ui::GenericBox*> box,
