@@ -1207,7 +1207,7 @@ void Filler::addCreateEvent() {
 			sendMenuType);
 	};
 	_addAction(
-		tr::lng_polls_create(tr::now),
+		"Create event",
 		std::move(callback),
 		&st::menuIconCreatePoll);
 }
