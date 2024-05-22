@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "api/api_send_progress.h"
+#include "boxes/send_credits_box.h"
 #include "boxes/share_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/url_auth_box.h"
@@ -330,12 +331,16 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 	} break;
 
 	case ButtonType::Buy: {
-		Payments::CheckoutProcess::Start(
-			item,
-			Payments::Mode::Payment,
-			crl::guard(controller, [=](auto) {
-				controller->widget()->activate();
-			}));
+		if (Ui::IsCreditsInvoice(item)) {
+			controller->uiShow()->show(Box(Ui::SendCreditsBox, item));
+		} else {
+			Payments::CheckoutProcess::Start(
+				item,
+				Payments::Mode::Payment,
+				crl::guard(controller, [=](auto) {
+					controller->widget()->activate();
+				}));
+		}
 	} break;
 
 	case ButtonType::Url: {
