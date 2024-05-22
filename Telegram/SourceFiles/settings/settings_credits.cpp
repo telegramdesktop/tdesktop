@@ -562,63 +562,16 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 		}
 	}, content->lifetime());
 
-	const auto balance = Ui::CreateChild<Balance>(content);
 	{
-		const auto starSize = _balanceStar.size() / style::DevicePixelRatio();
-		const auto label = balance->lifetime().make_state<Ui::Text::String>(
-			st::defaultTextStyle,
-			tr::lng_credits_summary_balance(tr::now));
-		const auto count = balance->lifetime().make_state<Ui::Text::String>(
-			st::semiboldTextStyle,
-			tr::lng_contacts_loading(tr::now));
+		const auto balance = AddBalanceWidget(
+			content,
+			_controller->session().creditsValue(),
+			true);
 		const auto api = balance->lifetime().make_state<Api::CreditsStatus>(
 			_controller->session().user());
-		const auto diffBetweenStarAndCount = count->style()->font->spacew;
-		const auto resize = [=] {
-			balance->resize(
-				std::max(
-					label->maxWidth(),
-					count->maxWidth()
-						+ starSize.width()
-						+ diffBetweenStarAndCount),
-				label->style()->font->height + starSize.height());
-		};
-		_controller->session().creditsValue(
-		) | rpl::start_with_next([=](uint64 value) {
-			count->setText(
-				st::semiboldTextStyle,
-				Lang::FormatCountToShort(value).string);
-			balance->setBalance(value);
-			resize();
-		}, balance->lifetime());
 		api->request({}, [=](Data::CreditsStatusSlice slice) {
 			_controller->session().setCredits(slice.balance);
 		});
-		balance->paintRequest(
-		) | rpl::start_with_next([=] {
-			auto p = QPainter(balance);
-
-			p.setPen(st::boxTextFg);
-
-			label->draw(p, {
-				.position = QPoint(balance->width() - label->maxWidth(), 0),
-				.availableWidth = balance->width(),
-			});
-			count->draw(p, {
-				.position = QPoint(
-					balance->width() - count->maxWidth(),
-					label->minHeight()
-						+ (starSize.height() - count->minHeight()) / 2),
-				.availableWidth = balance->width(),
-			});
-			p.drawImage(
-				balance->width()
-					- count->maxWidth()
-					- starSize.width()
-					- diffBetweenStarAndCount,
-				label->minHeight(),
-				_balanceStar);
-		}, balance->lifetime());
 		rpl::combine(
 			balance->sizeValue(),
 			content->sizeValue()
@@ -704,6 +657,67 @@ struct SectionFactory<Credits> : AbstractSectionFactory {
 
 Type CreditsId() {
 	return Credits::Id();
+}
+
+not_null<Ui::RpWidget*> AddBalanceWidget(
+		not_null<Ui::RpWidget*> parent,
+		rpl::producer<uint64> balanceValue,
+		bool rightAlign) {
+	const auto balance = Ui::CreateChild<Balance>(parent);
+	const auto balanceStar = balance->lifetime().make_state<QImage>(
+		GenerateStars(st::creditsBalanceStarHeight, 1));
+	const auto starSize = balanceStar->size() / style::DevicePixelRatio();
+	const auto label = balance->lifetime().make_state<Ui::Text::String>(
+		st::defaultTextStyle,
+		tr::lng_credits_summary_balance(tr::now));
+	const auto count = balance->lifetime().make_state<Ui::Text::String>(
+		st::semiboldTextStyle,
+		tr::lng_contacts_loading(tr::now));
+	const auto diffBetweenStarAndCount = count->style()->font->spacew;
+	const auto resize = [=] {
+		balance->resize(
+			std::max(
+				label->maxWidth(),
+				count->maxWidth()
+					+ starSize.width()
+					+ diffBetweenStarAndCount),
+			label->style()->font->height + starSize.height());
+	};
+	std::move(balanceValue) | rpl::start_with_next([=](uint64 value) {
+		count->setText(
+			st::semiboldTextStyle,
+			Lang::FormatCountToShort(value).string);
+		balance->setBalance(value);
+		resize();
+	}, balance->lifetime());
+	balance->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(balance);
+
+		p.setPen(st::boxTextFg);
+
+		label->draw(p, {
+			.position = QPoint(
+				rightAlign ? (balance->width() - label->maxWidth()) : 0,
+				0),
+			.availableWidth = balance->width(),
+		});
+		count->draw(p, {
+			.position = QPoint(
+				balance->width() - count->maxWidth(),
+				label->minHeight()
+					+ (starSize.height() - count->minHeight()) / 2),
+			.availableWidth = balance->width(),
+		});
+		p.drawImage(
+			balance->width()
+				- count->maxWidth()
+				- starSize.width()
+				- diffBetweenStarAndCount,
+			label->minHeight(),
+			*balanceStar);
+	}, balance->lifetime());
+	return balance;
 }
 
 } // namespace Settings

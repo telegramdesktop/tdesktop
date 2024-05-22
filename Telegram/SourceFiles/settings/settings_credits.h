@@ -9,36 +9,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_type.h"
 
-enum class PremiumFeature;
-
-namespace style {
-struct RoundButton;
-} // namespace style
-
-namespace ChatHelpers {
-class Show;
-enum class WindowUsage;
-} // namespace ChatHelpers
-
 namespace Ui {
 class RpWidget;
-class RoundButton;
-class GradientButton;
-class VerticalLayout;
 } // namespace Ui
-
-namespace Main {
-class Session;
-class SessionShow;
-} // namespace Main
-
-namespace Window {
-class SessionController;
-} // namespace Window
 
 namespace Settings {
 
 [[nodiscard]] Type CreditsId();
+
+[[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
+	not_null<Ui::RpWidget*> parent,
+	rpl::producer<uint64> balanceValue,
+	bool rightAlign);
 
 } // namespace Settings
 
