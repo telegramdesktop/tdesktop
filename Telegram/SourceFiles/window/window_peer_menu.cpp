@@ -279,6 +279,7 @@ private:
 	void addManageTopic();
 	void addManageChat();
 	void addCreatePoll();
+	void addCreateEvent();
 	void addThemeEdit();
 	void addBlockUser();
 	void addViewDiscussion();
@@ -1148,6 +1149,69 @@ void Filler::addCreatePoll() {
 		&st::menuIconCreatePoll);
 }
 
+void Filler::addCreateEvent() {
+	const auto isJoinChannel = [&] {
+		if (_request.section != Section::Replies) {
+			if (const auto c = _peer->asChannel(); c && !c->amIn()) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	const auto isBotStart = [&] {
+		const auto user = _peer ? _peer->asUser() : nullptr;
+		if (!user || !user->isBot()) {
+			return false;
+		} else if (!user->botInfo->startToken.isEmpty()) {
+			return true;
+		}
+		const auto history = _peer->owner().history(_peer);
+		if (history && history->isEmpty() && !history->lastMessage()) {
+			return true;
+		}
+		return false;
+	}();
+	const auto isBlocked = [&] {
+		return _peer && _peer->isUser() && _peer->asUser()->isBlocked();
+	}();
+	if (isBlocked || isJoinChannel || isBotStart) {
+		return;
+	}
+
+	const auto can = _topic
+		? Data::CanSend(_topic, ChatRestriction::SendPolls)
+		: _peer->canCreatePolls();
+	if (!can) {
+		return;
+	}
+	const auto peer = _peer;
+	const auto controller = _controller;
+	const auto source = (_request.section == Section::Scheduled)
+		? Api::SendType::Scheduled
+		: Api::SendType::Normal;
+	const auto sendMenuType = (_request.section == Section::Scheduled)
+		? SendMenu::Type::Disabled
+		: (_request.section == Section::Replies)
+		? SendMenu::Type::SilentOnly
+		: SendMenu::Type::Scheduled;
+	const auto flag = PollData::Flags();
+	const auto replyTo = _request.currentReplyTo;
+	auto callback = [=] {
+		PeerMenuCreatePoll(
+			controller,
+			peer,
+			replyTo,
+			flag,
+			flag,
+			source,
+			sendMenuType);
+	};
+	_addAction(
+		tr::lng_polls_create(tr::now),
+		std::move(callback),
+		&st::menuIconCreatePoll);
+}
+
 void Filler::addThemeEdit() {
 	const auto user = _peer->asUser();
 	if (!user || user->isBot()) {
@@ -1343,6 +1407,7 @@ void Filler::fillContextMenuActions() {
 	addDeleteTopic();
 }
 
+// Used to populate dropdown menu
 void Filler::fillHistoryActions() {
 	addToggleMuteSubmenu(true);
 	addInfo();
@@ -1352,6 +1417,7 @@ void Filler::fillHistoryActions() {
 	addManageChat();
 	addBoostChat();
 	addCreatePoll();
+	addCreateEvent();
 	addThemeEdit();
 	addViewDiscussion();
 	addExportChat();
