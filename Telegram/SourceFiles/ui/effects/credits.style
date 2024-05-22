@@ -25,3 +25,8 @@ creditsTopupPrice: FlatLabel(defaultFlatLabel) {
 
 creditsHistoryRightSkip: 10px;
 creditsBalanceStarHeight: 20px;
+
+creditsBoxAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	align: align(top);
+}
