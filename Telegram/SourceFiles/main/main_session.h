@@ -100,6 +100,9 @@ public:
 	[[nodiscard]] bool premiumBadgesShown() const;
 	[[nodiscard]] bool premiumCanBuy() const;
 
+	[[nodiscard]] rpl::producer<uint64> creditsValue() const;
+	void setCredits(uint64 credits);
+
 	[[nodiscard]] bool isTestMode() const;
 	[[nodiscard]] uint64 uniqueId() const; // userId() with TestDC shift.
 	[[nodiscard]] UserId userId() const;
@@ -258,6 +261,7 @@ private:
 	const std::unique_ptr<Support::Helper> _supportHelper;
 
 	std::shared_ptr<QImage> _selfUserpicView;
+	rpl::variable<uint64> _credits = 0;
 	rpl::variable<bool> _premiumPossible = false;
 
 	rpl::event_stream<bool> _termsLockChanges;

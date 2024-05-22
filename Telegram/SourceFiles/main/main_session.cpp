@@ -280,6 +280,14 @@ bool Session::premiumCanBuy() const {
 	return _premiumPossible.current();
 }
 
+rpl::producer<uint64> Session::creditsValue() const {
+	return _credits.value();
+}
+
+void Session::setCredits(uint64 credits) {
+	_credits = credits;
+}
+
 bool Session::isTestMode() const {
 	return mtp().isTestMode();
 }

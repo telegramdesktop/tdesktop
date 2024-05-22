@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_main.h"
 
+#include "api/api_credits.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "settings/settings_advanced.h"
@@ -491,9 +492,13 @@ void SetupPremium(
 		showOther(PremiumId());
 	});
 	AddPremiumStar(
-		AddButtonWithIcon(
+		AddButtonWithLabel(
 			container,
 			tr::lng_credits_summary_title(),
+			controller->session().creditsValue(
+			) | rpl::map([=](uint64 c) {
+				return c ? Lang::FormatCountToShort(c).string : QString{};
+			}),
 			st::settingsButton),
 		true
 	)->addClickHandler([=] {
@@ -509,6 +514,12 @@ void SetupPremium(
 		showOther(BusinessId());
 	});
 	Ui::NewBadge::AddToRight(button);
+
+	const auto api = button->lifetime().make_state<Api::CreditsStatus>(
+		controller->session().user());
+	api->request({}, [=](Data::CreditsStatusSlice slice) {
+		controller->session().setCredits(slice.balance);
+	});
 
 	if (controller->session().premiumCanBuy()) {
 		const auto button = AddButtonWithIcon(

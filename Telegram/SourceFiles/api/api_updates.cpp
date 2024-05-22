@@ -2614,6 +2614,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		_session->data().stories().apply(data.vstealth_mode());
 	} break;
 
+	case mtpc_updateStarsBalance: {
+		const auto &data = update.c_updateStarsBalance();
+		_session->setCredits(data.vbalance().v);
+	} break;
+
 	}
 }
 

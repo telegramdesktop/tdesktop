@@ -578,12 +578,16 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 						+ diffBetweenStarAndCount),
 				label->style()->font->height + starSize.height());
 		};
-		api->request({}, [=](Data::CreditsStatusSlice slice) {
+		_controller->session().creditsValue(
+		) | rpl::start_with_next([=](uint64 value) {
 			count->setText(
 				st::semiboldTextStyle,
-				Lang::FormatCountToShort(slice.balance).string);
-			balance->setBalance(slice.balance);
+				Lang::FormatCountToShort(value).string);
+			balance->setBalance(value);
 			resize();
+		}, balance->lifetime());
+		api->request({}, [=](Data::CreditsStatusSlice slice) {
+			_controller->session().setCredits(slice.balance);
 		});
 		balance->paintRequest(
 		) | rpl::start_with_next([=] {
