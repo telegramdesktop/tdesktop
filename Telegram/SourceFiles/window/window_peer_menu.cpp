@@ -1158,6 +1158,7 @@ void Filler::addCreateEvent() {
 		}
 		return false;
 	}();
+
 	const auto isBotStart = [&] {
 		const auto user = _peer ? _peer->asUser() : nullptr;
 		if (!user || !user->isBot()) {
@@ -1171,19 +1172,16 @@ void Filler::addCreateEvent() {
 		}
 		return false;
 	}();
+
 	const auto isBlocked = [&] {
 		return _peer && _peer->isUser() && _peer->asUser()->isBlocked();
 	}();
+
+	// These condiditons determine if the option should appear in the menu at all
 	if (isBlocked || isJoinChannel || isBotStart) {
 		return;
 	}
 
-	const auto can = _topic
-		? Data::CanSend(_topic, ChatRestriction::SendPolls)
-		: _peer->canCreatePolls();
-	if (!can) {
-		return;
-	}
 	const auto peer = _peer;
 	const auto controller = _controller;
 	const auto source = (_request.section == Section::Scheduled)
