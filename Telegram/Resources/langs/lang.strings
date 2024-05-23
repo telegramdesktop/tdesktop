@@ -3287,6 +3287,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_context_spoiler_effect" = "Hide with Spoiler";
 "lng_context_disable_spoiler" = "Remove Spoiler";
+"lng_context_add_factcheck" = "Add Fact Check";
+
+"lng_factcheck_title" = "Fact Check";
+"lng_factcheck_placeholder" = "Add Facts or Context";
+"lng_factcheck_whats_this" = "what's this?";
+"lng_factcheck_about" = "This clarification was provided by a fact checking agency assigned by the department of the government of your country ({country}) responsible for combatting misinformation.";
 
 "lng_translate_show_original" = "Show Original";
 "lng_translate_bar_to" = "Translate to {name}";

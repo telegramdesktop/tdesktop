@@ -47,6 +47,7 @@ struct LogEntryOriginal
 struct Factcheck
 : public RuntimeComponent<Factcheck, Element> {
 	std::unique_ptr<WebPage> page;
+	bool expanded = false;
 };
 
 struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
@@ -294,6 +295,7 @@ private:
 	[[nodiscard]] int viewButtonHeight() const;
 
 	[[nodiscard]] WebPage *logEntryOriginal() const;
+	[[nodiscard]] WebPage *factcheckBlock() const;
 
 	[[nodiscard]] ClickHandlerPtr createGoToCommentsLink() const;
 	[[nodiscard]] ClickHandlerPtr psaTooltipLink() const;

@@ -466,6 +466,8 @@ PRIVATE
     data/business/data_business_info.h
     data/business/data_shortcut_messages.cpp
     data/business/data_shortcut_messages.h
+    data/components/factchecks.cpp
+    data/components/factchecks.h
     data/components/recent_peers.cpp
     data/components/recent_peers.h
     data/components/scheduled_messages.cpp

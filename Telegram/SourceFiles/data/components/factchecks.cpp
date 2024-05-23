@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/random.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/history_view_message.h"
 #include "history/history.h"
@@ -126,6 +127,7 @@ std::unique_ptr<HistoryView::WebPage> Factchecks::makeMedia(
 			base::RandomValue<WebPageId>(),
 			tr::lng_factcheck_title(tr::now),
 			factcheck->data.text);
+		factcheck->page->type = WebPageType::Factcheck;
 	}
 	return std::make_unique<HistoryView::WebPage>(
 		view,
