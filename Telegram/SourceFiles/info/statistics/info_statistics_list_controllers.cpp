@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/outline_segments.h" // Ui::UnreadStoryOutlineGradient.
 #include "ui/effects/toggle_arrow.h"
 #include "ui/painter.h"
@@ -30,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h" // dialogsStoriesFull.
-#include "styles/style_intro.h" // introFragmentIcon.
 #include "styles/style_layers.h" // boxRowPadding.
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
@@ -740,7 +740,8 @@ private:
 	const Data::CreditsHistoryEntry _entry;
 	not_null<QImage*> const _creditIcon;
 	const int _rowHeight;
-	Ui::EmptyUserpic _userpic;
+
+	PaintRoundImageCallback _paintUserpicCallback;
 
 	Ui::Text::String _rightText;
 };
@@ -749,8 +750,7 @@ CreditsRow::CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor)
 : PeerListRow(peer, UniqueRowIdFromString(descriptor.entry.id))
 , _entry(descriptor.entry)
 , _creditIcon(descriptor.creditIcon)
-, _rowHeight(descriptor.rowHeight)
-, _userpic(Ui::EmptyUserpic::UserpicColor(0), QString()) {
+, _rowHeight(descriptor.rowHeight) {
 	init();
 }
 
@@ -758,22 +758,7 @@ CreditsRow::CreditsRow(const Descriptor &descriptor)
 : PeerListRow(UniqueRowIdFromString(descriptor.entry.id))
 , _entry(descriptor.entry)
 , _creditIcon(descriptor.creditIcon)
-, _rowHeight(descriptor.rowHeight)
-, _userpic(
-	[&]() -> Ui::EmptyUserpic::BgColors {
-		switch (descriptor.entry.peerType) {
-		case Data::CreditsHistoryEntry::PeerType::Peer:
-			return Ui::EmptyUserpic::UserpicColor(0);
-		case Data::CreditsHistoryEntry::PeerType::AppStore:
-			return { st::historyPeer7UserpicBg, st::historyPeer7UserpicBg2 };
-		case Data::CreditsHistoryEntry::PeerType::PlayMarket:
-			return { st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 };
-		case Data::CreditsHistoryEntry::PeerType::Fragment:
-			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
-		}
-		Unexpected("Unknown peer type.");
-	}(),
-	QString()) {
+, _rowHeight(descriptor.rowHeight) {
 	init();
 }
 
@@ -786,6 +771,9 @@ void CreditsRow::init() {
 			(PeerListRow::special() ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(_entry.credits));
 	}
+	_paintUserpicCallback = !PeerListRow::special()
+		? PeerListRow::generatePaintUserpicCallback(false)
+		: Ui::GenerateCreditsPaintUserpicCallback(_entry);
 }
 
 const Data::CreditsHistoryEntry &CreditsRow::entry() const {
@@ -801,27 +789,16 @@ QString CreditsRow::generateName() {
 }
 
 PaintRoundImageCallback CreditsRow::generatePaintUserpicCallback(bool force) {
-	if (!PeerListRow::special()) {
-		return PeerListRow::generatePaintUserpicCallback(force);
-	}
-	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
-		_userpic.paintCircle(p, x, y, outerWidth, size);
-		using PeerType = Data::CreditsHistoryEntry::PeerType;
-		((_entry.peerType == PeerType::AppStore)
-			? st::sessionIconiPhone
-			: (_entry.peerType == PeerType::PlayMarket)
-			? st::sessionIconAndroid
-			: st::introFragmentIcon).paintInCenter(p, { x, y, size, size });
-	};
+	return _paintUserpicCallback;
 }
 
 QSize CreditsRow::rightActionSize() const {
 	return QSize(
-			_rightText.maxWidth()
-				+ (_creditIcon->width() / style::DevicePixelRatio())
-				+ st::creditsHistoryRightSkip
-				+ _rightText.style()->font->spacew * 2,
-			_rowHeight);
+		_rightText.maxWidth()
+			+ (_creditIcon->width() / style::DevicePixelRatio())
+			+ st::creditsHistoryRightSkip
+			+ _rightText.style()->font->spacew * 2,
+		_rowHeight);
 }
 
 QMargins CreditsRow::rightActionMargins() const {
