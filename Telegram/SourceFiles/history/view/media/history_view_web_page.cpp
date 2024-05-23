@@ -598,6 +598,7 @@ QSize WebPage::countCurrentSize(int newWidth) {
 		: FactcheckMetrics();
 	if (factcheck) {
 		factcheck->expandable = factcheckMetrics.expandable;
+		factcheck->expanded = factcheckMetrics.expanded;
 		_openl = factcheck->expandable
 			? ToggleFactcheckClickHandler(_parent)
 			: nullptr;
@@ -779,11 +780,12 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	auto paintw = inner.width();
 
 	const auto sponsored = sponsoredData();
+	const auto factcheck = factcheckData();
 
 	const auto selected = context.selected();
 	const auto view = parent();
 	const auto from = view->data()->contentColorsFrom();
-	const auto colorIndex = factcheckData()
+	const auto colorIndex = factcheck
 		? 0 // red
 		: (sponsored && sponsored->colorIndex)
 		? sponsored->colorIndex
@@ -793,8 +795,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	const auto cache = context.outbg
 		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
 		: st->coloredReplyCache(selected, colorIndex).get();
-	const auto backgroundEmojiId = (sponsored
-		&& sponsored->backgroundEmojiId)
+	const auto backgroundEmojiId = factcheck
+		? DocumentId()
+		: (sponsored && sponsored->backgroundEmojiId)
 		? sponsored->backgroundEmojiId
 		: from
 		? from->backgroundEmojiId()
@@ -821,6 +824,15 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		if (!backgroundEmojiCache->frames[0].isNull()) {
 			FillBackgroundEmoji(p, outer, false, *backgroundEmojiCache);
 		}
+	} else if (factcheck && factcheck->expandable) {
+		const auto &icon = factcheck->expanded
+			? st::factcheckIconCollapse
+			: st::factcheckIconExpand;
+		icon.paint(
+			p,
+			outer.x() + outer.width() - icon.width() - _st.padding.right(),
+			outer.y() + _st.padding.top(),
+			width());
 	}
 
 	if (_ripple) {
@@ -1487,6 +1499,7 @@ WebPage::FactcheckMetrics WebPage::computeFactcheckMetrics(
 	return {
 		.lines = allowExpanding ? possible : kFactcheckCollapsedLines,
 		.expandable = expandable,
+		.expanded = expanded,
 	};
 }
 

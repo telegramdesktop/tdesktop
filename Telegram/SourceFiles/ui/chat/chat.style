@@ -1132,3 +1132,6 @@ effectPreviewPromoPadding: margins(4px, 6px, 4px, 6px);
 effectPreviewLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	thickness: 2px;
 }
+
+factcheckIconExpand: icon {{ "fast_to_original-rotate_cw", historyPeer1NameFg }};
+factcheckIconCollapse: icon {{ "fast_to_original-rotate_ccw", historyPeer1NameFg }};

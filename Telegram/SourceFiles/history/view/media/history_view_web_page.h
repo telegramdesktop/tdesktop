@@ -104,6 +104,7 @@ private:
 	struct FactcheckMetrics {
 		int lines = 0;
 		bool expandable = false;
+		bool expanded = false;
 	};
 	struct HintData {
 		QSize size;
@@ -129,6 +130,7 @@ private:
 	struct FactcheckData {
 		HintData hint;
 		bool expandable = false;
+		bool expanded = false;
 	};
 	using AdditionalData = std::variant<
 		StickerSetData,
