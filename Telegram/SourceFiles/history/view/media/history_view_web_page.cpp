@@ -783,7 +783,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	const auto selected = context.selected();
 	const auto view = parent();
 	const auto from = view->data()->contentColorsFrom();
-	const auto colorIndex = (sponsored && sponsored->colorIndex)
+	const auto colorIndex = factcheckData()
+		? 0 // red
+		: (sponsored && sponsored->colorIndex)
 		? sponsored->colorIndex
 		: from
 		? from->colorIndex()
