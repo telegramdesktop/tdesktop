@@ -32,7 +32,7 @@ struct CreditsHistoryEntry final {
 	uint64 credits = 0;
 	QDateTime date;
 	PeerType peerType;
-	PeerId peerId = PeerId(0);
+	uint64 bareId = 0;
 };
 
 struct CreditsStatusSlice final {

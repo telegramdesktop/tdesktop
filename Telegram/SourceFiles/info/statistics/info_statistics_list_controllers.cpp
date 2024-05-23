@@ -908,8 +908,8 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 				.creditIcon = _creditIcon,
 				.rowHeight = computeListSt().item.height,
 			};
-			if (item.peerId) {
-				const auto peer = session().data().peer(item.peerId);
+			if (item.bareId) {
+				const auto peer = session().data().peer(PeerId(item.bareId));
 				return std::make_unique<CreditsRow>(peer, descriptor);
 			} else {
 				return std::make_unique<CreditsRow>(descriptor);

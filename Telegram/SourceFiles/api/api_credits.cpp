@@ -39,11 +39,11 @@ namespace {
 		}, [](const MTPDstarsTransactionPeerPremiumBot &) {
 			return Data::CreditsHistoryEntry::PeerType::PremiumBot;
 		}),
-		.peerId = tl.data().vpeer().match([](const HistoryPeerTL &p) {
+		.bareId = tl.data().vpeer().match([](const HistoryPeerTL &p) {
 			return peerFromMTP(p.vpeer());
 		}, [](const auto &) {
 			return PeerId(0);
-		}),
+		}).value,
 	};
 }
 
