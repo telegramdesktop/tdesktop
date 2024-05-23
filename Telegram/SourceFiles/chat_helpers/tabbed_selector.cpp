@@ -509,7 +509,7 @@ TabbedSelector::TabbedSelector(
 			_st.categoriesBg);
 	}, lifetime());
 
-	if (hasEmojiTab()) {
+	if (hasEmojiTab() && _mode == Mode::Full) {
 		session().data().stickers().emojiSetInstalled(
 		) | rpl::start_with_next([=](uint64 setId) {
 			_tabsSlider->setActiveSection(indexByType(SelectorTab::Emoji));
