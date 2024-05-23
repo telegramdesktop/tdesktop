@@ -208,6 +208,7 @@ public:
 		const TextWithEntities &content);
 	void setFactcheck(MessageFactcheck info);
 	[[nodiscard]] bool hasUnrequestedFactcheck() const;
+	[[nodiscard]] TextWithEntities factcheckText() const;
 
 	[[nodiscard]] not_null<Data::Thread*> notificationThread() const;
 	[[nodiscard]] not_null<History*> history() const {

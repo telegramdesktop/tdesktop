@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/components/factchecks.h"
 
+#include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/random.h"
 #include "data/data_session.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 
 namespace Data {
@@ -133,6 +135,65 @@ std::unique_ptr<HistoryView::WebPage> Factchecks::makeMedia(
 		view,
 		factcheck->page,
 		MediaWebPageFlags());
+}
+
+bool Factchecks::canEdit(not_null<HistoryItem*> item) const {
+	if (!canEdit()
+		|| !item->isRegular()
+		|| !item->history()->peer->isBroadcast()) {
+		return false;
+	}
+	const auto media = item->media();
+	if (!media || media->webpage() || media->photo()) {
+		return true;
+	} else if (const auto document = media->document()) {
+		return !document->isVideoMessage() && !document->sticker();
+	}
+	return false;
+}
+
+bool Factchecks::canEdit() const {
+	return _session->appConfig().get<bool>(u"can_edit_factcheck"_q, false);
+}
+
+int Factchecks::lengthLimit() const {
+	return _session->appConfig().get<int>(u"factcheck_length_limit"_q, 1024);
+}
+
+void Factchecks::save(
+		FullMsgId itemId,
+		TextWithEntities text,
+		Fn<void(QString)> done) {
+	const auto item = _session->data().message(itemId);
+	if (!item) {
+		return;
+	} else if (text.empty()) {
+		_session->api().request(MTPmessages_DeleteFactCheck(
+			item->history()->peer->input,
+			MTP_int(item->id.bare)
+		)).done([=](const MTPUpdates &result) {
+			_session->api().applyUpdates(result);
+			done(QString());
+		}).fail([=](const MTP::Error &error) {
+			done(error.type());
+		}).send();
+	} else {
+		_session->api().request(MTPmessages_EditFactCheck(
+			item->history()->peer->input,
+			MTP_int(item->id.bare),
+			MTP_textWithEntities(
+				MTP_string(text.text),
+				Api::EntitiesToMTP(
+					_session,
+					text.entities,
+					Api::ConvertOption::SkipLocal))
+		)).done([=](const MTPUpdates &result) {
+			_session->api().applyUpdates(result);
+			done(QString());
+		}).fail([=](const MTP::Error &error) {
+			done(error.type());
+		}).send();
+	}
 }
 
 } // namespace Data

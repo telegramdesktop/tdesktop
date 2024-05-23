@@ -153,6 +153,7 @@ menuIconTagFilter: icon{{ "menu/tag_filter", menuIconColor }};
 menuIconTagRename: icon{{ "menu/tag_rename", menuIconColor }};
 menuIconGroupsHide: icon {{ "menu/hide_members", menuIconColor }};
 menuIconFont: icon {{ "menu/fonts", menuIconColor }};
+menuIconFactcheck: icon {{ "menu/factcheck", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

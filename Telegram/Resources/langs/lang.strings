@@ -3217,6 +3217,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_reply_msg" = "Reply";
 "lng_context_quote_and_reply" = "Quote & Reply";
 "lng_context_edit_msg" = "Edit";
+"lng_context_add_factcheck" = "Add Fact Check";
+"lng_context_edit_factcheck" = "Edit Fact Check";
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_send_now_msg" = "Send now";
 "lng_context_reschedule" = "Reschedule";
@@ -3287,12 +3289,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_context_spoiler_effect" = "Hide with Spoiler";
 "lng_context_disable_spoiler" = "Remove Spoiler";
-"lng_context_add_factcheck" = "Add Fact Check";
 
 "lng_factcheck_title" = "Fact Check";
 "lng_factcheck_placeholder" = "Add Facts or Context";
 "lng_factcheck_whats_this" = "what's this?";
 "lng_factcheck_about" = "This clarification was provided by a fact checking agency assigned by the department of the government of your country ({country}) responsible for combatting misinformation.";
+"lng_factcheck_add_done" = "Fact check added.";
+"lng_factcheck_edit_done" = "Fact check edited.";
+"lng_factcheck_remove_done" = "Fact check removed.";
 
 "lng_translate_show_original" = "Show Original";
 "lng_translate_bar_to" = "Translate to {name}";

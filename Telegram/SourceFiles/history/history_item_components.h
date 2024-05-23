@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct WebPageData;
 class VoiceSeekClickHandler;
+class ReplyKeyboard;
 
 namespace Ui {
 struct ChatPaintContext;
@@ -31,6 +32,7 @@ struct GeometryDescriptor;
 namespace Data {
 class Session;
 class Story;
+class SavedSublist;
 } // namespace Data
 
 namespace Media::Player {
@@ -46,6 +48,10 @@ class Element;
 class Document;
 class TranscribeButton;
 } // namespace HistoryView
+
+namespace style {
+struct BotKeyboardButton;
+} // namespace style
 
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
 	void create(not_null<Data::Session*> owner, UserId userId);
@@ -578,6 +584,9 @@ struct MessageFactcheck {
 
 [[nodiscard]] MessageFactcheck FromMTP(
 	not_null<HistoryItem*> item,
+	const tl::conditional<MTPFactCheck> &factcheck);
+[[nodiscard]] MessageFactcheck FromMTP(
+	not_null<Main::Session*> session,
 	const tl::conditional<MTPFactCheck> &factcheck);
 
 struct HistoryMessageFactcheck

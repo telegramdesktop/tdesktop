@@ -32,7 +32,17 @@ public:
 		not_null<HistoryView::Message*> view,
 		not_null<HistoryMessageFactcheck*> factcheck);
 
+	[[nodiscard]] bool canEdit(not_null<HistoryItem*> item) const;
+	[[nodiscard]] int lengthLimit() const;
+
+	void save(
+		FullMsgId itemId,
+		TextWithEntities text,
+		Fn<void(QString)> done);
+
 private:
+	[[nodiscard]] bool canEdit() const;
+
 	void subscribeIfNotYet();
 	void request();
 

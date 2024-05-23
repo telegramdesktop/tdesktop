@@ -917,8 +917,8 @@ QSize Message::performCountOptimalSize() {
 			minHeight += st::msgPadding.top();
 			if (mediaDisplayed) minHeight += st::mediaInBubbleSkip;
 			if (entry) minHeight += st::mediaInBubbleSkip;
-			if (check) minHeight += st::mediaInBubbleSkip;
 		}
+		if (check) minHeight += st::mediaInBubbleSkip;
 		if (mediaDisplayed) {
 			// Parts don't participate in maxWidth() in case of media message.
 			if (media->enforceBubbleWidth()) {
@@ -1308,7 +1308,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			trect.setHeight(trect.height() - entry->height());
 		}
 		if (check) {
-			trect.setHeight(trect.height() - check->height());
+			trect.setHeight(trect.height() - check->height() - st::mediaInBubbleSkip);
 		}
 		if (displayInfo) {
 			trect.setHeight(trect.height()
@@ -1371,7 +1371,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		}
 		if (check) {
 			auto checkLeft = inner.left();
-			auto checkTop = trect.y() + trect.height();
+			auto checkTop = trect.y() + trect.height() + st::mediaInBubbleSkip;
 			p.translate(checkLeft, checkTop);
 			auto checkContext = context.translated(checkLeft, -checkTop);
 			checkContext.selection = skipTextSelection(context.selection);
@@ -1986,7 +1986,7 @@ PointState Message::pointState(QPoint point) const {
 			//}
 			if (check) {
 				auto checkHeight = check->height();
-				trect.setHeight(trect.height() - checkHeight);
+				trect.setHeight(trect.height() - checkHeight - st::mediaInBubbleSkip);
 			}
 			if (entry) {
 				auto entryHeight = entry->height();
@@ -2428,9 +2428,9 @@ TextState Message::textState(
 		}
 		if (check) {
 			auto checkHeight = check->height();
-			trect.setHeight(trect.height() - checkHeight);
+			trect.setHeight(trect.height() - checkHeight - st::mediaInBubbleSkip);
 			auto checkLeft = inner.left();
-			auto checkTop = trect.y() + trect.height();
+			auto checkTop = trect.y() + trect.height() + st::mediaInBubbleSkip;
 			if (point.y() >= checkTop && point.y() < checkTop + checkHeight) {
 				result = check->textState(
 					point - QPoint(checkLeft, checkTop),
@@ -4333,7 +4333,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 		if (contentWidth == maxWidth()) {
 			if (mediaDisplayed) {
 				if (check) {
-					newHeight += check->resizeGetHeight(contentWidth);
+					newHeight += check->resizeGetHeight(contentWidth) + st::mediaInBubbleSkip;
 				}
 				if (entry) {
 					newHeight += entry->resizeGetHeight(contentWidth);
@@ -4365,24 +4365,16 @@ int Message::resizeContentGetHeight(int newWidth) {
 			if (!mediaOnTop) {
 				newHeight += st::msgPadding.top();
 				if (mediaDisplayed) newHeight += st::mediaInBubbleSkip;
-				if (check) newHeight += st::mediaInBubbleSkip;
 				if (entry) newHeight += st::mediaInBubbleSkip;
 			}
 			if (mediaDisplayed) {
 				newHeight += media->height();
-				if (check) {
-					newHeight += check->resizeGetHeight(contentWidth);
-				}
-				if (entry) {
-					newHeight += entry->resizeGetHeight(contentWidth);
-				}
-			} else {
-				if (check) {
-					newHeight += check->resizeGetHeight(contentWidth);
-				}
-				if (entry) {
-					newHeight += entry->resizeGetHeight(contentWidth);
-				}
+			}
+			if (check) {
+				newHeight += check->resizeGetHeight(contentWidth) + st::mediaInBubbleSkip;
+			}
+			if (entry) {
+				newHeight += entry->resizeGetHeight(contentWidth);
 			}
 			if (reactionsInBubble) {
 				if (!mediaDisplayed || _viewButton) {
@@ -4518,7 +4510,8 @@ void Message::refreshInfoSkipBlock() {
 				return media->storyExpired();
 			}
 			return false;
-		} else if (item->Has<HistoryMessageLogEntryOriginal>()) {
+		} else if (item->Has<HistoryMessageLogEntryOriginal>()
+			|| factcheckBlock()) {
 			return false;
 		} else if (media && media->isDisplayed() && !_invertMedia) {
 			return false;

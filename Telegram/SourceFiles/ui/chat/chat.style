@@ -1135,3 +1135,18 @@ effectPreviewLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 
 factcheckIconExpand: icon {{ "fast_to_original-rotate_cw", historyPeer1NameFg }};
 factcheckIconCollapse: icon {{ "fast_to_original-rotate_ccw", historyPeer1NameFg }};
+factcheckField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(0px, 0px, 0px, 4px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	heightMin: 24px;
+
+	font: normalFont;
+}

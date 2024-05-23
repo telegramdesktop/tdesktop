@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_isolated_emoji.h"
+#include "ui/boxes/edit_factcheck_box.h"
 #include "ui/boxes/report_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/controls/delete_message_context_action.h"
@@ -72,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_who_reacted.h"
 #include "api/api_views.h"
 #include "lang/lang_keys.h"
+#include "data/components/factchecks.h"
 #include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -2170,6 +2172,30 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_widget->editMessage(item, selection);
 				}
 			}, &st::menuIconEdit);
+		}
+		if (session->factchecks().canEdit(item)) {
+			const auto text = item->factcheckText();
+			const auto phrase = text.empty()
+				? tr::lng_context_add_factcheck(tr::now)
+				: tr::lng_context_edit_factcheck(tr::now);
+			_menu->addAction(phrase, [=] {
+				controller->show(Box(EditFactcheckBox, text, [=](
+						TextWithEntities result) {
+					const auto done = [=](QString error) {
+						controller->showToast(!error.isEmpty()
+							? error
+							: result.empty()
+							? tr::lng_factcheck_remove_done(tr::now)
+							: text.empty()
+							? tr::lng_factcheck_add_done(tr::now)
+							: tr::lng_factcheck_edit_done(tr::now));
+					};
+					session->factchecks().save(
+						itemId,
+						result,
+						crl::guard(controller, done));
+				}));
+			}, &st::menuIconFactcheck);
 		}
 		const auto pinItem = (item->canPin() && item->isPinned())
 			? item

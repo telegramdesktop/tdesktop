@@ -1508,14 +1508,18 @@ void HistoryItem::setFactcheck(MessageFactcheck info) {
 	} else {
 		AddComponents(HistoryMessageFactcheck::Bit());
 		const auto factcheck = Get<HistoryMessageFactcheck>();
+		const auto textChanged = (factcheck->data.text != info.text);
 		if (factcheck->data.hash == info.hash
 			&& (info.needCheck || !factcheck->data.needCheck)) {
 			return;
-		} else if (factcheck->data.text != info.text
+		} else if (textChanged
 			|| factcheck->data.country != info.country
 			|| factcheck->data.hash != info.hash) {
 			factcheck->data = std::move(info);
 			factcheck->requested = false;
+			if (textChanged) {
+				factcheck->page = nullptr;
+			}
 			history()->owner().requestItemResize(this);
 		}
 	}
@@ -1524,6 +1528,13 @@ void HistoryItem::setFactcheck(MessageFactcheck info) {
 bool HistoryItem::hasUnrequestedFactcheck() const {
 	const auto factcheck = Get<HistoryMessageFactcheck>();
 	return factcheck && factcheck->data.needCheck && !factcheck->requested;
+}
+
+TextWithEntities HistoryItem::factcheckText() const {
+	if (const auto factcheck = Get<HistoryMessageFactcheck>()) {
+		return factcheck->data.text;
+	}
+	return {};
 }
 
 PeerData *HistoryItem::specialNotificationPeer() const {
@@ -1725,6 +1736,7 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	}
 
 	applyTTL(edition.ttl);
+	setFactcheck(FromMTP(this, edition.mtpFactcheck));
 
 	finishEdition(keyboardTop);
 }
