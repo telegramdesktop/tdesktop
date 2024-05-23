@@ -16,4 +16,7 @@ namespace Ui {
 Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintUserpicCallback(
 	const Data::CreditsHistoryEntry &entry);
 
+[[nodiscard]] TextWithEntities GenerateEntryName(
+	const Data::CreditsHistoryEntry &entry);
+
 } // namespace Ui

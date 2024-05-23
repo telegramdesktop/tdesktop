@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits.h"
 
 #include "api/api_credits.h"
+#include "boxes/gift_premium_box.h"
 #include "core/click_handler_types.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
@@ -19,9 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common_session.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/boost_box.h" // Ui::StartFireworks.
+#include "ui/controls/userpic_button.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/image/image_prepare.h"
+#include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
@@ -32,12 +37,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_credits.h"
+#include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_premium.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 
@@ -455,7 +463,117 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			}
 		}, inner->lifetime());
 
+		const auto controller = _controller->parentController();
+		const auto entryBox = [=](
+				not_null<Ui::GenericBox*> box,
+				const Data::CreditsHistoryEntry &e) {
+			box->setStyle(st::giveawayGiftCodeBox);
+			box->setNoContentMargin(true);
+
+			const auto content = box->verticalLayout();
+			Ui::AddSkip(content);
+			Ui::AddSkip(content);
+			Ui::AddSkip(content);
+
+			const auto &stUser = st::boostReplaceUserpic;
+			const auto peer = e.bareId
+				? _controller->session().data().peer(PeerId(e.bareId))
+				: nullptr;
+			if (peer) {
+				content->add(object_ptr<Ui::CenterWrap<>>(
+					content,
+					object_ptr<Ui::UserpicButton>(content, peer, stUser)));
+			} else {
+				const auto widget = content->add(
+					object_ptr<Ui::CenterWrap<>>(
+						content,
+						object_ptr<Ui::RpWidget>(content)))->entity();
+				using Draw = Fn<void(Painter &, int, int, int, int)>;
+				const auto draw = widget->lifetime().make_state<Draw>(
+					Ui::GenerateCreditsPaintUserpicCallback(e));
+				widget->resize(Size(stUser.photoSize));
+				widget->paintRequest(
+				) | rpl::start_with_next([=] {
+					auto p = Painter(widget);
+					(*draw)(p, 0, 0, stUser.photoSize, stUser.photoSize);
+				}, widget->lifetime());
+			}
+
+			Ui::AddSkip(content);
+			Ui::AddSkip(content);
+
+
+			box->addRow(object_ptr<Ui::CenterWrap<>>(
+				box,
+				object_ptr<Ui::FlatLabel>(
+					box,
+					rpl::single(peer
+						? peer->name()
+						: Ui::GenerateEntryName(e).text),
+					st::creditsBoxAboutTitle)));
+
+			Ui::AddSkip(content);
+
+			{
+				constexpr auto kMinus = QChar(0x2212);
+				auto &lifetime = content->lifetime();
+				const auto text = lifetime.make_state<Ui::Text::String>(
+					st::semiboldTextStyle,
+					(!e.bareId ? QChar('+') : kMinus)
+						+ Lang::FormatCountDecimal(e.credits));
+
+				const auto amount = content->add(
+					object_ptr<Ui::FixedHeightWidget>(
+						content,
+						_star.height() / style::DevicePixelRatio()));
+				const auto font = text->style()->font;
+				amount->paintRequest(
+				) | rpl::start_with_next([=] {
+					auto p = Painter(amount);
+					const auto starWidth = _star.width()
+						/ style::DevicePixelRatio();
+					const auto fullWidth = text->maxWidth()
+						+ font->spacew * 2
+						+ starWidth;
+					p.setPen(!e.bareId
+						? st::boxTextFgGood
+						: st::menuIconAttentionColor);
+					const auto x = (amount->width() - fullWidth) / 2;
+					text->draw(p, Ui::Text::PaintContext{
+						.position = QPoint(
+							x,
+							(amount->height() - font->height) / 2),
+						.outerWidth = amount->width(),
+						.availableWidth = amount->width(),
+					});;
+					p.drawImage(
+						x + fullWidth - starWidth,
+						0,
+						_star);
+				}, amount->lifetime());
+			}
+
+			Ui::AddSkip(content);
+			Ui::AddSkip(content);
+
+			AddCreditsHistoryEntryTable(
+				controller,
+				box->verticalLayout(),
+				e);
+
+			const auto button = box->addButton(tr::lng_box_ok(), [=] {
+				box->closeBox();
+			});
+			const auto buttonWidth = st::boxWidth
+				- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
+			button->widthValue() | rpl::filter([=] {
+				return (button->widthNoMargins() != buttonWidth);
+			}) | rpl::start_with_next([=] {
+				button->resizeToWidth(buttonWidth);
+			}, button->lifetime());
+		};
 		const auto entryClicked = [=](const Data::CreditsHistoryEntry &e) {
+			controller->uiShow()->show(Box(entryBox, e));
 		};
 
 		Info::Statistics::AddCreditsHistoryList(

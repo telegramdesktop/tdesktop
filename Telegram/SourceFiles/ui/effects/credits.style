@@ -30,3 +30,7 @@ creditsBoxAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 256px;
 	align: align(top);
 }
+
+creditsBoxAboutTitle: FlatLabel(settingsPremiumUserTitle) {
+	minWidth: 256px;
+}

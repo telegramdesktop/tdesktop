@@ -783,9 +783,7 @@ const Data::CreditsHistoryEntry &CreditsRow::entry() const {
 QString CreditsRow::generateName() {
 	return !PeerListRow::special()
 		? PeerListRow::generateName()
-		: (_entry.peerType == Data::CreditsHistoryEntry::PeerType::Fragment)
-		? tr::lng_bot_username_description1_link(tr::now)
-		: tr::lng_credits_summary_history_entry_inner_in(tr::now);
+		: Ui::GenerateEntryName(_entry).text;
 }
 
 PaintRoundImageCallback CreditsRow::generatePaintUserpicCallback(bool force) {

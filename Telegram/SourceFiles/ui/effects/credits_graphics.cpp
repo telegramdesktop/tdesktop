@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QDateTime>
 
 #include "data/data_credits.h"
+#include "lang/lang_keys.h"
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "styles/style_credits.h"
@@ -50,6 +51,14 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 			? st::sessionIconAndroid
 			: st::introFragmentIcon).paintInCenter(p, { x, y, size, size });
 	};
+}
+
+TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
+	return ((entry.peerType == Data::CreditsHistoryEntry::PeerType::Fragment)
+		? tr::lng_bot_username_description1_link
+		: tr::lng_credits_summary_history_entry_inner_in)(
+			tr::now,
+			TextWithEntities::Simple);
 }
 
 } // namespace Ui
