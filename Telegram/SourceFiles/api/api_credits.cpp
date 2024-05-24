@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #if _DEBUG
 #include "base/random.h"
@@ -153,6 +154,39 @@ void CreditsHistory::request(
 
 Data::CreditTopupOptions CreditsTopupOptions::options() const {
 	return _options;
+}
+
+rpl::producer<not_null<PeerData*>> PremiumPeerBot(
+		not_null<Main::Session*> session) {
+	const auto username = session->appConfig().get<QString>(
+		u"premium_bot_username"_q,
+		QString());
+	if (username.isEmpty()) {
+		return rpl::never<not_null<PeerData*>>();
+	}
+	if (const auto p = session->data().peerByUsername(username)) {
+		return rpl::single<not_null<PeerData*>>(p);
+	}
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		const auto api = lifetime.make_state<MTP::Sender>(&session->mtp());
+
+		api->request(MTPcontacts_ResolveUsername(
+			MTP_string(username)
+		)).done([=](const MTPcontacts_ResolvedPeer &result) {
+			session->data().processUsers(result.data().vusers());
+			session->data().processChats(result.data().vchats());
+			const auto botPeer = session->data().peerLoaded(
+				peerFromMTP(result.data().vpeer()));
+			if (!botPeer) {
+				return consumer.put_done();
+			}
+			consumer.put_next(not_null{ botPeer });
+		}).send();
+
+		return lifetime;
+	};
 }
 
 } // namespace Api

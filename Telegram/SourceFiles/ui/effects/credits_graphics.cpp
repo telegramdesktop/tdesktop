@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_credits.h"
 #include "styles/style_intro.h" // introFragmentIcon.
 #include "styles/style_settings.h"
+#include "styles/style_dialogs.h"
 
 namespace Ui {
 
@@ -38,6 +39,13 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 			return { st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::Fragment:
 			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
+		case Data::CreditsHistoryEntry::PeerType::PremiumBot:
+			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
+		case Data::CreditsHistoryEntry::PeerType::Unsupported:
+			return {
+				st::historyPeerArchiveUserpicBg,
+				st::historyPeerArchiveUserpicBg,
+			};
 		}
 		Unexpected("Unknown peer type.");
 	}();
@@ -45,11 +53,17 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		userpic->paintCircle(p, x, y, outerWidth, size);
 		using PeerType = Data::CreditsHistoryEntry::PeerType;
+		if (entry.peerType == PeerType::PremiumBot) {
+			return;
+		}
+		const auto rect = QRect(x, y, size, size);
 		((entry.peerType == PeerType::AppStore)
 			? st::sessionIconiPhone
 			: (entry.peerType == PeerType::PlayMarket)
 			? st::sessionIconAndroid
-			: st::introFragmentIcon).paintInCenter(p, { x, y, size, size });
+			: (entry.peerType == PeerType::Fragment)
+			? st::introFragmentIcon
+			: st::dialogsInaccessibleUserpic).paintInCenter(p, rect);
 	};
 }
 

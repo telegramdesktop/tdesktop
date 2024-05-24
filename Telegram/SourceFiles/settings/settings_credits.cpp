@@ -366,6 +366,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
 
 	const auto fill = [=](
+			not_null<PeerData*> premiumBot,
 			const Data::CreditsStatusSlice &fullSlice,
 			const Data::CreditsStatusSlice &inSlice,
 			const Data::CreditsStatusSlice &outSlice) {
@@ -475,8 +476,12 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			Ui::AddSkip(content);
 			Ui::AddSkip(content);
 
+			using Type = Data::CreditsHistoryEntry::PeerType;
+
 			const auto &stUser = st::boostReplaceUserpic;
-			const auto peer = e.bareId
+			const auto peer = (e.peerType == Type::PremiumBot)
+				? premiumBot.get()
+				: e.bareId
 				? _controller->session().data().peer(PeerId(e.bareId)).get()
 				: nullptr;
 			if (peer) {
@@ -580,7 +585,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			fullSlice,
 			fullWrap->entity(),
 			entryClicked,
-			_controller->session().user(),
+			premiumBot,
 			&_star,
 			true,
 			true);
@@ -588,7 +593,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			inSlice,
 			inWrap->entity(),
 			entryClicked,
-			_controller->session().user(),
+			premiumBot,
 			&_star,
 			true,
 			false);
@@ -596,7 +601,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			outSlice,
 			outWrap->entity(),
 			std::move(entryClicked),
-			_controller->session().user(),
+			premiumBot,
 			&_star,
 			false,
 			true);
@@ -617,8 +622,12 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
 			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
 				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
-					fill(fullSlice, inSlice, outSlice);
-					apiLifetime->destroy();
+					::Api::PremiumPeerBot(
+						&_controller->session()
+					) | rpl::start_with_next([=](not_null<PeerData*> bot) {
+						fill(bot, fullSlice, inSlice, outSlice);
+						apiLifetime->destroy();
+					}, *apiLifetime);
 				});
 			});
 		});

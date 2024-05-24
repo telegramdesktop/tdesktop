@@ -68,4 +68,7 @@ private:
 
 };
 
+[[nodiscard]] rpl::producer<not_null<PeerData*>> PremiumPeerBot(
+	not_null<Main::Session*> session);
+
 } // namespace Api

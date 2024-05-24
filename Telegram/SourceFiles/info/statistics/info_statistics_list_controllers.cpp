@@ -121,7 +121,7 @@ struct BoostsDescriptor final {
 struct CreditsDescriptor final {
 	Data::CreditsStatusSlice firstSlice;
 	Fn<void(const Data::CreditsHistoryEntry &)> entryClickedCallback;
-	not_null<PeerData*> peer;
+	not_null<PeerData*> premiumBot;
 	not_null<QImage*> creditIcon;
 	bool in = false;
 	bool out = false;
@@ -768,7 +768,7 @@ void CreditsRow::init() {
 		constexpr auto kMinus = QChar(0x2212);
 		_rightText.setText(
 			st::semiboldTextStyle,
-			(PeerListRow::special() ? QChar('+') : kMinus)
+			(!_entry.bareId ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(_entry.credits));
 	}
 	_paintUserpicCallback = !PeerListRow::special()
@@ -816,7 +816,7 @@ void CreditsRow::rightActionPaint(
 		bool actionSelected) {
 	const auto &font = _rightText.style()->font;
 	y += _rowHeight / 2;
-	p.setPen(PeerListRow::special()
+	p.setPen(!_entry.bareId
 		? st::boxTextFgGood
 		: st::menuIconAttentionColor);
 	x += st::creditsHistoryRightSkip;
@@ -850,6 +850,7 @@ private:
 	void applySlice(const Data::CreditsStatusSlice &slice);
 
 	const not_null<Main::Session*> _session;
+	const not_null<PeerData*> _premiumBot;
 	Fn<void(const Data::CreditsHistoryEntry &)> _entryClickedCallback;
 	not_null<QImage*> const _creditIcon;
 
@@ -863,10 +864,11 @@ private:
 };
 
 CreditsController::CreditsController(CreditsDescriptor d)
-: _session(&d.peer->session())
+: _session(&d.premiumBot->session())
+, _premiumBot(d.premiumBot)
 , _entryClickedCallback(std::move(d.entryClickedCallback))
 , _creditIcon(d.creditIcon)
-, _api(d.peer, d.in, d.out)
+, _api(d.premiumBot, d.in, d.out)
 , _firstSlice(std::move(d.firstSlice)) {
 	PeerListController::setStyleOverrides(&st::boostsListBox);
 }
@@ -906,9 +908,12 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 				.creditIcon = _creditIcon,
 				.rowHeight = computeListSt().item.height,
 			};
+			using Type = Data::CreditsHistoryEntry::PeerType;
 			if (item.bareId) {
 				const auto peer = session().data().peer(PeerId(item.bareId));
 				return std::make_unique<CreditsRow>(peer, descriptor);
+			} else if (item.peerType == Type::PremiumBot) {
+				return std::make_unique<CreditsRow>(_premiumBot, descriptor);
 			} else {
 				return std::make_unique<CreditsRow>(descriptor);
 			}
@@ -1084,7 +1089,7 @@ void AddCreditsHistoryList(
 		const Data::CreditsStatusSlice &firstSlice,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(const Data::CreditsHistoryEntry &)> callback,
-		not_null<PeerData*> self,
+		not_null<PeerData*> bot,
 		not_null<QImage*> icon,
 		bool in,
 		bool out) {
@@ -1094,7 +1099,7 @@ void AddCreditsHistoryList(
 		PeerListContentDelegateSimple delegate;
 		CreditsController controller;
 	};
-	auto d = CreditsDescriptor{ firstSlice, callback, self, icon, in, out };
+	auto d = CreditsDescriptor{ firstSlice, callback, bot, icon, in, out };
 	const auto state = container->lifetime().make_state<State>(std::move(d));
 
 	state->delegate.setContent(container->add(
