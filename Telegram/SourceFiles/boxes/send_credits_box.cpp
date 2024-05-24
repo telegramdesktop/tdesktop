@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_credits_box.h"
 
 #include "api/api_credits.h"
+#include "apiwrap.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_credits.h"
 #include "data/data_file_origin.h"
@@ -17,8 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "payments/payments_checkout_process.h"
+#include "payments/payments_form.h"
 #include "payments/payments_form.h"
 #include "settings/settings_credits.h"
 #include "ui/controls/userpic_button.h"
@@ -38,21 +42,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace Ui {
-namespace {
-} // namespace
 
 void SendCreditsBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	const auto invoice = media ? media->invoice() : nullptr;
-	if (!invoice) {
+		std::shared_ptr<Payments::CreditsFormData> form) {
+	if (!form) {
 		return;
 	}
+	struct State {
+		rpl::variable<bool> confirmButtonBusy = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 
-	const auto session = &item->history()->owner().session();
+	const auto session = form->invoice.session;
 
 	const auto photoSize = st::defaultUserpicButton.photoSize;
 
@@ -87,7 +91,9 @@ void SendCreditsBox(
 		}, ministarsContainer->lifetime());
 	}
 
-	if (false && invoice->photo) {
+	const auto bot = session->data().user(form->botId);
+
+	if (form->photo) {
 		struct State {
 			std::shared_ptr<Data::PhotoMedia> view;
 			Image *image = nullptr;
@@ -98,8 +104,8 @@ void SendCreditsBox(
 			object_ptr<Ui::CenterWrap<>>(
 				content,
 				object_ptr<Ui::RpWidget>(content)))->entity();
-		state->view = invoice->photo->createMediaView();
-		state->view->wanted(Data::PhotoSize::Large, item->fullId());
+		state->view = form->photo->createMediaView();
+		form->photo->load(Data::PhotoSize::Thumbnail, {});
 
 		widget->resize(Size(photoSize));
 
@@ -135,7 +141,7 @@ void SendCreditsBox(
 				content,
 				object_ptr<Ui::UserpicButton>(
 					content,
-					item->author(),
+					bot,
 					st::defaultUserpicButton)));
 		widget->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
@@ -156,18 +162,42 @@ void SendCreditsBox(
 			box,
 			tr::lng_credits_box_out_sure(
 				lt_count,
-				rpl::single(invoice->amount) | tr::to_count(),
+				rpl::single(form->invoice.amount) | tr::to_count(),
 				lt_text,
-				rpl::single(TextWithEntities{ invoice->title }),
+				rpl::single(TextWithEntities{ form->title }),
 				lt_bot,
-				rpl::single(TextWithEntities{ item->author()->name() }),
+				rpl::single(TextWithEntities{ bot->name() }),
 				Ui::Text::RichLangValue),
 			st::creditsBoxAbout)));
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
 
 	const auto button = box->addButton(rpl::single(QString()), [=] {
+		if (state->confirmButtonBusy.current()) {
+			return;
+		}
+		state->confirmButtonBusy = true;
+		session->api().request(
+			MTPpayments_SendStarsForm(
+				MTP_flags(0),
+				MTP_long(form->formId),
+				form->inputInvoice)
+		).done([=](auto result) {
+			state->confirmButtonBusy = false;
+			box->closeBox();
+		}).fail([=](const MTP::Error &error) {
+			state->confirmButtonBusy = false;
+			box->uiShow()->showToast(error.type());
+		}).send();
 	});
+	{
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			button,
+			st::giveawayGiftCodeStartButton.height / 2);
+		AddChildToWidgetCenter(button.data(), loadingAnimation);
+		loadingAnimation->showOn(state->confirmButtonBusy.value());
+		}
 	{
 		const auto emojiMargin = QMargins(
 			0,
@@ -181,7 +211,7 @@ void SendCreditsBox(
 				true));
 		auto buttonText = tr::lng_credits_box_out_confirm(
 			lt_count,
-			rpl::single(invoice->amount) | tr::to_count(),
+			rpl::single(form->invoice.amount) | tr::to_count(),
 			lt_emoji,
 			rpl::single(buttonEmoji),
 			Ui::Text::RichLangValue);
@@ -208,6 +238,10 @@ void SendCreditsBox(
 				(size.height() - buttonLabel->height()) / 2);
 		}, buttonLabel->lifetime());
 		buttonLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+		state->confirmButtonBusy.value(
+		) | rpl::start_with_next([=](bool busy) {
+			buttonLabel->setVisible(!busy);
+		}, buttonLabel->lifetime());
 	}
 
 	const auto buttonWidth = st::boxWidth

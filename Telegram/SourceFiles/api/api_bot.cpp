@@ -332,7 +332,7 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 
 	case ButtonType::Buy: {
 		if (Ui::IsCreditsInvoice(item)) {
-			controller->uiShow()->show(Box(Ui::SendCreditsBox, item));
+			// controller->uiShow()->show(Box(Ui::SendCreditsBox, item));
 		} else {
 			Payments::CheckoutProcess::Start(
 				item,

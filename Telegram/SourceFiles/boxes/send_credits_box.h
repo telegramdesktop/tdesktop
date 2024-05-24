@@ -9,13 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
+namespace Payments {
+struct CreditsFormData;
+} // namespace Payments
+
 namespace Ui {
 
 class GenericBox;
 
 void SendCreditsBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<HistoryItem*> item);
+	std::shared_ptr<Payments::CreditsFormData> data);
 
 [[nodiscard]] bool IsCreditsInvoice(not_null<HistoryItem*> item);
 
