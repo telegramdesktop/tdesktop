@@ -377,7 +377,7 @@ void Form::requestForm() {
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		hideProgress();
 		result.match([&](const MTPDpayments_paymentForm &data) {
-			processForm(result);
+			processForm(data);
 		}, [&](const MTPDpayments_paymentFormStars &data) {
 			_session->data().processUsers(data.vusers());
 			const auto currency = qs(data.vinvoice().data().vcurrency());
@@ -437,44 +437,33 @@ void Form::requestReceipt() {
 	}).send();
 }
 
-void Form::processForm(const MTPpayments_PaymentForm &result) {
-	using TLForm = MTPDpayments_paymentForm;
-	using TLCredits = MTPDpayments_paymentFormStars;
-	result.match([&](const auto &data) {
-		_session->data().processUsers(data.vusers());
+void Form::processForm(const MTPDpayments_paymentForm &data) {
+	_session->data().processUsers(data.vusers());
 
-		data.vinvoice().match([&](const auto &data) {
-			processInvoice(data);
+	data.vinvoice().match([&](const auto &data) {
+		processInvoice(data);
+	});
+	processDetails(data);
+	if (const auto info = data.vsaved_info()) {
+		info->match([&](const auto &data) {
+			processSavedInformation(data);
 		});
-	});
-
-	processDetails(result);
-	result.match([&](const TLForm &data) {
-		if (const auto info = data.vsaved_info()) {
-			info->match([&](const auto &data) {
-				processSavedInformation(data);
-			});
-		}
-	}, [](const TLCredits &) {
-	});
+	}
 	_paymentMethod.savedCredentials.clear();
 	_paymentMethod.savedCredentialsIndex = 0;
-	result.match([&](const TLForm &data) {
-		if (const auto credentials = data.vsaved_credentials()) {
-			_paymentMethod.savedCredentials.reserve(credentials->v.size());
-			for (const auto &saved : credentials->v) {
-				_paymentMethod.savedCredentials.push_back({
-					.id = qs(saved.data().vid()),
-					.title = qs(saved.data().vtitle()),
-				});
-			}
-			refreshPaymentMethodDetails();
+	if (const auto credentials = data.vsaved_credentials()) {
+		_paymentMethod.savedCredentials.reserve(credentials->v.size());
+		for (const auto &saved : credentials->v) {
+			_paymentMethod.savedCredentials.push_back({
+				.id = qs(saved.data().vid()),
+				.title = qs(saved.data().vtitle()),
+			});
 		}
-		if (const auto additional = data.vadditional_methods()) {
-			processAdditionalPaymentMethods(additional->v);
-		}
-	}, [](const TLCredits &) {
-	});
+		refreshPaymentMethodDetails();
+	}
+	if (const auto additional = data.vadditional_methods()) {
+		processAdditionalPaymentMethods(additional->v);
+	}
 	fillPaymentMethodInformation();
 	_updates.fire(FormReady{});
 }
@@ -548,44 +537,31 @@ void Form::processInvoice(const MTPDinvoice &data) {
 	};
 }
 
-void Form::processDetails(const MTPpayments_PaymentForm &result) {
-	using TLForm = MTPDpayments_paymentForm;
-	using TLCredits = MTPDpayments_paymentFormStars;
-	_details = result.match([&](const TLForm &data) {
-		const auto nativeParams = data.vnative_params();
-		auto nativeParamsJson = nativeParams
-			? nativeParams->match(
-				[&](const MTPDdataJSON &data) { return data.vdata().v; })
-			: QByteArray();
-		return FormDetails{
-			.formId = data.vform_id().v,
-			.url = qs(data.vurl()),
-			.nativeProvider = qs(data.vnative_provider().value_or_empty()),
-			.nativeParamsJson = std::move(nativeParamsJson),
-			.botId = data.vbot_id().v,
-			.providerId = data.vprovider_id().v,
-			.canSaveCredentials = data.is_can_save_credentials(),
-			.passwordMissing = data.is_password_missing(),
-		};
-	}, [](const TLCredits &data) {
-		return FormDetails{
-			.formId = data.vform_id().v,
-			.botId = data.vbot_id().v,
-		};
-	});
-	_invoice.cover.title = result.match([](const auto &data) {
-		return qs(data.vtitle());
-	});
+void Form::processDetails(const MTPDpayments_paymentForm &data) {
+	const auto nativeParams = data.vnative_params();
+	auto nativeParamsJson = nativeParams
+		? nativeParams->match(
+			[&](const MTPDdataJSON &data) { return data.vdata().v; })
+		: QByteArray();
+	_details = FormDetails{
+		.formId = data.vform_id().v,
+		.url = qs(data.vurl()),
+		.nativeProvider = qs(data.vnative_provider().value_or_empty()),
+		.nativeParamsJson = std::move(nativeParamsJson),
+		.botId = data.vbot_id().v,
+		.providerId = data.vprovider_id().v,
+		.canSaveCredentials = data.is_can_save_credentials(),
+		.passwordMissing = data.is_password_missing(),
+	};
+	_invoice.cover.title = qs(data.vtitle());
 	_invoice.cover.description = TextUtilities::ParseEntities(
-		result.match([](const auto &d) { return qs(d.vdescription()); }),
+		qs(data.vdescription()),
 		TextParseLinks | TextParseMultiline);
 	if (_invoice.cover.thumbnail.isNull() && !_thumbnailLoadProcess) {
-		result.match([&](const auto &data) {
-			if (const auto photo = data.vphoto()) {
-				loadThumbnail(
-					_session->data().photoFromWeb(*photo, ImageLocation()));
-			}
-		});
+		if (const auto photo = data.vphoto()) {
+			loadThumbnail(
+				_session->data().photoFromWeb(*photo, ImageLocation()));
+		}
 	}
 	if (const auto botId = _details.botId) {
 		if (const auto bot = _session->data().userLoaded(botId)) {
