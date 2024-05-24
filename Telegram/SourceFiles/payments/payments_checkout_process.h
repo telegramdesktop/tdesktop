@@ -41,6 +41,7 @@ struct InvoiceCredits;
 struct InvoiceId;
 struct InvoicePremiumGiftCode;
 struct CreditsFormData;
+struct CreditsReceiptData;
 
 enum class Mode {
 	Payment,
@@ -54,7 +55,9 @@ enum class CheckoutResult {
 	Failed,
 };
 
-struct NonPanelPaymentForm : std::variant<std::shared_ptr<CreditsFormData>> {
+struct NonPanelPaymentForm : std::variant<
+	std::shared_ptr<CreditsFormData>,
+	std::shared_ptr<CreditsReceiptData>> {
 	using variant::variant;
 };
 

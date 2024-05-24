@@ -499,12 +499,20 @@ void Form::processReceipt(const MTPDpayments_paymentReceipt &data) {
 void Form::processReceipt(const MTPDpayments_paymentReceiptStars &data) {
 	_session->data().processUsers(data.vusers());
 
-	data.vinvoice().match([&](const auto &data) {
-		processInvoice(data);
-	});
-	processDetails(data);
-	fillPaymentMethodInformation();
-	_updates.fire(FormReady{});
+	const auto receiptData = CreditsReceiptData{
+		.id = qs(data.vtransaction_id()),
+		.title = qs(data.vtitle()),
+		.description = qs(data.vdescription()),
+		.photo = data.vphoto()
+			? _session->data().photoFromWeb(
+				*data.vphoto(),
+				ImageLocation())
+			: nullptr,
+		.peerId = peerFromUser(data.vbot_id().v),
+		.credits = data.vtotal_amount().v,
+		.date = data.vdate().v,
+	};
+	_updates.fire(CreditsReceiptReady{ .data = receiptData });
 }
 
 void Form::processInvoice(const MTPDinvoice &data) {

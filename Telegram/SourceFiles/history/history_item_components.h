@@ -653,6 +653,7 @@ struct HistoryServicePayment
 	ClickHandlerPtr invoiceLink;
 	bool recurringInit = false;
 	bool recurringUsed = false;
+	bool isCreditsCurrency = false;
 };
 
 struct HistoryServiceSameBackground

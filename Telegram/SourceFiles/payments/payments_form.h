@@ -187,6 +187,16 @@ struct CreditsFormData {
 	MTPInputInvoice inputInvoice;
 };
 
+struct CreditsReceiptData {
+	QString id;
+	QString title;
+	QString description;
+	PhotoData *photo = nullptr;
+	PeerId peerId = PeerId(0);
+	uint64 credits = 0;
+	TimeId date = 0;
+};
+
 struct ToggleProgress {
 	bool shown = true;
 };
@@ -211,6 +221,9 @@ struct PaymentFinished {
 };
 struct CreditsPaymentStarted {
 	CreditsFormData data;
+};
+struct CreditsReceiptReady {
+	CreditsReceiptData data;
 };
 struct Error {
 	enum class Type {
@@ -244,6 +257,7 @@ struct FormUpdate : std::variant<
 	BotTrustRequired,
 	PaymentFinished,
 	CreditsPaymentStarted,
+	CreditsReceiptReady,
 	Error> {
 	using variant::variant;
 };

@@ -3941,6 +3941,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		payment->slug = data.vinvoice_slug().value_or_empty();
 		payment->recurringInit = data.is_recurring_init();
 		payment->recurringUsed = data.is_recurring_used();
+		payment->isCreditsCurrency = (currency == Ui::kCreditsCurrency);
 		payment->amount = Ui::FillAmountAndCurrency(amount, currency);
 		payment->invoiceLink = std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {
