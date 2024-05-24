@@ -21,6 +21,4 @@ void SendCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Payments::CreditsFormData> data);
 
-[[nodiscard]] bool IsCreditsInvoice(not_null<HistoryItem*> item);
-
 } // namespace Ui

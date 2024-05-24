@@ -288,10 +288,4 @@ void SendCreditsBox(
 	}
 }
 
-bool IsCreditsInvoice(not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	const auto invoice = media ? media->invoice() : nullptr;
-	return invoice && (invoice->currency == "XTR");
-}
-
 } // namespace Ui
