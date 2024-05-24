@@ -764,7 +764,14 @@ void ReceiptCreditsBox(
 		: e.bareId
 		? controller->session().data().peer(PeerId(e.bareId)).get()
 		: nullptr;
-	if (peer) {
+	const auto photo = e.photoId
+		? controller->session().data().photo(e.photoId).get()
+		: nullptr;
+	if (photo) {
+		content->add(object_ptr<Ui::CenterWrap<>>(
+			content,
+			HistoryEntryPhoto(content, photo, stUser.photoSize)));
+	} else if (peer) {
 		content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
 			object_ptr<Ui::UserpicButton>(content, peer, stUser)));
@@ -792,7 +799,10 @@ void ReceiptCreditsBox(
 		box,
 		object_ptr<Ui::FlatLabel>(
 			box,
-			rpl::single(peer
+			rpl::single(
+				!e.title.isEmpty()
+				? e.title
+				: peer
 				? peer->name()
 				: Ui::GenerateEntryName(e).text),
 			st::creditsBoxAboutTitle)));
@@ -836,6 +846,16 @@ void ReceiptCreditsBox(
 				0,
 				star);
 		}, amount->lifetime());
+	}
+
+	if (!e.description.isEmpty()) {
+		Ui::AddSkip(content);
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::single(e.description),
+				st::defaultFlatLabel)));
 	}
 
 	Ui::AddSkip(content);

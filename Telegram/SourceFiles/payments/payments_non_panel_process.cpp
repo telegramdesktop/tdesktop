@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/send_credits_box.h"
 #include "data/data_credits.h"
+#include "data/data_photo.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "payments/payments_checkout_process.h" // NonPanelPaymentForm.
@@ -45,10 +46,13 @@ Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 			const auto receipt = *r;
 			const auto entry = Data::CreditsHistoryEntry{
 				.id = receipt->id,
-				.credits = receipt->credits,
+				.title = receipt->title,
+				.description = receipt->description,
 				.date = base::unixtime::parse(receipt->date),
-				.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
+				.photoId = receipt->photo ? receipt->photo->id : 0,
+				.credits = receipt->credits,
 				.bareId = receipt->peerId.value,
+				.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			};
 			controller->uiShow()->show(Box(
 				Settings::ReceiptCreditsBox,

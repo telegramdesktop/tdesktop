@@ -20,6 +20,7 @@ struct CreditTopupOption final {
 using CreditTopupOptions = std::vector<CreditTopupOption>;
 
 struct CreditsHistoryEntry final {
+	using PhotoId = uint64;
 	enum class PeerType {
 		Peer,
 		AppStore,
@@ -29,10 +30,13 @@ struct CreditsHistoryEntry final {
 		PremiumBot,
 	};
 	QString id;
-	uint64 credits = 0;
+	QString title;
+	QString description;
 	QDateTime date;
-	PeerType peerType;
+	PhotoId photoId = 0;
+	uint64 credits = 0;
 	uint64 bareId = 0;
+	PeerType peerType;
 };
 
 struct CreditsStatusSlice final {

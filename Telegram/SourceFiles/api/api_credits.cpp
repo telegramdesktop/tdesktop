@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/data_peer.h"
+#include "data/data_photo.h"
 #include "data/data_session.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -21,12 +22,24 @@ namespace Api {
 namespace {
 
 [[nodiscard]] Data::CreditsHistoryEntry HistoryFromTL(
-		const MTPStarsTransaction &tl) {
+		const MTPStarsTransaction &tl,
+		not_null<PeerData*> peer) {
 	using HistoryPeerTL = MTPDstarsTransactionPeer;
+	const auto photo = tl.data().vphoto()
+		? peer->owner().photoFromWeb(*tl.data().vphoto(), ImageLocation())
+		: nullptr;
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
-		.credits = tl.data().vstars().v,
+		.title = qs(tl.data().vtitle().value_or_empty()),
+		.description = qs(tl.data().vdescription().value_or_empty()),
 		.date = base::unixtime::parse(tl.data().vdate().v),
+		.photoId = photo ? photo->id : 0,
+		.credits = tl.data().vstars().v,
+		.bareId = tl.data().vpeer().match([](const HistoryPeerTL &p) {
+			return peerFromMTP(p.vpeer());
+		}, [](const auto &) {
+			return PeerId(0);
+		}).value,
 		.peerType = tl.data().vpeer().match([](const HistoryPeerTL &) {
 			return Data::CreditsHistoryEntry::PeerType::Peer;
 		}, [](const MTPDstarsTransactionPeerPlayMarket &) {
@@ -40,11 +53,6 @@ namespace {
 		}, [](const MTPDstarsTransactionPeerPremiumBot &) {
 			return Data::CreditsHistoryEntry::PeerType::PremiumBot;
 		}),
-		.bareId = tl.data().vpeer().match([](const HistoryPeerTL &p) {
-			return peerFromMTP(p.vpeer());
-		}, [](const auto &) {
-			return PeerId(0);
-		}).value,
 	};
 }
 
@@ -56,7 +64,9 @@ namespace {
 	return Data::CreditsStatusSlice{
 		.list = ranges::views::all(
 			status.data().vhistory().v
-		) | ranges::views::transform(HistoryFromTL) | ranges::to_vector,
+		) | ranges::views::transform([&](const MTPStarsTransaction &tl) {
+			return HistoryFromTL(tl, peer);
+		}) | ranges::to_vector,
 		.balance = status.data().vbalance().v,
 		.allLoaded = !status.data().vnext_offset().has_value(),
 		.token = qs(status.data().vnext_offset().value_or_empty()),

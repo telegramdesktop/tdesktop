@@ -96,8 +96,8 @@ giveawayGiftCodeValue: FlatLabel(defaultFlatLabel) {
 	}
 }
 giveawayGiftCodeValueMultiline: FlatLabel(giveawayGiftCodeValue) {
-	minWidth: 100px;
-	maxHeight: 0px;
+	minWidth: 128px;
+	maxHeight: 100px;
 }
 giveawayGiftCodeValueMargin: margins(13px, 9px, 13px, 9px);
 giveawayGiftCodePeerMargin: margins(11px, 6px, 11px, 4px);
