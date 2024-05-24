@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "smartglocal/smartglocal_token.h"
 #include "storage/storage_account.h"
 #include "ui/image/image.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_entity.h"
 #include "apiwrap.h"
 #include "core/core_cloud_password.h"
@@ -385,7 +386,7 @@ void Form::requestForm() {
 			const auto amount = tlPrices.empty()
 				? 0
 				: tlPrices.front().data().vamount().v;
-			if (currency != "XTR" || !amount) {
+			if (currency != ::Ui::kCreditsCurrency || !amount) {
 				using Type = Error::Type;
 				_updates.fire(Error{ Type::Form, u"Bad Stars Form."_q });
 				return;

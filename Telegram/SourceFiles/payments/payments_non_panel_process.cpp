@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_form.h"
 #include "history/history_item.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/format_values.h"
 #include "window/window_session_controller.h"
 #include "boxes/send_credits_box.h"
 
@@ -20,7 +21,7 @@ namespace {
 bool IsCreditsInvoice(not_null<HistoryItem*> item) {
 	const auto media = item->media();
 	const auto invoice = media ? media->invoice() : nullptr;
-	return invoice && (invoice->currency == "XTR");
+	return invoice && (invoice->currency == Ui::kCreditsCurrency);
 }
 
 } // namespace
