@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_type.h"
 
+template <typename Object>
+class object_ptr;
+
 class PeerData;
 
 namespace Data {
@@ -38,6 +41,11 @@ void ReceiptCreditsBox(
 	not_null<Window::SessionController*> controller,
 	PeerData *premiumBot,
 	const Data::CreditsHistoryEntry &e);
+
+[[nodiscard]] object_ptr<Ui::RpWidget> HistoryEntryPhoto(
+	not_null<Ui::RpWidget*> parent,
+	not_null<PhotoData*> photo,
+	int photoSize);
 
 } // namespace Settings
 

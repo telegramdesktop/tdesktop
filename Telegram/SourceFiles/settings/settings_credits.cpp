@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "boxes/gift_premium_box.h"
 #include "core/click_handler_types.h"
+#include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
@@ -854,6 +856,53 @@ void ReceiptCreditsBox(
 	}) | rpl::start_with_next([=] {
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
+}
+
+object_ptr<Ui::RpWidget> HistoryEntryPhoto(
+		not_null<Ui::RpWidget*> parent,
+		not_null<PhotoData*> photo,
+		int photoSize) {
+	struct State {
+		std::shared_ptr<Data::PhotoMedia> view;
+		Image *image = nullptr;
+		rpl::lifetime downloadLifetime;
+	};
+	const auto state = parent->lifetime().make_state<State>();
+	auto owned = object_ptr<Ui::RpWidget>(parent);
+	const auto widget = owned.data();
+	state->view = photo->createMediaView();
+	photo->load(Data::PhotoSize::Thumbnail, {});
+
+	widget->resize(Size(photoSize));
+
+	rpl::single(rpl::empty_value()) | rpl::then(
+		photo->owner().session().downloaderTaskFinished()
+	) | rpl::start_with_next([=] {
+		using Size = Data::PhotoSize;
+		if (const auto large = state->view->image(Size::Large)) {
+			state->image = large;
+		} else if (const auto small = state->view->image(Size::Small)) {
+			state->image = small;
+		} else if (const auto t = state->view->image(Size::Thumbnail)) {
+			state->image = t;
+		}
+		widget->update();
+		if (state->view->loaded()) {
+			state->downloadLifetime.destroy();
+		}
+	}, state->downloadLifetime);
+
+	widget->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(widget);
+		if (state->image) {
+			p.drawPixmap(0, 0, state->image->pix(widget->width(), {
+				.options = Images::Option::RoundCircle,
+			}));
+		}
+	}, widget->lifetime());
+
+	return owned;
 }
 
 } // namespace Settings

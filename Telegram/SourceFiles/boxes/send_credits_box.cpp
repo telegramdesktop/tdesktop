@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_credits.h"
-#include "data/data_file_origin.h"
-#include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -94,47 +92,9 @@ void SendCreditsBox(
 	const auto bot = session->data().user(form->botId);
 
 	if (form->photo) {
-		struct State {
-			std::shared_ptr<Data::PhotoMedia> view;
-			Image *image = nullptr;
-			rpl::lifetime downloadLifetime;
-		};
-		const auto state = content->lifetime().make_state<State>();
-		const auto widget = box->addRow(
-			object_ptr<Ui::CenterWrap<>>(
-				content,
-				object_ptr<Ui::RpWidget>(content)))->entity();
-		state->view = form->photo->createMediaView();
-		form->photo->load(Data::PhotoSize::Thumbnail, {});
-
-		widget->resize(Size(photoSize));
-
-		rpl::single(rpl::empty_value()) | rpl::then(
-			session->downloaderTaskFinished()
-		) | rpl::start_with_next([=] {
-			using Size = Data::PhotoSize;
-			if (const auto large = state->view->image(Size::Large)) {
-				state->image = large;
-			} else if (const auto small = state->view->image(Size::Small)) {
-				state->image = small;
-			} else if (const auto t = state->view->image(Size::Thumbnail)) {
-				state->image = t;
-			}
-			widget->update();
-			if (state->view->loaded()) {
-				state->downloadLifetime.destroy();
-			}
-		}, state->downloadLifetime);
-
-		widget->paintRequest(
-		) | rpl::start_with_next([=] {
-			auto p = QPainter(widget);
-			if (state->image) {
-				p.drawPixmap(0, 0, state->image->pix(widget->width(), {
-					.options = Images::Option::RoundCircle,
-				}));
-			}
-		}, widget->lifetime());
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
+			content,
+			Settings::HistoryEntryPhoto(content, form->photo, photoSize)));
 	} else {
 		const auto widget = box->addRow(
 			object_ptr<Ui::CenterWrap<>>(
