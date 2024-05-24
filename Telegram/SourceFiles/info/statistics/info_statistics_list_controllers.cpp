@@ -769,7 +769,7 @@ void CreditsRow::init() {
 		_rightText.setText(
 			st::semiboldTextStyle,
 			(!_entry.bareId ? QChar('+') : kMinus)
-				+ Lang::FormatCountDecimal(_entry.credits));
+				+ Lang::FormatCountDecimal(std::abs(int64(_entry.credits))));
 	}
 	_paintUserpicCallback = !PeerListRow::special()
 		? PeerListRow::generatePaintUserpicCallback(false)

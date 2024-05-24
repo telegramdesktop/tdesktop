@@ -426,7 +426,7 @@ void ReceiptCreditsBox(
 		const auto text = lifetime.make_state<Ui::Text::String>(
 			st::semiboldTextStyle,
 			(!e.bareId ? QChar('+') : kMinus)
-				+ Lang::FormatCountDecimal(e.credits));
+				+ Lang::FormatCountDecimal(std::abs(int64(e.credits))));
 
 		const auto amount = content->add(
 			object_ptr<Ui::FixedHeightWidget>(
