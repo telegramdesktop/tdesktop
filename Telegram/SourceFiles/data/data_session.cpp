@@ -690,7 +690,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				result->setAccessHash(accessHash->v);
 			}
 			status = data.vstatus();
-			{
+			if (!minimal) {
 				const auto newUsername = uname;
 				const auto newUsernames = data.vusernames()
 					? Api::Usernames::FromTL(*data.vusernames())
