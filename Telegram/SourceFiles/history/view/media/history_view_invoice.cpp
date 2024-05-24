@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_invoice.h"
 
-#include "boxes/send_credits_box.h" // IsCreditsInvoice.
 #include "lang/lang_keys.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
@@ -35,7 +34,7 @@ Invoice::Invoice(
 }
 
 void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
-	const auto isCreditsCurrency = Ui::IsCreditsInvoice(_parent->data());
+	const auto isCreditsCurrency = false;
 	if (invoice->photo && !isCreditsCurrency) {
 		const auto spoiler = false;
 		_attach = std::make_unique<Photo>(
