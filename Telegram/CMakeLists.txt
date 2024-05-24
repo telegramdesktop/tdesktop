@@ -1370,6 +1370,8 @@ PRIVATE
     settings/settings_common_session.h
     settings/settings_credits.cpp
     settings/settings_credits.h
+    settings/settings_credits_graphics.cpp
+    settings/settings_credits_graphics.h
     settings/settings_experimental.cpp
     settings/settings_experimental.h
     settings/settings_folders.cpp

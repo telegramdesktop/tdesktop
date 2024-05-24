@@ -9,43 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_type.h"
 
-template <typename Object>
-class object_ptr;
-
-class PeerData;
-
-namespace Data {
-struct CreditsHistoryEntry;
-} // namespace Data
-
-namespace Window {
-class SessionController;
-} // namespace Window
-
-namespace Ui {
-class GenericBox;
-class RpWidget;
-} // namespace Ui
-
 namespace Settings {
 
 [[nodiscard]] Type CreditsId();
-
-[[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
-	not_null<Ui::RpWidget*> parent,
-	rpl::producer<uint64> balanceValue,
-	bool rightAlign);
-
-void ReceiptCreditsBox(
-	not_null<Ui::GenericBox*> box,
-	not_null<Window::SessionController*> controller,
-	PeerData *premiumBot,
-	const Data::CreditsHistoryEntry &e);
-
-[[nodiscard]] object_ptr<Ui::RpWidget> HistoryEntryPhoto(
-	not_null<Ui::RpWidget*> parent,
-	not_null<PhotoData*> photo,
-	int photoSize);
 
 } // namespace Settings
 

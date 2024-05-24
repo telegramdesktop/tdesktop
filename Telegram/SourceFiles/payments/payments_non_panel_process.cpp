@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "payments/payments_checkout_process.h" // NonPanelPaymentForm.
 #include "payments/payments_form.h"
-#include "settings/settings_credits.h"
+#include "settings/settings_credits_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "window/window_session_controller.h"
