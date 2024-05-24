@@ -207,9 +207,9 @@ void Factchecks::save(
 	save(itemId, std::move(text), [=](QString error) {
 		show->showToast(!error.isEmpty()
 			? error
-			: wasEmpty
-			? tr::lng_factcheck_remove_done(tr::now)
 			: textEmpty
+			? tr::lng_factcheck_remove_done(tr::now)
+			: wasEmpty
 			? tr::lng_factcheck_add_done(tr::now)
 			: tr::lng_factcheck_edit_done(tr::now));
 	});
