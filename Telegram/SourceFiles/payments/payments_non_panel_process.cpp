@@ -16,9 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "main/main_session.h"
+#include "mainwidget.h"
 #include "payments/payments_checkout_process.h" // NonPanelPaymentForm.
 #include "payments/payments_form.h"
 #include "settings/settings_credits_graphics.h"
+#include "ui/boxes/boost_box.h" // Ui::StartFireworks.
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "window/window_session_controller.h"
@@ -49,7 +51,12 @@ Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 				controller->session().user());
 			const auto sendBox = [=, weak = base::make_weak(controller)] {
 				if (const auto strong = weak.get()) {
-					controller->uiShow()->show(Box(Ui::SendCreditsBox, form));
+					controller->uiShow()->show(Box(
+						Ui::SendCreditsBox,
+						form,
+						crl::guard(strong, [=] {
+							Ui::StartFireworks(strong->content());
+						})));
 				}
 			};
 			const auto weak = base::make_weak(controller);

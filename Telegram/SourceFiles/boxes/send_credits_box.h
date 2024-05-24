@@ -19,6 +19,7 @@ class GenericBox;
 
 void SendCreditsBox(
 	not_null<Ui::GenericBox*> box,
-	std::shared_ptr<Payments::CreditsFormData> data);
+	std::shared_ptr<Payments::CreditsFormData> data,
+	Fn<void()> sent);
 
 } // namespace Ui

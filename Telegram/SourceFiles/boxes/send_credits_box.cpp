@@ -43,7 +43,8 @@ namespace Ui {
 
 void SendCreditsBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Payments::CreditsFormData> form) {
+		std::shared_ptr<Payments::CreditsFormData> form,
+		Fn<void()> sent) {
 	if (!form) {
 		return;
 	}
@@ -145,6 +146,7 @@ void SendCreditsBox(
 		).done([=](auto result) {
 			state->confirmButtonBusy = false;
 			box->closeBox();
+			sent();
 		}).fail([=](const MTP::Error &error) {
 			state->confirmButtonBusy = false;
 			box->uiShow()->showToast(error.type());
