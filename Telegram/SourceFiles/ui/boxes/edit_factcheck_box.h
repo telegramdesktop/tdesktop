@@ -9,8 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/layers/generic_box.h"
 
+namespace Ui {
+class InputField;
+} // namespace Ui
+
 void EditFactcheckBox(
 	not_null<Ui::GenericBox*> box,
 	TextWithEntities current,
 	int limit,
-	Fn<void(TextWithEntities)> save);
+	Fn<void(TextWithEntities)> save,
+	Fn<void(not_null<Ui::InputField*>)> initField);

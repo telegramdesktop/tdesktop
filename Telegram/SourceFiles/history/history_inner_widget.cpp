@@ -2184,7 +2184,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						TextWithEntities result) {
 					const auto show = controller->uiShow();
 					session->factchecks().save(itemId, text, result, show);
-				}));
+				}, FactcheckFieldIniter(controller->uiShow())));
 			}, &st::menuIconFactcheck);
 		}
 		const auto pinItem = (item->canPin() && item->isPinned())

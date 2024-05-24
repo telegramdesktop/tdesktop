@@ -45,7 +45,7 @@ public:
 		Fn<void(QString)> done);
 	void save(
 		FullMsgId itemId,
-		TextWithEntities was,
+		const TextWithEntities &was,
 		TextWithEntities text,
 		std::shared_ptr<Ui::Show> show);
 

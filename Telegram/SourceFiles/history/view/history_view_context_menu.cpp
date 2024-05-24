@@ -69,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_message_reactions.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "chat_helpers/message_field.h" // FactcheckFieldIniter.
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
 #include "base/platform/base_platform_info.h"
@@ -736,7 +737,7 @@ void AddFactcheckAction(
 			TextWithEntities result) {
 			const auto show = controller->uiShow();
 			session->factchecks().save(itemId, text, result, show);
-		}));
+		}, FactcheckFieldIniter(controller->uiShow())));
 	}, &st::menuIconFactcheck);
 }
 

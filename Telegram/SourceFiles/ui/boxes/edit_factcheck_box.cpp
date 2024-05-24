@@ -16,7 +16,8 @@ void EditFactcheckBox(
 		not_null<Ui::GenericBox*> box,
 		TextWithEntities current,
 		int limit,
-		Fn<void(TextWithEntities)> save) {
+		Fn<void(TextWithEntities)> save,
+		Fn<void(not_null<Ui::InputField*>)> initField) {
 	box->setTitle(tr::lng_factcheck_title());
 
 	const auto field = box->addRow(object_ptr<Ui::InputField>(
@@ -29,6 +30,7 @@ void EditFactcheckBox(
 			TextUtilities::ConvertEntitiesToTextTags(current.entities)
 		}));
 	AddLengthLimitLabel(field, limit);
+	initField(field);
 
 	enum class State {
 		Initial,

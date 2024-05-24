@@ -199,18 +199,20 @@ void Factchecks::save(
 
 void Factchecks::save(
 		FullMsgId itemId,
-		TextWithEntities was,
+		const TextWithEntities &was,
 		TextWithEntities text,
 		std::shared_ptr<Ui::Show> show) {
-	const auto done = [=](QString error) {
+	const auto wasEmpty = was.empty();
+	const auto textEmpty = text.empty();
+	save(itemId, std::move(text), [=](QString error) {
 		show->showToast(!error.isEmpty()
 			? error
-			: was.empty()
+			: wasEmpty
 			? tr::lng_factcheck_remove_done(tr::now)
-			: text.empty()
+			: textEmpty
 			? tr::lng_factcheck_add_done(tr::now)
 			: tr::lng_factcheck_edit_done(tr::now));
-	};
+	});
 }
 
 } // namespace Data

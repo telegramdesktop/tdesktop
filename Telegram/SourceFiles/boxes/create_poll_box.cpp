@@ -1044,7 +1044,7 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 	solution->setInstantReplaces(Ui::InstantReplaces::Default());
 	solution->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
-	solution->setMarkdownReplacesEnabled(rpl::single(true));
+	solution->setMarkdownReplacesEnabled(true);
 	solution->setEditLinkCallback(
 		DefaultEditLinkCallback(_controller->uiShow(), solution));
 	solution->customTab(true);

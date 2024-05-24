@@ -64,8 +64,6 @@ private:
 
 	base::Timer _hideAfterFullScreenTimer;
 
-	rpl::variable<bool> _canApplyMarkdown;
-
 	QMenuBar psMainMenu;
 	QAction *psLogout = nullptr;
 	QAction *psUndo = nullptr;

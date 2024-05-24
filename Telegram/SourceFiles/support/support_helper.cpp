@@ -88,7 +88,7 @@ EditInfoBox::EditInfoBox(
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
-	_field->setMarkdownReplacesEnabled(rpl::single(true));
+	_field->setMarkdownReplacesEnabled(true);
 	_field->setEditLinkCallback(
 		DefaultEditLinkCallback(controller->uiShow(), _field));
 }

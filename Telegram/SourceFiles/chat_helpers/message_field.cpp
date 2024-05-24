@@ -60,60 +60,43 @@ constexpr auto kTypesDuration = 4 * crl::time(1000);
 
 // For mention / custom emoji tags save and validate selfId,
 // ignore tags for different users.
-class FieldTagMimeProcessor final {
-public:
-	FieldTagMimeProcessor(
-		not_null<Main::Session*> _session,
-		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji);
-
-	QString operator()(QStringView mimeTag);
-
-private:
-	const not_null<Main::Session*> _session;
-	const Fn<bool(not_null<DocumentData*>)> _allowPremiumEmoji;
-
-};
-
-FieldTagMimeProcessor::FieldTagMimeProcessor(
-	not_null<Main::Session*> session,
-	Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji)
-: _session(session)
-, _allowPremiumEmoji(allowPremiumEmoji) {
-}
-
-QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
-	const auto id = _session->userId().bare;
-	auto all = TextUtilities::SplitTags(mimeTag);
-	auto premiumSkipped = (DocumentData*)nullptr;
-	for (auto i = all.begin(); i != all.end();) {
-		const auto tag = *i;
-		if (TextUtilities::IsMentionLink(tag)
-			&& TextUtilities::MentionNameDataToFields(tag).selfId != id) {
-			i = all.erase(i);
-			continue;
-		} else if (Ui::InputField::IsCustomEmojiLink(tag)) {
-			const auto data = Ui::InputField::CustomEmojiEntityData(tag);
-			const auto emoji = Data::ParseCustomEmojiData(data);
-			if (!emoji) {
+[[nodiscard]] Fn<QString(QStringView)> FieldTagMimeProcessor(
+		not_null<Main::Session*> session,
+		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
+	return [=](QStringView mimeTag) {
+		const auto id = session->userId().bare;
+		auto all = TextUtilities::SplitTags(mimeTag);
+		auto premiumSkipped = (DocumentData*)nullptr;
+		for (auto i = all.begin(); i != all.end();) {
+			const auto tag = *i;
+			if (TextUtilities::IsMentionLink(tag)
+				&& TextUtilities::MentionNameDataToFields(tag).selfId != id) {
 				i = all.erase(i);
 				continue;
-			} else if (!_session->premium()) {
-				const auto document = _session->data().document(emoji);
-				if (document->isPremiumEmoji()) {
-					if (!_allowPremiumEmoji
-						|| premiumSkipped
-						|| !_session->premiumPossible()
-						|| !_allowPremiumEmoji(document)) {
-						premiumSkipped = document;
-						i = all.erase(i);
-						continue;
+			} else if (Ui::InputField::IsCustomEmojiLink(tag)) {
+				const auto data = Ui::InputField::CustomEmojiEntityData(tag);
+				const auto emoji = Data::ParseCustomEmojiData(data);
+				if (!emoji) {
+					i = all.erase(i);
+					continue;
+				} else if (!session->premium()) {
+					const auto document = session->data().document(emoji);
+					if (document->isPremiumEmoji()) {
+						if (!allowPremiumEmoji
+							|| premiumSkipped
+							|| !session->premiumPossible()
+							|| !allowPremiumEmoji(document)) {
+							premiumSkipped = document;
+							i = all.erase(i);
+							continue;
+						}
 					}
 				}
 			}
+			++i;
 		}
-		++i;
-	}
-	return TextUtilities::JoinTag(all);
+		return TextUtilities::JoinTag(all);
+	};
 }
 
 //bool ValidateUrl(const QString &value) {
@@ -352,12 +335,48 @@ void InitMessageFieldHandlers(
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
-	field->setMarkdownReplacesEnabled(rpl::single(true));
+	field->setMarkdownReplacesEnabled(true);
 	if (show) {
 		field->setEditLinkCallback(
 			DefaultEditLinkCallback(show, field, fieldStyle));
 		InitSpellchecker(show, field, fieldStyle != nullptr);
 	}
+}
+
+Fn<void(not_null<Ui::InputField*>)> FactcheckFieldIniter(
+		std::shared_ptr<Main::SessionShow> show) {
+	Expects(show != nullptr);
+
+	return [=](not_null<Ui::InputField*> field) {
+		field->setTagMimeProcessor([](QStringView mimeTag) {
+			using Field = Ui::InputField;
+			auto all = TextUtilities::SplitTags(mimeTag);
+			for (auto i = all.begin(); i != all.end();) {
+				const auto tag = *i;
+				if (tag != Field::kTagBold
+					&& tag != Field::kTagItalic
+					&& (!Field::IsValidMarkdownLink(mimeTag)
+						|| TextUtilities::IsMentionLink(mimeTag))) {
+					i = all.erase(i);
+					continue;
+				}
+				++i;
+			}
+			return TextUtilities::JoinTag(all);
+		});
+		field->setInstantReplaces(Ui::InstantReplaces::Default());
+		field->setInstantReplacesEnabled(
+			Core::App().settings().replaceEmojiValue());
+		field->setMarkdownReplacesEnabled(rpl::single(
+			Ui::MarkdownEnabledState{
+				Ui::MarkdownEnabled{
+					{ Ui::InputField::kTagBold, Ui::InputField::kTagItalic }
+				}
+			}
+		));
+		field->setEditLinkCallback(DefaultEditLinkCallback(show, field));
+		InitSpellchecker(show, field);
+	};
 }
 
 void InitMessageFieldHandlers(
