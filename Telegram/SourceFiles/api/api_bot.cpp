@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "api/api_send_progress.h"
-#include "boxes/send_credits_box.h"
 #include "boxes/share_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/url_auth_box.h"
@@ -28,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -331,16 +331,13 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 	} break;
 
 	case ButtonType::Buy: {
-		if (Ui::IsCreditsInvoice(item)) {
-			// controller->uiShow()->show(Box(Ui::SendCreditsBox, item));
-		} else {
-			Payments::CheckoutProcess::Start(
-				item,
-				Payments::Mode::Payment,
-				crl::guard(controller, [=](auto) {
-					controller->widget()->activate();
-				}));
-		}
+		Payments::CheckoutProcess::Start(
+			item,
+			Payments::Mode::Payment,
+			crl::guard(controller, [=](auto) {
+				controller->widget()->activate();
+			}),
+			Payments::ProcessNonPanelPaymentFormFactory(controller, item));
 	} break;
 
 	case ButtonType::Url: {

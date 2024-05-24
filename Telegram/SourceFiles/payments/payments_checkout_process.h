@@ -71,11 +71,13 @@ public:
 	static void Start(
 		not_null<const HistoryItem*> item,
 		Mode mode,
-		Fn<void(CheckoutResult)> reactivate);
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess);
 	static void Start(
 		not_null<Main::Session*> session,
 		const QString &slug,
-		Fn<void(CheckoutResult)> reactivate);
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess);
 	static void Start(
 		InvoicePremiumGiftCode giftCodeInvoice,
 		Fn<void(CheckoutResult)> reactivate);
@@ -93,6 +95,7 @@ public:
 		InvoiceId id,
 		Mode mode,
 		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess,
 		PrivateTag);
 	~CheckoutProcess();
 
@@ -111,6 +114,7 @@ private:
 	static void UnregisterPaymentStart(not_null<CheckoutProcess*> process);
 
 	void setReactivateCallback(Fn<void(CheckoutResult)> reactivate);
+	void setNonPanelPaymentFormProcess(Fn<void(NonPanelPaymentForm)>);
 	void requestActivate();
 	void closeAndReactivate(CheckoutResult result);
 	void close();
@@ -173,6 +177,7 @@ private:
 	const std::unique_ptr<Ui::Panel> _panel;
 	QPointer<PasscodeBox> _enterPasswordBox;
 	Fn<void(CheckoutResult)> _reactivate;
+	Fn<void(NonPanelPaymentForm)> _nonPanelPaymentFormProcess;
 	SubmitState _submitState = SubmitState::None;
 	bool _initialSilentValidation = false;
 	bool _sendFormPending = false;

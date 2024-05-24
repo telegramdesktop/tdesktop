@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "payments/payments_checkout_process.h" // CheckoutProcess::Start.
+#include "payments/payments_non_panel_process.h" // ProcessNonPanelPaymentFormFactory.
 #include "platform/platform_notifications_manager.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "styles/style_dialogs.h"
@@ -3950,7 +3951,10 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 				CheckoutProcess::Start(
 					item,
 					Mode::Receipt,
-					crl::guard(weak, [=](auto) { weak->window().activate(); }));
+					crl::guard(weak, [=](auto) { weak->window().activate(); }),
+					Payments::ProcessNonPanelPaymentFormFactory(
+						weak.get(),
+						item));
 			}
 		});
 	} else if (type == mtpc_messageActionGroupCall

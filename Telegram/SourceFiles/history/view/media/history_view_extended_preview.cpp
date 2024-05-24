@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "data/data_session.h"
 #include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 #include "core/click_handler_types.h"
@@ -41,7 +42,12 @@ namespace {
 				? crl::guard(
 					controller,
 					[=](auto) { controller->widget()->activate(); })
-				: Fn<void(Payments::CheckoutResult)>()));
+				: Fn<void(Payments::CheckoutResult)>()),
+			(controller
+				? Payments::ProcessNonPanelPaymentFormFactory(
+					controller,
+					item)
+				: nullptr));
 	});
 }
 
