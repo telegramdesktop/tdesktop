@@ -414,11 +414,13 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		if (_nonPanelPaymentFormProcess) {
 			_nonPanelPaymentFormProcess(
 				std::make_shared<CreditsFormData>(data.data));
+			close();
 		}
 	}, [&](const CreditsReceiptReady &data) {
 		if (_nonPanelPaymentFormProcess) {
 			_nonPanelPaymentFormProcess(
 				std::make_shared<CreditsReceiptData>(data.data));
+			close();
 		}
 	}, [&](const Error &error) {
 		handleError(error);

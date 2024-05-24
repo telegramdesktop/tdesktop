@@ -2324,6 +2324,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_history_entry_id_copied" = "Transaction ID copied to clipboard.";
 "lng_credits_box_history_entry_about" = "You can dispute this transaction {link}.";
 "lng_credits_box_history_entry_about_link" = "here";
+"lng_credits_small_balance_title#one" = "{count} Star Needed";
+"lng_credits_small_balance_title#other" = "{count} Stars Needed";
+"lng_credits_small_balance_about" = "Buy **Stars** and use them on **{bot}** and other miniapps.";
 
 "lng_location_title" = "Location";
 "lng_location_about" = "Display the location of your business on your account.";

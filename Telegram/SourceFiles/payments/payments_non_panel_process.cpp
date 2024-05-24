@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "payments/payments_non_panel_process.h"
 
+#include "api/api_credits.h"
 #include "base/unixtime.h"
 #include "boxes/send_credits_box.h"
 #include "data/data_credits.h"
 #include "data/data_photo.h"
+#include "data/data_user.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "main/main_session.h"
 #include "payments/payments_checkout_process.h" // NonPanelPaymentForm.
 #include "payments/payments_form.h"
 #include "settings/settings_credits_graphics.h"
@@ -40,7 +43,34 @@ Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 		using CreditsFormDataPtr = std::shared_ptr<CreditsFormData>;
 		using CreditsReceiptPtr = std::shared_ptr<CreditsReceiptData>;
 		if (const auto creditsData = std::get_if<CreditsFormDataPtr>(&form)) {
-			controller->uiShow()->show(Box(Ui::SendCreditsBox, *creditsData));
+			const auto form = *creditsData;
+			const auto lifetime = std::make_shared<rpl::lifetime>();
+			const auto api = lifetime->make_state<Api::CreditsStatus>(
+				controller->session().user());
+			const auto sendBox = [=, weak = base::make_weak(controller)] {
+				if (const auto strong = weak.get()) {
+					controller->uiShow()->show(Box(Ui::SendCreditsBox, form));
+				}
+			};
+			const auto weak = base::make_weak(controller);
+			api->request({}, [=](Data::CreditsStatusSlice slice) {
+				if (const auto strong = weak.get()) {
+					strong->session().setCredits(slice.balance);
+					const auto creditsNeeded = int64(form->invoice.credits)
+						- int64(slice.balance);
+					if (creditsNeeded <= 0) {
+						sendBox();
+					} else {
+						strong->uiShow()->show(Box(
+							Settings::SmallBalanceBox,
+							strong,
+							creditsNeeded,
+							form->botId,
+							sendBox));
+					}
+				}
+				lifetime->destroy();
+			});
 		}
 		if (const auto r = std::get_if<CreditsReceiptPtr>(&form)) {
 			const auto receipt = *r;

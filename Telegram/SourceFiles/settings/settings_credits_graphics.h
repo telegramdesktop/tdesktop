@@ -33,6 +33,7 @@ namespace Settings {
 void FillCreditOptions(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container,
+	int minCredits,
 	Fn<void()> paid);
 
 [[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
@@ -50,6 +51,13 @@ void ReceiptCreditsBox(
 	not_null<Ui::RpWidget*> parent,
 	not_null<PhotoData*> photo,
 	int photoSize);
+
+void SmallBalanceBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller,
+	int creditsNeeded,
+	UserId botId,
+	Fn<void()> paid);
 
 } // namespace Settings
 

@@ -166,6 +166,7 @@ QImage GenerateStars(int height, int count) {
 void FillCreditOptions(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
+		int minCredits,
 		Fn<void()> paid) {
 	const auto options = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -193,6 +194,9 @@ void FillCreditOptions(
 		const auto buttonHeight = st.height + rect::m::sum::v(st.padding);
 		for (auto i = 0; i < options.size(); i++) {
 			const auto &option = options[i];
+			if (option.credits < minCredits) {
+				continue;
+			}
 			const auto button = content->add(object_ptr<Ui::SettingsButton>(
 				content,
 				rpl::never<QString>(),
@@ -534,6 +538,84 @@ object_ptr<Ui::RpWidget> HistoryEntryPhoto(
 	}, widget->lifetime());
 
 	return owned;
+}
+
+void SmallBalanceBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		int creditsNeeded,
+		UserId botId,
+		Fn<void()> paid) {
+	box->setWidth(st::boxWideWidth);
+	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	const auto done = [=] {
+		box->closeBox();
+		paid();
+	};
+
+	const auto bot = controller->session().data().user(botId).get();
+
+	const auto content = [&]() -> Ui::Premium::TopBarAbstract* {
+		const auto weak = base::make_weak(controller);
+		const auto clickContextOther = [=] {
+			return QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = weak,
+				.botStartAutoSubmit = true,
+			});
+		};
+		return box->setPinnedToTopContent(object_ptr<Ui::Premium::TopBar>(
+			box,
+			st::creditsLowBalancePremiumCover,
+			Ui::Premium::TopBarDescriptor{
+				.clickContextOther = clickContextOther,
+				.title = tr::lng_credits_small_balance_title(
+					lt_count,
+					rpl::single(creditsNeeded) | tr::to_count()),
+				.about = tr::lng_credits_small_balance_about(
+					lt_bot,
+					rpl::single(TextWithEntities{ bot->name() }),
+					Ui::Text::RichLangValue),
+				.light = true,
+				.gradientStops = Ui::Premium::CreditsIconGradientStops(),
+			}));
+	}();
+
+	FillCreditOptions(controller, box->verticalLayout(), creditsNeeded, done);
+
+	content->setMaximumHeight(st::creditsLowBalancePremiumCoverHeight);
+	content->setMinimumHeight(st::infoLayerTopBarHeight);
+
+	content->resize(content->width(), content->maximumHeight());
+	content->additionalHeight(
+	) | rpl::start_with_next([=](int additionalHeight) {
+		const auto wasMax = (content->height() == content->maximumHeight());
+		content->setMaximumHeight(st::creditsLowBalancePremiumCoverHeight
+			+ additionalHeight);
+		if (wasMax) {
+			content->resize(content->width(), content->maximumHeight());
+		}
+	}, content->lifetime());
+
+	{
+		const auto balance = AddBalanceWidget(
+			content,
+			controller->session().creditsValue(),
+			true);
+		const auto api = balance->lifetime().make_state<Api::CreditsStatus>(
+			controller->session().user());
+		api->request({}, [=](Data::CreditsStatusSlice slice) {
+			controller->session().setCredits(slice.balance);
+		});
+		rpl::combine(
+			balance->sizeValue(),
+			content->sizeValue()
+		) | rpl::start_with_next([=](const QSize &, const QSize &) {
+			balance->moveToRight(
+				st::creditsHistoryRightSkip * 2,
+				st::creditsHistoryRightSkip);
+			balance->update();
+		}, balance->lifetime());
+	}
 }
 
 } // namespace Settings

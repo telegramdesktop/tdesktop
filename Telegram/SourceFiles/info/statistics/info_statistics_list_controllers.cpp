@@ -868,7 +868,7 @@ CreditsController::CreditsController(CreditsDescriptor d)
 , _premiumBot(d.premiumBot)
 , _entryClickedCallback(std::move(d.entryClickedCallback))
 , _creditIcon(d.creditIcon)
-, _api(d.premiumBot, d.in, d.out)
+, _api(d.premiumBot->session().user(), d.in, d.out)
 , _firstSlice(std::move(d.firstSlice)) {
 	PeerListController::setStyleOverrides(&st::boostsListBox);
 }
