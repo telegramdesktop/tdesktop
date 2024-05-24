@@ -471,6 +471,17 @@ void Form::processReceipt(const MTPDpayments_paymentReceipt &data) {
 	_updates.fire(FormReady{});
 }
 
+void Form::processReceipt(const MTPDpayments_paymentReceiptStars &data) {
+	_session->data().processUsers(data.vusers());
+
+	data.vinvoice().match([&](const auto &data) {
+		processInvoice(data);
+	});
+	processDetails(data);
+	fillPaymentMethodInformation();
+	_updates.fire(FormReady{});
+}
+
 void Form::processInvoice(const MTPDinvoice &data) {
 	const auto suggested = data.vsuggested_tip_amounts().value_or_empty();
 	_invoice = Ui::Invoice{
@@ -564,6 +575,37 @@ void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
 	_details = FormDetails{
 		.botId = data.vbot_id().v,
 		.providerId = data.vprovider_id().v,
+	};
+	if (_invoice.cover.title.isEmpty()
+		&& _invoice.cover.description.empty()
+		&& _invoice.cover.thumbnail.isNull()
+		&& !_thumbnailLoadProcess) {
+		_invoice.cover = Ui::Cover{
+			.title = qs(data.vtitle()),
+			.description = { qs(data.vdescription()) },
+		};
+		if (const auto web = data.vphoto()) {
+			if (const auto photo = _session->data().photoFromWeb(*web, {})) {
+				loadThumbnail(photo);
+			}
+		}
+	}
+	if (_details.botId) {
+		if (const auto bot = _session->data().userLoaded(_details.botId)) {
+			_invoice.cover.seller = bot->name();
+		}
+	}
+}
+
+void Form::processDetails(const MTPDpayments_paymentReceiptStars &data) {
+	_invoice.receipt = Ui::Receipt{
+		.date = data.vdate().v,
+		.totalAmount = ParsePriceAmount(data.vtotal_amount().v),
+		.currency = qs(data.vcurrency()),
+		.paid = true,
+	};
+	_details = FormDetails{
+		.botId = data.vbot_id().v,
 	};
 	if (_invoice.cover.title.isEmpty()
 		&& _invoice.cover.description.empty()

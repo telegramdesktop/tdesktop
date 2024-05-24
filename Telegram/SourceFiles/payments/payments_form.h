@@ -301,9 +301,11 @@ private:
 	void requestReceipt();
 	void processForm(const MTPpayments_PaymentForm &result);
 	void processReceipt(const MTPDpayments_paymentReceipt &data);
+	void processReceipt(const MTPDpayments_paymentReceiptStars &data);
 	void processInvoice(const MTPDinvoice &data);
 	void processDetails(const MTPpayments_PaymentForm &result);
 	void processDetails(const MTPDpayments_paymentReceipt &data);
+	void processDetails(const MTPDpayments_paymentReceiptStars &data);
 	void processSavedInformation(const MTPDpaymentRequestedInfo &data);
 	void processAdditionalPaymentMethods(
 		const QVector<MTPPaymentFormMethod> &list);
