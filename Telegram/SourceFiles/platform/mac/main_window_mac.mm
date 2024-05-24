@@ -63,6 +63,26 @@ namespace {
 // fullscreen mode, after that we'll hide the window no matter what.
 constexpr auto kHideAfterFullscreenTimeoutMs = 3000;
 
+[[nodiscard]] bool PossiblyTextTypingEvent(NSEvent *e) {
+	if ([e type] != NSEventTypeKeyDown) {
+		return false;
+	}
+	NSEventModifierFlags flags = [e modifierFlags]
+		& NSEventModifierFlagDeviceIndependentFlagsMask;
+	if ((flags & ~NSEventModifierFlagShift) != 0) {
+		return false;
+	}
+	NSString *text = [e characters];
+	const auto length = int([text length]);
+	for (auto i = 0; i != length; ++i) {
+		const auto utf16 = [text characterAtIndex:i];
+		if (utf16 >= 32) {
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace
 
 class MainWindow::Private {
@@ -278,6 +298,21 @@ void MainWindow::initHook() {
 }
 
 void MainWindow::updateWindowIcon() {
+}
+
+bool MainWindow::nativeEvent(
+		const QByteArray &eventType,
+		void *message,
+		qintptr *result) {
+	if (message && eventType == "NSEvent") {
+		const auto event = static_cast<NSEvent*>(message);
+		if (PossiblyTextTypingEvent(event)) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				imeCompositionStartReceived();
+			});
+		}
+	}
+	return false;
 }
 
 void MainWindow::hideAndDeactivate() {

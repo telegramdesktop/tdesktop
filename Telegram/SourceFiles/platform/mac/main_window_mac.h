@@ -20,8 +20,6 @@ class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
-	bool psFilterNativeEvent(void *event);
-
 	int getCustomTitleHeight() const {
 		return _customTitleHeight;
 	}
@@ -46,6 +44,11 @@ protected:
 
 private:
 	friend class Private;
+
+	bool nativeEvent(
+		const QByteArray &eventType,
+		void *message,
+		qintptr *result) override;
 
 	void hideAndDeactivate();
 	void updateDockCounter();
