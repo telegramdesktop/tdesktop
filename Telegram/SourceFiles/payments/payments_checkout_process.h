@@ -40,6 +40,7 @@ struct Error;
 struct InvoiceCredits;
 struct InvoiceId;
 struct InvoicePremiumGiftCode;
+struct CreditsFormData;
 
 enum class Mode {
 	Payment,
@@ -51,6 +52,10 @@ enum class CheckoutResult {
 	Pending,
 	Cancelled,
 	Failed,
+};
+
+struct NonPanelPaymentForm : std::variant<std::shared_ptr<CreditsFormData>> {
+	using variant::variant;
 };
 
 struct PaidInvoice {

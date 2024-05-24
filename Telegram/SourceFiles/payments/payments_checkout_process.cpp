@@ -381,6 +381,7 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		if (weak) {
 			closeAndReactivate(CheckoutResult::Paid);
 		}
+	}, [&](const CreditsPaymentStarted &data) {
 	}, [&](const Error &error) {
 		handleError(error);
 	});

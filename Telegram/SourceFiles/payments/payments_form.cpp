@@ -376,7 +376,42 @@ void Form::requestForm() {
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		hideProgress();
-		processForm(result);
+		result.match([&](const MTPDpayments_paymentForm &data) {
+			processForm(result);
+		}, [&](const MTPDpayments_paymentFormStars &data) {
+			_session->data().processUsers(data.vusers());
+			const auto currency = qs(data.vinvoice().data().vcurrency());
+			const auto &tlPrices = data.vinvoice().data().vprices().v;
+			const auto amount = tlPrices.empty()
+				? 0
+				: tlPrices.front().data().vamount().v;
+			if (currency != "XTR" || !amount) {
+				using Type = Error::Type;
+				_updates.fire(Error{ Type::Form, u"Bad Stars Form."_q });
+				return;
+			}
+			const auto invoice = InvoiceCredits{
+				.session = _session,
+				.randomId = 0,
+				.credits = amount,
+				.currency = currency,
+				.amount = amount,
+			};
+			const auto formData = CreditsFormData{
+				.formId = data.vform_id().v,
+				.botId = data.vbot_id().v,
+				.title = qs(data.vtitle()),
+				.description = qs(data.vdescription()),
+				.photo = data.vphoto()
+					? _session->data().photoFromWeb(
+						*data.vphoto(),
+						ImageLocation())
+					: nullptr,
+				.invoice = invoice,
+				.inputInvoice = inputInvoice(),
+			};
+			_updates.fire(CreditsPaymentStarted{ .data = formData });
+		});
 	}).fail([=](const MTP::Error &error) {
 		hideProgress();
 		_updates.fire(Error{ Error::Type::Form, error.type() });

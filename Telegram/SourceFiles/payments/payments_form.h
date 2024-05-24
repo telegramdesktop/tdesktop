@@ -120,63 +120,6 @@ struct PaymentMethod {
 	Ui::PaymentMethodDetails ui;
 };
 
-struct ToggleProgress {
-	bool shown = true;
-};
-struct FormReady {};
-struct ThumbnailUpdated {
-	QImage thumbnail;
-};
-struct ValidateFinished {};
-struct PaymentMethodUpdate {
-	bool requestNewPassword = false;
-};
-struct VerificationNeeded {
-	QString url;
-};
-struct TmpPasswordRequired {};
-struct BotTrustRequired {
-	not_null<UserData*> bot;
-	not_null<UserData*> provider;
-};
-struct PaymentFinished {
-	MTPUpdates updates;
-};
-struct Error {
-	enum class Type {
-		None,
-		Form,
-		Validate,
-		Stripe,
-		SmartGlocal,
-		TmpPassword,
-		Send,
-	};
-	Type type = Type::None;
-	QString id;
-
-	[[nodiscard]] bool empty() const {
-		return (type == Type::None);
-	}
-	[[nodiscard]] explicit operator bool() const {
-		return !empty();
-	}
-};
-
-struct FormUpdate : std::variant<
-	ToggleProgress,
-	FormReady,
-	ThumbnailUpdated,
-	ValidateFinished,
-	PaymentMethodUpdate,
-	VerificationNeeded,
-	TmpPasswordRequired,
-	BotTrustRequired,
-	PaymentFinished,
-	Error> {
-	using variant::variant;
-};
-
 struct InvoiceMessage {
 	not_null<PeerData*> peer;
 	MsgId itemId = 0;
@@ -232,6 +175,77 @@ struct InvoiceId {
 		InvoiceSlug,
 		InvoicePremiumGiftCode,
 		InvoiceCredits> value;
+};
+
+struct CreditsFormData {
+	uint64 formId = 0;
+	uint64 botId = 0;
+	QString title;
+	QString description;
+	PhotoData *photo = nullptr;
+	InvoiceCredits invoice;
+	MTPInputInvoice inputInvoice;
+};
+
+struct ToggleProgress {
+	bool shown = true;
+};
+struct FormReady {};
+struct ThumbnailUpdated {
+	QImage thumbnail;
+};
+struct ValidateFinished {};
+struct PaymentMethodUpdate {
+	bool requestNewPassword = false;
+};
+struct VerificationNeeded {
+	QString url;
+};
+struct TmpPasswordRequired {};
+struct BotTrustRequired {
+	not_null<UserData*> bot;
+	not_null<UserData*> provider;
+};
+struct PaymentFinished {
+	MTPUpdates updates;
+};
+struct CreditsPaymentStarted {
+	CreditsFormData data;
+};
+struct Error {
+	enum class Type {
+		None,
+		Form,
+		Validate,
+		Stripe,
+		SmartGlocal,
+		TmpPassword,
+		Send,
+	};
+	Type type = Type::None;
+	QString id;
+
+	[[nodiscard]] bool empty() const {
+		return (type == Type::None);
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
+};
+
+struct FormUpdate : std::variant<
+	ToggleProgress,
+	FormReady,
+	ThumbnailUpdated,
+	ValidateFinished,
+	PaymentMethodUpdate,
+	VerificationNeeded,
+	TmpPasswordRequired,
+	BotTrustRequired,
+	PaymentFinished,
+	CreditsPaymentStarted,
+	Error> {
+	using variant::variant;
 };
 
 [[nodiscard]] not_null<Main::Session*> SessionFromId(const InvoiceId &id);
