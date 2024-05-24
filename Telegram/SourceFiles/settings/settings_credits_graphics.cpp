@@ -15,9 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
+#include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "payments/payments_checkout_process.h"
+#include "payments/payments_form.h"
 #include "settings/settings_common_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/boost_box.h" // Ui::StartFireworks.
 #include "ui/controls/userpic_button.h"
@@ -28,12 +32,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
@@ -41,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
+#include "styles/style_statistics.h"
 
 #include <xxhash.h> // XXH64.
 
@@ -48,6 +58,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 namespace {
+
+[[nodiscard]] uint64 UniqueIdFromOption(
+		const Data::CreditTopupOption &d) {
+	const auto string = QString::number(d.credits)
+		+ d.product
+		+ d.currency
+		+ QString::number(d.amount);
+
+	return XXH64(string.data(), string.size() * sizeof(ushort), 0);
+}
 
 class Balance final
 	: public Ui::RpWidget
@@ -141,6 +161,134 @@ QImage GenerateStars(int height, int count) {
 		}
 	}
 	return frame;
+}
+
+void FillCreditOptions(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void()> paid) {
+	const auto options = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto content = options->entity();
+
+	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
+
+	const auto singleStarWidth = GenerateStars(
+		st::creditsTopupButton.height,
+		1).width() / style::DevicePixelRatio();
+
+	const auto fill = [=](Data::CreditTopupOptions options) {
+		while (content->count()) {
+			delete content->widgetAt(0);
+		}
+		Ui::AddSubsectionTitle(
+			content,
+			tr::lng_credits_summary_options_subtitle());
+		const auto &st = st::creditsTopupButton;
+		const auto diffBetweenTextAndStar = st.padding.left()
+			- st.iconLeft
+			- singleStarWidth;
+		const auto buttonHeight = st.height + rect::m::sum::v(st.padding);
+		for (auto i = 0; i < options.size(); i++) {
+			const auto &option = options[i];
+			const auto button = content->add(object_ptr<Ui::SettingsButton>(
+				content,
+				rpl::never<QString>(),
+				st));
+			const auto text = button->lifetime().make_state<Ui::Text::String>(
+				st.style,
+				tr::lng_credits_summary_options_credits(
+					tr::now,
+					lt_count_decimal,
+					option.credits));
+			const auto price = Ui::CreateChild<Ui::FlatLabel>(
+				button,
+				Ui::FillAmountAndCurrency(option.amount, option.currency),
+				st::creditsTopupPrice);
+			const auto inner = Ui::CreateChild<Ui::RpWidget>(button);
+			const auto stars = GenerateStars(st.height, (i + 1));
+			inner->paintRequest(
+			) | rpl::start_with_next([=](const QRect &rect) {
+				auto p = QPainter(inner);
+				p.drawImage(
+					0,
+					(buttonHeight - stars.height()) / 2,
+					stars);
+				const auto textLeft = diffBetweenTextAndStar
+					+ stars.width() / style::DevicePixelRatio();
+				p.setPen(st.textFg);
+				text->draw(p, {
+					.position = QPoint(textLeft, 0),
+					.availableWidth = inner->width() - textLeft,
+				});
+			}, inner->lifetime());
+			button->sizeValue(
+			) | rpl::start_with_next([=](const QSize &size) {
+				price->moveToRight(st.padding.right(), st.padding.top());
+				inner->moveToLeft(st.iconLeft, st.padding.top());
+				inner->resize(
+					size.width()
+						- rect::m::sum::h(st.padding)
+						- price->width(),
+					buttonHeight);
+			}, button->lifetime());
+			button->setClickedCallback([=] {
+				const auto invoice = Payments::InvoiceCredits{
+					.session = &controller->session(),
+					.randomId = UniqueIdFromOption(option),
+					.credits = option.credits,
+					.product = option.product,
+					.currency = option.currency,
+					.amount = option.amount,
+					.extended = option.extended,
+				};
+
+				const auto weak = Ui::MakeWeak(button);
+				const auto done = [=](Payments::CheckoutResult result) {
+					if (const auto strong = weak.data()) {
+						strong->window()->setFocus();
+						if (result == Payments::CheckoutResult::Paid) {
+							if (paid) {
+								paid();
+							}
+						}
+					}
+				};
+
+				Payments::CheckoutProcess::Start(std::move(invoice), done);
+			});
+			Ui::ToggleChildrenVisibility(button, true);
+		}
+
+		// Footer.
+		{
+			auto text = tr::lng_credits_summary_options_about(
+				lt_link,
+				tr::lng_credits_summary_options_about_link(
+				) | rpl::map([](const QString &t) {
+					using namespace Ui::Text;
+					return Link(t, u"https://telegram.org/tos"_q);
+				}),
+				Ui::Text::RichLangValue);
+			Ui::AddSkip(content);
+			Ui::AddDividerText(content, std::move(text));
+		}
+
+		content->resizeToWidth(container->width());
+	};
+
+	using ApiOptions = Api::CreditsTopupOptions;
+	const auto apiCredits = content->lifetime().make_state<ApiOptions>(
+		controller->session().user());
+
+	apiCredits->request(
+	) | rpl::start_with_error_done([=](const QString &error) {
+		controller->showToast(error);
+	}, [=] {
+		fill(apiCredits->options());
+	}, content->lifetime());
 }
 
 not_null<Ui::RpWidget*> AddBalanceWidget(

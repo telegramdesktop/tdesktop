@@ -23,11 +23,17 @@ class SessionController;
 namespace Ui {
 class GenericBox;
 class RpWidget;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Settings {
 
 [[nodiscard]] QImage GenerateStars(int height, int count);
+
+void FillCreditOptions(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::VerticalLayout*> container,
+	Fn<void()> paid);
 
 [[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
 	not_null<Ui::RpWidget*> parent,
