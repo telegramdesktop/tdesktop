@@ -477,7 +477,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 
 			const auto &stUser = st::boostReplaceUserpic;
 			const auto peer = e.bareId
-				? _controller->session().data().peer(PeerId(e.bareId))
+				? _controller->session().data().peer(PeerId(e.bareId)).get()
 				: nullptr;
 			if (peer) {
 				content->add(object_ptr<Ui::CenterWrap<>>(
