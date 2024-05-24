@@ -1,3 +1,16 @@
+5.0.2 (24.05.24)
+
+- Toggle chats search focus by Tab key.
+- Unfocus empty search by Backspace key.
+- Add a spoiler to already sent media when editing.
+- Forward by drag-n-drop to frequent contacts / recent searches.
+- Allow wide chats list in empty window with narrow list when a chat is opened.
+- Improve custom font support in the input fields.
+- Fix input method typing from unfocused search.
+- Fix possible media reordering on batch send.
+- Fix crash in group emoji set saving.
+- Fix possible hang on quit on macOS.
+
 5.0.1 (04.05.24)
 
 - Fix several crashes in new interfaces.
