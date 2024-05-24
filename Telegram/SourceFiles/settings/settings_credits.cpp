@@ -465,120 +465,12 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		}, inner->lifetime());
 
 		const auto controller = _controller->parentController();
-		const auto entryBox = [=](
-				not_null<Ui::GenericBox*> box,
-				const Data::CreditsHistoryEntry &e) {
-			box->setStyle(st::giveawayGiftCodeBox);
-			box->setNoContentMargin(true);
-
-			const auto content = box->verticalLayout();
-			Ui::AddSkip(content);
-			Ui::AddSkip(content);
-			Ui::AddSkip(content);
-
-			using Type = Data::CreditsHistoryEntry::PeerType;
-
-			const auto &stUser = st::boostReplaceUserpic;
-			const auto peer = (e.peerType == Type::PremiumBot)
-				? premiumBot.get()
-				: e.bareId
-				? _controller->session().data().peer(PeerId(e.bareId)).get()
-				: nullptr;
-			if (peer) {
-				content->add(object_ptr<Ui::CenterWrap<>>(
-					content,
-					object_ptr<Ui::UserpicButton>(content, peer, stUser)));
-			} else {
-				const auto widget = content->add(
-					object_ptr<Ui::CenterWrap<>>(
-						content,
-						object_ptr<Ui::RpWidget>(content)))->entity();
-				using Draw = Fn<void(Painter &, int, int, int, int)>;
-				const auto draw = widget->lifetime().make_state<Draw>(
-					Ui::GenerateCreditsPaintUserpicCallback(e));
-				widget->resize(Size(stUser.photoSize));
-				widget->paintRequest(
-				) | rpl::start_with_next([=] {
-					auto p = Painter(widget);
-					(*draw)(p, 0, 0, stUser.photoSize, stUser.photoSize);
-				}, widget->lifetime());
-			}
-
-			Ui::AddSkip(content);
-			Ui::AddSkip(content);
-
-
-			box->addRow(object_ptr<Ui::CenterWrap<>>(
-				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					rpl::single(peer
-						? peer->name()
-						: Ui::GenerateEntryName(e).text),
-					st::creditsBoxAboutTitle)));
-
-			Ui::AddSkip(content);
-
-			{
-				constexpr auto kMinus = QChar(0x2212);
-				auto &lifetime = content->lifetime();
-				const auto text = lifetime.make_state<Ui::Text::String>(
-					st::semiboldTextStyle,
-					(!e.bareId ? QChar('+') : kMinus)
-						+ Lang::FormatCountDecimal(e.credits));
-
-				const auto amount = content->add(
-					object_ptr<Ui::FixedHeightWidget>(
-						content,
-						_star.height() / style::DevicePixelRatio()));
-				const auto font = text->style()->font;
-				amount->paintRequest(
-				) | rpl::start_with_next([=] {
-					auto p = Painter(amount);
-					const auto starWidth = _star.width()
-						/ style::DevicePixelRatio();
-					const auto fullWidth = text->maxWidth()
-						+ font->spacew * 2
-						+ starWidth;
-					p.setPen(!e.bareId
-						? st::boxTextFgGood
-						: st::menuIconAttentionColor);
-					const auto x = (amount->width() - fullWidth) / 2;
-					text->draw(p, Ui::Text::PaintContext{
-						.position = QPoint(
-							x,
-							(amount->height() - font->height) / 2),
-						.outerWidth = amount->width(),
-						.availableWidth = amount->width(),
-					});;
-					p.drawImage(
-						x + fullWidth - starWidth,
-						0,
-						_star);
-				}, amount->lifetime());
-			}
-
-			Ui::AddSkip(content);
-			Ui::AddSkip(content);
-
-			AddCreditsHistoryEntryTable(
-				controller,
-				box->verticalLayout(),
-				e);
-
-			const auto button = box->addButton(tr::lng_box_ok(), [=] {
-				box->closeBox();
-			});
-			const auto buttonWidth = st::boxWidth
-				- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
-			button->widthValue() | rpl::filter([=] {
-				return (button->widthNoMargins() != buttonWidth);
-			}) | rpl::start_with_next([=] {
-				button->resizeToWidth(buttonWidth);
-			}, button->lifetime());
-		};
 		const auto entryClicked = [=](const Data::CreditsHistoryEntry &e) {
-			controller->uiShow()->show(Box(entryBox, e));
+			controller->uiShow()->show(Box(
+				ReceiptCreditsBox,
+				controller,
+				premiumBot.get(),
+				e));
 		};
 
 		Info::Statistics::AddCreditsHistoryList(
@@ -845,6 +737,123 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 			*balanceStar);
 	}, balance->lifetime());
 	return balance;
+}
+
+void ReceiptCreditsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		PeerData *premiumBot,
+		const Data::CreditsHistoryEntry &e) {
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	const auto star = GenerateStars(st::creditsTopupButton.height, 1);
+
+	const auto content = box->verticalLayout();
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	using Type = Data::CreditsHistoryEntry::PeerType;
+
+	const auto &stUser = st::boostReplaceUserpic;
+	const auto peer = (e.peerType == Type::PremiumBot)
+		? premiumBot
+		: e.bareId
+		? controller->session().data().peer(PeerId(e.bareId)).get()
+		: nullptr;
+	if (peer) {
+		content->add(object_ptr<Ui::CenterWrap<>>(
+			content,
+			object_ptr<Ui::UserpicButton>(content, peer, stUser)));
+	} else {
+		const auto widget = content->add(
+			object_ptr<Ui::CenterWrap<>>(
+				content,
+				object_ptr<Ui::RpWidget>(content)))->entity();
+		using Draw = Fn<void(Painter &, int, int, int, int)>;
+		const auto draw = widget->lifetime().make_state<Draw>(
+			Ui::GenerateCreditsPaintUserpicCallback(e));
+		widget->resize(Size(stUser.photoSize));
+		widget->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = Painter(widget);
+			(*draw)(p, 0, 0, stUser.photoSize, stUser.photoSize);
+		}, widget->lifetime());
+	}
+
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+
+	box->addRow(object_ptr<Ui::CenterWrap<>>(
+		box,
+		object_ptr<Ui::FlatLabel>(
+			box,
+			rpl::single(peer
+				? peer->name()
+				: Ui::GenerateEntryName(e).text),
+			st::creditsBoxAboutTitle)));
+
+	Ui::AddSkip(content);
+
+	{
+		constexpr auto kMinus = QChar(0x2212);
+		auto &lifetime = content->lifetime();
+		const auto text = lifetime.make_state<Ui::Text::String>(
+			st::semiboldTextStyle,
+			(!e.bareId ? QChar('+') : kMinus)
+				+ Lang::FormatCountDecimal(e.credits));
+
+		const auto amount = content->add(
+			object_ptr<Ui::FixedHeightWidget>(
+				content,
+				star.height() / style::DevicePixelRatio()));
+		const auto font = text->style()->font;
+		amount->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = Painter(amount);
+			const auto starWidth = star.width()
+				/ style::DevicePixelRatio();
+			const auto fullWidth = text->maxWidth()
+				+ font->spacew * 2
+				+ starWidth;
+			p.setPen(!e.bareId
+				? st::boxTextFgGood
+				: st::menuIconAttentionColor);
+			const auto x = (amount->width() - fullWidth) / 2;
+			text->draw(p, Ui::Text::PaintContext{
+				.position = QPoint(
+					x,
+					(amount->height() - font->height) / 2),
+				.outerWidth = amount->width(),
+				.availableWidth = amount->width(),
+			});;
+			p.drawImage(
+				x + fullWidth - starWidth,
+				0,
+				star);
+		}, amount->lifetime());
+	}
+
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	AddCreditsHistoryEntryTable(
+		controller,
+		box->verticalLayout(),
+		e);
+
+	const auto button = box->addButton(tr::lng_box_ok(), [=] {
+		box->closeBox();
+	});
+	const auto buttonWidth = st::boxWidth
+		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
+	button->widthValue() | rpl::filter([=] {
+		return (button->widthNoMargins() != buttonWidth);
+	}) | rpl::start_with_next([=] {
+		button->resizeToWidth(buttonWidth);
+	}, button->lifetime());
 }
 
 } // namespace Settings
