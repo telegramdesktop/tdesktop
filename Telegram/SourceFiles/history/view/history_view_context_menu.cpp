@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "ui/boxes/edit_factcheck_box.h"
 #include "ui/boxes/report_box.h"
 #include "ui/ui_utility.h"
 #include "menu/menu_item_download_files.h"
@@ -53,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/translate_box.h"
+#include "data/components/factchecks.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_document.h"
@@ -713,6 +715,31 @@ bool AddEditMessageAction(
 	return true;
 }
 
+void AddFactcheckAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!item || !item->history()->session().factchecks().canEdit(item)) {
+		return;
+	}
+	const auto itemId = item->fullId();
+	const auto text = item->factcheckText();
+	const auto session = &item->history()->session();
+	const auto phrase = text.empty()
+		? tr::lng_context_add_factcheck(tr::now)
+		: tr::lng_context_edit_factcheck(tr::now);
+	menu->addAction(phrase, [=] {
+		const auto limit = session->factchecks().lengthLimit();
+		const auto controller = request.navigation->parentController();
+		controller->show(Box(EditFactcheckBox, text, limit, [=](
+			TextWithEntities result) {
+			const auto show = controller->uiShow();
+			session->factchecks().save(itemId, text, result, show);
+		}));
+	}, &st::menuIconFactcheck);
+}
+
 bool AddPinMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
@@ -972,6 +999,7 @@ void AddTopMessageActions(
 	AddGoToMessageAction(menu, request, list);
 	AddViewRepliesAction(menu, request, list);
 	AddEditMessageAction(menu, request, list);
+	AddFactcheckAction(menu, request, list);
 	AddPinMessageAction(menu, request, list);
 }
 

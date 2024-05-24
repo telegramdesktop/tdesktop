@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "ui/layers/show.h"
 
 namespace Data {
 namespace {
@@ -194,6 +195,22 @@ void Factchecks::save(
 			done(error.type());
 		}).send();
 	}
+}
+
+void Factchecks::save(
+		FullMsgId itemId,
+		TextWithEntities was,
+		TextWithEntities text,
+		std::shared_ptr<Ui::Show> show) {
+	const auto done = [=](QString error) {
+		show->showToast(!error.isEmpty()
+			? error
+			: was.empty()
+			? tr::lng_factcheck_remove_done(tr::now)
+			: text.empty()
+			? tr::lng_factcheck_add_done(tr::now)
+			: tr::lng_factcheck_edit_done(tr::now));
+	};
 }
 
 } // namespace Data

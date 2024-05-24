@@ -2179,21 +2179,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				? tr::lng_context_add_factcheck(tr::now)
 				: tr::lng_context_edit_factcheck(tr::now);
 			_menu->addAction(phrase, [=] {
-				controller->show(Box(EditFactcheckBox, text, [=](
+				const auto limit = session->factchecks().lengthLimit();
+				controller->show(Box(EditFactcheckBox, text, limit, [=](
 						TextWithEntities result) {
-					const auto done = [=](QString error) {
-						controller->showToast(!error.isEmpty()
-							? error
-							: result.empty()
-							? tr::lng_factcheck_remove_done(tr::now)
-							: text.empty()
-							? tr::lng_factcheck_add_done(tr::now)
-							: tr::lng_factcheck_edit_done(tr::now));
-					};
-					session->factchecks().save(
-						itemId,
-						result,
-						crl::guard(controller, done));
+					const auto show = controller->uiShow();
+					session->factchecks().save(itemId, text, result, show);
 				}));
 			}, &st::menuIconFactcheck);
 		}

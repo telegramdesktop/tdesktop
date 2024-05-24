@@ -12,4 +12,5 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 void EditFactcheckBox(
 	not_null<Ui::GenericBox*> box,
 	TextWithEntities current,
+	int limit,
 	Fn<void(TextWithEntities)> save);

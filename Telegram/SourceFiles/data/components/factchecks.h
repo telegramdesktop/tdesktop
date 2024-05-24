@@ -21,6 +21,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+class Show;
+} // namespace Ui
+
 namespace Data {
 
 class Factchecks final {
@@ -39,6 +43,11 @@ public:
 		FullMsgId itemId,
 		TextWithEntities text,
 		Fn<void(QString)> done);
+	void save(
+		FullMsgId itemId,
+		TextWithEntities was,
+		TextWithEntities text,
+		std::shared_ptr<Ui::Show> show);
 
 private:
 	[[nodiscard]] bool canEdit() const;

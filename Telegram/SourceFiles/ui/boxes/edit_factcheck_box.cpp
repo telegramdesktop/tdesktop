@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 void EditFactcheckBox(
 		not_null<Ui::GenericBox*> box,
 		TextWithEntities current,
+		int limit,
 		Fn<void(TextWithEntities)> save) {
 	box->setTitle(tr::lng_factcheck_title());
 
@@ -27,6 +28,7 @@ void EditFactcheckBox(
 			current.text,
 			TextUtilities::ConvertEntitiesToTextTags(current.entities)
 		}));
+	AddLengthLimitLabel(field, limit);
 
 	enum class State {
 		Initial,
@@ -62,6 +64,10 @@ void EditFactcheckBox(
 		} else {
 			box->addButton(tr::lng_settings_save(), [=] {
 				auto result = field->getTextWithAppliedMarkdown();
+				if (result.text.size() > limit) {
+					field->showError();
+					return;
+				}
 
 				box->closeBox();
 				save({
