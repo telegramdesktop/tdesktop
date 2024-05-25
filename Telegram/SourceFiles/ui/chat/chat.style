@@ -1133,6 +1133,10 @@ effectPreviewLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	thickness: 2px;
 }
 
+factcheckFooterSkip: 16px;
+factcheckFooterStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+}
 factcheckIconExpand: icon {{ "fast_to_original-rotate_cw", historyPeer1NameFg }};
 factcheckIconCollapse: icon {{ "fast_to_original-rotate_ccw", historyPeer1NameFg }};
 factcheckField: InputField(defaultInputField) {

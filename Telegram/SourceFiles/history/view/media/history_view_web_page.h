@@ -129,8 +129,10 @@ private:
 	};
 	struct FactcheckData {
 		HintData hint;
-		bool expandable = false;
-		bool expanded = false;
+		Ui::Text::String footer;
+		uint32 footerHeight : 30 = 0;
+		uint32 expandable : 1 = 0;
+		uint32 expanded : 1 = 0;
 	};
 	using AdditionalData = std::variant<
 		StickerSetData,

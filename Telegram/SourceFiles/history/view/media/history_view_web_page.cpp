@@ -153,6 +153,17 @@ constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 	});
 }
 
+[[nodiscard]] QString LookupFactcheckCountryIso2(
+		not_null<HistoryItem*> item) {
+	const auto info = item->Get<HistoryMessageFactcheck>();
+	return info ? info->data.country : QString();
+}
+
+[[nodiscard]] QString LookupFactcheckCountryName(const QString &iso2) {
+	const auto name = Countries::Instance().countryNameByISO2(iso2);
+	return name.isEmpty() ? iso2 : name;
+}
+
 [[nodiscard]] ClickHandlerPtr AboutFactcheckClickHandler(QString iso2) {
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -163,10 +174,11 @@ constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 			? controller->uiShow()
 			: nullptr;
 		if (show) {
-			const auto name = Countries::Instance().countryNameByISO2(iso2);
-			const auto use = name.isEmpty() ? iso2 : name;
+			const auto country = LookupFactcheckCountryName(iso2);
 			show->showToast({
-				.text = { tr::lng_factcheck_about(tr::now, lt_country, use) },
+				.text = {
+					tr::lng_factcheck_about(tr::now, lt_country, country)
+				},
 				.duration = kFactcheckAboutDuration,
 			});
 		}
@@ -179,7 +191,7 @@ constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		if (const auto strong = weak.get()) {
 			if (const auto factcheck = strong->Get<Factcheck>()) {
-				factcheck->expanded = !factcheck->expanded;
+				factcheck->expanded = factcheck->expanded ? 0 : 1;
 				strong->history()->owner().requestViewResize(strong);
 			}
 		}
@@ -310,6 +322,7 @@ void WebPage::setupAdditionalData() {
 		}
 	} else if (_data->type == WebPageType::Factcheck) {
 		_additionalData = std::make_unique<AdditionalData>(FactcheckData());
+		const auto raw = factcheckData();
 	}
 }
 
@@ -347,11 +360,23 @@ QSize WebPage::countOptimalSize() {
 		_dataVersion = _data->version;
 		_openl = nullptr;
 		_attach = nullptr;
-		_collage = PrepareCollageMedia(_parent->data(), _data->collage);
+		const auto item = _parent->data();
+		_collage = PrepareCollageMedia(item, _data->collage);
 		const auto min = st::msgMinWidth - rect::m::sum::h(_st.padding);
 		_siteName = Ui::Text::String(min);
 		_title = Ui::Text::String(min);
 		_description = Ui::Text::String(min);
+		if (factcheck) {
+			factcheck->footer = Ui::Text::String(
+				st::factcheckFooterStyle,
+				tr::lng_factcheck_bottom(
+					tr::now,
+					lt_country,
+					LookupFactcheckCountryName(
+						LookupFactcheckCountryIso2(item))),
+				kDefaultTextOptions,
+				min);
+		}
 	}
 	const auto lineHeight = UnitedLineHeight();
 
@@ -400,9 +425,9 @@ QSize WebPage::countOptimalSize() {
 			}
 		} else if (factcheck) {
 			const auto item = _parent->data();
-			if (const auto info = item->Get<HistoryMessageFactcheck>()) {
-				const auto country = info->data.country;
-				factcheck->hint.link = AboutFactcheckClickHandler(country);
+			const auto iso2 = LookupFactcheckCountryIso2(item);
+			if (!iso2.isEmpty()) {
+				factcheck->hint.link = AboutFactcheckClickHandler(iso2);
 			}
 		} else if (_data->document
 			&& (_data->document->isWallPaper()
@@ -535,6 +560,10 @@ QSize WebPage::countOptimalSize() {
 			_description.maxWidth() + articlePhotoMaxWidth);
 		minHeight += descriptionMinHeight;
 	}
+	if (factcheck && factcheck->expanded) {
+		accumulate_max(maxWidth, factcheck->footer.maxWidth());
+		minHeight += st::factcheckFooterSkip + factcheck->footer.minHeight();
+	}
 	if (_attach) {
 		const auto attachAtTop = _siteName.isEmpty()
 			&& _title.isEmpty()
@@ -597,8 +626,8 @@ QSize WebPage::countCurrentSize(int newWidth) {
 		? computeFactcheckMetrics(_description.countHeight(innerWidth))
 		: FactcheckMetrics();
 	if (factcheck) {
-		factcheck->expandable = factcheckMetrics.expandable;
-		factcheck->expanded = factcheckMetrics.expanded;
+		factcheck->expandable = factcheckMetrics.expandable ? 1 : 0;
+		factcheck->expanded = factcheckMetrics.expanded ? 1 : 0;
 		_openl = factcheck->expandable
 			? ToggleFactcheckClickHandler(_parent)
 			: nullptr;
@@ -681,6 +710,11 @@ QSize WebPage::countCurrentSize(int newWidth) {
 				_descriptionLines = restLines;
 				newHeight += _descriptionLines * lineHeight;
 			}
+		}
+		if (factcheck && factcheck->expanded) {
+			factcheck->footerHeight = st::factcheckFooterSkip
+				+ factcheck->footer.countHeight(innerWidth);
+			newHeight += factcheck->footerHeight;
 		}
 
 		if (_attach) {
@@ -1022,6 +1056,23 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		tshift += (_descriptionLines > 0)
 			? (_descriptionLines * lineHeight)
 			: _description.countHeight(paintw);
+	}
+	if (factcheck && factcheck->expanded) {
+		const auto skip = st::factcheckFooterSkip;
+		const auto line = st::lineWidth;
+		const auto separatorTop = tshift + skip / 2;
+
+		auto color = cache->icon;
+		color.setAlphaF(color.alphaF() * 0.3);
+		p.fillRect(inner.left(), separatorTop, paintw, line, color);
+
+		p.setPen(cache->icon);
+		factcheck->footer.draw(p, {
+			.position = { inner.left(), tshift + skip },
+			.outerWidth = width(),
+			.availableWidth = paintw,
+		});
+		tshift += factcheck->footerHeight;
 	}
 	if (_attach) {
 		const auto attachAtTop = !_siteNameLines
@@ -1492,7 +1543,9 @@ bool WebPage::isLogEntryOriginal() const {
 WebPage::FactcheckMetrics WebPage::computeFactcheckMetrics(
 		int fullHeight) const {
 	const auto possible = fullHeight / st::normalFont->height;
-	const auto expandable = (possible > kFactcheckCollapsedLines + 1);
+	//const auto expandable = (possible > kFactcheckCollapsedLines + 1);
+	// Now always expandable because of the footer.
+	const auto expandable = true;
 	const auto check = _parent->Get<Factcheck>();
 	const auto expanded = check && check->expanded;
 	const auto allowExpanding = (expanded || !expandable);
