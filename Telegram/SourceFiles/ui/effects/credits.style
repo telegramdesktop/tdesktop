@@ -39,3 +39,7 @@ creditsBoxAbout: FlatLabel(defaultFlatLabel) {
 creditsBoxAboutTitle: FlatLabel(settingsPremiumUserTitle) {
 	minWidth: 256px;
 }
+
+creditsBoxAboutDivider: FlatLabel(boxDividerLabel) {
+	align: align(top);
+}

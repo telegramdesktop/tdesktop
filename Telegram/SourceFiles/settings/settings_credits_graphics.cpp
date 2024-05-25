@@ -481,6 +481,24 @@ void ReceiptCreditsBox(
 		box->verticalLayout(),
 		e);
 
+	Ui::AddSkip(content);
+
+	box->addRow(object_ptr<Ui::CenterWrap<>>(
+		box,
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_credits_box_out_about(
+				lt_link,
+				tr::lng_payments_terms_link(
+				) | rpl::map([](const QString &t) {
+					using namespace Ui::Text;
+					return Link(t, u"https://telegram.org/tos"_q);
+				}),
+				Ui::Text::WithEntities),
+			st::creditsBoxAboutDivider)));
+
+	Ui::AddSkip(content);
+
 	const auto button = box->addButton(tr::lng_box_ok(), [=] {
 		box->closeBox();
 	});
