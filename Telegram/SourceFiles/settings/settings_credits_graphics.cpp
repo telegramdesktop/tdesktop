@@ -473,6 +473,16 @@ void ReceiptCreditsBox(
 				st::defaultFlatLabel)));
 	}
 
+	if (e.refunded) {
+		Ui::AddSkip(content);
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_channel_earn_history_return_about(),
+				st::defaultFlatLabel)));
+	}
+
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
 

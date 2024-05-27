@@ -37,6 +37,7 @@ struct CreditsHistoryEntry final {
 	uint64 credits = 0;
 	uint64 bareId = 0;
 	PeerType peerType;
+	bool refunded = false;
 };
 
 struct CreditsStatusSlice final {

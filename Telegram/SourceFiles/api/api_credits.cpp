@@ -52,6 +52,7 @@ namespace {
 		}, [](const MTPDstarsTransactionPeerPremiumBot &) {
 			return Data::CreditsHistoryEntry::PeerType::PremiumBot;
 		}),
+		.refunded = tl.data().is_refund(),
 	};
 }
 
