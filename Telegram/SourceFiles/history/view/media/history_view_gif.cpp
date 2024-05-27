@@ -293,7 +293,7 @@ QSize Gif::countOptimalSize() {
 		auto reply = _parent->Get<Reply>();
 		auto forwarded = item->Get<HistoryMessageForwarded>();
 		if (forwarded) {
-			forwarded->create(via);
+			forwarded->create(via, item);
 		}
 		maxWidth += additionalWidth(reply, via, forwarded);
 		accumulate_max(maxWidth, _parent->reactionsOptimalWidth());

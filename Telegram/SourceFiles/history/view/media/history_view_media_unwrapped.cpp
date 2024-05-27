@@ -59,7 +59,7 @@ QSize UnwrappedMedia::countOptimalSize() {
 		const auto topic = _parent->displayedTopicButton();
 		const auto forwarded = getDisplayedForwardedInfo();
 		if (forwarded) {
-			forwarded->create(via);
+			forwarded->create(via, item);
 		}
 		maxWidth += additionalWidth(topic, reply, via, forwarded);
 		accumulate_max(maxWidth, _parent->reactionsOptimalWidth());

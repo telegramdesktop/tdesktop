@@ -125,7 +125,9 @@ private:
 };
 
 struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem> {
-	void create(const HistoryMessageVia *via) const;
+	void create(
+		const HistoryMessageVia *via,
+		not_null<const HistoryItem*> item) const;
 
 	[[nodiscard]] bool forwardOfForward() const {
 		return savedFromSender || savedFromHiddenSenderInfo;

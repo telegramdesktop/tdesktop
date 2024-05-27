@@ -714,7 +714,7 @@ QSize Message::performCountOptimalSize() {
 		const auto via = item->Get<HistoryMessageVia>();
 		const auto entry = logEntryOriginal();
 		if (forwarded) {
-			forwarded->create(via);
+			forwarded->create(via, item);
 		}
 
 		auto mediaDisplayed = false;
