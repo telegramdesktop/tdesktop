@@ -8,15 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 
 #include "apiwrap.h"
+#include "api/api_updates.h"
 #include "base/unixtime.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
-#if _DEBUG
-#include "base/random.h"
-#endif
 
 namespace Api {
 namespace {
@@ -197,6 +196,26 @@ rpl::producer<not_null<PeerData*>> PremiumPeerBot(
 
 		return lifetime;
 	};
+}
+
+void CreditsRefund(
+		not_null<PeerData*> peer,
+		const QString &entryId,
+		Fn<void()> done,
+		Fn<void(QString)> fail) {
+	const auto user = peer->asUser();
+	if (!user) {
+		return;
+	}
+	peer->session().api().request(MTPpayments_RefundStarsCharge(
+		user->inputUser,
+		MTP_string(entryId)
+	)).done([=](const MTPUpdates &result) {
+		peer->session().api().updates().applyUpdates(result);
+		done();
+	}).fail([=](const MTP::Error &error) {
+		fail(error.type());
+	}).send();
 }
 
 } // namespace Api

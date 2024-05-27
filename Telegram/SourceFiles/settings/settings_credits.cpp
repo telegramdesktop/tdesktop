@@ -239,6 +239,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		};
 
 		Info::Statistics::AddCreditsHistoryList(
+			controller->uiShow(),
 			fullSlice,
 			fullWrap->entity(),
 			entryClicked,
@@ -247,6 +248,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			true,
 			true);
 		Info::Statistics::AddCreditsHistoryList(
+			controller->uiShow(),
 			inSlice,
 			inWrap->entity(),
 			entryClicked,
@@ -255,6 +257,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			true,
 			false);
 		Info::Statistics::AddCreditsHistoryList(
+			controller->uiShow(),
 			outSlice,
 			outWrap->entity(),
 			std::move(entryClicked),

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "main/session/session_show.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/outline_segments.h" // Ui::UnreadStoryOutlineGradient.
 #include "ui/effects/toggle_arrow.h"
@@ -841,6 +842,10 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override;
+
 	[[nodiscard]] bool skipRequest() const;
 	void requestNext();
 
@@ -928,6 +933,29 @@ void CreditsController::rowClicked(not_null<PeerListRow*> row) {
 		_entryClickedCallback(
 			static_cast<const CreditsRow*>(row.get())->entry());
 	}
+}
+
+base::unique_qptr<Ui::PopupMenu> CreditsController::rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) {
+	const auto entry = static_cast<const CreditsRow*>(row.get())->entry();
+	if (!entry.bareId) {
+		return nullptr;
+	}
+	auto menu = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::defaultPopupMenu);
+	const auto peer = row->peer();
+	const auto callback = crl::guard(parent, [=, id = entry.id] {
+		const auto show = delegate()->peerListUiShow();
+		Api::CreditsRefund(
+			peer,
+			id,
+			[=] { show->showToast(tr::lng_report_spam_done(tr::now)); },
+			[=](const QString &error) { show->showToast(error); });
+	});
+	menu->addAction(tr::lng_channel_earn_history_return(tr::now), callback);
+	return menu;
 }
 
 rpl::producer<bool> CreditsController::allLoadedValue() const {
@@ -1086,6 +1114,7 @@ void AddBoostsList(
 }
 
 void AddCreditsHistoryList(
+		std::shared_ptr<Main::SessionShow> show,
 		const Data::CreditsStatusSlice &firstSlice,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(const Data::CreditsHistoryEntry &)> callback,
@@ -1094,13 +1123,18 @@ void AddCreditsHistoryList(
 		bool in,
 		bool out) {
 	struct State final {
-		State(CreditsDescriptor d) : controller(std::move(d)) {
+		State(
+			CreditsDescriptor d,
+			std::shared_ptr<Main::SessionShow> show)
+		: delegate(std::move(show))
+		, controller(std::move(d)) {
 		}
-		PeerListContentDelegateSimple delegate;
+		PeerListContentDelegateShow delegate;
 		CreditsController controller;
 	};
-	auto d = CreditsDescriptor{ firstSlice, callback, bot, icon, in, out };
-	const auto state = container->lifetime().make_state<State>(std::move(d));
+	const auto state = container->lifetime().make_state<State>(
+		CreditsDescriptor{ firstSlice, callback, bot, icon, in, out },
+		show);
 
 	state->delegate.setContent(container->add(
 		object_ptr<PeerListContent>(container, &state->controller)));

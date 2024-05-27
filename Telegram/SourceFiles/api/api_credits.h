@@ -68,6 +68,12 @@ private:
 
 };
 
+void CreditsRefund(
+	not_null<PeerData*> peer,
+	const QString &entryId,
+	Fn<void()> done,
+	Fn<void(QString)> fail);
+
 [[nodiscard]] rpl::producer<not_null<PeerData*>> PremiumPeerBot(
 	not_null<Main::Session*> session);
 

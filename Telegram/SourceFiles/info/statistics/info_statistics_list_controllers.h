@@ -23,6 +23,10 @@ struct RecentPostId;
 struct SupergroupStatistics;
 } // namespace Data
 
+namespace Main {
+class SessionShow;
+} // namespace Main
+
 namespace Info::Statistics {
 
 void AddPublicForwards(
@@ -47,6 +51,7 @@ void AddBoostsList(
 	rpl::producer<QString> title);
 
 void AddCreditsHistoryList(
+	std::shared_ptr<Main::SessionShow> show,
 	const Data::CreditsStatusSlice &firstSlice,
 	not_null<Ui::VerticalLayout*> container,
 	Fn<void(const Data::CreditsHistoryEntry &)> entryClickedCallback,
