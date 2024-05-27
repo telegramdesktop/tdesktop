@@ -164,7 +164,7 @@ private:
 			current),
 		st::settingsChatIntroFieldMargins);
 	field->setMaxLength(limit);
-	AddLengthLimitLabel(field, limit);
+	Ui::AddLengthLimitLabel(field, limit);
 	return field;
 }
 
