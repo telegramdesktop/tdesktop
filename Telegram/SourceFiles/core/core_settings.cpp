@@ -910,10 +910,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_recentEmojiPreload = std::move(recentEmojiPreload);
 	_emojiVariants = std::move(emojiVariants);
 	_disableOpenGL = (disableOpenGL == 1);
-	if (!Platform::IsMac()) {
-		Ui::GL::ForceDisable(_disableOpenGL
-			|| Ui::GL::LastCrashCheckFailed());
-	}
+	Ui::GL::ForceDisable(_disableOpenGL);
 	_groupCallNoiseSuppression = (groupCallNoiseSuppression == 1);
 	const auto uncheckedWorkMode = static_cast<WorkMode>(workMode);
 	switch (uncheckedWorkMode) {
