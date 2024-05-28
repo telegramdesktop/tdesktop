@@ -610,7 +610,8 @@ void AttachWebView::botHandleInvoice(QString slug) {
 		reactivate,
 		_context
 			? Payments::ProcessNonPanelPaymentFormFactory(
-				_context->controller.get())
+				_context->controller.get(),
+				reactivate)
 			: nullptr);
 }
 

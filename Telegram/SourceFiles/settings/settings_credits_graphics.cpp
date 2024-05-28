@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common_session.h"
 #include "settings/settings_credits_graphics.h"
 #include "statistics/widgets/chart_header_widget.h"
-#include "ui/boxes/boost_box.h" // Ui::StartFireworks.
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"

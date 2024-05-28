@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
-#include "payments/payments_form.h"
 #include "settings/settings_credits_graphics.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/premium_graphics.h"

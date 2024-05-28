@@ -15,10 +15,12 @@ class SessionController;
 
 namespace Payments {
 
+enum class CheckoutResult;
 struct NonPanelPaymentForm;
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
-	not_null<Window::SessionController*> controller);
+	not_null<Window::SessionController*> controller,
+	Fn<void(Payments::CheckoutResult)> maybeReturnToBot = nullptr);
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 	not_null<Window::SessionController*> controller,

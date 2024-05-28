@@ -40,7 +40,8 @@ bool IsCreditsInvoice(not_null<HistoryItem*> item) {
 } // namespace
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
-		not_null<Window::SessionController*> controller) {
+		not_null<Window::SessionController*> controller,
+		Fn<void(CheckoutResult)> maybeReturnToBot) {
 	return [=](NonPanelPaymentForm form) {
 		using CreditsFormDataPtr = std::shared_ptr<CreditsFormData>;
 		using CreditsReceiptPtr = std::shared_ptr<CreditsReceiptData>;
@@ -51,12 +52,24 @@ Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 				controller->session().user());
 			const auto sendBox = [=, weak = base::make_weak(controller)] {
 				if (const auto strong = weak.get()) {
-					controller->uiShow()->show(Box(
+					const auto unsuccessful = std::make_shared<bool>(true);
+					const auto box = controller->uiShow()->show(Box(
 						Ui::SendCreditsBox,
 						form,
 						crl::guard(strong, [=] {
+							*unsuccessful = false;
 							Ui::StartFireworks(strong->content());
+							if (maybeReturnToBot) {
+								maybeReturnToBot(CheckoutResult::Paid);
+							}
 						})));
+					box->boxClosing() | rpl::start_with_next([=] {
+						crl::on_main([=] {
+							if ((*unsuccessful) && maybeReturnToBot) {
+								maybeReturnToBot(CheckoutResult::Cancelled);
+							}
+						});
+					}, box->lifetime());
 				}
 			};
 			const auto weak = base::make_weak(controller);
