@@ -632,15 +632,11 @@ bool AddReplyToMessageAction(
 	text.replace('&', u"&&"_q);
 	const auto itemId = item->fullId();
 	menu->addAction(text, [=] {
-		if (!item) {
-			return;
-		} else {
-			list->replyToMessageRequestNotify({
-				.messageId = itemId,
-				.quote = quote.text,
-				.quoteOffset = quote.offset,
-			});
-		}
+		list->replyToMessageRequestNotify({
+			.messageId = itemId,
+			.quote = quote.text,
+			.quoteOffset = quote.offset,
+		});
 	}, &st::menuIconReply);
 	return true;
 }

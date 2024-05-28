@@ -327,7 +327,7 @@ RepliesWidget::RepliesWidget(
 		const auto canSendReply = _topic
 			? Data::CanSendAnything(_topic)
 			: Data::CanSendAnything(_history->peer);
-		if (_joinGroup || !canSendReply) {
+		if (_joinGroup || !canSendReply || base::IsCtrlPressed()) {
 			Controls::ShowReplyToChatBox(controller->uiShow(), { fullId });
 		} else {
 			replyToMessage(fullId);
