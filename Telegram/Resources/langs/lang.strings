@@ -1522,8 +1522,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_link_invite" = "Invite link";
 "lng_manage_peer_link_expired" = "Expired link";
 "lng_manage_private_group_title" = "Private";
+"lng_manage_private_group_noforwards_title" = "Private restricted";
 "lng_manage_public_group_title" = "Public";
 "lng_manage_private_peer_title" = "Private";
+"lng_manage_private_peer_noforwards_title" = "Private restricted";
 "lng_manage_public_peer_title" = "Public";
 "lng_manage_peer_send_title" = "Who can send new messages?";
 "lng_manage_peer_send_only_members" = "Only members";
