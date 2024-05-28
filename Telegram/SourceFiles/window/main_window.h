@@ -98,8 +98,6 @@ public:
 	}
 	void positionUpdated();
 
-	void reActivateWindow();
-
 	void showRightColumn(object_ptr<TWidget> widget);
 	int maximalExtendBy() const;
 	bool canExtendNoMove(int extendBy) const;

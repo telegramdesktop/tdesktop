@@ -1076,7 +1076,6 @@ void Manager::notificationActivated(
 				history->setLocalDraft(std::move(draft));
 			}
 			window->widget()->showFromTray();
-			window->widget()->reActivateWindow();
 			if (Core::App().passcodeLocked()) {
 				window->widget()->setInnerFocus();
 				system()->clearAll();
