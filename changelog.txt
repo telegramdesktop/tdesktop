@@ -1,3 +1,9 @@
+5.0.5 beta (28.05.24)
+
+- Long press on chat userpic to show quick preview.
+- Alt+Click on chat to show quick preview.
+- Show author userpics in forwarded messages.
+
 5.0.4 (28.05.24)
 
 - Fix reply to last message by Ctrl+Up in topics.

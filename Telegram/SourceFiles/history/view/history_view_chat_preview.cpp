@@ -269,7 +269,6 @@ void Item::setupTop() {
 		_actions.fire({ .openInfo = true });
 	});
 	_top->paintRequest() | rpl::start_with_next([=](QRect clip) {
-		const auto &st = st::previewTop;
 		auto p = QPainter(_top.get());
 		p.fillRect(clip, st::topBarBg);
 	}, _top->lifetime());
