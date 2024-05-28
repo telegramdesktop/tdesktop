@@ -161,7 +161,13 @@ void FillSponsoredMessagesMenu(
 		menu->addSeparator(&st::expandedMenuSeparator);
 	}
 	menu->addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
-		ShowPremiumPreviewBox(controller, PremiumFeature::NoAds);
+		if (controller->session().premium()) {
+			using Result = Data::SponsoredReportResult;
+			controller->session().sponsoredMessages().createReportCallback(
+				itemId)(Result::Id("-1"), [](const auto &) {});
+		} else {
+			ShowPremiumPreviewBox(controller, PremiumFeature::NoAds);
+		}
 	}, &st::menuIconCancel);
 }
 
