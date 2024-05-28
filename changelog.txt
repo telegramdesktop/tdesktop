@@ -1,3 +1,12 @@
+5.0.3 (28.05.24)
+
+- Ctrl+Click on Reply in menu to Reply in another chat.
+- Allow Zero-Width-Space character in text rendering.
+- Fix creating custom links in the message field.
+- Fix jump to the topic with last unread message.
+- Fix newline entering via Shift+Enter on Linux.
+- Fix forum search open by Ctrl+F.
+
 5.0.2 (24.05.24)
 
 - Toggle chats search focus by Tab key.
