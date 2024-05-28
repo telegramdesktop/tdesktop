@@ -1053,6 +1053,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_sponsor" = "Proxy sponsor";
 "lng_proxy_sponsor_about" = "This channel is shown by your proxy server.\nTo remove this channel from your chats list,\ndisable the proxy in Telegram Settings.";
 "lng_proxy_sponsor_warning" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
+"lng_proxy_add_from_clipboard" = "Add proxy from clipboard";
+"lng_proxy_add_from_clipboard_good_toast" = "Proxy was added from clipboard.";
+"lng_proxy_add_from_clipboard_failed_toast" = "This is not a proxy link.";
+"lng_proxy_add_from_clipboard_existing_toast" = "This proxy is already in the list.";
 "lng_badge_psa_default" = "PSA";
 "lng_about_psa_default" = "This message provides you with a public service announcement. To remove it from your chats list, right click it and select **Hide**.";
 "lng_tooltip_psa_default" = "This message provides you with a public service announcement.";
