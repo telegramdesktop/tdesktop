@@ -2208,9 +2208,6 @@ void OverlayWidget::close() {
 		return;
 	}
 	hide();
-	if (const auto window = Core::App().activeWindow()) {
-		window->reActivate();
-	}
 	_helper->clearState();
 }
 
