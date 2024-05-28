@@ -286,11 +286,18 @@ public:
 	QPoint tooltipPos() const override;
 	bool tooltipWindowActive() const override;
 
+	struct ReplyToMessageRequest {
+		FullReplyTo to;
+		bool forceAnotherChat = false;
+	};
 	[[nodiscard]] rpl::producer<FullMsgId> editMessageRequested() const;
 	void editMessageRequestNotify(FullMsgId item) const;
 	[[nodiscard]] bool lastMessageEditRequestNotify() const;
-	[[nodiscard]] rpl::producer<FullReplyTo> replyToMessageRequested() const;
-	void replyToMessageRequestNotify(FullReplyTo id);
+	[[nodiscard]] auto replyToMessageRequested() const
+		-> rpl::producer<ReplyToMessageRequest>;
+	void replyToMessageRequestNotify(
+		FullReplyTo to, 
+		bool forceAnotherChat = false);
 	[[nodiscard]] rpl::producer<FullMsgId> readMessageRequested() const;
 	[[nodiscard]] rpl::producer<FullMsgId> showMessageRequested() const;
 	void replyNextMessage(FullMsgId fullId, bool next = true);
@@ -760,7 +767,7 @@ private:
 	base::Timer _touchScrollTimer;
 
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
-	rpl::event_stream<FullReplyTo> _requestedToReplyToMessage;
+	rpl::event_stream<ReplyToMessageRequest> _requestedToReplyToMessage;
 	rpl::event_stream<FullMsgId> _requestedToReadMessage;
 	rpl::event_stream<FullMsgId> _requestedToShowMessage;
 

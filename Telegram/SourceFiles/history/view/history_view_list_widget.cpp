@@ -3904,12 +3904,15 @@ bool ListWidget::lastMessageEditRequestNotify() const {
 	}
 }
 
-rpl::producer<FullReplyTo> ListWidget::replyToMessageRequested() const {
+auto ListWidget::replyToMessageRequested() const
+-> rpl::producer<ReplyToMessageRequest> {
 	return _requestedToReplyToMessage.events();
 }
 
-void ListWidget::replyToMessageRequestNotify(FullReplyTo id) {
-	_requestedToReplyToMessage.fire(std::move(id));
+void ListWidget::replyToMessageRequestNotify(
+		FullReplyTo to,
+		bool forceAnotherChat) {
+	_requestedToReplyToMessage.fire({ std::move(to), forceAnotherChat });
 }
 
 rpl::producer<FullMsgId> ListWidget::readMessageRequested() const {
