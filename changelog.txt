@@ -1,3 +1,8 @@
+5.0.4 (28.05.24)
+
+- Fix reply to last message by Ctrl+Up in topics.
+- Some other bug fixes.
+
 5.0.3 (28.05.24)
 
 - Ctrl+Click on Reply in menu to Reply in another chat.
