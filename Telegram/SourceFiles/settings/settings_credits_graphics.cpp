@@ -437,23 +437,38 @@ void ReceiptCreditsBox(
 		auto &lifetime = content->lifetime();
 		const auto text = lifetime.make_state<Ui::Text::String>(
 			st::semiboldTextStyle,
-			(!e.bareId ? QChar('+') : kMinus)
+			((!e.bareId || e.refunded) ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(std::abs(int64(e.credits))));
+		const auto refundedText = tr::lng_channel_earn_history_return(
+			tr::now);
+		const auto refunded = e.refunded
+			? lifetime.make_state<Ui::Text::String>(
+				st::defaultTextStyle,
+				refundedText)
+			: (Ui::Text::String*)(nullptr);
 
 		const auto amount = content->add(
 			object_ptr<Ui::FixedHeightWidget>(
 				content,
 				star.height() / style::DevicePixelRatio()));
 		const auto font = text->style()->font;
+		const auto refundedFont = st::defaultTextStyle.font;
+		const auto starWidth = star.width()
+			/ style::DevicePixelRatio();
+		const auto refundedSkip = refundedFont->spacew * 2;
+		const auto refundedWidth = refunded
+			? refundedFont->width(refundedText)
+				+ refundedSkip
+				+ refundedFont->height
+			: 0;
+		const auto fullWidth = text->maxWidth()
+			+ font->spacew * 1
+			+ starWidth
+			+ refundedWidth;
 		amount->paintRequest(
 		) | rpl::start_with_next([=] {
 			auto p = Painter(amount);
-			const auto starWidth = star.width()
-				/ style::DevicePixelRatio();
-			const auto fullWidth = text->maxWidth()
-				+ font->spacew * 2
-				+ starWidth;
-			p.setPen(!e.bareId
+			p.setPen((!e.bareId || e.refunded)
 				? st::boxTextFgGood
 				: st::menuIconAttentionColor);
 			const auto x = (amount->width() - fullWidth) / 2;
@@ -463,11 +478,41 @@ void ReceiptCreditsBox(
 					(amount->height() - font->height) / 2),
 				.outerWidth = amount->width(),
 				.availableWidth = amount->width(),
-			});;
+			});
 			p.drawImage(
-				x + fullWidth - starWidth,
+				x + fullWidth - starWidth - refundedWidth,
 				0,
 				star);
+
+			if (refunded) {
+				const auto refundedLeft = fullWidth
+					+ x
+					- refundedWidth
+					+ refundedSkip;
+				const auto pen = p.pen();
+				auto color = pen.color();
+				color.setAlphaF(color.alphaF() * 0.15);
+				p.setPen(Qt::NoPen);
+				p.setBrush(color);
+				{
+					auto hq = PainterHighQualityEnabler(p);
+					p.drawRoundedRect(
+						refundedLeft,
+						(amount->height() - refundedFont->height) / 2,
+						refundedWidth - refundedSkip,
+						refundedFont->height,
+						refundedFont->height / 2,
+						refundedFont->height / 2);
+				}
+				p.setPen(pen);
+				refunded->draw(p, Ui::Text::PaintContext{
+					.position = QPoint(
+						refundedLeft + refundedFont->height / 2,
+						(amount->height() - refundedFont->height) / 2),
+					.outerWidth = refundedWidth,
+					.availableWidth = refundedWidth,
+				});
+			}
 		}, amount->lifetime());
 	}
 
@@ -478,16 +523,6 @@ void ReceiptCreditsBox(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				rpl::single(e.description),
-				st::defaultFlatLabel)));
-	}
-
-	if (e.refunded) {
-		Ui::AddSkip(content);
-		box->addRow(object_ptr<Ui::CenterWrap<>>(
-			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_channel_earn_history_return_about(),
 				st::defaultFlatLabel)));
 	}
 
