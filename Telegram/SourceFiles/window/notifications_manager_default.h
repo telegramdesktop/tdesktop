@@ -171,7 +171,6 @@ protected:
 
 private:
 	void opacityAnimationCallback();
-	void destroyDelayed();
 	void moveByShift();
 	void hideAnimated(float64 duration, const anim::transition &func);
 	bool shiftAnimationCallback(crl::time now);
@@ -179,7 +178,6 @@ private:
 	const not_null<Manager*> _manager;
 
 	bool _hiding = false;
-	bool _deleted = false;
 	base::binary_guard _hidingDelayed;
 	Ui::Animations::Simple _a_opacity;
 
