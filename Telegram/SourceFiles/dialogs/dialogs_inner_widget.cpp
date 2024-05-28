@@ -118,9 +118,16 @@ constexpr auto kChatPreviewDelay = crl::time(1000);
 	const auto query = state.query.trimmed();
 	const auto hashtag = !query.isEmpty() && (query[0] == '#');
 	const auto trimmed = hashtag ? query.mid(1).trimmed() : query;
+	const auto fromPeer = (state.tab == ChatSearchTab::MyMessages
+		|| state.tab == ChatSearchTab::PublicPosts
+		|| !state.inChat.peer()
+		|| !(state.inChat.peer()->isChat()
+			|| state.inChat.peer()->isMegagroup()))
+		? nullptr
+		: state.fromPeer;
 	const auto waiting = trimmed.isEmpty()
 		&& state.tags.empty()
-		&& !state.fromPeer;
+		&& !fromPeer;
 	const auto icon = waiting
 		? SearchEmptyIcon::Search
 		: SearchEmptyIcon::NoResults;
