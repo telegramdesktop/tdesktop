@@ -27,7 +27,7 @@ void MediaEditSpoilerManager::showMenu(
 	const auto media = item->media();
 	const auto hasPreview = media && media->hasReplyPreview();
 	const auto preview = hasPreview ? media->replyPreview() : nullptr;
-	if (!preview) {
+	if (!preview || (media && media->webpage())) {
 		return;
 	}
 	const auto spoilered = _spoilerOverride
