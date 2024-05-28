@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "payments/payments_checkout_process.h" // NonPanelPaymentForm.
@@ -80,13 +81,19 @@ Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 						- int64(slice.balance);
 					if (creditsNeeded <= 0) {
 						sendBox();
-					} else {
+					} else if (strong->session().premiumPossible()) {
 						strong->uiShow()->show(Box(
 							Settings::SmallBalanceBox,
 							strong,
 							creditsNeeded,
 							form->botId,
 							sendBox));
+					} else {
+						strong->uiShow()->showToast(
+							tr::lng_credits_purchase_blocked(tr::now));
+						if (maybeReturnToBot) {
+							maybeReturnToBot(CheckoutResult::Failed);
+						}
 					}
 				}
 				lifetime->destroy();

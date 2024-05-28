@@ -2328,6 +2328,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_small_balance_title#one" = "{count} Star Needed";
 "lng_credits_small_balance_title#other" = "{count} Stars Needed";
 "lng_credits_small_balance_about" = "Buy **Stars** and use them on **{bot}** and other miniapps.";
+"lng_credits_purchase_blocked" = "Sorry, you can't purchase this item with Telegram Stars.";
 
 "lng_location_title" = "Location";
 "lng_location_about" = "Display the location of your business on your account.";

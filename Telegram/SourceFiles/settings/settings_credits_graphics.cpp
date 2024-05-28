@@ -286,11 +286,20 @@ void FillCreditOptions(
 	const auto apiCredits = content->lifetime().make_state<ApiOptions>(
 		controller->session().user());
 
-	apiCredits->request(
-	) | rpl::start_with_error_done([=](const QString &error) {
-		controller->showToast(error);
-	}, [=] {
-		fill(apiCredits->options());
+	if (controller->session().premiumPossible()) {
+		apiCredits->request(
+		) | rpl::start_with_error_done([=](const QString &error) {
+			controller->showToast(error);
+		}, [=] {
+			fill(apiCredits->options());
+		}, content->lifetime());
+	}
+
+	controller->session().premiumPossibleValue(
+	) | rpl::start_with_next([=](bool premiumPossible) {
+		if (!premiumPossible) {
+			fill({});
+		}
 	}, content->lifetime());
 }
 
