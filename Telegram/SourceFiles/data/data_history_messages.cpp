@@ -89,6 +89,13 @@ rpl::producer<SparseIdsSlice> HistoryViewer(
 		using RequestAroundInfo = SparseIdsSliceBuilder::AroundData;
 		builder->insufficientAround(
 		) | rpl::start_with_next([=](const RequestAroundInfo &info) {
+			if (!info.aroundId) {
+				// Ignore messages-count-only requests, because we perform
+				// them with non-zero limit of messages and end up adding
+				// a broken slice with several last messages from the chat
+				// with a non-skip range starting at zero.
+				return;
+			}
 			history->session().api().requestHistory(
 				history,
 				info.aroundId,
@@ -155,7 +162,7 @@ rpl::producer<SparseIdsMergedSlice> HistoryMergedViewer(
 	};
 	const auto peerId = history->peer->id;
 	const auto topicRootId = MsgId();
-	const auto migratedPeerId = migrateFrom ? migrateFrom->id : peerId;
+	const auto migratedPeerId = migrateFrom ? migrateFrom->id : PeerId(0);
 	using Key = SparseIdsMergedSlice::Key;
 	return SparseIdsMergedSlice::CreateViewer(
 		Key(peerId, topicRootId, migratedPeerId, universalAroundId),
