@@ -1301,8 +1301,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			paintFromName(p, trect, context);
 			paintTopicButton(p, trect, context);
 			paintForwardedInfo(p, trect, context);
-			paintReplyInfo(p, trect, context);
 			paintViaBotIdInfo(p, trect, context);
+			paintReplyInfo(p, trect, context);
 		}
 		if (entry) {
 			trect.setHeight(trect.height() - entry->height());
@@ -4147,16 +4147,16 @@ QRect Message::innerGeometry() const {
 				+ st::topicButtonPadding.bottom()
 				+ st::topicButtonSkip);
 		}
-		// Skip displayForwardedFrom() until there are no animations for it.
-		if (const auto reply = Get<Reply>()) {
-			// See paintReplyInfo().
-			result.translate(0, reply->height());
-		}
 		if (!displayFromName() && !displayForwardedFrom()) {
 			// See paintViaBotIdInfo().
 			if (data()->Has<HistoryMessageVia>()) {
 				result.translate(0, st::msgServiceNameFont->height);
 			}
+		}
+		// Skip displayForwardedFrom() until there are no animations for it.
+		if (const auto reply = Get<Reply>()) {
+			// See paintReplyInfo().
+			result.translate(0, reply->height());
 		}
 	}
 	return result;
