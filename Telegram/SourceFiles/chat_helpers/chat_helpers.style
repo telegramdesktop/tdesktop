@@ -69,6 +69,8 @@ ComposeIcons {
 	menuWhenOnline: icon;
 	menuSpoiler: icon;
 	menuSpoilerOff: icon;
+	menuBelow: icon;
+	menuAbove: icon;
 
 	stripBubble: icon;
 	stripExpandPanel: icon;
@@ -606,6 +608,8 @@ defaultComposeIcons: ComposeIcons {
 	menuWhenOnline: menuIconWhenOnline;
 	menuSpoiler: menuIconSpoiler;
 	menuSpoilerOff: menuIconSpoilerOff;
+	menuBelow: menuIconBelow;
+	menuAbove: menuIconAbove;
 
 	stripBubble: icon{
 		{ "chat/reactions_bubble_shadow", windowShadowFg },

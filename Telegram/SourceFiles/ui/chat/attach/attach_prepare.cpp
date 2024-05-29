@@ -184,6 +184,17 @@ bool PreparedList::canAddCaption(bool sendingAlbum, bool compress) const {
 	return !hasFiles && !hasMusic && !hasNotGrouped;
 }
 
+bool PreparedList::canMoveCaption(bool sendingAlbum, bool compress) const {
+	if (!canAddCaption(sendingAlbum, compress)) {
+		return false;
+	} else if (files.size() != 1) {
+		return true;
+	}
+	const auto &file = files.front();
+	return (file.type == PreparedFile::Type::Video)
+		|| (file.type == PreparedFile::Type::Photo && compress);
+}
+
 bool PreparedList::hasGroupOption(bool slowmode) const {
 	if (slowmode || files.size() < 2) {
 		return false;

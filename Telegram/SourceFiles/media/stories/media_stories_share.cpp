@@ -141,6 +141,9 @@ namespace Media::Stories {
 			if (options.effectId) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
 			}
+			if (options.invertCaption) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+			}
 			const auto done = [=] {
 				if (!--state->requests) {
 					if (show->valid()) {

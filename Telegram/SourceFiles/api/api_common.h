@@ -26,6 +26,7 @@ struct SendOptions {
 	EffectId effectId = 0;
 	bool silent = false;
 	bool handleSupportSwitch = false;
+	bool invertCaption = false;
 	bool hideViaBot = false;
 	crl::time ttlSeconds = 0;
 };

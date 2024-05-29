@@ -251,6 +251,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_caption_limit2#other" = "Make the caption shorter or subscribe to **Telegram Premium** to double the limit to **{count}** characters.";
 "lng_caption_limit_reached#one" = "You've reached the media caption limit. Please make the caption shorter by {count} character.";
 "lng_caption_limit_reached#other" = "You've reached the media caption limit. Please make the caption shorter by {count} characters.";
+"lng_caption_move_up" = "Move Caption Up";
+"lng_caption_move_down" = "Move Caption Down";
 
 "lng_file_size_limit_title" = "File Too Large";
 "lng_file_size_limit#one" = "{count} Gb";

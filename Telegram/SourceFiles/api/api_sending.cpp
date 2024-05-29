@@ -136,6 +136,10 @@ void SendExistingMedia(
 	if (action.options.effectId) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
 	}
+	if (action.options.invertCaption) {
+		flags |= MessageFlag::InvertMedia;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
@@ -314,6 +318,10 @@ bool SendDice(MessageToSend &message) {
 	if (action.options.effectId) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
 	}
+	if (action.options.invertCaption) {
+		flags |= MessageFlag::InvertMedia;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
@@ -439,6 +447,9 @@ void SendConfirmedFile(
 		if (!peer->isChannel() || peer->isMegagroup()) {
 			flags |= MessageFlag::MediaIsUnread;
 		}
+	}
+	if (file->to.options.invertCaption) {
+		flags |= MessageFlag::InvertMedia;
 	}
 
 	const auto messageFromId = file->to.options.sendAs

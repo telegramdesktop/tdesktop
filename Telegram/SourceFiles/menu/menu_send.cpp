@@ -615,12 +615,46 @@ FillMenuResult FillSendMenu(
 		const style::ComposeIcons *iconsOverride,
 		std::optional<QPoint> desiredPositionOverride) {
 	const auto type = details.type;
-	if (type == Type::Disabled || !action) {
+	const auto empty = (type == Type::Disabled)
+		&& (details.spoiler == SpoilerState::None)
+		&& (details.caption == CaptionState::None);
+	if (empty || !action) {
 		return FillMenuResult::Skipped;
 	}
 	const auto &icons = iconsOverride
 		? *iconsOverride
 		: st::defaultComposeIcons;
+
+	auto toggles = false;
+	if (details.spoiler != SpoilerState::None) {
+		const auto spoilered = (details.spoiler == SpoilerState::Enabled);
+		menu->addAction(
+			(spoilered
+				? tr::lng_context_disable_spoiler(tr::now)
+				: tr::lng_context_spoiler_effect(tr::now)),
+			[=] { action({ .type = spoilered
+				? ActionType::SpoilerOff
+				: ActionType::SpoilerOn
+			}, details); },
+			spoilered ? &icons.menuSpoilerOff : &icons.menuSpoiler);
+		toggles = true;
+	}
+	if (details.caption != CaptionState::None) {
+		const auto above = (details.caption == CaptionState::Above);
+		menu->addAction(
+			(above
+				? tr::lng_caption_move_down(tr::now)
+				: tr::lng_caption_move_up(tr::now)),
+			[=] { action({ .type = above
+				? ActionType::CaptionDown
+				: ActionType::CaptionUp
+			}, details); },
+			above ? &icons.menuBelow : &icons.menuAbove);
+		toggles = true;
+	}
+	if (toggles && type != Type::Disabled) {
+		menu->addSeparator();
+	}
 
 	if (type != Type::Reminder) {
 		menu->addAction(

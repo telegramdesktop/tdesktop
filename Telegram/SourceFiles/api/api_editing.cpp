@@ -81,7 +81,8 @@ mtpRequestId EditMessage(
 	| ((!webpage.removed && !webpage.url.isEmpty())
 		? MTPmessages_EditMessage::Flag::f_media
 		: emptyFlag)
-	| ((!webpage.removed && !webpage.url.isEmpty() && webpage.invert)
+	| (((!webpage.removed && !webpage.url.isEmpty() && webpage.invert)
+		|| options.invertCaption)
 		? MTPmessages_EditMessage::Flag::f_invert_media
 		: emptyFlag)
 	| (!sentEntities.v.isEmpty()

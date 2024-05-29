@@ -112,6 +112,9 @@ struct PreparedList {
 	void mergeToEnd(PreparedList &&other, bool cutToAlbumSize = false);
 
 	[[nodiscard]] bool canAddCaption(bool sendingAlbum, bool compress) const;
+	[[nodiscard]] bool canMoveCaption(
+		bool sendingAlbum,
+		bool compress) const;
 	[[nodiscard]] bool canBeSentInSlowmode() const;
 	[[nodiscard]] bool canBeSentInSlowmodeWith(
 		const PreparedList &other) const;

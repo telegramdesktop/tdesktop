@@ -3772,7 +3772,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		const auto anonymousPost = peer->amAnonymous();
 		const auto silentPost = ShouldSendSilent(peer, action.options);
 		FillMessagePostFlags(action, peer, flags);
-		if (exactWebPage && !ignoreWebPage && message.webPage.invert) {
+		if ((exactWebPage && !ignoreWebPage && message.webPage.invert)
+			|| action.options.invertCaption) {
 			flags |= MessageFlag::InvertMedia;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_invert_media;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
@@ -4170,7 +4171,8 @@ void ApiWrap::sendMediaWithRandomId(
 		| (options.scheduled ? Flag::f_schedule_date : Flag(0))
 		| (options.sendAs ? Flag::f_send_as : Flag(0))
 		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0))
-		| (options.effectId ? Flag::f_effect : Flag(0));
+		| (options.effectId ? Flag::f_effect : Flag(0))
+		| (options.invertCaption ? Flag::f_invert_media : Flag(0));
 
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
@@ -4280,7 +4282,8 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		| (album->options.shortcutId
 			? Flag::f_quick_reply_shortcut
 			: Flag(0))
-		| (album->options.effectId ? Flag::f_effect : Flag(0));
+		| (album->options.effectId ? Flag::f_effect : Flag(0))
+		| (album->options.invertCaption ? Flag::f_invert_media : Flag(0));
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
 	histories.sendPreparedMessage(

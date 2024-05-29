@@ -29,7 +29,7 @@ class Thread;
 
 namespace SendMenu {
 
-enum class Type {
+enum class Type : uchar {
 	Disabled,
 	SilentOnly,
 	Scheduled,
@@ -37,20 +37,38 @@ enum class Type {
 	Reminder,
 };
 
+enum class SpoilerState : uchar {
+	None,
+	Enabled,
+	Possible,
+};
+
+enum class CaptionState : uchar {
+	None,
+	Below,
+	Above,
+};
+
 struct Details {
 	Type type = Type::Disabled;
+	SpoilerState spoiler = SpoilerState::None;
+	CaptionState caption = CaptionState::None;
 	bool effectAllowed = false;
 };
 
-enum class FillMenuResult {
+enum class FillMenuResult : uchar {
 	Prepared,
 	Skipped,
 	Failed,
 };
 
-enum class ActionType {
+enum class ActionType : uchar {
 	Send,
 	Schedule,
+	SpoilerOn,
+	SpoilerOff,
+	CaptionUp,
+	CaptionDown,
 };
 struct Action {
 	using Type = ActionType;

@@ -48,6 +48,7 @@ class SessionController;
 
 namespace SendMenu {
 struct Details;
+struct Action;
 } // namespace SendMenu
 
 namespace HistoryView::Controls {
@@ -136,6 +137,9 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	using MenuAction = SendMenu::Action;
+	using MenuDetails = SendMenu::Details;
+
 	class Block final {
 	public:
 		Block(
@@ -173,7 +177,7 @@ private:
 
 	void initSendWay();
 	void initPreview();
-	[[nodiscard]] bool hasSendMenu() const;
+	[[nodiscard]] bool hasSendMenu(const MenuDetails &details) const;
 	[[nodiscard]] bool hasSpoilerMenu() const;
 	[[nodiscard]] bool allWithSpoilers();
 	[[nodiscard]] bool checkWithWay(
@@ -225,6 +229,11 @@ private:
 
 	void checkCharsLimitation();
 
+	[[nodiscard]] Fn<MenuDetails()> prepareSendMenuDetails(
+		const SendFilesBoxDescriptor &descriptor);
+	[[nodiscard]] auto prepareSendMenuCallback()
+		-> Fn<void(MenuAction, MenuDetails)>;
+
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const style::ComposeControls &_st;
 	const Api::SendType _sendType = Api::SendType();
@@ -236,12 +245,14 @@ private:
 	std::optional<int> _removingIndex;
 
 	SendFilesLimits _limits = {};
-	Fn<SendMenu::Details()> _sendMenuDetails = nullptr;
+	Fn<MenuDetails()> _sendMenuDetails;
+	Fn<void(MenuAction, MenuDetails)> _sendMenuCallback;
 	PeerData *_captionToPeer = nullptr;
 	SendFilesCheck _check;
 	SendFilesConfirmed _confirmedCallback;
 	Fn<void()> _cancelledCallback;
 	bool _confirmed = false;
+	bool _invertCaption = false;
 
 	object_ptr<Ui::InputField> _caption = { nullptr };
 	TextWithTags _prefilledCaptionText;

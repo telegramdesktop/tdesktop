@@ -350,9 +350,8 @@ SendFilesBox::SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor)
 , _titleHeight(st::boxTitleHeight)
 , _list(std::move(descriptor.list))
 , _limits(descriptor.limits)
-, _sendMenuDetails(descriptor.sendMenuDetails
-	? descriptor.sendMenuDetails
-	: [] { return SendMenu::Details(); })
+, _sendMenuDetails(prepareSendMenuDetails(descriptor))
+, _sendMenuCallback(prepareSendMenuCallback())
 , _captionToPeer(descriptor.captionToPeer)
 , _check(std::move(descriptor.check))
 , _confirmedCallback(std::move(descriptor.confirmed))
@@ -364,6 +363,50 @@ SendFilesBox::SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor)
 	_scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(_scroll.data()))) {
 	enqueueNextPrepare();
+}
+
+Fn<SendMenu::Details()> SendFilesBox::prepareSendMenuDetails(
+		const SendFilesBoxDescriptor &descriptor) {
+	auto initial = descriptor.sendMenuDetails;
+	return crl::guard(this, [=] {
+		auto result = initial ? initial() : SendMenu::Details();
+		result.spoiler = !hasSpoilerMenu()
+			? SendMenu::SpoilerState::None
+			: allWithSpoilers()
+			? SendMenu::SpoilerState::Enabled
+			: SendMenu::SpoilerState::Possible;
+		const auto way = _sendWay.current();
+		const auto canMoveCaption = _list.canMoveCaption(
+			way.groupFiles() && way.sendImagesAsPhotos(),
+			way.sendImagesAsPhotos()
+		) && _caption && !_caption->getLastText().isEmpty();
+		result.caption = !canMoveCaption
+			? SendMenu::CaptionState::None
+			: _invertCaption
+			? SendMenu::CaptionState::Above
+			: SendMenu::CaptionState::Below;
+		return result;
+	});
+}
+
+auto SendFilesBox::prepareSendMenuCallback()
+-> Fn<void(MenuAction, MenuDetails)> {
+	return crl::guard(this, [=](MenuAction action, MenuDetails details) {
+		using Type = SendMenu::ActionType;
+		switch (action.type) {
+		case Type::CaptionDown: _invertCaption = false; break;
+		case Type::CaptionUp: _invertCaption = true; break;
+		case Type::SpoilerOn: toggleSpoilers(true); break;
+		case Type::SpoilerOff: toggleSpoilers(false); break;
+		default:
+			SendMenu::DefaultCallback(
+				_show,
+				sendCallback())(
+					action,
+					details);
+			break;
+		}
+	});
 }
 
 void SendFilesBox::initPreview() {
@@ -533,7 +576,7 @@ void SendFilesBox::refreshButtons() {
 			_send,
 			_show,
 			_sendMenuDetails,
-			SendMenu::DefaultCallback(_show, sendCallback()));
+			_sendMenuCallback);
 	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	_addFile = addLeftButton(
@@ -545,8 +588,10 @@ void SendFilesBox::refreshButtons() {
 	addMenuButton();
 }
 
-bool SendFilesBox::hasSendMenu() const {
-	return (_sendMenuDetails().type != SendMenu::Type::Disabled);
+bool SendFilesBox::hasSendMenu(const SendMenu::Details &details) const {
+	return (details.type != SendMenu::Type::Disabled)
+		|| (details.spoiler != SendMenu::SpoilerState::None)
+		|| (details.caption != SendMenu::CaptionState::None);
 }
 
 bool SendFilesBox::hasSpoilerMenu() const {
@@ -583,7 +628,8 @@ void SendFilesBox::toggleSpoilers(bool enabled) {
 }
 
 void SendFilesBox::addMenuButton() {
-	if (!hasSendMenu() && !hasSpoilerMenu()) {
+	const auto details = _sendMenuDetails();
+	if (!hasSendMenu(details)) {
 		return;
 	}
 
@@ -592,31 +638,16 @@ void SendFilesBox::addMenuButton() {
 		const auto &tabbed = _st.tabbed;
 		const auto &icons = tabbed.icons;
 		_menu = base::make_unique_q<Ui::PopupMenu>(top, tabbed.menu);
-		if (hasSpoilerMenu()) {
-			const auto spoilered = allWithSpoilers();
-			_menu->addAction(
-				(spoilered
-					? tr::lng_context_disable_spoiler(tr::now)
-					: tr::lng_context_spoiler_effect(tr::now)),
-				[=] { toggleSpoilers(!spoilered); },
-				spoilered ? &icons.menuSpoilerOff : &icons.menuSpoiler);
-			if (hasSendMenu()) {
-				_menu->addSeparator(&tabbed.expandedSeparator);
-			}
-		}
-		if (hasSendMenu()) {
-			SendMenu::FillSendMenu(
-				_menu.get(),
-				_show,
-				_sendMenuDetails(),
-				SendMenu::DefaultCallback(_show, sendCallback()),
-				&_st.tabbed.icons,
-				QCursor::pos());
-		}
+		SendMenu::FillSendMenu(
+			_menu.get(),
+			_show,
+			_sendMenuDetails(),
+			_sendMenuCallback,
+			&_st.tabbed.icons,
+			QCursor::pos());
 		_menu->popup(QCursor::pos());
 		return true;
 	});
-
 }
 
 void SendFilesBox::initSendWay() {
@@ -658,9 +689,7 @@ void SendFilesBox::initSendWay() {
 		for (auto &block : _blocks) {
 			block.setSendWay(value);
 		}
-		if (!hasSendMenu()) {
-			refreshButtons();
-		}
+		refreshButtons();
 		if (was != hidden()) {
 			updateBoxSize();
 			updateControlsGeometry();
@@ -872,9 +901,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 }
 
 void SendFilesBox::refreshControls(bool initial) {
-	if (initial || !hasSendMenu()) {
-		refreshButtons();
-	}
+	refreshButtons();
 	refreshTitleText();
 	updateSendWayControls();
 	updateCaptionPlaceholder();
@@ -1426,9 +1453,12 @@ void SendFilesBox::send(
 	if ((_sendType == Api::SendType::Scheduled
 		|| _sendType == Api::SendType::ScheduledToUser)
 		&& !options.scheduled) {
+		auto child = _sendMenuDetails();
+		child.spoiler = SendMenu::SpoilerState::None;
+		child.caption = SendMenu::CaptionState::None;
 		return SendMenu::DefaultCallback(_show, sendCallback())(
 			{ .type = SendMenu::ActionType::Schedule },
-			_sendMenuDetails());
+			child);
 	}
 	if (_preparing) {
 		_whenReadySend = [=] {
@@ -1453,6 +1483,7 @@ void SendFilesBox::send(
 		auto caption = (_caption && !_caption->isHidden())
 			? _caption->getTextWithAppliedMarkdown()
 			: TextWithTags();
+		options.invertCaption = _invertCaption;
 		if (!validateLength(caption.text)) {
 			return;
 		}

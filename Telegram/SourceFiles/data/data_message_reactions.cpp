@@ -1104,6 +1104,7 @@ void Reactions::defaultUpdated() {
 	}
 	refreshMyTags();
 	refreshTags();
+	refreshEffects();
 	_defaultUpdated.fire({});
 }
 
