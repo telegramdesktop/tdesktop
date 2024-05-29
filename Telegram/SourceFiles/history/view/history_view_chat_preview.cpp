@@ -242,6 +242,7 @@ Item::Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread)
 		this,
 		tr::lng_context_mark_read(tr::now),
 		st::previewMarkRead)) {
+	_chatStyle->apply(_theme.get());
 	setPointerCursor(false);
 	setMinWidth(st::previewMenu.menu.widthMin);
 	resize(minWidth(), contentHeight());
