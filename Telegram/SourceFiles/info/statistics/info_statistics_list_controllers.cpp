@@ -744,6 +744,7 @@ private:
 	const int _rowHeight;
 
 	PaintRoundImageCallback _paintUserpicCallback;
+	QString _name;
 
 	Ui::Text::String _rightText;
 };
@@ -773,12 +774,21 @@ CreditsRow::CreditsRow(const Descriptor &descriptor)
 }
 
 void CreditsRow::init() {
-	PeerListRow::setCustomStatus(langDateTimeFull(_entry.date));
+	_name = !PeerListRow::special()
+		? PeerListRow::generateName()
+		: Ui::GenerateEntryName(_entry).text;
+	const auto joiner = QString(QChar(' ')) + QChar(8212) + QChar(' ');
+	PeerListRow::setCustomStatus(
+		langDateTimeFull(_entry.date)
+		+ (_entry.refunded
+			? (joiner + tr::lng_channel_earn_history_return(tr::now))
+			: QString())
+		+ (_entry.title.isEmpty() ? QString() : (joiner + _name)));
 	{
 		constexpr auto kMinus = QChar(0x2212);
 		_rightText.setText(
 			st::semiboldTextStyle,
-			(!_entry.bareId ? QChar('+') : kMinus)
+			((!_entry.bareId || _entry.refunded) ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(std::abs(int64(_entry.credits))));
 	}
 	if (!_paintUserpicCallback) {
@@ -793,9 +803,7 @@ const Data::CreditsHistoryEntry &CreditsRow::entry() const {
 }
 
 QString CreditsRow::generateName() {
-	return !PeerListRow::special()
-		? PeerListRow::generateName()
-		: Ui::GenerateEntryName(_entry).text;
+	return _entry.title.isEmpty() ? _name : _entry.title;
 }
 
 PaintRoundImageCallback CreditsRow::generatePaintUserpicCallback(bool force) {
@@ -828,7 +836,7 @@ void CreditsRow::rightActionPaint(
 		bool actionSelected) {
 	const auto &font = _rightText.style()->font;
 	y += _rowHeight / 2;
-	p.setPen(!_entry.bareId
+	p.setPen((!_entry.bareId || _entry.refunded)
 		? st::boxTextFgGood
 		: st::menuIconAttentionColor);
 	x += st::creditsHistoryRightSkip;
