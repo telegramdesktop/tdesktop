@@ -426,16 +426,19 @@ void Item::setupHistory() {
 
 	_scroll->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::MouseButtonPress) {
-			const auto relative = Ui::MapFrom(
-				_inner.data(),
-				_scroll.get(),
-				static_cast<QMouseEvent*>(e.get())->pos());
-			if (const auto view = _inner->lookupItemByY(relative.y())) {
-				_actions.fire(ChatPreviewAction{
-					.openItemId = view->data()->fullId(),
-				});
-			} else {
-				_actions.fire(ChatPreviewAction{});
+			const auto button = static_cast<QMouseEvent*>(e.get())->button();
+			if (button == Qt::LeftButton) {
+				const auto relative = Ui::MapFrom(
+					_inner.data(),
+					_scroll.get(),
+					static_cast<QMouseEvent*>(e.get())->pos());
+				if (const auto view = _inner->lookupItemByY(relative.y())) {
+					_actions.fire(ChatPreviewAction{
+						.openItemId = view->data()->fullId(),
+					});
+				} else {
+					_actions.fire(ChatPreviewAction{});
+				}
 			}
 		}
 	}, lifetime());
