@@ -35,6 +35,9 @@ public:
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
+	bool aboveTextByDefault() const override {
+		return false;
+	}
 	bool hideMessageText() const override {
 		return false;
 	}

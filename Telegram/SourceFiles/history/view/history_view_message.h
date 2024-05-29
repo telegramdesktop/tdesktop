@@ -287,7 +287,6 @@ private:
 	void ensureRightAction() const;
 	void refreshTopicButton();
 	void refreshInfoSkipBlock();
-	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
 
 	void validateInlineKeyboard(HistoryMessageReplyMarkup *markup);

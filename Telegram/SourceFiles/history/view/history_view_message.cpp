@@ -406,7 +406,6 @@ Message::Message(
 	not_null<HistoryItem*> data,
 	Element *replacing)
 : Element(delegate, data, replacing, Flag(0))
-, _invertMedia(data->invertMedia() && !data->emptyText())
 , _hideReply(delegate->elementHideReply(this))
 , _bottomInfo(
 		&data->history()->owner().reactions(),
@@ -826,6 +825,15 @@ QSize Message::performCountOptimalSize() {
 	validateInlineKeyboard(markup);
 	updateViewButtonExistence();
 	refreshTopicButton();
+
+	const auto media = this->media();
+	const auto textItem = this->textItem();
+	const auto defaultInvert = media && media->aboveTextByDefault();
+	const auto invertDefault = textItem
+		&& textItem->invertMedia()
+		&& !textItem->emptyText();
+	_invertMedia = invertDefault ? !defaultInvert : defaultInvert;
+
 	updateMediaInBubbleState();
 	if (oldKey != reactionsKey()) {
 		refreshReactions();
@@ -833,7 +841,6 @@ QSize Message::performCountOptimalSize() {
 	refreshRightBadge();
 	refreshInfoSkipBlock();
 
-	const auto media = this->media();
 	const auto botTop = item->isFakeAboutView()
 		? Get<FakeBotAboutTop>()
 		: nullptr;
@@ -877,9 +884,10 @@ QSize Message::performCountOptimalSize() {
 
 		// Entry page is always a bubble bottom.
 		const auto withVisibleText = hasVisibleText();
+		const auto textualWidth = textualMaxWidth();
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || check || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
-		maxWidth = plainMaxWidth();
+		maxWidth = textualWidth;
 		if (context() == Context::Replies && item->isDiscussionPost()) {
 			maxWidth = std::max(maxWidth, st::msgMaxWidth);
 		}
@@ -930,7 +938,7 @@ QSize Message::performCountOptimalSize() {
 					if (botTop) {
 						minHeight += botTop->height;
 					}
-					if (maxWidth < plainMaxWidth()) {
+					if (maxWidth < textualWidth) {
 						minHeight -= text().minHeight();
 						minHeight += text().countHeight(innerWidth);
 					}
@@ -3432,12 +3440,6 @@ void Message::refreshDataIdHook() {
 	}
 }
 
-int Message::plainMaxWidth() const {
-	return st::msgPadding.left()
-		+ (hasVisibleText() ? text().maxWidth() : 0)
-		+ st::msgPadding.right();
-}
-
 int Message::monospaceMaxWidth() const {
 	return st::msgPadding.left()
 		+ (hasVisibleText() ? text().countMaxMonospaceWidth() : 0)
@@ -4189,7 +4191,7 @@ QRect Message::countGeometry() const {
 	accumulate_min(contentWidth, maxWidth());
 	accumulate_min(contentWidth, int(_bubbleWidthLimit));
 	if (mediaWidth < contentWidth) {
-		const auto textualWidth = plainMaxWidth();
+		const auto textualWidth = textualMaxWidth();
 		if (mediaWidth < textualWidth
 			&& (!media || !media->enforceBubbleWidth())) {
 			accumulate_min(contentWidth, textualWidth);
@@ -4300,7 +4302,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 	if (mediaDisplayed) {
 		media->resizeGetHeight(contentWidth);
 		if (media->width() < contentWidth) {
-			const auto textualWidth = plainMaxWidth();
+			const auto textualWidth = textualMaxWidth();
 			if (media->width() < textualWidth
 				&& !media->enforceBubbleWidth()) {
 				accumulate_min(contentWidth, textualWidth);
@@ -4474,8 +4476,11 @@ bool Message::invertMedia() const {
 }
 
 bool Message::hasVisibleText() const {
-	if (data()->emptyText()) {
-		if (const auto media = data()->media()) {
+	const auto textItem = this->textItem();
+	if (!textItem) {
+		return false;
+	} else if (textItem->emptyText()) {
+		if (const auto media = textItem->media()) {
 			return media->storyExpired();
 		}
 		return false;

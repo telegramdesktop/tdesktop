@@ -775,6 +775,10 @@ void Element::refreshMedia(Element *replacing) {
 	}
 }
 
+HistoryItem *Element::textItem() const {
+	return _textItem;
+}
+
 Ui::Text::IsolatedEmoji Element::isolatedEmoji() const {
 	return _text.toIsolatedEmoji();
 }
@@ -952,11 +956,11 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 
 void Element::validateText() {
 	const auto item = data();
-	const auto &text = item->_text;
 	const auto media = item->media();
 	const auto storyMention = media && media->storyMention();
 	if (media && media->storyExpired()) {
 		_media = nullptr;
+		_textItem = item;
 		if (!storyMention) {
 			if (_text.isEmpty()) {
 				setTextWithLinks(Ui::Text::Italic(
@@ -965,6 +969,16 @@ void Element::validateText() {
 			return;
 		}
 	}
+
+	// Albums may show text of a different item than the parent one.
+	_textItem = _media ? _media->itemForText() : item.get();
+	if (!_textItem) {
+		if (!_text.isEmpty()) {
+			setTextWithLinks({});
+		}
+		return;
+	}
+	const auto &text = _textItem->_text;
 	if (_text.isEmpty() == text.empty()) {
 	} else if (_flags & Flag::ServiceMessage) {
 		const auto contextDependentText = contextDependentServiceText();
@@ -972,11 +986,11 @@ void Element::validateText() {
 			? text
 			: contextDependentText.text;
 		const auto &customLinks = contextDependentText.text.empty()
-			? item->customTextLinks()
+			? _textItem->customTextLinks()
 			: contextDependentText.links;
 		setTextWithLinks(markedText, customLinks);
 	} else {
-		setTextWithLinks(item->translatedTextWithLocalEntities());
+		setTextWithLinks(_textItem->translatedTextWithLocalEntities());
 	}
 }
 
@@ -1405,6 +1419,12 @@ bool Element::usesBubblePattern(const PaintContext &context) const {
 
 bool Element::hasVisibleText() const {
 	return false;
+}
+
+int Element::textualMaxWidth() const {
+	return st::msgPadding.left()
+		+ (hasVisibleText() ? text().maxWidth() : 0)
+		+ st::msgPadding.right();
 }
 
 auto Element::verticalRepaintRange() const -> VerticalRepaintRange {

@@ -391,10 +391,8 @@ Ui::BubbleRounding Media::adjustedBubbleRounding(RectParts square) const {
 	return result;
 }
 
-Ui::BubbleRounding Media::adjustedBubbleRoundingWithCaption(
-		const Ui::Text::String &caption) const {
-	return adjustedBubbleRounding(
-		caption.isEmpty() ? RectParts() : RectPart::FullBottom);
+HistoryItem *Media::itemForText() const {
+	return _parent->data();
 }
 
 bool Media::isRoundedInBubbleBottom() const {

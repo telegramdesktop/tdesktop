@@ -373,6 +373,7 @@ public:
 			&& _text.isOnlyCustomEmoji();
 	}
 
+	[[nodiscard]] HistoryItem *textItem() const;
 	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const;
 	[[nodiscard]] Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const;
 
@@ -476,6 +477,7 @@ public:
 		std::optional<QPoint> pressPoint) const;
 	[[nodiscard]] virtual TimeId displayedEditDate() const;
 	[[nodiscard]] virtual bool hasVisibleText() const;
+	[[nodiscard]] int textualMaxWidth() const;
 	virtual void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) {
 	}
@@ -633,6 +635,7 @@ private:
 	mutable ClickHandlerPtr _fromLink;
 	const QDateTime _dateTime;
 
+	HistoryItem *_textItem = nullptr;
 	mutable Ui::Text::String _text;
 	mutable int _textWidth = -1;
 	mutable int _textHeight = 0;
