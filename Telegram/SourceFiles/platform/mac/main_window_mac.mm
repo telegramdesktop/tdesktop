@@ -310,6 +310,16 @@ bool MainWindow::nativeEvent(
 			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 				imeCompositionStartReceived();
 			});
+		} else if ([event type] == NSEventTypePressure) {
+			const auto stage = [event stage];
+			if (_lastPressureStage != stage) {
+				_lastPressureStage = stage;
+				if (stage == 2) {
+					Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+						_forceClicks.fire(QCursor::pos());
+					});
+				}
+			}
 		}
 	}
 	return false;

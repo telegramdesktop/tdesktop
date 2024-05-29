@@ -144,6 +144,10 @@ public:
 		Core::WindowPosition initial,
 		QSize minSize) const;
 
+	[[nodiscard]] virtual rpl::producer<QPoint> globalForceClicks() {
+		return rpl::never<QPoint>();
+	}
+
 protected:
 	void leaveEventHook(QEvent *e) override;
 

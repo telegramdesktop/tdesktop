@@ -123,6 +123,7 @@ public:
 	void resizeEmptyLabel();
 
 	[[nodiscard]] bool isUserpicPress() const;
+	[[nodiscard]] bool isUserpicPressOnWide() const;
 	[[nodiscard]] bool pressShowsPreview(bool onlyUserpic) const;
 	void cancelChatPreview();
 	void showChatPreview(bool onlyUserpic);
@@ -258,6 +259,7 @@ private:
 		QPoint globalPosition,
 		Qt::MouseButton button,
 		Qt::KeyboardModifiers modifiers);
+	void processGlobalForceClick(QPoint globalPosition);
 	void clearIrrelevantState();
 	void selectByMouse(QPoint globalPosition);
 	void preloadRowsData();
