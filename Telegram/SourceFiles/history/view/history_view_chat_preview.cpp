@@ -275,11 +275,13 @@ void Item::setupTop() {
 	}, _top->lifetime());
 
 	const auto topic = _thread->asTopic();
+	auto nameValue = (topic
+		? Info::Profile::TitleValue(topic)
+		: Info::Profile::NameValue(_thread->peer())
+	) | rpl::start_spawning(_top->lifetime());
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		_top.get(),
-		(topic
-			? Info::Profile::TitleValue(topic)
-			: Info::Profile::NameValue(_thread->peer())),
+		rpl::duplicate(nameValue),
 		st::previewName);
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
 	auto statusFields = StatusValue(
@@ -322,12 +324,19 @@ void Item::setupTop() {
 	}
 
 	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
-	_top->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+	rpl::combine(
+		_top->widthValue(),
+		std::move(nameValue)
+	) | rpl::start_with_next([=](int width, const auto &) {
 		const auto &st = st::previewTop;
-		name->resizeToWidth(geometry.width()
+		name->resizeToNaturalWidth(width
 			- st.namePosition.x()
 			- st.photoPosition.x());
 		name->move(st::previewTop.namePosition);
+	}, name->lifetime());
+
+	_top->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+		const auto &st = st::previewTop;
 		status->resizeToWidth(geometry.width()
 			- st.statusPosition.x()
 			- st.photoPosition.x());
