@@ -283,6 +283,7 @@ void SettingsWidget::setupPathAndFormat(
 	addLocationLabel(container);
 	addFormatOption(tr::lng_export_option_html(tr::now), Format::Html);
 	addFormatOption(tr::lng_export_option_json(tr::now), Format::Json);
+	addFormatOption(tr::lng_export_option_html_and_json(tr::now), Format::HtmlAndJson);
 }
 
 void SettingsWidget::addLocationLabel(
