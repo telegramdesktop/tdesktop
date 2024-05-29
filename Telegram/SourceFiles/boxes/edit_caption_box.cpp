@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "mainwidget.h" // controller->content() -> QWidget*
+#include "menu/menu_send.h"
 #include "mtproto/mtproto_config.h"
 #include "platform/platform_specific.h"
 #include "storage/localimageloader.h" // SendMediaType
@@ -228,13 +229,6 @@ void EditPhotoImage(
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	not_null<HistoryItem*> item)
-: EditCaptionBox({}, controller, item, PrepareEditText(item), {}, {}) {
-}
-
-EditCaptionBox::EditCaptionBox(
-	QWidget*,
-	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
 	TextWithTags &&text,
 	Ui::PreparedList &&list,
@@ -365,8 +359,20 @@ void EditCaptionBox::StartPhotoEdit(
 }
 
 void EditCaptionBox::prepare() {
-	addButton(tr::lng_settings_save(), [=] { save(); });
+	const auto button = addButton(tr::lng_settings_save(), [=] { save(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
+
+	const auto details = crl::guard(this, [=] {
+		return SendMenu::Details();
+	});
+	const auto callback = [=](SendMenu::Action action, const auto &) {
+
+	};
+	SendMenu::SetupMenuAndShortcuts(
+		button,
+		nullptr,
+		details,
+		crl::guard(this, callback));
 
 	updateBoxSize();
 
@@ -899,6 +905,7 @@ void EditCaptionBox::save() {
 	auto options = Api::SendOptions();
 	options.scheduled = item->isScheduled() ? item->date() : 0;
 	options.shortcutId = item->shortcutId();
+	//options.invertCaption = _invertCaption;
 
 	if (!_preparedList.files.empty()) {
 		if ((_albumType != Ui::AlbumType::None)

@@ -324,7 +324,12 @@ HistoryWidget::HistoryWidget(
 	{
 		using namespace SendMenu;
 		const auto sendAction = [=](Action action, Details) {
-			if (action.type == ActionType::Send) {
+			if (action.type == ActionType::CaptionUp
+				|| action.type == ActionType::CaptionDown
+				|| action.type == ActionType::SpoilerOn
+				|| action.type == ActionType::SpoilerOff) {
+				_mediaEditSpoiler.apply(action);
+			} else if (action.type == ActionType::Send) {
 				send(action.options);
 			} else {
 				sendScheduled(action.options);
@@ -2672,7 +2677,7 @@ void HistoryWidget::setEditMsgId(MsgId msgId) {
 	unregisterDraftSources();
 	_editMsgId = msgId;
 	if (!msgId) {
-		_mediaEditSpoiler.setSpoilerOverride(std::nullopt);
+		_mediaEditSpoiler.cancel();
 		_canReplaceMedia = false;
 		if (_preview) {
 			_preview->setDisabled(false);
@@ -4056,15 +4061,14 @@ void HistoryWidget::saveEditMsg() {
 		})();
 	};
 
-	auto options = Api::SendOptions();
 	_saveEditMsgRequestId = Api::EditTextMessage(
 		item,
 		sending,
 		webPageDraft,
-		options,
+		{ .invertCaption = _mediaEditSpoiler.invertCaption() },
 		done,
 		fail,
-		_mediaEditSpoiler.spoilerOverride());
+		_mediaEditSpoiler.spoilered());
 }
 
 void HistoryWidget::hideChildWidgets() {
@@ -4222,6 +4226,12 @@ SendMenu::Details HistoryWidget::sendMenuDetails() const {
 	return { .type = type, .effectAllowed = effectAllowed };
 }
 
+SendMenu::Details HistoryWidget::saveMenuDetails() const {
+	return (_editMsgId && _replyEditMsg)
+		? _mediaEditSpoiler.sendMenuDetails(HasSendText(_field))
+		: SendMenu::Details();
+}
+
 auto HistoryWidget::computeSendButtonType() const {
 	using Type = Ui::SendButton::Type;
 
@@ -4236,7 +4246,11 @@ auto HistoryWidget::computeSendButtonType() const {
 }
 
 SendMenu::Details HistoryWidget::sendButtonMenuDetails() const {
-	if (computeSendButtonType() != Ui::SendButton::Type::Send) {
+	using Type = Ui::SendButton::Type;
+	const auto type = computeSendButtonType();
+	if (type == Type::Save) {
+		return saveMenuDetails();
+	} else if (type != Type::Send) {
 		return {};
 	}
 	return sendMenuDetails();
@@ -6587,8 +6601,8 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		&& (e->button() == Qt::RightButton)) {
 		_mediaEditSpoiler.showMenu(
 			_list,
-			session().data().message(_history->peer, _editMsgId),
-			[=](bool) { mouseMoveEvent(nullptr); });
+			[=] { mouseMoveEvent(nullptr); },
+			HasSendText(_field));
 	} else if (_inPhotoEdit && _photoEditMedia) {
 		EditCaptionBox::StartPhotoEdit(
 			controller(),
@@ -8171,6 +8185,9 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		const auto editMedia = _editMsgId
 			? _replyEditMsg->media()
 			: nullptr;
+		if (_editMsgId && _replyEditMsg) {
+			_mediaEditSpoiler.start(_replyEditMsg);
+		}
 		_canReplaceMedia = editMedia && editMedia->allowsEditMedia();
 		_photoEditMedia = (_canReplaceMedia
 			&& editMedia->photo()
@@ -8264,14 +8281,12 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		? drawMsgText->media()
 		: nullptr;
 	const auto hasPreview = media && media->hasReplyPreview();
-	const auto preview = _mediaEditSpoiler.spoilerOverride()
-		? _mediaEditSpoiler.mediaPreview(drawMsgText)
+	const auto preview = _mediaEditSpoiler
+		? _mediaEditSpoiler.mediaPreview()
 		: hasPreview
 		? media->replyPreview()
 		: nullptr;
-	const auto spoilered = _mediaEditSpoiler.spoilerOverride()
-		? (*_mediaEditSpoiler.spoilerOverride())
-		: (preview && media->hasSpoiler());
+	const auto spoilered = _mediaEditSpoiler.spoilered();
 	if (!spoilered) {
 		_replySpoiler = nullptr;
 	} else if (!_replySpoiler) {

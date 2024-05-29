@@ -379,7 +379,7 @@ Fn<SendMenu::Details()> SendFilesBox::prepareSendMenuDetails(
 		const auto canMoveCaption = _list.canMoveCaption(
 			way.groupFiles() && way.sendImagesAsPhotos(),
 			way.sendImagesAsPhotos()
-		) && _caption && !_caption->getLastText().isEmpty();
+		) && _caption && HasSendText(_caption);
 		result.caption = !canMoveCaption
 			? SendMenu::CaptionState::None
 			: _invertCaption
@@ -638,14 +638,15 @@ void SendFilesBox::addMenuButton() {
 		const auto &tabbed = _st.tabbed;
 		const auto &icons = tabbed.icons;
 		_menu = base::make_unique_q<Ui::PopupMenu>(top, tabbed.menu);
+		const auto position = QCursor::pos();
 		SendMenu::FillSendMenu(
 			_menu.get(),
 			_show,
 			_sendMenuDetails(),
 			_sendMenuCallback,
 			&_st.tabbed.icons,
-			QCursor::pos());
-		_menu->popup(QCursor::pos());
+			position);
+		_menu->popup(position);
 		return true;
 	});
 }

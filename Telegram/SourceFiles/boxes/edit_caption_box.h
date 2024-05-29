@@ -35,10 +35,6 @@ public:
 	EditCaptionBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		not_null<HistoryItem*> item);
-	EditCaptionBox(
-		QWidget*,
-		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		TextWithTags &&text,
 		Ui::PreparedList &&list,

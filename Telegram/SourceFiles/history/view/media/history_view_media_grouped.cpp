@@ -396,7 +396,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	// date
-	if (_parent->media() == this) {
+	if (_parent->media() == this && isBubbleBottom()) {
 		auto fullRight = width();
 		auto fullBottom = height();
 		if (needInfoDisplay()) {

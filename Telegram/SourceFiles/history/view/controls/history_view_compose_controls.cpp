@@ -124,7 +124,8 @@ class FieldHeader final : public Ui::RpWidget {
 public:
 	FieldHeader(
 		QWidget *parent,
-		std::shared_ptr<ChatHelpers::Show> show);
+		std::shared_ptr<ChatHelpers::Show> show,
+		Fn<bool()> hasSendText);
 
 	void setHistory(const SetHistoryArgs &args);
 	void updateTopicRootId(MsgId topicRootId);
@@ -187,6 +188,8 @@ private:
 	};
 
 	const std::shared_ptr<ChatHelpers::Show> _show;
+	const Fn<bool()> _hasSendText;
+
 	History *_history = nullptr;
 	MsgId _topicRootId = 0;
 
@@ -230,9 +233,11 @@ private:
 
 FieldHeader::FieldHeader(
 	QWidget *parent,
-	std::shared_ptr<ChatHelpers::Show> show)
+	std::shared_ptr<ChatHelpers::Show> show,
+	Fn<bool()> hasSendText)
 : RpWidget(parent)
 , _show(std::move(show))
+, _hasSendText(std::move(hasSendText))
 , _forwardPanel(
 	std::make_unique<ForwardPanel>([=] { customEmojiRepaint(); }))
 , _data(&_show->session().data())
@@ -406,8 +411,8 @@ void FieldHeader::init() {
 				if (inPreviewRect && isEditingMessage()) {
 					_mediaEditSpoiler.showMenu(
 						this,
-						_data->message(_editMsgId.current()),
-						[=](bool) { update(); });
+						[=] { update(); },
+						_hasSendText());
 				} else if (const auto reply = replyingToMessage()) {
 					_jumpToItemRequests.fire_copy(reply);
 				}
@@ -582,14 +587,12 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 
 	const auto media = _shownMessage->media();
 	_shownMessageHasPreview = media && media->hasReplyPreview();
-	const auto preview = _mediaEditSpoiler.spoilerOverride()
-		? _mediaEditSpoiler.mediaPreview(_shownMessage)
+	const auto preview = _mediaEditSpoiler
+		? _mediaEditSpoiler.mediaPreview()
 		: _shownMessageHasPreview
 		? media->replyPreview()
 		: nullptr;
-	const auto spoilered = _mediaEditSpoiler.spoilerOverride()
-		? (*_mediaEditSpoiler.spoilerOverride())
-		: (preview && media->hasSpoiler());
+	const auto spoilered = _mediaEditSpoiler.spoilered();
 	if (!spoilered) {
 		_shownPreviewSpoiler = nullptr;
 	} else if (!_shownPreviewSpoiler) {
@@ -734,7 +737,7 @@ void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
 	_photoEditAllowed = photoEditAllowed;
 	_editMsgId = id;
 	if (!photoEditAllowed) {
-		_mediaEditSpoiler.setSpoilerOverride(std::nullopt);
+		_mediaEditSpoiler.cancel();
 		_inPhotoEdit = false;
 		_inPhotoEditOver.stop();
 	}
@@ -781,8 +784,9 @@ MessageToEdit FieldHeader::queryToEdit() {
 		.options = {
 			.scheduled = item->isScheduled() ? item->date() : 0,
 			.shortcutId = item->shortcutId(),
+			.invertCaption = _mediaEditSpoiler.invertCaption(),
 		},
-		.spoilerMediaOverride = _mediaEditSpoiler.spoilerOverride(),
+		.spoilerMediaOverride = _mediaEditSpoiler.spoilered(),
 	};
 }
 
@@ -842,7 +846,10 @@ ComposeControls::ComposeControls(
 	parent,
 	_show,
 	&_st.tabbed))
-, _header(std::make_unique<FieldHeader>(_wrap.get(), _show))
+, _header(std::make_unique<FieldHeader>(
+	_wrap.get(),
+	_show,
+	[=] { return HasSendText(_field); }))
 , _voiceRecordBar(std::make_unique<VoiceRecordBar>(
 	_wrap.get(),
 	Controls::VoiceRecordBarDescriptor{

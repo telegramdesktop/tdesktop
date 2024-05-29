@@ -269,6 +269,7 @@ public:
 	void clearSelected();
 
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
+	[[nodiscard]] SendMenu::Details saveMenuDetails() const;
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options,

@@ -615,7 +615,8 @@ FillMenuResult FillSendMenu(
 		const style::ComposeIcons *iconsOverride,
 		std::optional<QPoint> desiredPositionOverride) {
 	const auto type = details.type;
-	const auto empty = (type == Type::Disabled)
+	const auto sending = (type != Type::Disabled);
+	const auto empty = !sending
 		&& (details.spoiler == SpoilerState::None)
 		&& (details.caption == CaptionState::None);
 	if (empty || !action) {
@@ -653,18 +654,16 @@ FillMenuResult FillSendMenu(
 		toggles = true;
 	}
 	if (toggles && type != Type::Disabled) {
-		menu->addSeparator();
+		menu->addSeparator(&st::expandedMenuSeparator);
 	}
 
-	if (type != Type::Reminder) {
+	if (sending && type != Type::Reminder) {
 		menu->addAction(
 			tr::lng_send_silent_message(tr::now),
-			[=] { action(
-				{ Api::SendOptions{ .silent = true } },
-				details); },
+			[=] { action({ Api::SendOptions{ .silent = true } }, details); },
 			&icons.menuMute);
 	}
-	if (type != Type::SilentOnly) {
+	if (sending && type != Type::SilentOnly) {
 		menu->addAction(
 			(type == Type::Reminder
 				? tr::lng_reminder_message(tr::now)
@@ -672,7 +671,7 @@ FillMenuResult FillSendMenu(
 			[=] { action({ .type = ActionType::Schedule }, details); },
 			&icons.menuSchedule);
 	}
-	if (type == Type::ScheduledToUser) {
+	if (sending && type == Type::ScheduledToUser) {
 		menu->addAction(
 			tr::lng_scheduled_send_until_online(tr::now),
 			[=] { action(
