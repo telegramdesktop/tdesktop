@@ -514,6 +514,7 @@ void SendConfirmedFile(
 		edition.ttl = 0;
 		edition.mtpMedia = &media;
 		edition.textWithEntities = caption;
+		edition.invertMedia = file->to.options.invertCaption;
 		edition.useSameViews = true;
 		edition.useSameForwards = true;
 		edition.useSameMarkup = true;

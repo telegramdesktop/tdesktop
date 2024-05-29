@@ -247,7 +247,7 @@ private:
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		std::optional<bool> spoilerMediaOverride);
+		bool spoilered);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 	[[nodiscard]] FullReplyTo replyTo() const;

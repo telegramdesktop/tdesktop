@@ -216,7 +216,7 @@ private:
 	bool _repaintScheduled : 1 = false;
 	bool _inClickable : 1 = false;
 
-	HistoryView::MediaEditSpoilerManager _mediaEditSpoiler;
+	HistoryView::MediaEditManager _mediaEditManager;
 
 	const not_null<Data::Session*> _data;
 	const not_null<Ui::IconButton*> _cancel;
@@ -409,7 +409,7 @@ void FieldHeader::init() {
 				}
 			} else if (!isLeftButton) {
 				if (inPreviewRect && isEditingMessage()) {
-					_mediaEditSpoiler.showMenu(
+					_mediaEditManager.showMenu(
 						this,
 						[=] { update(); },
 						_hasSendText());
@@ -587,12 +587,12 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 
 	const auto media = _shownMessage->media();
 	_shownMessageHasPreview = media && media->hasReplyPreview();
-	const auto preview = _mediaEditSpoiler
-		? _mediaEditSpoiler.mediaPreview()
+	const auto preview = _mediaEditManager
+		? _mediaEditManager.mediaPreview()
 		: _shownMessageHasPreview
 		? media->replyPreview()
 		: nullptr;
-	const auto spoilered = _mediaEditSpoiler.spoilered();
+	const auto spoilered = _mediaEditManager.spoilered();
 	if (!spoilered) {
 		_shownPreviewSpoiler = nullptr;
 	} else if (!_shownPreviewSpoiler) {
@@ -737,7 +737,7 @@ void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
 	_photoEditAllowed = photoEditAllowed;
 	_editMsgId = id;
 	if (!photoEditAllowed) {
-		_mediaEditSpoiler.cancel();
+		_mediaEditManager.cancel();
 		_inPhotoEdit = false;
 		_inPhotoEditOver.stop();
 	}
@@ -784,9 +784,9 @@ MessageToEdit FieldHeader::queryToEdit() {
 		.options = {
 			.scheduled = item->isScheduled() ? item->date() : 0,
 			.shortcutId = item->shortcutId(),
-			.invertCaption = _mediaEditSpoiler.invertCaption(),
+			.invertCaption = _mediaEditManager.invertCaption(),
 		},
-		.spoilerMediaOverride = _mediaEditSpoiler.spoilered(),
+		.spoilered = _mediaEditManager.spoilered(),
 	};
 }
 
@@ -1138,11 +1138,14 @@ bool ComposeControls::confirmMediaEdit(Ui::PreparedList &list) {
 	if (!isEditingMessage() || !_regularWindow) {
 		return false;
 	} else if (_canReplaceMedia) {
+		const auto queryToEdit = _header->queryToEdit();
 		EditCaptionBox::StartMediaReplace(
 			_regularWindow,
 			_editingId,
 			std::move(list),
 			_field->getTextWithTags(),
+			queryToEdit.spoilered,
+			queryToEdit.options.invertCaption,
 			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
 	} else {
 		_show->showToast(tr::lng_edit_caption_attach(tr::now));
@@ -1401,11 +1404,14 @@ void ComposeControls::init() {
 
 	_header->editPhotoRequests(
 	) | rpl::start_with_next([=] {
+		const auto queryToEdit = _header->queryToEdit();
 		EditCaptionBox::StartPhotoEdit(
 			_regularWindow,
 			_photoEditMedia,
 			_editingId,
 			_field->getTextWithTags(),
+			queryToEdit.spoilered,
+			queryToEdit.options.invertCaption,
 			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
 	}, _wrap->lifetime());
 
@@ -2943,10 +2949,13 @@ bool ComposeControls::updateReplaceMediaButton() {
 	const auto hideDuration = st::historyReplaceMedia.ripple.hideDuration;
 	_replaceMedia->setClickedCallback([=] {
 		base::call_delayed(hideDuration, _wrap.get(), [=] {
+			const auto queryToEdit = _header->queryToEdit();
 			EditCaptionBox::StartMediaReplace(
 				_regularWindow,
 				_editingId,
 				_field->getTextWithTags(),
+				queryToEdit.spoilered,
+				queryToEdit.options.invertCaption,
 				crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
 		});
 	});

@@ -328,7 +328,7 @@ HistoryWidget::HistoryWidget(
 				|| action.type == ActionType::CaptionDown
 				|| action.type == ActionType::SpoilerOn
 				|| action.type == ActionType::SpoilerOff) {
-				_mediaEditSpoiler.apply(action);
+				_mediaEditManager.apply(action);
 			} else if (action.type == ActionType::Send) {
 				send(action.options);
 			} else {
@@ -2677,7 +2677,7 @@ void HistoryWidget::setEditMsgId(MsgId msgId) {
 	unregisterDraftSources();
 	_editMsgId = msgId;
 	if (!msgId) {
-		_mediaEditSpoiler.cancel();
+		_mediaEditManager.cancel();
 		_canReplaceMedia = false;
 		if (_preview) {
 			_preview->setDisabled(false);
@@ -2749,6 +2749,8 @@ bool HistoryWidget::updateReplaceMediaButton() {
 				controller(),
 				{ _history->peer->id, _editMsgId },
 				_field->getTextWithTags(),
+				_mediaEditManager.spoilered(),
+				_mediaEditManager.invertCaption(),
 				crl::guard(_list, [=] { cancelEdit(); }));
 		});
 	});
@@ -4065,10 +4067,10 @@ void HistoryWidget::saveEditMsg() {
 		item,
 		sending,
 		webPageDraft,
-		{ .invertCaption = _mediaEditSpoiler.invertCaption() },
+		{ .invertCaption = _mediaEditManager.invertCaption() },
 		done,
 		fail,
-		_mediaEditSpoiler.spoilered());
+		_mediaEditManager.spoilered());
 }
 
 void HistoryWidget::hideChildWidgets() {
@@ -4228,7 +4230,7 @@ SendMenu::Details HistoryWidget::sendMenuDetails() const {
 
 SendMenu::Details HistoryWidget::saveMenuDetails() const {
 	return (_editMsgId && _replyEditMsg)
-		? _mediaEditSpoiler.sendMenuDetails(HasSendText(_field))
+		? _mediaEditManager.sendMenuDetails(HasSendText(_field))
 		: SendMenu::Details();
 }
 
@@ -5613,6 +5615,8 @@ bool HistoryWidget::confirmSendingFiles(
 				{ _history->peer->id, _editMsgId },
 				std::move(list),
 				_field->getTextWithTags(),
+				_mediaEditManager.spoilered(),
+				_mediaEditManager.invertCaption(),
 				crl::guard(_list, [=] { cancelEdit(); }));
 			return true;
 		}
@@ -6599,7 +6603,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 	if (_editMsgId
 		&& (_inDetails || _inPhotoEdit)
 		&& (e->button() == Qt::RightButton)) {
-		_mediaEditSpoiler.showMenu(
+		_mediaEditManager.showMenu(
 			_list,
 			[=] { mouseMoveEvent(nullptr); },
 			HasSendText(_field));
@@ -6609,6 +6613,8 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			_photoEditMedia,
 			{ _history->peer->id, _editMsgId },
 			_field->getTextWithTags(),
+			_mediaEditManager.spoilered(),
+			_mediaEditManager.invertCaption(),
 			crl::guard(_list, [=] { cancelEdit(); }));
 	} else if (!_inDetails) {
 		return;
@@ -8186,7 +8192,7 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 			? _replyEditMsg->media()
 			: nullptr;
 		if (_editMsgId && _replyEditMsg) {
-			_mediaEditSpoiler.start(_replyEditMsg);
+			_mediaEditManager.start(_replyEditMsg);
 		}
 		_canReplaceMedia = editMedia && editMedia->allowsEditMedia();
 		_photoEditMedia = (_canReplaceMedia
@@ -8281,12 +8287,12 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		? drawMsgText->media()
 		: nullptr;
 	const auto hasPreview = media && media->hasReplyPreview();
-	const auto preview = _mediaEditSpoiler
-		? _mediaEditSpoiler.mediaPreview()
+	const auto preview = _mediaEditManager
+		? _mediaEditManager.mediaPreview()
 		: hasPreview
 		? media->replyPreview()
 		: nullptr;
-	const auto spoilered = _mediaEditSpoiler.spoilered();
+	const auto spoilered = _mediaEditManager.spoilered();
 	if (!spoilered) {
 		_replySpoiler = nullptr;
 	} else if (!_replySpoiler) {

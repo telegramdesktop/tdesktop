@@ -237,6 +237,18 @@ bool PreparedList::hasSticker() const {
 	return ranges::any_of(files, &PreparedFile::isSticker);
 }
 
+bool PreparedList::hasSpoilerMenu(bool compress) const {
+	const auto allAreVideo = !ranges::any_of(files, [](const auto &f) {
+		using Type = Ui::PreparedFile::Type;
+		return (f.type != Type::Video);
+	});
+	const auto allAreMedia = !ranges::any_of(files, [](const auto &f) {
+		using Type = Ui::PreparedFile::Type;
+		return (f.type != Type::Photo) && (f.type != Type::Video);
+	});
+	return allAreVideo || (allAreMedia && compress);
+}
+
 int MaxAlbumItems() {
 	return kMaxAlbumCount;
 }

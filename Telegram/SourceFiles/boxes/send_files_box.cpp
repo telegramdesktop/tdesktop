@@ -595,16 +595,7 @@ bool SendFilesBox::hasSendMenu(const SendMenu::Details &details) const {
 }
 
 bool SendFilesBox::hasSpoilerMenu() const {
-	const auto allAreVideo = !ranges::any_of(_list.files, [](const auto &f) {
-		using Type = Ui::PreparedFile::Type;
-		return (f.type != Type::Video);
-	});
-	const auto allAreMedia = !ranges::any_of(_list.files, [](const auto &f) {
-		using Type = Ui::PreparedFile::Type;
-		return (f.type != Type::Photo) && (f.type != Type::Video);
-	});
-	return allAreVideo
-		|| (allAreMedia && _sendWay.current().sendImagesAsPhotos());
+	return _list.hasSpoilerMenu(_sendWay.current().sendImagesAsPhotos());
 }
 
 void SendFilesBox::applyBlockChanges() {

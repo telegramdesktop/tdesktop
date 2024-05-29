@@ -24,11 +24,14 @@ class HistoryItem;
 
 namespace HistoryView {
 
-class MediaEditSpoilerManager final {
+class MediaEditManager final {
 public:
-	MediaEditSpoilerManager();
+	MediaEditManager();
 
-	void start(not_null<HistoryItem*> item);
+	void start(
+		not_null<HistoryItem*> item,
+		std::optional<bool> spoilered = {},
+		std::optional<bool> invertCaption = {});
 	void apply(SendMenu::Action action);
 	void cancel();
 
@@ -48,6 +51,8 @@ public:
 	[[nodiscard]] explicit operator bool() const {
 		return _item != nullptr;
 	}
+
+	[[nodiscard]] static bool CanBeSpoilered(not_null<HistoryItem*> item);
 
 private:
 	base::unique_qptr<Ui::PopupMenu> _menu;

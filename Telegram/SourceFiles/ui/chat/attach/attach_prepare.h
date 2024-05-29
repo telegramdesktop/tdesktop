@@ -123,6 +123,7 @@ struct PreparedList {
 	[[nodiscard]] bool hasSendImagesAsPhotosOption(bool slowmode) const;
 	[[nodiscard]] bool canHaveEditorHintLabel() const;
 	[[nodiscard]] bool hasSticker() const;
+	[[nodiscard]] bool hasSpoilerMenu(bool compress) const;
 
 	Error error = Error::None;
 	QString errorData;

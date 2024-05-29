@@ -176,7 +176,7 @@ void ChooseReplacement(
 void EditPhotoImage(
 		not_null<Window::SessionController*> controller,
 		std::shared_ptr<Data::PhotoMedia> media,
-		bool wasSpoiler,
+		bool spoilered,
 		Fn<void(Ui::PreparedList)> done) {
 	const auto large = media
 		? media->image(Data::PhotoSize::Large)
@@ -199,7 +199,7 @@ void EditPhotoImage(
 
 		using ImageInfo = Ui::PreparedFileInformation::Image;
 		auto &file = list.files.front();
-		file.spoiler = wasSpoiler;
+		file.spoiler = spoilered;
 		const auto image = std::get_if<ImageInfo>(&file.information->media);
 
 		image->modifications = mods;
@@ -231,13 +231,13 @@ EditCaptionBox::EditCaptionBox(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
 	TextWithTags &&text,
+	bool spoilered,
+	bool invertCaption,
 	Ui::PreparedList &&list,
 	Fn<void()> saved)
 : _controller(controller)
 , _historyItem(item)
-, _isAllowedEditMedia(item->media()
-	? item->media()->allowsEditMedia()
-	: false)
+, _isAllowedEditMedia(item->media() && item->media()->allowsEditMedia())
 , _albumType(ComputeAlbumType(item))
 , _controls(base::make_unique_q<Ui::VerticalLayout>(this))
 , _scroll(base::make_unique_q<Ui::ScrollArea>(this, st::boxScroll))
@@ -255,6 +255,8 @@ EditCaptionBox::EditCaptionBox(
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
 
+	_mediaEditManager.start(item, spoilered, invertCaption);
+
 	_controller->session().data().itemRemoved(
 		_historyItem->fullId()
 	) | rpl::start_with_next([=] {
@@ -268,6 +270,8 @@ void EditCaptionBox::StartMediaReplace(
 		not_null<Window::SessionController*> controller,
 		FullMsgId itemId,
 		TextWithTags text,
+		bool spoilered,
+		bool invertCaption,
 		Fn<void()> saved) {
 	const auto session = &controller->session();
 	const auto item = session->data().message(itemId);
@@ -279,6 +283,8 @@ void EditCaptionBox::StartMediaReplace(
 			controller,
 			item,
 			std::move(text),
+			spoilered,
+			invertCaption,
 			std::move(list),
 			std::move(saved)));
 	};
@@ -293,6 +299,8 @@ void EditCaptionBox::StartMediaReplace(
 		FullMsgId itemId,
 		Ui::PreparedList &&list,
 		TextWithTags text,
+		bool spoilered,
+		bool invertCaption,
 		Fn<void()> saved) {
 	const auto session = &controller->session();
 	const auto item = session->data().message(itemId);
@@ -326,6 +334,8 @@ void EditCaptionBox::StartMediaReplace(
 			controller,
 			item,
 			std::move(text),
+			spoilered,
+			invertCaption,
 			std::move(list),
 			std::move(saved)));
 	}
@@ -336,14 +346,15 @@ void EditCaptionBox::StartPhotoEdit(
 		std::shared_ptr<Data::PhotoMedia> media,
 		FullMsgId itemId,
 		TextWithTags text,
+		bool spoilered,
+		bool invertCaption,
 		Fn<void()> saved) {
 	const auto session = &controller->session();
 	const auto item = session->data().message(itemId);
 	if (!item) {
 		return;
 	}
-	const auto hasSpoiler = item->media() && item->media()->hasSpoiler();
-	EditPhotoImage(controller, media, hasSpoiler, [=](
+	EditPhotoImage(controller, media, spoilered, [=](
 			Ui::PreparedList &&list) mutable {
 		const auto item = session->data().message(itemId);
 		if (!item) {
@@ -353,6 +364,8 @@ void EditCaptionBox::StartPhotoEdit(
 			controller,
 			item,
 			std::move(text),
+			spoilered,
+			invertCaption,
 			std::move(list),
 			std::move(saved)));
 	});
@@ -363,10 +376,29 @@ void EditCaptionBox::prepare() {
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	const auto details = crl::guard(this, [=] {
-		return SendMenu::Details();
+		auto result = SendMenu::Details();
+		const auto allWithSpoilers = ranges::all_of(
+			_preparedList.files,
+			&Ui::PreparedFile::spoiler);
+		result.spoiler = !_preparedList.hasSpoilerMenu(!_asFile)
+			? SendMenu::SpoilerState::None
+			: allWithSpoilers
+			? SendMenu::SpoilerState::Enabled
+			: SendMenu::SpoilerState::Possible;
+		const auto canMoveCaption = _preparedList.canMoveCaption(
+			false,
+			!_asFile
+		) && _field && HasSendText(_field);
+		result.caption = !canMoveCaption
+			? SendMenu::CaptionState::None
+			: _mediaEditManager.invertCaption()
+			? SendMenu::CaptionState::Above
+			: SendMenu::CaptionState::Below;
+		return result;
 	});
 	const auto callback = [=](SendMenu::Action action, const auto &) {
-
+		_mediaEditManager.apply(action);
+		rebuildPreview();
 	};
 	SendMenu::SetupMenuAndShortcuts(
 		button,
@@ -402,7 +434,6 @@ void EditCaptionBox::rebuildPreview() {
 
 	applyChanges();
 
-	_previewHasSpoiler = nullptr;
 	if (_preparedList.files.empty()) {
 		const auto media = _historyItem->media();
 		const auto photo = media->photo();
@@ -436,7 +467,13 @@ void EditCaptionBox::rebuildPreview() {
 		_isPhoto = (media && media->isPhoto());
 		const auto withCheckbox = _isPhoto && CanBeCompressed(_albumType);
 		if (media && (!withCheckbox || !_asFile)) {
-			_previewHasSpoiler = [media] { return media->hasSpoiler(); };
+			media->spoileredChanges(
+			) | rpl::start_with_next([=](bool spoilered) {
+				_mediaEditManager.apply({ .type = spoilered
+					? SendMenu::ActionType::SpoilerOn
+					: SendMenu::ActionType::SpoilerOff
+				});
+			}, media->lifetime());
 			_content.reset(media);
 		} else {
 			_content.reset(Ui::CreateChild<Ui::SingleFilePreview>(
@@ -763,10 +800,7 @@ bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 }
 
 bool EditCaptionBox::hasSpoiler() const {
-	return _preparedList.files.empty()
-		? (_historyItem->media()
-			&& _historyItem->media()->hasSpoiler())
-		: _preparedList.files.front().spoiler;
+	return _mediaEditManager.spoilered();
 }
 
 void EditCaptionBox::captionResized() {
@@ -875,8 +909,8 @@ bool EditCaptionBox::validateLength(const QString &text) const {
 }
 
 void EditCaptionBox::applyChanges() {
-	if (!_preparedList.files.empty() && _previewHasSpoiler) {
-		_preparedList.files.front().spoiler = _previewHasSpoiler();
+	if (!_preparedList.files.empty()) {
+		_preparedList.files.front().spoiler = _mediaEditManager.spoilered();
 	}
 }
 
@@ -905,7 +939,7 @@ void EditCaptionBox::save() {
 	auto options = Api::SendOptions();
 	options.scheduled = item->isScheduled() ? item->date() : 0;
 	options.shortcutId = item->shortcutId();
-	//options.invertCaption = _invertCaption;
+	options.invertCaption = _mediaEditManager.invertCaption();
 
 	if (!_preparedList.files.empty()) {
 		if ((_albumType != Ui::AlbumType::None)

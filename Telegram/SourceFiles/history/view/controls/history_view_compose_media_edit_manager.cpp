@@ -21,16 +21,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
-MediaEditSpoilerManager::MediaEditSpoilerManager() = default;
+MediaEditManager::MediaEditManager() = default;
 
-void MediaEditSpoilerManager::start(not_null<HistoryItem*> item) {
+void MediaEditManager::start(
+		not_null<HistoryItem*> item,
+		std::optional<bool> spoilered,
+		std::optional<bool> invertCaption) {
 	const auto media = item->media();
 	if (!media) {
 		return;
 	}
 	_item = item;
-	_spoilered = media->hasSpoiler();
-	_invertCaption = item->invertMedia();
+	_spoilered = spoilered.value_or(media->hasSpoiler());
+	_invertCaption = invertCaption.value_or(item->invertMedia());
 	_lifetime = item->history()->owner().itemRemoved(
 	) | rpl::start_with_next([=](not_null<const HistoryItem*> removed) {
 		if (removed == _item) {
@@ -39,7 +42,7 @@ void MediaEditSpoilerManager::start(not_null<HistoryItem*> item) {
 	});
 }
 
-void MediaEditSpoilerManager::apply(SendMenu::Action action) {
+void MediaEditManager::apply(SendMenu::Action action) {
 	using Type = SendMenu::Action::Type;
 	if (action.type == Type::CaptionUp) {
 		_invertCaption = true;
@@ -52,13 +55,13 @@ void MediaEditSpoilerManager::apply(SendMenu::Action action) {
 	}
 }
 
-void MediaEditSpoilerManager::cancel() {
+void MediaEditManager::cancel() {
 	_menu = nullptr;
 	_item = nullptr;
 	_lifetime.destroy();
 }
 
-void MediaEditSpoilerManager::showMenu(
+void MediaEditManager::showMenu(
 		not_null<Ui::RpWidget*> parent,
 		Fn<void()> finished,
 		bool hasCaptionText) {
@@ -88,7 +91,7 @@ void MediaEditSpoilerManager::showMenu(
 	_menu->popup(position);
 }
 
-[[nodiscard]] Image *MediaEditSpoilerManager::mediaPreview() {
+Image *MediaEditManager::mediaPreview() {
 	if (const auto media = _item ? _item->media() : nullptr) {
 		if (const auto photo = media->photo()) {
 			return photo->getReplyPreview(
@@ -105,15 +108,15 @@ void MediaEditSpoilerManager::showMenu(
 	return nullptr;
 }
 
-bool MediaEditSpoilerManager::spoilered() const {
+bool MediaEditManager::spoilered() const {
 	return _spoilered;
 }
 
-bool MediaEditSpoilerManager::invertCaption() const {
+bool MediaEditManager::invertCaption() const {
 	return _invertCaption;
 }
 
-SendMenu::Details MediaEditSpoilerManager::sendMenuDetails(
+SendMenu::Details MediaEditManager::sendMenuDetails(
 		bool hasCaptionText) const {
 	const auto media = _item ? _item->media() : nullptr;
 	if (!media) {
@@ -122,10 +125,12 @@ SendMenu::Details MediaEditSpoilerManager::sendMenuDetails(
 	const auto editingMedia = media->allowsEditMedia();
 	const auto editPhoto = editingMedia ? media->photo() : nullptr;
 	const auto editDocument = editingMedia ? media->document() : nullptr;
-	const auto canSaveSpoiler = (editPhoto && !editPhoto->isNull())
-		|| (editDocument
+	const auto canSaveSpoiler = CanBeSpoilered(_item);
+	const auto canMoveCaption = media->allowsEditCaption()
+		&& hasCaptionText
+		&& (editPhoto
+			|| editDocument
 			&& (editDocument->isVideoFile() || editDocument->isGifv()));
-	const auto canMoveCaption = media->allowsEditCaption() && hasCaptionText;
 	return {
 		.spoiler = (!canSaveSpoiler
 			? SendMenu::SpoilerState::None
@@ -138,6 +143,16 @@ SendMenu::Details MediaEditSpoilerManager::sendMenuDetails(
 			? SendMenu::CaptionState::Above
 			: SendMenu::CaptionState::Below),
 	};
+}
+
+bool MediaEditManager::CanBeSpoilered(not_null<HistoryItem*> item) {
+	const auto media = item ? item->media() : nullptr;
+	const auto editingMedia = media && media->allowsEditMedia();
+	const auto editPhoto = editingMedia ? media->photo() : nullptr;
+	const auto editDocument = editingMedia ? media->document() : nullptr;
+	return (editPhoto && !editPhoto->isNull())
+		|| (editDocument
+			&& (editDocument->isVideoFile() || editDocument->isGifv()));
 }
 
 } // namespace HistoryView
