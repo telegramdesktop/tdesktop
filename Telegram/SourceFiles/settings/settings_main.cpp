@@ -491,20 +491,30 @@ void SetupPremium(
 		controller->setPremiumRef("settings");
 		showOther(PremiumId());
 	});
-	AddPremiumStar(
-		AddButtonWithLabel(
-			container,
-			tr::lng_credits_summary_title(),
+	{
+		const auto wrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		wrap->toggleOn(
 			controller->session().creditsValue(
-			) | rpl::map([=](uint64 c) {
-				return c ? Lang::FormatCountToShort(c).string : QString{};
-			}),
-			st::settingsButton),
-		true
-	)->addClickHandler([=] {
-		controller->setPremiumRef("settings");
-		showOther(CreditsId());
-	});
+			) | rpl::map(rpl::mappers::_1 > 0));
+		wrap->finishAnimating();
+		AddPremiumStar(
+			AddButtonWithLabel(
+				wrap->entity(),
+				tr::lng_credits_summary_title(),
+				controller->session().creditsValue(
+				) | rpl::map([=](uint64 c) {
+					return c ? Lang::FormatCountToShort(c).string : QString{};
+				}),
+				st::settingsButton),
+			true
+		)->addClickHandler([=] {
+			controller->setPremiumRef("settings");
+			showOther(CreditsId());
+		});
+	}
 	const auto button = AddButtonWithIcon(
 		container,
 		tr::lng_business_title(),
