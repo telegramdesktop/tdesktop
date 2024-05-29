@@ -713,6 +713,7 @@ public:
 		Data::CreditsHistoryEntry entry;
 		not_null<QImage*> creditIcon;
 		int rowHeight = 0;
+		Fn<void(not_null<PeerListRow*>)> updateCallback;
 	};
 
 	CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor);
@@ -752,6 +753,14 @@ CreditsRow::CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor)
 , _entry(descriptor.entry)
 , _creditIcon(descriptor.creditIcon)
 , _rowHeight(descriptor.rowHeight) {
+	const auto photo = _entry.photoId
+		? peer->session().data().photo(_entry.photoId).get()
+		: nullptr;
+	if (photo) {
+		_paintUserpicCallback = Ui::GenerateCreditsPaintEntryCallback(
+			photo,
+			[this, update = descriptor.updateCallback] { update(this); });
+	}
 	init();
 }
 
@@ -772,9 +781,11 @@ void CreditsRow::init() {
 			(!_entry.bareId ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(std::abs(int64(_entry.credits))));
 	}
-	_paintUserpicCallback = !PeerListRow::special()
-		? PeerListRow::generatePaintUserpicCallback(false)
-		: Ui::GenerateCreditsPaintUserpicCallback(_entry);
+	if (!_paintUserpicCallback) {
+		_paintUserpicCallback = !PeerListRow::special()
+			? PeerListRow::generatePaintUserpicCallback(false)
+			: Ui::GenerateCreditsPaintUserpicCallback(_entry);
+	}
 }
 
 const Data::CreditsHistoryEntry &CreditsRow::entry() const {
@@ -912,6 +923,9 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 				.entry = item,
 				.creditIcon = _creditIcon,
 				.rowHeight = computeListSt().item.height,
+				.updateCallback = [=](not_null<PeerListRow*> row) {
+					delegate()->peerListUpdateRow(row);
+				},
 			};
 			using Type = Data::CreditsHistoryEntry::PeerType;
 			if (item.bareId) {

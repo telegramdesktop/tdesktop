@@ -1467,6 +1467,8 @@ PRIVATE
     ui/controls/silent_toggle.h
     ui/controls/userpic_button.cpp
     ui/controls/userpic_button.h
+    ui/effects/credits_graphics.cpp
+    ui/effects/credits_graphics.h
     ui/effects/emoji_fly_animation.cpp
     ui/effects/emoji_fly_animation.h
     ui/effects/message_sending_animation_common.h

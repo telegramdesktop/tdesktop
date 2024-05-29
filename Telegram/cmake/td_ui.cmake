@@ -358,8 +358,6 @@ PRIVATE
     ui/effects/fireworks_animation.h
     ui/effects/glare.cpp
     ui/effects/glare.h
-    ui/effects/credits_graphics.cpp
-    ui/effects/credits_graphics.h
     ui/effects/loading_element.cpp
     ui/effects/loading_element.h
     ui/effects/outline_segments.cpp

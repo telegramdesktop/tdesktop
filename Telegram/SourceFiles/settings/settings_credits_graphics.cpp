@@ -568,44 +568,18 @@ object_ptr<Ui::RpWidget> HistoryEntryPhoto(
 		not_null<Ui::RpWidget*> parent,
 		not_null<PhotoData*> photo,
 		int photoSize) {
-	struct State {
-		std::shared_ptr<Data::PhotoMedia> view;
-		Image *image = nullptr;
-		rpl::lifetime downloadLifetime;
-	};
-	const auto state = parent->lifetime().make_state<State>();
 	auto owned = object_ptr<Ui::RpWidget>(parent);
 	const auto widget = owned.data();
-	state->view = photo->createMediaView();
-	photo->load(Data::PhotoSize::Thumbnail, {});
-
 	widget->resize(Size(photoSize));
 
-	rpl::single(rpl::empty_value()) | rpl::then(
-		photo->owner().session().downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
-		using Size = Data::PhotoSize;
-		if (const auto large = state->view->image(Size::Large)) {
-			state->image = large;
-		} else if (const auto small = state->view->image(Size::Small)) {
-			state->image = small;
-		} else if (const auto t = state->view->image(Size::Thumbnail)) {
-			state->image = t;
-		}
-		widget->update();
-		if (state->view->loaded()) {
-			state->downloadLifetime.destroy();
-		}
-	}, state->downloadLifetime);
+	const auto draw = Ui::GenerateCreditsPaintEntryCallback(
+		photo,
+		[=] { widget->update(); });
 
 	widget->paintRequest(
 	) | rpl::start_with_next([=] {
-		auto p = QPainter(widget);
-		if (state->image) {
-			p.drawPixmap(0, 0, state->image->pix(widget->width(), {
-				.options = Images::Option::RoundCircle,
-			}));
-		}
+		auto p = Painter(widget);
+		draw(p, 0, 0, photoSize, photoSize);
 	}, widget->lifetime());
 
 	return owned;
