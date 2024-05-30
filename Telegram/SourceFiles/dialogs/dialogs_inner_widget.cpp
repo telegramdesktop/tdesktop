@@ -4030,6 +4030,12 @@ void InnerWidget::setupShortcuts() {
 			request->check(Command::ChatNext) && request->handle([=] {
 				return jumpToDialogRow(next);
 			});
+		} else if (_state == WidgetState::Default
+			? !_shownList->empty()
+			: !_filterResults.empty()) {
+			request->check(Command::ChatNext) && request->handle([=] {
+				return jumpToDialogRow(first);
+			});
 		}
 		request->check(Command::ChatFirst) && request->handle([=] {
 			return jumpToDialogRow(first);
