@@ -398,6 +398,7 @@ private:
 	void trackSearchResultsForum(Data::Forum *forum);
 
 	[[nodiscard]] QBrush currentBg() const;
+	[[nodiscard]] Key computeChatPreviewRow() const;
 
 	[[nodiscard]] const std::vector<Key> &pinnedChatsOrder() const;
 	void checkReorderPinnedStart(QPoint localPosition);

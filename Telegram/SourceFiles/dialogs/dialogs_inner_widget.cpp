@@ -1429,12 +1429,25 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 	}
 }
 
+Key InnerWidget::computeChatPreviewRow() const {
+	auto result = computeChosenRow().key;
+	if (const auto peer = result.peer()) {
+		const auto topicId = _pressedTopicJump
+			? _pressedTopicJumpRootId
+			: 0;
+		if (const auto topic = peer->forumTopicFor(topicId)) {
+			return topic;
+		}
+	}
+	return result;
+}
+
 void InnerWidget::processGlobalForceClick(QPoint globalPosition) {
 	const auto parent = parentWidget();
 	if (_pressButton == Qt::LeftButton
 		&& parent->rect().contains(parent->mapFromGlobal(globalPosition))
 		&& pressShowsPreview(false)) {
-		_chatPreviewWillBeFor = computeChosenRow().key;
+		_chatPreviewWillBeFor = computeChatPreviewRow();
 		showChatPreview(false);
 	}
 }
@@ -1454,7 +1467,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	const auto alt = (e->modifiers() & Qt::AltModifier);
 	const auto onlyUserpic = !alt;
 	if (pressShowsPreview(onlyUserpic)) {
-		_chatPreviewWillBeFor = computeChosenRow().key;
+		_chatPreviewWillBeFor = computeChatPreviewRow();
 		if (alt) {
 			showChatPreview(onlyUserpic);
 			return;
@@ -2337,7 +2350,7 @@ void InnerWidget::fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu) {
 void InnerWidget::showChatPreview(bool onlyUserpic) {
 	const auto key = base::take(_chatPreviewWillBeFor);
 	cancelChatPreview();
-	if (!pressShowsPreview(onlyUserpic) || key != computeChosenRow().key) {
+	if (!pressShowsPreview(onlyUserpic) || key != computeChatPreviewRow()) {
 		return;
 	}
 	ClickHandler::unpressed();
@@ -3627,7 +3640,8 @@ bool InnerWidget::pressShowsPreview(bool onlyUserpic) const {
 	}
 	const auto key = computeChosenRow().key;
 	if (const auto history = key.history()) {
-		return !history->peer->isForum();
+		return !history->peer->isForum()
+			|| (_pressedTopicJump && _pressedTopicJumpRootId);
 	}
 	return key.topic() != nullptr;
 }
