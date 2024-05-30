@@ -434,7 +434,7 @@ void Item::setupHistory() {
 	_scroll->setOverscrollTypes(Type::Real, Type::Real);
 
 	_scroll->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::MouseButtonPress) {
+		if (e->type() == QEvent::MouseButtonDblClick) {
 			const auto button = static_cast<QMouseEvent*>(e.get())->button();
 			if (button == Qt::LeftButton) {
 				const auto relative = Ui::MapFrom(
