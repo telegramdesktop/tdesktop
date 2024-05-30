@@ -837,14 +837,14 @@ PRIVATE
     history/view/history_view_send_action.h
     history/view/history_view_service_message.cpp
     history/view/history_view_service_message.h
-    history/view/history_view_spoiler_click_handler.cpp
-    history/view/history_view_spoiler_click_handler.h
     history/view/history_view_sponsored_click_handler.cpp
     history/view/history_view_sponsored_click_handler.h
     history/view/history_view_sticker_toast.cpp
     history/view/history_view_sticker_toast.h
     history/view/history_view_sublist_section.cpp
     history/view/history_view_sublist_section.h
+    history/view/history_view_text_helper.cpp
+    history/view/history_view_text_helper.h
     history/view/history_view_transcribe_button.cpp
     history/view/history_view_transcribe_button.h
     history/view/history_view_translate_bar.cpp

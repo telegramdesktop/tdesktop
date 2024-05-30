@@ -748,7 +748,8 @@ void MessageLinksParser::parse() {
 			|| (tag == Ui::InputField::kTagUnderline)
 			|| (tag == Ui::InputField::kTagStrikeOut)
 			|| (tag == Ui::InputField::kTagSpoiler)
-			|| (tag == Ui::InputField::kTagBlockquote);
+			|| (tag == Ui::InputField::kTagBlockquote)
+			|| (tag == Ui::InputField::kTagBlockquoteCollapsed);
 	};
 
 	_ranges.clear();

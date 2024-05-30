@@ -11,8 +11,6 @@ namespace HistoryView {
 
 class Element;
 
-void FillTextWithAnimatedSpoilers(
-	not_null<Element*> view,
-	Ui::Text::String &text);
+void InitElementTextPart(not_null<Element*> view, Ui::Text::String &text);
 
 } // namespace HistoryView

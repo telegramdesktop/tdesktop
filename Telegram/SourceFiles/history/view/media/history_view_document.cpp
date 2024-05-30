@@ -1490,8 +1490,12 @@ QMargins Document::bubbleMargins() const {
 }
 
 void Document::refreshCaption(bool last) {
+	const auto now = Get<HistoryDocumentCaptioned>();
 	auto caption = createCaption();
 	if (!caption.isEmpty()) {
+		if (now) {
+			return;
+		}
 		AddComponents(HistoryDocumentCaptioned::Bit());
 		auto captioned = Get<HistoryDocumentCaptioned>();
 		captioned->caption = std::move(caption);
@@ -1503,7 +1507,7 @@ void Document::refreshCaption(bool last) {
 		} else {
 			captioned->caption.removeSkipBlock();
 		}
-	} else {
+	} else if (now) {
 		RemoveComponents(HistoryDocumentCaptioned::Bit());
 	}
 }
@@ -1637,7 +1641,7 @@ void Document::refreshParentId(not_null<HistoryItem*> realParent) {
 }
 
 void Document::parentTextUpdated() {
-	history()->owner().requestViewResize(_parent);
+	RemoveComponents(HistoryDocumentCaptioned::Bit());
 }
 
 void Document::hideSpoilers() {

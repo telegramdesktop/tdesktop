@@ -781,7 +781,13 @@ void GroupedMedia::unloadHeavyPart() {
 
 void GroupedMedia::parentTextUpdated() {
 	if (_parent->media() == this) {
-		_captionItem = std::nullopt;
+		if (_mode == Mode::Column) {
+			for (const auto &part : _parts) {
+				part.content->parentTextUpdated();
+			}
+		} else {
+			_captionItem = std::nullopt;
+		}
 	}
 }
 

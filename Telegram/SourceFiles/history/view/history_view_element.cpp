@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_reply.h"
-#include "history/view/history_view_spoiler_click_handler.h"
+#include "history/view/history_view_text_helper.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
@@ -1027,7 +1027,7 @@ void Element::setTextWithLinks(
 			refreshMedia(nullptr);
 		}
 	}
-	FillTextWithAnimatedSpoilers(this, _text);
+	InitElementTextPart(this, _text);
 	_textWidth = -1;
 	_textHeight = 0;
 }
@@ -1462,6 +1462,12 @@ void Element::itemTextUpdated() {
 	if (_media && !data()->media()) {
 		refreshMedia(nullptr);
 	}
+}
+
+void Element::blockquoteExpandChanged() {
+	_textWidth = -1;
+	_textHeight = 0;
+	history()->owner().requestViewResize(this);
 }
 
 void Element::unloadHeavyPart() {

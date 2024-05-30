@@ -1820,12 +1820,19 @@ rpl::producer<not_null<HistoryItem*>> Session::itemDataChanges() const {
 }
 
 void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
-	if (const auto i = _views.find(item); i != _views.end()) {
-		for (const auto &view : i->second) {
-			view->itemTextUpdated();
+	const auto call = [&](not_null<HistoryItem*> item) {
+		if (const auto i = _views.find(item); i != _views.end()) {
+			for (const auto &view : i->second) {
+				view->itemTextUpdated();
+			}
 		}
-		requestItemResize(item);
+	};
+	if (const auto group = groups().find(item)) {
+		call(group->items.front());
+	} else {
+		call(item);
 	}
+	requestItemResize(item);
 }
 
 void Session::registerHighlightProcess(

@@ -195,6 +195,8 @@ QByteArray SerializeText(
 			? "language"
 			: (part.type == Type::TextUrl)
 			? "href"
+			: (part.type == Type::Blockquote)
+			? "collapsed"
 			: "none";
 		const auto additionalValue = (part.type == Type::MentionName)
 			? part.additional
@@ -202,6 +204,8 @@ QByteArray SerializeText(
 				|| part.type == Type::TextUrl
 				|| part.type == Type::CustomEmoji)
 			? SerializeString(part.additional)
+			: (part.type == Type::Blockquote)
+			? (part.additional.isEmpty() ? "false" : "true")
 			: QByteArray();
 		return SerializeObject(context, {
 			{ "type", SerializeString(typeString) },

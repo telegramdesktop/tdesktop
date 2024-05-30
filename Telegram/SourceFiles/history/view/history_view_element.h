@@ -498,6 +498,7 @@ public:
 
 	virtual void itemDataChanged();
 	void itemTextUpdated();
+	void blockquoteExpandChanged();
 
 	[[nodiscard]] virtual bool hasHeavyPart() const;
 	virtual void unloadHeavyPart();

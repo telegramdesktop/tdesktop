@@ -282,7 +282,9 @@ WebPage::WebPage(
 	not_null<WebPageData*> data,
 	MediaWebPageFlags flags)
 : Media(parent)
-, _st(st::historyPagePreview)
+, _st(data->type == WebPageType::Factcheck
+	? st::factcheckPage
+	: st::historyPagePreview)
 , _data(data)
 , _flags(flags)
 , _siteName(st::msgMinWidth - _st.padding.left() - _st.padding.right())
@@ -859,13 +861,14 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			FillBackgroundEmoji(p, outer, false, *backgroundEmojiCache);
 		}
 	} else if (factcheck && factcheck->expandable) {
-		const auto &icon = factcheck->expanded
-			? st::factcheckIconCollapse
-			: st::factcheckIconExpand;
+		const auto &icon = factcheck->expanded ? _st.collapse : _st.expand;
+		const auto &position = factcheck->expanded
+			? _st.collapsePosition
+			: _st.expandPosition;
 		icon.paint(
 			p,
-			outer.x() + outer.width() - icon.width() - _st.padding.right(),
-			outer.y() + _st.padding.top(),
+			outer.x() + outer.width() - icon.width() - position.x(),
+			outer.y() + outer.height() - icon.height() - position.y(),
 			width());
 	}
 

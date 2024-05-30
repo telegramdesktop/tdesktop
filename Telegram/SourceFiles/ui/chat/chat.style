@@ -66,6 +66,10 @@ messageTextStyle: TextStyle(defaultTextStyle) {
 		padding: margins(10px, 2px, 20px, 2px);
 		icon: icon{{ "chat/mini_quote", windowFg }};
 		iconPosition: point(4px, 4px);
+		expand: icon{{ "intro_country_dropdown", windowFg }};
+		expandPosition: point(6px, 4px);
+		collapse: icon{{ "intro_country_dropdown-flip_vertical", windowFg }};
+		collapsePosition: point(6px, 4px);
 	}
 	pre: QuoteStyle(messageQuoteStyle) {
 		header: 20px;
@@ -1137,8 +1141,13 @@ factcheckFooterSkip: 16px;
 factcheckFooterStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }
-factcheckIconExpand: icon {{ "fast_to_original-rotate_cw", historyPeer1NameFg }};
-factcheckIconCollapse: icon {{ "fast_to_original-rotate_ccw", historyPeer1NameFg }};
+factcheckPage: QuoteStyle(historyPagePreview) {
+	padding: margins(10px, 5px, 22px, 7px);
+	expand: icon {{ "intro_country_dropdown", historyPeer1NameFg }};
+	expandPosition: point(6px, 4px);
+	collapse: icon {{ "intro_country_dropdown-flip_vertical", historyPeer1NameFg }};
+	collapsePosition: point(6px, 4px);
+}
 factcheckField: InputField(defaultInputField) {
 	textBg: transparent;
 	textMargins: margins(0px, 0px, 0px, 4px);

@@ -217,6 +217,7 @@ EntitiesInText EntitiesFromMTP(
 				EntityType::Blockquote,
 				d.voffset().v,
 				d.vlength().v,
+				d.is_collapsed() ? u"1"_q : QString(),
 			});
 		});
 	}
@@ -311,8 +312,13 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 					MTP_string(entity.data())));
 		} break;
 		case EntityType::Blockquote: {
+			using Flag = MTPDmessageEntityBlockquote::Flag;
+			const auto collapsed = !entity.data().isEmpty();
 			v.push_back(
-				MTP_messageEntityBlockquote(MTP_flags(0), offset, length));
+				MTP_messageEntityBlockquote(
+					MTP_flags(collapsed ? Flag::f_collapsed : Flag()),
+					offset,
+					length));
 		} break;
 		case EntityType::Spoiler: {
 			v.push_back(MTP_messageEntitySpoiler(offset, length));
