@@ -1316,6 +1316,9 @@ void InnerWidget::paintSearchInTopic(
 }
 
 void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
+	if (_chatPreviewTouchGlobal) {
+		return;
+	}
 	const auto globalPosition = e->globalPos();
 	if (!_lastMousePosition) {
 		_lastMousePosition = globalPosition;
@@ -1333,6 +1336,8 @@ void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 void InnerWidget::cancelChatPreview() {
 	_chatPreviewTimer.cancel();
 	_chatPreviewWillBeFor = {};
+	_chatPreviewTouchLocal = {};
+	_chatPreviewTouchGlobal = {};
 }
 
 void InnerWidget::clearIrrelevantState() {
@@ -2396,9 +2401,13 @@ void InnerWidget::fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu) {
 
 void InnerWidget::showChatPreview(bool onlyUserpic) {
 	const auto key = base::take(_chatPreviewWillBeFor);
+	const auto touchGlobal = base::take(_chatPreviewTouchGlobal);
 	cancelChatPreview();
 	if (!pressShowsPreview(onlyUserpic) || key != computeChatPreviewRow()) {
 		return;
+	}
+	if (onlyUserpic && touchGlobal) {
+		_touchCancelRequests.fire({});
 	}
 	ClickHandler::unpressed();
 	mousePressReleased(QCursor::pos(), Qt::NoButton, Qt::NoModifier);
@@ -2535,6 +2544,41 @@ void InnerWidget::parentGeometryChanged() {
 		if (_mouseSelection) {
 			selectByMouse(globalPosition);
 		}
+	}
+}
+
+void InnerWidget::processTouchEvent(not_null<QTouchEvent*> e) {
+	const auto point = e->touchPoints().empty()
+		? std::optional<QPoint>()
+		: e->touchPoints().front().screenPos().toPoint();
+	switch (e->type()) {
+	case QEvent::TouchBegin: {
+		if (!point) {
+			return;
+		}
+		selectByMouse(*point);
+		const auto onlyUserpic = true;
+		if (pressShowsPreview(onlyUserpic)) {
+			_chatPreviewTouchGlobal = point;
+			_chatPreviewWillBeFor = computeChatPreviewRow();
+			_chatPreviewTimer.callOnce(kChatPreviewDelay);
+		}
+	} break;
+
+	case QEvent::TouchUpdate: {
+		if (!_chatPreviewTouchGlobal || !point) {
+			return;
+		}
+		const auto delta = (*_chatPreviewTouchGlobal - *point);
+		if (delta.manhattanLength() > _st->photoSize) {
+			cancelChatPreview();
+		}
+	} break;
+
+	case QEvent::TouchEnd:
+	case QEvent::TouchCancel: if (_chatPreviewTouchGlobal) {
+		cancelChatPreview();
+	} break;
 	}
 }
 

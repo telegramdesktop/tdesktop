@@ -174,6 +174,11 @@ public:
 
 	void parentGeometryChanged();
 
+	void processTouchEvent(not_null<QTouchEvent*> e);
+	[[nodiscard]] rpl::producer<> touchCancelRequests() const {
+		return _touchCancelRequests.events();
+	}
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
@@ -520,6 +525,9 @@ private:
 	base::Timer _chatPreviewTimer;
 	Key _chatPreviewWillBeFor;
 	Key _chatPreviewKey;
+	std::optional<QPoint> _chatPreviewTouchLocal;
+	std::optional<QPoint> _chatPreviewTouchGlobal;
+	rpl::event_stream<> _touchCancelRequests;
 
 	rpl::variable<ChildListShown> _childListShown;
 	float64 _narrowRatio = 0.;

@@ -473,6 +473,7 @@ Widget::Widget(
 	updateSearchFromVisibility(true);
 	setupSupportMode();
 	setupScrollUpButton();
+	setupTouchChatPreview();
 
 	const auto overscrollBg = [=] {
 		return anim::color(
@@ -653,6 +654,18 @@ void Widget::setupScrollUpButton() {
 	trackScroll(_scrollToTop);
 	trackScroll(this);
 	updateScrollUpVisibility();
+}
+
+void Widget::setupTouchChatPreview() {
+	_scroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
+		_inner->processTouchEvent(e);
+		return false;
+	});
+	_inner->touchCancelRequests() | rpl::start_with_next([=] {
+		QTouchEvent ev(QEvent::TouchCancel);
+		ev.setTimestamp(crl::now());
+		QGuiApplication::sendEvent(_scroll, &ev);
+	}, _inner->lifetime());
 }
 
 void Widget::setupMoreChatsBar() {

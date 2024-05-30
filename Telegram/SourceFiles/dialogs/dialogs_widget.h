@@ -179,6 +179,7 @@ private:
 	[[nodiscard]] const std::vector<Data::ReactionId> &searchInTags() const;
 
 	void setupSupportMode();
+	void setupTouchChatPreview();
 	void setupConnectingWidget();
 	void setupMainMenuToggle();
 	void setupMoreChatsBar();
