@@ -658,8 +658,7 @@ void Widget::setupScrollUpButton() {
 
 void Widget::setupTouchChatPreview() {
 	_scroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
-		_inner->processTouchEvent(e);
-		return false;
+		return _inner->processTouchEvent(e);
 	});
 	_inner->touchCancelRequests() | rpl::start_with_next([=] {
 		QTouchEvent ev(QEvent::TouchCancel);

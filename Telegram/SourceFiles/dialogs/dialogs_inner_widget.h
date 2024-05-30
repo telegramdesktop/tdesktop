@@ -174,7 +174,7 @@ public:
 
 	void parentGeometryChanged();
 
-	void processTouchEvent(not_null<QTouchEvent*> e);
+	bool processTouchEvent(not_null<QTouchEvent*> e);
 	[[nodiscard]] rpl::producer<> touchCancelRequests() const {
 		return _touchCancelRequests.events();
 	}
@@ -404,15 +404,18 @@ private:
 
 	[[nodiscard]] const std::vector<Key> &pinnedChatsOrder() const;
 	void checkReorderPinnedStart(QPoint localPosition);
+	void startReorderPinned(QPoint localPosition);
 	int updateReorderIndexGetCount();
 	bool updateReorderPinned(QPoint localPosition);
 	void finishReorderPinned();
+	bool finishReorderOnRelease();
 	void stopReorderPinned();
 	int countPinnedIndex(Row *ofRow);
 	void savePinnedOrder();
 	bool pinnedShiftAnimationCallback(crl::time now);
 	void handleChatListEntryRefreshes();
 	void moveCancelSearchButtons();
+	void dragPinnedFromTouch();
 
 	void saveChatsFilterScrollState(FilterId filterId);
 	void restoreChatsFilterScrollState(FilterId filterId);
@@ -525,8 +528,10 @@ private:
 	base::Timer _chatPreviewTimer;
 	Key _chatPreviewWillBeFor;
 	Key _chatPreviewKey;
-	std::optional<QPoint> _chatPreviewTouchLocal;
 	std::optional<QPoint> _chatPreviewTouchGlobal;
+	base::Timer _touchDragPinnedTimer;
+	std::optional<QPoint> _touchDragStartGlobal;
+	std::optional<QPoint> _touchDragNowGlobal;
 	rpl::event_stream<> _touchCancelRequests;
 
 	rpl::variable<ChildListShown> _childListShown;

@@ -79,6 +79,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_menu_icons.h"
 
+#include <QtWidgets/QApplication>
+
 namespace Dialogs {
 namespace {
 
@@ -1316,7 +1318,7 @@ void InnerWidget::paintSearchInTopic(
 }
 
 void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
-	if (_chatPreviewTouchGlobal) {
+	if (_chatPreviewTouchGlobal || _touchDragStartGlobal) {
 		return;
 	}
 	const auto globalPosition = e->globalPos();
@@ -1336,7 +1338,6 @@ void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 void InnerWidget::cancelChatPreview() {
 	_chatPreviewTimer.cancel();
 	_chatPreviewWillBeFor = {};
-	_chatPreviewTouchLocal = {};
 	_chatPreviewTouchGlobal = {};
 }
 
@@ -1622,8 +1623,14 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 		< style::ConvertScale(kStartReorderThreshold)) {
 		return;
 	}
-	cancelChatPreview();
 	_dragging = _pressed;
+	startReorderPinned(localPosition);
+}
+
+void InnerWidget::startReorderPinned(QPoint localPosition) {
+	Expects(_dragging != nullptr);
+
+	cancelChatPreview();
 	if (updateReorderIndexGetCount() < 2) {
 		_dragging = nullptr;
 	} else {
@@ -1682,6 +1689,7 @@ void InnerWidget::finishReorderPinned() {
 	if (wasDragging) {
 		savePinnedOrder();
 		_dragging = nullptr;
+		_touchDragStartGlobal = {};
 	}
 
 	_draggingIndex = -1;
@@ -1692,6 +1700,22 @@ void InnerWidget::finishReorderPinned() {
 	if (wasDragging) {
 		_draggingScroll.cancel();
 	}
+}
+
+bool InnerWidget::finishReorderOnRelease() {
+	if (!_dragging) {
+		return false;
+	}
+	updateReorderIndexGetCount();
+	if (_draggingIndex >= 0) {
+		_pinnedRows[_draggingIndex].yadd.start(0.);
+		_pinnedRows[_draggingIndex].animStartTime = crl::now();
+		if (!_pinnedShiftAnimation.animating()) {
+			_pinnedShiftAnimation.start();
+		}
+	}
+	finishReorderPinned();
+	return true;
 }
 
 void InnerWidget::stopReorderPinned() {
@@ -1845,18 +1869,7 @@ void InnerWidget::mousePressReleased(
 	_chatPreviewTimer.cancel();
 	_pressButton = Qt::NoButton;
 
-	auto wasDragging = (_dragging != nullptr);
-	if (wasDragging) {
-		updateReorderIndexGetCount();
-		if (_draggingIndex >= 0) {
-			_pinnedRows[_draggingIndex].yadd.start(0.);
-			_pinnedRows[_draggingIndex].animStartTime = crl::now();
-			if (!_pinnedShiftAnimation.animating()) {
-				_pinnedShiftAnimation.start();
-			}
-		}
-		finishReorderPinned();
-	}
+	const auto wasDragging = finishReorderOnRelease();
 
 	auto collapsedPressed = _collapsedPressed;
 	setCollapsedPressed(-1);
@@ -2547,14 +2560,14 @@ void InnerWidget::parentGeometryChanged() {
 	}
 }
 
-void InnerWidget::processTouchEvent(not_null<QTouchEvent*> e) {
+bool InnerWidget::processTouchEvent(not_null<QTouchEvent*> e) {
 	const auto point = e->touchPoints().empty()
 		? std::optional<QPoint>()
 		: e->touchPoints().front().screenPos().toPoint();
 	switch (e->type()) {
 	case QEvent::TouchBegin: {
 		if (!point) {
-			return;
+			return false;
 		}
 		selectByMouse(*point);
 		const auto onlyUserpic = true;
@@ -2562,24 +2575,69 @@ void InnerWidget::processTouchEvent(not_null<QTouchEvent*> e) {
 			_chatPreviewTouchGlobal = point;
 			_chatPreviewWillBeFor = computeChatPreviewRow();
 			_chatPreviewTimer.callOnce(kChatPreviewDelay);
+		} else if (!_dragging) {
+			_touchDragStartGlobal = point;
+			_touchDragPinnedTimer.callOnce(QApplication::startDragTime());
 		}
 	} break;
 
 	case QEvent::TouchUpdate: {
-		if (!_chatPreviewTouchGlobal || !point) {
-			return;
+		if (!point) {
+			return false;
 		}
-		const auto delta = (*_chatPreviewTouchGlobal - *point);
-		if (delta.manhattanLength() > _st->photoSize) {
-			cancelChatPreview();
+		if (_chatPreviewTouchGlobal) {
+			const auto delta = (*_chatPreviewTouchGlobal - *point);
+			if (delta.manhattanLength() > _st->photoSize) {
+				cancelChatPreview();
+			}
+		}
+		if (_touchDragStartGlobal && _dragging) {
+			updateReorderPinned(mapFromGlobal(*point));
+			return _dragging != nullptr;
+		} else if (_touchDragStartGlobal) {
+			const auto delta = (*_touchDragStartGlobal - *point);
+			if (delta.manhattanLength() > QApplication::startDragDistance()) {
+				if (_touchDragPinnedTimer.isActive()) {
+					_touchDragPinnedTimer.cancel();
+					_touchDragStartGlobal = {};
+					_touchDragNowGlobal = {};
+				} else {
+					dragPinnedFromTouch();
+				}
+			} else {
+				_touchDragNowGlobal = point;
+			}
 		}
 	} break;
 
 	case QEvent::TouchEnd:
-	case QEvent::TouchCancel: if (_chatPreviewTouchGlobal) {
-		cancelChatPreview();
+	case QEvent::TouchCancel: {
+		if (_chatPreviewTouchGlobal) {
+			cancelChatPreview();
+		}
+		if (_touchDragStartGlobal) {
+			_touchDragStartGlobal = {};
+			return finishReorderOnRelease();
+		}
 	} break;
 	}
+	return false;
+}
+
+void InnerWidget::dragPinnedFromTouch() {
+	Expects(_touchDragStartGlobal.has_value());
+
+	const auto global = *_touchDragStartGlobal;
+	_touchDragPinnedTimer.cancel();
+	selectByMouse(global);
+	if (!_selected || _dragging || _state != WidgetState::Default) {
+		return;
+	}
+	_dragStart = mapFromGlobal(global);
+	_dragging = _selected;
+	const auto now = mapFromGlobal(_touchDragNowGlobal.value_or(global));
+	startReorderPinned(now);
+	updateReorderPinned(now);
 }
 
 void InnerWidget::applySearchState(SearchState state) {
