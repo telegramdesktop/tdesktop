@@ -3997,7 +3997,8 @@ void InnerWidget::setupShortcuts() {
 		return isActiveWindow()
 			&& !_controller->isLayerShown()
 			&& !_controller->window().locked()
-			&& !_childListShown.current().shown;
+			&& !_childListShown.current().shown
+			&& !_chatPreviewKey;
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
