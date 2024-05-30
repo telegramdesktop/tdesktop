@@ -734,7 +734,7 @@ void AddFactcheckAction(
 		const auto limit = session->factchecks().lengthLimit();
 		const auto controller = request.navigation->parentController();
 		controller->show(Box(EditFactcheckBox, text, limit, [=](
-			TextWithEntities result) {
+				TextWithEntities result) {
 			const auto show = controller->uiShow();
 			session->factchecks().save(itemId, text, result, show);
 		}, FactcheckFieldIniter(controller->uiShow())));

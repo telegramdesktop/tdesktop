@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
@@ -115,7 +116,8 @@ void EditLinkBox(
 		const QString &startText,
 		const QString &startLink,
 		Fn<void(QString, QString)> callback,
-		const style::InputField *fieldStyle) {
+		const style::InputField *fieldStyle,
+		Fn<QString(QString)> validate) {
 	Expects(callback != nullptr);
 
 	const auto &fieldSt = fieldStyle ? *fieldStyle : st::defaultInputField;
@@ -160,7 +162,7 @@ void EditLinkBox(
 
 	const auto submit = [=] {
 		const auto linkText = text->getLastText();
-		const auto linkUrl = qthelp::validate_url(url->getLastText());
+		const auto linkUrl = validate(url->getLastText());
 		if (linkText.isEmpty()) {
 			text->showError();
 			return;
@@ -312,7 +314,8 @@ Fn<bool(
 			text,
 			link,
 			std::move(callback),
-			fieldStyle));
+			fieldStyle,
+			qthelp::validate_url));
 		return true;
 	};
 }
@@ -341,6 +344,52 @@ void InitMessageFieldHandlers(
 			DefaultEditLinkCallback(show, field, fieldStyle));
 		InitSpellchecker(show, field, fieldStyle != nullptr);
 	}
+}
+
+[[nodiscard]] bool IsGoodFactcheckUrl(QStringView url) {
+	return url.startsWith(u"t.me/"_q) || url.startsWith(u"https://t.me/"_q);
+}
+
+[[nodiscard]] Fn<bool(
+	Ui::InputField::EditLinkSelection selection,
+	QString text,
+	QString link,
+	EditLinkAction action)> FactcheckEditLinkCallback(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::InputField*> field) {
+	const auto weak = Ui::MakeWeak(field);
+	return [=](
+			EditLinkSelection selection,
+			QString text,
+			QString link,
+			EditLinkAction action) {
+		const auto validate = [=](QString url) {
+			if (IsGoodFactcheckUrl(url)) {
+				const auto start = u"https://"_q;
+				return url.startsWith(start) ? url : (start + url);
+			}
+			show->showToast(
+				tr::lng_factcheck_links(tr::now, Ui::Text::RichLangValue));
+			return QString();
+		};
+		if (action == EditLinkAction::Check) {
+			return IsGoodFactcheckUrl(link);
+		}
+		auto callback = [=](const QString &text, const QString &link) {
+			if (const auto strong = weak.data()) {
+				strong->commitMarkdownLinkEdit(selection, text, link);
+			}
+		};
+		show->showBox(Box(
+			EditLinkBox,
+			show,
+			text,
+			link,
+			std::move(callback),
+			nullptr,
+			validate));
+		return true;
+	};
 }
 
 Fn<void(not_null<Ui::InputField*>)> FactcheckFieldIniter(
@@ -374,7 +423,7 @@ Fn<void(not_null<Ui::InputField*>)> FactcheckFieldIniter(
 				}
 			}
 		));
-		field->setEditLinkCallback(DefaultEditLinkCallback(show, field));
+		field->setEditLinkCallback(FactcheckEditLinkCallback(show, field));
 		InitSpellchecker(show, field);
 	};
 }
