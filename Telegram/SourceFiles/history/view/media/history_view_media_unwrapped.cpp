@@ -647,6 +647,7 @@ bool UnwrappedMedia::needInfoDisplay() const {
 		|| _parent->isUnderCursor()
 		|| _parent->rightActionSize()
 		|| _parent->isLastAndSelfMessage()
+		|| (_parent->delegate()->elementContext() == Context::ChatPreview)
 		|| (_parent->hasRightLayout()
 			&& _content->alwaysShowOutTimestamp());
 }

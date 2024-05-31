@@ -1963,6 +1963,7 @@ bool Gif::needInfoDisplay() const {
 	return _parent->data()->isSending()
 		|| _data->uploading()
 		|| _parent->isUnderCursor()
+		|| (_parent->delegate()->elementContext() == Context::ChatPreview)
 		// Don't show the GIF badge if this message has text.
 		|| (!_parent->hasBubble() && _parent->isLastAndSelfMessage());
 }

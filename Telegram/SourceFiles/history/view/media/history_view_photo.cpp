@@ -823,6 +823,7 @@ bool Photo::needInfoDisplay() const {
 	return _parent->data()->isSending()
 		|| _parent->data()->hasFailed()
 		|| _parent->isUnderCursor()
+		|| (_parent->delegate()->elementContext() == Context::ChatPreview)
 		|| _parent->isLastAndSelfMessage();
 }
 
