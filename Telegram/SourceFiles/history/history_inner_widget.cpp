@@ -1738,7 +1738,16 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 		return mimeData;
 	} else if (pressedView) {
 		auto forwardIds = MessageIdsList();
-		if (_mouseCursorState == CursorState::Date) {
+		const auto tryForwardSelection = uponSelected
+			&& !_controller->adaptive().isOneColumn();
+		const auto forwardSelectionState = tryForwardSelection
+			? getSelectionState()
+			: HistoryView::TopBarWidget::SelectedState();
+		if (forwardSelectionState.count > 0
+			&& (forwardSelectionState.count
+				== forwardSelectionState.canForwardCount)) {
+			forwardIds = getSelectedItems();
+		} else if (_mouseCursorState == CursorState::Date) {
 			forwardIds = session().data().itemOrItsGroup(_mouseActionItem);
 		} else if (pressedView->isHiddenByGroup() && pressedHandler) {
 			forwardIds = MessageIdsList(1, _mouseActionItem->fullId());
