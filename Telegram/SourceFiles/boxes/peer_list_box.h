@@ -347,6 +347,7 @@ public:
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
 	virtual std::shared_ptr<Main::SessionShow> peerListUiShow() = 0;
+	virtual void peerListCancelPress() = 0;
 
 	template <typename PeerDataRange>
 	void peerListAddSelectedPeers(PeerDataRange &&range) {
@@ -476,6 +477,12 @@ public:
 		if (element == 1) {
 			rowRightActionClicked(row);
 		}
+	}
+
+	virtual bool rowTrackPress(not_null<PeerListRow*> row) {
+		return false;
+	}
+	virtual void rowTrackPressCancel() {
 	}
 
 	virtual void loadMoreRows() {
@@ -655,6 +662,7 @@ public:
 	void refreshRows();
 
 	void mouseLeftGeometry();
+	void cancelPress();
 
 	void setSearchMode(PeerListSearchMode mode);
 	void changeCheckState(
@@ -829,6 +837,7 @@ private:
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
+	std::optional<QPoint> _trackPressStart;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 
@@ -991,6 +1000,9 @@ public:
 		not_null<PeerListRow*> row,
 		bool highlightRow,
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr) override;
+	void peerListCancelPress() override {
+		_content->cancelPress();
+	}
 
 protected:
 	not_null<PeerListContent*> content() const {

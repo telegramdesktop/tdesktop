@@ -86,8 +86,25 @@ private:
 
 };
 
+class ControllerWithPreviews : public PeerListController {
+public:
+	explicit ControllerWithPreviews(
+		not_null<Window::SessionController*> window);
+
+	[[nodiscard]] not_null<Window::SessionController*> window() const {
+		return _window;
+	}
+
+	bool rowTrackPress(not_null<PeerListRow*> row) override;
+	void rowTrackPressCancel() override;
+
+private:
+	const not_null<Window::SessionController*> _window;
+
+};
+
 class RecentsController final
-	: public PeerListController
+	: public ControllerWithPreviews
 	, public base::has_weak_ptr {
 public:
 	RecentsController(
@@ -115,7 +132,6 @@ private:
 	void subscribeToEvents();
 	[[nodiscard]] Fn<void()> removeAllCallback();
 
-	const not_null<Window::SessionController*> _window;
 	RecentPeersList _recent;
 	rpl::variable<int> _count;
 	rpl::event_stream<not_null<PeerData*>> _chosen;
@@ -138,7 +154,7 @@ private:
 };
 
 class MyChannelsController final
-	: public PeerListController
+	: public ControllerWithPreviews
 	, public base::has_weak_ptr {
 public:
 	explicit MyChannelsController(
@@ -163,7 +179,6 @@ private:
 	void appendRow(not_null<ChannelData*> channel);
 	void fill(bool force = false);
 
-	const not_null<Window::SessionController*> _window;
 	std::vector<not_null<History*>> _channels;
 	rpl::variable<Ui::RpWidget*> _toggleExpanded = nullptr;
 	rpl::variable<int> _count = 0;
@@ -174,7 +189,7 @@ private:
 };
 
 class RecommendationsController final
-	: public PeerListController
+	: public ControllerWithPreviews
 	, public base::has_weak_ptr {
 public:
 	explicit RecommendationsController(
@@ -201,7 +216,6 @@ private:
 	void setupDivider();
 	void appendRow(not_null<ChannelData*> channel);
 
-	const not_null<Window::SessionController*> _window;
 	rpl::variable<int> _count;
 	History *_activeHistory = nullptr;
 	bool _requested = false;
@@ -404,10 +418,36 @@ const style::PeerListItem &ChannelRow::computeSt(
 	return _active ? st::recentPeersItemActive : st::recentPeersItem;
 }
 
+ControllerWithPreviews::ControllerWithPreviews(
+	not_null<Window::SessionController*> window)
+: _window(window) {
+}
+
+bool ControllerWithPreviews::rowTrackPress(not_null<PeerListRow*> row) {
+	const auto peer = row->peer();
+	const auto history = peer->owner().history(peer);
+	if (base::IsAltPressed()) {
+		_window->showChatPreview({ history, FullMsgId() });
+		delegate()->peerListCancelPress();
+		return false;
+	}
+	const auto point = delegate()->peerListLastRowMousePosition();
+	const auto &st = computeListSt().item;
+	if (point && point->x() < st.photoPosition.x() + st.photoSize) {
+		_window->scheduleChatPreview({ history, FullMsgId() });
+		return true;
+	}
+	return false;
+}
+
+void ControllerWithPreviews::rowTrackPressCancel() {
+	_window->cancelScheduledPreview();
+}
+
 RecentsController::RecentsController(
 	not_null<Window::SessionController*> window,
 	RecentPeersList list)
-: _window(window)
+: ControllerWithPreviews(window)
 , _recent(std::move(list)) {
 }
 
@@ -429,7 +469,7 @@ void RecentsController::rowClicked(not_null<PeerListRow*> row) {
 
 Fn<void()> RecentsController::removeAllCallback() {
 	const auto weak = base::make_weak(this);
-	const auto session = &_window->session();
+	const auto session = &this->session();
 	return crl::guard(session, [=] {
 		if (weak) {
 			_count = 0;
@@ -450,7 +490,7 @@ base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 		st::popupMenuWithIcons);
 	const auto peer = row->peer();
 	const auto weak = base::make_weak(this);
-	const auto session = &_window->session();
+	const auto session = &this->session();
 	const auto removeOne = crl::guard(session, [=] {
 		if (weak) {
 			const auto rowId = peer->id.value;
@@ -463,7 +503,7 @@ base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 		session->recentPeers().remove(peer);
 	});
 	FillEntryMenu(Ui::Menu::CreateAddActionCallback(result), {
-		.controller = _window,
+		.controller = window(),
 		.peer = peer,
 		.removeOneText = tr::lng_recent_remove(tr::now),
 		.removeOne = removeOne,
@@ -475,7 +515,7 @@ base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 }
 
 Main::Session &RecentsController::session() const {
-	return _window->session();
+	return window()->session();
 }
 
 QString RecentsController::savedMessagesChatStatus() const {
@@ -496,7 +536,7 @@ void RecentsController::setupDivider() {
 		tr::lng_recent_clear(tr::now),
 		st::searchedBarLink);
 	clear->setClickedCallback(RemoveAllConfirm(
-		_window,
+		window(),
 		tr::lng_recent_clear_sure(tr::now),
 		removeAllCallback()));
 	rpl::combine(
@@ -555,7 +595,7 @@ void RecentsController::subscribeToEvents() {
 
 MyChannelsController::MyChannelsController(
 	not_null<Window::SessionController*> window)
-: _window(window) {
+: ControllerWithPreviews(window) {
 }
 
 void MyChannelsController::prepare() {
@@ -679,7 +719,7 @@ base::unique_qptr<Ui::PopupMenu> MyChannelsController::rowContextMenu(
 	const auto peer = row->peer();
 	const auto addAction = Ui::Menu::CreateAddActionCallback(result);
 	Window::FillDialogsEntryMenu(
-		_window,
+		window(),
 		Dialogs::EntryState{
 			.key = peer->owner().history(peer),
 			.section = Dialogs::EntryState::Section::ContextMenu,
@@ -689,7 +729,7 @@ base::unique_qptr<Ui::PopupMenu> MyChannelsController::rowContextMenu(
 }
 
 Main::Session &MyChannelsController::session() const {
-	return _window->session();
+	return window()->session();
 }
 
 void MyChannelsController::setupDivider() {
@@ -760,7 +800,7 @@ void MyChannelsController::setupDivider() {
 
 RecommendationsController::RecommendationsController(
 	not_null<Window::SessionController*> window)
-: _window(window) {
+: ControllerWithPreviews(window) {
 }
 
 void RecommendationsController::prepare() {
@@ -795,7 +835,7 @@ void RecommendationsController::fill() {
 	delegate()->peerListRefreshRows();
 	_count = delegate()->peerListFullRowsCount();
 
-	_window->activeChatValue() | rpl::start_with_next([=](const Key &key) {
+	window()->activeChatValue() | rpl::start_with_next([=](const Key &key) {
 		const auto history = key.history();
 		if (_activeHistory == history) {
 			return;
@@ -841,7 +881,7 @@ base::unique_qptr<Ui::PopupMenu> RecommendationsController::rowContextMenu(
 }
 
 Main::Session &RecommendationsController::session() const {
-	return _window->session();
+	return window()->session();
 }
 
 void RecommendationsController::setupDivider() {

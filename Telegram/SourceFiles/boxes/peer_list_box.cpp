@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 
 #include <xxhash.h> // XXH64.
+#include <QtWidgets/QApplication>
 
 [[nodiscard]] PeerListRowId UniqueRowIdFromString(const QString &d) {
 	return XXH64(d.data(), d.size() * sizeof(ushort), 0);
@@ -1552,13 +1553,24 @@ void PeerListContent::handleMouseMove(QPoint globalPosition) {
 		&& *_lastMousePosition == globalPosition) {
 		return;
 	}
+	if (_trackPressStart
+		&& ((*_trackPressStart - globalPosition).manhattanLength()
+			> QApplication::startDragDistance())) {
+		_trackPressStart = std::nullopt;
+		_controller->rowTrackPressCancel();
+	}
 	selectByMouse(globalPosition);
+}
+
+void PeerListContent::cancelPress() {
+	setPressed(Selected());
 }
 
 void PeerListContent::mousePressEvent(QMouseEvent *e) {
 	_pressButton = e->button();
 	selectByMouse(e->globalPos());
 	setPressed(_selected);
+	_trackPressStart = {};
 	if (auto row = getRow(_selected.index)) {
 		auto updateCallback = [this, row, hint = _selected.index] {
 			updateRow(row, hint);
@@ -1586,8 +1598,11 @@ void PeerListContent::mousePressEvent(QMouseEvent *e) {
 				row->addRipple(_st.item, maskGenerator, point, std::move(updateCallback));
 			}
 		}
+		if (_pressButton == Qt::LeftButton && _controller->rowTrackPress(row)) {
+			_trackPressStart = e->globalPos();
+		}
 	}
-	if (anim::Disabled() && !_selected.element) {
+	if (anim::Disabled() && !_trackPressStart && !_selected.element) {
 		mousePressReleased(e->button());
 	}
 }
@@ -1597,6 +1612,9 @@ void PeerListContent::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void PeerListContent::mousePressReleased(Qt::MouseButton button) {
+	_trackPressStart = {};
+	_controller->rowTrackPressCancel();
+
 	updateRow(_pressed.index);
 	updateRow(_selected.index);
 
