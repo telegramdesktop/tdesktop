@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/options.h"
 #include "base/unixtime.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/max_invite_box.h"
 #include "boxes/moderate_messages_box.h"
@@ -94,7 +95,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 #include <QAction>
-#include <QtGui/QGuiApplication>
+#include <QtWidgets/QApplication>
 
 namespace Window {
 namespace {
@@ -1239,12 +1240,36 @@ void Filler::addViewAsMessages() {
 	}
 	const auto peer = _peer;
 	const auto controller = _controller;
-	_addAction(tr::lng_forum_view_as_messages(tr::now), [=] {
+	const auto parentHideRequests = std::make_shared<rpl::event_stream<>>();
+	const auto filterOutChatPreview = [=] {
+		if (base::IsAltPressed()) {
+			const auto callback = [=](bool shown) {
+				if (!shown) {
+					parentHideRequests->fire({});
+				}
+			};
+			controller->showChatPreview({
+				peer->owner().history(peer),
+				FullMsgId(),
+			}, callback, QApplication::activePopupWidget());
+			return true;
+		}
+		return false;
+	};
+	const auto open = [=] {
 		if (const auto forum = peer->forum()) {
 			peer->owner().saveViewAsMessages(forum, true);
 		}
 		controller->showPeerHistory(peer->id);
-	}, &st::menuIconAsMessages);
+	};
+	auto to_instant = rpl::map_to(anim::type::instant);
+	_addAction({
+		.text = tr::lng_forum_view_as_messages(tr::now),
+		.handler = open,
+		.icon = &st::menuIconAsMessages,
+		.triggerFilter = filterOutChatPreview,
+		.hideRequests = parentHideRequests->events() | to_instant
+	});
 }
 
 void Filler::addViewAsTopics() {

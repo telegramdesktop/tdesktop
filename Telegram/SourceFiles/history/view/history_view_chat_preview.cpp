@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "info/profile/info_profile_cover.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -369,7 +370,10 @@ void Item::setupMarkRead() {
 	) | rpl::start_with_next([=] {
 		const auto state = _thread->chatListBadgesState();
 		const auto unread = (state.unreadCounter || state.unread);
-		if (_thread->asTopic() && !unread) {
+		const auto hidden = _thread->asTopic()
+			? (!unread)
+			: _thread->peer()->isForum();
+		if (hidden) {
 			_markRead->hide();
 			return;
 		}
@@ -595,7 +599,11 @@ void Item::listUpdateDateLink(
 }
 
 bool Item::listElementHideReply(not_null<const Element*> view) {
-	return false;
+	if (!view->isTopicRootReply()) {
+		return false;
+	}
+	const auto reply = view->data()->Get<HistoryMessageReply>();
+	return reply && !reply->fields().manualQuote;
 }
 
 bool Item::listElementShownUnread(not_null<const Element*> view) {
@@ -769,10 +777,6 @@ ChatPreview MakeChatPreview(
 	const auto thread = entry->asThread();
 	if (!thread) {
 		return {};
-	} else if (const auto history = entry->asHistory()) {
-		if (history->peer->isForum()) {
-			return {};
-		}
 	}
 
 	auto result = ChatPreview{

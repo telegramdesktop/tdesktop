@@ -33,16 +33,21 @@ ChatPreviewManager::ChatPreviewManager(
 
 bool ChatPreviewManager::show(
 		Dialogs::RowDescriptor row,
-		Fn<void(bool shown)> callback) {
+		Fn<void(bool shown)> callback,
+		QPointer<QWidget> parentOverride) {
 	cancelScheduled();
 	_topicLifetime.destroy();
 	if (const auto topic = row.key.topic()) {
 		_topicLifetime = topic->destroyed() | rpl::start_with_next([=] {
 			_menu = nullptr;
 		});
+	} else if (!row.key) {
+		return false;
 	}
 
-	const auto parent = _controller->content();
+	const auto parent = parentOverride
+		? parentOverride
+		: _controller->content();
 	auto preview = HistoryView::MakeChatPreview(parent, row.key.entry());
 	if (!preview.menu) {
 		return false;
@@ -81,10 +86,14 @@ bool ChatPreviewManager::show(
 	}, _menu->lifetime());
 	QObject::connect(_menu.get(), &QObject::destroyed, [=] {
 		_topicLifetime.destroy();
-		callback(false);
+		if (callback) {
+			callback(false);
+		}
 	});
 
-	callback(true);
+	if (callback) {
+		callback(true);
+	}
 	_menu->popup(QCursor::pos());
 
 	return true;
@@ -92,7 +101,8 @@ bool ChatPreviewManager::show(
 
 bool ChatPreviewManager::schedule(
 		Dialogs::RowDescriptor row,
-		Fn<void(bool shown)> callback) {
+		Fn<void(bool shown)> callback,
+		QPointer<QWidget> parentOverride) {
 	cancelScheduled();
 	_topicLifetime.destroy();
 	if (const auto topic = row.key.topic()) {
@@ -100,15 +110,12 @@ bool ChatPreviewManager::schedule(
 			cancelScheduled();
 			_menu = nullptr;
 		});
-	} else if (const auto history = row.key.history()) {
-		if (history->peer->isForum()) {
-			return false;
-		}
 	} else {
 		return false;
 	}
-	_scheduled = row;
+	_scheduled = std::move(row);
 	_scheduledCallback = std::move(callback);
+	_scheduledParentOverride = std::move(parentOverride);
 	_timer.callOnce(kChatPreviewDelay);
 	return true;
 }

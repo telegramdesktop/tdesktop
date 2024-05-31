@@ -603,10 +603,12 @@ public:
 
 	bool showChatPreview(
 		Dialogs::RowDescriptor row,
-		Fn<void(bool shown)> callback = nullptr);
+		Fn<void(bool shown)> callback = nullptr,
+		QPointer<QWidget> parentOverride = nullptr);
 	bool scheduleChatPreview(
 		Dialogs::RowDescriptor row,
-		Fn<void(bool shown)> callback = nullptr);
+		Fn<void(bool shown)> callback = nullptr,
+		QPointer<QWidget> parentOverride = nullptr);
 	void cancelScheduledPreview();
 
 	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) const;
