@@ -1,3 +1,9 @@
+5.1 (31.05.24)
+
+- Send messages with effects.
+- Move photo or video captions above the media.
+- Chat preview on chat photo long press or Alt+Click.
+
 5.0.6 beta (30.05.24)
 
 - Fix chat preview with non-default themes.
