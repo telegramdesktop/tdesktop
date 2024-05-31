@@ -88,6 +88,7 @@ using GifPauseReasons = ChatHelpers::PauseReasons;
 class SectionMemento;
 class Controller;
 class FiltersMenu;
+class ChatPreviewManager;
 
 struct PeerByLinkInfo;
 
@@ -600,6 +601,14 @@ public:
 	void setPremiumRef(const QString &ref);
 	[[nodiscard]] QString premiumRef() const;
 
+	bool showChatPreview(
+		Dialogs::RowDescriptor row,
+		Fn<void(bool shown)> callback = nullptr);
+	bool scheduleChatPreview(
+		Dialogs::RowDescriptor row,
+		Fn<void(bool shown)> callback = nullptr);
+	void cancelScheduledPreview();
+
 	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() override;
@@ -656,6 +665,7 @@ private:
 
 	const not_null<Controller*> _window;
 	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
+	const std::unique_ptr<ChatPreviewManager> _chatPreviewManager;
 	const bool _isPrimary = false;
 
 	mutable std::shared_ptr<ChatHelpers::Show> _cachedShow;

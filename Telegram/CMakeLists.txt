@@ -1516,6 +1516,8 @@ PRIVATE
     window/section_widget.h
     window/window_adaptive.cpp
     window/window_adaptive.h
+    window/window_chat_preview.cpp
+    window/window_chat_preview.h
     window/window_connecting_widget.cpp
     window/window_connecting_widget.h
     window/window_controller.cpp

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/peers/replace_boost_box.h"
 #include "boxes/delete_messages_box.h"
+#include "window/window_chat_preview.h"
 #include "window/window_controller.h"
 #include "window/window_filters_menu.h"
 #include "info/channel_statistics/earn/info_earn_inner_widget.h"
@@ -1179,6 +1180,7 @@ SessionController::SessionController(
 , _window(window)
 , _emojiInteractions(
 	std::make_unique<ChatHelpers::EmojiInteractions>(session))
+, _chatPreviewManager(std::make_unique<ChatPreviewManager>(this))
 , _isPrimary(window->isPrimary())
 , _sendingAnimation(
 	std::make_unique<Ui::MessageSendingAnimationController>(this))
@@ -2972,6 +2974,24 @@ void SessionController::setPremiumRef(const QString &ref) {
 
 QString SessionController::premiumRef() const {
 	return _premiumRef;
+}
+
+bool SessionController::showChatPreview(
+		Dialogs::RowDescriptor row,
+		Fn<void(bool shown)> callback) {
+	return _chatPreviewManager->show(std::move(row), std::move(callback));
+}
+
+bool SessionController::scheduleChatPreview(
+		Dialogs::RowDescriptor row,
+		Fn<void(bool shown)> callback) {
+	return _chatPreviewManager->schedule(
+		std::move(row),
+		std::move(callback));
+}
+
+void SessionController::cancelScheduledPreview() {
+	_chatPreviewManager->cancelScheduled();
 }
 
 bool SessionController::contentOverlapped(QWidget *w, QPaintEvent *e) const {

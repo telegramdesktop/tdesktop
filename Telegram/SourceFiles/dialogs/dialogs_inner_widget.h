@@ -125,9 +125,10 @@ public:
 
 	[[nodiscard]] bool isUserpicPress() const;
 	[[nodiscard]] bool isUserpicPressOnWide() const;
-	[[nodiscard]] bool pressShowsPreview(bool onlyUserpic) const;
 	void cancelChatPreview();
-	void showChatPreview(bool onlyUserpic);
+	bool scheduleChatPreview();
+	bool showChatPreview();
+	void chatPreviewShown(bool shown, RowDescriptor row = {});
 	bool chooseRow(
 		Qt::KeyboardModifiers modifiers = {},
 		MsgId pressedTopicRootId = {});
@@ -400,7 +401,7 @@ private:
 	void trackSearchResultsHistory(not_null<History*> history);
 
 	[[nodiscard]] QBrush currentBg() const;
-	[[nodiscard]] Key computeChatPreviewRow() const;
+	[[nodiscard]] RowDescriptor computeChatPreviewRow() const;
 
 	[[nodiscard]] const std::vector<Key> &pinnedChatsOrder() const;
 	void checkReorderPinnedStart(QPoint localPosition);
@@ -525,9 +526,8 @@ private:
 	rpl::event_stream<QString> _completeHashtagRequests;
 	rpl::event_stream<> _refreshHashtagsRequests;
 
-	base::Timer _chatPreviewTimer;
-	Key _chatPreviewWillBeFor;
-	Key _chatPreviewKey;
+	RowDescriptor _chatPreviewRow;
+	bool _chatPreviewScheduled = false;
 	std::optional<QPoint> _chatPreviewTouchGlobal;
 	base::Timer _touchDragPinnedTimer;
 	std::optional<QPoint> _touchDragStartGlobal;
