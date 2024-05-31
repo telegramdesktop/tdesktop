@@ -585,13 +585,7 @@ void Message::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
 	}
 
 	if (bubble) {
-		const auto check = factcheckBlock();
-		const auto entry = logEntryOriginal();
-
 		// Entry page is always a bubble bottom.
-		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || check || (entry/* && entry->isBubbleBottom()*/);
-		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
-
 		auto inner = g;
 		if (_comments) {
 			inner.setHeight(inner.height() - st::historyCommentsButtonHeight);

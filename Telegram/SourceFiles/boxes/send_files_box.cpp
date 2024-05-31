@@ -627,7 +627,6 @@ void SendFilesBox::addMenuButton() {
 	const auto top = addTopButton(_st.files.menu);
 	top->setClickedCallback([=] {
 		const auto &tabbed = _st.tabbed;
-		const auto &icons = tabbed.icons;
 		_menu = base::make_unique_q<Ui::PopupMenu>(top, tabbed.menu);
 		const auto position = QCursor::pos();
 		SendMenu::FillSendMenu(

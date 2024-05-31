@@ -210,8 +210,6 @@ void ResolvePhoneAction::prepare() {
 		}();
 		_above.setMarkedText(_st.itemStyle, { above }, options);
 		_below.setMarkedText(_st.itemStyle, { below }, options);
-		const auto textWidth = _above.maxWidth();
-		const auto nameWidth = _below.maxWidth();
 		const auto textLeft = padding.left()
 			+ st::groupCallJoinAsPhotoSize
 			+ padding.left();

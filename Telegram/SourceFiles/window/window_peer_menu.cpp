@@ -2098,7 +2098,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		}
 		state->menu->setForcedVerticalOrigin(
 			Ui::PopupMenu::VerticalOrigin::Bottom);
-		const auto result = SendMenu::FillSendMenu(
+		SendMenu::FillSendMenu(
 			state->menu.get(),
 			show,
 			SendMenu::Details{ sendMenuType() },

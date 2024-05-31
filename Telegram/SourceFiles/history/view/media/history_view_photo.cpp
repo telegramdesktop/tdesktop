@@ -271,7 +271,6 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	const auto stm = context.messageStyle();
 	auto loaded = _dataMedia->loaded();
 	auto displayLoading = _data->displayLoading();
 
@@ -286,7 +285,6 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 	const auto radial = isRadialAnimation();
-	const auto botTop = _parent->Get<FakeBotAboutTop>();
 
 	auto rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 	if (_serviceWidth > 0) {

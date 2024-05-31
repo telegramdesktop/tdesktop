@@ -129,8 +129,8 @@ SendMenu::Details MediaEditManager::sendMenuDetails(
 	const auto canMoveCaption = media->allowsEditCaption()
 		&& hasCaptionText
 		&& (editPhoto
-			|| editDocument
-			&& (editDocument->isVideoFile() || editDocument->isGifv()));
+			|| (editDocument
+				&& (editDocument->isVideoFile() || editDocument->isGifv())));
 	return {
 		.spoiler = (!canSaveSpoiler
 			? SendMenu::SpoilerState::None

@@ -191,9 +191,6 @@ ClickHandlerPtr BottomInfo::replayEffectLink(
 
 ClickHandlerPtr BottomInfo::replayEffectLink(
 		not_null<const Message*> view) const {
-	const auto item = view->data();
-	const auto itemId = item->fullId();
-	const auto sessionId = item->history()->session().uniqueId();
 	const auto weak = base::make_weak(view);
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();

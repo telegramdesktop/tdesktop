@@ -106,8 +106,6 @@ void SendCreditsBox(
 		widget->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 
-	const auto asd = box->lifetime().make_state<uint64>();
-
 	Ui::AddSkip(content);
 	box->addRow(object_ptr<Ui::CenterWrap<>>(
 		box,

@@ -324,7 +324,6 @@ void WebPage::setupAdditionalData() {
 		}
 	} else if (_data->type == WebPageType::Factcheck) {
 		_additionalData = std::make_unique<AdditionalData>(FactcheckData());
-		const auto raw = factcheckData();
 	}
 }
 

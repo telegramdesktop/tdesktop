@@ -2179,7 +2179,6 @@ auto StickersListWidget::collectCustomRecents() -> std::vector<Sticker> {
 	auto result = std::vector<Sticker>();
 
 	result.reserve(_customRecentIds.size());
-	const auto owner = &session().data();
 	for (const auto &descriptor : _customRecentIds) {
 		if (const auto document = descriptor.document; document->sticker()) {
 			result.push_back(Sticker{ document });

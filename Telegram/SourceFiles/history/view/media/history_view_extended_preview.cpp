@@ -174,10 +174,8 @@ int ExtendedPreview::minWidthForButton() const {
 void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
-	const auto stm = context.messageStyle();
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	auto bubble = _parent->hasBubble();
-	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
 	auto rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 	const auto inWebPage = (_parent->media() != this);
 	const auto rounding = inWebPage
