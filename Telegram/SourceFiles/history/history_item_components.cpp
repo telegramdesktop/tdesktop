@@ -222,14 +222,17 @@ void HistoryMessageForwarded::create(
 		phrase = tr::lng_forwarded_story(
 			tr::now,
 			lt_user,
-			Ui::Text::Link(phrase.text, QString()), // Link 1.
+			Ui::Text::Wrapped(phrase, EntityType::CustomUrl, QString()), // Link 1.
 			Ui::Text::WithEntities);
 	} else if (via && psaType.isEmpty()) {
+		const auto linkData = Ui::Text::Link(
+			QString(),
+			1).entities.front().data(); // Link 1.
 		if (fromChannel) {
 			phrase = tr::lng_forwarded_channel_via(
 				tr::now,
 				lt_channel,
-				Ui::Text::Link(phrase.text, 1), // Link 1.
+				Ui::Text::Wrapped(phrase, EntityType::CustomUrl, linkData), // Link 1.
 				lt_inline_bot,
 				Ui::Text::Link('@' + via->bot->username(), 2), // Link 2.
 				Ui::Text::WithEntities);
@@ -237,7 +240,7 @@ void HistoryMessageForwarded::create(
 			phrase = tr::lng_forwarded_via(
 				tr::now,
 				lt_user,
-				Ui::Text::Link(phrase.text, 1), // Link 1.
+				Ui::Text::Wrapped(phrase, EntityType::CustomUrl, linkData), // Link 1.
 				lt_inline_bot,
 				Ui::Text::Link('@' + via->bot->username(), 2), // Link 2.
 				Ui::Text::WithEntities);
