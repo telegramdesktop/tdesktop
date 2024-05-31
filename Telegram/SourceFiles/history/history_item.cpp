@@ -3127,6 +3127,7 @@ void HistoryItem::setText(const TextWithEntities &textWithEntities) {
 		auto type = entity.type();
 		if (type == EntityType::Url
 			|| type == EntityType::CustomUrl
+			|| type == EntityType::Phone
 			|| type == EntityType::Email) {
 			_flags |= MessageFlag::HasTextLinks;
 			break;

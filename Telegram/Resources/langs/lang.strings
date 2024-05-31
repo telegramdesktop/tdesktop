@@ -3427,6 +3427,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_add_contact" = "Create";
 "lng_add_contact_button" = "New contact";
 "lng_contacts_header" = "Contacts";
+"lng_menu_not_contact" = "This number is not on Telegram";
 "lng_contacts_hidden_stories" = "Hidden Stories";
 "lng_contacts_stories_status#one" = "{count} story";
 "lng_contacts_stories_status#other" = "{count} stories";

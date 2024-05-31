@@ -178,7 +178,11 @@ EntitiesInText EntitiesFromMTP(
 				});
 			}
 		}, [&](const MTPDmessageEntityPhone &d) {
-			// Skipping phones.
+			result.push_back({
+				EntityType::Phone,
+				d.voffset().v,
+				d.vlength().v,
+			});
 		}, [&](const MTPDmessageEntityCashtag &d) {
 			result.push_back({
 				EntityType::Cashtag,
@@ -265,6 +269,9 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		} break;
 		case EntityType::Email: {
 			v.push_back(MTP_messageEntityEmail(offset, length));
+		} break;
+		case EntityType::Phone: {
+			v.push_back(MTP_messageEntityPhone(offset, length));
 		} break;
 		case EntityType::Hashtag: {
 			v.push_back(MTP_messageEntityHashtag(offset, length));
