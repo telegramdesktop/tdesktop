@@ -50,6 +50,8 @@ public:
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] rpl::producer<bool> emptyValue() const;
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
+	[[nodiscard]] rpl::producer<uint64> pressed() const;
+	[[nodiscard]] rpl::producer<> pressCancelled() const;
 	[[nodiscard]] auto showMenuRequests() const
 		-> rpl::producer<ShowTopPeerMenuRequest>;
 	[[nodiscard]] auto scrollToRequests() const
@@ -61,6 +63,7 @@ public:
 	bool selectByKeyboard(Qt::Key direction);
 	void deselectByKeyboard();
 	bool chooseRow();
+	void cancelPress();
 
 	uint64 updateFromParentDrag(QPoint globalPosition);
 	void dragLeft();
@@ -114,6 +117,8 @@ private:
 	rpl::variable<Ui::LinkButton*> _toggleExpanded = nullptr;
 
 	rpl::event_stream<uint64> _clicks;
+	rpl::event_stream<uint64> _presses;
+	rpl::event_stream<> _pressCancelled;
 	rpl::event_stream<ShowTopPeerMenuRequest> _showMenuRequests;
 	rpl::event_stream<not_null<QWheelEvent*>> _verticalScrollEvents;
 

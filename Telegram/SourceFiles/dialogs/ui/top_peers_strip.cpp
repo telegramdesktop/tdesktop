@@ -286,6 +286,8 @@ void TopPeersStrip::stripMousePressEvent(QMouseEvent *e) {
 		entry.ripple->add(e->pos() - QPoint(
 			x + st::topPeersMargin.left(),
 			y + st::topPeersMargin.top()));
+
+		_presses.fire_copy(entry.id);
 	}
 }
 
@@ -304,6 +306,7 @@ void TopPeersStrip::stripMouseMoveEvent(QMouseEvent *e) {
 	if (!_dragging && _mouseDownPosition) {
 		if ((*_lastMousePosition - *_mouseDownPosition).manhattanLength()
 			>= QApplication::startDragDistance()) {
+			_pressCancelled.fire({});
 			if (!_expandAnimation.animating()) {
 				_dragging = true;
 				_startDraggingLeft = _scrollLeft;
@@ -371,6 +374,8 @@ void TopPeersStrip::subscribeUserpic(Entry &entry) {
 }
 
 void TopPeersStrip::stripMouseReleaseEvent(QMouseEvent *e) {
+	_pressCancelled.fire({});
+
 	_lastMousePosition = e->globalPos();
 	const auto guard = gsl::finally([&] {
 		_mouseDownPosition = std::nullopt;
@@ -426,6 +431,29 @@ rpl::producer<bool> TopPeersStrip::emptyValue() const {
 
 rpl::producer<uint64> TopPeersStrip::clicks() const {
 	return _clicks.events();
+}
+
+rpl::producer<uint64> TopPeersStrip::pressed() const {
+	return _presses.events();
+}
+
+rpl::producer<> TopPeersStrip::pressCancelled() const {
+	return _pressCancelled.events();
+}
+
+void TopPeersStrip::cancelPress() {
+	const auto pressed = std::exchange(_pressed, -1);
+	if (pressed >= 0) {
+		Assert(pressed < _entries.size());
+		auto &entry = _entries[pressed];
+		if (entry.ripple) {
+			entry.ripple->lastStop();
+		}
+	}
+	if (finishDragging()) {
+		return;
+	}
+	_mouseDownPosition = std::nullopt;
 }
 
 auto TopPeersStrip::showMenuRequests() const

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "boxes/peer_list_box.h"
 #include "data/components/recent_peers.h"
 #include "data/components/top_peers.h"
@@ -940,6 +941,16 @@ void Suggestions::setupChats() {
 		_topPeerChosen.fire(_controller->session().data().peer(peerId));
 	}, _topPeers->lifetime());
 
+	_topPeers->pressed() | rpl::start_with_next([=](uint64 peerIdRaw) {
+		handlePressForChatPreview(PeerId(peerIdRaw), [=] {
+			_topPeers->cancelPress();
+		});
+	}, _topPeers->lifetime());
+
+	_topPeers->pressCancelled() | rpl::start_with_next([=] {
+		_controller->cancelScheduledPreview();
+	}, _topPeers->lifetime());
+
 	_topPeers->showMenuRequests(
 	) | rpl::start_with_next([=](const ShowTopPeerMenuRequest &request) {
 		const auto weak = Ui::MakeWeak(this);
@@ -981,6 +992,24 @@ void Suggestions::setupChats() {
 	}, _topPeers->lifetime());
 
 	_chatsScroll->setVisible(_tab.current() == Tab::Chats);
+}
+
+void Suggestions::handlePressForChatPreview(
+		PeerId id,
+		Fn<void()> cancelPress) {
+	const auto callback = crl::guard(this, [=](bool shown) {
+		if (shown) {
+			cancelPress();
+		}
+	});
+	const auto row = RowDescriptor(
+		_controller->session().data().history(id),
+		FullMsgId());
+	if (base::IsAltPressed()) {
+		_controller->showChatPreview(row, callback);
+	} else {
+		_controller->scheduleChatPreview(row, callback);
+	}
 }
 
 void Suggestions::setupChannels() {

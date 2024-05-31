@@ -122,6 +122,8 @@ private:
 	void startSlideAnimation();
 	void finishShow();
 
+	void handlePressForChatPreview(PeerId id, Fn<void()> cancelPress);
+
 	const not_null<Window::SessionController*> _controller;
 
 	const std::unique_ptr<Ui::SettingsSlider> _tabs;

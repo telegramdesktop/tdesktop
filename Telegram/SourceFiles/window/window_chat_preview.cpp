@@ -110,7 +110,7 @@ bool ChatPreviewManager::schedule(
 			cancelScheduled();
 			_menu = nullptr;
 		});
-	} else {
+	} else if (!row.key.history()) {
 		return false;
 	}
 	_scheduled = std::move(row);
