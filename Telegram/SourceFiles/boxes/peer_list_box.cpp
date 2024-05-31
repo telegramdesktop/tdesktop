@@ -1562,8 +1562,13 @@ void PeerListContent::handleMouseMove(QPoint globalPosition) {
 	selectByMouse(globalPosition);
 }
 
-void PeerListContent::cancelPress() {
-	setPressed(Selected());
+void PeerListContent::pressLeftToContextMenu(bool shown) {
+	if (shown) {
+		setContexted(_pressed);
+		setPressed(Selected());
+	} else {
+		setContexted(Selected());
+	}
 }
 
 void PeerListContent::mousePressEvent(QMouseEvent *e) {

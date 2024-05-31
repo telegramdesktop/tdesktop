@@ -63,7 +63,7 @@ public:
 	bool selectByKeyboard(Qt::Key direction);
 	void deselectByKeyboard();
 	bool chooseRow();
-	void cancelPress();
+	void pressLeftToContextMenu(bool shown);
 
 	uint64 updateFromParentDrag(QPoint globalPosition);
 	void dragLeft();
@@ -105,6 +105,7 @@ private:
 	[[nodiscard]] QRect innerRounded() const;
 	[[nodiscard]] int scrollLeft() const;
 	[[nodiscard]] Layout currentLayout() const;
+	int clearPressed();
 	void apply(const TopPeersList &list);
 	void apply(Entry &entry, const TopPeersEntry &data);
 
@@ -132,6 +133,7 @@ private:
 
 	int _selected = -1;
 	int _pressed = -1;
+	int _contexted = -1;
 	bool _selectionByKeyboard = false;
 	bool _hiddenLocally = false;
 

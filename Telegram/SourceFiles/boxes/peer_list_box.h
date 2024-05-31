@@ -347,7 +347,7 @@ public:
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
 	virtual std::shared_ptr<Main::SessionShow> peerListUiShow() = 0;
-	virtual void peerListCancelPress() = 0;
+	virtual void peerListPressLeftToContextMenu(bool shown) = 0;
 
 	template <typename PeerDataRange>
 	void peerListAddSelectedPeers(PeerDataRange &&range) {
@@ -662,7 +662,7 @@ public:
 	void refreshRows();
 
 	void mouseLeftGeometry();
-	void cancelPress();
+	void pressLeftToContextMenu(bool shown);
 
 	void setSearchMode(PeerListSearchMode mode);
 	void changeCheckState(
@@ -1000,8 +1000,8 @@ public:
 		not_null<PeerListRow*> row,
 		bool highlightRow,
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr) override;
-	void peerListCancelPress() override {
-		_content->cancelPress();
+	void peerListPressLeftToContextMenu(bool shown) override {
+		_content->pressLeftToContextMenu(shown);
 	}
 
 protected:

@@ -86,7 +86,9 @@ private:
 
 };
 
-class ControllerWithPreviews : public PeerListController {
+class ControllerWithPreviews
+	: public PeerListController
+	, public base::has_weak_ptr {
 public:
 	explicit ControllerWithPreviews(
 		not_null<Window::SessionController*> window);
@@ -103,9 +105,7 @@ private:
 
 };
 
-class RecentsController final
-	: public ControllerWithPreviews
-	, public base::has_weak_ptr {
+class RecentsController final : public ControllerWithPreviews {
 public:
 	RecentsController(
 		not_null<Window::SessionController*> window,
@@ -153,9 +153,7 @@ private:
 
 };
 
-class MyChannelsController final
-	: public ControllerWithPreviews
-	, public base::has_weak_ptr {
+class MyChannelsController final : public ControllerWithPreviews {
 public:
 	explicit MyChannelsController(
 		not_null<Window::SessionController*> window);
@@ -188,9 +186,7 @@ private:
 
 };
 
-class RecommendationsController final
-	: public ControllerWithPreviews
-	, public base::has_weak_ptr {
+class RecommendationsController final : public ControllerWithPreviews {
 public:
 	explicit RecommendationsController(
 		not_null<Window::SessionController*> window);
@@ -426,15 +422,17 @@ ControllerWithPreviews::ControllerWithPreviews(
 bool ControllerWithPreviews::rowTrackPress(not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
 	const auto history = peer->owner().history(peer);
+	const auto callback = crl::guard(this, [=](bool shown) {
+		delegate()->peerListPressLeftToContextMenu(shown);
+	});
 	if (base::IsAltPressed()) {
-		_window->showChatPreview({ history, FullMsgId() });
-		delegate()->peerListCancelPress();
+		_window->showChatPreview({ history, FullMsgId() }, callback);
 		return false;
 	}
 	const auto point = delegate()->peerListLastRowMousePosition();
 	const auto &st = computeListSt().item;
 	if (point && point->x() < st.photoPosition.x() + st.photoSize) {
-		_window->scheduleChatPreview({ history, FullMsgId() });
+		_window->scheduleChatPreview({ history, FullMsgId() }, callback);
 		return true;
 	}
 	return false;
@@ -982,8 +980,8 @@ void Suggestions::setupChats() {
 	}, _topPeers->lifetime());
 
 	_topPeers->pressed() | rpl::start_with_next([=](uint64 peerIdRaw) {
-		handlePressForChatPreview(PeerId(peerIdRaw), [=] {
-			_topPeers->cancelPress();
+		handlePressForChatPreview(PeerId(peerIdRaw), [=](bool shown) {
+			_topPeers->pressLeftToContextMenu(shown);
 		});
 	}, _topPeers->lifetime());
 
@@ -1036,12 +1034,8 @@ void Suggestions::setupChats() {
 
 void Suggestions::handlePressForChatPreview(
 		PeerId id,
-		Fn<void()> cancelPress) {
-	const auto callback = crl::guard(this, [=](bool shown) {
-		if (shown) {
-			cancelPress();
-		}
-	});
+		Fn<void(bool)> callback) {
+	callback = crl::guard(this, callback);
 	const auto row = RowDescriptor(
 		_controller->session().data().history(id),
 		FullMsgId());

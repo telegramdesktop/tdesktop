@@ -122,7 +122,7 @@ private:
 	void startSlideAnimation();
 	void finishShow();
 
-	void handlePressForChatPreview(PeerId id, Fn<void()> cancelPress);
+	void handlePressForChatPreview(PeerId id, Fn<void(bool)> callback);
 
 	const not_null<Window::SessionController*> _controller;
 
