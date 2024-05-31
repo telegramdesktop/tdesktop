@@ -1749,12 +1749,13 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 			forwardIds = getSelectedItems();
 		} else if (_mouseCursorState == CursorState::Date) {
 			forwardIds = session().data().itemOrItsGroup(_mouseActionItem);
-		} else if (pressedView->isHiddenByGroup() && pressedHandler) {
-			forwardIds = MessageIdsList(1, _mouseActionItem->fullId());
-		} else if (const auto media = pressedView->media()) {
-			if (media->dragItemByHandler(pressedHandler)) {
-				forwardIds = MessageIdsList(1, _mouseActionItem->fullId());
-			}
+		} else if ((pressedView->isHiddenByGroup() && pressedHandler)
+			|| (pressedView->media()
+				&& pressedView->media()->dragItemByHandler(pressedHandler))) {
+			const auto item = _dragStateItem
+				? _dragStateItem
+				: _mouseActionItem;
+			forwardIds = MessageIdsList(1, item->fullId());
 		}
 		if (forwardIds.empty()) {
 			return nullptr;
