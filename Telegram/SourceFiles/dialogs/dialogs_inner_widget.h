@@ -126,7 +126,7 @@ public:
 	[[nodiscard]] bool isUserpicPress() const;
 	[[nodiscard]] bool isUserpicPressOnWide() const;
 	void cancelChatPreview();
-	bool scheduleChatPreview();
+	bool scheduleChatPreview(QPoint positionOverride);
 	bool showChatPreview();
 	void chatPreviewShown(bool shown, RowDescriptor row = {});
 	bool chooseRow(

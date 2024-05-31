@@ -1556,10 +1556,12 @@ void PeerListContent::handleMouseMove(QPoint globalPosition) {
 	if (_trackPressStart
 		&& ((*_trackPressStart - globalPosition).manhattanLength()
 			> QApplication::startDragDistance())) {
-		_trackPressStart = std::nullopt;
+		_trackPressStart = {};
 		_controller->rowTrackPressCancel();
 	}
-	selectByMouse(globalPosition);
+	if (!_controller->rowTrackPressSkipMouseSelection()) {
+		selectByMouse(globalPosition);
+	}
 }
 
 void PeerListContent::pressLeftToContextMenu(bool shown) {
@@ -1571,13 +1573,24 @@ void PeerListContent::pressLeftToContextMenu(bool shown) {
 	}
 }
 
+bool PeerListContent::trackRowPressFromGlobal(QPoint globalPosition) {
+	selectByMouse(globalPosition);
+	if (const auto row = getRow(_selected.index)) {
+		if (_controller->rowTrackPress(row)) {
+			_trackPressStart = globalPosition;
+			return true;
+		}
+	}
+	return false;
+}
+
 void PeerListContent::mousePressEvent(QMouseEvent *e) {
 	_pressButton = e->button();
 	selectByMouse(e->globalPos());
 	setPressed(_selected);
 	_trackPressStart = {};
-	if (auto row = getRow(_selected.index)) {
-		auto updateCallback = [this, row, hint = _selected.index] {
+	if (const auto row = getRow(_selected.index)) {
+		const auto updateCallback = [this, row, hint = _selected.index] {
 			updateRow(row, hint);
 		};
 		if (_selected.element) {

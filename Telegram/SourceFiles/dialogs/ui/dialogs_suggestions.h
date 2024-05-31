@@ -139,6 +139,7 @@ private:
 	Fn<JumpResult(Qt::Key, int)> _recentSelectJump;
 	Fn<uint64(QPoint)> _recentUpdateFromParentDrag;
 	Fn<void()> _recentDragLeft;
+	Fn<bool(not_null<QTouchEvent*>)> _recentProcessTouch;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _recentPeers;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyRecent;
 
@@ -150,6 +151,7 @@ private:
 	Fn<JumpResult(Qt::Key, int)> _myChannelsSelectJump;
 	Fn<uint64(QPoint)> _myChannelsUpdateFromParentDrag;
 	Fn<void()> _myChannelsDragLeft;
+	Fn<bool(not_null<QTouchEvent*>)> _myChannelsProcessTouch;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _myChannels;
 
 	rpl::variable<int> _recommendationsCount;
@@ -157,6 +159,7 @@ private:
 	Fn<JumpResult(Qt::Key, int)> _recommendationsSelectJump;
 	Fn<uint64(QPoint)> _recommendationsUpdateFromParentDrag;
 	Fn<void()> _recommendationsDragLeft;
+	Fn<bool(not_null<QTouchEvent*>)> _recommendationsProcessTouch;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _recommendations;
 
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyChannels;

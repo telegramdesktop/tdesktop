@@ -26,11 +26,13 @@ public:
 	bool show(
 		Dialogs::RowDescriptor row,
 		Fn<void(bool shown)> callback = nullptr,
-		QPointer<QWidget> parentOverride = nullptr);
+		QPointer<QWidget> parentOverride = nullptr,
+		std::optional<QPoint> positionOverride = {});
 	bool schedule(
 		Dialogs::RowDescriptor row,
 		Fn<void(bool shown)> callback = nullptr,
-		QPointer<QWidget> parentOverride = nullptr);
+		QPointer<QWidget> parentOverride = nullptr,
+		std::optional<QPoint> positionOverride = {});
 	void cancelScheduled();
 
 private:
@@ -40,6 +42,7 @@ private:
 	Dialogs::RowDescriptor _scheduled;
 	Fn<void(bool)> _scheduledCallback;
 	QPointer<QWidget> _scheduledParentOverride;
+	std::optional<QPoint> _scheduledPositionOverride;
 	base::Timer _timer;
 
 	rpl::lifetime _topicLifetime;

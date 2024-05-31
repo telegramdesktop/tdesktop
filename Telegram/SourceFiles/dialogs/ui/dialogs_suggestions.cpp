@@ -99,9 +99,16 @@ public:
 
 	bool rowTrackPress(not_null<PeerListRow*> row) override;
 	void rowTrackPressCancel() override;
+	bool rowTrackPressSkipMouseSelection() override;
+
+	bool processTouchEvent(not_null<QTouchEvent*> e);
+	void setupTouchChatPreview(not_null<Ui::ElasticScroll*> scroll);
 
 private:
 	const not_null<Window::SessionController*> _window;
+
+	std::optional<QPoint> _chatPreviewTouchGlobal;
+	rpl::event_stream<> _touchCancelRequests;
 
 };
 
@@ -426,20 +433,79 @@ bool ControllerWithPreviews::rowTrackPress(not_null<PeerListRow*> row) {
 		delegate()->peerListPressLeftToContextMenu(shown);
 	});
 	if (base::IsAltPressed()) {
-		_window->showChatPreview({ history, FullMsgId() }, callback);
+		_window->showChatPreview(
+			{ history, FullMsgId() },
+			callback,
+			nullptr,
+			_chatPreviewTouchGlobal);
 		return false;
 	}
 	const auto point = delegate()->peerListLastRowMousePosition();
 	const auto &st = computeListSt().item;
 	if (point && point->x() < st.photoPosition.x() + st.photoSize) {
-		_window->scheduleChatPreview({ history, FullMsgId() }, callback);
+		_window->scheduleChatPreview(
+			{ history, FullMsgId() },
+			callback,
+			nullptr,
+			_chatPreviewTouchGlobal);
 		return true;
 	}
 	return false;
 }
 
 void ControllerWithPreviews::rowTrackPressCancel() {
+	_chatPreviewTouchGlobal = {};
 	_window->cancelScheduledPreview();
+}
+
+bool ControllerWithPreviews::rowTrackPressSkipMouseSelection() {
+	return _chatPreviewTouchGlobal.has_value();
+}
+
+bool ControllerWithPreviews::processTouchEvent(not_null<QTouchEvent*> e) {
+	const auto point = e->touchPoints().empty()
+		? std::optional<QPoint>()
+		: e->touchPoints().front().screenPos().toPoint();
+	switch (e->type()) {
+	case QEvent::TouchBegin: {
+		if (!point) {
+			return false;
+		}
+		_chatPreviewTouchGlobal = point;
+		if (!delegate()->peerListTrackRowPressFromGlobal(*point)) {
+			_chatPreviewTouchGlobal = {};
+		}
+	} break;
+
+	case QEvent::TouchUpdate: {
+		if (!point) {
+			return false;
+		}
+		if (_chatPreviewTouchGlobal) {
+			const auto delta = (*_chatPreviewTouchGlobal - *point);
+			if (delta.manhattanLength() > computeListSt().item.photoSize) {
+				rowTrackPressCancel();
+			}
+		}
+	} break;
+
+	case QEvent::TouchEnd:
+	case QEvent::TouchCancel: {
+		if (_chatPreviewTouchGlobal) {
+			rowTrackPressCancel();
+		}
+	} break;
+	}
+	return false;
+}
+
+void ControllerWithPreviews::setupTouchChatPreview(
+		not_null<Ui::ElasticScroll*> scroll) {
+	_touchCancelRequests.events() | rpl::start_with_next([=] {
+		QTouchEvent ev(QEvent::TouchCancel);
+		ev.setTimestamp(crl::now());
+		QGuiApplication::sendEvent(scroll, &ev);
+	}, lifetime());
 }
 
 RecentsController::RecentsController(
@@ -1030,6 +1096,7 @@ void Suggestions::setupChats() {
 	}, _topPeers->lifetime());
 
 	_chatsScroll->setVisible(_tab.current() == Tab::Chats);
+	_chatsScroll->setCustomTouchProcess(_recentProcessTouch);
 }
 
 void Suggestions::handlePressForChatPreview(
@@ -1063,6 +1130,11 @@ void Suggestions::setupChannels() {
 		anim::type::instant);
 
 	_channelsScroll->setVisible(_tab.current() == Tab::Channels);
+	_channelsScroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
+		const auto myChannels = _myChannelsProcessTouch(e);
+		const auto recommendations = _recommendationsProcessTouch(e);
+		return myChannels || recommendations;
+	});
 }
 
 void Suggestions::selectJump(Qt::Key direction, int pageSize) {
@@ -1371,6 +1443,9 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 	controller->setStyleOverrides(&st::recentPeersList);
 
 	_recentCount = controller->count();
+	_recentProcessTouch = [=](not_null<QTouchEvent*> e) {
+		return controller->processTouchEvent(e);
+	};
 
 	controller->chosen(
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
@@ -1419,6 +1494,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 
 	delegate->setContent(raw);
 	controller->setDelegate(delegate);
+	controller->setupTouchChatPreview(_chatsScroll.get());
 
 	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
 }
@@ -1474,6 +1550,9 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupMyChannels() {
 	controller->setStyleOverrides(&st::recentPeersList);
 
 	_myChannelsCount = controller->count();
+	_myChannelsProcessTouch = [=](not_null<QTouchEvent*> e) {
+		return controller->processTouchEvent(e);
+	};
 
 	controller->chosen(
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
@@ -1535,6 +1614,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupMyChannels() {
 
 	delegate->setContent(raw);
 	controller->setDelegate(delegate);
+	controller->setupTouchChatPreview(_channelsScroll.get());
 
 	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
 }
@@ -1549,6 +1629,9 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecommendations() {
 	controller->setStyleOverrides(&st::recentPeersList);
 
 	_recommendationsCount = controller->count();
+	_recommendationsProcessTouch = [=](not_null<QTouchEvent*> e) {
+		return controller->processTouchEvent(e);
+	};
 
 	_tab.value() | rpl::filter(
 		rpl::mappers::_1 == Tab::Channels
@@ -1603,6 +1686,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecommendations() {
 
 	delegate->setContent(raw);
 	controller->setDelegate(delegate);
+	controller->setupTouchChatPreview(_channelsScroll.get());
 
 	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
 }

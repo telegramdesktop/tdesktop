@@ -34,7 +34,8 @@ ChatPreviewManager::ChatPreviewManager(
 bool ChatPreviewManager::show(
 		Dialogs::RowDescriptor row,
 		Fn<void(bool shown)> callback,
-		QPointer<QWidget> parentOverride) {
+		QPointer<QWidget> parentOverride,
+		std::optional<QPoint> positionOverride) {
 	cancelScheduled();
 	_topicLifetime.destroy();
 	if (const auto topic = row.key.topic()) {
@@ -94,7 +95,7 @@ bool ChatPreviewManager::show(
 	if (callback) {
 		callback(true);
 	}
-	_menu->popup(QCursor::pos());
+	_menu->popup(positionOverride.value_or(QCursor::pos()));
 
 	return true;
 }
@@ -102,7 +103,8 @@ bool ChatPreviewManager::show(
 bool ChatPreviewManager::schedule(
 		Dialogs::RowDescriptor row,
 		Fn<void(bool shown)> callback,
-		QPointer<QWidget> parentOverride) {
+		QPointer<QWidget> parentOverride,
+		std::optional<QPoint> positionOverride) {
 	cancelScheduled();
 	_topicLifetime.destroy();
 	if (const auto topic = row.key.topic()) {
@@ -116,17 +118,23 @@ bool ChatPreviewManager::schedule(
 	_scheduled = std::move(row);
 	_scheduledCallback = std::move(callback);
 	_scheduledParentOverride = std::move(parentOverride);
+	_scheduledPositionOverride = positionOverride;
 	_timer.callOnce(kChatPreviewDelay);
 	return true;
 }
 
 void ChatPreviewManager::showScheduled() {
-	show(base::take(_scheduled), base::take(_scheduledCallback));
+	show(
+		base::take(_scheduled),
+		base::take(_scheduledCallback),
+		nullptr,
+		base::take(_scheduledPositionOverride));
 }
 
 void ChatPreviewManager::cancelScheduled() {
 	_scheduled = {};
 	_scheduledCallback = nullptr;
+	_scheduledPositionOverride = {};
 	_timer.cancel();
 }
 

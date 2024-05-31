@@ -2979,21 +2979,25 @@ QString SessionController::premiumRef() const {
 bool SessionController::showChatPreview(
 		Dialogs::RowDescriptor row,
 		Fn<void(bool shown)> callback,
-		QPointer<QWidget> parentOverride) {
+		QPointer<QWidget> parentOverride,
+		std::optional<QPoint> positionOverride) {
 	return _chatPreviewManager->show(
 		std::move(row),
 		std::move(callback),
-		std::move(parentOverride));
+		std::move(parentOverride),
+		positionOverride);
 }
 
 bool SessionController::scheduleChatPreview(
 		Dialogs::RowDescriptor row,
 		Fn<void(bool shown)> callback,
-		QPointer<QWidget> parentOverride) {
+	QPointer<QWidget> parentOverride,
+	std::optional<QPoint> positionOverride) {
 	return _chatPreviewManager->schedule(
 		std::move(row),
 		std::move(callback),
-		std::move(parentOverride));
+		std::move(parentOverride),
+		positionOverride);
 }
 
 void SessionController::cancelScheduledPreview() {

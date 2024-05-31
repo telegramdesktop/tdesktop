@@ -347,7 +347,9 @@ public:
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
 	virtual std::shared_ptr<Main::SessionShow> peerListUiShow() = 0;
+
 	virtual void peerListPressLeftToContextMenu(bool shown) = 0;
+	virtual bool peerListTrackRowPressFromGlobal(QPoint globalPosition) = 0;
 
 	template <typename PeerDataRange>
 	void peerListAddSelectedPeers(PeerDataRange &&range) {
@@ -483,6 +485,9 @@ public:
 		return false;
 	}
 	virtual void rowTrackPressCancel() {
+	}
+	virtual bool rowTrackPressSkipMouseSelection() {
+		return false;
 	}
 
 	virtual void loadMoreRows() {
@@ -663,6 +668,7 @@ public:
 
 	void mouseLeftGeometry();
 	void pressLeftToContextMenu(bool shown);
+	bool trackRowPressFromGlobal(QPoint globalPosition);
 
 	void setSearchMode(PeerListSearchMode mode);
 	void changeCheckState(
@@ -1000,8 +1006,12 @@ public:
 		not_null<PeerListRow*> row,
 		bool highlightRow,
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr) override;
+
 	void peerListPressLeftToContextMenu(bool shown) override {
 		_content->pressLeftToContextMenu(shown);
+	}
+	bool peerListTrackRowPressFromGlobal(QPoint globalPosition) override {
+		return _content->trackRowPressFromGlobal(globalPosition);
 	}
 
 protected:

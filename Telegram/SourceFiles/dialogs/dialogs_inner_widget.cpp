@@ -1526,7 +1526,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	if (alt && showChatPreview()) {
 		return;
 	} else if (!alt && isUserpicPress()) {
-		scheduleChatPreview();
+		scheduleChatPreview(e->globalPos());
 	}
 
 	if (base::in_range(_collapsedSelected, 0, _collapsedRows.size())) {
@@ -2440,12 +2440,16 @@ void InnerWidget::chatPreviewShown(bool shown, RowDescriptor row) {
 	}
 }
 
-bool InnerWidget::scheduleChatPreview() {
+bool InnerWidget::scheduleChatPreview(QPoint positionOverride) {
 	const auto row = computeChatPreviewRow();
 	const auto callback = crl::guard(this, [=](bool shown) {
 		chatPreviewShown(shown, row);
 	});
-	_chatPreviewScheduled = _controller->scheduleChatPreview(row, callback);
+	_chatPreviewScheduled = _controller->scheduleChatPreview(
+		row,
+		callback,
+		nullptr,
+		positionOverride);
 	return _chatPreviewScheduled;
 }
 
@@ -2544,8 +2548,7 @@ bool InnerWidget::processTouchEvent(not_null<QTouchEvent*> e) {
 			return false;
 		}
 		selectByMouse(*point);
-		const auto onlyUserpic = true;
-		if (isUserpicPress() && scheduleChatPreview()) {
+		if (isUserpicPressOnWide() && scheduleChatPreview(*point)) {
 			_chatPreviewTouchGlobal = point;
 		} else if (!_dragging) {
 			_touchDragStartGlobal = point;
