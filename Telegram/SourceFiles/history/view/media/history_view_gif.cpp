@@ -269,9 +269,6 @@ QSize Gif::countOptimalSize() {
 			accumulate_max(maxWidth, botTop->maxWidth);
 			minHeight += botTop->height;
 		}
-		if (isBubbleBottom()) {
-			minHeight += st::msgPadding.bottom();
-		}
 	} else if (isUnwrapped()) {
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
