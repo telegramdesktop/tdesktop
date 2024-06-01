@@ -283,6 +283,7 @@ private:
 
 	[[nodiscard]] auto computeSendButtonType() const;
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
+	[[nodiscard]] SendMenu::Details saveMenuDetails() const;
 	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;
 
 	[[nodiscard]] auto sendContentRequests(

@@ -139,6 +139,8 @@ public:
 	void previewReady(rpl::producer<Controls::WebpageParsed> parsed);
 	void previewUnregister();
 
+	void mediaEditManagerApply(SendMenu::Action action);
+
 	[[nodiscard]] bool isDisplayed() const;
 	[[nodiscard]] bool isEditingMessage() const;
 	[[nodiscard]] bool readyToForward() const;
@@ -150,6 +152,7 @@ public:
 	[[nodiscard]] rpl::producer<> editPhotoRequests() const;
 	[[nodiscard]] rpl::producer<> editOptionsRequests() const;
 	[[nodiscard]] MessageToEdit queryToEdit();
+	[[nodiscard]] SendMenu::Details saveMenuDetails(bool hasSendText) const;
 
 	[[nodiscard]] FullReplyTo getDraftReply() const;
 	[[nodiscard]] rpl::producer<> editCancelled() const {
@@ -529,6 +532,10 @@ void FieldHeader::previewUnregister() {
 	_previewLifetime.destroy();
 }
 
+void FieldHeader::mediaEditManagerApply(SendMenu::Action action) {
+	_mediaEditManager.apply(action);
+}
+
 void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
 	Expects(!!_preview.parsed);
 
@@ -736,8 +743,12 @@ void FieldHeader::updateControlsGeometry(QSize size) {
 void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
 	_photoEditAllowed = photoEditAllowed;
 	_editMsgId = id;
-	if (!photoEditAllowed) {
+	if (!id) {
 		_mediaEditManager.cancel();
+	} else if (const auto item = _show->session().data().message(id)) {
+		_mediaEditManager.start(item);
+	}
+	if (!photoEditAllowed) {
 		_inPhotoEdit = false;
 		_inPhotoEditOver.stop();
 	}
@@ -788,6 +799,12 @@ MessageToEdit FieldHeader::queryToEdit() {
 		},
 		.spoilered = _mediaEditManager.spoilered(),
 	};
+}
+
+SendMenu::Details FieldHeader::saveMenuDetails(bool hasSendText) const {
+	return isEditingMessage()
+		? _mediaEditManager.sendMenuDetails(hasSendText)
+		: SendMenu::Details();
 }
 
 ComposeControls::ComposeControls(
@@ -2208,6 +2225,19 @@ void ComposeControls::initSendButton() {
 		_sendCustomRequests.fire(std::move(options));
 	});
 
+	using namespace SendMenu;
+	const auto sendAction = [=](Action action, Details details) {
+		if (action.type == ActionType::CaptionUp
+			|| action.type == ActionType::CaptionDown
+			|| action.type == ActionType::SpoilerOn
+			|| action.type == ActionType::SpoilerOff) {
+			_header->mediaEditManagerApply(action);
+		} else {
+			SendMenu::DefaultCallback(_show, send)(action, details);
+		}
+	};
+
+
 	SendMenu::SetupMenuAndShortcuts(
 		_send.get(),
 		_show,
@@ -2529,8 +2559,14 @@ SendMenu::Details ComposeControls::sendMenuDetails() const {
 	return !_history ? SendMenu::Details() : _sendMenuDetails();
 }
 
+SendMenu::Details ComposeControls::saveMenuDetails() const {
+	return _header->saveMenuDetails(HasSendText(_field));
+}
+
 SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
-	return (computeSendButtonType() == Ui::SendButton::Type::Send)
+	return (computeSendButtonType() == Ui::SendButton::Type::Save)
+		? saveMenuDetails()
+		: (computeSendButtonType() == Ui::SendButton::Type::Send)
 		? sendMenuDetails()
 		: SendMenu::Details();
 }
