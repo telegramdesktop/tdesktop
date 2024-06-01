@@ -2405,6 +2405,10 @@ void ComposeControls::initWriteRestriction() {
 		updateWrappingVisibility();
 		return;
 	}
+	if (_like && _like->parentWidget() == _writeRestricted.get()) {
+		// Fix a crash because of _like destruction with its parent.
+		_like->setParent(_wrap.get());
+	}
 	_writeRestricted = std::make_unique<Ui::RpWidget>(_parent);
 	_writeRestricted->move(_wrap->pos());
 	_writeRestricted->resizeToWidth(_wrap->widthNoMargins());
