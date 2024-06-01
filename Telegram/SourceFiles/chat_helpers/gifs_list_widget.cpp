@@ -390,11 +390,20 @@ base::unique_qptr<Ui::PopupMenu> GifsListWidget::fillContextMenu(
 	const auto send = crl::guard(this, [=](Api::SendOptions options) {
 		selectInlineResult(selected, options, true);
 	});
+	const auto item = _mosaic.maybeItemAt(_selected);
+	const auto isInlineResult = !item->getPhoto()
+		&& !item->getDocument()
+		&& item->getResult();
 	const auto icons = &st().icons;
+	auto copyDetails = details;
+	if (isInlineResult) {
+		// inline results don't have effects
+		copyDetails.effectAllowed = false;
+	}
 	SendMenu::FillSendMenu(
 		menu,
 		_show,
-		details,
+		copyDetails,
 		SendMenu::DefaultCallback(_show, send),
 		icons);
 

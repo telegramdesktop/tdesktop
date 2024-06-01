@@ -4211,7 +4211,7 @@ void HistoryWidget::sendScheduled(Api::SendOptions initialOptions) {
 		HistoryView::PrepareScheduleBox(
 			_list,
 			controller()->uiShow(),
-			sendMenuDetails(),
+			sendButtonDefaultDetails(),
 			[=](Api::SendOptions options) { send(options); },
 			initialOptions));
 }
@@ -4224,9 +4224,7 @@ SendMenu::Details HistoryWidget::sendMenuDetails() const {
 		: HistoryView::CanScheduleUntilOnline(_peer)
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
-	const auto effectAllowed = _peer
-		&& _peer->isUser()
-		&& (HasSendText(_field) || _previewDrawPreview);
+	const auto effectAllowed = _peer && _peer->isUser();
 	return { .type = type, .effectAllowed = effectAllowed };
 }
 
@@ -4257,7 +4255,15 @@ SendMenu::Details HistoryWidget::sendButtonMenuDetails() const {
 	} else if (type != Type::Send) {
 		return {};
 	}
-	return sendMenuDetails();
+	return sendButtonDefaultDetails();
+}
+
+SendMenu::Details HistoryWidget::sendButtonDefaultDetails() const {
+	auto result = sendMenuDetails();
+	if (!HasSendText(_field) && !_previewDrawPreview) {
+		result.effectAllowed = false;
+	}
+	return result;
 }
 
 void HistoryWidget::unblockUser() {

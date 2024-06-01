@@ -329,9 +329,12 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (_selected < 0 || _pressed >= 0) {
 		return;
 	}
-	const auto details = _sendMenuDetails
+	auto details = _sendMenuDetails
 		? _sendMenuDetails()
 		: SendMenu::Details();
+
+	// inline results don't have effects
+	details.effectAllowed = false;
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
