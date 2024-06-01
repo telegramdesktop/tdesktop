@@ -168,7 +168,7 @@ base::options::toggle ShowPeerIdBelowAbout({
 		}
 		using namespace Ui::Text;
 		if (!value.empty()) {
-			value.append("\n");
+			value.append("\n\n");
 		}
 		value.append(Italic(u"id: "_q));
 		const auto raw = peer->id.value & PeerId::kChatTypeMask;
