@@ -4224,7 +4224,9 @@ SendMenu::Details HistoryWidget::sendMenuDetails() const {
 		: HistoryView::CanScheduleUntilOnline(_peer)
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
-	const auto effectAllowed = _peer && _peer->isUser();
+	const auto effectAllowed = _peer
+		&& _peer->isUser()
+		&& (HasSendText(_field) || _previewDrawPreview);
 	return { .type = type, .effectAllowed = effectAllowed };
 }
 

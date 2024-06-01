@@ -3383,7 +3383,9 @@ void ApiWrap::forwardMessages(
 				.date = HistoryItem::NewMessageDate(action.options),
 				.shortcutId = action.options.shortcutId,
 				.postAuthor = messagePostAuthor,
-				.effectId = action.options.effectId,
+
+				// forwarded messages don't have effects
+				//.effectId = action.options.effectId,
 			}, item);
 			_session->data().registerMessageRandomId(randomId, newId);
 			if (!localIds) {
