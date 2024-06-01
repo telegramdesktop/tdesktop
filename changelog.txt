@@ -1,3 +1,11 @@
+5.1.1 (01.06.24)
+
+- Fix caption display on some media.
+- Fix collapsed blockquotes rendering.
+- Fully close search in chat by "Cancel" click.
+- Allow editing caption placement and spoiler in topics.
+- Disable effects on forwarded messages and inline results.
+
 5.1 (31.05.24)
 
 - Send messages with effects.
