@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_single_player.h"
 #include "base/random.h"
+#include "ui/power_saving.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -155,7 +156,8 @@ void EmojiInteractions::play(
 }
 
 void EmojiInteractions::playEffectOnRead(not_null<const Element*> view) {
-	if (view->data()->markEffectWatched()) {
+	const auto flag = PowerSaving::Flag::kChatEffects;
+	if (view->data()->markEffectWatched() && !PowerSaving::On(flag)) {
 		playEffect(view);
 	}
 }

@@ -785,6 +785,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_power_chat" = "Animations in Chats";
 "lng_settings_power_chat_background" = "Background rotation";
 "lng_settings_power_chat_spoiler" = "Animated spoiler effect";
+"lng_settings_power_chat_effects" = "Effects in messages";
 "lng_settings_power_calls" = "Animations in Calls";
 "lng_settings_power_ui" = "Interface animations";
 "lng_settings_power_auto" = "Save Power on Low Battery";

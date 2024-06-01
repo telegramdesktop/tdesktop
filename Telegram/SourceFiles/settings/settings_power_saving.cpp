@@ -152,6 +152,7 @@ EditFlagsDescriptor<PowerSaving::Flags> PowerSavingLabels() {
 			&st::menuIconChatBubble,
 		},
 		{ kChatSpoiler, tr::lng_settings_power_chat_spoiler(tr::now) },
+		{ kChatEffects, tr::lng_settings_power_chat_effects(tr::now) },
 	};
 	auto calls = std::vector<Label>{
 		{
