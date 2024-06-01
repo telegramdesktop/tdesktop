@@ -801,6 +801,10 @@ QPoint GroupedMedia::resolveCustomInfoRightBottom() const {
 	return QPoint(width() - skipx, height() - skipy);
 }
 
+bool GroupedMedia::enforceBubbleWidth() const {
+	return _mode == Mode::Grid;
+}
+
 bool GroupedMedia::computeNeedBubble() const {
 	Expects(_mode == Mode::Column || _captionItem.has_value());
 
