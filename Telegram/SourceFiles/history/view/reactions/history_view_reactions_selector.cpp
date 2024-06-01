@@ -1116,8 +1116,8 @@ void Selector::createList() {
 		_list->searchQueries(
 		) | rpl::start_with_next([=](std::vector<QString> &&query) {
 			_stickers->applySearchQuery(std::move(query));
+			updateVisibleTopBottom();
 		}, _stickers->lifetime());
-
 
 		rpl::combine(
 			_list->recentShownCount(),
