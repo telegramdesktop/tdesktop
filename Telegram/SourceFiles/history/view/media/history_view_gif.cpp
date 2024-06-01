@@ -759,7 +759,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 	}
-	if (!unwrapped && bubble) {
+	if (!unwrapped && bubble && !isBubbleBottom()) {
 		p.setPen(stm->historyTextFg);
 		auto top = painty + painth + st::mediaCaptionSkip;
 		if (botTop) {
