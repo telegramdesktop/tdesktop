@@ -398,7 +398,7 @@ void PeerShortInfoCover::paintRadial(QPainter &p) {
 QImage PeerShortInfoCover::currentVideoFrame() const {
 	const auto size = QSize(_st.size, _st.size);
 	const auto request = Media::Streaming::FrameRequest{
-		.resize = size * style::DevicePixelRatio(),
+		.resize = size,
 		.outer = size,
 	};
 	return (_videoInstance
