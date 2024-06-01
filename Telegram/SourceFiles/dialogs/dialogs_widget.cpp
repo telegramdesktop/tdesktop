@@ -3005,7 +3005,9 @@ bool Widget::applySearchState(SearchState state) {
 		controller()->closeFolder();
 	}
 
-	setSearchQuery(_searchState.query);
+	if (_searchState.query != currentSearchQuery()) {
+		setSearchQuery(_searchState.query);
+	}
 	_inner->applySearchState(_searchState);
 
 	if (!_postponeProcessSearchFocusChange) {
