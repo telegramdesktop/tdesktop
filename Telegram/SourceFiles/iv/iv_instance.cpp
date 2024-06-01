@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_instance.h"
 
 #include "apiwrap.h"
+#include "base/platform/base_platform_info.h"
 #include "boxes/share_box.h"
 #include "core/application.h"
 #include "core/file_utilities.h"
@@ -741,6 +742,11 @@ void Instance::show(
 		not_null<Main::Session*> session,
 		not_null<Data*> data,
 		QString hash) {
+	if (Platform::IsMac()) {
+		// Otherwise IV is not visible under the media viewer.
+		Core::App().hideMediaView();
+	}
+
 	const auto guard = gsl::finally([&] {
 		requestFull(session, data->id());
 	});
