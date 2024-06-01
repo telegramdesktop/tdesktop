@@ -2973,13 +2973,13 @@ bool Widget::applySearchState(SearchState state) {
 	if (queryChanged) {
 		updateLockUnlockVisibility(anim::type::normal);
 		updateLoadMoreChatsVisibility();
-		updateCancelSearch();
 	}
 	if (inChatChanged) {
 		controller()->setSearchInChat(_searchState.inChat);
 		updateSearchTabs();
 	}
 	if (queryChanged || inChatChanged) {
+		updateCancelSearch();
 		updateStoriesVisibility();
 	}
 	updateJumpToDateVisibility();
