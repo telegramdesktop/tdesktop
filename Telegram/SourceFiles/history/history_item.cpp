@@ -211,12 +211,59 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		const MTPMessageMedia &media) {
 	using Result = std::unique_ptr<Data::Media>;
 	return media.match([&](const MTPDmessageMediaContact &media) -> Result {
+
+		const auto vcardItems = [&] {
+			using Type = Data::SharedContact::VcardItemType;
+			auto items = Data::SharedContact::VcardItems();
+			for (const auto &item : qs(media.vvcard()).split('\n')) {
+				const auto parts = item.split(':');
+				if (parts.size() == 2) {
+					const auto &type = parts.front();
+					const auto &value = parts[1];
+
+					if (type.startsWith("TEL")) {
+						const auto telType = type.contains("PREF")
+							? Type::PhoneMain
+							: type.contains("HOME")
+							? Type::PhoneHome
+							: type.contains("WORK")
+							? Type::PhoneWork
+							: (type.contains("CELL")
+								|| type.contains("MOBILE"))
+							? Type::PhoneMobile
+							: type.contains("OTHER")
+							? Type::PhoneOther
+							: Type::Phone;
+						items[telType] = value;
+					} else if (type.startsWith("EMAIL")) {
+						items[Type::Email] = value;
+					} else if (type.startsWith("URL")) {
+						items[Type::Url] = value;
+					} else if (type.startsWith("NOTE")) {
+						items[Type::Note] = value;
+					} else if (type.startsWith("ORG")) {
+						items[Type::Organization] = value;
+						items[Type::Organization].replace(';', ' ');
+					} else if (type.startsWith("ADR")) {
+						items[Type::Address] = value;
+					} else if (type.startsWith("BDAY")) {
+						items[Type::Birthday] = value;
+					} else if (type.startsWith("N")) {
+						items[Type::Birthday] = value;
+						items[Type::Birthday].replace(';', ' ');
+					}
+				}
+			}
+			return items;
+		}();
+
 		return std::make_unique<Data::MediaContact>(
 			item,
 			media.vuser_id().v,
 			qs(media.vfirst_name()),
 			qs(media.vlast_name()),
-			qs(media.vphone_number()));
+			qs(media.vphone_number()),
+			vcardItems);
 	}, [&](const MTPDmessageMediaGeo &media) -> Result {
 		return media.vgeo().match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
