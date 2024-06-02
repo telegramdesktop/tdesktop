@@ -205,6 +205,7 @@ void RescheduleMessage(
 		not_null<HistoryItem*> item,
 		SendOptions options) {
 	const auto empty = [] {};
+	options.invertCaption = item->invertMedia();
 	EditMessage(item, options, empty, empty);
 }
 
