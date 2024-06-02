@@ -7249,10 +7249,27 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 		if ((rows.size() == 1) && (rows.front().size() == 1)) {
 			const auto text = rows.front().front().text;
 			if (!text.isEmpty()) {
+				const auto &st = st::historyPinnedBotButton;
 				auto button = object_ptr<Ui::RoundButton>(
 					this,
-					rpl::single(text),
-					st::historyPinnedBotButton);
+					rpl::never<QString>(),
+					st);
+				const auto label = Ui::CreateChild<Ui::FlatLabel>(
+					button.data(),
+					text,
+					st::historyPinnedBotLabel);
+				if (label->width() > st::historyPinnedBotButtonMaxWidth) {
+					label->resizeToWidth(st::historyPinnedBotButtonMaxWidth);
+				}
+				button->setFullWidth(label->width()
+					+ st.padding.left()
+					+ st.padding.right()
+					+ st.height);
+				label->moveToLeft(
+					st.padding.left() + st.height / 2,
+					(button->height() - label->height()) / 2);
+				label->setTextColorOverride(st.textFg->c);
+				label->setAttribute(Qt::WA_TransparentForMouseEvents);
 				button->setTextTransform(
 					Ui::RoundButton::TextTransform::NoTransform);
 				button->setFullRadius(true);
@@ -7262,9 +7279,6 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 						0,
 						0);
 				});
-				if (button->width() > st::historyPinnedBotButtonMaxWidth) {
-					button->setFullWidth(st::historyPinnedBotButtonMaxWidth);
-				}
 				struct State {
 					base::unique_qptr<Ui::PopupMenu> menu;
 				};
