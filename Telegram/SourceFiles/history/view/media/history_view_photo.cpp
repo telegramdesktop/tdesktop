@@ -196,10 +196,6 @@ QSize Photo::countOptimalSize() {
 		minHeight = adjustHeightForLessCrop(
 			dimensions,
 			{ maxWidth, minHeight });
-		if (const auto botTop = _parent->Get<FakeBotAboutTop>()) {
-			accumulate_max(maxWidth, botTop->maxWidth);
-			minHeight += botTop->height;
-		}
 	}
 	return { maxWidth, minHeight };
 }
@@ -234,9 +230,6 @@ QSize Photo::countCurrentSize(int newWidth) {
 		imageHeight = newHeight = adjustHeightForLessCrop(
 			dimensions,
 			{ newWidth, newHeight });
-		if (botTop) {
-			newHeight += botTop->height;
-		}
 	}
 	const auto enlargeInner = st::historyPageEnlargeSize;
 	const auto enlargeOuter = 2 * st::historyPageEnlargeSkip + enlargeInner;
@@ -609,12 +602,6 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	auto bubble = _parent->hasBubble();
 
-	if (bubble) {
-		if (const auto botTop = _parent->Get<FakeBotAboutTop>()) {
-			painth -= botTop->height;
-		}
-		painth -= st::mediaCaptionSkip;
-	}
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
 		ensureDataMediaCreated();
 		result.link = (_spoiler && !_spoiler->revealed)

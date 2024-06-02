@@ -1012,10 +1012,10 @@ QSize Message::performCountOptimalSize() {
 				accumulate_max(maxWidth, entry->maxWidth());
 				minHeight += entry->minHeight();
 			}
-			if (withVisibleText && botTop) {
-				accumulate_max(maxWidth, botTop->maxWidth);
-				minHeight += botTop->height;
-			}
+		}
+		if (withVisibleText && botTop) {
+			accumulate_max(maxWidth, botTop->maxWidth);
+			minHeight += botTop->height;
 		}
 		accumulate_max(maxWidth, minWidthForMedia());
 	} else if (media) {

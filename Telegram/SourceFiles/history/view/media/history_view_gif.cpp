@@ -265,10 +265,6 @@ QSize Gif::countOptimalSize() {
 		minHeight = adjustHeightForLessCrop(
 			scaled,
 			{ maxWidth, minHeight });
-		if (const auto botTop = _parent->Get<FakeBotAboutTop>()) {
-			accumulate_max(maxWidth, botTop->maxWidth);
-			minHeight += botTop->height;
-		}
 	} else if (isUnwrapped()) {
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
@@ -310,9 +306,6 @@ QSize Gif::countCurrentSize(int newWidth) {
 		newHeight = adjustHeightForLessCrop(
 			scaled,
 			{ newWidth, newHeight });
-		if (botTop) {
-			newHeight += botTop->height;
-		}
 	} else if (isUnwrapped()) {
 		accumulate_max(newWidth, _parent->reactionsOptimalWidth());
 
@@ -408,16 +401,10 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto rightLayout = _parent->hasRightLayout();
 	const auto inWebPage = (_parent->media() != this);
 	const auto isRound = _data->isVideoMessage();
-	const auto botTop = _parent->Get<FakeBotAboutTop>();
 
 	const auto rounding = inWebPage
 		? std::optional<Ui::BubbleRounding>()
 		: adjustedBubbleRounding();
-	if (bubble) {
-		if (botTop) {
-			painth -= botTop->height;
-		}
-	}
 
 	auto usex = 0, usew = paintw;
 	const auto unwrapped = isUnwrapped();
@@ -756,22 +743,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 	}
-	if (!unwrapped && bubble && !isBubbleBottom()) {
-		p.setPen(stm->historyTextFg);
-		auto top = painty + painth + st::mediaCaptionSkip;
-		if (botTop) {
-			auto captionw = paintw
-				- st::msgPadding.left()
-				- st::msgPadding.right();
-			botTop->text.drawLeftElided(
-				p,
-				st::msgPadding.left(),
-				top,
-				captionw,
-				_parent->width());
-			top += botTop->height;
-		}
-	} else if (!inWebPage && !skipDrawingSurrounding) {
+	if (!inWebPage && !skipDrawingSurrounding) {
 		auto fullRight = paintx + usex + usew;
 		auto fullBottom = painty + painth;
 		auto maxRight = _parent->width() - st::msgMargin.left();
@@ -1032,11 +1004,6 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	auto bubble = _parent->hasBubble();
 
-	if (bubble) {
-		if (const auto botTop = _parent->Get<FakeBotAboutTop>()) {
-			painth -= botTop->height;
-		}
-	}
 	const auto rightLayout = _parent->hasRightLayout();
 	const auto inWebPage = (_parent->media() != this);
 	const auto isRound = _data->isVideoMessage();
