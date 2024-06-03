@@ -430,13 +430,6 @@ QSize WebPage::countOptimalSize() {
 			if (!iso2.isEmpty()) {
 				factcheck->hint.link = AboutFactcheckClickHandler(iso2);
 			}
-		} else if (_data->document
-			&& (_data->document->isWallPaper()
-				|| _data->document->isTheme())) {
-			_openl = std::make_shared<DocumentWrappedClickHandler>(
-				std::move(_openl),
-				_data->document,
-				_parent->data()->fullId());
 		} else {
 			_openl = _data->iv
 				? IvClickHandler(_data, original)
@@ -444,6 +437,14 @@ QSize WebPage::countOptimalSize() {
 					_data->url))
 				? std::make_shared<HiddenUrlClickHandler>(_data->url)
 				: std::make_shared<UrlClickHandler>(_data->url, true);
+			if (_data->document
+				&& (_data->document->isWallPaper()
+					|| _data->document->isTheme())) {
+				_openl = std::make_shared<DocumentWrappedClickHandler>(
+					std::move(_openl),
+					_data->document,
+					_parent->data()->fullId());
+			}
 		}
 	}
 
