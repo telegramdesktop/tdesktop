@@ -516,7 +516,8 @@ TabbedSelector::TabbedSelector(
 			emoji()->showSet(setId);
 			_showRequests.fire({});
 		}, lifetime());
-
+	}
+	if (hasEmojiTab()) {
 		emoji()->refreshEmoji();
 	}
 	//setAttribute(Qt::WA_AcceptTouchEvents);
