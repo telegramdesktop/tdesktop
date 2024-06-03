@@ -168,7 +168,16 @@ void ResolvePhoneAction::paint(Painter &p) {
 			width());
 	} else {
 		p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
-		p.drawText(rect() - padding, _below.toString(), style::al_center);
+		const auto w = width() - padding.left() - padding.right();
+		_below.draw(p, Ui::Text::PaintContext{
+			.position = QPoint(
+				(width() - w) / 2,
+				(height - _below.countHeight(w)) / 2),
+			.availableWidth = w,
+			.outerWidth = w,
+			.align = style::al_center,
+			.elisionLines = 2,
+		});
 	}
 }
 
@@ -208,8 +217,6 @@ void ResolvePhoneAction::prepare() {
 			_below.setMarkedText(_st.itemStyle, { text }, options);
 			return _below.maxWidth();
 		}();
-		_above.setMarkedText(_st.itemStyle, { above }, options);
-		_below.setMarkedText(_st.itemStyle, { below }, options);
 		const auto textLeft = padding.left()
 			+ st::groupCallJoinAsPhotoSize
 			+ padding.left();
@@ -217,6 +224,11 @@ void ResolvePhoneAction::prepare() {
 			(textLeft + tempWidth + padding.right()),
 			_st.widthMin,
 			_st.widthMax);
+		if (!no.isEmpty()) {
+			_below = Ui::Text::String(w);
+		}
+		_above.setMarkedText(_st.itemStyle, { above }, options);
+		_below.setMarkedText(_st.itemStyle, { below }, options);
 		setMinWidth(w);
 		_aboveWidth = w - textLeft - padding.right();
 		_belowWidth = w
