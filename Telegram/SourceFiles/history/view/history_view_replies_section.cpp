@@ -331,9 +331,12 @@ RepliesWidget::RepliesWidget(
 			? Data::CanSendAnything(_topic)
 			: Data::CanSendAnything(_history->peer);
 		const auto &to = request.to;
-		if (_joinGroup || !canSendReply || request.forceAnotherChat) {
+		const auto still = _history->owner().message(to.messageId);
+		const auto allowInAnotherChat = still && still->allowsForward();
+		if (allowInAnotherChat
+			&& (_joinGroup || !canSendReply || request.forceAnotherChat)) {
 			Controls::ShowReplyToChatBox(controller->uiShow(), { to });
-		} else {
+		} else if (!_joinGroup && canSendReply) {
 			replyToMessage(to);
 			_composeControls->focus();
 		}

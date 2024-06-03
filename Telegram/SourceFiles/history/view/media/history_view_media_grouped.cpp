@@ -396,7 +396,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	// date
-	if (_parent->media() == this && isBubbleBottom()) {
+	if (_parent->media() == this && (!_parent->hasBubble() || isBubbleBottom())) {
 		auto fullRight = width();
 		auto fullBottom = height();
 		if (needInfoDisplay()) {
@@ -455,7 +455,7 @@ PointState GroupedMedia::pointState(QPoint point) const {
 TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
 	const auto groupPadding = groupedPadding();
 	auto result = getPartState(point - QPoint(0, groupPadding.top()), request);
-	if (_parent->media() == this) {
+	if (_parent->media() == this && (!_parent->hasBubble() || isBubbleBottom())) {
 		auto fullRight = width();
 		auto fullBottom = height();
 		const auto bottomInfoResult = _parent->bottomInfoTextState(

@@ -2451,7 +2451,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			const auto quoteOffset = selected.offset;
 			text.replace('&', u"&&"_q);
 			_menu->addAction(text, [=] {
-				if (canSendReply && !base::IsCtrlPressed()) {
+				const auto still = session->data().message(itemId);
+				const auto forceAnotherChat = base::IsCtrlPressed()
+					&& still
+					&& still->allowsForward();
+				if (canSendReply && !forceAnotherChat) {
 					_widget->replyToMessage({
 						.messageId = itemId,
 						.quote = quote,
