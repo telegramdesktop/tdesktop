@@ -388,7 +388,6 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto displayLoading = (item->isSending() || _data->displayLoading());
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	const auto stm = context.messageStyle();
 	const auto cornerDownload = downloadInCorner();
 	const auto canBePlayed = _dataMedia->canBePlayed(_realParent);
 	const auto autoplay = autoplayEnabled()

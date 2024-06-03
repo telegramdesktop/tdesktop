@@ -1,3 +1,7 @@
+5.1.2 (03.06.24)
+
+- Several bugs fixed including a couple of crashes.
+
 5.1.1 (01.06.24)
 
 - Fix caption display on some media.

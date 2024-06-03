@@ -173,8 +173,8 @@ void ResolvePhoneAction::paint(Painter &p) {
 			.position = QPoint(
 				(width() - w) / 2,
 				(height - _below.countHeight(w)) / 2),
-			.availableWidth = w,
 			.outerWidth = w,
+			.availableWidth = w,
 			.align = style::al_center,
 			.elisionLines = 2,
 		});
