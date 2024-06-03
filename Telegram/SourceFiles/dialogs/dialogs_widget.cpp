@@ -3425,7 +3425,8 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		//}
 	} else if ((e->key() == Qt::Key_Backspace || e->key() == Qt::Key_Tab)
 		&& _searchHasFocus
-		&& !_searchState.inChat) {
+		&& !_searchState.inChat
+		&& _searchState.query.isEmpty()) {
 		escape();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		submit();
