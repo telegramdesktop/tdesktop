@@ -196,14 +196,19 @@ void HistoryMessageForwarded::create(
 			? originalSender->name()
 			: originalHiddenSenderInfo->name)
 	};
-	if (originalSender) {
-		context.session = &originalSender->owner().session();
+	if (const auto copy = originalSender) {
+		context.session = &copy->owner().session();
 		context.customEmojiRepaint = [=] {
-			originalSender->owner().requestItemRepaint(item);
+			// It is important to capture here originalSender by value,
+			// not capture the HistoryMessageForwarded* and read the
+			// originalSender field, because the components themselves
+			// get moved from place to place and the captured `this`
+			// pointer may become invalid, resulting in a crash.
+			copy->owner().requestItemRepaint(item);
 		};
 		phrase = Ui::Text::SingleCustomEmoji(
 			context.session->data().customEmojiManager().peerUserpicEmojiData(
-				originalSender,
+				copy,
 				st::fwdTextUserpicPadding));
 	}
 	if (!originalPostAuthor.isEmpty()) {
