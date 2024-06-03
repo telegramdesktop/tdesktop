@@ -163,6 +163,9 @@ QSize ExtendedPreview::countCurrentSize(int newWidth) {
 			_parent->textualMaxWidth());
 		newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
 	}
+	if (newWidth >= maxWidth()) {
+		newHeight = qMin(newHeight, minHeight());
+	}
 	return { newWidth, newHeight };
 }
 
