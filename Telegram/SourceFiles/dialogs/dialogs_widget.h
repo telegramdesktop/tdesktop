@@ -131,7 +131,7 @@ public:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
 
-	bool cancelSearch();
+	bool cancelSearch(bool forceFullCancel = false);
 	bool cancelSearchByMouseBack();
 
 	QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
