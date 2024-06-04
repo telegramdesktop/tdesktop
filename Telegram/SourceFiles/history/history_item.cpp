@@ -249,8 +249,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 					} else if (type.startsWith("BDAY")) {
 						items[Type::Birthday] = value;
 					} else if (type.startsWith("N")) {
-						items[Type::Birthday] = value;
-						items[Type::Birthday].replace(';', ' ');
+						items[Type::Name] = value;
+						items[Type::Name].replace(';', ' ');
 					}
 				}
 			}

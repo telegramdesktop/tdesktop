@@ -189,7 +189,15 @@ ClickHandlerPtr AddContactClickHandler(not_null<HistoryItem*> item) {
 				});
 			}
 		}
-		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		{
+			const auto inner = box->verticalLayout();
+			if (inner->count() > 2) {
+				delete inner->widgetAt(inner->count() - 1);
+				delete inner->widgetAt(inner->count() - 1);
+			}
+		}
+
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 	};
 }
 
@@ -259,6 +267,7 @@ QSize Contact::countOptimalSize() {
 			full);
 	}
 
+	const auto vcardBoxFactory = _vcardBoxFactory;
 	_buttons.clear();
 	if (_contact) {
 		const auto message = tr::lng_contact_send_message(tr::now).toUpper();
@@ -276,20 +285,20 @@ QSize Contact::countOptimalSize() {
 			});
 		}
 		_mainButton.link = _buttons.front().link;
-	} else if (const auto vcardBoxFactory = _vcardBoxFactory) {
+	} else if (vcardBoxFactory) {
 		const auto view = tr::lng_contact_details_button(tr::now).toUpper();
 		_buttons.push_back({
 			view,
 			st::semiboldFont->width(view),
 			AddContactClickHandler(_parent->data()),
 		});
+	}
+	if (vcardBoxFactory) {
 		_mainButton.link = std::make_shared<LambdaClickHandler>([=](
 				const ClickContext &context) {
 			const auto my = context.other.value<ClickHandlerContext>();
 			if (const auto controller = my.sessionWindow.get()) {
-				controller->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
-					vcardBoxFactory(box);
-				}));
+				controller->uiShow()->show(Box(vcardBoxFactory));
 			}
 		});
 	}
