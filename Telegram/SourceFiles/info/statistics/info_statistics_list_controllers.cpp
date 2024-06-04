@@ -861,10 +861,6 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
-	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
-		QWidget *parent,
-		not_null<PeerListRow*> row) override;
-
 	[[nodiscard]] bool skipRequest() const;
 	void requestNext();
 
@@ -955,29 +951,6 @@ void CreditsController::rowClicked(not_null<PeerListRow*> row) {
 		_entryClickedCallback(
 			static_cast<const CreditsRow*>(row.get())->entry());
 	}
-}
-
-base::unique_qptr<Ui::PopupMenu> CreditsController::rowContextMenu(
-		QWidget *parent,
-		not_null<PeerListRow*> row) {
-	const auto entry = static_cast<const CreditsRow*>(row.get())->entry();
-	if (!entry.bareId) {
-		return nullptr;
-	}
-	auto menu = base::make_unique_q<Ui::PopupMenu>(
-		parent,
-		st::defaultPopupMenu);
-	const auto peer = row->peer();
-	const auto callback = crl::guard(parent, [=, id = entry.id] {
-		const auto show = delegate()->peerListUiShow();
-		Api::CreditsRefund(
-			peer,
-			id,
-			[=] { show->showToast(tr::lng_report_spam_done(tr::now)); },
-			[=](const QString &error) { show->showToast(error); });
-	});
-	menu->addAction(tr::lng_channel_earn_history_return(tr::now), callback);
-	return menu;
 }
 
 rpl::producer<bool> CreditsController::allLoadedValue() const {

@@ -199,24 +199,4 @@ rpl::producer<not_null<PeerData*>> PremiumPeerBot(
 	};
 }
 
-void CreditsRefund(
-		not_null<PeerData*> peer,
-		const QString &entryId,
-		Fn<void()> done,
-		Fn<void(QString)> fail) {
-	const auto user = peer->asUser();
-	if (!user) {
-		return;
-	}
-	peer->session().api().request(MTPpayments_RefundStarsCharge(
-		user->inputUser,
-		MTP_string(entryId)
-	)).done([=](const MTPUpdates &result) {
-		peer->session().api().updates().applyUpdates(result);
-		done();
-	}).fail([=](const MTP::Error &error) {
-		fail(error.type());
-	}).send();
-}
-
 } // namespace Api
