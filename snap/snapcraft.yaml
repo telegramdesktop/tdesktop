@@ -111,7 +111,7 @@ parts:
       - libxcb-screensaver0-dev
       - zlib1g-dev
     stage-packages:
-      - libasound2
+      - libasound2t64
       - libavif16
       - libboost-regex1.83.0
       - libglib2.0-0t64
