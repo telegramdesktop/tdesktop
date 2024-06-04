@@ -1111,6 +1111,7 @@ previewMarkRead: FlatButton(historyComposeButton) {
 previewName: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 	textFg: windowFg;
+	maxHeight: 30px;
 }
 previewStatus: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
