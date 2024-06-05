@@ -61,6 +61,7 @@ class FakeRow;
 class IndexedList;
 class SearchTags;
 class SearchEmpty;
+class ChatSearchIn;
 
 struct ChosenRow {
 	Key key;
@@ -156,8 +157,11 @@ public:
 	void setLoadMoreCallback(Fn<void()> callback);
 	void setLoadMoreFilteredCallback(Fn<void()> callback);
 	[[nodiscard]] rpl::producer<> listBottomReached() const;
-	[[nodiscard]] rpl::producer<> cancelSearchFromUserRequests() const;
+	[[nodiscard]] auto changeSearchTabRequests() const
+		-> rpl::producer<ChatSearchTab>;
 	[[nodiscard]] rpl::producer<> cancelSearchRequests() const;
+	[[nodiscard]] rpl::producer<> cancelSearchFromRequests() const;
+	[[nodiscard]] rpl::producer<> changeSearchFromRequests() const;
 	[[nodiscard]] rpl::producer<ChosenRow> chosenRow() const;
 	[[nodiscard]] rpl::producer<> updated() const;
 
@@ -358,38 +362,38 @@ private:
 	void paintSearchTags(
 		Painter &p,
 		const Ui::PaintContext &context) const;
-	void paintSearchInChat(
-		Painter &p,
-		const Ui::PaintContext &context) const;
-	void paintSearchInPeer(
-		Painter &p,
-		not_null<PeerData*> peer,
-		Ui::PeerUserpicView &userpic,
-		int top,
-		const Ui::Text::String &text) const;
-	void paintSearchInSaved(
-		Painter &p,
-		int top,
-		const Ui::Text::String &text) const;
-	void paintSearchInReplies(
-		Painter &p,
-		int top,
-		const Ui::Text::String &text) const;
-	void paintSearchInTopic(
-		Painter &p,
-		const Ui::PaintContext &context,
-		not_null<Data::ForumTopic*> topic,
-		Ui::PeerUserpicView &userpic,
-		int top,
-		const Ui::Text::String &text) const;
-	template <typename PaintUserpic>
-	void paintSearchInFilter(
-		Painter &p,
-		PaintUserpic paintUserpic,
-		int top,
-		const style::icon *icon,
-		const Ui::Text::String &text) const;
-	void refreshSearchInChatLabel();
+	//void paintSearchInChat(
+	//	Painter &p,
+	//	const Ui::PaintContext &context) const;
+	//void paintSearchInPeer(
+	//	Painter &p,
+	//	not_null<PeerData*> peer,
+	//	Ui::PeerUserpicView &userpic,
+	//	int top,
+	//	const Ui::Text::String &text) const;
+	//void paintSearchInSaved(
+	//	Painter &p,
+	//	int top,
+	//	const Ui::Text::String &text) const;
+	//void paintSearchInReplies(
+	//	Painter &p,
+	//	int top,
+	//	const Ui::Text::String &text) const;
+	//void paintSearchInTopic(
+	//	Painter &p,
+	//	const Ui::PaintContext &context,
+	//	not_null<Data::ForumTopic*> topic,
+	//	Ui::PeerUserpicView &userpic,
+	//	int top,
+	//	const Ui::Text::String &text) const;
+	//template <typename PaintUserpic>
+	//void paintSearchInFilter(
+	//	Painter &p,
+	//	PaintUserpic paintUserpic,
+	//	int top,
+	//	const style::icon *icon,
+	//	const Ui::Text::String &text) const;
+	void updateSearchIn();
 	void repaintSearchResult(int index);
 
 	Ui::VideoUserpic *validateVideoUserpic(not_null<Row*> row);
@@ -415,7 +419,7 @@ private:
 	void savePinnedOrder();
 	bool pinnedShiftAnimationCallback(crl::time now);
 	void handleChatListEntryRefreshes();
-	void moveCancelSearchButtons();
+	void moveSearchIn();
 	void dragPinnedFromTouch();
 
 	void saveChatsFilterScrollState(FilterId filterId);
@@ -490,19 +494,22 @@ private:
 
 	WidgetState _state = WidgetState::Default;
 
+	std::unique_ptr<ChatSearchIn> _searchIn;
+	rpl::event_stream<ChatSearchTab> _changeSearchTabRequests;
+	rpl::event_stream<> _cancelSearchRequests;
+	rpl::event_stream<> _cancelSearchFromRequests;
+	rpl::event_stream<> _changeSearchFromRequests;
 	object_ptr<Ui::RpWidget> _loadingAnimation = { nullptr };
 	object_ptr<SearchEmpty> _searchEmpty = { nullptr };
 	SearchState _searchEmptyState;
 	object_ptr<Ui::FlatLabel> _empty = { nullptr };
-	object_ptr<Ui::IconButton> _cancelSearchFromUser;
-	rpl::event_stream<> _cancelSearch;
 
 	Ui::DraggingScrollManager _draggingScroll;
 
 	SearchState _searchState;
+	bool _searchingHashtag = false;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromShown = nullptr;
-	mutable Ui::PeerUserpicView _searchFromUserUserpic;
 	Ui::Text::String _searchFromUserText;
 	std::unique_ptr<SearchTags> _searchTags;
 	int _searchTagsLeft = 0;

@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_forum_topic.h"
 #include "data/data_saved_sublist.h"
-#include "dialogs/ui/chat_search_tabs.h"
+#include "dialogs/ui/chat_search_in.h"
 #include "history/history.h"
 
 namespace Dialogs {

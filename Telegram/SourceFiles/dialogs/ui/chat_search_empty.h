@@ -26,9 +26,6 @@ public:
 		rpl::producer<TextWithEntities> text);
 
 	void setMinimalHeight(int minimalHeight);
-	[[nodiscard]] rpl::producer<> linkClicks() const {
-		return _linkClicks.events();
-	}
 
 	void animate();
 
@@ -36,7 +33,6 @@ private:
 	void setup(Icon icon, rpl::producer<TextWithEntities> text);
 
 	Fn<void()> _animate;
-	rpl::event_stream<> _linkClicks;
 
 };
 

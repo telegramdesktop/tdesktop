@@ -33,12 +33,6 @@ void SearchEmpty::setup(Icon icon, rpl::producer<TextWithEntities> text) {
 		this,
 		std::move(text),
 		st::defaultPeerListAbout);
-	label->setClickHandlerFilter([=](const auto &, Qt::MouseButton button) {
-		if (button == Qt::LeftButton) {
-			_linkClicks.fire({});
-		}
-		return false;
-	});
 	const auto size = st::recentPeersEmptySize;
 	const auto animation = [&] {
 		switch (icon) {

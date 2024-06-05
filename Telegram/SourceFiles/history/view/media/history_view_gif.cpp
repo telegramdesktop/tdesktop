@@ -379,6 +379,10 @@ bool Gif::autoplayEnabled() const {
 		_data);
 }
 
+bool Gif::hideMessageText() const {
+	return _data->isVideoMessage();
+}
+
 void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 

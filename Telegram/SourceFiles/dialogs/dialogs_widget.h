@@ -76,7 +76,7 @@ struct ChosenRow;
 class InnerWidget;
 enum class SearchRequestType;
 class Suggestions;
-class ChatSearchTabs;
+class ChatSearchIn;
 enum class ChatSearchTab : uchar;
 
 class Widget final : public Window::AbstractSectionWidget {
@@ -255,7 +255,6 @@ private:
 	void updateScrollUpPosition();
 	void updateLockUnlockPosition();
 	void updateSuggestions(anim::type animated);
-	void updateSearchTabs();
 	void processSearchFocusChange();
 
 	[[nodiscard]] bool redirectToSearchPossible() const;
@@ -294,7 +293,6 @@ private:
 	QPointer<InnerWidget> _inner;
 	std::unique_ptr<Suggestions> _suggestions;
 	std::vector<std::unique_ptr<Suggestions>> _hidingSuggestions;
-	std::unique_ptr<ChatSearchTabs> _searchTabs;
 	class BottomButton;
 	object_ptr<BottomButton> _updateTelegram = { nullptr };
 	object_ptr<BottomButton> _loadMoreChats = { nullptr };
