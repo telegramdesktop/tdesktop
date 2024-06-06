@@ -285,7 +285,7 @@ dialogsFilter: InputField(defaultInputField) {
 	borderRadius: 18px;
 	borderDenominator: 2;
 
-	font: normalFont;
+	style: defaultTextStyle;
 
 	heightMin: 35px;
 }

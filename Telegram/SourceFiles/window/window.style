@@ -61,7 +61,7 @@ notifyActionsDuration: 200;
 notifyHideAllHeight: 36px;
 
 notifyReplyArea: InputField(defaultInputField) {
-	font: normalFont;
+	style: defaultTextStyle;
 	textMargins: margins(8px, 8px, 8px, 6px);
 	heightMin: 36px;
 	heightMax: 72px;
@@ -235,8 +235,6 @@ createThemeLink: InputField(defaultInputField) {
 	placeholderFont: boxTextFont;
 
 	heightMin: 34px;
-
-	font: boxTextFont;
 }
 
 windowFiltersWidth: 72px;

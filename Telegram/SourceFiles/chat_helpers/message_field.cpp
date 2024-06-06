@@ -569,10 +569,10 @@ void InitMessageFieldFade(
 		Ui::DestroyChild(b.data());
 	}, topFade->lifetime());
 
+	const auto descent = field->st().style.font->descent;
 	topFade->show();
-	bottomFade->showOn(
-	field->scrollTop().value(
-	) | rpl::map([field, descent = field->st().font->descent](int scroll) {
+	bottomFade->showOn(field->scrollTop().value(
+	) | rpl::map([field, descent](int scroll) {
 		return (scroll + descent) < field->scrollTopMax();
 	}) | rpl::distinct_until_changed());
 }
@@ -766,11 +766,7 @@ bool MessageLinksParser::eventFilter(QObject *object, QEvent *event) {
 			const auto text = static_cast<QKeyEvent*>(event)->text();
 			if (!text.isEmpty() && text.size() < 3) {
 				const auto ch = text[0];
-				if (false
-					|| ch == '\n'
-					|| ch == '\r'
-					|| ch.isSpace()
-					|| ch == QChar::LineSeparator) {
+				if (IsSpace(ch)) {
 					_timer.callOnce(0);
 				}
 			}
@@ -1117,8 +1113,8 @@ void SelectTextInFieldWithMargins(
 	auto textCursor = field->textCursor();
 	// Try to set equal margins for top and bottom sides.
 	const auto charsCountInLine = field->width()
-		/ field->st().font->width('W');
-	const auto linesCount = (field->height() / field->st().font->height);
+		/ field->st().style.font->width('W');
+	const auto linesCount = field->height() / field->st().style.font->height;
 	const auto selectedLines = (selection.to - selection.from)
 		/ charsCountInLine;
 	constexpr auto kMinDiff = ushort(3);

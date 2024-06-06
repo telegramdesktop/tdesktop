@@ -214,8 +214,6 @@ settingsBio: InputField(defaultInputField) {
 	borderActive: 0px;
 
 	heightMin: 32px;
-
-	font: boxTextFont;
 }
 
 settingsBioMargins: margins(22px, 6px, 22px, 4px);
@@ -309,8 +307,6 @@ settingsDeviceName: InputField(defaultInputField) {
 	placeholderFont: normalFont;
 
 	heightMin: 29px;
-
-	font: boxTextFont;
 }
 
 dictionariesSectionButton: SettingsButton(settingsUpdateToggle) {
@@ -677,5 +673,5 @@ settingsChatLinkField: InputField(defaultInputField) {
 
 	heightMin: 32px;
 
-	font: normalFont;
+	style: defaultTextStyle;
 }

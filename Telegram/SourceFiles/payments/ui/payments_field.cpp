@@ -305,7 +305,7 @@ struct SimpleFieldState {
 		.st = st::paymentsMoneyField,
 	});
 	const auto &rule = state->rule;
-	state->currencySkip = rule.space ? state->st.font->spacew : 0;
+	state->currencySkip = rule.space ? state->st.style.font->spacew : 0;
 	state->currencyText = ((!rule.left && rule.space)
 		? QString(QChar(' '))
 		: QString()) + (*rule.international
@@ -343,7 +343,7 @@ struct SimpleFieldState {
 	}
 	const auto updateRight = [=] {
 		const auto text = result->getLastText();
-		const auto width = state->st.font->width(text);
+		const auto width = state->st.style.font->width(text);
 		const auto &rule = state->rule;
 		const auto symbol = QChar(rule.decimal);
 		const auto decimal = text.indexOf(symbol);

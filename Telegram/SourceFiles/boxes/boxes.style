@@ -237,7 +237,7 @@ shareColumnSkip: 6px;
 shareActivateDuration: 150;
 shareScrollDuration: 300;
 shareComment: InputField(defaultInputField) {
-	font: normalFont;
+	style: defaultTextStyle;
 	textMargins: margins(8px, 8px, 8px, 6px);
 	heightMin: 36px;
 	heightMax: 72px;
@@ -585,7 +585,7 @@ groupStickersRemovePosition: point(6px, 6px);
 groupStickersFieldPadding: margins(8px, 6px, 8px, 6px);
 groupStickersField: InputField(defaultMultiSelectSearchField) {
 	placeholderFont: boxTextFont;
-	font: boxTextFont;
+	style: boxTextStyle;
 	placeholderMargins: margins(0px, 0px, 0px, 0px);
 	textMargins: margins(0px, 7px, 0px, 0px);
 	textBg: boxBg;
@@ -672,7 +672,6 @@ themesMenuToggle: IconButton(defaultIconButton) {
 themesMenuPosition: point(-2px, 25px);
 
 createPollField: InputField(defaultInputField) {
-	font: boxTextFont;
 	textMargins: margins(0px, 4px, 0px, 4px);
 	textAlign: align(left);
 	heightMin: 36px;
@@ -877,7 +876,6 @@ scheduleDateField: InputField(defaultInputField) {
 	placeholderScale: 0.;
 	heightMin: 30px;
 	textAlign: align(top);
-	font: font(14px);
 }
 scheduleTimeField: InputField(scheduleDateField) {
 	border: 0px;
@@ -905,7 +903,6 @@ muteBoxTimeField: InputField(scheduleDateField) {
 	placeholderScale: 0.;
 	heightMin: 30px;
 	textAlign: align(left);
-	font: font(14px);
 }
 muteBoxTimeFieldPadding: margins(5px, 0px, 5px, 0px);
 

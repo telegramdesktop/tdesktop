@@ -990,7 +990,7 @@ historyUnreadReactions: TwoIconButton(historyToDown) {
 historyUnreadThingsSkip: 4px;
 
 historyComposeField: InputField(defaultInputField) {
-	font: normalFont;
+	style: defaultTextStyle;
 	textMargins: margins(0px, 0px, 0px, 0px);
 	textAlign: align(left);
 	textFg: historyComposeAreaFg;

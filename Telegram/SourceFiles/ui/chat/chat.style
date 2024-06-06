@@ -1162,5 +1162,5 @@ factcheckField: InputField(defaultInputField) {
 
 	heightMin: 24px;
 
-	font: normalFont;
+	style: defaultTextStyle;
 }

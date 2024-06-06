@@ -133,8 +133,8 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	auto option = QTextOption(style::al_left);
 	option.setWrapMode(QTextOption::WrapAnywhere);
 	p.setFont(_linkOver
-		? st::defaultInputField.font->underline()
-		: st::defaultInputField.font);
+		? st::defaultInputField.style.font->underline()
+		: st::defaultInputField.style.font);
 	p.setPen(st::defaultLinkButton.color);
 	const auto inviteLinkText = _channel->inviteLink().isEmpty()
 		? tr::lng_group_invite_create(tr::now)

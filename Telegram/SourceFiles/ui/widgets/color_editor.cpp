@@ -704,7 +704,7 @@ void ColorEditor::Field::correctValue(
 }
 
 void ColorEditor::Field::paintAdditionalPlaceholder(QPainter &p) {
-	p.setFont(_st.font);
+	p.setFont(_st.style.font);
 	p.setPen(_st.placeholderFg);
 	const auto inner = QRect(
 		_st.textMargins.right(),
@@ -829,7 +829,7 @@ void ColorEditor::ResultField::correctValue(
 }
 
 void ColorEditor::ResultField::paintAdditionalPlaceholder(QPainter &p) {
-	p.setFont(_st.font);
+	p.setFont(_st.style.font);
 	p.setPen(_st.placeholderFg);
 	p.drawText(
 		QRect(
