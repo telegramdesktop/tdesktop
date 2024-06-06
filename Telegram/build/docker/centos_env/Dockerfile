@@ -172,7 +172,7 @@ FROM builder AS libvpx
 RUN git init libvpx \
 	&& cd libvpx \
 	&& git remote add origin {{ GIT }}/webmproject/libvpx.git \
-	&& git fetch --depth=1 origin 51057f4ba894e13f9bba278905bacf6aaaecd992 \
+	&& git fetch --depth=1 origin 12f3a2ac603e8f10742105519e0cd03c3b8f71dd \
 	&& git reset --hard FETCH_HEAD \
 	&& CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure \
 		--disable-examples \
