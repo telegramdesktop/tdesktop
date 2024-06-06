@@ -54,6 +54,7 @@ public:
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
+	bool enforceBubbleWidth() const override;
 
 private:
 	int minWidthForButton() const;

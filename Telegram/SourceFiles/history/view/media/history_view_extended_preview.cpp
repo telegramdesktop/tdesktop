@@ -113,6 +113,10 @@ void ExtendedPreview::unloadHeavyPart() {
 	_spoiler.animation = nullptr;
 }
 
+bool ExtendedPreview::enforceBubbleWidth() const {
+	return true;
+}
+
 QSize ExtendedPreview::countOptimalSize() {
 	const auto &preview = _invoice->extendedPreview;
 	const auto dimensions = preview.dimensions;

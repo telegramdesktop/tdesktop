@@ -88,6 +88,7 @@ public:
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
+	bool enforceBubbleWidth() const override;
 
 protected:
 	float64 dataProgress() const override;

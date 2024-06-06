@@ -162,6 +162,10 @@ void Photo::unloadHeavyPart() {
 	togglePollingStory(false);
 }
 
+bool Photo::enforceBubbleWidth() const {
+	return true;
+}
+
 void Photo::togglePollingStory(bool enabled) const {
 	const auto pollingStory = (enabled ? 1 : 0);
 	if (!_storyId || _pollingStory == pollingStory) {
@@ -193,6 +197,9 @@ QSize Photo::countOptimalSize() {
 	auto maxWidth = qMax(maxActualWidth, scaled.height());
 	auto minHeight = qMax(scaled.height(), st::minPhotoSize);
 	if (_parent->hasBubble()) {
+		const auto captionMaxWidth = _parent->textualMaxWidth();
+		const auto maxWithCaption = qMin(st::msgMaxWidth, captionMaxWidth);
+		maxWidth = qMin(qMax(maxWidth, maxWithCaption), st::msgMaxWidth);
 		minHeight = adjustHeightForLessCrop(
 			dimensions,
 			{ maxWidth, minHeight });
