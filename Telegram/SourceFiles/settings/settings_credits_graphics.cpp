@@ -269,10 +269,11 @@ void FillCreditOptions(
 		{
 			auto text = tr::lng_credits_summary_options_about(
 				lt_link,
-				tr::lng_credits_summary_options_about_link(
-				) | rpl::map([](const QString &t) {
-					using namespace Ui::Text;
-					return Link(t, u"https://telegram.org/tos"_q);
+				rpl::combine(
+					tr::lng_credits_summary_options_about_link(),
+					tr::lng_credits_summary_options_about_url()
+				) | rpl::map([](const QString &text, const QString &url) {
+					return Ui::Text::Link(text, url);
 				}),
 				Ui::Text::RichLangValue);
 			Ui::AddSkip(content);
