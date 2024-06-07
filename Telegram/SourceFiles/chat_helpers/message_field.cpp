@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "base/event_filter.h"
+#include "ui/chat/chat_style.h"
 #include "ui/layers/generic_box.h"
 #include "ui/rect.h"
 #include "core/shortcuts.h"
@@ -344,6 +345,15 @@ void InitMessageFieldHandlers(
 			DefaultEditLinkCallback(show, field, fieldStyle));
 		InitSpellchecker(show, field, fieldStyle != nullptr);
 	}
+	const auto style = field->lifetime().make_state<Ui::ChatStyle>(
+		session->colorIndicesValue());
+	field->setPreCache([=] {
+		return style->messageStyle(false, false).preCache.get();
+	});
+	field->setBlockquoteCache([=] {
+		const auto colorIndex = session->user()->colorIndex();
+		return style->coloredQuoteCache(false, colorIndex).get();
+	});
 }
 
 [[nodiscard]] bool IsGoodFactcheckUrl(QStringView url) {
