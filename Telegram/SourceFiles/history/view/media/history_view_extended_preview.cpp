@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "data/data_session.h"
 #include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 #include "core/click_handler_types.h"
@@ -41,7 +42,12 @@ namespace {
 				? crl::guard(
 					controller,
 					[=](auto) { controller->widget()->activate(); })
-				: Fn<void(Payments::CheckoutResult)>()));
+				: Fn<void(Payments::CheckoutResult)>()),
+			(controller
+				? Payments::ProcessNonPanelPaymentFormFactory(
+					controller,
+					item)
+				: nullptr));
 	});
 }
 
@@ -51,10 +57,8 @@ ExtendedPreview::ExtendedPreview(
 	not_null<Element*> parent,
 	not_null<Data::Invoice*> invoice)
 : Media(parent)
-, _invoice(invoice)
-, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
+, _invoice(invoice) {
 	const auto item = parent->data();
-	_caption = createCaption(item);
 	_spoiler.link = MakeInvoiceLink(item);
 	resolveButtonText();
 }
@@ -107,17 +111,13 @@ void ExtendedPreview::unloadHeavyPart() {
 		= _spoiler.cornerCache
 		= _buttonBackground = QImage();
 	_spoiler.animation = nullptr;
-	_caption.unloadPersistentAnimation();
+}
+
+bool ExtendedPreview::enforceBubbleWidth() const {
+	return true;
 }
 
 QSize ExtendedPreview::countOptimalSize() {
-	if (_parent->media() != this) {
-		_caption = Ui::Text::String();
-	} else if (_caption.hasSkipBlock()) {
-		_caption.updateSkipBlock(
-			_parent->skipBlockWidth(),
-			_parent->skipBlockHeight());
-	}
 	const auto &preview = _invoice->extendedPreview;
 	const auto dimensions = preview.dimensions;
 	const auto minWidth = std::min(
@@ -135,15 +135,6 @@ QSize ExtendedPreview::countOptimalSize() {
 	if (preview.videoDuration < 0) {
 		accumulate_max(maxWidth, scaled.height());
 	}
-	if (_parent->hasBubble() && !_caption.isEmpty()) {
-		maxWidth = qMax(maxWidth, st::msgPadding.left()
-			+ _caption.maxWidth()
-			+ st::msgPadding.right());
-		minHeight += st::mediaCaptionSkip + _caption.minHeight();
-		if (isBubbleBottom()) {
-			minHeight += st::msgPadding.bottom();
-		}
-	}
 	return { maxWidth, minHeight };
 }
 
@@ -151,7 +142,7 @@ QSize ExtendedPreview::countCurrentSize(int newWidth) {
 	const auto &preview = _invoice->extendedPreview;
 	const auto dimensions = preview.dimensions;
 	const auto thumbMaxWidth = std::min(newWidth, st::maxMediaSize);
-		const auto minWidth = std::min(
+	const auto minWidth = std::min(
 		std::max({
 			_parent->minWidthForMedia(),
 			(_parent->hasBubble()
@@ -170,20 +161,14 @@ QSize ExtendedPreview::countCurrentSize(int newWidth) {
 			maxWidth());
 	newWidth = qMax(scaled.width(), minWidth);
 	auto newHeight = qMax(scaled.height(), st::minPhotoSize);
-	if (_parent->hasBubble() && !_caption.isEmpty()) {
+	if (_parent->hasBubble()) {
 		const auto maxWithCaption = qMin(
 			st::msgMaxWidth,
-			(st::msgPadding.left()
-				+ _caption.maxWidth()
-				+ st::msgPadding.right()));
+			_parent->textualMaxWidth());
 		newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
-		const auto captionw = newWidth
-			- st::msgPadding.left()
-			- st::msgPadding.right();
-		newHeight += st::mediaCaptionSkip + _caption.countHeight(captionw);
-		if (isBubbleBottom()) {
-			newHeight += st::msgPadding.bottom();
-		}
+	}
+	if (newWidth >= maxWidth()) {
+		newHeight = qMin(newHeight, minHeight());
 	}
 	return { newWidth, newHeight };
 }
@@ -196,24 +181,14 @@ int ExtendedPreview::minWidthForButton() const {
 void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
-	const auto stm = context.messageStyle();
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	auto bubble = _parent->hasBubble();
-	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
 	auto rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 	const auto inWebPage = (_parent->media() != this);
 	const auto rounding = inWebPage
 		? std::optional<Ui::BubbleRounding>()
-		: adjustedBubbleRoundingWithCaption(_caption);
-	if (bubble) {
-		if (!_caption.isEmpty()) {
-			painth -= st::mediaCaptionSkip + _caption.countHeight(captionw);
-			if (isBubbleBottom()) {
-				painth -= st::msgPadding.bottom();
-			}
-			rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
-		}
-	} else {
+		: adjustedBubbleRounding();
+	if (!bubble) {
 		Assert(rounding.has_value());
 		fillImageShadow(p, rthumb, *rounding, context);
 	}
@@ -226,27 +201,7 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	// date
-	if (!_caption.isEmpty()) {
-		p.setPen(stm->historyTextFg);
-		_parent->prepareCustomEmojiPaint(p, context, _caption);
-		auto highlightRequest = context.computeHighlightCache();
-		_caption.draw(p, {
-			.position = QPoint(
-				st::msgPadding.left(),
-				painty + painth + st::mediaCaptionSkip),
-			.availableWidth = captionw,
-			.palette = &stm->textPalette,
-			.pre = stm->preCache.get(),
-			.blockquote = context.quoteCache(parent()->contentColorIndex()),
-			.colors = context.st->highlightColors(),
-			.spoiler = Ui::Text::DefaultSpoilerCache(),
-			.now = context.now,
-			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
-			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-			.selection = context.selection,
-			.highlight = highlightRequest ? &*highlightRequest : nullptr,
-		});
-	} else if (!inWebPage) {
+	if (!inWebPage) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = painty + painth;
 		if (needInfoDisplay()) {
@@ -343,28 +298,10 @@ TextState ExtendedPreview::textState(QPoint point, StateRequest request) const {
 	}
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	auto bubble = _parent->hasBubble();
-
-	if (bubble && !_caption.isEmpty()) {
-		const auto captionw = paintw
-			- st::msgPadding.left()
-			- st::msgPadding.right();
-		painth -= _caption.countHeight(captionw);
-		if (isBubbleBottom()) {
-			painth -= st::msgPadding.bottom();
-		}
-		if (QRect(st::msgPadding.left(), painth, captionw, height() - painth).contains(point)) {
-			result = TextState(_parent, _caption.getState(
-				point - QPoint(st::msgPadding.left(), painth),
-				captionw,
-				request.forText()));
-			return result;
-		}
-		painth -= st::mediaCaptionSkip;
-	}
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
 		result.link = _spoiler.link;
 	}
-	if (_caption.isEmpty() && _parent->media() == this) {
+	if (!bubble && _parent->media() == this) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = painty + painth;
 		const auto bottomInfoResult = _parent->bottomInfoTextState(
@@ -403,26 +340,17 @@ bool ExtendedPreview::needInfoDisplay() const {
 	return _parent->data()->isSending()
 		|| _parent->data()->hasFailed()
 		|| _parent->isUnderCursor()
+		|| (_parent->delegate()->elementContext() == Context::ChatPreview)
 		|| _parent->isLastAndSelfMessage();
 }
 
-TextForMimeData ExtendedPreview::selectedText(TextSelection selection) const {
-	return _caption.toTextForMimeData(selection);
-}
-
-void ExtendedPreview::hideSpoilers() {
-	_caption.setSpoilerRevealed(false, anim::type::instant);
-}
-
 bool ExtendedPreview::needsBubble() const {
-	if (!_caption.isEmpty()) {
-		return true;
-	}
 	const auto item = _parent->data();
 	return !item->isService()
 		&& (item->repliesAreComments()
 			|| item->externalReply()
 			|| item->viaBot()
+			|| !item->emptyText()
 			|| _parent->displayReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName()
@@ -433,13 +361,6 @@ QPoint ExtendedPreview::resolveCustomInfoRightBottom() const {
 	const auto skipx = (st::msgDateImgDelta + st::msgDateImgPadding.x());
 	const auto skipy = (st::msgDateImgDelta + st::msgDateImgPadding.y());
 	return QPoint(width() - skipx, height() - skipy);
-}
-
-void ExtendedPreview::parentTextUpdated() {
-	_caption = (_parent->media() == this)
-		? createCaption(_parent->data())
-		: Ui::Text::String();
-	history()->owner().requestViewResize(_parent);
 }
 
 } // namespace HistoryView

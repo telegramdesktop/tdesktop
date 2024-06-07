@@ -144,7 +144,11 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 }
 
 void FFMpegReaderImplementation::processReadFrame() {
+#if DA_FFMPEG_HAVE_DURATION
+	int64 duration = _frame->duration;
+#else
 	int64 duration = _frame->pkt_duration;
+#endif
 	int64 framePts = _frame->pts;
 	crl::time frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 	_currentFrameDelay = _nextFrameDelay;

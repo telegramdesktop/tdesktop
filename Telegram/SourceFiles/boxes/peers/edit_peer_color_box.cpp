@@ -1428,14 +1428,15 @@ void SetupPeerColorSample(
 void AddPeerColorButton(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		const style::SettingsButton &st) {
 	auto label = peer->isSelf()
 		? tr::lng_settings_theme_name_color()
 		: tr::lng_edit_channel_color();
 	const auto button = AddButtonWithIcon(
 		container,
 		rpl::duplicate(label),
-		st::settingsColorButton,
+		st,
 		{ &st::menuIconChangeColors });
 
 	const auto style = std::make_shared<Ui::ChatStyle>(

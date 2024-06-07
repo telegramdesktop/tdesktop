@@ -690,7 +690,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				result->setAccessHash(accessHash->v);
 			}
 			status = data.vstatus();
-			{
+			if (!minimal) {
 				const auto newUsername = uname;
 				const auto newUsernames = data.vusernames()
 					? Api::Usernames::FromTL(*data.vusernames())
@@ -1820,11 +1820,16 @@ rpl::producer<not_null<HistoryItem*>> Session::itemDataChanges() const {
 }
 
 void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
-	if (const auto i = _views.find(item); i != _views.end()) {
-		for (const auto &view : i->second) {
+	const auto call = [&](not_null<HistoryItem*> item) {
+		enumerateItemViews(item, [&](not_null<ViewElement*> view) {
 			view->itemTextUpdated();
-		}
+		});
 		requestItemResize(item);
+	};
+	if (const auto group = groups().find(item)) {
+		call(group->items.front());
+	} else {
+		call(item);
 	}
 }
 
@@ -4250,28 +4255,26 @@ void Session::notifyPollUpdateDelayed(not_null<PollData*> poll) {
 }
 
 void Session::sendWebPageGamePollNotifications() {
+	auto resize = std::vector<not_null<ViewElement*>>();
 	for (const auto &page : base::take(_webpagesUpdated)) {
 		_webpageUpdates.fire_copy(page);
-		const auto i = _webpageViews.find(page);
-		if (i != _webpageViews.end()) {
-			for (const auto &view : i->second) {
-				requestViewResize(view);
-			}
+		if (const auto i = _webpageViews.find(page)
+			; i != _webpageViews.end()) {
+			resize.insert(end(resize), begin(i->second), end(i->second));
 		}
 	}
 	for (const auto &game : base::take(_gamesUpdated)) {
 		if (const auto i = _gameViews.find(game); i != _gameViews.end()) {
-			for (const auto &view : i->second) {
-				requestViewResize(view);
-			}
+			resize.insert(end(resize), begin(i->second), end(i->second));
 		}
 	}
 	for (const auto &poll : base::take(_pollsUpdated)) {
 		if (const auto i = _pollViews.find(poll); i != _pollViews.end()) {
-			for (const auto &view : i->second) {
-				requestViewResize(view);
-			}
+			resize.insert(end(resize), begin(i->second), end(i->second));
 		}
+	}
+	for (const auto &view : resize) {
+		requestViewResize(view);
 	}
 }
 
@@ -4571,7 +4574,9 @@ void Session::insertCheckedServiceNotification(
 				MTPMessageReactions(),
 				MTPVector<MTPRestrictionReason>(),
 				MTPint(), // ttl_period
-				MTPint()), // quick_reply_shortcut_id
+				MTPint(), // quick_reply_shortcut_id
+				MTPlong(), // effect
+				MTPFactCheck()),
 			localFlags,
 			NewMessageType::Unread);
 	}

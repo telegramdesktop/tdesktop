@@ -40,7 +40,7 @@ class SessionController;
 } // namespace Window
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace Data {
@@ -102,7 +102,7 @@ public:
 	rpl::producer<> cancelRequests() const;
 
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
-		SendMenu::Type type) override;
+		const SendMenu::Details &details) override;
 
 	~GifsListWidget();
 

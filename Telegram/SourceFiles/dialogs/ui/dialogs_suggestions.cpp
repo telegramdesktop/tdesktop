@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "boxes/peer_list_box.h"
 #include "data/components/recent_peers.h"
 #include "data/components/top_peers.h"
@@ -20,12 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "dialogs/ui/chat_search_empty.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
-#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
@@ -84,9 +86,33 @@ private:
 
 };
 
-class RecentsController final
+class ControllerWithPreviews
 	: public PeerListController
 	, public base::has_weak_ptr {
+public:
+	explicit ControllerWithPreviews(
+		not_null<Window::SessionController*> window);
+
+	[[nodiscard]] not_null<Window::SessionController*> window() const {
+		return _window;
+	}
+
+	bool rowTrackPress(not_null<PeerListRow*> row) override;
+	void rowTrackPressCancel() override;
+	bool rowTrackPressSkipMouseSelection() override;
+
+	bool processTouchEvent(not_null<QTouchEvent*> e);
+	void setupTouchChatPreview(not_null<Ui::ElasticScroll*> scroll);
+
+private:
+	const not_null<Window::SessionController*> _window;
+
+	std::optional<QPoint> _chatPreviewTouchGlobal;
+	rpl::event_stream<> _touchCancelRequests;
+
+};
+
+class RecentsController final : public ControllerWithPreviews {
 public:
 	RecentsController(
 		not_null<Window::SessionController*> window,
@@ -113,7 +139,6 @@ private:
 	void subscribeToEvents();
 	[[nodiscard]] Fn<void()> removeAllCallback();
 
-	const not_null<Window::SessionController*> _window;
 	RecentPeersList _recent;
 	rpl::variable<int> _count;
 	rpl::event_stream<not_null<PeerData*>> _chosen;
@@ -135,9 +160,7 @@ private:
 
 };
 
-class MyChannelsController final
-	: public PeerListController
-	, public base::has_weak_ptr {
+class MyChannelsController final : public ControllerWithPreviews {
 public:
 	explicit MyChannelsController(
 		not_null<Window::SessionController*> window);
@@ -161,7 +184,6 @@ private:
 	void appendRow(not_null<ChannelData*> channel);
 	void fill(bool force = false);
 
-	const not_null<Window::SessionController*> _window;
 	std::vector<not_null<History*>> _channels;
 	rpl::variable<Ui::RpWidget*> _toggleExpanded = nullptr;
 	rpl::variable<int> _count = 0;
@@ -171,9 +193,7 @@ private:
 
 };
 
-class RecommendationsController final
-	: public PeerListController
-	, public base::has_weak_ptr {
+class RecommendationsController final : public ControllerWithPreviews {
 public:
 	explicit RecommendationsController(
 		not_null<Window::SessionController*> window);
@@ -199,7 +219,6 @@ private:
 	void setupDivider();
 	void appendRow(not_null<ChannelData*> channel);
 
-	const not_null<Window::SessionController*> _window;
 	rpl::variable<int> _count;
 	History *_activeHistory = nullptr;
 	bool _requested = false;
@@ -402,10 +421,97 @@ const style::PeerListItem &ChannelRow::computeSt(
 	return _active ? st::recentPeersItemActive : st::recentPeersItem;
 }
 
+ControllerWithPreviews::ControllerWithPreviews(
+	not_null<Window::SessionController*> window)
+: _window(window) {
+}
+
+bool ControllerWithPreviews::rowTrackPress(not_null<PeerListRow*> row) {
+	const auto peer = row->peer();
+	const auto history = peer->owner().history(peer);
+	const auto callback = crl::guard(this, [=](bool shown) {
+		delegate()->peerListPressLeftToContextMenu(shown);
+	});
+	if (base::IsAltPressed()) {
+		_window->showChatPreview(
+			{ history, FullMsgId() },
+			callback,
+			nullptr,
+			_chatPreviewTouchGlobal);
+		return false;
+	}
+	const auto point = delegate()->peerListLastRowMousePosition();
+	const auto &st = computeListSt().item;
+	if (point && point->x() < st.photoPosition.x() + st.photoSize) {
+		_window->scheduleChatPreview(
+			{ history, FullMsgId() },
+			callback,
+			nullptr,
+			_chatPreviewTouchGlobal);
+		return true;
+	}
+	return false;
+}
+
+void ControllerWithPreviews::rowTrackPressCancel() {
+	_chatPreviewTouchGlobal = {};
+	_window->cancelScheduledPreview();
+}
+
+bool ControllerWithPreviews::rowTrackPressSkipMouseSelection() {
+	return _chatPreviewTouchGlobal.has_value();
+}
+
+bool ControllerWithPreviews::processTouchEvent(not_null<QTouchEvent*> e) {
+	const auto point = e->touchPoints().empty()
+		? std::optional<QPoint>()
+		: e->touchPoints().front().screenPos().toPoint();
+	switch (e->type()) {
+	case QEvent::TouchBegin: {
+		if (!point) {
+			return false;
+		}
+		_chatPreviewTouchGlobal = point;
+		if (!delegate()->peerListTrackRowPressFromGlobal(*point)) {
+			_chatPreviewTouchGlobal = {};
+		}
+	} break;
+
+	case QEvent::TouchUpdate: {
+		if (!point) {
+			return false;
+		}
+		if (_chatPreviewTouchGlobal) {
+			const auto delta = (*_chatPreviewTouchGlobal - *point);
+			if (delta.manhattanLength() > computeListSt().item.photoSize) {
+				rowTrackPressCancel();
+			}
+		}
+	} break;
+
+	case QEvent::TouchEnd:
+	case QEvent::TouchCancel: {
+		if (_chatPreviewTouchGlobal) {
+			rowTrackPressCancel();
+		}
+	} break;
+	}
+	return false;
+}
+
+void ControllerWithPreviews::setupTouchChatPreview(
+		not_null<Ui::ElasticScroll*> scroll) {
+	_touchCancelRequests.events() | rpl::start_with_next([=] {
+		QTouchEvent ev(QEvent::TouchCancel);
+		ev.setTimestamp(crl::now());
+		QGuiApplication::sendEvent(scroll, &ev);
+	}, lifetime());
+}
+
 RecentsController::RecentsController(
 	not_null<Window::SessionController*> window,
 	RecentPeersList list)
-: _window(window)
+: ControllerWithPreviews(window)
 , _recent(std::move(list)) {
 }
 
@@ -427,7 +533,7 @@ void RecentsController::rowClicked(not_null<PeerListRow*> row) {
 
 Fn<void()> RecentsController::removeAllCallback() {
 	const auto weak = base::make_weak(this);
-	const auto session = &_window->session();
+	const auto session = &this->session();
 	return crl::guard(session, [=] {
 		if (weak) {
 			_count = 0;
@@ -448,7 +554,7 @@ base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 		st::popupMenuWithIcons);
 	const auto peer = row->peer();
 	const auto weak = base::make_weak(this);
-	const auto session = &_window->session();
+	const auto session = &this->session();
 	const auto removeOne = crl::guard(session, [=] {
 		if (weak) {
 			const auto rowId = peer->id.value;
@@ -461,7 +567,7 @@ base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 		session->recentPeers().remove(peer);
 	});
 	FillEntryMenu(Ui::Menu::CreateAddActionCallback(result), {
-		.controller = _window,
+		.controller = window(),
 		.peer = peer,
 		.removeOneText = tr::lng_recent_remove(tr::now),
 		.removeOne = removeOne,
@@ -473,7 +579,7 @@ base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 }
 
 Main::Session &RecentsController::session() const {
-	return _window->session();
+	return window()->session();
 }
 
 QString RecentsController::savedMessagesChatStatus() const {
@@ -494,7 +600,7 @@ void RecentsController::setupDivider() {
 		tr::lng_recent_clear(tr::now),
 		st::searchedBarLink);
 	clear->setClickedCallback(RemoveAllConfirm(
-		_window,
+		window(),
 		tr::lng_recent_clear_sure(tr::now),
 		removeAllCallback()));
 	rpl::combine(
@@ -553,7 +659,7 @@ void RecentsController::subscribeToEvents() {
 
 MyChannelsController::MyChannelsController(
 	not_null<Window::SessionController*> window)
-: _window(window) {
+: ControllerWithPreviews(window) {
 }
 
 void MyChannelsController::prepare() {
@@ -677,7 +783,7 @@ base::unique_qptr<Ui::PopupMenu> MyChannelsController::rowContextMenu(
 	const auto peer = row->peer();
 	const auto addAction = Ui::Menu::CreateAddActionCallback(result);
 	Window::FillDialogsEntryMenu(
-		_window,
+		window(),
 		Dialogs::EntryState{
 			.key = peer->owner().history(peer),
 			.section = Dialogs::EntryState::Section::ContextMenu,
@@ -687,7 +793,7 @@ base::unique_qptr<Ui::PopupMenu> MyChannelsController::rowContextMenu(
 }
 
 Main::Session &MyChannelsController::session() const {
-	return _window->session();
+	return window()->session();
 }
 
 void MyChannelsController::setupDivider() {
@@ -758,7 +864,7 @@ void MyChannelsController::setupDivider() {
 
 RecommendationsController::RecommendationsController(
 	not_null<Window::SessionController*> window)
-: _window(window) {
+: ControllerWithPreviews(window) {
 }
 
 void RecommendationsController::prepare() {
@@ -793,7 +899,7 @@ void RecommendationsController::fill() {
 	delegate()->peerListRefreshRows();
 	_count = delegate()->peerListFullRowsCount();
 
-	_window->activeChatValue() | rpl::start_with_next([=](const Key &key) {
+	window()->activeChatValue() | rpl::start_with_next([=](const Key &key) {
 		const auto history = key.history();
 		if (_activeHistory == history) {
 			return;
@@ -839,7 +945,7 @@ base::unique_qptr<Ui::PopupMenu> RecommendationsController::rowContextMenu(
 }
 
 Main::Session &RecommendationsController::session() const {
-	return _window->session();
+	return window()->session();
 }
 
 void RecommendationsController::setupDivider() {
@@ -903,9 +1009,13 @@ void Suggestions::setupTabs() {
 	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
 	shadow->lower();
 
-	_tabs->sizeValue() | rpl::start_with_next([=](QSize size) {
+	_tabs->move(st::dialogsSearchTabsPadding, 0);
+	rpl::combine(
+		widthValue(),
+		_tabs->heightValue()
+	) | rpl::start_with_next([=](int width, int height) {
 		const auto line = st::lineWidth;
-		shadow->setGeometry(0, size.height() - line, size.width(), line);
+		shadow->setGeometry(0, height - line, width, line);
 	}, shadow->lifetime());
 
 	shadow->showOn(_tabs->shownValue());
@@ -933,6 +1043,16 @@ void Suggestions::setupChats() {
 	_topPeers->clicks() | rpl::start_with_next([=](uint64 peerIdRaw) {
 		const auto peerId = PeerId(peerIdRaw);
 		_topPeerChosen.fire(_controller->session().data().peer(peerId));
+	}, _topPeers->lifetime());
+
+	_topPeers->pressed() | rpl::start_with_next([=](uint64 peerIdRaw) {
+		handlePressForChatPreview(PeerId(peerIdRaw), [=](bool shown) {
+			_topPeers->pressLeftToContextMenu(shown);
+		});
+	}, _topPeers->lifetime());
+
+	_topPeers->pressCancelled() | rpl::start_with_next([=] {
+		_controller->cancelScheduledPreview();
 	}, _topPeers->lifetime());
 
 	_topPeers->showMenuRequests(
@@ -976,6 +1096,21 @@ void Suggestions::setupChats() {
 	}, _topPeers->lifetime());
 
 	_chatsScroll->setVisible(_tab.current() == Tab::Chats);
+	_chatsScroll->setCustomTouchProcess(_recentProcessTouch);
+}
+
+void Suggestions::handlePressForChatPreview(
+		PeerId id,
+		Fn<void(bool)> callback) {
+	callback = crl::guard(this, callback);
+	const auto row = RowDescriptor(
+		_controller->session().data().history(id),
+		FullMsgId());
+	if (base::IsAltPressed()) {
+		_controller->showChatPreview(row, callback);
+	} else {
+		_controller->scheduleChatPreview(row, callback);
+	}
 }
 
 void Suggestions::setupChannels() {
@@ -995,6 +1130,11 @@ void Suggestions::setupChannels() {
 		anim::type::instant);
 
 	_channelsScroll->setVisible(_tab.current() == Tab::Channels);
+	_channelsScroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
+		const auto myChannels = _myChannelsProcessTouch(e);
+		const auto recommendations = _recommendationsProcessTouch(e);
+		return myChannels || recommendations;
+	});
 }
 
 void Suggestions::selectJump(Qt::Key direction, int pageSize) {
@@ -1119,6 +1259,39 @@ void Suggestions::chooseRow() {
 	if (!_topPeers->chooseRow()) {
 		_recentPeersChoose();
 	}
+}
+
+Data::Thread *Suggestions::updateFromParentDrag(QPoint globalPosition) {
+	return (_tab.current() == Tab::Chats)
+		? updateFromChatsDrag(globalPosition)
+		: updateFromChannelsDrag(globalPosition);
+}
+
+Data::Thread *Suggestions::updateFromChatsDrag(QPoint globalPosition) {
+	if (const auto top = _topPeers->updateFromParentDrag(globalPosition)) {
+		return _controller->session().data().history(PeerId(top));
+	}
+	return fromListId(_recentUpdateFromParentDrag(globalPosition));
+}
+
+Data::Thread *Suggestions::updateFromChannelsDrag(QPoint globalPosition) {
+	if (const auto id = _myChannelsUpdateFromParentDrag(globalPosition)) {
+		return fromListId(id);
+	}
+	return fromListId(_recommendationsUpdateFromParentDrag(globalPosition));
+}
+
+Data::Thread *Suggestions::fromListId(uint64 peerListRowId) {
+	return peerListRowId
+		? _controller->session().data().history(PeerId(peerListRowId)).get()
+		: nullptr;
+}
+
+void Suggestions::dragLeft() {
+	_topPeers->dragLeft();
+	_recentDragLeft();
+	_myChannelsDragLeft();
+	_recommendationsDragLeft();
 }
 
 void Suggestions::show(anim::type animated, Fn<void()> finish) {
@@ -1270,6 +1443,9 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 	controller->setStyleOverrides(&st::recentPeersList);
 
 	_recentCount = controller->count();
+	_recentProcessTouch = [=](not_null<QTouchEvent*> e) {
+		return controller->processTouchEvent(e);
+	};
 
 	controller->chosen(
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
@@ -1304,6 +1480,12 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 		}
 		return JumpResult::NotApplied;
 	};
+	_recentUpdateFromParentDrag = [=](QPoint globalPosition) {
+		return raw->updateFromParentDrag(globalPosition);
+	};
+	_recentDragLeft = [=] {
+		raw->dragLeft();
+	};
 	raw->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		const auto add = _topPeersWrap->toggled() ? _topPeers->height() : 0;
@@ -1312,58 +1494,36 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 
 	delegate->setContent(raw);
 	controller->setDelegate(delegate);
+	controller->setupTouchChatPreview(_chatsScroll.get());
 
 	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
 }
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmptyRecent() {
-	return setupEmpty(_chatsContent, "search", tr::lng_recent_none());
+	const auto icon = SearchEmptyIcon::Search;
+	return setupEmpty(_chatsContent, icon, tr::lng_recent_none());
 }
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmptyChannels() {
-	return setupEmpty(
-		_channelsContent,
-		"noresults",
-		tr::lng_channels_none_about());
+	const auto icon = SearchEmptyIcon::NoResults;
+	return setupEmpty(_channelsContent, icon, tr::lng_channels_none_about());
 }
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmpty(
 		not_null<QWidget*> parent,
-		const QString &animation,
+		SearchEmptyIcon icon,
 		rpl::producer<QString> text) {
-	auto content = object_ptr<Ui::RpWidget>(parent);
+	auto content = object_ptr<SearchEmpty>(
+		parent,
+		icon,
+		std::move(text) | Ui::Text::ToWithEntities());
+
 	const auto raw = content.data();
-
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		raw,
-		std::move(text),
-		st::defaultPeerListAbout);
-	const auto size = st::recentPeersEmptySize;
-	const auto [widget, animate] = Settings::CreateLottieIcon(
-		raw,
-		{
-			.name = animation,
-			.sizeOverride = { size, size },
-		},
-		st::recentPeersEmptyMargin);
-	const auto icon = widget.data();
-
 	rpl::combine(
 		_chatsScroll->heightValue(),
 		_topPeersWrap->heightValue()
 	) | rpl::start_with_next([=](int height, int top) {
-		raw->resize(
-			raw->width(),
-			std::max(height - top, st::recentPeersEmptyHeightMin));
-	}, raw->lifetime());
-
-	raw->sizeValue() | rpl::start_with_next([=](QSize size) {
-		const auto x = (size.width() - icon->width()) / 2;
-		const auto y = (size.height() - icon->height()) / 3;
-		icon->move(x, y);
-		label->move(
-			(size.width() - label->width()) / 2,
-			y + icon->height() + st::recentPeersEmptySkip);
+		raw->setMinimalHeight(height - top);
 	}, raw->lifetime());
 
 	auto result = object_ptr<Ui::SlideWrap<>>(
@@ -1374,7 +1534,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupEmpty(
 	result->toggledValue() | rpl::filter([=](bool shown) {
 		return shown && _controller->session().data().chatsListLoaded();
 	}) | rpl::start_with_next([=] {
-		animate(anim::repeat::once);
+		raw->animate();
 	}, raw->lifetime());
 
 	return result;
@@ -1390,6 +1550,9 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupMyChannels() {
 	controller->setStyleOverrides(&st::recentPeersList);
 
 	_myChannelsCount = controller->count();
+	_myChannelsProcessTouch = [=](not_null<QTouchEvent*> e) {
+		return controller->processTouchEvent(e);
+	};
 
 	controller->chosen(
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
@@ -1438,6 +1601,12 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupMyChannels() {
 		}
 		return JumpResult::NotApplied;
 	};
+	_myChannelsUpdateFromParentDrag = [=](QPoint globalPosition) {
+		return raw->updateFromParentDrag(globalPosition);
+	};
+	_myChannelsDragLeft = [=] {
+		raw->dragLeft();
+	};
 	raw->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		_channelsScroll->scrollToY(request.ymin, request.ymax);
@@ -1445,6 +1614,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupMyChannels() {
 
 	delegate->setContent(raw);
 	controller->setDelegate(delegate);
+	controller->setupTouchChatPreview(_channelsScroll.get());
 
 	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
 }
@@ -1459,6 +1629,9 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecommendations() {
 	controller->setStyleOverrides(&st::recentPeersList);
 
 	_recommendationsCount = controller->count();
+	_recommendationsProcessTouch = [=](not_null<QTouchEvent*> e) {
+		return controller->processTouchEvent(e);
+	};
 
 	_tab.value() | rpl::filter(
 		rpl::mappers::_1 == Tab::Channels
@@ -1499,6 +1672,12 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecommendations() {
 		}
 		return JumpResult::NotApplied;
 	};
+	_recommendationsUpdateFromParentDrag = [=](QPoint globalPosition) {
+		return raw->updateFromParentDrag(globalPosition);
+	};
+	_recommendationsDragLeft = [=] {
+		raw->dragLeft();
+	};
 	raw->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		const auto add = _myChannels->toggled() ? _myChannels->height() : 0;
@@ -1507,6 +1686,7 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecommendations() {
 
 	delegate->setContent(raw);
 	controller->setDelegate(delegate);
+	controller->setupTouchChatPreview(_channelsScroll.get());
 
 	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
 }

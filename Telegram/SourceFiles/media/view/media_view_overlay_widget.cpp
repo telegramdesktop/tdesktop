@@ -348,8 +348,8 @@ public:
 	rpl::producer<bool> adjustShadowLeft() const override {
 		return rpl::single(false);
 	}
-	SendMenu::Type sendMenuType() const override {
-		return SendMenu::Type::SilentOnly;
+	SendMenu::Details sendMenuDetails() const override {
+		return { SendMenu::Type::SilentOnly };
 	}
 
 	bool showMediaPreview(
@@ -415,7 +415,6 @@ OverlayWidget::OverlayWidget()
 , _widget(_surface->rpWidget())
 , _fullscreen(Core::App().settings().mediaViewPosition().maximized == 2)
 , _windowed(Core::App().settings().mediaViewPosition().maximized == 0)
-, _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
 , _layerBg(std::make_unique<Ui::LayerManager>(_body))
 , _docDownload(_body, tr::lng_media_download(tr::now), st::mediaviewFileLink)
 , _docSaveAs(_body, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
@@ -1892,9 +1891,18 @@ void OverlayWidget::contentSizeChanged() {
 }
 
 void OverlayWidget::recountSkipTop() {
-	const auto bottom = (!_streamed || !_streamed->controls)
-		? height()
-		: (_streamed->controls->y() - st::mediaviewCaptionPadding.bottom());
+	const auto controllerBottomNoFullScreenVideo = _groupThumbs
+		? _groupThumbsTop
+		: height();
+	// We need the bottom in case of non-full-screen-video mode
+	// to count correct _availableHeight in non-full-screen-video mode.
+	//
+	// Originally this is controls->y() - padding.bottom().
+	const auto bottom = (_streamed && _streamed->controls)
+		? (controllerBottomNoFullScreenVideo
+			- _streamed->controls->height()
+			- 2 * st::mediaviewCaptionPadding.bottom())
+		: height();
 	const auto skipHeightBottom = (height() - bottom);
 	_skipTop = _minUsedTop + std::min(
 		std::max(
@@ -1960,7 +1968,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 		_h = _height;
 	}
 	_x = (width() - _w) / 2;
-	_y = _skipTop + (_availableHeight - _h) / 2;
+	_y = _skipTop + (useh - _h) / 2;
 	_geometryAnimation.stop();
 }
 
@@ -4022,7 +4030,7 @@ void OverlayWidget::refreshClipControllerGeometry() {
 		st::mediaviewControllerSize.height());
 	_streamed->controls->move(
 		(width() - controllerWidth) / 2,
-		(controllerBottom
+		(controllerBottom // Duplicated in recountSkipTop().
 			- _streamed->controls->height()
 			- st::mediaviewCaptionPadding.bottom()));
 	Ui::SendPendingMoveResizeEvents(_streamed->controls.get());
@@ -4298,11 +4306,6 @@ std::shared_ptr<ChatHelpers::Show> OverlayWidget::uiShow() {
 auto OverlayWidget::storiesStickerOrEmojiChosen()
 -> rpl::producer<ChatHelpers::FileChosen> {
 	return _storiesStickerOrEmojiChosen.events();
-}
-
-auto OverlayWidget::storiesCachedReactionIconFactory()
--> HistoryView::Reactions::CachedIconFactory & {
-	return *_cachedReactionIconFactory;
 }
 
 void OverlayWidget::storiesJumpTo(

@@ -16,7 +16,15 @@ namespace Premium {
 
 class MiniStars final {
 public:
-	MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque = false);
+	enum class Type {
+		MonoStars,
+		BiStars,
+	};
+
+	MiniStars(
+		Fn<void(const QRect &r)> updateCallback,
+		bool opaque = false,
+		Type type = Type::MonoStars);
 
 	void paint(QPainter &p, const QRectF &rect);
 	void setPaused(bool paused);
@@ -31,6 +39,7 @@ private:
 		float64 size = 0.;
 		float64 alpha = 0.;
 		float64 sinFactor = 0.;
+		not_null<QSvgRenderer*> sprite;
 	};
 
 	struct Interval {
@@ -50,12 +59,14 @@ private:
 	const Interval _size;
 	const Interval _alpha;
 	const Interval _sinFactor;
+	const Interval _spritesCount;
 
 	const float64 _appearProgressTill;
 	const float64 _disappearProgressAfter;
 	const float64 _distanceProgressStart;
 
 	QSvgRenderer _sprite;
+	std::unique_ptr<QSvgRenderer> _secondSprite;
 
 	Ui::Animations::Basic _animation;
 

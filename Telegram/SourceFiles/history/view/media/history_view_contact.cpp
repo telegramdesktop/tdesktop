@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/add_contact_box.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
+#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
@@ -18,16 +19,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "styles/style_boxes.h"
-#include "styles/style_chat.h"
 #include "ui/chat/chat_style.h"
 #include "ui/empty_userpic.h"
+#include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h" // Ui::Text::Wrapped.
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
+#include "styles/style_chat.h"
+#include "styles/style_layers.h"
 
 namespace HistoryView {
 namespace {
@@ -103,33 +108,124 @@ ClickHandlerPtr AddContactClickHandler(not_null<HistoryItem*> item) {
 	return clickHandlerPtr;
 }
 
+[[nodiscard]] Fn<void(not_null<Ui::GenericBox*>)> VcardBoxFactory(
+		const Data::SharedContact::VcardItems &vcardItems) {
+	if (vcardItems.empty()) {
+		return nullptr;
+	}
+	return [=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_contact_details_title());
+		const auto &stL = st::proxyApplyBoxLabel;
+		const auto &stSubL = st::boxDividerLabel;
+		const auto add = [&](const QString &s, tr::phrase<> phrase) {
+			if (!s.isEmpty()) {
+				const auto label = box->addRow(
+					object_ptr<Ui::FlatLabel>(box, s, stL));
+				box->addRow(object_ptr<Ui::FlatLabel>(box, phrase(), stSubL));
+				Ui::AddSkip(box->verticalLayout());
+				Ui::AddSkip(box->verticalLayout());
+				return label;
+			}
+			return (Ui::FlatLabel*)(nullptr);
+		};
+		for (const auto &[type, value] : vcardItems) {
+			using Type = Data::SharedContact::VcardItemType;
+			const auto isPhoneType = (type == Type::Phone)
+				|| (type == Type::PhoneMain)
+				|| (type == Type::PhoneHome)
+				|| (type == Type::PhoneMobile)
+				|| (type == Type::PhoneWork)
+				|| (type == Type::PhoneOther);
+			const auto typePhrase = (type == Type::Phone)
+				? tr::lng_contact_details_phone
+				: (type == Type::PhoneMain)
+				? tr::lng_contact_details_phone_main
+				: (type == Type::PhoneHome)
+				? tr::lng_contact_details_phone_home
+				: (type == Type::PhoneMobile)
+				? tr::lng_contact_details_phone_mobile
+				: (type == Type::PhoneWork)
+				? tr::lng_contact_details_phone_work
+				: (type == Type::PhoneOther)
+				? tr::lng_contact_details_phone_other
+				: (type == Type::Email)
+				? tr::lng_contact_details_email
+				: (type == Type::Address)
+				? tr::lng_contact_details_address
+				: (type == Type::Url)
+				? tr::lng_contact_details_url
+				: (type == Type::Note)
+				? tr::lng_contact_details_note
+				: (type == Type::Birthday)
+				? tr::lng_contact_details_birthday
+				: (type == Type::Organization)
+				? tr::lng_contact_details_organization
+				: tr::lng_payments_info_name;
+			if (const auto label = add(value, typePhrase)) {
+				const auto copyText = isPhoneType
+					? tr::lng_profile_copy_phone
+					: (type == Type::Email)
+					? tr::lng_context_copy_email
+					: (type == Type::Url)
+					? tr::lng_context_copy_link
+					: (type == Type::Name)
+					? tr::lng_profile_copy_fullname
+					: tr::lng_context_copy_text;
+				label->setContextCopyText(copyText(tr::now));
+				if (type == Type::Email) {
+					label->setMarkedText(
+						Ui::Text::Wrapped({ value }, EntityType::Email));
+				} else if (type == Type::Url) {
+					label->setMarkedText(
+						Ui::Text::Wrapped({ value }, EntityType::Url));
+				} else if (isPhoneType) {
+					label->setText(Ui::FormatPhone(value));
+				}
+				using Request = Ui::FlatLabel::ContextMenuRequest;
+				label->setContextMenuHook([=](Request r) {
+					label->fillContextMenu(r.link
+						? r
+						: Request{ .menu = r.menu, .fullSelection = true });
+				});
+			}
+		}
+		{
+			const auto inner = box->verticalLayout();
+			if (inner->count() > 2) {
+				delete inner->widgetAt(inner->count() - 1);
+				delete inner->widgetAt(inner->count() - 1);
+			}
+		}
+
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	};
+}
+
 } // namespace
 
 Contact::Contact(
 	not_null<Element*> parent,
-	UserId userId,
-	const QString &first,
-	const QString &last,
-	const QString &phone)
+	const Data::SharedContact &data)
 : Media(parent)
 , _st(st::historyPagePreview)
 , _pixh(st::contactsPhotoSize)
-, _userId(userId) {
-	history()->owner().registerContactView(userId, parent);
+, _userId(data.userId)
+, _vcardBoxFactory(VcardBoxFactory(data.vcardItems)) {
+	history()->owner().registerContactView(data.userId, parent);
 
 	_nameLine.setText(
 		st::webPageTitleStyle,
 		tr::lng_full_name(
 			tr::now,
 			lt_first_name,
-			first,
+			data.firstName,
 			lt_last_name,
-			last).trimmed(),
+			data.lastName).trimmed(),
 		Ui::WebpageTextTitleOptions());
 
 	_phoneLine.setText(
 		st::webPageDescriptionStyle,
-		Ui::FormatPhone(phone),
+		Ui::FormatPhone(data.phoneNumber),
 		Ui::WebpageTextTitleOptions());
 
 #if 0 // No info.
@@ -171,6 +267,7 @@ QSize Contact::countOptimalSize() {
 			full);
 	}
 
+	const auto vcardBoxFactory = _vcardBoxFactory;
 	_buttons.clear();
 	if (_contact) {
 		const auto message = tr::lng_contact_send_message(tr::now).toUpper();
@@ -188,16 +285,22 @@ QSize Contact::countOptimalSize() {
 			});
 		}
 		_mainButton.link = _buttons.front().link;
-	} else {
-#if 0 // Can't view contact.
-		const auto view = tr::lng_profile_add_contact(tr::now).toUpper();
+	} else if (vcardBoxFactory) {
+		const auto view = tr::lng_contact_details_button(tr::now).toUpper();
 		_buttons.push_back({
 			view,
 			st::semiboldFont->width(view),
 			AddContactClickHandler(_parent->data()),
 		});
-#endif
-		_mainButton.link = nullptr;
+	}
+	if (vcardBoxFactory) {
+		_mainButton.link = std::make_shared<LambdaClickHandler>([=](
+				const ClickContext &context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			if (const auto controller = my.sessionWindow.get()) {
+				controller->uiShow()->show(Box(vcardBoxFactory));
+			}
+		});
 	}
 
 	const auto padding = inBubblePadding() + innerMargin();

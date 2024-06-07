@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "history/view/history_view_about_view.h"
-#include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
@@ -164,10 +163,9 @@ private:
 			current),
 		st::settingsChatIntroFieldMargins);
 	field->setMaxLength(limit);
-	AddLengthLimitLabel(field, limit);
+	Ui::AddLengthLimitLabel(field, limit);
 	return field;
 }
-
 
 rpl::producer<std::shared_ptr<StickerPlayer>> IconPlayerValue(
 		not_null<DocumentData*> sticker,

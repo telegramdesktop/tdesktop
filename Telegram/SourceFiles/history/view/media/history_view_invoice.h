@@ -30,6 +30,9 @@ public:
 		return _title.toString();
 	}
 
+	bool aboveTextByDefault() const override {
+		return false;
+	}
 	bool hideMessageText() const override {
 		return false;
 	}

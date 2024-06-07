@@ -35,6 +35,9 @@ public:
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
+	bool aboveTextByDefault() const override {
+		return false;
+	}
 	bool hideMessageText() const override {
 		return false;
 	}
@@ -101,6 +104,44 @@ public:
 	~WebPage();
 
 private:
+	struct FactcheckMetrics {
+		int lines = 0;
+		bool expandable = false;
+		bool expanded = false;
+	};
+	struct HintData {
+		QSize size;
+		QPointF lastPosition;
+		QString text;
+		int widthBefore = 0;
+		std::unique_ptr<Ui::RippleAnimation> ripple;
+		ClickHandlerPtr link;
+	};
+	struct StickerSetData {
+		std::vector<std::unique_ptr<Sticker>> views;
+	};
+	struct SponsoredData {
+		QString buttonText;
+
+		uint64 backgroundEmojiId = 0;
+		uint8 colorIndex : 6 = 0;
+		uint8 isLinkInternal : 1 = 0;
+		uint8 canReport : 1 = 0;
+
+		HintData hint;
+	};
+	struct FactcheckData {
+		HintData hint;
+		Ui::Text::String footer;
+		uint32 footerHeight : 30 = 0;
+		uint32 expandable : 1 = 0;
+		uint32 expanded : 1 = 0;
+	};
+	using AdditionalData = std::variant<
+		StickerSetData,
+		SponsoredData,
+		FactcheckData>;
+
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -124,35 +165,25 @@ private:
 		const ClickHandlerPtr &link) const;
 	[[nodiscard]] bool asArticle() const;
 
+	[[nodiscard]] StickerSetData *stickerSetData() const;
+	[[nodiscard]] SponsoredData *sponsoredData() const;
+	[[nodiscard]] FactcheckData *factcheckData() const;
+	[[nodiscard]] HintData *hintData() const;
+
+	[[nodiscard]] FactcheckMetrics computeFactcheckMetrics(
+		int fullHeight) const;
+
+	void setupAdditionalData();
+
 	const style::QuoteStyle &_st;
 	const not_null<WebPageData*> _data;
+	const MediaWebPageFlags _flags;
+
 	std::vector<std::unique_ptr<Data::Media>> _collage;
 	ClickHandlerPtr _openl;
 	std::unique_ptr<Media> _attach;
 	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
-
-	struct StickerSet final {
-		std::vector<std::unique_ptr<Sticker>> views;
-	};
-
-	std::unique_ptr<StickerSet> _stickerSet;
-
-	struct SponsoredData final {
-		QString buttonText;
-		bool isLinkInternal = false;
-
-		uint64 backgroundEmojiId = 0;
-		uint8 colorIndex : 6 = 0;
-
-		bool canReport = false;
-		QSize hintSize;
-		QPointF lastHintPos;
-		int widthBeforeHint = 0;
-		std::unique_ptr<Ui::RippleAnimation> hintRipple;
-		ClickHandlerPtr hintLink;
-	};
-	mutable std::optional<SponsoredData> _sponsoredData;
 
 	int _dataVersion = -1;
 	int _siteNameLines = 0;
@@ -172,7 +203,7 @@ private:
 	int _pixw = 0;
 	int _pixh = 0;
 
-	const MediaWebPageFlags _flags;
+	std::unique_ptr<AdditionalData> _additionalData;
 
 };
 

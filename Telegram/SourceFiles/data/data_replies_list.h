@@ -78,10 +78,6 @@ private:
 	[[nodiscard]] Histories &histories();
 
 	void subscribeToUpdates();
-	[[nodiscard]] rpl::producer<MessagesSlice> sourceFromServer(
-		MessagePosition aroundId,
-		int limitBefore,
-		int limitAfter);
 	void appendClientSideMessages(MessagesSlice &slice);
 
 	[[nodiscard]] bool buildFromData(not_null<Viewer*> viewer);

@@ -910,12 +910,12 @@ CreatePollBox::CreatePollBox(
 	PollData::Flags chosen,
 	PollData::Flags disabled,
 	Api::SendType sendType,
-	SendMenu::Type sendMenuType)
+	SendMenu::Details sendMenuDetails)
 : _controller(controller)
 , _chosen(chosen)
 , _disabled(disabled)
 , _sendType(sendType)
-, _sendMenuType(sendMenuType) {
+, _sendMenuDetails([result = sendMenuDetails] { return result; }) {
 }
 
 rpl::producer<CreatePollBox::Result> CreatePollBox::submitRequests() const {
@@ -1044,7 +1044,7 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 	solution->setInstantReplaces(Ui::InstantReplaces::Default());
 	solution->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
-	solution->setMarkdownReplacesEnabled(rpl::single(true));
+	solution->setMarkdownReplacesEnabled(true);
 	solution->setEditLinkCallback(
 		DefaultEditLinkCallback(_controller->uiShow(), solution));
 	solution->customTab(true);
@@ -1288,19 +1288,9 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			_submitRequests.fire({ collectResult(), sendOptions });
 		}
 	};
-	const auto sendSilent = [=] {
-		send({ .silent = true });
-	};
-	const auto sendScheduled = [=] {
-		_controller->show(
-			HistoryView::PrepareScheduleBox(
-				this,
-				SendMenu::Type::Scheduled,
-				send));
-	};
-	const auto sendWhenOnline = [=] {
-		send(Api::DefaultSendWhenOnlineOptions());
-	};
+	const auto sendAction = SendMenu::DefaultCallback(
+		_controller->uiShow(),
+		crl::guard(this, send));
 
 	options->scrollToWidget(
 	) | rpl::start_with_next([=](not_null<QWidget*> widget) {
@@ -1313,24 +1303,25 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	}, lifetime());
 
 	const auto isNormal = (_sendType == Api::SendType::Normal);
-
+	const auto schedule = [=] {
+		sendAction(
+			{ .type = SendMenu::ActionType::Schedule },
+			_sendMenuDetails());
+	};
 	const auto submit = addButton(
-		isNormal
+		(isNormal
 			? tr::lng_polls_create_button()
-			: tr::lng_schedule_button(),
-		[=] { isNormal ? send({}) : sendScheduled(); });
-	const auto sendMenuType = [=] {
+			: tr::lng_schedule_button()),
+		[=] { isNormal ? send({}) : schedule(); });
+	const auto sendMenuDetails = [=] {
 		collectError();
-		return (*error)
-			? SendMenu::Type::Disabled
-			: _sendMenuType;
+		return (*error) ? SendMenu::Details() : _sendMenuDetails();
 	};
 	SendMenu::SetupMenuAndShortcuts(
 		submit.data(),
-		sendMenuType,
-		sendSilent,
-		sendScheduled,
-		sendWhenOnline);
+		_controller->uiShow(),
+		sendMenuDetails,
+		sendAction);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	return result;

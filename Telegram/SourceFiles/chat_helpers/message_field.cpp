@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
@@ -60,60 +61,43 @@ constexpr auto kTypesDuration = 4 * crl::time(1000);
 
 // For mention / custom emoji tags save and validate selfId,
 // ignore tags for different users.
-class FieldTagMimeProcessor final {
-public:
-	FieldTagMimeProcessor(
-		not_null<Main::Session*> _session,
-		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji);
-
-	QString operator()(QStringView mimeTag);
-
-private:
-	const not_null<Main::Session*> _session;
-	const Fn<bool(not_null<DocumentData*>)> _allowPremiumEmoji;
-
-};
-
-FieldTagMimeProcessor::FieldTagMimeProcessor(
-	not_null<Main::Session*> session,
-	Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji)
-: _session(session)
-, _allowPremiumEmoji(allowPremiumEmoji) {
-}
-
-QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
-	const auto id = _session->userId().bare;
-	auto all = TextUtilities::SplitTags(mimeTag);
-	auto premiumSkipped = (DocumentData*)nullptr;
-	for (auto i = all.begin(); i != all.end();) {
-		const auto tag = *i;
-		if (TextUtilities::IsMentionLink(tag)
-			&& TextUtilities::MentionNameDataToFields(tag).selfId != id) {
-			i = all.erase(i);
-			continue;
-		} else if (Ui::InputField::IsCustomEmojiLink(tag)) {
-			const auto data = Ui::InputField::CustomEmojiEntityData(tag);
-			const auto emoji = Data::ParseCustomEmojiData(data);
-			if (!emoji) {
+[[nodiscard]] Fn<QString(QStringView)> FieldTagMimeProcessor(
+		not_null<Main::Session*> session,
+		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
+	return [=](QStringView mimeTag) {
+		const auto id = session->userId().bare;
+		auto all = TextUtilities::SplitTags(mimeTag);
+		auto premiumSkipped = (DocumentData*)nullptr;
+		for (auto i = all.begin(); i != all.end();) {
+			const auto tag = *i;
+			if (TextUtilities::IsMentionLink(tag)
+				&& TextUtilities::MentionNameDataToFields(tag).selfId != id) {
 				i = all.erase(i);
 				continue;
-			} else if (!_session->premium()) {
-				const auto document = _session->data().document(emoji);
-				if (document->isPremiumEmoji()) {
-					if (!_allowPremiumEmoji
-						|| premiumSkipped
-						|| !_session->premiumPossible()
-						|| !_allowPremiumEmoji(document)) {
-						premiumSkipped = document;
-						i = all.erase(i);
-						continue;
+			} else if (Ui::InputField::IsCustomEmojiLink(tag)) {
+				const auto data = Ui::InputField::CustomEmojiEntityData(tag);
+				const auto emoji = Data::ParseCustomEmojiData(data);
+				if (!emoji) {
+					i = all.erase(i);
+					continue;
+				} else if (!session->premium()) {
+					const auto document = session->data().document(emoji);
+					if (document->isPremiumEmoji()) {
+						if (!allowPremiumEmoji
+							|| premiumSkipped
+							|| !session->premiumPossible()
+							|| !allowPremiumEmoji(document)) {
+							premiumSkipped = document;
+							i = all.erase(i);
+							continue;
+						}
 					}
 				}
 			}
+			++i;
 		}
-		++i;
-	}
-	return TextUtilities::JoinTag(all);
+		return TextUtilities::JoinTag(all);
+	};
 }
 
 //bool ValidateUrl(const QString &value) {
@@ -132,7 +116,8 @@ void EditLinkBox(
 		const QString &startText,
 		const QString &startLink,
 		Fn<void(QString, QString)> callback,
-		const style::InputField *fieldStyle) {
+		const style::InputField *fieldStyle,
+		Fn<QString(QString)> validate) {
 	Expects(callback != nullptr);
 
 	const auto &fieldSt = fieldStyle ? *fieldStyle : st::defaultInputField;
@@ -177,7 +162,7 @@ void EditLinkBox(
 
 	const auto submit = [=] {
 		const auto linkText = text->getLastText();
-		const auto linkUrl = qthelp::validate_url(url->getLastText());
+		const auto linkUrl = validate(url->getLastText());
 		if (linkText.isEmpty()) {
 			text->showError();
 			return;
@@ -329,7 +314,8 @@ Fn<bool(
 			text,
 			link,
 			std::move(callback),
-			fieldStyle));
+			fieldStyle,
+			qthelp::validate_url));
 		return true;
 	};
 }
@@ -352,12 +338,94 @@ void InitMessageFieldHandlers(
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
-	field->setMarkdownReplacesEnabled(rpl::single(true));
+	field->setMarkdownReplacesEnabled(true);
 	if (show) {
 		field->setEditLinkCallback(
 			DefaultEditLinkCallback(show, field, fieldStyle));
 		InitSpellchecker(show, field, fieldStyle != nullptr);
 	}
+}
+
+[[nodiscard]] bool IsGoodFactcheckUrl(QStringView url) {
+	return url.startsWith(u"t.me/"_q) || url.startsWith(u"https://t.me/"_q);
+}
+
+[[nodiscard]] Fn<bool(
+	Ui::InputField::EditLinkSelection selection,
+	QString text,
+	QString link,
+	EditLinkAction action)> FactcheckEditLinkCallback(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::InputField*> field) {
+	const auto weak = Ui::MakeWeak(field);
+	return [=](
+			EditLinkSelection selection,
+			QString text,
+			QString link,
+			EditLinkAction action) {
+		const auto validate = [=](QString url) {
+			if (IsGoodFactcheckUrl(url)) {
+				const auto start = u"https://"_q;
+				return url.startsWith(start) ? url : (start + url);
+			}
+			show->showToast(
+				tr::lng_factcheck_links(tr::now, Ui::Text::RichLangValue));
+			return QString();
+		};
+		if (action == EditLinkAction::Check) {
+			return IsGoodFactcheckUrl(link);
+		}
+		auto callback = [=](const QString &text, const QString &link) {
+			if (const auto strong = weak.data()) {
+				strong->commitMarkdownLinkEdit(selection, text, link);
+			}
+		};
+		show->showBox(Box(
+			EditLinkBox,
+			show,
+			text,
+			link,
+			std::move(callback),
+			nullptr,
+			validate));
+		return true;
+	};
+}
+
+Fn<void(not_null<Ui::InputField*>)> FactcheckFieldIniter(
+		std::shared_ptr<Main::SessionShow> show) {
+	Expects(show != nullptr);
+
+	return [=](not_null<Ui::InputField*> field) {
+		field->setTagMimeProcessor([](QStringView mimeTag) {
+			using Field = Ui::InputField;
+			auto all = TextUtilities::SplitTags(mimeTag);
+			for (auto i = all.begin(); i != all.end();) {
+				const auto tag = *i;
+				if (tag != Field::kTagBold
+					&& tag != Field::kTagItalic
+					&& (!Field::IsValidMarkdownLink(mimeTag)
+						|| TextUtilities::IsMentionLink(mimeTag))) {
+					i = all.erase(i);
+					continue;
+				}
+				++i;
+			}
+			return TextUtilities::JoinTag(all);
+		});
+		field->setInstantReplaces(Ui::InstantReplaces::Default());
+		field->setInstantReplacesEnabled(
+			Core::App().settings().replaceEmojiValue());
+		field->setMarkdownReplacesEnabled(rpl::single(
+			Ui::MarkdownEnabledState{
+				Ui::MarkdownEnabled{
+					{ Ui::InputField::kTagBold, Ui::InputField::kTagItalic }
+				}
+			}
+		));
+		field->setEditLinkCallback(FactcheckEditLinkCallback(show, field));
+		InitSpellchecker(show, field);
+	};
 }
 
 void InitMessageFieldHandlers(
@@ -431,10 +499,7 @@ bool HasSendText(not_null<const Ui::InputField*> field) {
 	const auto &text = field->getTextWithTags().text;
 	for (const auto &ch : text) {
 		const auto code = ch.unicode();
-		if (code != ' '
-			&& code != '\n'
-			&& code != '\r'
-			&& !IsReplacedBySpace(code)) {
+		if (!IsTrimmed(ch) && !IsReplacedBySpace(code)) {
 			return true;
 		}
 	}
@@ -732,7 +797,8 @@ void MessageLinksParser::parse() {
 			|| (tag == Ui::InputField::kTagUnderline)
 			|| (tag == Ui::InputField::kTagStrikeOut)
 			|| (tag == Ui::InputField::kTagSpoiler)
-			|| (tag == Ui::InputField::kTagBlockquote);
+			|| (tag == Ui::InputField::kTagBlockquote)
+			|| (tag == Ui::InputField::kTagBlockquoteCollapsed);
 	};
 
 	_ranges.clear();

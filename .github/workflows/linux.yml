@@ -58,7 +58,7 @@ jobs:
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Clone.
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
@@ -116,7 +116,7 @@ jobs:
           cd $REPO_NAME/out/Debug
           sudo mkdir artifact
           sudo mv {Telegram,Updater} artifact/
-      - uses: actions/upload-artifact@master
+      - uses: actions/upload-artifact@v4
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:

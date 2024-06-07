@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/edit_birthday_box.h"
+#include "payments/payments_non_panel_process.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
 #include "boxes/edit_privacy_box.h"
@@ -349,6 +350,7 @@ bool ApplySocksProxy(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	ProxiesBoxController::ShowApplyConfirmation(
+		controller,
 		MTP::ProxyData::Type::Socks5,
 		params);
 	if (controller) {
@@ -365,6 +367,7 @@ bool ApplyMtprotoProxy(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	ProxiesBoxController::ShowApplyConfirmation(
+		controller,
 		MTP::ProxyData::Type::Mtproto,
 		params);
 	if (controller) {
@@ -1092,7 +1095,8 @@ bool ResolveInvoice(
 	Payments::CheckoutProcess::Start(
 		&controller->session(),
 		slug,
-		crl::guard(window, [=](auto) { window->activate(); }));
+		crl::guard(window, [=](auto) { window->activate(); }),
+		Payments::ProcessNonPanelPaymentFormFactory(controller));
 	return true;
 }
 

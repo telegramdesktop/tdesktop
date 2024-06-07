@@ -47,11 +47,30 @@ enum class CallFinishReason : char {
 	Hangup,
 };
 
-struct SharedContact {
+struct SharedContact final {
 	UserId userId = 0;
 	QString firstName;
 	QString lastName;
 	QString phoneNumber;
+
+	enum class VcardItemType {
+		Phone,
+		PhoneMain,
+		PhoneHome,
+		PhoneMobile,
+		PhoneWork,
+		PhoneOther,
+		Email,
+		Address,
+		Url,
+		Note,
+		Birthday,
+		Organization,
+		Name,
+	};
+
+	using VcardItems = base::flat_map<VcardItemType, QString>;
+	VcardItems vcardItems;
 };
 
 struct Call {
@@ -308,7 +327,8 @@ public:
 		UserId userId,
 		const QString &firstName,
 		const QString &lastName,
-		const QString &phoneNumber);
+		const QString &phoneNumber,
+		const SharedContact::VcardItems &vcardItems);
 	~MediaContact();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;

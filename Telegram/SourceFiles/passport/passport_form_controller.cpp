@@ -2261,8 +2261,10 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 	value->verification.call->setStatus(
 		{ Ui::SentCodeCall::State::Calling, 0 });
 	_api.request(MTPauth_ResendCode(
+		MTP_flags(0),
 		MTP_string(getPhoneFromValue(value)),
-		MTP_string(value->verification.phoneCodeHash)
+		MTP_string(value->verification.phoneCodeHash),
+		MTPstring() // reason
 	)).done([=] {
 		value->verification.call->callDone();
 	}).send();

@@ -43,7 +43,7 @@ struct ResultSelected;
 } // namespace InlineBots
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace InlineBots {
@@ -89,7 +89,7 @@ public:
 	void setResultSelectedCallback(Fn<void(ResultSelected)> callback) {
 		_resultSelectedCallback = std::move(callback);
 	}
-	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
+	void setSendMenuDetails(Fn<SendMenu::Details()> &&callback);
 
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
@@ -179,7 +179,7 @@ private:
 	bool _previewShown = false;
 
 	Fn<void(ResultSelected)> _resultSelectedCallback;
-	Fn<SendMenu::Type()> _sendMenuType;
+	Fn<SendMenu::Details()> _sendMenuDetails;
 
 };
 

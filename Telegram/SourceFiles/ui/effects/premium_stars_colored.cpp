@@ -15,14 +15,16 @@ namespace Premium {
 
 ColoredMiniStars::ColoredMiniStars(
 	not_null<Ui::RpWidget*> parent,
-	bool optimizeUpdate)
+	bool optimizeUpdate,
+	MiniStars::Type type)
 : _ministars(
 	optimizeUpdate
 		? Fn<void(const QRect &)>([=](const QRect &r) {
 			parent->update(r.translated(_position));
 		})
 		: Fn<void(const QRect &)>([=](const QRect &) { parent->update(); }),
-	true) {
+	true,
+	type) {
 }
 
 void ColoredMiniStars::setSize(const QSize &size) {
@@ -35,11 +37,14 @@ void ColoredMiniStars::setSize(const QSize &size) {
 	_mask.fill(Qt::transparent);
 	{
 		auto p = QPainter(&_mask);
-		if (_colorOverride) {
-			p.fillRect(0, 0, size.width(), size.height(), *_colorOverride);
+		if (_stopsOverride && _stopsOverride->size() == 1) {
+			const auto &color = _stopsOverride->front().second;
+			p.fillRect(0, 0, size.width(), size.height(), color);
 		} else {
 			auto gradient = QLinearGradient(0, 0, size.width(), 0);
-			gradient.setStops(Ui::Premium::GiftGradientStops());
+			gradient.setStops((_stopsOverride && _stopsOverride->size() > 1)
+				? (*_stopsOverride)
+				: Ui::Premium::GiftGradientStops());
 			p.setPen(Qt::NoPen);
 			p.setBrush(gradient);
 			p.drawRect(0, 0, size.width(), size.height());
@@ -63,8 +68,8 @@ void ColoredMiniStars::setPosition(QPoint position) {
 	_position = std::move(position);
 }
 
-void ColoredMiniStars::setColorOverride(std::optional<QColor> color) {
-	_colorOverride = color;
+void ColoredMiniStars::setColorOverride(std::optional<QGradientStops> stops) {
+	_stopsOverride = stops;
 }
 
 void ColoredMiniStars::paint(QPainter &p) {

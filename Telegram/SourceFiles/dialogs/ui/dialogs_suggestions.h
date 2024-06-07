@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
+namespace Data {
+class Thread;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -30,6 +34,8 @@ class SessionController;
 
 namespace Dialogs {
 
+enum class SearchEmptyIcon;
+
 struct RecentPeersList {
 	std::vector<not_null<PeerData*>> list;
 };
@@ -45,6 +51,9 @@ public:
 
 	void selectJump(Qt::Key direction, int pageSize = 0);
 	void chooseRow();
+
+	[[nodiscard]] Data::Thread *updateFromParentDrag(QPoint globalPosition);
+	void dragLeft();
 
 	void show(anim::type animated, Fn<void()> finish);
 	void hide(anim::type animated, Fn<void()> finish);
@@ -90,6 +99,11 @@ private:
 	void selectJumpChats(Qt::Key direction, int pageSize);
 	void selectJumpChannels(Qt::Key direction, int pageSize);
 
+	[[nodiscard]] Data::Thread *updateFromChatsDrag(QPoint globalPosition);
+	[[nodiscard]] Data::Thread *updateFromChannelsDrag(
+		QPoint globalPosition);
+	[[nodiscard]] Data::Thread *fromListId(uint64 peerListRowId);
+
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupRecentPeers(
 		RecentPeersList recentPeers);
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupEmptyRecent();
@@ -100,13 +114,15 @@ private:
 		-> object_ptr<Ui::SlideWrap<Ui::RpWidget>>;
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupEmpty(
 		not_null<QWidget*> parent,
-		const QString &animation,
+		SearchEmptyIcon icon,
 		rpl::producer<QString> text);
 
 	void switchTab(Tab tab);
 	void startShownAnimation(bool shown, Fn<void()> finish);
 	void startSlideAnimation();
 	void finishShow();
+
+	void handlePressForChatPreview(PeerId id, Fn<void(bool)> callback);
 
 	const not_null<Window::SessionController*> _controller;
 
@@ -121,6 +137,9 @@ private:
 	rpl::variable<int> _recentCount;
 	Fn<bool()> _recentPeersChoose;
 	Fn<JumpResult(Qt::Key, int)> _recentSelectJump;
+	Fn<uint64(QPoint)> _recentUpdateFromParentDrag;
+	Fn<void()> _recentDragLeft;
+	Fn<bool(not_null<QTouchEvent*>)> _recentProcessTouch;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _recentPeers;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyRecent;
 
@@ -130,11 +149,17 @@ private:
 	rpl::variable<int> _myChannelsCount;
 	Fn<bool()> _myChannelsChoose;
 	Fn<JumpResult(Qt::Key, int)> _myChannelsSelectJump;
+	Fn<uint64(QPoint)> _myChannelsUpdateFromParentDrag;
+	Fn<void()> _myChannelsDragLeft;
+	Fn<bool(not_null<QTouchEvent*>)> _myChannelsProcessTouch;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _myChannels;
 
 	rpl::variable<int> _recommendationsCount;
 	Fn<bool()> _recommendationsChoose;
 	Fn<JumpResult(Qt::Key, int)> _recommendationsSelectJump;
+	Fn<uint64(QPoint)> _recommendationsUpdateFromParentDrag;
+	Fn<void()> _recommendationsDragLeft;
+	Fn<bool(not_null<QTouchEvent*>)> _recommendationsProcessTouch;
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _recommendations;
 
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyChannels;

@@ -123,6 +123,4 @@ void AddEmojiPacksAction(
 
 [[nodiscard]] bool ItemHasTtl(HistoryItem *item);
 
-void AddLengthLimitLabel(not_null<Ui::InputField*> field, int limit);
-
 } // namespace HistoryView

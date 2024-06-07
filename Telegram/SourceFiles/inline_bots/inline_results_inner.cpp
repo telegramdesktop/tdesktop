@@ -329,23 +329,26 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (_selected < 0 || _pressed >= 0) {
 		return;
 	}
-	const auto type = _sendMenuType
-		? _sendMenuType()
-		: SendMenu::Type::Disabled;
+	auto details = _sendMenuDetails
+		? _sendMenuDetails()
+		: SendMenu::Details();
+
+	// inline results don't have effects
+	details.effectAllowed = false;
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
 
-	const auto send = [=, selected = _selected](Api::SendOptions options) {
+	const auto selected = _selected;
+	const auto send = crl::guard(this, [=](Api::SendOptions options) {
 		selectInlineResult(selected, options, false);
-	};
+	});
 	SendMenu::FillSendMenu(
 		_menu,
-		type,
-		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(_controller->uiShow(), type, send),
-		SendMenu::DefaultWhenOnlineCallback(send));
+		_controller->uiShow(),
+		details,
+		SendMenu::DefaultCallback(_controller->uiShow(), send));
 
 	const auto item = _mosaic.itemAt(_selected);
 	if (const auto previewDocument = item->getPreviewDocument()) {
@@ -689,8 +692,8 @@ void Inner::switchPm() {
 	}
 }
 
-void Inner::setSendMenuType(Fn<SendMenu::Type()> &&callback) {
-	_sendMenuType = std::move(callback);
+void Inner::setSendMenuDetails(Fn<SendMenu::Details()> &&callback) {
+	_sendMenuDetails = std::move(callback);
 }
 
 } // namespace Layout

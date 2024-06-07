@@ -480,6 +480,21 @@ bool MainWindow::initGeometryFromSystem() {
 	return true;
 }
 
+bool MainWindow::nativeEvent(
+		const QByteArray &eventType,
+		void *message,
+		long *result) {
+	if (message) {
+		const auto msg = static_cast<MSG*>(message);
+		if (msg->message == WM_IME_STARTCOMPOSITION) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				imeCompositionStartReceived();
+			});
+		}
+	}
+	return false;
+}
+
 void MainWindow::updateWindowIcon() {
 	updateTaskbarAndIconCounters();
 }

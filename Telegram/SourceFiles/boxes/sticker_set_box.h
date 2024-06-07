@@ -23,10 +23,6 @@ namespace Data {
 class StickersSet;
 } // namespace Data
 
-namespace SendMenu {
-enum class Type;
-} // namespace SendMenu
-
 namespace ChatHelpers {
 struct FileChosen;
 class Show;
@@ -34,7 +30,9 @@ class Show;
 
 class StickerPremiumMark final {
 public:
-	explicit StickerPremiumMark(not_null<Main::Session*> session);
+	StickerPremiumMark(
+		not_null<Main::Session*> session,
+		const style::icon &lockIcon);
 
 	void paint(
 		QPainter &p,
@@ -48,6 +46,7 @@ private:
 	void validateLock(const QImage &frame, QImage &backCache);
 	void validateStar();
 
+	const style::icon &_lockIcon;
 	QImage _lockGray;
 	QImage _star;
 	bool _premium = false;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 
 #include "core/application.h"
+#include "countries/countries_instance.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "window/window_session_controller.h"
 #include "iv/iv_instance.h"
@@ -19,13 +20,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
-#include "history/history.h"
-#include "history/history_item_components.h"
-#include "history/view/history_view_cursor_state.h"
-#include "history/view/history_view_reply.h"
-#include "history/view/history_view_sponsored_click_handler.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_sticker.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_message.h"
+#include "history/view/history_view_reply.h"
+#include "history/view/history_view_sponsored_click_handler.h"
+#include "history/history.h"
+#include "history/history_item_components.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_sponsored.h"
@@ -36,13 +38,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {
 
 constexpr auto kMaxOriginalEntryLines = 8192;
+constexpr auto kFactcheckCollapsedLines = 3;
 constexpr auto kStickerSetLines = 3;
+constexpr auto kFactcheckAboutDuration = 5 * crl::time(1000);
 
 [[nodiscard]] int ArticleThumbWidth(not_null<PhotoData*> thumb, int height) {
 	const auto size = thumb->location(Data::PhotoSize::Thumbnail);
@@ -148,6 +153,51 @@ constexpr auto kStickerSetLines = 3;
 	});
 }
 
+[[nodiscard]] QString LookupFactcheckCountryIso2(
+		not_null<HistoryItem*> item) {
+	const auto info = item->Get<HistoryMessageFactcheck>();
+	return info ? info->data.country : QString();
+}
+
+[[nodiscard]] QString LookupFactcheckCountryName(const QString &iso2) {
+	const auto name = Countries::Instance().countryNameByISO2(iso2);
+	return name.isEmpty() ? iso2 : name;
+}
+
+[[nodiscard]] ClickHandlerPtr AboutFactcheckClickHandler(QString iso2) {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		const auto controller = my.sessionWindow.get();
+		const auto show = my.show
+			? my.show
+			: controller
+			? controller->uiShow()
+			: nullptr;
+		if (show) {
+			const auto country = LookupFactcheckCountryName(iso2);
+			show->showToast({
+				.text = {
+					tr::lng_factcheck_about(tr::now, lt_country, country)
+				},
+				.duration = kFactcheckAboutDuration,
+			});
+		}
+	});
+}
+
+[[nodiscard]] ClickHandlerPtr ToggleFactcheckClickHandler(
+		not_null<Element*> view) {
+	const auto weak = base::make_weak(view);
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		if (const auto strong = weak.get()) {
+			if (const auto factcheck = strong->Get<Factcheck>()) {
+				factcheck->expanded = factcheck->expanded ? 0 : 1;
+				strong->history()->owner().requestViewResize(strong);
+			}
+		}
+	});
+}
+
 [[nodiscard]] TextWithEntities PageToPhrase(not_null<WebPageData*> page) {
 	const auto type = page->type;
 	const auto text = Ui::Text::Upper(page->iv
@@ -232,34 +282,59 @@ WebPage::WebPage(
 	not_null<WebPageData*> data,
 	MediaWebPageFlags flags)
 : Media(parent)
-, _st(st::historyPagePreview)
+, _st(data->type == WebPageType::Factcheck
+	? st::factcheckPage
+	: st::historyPagePreview)
 , _data(data)
-, _sponsoredData([&]() -> std::optional<SponsoredData> {
-	if (!(flags & MediaWebPageFlag::Sponsored)) {
-		return std::nullopt;
-	}
-	const auto &session = _parent->data()->history()->session();
-	const auto details = session.sponsoredMessages().lookupDetails(
-		_parent->data()->fullId());
-	auto result = std::make_optional<SponsoredData>();
-	result->buttonText = details.buttonText;
-	result->isLinkInternal = details.isLinkInternal;
-	result->backgroundEmojiId = details.backgroundEmojiId;
-	result->colorIndex = details.colorIndex;
-	result->canReport = details.canReport;
-	return result;
-}())
+, _flags(flags)
 , _siteName(st::msgMinWidth - _st.padding.left() - _st.padding.right())
 , _title(st::msgMinWidth - _st.padding.left() - _st.padding.right())
-, _description(st::msgMinWidth - _st.padding.left() - _st.padding.right())
-, _flags(flags) {
+, _description(st::msgMinWidth - _st.padding.left() - _st.padding.right()) {
 	history()->owner().registerWebPageView(_data, _parent);
+}
+
+void WebPage::setupAdditionalData() {
+	if (_flags & MediaWebPageFlag::Sponsored) {
+		_additionalData = std::make_unique<AdditionalData>(SponsoredData());
+		const auto raw = sponsoredData();
+		const auto &session = _parent->data()->history()->session();
+		const auto details = session.sponsoredMessages().lookupDetails(
+			_parent->data()->fullId());
+		raw->buttonText = details.buttonText;
+		raw->isLinkInternal = details.isLinkInternal ? 1 : 0;
+		raw->backgroundEmojiId = details.backgroundEmojiId;
+		raw->colorIndex = details.colorIndex;
+		raw->canReport = details.canReport ? 1 : 0;
+	} else if (_data->stickerSet) {
+		_additionalData = std::make_unique<AdditionalData>(StickerSetData());
+		const auto raw = stickerSetData();
+		for (const auto &sticker : _data->stickerSet->items) {
+			if (!sticker->sticker()) {
+				continue;
+			}
+			raw->views.push_back(
+				std::make_unique<Sticker>(_parent, sticker, true));
+		}
+		const auto side = std::ceil(std::sqrt(raw->views.size()));
+		const auto box = UnitedLineHeight() * kStickerSetLines;
+		const auto single = box / side;
+		for (const auto &view : raw->views) {
+			view->setWebpagePart();
+			view->initSize(single);
+		}
+	} else if (_data->type == WebPageType::Factcheck) {
+		_additionalData = std::make_unique<AdditionalData>(FactcheckData());
+	}
 }
 
 QSize WebPage::countOptimalSize() {
 	if (_data->pendingTill || _data->failed) {
 		return { 0, 0 };
 	}
+	setupAdditionalData();
+
+	const auto sponsored = sponsoredData();
+	const auto factcheck = factcheckData();
 
 	// Detect _openButtonWidth before counting paddings.
 	_openButton = Ui::Text::String();
@@ -274,12 +349,10 @@ QSize WebPage::countOptimalSize() {
 			PageToPhrase(_data),
 			kMarkupTextOptions,
 			context);
-	} else if (_sponsoredData) {
-		if (!_sponsoredData->buttonText.isEmpty()) {
-			_openButton.setText(
-				st::semiboldTextStyle,
-				Ui::Text::Upper(_sponsoredData->buttonText));
-		}
+	} else if (sponsored && !sponsored->buttonText.isEmpty()) {
+		_openButton.setText(
+			st::semiboldTextStyle,
+			Ui::Text::Upper(sponsored->buttonText));
 	}
 
 	const auto padding = inBubblePadding() + innerMargin();
@@ -288,33 +361,27 @@ QSize WebPage::countOptimalSize() {
 		_dataVersion = _data->version;
 		_openl = nullptr;
 		_attach = nullptr;
-		_collage = PrepareCollageMedia(_parent->data(), _data->collage);
+		const auto item = _parent->data();
+		_collage = PrepareCollageMedia(item, _data->collage);
 		const auto min = st::msgMinWidth - rect::m::sum::h(_st.padding);
 		_siteName = Ui::Text::String(min);
 		_title = Ui::Text::String(min);
 		_description = Ui::Text::String(min);
+		if (factcheck) {
+			factcheck->footer = Ui::Text::String(
+				st::factcheckFooterStyle,
+				tr::lng_factcheck_bottom(
+					tr::now,
+					lt_country,
+					LookupFactcheckCountryName(
+						LookupFactcheckCountryIso2(item))),
+				kDefaultTextOptions,
+				min);
+		}
 	}
 	const auto lineHeight = UnitedLineHeight();
 
-	if (_data->stickerSet && !_stickerSet) {
-		_stickerSet = std::make_unique<StickerSet>();
-		for (const auto &sticker : _data->stickerSet->items) {
-			if (!sticker->sticker()) {
-				continue;
-			}
-			_stickerSet->views.push_back(
-				std::make_unique<Sticker>(_parent, sticker, true));
-		}
-		const auto side = std::ceil(std::sqrt(_stickerSet->views.size()));
-		const auto box = lineHeight * kStickerSetLines;
-		const auto single = box / side;
-		for (const auto &view : _stickerSet->views) {
-			view->setWebpagePart();
-			view->initSize(single);
-		}
-	}
-
-	if (!_openl && (!_data->url.isEmpty() || _sponsoredData)) {
+	if (!_openl && (!_data->url.isEmpty() || sponsored || factcheck)) {
 		const auto original = _parent->data()->originalText();
 		const auto previewOfHiddenUrl = [&] {
 			if (_data->type == WebPageType::BotApp) {
@@ -352,27 +419,31 @@ QSize WebPage::countOptimalSize() {
 			}
 			return true;
 		}();
-		_openl = _data->iv
-			? IvClickHandler(_data, original)
-			: (previewOfHiddenUrl || UrlClickHandler::IsSuspicious(
-				_data->url))
-			? std::make_shared<HiddenUrlClickHandler>(_data->url)
-			: std::make_shared<UrlClickHandler>(_data->url, true);
-		if (_data->document
-			&& (_data->document->isWallPaper()
-				|| _data->document->isTheme())) {
-			_openl = std::make_shared<DocumentWrappedClickHandler>(
-				std::move(_openl),
-				_data->document,
-				_parent->data()->fullId());
-		}
-		if (_sponsoredData) {
-			_openl = SponsoredLink(
-				_data->url,
-				_sponsoredData->isLinkInternal);
-
-			if (_sponsoredData->canReport) {
-				_sponsoredData->hintLink = AboutSponsoredClickHandler();
+		if (sponsored) {
+			_openl = SponsoredLink(_data->url, sponsored->isLinkInternal);
+			if (sponsored->canReport) {
+				sponsored->hint.link = AboutSponsoredClickHandler();
+			}
+		} else if (factcheck) {
+			const auto item = _parent->data();
+			const auto iso2 = LookupFactcheckCountryIso2(item);
+			if (!iso2.isEmpty()) {
+				factcheck->hint.link = AboutFactcheckClickHandler(iso2);
+			}
+		} else {
+			_openl = _data->iv
+				? IvClickHandler(_data, original)
+				: (previewOfHiddenUrl || UrlClickHandler::IsSuspicious(
+					_data->url))
+				? std::make_shared<HiddenUrlClickHandler>(_data->url)
+				: std::make_shared<UrlClickHandler>(_data->url, true);
+			if (_data->document
+				&& (_data->document->isWallPaper()
+					|| _data->document->isTheme())) {
+				_openl = std::make_shared<DocumentWrappedClickHandler>(
+					std::move(_openl),
+					_data->document,
+					_parent->data()->fullId());
 			}
 		}
 	}
@@ -456,7 +527,12 @@ QSize WebPage::countOptimalSize() {
 
 	const auto siteNameHeight = _siteName.isEmpty() ? 0 : lineHeight;
 	const auto titleMinHeight = _title.isEmpty() ? 0 : lineHeight;
-	const auto descMaxLines = isLogEntryOriginal()
+	const auto factcheckMetrics = factcheck
+		? computeFactcheckMetrics(_description.minHeight())
+		: FactcheckMetrics();
+	const auto descMaxLines = factcheck
+		? factcheckMetrics.lines
+		: isLogEntryOriginal()
 		? kMaxOriginalEntryLines
 		: (3 + (siteNameHeight ? 0 : 1) + (titleMinHeight ? 0 : 1));
 	const auto descriptionMinHeight = _description.isEmpty()
@@ -485,6 +561,10 @@ QSize WebPage::countOptimalSize() {
 			maxWidth,
 			_description.maxWidth() + articlePhotoMaxWidth);
 		minHeight += descriptionMinHeight;
+	}
+	if (factcheck && factcheck->expanded) {
+		accumulate_max(maxWidth, factcheck->footer.maxWidth());
+		minHeight += st::factcheckFooterSkip + factcheck->footer.minHeight();
 	}
 	if (_attach) {
 		const auto attachAtTop = _siteName.isEmpty()
@@ -517,15 +597,16 @@ QSize WebPage::countOptimalSize() {
 	if (_asArticle) {
 		minHeight = resizeGetHeight(maxWidth);
 	}
-	if (_sponsoredData && _sponsoredData->canReport) {
-		_sponsoredData->widthBeforeHint
-			= st::webPageTitleStyle.font->width(siteName);
+	if (const auto hint = hintData()) {
+		hint->widthBefore = st::webPageTitleStyle.font->width(siteName);
 		const auto &font = st::webPageSponsoredHintFont;
-		_sponsoredData->hintSize = QSize(
-			font->width(tr::lng_sponsored_message_revenue_button(tr::now))
-				+ font->height,
+		hint->text = sponsored
+			? tr::lng_sponsored_message_revenue_button(tr::now)
+			: tr::lng_factcheck_whats_this(tr::now);
+		hint->size = QSize(
+			font->width(hint->text) + font->height,
 			font->height);
-		maxWidth += _sponsoredData->hintSize.width();
+		maxWidth += hint->size.width();
 	}
 	return { maxWidth, minHeight };
 }
@@ -539,9 +620,23 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	const auto innerWidth = newWidth - rect::m::sum::h(padding);
 	auto newHeight = 0;
 
-	const auto specialRightPix = (_sponsoredData || _stickerSet);
+	const auto stickerSet = stickerSetData();
+	const auto factcheck = factcheckData();
+	const auto specialRightPix = (sponsoredData() || stickerSet);
 	const auto lineHeight = UnitedLineHeight();
-	const auto linesMax = (specialRightPix || isLogEntryOriginal())
+	const auto factcheckMetrics = factcheck
+		? computeFactcheckMetrics(_description.countHeight(innerWidth))
+		: FactcheckMetrics();
+	if (factcheck) {
+		factcheck->expandable = factcheckMetrics.expandable ? 1 : 0;
+		factcheck->expanded = factcheckMetrics.expanded ? 1 : 0;
+		_openl = factcheck->expandable
+			? ToggleFactcheckClickHandler(_parent)
+			: nullptr;
+	}
+	const auto linesMax = factcheck
+		? (factcheckMetrics.lines + 1)
+		: (specialRightPix || isLogEntryOriginal())
 		? kMaxOriginalEntryLines
 		: 5;
 	const auto siteNameHeight = _siteNameLines ? lineHeight : 0;
@@ -550,7 +645,7 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	if (asArticle() || specialRightPix) {
 		constexpr auto kSponsoredUserpicLines = 2;
 		_pixh = lineHeight
-			* (_stickerSet
+			* (stickerSet
 				? kStickerSetLines
 				: specialRightPix
 				? kSponsoredUserpicLines
@@ -618,6 +713,11 @@ QSize WebPage::countCurrentSize(int newWidth) {
 				newHeight += _descriptionLines * lineHeight;
 			}
 		}
+		if (factcheck && factcheck->expanded) {
+			factcheck->footerHeight = st::factcheckFooterSkip
+				+ factcheck->footer.countHeight(innerWidth);
+			newHeight += factcheck->footerHeight;
+		}
 
 		if (_attach) {
 			const auto attachAtTop = !_siteNameLines
@@ -673,8 +773,14 @@ void WebPage::ensurePhotoMediaCreated() const {
 }
 
 bool WebPage::hasHeavyPart() const {
+	if (const auto stickerSet = stickerSetData()) {
+		for (const auto &part : stickerSet->views) {
+			if (part->hasHeavyPart()) {
+				return true;
+			}
+		}
+	}
 	return _photoMedia
-		|| (_stickerSet)
 		|| (_attach ? _attach->hasHeavyPart() : false);
 }
 
@@ -684,6 +790,11 @@ void WebPage::unloadHeavyPart() {
 	}
 	_description.unloadPersistentAnimation();
 	_photoMedia = nullptr;
+	if (const auto stickerSet = stickerSetData()) {
+		for (const auto &part : stickerSet->views) {
+			part->unloadHeavyPart();
+		}
+	}
 }
 
 void WebPage::draw(Painter &p, const PaintContext &context) const {
@@ -704,22 +815,26 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	auto tshift = inner.top();
 	auto paintw = inner.width();
 
-	const auto asSponsored = (!!_sponsoredData);
+	const auto sponsored = sponsoredData();
+	const auto factcheck = factcheckData();
 
 	const auto selected = context.selected();
 	const auto view = parent();
 	const auto from = view->data()->contentColorsFrom();
-	const auto colorIndex = (asSponsored && _sponsoredData->colorIndex)
-		? _sponsoredData->colorIndex
+	const auto colorIndex = factcheck
+		? 0 // red
+		: (sponsored && sponsored->colorIndex)
+		? sponsored->colorIndex
 		: from
 		? from->colorIndex()
 		: view->colorIndex();
 	const auto cache = context.outbg
 		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
 		: st->coloredReplyCache(selected, colorIndex).get();
-	const auto backgroundEmojiId = (asSponsored
-			&& _sponsoredData->backgroundEmojiId)
-		? _sponsoredData->backgroundEmojiId
+	const auto backgroundEmojiId = factcheck
+		? DocumentId()
+		: (sponsored && sponsored->backgroundEmojiId)
+		? sponsored->backgroundEmojiId
 		: from
 		? from->backgroundEmojiId()
 		: DocumentId();
@@ -745,6 +860,16 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		if (!backgroundEmojiCache->frames[0].isNull()) {
 			FillBackgroundEmoji(p, outer, false, *backgroundEmojiCache);
 		}
+	} else if (factcheck && factcheck->expandable) {
+		const auto &icon = factcheck->expanded ? _st.collapse : _st.expand;
+		const auto &position = factcheck->expanded
+			? _st.collapsePosition
+			: _st.expandPosition;
+		icon.paint(
+			p,
+			outer.x() + outer.width() - icon.width() - position.x(),
+			outer.y() + outer.height() - icon.height() - position.y(),
+			width());
 	}
 
 	if (_ripple) {
@@ -755,8 +880,8 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	auto lineHeight = UnitedLineHeight();
-	if (_stickerSet) {
-		const auto viewsCount = _stickerSet->views.size();
+	if (const auto stickerSet = stickerSetData()) {
+		const auto viewsCount = stickerSet->views.size();
 		const auto box = _pixh;
 		const auto topLeft = QPoint(inner.left() + paintw - box, tshift);
 		const auto side = std::ceil(std::sqrt(viewsCount));
@@ -767,7 +892,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				if (viewsCount <= index) {
 					break;
 				}
-				const auto &view = _stickerSet->views[index];
+				const auto &view = stickerSet->views[index];
 				const auto size = view->countOptimalSize();
 				const auto offsetX = (single - size.width()) / 2.;
 				const auto offsetY = (single - size.height()) / 2.;
@@ -822,7 +947,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				st->msgSelectOverlay(),
 				st->msgSelectOverlayCorners(Ui::CachedCornerRadius::Small));
 		}
-		if (!asSponsored) {
+		if (!sponsored) {
 			// Ignore photo width in sponsored messages,
 			// as its width only affects the title.
 			paintw -= pw + st::webPagePhotoDelta;
@@ -850,35 +975,31 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			endskip,
 			false,
 			context.selection);
-		if (asSponsored
-			&& _sponsoredData->canReport
-			&& (paintw >
-					_sponsoredData->widthBeforeHint
-						+ _sponsoredData->hintSize.width())) {
-			if (_sponsoredData->hintRipple) {
-				_sponsoredData->hintRipple->paint(
-					p,
-					_sponsoredData->lastHintPos.x(),
-					_sponsoredData->lastHintPos.y(),
-					width(),
-					&cache->bg);
-				if (_sponsoredData->hintRipple->empty()) {
-					_sponsoredData->hintRipple = nullptr;
-				}
-			}
-
+		const auto hint = hintData();
+		if (hint && (paintw > hint->widthBefore + hint->size.width())) {
 			auto color = cache->icon;
 			color.setAlphaF(color.alphaF() * 0.15);
 
 			const auto height = st::webPageSponsoredHintFont->height;
 			const auto radius = height / 2;
 
-			_sponsoredData->lastHintPos = QPointF(
-				radius + inner.left() + _sponsoredData->widthBeforeHint,
+			hint->lastPosition = QPointF(
+				radius + inner.left() + hint->widthBefore,
 				tshift + (_siteName.style()->font->height - height) / 2.);
-			const auto rect = QRectF(
-				_sponsoredData->lastHintPos,
-				_sponsoredData->hintSize);
+
+			if (hint->ripple) {
+				hint->ripple->paint(
+					p,
+					hint->lastPosition.x(),
+					hint->lastPosition.y(),
+					width(),
+					&cache->bg);
+				if (hint->ripple->empty()) {
+					hint->ripple = nullptr;
+				}
+			}
+
+			const auto rect = QRectF(hint->lastPosition, hint->size);
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
 			p.setBrush(color);
@@ -887,10 +1008,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			p.setPen(cache->icon);
 			p.setBrush(Qt::NoBrush);
 			p.setFont(st::webPageSponsoredHintFont);
-			p.drawText(
-				rect,
-				tr::lng_sponsored_message_revenue_button(tr::now),
-				style::al_center);
+			p.drawText(rect, hint->text, style::al_center);
 		}
 		tshift += lineHeight;
 
@@ -901,7 +1019,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		const auto endskip = _title.hasSkipBlock()
 			? _parent->skipBlockWidth()
 			: 0;
-		const auto titleWidth = asSponsored
+		const auto titleWidth = sponsored
 			? (paintw - _pixh - st::webPagePhotoDelta)
 			: paintw;
 		_title.drawLeftElided(
@@ -941,6 +1059,23 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		tshift += (_descriptionLines > 0)
 			? (_descriptionLines * lineHeight)
 			: _description.countHeight(paintw);
+	}
+	if (factcheck && factcheck->expanded) {
+		const auto skip = st::factcheckFooterSkip;
+		const auto line = st::lineWidth;
+		const auto separatorTop = tshift + skip / 2;
+
+		auto color = cache->icon;
+		color.setAlphaF(color.alphaF() * 0.3);
+		p.fillRect(inner.left(), separatorTop, paintw, line, color);
+
+		p.setPen(cache->icon);
+		factcheck->footer.draw(p, {
+			.position = { inner.left(), tshift + skip },
+			.outerWidth = width(),
+			.availableWidth = paintw,
+		});
+		tshift += factcheck->footerHeight;
 	}
 	if (_attach) {
 		const auto attachAtTop = !_siteNameLines
@@ -1051,16 +1186,38 @@ bool WebPage::asArticle() const {
 	return _asArticle && (_data->photo != nullptr);
 }
 
+WebPage::StickerSetData *WebPage::stickerSetData() const {
+	return std::get_if<StickerSetData>(_additionalData.get());
+}
+
+WebPage::SponsoredData *WebPage::sponsoredData() const {
+	return std::get_if<SponsoredData>(_additionalData.get());
+}
+
+WebPage::FactcheckData *WebPage::factcheckData() const {
+	return std::get_if<FactcheckData>(_additionalData.get());
+}
+
+WebPage::HintData *WebPage::hintData() const {
+	if (const auto sponsored = sponsoredData()) {
+		return sponsored->hint.link ? &sponsored->hint : nullptr;
+	} else if (const auto factcheck = factcheckData()) {
+		return factcheck->hint.link ? &factcheck->hint : nullptr;
+	}
+	return nullptr;
+}
+
 TextState WebPage::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 
 	if (width() < rect::m::sum::h(st::msgPadding) + 1) {
 		return result;
 	}
+	const auto sponsored = sponsoredData();
 	const auto bubble = _attach ? _attach->bubbleMargins() : QMargins();
 	const auto full = Rect(currentSize());
 	auto outer = full - inBubblePadding();
-	if (_sponsoredData) {
+	if (sponsored) {
 		outer.translate(0, st::msgDateFont->height);
 	}
 	const auto inner = outer - innerMargin();
@@ -1175,16 +1332,15 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			}
 		}
 	}
-	if ((!result.link || _sponsoredData) && outer.contains(point)) {
+	if ((!result.link || sponsored) && outer.contains(point)) {
 		result.link = _openl;
 	}
-	if (_sponsoredData && _sponsoredData->canReport) {
-		const auto contains = QRectF(
-			_sponsoredData->lastHintPos,
-			_sponsoredData->hintSize).contains(point
-				- QPoint(0, st::msgDateFont->height));
-		if (contains) {
-			result.link = _sponsoredData->hintLink;
+	if (const auto hint = hintData()) {
+		const auto check = point
+			- QPoint(0, sponsored ? st::msgDateFont->height : 0);
+		const auto hintRect = QRectF(hint->lastPosition, hint->size);
+		if (hintRect.contains(check)) {
+			result.link = hint->link;
 		}
 	}
 	_lastPoint = point - outer.topLeft();
@@ -1256,25 +1412,25 @@ void WebPage::clickHandlerActiveChanged(
 void WebPage::clickHandlerPressedChanged(
 		const ClickHandlerPtr &p,
 		bool pressed) {
-	if (_sponsoredData && _sponsoredData->hintLink == p) {
+	const auto hint = hintData();
+	if (hint && hint->link == p) {
 		if (pressed) {
-			if (!_sponsoredData->hintRipple) {
+			if (!hint->ripple) {
 				const auto owner = &parent()->history()->owner();
-				auto ripple = std::make_unique<Ui::RippleAnimation>(
+				hint->ripple = std::make_unique<Ui::RippleAnimation>(
 					st::defaultRippleAnimation,
 					Ui::RippleAnimation::RoundRectMask(
-						_sponsoredData->hintSize,
+						hint->size,
 						_st.radius),
 					[=] { owner->requestViewRepaint(parent()); });
-				_sponsoredData->hintRipple = std::move(ripple);
 			}
 			const auto full = Rect(currentSize());
 			const auto outer = full - inBubblePadding();
-			_sponsoredData->hintRipple->add(_lastPoint
+			hint->ripple->add(_lastPoint
 				+ outer.topLeft()
-				- _sponsoredData->lastHintPos.toPoint());
-		} else if (_sponsoredData->hintRipple) {
-			_sponsoredData->hintRipple->lastStop();
+				- hint->lastPosition.toPoint());
+		} else if (hint->ripple) {
+			hint->ripple->lastStop();
 		}
 		return;
 	}
@@ -1385,6 +1541,22 @@ QMargins WebPage::innerMargin() const {
 
 bool WebPage::isLogEntryOriginal() const {
 	return _parent->data()->isAdminLogEntry() && _parent->media() != this;
+}
+
+WebPage::FactcheckMetrics WebPage::computeFactcheckMetrics(
+		int fullHeight) const {
+	const auto possible = fullHeight / st::normalFont->height;
+	//const auto expandable = (possible > kFactcheckCollapsedLines + 1);
+	// Now always expandable because of the footer.
+	const auto expandable = true;
+	const auto check = _parent->Get<Factcheck>();
+	const auto expanded = check && check->expanded;
+	const auto allowExpanding = (expanded || !expandable);
+	return {
+		.lines = allowExpanding ? possible : kFactcheckCollapsedLines,
+		.expandable = expandable,
+		.expanded = expanded,
+	};
 }
 
 int WebPage::bottomInfoPadding() const {

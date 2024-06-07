@@ -170,7 +170,11 @@ public:
 		not_null<const Element*> view,
 		Element *replacing);
 	void elementCancelPremium(not_null<const Element*> view);
+	void elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing);
 
+	void startEffectOnRead(not_null<HistoryItem*> item);
 	void updateBotInfo(bool recount = true);
 
 	bool wasSelectedText() const;

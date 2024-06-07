@@ -30,6 +30,10 @@ namespace Main {
 class Account;
 } // namespace Main
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 class ProxiesBoxController {
 public:
 	using ProxyData = MTP::ProxyData;
@@ -38,6 +42,7 @@ public:
 	explicit ProxiesBoxController(not_null<Main::Account*> account);
 
 	static void ShowApplyConfirmation(
+		Window::SessionController *controller,
 		Type type,
 		const QMap<QString, QString> &fields);
 
@@ -77,6 +82,9 @@ public:
 	void setTryIPv6(bool enabled);
 	rpl::producer<ProxyData::Settings> proxySettingsValue() const;
 
+	[[nodiscard]] bool contains(const ProxyData &proxy) const;
+	void addNewItem(const ProxyData &proxy);
+
 	rpl::producer<ItemView> views() const;
 
 	~ProxiesBoxController();
@@ -109,7 +117,6 @@ private:
 	void replaceItemValue(
 		std::vector<Item>::iterator which,
 		const ProxyData &proxy);
-	void addNewItem(const ProxyData &proxy);
 
 	const not_null<Main::Account*> _account;
 	Core::SettingsProxy &_settings;

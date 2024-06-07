@@ -82,6 +82,10 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<Data::ForumTopic*> topic);
+	TopicIconButton(
+		QWidget *parent,
+		not_null<Data::ForumTopic*> topic,
+		Fn<bool()> paused);
 
 private:
 	TopicIconView _view;

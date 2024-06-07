@@ -348,6 +348,9 @@ public:
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
 	virtual std::shared_ptr<Main::SessionShow> peerListUiShow() = 0;
 
+	virtual void peerListPressLeftToContextMenu(bool shown) = 0;
+	virtual bool peerListTrackRowPressFromGlobal(QPoint globalPosition) = 0;
+
 	template <typename PeerDataRange>
 	void peerListAddSelectedPeers(PeerDataRange &&range) {
 		for (const auto peer : range) {
@@ -476,6 +479,15 @@ public:
 		if (element == 1) {
 			rowRightActionClicked(row);
 		}
+	}
+
+	virtual bool rowTrackPress(not_null<PeerListRow*> row) {
+		return false;
+	}
+	virtual void rowTrackPressCancel() {
+	}
+	virtual bool rowTrackPressSkipMouseSelection() {
+		return false;
 	}
 
 	virtual void loadMoreRows() {
@@ -625,6 +637,9 @@ public:
 	void searchQueryChanged(QString query);
 	bool submitted();
 
+	PeerListRowId updateFromParentDrag(QPoint globalPosition);
+	void dragLeft();
+
 	// Interface for the controller.
 	void appendRow(std::unique_ptr<PeerListRow> row);
 	void appendSearchRow(std::unique_ptr<PeerListRow> row);
@@ -652,6 +667,8 @@ public:
 	void refreshRows();
 
 	void mouseLeftGeometry();
+	void pressLeftToContextMenu(bool shown);
+	bool trackRowPressFromGlobal(QPoint globalPosition);
 
 	void setSearchMode(PeerListSearchMode mode);
 	void changeCheckState(
@@ -826,6 +843,7 @@ private:
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
+	std::optional<QPoint> _trackPressStart;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 
@@ -988,6 +1006,13 @@ public:
 		not_null<PeerListRow*> row,
 		bool highlightRow,
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr) override;
+
+	void peerListPressLeftToContextMenu(bool shown) override {
+		_content->pressLeftToContextMenu(shown);
+	}
+	bool peerListTrackRowPressFromGlobal(QPoint globalPosition) override {
+		return _content->trackRowPressFromGlobal(globalPosition);
+	}
 
 protected:
 	not_null<PeerListContent*> content() const {

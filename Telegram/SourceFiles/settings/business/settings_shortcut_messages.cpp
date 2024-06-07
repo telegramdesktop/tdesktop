@@ -72,7 +72,7 @@ using namespace HistoryView;
 
 class ShortcutMessages
 	: public AbstractSection
-	, private ListDelegate
+	, private WindowListDelegate
 	, private CornerButtonsDelegate {
 public:
 	ShortcutMessages(
@@ -164,6 +164,7 @@ private:
 	History *listTranslateHistory() override;
 	void listAddTranslatedItems(
 		not_null<TranslateTracker*> tracker) override;
+	bool listIgnorePaintEvent(QWidget *w, QPaintEvent *e) override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(
@@ -238,9 +239,9 @@ private:
 	void edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
-		mtpRequestId *const saveEditMsgRequestId);
+		mtpRequestId *const saveEditMsgRequestId,
+		bool spoilered);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] FullReplyTo replyTo() const;
 	void doSetInnerFocus();
 	void showAtPosition(
@@ -329,6 +330,7 @@ ShortcutMessages::ShortcutMessages(
 	rpl::producer<Container> containerValue,
 	BusinessShortcutId shortcutId)
 : AbstractSection(parent)
+, WindowListDelegate(controller)
 , _controller(controller)
 , _session(&controller->session())
 , _scroll(scroll)
@@ -369,7 +371,7 @@ ShortcutMessages::ShortcutMessages(
 
 	_inner = Ui::CreateChild<ListWidget>(
 		this,
-		controller,
+		&controller->session(),
 		static_cast<ListDelegate*>(this));
 	_inner->overrideIsChatWide(false);
 
@@ -673,7 +675,8 @@ void ShortcutMessages::setupComposeControls() {
 	) | rpl::start_with_next([=](auto data) {
 		if (const auto item = _session->data().message(data.fullId)) {
 			if (item->isBusinessShortcut()) {
-				edit(item, data.options, saveEditMsgRequestId);
+				const auto spoiler = data.spoilered;
+				edit(item, data.options, saveEditMsgRequestId, spoiler);
 			}
 		}
 	}, lifetime());
@@ -788,7 +791,7 @@ QPointer<Ui::RpWidget> ShortcutMessages::createPinnedToBottom(
 				listShowPremiumToast(emoji);
 			},
 			.mode = HistoryView::ComposeControlsMode::Normal,
-			.sendMenuType = SendMenu::Type::Disabled,
+			.sendMenuDetails = [] { return SendMenu::Details(); },
 			.regularWindow = _controller,
 			.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
 			.customPlaceholder = std::move(placeholder),
@@ -1051,6 +1054,10 @@ void ShortcutMessages::listAddTranslatedItems(
 	not_null<TranslateTracker*> tracker) {
 }
 
+bool ShortcutMessages::listIgnorePaintEvent(QWidget *w, QPaintEvent *e) {
+	return false;
+}
+
 void ShortcutMessages::cornerButtonsShowAtPosition(
 		Data::MessagePosition position) {
 	showAtPosition(position);
@@ -1213,7 +1220,8 @@ void ShortcutMessages::send(Api::SendOptions options) {
 void ShortcutMessages::edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
-		mtpRequestId *const saveEditMsgRequestId) {
+		mtpRequestId *const saveEditMsgRequestId,
+		bool spoilered) {
 	if (*saveEditMsgRequestId) {
 		return;
 	}
@@ -1281,7 +1289,8 @@ void ShortcutMessages::edit(
 		webpage,
 		options,
 		crl::guard(this, done),
-		crl::guard(this, fail));
+		crl::guard(this, fail),
+		spoilered);
 
 	_composeControls->hidePanelsAnimated();
 	doSetInnerFocus();
@@ -1336,7 +1345,7 @@ bool ShortcutMessages::confirmSendingFiles(
 		_composeControls->getTextWithAppliedMarkdown(),
 		_history->peer,
 		Api::SendType::Normal,
-		SendMenu::Type::Disabled);
+		SendMenu::Details());
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
@@ -1533,12 +1542,6 @@ void ShortcutMessages::sendInlineResult(
 		return;
 	}
 	sendInlineResult(result, bot, {}, std::nullopt);
-	//const auto callback = [=](Api::SendOptions options) {
-	//	sendInlineResult(result, bot, options);
-	//};
-	//Ui::show(
-	//	PrepareScheduleBox(this, sendMenuType(), callback),
-	//	Ui::LayerOption::KeepOther);
 }
 
 void ShortcutMessages::sendInlineResult(

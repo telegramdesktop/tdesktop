@@ -87,7 +87,9 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			MTPMessageReactions(),
 			MTPVector<MTPRestrictionReason>(),
 			MTP_int(data.vttl_period().value_or_empty()),
-			MTP_int(shortcutId));
+			MTP_int(shortcutId),
+			MTP_long(data.veffect().value_or_empty()),
+			(data.vfactcheck() ? *data.vfactcheck() : MTPFactCheck()));
 	});
 }
 

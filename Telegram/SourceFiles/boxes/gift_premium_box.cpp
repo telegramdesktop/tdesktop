@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
+#include "data/data_credits.h"
 #include "data/data_media_types.h" // Data::GiveawayStart.
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
 #include "data/data_session.h"
@@ -1147,16 +1148,18 @@ void GiftCodeBox(
 		object_ptr<Ui::Premium::TopBar>(
 			box,
 			st::giveawayGiftCodeCover,
-			nullptr,
-			rpl::conditional(
-				state->used.value(),
-				tr::lng_gift_link_used_title(),
-				tr::lng_gift_link_title()),
-			rpl::conditional(
-				state->used.value(),
-				tr::lng_gift_link_used_about(Ui::Text::RichLangValue),
-				tr::lng_gift_link_about(Ui::Text::RichLangValue)),
-			true));
+			Ui::Premium::TopBarDescriptor{
+				.clickContextOther = nullptr,
+				.title = rpl::conditional(
+					state->used.value(),
+					tr::lng_gift_link_used_title(),
+					tr::lng_gift_link_title()),
+				.about = rpl::conditional(
+					state->used.value(),
+					tr::lng_gift_link_used_about(Ui::Text::RichLangValue),
+					tr::lng_gift_link_about(Ui::Text::RichLangValue)),
+				.light = true,
+			}));
 
 	const auto max = st::giveawayGiftCodeTopHeight;
 	bar->setMaximumHeight(max);
@@ -1283,13 +1286,15 @@ void GiftCodePendingBox(
 			object_ptr<Ui::Premium::TopBar>(
 				box,
 				st,
-				clickContext,
-				tr::lng_gift_link_title(),
-				tr::lng_gift_link_pending_about(
-					lt_user,
-					rpl::single(Ui::Text::Link(resultToName)),
-					Ui::Text::RichLangValue),
-				true));
+				Ui::Premium::TopBarDescriptor{
+					.clickContextOther = clickContext,
+					.title = tr::lng_gift_link_title(),
+					.about = tr::lng_gift_link_pending_about(
+						lt_user,
+						rpl::single(Ui::Text::Link(resultToName)),
+						Ui::Text::RichLangValue),
+					.light = true,
+				}));
 
 		const auto max = st::giveawayGiftCodeTopHeight;
 		bar->setMaximumHeight(max);
@@ -1628,4 +1633,51 @@ void ResolveGiveawayInfo(
 		peer,
 		messageId,
 		crl::guard(controller, show));
+}
+
+void AddCreditsHistoryEntryTable(
+		not_null<Window::SessionNavigation*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		const Data::CreditsHistoryEntry &entry) {
+	auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	if (entry.bareId) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_peer(),
+			controller,
+			PeerId(entry.bareId));
+	}
+	if (!entry.id.isEmpty()) {
+		constexpr auto kOneLineCount = 18;
+		const auto oneLine = entry.id.length() <= kOneLineCount;
+		auto label = object_ptr<Ui::FlatLabel>(
+			table,
+			rpl::single(
+				Ui::Text::Wrapped({ entry.id }, EntityType::Code, {})),
+			oneLine
+				? st::giveawayGiftCodeValue
+				: st::giveawayGiftCodeValueMultiline);
+		label->setClickHandlerFilter([=](const auto &...) {
+			TextUtilities::SetClipboardText(
+				TextForMimeData::Simple(entry.id));
+			controller->showToast(
+				tr::lng_credits_box_history_entry_id_copied(tr::now));
+			return false;
+		});
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_id(),
+			std::move(label),
+			st::giveawayGiftCodeValueMargin);
+	}
+	if (!entry.date.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_date(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
+	}
 }

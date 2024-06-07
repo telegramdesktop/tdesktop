@@ -168,7 +168,7 @@ void SearchTags::fill(
 			.selected = ranges::contains(selected, id),
 		});
 		if (!customId) {
-			_owner->reactions().preloadImageFor(id);
+			_owner->reactions().preloadReactionImageFor(id);
 		}
 	};
 	if (!premium) {
@@ -335,9 +335,7 @@ void SearchTags::paint(
 		paintBackground(p, geometry, tag);
 		paintText(p, geometry, tag);
 		if (!tag.custom && !tag.promo && tag.image.isNull()) {
-			tag.image = _owner->reactions().resolveImageFor(
-				tag.id,
-				::Data::Reactions::ImageSize::InlineList);
+			tag.image = _owner->reactions().resolveReactionImageFor(tag.id);
 		}
 		const auto inner = geometry.marginsRemoved(padding);
 		const auto image = QRect(

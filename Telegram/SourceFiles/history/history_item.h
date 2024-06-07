@@ -23,9 +23,11 @@ struct HistoryMessageReplyMarkup;
 struct HistoryMessageTranslation;
 struct HistoryMessageForwarded;
 struct HistoryMessageSavedMediaData;
+struct HistoryMessageFactcheck;
 struct HistoryServiceDependentData;
 enum class HistorySelfDestructType;
 struct PreparedServiceText;
+struct MessageFactcheck;
 class ReplyKeyboard;
 struct LanguageId;
 
@@ -101,6 +103,7 @@ struct HistoryItemCommonFields {
 	UserId viaBotId = 0;
 	QString postAuthor;
 	uint64 groupedId = 0;
+	EffectId effectId = 0;
 	HistoryMessageMarkupData markup;
 };
 
@@ -203,6 +206,9 @@ public:
 		WebPageId localId,
 		const QString &label,
 		const TextWithEntities &content);
+	void setFactcheck(MessageFactcheck info);
+	[[nodiscard]] bool hasUnrequestedFactcheck() const;
+	[[nodiscard]] TextWithEntities factcheckText() const;
 
 	[[nodiscard]] not_null<Data::Thread*> notificationThread() const;
 	[[nodiscard]] not_null<History*> history() const {
@@ -240,6 +246,8 @@ public:
 	[[nodiscard]] bool mentionsMe() const;
 	[[nodiscard]] bool isUnreadMention() const;
 	[[nodiscard]] bool hasUnreadReaction() const;
+	[[nodiscard]] bool hasUnwatchedEffect() const;
+	bool markEffectWatched();
 	[[nodiscard]] bool isUnreadMedia() const;
 	[[nodiscard]] bool isIncomingUnreadMedia() const;
 	[[nodiscard]] bool hasUnreadMediaFlag() const;
@@ -359,6 +367,7 @@ public:
 
 	void indexAsNewItem();
 	void addToSharedMediaIndex();
+	void addToMessagesIndex();
 	void removeFromSharedMediaIndex();
 
 	struct NotificationTextOptions {
@@ -396,6 +405,7 @@ public:
 	void setPostAuthor(const QString &author);
 	void setRealId(MsgId newId);
 	void incrementReplyToTopCounter();
+	void applyEffectWatchedOnUnreadKnown();
 
 	[[nodiscard]] bool emptyText() const {
 		return _text.empty();
@@ -492,8 +502,8 @@ public:
 		not_null<const HistoryMessageForwarded*> forwarded) const;
 
 	[[nodiscard]] bool isEmpty() const;
-
 	[[nodiscard]] MessageGroupId groupId() const;
+	[[nodiscard]] EffectId effectId() const;
 
 	[[nodiscard]] const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
 		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();
@@ -543,6 +553,7 @@ private:
 	void createComponentsHelper(HistoryItemCommonFields &&fields);
 	void createComponents(CreateConfig &&config);
 	void setupForwardedComponent(const CreateConfig &config);
+	void applyInitialEffectWatched();
 
 	[[nodiscard]] bool generateLocalEntitiesByReply() const;
 	[[nodiscard]] TextWithEntities withLocalEntities(
@@ -646,8 +657,9 @@ private:
 	int _boostsApplied = 0;
 	BusinessShortcutId _shortcutId = 0;
 
-	HistoryView::Element *_mainView = nullptr;
 	MessageGroupId _groupId = MessageGroupId();
+	EffectId _effectId = 0;
+	HistoryView::Element *_mainView = nullptr;
 
 	friend class HistoryView::Element;
 	friend class HistoryView::Message;

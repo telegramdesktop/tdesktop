@@ -31,6 +31,10 @@ public:
 		not_null<Data::Invoice*> invoice);
 	~ExtendedPreview();
 
+	bool hideMessageText() const override {
+		return false;
+	}
+
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
@@ -39,37 +43,18 @@ public:
 	[[nodiscard]] bool dragItemByHandler(
 		const ClickHandlerPtr &p) const override;
 
-	[[nodiscard]] TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const override {
-		return _caption.adjustSelection(selection, type);
-	}
-	uint16 fullSelectionLength() const override {
-		return _caption.length();
-	}
-	bool hasTextForCopy() const override {
-		return !_caption.isEmpty();
-	}
-
-	TextForMimeData selectedText(TextSelection selection) const override;
-
-	TextWithEntities getCaption() const override {
-		return _caption.toTextWithEntities();
-	}
-	void hideSpoilers() override;
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
-		return _caption.isEmpty();
+		return true;
 	}
 	QPoint resolveCustomInfoRightBottom() const override;
 	bool skipBubbleTail() const override {
-		return isRoundedInBubbleBottom() && _caption.isEmpty();
+		return isRoundedInBubbleBottom();
 	}
-
-	void parentTextUpdated() override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
+	bool enforceBubbleWidth() const override;
 
 private:
 	int minWidthForButton() const;
@@ -90,7 +75,6 @@ private:
 		const PaintContext &context) const;
 
 	const not_null<Data::Invoice*> _invoice;
-	Ui::Text::String _caption;
 	mutable MediaSpoiler _spoiler;
 	mutable QImage _inlineThumbnail;
 	mutable QImage _buttonBackground;

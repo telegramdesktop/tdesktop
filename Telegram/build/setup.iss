@@ -34,6 +34,7 @@ CloseApplications=force
 DisableDirPage=no
 DisableProgramGroupPage=no
 WizardStyle=modern
+SignTool=sha256
 
 #if MyBuildTarget == "win64"
   ArchitecturesAllowed="x64 arm64"

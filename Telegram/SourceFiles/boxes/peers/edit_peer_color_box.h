@@ -48,7 +48,8 @@ void EditPeerColorBox(
 void AddPeerColorButton(
 	not_null<Ui::VerticalLayout*> container,
 	std::shared_ptr<ChatHelpers::Show> show,
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	const style::SettingsButton &st);
 
 void CheckBoostLevel(
 	std::shared_ptr<ChatHelpers::Show> show,

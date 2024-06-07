@@ -37,8 +37,11 @@ namespace Payments {
 class Form;
 struct FormUpdate;
 struct Error;
+struct InvoiceCredits;
 struct InvoiceId;
 struct InvoicePremiumGiftCode;
+struct CreditsFormData;
+struct CreditsReceiptData;
 
 enum class Mode {
 	Payment,
@@ -50,6 +53,12 @@ enum class CheckoutResult {
 	Pending,
 	Cancelled,
 	Failed,
+};
+
+struct NonPanelPaymentForm : std::variant<
+	std::shared_ptr<CreditsFormData>,
+	std::shared_ptr<CreditsReceiptData>> {
+	using variant::variant;
 };
 
 struct PaidInvoice {
@@ -65,13 +74,18 @@ public:
 	static void Start(
 		not_null<const HistoryItem*> item,
 		Mode mode,
-		Fn<void(CheckoutResult)> reactivate);
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess);
 	static void Start(
 		not_null<Main::Session*> session,
 		const QString &slug,
-		Fn<void(CheckoutResult)> reactivate);
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess);
 	static void Start(
 		InvoicePremiumGiftCode giftCodeInvoice,
+		Fn<void(CheckoutResult)> reactivate);
+	static void Start(
+		InvoiceCredits creditsInvoice,
 		Fn<void(CheckoutResult)> reactivate);
 	[[nodiscard]] static std::optional<PaidInvoice> InvoicePaid(
 		not_null<const HistoryItem*> item);
@@ -84,6 +98,7 @@ public:
 		InvoiceId id,
 		Mode mode,
 		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess,
 		PrivateTag);
 	~CheckoutProcess();
 
@@ -102,6 +117,7 @@ private:
 	static void UnregisterPaymentStart(not_null<CheckoutProcess*> process);
 
 	void setReactivateCallback(Fn<void(CheckoutResult)> reactivate);
+	void setNonPanelPaymentFormProcess(Fn<void(NonPanelPaymentForm)>);
 	void requestActivate();
 	void closeAndReactivate(CheckoutResult result);
 	void close();
@@ -164,6 +180,7 @@ private:
 	const std::unique_ptr<Ui::Panel> _panel;
 	QPointer<PasscodeBox> _enterPasswordBox;
 	Fn<void(CheckoutResult)> _reactivate;
+	Fn<void(NonPanelPaymentForm)> _nonPanelPaymentFormProcess;
 	SubmitState _submitState = SubmitState::None;
 	bool _initialSilentValidation = false;
 	bool _sendFormPending = false;

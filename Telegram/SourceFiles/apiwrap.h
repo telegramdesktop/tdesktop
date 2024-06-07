@@ -274,6 +274,10 @@ public:
 		Fn<void(not_null<PeerData*>, MsgId)> callback);
 
 	using SliceType = Data::LoadDirection;
+	void requestHistory(
+		not_null<History*> history,
+		MsgId messageId,
+		SliceType slice);
 	void requestSharedMedia(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
@@ -511,7 +515,8 @@ private:
 		not_null<PeerData*> peer,
 		bool justClear,
 		bool revoke);
-	void applyAffectedMessages(const MTPmessages_AffectedMessages &result) const;
+	void applyAffectedMessages(
+		const MTPmessages_AffectedMessages &result) const;
 
 	void deleteAllFromParticipantSend(
 		not_null<ChannelData*> channel,
@@ -644,6 +649,17 @@ private:
 			const SharedMediaRequest&) = default;
 	};
 	base::flat_set<SharedMediaRequest> _sharedMediaRequests;
+
+	struct HistoryRequest {
+		not_null<PeerData*> peer;
+		MsgId aroundId = 0;
+		SliceType sliceType = {};
+
+		friend inline auto operator<=>(
+			const HistoryRequest&,
+			const HistoryRequest&) = default;
+	};
+	base::flat_set<HistoryRequest> _historyRequests;
 
 	std::unique_ptr<DialogsLoadState> _dialogsLoadState;
 	TimeId _dialogsLoadTill = 0;

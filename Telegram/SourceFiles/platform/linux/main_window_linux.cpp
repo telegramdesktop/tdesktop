@@ -448,7 +448,7 @@ void MainWindow::updateGlobalMenuHook() {
 	auto canSelectAll = false;
 	const auto mimeData = QGuiApplication::clipboard()->mimeData();
 	const auto clipboardHasText = mimeData ? mimeData->hasText() : false;
-	auto markdownEnabled = false;
+	auto markdownState = Ui::MarkdownEnabledState();
 	if (const auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
 		canSelectAll = !edit->text().isEmpty();
@@ -464,7 +464,7 @@ void MainWindow::updateGlobalMenuHook() {
 		if (canCopy) {
 			if (const auto inputField = dynamic_cast<Ui::InputField*>(
 				focused->parentWidget())) {
-				markdownEnabled = inputField->isMarkdownEnabled();
+				markdownState = inputField->markdownEnabledState();
 			}
 		}
 	} else if (const auto list = dynamic_cast<HistoryInner*>(focused)) {
@@ -489,13 +489,19 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psNewGroup, inactive || support);
 	ForceDisabled(psNewChannel, inactive || support);
 
-	ForceDisabled(psBold, !markdownEnabled);
-	ForceDisabled(psItalic, !markdownEnabled);
-	ForceDisabled(psUnderline, !markdownEnabled);
-	ForceDisabled(psStrikeOut, !markdownEnabled);
-	ForceDisabled(psBlockquote, !markdownEnabled);
-	ForceDisabled(psMonospace, !markdownEnabled);
-	ForceDisabled(psClearFormat, !markdownEnabled);
+	const auto diabled = [=](const QString &tag) {
+		return !markdownState.enabledForTag(tag);
+	};
+	using Field = Ui::InputField;
+	ForceDisabled(psBold, diabled(Field::kTagBold));
+	ForceDisabled(psItalic, diabled(Field::kTagItalic));
+	ForceDisabled(psUnderline, diabled(Field::kTagUnderline));
+	ForceDisabled(psStrikeOut, diabled(Field::kTagStrikeOut));
+	ForceDisabled(psBlockquote, diabled(Field::kTagBlockquote));
+	ForceDisabled(
+		psMonospace,
+		diabled(Field::kTagPre) || diabled(Field::kTagCode));
+	ForceDisabled(psClearFormat, markdownState.disabled());
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {

@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/data_session.h"
-#include "history/view/history_view_context_menu.h" // AddLengthLimitLabel.
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
@@ -214,7 +213,7 @@ void EditShortcutNameBox(
 	field->selectAll();
 	field->setMaxLength(kShortcutLimit * 2);
 
-	HistoryView::AddLengthLimitLabel(field, kShortcutLimit);
+	Ui::AddLengthLimitLabel(field, kShortcutLimit);
 
 	const auto callback = [=] {
 		const auto name = field->getLastText().trimmed();

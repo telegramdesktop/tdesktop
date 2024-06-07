@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_dice_pack.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
+#include "history/view/reactions/history_view_reactions_strip.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "inline_bots/bot_attach_web_view.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/storage_account.h"
 #include "storage/storage_facade.h"
+#include "data/components/factchecks.h"
 #include "data/components/recent_peers.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
@@ -104,6 +106,8 @@ Session::Session(
 , _scheduledMessages(std::make_unique<Data::ScheduledMessages>(this))
 , _sponsoredMessages(std::make_unique<Data::SponsoredMessages>(this))
 , _topPeers(std::make_unique<Data::TopPeers>(this))
+, _factchecks(std::make_unique<Data::Factchecks>(this))
+, _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
 , _supportHelper(Support::Helper::Create(this))
 , _saveSettingsTimer([=] { saveSettings(); }) {
 	Expects(_settings != nullptr);
@@ -276,6 +280,14 @@ rpl::producer<bool> Session::premiumPossibleValue() const {
 
 bool Session::premiumCanBuy() const {
 	return _premiumPossible.current();
+}
+
+rpl::producer<uint64> Session::creditsValue() const {
+	return _credits.value();
+}
+
+void Session::setCredits(uint64 credits) {
+	_credits = credits;
 }
 
 bool Session::isTestMode() const {

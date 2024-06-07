@@ -211,7 +211,7 @@ void TopicIconView::setupImage(not_null<Data::ForumTopic*> topic) {
 		) | rpl::start_with_next([=] {
 			_image = ForumTopicGeneralIconFrame(
 				st::infoForumTopicIcon.size,
-				_generalIconFg);
+				_generalIconFg->c);
 			_update();
 		}, _lifetime);
 		return;
@@ -231,12 +231,17 @@ TopicIconButton::TopicIconButton(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	not_null<Data::ForumTopic*> topic)
+: TopicIconButton(parent, topic, [=] {
+	return controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
+}) {
+}
+
+TopicIconButton::TopicIconButton(
+	QWidget *parent,
+	not_null<Data::ForumTopic*> topic,
+	Fn<bool()> paused)
 : AbstractButton(parent)
-, _view(
-		topic,
-		[=] { return controller->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Layer); },
-		[=] { update(); }) {
+, _view(topic, paused, [=] { update(); }) {
 	resize(st::infoTopicCover.photo.size);
 	paintRequest(
 	) | rpl::start_with_next([=] {

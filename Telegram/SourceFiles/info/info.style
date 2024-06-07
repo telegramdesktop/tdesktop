@@ -665,6 +665,10 @@ manageGroupTopicsButton: SettingsCountButton(manageGroupTopButtonWithText) {
 		}
 	}
 }
+managePeerColorsButton: SettingsButton(infoProfileButton) {
+	padding: margins(60px, 10px, 48px, 8px);
+}
+
 manageGroupNoIconButtonInner: SettingsButton(infoProfileButton) {
 	padding: margins(25px, 11px, 24px, 8px);
 }

@@ -67,6 +67,7 @@ SublistWidget::SublistWidget(
 	not_null<Window::SessionController*> controller,
 	not_null<Data::SavedSublist*> sublist)
 : Window::SectionWidget(parent, controller, sublist->peer())
+, WindowListDelegate(controller)
 , _sublist(sublist)
 , _history(sublist->owner().history(sublist->session().user()))
 , _topBar(this, controller)
@@ -133,7 +134,7 @@ SublistWidget::SublistWidget(
 
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
-		controller,
+		&controller->session(),
 		static_cast<ListDelegate*>(this)));
 	_scroll->move(0, _topBar->height());
 	_scroll->show();

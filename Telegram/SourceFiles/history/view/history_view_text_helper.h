@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace arc {
+namespace HistoryView {
 
-constexpr auto kFullLength = 360 * 16;
-constexpr auto kQuarterLength = (kFullLength / 4);
-constexpr auto kHalfLength = (kFullLength / 2);
+class Element;
 
-} // namespace arc
+void InitElementTextPart(not_null<Element*> view, Ui::Text::String &text);
+
+} // namespace HistoryView

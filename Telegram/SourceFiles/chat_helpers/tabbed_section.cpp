@@ -28,6 +28,9 @@ TabbedSection::TabbedSection(
 	not_null<Window::SessionController*> controller)
 : Window::SectionWidget(parent, controller)
 , _selector(controller->tabbedSelector()) {
+	if (Ui::InFocusChain(_selector)) {
+		parent->window()->setFocus();
+	}
 	_selector->setParent(this);
 	_selector->setRoundRadius(0);
 	_selector->setGeometry(rect());

@@ -22,7 +22,13 @@ public:
 	~DiscreteSlider();
 
 	void addSection(const QString &label);
+	void addSection(
+		const TextWithEntities &label,
+		const std::any &context = {});
 	void setSections(const std::vector<QString> &labels);
+	void setSections(
+		const std::vector<TextWithEntities> &labels,
+		const std::any &context = {});
 	int activeSection() const {
 		return _activeIndex;
 	}
@@ -44,6 +50,10 @@ protected:
 
 	struct Section {
 		Section(const QString &label, const style::TextStyle &st);
+		Section(
+			const TextWithEntities &label,
+			const style::TextStyle &st,
+			const std::any &context);
 
 		int left = 0;
 		int width = 0;
@@ -75,6 +85,7 @@ protected:
 		_a_left.stop();
 		_a_width.stop();
 	}
+	void refresh();
 
 	void setSelectOnPress(bool selectOnPress);
 

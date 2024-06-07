@@ -291,7 +291,11 @@ void FrameGenerator::Impl::jumpToStart() {
 
 void FrameGenerator::Impl::resolveNextFrameTiming() {
 	const auto base = _format->streams[_streamId]->time_base;
+#if DA_FFMPEG_HAVE_DURATION
+	const auto duration = _next.frame->duration;
+#else
 	const auto duration = _next.frame->pkt_duration;
+#endif
 	const auto framePts = _next.frame->pts;
 	auto framePosition = (framePts * 1000LL * base.num) / base.den;
 	_currentFrameDelay = _nextFrameDelay;

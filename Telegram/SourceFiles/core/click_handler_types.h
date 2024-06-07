@@ -52,6 +52,8 @@ struct ClickHandlerContext {
 };
 Q_DECLARE_METATYPE(ClickHandlerContext);
 
+class PhoneClickHandler;
+
 class HiddenUrlClickHandler : public UrlClickHandler {
 public:
 	HiddenUrlClickHandler(QString url) : UrlClickHandler(url, false) {

@@ -16,6 +16,7 @@ set(style_files
     ui/filter_icons.style
     ui/menu_icons.style
     ui/chat/chat.style
+    ui/effects/credits.style
     ui/effects/premium.style
     boxes/boxes.style
     dialogs/dialogs.style
@@ -80,11 +81,16 @@ PRIVATE
     data/data_birthday.cpp
     data/data_birthday.h
     data/data_channel_earn.h
+    data/data_credits.h
     data/data_statistics_chart.cpp
     data/data_statistics_chart.h
     data/data_subscription_option.h
 
     dialogs/dialogs_three_state_icon.h
+    dialogs/ui/chat_search_empty.cpp
+    dialogs/ui/chat_search_empty.h
+    dialogs/ui/chat_search_in.cpp
+    dialogs/ui/chat_search_in.h
     dialogs/ui/dialogs_stories_list.cpp
     dialogs/ui/dialogs_stories_list.h
     dialogs/ui/top_peers_strip.cpp
@@ -255,6 +261,8 @@ PRIVATE
     ui/boxes/country_select_box.h
     ui/boxes/edit_birthday_box.cpp
     ui/boxes/edit_birthday_box.h
+    ui/boxes/edit_factcheck_box.cpp
+    ui/boxes/edit_factcheck_box.h
     ui/boxes/edit_invite_link.cpp
     ui/boxes/edit_invite_link.h
     ui/boxes/rate_call_box.cpp
@@ -396,7 +404,6 @@ PRIVATE
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
 
-    ui/arc_angles.h
     ui/cached_round_corners.cpp
     ui/cached_round_corners.h
     ui/color_contrast.cpp

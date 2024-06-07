@@ -112,6 +112,9 @@ struct PreparedList {
 	void mergeToEnd(PreparedList &&other, bool cutToAlbumSize = false);
 
 	[[nodiscard]] bool canAddCaption(bool sendingAlbum, bool compress) const;
+	[[nodiscard]] bool canMoveCaption(
+		bool sendingAlbum,
+		bool compress) const;
 	[[nodiscard]] bool canBeSentInSlowmode() const;
 	[[nodiscard]] bool canBeSentInSlowmodeWith(
 		const PreparedList &other) const;
@@ -120,6 +123,7 @@ struct PreparedList {
 	[[nodiscard]] bool hasSendImagesAsPhotosOption(bool slowmode) const;
 	[[nodiscard]] bool canHaveEditorHintLabel() const;
 	[[nodiscard]] bool hasSticker() const;
+	[[nodiscard]] bool hasSpoilerMenu(bool compress) const;
 
 	Error error = Error::None;
 	QString errorData;

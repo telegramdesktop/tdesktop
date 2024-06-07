@@ -53,7 +53,7 @@ public:
 		QRect inner,
 		int size,
 		Fn<void()> update,
-		IconFactory iconFactory);
+		IconFactory iconFactory = nullptr);
 
 	enum class AddedButton : uchar {
 		None,
@@ -170,6 +170,10 @@ private:
 };
 
 [[nodiscard]] std::shared_ptr<Ui::AnimatedIcon> DefaultIconFactory(
+	not_null<Data::DocumentMedia*> media,
+	int size);
+
+[[nodiscard]] std::shared_ptr<Ui::AnimatedIcon> DefaultCachingIconFactory(
 	not_null<Data::DocumentMedia*> media,
 	int size);
 

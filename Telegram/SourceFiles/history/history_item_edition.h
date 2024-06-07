@@ -36,4 +36,5 @@ struct HistoryMessageEdition {
 	HistoryMessageRepliesData replies;
 	const MTPMessageMedia *mtpMedia = nullptr;
 	const MTPMessageReactions *mtpReactions = nullptr;
+	const MTPFactCheck *mtpFactcheck = nullptr;
 };

@@ -116,7 +116,6 @@ void InitTextOptions() {
 		- st::messageQuoteStyle.padding.left()
 		- st::messageQuoteStyle.padding.right()
 		- st::msgPadding.right();
-	WebpageDescriptionOptions.maxh = st::webPageDescriptionFont->height * 3;
 }
 
 const TextParseOptions &ItemTextDefaultOptions() {

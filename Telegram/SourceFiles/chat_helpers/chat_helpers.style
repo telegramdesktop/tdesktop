@@ -69,6 +69,8 @@ ComposeIcons {
 	menuWhenOnline: icon;
 	menuSpoiler: icon;
 	menuSpoilerOff: icon;
+	menuBelow: icon;
+	menuAbove: icon;
 
 	stripBubble: icon;
 	stripExpandPanel: icon;
@@ -489,6 +491,7 @@ hashtagClose: IconButton {
 
 stickerPanWidthMin: 64px;
 stickerPanSize: size(stickerPanWidthMin, stickerPanWidthMin);
+stickerEffectWidthMin: 48px;
 stickerPanPadding: 11px;
 stickerPanDeleteIconBg: icon {{ "emoji/emoji_delete_bg", stickerPanDeleteBg }};
 stickerPanDeleteIconFg: icon {{ "emoji/emoji_delete", stickerPanDeleteFg }};
@@ -605,6 +608,8 @@ defaultComposeIcons: ComposeIcons {
 	menuWhenOnline: menuIconWhenOnline;
 	menuSpoiler: menuIconSpoiler;
 	menuSpoilerOff: menuIconSpoilerOff;
+	menuBelow: menuIconBelow;
+	menuAbove: menuIconAbove;
 
 	stripBubble: icon{
 		{ "chat/reactions_bubble_shadow", windowShadowFg },
@@ -669,7 +674,7 @@ defaultEmojiPan: EmojiPan {
 	boxLabel: boxLabel;
 	icons: defaultComposeIcons;
 	about: defaultEmojiPanAbout;
-	aboutPadding: margins(12px, 2px, 12px, 2px);
+	aboutPadding: margins(12px, 3px, 12px, 2px);
 	autocompleteBottomSkip: 0px;
 }
 statusEmojiPan: EmojiPan(defaultEmojiPan) {
@@ -753,6 +758,7 @@ inlineResultsMinWidth: 48px;
 inlineDurationMargin: 3px;
 
 stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};
+emojiPremiumLock: icon{{ "chat/mini_lock", premiumButtonFg }};
 
 reactStripExtend: margins(21px, 49px, 39px, 0px);
 reactStripHeight: 40px;
@@ -784,6 +790,12 @@ emojiScroll: ScrollArea(defaultSolidScroll) {
 }
 reactPanelScroll: ScrollArea(emojiScroll) {
 	deltab: 7px;
+}
+reactPanelScrollRounded: ScrollArea(emojiScroll) {
+	width: 8px;
+	deltax: 3px;
+	deltat: 14px;
+	deltab: 14px;
 }
 
 choosePeerGroupIcon: icon {{ "info/edit/create_group", lightButtonFg }};
@@ -918,7 +930,12 @@ historyPinnedBotButton: RoundButton(defaultActiveButton) {
 	textTop: 6px;
 	padding: margins(2px, 10px, 10px, 9px);
 }
-historyPinnedBotButtonMaxWidth: 150px;
+historyPinnedBotLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	align: align(center);
+	maxHeight: 30px;
+}
+historyPinnedBotButtonMaxWidth: 120px;
 
 historyToDownPosition: point(12px, 10px);
 historyToDownAbove: icon {{ "history_down_arrow", historyToDownFg }};
@@ -983,7 +1000,7 @@ historyComposeField: InputField(defaultInputField) {
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
 	placeholderFgError: placeholderFgActive;
-	placeholderMargins: margins(7px, 5px, 7px, 5px);
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	placeholderAlign: align(topleft);
 	placeholderScale: 0.;
 	placeholderFont: normalFont;

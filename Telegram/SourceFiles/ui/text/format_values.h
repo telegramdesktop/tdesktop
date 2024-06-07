@@ -13,6 +13,8 @@ inline constexpr auto FileStatusSizeReady = 0xFFFFFFF0LL;
 inline constexpr auto FileStatusSizeLoaded = 0xFFFFFFF1LL;
 inline constexpr auto FileStatusSizeFailed = 0xFFFFFFF2LL;
 
+inline const QString kCreditsCurrency = u"XTR"_q;
+
 [[nodiscard]] QString FormatSizeText(qint64 size);
 [[nodiscard]] QString FormatDownloadText(qint64 ready, qint64 total);
 [[nodiscard]] QString FormatProgressText(qint64 ready, qint64 total);
