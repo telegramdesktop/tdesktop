@@ -55,9 +55,6 @@ namespace ThirdParty {
 
 void start();
 
-inline void finish() {
-}
-
 } // namespace ThirdParty
 } // namespace Platform
 

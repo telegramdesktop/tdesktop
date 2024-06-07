@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_poll.h"
 
+#include "api/api_text_entities.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "base/call_delayed.h"
@@ -69,7 +70,12 @@ bool PollData::closeByTimer() {
 bool PollData::applyChanges(const MTPDpoll &poll) {
 	Expects(poll.vid().v == id);
 
-	const auto newQuestion = qs(poll.vquestion());
+	const auto newQuestion = TextWithEntities{
+		.text = qs(poll.vquestion().data().vtext()),
+		.entities = Api::EntitiesFromMTP(
+			&session(),
+			poll.vquestion().data().ventities().v),
+	};
 	const auto newFlags = (poll.is_closed() ? Flag::Closed : Flag(0))
 		| (poll.is_public_voters() ? Flag::PublicVotes : Flag(0))
 		| (poll.is_multiple_choice() ? Flag::MultiChoice : Flag(0))
@@ -78,11 +84,16 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	const auto newClosePeriod = poll.vclose_period().value_or_empty();
 	auto newAnswers = ranges::views::all(
 		poll.vanswers().v
-	) | ranges::views::transform([](const MTPPollAnswer &data) {
-		return data.match([](const MTPDpollAnswer &answer) {
+	) | ranges::views::transform([&](const MTPPollAnswer &data) {
+		return data.match([&](const MTPDpollAnswer &answer) {
 			auto result = PollAnswer();
 			result.option = answer.voption().v;
-			result.text = qs(answer.vtext());
+			result.text = TextWithEntities{
+				.text = qs(answer.vtext().data().vtext()),
+				.entities = Api::EntitiesFromMTP(
+					&session(),
+					answer.vtext().data().ventities().v),
+			};
 			return result;
 		});
 	}) | ranges::views::take(
@@ -121,8 +132,8 @@ bool PollData::applyResults(const MTPPollResults &results) {
 	return results.match([&](const MTPDpollResults &results) {
 		_lastResultsUpdate = crl::now();
 
-		const auto newTotalVoters =
-			results.vtotal_voters().value_or(totalVoters);
+		const auto newTotalVoters
+			= results.vtotal_voters().value_or(totalVoters);
 		auto changed = (newTotalVoters != totalVoters);
 		if (const auto list = results.vresults()) {
 			for (const auto &result : list->v) {
@@ -251,9 +262,11 @@ bool PollData::quiz() const {
 }
 
 MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
-	const auto convert = [](const PollAnswer &answer) {
+	const auto convert = [&](const PollAnswer &answer) {
 		return MTP_pollAnswer(
-			MTP_string(answer.text),
+			MTP_textWithEntities(
+				MTP_string(answer.text.text),
+				Api::EntitiesToMTP(&poll->session(), answer.text.entities)),
 			MTP_bytes(answer.option));
 	};
 	auto answers = QVector<MTPPollAnswer>();
@@ -272,7 +285,9 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 	return MTP_poll(
 		MTP_long(poll->id),
 		MTP_flags(flags),
-		MTP_string(poll->question),
+		MTP_textWithEntities(
+			MTP_string(poll->question.text),
+			Api::EntitiesToMTP(&poll->session(), poll->question.entities)),
 		MTP_vector<MTPPollAnswer>(answers),
 		MTP_int(poll->closePeriod),
 		MTP_int(poll->closeDate));

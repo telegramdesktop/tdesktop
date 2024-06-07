@@ -26,8 +26,8 @@ struct EditContactScheme;
 
 enum class ReadScanError;
 
-using preferredLangCallback =
-	Fn<rpl::producer<EditDocumentCountry>(const QString &)>;
+using preferredLangCallback
+	= Fn<rpl::producer<EditDocumentCountry>(const QString &)>;
 EditDocumentScheme GetDocumentScheme(
 	Scope::Type type,
 	std::optional<Value::Type> scansType,

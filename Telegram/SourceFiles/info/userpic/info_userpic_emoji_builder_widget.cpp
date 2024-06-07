@@ -493,7 +493,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 							1. - progress);
 					}
 					state->circleButtons[now]->setSelectedProgress(progress);
-				}, 0., 1., st::userpicBuilderEmojiSlideDuration);
+				}, 0., 1., st::universalDuration);
 				state->colorIndex = now;
 
 				const auto result = isSpecial

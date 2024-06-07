@@ -147,6 +147,9 @@ QString FillAmountAndCurrency(
 	Expects(amount != std::numeric_limits<int64>::min());
 
 	const auto rule = LookupCurrencyRule(currency);
+	if (currency == kCreditsCurrency) {
+		return QChar(0x2B50) + Lang::FormatCountDecimal(std::abs(amount));
+	}
 
 	const auto prefix = (amount < 0)
 		? QString::fromUtf8("\xe2\x88\x92")
@@ -357,6 +360,7 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 
 		char do_decimal_point() const override { return decimal; }
 		char do_thousands_sep() const override { return thousands; }
+		std::string do_grouping() const override { return "\3"; }
 
 		char decimal = '.';
 		char thousands = ',';
@@ -481,6 +485,24 @@ QString FormatMuteForTiny(float64 sec) {
 
 QString FormatResetCloudPasswordIn(float64 sec) {
 	return (sec >= 3600) ? FormatTTL(sec) : FormatDurationText(sec);
+}
+
+QString FormatDialogsDate(const QDateTime &lastTime) {
+	// Show all dates that are in the last 20 hours in time format.
+	constexpr int kRecentlyInSeconds = 20 * 3600;
+
+	const auto now = QDateTime::currentDateTime();
+	const auto nowDate = now.date();
+	const auto lastDate = lastTime.date();
+
+	if ((lastDate == nowDate)
+		|| (std::abs(lastTime.secsTo(now)) < kRecentlyInSeconds)) {
+		return QLocale().toString(lastTime.time(), QLocale::ShortFormat);
+	} else if (std::abs(lastDate.daysTo(nowDate)) < 7) {
+		return langDayOfWeek(lastDate);
+	} else {
+		return QLocale().toString(lastDate, QLocale::ShortFormat);
+	}
 }
 
 } // namespace Ui

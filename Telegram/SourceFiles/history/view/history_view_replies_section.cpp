@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "data/components/scheduled_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -63,7 +64,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_shared_media.h"
 #include "data/data_send_action.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_premium_limits.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
@@ -205,6 +205,7 @@ RepliesWidget::RepliesWidget(
 	not_null<History*> history,
 	MsgId rootId)
 : Window::SectionWidget(parent, controller, history->peer)
+, WindowListDelegate(controller)
 , _history(history)
 , _rootId(rootId)
 , _root(lookupRoot())
@@ -223,17 +224,14 @@ RepliesWidget::RepliesWidget(
 			listShowPremiumToast(emoji);
 		},
 		.mode = ComposeControls::Mode::Normal,
-		.sendMenuType = _topic
-			? SendMenu::Type::Scheduled
-			: SendMenu::Type::SilentOnly,
+		.sendMenuDetails = [=] { return sendMenuDetails(); },
 		.regularWindow = controller,
 		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
 		.scheduledToggleValue = _topic
 			? rpl::single(rpl::empty_value()) | rpl::then(
-				session().data().scheduledMessages().updates(
-					_topic->owningHistory())
+				session().scheduledMessages().updates(_topic->owningHistory())
 			) | rpl::map([=] {
-				return session().data().scheduledMessages().hasFor(_topic);
+				return session().scheduledMessages().hasFor(_topic);
 			}) | rpl::type_erased()
 			: rpl::single(false),
 	}))
@@ -300,7 +298,7 @@ RepliesWidget::RepliesWidget(
 
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
-		controller,
+		&controller->session(),
 		static_cast<ListDelegate*>(this)));
 	_scroll->move(0, _topBar->height());
 	_scroll->show();
@@ -324,14 +322,18 @@ RepliesWidget::RepliesWidget(
 	}, _inner->lifetime());
 
 	_inner->replyToMessageRequested(
-	) | rpl::start_with_next([=](auto fullId) {
+	) | rpl::start_with_next([=](ListWidget::ReplyToMessageRequest request) {
 		const auto canSendReply = _topic
 			? Data::CanSendAnything(_topic)
 			: Data::CanSendAnything(_history->peer);
-		if (_joinGroup || !canSendReply) {
-			Controls::ShowReplyToChatBox(controller->uiShow(), { fullId });
-		} else {
-			replyToMessage(fullId);
+		const auto &to = request.to;
+		const auto still = _history->owner().message(to.messageId);
+		const auto allowInAnotherChat = still && still->allowsForward();
+		if (allowInAnotherChat
+			&& (_joinGroup || !canSendReply || request.forceAnotherChat)) {
+			Controls::ShowReplyToChatBox(controller->uiShow(), { to });
+		} else if (!_joinGroup && canSendReply) {
+			replyToMessage(to);
 			_composeControls->focus();
 		}
 	}, _inner->lifetime());
@@ -737,7 +739,8 @@ void RepliesWidget::setupComposeControls() {
 	_composeControls->editRequests(
 	) | rpl::start_with_next([=](auto data) {
 		if (const auto item = session().data().message(data.fullId)) {
-			edit(item, data.options, saveEditMsgRequestId);
+			const auto spoiler = data.spoilered;
+			edit(item, data.options, saveEditMsgRequestId, spoiler);
 		}
 	}, lifetime());
 
@@ -867,7 +870,7 @@ void RepliesWidget::chooseAttach(
 	}
 
 	const auto filter = (overrideSendImagesAsPhotos == true)
-		? FileDialog::ImagesOrAllFilter()
+		? FileDialog::PhotoVideoFilesFilter()
 		: FileDialog::AllOrImagesFilter();
 	FileDialog::GetOpenPaths(this, tr::lng_choose_files(tr::now), filter, crl::guard(this, [=](
 			FileDialog::OpenResult &&result) {
@@ -948,7 +951,7 @@ bool RepliesWidget::confirmSendingFiles(
 		_composeControls->getTextWithAppliedMarkdown(),
 		_history->peer,
 		Api::SendType::Normal,
-		SendMenu::Type::SilentOnly); // #TODO replies schedule
+		sendMenuDetails());
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
@@ -1081,7 +1084,6 @@ void RepliesWidget::checkReplyReturns() {
 void RepliesWidget::uploadFile(
 		const QByteArray &fileContent,
 		SendMediaType type) {
-	// #TODO replies schedule
 	session().api().sendFile(fileContent, type, prepareSendAction({}));
 }
 
@@ -1131,7 +1133,7 @@ bool RepliesWidget::showSendingFilesError(
 }
 
 Api::SendAction RepliesWidget::prepareSendAction(
-	Api::SendOptions options) const {
+		Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
 	result.replyTo = replyTo();
 	result.options.sendAs = _composeControls->sendAsPeer();
@@ -1143,11 +1145,6 @@ void RepliesWidget::send() {
 		return;
 	}
 	send({});
-	// #TODO replies schedule
-	//const auto callback = [=](Api::SendOptions options) { send(options); };
-	//Ui::show(
-	//	PrepareScheduleBox(this, sendMenuType(), callback),
-	//	Ui::LayerOption::KeepOther);
 }
 
 void RepliesWidget::sendVoice(ComposeControls::VoiceToSend &&data) {
@@ -1208,7 +1205,8 @@ void RepliesWidget::send(Api::SendOptions options) {
 void RepliesWidget::edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
-		mtpRequestId *const saveEditMsgRequestId) {
+		mtpRequestId *const saveEditMsgRequestId,
+		bool spoilered) {
 	if (*saveEditMsgRequestId) {
 		return;
 	}
@@ -1276,7 +1274,8 @@ void RepliesWidget::edit(
 		webpage,
 		options,
 		crl::guard(this, done),
-		crl::guard(this, fail));
+		crl::guard(this, fail),
+		spoilered);
 
 	_composeControls->hidePanelsAnimated();
 	doSetInnerFocus();
@@ -1329,13 +1328,6 @@ void RepliesWidget::refreshJoinGroupButton() {
 void RepliesWidget::sendExistingDocument(
 		not_null<DocumentData*> document) {
 	sendExistingDocument(document, {}, std::nullopt);
-	// #TODO replies schedule
-	//const auto callback = [=](Api::SendOptions options) {
-	//	sendExistingDocument(document, options);
-	//};
-	//Ui::show(
-	//	PrepareScheduleBox(this, sendMenuType(), callback),
-	//	Ui::LayerOption::KeepOther);
 }
 
 bool RepliesWidget::sendExistingDocument(
@@ -1365,13 +1357,6 @@ bool RepliesWidget::sendExistingDocument(
 
 void RepliesWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 	sendExistingPhoto(photo, {});
-	// #TODO replies schedule
-	//const auto callback = [=](Api::SendOptions options) {
-	//	sendExistingPhoto(photo, options);
-	//};
-	//Ui::show(
-	//	PrepareScheduleBox(this, sendMenuType(), callback),
-	//	Ui::LayerOption::KeepOther);
 }
 
 bool RepliesWidget::sendExistingPhoto(
@@ -1441,13 +1426,10 @@ void RepliesWidget::sendInlineResult(
 	finishSending();
 }
 
-SendMenu::Type RepliesWidget::sendMenuType() const {
-	// #TODO replies schedule
-	return _history->peer->isSelf()
-		? SendMenu::Type::Reminder
-		: HistoryView::CanScheduleUntilOnline(_history->peer)
-		? SendMenu::Type::ScheduledToUser
-		: SendMenu::Type::Scheduled;
+SendMenu::Details RepliesWidget::sendMenuDetails() const {
+	using Type = SendMenu::Type;
+	const auto type = _topic ? Type::Scheduled : Type::SilentOnly;
+	return SendMenu::Details{ .type = type };
 }
 
 FullReplyTo RepliesWidget::replyTo() const {
@@ -2386,7 +2368,7 @@ bool RepliesWidget::listScrollTo(int top, bool syntetic) {
 		updateInnerVisibleArea();
 	}
 	_synteticScrollEvent = false;
-	return syntetic;
+	return scrolled;
 }
 
 void RepliesWidget::listCancelRequest() {

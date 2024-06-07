@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_business.h"
 
+#include "api/api_chat_links.h"
 #include "boxes/premium_preview_box.h"
 #include "core/click_handler_types.h"
 #include "data/business/data_business_info.h"
 #include "data/business/data_business_chatbots.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_peer_values.h" // AmPremiumValue.
 #include "data/data_session.h"
@@ -19,10 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/business/settings_away_message.h"
+#include "settings/business/settings_chat_intro.h"
+#include "settings/business/settings_chat_links.h"
 #include "settings/business/settings_chatbots.h"
 #include "settings/business/settings_greeting.h"
 #include "settings/business/settings_location.h"
@@ -37,9 +40,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h" // Ui::RadiobuttonGroup.
 #include "ui/widgets/gradient_round_button.h"
+#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/new_badges.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
@@ -48,6 +53,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "styles/style_chat.h"
+#include "styles/style_channel_earn.h"
 
 namespace Settings {
 namespace {
@@ -57,6 +64,7 @@ struct Entry {
 	rpl::producer<QString> title;
 	rpl::producer<QString> description;
 	PremiumFeature feature = PremiumFeature::BusinessLocation;
+	bool newBadge = false;
 };
 
 using Order = std::vector<QString>;
@@ -69,6 +77,8 @@ using Order = std::vector<QString>;
 		u"business_hours"_q,
 		u"business_location"_q,
 		u"business_bots"_q,
+		u"business_intro"_q,
+		u"business_links"_q,
 	};
 }
 
@@ -126,6 +136,27 @@ using Order = std::vector<QString>;
 				tr::lng_business_subtitle_chatbots(),
 				tr::lng_business_about_chatbots(),
 				PremiumFeature::BusinessBots,
+				true
+			},
+		},
+		{
+			u"business_intro"_q,
+			Entry{
+				&st::settingsBusinessIconChatIntro,
+				tr::lng_business_subtitle_chat_intro(),
+				tr::lng_business_about_chat_intro(),
+				PremiumFeature::ChatIntro,
+				true
+			},
+		},
+		{
+			u"business_links"_q,
+			Entry{
+				&st::settingsBusinessIconChatLinks,
+				tr::lng_business_subtitle_chat_links(),
+				tr::lng_business_about_chat_links(),
+				PremiumFeature::ChatLinks,
+				true
 			},
 		},
 	};
@@ -154,7 +185,7 @@ void AddBusinessSummary(
 		const auto label = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				std::move(entry.title) | rpl::map(Ui::Text::Bold),
+				std::move(entry.title) | Ui::Text::ToBold(),
 				stLabel),
 			titlePadding);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -166,6 +197,9 @@ void AddBusinessSummary(
 			descriptionPadding);
 		description->setAttribute(Qt::WA_TransparentForMouseEvents);
 
+		if (entry.newBadge) {
+			Ui::NewBadge::AddAfterLabel(content, label);
+		}
 		const auto dummy = Ui::CreateChild<Ui::AbstractButton>(content.get());
 		dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
 
@@ -226,8 +260,8 @@ void AddBusinessSummary(
 	auto icons = std::vector<const style::icon *>();
 	icons.reserve(int(entryMap.size()));
 	{
-		const auto &account = controller->session().account();
-		const auto mtpOrder = account.appConfig().get<Order>(
+		const auto session = &controller->session();
+		const auto mtpOrder = session->appConfig().get<Order>(
 			"business_promo_order",
 			FallbackOrder());
 		const auto processEntry = [&](Entry &entry) {
@@ -363,6 +397,7 @@ void Business::setupContent() {
 	owner->chatbots().preload();
 	owner->businessInfo().preload();
 	owner->shortcutMessages().preloadShortcuts();
+	owner->session().api().chatLinks().preload();
 
 	Ui::AddSkip(content, st::settingsFromFileTop);
 
@@ -375,6 +410,8 @@ void Business::setupContent() {
 			case PremiumFeature::GreetingMessage: return GreetingId();
 			case PremiumFeature::QuickReplies: return QuickRepliesId();
 			case PremiumFeature::BusinessBots: return ChatbotsId();
+			case PremiumFeature::ChatIntro: return ChatIntroId();
+			case PremiumFeature::ChatLinks: return ChatLinksId();
 			}
 			Unexpected("Feature in showFeature.");
 		}());
@@ -396,6 +433,10 @@ void Business::setupContent() {
 			return owner->shortcutMessages().shortcutsLoaded();
 		case PremiumFeature::BusinessBots:
 			return owner->chatbots().loaded();
+		case PremiumFeature::ChatIntro:
+			return owner->session().user()->isFullLoaded();
+		case PremiumFeature::ChatLinks:
+			return owner->session().api().chatLinks().loaded();
 		}
 		Unexpected("Feature in isReady.");
 	};
@@ -415,7 +456,8 @@ void Business::setupContent() {
 		owner->chatbots().changes() | rpl::to_empty,
 		owner->session().changes().peerUpdates(
 			owner->session().user(),
-			Data::PeerUpdate::Flag::FullInfo) | rpl::to_empty
+			Data::PeerUpdate::Flag::FullInfo) | rpl::to_empty,
+		owner->session().api().chatLinks().loadedUpdates()
 	) | rpl::start_with_next(check, content->lifetime());
 
 	AddBusinessSummary(content, _controller, [=](PremiumFeature feature) {
@@ -431,6 +473,100 @@ void Business::setupContent() {
 			showFeature(feature);
 		}
 	});
+
+	const auto sponsoredWrap = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content)));
+	const auto fillSponsoredWrap = [=] {
+		while (sponsoredWrap->entity()->count()) {
+			delete sponsoredWrap->entity()->widgetAt(0);
+		}
+		Ui::AddDivider(sponsoredWrap->entity());
+		const auto loading = sponsoredWrap->entity()->add(
+			object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+				sponsoredWrap->entity(),
+				object_ptr<Ui::FlatLabel>(
+					sponsoredWrap->entity(),
+					tr::lng_contacts_loading())),
+			st::boxRowPadding);
+		loading->entity()->setTextColorOverride(st::windowSubTextFg->c);
+
+		const auto wrap = sponsoredWrap->entity()->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				sponsoredWrap->entity(),
+				object_ptr<Ui::VerticalLayout>(sponsoredWrap->entity())));
+		wrap->toggle(false, anim::type::instant);
+		const auto inner = wrap->entity();
+		Ui::AddSkip(inner);
+		Ui::AddSubsectionTitle(
+			inner,
+			tr::lng_business_subtitle_sponsored());
+		const auto button = inner->add(object_ptr<Ui::SettingsButton>(
+			inner,
+			tr::lng_business_button_sponsored()));
+		Ui::AddSkip(inner);
+
+		const auto session = &_controller->session();
+		{
+			const auto arrow = Ui::Text::SingleCustomEmoji(
+				session->data().customEmojiManager().registerInternalEmoji(
+					st::topicButtonArrow,
+					st::channelEarnLearnArrowMargins,
+					false));
+			inner->add(object_ptr<Ui::DividerLabel>(
+				inner,
+				Ui::CreateLabelWithCustomEmoji(
+					inner,
+					tr::lng_business_about_sponsored(
+						lt_link,
+						rpl::combine(
+							tr::lng_business_about_sponsored_link(
+								lt_emoji,
+								rpl::single(arrow),
+								Ui::Text::RichLangValue),
+							tr::lng_business_about_sponsored_url()
+						) | rpl::map([](TextWithEntities text, QString url) {
+							return Ui::Text::Link(text, url);
+						}),
+						Ui::Text::RichLangValue),
+					{ .session = session },
+					st::boxDividerLabel),
+				st::defaultBoxDividerLabelPadding,
+				RectPart::Top | RectPart::Bottom));
+		}
+
+		const auto api = inner->lifetime().make_state<Api::SponsoredToggle>(
+			session);
+
+		api->toggled(
+		) | rpl::start_with_next([=](bool enabled) {
+			button->toggleOn(rpl::single(enabled));
+			wrap->toggle(true, anim::type::instant);
+			loading->toggle(false, anim::type::instant);
+
+			button->toggledChanges(
+			) | rpl::start_with_next([=](bool toggled) {
+				api->setToggled(
+					toggled
+				) | rpl::start_with_error_done([=](const QString &error) {
+					_controller->showToast(error);
+				}, [] {
+				}, button->lifetime());
+			}, button->lifetime());
+		}, inner->lifetime());
+
+		Ui::ToggleChildrenVisibility(sponsoredWrap->entity(), true);
+		sponsoredWrap->entity()->resizeToWidth(content->width());
+	};
+	Data::AmPremiumValue(
+		&_controller->session()
+	) | rpl::start_with_next([=](bool isPremium) {
+		sponsoredWrap->toggle(isPremium, anim::type::normal);
+		if (isPremium) {
+			fillSponsoredWrap();
+		}
+	}, content->lifetime());
 
 	Ui::ResizeFitChild(this, content);
 }
@@ -567,8 +703,8 @@ QPointer<Ui::RpWidget> Business::createPinnedToBottom(
 	});
 	{
 		const auto callback = [=](int value) {
-			const auto options =
-				_controller->session().api().premium().subscriptionOptions();
+			auto &api = _controller->session().api();
+			const auto options = api.premium().subscriptionOptions();
 			if (options.empty()) {
 				return;
 			}
@@ -652,7 +788,7 @@ void ShowBusiness(not_null<Window::SessionController*> controller) {
 
 std::vector<PremiumFeature> BusinessFeaturesOrder(
 		not_null<::Main::Session*> session) {
-	const auto mtpOrder = session->account().appConfig().get<Order>(
+	const auto mtpOrder = session->appConfig().get<Order>(
 		"business_promo_order",
 		FallbackOrder());
 	return ranges::views::all(
@@ -670,6 +806,10 @@ std::vector<PremiumFeature> BusinessFeaturesOrder(
 			return PremiumFeature::BusinessLocation;
 		} else if (s == u"business_bots"_q) {
 			return PremiumFeature::BusinessBots;
+		} else if (s == u"business_intro"_q) {
+			return PremiumFeature::ChatIntro;
+		} else if (s == "business_links"_q) {
+			return PremiumFeature::ChatLinks;
 		}
 		return PremiumFeature::kCount;
 	}) | ranges::views::filter([](PremiumFeature feature) {

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "smartglocal/smartglocal_token.h"
 #include "storage/storage_account.h"
 #include "ui/image/image.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_entity.h"
 #include "apiwrap.h"
 #include "core/core_cloud_password.h"
@@ -116,6 +117,8 @@ not_null<Main::Session*> SessionFromId(const InvoiceId &id) {
 	if (const auto message = std::get_if<InvoiceMessage>(&id.value)) {
 		return &message->peer->session();
 	} else if (const auto slug = std::get_if<InvoiceSlug>(&id.value)) {
+		return slug->session;
+	} else if (const auto slug = std::get_if<InvoiceCredits>(&id.value)) {
 		return slug->session;
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(id.value);
@@ -314,6 +317,21 @@ MTPInputInvoice Form::inputInvoice() const {
 			MTP_int(message->itemId.bare));
 	} else if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
 		return MTP_inputInvoiceSlug(MTP_string(slug->slug));
+	} else if (const auto credits = std::get_if<InvoiceCredits>(&_id.value)) {
+		using Flag = MTPDstarsTopupOption::Flag;
+		const auto emptyFlag = MTPDstarsTopupOption::Flags(0);
+		return MTP_inputInvoiceStars(MTP_starsTopupOption(
+			MTP_flags(emptyFlag
+				| (credits->product.isEmpty()
+					? Flag::f_store_product
+					: emptyFlag)
+				| (credits->extended
+					? Flag::f_extended
+					: emptyFlag)),
+			MTP_long(credits->credits),
+			MTP_string(credits->product),
+			MTP_string(credits->currency),
+			MTP_long(credits->amount)));
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
 	using Flag = MTPDpremiumGiftCodeOption::Flag;
@@ -359,8 +377,41 @@ void Form::requestForm() {
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		hideProgress();
-		result.match([&](const auto &data) {
+		result.match([&](const MTPDpayments_paymentForm &data) {
 			processForm(data);
+		}, [&](const MTPDpayments_paymentFormStars &data) {
+			_session->data().processUsers(data.vusers());
+			const auto currency = qs(data.vinvoice().data().vcurrency());
+			const auto &tlPrices = data.vinvoice().data().vprices().v;
+			const auto amount = tlPrices.empty()
+				? 0
+				: tlPrices.front().data().vamount().v;
+			if (currency != ::Ui::kCreditsCurrency || !amount) {
+				using Type = Error::Type;
+				_updates.fire(Error{ Type::Form, u"Bad Stars Form."_q });
+				return;
+			}
+			const auto invoice = InvoiceCredits{
+				.session = _session,
+				.randomId = 0,
+				.credits = amount,
+				.currency = currency,
+				.amount = amount,
+			};
+			const auto formData = CreditsFormData{
+				.formId = data.vform_id().v,
+				.botId = data.vbot_id().v,
+				.title = qs(data.vtitle()),
+				.description = qs(data.vdescription()),
+				.photo = data.vphoto()
+					? _session->data().photoFromWeb(
+						*data.vphoto(),
+						ImageLocation())
+					: nullptr,
+				.invoice = invoice,
+				.inputInvoice = inputInvoice(),
+			};
+			_updates.fire(CreditsPaymentStarted{ .data = formData });
 		});
 	}).fail([=](const MTP::Error &error) {
 		hideProgress();
@@ -445,6 +496,25 @@ void Form::processReceipt(const MTPDpayments_paymentReceipt &data) {
 	_updates.fire(FormReady{});
 }
 
+void Form::processReceipt(const MTPDpayments_paymentReceiptStars &data) {
+	_session->data().processUsers(data.vusers());
+
+	const auto receiptData = CreditsReceiptData{
+		.id = qs(data.vtransaction_id()),
+		.title = qs(data.vtitle()),
+		.description = qs(data.vdescription()),
+		.photo = data.vphoto()
+			? _session->data().photoFromWeb(
+				*data.vphoto(),
+				ImageLocation())
+			: nullptr,
+		.peerId = peerFromUser(data.vbot_id().v),
+		.credits = data.vtotal_amount().v,
+		.date = data.vdate().v,
+	};
+	_updates.fire(CreditsReceiptReady{ .data = receiptData });
+}
+
 void Form::processInvoice(const MTPDinvoice &data) {
 	const auto suggested = data.vsuggested_tip_amounts().value_or_empty();
 	_invoice = Ui::Invoice{
@@ -525,6 +595,37 @@ void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
 	_details = FormDetails{
 		.botId = data.vbot_id().v,
 		.providerId = data.vprovider_id().v,
+	};
+	if (_invoice.cover.title.isEmpty()
+		&& _invoice.cover.description.empty()
+		&& _invoice.cover.thumbnail.isNull()
+		&& !_thumbnailLoadProcess) {
+		_invoice.cover = Ui::Cover{
+			.title = qs(data.vtitle()),
+			.description = { qs(data.vdescription()) },
+		};
+		if (const auto web = data.vphoto()) {
+			if (const auto photo = _session->data().photoFromWeb(*web, {})) {
+				loadThumbnail(photo);
+			}
+		}
+	}
+	if (_details.botId) {
+		if (const auto bot = _session->data().userLoaded(_details.botId)) {
+			_invoice.cover.seller = bot->name();
+		}
+	}
+}
+
+void Form::processDetails(const MTPDpayments_paymentReceiptStars &data) {
+	_invoice.receipt = Ui::Receipt{
+		.date = data.vdate().v,
+		.totalAmount = ParsePriceAmount(data.vtotal_amount().v),
+		.currency = qs(data.vcurrency()),
+		.paid = true,
+	};
+	_details = FormDetails{
+		.botId = data.vbot_id().v,
 	};
 	if (_invoice.cover.title.isEmpty()
 		&& _invoice.cover.description.empty()

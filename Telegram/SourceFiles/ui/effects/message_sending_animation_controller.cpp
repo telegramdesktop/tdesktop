@@ -39,7 +39,7 @@ public:
 	Content(
 		not_null<RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		const MessageSendingAnimationFrom &fromInfo,
+		MessageSendingAnimationFrom &&fromInfo,
 		MessageSendingAnimationController::SendingInfoTo &&to);
 
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
@@ -79,7 +79,7 @@ private:
 Content::Content(
 	not_null<RpWidget*> parent,
 	not_null<Window::SessionController*> controller,
-	const MessageSendingAnimationFrom &fromInfo,
+	MessageSendingAnimationFrom &&fromInfo,
 	MessageSendingAnimationController::SendingInfoTo &&to)
 : RpWidget(parent)
 , _controller(controller)
@@ -98,8 +98,12 @@ Content::Content(
 	base::take(
 		_toInfo.globalEndTopLeft
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](const QPoint &p) {
-		_to = parent->mapFromGlobal(p);
+	) | rpl::start_with_next([=](const std::optional<QPoint> &p) {
+		if (p) {
+			_to = parent->mapFromGlobal(*p);
+		} else {
+			_destroyRequests.fire({});
+		}
 	}, lifetime());
 
 	_controller->session().downloaderTaskFinished(
@@ -366,6 +370,20 @@ void Content::createBubble() {
 MessageSendingAnimationController::MessageSendingAnimationController(
 	not_null<Window::SessionController*> controller)
 : _controller(controller) {
+	subscribeToDestructions();
+}
+
+void MessageSendingAnimationController::subscribeToDestructions() {
+	_controller->session().data().itemIdChanged(
+	) | rpl::start_with_next([=](Data::Session::IdChange change) {
+		_itemSendPending.remove(change.oldId);
+	}, _lifetime);
+
+	_controller->session().data().itemRemoved(
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		_itemSendPending.remove(item->id);
+		_processing.remove(item);
+	}, _lifetime);
 }
 
 void MessageSendingAnimationController::appendSending(
@@ -389,24 +407,21 @@ void MessageSendingAnimationController::startAnimation(SendingInfoTo &&to) {
 	if (it == end(_itemSendPending)) {
 		return;
 	}
-	const auto msg = it->first;
+	auto from = std::move(it->second);
+	_itemSendPending.erase(it);
 
 	auto content = base::make_unique_q<Content>(
 		container,
 		_controller,
-		it->second,
+		std::move(from),
 		std::move(to));
+
 	content->destroyRequests(
 	) | rpl::start_with_next([=] {
-		_itemSendPending.erase(msg);
 		_processing.erase(item);
 	}, content->lifetime());
 
 	_processing.emplace(item, std::move(content));
-}
-
-bool MessageSendingAnimationController::hasLocalMessage(MsgId msgId) const {
-	return _itemSendPending.contains(msgId);
 }
 
 bool MessageSendingAnimationController::hasAnimatedMessage(
@@ -421,7 +436,7 @@ void MessageSendingAnimationController::clear() {
 
 bool MessageSendingAnimationController::checkExpectedType(
 		not_null<HistoryItem*> item) {
-	const auto it = _itemSendPending.find(item->fullId().msg);
+	const auto it = _itemSendPending.find(item->id);
 	if (it == end(_itemSendPending)) {
 		return false;
 	}

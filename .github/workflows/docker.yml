@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -31,7 +31,7 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Free up some disk space.
-        uses: jlumbroso/free-disk-space@f68fdb76e2ea636224182cfb7377ff9a1708f9b8
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
 
       - name: Docker image build.
         run: |

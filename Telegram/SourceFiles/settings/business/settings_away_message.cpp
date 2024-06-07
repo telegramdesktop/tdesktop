@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
-class AwayMessage : public BusinessSection<AwayMessage> {
+class AwayMessage final : public BusinessSection<AwayMessage> {
 public:
 	AwayMessage(
 		QWidget *parent,
@@ -220,7 +220,7 @@ void AwayMessage::setupContent(
 
 	_recipients = disabled
 		? Data::BusinessRecipients{ .allButExcluded = true }
-		: current.recipients;
+		: Data::BusinessRecipients::MakeValid(current.recipients);
 	auto initialSchedule = disabled ? AwaySchedule{
 		.type = AwayScheduleType::Always,
 	} : current.schedule;
@@ -336,6 +336,7 @@ void AwayMessage::setupContent(
 		.controller = controller,
 		.title = tr::lng_away_recipients(),
 		.data = &_recipients,
+		.type = Data::BusinessRecipientsType::Messages,
 	});
 
 	Ui::AddSkip(inner, st::settingsChatbotsAccessSkip);

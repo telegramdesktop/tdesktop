@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
 #include "boxes/local_storage_box.h"
+#include "ui/boxes/choose_font_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/fields/input_field.h"
@@ -1575,7 +1576,8 @@ void SetupThemeSettings(
 	AddPeerColorButton(
 		container,
 		controller->uiShow(),
-		controller->session().user());
+		controller->session().user(),
+		st::settingsColorButton);
 
 	const auto settings = &Core::App().settings();
 	if (settings->systemDarkMode().has_value()) {
@@ -1602,6 +1604,52 @@ void SetupThemeSettings(
 			}
 		});
 	}
+
+	const auto family = container->lifetime().make_state<
+		rpl::variable<QString>
+	>(settings->customFontFamily());
+	auto label = family->value() | rpl::map([](QString family) {
+		return family.isEmpty()
+			? tr::lng_font_default(tr::now)
+			: (family == style::SystemFontTag())
+			? tr::lng_font_system(tr::now)
+			: family;
+	});
+	AddButtonWithLabel(
+		container,
+		tr::lng_settings_font_family(),
+		std::move(label),
+		st::settingsButton,
+		{ &st::menuIconFont }
+	)->setClickedCallback([=] {
+		const auto save = [=](QString chosen) {
+			*family = chosen;
+			settings->setCustomFontFamily(chosen);
+			Local::writeSettings();
+			Core::Restart();
+		};
+
+		const auto theme = std::shared_ptr<Ui::ChatTheme>(
+			Window::Theme::DefaultChatThemeOn(container->lifetime()));
+		const auto generateBg = [=] {
+			const auto size = st::boxWidth;
+			const auto ratio = style::DevicePixelRatio();
+			auto result = QImage(
+				QSize(size, size) * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			auto p = QPainter(&result);
+			Window::SectionWidget::PaintBackground(
+				p,
+				theme.get(),
+				QSize(size, size * 3),
+				QRect(0, 0, size, size));
+			p.end();
+
+			return result;
+		};
+		controller->show(
+			Box(Ui::ChooseFontBox, generateBg, family->current(), save));
+	});
 
 	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 }

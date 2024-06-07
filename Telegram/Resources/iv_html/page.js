@@ -26,7 +26,7 @@ var IV = {
 			}
 			target = target.parentNode;
 		}
-		if (!target || !target.hasAttribute('href')) {
+		if (!target || (context === '' && !target.hasAttribute('href'))) {
 			return;
 		}
 		var base = document.createElement('A');
@@ -149,7 +149,6 @@ var IV = {
 			var s = form.s;
 			const next = +s.value + delta;
 			s.value = (next == s.length) ? 0 : (next == -1) ? (s.length - 1) : next;
-			s.forEach(function(el){ el.checked && el.parentNode.scrollIntoView && el.parentNode.scrollIntoView({behavior: 'smooth', block: 'center', inline: 'center'}); });
 			form.nextSibling.firstChild.style[marginProp] = (-100 * s.value) + '%';
 		} else {
 			el.form.nextSibling.firstChild.style[marginProp] = (-100 * el.value) + '%';
@@ -414,9 +413,12 @@ var IV = {
 		var article = function (el) {
 			return el.getElementsByTagName('article')[0];
 		};
-		var from = article(IV.findPageScroll());
-		var to = article(IV.makeScrolledContent(data.html));
-		morphdom(from, to, {
+		var footer = function (el) {
+			return el.getElementsByClassName('page-footer')[0];
+		};
+		var from = IV.findPageScroll();
+		var to = IV.makeScrolledContent(data.html);
+		morphdom(article(from), article(to), {
 			onBeforeElUpdated: function (fromEl, toEl) {
 				if (fromEl.classList.contains('video')
 					&& toEl.classList.contains('video')
@@ -440,6 +442,7 @@ var IV = {
 				return !fromEl.isEqualNode(toEl);
 			}
 		});
+		morphdom(footer(from), footer(to));
 		IV.initMedia();
 		eval(data.js);
 	},
@@ -478,9 +481,7 @@ var IV = {
 		var result = document.createElement('div');
 		result.className = 'page-scroll';
 		result.tabIndex = '-1';
-		result.innerHTML = '<div class="page-slide"><article>'
-			+ html
-			+ '</article></div>';
+		result.innerHTML = html.trim();
 		result.onscroll = IV.frameScrolled;
 		return result;
 	},

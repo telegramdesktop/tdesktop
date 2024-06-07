@@ -23,8 +23,10 @@ struct SendOptions {
 	PeerData *sendAs = nullptr;
 	TimeId scheduled = 0;
 	BusinessShortcutId shortcutId = 0;
+	EffectId effectId = 0;
 	bool silent = false;
 	bool handleSupportSwitch = false;
+	bool invertCaption = false;
 	bool hideViaBot = false;
 	crl::time ttlSeconds = 0;
 };

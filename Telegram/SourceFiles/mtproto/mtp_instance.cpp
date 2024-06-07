@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
 #include "main/main_account.h" // Account::configUpdated.
-#include "apiwrap.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "lang/lang_instance.h"
@@ -98,6 +97,9 @@ public:
 
 	void restartedByTimeout(ShiftedDcId shiftedDcId);
 	[[nodiscard]] rpl::producer<ShiftedDcId> restartsByTimeout() const;
+
+	[[nodiscard]] auto nonPremiumDelayedRequests() const
+	-> rpl::producer<mtpRequestId>;
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -282,6 +284,8 @@ private:
 	Fn<void(const Error&, const Response&)> _globalFailHandler;
 	Fn<void(ShiftedDcId shiftedDcId, int32 state)> _stateChangedHandler;
 	Fn<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
+
+	rpl::event_stream<mtpRequestId> _nonPremiumDelayedRequests;
 
 	base::Timer _checkDelayedTimer;
 
@@ -551,6 +555,11 @@ void Instance::Private::restartedByTimeout(ShiftedDcId shiftedDcId) {
 
 rpl::producer<ShiftedDcId> Instance::Private::restartsByTimeout() const {
 	return _restartsByTimeout.events();
+}
+
+auto Instance::Private::nonPremiumDelayedRequests() const
+-> rpl::producer<mtpRequestId> {
+	return _nonPremiumDelayedRequests.events();
 }
 
 void Instance::Private::requestConfigIfOld() {
@@ -1011,11 +1020,24 @@ void Instance::Private::sendRequest(
 	const auto signedDcId = toMainDc ? -realShiftedDcId : realShiftedDcId;
 	registerRequest(requestId, signedDcId);
 
-	if (afterRequestId) {
-		request->after = getRequest(afterRequestId);
-	}
 	request->lastSentTime = crl::now();
 	request->needsLayer = needsLayer;
+
+	if (afterRequestId) {
+		request->after = getRequest(afterRequestId);
+
+		if (request->after) {
+			// Check if this after request is waiting in _dependentRequests.
+			// This happens if it was after some other request and failed
+			// to wait for it, but that other request is still processed.
+			QMutexLocker locker(&_dependentRequestsLock);
+			const auto i = _dependentRequests.find(afterRequestId);
+			if (i != end(_dependentRequests)) {
+				_dependentRequests.emplace(requestId, afterRequestId);
+				return;
+			}
+		}
+	}
 
 	session->sendPrepared(request, msCanWait);
 }
@@ -1356,8 +1378,9 @@ bool Instance::Private::onErrorDefault(
 	auto badGuestDc = (code == 400) && (type == u"FILE_ID_INVALID"_q);
 	static const auto MigrateRegExp = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$");
 	static const auto FloodWaitRegExp = QRegularExpression("^FLOOD_WAIT_(\\d+)$");
+	static const auto FloodPremiumWaitRegExp = QRegularExpression("^FLOOD_PREMIUM_WAIT_(\\d+)$");
 	static const auto SlowmodeWaitRegExp = QRegularExpression("^SLOWMODE_WAIT_(\\d+)$");
-	QRegularExpressionMatch m1, m2;
+	QRegularExpressionMatch m1, m2, m3;
 	if ((m1 = MigrateRegExp.match(type)).hasMatch()) {
 		if (!requestId) return false;
 
@@ -1462,13 +1485,17 @@ bool Instance::Private::onErrorDefault(
 	} else if (code < 0
 		|| code >= 500
 		|| (m1 = FloodWaitRegExp.match(type)).hasMatch()
-		|| ((m2 = SlowmodeWaitRegExp.match(type)).hasMatch()
-			&& m2.captured(1).toInt() < 3)) {
-		if (!requestId) return false;
+		|| (m2 = FloodPremiumWaitRegExp.match(type)).hasMatch()
+		|| ((m3 = SlowmodeWaitRegExp.match(type)).hasMatch()
+			&& m3.captured(1).toInt() < 3)) {
+		if (!requestId) {
+			return false;
+		}
 
-		int32 secs = 1;
+		auto secs = 1;
+		auto nonPremiumDelay = false;
 		if (code < 0 || code >= 500) {
-			auto it = _requestsDelays.find(requestId);
+			const auto it = _requestsDelays.find(requestId);
 			if (it != _requestsDelays.cend()) {
 				secs = (it->second > 60) ? it->second : (it->second *= 2);
 			} else {
@@ -1479,16 +1506,26 @@ bool Instance::Private::onErrorDefault(
 //			if (secs >= 60) return false;
 		} else if (m2.hasMatch()) {
 			secs = m2.captured(1).toInt();
+			nonPremiumDelay = true;
+		} else if (m3.hasMatch()) {
+			secs = m3.captured(1).toInt();
 		}
 		auto sendAt = crl::now() + secs * 1000 + 10;
 		auto it = _delayedRequests.begin(), e = _delayedRequests.end();
 		for (; it != e; ++it) {
-			if (it->first == requestId) return true;
-			if (it->second > sendAt) break;
+			if (it->first == requestId) {
+				return true;
+			} else if (it->second > sendAt) {
+				break;
+			}
 		}
 		_delayedRequests.insert(it, std::make_pair(requestId, sendAt));
 
 		checkDelayedRequests();
+
+		if (nonPremiumDelay) {
+			_nonPremiumDelayedRequests.fire_copy(requestId);
+		}
 
 		return true;
 	} else if ((code == 401 && type != u"AUTH_KEY_PERM_EMPTY"_q)
@@ -1877,6 +1914,10 @@ void Instance::restartedByTimeout(ShiftedDcId shiftedDcId) {
 
 rpl::producer<ShiftedDcId> Instance::restartsByTimeout() const {
 	return _private->restartsByTimeout();
+}
+
+rpl::producer<mtpRequestId> Instance::nonPremiumDelayedRequests() const {
+	return _private->nonPremiumDelayedRequests();
 }
 
 void Instance::requestConfigIfOld() {

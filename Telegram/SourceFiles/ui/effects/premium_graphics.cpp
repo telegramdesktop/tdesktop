@@ -1177,6 +1177,13 @@ QGradientStops StoriesIconsGradientStops() {
 	};
 }
 
+QGradientStops CreditsIconGradientStops() {
+	return {
+		{ 0., st::creditsBg1->c },
+		{ 1., st::creditsBg2->c },
+	};
+}
+
 void ShowListBox(
 		not_null<Ui::GenericBox*> box,
 		const style::PremiumLimits &st,
@@ -1199,7 +1206,7 @@ void ShowListBox(
 		const auto title = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				base::take(entry.title) | rpl::map(Ui::Text::Bold),
+				base::take(entry.title) | Ui::Text::ToBold(),
 				stLabel),
 			entry.icon ? iconTitlePadding : titlePadding);
 		content->add(

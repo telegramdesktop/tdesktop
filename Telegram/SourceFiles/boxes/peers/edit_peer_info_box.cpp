@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_user_names.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
+#include "base/event_filter.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/peers/edit_peer_common.h"
@@ -27,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/stickers_box.h"
 #include "boxes/username_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/tabbed_panel.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_channel.h"
@@ -39,15 +42,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
-#include "info/boosts/info_boosts_widget.h"
+#include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/boost_box.h"
+#include "ui/controls/emoji_button.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/rp_widget.h"
 #include "ui/vertical_list.h"
@@ -62,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "api/api_invite_links.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
@@ -78,7 +82,7 @@ constexpr auto kBotManagerUsername = "BotFather"_cs;
 }
 
 [[nodiscard]] int EnableForumMinMembers(not_null<PeerData*> peer) {
-	return peer->session().account().appConfig().get<int>(
+	return peer->session().appConfig().get<int>(
 		u"forum_upgrade_participants_min"_q,
 		200);
 }
@@ -411,7 +415,12 @@ private:
 	std::deque<FnMut<void()>> _saveStagesQueue;
 	Saving _savingData;
 
-	const rpl::event_stream<Privacy> _privacyTypeUpdates;
+	struct PrivacyAndForwards {
+		Privacy privacy;
+		bool noForwards = false;
+	};
+
+	const rpl::event_stream<PrivacyAndForwards> _privacyTypeUpdates;
 	const rpl::event_stream<ChannelData*> _linkedChatUpdates;
 	mtpRequestId _linkedChatsRequestId = 0;
 
@@ -534,7 +543,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 		_wrap,
 		object_ptr<Ui::InputField>(
 			_wrap,
-			st::defaultInputField,
+			st::editPeerTitleField,
 			(_isBot
 				? tr::lng_dlg_new_bot_name
 				: _isGroup
@@ -555,6 +564,76 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 	) | rpl::start_with_next([=] {
 		submitTitle();
 	}, result->entity()->lifetime());
+
+	{
+		const auto field = result->entity();
+		const auto container = _box->getDelegate()->outerContainer();
+		using Selector = ChatHelpers::TabbedSelector;
+		using PanelPtr = base::unique_qptr<ChatHelpers::TabbedPanel>;
+		const auto emojiPanelPtr = field->lifetime().make_state<PanelPtr>(
+			base::make_unique_q<ChatHelpers::TabbedPanel>(
+				container,
+				ChatHelpers::TabbedPanelDescriptor{
+					.ownedSelector = object_ptr<Selector>(
+						nullptr,
+						ChatHelpers::TabbedSelectorDescriptor{
+							.show = _navigation->uiShow(),
+							.st = st::defaultComposeControls.tabbed,
+							.level = Window::GifPauseReason::Layer,
+							.mode = Selector::Mode::PeerTitle,
+						}),
+				}));
+		const auto emojiPanel = emojiPanelPtr->get();
+		emojiPanel->setDesiredHeightValues(
+			1.,
+			st::emojiPanMinHeight / 2,
+			st::emojiPanMinHeight);
+		emojiPanel->hide();
+		emojiPanel->selector()->setCurrentPeer(_peer);
+		emojiPanel->selector()->emojiChosen(
+		) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
+			Ui::InsertEmojiAtCursor(field->textCursor(), data.emoji);
+			field->setFocus();
+		}, field->lifetime());
+		emojiPanel->setDropDown(true);
+
+		const auto emojiToggle = Ui::CreateChild<Ui::EmojiButton>(
+			field,
+			st::defaultComposeControls.files.emoji);
+		emojiToggle->show();
+		emojiToggle->installEventFilter(emojiPanel);
+		emojiToggle->addClickHandler([=] { emojiPanel->toggleAnimated(); });
+
+		const auto updateEmojiPanelGeometry = [=] {
+			const auto parent = emojiPanel->parentWidget();
+			const auto global = emojiToggle->mapToGlobal({ 0, 0 });
+			const auto local = parent->mapFromGlobal(global);
+			emojiPanel->moveTopRight(
+				local.y() + emojiToggle->height(),
+				local.x() + emojiToggle->width() * 3);
+		};
+
+		base::install_event_filter(container, [=](not_null<QEvent*> event) {
+			const auto type = event->type();
+			if (type == QEvent::Move || type == QEvent::Resize) {
+				crl::on_main(field, [=] { updateEmojiPanelGeometry(); });
+			}
+			return base::EventFilterResult::Continue;
+		});
+
+		field->widthValue() | rpl::start_with_next([=](int width) {
+			const auto &p = st::editPeerTitleEmojiPosition;
+			emojiToggle->moveToRight(p.x(), p.y(), width);
+			updateEmojiPanelGeometry();
+		}, emojiToggle->lifetime());
+
+		base::install_event_filter(emojiToggle, [=](not_null<QEvent*> event) {
+			if (event->type() == QEvent::Enter) {
+				updateEmojiPanelGeometry();
+			}
+			return base::EventFilterResult::Continue;
+		});
+	}
 
 	_controls.title = result->entity();
 	return result;
@@ -687,7 +766,7 @@ void Controller::refreshHistoryVisibility() {
 void Controller::showEditPeerTypeBox(
 		std::optional<rpl::producer<QString>> error) {
 	const auto boxCallback = crl::guard(this, [=](EditPeerTypeData data) {
-		_privacyTypeUpdates.fire_copy(data.privacy);
+		_privacyTypeUpdates.fire({ data.privacy, data.noForwards });
 		_typeDataSavedValue = data;
 		refreshHistoryVisibility();
 	});
@@ -808,7 +887,8 @@ void Controller::fillPrivacyTypeButton() {
 			? tr::lng_manage_peer_group_type
 			: tr::lng_manage_peer_channel_type)(),
 		_privacyTypeUpdates.events(
-		) | rpl::map([=](Privacy flag) {
+		) | rpl::map([=](PrivacyAndForwards data) {
+			const auto flag = data.privacy;
 			if (flag == Privacy::HasUsername) {
 				_peer->session().api().usernames().requestToCache(_peer);
 			}
@@ -820,14 +900,21 @@ void Controller::fillPrivacyTypeButton() {
 					: tr::lng_manage_public_peer_title)()
 				: (hasLocation
 					? tr::lng_manage_peer_link_invite
-					: isGroup
+					: ((!data.noForwards) && isGroup)
 					? tr::lng_manage_private_group_title
-					: tr::lng_manage_private_peer_title)();
+					: ((!data.noForwards) && !isGroup)
+					? tr::lng_manage_private_peer_title
+					: isGroup
+					? tr::lng_manage_private_group_noforwards_title
+					: tr::lng_manage_private_peer_noforwards_title)();
 		}) | rpl::flatten_latest(),
 		[=] { showEditPeerTypeBox(); },
 		{ &st::menuIconCustomize });
 
-	_privacyTypeUpdates.fire_copy(_typeDataSavedValue->privacy);
+	_privacyTypeUpdates.fire_copy({
+		_typeDataSavedValue->privacy,
+		_typeDataSavedValue->noForwards,
+	});
 }
 
 void Controller::fillLinkedChatButton() {
@@ -942,7 +1029,11 @@ void Controller::fillColorIndexButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
 	const auto show = _navigation->uiShow();
-	AddPeerColorButton(_controls.buttonsLayout, show, _peer);
+	AddPeerColorButton(
+		_controls.buttonsLayout,
+		_navigation->uiShow(),
+		_peer,
+		st::managePeerColorsButton);
 }
 
 void Controller::fillSignaturesButton() {
@@ -984,8 +1075,8 @@ void Controller::fillHistoryVisibilityButton() {
 		: HistoryVisibility::Visible;
 	_channelHasLocationOriginalValue = channel && channel->hasLocation();
 
-	const auto updateHistoryVisibility =
-		std::make_shared<rpl::event_stream<HistoryVisibility>>();
+	const auto updateHistoryVisibility
+		= std::make_shared<rpl::event_stream<HistoryVisibility>>();
 
 	const auto boxCallback = crl::guard(this, [=](HistoryVisibility checked) {
 		updateHistoryVisibility->fire(std::move(checked));
@@ -1699,8 +1790,8 @@ void Controller::saveUsernamesOrder() {
 			channel->setUsernames(ranges::views::all(
 				newUsernames
 			) | ranges::views::transform([&](QString username) {
-				const auto editable =
-					(channel->editableUsername() == username);
+				const auto editable
+					= (channel->editableUsername() == username);
 				return Data::Username{
 					.username = std::move(username),
 					.active = true,
@@ -1964,7 +2055,8 @@ void Controller::toggleBotManager(const QString &command) {
 		const auto botPeer = _peer->owner().peerLoaded(
 			peerFromMTP(result.data().vpeer()));
 		if (const auto bot = botPeer ? botPeer->asUser() : nullptr) {
-			_peer->session().api().sendBotStart(bot, bot, command);
+			const auto show = controller->uiShow();
+			_peer->session().api().sendBotStart(show, bot, bot, command);
 			controller->showPeerHistory(bot);
 		}
 	}).send();

@@ -17,8 +17,12 @@ class History;
 enum class SendMediaType;
 struct SendingAlbum;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace Api {
@@ -52,7 +56,7 @@ class StickerToast;
 
 class ScheduledWidget final
 	: public Window::SectionWidget
-	, private ListDelegate
+	, private WindowListDelegate
 	, private CornerButtonsDelegate {
 public:
 	ScheduledWidget(
@@ -213,10 +217,11 @@ private:
 	void edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
-		mtpRequestId *const saveEditMsgRequestId);
+		mtpRequestId *const saveEditMsgRequestId,
+		bool spoilered);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	void chooseAttach();
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	void checkReplyReturns();
@@ -261,6 +266,7 @@ private:
 		not_null<UserData*> bot,
 		Api::SendOptions options);
 
+	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<History*> _history;
 	const Data::ForumTopic *_forumTopic;
 	std::shared_ptr<Ui::ChatTheme> _theme;
@@ -280,7 +286,7 @@ private:
 
 };
 
-class ScheduledMemento : public Window::SectionMemento {
+class ScheduledMemento final : public Window::SectionMemento {
 public:
 	ScheduledMemento(not_null<History*> history);
 	ScheduledMemento(not_null<Data::ForumTopic*> forumTopic);

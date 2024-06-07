@@ -164,8 +164,12 @@ WebPageType ParseWebPageType(
 		return WebPageType::BotApp;
 	} else if (type == u"telegram_channel_boost"_q) {
 		return WebPageType::ChannelBoost;
+	} else if (type == u"telegram_group_boost"_q) {
+		return WebPageType::GroupBoost;
 	} else if (type == u"telegram_giftcode"_q) {
 		return WebPageType::Giftcode;
+	} else if (type == u"telegram_stickerset"_q) {
+		return WebPageType::StickerSet;
 	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {
@@ -219,6 +223,7 @@ bool WebPageData::applyChanges(
 		DocumentData *newDocument,
 		WebPageCollage &&newCollage,
 		std::unique_ptr<Iv::Data> newIv,
+		std::unique_ptr<WebPageStickerSet> newStickerSet,
 		int newDuration,
 		const QString &newAuthor,
 		bool newHasLargeMedia,
@@ -272,6 +277,7 @@ bool WebPageData::applyChanges(
 		&& collage.items == newCollage.items
 		&& (!iv == !newIv)
 		&& (!iv || iv->partial() == newIv->partial())
+		&& (!stickerSet == !newStickerSet)
 		&& duration == newDuration
 		&& author == resultAuthor
 		&& hasLargeMedia == (newHasLargeMedia ? 1 : 0)
@@ -293,6 +299,7 @@ bool WebPageData::applyChanges(
 	document = newDocument;
 	collage = std::move(newCollage);
 	iv = std::move(newIv);
+	stickerSet = std::move(newStickerSet);
 	duration = newDuration;
 	author = resultAuthor;
 	pendingTill = newPendingTill;

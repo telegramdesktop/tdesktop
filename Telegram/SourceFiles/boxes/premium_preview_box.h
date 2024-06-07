@@ -45,6 +45,10 @@ void UpgradedStoriesPreviewBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
 
+void TelegramBusinessPreviewBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
+
 enum class PremiumFeature {
 	// Premium features.
 	Stories,
@@ -74,6 +78,8 @@ enum class PremiumFeature {
 	GreetingMessage,
 	AwayMessage,
 	BusinessBots,
+	ChatIntro,
+	ChatLinks,
 
 	kCount,
 };

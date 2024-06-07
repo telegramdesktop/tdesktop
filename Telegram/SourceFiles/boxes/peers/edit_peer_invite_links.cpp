@@ -214,38 +214,11 @@ object_ptr<Ui::BoxContent> DeleteAllRevokedBox(
 	});
 }
 
-not_null<Ui::SettingsButton*> AddCreateLinkButton(
+[[nodiscard]] not_null<Ui::SettingsButton*> AddCreateLinkButton(
 		not_null<Ui::VerticalLayout*> container) {
-	const auto result = container->add(
-		object_ptr<Ui::SettingsButton>(
-			container,
-			tr::lng_group_invite_add(),
-			st::inviteLinkCreate),
+	return container->add(
+		MakeCreateLinkButton(container, tr::lng_group_invite_add()),
 		style::margins(0, st::inviteLinkCreateSkip, 0, 0));
-	const auto icon = Ui::CreateChild<Ui::RpWidget>(result);
-	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto size = st::inviteLinkCreateIconSize;
-	icon->resize(size, size);
-	result->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		const auto &st = st::inviteLinkList.item;
-		icon->move(
-			st.photoPosition.x() + (st.photoSize - size) / 2,
-			(height - size) / 2);
-	}, icon->lifetime());
-	icon->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(icon);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgActive);
-		const auto rect = icon->rect();
-		{
-			auto hq = PainterHighQualityEnabler(p);
-			p.drawEllipse(rect);
-		}
-		st::inviteLinkCreateIcon.paintInCenter(p, rect);
-	}, icon->lifetime());
-	return result;
 }
 
 Row::Row(
@@ -584,8 +557,10 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 				ShareInviteLinkBox(_peer, link));
 		}, &st::menuIconShare);
 		result->addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
-			delegate()->peerListUiShow()->showBox(
-				InviteLinkQrBox(link, tr::lng_group_invite_qr_about()));
+			delegate()->peerListUiShow()->showBox(InviteLinkQrBox(
+				link,
+				tr::lng_group_invite_qr_title(),
+				tr::lng_group_invite_qr_about()));
 		}, &st::menuIconQrCode);
 		result->addAction(tr::lng_group_invite_context_edit(tr::now), [=] {
 			delegate()->peerListUiShow()->showBox(EditLinkBox(_peer, data));
@@ -1013,4 +988,43 @@ void ManageInviteLinksBox(
 	}, revokedHeader->lifetime());
 
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
+}
+
+object_ptr<Ui::SettingsButton> MakeCreateLinkButton(
+		not_null<QWidget*> parent,
+		rpl::producer<QString> text) {
+	auto result = object_ptr<Ui::SettingsButton>(
+		parent,
+		std::move(text),
+		st::inviteLinkCreate);
+	const auto raw = result.data();
+
+	const auto icon = Ui::CreateChild<Ui::RpWidget>(raw);
+	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto size = st::inviteLinkCreateIconSize;
+	icon->resize(size, size);
+
+	raw->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		const auto &st = st::inviteLinkList.item;
+		icon->move(
+			st.photoPosition.x() + (st.photoSize - size) / 2,
+			(height - size) / 2);
+	}, icon->lifetime());
+
+	icon->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(icon);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgActive);
+		const auto rect = icon->rect();
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.drawEllipse(rect);
+		}
+		st::inviteLinkCreateIcon.paintInCenter(p, rect);
+	}, icon->lifetime());
+
+	return result;
 }

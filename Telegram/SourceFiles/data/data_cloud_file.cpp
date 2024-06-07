@@ -22,6 +22,14 @@ CloudFile::~CloudFile() {
 	base::take(loader);
 }
 
+void CloudFile::clear() {
+	location = {};
+	base::take(loader);
+	byteSize = 0;
+	progressivePartSize = 0;
+	flags = {};
+}
+
 CloudImage::CloudImage() = default;
 
 CloudImage::CloudImage(

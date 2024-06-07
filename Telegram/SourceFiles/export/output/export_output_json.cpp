@@ -195,6 +195,8 @@ QByteArray SerializeText(
 			? "language"
 			: (part.type == Type::TextUrl)
 			? "href"
+			: (part.type == Type::Blockquote)
+			? "collapsed"
 			: "none";
 		const auto additionalValue = (part.type == Type::MentionName)
 			? part.additional
@@ -202,6 +204,8 @@ QByteArray SerializeText(
 				|| part.type == Type::TextUrl
 				|| part.type == Type::CustomEmoji)
 			? SerializeString(part.additional)
+			: (part.type == Type::Blockquote)
+			? (part.additional.isEmpty() ? "false" : "true")
 			: QByteArray();
 		return SerializeObject(context, {
 			{ "type", SerializeString(typeString) },
@@ -653,6 +657,7 @@ QByteArray SerializeMessage(
 		pushTTL();
 	}, [&](const Document &data) {
 		pushPath(data.file, "file");
+		push("file_name", data.name);
 		if (data.thumb.width > 0) {
 			pushPath(data.thumb.file, "thumbnail");
 		}
@@ -675,9 +680,7 @@ QByteArray SerializeMessage(
 			push("performer", data.songPerformer);
 			push("title", data.songTitle);
 		}
-		if (!data.isSticker) {
-			push("mime_type", data.mime);
-		}
+		push("mime_type", data.mime);
 		if (data.duration) {
 			push("duration_seconds", data.duration);
 		}
@@ -804,7 +807,22 @@ QByteArray SerializeMessage(
 					});
 				}
 				if (!entry.data.isEmpty()) {
-					pairs.push_back({ "data", SerializeString(entry.data) });
+					using Type = HistoryMessageMarkupButton::Type;
+					const auto isCallback = (entry.type == Type::Callback)
+						|| (entry.type == Type::CallbackWithPassword);
+					const auto data = isCallback
+						? entry.data.toBase64(QByteArray::Base64UrlEncoding
+							| QByteArray::OmitTrailingEquals)
+						: entry.data;
+					if (isCallback) {
+						pairs.push_back({
+							"dataBase64",
+							SerializeString(data),
+						});
+						pairs.push_back({ "data", SerializeString({}) });
+					} else {
+						pairs.push_back({ "data", SerializeString(data) });
+					}
 				}
 				if (!entry.forwardText.isEmpty()) {
 					pairs.push_back({

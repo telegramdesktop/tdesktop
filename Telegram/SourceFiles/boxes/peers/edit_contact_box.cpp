@@ -61,11 +61,11 @@ void SendRequest(
 			user->nameOrPhone,
 			user->username());
 		user->session().api().applyUpdates(result);
-		if (const auto settings = user->settings()) {
-			const auto flags = PeerSetting::AddContact
-				| PeerSetting::BlockContact
-				| PeerSetting::ReportSpam;
-			user->setSettings(*settings & ~flags);
+		if (const auto settings = user->barSettings()) {
+			const auto flags = PeerBarSetting::AddContact
+				| PeerBarSetting::BlockContact
+				| PeerBarSetting::ReportSpam;
+			user->setBarSettings(*settings & ~flags);
 		}
 		if (box) {
 			if (!wasContact) {
@@ -258,9 +258,9 @@ void Controller::setupWarning() {
 }
 
 void Controller::setupSharePhoneNumber() {
-	const auto settings = _user->settings();
+	const auto settings = _user->barSettings();
 	if (!settings
-		|| !((*settings) & PeerSetting::NeedContactsException)) {
+		|| !((*settings) & PeerBarSetting::NeedContactsException)) {
 		return;
 	}
 	_sharePhone = _box->addRow(

@@ -230,8 +230,24 @@ void WriteDefaultCustomFile() {
 	const auto path = CustomFilePath();
 	auto input = QFile(":/misc/default_shortcuts-custom.json");
 	auto output = QFile(path);
-	if (input.open(QIODevice::ReadOnly) && output.open(QIODevice::WriteOnly)) {
+	if (input.open(QIODevice::ReadOnly)
+		&& output.open(QIODevice::WriteOnly)) {
+#ifdef Q_OS_MAC
+		auto text = qs(input.readAll());
+		const auto note = R"(
+// Note:
+// On Apple platforms, reference to "ctrl" corresponds to the Command keys )"
+			+ QByteArray()
+			+ R"(on the Macintosh keyboard.
+// On Apple platforms, reference to "meta" corresponds to the Control keys.
+
+[
+)";
+		text.replace(u"\n\n["_q, QString(note));
+		output.write(text.toUtf8());
+#else
 		output.write(input.readAll());
+#endif // !Q_OS_MAC
 	}
 }
 

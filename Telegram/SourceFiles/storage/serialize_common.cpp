@@ -9,6 +9,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Serialize {
 
+ByteArrayWriter::ByteArrayWriter(int expectedSize)
+: _stream(&_result, QIODevice::WriteOnly) {
+	if (expectedSize) {
+		_result.reserve(expectedSize);
+	}
+	_stream.setVersion(QDataStream::Qt_5_1);
+}
+
+QByteArray ByteArrayWriter::result() && {
+	_stream.device()->close();
+	return std::move(_result);
+}
+
+ByteArrayReader::ByteArrayReader(QByteArray data)
+: _data(std::move(data))
+, _stream(&_data, QIODevice::ReadOnly) {
+	_stream.setVersion(QDataStream::Qt_5_1);
+}
+
 void writeColor(QDataStream &stream, const QColor &color) {
 	stream << (quint32(uchar(color.red()))
 		| (quint32(uchar(color.green())) << 8)

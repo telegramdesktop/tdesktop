@@ -39,6 +39,7 @@ struct ConfigFields {
 	QString txtDomainString;
 	bool blockedMode = false;
 	int captionLengthMax = 1024;
+	int ratingDecay = 2419200;
 	QString reactionDefaultEmoji = ConfigDefaultReactionEmoji();
 	uint64 reactionDefaultCustom;
 	QString autologinToken;

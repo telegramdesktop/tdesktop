@@ -87,7 +87,7 @@ public:
 		Api::SendOptions options = {}) const;
 
 	void setRecentInlineBotsInRows(int32 bots);
-	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
+	void setSendMenuDetails(Fn<SendMenu::Details()> &&callback);
 	void rowsUpdated();
 
 	rpl::producer<FieldAutocomplete::MentionChosen> mentionChosen() const;
@@ -155,7 +155,7 @@ private:
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	StickerPremiumMark _premiumMark;
 
-	Fn<SendMenu::Type()> _sendMenuType;
+	Fn<SendMenu::Details()> _sendMenuDetails;
 
 	rpl::event_stream<FieldAutocomplete::MentionChosen> _mentionChosen;
 	rpl::event_stream<FieldAutocomplete::HashtagChosen> _hashtagChosen;
@@ -437,8 +437,8 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 
 		auto filterNotPassedByUsername = [this](UserData *user) -> bool {
 			if (PrimaryUsername(user).startsWith(_filter, Qt::CaseInsensitive)) {
-				const auto exactUsername =
-					(PrimaryUsername(user).size() == _filter.size());
+				const auto exactUsername
+					= (PrimaryUsername(user).size() == _filter.size());
 				return exactUsername;
 			}
 			return true;
@@ -446,8 +446,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		auto filterNotPassedByName = [&](UserData *user) -> bool {
 			for (const auto &nameWord : user->nameWords()) {
 				if (nameWord.startsWith(_filter, Qt::CaseInsensitive)) {
-					const auto exactUsername =
-						(PrimaryUsername(user).compare(_filter, Qt::CaseInsensitive) == 0);
+					const auto exactUsername = PrimaryUsername(user).compare(
+						_filter,
+						Qt::CaseInsensitive) == 0;
 					return exactUsername;
 				}
 			}
@@ -834,8 +835,9 @@ bool FieldAutocomplete::chooseSelected(ChooseMethod method) const {
 	return _inner->chooseSelected(method);
 }
 
-void FieldAutocomplete::setSendMenuType(Fn<SendMenu::Type()> &&callback) {
-	_inner->setSendMenuType(std::move(callback));
+void FieldAutocomplete::setSendMenuDetails(
+		Fn<SendMenu::Details()> &&callback) {
+	_inner->setSendMenuDetails(std::move(callback));
 }
 
 bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
@@ -889,7 +891,7 @@ FieldAutocomplete::Inner::Inner(
 	_st.pathBg,
 	_st.pathFg,
 	[=] { update(); }))
-, _premiumMark(_session)
+, _premiumMark(_session, st::stickersPremiumLock)
 , _previewTimer([=] { showPreview(); }) {
 	_session->downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
@@ -1363,24 +1365,22 @@ void FieldAutocomplete::Inner::contextMenuEvent(QContextMenuEvent *e) {
 		return;
 	}
 	const auto index = _sel;
-	const auto type = _sendMenuType
-		? _sendMenuType()
-		: SendMenu::Type::Disabled;
+	const auto details = _sendMenuDetails
+		? _sendMenuDetails()
+		: SendMenu::Details();
 	const auto method = FieldAutocomplete::ChooseMethod::ByClick;
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
 
-	const auto send = [=](Api::SendOptions options) {
+	const auto send = crl::guard(this, [=](Api::SendOptions options) {
 		chooseAtIndex(method, index, options);
-	};
+	});
 	SendMenu::FillSendMenu(
 		_menu,
-		type,
-		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(this, type, send),
-		SendMenu::DefaultWhenOnlineCallback(send));
-
+		_show,
+		details,
+		SendMenu::DefaultCallback(_show, send));
 	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());
 	}
@@ -1603,9 +1603,9 @@ void FieldAutocomplete::Inner::showPreview() {
 	}
 }
 
-void FieldAutocomplete::Inner::setSendMenuType(
-		Fn<SendMenu::Type()> &&callback) {
-	_sendMenuType = std::move(callback);
+void FieldAutocomplete::Inner::setSendMenuDetails(
+		Fn<SendMenu::Details()> &&callback) {
+	_sendMenuDetails = std::move(callback);
 }
 
 auto FieldAutocomplete::Inner::mentionChosen() const

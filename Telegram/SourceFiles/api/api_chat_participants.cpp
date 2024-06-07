@@ -112,8 +112,8 @@ void ApplyLastList(
 	channel->mgInfo->lastAdmins.clear();
 	channel->mgInfo->lastRestricted.clear();
 	channel->mgInfo->lastParticipants.clear();
-	channel->mgInfo->lastParticipantsStatus =
-		MegagroupInfo::LastParticipantsUpToDate
+	channel->mgInfo->lastParticipantsStatus
+		= MegagroupInfo::LastParticipantsUpToDate
 			| MegagroupInfo::LastParticipantsOnceReceived;
 
 	auto botStatus = channel->mgInfo->botStatus;
@@ -212,7 +212,7 @@ void ApplyBotsList(
 }
 
 [[nodiscard]] ChatParticipants::Channels ParseSimilar(
-		not_null<ChannelData*> channel,
+		not_null<Main::Session*> session,
 		const MTPmessages_Chats &chats) {
 	auto result = ChatParticipants::Channels();
 	std::vector<not_null<ChannelData*>>();
@@ -220,18 +220,24 @@ void ApplyBotsList(
 		const auto &list = data.vchats().v;
 		result.list.reserve(list.size());
 		for (const auto &chat : list) {
-			const auto peer = channel->owner().processChat(chat);
+			const auto peer = session->data().processChat(chat);
 			if (const auto channel = peer->asChannel()) {
 				result.list.push_back(channel);
 			}
 		}
 		if constexpr (MTPDmessages_chatsSlice::Is<decltype(data)>()) {
-			if (channel->session().premiumPossible()) {
+			if (session->premiumPossible()) {
 				result.more = data.vcount().v - data.vchats().v.size();
 			}
 		}
 	});
 	return result;
+}
+
+[[nodiscard]] ChatParticipants::Channels ParseSimilar(
+		not_null<ChannelData*> channel,
+		const MTPmessages_Chats &chats) {
+	return ParseSimilar(&channel->session(), chats);
 }
 
 } // namespace
@@ -351,7 +357,8 @@ QString ChatParticipant::rank() const {
 }
 
 ChatParticipants::ChatParticipants(not_null<ApiWrap*> api)
-: _api(&api->instance()) {
+: _session(&api->session())
+, _api(&api->instance()) {
 }
 
 void ChatParticipants::requestForAdd(
@@ -487,9 +494,9 @@ void ChatParticipants::requestCountDelayed(
 }
 
 void ChatParticipants::add(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
-		std::shared_ptr<Ui::Show> show,
 		bool passGroupHistory,
 		Fn<void(bool)> done) {
 	if (const auto chat = peer->asChat()) {
@@ -498,19 +505,28 @@ void ChatParticipants::add(
 				chat->inputChat,
 				user->inputUser,
 				MTP_int(passGroupHistory ? kForwardMessagesOnAdd : 0)
-			)).done([=](const MTPUpdates &result) {
-				chat->session().api().applyUpdates(result);
+			)).done([=](const MTPmessages_InvitedUsers &result) {
+				const auto &data = result.data();
+				chat->session().api().applyUpdates(data.vupdates());
 				if (done) done(true);
+				ChatInviteForbidden(
+					show,
+					chat,
+					CollectForbiddenUsers(&chat->session(), result));
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
-				ShowAddParticipantsError(type, peer, { 1, user }, show);
+				ShowAddParticipantsError(show, type, peer, user);
 				if (done) done(false);
 			}).afterDelay(kSmallDelayMs).send();
 		}
 	} else if (const auto channel = peer->asChannel()) {
 		const auto hasBot = ranges::any_of(users, &UserData::isBot);
 		if (!peer->isMegagroup() && hasBot) {
-			ShowAddParticipantsError("USER_BOT", peer, users, show);
+			ShowAddParticipantsError(
+				show,
+				u"USER_BOT"_q,
+				peer,
+				{ .users = users });
 			return;
 		}
 		auto list = QVector<MTPInputUser>();
@@ -520,8 +536,9 @@ void ChatParticipants::add(
 			_api.request(MTPchannels_InviteToChannel(
 				channel->inputChannel,
 				MTP_vector<MTPInputUser>(list)
-			)).done([=](const MTPUpdates &result) {
-				channel->session().api().applyUpdates(result);
+			)).done([=](const MTPmessages_InvitedUsers &result) {
+				const auto &data = result.data();
+				channel->session().api().applyUpdates(data.vupdates());
 				requestCountDelayed(channel);
 				if (callback) callback(true);
 				ChatInviteForbidden(
@@ -529,7 +546,9 @@ void ChatParticipants::add(
 					channel,
 					CollectForbiddenUsers(&channel->session(), result));
 			}).fail([=](const MTP::Error &error) {
-				ShowAddParticipantsError(error.type(), peer, users, show);
+				ShowAddParticipantsError(show, error.type(), peer, {
+					.users = users,
+				});
 				if (callback) callback(false);
 			}).afterDelay(kSmallDelayMs).send();
 		};
@@ -571,6 +590,33 @@ ChatParticipants::Parsed ChatParticipants::ParseRecent(
 		ApplyLastList(channel, result.availableCount, result.list);
 	}
 	return result;
+}
+
+void ChatParticipants::Restrict(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> participant,
+		ChatRestrictionsInfo oldRights,
+		ChatRestrictionsInfo newRights,
+		Fn<void()> onDone,
+		Fn<void()> onFail) {
+	channel->session().api().request(MTPchannels_EditBanned(
+		channel->inputChannel,
+		participant->input,
+		MTP_chatBannedRights(
+			MTP_flags(MTPDchatBannedRights::Flags::from_raw(
+				uint32(newRights.flags))),
+			MTP_int(newRights.until))
+	)).done([=](const MTPUpdates &result) {
+		channel->session().api().applyUpdates(result);
+		channel->applyEditBanned(participant, oldRights, newRights);
+		if (onDone) {
+			onDone();
+		}
+	}).fail([=] {
+		if (onFail) {
+			onFail();
+		}
+	}).send();
 }
 
 void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
@@ -718,8 +764,11 @@ void ChatParticipants::loadSimilarChannels(not_null<ChannelData*> channel) {
 			return;
 		}
 	}
+	using Flag = MTPchannels_GetChannelRecommendations::Flag;
 	_similar[channel].requestId = _api.request(
-		MTPchannels_GetChannelRecommendations(channel->inputChannel)
+		MTPchannels_GetChannelRecommendations(
+			MTP_flags(Flag::f_channel),
+			channel->inputChannel)
 	).done([=](const MTPmessages_Chats &result) {
 		auto &similar = _similar[channel];
 		similar.requestId = 0;
@@ -752,6 +801,31 @@ auto ChatParticipants::similar(not_null<ChannelData*> channel)
 auto ChatParticipants::similarLoaded() const
 -> rpl::producer<not_null<ChannelData*>> {
 	return _similarLoaded.events();
+}
+
+void ChatParticipants::loadRecommendations() {
+	if (_recommendationsLoaded.current() || _recommendations.requestId) {
+		return;
+	}
+	_recommendations.requestId = _api.request(
+		MTPchannels_GetChannelRecommendations(
+			MTP_flags(0),
+			MTP_inputChannelEmpty())
+	).done([=](const MTPmessages_Chats &result) {
+		_recommendations.requestId = 0;
+		auto parsed = ParseSimilar(_session, result);
+		_recommendations.channels = std::move(parsed);
+		_recommendations.channels.more = 0;
+		_recommendationsLoaded = true;
+	}).send();
+}
+
+const ChatParticipants::Channels &ChatParticipants::recommendations() const {
+	return _recommendations.channels;
+}
+
+rpl::producer<> ChatParticipants::recommendationsLoaded() const {
+	return _recommendationsLoaded.changes() | rpl::to_empty;
 }
 
 } // namespace Api

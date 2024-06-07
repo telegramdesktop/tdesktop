@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "statistics/statistics_types.h"
+
 namespace Statistic {
 
 class SegmentTree final {
 public:
 	SegmentTree() = default;
-	SegmentTree(std::vector<int> array);
+	SegmentTree(std::vector<ChartValue> array);
 
 	[[nodiscard]] bool empty() const {
 		return _array.empty();
@@ -21,20 +23,20 @@ public:
 		return !empty();
 	}
 
-	[[nodiscard]] int rMaxQ(int from, int to);
-	[[nodiscard]] int rMinQ(int from, int to);
+	[[nodiscard]] ChartValue rMaxQ(int from, int to);
+	[[nodiscard]] ChartValue rMinQ(int from, int to);
 
 private:
 	struct Node final {
-		int sum = 0;
-		int max = 0;
-		int min = 0;
+		ChartValue sum = 0;
+		ChartValue max = 0;
+		ChartValue min = 0;
 
 		struct PendingVal {
 			[[nodiscard]] explicit operator bool() const {
 				return available;
 			}
-			int value = 0;
+			ChartValue value = 0;
 			bool available = false;
 		};
 		PendingVal pendingVal;
@@ -47,12 +49,12 @@ private:
 		}
 	};
 
-	void build(int v, int from, int size);
-	void propagate(int v);
-	void change(Node &n, int value);
+	void build(ChartValue v, int from, int size);
+	void propagate(ChartValue v);
+	void change(Node &n, ChartValue value);
 
-	[[nodiscard]] int rMaxQ(int v, int from, int to);
-	[[nodiscard]] int rMinQ(int v, int from, int to);
+	[[nodiscard]] ChartValue rMaxQ(ChartValue v, int from, int to);
+	[[nodiscard]] ChartValue rMinQ(ChartValue v, int from, int to);
 
 	[[nodiscard]] bool contains(int from1, int to1, int from2, int to2) const;
 	[[nodiscard]] bool intersects(
@@ -61,7 +63,7 @@ private:
 		int from2,
 		int to2) const;
 
-	std::vector<int> _array;
+	std::vector<ChartValue> _array;
 	std::vector<Node> _heap;
 
 };

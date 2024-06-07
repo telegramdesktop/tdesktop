@@ -674,6 +674,11 @@ void InnerWidget::elementStartPremium(
 void InnerWidget::elementCancelPremium(not_null<const Element*> view) {
 }
 
+void InnerWidget::elementStartEffect(
+	not_null<const Element*> view,
+	Element *replacing) {
+}
+
 QString InnerWidget::elementAuthorRank(not_null<const Element*> view) {
 	return {};
 }
@@ -1301,6 +1306,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					&& !link
 					&& (view->hasVisibleText()
 						|| mediaHasTextForCopy
+						|| !item->factcheckText().empty()
 						|| item->Has<HistoryMessageLogEntryOriginal>())) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);

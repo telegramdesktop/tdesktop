@@ -11,8 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_panel.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
-#include "main/main_domain.h"
-#include "storage/storage_domain.h"
+#include "storage/storage_account.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "data/data_user.h" // UserData::isBot.
@@ -25,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "window/themes/window_theme.h"
-#include "webview/webview_interface.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -66,7 +64,9 @@ base::flat_map<not_null<Main::Session*>, SessionProcesses> Processes;
 void CheckoutProcess::Start(
 		not_null<const HistoryItem*> item,
 		Mode mode,
-		Fn<void(CheckoutResult)> reactivate) {
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess) {
+	const auto hasNonPanelPaymentFormProcess = !!nonPanelPaymentFormProcess;
 	auto &processes = LookupSessionProcesses(&item->history()->session());
 	const auto media = item->media();
 	const auto invoice = media ? media->invoice() : nullptr;
@@ -85,7 +85,11 @@ void CheckoutProcess::Start(
 	const auto i = processes.byItem.find(id);
 	if (i != end(processes.byItem)) {
 		i->second->setReactivateCallback(std::move(reactivate));
-		i->second->requestActivate();
+		i->second->setNonPanelPaymentFormProcess(
+			std::move(nonPanelPaymentFormProcess));
+		if (!hasNonPanelPaymentFormProcess) {
+			i->second->requestActivate();
+		}
 		return;
 	}
 	const auto j = processes.byItem.emplace(
@@ -94,19 +98,28 @@ void CheckoutProcess::Start(
 			InvoiceId{ InvoiceMessage{ item->history()->peer, id.msg } },
 			mode,
 			std::move(reactivate),
+			std::move(nonPanelPaymentFormProcess),
 			PrivateTag{})).first;
-	j->second->requestActivate();
+	if (!hasNonPanelPaymentFormProcess) {
+		j->second->requestActivate();
+	}
 }
 
 void CheckoutProcess::Start(
 		not_null<Main::Session*> session,
 		const QString &slug,
-		Fn<void(CheckoutResult)> reactivate) {
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess) {
+	const auto hasNonPanelPaymentFormProcess = !!nonPanelPaymentFormProcess;
 	auto &processes = LookupSessionProcesses(session);
 	const auto i = processes.bySlug.find(slug);
 	if (i != end(processes.bySlug)) {
 		i->second->setReactivateCallback(std::move(reactivate));
-		i->second->requestActivate();
+		i->second->setNonPanelPaymentFormProcess(
+			std::move(nonPanelPaymentFormProcess));
+		if (!hasNonPanelPaymentFormProcess) {
+			i->second->requestActivate();
+		}
 		return;
 	}
 	const auto j = processes.bySlug.emplace(
@@ -115,8 +128,11 @@ void CheckoutProcess::Start(
 			InvoiceId{ InvoiceSlug{ session, slug } },
 			Mode::Payment,
 			std::move(reactivate),
+			std::move(nonPanelPaymentFormProcess),
 			PrivateTag{})).first;
-	j->second->requestActivate();
+	if (!hasNonPanelPaymentFormProcess) {
+		j->second->requestActivate();
+	}
 }
 
 void CheckoutProcess::Start(
@@ -137,6 +153,30 @@ void CheckoutProcess::Start(
 			std::move(id),
 			Mode::Payment,
 			std::move(reactivate),
+			nullptr,
+			PrivateTag{})).first;
+	j->second->requestActivate();
+}
+
+void CheckoutProcess::Start(
+		InvoiceCredits creditsInvoice,
+		Fn<void(CheckoutResult)> reactivate) {
+	const auto randomId = creditsInvoice.randomId;
+	auto id = InvoiceId{ std::move(creditsInvoice) };
+	auto &processes = LookupSessionProcesses(SessionFromId(id));
+	const auto i = processes.byRandomId.find(randomId);
+	if (i != end(processes.byRandomId)) {
+		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->requestActivate();
+		return;
+	}
+	const auto j = processes.byRandomId.emplace(
+		randomId,
+		std::make_unique<CheckoutProcess>(
+			std::move(id),
+			Mode::Payment,
+			std::move(reactivate),
+			nullptr,
 			PrivateTag{})).first;
 	j->second->requestActivate();
 }
@@ -260,11 +300,13 @@ CheckoutProcess::CheckoutProcess(
 	InvoiceId id,
 	Mode mode,
 	Fn<void(CheckoutResult)> reactivate,
+	Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess,
 	PrivateTag)
 : _session(SessionFromId(id))
 , _form(std::make_unique<Form>(id, (mode == Mode::Receipt)))
 , _panel(std::make_unique<Ui::Panel>(panelDelegate()))
-, _reactivate(std::move(reactivate)) {
+, _reactivate(std::move(reactivate))
+, _nonPanelPaymentFormProcess(std::move(nonPanelPaymentFormProcess)) {
 	_form->updates(
 	) | rpl::start_with_next([=](const FormUpdate &update) {
 		handleFormUpdate(update);
@@ -279,7 +321,9 @@ CheckoutProcess::CheckoutProcess(
 	) | rpl::start_with_next([=] {
 		panelCancelEdit();
 	}, _panel->lifetime());
-	showForm();
+	if (!_nonPanelPaymentFormProcess) {
+		showForm();
+	}
 	_panel->toggleProgress(true);
 
 	if (mode == Mode::Payment) {
@@ -296,6 +340,11 @@ CheckoutProcess::~CheckoutProcess() {
 void CheckoutProcess::setReactivateCallback(
 		Fn<void(CheckoutResult)> reactivate) {
 	_reactivate = std::move(reactivate);
+}
+
+void CheckoutProcess::setNonPanelPaymentFormProcess(
+		Fn<void(NonPanelPaymentForm)> callback) {
+	_nonPanelPaymentFormProcess = std::move(callback);
 }
 
 void CheckoutProcess::requestActivate() {
@@ -360,6 +409,18 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		_session->api().applyUpdates(data.updates);
 		if (weak) {
 			closeAndReactivate(CheckoutResult::Paid);
+		}
+	}, [&](const CreditsPaymentStarted &data) {
+		if (_nonPanelPaymentFormProcess) {
+			_nonPanelPaymentFormProcess(
+				std::make_shared<CreditsFormData>(data.data));
+			close();
+		}
+	}, [&](const CreditsReceiptReady &data) {
+		if (_nonPanelPaymentFormProcess) {
+			_nonPanelPaymentFormProcess(
+				std::make_shared<CreditsReceiptData>(data.data));
+			close();
 		}
 	}, [&](const Error &error) {
 		handleError(error);
@@ -766,12 +827,12 @@ void CheckoutProcess::requestPassword() {
 			(index < list.size()) ? list[index].title : QString());
 		fields.customSubmitButton = tr::lng_payments_password_submit();
 		fields.customCheckCallback = [=](
-				const Core::CloudPasswordResult &result) {
+				const Core::CloudPasswordResult &result,
+				QPointer<PasscodeBox> box) {
+			_enterPasswordBox = box;
 			_form->submit(result);
 		};
-		auto owned = Box<PasscodeBox>(_session, fields);
-		_enterPasswordBox = owned.data();
-		_panel->showBox(std::move(owned));
+		_panel->showBox(Box<PasscodeBox>(_session, fields));
 	});
 }
 
@@ -877,8 +938,8 @@ void CheckoutProcess::performInitialSilentValidation() {
 	_form->validateInformation(saved);
 }
 
-QString CheckoutProcess::panelWebviewDataPath() {
-	return _session->domain().local().webviewDataPath();
+Webview::StorageId CheckoutProcess::panelWebviewStorageId() {
+	return _session->local().resolveStorageIdOther();
 }
 
 Webview::ThemeParams CheckoutProcess::panelWebviewThemeParams() {

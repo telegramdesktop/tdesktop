@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/session/session_show.h"
@@ -464,8 +463,7 @@ Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
 }
 
 int BoostsForGift(not_null<Main::Session*> session) {
-	const auto key = u"boosts_per_sent_gift"_q;
-	return session->account().appConfig().get<int>(key, 0);
+	return session->appConfig().get<int>(u"boosts_per_sent_gift"_q, 0);
 }
 
 struct Sources {
@@ -666,6 +664,145 @@ object_ptr<Ui::RpWidget> CreateBoostReplaceUserpics(
 			(last->height() - size.height()) / 2,
 			outerw);
 
+		q.end();
+
+		auto p = QPainter(overlay);
+		p.drawImage(0, 0, state->layer);
+	}, overlay->lifetime());
+	return result;
+}
+
+object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
+		not_null<Ui::RpWidget*> parent,
+		rpl::producer<std::vector<not_null<PeerData*>>> peers,
+		int limit) {
+	struct State {
+		std::vector<not_null<PeerData*>> from;
+		std::vector<std::unique_ptr<Ui::UserpicButton>> buttons;
+		QImage layer;
+		QImage badge;
+		rpl::variable<int> count = 0;
+		bool painting = false;
+	};
+	const auto full = st::boostReplaceUserpic.size.height()
+		+ st::boostReplaceIconAdd.y()
+		+ st::lineWidth;
+	auto result = object_ptr<Ui::FixedHeightWidget>(parent, full);
+	const auto raw = result.data();
+	const auto overlay = CreateChild<Ui::RpWidget>(raw);
+
+	const auto state = raw->lifetime().make_state<State>();
+	std::move(
+		peers
+	) | rpl::start_with_next([=](
+			const std::vector<not_null<PeerData*>> &list) {
+		const auto &st = st::boostReplaceUserpic;
+		auto was = base::take(state->from);
+		auto buttons = base::take(state->buttons);
+		state->from.reserve(list.size());
+		state->buttons.reserve(list.size());
+		for (const auto &peer : list | ranges::views::take(limit)) {
+			state->from.push_back(peer);
+			const auto i = ranges::find(was, peer);
+			if (i != end(was)) {
+				const auto index = int(i - begin(was));
+				Assert(buttons[index] != nullptr);
+				state->buttons.push_back(std::move(buttons[index]));
+			} else {
+				state->buttons.push_back(
+					std::make_unique<Ui::UserpicButton>(raw, peer, st));
+				const auto raw = state->buttons.back().get();
+				base::install_event_filter(raw, [=](not_null<QEvent*> e) {
+					return (e->type() == QEvent::Paint && !state->painting)
+						? base::EventFilterResult::Cancel
+						: base::EventFilterResult::Continue;
+				});
+			}
+		}
+		state->count.force_assign(int(list.size()));
+		overlay->update();
+	}, raw->lifetime());
+
+	rpl::combine(
+		raw->widthValue(),
+		state->count.value()
+	) | rpl::start_with_next([=](int width, int count) {
+		const auto &st = st::boostReplaceUserpic;
+		const auto single = st.size.width();
+		const auto left = width - single;
+		const auto used = std::min(count, int(state->buttons.size()));
+		const auto shift = std::min(
+			st::boostReplaceUserpicsShift,
+			(used > 1 ? (left / (used - 1)) : width));
+		const auto total = used ? (single + (used - 1) * shift) : 0;
+		auto x = (width - total) / 2;
+		for (const auto &single : state->buttons) {
+			single->moveToLeft(x, 0);
+			x += shift;
+		}
+		overlay->setGeometry(QRect(0, 0, width, raw->height()));
+	}, raw->lifetime());
+
+	overlay->paintRequest(
+	) | rpl::filter([=] {
+		return !state->buttons.empty();
+	}) | rpl::start_with_next([=] {
+		const auto outerw = overlay->width();
+		const auto ratio = style::DevicePixelRatio();
+		if (state->layer.size() != QSize(outerw, full) * ratio) {
+			state->layer = QImage(
+				QSize(outerw, full) * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			state->layer.setDevicePixelRatio(ratio);
+		}
+		state->layer.fill(Qt::transparent);
+
+		auto q = QPainter(&state->layer);
+		auto hq = PainterHighQualityEnabler(q);
+		const auto stroke = st::boostReplaceIconOutline;
+		const auto half = stroke / 2.;
+		auto pen = st::windowBg->p;
+		pen.setWidthF(stroke * 2.);
+		state->painting = true;
+		for (const auto &button : state->buttons) {
+			q.setPen(pen);
+			q.setBrush(Qt::NoBrush);
+			q.drawEllipse(button->geometry());
+			const auto position = button->pos();
+			button->render(&q, position, QRegion(), QWidget::DrawChildren);
+		}
+		state->painting = false;
+		const auto last = state->buttons.back().get();
+		const auto add = st::boostReplaceIconAdd;
+		const auto skip = st::boostReplaceIconSkip;
+		const auto w = st::boostReplaceIcon.width() + 2 * skip;
+		const auto h = st::boostReplaceIcon.height() + 2 * skip;
+		const auto x = last->x() + last->width() - w + add.x();
+		const auto y = last->y() + last->height() - h + add.y();
+
+		const auto text = (state->count.current() > limit)
+			? ('+' + QString::number(state->count.current() - limit))
+			: QString();
+		if (!text.isEmpty()) {
+			const auto &font = st::semiboldFont;
+			const auto width = font->width(text);
+			const auto padded = std::max(w, width + 2 * font->spacew);
+			const auto rect = QRect(x - (padded - w) / 2, y, padded, h);
+			auto brush = QLinearGradient(rect.bottomRight(), rect.topLeft());
+			brush.setStops(Ui::Premium::ButtonGradientStops());
+			q.setBrush(brush);
+			pen.setWidthF(stroke);
+			q.setPen(pen);
+			const auto rectf = QRectF(rect);
+			const auto radius = std::min(rect.width(), rect.height()) / 2.;
+			q.drawRoundedRect(
+				rectf.marginsAdded(QMarginsF{ half, half, half, half }),
+				radius,
+				radius);
+			q.setFont(font);
+			q.setPen(st::premiumButtonFg);
+			q.drawText(rect, Qt::AlignCenter, text);
+		}
 		q.end();
 
 		auto p = QPainter(overlay);

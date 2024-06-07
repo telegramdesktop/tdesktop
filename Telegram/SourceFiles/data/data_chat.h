@@ -42,9 +42,7 @@ public:
 		return (count > 0 || amIn()) && participants.empty();
 	}
 
-	void setFlags(ChatDataFlags which) {
-		_flags.set(which);
-	}
+	void setFlags(ChatDataFlags which);
 	void addFlags(ChatDataFlags which) {
 		_flags.add(which);
 	}

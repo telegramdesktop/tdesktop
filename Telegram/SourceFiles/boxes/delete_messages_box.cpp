@@ -232,8 +232,8 @@ void DeleteMessagesBox::prepare() {
 			if (hasScheduledMessages()) {
 			} else if (auto revoke = revokeText(peer)) {
 				const auto &settings = Core::App().settings();
-				const auto revokeByDefault =
-					!settings.rememberedDeleteMessageOnlyForYou();
+				const auto revokeByDefault
+					= !settings.rememberedDeleteMessageOnlyForYou();
 				_revoke.create(
 					this,
 					revoke->checkbox,
@@ -379,13 +379,7 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 		return result;
 	}
 
-	const auto items = ranges::views::all(
-		_ids
-	) | ranges::views::transform([&](FullMsgId id) {
-		return peer->owner().message(id);
-	}) | ranges::views::filter([](HistoryItem *item) {
-		return (item != nullptr);
-	}) | ranges::to_vector;
+	const auto items = peer->owner().idsToItems(_ids);
 
 	if (items.size() != _ids.size()) {
 		// We don't have information about all messages.

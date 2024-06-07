@@ -17,10 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
 #include "info/profile/info_profile_values.h"
+#include "iv/iv_instance.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/widgets/checkbox.h"
@@ -41,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
 #include "storage/storage_account.h"
 #include "boxes/peer_list_controllers.h"
 #include "lang/lang_keys.h"
@@ -601,7 +604,15 @@ void AttachWebView::botHandleInvoice(QString slug) {
 		}
 	};
 	_panel->hideForPayment();
-	Payments::CheckoutProcess::Start(&_bot->session(), slug, reactivate);
+	Payments::CheckoutProcess::Start(
+		&_bot->session(),
+		slug,
+		reactivate,
+		_context
+			? Payments::ProcessNonPanelPaymentFormFactory(
+				_context->controller.get(),
+				reactivate)
+			: nullptr);
 }
 
 void AttachWebView::botHandleMenuButton(Ui::BotWebView::MenuButton button) {
@@ -650,6 +661,15 @@ void AttachWebView::botHandleMenuButton(Ui::BotWebView::MenuButton button) {
 			done,
 		}));
 		break;
+	}
+}
+
+void AttachWebView::botOpenIvLink(QString uri) {
+	const auto window = _context ? _context->controller.get() : nullptr;
+	if (window) {
+		Core::App().iv().openWithIvPreferred(window, uri);
+	} else {
+		Core::App().iv().openWithIvPreferred(_session, uri);
 	}
 }
 
@@ -1480,7 +1500,7 @@ void AttachWebView::show(
 	_catchingCancelInShowCall = true;
 	_panel = Ui::BotWebView::Show({
 		.url = url,
-		.userDataPath = _session->domain().local().webviewDataPath(),
+		.storageId = _session->local().resolveStorageIdBots(),
 		.title = std::move(title),
 		.bottom = rpl::single('@' + _bot->username()),
 		.delegate = static_cast<Ui::BotWebView::Delegate*>(this),
@@ -1692,7 +1712,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 				flag,
 				flag,
 				source,
-				sendMenuType);
+				{ sendMenuType });
 		}, &st::menuIconCreatePoll);
 	}
 	for (const auto &bot : bots->attachBots()) {

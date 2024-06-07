@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "storage/localstorage.h"
 #include "ui/empty_userpic.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/unread_badge.h"
@@ -44,8 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Dialogs::Ui {
 namespace {
 
-// Show all dates that are in the last 20 hours in time format.
-constexpr int kRecentlyInSeconds = 20 * 3600;
 const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
 [[nodiscard]] bool ShowUserBotIcon(not_null<UserData*> user) {
@@ -79,29 +78,6 @@ void PaintRowTopRight(
 		rectForName.left() + rectForName.width() + st::dialogsDateSkip,
 		rectForName.top() + st::semiboldFont->height - st::normalFont->descent,
 		text);
-}
-
-void PaintRowDate(
-		QPainter &p,
-		QDateTime date,
-		QRect &rectForName,
-		const PaintContext &context) {
-	const auto now = QDateTime::currentDateTime();
-	const auto &lastTime = date;
-	const auto nowDate = now.date();
-	const auto lastDate = lastTime.date();
-
-	const auto dt = [&] {
-		if ((lastDate == nowDate)
-			|| (qAbs(lastTime.secsTo(now)) < kRecentlyInSeconds)) {
-			return QLocale().toString(lastTime.time(), QLocale::ShortFormat);
-		} else if (qAbs(lastDate.daysTo(nowDate)) < 7) {
-			return langDayOfWeek(lastDate);
-		} else {
-			return QLocale().toString(lastDate, QLocale::ShortFormat);
-		}
-	}();
-	PaintRowTopRight(p, dt, rectForName, context);
 }
 
 int PaintBadges(
@@ -283,9 +259,9 @@ void PaintRow(
 		not_null<Entry*> entry,
 		VideoUserpic *videoUserpic,
 		PeerData *from,
-		PeerBadge &fromBadge,
+		PeerBadge &rowBadge,
 		Fn<void()> customEmojiRepaint,
-		const Text::String &fromName,
+		const Text::String &rowName,
 		const HiddenSenderInfo *hiddenSenderInfo,
 		HistoryItem *item,
 		const Data::Draft *draft,
@@ -444,7 +420,8 @@ void PaintRow(
 		|| (supportMode
 			&& entry->session().supportHelper().isOccupiedBySomeone(history))) {
 		if (!promoted) {
-			PaintRowDate(p, date, rectForName, context);
+			const auto dateString = Ui::FormatDialogsDate(date);
+			PaintRowTopRight(p, dateString, rectForName, context);
 		}
 
 		auto availableWidth = namewidth;
@@ -566,7 +543,8 @@ void PaintRow(
 		}
 	} else if (!item->isEmpty()) {
 		if ((thread || sublist) && !promoted) {
-			PaintRowDate(p, date, rectForName, context);
+			const auto dateString = Ui::FormatDialogsDate(date);
+			PaintRowTopRight(p, dateString, rectForName, context);
 		}
 
 		paintItemCallback(nameleft, namewidth);
@@ -648,10 +626,10 @@ void PaintRow(
 		p.drawTextLeft(rectForName.left(), rectForName.top(), context.width, text);
 	} else if (from) {
 		if ((history || sublist) && !context.search) {
-			const auto badgeWidth = fromBadge.drawGetWidth(
+			const auto badgeWidth = rowBadge.drawGetWidth(
 				p,
 				rectForName,
-				fromName.maxWidth(),
+				rowName.maxWidth(),
 				context.width,
 				{
 					.peer = from,
@@ -685,7 +663,7 @@ void PaintRow(
 			: context.selected
 			? st::dialogsNameFgOver
 			: st::dialogsNameFg);
-		fromName.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+		rowName.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else if (hiddenSenderInfo) {
 		p.setPen(context.active
 			? st::dialogsNameFgActive
@@ -703,12 +681,7 @@ void PaintRow(
 			: (context.selected
 				? st::dialogsNameFgOver
 				: st::dialogsNameFg));
-		auto text = entry->chatListName(); // TODO feed name with emoji
-		auto textWidth = st::semiboldFont->width(text);
-		if (textWidth > rectForName.width()) {
-			text = st::semiboldFont->elided(text, rectForName.width());
-		}
-		p.drawTextLeft(rectForName.left(), rectForName.top(), context.width, text);
+		rowName.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	}
 }
 

@@ -41,12 +41,29 @@ public:
 		Fn<void()> done,
 		Fn<void(QString)> fail);
 
+	void togglePaused(not_null<PeerData*> peer, bool paused);
+	void removeFrom(not_null<PeerData*> peer);
+
 private:
+	enum class SentRequestType {
+		Pause,
+		Unpause,
+		Remove,
+	};
+	struct SentRequest {
+		SentRequestType type = SentRequestType::Pause;
+		mtpRequestId requestId = 0;
+	};
+
+	void reload();
+
 	const not_null<Session*> _owner;
 
 	rpl::variable<ChatbotsSettings> _settings;
 	mtpRequestId _requestId = 0;
 	bool _loaded = false;
+
+	base::flat_map<not_null<PeerData*>, SentRequest> _sentRequests;
 
 };
 

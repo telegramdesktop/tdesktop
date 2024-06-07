@@ -59,7 +59,7 @@ QSize UnwrappedMedia::countOptimalSize() {
 		const auto topic = _parent->displayedTopicButton();
 		const auto forwarded = getDisplayedForwardedInfo();
 		if (forwarded) {
-			forwarded->create(via);
+			forwarded->create(via, item);
 		}
 		maxWidth += additionalWidth(topic, reply, via, forwarded);
 		accumulate_max(maxWidth, _parent->reactionsOptimalWidth());
@@ -441,7 +441,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 			}
 			if (recth) {
 				int rectx = _additionalOnTop
-					? (rightAligned ? (inner.width() + st::msgReplyPadding.left() - rectw) : 0)
+					? (rightAligned ? (inner.x() + inner.width() - rectw) : 0)
 					: (rightAligned ? 0 : (inner.width() + st::msgReplyPadding.left()));
 				int recty = surrounding.height - recth;
 				if (rtl()) rectx = width() - rectx - rectw;
@@ -647,6 +647,7 @@ bool UnwrappedMedia::needInfoDisplay() const {
 		|| _parent->isUnderCursor()
 		|| _parent->rightActionSize()
 		|| _parent->isLastAndSelfMessage()
+		|| (_parent->delegate()->elementContext() == Context::ChatPreview)
 		|| (_parent->hasRightLayout()
 			&& _content->alwaysShowOutTimestamp());
 }

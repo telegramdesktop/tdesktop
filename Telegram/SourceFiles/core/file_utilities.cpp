@@ -7,10 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/file_utilities.h"
 
-#include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
-#include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "platform/platform_file_utilities.h"
 #include "core/application.h"
@@ -159,16 +157,16 @@ void Launch(const QString &filepath) {
 void ShowInFolder(const QString &filepath) {
 	crl::on_main([=] {
 		Ui::PreventDelayedActivation();
-		if (Platform::IsLinux()) {
-			// Hide mediaview to make other apps visible.
-			Core::App().hideMediaView();
-		}
 		base::Platform::ShowInFolder(filepath);
 	});
 }
 
 QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
+#if OS_MAC_STORE
+	return u"Telegram Lite"_q;
+#else // OS_MAC_STORE
 	return session->supportMode() ? u"Tsupport Desktop"_q : AppName.utf16();
+#endif // OS_MAC_STORE
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {

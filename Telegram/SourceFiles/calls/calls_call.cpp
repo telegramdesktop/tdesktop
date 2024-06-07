@@ -7,31 +7,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_call.h"
 
-#include "main/main_session.h"
-#include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "apiwrap.h"
-#include "lang/lang_keys.h"
-#include "boxes/abstract_box.h"
-#include "ui/boxes/confirm_box.h"
-#include "ui/boxes/rate_call_box.h"
-#include "calls/calls_instance.h"
-#include "base/battery_saving.h"
 #include "base/openssl_help.h"
+#include "base/platform/base_platform_info.h"
 #include "base/random.h"
-#include "mtproto/mtproto_dh_utils.h"
-#include "mtproto/mtproto_config.h"
+#include "boxes/abstract_box.h"
+#include "calls/calls_instance.h"
+#include "calls/calls_panel.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "window/window_controller.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
+#include "lang/lang_keys.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
 #include "media/audio/media_audio_track.h"
-#include "base/platform/base_platform_info.h"
-#include "calls/calls_panel.h"
+#include "mtproto/mtproto_config.h"
+#include "mtproto/mtproto_dh_utils.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/boxes/rate_call_box.h"
+#include "webrtc/webrtc_create_adm.h"
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
-#include "webrtc/webrtc_create_adm.h"
-#include "data/data_user.h"
-#include "data/data_session.h"
+#include "window/window_controller.h"
 
 #include <tgcalls/Instance.h>
 #include <tgcalls/VideoCaptureInterface.h>
@@ -945,8 +943,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	tgcalls::Descriptor descriptor = {
 		.version = versionString,
 		.config = tgcalls::Config{
-			.initializationTimeout =
-				serverConfig.callConnectTimeoutMs / 1000.,
+			.initializationTimeout
+				= serverConfig.callConnectTimeoutMs / 1000.,
 			.receiveTimeout = serverConfig.callPacketTimeoutMs / 1000.,
 			.dataSaving = tgcalls::DataSaving::Never,
 			.enableP2P = call.is_p2p_allowed(),
@@ -1072,6 +1070,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		Core::App().mediaDevices().setCaptureMuted(muted);
 	}, _instanceLifetime);
 
+#if 0
 	Core::App().batterySaving().value(
 	) | rpl::start_with_next([=](bool isSaving) {
 		crl::on_main(weak, [=] {
@@ -1080,6 +1079,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			}
 		});
 	}, _instanceLifetime);
+#endif
 }
 
 void Call::handleControllerStateChange(tgcalls::State state) {

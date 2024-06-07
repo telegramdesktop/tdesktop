@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_database.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_drafts.h"
+#include "webview/webview_common.h"
 
 class History;
 
@@ -148,6 +149,11 @@ public:
 	void writeExportSettings(const Export::Settings &settings);
 	[[nodiscard]] Export::Settings readExportSettings();
 
+	void writeSearchSuggestionsDelayed();
+	void writeSearchSuggestionsIfNeeded();
+	void writeSearchSuggestions();
+	void readSearchSuggestions();
+
 	void writeSelf();
 
 	// Read self is special, it can't get session from account, because
@@ -163,6 +169,10 @@ public:
 	[[nodiscard]] bool isBotTrustedPayment(PeerId botId);
 	void markBotTrustedOpenWebView(PeerId botId);
 	[[nodiscard]] bool isBotTrustedOpenWebView(PeerId botId);
+
+	void enforceModernStorageIdBots();
+	[[nodiscard]] Webview::StorageId resolveStorageIdBots();
+	[[nodiscard]] Webview::StorageId resolveStorageIdOther();
 
 	[[nodiscard]] bool encrypt(
 		const void *src,
@@ -291,6 +301,7 @@ private:
 	FileKey _installedCustomEmojiKey = 0;
 	FileKey _featuredCustomEmojiKey = 0;
 	FileKey _archivedCustomEmojiKey = 0;
+	FileKey _searchSuggestionsKey = 0;
 
 	qint64 _cacheTotalSizeLimit = 0;
 	qint64 _cacheBigFileTotalSizeLimit = 0;
@@ -301,11 +312,16 @@ private:
 	bool _trustedBotsRead = false;
 	bool _readingUserSettings = false;
 	bool _recentHashtagsAndBotsWereRead = false;
+	bool _searchSuggestionsRead = false;
+
+	Webview::StorageId _webviewStorageIdBots;
+	Webview::StorageId _webviewStorageIdOther;
 
 	int _oldMapVersion = 0;
 
 	base::Timer _writeMapTimer;
 	base::Timer _writeLocationsTimer;
+	base::Timer _writeSearchSuggestionsTimer;
 	bool _mapChanged = false;
 	bool _locationsChanged = false;
 

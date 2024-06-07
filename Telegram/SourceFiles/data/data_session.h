@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Image;
 class HistoryItem;
 struct WebPageCollage;
+struct WebPageStickerSet;
 enum class WebPageType : uint8;
 enum class NewMessageType;
 
@@ -47,10 +48,8 @@ namespace Data {
 class Folder;
 class LocationPoint;
 class WallPaper;
-class ScheduledMessages;
 class ShortcutMessages;
 class SendActionManager;
-class SponsoredMessages;
 class Reactions;
 class EmojiStatuses;
 class ForumIcons;
@@ -104,9 +103,6 @@ public:
 	[[nodiscard]] ChatFilters &chatsFilters() const {
 		return *_chatsFilters;
 	}
-	[[nodiscard]] ScheduledMessages &scheduledMessages() const {
-		return *_scheduledMessages;
-	}
 	[[nodiscard]] ShortcutMessages &shortcutMessages() const {
 		return *_shortcutMessages;
 	}
@@ -127,9 +123,6 @@ public:
 	}
 	[[nodiscard]] Stickers &stickers() const {
 		return *_stickers;
-	}
-	[[nodiscard]] SponsoredMessages &sponsoredMessages() const {
-		return *_sponsoredMessages;
 	}
 	[[nodiscard]] Reactions &reactions() const {
 		return *_reactions;
@@ -271,6 +264,7 @@ public:
 		not_null<bool*> isVisible;
 	};
 	[[nodiscard]] bool queryItemVisibility(not_null<HistoryItem*> item) const;
+	[[nodiscard]] bool queryDocumentVisibility(not_null<DocumentData*> document) const;
 	[[nodiscard]] rpl::producer<ItemVisibilityQuery> itemVisibilityQueries() const;
 	void itemVisibilitiesUpdated();
 
@@ -586,6 +580,7 @@ public:
 		DocumentData *document,
 		WebPageCollage &&collage,
 		std::unique_ptr<Iv::Data> iv,
+		std::unique_ptr<WebPageStickerSet> stickerSet,
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
@@ -864,6 +859,7 @@ private:
 		DocumentData *document,
 		WebPageCollage &&collage,
 		std::unique_ptr<Iv::Data> iv,
+		std::unique_ptr<WebPageStickerSet> stickerSet,
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
@@ -1083,9 +1079,7 @@ private:
 	const std::unique_ptr<SavedMessages> _savedMessages;
 	const std::unique_ptr<Chatbots> _chatbots;
 	const std::unique_ptr<BusinessInfo> _businessInfo;
-	std::unique_ptr<ScheduledMessages> _scheduledMessages;
 	std::unique_ptr<ShortcutMessages> _shortcutMessages;
-	std::unique_ptr<SponsoredMessages> _sponsoredMessages;
 
 	MsgId _nonHistoryEntryId = ShortcutMaxMsgId;
 

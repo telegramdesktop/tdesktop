@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_instance.h"
 
 #include "apiwrap.h"
+#include "base/platform/base_platform_info.h"
 #include "boxes/share_box.h"
 #include "core/application.h"
 #include "core/file_utilities.h"
 #include "core/shortcuts.h"
+#include "core/click_handler_types.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_cloud_file.h"
@@ -30,13 +32,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_common.h" // Lottie::ReadContent.
 #include "main/main_account.h"
-#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/session/session_show.h"
 #include "media/streaming/media_streaming_loader.h"
 #include "media/view/media_view_open_common.h"
 #include "storage/file_download.h"
-#include "storage/storage_domain.h"
+#include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/text/text_utilities.h"
@@ -63,7 +64,7 @@ class Shown final : public base::has_weak_ptr {
 public:
 	Shown(
 		not_null<Delegate*> delegate,
-		std::shared_ptr<Main::SessionShow> show,
+		not_null<Main::Session*> session,
 		not_null<Data*> data,
 		QString hash);
 
@@ -169,12 +170,11 @@ private:
 
 Shown::Shown(
 	not_null<Delegate*> delegate,
-	std::shared_ptr<Main::SessionShow> show,
+	not_null<Main::Session*> session,
 	not_null<Data*> data,
 	QString hash)
 : _delegate(delegate)
-, _session(&show->session())
-, _show(show) {
+, _session(session) {
 	prepare(data, hash);
 }
 
@@ -297,80 +297,6 @@ ShareBoxResult Shown::shareBox(ShareBoxDescriptor &&descriptor) {
 		state->destroyRequests.fire({});
 	}, wrap->lifetime());
 
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	const auto sending = std::make_shared<bool>();
-	auto copyCallback = [=] {
-		QGuiApplication::clipboard()->setText(url);
-		show->showToast(tr::lng_background_link_copied(tr::now));
-	};
-	auto submitCallback = [=](
-			std::vector<not_null<::Data::Thread*>> &&result,
-			TextWithTags &&comment,
-			Api::SendOptions options,
-			::Data::ForwardOptions) {
-		if (*sending || result.empty()) {
-			return;
-		}
-
-		const auto error = [&] {
-			for (const auto thread : result) {
-				const auto error = GetErrorTextForSending(
-					thread,
-					{ .text = &comment });
-				if (!error.isEmpty()) {
-					return std::make_pair(error, thread);
-				}
-			}
-			return std::make_pair(QString(), result.front());
-		}();
-		if (!error.first.isEmpty()) {
-			auto text = TextWithEntities();
-			if (result.size() > 1) {
-				text.append(
-					Ui::Text::Bold(error.second->chatListName())
-				).append("\n\n");
-			}
-			text.append(error.first);
-			if (const auto weak = *box) {
-				weak->getDelegate()->show(Ui::MakeConfirmBox({
-					.text = text,
-					.inform = true,
-				}));
-			}
-			return;
-		}
-
-		*sending = true;
-		if (!comment.text.isEmpty()) {
-			comment.text = url + "\n" + comment.text;
-			const auto add = url.size() + 1;
-			for (auto &tag : comment.tags) {
-				tag.offset += add;
-			}
-		} else {
-			comment.text = url;
-		}
-		auto &api = _session->api();
-		for (const auto thread : result) {
-			auto message = Api::MessageToSend(
-				Api::SendAction(thread, options));
-			message.textWithTags = comment;
-			message.action.clearDraft = false;
-			api.sendMessage(std::move(message));
-		}
-		if (*box) {
-			(*box)->closeBox();
-		}
-		show->showToast(tr::lng_share_done(tr::now));
-	};
-	auto filterCallback = [](not_null<::Data::Thread*> thread) {
-		if (const auto user = thread->peer()->asUser()) {
-			if (user->canSendIgnoreRequirePremium()) {
-				return true;
-			}
-		}
-		return ::Data::CanSend(thread, ChatRestriction::SendOther);
-	};
 	const auto focus = crl::guard(layer, [=] {
 		if (!layer->window()->isActiveWindow()) {
 			layer->window()->activateWindow();
@@ -383,16 +309,8 @@ ShareBoxResult Shown::shareBox(ShareBoxDescriptor &&descriptor) {
 		.hide = [=] { show->hideLayer(); },
 		.destroyRequests = state->destroyRequests.events(),
 	};
-	*box = show->show(
-		Box<ShareBox>(ShareBox::Descriptor{
-			.session = _session,
-			.copyCallback = std::move(copyCallback),
-			.submitCallback = std::move(submitCallback),
-			.filterCallback = std::move(filterCallback),
-			.premiumRequiredError = SharePremiumRequiredError(),
-		}),
-		Ui::LayerOption::KeepOther,
-		anim::type::normal);
+
+	FastShareLink(Main::MakeSessionShow(show, _session), url);
 	return result;
 }
 
@@ -430,9 +348,8 @@ void Shown::showWindowed(Prepared result) {
 		createController();
 	}
 
-	const auto domain = &_session->domain();
 	_controller->show(
-		domain->local().webviewDataPath(),
+		_session->local().resolveStorageIdOther(),
 		std::move(result),
 		base::duplicate(_inChannelValues));
 }
@@ -818,20 +735,32 @@ void Instance::show(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Data*> data,
 		QString hash) {
-	const auto session = &show->session();
+	this->show(&show->session(), data, hash);
+}
+
+void Instance::show(
+		not_null<Main::Session*> session,
+		not_null<Data*> data,
+		QString hash) {
+	if (Platform::IsMac()) {
+		// Otherwise IV is not visible under the media viewer.
+		Core::App().hideMediaView();
+	}
+
 	const auto guard = gsl::finally([&] {
-		if (data->partial()) {
-			requestFull(session, data->id());
-		}
+		requestFull(session, data->id());
 	});
 	if (_shown && _shownSession == session) {
 		_shown->moveTo(data, hash);
 		return;
 	}
-	_shown = std::make_unique<Shown>(_delegate, show, data, hash);
+	_shown = std::make_unique<Shown>(_delegate, session, data, hash);
 	_shownSession = session;
 	_shown->events() | rpl::start_with_next([=](Controller::Event event) {
 		using Type = Controller::Event::Type;
+		const auto lower = event.url.toLower();
+		const auto urlChecked = lower.startsWith("http://")
+			|| lower.startsWith("https://");
 		switch (event.type) {
 		case Type::Close:
 			_shown = nullptr;
@@ -846,7 +775,9 @@ void Instance::show(
 			processJoinChannel(event.context);
 			break;
 		case Type::OpenLinkExternal:
-			File::OpenUrl(event.url);
+			if (urlChecked) {
+				File::OpenUrl(event.url);
+			}
 			closeAll();
 			break;
 		case Type::OpenMedia:
@@ -885,6 +816,10 @@ void Instance::show(
 			break;
 		case Type::OpenPage:
 		case Type::OpenLink:
+			if (!urlChecked) {
+				break;
+			}
+			_fullRequested[_shownSession].emplace(event.url);
 			_shownSession->api().request(MTPmessages_GetWebPage(
 				MTP_string(event.url),
 				MTP_int(0)
@@ -896,13 +831,24 @@ void Instance::show(
 				if (page && page->iv) {
 					const auto parts = event.url.split('#');
 					const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
-					this->show(show, page->iv.get(), hash);
+					this->show(_shownSession, page->iv.get(), hash);
 				} else {
 					UrlClickHandler::Open(event.url);
 				}
 			}).fail([=] {
 				UrlClickHandler::Open(event.url);
 			}).send();
+			break;
+		case Type::Report:
+			if (const auto controller = _shownSession->tryResolveWindow()) {
+				controller->window().activate();
+				controller->showPeerByLink(Window::PeerByLinkInfo{
+					.usernameOrId = "previews",
+					.resolveType = Window::ResolveType::BotStart,
+					.startToken = ("webpage"
+						+ QString::number(event.context.toULongLong())),
+				});
+			}
 			break;
 		}
 	}, _shown->lifetime());
@@ -921,20 +867,105 @@ void Instance::show(
 		}
 	}, _shown->lifetime());
 
-	if (!_tracking.contains(session)) {
-		_tracking.emplace(session);
-		session->lifetime().add([=] {
-			_tracking.remove(session);
-			_joining.remove(session);
-			_fullRequested.remove(session);
-			if (_shownSession == session) {
-				_shownSession = nullptr;
-			}
-			if (_shown && _shown->showingFrom(session)) {
-				_shown = nullptr;
-			}
-		});
+	trackSession(session);
+}
+
+void Instance::trackSession(not_null<Main::Session*> session) {
+	if (!_tracking.emplace(session).second) {
+		return;
 	}
+	session->lifetime().add([=] {
+		_tracking.remove(session);
+		_joining.remove(session);
+		_fullRequested.remove(session);
+		_ivCache.remove(session);
+		if (_ivRequestSession == session) {
+			session->api().request(_ivRequestId).cancel();
+			_ivRequestSession = nullptr;
+			_ivRequestUri = QString();
+			_ivRequestId = 0;
+		}
+		if (_shownSession == session) {
+			_shownSession = nullptr;
+		}
+		if (_shown && _shown->showingFrom(session)) {
+			_shown = nullptr;
+		}
+	});
+}
+
+void Instance::openWithIvPreferred(
+		not_null<Window::SessionController*> controller,
+		QString uri,
+		QVariant context) {
+	auto my = context.value<ClickHandlerContext>();
+	my.sessionWindow = controller;
+	openWithIvPreferred(
+		&controller->session(),
+		uri,
+		QVariant::fromValue(my));
+}
+
+void Instance::openWithIvPreferred(
+		not_null<Main::Session*> session,
+		QString uri,
+		QVariant context) {
+	const auto openExternal = [=] {
+		auto my = context.value<ClickHandlerContext>();
+		my.ignoreIv = true;
+		UrlClickHandler::Open(uri, QVariant::fromValue(my));
+	};
+	const auto parts = uri.split('#');
+	if (parts.isEmpty() || parts[0].isEmpty()) {
+		return;
+	} else if (!ShowButton()) {
+		return openExternal();
+	}
+	trackSession(session);
+	const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
+	const auto url = parts[0];
+	auto &cache = _ivCache[session];
+	if (const auto i = cache.find(url); i != end(cache)) {
+		const auto page = i->second;
+		if (page && page->iv) {
+			auto my = context.value<ClickHandlerContext>();
+			if (const auto window = my.sessionWindow.get()) {
+				show(window, page->iv.get(), hash);
+			} else {
+				show(session, page->iv.get(), hash);
+			}
+		} else {
+			openExternal();
+		}
+		return;
+	} else if (_ivRequestSession == session.get() && _ivRequestUri == uri) {
+		return;
+	} else if (_ivRequestId) {
+		_ivRequestSession->api().request(_ivRequestId).cancel();
+	}
+	const auto finish = [=](WebPageData *page) {
+		Expects(_ivRequestSession == session);
+
+		_ivRequestId = 0;
+		_ivRequestUri = QString();
+		_ivRequestSession = nullptr;
+		_ivCache[session][url] = page;
+		openWithIvPreferred(session, uri, context);
+	};
+	_ivRequestSession = session;
+	_ivRequestUri = uri;
+	_fullRequested[session].emplace(url);
+	_ivRequestId = session->api().request(MTPmessages_GetWebPage(
+		MTP_string(url),
+		MTP_int(0)
+	)).done([=](const MTPmessages_WebPage &result) {
+		const auto &data = result.data();
+		session->data().processUsers(data.vusers());
+		session->data().processChats(data.vchats());
+		finish(session->data().processWebpage(data.vwebpage()));
+	}).fail([=] {
+		finish(nullptr);
+	}).send();
 }
 
 void Instance::requestFull(
@@ -964,20 +995,16 @@ void Instance::processOpenChannel(const QString &context) {
 	} else if (const auto channelId = ChannelId(context.toLongLong())) {
 		const auto channel = _shownSession->data().channel(channelId);
 		if (channel->isLoaded()) {
-			if (const auto window = Core::App().windowFor(channel)) {
-				if (const auto controller = window->sessionController()) {
-					controller->showPeerHistory(channel);
-					_shown = nullptr;
-				}
+			if (const auto controller = _shownSession->tryResolveWindow(channel)) {
+				controller->showPeerHistory(channel);
+				_shown = nullptr;
 			}
 		} else if (!channel->username().isEmpty()) {
-			if (const auto window = Core::App().windowFor(channel)) {
-				if (const auto controller = window->sessionController()) {
-					controller->showPeerByLink({
-						.usernameOrId = channel->username(),
-					});
-					_shown = nullptr;
-				}
+			if (const auto controller = _shownSession->tryResolveWindow(channel)) {
+				controller->showPeerByLink({
+					.usernameOrId = channel->username(),
+				});
+				_shown = nullptr;
 			}
 		}
 	}
@@ -992,13 +1019,11 @@ void Instance::processJoinChannel(const QString &context) {
 		if (channel->isLoaded()) {
 			_shownSession->api().joinChannel(channel);
 		} else if (!channel->username().isEmpty()) {
-			if (const auto window = Core::App().windowFor(channel)) {
-				if (const auto controller = window->sessionController()) {
-					controller->showPeerByLink({
-						.usernameOrId = channel->username(),
-						.joinChannel = true,
-					});
-				}
+			if (const auto controller = _shownSession->tryResolveWindow(channel)) {
+				controller->showPeerByLink({
+					.usernameOrId = channel->username(),
+					.joinChannel = true,
+				});
 			}
 		}
 	}
@@ -1026,6 +1051,19 @@ bool Instance::minimizeActive() {
 
 void Instance::closeAll() {
 	_shown = nullptr;
+}
+
+bool PreferForUri(const QString &uri) {
+	const auto url = QUrl(uri);
+	const auto host = url.host().toLower();
+	const auto path = url.path().toLower();
+	return (host == u"telegra.ph"_q)
+		|| (host == u"te.legra.ph"_q)
+		|| (host == u"graph.org"_q)
+		|| (host == u"telegram.org"_q
+			&& (path.startsWith(u"/faq"_q)
+				|| path.startsWith(u"/privacy"_q)
+				|| path.startsWith(u"/blog"_q)));
 }
 
 } // namespace Iv

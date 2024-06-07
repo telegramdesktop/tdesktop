@@ -16,12 +16,14 @@ struct GiftCode;
 } // namespace Api
 
 namespace Data {
+struct CreditsHistoryEntry;
 struct GiveawayStart;
 struct GiveawayResults;
 } // namespace Data
 
 namespace Ui {
 class GenericBox;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Window {
@@ -35,6 +37,7 @@ public:
 
 	void showBox(not_null<UserData*> user);
 	void showChoosePeerBox(const QString &ref);
+	void showChosenPeerBox(not_null<UserData*> user, const QString &ref);
 	void cancel();
 
 private:
@@ -70,3 +73,8 @@ void ResolveGiveawayInfo(
 	MsgId messageId,
 	std::optional<Data::GiveawayStart> start,
 	std::optional<Data::GiveawayResults> results);
+
+void AddCreditsHistoryEntryTable(
+	not_null<Window::SessionNavigation*> controller,
+	not_null<Ui::VerticalLayout*> container,
+	const Data::CreditsHistoryEntry &entry);

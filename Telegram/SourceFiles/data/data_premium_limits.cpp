@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_premium_limits.h"
 
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 
@@ -210,7 +209,7 @@ int PremiumLimits::maxBoostLevel() const {
 int PremiumLimits::appConfigLimit(
 		const QString &key,
 		int fallback) const {
-	return _session->account().appConfig().get<int>(key, fallback);
+	return _session->appConfig().get<int>(key, fallback);
 }
 
 bool PremiumLimits::isPremium() const {
@@ -222,73 +221,79 @@ LevelLimits::LevelLimits(not_null<Main::Session*> session)
 }
 
 int LevelLimits::channelColorLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"channel_color_level_min"_q,
 		5);
 }
 
 int LevelLimits::channelBgIconLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"channel_bg_icon_level_min"_q,
 		4);
 }
 
 int LevelLimits::channelProfileBgIconLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"channel_profile_bg_icon_level_min"_q,
 		7);
 }
 
 int LevelLimits::channelEmojiStatusLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"channel_emoji_status_level_min"_q,
 		8);
 }
 
 int LevelLimits::channelWallpaperLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"channel_wallpaper_level_min"_q,
 		9);
 }
 
 int LevelLimits::channelCustomWallpaperLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"channel_custom_wallpaper_level_min"_q,
 		10);
 }
 
+int LevelLimits::channelRestrictSponsoredLevelMin() const {
+	return _session->appConfig().get<int>(
+		u"channel_restrict_sponsored_level_min"_q,
+		20);
+}
+
 int LevelLimits::groupTranscribeLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"group_transcribe_level_min"_q,
 		6);
 }
 
 int LevelLimits::groupEmojiStickersLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"group_emoji_stickers_level_min"_q,
 		4);
 }
 
 int LevelLimits::groupProfileBgIconLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"group_profile_bg_icon_level_min"_q,
 		5);
 }
 
 int LevelLimits::groupEmojiStatusLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"group_emoji_status_level_min"_q,
 		8);
 }
 
 int LevelLimits::groupWallpaperLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"group_wallpaper_level_min"_q,
 		9);
 }
 
 int LevelLimits::groupCustomWallpaperLevelMin() const {
-	return _session->account().appConfig().get<int>(
+	return _session->appConfig().get<int>(
 		u"group_custom_wallpaper_level_min"_q,
 		10);
 }

@@ -222,42 +222,6 @@ int PhotoSideLimit() {
 	return PhotoSideLimit(SendLargePhotos.value());
 }
 
-SendMediaReady::SendMediaReady(
-	SendMediaType type,
-	const QString &file,
-	const QString &filename,
-	int64 filesize,
-	const QByteArray &data,
-	const uint64 &id,
-	const uint64 &thumbId,
-	const QString &thumbExt,
-	const PeerId &peer,
-	const MTPPhoto &photo,
-	const PreparedPhotoThumbs &photoThumbs,
-	const MTPDocument &document,
-	const QByteArray &jpeg)
-: type(type)
-, file(file)
-, filename(filename)
-, filesize(filesize)
-, data(data)
-, thumbExt(thumbExt)
-, id(id)
-, thumbId(thumbId)
-, peer(peer)
-, photo(photo)
-, document(document)
-, photoThumbs(photoThumbs) {
-	if (!jpeg.isEmpty()) {
-		int32 size = jpeg.size();
-		for (int32 i = 0, part = 0; i < size; i += kPhotoUploadPartSize, ++part) {
-			parts.insert(part, jpeg.mid(i, kPhotoUploadPartSize));
-		}
-		jpeg_md5.resize(32);
-		hashMd5Hex(jpeg.constData(), jpeg.size(), jpeg_md5.data());
-	}
-}
-
 TaskQueue::TaskQueue(crl::time stopTimeoutMs) {
 	if (stopTimeoutMs > 0) {
 		_stopTimer = new QTimer(this);
@@ -455,44 +419,48 @@ SendingAlbum::Item::Item(TaskId taskId)
 : taskId(taskId) {
 }
 
-FileLoadResult::FileLoadResult(
-	TaskId taskId,
-	uint64 id,
-	const FileLoadTo &to,
-	const TextWithTags &caption,
-	bool spoiler,
-	std::shared_ptr<SendingAlbum> album)
-: taskId(taskId)
-, id(id)
-, to(to)
-, album(std::move(album))
-, caption(caption)
-, spoiler(spoiler) {
+FilePrepareResult::FilePrepareResult(FilePrepareDescriptor &&descriptor)
+: taskId(descriptor.taskId)
+, id(descriptor.id)
+, to(std::move(descriptor.to))
+, album(std::move(descriptor.album))
+, type(descriptor.type)
+, caption(std::move(descriptor.caption))
+, spoiler(descriptor.spoiler) {
 }
 
-void FileLoadResult::setFileData(const QByteArray &filedata) {
+void FilePrepareResult::setFileData(const QByteArray &filedata) {
 	if (filedata.isEmpty()) {
 		partssize = 0;
 	} else {
 		partssize = filedata.size();
+		fileparts.reserve(
+			(partssize + kPhotoUploadPartSize - 1) / kPhotoUploadPartSize);
 		for (int32 i = 0, part = 0; i < partssize; i += kPhotoUploadPartSize, ++part) {
-			fileparts.insert(part, filedata.mid(i, kPhotoUploadPartSize));
+			fileparts.push_back(filedata.mid(i, kPhotoUploadPartSize));
 		}
 		filemd5.resize(32);
 		hashMd5Hex(filedata.constData(), filedata.size(), filemd5.data());
 	}
 }
 
-void FileLoadResult::setThumbData(const QByteArray &thumbdata) {
+void FilePrepareResult::setThumbData(const QByteArray &thumbdata) {
 	if (!thumbdata.isEmpty()) {
 		thumbbytes = thumbdata;
 		int32 size = thumbdata.size();
+		thumbparts.reserve(
+			(size + kPhotoUploadPartSize - 1) / kPhotoUploadPartSize);
 		for (int32 i = 0, part = 0; i < size; i += kPhotoUploadPartSize, ++part) {
-			thumbparts.insert(part, thumbdata.mid(i, kPhotoUploadPartSize));
+			thumbparts.push_back(thumbdata.mid(i, kPhotoUploadPartSize));
 		}
 		thumbmd5.resize(32);
 		hashMd5Hex(thumbdata.constData(), thumbdata.size(), thumbmd5.data());
 	}
+}
+
+std::shared_ptr<FilePrepareResult> MakePreparedFile(
+		FilePrepareDescriptor &&descriptor) {
+	return std::make_shared<FilePrepareResult>(std::move(descriptor));
 }
 
 FileLoadTask::FileLoadTask(
@@ -710,13 +678,14 @@ bool FileLoadTask::FillImageInformation(
 }
 
 void FileLoadTask::process(Args &&args) {
-	_result = std::make_shared<FileLoadResult>(
-		id(),
-		_id,
-		_to,
-		_caption,
-		_spoiler,
-		_album);
+	_result = MakePreparedFile({
+		.taskId = id(),
+		.id = _id,
+		.to = _to,
+		.caption = _caption,
+		.spoiler = _spoiler,
+		.album = _album,
+	});
 
 	QString filename, filemime;
 	qint64 filesize = 0;
@@ -1062,7 +1031,7 @@ void FileLoadTask::finish() {
 	}
 }
 
-FileLoadResult *FileLoadTask::peekResult() const {
+FilePrepareResult *FileLoadTask::peekResult() const {
 	return _result.get();
 }
 

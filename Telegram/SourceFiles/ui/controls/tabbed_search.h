@@ -31,14 +31,23 @@ class RpWidget;
 template <typename Widget>
 class FadeWrap;
 
+enum class EmojiGroupType {
+	Normal,
+	Greeting,
+	Premium,
+};
+
 struct EmojiGroup {
 	QString iconId;
 	std::vector<QString> emoticons;
+	EmojiGroupType type = EmojiGroupType::Normal;
 
 	friend inline auto operator<=>(
 		const EmojiGroup &a,
 		const EmojiGroup &b) = default;
 };
+
+[[nodiscard]] const QString &PremiumGroupFakeEmoticon();
 
 struct SearchDescriptor {
 	const style::TabbedSearch &st;

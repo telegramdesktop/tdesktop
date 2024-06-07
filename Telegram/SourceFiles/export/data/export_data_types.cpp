@@ -148,6 +148,7 @@ std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
 					qs(data.vtext()),
 					data.vurl().v
 				});
+			}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
 			});
 		}
 		if (!row.empty()) {
@@ -306,6 +307,8 @@ std::vector<TextPart> ParseText(
 			return NumberToString(data.vuser_id().v);
 		}, [](const MTPDmessageEntityCustomEmoji &data) {
 			return NumberToString(data.vdocument_id().v);
+		}, [](const MTPDmessageEntityBlockquote &data) {
+			return data.is_collapsed() ? Utf8String("1") : Utf8String();
 		}, [](const auto &) { return Utf8String(); });
 
 		result.push_back(std::move(part));
@@ -667,14 +670,14 @@ Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 	auto result = Poll();
 	data.vpoll().match([&](const MTPDpoll &poll) {
 		result.id = poll.vid().v;
-		result.question = ParseString(poll.vquestion());
+		result.question = ParseString(poll.vquestion().data().vtext());
 		result.closed = poll.is_closed();
 		result.answers = ranges::views::all(
 			poll.vanswers().v
 		) | ranges::views::transform([](const MTPPollAnswer &answer) {
 			return answer.match([](const MTPDpollAnswer &answer) {
 				auto result = Poll::Answer();
-				result.text = ParseString(answer.vtext());
+				result.text = ParseString(answer.vtext().data().vtext());
 				result.option = answer.voption().v;
 				return result;
 			});
@@ -1486,6 +1489,8 @@ ServiceAction ParseServiceAction(
 		auto content = ActionBoostApply();
 		content.boosts = data.vboosts().v;
 		result.content = content;
+	}, [&](const MTPDmessageActionRequestedPeerSentMe &data) {
+		// Should not be in user inbox.
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

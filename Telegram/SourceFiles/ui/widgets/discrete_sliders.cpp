@@ -18,6 +18,8 @@ DiscreteSlider::DiscreteSlider(QWidget *parent, bool snapToLabel)
 	setCursor(style::cur_pointer);
 }
 
+DiscreteSlider::~DiscreteSlider() = default;
+
 void DiscreteSlider::setActiveSection(int index) {
 	_activeIndex = index;
 	activateCallback();
@@ -64,6 +66,13 @@ void DiscreteSlider::addSection(const QString &label) {
 	resizeToWidth(width());
 }
 
+void DiscreteSlider::addSection(
+		const TextWithEntities &label,
+		const std::any &context) {
+	_sections.push_back(Section(label, getLabelStyle(), context));
+	resizeToWidth(width());
+}
+
 void DiscreteSlider::setSections(const std::vector<QString> &labels) {
 	Assert(!labels.empty());
 
@@ -71,6 +80,22 @@ void DiscreteSlider::setSections(const std::vector<QString> &labels) {
 	for (const auto &label : labels) {
 		_sections.push_back(Section(label, getLabelStyle()));
 	}
+	refresh();
+}
+
+void DiscreteSlider::setSections(
+		const std::vector<TextWithEntities> &labels,
+		const std::any &context) {
+	Assert(!labels.empty());
+
+	_sections.clear();
+	for (const auto &label : labels) {
+		_sections.push_back(Section(label, getLabelStyle(), context));
+	}
+	refresh();
+}
+
+void DiscreteSlider::refresh() {
 	stopAnimation();
 	if (_activeIndex >= _sections.size()) {
 		_activeIndex = 0;
@@ -180,6 +205,13 @@ DiscreteSlider::Section::Section(
 : label(st, label) {
 }
 
+DiscreteSlider::Section::Section(
+		const TextWithEntities &label,
+		const style::TextStyle &st,
+		const std::any &context) {
+	this->label.setMarkedText(st, label, kMarkupTextOptions, context);
+}
+
 SettingsSlider::SettingsSlider(
 	QWidget *parent,
 	const style::SettingsSlider &st)
@@ -243,8 +275,10 @@ std::vector<float64> SettingsSlider::countSectionsWidths(
 		return true;
 	});
 	// If labelsWidth > sectionsWidth we're screwed anyway.
-	if (!commonWidth && labelsWidth <= sectionsWidth) {
-		auto padding = (sectionsWidth - labelsWidth) / (2. * count);
+	if (_st.strictSkip || (!commonWidth && labelsWidth <= sectionsWidth)) {
+		auto padding = _st.strictSkip
+			? (_st.strictSkip / 2.)
+			: (sectionsWidth - labelsWidth) / (2. * count);
 		auto currentWidth = result.begin();
 		enumerateSections([&](const Section &section) {
 			Expects(currentWidth != result.end());
@@ -334,7 +368,7 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 			+ (section.width - activeWidth) / 2;
 		auto active = 1.
 			- std::clamp(
-				qAbs(range.left - activeLeft) / float64(section.width),
+				qAbs(range.left - activeLeft) / float64(range.width),
 				0.,
 				1.);
 		if (section.ripple) {

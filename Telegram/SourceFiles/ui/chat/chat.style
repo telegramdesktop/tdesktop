@@ -66,6 +66,10 @@ messageTextStyle: TextStyle(defaultTextStyle) {
 		padding: margins(10px, 2px, 20px, 2px);
 		icon: icon{{ "chat/mini_quote", windowFg }};
 		iconPosition: point(4px, 4px);
+		expand: icon{{ "intro_country_dropdown", windowFg }};
+		expandPosition: point(6px, 4px);
+		collapse: icon{{ "intro_country_dropdown-flip_vertical", windowFg }};
+		collapsePosition: point(6px, 4px);
 	}
 	pre: QuoteStyle(messageQuoteStyle) {
 		header: 20px;
@@ -125,6 +129,7 @@ outTextPaletteSelected: TextPalette(outTextPalette) {
 	monoFg: msgOutMonoFgSelected;
 	spoilerFg: msgOutDateFgSelected;
 }
+fwdTextUserpicPadding: margins(0px, 1px, 3px, 0px);
 fwdTextStyle: TextStyle(semiboldTextStyle) {
 	linkUnderline: kLinkUnderlineNever;
 }
@@ -574,10 +579,11 @@ historyFastShareSize: 31px;
 historyFastShareLeft: 13px;
 historyFastShareBottom: 5px;
 historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
-historyGoToOriginalIcon: icon {{ "fast_to_original", msgServiceFg, point(1px, 0px) }};
+historyGoToOriginalIcon: icon {{ "filled_go_to_message", msgServiceFg, point(0px, 0px) }};
 historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
 historyFastCloseSize: 30px;
 historyFastCloseIcon: icon {{ "box_button_close", msgServiceFg }};
+historyFastMoreIcon: icon {{ "title_menu_dots", msgServiceFg, point(0px, -2px)  }};
 historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
 historyFastTranscribeLock: icon {{ "chat/mini_lock", msgServiceFg }};
 historyFastTranscribeLockPos: point(18px, 13px);
@@ -601,6 +607,7 @@ historyPsaForwardPalette: TextPalette(defaultTextPalette) {
 
 webPageTitleFont: semiboldFont;
 webPageTitleStyle: semiboldTextStyle;
+webPageSponsoredHintFont: font(10px);
 webPageDescriptionFont: normalFont;
 webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoDelta: 8px;
@@ -630,7 +637,7 @@ historyPollRadio: Radio(defaultRadio) {
 	diameter: 18px;
 	thickness: 2px;
 	skip: 65px; // * 0.1
-	duration: 120;
+	duration: universalDuration;
 	rippleAreaPadding: 8px;
 }
 historyPollRadioOpacity: 0.7;
@@ -901,6 +908,8 @@ reactionMainAppearShift: 20px;
 reactionCollapseFadeThreshold: 40px;
 reactionFlyUp: 50px;
 
+effectInfoImage: 12px;
+
 searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {
 	maxWidth: 200px;
 }
@@ -923,7 +932,7 @@ msgServiceGiftBoxButtonPadding: margins(2px, 0px, 2px, 0px);
 msgServiceGiftBoxButtonMargins: margins(0px, 13px, 0px, 17px);
 msgServiceGiftBoxTitlePadding: margins(0px, 5px, 0px, 2px);
 msgServiceGiftBoxStickerTop: -19px;
-msgServiceGiftBoxStickerSize: size(140px, 140px);
+msgServiceGiftBoxStickerSize: 140px;
 
 historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
@@ -1001,6 +1010,7 @@ storyMentionButtonSkip: 5px;
 
 chatGiveawayWidth: 292px;
 chatGiveawayStickerTop: -16px;
+chatGiveawayStickerPadding: margins(14px, -2px, 14px, 14px);
 chatGiveawayWinnersTopSkip: 25px;
 chatGiveawayBadgeFont: font(12px bold);
 chatGiveawayBadgeTop: 106px;
@@ -1061,3 +1071,96 @@ boostsMessageIconPadding: margins(0px, 2px, 0px, 0px);
 
 historyIvIcon: icon{{ "boosts/boost_mini2", windowFg }};
 historyIvIconPadding: margins(2px, 2px, 2px, 0px);
+
+chatIntroStickerSize: 96px;
+chatIntroWidth: 224px;
+chatIntroTitleMargin: margins(11px, 16px, 11px, 4px);
+chatIntroMargin: margins(11px, 0px, 11px, 0px);
+chatIntroStickerPadding: margins(10px, 8px, 10px, 16px);
+
+liveLocationLongInIcon: icon {{ "chat/live_location_long", msgInServiceFg }};
+liveLocationLongInIconSelected: icon {{ "chat/live_location_long", msgInServiceFgSelected }};
+liveLocationLongOutIcon: icon {{ "chat/live_location_long", msgOutServiceFg }};
+liveLocationLongOutIconSelected: icon {{ "chat/live_location_long", msgOutServiceFgSelected }};
+liveLocationRemainingSize: 28px;
+
+previewMenu: PopupMenu(defaultPopupMenu) {
+	scrollPadding: margins(0px, 0px, 0px, 0px);
+	menu: Menu(defaultMenu) {
+		widthMin: 380px;
+		widthMax: 380px;
+	}
+	maxHeight: 420px;
+	radius: boxRadius;
+	shadow: boxRoundShadow;
+	animation: PanelAnimation(defaultPanelAnimation) {
+		shadow: boxRoundShadow;
+	}
+}
+previewTop: PeerListItem(defaultPeerListItem) {
+	height: 52px;
+	photoPosition: point(10px, 6px);
+	namePosition: point(60px, 9px);
+	statusPosition: point(60px, 27px);
+	photoSize: 40px;
+}
+previewMarkRead: FlatButton(historyComposeButton) {
+	height: 39px;
+	textTop: 10px;
+}
+previewName: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowFg;
+	maxHeight: 30px;
+}
+previewStatus: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+previewUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(40px, 40px);
+	photoSize: 40px;
+}
+
+effectPreviewSend: FlatButton(previewMarkRead) {
+	bgColor: transparent;
+	overBgColor: transparent;
+}
+effectPreviewPromoLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 64px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+effectPreviewPromoPadding: margins(4px, 6px, 4px, 6px);
+effectPreviewLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	thickness: 2px;
+}
+
+factcheckFooterSkip: 16px;
+factcheckFooterStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+}
+factcheckPage: QuoteStyle(historyPagePreview) {
+	padding: margins(10px, 5px, 22px, 7px);
+	expand: icon {{ "intro_country_dropdown", historyPeer1NameFg }};
+	expandPosition: point(6px, 4px);
+	collapse: icon {{ "intro_country_dropdown-flip_vertical", historyPeer1NameFg }};
+	collapsePosition: point(6px, 4px);
+}
+factcheckField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(0px, 0px, 0px, 4px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	heightMin: 24px;
+
+	font: normalFont;
+}

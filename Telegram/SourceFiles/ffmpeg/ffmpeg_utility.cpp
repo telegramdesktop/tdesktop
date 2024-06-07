@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 extern "C" {
 #include <libavutil/opt.h>
+#include <libavutil/display.h>
 } // extern "C"
 
 namespace FFmpeg {
@@ -229,7 +230,11 @@ enum AVPixelFormat GetFormatImplementation(
 IOPointer MakeIOPointer(
 		void *opaque,
 		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+		int(*write)(void *opaque, const uint8_t *buffer, int bufferSize),
+#else
 		int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+#endif
 		int64_t(*seek)(void *opaque, int64_t offset, int whence)) {
 	auto buffer = reinterpret_cast<uchar*>(av_malloc(kAvioBlockSize));
 	if (!buffer) {
@@ -262,7 +267,11 @@ void IODeleter::operator()(AVIOContext *value) {
 FormatPointer MakeFormatPointer(
 		void *opaque,
 		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+		int(*write)(void *opaque, const uint8_t *buffer, int bufferSize),
+#else
 		int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+#endif
 		int64_t(*seek)(void *opaque, int64_t offset, int whence)) {
 	auto io = MakeIOPointer(opaque, read, write, seek);
 	if (!io) {
@@ -503,16 +512,17 @@ int DurationByPacket(const Packet &packet, AVRational timeBase) {
 }
 
 int ReadRotationFromMetadata(not_null<AVStream*> stream) {
-	const auto tag = av_dict_get(stream->metadata, "rotate", nullptr, 0);
-	if (tag && *tag->value) {
-		const auto string = QString::fromUtf8(tag->value);
-		auto ok = false;
-		const auto degrees = string.toInt(&ok);
-		if (ok && (degrees == 90 || degrees == 180 || degrees == 270)) {
-			return degrees;
-		}
+	const auto displaymatrix = av_stream_get_side_data(
+		stream,
+		AV_PKT_DATA_DISPLAYMATRIX,
+		nullptr);
+	auto theta = 0;
+	if (displaymatrix) {
+		theta = -round(av_display_rotation_get((int32_t*)displaymatrix));
 	}
-	return 0;
+	theta -= 360 * floor(theta / 360 + 0.9 / 360);
+	const auto result = int(base::SafeRound(theta));
+	return (result == 90 || result == 180 || result == 270) ? result : 0;
 }
 
 AVRational ValidateAspectRatio(AVRational aspect) {

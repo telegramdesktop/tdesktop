@@ -24,6 +24,7 @@ namespace ChatHelpers {
 class Show;
 class TabbedPanel;
 class EmojiListWidget;
+class StickersListWidget;
 class StickersListFooter;
 enum class EmojiListMode;
 } // namespace ChatHelpers
@@ -66,7 +67,7 @@ private:
 	Strip *_strip = nullptr;
 
 	std::vector<DocumentId> _unifiedIdsList;
-	base::flat_map<DocumentId, QString> _defaultReactionIds;
+	base::flat_map<DocumentId, Data::ReactionId> _defaultReactionIds;
 	base::flat_map<DocumentId, int> _defaultReactionInStripMap;
 
 	QPoint _defaultReactionShift;
@@ -82,9 +83,11 @@ public:
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::PossibleItemReactionsRef &reactions,
 		TextWithEntities about,
-		IconFactory iconFactory,
 		Fn<void(bool fast)> close,
+		IconFactory iconFactory = nullptr,
+		Fn<bool()> paused = nullptr,
 		bool child = false);
+#if 0 // not ready
 	Selector(
 		not_null<QWidget*> parent,
 		const style::EmojiPan &st,
@@ -93,6 +96,7 @@ public:
 		std::vector<DocumentId> recent,
 		Fn<void(bool fast)> close,
 		bool child = false);
+#endif
 	~Selector();
 
 	[[nodiscard]] bool useTransparency() const;
@@ -101,11 +105,14 @@ public:
 	[[nodiscard]] QMargins marginsForShadow() const;
 	[[nodiscard]] int extendTopForCategories() const;
 	[[nodiscard]] int extendTopForCategoriesAndAbout(int width) const;
+	[[nodiscard]] int opaqueExtendTopAbout(int width) const;
 	[[nodiscard]] int minimalHeight() const;
 	[[nodiscard]] int countAppearedWidth(float64 progress) const;
 	void setSpecialExpandTopSkip(int skip);
 	void initGeometry(int innerTop);
 	void beforeDestroy();
+
+	void setOpaqueHeightExpand(int expand, Fn<void(int)> apply);
 
 	[[nodiscard]] rpl::producer<ChosenReaction> chosen() const {
 		return _chosen.events();
@@ -143,6 +150,7 @@ private:
 		std::vector<DocumentId> recent,
 		TextWithEntities about,
 		IconFactory iconFactory,
+		Fn<bool()> paused,
 		Fn<void(bool fast)> close,
 		bool child);
 
@@ -181,6 +189,7 @@ private:
 	const Data::PossibleItemReactions _reactions;
 	const std::vector<DocumentId> _recent;
 	const ChatHelpers::EmojiListMode _listMode;
+	const Fn<bool()> _paused;
 	Fn<void()> _jumpedToPremium;
 	Ui::RoundAreaWithShadow _cachedRound;
 	std::unique_ptr<Strip> _strip;
@@ -193,11 +202,13 @@ private:
 
 	Ui::ScrollArea *_scroll = nullptr;
 	ChatHelpers::EmojiListWidget *_list = nullptr;
+	ChatHelpers::StickersListWidget *_stickers = nullptr;
 	ChatHelpers::StickersListFooter *_footer = nullptr;
 	std::unique_ptr<UnifiedFactoryOwner> _unifiedFactoryOwner;
 	Ui::PlainShadow *_shadow = nullptr;
 	rpl::variable<int> _shadowTop = 0;
 	rpl::variable<int> _shadowSkip = 0;
+	bool _showEmptySearch = false;
 
 	QImage _paintBuffer;
 	Ui::Animations::Simple _expanding;
@@ -212,6 +223,10 @@ private:
 	int _specialExpandTopSkip = 0;
 	int _collapsedTopSkip = 0;
 	int _topAddOnExpand = 0;
+
+	int _opaqueHeightExpand = 0;
+	Fn<void(int)> _opaqueApplyHeightExpand;
+
 	const int _size = 0;
 	int _recentRows = 0;
 	int _columns = 0;
@@ -253,7 +268,7 @@ AttachSelectorResult AttachSelectorToMenu(
 	not_null<HistoryItem*> item,
 	Fn<void(ChosenReaction)> chosen,
 	TextWithEntities about,
-	IconFactory iconFactory);
+	IconFactory iconFactory = nullptr);
 
 [[nodiscard]] auto AttachSelectorToMenu(
 	not_null<Ui::PopupMenu*> menu,
@@ -262,7 +277,8 @@ AttachSelectorResult AttachSelectorToMenu(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::PossibleItemReactionsRef &reactions,
 	TextWithEntities about,
-	IconFactory iconFactory
+	IconFactory iconFactory = nullptr,
+	Fn<bool()> paused = nullptr
 ) -> base::expected<not_null<Selector*>, AttachSelectorResult>;
 
 [[nodiscard]] TextWithEntities ItemReactionsAbout(

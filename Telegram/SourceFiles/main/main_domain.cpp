@@ -32,11 +32,13 @@ Domain::Domain(const QString &dataName)
 : _dataName(dataName)
 , _local(std::make_unique<Storage::Domain>(this, dataName)) {
 	_active.changes(
-	) | rpl::take(1) | rpl::start_with_next([] {
+	) | rpl::take(1) | rpl::start_with_next([=] {
 		// In case we had a legacy passcoded app we start settings here.
 		Core::App().startSettingsAndBackground();
 
-		Core::App().notifications().createManager();
+		crl::on_main(this, [=] {
+			Core::App().notifications().createManager();
+		});
 	}, _lifetime);
 
 	_active.changes(
@@ -51,7 +53,7 @@ Domain::Domain(const QString &dataName)
 			: rpl::never<Data::PeerUpdate>();
 	}) | rpl::flatten_latest(
 	) | rpl::start_with_next([](const Data::PeerUpdate &update) {
-		CrashReports::SetAnnotation("Username", update.peer->userName());
+		CrashReports::SetAnnotation("Username", update.peer->username());
 	}, _lifetime);
 }
 

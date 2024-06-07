@@ -73,7 +73,9 @@ using Data::StickersSet;
 using Data::StickersPack;
 using SetFlag = Data::StickersSetFlag;
 
-[[nodiscard]] std::optional<QColor> ComputeImageColor(const QImage &frame) {
+[[nodiscard]] std::optional<QColor> ComputeImageColor(
+		const style::icon &lockIcon,
+		const QImage &frame) {
 	if (frame.isNull()
 		|| frame.format() != QImage::Format_ARGB32_Premultiplied) {
 		return {};
@@ -83,7 +85,7 @@ using SetFlag = Data::StickersSetFlag;
 	auto sb = int64();
 	auto sa = int64();
 	const auto factor = frame.devicePixelRatio();
-	const auto size = st::stickersPremiumLock.size() * factor;
+	const auto size = lockIcon.size() * factor;
 	const auto width = std::min(frame.width(), size.width());
 	const auto height = std::min(frame.height(), size.height());
 	const auto skipx = (frame.width() - width) / 2;
@@ -110,22 +112,30 @@ using SetFlag = Data::StickersSetFlag;
 
 }
 
-[[nodiscard]] QColor ComputeLockColor(const QImage &frame) {
-	return ComputeImageColor(frame).value_or(st::windowSubTextFg->c);
+[[nodiscard]] QColor ComputeLockColor(
+		const style::icon &lockIcon,
+		const QImage &frame) {
+	return ComputeImageColor(
+		lockIcon,
+		frame
+	).value_or(st::windowSubTextFg->c);
 }
 
-void ValidatePremiumLockBg(QImage &image, const QImage &frame) {
+void ValidatePremiumLockBg(
+		const style::icon &lockIcon,
+		QImage &image,
+		const QImage &frame) {
 	if (!image.isNull()) {
 		return;
 	}
 	const auto factor = style::DevicePixelRatio();
-	const auto size = st::stickersPremiumLock.size();
+	const auto size = lockIcon.size();
 	image = QImage(
 		size * factor,
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(factor);
 	auto p = QPainter(&image);
-	const auto color = ComputeLockColor(frame);
+	const auto color = ComputeLockColor(lockIcon, frame);
 	p.fillRect(
 		QRect(QPoint(), size),
 		anim::color(color, st::windowSubTextFg, kGrayLockOpacity));
@@ -134,12 +144,12 @@ void ValidatePremiumLockBg(QImage &image, const QImage &frame) {
 	image = Images::Circle(std::move(image));
 }
 
-void ValidatePremiumStarFg(QImage &image) {
+void ValidatePremiumStarFg(const style::icon &lockIcon, QImage &image) {
 	if (!image.isNull()) {
 		return;
 	}
 	const auto factor = style::DevicePixelRatio();
-	const auto size = st::stickersPremiumLock.size();
+	const auto size = lockIcon.size();
 	image = QImage(
 		size * factor,
 		QImage::Format_ARGB32_Premultiplied);
@@ -176,7 +186,10 @@ void ValidatePremiumStarFg(QImage &image) {
 
 } // namespace
 
-StickerPremiumMark::StickerPremiumMark(not_null<Main::Session*> session) {
+StickerPremiumMark::StickerPremiumMark(
+	not_null<Main::Session*> session,
+	const style::icon &lockIcon)
+: _lockIcon(lockIcon) {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_lockGray = QImage();
@@ -202,16 +215,14 @@ void StickerPremiumMark::paint(
 	const auto factor = style::DevicePixelRatio();
 	const auto radius = st::roundRadiusSmall;
 	const auto point = position + QPoint(
-		(_premium
-			? (singleSize.width() - (bg.width() / factor) - radius)
-			: (singleSize.width() - (bg.width() / factor)) / 2),
+		(singleSize.width() - (bg.width() / factor) - radius),
 		singleSize.height() - (bg.height() / factor) - radius);
 	p.drawImage(point, bg);
 	if (_premium) {
 		validateStar();
 		p.drawImage(point, _star);
 	} else {
-		st::stickersPremiumLock.paint(p, point, outerWidth);
+		_lockIcon.paint(p, point, outerWidth);
 	}
 }
 
@@ -219,11 +230,11 @@ void StickerPremiumMark::validateLock(
 		const QImage &frame,
 		QImage &backCache) {
 	auto &image = frame.isNull() ? _lockGray : backCache;
-	ValidatePremiumLockBg(image, frame);
+	ValidatePremiumLockBg(_lockIcon, image, frame);
 }
 
 void StickerPremiumMark::validateStar() {
-	ValidatePremiumStarFg(_star);
+	ValidatePremiumStarFg(_lockIcon, _star);
 }
 
 class StickerSetBox::Inner final : public Ui::RpWidget {
@@ -353,6 +364,7 @@ private:
 	int _perRow = 0;
 	QSize _singleSize;
 	TimeId _setInstallDate = TimeId(0);
+	StickerType _setThumbnailType = StickerType::Webp;
 	ImageWithLocation _setThumbnail;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
@@ -568,8 +580,8 @@ void StickerSetBox::updateButtons() {
 
 			if (!_inner->shortName().isEmpty()) {
 				const auto top = addTopButton(st::infoTopBarMenu);
-				const auto menu =
-					std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+				const auto menu
+					= std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 				top->setClickedCallback([=] {
 					*menu = base::make_unique_q<Ui::PopupMenu>(
 						top,
@@ -612,8 +624,8 @@ void StickerSetBox::updateButtons() {
 						_show->showBox(std::move(box));
 					}
 				};
-				const auto menu =
-					std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+				const auto menu
+					= std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 				top->setClickedCallback([=] {
 					*menu = base::make_unique_q<Ui::PopupMenu>(
 						top,
@@ -663,7 +675,7 @@ StickerSetBox::Inner::Inner(
 	st::windowBgRipple,
 	st::windowBgOver,
 	[=] { repaintItems(); }))
-, _premiumMark(_session)
+, _premiumMark(_session, st::stickersPremiumLock)
 , _updateItemsTimer([=] { updateItems(); })
 , _input(set)
 , _padding((type == Data::StickersType::Emoji)
@@ -755,6 +767,8 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 							set,
 							thumb);
 						if (result.location.valid()) {
+							_setThumbnailType
+								= Data::ThumbnailTypeFromPhotoSize(thumb);
 							return result;
 						}
 					}
@@ -775,7 +789,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				set->installDate = _setInstallDate;
 				set->stickers = _pack;
 				set->emoji = _emoji;
-				set->setThumbnail(_setThumbnail);
+				set->setThumbnail(_setThumbnail, _setThumbnailType);
 			}
 		});
 	}, [&](const MTPDmessages_stickerSetNotModified &data) {
@@ -855,7 +869,7 @@ void StickerSetBox::Inner::installDone(
 	}
 	const auto set = it->second.get();
 	set->thumbnailDocumentId = _setThumbnailDocumentId;
-	set->setThumbnail(_setThumbnail);
+	set->setThumbnail(_setThumbnail, _setThumbnailType);
 	set->stickers = _pack;
 	set->emoji = _emoji;
 
@@ -1011,7 +1025,7 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
-	const auto type = _show->sendMenuType();
+	const auto details = _show->sendMenuDetails();
 	if (setType() == Data::StickersType::Emoji) {
 		if (const auto t = PrepareTextFromEmoji(_pack[index]); !t.empty()) {
 			_menu->addAction(tr::lng_mediaview_copy(tr::now), [=] {
@@ -1020,17 +1034,16 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 				}
 			}, &st::menuIconCopy);
 		}
-	} else if (type != SendMenu::Type::Disabled) {
+	} else if (details.type != SendMenu::Type::Disabled) {
 		const auto document = _pack[index];
-		const auto sendSelected = [=](Api::SendOptions options) {
+		const auto send = crl::guard(this, [=](Api::SendOptions options) {
 			chosen(index, document, options);
-		};
+		});
 		SendMenu::FillSendMenu(
 			_menu.get(),
-			type,
-			SendMenu::DefaultSilentCallback(sendSelected),
-			SendMenu::DefaultScheduleCallback(this, type, sendSelected),
-			SendMenu::DefaultWhenOnlineCallback(sendSelected));
+			_show,
+			details,
+			SendMenu::DefaultCallback(_show, send));
 
 		const auto show = _show;
 		const auto toggleFavedSticker = [=] {

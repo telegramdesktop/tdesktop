@@ -36,7 +36,7 @@ class TranslateBar;
 
 class PinnedWidget final
 	: public Window::SectionWidget
-	, private ListDelegate
+	, private WindowListDelegate
 	, private CornerButtonsDelegate {
 public:
 	PinnedWidget(

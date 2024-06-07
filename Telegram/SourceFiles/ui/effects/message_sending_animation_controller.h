@@ -29,7 +29,7 @@ public:
 		not_null<Window::SessionController*> controller);
 
 	struct SendingInfoTo {
-		rpl::producer<QPoint> globalEndTopLeft;
+		rpl::producer<std::optional<QPoint>> globalEndTopLeft;
 		Fn<HistoryView::Element*()> view;
 		Fn<Ui::ChatPaintContext()> paintContext;
 	};
@@ -37,13 +37,13 @@ public:
 	void appendSending(MessageSendingAnimationFrom from);
 	void startAnimation(SendingInfoTo &&to);
 
-	[[nodiscard]] bool hasLocalMessage(MsgId msgId) const;
 	[[nodiscard]] bool hasAnimatedMessage(not_null<HistoryItem*> item) const;
 	[[nodiscard]] bool checkExpectedType(not_null<HistoryItem*> item);
 
 	void clear();
 
 private:
+	void subscribeToDestructions();
 
 	const not_null<Window::SessionController*> _controller;
 	base::flat_map<MsgId, MessageSendingAnimationFrom> _itemSendPending;
@@ -51,6 +51,8 @@ private:
 	base::flat_map<
 		not_null<HistoryItem*>,
 		base::unique_qptr<RpWidget>> _processing;
+
+	rpl::lifetime _lifetime;
 
 };
 

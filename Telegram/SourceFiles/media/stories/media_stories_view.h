@@ -112,7 +112,7 @@ public:
 	void shareRequested();
 	void deleteRequested();
 	void reportRequested();
-	void togglePinnedRequested(bool pinned);
+	void toggleInProfileRequested(bool inProfile);
 
 	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
 	void tryProcessKeyInput(not_null<QKeyEvent*> e);

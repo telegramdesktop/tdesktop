@@ -54,6 +54,8 @@ public:
 		const QString &key) const;
 	void dismissSuggestion(const QString &key);
 
+	[[nodiscard]] bool newRequirePremiumFree() const;
+
 	void refresh();
 
 private:

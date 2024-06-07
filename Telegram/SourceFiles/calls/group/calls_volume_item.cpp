@@ -25,8 +25,8 @@ const auto kSpeakerThreshold = std::vector<float>{
 	50.0f / kMaxVolumePercent,
 	150.0f / kMaxVolumePercent };
 
-constexpr auto kVolumeStickedValues =
-	std::array<std::pair<float64, float64>, 7>{{
+constexpr auto kVolumeStickedValues
+	= std::array<std::pair<float64, float64>, 7>{{
 		{ 25. / kMaxVolumePercent, 2. / kMaxVolumePercent },
 		{ 50. / kMaxVolumePercent, 2. / kMaxVolumePercent },
 		{ 75. / kMaxVolumePercent, 2. / kMaxVolumePercent },
@@ -93,8 +93,8 @@ MenuVolumeItem::MenuVolumeItem(
 		const auto volume = _localMuted
 			? 0
 			: base::SafeRound(_slider->value() * kMaxVolumePercent);
-		const auto muteProgress =
-			_crossLineAnimation.value((!volume) ? 1. : 0.);
+		const auto muteProgress
+			= _crossLineAnimation.value((!volume) ? 1. : 0.);
 
 		const auto selected = isSelected();
 		p.fillRect(clip, selected ? st.itemBgOver : st.itemBg);
@@ -174,8 +174,8 @@ MenuVolumeItem::MenuVolumeItem(
 			return;
 		}
 		if (_waitingForUpdateVolume) {
-			const auto localVolume =
-				base::SafeRound(_slider->value() * _maxVolume);
+			const auto localVolume
+				= base::SafeRound(_slider->value() * _maxVolume);
 			if ((localVolume != newVolume)
 				&& (_cloudVolume == newVolume)) {
 				_changeVolumeRequests.fire(int(localVolume));

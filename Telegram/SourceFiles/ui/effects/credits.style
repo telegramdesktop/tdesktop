@@ -1,0 +1,45 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "boxes/boxes.style";
+using "ui/widgets/widgets.style";
+using "ui/effects/premium.style";
+using "settings/settings.style";
+
+creditsPremiumCover: PremiumCover(defaultPremiumCover) {
+	about: FlatLabel(userPremiumCoverAbout) {
+		textFg: boxTitleFg;
+	}
+}
+creditsLowBalancePremiumCover: PremiumCover(creditsPremiumCover) {
+	starSize: size(64px, 62px);
+	starTopSkip: 30px;
+}
+creditsLowBalancePremiumCoverHeight: 180px;
+creditsTopupButton: SettingsButton(settingsButton) {
+	style: semiboldTextStyle;
+}
+creditsTopupPrice: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+
+creditsHistoryRightSkip: 10px;
+creditsBalanceStarHeight: 20px;
+
+creditsBoxAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	align: align(top);
+}
+
+creditsBoxAboutTitle: FlatLabel(settingsPremiumUserTitle) {
+	minWidth: 256px;
+}
+
+creditsBoxAboutDivider: FlatLabel(boxDividerLabel) {
+	align: align(top);
+}

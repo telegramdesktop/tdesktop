@@ -41,25 +41,12 @@ public:
 		int width);
 	~Photo();
 
+	bool hideMessageText() const override {
+		return false;
+	}
+
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
-
-	[[nodiscard]] TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const override {
-		return _caption.adjustSelection(selection, type);
-	}
-	uint16 fullSelectionLength() const override {
-		return _caption.length();
-	}
-	bool hasTextForCopy() const override {
-		return !_caption.isEmpty();
-	}
-
-	TextForMimeData selectedText(TextSelection selection) const override;
-	SelectedQuote selectedQuote(TextSelection selection) const override;
-	TextSelection selectionFromQuote(
-		const SelectedQuote &quote) const override;
 
 	PhotoData *getPhoto() const override {
 		return _data;
@@ -71,7 +58,7 @@ public:
 		QPoint photoPosition,
 		bool markFrameShown) const;
 
-	QSize sizeForGroupingOptimal(int maxWidth) const override;
+	QSize sizeForGroupingOptimal(int maxWidth, bool last) const override;
 	QSize sizeForGrouping(int width) const override;
 	void drawGrouped(
 		Painter &p,
@@ -88,24 +75,20 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
-	TextWithEntities getCaption() const override {
-		return _caption.toTextWithEntities();
-	}
 	void hideSpoilers() override;
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
-		return _caption.isEmpty();
+		return true;
 	}
 	QPoint resolveCustomInfoRightBottom() const override;
 	bool skipBubbleTail() const override {
-		return isRoundedInBubbleBottom() && _caption.isEmpty();
+		return isRoundedInBubbleBottom();
 	}
 	bool isReadyForOpen() const override;
 
-	void parentTextUpdated() override;
-
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
+	bool enforceBubbleWidth() const override;
 
 protected:
 	float64 dataProgress() const override;
@@ -168,7 +151,6 @@ private:
 
 	const not_null<PhotoData*> _data;
 	const FullStoryId _storyId;
-	Ui::Text::String _caption;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	mutable std::unique_ptr<Streamed> _streamed;
 	const std::unique_ptr<MediaSpoiler> _spoiler;

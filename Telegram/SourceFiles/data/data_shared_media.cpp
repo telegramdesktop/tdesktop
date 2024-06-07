@@ -13,10 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "data/components/scheduled_messages.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_photo.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "core/crash_reports.h"
 
@@ -193,9 +193,9 @@ rpl::producer<SparseIdsMergedSlice> SharedScheduledMediaViewer(
 	const auto history = session->data().history(key.mergedKey.peerId);
 
 	return rpl::single(rpl::empty) | rpl::then(
-		session->data().scheduledMessages().updates(history)
+		session->scheduledMessages().updates(history)
 	) | rpl::map([=] {
-		const auto list = session->data().scheduledMessages().list(history);
+		const auto list = session->scheduledMessages().list(history);
 
 		auto items = ranges::views::all(
 			list.ids

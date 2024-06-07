@@ -82,7 +82,6 @@ bool Sandbox::QuitOnStartRequested = false;
 Sandbox::Sandbox(int &argc, char **argv)
 : QApplication(argc, argv)
 , _mainThreadId(QThread::currentThreadId()) {
-	setQuitOnLastWindowClosed(false);
 }
 
 int Sandbox::start() {
@@ -256,7 +255,10 @@ void Sandbox::setupScreenScale() {
 Sandbox::~Sandbox() = default;
 
 bool Sandbox::event(QEvent *e) {
-	if (e->type() == QEvent::Quit && !Quitting()) {
+	if (e->type() == QEvent::Quit) {
+		if (Quitting()) {
+			return QCoreApplication::event(e);
+		}
 		Quit(QuitReason::QtQuitEvent);
 		e->ignore();
 		return false;

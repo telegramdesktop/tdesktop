@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/widgets/popup_menu.h"
+#include "styles/style_basic.h"
 #include "styles/style_intro.h"
 #include "styles/style_layers.h" // boxRadius
 
@@ -91,7 +92,6 @@ void CodeDigit::setDigit(int digit) {
 	}
 	_dataDigit = digit;
 	if (_viewDigit != digit) {
-		constexpr auto kDuration = st::introCodeDigitAnimatioDuration;
 		_animation.stop();
 		if (digit == kDigitNone) {
 			_animation.start([=](float64 value) {
@@ -99,10 +99,10 @@ void CodeDigit::setDigit(int digit) {
 				if (!value) {
 					_viewDigit = digit;
 				}
-			}, 1., 0., kDuration);
+			}, 1., 0., st::universalDuration);
 		} else {
 			_viewDigit = digit;
-			_animation.start([=] { update(); }, 0., 1., kDuration);
+			_animation.start([=] { update(); }, 0, 1., st::universalDuration);
 		}
 	}
 }

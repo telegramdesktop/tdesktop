@@ -89,13 +89,18 @@ struct AskBoostCustomReactions {
 	int count = 0;
 };
 
+struct AskBoostCpm {
+	int requiredLevel = 0;
+};
+
 struct AskBoostReason {
 	std::variant<
 		AskBoostChannelColor,
 		AskBoostWallpaper,
 		AskBoostEmojiStatus,
 		AskBoostEmojiPack,
-		AskBoostCustomReactions> data;
+		AskBoostCustomReactions,
+		AskBoostCpm> data;
 };
 
 struct AskBoostBoxData {

@@ -16,10 +16,16 @@ class VerticalLayout;
 namespace Data {
 struct Boost;
 struct BoostsListSlice;
+struct CreditsHistoryEntry;
+struct CreditsStatusSlice;
 struct PublicForwardsSlice;
 struct RecentPostId;
 struct SupergroupStatistics;
 } // namespace Data
+
+namespace Main {
+class SessionShow;
+} // namespace Main
 
 namespace Info::Statistics {
 
@@ -43,5 +49,15 @@ void AddBoostsList(
 	Fn<void(const Data::Boost &)> boostClickedCallback,
 	not_null<PeerData*> peer,
 	rpl::producer<QString> title);
+
+void AddCreditsHistoryList(
+	std::shared_ptr<Main::SessionShow> show,
+	const Data::CreditsStatusSlice &firstSlice,
+	not_null<Ui::VerticalLayout*> container,
+	Fn<void(const Data::CreditsHistoryEntry &)> entryClickedCallback,
+	not_null<PeerData*> premiumBot,
+	not_null<QImage*> creditIcon,
+	bool in,
+	bool out);
 
 } // namespace Info::Statistics

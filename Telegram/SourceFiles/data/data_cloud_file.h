@@ -37,6 +37,8 @@ struct CloudFile final {
 
 	~CloudFile();
 
+	void clear();
+
 	ImageLocation location;
 	std::unique_ptr<FileLoader> loader;
 	int byteSize = 0;

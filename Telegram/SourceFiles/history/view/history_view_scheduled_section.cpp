@@ -33,11 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "main/main_session.h"
+#include "data/components/scheduled_messages.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_user.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_values.h"
@@ -58,11 +58,20 @@ namespace HistoryView {
 ScheduledMemento::ScheduledMemento(not_null<History*> history)
 : _history(history)
 , _forumTopic(nullptr) {
+	const auto list = _history->session().scheduledMessages().list(_history);
+	if (!list.ids.empty()) {
+		_list.setScrollTopState({ .item = { .fullId = list.ids.front() } });
+	}
 }
 
 ScheduledMemento::ScheduledMemento(not_null<Data::ForumTopic*> forumTopic)
 : _history(forumTopic->owningHistory())
 , _forumTopic(forumTopic) {
+	const auto list = _history->session().scheduledMessages().list(
+		_forumTopic);
+	if (!list.ids.empty()) {
+		_list.setScrollTopState({ .item = { .fullId = list.ids.front() } });
+	}
 }
 
 object_ptr<Window::SectionWidget> ScheduledMemento::createWidget(
@@ -88,6 +97,8 @@ ScheduledWidget::ScheduledWidget(
 	not_null<History*> history,
 	const Data::ForumTopic *forumTopic)
 : Window::SectionWidget(parent, controller, history->peer)
+, WindowListDelegate(controller)
+, _show(controller->uiShow())
 , _history(history)
 , _forumTopic(forumTopic)
 , _scroll(
@@ -104,7 +115,7 @@ ScheduledWidget::ScheduledWidget(
 			listShowPremiumToast(emoji);
 		},
 		.mode = ComposeControls::Mode::Scheduled,
-		.sendMenuType = SendMenu::Type::Disabled,
+		.sendMenuDetails = [] { return SendMenu::Details(); },
 		.regularWindow = controller,
 		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
 	}))
@@ -158,7 +169,7 @@ ScheduledWidget::ScheduledWidget(
 
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
-		controller,
+		&controller->session(),
 		static_cast<ListDelegate*>(this)));
 	_scroll->move(0, _topBar->height());
 	_scroll->show();
@@ -309,7 +320,8 @@ void ScheduledWidget::setupComposeControls() {
 	) | rpl::start_with_next([=](auto data) {
 		if (const auto item = session().data().message(data.fullId)) {
 			if (item->isScheduled()) {
-				edit(item, data.options, saveEditMsgRequestId);
+				const auto spoiler = data.spoilered;
+				edit(item, data.options, saveEditMsgRequestId, spoiler);
 			}
 		}
 	}, lifetime());
@@ -481,7 +493,7 @@ bool ScheduledWidget::confirmSendingFiles(
 		(CanScheduleUntilOnline(_history->peer)
 			? Api::SendType::ScheduledToUser
 			: Api::SendType::Scheduled),
-		SendMenu::Type::Disabled);
+		SendMenu::Details());
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
@@ -589,7 +601,8 @@ void ScheduledWidget::uploadFile(
 			type,
 			prepareSendAction(options));
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::showSendingFilesError(
@@ -667,7 +680,8 @@ void ScheduledWidget::send() {
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::send(Api::SendOptions options) {
@@ -698,7 +712,8 @@ void ScheduledWidget::sendVoice(
 	const auto callback = [=](Api::SendOptions options) {
 		sendVoice(bytes, waveform, duration, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::sendVoice(
@@ -717,7 +732,8 @@ void ScheduledWidget::sendVoice(
 void ScheduledWidget::edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
-		mtpRequestId *const saveEditMsgRequestId) {
+		mtpRequestId *const saveEditMsgRequestId,
+		bool spoilered) {
 	if (*saveEditMsgRequestId) {
 		return;
 	}
@@ -785,7 +801,8 @@ void ScheduledWidget::edit(
 		webpage,
 		options,
 		crl::guard(this, done),
-		crl::guard(this, fail));
+		crl::guard(this, fail),
+		spoilered);
 
 	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
@@ -796,7 +813,8 @@ void ScheduledWidget::sendExistingDocument(
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingDocument(document, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::sendExistingDocument(
@@ -825,7 +843,8 @@ void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingPhoto(photo, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::sendExistingPhoto(
@@ -859,7 +878,8 @@ void ScheduledWidget::sendInlineResult(
 	const auto callback = [=](Api::SendOptions options) {
 		sendInlineResult(result, bot, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::sendInlineResult(
@@ -891,12 +911,14 @@ void ScheduledWidget::sendInlineResult(
 	_composeControls->focus();
 }
 
-SendMenu::Type ScheduledWidget::sendMenuType() const {
-	return _history->peer->isSelf()
+SendMenu::Details ScheduledWidget::sendMenuDetails() const {
+	const auto type = _history->peer->isSelf()
 		? SendMenu::Type::Reminder
 		: HistoryView::CanScheduleUntilOnline(_history->peer)
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
+	const auto effectAllowed = _history->peer->isUser();
+	return { .type = type, .effectAllowed = effectAllowed };
 }
 
 void ScheduledWidget::cornerButtonsShowAtPosition(
@@ -1154,9 +1176,7 @@ Context ScheduledWidget::listContext() {
 }
 
 bool ScheduledWidget::listScrollTo(int top, bool syntetic) {
-	top = (top == ScrollMax && syntetic)
-		? 0
-		: std::clamp(top, 0, _scroll->scrollTopMax());
+	top = std::clamp(top, 0, _scroll->scrollTopMax());
 	if (_scroll->scrollTop() == top) {
 		updateInnerVisibleArea();
 		return false;
@@ -1187,13 +1207,13 @@ rpl::producer<Data::MessagesSlice> ScheduledWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
-	const auto data = &controller()->session().data();
+	const auto session = &controller()->session();
 	return rpl::single(rpl::empty) | rpl::then(
-		data->scheduledMessages().updates(_history)
+		session->scheduledMessages().updates(_history)
 	) | rpl::map([=] {
 		return _forumTopic
-			? data->scheduledMessages().list(_forumTopic)
-			: data->scheduledMessages().list(_history);
+			? session->scheduledMessages().list(_forumTopic)
+			: session->scheduledMessages().list(_history);
 	}) | rpl::after_next([=](const Data::MessagesSlice &slice) {
 		highlightSingleNewMessage(slice);
 	});
@@ -1349,7 +1369,8 @@ void ScheduledWidget::listSendBotCommand(
 		message.textWithTags = { text };
 		session().api().sendMessage(std::move(message));
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::listSearch(

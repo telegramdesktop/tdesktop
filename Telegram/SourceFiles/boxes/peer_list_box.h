@@ -100,6 +100,8 @@ public:
 		-> const base::flat_set<QChar> &;
 	[[nodiscard]] virtual auto generateNameWords() const
 		-> const base::flat_set<QString> &;
+	[[nodiscard]] virtual const style::PeerListItem &computeSt(
+		const style::PeerListItem &st) const;
 
 	virtual void preloadUserpic();
 
@@ -166,6 +168,8 @@ public:
 		return _name;
 	}
 
+	virtual bool useForumLikeUserpic() const;
+
 	enum class StatusType {
 		Online,
 		LastSeen,
@@ -226,7 +230,12 @@ public:
 		QPoint point,
 		UpdateCallback &&updateCallback);
 	void stopLastRipple();
-	void paintRipple(Painter &p, int x, int y, int outerWidth);
+	void paintRipple(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth);
 	void paintUserpic(
 		Painter &p,
 		const style::PeerListItem &st,
@@ -338,6 +347,9 @@ public:
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
 	virtual std::shared_ptr<Main::SessionShow> peerListUiShow() = 0;
+
+	virtual void peerListPressLeftToContextMenu(bool shown) = 0;
+	virtual bool peerListTrackRowPressFromGlobal(QPoint globalPosition) = 0;
 
 	template <typename PeerDataRange>
 	void peerListAddSelectedPeers(PeerDataRange &&range) {
@@ -467,6 +479,15 @@ public:
 		if (element == 1) {
 			rowRightActionClicked(row);
 		}
+	}
+
+	virtual bool rowTrackPress(not_null<PeerListRow*> row) {
+		return false;
+	}
+	virtual void rowTrackPressCancel() {
+	}
+	virtual bool rowTrackPressSkipMouseSelection() {
+		return false;
 	}
 
 	virtual void loadMoreRows() {
@@ -599,6 +620,7 @@ public:
 	};
 	SkipResult selectSkip(int direction);
 	void selectSkipPage(int height, int direction);
+	void selectLast();
 
 	enum class Mode {
 		Default,
@@ -607,12 +629,16 @@ public:
 	void setMode(Mode mode);
 
 	[[nodiscard]] rpl::producer<int> selectedIndexValue() const;
+	[[nodiscard]] int selectedIndex() const;
 	[[nodiscard]] bool hasSelection() const;
 	[[nodiscard]] bool hasPressed() const;
 	void clearSelection();
 
 	void searchQueryChanged(QString query);
 	bool submitted();
+
+	PeerListRowId updateFromParentDrag(QPoint globalPosition);
+	void dragLeft();
 
 	// Interface for the controller.
 	void appendRow(std::unique_ptr<PeerListRow> row);
@@ -641,6 +667,8 @@ public:
 	void refreshRows();
 
 	void mouseLeftGeometry();
+	void pressLeftToContextMenu(bool shown);
+	bool trackRowPressFromGlobal(QPoint globalPosition);
 
 	void setSearchMode(PeerListSearchMode mode);
 	void changeCheckState(
@@ -815,6 +843,7 @@ private:
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
+	std::optional<QPoint> _trackPressStart;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 
@@ -978,6 +1007,13 @@ public:
 		bool highlightRow,
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr) override;
 
+	void peerListPressLeftToContextMenu(bool shown) override {
+		_content->pressLeftToContextMenu(shown);
+	}
+	bool peerListTrackRowPressFromGlobal(QPoint globalPosition) override {
+		return _content->trackRowPressFromGlobal(globalPosition);
+	}
+
 protected:
 	not_null<PeerListContent*> content() const {
 		return _content;
@@ -1042,6 +1078,7 @@ public:
 		std::unique_ptr<PeerListController> controller,
 		Fn<void(not_null<PeerListBox*>)> init);
 
+	[[nodiscard]] std::vector<PeerListRowId> collectSelectedIds();
 	[[nodiscard]] std::vector<not_null<PeerData*>> collectSelectedRows();
 
 	void peerListSetTitle(rpl::producer<QString> title) override {

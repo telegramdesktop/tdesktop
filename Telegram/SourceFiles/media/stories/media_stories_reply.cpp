@@ -123,7 +123,7 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 			showPremiumToast(emoji);
 		},
 		.mode = HistoryView::ComposeControlsMode::Normal,
-		.sendMenuType = SendMenu::Type::SilentOnly,
+		.sendMenuDetails = sendMenuDetails(),
 		.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
 		.customPlaceholder = PlaceholderText(
 			_controller->uiShow(),
@@ -431,7 +431,7 @@ void ReplyArea::chooseAttach(
 	}
 
 	const auto filter = (overrideSendImagesAsPhotos == true)
-		? FileDialog::ImagesOrAllFilter()
+		? FileDialog::PhotoVideoFilesFilter()
 		: FileDialog::AllOrImagesFilter();
 	const auto weak = make_weak(&_shownPeerGuard);
 	const auto callback = [=](FileDialog::OpenResult &&result) {
@@ -471,6 +471,15 @@ void ReplyArea::chooseAttach(
 		filter,
 		crl::guard(this, callback),
 		crl::guard(this, [=] { _choosingAttach = false; }));
+}
+
+Fn<SendMenu::Details()> ReplyArea::sendMenuDetails() const {
+	return crl::guard(this, [=] {
+		return SendMenu::Details{
+			.type = SendMenu::Type::SilentOnly,
+			.effectAllowed = _data.peer && _data.peer->isUser(),
+		};
+	});
 }
 
 bool ReplyArea::confirmSendingFiles(
@@ -528,7 +537,7 @@ bool ReplyArea::confirmSendingFiles(
 		.limits = DefaultLimitsForPeer(_data.peer),
 		.check = DefaultCheckForPeer(show, _data.peer),
 		.sendType = Api::SendType::Normal,
-		.sendMenuType = SendMenu::Type::SilentOnly,
+		.sendMenuDetails = sendMenuDetails(),
 		.stOverride = &st::storiesComposeControls,
 		.confirmed = crl::guard(this, confirmed),
 		.cancelled = _controls->restoreTextCallback(insertTextOnCancel),

@@ -16,17 +16,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/prepare_short_info_box.h"
 #include "boxes/peers/replace_boost_box.h" // BoostsForGift.
 #include "boxes/premium_preview_box.h" // ShowPremiumPreviewBox.
-#include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
+#include "data/data_credits.h"
 #include "data/data_media_types.h" // Data::GiveawayStart.
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
 #include "data/data_session.h"
 #include "data/data_subscription_option.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
-#include "info/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -45,8 +45,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/gradient_round_button.h"
+#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
@@ -318,21 +320,20 @@ void GiftBox(
 			std::move(titleLabel)),
 		st::premiumGiftTitlePadding);
 
-	auto textLabel = object_ptr<Ui::FlatLabel>(box, st::premiumPreviewAbout);
-	tr::lng_premium_gift_about(
-		lt_user,
-		user->session().changes().peerFlagsValue(
-			user,
-			Data::PeerUpdate::Flag::Name
-		) | rpl::map([=] { return TextWithEntities{ user->firstName }; }),
-		Ui::Text::RichLangValue
-	) | rpl::map(
-		BoostsForGiftText({ user })
-	) | rpl::start_with_next([
-			raw = textLabel.data(),
-			session = &user->session()](const TextWithEntities &t) {
-		raw->setMarkedText(t, Core::MarkedTextContext{ .session = session });
-	}, textLabel->lifetime());
+	auto textLabel = Ui::CreateLabelWithCustomEmoji(
+		box,
+		tr::lng_premium_gift_about(
+			lt_user,
+			user->session().changes().peerFlagsValue(
+				user,
+				Data::PeerUpdate::Flag::Name
+			) | rpl::map([=] { return TextWithEntities{ user->firstName }; }),
+			Ui::Text::RichLangValue
+		) | rpl::map(
+			BoostsForGiftText({ user })
+		),
+		{ .session = &user->session() },
+		st::premiumPreviewAbout);
 	textLabel->setTextColorOverride(stTitle.textFg->c);
 	textLabel->resizeToWidth(available);
 	box->addRow(
@@ -535,14 +536,12 @@ void GiftsBox(
 		const auto label = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 				box,
-				object_ptr<Ui::FlatLabel>(box, st::premiumPreviewAbout)),
+				Ui::CreateLabelWithCustomEmoji(
+					box,
+					std::move(text),
+					{ .session = session },
+					st::premiumPreviewAbout)),
 			padding)->entity();
-		std::move(
-			text
-		) | rpl::start_with_next([=](const TextWithEntities &t) {
-			using namespace Core;
-			label->setMarkedText(t, MarkedTextContext{ .session = session });
-		}, label->lifetime());
 		label->setTextColorOverride(stTitle.textFg->c);
 		label->resizeToWidth(available);
 	}
@@ -892,6 +891,52 @@ void AddTable(
 	}
 }
 
+void ShareWithFriend(
+		not_null<Window::SessionNavigation*> navigation,
+		const QString &slug) {
+	const auto chosen = [=](not_null<Data::Thread*> thread) {
+		const auto content = navigation->parentController()->content();
+		return content->shareUrl(
+			thread,
+			MakeGiftCodeLink(&navigation->session(), slug).link,
+			QString());
+	};
+	Window::ShowChooseRecipientBox(navigation, chosen);
+}
+
+void ShowAlreadyPremiumToast(
+		not_null<Window::SessionNavigation*> navigation,
+		const QString &slug,
+		TimeId date) {
+	const auto instance = std::make_shared<
+		base::weak_ptr<Ui::Toast::Instance>
+	>();
+	const auto shareLink = [=](
+			const ClickHandlerPtr &,
+			Qt::MouseButton button) {
+		if (button == Qt::LeftButton) {
+			if (const auto strong = instance->get()) {
+				strong->hideAnimated();
+			}
+			ShareWithFriend(navigation, slug);
+		}
+		return false;
+	};
+	*instance = navigation->showToast({
+		.title = tr::lng_gift_link_already_title(tr::now),
+		.text = tr::lng_gift_link_already_about(
+			tr::now,
+			lt_date,
+			Ui::Text::Bold(langDateTime(base::unixtime::parse(date))),
+			lt_link,
+			Ui::Text::Link(
+				Ui::Text::Bold(tr::lng_gift_link_already_link(tr::now))),
+			Ui::Text::WithEntities),
+		.duration = 6 * crl::time(1000),
+		.filter = crl::guard(navigation, shareLink),
+	});
+}
+
 } // namespace
 
 GiftPremiumValidator::GiftPremiumValidator(
@@ -1014,6 +1059,30 @@ void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
 	}, _manyGiftsLifetime);
 }
 
+void GiftPremiumValidator::showChosenPeerBox(
+		not_null<UserData*> user,
+		const QString &ref) {
+	if (_manyGiftsLifetime) {
+		return;
+	}
+	using namespace Api;
+	const auto api = _manyGiftsLifetime.make_state<PremiumGiftCodeOptions>(
+		_controller->session().user());
+	const auto show = _controller->uiShow();
+	api->request(
+	) | rpl::start_with_error_done([=](const QString &error) {
+		show->showToast(error);
+	}, [=] {
+		const auto users = std::vector<not_null<UserData*>>{ user };
+		const auto giftBox = show->show(
+			Box(GiftsBox, _controller, users, api, ref));
+		giftBox->boxClosing(
+		) | rpl::start_with_next([=] {
+			_manyGiftsLifetime.destroy();
+		}, giftBox->lifetime());
+	}, _manyGiftsLifetime);
+}
+
 void GiftPremiumValidator::showBox(not_null<UserData*> user) {
 	if (_requestId) {
 		return;
@@ -1079,16 +1148,18 @@ void GiftCodeBox(
 		object_ptr<Ui::Premium::TopBar>(
 			box,
 			st::giveawayGiftCodeCover,
-			nullptr,
-			rpl::conditional(
-				state->used.value(),
-				tr::lng_gift_link_used_title(),
-				tr::lng_gift_link_title()),
-			rpl::conditional(
-				state->used.value(),
-				tr::lng_gift_link_used_about(Ui::Text::RichLangValue),
-				tr::lng_gift_link_about(Ui::Text::RichLangValue)),
-			true));
+			Ui::Premium::TopBarDescriptor{
+				.clickContextOther = nullptr,
+				.title = rpl::conditional(
+					state->used.value(),
+					tr::lng_gift_link_used_title(),
+					tr::lng_gift_link_title()),
+				.about = rpl::conditional(
+					state->used.value(),
+					tr::lng_gift_link_used_about(Ui::Text::RichLangValue),
+					tr::lng_gift_link_about(Ui::Text::RichLangValue)),
+				.light = true,
+			}));
 
 	const auto max = st::giveawayGiftCodeTopHeight;
 	bar->setMaximumHeight(max);
@@ -1133,14 +1204,7 @@ void GiftCodeBox(
 			st::giveawayGiftCodeFooter),
 		st::giveawayGiftCodeFooterMargin);
 	footer->setClickHandlerFilter([=](const auto &...) {
-		const auto chosen = [=](not_null<Data::Thread*> thread) {
-			const auto content = controller->parentController()->content();
-			return content->shareUrl(
-				thread,
-				MakeGiftCodeLink(&controller->session(), slug).link,
-				QString());
-		};
-		Window::ShowChooseRecipientBox(controller, chosen);
+		ShareWithFriend(controller, slug);
 		return false;
 	});
 
@@ -1165,14 +1229,20 @@ void GiftCodeBox(
 		} else if (!state->sent) {
 			state->sent = true;
 			const auto done = crl::guard(box, [=](const QString &error) {
+				const auto activePrefix = u"PREMIUM_SUB_ACTIVE_UNTIL_"_q;
 				if (error.isEmpty()) {
 					auto copy = state->data.current();
 					copy.used = base::unixtime::now();
 					state->data = std::move(copy);
 
 					Ui::StartFireworks(box->parentWidget());
+				} else if (error.startsWith(activePrefix)) {
+					const auto date = error.mid(activePrefix.size()).toInt();
+					ShowAlreadyPremiumToast(controller, slug, date);
+					state->sent = false;
 				} else {
 					box->uiShow()->showToast(error);
+					state->sent = false;
 				}
 			});
 			controller->session().api().premium().applyGiftCode(slug, done);
@@ -1216,13 +1286,15 @@ void GiftCodePendingBox(
 			object_ptr<Ui::Premium::TopBar>(
 				box,
 				st,
-				clickContext,
-				tr::lng_gift_link_title(),
-				tr::lng_gift_link_pending_about(
-					lt_user,
-					rpl::single(Ui::Text::Link(resultToName)),
-					Ui::Text::RichLangValue),
-				true));
+				Ui::Premium::TopBarDescriptor{
+					.clickContextOther = clickContext,
+					.title = tr::lng_gift_link_title(),
+					.about = tr::lng_gift_link_pending_about(
+						lt_user,
+						rpl::single(Ui::Text::Link(resultToName)),
+						Ui::Text::RichLangValue),
+					.light = true,
+				}));
 
 		const auto max = st::giveawayGiftCodeTopHeight;
 		bar->setMaximumHeight(max);
@@ -1561,4 +1633,51 @@ void ResolveGiveawayInfo(
 		peer,
 		messageId,
 		crl::guard(controller, show));
+}
+
+void AddCreditsHistoryEntryTable(
+		not_null<Window::SessionNavigation*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		const Data::CreditsHistoryEntry &entry) {
+	auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	if (entry.bareId) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_peer(),
+			controller,
+			PeerId(entry.bareId));
+	}
+	if (!entry.id.isEmpty()) {
+		constexpr auto kOneLineCount = 18;
+		const auto oneLine = entry.id.length() <= kOneLineCount;
+		auto label = object_ptr<Ui::FlatLabel>(
+			table,
+			rpl::single(
+				Ui::Text::Wrapped({ entry.id }, EntityType::Code, {})),
+			oneLine
+				? st::giveawayGiftCodeValue
+				: st::giveawayGiftCodeValueMultiline);
+		label->setClickHandlerFilter([=](const auto &...) {
+			TextUtilities::SetClipboardText(
+				TextForMimeData::Simple(entry.id));
+			controller->showToast(
+				tr::lng_credits_box_history_entry_id_copied(tr::now));
+			return false;
+		});
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_id(),
+			std::move(label),
+			st::giveawayGiftCodeValueMargin);
+	}
+	if (!entry.date.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_date(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
+	}
 }

@@ -2,7 +2,7 @@ name: telegram-desktop
 adopt-info: telegram
 icon: Telegram/Resources/art/icon512@2x.png
 
-base: core22
+base: core24
 grade: stable
 confinement: strict
 compression: lzo
@@ -70,16 +70,14 @@ layout:
     bind: $SNAP/usr/share/X11
   /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0
+  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-4.0:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-4.0
   /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pipewire-0.3:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pipewire-0.3
   /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/spa-0.2:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/spa-0.2
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1
-
-package-repositories:
-  - type: apt
-    ppa: kisak/kisak-mesa
+  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkitgtk-6.0:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkitgtk-6.0
 
 parts:
   telegram:
@@ -94,33 +92,36 @@ parts:
       - clang
       - libtool-bin
       - python3
+      - protobuf-compiler
       - libasound2-dev
       - libavif-dev
-      - libboost-regex1.74-dev
+      - libboost-regex-dev
       - libfmt-dev
       - libgirepository1.0-dev
       - libglib2.0-dev
       - libheif-dev
+      - libopenal-dev
       - libopus-dev
+      - libprotobuf-dev
       - libpulse-dev
       - libssl-dev
-      - libwayland-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
       - libxcb-screensaver0-dev
       - zlib1g-dev
     stage-packages:
-      - libasound2
-      - libavif13
-      - libboost-regex1.74.0
-      - libglib2.0-0
+      - libasound2t64
+      - libavif16
+      - libboost-regex1.83.0
+      - libglib2.0-0t64
       - libheif1
+      - libopenal1
       - libopus0
+      - libprotobuf-lite32t64
       - libpulse0
-      - libssl3
-      - libwayland-client0
-      - libwebkit2gtk-4.1-0
+      - libssl3t64
+      - libwebkitgtk-6.0-4
       - libxcb1
       - libxcb-keysyms1
       - libxcb-record0
@@ -131,6 +132,7 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
@@ -153,14 +155,9 @@ parts:
     override-build: |
       craftctl default
       rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
     after:
       - ffmpeg
       - libjxl
-      - mozjpeg
-      - openal
-      - protobuf
       - qt
       - rnnoise
       - webrtc
@@ -168,7 +165,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 7b8f30b787691a325d17e20ddd455e87738e7432
+    source-commit: 803f1c2630f5eb0d3b00ba3f095b3079c0533156
     plugin: dump
     override-pull: |
       craftctl default
@@ -190,7 +187,7 @@ parts:
       - dpkg-dev
       - gtk-update-icon-cache
       - libglib2.0-bin
-      - libgtk-3-0
+      - libgtk-3-0t64
     stage-packages:
       - libc-bin
       - libgdk-pixbuf-2.0-0
@@ -208,9 +205,7 @@ parts:
           update-icon-caches "$theme"
         fi
       done
-      GTK_PATH=$PWD/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0 /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libgtk-3-0/gtk-query-immodules-3.0 > usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0/3.0.0/immodules/immodules.cache
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
+      GTK_PATH=$PWD/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0 /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libgtk-3-0t64/gtk-query-immodules-3.0 > usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0/3.0.0/immodules/immodules.cache
     after:
       - telegram
 
@@ -224,12 +219,12 @@ parts:
       - libswresample-dev
       - libswscale-dev
     stage-packages:
-      - libavcodec58
-      - libavfilter7
-      - libavformat58
-      - libavutil56
-      - libswresample3
-      - libswscale5
+      - libavcodec60
+      - libavfilter9
+      - libavformat60
+      - libavutil58
+      - libswresample4
+      - libswscale7
       - va-driver-all
       - vdpau-driver-all
     override-build: |
@@ -238,15 +233,11 @@ parts:
       rmdir "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/blas"
       mv "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/lapack/"* "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
       rmdir "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/lapack"
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
-    after:
-      - mozjpeg
 
   libjxl:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
-    source-tag: v0.8.2
+    source-tag: v0.10.2
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
@@ -257,7 +248,7 @@ parts:
       - -DBUILD_TESTING=OFF
       - -DJPEGXL_ENABLE_DEVTOOLS=OFF
       - -DJPEGXL_ENABLE_TOOLS=OFF
-      - -DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF
+      - -DJPEGXL_INSTALL_JPEGLI_LIBJPEG=ON
       - -DJPEGXL_ENABLE_DOXYGEN=OFF
       - -DJPEGXL_ENABLE_MANPAGES=OFF
       - -DJPEGXL_ENABLE_BENCHMARK=OFF
@@ -266,6 +257,9 @@ parts:
       - -DJPEGXL_ENABLE_SJPEG=OFF
       - -DJPEGXL_ENABLE_OPENEXR=OFF
       - -DJPEGXL_ENABLE_SKCMS=OFF
+    override-pull: |
+      craftctl default
+      git apply $CRAFT_STAGE/patches/libjxl.patch
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libbrotli*
     prime:
@@ -275,81 +269,8 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
       - -./usr/share
-
-  mozjpeg:
-    source: https://github.com/mozilla/mozjpeg.git
-    source-depth: 1
-    source-tag: v4.1.4
-    plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DENABLE_STATIC=OFF
-      - -DWITH_JPEG8=ON
-      - -DPNG_SUPPORTED=OFF
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
-      - -./usr/share
-
-  openal:
-    source: https://github.com/kcat/openal-soft.git
-    source-depth: 1
-    source-tag: 1.23.1
-    plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - libasound2-dev
-      - libdbus-1-dev
-      - libpipewire-0.3-dev
-      - libpulse-dev
-    stage-packages:
-      - libasound2
-      - libdbus-1-3
-      - libpulse0
-      - pipewire
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DALSOFT_EXAMPLES=OFF
-      - -DALSOFT_UTILS=OFF
-      - -DALSOFT_INSTALL_CONFIG=OFF
-    prime:
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
-
-  protobuf:
-    source: https://github.com/protocolbuffers/protobuf.git
-    source-depth: 1
-    source-tag: v24.3
-    plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - zlib1g-dev
-    stage-packages:
-      - zlib1g
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_SHARED_LIBS=ON
-      - -Dprotobuf_BUILD_TESTS=OFF
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
+    after:
+      - patches
 
   qt:
     plugin: nil
@@ -399,18 +320,18 @@ parts:
       - libegl1
       - libfontconfig1
       - libfreetype6
-      - libglib2.0-0
+      - libglib2.0-0t64
       - libglx0
-      - libgtk-3-0
+      - libgtk-3-0t64
       - libharfbuzz0b
       - libice6
-      - libicu70
+      - libicu74
       - liblcms2-2
       - libopengl0
       - libpcre2-16-0
-      - libpng16-16
+      - libpng16-16t64
       - libsm6
-      - libssl3
+      - libssl3t64
       - libvulkan1
       - libwayland-client0
       - libwayland-cursor0
@@ -437,10 +358,11 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
       - mesa-vulkan-drivers
+      - xkb-data
     override-pull: |
-      QT=6.7.0
+      QT=6.7.1
 
-      git clone -b v${QT}-rc2 --depth=1 https://github.com/qt/qt5.git .
+      git clone -b v${QT} --depth=1 https://github.com/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 
       cd qtbase
@@ -458,12 +380,12 @@ parts:
         -confirm-license \
         -openssl-linked \
         -nomake examples \
-        -nomake tests
+        -nomake tests \
+        -- \
+        -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
 
       cmake --build . -j$CRAFT_PARALLEL_BUILD_COUNT
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install .
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.so.8.2.2
     prime:
       - -./usr/bin
       - -./usr/doc
@@ -479,7 +401,7 @@ parts:
       - -./usr/mkspecs
       - -./usr/modules
     after:
-      - mozjpeg
+      - libjxl
       - patches
 
   rnnoise:
@@ -541,11 +463,11 @@ parts:
       - libegl1
       - libgbm1
       - libgl1
-      - libglib2.0-0
-      - libopenh264-6
+      - libglib2.0-0t64
+      - libopenh264-7
       - libopus0
-      - libssl3
-      - libvpx7
+      - libssl3t64
+      - libvpx9
       - libx11-6
       - libxcomposite1
       - libxdamage1
@@ -559,10 +481,11 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
     after:
       - ffmpeg
-      - mozjpeg
+      - libjxl

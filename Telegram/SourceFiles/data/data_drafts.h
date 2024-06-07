@@ -205,4 +205,6 @@ using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 		&& (a->webpage == b->webpage);
 }
 
+void SetChatLinkDraft(not_null<PeerData*> peer, TextWithEntities draft);
+
 } // namespace Data

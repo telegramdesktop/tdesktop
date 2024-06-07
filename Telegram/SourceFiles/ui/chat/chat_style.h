@@ -92,6 +92,7 @@ struct MessageStyle {
 	style::icon historyTranscribeLock = { Qt::Uninitialized };
 	style::icon historyTranscribeHide = { Qt::Uninitialized };
 	style::icon historyVoiceMessageTTL = { Qt::Uninitialized };
+	style::icon liveLocationLongIcon = { Qt::Uninitialized };
 	std::array<
 		std::unique_ptr<Text::QuotePaintCache>,
 		kColorPatternsCount> quoteCache;
@@ -220,6 +221,14 @@ struct ChatPaintContext {
 	bool outbg = false;
 	bool paused = false;
 
+};
+
+struct ChatPaintContextArgs {
+	not_null<ChatTheme*> theme;
+	QRect clip;
+	QPoint visibleAreaPositionGlobal;
+	int visibleAreaTop = 0;
+	int visibleAreaWidth = 0;
 };
 
 [[nodiscard]] int HistoryServiceMsgRadius();
@@ -397,6 +406,9 @@ public:
 	[[nodiscard]] const style::icon &historyFastCloseIcon() const {
 		return _historyFastCloseIcon;
 	}
+	[[nodiscard]] const style::icon &historyFastMoreIcon() const {
+		return _historyFastMoreIcon;
+	}
 	[[nodiscard]] const style::icon &historyMapPoint() const {
 		return _historyMapPoint;
 	}
@@ -519,6 +531,7 @@ private:
 	style::icon _msgBotKbWebviewIcon = { Qt::Uninitialized };
 	style::icon _historyFastCommentsIcon = { Qt::Uninitialized };
 	style::icon _historyFastShareIcon = { Qt::Uninitialized };
+	style::icon _historyFastMoreIcon = { Qt::Uninitialized };
 	style::icon _historyFastTranscribeIcon = { Qt::Uninitialized };
 	style::icon _historyFastTranscribeLock = { Qt::Uninitialized };
 	style::icon _historyGoToOriginalIcon = { Qt::Uninitialized };

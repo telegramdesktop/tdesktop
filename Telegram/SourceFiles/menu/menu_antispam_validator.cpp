@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h" // IconDescriptor.
@@ -35,13 +34,13 @@ namespace AntiSpamMenu {
 namespace {
 
 [[nodiscard]] int EnableAntiSpamMinMembers(not_null<ChannelData*> channel) {
-	return channel->session().account().appConfig().get<int>(
+	return channel->session().appConfig().get<int>(
 		u"telegram_antispam_group_size_min"_q,
 		100);
 }
 
 [[nodiscard]] UserId AntiSpamUserId(not_null<ChannelData*> channel) {
-	const auto id = channel->session().account().appConfig().get<QString>(
+	const auto id = channel->session().appConfig().get<QString>(
 		u"telegram_antispam_user_id"_q,
 		QString());
 	return UserId(id.toULongLong());

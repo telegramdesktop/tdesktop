@@ -49,17 +49,16 @@ jobs:
         defines:
           - ""
           - "DESKTOP_APP_DISABLE_X11_INTEGRATION"
-          - "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
 
     env:
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
 
     steps:
       - name: Get repository name.
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Clone.
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
@@ -115,9 +114,9 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           cd $REPO_NAME/out/Debug
-          mkdir artifact
-          mv {Telegram,Updater} artifact/
-      - uses: actions/upload-artifact@master
+          sudo mkdir artifact
+          sudo mv {Telegram,Updater} artifact/
+      - uses: actions/upload-artifact@v4
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:

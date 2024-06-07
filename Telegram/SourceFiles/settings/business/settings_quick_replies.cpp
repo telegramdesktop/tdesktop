@@ -110,8 +110,10 @@ void QuickReplies::setupContent(
 					showOther(ShortcutMessagesId(id));
 					close();
 				};
-				controller->show(
-					Box(EditShortcutNameBox, QString(), crl::guard(this, submit)));
+				controller->show(Box(
+					EditShortcutNameBox,
+					QString(),
+					crl::guard(this, submit)));
 			});
 			if (count > 0) {
 				AddSkip(addWrap);
@@ -211,37 +213,7 @@ void EditShortcutNameBox(
 	field->selectAll();
 	field->setMaxLength(kShortcutLimit * 2);
 
-	struct State {
-		rpl::variable<int> length;
-	};
-	const auto state = field->lifetime().make_state<State>();
-	state->length = rpl::single(
-		int(name.size())
-	) | rpl::then(field->changes() | rpl::map([=] {
-		return int(field->getLastText().size());
-	}));
-	const auto warning = Ui::CreateChild<Ui::FlatLabel>(
-		field,
-		state->length.value() | rpl::map([](int count) {
-		return (count > kShortcutLimit * 3 / 4)
-			? QString::number(kShortcutLimit - count)
-			: QString();
-	}),
-		st::editTagLimit);
-	state->length.value() | rpl::map(
-		rpl::mappers::_1 > kShortcutLimit
-	) | rpl::start_with_next([=](bool exceeded) {
-		warning->setTextColorOverride(exceeded
-			? st::attentionButtonFg->c
-			: std::optional<QColor>());
-	}, warning->lifetime());
-	rpl::combine(
-		field->sizeValue(),
-		warning->sizeValue()
-	) | rpl::start_with_next([=] {
-		warning->moveToRight(0, 0);
-	}, warning->lifetime());
-	warning->setAttribute(Qt::WA_TransparentForMouseEvents);
+	Ui::AddLengthLimitLabel(field, kShortcutLimit);
 
 	const auto callback = [=] {
 		const auto name = field->getLastText().trimmed();

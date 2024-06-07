@@ -227,9 +227,9 @@ QImage QrExact(const Qr::Data &data, int pixel, QColor color) {
 			p.drawImage(
 				skip,
 				skip,
-				Intro::details::TelegramLogoImage().scaled(
-					logoSize * style::DevicePixelRatio(),
-					logoSize * style::DevicePixelRatio(),
+				Window::LogoNoMargin().scaled(
+					logoSize,
+					logoSize,
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation));
 		}
@@ -272,9 +272,10 @@ QImage QrForShare(const QString &text) {
 void QrBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &link,
+		rpl::producer<QString> title,
 		rpl::producer<QString> about,
 		Fn<void(QImage, std::shared_ptr<Ui::Show>)> share) {
-	box->setTitle(tr::lng_group_invite_qr_title());
+	box->setTitle(std::move(title));
 
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 
@@ -350,8 +351,10 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 		delegate()->peerListUiShow()->showBox(ShareInviteLinkBox(peer, link));
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
-		delegate()->peerListUiShow()->showBox(
-			InviteLinkQrBox(link, tr::lng_group_invite_qr_about()));
+		delegate()->peerListUiShow()->showBox(InviteLinkQrBox(
+			link,
+			tr::lng_group_invite_qr_title(),
+			tr::lng_group_invite_qr_about()));
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
 		delegate()->peerListUiShow()->showBox(
@@ -976,6 +979,7 @@ void AddPermanentLinkBlock(
 		if (const auto current = value->current(); !current.link.isEmpty()) {
 			show->showBox(InviteLinkQrBox(
 				current.link,
+				tr::lng_group_invite_qr_title(),
 				tr::lng_group_invite_qr_about()));
 		}
 	});
@@ -1130,13 +1134,15 @@ void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link) {
 
 object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		not_null<PeerData*> peer,
-		const QString &link) {
-	return ShareInviteLinkBox(&peer->session(), link);
+		const QString &link,
+		const QString &copied) {
+	return ShareInviteLinkBox(&peer->session(), link, copied);
 }
 
 object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		not_null<Main::Session*> session,
-		const QString &link) {
+		const QString &link,
+		const QString &copied) {
 	const auto sending = std::make_shared<bool>();
 	const auto box = std::make_shared<QPointer<ShareBox>>();
 
@@ -1148,7 +1154,9 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(link);
-		showToast(tr::lng_group_invite_copied(tr::now));
+		showToast(copied.isEmpty()
+			? tr::lng_group_invite_copied(tr::now)
+			: copied);
 	};
 	auto submitCallback = [=](
 			std::vector<not_null<Data::Thread*>> &&result,
@@ -1228,8 +1236,9 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 
 object_ptr<Ui::BoxContent> InviteLinkQrBox(
 		const QString &link,
+		rpl::producer<QString> title,
 		rpl::producer<QString> about) {
-	return Box(QrBox, link, std::move(about), [=](
+	return Box(QrBox, link, std::move(title), std::move(about), [=](
 			const QImage &image,
 			std::shared_ptr<Ui::Show> show) {
 		auto mime = std::make_unique<QMimeData>();

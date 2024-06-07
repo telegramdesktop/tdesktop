@@ -268,10 +268,6 @@ void Domain::clearOldVersion() {
 	_oldVersion = 0;
 }
 
-QString Domain::webviewDataPath() const {
-	return BaseGlobalPath() + "webview";
-}
-
 rpl::producer<> Domain::localPasscodeChanged() const {
 	return _passcodeKeyChanged.events();
 }

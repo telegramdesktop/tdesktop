@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/touchbar/mac_touchbar_audio.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
 #include "platform/mac/touchbar/mac_touchbar_main.h"
+#include "ui/widgets/fields/input_field.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
@@ -57,13 +58,12 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 	Main::Session *_session;
 	Window::Controller *_controller;
 
-	bool _canApplyMarkdownLast;
-	rpl::event_stream<bool> _canApplyMarkdown;
+	rpl::variable<Ui::MarkdownEnabledState> _markdownState;
 	rpl::event_stream<> _touchBarSwitches;
 	rpl::lifetime _lifetime;
 }
 
-- (id)init:(rpl::producer<bool>)canApplyMarkdown
+- (id)init:(rpl::producer<Ui::MarkdownEnabledState>)markdownState
 		controller:(not_null<Window::Controller*>)controller
 		domain:(not_null<Main::Domain*>)domain {
 	self = [super init];
@@ -75,10 +75,7 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 		self.defaultItemIdentifiers = @[];
 	});
 	_controller = controller;
-	_canApplyMarkdownLast = false;
-	std::move(
-		canApplyMarkdown
-	) | rpl::start_to_stream(_canApplyMarkdown, _lifetime);
+	_markdownState = std::move(markdownState);
 
 	auto sessionChanges = domain->activeSessionChanges(
 	) | rpl::map([=](Main::Session *session) {
@@ -135,13 +132,12 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 
 	if (isEqual(kMainItemIdentifier)) {
 		auto *item = [[GroupTouchBarItem alloc] initWithIdentifier:itemId];
-		item.groupTouchBar =
-			[[[TouchBarMain alloc]
+		item.groupTouchBar
+			= [[[TouchBarMain alloc]
 				init:_controller
 				touchBarSwitches:_touchBarSwitches.events()] autorelease];
 		rpl::combine(
-			_canApplyMarkdown.events_starting_with_copy(
-				_canApplyMarkdownLast),
+			_markdownState.value(),
 			_controller->sessionController()->activeChatValue(
 			) | rpl::map([](Dialogs::Key k) {
 				const auto topic = k.topic();
@@ -153,16 +149,15 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 					: (peer && Data::CanSendAnyOf(peer, rights));
 			}) | rpl::distinct_until_changed()
 		) | rpl::start_with_next([=](
-				bool canApplyMarkdown,
+				Ui::MarkdownEnabledState state,
 				bool hasActiveChat) {
-			_canApplyMarkdownLast = canApplyMarkdown;
 			item.groupTouchBar.defaultItemIdentifiers = @[
 				kPinnedPanelItemIdentifier,
-				canApplyMarkdown
+				(!state.disabled()
 					? kPopoverInputItemIdentifier
 					: hasActiveChat
 					? kPopoverPickerItemIdentifier
-					: @""];
+					: @"")];
 		}, [item lifetime]);
 
 		return [item autorelease];

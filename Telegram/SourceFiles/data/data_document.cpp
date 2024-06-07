@@ -478,6 +478,31 @@ void DocumentData::setattributes(
 		_additional = nullptr;
 	}
 
+	if (!_filename.isEmpty()) {
+		using Type = Core::NameType;
+		if (type == VideoDocument
+			|| type == AnimatedDocument
+			|| type == RoundVideoDocument
+			|| isAnimation()) {
+			if (!enforceNameType(Type::Video)) {
+				type = FileDocument;
+				_additional = nullptr;
+			}
+		}
+		if (type == SongDocument || type == VoiceDocument || isAudioFile()) {
+			if (!enforceNameType(Type::Audio)) {
+				type = FileDocument;
+				_additional = nullptr;
+			}
+		}
+		if (!Core::NameTypeAllowsThumbnail(_nameType)) {
+			_inlineThumbnailBytes = {};
+			_flags &= ~Flag::InlineThumbnailIsPath;
+			_thumbnail.clear();
+			_videoThumbnail.clear();
+		}
+	}
+
 	if (isAudioFile()
 		|| isAnimation()
 		|| isVoiceMessage()
@@ -530,6 +555,10 @@ void DocumentData::updateThumbnails(
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail,
 		bool isPremiumSticker) {
+	if (!_filename.isEmpty()
+		&& !Core::NameTypeAllowsThumbnail(Core::DetectNameType(_filename))) {
+		return;
+	}
 	if (!inlineThumbnail.bytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnail.bytes;
@@ -919,6 +948,25 @@ void DocumentData::setFileName(const QString &remoteFileName) {
 	for (const auto &ch : controls) {
 		_filename = std::move(_filename).replace(ch, "_");
 	}
+	_nameType = Core::DetectNameType(_filename);
+}
+
+bool DocumentData::enforceNameType(Core::NameType nameType) {
+	if (_nameType == nameType) {
+		return true;
+	}
+	const auto base = _filename.isEmpty() ? u"file"_q : _filename;
+	const auto mime = Core::MimeTypeForName(mimeString());
+	const auto patterns = mime.globPatterns();
+	for (const auto &pattern : mime.globPatterns()) {
+		const auto now = base + QString(pattern).replace('*', QString());
+		if (Core::DetectNameType(now) == nameType) {
+			_filename = now;
+			_nameType = nameType;
+			return true;
+		}
+	}
+	return false;
 }
 
 void DocumentData::setLoadedInMediaCacheLocation() {
@@ -1460,6 +1508,10 @@ QString DocumentData::filename() const {
 	return _filename;
 }
 
+Core::NameType DocumentData::nameType() const {
+	return _nameType;
+}
+
 QString DocumentData::mimeString() const {
 	return _mimeString;
 }
@@ -1527,7 +1579,10 @@ bool DocumentData::isVideoMessage() const {
 bool DocumentData::isAnimation() const {
 	return (type == AnimatedDocument)
 		|| isVideoMessage()
-		|| (hasMimeType(u"image/gif"_q)
+		|| ((_filename.isEmpty()
+			|| _nameType == Core::NameType::Image
+			|| _nameType == Core::NameType::Video)
+			&& hasMimeType(u"image/gif"_q)
 			&& !(_flags & Flag::StreamingPlaybackFailed));
 }
 
@@ -1537,9 +1592,11 @@ bool DocumentData::isGifv() const {
 }
 
 bool DocumentData::isTheme() const {
-	return hasMimeType(u"application/x-tgtheme-tdesktop"_q)
-		|| _filename.endsWith(u".tdesktop-theme"_q, Qt::CaseInsensitive)
-		|| _filename.endsWith(u".tdesktop-palette"_q, Qt::CaseInsensitive);
+	return _filename.endsWith(u".tdesktop-theme"_q, Qt::CaseInsensitive)
+		|| _filename.endsWith(u".tdesktop-palette"_q, Qt::CaseInsensitive)
+		|| (hasMimeType(u"application/x-tgtheme-tdesktop"_q)
+			&& (_filename.isEmpty()
+				|| _nameType == Core::NameType::ThemeFile));
 }
 
 bool DocumentData::isSong() const {
@@ -1561,6 +1618,10 @@ bool DocumentData::isAudioFile() const {
 		if (_filename.endsWith(u".opus"_q, Qt::CaseInsensitive)) {
 			return true;
 		}
+		return false;
+	} else if (!_filename.isEmpty()
+		&& _nameType != Core::NameType::Audio
+		&& _nameType != Core::NameType::Video) {
 		return false;
 	}
 	const auto left = _mimeString.mid(prefix.size());

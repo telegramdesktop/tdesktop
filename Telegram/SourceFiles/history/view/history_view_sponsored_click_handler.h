@@ -12,6 +12,7 @@ class ClickHandler;
 namespace HistoryView {
 
 [[nodiscard]] std::shared_ptr<ClickHandler> SponsoredLink(
-	const QString &externalLink);
+	const QString &link,
+	bool isInternal);
 
 } // namespace HistoryView

@@ -45,7 +45,8 @@ QByteArray Config::serialize() const {
 		+ Serialize::stringSize(_fields.txtDomainString)
 		+ 3 * sizeof(qint32)
 		+ Serialize::stringSize(_fields.reactionDefaultEmoji)
-		+ sizeof(quint64);
+		+ sizeof(quint64)
+		+ sizeof(qint32);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -89,7 +90,8 @@ QByteArray Config::serialize() const {
 			<< qint32(_fields.blockedMode ? 1 : 0)
 			<< qint32(_fields.captionLengthMax)
 			<< _fields.reactionDefaultEmoji
-			<< quint64(_fields.reactionDefaultCustom);
+			<< quint64(_fields.reactionDefaultCustom)
+			<< qint32(_fields.ratingDecay);
 	}
 	return result;
 }
@@ -185,6 +187,9 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 		read(raw->_fields.reactionDefaultEmoji);
 		read(raw->_fields.reactionDefaultCustom);
 	}
+	if (!stream.atEnd()) {
+		read(raw->_fields.ratingDecay);
+	}
 
 	if (stream.status() != QDataStream::Ok
 		|| !raw->_dcOptions.constructFromSerialized(dcOptionsSerialized)) {
@@ -249,6 +254,10 @@ void Config::apply(const MTPDconfig &data) {
 		});
 	}
 	_fields.autologinToken = qs(data.vautologin_token().value_or_empty());
+	_fields.ratingDecay = data.vrating_e_decay().v;
+	if (_fields.ratingDecay <= 0) {
+		_fields.ratingDecay = ConfigFields().ratingDecay;
+	}
 
 	if (data.vdc_options().v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));

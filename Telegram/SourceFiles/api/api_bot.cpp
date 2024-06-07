@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -236,14 +237,14 @@ void SendBotCallbackDataWithPassword(
 				} else {
 					return;
 				}
-				const auto box = std::make_shared<QPointer<PasscodeBox>>();
 				auto fields = PasscodeBox::CloudFields::From(state);
 				fields.customTitle = tr::lng_bots_password_confirm_title();
 				fields.customDescription
 					= tr::lng_bots_password_confirm_description(tr::now);
 				fields.customSubmitButton = tr::lng_passcode_submit();
 				fields.customCheckCallback = [=](
-						const Core::CloudPasswordResult &result) {
+						const Core::CloudPasswordResult &result,
+						QPointer<PasscodeBox> box) {
 					if (const auto button = getButton()) {
 						if (button->requestId) {
 							return;
@@ -257,18 +258,17 @@ void SendBotCallbackDataWithPassword(
 							return;
 						}
 						SendBotCallbackData(strongController, item, row, column, result, [=] {
-							if (*box) {
-								(*box)->closeBox();
+							if (box) {
+								box->closeBox();
 							}
 						}, [=](const QString &error) {
-							if (*box) {
-								(*box)->handleCustomCheckError(error);
+							if (box) {
+								box->handleCustomCheckError(error);
 							}
 						});
 					}
 				};
 				auto object = Box<PasscodeBox>(session, fields);
-				*box = Ui::MakeWeak(object.data());
 				show->showBox(std::move(object), Ui::LayerOption::CloseOther);
 			}, *lifetime);
 		}
@@ -336,7 +336,8 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			Payments::Mode::Payment,
 			crl::guard(controller, [=](auto) {
 				controller->widget()->activate();
-			}));
+			}),
+			Payments::ProcessNonPanelPaymentFormFactory(controller, item));
 	} break;
 
 	case ButtonType::Url: {

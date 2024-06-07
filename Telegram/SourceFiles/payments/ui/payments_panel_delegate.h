@@ -18,6 +18,7 @@ class BoxContent;
 
 namespace Webview {
 struct ThemeParams;
+struct StorageId;
 } // namespace Webview
 
 namespace Payments::Ui {
@@ -59,7 +60,7 @@ public:
 	virtual void panelShowBox(object_ptr<BoxContent> box) = 0;
 	virtual QVariant panelClickHandlerContext() = 0;
 
-	virtual QString panelWebviewDataPath() = 0;
+	virtual Webview::StorageId panelWebviewStorageId() = 0;
 	virtual Webview::ThemeParams panelWebviewThemeParams() = 0;
 
 	virtual std::optional<QDate> panelOverrideExpireDateThreshold() = 0;

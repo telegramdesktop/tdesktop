@@ -414,8 +414,8 @@ void BlobsWidget::init(int diameter) {
 		}
 
 		// Main circle.
-		const auto circleProgress =
-			Clamp(_switchConnectingProgress - kBlobPartAnimation)
+		const auto circleProgress
+			= Clamp(_switchConnectingProgress - kBlobPartAnimation)
 				/ kFillCirclePartAnimation;
 		const auto skipColoredCircle = (circleProgress == 1.);
 
@@ -744,8 +744,8 @@ void CallMuteButton::init() {
 	}, lifetime());
 
 	// State type.
-	const auto previousType =
-		lifetime().make_state<CallMuteButtonType>(_state.current().type);
+	const auto previousType
+		= lifetime().make_state<CallMuteButtonType>(_state.current().type);
 	setHandleMouseState(HandleMouseState::Disabled);
 
 	refreshGradients();

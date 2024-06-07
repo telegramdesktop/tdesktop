@@ -36,43 +36,8 @@ enum class SendMediaType {
 	Secure,
 };
 
-using UploadFileParts = QMap<int, QByteArray>;
-struct SendMediaReady {
-	SendMediaReady() = default; // temp
-	SendMediaReady(
-		SendMediaType type,
-		const QString &file,
-		const QString &filename,
-		int64 filesize,
-		const QByteArray &data,
-		const uint64 &id,
-		const uint64 &thumbId,
-		const QString &thumbExt,
-		const PeerId &peer,
-		const MTPPhoto &photo,
-		const PreparedPhotoThumbs &photoThumbs,
-		const MTPDocument &document,
-		const QByteArray &jpeg);
-
-	SendMediaType type;
-	QString file, filename;
-	int64 filesize = 0;
-	QByteArray data;
-	QString thumbExt;
-	uint64 id, thumbId; // id always file-id of media, thumbId is file-id of thumb ( == id for photos)
-	PeerId peer;
-
-	MTPPhoto photo;
-	MTPDocument document;
-	PreparedPhotoThumbs photoThumbs;
-	UploadFileParts parts;
-	QByteArray jpeg_md5;
-
-	QString caption;
-
-};
-
 using TaskId = void*; // no interface, just id
+inline constexpr auto kEmptyTaskId = TaskId();
 
 class Task {
 public:
@@ -144,7 +109,7 @@ struct SendingAlbum {
 	struct Item {
 		explicit Item(TaskId taskId);
 
-		TaskId taskId;
+		TaskId taskId = kEmptyTaskId;
 		uint64 randomId = 0;
 		FullMsgId msgId;
 		std::optional<MTPInputSingleMedia> media;
@@ -182,17 +147,21 @@ struct FileLoadTo {
 	MsgId replaceMediaOf;
 };
 
-struct FileLoadResult {
-	FileLoadResult(
-		TaskId taskId,
-		uint64 id,
-		const FileLoadTo &to,
-		const TextWithTags &caption,
-		bool spoiler,
-		std::shared_ptr<SendingAlbum> album);
+using UploadFileParts = std::vector<QByteArray>;
+struct FilePrepareDescriptor {
+	TaskId taskId = kEmptyTaskId;
+	base::required<uint64> id;
+	SendMediaType type = SendMediaType::File;
+	FileLoadTo to = { PeerId(), Api::SendOptions(), FullReplyTo(), MsgId() };
+	TextWithTags caption;
+	bool spoiler = false;
+	std::shared_ptr<SendingAlbum> album;
+};
+struct FilePrepareResult {
+	explicit FilePrepareResult(FilePrepareDescriptor &&descriptor);
 
-	TaskId taskId;
-	uint64 id;
+	TaskId taskId = kEmptyTaskId;
+	uint64 id = 0;
 	FileLoadTo to;
 	std::shared_ptr<SendingAlbum> album;
 	SendMediaType type = SendMediaType::File;
@@ -216,8 +185,8 @@ struct FileLoadResult {
 	QImage goodThumbnail;
 	QByteArray goodThumbnailBytes;
 
-	MTPPhoto photo;
-	MTPDocument document;
+	MTPPhoto photo = MTP_photoEmpty(MTP_long(0));
+	MTPDocument document = MTP_documentEmpty(MTP_long(0));
 
 	PreparedPhotoThumbs photoThumbs;
 	TextWithTags caption;
@@ -229,6 +198,9 @@ struct FileLoadResult {
 	void setThumbData(const QByteArray &thumbdata);
 
 };
+
+[[nodiscard]] std::shared_ptr<FilePrepareResult> MakePreparedFile(
+	FilePrepareDescriptor &&descriptor);
 
 class FileLoadTask final : public Task {
 public:
@@ -276,7 +248,7 @@ public:
 	}
 	void finish() override;
 
-	FileLoadResult *peekResult() const;
+	FilePrepareResult *peekResult() const;
 
 private:
 	static bool CheckForSong(
@@ -312,6 +284,6 @@ private:
 	TextWithTags _caption;
 	bool _spoiler = false;
 
-	std::shared_ptr<FileLoadResult> _result;
+	std::shared_ptr<FilePrepareResult> _result;
 
 };

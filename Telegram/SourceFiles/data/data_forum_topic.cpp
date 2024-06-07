@@ -143,7 +143,7 @@ QImage ForumTopicIconFrame(
 	return background;
 }
 
-QImage ForumTopicGeneralIconFrame(int size, const style::color &color) {
+QImage ForumTopicGeneralIconFrame(int size, const QColor &color) {
 	const auto ratio = style::DevicePixelRatio();
 	auto svg = QSvgRenderer(ForumTopicIconPath(u"general"_q));
 	auto result = QImage(
@@ -170,6 +170,62 @@ TextWithEntities ForumTopicIconWithTitle(
 		: iconId
 		? Data::SingleCustomEmoji(iconId).append(' ').append(title)
 		: TextWithEntities{ title };
+}
+
+QString ForumGeneralIconTitle() {
+	return QChar(0) + u"general"_q;
+}
+
+bool IsForumGeneralIconTitle(const QString &title) {
+	return !title.isEmpty() && !title[0].unicode();
+}
+
+int32 ForumGeneralIconColor(const QColor &color) {
+	return int32(uint32(color.red()) << 16
+		| uint32(color.green()) << 8
+		| uint32(color.blue())
+		| (uint32(color.alpha() == 255 ? 0 : color.alpha()) << 24));
+}
+
+QColor ParseForumGeneralIconColor(int32 value) {
+	const auto alpha = uint32(value) >> 24;
+	return QColor(
+		(value >> 16) & 0xFF,
+		(value >> 8) & 0xFF,
+		value & 0xFF,
+		alpha ? alpha : 255);
+}
+
+QString TopicIconEmojiEntity(TopicIconDescriptor descriptor) {
+	return IsForumGeneralIconTitle(descriptor.title)
+		? u"topic_general:"_q + QString::number(uint32(descriptor.colorId))
+		: (u"topic_icon:"_q
+			+ QString::number(uint32(descriptor.colorId))
+			+ ' '
+			+ ExtractNonEmojiLetter(descriptor.title));
+}
+
+TopicIconDescriptor ParseTopicIconEmojiEntity(QStringView entity) {
+	if (!entity.startsWith(u"topic_")) {
+		return {};
+	}
+	const auto general = u"topic_general:"_q;
+	const auto normal = u"topic_icon:"_q;
+	if (entity.startsWith(general)) {
+		return {
+			.title = ForumGeneralIconTitle(),
+			.colorId = int32(entity.mid(general.size()).toUInt()),
+		};
+	} else if (entity.startsWith(normal)) {
+		const auto parts = entity.mid(normal.size()).split(' ');
+		if (parts.size() == 2) {
+			return {
+				.title = parts[1].toString(),
+				.colorId = int32(parts[0].toUInt()),
+			};
+		}
+	}
+	return {};
 }
 
 ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
@@ -640,7 +696,7 @@ void ForumTopic::validateGeneralIcon(
 		: context.selected
 		? st::dialogsTextFgOver
 		: st::dialogsTextFg;
-	_defaultIcon = ForumTopicGeneralIconFrame(size, color);
+	_defaultIcon = ForumTopicGeneralIconFrame(size, color->c);
 	_flags = (_flags & ~mask) | flags;
 }
 

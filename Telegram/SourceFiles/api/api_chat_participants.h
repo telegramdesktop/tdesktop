@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 class ChannelData;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class Show;
 } // namespace Ui
@@ -96,10 +100,17 @@ public:
 	static Parsed ParseRecent(
 		not_null<ChannelData*> channel,
 		const TLMembers &data);
+	static void Restrict(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> participant,
+		ChatRestrictionsInfo oldRights,
+		ChatRestrictionsInfo newRights,
+		Fn<void()> onDone,
+		Fn<void()> onFail);
 	void add(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
-		std::shared_ptr<Ui::Show> show = nullptr,
 		bool passGroupHistory = true,
 		Fn<void(bool)> done = nullptr);
 
@@ -134,11 +145,17 @@ public:
 	[[nodiscard]] auto similarLoaded() const
 		-> rpl::producer<not_null<ChannelData*>>;
 
+	void loadRecommendations();
+	[[nodiscard]] const Channels &recommendations() const;
+	[[nodiscard]] rpl::producer<> recommendationsLoaded() const;
+
 private:
 	struct SimilarChannels {
 		Channels channels;
 		mtpRequestId requestId = 0;
 	};
+
+	const not_null<Main::Session*> _session;
 
 	MTP::Sender _api;
 
@@ -164,6 +181,9 @@ private:
 
 	base::flat_map<not_null<ChannelData*>, SimilarChannels> _similar;
 	rpl::event_stream<not_null<ChannelData*>> _similarLoaded;
+
+	SimilarChannels _recommendations;
+	rpl::variable<bool> _recommendationsLoaded = false;
 
 };
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 
+using "ui/layers/layers.style"; // boxRoundShadow
 using "ui/widgets/widgets.style";
 
 DialogRow {
@@ -44,6 +45,11 @@ DialogsMiniIcon {
 defaultForumTopicIcon: ForumTopicIcon {
 	size: 21px;
 	font: font(bold 11px);
+	textTop: 2px;
+}
+normalForumTopicIcon: ForumTopicIcon {
+	size: 19px;
+	font: font(bold 10px);
 	textTop: 2px;
 }
 largeForumTopicIcon: ForumTopicIcon {
@@ -116,7 +122,7 @@ dialogsSpeakingDenominator: 8.;
 
 dialogsImportantBarHeight: 37px;
 
-dialogsWidthDuration: 120;
+dialogsWidthDuration: universalDuration;
 dialogsTextWidthMin: 150px;
 
 dialogsTextPalette: TextPalette(defaultTextPalette) {
@@ -441,10 +447,25 @@ dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) 
 	size: size(12px, 12px);
 }
 
-dialogsSearchInHeight: 52px;
-dialogsSearchInPhotoSize: 36px;
-dialogsSearchInPhotoPadding: 10px;
-dialogsSearchInSkip: 7px;
+dialogsSearchInHeight: 38px;
+dialogsSearchInPhotoSize: 26px;
+dialogsSearchInPhotoPadding: 12px;
+dialogsSearchInSkip: 10px;
+dialogsSearchInNameTop: 9px;
+dialogsSearchInDownTop: 15px;
+dialogsSearchInDown: icon {{ "intro_country_dropdown", windowBoldFg }};
+dialogsSearchInDownSkip: 4px;
+dialogsSearchInMenu: PopupMenu(defaultPopupMenu) {
+	shadow: boxRoundShadow;
+	animation: PanelAnimation(defaultPanelAnimation) {
+		shadow: boxRoundShadow;
+	}
+	scrollPadding: margins(0px, 0px, 0px, 0px);
+	radius: 8px;
+	menu: menuWithIcons;
+}
+dialogsSearchInCheck: icon {{ "player/player_check", mediaPlayerActiveFg }};
+dialogsSearchInCheckSkip: 8px;
 dialogsSearchFromStyle: defaultTextStyle;
 dialogsSearchFromPalette: TextPalette(defaultTextPalette) {
 	linkFg: dialogsNameFg;
@@ -517,7 +538,7 @@ forumTopicRow: DialogRow(defaultDialogRow) {
 	photoSize: 20px;
 	nameLeft: 39px;
 	nameTop: 7px;
-	textLeft: 68px;
+	textLeft: 39px;
 	textTop: 29px;
 	unreadMarkDiameter: 8px;
 }
@@ -591,6 +612,75 @@ dialogsStoriesFull: DialogsStories {
 		font: font(11px);
 	}
 }
+topPeers: DialogsStories(dialogsStoriesFull) {
+	photo: 46px;
+	photoLeft: 10px;
+	photoTop: 8px;
+	nameLeft: 6px;
+}
+topPeersRadius: 4px;
+topPeersMargin: margins(3px, 3px, 3px, 4px);
+
+recentPeersEmptySize: 100px;
+recentPeersEmptyMargin: margins(10px, 10px, 10px, 10px);
+recentPeersEmptySkip: 10px;
+recentPeersEmptyHeightMin: 220px;
+recentPeersItem: PeerListItem(defaultPeerListItem) {
+	height: 56px;
+	photoSize: 42px;
+	photoPosition: point(10px, 7px);
+	namePosition: point(64px, 9px);
+	statusPosition: point(64px, 30px);
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBgOver;
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: contactsStatusFg;
+	statusFgOver: contactsStatusFgOver;
+	statusFgActive: contactsStatusFgOnline;
+}
+recentPeersList: PeerList(defaultPeerList) {
+	padding: margins(0px, 4px, 0px, 4px);
+	item: recentPeersItem;
+}
+recentPeersItemActive: PeerListItem(recentPeersItem) {
+	nameFg: dialogsNameFgActive;
+	nameFgChecked: dialogsNameFgActive;
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: dialogsBgActive;
+		textBgOver: dialogsBgActive;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: dialogsRippleBgActive;
+		}
+	}
+	statusFg: dialogsTextFgActive;
+	statusFgOver: dialogsTextFgActive;
+	statusFgActive: dialogsTextFgActive;
+}
+recentPeersSpecialName: PeerListItem(recentPeersItem) {
+	namePosition: point(64px, 19px);
+}
+
+dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
+	height: 33px;
+	barTop: 30px;
+	barSkip: 0px;
+	barStroke: 6px;
+	barRadius: 2px;
+	barFg: transparent;
+	barSnapToLabel: true;
+	strictSkip: 18px;
+	labelTop: 7px;
+	labelStyle: semiboldTextStyle;
+	labelFg: windowSubTextFg;
+	labelFgActive: lightButtonFg;
+	rippleBottomSkip: 1px;
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	ripple: defaultRippleAnimation;
+}
+dialogsSearchTabsPadding: 8px;
 
 dialogsStoriesList: DialogsStoriesList {
 	small: dialogsStories;
@@ -620,9 +710,18 @@ dialogsStoriesTooltipHide: IconButton(defaultIconButton) {
 	ripple: emptyRippleAnimation;
 }
 
-searchedBarHeight: 32px;
+searchedBarHeight: 28px;
 searchedBarFont: normalFont;
-searchedBarPosition: point(17px, 7px);
+searchedBarPosition: point(14px, 5px);
+searchedBarLabel: FlatLabel(defaultFlatLabel) {
+	textFg: searchedBarFg;
+	margin: margins(14px, 5px, 14px, 5px);
+}
+searchedBarLink: LinkButton(defaultLinkButton) {
+	color: searchedBarFg;
+	overColor: searchedBarFg;
+	padding: margins(14px, 5px, 14px, 5px);
+}
 
 dialogsSearchTagSkip: point(8px, 4px);
 dialogsSearchTagBottom: 10px;
@@ -633,3 +732,4 @@ dialogsSearchTagArrowPadding: margins(-6px, 3px, 0px, 0px);
 dialogsSearchTagPromoLeft: 6px;
 dialogsSearchTagPromoRight: 1px;
 dialogsSearchTagPromoSkip: 6px;
+

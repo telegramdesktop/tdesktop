@@ -62,6 +62,10 @@ void ConfirmPhone::resolve(
 				return bad("FirebaseSms");
 			}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
 				return bad("EmailCode");
+			}, [&](const MTPDauth_sentCodeTypeSmsWord &) {
+				return bad("SmsWord");
+			}, [&](const MTPDauth_sentCodeTypeSmsPhrase &) {
+				return bad("SmsPhrase");
 			}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
 				return bad("SetUpEmailRequired");
 			});
@@ -93,8 +97,10 @@ void ConfirmPhone::resolve(
 			box->resendRequests(
 			) | rpl::start_with_next([=] {
 				_api.request(MTPauth_ResendCode(
+					MTP_flags(0),
 					MTP_string(phone),
-					MTP_string(phoneHash)
+					MTP_string(phoneHash),
+					MTPstring() // reason
 				)).done([=] {
 					if (boxWeak) {
 						boxWeak->callDone();

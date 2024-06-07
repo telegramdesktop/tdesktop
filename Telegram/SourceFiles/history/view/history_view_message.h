@@ -44,6 +44,12 @@ struct LogEntryOriginal
 	std::unique_ptr<WebPage> page;
 };
 
+struct Factcheck
+: public RuntimeComponent<Factcheck, Element> {
+	std::unique_ptr<WebPage> page;
+	bool expanded = false;
+};
+
 struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
 	QString type;
 	mutable ClickHandlerPtr link;
@@ -158,6 +164,11 @@ public:
 		Data::ReactionId,
 		std::unique_ptr<Ui::ReactionFlyAnimation>> override;
 
+	void animateEffect(Ui::ReactionFlyAnimationArgs &&args) override;
+	auto takeEffectAnimation()
+	-> std::unique_ptr<Ui::ReactionFlyAnimation> override;
+
+	QRect effectIconGeometry() const override;
 	QRect innerGeometry() const override;
 	[[nodiscard]] BottomRippleMask bottomRippleMask(int buttonHeight) const;
 
@@ -276,7 +287,6 @@ private:
 	void ensureRightAction() const;
 	void refreshTopicButton();
 	void refreshInfoSkipBlock();
-	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
 
 	void validateInlineKeyboard(HistoryMessageReplyMarkup *markup);
@@ -284,6 +294,7 @@ private:
 	[[nodiscard]] int viewButtonHeight() const;
 
 	[[nodiscard]] WebPage *logEntryOriginal() const;
+	[[nodiscard]] WebPage *factcheckBlock() const;
 
 	[[nodiscard]] ClickHandlerPtr createGoToCommentsLink() const;
 	[[nodiscard]] ClickHandlerPtr psaTooltipLink() const;

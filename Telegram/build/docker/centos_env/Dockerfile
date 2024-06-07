@@ -1,7 +1,7 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set QT = "6.7.0" -%}
-{%- set QT_TAG = "v" ~ QT ~ "-rc2" -%}
+{%- set QT = "6.7.1" -%}
+{%- set QT_TAG = "v" ~ QT -%}
 {%- set CMAKE_VER = "3.27.6" -%}
 {%- set CMAKE_FILE = "cmake-" ~ CMAKE_VER ~ "-Linux-x86_64.sh" -%}
 {%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -D_GLIBCXX_ASSERTIONS" -%}
@@ -19,13 +19,13 @@ ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/loc
 RUN dnf -y install epel-release \
 	&& dnf config-manager --set-enabled powertools \
 	&& dnf -y install autoconf automake libtool pkgconfig make patch git \
-		python3.11-pip python3.11-devel gperf flex bison clang lld yasm \
+		python3.11-pip python3.11-devel gperf flex bison clang lld nasm yasm \
 		file which perl-open perl-XML-Parser perl-IPC-Cmd xorg-x11-util-macros \
 		gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils \
-		libffi-devel fontconfig-devel freetype-devel libX11-devel \
-		alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
-		mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel libvdpau-devel \
-		glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
+		gcc-toolset-12-libasan-devel libffi-devel fontconfig-devel freetype-devel \
+		libX11-devel alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel \
+		mesa-libEGL-devel mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel \
+		libvdpau-devel glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
 	&& dnf clean all
 
 SHELL [ "bash", "-c", ". /opt/rh/gcc-toolset-12/enable; exec bash -c \"$@\"", "-s"]
@@ -51,20 +51,9 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 7b8f30b787691a325d17e20ddd455e87738e7432 \
+	&& git fetch --depth=1 origin 803f1c2630f5eb0d3b00ba3f095b3079c0533156 \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
-
-FROM builder AS nasm
-RUN git clone -b nasm-2.15.05 --depth=1 {{ GIT }}/netwide-assembler/nasm.git \
-	&& cd nasm \
-	&& ./autogen.sh \
-	&& ./configure \
-	&& make -j$(nproc) \
-	&& mkdir -p "{{ LibrariesPath }}/nasm-cache/usr/local/bin" \
-	&& install -c nasm "{{ LibrariesPath }}/nasm-cache/usr/local/bin/nasm" \
-	&& cd .. \
-	&& rm -rf nasm
 
 FROM builder AS zlib
 RUN git init zlib \
@@ -79,7 +68,7 @@ RUN git init zlib \
 	&& rm -rf zlib
 
 FROM builder AS xz
-RUN git clone -b v5.4.4 --depth=1 {{ GIT }}/tukaani-project/xz.git \
+RUN git clone -b v5.4.4 --depth=1 https://git.tukaani.org/xz.git \
 	&& cd xz \
 	&& cmake -B build . -DCMAKE_BUILD_TYPE=None \
 	&& cmake --build build -j$(nproc) \
@@ -88,7 +77,7 @@ RUN git clone -b v5.4.4 --depth=1 {{ GIT }}/tukaani-project/xz.git \
 	&& rm -rf xz
 
 FROM builder AS protobuf
-RUN git clone -b v21.9 --depth=1 --recursive {{ GIT }}/protocolbuffers/protobuf.git \
+RUN git clone -b v21.9 --depth=1 --recursive --shallow-submodules {{ GIT }}/protocolbuffers/protobuf.git \
 	&& cd protobuf \
 	&& git init third_party/abseil-cpp \
 	&& cd third_party/abseil-cpp \
@@ -101,10 +90,11 @@ RUN git clone -b v21.9 --depth=1 --recursive {{ GIT }}/protocolbuffers/protobuf.
 		-Dprotobuf_BUILD_TESTS=OFF \
 		-Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
 		-Dprotobuf_BUILD_LIBPROTOC=ON \
-		-Dprotobuf_WITH_ZLIB_DEFAULT=OFF \
-		-Dprotobuf_DEBUG_POSTFIX="" \
+		-Dprotobuf_WITH_ZLIB=OFF \
 	&& cmake --build build --parallel \
-	&& rm -rf .git
+	&& DESTDIR="{{ LibrariesPath }}/protobuf-cache" cmake --install build \
+	&& cd .. \
+	&& rm -rf protobuf
 
 FROM builder AS lcms2
 RUN git clone -b lcms2.15 --depth=1 {{ GIT }}/mm2/Little-CMS.git \
@@ -142,19 +132,6 @@ RUN git clone -b 1.0.7 --depth=1 {{ GIT }}/google/highway.git \
 	&& cd .. \
 	&& rm -rf highway
 
-FROM builder AS mozjpeg
-RUN git clone -b v4.1.4 --depth=1 {{ GIT }}/mozilla/mozjpeg.git \
-	&& cd mozjpeg \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
-		-DCMAKE_INSTALL_PREFIX=/usr/local \
-		-DWITH_JPEG8=ON \
-		-DPNG_SUPPORTED=OFF \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/mozjpeg-cache" cmake --install build \
-	&& cd .. \
-	&& rm -rf mozjpeg
-
 FROM builder AS opus
 RUN git clone -b v1.4 --depth=1 {{ GIT }}/xiph/opus.git \
 	&& cd opus \
@@ -166,8 +143,6 @@ RUN git clone -b v1.4 --depth=1 {{ GIT }}/xiph/opus.git \
 	&& rm -rf opus
 
 FROM builder AS dav1d
-COPY --link --from=nasm {{ LibrariesPath }}/nasm-cache /
-
 RUN git clone -b 1.4.1 --depth=1 {{ GIT }}/videolan/dav1d.git \
 	&& cd dav1d \
 	&& meson build \
@@ -197,7 +172,7 @@ FROM builder AS libvpx
 RUN git init libvpx \
 	&& cd libvpx \
 	&& git remote add origin {{ GIT }}/webmproject/libvpx.git \
-	&& git fetch --depth=1 origin 51057f4ba894e13f9bba278905bacf6aaaecd992 \
+	&& git fetch --depth=1 origin 12f3a2ac603e8f10742105519e0cd03c3b8f71dd \
 	&& git reset --hard FETCH_HEAD \
 	&& CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure \
 		--disable-examples \
@@ -270,20 +245,22 @@ RUN git clone -b v1.17.6 --depth=1 {{ GIT }}/strukturag/libheif.git \
 	&& cd .. \
 	&& rm -rf libheif
 
-FROM builder AS libjxl
+FROM patches AS libjxl
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
 COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
 
-RUN git clone -b v0.8.2 --depth=1 {{ GIT }}/libjxl/libjxl.git \
+RUN git clone -b v0.10.2 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 	&& cd libjxl \
+	&& git apply ../patches/libjxl.patch \
+	&& git submodule update --init --recursive --depth=1 third_party/libjpeg-turbo \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DBUILD_TESTING=OFF \
 		-DJPEGXL_ENABLE_DEVTOOLS=OFF \
 		-DJPEGXL_ENABLE_TOOLS=OFF \
-		-DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF \
+		-DJPEGXL_INSTALL_JPEGLI_LIBJPEG=ON \
 		-DJPEGXL_ENABLE_DOXYGEN=OFF \
 		-DJPEGXL_ENABLE_MANPAGES=OFF \
 		-DJPEGXL_ENABLE_BENCHMARK=OFF \
@@ -293,7 +270,10 @@ RUN git clone -b v0.8.2 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 		-DJPEGXL_ENABLE_OPENEXR=OFF \
 		-DJPEGXL_ENABLE_SKCMS=OFF \
 	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/libjxl-cache" cmake --install build \
+	&& export DESTDIR="{{ LibrariesPath }}/libjxl-cache" \
+	&& cmake --install build \
+	&& cp build/lib/libjpegli-static.a $DESTDIR/usr/local/lib64/libjpeg.a \
+	&& ar rcs $DESTDIR/usr/local/lib64/libjpeg.a build/lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o \
 	&& cd .. \
 	&& rm -rf libjxl
 
@@ -330,7 +310,7 @@ RUN git clone -b libxcb-1.16 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
 	&& rm -rf libxcb
 
 FROM builder AS xcb-wm
-RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
+RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
 	&& cd libxcb-wm \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -339,7 +319,7 @@ RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/l
 	&& rm -rf libxcb-wm
 
 FROM builder AS xcb-util
-RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-util.git \
+RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-util.git \
 	&& cd libxcb-util \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -350,7 +330,7 @@ RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libx
 FROM builder AS xcb-image
 COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 
-RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-image.git \
+RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-image.git \
 	&& cd libxcb-image \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -359,7 +339,7 @@ RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }
 	&& rm -rf libxcb-image
 
 FROM builder AS xcb-keysyms
-RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
+RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
 	&& cd libxcb-keysyms \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -368,7 +348,7 @@ RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP
 	&& rm -rf libxcb-keysyms
 
 FROM builder AS xcb-render-util
-RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
+RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
 	&& cd libxcb-render-util \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -381,7 +361,7 @@ COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
 COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
 
-RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-cursor.git \
+RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-cursor.git \
 	&& cd libxcb-cursor \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -479,7 +459,7 @@ RUN git clone -b 1.19.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
 	&& rm -rf wayland
 
 FROM builder AS nv-codec-headers
-RUN git clone -b n12.0.16.0 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
+RUN git clone -b n12.1.14.0 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
 	&& DESTDIR="{{ LibrariesPath }}/nv-codec-headers-cache" make -C nv-codec-headers install \
 	&& rm -rf nv-codec-headers
 
@@ -491,7 +471,7 @@ COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
 COPY --link --from=libXv {{ LibrariesPath }}/libXv-cache /
 COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 
-RUN git clone -b n5.1.3 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
+RUN git clone -b n6.1.1 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 	&& cd FFmpeg \
 	&& ./configure \
 		--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
@@ -604,6 +584,7 @@ RUN git clone -b n5.1.3 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 		--enable-parser=aac \
 		--enable-parser=aac_latm \
 		--enable-parser=flac \
+		--enable-parser=gif \
 		--enable-parser=h264 \
 		--enable-parser=hevc \
 		--enable-parser=mpeg4video \
@@ -715,7 +696,7 @@ RUN git clone -b 1.78.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
 FROM patches AS qt
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
-COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
+COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
 COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
 COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
@@ -768,9 +749,9 @@ RUN git clone -b v2023.06.01 --depth=1 https://chromium.googlesource.com/breakpa
 	&& rm -rf breakpad
 
 FROM builder AS webrtc
-COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
+COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
 COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
@@ -812,11 +793,10 @@ RUN cmake --build out --config Debug --parallel \
 FROM builder-base
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=xz {{ LibrariesPath }}/xz-cache /
-COPY --link --from=protobuf {{ LibrariesPath }}/protobuf protobuf
+COPY --link --from=protobuf {{ LibrariesPath }}/protobuf-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
 COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
-COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /

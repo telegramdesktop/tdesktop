@@ -42,7 +42,7 @@ public:
 		const Lottie::ColorReplacements *replacements = nullptr);
 	~Sticker();
 
-	void initSize();
+	void initSize(int customSize = 0);
 	QSize countOptimalSize() override;
 	void draw(
 		Painter &p,
@@ -62,12 +62,14 @@ public:
 
 	void refreshLink() override;
 	bool hasTextForCopy() const override {
-		return isEmojiSticker();
+		return emojiSticker();
 	}
 
 	void setDiceIndex(const QString &emoji, int index);
-	void setCustomEmojiPart(int size, ChatHelpers::StickerLottieSize tag);
-	void setGiftBoxSticker(bool giftBoxSticker);
+	void setCustomCachingTag(ChatHelpers::StickerLottieSize tag);
+	void setCustomEmojiPart();
+	void setEmojiSticker();
+	void setWebpagePart();
 	[[nodiscard]] bool atTheEnd() const {
 		return 	(_frameIndex >= 0) && (_frameIndex + 1 == _framesCount);
 	}
@@ -89,6 +91,7 @@ public:
 		not_null<DocumentData*> document);
 	[[nodiscard]] static QSize UsualPremiumEffectSize();
 	[[nodiscard]] static QSize EmojiEffectSize();
+	[[nodiscard]] static QSize MessageEffectSize();
 	[[nodiscard]] static QSize EmojiSize();
 	[[nodiscard]] static ClickHandlerPtr ShowSetHandler(
 		not_null<DocumentData*> document);
@@ -96,7 +99,8 @@ public:
 private:
 	[[nodiscard]] bool hasPremiumEffect() const;
 	[[nodiscard]] bool customEmojiPart() const;
-	[[nodiscard]] bool isEmojiSticker() const;
+	[[nodiscard]] bool emojiSticker() const;
+	[[nodiscard]] bool webpagePart() const;
 	void paintAnimationFrame(
 		Painter &p,
 		const PaintContext &context,
@@ -134,7 +138,9 @@ private:
 	mutable bool _premiumEffectSkipped : 1 = false;
 	mutable bool _nextLastDiceFrame : 1 = false;
 	bool _skipPremiumEffect : 1 = false;
-	bool _giftBoxSticker : 1 = false;
+	bool _customEmojiPart : 1 = false;
+	bool _emojiSticker : 1 = false;
+	bool _webpagePart : 1 = false;
 
 };
 

@@ -21,6 +21,7 @@ namespace {
 
 constexpr auto kSharedMediaLimit = 100;
 constexpr auto kFirstSharedMediaLimit = 0;
+constexpr auto kHistoryLimit = 50;
 constexpr auto kDefaultSearchTimeoutMs = crl::time(200);
 
 } // namespace
@@ -197,6 +198,60 @@ SearchResult ParseSearchResult(
 		}();
 	}
 	return result;
+}
+
+HistoryRequest PrepareHistoryRequest(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		Data::LoadDirection direction) {
+	const auto minId = 0;
+	const auto maxId = 0;
+	const auto limit = kHistoryLimit;
+	const auto offsetId = [&] {
+		switch (direction) {
+		case Data::LoadDirection::Before:
+		case Data::LoadDirection::Around: return messageId;
+		case Data::LoadDirection::After: return messageId + 1;
+		}
+		Unexpected("Direction in PrepareSearchRequest");
+	}();
+	const auto addOffset = [&] {
+		switch (direction) {
+		case Data::LoadDirection::Before: return 0;
+		case Data::LoadDirection::Around: return -limit / 2;
+		case Data::LoadDirection::After: return -limit;
+		}
+		Unexpected("Direction in PrepareSearchRequest");
+	}();
+	const auto hash = uint64(0);
+	const auto offsetDate = int32(0);
+
+	const auto mtpOffsetId = int(std::clamp(
+		offsetId.bare,
+		int64(0),
+		int64(0x3FFFFFFF)));
+	return MTPmessages_GetHistory(
+		peer->input,
+		MTP_int(mtpOffsetId),
+		MTP_int(offsetDate),
+		MTP_int(addOffset),
+		MTP_int(limit),
+		MTP_int(maxId),
+		MTP_int(minId),
+		MTP_long(hash));
+}
+
+HistoryResult ParseHistoryResult(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		Data::LoadDirection direction,
+		const HistoryRequestResult &data) {
+	return ParseSearchResult(
+		peer,
+		Storage::SharedMediaType::kCount,
+		messageId,
+		direction,
+		data);
 }
 
 SearchController::CacheEntry::CacheEntry(

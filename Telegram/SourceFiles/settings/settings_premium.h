@@ -79,6 +79,7 @@ struct SubscribeButtonArgs final {
 	std::optional<QGradientStops> gradientStops;
 	Fn<QString()> computeBotUrl; // nullable
 	std::shared_ptr<ChatHelpers::Show> show;
+	bool showPromo = false;
 };
 
 
@@ -89,6 +90,13 @@ struct SubscribeButtonArgs final {
 	rpl::producer<bool> locked);
 
 [[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
+	SubscribeButtonArgs &&args);
+
+[[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
+	std::shared_ptr<::Main::SessionShow> show,
+	Fn<Window::SessionController*(
+		not_null<::Main::Session*>,
+		ChatHelpers::WindowUsage)> resolveWindow,
 	SubscribeButtonArgs &&args);
 
 [[nodiscard]] std::vector<PremiumFeature> PremiumFeaturesOrder(

@@ -7,25 +7,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_session_controller.h"
 
+#include "api/api_text_entities.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/peers/replace_boost_box.h"
 #include "boxes/delete_messages_box.h"
+#include "window/window_chat_preview.h"
 #include "window/window_controller.h"
 #include "window/window_filters_menu.h"
+#include "info/channel_statistics/earn/info_earn_inner_widget.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/reactions/history_view_reactions.h"
-#include "history/view/reactions/history_view_reactions_button.h"
+//#include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_replies_section.h"
 #include "history/view/history_view_scheduled_section.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_document_resolver.h"
+#include "data/data_download_manager.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_folder.h"
@@ -47,12 +52,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "base/unixtime.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone.
 #include "ui/delayed_activation.h"
 #include "ui/boxes/boost_box.h"
+#include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/style/style_palette_colorizer.h"
@@ -60,9 +67,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
 #include "calls/group/calls_group_call.h"
 #include "ui/boxes/calendar_box.h"
+#include "ui/boxes/collectible_info_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/dynamic_thumbnails.h"
 #include "mainwidget.h"
-#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -73,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_blocked_peers.h"
 #include "support/support_helper.h"
 #include "storage/file_upload.h"
+#include "storage/download_manager_mtproto.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller_link_info.h"
@@ -80,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "settings/settings_privacy_security.h"
 #include "styles/style_window.h"
+#include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
 
@@ -88,20 +99,6 @@ namespace {
 
 constexpr auto kCustomThemesInMemory = 5;
 constexpr auto kMaxChatEntryHistorySize = 50;
-
-[[nodiscard]] Ui::ChatThemeBubblesData PrepareBubblesData(
-		const Data::CloudTheme &theme,
-		Data::CloudThemeType type) {
-	const auto i = theme.settings.find(type);
-	return {
-		.colors = (i != end(theme.settings)
-			? i->second.outgoingMessagesColors
-			: std::vector<QColor>()),
-		.accent = (i != end(theme.settings)
-			? i->second.outgoingAccentColor
-			: std::optional<QColor>()),
-	};
-}
 
 class MainWindowShow final : public ChatHelpers::Show {
 public:
@@ -126,7 +123,7 @@ public:
 	rpl::producer<> pauseChanged() const override;
 
 	rpl::producer<bool> adjustShadowLeft() const override;
-	SendMenu::Type sendMenuType() const override;
+	SendMenu::Details sendMenuDetails() const override;
 
 	bool showMediaPreview(
 		Data::FileOrigin origin,
@@ -142,6 +139,70 @@ private:
 	const base::weak_ptr<SessionController> _window;
 
 };
+
+[[nodiscard]] Ui::ChatThemeBubblesData PrepareBubblesData(
+		const Data::CloudTheme &theme,
+		Data::CloudThemeType type) {
+	const auto i = theme.settings.find(type);
+	return {
+		.colors = (i != end(theme.settings)
+			? i->second.outgoingMessagesColors
+			: std::vector<QColor>()),
+		.accent = (i != end(theme.settings)
+			? i->second.outgoingAccentColor
+			: std::optional<QColor>()),
+	};
+}
+
+[[nodiscard]] bool DownloadingDocument(not_null<DocumentData*> document) {
+	for (const auto id : Core::App().downloadManager().loadingList()) {
+		if (id->object.document == document.get()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+[[nodiscard]] Ui::CollectibleDetails PrepareCollectibleDetails(
+		not_null<Main::Session*> session) {
+	const auto makeContext = [=] {
+		return Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [] {},
+		};
+	};
+	return {
+		.tonEmoji = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				Info::ChannelEarn::IconCurrency(
+					st::collectibleInfo,
+					st::collectibleInfo.textFg->c),
+				st::collectibleInfoTonMargins,
+				true)),
+		.tonEmojiContext = makeContext,
+	};
+}
+
+[[nodiscard]] Ui::CollectibleInfo Parse(
+		const QString &entity,
+		not_null<PeerData*> owner,
+		const MTPfragment_CollectibleInfo &info) {
+	const auto &data = info.data();
+	return {
+		.entity = entity,
+		.copyText = (entity.startsWith('+')
+			? QString()
+			: owner->session().createInternalLinkFull(entity)),
+		.ownerUserpic = Ui::MakeUserpicThumbnail(owner, true),
+		.ownerName = owner->name(),
+		.cryptoAmount = data.vcrypto_amount().v,
+		.amount = data.vamount().v,
+		.cryptoCurrency = qs(data.vcrypto_currency()),
+		.currency = qs(data.vcurrency()),
+		.url = qs(data.vurl()),
+		.date = data.vpurchase_date().v,
+	};
+}
 
 MainWindowShow::MainWindowShow(not_null<SessionController*> controller)
 : _window(base::make_weak(controller)) {
@@ -212,12 +273,12 @@ rpl::producer<bool> MainWindowShow::adjustShadowLeft() const {
 	});
 }
 
-SendMenu::Type MainWindowShow::sendMenuType() const {
+SendMenu::Details MainWindowShow::sendMenuDetails() const {
 	const auto window = _window.get();
 	if (!window) {
-		return SendMenu::Type::Disabled;
+		return SendMenu::Details();
 	}
-	return window->content()->sendMenuType();
+	return window->content()->sendMenuDetails();
 }
 
 bool MainWindowShow::showMediaPreview(
@@ -307,6 +368,13 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 		resolvePhone(info.phone, [=](not_null<PeerData*> peer) {
 			showPeerByLinkResolved(peer, info);
 		});
+	} else if (!info.chatLinkSlug.isEmpty()) {
+		resolveChatLink(info.chatLinkSlug, [=](
+				not_null<PeerData*> peer,
+				TextWithEntities draft) {
+			Data::SetChatLinkDraft(peer, draft);
+			showPeerByLinkResolved(peer, info);
+		});
 	} else if (const auto name = std::get_if<QString>(&info.usernameOrId)) {
 		resolveUsername(*name, [=](not_null<PeerData*> peer) {
 			if (info.startAutoSubmit) {
@@ -348,6 +416,33 @@ void SessionNavigation::resolvePhone(
 					lt_phone,
 					Ui::FormatPhone(phone))),
 				Ui::LayerOption::CloseOther);
+		}
+	}).send();
+}
+
+void SessionNavigation::resolveChatLink(
+		const QString &slug,
+		Fn<void(not_null<PeerData*> peer, TextWithEntities draft)> done) {
+	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(MTPaccount_ResolveBusinessChatLink(
+		MTP_string(slug)
+	)).done([=](const MTPaccount_ResolvedBusinessChatLinks &result) {
+		_resolveRequestId = 0;
+		parentController()->hideLayer();
+		const auto &data = result.data();
+		_session->data().processUsers(data.vusers());
+		_session->data().processChats(data.vchats());
+
+		using namespace Api;
+		const auto peerId = peerFromMTP(data.vpeer());
+		done(_session->data().peer(peerId), {
+			qs(data.vmessage()),
+			EntitiesFromMTP(_session, data.ventities().value_or_empty())
+		});
+	}).fail([=](const MTP::Error &error) {
+		_resolveRequestId = 0;
+		if (error.code() == 400) {
+			showToast(tr::lng_confirm_phone_link_invalid(tr::now));
 		}
 	}).send();
 }
@@ -479,7 +574,7 @@ void SessionNavigation::showPeerByLinkResolved(
 			info.messageId,
 			commentId->id,
 			params);
-	} else if (peer->isForum()) {
+	} else if (peer->isForum() && resolveType != ResolveType::Boost) {
 		const auto itemId = info.messageId;
 		if (!itemId) {
 			parentController()->showForum(peer->forum(), params);
@@ -609,7 +704,11 @@ void SessionNavigation::showPeerByLinkResolved(
 						contextUser->owner().history(contextUser))
 					: std::optional<Api::SendAction>()));
 		} else {
+			const auto draft = info.text;
 			crl::on_main(this, [=] {
+				if (peer->isUser() && !draft.isEmpty()) {
+					Data::SetChatLinkDraft(peer, { draft });
+				}
 				showPeerHistory(peer, params, msgId);
 			});
 		}
@@ -639,6 +738,36 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 	}).fail([=](const MTP::Error &error) {
 		_boostStateResolving = nullptr;
 		showToast(u"Error: "_q + error.type());
+	}).send();
+}
+
+void SessionNavigation::resolveCollectible(
+		PeerId ownerId,
+		const QString &entity,
+		Fn<void(QString)> fail) {
+	if (_collectibleEntity == entity) {
+		return;
+	} else {
+		_api.request(base::take(_collectibleRequestId)).cancel();
+	}
+	_collectibleEntity = entity;
+	_collectibleRequestId = _api.request(MTPfragment_GetCollectibleInfo(
+		((Ui::DetectCollectibleType(entity) == Ui::CollectibleType::Phone)
+			? MTP_inputCollectiblePhone(MTP_string(entity))
+			: MTP_inputCollectibleUsername(MTP_string(entity)))
+	)).done([=](const MTPfragment_CollectibleInfo &result) {
+		const auto entity = base::take(_collectibleEntity);
+		_collectibleRequestId = 0;
+		uiShow()->show(Box(
+			Ui::CollectibleInfoBox,
+			Parse(entity, _session->data().peer(ownerId), result),
+			PrepareCollectibleDetails(_session)));
+	}).fail([=](const MTP::Error &error) {
+		_collectibleEntity = QString();
+		_collectibleRequestId = 0;
+		if (fail) {
+			fail(error.type());
+		}
 	}).send();
 }
 
@@ -1051,6 +1180,7 @@ SessionController::SessionController(
 , _window(window)
 , _emojiInteractions(
 	std::make_unique<ChatHelpers::EmojiInteractions>(session))
+, _chatPreviewManager(std::make_unique<ChatPreviewManager>(this))
 , _isPrimary(window->isPrimary())
 , _sendingAnimation(
 	std::make_unique<Ui::MessageSendingAnimationController>(this))
@@ -1063,7 +1193,6 @@ SessionController::SessionController(
 , _activeChatsFilter(session->data().chatsFilters().defaultId())
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
 , _chatStyle(std::make_unique<Ui::ChatStyle>(session->colorIndicesValue()))
-, _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
 , _giftPremiumValidator(this) {
 	init();
 
@@ -1157,12 +1286,66 @@ SessionController::SessionController(
 		}));
 	}, _lifetime);
 
+	session->downloader().nonPremiumDelays(
+	) | rpl::start_with_next([=](DocumentId id) {
+		checkNonPremiumLimitToastDownload(id);
+	}, _lifetime);
+
+	session->uploader().nonPremiumDelays(
+	) | rpl::start_with_next([=](FullMsgId id) {
+		checkNonPremiumLimitToastUpload(id);
+	}, _lifetime);
+
 	session->addWindow(this);
 
 	crl::on_main(this, [=] {
 		activateFirstChatsFilter();
 		setupPremiumToast();
 	});
+}
+
+bool SessionController::skipNonPremiumLimitToast(bool download) const {
+	if (session().premium()) {
+		return true;
+	}
+	const auto now = base::unixtime::now();
+	const auto last = download
+		? session().settings().lastNonPremiumLimitDownload()
+		: session().settings().lastNonPremiumLimitUpload();
+	const auto delay = session().appConfig().get<int>(
+		u"upload_premium_speedup_notify_period"_q,
+		3600);
+	return (last && now < last + delay && now > last - delay);
+}
+
+void SessionController::checkNonPremiumLimitToastDownload(DocumentId id) {
+	if (skipNonPremiumLimitToast(true)) {
+		return;
+	}
+	const auto document = session().data().document(id);
+	const auto visible = session().data().queryDocumentVisibility(document)
+		|| DownloadingDocument(document);
+	if (!visible) {
+		return;
+	}
+	content()->showNonPremiumLimitToast(true);
+	const auto now = base::unixtime::now();
+	session().settings().setLastNonPremiumLimitDownload(now);
+	session().saveSettingsDelayed();
+}
+
+void SessionController::checkNonPremiumLimitToastUpload(FullMsgId id) {
+	if (skipNonPremiumLimitToast(false)) {
+		return;
+	} else if (const auto item = session().data().message(id)) {
+		if (!session().data().queryItemVisibility(item)) {
+			return;
+		}
+		content()->showNonPremiumLimitToast(false);
+		const auto now = base::unixtime::now();
+		session().settings().setLastNonPremiumLimitUpload(now);
+		session().saveSettingsDelayed();
+	}
 }
 
 void SessionController::suggestArchiveAndMute() {
@@ -1244,6 +1427,12 @@ void SessionController::showGiftPremiumBox(UserData *user) {
 
 void SessionController::showGiftPremiumsBox(const QString &ref) {
 	_giftPremiumValidator.showChoosePeerBox(ref);
+}
+
+void SessionController::showGiftPremiumsBox(
+		not_null<UserData*> user,
+		const QString &ref) {
+	_giftPremiumValidator.showChosenPeerBox(user, ref);
 }
 
 void SessionController::init() {
@@ -1705,15 +1894,6 @@ int SessionController::minimalThreeColumnWidth() const {
 		+ st::columnMinimalWidthThird;
 }
 
-bool SessionController::forceWideDialogs() const {
-	if (_dialogsListDisplayForced.current()) {
-		return true;
-	} else if (_dialogsListFocused.current()) {
-		return true;
-	}
-	return !content()->isMainSectionShown();
-}
-
 auto SessionController::computeColumnLayout() const -> ColumnLayout {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 
@@ -1768,7 +1948,10 @@ int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
 	if (!_isPrimary) {
 		return 0;
 	}
-	auto result = qRound(bodyWidth * Core::App().settings().dialogsWidthRatio());
+	const auto nochat = !mainSectionShown();
+	const auto width = bodyWidth
+		* Core::App().settings().dialogsWidthRatio(nochat);
+	auto result = qRound(width);
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
@@ -1828,10 +2011,10 @@ void SessionController::resizeForThirdSection() {
 
 	auto &settings = Core::App().settings();
 	auto layout = computeColumnLayout();
-	auto tabbedSelectorSectionEnabled =
-		settings.tabbedSelectorSectionEnabled();
-	auto thirdSectionInfoEnabled =
-		settings.thirdSectionInfoEnabled();
+	auto tabbedSelectorSectionEnabled
+		= settings.tabbedSelectorSectionEnabled();
+	auto thirdSectionInfoEnabled
+		= settings.thirdSectionInfoEnabled();
 	settings.setTabbedSelectorSectionEnabled(false);
 	settings.setThirdSectionInfoEnabled(false);
 
@@ -1857,10 +2040,12 @@ void SessionController::resizeForThirdSection() {
 		if (extendBy != settings.thirdColumnWidth()) {
 			settings.setThirdColumnWidth(extendBy);
 		}
+		const auto nochat = !mainSectionShown();
 		auto newBodyWidth = layout.bodyWidth + extendedBy;
-		auto currentRatio = settings.dialogsWidthRatio();
-		settings.setDialogsWidthRatio(
-			(currentRatio * layout.bodyWidth) / newBodyWidth);
+		auto currentRatio = settings.dialogsWidthRatio(nochat);
+		settings.updateDialogsWidthRatio(
+			(currentRatio * layout.bodyWidth) / newBodyWidth,
+			nochat);
 	}
 	auto savedValue = (extendedBy == extendBy) ? -1 : extendedBy;
 	settings.setThirdSectionExtendedBy(savedValue);
@@ -1876,6 +2061,7 @@ void SessionController::closeThirdSection() {
 	auto newWindowSize = widget()->size();
 	auto layout = computeColumnLayout();
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
+		const auto nochat = !mainSectionShown();
 		auto noResize = widget()->isFullScreen()
 			|| widget()->isMaximized();
 		auto savedValue = settings.thirdSectionExtendedBy();
@@ -1885,9 +2071,10 @@ void SessionController::closeThirdSection() {
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
 			: (layout.bodyWidth - extendedBy);
-		auto currentRatio = settings.dialogsWidthRatio();
-		settings.setDialogsWidthRatio(
-			(currentRatio * layout.bodyWidth) / newBodyWidth);
+		auto currentRatio = settings.dialogsWidthRatio(nochat);
+		settings.updateDialogsWidthRatio(
+			(currentRatio * layout.bodyWidth) / newBodyWidth,
+			nochat);
 		newWindowSize = QSize(
 			widget()->width() + (newBodyWidth - layout.bodyWidth),
 			widget()->height());
@@ -2766,7 +2953,7 @@ void SessionController::openPeerStories(
 }
 
 HistoryView::PaintContext SessionController::preparePaintContext(
-		PaintContextArgs &&args) {
+		Ui::ChatPaintContextArgs &&args) {
 	const auto visibleAreaTopLocal = content()->mapFromGlobal(
 		args.visibleAreaPositionGlobal).y();
 	const auto viewport = QRect(
@@ -2787,6 +2974,34 @@ void SessionController::setPremiumRef(const QString &ref) {
 
 QString SessionController::premiumRef() const {
 	return _premiumRef;
+}
+
+bool SessionController::showChatPreview(
+		Dialogs::RowDescriptor row,
+		Fn<void(bool shown)> callback,
+		QPointer<QWidget> parentOverride,
+		std::optional<QPoint> positionOverride) {
+	return _chatPreviewManager->show(
+		std::move(row),
+		std::move(callback),
+		std::move(parentOverride),
+		positionOverride);
+}
+
+bool SessionController::scheduleChatPreview(
+		Dialogs::RowDescriptor row,
+		Fn<void(bool shown)> callback,
+	QPointer<QWidget> parentOverride,
+	std::optional<QPoint> positionOverride) {
+	return _chatPreviewManager->schedule(
+		std::move(row),
+		std::move(callback),
+		std::move(parentOverride),
+		positionOverride);
+}
+
+void SessionController::cancelScheduledPreview() {
+	_chatPreviewManager->cancelScheduled();
 }
 
 bool SessionController::contentOverlapped(QWidget *w, QPaintEvent *e) const {

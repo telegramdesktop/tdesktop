@@ -139,6 +139,10 @@ const std::vector<QString> &ChannelData::usernames() const {
 	return _username.usernames();
 }
 
+bool ChannelData::isUsernameEditable(QString username) const {
+	return _username.isEditable(username);
+}
+
 void ChannelData::setAccessHash(uint64 accessHash) {
 	access = accessHash;
 	input = MTP_inputPeerChannel(
@@ -161,6 +165,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 	const auto taken = ((diff & Flag::Forum) && !(which & Flag::Forum))
 		? mgInfo->takeForumData()
 		: nullptr;
+	const auto wasIn = amIn();
 	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
 		mgInfo->ensureForum(this);
 	}
@@ -169,6 +174,14 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 		if (const auto chat = getMigrateFromChat()) {
 			session().changes().peerUpdated(chat, UpdateFlag::Migration);
 			session().changes().peerUpdated(this, UpdateFlag::Migration);
+		}
+
+		if (wasIn && !amIn()) {
+			crl::on_main(&session(), [=] {
+				if (!amIn()) {
+					Core::App().closeChatFromWindows(this);
+				}
+			});
 		}
 	}
 	if (diff & (Flag::Forum | Flag::CallNotEmpty | Flag::SimilarExpanded)) {
@@ -1070,7 +1083,8 @@ void ApplyChannelUpdate(
 		| Flag::Location
 		| Flag::ParticipantsHidden
 		| Flag::CanGetStatistics
-		| Flag::ViewAsMessages;
+		| Flag::ViewAsMessages
+		| Flag::CanViewRevenue;
 	channel->setFlags((channel->flags() & ~mask)
 		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag())
 		| (update.is_can_view_participants()
@@ -1086,7 +1100,8 @@ void ApplyChannelUpdate(
 		| (update.is_can_view_stats() ? Flag::CanGetStatistics : Flag())
 		| (update.is_view_forum_as_messages()
 			? Flag::ViewAsMessages
-			: Flag()));
+			: Flag())
+		| (update.is_can_view_revenue() ? Flag::CanViewRevenue : Flag()));
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {
 		channel->addFlags(Flag::Megagroup);
@@ -1192,10 +1207,14 @@ void ApplyChannelUpdate(
 	}
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	channel->setTranslationDisabled(update.is_translations_disabled());
+
+	const auto reactionsLimit = update.vreactions_limit().value_or_empty();
 	if (const auto allowed = update.vavailable_reactions()) {
-		channel->setAllowedReactions(Data::Parse(*allowed));
+		auto parsed = Data::Parse(*allowed);
+		parsed.maxCount = reactionsLimit;
+		channel->setAllowedReactions(std::move(parsed));
 	} else {
-		channel->setAllowedReactions({});
+		channel->setAllowedReactions({ .maxCount = reactionsLimit });
 	}
 	channel->owner().stories().apply(channel, update.vstories());
 	channel->fullUpdated();

@@ -17,7 +17,10 @@ namespace Premium {
 
 constexpr auto kDeformationMax = 0.1;
 
-MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque)
+MiniStars::MiniStars(
+	Fn<void(const QRect &r)> updateCallback,
+	bool opaque,
+	Type type)
 : _availableAngles({
 	Interval{ -10, 40 },
 	Interval{ 180 + 10 - 40, 40 },
@@ -29,6 +32,7 @@ MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque)
 , _size({ 5, 10 })
 , _alpha({ opaque ? 100 : 40, opaque ? 100 : 60 })
 , _sinFactor({ 10, 190 })
+, _spritesCount({ 0, ((type == Type::MonoStars) ? 1 : 2) })
 , _appearProgressTill(0.2)
 , _disappearProgressAfter(0.8)
 , _distanceProgressStart(0.5)
@@ -41,6 +45,10 @@ MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque)
 		updateCallback(base::take(_rectToUpdate));
 	}
 }) {
+	if (type == Type::BiStars) {
+		_secondSprite = std::make_unique<QSvgRenderer>(
+			u":/gui/icons/settings/star.svg"_q);
+	}
 	if (anim::Disabled()) {
 		const auto from = _deathTime.from + _deathTime.length;
 		auto r = bytes::vector(from + 1);
@@ -117,7 +125,7 @@ void MiniStars::paint(QPainter &p, const QRectF &rect) {
 				- starHeight / 2.,
 			starWidth,
 			starHeight);
-		_sprite.render(&p, renderRect);
+		ministar.sprite->render(&p, renderRect);
 		_rectToUpdate |= renderRect.toRect();
 	}
 	p.setOpacity(opacity);
@@ -128,7 +136,7 @@ void MiniStars::setPaused(bool paused) {
 }
 
 void MiniStars::createStar(crl::time now) {
-	constexpr auto kRandomSize = 8;
+	constexpr auto kRandomSize = 9;
 	auto random = bytes::vector(kRandomSize);
 	base::RandomFill(random.data(), random.size());
 
@@ -148,6 +156,9 @@ void MiniStars::createStar(crl::time now) {
 		.alpha = float64(randomInterval(_alpha, next())) / 100.,
 		.sinFactor = randomInterval(_sinFactor, next()) / 100.
 			* ((uchar(next()) % 2) == 1 ? 1. : -1.),
+		.sprite = ((randomInterval(_spritesCount, next()) && _secondSprite)
+			? _secondSprite.get()
+			: &_sprite),
 	};
 	for (auto i = 0; i < _ministars.size(); i++) {
 		if (ministar.birthTime > _ministars[i].deathTime) {

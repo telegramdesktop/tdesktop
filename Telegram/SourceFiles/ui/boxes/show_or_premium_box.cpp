@@ -52,7 +52,9 @@ constexpr auto kShowOrLineOpacity = 0.3;
 	return result;
 }
 
-[[nodiscard]] object_ptr<RpWidget> MakeShowOrLabel(
+} // namespace
+
+object_ptr<RpWidget> MakeShowOrLabel(
 		not_null<RpWidget*> parent,
 		rpl::producer<QString> text) {
 	auto result = object_ptr<FlatLabel>(
@@ -79,8 +81,6 @@ constexpr auto kShowOrLineOpacity = 0.3;
 
 	return result;
 }
-
-} // namespace
 
 void ShowOrPremiumBox(
 		not_null<GenericBox*> box,

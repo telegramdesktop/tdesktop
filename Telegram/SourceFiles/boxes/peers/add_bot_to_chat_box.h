@@ -76,6 +76,7 @@ private:
 };
 
 void AddBotToGroup(
+	std::shared_ptr<Ui::Show> show,
 	not_null<UserData*> bot,
 	not_null<PeerData*> chat,
 	const QString &startToken);

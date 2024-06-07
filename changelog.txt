@@ -1,3 +1,163 @@
+5.1.5 (07.06.24)
+
+- Return WebView on Windows.
+
+5.1.4 (06.06.24)
+
+- Improve design of search in chat.
+- Show vCard information for shared contacts.
+- Allow scheduling media in topic groups.
+- Several minor bugfixes.
+
+5.1.3 (04.06.24)
+
+- Rebuild version for macOS to fix the phrases.
+
+5.1.2 (03.06.24)
+
+- Several bugs fixed including a couple of crashes.
+
+5.1.1 (01.06.24)
+
+- Fix caption display on some media.
+- Fix collapsed blockquotes rendering.
+- Fully close search in chat by "Cancel" click.
+- Allow editing caption placement and spoiler in topics.
+- Disable effects on forwarded messages and inline results.
+
+5.1 (31.05.24)
+
+- Send messages with effects.
+- Move photo or video captions above the media.
+- Chat preview on chat photo long press or Alt+Click.
+
+5.0.6 beta (30.05.24)
+
+- Fix chat preview with non-default themes.
+- Fix chat preview crash when scrolling up.
+- Jump to chat from preview only by Double-Click.
+- Show chat preview with Force Touch on macOS.
+
+5.0.5 beta (28.05.24)
+
+- Long press on chat userpic to show quick preview.
+- Alt+Click on chat to show quick preview.
+- Show author userpics in forwarded messages.
+
+5.0.4 (28.05.24)
+
+- Fix reply to last message by Ctrl+Up in topics.
+- Some other bug fixes.
+
+5.0.3 (28.05.24)
+
+- Ctrl+Click on Reply in menu to Reply in another chat.
+- Allow Zero-Width-Space character in text rendering.
+- Fix creating custom links in the message field.
+- Fix jump to the topic with last unread message.
+- Fix newline entering via Shift+Enter on Linux.
+- Fix forum search open by Ctrl+F.
+
+5.0.2 (24.05.24)
+
+- Toggle chats search focus by Tab key.
+- Unfocus empty search by Backspace key.
+- Add a spoiler to already sent media when editing.
+- Forward by drag-n-drop to frequent contacts / recent searches.
+- Allow wide chats list in empty window with narrow list when a chat is opened.
+- Improve custom font support in the input fields.
+- Fix input method typing from unfocused search.
+- Fix possible media reordering on batch send.
+- Fix crash in group emoji set saving.
+- Fix possible hang on quit on macOS.
+
+5.0.1 (04.05.24)
+
+- Fix several crashes in new interfaces.
+- Fix monospace font size.
+- Fix possible problem with underline font size.
+
+5.0 (02.05.24)
+
+- Choose custom font family in Settings > Chat settings > Font family.
+- Show "Frequent contacts" when you focus the search field.
+- Show "Recent chats" when you focus the search field.
+- Show "Channels" list and similar channels.
+- Premium users can use animated emoji in polls.
+- Group admins can mass-moderate many messages.
+- Fix frequent crashes on some Linux systems.
+
+4.16.10 beta (26.04.24)
+
+- Group admins can mass-moderate many messages.
+- Premium users can use animated emoji in polls.
+- Revert the default "Open Sans" font to 1.10.
+- Several crash fixes and small improvements.
+
+4.16.9 beta (23.04.24)
+
+- Show "Frequent contacts" when you focus the search field.
+- Show "Recent chats" when you focus the search field.
+- Show "Channels" and channel recommendations.
+- Allow changing font in Settings > Chat settings > Font family.
+
+4.16.8 (16.04.24)
+
+- Fix in-app playing of some video and audio files.
+- Fix crash on Linux opening chats with custom backgrounds.
+- Fix crash on quit after using scheduled messages.
+
+4.16.7 (15.04.24)
+
+- Reimplement file open confirmations.
+
+4.16.6 (09.04.24)
+
+- Show custom emoji preview on long press.
+- Fix resume chat bot button disappearance.
+- Fix GIF files playback. (regression in 4.16.3.beta)
+
+4.16.5 (08.04.24)
+
+- Fix editing privacy for groups and channels invitations.
+- Possible fix for the network unresponsiveness after sleep.
+- Possible fix for wide range of memory allocator crashes on Linux.
+
+4.16.4 (06.04.24)
+
+- Bug fixes and other minor improvements.
+
+4.16.3 beta (05.04.24)
+
+- Improve media upload speed.
+- Update FFmpeg to 6.1.1.
+
+4.16.2 (04.04.24)
+
+- Use IV by default for Telegraph and some Telegram links.
+- Support IV links in bot web-apps.
+- Some bug fixes.
+
+4.16.1 (02.04.24)
+
+- Show information about Fragment phone numbers and usernames.
+- Fix jump to original story from a story repost.
+- Fix old image display in viewer in some cases.
+- Fix several crashes.
+
+4.16 (01.04.24)
+
+- Instant View on Windows 10+ and macOS.
+- Allow scheduling messages in topics.
+- Telegram Business: Links to Chats.
+- Telegram Business: Custom Intro.
+- Telegram Business: Chatbots.
+- Sharing Revenue with Channel Owners.
+
+4.15.7 beta (01.04.24)
+
+- Test crashfix on Linux.
+
 4.15.6 beta (25.03.24)
 
 - Save the Instant View window geometry.

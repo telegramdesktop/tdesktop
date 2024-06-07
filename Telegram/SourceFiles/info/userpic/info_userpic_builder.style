@@ -66,5 +66,3 @@ userpicBuilderEmojiColorPlus: IconButton(userpicBuilderEmojiColorMinus) {
 }
 
 userpicBuilderEmojiToggleStickersIcon: icon {{ "menu/stickers", emojiIconFg }};
-
-userpicBuilderEmojiSlideDuration: 120;

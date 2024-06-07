@@ -189,9 +189,22 @@ void Provider::refreshViewer() {
 			return;
 		}
 		_slice = std::move(slice);
-		if (const auto nearest = _slice.nearest(idForViewer)) {
-			_aroundId = *nearest;
+
+		auto nearestId = std::optional<StoryId>();
+		for (auto i = 0; i != _slice.size(); ++i) {
+			if (!nearestId
+				|| std::abs(*nearestId - idForViewer)
+					> std::abs(_slice[i] - idForViewer)) {
+				nearestId = _slice[i];
+			}
 		}
+		if (nearestId) {
+			_aroundId = *nearestId;
+		}
+
+		//if (const auto nearest = _slice.nearest(idForViewer)) {
+		//	_aroundId = *nearest;
+		//}
 		_refreshed.fire({});
 	}, _viewerLifetime);
 }
@@ -208,8 +221,8 @@ std::vector<ListSection> Provider::fillSections(
 	auto result = std::vector<ListSection>();
 	auto section = ListSection(Type::PhotoVideo, sectionDelegate());
 	auto count = _slice.size();
-	for (auto i = count; i != 0;) {
-		const auto storyId = _slice[--i];
+	for (auto i = 0; i != count; ++i) {
+		const auto storyId = _slice[i];
 		if (const auto layout = getLayout(storyId, delegate)) {
 			if (!section.addItem(layout)) {
 				section.finishSection();
@@ -330,7 +343,10 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	};
 	using namespace Overview::Layout;
-	const auto options = MediaOptions{ .story = true };
+	const auto options = MediaOptions{
+		.pinned = item->isPinned(),
+		.story = true,
+	};
 	if (const auto photo = getPhoto()) {
 		return std::make_unique<Photo>(delegate, item, photo, options);
 	} else if (const auto file = getFile()) {
@@ -361,6 +377,7 @@ ListItemSelectionData Provider::computeSelectionData(
 		const auto story = *maybeStory;
 		result.canForward = peer->isSelf() && story->canShare();
 		result.canDelete = story->canDelete();
+		result.canUnpinStory = story->pinnedToTop();
 	}
 	result.canToggleStoryPin = peer->isSelf()
 		|| (channel && channel->canEditStories());
@@ -417,12 +434,28 @@ int64 Provider::scrollTopStatePosition(not_null<HistoryItem*> item) {
 HistoryItem *Provider::scrollTopStateItem(ListScrollTopState state) {
 	if (state.item && _slice.indexOf(StoryIdFromMsgId(state.item->id))) {
 		return state.item;
-	} else if (const auto id = _slice.nearest(state.position)) {
-		const auto full = FullMsgId(_peer->id, StoryIdToMsgId(*id));
+	//} else if (const auto id = _slice.nearest(state.position)) {
+	//	const auto full = FullMsgId(_peer->id, StoryIdToMsgId(*id));
+	//	if (const auto item = _controller->session().data().message(full)) {
+	//		return item;
+	//	}
+	}
+
+	auto nearestId = std::optional<StoryId>();
+	for (auto i = 0; i != _slice.size(); ++i) {
+		if (!nearestId
+			|| std::abs(*nearestId - state.position)
+				> std::abs(_slice[i] - state.position)) {
+			nearestId = _slice[i];
+		}
+	}
+	if (nearestId) {
+		const auto full = FullMsgId(_peer->id, StoryIdToMsgId(*nearestId));
 		if (const auto item = _controller->session().data().message(full)) {
 			return item;
 		}
 	}
+
 	return state.item;
 }
 

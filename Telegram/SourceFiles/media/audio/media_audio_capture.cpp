@@ -249,7 +249,11 @@ struct Instance::Inner::Private {
 		return nbytes;
 	}
 
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+	static int WriteData(void *opaque, const uint8_t *buf, int buf_size) {
+#else
 	static int WriteData(void *opaque, uint8_t *buf, int buf_size) {
+#endif
 		auto l = reinterpret_cast<Private*>(opaque);
 
 		if (buf_size <= 0) return 0;

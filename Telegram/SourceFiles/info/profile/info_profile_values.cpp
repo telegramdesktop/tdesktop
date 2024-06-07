@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_participants.h"
 #include "apiwrap.h"
+#include "info/profile/info_profile_phone_menu.h"
 #include "info/profile/info_profile_badge.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -55,7 +56,7 @@ auto PlainUsernameValue(not_null<PeerData*> peer) {
 		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Username),
 		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Usernames)
 	) | rpl::map([=] {
-		return peer->userName();
+		return peer->username();
 	});
 }
 
@@ -136,14 +137,19 @@ rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 		PlainUsernameValue(user),
 		PlainAboutValue(user),
 		tr::lng_info_mobile_hidden()
-	) | rpl::map([](
+	) | rpl::map([user](
 			const TextWithEntities &phone,
 			const QString &username,
 			const QString &about,
 			const QString &hidden) {
-		return (phone.text.isEmpty() && username.isEmpty() && about.isEmpty())
-			? Ui::Text::WithEntities(hidden)
-			: phone;
+		if (phone.text.isEmpty() && username.isEmpty() && about.isEmpty()) {
+			return Ui::Text::WithEntities(hidden);
+		} else if (IsCollectiblePhone(user)) {
+			return Ui::Text::Link(phone, u"internal:collectible_phone/"_q
+				+ user->phone() + '@' + QString::number(user->id.value));
+		} else {
+			return phone;
+		}
 	});
 }
 
@@ -160,15 +166,22 @@ rpl::producer<TextWithEntities> UsernameValue(
 	}) | Ui::Text::ToWithEntities();
 }
 
+QString UsernameUrl(not_null<PeerData*> peer, const QString &username) {
+	return peer->isUsernameEditable(username)
+		? peer->session().createInternalLinkFull(username)
+		: (u"internal:collectible_username/"_q
+			+ username
+			+ "@"
+			+ QString::number(peer->id.value));
+}
+
 rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
 		not_null<PeerData*> peer) {
 	const auto map = [=](const std::vector<QString> &usernames) {
 		return ranges::views::all(
 			usernames
 		) | ranges::views::transform([&](const QString &u) {
-			return Ui::Text::Link(
-				u,
-				peer->session().createInternalLinkFull(u));
+			return Ui::Text::Link(u, UsernameUrl(peer, u));
 		}) | ranges::to_vector;
 	};
 	auto value = rpl::merge(
@@ -219,14 +232,19 @@ rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 	});
 }
 
-rpl::producer<QString> LinkValue(not_null<PeerData*> peer, bool primary) {
+rpl::producer<LinkWithUrl> LinkValue(not_null<PeerData*> peer, bool primary) {
 	return (primary
 		? PlainPrimaryUsernameValue(peer)
 		: PlainUsernameValue(peer) | rpl::type_erased()
 	) | rpl::map([=](QString &&username) {
-		return username.isEmpty()
-			? QString()
-			: peer->session().createInternalLinkFull(username);
+		return LinkWithUrl{
+			.text = (username.isEmpty()
+				? QString()
+				: peer->session().createInternalLinkFull(username)),
+			.url = (username.isEmpty()
+				? QString()
+				: UsernameUrl(peer, username)),
+		};
 	});
 }
 
@@ -341,6 +359,25 @@ rpl::producer<bool> CanAddContactValue(not_null<UserData*> user) {
 	return IsContactValue(
 		user
 	) | rpl::map(!_1);
+}
+
+rpl::producer<Data::Birthday> BirthdayValue(not_null<UserData*> user) {
+	return user->session().changes().peerFlagsValue(
+		user,
+		UpdateFlag::Birthday
+	) | rpl::map([=] {
+		return user->birthday();
+	});
+}
+
+rpl::producer<ChannelData*> PersonalChannelValue(not_null<UserData*> user) {
+	return user->session().changes().peerFlagsValue(
+		user,
+		UpdateFlag::PersonalChannel
+	) | rpl::map([=] {
+		const auto channelId = user->personalChannelId();
+		return channelId ? user->owner().channel(channelId).get() : nullptr;
+	});
 }
 
 rpl::producer<bool> AmInChannelValue(not_null<ChannelData*> channel) {
@@ -624,6 +661,51 @@ rpl::producer<DocumentId> EmojiStatusIdValue(not_null<PeerData*> peer) {
 		peer,
 		Data::PeerUpdate::Flag::EmojiStatus
 	) | rpl::map([=] { return peer->emojiStatusId(); });
+}
+
+rpl::producer<QString> BirthdayLabelText(
+		rpl::producer<Data::Birthday> birthday) {
+	return std::move(birthday) | rpl::map([](Data::Birthday value) {
+		return rpl::conditional(
+			Data::IsBirthdayTodayValue(value),
+			tr::lng_info_birthday_today_label(),
+			tr::lng_info_birthday_label());
+	}) | rpl::flatten_latest();
+}
+
+rpl::producer<QString> BirthdayValueText(
+		rpl::producer<Data::Birthday> birthday) {
+	return std::move(
+		birthday
+	) | rpl::map([](Data::Birthday value) -> rpl::producer<QString> {
+		if (!value) {
+			return rpl::single(QString());
+		}
+		return Data::IsBirthdayTodayValue(
+			value
+		) | rpl::map([=](bool today) {
+			auto text = Data::BirthdayText(value);
+			if (const auto age = Data::BirthdayAge(value)) {
+				text = (today
+					? tr::lng_info_birthday_today_years
+					: tr::lng_info_birthday_years)(
+						tr::now,
+						lt_count,
+						age,
+						lt_date,
+						text);
+			}
+			if (today) {
+				text = tr::lng_info_birthday_today(
+					tr::now,
+					lt_emoji,
+					Data::BirthdayCake(),
+					lt_date,
+					text);
+			}
+			return text;
+		});
+	}) | rpl::flatten_latest();
 }
 
 } // namespace Profile

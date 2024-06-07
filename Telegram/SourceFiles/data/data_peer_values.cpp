@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_message_reactions.h"
 #include "main/main_session.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "ui/image/image_prepare.h"
 #include "base/unixtime.h"
@@ -74,6 +73,10 @@ std::optional<QString> OnlineTextCommon(LastseenStatus status, TimeId now) {
 		return tr::lng_status_last_month(tr::now);
 	}
 	return std::nullopt;
+}
+
+[[nodiscard]] int UniqueReactionsLimit(not_null<Main::AppConfig*> config) {
+	return config->get<int>("reactions_uniq_max", 11);
 }
 
 } // namespace
@@ -563,21 +566,45 @@ const AllowedReactions &PeerAllowedReactions(not_null<PeerData*> peer) {
 	});
 }
 
-int UniqueReactionsLimit(not_null<Main::AppConfig*> config) {
-	return config->get<int>("reactions_uniq_max", 11);
-}
-
 int UniqueReactionsLimit(not_null<PeerData*> peer) {
-	return UniqueReactionsLimit(&peer->session().account().appConfig());
+	if (const auto channel = peer->asChannel()) {
+		if (const auto limit = channel->allowedReactions().maxCount) {
+			return limit;
+		}
+	} else if (const auto chat = peer->asChat()) {
+		if (const auto limit = chat->allowedReactions().maxCount) {
+			return limit;
+		}
+	}
+	return UniqueReactionsLimit(&peer->session().appConfig());
 }
 
 rpl::producer<int> UniqueReactionsLimitValue(
 		not_null<PeerData*> peer) {
-	const auto config = &peer->session().account().appConfig();
-	return config->value(
-	) | rpl::map([=] {
+	auto configValue = peer->session().appConfig().value(
+	) | rpl::map([config = &peer->session().appConfig()] {
 		return UniqueReactionsLimit(config);
 	}) | rpl::distinct_until_changed();
+	if (const auto channel = peer->asChannel()) {
+		return rpl::combine(
+			PeerAllowedReactionsValue(peer),
+			std::move(configValue)
+		) | rpl::map([=](const auto &allowedReactions, int limit) {
+			return allowedReactions.maxCount
+				? allowedReactions.maxCount
+				: limit;
+		});
+	} else if (const auto chat = peer->asChat()) {
+		return rpl::combine(
+			PeerAllowedReactionsValue(peer),
+			std::move(configValue)
+		) | rpl::map([=](const auto &allowedReactions, int limit) {
+			return allowedReactions.maxCount
+				? allowedReactions.maxCount
+				: limit;
+		});
+	}
+	return configValue;
 }
 
 } // namespace Data

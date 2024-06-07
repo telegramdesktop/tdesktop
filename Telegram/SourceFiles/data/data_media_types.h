@@ -47,11 +47,30 @@ enum class CallFinishReason : char {
 	Hangup,
 };
 
-struct SharedContact {
+struct SharedContact final {
 	UserId userId = 0;
 	QString firstName;
 	QString lastName;
 	QString phoneNumber;
+
+	enum class VcardItemType {
+		Phone,
+		PhoneMain,
+		PhoneHome,
+		PhoneMobile,
+		PhoneWork,
+		PhoneOther,
+		Email,
+		Address,
+		Url,
+		Note,
+		Birthday,
+		Organization,
+		Name,
+	};
+
+	using VcardItems = base::flat_map<VcardItemType, QString>;
+	VcardItems vcardItems;
 };
 
 struct Call {
@@ -308,7 +327,8 @@ public:
 		UserId userId,
 		const QString &firstName,
 		const QString &lastName,
-		const QString &phoneNumber);
+		const QString &phoneNumber,
+		const SharedContact::VcardItems &vcardItems);
 	~MediaContact();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -331,10 +351,14 @@ private:
 };
 
 class MediaLocation final : public Media {
+	struct PrivateTag {
+	};
+
 public:
 	MediaLocation(
 		not_null<HistoryItem*> parent,
-		const LocationPoint &point);
+		const LocationPoint &point,
+		TimeId livePeriod = 0);
 	MediaLocation(
 		not_null<HistoryItem*> parent,
 		const LocationPoint &point,
@@ -356,9 +380,21 @@ public:
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing = nullptr) override;
 
+	MediaLocation(
+		PrivateTag,
+		not_null<HistoryItem*> parent,
+		const LocationPoint &point,
+		TimeId livePeriod,
+		const QString &title,
+		const QString &description);
+
 private:
+
+	[[nodiscard]] QString typeString() const;
+
 	LocationPoint _point;
 	not_null<CloudImage*> _location;
+	TimeId _livePeriod = 0;
 	QString _title;
 	QString _description;
 

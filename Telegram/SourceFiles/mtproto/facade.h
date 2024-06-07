@@ -40,8 +40,6 @@ constexpr ShiftedDcId groupCallStreamDcId(DcId dcId) {
 	return ShiftDcId(dcId, kGroupCallStreamDcShift);
 }
 
-constexpr auto kUploadSessionsCount = 2;
-
 namespace details {
 
 constexpr ShiftedDcId downloadDcId(DcId dcId, int index) {
@@ -92,7 +90,6 @@ inline DcId getTemporaryIdFromRealDcId(ShiftedDcId shiftedDcId) {
 namespace details {
 
 constexpr ShiftedDcId uploadDcId(DcId dcId, int index) {
-	static_assert(kUploadSessionsCount < kMaxMediaDcCount, "Too large MTPUploadSessionsCount!");
 	return ShiftDcId(dcId, kBaseUploadDcShift + index);
 };
 
@@ -101,14 +98,14 @@ constexpr ShiftedDcId uploadDcId(DcId dcId, int index) {
 // send(req, callbacks, MTP::uploadDcId(index)) - for upload shifted dc id
 // uploading always to the main dc so BareDcId(result) == 0
 inline ShiftedDcId uploadDcId(int index) {
-	Expects(index >= 0 && index < kUploadSessionsCount);
+	Expects(index >= 0 && index < kMaxMediaDcCount);
 
 	return details::uploadDcId(0, index);
 };
 
 constexpr bool isUploadDcId(ShiftedDcId shiftedDcId) {
 	return (shiftedDcId >= details::uploadDcId(0, 0))
-		&& (shiftedDcId < details::uploadDcId(0, kUploadSessionsCount - 1) + kDcShift);
+		&& (shiftedDcId < details::uploadDcId(0, kMaxMediaDcCount - 1) + kDcShift);
 }
 
 inline ShiftedDcId destroyKeyNextDcId(ShiftedDcId shiftedDcId) {

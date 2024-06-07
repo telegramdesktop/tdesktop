@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
-#include "history/view/history_view_spoiler_click_handler.h"
+#include "history/view/history_view_text_helper.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_media_spoiler.h"
 #include "storage/storage_shared_media.h"
@@ -319,7 +319,7 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 		item->translatedTextWithLocalEntities(),
 		Ui::ItemTextOptions(item),
 		context);
-	FillTextWithAnimatedSpoilers(_parent, result);
+	InitElementTextPart(_parent, result);
 	if (const auto width = _parent->skipBlockWidth()) {
 		result.updateSkipBlock(width, _parent->skipBlockHeight());
 	}
@@ -356,6 +356,10 @@ std::unique_ptr<StickerPlayer> Media::stickerTakePlayer(
 	return nullptr;
 }
 
+QImage Media::locationTakeImage() {
+	return QImage();
+}
+
 TextState Media::getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,
@@ -387,10 +391,8 @@ Ui::BubbleRounding Media::adjustedBubbleRounding(RectParts square) const {
 	return result;
 }
 
-Ui::BubbleRounding Media::adjustedBubbleRoundingWithCaption(
-		const Ui::Text::String &caption) const {
-	return adjustedBubbleRounding(
-		caption.isEmpty() ? RectParts() : RectPart::FullBottom);
+HistoryItem *Media::itemForText() const {
+	return _parent->data();
 }
 
 bool Media::isRoundedInBubbleBottom() const {

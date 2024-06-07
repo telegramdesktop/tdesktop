@@ -7,65 +7,70 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_actions.h"
 
+#include "api/api_blocked_peers.h"
 #include "api/api_chat_participants.h"
+#include "apiwrap.h"
 #include "base/options.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
-#include "data/business/data_business_common.h"
-#include "data/business/data_business_info.h"
-#include "data/data_peer_values.h"
-#include "data/data_session.h"
-#include "data/data_folder.h"
-#include "data/data_forum_topic.h"
-#include "data/data_channel.h"
-#include "data/data_changes.h"
-#include "data/data_chat.h"
-#include "data/data_user.h"
-#include "data/notify/data_notify_settings.h"
-#include "ui/vertical_list.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/padding_wrap.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/widgets/shadow.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/popup_menu.h"
-#include "ui/boxes/report_box.h"
-#include "ui/layers/generic_box.h"
-#include "ui/toast/toast.h"
-#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
-#include "ui/text/text_variant.h"
-#include "history/history_location_manager.h" // LocationClickHandler.
-#include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/report_messages_box.h"
+#include "boxes/share_box.h"
 #include "boxes/translate_box.h"
-#include "lang/lang_keys.h"
-#include "menu/menu_mute.h"
+#include "core/application.h"
+#include "core/click_handler_types.h"
+#include "data/business/data_business_common.h"
+#include "data/business/data_business_info.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_folder.h"
+#include "data/data_forum_topic.h"
+#include "data/data_peer_values.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
+#include "data/notify/data_notify_settings.h"
+#include "dialogs/ui/dialogs_layout.h"
+#include "dialogs/ui/dialogs_message_view.h"
 #include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
+#include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
+#include "history/view/history_view_item_preview.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_phone_menu.h"
-#include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_text.h"
+#include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_widget.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "menu/menu_mute.h"
 #include "support/support_helper.h"
-#include "window/window_session_controller.h"
+#include "ui/boxes/report_box.h"
+#include "ui/controls/userpic_button.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/text/text_variant.h"
+#include "ui/toast/toast.h"
+#include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h" // Window::Controller::show.
 #include "window/window_peer_menu.h"
-#include "mainwidget.h"
-#include "mainwindow.h" // MainWindow::controller.
-#include "main/main_session.h"
-#include "core/application.h"
-#include "core/click_handler_types.h"
-#include "apiwrap.h"
-#include "api/api_blocked_peers.h"
+#include "window/window_session_controller.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -116,16 +121,24 @@ base::options::toggle ShowPeerIdBelowAbout({
 
 [[nodiscard]] Fn<void(QString)> UsernamesLinkCallback(
 		not_null<PeerData*> peer,
-		std::shared_ptr<Ui::Show> show,
+		not_null<Window::SessionController*> controller,
 		const QString &addToLink) {
+	const auto weak = base::make_weak(controller);
 	return [=](QString link) {
-		if (!link.startsWith(u"https://"_q)) {
-			link = peer->session().createInternalLinkFull(peer->userName())
+		if (link.startsWith(u"internal:"_q)) {
+			Core::App().openInternalUrl(link,
+				QVariant::fromValue(ClickHandlerContext{
+					.sessionWindow = weak,
+				}));
+			return;
+		} else if (!link.startsWith(u"https://"_q)) {
+			link = peer->session().createInternalLinkFull(peer->username())
 				+ addToLink;
 		}
 		if (!link.isEmpty()) {
-			QGuiApplication::clipboard()->setText(link);
-			show->showToast(tr::lng_username_copied(tr::now));
+			if (const auto strong = weak.get()) {
+				FastShareLink(strong, link);
+			}
 		}
 	};
 }
@@ -155,12 +168,13 @@ base::options::toggle ShowPeerIdBelowAbout({
 		}
 		using namespace Ui::Text;
 		if (!value.empty()) {
-			value.append("\n");
+			value.append("\n\n");
 		}
 		value.append(Italic(u"id: "_q));
 		const auto raw = peer->id.value & PeerId::kChatTypeMask;
-		const auto id = QString::number(raw);
-		value.append(Link(Italic(id), "internal:copy:" + id));
+		value.append(Link(
+			Italic(Lang::FormatCountDecimal(raw)),
+			"internal:copy:" + QString::number(raw)));
 		return std::move(value);
 	});
 }
@@ -598,6 +612,104 @@ base::options::toggle ShowPeerIdBelowAbout({
 	return result;
 }
 
+[[nodiscard]] object_ptr<Ui::SlideWrap<>> CreateBirthday(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user) {
+	using namespace Data;
+
+	auto result = object_ptr<Ui::SlideWrap<Ui::RoundButton>>(
+		parent,
+		object_ptr<Ui::RoundButton>(
+			parent,
+			rpl::single(QString()),
+			st::infoHoursOuter),
+		st::infoProfileLabeledPadding - st::infoHoursOuterMargin);
+	result->setDuration(st::infoSlideDuration);
+	const auto button = result->entity();
+
+	auto outer = Ui::CreateChild<Ui::SlideWrap<Ui::VerticalLayout>>(
+		button,
+		object_ptr<Ui::VerticalLayout>(button),
+		st::infoHoursOuterMargin);
+	const auto layout = outer->entity();
+	layout->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	auto birthday = BirthdayValue(
+		user
+	) | rpl::start_spawning(result->lifetime());
+
+	auto label = BirthdayLabelText(rpl::duplicate(birthday));
+	auto text = BirthdayValueText(
+		rpl::duplicate(birthday)
+	) | Ui::Text::ToWithEntities();
+
+	const auto giftIcon = Ui::CreateChild<Ui::RpWidget>(layout);
+	giftIcon->resize(st::birthdayTodayIcon.size());
+	layout->sizeValue() | rpl::start_with_next([=](QSize size) {
+		giftIcon->moveToRight(
+			0,
+			(size.height() - giftIcon->height()) / 2,
+			size.width());
+	}, giftIcon->lifetime());
+	giftIcon->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(giftIcon);
+		st::birthdayTodayIcon.paint(p, 0, 0, giftIcon->width());
+	}, giftIcon->lifetime());
+
+	rpl::duplicate(
+		birthday
+	) | rpl::map([](Data::Birthday value) {
+		return Data::IsBirthdayTodayValue(value);
+	}) | rpl::flatten_latest(
+	) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool today) {
+		const auto disable = !today && user->session().premiumCanBuy();
+		button->setDisabled(disable);
+		button->setAttribute(Qt::WA_TransparentForMouseEvents, disable);
+		button->clearState();
+		giftIcon->setVisible(!disable);
+	}, result->lifetime());
+
+	auto nonEmptyText = std::move(
+		text
+	) | rpl::before_next([slide = result.data()](
+			const TextWithEntities &value) {
+		if (value.text.isEmpty()) {
+			slide->hide(anim::type::normal);
+		}
+	}) | rpl::filter([](const TextWithEntities &value) {
+		return !value.text.isEmpty();
+	}) | rpl::after_next([slide = result.data()](
+			const TextWithEntities &value) {
+		slide->show(anim::type::normal);
+	});
+	layout->add(object_ptr<Ui::FlatLabel>(
+		layout,
+		std::move(nonEmptyText),
+		st::birthdayLabeled));
+	layout->add(Ui::CreateSkipWidget(layout, st::infoLabelSkip));
+	layout->add(object_ptr<Ui::FlatLabel>(
+		layout,
+		std::move(
+			label
+		) | rpl::after_next([=] {
+			layout->resizeToWidth(layout->widthNoMargins());
+		}),
+		st::birthdayLabel));
+	result->finishAnimating();
+
+	Ui::ResizeFitChild(button, outer);
+
+	button->setClickedCallback([=] {
+		if (!button->isDisabled()) {
+			controller->showGiftPremiumsBox(user, u"birthday"_q);
+		}
+	});
+
+	return result;
+}
+
 template <typename Text, typename ToggleOn, typename Callback>
 auto AddActionButton(
 		not_null<Ui::VerticalLayout*> parent,
@@ -661,6 +773,7 @@ public:
 	object_ptr<Ui::RpWidget> fill();
 
 private:
+	object_ptr<Ui::RpWidget> setupPersonalChannel(not_null<UserData*> user);
 	object_ptr<Ui::RpWidget> setupInfo();
 	object_ptr<Ui::RpWidget> setupMuteToggle();
 	void setupMainButtons();
@@ -857,13 +970,20 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			if (Ui::SkipTranslate(state->labelText.current())) {
 				return;
 			}
-			auto item = tr::lng_context_translate(tr::now);
+			auto item = (request.selection.empty()
+				? tr::lng_context_translate
+				: tr::lng_context_translate_selected)(tr::now);
 			request.menu->addAction(std::move(item), [=] {
 				controller->window().show(Box(
 					Ui::TranslateBox,
 					peer,
 					MsgId(),
-					state->labelText.current(),
+					request.selection.empty()
+						? state->labelText.current()
+						: Ui::Text::Mid(
+							state->labelText.current(),
+							request.selection.from,
+							request.selection.to - request.selection.from),
 					false));
 			});
 		});
@@ -942,16 +1062,13 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			UsernameValue(user, true) | rpl::map([=](TextWithEntities u) {
 				return u.text.isEmpty()
 					? TextWithEntities()
-					: Ui::Text::Link(
-						u,
-						user->session().createInternalLinkFull(
-							u.text.mid(1)));
+					: Ui::Text::Link(u, UsernameUrl(user, u.text.mid(1)));
 			}),
 			QString(),
 			st::infoProfileLabeledUsernamePadding);
 		const auto callback = UsernamesLinkCallback(
 			_peer,
-			controller->uiShow(),
+			controller,
 			QString());
 		const auto hook = [=](Ui::FlatLabel::ContextMenuRequest request) {
 			if (!request.link) {
@@ -995,7 +1112,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			}, copyUsername->lifetime());
 			copyUsername->setClickedCallback([=] {
 				const auto link = user->session().createInternalLinkFull(
-					user->userName());
+					user->username());
 				if (!link.isEmpty()) {
 					QGuiApplication::clipboard()->setText(link);
 					controller->showToast(tr::lng_username_copied(tr::now));
@@ -1003,6 +1120,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				return false;
 			});
 		} else {
+			tracker.track(result->add(
+				CreateBirthday(result, controller, user)));
 			tracker.track(result->add(CreateWorkingHours(result, user)));
 
 			auto locationText = user->session().changes().peerFlagsValue(
@@ -1040,14 +1159,15 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		auto linkText = LinkValue(
 			_peer,
 			true
-		) | rpl::map([=](const QString &link) {
-			return link.isEmpty()
+		) | rpl::map([=](const LinkWithUrl &link) {
+			const auto text = link.text;
+			return text.isEmpty()
 				? TextWithEntities()
 				: Ui::Text::Link(
-					(link.startsWith(u"https://"_q)
-						? link.mid(u"https://"_q.size())
-						: link) + addToLink,
-					link + addToLink);
+					(text.startsWith(u"https://"_q)
+						? text.mid(u"https://"_q.size())
+						: text) + addToLink,
+					(addToLink.isEmpty() ? link.url : (text + addToLink)));
 		});
 		auto linkLine = addInfoOneLine(
 			(topicRootId
@@ -1058,7 +1178,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		const auto controller = _controller->parentController();
 		const auto linkCallback = UsernamesLinkCallback(
 			_peer,
-			controller->uiShow(),
+			controller,
 			addToLink);
 		linkLine.text->overrideLinkClickHandler(linkCallback);
 		linkLine.subtext->overrideLinkClickHandler(linkCallback);
@@ -1103,6 +1223,272 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		result,
 		st::infoIconInformation,
 		st::infoInformationIconPosition);
+
+	return result;
+}
+
+object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
+		not_null<UserData*> user) {
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		_wrap,
+		object_ptr<Ui::VerticalLayout>(_wrap));
+	const auto container = result->entity();
+	const auto window = _controller->parentController();
+
+	result->toggleOn(PersonalChannelValue(
+		user
+	) | rpl::map(rpl::mappers::_1 != nullptr));
+	result->finishAnimating();
+
+	auto channelToggleValue = PersonalChannelValue(
+		user
+	) | rpl::map([=] { return !!user->personalChannelId(); });
+	auto channel = PersonalChannelValue(
+		user
+	) | rpl::start_spawning(result->lifetime());
+
+	const auto channelLabelFactory = [=](rpl::producer<ChannelData*> c) {
+		return rpl::combine(
+			tr::lng_info_personal_channel_label(Ui::Text::WithEntities),
+			std::move(c)
+		) | rpl::map([](TextWithEntities &&text, ChannelData *channel) {
+			const auto count = channel ? channel->membersCount() : 0;
+			if (count > 1) {
+				text.append(
+					QString::fromUtf8(" \xE2\x80\xA2 ")
+				).append(tr::lng_chat_status_subscribers(
+					tr::now,
+					lt_count_decimal,
+					count));
+			}
+			return text;
+		});
+	};
+
+	{
+		const auto onlyChannelWrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		onlyChannelWrap->toggleOn(rpl::duplicate(channelToggleValue)
+			| rpl::map(!rpl::mappers::_1));
+		onlyChannelWrap->finishAnimating();
+
+		Ui::AddDivider(onlyChannelWrap->entity());
+
+		auto text = rpl::duplicate(
+			channel
+		) | rpl::map([=](ChannelData *channel) {
+			return channel ? NameValue(channel) : rpl::single(QString());
+		}) | rpl::flatten_latest() | rpl::map([](const QString &name) {
+			return name.isEmpty() ? TextWithEntities() : Ui::Text::Link(name);
+		});
+		auto line = CreateTextWithLabel(
+			result,
+			channelLabelFactory(rpl::duplicate(channel)),
+			std::move(text),
+			st::infoLabel,
+			st::infoLabeled,
+			st::infoProfileLabeledPadding);
+		onlyChannelWrap->entity()->add(std::move(line.wrap));
+
+		line.text->setClickHandlerFilter([=](
+				const ClickHandlerPtr &handler,
+				Qt::MouseButton button) {
+			if (const auto channelId = user->personalChannelId()) {
+				window->showPeerInfo(peerFromChannel(channelId));
+			}
+			return false;
+		});
+
+		object_ptr<FloatingIcon>(
+			onlyChannelWrap,
+			st::infoIconMediaChannel,
+			st::infoPersonalChannelIconPosition);
+	}
+
+	{
+		const auto messageChannelWrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		messageChannelWrap->toggleOn(rpl::duplicate(channelToggleValue));
+		messageChannelWrap->finishAnimating();
+
+		const auto clear = [=] {
+			while (messageChannelWrap->entity()->count()) {
+				delete messageChannelWrap->entity()->widgetAt(0);
+			}
+		};
+
+		const auto rebuild = [=](
+				not_null<HistoryItem*> item,
+				anim::type animated) {
+			const auto &stUserpic = st::infoPersonalChannelUserpic;
+			const auto &stLabeled = st::infoProfileLabeledPadding;
+
+			messageChannelWrap->toggle(false, anim::type::instant);
+			clear();
+			Ui::AddDivider(messageChannelWrap->entity());
+			Ui::AddSkip(messageChannelWrap->entity());
+
+			const auto inner = messageChannelWrap->entity()->add(
+				object_ptr<Ui::VerticalLayout>(messageChannelWrap->entity()));
+
+			const auto line = inner->add(
+				object_ptr<Ui::FixedHeightWidget>(
+					inner,
+					stUserpic.photoSize + rect::m::sum::v(stLabeled)));
+			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+				line,
+				item->history()->peer,
+				st::infoPersonalChannelUserpic);
+
+			userpic->moveToLeft(
+				-st::infoPersonalChannelUserpicSkip
+					+ (stLabeled.left() - stUserpic.photoSize) / 2,
+				stLabeled.top());
+			userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+			const auto date = Ui::CreateChild<Ui::FlatLabel>(
+				line,
+				Ui::FormatDialogsDate(ItemDateTime(item)),
+				st::infoPersonalChannelDateLabel);
+
+			const auto name = Ui::CreateChild<Ui::FlatLabel>(
+				line,
+				NameValue(item->history()->peer),
+				st::infoPersonalChannelNameLabel);
+
+			const auto preview = Ui::CreateChild<Ui::RpWidget>(line);
+			auto &lifetime = preview->lifetime();
+			using namespace Dialogs::Ui;
+			const auto previewView = lifetime.make_state<MessageView>();
+			const auto previewUpdate = [=] { preview->update(); };
+			preview->resize(0, st::infoLabeled.style.font->height);
+			if (!previewView->dependsOn(item)) {
+				previewView->prepare(item, nullptr, previewUpdate, {});
+			}
+			preview->paintRequest(
+			) | rpl::start_with_next([=, fullId = item->fullId()](
+					const QRect &rect) {
+				auto p = Painter(preview);
+				const auto item = user->session().data().message(fullId);
+				if (!item) {
+					p.setPen(st::infoPersonalChannelDateLabel.textFg);
+					p.setBrush(Qt::NoBrush);
+					p.setFont(st::infoPersonalChannelDateLabel.style.font);
+					p.drawText(
+						preview->rect(),
+						tr::lng_deleted_message(tr::now),
+						style::al_left);
+					return;
+				}
+				if (previewView->prepared(item, nullptr)) {
+					previewView->paint(p, preview->rect(), {
+						.st = &st::defaultDialogRow,
+						.currentBg = st::boxBg->b,
+					});
+				} else if (!previewView->dependsOn(item)) {
+					p.setPen(st::infoPersonalChannelDateLabel.textFg);
+					p.setBrush(Qt::NoBrush);
+					p.setFont(st::infoPersonalChannelDateLabel.style.font);
+					p.drawText(
+						preview->rect(),
+						tr::lng_contacts_loading(tr::now),
+						style::al_left);
+					previewView->prepare(item, nullptr, previewUpdate, {});
+					preview->update();
+				}
+			}, preview->lifetime());
+
+			line->sizeValue(
+			) | rpl::start_with_next([=](const QSize &size) {
+				const auto left = stLabeled.left();
+				const auto right = st::infoPersonalChannelDateSkip;
+				const auto top = stLabeled.top();
+				date->moveToRight(right, top);
+
+				name->resizeToWidth(size.width()
+					- left
+					- date->width()
+					- st::defaultVerticalListSkip
+					- right);
+				name->moveToLeft(left, top);
+
+				preview->resize(
+					size.width() - left - right,
+					st::infoLabeled.style.font->height);
+				preview->moveToLeft(
+					left,
+					size.height() - stLabeled.bottom() - preview->height());
+			}, preview->lifetime());
+
+			{
+				inner->add(
+					object_ptr<Ui::FlatLabel>(
+						inner,
+						channelLabelFactory(
+							rpl::single(item->history()->peer->asChannel())),
+						st::infoLabel),
+					QMargins(
+						st::infoProfileLabeledPadding.left(),
+						0,
+						st::infoProfileLabeledPadding.right(),
+						st::infoProfileLabeledPadding.bottom()));
+			}
+			{
+				const auto button = Ui::CreateChild<Ui::RippleButton>(
+					messageChannelWrap->entity(),
+					st::defaultRippleAnimation);
+				button->paintRequest(
+				) | rpl::start_with_next([=](const QRect &rect) {
+					auto p = QPainter(button);
+					button->paintRipple(p, 0, 0);
+				}, button->lifetime());
+				inner->geometryValue(
+				) | rpl::start_with_next([=](const QRect &rect) {
+					button->setGeometry(rect);
+				}, button->lifetime());
+				button->setClickedCallback([=, msg = item->fullId().msg] {
+					window->showPeerHistory(
+						item->history()->peer,
+						Window::SectionShow::Way::Forward,
+						msg);
+				});
+				button->lower();
+			}
+			inner->setAttribute(Qt::WA_TransparentForMouseEvents);
+			Ui::AddSkip(messageChannelWrap->entity());
+
+			Ui::ToggleChildrenVisibility(messageChannelWrap->entity(), true);
+			Ui::ToggleChildrenVisibility(line, true);
+			messageChannelWrap->toggle(true, animated);
+		};
+
+		rpl::duplicate(
+			channel
+		) | rpl::start_with_next([=](ChannelData *channel) {
+			clear();
+			if (!channel) {
+				return;
+			}
+			const auto id = FullMsgId(
+				channel->id,
+				user->personalChannelMessageId());
+			if (const auto item = user->session().data().message(id)) {
+				return rebuild(item, anim::type::instant);
+			}
+			user->session().api().requestMessageData(
+				channel,
+				user->personalChannelMessageId(),
+				crl::guard(container, [=] {
+					if (const auto i = user->session().data().message(id)) {
+						rebuild(i, anim::type::normal);
+					}
+				}));
+		}, messageChannelWrap->lifetime());
+	}
 
 	return result;
 }
@@ -1341,6 +1727,9 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 	Expects(!_topic || !_topic->creating());
 
+	if (const auto user = _peer->asUser()) {
+		add(setupPersonalChannel(user));
+	}
 	add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	add(CreateSkipWidget(_wrap));
 	add(setupInfo());
@@ -1517,7 +1906,8 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	});
 	auto callback = [=] {
 		if (user->isBlocked()) {
-			Window::PeerMenuUnblockUserWithBotRestart(user);
+			const auto show = controller->uiShow();
+			Window::PeerMenuUnblockUserWithBotRestart(show, user);
 			if (user->isBot()) {
 				controller->showPeerHistory(user);
 			}

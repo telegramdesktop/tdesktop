@@ -16,6 +16,7 @@ set(style_files
     ui/filter_icons.style
     ui/menu_icons.style
     ui/chat/chat.style
+    ui/effects/credits.style
     ui/effects/premium.style
     boxes/boxes.style
     dialogs/dialogs.style
@@ -23,7 +24,8 @@ set(style_files
     calls/calls.style
     export/view/export.style
     info/info.style
-    info/boosts/giveaway/giveaway.style
+    info/channel_statistics/boosts/giveaway/giveaway.style
+    info/channel_statistics/earn/channel_earn.style
     info/userpic/info_userpic_builder.style
     intro/intro.style
     iv/iv.style
@@ -76,13 +78,23 @@ PRIVATE
     countries/countries_instance.cpp
     countries/countries_instance.h
 
+    data/data_birthday.cpp
+    data/data_birthday.h
+    data/data_channel_earn.h
+    data/data_credits.h
     data/data_statistics_chart.cpp
     data/data_statistics_chart.h
     data/data_subscription_option.h
 
     dialogs/dialogs_three_state_icon.h
+    dialogs/ui/chat_search_empty.cpp
+    dialogs/ui/chat_search_empty.h
+    dialogs/ui/chat_search_in.cpp
+    dialogs/ui/chat_search_in.h
     dialogs/ui/dialogs_stories_list.cpp
     dialogs/ui/dialogs_stories_list.h
+    dialogs/ui/top_peers_strip.cpp
+    dialogs/ui/top_peers_strip.h
 
     editor/controllers/undo_controller.cpp
     editor/controllers/undo_controller.h
@@ -120,12 +132,15 @@ PRIVATE
     info/userpic/info_userpic_emoji_builder_layer.cpp
     info/userpic/info_userpic_emoji_builder_layer.h
 
-    info/boosts/giveaway/boost_badge.cpp
-    info/boosts/giveaway/boost_badge.h
-    info/boosts/giveaway/giveaway_type_row.cpp
-    info/boosts/giveaway/giveaway_type_row.h
-    info/boosts/giveaway/select_countries_box.cpp
-    info/boosts/giveaway/select_countries_box.h
+    info/channel_statistics/boosts/giveaway/boost_badge.cpp
+    info/channel_statistics/boosts/giveaway/boost_badge.h
+    info/channel_statistics/boosts/giveaway/giveaway_type_row.cpp
+    info/channel_statistics/boosts/giveaway/giveaway_type_row.h
+    info/channel_statistics/boosts/giveaway/select_countries_box.cpp
+    info/channel_statistics/boosts/giveaway/select_countries_box.h
+
+    info/channel_statistics/earn/earn_format.cpp
+    info/channel_statistics/earn/earn_format.h
 
     intro/intro_code_input.cpp
     intro/intro_code_input.h
@@ -198,6 +213,7 @@ PRIVATE
     statistics/statistics_data_deserialize.h
     statistics/statistics_format_values.cpp
     statistics/statistics_format_values.h
+    statistics/statistics_types.h
     statistics/view/abstract_chart_view.cpp
     statistics/view/abstract_chart_view.h
     statistics/view/bar_chart_view.cpp
@@ -229,16 +245,24 @@ PRIVATE
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp
     ui/boxes/choose_date_time.h
+    ui/boxes/choose_font_box.cpp
+    ui/boxes/choose_font_box.h
     ui/boxes/choose_language_box.cpp
     ui/boxes/choose_language_box.h
     ui/boxes/choose_time.cpp
     ui/boxes/choose_time.h
+    ui/boxes/collectible_info_box.cpp
+    ui/boxes/collectible_info_box.h
     ui/boxes/confirm_box.cpp
     ui/boxes/confirm_box.h
     ui/boxes/confirm_phone_box.cpp
     ui/boxes/confirm_phone_box.h
     ui/boxes/country_select_box.cpp
     ui/boxes/country_select_box.h
+    ui/boxes/edit_birthday_box.cpp
+    ui/boxes/edit_birthday_box.h
+    ui/boxes/edit_factcheck_box.cpp
+    ui/boxes/edit_factcheck_box.h
     ui/boxes/edit_invite_link.cpp
     ui/boxes/edit_invite_link.h
     ui/boxes/rate_call_box.cpp
@@ -371,6 +395,8 @@ PRIVATE
     ui/widgets/discrete_sliders.h
     ui/widgets/gradient_round_button.cpp
     ui/widgets/gradient_round_button.h
+    ui/widgets/level_meter.cpp
+    ui/widgets/level_meter.h
     ui/widgets/multi_select.cpp
     ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp
@@ -378,7 +404,6 @@ PRIVATE
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
 
-    ui/arc_angles.h
     ui/cached_round_corners.cpp
     ui/cached_round_corners.h
     ui/color_contrast.cpp

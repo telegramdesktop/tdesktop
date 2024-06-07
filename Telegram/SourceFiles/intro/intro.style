@@ -119,7 +119,6 @@ introCodeDigitFont: font(20px);
 introCodeDigitHeight: 50px;
 introCodeDigitBorderWidth: 4px;
 introCodeDigitSkip: 10px;
-introCodeDigitAnimatioDuration: 120;
 
 introPasswordHint: FlatLabel(introDescription) {
 	textFg: windowFg;
@@ -185,7 +184,7 @@ introQrTitle: FlatLabel(defaultFlatLabel) {
 introQrErrorTop: 336px;
 introQrTitleTop: 196px;
 introQrStep: FlatLabel(defaultFlatLabel) {
-	minWidth: introQrLabelsWidth;
+	minWidth: 200px;
 }
 introQrStepsTop: 232px;
 introQrStepMargins: margins(20px, 8px, 0px, 0px);
