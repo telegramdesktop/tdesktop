@@ -1,3 +1,7 @@
+5.1.5 (07.06.24)
+
+- Return WebView on Windows.
+
 5.1.4 (06.06.24)
 
 - Improve design of search in chat.
