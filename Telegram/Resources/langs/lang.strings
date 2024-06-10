@@ -3582,6 +3582,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_formatting_link_text" = "Text";
 "lng_formatting_link_url" = "URL";
 "lng_formatting_link_create" = "Create";
+"lng_formatting_code_title" = "Code Language";
+"lng_formatting_code_language" = "Language for syntax highlighting.";
+"lng_formatting_code_auto" = "Auto-Detect";
 
 "lng_text_copied" = "Text copied to clipboard.";
 "lng_code_copied" = "Block copied to clipboard.";

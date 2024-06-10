@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_settings.h"
 #include "base/qt/qt_common_adapters.h"
 
 #include <QtCore/QMimeData>
@@ -59,6 +60,7 @@ using EditLinkSelection = Ui::InputField::EditLinkSelection;
 
 constexpr auto kParseLinksTimeout = crl::time(1000);
 constexpr auto kTypesDuration = 4 * crl::time(1000);
+constexpr auto kCodeLanguageLimit = 32;
 
 // For mention / custom emoji tags save and validate selfId,
 // ignore tags for different users.
@@ -223,6 +225,51 @@ void EditLinkBox(
 	}, text->lifetime());
 }
 
+void EditCodeLanguageBox(
+		not_null<Ui::GenericBox*> box,
+		QString now,
+		Fn<void(QString)> save) {
+	Expects(save != nullptr);
+
+	box->setTitle(tr::lng_formatting_code_title());
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		tr::lng_formatting_code_language(),
+		st::settingsAddReplyLabel));
+	const auto field = box->addRow(object_ptr<Ui::InputField>(
+		box,
+		st::settingsAddReplyField,
+		tr::lng_formatting_code_auto(),
+		now.trimmed()));
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+	field->selectAll();
+	field->setMaxLength(kCodeLanguageLimit);
+
+	Ui::AddLengthLimitLabel(field, kCodeLanguageLimit);
+
+	const auto callback = [=] {
+		const auto name = field->getLastText().trimmed();
+		const auto check = QRegularExpression("^[a-zA-Z0-9\\+\\-]+$");
+		if (check.match(name).hasMatch()) {
+			auto weak = Ui::MakeWeak(box);
+			save(name);
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		} else {
+			field->showError();
+		}
+	};
+	field->submits(
+	) | rpl::start_with_next(callback, field->lifetime());
+	box->addButton(tr::lng_settings_save(), callback);
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
+}
+
 TextWithEntities StripSupportHashtag(TextWithEntities text) {
 	static const auto expression = QRegularExpression(
 		u"\\n?#tsf[a-z0-9_-]*[\\s#a-z0-9_-]*$"_q,
@@ -321,6 +368,13 @@ Fn<bool(
 	};
 }
 
+Fn<void(QString now, Fn<void(QString)> save)> DefaultEditLanguageCallback(
+		std::shared_ptr<Ui::Show> show) {
+	return [=](QString now, Fn<void(QString)> save) {
+		show->showBox(Box(EditCodeLanguageBox, now, save));
+	};
+}
+
 void InitMessageFieldHandlers(
 		not_null<Main::Session*> session,
 		std::shared_ptr<Main::SessionShow> show,
@@ -343,6 +397,7 @@ void InitMessageFieldHandlers(
 	if (show) {
 		field->setEditLinkCallback(
 			DefaultEditLinkCallback(show, field, fieldStyle));
+		field->setEditLanguageCallback(DefaultEditLanguageCallback(show));
 		InitSpellchecker(show, field, fieldStyle != nullptr);
 	}
 	const auto style = field->lifetime().make_state<Ui::ChatStyle>(
@@ -585,15 +640,19 @@ void InitMessageFieldFade(
 		field->scrollTop().changes() | rpl::to_empty,
 		field->sizeValue() | rpl::to_empty
 	) | rpl::start_with_next([=] {
-		const auto topHidden = !field->scrollTop().current();
-		if (topFade->isHidden() != topHidden) {
-			topFade->setVisible(!topHidden);
-		}
-		const auto adjusted = field->scrollTop().current() + descent;
-		const auto bottomHidden = (adjusted >= field->scrollTopMax());
-		if (bottomFade->isHidden() != bottomHidden) {
-			bottomFade->setVisible(!bottomHidden);
-		}
+		// InputField::changes fires before the auto-resize is being applied,
+		// so for the scroll values to be accurate we enqueue the check.
+		InvokeQueued(field, [=] {
+			const auto topHidden = !field->scrollTop().current();
+			if (topFade->isHidden() != topHidden) {
+				topFade->setVisible(!topHidden);
+			}
+			const auto adjusted = field->scrollTop().current() + descent;
+			const auto bottomHidden = (adjusted >= field->scrollTopMax());
+			if (bottomFade->isHidden() != bottomHidden) {
+				bottomFade->setVisible(!bottomHidden);
+			}
+		});
 	}, topFade->lifetime());
 }
 

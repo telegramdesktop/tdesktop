@@ -35,6 +35,7 @@ class Show;
 
 namespace Ui {
 class PopupMenu;
+class Show;
 } // namespace Ui
 
 [[nodiscard]] QString PrepareMentionTag(not_null<UserData*> user);
@@ -51,6 +52,8 @@ Fn<bool(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		const style::InputField *fieldStyle = nullptr);
+Fn<void(QString now, Fn<void(QString)> save)> DefaultEditLanguageCallback(
+	std::shared_ptr<Ui::Show> show);
 void InitMessageFieldHandlers(
 	not_null<Main::Session*> session,
 	std::shared_ptr<Main::SessionShow> show, // may be null

@@ -1658,6 +1658,7 @@ void ComposeControls::initField() {
 	InitMessageFieldFade(_field, _st.field.textBg);
 	_field->setEditLinkCallback(
 		DefaultEditLinkCallback(_show, _field, &_st.boxField));
+	_field->setEditLanguageCallback(DefaultEditLanguageCallback(_show));
 	initAutocomplete();
 	const auto allow = [=](not_null<DocumentData*> emoji) {
 		return _history
