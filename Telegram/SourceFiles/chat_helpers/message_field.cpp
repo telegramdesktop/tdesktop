@@ -580,11 +580,21 @@ void InitMessageFieldFade(
 	}, topFade->lifetime());
 
 	const auto descent = field->st().style.font->descent;
-	topFade->show();
-	bottomFade->showOn(field->scrollTop().value(
-	) | rpl::map([field, descent](int scroll) {
-		return (scroll + descent) < field->scrollTopMax();
-	}) | rpl::distinct_until_changed());
+	rpl::merge(
+		field->changes(),
+		field->scrollTop().changes() | rpl::to_empty,
+		field->sizeValue() | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		const auto topHidden = !field->scrollTop().current();
+		if (topFade->isHidden() != topHidden) {
+			topFade->setVisible(!topHidden);
+		}
+		const auto adjusted = field->scrollTop().current() + descent;
+		const auto bottomHidden = (adjusted >= field->scrollTopMax());
+		if (bottomFade->isHidden() != bottomHidden) {
+			bottomFade->setVisible(!bottomHidden);
+		}
+	}, topFade->lifetime());
 }
 
 InlineBotQuery ParseInlineBotQuery(
