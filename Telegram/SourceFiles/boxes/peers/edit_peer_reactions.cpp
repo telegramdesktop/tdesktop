@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "core/ui_integration.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_document.h"
@@ -351,8 +352,8 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 	const auto customEmojiPaused = [controller = args.controller] {
 		return controller->isGifPausedAtLeastFor(PauseReason::Layer);
 	};
-	raw->setCustomEmojiFactory([=](QStringView data, Fn<void()> update)
-	-> std::unique_ptr<Ui::Text::CustomEmoji> {
+	auto factory = [=](QStringView data, Fn<void()> update)
+		-> std::unique_ptr<Ui::Text::CustomEmoji> {
 		const auto id = Data::ParseCustomEmojiData(data);
 		auto result = owner->customEmojiManager().create(
 			data,
@@ -364,7 +365,13 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 		}
 		using namespace Ui::Text;
 		return std::make_unique<FirstFrameEmoji>(std::move(result));
-	}, std::move(customEmojiPaused));
+	};
+	raw->setCustomTextContext([=](Fn<void()> repaint) {
+		return std::any(Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = std::move(repaint),
+		});
+	}, customEmojiPaused, customEmojiPaused, std::move(factory));
 
 	const auto callback = args.callback;
 	const auto isCustom = [=](DocumentId id) {

@@ -42,7 +42,7 @@ class Show;
 [[nodiscard]] TextWithTags PrepareEditText(not_null<HistoryItem*> item);
 [[nodiscard]] bool EditTextChanged(
 	not_null<HistoryItem*> item,
-	const TextWithTags &updated);
+	TextWithTags updated);
 
 Fn<bool(
 	Ui::InputField::EditLinkSelection selection,

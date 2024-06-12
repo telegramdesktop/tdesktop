@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/ui_integration.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/wrap/vertical_layout.h"
@@ -322,15 +323,24 @@ TextWithTags PrepareEditText(not_null<HistoryItem*> item) {
 
 bool EditTextChanged(
 		not_null<HistoryItem*> item,
-		const TextWithTags &updated) {
+		TextWithTags updated) {
 	const auto original = PrepareEditText(item);
+
+	auto originalWithEntities = TextWithEntities{
+		std::move(original.text),
+		TextUtilities::ConvertTextTagsToEntities(original.tags)
+	};
+	auto updatedWithEntities = TextWithEntities{
+		std::move(updated.text),
+		TextUtilities::ConvertTextTagsToEntities(updated.tags)
+	};
+	TextUtilities::PrepareForSending(originalWithEntities, 0);
+	TextUtilities::PrepareForSending(updatedWithEntities, 0);
 
 	// Tags can be different for the same entities, because for
 	// animated emoji each tag contains a different random number.
 	// So we compare entities instead of tags.
-	return (original.text != updated.text)
-		|| (TextUtilities::ConvertTextTagsToEntities(original.tags)
-			!= TextUtilities::ConvertTextTagsToEntities(updated.tags));
+	return originalWithEntities != updatedWithEntities;
 }
 
 Fn<bool(
@@ -384,12 +394,16 @@ void InitMessageFieldHandlers(
 		const style::InputField *fieldStyle) {
 	field->setTagMimeProcessor(
 		FieldTagMimeProcessor(session, allowPremiumEmoji));
-	const auto paused = [customEmojiPaused] {
+	field->setCustomTextContext([=](Fn<void()> repaint) {
+		return std::any(Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = std::move(repaint),
+		});
+	}, [customEmojiPaused] {
 		return On(PowerSaving::kEmojiChat) || customEmojiPaused();
-	};
-	field->setCustomEmojiFactory(
-		session->data().customEmojiManager().factory(),
-		std::move(customEmojiPaused));
+	}, [customEmojiPaused] {
+		return On(PowerSaving::kChatSpoiler) || customEmojiPaused();
+	});
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());

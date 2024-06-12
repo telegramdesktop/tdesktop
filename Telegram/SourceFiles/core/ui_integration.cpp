@@ -271,7 +271,7 @@ bool UiIntegration::copyPreOnClick(const QVariant &context) {
 }
 
 std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
-		const QString &data,
+		QStringView data,
 		const std::any &context) {
 	const auto my = std::any_cast<MarkedTextContext>(&context);
 	if (!my || !my->session) {
