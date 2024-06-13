@@ -346,8 +346,8 @@ Widget::Widget(
 	}, lifetime());
 	_inner->cancelSearchRequests(
 	) | rpl::start_with_next([=] {
-		setInnerFocus(true);
-		applySearchState({});
+		cancelSearch(true);
+		controller->widget()->setInnerFocus();
 	}, lifetime());
 	_inner->cancelSearchFromRequests(
 	) | rpl::start_with_next([=] {
@@ -2823,6 +2823,9 @@ bool Widget::applySearchState(SearchState state) {
 		}
 		hideChildList();
 	}
+	if (state.inChat && _layout == Layout::Main) {
+		controller()->closeFolder();
+	}
 
 	// Adjust state to be consistent.
 	if (const auto peer = state.inChat.peer()) {
@@ -2927,10 +2930,6 @@ bool Widget::applySearchState(SearchState state) {
 			_api.request(requestId).cancel();
 		}
 		_peerSearchQuery = QString();
-	}
-
-	if (_searchState.inChat && _layout == Layout::Main) {
-		controller()->closeFolder();
 	}
 
 	if (_searchState.query != currentSearchQuery()) {
