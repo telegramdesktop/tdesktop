@@ -131,7 +131,6 @@ public:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
 
-	bool cancelSearch(bool forceFullCancel = false);
 	bool cancelSearchByMouseBack();
 
 	QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
@@ -260,6 +259,12 @@ private:
 	[[nodiscard]] bool redirectToSearchPossible() const;
 	[[nodiscard]] bool redirectKeyToSearch(QKeyEvent *e) const;
 	[[nodiscard]] bool redirectImeToSearch() const;
+
+	struct CancelSearchOptions {
+		bool forceFullCancel = false;
+		bool jumpBackToSearchedChat = false;
+	};
+	bool cancelSearch(CancelSearchOptions options = {});
 
 	MTP::Sender _api;
 
