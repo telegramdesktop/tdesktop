@@ -107,7 +107,7 @@ elif (win64):
 elif (mac):
     environment.update({
         'SPECIAL_TARGET': 'mac',
-        'MAKE_THREADS_CNT': '-j8',
+        'MAKE_THREADS_CNT': '-j' + str(os.cpu_count()),
         'MACOSX_DEPLOYMENT_TARGET': '10.13',
         'UNGUARDED': '-Werror=unguarded-availability-new',
         'MIN_VER': '-mmacosx-version-min=10.13',
@@ -435,7 +435,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 25f76cf4d5
+    git checkout c237d12bcd
 """)
 
 stage('msys64', """
@@ -511,9 +511,9 @@ stage('lzma', """
 win:
     git clone https://github.com/desktop-app/lzma.git
     cd lzma\\C\\Util\\LzmaLib
-    msbuild LzmaLib.sln /property:Configuration=Debug /property:Platform="$X8664"
+    msbuild -m LzmaLib.sln /property:Configuration=Debug /property:Platform="$X8664"
 release:
-    msbuild LzmaLib.sln /property:Configuration=Release /property:Platform="$X8664"
+    msbuild -m LzmaLib.sln /property:Configuration=Release /property:Platform="$X8664"
 """)
 
 stage('xz', """
@@ -540,9 +540,9 @@ win:
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
         -DCMAKE_C_FLAGS="/DZLIB_WINAPI"
-    cmake --build . --config Debug
+    cmake --build . --config Debug --parallel
 release:
-    cmake --build . --config Release
+    cmake --build . --config Release --parallel
 mac:
     CFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure \\
         --static \\
@@ -560,9 +560,9 @@ win:
         -A %WIN32X64% ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
-    cmake --build . --config Debug
+    cmake --build . --config Debug --parallel
 release:
-    cmake --build . --config Release
+    cmake --build . --config Release --parallel
 mac:
     CFLAGS="-arch arm64" cmake -B build.arm64 . \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
@@ -643,8 +643,8 @@ win:
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
-    cmake --build out --config Debug
-    cmake --build out --config Release
+    cmake --build out --config Debug --parallel
+    cmake --build out --config Release --parallel
     cmake --install out --config Release
 mac:
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
@@ -663,9 +663,9 @@ stage('rnnoise', """
     cd out
 win:
     cmake -A %WIN32X64% ..
-    cmake --build . --config Debug
+    cmake --build . --config Debug --parallel
 release:
-    cmake --build . --config Release
+    cmake --build . --config Release --parallel
 !win:
     mkdir Debug
     cd Debug
@@ -780,10 +780,10 @@ win:
         -DBUILD_SHARED_LIBS=OFF ^
         -DAVIF_ENABLE_WERROR=OFF ^
         -DAVIF_CODEC_DAV1D=ON
-    cmake --build . --config Debug
+    cmake --build . --config Debug --parallel
     cmake --install . --config Debug
 release:
-    cmake --build . --config Release
+    cmake --build . --config Release --parallel
     cmake --install . --config Release
 mac:
     cmake . \\
@@ -816,10 +816,10 @@ win:
         -DBUILD_SHARED_LIBS=OFF ^
         -DENABLE_DECODER=OFF ^
         -DENABLE_ENCODER=OFF
-    cmake --build . --config Debug
+    cmake --build . --config Debug --parallel
     cmake --install . --config Debug
 release:
-    cmake --build . --config Release
+    cmake --build . --config Release --parallel
     cmake --install . --config Release
 mac:
     cmake . \\
@@ -898,10 +898,10 @@ win:
         -DWITH_RAV1E=OFF ^
         -DWITH_RAV1E_PLUGIN=OFF ^
         -DWITH_EXAMPLES=OFF
-    cmake --build . --config Debug
+    cmake --build . --config Debug --parallel
     cmake --install . --config Debug
 release:
-    cmake --build . --config Release
+    cmake --build . --config Release --parallel
     cmake --install . --config Release
 mac:
     cmake . \\
@@ -964,10 +964,10 @@ win:
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
         -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
         %cmake_defines%
-    cmake --build . --config Debug
+    cmake --build . --config Debug --parallel
     cmake --install . --config Debug
 release:
-    cmake --build . --config Release
+    cmake --build . --config Release --parallel
     cmake --install . --config Release
 mac:
     cmake . \\
@@ -1322,7 +1322,7 @@ release:
     ninja -C out/Release%FolderPostfix% common crash_generation_client exception_handler
     cd tools\\windows\\dump_syms
     gyp dump_syms.gyp --format=msvs
-    msbuild dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64"
+    msbuild -m dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64"
 win:
     deactivate
 mac:
