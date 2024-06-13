@@ -1219,6 +1219,92 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 		_document);
 }
 
+SharedContact::VcardItems SharedContact::ParseVcard(const QString &data) {
+	const auto decode = [&](const QByteArray &input) -> QString {
+		auto output = QByteArray();
+		for (auto i = 0; i < input.size(); ++i) {
+			if ((input.at(i) == '=') && ((i + 2) < input.size())) {
+				const auto value = input.mid((++i)++, 2);
+				auto converted = false;
+				const auto character = char(value.toUInt(&converted, 16));
+				if (converted) {
+					output.append(character);
+				} else {
+					output.append('=');
+					output.append(value);
+				}
+			} else {
+				output.append(input.at(i));
+			}
+		}
+
+		return QString::fromUtf8(output);
+	};
+
+	using Type = SharedContact::VcardItemType;
+	auto items = SharedContact::VcardItems();
+	for (const auto &item : data.split('\n')) {
+		const auto parts = item.split(':');
+		if (parts.size() == 2) {
+			const auto &type = parts.front();
+			const auto attributes = type.split(';', Qt::SkipEmptyParts);
+
+			const auto c = Qt::CaseInsensitive;
+			auto isQuotedPrintable = false;
+			for (const auto &attribute : attributes) {
+				const auto parts = attribute.split('=', Qt::SkipEmptyParts);
+				if (parts.size() == 2) {
+					if (parts.front().startsWith("ENCODING", c)) {
+						isQuotedPrintable = parts[1].startsWith(
+							"QUOTED-PRINTABLE",
+							c);
+						break;
+					}
+				}
+			}
+
+			const auto &value = isQuotedPrintable
+				? decode(parts[1].toUtf8())
+				: parts[1];
+
+			if (type.startsWith("TEL")) {
+				const auto telType = type.contains("PREF")
+					? Type::PhoneMain
+					: type.contains("HOME")
+					? Type::PhoneHome
+					: type.contains("WORK")
+					? Type::PhoneWork
+					: (type.contains("CELL")
+						|| type.contains("MOBILE"))
+					? Type::PhoneMobile
+					: type.contains("OTHER")
+					? Type::PhoneOther
+					: Type::Phone;
+				items[telType] = value;
+			} else if (type.startsWith("EMAIL")) {
+				items[Type::Email] = value;
+			} else if (type.startsWith("URL")) {
+				items[Type::Url] = value;
+			} else if (type.startsWith("NOTE")) {
+				items[Type::Note] = value;
+			} else if (type.startsWith("ORG")) {
+				items[Type::Organization] = base::duplicate(value)
+					.replace(';', ' ')
+					.trimmed();
+			} else if (type.startsWith("ADR")) {
+				items[Type::Address] = value;
+			} else if (type.startsWith("BDAY")) {
+				items[Type::Birthday] = value;
+			} else if (type.startsWith("N")) {
+				items[Type::Name] = base::duplicate(value)
+					.replace(';', ' ')
+					.trimmed();
+			}
+		}
+	}
+	return items;
+}
+
 MediaContact::MediaContact(
 	not_null<HistoryItem*> parent,
 	UserId userId,

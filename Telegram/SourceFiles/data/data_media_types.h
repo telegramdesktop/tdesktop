@@ -70,6 +70,8 @@ struct SharedContact final {
 	};
 
 	using VcardItems = base::flat_map<VcardItemType, QString>;
+	static VcardItems ParseVcard(const QString &);
+
 	VcardItems vcardItems;
 };
 
