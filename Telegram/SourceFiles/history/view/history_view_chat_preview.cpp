@@ -577,8 +577,12 @@ MessagesBarData Item::listMessagesBar(
 		? _replies->computeInboxReadTillFull()
 		: MsgId();
 	const auto migrated = _replies ? nullptr : _history->migrateFrom();
-	const auto migratedTill = migrated ? migrated->inboxReadTillId() : 0;
-	const auto historyTill = _replies ? 0 : _history->inboxReadTillId();
+	const auto migratedTill = (migrated && migrated->unreadCount() > 0)
+		? migrated->inboxReadTillId()
+		: 0;
+	const auto historyTill = (_replies || !_history->unreadCount())
+		? 0
+		: _history->inboxReadTillId();
 	if (!_replies && !migratedTill && !historyTill) {
 		return {};
 	}
