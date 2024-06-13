@@ -1,3 +1,10 @@
+5.1.6 (13.06.24)
+
+- Fix search in archived chats in single-column layout.
+- Improve chat previews for topics, Saved Messages and groups.
+- Fix formatting shortcuts on Linux.
+- Fix options for Telegram Stars buying in case of large amounts.
+
 5.1.5 (07.06.24)
 
 - Return WebView on Windows.
