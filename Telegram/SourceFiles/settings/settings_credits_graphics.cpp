@@ -165,7 +165,7 @@ QImage GenerateStars(int height, int count) {
 void FillCreditOptions(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
-		int minCredits,
+		int minimumCredits,
 		Fn<void()> paid) {
 	const auto options = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -191,6 +191,10 @@ void FillCreditOptions(
 			- st.iconLeft
 			- singleStarWidth;
 		const auto buttonHeight = st.height + rect::m::sum::v(st.padding);
+		const auto minCredits = (!options.empty()
+				&& (minimumCredits > options.back().credits))
+			? 0
+			: minimumCredits;
 		for (auto i = 0; i < options.size(); i++) {
 			const auto &option = options[i];
 			if (option.credits < minCredits) {

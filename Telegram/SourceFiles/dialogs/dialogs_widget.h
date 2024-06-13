@@ -264,7 +264,7 @@ private:
 		bool forceFullCancel = false;
 		bool jumpBackToSearchedChat = false;
 	};
-	bool cancelSearch(CancelSearchOptions options = {});
+	bool cancelSearch(CancelSearchOptions options);
 
 	MTP::Sender _api;
 
