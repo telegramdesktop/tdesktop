@@ -117,6 +117,7 @@ public:
 		not_null<const Element*> view,
 		Element *replacing) = 0;
 	virtual QString elementAuthorRank(not_null<const Element*> view) = 0;
+	virtual bool elementHideTopicButton(not_null<const Element*> view) = 0;
 
 	virtual ~ElementDelegate() {
 	}
@@ -170,6 +171,7 @@ public:
 		not_null<const Element*> view,
 		Element *replacing) override;
 	QString elementAuthorRank(not_null<const Element*> view) override;
+	bool elementHideTopicButton(not_null<const Element*> view) override;
 
 };
 

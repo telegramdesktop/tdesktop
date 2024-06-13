@@ -683,6 +683,10 @@ QString InnerWidget::elementAuthorRank(not_null<const Element*> view) {
 	return {};
 }
 
+bool InnerWidget::elementHideTopicButton(not_null<const Element*> view) {
+	return false;
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

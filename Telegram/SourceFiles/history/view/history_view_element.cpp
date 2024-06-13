@@ -198,9 +198,15 @@ void DefaultElementDelegate::elementStartEffect(
 }
 
 QString DefaultElementDelegate::elementAuthorRank(
-	not_null<const Element*> view) {
+		not_null<const Element*> view) {
 	return {};
 }
+
+bool DefaultElementDelegate::elementHideTopicButton(
+		not_null<const Element*> view) {
+	return true;
+}
+
 
 SimpleElementDelegate::SimpleElementDelegate(
 	not_null<Window::SessionController*> controller,

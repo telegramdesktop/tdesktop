@@ -324,6 +324,10 @@ public:
 		return {};
 	}
 
+	bool elementHideTopicButton(not_null<const Element*> view) override {
+		return false;
+	}
+
 	not_null<HistoryView::ElementDelegate*> delegate() override {
 		return this;
 	}
