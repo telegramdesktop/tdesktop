@@ -343,10 +343,10 @@ private:
 	[[nodiscard]] int filteredIndex(int y) const;
 	[[nodiscard]] int filteredHeight(int till = -1) const;
 	[[nodiscard]] int peerSearchOffset() const;
-	[[nodiscard]] int searchTagsOffset() const;
 	[[nodiscard]] int searchInChatOffset() const;
 	[[nodiscard]] int searchedOffset() const;
 	[[nodiscard]] int searchInChatSkip() const;
+	[[nodiscard]] int hashtagsOffset() const;
 
 	void paintCollapsedRows(
 		Painter &p,
