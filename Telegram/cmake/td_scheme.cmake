@@ -34,7 +34,7 @@ PUBLIC
     desktop-app::lib_tl
 )
 
-if (WIN32 AND NOT build_win64 AND NOT build_winarm AND QT_VERSION GREATER 6)
+if (WIN32 AND NOT build_win64 AND NOT build_winarm)
     target_compile_options(td_scheme
     PRIVATE
         /bigobj # scheme.cpp has too many sections.

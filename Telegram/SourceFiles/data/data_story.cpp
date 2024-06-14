@@ -82,6 +82,7 @@ using UpdateFlag = StoryUpdate::Flag;
 		});
 	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
 	}, [&](const MTPDmediaAreaChannelPost &data) {
+	}, [&](const MTPDmediaAreaUrl &data) {
 	}, [&](const MTPDinputMediaAreaChannelPost &data) {
 		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
 	}, [&](const MTPDinputMediaAreaVenue &data) {
@@ -103,6 +104,7 @@ using UpdateFlag = StoryUpdate::Flag;
 			.dark = data.is_dark(),
 		});
 	}, [&](const MTPDmediaAreaChannelPost &data) {
+	}, [&](const MTPDmediaAreaUrl &data) {
 	}, [&](const MTPDinputMediaAreaChannelPost &data) {
 		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
 	}, [&](const MTPDinputMediaAreaVenue &data) {
@@ -123,6 +125,27 @@ using UpdateFlag = StoryUpdate::Flag;
 			.itemId = FullMsgId(
 				peerFromChannel(data.vchannel_id()),
 				data.vmsg_id().v),
+		});
+	}, [&](const MTPDmediaAreaUrl &data) {
+	}, [&](const MTPDinputMediaAreaChannelPost &data) {
+		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
+	}, [&](const MTPDinputMediaAreaVenue &data) {
+		LOG(("API Error: Unexpected inputMediaAreaVenue from API."));
+	});
+	return result;
+}
+
+[[nodiscard]] auto ParseUrlArea(const MTPMediaArea &area)
+-> std::optional<UrlArea> {
+	auto result = std::optional<UrlArea>();
+	area.match([&](const MTPDmediaAreaVenue &data) {
+	}, [&](const MTPDmediaAreaGeoPoint &data) {
+	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
+	}, [&](const MTPDmediaAreaChannelPost &data) {
+	}, [&](const MTPDmediaAreaUrl &data) {
+		result.emplace(UrlArea{
+			.area = ParseArea(data.vcoordinates()),
+			.url = qs(data.vurl()),
 		});
 	}, [&](const MTPDinputMediaAreaChannelPost &data) {
 		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
@@ -662,6 +685,10 @@ const std::vector<ChannelPost> &Story::channelPosts() const {
 	return _channelPosts;
 }
 
+const std::vector<UrlArea> &Story::urlAreas() const {
+	return _urlAreas;
+}
+
 void Story::applyChanges(
 		StoryMedia media,
 		const MTPDstoryItem &data,
@@ -765,6 +792,7 @@ void Story::applyFields(
 	auto locations = std::vector<StoryLocation>();
 	auto suggestedReactions = std::vector<SuggestedReaction>();
 	auto channelPosts = std::vector<ChannelPost>();
+	auto urlAreas = std::vector<UrlArea>();
 	if (const auto areas = data.vmedia_areas()) {
 		for (const auto &area : areas->v) {
 			if (const auto location = ParseLocation(area)) {
@@ -778,6 +806,8 @@ void Story::applyFields(
 				suggestedReactions.push_back(*reaction);
 			} else if (auto post = ParseChannelPost(area)) {
 				channelPosts.push_back(*post);
+			} else if (auto url = ParseUrlArea(area)) {
+				urlAreas.push_back(*url);
 			}
 		}
 	}
@@ -790,6 +820,7 @@ void Story::applyFields(
 	const auto suggestedReactionsChanged
 		= (_suggestedReactions != suggestedReactions);
 	const auto channelPostsChanged = (_channelPosts != channelPosts);
+	const auto urlAreasChanged = (_urlAreas != urlAreas);
 	const auto reactionChanged = (_sentReactionId != reaction);
 
 	_out = out;
@@ -815,6 +846,9 @@ void Story::applyFields(
 	if (channelPostsChanged) {
 		_channelPosts = std::move(channelPosts);
 	}
+	if (urlAreasChanged) {
+		_urlAreas = std::move(urlAreas);
+	}
 	if (reactionChanged) {
 		_sentReactionId = reaction;
 	}
@@ -824,7 +858,8 @@ void Story::applyFields(
 		|| captionChanged
 		|| mediaChanged
 		|| locationsChanged
-		|| channelPostsChanged;
+		|| channelPostsChanged
+		|| urlAreasChanged;
 	const auto reactionsChanged = reactionChanged
 		|| suggestedReactionsChanged;
 	if (!initial && (changed || reactionsChanged)) {

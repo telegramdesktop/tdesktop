@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/prepare_short_info_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "data/data_changes.h"
@@ -1046,12 +1047,19 @@ void Controller::updateAreas(Data::Story *story) {
 	const auto &channelPosts = story
 		? story->channelPosts()
 		: std::vector<Data::ChannelPost>();
+	const auto &urlAreas = story
+		? story->urlAreas()
+		: std::vector<Data::UrlArea>();
 	if (_locations != locations) {
 		_locations = locations;
 		_areas.clear();
 	}
 	if (_channelPosts != channelPosts) {
 		_channelPosts = channelPosts;
+		_areas.clear();
+	}
+	if (_urlAreas != urlAreas) {
+		_urlAreas = urlAreas;
 		_areas.clear();
 	}
 	const auto reactionsCount = int(suggestedReactions.size());
@@ -1197,13 +1205,15 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 	if (!layout
 		|| (_locations.empty()
 			&& _suggestedReactions.empty()
-			&& _channelPosts.empty())) {
+			&& _channelPosts.empty()
+			&& _urlAreas.empty())) {
 		return nullptr;
 	} else if (_areas.empty()) {
 		const auto now = story();
 		_areas.reserve(_locations.size()
 			+ _suggestedReactions.size()
-			+ _channelPosts.size());
+			+ _channelPosts.size()
+			+ _urlAreas.size());
 		for (const auto &location : _locations) {
 			_areas.push_back({
 				.original = location.area.geometry,
@@ -1243,6 +1253,13 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 						channelPost.itemId),
 				});
 			}
+		}
+		for (const auto &url : _urlAreas) {
+			_areas.push_back({
+				.original = url.area.geometry,
+				.rotation = url.area.rotation,
+				.handler = std::make_shared<HiddenUrlClickHandler>(url.url),
+			});
 		}
 		rebuildActiveAreas(*layout);
 	}

@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
+constexpr auto kTransactionsLimit = 100;
+
 [[nodiscard]] Data::CreditsHistoryEntry HistoryFromTL(
 		const MTPStarsTransaction &tl,
 		not_null<PeerData*> peer) {
@@ -152,7 +154,8 @@ void CreditsHistory::request(
 	_requestId = _api.request(MTPpayments_GetStarsTransactions(
 		MTP_flags(_flags),
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input,
-		MTP_string(token)
+		MTP_string(token),
+		MTP_int(kTransactionsLimit)
 	)).done([=](const MTPpayments_StarsStatus &result) {
 		_requestId = 0;
 		done(StatusFromTL(result, _peer));

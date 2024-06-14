@@ -2165,7 +2165,8 @@ void ApiWrap::saveDraftsToCloud() {
 			entities,
 			Data::WebPageForMTP(
 				cloudDraft->webpage,
-				textWithTags.text.isEmpty())
+				textWithTags.text.isEmpty()),
+			MTP_long(0) // effect
 		)).done([=](const MTPBool &result, const MTP::Response &response) {
 			const auto requestId = response.requestId;
 			history->finishSavingCloudDraft(
