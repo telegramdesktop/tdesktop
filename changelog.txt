@@ -1,3 +1,9 @@
+5.1.7 (14.06.24)
+
+- Fix recently searched hashtags in chats search.
+- Fix formatting shortcuts on macOS.
+- Fix non-Telegram-Stars-invoice bot buttons with star emoji.
+
 5.1.6 (13.06.24)
 
 - Fix search in archived chats in single-column layout.
