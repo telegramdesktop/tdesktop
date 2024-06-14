@@ -285,7 +285,7 @@ pod prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 psd1 psm1 pssc pst py py3 pyc \
 pyd pyi pyo pyw pyzw pyz rb reg rgs scf scr sct search-ms settingcontent-ms \
 sh shb shs slk sys swf t tmp u3p url vb vbe vbp vbs vbscript vdx vsmacros \
 vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx website wlua ws wsc \
-wsf wsh xbap xll xlsm xnk xs"_q
+wsf wsh xbap xll xlsb xlsm xnk xs"_q
 #elif defined Q_OS_MAC // Q_OS_MAC
 		u"\
 applescript action app bin command csh osx workflow terminal url caction \
