@@ -694,10 +694,20 @@ ReplyKeyboard::ReplyKeyboard(
 			newRow.reserve(rowSize);
 			for (auto j = 0; j != rowSize; ++j) {
 				auto button = Button();
-				const auto text = base::duplicate(row[j].text).replace(
-					Ui::kCreditsCurrency,
-					QChar(0x2B50));
+				using Type = HistoryMessageMarkupButton::Type;
+				const auto isBuy = (row[j].type == Type::Buy);
+				static const auto RegExp = QRegularExpression("\\b"
+					+ Ui::kCreditsCurrency
+					+ "\\b");
+				const auto text = isBuy
+					? base::duplicate(row[j].text).replace(
+						RegExp,
+						QChar(0x2B50))
+					: row[j].text;
 				const auto textWithEntities = [&] {
+					if (!isBuy) {
+						return TextWithEntities();
+					}
 					auto result = TextWithEntities();
 					auto firstPart = true;
 					for (const auto &part : text.split(QChar(0x2B50))) {
