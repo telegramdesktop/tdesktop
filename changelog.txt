@@ -1,3 +1,9 @@
+5.1.8 beta (15.06.24)
+
+- Support nice blockquotes and code blocks edition when composing messages.
+- Support collapsing blockquotes and specifying syntax highlight language.
+- Support nice spoiler animation in the message composing input field.
+
 5.1.7 (14.06.24)
 
 - Fix recently searched hashtags in chats search.
