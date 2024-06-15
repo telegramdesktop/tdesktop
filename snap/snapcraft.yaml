@@ -165,7 +165,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 803f1c2630f5eb0d3b00ba3f095b3079c0533156
+    source-commit: 8639205c2095a3f015449f8995fbfe16405218b8
     plugin: dump
     override-pull: |
       craftctl default
@@ -434,7 +434,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 3bb3d757681e6cc5135aec6529a753dc3dcdcfb9
+    source-commit: c9cc4390ab951f2cbc103ff783a11f398b27660b
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
