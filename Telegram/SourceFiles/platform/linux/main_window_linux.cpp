@@ -57,7 +57,7 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 	}
 
 	const auto root = base::Platform::XCB::GetRootWindow(connection);
-	if (!root.has_value()) {
+	if (!root) {
 		return;
 	}
 
@@ -65,7 +65,7 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 		connection,
 		"_NET_WM_STATE");
 
-	if (!stateAtom.has_value()) {
+	if (!stateAtom) {
 		return;
 	}
 
@@ -73,18 +73,18 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 		connection,
 		"_NET_WM_STATE_SKIP_TASKBAR");
 
-	if (!skipTaskbarAtom.has_value()) {
+	if (!skipTaskbarAtom) {
 		return;
 	}
 
 	xcb_client_message_event_t xev;
 	xev.response_type = XCB_CLIENT_MESSAGE;
-	xev.type = *stateAtom;
+	xev.type = stateAtom;
 	xev.sequence = 0;
 	xev.window = window->winId();
 	xev.format = 32;
 	xev.data.data32[0] = skip ? 1 : 0;
-	xev.data.data32[1] = *skipTaskbarAtom;
+	xev.data.data32[1] = skipTaskbarAtom;
 	xev.data.data32[2] = 0;
 	xev.data.data32[3] = 0;
 	xev.data.data32[4] = 0;
@@ -92,7 +92,7 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 	xcb_send_event(
 		connection,
 		false,
-		*root,
+		root,
 		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
 			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
 		reinterpret_cast<const char*>(&xev));
