@@ -7,12 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace HistoryView {
+#include "settings/settings_type.h"
 
-class Element;
+namespace Settings {
 
-void FillTextWithAnimatedSpoilers(
-	not_null<Element*> view,
-	Ui::Text::String &text);
+[[nodiscard]] Type CreditsId();
 
-} // namespace HistoryView
+} // namespace Settings
+

@@ -10,8 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "ui/userpic_view.h"
 
+namespace Data {
+struct SharedContact;
+} // namespace Data
+
 namespace Ui {
 class EmptyUserpic;
+class GenericBox;
 class RippleAnimation;
 } // namespace Ui
 
@@ -21,10 +26,7 @@ class Contact final : public Media {
 public:
 	Contact(
 		not_null<Element*> parent,
-		UserId userId,
-		const QString &first,
-		const QString &last,
-		const QString &phone);
+		const Data::SharedContact &data);
 	~Contact();
 
 	void draw(Painter &p, const PaintContext &context) const override;
@@ -75,6 +77,8 @@ private:
 	Ui::Text::String _nameLine;
 	Ui::Text::String _phoneLine;
 	Ui::Text::String _infoLine;
+
+	Fn<void(not_null<Ui::GenericBox*>)> _vcardBoxFactory;
 
 	struct Button {
 		QString text;

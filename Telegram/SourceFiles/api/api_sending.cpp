@@ -133,6 +133,13 @@ void SendExistingMedia(
 		flags |= MessageFlag::ShortcutMessage;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
 	}
+	if (action.options.effectId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
+	if (action.options.invertCaption) {
+		flags |= MessageFlag::InvertMedia;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
@@ -144,6 +151,7 @@ void SendExistingMedia(
 		.date = HistoryItem::NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
 		.postAuthor = messagePostAuthor,
+		.effectId = action.options.effectId,
 	}, media, caption);
 
 	const auto performRequest = [=](const auto &repeatRequest) -> void {
@@ -165,7 +173,8 @@ void SendExistingMedia(
 				sentEntities,
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-				Data::ShortcutIdToMTP(session, action.options.shortcutId)
+				Data::ShortcutIdToMTP(session, action.options.shortcutId),
+				MTP_long(action.options.effectId)
 			), [=](const MTPUpdates &result, const MTP::Response &response) {
 		}, [=](const MTP::Error &error, const MTP::Response &response) {
 			if (error.code() == 400
@@ -306,6 +315,13 @@ bool SendDice(MessageToSend &message) {
 		flags |= MessageFlag::ShortcutMessage;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
 	}
+	if (action.options.effectId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
+	if (action.options.invertCaption) {
+		flags |= MessageFlag::InvertMedia;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
@@ -317,6 +333,7 @@ bool SendDice(MessageToSend &message) {
 		.date = HistoryItem::NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
 		.postAuthor = messagePostAuthor,
+		.effectId = action.options.effectId,
 	}, TextWithEntities(), MTP_messageMediaDice(
 		MTP_int(0),
 		MTP_string(emoji)));
@@ -335,7 +352,8 @@ bool SendDice(MessageToSend &message) {
 			MTP_vector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
-			Data::ShortcutIdToMTP(session, action.options.shortcutId)
+			Data::ShortcutIdToMTP(session, action.options.shortcutId),
+			MTP_long(action.options.effectId)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		api->sendMessageFail(error, peer, randomId, newId);
@@ -430,6 +448,9 @@ void SendConfirmedFile(
 			flags |= MessageFlag::MediaIsUnread;
 		}
 	}
+	if (file->to.options.invertCaption) {
+		flags |= MessageFlag::InvertMedia;
+	}
 
 	const auto messageFromId = file->to.options.sendAs
 		? file->to.options.sendAs->id
@@ -493,6 +514,7 @@ void SendConfirmedFile(
 		edition.ttl = 0;
 		edition.mtpMedia = &media;
 		edition.textWithEntities = caption;
+		edition.invertMedia = file->to.options.invertCaption;
 		edition.useSameViews = true;
 		edition.useSameForwards = true;
 		edition.useSameMarkup = true;
@@ -510,6 +532,7 @@ void SendConfirmedFile(
 			.shortcutId = file->to.options.shortcutId,
 			.postAuthor = messagePostAuthor,
 			.groupedId = groupId,
+			.effectId = file->to.options.effectId,
 		}, caption, media);
 	}
 

@@ -20,8 +20,9 @@ enum Flag : uint32 {
 	kChatSpoiler = (1U << 7),
 	kCalls = (1U << 8),
 	kEmojiStatus = (1U << 9),
+	kChatEffects = (1U << 10),
 
-	kAll = (1U << 10) - 1,
+	kAll = (1U << 11) - 1,
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 using Flags = base::flags<Flag>;

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "info/profile/info_profile_cover.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -125,10 +126,12 @@ private:
 		Painter &p,
 		const Ui::ChatPaintContext &context) override;
 	QString listElementAuthorRank(not_null<const Element*> view) override;
+	bool listElementHideTopicButton(not_null<const Element*> view) override;
 	History *listTranslateHistory() override;
 	void listAddTranslatedItems(
 		not_null<TranslateTracker*> tracker) override;
 	not_null<Window::SessionController*> listWindow() override;
+	not_null<QWidget*> listEmojiInteractionsParent() override;
 	not_null<const Ui::ChatStyle*> listChatStyle() override;
 	rpl::producer<bool> listChatWideValue() override;
 	std::unique_ptr<Reactions::Manager> listMakeReactionsManager(
@@ -275,11 +278,15 @@ void Item::setupTop() {
 	}, _top->lifetime());
 
 	const auto topic = _thread->asTopic();
+	auto nameValue = (topic
+		? Info::Profile::TitleValue(topic)
+		: _thread->peer()->isSelf()
+		? tr::lng_saved_messages()
+		: Info::Profile::NameValue(_thread->peer())
+	) | rpl::start_spawning(_top->lifetime());
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		_top.get(),
-		(topic
-			? Info::Profile::TitleValue(topic)
-			: Info::Profile::NameValue(_thread->peer())),
+		rpl::duplicate(nameValue),
 		st::previewName);
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
 	auto statusFields = StatusValue(
@@ -290,18 +297,24 @@ void Item::setupTop() {
 	) | rpl::map([](StatusFields &&fields) {
 		return fields.text;
 	});
-	const auto status = Ui::CreateChild<Ui::FlatLabel>(
-		_top.get(),
-		(topic
-			? Info::Profile::NameValue(topic->channel())
-			: std::move(statusText)),
-		st::previewStatus);
-	std::move(statusFields) | rpl::start_with_next([=](const StatusFields &fields) {
-		status->setTextColorOverride(fields.active
-			? st::windowActiveTextFg->c
-			: std::optional<QColor>());
-	}, status->lifetime());
-	status->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto status = _thread->peer()->isSelf()
+		? nullptr
+		: Ui::CreateChild<Ui::FlatLabel>(
+			_top.get(),
+			(topic
+				? Info::Profile::NameValue(topic->channel())
+				: std::move(statusText)),
+			st::previewStatus);
+	if (status) {
+		std::move(
+			statusFields
+		) | rpl::start_with_next([=](const StatusFields &fields) {
+			status->setTextColorOverride(fields.active
+				? st::windowActiveTextFg->c
+				: std::optional<QColor>());
+		}, status->lifetime());
+		status->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
 	const auto userpic = topic
 		? nullptr
 		: Ui::CreateChild<Ui::UserpicButton>(
@@ -309,6 +322,7 @@ void Item::setupTop() {
 			_thread->peer(),
 			st::previewUserpic);
 	if (userpic) {
+		userpic->showSavedMessagesOnSelf(true);
 		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 	const auto icon = topic
@@ -322,16 +336,31 @@ void Item::setupTop() {
 	}
 
 	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
-	_top->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+	rpl::combine(
+		_top->widthValue(),
+		std::move(nameValue)
+	) | rpl::start_with_next([=](int width, const auto &) {
 		const auto &st = st::previewTop;
-		name->resizeToWidth(geometry.width()
+		name->resizeToNaturalWidth(width
 			- st.namePosition.x()
 			- st.photoPosition.x());
-		name->move(st::previewTop.namePosition);
-		status->resizeToWidth(geometry.width()
-			- st.statusPosition.x()
-			- st.photoPosition.x());
-		status->move(st.statusPosition);
+		if (status) {
+			name->move(st::previewTop.namePosition);
+		} else {
+			name->move(
+				st::previewTop.namePosition.x(),
+				(st::previewTop.height - name->height()) / 2);
+		}
+	}, name->lifetime());
+
+	_top->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+		const auto &st = st::previewTop;
+		if (status) {
+			status->resizeToWidth(geometry.width()
+				- st.statusPosition.x()
+				- st.photoPosition.x());
+			status->move(st.statusPosition);
+		}
 		shadow->setGeometry(
 			geometry.x(),
 			geometry.y() + geometry.height(),
@@ -359,7 +388,10 @@ void Item::setupMarkRead() {
 	) | rpl::start_with_next([=] {
 		const auto state = _thread->chatListBadgesState();
 		const auto unread = (state.unreadCounter || state.unread);
-		if (_thread->asTopic() && !unread) {
+		const auto hidden = _thread->asTopic()
+			? (!unread)
+			: _thread->peer()->isForum();
+		if (hidden) {
 			_markRead->hide();
 			return;
 		}
@@ -425,17 +457,20 @@ void Item::setupHistory() {
 	_scroll->setOverscrollTypes(Type::Real, Type::Real);
 
 	_scroll->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::MouseButtonPress) {
-			const auto relative = Ui::MapFrom(
-				_inner.data(),
-				_scroll.get(),
-				static_cast<QMouseEvent*>(e.get())->pos());
-			if (const auto view = _inner->lookupItemByY(relative.y())) {
-				_actions.fire(ChatPreviewAction{
-					.openItemId = view->data()->fullId(),
-				});
-			} else {
-				_actions.fire(ChatPreviewAction{});
+		if (e->type() == QEvent::MouseButtonDblClick) {
+			const auto button = static_cast<QMouseEvent*>(e.get())->button();
+			if (button == Qt::LeftButton) {
+				const auto relative = Ui::MapFrom(
+					_inner.data(),
+					_scroll.get(),
+					static_cast<QMouseEvent*>(e.get())->pos());
+				if (const auto view = _inner->lookupItemByY(relative.y())) {
+					_actions.fire(ChatPreviewAction{
+						.openItemId = view->data()->fullId(),
+					});
+				} else {
+					_actions.fire(ChatPreviewAction{});
+				}
 			}
 		}
 	}, lifetime());
@@ -542,8 +577,12 @@ MessagesBarData Item::listMessagesBar(
 		? _replies->computeInboxReadTillFull()
 		: MsgId();
 	const auto migrated = _replies ? nullptr : _history->migrateFrom();
-	const auto migratedTill = migrated ? migrated->inboxReadTillId() : 0;
-	const auto historyTill = _replies ? 0 : _history->inboxReadTillId();
+	const auto migratedTill = (migrated && migrated->unreadCount() > 0)
+		? migrated->inboxReadTillId()
+		: 0;
+	const auto historyTill = (_replies || !_history->unreadCount())
+		? 0
+		: _history->inboxReadTillId();
 	if (!_replies && !migratedTill && !historyTill) {
 		return {};
 	}
@@ -582,7 +621,11 @@ void Item::listUpdateDateLink(
 }
 
 bool Item::listElementHideReply(not_null<const Element*> view) {
-	return false;
+	if (!view->isTopicRootReply()) {
+		return false;
+	}
+	const auto reply = view->data()->Get<HistoryMessageReply>();
+	return reply && !reply->fields().manualQuote;
 }
 
 bool Item::listElementShownUnread(not_null<const Element*> view) {
@@ -652,6 +695,10 @@ QString Item::listElementAuthorRank(not_null<const Element*> view) {
 	return {};
 }
 
+bool Item::listElementHideTopicButton(not_null<const Element*> view) {
+	return _thread->asTopic() != nullptr;
+}
+
 History *Item::listTranslateHistory() {
 	return nullptr;
 }
@@ -662,6 +709,10 @@ void Item::listAddTranslatedItems(
 
 not_null<Window::SessionController*> Item::listWindow() {
 	Unexpected("Item::listWindow.");
+}
+
+not_null<QWidget*> Item::listEmojiInteractionsParent() {
+	return this;
 }
 
 not_null<const Ui::ChatStyle*> Item::listChatStyle() {
@@ -752,10 +803,6 @@ ChatPreview MakeChatPreview(
 	const auto thread = entry->asThread();
 	if (!thread) {
 		return {};
-	} else if (const auto history = entry->asHistory()) {
-		if (history->peer->isForum()) {
-			return {};
-		}
 	}
 
 	auto result = ChatPreview{

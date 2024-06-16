@@ -26,7 +26,7 @@ class FlatLabel;
 namespace Ui::Premium {
 
 [[nodiscard]] QString Svg();
-[[nodiscard]] QByteArray ColorizedSvg();
+[[nodiscard]] QByteArray ColorizedSvg(const QGradientStops &gradientStops);
 [[nodiscard]] QImage GenerateStarForLightTopBar(QRectF rect);
 
 class TopBarAbstract : public RpWidget {
@@ -71,18 +71,11 @@ struct TopBarDescriptor {
 	rpl::producer<TextWithEntities> about;
 	bool light = false;
 	bool optimizeMinistars = true;
+	std::optional<QGradientStops> gradientStops;
 };
 
 class TopBar final : public TopBarAbstract {
 public:
-	TopBar(
-		not_null<QWidget*> parent,
-		const style::PremiumCover &st,
-		Fn<QVariant()> clickContextOther,
-		rpl::producer<QString> title,
-		rpl::producer<TextWithEntities> about,
-		bool light = false,
-		bool optimizeMinistars = true);
 	TopBar(
 		not_null<QWidget*> parent,
 		const style::PremiumCover &st,

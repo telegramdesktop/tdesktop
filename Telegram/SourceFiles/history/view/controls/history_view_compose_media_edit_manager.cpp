@@ -10,74 +10,149 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "menu/menu_send.h"
 #include "ui/widgets/popup_menu.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 namespace HistoryView {
 
-MediaEditSpoilerManager::MediaEditSpoilerManager() = default;
+MediaEditManager::MediaEditManager() = default;
 
-void MediaEditSpoilerManager::showMenu(
-		not_null<Ui::RpWidget*> parent,
+void MediaEditManager::start(
 		not_null<HistoryItem*> item,
-		Fn<void(bool)> callback) {
+		std::optional<bool> spoilered,
+		std::optional<bool> invertCaption) {
 	const auto media = item->media();
+	if (!media) {
+		return;
+	}
+	_item = item;
+	_spoilered = spoilered.value_or(media->hasSpoiler());
+	_invertCaption = invertCaption.value_or(item->invertMedia());
+	_lifetime = item->history()->owner().itemRemoved(
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> removed) {
+		if (removed == _item) {
+			cancel();
+		}
+	});
+}
+
+void MediaEditManager::apply(SendMenu::Action action) {
+	using Type = SendMenu::Action::Type;
+	if (action.type == Type::CaptionUp) {
+		_invertCaption = true;
+	} else if (action.type == Type::CaptionDown) {
+		_invertCaption = false;
+	} else if (action.type == Type::SpoilerOn) {
+		_spoilered = true;
+	} else if (action.type == Type::SpoilerOff) {
+		_spoilered = false;
+	}
+}
+
+void MediaEditManager::cancel() {
+	_menu = nullptr;
+	_item = nullptr;
+	_lifetime.destroy();
+}
+
+void MediaEditManager::showMenu(
+		not_null<Ui::RpWidget*> parent,
+		Fn<void()> finished,
+		bool hasCaptionText) {
+	if (!_item) {
+		return;
+	}
+	const auto media = _item->media();
 	const auto hasPreview = media && media->hasReplyPreview();
 	const auto preview = hasPreview ? media->replyPreview() : nullptr;
 	if (!preview || (media && media->webpage())) {
 		return;
 	}
-	const auto spoilered = _spoilerOverride
-		? (*_spoilerOverride)
-		: (preview && media->hasSpoiler());
-	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+	_menu = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::popupMenuWithIcons);
-	menu->addAction(
-		spoilered
-			? tr::lng_context_disable_spoiler(tr::now)
-			: tr::lng_context_spoiler_effect(tr::now),
-		[=] {
-			_spoilerOverride = (!spoilered);
-			if (callback) {
-				callback(!spoilered);
-			}
-		},
-		spoilered ? &st::menuIconSpoilerOff : &st::menuIconSpoiler);
-	menu->popup(QCursor::pos());
+	const auto callback = [=](SendMenu::Action action, const auto &) {
+		apply(action);
+	};
+	const auto position = QCursor::pos();
+	SendMenu::FillSendMenu(
+		_menu.get(),
+		nullptr,
+		sendMenuDetails(hasCaptionText),
+		callback,
+		&st::defaultComposeIcons,
+		position);
+	_menu->popup(position);
 }
 
-[[nodiscard]] Image *MediaEditSpoilerManager::mediaPreview(
-		not_null<HistoryItem*> item) {
-	if (!_spoilerOverride) {
-		return nullptr;
-	}
-	if (const auto media = item->media()) {
+Image *MediaEditManager::mediaPreview() {
+	if (const auto media = _item ? _item->media() : nullptr) {
 		if (const auto photo = media->photo()) {
 			return photo->getReplyPreview(
-				item->fullId(),
-				item->history()->peer,
-				*_spoilerOverride);
+				_item->fullId(),
+				_item->history()->peer,
+				_spoilered);
 		} else if (const auto document = media->document()) {
 			return document->getReplyPreview(
-				item->fullId(),
-				item->history()->peer,
-				*_spoilerOverride);
+				_item->fullId(),
+				_item->history()->peer,
+				_spoilered);
 		}
 	}
 	return nullptr;
 }
 
-void MediaEditSpoilerManager::setSpoilerOverride(
-		std::optional<bool> spoilerOverride) {
-	_spoilerOverride = spoilerOverride;
+bool MediaEditManager::spoilered() const {
+	return _spoilered;
 }
 
-std::optional<bool> MediaEditSpoilerManager::spoilerOverride() const {
-	return _spoilerOverride;
+bool MediaEditManager::invertCaption() const {
+	return _invertCaption;
+}
+
+SendMenu::Details MediaEditManager::sendMenuDetails(
+		bool hasCaptionText) const {
+	const auto media = _item ? _item->media() : nullptr;
+	if (!media) {
+		return {};
+	}
+	const auto editingMedia = media->allowsEditMedia();
+	const auto editPhoto = editingMedia ? media->photo() : nullptr;
+	const auto editDocument = editingMedia ? media->document() : nullptr;
+	const auto canSaveSpoiler = CanBeSpoilered(_item);
+	const auto canMoveCaption = media->allowsEditCaption()
+		&& hasCaptionText
+		&& (editPhoto
+			|| (editDocument
+				&& (editDocument->isVideoFile() || editDocument->isGifv())));
+	return {
+		.spoiler = (!canSaveSpoiler
+			? SendMenu::SpoilerState::None
+			: _spoilered
+			? SendMenu::SpoilerState::Enabled
+			: SendMenu::SpoilerState::Possible),
+		.caption = (!canMoveCaption
+			? SendMenu::CaptionState::None
+			: _invertCaption
+			? SendMenu::CaptionState::Above
+			: SendMenu::CaptionState::Below),
+	};
+}
+
+bool MediaEditManager::CanBeSpoilered(not_null<HistoryItem*> item) {
+	const auto media = item ? item->media() : nullptr;
+	const auto editingMedia = media && media->allowsEditMedia();
+	const auto editPhoto = editingMedia ? media->photo() : nullptr;
+	const auto editDocument = editingMedia ? media->document() : nullptr;
+	return (editPhoto && !editPhoto->isNull())
+		|| (editDocument
+			&& (editDocument->isVideoFile() || editDocument->isGifv()));
 }
 
 } // namespace HistoryView

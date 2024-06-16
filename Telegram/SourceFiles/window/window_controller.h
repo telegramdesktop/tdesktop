@@ -119,7 +119,6 @@ public:
 	}
 
 	void activate();
-	void reActivate();
 	void updateIsActiveFocus();
 	void updateIsActiveBlur();
 	void updateIsActive();

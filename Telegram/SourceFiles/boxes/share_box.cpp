@@ -473,15 +473,18 @@ void ShareBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-SendMenu::Type ShareBox::sendMenuType() const {
+SendMenu::Details ShareBox::sendMenuDetails() const {
 	const auto selected = _inner->selected();
-	return ranges::all_of(
+	const auto type = ranges::all_of(
 		selected | ranges::views::transform(&Data::Thread::peer),
 		HistoryView::CanScheduleUntilOnline)
 		? SendMenu::Type::ScheduledToUser
 		: (selected.size() == 1 && selected.front()->peer()->isSelf())
 		? SendMenu::Type::Reminder
 		: SendMenu::Type::Scheduled;
+
+	// We can't support effect here because we don't have ChatHelpers::Show.
+	return { .type = type, .effectAllowed = false };
 }
 
 void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
@@ -518,15 +521,32 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 		_menu->addSeparator();
 	}
 
-	const auto result = SendMenu::FillSendMenu(
+	using namespace SendMenu;
+	const auto sendAction = crl::guard(this, [=](Action action, Details) {
+		if (action.type == ActionType::Send) {
+			submit(action.options);
+			return;
+		}
+		uiShow()->showBox(
+			HistoryView::PrepareScheduleBox(
+				this,
+				nullptr, // ChatHelpers::Show for effect attachment.
+				sendMenuDetails(),
+				[=](Api::SendOptions options) { submit(options); },
+				action.options,
+				HistoryView::DefaultScheduleTime(),
+				_descriptor.scheduleBoxStyle));
+	});
+	_menu->setForcedVerticalOrigin(Ui::PopupMenu::VerticalOrigin::Bottom);
+	const auto result = FillSendMenu(
 		_menu.get(),
-		sendMenuType(),
-		[=] { submitSilent(); },
-		[=] { submitScheduled(); },
-		[=] { submitWhenOnline(); });
-	const auto success = (result == SendMenu::FillMenuResult::Success);
-	if (_descriptor.forwardOptions.show || success) {
-		_menu->setForcedVerticalOrigin(Ui::PopupMenu::VerticalOrigin::Bottom);
+		nullptr, // showForEffect.
+		sendMenuDetails(),
+		sendAction);
+	if (result == SendMenu::FillMenuResult::Prepared) {
+		_menu->popupPrepared();
+	} else if (_descriptor.forwardOptions.show
+		&& result != SendMenu::FillMenuResult::Failed) {
 		_menu->popup(QCursor::pos());
 	}
 }
@@ -605,25 +625,6 @@ void ShareBox::submit(Api::SendOptions options) {
 			options,
 			forwardOptions);
 	}
-}
-
-void ShareBox::submitSilent() {
-	submit({ .silent = true });
-}
-
-void ShareBox::submitScheduled() {
-	const auto callback = [=](Api::SendOptions options) { submit(options); };
-	uiShow()->showBox(
-		HistoryView::PrepareScheduleBox(
-			this,
-			sendMenuType(),
-			callback,
-			HistoryView::DefaultScheduleTime(),
-			_descriptor.scheduleBoxStyle));
-}
-
-void ShareBox::submitWhenOnline() {
-	submit(Api::DefaultSendWhenOnlineOptions());
 }
 
 void ShareBox::copyLink() const {

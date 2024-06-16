@@ -98,8 +98,6 @@ public:
 	}
 	void positionUpdated();
 
-	void reActivateWindow();
-
 	void showRightColumn(object_ptr<TWidget> widget);
 	int maximalExtendBy() const;
 	bool canExtendNoMove(int extendBy) const;
@@ -143,6 +141,10 @@ public:
 		Core::WindowPosition position,
 		Core::WindowPosition initial,
 		QSize minSize) const;
+
+	[[nodiscard]] virtual rpl::producer<QPoint> globalForceClicks() {
+		return rpl::never<QPoint>();
+	}
 
 protected:
 	void leaveEventHook(QEvent *e) override;

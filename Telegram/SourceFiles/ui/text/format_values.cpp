@@ -147,6 +147,9 @@ QString FillAmountAndCurrency(
 	Expects(amount != std::numeric_limits<int64>::min());
 
 	const auto rule = LookupCurrencyRule(currency);
+	if (currency == kCreditsCurrency) {
+		return QChar(0x2B50) + Lang::FormatCountDecimal(std::abs(amount));
+	}
 
 	const auto prefix = (amount < 0)
 		? QString::fromUtf8("\xe2\x88\x92")

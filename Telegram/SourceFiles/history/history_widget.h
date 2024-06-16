@@ -33,7 +33,7 @@ class PhotoMedia;
 } // namespace Data
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace Api {
@@ -268,7 +268,8 @@ public:
 	void confirmDeleteSelected();
 	void clearSelected();
 
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
+	[[nodiscard]] SendMenu::Details saveMenuDetails() const;
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options,
@@ -395,10 +396,9 @@ private:
 		Api::SendOptions options) const;
 	void send(Api::SendOptions options);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
-	void sendSilent();
-	void sendScheduled();
-	void sendWhenOnline();
-	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
+	void sendScheduled(Api::SendOptions initialOptions);
+	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;
+	[[nodiscard]] SendMenu::Details sendButtonDefaultDetails() const;
 	void handlePendingHistoryUpdate();
 	void fullInfoUpdated();
 	void toggleTabbedSelectorMode();
@@ -662,7 +662,7 @@ private:
 	MsgId _editMsgId = 0;
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
 	bool _canReplaceMedia = false;
-	HistoryView::MediaEditSpoilerManager _mediaEditSpoiler;
+	HistoryView::MediaEditManager _mediaEditManager;
 
 	HistoryItem *_replyEditMsg = nullptr;
 	Ui::Text::String _replyEditMsgText;

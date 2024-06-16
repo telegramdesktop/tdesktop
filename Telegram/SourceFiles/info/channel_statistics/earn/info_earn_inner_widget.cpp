@@ -628,7 +628,7 @@ void InnerWidget::fill() {
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
-	if (channel) {
+	if (channel && data.availableBalance) {
 		const auto value = data.availableBalance;
 		AddHeader(container, tr::lng_channel_earn_balance_title);
 		Ui::AddSkip(container);

@@ -168,12 +168,13 @@ base::options::toggle ShowPeerIdBelowAbout({
 		}
 		using namespace Ui::Text;
 		if (!value.empty()) {
-			value.append("\n");
+			value.append("\n\n");
 		}
 		value.append(Italic(u"id: "_q));
 		const auto raw = peer->id.value & PeerId::kChatTypeMask;
-		const auto id = QString::number(raw);
-		value.append(Link(Italic(id), "internal:copy:" + id));
+		value.append(Link(
+			Italic(Lang::FormatCountDecimal(raw)),
+			"internal:copy:" + QString::number(raw)));
 		return std::move(value);
 	});
 }
@@ -1363,7 +1364,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 			auto &lifetime = preview->lifetime();
 			using namespace Dialogs::Ui;
 			const auto previewView = lifetime.make_state<MessageView>();
+			const auto previewUpdate = [=] { preview->update(); };
 			preview->resize(0, st::infoLabeled.style.font->height);
+			if (!previewView->dependsOn(item)) {
+				previewView->prepare(item, nullptr, previewUpdate, {});
+			}
 			preview->paintRequest(
 			) | rpl::start_with_next([=, fullId = item->fullId()](
 					const QRect &rect) {
@@ -1392,11 +1397,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 						preview->rect(),
 						tr::lng_contacts_loading(tr::now),
 						style::al_left);
-					previewView->prepare(
-						item,
-						nullptr,
-						[=] { preview->update(); },
-						{});
+					previewView->prepare(item, nullptr, previewUpdate, {});
 					preview->update();
 				}
 			}, preview->lifetime());

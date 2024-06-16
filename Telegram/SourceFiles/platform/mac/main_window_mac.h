@@ -28,6 +28,10 @@ public:
 
 	void updateWindowIcon() override;
 
+	rpl::producer<QPoint> globalForceClicks() override {
+		return _forceClicks.events();
+	}
+
 	class Private;
 
 protected:
@@ -60,8 +64,6 @@ private:
 
 	base::Timer _hideAfterFullScreenTimer;
 
-	rpl::variable<bool> _canApplyMarkdown;
-
 	QMenuBar psMainMenu;
 	QAction *psLogout = nullptr;
 	QAction *psUndo = nullptr;
@@ -85,7 +87,9 @@ private:
 	QAction *psMonospace = nullptr;
 	QAction *psClearFormat = nullptr;
 
+	rpl::event_stream<QPoint> _forceClicks;
 	int _customTitleHeight = 0;
+	int _lastPressureStage = 0;
 
 };
 

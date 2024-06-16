@@ -7,8 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/unique_qptr.h"
+
+namespace SendMenu {
+struct Details;
+struct Action;
+} // namespace SendMenu
+
 namespace Ui {
 class RpWidget;
+class PopupMenu;
 } // namespace Ui
 
 class Image;
@@ -16,23 +24,43 @@ class HistoryItem;
 
 namespace HistoryView {
 
-class MediaEditSpoilerManager final {
+class MediaEditManager final {
 public:
-	MediaEditSpoilerManager();
+	MediaEditManager();
+
+	void start(
+		not_null<HistoryItem*> item,
+		std::optional<bool> spoilered = {},
+		std::optional<bool> invertCaption = {});
+	void apply(SendMenu::Action action);
+	void cancel();
 
 	void showMenu(
 		not_null<Ui::RpWidget*> parent,
-		not_null<HistoryItem*> item,
-		Fn<void(bool)> callback);
+		Fn<void()> finished,
+		bool hasCaptionText);
 
-	[[nodiscard]] Image *mediaPreview(not_null<HistoryItem*> item);
+	[[nodiscard]] Image *mediaPreview();
 
-	void setSpoilerOverride(std::optional<bool> spoilerOverride);
+	[[nodiscard]] bool spoilered() const;
+	[[nodiscard]] bool invertCaption() const;
 
-	std::optional<bool> spoilerOverride() const;
+	[[nodiscard]] SendMenu::Details sendMenuDetails(
+		bool hasCaptionText) const;
+
+	[[nodiscard]] explicit operator bool() const {
+		return _item != nullptr;
+	}
+
+	[[nodiscard]] static bool CanBeSpoilered(not_null<HistoryItem*> item);
 
 private:
-	std::optional<bool> _spoilerOverride;
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	HistoryItem *_item = nullptr;
+	bool _spoilered = false;
+	bool _invertCaption = false;
+
+	rpl::lifetime _lifetime;
 
 };
 

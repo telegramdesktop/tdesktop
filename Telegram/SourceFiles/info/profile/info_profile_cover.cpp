@@ -211,7 +211,7 @@ void TopicIconView::setupImage(not_null<Data::ForumTopic*> topic) {
 		) | rpl::start_with_next([=] {
 			_image = ForumTopicGeneralIconFrame(
 				st::infoForumTopicIcon.size,
-				_generalIconFg);
+				_generalIconFg->c);
 			_update();
 		}, _lifetime);
 		return;

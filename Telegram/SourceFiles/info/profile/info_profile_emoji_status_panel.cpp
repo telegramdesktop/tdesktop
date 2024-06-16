@@ -229,7 +229,7 @@ void EmojiStatusPanel::create(const Descriptor &descriptor) {
 
 	_panel->selector()->contextMenuRequested(
 	) | rpl::start_with_next([=] {
-		_panel->selector()->showMenuWithType(SendMenu::Type::Scheduled);
+		_panel->selector()->showMenuWithDetails({});
 	}, _panel->lifetime());
 
 	auto statusChosen = _panel->selector()->customEmojiChosen(

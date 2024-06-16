@@ -120,6 +120,8 @@ PRIVATE
     api/api_common.h
     api/api_confirm_phone.cpp
     api/api_confirm_phone.h
+    api/api_credits.cpp
+    api/api_credits.h
     api/api_earn.cpp
     api/api_earn.h
     api/api_editing.cpp
@@ -299,6 +301,8 @@ PRIVATE
     boxes/ringtones_box.h
     boxes/self_destruction_box.cpp
     boxes/self_destruction_box.h
+    boxes/send_credits_box.cpp
+    boxes/send_credits_box.h
     boxes/send_files_box.cpp
     boxes/send_files_box.h
     boxes/sessions_box.cpp
@@ -441,6 +445,8 @@ PRIVATE
     core/launcher.h
     core/local_url_handlers.cpp
     core/local_url_handlers.h
+    core/phone_click_handler.cpp
+    core/phone_click_handler.h
     core/sandbox.cpp
     core/sandbox.h
     core/shortcuts.cpp
@@ -462,6 +468,8 @@ PRIVATE
     data/business/data_business_info.h
     data/business/data_shortcut_messages.cpp
     data/business/data_shortcut_messages.h
+    data/components/factchecks.cpp
+    data/components/factchecks.h
     data/components/recent_peers.cpp
     data/components/recent_peers.h
     data/components/scheduled_messages.cpp
@@ -799,6 +807,8 @@ PRIVATE
     history/view/history_view_emoji_interactions.h
     history/view/history_view_empty_list_bubble.cpp
     history/view/history_view_empty_list_bubble.h
+    history/view/history_view_fake_items.cpp
+    history/view/history_view_fake_items.h
     history/view/history_view_group_call_bar.cpp
     history/view/history_view_group_call_bar.h
     history/view/history_view_item_preview.h
@@ -829,14 +839,14 @@ PRIVATE
     history/view/history_view_send_action.h
     history/view/history_view_service_message.cpp
     history/view/history_view_service_message.h
-    history/view/history_view_spoiler_click_handler.cpp
-    history/view/history_view_spoiler_click_handler.h
     history/view/history_view_sponsored_click_handler.cpp
     history/view/history_view_sponsored_click_handler.h
     history/view/history_view_sticker_toast.cpp
     history/view/history_view_sticker_toast.h
     history/view/history_view_sublist_section.cpp
     history/view/history_view_sublist_section.h
+    history/view/history_view_text_helper.cpp
+    history/view/history_view_text_helper.h
     history/view/history_view_transcribe_button.cpp
     history/view/history_view_transcribe_button.h
     history/view/history_view_translate_bar.cpp
@@ -1213,6 +1223,8 @@ PRIVATE
     payments/payments_checkout_process.h
     payments/payments_form.cpp
     payments/payments_form.h
+    payments/payments_non_panel_process.cpp
+    payments/payments_non_panel_process.h
     platform/linux/file_utilities_linux.cpp
     platform/linux/file_utilities_linux.h
     platform/linux/launcher_linux.cpp
@@ -1358,6 +1370,10 @@ PRIVATE
     settings/settings_codes.h
     settings/settings_common_session.cpp
     settings/settings_common_session.h
+    settings/settings_credits.cpp
+    settings/settings_credits.h
+    settings/settings_credits_graphics.cpp
+    settings/settings_credits_graphics.h
     settings/settings_experimental.cpp
     settings/settings_experimental.h
     settings/settings_folders.cpp
@@ -1453,6 +1469,8 @@ PRIVATE
     ui/controls/silent_toggle.h
     ui/controls/userpic_button.cpp
     ui/controls/userpic_button.h
+    ui/effects/credits_graphics.cpp
+    ui/effects/credits_graphics.h
     ui/effects/emoji_fly_animation.cpp
     ui/effects/emoji_fly_animation.h
     ui/effects/message_sending_animation_common.h
@@ -1500,6 +1518,8 @@ PRIVATE
     window/section_widget.h
     window/window_adaptive.cpp
     window/window_adaptive.h
+    window/window_chat_preview.cpp
+    window/window_chat_preview.h
     window/window_connecting_widget.cpp
     window/window_connecting_widget.h
     window/window_controller.cpp

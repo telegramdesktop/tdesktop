@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
-#include "base/call_delayed.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "main/main_session.h"
@@ -133,13 +132,10 @@ private:
 	void startAnimation();
 	void animationCallback();
 
-	void destroyDelayed();
-
 	NotificationsCount *_owner;
 	QPixmap _cache;
 	Ui::Animations::Simple _opacity;
 	bool _hiding = false;
-	bool _deleted = false;
 
 };
 
@@ -665,18 +661,6 @@ void NotificationsCount::SampleWidget::animationCallback() {
 			_owner->removeSample(this);
 		}
 		hide();
-		destroyDelayed();
-	}
-}
-
-void NotificationsCount::SampleWidget::destroyDelayed() {
-	if (_deleted) return;
-	_deleted = true;
-
-	// Ubuntu has a lag if deleteLater() called immediately.
-	if constexpr (Platform::IsLinux()) {
-		base::call_delayed(1000, this, [this] { delete this; });
-	} else {
 		deleteLater();
 	}
 }

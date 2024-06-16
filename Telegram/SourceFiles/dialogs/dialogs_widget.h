@@ -74,8 +74,11 @@ class FakeRow;
 class Key;
 struct ChosenRow;
 class InnerWidget;
-enum class SearchRequestType;
+enum class SearchRequestType : uchar;
+enum class SearchRequestDelay : uchar;
 class Suggestions;
+class ChatSearchIn;
+enum class ChatSearchTab : uchar;
 
 class Widget final : public Window::AbstractSectionWidget {
 public:
@@ -98,7 +101,6 @@ public:
 	void showForum(
 		not_null<Data::Forum*> forum,
 		const Window::SectionShow &params);
-	void searchInChat(Key chat);
 	void setInnerFocus(bool unfocusSearch = false);
 	[[nodiscard]] bool searchHasFocus() const;
 
@@ -120,9 +122,7 @@ public:
 
 	void scrollToEntry(const RowDescriptor &entry);
 
-	void searchMessages(QString query, Key inChat = {});
-	void searchTopics();
-	void searchMore();
+	void searchMessages(SearchState state);
 
 	[[nodiscard]] RowDescriptor resolveChatNext(RowDescriptor from = {}) const;
 	[[nodiscard]] RowDescriptor resolveChatPrevious(RowDescriptor from = {}) const;
@@ -132,7 +132,6 @@ public:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
 
-	bool cancelSearch();
 	bool cancelSearchByMouseBack();
 
 	QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
@@ -152,14 +151,16 @@ protected:
 private:
 	void chosenRow(const ChosenRow &row);
 	void listScrollUpdated();
-	void cancelSearchInChat();
 	void searchCursorMoved();
 	void completeHashtag(QString tag);
 
 	[[nodiscard]] QString currentSearchQuery() const;
+	[[nodiscard]] int currentSearchQueryCursorPosition() const;
 	void clearSearchField();
-	bool searchMessages(bool searchCache = false);
-	void needSearchMessages();
+	void searchRequested(SearchRequestDelay delay);
+	bool search(bool inCache = false, SearchRequestDelay after = {});
+	void searchTopics();
+	void searchMore();
 
 	void slideFinished();
 	void searchReceived(
@@ -174,8 +175,11 @@ private:
 	void cancelSearchRequest();
 	[[nodiscard]] PeerData *searchInPeer() const;
 	[[nodiscard]] Data::ForumTopic *searchInTopic() const;
+	[[nodiscard]] PeerData *searchFromPeer() const;
+	[[nodiscard]] const std::vector<Data::ReactionId> &searchInTags() const;
 
 	void setupSupportMode();
+	void setupTouchChatPreview();
 	void setupConnectingWidget();
 	void setupMainMenuToggle();
 	void setupMoreChatsBar();
@@ -188,18 +192,15 @@ private:
 	void trackScroll(not_null<Ui::RpWidget*> widget);
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
 	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
-	bool setSearchInChat(
-		Key chat,
-		PeerData *from,
-		std::vector<Data::ReactionId> tags);
-	bool setSearchInChat(
-		Key chat,
-		PeerData *from = nullptr);
+
+	// Child list may be unable to set specific search state.
+	bool applySearchState(SearchState state);
+
 	void showCalendar();
 	void showSearchFrom();
 	void showMainMenu();
 	void clearSearchCache();
-	void setSearchQuery(const QString &query);
+	void setSearchQuery(const QString &query, int cursorPosition = -1);
 	void updateControlsVisibility(bool fast = false);
 	void updateLockUnlockVisibility(
 		anim::type animated = anim::type::instant);
@@ -232,7 +233,8 @@ private:
 
 	void fullSearchRefreshOn(rpl::producer<> events);
 	void updateCancelSearch();
-	void applySearchUpdate(bool force = false);
+	[[nodiscard]] QString validateSearchQuery();
+	void applySearchUpdate();
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
 	void loadMoreBlockedByDate();
 
@@ -240,7 +242,9 @@ private:
 		SearchRequestType type,
 		const MTP::Error &error,
 		mtpRequestId requestId);
-	void peopleFailed(const MTP::Error &error, mtpRequestId requestId);
+	void peerSearchFailed(const MTP::Error &error, mtpRequestId requestId);
+	void searchApplyEmpty(SearchRequestType type, mtpRequestId id);
+	void peerSearchApplyEmpty(mtpRequestId id);
 
 	void updateForceDisplayWide();
 	void scrollToDefault(bool verytop = false);
@@ -257,6 +261,12 @@ private:
 	[[nodiscard]] bool redirectKeyToSearch(QKeyEvent *e) const;
 	[[nodiscard]] bool redirectImeToSearch() const;
 
+	struct CancelSearchOptions {
+		bool forceFullCancel = false;
+		bool jumpBackToSearchedChat = false;
+	};
+	bool cancelSearch(CancelSearchOptions options);
+
 	MTP::Sender _api;
 
 	bool _dragInScroll = false;
@@ -266,7 +276,7 @@ private:
 	Layout _layout = Layout::Main;
 	int _narrowWidth = 0;
 	object_ptr<Ui::RpWidget> _searchControls;
-	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr } ;
+	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr };
 	struct {
 		object_ptr<Ui::IconButton> toggle;
 		object_ptr<Ui::AbstractButton> under;
@@ -304,17 +314,17 @@ private:
 	object_ptr<Ui::JumpDownButton> _scrollToTop;
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
+	bool _searchingHashtag = false;
 
 	Data::Folder *_openedFolder = nullptr;
 	Data::Forum *_openedForum = nullptr;
-	Key _searchInChat;
+	SearchState _searchState;
 	History *_searchInMigrated = nullptr;
-	PeerData *_searchFromAuthor = nullptr;
-	std::vector<Data::ReactionId> _searchTags;
 	rpl::lifetime _searchTagsLifetime;
 	QString _lastSearchText;
 	bool _searchSuggestionsLocked = false;
 	bool _searchHasFocus = false;
+	bool _processingSearch = false;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
 	base::flat_map<PeerId, Ui::PeerUserpicView> _storiesUserpicsViewsHidden;
@@ -344,6 +354,7 @@ private:
 	QString _searchQuery;
 	PeerData *_searchQueryFrom = nullptr;
 	std::vector<Data::ReactionId> _searchQueryTags;
+	ChatSearchTab _searchQueryTab = {};
 	int32 _searchNextRate = 0;
 	bool _searchFull = false;
 	bool _searchFullMigrated = false;

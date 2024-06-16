@@ -22,7 +22,7 @@ class SessionController;
 } // namespace Window
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace ChatHelpers {
@@ -57,7 +57,7 @@ public:
 	[[nodiscard]] virtual rpl::producer<> pauseChanged() const = 0;
 
 	[[nodiscard]] virtual rpl::producer<bool> adjustShadowLeft() const;
-	[[nodiscard]] virtual SendMenu::Type sendMenuType() const = 0;
+	[[nodiscard]] virtual SendMenu::Details sendMenuDetails() const = 0;
 
 	virtual bool showMediaPreview(
 		Data::FileOrigin origin,

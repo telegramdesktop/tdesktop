@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "styles/style_basic.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -63,9 +64,27 @@ void LoadingText::paint(QPainter &p, int width) {
 		h / 2);
 }
 
+[[nodiscard]] const style::PeerListItem &PeerListItemFromDialogRow(
+		rpl::lifetime &lifetime,
+		const style::DialogRow &st) {
+	using namespace style;
+	const auto item = lifetime.make_state<PeerListItem>(PeerListItem{
+		.height = st.height,
+		.photoPosition = QPoint(st.padding.left(), st.padding.top()),
+		.namePosition = QPoint(st.nameLeft, st.nameTop),
+		.nameStyle = st::semiboldTextStyle,
+		.statusPosition = QPoint(st.textLeft, st.textTop),
+		.photoSize = st.photoSize,
+	});
+	return *item;
+}
+
 class LoadingPeerListItem final : public LoadingElement {
 public:
 	LoadingPeerListItem(const style::PeerListItem &st) : _st(st) {
+	}
+	LoadingPeerListItem(const style::DialogRow &st)
+	: _st(PeerListItemFromDialogRow(_lifetime, st)) {
 	}
 
 	[[nodiscard]] int height() const override {
@@ -114,6 +133,7 @@ public:
 	}
 
 private:
+	rpl::lifetime _lifetime;
 	const style::PeerListItem &_st;
 
 };
@@ -212,6 +232,17 @@ object_ptr<Ui::RpWidget> CreateLoadingTextWidget(
 object_ptr<Ui::RpWidget> CreateLoadingPeerListItemWidget(
 		not_null<Ui::RpWidget*> parent,
 		const style::PeerListItem &st,
+		int lines) {
+	return CreateLoadingElementWidget<LoadingPeerListItem>(
+		parent,
+		lines,
+		rpl::single(false),
+		st);
+}
+
+object_ptr<Ui::RpWidget> CreateLoadingDialogRowWidget(
+		not_null<Ui::RpWidget*> parent,
+		const style::DialogRow &st,
 		int lines) {
 	return CreateLoadingElementWidget<LoadingPeerListItem>(
 		parent,

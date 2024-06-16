@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct WebPageData;
 class VoiceSeekClickHandler;
+class ReplyKeyboard;
 
 namespace Ui {
 struct ChatPaintContext;
@@ -31,6 +32,7 @@ struct GeometryDescriptor;
 namespace Data {
 class Session;
 class Story;
+class SavedSublist;
 } // namespace Data
 
 namespace Media::Player {
@@ -46,6 +48,10 @@ class Element;
 class Document;
 class TranscribeButton;
 } // namespace HistoryView
+
+namespace style {
+struct BotKeyboardButton;
+} // namespace style
 
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
 	void create(not_null<Data::Session*> owner, UserId userId);
@@ -562,6 +568,34 @@ struct HistoryMessageLogEntryOriginal
 
 };
 
+struct MessageFactcheck {
+	TextWithEntities text;
+	QString country;
+	uint64 hash = 0;
+	bool needCheck = false;
+
+	[[nodiscard]] bool empty() const {
+		return text.empty() && country.isEmpty() && !hash;
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
+};
+
+[[nodiscard]] MessageFactcheck FromMTP(
+	not_null<HistoryItem*> item,
+	const tl::conditional<MTPFactCheck> &factcheck);
+[[nodiscard]] MessageFactcheck FromMTP(
+	not_null<Main::Session*> session,
+	const tl::conditional<MTPFactCheck> &factcheck);
+
+struct HistoryMessageFactcheck
+: public RuntimeComponent<HistoryMessageFactcheck, HistoryItem> {
+	MessageFactcheck data;
+	WebPageData *page = nullptr;
+	bool requested = false;
+};
+
 struct HistoryServiceData
 : public RuntimeComponent<HistoryServiceData, HistoryItem> {
 	std::vector<ClickHandlerPtr> textLinks;
@@ -619,6 +653,7 @@ struct HistoryServicePayment
 	ClickHandlerPtr invoiceLink;
 	bool recurringInit = false;
 	bool recurringUsed = false;
+	bool isCreditsCurrency = false;
 };
 
 struct HistoryServiceSameBackground

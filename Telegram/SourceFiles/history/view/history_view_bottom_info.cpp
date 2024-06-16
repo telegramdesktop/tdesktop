@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "chat_helpers/emoji_interactions.h"
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
 #include "lottie/lottie_icon.h"
@@ -30,14 +31,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
-struct BottomInfo::Reaction {
+struct BottomInfo::Effect {
 	mutable std::unique_ptr<Ui::ReactionFlyAnimation> animation;
 	mutable QImage image;
-	ReactionId id;
-	QString countText;
-	int count = 0;
-	int countTextWidth = 0;
-	bool chosen = false;
+	EffectId id = 0;
 };
 
 BottomInfo::BottomInfo(
@@ -58,17 +55,11 @@ void BottomInfo::update(Data &&data, int availableWidth) {
 	}
 }
 
-int BottomInfo::countReactionsMaxWidth() const {
+int BottomInfo::countEffectMaxWidth() const {
 	auto result = 0;
-	for (const auto &reaction : _reactions) {
+	if (_effect) {
 		result += st::reactionInfoSize;
-		if (reaction.countTextWidth > 0) {
-			result += st::reactionInfoSkip
-				+ reaction.countTextWidth
-				+ st::reactionInfoDigitSkip;
-		} else {
-			result += st::reactionInfoBetween;
-		}
+		result += st::reactionInfoBetween;
 	}
 	if (result) {
 		result += (st::reactionInfoSkip - st::reactionInfoBetween);
@@ -76,19 +67,14 @@ int BottomInfo::countReactionsMaxWidth() const {
 	return result;
 }
 
-int BottomInfo::countReactionsHeight(int newWidth) const {
+int BottomInfo::countEffectHeight(int newWidth) const {
 	const auto left = 0;
 	auto x = 0;
 	auto y = 0;
 	auto widthLeft = newWidth;
-	for (const auto &reaction : _reactions) {
-		const auto add = (reaction.countTextWidth > 0)
-			? st::reactionInfoDigitSkip
-			: st::reactionInfoBetween;
-		const auto width = st::reactionInfoSize
-			+ (reaction.countTextWidth > 0
-				? (st::reactionInfoSkip + reaction.countTextWidth)
-				: 0);
+	if (_effect) {
+		const auto add = st::reactionInfoBetween;
+		const auto width = st::reactionInfoSize;
 		if (x > left && widthLeft < width) {
 			x = left;
 			y += st::msgDateFont->height;
@@ -107,7 +93,7 @@ int BottomInfo::firstLineWidth() const {
 	if (height() == minHeight()) {
 		return width();
 	}
-	return maxWidth() - _reactionsMaxWidth;
+	return maxWidth() - _effectMaxWidth;
 }
 
 bool BottomInfo::isWide() const {
@@ -115,14 +101,15 @@ bool BottomInfo::isWide() const {
 		|| !_data.author.isEmpty()
 		|| !_views.isEmpty()
 		|| !_replies.isEmpty()
-		|| !_reactions.empty();
+		|| _effect;
 }
 
 TextState BottomInfo::textState(
-		not_null<const HistoryItem*> item,
+		not_null<const Message*> view,
 		QPoint position) const {
+	const auto item = view->data();
 	auto result = TextState(item);
-	if (const auto link = revokeReactionLink(item, position)) {
+	if (const auto link = replayEffectLink(view, position)) {
 		result.link = link;
 		return result;
 	}
@@ -172,72 +159,44 @@ TextState BottomInfo::textState(
 	return result;
 }
 
-ClickHandlerPtr BottomInfo::revokeReactionLink(
-		not_null<const HistoryItem*> item,
+ClickHandlerPtr BottomInfo::replayEffectLink(
+		not_null<const Message*> view,
 		QPoint position) const {
-	if (_reactions.empty()) {
+	if (!_effect) {
 		return nullptr;
 	}
 	auto left = 0;
 	auto top = 0;
 	auto available = width();
 	if (height() != minHeight()) {
-		available = std::min(available, _reactionsMaxWidth);
+		available = std::min(available, _effectMaxWidth);
 		left += width() - available;
 		top += st::msgDateFont->height;
 	}
-	auto x = left;
-	auto y = top;
-	auto widthLeft = available;
-	for (const auto &reaction : _reactions) {
-		const auto chosen = reaction.chosen;
-		const auto add = (reaction.countTextWidth > 0)
-			? st::reactionInfoDigitSkip
-			: st::reactionInfoBetween;
-		const auto width = st::reactionInfoSize
-			+ (reaction.countTextWidth > 0
-				? (st::reactionInfoSkip + reaction.countTextWidth)
-				: 0);
-		if (x > left && widthLeft < width) {
-			x = left;
-			y += st::msgDateFont->height;
-			widthLeft = available;
-		}
+	if (_effect) {
 		const auto image = QRect(
-			x,
-			y,
+			left,
+			top,
 			st::reactionInfoSize,
 			st::msgDateFont->height);
-		if (chosen && image.contains(position)) {
-			if (!_revokeLink) {
-				_revokeLink = revokeReactionLink(item);
+		if (image.contains(position)) {
+			if (!_replayLink) {
+				_replayLink = replayEffectLink(view);
 			}
-			return _revokeLink;
+			return _replayLink;
 		}
-		x += width + add;
-		widthLeft -= width + add;
 	}
 	return nullptr;
 }
 
-ClickHandlerPtr BottomInfo::revokeReactionLink(
-		not_null<const HistoryItem*> item) const {
-	const auto itemId = item->fullId();
-	const auto sessionId = item->history()->session().uniqueId();
-	return std::make_shared<LambdaClickHandler>([=](
-			ClickContext context) {
+ClickHandlerPtr BottomInfo::replayEffectLink(
+		not_null<const Message*> view) const {
+	const auto weak = base::make_weak(view);
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			if (controller->session().uniqueId() == sessionId) {
-				auto &owner = controller->session().data();
-				if (const auto item = owner.message(itemId)) {
-					const auto chosen = item->chosenReactions();
-					if (!chosen.empty()) {
-						item->toggleReaction(
-							chosen.front(),
-							HistoryItem::ReactionSource::Existing);
-					}
-				}
+			if (const auto strong = weak.get()) {
+				strong->delegate()->elementStartEffect(strong, nullptr);
 			}
 		}
 	});
@@ -340,20 +299,20 @@ void BottomInfo::paint(
 			firstLineBottom + st::historyViewsTop,
 			outerWidth);
 	}
-	if (!_reactions.empty()) {
+	if (_effect) {
 		auto left = position.x();
 		auto top = position.y();
 		auto available = width();
 		if (height() != minHeight()) {
-			available = std::min(available, _reactionsMaxWidth);
+			available = std::min(available, _effectMaxWidth);
 			left += width() - available;
 			top += st::msgDateFont->height;
 		}
-		paintReactions(p, position, left, top, available, context);
+		paintEffect(p, position, left, top, available, context);
 	}
 }
 
-void BottomInfo::paintReactions(
+void BottomInfo::paintEffect(
 		Painter &p,
 		QPoint origin,
 		int left,
@@ -369,51 +328,32 @@ void BottomInfo::paintReactions(
 	auto x = left;
 	auto y = top;
 	auto widthLeft = availableWidth;
-	for (const auto &reaction : _reactions) {
-		if (context.reactionInfo
-			&& reaction.animation
-			&& reaction.animation->finished()) {
-			reaction.animation = nullptr;
-		}
-		const auto animating = (reaction.animation != nullptr);
-		const auto add = (reaction.countTextWidth > 0)
-			? st::reactionInfoDigitSkip
-			: st::reactionInfoBetween;
-		const auto width = st::reactionInfoSize
-			+ (reaction.countTextWidth > 0
-				? (st::reactionInfoSkip + reaction.countTextWidth)
-				: 0);
+	if (_effect) {
+		const auto animating = (_effect->animation != nullptr);
+		const auto add = st::reactionInfoBetween;
+		const auto width = st::reactionInfoSize;
 		if (x > left && widthLeft < width) {
 			x = left;
 			y += st::msgDateFont->height;
 			widthLeft = availableWidth;
 		}
-		if (reaction.image.isNull()) {
-			reaction.image = _reactionsOwner->resolveImageFor(
-				reaction.id,
-				::Data::Reactions::ImageSize::BottomInfo);
+		if (_effect->image.isNull()) {
+			_effect->image = _reactionsOwner->resolveEffectImageFor(
+				_effect->id);
 		}
 		const auto image = QRect(
-			x + (st::reactionInfoSize - st::reactionInfoImage) / 2,
-			y + (st::msgDateFont->height - st::reactionInfoImage) / 2,
-			st::reactionInfoImage,
-			st::reactionInfoImage);
-		const auto skipImage = animating
-			&& (reaction.count < 2 || !reaction.animation->flying());
-		if (!reaction.image.isNull() && !skipImage) {
-			p.drawImage(image.topLeft(), reaction.image);
+			x + (st::reactionInfoSize - st::effectInfoImage) / 2,
+			y + (st::msgDateFont->height - st::effectInfoImage) / 2,
+			st::effectInfoImage,
+			st::effectInfoImage);
+		if (!_effect->image.isNull()) {
+			p.drawImage(image.topLeft(), _effect->image);
 		}
 		if (animating) {
 			animations.push_back({
-				.animation = reaction.animation.get(),
+				.animation = _effect->animation.get(),
 				.target = image,
 			});
-		}
-		if (reaction.countTextWidth > 0) {
-			p.drawText(
-				x + st::reactionInfoSize + st::reactionInfoSkip,
-				y + st::msgDateFont->ascent,
-				reaction.countText);
 		}
 		x += width + add;
 		widthLeft -= width + add;
@@ -448,18 +388,18 @@ QSize BottomInfo::countCurrentSize(int newWidth) {
 	const auto dateHeight = (_data.flags & Data::Flag::Sponsored)
 		? 0
 		: st::msgDateFont->height;
-	const auto noReactionsWidth = maxWidth() - _reactionsMaxWidth;
-	accumulate_min(newWidth, std::max(noReactionsWidth, _reactionsMaxWidth));
+	const auto noReactionsWidth = maxWidth() - _effectMaxWidth;
+	accumulate_min(newWidth, std::max(noReactionsWidth, _effectMaxWidth));
 	return QSize(
 		newWidth,
-		dateHeight + countReactionsHeight(newWidth));
+		dateHeight + countEffectHeight(newWidth));
 }
 
 void BottomInfo::layout() {
 	layoutDateText();
 	layoutViewsText();
 	layoutRepliesText();
-	layoutReactionsText();
+	layoutEffectText();
 	initDimensions();
 }
 
@@ -520,33 +460,12 @@ void BottomInfo::layoutRepliesText() {
 		Ui::NameTextOptions());
 }
 
-void BottomInfo::layoutReactionsText() {
-	if (_data.reactions.empty()) {
-		_reactions.clear();
+void BottomInfo::layoutEffectText() {
+	if (!_data.effectId) {
+		_effect = nullptr;
 		return;
 	}
-	auto sorted = ranges::views::all(
-		_data.reactions
-	) | ranges::views::transform([](const MessageReaction &reaction) {
-		return not_null{ &reaction };
-	}) | ranges::to_vector;
-	ranges::sort(
-		sorted,
-		std::greater<>(),
-		&MessageReaction::count);
-
-	auto reactions = std::vector<Reaction>();
-	reactions.reserve(sorted.size());
-	for (const auto &reaction : sorted) {
-		const auto &id = reaction->id;
-		const auto i = ranges::find(_reactions, id, &Reaction::id);
-		reactions.push_back((i != end(_reactions))
-			? std::move(*i)
-			: prepareReactionWithId(id));
-		reactions.back().chosen = reaction->my;
-		setReactionCount(reactions.back(), reaction->count);
-	}
-	_reactions = std::move(reactions);
+	_effect = std::make_unique<Effect>(prepareEffectWithId(_data.effectId));
 }
 
 QSize BottomInfo::countOptimalSize() {
@@ -571,70 +490,62 @@ QSize BottomInfo::countOptimalSize() {
 	if (_data.flags & Data::Flag::Pinned) {
 		width += st::historyPinWidth;
 	}
-	_reactionsMaxWidth = countReactionsMaxWidth();
-	width += _reactionsMaxWidth;
+	_effectMaxWidth = countEffectMaxWidth();
+	width += _effectMaxWidth;
 	const auto dateHeight = (_data.flags & Data::Flag::Sponsored)
 		? 0
 		: st::msgDateFont->height;
 	return QSize(width, dateHeight);
 }
 
-BottomInfo::Reaction BottomInfo::prepareReactionWithId(
-		const ReactionId &id) {
-	auto result = Reaction{ .id = id };
-	_reactionsOwner->preloadImageFor(id);
+BottomInfo::Effect BottomInfo::prepareEffectWithId(EffectId id) {
+	auto result = Effect{ .id = id };
+	_reactionsOwner->preloadEffectImageFor(id);
 	return result;
 }
 
-void BottomInfo::setReactionCount(Reaction &reaction, int count) {
-	if (reaction.count == count) {
-		return;
-	}
-	reaction.count = count;
-	reaction.countText = (count > 1)
-		? Lang::FormatCountToShort(count).string
-		: QString();
-	reaction.countTextWidth = (count > 1)
-		? st::msgDateFont->width(reaction.countText)
-		: 0;
-}
-
-void BottomInfo::animateReaction(
-	Ui::ReactionFlyAnimationArgs &&args,
+void BottomInfo::animateEffect(
+		Ui::ReactionFlyAnimationArgs &&args,
 		Fn<void()> repaint) {
-	const auto i = ranges::find(_reactions, args.id, &Reaction::id);
-	if (i == end(_reactions)) {
+	if (!_effect || args.id.custom() != _effect->id) {
 		return;
 	}
-	i->animation = std::make_unique<Ui::ReactionFlyAnimation>(
+	_effect->animation = std::make_unique<Ui::ReactionFlyAnimation>(
 		_reactionsOwner,
 		args.translated(QPoint(width(), height())),
 		std::move(repaint),
-		st::reactionInfoImage);
+		st::effectInfoImage);
 }
 
-auto BottomInfo::takeReactionAnimations()
--> base::flat_map<ReactionId, std::unique_ptr<Ui::ReactionFlyAnimation>> {
-	auto result = base::flat_map<
-		ReactionId,
-		std::unique_ptr<Ui::ReactionFlyAnimation>>();
-	for (auto &reaction : _reactions) {
-		if (reaction.animation) {
-			result.emplace(reaction.id, std::move(reaction.animation));
-		}
-	}
-	return result;
+auto BottomInfo::takeEffectAnimation()
+-> std::unique_ptr<Ui::ReactionFlyAnimation> {
+	return _effect ? std::move(_effect->animation) : nullptr;
 }
 
-void BottomInfo::continueReactionAnimations(base::flat_map<
-		ReactionId,
-		std::unique_ptr<Ui::ReactionFlyAnimation>> animations) {
-	for (auto &[id, animation] : animations) {
-		const auto i = ranges::find(_reactions, id, &Reaction::id);
-		if (i != end(_reactions)) {
-			i->animation = std::move(animation);
-		}
+void BottomInfo::continueEffectAnimation(
+		std::unique_ptr<Ui::ReactionFlyAnimation> animation) {
+	if (_effect) {
+		_effect->animation = std::move(animation);
 	}
+}
+
+QRect BottomInfo::effectIconGeometry() const {
+	if (!_effect) {
+		return {};
+	}
+	auto left = 0;
+	auto top = 0;
+	auto available = width();
+	if (height() != minHeight()) {
+		available = std::min(available, _effectMaxWidth);
+		left += width() - available;
+		top += st::msgDateFont->height;
+	}
+	return QRect(
+		left + (st::reactionInfoSize - st::effectInfoImage) / 2,
+		top + (st::msgDateFont->height - st::effectInfoImage) / 2,
+		st::effectInfoImage,
+		st::effectInfoImage);
 }
 
 BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
@@ -643,9 +554,7 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 
 	auto result = BottomInfo::Data();
 	result.date = message->dateTime();
-	if (message->embedReactionsInBottomInfo()) {
-		result.reactions = item->reactions();
-	}
+	result.effectId = item->effectId();
 	if (message->hasOutLayout()) {
 		result.flags |= Flag::OutLayout;
 	}

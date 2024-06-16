@@ -29,7 +29,7 @@ struct SendOptions;
 } // namespace Api
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace Main {
@@ -157,7 +157,7 @@ public:
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 	void checkMainSectionToLayer();
 
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 	bool sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
@@ -279,6 +279,7 @@ private:
 	void showNewSection(
 		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params);
+	void destroyThirdSection();
 
 	Window::SectionSlideParams prepareThirdSectionAnimation(Window::SectionWidget *section);
 

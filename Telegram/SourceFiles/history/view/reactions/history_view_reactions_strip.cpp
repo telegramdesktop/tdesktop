@@ -51,7 +51,9 @@ Strip::Strip(
 	Fn<void()> update,
 	IconFactory iconFactory)
 : _st(st)
-, _iconFactory(std::move(iconFactory))
+, _iconFactory(iconFactory
+	? std::move(iconFactory)
+	: DefaultCachingIconFactory)
 , _inner(inner)
 , _finalSize(size)
 , _update(std::move(update)) {
@@ -556,6 +558,13 @@ std::shared_ptr<Ui::AnimatedIcon> DefaultIconFactory(
 		not_null<Data::DocumentMedia*> media,
 		int size) {
 	return CreateIcon(media, size);
+}
+
+std::shared_ptr<Ui::AnimatedIcon> DefaultCachingIconFactory(
+		not_null<Data::DocumentMedia*> media,
+		int size) {
+	auto &factory = media->owner()->session().cachedReactionIconFactory();
+	return factory.createMethod()(media, size);
 }
 
 } // namespace HistoryView::Reactions

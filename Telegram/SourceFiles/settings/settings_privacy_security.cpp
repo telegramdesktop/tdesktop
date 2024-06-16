@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "ui/chat/chat_style.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -79,7 +80,8 @@ using Privacy = Api::UserPrivacy;
 	image.fill(Qt::transparent);
 	{
 		auto p = QPainter(&image);
-		auto star = QSvgRenderer(Ui::Premium::ColorizedSvg());
+		auto star = QSvgRenderer(
+			Ui::Premium::ColorizedSvg(Ui::Premium::ButtonGradientStops()));
 		star.render(&p, Rect(size));
 	}
 	return image;

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/stickers/data_custom_emoji.h"
 
+#include "boxes/peers/edit_forum_topic_box.h" // MakeTopicIconEmoji.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -15,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_forum_topic.h" // ParseTopicIconEmojiEntity.
 #include "data/data_peer.h"
 #include "data/data_message_reactions.h"
 #include "data/stickers/data_stickers.h"
@@ -539,6 +541,8 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		const auto ratio = style::DevicePixelRatio();
 		const auto size = EmojiSizeFromTag(tag) / ratio;
 		return userpic(data, std::move(update), size);
+	} else if (const auto parsed = Data::ParseTopicIconEmojiEntity(data)) {
+		return MakeTopicIconEmoji(parsed, std::move(update), tag);
 	}
 	const auto parsed = ParseCustomEmojiData(data);
 	return parsed
@@ -594,13 +598,21 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::userpic(
 	if (v.size() != 5 && v.size() != 1) {
 		return nullptr;
 	}
-	const auto id = PeerId(v[0].toULongLong());
+	auto image = std::shared_ptr<Ui::DynamicImage>();
+	if (v[0] == u"self"_q) {
+		image = Ui::MakeSavedMessagesThumbnail();
+	} else if (v[0] == u"replies"_q) {
+		image = Ui::MakeRepliesThumbnail();
+	} else {
+		const auto id = PeerId(v[0].toULongLong());
+		image = Ui::MakeUserpicThumbnail(_owner->peer(id));
+	}
 	const auto padding = (v.size() == 5)
 		? QMargins(v[1].toInt(), v[2].toInt(), v[3].toInt(), v[4].toInt())
 		: QMargins();
 	return std::make_unique<Ui::CustomEmoji::DynamicImageEmoji>(
 		data.toString(),
-		Ui::MakeUserpicThumbnail(_owner->peer(id)),
+		std::move(image),
 		std::move(update),
 		padding,
 		size);
@@ -988,10 +1000,16 @@ QString CustomEmojiManager::registerInternalEmoji(
 
 [[nodiscard]] QString CustomEmojiManager::peerUserpicEmojiData(
 		not_null<PeerData*> peer,
-		QMargins padding) {
-	return UserpicEmojiPrefix()
-		+ QString::number(peer->id.value)
-		+ InternalPadding(padding);
+		QMargins padding,
+		bool respectSavedRepliesEtc) {
+	const auto id = !respectSavedRepliesEtc
+		? QString::number(peer->id.value)
+		: peer->isSelf()
+		? u"self"_q
+		: peer->isRepliesChat()
+		? u"replies"_q
+		: QString::number(peer->id.value);
+	return UserpicEmojiPrefix() + id + InternalPadding(padding);
 }
 
 int FrameSizeFromTag(SizeTag tag) {

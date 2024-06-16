@@ -120,63 +120,6 @@ struct PaymentMethod {
 	Ui::PaymentMethodDetails ui;
 };
 
-struct ToggleProgress {
-	bool shown = true;
-};
-struct FormReady {};
-struct ThumbnailUpdated {
-	QImage thumbnail;
-};
-struct ValidateFinished {};
-struct PaymentMethodUpdate {
-	bool requestNewPassword = false;
-};
-struct VerificationNeeded {
-	QString url;
-};
-struct TmpPasswordRequired {};
-struct BotTrustRequired {
-	not_null<UserData*> bot;
-	not_null<UserData*> provider;
-};
-struct PaymentFinished {
-	MTPUpdates updates;
-};
-struct Error {
-	enum class Type {
-		None,
-		Form,
-		Validate,
-		Stripe,
-		SmartGlocal,
-		TmpPassword,
-		Send,
-	};
-	Type type = Type::None;
-	QString id;
-
-	[[nodiscard]] bool empty() const {
-		return (type == Type::None);
-	}
-	[[nodiscard]] explicit operator bool() const {
-		return !empty();
-	}
-};
-
-struct FormUpdate : std::variant<
-	ToggleProgress,
-	FormReady,
-	ThumbnailUpdated,
-	ValidateFinished,
-	PaymentMethodUpdate,
-	VerificationNeeded,
-	TmpPasswordRequired,
-	BotTrustRequired,
-	PaymentFinished,
-	Error> {
-	using variant::variant;
-};
-
 struct InvoiceMessage {
 	not_null<PeerData*> peer;
 	MsgId itemId = 0;
@@ -216,8 +159,107 @@ struct InvoicePremiumGiftCode {
 	int months = 0;
 };
 
+struct InvoiceCredits {
+	not_null<Main::Session*> session;
+	uint64 randomId = 0;
+	uint64 credits = 0;
+	QString product;
+	QString currency;
+	uint64 amount = 0;
+	bool extended = false;
+};
+
 struct InvoiceId {
-	std::variant<InvoiceMessage, InvoiceSlug, InvoicePremiumGiftCode> value;
+	std::variant<
+		InvoiceMessage,
+		InvoiceSlug,
+		InvoicePremiumGiftCode,
+		InvoiceCredits> value;
+};
+
+struct CreditsFormData {
+	uint64 formId = 0;
+	uint64 botId = 0;
+	QString title;
+	QString description;
+	PhotoData *photo = nullptr;
+	InvoiceCredits invoice;
+	MTPInputInvoice inputInvoice;
+};
+
+struct CreditsReceiptData {
+	QString id;
+	QString title;
+	QString description;
+	PhotoData *photo = nullptr;
+	PeerId peerId = PeerId(0);
+	uint64 credits = 0;
+	TimeId date = 0;
+};
+
+struct ToggleProgress {
+	bool shown = true;
+};
+struct FormReady {};
+struct ThumbnailUpdated {
+	QImage thumbnail;
+};
+struct ValidateFinished {};
+struct PaymentMethodUpdate {
+	bool requestNewPassword = false;
+};
+struct VerificationNeeded {
+	QString url;
+};
+struct TmpPasswordRequired {};
+struct BotTrustRequired {
+	not_null<UserData*> bot;
+	not_null<UserData*> provider;
+};
+struct PaymentFinished {
+	MTPUpdates updates;
+};
+struct CreditsPaymentStarted {
+	CreditsFormData data;
+};
+struct CreditsReceiptReady {
+	CreditsReceiptData data;
+};
+struct Error {
+	enum class Type {
+		None,
+		Form,
+		Validate,
+		Stripe,
+		SmartGlocal,
+		TmpPassword,
+		Send,
+	};
+	Type type = Type::None;
+	QString id;
+
+	[[nodiscard]] bool empty() const {
+		return (type == Type::None);
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
+};
+
+struct FormUpdate : std::variant<
+	ToggleProgress,
+	FormReady,
+	ThumbnailUpdated,
+	ValidateFinished,
+	PaymentMethodUpdate,
+	VerificationNeeded,
+	TmpPasswordRequired,
+	BotTrustRequired,
+	PaymentFinished,
+	CreditsPaymentStarted,
+	CreditsReceiptReady,
+	Error> {
+	using variant::variant;
 };
 
 [[nodiscard]] not_null<Main::Session*> SessionFromId(const InvoiceId &id);
@@ -287,9 +329,11 @@ private:
 	void requestReceipt();
 	void processForm(const MTPDpayments_paymentForm &data);
 	void processReceipt(const MTPDpayments_paymentReceipt &data);
+	void processReceipt(const MTPDpayments_paymentReceiptStars &data);
 	void processInvoice(const MTPDinvoice &data);
 	void processDetails(const MTPDpayments_paymentForm &data);
 	void processDetails(const MTPDpayments_paymentReceipt &data);
+	void processDetails(const MTPDpayments_paymentReceiptStars &data);
 	void processSavedInformation(const MTPDpaymentRequestedInfo &data);
 	void processAdditionalPaymentMethods(
 		const QVector<MTPPaymentFormMethod> &list);

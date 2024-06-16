@@ -286,6 +286,8 @@ void TopPeersStrip::stripMousePressEvent(QMouseEvent *e) {
 		entry.ripple->add(e->pos() - QPoint(
 			x + st::topPeersMargin.left(),
 			y + st::topPeersMargin.top()));
+
+		_presses.fire_copy(entry.id);
 	}
 }
 
@@ -304,6 +306,7 @@ void TopPeersStrip::stripMouseMoveEvent(QMouseEvent *e) {
 	if (!_dragging && _mouseDownPosition) {
 		if ((*_lastMousePosition - *_mouseDownPosition).manhattanLength()
 			>= QApplication::startDragDistance()) {
+			_pressCancelled.fire({});
 			if (!_expandAnimation.animating()) {
 				_dragging = true;
 				_startDraggingLeft = _scrollLeft;
@@ -371,19 +374,14 @@ void TopPeersStrip::subscribeUserpic(Entry &entry) {
 }
 
 void TopPeersStrip::stripMouseReleaseEvent(QMouseEvent *e) {
+	_pressCancelled.fire({});
+
 	_lastMousePosition = e->globalPos();
 	const auto guard = gsl::finally([&] {
 		_mouseDownPosition = std::nullopt;
 	});
 
-	const auto pressed = std::exchange(_pressed, -1);
-	if (pressed >= 0) {
-		Assert(pressed < _entries.size());
-		auto &entry = _entries[pressed];
-		if (entry.ripple) {
-			entry.ripple->lastStop();
-		}
-	}
+	const auto pressed = clearPressed();
 	if (finishDragging()) {
 		return;
 	}
@@ -393,6 +391,18 @@ void TopPeersStrip::stripMouseReleaseEvent(QMouseEvent *e) {
 		Assert(_selected < _entries.size());
 		_clicks.fire_copy(_entries[_selected].id);
 	}
+}
+
+int TopPeersStrip::clearPressed() {
+	const auto pressed = std::exchange(_pressed, -1);
+	if (pressed >= 0) {
+		Assert(pressed < _entries.size());
+		auto &entry = _entries[pressed];
+		if (entry.ripple) {
+			entry.ripple->lastStop();
+		}
+	}
+	return pressed;
 }
 
 void TopPeersStrip::updateScrollMax(int newWidth) {
@@ -426,6 +436,27 @@ rpl::producer<bool> TopPeersStrip::emptyValue() const {
 
 rpl::producer<uint64> TopPeersStrip::clicks() const {
 	return _clicks.events();
+}
+
+rpl::producer<uint64> TopPeersStrip::pressed() const {
+	return _presses.events();
+}
+
+rpl::producer<> TopPeersStrip::pressCancelled() const {
+	return _pressCancelled.events();
+}
+
+void TopPeersStrip::pressLeftToContextMenu(bool shown) {
+	if (!shown) {
+		_contexted = -1;
+		update();
+		return;
+	}
+	_contexted = clearPressed();
+	if (finishDragging()) {
+		return;
+	}
+	_mouseDownPosition = std::nullopt;
 }
 
 auto TopPeersStrip::showMenuRequests() const
@@ -462,6 +493,9 @@ void TopPeersStrip::removeLocally(uint64 id) {
 	}
 	if (_pressed > index) {
 		--_pressed;
+	}
+	if (_contexted > index) {
+		--_contexted;
 	}
 	updateScrollMax();
 	_count = int(_entries.size());
@@ -575,8 +609,17 @@ void TopPeersStrip::apply(const TopPeersList &list) {
 	}
 	auto now = std::vector<Entry>();
 
-	auto selectedId = (_selected >= 0) ? _entries[_selected].id : 0;
-	auto pressedId = (_pressed >= 0) ? _entries[_pressed].id : 0;
+	const auto selectedId = (_selected >= 0) ? _entries[_selected].id : 0;
+	const auto pressedId = (_pressed >= 0) ? _entries[_pressed].id : 0;
+	const auto contextedId = (_contexted >= 0) ? _entries[_contexted].id : 0;
+	const auto restoreIndex = [&](uint64 id) {
+		if (!id) {
+			return -1;
+		}
+		const auto i = ranges::find(_entries, id, &Entry::id);
+		return (i != end(_entries)) ? int(i - begin(_entries)) : -1;
+	};
+
 	for (const auto &entry : list.entries) {
 		if (_removed.contains(entry.id)) {
 			continue;
@@ -599,18 +642,9 @@ void TopPeersStrip::apply(const TopPeersList &list) {
 		}
 	}
 	_entries = std::move(now);
-	if (selectedId) {
-		const auto i = ranges::find(_entries, selectedId, &Entry::id);
-		if (i != end(_entries)) {
-			_selected = int(i - begin(_entries));
-		}
-	}
-	if (pressedId) {
-		const auto i = ranges::find(_entries, pressedId, &Entry::id);
-		if (i != end(_entries)) {
-			_pressed = int(i - begin(_entries));
-		}
-	}
+	_selected = restoreIndex(selectedId);
+	_pressed = restoreIndex(pressedId);
+	_contexted = restoreIndex(contextedId);
 	updateScrollMax();
 	unsubscribeUserpics();
 	_count = int(_entries.size());
@@ -708,7 +742,11 @@ void TopPeersStrip::paintStrip(QRect clip) {
 
 		auto x = int(base::SafeRound(-shift + from * fsingle + added));
 		auto y = row * st.height;
-		const auto highlighted = (_pressed >= 0) ? _pressed : _selected;
+		const auto highlighted = (_contexted >= 0)
+			? _contexted
+			: (_pressed >= 0)
+			? _pressed
+			: _selected;
 		for (auto i = from; i != till; ++i) {
 			auto &entry = _entries[i];
 			const auto selected = (i == highlighted);

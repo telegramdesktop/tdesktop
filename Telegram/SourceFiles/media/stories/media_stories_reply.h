@@ -38,6 +38,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace SendMenu {
+struct Details;
+} // namespace SendMenu
+
 namespace Ui {
 struct PreparedList;
 class SendFilesWay;
@@ -140,6 +144,8 @@ private:
 	void send(Api::SendOptions options);
 	void sendVoice(VoiceToSend &&data);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
+
+	[[nodiscard]] Fn<SendMenu::Details()> sendMenuDetails() const;
 
 	void showPremiumToast(not_null<DocumentData*> emoji);
 	[[nodiscard]] bool showSlowmodeError();

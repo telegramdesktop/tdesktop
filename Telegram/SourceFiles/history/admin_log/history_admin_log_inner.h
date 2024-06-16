@@ -136,7 +136,12 @@ public:
 		HistoryView::Element *replacing) override;
 	void elementCancelPremium(
 		not_null<const HistoryView::Element*> view) override;
+	void elementStartEffect(
+		not_null<const HistoryView::Element*> view,
+		HistoryView::Element *replacing) override;
 	QString elementAuthorRank(
+		not_null<const HistoryView::Element*> view) override;
+	bool elementHideTopicButton(
 		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();

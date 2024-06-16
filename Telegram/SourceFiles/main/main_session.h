@@ -35,7 +35,12 @@ class RecentPeers;
 class ScheduledMessages;
 class SponsoredMessages;
 class TopPeers;
+class Factchecks;
 } // namespace Data
+
+namespace HistoryView::Reactions {
+class CachedIconFactory;
+} // namespace HistoryView::Reactions
 
 namespace Storage {
 class DownloadManagerMtproto;
@@ -96,6 +101,9 @@ public:
 	[[nodiscard]] bool premiumBadgesShown() const;
 	[[nodiscard]] bool premiumCanBuy() const;
 
+	[[nodiscard]] rpl::producer<uint64> creditsValue() const;
+	void setCredits(uint64 credits);
+
 	[[nodiscard]] bool isTestMode() const;
 	[[nodiscard]] uint64 uniqueId() const; // userId() with TestDC shift.
 	[[nodiscard]] UserId userId() const;
@@ -119,6 +127,9 @@ public:
 	}
 	[[nodiscard]] Data::TopPeers &topPeers() const {
 		return *_topPeers;
+	}
+	[[nodiscard]] Data::Factchecks &factchecks() const {
+		return *_factchecks;
 	}
 	[[nodiscard]] Api::Updates &updates() const {
 		return *_updates;
@@ -155,6 +166,10 @@ public:
 	}
 	[[nodiscard]] InlineBots::AttachWebView &attachWebView() const {
 		return *_attachWebView;
+	}
+	[[nodiscard]] auto cachedReactionIconFactory() const
+	-> HistoryView::Reactions::CachedIconFactory & {
+		return *_cachedReactionIconFactory;
 	}
 
 	void saveSettings();
@@ -217,8 +232,6 @@ public:
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
 
-	void parseColorIndices(const MTPDhelp_peerColors &data);
-
 	const UserId _userId;
 	const not_null<Account*> _account;
 
@@ -245,10 +258,15 @@ private:
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
 	const std::unique_ptr<Data::SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Data::TopPeers> _topPeers;
+	const std::unique_ptr<Data::Factchecks> _factchecks;
+
+	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
+	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 
 	std::shared_ptr<QImage> _selfUserpicView;
+	rpl::variable<uint64> _credits = 0;
 	rpl::variable<bool> _premiumPossible = false;
 
 	rpl::event_stream<bool> _termsLockChanges;

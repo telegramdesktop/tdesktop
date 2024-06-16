@@ -1753,6 +1753,10 @@ MsgId History::loadAroundId() const {
 	return MsgId(0);
 }
 
+bool History::inboxReadTillKnown() const {
+	return _inboxReadBefore.has_value();
+}
+
 MsgId History::inboxReadTillId() const {
 	return _inboxReadBefore.value_or(1) - 1;
 }
@@ -2927,6 +2931,9 @@ void History::setInboxReadTill(MsgId upTo) {
 		accumulate_max(*_inboxReadBefore, upTo + 1);
 	} else {
 		_inboxReadBefore = upTo + 1;
+		for (const auto &item : _items) {
+			item->applyEffectWatchedOnUnreadKnown();
+		}
 	}
 }
 

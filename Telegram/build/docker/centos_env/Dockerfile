@@ -51,7 +51,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 803f1c2630f5eb0d3b00ba3f095b3079c0533156 \
+	&& git fetch --depth=1 origin 8639205c2095a3f015449f8995fbfe16405218b8 \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -172,7 +172,7 @@ FROM builder AS libvpx
 RUN git init libvpx \
 	&& cd libvpx \
 	&& git remote add origin {{ GIT }}/webmproject/libvpx.git \
-	&& git fetch --depth=1 origin 51057f4ba894e13f9bba278905bacf6aaaecd992 \
+	&& git fetch --depth=1 origin 12f3a2ac603e8f10742105519e0cd03c3b8f71dd \
 	&& git reset --hard FETCH_HEAD \
 	&& CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure \
 		--disable-examples \
@@ -761,7 +761,7 @@ COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 RUN git init tg_owt \
 	&& cd tg_owt \
 	&& git remote add origin {{ GIT }}/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin afd9d5d31798d3eacf9ed6c30601e91d0f1e4d60 \
+	&& git fetch --depth=1 origin c9cc4390ab951f2cbc103ff783a11f398b27660b \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
 	&& rm -rf .git \

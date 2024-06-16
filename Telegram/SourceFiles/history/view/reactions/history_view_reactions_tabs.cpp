@@ -7,13 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/reactions/history_view_reactions_tabs.h"
 
-#include "ui/rp_widget.h"
-#include "ui/abstract_button.h"
-#include "ui/painter.h"
-#include "ui/controls/who_reacted_context_action.h"
 #include "data/data_message_reaction_id.h"
-#include "styles/style_widgets.h"
+#include "lang/lang_tag.h"
+#include "ui/abstract_button.h"
+#include "ui/controls/who_reacted_context_action.h"
+#include "ui/painter.h"
+#include "ui/rp_widget.h"
 #include "styles/style_chat.h"
+#include "styles/style_widgets.h"
 
 namespace HistoryView::Reactions {
 namespace {
@@ -35,7 +36,7 @@ not_null<Ui::AbstractButton*> CreateTab(
 		bool selected = false;
 	};
 	const auto stm = &st.item;
-	const auto text = QString("%L1").arg(count);
+	const auto text = Lang::FormatCountDecimal(count);
 	const auto font = st::semiboldFont;
 	const auto textWidth = font->width(text);
 	const auto result = Ui::CreateChild<Ui::AbstractButton>(parent.get());

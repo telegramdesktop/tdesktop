@@ -101,6 +101,10 @@ not_null<Window::SessionController*> WindowListDelegate::listWindow() {
 	return _window;
 }
 
+not_null<QWidget*> WindowListDelegate::listEmojiInteractionsParent() {
+	return _window->content();
+}
+
 not_null<const Ui::ChatStyle*> WindowListDelegate::listChatStyle() {
 	return _window->chatStyle();
 }
@@ -115,8 +119,7 @@ auto WindowListDelegate::listMakeReactionsManager(
 -> std::unique_ptr<Reactions::Manager> {
 	return std::make_unique<Reactions::Manager>(
 		wheelEventsTarget,
-		std::move(update),
-		_window->cachedReactionIconFactory().createMethod());
+		std::move(update));
 }
 
 void WindowListDelegate::listVisibleAreaUpdated() {
@@ -376,6 +379,8 @@ ListWidget::ListWidget(
 , _delegate(delegate)
 , _session(session)
 , _emojiInteractions(std::make_unique<EmojiInteractions>(
+	this,
+	_delegate->listEmojiInteractionsParent(),
 	session,
 	[=](not_null<const Element*> view) { return itemTop(view); }))
 , _context(_delegate->listContext())
@@ -500,11 +505,6 @@ ListWidget::ListWidget(
 	_delegate->listChatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
 		_isChatWide = wide;
-	}, lifetime());
-
-	_emojiInteractions->updateRequests(
-	) | rpl::start_with_next([=](QRect rect) {
-		update(rect);
 	}, lifetime());
 
 	_selectScroll.scrolls(
@@ -1857,9 +1857,20 @@ void ListWidget::elementCancelPremium(not_null<const Element*> view) {
 	_emojiInteractions->cancelPremiumEffect(view);
 }
 
+void ListWidget::elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing) {
+	_emojiInteractions->playEffect(view);
+}
+
 QString ListWidget::elementAuthorRank(not_null<const Element*> view) {
 	return _delegate->listElementAuthorRank(view);
 }
+
+bool ListWidget::elementHideTopicButton(not_null<const Element*> view) {
+	return _delegate->listElementHideTopicButton(view);
+}
+
 
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
@@ -2273,7 +2284,6 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	if (_reactionsManager) {
 		_reactionsManager->paint(p, context);
 	}
-	_emojiInteractions->paint(p);
 }
 
 void ListWidget::paintUserpics(
@@ -2774,8 +2784,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			desiredPosition,
 			reactItem,
 			[=](ChosenReaction reaction) { reactionChosen(reaction); },
-			ItemReactionsAbout(reactItem),
-			controller()->cachedReactionIconFactory().createMethod())
+			ItemReactionsAbout(reactItem))
 		: AttachSelectorResult::Skipped;
 	if (attached == AttachSelectorResult::Failed) {
 		_menu = nullptr;
@@ -4004,7 +4013,8 @@ void ListWidget::editMessageRequestNotify(FullMsgId item) const {
 bool ListWidget::lastMessageEditRequestNotify() const {
 	const auto now = base::unixtime::now();
 	auto proj = [&](not_null<Element*> view) {
-		return view->data()->allowsEdit(now);
+		return view->data()->allowsEdit(now)
+			&& !view->data()->isUploading();
 	};
 	const auto &list = ranges::views::reverse(_items);
 	const auto it = ranges::find_if(list, std::move(proj));

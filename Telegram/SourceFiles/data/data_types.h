@@ -138,6 +138,7 @@ using PollId = uint64;
 using WallPaperId = uint64;
 using CallId = uint64;
 using BotAppId = uint64;
+using EffectId = uint64;
 
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
@@ -320,6 +321,8 @@ enum class MessageFlag : uint64 {
 	ReactionsAreTags      = (1ULL << 43),
 
 	ShortcutMessage       = (1ULL << 44),
+
+	EffectWatched         = (1ULL << 45),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

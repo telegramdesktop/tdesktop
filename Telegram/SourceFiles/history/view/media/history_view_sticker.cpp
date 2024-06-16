@@ -41,6 +41,7 @@ constexpr auto kMaxSizeFixed = 512;
 constexpr auto kMaxEmojiSizeFixed = 256;
 constexpr auto kPremiumMultiplier = (1 + 0.245 * 2);
 constexpr auto kEmojiMultiplier = 3;
+constexpr auto kMessageEffectMultiplier = 2;
 
 [[nodiscard]] QImage CacheDiceImage(
 		const QString &emoji,
@@ -206,6 +207,10 @@ QSize Sticker::UsualPremiumEffectSize() {
 
 QSize Sticker::EmojiEffectSize() {
 	return EmojiSize() * kEmojiMultiplier;
+}
+
+QSize Sticker::MessageEffectSize() {
+	return EmojiSize() * kMessageEffectMultiplier;
 }
 
 QSize Sticker::EmojiSize() {

@@ -380,22 +380,31 @@ void GifsListWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 base::unique_qptr<Ui::PopupMenu> GifsListWidget::fillContextMenu(
-		SendMenu::Type type) {
+		const SendMenu::Details &details) {
 	if (_selected < 0 || _pressed >= 0) {
 		return nullptr;
 	}
 
 	auto menu = base::make_unique_q<Ui::PopupMenu>(this, st().menu);
-	const auto send = [=, selected = _selected](Api::SendOptions options) {
+	const auto selected = _selected;
+	const auto send = crl::guard(this, [=](Api::SendOptions options) {
 		selectInlineResult(selected, options, true);
-	};
+	});
+	const auto item = _mosaic.maybeItemAt(_selected);
+	const auto isInlineResult = !item->getPhoto()
+		&& !item->getDocument()
+		&& item->getResult();
 	const auto icons = &st().icons;
+	auto copyDetails = details;
+	if (isInlineResult) {
+		// inline results don't have effects
+		copyDetails.effectAllowed = false;
+	}
 	SendMenu::FillSendMenu(
 		menu,
-		type,
-		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(_show, type, send),
-		SendMenu::DefaultWhenOnlineCallback(send),
+		_show,
+		copyDetails,
+		SendMenu::DefaultCallback(_show, send),
 		icons);
 
 	if (const auto item = _mosaic.maybeItemAt(_selected)) {

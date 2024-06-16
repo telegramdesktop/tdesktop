@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
+#include "history/view/controls/history_view_compose_media_edit_manager.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -81,7 +82,8 @@ mtpRequestId EditMessage(
 	| ((!webpage.removed && !webpage.url.isEmpty())
 		? MTPmessages_EditMessage::Flag::f_media
 		: emptyFlag)
-	| ((!webpage.removed && !webpage.url.isEmpty() && webpage.invert)
+	| (((!webpage.removed && !webpage.url.isEmpty() && webpage.invert)
+		|| options.invertCaption)
 		? MTPmessages_EditMessage::Flag::f_invert_media
 		: emptyFlag)
 	| (!sentEntities.v.isEmpty()
@@ -203,6 +205,7 @@ void RescheduleMessage(
 		not_null<HistoryItem*> item,
 		SendOptions options) {
 	const auto empty = [] {};
+	options.invertCaption = item->invertMedia();
 	EditMessage(item, options, empty, empty);
 }
 
@@ -254,85 +257,85 @@ mtpRequestId EditTextMessage(
 		SendOptions options,
 		Fn<void(mtpRequestId requestId)> done,
 		Fn<void(const QString &error, mtpRequestId requestId)> fail,
-		std::optional<bool> spoilerMediaOverride) {
-	if (spoilerMediaOverride) {
-		const auto spoiler = *spoilerMediaOverride;
-		if (const auto media = item->media()) {
-			auto takeInputMedia = Fn<std::optional<MTPInputMedia>()>(nullptr);
-			auto takeFileReference = Fn<QByteArray()>(nullptr);
-			if (const auto photo = media->photo()) {
-				using Flag = MTPDinputMediaPhoto::Flag;
-				const auto flags = Flag()
-					| (media->ttlSeconds() ? Flag::f_ttl_seconds : Flag())
-					| (spoiler ? Flag::f_spoiler : Flag());
-				takeInputMedia = [=] {
-					return MTP_inputMediaPhoto(
-						MTP_flags(flags),
-						photo->mtpInput(),
-						MTP_int(media->ttlSeconds()));
-				};
-				takeFileReference = [=] { return photo->fileReference(); };
-			} else if (const auto document = media->document()) {
-				using Flag = MTPDinputMediaDocument::Flag;
-				const auto flags = Flag()
-					| (media->ttlSeconds() ? Flag::f_ttl_seconds : Flag())
-					| (spoiler ? Flag::f_spoiler : Flag());
-				takeInputMedia = [=] {
-					return MTP_inputMediaDocument(
-						MTP_flags(flags),
-						document->mtpInput(),
-						MTP_int(media->ttlSeconds()),
-						MTPstring()); // query
-				};
-				takeFileReference = [=] { return document->fileReference(); };
-			}
-
-			const auto usedFileReference = takeFileReference
-				? takeFileReference()
-				: QByteArray();
-			const auto origin = item->fullId();
-			const auto api = &item->history()->session().api();
-			const auto performRequest = [=](
-					const auto &repeatRequest,
-					mtpRequestId originalRequestId) -> mtpRequestId {
-				const auto handleReference = [=](
-						const QString &error,
-						mtpRequestId requestId) {
-					if (error.startsWith(u"FILE_REFERENCE_"_q)) {
-						api->refreshFileReference(origin, [=](const auto &) {
-							if (takeFileReference &&
-								(takeFileReference() != usedFileReference)) {
-								repeatRequest(
-									repeatRequest,
-									originalRequestId
-										? originalRequestId
-										: requestId);
-							} else {
-								fail(error, requestId);
-							}
-						});
-					} else {
-						fail(error, requestId);
-					}
-				};
-				const auto callback = [=](
-						Fn<void()> applyUpdates,
-						mtpRequestId requestId) {
-					applyUpdates();
-					done(originalRequestId ? originalRequestId : requestId);
-				};
-				const auto requestId = EditMessage(
-					item,
-					caption,
-					webpage,
-					options,
-					callback,
-					handleReference,
-					takeInputMedia ? takeInputMedia() : std::nullopt);
-				return originalRequestId ? originalRequestId : requestId;
+		bool spoilered) {
+	const auto media = item->media();
+	if (media
+		&& HistoryView::MediaEditManager::CanBeSpoilered(item)
+		&& spoilered != media->hasSpoiler()) {
+		auto takeInputMedia = Fn<std::optional<MTPInputMedia>()>(nullptr);
+		auto takeFileReference = Fn<QByteArray()>(nullptr);
+		if (const auto photo = media->photo()) {
+			using Flag = MTPDinputMediaPhoto::Flag;
+			const auto flags = Flag()
+				| (media->ttlSeconds() ? Flag::f_ttl_seconds : Flag())
+				| (spoilered ? Flag::f_spoiler : Flag());
+			takeInputMedia = [=] {
+				return MTP_inputMediaPhoto(
+					MTP_flags(flags),
+					photo->mtpInput(),
+					MTP_int(media->ttlSeconds()));
 			};
-			return performRequest(performRequest, 0);
+			takeFileReference = [=] { return photo->fileReference(); };
+		} else if (const auto document = media->document()) {
+			using Flag = MTPDinputMediaDocument::Flag;
+			const auto flags = Flag()
+				| (media->ttlSeconds() ? Flag::f_ttl_seconds : Flag())
+				| (spoilered ? Flag::f_spoiler : Flag());
+			takeInputMedia = [=] {
+				return MTP_inputMediaDocument(
+					MTP_flags(flags),
+					document->mtpInput(),
+					MTP_int(media->ttlSeconds()),
+					MTPstring()); // query
+			};
+			takeFileReference = [=] { return document->fileReference(); };
 		}
+
+		const auto usedFileReference = takeFileReference
+			? takeFileReference()
+			: QByteArray();
+		const auto origin = item->fullId();
+		const auto api = &item->history()->session().api();
+		const auto performRequest = [=](
+				const auto &repeatRequest,
+				mtpRequestId originalRequestId) -> mtpRequestId {
+			const auto handleReference = [=](
+					const QString &error,
+					mtpRequestId requestId) {
+				if (error.startsWith(u"FILE_REFERENCE_"_q)) {
+					api->refreshFileReference(origin, [=](const auto &) {
+						if (takeFileReference &&
+							(takeFileReference() != usedFileReference)) {
+							repeatRequest(
+								repeatRequest,
+								originalRequestId
+									? originalRequestId
+									: requestId);
+						} else {
+							fail(error, requestId);
+						}
+					});
+				} else {
+					fail(error, requestId);
+				}
+			};
+			const auto callback = [=](
+					Fn<void()> applyUpdates,
+					mtpRequestId requestId) {
+				applyUpdates();
+				done(originalRequestId ? originalRequestId : requestId);
+			};
+			const auto requestId = EditMessage(
+				item,
+				caption,
+				webpage,
+				options,
+				callback,
+				handleReference,
+				takeInputMedia ? takeInputMedia() : std::nullopt);
+			return originalRequestId ? originalRequestId : requestId;
+		};
+		return performRequest(performRequest, 0);
 	}
 
 	const auto callback = [=](Fn<void()> applyUpdates, mtpRequestId id) {

@@ -104,6 +104,10 @@ public:
 	[[nodiscard]] virtual bool hasTextForCopy() const {
 		return false;
 	}
+	[[nodiscard]] virtual bool aboveTextByDefault() const {
+		return true;
+	}
+	[[nodiscard]] virtual HistoryItem *itemForText() const;
 	[[nodiscard]] virtual bool hideMessageText() const {
 		return true;
 	}
@@ -194,7 +198,9 @@ public:
 	virtual void checkAnimation() {
 	}
 
-	[[nodiscard]] virtual QSize sizeForGroupingOptimal(int maxWidth) const {
+	[[nodiscard]] virtual QSize sizeForGroupingOptimal(
+			int maxWidth,
+			bool last) const {
 		Unexpected("Grouping method call.");
 	}
 	[[nodiscard]] virtual QSize sizeForGrouping(int width) const {
@@ -221,9 +227,6 @@ public:
 		return false;
 	}
 
-	[[nodiscard]] virtual TextWithEntities getCaption() const {
-		return TextWithEntities();
-	}
 	virtual void hideSpoilers() {
 	}
 	[[nodiscard]] virtual bool needsBubble() const = 0;
@@ -273,8 +276,6 @@ public:
 	}
 	[[nodiscard]] Ui::BubbleRounding adjustedBubbleRounding(
 		RectParts square = {}) const;
-	[[nodiscard]] Ui::BubbleRounding adjustedBubbleRoundingWithCaption(
-		const Ui::Text::String &caption) const;
 	[[nodiscard]] bool isBubbleTop() const {
 		return (_inBubbleState == MediaInBubbleState::Top)
 			|| (_inBubbleState == MediaInBubbleState::None);

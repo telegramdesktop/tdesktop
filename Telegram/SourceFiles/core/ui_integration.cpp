@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "platform/platform_specific.h"
 #include "boxes/url_auth_box.h"
+#include "core/phone_click_handler.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
@@ -217,6 +218,8 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		return std::make_shared<MonospaceClickHandler>(data.text, data.type);
 	case EntityType::Pre:
 		return std::make_shared<MonospaceClickHandler>(data.text, data.type);
+	case EntityType::Phone:
+		return std::make_shared<PhoneClickHandler>(my->session, data.text);
 	}
 	return Integration::createLinkHandler(data, context);
 }
@@ -268,7 +271,7 @@ bool UiIntegration::copyPreOnClick(const QVariant &context) {
 }
 
 std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
-		const QString &data,
+		QStringView data,
 		const std::any &context) {
 	const auto my = std::any_cast<MarkedTextContext>(&context);
 	if (!my || !my->session) {

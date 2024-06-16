@@ -66,12 +66,19 @@ enum class StickersListMode {
 	Masks,
 	UserpicBuilder,
 	ChatIntro,
+	MessageEffects,
+};
+
+struct StickerCustomRecentDescriptor {
+	not_null<DocumentData*> document;
+	QString cornerEmoji;
 };
 
 struct StickersListDescriptor {
 	std::shared_ptr<Show> show;
 	StickersListMode mode = StickersListMode::Full;
 	Fn<bool()> paused;
+	std::vector<StickerCustomRecentDescriptor> customRecentList;
 	const style::EmojiPan *st = nullptr;
 	ComposeFeatures features;
 };
@@ -116,9 +123,12 @@ public:
 	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
 
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
-		SendMenu::Type type) override;
+		const SendMenu::Details &details) override;
 
 	bool mySetsEmpty() const;
+
+	void applySearchQuery(std::vector<QString> &&query);
+	[[nodiscard]] rpl::producer<int> recentShownCount() const;
 
 	~StickersListWidget();
 
@@ -239,8 +249,10 @@ private:
 
 	bool setHasTitle(const Set &set) const;
 	bool stickerHasDeleteButton(const Set &set, int index) const;
-	std::vector<Sticker> collectRecentStickers();
+	[[nodiscard]] std::vector<Sticker> collectRecentStickers();
+	[[nodiscard]] std::vector<Sticker> collectCustomRecents();
 	void refreshRecentStickers(bool resize = true);
+	void refreshEffects();
 	void refreshFavedStickers();
 	enum class GroupStickersPlace {
 		Visible,
@@ -252,12 +264,13 @@ private:
 	void updateSelected();
 	void setSelected(OverState newSelected);
 	void setPressed(OverState newPressed);
-	std::unique_ptr<Ui::RippleAnimation> createButtonRipple(int section);
-	QPoint buttonRippleTopLeft(int section) const;
+	[[nodiscard]] std::unique_ptr<Ui::RippleAnimation> createButtonRipple(
+		int section);
+	[[nodiscard]] QPoint buttonRippleTopLeft(int section) const;
 
-	std::vector<Set> &shownSets();
-	const std::vector<Set> &shownSets() const;
-	int featuredRowHeight() const;
+	[[nodiscard]] std::vector<Set> &shownSets();
+	[[nodiscard]] const std::vector<Set> &shownSets() const;
+	[[nodiscard]] int featuredRowHeight() const;
 	void checkVisibleFeatured(int visibleTop, int visibleBottom);
 	void readVisibleFeatured(int visibleTop, int visibleBottom);
 
@@ -315,6 +328,7 @@ private:
 
 	[[nodiscard]] const Data::StickersSetsOrder &defaultSetsOrder() const;
 	[[nodiscard]] Data::StickersSetsOrder &defaultSetsOrderRef();
+	void filterEffectsByEmoji(const std::vector<EmojiPtr> &emoji);
 
 	enum class AppendSkip {
 		None,
@@ -347,6 +361,7 @@ private:
 	void fillLocalSearchRows(const QString &query);
 	void fillCloudSearchRows(const std::vector<uint64> &cloudSets);
 	void addSearchRow(not_null<Data::StickersSet*> set);
+	void toggleSearchLoading(bool loading);
 
 	void showPreview();
 
@@ -364,14 +379,17 @@ private:
 	std::unique_ptr<LocalStickersManager> _localSetsManager;
 	ChannelData *_megagroupSet = nullptr;
 	uint64 _megagroupSetIdRequested = 0;
+	std::vector<StickerCustomRecentDescriptor> _customRecentIds;
 	std::vector<Set> _mySets;
 	std::vector<Set> _officialSets;
 	std::vector<Set> _searchSets;
 	int _featuredSetsCount = 0;
 	std::vector<bool> _custom;
+	std::vector<EmojiPtr> _cornerEmoji;
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
 	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
 
+	bool _paintAsPremium = false;
 	bool _showingSetById = false;
 	crl::time _lastScrolledAt = 0;
 	crl::time _lastFullUpdatedAt = 0;
@@ -381,6 +399,7 @@ private:
 
 	Section _section = Section::Stickers;
 	const bool _isMasks;
+	const bool _isEffects;
 
 	base::Timer _updateItemsTimer;
 	base::Timer _updateSetsTimer;
@@ -419,6 +438,8 @@ private:
 	std::unique_ptr<StickerPremiumMark> _premiumMark;
 
 	std::vector<not_null<DocumentData*>> _filteredStickers;
+	std::vector<EmojiPtr> _filterStickersCornerEmoji;
+	rpl::variable<int> _recentShownCount;
 	std::map<QString, std::vector<uint64>> _searchCache;
 	std::vector<std::pair<uint64, QStringList>> _searchIndex;
 	base::Timer _searchRequestTimer;

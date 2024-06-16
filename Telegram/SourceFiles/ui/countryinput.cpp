@@ -55,7 +55,7 @@ void CountryInput::paintEvent(QPaintEvent *e) {
 		st::introCountryIconPosition.y(),
 		width());
 
-	p.setFont(_st.font);
+	p.setFont(_st.style.font);
 	p.setPen(_st.textFg);
 	p.drawText(rect().marginsRemoved(_st.textMargins), _text, _st.textAlign);
 }
@@ -159,7 +159,7 @@ rpl::producer<QString> CountryInput::codeChanged() const {
 }
 
 void CountryInput::setText(const QString &newText) {
-	_text = _st.font->elided(
+	_text = _st.style.font->elided(
 		newText,
 		width() - _st.textMargins.left() - _st.textMargins.right());
 }

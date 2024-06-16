@@ -679,6 +679,11 @@ QString PinnedWidget::listElementAuthorRank(not_null<const Element*> view) {
 	return {};
 }
 
+bool PinnedWidget::listElementHideTopicButton(
+		not_null<const Element*> view) {
+	return true;
+}
+
 History *PinnedWidget::listTranslateHistory() {
 	return _history;
 }

@@ -339,7 +339,7 @@ void MediaPreviewWidget::setupLottie() {
 			_document,
 			_documentMedia->videoThumbnailContent(),
 			QString(),
-			true);
+			Stickers::EffectType::PremiumSticker);
 	} else {
 		const auto size = currentDimensions();
 		_lottie = std::make_unique<Lottie::SinglePlayer>(

@@ -208,12 +208,6 @@ if %BuildUWP% equ 0 (
     iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "/dMyBuildTarget=%BuildTarget%" "%FullScriptPath%setup.iss"
     if %errorlevel% neq 0 goto error
     if not exist "%SetupFile%" goto error
-:sign3
-    call "%SignPath%" "%SetupFile%"
-    if %errorlevel% neq 0 (
-      timeout /t 3
-      goto sign3
-    )
   )
 
   call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\%Platform%\d3d\d3dcompiler_47.dll" -target %BuildTarget% %AlphaBetaParam%

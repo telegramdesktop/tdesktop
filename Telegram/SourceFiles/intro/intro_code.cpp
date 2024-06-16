@@ -266,8 +266,10 @@ void CodeWidget::sendCall() {
 			_callStatus = CallStatus::Calling;
 			_callTimer.cancel();
 			_callRequestId = api().request(MTPauth_ResendCode(
+				MTP_flags(0),
 				MTP_string(getData()->phone),
-				MTP_bytes(getData()->phoneHash)
+				MTP_bytes(getData()->phoneHash),
+				MTPstring() // reason
 			)).done([=](const MTPauth_SentCode &result) {
 				callDone(result);
 			}).send();
@@ -376,8 +378,10 @@ void CodeWidget::noTelegramCode() {
 		return;
 	}
 	_noTelegramCodeRequestId = api().request(MTPauth_ResendCode(
+		MTP_flags(0),
 		MTP_string(getData()->phone),
-		MTP_bytes(getData()->phoneHash)
+		MTP_bytes(getData()->phoneHash),
+		MTPstring() // reason
 	)).done([=](const MTPauth_SentCode &result) {
 		noTelegramCodeDone(result);
 	}).fail([=](const MTP::Error &error) {

@@ -98,6 +98,7 @@ ScheduledWidget::ScheduledWidget(
 	const Data::ForumTopic *forumTopic)
 : Window::SectionWidget(parent, controller, history->peer)
 , WindowListDelegate(controller)
+, _show(controller->uiShow())
 , _history(history)
 , _forumTopic(forumTopic)
 , _scroll(
@@ -114,7 +115,7 @@ ScheduledWidget::ScheduledWidget(
 			listShowPremiumToast(emoji);
 		},
 		.mode = ComposeControls::Mode::Scheduled,
-		.sendMenuType = SendMenu::Type::Disabled,
+		.sendMenuDetails = [] { return SendMenu::Details(); },
 		.regularWindow = controller,
 		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
 	}))
@@ -319,7 +320,7 @@ void ScheduledWidget::setupComposeControls() {
 	) | rpl::start_with_next([=](auto data) {
 		if (const auto item = session().data().message(data.fullId)) {
 			if (item->isScheduled()) {
-				const auto spoiler = data.spoilerMediaOverride;
+				const auto spoiler = data.spoilered;
 				edit(item, data.options, saveEditMsgRequestId, spoiler);
 			}
 		}
@@ -492,7 +493,7 @@ bool ScheduledWidget::confirmSendingFiles(
 		(CanScheduleUntilOnline(_history->peer)
 			? Api::SendType::ScheduledToUser
 			: Api::SendType::Scheduled),
-		SendMenu::Type::Disabled);
+		SendMenu::Details());
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
@@ -600,7 +601,8 @@ void ScheduledWidget::uploadFile(
 			type,
 			prepareSendAction(options));
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::showSendingFilesError(
@@ -678,7 +680,8 @@ void ScheduledWidget::send() {
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::send(Api::SendOptions options) {
@@ -709,7 +712,8 @@ void ScheduledWidget::sendVoice(
 	const auto callback = [=](Api::SendOptions options) {
 		sendVoice(bytes, waveform, duration, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::sendVoice(
@@ -729,7 +733,7 @@ void ScheduledWidget::edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		std::optional<bool> spoilerMediaOverride) {
+		bool spoilered) {
 	if (*saveEditMsgRequestId) {
 		return;
 	}
@@ -798,7 +802,7 @@ void ScheduledWidget::edit(
 		options,
 		crl::guard(this, done),
 		crl::guard(this, fail),
-		spoilerMediaOverride);
+		spoilered);
 
 	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
@@ -809,7 +813,8 @@ void ScheduledWidget::sendExistingDocument(
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingDocument(document, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::sendExistingDocument(
@@ -838,7 +843,8 @@ void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingPhoto(photo, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::sendExistingPhoto(
@@ -872,7 +878,8 @@ void ScheduledWidget::sendInlineResult(
 	const auto callback = [=](Api::SendOptions options) {
 		sendInlineResult(result, bot, options);
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::sendInlineResult(
@@ -904,12 +911,14 @@ void ScheduledWidget::sendInlineResult(
 	_composeControls->focus();
 }
 
-SendMenu::Type ScheduledWidget::sendMenuType() const {
-	return _history->peer->isSelf()
+SendMenu::Details ScheduledWidget::sendMenuDetails() const {
+	const auto type = _history->peer->isSelf()
 		? SendMenu::Type::Reminder
 		: HistoryView::CanScheduleUntilOnline(_history->peer)
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
+	const auto effectAllowed = _history->peer->isUser();
+	return { .type = type, .effectAllowed = effectAllowed };
 }
 
 void ScheduledWidget::cornerButtonsShowAtPosition(
@@ -1360,7 +1369,8 @@ void ScheduledWidget::listSendBotCommand(
 		message.textWithTags = { text };
 		session().api().sendMessage(std::move(message));
 	};
-	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
+	controller()->show(
+		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::listSearch(
@@ -1438,6 +1448,11 @@ void ScheduledWidget::listPaintEmpty(
 QString ScheduledWidget::listElementAuthorRank(
 		not_null<const Element*> view) {
 	return {};
+}
+
+bool ScheduledWidget::listElementHideTopicButton(
+		not_null<const Element*> view) {
+	return true;
 }
 
 History *ScheduledWidget::listTranslateHistory() {

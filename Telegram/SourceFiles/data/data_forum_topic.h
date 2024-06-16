@@ -48,11 +48,32 @@ class Forum;
 	const style::ForumTopicIcon &st);
 [[nodiscard]] QImage ForumTopicGeneralIconFrame(
 	int size,
-	const style::color &color);
+	const QColor &color);
 [[nodiscard]] TextWithEntities ForumTopicIconWithTitle(
 	MsgId rootId,
 	DocumentId iconId,
 	const QString &title);
+
+[[nodiscard]] QString ForumGeneralIconTitle();
+[[nodiscard]] bool IsForumGeneralIconTitle(const QString &title);
+[[nodiscard]] int32 ForumGeneralIconColor(const QColor &color);
+[[nodiscard]] QColor ParseForumGeneralIconColor(int32 value);
+
+struct TopicIconDescriptor {
+	QString title;
+	int32 colorId = 0;
+
+	[[nodiscard]] bool empty() const {
+		return !colorId && title.isEmpty();
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
+};
+
+[[nodiscard]] QString TopicIconEmojiEntity(TopicIconDescriptor descriptor);
+[[nodiscard]] TopicIconDescriptor ParseTopicIconEmojiEntity(
+	QStringView entity);
 
 class ForumTopic final : public Thread {
 public:

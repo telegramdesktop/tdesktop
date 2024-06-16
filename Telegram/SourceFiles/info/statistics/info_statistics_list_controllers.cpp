@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/statistics/info_statistics_list_controllers.h"
 
+#include "api/api_credits.h"
 #include "api/api_statistics.h"
 #include "boxes/peer_list_controllers.h"
 #include "data/data_channel.h"
+#include "data/data_credits.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
@@ -17,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "main/session/session_show.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/outline_segments.h" // Ui::UnreadStoryOutlineGradient.
 #include "ui/effects/toggle_arrow.h"
 #include "ui/painter.h"
@@ -26,7 +30,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "styles/style_credits.h"
 #include "styles/style_dialogs.h" // dialogsStoriesFull.
+#include "styles/style_layers.h" // boxRowPadding.
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
@@ -111,6 +117,15 @@ struct BoostsDescriptor final {
 	Data::BoostsListSlice firstSlice;
 	BoostCallback boostClickedCallback;
 	not_null<PeerData*> peer;
+};
+
+struct CreditsDescriptor final {
+	Data::CreditsStatusSlice firstSlice;
+	Fn<void(const Data::CreditsHistoryEntry &)> entryClickedCallback;
+	not_null<PeerData*> premiumBot;
+	not_null<QImage*> creditIcon;
+	bool in = false;
+	bool out = false;
 };
 
 class PeerListRowWithFullId : public PeerListRow {
@@ -692,6 +707,256 @@ rpl::producer<int> BoostsController::totalBoostsValue() const {
 	return _totalBoosts.value();
 }
 
+class CreditsRow final : public PeerListRow {
+public:
+	struct Descriptor final {
+		Data::CreditsHistoryEntry entry;
+		not_null<QImage*> creditIcon;
+		int rowHeight = 0;
+		Fn<void(not_null<PeerListRow*>)> updateCallback;
+	};
+
+	CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor);
+	CreditsRow(const Descriptor &descriptor);
+
+	[[nodiscard]] const Data::CreditsHistoryEntry &entry() const;
+	[[nodiscard]] QString generateName() override;
+
+	[[nodiscard]] PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
+
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	bool rightActionDisabled() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+
+private:
+	void init();
+
+	const Data::CreditsHistoryEntry _entry;
+	not_null<QImage*> const _creditIcon;
+	const int _rowHeight;
+
+	PaintRoundImageCallback _paintUserpicCallback;
+	QString _name;
+
+	Ui::Text::String _rightText;
+};
+
+CreditsRow::CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor)
+: PeerListRow(peer, UniqueRowIdFromString(descriptor.entry.id))
+, _entry(descriptor.entry)
+, _creditIcon(descriptor.creditIcon)
+, _rowHeight(descriptor.rowHeight) {
+	const auto photo = _entry.photoId
+		? peer->session().data().photo(_entry.photoId).get()
+		: nullptr;
+	if (photo) {
+		_paintUserpicCallback = Ui::GenerateCreditsPaintEntryCallback(
+			photo,
+			[this, update = descriptor.updateCallback] { update(this); });
+	}
+	init();
+}
+
+CreditsRow::CreditsRow(const Descriptor &descriptor)
+: PeerListRow(UniqueRowIdFromString(descriptor.entry.id))
+, _entry(descriptor.entry)
+, _creditIcon(descriptor.creditIcon)
+, _rowHeight(descriptor.rowHeight) {
+	init();
+}
+
+void CreditsRow::init() {
+	_name = !PeerListRow::special()
+		? PeerListRow::generateName()
+		: Ui::GenerateEntryName(_entry).text;
+	const auto joiner = QString(QChar(' ')) + QChar(8212) + QChar(' ');
+	PeerListRow::setCustomStatus(
+		langDateTimeFull(_entry.date)
+		+ (_entry.refunded
+			? (joiner + tr::lng_channel_earn_history_return(tr::now))
+			: QString())
+		+ (_entry.title.isEmpty() ? QString() : (joiner + _name)));
+	{
+		constexpr auto kMinus = QChar(0x2212);
+		_rightText.setText(
+			st::semiboldTextStyle,
+			((!_entry.bareId || _entry.refunded) ? QChar('+') : kMinus)
+				+ Lang::FormatCountDecimal(std::abs(int64(_entry.credits))));
+	}
+	if (!_paintUserpicCallback) {
+		_paintUserpicCallback = !PeerListRow::special()
+			? PeerListRow::generatePaintUserpicCallback(false)
+			: Ui::GenerateCreditsPaintUserpicCallback(_entry);
+	}
+}
+
+const Data::CreditsHistoryEntry &CreditsRow::entry() const {
+	return _entry;
+}
+
+QString CreditsRow::generateName() {
+	return _entry.title.isEmpty() ? _name : _entry.title;
+}
+
+PaintRoundImageCallback CreditsRow::generatePaintUserpicCallback(bool force) {
+	return _paintUserpicCallback;
+}
+
+QSize CreditsRow::rightActionSize() const {
+	return QSize(
+		_rightText.maxWidth()
+			+ (_creditIcon->width() / style::DevicePixelRatio())
+			+ st::creditsHistoryRightSkip
+			+ _rightText.style()->font->spacew * 2,
+		_rowHeight);
+}
+
+QMargins CreditsRow::rightActionMargins() const {
+	return QMargins(0, 0, st::boxRowPadding.right(), 0);
+}
+
+bool CreditsRow::rightActionDisabled() const {
+	return true;
+}
+
+void CreditsRow::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	const auto &font = _rightText.style()->font;
+	y += _rowHeight / 2;
+	p.setPen((!_entry.bareId || _entry.refunded)
+		? st::boxTextFgGood
+		: st::menuIconAttentionColor);
+	x += st::creditsHistoryRightSkip;
+	_rightText.draw(p, Ui::Text::PaintContext{
+		.position = QPoint(x, y - font->height / 2),
+		.outerWidth = outerWidth,
+		.availableWidth = outerWidth,
+	});
+	x += _rightText.maxWidth() + font->spacew * 2;
+	p.drawImage(
+		x,
+		y -(_creditIcon->height() / style::DevicePixelRatio()) / 2,
+		*_creditIcon);
+}
+
+class CreditsController final : public PeerListController {
+public:
+	explicit CreditsController(CreditsDescriptor d);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void loadMoreRows() override;
+
+	[[nodiscard]] bool skipRequest() const;
+	void requestNext();
+
+	[[nodiscard]] rpl::producer<bool> allLoadedValue() const;
+
+private:
+	void applySlice(const Data::CreditsStatusSlice &slice);
+
+	const not_null<Main::Session*> _session;
+	const not_null<PeerData*> _premiumBot;
+	Fn<void(const Data::CreditsHistoryEntry &)> _entryClickedCallback;
+	not_null<QImage*> const _creditIcon;
+
+	Api::CreditsHistory _api;
+	Data::CreditsStatusSlice _firstSlice;
+	Data::CreditsStatusSlice::OffsetToken _apiToken;
+
+	rpl::variable<bool> _allLoaded = false;
+	bool _requesting = false;
+
+};
+
+CreditsController::CreditsController(CreditsDescriptor d)
+: _session(&d.premiumBot->session())
+, _premiumBot(d.premiumBot)
+, _entryClickedCallback(std::move(d.entryClickedCallback))
+, _creditIcon(d.creditIcon)
+, _api(d.premiumBot->session().user(), d.in, d.out)
+, _firstSlice(std::move(d.firstSlice)) {
+	PeerListController::setStyleOverrides(&st::boostsListBox);
+}
+
+Main::Session &CreditsController::session() const {
+	return *_session;
+}
+
+bool CreditsController::skipRequest() const {
+	return _requesting || _allLoaded.current();
+}
+
+void CreditsController::requestNext() {
+	_requesting = true;
+	_api.request(_apiToken, [=](const Data::CreditsStatusSlice &s) {
+		_requesting = false;
+		applySlice(s);
+	});
+}
+
+void CreditsController::prepare() {
+	applySlice(base::take(_firstSlice));
+	delegate()->peerListRefreshRows();
+}
+
+void CreditsController::loadMoreRows() {
+}
+
+void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
+	_allLoaded = slice.allLoaded;
+	_apiToken = slice.token;
+
+	for (const auto &item : slice.list) {
+		auto row = [&] {
+			const auto descriptor = CreditsRow::Descriptor{
+				.entry = item,
+				.creditIcon = _creditIcon,
+				.rowHeight = computeListSt().item.height,
+				.updateCallback = [=](not_null<PeerListRow*> row) {
+					delegate()->peerListUpdateRow(row);
+				},
+			};
+			using Type = Data::CreditsHistoryEntry::PeerType;
+			if (item.bareId) {
+				const auto peer = session().data().peer(PeerId(item.bareId));
+				return std::make_unique<CreditsRow>(peer, descriptor);
+			} else if (item.peerType == Type::PremiumBot) {
+				return std::make_unique<CreditsRow>(_premiumBot, descriptor);
+			} else {
+				return std::make_unique<CreditsRow>(descriptor);
+			}
+		}();
+		delegate()->peerListAppendRow(std::move(row));
+	}
+	delegate()->peerListRefreshRows();
+}
+
+void CreditsController::rowClicked(not_null<PeerListRow*> row) {
+	if (_entryClickedCallback) {
+		_entryClickedCallback(
+			static_cast<const CreditsRow*>(row.get())->entry());
+	}
+}
+
+rpl::producer<bool> CreditsController::allLoadedValue() const {
+	return _allLoaded.value();
+}
+
 } // namespace
 
 void AddPublicForwards(
@@ -839,6 +1104,56 @@ void AddBoostsList(
 	wrap->toggleOn(
 		state->controller.totalBoostsValue(
 		) | rpl::map(rpl::mappers::_1 > 0 && rpl::mappers::_1 < max),
+		anim::type::instant);
+	button->setClickedCallback(showMore);
+}
+
+void AddCreditsHistoryList(
+		std::shared_ptr<Main::SessionShow> show,
+		const Data::CreditsStatusSlice &firstSlice,
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(const Data::CreditsHistoryEntry &)> callback,
+		not_null<PeerData*> bot,
+		not_null<QImage*> icon,
+		bool in,
+		bool out) {
+	struct State final {
+		State(
+			CreditsDescriptor d,
+			std::shared_ptr<Main::SessionShow> show)
+		: delegate(std::move(show))
+		, controller(std::move(d)) {
+		}
+		PeerListContentDelegateShow delegate;
+		CreditsController controller;
+	};
+	const auto state = container->lifetime().make_state<State>(
+		CreditsDescriptor{ firstSlice, callback, bot, icon, in, out },
+		show);
+
+	state->delegate.setContent(container->add(
+		object_ptr<PeerListContent>(container, &state->controller)));
+	state->controller.setDelegate(&state->delegate);
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			object_ptr<Ui::SettingsButton>(
+				container,
+				tr::lng_stories_show_more(),
+				st::statisticsShowMoreButton)),
+		{ 0, -st::settingsButton.padding.top(), 0, 0 });
+	const auto button = wrap->entity();
+	AddArrow(button);
+
+	const auto showMore = [=] {
+		if (!state->controller.skipRequest()) {
+			state->controller.requestNext();
+			container->resizeToWidth(container->width());
+		}
+	};
+	wrap->toggleOn(
+		state->controller.allLoadedValue() | rpl::map(!rpl::mappers::_1),
 		anim::type::instant);
 	button->setClickedCallback(showMore);
 }

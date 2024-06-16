@@ -54,27 +54,8 @@ msgDateDelta: point(2px, 5px);
 msgDateImgDelta: 4px;
 msgDateImgPadding: point(8px, 2px);
 
-messageQuoteStyle: QuoteStyle(defaultQuoteStyle) {
-	padding: margins(10px, 2px, 4px, 2px);
-	verticalSkip: 4px;
-	outline: 3px;
-	outlineShift: 2px;
-	radius: 5px;
-}
-messageTextStyle: TextStyle(defaultTextStyle) {
-	blockquote: QuoteStyle(messageQuoteStyle) {
-		padding: margins(10px, 2px, 20px, 2px);
-		icon: icon{{ "chat/mini_quote", windowFg }};
-		iconPosition: point(4px, 4px);
-	}
-	pre: QuoteStyle(messageQuoteStyle) {
-		header: 20px;
-		headerPosition: point(10px, 2px);
-		scrollable: true;
-		icon: icon{{ "chat/mini_copy", windowFg }};
-		iconPosition: point(4px, 2px);
-	}
-}
+messageQuoteStyle: historyQuoteStyle;
+messageTextStyle: historyTextStyle;
 historyPagePreview: QuoteStyle(messageQuoteStyle) {
 	padding: margins(10px, 5px, 7px, 7px);
 }
@@ -904,6 +885,8 @@ reactionMainAppearShift: 20px;
 reactionCollapseFadeThreshold: 40px;
 reactionFlyUp: 50px;
 
+effectInfoImage: 12px;
+
 searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {
 	maxWidth: 200px;
 }
@@ -1099,12 +1082,13 @@ previewTop: PeerListItem(defaultPeerListItem) {
 	photoSize: 40px;
 }
 previewMarkRead: FlatButton(historyComposeButton) {
-	height: 40px;
+	height: 39px;
 	textTop: 10px;
 }
 previewName: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 	textFg: windowFg;
+	maxHeight: 30px;
 }
 previewStatus: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
@@ -1112,4 +1096,48 @@ previewStatus: FlatLabel(defaultFlatLabel) {
 previewUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(40px, 40px);
 	photoSize: 40px;
+}
+
+effectPreviewSend: FlatButton(previewMarkRead) {
+	bgColor: transparent;
+	overBgColor: transparent;
+}
+effectPreviewPromoLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 64px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+effectPreviewPromoPadding: margins(4px, 6px, 4px, 6px);
+effectPreviewLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	thickness: 2px;
+}
+
+factcheckFooterSkip: 16px;
+factcheckFooterStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+}
+factcheckPage: QuoteStyle(historyPagePreview) {
+	padding: margins(10px, 5px, 22px, 7px);
+	expand: icon {{ "intro_country_dropdown", historyPeer1NameFg }};
+	expandPosition: point(6px, 4px);
+	collapse: icon {{ "intro_country_dropdown-flip_vertical", historyPeer1NameFg }};
+	collapsePosition: point(6px, 4px);
+}
+factcheckField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(0px, 0px, 0px, 4px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	heightMin: 24px;
+
+	style: defaultTextStyle;
 }

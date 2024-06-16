@@ -46,6 +46,12 @@ TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 		titleResult.append('\n').append(std::move(descriptionResult));
 		return titleResult;
 	}();
+	auto factcheckResult = [&] {
+		const auto factcheck = item->Get<HistoryMessageFactcheck>();
+		return factcheck
+			? TextForMimeData::Rich(base::duplicate(factcheck->data.text))
+			: TextForMimeData();
+	}();
 	auto result = textResult;
 	if (result.empty()) {
 		result = std::move(mediaResult);
@@ -56,6 +62,11 @@ TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 		result = std::move(logEntryOriginalResult);
 	} else if (!logEntryOriginalResult.empty()) {
 		result.append(u"\n\n"_q).append(std::move(logEntryOriginalResult));
+	}
+	if (result.empty()) {
+		result = std::move(factcheckResult);
+	} else if (!factcheckResult.empty()) {
+		result.append(u"\n\n"_q).append(std::move(factcheckResult));
 	}
 	return result;
 }

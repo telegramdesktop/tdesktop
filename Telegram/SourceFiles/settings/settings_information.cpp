@@ -573,8 +573,7 @@ void SetupBio(
 		}
 		changed->fire(*current != text);
 		const auto limit = self->isPremium() ? premiumLimit : defaultLimit;
-		const auto countLeft = limit
-			- bio->lastTextSizeWithoutSurrogatePairsCount();
+		const auto countLeft = limit - Ui::ComputeFieldCharacterCount(bio);
 		countdown->setText(QString::number(countLeft));
 		countdown->setTextColorOverride(
 			countLeft < 0 ? st::boxTextFgError->c : std::optional<QColor>());

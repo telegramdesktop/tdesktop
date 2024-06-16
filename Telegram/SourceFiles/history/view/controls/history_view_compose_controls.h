@@ -29,7 +29,7 @@ struct ComposeControls;
 } // namespace style
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace ChatHelpers {
@@ -104,7 +104,7 @@ struct ComposeControlsDescriptor {
 	std::shared_ptr<ChatHelpers::Show> show;
 	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted;
 	ComposeControlsMode mode = ComposeControlsMode::Normal;
-	SendMenu::Type sendMenuType = {};
+	Fn<SendMenu::Details()> sendMenuDetails = nullptr;
 	Window::SessionController *regularWindow = nullptr;
 	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
 	rpl::producer<QString> customPlaceholder;
@@ -282,8 +282,9 @@ private:
 	void paintBackground(QPainter &p, QRect full, QRect clip);
 
 	[[nodiscard]] auto computeSendButtonType() const;
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
-	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
+	[[nodiscard]] SendMenu::Details saveMenuDetails() const;
+	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;
 
 	[[nodiscard]] auto sendContentRequests(
 		SendRequestType requestType = SendRequestType::Text) const;
@@ -396,7 +397,7 @@ private:
 	const std::unique_ptr<FieldHeader> _header;
 	const std::unique_ptr<Controls::VoiceRecordBar> _voiceRecordBar;
 
-	const SendMenu::Type _sendMenuType;
+	const Fn<SendMenu::Details()> _sendMenuDetails;
 	const Fn<void(not_null<DocumentData*>)> _unavailableEmojiPasted;
 
 	rpl::event_stream<Api::SendOptions> _sendCustomRequests;

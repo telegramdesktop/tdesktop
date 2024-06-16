@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -335,7 +336,8 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			Payments::Mode::Payment,
 			crl::guard(controller, [=](auto) {
 				controller->widget()->activate();
-			}));
+			}),
+			Payments::ProcessNonPanelPaymentFormFactory(controller, item));
 	} break;
 
 	case ButtonType::Url: {

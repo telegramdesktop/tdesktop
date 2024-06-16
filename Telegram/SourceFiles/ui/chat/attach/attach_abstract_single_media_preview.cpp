@@ -78,6 +78,10 @@ bool AbstractSingleMediaPreview::canHaveSpoiler() const {
 	return supportsSpoilers();
 }
 
+rpl::producer<bool> AbstractSingleMediaPreview::spoileredChanges() const {
+	return _spoileredChanges.events();
+}
+
 void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 	auto maxW = 0;
 	auto maxH = 0;
@@ -275,6 +279,7 @@ void AbstractSingleMediaPreview::showContextMenu(QPoint position) {
 		? tr::lng_context_disable_spoiler(tr::now)
 		: tr::lng_context_spoiler_effect(tr::now), [=] {
 		setSpoiler(!spoilered);
+		_spoileredChanges.fire_copy(!spoilered);
 	}, spoilered ? &icons.menuSpoilerOff : &icons.menuSpoiler);
 
 	if (_menu->empty()) {
