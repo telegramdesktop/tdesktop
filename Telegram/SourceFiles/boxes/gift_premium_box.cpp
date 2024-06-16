@@ -1011,14 +1011,16 @@ void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
 				}) | ranges::views::filter([](UserData *u) -> bool {
 					return u;
 				}) | ranges::to<std::vector<not_null<UserData*>>>();
-				if (!users.empty()) {
-					const auto giftBox = show->show(
-						Box(GiftsBox, _controller, users, api, ref));
-					giftBox->boxClosing(
-					) | rpl::start_with_next([=] {
-						_manyGiftsLifetime.destroy();
-					}, giftBox->lifetime());
+				if (users.empty()) {
+					show->showToast(
+						tr::lng_settings_gift_premium_choose(tr::now));
 				}
+				const auto giftBox = show->show(
+					Box(GiftsBox, _controller, users, api, ref));
+				giftBox->boxClosing(
+				) | rpl::start_with_next([=] {
+					_manyGiftsLifetime.destroy();
+				}, giftBox->lifetime());
 				(*ignoreClose) = true;
 				peersBox->closeBox();
 			};

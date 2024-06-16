@@ -897,6 +897,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_gift_premium_users_confirm" = "Proceed";
 "lng_settings_gift_premium_users_error#one" = "You can select maximum {count} user.";
 "lng_settings_gift_premium_users_error#other" = "You can select maximum {count} users.";
+"lng_settings_gift_premium_choose" = "Please choose at least one recipient.";
 
 "lng_backgrounds_header" = "Choose Wallpaper";
 "lng_theme_sure_keep" = "Keep this theme?";
