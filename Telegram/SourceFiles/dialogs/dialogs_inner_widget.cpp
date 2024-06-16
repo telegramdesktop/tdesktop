@@ -2588,6 +2588,15 @@ void InnerWidget::dragPinnedFromTouch() {
 	updateReorderPinned(now);
 }
 
+void InnerWidget::searchRequested(bool loading) {
+	_searchWaiting = false;
+	_searchLoading = loading;
+	if (loading) {
+		clearSearchResults(true);
+	}
+	refresh(true);
+}
+
 void InnerWidget::applySearchState(SearchState state) {
 	if (_searchState == state) {
 		return;
@@ -2700,9 +2709,13 @@ void InnerWidget::applySearchState(SearchState state) {
 		clearMouseSelection(true);
 	}
 	if (_state != WidgetState::Default) {
-		_searchLoading = true;
-		_searchMessages.fire({});
-		refresh(true);
+		_searchWaiting = true;
+		_searchRequests.fire(otherChanged
+			? SearchRequestDelay::Instant
+			: SearchRequestDelay::Delayed);
+		if (_searchWaiting) {
+			refresh(true);
+		}
 	}
 }
 
@@ -2918,8 +2931,8 @@ rpl::producer<Ui::ScrollToRequest> InnerWidget::dialogMoved() const {
 	return _dialogMoved.events();
 }
 
-rpl::producer<> InnerWidget::searchMessages() const {
-	return _searchMessages.events();
+rpl::producer<SearchRequestDelay> InnerWidget::searchRequests() const {
+	return _searchRequests.events();
 }
 
 rpl::producer<QString> InnerWidget::completeHashtagRequests() const {
@@ -3007,6 +3020,7 @@ void InnerWidget::searchReceived(
 		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount) {
+	_searchWaiting = false;
 	_searchLoading = false;
 
 	const auto uniquePeers = uniqueSearchResults();
@@ -3171,7 +3185,7 @@ void InnerWidget::refreshEmpty() {
 			&& _searchResults.empty()
 			&& _peerSearchResults.empty()
 			&& _hashtagResults.empty();
-		if (_searchLoading || !empty) {
+		if (_searchLoading || _searchWaiting || !empty) {
 			if (_searchEmpty) {
 				_searchEmpty->hide();
 			}
@@ -3185,7 +3199,7 @@ void InnerWidget::refreshEmpty() {
 			_searchEmpty->show();
 		}
 
-		if (!_searchLoading || !empty) {
+		if ((!_searchLoading && !_searchWaiting) || !empty) {
 			_loadingAnimation.destroy();
 		} else if (!_loadingAnimation) {
 			_loadingAnimation = Ui::CreateLoadingDialogRowWidget(

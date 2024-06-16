@@ -74,7 +74,8 @@ class FakeRow;
 class Key;
 struct ChosenRow;
 class InnerWidget;
-enum class SearchRequestType;
+enum class SearchRequestType : uchar;
+enum class SearchRequestDelay : uchar;
 class Suggestions;
 class ChatSearchIn;
 enum class ChatSearchTab : uchar;
@@ -156,8 +157,8 @@ private:
 	[[nodiscard]] QString currentSearchQuery() const;
 	[[nodiscard]] int currentSearchQueryCursorPosition() const;
 	void clearSearchField();
-	void searchRequested();
-	bool search(bool inCache = false);
+	void searchRequested(SearchRequestDelay delay);
+	bool search(bool inCache = false, SearchRequestDelay after = {});
 	void searchTopics();
 	void searchMore();
 
