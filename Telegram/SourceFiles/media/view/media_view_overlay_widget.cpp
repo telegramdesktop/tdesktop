@@ -867,7 +867,8 @@ void OverlayWidget::savePosition() {
 	} else if (!_wasWindowedMode && !Platform::IsMac()) {
 		return;
 	} else {
-		auto r = _normalGeometry = _window->geometry();
+		auto r = _normalGeometry = _window->body()->mapToGlobal(
+			_window->body()->rect());
 		realPosition.x = r.x();
 		realPosition.y = r.y();
 		realPosition.w = r.width();
@@ -912,7 +913,7 @@ void OverlayWidget::updateGeometry(bool inMove) {
 			.arg(_normalGeometry.y())
 			.arg(_normalGeometry.width())
 			.arg(_normalGeometry.height()));
-		_window->RpWidget::setGeometry(_normalGeometry);
+		_window->setGeometry(_normalGeometry);
 	}
 	if constexpr (!Platform::IsMac()) {
 		if (_fullscreen) {
