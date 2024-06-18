@@ -358,6 +358,13 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 		});
 	}, lifetime());
 
+	shownValue(
+	) | rpl::skip(1) | rpl::start_with_next([=](bool visible) {
+		InvokeQueued(this, [=] {
+			handleVisibleChanged(visible);
+		});
+	}, lifetime());
+
 	body()->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		updateControlsGeometry();
@@ -457,11 +464,6 @@ void MainWindow::init() {
 		&QWindow::windowStateChanged,
 		this,
 		[=](Qt::WindowState state) { handleStateChanged(state); });
-	connect(
-		windowHandle(),
-		&QWindow::visibleChanged,
-		this,
-		[=](bool visible) { handleVisibleChanged(visible); });
 
 	updatePalette();
 
