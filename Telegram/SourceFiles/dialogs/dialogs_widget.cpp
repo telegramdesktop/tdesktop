@@ -897,7 +897,7 @@ void Widget::setupStories() {
 			Core::App().saveSettingsDelayed();
 		};
 		_stories->setShowTooltip(
-			parentWidget(),
+			controller()->content(),
 			rpl::combine(
 				Core::App().settings().storiesClickTooltipHiddenValue(),
 				shownValue(),

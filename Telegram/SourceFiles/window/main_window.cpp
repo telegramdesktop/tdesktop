@@ -351,6 +351,13 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 		Ui::Toast::SetDefaultParent(_body.data());
 	}
 
+	windowActiveValue(
+	) | rpl::skip(1) | rpl::start_with_next([=](bool active) {
+		InvokeQueued(this, [=] {
+			handleActiveChanged(active);
+		});
+	}, lifetime());
+
 	body()->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		updateControlsGeometry();
@@ -445,13 +452,6 @@ void MainWindow::init() {
 
 	initHook();
 
-	// Non-queued activeChanged handlers must use QtSignalProducer.
-	connect(
-		windowHandle(),
-		&QWindow::activeChanged,
-		this,
-		[=] { handleActiveChanged(); },
-		Qt::QueuedConnection);
 	connect(
 		windowHandle(),
 		&QWindow::windowStateChanged,
@@ -495,9 +495,9 @@ void MainWindow::handleStateChanged(Qt::WindowState state) {
 	savePosition(state);
 }
 
-void MainWindow::handleActiveChanged() {
+void MainWindow::handleActiveChanged(bool active) {
 	checkActivation();
-	if (isActiveWindow()) {
+	if (active) {
 		Core::App().windowActivated(&controller());
 	}
 	if (const auto controller = sessionController()) {

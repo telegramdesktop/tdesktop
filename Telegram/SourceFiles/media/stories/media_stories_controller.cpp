@@ -328,16 +328,11 @@ Controller::Controller(not_null<Delegate*> delegate)
 		}
 	}, _lifetime);
 
-	const auto window = _wrap->window()->windowHandle();
-	Assert(window != nullptr);
-	base::qt_signal_producer(
-		window,
-		&QWindow::activeChanged
-	) | rpl::start_with_next([=] {
-		_windowActive = window->isActive();
+	_wrap->windowActiveValue(
+	) | rpl::start_with_next([=](bool active) {
+		_windowActive = active;
 		updatePlayingAllowed();
 	}, _lifetime);
-	_windowActive = window->isActive();
 
 	_contentFadeAnimation.stop();
 }

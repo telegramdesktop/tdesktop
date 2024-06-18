@@ -139,7 +139,9 @@ void MainWindow::finishFirstShow() {
 	applyInitialWorkMode();
 	createGlobalMenu();
 
-	windowDeactivateEvents(
+	windowActiveValue(
+	) | rpl::skip(1) | rpl::filter(
+		!rpl::mappers::_1
 	) | rpl::start_with_next([=] {
 		Ui::Tooltip::Hide();
 	}, lifetime());
@@ -594,7 +596,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	case QEvent::ApplicationActivate: {
 		if (object == QCoreApplication::instance()) {
 			InvokeQueued(this, [=] {
-				handleActiveChanged();
+				handleActiveChanged(isActiveWindow());
 			});
 		}
 	} break;

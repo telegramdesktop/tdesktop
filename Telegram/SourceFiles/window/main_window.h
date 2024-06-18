@@ -151,7 +151,7 @@ protected:
 
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
 	void handleStateChanged(Qt::WindowState state);
-	void handleActiveChanged();
+	void handleActiveChanged(bool active);
 	void handleVisibleChanged(bool visible);
 
 	virtual void checkActivation() {
