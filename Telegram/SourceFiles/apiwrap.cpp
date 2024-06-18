@@ -4188,7 +4188,11 @@ void ApiWrap::sendMediaWithRandomId(
 			MTP_flags(flags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
-			media,
+			(options.price
+				? MTPInputMedia(MTP_inputMediaPaidMedia(
+					MTP_long(options.price),
+					MTP_vector<MTPInputMedia>(1, media)))
+				: media),
 			MTP_string(caption.text),
 			MTP_long(randomId),
 			MTPReplyMarkup(),

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_spoiler.h"
+#include "lang/lang_keys.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
@@ -38,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "core/application.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
 namespace {
@@ -140,7 +142,8 @@ void Photo::dataMediaCreated() const {
 
 	if (_data->inlineThumbnailBytes().isEmpty()
 		&& !_dataMedia->image(PhotoSize::Large)
-		&& !_dataMedia->image(PhotoSize::Thumbnail)) {
+		&& !_dataMedia->image(PhotoSize::Thumbnail)
+		&& !_data->extendedMediaPreview()) {
 		_dataMedia->wanted(PhotoSize::Small, _realParent->fullId());
 	}
 	history()->owner().registerHeavyViewPart(_parent);
@@ -277,8 +280,9 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	auto loaded = _dataMedia->loaded();
-	auto displayLoading = _data->displayLoading();
+	const auto preview = _data->extendedMediaPreview();
+	auto loaded = preview || _dataMedia->loaded();
+	auto displayLoading = !preview && _data->displayLoading();
 
 	auto inWebPage = (_parent->media() != this);
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -365,6 +369,8 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, sti->historyFileThumbRadialFg);
 		}
+	} else if (preview) {
+		paintPriceTag(p, rthumb);
 	}
 	if (showEnlarge) {
 		auto hq = PainterHighQualityEnabler(p);
@@ -395,6 +401,43 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
 	}
+}
+
+void Photo::paintPriceTag(Painter &p, QRect rthumb) const {
+	const auto media = parent()->data()->media();
+	const auto invoice = media ? media->invoice() : nullptr;
+	const auto price = invoice->isPaidMedia ? invoice->amount : 0;
+	if (!price) {
+		return;
+	}
+
+	auto text = Ui::Text::String();
+	text.setText(
+		st::semiboldTextStyle,
+		tr::lng_paid_price(
+			tr::now,
+			lt_price,
+			QChar(0x2B50) + Lang::FormatCountDecimal(invoice->amount)));
+	const auto width = text.maxWidth();
+	const auto inner = QRect(0, 0, width, text.minHeight());
+	const auto outer = inner.marginsAdded(st::paidTagPadding);
+	const auto size = outer.size();
+
+	auto hq = PainterHighQualityEnabler(p);
+	p.setBrush(st::toastBg);
+	p.setPen(Qt::NoPen);
+
+	const auto radius = std::min(size.width(), size.height()) / 2.;
+	const auto rect = QRect(
+		rthumb.x() + (rthumb.width() - size.width()) / 2,
+		rthumb.y() + (rthumb.height() - size.height()) / 2,
+		size.width(),
+		size.height());
+
+	p.drawRoundedRect(rect, radius, radius);
+	p.setPen(st::toastFg);
+
+	text.draw(p, rect.x() - outer.x(), rect.y() - outer.y(), width);
 }
 
 void Photo::validateUserpicImageCache(QSize size, bool forum) const {
@@ -604,6 +647,14 @@ QRect Photo::enlargeRect() const {
 	};
 }
 
+ClickHandlerPtr Photo::ensureExtendedMediaLink() const {
+	const auto item = parent()->data();
+	if (!_extendedMediaLink && item->isRegular()) {
+		_extendedMediaLink = MakePaidMediaLink(item);
+	}
+	return _extendedMediaLink;
+}
+
 TextState Photo::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 
@@ -617,7 +668,9 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
 		ensureDataMediaCreated();
-		result.link = (_spoiler && !_spoiler->revealed)
+		result.link = _data->extendedMediaPreview()
+			? ensureExtendedMediaLink()
+			: (_spoiler && !_spoiler->revealed)
 			? _spoiler->link
 			: _data->uploading()
 			? _cancell

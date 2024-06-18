@@ -149,7 +149,8 @@ private:
 			int from,
 			int till,
 			Fn<bool()> gifPaused,
-			Ui::SendFilesWay way);
+			Ui::SendFilesWay way,
+			Fn<bool()> canToggleSpoiler);
 		Block(Block &&other) = default;
 		Block &operator=(Block &&other) = default;
 
@@ -190,6 +191,11 @@ private:
 	void addMenuButton();
 	void applyBlockChanges();
 	void toggleSpoilers(bool enabled);
+	void changePrice();
+
+	[[nodiscard]] bool canChangePrice() const;
+	[[nodiscard]] bool hasPrice() const;
+	void refreshPriceTag();
 
 	bool validateLength(const QString &text) const;
 	void refreshButtons();
@@ -251,6 +257,8 @@ private:
 	SendFilesCheck _check;
 	SendFilesConfirmed _confirmedCallback;
 	Fn<void()> _cancelledCallback;
+	rpl::variable<uint64> _price = 0;
+	std::unique_ptr<Ui::RpWidget> _priceTag;
 	bool _confirmed = false;
 	bool _invertCaption = false;
 

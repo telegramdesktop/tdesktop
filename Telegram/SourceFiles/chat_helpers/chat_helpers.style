@@ -71,6 +71,7 @@ ComposeIcons {
 	menuSpoilerOff: icon;
 	menuBelow: icon;
 	menuAbove: icon;
+	menuPrice: icon;
 
 	stripBubble: icon;
 	stripExpandPanel: icon;
@@ -610,6 +611,7 @@ defaultComposeIcons: ComposeIcons {
 	menuSpoilerOff: menuIconSpoilerOff;
 	menuBelow: menuIconBelow;
 	menuAbove: menuIconAbove;
+	menuPrice: menuIconEarn;
 
 	stripBubble: icon{
 		{ "chat/reactions_bubble_shadow", windowShadowFg },
@@ -1406,3 +1408,15 @@ editTagField: InputField(defaultInputField) {
 editTagLimit: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
+
+paidStarIcon: icon {{ "settings/premium/star", creditsBg1 }};
+paidStarIconTop: 7px;
+paidAmountAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	textFg: windowSubTextFg;
+}
+paidTagLabel: FlatLabel(defaultFlatLabel) {
+	textFg: radialFg;
+	style: semiboldTextStyle;
+}
+paidTagPadding: margins(16px, 6px, 16px, 6px);

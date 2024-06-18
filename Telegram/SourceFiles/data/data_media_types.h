@@ -94,6 +94,7 @@ struct Invoice {
 	TextWithEntities description;
 	std::vector<std::unique_ptr<Media>> extendedMedia;
 	PhotoData *photo = nullptr;
+	bool isPaidMedia = false;
 	bool isTest = false;
 };
 [[nodiscard]] bool HasExtendedMedia(const Invoice &invoice);

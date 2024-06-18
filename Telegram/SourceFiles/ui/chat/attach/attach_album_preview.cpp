@@ -31,10 +31,12 @@ AlbumPreview::AlbumPreview(
 	QWidget *parent,
 	const style::ComposeControls &st,
 	gsl::span<Ui::PreparedFile> items,
-	SendFilesWay way)
+	SendFilesWay way,
+	Fn<bool()> canToggleSpoiler)
 : RpWidget(parent)
 , _st(st)
 , _sendWay(way)
+, _canToggleSpoiler(std::move(canToggleSpoiler))
 , _dragTimer([=] { switchToDrag(); }) {
 	setMouseTracking(true);
 	prepareThumbs(items);
@@ -573,7 +575,7 @@ void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 void AlbumPreview::showContextMenu(
 		not_null<AlbumThumbnail*> thumb,
 		QPoint position) {
-	if (!_sendWay.sendImagesAsPhotos()) {
+	if (!_canToggleSpoiler() || !_sendWay.sendImagesAsPhotos()) {
 		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(

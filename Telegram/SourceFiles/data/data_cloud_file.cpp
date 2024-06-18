@@ -170,6 +170,12 @@ void UpdateCloudFile(
 		if (data.progressivePartSize && !file.location.valid()) {
 			file.progressivePartSize = data.progressivePartSize;
 		}
+		if (data.location.width()
+			&& data.location.height()
+			&& !file.location.valid()
+			&& !file.location.width()) {
+			file.location = data.location;
+		}
 		return;
 	}
 

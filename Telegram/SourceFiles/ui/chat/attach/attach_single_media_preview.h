@@ -25,6 +25,7 @@ public:
 		const style::ComposeControls &st,
 		Fn<bool()> gifPaused,
 		const PreparedFile &file,
+		Fn<bool()> canToggleSpoiler,
 		AttachControls::Type type = AttachControls::Type::Full);
 
 	SingleMediaPreview(
@@ -36,7 +37,8 @@ public:
 		bool sticker,
 		bool spoiler,
 		const QString &animatedPreviewPath,
-		AttachControls::Type type);
+		AttachControls::Type type,
+		Fn<bool()> canToggleSpoiler);
 
 protected:
 	bool supportsSpoilers() const override;

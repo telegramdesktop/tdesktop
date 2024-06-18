@@ -678,6 +678,14 @@ FillMenuResult FillSendMenu(
 			}, details); },
 			above ? &icons.menuBelow : &icons.menuAbove);
 	}
+	if (details.price) {
+		menu->addAction(
+			((*details.price > 0)
+				? tr::lng_context_change_price(tr::now)
+				: tr::lng_context_make_paid(tr::now)),
+			[=] { action({ .type = ActionType::ChangePrice }, details); },
+			&icons.menuPrice);
+	}
 
 	using namespace HistoryView::Reactions;
 	const auto effect = std::make_shared<QPointer<EffectPreview>>();

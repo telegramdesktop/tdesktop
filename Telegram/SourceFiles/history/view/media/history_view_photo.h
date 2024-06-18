@@ -147,10 +147,13 @@ private:
 	[[nodiscard]] QSize photoSize() const;
 	[[nodiscard]] QRect enlargeRect() const;
 
+	void paintPriceTag(Painter &p, QRect rthumb) const;
+	[[nodiscard]] ClickHandlerPtr ensureExtendedMediaLink() const;
 	void togglePollingStory(bool enabled) const;
 
 	const not_null<PhotoData*> _data;
 	const FullStoryId _storyId;
+	mutable ClickHandlerPtr _extendedMediaLink;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	mutable std::unique_ptr<Streamed> _streamed;
 	const std::unique_ptr<MediaSpoiler> _spoiler;

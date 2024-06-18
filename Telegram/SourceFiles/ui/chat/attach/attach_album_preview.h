@@ -28,7 +28,8 @@ public:
 		QWidget *parent,
 		const style::ComposeControls &st,
 		gsl::span<Ui::PreparedFile> items,
-		SendFilesWay way);
+		SendFilesWay way,
+		Fn<bool()> canToggleSpoiler);
 	~AlbumPreview();
 
 	void setSendWay(SendFilesWay way);
@@ -92,6 +93,7 @@ private:
 
 	const style::ComposeControls &_st;
 	SendFilesWay _sendWay;
+	Fn<bool()> _canToggleSpoiler;
 	style::cursor _cursor = style::cur_default;
 	std::vector<int> _order;
 	std::vector<QSize> _itemsShownDimensions;

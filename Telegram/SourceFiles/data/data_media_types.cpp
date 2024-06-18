@@ -323,7 +323,7 @@ bool UpdateExtendedMedia(
 	auto changed = false;
 	const auto count = int(media.size());
 	for (auto i = 0; i != count; ++i) {
-		if (i < invoice.extendedMedia.size()) {
+		if (i <= invoice.extendedMedia.size()) {
 			invoice.extendedMedia.emplace_back();
 			changed = true;
 		}
@@ -388,6 +388,7 @@ Invoice ComputeInvoiceData(
 	auto result = Invoice{
 		.amount = data.vstars_amount().v,
 		.currency = Ui::kCreditsCurrency,
+		.isPaidMedia = true,
 	};
 	UpdateExtendedMedia(result, item, data.vextended_media().v);
 	return result;
@@ -1908,6 +1909,7 @@ MediaInvoice::MediaInvoice(
 	.title = data.title,
 	.description = data.description,
 	.photo = data.photo,
+	.isPaidMedia = data.isPaidMedia,
 	.isTest = data.isTest,
 } {
 	_invoice.extendedMedia.reserve(data.extendedMedia.size());

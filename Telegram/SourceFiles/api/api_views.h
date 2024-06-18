@@ -26,7 +26,7 @@ public:
 	void scheduleIncrement(not_null<HistoryItem*> item);
 	void removeIncremented(not_null<PeerData*> peer);
 
-	void pollExtendedMedia(not_null<HistoryItem*> item);
+	void pollExtendedMedia(not_null<HistoryItem*> item, bool force = false);
 
 private:
 	struct PollExtendedMediaRequest {
@@ -34,6 +34,7 @@ private:
 		mtpRequestId id = 0;
 		base::flat_set<MsgId> ids;
 		base::flat_set<MsgId> sent;
+		bool forced = false;
 	};
 
 	void viewsIncrement();

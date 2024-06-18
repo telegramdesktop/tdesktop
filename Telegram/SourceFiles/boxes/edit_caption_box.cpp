@@ -463,6 +463,7 @@ void EditCaptionBox::rebuildPreview() {
 			st::defaultComposeControls,
 			gifPaused,
 			file,
+			[] { return true; },
 			Ui::AttachControls::Type::EditOnly);
 		_isPhoto = (media && media->isPhoto());
 		const auto withCheckbox = _isPhoto && CanBeCompressed(_albumType);

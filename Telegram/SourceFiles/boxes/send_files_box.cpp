@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "storage/storage_media_prepare.h"
+#include "iv/iv_instance.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -36,9 +37,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_single_file_preview.h"
 #include "ui/chat/attach/attach_single_media_preview.h"
 #include "ui/grouped_layout.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
 #include "data/data_user.h"
@@ -58,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMaxMessageLength = 4096;
+constexpr auto kMaxPrice = 1000ULL;
 
 using Ui::SendFilesWay;
 
@@ -101,6 +105,74 @@ rpl::producer<QString> FieldPlaceholder(
 			way.sendImagesAsPhotos())
 		? tr::lng_photo_caption()
 		: tr::lng_photos_comment();
+}
+
+void EditPriceBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		uint64 price,
+		Fn<void(uint64)> apply) {
+	const auto owner = &session->data();
+	box->setTitle(tr::lng_paid_title());
+	AddSubsectionTitle(
+		box->verticalLayout(),
+		tr::lng_paid_enter_cost(),
+		(st::boxRowPadding - QMargins(
+			st::defaultSubsectionTitlePadding.left(),
+			0,
+			st::defaultSubsectionTitlePadding.right(),
+			0)));
+	const auto field = box->addRow(object_ptr<Ui::InputField>(
+		box,
+		st::editTagField,
+		tr::lng_paid_cost_placeholder(),
+		price ? QString::number(price) : QString()));
+	field->selectAll();
+	field->setMaxLength(QString::number(kMaxPrice).size());
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+	const auto about = box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_paid_about(
+				lt_link,
+				tr::lng_paid_about_link() | Ui::Text::ToLink(),
+				Ui::Text::WithEntities),
+			st::paidAmountAbout),
+		st::boxRowPadding + QMargins(0, st::sendMediaRowSkip, 0, 0));
+	about->setClickHandlerFilter([=](const auto &...) {
+		Core::App().iv().openWithIvPreferred(
+			session,
+			u"https://telegram.org/blog/telegram-stars"_q);
+		return false;
+	});
+
+	field->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(field);
+		st::paidStarIcon.paint(p, 0, st::paidStarIconTop, field->width());
+	}, field->lifetime());
+
+	const auto save = [=] {
+		const auto now = field->getLastText().toULongLong();
+		if (now > kMaxPrice) {
+			field->showError();
+			return;
+		}
+		const auto weak = Ui::MakeWeak(box);
+		apply(now);
+		if (const auto strong = weak.data()) {
+			strong->closeBox();
+		}
+	};
+
+	field->submits(
+	) | rpl::start_with_next(save, field->lifetime());
+
+	box->addButton(tr::lng_settings_save(), save);
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
 }
 
 } // namespace
@@ -153,7 +225,8 @@ SendFilesBox::Block::Block(
 	int from,
 	int till,
 	Fn<bool()> gifPaused,
-	SendFilesWay way)
+	SendFilesWay way,
+	Fn<bool()> canToggleSpoiler)
 : _items(items)
 , _from(from)
 , _till(till) {
@@ -170,14 +243,16 @@ SendFilesBox::Block::Block(
 			parent.get(),
 			st,
 			my,
-			way);
+			way,
+			std::move(canToggleSpoiler));
 		_preview.reset(preview);
 	} else {
 		const auto media = Ui::SingleMediaPreview::Create(
 			parent,
 			st,
 			gifPaused,
-			first);
+			first,
+			std::move(canToggleSpoiler));
 		if (media) {
 			_isSingleMedia = true;
 			_preview.reset(media);
@@ -385,6 +460,9 @@ Fn<SendMenu::Details()> SendFilesBox::prepareSendMenuDetails(
 			: _invertCaption
 			? SendMenu::CaptionState::Above
 			: SendMenu::CaptionState::Below;
+		result.price = canChangePrice()
+			? _price.current()
+			: std::optional<uint64>();
 		return result;
 	});
 }
@@ -398,6 +476,7 @@ auto SendFilesBox::prepareSendMenuCallback()
 		case Type::CaptionUp: _invertCaption = true; break;
 		case Type::SpoilerOn: toggleSpoilers(true); break;
 		case Type::SpoilerOff: toggleSpoilers(false); break;
+		case Type::ChangePrice: changePrice(); break;
 		default:
 			SendMenu::DefaultCallback(
 				_show,
@@ -588,14 +667,22 @@ void SendFilesBox::refreshButtons() {
 	addMenuButton();
 }
 
-bool SendFilesBox::hasSendMenu(const SendMenu::Details &details) const {
+bool SendFilesBox::hasSendMenu(const MenuDetails &details) const {
 	return (details.type != SendMenu::Type::Disabled)
 		|| (details.spoiler != SendMenu::SpoilerState::None)
 		|| (details.caption != SendMenu::CaptionState::None);
 }
 
 bool SendFilesBox::hasSpoilerMenu() const {
-	return _list.hasSpoilerMenu(_sendWay.current().sendImagesAsPhotos());
+	return !hasPrice()
+		&& _list.hasSpoilerMenu(_sendWay.current().sendImagesAsPhotos());
+}
+
+bool SendFilesBox::canChangePrice() const {
+	const auto way = _sendWay.current();
+	return _list.canChangePrice(
+		way.groupFiles() && way.sendImagesAsPhotos(),
+		way.sendImagesAsPhotos());
 }
 
 void SendFilesBox::applyBlockChanges() {
@@ -615,6 +702,71 @@ void SendFilesBox::toggleSpoilers(bool enabled) {
 	}
 	for (auto &block : _blocks) {
 		block.toggleSpoilers(enabled);
+	}
+}
+
+void SendFilesBox::changePrice() {
+	const auto weak = Ui::MakeWeak(this);
+	const auto session = &_show->session();
+	const auto now = _price.current();
+	_show->show(Box(EditPriceBox, session, now, [=](uint64 price) {
+		if (weak && price != now) {
+			_price = price;
+			refreshPriceTag();
+		}
+	}));
+}
+
+bool SendFilesBox::hasPrice() const {
+	return canChangePrice() && _price.current() > 0;
+}
+
+void SendFilesBox::refreshPriceTag() {
+	const auto resetSpoilers = hasPrice() || _priceTag;
+	if (resetSpoilers) {
+		for (auto &file : _list.files) {
+			file.spoiler = false;
+		}
+		for (auto &block : _blocks) {
+			block.toggleSpoilers(hasPrice());
+		}
+	}
+	if (!hasPrice()) {
+		_priceTag = nullptr;
+	} else if (!_priceTag) {
+		_priceTag = std::make_unique<Ui::RpWidget>(_inner.data());
+		const auto raw = _priceTag.get();
+
+		raw->show();
+		raw->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(raw);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setBrush(st::toastBg);
+			p.setPen(Qt::NoPen);
+			const auto radius = std::min(raw->width(), raw->height()) / 2.;
+			p.drawRoundedRect(raw->rect(), radius, radius);
+		}, raw->lifetime());
+
+		auto price = _price.value() | rpl::map([=](uint64 amount) {
+			return QChar(0x2B50) + Lang::FormatCountDecimal(amount);
+		});
+		const auto label = Ui::CreateChild<Ui::FlatLabel>(
+			raw,
+			tr::lng_paid_price(lt_price, std::move(price)),
+			st::paidTagLabel);
+		label->sizeValue() | rpl::start_with_next([=](QSize size) {
+			const auto inner = QRect(QPoint(), size);
+			const auto rect = inner.marginsAdded(st::paidTagPadding);
+			raw->resize(rect.size());
+			label->move(-rect.topLeft());
+		}, label->lifetime());
+		_inner->sizeValue() | rpl::start_with_next([=](QSize size) {
+			raw->move(
+				(size.width() - raw->width()) / 2,
+				(size.height() - raw->height()) / 2);
+		}, raw->lifetime());
+	} else {
+		_priceTag->raise();
 	}
 }
 
@@ -766,7 +918,8 @@ void SendFilesBox::pushBlock(int from, int till) {
 		from,
 		till,
 		gifPaused,
-		_sendWay.current());
+		_sendWay.current(),
+		[=] { return !hasPrice(); });
 	auto &block = _blocks.back();
 	const auto widget = _inner->add(
 		block.takeWidget(),
@@ -893,6 +1046,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 
 void SendFilesBox::refreshControls(bool initial) {
 	refreshButtons();
+	refreshPriceTag();
 	refreshTitleText();
 	updateSendWayControls();
 	updateCaptionPlaceholder();
@@ -1447,6 +1601,7 @@ void SendFilesBox::send(
 		auto child = _sendMenuDetails();
 		child.spoiler = SendMenu::SpoilerState::None;
 		child.caption = SendMenu::CaptionState::None;
+		child.price = std::nullopt;
 		return SendMenu::DefaultCallback(_show, sendCallback())(
 			{ .type = SendMenu::ActionType::Schedule },
 			child);
@@ -1475,6 +1630,7 @@ void SendFilesBox::send(
 			? _caption->getTextWithAppliedMarkdown()
 			: TextWithTags();
 		options.invertCaption = _invertCaption;
+		options.price = hasPrice() ? _price.current() : 0;
 		if (!validateLength(caption.text)) {
 			return;
 		}

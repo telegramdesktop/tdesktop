@@ -26,7 +26,8 @@ public:
 	AbstractSingleMediaPreview(
 		QWidget *parent,
 		const style::ComposeControls &st,
-		AttachControls::Type type);
+		AttachControls::Type type,
+		Fn<bool()> canToggleSpoiler);
 	~AbstractSingleMediaPreview();
 
 	void setSendWay(SendFilesWay way);
@@ -71,6 +72,7 @@ private:
 
 	const style::ComposeControls &_st;
 	SendFilesWay _sendWay;
+	Fn<bool()> _canToggleSpoiler;
 	bool _animated = false;
 	QPixmap _preview;
 	QPixmap _previewBlurred;

@@ -7,9 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media_common.h"
 
+#include "api/api_views.h"
+#include "apiwrap.h"
 #include "ui/text/format_values.h"
 #include "ui/painter.h"
+#include "core/click_handler_types.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "data/data_wall_paper.h"
 #include "data/data_media_types.h"
 #include "history/view/history_view_element.h"
@@ -19,7 +23,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_document.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_theme_document.h"
+#include "history/history_item.h"
+#include "history/history.h"
+#include "main/main_session.h"
+#include "mainwindow.h"
 #include "media/streaming/media_streaming_utility.h"
+#include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -178,6 +189,36 @@ QSize CountPhotoMediaSize(
 		? media
 		: NonEmptySize(
 			media.scaled(media.width(), newWidth, Qt::KeepAspectRatio));
+}
+
+ClickHandlerPtr MakePaidMediaLink(not_null<HistoryItem*> item) {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		const auto controller = my.sessionWindow.get();
+		const auto itemId = item->fullId();
+		const auto session = &item->history()->session();
+		using Result = Payments::CheckoutResult;
+		const auto done = crl::guard(session, [=](Result result) {
+			if (result != Result::Paid) {
+				return;
+			} else if (const auto item = session->data().message(itemId)) {
+				session->api().views().pollExtendedMedia(item, true);
+			}
+		});
+		Payments::CheckoutProcess::Start(
+			item,
+			Payments::Mode::Payment,
+			(controller
+				? crl::guard(
+					controller,
+					[=](auto) { controller->widget()->activate(); })
+				: Fn<void(Payments::CheckoutResult)>()),
+			((controller && Payments::IsCreditsInvoice(item))
+				? Payments::ProcessNonPanelPaymentFormFactory(
+					controller,
+					done)
+				: nullptr));
+	});
 }
 
 } // namespace HistoryView
