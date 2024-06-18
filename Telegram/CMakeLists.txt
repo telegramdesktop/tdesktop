@@ -727,8 +727,6 @@ PRIVATE
     history/view/media/history_view_dice.h
     history/view/media/history_view_document.cpp
     history/view/media/history_view_document.h
-    history/view/media/history_view_extended_preview.cpp
-    history/view/media/history_view_extended_preview.h
     history/view/media/history_view_file.cpp
     history/view/media/history_view_file.h
     history/view/media/history_view_game.cpp

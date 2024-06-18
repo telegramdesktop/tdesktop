@@ -84,19 +84,6 @@ struct Call {
 
 };
 
-struct ExtendedPreview {
-	QByteArray inlineThumbnailBytes;
-	QSize dimensions;
-	TimeId videoDuration = -1;
-
-	[[nodiscard]] bool empty() const {
-		return dimensions.isEmpty();
-	}
-	explicit operator bool() const {
-		return !empty();
-	}
-};
-
 class Media;
 
 struct Invoice {
@@ -105,11 +92,12 @@ struct Invoice {
 	QString currency;
 	QString title;
 	TextWithEntities description;
-	ExtendedPreview extendedPreview;
-	std::unique_ptr<Media> extendedMedia;
+	std::vector<std::unique_ptr<Media>> extendedMedia;
 	PhotoData *photo = nullptr;
 	bool isTest = false;
 };
+[[nodiscard]] bool HasExtendedMedia(const Invoice &invoice);
+[[nodiscard]] bool HasUnpaidMedia(const Invoice &invoice);
 
 struct GiveawayStart {
 	std::vector<not_null<ChannelData*>> channels;
@@ -207,7 +195,7 @@ public:
 	virtual bool updateSentMedia(const MTPMessageMedia &media) = 0;
 	virtual bool updateExtendedMedia(
 			not_null<HistoryItem*> item,
-			const MTPMessageExtendedMedia &media) {
+			const QVector<MTPMessageExtendedMedia> &media) {
 		return false;
 	}
 	virtual std::unique_ptr<HistoryView::Media> createView(
@@ -524,7 +512,7 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	bool updateExtendedMedia(
 		not_null<HistoryItem*> item,
-		const MTPMessageExtendedMedia &media) override;
+		const QVector<MTPMessageExtendedMedia> &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -750,6 +738,9 @@ private:
 [[nodiscard]] Invoice ComputeInvoiceData(
 	not_null<HistoryItem*> item,
 	const MTPDmessageMediaInvoice &data);
+[[nodiscard]] Invoice ComputeInvoiceData(
+	not_null<HistoryItem*> item,
+	const MTPDmessageMediaPaidMedia &data);
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);
 

@@ -182,6 +182,18 @@ struct Invoice {
 	int32 receiptMsgId = 0;
 };
 
+struct Media;
+struct PaidMedia {
+	PaidMedia() = default;
+	PaidMedia(PaidMedia &&) = default;
+	PaidMedia &operator=(PaidMedia &&) = default;
+	PaidMedia(const PaidMedia &) = delete;
+	PaidMedia &operator=(const PaidMedia &) = delete;
+
+	uint64 stars = 0;
+	std::vector<std::unique_ptr<Media>> extended;
+};
+
 struct Poll {
 	struct Answer {
 		Utf8String text;
@@ -337,6 +349,7 @@ struct Media {
 		Invoice,
 		Poll,
 		GiveawayStart,
+		PaidMedia,
 		UnsupportedMedia> content;
 	TimeId ttl = 0;
 

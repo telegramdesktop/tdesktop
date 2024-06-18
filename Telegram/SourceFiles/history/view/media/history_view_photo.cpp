@@ -219,10 +219,14 @@ QSize Photo::countCurrentSize(int newWidth) {
 			: st::minPhotoSize),
 		thumbMaxWidth);
 	const auto dimensions = photoSize();
-	auto pix = CountPhotoMediaSize(
-		CountDesiredMediaSize(dimensions),
-		newWidth,
-		maxWidth());
+	auto pix = _data->extendedMediaVideoDuration()
+		? CountMediaSize(
+			CountDesiredMediaSize(dimensions),
+			newWidth)
+		: CountPhotoMediaSize(
+			CountDesiredMediaSize(dimensions),
+			newWidth,
+			maxWidth());
 	newWidth = qMax(pix.width(), minWidth);
 	auto newHeight = qMax(pix.height(), st::minPhotoSize);
 	if (_parent->hasBubble()) {

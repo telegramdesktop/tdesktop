@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_media_types.h"
 
+#include "base/random.h"
 #include "history/history.h"
 #include "history/history_item.h" // CreateMedia.
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
-#include "history/view/media/history_view_extended_preview.h"
 #include "history/view/media/history_view_photo.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_gif.h"
@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_giveaway.h"
 #include "history/view/media/history_view_invoice.h"
 #include "history/view/media/history_view_media_generic.h"
+#include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_call.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/media/history_view_poll.h"
@@ -261,46 +262,78 @@ template <typename MediaType>
 }
 
 bool UpdateExtendedMedia(
-		Invoice &invoice,
+		std::unique_ptr<Media> &media,
 		not_null<HistoryItem*> item,
-		const MTPMessageExtendedMedia &media) {
-	return media.match([&](const MTPDmessageExtendedMediaPreview &data) {
-		if (invoice.extendedMedia) {
-			return false;
+		const MTPMessageExtendedMedia &extended) {
+	return extended.match([&](const MTPDmessageExtendedMediaPreview &data) {
+		auto photo = (PhotoData*)nullptr;
+		if (!media) {
+			const auto id = base::RandomValue<PhotoId>();
+			photo = item->history()->owner().photo(id);
+		} else {
+			photo = media->photo();
+			if (!photo || !photo->extendedMediaPreview()) {
+				return false;
+			}
 		}
+
 		auto changed = false;
-		auto &preview = invoice.extendedPreview;
+		auto size = QSize();
+		auto thumbnail = QByteArray();
+		auto videoDuration = TimeId();
 		if (const auto &w = data.vw()) {
 			const auto &h = data.vh();
 			Assert(h.has_value());
-			const auto dimensions = QSize(w->v, h->v);
-			if (preview.dimensions != dimensions) {
-				preview.dimensions = dimensions;
+			size = QSize(w->v, h->v);
+			if (!changed && photo->size(PhotoSize::Large) != size) {
 				changed = true;
 			}
 		}
 		if (const auto &thumb = data.vthumb()) {
 			if (thumb->type() == mtpc_photoStrippedSize) {
-				const auto bytes = thumb->c_photoStrippedSize().vbytes().v;
-				if (preview.inlineThumbnailBytes != bytes) {
-					preview.inlineThumbnailBytes = bytes;
+				thumbnail = thumb->c_photoStrippedSize().vbytes().v;
+				if (!changed && photo->inlineThumbnailBytes() != thumbnail) {
 					changed = true;
 				}
 			}
 		}
 		if (const auto &duration = data.vvideo_duration()) {
-			if (preview.videoDuration != duration->v) {
-				preview.videoDuration = duration->v;
+			videoDuration = duration->v;
+			if (photo->extendedMediaVideoDuration() != videoDuration) {
 				changed = true;
 			}
 		}
+		if (changed) {
+			photo->setExtendedMediaPreview(size, thumbnail, videoDuration);
+		}
+		if (!media) {
+			media = std::make_unique<MediaPhoto>(item, photo, true);
+		}
 		return changed;
 	}, [&](const MTPDmessageExtendedMedia &data) {
-		invoice.extendedMedia = HistoryItem::CreateMedia(
-			item,
-			data.vmedia());
+		media = HistoryItem::CreateMedia(item, data.vmedia());
 		return true;
 	});
+}
+
+bool UpdateExtendedMedia(
+		Invoice &invoice,
+		not_null<HistoryItem*> item,
+		const QVector<MTPMessageExtendedMedia> &media) {
+	auto changed = false;
+	const auto count = int(media.size());
+	for (auto i = 0; i != count; ++i) {
+		if (i < invoice.extendedMedia.size()) {
+			invoice.extendedMedia.emplace_back();
+			changed = true;
+		}
+		UpdateExtendedMedia(invoice.extendedMedia[i], item, media[i]);
+	}
+	if (count < invoice.extendedMedia.size()) {
+		invoice.extendedMedia.resize(count);
+		changed = true;
+	}
+	return changed;
 }
 
 TextForMimeData WithCaptionClipboardText(
@@ -344,8 +377,19 @@ Invoice ComputeInvoiceData(
 		.isTest = data.is_test(),
 	};
 	if (const auto &media = data.vextended_media()) {
-		UpdateExtendedMedia(result, item, *media);
+		UpdateExtendedMedia(result, item, { *media });
 	}
+	return result;
+}
+
+Invoice ComputeInvoiceData(
+		not_null<HistoryItem*> item,
+		const MTPDmessageMediaPaidMedia &data) {
+	auto result = Invoice{
+		.amount = data.vstars_amount().v,
+		.currency = Ui::kCreditsCurrency,
+	};
+	UpdateExtendedMedia(result, item, data.vextended_media().v);
 	return result;
 }
 
@@ -422,6 +466,18 @@ GiveawayResults ComputeGiveawayResultsData(
 		result.additionalPrize = qs(*additional);
 	}
 	return result;
+}
+
+bool HasExtendedMedia(const Invoice &invoice) {
+	return !invoice.extendedMedia.empty();
+}
+
+bool HasUnpaidMedia(const Invoice &invoice) {
+	for (const auto &media : invoice.extendedMedia) {
+		const auto photo = media->photo();
+		return photo && photo->extendedMediaPreview();
+	}
+	return false;
 }
 
 Media::Media(not_null<HistoryItem*> parent) : _parent(parent) {
@@ -1851,14 +1907,14 @@ MediaInvoice::MediaInvoice(
 	.currency = data.currency,
 	.title = data.title,
 	.description = data.description,
-	.extendedPreview = data.extendedPreview,
-	.extendedMedia = (data.extendedMedia
-		? data.extendedMedia->clone(parent)
-		: nullptr),
 	.photo = data.photo,
 	.isTest = data.isTest,
 } {
-	if (_invoice.extendedPreview && !_invoice.extendedMedia) {
+	_invoice.extendedMedia.reserve(data.extendedMedia.size());
+	for (auto &item : data.extendedMedia) {
+		_invoice.extendedMedia.push_back(item->clone(parent));
+	}
+	if (HasUnpaidMedia(_invoice)) {
 		Ui::PreloadImageSpoiler();
 	}
 }
@@ -1917,7 +1973,7 @@ bool MediaInvoice::updateSentMedia(const MTPMessageMedia &media) {
 
 bool MediaInvoice::updateExtendedMedia(
 		not_null<HistoryItem*> item,
-		const MTPMessageExtendedMedia &media) {
+		const QVector<MTPMessageExtendedMedia> &media) {
 	Expects(item == parent());
 
 	return UpdateExtendedMedia(_invoice, item, media);
@@ -1927,15 +1983,15 @@ std::unique_ptr<HistoryView::Media> MediaInvoice::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	if (_invoice.extendedMedia) {
-		return _invoice.extendedMedia->createView(
+	if (_invoice.extendedMedia.size() == 1) {
+		return _invoice.extendedMedia.front()->createView(
 			message,
 			realParent,
 			replacing);
-	} else if (_invoice.extendedPreview) {
-		return std::make_unique<HistoryView::ExtendedPreview>(
+	} else if (!_invoice.extendedMedia.empty()) {
+		return std::make_unique<HistoryView::GroupedMedia>(
 			message,
-			&_invoice);
+			_invoice.extendedMedia);
 	}
 	return std::make_unique<HistoryView::Invoice>(message, &_invoice);
 }

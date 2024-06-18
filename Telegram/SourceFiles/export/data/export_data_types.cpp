@@ -666,6 +666,28 @@ Invoice ParseInvoice(const MTPDmessageMediaInvoice &data) {
 	return result;
 }
 
+PaidMedia ParsePaidMedia(
+		ParseMediaContext &context,
+		const MTPDmessageMediaPaidMedia &data,
+		const QString &folder,
+		TimeId date) {
+	auto result = PaidMedia();
+	result.stars = data.vstars_amount().v;
+	result.extended.reserve(data.vextended_media().v.size());
+	for (const auto &extended : data.vextended_media().v) {
+		result.extended.push_back(extended.match([](
+			const MTPDmessageExtendedMediaPreview &)
+		-> std::unique_ptr<Media> {
+			return std::unique_ptr<Media>();
+		}, [&](const MTPDmessageExtendedMedia &data)
+		-> std::unique_ptr<Media> {
+			return std::make_unique<Media>(
+				ParseMedia(context, data.vmedia(), folder, date));
+		}));
+	}
+	return result;
+}
+
 Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 	auto result = Poll();
 	data.vpoll().match([&](const MTPDpoll &poll) {
@@ -1225,6 +1247,8 @@ Media ParseMedia(
 		result.content = ParseGiveaway(data);
 	}, [&](const MTPDmessageMediaGiveawayResults &data) {
 		// #TODO export giveaway
+	}, [&](const MTPDmessageMediaPaidMedia &data) {
+		result.content = ParsePaidMedia(context, data, folder, date);
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }

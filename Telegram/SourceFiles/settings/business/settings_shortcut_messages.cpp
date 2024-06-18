@@ -968,7 +968,7 @@ CopyRestrictionType ShortcutMessages::listCopyMediaRestrictionType(
 		not_null<HistoryItem*> item) {
 	if (const auto media = item->media()) {
 		if (const auto invoice = media->invoice()) {
-			if (invoice->extendedMedia) {
+			if (!invoice->extendedMedia.empty()) {
 				return CopyMediaRestrictionTypeFor(_history->peer, item);
 			}
 		}

@@ -1362,7 +1362,7 @@ void OverlayWidget::updateControls() {
 		if (_message) {
 			return ItemDateTime(_message);
 		} else if (_photo) {
-			return base::unixtime::parse(_photo->date);
+			return base::unixtime::parse(_photo->date());
 		} else if (_document) {
 			return base::unixtime::parse(_document->date);
 		}
@@ -2436,7 +2436,7 @@ void OverlayWidget::saveAs() {
 					u".mp4"_q,
 					QString(),
 					false,
-					_photo->date),
+					_photo->date()),
 				crl::guard(_window, [=](const QString &result) {
 					QFile f(result);
 					if (!result.isEmpty()
@@ -2467,7 +2467,7 @@ void OverlayWidget::saveAs() {
 				u".jpg"_q,
 				QString(),
 				false,
-				_photo->date),
+				_photo->date()),
 			crl::guard(_window, [=](const QString &result) {
 				if (!result.isEmpty() && _photo == photo) {
 					media->saveToFile(result);

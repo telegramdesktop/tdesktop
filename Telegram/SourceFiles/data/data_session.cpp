@@ -3077,8 +3077,7 @@ void Session::photoApplyFields(
 		return;
 	}
 	photo->setRemoteLocation(dc, access, fileReference);
-	photo->date = date;
-	photo->setHasAttachedStickers(hasStickers);
+	photo->setFields(date, hasStickers);
 	photo->updateImages(
 		inlineThumbnailBytes,
 		small,

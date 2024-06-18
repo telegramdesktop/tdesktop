@@ -1696,7 +1696,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto peerId = peerFromMTP(d.vpeer());
 		const auto msgId = d.vmsg_id().v;
 		if (const auto item = session().data().message(peerId, msgId)) {
-			item->applyEdition(d.vextended_media());
+			item->applyEdition(d.vextended_media().v);
 		}
 	} break;
 

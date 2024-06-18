@@ -2092,6 +2092,9 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		result.status = Data::FormatMoneyAmount(data.amount, data.currency);
 	}, [](const Poll &data) {
 	}, [](const GiveawayStart &data) {
+	}, [&](const PaidMedia &data) {
+		result.classes = "media_invoice";
+		result.status = Data::FormatMoneyAmount(data.stars, "XTR");
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
 	}, [](v::null_t) {});

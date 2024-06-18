@@ -326,7 +326,7 @@ public:
 	[[nodiscard]] int repliesCount() const;
 	[[nodiscard]] bool repliesAreComments() const;
 	[[nodiscard]] bool externalReply() const;
-	[[nodiscard]] bool hasExtendedMediaPreview() const;
+	[[nodiscard]] bool hasUnpaidContent() const;
 	[[nodiscard]] bool inHighlightProcess() const;
 	void highlightProcessDone();
 
@@ -345,7 +345,7 @@ public:
 	void applyChanges(not_null<Data::Story*> story);
 
 	void applyEdition(const MTPDmessageService &message);
-	void applyEdition(const MTPMessageExtendedMedia &media);
+	void applyEdition(const QVector<MTPMessageExtendedMedia> &media);
 	void updateForwardedInfo(const MTPMessageFwdHeader *fwd);
 	void updateSentContent(
 		const TextWithEntities &textWithEntities,
