@@ -1,6 +1,6 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set QT = "6.7.1" -%}
+{%- set QT = "6.7.2" -%}
 {%- set QT_TAG = "v" ~ QT -%}
 {%- set CMAKE_VER = "3.27.6" -%}
 {%- set CMAKE_FILE = "cmake-" ~ CMAKE_VER ~ "-Linux-x86_64.sh" -%}
@@ -51,7 +51,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 8639205c2095a3f015449f8995fbfe16405218b8 \
+	&& git fetch --depth=1 origin 20a7c5ffd8265fc6e45203ea2536f7b1965be19a \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
