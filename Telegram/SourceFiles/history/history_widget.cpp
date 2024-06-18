@@ -378,11 +378,10 @@ HistoryWidget::HistoryWidget(
 		_field->setEnabled(shown);
 	}, _field->lifetime());
 #endif // Q_OS_MAC
-	connect(
-		controller->widget()->windowHandle(),
-		&QWindow::visibleChanged,
-		this,
-		[=] { windowIsVisibleChanged(); });
+	controller->widget()->shownValue(
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		windowIsVisibleChanged();
+	}, lifetime());
 
 	initTabbedSelector();
 
