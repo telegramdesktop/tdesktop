@@ -459,12 +459,6 @@ void MainWindow::init() {
 
 	initHook();
 
-	connect(
-		windowHandle(),
-		&QWindow::windowStateChanged,
-		this,
-		[=](Qt::WindowState state) { handleStateChanged(state); });
-
 	updatePalette();
 
 	if (Ui::Platform::NativeWindowFrameSupported()) {

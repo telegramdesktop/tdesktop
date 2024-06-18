@@ -504,6 +504,22 @@ OverlayWidget::OverlayWidget()
 			if (handleContextMenu(position)) {
 				return base::EventFilterResult::Cancel;
 			}
+		} else if (e->type() == QEvent::WindowStateChange) {
+			const auto state = _window->windowState();
+			if (state & Qt::WindowMinimized || Platform::IsMac()) {
+			} else if (state & Qt::WindowMaximized) {
+				if (_fullscreen || _windowed) {
+					_fullscreen = _windowed = false;
+					savePosition();
+				}
+			} else if (_fullscreen || _windowed) {
+			} else if (state & Qt::WindowFullScreen) {
+				_fullscreen = true;
+				savePosition();
+			} else {
+				_windowed = true;
+				savePosition();
+			}
 		}
 		return base::EventFilterResult::Continue;
 	});
@@ -732,29 +748,6 @@ void OverlayWidget::setupWindow() {
 		}
 		return Flag::Move | Flag(0);
 	});
-
-	const auto callback = [=](Qt::WindowState state) {
-		if (state == Qt::WindowMinimized || Platform::IsMac()) {
-			return;
-		} else if (state == Qt::WindowMaximized) {
-			if (_fullscreen || _windowed) {
-				_fullscreen = _windowed = false;
-				savePosition();
-			}
-		} else if (_fullscreen || _windowed) {
-			return;
-		} else if (state == Qt::WindowFullScreen) {
-			_fullscreen = true;
-			savePosition();
-		} else {
-			_windowed = true;
-			savePosition();
-		}
-	};
-	QObject::connect(
-		_window->windowHandle(),
-		&QWindow::windowStateChanged,
-		callback);
 
 	_window->setAttribute(Qt::WA_NoSystemBackground, true);
 	_window->setAttribute(Qt::WA_TranslucentBackground, true);
@@ -3245,7 +3238,7 @@ bool OverlayWidget::isHidden() const {
 }
 
 bool OverlayWidget::isMinimized() const {
-	return _window->windowHandle()->windowState() == Qt::WindowMinimized;
+	return _window->isMinimized();
 }
 
 bool OverlayWidget::isFullScreen() const {
