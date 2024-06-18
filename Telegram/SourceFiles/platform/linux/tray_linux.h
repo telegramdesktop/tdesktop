@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 
+namespace base::Platform::DBus {
+class ServiceWatcher;
+} // namespace base::Platform::DBus
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
@@ -51,6 +55,7 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	std::unique_ptr<base::Platform::DBus::ServiceWatcher> _sniWatcher;
 	std::unique_ptr<IconGraphic> _iconGraphic;
 
 	base::unique_qptr<QSystemTrayIcon> _icon;
