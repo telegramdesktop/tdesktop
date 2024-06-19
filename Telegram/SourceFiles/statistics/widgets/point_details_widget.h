@@ -47,7 +47,7 @@ private:
 	const style::TextStyle &_textStyle;
 	const style::TextStyle &_headerStyle;
 	Ui::Text::String _header;
-	const style::icon *_valueIcon = nullptr;
+	QImage _valueIcon;
 
 	void invalidateCache();
 
