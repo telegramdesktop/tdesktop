@@ -94,7 +94,7 @@ public:
 	void setExtendedMediaPreview(
 		QSize dimensions,
 		const QByteArray &inlineThumbnailBytes,
-		TimeId videoDuration);
+		std::optional<TimeId> videoDuration);
 	[[nodiscard]] bool extendedMediaPreview() const;
 	[[nodiscard]] std::optional<TimeId> extendedMediaVideoDuration() const;
 

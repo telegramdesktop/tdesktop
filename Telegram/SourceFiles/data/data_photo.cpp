@@ -59,7 +59,7 @@ void PhotoData::setFields(TimeId date, bool hasAttachedStickers) {
 void PhotoData::setExtendedMediaPreview(
 		QSize dimensions,
 		const QByteArray &inlineThumbnailBytes,
-		TimeId videoDuration) {
+		std::optional<TimeId> videoDuration) {
 	_extendedMediaPreview = true;
 	updateImages(
 		inlineThumbnailBytes,
@@ -69,7 +69,7 @@ void PhotoData::setExtendedMediaPreview(
 		{},
 		{},
 		{});
-	_dateOrExtendedVideoDuration = videoDuration + 1;
+	_dateOrExtendedVideoDuration = videoDuration ? (*videoDuration + 1) : 0;
 }
 
 bool PhotoData::extendedMediaPreview() const {

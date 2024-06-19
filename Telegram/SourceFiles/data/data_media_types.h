@@ -99,6 +99,7 @@ struct Invoice {
 };
 [[nodiscard]] bool HasExtendedMedia(const Invoice &invoice);
 [[nodiscard]] bool HasUnpaidMedia(const Invoice &invoice);
+[[nodiscard]] bool IsFirstVideo(const Invoice &invoice);
 
 struct GiveawayStart {
 	std::vector<not_null<ChannelData*>> channels;
@@ -506,6 +507,7 @@ public:
 	Image *replyPreview() const override;
 	bool replyPreviewLoaded() const override;
 	TextWithEntities notificationText() const override;
+	ItemPreview toPreview(ToPreviewOptions way) const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
 

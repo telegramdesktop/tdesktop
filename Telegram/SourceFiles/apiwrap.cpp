@@ -4214,11 +4214,18 @@ void ApiWrap::sendMediaWithRandomId(
 
 void ApiWrap::sendMultiPaidMedia(
 		not_null<HistoryItem*> item,
-		const QVector<MTPInputMedia> &medias,
-		Api::SendOptions options,
-		uint64 randomId,
+		not_null<SendingAlbum*> album,
 		Fn<void(bool)> done) {
-	Expects(options.price > 0);
+	Expects(album->options.price > 0);
+
+	const auto groupId = album->groupId;
+	const auto &options = album->options;
+	const auto randomId = album->items.front().randomId;
+	auto medias = album->items | ranges::view::transform([](
+			const SendingAlbum::Item &part) {
+		Assert(part.media.has_value());
+		return MTPInputMedia(part.media->data().vmedia());
+	}) | ranges::to<QVector<MTPInputMedia>>();
 
 	const auto history = item->history();
 	const auto replyTo = item->replyTo();
@@ -4256,7 +4263,7 @@ void ApiWrap::sendMultiPaidMedia(
 			Data::Histories::ReplyToPlaceholder(),
 			MTP_inputMediaPaidMedia(
 				MTP_long(options.price),
-				MTP_vector<MTPInputMedia>(medias)),
+				MTP_vector<MTPInputMedia>(std::move(medias))),
 			MTP_string(caption.text),
 			MTP_long(randomId),
 			MTPReplyMarkup(),
@@ -4266,6 +4273,14 @@ void ApiWrap::sendMultiPaidMedia(
 			Data::ShortcutIdToMTP(_session, options.shortcutId),
 			MTP_long(options.effectId)
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		if (const auto album = _sendingAlbums.take(groupId)) {
+			const auto copy = (*album)->items;
+			for (const auto &part : copy) {
+				if (const auto item = history->owner().message(part.msgId)) {
+					item->destroy();
+				}
+			}
+		}
 		if (done) done(true);
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		if (done) done(false);
@@ -4326,24 +4341,14 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 	if (!sample) {
 		_sendingAlbums.remove(groupId);
 		return;
+	} else if (album->options.price > 0) {
+		sendMultiPaidMedia(sample, album);
+		return;
 	} else if (medias.size() < 2) {
 		const auto &single = medias.front().data();
 		sendMediaWithRandomId(
 			sample,
 			single.vmedia(),
-			album->options,
-			single.vrandom_id().v);
-		_sendingAlbums.remove(groupId);
-		return;
-	} else if (album->options.price > 0) {
-		const auto &single = medias.front().data();
-		auto list = medias | ranges::view::transform([](
-				const MTPInputSingleMedia &media) {
-			return MTPInputMedia(media.data().vmedia());
-		}) | ranges::to<QVector<MTPInputMedia>>();
-		sendMultiPaidMedia(
-			sample,
-			std::move(list),
 			album->options,
 			single.vrandom_id().v);
 		_sendingAlbums.remove(groupId);

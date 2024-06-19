@@ -547,9 +547,7 @@ private:
 		Fn<void(bool)> done = nullptr);
 	void sendMultiPaidMedia(
 		not_null<HistoryItem*> item,
-		const QVector<MTPInputMedia> &medias,
-		Api::SendOptions options,
-		uint64 randomId,
+		not_null<SendingAlbum*> album,
 		Fn<void(bool)> done = nullptr);
 
 	void getTopPromotionDelayed(TimeId now, TimeId next);

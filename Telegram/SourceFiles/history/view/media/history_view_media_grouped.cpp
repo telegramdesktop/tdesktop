@@ -104,7 +104,11 @@ HistoryItem *GroupedMedia::itemForText() const {
 			auto result = (HistoryItem*)nullptr;
 			for (const auto &part : _parts) {
 				if (!part.item->emptyText()) {
-					if (result) {
+					if (result == part.item) {
+						// All parts are from the same message, that means
+						// this is an album with a single item, single text.
+						return result;
+					} else if (result) {
 						return nullptr;
 					} else {
 						result = part.item;

@@ -85,6 +85,13 @@ constexpr auto kLoadingStoryPhotoId = PhotoId(0x7FFF'DEAD'FFFF'FFFFULL);
 using ItemPreview = HistoryView::ItemPreview;
 using ItemPreviewImage = HistoryView::ItemPreviewImage;
 
+struct AlbumCounts {
+	int photos = 0;
+	int videos = 0;
+	int audios = 0;
+	int files = 0;
+};
+
 [[nodiscard]] TextWithEntities WithCaptionNotificationText(
 		const QString &attachType,
 		const TextWithEntities &caption,
@@ -166,7 +173,7 @@ template <typename MediaType>
 	return (reinterpret_cast<uint64>(data.get()) & ~1) | (spoiler ? 1 : 0);
 }
 
-[[nodiscard]] ItemPreviewImage PreparePhotoPreview(
+[[nodiscard]] ItemPreviewImage PreparePhotoPreviewImage(
 		not_null<const HistoryItem*> item,
 		const std::shared_ptr<PhotoMedia> &media,
 		ImageRoundRadius radius,
@@ -182,14 +189,15 @@ template <typename MediaType>
 	}
 	const auto allowedToDownload = media->autoLoadThumbnailAllowed(
 		item->history()->peer);
-	const auto cacheKey = allowedToDownload ? 0 : counted;
+	const auto spoilered = uint64(spoiler ? 1 : 0);
+	const auto cacheKey = allowedToDownload ? spoilered : counted;
 	if (allowedToDownload) {
 		media->owner()->load(PhotoSize::Small, item->fullId());
 	}
 	if (const auto blurred = media->thumbnailInline()) {
 		return { PreparePreviewImage(blurred, radius, spoiler), cacheKey };
 	}
-	return { QImage(), allowedToDownload ? 0 : cacheKey };
+	return { QImage(), allowedToDownload ? spoilered : cacheKey };
 }
 
 [[nodiscard]] ItemPreviewImage PrepareFilePreviewImage(
@@ -208,10 +216,11 @@ template <typename MediaType>
 		};
 	}
 	document->loadThumbnail(item->fullId());
+	const auto spoilered = uint64(spoiler ? 1 : 0);
 	if (const auto blurred = media->thumbnailInline()) {
-		return { PreparePreviewImage(blurred, radius, spoiler), 0 };
+		return { PreparePreviewImage(blurred, radius, spoiler), spoilered };
 	}
-	return { QImage(), 0 };
+	return { QImage(), spoilered };
 }
 
 [[nodiscard]] QImage PutPlayIcon(QImage preview) {
@@ -224,6 +233,18 @@ template <typename MediaType>
 			QRect(QPoint(), preview.size() / preview.devicePixelRatio()));
 	}
 	return preview;
+}
+
+[[nodiscard]] ItemPreviewImage PreparePhotoPreview(
+		not_null<const HistoryItem*> item,
+		const std::shared_ptr<PhotoMedia> &media,
+		ImageRoundRadius radius,
+		bool spoiler) {
+	auto result = PreparePhotoPreviewImage(item, media, radius, spoiler);
+	if (media->owner()->extendedMediaVideoDuration().has_value()) {
+		result.data = PutPlayIcon(std::move(result.data));
+	}
+	return result;
 }
 
 [[nodiscard]] ItemPreviewImage PrepareFilePreview(
@@ -280,7 +301,7 @@ bool UpdateExtendedMedia(
 		auto changed = false;
 		auto size = QSize();
 		auto thumbnail = QByteArray();
-		auto videoDuration = TimeId();
+		auto videoDuration = std::optional<TimeId>();
 		if (const auto &w = data.vw()) {
 			const auto &h = data.vh();
 			Assert(h.has_value());
@@ -302,6 +323,8 @@ bool UpdateExtendedMedia(
 			if (photo->extendedMediaVideoDuration() != videoDuration) {
 				changed = true;
 			}
+		} else if (photo->extendedMediaVideoDuration().has_value()) {
+			changed = true;
 		}
 		if (changed) {
 			photo->setExtendedMediaPreview(size, thumbnail, videoDuration);
@@ -353,6 +376,29 @@ TextForMimeData WithCaptionClipboardText(
 		}
 	}
 	return result;
+}
+
+[[nodiscard]] QString ComputeAlbumCountsString(AlbumCounts counts) {
+	const auto medias = counts.photos + counts.videos;
+	return (counts.photos && counts.videos)
+		? tr::lng_in_dlg_media_count(tr::now, lt_count, medias)
+		: (counts.photos > 1)
+		? tr::lng_in_dlg_photo_count(tr::now, lt_count, counts.photos)
+		: counts.photos
+		? tr::lng_in_dlg_photo(tr::now)
+		: (counts.videos > 1)
+		? tr::lng_in_dlg_video_count(tr::now, lt_count, counts.videos)
+		: counts.videos
+		? tr::lng_in_dlg_video(tr::now)
+		: (counts.audios > 1)
+		? tr::lng_in_dlg_audio_count(tr::now, lt_count, counts.audios)
+		: counts.audios
+		? tr::lng_in_dlg_audio(tr::now)
+		: (counts.files > 1)
+		? tr::lng_in_dlg_file_count(tr::now, lt_count, counts.files)
+		: counts.files
+		? tr::lng_in_dlg_file(tr::now)
+		: tr::lng_in_dlg_album(tr::now);
 }
 
 } // namespace
@@ -479,6 +525,15 @@ bool HasUnpaidMedia(const Invoice &invoice) {
 		return photo && photo->extendedMediaPreview();
 	}
 	return false;
+}
+
+bool IsFirstVideo(const Invoice &invoice) {
+	if (invoice.extendedMedia.empty()) {
+		return false;
+	} else if (const auto photo = invoice.extendedMedia.front()->photo()) {
+		return photo->extendedMediaVideoDuration().has_value();
+	}
+	return true;
 }
 
 Media::Media(not_null<HistoryItem*> parent) : _parent(parent) {
@@ -643,21 +698,18 @@ ItemPreview Media::toGroupPreview(
 		ToPreviewOptions options) const {
 	auto result = ItemPreview();
 	auto loadingContext = std::vector<std::any>();
-	auto photoCount = 0;
-	auto videoCount = 0;
-	auto audioCount = 0;
-	auto fileCount = 0;
+	auto counts = AlbumCounts();
 	auto manyCaptions = false;
 	for (const auto &item : items) {
 		if (const auto media = item->media()) {
 			if (media->photo()) {
-				photoCount++;
+				counts.photos++;
 			} else if (const auto document = media->document()) {
 				(document->isVideoFile()
-					? videoCount
+					? counts.videos
 					: document->isAudioFile()
-					? audioCount
-					: fileCount)++;
+					? counts.audios
+					: counts.files)++;
 			}
 			auto copy = options;
 			copy.ignoreGroup = true;
@@ -687,19 +739,7 @@ ItemPreview Media::toGroupPreview(
 		}
 	}
 	if (manyCaptions || result.text.text.isEmpty()) {
-		const auto mediaCount = photoCount + videoCount;
-		auto genericText = (photoCount && videoCount)
-			? tr::lng_in_dlg_media_count(tr::now, lt_count, mediaCount)
-			: photoCount
-			? tr::lng_in_dlg_photo_count(tr::now, lt_count, photoCount)
-			: videoCount
-			? tr::lng_in_dlg_video_count(tr::now, lt_count, videoCount)
-			: audioCount
-			? tr::lng_in_dlg_audio_count(tr::now, lt_count, audioCount)
-			: fileCount
-			? tr::lng_in_dlg_file_count(tr::now, lt_count, fileCount)
-			: tr::lng_in_dlg_album(tr::now);
-		result.text = Ui::Text::Colorized(genericText);
+		result.text = Ui::Text::Colorized(ComputeAlbumCountsString(counts));
 	}
 	if (!loadingContext.empty()) {
 		result.loadingContext = std::move(loadingContext);
@@ -1952,7 +1992,85 @@ bool MediaInvoice::replyPreviewLoaded() const {
 }
 
 TextWithEntities MediaInvoice::notificationText() const {
+	if (_invoice.isPaidMedia && !_invoice.extendedMedia.empty()) {
+		return WithCaptionNotificationText(
+			(IsFirstVideo(_invoice)
+				? tr::lng_in_dlg_video
+				: tr::lng_in_dlg_photo)(tr::now),
+			parent()->originalText());
+	}
 	return { .text = _invoice.title };
+}
+
+ItemPreview MediaInvoice::toPreview(ToPreviewOptions options) const {
+	if (!_invoice.isPaidMedia || _invoice.extendedMedia.empty()) {
+		return Media::toPreview(options);
+	}
+	auto counts = AlbumCounts();
+	const auto item = parent();
+	auto images = std::vector<ItemPreviewImage>();
+	auto context = std::vector<std::any>();
+	const auto existing = options.existing;
+	const auto spoiler = HasUnpaidMedia(_invoice);
+	for (const auto &media : _invoice.extendedMedia) {
+		const auto raw = media.get();
+		const auto photo = raw->photo();
+		const auto document = raw->document();
+		if (!photo && !document) {
+			continue;
+		} else if (images.size() < kMaxPreviewImages) {
+			auto found = photo
+				? FindCachedPreview(existing, not_null(photo), spoiler)
+				: FindCachedPreview(existing, not_null(document), spoiler);
+			const auto radius = ImageRoundRadius::Small;
+			if (found) {
+				images.push_back(std::move(found));
+			} else if (photo) {
+				const auto media = photo->createMediaView();
+				if (auto prepared = PreparePhotoPreview(
+					parent(),
+					media,
+					radius,
+					spoiler)
+					; prepared || !prepared.cacheKey) {
+					images.push_back(std::move(prepared));
+					if (!prepared.cacheKey) {
+						context.push_back(media);
+					}
+				}
+			} else if (TryFilePreview(document)) {
+				const auto media = document->createMediaView();
+				if (auto prepared = PrepareFilePreview(
+						parent(),
+						media,
+						radius,
+						spoiler)
+					; prepared || !prepared.cacheKey) {
+					images.push_back(std::move(prepared));
+					if (!prepared.cacheKey) {
+						context.push_back(media);
+					}
+				}
+			}
+		}
+		if (photo && !photo->extendedMediaVideoDuration().has_value()) {
+			++counts.photos;
+		} else {
+			++counts.videos;
+		}
+	}
+	const auto type = ComputeAlbumCountsString(counts);
+	const auto caption = (options.hideCaption || options.ignoreMessageText)
+		? TextWithEntities()
+		: options.translated
+		? parent()->translatedText()
+		: parent()->originalText();
+	const auto hasMiniImages = !images.empty();
+	return {
+		.text = WithCaptionNotificationText(type, caption, hasMiniImages),
+		.images = std::move(images),
+		.loadingContext = std::move(context),
+	};
 }
 
 QString MediaInvoice::pinnedTextSubstring() const {
