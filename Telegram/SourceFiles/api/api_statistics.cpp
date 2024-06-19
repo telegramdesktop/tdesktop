@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_statistics.h"
 
+#include "api/api_statistics_data_deserialize.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/data_channel.h"
@@ -15,30 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_story.h"
 #include "history/history.h"
 #include "main/main_session.h"
-#include "statistics/statistics_data_deserialize.h"
 
 namespace Api {
 namespace {
-
-[[nodiscard]] Data::StatisticalGraph StatisticalGraphFromTL(
-		const MTPStatsGraph &tl) {
-	return tl.match([&](const MTPDstatsGraph &d) {
-		using namespace Statistic;
-		const auto zoomToken = d.vzoom_token().has_value()
-			? qs(*d.vzoom_token()).toUtf8()
-			: QByteArray();
-		return Data::StatisticalGraph{
-			StatisticalChartFromJSON(qs(d.vjson().data().vdata()).toUtf8()),
-			zoomToken,
-		};
-	}, [&](const MTPDstatsGraphAsync &data) {
-		return Data::StatisticalGraph{
-			.zoomToken = qs(data.vtoken()).toUtf8(),
-		};
-	}, [&](const MTPDstatsGraphError &data) {
-		return Data::StatisticalGraph{ .error = qs(data.verror()) };
-	});
-}
 
 [[nodiscard]] Data::StatisticalValue StatisticalValueFromTL(
 		const MTPStatsAbsValueAndPrev &tl) {
