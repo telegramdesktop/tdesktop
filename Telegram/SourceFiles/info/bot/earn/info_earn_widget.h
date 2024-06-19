@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_channel_earn.h"
+#include "data/data_bot_earn.h"
 #include "info/info_content_widget.h"
 
 namespace Info::BotEarn {
@@ -27,7 +27,7 @@ public:
 
 	Section section() const override;
 
-	using SavedState = Data::EarnStatistics;
+	using SavedState = Data::BotEarnStatistics;
 
 	void setState(SavedState states);
 	[[nodiscard]] SavedState state();
