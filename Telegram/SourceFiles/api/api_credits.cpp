@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_credits.h"
 
-#include "apiwrap.h"
+#include "api/api_statistics_data_deserialize.h"
 #include "api/api_updates.h"
+#include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
@@ -200,6 +201,45 @@ rpl::producer<not_null<PeerData*>> PremiumPeerBot(
 
 		return lifetime;
 	};
+}
+
+BotEarnStatistics::BotEarnStatistics(not_null<UserData*> user)
+: StatisticsRequestSender(user) {
+}
+
+rpl::producer<rpl::no_value, QString> BotEarnStatistics::request() {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		makeRequest(MTPpayments_GetStarsRevenueStats(
+			MTP_flags(0),
+			user()->input
+		)).done([=](const MTPpayments_StarsRevenueStats &result) {
+			const auto &data = result.data();
+			const auto &status = data.vstatus().data();
+			_data = Data::BotEarnStatistics{
+				.revenueGraph = StatisticalGraphFromTL(data.vrevenue_graph()),
+				.currentBalance = status.vcurrent_balance().v,
+				.availableBalance = status.vavailable_balance().v,
+				.overallRevenue = status.voverall_revenue().v,
+				.usdRate = data.vusd_rate().v,
+				.isWithdrawalEnabled = status.is_withdrawal_enabled(),
+				.nextWithdrawalAt = status.vnext_withdrawal_at()
+					? base::unixtime::parse(status.vnext_withdrawal_at()->v)
+					: QDateTime(),
+			};
+
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
+Data::BotEarnStatistics BotEarnStatistics::data() const {
+	return _data;
 }
 
 } // namespace Api

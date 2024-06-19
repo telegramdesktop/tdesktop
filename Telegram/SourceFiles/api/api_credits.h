@@ -7,12 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_statistics_sender.h"
+#include "data/data_bot_earn.h"
 #include "data/data_credits.h"
 #include "mtproto/sender.h"
 
 namespace Main {
 class Session;
 } // namespace Main
+
+class UserData;
 
 namespace Api {
 
@@ -65,6 +69,20 @@ private:
 	mtpRequestId _requestId = 0;
 
 	MTP::Sender _api;
+
+};
+
+class BotEarnStatistics final : public StatisticsRequestSender {
+public:
+	explicit BotEarnStatistics(not_null<UserData*>);
+
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
+	[[nodiscard]] Data::BotEarnStatistics data() const;
+
+private:
+	Data::BotEarnStatistics _data;
+
+	mtpRequestId _requestId = 0;
 
 };
 
