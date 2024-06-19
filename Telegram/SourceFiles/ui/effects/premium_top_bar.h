@@ -25,10 +25,6 @@ class FlatLabel;
 
 namespace Ui::Premium {
 
-[[nodiscard]] QString Svg();
-[[nodiscard]] QByteArray ColorizedSvg(const QGradientStops &gradientStops);
-[[nodiscard]] QImage GenerateStarForLightTopBar(QRectF rect);
-
 class TopBarAbstract : public RpWidget {
 public:
 	TopBarAbstract(

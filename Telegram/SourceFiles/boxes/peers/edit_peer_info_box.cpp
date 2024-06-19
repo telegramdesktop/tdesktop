@@ -54,7 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/boost_box.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/userpic_button.h"
-#include "ui/effects/premium_top_bar.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/vertical_list.h"
