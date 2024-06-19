@@ -75,6 +75,14 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
+	void drawPriceTag(
+		Painter &p,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const override;
+	ClickHandlerPtr priceTagLink() const override;
+	QImage priceTagBackground() const override;
+
 	void hideSpoilers() override;
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
@@ -97,6 +105,7 @@ protected:
 
 private:
 	struct Streamed;
+	struct PriceTag;
 
 	void create(FullMsgId contextId, PeerData *chat = nullptr);
 
@@ -106,6 +115,7 @@ private:
 
 	void ensureDataMediaCreated() const;
 	void dataMediaCreated() const;
+	void setupPriceTag() const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -147,13 +157,11 @@ private:
 	[[nodiscard]] QSize photoSize() const;
 	[[nodiscard]] QRect enlargeRect() const;
 
-	void paintPriceTag(Painter &p, QRect rthumb) const;
-	[[nodiscard]] ClickHandlerPtr ensureExtendedMediaLink() const;
 	void togglePollingStory(bool enabled) const;
 
 	const not_null<PhotoData*> _data;
 	const FullStoryId _storyId;
-	mutable ClickHandlerPtr _extendedMediaLink;
+	mutable std::unique_ptr<PriceTag> _priceTag;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	mutable std::unique_ptr<Streamed> _streamed;
 	const std::unique_ptr<MediaSpoiler> _spoiler;

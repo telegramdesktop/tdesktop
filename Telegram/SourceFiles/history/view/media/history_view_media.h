@@ -223,6 +223,20 @@ public:
 		QPoint point,
 		StateRequest request) const;
 
+	virtual void drawPriceTag(
+			Painter &p,
+			QRect rthumb,
+			const PaintContext &context,
+			Fn<QImage()> generateBackground) const {
+		Unexpected("Price tag method call.");
+	}
+	[[nodiscard]] virtual ClickHandlerPtr priceTagLink() const {
+		Unexpected("Price tag method call.");
+	}
+	[[nodiscard]] virtual QImage priceTagBackground() const {
+		Unexpected("Price tag method call.");
+	}
+
 	[[nodiscard]] virtual bool animating() const {
 		return false;
 	}

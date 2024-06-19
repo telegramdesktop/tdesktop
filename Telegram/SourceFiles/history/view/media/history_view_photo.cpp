@@ -60,6 +60,14 @@ struct Photo::Streamed {
 	QImage roundingMask;
 };
 
+struct Photo::PriceTag {
+	uint64 price = 0;
+	QImage cache;
+	QColor darken;
+	QColor fg;
+	ClickHandlerPtr link;
+};
+
 Photo::Streamed::Streamed(
 	std::shared_ptr<::Media::Streaming::Document> shared)
 : instance(std::move(shared), nullptr) {
@@ -281,8 +289,8 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto preview = _data->extendedMediaPreview();
-	auto loaded = preview || _dataMedia->loaded();
-	auto displayLoading = !preview && _data->displayLoading();
+	const auto loaded = preview || _dataMedia->loaded();
+	const auto displayLoading = !preview && _data->displayLoading();
 
 	auto inWebPage = (_parent->media() != this);
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -370,7 +378,9 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, sti->historyFileThumbRadialFg);
 		}
 	} else if (preview) {
-		paintPriceTag(p, rthumb);
+		drawPriceTag(p, rthumb, context, [&] {
+			return _spoiler ? _spoiler->background : QImage();
+		});
 	}
 	if (showEnlarge) {
 		auto hq = PainterHighQualityEnabler(p);
@@ -403,41 +413,93 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	}
 }
 
-void Photo::paintPriceTag(Painter &p, QRect rthumb) const {
+void Photo::setupPriceTag() const {
 	const auto media = parent()->data()->media();
 	const auto invoice = media ? media->invoice() : nullptr;
 	const auto price = invoice->isPaidMedia ? invoice->amount : 0;
 	if (!price) {
 		return;
 	}
+	_priceTag = std::make_unique<PriceTag>();
+	_priceTag->price = price;
+}
 
-	auto text = Ui::Text::String();
-	text.setText(
-		st::semiboldTextStyle,
-		tr::lng_paid_price(
-			tr::now,
-			lt_price,
-			QChar(0x2B50) + Lang::FormatCountDecimal(invoice->amount)));
-	const auto width = text.maxWidth();
-	const auto inner = QRect(0, 0, width, text.minHeight());
-	const auto outer = inner.marginsAdded(st::paidTagPadding);
-	const auto size = outer.size();
+void Photo::drawPriceTag(
+		Painter &p,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const {
+	if (!_priceTag) {
+		setupPriceTag();
+		if (!_priceTag) {
+			return;
+		}
+	}
+	const auto st = context.st;
+	const auto darken = st->msgDateImgBg()->c;
+	const auto fg = st->msgDateImgFg()->c;
+	if (_priceTag->cache.isNull()
+		|| _priceTag->darken != darken
+		|| _priceTag->fg != fg) {
+		auto bg = generateBackground();
+		if (bg.isNull()) {
+			bg = QImage(2, 2, QImage::Format_ARGB32_Premultiplied);
+			bg.fill(Qt::black);
+		}
 
-	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(st::toastBg);
-	p.setPen(Qt::NoPen);
+		auto text = Ui::Text::String();
+		text.setText(
+			st::semiboldTextStyle,
+			tr::lng_paid_price(
+				tr::now,
+				lt_price,
+				QChar(0x2B50) + Lang::FormatCountDecimal(_priceTag->price)));
+		const auto width = text.maxWidth();
+		const auto inner = QRect(0, 0, width, text.minHeight());
+		const auto outer = inner.marginsAdded(st::paidTagPadding);
+		const auto size = outer.size();
+		const auto radius = std::min(size.width(), size.height()) / 2;
+		const auto ratio = style::DevicePixelRatio();
+		auto cache = QImage(
+			size * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(ratio);
+		cache.fill(Qt::black);
+		auto p = Painter(&cache);
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(
+			QRect(
+				(size.width() - rthumb.width()) / 2,
+				(size.height() - rthumb.height()) / 2,
+				rthumb.width(),
+				rthumb.height()),
+			bg);
+		p.fillRect(QRect(QPoint(), size), darken);
+		p.setPen(fg);
+		text.draw(p, -outer.x(), -outer.y(), width);
+		p.end();
 
-	const auto radius = std::min(size.width(), size.height()) / 2.;
-	const auto rect = QRect(
-		rthumb.x() + (rthumb.width() - size.width()) / 2,
-		rthumb.y() + (rthumb.height() - size.height()) / 2,
-		size.width(),
-		size.height());
-
-	p.drawRoundedRect(rect, radius, radius);
-	p.setPen(st::toastFg);
-
-	text.draw(p, rect.x() - outer.x(), rect.y() - outer.y(), width);
+		_priceTag->darken = darken;
+		_priceTag->fg = fg;
+		_priceTag->cache = Images::Round(
+			std::move(cache),
+			Images::CornersMask(radius));
+	}
+	const auto &cache = _priceTag->cache;
+	const auto size = cache.size() / cache.devicePixelRatio();
+	const auto left = rthumb.x() + (rthumb.width() - size.width()) / 2;
+	const auto top = rthumb.y() + (rthumb.height() - size.height()) / 2;
+	p.drawImage(left, top, cache);
+	if (context.selected()) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = std::min(size.width(), size.height()) / 2;
+		p.setPen(Qt::NoPen);
+		p.setBrush(st->msgSelectOverlay());
+		p.drawRoundedRect(
+			QRect(left, top, size.width(), size.height()),
+			radius,
+			radius);
+	}
 }
 
 void Photo::validateUserpicImageCache(QSize size, bool forum) const {
@@ -647,12 +709,24 @@ QRect Photo::enlargeRect() const {
 	};
 }
 
-ClickHandlerPtr Photo::ensureExtendedMediaLink() const {
+ClickHandlerPtr Photo::priceTagLink() const {
 	const auto item = parent()->data();
-	if (!_extendedMediaLink && item->isRegular()) {
-		_extendedMediaLink = MakePaidMediaLink(item);
+	if (!item->isRegular()) {
+		return nullptr;
+	} else if (!_priceTag) {
+		setupPriceTag();
+		if (!_priceTag) {
+			return nullptr;
+		}
 	}
-	return _extendedMediaLink;
+	if (!_priceTag->link) {
+		_priceTag->link = MakePaidMediaLink(item);
+	}
+	return _priceTag->link;
+}
+
+QImage Photo::priceTagBackground() const {
+	return _spoiler ? _spoiler->background : QImage();
 }
 
 TextState Photo::textState(QPoint point, StateRequest request) const {
@@ -669,7 +743,7 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
 		ensureDataMediaCreated();
 		result.link = _data->extendedMediaPreview()
-			? ensureExtendedMediaLink()
+			? priceTagLink()
 			: (_spoiler && !_spoiler->revealed)
 			? _spoiler->link
 			: _data->uploading()
@@ -735,8 +809,9 @@ void Photo::drawGrouped(
 
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	const auto loaded = _dataMedia->loaded();
-	const auto displayLoading = _data->displayLoading();
+	const auto preview = _data->extendedMediaPreview();
+	const auto loaded = preview || _dataMedia->loaded();
+	const auto displayLoading = !preview && _data->displayLoading();
 
 	if (displayLoading) {
 		ensureAnimation();
@@ -841,7 +916,9 @@ TextState Photo::getStateGrouped(
 		return {};
 	}
 	ensureDataMediaCreated();
-	return TextState(_parent, (_spoiler && !_spoiler->revealed)
+	return TextState(_parent, _data->extendedMediaPreview()
+		? priceTagLink()
+		: (_spoiler && !_spoiler->revealed)
 		? _spoiler->link
 		: _data->uploading()
 		? _cancell
@@ -887,7 +964,8 @@ void Photo::validateGroupedCache(
 
 	ensureDataMediaCreated();
 
-	const auto loaded = _dataMedia->loaded();
+	const auto preview = _data->extendedMediaPreview();
+	const auto loaded = preview || _dataMedia->loaded();
 	const auto loadLevel = loaded
 		? 2
 		: (_dataMedia->thumbnailInline()

@@ -149,6 +149,9 @@ private:
 		RectParts sides) const;
 	[[nodiscard]] QMargins groupedPadding() const;
 
+	[[nodiscard]] Media *lookupUnpaidMedia() const;
+	[[nodiscard]] QImage generatePriceTagBackground(QRect full) const;
+
 	mutable std::optional<HistoryItem*> _captionItem;
 	std::vector<Part> _parts;
 	Mode _mode = Mode::Grid;

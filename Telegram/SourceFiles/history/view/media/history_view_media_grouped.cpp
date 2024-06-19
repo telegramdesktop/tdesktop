@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
+#include "media/streaming/media_streaming_utility.h"
 #include "ui/grouped_layout.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
@@ -290,6 +291,42 @@ QMargins GroupedMedia::groupedPadding() const {
 		(normal.bottom() - grouped.bottom()) + addToBottom);
 }
 
+Media *GroupedMedia::lookupUnpaidMedia() const {
+	if (_parts.empty()) {
+		return nullptr;
+	}
+	const auto media = _parts.front().content.get();
+	const auto photo = media ? media->getPhoto() : nullptr;
+	return (photo && photo->extendedMediaPreview()) ? media : nullptr;
+}
+
+QImage GroupedMedia::generatePriceTagBackground(QRect full) const {
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		full.size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	auto p = QPainter(&result);
+	const auto shift = -full.topLeft();
+	const auto skip1 = st::historyGroupSkip / 2;
+	const auto skip2 = st::historyGroupSkip - skip1;
+	for (const auto &part : _parts) {
+		auto background = part.content->priceTagBackground();
+		const auto extended = part.geometry.translated(shift).marginsAdded(
+			{ skip1, skip1, skip2, skip2 });
+		if (background.isNull()) {
+			p.fillRect(extended, Qt::black);
+		} else {
+			p.drawImage(extended, background);
+		}
+	}
+	p.end();
+
+	return ::Media::Streaming::PrepareBlurredBackground(
+		full.size(),
+		std::move(result));
+}
+
 void GroupedMedia::drawHighlight(
 		Painter &p,
 		const PaintContext &context,
@@ -351,6 +388,8 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		? Ui::BubbleRounding{ kSmall, kSmall, kSmall, kSmall }
 		: adjustedBubbleRounding();
 	auto highlight = context.highlight.range;
+	const auto unpaid = lookupUnpaidMedia();
+	auto fullRect = QRect();
 	const auto subpartHighlight = IsSubGroupSelection(highlight);
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
@@ -390,9 +429,18 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		if (!part.cache.isNull()) {
 			nowCache = true;
 		}
+		if (unpaid) {
+			fullRect = fullRect.united(part.geometry);
+		}
 	}
 	if (nowCache && !wasCache) {
 		history()->owner().registerHeavyViewPart(_parent);
+	}
+
+	if (unpaid) {
+		unpaid->drawPriceTag(p, fullRect, context, [&] {
+			return generatePriceTagBackground(fullRect);
+		});
 	}
 
 	// date
@@ -455,6 +503,11 @@ PointState GroupedMedia::pointState(QPoint point) const {
 TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
 	const auto groupPadding = groupedPadding();
 	auto result = getPartState(point - QPoint(0, groupPadding.top()), request);
+	if (const auto unpaid = lookupUnpaidMedia()) {
+		if (QRect(0, 0, width(), height()).contains(point)) {
+			result.link = unpaid->priceTagLink();
+		}
+	}
 	if (_parent->media() == this && (!_parent->hasBubble() || isBubbleBottom())) {
 		auto fullRight = width();
 		auto fullBottom = height();

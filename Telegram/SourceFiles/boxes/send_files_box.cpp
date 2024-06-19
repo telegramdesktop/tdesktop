@@ -680,9 +680,11 @@ bool SendFilesBox::hasSpoilerMenu() const {
 
 bool SendFilesBox::canChangePrice() const {
 	const auto way = _sendWay.current();
-	return _list.canChangePrice(
-		way.groupFiles() && way.sendImagesAsPhotos(),
-		way.sendImagesAsPhotos());
+	return _captionToPeer
+		&& _captionToPeer->isBroadcast()
+		&& _list.canChangePrice(
+			way.groupFiles() && way.sendImagesAsPhotos(),
+			way.sendImagesAsPhotos());
 }
 
 void SendFilesBox::applyBlockChanges() {
@@ -754,6 +756,7 @@ void SendFilesBox::refreshPriceTag() {
 			raw,
 			tr::lng_paid_price(lt_price, std::move(price)),
 			st::paidTagLabel);
+		label->show();
 		label->sizeValue() | rpl::start_with_next([=](QSize size) {
 			const auto inner = QRect(QPoint(), size);
 			const auto rect = inner.marginsAdded(st::paidTagPadding);
@@ -833,6 +836,7 @@ void SendFilesBox::initSendWay() {
 			block.setSendWay(value);
 		}
 		refreshButtons();
+		refreshPriceTag();
 		if (was != hidden()) {
 			updateBoxSize();
 			updateControlsGeometry();

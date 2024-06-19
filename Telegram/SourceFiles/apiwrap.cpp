@@ -4212,6 +4212,67 @@ void ApiWrap::sendMediaWithRandomId(
 	});
 }
 
+void ApiWrap::sendMultiPaidMedia(
+		not_null<HistoryItem*> item,
+		const QVector<MTPInputMedia> &medias,
+		Api::SendOptions options,
+		uint64 randomId,
+		Fn<void(bool)> done) {
+	Expects(options.price > 0);
+
+	const auto history = item->history();
+	const auto replyTo = item->replyTo();
+
+	auto caption = item->originalText();
+	TextUtilities::Trim(caption);
+	auto sentEntities = Api::EntitiesToMTP(
+		_session,
+		caption.entities,
+		Api::ConvertOption::SkipLocal);
+
+	using Flag = MTPmessages_SendMedia::Flag;
+	const auto flags = Flag(0)
+		| (replyTo ? Flag::f_reply_to : Flag(0))
+		| (ShouldSendSilent(history->peer, options)
+			? Flag::f_silent
+			: Flag(0))
+		| (!sentEntities.v.isEmpty() ? Flag::f_entities : Flag(0))
+		| (options.scheduled ? Flag::f_schedule_date : Flag(0))
+		| (options.sendAs ? Flag::f_send_as : Flag(0))
+		| (options.shortcutId ? Flag::f_quick_reply_shortcut : Flag(0))
+		| (options.effectId ? Flag::f_effect : Flag(0))
+		| (options.invertCaption ? Flag::f_invert_media : Flag(0));
+
+	auto &histories = history->owner().histories();
+	const auto peer = history->peer;
+	const auto itemId = item->fullId();
+	histories.sendPreparedMessage(
+		history,
+		replyTo,
+		randomId,
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
+			MTP_flags(flags),
+			peer->input,
+			Data::Histories::ReplyToPlaceholder(),
+			MTP_inputMediaPaidMedia(
+				MTP_long(options.price),
+				MTP_vector<MTPInputMedia>(medias)),
+			MTP_string(caption.text),
+			MTP_long(randomId),
+			MTPReplyMarkup(),
+			sentEntities,
+			MTP_int(options.scheduled),
+			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty()),
+			Data::ShortcutIdToMTP(_session, options.shortcutId),
+			MTP_long(options.effectId)
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		if (done) done(true);
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		if (done) done(false);
+		sendMessageFail(error, peer, randomId, itemId);
+	});
+}
+
 void ApiWrap::sendAlbumWithUploaded(
 		not_null<HistoryItem*> item,
 		const MessageGroupId &groupId,
@@ -4266,10 +4327,23 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		_sendingAlbums.remove(groupId);
 		return;
 	} else if (medias.size() < 2) {
-		const auto &single = medias.front().c_inputSingleMedia();
+		const auto &single = medias.front().data();
 		sendMediaWithRandomId(
 			sample,
 			single.vmedia(),
+			album->options,
+			single.vrandom_id().v);
+		_sendingAlbums.remove(groupId);
+		return;
+	} else if (album->options.price > 0) {
+		const auto &single = medias.front().data();
+		auto list = medias | ranges::view::transform([](
+				const MTPInputSingleMedia &media) {
+			return MTPInputMedia(media.data().vmedia());
+		}) | ranges::to<QVector<MTPInputMedia>>();
+		sendMultiPaidMedia(
+			sample,
+			std::move(list),
 			album->options,
 			single.vrandom_id().v);
 		_sendingAlbums.remove(groupId);
