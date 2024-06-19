@@ -108,9 +108,9 @@ private:
 
 };
 
-class EarnStatistics final : public StatisticsRequestSender {
+class ChannelEarnStatistics final : public StatisticsRequestSender {
 public:
-	explicit EarnStatistics(not_null<ChannelData*> channel);
+	explicit ChannelEarnStatistics(not_null<ChannelData*> channel);
 
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
 	void requestHistory(

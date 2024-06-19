@@ -256,7 +256,7 @@ InnerWidget::InnerWidget(
 }
 
 void InnerWidget::load() {
-	const auto api = lifetime().make_state<Api::EarnStatistics>(
+	const auto api = lifetime().make_state<Api::ChannelEarnStatistics>(
 		_peer->asChannel());
 
 	Info::Statistics::FillLoading(
@@ -996,7 +996,7 @@ void InnerWidget::fill() {
 				ShowMoreState(not_null<ChannelData*> channel)
 				: api(channel) {
 				}
-				Api::EarnStatistics api;
+				Api::ChannelEarnStatistics api;
 				bool loading = false;
 				Data::EarnHistorySlice::OffsetToken token;
 				rpl::variable<int> showed = 0;

@@ -747,11 +747,11 @@ Data::BoostStatus Boosts::boostStatus() const {
 	return _boostStatus;
 }
 
-EarnStatistics::EarnStatistics(not_null<ChannelData*> channel)
+ChannelEarnStatistics::ChannelEarnStatistics(not_null<ChannelData*> channel)
 : StatisticsRequestSender(channel) {
 }
 
-rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
+rpl::producer<rpl::no_value, QString> ChannelEarnStatistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
@@ -795,7 +795,7 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 	};
 }
 
-void EarnStatistics::requestHistory(
+void ChannelEarnStatistics::requestHistory(
 		const Data::EarnHistorySlice::OffsetToken &token,
 		Fn<void(Data::EarnHistorySlice)> done) {
 	if (_requestId) {
@@ -865,7 +865,7 @@ void EarnStatistics::requestHistory(
 	}).send();
 }
 
-Data::EarnStatistics EarnStatistics::data() const {
+Data::EarnStatistics ChannelEarnStatistics::data() const {
 	return _data;
 }
 
