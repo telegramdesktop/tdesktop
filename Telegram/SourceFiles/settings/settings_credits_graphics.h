@@ -50,6 +50,11 @@ void ReceiptCreditsBox(
 	not_null<PhotoData*> photo,
 	int photoSize);
 
+[[nodiscard]] object_ptr<Ui::RpWidget> PaidMediaPhoto(
+	not_null<Ui::RpWidget*> parent,
+	not_null<PhotoData*> photo,
+	int photoSize);
+
 void SmallBalanceBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,

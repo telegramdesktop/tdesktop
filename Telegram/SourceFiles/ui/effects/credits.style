@@ -35,11 +35,12 @@ creditsBoxAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 256px;
 	align: align(top);
 }
-
 creditsBoxAboutTitle: FlatLabel(settingsPremiumUserTitle) {
 	minWidth: 256px;
 }
-
 creditsBoxAboutDivider: FlatLabel(boxDividerLabel) {
 	align: align(top);
+}
+creditsBoxButtonLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
 }

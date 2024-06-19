@@ -544,6 +544,27 @@ object_ptr<Ui::RpWidget> HistoryEntryPhoto(
 	return owned;
 }
 
+object_ptr<Ui::RpWidget> PaidMediaPhoto(
+		not_null<Ui::RpWidget*> parent,
+		not_null<PhotoData*> photo,
+		int photoSize) {
+	auto owned = object_ptr<Ui::RpWidget>(parent);
+	const auto widget = owned.data();
+	widget->resize(Size(photoSize));
+
+	const auto draw = Ui::GeneratePaidMediaPaintCallback(
+		photo,
+		[=] { widget->update(); });
+
+	widget->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = Painter(widget);
+		draw(p, 0, 0, photoSize, photoSize);
+	}, widget->lifetime());
+
+	return owned;
+}
+
 void SmallBalanceBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,

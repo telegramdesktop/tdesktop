@@ -24,6 +24,10 @@ Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintEntryCallback(
 	not_null<PhotoData*> photo,
 	Fn<void()> update);
 
+Fn<void(Painter &, int, int, int, int)> GeneratePaidMediaPaintCallback(
+	not_null<PhotoData*> photo,
+	Fn<void()> update);
+
 [[nodiscard]] TextWithEntities GenerateEntryName(
 	const Data::CreditsHistoryEntry &entry);
 

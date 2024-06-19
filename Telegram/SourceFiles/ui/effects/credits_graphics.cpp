@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/effects/premium_graphics.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -176,6 +177,50 @@ Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintEntryCallback(
 				{ .options = Images::Option::RoundCircle });
 		}
 		p.drawImage(x, y, state->image);
+	};
+}
+
+Fn<void(Painter &, int, int, int, int)> GeneratePaidMediaPaintCallback(
+		not_null<PhotoData*> photo,
+		Fn<void()> update) {
+	struct State {
+		explicit State(Fn<void()> update) : spoiler(std::move(update)) {
+		}
+
+		QImage image;
+		Ui::SpoilerAnimation spoiler;
+	};
+	const auto state = std::make_shared<State>(update);
+
+	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+		if (state->image.isNull()) {
+			const auto media = photo->createMediaView();
+			const auto thumbnail = media->thumbnailInline();
+			const auto ratio = style::DevicePixelRatio();
+			const auto scaled = QSize(size, size) * ratio;
+			auto image = thumbnail
+				? Images::Blur(thumbnail->original(), true)
+				: QImage(scaled, QImage::Format_ARGB32_Premultiplied);
+			if (!thumbnail) {
+				image.fill(Qt::black);
+				image.setDevicePixelRatio(ratio);
+			}
+			const auto minSize = std::min(image.width(), image.height());
+			state->image = Images::Prepare(
+				image.copy(
+					(image.width() - minSize) / 2,
+					(image.height() - minSize) / 2,
+					minSize,
+					minSize),
+				size * ratio,
+				{ .options = Images::Option::RoundLarge });
+		}
+		p.drawImage(x, y, state->image);
+		Ui::FillSpoilerRect(
+			p,
+			QRect(x, y, size, size),
+			Ui::DefaultImageSpoiler().frame(
+				state->spoiler.index(crl::now(), false)));
 	};
 }
 
