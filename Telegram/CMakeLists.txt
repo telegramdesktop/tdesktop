@@ -164,6 +164,8 @@ PRIVATE
     api/api_single_message_search.h
     api/api_statistics.cpp
     api/api_statistics.h
+    api/api_statistics_sender.cpp
+    api/api_statistics_sender.h
     api/api_text_entities.cpp
     api/api_text_entities.h
     api/api_toggling_media.cpp

@@ -20,8 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
-constexpr auto kCheckRequestsTimer = 10 * crl::time(1000);
-
 [[nodiscard]] Data::StatisticalGraph StatisticalGraphFromTL(
 		const MTPStatsGraph &tl) {
 	return tl.match([&](const MTPDstatsGraph &d) {
@@ -221,61 +219,6 @@ constexpr auto kCheckRequestsTimer = 10 * crl::time(1000);
 
 Statistics::Statistics(not_null<ChannelData*> channel)
 : StatisticsRequestSender(channel) {
-}
-
-StatisticsRequestSender::StatisticsRequestSender(not_null<ChannelData *> channel)
-: _channel(channel)
-, _api(&_channel->session().api().instance())
-, _timer([=] { checkRequests(); }) {
-}
-
-StatisticsRequestSender::~StatisticsRequestSender() {
-	for (const auto &[dcId, ids] : _requests) {
-		for (const auto id : ids) {
-			_channel->session().api().unregisterStatsRequest(dcId, id);
-		}
-	}
-}
-
-void StatisticsRequestSender::checkRequests() {
-	for (auto i = begin(_requests); i != end(_requests);) {
-		for (auto j = begin(i->second); j != end(i->second);) {
-			if (_api.pending(*j)) {
-				++j;
-			} else {
-				_channel->session().api().unregisterStatsRequest(
-					i->first,
-					*j);
-				j = i->second.erase(j);
-			}
-		}
-		if (i->second.empty()) {
-			i = _requests.erase(i);
-		} else {
-			++i;
-		}
-	}
-	if (_requests.empty()) {
-		_timer.cancel();
-	}
-}
-
-template <typename Request, typename, typename>
-auto StatisticsRequestSender::makeRequest(Request &&request) {
-	const auto id = _api.allocateRequestId();
-	const auto dcId = _channel->owner().statsDcId(_channel);
-	if (dcId) {
-		_channel->session().api().registerStatsRequest(dcId, id);
-		_requests[dcId].emplace(id);
-		if (!_timer.isActive()) {
-			_timer.callEach(kCheckRequestsTimer);
-		}
-	}
-	return std::move(_api.request(
-		std::forward<Request>(request)
-	).toDC(
-		dcId ? MTP::ShiftDcId(dcId, MTP::kStatsDcShift) : 0
-	).overrideId(id));
 }
 
 rpl::producer<rpl::no_value, QString> Statistics::request() {

@@ -4683,16 +4683,16 @@ uint64 Session::wallpapersHash() const {
 	return _wallpapersHash;
 }
 
-MTP::DcId Session::statsDcId(not_null<ChannelData*> channel) {
-	const auto it = _channelStatsDcIds.find(channel);
-	return (it == end(_channelStatsDcIds)) ? MTP::DcId(0) : it->second;
+MTP::DcId Session::statsDcId(not_null<PeerData*> peer) {
+	const auto it = _peerStatsDcIds.find(peer);
+	return (it == end(_peerStatsDcIds)) ? MTP::DcId(0) : it->second;
 }
 
 void Session::applyStatsDcId(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		MTP::DcId dcId) {
-	if (dcId != channel->session().mainDcId()) {
-		_channelStatsDcIds[channel] = dcId;
+	if (dcId != peer->session().mainDcId()) {
+		_peerStatsDcIds[peer] = dcId;
 	}
 }
 

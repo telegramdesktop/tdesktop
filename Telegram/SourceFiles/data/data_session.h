@@ -753,8 +753,8 @@ public:
 	[[nodiscard]] auto peerDecorationsUpdated() const
 		-> rpl::producer<not_null<PeerData*>>;
 
-	void applyStatsDcId(not_null<ChannelData*>, MTP::DcId);
-	[[nodiscard]] MTP::DcId statsDcId(not_null<ChannelData*>);
+	void applyStatsDcId(not_null<PeerData*>, MTP::DcId);
+	[[nodiscard]] MTP::DcId statsDcId(not_null<PeerData*>);
 
 	void viewTagsChanged(
 		not_null<ViewElement*> view,
@@ -1053,7 +1053,7 @@ private:
 	base::flat_map<not_null<UserData*>, TimeId> _watchingForOffline;
 	base::Timer _watchForOfflineTimer;
 
-	base::flat_map<not_null<ChannelData*>, MTP::DcId> _channelStatsDcIds;
+	base::flat_map<not_null<PeerData*>, MTP::DcId> _peerStatsDcIds;
 
 	rpl::event_stream<WebViewResultSent> _webViewResultSent;
 
