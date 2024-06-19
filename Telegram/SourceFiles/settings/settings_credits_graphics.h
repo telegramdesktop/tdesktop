@@ -28,8 +28,6 @@ class VerticalLayout;
 
 namespace Settings {
 
-[[nodiscard]] QImage GenerateStars(int height, int count);
-
 void FillCreditOptions(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container,

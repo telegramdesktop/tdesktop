@@ -109,59 +109,6 @@ private:
 
 } // namespace
 
-QImage GenerateStars(int height, int count) {
-	constexpr auto kOutlineWidth = .6;
-	constexpr auto kStrokeWidth = 3;
-	constexpr auto kShift = 3;
-
-	auto colorized = qs(Ui::Premium::ColorizedSvg(
-		Ui::Premium::CreditsIconGradientStops()));
-	colorized.replace(
-		u"stroke=\"none\""_q,
-		u"stroke=\"%1\""_q.arg(st::creditsStroke->c.name()));
-	colorized.replace(
-		u"stroke-width=\"1\""_q,
-		u"stroke-width=\"%1\""_q.arg(kStrokeWidth));
-	auto svg = QSvgRenderer(colorized.toUtf8());
-	svg.setViewBox(svg.viewBox() + Margins(kStrokeWidth));
-
-	const auto starSize = Size(height - kOutlineWidth * 2);
-
-	auto frame = QImage(
-		QSize(
-			(height + kShift * (count - 1)) * style::DevicePixelRatio(),
-			height * style::DevicePixelRatio()),
-		QImage::Format_ARGB32_Premultiplied);
-	frame.setDevicePixelRatio(style::DevicePixelRatio());
-	frame.fill(Qt::transparent);
-	const auto drawSingle = [&](QPainter &q) {
-		const auto s = kOutlineWidth;
-		q.save();
-		q.translate(s, s);
-		q.setCompositionMode(QPainter::CompositionMode_Clear);
-		svg.render(&q, QRectF(QPointF(s, 0), starSize));
-		svg.render(&q, QRectF(QPointF(s, s), starSize));
-		svg.render(&q, QRectF(QPointF(0, s), starSize));
-		svg.render(&q, QRectF(QPointF(-s, s), starSize));
-		svg.render(&q, QRectF(QPointF(-s, 0), starSize));
-		svg.render(&q, QRectF(QPointF(-s, -s), starSize));
-		svg.render(&q, QRectF(QPointF(0, -s), starSize));
-		svg.render(&q, QRectF(QPointF(s, -s), starSize));
-		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		svg.render(&q, Rect(starSize));
-		q.restore();
-	};
-	{
-		auto q = QPainter(&frame);
-		q.translate(frame.width() / style::DevicePixelRatio() - height, 0);
-		for (auto i = count; i > 0; --i) {
-			drawSingle(q);
-			q.translate(-kShift, 0);
-		}
-	}
-	return frame;
-}
-
 void FillCreditOptions(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -175,7 +122,7 @@ void FillCreditOptions(
 
 	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
 
-	const auto singleStarWidth = GenerateStars(
+	const auto singleStarWidth = Ui::GenerateStars(
 		st::creditsTopupButton.height,
 		1).width() / style::DevicePixelRatio();
 
@@ -215,7 +162,7 @@ void FillCreditOptions(
 				Ui::FillAmountAndCurrency(option.amount, option.currency),
 				st::creditsTopupPrice);
 			const auto inner = Ui::CreateChild<Ui::RpWidget>(button);
-			const auto stars = GenerateStars(st.height, (i + 1));
+			const auto stars = Ui::GenerateStars(st.height, (i + 1));
 			inner->paintRequest(
 			) | rpl::start_with_next([=](const QRect &rect) {
 				auto p = QPainter(inner);
@@ -314,7 +261,7 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 		bool rightAlign) {
 	const auto balance = Ui::CreateChild<Balance>(parent);
 	const auto balanceStar = balance->lifetime().make_state<QImage>(
-		GenerateStars(st::creditsBalanceStarHeight, 1));
+		Ui::GenerateStars(st::creditsBalanceStarHeight, 1));
 	const auto starSize = balanceStar->size() / style::DevicePixelRatio();
 	const auto label = balance->lifetime().make_state<Ui::Text::String>(
 		st::defaultTextStyle,
@@ -377,7 +324,7 @@ void ReceiptCreditsBox(
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 
-	const auto star = GenerateStars(st::creditsTopupButton.height, 1);
+	const auto star = Ui::GenerateStars(st::creditsTopupButton.height, 1);
 
 	const auto content = box->verticalLayout();
 	Ui::AddSkip(content);

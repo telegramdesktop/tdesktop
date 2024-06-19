@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_credits.h"
 
-#include "settings/settings_credits_graphics.h"
 #include "api/api_credits.h"
 #include "boxes/gift_premium_box.h"
 #include "core/click_handler_types.h"
@@ -20,8 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/boost_box.h" // Ui::StartFireworks.
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
@@ -93,8 +94,8 @@ Credits::Credits(
 	not_null<Window::SessionController*> controller)
 : Section(parent)
 , _controller(controller)
-, _star(GenerateStars(st::creditsTopupButton.height, 1))
-, _balanceStar(GenerateStars(st::creditsBalanceStarHeight, 1)) {
+, _star(Ui::GenerateStars(st::creditsTopupButton.height, 1))
+, _balanceStar(Ui::GenerateStars(st::creditsBalanceStarHeight, 1)) {
 	setupContent();
 }
 

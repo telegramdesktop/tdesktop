@@ -15,6 +15,8 @@ struct CreditsHistoryEntry;
 
 namespace Ui {
 
+[[nodiscard]] QImage GenerateStars(int height, int count);
+
 Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintUserpicCallback(
 	const Data::CreditsHistoryEntry &entry);
 
