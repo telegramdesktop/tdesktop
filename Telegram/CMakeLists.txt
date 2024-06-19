@@ -887,6 +887,10 @@ PRIVATE
     history/history_view_highlight_manager.h
     history/history_widget.cpp
     history/history_widget.h
+    info/bot/earn/info_earn_inner_widget.cpp
+    info/bot/earn/info_earn_inner_widget.h
+    info/bot/earn/info_earn_widget.cpp
+    info/bot/earn/info_earn_widget.h
     info/channel_statistics/boosts/create_giveaway_box.cpp
     info/channel_statistics/boosts/create_giveaway_box.h
     info/channel_statistics/boosts/giveaway/giveaway_list_controllers.cpp

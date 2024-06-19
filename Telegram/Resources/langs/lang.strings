@@ -5186,6 +5186,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_chart_overriden_detail_currency" = "Revenue in TON";
 "lng_channel_earn_chart_overriden_detail_usd" = "Revenue in USD";
 
+"lng_bot_earn_title" = "Stars Balance";
+
 "lng_contact_add" = "Add";
 "lng_contact_send_message" = "message";
 
