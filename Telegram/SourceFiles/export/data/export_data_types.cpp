@@ -318,6 +318,75 @@ std::vector<TextPart> ParseText(
 	return result;
 }
 
+Utf8String Reaction::TypeToString(const Reaction &reaction) {
+	switch (reaction.type) {
+		case Reaction::Type::Empty: return "empty";
+		case Reaction::Type::Emoji: return "emoji";
+		case Reaction::Type::CustomEmoji: return "custom_emoji";
+	}
+	Unexpected("Type in Reaction::Type.");
+}
+
+Utf8String Reaction::Id(const Reaction &reaction) {
+	Utf8String id;
+	switch (reaction.type) {
+		case Reaction::Type::Emoji:
+			id = reaction.emoji.toUtf8();
+			break;
+		case Reaction::Type::CustomEmoji:
+			id = reaction.documentId;
+			break;
+	}
+	return Reaction::TypeToString(reaction) + id;
+}
+
+Reaction ParseReaction(const MTPReaction& reaction) {
+	Reaction result;
+	reaction.match([&](const MTPDreactionEmoji &data) {
+		result.type = Reaction::Type::Emoji;
+		result.emoji = qs(data.vemoticon());
+	}, [&](const MTPDreactionCustomEmoji &data) {
+		result.type = Reaction::Type::CustomEmoji;
+		result.documentId = NumberToString(data.vdocument_id().v);
+	}, [&](const MTPDreactionEmpty &data) {
+		result.type = Reaction::Type::Empty;
+	});
+	return result;
+}
+
+std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
+	std::map<QString, Reaction> reactionsMap;
+	std::vector<Utf8String> reactionsOrder;
+	for (const auto &single : data.data().vresults().v) {
+		Reaction reaction = ParseReaction(single.data().vreaction());
+		reaction.count = single.data().vcount().v;
+		Utf8String id = Reaction::Id(reaction);
+		auto const &[_, inserted] = reactionsMap.try_emplace(id, reaction);
+		if (inserted) {
+			reactionsOrder.push_back(id);
+		}
+	}
+	if (data.data().vrecent_reactions().has_value()) {
+		for (const auto &single : data.data().vrecent_reactions().value_or_empty()) {
+			Reaction reaction = ParseReaction(single.data().vreaction());
+			Utf8String id = Reaction::Id(reaction);
+			auto const &[it, inserted] = reactionsMap.try_emplace(id, reaction);
+			if (inserted) {
+				reactionsOrder.push_back(id);
+			}
+			it->second.recent.push_back({
+				.peerId = ParsePeerId(single.data().vpeer_id()),
+				.date = single.data().vdate().v,
+			});
+		}
+	}
+	std::vector<Reaction> results;
+	for (const auto& id : reactionsOrder) {
+		results.push_back(reactionsMap[id]);
+	}
+	return results;
+}
+
 Utf8String FillLeft(const Utf8String &data, int length, char filler) {
 	if (length <= data.size()) {
 		return data;
@@ -1688,6 +1757,9 @@ Message ParseMessage(
 		result.text = ParseText(
 			data.vmessage(),
 			data.ventities().value_or_empty());
+			if (data.vreactions().has_value()) {
+				result.reactions = ParseReactions(*data.vreactions());
+			}
 	}, [&](const MTPDmessageService &data) {
 		result.action = ParseServiceAction(
 			context,

@@ -1726,6 +1726,15 @@ void ApiWrap::collectMessagesCustomEmoji(const Data::MessagesSlice &slice) {
 				}
 			}
 		}
+		for (const auto &reaction : message.reactions) {
+			if (reaction.type == Data::Reaction::Type::CustomEmoji) {
+				if (const auto id = reaction.documentId.toULongLong()) {
+					if (!_resolvedCustomEmoji.contains(id)) {
+						_unresolvedCustomEmoji.emplace(id);
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -1803,38 +1812,52 @@ Data::FileOrigin ApiWrap::currentFileMessageOrigin() const {
 	return result;
 }
 
+bool ApiWrap::renderCustomEmoji(QByteArray *data) {
+	if (const auto id = data->toULongLong()) {
+		const auto i = _resolvedCustomEmoji.find(id);
+		if (i == end(_resolvedCustomEmoji)) {
+			*data = Data::TextPart::UnavailableEmoji();
+		} else {
+			auto &file = i->second.file;
+			const auto fileProgress = [=](FileProgress value) {
+				return loadMessageEmojiProgress(value);
+			};
+			const auto ready = processFileLoad(
+				file,
+				{ .customEmojiId = id },
+				fileProgress,
+				[=](const QString &path) {
+					loadMessageEmojiDone(id, path);
+				});
+			if (!ready) {
+				return false;
+			}
+			using SkipReason = Data::File::SkipReason;
+			if (file.skipReason == SkipReason::Unavailable) {
+				*data = Data::TextPart::UnavailableEmoji();
+			} else if (file.skipReason == SkipReason::FileType
+				|| file.skipReason == SkipReason::FileSize) {
+				*data = QByteArray();
+			} else {
+				*data = file.relativePath.toUtf8();
+			}
+		}
+	}
+	return true;
+}
+
 bool ApiWrap::messageCustomEmojiReady(Data::Message &message) {
 	for (auto &part : message.text) {
 		if (part.type == Data::TextPart::Type::CustomEmoji) {
-			if (const auto id = part.additional.toULongLong()) {
-				const auto i = _resolvedCustomEmoji.find(id);
-				if (i == end(_resolvedCustomEmoji)) {
-					part.additional = Data::TextPart::UnavailableEmoji();
-				} else {
-					auto &file = i->second.file;
-					const auto fileProgress = [=](FileProgress value) {
-						return loadMessageEmojiProgress(value);
-					};
-					const auto ready = processFileLoad(
-						file,
-						{ .customEmojiId = id },
-						fileProgress,
-						[=](const QString &path) {
-							loadMessageEmojiDone(id, path);
-						});
-					if (!ready) {
-						return false;
-					}
-					using SkipReason = Data::File::SkipReason;
-					if (file.skipReason == SkipReason::Unavailable) {
-						part.additional = Data::TextPart::UnavailableEmoji();
-					} else if (file.skipReason == SkipReason::FileType
-						|| file.skipReason == SkipReason::FileSize) {
-						part.additional = QByteArray();
-					} else {
-						part.additional = file.relativePath.toUtf8();
-					}
-				}
+			if (!renderCustomEmoji(&part.additional)) {
+				return false;
+			}
+		}
+	}
+	for (auto &reaction : message.reactions) {
+		if (reaction.type == Data::Reaction::Type::CustomEmoji) {
+			if (!renderCustomEmoji(&reaction.documentId)) {
+				return false;
 			}
 		}
 	}
