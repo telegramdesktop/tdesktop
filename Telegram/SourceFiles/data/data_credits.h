@@ -35,7 +35,8 @@ struct CreditsHistoryEntry final {
 	QDateTime date;
 	PhotoId photoId = 0;
 	uint64 credits = 0;
-	uint64 bareId = 0;
+	uint64 bareMsgId = 0;
+	uint64 barePeerId = 0;
 	PeerType peerType;
 	bool refunded = false;
 	bool pending = false;

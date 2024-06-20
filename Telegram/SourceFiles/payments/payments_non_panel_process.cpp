@@ -105,7 +105,8 @@ Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 				.date = base::unixtime::parse(receipt->date),
 				.photoId = receipt->photo ? receipt->photo->id : 0,
 				.credits = receipt->credits,
-				.bareId = receipt->peerId.value,
+				.bareMsgId = uint64(),
+				.barePeerId = receipt->peerId.value,
 				.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			};
 			controller->uiShow()->show(Box(

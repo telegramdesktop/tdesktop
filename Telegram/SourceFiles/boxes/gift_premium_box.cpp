@@ -1646,12 +1646,12 @@ void AddCreditsHistoryEntryTable(
 			container,
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
-	if (entry.bareId) {
+	if (entry.barePeerId) {
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer(),
 			controller,
-			PeerId(entry.bareId));
+			PeerId(entry.barePeerId));
 	}
 	using Type = Data::CreditsHistoryEntry::PeerType;
 	if (entry.peerType == Type::AppStore) {

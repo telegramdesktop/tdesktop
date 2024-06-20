@@ -336,8 +336,8 @@ void ReceiptCreditsBox(
 	const auto &stUser = st::boostReplaceUserpic;
 	const auto peer = (e.peerType == Type::PremiumBot)
 		? premiumBot
-		: e.bareId
-		? controller->session().data().peer(PeerId(e.bareId)).get()
+		: e.barePeerId
+		? controller->session().data().peer(PeerId(e.barePeerId)).get()
 		: nullptr;
 	const auto photo = e.photoId
 		? controller->session().data().photo(e.photoId).get()

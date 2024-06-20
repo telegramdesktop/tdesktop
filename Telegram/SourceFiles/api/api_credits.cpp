@@ -43,7 +43,8 @@ constexpr auto kTransactionsLimit = 100;
 		.date = base::unixtime::parse(tl.data().vdate().v),
 		.photoId = photo ? photo->id : 0,
 		.credits = tl.data().vstars().v,
-		.bareId = barePeerId,
+		.bareMsgId = uint64(tl.data().vmsg_id().value_or_empty()),
+		.barePeerId = barePeerId,
 		.peerType = tl.data().vpeer().match([](const HistoryPeerTL &) {
 			return Data::CreditsHistoryEntry::PeerType::Peer;
 		}, [](const MTPDstarsTransactionPeerPlayMarket &) {
