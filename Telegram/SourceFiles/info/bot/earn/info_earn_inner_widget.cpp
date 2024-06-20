@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/bot/earn/info_earn_inner_widget.h"
 
+#include "api/api_earn.h"
 #include "api/api_credits.h"
 #include "api/api_filter_updates.h"
 #include "data/data_channel_earn.h"
@@ -270,7 +271,7 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(container);
 
-		{
+		const auto input = [&] {
 			const auto &st = st::botEarnInputField;
 			const auto inputContainer = container->add(
 				Ui::CreateSkipWidget(container, st.heightMin));
@@ -302,7 +303,8 @@ void InnerWidget::fill() {
 					st.textMargins.top());
 			}, input->lifetime());
 			Ui::ToggleChildrenVisibility(inputContainer, true);
-		}
+			return input;
+		}();
 
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
@@ -330,7 +332,13 @@ void InnerWidget::fill() {
 				(b.height() - l.height()) / 2);
 		}, label->lifetime());
 
-		// Api::HandleWithdrawalButton(_peer, button, _controller->uiShow());
+		Api::HandleWithdrawalButton(
+			Api::RewardReceiver{
+				.creditsReceiver = _peer,
+				.creditsAmount = [=] { return input->getLastText().toInt(); },
+			},
+			button,
+			_controller->uiShow());
 		Ui::ToggleChildrenVisibility(button, true);
 
 		Ui::AddSkip(container);
