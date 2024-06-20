@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/bot/earn/info_earn_inner_widget.h"
 
-#include "api/api_earn.h"
 #include "api/api_credits.h"
+#include "api/api_earn.h"
 #include "api/api_filter_updates.h"
+#include "base/timer_rpl.h"
+#include "base/unixtime.h"
+#include "core/ui_integration.h"
 #include "data/data_channel_earn.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -309,6 +312,19 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 
+		auto dateValue = rpl::single(
+			data.nextWithdrawalAt
+		) | rpl::then(
+			_stateUpdated.events() | rpl::map([=] {
+				return _state.nextWithdrawalAt;
+			})
+		);
+		auto lockedValue = rpl::duplicate(
+			dateValue
+		) | rpl::map([=](const QDateTime &dt) {
+			return !dt.isNull() || (!_state.isWithdrawalEnabled);
+		});
+
 		const auto &stButton = st::defaultActiveButton;
 		const auto button = container->add(
 			object_ptr<Ui::RoundButton>(
@@ -317,6 +333,12 @@ void InnerWidget::fill() {
 				stButton),
 			st::boxRowPadding);
 
+		rpl::duplicate(
+			lockedValue
+		) | rpl::start_with_next([=](bool v) {
+			button->setAttribute(Qt::WA_TransparentForMouseEvents, v);
+		}, button->lifetime());
+
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(
 			button,
 			tr::lng_channel_earn_balance_button(tr::now),
@@ -324,13 +346,95 @@ void InnerWidget::fill() {
 		label->setTextColorOverride(stButton.textFg->c);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);
 		rpl::combine(
+			rpl::duplicate(lockedValue),
 			button->sizeValue(),
 			label->sizeValue()
-		) | rpl::start_with_next([=](const QSize &b, const QSize &l) {
+		) | rpl::start_with_next([=](bool v, const QSize &b, const QSize &l) {
 			label->moveToLeft(
 				(b.width() - l.width()) / 2,
-				(b.height() - l.height()) / 2);
+				(v ? -10 : 1) * (b.height() - l.height()) / 2);
 		}, label->lifetime());
+
+		const auto lockedColor = anim::with_alpha(stButton.textFg->c, .5);
+		const auto lockedLabelTop = Ui::CreateChild<Ui::FlatLabel>(
+			button,
+			tr::lng_bot_earn_balance_button_locked(),
+			st::botEarnLockedButtonLabel);
+		lockedLabelTop->setTextColorOverride(lockedColor);
+		lockedLabelTop->setAttribute(Qt::WA_TransparentForMouseEvents);
+		const auto lockedLabelBottom = Ui::CreateChild<Ui::FlatLabel>(
+			button,
+			QString(),
+			st::botEarnLockedButtonLabel);
+		lockedLabelBottom->setTextColorOverride(lockedColor);
+		lockedLabelBottom->setAttribute(Qt::WA_TransparentForMouseEvents);
+		rpl::combine(
+			rpl::duplicate(lockedValue),
+			button->sizeValue(),
+			lockedLabelTop->sizeValue(),
+			lockedLabelBottom->sizeValue()
+		) | rpl::start_with_next([=](
+				bool locked,
+				const QSize &b,
+				const QSize &top,
+				const QSize &bottom) {
+			const auto factor = locked ? 1 : -10;
+			const auto sumHeight = top.height() + bottom.height();
+			lockedLabelTop->moveToLeft(
+				(b.width() - top.width()) / 2,
+				factor * (b.height() - sumHeight) / 2);
+			lockedLabelBottom->moveToLeft(
+				(b.width() - bottom.width()) / 2,
+				factor * ((b.height() - sumHeight) / 2 + top.height()));
+		}, lockedLabelTop->lifetime());
+
+		const auto dateUpdateLifetime
+			= lockedLabelBottom->lifetime().make_state<rpl::lifetime>();
+		std::move(
+			dateValue
+		) | rpl::start_with_next([=](const QDateTime &dt) {
+			dateUpdateLifetime->destroy();
+			if (dt.isNull()) {
+				return;
+			}
+			constexpr auto kDateUpdateInterval = crl::time(250);
+			const auto was = base::unixtime::serialize(dt);
+
+			const auto context = Core::MarkedTextContext{
+				.customEmojiRepaint = [=] { lockedLabelBottom->update(); },
+				.session = session,
+			};
+			const auto emoji = Ui::Text::SingleCustomEmoji(
+				session->data().customEmojiManager().registerInternalEmoji(
+					st::chatSimilarLockedIcon,
+					st::botEarnButtonLockMargins,
+					true));
+
+			rpl::single(
+				rpl::empty
+			) | rpl::then(
+				base::timer_each(kDateUpdateInterval)
+			) | rpl::start_with_next([=] {
+				const auto secondsDifference = std::max(
+					was - base::unixtime::now() - 1,
+					0);
+				const auto hours = secondsDifference / 3600;
+				const auto minutes = (secondsDifference % 3600) / 60;
+				const auto seconds = secondsDifference % 60;
+				constexpr auto kZero = QChar('0');
+				const auto formatted = (hours > 0)
+					? (u"%1:%2:%3"_q)
+						.arg(hours, 2, 10, kZero)
+						.arg(minutes, 2, 10, kZero)
+						.arg(seconds, 2, 10, kZero)
+					: (u"%1:%2"_q)
+						.arg(minutes, 2, 10, kZero)
+						.arg(seconds, 2, 10, kZero);
+				lockedLabelBottom->setMarkedText(
+					base::duplicate(emoji).append(formatted),
+					context);
+			}, *dateUpdateLifetime);
+		}, lockedLabelBottom->lifetime());
 
 		Api::HandleWithdrawalButton(
 			Api::RewardReceiver{
