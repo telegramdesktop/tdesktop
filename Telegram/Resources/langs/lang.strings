@@ -5203,6 +5203,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_earn_out_ph" = "Enter amount to withdraw";
 "lng_bot_earn_balance_password_title" = "Two-step verification";
 "lng_bot_earn_balance_password_description" = "Please enter your password to collect.";
+"lng_bot_earn_credits_out_minimal" = "You cannot withdraw less then {link}.";
+"lng_bot_earn_credits_out_minimal_link#one" = "{count} star";
+"lng_bot_earn_credits_out_minimal_link#other" = "{count} stars";
 
 "lng_contact_add" = "Add";
 "lng_contact_send_message" = "message";

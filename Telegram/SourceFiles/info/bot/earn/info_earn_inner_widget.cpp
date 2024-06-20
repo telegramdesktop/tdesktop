@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/ui_integration.h"
 #include "data/data_channel_earn.h"
+#include "ui/toast/toast.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "statistics/chart_widget.h"
 #include "ui/effects/credits_graphics.h"
@@ -42,6 +44,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info::BotEarn {
 namespace {
+
+[[nodiscard]] int WithdrawalMin(not_null<Main::Session*> session) {
+	const auto key = u"stars_revenue_withdrawal_min"_q;
+	return session->appConfig().get<int>(key, 1000);
+}
 
 void AddHeader(
 		not_null<Ui::VerticalLayout*> content,
@@ -344,7 +351,7 @@ void InnerWidget::fill() {
 			button,
 			tr::lng_channel_earn_balance_button(tr::now),
 			st::channelEarnSemiboldLabel);
-		{
+		const auto processInputChange = [&] {
 			const auto buttonEmoji = Ui::Text::SingleCustomEmoji(
 				session->data().customEmojiManager().registerInternalEmoji(
 					st::settingsPremiumIconStar,
@@ -373,7 +380,8 @@ void InnerWidget::fill() {
 			};
 			QObject::connect(input, &Ui::MaskedInputField::changed, process);
 			process();
-		}
+			return process;
+		}();
 		label->setTextColorOverride(stButton.textFg->c);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);
 		rpl::combine(
@@ -470,7 +478,32 @@ void InnerWidget::fill() {
 		Api::HandleWithdrawalButton(
 			Api::RewardReceiver{
 				.creditsReceiver = _peer,
-				.creditsAmount = [=] { return input->getLastText().toInt(); },
+				.creditsAmount = [=, show = _controller->uiShow()] {
+					const auto amount = input->getLastText().toULongLong();
+					const auto min = float64(WithdrawalMin(session));
+					if (amount <= min) {
+						auto text = tr::lng_bot_earn_credits_out_minimal(
+							tr::now,
+							lt_link,
+							Ui::Text::Link(
+								tr::lng_bot_earn_credits_out_minimal_link(
+									tr::now,
+									lt_count,
+									min),
+								u"internal:"_q),
+							Ui::Text::RichLangValue);
+						show->showToast(Ui::Toast::Config{
+							.text = std::move(text),
+							.filter = [=](const auto ...) {
+								input->setText(QString::number(min));
+								processInputChange();
+								return true;
+							},
+						});
+						return 0ULL;
+					}
+					return amount;
+				},
 			},
 			button,
 			_controller->uiShow());

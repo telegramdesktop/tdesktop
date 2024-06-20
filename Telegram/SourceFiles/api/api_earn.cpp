@@ -55,6 +55,9 @@ void HandleWithdrawalButton(
 		if (state->loading) {
 			return;
 		}
+		if (peer && !receiver.creditsAmount()) {
+			return;
+		}
 		state->loading = true;
 		state->lifetime = session->api().cloudPassword().state(
 		) | rpl::take(
