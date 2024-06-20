@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
+#include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 
 namespace Info::BotEarn {
@@ -343,6 +344,36 @@ void InnerWidget::fill() {
 			button,
 			tr::lng_channel_earn_balance_button(tr::now),
 			st::channelEarnSemiboldLabel);
+		{
+			const auto buttonEmoji = Ui::Text::SingleCustomEmoji(
+				session->data().customEmojiManager().registerInternalEmoji(
+					st::settingsPremiumIconStar,
+					{ 0, -st::moderateBoxExpandInnerSkip, 0, 0 },
+					true));
+			const auto context = Core::MarkedTextContext{
+				.customEmojiRepaint = [=] { label->update(); },
+				.session = session,
+			};
+			const auto process = [=] {
+				const auto amount = input->getLastText().toDouble();
+				if (amount >= _state.availableBalance) {
+					label->setText(
+						tr::lng_bot_earn_balance_button_all(tr::now));
+				} else {
+					label->setMarkedText(
+						tr::lng_bot_earn_balance_button(
+							tr::now,
+							lt_count,
+							amount,
+							lt_emoji,
+							buttonEmoji,
+							Ui::Text::RichLangValue),
+						context);
+				}
+			};
+			QObject::connect(input, &Ui::MaskedInputField::changed, process);
+			process();
+		}
 		label->setTextColorOverride(stButton.textFg->c);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);
 		rpl::combine(
