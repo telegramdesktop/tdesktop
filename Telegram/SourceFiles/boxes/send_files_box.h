@@ -166,6 +166,8 @@ private:
 		void toggleSpoilers(bool enabled);
 		void applyChanges();
 
+		[[nodiscard]] QImage generatePriceTagBackground() const;
+
 	private:
 		base::unique_qptr<Ui::RpWidget> _preview;
 		not_null<std::vector<Ui::PreparedFile>*> _items;
@@ -196,6 +198,7 @@ private:
 	[[nodiscard]] bool canChangePrice() const;
 	[[nodiscard]] bool hasPrice() const;
 	void refreshPriceTag();
+	[[nodiscard]] QImage preparePriceTagBg(QSize size) const;
 
 	bool validateLength(const QString &text) const;
 	void refreshButtons();
@@ -259,6 +262,7 @@ private:
 	Fn<void()> _cancelledCallback;
 	rpl::variable<uint64> _price = 0;
 	std::unique_ptr<Ui::RpWidget> _priceTag;
+	QImage _priceTagBg;
 	bool _confirmed = false;
 	bool _invertCaption = false;
 

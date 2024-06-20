@@ -20,6 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
+namespace Media::Streaming {
+
+[[nodiscard]] QImage PrepareBlurredBackground(QSize outer, QImage frame);
+
+} // namespace Media::Streaming
+
 namespace Ui {
 namespace {
 
@@ -610,8 +616,47 @@ void AlbumPreview::switchToDrag() {
 	update();
 }
 
-rpl::producer<int> AlbumPreview::thumbModified() const {
-	return _thumbModified.events();
+QImage AlbumPreview::generatePriceTagBackground() const {
+	auto wmax = 0;
+	auto hmax = 0;
+	for (auto &thumb : _thumbs) {
+		const auto geometry = thumb->geometry();
+		accumulate_max(wmax, geometry.x() + geometry.width());
+		accumulate_max(hmax, geometry.y() + geometry.height());
+	}
+	const auto size = QSize(wmax, hmax);
+	if (size.isEmpty()) {
+		return {};
+	}
+	const auto ratio = style::DevicePixelRatio();
+	const auto full = size * ratio;
+	const auto skip = st::historyGroupSkip;
+	auto result = QImage(full, QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::black);
+	auto p = QPainter(&result);
+	auto hq = PainterHighQualityEnabler(p);
+	for (auto &thumb : _thumbs) {
+		const auto geometry = thumb->geometry();
+		if (geometry.isEmpty()) {
+			continue;
+		}
+		const auto w = geometry.width();
+		const auto h = geometry.height();
+		const auto wscale = (w + skip) / float64(w);
+		const auto hscale = (h + skip) / float64(h);
+		p.save();
+		p.translate(geometry.center());
+		p.scale(wscale, hscale);
+		p.translate(-geometry.center());
+		thumb->paintInAlbum(p, 0, 0, 0., 0.);
+		p.restore();
+	}
+	p.end();
+
+	return ::Media::Streaming::PrepareBlurredBackground(
+		full,
+		std::move(result));
 }
 
 } // namespace Ui

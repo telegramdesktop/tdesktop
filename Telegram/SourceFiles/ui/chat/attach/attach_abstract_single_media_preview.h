@@ -44,6 +44,8 @@ public:
 	[[nodiscard]] bool canHaveSpoiler() const;
 	[[nodiscard]] rpl::producer<bool> spoileredChanges() const;
 
+	[[nodiscard]] QImage generatePriceTagBackground() const;
+
 protected:
 	virtual bool supportsSpoilers() const = 0;
 	virtual bool drawBackground() const = 0;

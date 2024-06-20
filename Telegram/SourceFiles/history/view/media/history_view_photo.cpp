@@ -383,7 +383,7 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		}
 	} else if (preview) {
 		drawPriceTag(p, rthumb, context, [&] {
-			return _spoiler ? _spoiler->background : QImage();
+			return priceTagBackground();
 		});
 	}
 	if (showEnlarge) {
@@ -447,9 +447,10 @@ void Photo::drawPriceTag(
 		|| _priceTag->darken != darken
 		|| _priceTag->fg != fg
 		|| _priceTag->star != star) {
+		const auto ratio = style::DevicePixelRatio();
 		auto bg = generateBackground();
 		if (bg.isNull()) {
-			bg = QImage(2, 2, QImage::Format_ARGB32_Premultiplied);
+			bg = QImage(ratio, ratio, QImage::Format_ARGB32_Premultiplied);
 			bg.fill(Qt::black);
 		}
 
@@ -474,7 +475,6 @@ void Photo::drawPriceTag(
 		const auto outer = inner.marginsAdded(st::paidTagPadding);
 		const auto size = outer.size();
 		const auto radius = std::min(size.width(), size.height()) / 2;
-		const auto ratio = style::DevicePixelRatio();
 		auto cache = QImage(
 			size * ratio,
 			QImage::Format_ARGB32_Premultiplied);

@@ -47,7 +47,11 @@ public:
 		return _thumbChanged.events();
 	}
 
-	rpl::producer<int> thumbModified() const;
+	[[nodiscard]] rpl::producer<int> thumbModified() const {
+		return _thumbModified.events();
+	}
+
+	[[nodiscard]] QImage generatePriceTagBackground() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

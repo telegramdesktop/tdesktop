@@ -398,6 +398,18 @@ void SendFilesBox::Block::applyChanges() {
 	}
 }
 
+QImage SendFilesBox::Block::generatePriceTagBackground() const {
+	const auto preview = _preview.get();
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(preview);
+		return album->generatePriceTagBackground();
+	} else if (_isSingleMedia) {
+		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
+		return media->generatePriceTagBackground();
+	}
+	return QImage();
+}
+
 SendFilesBox::SendFilesBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
@@ -737,18 +749,17 @@ void SendFilesBox::refreshPriceTag() {
 	}
 	if (!hasPrice()) {
 		_priceTag = nullptr;
+		_priceTagBg = QImage();
 	} else if (!_priceTag) {
 		_priceTag = std::make_unique<Ui::RpWidget>(_inner.data());
 		const auto raw = _priceTag.get();
 
 		raw->show();
 		raw->paintRequest() | rpl::start_with_next([=] {
-			auto p = QPainter(raw);
-			auto hq = PainterHighQualityEnabler(p);
-			p.setBrush(st::toastBg);
-			p.setPen(Qt::NoPen);
-			const auto radius = std::min(raw->width(), raw->height()) / 2.;
-			p.drawRoundedRect(raw->rect(), radius, radius);
+			if (_priceTagBg.isNull()) {
+				_priceTagBg = preparePriceTagBg(raw->size());
+			}
+			QPainter(raw).drawImage(0, 0, _priceTagBg);
 		}, raw->lifetime());
 
 		const auto session = &_show->session();
@@ -785,7 +796,42 @@ void SendFilesBox::refreshPriceTag() {
 		}, raw->lifetime());
 	} else {
 		_priceTag->raise();
+		_priceTag->update();
+		_priceTagBg = QImage();
 	}
+}
+
+QImage SendFilesBox::preparePriceTagBg(QSize size) const {
+	const auto ratio = style::DevicePixelRatio();
+	const auto outer = _blocks.empty()
+		? size
+		: _inner->widgetAt(0)->geometry().size();
+	auto bg = _blocks.empty()
+		? QImage()
+		: _blocks.front().generatePriceTagBackground();
+	if (bg.isNull()) {
+		bg = QImage(ratio, ratio, QImage::Format_ARGB32_Premultiplied);
+		bg.fill(Qt::black);
+	}
+	const auto bgSize = bg.size() / bg.devicePixelRatio();
+
+	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::black);
+	auto p = QPainter(&result);
+	auto hq = PainterHighQualityEnabler(p);
+	p.drawImage(
+		QRect(
+			(size.width() - outer.width()) / 2,
+			(size.height() - outer.height()) / 2,
+			outer.width(),
+			outer.height()),
+		bg);
+	p.fillRect(QRect(QPoint(), size), st::msgDateImgBg);
+	p.end();
+
+	const auto radius = std::min(size.width(), size.height()) / 2;
+	return Images::Round(std::move(result), Images::CornersMask(radius));
 }
 
 void SendFilesBox::addMenuButton() {
