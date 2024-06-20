@@ -714,7 +714,10 @@ void InnerWidget::fill() {
 			!withdrawalEnabled);
 #endif
 
-		Api::HandleWithdrawalButton(channel, button, _controller->uiShow());
+		Api::HandleWithdrawalButton(
+			{ .currencyReceiver = channel },
+			button,
+			_controller->uiShow());
 		Ui::ToggleChildrenVisibility(button, true);
 
 		Ui::AddSkip(container);

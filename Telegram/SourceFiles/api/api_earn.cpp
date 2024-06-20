@@ -34,16 +34,21 @@ void RestrictSponsored(
 }
 
 void HandleWithdrawalButton(
-		not_null<ChannelData*> channel,
+		RewardReceiver receiver,
 		not_null<Ui::RippleButton*> button,
 		std::shared_ptr<Ui::Show> show) {
+	Expects(receiver.currencyReceiver
+		|| (receiver.creditsReceiver && receiver.creditsAmount));
 	struct State {
 		rpl::lifetime lifetime;
 		bool loading = false;
 	};
 
+	const auto channel = receiver.currencyReceiver;
+	const auto peer = receiver.creditsReceiver;
+
 	const auto state = button->lifetime().make_state<State>();
-	const auto session = &channel->session();
+	const auto session = (channel ? &channel->session() : &peer->session());
 
 	session->api().cloudPassword().reload();
 	button->setClickedCallback([=] {
@@ -58,10 +63,12 @@ void HandleWithdrawalButton(
 			state->loading = false;
 
 			auto fields = PasscodeBox::CloudFields::From(pass);
-			fields.customTitle
-				= tr::lng_channel_earn_balance_password_title();
-			fields.customDescription
-				= tr::lng_channel_earn_balance_password_description(tr::now);
+			fields.customTitle = channel
+				? tr::lng_channel_earn_balance_password_title()
+				: tr::lng_bot_earn_balance_password_title();
+			fields.customDescription = channel
+				? tr::lng_channel_earn_balance_password_description(tr::now)
+				: tr::lng_bot_earn_balance_password_description(tr::now);
 			fields.customSubmitButton = tr::lng_passcode_submit();
 			fields.customCheckCallback = crl::guard(button, [=](
 					const Core::CloudPasswordResult &result,
@@ -77,15 +84,30 @@ void HandleWithdrawalButton(
 				const auto fail = [=](const QString &error) {
 					show->showToast(error);
 				};
-				session->api().request(
-					MTPstats_GetBroadcastRevenueWithdrawalUrl(
-						channel->inputChannel,
-						result.result
-				)).done([=](const MTPstats_BroadcastRevenueWithdrawalUrl &r) {
-					done(qs(r.data().vurl()));
-				}).fail([=](const MTP::Error &error) {
-					fail(error.type());
-				}).send();
+				if (channel) {
+					session->api().request(
+						MTPstats_GetBroadcastRevenueWithdrawalUrl(
+							channel->inputChannel,
+							result.result
+					)).done([=](
+							const MTPstats_BroadcastRevenueWithdrawalUrl &r) {
+						done(qs(r.data().vurl()));
+					}).fail([=](const MTP::Error &error) {
+						fail(error.type());
+					}).send();
+				} else if (peer) {
+					session->api().request(
+						MTPpayments_GetStarsRevenueWithdrawalUrl(
+							peer->input,
+							MTP_long(receiver.creditsAmount()),
+							result.result
+					)).done([=](
+							const MTPpayments_StarsRevenueWithdrawalUrl &r) {
+						done(qs(r.data().vurl()));
+					}).fail([=](const MTP::Error &error) {
+						fail(error.type());
+					}).send();
+				}
 			});
 			show->show(Box<PasscodeBox>(session, fields));
 		});

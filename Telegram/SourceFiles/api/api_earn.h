@@ -21,8 +21,14 @@ void RestrictSponsored(
 	bool restricted,
 	Fn<void(QString)> failed);
 
+struct RewardReceiver final {
+	ChannelData *currencyReceiver = nullptr;
+	PeerData *creditsReceiver = nullptr;
+	Fn<uint64()> creditsAmount;
+};
+
 void HandleWithdrawalButton(
-	not_null<ChannelData*> channel,
+	RewardReceiver receiver,
 	not_null<Ui::RippleButton*> button,
 	std::shared_ptr<Ui::Show> show);
 

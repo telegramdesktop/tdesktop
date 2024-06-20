@@ -5201,6 +5201,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_earn_balance_button_locked" = "Withdraw via Fragment";
 "lng_bot_earn_learn_credits_out_about" = "You can withdraw Stars using Fragment, or use Stars to advertise your bot. {link}";
 "lng_bot_earn_out_ph" = "Enter amount to withdraw";
+"lng_bot_earn_balance_password_title" = "Two-step verification";
+"lng_bot_earn_balance_password_description" = "Please enter your password to collect.";
 
 "lng_contact_add" = "Add";
 "lng_contact_send_message" = "message";
