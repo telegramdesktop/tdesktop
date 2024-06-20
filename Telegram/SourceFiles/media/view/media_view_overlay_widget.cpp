@@ -630,6 +630,7 @@ OverlayWidget::OverlayWidget()
 		_window->setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
 	}
 	_widget->setMouseTracking(true);
+	_window->createWinId();
 
 	QObject::connect(
 		window(),
