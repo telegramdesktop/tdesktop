@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_credits_box.h"
 #include "ui/effects/scroll_content_shadow.h"
+#include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
@@ -124,13 +125,22 @@ void EditPriceBox(
 			0,
 			st::defaultSubsectionTitlePadding.right(),
 			0)));
-	const auto field = box->addRow(object_ptr<Ui::InputField>(
+	const auto wrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,
+		st::editTagField.heightMin));
+	auto owned = object_ptr<Ui::NumberInput>(
+		wrap,
 		st::editTagField,
 		tr::lng_paid_cost_placeholder(),
-		price ? QString::number(price) : QString()));
+		price ? QString::number(price) : QString(),
+		kMaxPrice);
+	const auto field = owned.data();
+	wrap->widthValue() | rpl::start_with_next([=](int width) {
+		field->move(0, 0);
+		field->resize(width, field->height());
+		wrap->resize(width, field->height());
+	}, wrap->lifetime());
 	field->selectAll();
-	field->setMaxLength(QString::number(kMaxPrice).size());
 	box->setFocusCallback([=] {
 		field->setFocusFast();
 	});
@@ -168,8 +178,7 @@ void EditPriceBox(
 		}
 	};
 
-	field->submits(
-	) | rpl::start_with_next(save, field->lifetime());
+	QObject::connect(field, &Ui::NumberInput::submitted, box, save);
 
 	box->addButton(tr::lng_settings_save(), save);
 	box->addButton(tr::lng_cancel(), [=] {
