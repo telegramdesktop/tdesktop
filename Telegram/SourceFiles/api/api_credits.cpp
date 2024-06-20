@@ -30,6 +30,12 @@ constexpr auto kTransactionsLimit = 100;
 	const auto photo = tl.data().vphoto()
 		? peer->owner().photoFromWeb(*tl.data().vphoto(), ImageLocation())
 		: nullptr;
+	const auto barePeerId = tl.data().vpeer().match([](
+			const HistoryPeerTL &p) {
+		return peerFromMTP(p.vpeer());
+	}, [](const auto &) {
+		return PeerId(0);
+	}).value;
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
 		.title = qs(tl.data().vtitle().value_or_empty()),
@@ -37,11 +43,7 @@ constexpr auto kTransactionsLimit = 100;
 		.date = base::unixtime::parse(tl.data().vdate().v),
 		.photoId = photo ? photo->id : 0,
 		.credits = tl.data().vstars().v,
-		.bareId = tl.data().vpeer().match([](const HistoryPeerTL &p) {
-			return peerFromMTP(p.vpeer());
-		}, [](const auto &) {
-			return PeerId(0);
-		}).value,
+		.bareId = barePeerId,
 		.peerType = tl.data().vpeer().match([](const HistoryPeerTL &) {
 			return Data::CreditsHistoryEntry::PeerType::Peer;
 		}, [](const MTPDstarsTransactionPeerPlayMarket &) {
@@ -56,6 +58,15 @@ constexpr auto kTransactionsLimit = 100;
 			return Data::CreditsHistoryEntry::PeerType::PremiumBot;
 		}),
 		.refunded = tl.data().is_refund(),
+		.pending = tl.data().is_pending(),
+		.failed = tl.data().is_failed(),
+		.finishDate = tl.data().vtransaction_date()
+			? base::unixtime::parse(tl.data().vtransaction_date()->v)
+			: QDateTime(),
+		.finishUrl = qs(tl.data().vtransaction_url().value_or_empty()),
+		.in = (!barePeerId || tl.data().is_refund())
+			&& !tl.data().is_pending()
+			&& !tl.data().is_failed(),
 	};
 }
 

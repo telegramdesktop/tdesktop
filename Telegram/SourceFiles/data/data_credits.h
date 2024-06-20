@@ -38,6 +38,12 @@ struct CreditsHistoryEntry final {
 	uint64 bareId = 0;
 	PeerType peerType;
 	bool refunded = false;
+	bool pending = false;
+	bool failed = false;
+	QDateTime finishDate;
+	QString finishUrl;
+	bool in = false;
+
 };
 
 struct CreditsStatusSlice final {
