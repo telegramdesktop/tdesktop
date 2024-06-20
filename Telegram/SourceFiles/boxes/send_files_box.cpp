@@ -25,10 +25,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/history_view_schedule_box.h"
 #include "core/mime_type.h"
+#include "core/ui_integration.h"
 #include "base/event_filter.h"
 #include "base/call_delayed.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
+#include "boxes/send_credits_box.h"
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
@@ -749,13 +751,26 @@ void SendFilesBox::refreshPriceTag() {
 			p.drawRoundedRect(raw->rect(), radius, radius);
 		}, raw->lifetime());
 
+		const auto session = &_show->session();
 		auto price = _price.value() | rpl::map([=](uint64 amount) {
-			return QChar(0x2B50) + Lang::FormatCountDecimal(amount);
+			auto result = Ui::Text::Colorized(Ui::CreditsEmoji(session));
+			result.append(Lang::FormatCountDecimal(amount));
+			return result;
 		});
+		auto text = tr::lng_paid_price(
+			lt_price,
+			std::move(price),
+			Ui::Text::WithEntities);
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(
 			raw,
-			tr::lng_paid_price(lt_price, std::move(price)),
+			QString(),
 			st::paidTagLabel);
+		std::move(text) | rpl::start_with_next([=](TextWithEntities &&text) {
+			label->setMarkedText(text, Core::MarkedTextContext{
+				.session = session,
+				.customEmojiRepaint = [=] { label->update(); },
+			});
+		}, label->lifetime());
 		label->show();
 		label->sizeValue() | rpl::start_with_next([=](QSize size) {
 			const auto inner = QRect(QPoint(), size);
@@ -1633,10 +1648,15 @@ void SendFilesBox::send(
 		auto caption = (_caption && !_caption->isHidden())
 			? _caption->getTextWithAppliedMarkdown()
 			: TextWithTags();
-		options.invertCaption = _invertCaption;
-		options.price = hasPrice() ? _price.current() : 0;
 		if (!validateLength(caption.text)) {
 			return;
+		}
+		options.invertCaption = _invertCaption;
+		options.price = hasPrice() ? _price.current() : 0;
+		if (options.price > 0) {
+			for (auto &file : _list.files) {
+				file.spoiler = false;
+			}
 		}
 		_confirmedCallback(
 			std::move(_list),

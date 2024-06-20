@@ -1417,6 +1417,9 @@ paidAmountAbout: FlatLabel(defaultFlatLabel) {
 }
 paidTagLabel: FlatLabel(defaultFlatLabel) {
 	textFg: radialFg;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: creditsBg1;
+	}
 	style: semiboldTextStyle;
 }
 paidTagPadding: margins(16px, 6px, 16px, 6px);

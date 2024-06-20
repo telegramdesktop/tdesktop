@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_photo.h"
 
+#include "boxes/send_credits_box.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/effects/spoiler_mess.h"
 #include "ui/chat/chat_style.h"
+#include "ui/text/text_utilities.h"
 #include "ui/grouped_layout.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
@@ -38,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_auto_download.h"
 #include "data/data_web_page.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
@@ -65,6 +68,7 @@ struct Photo::PriceTag {
 	QImage cache;
 	QColor darken;
 	QColor fg;
+	QColor star;
 	ClickHandlerPtr link;
 };
 
@@ -438,9 +442,11 @@ void Photo::drawPriceTag(
 	const auto st = context.st;
 	const auto darken = st->msgDateImgBg()->c;
 	const auto fg = st->msgDateImgFg()->c;
+	const auto star = st->creditsBg1()->c;
 	if (_priceTag->cache.isNull()
 		|| _priceTag->darken != darken
-		|| _priceTag->fg != fg) {
+		|| _priceTag->fg != fg
+		|| _priceTag->star != star) {
 		auto bg = generateBackground();
 		if (bg.isNull()) {
 			bg = QImage(2, 2, QImage::Format_ARGB32_Premultiplied);
@@ -448,12 +454,21 @@ void Photo::drawPriceTag(
 		}
 
 		auto text = Ui::Text::String();
-		text.setText(
+		const auto session = &history()->session();
+		auto price = Ui::Text::Colorized(Ui::CreditsEmoji(session));
+		price.append(Lang::FormatCountDecimal(_priceTag->price));
+		text.setMarkedText(
 			st::semiboldTextStyle,
 			tr::lng_paid_price(
 				tr::now,
 				lt_price,
-				QChar(0x2B50) + Lang::FormatCountDecimal(_priceTag->price)));
+				price,
+				Ui::Text::WithEntities),
+			kMarkupTextOptions,
+			Core::MarkedTextContext{
+				.session = session,
+				.customEmojiRepaint = [] {},
+			});
 		const auto width = text.maxWidth();
 		const auto inner = QRect(0, 0, width, text.minHeight());
 		const auto outer = inner.marginsAdded(st::paidTagPadding);
@@ -476,6 +491,7 @@ void Photo::drawPriceTag(
 			bg);
 		p.fillRect(QRect(QPoint(), size), darken);
 		p.setPen(fg);
+		p.setTextPalette(st->priceTagTextPalette());
 		text.draw(p, -outer.x(), -outer.y(), width);
 		p.end();
 

@@ -79,10 +79,14 @@ struct PaidMediaData {
 		}
 	}
 
+	const auto sender = item->originalSender();
+	const auto broadcast = (sender && sender->isBroadcast())
+		? sender
+		: message->peer.get();
 	return {
 		.invoice = invoice,
 		.item = item,
-		.peer = message->peer,
+		.peer = broadcast,
 		.photos = photos,
 		.videos = videos,
 	};
@@ -270,21 +274,11 @@ void SendCreditsBox(
 		loadingAnimation->showOn(state->confirmButtonBusy.value());
 		}
 	{
-		const auto emojiMargin = QMargins(
-			0,
-			-st::moderateBoxExpandInnerSkip,
-			0,
-			0);
-		const auto buttonEmoji = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				st::settingsPremiumIconStar,
-				emojiMargin,
-				true));
 		auto buttonText = tr::lng_credits_box_out_confirm(
 			lt_count,
 			rpl::single(form->invoice.amount) | tr::to_count(),
 			lt_emoji,
-			rpl::single(buttonEmoji),
+			rpl::single(CreditsEmoji(session)),
 			Ui::Text::RichLangValue);
 		const auto buttonLabel = Ui::CreateChild<Ui::FlatLabel>(
 			button,
@@ -357,6 +351,14 @@ void SendCreditsBox(
 			balance->update();
 		}, balance->lifetime());
 	}
+}
+
+TextWithEntities CreditsEmoji(not_null<Main::Session*> session) {
+	return Ui::Text::SingleCustomEmoji(
+		session->data().customEmojiManager().registerInternalEmoji(
+			st::settingsPremiumIconStar,
+			QMargins{ 0, -st::moderateBoxExpandInnerSkip, 0, 0 },
+			true));
 }
 
 } // namespace Ui

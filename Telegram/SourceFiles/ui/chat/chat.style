@@ -106,6 +106,9 @@ outTextPaletteSelected: TextPalette(outTextPalette) {
 	monoFg: msgOutMonoFgSelected;
 	spoilerFg: msgOutDateFgSelected;
 }
+priceTagTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: creditsBg1;
+}
 fwdTextUserpicPadding: margins(0px, 1px, 3px, 0px);
 fwdTextStyle: TextStyle(semiboldTextStyle) {
 	linkUnderline: kLinkUnderlineNever;

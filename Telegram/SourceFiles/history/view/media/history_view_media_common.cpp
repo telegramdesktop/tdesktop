@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_views.h"
 #include "apiwrap.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "core/click_handler_types.h"
 #include "data/data_document.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "media/streaming/media_streaming_utility.h"
@@ -34,6 +36,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 namespace HistoryView {
+namespace {
+
+constexpr auto kMediaUnlockedTooltipDuration = 5 * crl::time(1000);
+
+} // namespace
 
 void PaintInterpolatedIcon(
 		QPainter &p,
@@ -191,10 +198,36 @@ QSize CountPhotoMediaSize(
 			media.scaled(media.width(), newWidth, Qt::KeepAspectRatio));
 }
 
+void ShowPaidMediaUnlockedToast(
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	const auto invoice = media ? media->invoice() : nullptr;
+	if (!invoice || !invoice->isPaidMedia) {
+		return;
+	}
+	const auto sender = item->originalSender();
+	const auto broadcast = (sender && sender->isBroadcast())
+		? sender
+		: item->history()->peer.get();
+	auto text = tr::lng_credits_media_done_title(
+		tr::now,
+		Ui::Text::Bold
+	).append('\n').append(tr::lng_credits_media_done_text(
+		tr::now,
+		lt_count,
+		invoice->amount,
+		lt_chat,
+		Ui::Text::Bold(broadcast->name()),
+		Ui::Text::RichLangValue));
+	controller->showToast(std::move(text), kMediaUnlockedTooltipDuration);
+}
+
 ClickHandlerPtr MakePaidMediaLink(not_null<HistoryItem*> item) {
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		const auto controller = my.sessionWindow.get();
+		const auto weak = my.sessionWindow;
 		const auto itemId = item->fullId();
 		const auto session = &item->history()->session();
 		using Result = Payments::CheckoutResult;
@@ -203,6 +236,9 @@ ClickHandlerPtr MakePaidMediaLink(not_null<HistoryItem*> item) {
 				return;
 			} else if (const auto item = session->data().message(itemId)) {
 				session->api().views().pollExtendedMedia(item, true);
+				if (const auto strong = weak.get()) {
+					ShowPaidMediaUnlockedToast(strong, item);
+				}
 			}
 		});
 		Payments::CheckoutProcess::Start(
