@@ -1646,12 +1646,35 @@ void AddCreditsHistoryEntryTable(
 			container,
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
-	if (entry.barePeerId) {
-		AddTableRow(
-			table,
-			tr::lng_credits_box_history_entry_peer(),
-			controller,
-			PeerId(entry.barePeerId));
+	const auto peerId = PeerId(entry.barePeerId);
+	if (peerId) {
+		auto text = tr::lng_credits_box_history_entry_peer();
+		AddTableRow(table, std::move(text), controller, peerId);
+	}
+	if (const auto msgId = MsgId(peerId ? entry.bareMsgId : 0)) {
+		const auto session = &controller->session();
+		const auto peer = session->data().peer(peerId);
+		if (const auto channel = peer->asBroadcast()) {
+			const auto username = channel->username();
+			const auto base = username.isEmpty()
+				? u"c/%1"_q.arg(peerToChannel(channel->id).bare)
+				: username;
+			const auto query = base + '/' + QString::number(msgId.bare);
+			const auto link = session->createInternalLink(query);
+			auto label = object_ptr<Ui::FlatLabel>(
+				table,
+				rpl::single(Ui::Text::Link(link)),
+				st::giveawayGiftCodeValue);
+			label->setClickHandlerFilter([=](const auto &...) {
+				controller->showPeerHistory(channel, {}, msgId);
+				return false;
+			});
+			AddTableRow(
+				table,
+				tr::lng_credits_box_history_entry_media(),
+				std::move(label),
+				st::giveawayGiftCodeValueMargin);
+		}
 	}
 	using Type = Data::CreditsHistoryEntry::PeerType;
 	if (entry.peerType == Type::AppStore) {
