@@ -63,6 +63,7 @@ private:
 	rpl::event_stream<> _showFinished;
 	rpl::event_stream<> _focusRequested;
 	rpl::event_stream<bool> _loaded;
+	rpl::event_stream<> _stateUpdated;
 
 };
 

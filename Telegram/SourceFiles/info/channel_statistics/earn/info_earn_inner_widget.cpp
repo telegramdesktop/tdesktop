@@ -345,8 +345,7 @@ void InnerWidget::fill() {
 				) | rpl::map([](TextWithEntities text) {
 					return Ui::Text::Link(std::move(text), 1);
 				}),
-				Ui::Text::RichLangValue
-			),
+				Ui::Text::RichLangValue),
 			{ .session = session },
 			st::boxDividerLabel);
 		label->setLink(1, std::make_shared<LambdaClickHandler>([=] {

@@ -136,3 +136,9 @@ sponsoredReportLabel: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 	minWidth: 150px;
 }
+
+botEarnInputField: InputField(defaultInputField) {
+	textMargins: margins(23px, 28px, 0px, 4px);
+	width: 100px;
+	heightMax: 55px;
+}
