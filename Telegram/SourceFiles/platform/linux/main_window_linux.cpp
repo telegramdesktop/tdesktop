@@ -136,35 +136,6 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
 }
 
-void MainWindow::initHook() {
-	events() | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::ThemeChange) {
-			updateWindowIcon();
-		}
-	}, lifetime());
-
-	base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Expose) {
-			auto ee = static_cast<QExposeEvent*>(e.get());
-			if (ee->region().isNull()) {
-				return base::EventFilterResult::Continue;
-			}
-			if (!windowHandle()
-				|| windowHandle()->parent()
-				|| !windowHandle()->isVisible()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(true);
-		} else if (e->type() == QEvent::Hide) {
-			if (!windowHandle() || windowHandle()->parent()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(false);
-		}
-		return base::EventFilterResult::Continue;
-	});
-}
-
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 	if (!TrayIconSupported()) {
 		return;
@@ -514,17 +485,20 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 				updateGlobalMenu();
 			}
 		}
+	} else if (obj == this && t == QEvent::Paint) {
+		if (!_exposed) {
+			_exposed = true;
+			SkipTaskbar(
+				windowHandle(),
+				(Core::App().settings().workMode() == WorkMode::TrayOnly)
+					&& TrayIconSupported());
+		}
+	} else if (obj == this && t == QEvent::Hide) {
+		_exposed = false;
+	} else if (obj == this && t == QEvent::ThemeChange) {
+		updateWindowIcon();
 	}
 	return Window::MainWindow::eventFilter(obj, evt);
-}
-
-void MainWindow::handleNativeSurfaceChanged(bool exist) {
-	if (exist) {
-		SkipTaskbar(
-			windowHandle(),
-			(Core::App().settings().workMode() == WorkMode::TrayOnly)
-				&& TrayIconSupported());
-	}
 }
 
 MainWindow::~MainWindow() {

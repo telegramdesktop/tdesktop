@@ -455,8 +455,6 @@ QRect MainWindow::desktopRect() const {
 }
 
 void MainWindow::init() {
-	createWinId();
-
 	initHook();
 
 	updatePalette();
