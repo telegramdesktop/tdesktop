@@ -358,7 +358,8 @@ TextWithEntities CreditsEmoji(not_null<Main::Session*> session) {
 		session->data().customEmojiManager().registerInternalEmoji(
 			st::settingsPremiumIconStar,
 			QMargins{ 0, -st::moderateBoxExpandInnerSkip, 0, 0 },
-			true));
+			true),
+		QString(QChar(0x2B50)));
 }
 
 } // namespace Ui
