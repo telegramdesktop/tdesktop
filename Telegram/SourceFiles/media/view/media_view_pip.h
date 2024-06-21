@@ -77,7 +77,7 @@ public:
 	[[nodiscard]] bool dragging() const;
 
 	void handleWaylandResize(QSize size);
-	void handleScreenChanged(QScreen *screen);
+	void handleScreenChanged(not_null<QScreen*> screen);
 	void handleMousePress(QPoint position, Qt::MouseButton button);
 	void handleMouseRelease(QPoint position, Qt::MouseButton button);
 	void handleMouseMove(QPoint position);

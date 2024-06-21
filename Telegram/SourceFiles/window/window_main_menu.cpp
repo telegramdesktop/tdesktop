@@ -957,21 +957,15 @@ void MainMenu::drawName(Painter &p) {
 }
 
 void MainMenu::initResetScaleButton() {
-	if (!window() || !window()->windowHandle()) {
-		return;
-	}
-	const auto handle = window()->windowHandle();
-	rpl::single(
-		handle->screen()
-	) | rpl::then(
-		base::qt_signal_producer(handle, &QWindow::screenChanged)
-	) | rpl::filter([](QScreen *screen) {
-		return screen != nullptr;
-	}) | rpl::map([](QScreen * screen) {
+	_controller->widget()->screenValue(
+	) | rpl::map([](not_null<QScreen*> screen) {
 		return rpl::single(
 			screen->availableGeometry()
 		) | rpl::then(
-			base::qt_signal_producer(screen, &QScreen::availableGeometryChanged)
+			base::qt_signal_producer(
+				screen.get(),
+				&QScreen::availableGeometryChanged
+			)
 		);
 	}) | rpl::flatten_latest(
 	) | rpl::map([](QRect available) {
