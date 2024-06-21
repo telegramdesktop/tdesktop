@@ -46,7 +46,7 @@ elif officialTarget in ['win64', 'uwp64']:
 elif officialTarget in ['winarm', 'uwparm']:
     arch = 'arm'
 if not qt_version.resolve(arch):
-    error('Usupported platform.')
+    error('Unsupported platform.')
 
 if 'qt6' in arguments:
     arguments.remove('qt6')
