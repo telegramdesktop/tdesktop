@@ -488,7 +488,7 @@ void InnerWidget::fill() {
 				.creditsAmount = [=, show = _controller->uiShow()] {
 					const auto amount = input->getLastText().toULongLong();
 					const auto min = float64(WithdrawalMin(session));
-					if (amount <= min) {
+					if (amount < min) {
 						auto text = tr::lng_bot_earn_credits_out_minimal(
 							tr::now,
 							lt_link,
