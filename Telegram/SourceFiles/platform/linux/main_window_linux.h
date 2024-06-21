@@ -28,7 +28,6 @@ public:
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;
 
-	void initHook() override;
 	void unreadCounterChangedHook() override;
 	void updateGlobalMenuHook() override;
 
@@ -37,7 +36,6 @@ protected:
 
 private:
 	void updateUnityCounter();
-	void handleNativeSurfaceChanged(bool exist);
 
 	QMenuBar *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
@@ -60,6 +58,8 @@ private:
 	QAction *psBlockquote = nullptr;
 	QAction *psMonospace = nullptr;
 	QAction *psClearFormat = nullptr;
+
+	bool _exposed = false;
 
 };
 
