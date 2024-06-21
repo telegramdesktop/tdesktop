@@ -51,7 +51,7 @@ protected:
 	bool nativeEvent(
 		const QByteArray &eventType,
 		void *message,
-		long *result) override;
+		native_event_filter_result *result) override;
 
 private:
 	struct Private;

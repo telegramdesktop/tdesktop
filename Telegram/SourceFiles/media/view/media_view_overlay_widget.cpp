@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_attached_stickers.h"
 #include "api/api_peer_photo.h"
+#include "base/qt/qt_common_adapters.h"
 #include "lang/lang_keys.h"
 #include "boxes/premium_preview_box.h"
 #include "core/application.h"

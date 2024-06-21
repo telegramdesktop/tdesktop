@@ -118,7 +118,7 @@ constexpr auto kFileOpenTimeoutMs = crl::time(1000);
 LaunchState GlobalLaunchState/* = LaunchState::Running*/;
 
 void SetCrashAnnotationsGL() {
-#ifdef Q_OS_WIN
+#ifdef DESKTOP_APP_USE_ANGLE
 	CrashReports::SetAnnotation("OpenGL ANGLE", [] {
 		if (Core::App().settings().disableOpenGL()) {
 			return "Disabled";
@@ -131,11 +131,11 @@ void SetCrashAnnotationsGL() {
 		}
 		Unexpected("Ui::GL::CurrentANGLE value in SetupANGLE.");
 	}());
-#else // Q_OS_WIN
+#else // DESKTOP_APP_USE_ANGLE
 	CrashReports::SetAnnotation(
 		"OpenGL",
 		Core::App().settings().disableOpenGL() ? "Disabled" : "Enabled");
-#endif // Q_OS_WIN
+#endif // DESKTOP_APP_USE_ANGLE
 }
 
 } // namespace

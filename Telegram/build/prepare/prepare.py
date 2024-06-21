@@ -1,7 +1,10 @@
 import os, sys, pprint, re, json, pathlib, hashlib, subprocess, glob
 
 executePath = os.getcwd()
+sys.dont_write_bytecode = True
 scriptPath = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(scriptPath + '/..')
+import qt_version
 
 def finish(code):
     global executePath
@@ -23,11 +26,24 @@ if win and not 'Platform' in os.environ:
 
 win32 = win and (os.environ['Platform'] == 'x86')
 win64 = win and (os.environ['Platform'] == 'x64')
+winarm = win and (os.environ['Platform'] == 'arm')
+
+arch = ''
+if win32:
+    arch = 'x86'
+elif win64:
+    arch = 'x64'
+elif winarm:
+    arch = 'arm'
+if not qt_version.resolve(arch):
+    error('Usupported platform.')
+
+qt = os.environ.get('QT')
 
 if win and not 'COMSPEC' in os.environ:
     error('COMSPEC environment variable is not set.')
 
-if win and not win32 and not win64:
+if win and not win32 and not win64 and not winarm:
     nativeToolsError()
 
 os.chdir(scriptPath + '/../../../..')
@@ -42,11 +58,8 @@ thirdPartyDir = os.path.realpath(os.path.join(rootDir, 'ThirdParty'))
 usedPrefix = os.path.realpath(os.path.join(libsDir, 'local'))
 
 optionsList = [
+    'qt6',
     'skip-release',
-    'build-qt5',
-    'skip-qt5',
-    'build-qt6',
-    'skip-qt6',
     'build-stackwalk',
 ]
 options = []
@@ -62,9 +75,6 @@ for arg in sys.argv[1:]:
     elif arg == 'shell':
         customRunCommand = True
         runCommand.append('shell')
-
-buildQt5 = not 'skip-qt5' in options if win else 'build-qt5' in options
-buildQt6 = 'build-qt6' in options if win else not 'skip-qt6' in options
 
 if not os.path.isdir(os.path.join(libsDir, keysLoc)):
     pathlib.Path(os.path.join(libsDir, keysLoc)).mkdir(parents=True, exist_ok=True)
@@ -435,7 +445,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 8639205c20
+    git checkout 20a7c5ffd8
 """)
 
 stage('msys64', """
@@ -1398,7 +1408,9 @@ release:
     lipo -create Release.arm64/libcrashpad_client.a Release.x86_64/libcrashpad_client.a -output Release/libcrashpad_client.a
 """)
 
-stage('tg_angle', """
+if qt < '6':
+    if win:
+        stage('tg_angle', """
 win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
@@ -1424,22 +1436,21 @@ release:
     cd ..\\..\\..
 """)
 
-if buildQt5:
-    stage('qt_5_15_13', """
-    git clone -b v5.15.13-lts-lgpl https://github.com/qt/qt5.git qt_5_15_13
-    cd qt_5_15_13
+    stage('qt_' + qt, """
+    git clone -b v$QT-lts-lgpl https://github.com/qt/qt5.git qt_$QT
+    cd qt_$QT
     git submodule update --init --recursive qtbase qtimageformats qtsvg
-depends:patches/qtbase_5.15.13/*.patch
+depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5.15.13\\*) do git apply %%i -v
+    for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do git apply %%i -v
     cd ..
 
     SET CONFIGURATIONS=-debug
 release:
     SET CONFIGURATIONS=-debug-and-release
 win:
-    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.13\"") + """
+    """ + removeDir('"%LIBS_DIR%\\Qt-' + qt + '"') + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1447,7 +1458,7 @@ win:
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
-    configure -prefix "%LIBS_DIR%\\Qt-5.15.13" ^
+    configure -prefix "%LIBS_DIR%\\Qt-%QT%" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1482,14 +1493,14 @@ win:
     jom -j%NUMBER_OF_PROCESSORS%
     jom -j%NUMBER_OF_PROCESSORS% install
 mac:
-    find ../../patches/qtbase_5.15.13 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_$QT -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-5.15.13" \
+    ./configure -prefix "$USED_PREFIX/Qt-$QT" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1508,16 +1519,16 @@ mac:
     make $MAKE_THREADS_CNT
     make install
 """)
-
-if buildQt6:
-    stage('qt_6_2_8', """
-mac:
-    git clone -b v6.2.8-lts-lgpl https://github.com/qt/qt5.git qt_6_2_8
-    cd qt_6_2_8
+else: # qt > '6'
+    branch = 'v$QT' + ('-lts-lgpl' if qt < '6.3' else '')
+    stage('qt_' + qt, """
+    git clone -b """ + branch + """ https://github.com/qt/qt5.git qt_$QT
+    cd qt_$QT
     git submodule update --init --recursive qtbase qtimageformats qtsvg
-depends:patches/qtbase_6.2.8/*.patch
+depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
-    find ../../patches/qtbase_6.2.8 -type f -print0 | sort -z | xargs -0 git apply -v
+mac:
+    find ../../patches/qtbase_$QT -type f -print0 | sort -z | xargs -0 git apply -v
     cd ..
     sed -i.bak 's/tqtc-//' {qtimageformats,qtsvg}/dependencies.yaml
 
@@ -1525,7 +1536,7 @@ depends:patches/qtbase_6.2.8/*.patch
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.2.8" \
+    ./configure -prefix "$USED_PREFIX/Qt-$QT" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1546,6 +1557,62 @@ mac:
 
     ninja
     ninja install
+win:
+    for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do git apply %%i -v
+    cd ..
+
+    SET CONFIGURATIONS=-debug
+release:
+    SET CONFIGURATIONS=-debug-and-release
+win:
+    """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
+    SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
+    SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
+    SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
+    SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
+    SET WEBP_DIR=%LIBS_DIR%\\libwebp
+    configure -prefix "%LIBS_DIR%\\Qt-%QT%" ^
+        %CONFIGURATIONS% ^
+        -force-debug-info ^
+        -opensource ^
+        -confirm-license ^
+        -static ^
+        -static-runtime ^
+        -feature-c++20 ^
+        -openssl linked ^
+        -system-webp ^
+        -system-zlib ^
+        -system-libjpeg ^
+        -nomake examples ^
+        -nomake tests ^
+        -platform win32-msvc ^
+        -D ZLIB_WINAPI ^
+        -- ^
+        -D OPENSSL_FOUND=1 ^
+        -D OPENSSL_INCLUDE_DIR="%OPENSSL_DIR%\\include" ^
+        -D LIB_EAY_DEBUG="%OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib" ^
+        -D SSL_EAY_DEBUG="%OPENSSL_LIBS_DIR%.dbg\\libssl.lib" ^
+        -D LIB_EAY_RELEASE="%OPENSSL_LIBS_DIR%\\libcrypto.lib" ^
+        -D SSL_EAY_RELEASE="%OPENSSL_LIBS_DIR%\\libssl.lib" ^
+        -D JPEG_FOUND=1 ^
+        -D JPEG_INCLUDE_DIR="%MOZJPEG_DIR%" ^
+        -D JPEG_LIBRARY_DEBUG="%MOZJPEG_DIR%\\Debug\\jpeg-static.lib" ^
+        -D JPEG_LIBRARY_RELEASE="%MOZJPEG_DIR%\\Release\\jpeg-static.lib" ^
+        -D ZLIB_FOUND=1 ^
+        -D ZLIB_INCLUDE_DIR="%ZLIB_LIBS_DIR%" ^
+        -D ZLIB_LIBRARY_DEBUG="%ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib" ^
+        -D ZLIB_LIBRARY_RELEASE="%ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib" ^
+        -D WebP_INCLUDE_DIR="%WEBP_DIR%\\src" ^
+        -D WebP_demux_INCLUDE_DIR="%WEBP_DIR%\\src" ^
+        -D WebP_mux_INCLUDE_DIR="%WEBP_DIR%\\src" ^
+        -D WebP_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webp.lib" ^
+        -D WebP_demux_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webpdemux.lib" ^
+        -D WebP_mux_LIBRARY="%WEBP_DIR%\\out\\release-static\\$X8664\\lib\\webpmux.lib"
+
+    cmake --build . --config Debug --parallel
+    cmake --install . --config Debug
+    cmake --build . --parallel
+    cmake --install .
 """)
 
 stage('tg_owt', """

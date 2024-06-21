@@ -43,7 +43,7 @@ WindowsIntegration &WindowsIntegration::Instance() {
 bool WindowsIntegration::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		long *result) {
+		native_event_filter_result *result) {
 	return Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 		const auto msg = static_cast<MSG*>(message);
 		return processEvent(

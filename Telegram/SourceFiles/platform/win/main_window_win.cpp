@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "history/history.h"
 
-#include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QStyleFactory>
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
@@ -81,7 +80,7 @@ private:
 	bool nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		long *result) override;
+		native_event_filter_result *result) override;
 
 	bool mainWindowEvent(
 		HWND hWnd,
@@ -172,7 +171,7 @@ EventFilter::EventFilter(not_null<MainWindow*> window) : _window(window) {
 bool EventFilter::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		long *result) {
+		native_event_filter_result *result) {
 	return Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 		const auto msg = static_cast<MSG*>(message);
 		if (msg->hwnd == _window->psHwnd()
@@ -483,7 +482,7 @@ bool MainWindow::initGeometryFromSystem() {
 bool MainWindow::nativeEvent(
 		const QByteArray &eventType,
 		void *message,
-		long *result) {
+		native_event_filter_result *result) {
 	if (message) {
 		const auto msg = static_cast<MSG*>(message);
 		if (msg->message == WM_IME_STARTCOMPOSITION) {
