@@ -633,10 +633,10 @@ OverlayWidget::OverlayWidget()
 	_widget->setMouseTracking(true);
 	_window->createWinId();
 
-	QObject::connect(
-		window(),
-		&QWindow::screenChanged,
-		[=](QScreen *screen) { handleScreenChanged(screen); });
+	_window->screenValue(
+	) | rpl::skip(1) | rpl::start_with_next([=](not_null<QScreen*> screen) {
+		handleScreenChanged(screen);
+	}, lifetime());
 	subscribeToScreenGeometry();
 	updateGeometry();
 	updateControlsGeometry();
@@ -2315,7 +2315,7 @@ void OverlayWidget::dropdownHidden() {
 	}
 }
 
-void OverlayWidget::handleScreenChanged(QScreen *screen) {
+void OverlayWidget::handleScreenChanged(not_null<QScreen*> screen) {
 	subscribeToScreenGeometry();
 	if (isHidden()) {
 		return;

@@ -361,12 +361,10 @@ void PipPanel::init() {
 		Ui::Platform::ClearTransientParent(widget());
 	}, rp()->lifetime());
 
-	QObject::connect(
-		widget()->windowHandle(),
-		&QWindow::screenChanged,
-		[=](QScreen *screen) {
-			handleScreenChanged(screen);
-		});
+	rp()->screenValue(
+	) | rpl::skip(1) | rpl::start_with_next([=](not_null<QScreen*> screen) {
+		handleScreenChanged(screen);
+	}, rp()->lifetime());
 
 	if (Platform::IsWayland()) {
 		rp()->sizeValue(
@@ -637,7 +635,7 @@ void PipPanel::handleWaylandResize(QSize size) {
 	_inHandleWaylandResize = false;
 }
 
-void PipPanel::handleScreenChanged(QScreen *screen) {
+void PipPanel::handleScreenChanged(not_null<QScreen*> screen) {
 	const auto screenGeometry = screen->availableGeometry();
 	const auto minimalSize = _ratio.scaled(
 		st::pipMinimalSize,

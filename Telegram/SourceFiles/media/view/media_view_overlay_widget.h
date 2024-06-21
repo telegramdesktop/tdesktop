@@ -303,7 +303,7 @@ private:
 	bool moveToNext(int delta);
 	void preloadData(int delta);
 
-	void handleScreenChanged(QScreen *screen);
+	void handleScreenChanged(not_null<QScreen*> screen);
 
 	[[nodiscard]] bool computeSaveButtonVisible() const;
 	void checkForSaveLoaded();
