@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/gift_premium_box.h"
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
+#include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "core/click_handler_types.h" // UrlClickHandler
 #include "data/data_photo_media.h"
@@ -350,18 +351,16 @@ void ReceiptCreditsBox(
 	using Type = Data::CreditsHistoryEntry::PeerType;
 
 	const auto &stUser = st::boostReplaceUserpic;
+	const auto session = &controller->session();
 	const auto peer = (e.peerType == Type::PremiumBot)
 		? premiumBot
 		: e.barePeerId
-		? controller->session().data().peer(PeerId(e.barePeerId)).get()
+		? session->data().peer(PeerId(e.barePeerId)).get()
 		: nullptr;
-	const auto photo = e.photoId
-		? controller->session().data().photo(e.photoId).get()
-		: nullptr;
-	if (photo) {
+	if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
 		content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
-			HistoryEntryPhoto(content, photo, stUser.photoSize)));
+			GenericEntryPhoto(content, callback, stUser.photoSize)));
 	} else if (peer) {
 		content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
@@ -539,18 +538,16 @@ void ReceiptCreditsBox(
 	}, button->lifetime());
 }
 
-object_ptr<Ui::RpWidget> HistoryEntryPhoto(
+object_ptr<Ui::RpWidget> GenericEntryPhoto(
 		not_null<Ui::RpWidget*> parent,
-		not_null<PhotoData*> photo,
+		Fn<Fn<void(Painter &, int, int, int, int)>(Fn<void()>)> callback,
 		int photoSize) {
 	auto owned = object_ptr<Ui::RpWidget>(parent);
 	const auto widget = owned.data();
 	widget->resize(Size(photoSize));
 
-	const auto draw = Ui::GenerateCreditsPaintEntryCallback(
-		photo,
-		[=] { widget->update(); });
-
+	const auto draw = callback(
+		crl::guard(widget, [=] { widget->update(); }));
 	widget->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = Painter(widget);
@@ -560,25 +557,40 @@ object_ptr<Ui::RpWidget> HistoryEntryPhoto(
 	return owned;
 }
 
+object_ptr<Ui::RpWidget> HistoryEntryPhoto(
+		not_null<Ui::RpWidget*> parent,
+		not_null<PhotoData*> photo,
+		int photoSize) {
+	return GenericEntryPhoto(
+		parent,
+		[=](Fn<void()> update) {
+			return Ui::GenerateCreditsPaintEntryCallback(photo, update);
+		},
+		photoSize);
+}
+
+object_ptr<Ui::RpWidget> HistoryEntryVideo(
+		not_null<Ui::RpWidget*> parent,
+		not_null<DocumentData*> video,
+		int photoSize) {
+	return GenericEntryPhoto(
+		parent,
+		[=](Fn<void()> update) {
+			return Ui::GenerateCreditsPaintEntryCallback(video, update);
+		},
+		photoSize);
+}
+
 object_ptr<Ui::RpWidget> PaidMediaPhoto(
 		not_null<Ui::RpWidget*> parent,
 		not_null<PhotoData*> photo,
 		int photoSize) {
-	auto owned = object_ptr<Ui::RpWidget>(parent);
-	const auto widget = owned.data();
-	widget->resize(Size(photoSize));
-
-	const auto draw = Ui::GeneratePaidMediaPaintCallback(
-		photo,
-		[=] { widget->update(); });
-
-	widget->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = Painter(widget);
-		draw(p, 0, 0, photoSize, photoSize);
-	}, widget->lifetime());
-
-	return owned;
+	return GenericEntryPhoto(
+		parent,
+		[=](Fn<void()> update) {
+			return Ui::GeneratePaidMediaPaintCallback(photo, update);
+		},
+		photoSize);
 }
 
 void SmallBalanceBox(

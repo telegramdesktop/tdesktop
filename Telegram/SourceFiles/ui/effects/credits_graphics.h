@@ -8,10 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 class PhotoData;
+class DocumentData;
 
 namespace Data {
 struct CreditsHistoryEntry;
 } // namespace Data
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Ui {
 class MaskedInputField;
@@ -38,9 +43,17 @@ Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintEntryCallback(
 	not_null<PhotoData*> photo,
 	Fn<void()> update);
 
+Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintEntryCallback(
+	not_null<DocumentData*> video,
+	Fn<void()> update);
+
 Fn<void(Painter &, int, int, int, int)> GeneratePaidMediaPaintCallback(
 	not_null<PhotoData*> photo,
 	Fn<void()> update);
+
+Fn<Fn<void(Painter&, int, int, int, int)>(Fn<void()>)> PaintPreviewCallback(
+	not_null<Main::Session*> session,
+	const Data::CreditsHistoryEntry &entry);
 
 [[nodiscard]] TextWithEntities GenerateEntryName(
 	const Data::CreditsHistoryEntry &entry);

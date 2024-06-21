@@ -756,20 +756,24 @@ private:
 	QString _name;
 
 	Ui::Text::String _rightText;
+
+	base::has_weak_ptr _guard;
 };
 
-CreditsRow::CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor)
+CreditsRow::CreditsRow(
+	not_null<PeerData*> peer,
+	const Descriptor &descriptor)
 : PeerListRow(peer, UniqueRowIdFromEntry(descriptor.entry))
 , _entry(descriptor.entry)
 , _creditIcon(descriptor.creditIcon)
 , _rowHeight(descriptor.rowHeight) {
-	const auto photo = _entry.photoId
-		? peer->session().data().photo(_entry.photoId).get()
-		: nullptr;
-	if (photo) {
-		_paintUserpicCallback = Ui::GenerateCreditsPaintEntryCallback(
-			photo,
-			[this, update = descriptor.updateCallback] { update(this); });
+	const auto callback = Ui::PaintPreviewCallback(
+		&peer->session(),
+		_entry);
+	if (callback) {
+		_paintUserpicCallback = callback(crl::guard(&_guard, [this, update = descriptor.updateCallback] {
+			update(this);
+		}));
 	}
 	init();
 }

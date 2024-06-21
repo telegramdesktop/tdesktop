@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_credits.h"
 #include "data/data_file_origin.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
@@ -232,7 +234,53 @@ Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintEntryCallback(
 					minSize,
 					minSize),
 				size * style::DevicePixelRatio(),
-				{ .options = Images::Option::RoundCircle });
+				{ .options = Images::Option::RoundLarge });
+		}
+		p.drawImage(x, y, state->image);
+	};
+}
+
+Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintEntryCallback(
+		not_null<DocumentData*> video,
+		Fn<void()> update) {
+	struct State {
+		std::shared_ptr<Data::DocumentMedia> view;
+		Image *imagePtr = nullptr;
+		QImage image;
+		rpl::lifetime downloadLifetime;
+		bool entryImageLoaded = false;
+	};
+	const auto state = std::make_shared<State>();
+	state->view = video->createMediaView();
+	video->loadThumbnail({});
+
+	rpl::single(rpl::empty_value()) | rpl::then(
+		video->owner().session().downloaderTaskFinished()
+	) | rpl::start_with_next([=] {
+		using Size = Data::PhotoSize;
+		if (const auto thumbnail = state->view->thumbnail()) {
+			state->imagePtr = thumbnail;
+		}
+		update();
+		if (state->imagePtr) {
+			state->entryImageLoaded = true;
+			state->downloadLifetime.destroy();
+		}
+	}, state->downloadLifetime);
+
+	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+		if (state->imagePtr
+			&& (!state->entryImageLoaded || state->image.isNull())) {
+			const auto image = state->imagePtr->original();
+			const auto minSize = std::min(image.width(), image.height());
+			state->image = Images::Prepare(
+				image.copy(
+					(image.width() - minSize) / 2,
+					(image.height() - minSize) / 2,
+					minSize,
+					minSize),
+				size * style::DevicePixelRatio(),
+				{ .options = Images::Option::RoundLarge });
 		}
 		p.drawImage(x, y, state->image);
 	};
@@ -280,6 +328,33 @@ Fn<void(Painter &, int, int, int, int)> GeneratePaidMediaPaintCallback(
 			Ui::DefaultImageSpoiler().frame(
 				state->spoiler.index(crl::now(), false)));
 	};
+}
+
+Fn<Fn<void(Painter&, int, int, int, int)>(Fn<void()>)> PaintPreviewCallback(
+		not_null<Main::Session*> session,
+		const Data::CreditsHistoryEntry &entry) {
+	using MediaType = Data::CreditsHistoryEntry::MediaType;
+	const auto &extended = entry.extended;
+	const auto owner = &session->data();
+	const auto photo = entry.photoId
+		? owner->photo(entry.photoId).get()
+		: (!extended.empty() && extended.front().type == MediaType::Photo)
+		? owner->photo(extended.front().mediaId).get()
+		: nullptr;
+	const auto video = (!extended.empty()
+		&& extended.front().type == MediaType::Video)
+		? owner->document(extended.front().mediaId).get()
+		: nullptr;
+	if (photo) {
+		return [=](Fn<void()> update) {
+			return Ui::GenerateCreditsPaintEntryCallback(photo, update);
+		};
+	} else if (video) {
+		return [=](Fn<void()> update) {
+			return Ui::GenerateCreditsPaintEntryCallback(video, update);
+		};
+	}
+	return nullptr;
 }
 
 TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {

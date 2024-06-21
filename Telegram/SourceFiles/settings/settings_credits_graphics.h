@@ -55,9 +55,19 @@ void ReceiptCreditsBox(
 	PeerData *premiumBot,
 	const Data::CreditsHistoryEntry &e);
 
+[[nodiscard]] object_ptr<Ui::RpWidget> GenericEntryPhoto(
+	not_null<Ui::RpWidget*> parent,
+	Fn<Fn<void(Painter &, int, int, int, int)>(Fn<void()> update)> callback,
+	int photoSize);
+
 [[nodiscard]] object_ptr<Ui::RpWidget> HistoryEntryPhoto(
 	not_null<Ui::RpWidget*> parent,
 	not_null<PhotoData*> photo,
+	int photoSize);
+
+[[nodiscard]] object_ptr<Ui::RpWidget> HistoryEntryVideo(
+	not_null<Ui::RpWidget*> parent,
+	not_null<DocumentData*> video,
 	int photoSize);
 
 [[nodiscard]] object_ptr<Ui::RpWidget> PaidMediaPhoto(

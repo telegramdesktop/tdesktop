@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "iv/iv_instance.h"
 #include "mainwidget.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
@@ -64,7 +65,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMaxMessageLength = 4096;
-constexpr auto kMaxPrice = 1000ULL;
 
 using Ui::SendFilesWay;
 
@@ -125,6 +125,9 @@ void EditPriceBox(
 			0,
 			st::defaultSubsectionTitlePadding.right(),
 			0)));
+	const auto limit = session->appConfig().get<int>(
+		u"stars_paid_post_amount_max"_q,
+		10'000);
 	const auto wrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,
 		st::editTagField.heightMin));
@@ -133,7 +136,7 @@ void EditPriceBox(
 		st::editTagField,
 		tr::lng_paid_cost_placeholder(),
 		price ? QString::number(price) : QString(),
-		kMaxPrice);
+		limit);
 	const auto field = owned.data();
 	wrap->widthValue() | rpl::start_with_next([=](int width) {
 		field->move(0, 0);
@@ -167,7 +170,7 @@ void EditPriceBox(
 
 	const auto save = [=] {
 		const auto now = field->getLastText().toULongLong();
-		if (now > kMaxPrice) {
+		if (now > limit) {
 			field->showError();
 			return;
 		}

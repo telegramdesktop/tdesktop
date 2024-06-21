@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/data_channel.h"
+#include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -28,9 +29,40 @@ constexpr auto kTransactionsLimit = 100;
 		const MTPStarsTransaction &tl,
 		not_null<PeerData*> peer) {
 	using HistoryPeerTL = MTPDstarsTransactionPeer;
+	using namespace Data;
+	const auto owner = &peer->owner();
 	const auto photo = tl.data().vphoto()
-		? peer->owner().photoFromWeb(*tl.data().vphoto(), ImageLocation())
+		? owner->photoFromWeb(*tl.data().vphoto(), ImageLocation())
 		: nullptr;
+	auto extended = std::vector<CreditsHistoryEntry::Media>();
+	if (const auto list = tl.data().vextended_media()) {
+		extended.reserve(list->v.size());
+		for (const auto &media : list->v) {
+			media.match([&](const MTPDmessageMediaPhoto &photo) {
+				if (const auto inner = photo.vphoto()) {
+					const auto photo = owner->processPhoto(*inner);
+					if (!photo->isNull()) {
+						extended.push_back(CreditsHistoryEntry::Media{
+							.type = CreditsHistoryEntry::MediaType::Photo,
+							.mediaId = photo->id,
+						});
+					}
+				}
+			}, [&](const MTPDmessageMediaDocument &document) {
+				if (const auto inner = document.vdocument()) {
+					const auto document = owner->processDocument(*inner);
+					if (document->isAnimation()
+						|| document->isVideoFile()
+						|| document->isGifv()) {
+						extended.push_back(CreditsHistoryEntry::Media{
+							.type = CreditsHistoryEntry::MediaType::Video,
+							.mediaId = document->id,
+						});
+					}
+				}
+			}, [&](const auto &) {});
+		}
+	}
 	const auto barePeerId = tl.data().vpeer().match([](
 			const HistoryPeerTL &p) {
 		return peerFromMTP(p.vpeer());
@@ -53,6 +85,7 @@ constexpr auto kTransactionsLimit = 100;
 		.description = qs(tl.data().vdescription().value_or_empty()),
 		.date = base::unixtime::parse(tl.data().vdate().v),
 		.photoId = photo ? photo->id : 0,
+		.extended = std::move(extended),
 		.credits = tl.data().vstars().v,
 		.bareMsgId = uint64(tl.data().vmsg_id().value_or_empty()),
 		.barePeerId = barePeerId,

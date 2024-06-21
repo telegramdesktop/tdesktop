@@ -30,11 +30,21 @@ struct CreditsHistoryEntry final {
 		PremiumBot,
 		Ads,
 	};
+	enum class MediaType {
+		Photo,
+		Video,
+	};
+	struct Media {
+		MediaType type = MediaType::Photo;
+		uint64 mediaId = 0;
+	};
+
 	QString id;
 	QString title;
 	QString description;
 	QDateTime date;
 	PhotoId photoId = 0;
+	std::vector<Media> extended;
 	uint64 credits = 0;
 	uint64 bareMsgId = 0;
 	uint64 barePeerId = 0;
