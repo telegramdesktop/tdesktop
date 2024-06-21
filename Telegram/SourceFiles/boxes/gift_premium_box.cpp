@@ -1653,6 +1653,26 @@ void AddCreditsHistoryEntryTable(
 			controller,
 			PeerId(entry.bareId));
 	}
+	using Type = Data::CreditsHistoryEntry::PeerType;
+	if (entry.peerType == Type::AppStore) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_via(),
+			tr::lng_credits_box_history_entry_app_store(
+				Ui::Text::RichLangValue));
+	} else if (entry.peerType == Type::PlayMarket) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_via(),
+			tr::lng_credits_box_history_entry_play_market(
+				Ui::Text::RichLangValue));
+	} else if (entry.peerType == Type::Fragment) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_via(),
+			tr::lng_credits_box_history_entry_fragment(
+				Ui::Text::RichLangValue));
+	}
 	if (!entry.id.isEmpty()) {
 		constexpr auto kOneLineCount = 18;
 		const auto oneLine = entry.id.length() <= kOneLineCount;
