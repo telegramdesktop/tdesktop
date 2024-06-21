@@ -514,7 +514,11 @@ void PipPanel::setPositionDefault() {
 	const auto parentScreen = widgetScreen(_parent);
 	const auto myScreen = widget()->screen();
 	if (parentScreen && myScreen != parentScreen) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		widget()->setScreen(parentScreen);
+#else // Qt >= 6.0.0
 		widget()->windowHandle()->setScreen(parentScreen);
+#endif // Qt < 6.0.0
 	}
 	auto position = Position();
 	position.snapped = RectPart::Top | RectPart::Left;

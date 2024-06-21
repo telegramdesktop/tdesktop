@@ -804,7 +804,11 @@ void OverlayWidget::moveToScreen(bool inMove) {
 		DEBUG_LOG(("Viewer Pos: Currently on screen %1, moving to screen %2")
 			.arg(screenList.indexOf(myScreen))
 			.arg(screenList.indexOf(activeWindowScreen)));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		_window->setScreen(activeWindowScreen);
+#else // Qt >= 6.0.0
 		window()->setScreen(activeWindowScreen);
+#endif // Qt < 6.0.0
 		DEBUG_LOG(("Viewer Pos: New actual screen: %1")
 			.arg(screenList.indexOf(_window->screen())));
 	}
