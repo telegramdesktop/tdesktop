@@ -106,7 +106,6 @@ private:
 	bool _useTransparency = true;
 	bool _dragDisabled = false;
 	bool _inHandleWaylandResize = false;
-	QSize _suggestedWaylandSize;
 	style::margins _padding;
 
 	RectPart _overState = RectPart();
