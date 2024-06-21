@@ -585,7 +585,6 @@ void ChooseSourceProcess::setupSourcesGeometry() {
 
 void ChooseSourceProcess::setupGeometryWithParent(
 		not_null<QWidget*> parent) {
-	_window->createWinId();
 	const auto parentScreen = [&] {
 		if (const auto screen = QGuiApplication::screenAt(
 				parent->geometry().center())) {
@@ -595,7 +594,12 @@ void ChooseSourceProcess::setupGeometryWithParent(
 	}();
 	const auto myScreen = _window->screen();
 	if (parentScreen && myScreen != parentScreen) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		_window->setScreen(parentScreen);
+#else // Qt >= 6.0.0
+		_window->createWinId();
 		_window->windowHandle()->setScreen(parentScreen);
+#endif // Qt < 6.0.0
 	}
 	_window->setFixedSize(_fixedSize);
 	_window->move(
