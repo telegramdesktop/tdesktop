@@ -555,23 +555,22 @@ void InnerWidget::fill() {
 
 void InnerWidget::fillHistory() {
 	const auto container = this;
+	Ui::AddSkip(container, st::settingsPremiumOptionsPadding.top());
 	const auto history = container->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container)));
-	const auto content = history->entity();
+		object_ptr<Ui::VerticalLayout>(container));
 
-	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
+	const auto sectionIndex = history->lifetime().make_state<int>(0);
 
 	const auto fill = [=](
 			not_null<PeerData*> premiumBot,
 			const Data::CreditsStatusSlice &fullSlice,
 			const Data::CreditsStatusSlice &inSlice,
 			const Data::CreditsStatusSlice &outSlice) {
-		const auto inner = content;
 		if (fullSlice.list.empty()) {
 			return;
 		}
+		const auto inner = history->add(
+			object_ptr<Ui::VerticalLayout>(history));
 		const auto hasOneTab = inSlice.list.empty() && outSlice.list.empty();
 		const auto hasIn = !inSlice.list.empty();
 		const auto hasOut = !outSlice.list.empty();
@@ -622,6 +621,8 @@ void InnerWidget::fillHistory() {
 			slider->entity()->addSection(outTabText);
 		}
 
+		slider->entity()->setActiveSectionFast(*sectionIndex);
+
 		{
 			const auto &st = st::defaultTabsSlider;
 			slider->entity()->setNaturalWidth(0
@@ -644,7 +645,7 @@ void InnerWidget::fillHistory() {
 				inner,
 				object_ptr<Ui::VerticalLayout>(inner)));
 
-		rpl::single(0) | rpl::then(
+		rpl::single(slider->entity()->activeSection()) | rpl::then(
 			slider->entity()->sectionActivated()
 		) | rpl::start_with_next([=](int index) {
 			if (index == 0) {
@@ -660,6 +661,7 @@ void InnerWidget::fillHistory() {
 				fullWrap->toggle(false, anim::type::instant);
 				inWrap->toggle(false, anim::type::instant);
 			}
+			*sectionIndex = index;
 		}, inner->lifetime());
 
 		const auto controller = _controller->parentController();
@@ -704,12 +706,12 @@ void InnerWidget::fillHistory() {
 
 		Ui::AddSkip(inner);
 		Ui::AddSkip(inner);
-
-		inner->resizeToWidth(container->width());
 	};
 
-	const auto apiLifetime = content->lifetime().make_state<rpl::lifetime>();
-	{
+	const auto apiLifetime = history->lifetime().make_state<rpl::lifetime>();
+	rpl::single(rpl::empty) | rpl::then(
+		_stateUpdated.events()
+	) | rpl::start_with_next([=] {
 		using Api = Api::CreditsHistory;
 		const auto apiFull = apiLifetime->make_state<Api>(_peer, true, true);
 		const auto apiIn = apiLifetime->make_state<Api>(_peer, true, false);
@@ -721,12 +723,16 @@ void InnerWidget::fillHistory() {
 						&_controller->session()
 					) | rpl::start_with_next([=](not_null<PeerData*> bot) {
 						fill(bot, fullSlice, inSlice, outSlice);
+						container->resizeToWidth(container->width());
+						while (history->count() > 1) {
+							delete history->widgetAt(0);
+						}
 						apiLifetime->destroy();
 					}, *apiLifetime);
 				});
 			});
 		});
-	}
+	}, history->lifetime());
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
