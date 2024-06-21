@@ -389,14 +389,19 @@ void ReceiptCreditsBox(
 		auto &lifetime = content->lifetime();
 		const auto text = lifetime.make_state<Ui::Text::String>(
 			st::semiboldTextStyle,
-			((!e.bareId || e.refunded) ? QChar('+') : kMinus)
+			(e.in ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(std::abs(int64(e.credits))));
-		const auto refundedText = tr::lng_channel_earn_history_return(
-			tr::now);
-		const auto refunded = e.refunded
+		const auto roundedText = e.refunded
+			? tr::lng_channel_earn_history_return(tr::now)
+			: e.pending
+			? tr::lng_channel_earn_history_pending(tr::now)
+			: e.failed
+			? tr::lng_channel_earn_history_failed(tr::now)
+			: QString();
+		const auto rounded = !roundedText.isEmpty()
 			? lifetime.make_state<Ui::Text::String>(
 				st::defaultTextStyle,
-				refundedText)
+				roundedText)
 			: (Ui::Text::String*)(nullptr);
 
 		const auto amount = content->add(
@@ -404,23 +409,25 @@ void ReceiptCreditsBox(
 				content,
 				star.height() / style::DevicePixelRatio()));
 		const auto font = text->style()->font;
-		const auto refundedFont = st::defaultTextStyle.font;
+		const auto roundedFont = st::defaultTextStyle.font;
 		const auto starWidth = star.width()
 			/ style::DevicePixelRatio();
-		const auto refundedSkip = refundedFont->spacew * 2;
-		const auto refundedWidth = refunded
-			? refundedFont->width(refundedText)
-				+ refundedSkip
-				+ refundedFont->height
+		const auto roundedSkip = roundedFont->spacew * 2;
+		const auto roundedWidth = rounded
+			? roundedFont->width(roundedText)
+				+ roundedSkip
+				+ roundedFont->height
 			: 0;
 		const auto fullWidth = text->maxWidth()
 			+ font->spacew * 1
 			+ starWidth
-			+ refundedWidth;
+			+ roundedWidth;
 		amount->paintRequest(
 		) | rpl::start_with_next([=] {
 			auto p = Painter(amount);
-			p.setPen((!e.bareId || e.refunded)
+			p.setPen(e.pending
+				? st::creditsStroke
+				: e.in
 				? st::boxTextFgGood
 				: st::menuIconAttentionColor);
 			const auto x = (amount->width() - fullWidth) / 2;
@@ -432,15 +439,15 @@ void ReceiptCreditsBox(
 				.availableWidth = amount->width(),
 			});
 			p.drawImage(
-				x + fullWidth - starWidth - refundedWidth,
+				x + fullWidth - starWidth - roundedWidth,
 				0,
 				star);
 
-			if (refunded) {
-				const auto refundedLeft = fullWidth
+			if (rounded) {
+				const auto roundedLeft = fullWidth
 					+ x
-					- refundedWidth
-					+ refundedSkip;
+					- roundedWidth
+					+ roundedSkip;
 				const auto pen = p.pen();
 				auto color = pen.color();
 				color.setAlphaF(color.alphaF() * 0.15);
@@ -449,20 +456,20 @@ void ReceiptCreditsBox(
 				{
 					auto hq = PainterHighQualityEnabler(p);
 					p.drawRoundedRect(
-						refundedLeft,
-						(amount->height() - refundedFont->height) / 2,
-						refundedWidth - refundedSkip,
-						refundedFont->height,
-						refundedFont->height / 2,
-						refundedFont->height / 2);
+						roundedLeft,
+						(amount->height() - roundedFont->height) / 2,
+						roundedWidth - roundedSkip,
+						roundedFont->height,
+						roundedFont->height / 2,
+						roundedFont->height / 2);
 				}
 				p.setPen(pen);
-				refunded->draw(p, Ui::Text::PaintContext{
+				rounded->draw(p, Ui::Text::PaintContext{
 					.position = QPoint(
-						refundedLeft + refundedFont->height / 2,
-						(amount->height() - refundedFont->height) / 2),
-					.outerWidth = refundedWidth,
-					.availableWidth = refundedWidth,
+						roundedLeft + roundedFont->height / 2,
+						(amount->height() - roundedFont->height) / 2),
+					.outerWidth = roundedWidth,
+					.availableWidth = roundedWidth,
 				});
 			}
 		}, amount->lifetime());

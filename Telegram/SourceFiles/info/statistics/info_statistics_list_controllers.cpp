@@ -782,13 +782,17 @@ void CreditsRow::init() {
 		langDateTimeFull(_entry.date)
 		+ (_entry.refunded
 			? (joiner + tr::lng_channel_earn_history_return(tr::now))
+			: _entry.pending
+			? (joiner + tr::lng_channel_earn_history_pending(tr::now))
+			: _entry.failed
+			? (joiner + tr::lng_channel_earn_history_failed(tr::now))
 			: QString())
 		+ (_entry.title.isEmpty() ? QString() : (joiner + _name)));
 	{
 		constexpr auto kMinus = QChar(0x2212);
 		_rightText.setText(
 			st::semiboldTextStyle,
-			((!_entry.bareId || _entry.refunded) ? QChar('+') : kMinus)
+			(_entry.in ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(std::abs(int64(_entry.credits))));
 	}
 	if (!_paintUserpicCallback) {
@@ -836,7 +840,9 @@ void CreditsRow::rightActionPaint(
 		bool actionSelected) {
 	const auto &font = _rightText.style()->font;
 	y += _rowHeight / 2;
-	p.setPen((!_entry.bareId || _entry.refunded)
+	p.setPen(_entry.pending
+		? st::creditsStroke
+		: _entry.in
 		? st::boxTextFgGood
 		: st::menuIconAttentionColor);
 	x += st::creditsHistoryRightSkip;
