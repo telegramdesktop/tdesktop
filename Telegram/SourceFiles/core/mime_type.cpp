@@ -117,6 +117,9 @@ MimeType MimeTypeForFile(const QFileInfo &file) {
 		return MimeType(MimeType::Known::TDesktopTheme);
 	} else if (path.endsWith(u".tdesktop-palette"_q, Qt::CaseInsensitive)) {
 		return MimeType(MimeType::Known::TDesktopPalette);
+	} else if (path.endsWith(u".mkv"_q, Qt::CaseInsensitive)) {
+		// This will ensure .mkv is detected as a video file by the client when drag-n-dropped
+		return MimeType(QMimeDatabase().mimeTypeForName("video/mp4")); 
 	}
 
 	{
