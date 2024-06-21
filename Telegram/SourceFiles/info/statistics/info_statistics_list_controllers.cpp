@@ -45,6 +45,15 @@ using BoostCallback = Fn<void(const Data::Boost &)>;
 constexpr auto kColorIndexUnclaimed = int(3);
 constexpr auto kColorIndexPending = int(4);
 
+[[nodiscard]] PeerListRowId UniqueRowIdFromEntry(
+		const Data::CreditsHistoryEntry &entry) {
+	return UniqueRowIdFromString(entry.id
+		+ (entry.refunded ? '1' : '0')
+		+ (entry.pending ? '1' : '0')
+		+ (entry.failed ? '1' : '0')
+		+ (entry.in ? '1' : '0'));
+}
+
 void AddArrow(not_null<Ui::RpWidget*> parent) {
 	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	arrow->paintRequest(
@@ -750,7 +759,7 @@ private:
 };
 
 CreditsRow::CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor)
-: PeerListRow(peer, UniqueRowIdFromString(descriptor.entry.id))
+: PeerListRow(peer, UniqueRowIdFromEntry(descriptor.entry))
 , _entry(descriptor.entry)
 , _creditIcon(descriptor.creditIcon)
 , _rowHeight(descriptor.rowHeight) {
@@ -766,7 +775,7 @@ CreditsRow::CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor)
 }
 
 CreditsRow::CreditsRow(const Descriptor &descriptor)
-: PeerListRow(UniqueRowIdFromString(descriptor.entry.id))
+: PeerListRow(UniqueRowIdFromEntry(descriptor.entry))
 , _entry(descriptor.entry)
 , _creditIcon(descriptor.creditIcon)
 , _rowHeight(descriptor.rowHeight) {
