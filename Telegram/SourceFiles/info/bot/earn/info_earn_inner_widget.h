@@ -51,6 +51,7 @@ public:
 private:
 	void load();
 	void fill();
+	void fillHistory();
 
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;

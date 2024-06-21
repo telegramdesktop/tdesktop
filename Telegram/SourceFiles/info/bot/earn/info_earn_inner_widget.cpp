@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/ui_integration.h"
 #include "data/data_channel_earn.h"
-#include "ui/toast/toast.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -22,22 +21,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/info_controller.h"
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
+#include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "statistics/chart_widget.h"
+#include "statistics/widgets/chart_header_widget.h"
 #include "ui/effects/credits_graphics.h"
+#include "ui/layers/generic_box.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
@@ -541,6 +548,184 @@ void InnerWidget::fill() {
 			RectPart::Top | RectPart::Bottom));
 
 		Ui::AddSkip(container);
+	}
+
+	fillHistory();
+}
+
+void InnerWidget::fillHistory() {
+	const auto container = this;
+	const auto history = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto content = history->entity();
+
+	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
+
+	const auto fill = [=](
+			not_null<PeerData*> premiumBot,
+			const Data::CreditsStatusSlice &fullSlice,
+			const Data::CreditsStatusSlice &inSlice,
+			const Data::CreditsStatusSlice &outSlice) {
+		const auto inner = content;
+		if (fullSlice.list.empty()) {
+			return;
+		}
+		const auto hasOneTab = inSlice.list.empty() && outSlice.list.empty();
+		const auto hasIn = !inSlice.list.empty();
+		const auto hasOut = !outSlice.list.empty();
+		const auto fullTabText = tr::lng_credits_summary_history_tab_full(
+			tr::now);
+		const auto inTabText = tr::lng_credits_summary_history_tab_in(
+			tr::now);
+		const auto outTabText = tr::lng_credits_summary_history_tab_out(
+			tr::now);
+		if (hasOneTab) {
+			Ui::AddSkip(inner);
+			const auto header = inner->add(
+				object_ptr<Statistic::Header>(inner),
+				st::statisticsLayerMargins
+					+ st::boostsChartHeaderPadding);
+			header->resizeToWidth(header->width());
+			header->setTitle(fullTabText);
+			header->setSubTitle({});
+		}
+
+		class Slider final : public Ui::SettingsSlider {
+		public:
+			using Ui::SettingsSlider::SettingsSlider;
+			void setNaturalWidth(int w) {
+				_naturalWidth = w;
+			}
+			int naturalWidth() const override {
+				return _naturalWidth;
+			}
+
+		private:
+			int _naturalWidth = 0;
+
+		};
+
+		const auto slider = inner->add(
+			object_ptr<Ui::SlideWrap<Slider>>(
+				inner,
+				object_ptr<Slider>(inner, st::defaultTabsSlider)),
+			st::boxRowPadding);
+		slider->toggle(!hasOneTab, anim::type::instant);
+
+		slider->entity()->addSection(fullTabText);
+		if (hasIn) {
+			slider->entity()->addSection(inTabText);
+		}
+		if (hasOut) {
+			slider->entity()->addSection(outTabText);
+		}
+
+		{
+			const auto &st = st::defaultTabsSlider;
+			slider->entity()->setNaturalWidth(0
+				+ st.labelStyle.font->width(fullTabText)
+				+ (hasIn ? st.labelStyle.font->width(inTabText) : 0)
+				+ (hasOut ? st.labelStyle.font->width(outTabText) : 0)
+				+ rect::m::sum::h(st::boxRowPadding));
+		}
+
+		const auto fullWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto inWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto outWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+
+		rpl::single(0) | rpl::then(
+			slider->entity()->sectionActivated()
+		) | rpl::start_with_next([=](int index) {
+			if (index == 0) {
+				fullWrap->toggle(true, anim::type::instant);
+				inWrap->toggle(false, anim::type::instant);
+				outWrap->toggle(false, anim::type::instant);
+			} else if (index == 1) {
+				inWrap->toggle(true, anim::type::instant);
+				fullWrap->toggle(false, anim::type::instant);
+				outWrap->toggle(false, anim::type::instant);
+			} else {
+				outWrap->toggle(true, anim::type::instant);
+				fullWrap->toggle(false, anim::type::instant);
+				inWrap->toggle(false, anim::type::instant);
+			}
+		}, inner->lifetime());
+
+		const auto controller = _controller->parentController();
+		const auto entryClicked = [=](const Data::CreditsHistoryEntry &e) {
+			controller->uiShow()->show(Box(
+				::Settings::ReceiptCreditsBox,
+				controller,
+				premiumBot.get(),
+				e));
+		};
+
+		const auto star = lifetime().make_state<QImage>(
+			Ui::GenerateStars(st::creditsTopupButton.height, 1));
+
+		Info::Statistics::AddCreditsHistoryList(
+			controller->uiShow(),
+			fullSlice,
+			fullWrap->entity(),
+			entryClicked,
+			premiumBot,
+			star,
+			true,
+			true);
+		Info::Statistics::AddCreditsHistoryList(
+			controller->uiShow(),
+			inSlice,
+			inWrap->entity(),
+			entryClicked,
+			premiumBot,
+			star,
+			true,
+			false);
+		Info::Statistics::AddCreditsHistoryList(
+			controller->uiShow(),
+			outSlice,
+			outWrap->entity(),
+			std::move(entryClicked),
+			premiumBot,
+			star,
+			false,
+			true);
+
+		Ui::AddSkip(inner);
+		Ui::AddSkip(inner);
+
+		inner->resizeToWidth(container->width());
+	};
+
+	const auto apiLifetime = content->lifetime().make_state<rpl::lifetime>();
+	{
+		using Api = Api::CreditsHistory;
+		const auto apiFull = apiLifetime->make_state<Api>(_peer, true, true);
+		const auto apiIn = apiLifetime->make_state<Api>(_peer, true, false);
+		const auto apiOut = apiLifetime->make_state<Api>(_peer, false, true);
+		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
+			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
+				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
+					::Api::PremiumPeerBot(
+						&_controller->session()
+					) | rpl::start_with_next([=](not_null<PeerData*> bot) {
+						fill(bot, fullSlice, inSlice, outSlice);
+						apiLifetime->destroy();
+					}, *apiLifetime);
+				});
+			});
+		});
 	}
 }
 
