@@ -1829,6 +1829,7 @@ if (WIN32)
         /DELAYLOAD:crypt32.dll
         /DELAYLOAD:bcrypt.dll
         /DELAYLOAD:netapi32.dll
+        /DELAYLOAD:imm32.dll
         /DELAYLOAD:userenv.dll
         /DELAYLOAD:wtsapi32.dll
         /DELAYLOAD:propsys.dll
@@ -1836,19 +1837,33 @@ if (WIN32)
     if (QT_VERSION GREATER 6)
         target_link_options(Telegram
         PRIVATE
+            /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-File-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-LibraryLoader-l1-2-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Localization-l1-2-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-ProcessThreads-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-Synch-l1-2-0.dll # Synchronization.lib
+            /DELAYLOAD:API-MS-Win-Core-SysInfo-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Timezone-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Security-CryptoAPI-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Shcore-Scaling-l1-1-1.dll
             /DELAYLOAD:authz.dll # Authz.lib
+            /DELAYLOAD:comdlg32.dll
             /DELAYLOAD:dwrite.dll # DWrite.lib
             /DELAYLOAD:dxgi.dll # DXGI.lib
             /DELAYLOAD:d3d9.dll # D3D9.lib
             /DELAYLOAD:d3d11.dll # D3D11.lib
             /DELAYLOAD:d3d12.dll # D3D12.lib
             /DELAYLOAD:setupapi.dll # SetupAPI.lib
-        )
-    else()
-        target_link_options(Telegram
-        PRIVATE
-            /DELAYLOAD:imm32.dll
+            /DELAYLOAD:winhttp.dll
         )
     endif()
 endif()
