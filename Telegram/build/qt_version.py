@@ -10,8 +10,7 @@ def resolve(arch):
         elif os.environ.get('QT') is None:
             print('Choosing Qt 5.')
             os.environ['QT'] = '5.15.13'
-        else:
-            print('Choosing Qt ' + os.environ.get('QT'))
-    else:
+    elif os.environ.get('QT') is None:
         return False
+    print('Choosing Qt ' + os.environ.get('QT'))
     return True
