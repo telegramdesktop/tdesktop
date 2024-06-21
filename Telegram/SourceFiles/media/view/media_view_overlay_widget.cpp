@@ -631,7 +631,6 @@ OverlayWidget::OverlayWidget()
 		_window->setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
 	}
 	_widget->setMouseTracking(true);
-	_window->createWinId();
 
 	_window->screenValue(
 	) | rpl::skip(1) | rpl::start_with_next([=](not_null<QScreen*> screen) {
@@ -3823,12 +3822,17 @@ void OverlayWidget::updatePowerSaveBlocker(
 		&& _document->isVideoFile()
 		&& !IsPausedOrPausing(state.state)
 		&& !IsStoppedOrStopping(state.state);
-	base::UpdatePowerSaveBlocker(
-		_streamed->powerSaveBlocker,
-		block,
-		base::PowerSaveBlockType::PreventDisplaySleep,
-		[] { return u"Video playback is active"_q; },
-		[=] { return window(); });
+
+	_window->shownValue() | rpl::filter([=](bool shown) {
+		return shown;
+	}) | rpl::take(1) | rpl::start_with_next([=] {
+		base::UpdatePowerSaveBlocker(
+			_streamed->powerSaveBlocker,
+			block,
+			base::PowerSaveBlockType::PreventDisplaySleep,
+			[] { return u"Video playback is active"_q; },
+			[=] { return window(); });
+	}, lifetime());
 }
 
 QImage OverlayWidget::transformedShownContent() const {
