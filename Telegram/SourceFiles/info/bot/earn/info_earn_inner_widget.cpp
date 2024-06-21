@@ -365,8 +365,8 @@ void InnerWidget::fill() {
 					{ 0, -st::moderateBoxExpandInnerSkip, 0, 0 },
 					true));
 			const auto context = Core::MarkedTextContext{
-				.customEmojiRepaint = [=] { label->update(); },
 				.session = session,
+				.customEmojiRepaint = [=] { label->update(); },
 			};
 			const auto process = [=] {
 				const auto amount = input->getLastText().toDouble();
@@ -447,8 +447,8 @@ void InnerWidget::fill() {
 			const auto was = base::unixtime::serialize(dt);
 
 			const auto context = Core::MarkedTextContext{
-				.customEmojiRepaint = [=] { lockedLabelBottom->update(); },
 				.session = session,
+				.customEmojiRepaint = [=] { lockedLabelBottom->update(); },
 			};
 			const auto emoji = Ui::Text::SingleCustomEmoji(
 				session->data().customEmojiManager().registerInternalEmoji(
