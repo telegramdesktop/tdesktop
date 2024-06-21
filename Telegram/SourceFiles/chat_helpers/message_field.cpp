@@ -252,7 +252,7 @@ void EditCodeLanguageBox(
 
 	const auto callback = [=] {
 		const auto name = field->getLastText().trimmed();
-		const auto check = QRegularExpression("^[a-zA-Z0-9\\+\\-]+$");
+		const auto check = QRegularExpression("^[a-zA-Z0-9\\+\\-]*$");
 		if (check.match(name).hasMatch()) {
 			auto weak = Ui::MakeWeak(box);
 			save(name);
