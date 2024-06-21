@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 
 #include "base/random.h"
+#include "boxes/send_credits_box.h" // CreditsEmoji.
 #include "history/history.h"
 #include "history/history_item.h" // CreateMedia.
 #include "history/history_location_manager.h"
@@ -2066,8 +2067,11 @@ ItemPreview MediaInvoice::toPreview(ToPreviewOptions options) const {
 		? parent()->translatedText()
 		: parent()->originalText();
 	const auto hasMiniImages = !images.empty();
+	auto nice = Ui::Text::Colorized(
+		Ui::CreditsEmoji(&parent()->history()->session()));
+	nice.append(WithCaptionNotificationText(type, caption, hasMiniImages));
 	return {
-		.text = WithCaptionNotificationText(type, caption, hasMiniImages),
+		.text = std::move(nice),
 		.images = std::move(images),
 		.loadingContext = std::move(context),
 	};
