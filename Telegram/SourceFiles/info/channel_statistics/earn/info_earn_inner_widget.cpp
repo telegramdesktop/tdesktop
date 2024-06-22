@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/channel_statistics/earn/info_earn_inner_widget.h"
 
+#include "api/api_credits.h"
 #include "api/api_earn.h"
 #include "api/api_statistics.h"
 #include "base/unixtime.h"
@@ -258,27 +259,37 @@ InnerWidget::InnerWidget(
 void InnerWidget::load() {
 	const auto api = lifetime().make_state<Api::ChannelEarnStatistics>(
 		_peer->asChannel());
+	const auto apiCredits = lifetime().make_state<Api::CreditsEarnStatistics>(
+		_peer);
 
 	Info::Statistics::FillLoading(
 		this,
 		_loaded.events_starting_with(false) | rpl::map(!rpl::mappers::_1),
 		_showFinished.events());
 
+	const auto fail = [show = _controller->uiShow()](const QString &error) {
+		show->showToast(error);
+	};
+
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
 		api->request(
-		) | rpl::start_with_error_done([](const QString &error) {
-		}, [=] {
-			_state = api->data();
-			_loaded.fire(true);
-			fill();
+		) | rpl::start_with_error_done(fail, [=] {
+			_state.currencyEarn = api->data();
+			apiCredits->request(
+			) | rpl::start_with_error_done(fail, [=] {
+				_state.creditsEarn = apiCredits->data();
+				_loaded.fire(true);
+				fill();
+			}, lifetime());
 		}, lifetime());
 	}, lifetime());
 }
 
 void InnerWidget::fill() {
 	const auto container = this;
-	const auto &data = _state;
+	const auto &data = _state.currencyEarn;
+	const auto &creditsData = _state.creditsEarn;
 
 	constexpr auto kMinus = QChar(0x2212);
 	//constexpr auto kApproximately = QChar(0x2248);
@@ -1106,7 +1117,7 @@ void InnerWidget::saveState(not_null<Memento*> memento) {
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
 	_state = memento->state();
-	if (_state) {
+	if (_state.currencyEarn || _state.creditsEarn) {
 		fill();
 	} else {
 		load();
