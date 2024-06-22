@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
+#include "data/data_channel.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -227,21 +228,22 @@ rpl::producer<not_null<PeerData*>> PremiumPeerBot(
 	};
 }
 
-BotEarnStatistics::BotEarnStatistics(not_null<UserData*> user)
-: StatisticsRequestSender(user) {
+CreditsEarnStatistics::CreditsEarnStatistics(not_null<PeerData*> peer)
+: StatisticsRequestSender(peer)
+, _isUser(peer->isUser()) {
 }
 
-rpl::producer<rpl::no_value, QString> BotEarnStatistics::request() {
+rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
 		makeRequest(MTPpayments_GetStarsRevenueStats(
 			MTP_flags(0),
-			user()->input
+			(_isUser ? user()->input : channel()->input)
 		)).done([=](const MTPpayments_StarsRevenueStats &result) {
 			const auto &data = result.data();
 			const auto &status = data.vstatus().data();
-			_data = Data::BotEarnStatistics{
+			_data = Data::CreditsEarnStatistics{
 				.revenueGraph = StatisticalGraphFromTL(data.vrevenue_graph()),
 				.currentBalance = status.vcurrent_balance().v,
 				.availableBalance = status.vavailable_balance().v,
@@ -262,7 +264,7 @@ rpl::producer<rpl::no_value, QString> BotEarnStatistics::request() {
 	};
 }
 
-Data::BotEarnStatistics BotEarnStatistics::data() const {
+Data::CreditsEarnStatistics CreditsEarnStatistics::data() const {
 	return _data;
 }
 

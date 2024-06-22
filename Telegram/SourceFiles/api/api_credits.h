@@ -72,15 +72,16 @@ private:
 
 };
 
-class BotEarnStatistics final : public StatisticsRequestSender {
+class CreditsEarnStatistics final : public StatisticsRequestSender {
 public:
-	explicit BotEarnStatistics(not_null<UserData*>);
+	explicit CreditsEarnStatistics(not_null<PeerData*>);
 
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
-	[[nodiscard]] Data::BotEarnStatistics data() const;
+	[[nodiscard]] Data::CreditsEarnStatistics data() const;
 
 private:
-	Data::BotEarnStatistics _data;
+	Data::CreditsEarnStatistics _data;
+	bool _isUser = false;
 
 	mtpRequestId _requestId = 0;
 

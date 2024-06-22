@@ -57,7 +57,7 @@ private:
 	not_null<PeerData*> _peer;
 	std::shared_ptr<Ui::Show> _show;
 
-	Data::BotEarnStatistics _state;
+	Data::CreditsEarnStatistics _state;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<ShowRequest> _showRequests;

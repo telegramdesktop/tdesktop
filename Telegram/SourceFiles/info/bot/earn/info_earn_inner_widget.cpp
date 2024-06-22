@@ -99,8 +99,8 @@ InnerWidget::InnerWidget(
 void InnerWidget::load() {
 	const auto apiLifetime = lifetime().make_state<rpl::lifetime>();
 
-	const auto request = [=](Fn<void(Data::BotEarnStatistics)> done) {
-		const auto api = apiLifetime->make_state<Api::BotEarnStatistics>(
+	const auto request = [=](Fn<void(Data::CreditsEarnStatistics)> done) {
+		const auto api = apiLifetime->make_state<Api::CreditsEarnStatistics>(
 			_peer->asUser());
 		api->request(
 		) | rpl::start_with_error_done([show = _show](const QString &error) {
@@ -118,7 +118,7 @@ void InnerWidget::load() {
 
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
-		request([=](Data::BotEarnStatistics state) {
+		request([=](Data::CreditsEarnStatistics state) {
 			_state = state;
 			_loaded.fire(true);
 			fill();
@@ -129,7 +129,7 @@ void InnerWidget::load() {
 				Api::PerformForUpdate<TL>(updates, [&](const TL &d) {
 					const auto peerId = peerFromMTP(d.vpeer());
 					if (peerId == _peer->id) {
-						request([=](Data::BotEarnStatistics state) {
+						request([=](Data::CreditsEarnStatistics state) {
 							_state = state;
 							_stateUpdated.fire({});
 						});

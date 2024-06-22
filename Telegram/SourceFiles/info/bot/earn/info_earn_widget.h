@@ -27,7 +27,7 @@ public:
 
 	Section section() const override;
 
-	using SavedState = Data::BotEarnStatistics;
+	using SavedState = Data::CreditsEarnStatistics;
 
 	void setState(SavedState states);
 	[[nodiscard]] SavedState state();
