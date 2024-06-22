@@ -36,10 +36,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/slider_natural_width.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
@@ -577,25 +577,12 @@ void InnerWidget::fillHistory() {
 			header->setSubTitle({});
 		}
 
-		class Slider final : public Ui::SettingsSlider {
-		public:
-			using Ui::SettingsSlider::SettingsSlider;
-			void setNaturalWidth(int w) {
-				_naturalWidth = w;
-			}
-			int naturalWidth() const override {
-				return _naturalWidth;
-			}
-
-		private:
-			int _naturalWidth = 0;
-
-		};
-
 		const auto slider = inner->add(
-			object_ptr<Ui::SlideWrap<Slider>>(
+			object_ptr<Ui::SlideWrap<Ui::CustomWidthSlider>>(
 				inner,
-				object_ptr<Slider>(inner, st::defaultTabsSlider)),
+				object_ptr<Ui::CustomWidthSlider>(
+					inner,
+					st::defaultTabsSlider)),
 			st::boxRowPadding);
 		slider->toggle(!hasOneTab, anim::type::instant);
 
