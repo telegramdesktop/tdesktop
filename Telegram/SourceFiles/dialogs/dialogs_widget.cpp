@@ -896,13 +896,15 @@ void Widget::setupStories() {
 			Core::App().settings().setStoriesClickTooltipHidden(true);
 			Core::App().saveSettingsDelayed();
 		};
-		_stories->setShowTooltip(
-			controller()->content(),
-			rpl::combine(
-				Core::App().settings().storiesClickTooltipHiddenValue(),
-				shownValue(),
-				!rpl::mappers::_1 && rpl::mappers::_2),
-			hideTooltip);
+		InvokeQueued(_stories.get(), [=] {
+			_stories->setShowTooltip(
+				controller()->content(),
+				rpl::combine(
+					Core::App().settings().storiesClickTooltipHiddenValue(),
+					shownValue(),
+					!rpl::mappers::_1 && rpl::mappers::_2),
+				hideTooltip);
+		});
 	}
 
 	_storiesContents.fire(Stories::ContentForSession(
