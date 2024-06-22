@@ -70,20 +70,6 @@ void AddHeader(
 	header->resizeToWidth(header->width());
 }
 
-[[nodiscard]] not_null<Ui::RpWidget*> CreateIconWidget(
-		not_null<Ui::RpWidget*> parent,
-		QImage image) {
-	const auto widget = Ui::CreateChild<Ui::RpWidget>(parent);
-	widget->resize(image.size() / style::DevicePixelRatio());
-	widget->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(widget);
-		p.drawImage(0, 0, image);
-	}, widget->lifetime());
-	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
-	return widget;
-}
-
 } // namespace
 
 InnerWidget::InnerWidget(
@@ -188,9 +174,9 @@ void InnerWidget::fill() {
 				line,
 				rpl::duplicate(value) | rpl::map(valueToString),
 				st::channelEarnOverviewMajorLabel);
-			const auto icon = CreateIconWidget(
+			const auto icon = Ui::CreateSingleStarWidget(
 				line,
-				Ui::GenerateStars(majorLabel->height(), 1));
+				majorLabel->height());
 			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				std::move(
@@ -260,9 +246,9 @@ void InnerWidget::fill() {
 			labels,
 			rpl::duplicate(availableBalanceValue) | rpl::map(valueToString),
 			st::channelEarnBalanceMajorLabel);
-		const auto icon = CreateIconWidget(
+		const auto icon = Ui::CreateSingleStarWidget(
 			labels,
-			Ui::GenerateStars(majorLabel->height(), 1));
+			majorLabel->height());
 		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		majorLabel->sizeValue(
 		) | rpl::start_with_next([=](const QSize &majorSize) {
@@ -307,9 +293,9 @@ void InnerWidget::fill() {
 				input->changeLimit(v);
 				input->setText(QString::number(v));
 			}, input->lifetime());
-			const auto icon = CreateIconWidget(
+			const auto icon = Ui::CreateSingleStarWidget(
 				inputContainer,
-				Ui::GenerateStars(st.style.font->height, 1));
+				st.style.font->height);
 			inputContainer->sizeValue(
 			) | rpl::start_with_next([=](const QSize &size) {
 				input->resize(

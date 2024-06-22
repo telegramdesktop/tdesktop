@@ -14,8 +14,16 @@ struct CreditsHistoryEntry;
 } // namespace Data
 
 namespace Ui {
+class RpWidget;
+} // namespace Ui
+
+namespace Ui {
 
 [[nodiscard]] QImage GenerateStars(int height, int count);
+
+[[nodiscard]] not_null<Ui::RpWidget*> CreateSingleStarWidget(
+	not_null<Ui::RpWidget*> parent,
+	int height);
 
 Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintUserpicCallback(
 	const Data::CreditsHistoryEntry &entry);

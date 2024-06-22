@@ -90,6 +90,21 @@ QImage GenerateStars(int height, int count) {
 	return frame;
 }
 
+not_null<Ui::RpWidget*> CreateSingleStarWidget(
+		not_null<Ui::RpWidget*> parent,
+		int height) {
+	const auto widget = Ui::CreateChild<Ui::RpWidget>(parent);
+	const auto image = GenerateStars(height, 1);
+	widget->resize(image.size() / style::DevicePixelRatio());
+	widget->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(widget);
+		p.drawImage(0, 0, image);
+	}, widget->lifetime());
+	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
+	return widget;
+}
+
 PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 		const Data::CreditsHistoryEntry &entry) {
 	const auto bg = [&]() -> Ui::EmptyUserpic::BgColors {
