@@ -67,6 +67,8 @@ constexpr auto kTransactionsLimit = 100;
 			return Data::CreditsHistoryEntry::PeerType::Unsupported;
 		}, [](const MTPDstarsTransactionPeerPremiumBot &) {
 			return Data::CreditsHistoryEntry::PeerType::PremiumBot;
+		}, [](const MTPDstarsTransactionPeerAds &) {
+			return Data::CreditsHistoryEntry::PeerType::Ads;
 		}),
 		.refunded = tl.data().is_refund(),
 		.pending = tl.data().is_pending(),

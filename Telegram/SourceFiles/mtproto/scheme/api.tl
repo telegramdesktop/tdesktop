@@ -1805,6 +1805,7 @@ starsTransactionPeerPlayMarket#7b560a0b = StarsTransactionPeer;
 starsTransactionPeerPremiumBot#250dbaf8 = StarsTransactionPeer;
 starsTransactionPeerFragment#e92fd902 = StarsTransactionPeer;
 starsTransactionPeer#d80da15d peer:Peer = StarsTransactionPeer;
+starsTransactionPeerAds#60682812 = StarsTransactionPeer;
 
 starsTopupOption#bd915c0 flags:# extended:flags.1?true stars:long store_product:flags.0?string currency:string amount:long = StarsTopupOption;
 
@@ -1823,6 +1824,8 @@ starsRevenueStatus#79342946 flags:# withdrawal_enabled:flags.0?true current_bala
 payments.starsRevenueStats#c92bb73b revenue_graph:StatsGraph status:StarsRevenueStatus usd_rate:double = payments.StarsRevenueStats;
 
 payments.starsRevenueWithdrawalUrl#1dab80b7 url:string = payments.StarsRevenueWithdrawalUrl;
+
+payments.starsRevenueAdsAccountUrl#394e7f21 url:string = payments.StarsRevenueAdsAccountUrl;
 
 ---functions---
 
@@ -2371,6 +2374,7 @@ payments.sendStarsForm#2bb731d flags:# form_id:long invoice:InputInvoice = payme
 payments.refundStarsCharge#25ae8f4a user_id:InputUser charge_id:string = Updates;
 payments.getStarsRevenueStats#d91ffad6 flags:# dark:flags.0?true peer:InputPeer = payments.StarsRevenueStats;
 payments.getStarsRevenueWithdrawalUrl#13bbe8b3 peer:InputPeer stars:long password:InputCheckPasswordSRP = payments.StarsRevenueWithdrawalUrl;
+payments.getStarsRevenueAdsAccountUrl#d1d7efc5 peer:InputPeer = payments.StarsRevenueAdsAccountUrl;
 
 stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true emojis:flags.5?true text_color:flags.6?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;

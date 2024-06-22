@@ -28,6 +28,7 @@ struct CreditsHistoryEntry final {
 		Fragment,
 		Unsupported,
 		PremiumBot,
+		Ads,
 	};
 	QString id;
 	QString title;
