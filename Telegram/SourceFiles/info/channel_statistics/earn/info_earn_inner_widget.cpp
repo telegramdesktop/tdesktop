@@ -610,6 +610,7 @@ void InnerWidget::fill() {
 		using Type = Statistic::ChartViewType;
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
+		auto hasPreviousChart = false;
 		if (data.topHoursGraph.chart) {
 			const auto widget = container->add(
 				object_ptr<Statistic::ChartWidget>(container),
@@ -617,24 +618,49 @@ void InnerWidget::fill() {
 
 			widget->setChartData(data.topHoursGraph.chart, Type::Bar);
 			widget->setTitle(tr::lng_channel_earn_chart_top_hours());
+			hasPreviousChart = true;
 		}
 		if (data.revenueGraph.chart) {
-			Ui::AddSkip(container);
-			Ui::AddDivider(container);
-			Ui::AddSkip(container);
-			Ui::AddSkip(container);
+			if (hasPreviousChart) {
+				Ui::AddSkip(container);
+				Ui::AddDivider(container);
+				Ui::AddSkip(container);
+				Ui::AddSkip(container);
+			}
 			const auto widget = container->add(
 				object_ptr<Statistic::ChartWidget>(container),
 				st::statisticsLayerMargins);
 
-			auto chart = data.revenueGraph.chart;
-			chart.currencyRate = multiplier;
-
-			widget->setChartData(chart, Type::StackBar);
+			widget->setChartData([&] {
+				auto chart = data.revenueGraph.chart;
+				chart.currencyRate = multiplier;
+				return chart;
+			}(), Type::StackBar);
 			widget->setTitle(tr::lng_channel_earn_chart_revenue());
+			hasPreviousChart = true;
+		}
+		if (creditsData.revenueGraph.chart) {
+			if (hasPreviousChart) {
+				Ui::AddSkip(container);
+				Ui::AddDivider(container);
+				Ui::AddSkip(container);
+				Ui::AddSkip(container);
+			}
+			const auto widget = container->add(
+				object_ptr<Statistic::ChartWidget>(container),
+				st::statisticsLayerMargins);
+
+			widget->setChartData([&] {
+				auto chart = creditsData.revenueGraph.chart;
+				chart.currencyRate = creditsData.usdRate;
+				return chart;
+			}(), Type::StackBar);
+			widget->setTitle(tr::lng_bot_earn_chart_revenue());
 		}
 	}
-	if (data.topHoursGraph.chart || data.revenueGraph.chart) {
+	if (data.topHoursGraph.chart
+		|| data.revenueGraph.chart
+		|| creditsData.revenueGraph.chart) {
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 		Ui::AddDivider(container);
