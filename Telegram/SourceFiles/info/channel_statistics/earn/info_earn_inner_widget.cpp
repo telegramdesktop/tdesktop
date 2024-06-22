@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/boost_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value_f.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/toggle_arrow.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
@@ -277,7 +278,11 @@ void InnerWidget::load() {
 		) | rpl::start_with_error_done(fail, [=] {
 			_state.currencyEarn = api->data();
 			apiCredits->request(
-			) | rpl::start_with_error_done(fail, [=] {
+			) | rpl::start_with_error_done([=](const QString &error) {
+				fail(error);
+				_loaded.fire(true);
+				fill();
+			}, [=] {
 				_state.creditsEarn = apiCredits->data();
 				_loaded.fire(true);
 				fill();
@@ -576,6 +581,7 @@ void InnerWidget::fill() {
 
 		const auto addOverview = [&](
 				EarnInt value,
+				EarnInt credits,
 				const tr::phrase<> &text) {
 			const auto line = container->add(
 				Ui::CreateSkipWidget(container, 0),
@@ -592,21 +598,56 @@ void InnerWidget::fill() {
 				line,
 				value ? ToUsd(value, multiplier) : QString(),
 				st::channelEarnOverviewSubMinorLabel);
+
+			const auto creditsLabel = Ui::CreateChild<Ui::FlatLabel>(
+				line,
+				QString::number(credits),
+				st::channelEarnOverviewMajorLabel);
+			const auto icon = Ui::CreateSingleStarWidget(
+				line,
+				creditsLabel->height());
+			const auto creditsMultiplies = creditsData.usdRate
+				* Data::kEarnMultiplier;
+			const auto creditsSecondLabel = Ui::CreateChild<Ui::FlatLabel>(
+				line,
+				credits ? ToUsd(credits, creditsMultiplies) : QString(),
+				st::channelEarnOverviewSubMinorLabel);
 			rpl::combine(
 				line->widthValue(),
-				majorLabel->sizeValue()
-			) | rpl::start_with_next([=](int available, const QSize &size) {
+				majorLabel->sizeValue(),
+				creditsLabel->sizeValue()
+			) | rpl::start_with_next([=](
+					int available,
+					const QSize &size,
+					const QSize &creditsSize) {
+				const auto skip = st::channelEarnOverviewSubMinorLabelPos.x();
 				line->resize(line->width(), size.height());
 				minorLabel->moveToLeft(
 					size.width(),
 					st::channelEarnOverviewMinorLabelSkip);
-				secondMinorLabel->resizeToWidth(available
-					- size.width()
-					- minorLabel->width());
+				secondMinorLabel->resizeToWidth(
+					(credits ? (available / 2) : available)
+						- size.width()
+						- minorLabel->width());
 				secondMinorLabel->moveToLeft(
-					rect::right(minorLabel)
-						+ st::channelEarnOverviewSubMinorLabelPos.x(),
+					rect::right(minorLabel) + skip,
 					st::channelEarnOverviewSubMinorLabelPos.y());
+
+				icon->moveToLeft(
+					available / 2 + st::boxRowPadding.left() / 2,
+					0);
+				creditsLabel->moveToLeft(rect::right(icon) + skip, 0);
+				creditsSecondLabel->moveToLeft(
+					rect::right(creditsLabel) + skip,
+					st::channelEarnOverviewSubMinorLabelPos.y());
+				creditsSecondLabel->resizeToWidth(
+					available - creditsSecondLabel->pos().x());
+				if (!credits) {
+					const auto x = std::numeric_limits<int>::max();
+					icon->moveToLeft(x, 0);
+					creditsLabel->moveToLeft(x, 0);
+					creditsSecondLabel->moveToLeft(x, 0);
+				}
 			}, minorLabel->lifetime());
 			Ui::ToggleChildrenVisibility(line, true);
 
@@ -619,13 +660,22 @@ void InnerWidget::fill() {
 				st::boxRowPadding);
 			sub->setTextColorOverride(st::windowSubTextFg->c);
 		};
-		addOverview(data.availableBalance, tr::lng_channel_earn_available);
+		addOverview(
+			data.availableBalance,
+			creditsData.availableBalance,
+			tr::lng_channel_earn_available);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
-		addOverview(data.currentBalance, tr::lng_channel_earn_reward);
+		addOverview(
+			data.currentBalance,
+			creditsData.currentBalance,
+			tr::lng_channel_earn_reward);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
-		addOverview(data.overallRevenue, tr::lng_channel_earn_total);
+		addOverview(
+			data.overallRevenue,
+			creditsData.overallRevenue,
+			tr::lng_channel_earn_total);
 		Ui::AddSkip(container);
 	}
 #ifndef _DEBUG
