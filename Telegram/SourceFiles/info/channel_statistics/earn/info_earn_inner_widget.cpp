@@ -315,7 +315,7 @@ void InnerWidget::fill() {
 	};
 	const auto addEmojiToMajor = [=](
 			not_null<Ui::FlatLabel*> label,
-			EarnInt value,
+			rpl::producer<EarnInt> value,
 			std::optional<bool> isIn,
 			std::optional<QMargins> margins) {
 		const auto &st = label->st();
@@ -330,12 +330,16 @@ void InnerWidget::fill() {
 						: st::menuIconAttentionColor->c),
 				margins ? *margins : st::channelEarnCurrencyCommonMargins,
 				false));
-		auto prepended = !isIn
+		const auto prepended = !isIn
 			? TextWithEntities()
 			: TextWithEntities::Simple((*isIn) ? QChar('+') : kMinus);
-		label->setMarkedText(
-			prepended.append(icon).append(MajorPart(value)),
-			makeContext(label));
+		std::move(
+			value
+		) | rpl::start_with_next([=](EarnInt v) {
+			label->setMarkedText(
+				base::duplicate(prepended).append(icon).append(MajorPart(v)),
+				makeContext(label));
+		}, label->lifetime());
 	};
 
 	const auto bigCurrencyIcon = Ui::Text::SingleCustomEmoji(
@@ -589,7 +593,7 @@ void InnerWidget::fill() {
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				st::channelEarnOverviewMajorLabel);
-			addEmojiToMajor(majorLabel, value, {}, {});
+			addEmojiToMajor(majorLabel, rpl::single(value), {}, {});
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				MinorPart(value),
@@ -704,7 +708,7 @@ void InnerWidget::fill() {
 		{
 			const auto &m = st::channelEarnCurrencyCommonMargins;
 			const auto p = QMargins(m.left(), 0, m.right(), m.bottom());
-			addEmojiToMajor(majorLabel, value, {}, p);
+			addEmojiToMajor(majorLabel, rpl::single(value), {}, p);
 		}
 		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
@@ -855,7 +859,7 @@ void InnerWidget::fill() {
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				wrap,
 				st::channelEarnHistoryMajorLabel);
-			addEmojiToMajor(majorLabel, entry.amount, isIn, {});
+			addEmojiToMajor(majorLabel, rpl::single(entry.amount), isIn, {});
 			majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 			majorLabel->setTextColorOverride(color);
 			const auto minorText = MinorPart(entry.amount);
@@ -885,7 +889,7 @@ void InnerWidget::fill() {
 				const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 					labels,
 					st::channelEarnOverviewMajorLabel);
-				addEmojiToMajor(majorLabel, amount, isIn, {});
+				addEmojiToMajor(majorLabel, rpl::single(amount), isIn, {});
 				majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 				majorLabel->setTextColorOverride(color);
 				const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
