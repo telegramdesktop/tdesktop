@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_credits.h"
 #include "api/api_earn.h"
+#include "api/api_filter_updates.h"
 #include "api/api_statistics.h"
 #include "base/unixtime.h"
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
@@ -27,11 +28,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "statistics/chart_widget.h"
 #include "ui/basic_click_handlers.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value_f.h"
@@ -43,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
@@ -258,6 +260,17 @@ InnerWidget::InnerWidget(
 }
 
 void InnerWidget::load() {
+	struct State final {
+		State(not_null<PeerData*> peer)
+		: api(peer->asChannel())
+		, apiCredits(peer) {
+		}
+		Api::ChannelEarnStatistics api;
+		Api::CreditsEarnStatistics apiCredits;
+		rpl::lifetime apiLifetime;
+		rpl::lifetime apiCreditsLifetime;
+	};
+	const auto state = lifetime().make_state<State>(_peer);
 	const auto api = lifetime().make_state<Api::ChannelEarnStatistics>(
 		_peer->asChannel());
 	const auto apiCredits = lifetime().make_state<Api::CreditsEarnStatistics>(
@@ -272,22 +285,56 @@ void InnerWidget::load() {
 		show->showToast(error);
 	};
 
+	const auto finish = [=] {
+		_loaded.fire(true);
+		fill();
+		state->apiLifetime.destroy();
+		state->apiCreditsLifetime.destroy();
+
+		_peer->session().account().mtpUpdates(
+		) | rpl::start_with_next([=, peerId = _peer->id](
+				const MTPUpdates &updates) {
+			using TLCreditsUpdate = MTPDupdateStarsRevenueStatus;
+			using TLCurrencyUpdate = MTPDupdateBroadcastRevenueTransactions;
+			Api::PerformForUpdate<TLCreditsUpdate>(updates, [&](
+					const TLCreditsUpdate &d) {
+				if (peerId == peerFromMTP(d.vpeer())) {
+					apiCredits->request(
+					) | rpl::start_with_error_done(fail, [=] {
+						state->apiCreditsLifetime.destroy();
+						_state.creditsEarn = state->apiCredits.data();
+						_stateUpdated.fire({});
+					}, state->apiCreditsLifetime);
+				}
+			});
+			Api::PerformForUpdate<TLCurrencyUpdate>(updates, [&](
+					const TLCurrencyUpdate &d) {
+				if (peerId == peerFromMTP(d.vpeer())) {
+					const auto &data = d.vbalances().data();
+					auto &e = _state.currencyEarn;
+					e.currentBalance = data.vcurrent_balance().v;
+					e.availableBalance = data.vavailable_balance().v;
+					e.overallRevenue = data.voverall_revenue().v;
+					_stateUpdated.fire({});
+				}
+			});
+		}, lifetime());
+	};
+
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
-		api->request(
+		state->api.request(
 		) | rpl::start_with_error_done(fail, [=] {
-			_state.currencyEarn = api->data();
-			apiCredits->request(
+			_state.currencyEarn = state->api.data();
+			state->apiCredits.request(
 			) | rpl::start_with_error_done([=](const QString &error) {
 				fail(error);
-				_loaded.fire(true);
-				fill();
+				finish();
 			}, [=] {
-				_state.creditsEarn = apiCredits->data();
-				_loaded.fire(true);
-				fill();
-			}, lifetime());
-		}, lifetime());
+				_state.creditsEarn = state->apiCredits.data();
+				finish();
+			}, state->apiCreditsLifetime);
+		}, state->apiLifetime);
 	}, lifetime());
 }
 
@@ -295,6 +342,20 @@ void InnerWidget::fill() {
 	const auto container = this;
 	const auto &data = _state.currencyEarn;
 	const auto &creditsData = _state.creditsEarn;
+
+	auto currencyStateValue = rpl::single(
+		data
+	) | rpl::then(
+		_stateUpdated.events() | rpl::map([=] {
+			return _state.currencyEarn;
+		})
+	);
+
+	auto creditsStateValue = rpl::single(
+		creditsData
+	) | rpl::then(
+		_stateUpdated.events() | rpl::map([=] { return _state.creditsEarn; })
+	);
 
 	constexpr auto kMinus = QChar(0x2212);
 	//constexpr auto kApproximately = QChar(0x2248);
@@ -584,8 +645,8 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
 
 		const auto addOverview = [&](
-				EarnInt value,
-				EarnInt credits,
+				rpl::producer<EarnInt> currencyValue,
+				rpl::producer<EarnInt> creditsValue,
 				const tr::phrase<> &text) {
 			const auto line = container->add(
 				Ui::CreateSkipWidget(container, 0),
@@ -593,37 +654,49 @@ void InnerWidget::fill() {
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				st::channelEarnOverviewMajorLabel);
-			addEmojiToMajor(majorLabel, rpl::single(value), {}, {});
+			addEmojiToMajor(majorLabel, rpl::duplicate(currencyValue), {}, {});
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				MinorPart(value),
+				rpl::duplicate(currencyValue) | rpl::map(MinorPart),
 				st::channelEarnOverviewMinorLabel);
 			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				value ? ToUsd(value, multiplier) : QString(),
+				std::move(
+					currencyValue
+				) | rpl::map([=](EarnInt value) {
+					return value ? ToUsd(value, multiplier) : QString();
+				}),
 				st::channelEarnOverviewSubMinorLabel);
 
 			const auto creditsLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				QString::number(credits),
+				rpl::duplicate(creditsValue) | rpl::map([](EarnInt value) {
+					return QString::number(value);
+				}),
 				st::channelEarnOverviewMajorLabel);
 			const auto icon = Ui::CreateSingleStarWidget(
 				line,
 				creditsLabel->height());
-			const auto creditsMultiplies = creditsData.usdRate
+			const auto creditsMultiplier = creditsData.usdRate
 				* Data::kEarnMultiplier;
 			const auto creditsSecondLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				credits ? ToUsd(credits, creditsMultiplies) : QString(),
+				rpl::duplicate(
+					creditsValue
+				) | rpl::map([creditsMultiplier](EarnInt c) {
+					return c ? ToUsd(c, creditsMultiplier) : QString();
+				}),
 				st::channelEarnOverviewSubMinorLabel);
 			rpl::combine(
 				line->widthValue(),
 				majorLabel->sizeValue(),
-				creditsLabel->sizeValue()
+				creditsLabel->sizeValue(),
+				std::move(creditsValue)
 			) | rpl::start_with_next([=](
 					int available,
 					const QSize &size,
-					const QSize &creditsSize) {
+					const QSize &creditsSize,
+					EarnInt credits) {
 				const auto skip = st::channelEarnOverviewSubMinorLabelPos.x();
 				line->resize(line->width(), size.height());
 				minorLabel->moveToLeft(
@@ -664,21 +737,24 @@ void InnerWidget::fill() {
 				st::boxRowPadding);
 			sub->setTextColorOverride(st::windowSubTextFg->c);
 		};
+		auto availValueMap = [](const auto &v) { return v.availableBalance; };
+		auto currentValueMap = [](const auto &v) { return v.currentBalance; };
+		auto overallValueMap = [](const auto &v) { return v.overallRevenue; };
 		addOverview(
-			data.availableBalance,
-			creditsData.availableBalance,
+			rpl::duplicate(currencyStateValue) | rpl::map(availValueMap),
+			rpl::duplicate(creditsStateValue) | rpl::map(availValueMap),
 			tr::lng_channel_earn_available);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 		addOverview(
-			data.currentBalance,
-			creditsData.currentBalance,
+			rpl::duplicate(currencyStateValue) | rpl::map(currentValueMap),
+			rpl::duplicate(creditsStateValue) | rpl::map(currentValueMap),
 			tr::lng_channel_earn_reward);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 		addOverview(
-			data.overallRevenue,
-			creditsData.overallRevenue,
+			rpl::duplicate(currencyStateValue) | rpl::map(overallValueMap),
+			rpl::duplicate(creditsStateValue) | rpl::map(overallValueMap),
 			tr::lng_channel_earn_total);
 		Ui::AddSkip(container);
 	}
