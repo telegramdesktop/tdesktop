@@ -378,6 +378,12 @@ void InnerWidget::fill() {
 	//constexpr auto kApproximately = QChar(0x2248);
 	const auto multiplier = data.usdRate;
 
+	const auto creditsToUsdMap = [=](EarnInt c) {
+		const auto creditsMultiplier = _state.creditsEarn.usdRate
+			* Data::kEarnMultiplier;
+		return c ? ToUsd(c, creditsMultiplier) : QString();
+	};
+
 	constexpr auto kNonInteractivePeriod = 1717200000;
 	const auto nonInteractive = base::unixtime::now() < kNonInteractivePeriod;
 
@@ -724,15 +730,9 @@ void InnerWidget::fill() {
 			const auto icon = Ui::CreateSingleStarWidget(
 				line,
 				creditsLabel->height());
-			const auto creditsMultiplier = creditsData.usdRate
-				* Data::kEarnMultiplier;
 			const auto creditsSecondLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				rpl::duplicate(
-					creditsValue
-				) | rpl::map([creditsMultiplier](EarnInt c) {
-					return c ? ToUsd(c, creditsMultiplier) : QString();
-				}),
+				rpl::duplicate(creditsValue) | rpl::map(creditsToUsdMap),
 				st::channelEarnOverviewSubMinorLabel);
 			rpl::combine(
 				line->widthValue(),
@@ -914,6 +914,36 @@ void InnerWidget::fill() {
 			? tr::lng_channel_earn_balance_about
 			: tr::lng_channel_earn_balance_about_temp);
 		Ui::AddSkip(container);
+	}
+	if (creditsData.availableBalance > 0) {
+		AddHeader(container, tr::lng_bot_earn_balance_title);
+		auto availableBalanceValue = rpl::single(
+			creditsData.availableBalance
+		) | rpl::then(
+			_stateUpdated.events() | rpl::map([=] {
+				return _state.creditsEarn.availableBalance;
+			})
+		);
+		auto dateValue = rpl::single(
+			creditsData.nextWithdrawalAt
+		) | rpl::then(
+			_stateUpdated.events() | rpl::map([=] {
+				return _state.creditsEarn.nextWithdrawalAt;
+			})
+		);
+		::Settings::AddWithdrawalWidget(
+			container,
+			_controller->parentController(),
+			_peer,
+			rpl::duplicate(availableBalanceValue),
+			rpl::duplicate(dateValue),
+			std::move(dateValue) | rpl::map([=](const QDateTime &dt) {
+				return !dt.isNull()
+					|| (!_state.creditsEarn.isWithdrawalEnabled);
+			}),
+			rpl::duplicate(
+				availableBalanceValue
+			) | rpl::map(creditsToUsdMap));
 	}
 
 	const auto sectionIndex = container->lifetime().make_state<int>(0);
