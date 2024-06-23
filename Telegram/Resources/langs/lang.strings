@@ -3345,6 +3345,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_paid_cost_placeholder" = "Stars to Unlock";
 "lng_paid_about" = "Users will have to transfer this amount of Stars to your channel in order to view this media. {link}";
 "lng_paid_about_link" = "More about stars >";
+"lng_paid_about_link_url" = "https://telegram.org/blog/telegram-stars";
 "lng_paid_price" = "Unlock for {price}";
 
 "lng_translate_show_original" = "Show Original";

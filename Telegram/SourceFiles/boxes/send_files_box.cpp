@@ -159,7 +159,7 @@ void EditPriceBox(
 	about->setClickHandlerFilter([=](const auto &...) {
 		Core::App().iv().openWithIvPreferred(
 			session,
-			u"https://telegram.org/blog/telegram-stars"_q);
+			tr::lng_paid_about_link_url(tr::now));
 		return false;
 	});
 
