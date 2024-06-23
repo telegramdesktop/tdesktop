@@ -14,7 +14,9 @@ struct CreditsHistoryEntry;
 } // namespace Data
 
 namespace Ui {
+class MaskedInputField;
 class RpWidget;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Ui {
@@ -24,6 +26,10 @@ namespace Ui {
 [[nodiscard]] not_null<Ui::RpWidget*> CreateSingleStarWidget(
 	not_null<Ui::RpWidget*> parent,
 	int height);
+
+[[nodiscard]] not_null<Ui::MaskedInputField*> AddInputFieldForCredits(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<uint64> value);
 
 Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintUserpicCallback(
 	const Data::CreditsHistoryEntry &entry);

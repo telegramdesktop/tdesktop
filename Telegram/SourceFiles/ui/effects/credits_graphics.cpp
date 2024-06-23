@@ -21,10 +21,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/widgets/fields/number_input.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "styles/style_channel_earn.h"
 #include "styles/style_credits.h"
-#include "styles/style_intro.h" // introFragmentIcon.
-#include "styles/style_settings.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_intro.h" // introFragmentIcon.
+#include "styles/style_layers.h"
+#include "styles/style_settings.h"
+#include "styles/style_widgets.h"
 
 #include <QtSvg/QSvgRenderer>
 
@@ -103,6 +109,43 @@ not_null<Ui::RpWidget*> CreateSingleStarWidget(
 	}, widget->lifetime());
 	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return widget;
+}
+
+not_null<Ui::MaskedInputField*> AddInputFieldForCredits(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<uint64> value) {
+	const auto &st = st::botEarnInputField;
+	const auto inputContainer = container->add(
+		CreateSkipWidget(container, st.heightMin));
+	const auto currentValue = rpl::variable<uint64>(
+		rpl::duplicate(value));
+	const auto input = Ui::CreateChild<Ui::NumberInput>(
+		inputContainer,
+		st,
+		tr::lng_bot_earn_out_ph(),
+		QString::number(currentValue.current()),
+		currentValue.current());
+	rpl::duplicate(
+		value
+	) | rpl::start_with_next([=](uint64 v) {
+		input->changeLimit(v);
+		input->setText(QString::number(v));
+	}, input->lifetime());
+	const auto icon = CreateSingleStarWidget(
+		inputContainer,
+		st.style.font->height);
+	inputContainer->sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		input->resize(
+			size.width() - rect::m::sum::h(st::boxRowPadding),
+			st.heightMin);
+		input->moveToLeft(st::boxRowPadding.left(), 0);
+		icon->moveToLeft(
+			st::boxRowPadding.left(),
+			st.textMargins.top());
+	}, input->lifetime());
+	Ui::ToggleChildrenVisibility(inputContainer, true);
+	return input;
 }
 
 PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(

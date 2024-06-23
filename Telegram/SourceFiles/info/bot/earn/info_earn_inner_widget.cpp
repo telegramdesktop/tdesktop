@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/slider_natural_width.h"
@@ -275,40 +274,9 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(container);
 
-		const auto input = [&] {
-			const auto &st = st::botEarnInputField;
-			const auto inputContainer = container->add(
-				Ui::CreateSkipWidget(container, st.heightMin));
-			const auto currentValue = rpl::variable<uint64>(
-				rpl::duplicate(availableBalanceValue));
-			const auto input = Ui::CreateChild<Ui::NumberInput>(
-				inputContainer,
-				st,
-				tr::lng_bot_earn_out_ph(),
-				QString::number(currentValue.current()),
-				currentValue.current());
-			rpl::duplicate(
-				availableBalanceValue
-			) | rpl::start_with_next([=](uint64 v) {
-				input->changeLimit(v);
-				input->setText(QString::number(v));
-			}, input->lifetime());
-			const auto icon = Ui::CreateSingleStarWidget(
-				inputContainer,
-				st.style.font->height);
-			inputContainer->sizeValue(
-			) | rpl::start_with_next([=](const QSize &size) {
-				input->resize(
-					size.width() - rect::m::sum::h(st::boxRowPadding),
-					st.heightMin);
-				input->moveToLeft(st::boxRowPadding.left(), 0);
-				icon->moveToLeft(
-					st::boxRowPadding.left(),
-					st.textMargins.top());
-			}, input->lifetime());
-			Ui::ToggleChildrenVisibility(inputContainer, true);
-			return input;
-		}();
+		const auto input = Ui::AddInputFieldForCredits(
+			container,
+			rpl::duplicate(availableBalanceValue));
 
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
