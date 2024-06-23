@@ -8,9 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/bot/earn/info_earn_inner_widget.h"
 
 #include "api/api_credits.h"
-#include "api/api_earn.h"
 #include "api/api_filter_updates.h"
-#include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "core/ui_integration.h"
 #include "data/data_channel_earn.h"
@@ -24,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_credits_graphics.h"
 #include "statistics/chart_widget.h"
@@ -32,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/credits_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/rect.h"
-#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
@@ -42,19 +38,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
-#include "styles/style_chat.h"
 #include "styles/style_credits.h"
-#include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 
 namespace Info::BotEarn {
 namespace {
-
-[[nodiscard]] int WithdrawalMin(not_null<Main::Session*> session) {
-	const auto key = u"stars_revenue_withdrawal_min"_q;
-	return session->appConfig().get<int>(key, 1000);
-}
 
 void AddHeader(
 		not_null<Ui::VerticalLayout*> content,
@@ -234,53 +223,6 @@ void InnerWidget::fill() {
 	}
 	{
 		AddHeader(container, tr::lng_bot_earn_balance_title);
-		Ui::AddSkip(container);
-
-		const auto labels = container->add(
-			object_ptr<Ui::CenterWrap<Ui::RpWidget>>(
-				container,
-				object_ptr<Ui::RpWidget>(container)))->entity();
-
-		const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
-			labels,
-			rpl::duplicate(availableBalanceValue) | rpl::map(valueToString),
-			st::channelEarnBalanceMajorLabel);
-		const auto icon = Ui::CreateSingleStarWidget(
-			labels,
-			majorLabel->height());
-		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-		majorLabel->sizeValue(
-		) | rpl::start_with_next([=](const QSize &majorSize) {
-			const auto skip = st::channelEarnBalanceMinorLabelSkip;
-			labels->resize(
-				majorSize.width() + icon->width() + skip,
-				majorSize.height());
-			majorLabel->moveToLeft(icon->width() + skip, 0);
-		}, labels->lifetime());
-		Ui::ToggleChildrenVisibility(labels, true);
-
-		Ui::AddSkip(container);
-		container->add(
-			object_ptr<Ui::CenterWrap<>>(
-				container,
-				object_ptr<Ui::FlatLabel>(
-					container,
-					rpl::duplicate(
-						availableBalanceValue
-					) | rpl::map([=](uint64 v) {
-						return v ? ToUsd(v, multiplier) : QString();
-					}),
-					st::channelEarnOverviewSubMinorLabel)));
-
-		Ui::AddSkip(container);
-
-		const auto input = Ui::AddInputFieldForCredits(
-			container,
-			rpl::duplicate(availableBalanceValue));
-
-		Ui::AddSkip(container);
-		Ui::AddSkip(container);
-
 		auto dateValue = rpl::single(
 			data.nextWithdrawalAt
 		) | rpl::then(
@@ -288,220 +230,18 @@ void InnerWidget::fill() {
 				return _state.nextWithdrawalAt;
 			})
 		);
-		auto lockedValue = rpl::duplicate(
-			dateValue
-		) | rpl::map([=](const QDateTime &dt) {
-			return !dt.isNull() || (!_state.isWithdrawalEnabled);
-		});
-
-		const auto &stButton = st::defaultActiveButton;
-		const auto button = container->add(
-			object_ptr<Ui::RoundButton>(
-				container,
-				rpl::never<QString>(),
-				stButton),
-			st::boxRowPadding);
-
-		rpl::duplicate(
-			lockedValue
-		) | rpl::start_with_next([=](bool v) {
-			button->setAttribute(Qt::WA_TransparentForMouseEvents, v);
-		}, button->lifetime());
-
-		const auto label = Ui::CreateChild<Ui::FlatLabel>(
-			button,
-			tr::lng_channel_earn_balance_button(tr::now),
-			st::channelEarnSemiboldLabel);
-		const auto processInputChange = [&] {
-			const auto buttonEmoji = Ui::Text::SingleCustomEmoji(
-				session->data().customEmojiManager().registerInternalEmoji(
-					st::settingsPremiumIconStar,
-					{ 0, -st::moderateBoxExpandInnerSkip, 0, 0 },
-					true));
-			const auto context = Core::MarkedTextContext{
-				.session = session,
-				.customEmojiRepaint = [=] { label->update(); },
-			};
-			const auto process = [=] {
-				const auto amount = input->getLastText().toDouble();
-				if (amount >= _state.availableBalance) {
-					label->setText(
-						tr::lng_bot_earn_balance_button_all(tr::now));
-				} else {
-					label->setMarkedText(
-						tr::lng_bot_earn_balance_button(
-							tr::now,
-							lt_count,
-							amount,
-							lt_emoji,
-							buttonEmoji,
-							Ui::Text::RichLangValue),
-						context);
-				}
-			};
-			QObject::connect(input, &Ui::MaskedInputField::changed, process);
-			process();
-			return process;
-		}();
-		label->setTextColorOverride(stButton.textFg->c);
-		label->setAttribute(Qt::WA_TransparentForMouseEvents);
-		rpl::combine(
-			rpl::duplicate(lockedValue),
-			button->sizeValue(),
-			label->sizeValue()
-		) | rpl::start_with_next([=](bool v, const QSize &b, const QSize &l) {
-			label->moveToLeft(
-				(b.width() - l.width()) / 2,
-				(v ? -10 : 1) * (b.height() - l.height()) / 2);
-		}, label->lifetime());
-
-		const auto lockedColor = anim::with_alpha(stButton.textFg->c, .5);
-		const auto lockedLabelTop = Ui::CreateChild<Ui::FlatLabel>(
-			button,
-			tr::lng_bot_earn_balance_button_locked(),
-			st::botEarnLockedButtonLabel);
-		lockedLabelTop->setTextColorOverride(lockedColor);
-		lockedLabelTop->setAttribute(Qt::WA_TransparentForMouseEvents);
-		const auto lockedLabelBottom = Ui::CreateChild<Ui::FlatLabel>(
-			button,
-			QString(),
-			st::botEarnLockedButtonLabel);
-		lockedLabelBottom->setTextColorOverride(lockedColor);
-		lockedLabelBottom->setAttribute(Qt::WA_TransparentForMouseEvents);
-		rpl::combine(
-			rpl::duplicate(lockedValue),
-			button->sizeValue(),
-			lockedLabelTop->sizeValue(),
-			lockedLabelBottom->sizeValue()
-		) | rpl::start_with_next([=](
-				bool locked,
-				const QSize &b,
-				const QSize &top,
-				const QSize &bottom) {
-			const auto factor = locked ? 1 : -10;
-			const auto sumHeight = top.height() + bottom.height();
-			lockedLabelTop->moveToLeft(
-				(b.width() - top.width()) / 2,
-				factor * (b.height() - sumHeight) / 2);
-			lockedLabelBottom->moveToLeft(
-				(b.width() - bottom.width()) / 2,
-				factor * ((b.height() - sumHeight) / 2 + top.height()));
-		}, lockedLabelTop->lifetime());
-
-		const auto dateUpdateLifetime
-			= lockedLabelBottom->lifetime().make_state<rpl::lifetime>();
-		std::move(
-			dateValue
-		) | rpl::start_with_next([=](const QDateTime &dt) {
-			dateUpdateLifetime->destroy();
-			if (dt.isNull()) {
-				return;
-			}
-			constexpr auto kDateUpdateInterval = crl::time(250);
-			const auto was = base::unixtime::serialize(dt);
-
-			const auto context = Core::MarkedTextContext{
-				.session = session,
-				.customEmojiRepaint = [=] { lockedLabelBottom->update(); },
-			};
-			const auto emoji = Ui::Text::SingleCustomEmoji(
-				session->data().customEmojiManager().registerInternalEmoji(
-					st::chatSimilarLockedIcon,
-					st::botEarnButtonLockMargins,
-					true));
-
-			rpl::single(
-				rpl::empty
-			) | rpl::then(
-				base::timer_each(kDateUpdateInterval)
-			) | rpl::start_with_next([=] {
-				const auto secondsDifference = std::max(
-					was - base::unixtime::now() - 1,
-					0);
-				const auto hours = secondsDifference / 3600;
-				const auto minutes = (secondsDifference % 3600) / 60;
-				const auto seconds = secondsDifference % 60;
-				constexpr auto kZero = QChar('0');
-				const auto formatted = (hours > 0)
-					? (u"%1:%2:%3"_q)
-						.arg(hours, 2, 10, kZero)
-						.arg(minutes, 2, 10, kZero)
-						.arg(seconds, 2, 10, kZero)
-					: (u"%1:%2"_q)
-						.arg(minutes, 2, 10, kZero)
-						.arg(seconds, 2, 10, kZero);
-				lockedLabelBottom->setMarkedText(
-					base::duplicate(emoji).append(formatted),
-					context);
-			}, *dateUpdateLifetime);
-		}, lockedLabelBottom->lifetime());
-
-		Api::HandleWithdrawalButton(
-			Api::RewardReceiver{
-				.creditsReceiver = _peer,
-				.creditsAmount = [=, show = _controller->uiShow()] {
-					const auto amount = input->getLastText().toULongLong();
-					const auto min = float64(WithdrawalMin(session));
-					if (amount < min) {
-						auto text = tr::lng_bot_earn_credits_out_minimal(
-							tr::now,
-							lt_link,
-							Ui::Text::Link(
-								tr::lng_bot_earn_credits_out_minimal_link(
-									tr::now,
-									lt_count,
-									min),
-								u"internal:"_q),
-							Ui::Text::RichLangValue);
-						show->showToast(Ui::Toast::Config{
-							.text = std::move(text),
-							.filter = [=](const auto ...) {
-								input->setText(QString::number(min));
-								processInputChange();
-								return true;
-							},
-						});
-						return 0ULL;
-					}
-					return amount;
-				},
-			},
-			button,
-			_controller->uiShow());
-		Ui::ToggleChildrenVisibility(button, true);
-
-		Ui::AddSkip(container);
-		Ui::AddSkip(container);
-
-		const auto arrow = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				st::topicButtonArrow,
-				st::channelEarnLearnArrowMargins,
-				false));
-		auto about = Ui::CreateLabelWithCustomEmoji(
+		::Settings::AddWithdrawalWidget(
 			container,
-			tr::lng_bot_earn_learn_credits_out_about(
-				lt_link,
-				tr::lng_channel_earn_about_link(
-					lt_emoji,
-					rpl::single(arrow),
-					Ui::Text::RichLangValue
-				) | rpl::map([](TextWithEntities text) {
-					return Ui::Text::Link(
-						std::move(text),
-						tr::lng_bot_earn_balance_about_url(tr::now));
-				}),
-				Ui::Text::RichLangValue),
-			{ .session = session },
-			st::boxDividerLabel);
-		Ui::AddSkip(container);
-		container->add(object_ptr<Ui::DividerLabel>(
-			container,
-			std::move(about),
-			st::defaultBoxDividerLabelPadding,
-			RectPart::Top | RectPart::Bottom));
-
-		Ui::AddSkip(container);
+			_controller->parentController(),
+			_peer,
+			rpl::duplicate(availableBalanceValue),
+			rpl::duplicate(dateValue),
+			std::move(dateValue) | rpl::map([=](const QDateTime &dt) {
+				return !dt.isNull() || (!_state.isWithdrawalEnabled);
+			}),
+			rpl::duplicate(availableBalanceValue) | rpl::map([=](uint64 v) {
+				return v ? ToUsd(v, multiplier) : QString();
+			}));
 	}
 
 	fillHistory();

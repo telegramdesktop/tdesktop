@@ -39,6 +39,15 @@ void FillCreditOptions(
 	rpl::producer<uint64> balanceValue,
 	bool rightAlign);
 
+void AddWithdrawalWidget(
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	rpl::producer<uint64> availableBalanceValue,
+	rpl::producer<QDateTime> dateValue,
+	rpl::producer<bool> lockedValue,
+	rpl::producer<QString> usdValue);
+
 void ReceiptCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
