@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_channel_earn.h"
 #include "data/data_bot_earn.h"
+#include "data/data_channel_earn.h"
+#include "data/data_credits.h"
 #include "info/info_content_widget.h"
 
 namespace Info::ChannelEarn {
@@ -31,6 +32,8 @@ public:
 	struct SavedState final {
 		Data::EarnStatistics currencyEarn;
 		Data::CreditsEarnStatistics creditsEarn;
+		Data::CreditsStatusSlice creditsStatusSlice;
+		PeerId premiumBotId = PeerId(0);
 	};
 
 	void setState(SavedState states);

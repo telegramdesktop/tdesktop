@@ -26,11 +26,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
+#include "info/statistics/info_statistics_list_controllers.h"
 #include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "statistics/chart_widget.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/boxes/boost_box.h"
@@ -46,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/slider_natural_width.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
@@ -54,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
+#include "styles/style_credits.h"
 #include "styles/style_window.h" // mainMenuToggleFourStrokes.
 
 #include <QtSvg/QSvgRenderer>
@@ -263,12 +267,15 @@ void InnerWidget::load() {
 	struct State final {
 		State(not_null<PeerData*> peer)
 		: api(peer->asChannel())
-		, apiCredits(peer) {
+		, apiCredits(peer)
+		, apiCreditsHistory(peer, true, true) {
 		}
 		Api::ChannelEarnStatistics api;
 		Api::CreditsEarnStatistics apiCredits;
+		Api::CreditsHistory apiCreditsHistory;
 		rpl::lifetime apiLifetime;
 		rpl::lifetime apiCreditsLifetime;
+		rpl::lifetime apiPremiumBotLifetime;
 	};
 	const auto state = lifetime().make_state<State>(_peer);
 	const auto api = lifetime().make_state<Api::ChannelEarnStatistics>(
@@ -326,14 +333,24 @@ void InnerWidget::load() {
 		state->api.request(
 		) | rpl::start_with_error_done(fail, [=] {
 			_state.currencyEarn = state->api.data();
-			state->apiCredits.request(
-			) | rpl::start_with_error_done([=](const QString &error) {
-				fail(error);
-				finish();
-			}, [=] {
-				_state.creditsEarn = state->apiCredits.data();
-				finish();
-			}, state->apiCreditsLifetime);
+			state->apiCreditsHistory.request({}, [=](
+					const Data::CreditsStatusSlice &data) {
+				_state.creditsStatusSlice = data;
+				::Api::PremiumPeerBot(
+					&_peer->session()
+				) | rpl::start_with_next([=](not_null<PeerData*> bot) {
+					_state.premiumBotId = bot->id;
+					state->apiCredits.request(
+					) | rpl::start_with_error_done([=](const QString &error) {
+						fail(error);
+						finish();
+					}, [=] {
+						_state.creditsEarn = state->apiCredits.data();
+						finish();
+					}, state->apiCreditsLifetime);
+					state->apiPremiumBotLifetime.destroy();
+				}, state->apiPremiumBotLifetime);
+			});
 		}, state->apiLifetime);
 	}, lifetime());
 }
@@ -894,12 +911,79 @@ void InnerWidget::fill() {
 			: tr::lng_channel_earn_balance_about_temp);
 		Ui::AddSkip(container);
 	}
-	if (!data.firstHistorySlice.list.empty()) {
-		AddHeader(container, tr::lng_channel_earn_history_title);
+
+	const auto hasCurrencyTab = !data.firstHistorySlice.list.empty();
+	const auto hasCreditsTab = !_state.creditsStatusSlice.list.empty()
+		&& _state.premiumBotId;
+	const auto hasOneTab = (hasCurrencyTab || hasCreditsTab)
+		&& (hasCurrencyTab != hasCreditsTab);
+
+	const auto currencyTabText = tr::lng_channel_earn_currency_history(
+		tr::now);
+	const auto creditsTabText = tr::lng_channel_earn_credits_history(tr::now);
+
+	const auto slider = container->add(
+		object_ptr<Ui::SlideWrap<Ui::CustomWidthSlider>>(
+			container,
+			object_ptr<Ui::CustomWidthSlider>(
+				container,
+				st::defaultTabsSlider)),
+		st::boxRowPadding);
+	slider->toggle(!hasOneTab, anim::type::instant);
+
+	if (hasCurrencyTab) {
+		slider->entity()->addSection(currencyTabText);
+	}
+	if (hasCreditsTab) {
+		slider->entity()->addSection(creditsTabText);
+	}
+
+	{
+		const auto &st = st::defaultTabsSlider;
+		slider->entity()->setNaturalWidth(0
+			+ (hasCurrencyTab
+				? st.labelStyle.font->width(currencyTabText)
+				: 0)
+			+ (hasCreditsTab
+				? st.labelStyle.font->width(creditsTabText)
+				: 0)
+			+ rect::m::sum::h(st::boxRowPadding));
+	}
+
+	if (hasOneTab) {
+		if (hasCurrencyTab) {
+			AddHeader(container, tr::lng_channel_earn_history_title);
+		} else if (hasCreditsTab) {
+			AddHeader(container, tr::lng_channel_earn_credits_history);
+			slider->entity()->setActiveSectionFast(1);
+		}
+	}
+
+	const auto historyCurrencyList = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto historyCreditsList = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+
+	rpl::single(slider->entity()->activeSection()) | rpl::then(
+		slider->entity()->sectionActivated()
+	) | rpl::start_with_next([=](int index) {
+		if (index == 0) {
+			historyCurrencyList->toggle(true, anim::type::instant);
+			historyCreditsList->toggle(false, anim::type::instant);
+		} else if (index == 1) {
+			historyCurrencyList->toggle(false, anim::type::instant);
+			historyCreditsList->toggle(true, anim::type::instant);
+		}
+	}, container->lifetime());
+
+	if (hasCurrencyTab) {
 		Ui::AddSkip(container);
 
-		const auto historyList = container->add(
-			object_ptr<Ui::VerticalLayout>(container));
+		const auto historyList = historyCurrencyList->entity();
 		const auto addHistoryEntry = [=](
 				const Data::EarnHistoryEntry &entry,
 				const tr::phrase<> &text) {
@@ -1204,6 +1288,34 @@ void InnerWidget::fill() {
 				}
 			});
 		}
+		Ui::AddSkip(container);
+		Ui::AddDivider(container);
+		Ui::AddSkip(container);
+	}
+	if (hasCreditsTab) {
+		const auto controller = _controller->parentController();
+		const auto show = controller->uiShow();
+		const auto premiumBot = _peer->owner().peer(_state.premiumBotId);
+		const auto entryClicked = [=](const Data::CreditsHistoryEntry &e) {
+			show->show(Box(
+				::Settings::ReceiptCreditsBox,
+				controller,
+				premiumBot.get(),
+				e));
+		};
+
+		const auto star = historyCreditsList->lifetime().make_state<QImage>(
+			Ui::GenerateStars(st::creditsTopupButton.height, 1));
+
+		Info::Statistics::AddCreditsHistoryList(
+			show,
+			_state.creditsStatusSlice,
+			historyCreditsList->entity(),
+			entryClicked,
+			premiumBot,
+			star,
+			true,
+			true);
 		Ui::AddSkip(container);
 		Ui::AddDivider(container);
 		Ui::AddSkip(container);
