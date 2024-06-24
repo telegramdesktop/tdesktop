@@ -2771,7 +2771,7 @@ auto OverlayWidget::sharedMediaType() const
 	using Type = SharedMediaType;
 	if (_message) {
 		if (const auto media = _message->media()) {
-			if (media->webpage()) {
+			if (media->webpage() || media->invoice()) {
 				return std::nullopt;
 			}
 		}
@@ -2999,6 +2999,14 @@ std::optional<OverlayWidget::CollageKey> OverlayWidget::collageKey() const {
 						return item;
 					}
 				}
+			} else if (const auto invoice = media->invoice()) {
+				for (const auto &item : invoice->extendedMedia) {
+					if (_photo && item->photo() == _photo) {
+						return _photo;
+					} else if (_document && item->document() == _document) {
+						return _document;
+					}
+				}
 			}
 		}
 	}
@@ -3032,6 +3040,16 @@ void OverlayWidget::validateCollage() {
 			if (const auto media = _message->media()) {
 				if (const auto page = media->webpage()) {
 					_collageData = page->collage;
+				} else if (const auto invoice = media->invoice()) {
+					auto &data = *_collageData;
+					data.items.reserve(invoice->extendedMedia.size());
+					for (const auto &item : invoice->extendedMedia) {
+						if (const auto photo = item->photo()) {
+							data.items.push_back(photo);
+						} else if (const auto document = item->document()) {
+							data.items.push_back(document);
+						}
+					}
 				}
 			}
 		}
