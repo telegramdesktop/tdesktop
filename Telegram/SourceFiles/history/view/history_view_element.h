@@ -278,6 +278,10 @@ struct FakeBotAboutTop : public RuntimeComponent<FakeBotAboutTop, Element> {
 	int height = 0;
 };
 
+struct PurchasedTag : public RuntimeComponent<PurchasedTag, Element> {
+	Ui::Text::String text;
+};
+
 struct TopicButton {
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	ClickHandlerPtr link;
@@ -563,6 +567,8 @@ public:
 	-> std::unique_ptr<Ui::ReactionFlyAnimation>;
 
 	void overrideMedia(std::unique_ptr<Media> media);
+
+	[[nodiscard]] not_null<PurchasedTag*> enforcePurchasedTag();
 
 	virtual bool consumeHorizontalScroll(QPoint position, int delta) {
 		return false;

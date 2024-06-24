@@ -167,7 +167,8 @@ private:
 	const std::unique_ptr<MediaSpoiler> _spoiler;
 	mutable QImage _imageCache;
 	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
-	uint32 _serviceWidth : 28 = 0;
+	uint32 _serviceWidth : 27 = 0;
+	uint32 _purchasedPriceTag : 1 = 0;
 	mutable uint32 _imageCacheForum : 1 = 0;
 	mutable uint32 _imageCacheBlurred : 1 = 0;
 	mutable uint32 _pollingStory : 1 = 0;

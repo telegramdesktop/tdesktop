@@ -139,6 +139,7 @@ void Photo::create(FullMsgId contextId, PeerData *chat) {
 	if (_spoiler) {
 		createSpoilerLink(_spoiler.get());
 	}
+	_purchasedPriceTag = hasPurchasedTag() ? 1 : 0;
 }
 
 void Photo::ensureDataMediaCreated() const {
@@ -392,6 +393,14 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		const auto radius = st::historyPageEnlargeRadius;
 		p.drawRoundedRect(rect, radius, radius);
 		sti->historyPageEnlarge.paintInCenter(p, rect);
+	}
+	if (_purchasedPriceTag) {
+		auto geometry = rthumb;
+		if (showEnlarge) {
+			const auto rect = enlargeRect();
+			geometry.setY(rect.y() + rect.height());
+		}
+		drawPurchasedTag(p, geometry, context);
 	}
 
 	// date

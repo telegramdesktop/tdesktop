@@ -44,3 +44,6 @@ creditsBoxAboutDivider: FlatLabel(boxDividerLabel) {
 creditsBoxButtonLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 }
+
+starIconSmall: icon{{ "payments/small_star", windowFg }};
+starIconSmallPadding: margins(0px, -3px, 0px, 0px);

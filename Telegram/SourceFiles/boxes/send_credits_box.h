@@ -29,4 +29,7 @@ void SendCreditsBox(
 [[nodiscard]] TextWithEntities CreditsEmoji(
 	not_null<Main::Session*> session);
 
+[[nodiscard]] TextWithEntities CreditsEmojiSmall(
+	not_null<Main::Session*> session);
+
 } // namespace Ui

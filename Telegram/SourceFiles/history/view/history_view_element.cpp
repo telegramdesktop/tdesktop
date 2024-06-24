@@ -721,6 +721,14 @@ void Element::overrideMedia(std::unique_ptr<Media> media) {
 	_flags |= Flag::MediaOverriden;
 }
 
+not_null<PurchasedTag*> Element::enforcePurchasedTag() {
+	if (const auto purchased = Get<PurchasedTag>()) {
+		return purchased;
+	}
+	AddComponents(PurchasedTag::Bit());
+	return Get<PurchasedTag>();
+}
+
 void Element::refreshMedia(Element *replacing) {
 	if (_flags & Flag::MediaOverriden) {
 		return;

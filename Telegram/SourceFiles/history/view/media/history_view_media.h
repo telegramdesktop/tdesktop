@@ -357,6 +357,12 @@ public:
 		return false;
 	}
 
+	[[nodiscard]] bool hasPurchasedTag() const;
+	void drawPurchasedTag(
+		Painter &p,
+		QRect outer,
+		const PaintContext &context) const;
+
 	virtual ~Media() = default;
 
 protected:

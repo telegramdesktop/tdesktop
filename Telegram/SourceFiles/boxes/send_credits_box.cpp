@@ -285,7 +285,7 @@ void SendCreditsBox(
 			lt_count,
 			rpl::single(form->invoice.amount) | tr::to_count(),
 			lt_emoji,
-			rpl::single(CreditsEmoji(session)),
+			rpl::single(CreditsEmojiSmall(session)),
 			Ui::Text::RichLangValue);
 		const auto buttonLabel = Ui::CreateChild<Ui::FlatLabel>(
 			button,
@@ -365,6 +365,15 @@ TextWithEntities CreditsEmoji(not_null<Main::Session*> session) {
 		session->data().customEmojiManager().registerInternalEmoji(
 			st::settingsPremiumIconStar,
 			QMargins{ 0, -st::moderateBoxExpandInnerSkip, 0, 0 },
+			true),
+		QString(QChar(0x2B50)));
+}
+
+TextWithEntities CreditsEmojiSmall(not_null<Main::Session*> session) {
+	return Ui::Text::SingleCustomEmoji(
+		session->data().customEmojiManager().registerInternalEmoji(
+			st::starIconSmall,
+			st::starIconSmallPadding,
 			true),
 		QString(QChar(0x2B50)));
 }
