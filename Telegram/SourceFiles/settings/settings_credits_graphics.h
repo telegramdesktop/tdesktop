@@ -65,14 +65,11 @@ void ReceiptCreditsBox(
 	not_null<PhotoData*> photo,
 	int photoSize);
 
-[[nodiscard]] object_ptr<Ui::RpWidget> HistoryEntryVideo(
-	not_null<Ui::RpWidget*> parent,
-	not_null<DocumentData*> video,
-	int photoSize);
-
-[[nodiscard]] object_ptr<Ui::RpWidget> PaidMediaPhoto(
+[[nodiscard]] object_ptr<Ui::RpWidget> PaidMediaThumbnail(
 	not_null<Ui::RpWidget*> parent,
 	not_null<PhotoData*> photo,
+	PhotoData *second,
+	int totalCount,
 	int photoSize);
 
 void SmallBalanceBox(

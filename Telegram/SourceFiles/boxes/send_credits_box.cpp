@@ -156,11 +156,18 @@ struct PaidMediaData {
 		not_null<Payments::CreditsFormData*> form,
 		int photoSize) {
 	if (const auto data = LookupPaidMediaData(session, form)) {
-		const auto first = data.invoice->extendedMedia.front().get();
-		if (const auto photo = first->photo()) {
-			if (photo->extendedMediaPreview()) {
-				return Settings::PaidMediaPhoto(parent, photo, photoSize);
-			}
+		const auto first = data.invoice->extendedMedia[0]->photo();
+		const auto second = (data.photos > 1)
+			? data.invoice->extendedMedia[1]->photo()
+			: nullptr;
+		const auto totalCount = int(data.invoice->extendedMedia.size());
+		if (first && first->extendedMediaPreview()) {
+			return Settings::PaidMediaThumbnail(
+				parent,
+				first,
+				second,
+				totalCount,
+				photoSize);
 		}
 	}
 	if (form->photo) {

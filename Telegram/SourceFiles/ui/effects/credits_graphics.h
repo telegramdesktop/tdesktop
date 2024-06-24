@@ -12,6 +12,7 @@ class DocumentData;
 
 namespace Data {
 struct CreditsHistoryEntry;
+struct CreditsHistoryMedia;
 } // namespace Data
 
 namespace Main {
@@ -26,6 +27,13 @@ class VerticalLayout;
 
 namespace Ui {
 
+using PaintRoundImageCallback = Fn<void(
+	Painter &p,
+	int x,
+	int y,
+	int outerWidth,
+	int size)>;
+
 [[nodiscard]] QImage GenerateStars(int height, int count);
 
 [[nodiscard]] not_null<Ui::RpWidget*> CreateSingleStarWidget(
@@ -36,22 +44,29 @@ namespace Ui {
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<uint64> value);
 
-Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintUserpicCallback(
+PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 	const Data::CreditsHistoryEntry &entry);
 
-Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintEntryCallback(
+PaintRoundImageCallback GenerateCreditsPaintEntryCallback(
 	not_null<PhotoData*> photo,
 	Fn<void()> update);
 
-Fn<void(Painter &, int, int, int, int)> GenerateCreditsPaintEntryCallback(
+PaintRoundImageCallback GenerateCreditsPaintEntryCallback(
 	not_null<DocumentData*> video,
 	Fn<void()> update);
 
-Fn<void(Painter &, int, int, int, int)> GeneratePaidMediaPaintCallback(
-	not_null<PhotoData*> photo,
+PaintRoundImageCallback GenerateCreditsPaintEntryCallback(
+	not_null<Main::Session*> session,
+	Data::CreditsHistoryMedia media,
 	Fn<void()> update);
 
-Fn<Fn<void(Painter&, int, int, int, int)>(Fn<void()>)> PaintPreviewCallback(
+PaintRoundImageCallback GeneratePaidMediaPaintCallback(
+	not_null<PhotoData*> photo,
+	PhotoData *second,
+	int totalCount,
+	Fn<void()> update);
+
+Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 	not_null<Main::Session*> session,
 	const Data::CreditsHistoryEntry &entry);
 

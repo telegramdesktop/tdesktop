@@ -34,7 +34,7 @@ constexpr auto kTransactionsLimit = 100;
 	const auto photo = tl.data().vphoto()
 		? owner->photoFromWeb(*tl.data().vphoto(), ImageLocation())
 		: nullptr;
-	auto extended = std::vector<CreditsHistoryEntry::Media>();
+	auto extended = std::vector<CreditsHistoryMedia>();
 	if (const auto list = tl.data().vextended_media()) {
 		extended.reserve(list->v.size());
 		for (const auto &media : list->v) {
@@ -42,9 +42,9 @@ constexpr auto kTransactionsLimit = 100;
 				if (const auto inner = photo.vphoto()) {
 					const auto photo = owner->processPhoto(*inner);
 					if (!photo->isNull()) {
-						extended.push_back(CreditsHistoryEntry::Media{
-							.type = CreditsHistoryEntry::MediaType::Photo,
-							.mediaId = photo->id,
+						extended.push_back(CreditsHistoryMedia{
+							.type = CreditsHistoryMediaType::Photo,
+							.id = photo->id,
 						});
 					}
 				}
@@ -54,9 +54,9 @@ constexpr auto kTransactionsLimit = 100;
 					if (document->isAnimation()
 						|| document->isVideoFile()
 						|| document->isGifv()) {
-						extended.push_back(CreditsHistoryEntry::Media{
-							.type = CreditsHistoryEntry::MediaType::Video,
-							.mediaId = document->id,
+						extended.push_back(CreditsHistoryMedia{
+							.type = CreditsHistoryMediaType::Video,
+							.id = document->id,
 						});
 					}
 				}

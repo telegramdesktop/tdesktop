@@ -569,26 +569,20 @@ object_ptr<Ui::RpWidget> HistoryEntryPhoto(
 		photoSize);
 }
 
-object_ptr<Ui::RpWidget> HistoryEntryVideo(
-		not_null<Ui::RpWidget*> parent,
-		not_null<DocumentData*> video,
-		int photoSize) {
-	return GenericEntryPhoto(
-		parent,
-		[=](Fn<void()> update) {
-			return Ui::GenerateCreditsPaintEntryCallback(video, update);
-		},
-		photoSize);
-}
-
-object_ptr<Ui::RpWidget> PaidMediaPhoto(
+object_ptr<Ui::RpWidget> PaidMediaThumbnail(
 		not_null<Ui::RpWidget*> parent,
 		not_null<PhotoData*> photo,
+		PhotoData *second,
+		int totalCount,
 		int photoSize) {
 	return GenericEntryPhoto(
 		parent,
 		[=](Fn<void()> update) {
-			return Ui::GeneratePaidMediaPaintCallback(photo, update);
+			return Ui::GeneratePaidMediaPaintCallback(
+				photo,
+				second,
+				totalCount,
+				update);
 		},
 		photoSize);
 }
