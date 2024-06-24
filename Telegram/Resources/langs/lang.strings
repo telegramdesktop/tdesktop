@@ -5218,6 +5218,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_chart_overriden_detail_usd" = "Revenue in USD";
 "lng_channel_earn_currency_history" = "TON Transactions";
 "lng_channel_earn_credits_history" = "Stars Transactions";
+"lng_channel_earn_out_check_password_about" = "You can withdraw only if you have:";
 
 "lng_bot_earn_title" = "Stars Balance";
 "lng_bot_earn_chart_revenue" = "Revenue";

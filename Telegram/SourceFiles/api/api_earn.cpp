@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_cloud_password.h"
 #include "apiwrap.h"
+#include "ui/layers/generic_box.h"
 #include "boxes/passcode_box.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
@@ -50,8 +51,11 @@ void HandleWithdrawalButton(
 	const auto state = button->lifetime().make_state<State>();
 	const auto session = (channel ? &channel->session() : &peer->session());
 
+	using ChannelOutUrl = MTPstats_BroadcastRevenueWithdrawalUrl;
+	using CreditsOutUrl = MTPpayments_StarsRevenueWithdrawalUrl;
+
 	session->api().cloudPassword().reload();
-	button->setClickedCallback([=] {
+	const auto processOut = [=] {
 		if (state->loading) {
 			return;
 		}
@@ -84,37 +88,63 @@ void HandleWithdrawalButton(
 						}
 					}
 				};
-				const auto fail = [=](const QString &error) {
-					show->showToast(error);
+				const auto fail = [=](const MTP::Error &error) {
+					show->showToast(error.type());
 				};
 				if (channel) {
 					session->api().request(
 						MTPstats_GetBroadcastRevenueWithdrawalUrl(
 							channel->inputChannel,
 							result.result
-					)).done([=](
-							const MTPstats_BroadcastRevenueWithdrawalUrl &r) {
+					)).done([=](const ChannelOutUrl &r) {
 						done(qs(r.data().vurl()));
-					}).fail([=](const MTP::Error &error) {
-						fail(error.type());
-					}).send();
+					}).fail(fail).send();
 				} else if (peer) {
 					session->api().request(
 						MTPpayments_GetStarsRevenueWithdrawalUrl(
 							peer->input,
 							MTP_long(receiver.creditsAmount()),
 							result.result
-					)).done([=](
-							const MTPpayments_StarsRevenueWithdrawalUrl &r) {
+					)).done([=](const CreditsOutUrl &r) {
 						done(qs(r.data().vurl()));
-					}).fail([=](const MTP::Error &error) {
-						fail(error.type());
-					}).send();
+					}).fail(fail).send();
 				}
 			});
 			show->show(Box<PasscodeBox>(session, fields));
 		});
-
+	};
+	button->setClickedCallback([=] {
+		if (state->loading) {
+			return;
+		}
+		const auto fail = [=](const MTP::Error &error) {
+			auto box = PrePasswordErrorBox(
+				error.type(),
+				session,
+				TextWithEntities{
+					tr::lng_channel_earn_out_check_password_about(tr::now),
+				});
+			if (box) {
+				show->show(std::move(box));
+				state->loading = false;
+			} else {
+				processOut();
+			}
+		};
+		if (channel) {
+			session->api().request(
+				MTPstats_GetBroadcastRevenueWithdrawalUrl(
+					channel->inputChannel,
+					MTP_inputCheckPasswordEmpty()
+			)).fail(fail).send();
+		} else if (peer) {
+			session->api().request(
+				MTPpayments_GetStarsRevenueWithdrawalUrl(
+					peer->input,
+					MTP_long(std::numeric_limits<int64_t>::max()),
+					MTP_inputCheckPasswordEmpty()
+			)).fail(fail).send();
+		}
 	});
 }
 
