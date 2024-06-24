@@ -42,8 +42,8 @@ struct CreditsHistoryEntry final {
 	bool refunded = false;
 	bool pending = false;
 	bool failed = false;
-	QDateTime finishDate;
-	QString finishUrl;
+	QDateTime successDate;
+	QString successLink;
 	bool in = false;
 
 };

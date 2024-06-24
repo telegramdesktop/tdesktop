@@ -1730,4 +1730,17 @@ void AddCreditsHistoryEntryTable(
 			tr::lng_gift_link_label_date(),
 			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
 	}
+	if (!entry.successDate.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_success_date(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
+	}
+	if (!entry.successLink.isEmpty()) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_success_url(),
+			rpl::single(
+				Ui::Text::Link(entry.successLink, entry.successLink)));
+	}
 }

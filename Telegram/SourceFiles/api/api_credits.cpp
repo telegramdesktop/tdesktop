@@ -74,10 +74,10 @@ constexpr auto kTransactionsLimit = 100;
 		.refunded = tl.data().is_refund(),
 		.pending = tl.data().is_pending(),
 		.failed = tl.data().is_failed(),
-		.finishDate = tl.data().vtransaction_date()
+		.successDate = tl.data().vtransaction_date()
 			? base::unixtime::parse(tl.data().vtransaction_date()->v)
 			: QDateTime(),
-		.finishUrl = qs(tl.data().vtransaction_url().value_or_empty()),
+		.successLink = qs(tl.data().vtransaction_url().value_or_empty()),
 		.in = (!isBot || tl.data().is_refund())
 			&& !tl.data().is_pending()
 			&& !tl.data().is_failed(),
