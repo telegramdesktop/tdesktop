@@ -26,6 +26,7 @@ struct CreditsEarnStatistics final {
 	float64 usdRate = 0.;
 	bool isWithdrawalEnabled = false;
 	QDateTime nextWithdrawalAt;
+	QString buyAdsUrl;
 };
 
 } // namespace Data

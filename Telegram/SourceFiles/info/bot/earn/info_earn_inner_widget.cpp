@@ -234,6 +234,13 @@ void InnerWidget::fill() {
 			container,
 			_controller->parentController(),
 			_peer,
+			rpl::single(
+				data.buyAdsUrl
+			) | rpl::then(
+				_stateUpdated.events() | rpl::map([=] {
+					return _state.buyAdsUrl;
+				})
+			),
 			rpl::duplicate(availableBalanceValue),
 			rpl::duplicate(dateValue),
 			std::move(dateValue) | rpl::map([=](const QDateTime &dt) {

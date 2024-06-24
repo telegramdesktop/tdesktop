@@ -43,6 +43,7 @@ void AddWithdrawalWidget(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
+	rpl::producer<QString> secondButtonUrl,
 	rpl::producer<uint64> availableBalanceValue,
 	rpl::producer<QDateTime> dateValue,
 	rpl::producer<bool> lockedValue,

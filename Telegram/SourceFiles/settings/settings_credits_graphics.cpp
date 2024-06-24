@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
 #include "data/data_file_origin.h"
+#include "core/click_handler_types.h" // UrlClickHandler
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -662,6 +663,7 @@ void AddWithdrawalWidget(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
+		rpl::producer<QString> secondButtonUrl,
 		rpl::producer<uint64> availableBalanceValue,
 		rpl::producer<QDateTime> dateValue,
 		rpl::producer<bool> lockedValue,
@@ -712,12 +714,41 @@ void AddWithdrawalWidget(
 	Ui::AddSkip(container);
 
 	const auto &stButton = st::defaultActiveButton;
-	const auto button = container->add(
-		object_ptr<Ui::RoundButton>(
-			container,
-			rpl::never<QString>(),
-			stButton),
+	const auto buttonsContainer = container->add(
+		Ui::CreateSkipWidget(container, stButton.height),
 		st::boxRowPadding);
+
+	const auto button = Ui::CreateChild<Ui::RoundButton>(
+		buttonsContainer,
+		rpl::never<QString>(),
+		stButton);
+
+	const auto buttonCredits = Ui::CreateChild<Ui::RoundButton>(
+		buttonsContainer,
+		tr::lng_bot_earn_balance_button_buy_ads(),
+		stButton);
+	buttonCredits->setTextTransform(
+		Ui::RoundButton::TextTransform::NoTransform);
+
+	Ui::ToggleChildrenVisibility(buttonsContainer, true);
+
+	rpl::combine(
+		std::move(secondButtonUrl),
+		buttonsContainer->sizeValue()
+	) | rpl::start_with_next([=](const QString &url, const QSize &size) {
+		if (url.isEmpty()) {
+			button->resize(size.width(), size.height());
+			buttonCredits->resize(0, 0);
+		} else {
+			const auto w = size.width() - st::boxRowPadding.left() / 2;
+			button->resize(w / 2, size.height());
+			buttonCredits->resize(w / 2, size.height());
+			buttonCredits->moveToRight(0, 0);
+			buttonCredits->setClickedCallback([=] {
+				UrlClickHandler::Open(url);
+			});
+		}
+	}, buttonsContainer->lifetime());
 
 	rpl::duplicate(
 		lockedValue

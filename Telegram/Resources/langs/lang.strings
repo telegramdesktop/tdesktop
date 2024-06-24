@@ -5229,6 +5229,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_earn_balance_button#other" = "Withdraw {emoji} {count} via Fragment";
 "lng_bot_earn_balance_button_all" = "Withdraw all stars via Fragment";
 "lng_bot_earn_balance_button_locked" = "Withdraw via Fragment";
+"lng_bot_earn_balance_button_buy_ads" = "Buy Ads";
 "lng_bot_earn_learn_credits_out_about" = "You can withdraw Stars using Fragment, or use Stars to advertise your bot. {link}";
 "lng_bot_earn_out_ph" = "Enter amount to withdraw";
 "lng_bot_earn_balance_password_title" = "Two-step verification";

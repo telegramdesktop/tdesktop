@@ -237,27 +237,41 @@ rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-		makeRequest(MTPpayments_GetStarsRevenueStats(
-			MTP_flags(0),
-			(_isUser ? user()->input : channel()->input)
-		)).done([=](const MTPpayments_StarsRevenueStats &result) {
-			const auto &data = result.data();
-			const auto &status = data.vstatus().data();
-			_data = Data::CreditsEarnStatistics{
-				.revenueGraph = StatisticalGraphFromTL(data.vrevenue_graph()),
-				.currentBalance = status.vcurrent_balance().v,
-				.availableBalance = status.vavailable_balance().v,
-				.overallRevenue = status.voverall_revenue().v,
-				.usdRate = data.vusd_rate().v,
-				.isWithdrawalEnabled = status.is_withdrawal_enabled(),
-				.nextWithdrawalAt = status.vnext_withdrawal_at()
-					? base::unixtime::parse(status.vnext_withdrawal_at()->v)
-					: QDateTime(),
-			};
+		const auto finish = [=](const QString &url) {
+			makeRequest(MTPpayments_GetStarsRevenueStats(
+				MTP_flags(0),
+				(_isUser ? user()->input : channel()->input)
+			)).done([=](const MTPpayments_StarsRevenueStats &result) {
+				const auto &data = result.data();
+				const auto &status = data.vstatus().data();
+				_data = Data::CreditsEarnStatistics{
+					.revenueGraph = StatisticalGraphFromTL(
+						data.vrevenue_graph()),
+					.currentBalance = status.vcurrent_balance().v,
+					.availableBalance = status.vavailable_balance().v,
+					.overallRevenue = status.voverall_revenue().v,
+					.usdRate = data.vusd_rate().v,
+					.isWithdrawalEnabled = status.is_withdrawal_enabled(),
+					.nextWithdrawalAt = status.vnext_withdrawal_at()
+						? base::unixtime::parse(
+							status.vnext_withdrawal_at()->v)
+						: QDateTime(),
+					.buyAdsUrl = url,
+				};
 
-			consumer.put_done();
+				consumer.put_done();
+			}).fail([=](const MTP::Error &error) {
+				consumer.put_error_copy(error.type());
+			}).send();
+		};
+
+		makeRequest(
+			MTPpayments_GetStarsRevenueAdsAccountUrl(
+				(_isUser ? user()->input : channel()->input))
+		).done([=](const MTPpayments_StarsRevenueAdsAccountUrl &result) {
+			finish(qs(result.data().vurl()));
 		}).fail([=](const MTP::Error &error) {
-			consumer.put_error_copy(error.type());
+			finish({});
 		}).send();
 
 		return lifetime;
