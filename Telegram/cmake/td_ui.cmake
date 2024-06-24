@@ -80,9 +80,9 @@ PRIVATE
 
     data/data_birthday.cpp
     data/data_birthday.h
-    data/data_bot_earn.h
     data/data_channel_earn.h
     data/data_credits.h
+    data/data_credits_earn.h
     data/data_statistics_chart.cpp
     data/data_statistics_chart.h
     data/data_subscription_option.h

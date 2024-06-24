@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_statistics_sender.h"
-#include "data/data_bot_earn.h"
 #include "data/data_credits.h"
+#include "data/data_credits_earn.h"
 #include "mtproto/sender.h"
 
 namespace Main {
