@@ -356,6 +356,7 @@ public:
 		const MTPDupdateShortSentMessage &data,
 		bool wasAlready);
 	void updateReactions(const MTPMessageReactions *reactions);
+	void overrideMedia(std::unique_ptr<Data::Media> media);
 
 	void applyEditionToHistoryCleared();
 	void updateReplyMarkup(HistoryMessageMarkupData &&markup);

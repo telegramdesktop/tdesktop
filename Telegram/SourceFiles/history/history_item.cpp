@@ -5554,3 +5554,9 @@ void HistoryItem::clearDependencyMessage() {
 		}
 	}
 }
+
+void HistoryItem::overrideMedia(std::unique_ptr<Data::Media> media) {
+	Expects(!media || media->parent() == this);
+
+	_media = std::move(media);
+}

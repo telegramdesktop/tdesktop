@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
@@ -123,6 +125,101 @@ private:
 	uint64 _balance = 0;
 
 };
+
+void AddViewMediaHandler(
+		not_null<Ui::RpWidget*> thumb,
+		not_null<Window::SessionController*> controller,
+		const Data::CreditsHistoryEntry &e) {
+	if (e.extended.empty()) {
+		return;
+	}
+	thumb->setCursor(style::cur_pointer);
+
+	struct State {
+		~State() {
+			if (item) {
+				item->destroy();
+			}
+		}
+
+		HistoryItem *item = nullptr;
+		bool pressed = false;
+		bool over = false;
+	};
+	const auto state = thumb->lifetime().make_state<State>();
+	const auto session = &controller->session();
+	const auto owner = &session->data();
+	const auto peerId = e.barePeerId
+		? PeerId(e.barePeerId)
+		: session->userPeerId();
+	const auto history = owner->history(session->user());
+	state->item = history->makeMessage({
+		.id = history->nextNonHistoryEntryId(),
+		.flags = MessageFlag::HasFromId | MessageFlag::AdminLogEntry,
+		.from = peerId,
+		.date = base::unixtime::serialize(e.date),
+	}, TextWithEntities(), MTP_messageMediaEmpty());
+	auto fake = std::vector<std::unique_ptr<Data::Media>>();
+	fake.reserve(e.extended.size());
+	for (const auto &item : e.extended) {
+		if (item.type == Data::CreditsHistoryMediaType::Photo) {
+			fake.push_back(std::make_unique<Data::MediaPhoto>(
+				state->item,
+				owner->photo(item.id),
+				false)); // spoiler
+		} else {
+			fake.push_back(std::make_unique<Data::MediaFile>(
+				state->item,
+				owner->document(item.id),
+				true, // skipPremiumEffect
+				false, // spoiler
+				0)); // ttlSeconds
+		}
+	}
+	state->item->overrideMedia(std::make_unique<Data::MediaInvoice>(
+		state->item,
+		Data::Invoice{
+			.amount = uint64(std::abs(int64(e.credits))),
+			.currency = Ui::kCreditsCurrency,
+			.extendedMedia = std::move(fake),
+			.isPaidMedia = true,
+		}));
+	const auto showMedia = crl::guard(controller, [=] {
+		if (const auto media = state->item->media()) {
+			if (const auto invoice = media->invoice()) {
+				if (!invoice->extendedMedia.empty()) {
+					const auto first = invoice->extendedMedia[0].get();
+					if (const auto photo = first->photo()) {
+						controller->openPhoto(photo, {
+							.id = state->item->fullId(),
+						});
+					} else if (const auto document = first->document()) {
+						controller->openDocument(document, true, {
+							.id = state->item->fullId(),
+						});
+					}
+				}
+			}
+		}
+	});
+	thumb->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseButtonPress) {
+			const auto mouse = static_cast<QMouseEvent*>(e.get());
+			if (mouse->button() == Qt::LeftButton) {
+				state->over = true;
+				state->pressed = true;
+			}
+		} else if (e->type() == QEvent::MouseButtonRelease
+			&& state->over
+			&& state->pressed) {
+			showMedia();
+		} else if (e->type() == QEvent::Enter) {
+			state->over = true;
+		} else if (e->type() == QEvent::Leave) {
+			state->over = false;
+		}
+	}, thumb->lifetime());
+}
 
 } // namespace
 
@@ -358,9 +455,10 @@ void ReceiptCreditsBox(
 		? session->data().peer(PeerId(e.barePeerId)).get()
 		: nullptr;
 	if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
-		content->add(object_ptr<Ui::CenterWrap<>>(
+		const auto thumb = content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
 			GenericEntryPhoto(content, callback, stUser.photoSize)));
+		AddViewMediaHandler(thumb->entity(), controller, e);
 	} else if (peer) {
 		content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
