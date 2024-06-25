@@ -683,6 +683,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_privacy_premium_link" = "Telegram Premium";
 "lng_settings_passcode_disable" = "Disable Passcode";
 "lng_settings_passcode_disable_sure" = "Are you sure you want to disable passcode?";
+"lng_settings_use_winhello" = "Unlock with Windows Hello";
+"lng_settings_use_winhello_about" = "You need to enter your passcode once before unlocking Telegram with Windows Hello.";
+"lng_settings_use_touchid" = "Unlock with Touch ID";
+"lng_settings_use_touchid_about" = "You need to enter your passcode once before unlocking Telegram with Touch ID.";
 "lng_settings_password_disable" = "Disable Cloud Password";
 "lng_settings_password_abort" = "Abort two-step verification setup";
 "lng_settings_about_bio" = "Any details such as age, occupation or city.\nExample: 23 y.o. designer from San Francisco";
@@ -992,6 +996,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_ph" = "Your passcode";
 "lng_passcode_submit" = "Submit";
 "lng_passcode_logout" = "Log out";
+"lng_passcode_winhello" = "You need to enter your passcode\nbefore you can use Windows Hello.";
+"lng_passcode_touchid" = "You need to enter your passcode\nbefore you can use Touch ID.";
+"lng_passcode_winhello_unlock" = "Telegram wants to unlock with Windows Hello.";
+"lng_passcode_touchid_unlock" = "unlock";
 "lng_passcode_create_button" = "Save Passcode";
 "lng_passcode_check_button" = "Submit";
 "lng_passcode_change_button" = "Save Passcode";

@@ -220,7 +220,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::bytearraySize(ivPosition)
 		+ Serialize::stringSize(noWarningExtensions)
 		+ Serialize::stringSize(_customFontFamily)
-		+ sizeof(qint32);
+		+ sizeof(qint32) * 2;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -371,7 +371,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(std::clamp(
 				qRound(_dialogsNoChatWidthRatio.current() * 1000000),
 				0,
-				1000000));
+				1000000))
+			<< qint32(_systemUnlockEnabled ? 1 : 0);
 	}
 
 	Ensures(result.size() == size);
@@ -491,6 +492,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 ttlVoiceClickTooltipHidden = _ttlVoiceClickTooltipHidden.current() ? 1 : 0;
 	QByteArray ivPosition;
 	QString customFontFamily = _customFontFamily;
+	qint32 systemUnlockEnabled = _systemUnlockEnabled ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -788,6 +790,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			0.,
 			1.);
 	}
+	if (!stream.atEnd()) {
+		stream >> systemUnlockEnabled;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -995,6 +1000,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		_ivPosition = Deserialize(ivPosition);
 	}
 	_customFontFamily = customFontFamily;
+	_systemUnlockEnabled = (systemUnlockEnabled == 1);
 }
 
 QString Settings::getSoundPath(const QString &key) const {

@@ -290,6 +290,28 @@ passcodeTextLine: 28px;
 passcodeLittleSkip: 5px;
 passcodeAboutSkip: 7px;
 passcodeSkip: 23px;
+passcodeSystemUnlock: IconButton(defaultIconButton) {
+	width: 32px;
+	height: 32px;
+	rippleAreaSize: 24px;
+	rippleAreaPosition: point(4px, 4px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
+passcodeSystemWinHello: IconButton(passcodeSystemUnlock) {
+	icon: icon{{ "menu/passcode_winhello", lightButtonFg }};
+	iconOver: icon{{ "menu/passcode_winhello", lightButtonFg }};
+}
+passcodeSystemTouchID: IconButton(passcodeSystemUnlock) {
+	icon: icon{{ "menu/passcode_finger", lightButtonFg }};
+	iconOver: icon{{ "menu/passcode_finger", lightButtonFg }};
+}
+passcodeSystemUnlockLater: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+passcodeSystemUnlockSkip: 12px;
 
 newGroupAboutFg: windowSubTextFg;
 newGroupPadding: margins(4px, 6px, 4px, 3px);

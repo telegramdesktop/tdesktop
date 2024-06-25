@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_local_passcode.h"
 
 #include "base/platform/base_platform_last_input.h"
+#include "base/platform/base_platform_info.h"
+#include "base/system_unlock.h"
 #include "boxes/auto_lock_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -23,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/slide_wrap.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
@@ -199,11 +202,11 @@ void LocalPasscodeEnter::setupContent() {
 			content,
 			object_ptr<Ui::RoundButton>(
 				content,
-				isCreate
+				(isCreate
 					? tr::lng_passcode_create_button()
 					: isCheck
 					? tr::lng_passcode_check_button()
-					: tr::lng_passcode_change_button(),
+					: tr::lng_passcode_change_button()),
 				st::changePhoneButton)),
 		st::settingLocalPasscodeButtonPadding)->entity();
 	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
@@ -239,6 +242,8 @@ void LocalPasscodeEnter::setupContent() {
 				}
 				SetPasscode(_controller, newText);
 				if (isCreate) {
+					Core::App().settings().setSystemUnlockEnabled(true);
+					Core::App().saveSettingsDelayed();
 					_showOther.fire(LocalPasscodeManageId());
 				} else if (isChange) {
 					_showBack.fire({});
@@ -505,6 +510,46 @@ void LocalPasscodeManage::setupContent() {
 	) | rpl::start_with_next([=](bool shown) {
 		divider->skipEdge(Qt::BottomEdge, shown);
 	}, divider->lifetime());
+
+	const auto systemUnlockWrap = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content))
+	)->setDuration(0);
+	const auto systemUnlockContent = systemUnlockWrap->entity();
+
+	Ui::AddSkip(systemUnlockContent);
+
+	AddButtonWithIcon(
+		systemUnlockContent,
+		(Platform::IsWindows()
+			? tr::lng_settings_use_winhello()
+			: tr::lng_settings_use_touchid()),
+		st::settingsButton,
+		{ Platform::IsWindows()
+			? &st::menuIconWinHello
+			: &st::menuIconTouchID }
+	)->toggleOn(
+		rpl::single(Core::App().settings().systemUnlockEnabled())
+	)->toggledChanges(
+	) | rpl::filter([=](bool value) {
+		return value != Core::App().settings().systemUnlockEnabled();
+	}) | rpl::start_with_next([=](bool value) {
+		Core::App().settings().setSystemUnlockEnabled(value);
+		Core::App().saveSettingsDelayed();
+	}, systemUnlockContent->lifetime());
+
+	Ui::AddSkip(systemUnlockContent);
+
+	Ui::AddDividerText(
+		systemUnlockContent,
+		(Platform::IsWindows()
+			? tr::lng_settings_use_winhello_about()
+			: tr::lng_settings_use_touchid_about()));
+
+	using namespace rpl::mappers;
+	systemUnlockWrap->toggleOn(base::SystemUnlockStatus(
+	) | rpl::map(_1 == base::SystemUnlockAvailability::Available));
 
 	Ui::ResizeFitChild(this, content);
 }

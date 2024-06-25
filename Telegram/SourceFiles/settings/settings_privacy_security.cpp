@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h" // Settings::ShowPremium.
 #include "settings/settings_privacy_controllers.h"
 #include "settings/settings_websites.h"
+#include "base/system_unlock.h"
 #include "base/timer_rpl.h"
 #include "boxes/passcode_box.h"
 #include "boxes/sessions_box.h"
@@ -1079,6 +1080,8 @@ PrivacySecurity::PrivacySecurity(
 	not_null<Window::SessionController*> controller)
 : Section(parent) {
 	setupContent(controller);
+
+	[[maybe_unused]] auto preload = base::SystemUnlockStatus();
 }
 
 rpl::producer<QString> PrivacySecurity::title() {
