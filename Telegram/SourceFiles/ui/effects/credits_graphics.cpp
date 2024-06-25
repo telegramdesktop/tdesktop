@@ -298,7 +298,6 @@ PaintRoundImageCallback GenerateCreditsPaintEntryCallback(
 	rpl::single(rpl::empty_value()) | rpl::then(
 		video->owner().session().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
-		using Size = Data::PhotoSize;
 		if (const auto thumbnail = state->view->thumbnail()) {
 			state->imagePtr = thumbnail;
 		}
@@ -421,7 +420,6 @@ PaintRoundImageCallback GeneratePaidMediaPaintCallback(
 Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 		not_null<Main::Session*> session,
 		const Data::CreditsHistoryEntry &entry) {
-	using MediaType = Data::CreditsHistoryMediaType;
 	const auto &extended = entry.extended;
 	if (!extended.empty()) {
 		return [=](Fn<void()> update) {
