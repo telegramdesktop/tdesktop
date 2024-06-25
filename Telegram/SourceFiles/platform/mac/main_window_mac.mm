@@ -158,15 +158,19 @@ private:
 namespace Platform {
 namespace {
 
-void SendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-	const auto focused = static_cast<QObject*>(QApplication::focusWidget());
+void SendKeySequence(
+		Qt::Key key,
+		Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+	const auto focused = QApplication::focusWidget();
 	if (qobject_cast<QLineEdit*>(focused)
 		|| qobject_cast<QTextEdit*>(focused)
 		|| dynamic_cast<HistoryInner*>(focused)) {
-		QKeyEvent pressEvent(QEvent::KeyPress, key, modifiers);
-		focused->event(&pressEvent);
-		QKeyEvent releaseEvent(QEvent::KeyRelease, key, modifiers);
-		focused->event(&releaseEvent);
+		QApplication::postEvent(
+			focused,
+			new QKeyEvent(QEvent::KeyPress, key, modifiers));
+		QApplication::postEvent(
+			focused,
+			new QKeyEvent(QEvent::KeyRelease, key, modifiers));
 	}
 }
 
@@ -376,12 +380,13 @@ void MainWindow::createGlobalMenu() {
 			ensureWindowShown();
 			controller().showSettings();
 		};
-		main->addAction(
+		auto prefs = main->addAction(
 			tr::lng_mac_menu_preferences(tr::now),
 			this,
 			std::move(callback),
-			QKeySequence(Qt::ControlModifier | Qt::Key_Comma))
-		->setMenuRole(QAction::PreferencesRole);
+			QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
+		prefs->setMenuRole(QAction::PreferencesRole);
+		prefs->setShortcutContext(Qt::WidgetShortcut);
 	}
 
 	QMenu *file = psMainMenu.addMenu(tr::lng_mac_menu_file(tr::now));
@@ -402,6 +407,7 @@ void MainWindow::createGlobalMenu() {
 		this,
 		[] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
 		QKeySequence::Undo);
+	psUndo->setShortcutContext(Qt::WidgetShortcut);
 	psRedo = edit->addAction(
 		tr::lng_mac_menu_redo(tr::now),
 		this,
@@ -411,27 +417,32 @@ void MainWindow::createGlobalMenu() {
 				Qt::ControlModifier | Qt::ShiftModifier);
 		},
 		QKeySequence::Redo);
+	psRedo->setShortcutContext(Qt::WidgetShortcut);
 	edit->addSeparator();
 	psCut = edit->addAction(
 		tr::lng_mac_menu_cut(tr::now),
 		this,
 		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
 		QKeySequence::Cut);
+	psCut->setShortcutContext(Qt::WidgetShortcut);
 	psCopy = edit->addAction(
 		tr::lng_mac_menu_copy(tr::now),
 		this,
 		[] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
 		QKeySequence::Copy);
+	psCopy->setShortcutContext(Qt::WidgetShortcut);
 	psPaste = edit->addAction(
 		tr::lng_mac_menu_paste(tr::now),
 		this,
 		[] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
 		QKeySequence::Paste);
+	psPaste->setShortcutContext(Qt::WidgetShortcut);
 	psDelete = edit->addAction(
 		tr::lng_mac_menu_delete(tr::now),
 		this,
 		[] { SendKeySequence(Qt::Key_Delete); },
 		QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
+	psDelete->setShortcutContext(Qt::WidgetShortcut);
 
 	edit->addSeparator();
 	psBold = edit->addAction(
@@ -439,16 +450,19 @@ void MainWindow::createGlobalMenu() {
 		this,
 		[] { SendKeySequence(Qt::Key_B, Qt::ControlModifier); },
 		QKeySequence::Bold);
+	psBold->setShortcutContext(Qt::WidgetShortcut);
 	psItalic = edit->addAction(
 		tr::lng_menu_formatting_italic(tr::now),
 		this,
 		[] { SendKeySequence(Qt::Key_I, Qt::ControlModifier); },
 		QKeySequence::Italic);
+	psItalic->setShortcutContext(Qt::WidgetShortcut);
 	psUnderline = edit->addAction(
 		tr::lng_menu_formatting_underline(tr::now),
 		this,
 		[] { SendKeySequence(Qt::Key_U, Qt::ControlModifier); },
 		QKeySequence::Underline);
+	psUnderline->setShortcutContext(Qt::WidgetShortcut);
 	psStrikeOut = edit->addAction(
 		tr::lng_menu_formatting_strike_out(tr::now),
 		this,
@@ -458,6 +472,7 @@ void MainWindow::createGlobalMenu() {
 				Qt::ControlModifier | Qt::ShiftModifier);
 		},
 		Ui::kStrikeOutSequence);
+	psStrikeOut->setShortcutContext(Qt::WidgetShortcut);
 	psBlockquote = edit->addAction(
 		tr::lng_menu_formatting_blockquote(tr::now),
 		this,
@@ -467,6 +482,7 @@ void MainWindow::createGlobalMenu() {
 				Qt::ControlModifier | Qt::ShiftModifier);
 		},
 		Ui::kBlockquoteSequence);
+	psBlockquote->setShortcutContext(Qt::WidgetShortcut);
 	psMonospace = edit->addAction(
 		tr::lng_menu_formatting_monospace(tr::now),
 		this,
@@ -476,6 +492,7 @@ void MainWindow::createGlobalMenu() {
 				Qt::ControlModifier | Qt::ShiftModifier);
 		},
 		Ui::kMonospaceSequence);
+	psMonospace->setShortcutContext(Qt::WidgetShortcut);
 	psClearFormat = edit->addAction(
 		tr::lng_menu_formatting_clear(tr::now),
 		this,
@@ -485,6 +502,7 @@ void MainWindow::createGlobalMenu() {
 				Qt::ControlModifier | Qt::ShiftModifier);
 		},
 		Ui::kClearFormatSequence);
+	psClearFormat->setShortcutContext(Qt::WidgetShortcut);
 
 	edit->addSeparator();
 	psSelectAll = edit->addAction(
@@ -492,13 +510,15 @@ void MainWindow::createGlobalMenu() {
 		this,
 		[] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
 		QKeySequence::SelectAll);
+	psSelectAll->setShortcutContext(Qt::WidgetShortcut);
 
 	edit->addSeparator();
 	edit->addAction(
 		tr::lng_mac_menu_emoji_and_symbols(tr::now).replace('&', "&&"),
 		this,
 		[] { [NSApp orderFrontCharacterPalette:nil]; },
-		QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_Space));
+		QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_Space)
+	)->setShortcutContext(Qt::WidgetShortcut);
 
 	QMenu *window = psMainMenu.addMenu(tr::lng_mac_menu_window(tr::now));
 	psContacts = window->addAction(tr::lng_mac_menu_contacts(tr::now));
