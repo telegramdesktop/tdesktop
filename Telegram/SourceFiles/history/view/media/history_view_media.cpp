@@ -243,22 +243,23 @@ void Media::drawPurchasedTag(
 
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
+	const auto &padding = st::purchasedTagPadding;
 	auto right = outer.x() + outer.width();
 	auto top = outer.y();
-	right -= st::msgDateImgDelta + st::msgDateImgPadding.x();
-	top += st::msgDateImgDelta + st::msgDateImgPadding.y();
+	right -= st::msgDateImgDelta + padding.right();
+	top += st::msgDateImgDelta + padding.top();
 
 	const auto size = QSize(
 		purchased->text.maxWidth(),
 		st::normalFont->height);
 	const auto tagX = right - size.width();
 	const auto tagY = top;
-	const auto tagW = size.width() + 2 * st::msgDateImgPadding.x();
-	const auto tagH = size.height() + 2 * st::msgDateImgPadding.y();
+	const auto tagW = padding.left() + size.width() + padding.right();
+	const auto tagH = padding.top() + size.height() + padding.bottom();
 	Ui::FillRoundRect(
 		p,
-		tagX - st::msgDateImgPadding.x(),
-		tagY - st::msgDateImgPadding.y(),
+		tagX - padding.left(),
+		tagY - padding.top(),
 		tagW,
 		tagH,
 		sti->msgDateImgBg,
@@ -268,7 +269,7 @@ void Media::drawPurchasedTag(
 	purchased->text.draw(p, {
 		.position = { tagX, tagY },
 		.outerWidth = width(),
-		.availableWidth = tagW - 2 * st::msgDateImgPadding.x(),
+		.availableWidth = size.width(),
 		.palette = &st->priceTagTextPalette(),
 	});
 }

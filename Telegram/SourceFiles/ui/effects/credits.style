@@ -46,4 +46,4 @@ creditsBoxButtonLabel: FlatLabel(defaultFlatLabel) {
 }
 
 starIconSmall: icon{{ "payments/small_star", windowFg }};
-starIconSmallPadding: margins(0px, -3px, 0px, 0px);
+starIconSmallPadding: margins(0px, -2px, 0px, 0px);

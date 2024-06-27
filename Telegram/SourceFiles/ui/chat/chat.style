@@ -1144,3 +1144,4 @@ factcheckField: InputField(defaultInputField) {
 
 	style: defaultTextStyle;
 }
+purchasedTagPadding: margins(3px, 2px, 6px, 2px);
