@@ -62,6 +62,7 @@ class IndexedList;
 class SearchTags;
 class SearchEmpty;
 class ChatSearchIn;
+enum class HashOrCashtag : uchar;
 
 struct ChosenRow {
 	Key key;
@@ -514,7 +515,7 @@ private:
 	Ui::DraggingScrollManager _draggingScroll;
 
 	SearchState _searchState;
-	bool _searchingHashtag = false;
+	HashOrCashtag _searchHashOrCashtag = {};
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromShown = nullptr;
 	Ui::Text::String _searchFromUserText;

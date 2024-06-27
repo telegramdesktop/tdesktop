@@ -199,12 +199,14 @@ void Action::handleKeyPress(not_null<QKeyEvent*> e) {
 
 FixedHashtagSearchQuery FixHashtagSearchQuery(
 		const QString &query,
-		int cursorPosition) {
+		int cursorPosition,
+		HashOrCashtag tag) {
 	const auto trimmed = query.trimmed();
 	const auto hash = int(trimmed.isEmpty()
 		? query.size()
 		: query.indexOf(trimmed));
 	const auto start = std::min(cursorPosition, hash);
+	const auto first = QChar(tag == HashOrCashtag::Cashtag ? '$' : '#');
 	auto result = query.mid(0, start);
 	for (const auto &ch : query.mid(start)) {
 		if (ch.isSpace()) {
@@ -213,33 +215,41 @@ FixedHashtagSearchQuery FixHashtagSearchQuery(
 			}
 			continue;
 		} else if (result.size() == start) {
-			result += '#';
-			if (ch != '#') {
+			result += first;
+			if (ch != first) {
 				++cursorPosition;
 			}
 		}
-		if (ch != '#') {
+		if (ch != first) {
 			result += ch;
 		}
 	}
 	if (result.size() == start) {
-		result += '#';
+		result += first;
 		++cursorPosition;
 	}
 	return { result, cursorPosition };
 }
 
-bool IsHashtagSearchQuery(const QString &query) {
+HashOrCashtag IsHashOrCashtagSearchQuery(const QString &query) {
 	const auto trimmed = query.trimmed();
-	if (trimmed.isEmpty() || trimmed[0] != '#') {
-		return false;
-	}
-	for (const auto &ch : trimmed) {
-		if (ch.isSpace()) {
-			return false;
+	const auto first = trimmed.isEmpty() ? QChar() : trimmed[0];
+	if (first == '#') {
+		for (const auto &ch : trimmed) {
+			if (ch.isSpace()) {
+				return HashOrCashtag::None;
+			}
 		}
+		return HashOrCashtag::Hashtag;
+	} else if (first == '$') {
+		for (const auto &ch : trimmed.midRef(1)) {
+			if (ch < 'A' || ch > 'Z') {
+				return HashOrCashtag::None;
+			}
+		}
+		return HashOrCashtag::Cashtag;
 	}
-	return true;
+	return HashOrCashtag::None;
 }
 
 void ChatSearchIn::Section::update() {

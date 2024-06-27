@@ -79,6 +79,7 @@ enum class SearchRequestDelay : uchar;
 class Suggestions;
 class ChatSearchIn;
 enum class ChatSearchTab : uchar;
+enum class HashOrCashtag : uchar;
 
 class Widget final : public Window::AbstractSectionWidget {
 public:
@@ -314,7 +315,7 @@ private:
 	object_ptr<Ui::JumpDownButton> _scrollToTop;
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
-	bool _searchingHashtag = false;
+	HashOrCashtag _searchHashOrCashtag = {};
 
 	Data::Folder *_openedFolder = nullptr;
 	Data::Forum *_openedForum = nullptr;

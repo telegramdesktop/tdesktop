@@ -2655,7 +2655,7 @@ void InnerWidget::applySearchState(SearchState state) {
 		onHashtagFilterUpdate(QStringView());
 	}
 	_searchState = std::move(state);
-	_searchingHashtag = IsHashtagSearchQuery(_searchState.query);
+	_searchHashOrCashtag = IsHashOrCashtagSearchQuery(_searchState.query);
 
 	updateSearchIn();
 	moveSearchIn();
@@ -3332,7 +3332,8 @@ auto InnerWidget::searchTagsChanges() const
 }
 
 void InnerWidget::updateSearchIn() {
-	if (!_searchState.inChat && !_searchingHashtag) {
+	if (!_searchState.inChat
+		&& _searchHashOrCashtag == HashOrCashtag::None) {
 		_searchIn = nullptr;
 		return;
 	} else if (!_searchIn) {
@@ -3381,7 +3382,7 @@ void InnerWidget::updateSearchIn() {
 		? Ui::MakeUserpicThumbnail(sublist->peer())
 		: nullptr;
 	const auto myIcon = Ui::MakeIconThumbnail(st::menuIconChats);
-	const auto publicIcon = _searchingHashtag
+	const auto publicIcon = (_searchHashOrCashtag != HashOrCashtag::None)
 		? Ui::MakeIconThumbnail(st::menuIconChannel)
 		: nullptr;
 	const auto peerTabType = (peer && peer->isBroadcast())

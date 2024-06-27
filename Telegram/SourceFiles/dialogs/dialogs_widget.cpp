@@ -2125,14 +2125,14 @@ bool Widget::searchForPeersRequired(const QString &query) const {
 	return _searchState.filterChatsList()
 		&& !_openedForum
 		&& !query.isEmpty()
-		&& !IsHashtagSearchQuery(query);
+		&& (IsHashOrCashtagSearchQuery(query) == HashOrCashtag::None);
 }
 
 bool Widget::searchForTopicsRequired(const QString &query) const {
 	return _searchState.filterChatsList()
 		&& _openedForum
 		&& !query.isEmpty()
-		&& !IsHashtagSearchQuery(query)
+		&& (IsHashOrCashtagSearchQuery(query) == HashOrCashtag::None)
 		&& !_openedForum->topicsList()->loaded();
 }
 
@@ -2654,16 +2654,19 @@ void Widget::updateCancelSearch() {
 QString Widget::validateSearchQuery() {
 	const auto query = currentSearchQuery();
 	if (_searchState.tab == ChatSearchTab::PublicPosts) {
-		_searchingHashtag = true;
+		if (_searchHashOrCashtag == HashOrCashtag::None) {
+			_searchHashOrCashtag = HashOrCashtag::Hashtag;
+		}
 		const auto fixed = FixHashtagSearchQuery(
 			query,
-			currentSearchQueryCursorPosition());
+			currentSearchQueryCursorPosition(),
+			_searchHashOrCashtag);
 		if (fixed.text != query) {
 			setSearchQuery(fixed.text, fixed.cursorPosition);
 		}
 		return fixed.text;
 	} else {
-		_searchingHashtag = IsHashtagSearchQuery(query);
+		_searchHashOrCashtag = IsHashOrCashtagSearchQuery(query);
 	}
 	return query;
 }
@@ -2860,11 +2863,12 @@ bool Widget::applySearchState(SearchState state) {
 		state.fromPeer = nullptr;
 	}
 	if (state.tab == ChatSearchTab::PublicPosts
-		&& !IsHashtagSearchQuery(state.query)) {
+		&& IsHashOrCashtagSearchQuery(state.query) == HashOrCashtag::None) {
 		state.tab = (_openedForum && !state.inChat)
 			? ChatSearchTab::ThisPeer
 			: ChatSearchTab::MyMessages;
-	} else if (!state.inChat && !_searchingHashtag) {
+	} else if (!state.inChat
+		&& _searchHashOrCashtag == HashOrCashtag::None) {
 		state.tab = (forum || _openedForum)
 			? ChatSearchTab::ThisPeer
 			: ChatSearchTab::MyMessages;
@@ -2904,7 +2908,7 @@ bool Widget::applySearchState(SearchState state) {
 			&& !state.inChat
 			&& !_openedForum)
 		|| (state.tab == ChatSearchTab::PublicPosts
-			&& !_searchingHashtag)) {
+			&& _searchHashOrCashtag == HashOrCashtag::None)) {
 		state.tab = state.inChat.topic()
 			? ChatSearchTab::ThisTopic
 			: (state.inChat.owningHistory() || state.inChat.sublist())
