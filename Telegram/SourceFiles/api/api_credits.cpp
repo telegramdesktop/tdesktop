@@ -111,10 +111,7 @@ constexpr auto kTransactionsLimit = 100;
 			? base::unixtime::parse(tl.data().vtransaction_date()->v)
 			: QDateTime(),
 		.successLink = qs(tl.data().vtransaction_url().value_or_empty()),
-		.in = (!isBot || tl.data().is_refund())
-			&& !tl.data().is_pending()
-			&& !tl.data().is_failed()
-			&& !tl.data().vextended_media(),
+		.in = (int64(tl.data().vstars().v) >= 0),
 	};
 }
 
