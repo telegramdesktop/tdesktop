@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_earn.h"
 #include "api/api_filter_updates.h"
 #include "api/api_statistics.h"
+#include "api/api_text_entities.h"
+#include "api/api_updates.h"
 #include "base/unixtime.h"
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
@@ -36,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/chart_widget.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/boxes/boost_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/credits_graphics.h"
@@ -288,9 +291,8 @@ void InnerWidget::load() {
 		_loaded.events_starting_with(false) | rpl::map(!rpl::mappers::_1),
 		_showFinished.events());
 
-	const auto fail = [show = _controller->uiShow()](const QString &error) {
-		show->showToast(error);
-	};
+	const auto show = _controller->uiShow();
+	const auto fail = [=](const QString &error) { show->showToast(error); };
 
 	const auto finish = [=] {
 		_loaded.fire(true);
@@ -303,6 +305,7 @@ void InnerWidget::load() {
 				const MTPUpdates &updates) {
 			using TLCreditsUpdate = MTPDupdateStarsRevenueStatus;
 			using TLCurrencyUpdate = MTPDupdateBroadcastRevenueTransactions;
+			using TLNotificationUpdate = MTPDupdateServiceNotification;
 			Api::PerformForUpdate<TLCreditsUpdate>(updates, [&](
 					const TLCreditsUpdate &d) {
 				if (peerId == peerFromMTP(d.vpeer())) {
@@ -323,6 +326,17 @@ void InnerWidget::load() {
 					e.availableBalance = data.vavailable_balance().v;
 					e.overallRevenue = data.voverall_revenue().v;
 					_stateUpdated.fire({});
+				}
+			});
+			Api::PerformForUpdate<TLNotificationUpdate>(updates, [&](
+					const TLNotificationUpdate &d) {
+				if (Api::IsWithdrawalNotification(d) && d.is_popup()) {
+					show->show(Ui::MakeInformBox(TextWithEntities{
+						qs(d.vmessage()),
+						Api::EntitiesFromMTP(&
+							_peer->session(),
+							d.ventities().v),
+					}));
 				}
 			});
 		}, lifetime());
