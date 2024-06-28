@@ -583,6 +583,10 @@ bool ChannelData::canDeleteStories() const {
 		|| (adminRights() & AdminRight::DeleteStories);
 }
 
+bool ChannelData::canPostPaidMedia() const {
+	return canPostMessages() && (flags() & Flag::PaidMediaAllowed);
+}
+
 bool ChannelData::anyoneCanAddMembers() const {
 	return !(defaultRestrictions() & Restriction::AddParticipants);
 }
@@ -1084,7 +1088,8 @@ void ApplyChannelUpdate(
 		| Flag::ParticipantsHidden
 		| Flag::CanGetStatistics
 		| Flag::ViewAsMessages
-		| Flag::CanViewRevenue;
+		| Flag::CanViewRevenue
+		| Flag::PaidMediaAllowed;
 	channel->setFlags((channel->flags() & ~mask)
 		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag())
 		| (update.is_can_view_participants()
@@ -1101,6 +1106,7 @@ void ApplyChannelUpdate(
 		| (update.is_view_forum_as_messages()
 			? Flag::ViewAsMessages
 			: Flag())
+		| (update.is_paid_media_allowed() ? Flag::PaidMediaAllowed : Flag())
 		| (update.is_can_view_revenue() ? Flag::CanViewRevenue : Flag()));
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {

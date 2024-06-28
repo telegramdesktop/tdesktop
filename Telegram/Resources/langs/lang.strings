@@ -4175,6 +4175,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_polls_all" = "Posting polls isn't allowed in this group.";
 
 "lng_restricted_send_public_polls" = "Sorry, public polls can't be forwarded to channels.";
+"lng_restricted_send_paid_media" = "Sorry, paid media can't be sent to this channel.";
 
 "lng_restricted_send_voice_messages" = "{user} restricted sending of voice messages to them.";
 "lng_restricted_send_video_messages" = "{user} restricted sending of video messages to them.";

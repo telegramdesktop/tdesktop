@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "lottie/lottie_single_player.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_user.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
@@ -706,8 +707,11 @@ bool SendFilesBox::hasSpoilerMenu() const {
 
 bool SendFilesBox::canChangePrice() const {
 	const auto way = _sendWay.current();
-	return _captionToPeer
-		&& _captionToPeer->isBroadcast()
+	const auto broadcast = _captionToPeer
+		? _captionToPeer->asBroadcast()
+		: nullptr;
+	return broadcast
+		&& broadcast->canPostPaidMedia()
 		&& _list.canChangePrice(
 			way.groupFiles() && way.sendImagesAsPhotos(),
 			way.sendImagesAsPhotos());
