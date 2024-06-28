@@ -308,14 +308,25 @@ void InnerWidget::load() {
 			using TLNotificationUpdate = MTPDupdateServiceNotification;
 			Api::PerformForUpdate<TLCreditsUpdate>(updates, [&](
 					const TLCreditsUpdate &d) {
-				if (peerId == peerFromMTP(d.vpeer())) {
-					apiCredits->request(
-					) | rpl::start_with_error_done(fail, [=] {
-						state->apiCreditsLifetime.destroy();
-						_state.creditsEarn = state->apiCredits.data();
-						_stateUpdated.fire({});
-					}, state->apiCreditsLifetime);
+				if (peerId != peerFromMTP(d.vpeer())) {
+					return;
 				}
+				const auto &data = d.vstatus().data();
+				auto &e = _state.creditsEarn;
+				e.currentBalance = data.vcurrent_balance().v;
+				e.availableBalance = data.vavailable_balance().v;
+				e.overallRevenue = data.voverall_revenue().v;
+				e.overallRevenue = data.voverall_revenue().v;
+				e.isWithdrawalEnabled = data.is_withdrawal_enabled();
+				e.nextWithdrawalAt = data.vnext_withdrawal_at()
+					? base::unixtime::parse(
+						data.vnext_withdrawal_at()->v)
+					: QDateTime();
+				state->apiCreditsHistory.request({}, [=](
+						const Data::CreditsStatusSlice &data) {
+					_state.creditsStatusSlice = data;
+					_stateUpdated.fire({});
+				});
 			});
 			Api::PerformForUpdate<TLCurrencyUpdate>(updates, [&](
 					const TLCurrencyUpdate &d) {
@@ -710,7 +721,8 @@ void InnerWidget::fill() {
 		const auto addOverview = [&](
 				rpl::producer<EarnInt> currencyValue,
 				rpl::producer<EarnInt> creditsValue,
-				const tr::phrase<> &text) {
+				const tr::phrase<> &text,
+				bool showCredits) {
 			const auto line = container->add(
 				Ui::CreateSkipWidget(container, 0),
 				st::boxRowPadding);
@@ -764,7 +776,7 @@ void InnerWidget::fill() {
 					size.width(),
 					st::channelEarnOverviewMinorLabelSkip);
 				secondMinorLabel->resizeToWidth(
-					(credits ? (available / 2) : available)
+					(showCredits ? (available / 2) : available)
 						- size.width()
 						- minorLabel->width());
 				secondMinorLabel->moveToLeft(
@@ -780,7 +792,7 @@ void InnerWidget::fill() {
 					st::channelEarnOverviewSubMinorLabelPos.y());
 				creditsSecondLabel->resizeToWidth(
 					available - creditsSecondLabel->pos().x());
-				if (!credits) {
+				if (!showCredits) {
 					const auto x = std::numeric_limits<int>::max();
 					icon->moveToLeft(x, 0);
 					creditsLabel->moveToLeft(x, 0);
@@ -801,22 +813,28 @@ void InnerWidget::fill() {
 		auto availValueMap = [](const auto &v) { return v.availableBalance; };
 		auto currentValueMap = [](const auto &v) { return v.currentBalance; };
 		auto overallValueMap = [](const auto &v) { return v.overallRevenue; };
+		const auto hasAnyCredits = creditsData.availableBalance
+			|| creditsData.currentBalance
+			|| creditsData.overallRevenue;
 		addOverview(
 			rpl::duplicate(currencyStateValue) | rpl::map(availValueMap),
 			rpl::duplicate(creditsStateValue) | rpl::map(availValueMap),
-			tr::lng_channel_earn_available);
+			tr::lng_channel_earn_available,
+			hasAnyCredits);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 		addOverview(
 			rpl::duplicate(currencyStateValue) | rpl::map(currentValueMap),
 			rpl::duplicate(creditsStateValue) | rpl::map(currentValueMap),
-			tr::lng_channel_earn_reward);
+			tr::lng_channel_earn_reward,
+			hasAnyCredits);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 		addOverview(
 			rpl::duplicate(currencyStateValue) | rpl::map(overallValueMap),
 			rpl::duplicate(creditsStateValue) | rpl::map(overallValueMap),
-			tr::lng_channel_earn_total);
+			tr::lng_channel_earn_total,
+			hasAnyCredits);
 		Ui::AddSkip(container);
 	}
 #ifndef _DEBUG
@@ -1408,6 +1426,8 @@ void InnerWidget::fill() {
 			Ui::AddDivider(listsContainer);
 			Ui::AddSkip(listsContainer);
 		}
+
+		listsContainer->resizeToWidth(width());
 	};
 
 	const auto historyContainer = container->add(
