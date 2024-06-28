@@ -243,7 +243,7 @@ PaintRoundImageCallback GenerateCreditsPaintEntryCallback(
 	};
 	const auto state = std::make_shared<State>();
 	state->view = photo->createMediaView();
-	photo->load(Data::PhotoSize::Thumbnail, {});
+	photo->load(Data::PhotoSize::Large, {});
 
 	rpl::single(rpl::empty_value()) | rpl::then(
 		photo->owner().session().downloaderTaskFinished()
