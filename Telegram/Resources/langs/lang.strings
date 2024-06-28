@@ -5238,10 +5238,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_earn_balance_title" = "Available balance";
 "lng_bot_earn_balance_about" = "Stars from your total balance become available for spending on ads and rewards 21 days after they are earned.";
 "lng_bot_earn_balance_about_url" = "https://telegram.org/tos/stars";
-"lng_bot_earn_balance_button#one" = "Withdraw {emoji} {count} via Fragment";
-"lng_bot_earn_balance_button#other" = "Withdraw {emoji} {count} via Fragment";
-"lng_bot_earn_balance_button_all" = "Withdraw all stars via Fragment";
-"lng_bot_earn_balance_button_locked" = "Withdraw via Fragment";
+"lng_bot_earn_balance_button#one" = "Withdraw {emoji} {count}";
+"lng_bot_earn_balance_button#other" = "Withdraw {emoji} {count}";
+"lng_bot_earn_balance_button_all" = "Withdraw all stars";
+"lng_bot_earn_balance_button_locked" = "Withdraw";
 "lng_bot_earn_balance_button_buy_ads" = "Buy Ads";
 "lng_bot_earn_learn_credits_out_about" = "You can withdraw Stars using Fragment, or use Stars to advertise your bot. {link}";
 "lng_bot_earn_out_ph" = "Enter amount to withdraw";
