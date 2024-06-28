@@ -242,8 +242,8 @@ HashOrCashtag IsHashOrCashtagSearchQuery(const QString &query) {
 		}
 		return HashOrCashtag::Hashtag;
 	} else if (first == '$') {
-		for (const auto &ch : trimmed.midRef(1)) {
-			if (ch < 'A' || ch > 'Z') {
+		for (auto it = trimmed.begin() + 1; it != trimmed.end(); ++it) {
+			if ((*it) < 'A' || (*it) > 'Z') {
 				return HashOrCashtag::None;
 			}
 		}
