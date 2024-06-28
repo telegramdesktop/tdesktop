@@ -90,6 +90,7 @@ struct SectionSlideParams;
 struct SectionShow;
 enum class Column;
 class HistoryHider;
+struct SeparateId;
 } // namespace Window
 
 namespace Calls {
@@ -121,7 +122,7 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;
-	[[nodiscard]] PeerData *singlePeer() const;
+	[[nodiscard]] Window::SeparateId windowId() const;
 	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] bool isMainSectionShown() const;
 	[[nodiscard]] bool isThirdSectionShown() const;
@@ -350,16 +351,17 @@ private:
 	int _thirdColumnWidth = 0;
 	Ui::Animations::Simple _a_dialogsWidth;
 
-	const base::unique_qptr<Ui::PlainShadow> _sideShadow;
-	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
-	object_ptr<Ui::ResizeArea> _firstColumnResizeArea = { nullptr };
-	object_ptr<Ui::ResizeArea> _thirdColumnResizeArea = { nullptr };
 	const base::unique_qptr<Dialogs::Widget> _dialogs;
 	const base::unique_qptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
 	std::shared_ptr<Window::SectionMemento> _thirdSectionFromStack;
 	std::unique_ptr<Window::ConnectionState> _connecting;
+
+	const base::unique_qptr<Ui::PlainShadow> _sideShadow;
+	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
+	object_ptr<Ui::ResizeArea> _firstColumnResizeArea = { nullptr };
+	object_ptr<Ui::ResizeArea> _thirdColumnResizeArea = { nullptr };
 
 	base::weak_ptr<Calls::Call> _currentCall;
 	base::weak_ptr<Calls::GroupCall> _currentGroupCall;

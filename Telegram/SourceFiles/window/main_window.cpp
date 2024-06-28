@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_window.h"
 #include "platform/platform_window_title.h"
 #include "history/history.h"
+#include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_controller.h"
@@ -387,8 +388,8 @@ Main::Account &MainWindow::account() const {
 	return _controller->account();
 }
 
-PeerData *MainWindow::singlePeer() const {
-	return _controller->singlePeer();
+Window::SeparateId MainWindow::id() const {
+	return _controller->id();
 }
 
 bool MainWindow::isPrimary() const {
@@ -602,20 +603,27 @@ WindowPosition MainWindow::initialPosition() const {
 		? Core::AdjustToScale(
 			Core::App().settings().windowPosition(),
 			u"Window"_q)
-		: active->widget()->nextInitialChildPosition(isPrimary());
+		: active->widget()->nextInitialChildPosition(id());
 }
 
-WindowPosition MainWindow::nextInitialChildPosition(bool primary) {
+WindowPosition MainWindow::nextInitialChildPosition(SeparateId childId) {
 	const auto rect = geometry().marginsRemoved(frameMargins());
 	const auto position = rect.topLeft();
 	const auto adjust = [&](int value) {
-		return primary ? value : (value * 3 / 4);
+		return (value * 3 / 4);
 	};
+	const auto secondaryWithChatsList = !childId.primary() && childId.hasChatsList();
 	const auto width = OptionNewWindowsSizeAsFirst.value()
 		? Core::App().settings().windowPosition().w
+		: childId.primary()
+		? st::windowDefaultWidth
+		: childId.hasChatsList()
+		? (st::columnMinimalWidthLeft + adjust(st::windowDefaultWidth))
 		: adjust(st::windowDefaultWidth);
 	const auto height = OptionNewWindowsSizeAsFirst.value()
 		? Core::App().settings().windowPosition().h
+		: childId.primary()
+		? st::windowDefaultHeight
 		: adjust(st::windowDefaultHeight);
 	const auto skip = ChildSkip();
 	const auto delta = _lastChildIndex

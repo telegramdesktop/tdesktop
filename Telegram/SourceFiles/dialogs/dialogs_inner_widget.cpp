@@ -3676,7 +3676,7 @@ void InnerWidget::preloadRowsData() {
 	}
 }
 
-bool InnerWidget::chooseCollapsedRow() {
+bool InnerWidget::chooseCollapsedRow(Qt::KeyboardModifiers modifiers) {
 	if (_state != WidgetState::Default) {
 		return false;
 	} else if ((_collapsedSelected < 0)
@@ -3769,7 +3769,15 @@ bool InnerWidget::chooseHashtag() {
 
 ChosenRow InnerWidget::computeChosenRow() const {
 	if (_state == WidgetState::Default) {
-		if (_selected) {
+		if ((_collapsedSelected >= 0)
+			&& (_collapsedSelected < _collapsedRows.size())) {
+			const auto &row = _collapsedRows[_collapsedSelected];
+			Assert(row->folder != nullptr);
+			return {
+				.key = row->folder,
+				.message = Data::UnreadMessagePosition,
+			};
+		} else if (_selected) {
 			return {
 				.key = _selected->key(),
 				.message = Data::UnreadMessagePosition,
@@ -3813,9 +3821,7 @@ bool InnerWidget::isUserpicPressOnWide() const {
 bool InnerWidget::chooseRow(
 		Qt::KeyboardModifiers modifiers,
 		MsgId pressedTopicRootId) {
-	if (chooseCollapsedRow()) {
-		return true;
-	} else if (chooseHashtag()) {
+	if (chooseHashtag()) {
 		return true;
 	}
 	const auto modifyChosenRow = [&](

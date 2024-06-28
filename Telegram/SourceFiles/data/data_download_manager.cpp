@@ -531,7 +531,7 @@ void DownloadManager::loadingStopWithConfirmation(
 		return;
 	}
 	const auto window = Core::App().windowFor(
-		&item->history()->session().account());
+		not_null(&item->history()->session().account()));
 	if (!window) {
 		return;
 	}

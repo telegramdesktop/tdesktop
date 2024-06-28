@@ -131,6 +131,7 @@ protected:
 private:
 	struct EmojiInteractionSeenAnimation;
 
+	[[nodiscard]] bool rootChatsListBar() const;
 	void refreshInfoButton();
 	void refreshLang();
 	void updateSearchVisibility();

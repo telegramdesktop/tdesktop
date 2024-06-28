@@ -252,7 +252,7 @@ private:
 	void repaintCollapsedFolderRow(not_null<Data::Folder*> folder);
 	void refreshWithCollapsedRows(bool toTop = false);
 	bool needCollapsedRowsRefresh() const;
-	bool chooseCollapsedRow();
+	bool chooseCollapsedRow(Qt::KeyboardModifiers modifiers);
 	void switchToFilter(FilterId filterId);
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;

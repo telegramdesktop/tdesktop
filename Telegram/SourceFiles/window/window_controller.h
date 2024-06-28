@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwindow.h"
 #include "window/window_adaptive.h"
+#include "window/window_separate_id.h"
 
 namespace Main {
 class Account;
@@ -36,32 +37,20 @@ namespace Window {
 class Controller final : public base::has_weak_ptr {
 public:
 	Controller();
-	explicit Controller(not_null<Main::Account*> account);
-	Controller(
-		not_null<PeerData*> singlePeer,
-		MsgId showAtMsgId);
+	Controller(SeparateId id, MsgId showAtMsgId);
 	~Controller();
 
 	Controller(const Controller &other) = delete;
 	Controller &operator=(const Controller &other) = delete;
 
 	void showAccount(not_null<Main::Account*> account);
-	[[nodiscard]] PeerData *singlePeer() const;
-	[[nodiscard]] bool isPrimary() const {
-		return (singlePeer() == nullptr);
-	}
+	[[nodiscard]] SeparateId id() const;
+	[[nodiscard]] bool isPrimary() const;
 
 	[[nodiscard]] not_null<::MainWindow*> widget() {
 		return &_widget;
 	}
-	[[nodiscard]] Main::Account &account() const {
-		Expects(_account != nullptr);
-
-		return *_account;
-	}
-	[[nodiscard]] Main::Account *maybeAccount() const {
-		return _account;
-	}
+	[[nodiscard]] Main::Account &account() const;
 	[[nodiscard]] Main::Session *maybeSession() const;
 	[[nodiscard]] SessionController *sessionController() const {
 		return _sessionController.get();
@@ -155,7 +144,7 @@ public:
 
 private:
 	struct CreateArgs {
-		PeerData *singlePeer = nullptr;
+		SeparateId id;
 	};
 	explicit Controller(CreateArgs &&args);
 
@@ -173,8 +162,7 @@ private:
 	void showTermsDecline();
 	void showTermsDelete();
 
-	PeerData *_singlePeer = nullptr;
-	Main::Account *_account = nullptr;
+	SeparateId _id;
 	base::Timer _isActiveTimer;
 	::MainWindow _widget;
 	const std::unique_ptr<Adaptive> _adaptive;

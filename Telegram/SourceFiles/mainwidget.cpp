@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_connecting_widget.h"
 #include "window/window_top_bar_wrap.h"
 #include "window/notifications_manager.h"
+#include "window/window_separate_id.h"
 #include "window/window_slide_animation.h"
 #include "window/window_history_hider.h"
 #include "window/window_controller.h"
@@ -232,19 +233,19 @@ MainWidget::MainWidget(
 , _controller(controller)
 , _dialogsWidth(st::columnMinimalWidthLeft)
 , _thirdColumnWidth(st::columnMinimalWidthThird)
-, _sideShadow(isPrimary()
-	? base::make_unique_q<Ui::PlainShadow>(this)
-	: nullptr)
-, _dialogs(isPrimary()
+, _dialogs(windowId().hasChatsList()
 	? base::make_unique_q<Dialogs::Widget>(
 		this,
 		_controller,
 		Dialogs::Widget::Layout::Main)
 	: nullptr)
 , _history(std::in_place, this, _controller)
+, _sideShadow(_dialogs
+	? base::make_unique_q<Ui::PlainShadow>(this)
+	: nullptr)
 , _playerPlaylist(this, _controller)
 , _changelogs(Core::Changelogs::Create(&controller->session())) {
-	if (isPrimary()) {
+	if (_dialogs) {
 		setupConnectingWidget();
 	}
 
@@ -732,7 +733,7 @@ void MainWidget::hideSingleUseKeyboard(FullMsgId replyToId) {
 
 void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 	auto tags = Data::SearchTagsFromQuery(query);
-	if (controller()->isPrimary()) {
+	if (_dialogs) {
 		auto state = Dialogs::SearchState{
 			.inChat = ((tags.empty() || inChat.sublist())
 				? inChat
@@ -758,7 +759,7 @@ void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 		if ((!_mainSection
 			|| !_mainSection->searchInChatEmbedded(inChat, query))
 			&& !_history->searchInChatEmbedded(inChat, query)) {
-			const auto account = &session().account();
+			const auto account = not_null(&session().account());
 			if (const auto window = Core::App().windowFor(account)) {
 				if (const auto controller = window->sessionController()) {
 					controller->content()->searchMessages(query, inChat);
@@ -1238,36 +1239,35 @@ bool MainWidget::showHistoryInDifferentWindow(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId showAtMsgId) {
+	if (!peerId) {
+		return false;
+	}
 	const auto peer = session().data().peer(peerId);
-	const auto account = &session().account();
-	auto primary = Core::App().separateWindowForAccount(account);
-	if (const auto separate = Core::App().separateWindowForPeer(peer)) {
-		if (separate == &_controller->window()) {
-			return false;
+	if (const auto separateChat = _controller->windowId().chat()) {
+		if (const auto history = separateChat->asHistory()) {
+			if (history->peer == peer) {
+				return false;
+			}
 		}
-		separate->sessionController()->showPeerHistory(
+	}
+	const auto window = Core::App().windowForShowingHistory(peer);
+	if (window == &_controller->window()) {
+		return false;
+	} else if (window) {
+		window->sessionController()->showPeerHistory(
 			peerId,
 			params,
 			showAtMsgId);
-		separate->activate();
+		window->activate();
 		return true;
-	} else if (isPrimary()) {
-		if (primary && primary != &_controller->window()) {
-			primary->sessionController()->showPeerHistory(
-				peerId,
-				params,
-				showAtMsgId);
-			primary->activate();
-			return true;
-		}
+	} else if (windowId().hasChatsList()) {
 		return false;
-	} else if (!peerId) {
-		return true;
-	} else if (singlePeer()->id == peerId) {
-		return false;
-	} else if (!primary) {
+	}
+	const auto account = not_null(&session().account());
+	auto primary = Core::App().separateWindowFor(account);
+	if (!primary) {
 		Core::App().domain().activate(account);
-		primary = Core::App().separateWindowForAccount(account);
+		primary = Core::App().separateWindowFor(account);
 	}
 	if (primary && &primary->account() == account) {
 		primary->sessionController()->showPeerHistory(
@@ -1293,7 +1293,7 @@ void MainWidget::showHistory(
 		}
 		const auto unavailable = peer->computeUnavailableReason();
 		if (!unavailable.isEmpty()) {
-			Assert(isPrimary());
+			Assert(isPrimary()); // windows todo
 			if (params.activation != anim::activation::background) {
 				_controller->show(Ui::MakeInformBox(unavailable));
 				_controller->window().activate();
@@ -1510,7 +1510,7 @@ void MainWidget::showMessage(
 void MainWidget::showForum(
 		not_null<Data::Forum*> forum,
 		const SectionShow &params) {
-	Expects(isPrimary() || (singlePeer() && singlePeer()->forum() == forum));
+	Expects(_dialogs != nullptr);
 
 	_dialogs->showForum(forum, params);
 
@@ -1846,8 +1846,8 @@ void MainWidget::checkMainSectionToLayer() {
 	updateMainSectionShown();
 }
 
-PeerData *MainWidget::singlePeer() const {
-	return _controller->singlePeer();
+Window::SeparateId MainWidget::windowId() const {
+	return _controller->windowId();
 }
 
 bool MainWidget::isPrimary() const {
@@ -1957,7 +1957,7 @@ void MainWidget::showBackFromStack(
 	}
 
 	if (_stack.empty()) {
-		if (isPrimary()) {
+		if (_dialogs) {
 			_controller->clearSectionStack(params);
 		}
 		crl::on_main(this, [=] {

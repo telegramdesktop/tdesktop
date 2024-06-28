@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_group_call.h" // GroupCall::input.
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -714,10 +715,13 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 		&& !showSelectedState()
 		&& !_chooseForReportReason;
 	if (handleClick) {
+		const auto archiveTop = (_activeChat.section == Section::ChatsList)
+			&& _activeChat.key.folder();
 		if ((_animatingMode && _back->rect().contains(e->pos()))
-			|| (_activeChat.section == Section::ChatsList
-				&& _activeChat.key.folder())) {
-			backClicked();
+			|| archiveTop) {
+			if (!rootChatsListBar()) {
+				backClicked();
+			}
 		} else {
 			infoClicked();
 		}
@@ -890,9 +894,22 @@ void TopBarWidget::setCustomTitle(const QString &title) {
 	}
 }
 
+bool TopBarWidget::rootChatsListBar() const {
+	if (_activeChat.section != Section::ChatsList) {
+		return false;
+	}
+	const auto id = _controller->windowId();
+	const auto separateFolder = id.folder();
+	const auto separateForum = id.forum();
+	const auto active = _activeChat.key;
+	return (separateForum && separateForum->history() == active.history())
+		|| (separateFolder && separateFolder == active.folder());
+}
+
 void TopBarWidget::refreshInfoButton() {
 	if (_activeChat.key.topic()
-		|| _activeChat.section == Section::ChatsList) {
+		|| (_activeChat.section == Section::ChatsList
+			&& !rootChatsListBar())) {
 		_info.destroy();
 	} else if (const auto peer = _activeChat.key.peer()) {
 		auto info = object_ptr<Ui::UserpicButton>(
@@ -989,6 +1006,14 @@ void TopBarWidget::updateControlsGeometry() {
 		_leftTaken += _back->width();
 	}
 	if (_info && !_info->isHidden()) {
+		if (_back->isHidden() && _narrowRatio > 0.) {
+			const auto &infoSt = st::topBarInfoButton;
+			const auto middle = (_narrowWidth - infoSt.photoSize) / 2;
+			_leftTaken = anim::interpolate(
+				_leftTaken,
+				middle - infoSt.photoPosition.x(),
+				_narrowRatio);
+		}
 		_info->moveToLeft(_leftTaken, otherButtonsTop);
 		_leftTaken += _info->width();
 	} else if (_activeChat.key.topic()
@@ -997,7 +1022,9 @@ void TopBarWidget::updateControlsGeometry() {
 	}
 
 	if (_searchField) {
-		const auto fieldLeft = _leftTaken;
+		const auto fieldLeft = _back->isHidden()
+			? st::topBarArrowPadding.right()
+			: _leftTaken;
 		const auto fieldTop = searchFieldTop
 			+ (height() - _searchField->height()) / 2;
 		const auto fieldRight = st::dialogsFilterSkip
@@ -1075,9 +1102,10 @@ void TopBarWidget::updateControlsVisibility() {
 	_sendNow->setVisible(_canSendNow);
 
 	const auto isOneColumn = _controller->adaptive().isOneColumn();
-	auto backVisible = isOneColumn
-		|| !_controller->content()->stackIsEmpty()
-		|| (_activeChat.section == Section::ChatsList);
+	const auto backVisible = !rootChatsListBar()
+		&& (isOneColumn
+			|| (_activeChat.section == Section::ChatsList)
+			|| !_controller->content()->stackIsEmpty());
 	_back->setVisible(backVisible && !_chooseForReportReason);
 	_cancelChoose->setVisible(_chooseForReportReason.has_value());
 	if (_info) {
@@ -1085,7 +1113,8 @@ void TopBarWidget::updateControlsVisibility() {
 			&& (isOneColumn || !_primaryWindow));
 	}
 	if (_unreadBadge) {
-		_unreadBadge->setVisible(!_chooseForReportReason);
+		_unreadBadge->setVisible(!_chooseForReportReason
+			&& !rootChatsListBar());
 	}
 	const auto topic = _activeChat.key.topic();
 	const auto section = _activeChat.section;

@@ -30,15 +30,15 @@ ResolveWindow ResolveWindowDefault() {
 			return (Window::SessionController*)nullptr;
 		};
 		auto &app = Core::App();
+		const auto account = not_null(&session->account());
 		if (const auto a = check(app.activeWindow())) {
 			return a;
 		} else if (const auto b = check(app.activePrimaryWindow())) {
 			return b;
-		} else if (const auto c = check(app.windowFor(&session->account()))) {
+		} else if (const auto c = check(app.windowFor(account))) {
 			return c;
-		} else if (const auto d = check(
-			app.ensureSeparateWindowForAccount(
-				&session->account()))) {
+		} else if (const auto d = check(app.ensureSeparateWindowFor(
+				account))) {
 			return d;
 		}
 		return nullptr;

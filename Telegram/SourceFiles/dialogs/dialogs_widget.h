@@ -57,6 +57,7 @@ namespace Window {
 class SessionController;
 class ConnectionState;
 struct SectionShow;
+struct SeparateId;
 } // namespace Window
 
 namespace Dialogs::Stories {

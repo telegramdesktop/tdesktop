@@ -33,6 +33,7 @@ class Controller;
 class SessionController;
 class TitleWidget;
 struct TermsLock;
+struct SeparateId;
 
 [[nodiscard]] const QImage &Logo();
 [[nodiscard]] const QImage &LogoNoMargin();
@@ -66,7 +67,7 @@ public:
 	[[nodiscard]] Window::Controller &controller() const {
 		return *_controller;
 	}
-	[[nodiscard]] PeerData *singlePeer() const;
+	[[nodiscard]] Window::SeparateId id() const;
 	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] Main::Account &account() const;
 	[[nodiscard]] Window::SessionController *sessionController() const;
@@ -200,7 +201,7 @@ private:
 
 	[[nodiscard]] Core::WindowPosition initialPosition() const;
 	[[nodiscard]] Core::WindowPosition nextInitialChildPosition(
-		bool primary);
+		SeparateId childId);
 	[[nodiscard]] QRect countInitialGeometry(Core::WindowPosition position);
 
 	bool computeIsActive() const;

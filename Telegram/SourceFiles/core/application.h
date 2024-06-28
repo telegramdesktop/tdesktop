@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "mtproto/mtproto_proxy_data.h"
-#include "base/timer.h"
+#include "window/window_separate_id.h"
 
 class History;
 
@@ -29,11 +30,9 @@ namespace Window {
 class Controller;
 } // namespace Window
 
-namespace Window {
-namespace Notifications {
+namespace Window::Notifications {
 class System;
-} // namespace Notifications
-} // namespace Window
+} // namespace Window::Notifications
 
 namespace ChatHelpers {
 class EmojiKeywords;
@@ -170,19 +169,17 @@ public:
 		not_null<QWidget*> widget) const;
 	[[nodiscard]] Window::Controller *activeWindow() const;
 	[[nodiscard]] Window::Controller *activePrimaryWindow() const;
-	[[nodiscard]] Window::Controller *separateWindowForAccount(
-		not_null<Main::Account*> account) const;
-	[[nodiscard]] Window::Controller *separateWindowForPeer(
-		not_null<PeerData*> peer) const;
-	Window::Controller *ensureSeparateWindowForPeer(
-		not_null<PeerData*> peer,
-		MsgId showAtMsgId);
-	Window::Controller *ensureSeparateWindowForAccount(
-		not_null<Main::Account*> account);
+	[[nodiscard]] Window::Controller *separateWindowFor(
+		Window::SeparateId id) const;
+	Window::Controller *ensureSeparateWindowFor(
+		Window::SeparateId id,
+		MsgId showAtMsgId = 0);
 	[[nodiscard]] Window::Controller *windowFor( // Doesn't auto-switch.
+		Window::SeparateId id) const;
+	[[nodiscard]] Window::Controller *windowForShowingHistory(
 		not_null<PeerData*> peer) const;
-	[[nodiscard]] Window::Controller *windowFor( // Doesn't auto-switch.
-		not_null<Main::Account*> account) const;
+	[[nodiscard]] Window::Controller *windowForShowingForum(
+		not_null<Data::Forum*> forum) const;
 	[[nodiscard]] bool closeNonLastAsync(
 		not_null<Window::Controller*> window);
 	void closeWindow(not_null<Window::Controller*> window);
@@ -195,7 +192,7 @@ public:
 	void checkSystemDarkMode();
 	[[nodiscard]] bool isActiveForTrayMenu() const;
 	void closeChatFromWindows(not_null<PeerData*> peer);
-	void checkWindowAccount(not_null<Window::Controller*> window);
+	void checkWindowId(not_null<Window::Controller*> window);
 	void activate();
 
 	// Media view interface.
@@ -423,12 +420,9 @@ private:
 	const std::unique_ptr<Calls::Instance> _calls;
 	const std::unique_ptr<Iv::Instance> _iv;
 	base::flat_map<
-		Main::Account*,
-		std::unique_ptr<Window::Controller>> _primaryWindows;
+		Window::SeparateId,
+		std::unique_ptr<Window::Controller>> _windows;
 	base::flat_set<not_null<Window::Controller*>> _closingAsyncWindows;
-	base::flat_map<
-		not_null<History*>,
-		std::unique_ptr<Window::Controller>> _secondaryWindows;
 	std::vector<not_null<Window::Controller*>> _windowStack;
 	Window::Controller *_lastActiveWindow = nullptr;
 	Window::Controller *_lastActivePrimaryWindow = nullptr;

@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
 #include "ui/unread_badge_paint.h"
+#include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "styles/style_chat.h"

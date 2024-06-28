@@ -269,13 +269,11 @@ void MainWindow::setupMain(
 	auto created = object_ptr<MainWidget>(bodyWidget(), sessionController());
 	clearWidgets();
 	_main = std::move(created);
-	if (const auto peer = singlePeer()) {
-		updateControlsGeometry();
-		_main->controller()->showPeerHistory(
-			peer,
-			Window::SectionShow::Way::ClearStack,
-			singlePeerShowAtMsgId);
-	}
+	updateControlsGeometry();
+	Ui::SendPendingMoveResizeEvents(_main);
+	_main->controller()->showByInitialId(
+		Window::SectionShow::Way::ClearStack,
+		singlePeerShowAtMsgId);
 	if (_passcodeLock) {
 		_main->hide();
 	} else {

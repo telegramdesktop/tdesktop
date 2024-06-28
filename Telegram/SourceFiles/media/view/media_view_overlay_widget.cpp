@@ -6158,7 +6158,7 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 
 	if (switchTo) {
 		auto controllerPtr = (Window::SessionController*)nullptr;
-		const auto account = &_session->account();
+		const auto account = not_null(&_session->account());
 		const auto sessionWindow = Core::App().windowFor(account);
 		const auto anyWindow = (sessionWindow
 			&& &sessionWindow->account() == account)

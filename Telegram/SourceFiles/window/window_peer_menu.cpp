@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_helpers.h" // GetErrorTextForSending.
 #include "history/view/history_view_context_menu.h"
+#include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "settings/settings_advanced.h"
@@ -650,20 +651,48 @@ void Filler::addToggleUnreadMark() {
 }
 
 void Filler::addNewWindow() {
+	const auto controller = _controller;
+	if (_folder) {
+		_addAction(tr::lng_context_new_window(tr::now), [=] {
+			Ui::PreventDelayedActivation();
+			controller->showInNewWindow(SeparateId(
+				SeparateType::Archive,
+				&controller->session()));
+		}, &st::menuIconNewWindow);
+		AddSeparatorAndShiftUp(_addAction);
+		return;
+	} else if (const auto weak = base::make_weak(_sublist)) {
+		_addAction(tr::lng_context_new_window(tr::now), [=] {
+			Ui::PreventDelayedActivation();
+			if (const auto sublist = weak.get()) {
+				const auto peer = sublist->peer();
+				controller->showInNewWindow(SeparateId(
+					SeparateType::SavedSublist,
+					peer->owner().history(peer)));
+			}
+		}, &st::menuIconNewWindow);
+		AddSeparatorAndShiftUp(_addAction);
+		return;
+	}
 	const auto history = _request.key.history();
 	if (!_peer
-		|| _topic
-		|| _peer->isForum()
 		|| (history
 			&& history->useTopPromotion()
 			&& !history->topPromotionType().isEmpty())) {
 		return;
 	}
 	const auto peer = _peer;
-	const auto controller = _controller;
+	const auto thread = _topic
+		? not_null<Data::Thread*>(_topic)
+		: _peer->owner().history(_peer);
+	const auto weak = base::make_weak(thread);
 	_addAction(tr::lng_context_new_window(tr::now), [=] {
 		Ui::PreventDelayedActivation();
-		controller->showInNewWindow(peer);
+		if (const auto strong = weak.get()) {
+			controller->showInNewWindow(SeparateId(
+				peer->isForum() ? SeparateType::Forum : SeparateType::Chat,
+				strong));
+		}
 	}, &st::menuIconNewWindow);
 	AddSeparatorAndShiftUp(_addAction);
 }
@@ -1253,6 +1282,12 @@ void Filler::addViewAsMessages() {
 				FullMsgId(),
 			}, callback, QApplication::activePopupWidget());
 			return true;
+		} else if (base::IsCtrlPressed()) {
+			Ui::PreventDelayedActivation();
+			controller->showInNewWindow(SeparateId(
+				SeparateType::Chat,
+				peer->owner().history(peer)));
+			return true;
 		}
 		return false;
 	};
@@ -1432,27 +1467,39 @@ void Filler::fillArchiveActions() {
 	if (_folder->id() != Data::Folder::kId) {
 		return;
 	}
+	addNewWindow();
+
 	const auto controller = _controller;
 	const auto hidden = controller->session().settings().archiveCollapsed();
-	const auto text = hidden
-		? tr::lng_context_archive_expand(tr::now)
-		: tr::lng_context_archive_collapse(tr::now);
-	_addAction(text, [=] {
-		controller->session().settings().setArchiveCollapsed(!hidden);
-		controller->session().saveSettingsDelayed();
-	}, hidden ? &st::menuIconExpand : &st::menuIconCollapse);
-
-	_addAction(tr::lng_context_archive_to_menu(tr::now), [=] {
-		controller->showToast({
-			.text = { tr::lng_context_archive_to_menu_info(tr::now) },
-			.st = &st::windowArchiveToast,
-			.duration = kArchivedToastDuration,
-		});
-
-		controller->session().settings().setArchiveInMainMenu(
-			!controller->session().settings().archiveInMainMenu());
-		controller->session().saveSettingsDelayed();
-	}, &st::menuIconToMainMenu);
+	{
+		const auto text = hidden
+			? tr::lng_context_archive_expand(tr::now)
+			: tr::lng_context_archive_collapse(tr::now);
+		_addAction(text, [=] {
+			controller->session().settings().setArchiveCollapsed(!hidden);
+			controller->session().saveSettingsDelayed();
+		}, hidden ? &st::menuIconExpand : &st::menuIconCollapse);
+	}
+	const auto inmenu = controller->session().settings().archiveInMainMenu();
+	{
+		const auto text = inmenu
+			? tr::lng_context_archive_to_list(tr::now)
+			: tr::lng_context_archive_to_menu(tr::now);
+		_addAction(text, [=] {
+			if (!inmenu) {
+				controller->showToast({
+					.text = {
+						tr::lng_context_archive_to_menu_info(tr::now)
+					},
+					.st = &st::windowArchiveToast,
+					.duration = kArchivedToastDuration,
+				});
+			}
+			controller->session().settings().setArchiveInMainMenu(!inmenu);
+			controller->session().saveSettingsDelayed();
+			controller->window().hideSettingsAndLayer();
+		}, inmenu ? &st::menuIconFromMainMenu : &st::menuIconToMainMenu);
+	}
 
 	MenuAddMarkAsReadChatListAction(
 		controller,
@@ -1460,6 +1507,7 @@ void Filler::fillArchiveActions() {
 		_addAction);
 
 	_addAction({ .isSeparator = true });
+
 	Settings::PreloadArchiveSettings(&controller->session());
 	_addAction(tr::lng_context_archive_settings(tr::now), [=] {
 		controller->show(Box(Settings::ArchiveSettingsBox, controller));
@@ -1467,6 +1515,7 @@ void Filler::fillArchiveActions() {
 }
 
 void Filler::fillSavedSublistActions() {
+	addNewWindow();
 	addTogglePin();
 }
 
@@ -1983,17 +2032,17 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 				ForwardToSelf(show, draft);
 				return true;
 			}
-			auto controller = Core::App().windowFor(peer);
+			const auto id = SeparateId(
+				(peer->isForum()
+					? SeparateType::Forum
+					: SeparateType::Chat),
+				thread);
+			auto controller = Core::App().windowFor(id);
 			if (!controller) {
 				return false;
 			}
 			if (controller->maybeSession() != &peer->session()) {
-				controller = peer->isForum()
-					? Core::App().ensureSeparateWindowForAccount(
-						&peer->account())
-					: Core::App().ensureSeparateWindowForPeer(
-						peer,
-						ShowAtUnreadMsgId);
+				controller = Core::App().ensureSeparateWindowFor(id);
 				if (controller->maybeSession() != &peer->session()) {
 					return false;
 				}
