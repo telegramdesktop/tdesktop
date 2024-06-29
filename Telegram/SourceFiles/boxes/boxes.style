@@ -292,9 +292,10 @@ passcodeAboutSkip: 7px;
 passcodeSkip: 23px;
 passcodeSystemUnlock: IconButton(defaultIconButton) {
 	width: 32px;
-	height: 32px;
-	rippleAreaSize: 24px;
-	rippleAreaPosition: point(4px, 4px);
+	height: 36px;
+	iconPosition: point(4px, 4px);
+	rippleAreaSize: 32px;
+	rippleAreaPosition: point(0px, 0px);
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: lightButtonBgOver;
 	}
