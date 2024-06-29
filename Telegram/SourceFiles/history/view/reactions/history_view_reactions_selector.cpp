@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/painter.h"
+#include "history/view/media/history_view_sticker.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_document.h"
@@ -351,6 +352,16 @@ int Selector::countWidth(int desiredWidth, int maxWidth) {
 	return std::max(2 * _skipx + _columns * _size, desiredWidth);
 }
 
+int Selector::effectPreviewHeight() const {
+	if (_listMode != ChatHelpers::EmojiListMode::MessageEffects) {
+		return 0;
+	}
+	return st::previewMenu.shadow.extend.top()
+		+ HistoryView::Sticker::MessageEffectSize().height()
+		+ st::effectPreviewSend.height
+		+ st::previewMenu.shadow.extend.bottom();
+}
+
 QMargins Selector::marginsForShadow() const {
 	const auto line = st::lineWidth;
 	return useTransparency()
@@ -409,9 +420,33 @@ void Selector::setOpaqueHeightExpand(int expand, Fn<void(int)> apply) {
 	_opaqueApplyHeightExpand = std::move(apply);
 }
 
-int Selector::minimalHeight() const {
+int Selector::minimalHeight(int fullWidth) const {
+	auto inner = _recentRows * _size;
+	if (const auto stickers = int(_reactions.stickers.size())) {
+		// See StickersListWidget.
+		const auto listWidth = fullWidth
+			- marginsForShadow().left()
+			- marginsForShadow().right()
+			- _st.margin.left()
+			- _st.margin.right();
+		const auto availableWidth = listWidth
+			- (st::stickerPanPadding - _st.margin.left());
+		const auto min = st::stickerEffectWidthMin;
+		if (const auto columns = availableWidth / min) {
+			const auto rows = (stickers + columns - 1) / columns;
+			const auto singleWidth = availableWidth / columns;
+			const auto singleHeight = singleWidth;
+			const auto stickersHeight = rows * singleHeight;
+			inner += _st.header + stickersHeight;
+		}
+	}
+	if (_listMode == ChatHelpers::EmojiListMode::MessageEffects) {
+		inner += _st.searchMargin.top()
+			+ _st.search.height
+			+ _st.searchMargin.bottom();
+	}
 	return _skipy
-		+ std::min(_recentRows * _size, st::emojiPanMinHeight)
+		+ std::min(inner, st::emojiPanMinHeight)
 		+ st::emojiPanRadius
 		+ _st.padding.bottom();
 }
@@ -919,7 +954,7 @@ void Selector::expand() {
 	const auto margins = marginsForShadow();
 	const auto heightLimit = _reactions.customAllowed
 		? st::emojiPanMaxHeight
-		: minimalHeight();
+		: minimalHeight(width());
 	const auto opaqueAdded = _useTransparency ? 0 : _opaqueHeightExpand;
 	const auto willBeHeight = std::min(
 		parent.height() - y() + opaqueAdded,
@@ -1170,9 +1205,9 @@ bool AdjustMenuGeometryForSelector(
 	menu->setForceWidth(width - added);
 	const auto height = menu->height();
 	const auto fullTop = margins.top() + categoriesAboutTop + extend.top();
-	const auto minimalHeight = margins.top()
-		+ selector->minimalHeight()
-		+ margins.bottom();
+	const auto minimalHeight = std::max(
+		margins.top() + selector->minimalHeight(width) + margins.bottom(),
+		selector->effectPreviewHeight());
 	const auto willBeHeightWithoutBottomPadding = fullTop
 		+ height
 		- menu->st().shadow.extend.top();

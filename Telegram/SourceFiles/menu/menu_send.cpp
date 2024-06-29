@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "boxes/abstract_box.h"
+#include "boxes/premium_preview_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/shortcuts.h"
@@ -526,7 +527,7 @@ void EffectPreview::setupSend(Details details) {
 				if (const auto onstack = _close) {
 					onstack();
 				}
-				Settings::ShowPremium(window, "message_effect");
+				ShowPremiumPreviewBox(window, PremiumFeature::Effects);
 			}
 			return false;
 		});
