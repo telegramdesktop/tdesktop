@@ -197,6 +197,7 @@ using Order = std::vector<QString>;
 		u"animated_userpics"_q,
 		u"premium_stickers"_q,
 		u"business"_q,
+		u"effects"_q,
 	};
 }
 
@@ -374,6 +375,16 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_business(),
 				tr::lng_premium_summary_about_business(),
 				PremiumFeature::Business,
+				true,
+			},
+		},
+		{
+			u"effects"_q,
+			Entry{
+				&st::settingsPremiumIconEffects,
+				tr::lng_premium_summary_subtitle_effects(),
+				tr::lng_premium_summary_about_effects(),
+				PremiumFeature::Effects,
 				true,
 			},
 		},
@@ -1601,6 +1612,8 @@ std::vector<PremiumFeature> PremiumFeaturesOrder(
 			return PremiumFeature::RealTimeTranslation;
 		} else if (s == u"wallpapers"_q) {
 			return PremiumFeature::Wallpapers;
+		} else if (s == u"effects"_q) {
+			return PremiumFeature::Effects;
 		}
 		return PremiumFeature::kCount;
 	}) | ranges::views::filter([](PremiumFeature type) {
