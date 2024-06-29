@@ -3668,7 +3668,11 @@ bool Widget::cancelSearch(CancelSearchOptions options) {
 	_inner->clearFilter();
 	applySearchState(std::move(updatedState));
 	if (_suggestions && clearSearchFocus) {
+		const auto clearLockedFocus = !_searchHasFocus;
 		setInnerFocus(true);
+		if (clearLockedFocus) {
+			processSearchFocusChange();
+		}
 	}
 	updateForceDisplayWide();
 	return clearingQuery || clearingInChat || clearSearchFocus;
