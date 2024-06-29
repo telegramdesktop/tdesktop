@@ -161,6 +161,7 @@ private:
 		[[nodiscard]] rpl::producer<int> itemDeleteRequest() const;
 		[[nodiscard]] rpl::producer<int> itemReplaceRequest() const;
 		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
+		[[nodiscard]] rpl::producer<> orderUpdated() const;
 
 		void setSendWay(Ui::SendFilesWay way);
 		void toggleSpoilers(bool enabled);

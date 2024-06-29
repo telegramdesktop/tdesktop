@@ -279,6 +279,7 @@ void AlbumPreview::finishDrag() {
 		_finishDragAnimation.start([=] { update(); }, 0., 1., kDragDuration);
 
 		updateSizeAnimated(layout);
+		_orderUpdated.fire({});
 	} else {
 		for (const auto &thumb : _thumbs) {
 			thumb->resetLayoutAnimation();
@@ -297,7 +298,7 @@ int AlbumPreview::countLayoutHeight(
 }
 
 void AlbumPreview::updateSizeAnimated(
-	const std::vector<GroupMediaLayout> &layout) {
+		const std::vector<GroupMediaLayout> &layout) {
 	const auto newHeight = countLayoutHeight(layout);
 	if (newHeight != _thumbsHeight) {
 		_thumbsHeightAnimation.start(
@@ -649,7 +650,7 @@ QImage AlbumPreview::generatePriceTagBackground() const {
 		p.translate(geometry.center());
 		p.scale(wscale, hscale);
 		p.translate(-geometry.center());
-		thumb->paintInAlbum(p, 0, 0, 0., 0.);
+		thumb->paintInAlbum(p, 0, 0, 1., 1.);
 		p.restore();
 	}
 	p.end();

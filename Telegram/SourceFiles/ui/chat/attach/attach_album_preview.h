@@ -51,6 +51,10 @@ public:
 		return _thumbModified.events();
 	}
 
+	[[nodiscard]] rpl::producer<> orderUpdated() const {
+		return _orderUpdated.events();
+	}
+
 	[[nodiscard]] QImage generatePriceTagBackground() const;
 
 protected:
@@ -120,6 +124,7 @@ private:
 	rpl::event_stream<int> _thumbDeleted;
 	rpl::event_stream<int> _thumbChanged;
 	rpl::event_stream<int> _thumbModified;
+	rpl::event_stream<> _orderUpdated;
 
 	base::unique_qptr<PopupMenu> _menu;
 

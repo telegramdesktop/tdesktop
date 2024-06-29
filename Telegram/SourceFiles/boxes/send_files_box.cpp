@@ -343,6 +343,14 @@ rpl::producer<int> SendFilesBox::Block::itemModifyRequest() const {
 	}
 }
 
+rpl::producer<> SendFilesBox::Block::orderUpdated() const {
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
+		return album->orderUpdated();
+	}
+	return rpl::never<>();
+}
+
 void SendFilesBox::Block::setSendWay(Ui::SendFilesWay way) {
 	if (!_isAlbum) {
 		if (_isSingleMedia) {
@@ -1122,6 +1130,13 @@ void SendFilesBox::pushBlock(int from, int till) {
 			&_list.files[index],
 			st::sendMediaPreviewSize,
 			[=] { refreshAllAfterChanges(from); });
+	}, widget->lifetime());
+
+	block.orderUpdated() | rpl::start_with_next([=]{
+		if (_priceTag) {
+			_priceTagBg = QImage();
+			_priceTag->update();
+		}
 	}, widget->lifetime());
 }
 
