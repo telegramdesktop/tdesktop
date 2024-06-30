@@ -1,3 +1,9 @@
+5.2 (30.06.24)
+
+- Pay for content with Telegram Stars.
+- Enable local passcode unlock by Windows Hello and Touch ID.
+- Allow opening forums, topics and archive in a separate window.
+
 5.1.8 beta (15.06.24)
 
 - Support nice blockquotes and code blocks edition when composing messages.
