@@ -1505,18 +1505,33 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 		{ "destructive_text_color", st::attentionButtonFg },
 	};
 	auto object = QJsonObject();
-	for (const auto &[name, color] : colors) {
+	const auto wrap = [](QColor color) {
 		auto r = 0;
 		auto g = 0;
 		auto b = 0;
-		color->c.getRgb(&r, &g, &b);
+		color.getRgb(&r, &g, &b);
 		const auto hex = [](int component) {
 			const auto digit = [](int c) {
 				return QChar((c < 10) ? ('0' + c) : ('a' + c - 10));
 			};
 			return QString() + digit(component / 16) + digit(component % 16);
 		};
-		object.insert(name, '#' + hex(r) + hex(g) + hex(b));
+		return '#' + hex(r) + hex(g) + hex(b);
+	};
+	for (const auto &[name, color] : colors) {
+		object.insert(name, wrap(color->c));
+	}
+	{
+		const auto bg = st::windowBg->c;
+		const auto shadow = st::shadowFg->c;
+		const auto shadowAlpha = shadow.alphaF();
+		const auto mix = [&](int a, int b) {
+			return anim::interpolate(a, b, shadowAlpha);
+		};
+		object.insert("section_separator_color", wrap(QColor(
+			mix(bg.red(), shadow.red()),
+			mix(bg.green(), shadow.green()),
+			mix(bg.blue(), shadow.blue()))));
 	}
 	return {
 		.opaqueBg = st::windowBg->c,
