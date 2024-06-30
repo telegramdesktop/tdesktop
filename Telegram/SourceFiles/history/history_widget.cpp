@@ -1855,12 +1855,13 @@ void HistoryWidget::setInnerFocus() {
 	if (_list) {
 		if (isSearching()) {
 			_composeSearch->setInnerFocus();
-		} else if (_chooseTheme && _chooseTheme->shouldBeShown()) {
+		} else if (isChoosingTheme()) {
 			_chooseTheme->setFocus();
 		} else if (_showAnimation
 			|| _nonEmptySelection
 			|| (_list && _list->wasSelectedText())
 			|| isRecording()
+			|| isJoinChannel()
 			|| isBotStart()
 			|| isBlocked()
 			|| (!_canSendTexts && !_editMsgId)) {
