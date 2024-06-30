@@ -616,11 +616,11 @@ release:
     move out.dbg\\ossl_static.pdb out.dbg\\ossl_static
     jom clean
     move out.dbg\\ossl_static out.dbg\\ossl_static.pdb
-win32:
+win32_release:
     perl Configure no-shared no-tests VC-WIN32 /FS
-win64:
+win64_release:
     perl Configure no-shared no-tests VC-WIN64A /FS
-win:
+win_release:
     jom -j%NUMBER_OF_PROCESSORS%
     mkdir out
     move libcrypto.lib out
