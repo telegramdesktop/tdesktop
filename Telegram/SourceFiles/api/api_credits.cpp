@@ -69,16 +69,6 @@ constexpr auto kTransactionsLimit = 100;
 	}, [](const auto &) {
 		return PeerId(0);
 	}).value;
-	const auto isBot = [&] {
-		if (barePeerId) {
-			if (const auto p = peer->owner().peer(PeerId(barePeerId))) {
-				if (const auto u = p->asUser()) {
-					return u->isBot();
-				}
-			}
-		}
-		return false;
-	}();
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
 		.title = qs(tl.data().vtitle().value_or_empty()),

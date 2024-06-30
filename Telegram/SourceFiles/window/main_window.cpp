@@ -612,7 +612,6 @@ WindowPosition MainWindow::nextInitialChildPosition(SeparateId childId) {
 	const auto adjust = [&](int value) {
 		return (value * 3 / 4);
 	};
-	const auto secondaryWithChatsList = !childId.primary() && childId.hasChatsList();
 	const auto width = OptionNewWindowsSizeAsFirst.value()
 		? Core::App().settings().windowPosition().w
 		: childId.primary()

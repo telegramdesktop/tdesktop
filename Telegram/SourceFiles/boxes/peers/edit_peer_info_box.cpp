@@ -1586,7 +1586,6 @@ void Controller::fillBotBalanceButton() {
 		const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
 		icon->resize(Size(st::menuIconLinks.width() - kSizeShift));
 
-		const auto bg = st::boxBg->c;
 		auto colorized = [&] {
 			auto f = QFile(Ui::Premium::Svg());
 			if (!f.open(QIODevice::ReadOnly)) {

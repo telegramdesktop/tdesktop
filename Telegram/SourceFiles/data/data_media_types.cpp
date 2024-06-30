@@ -2008,7 +2008,6 @@ ItemPreview MediaInvoice::toPreview(ToPreviewOptions options) const {
 		return Media::toPreview(options);
 	}
 	auto counts = AlbumCounts();
-	const auto item = parent();
 	auto images = std::vector<ItemPreviewImage>();
 	auto context = std::vector<std::any>();
 	const auto existing = options.existing;

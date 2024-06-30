@@ -116,7 +116,6 @@ void EditPriceBox(
 		not_null<Main::Session*> session,
 		uint64 price,
 		Fn<void(uint64)> apply) {
-	const auto owner = &session->data();
 	box->setTitle(tr::lng_paid_title());
 	AddSubsectionTitle(
 		box->verticalLayout(),
@@ -837,7 +836,6 @@ QImage SendFilesBox::preparePriceTagBg(QSize size) const {
 		bg = QImage(ratio, ratio, QImage::Format_ARGB32_Premultiplied);
 		bg.fill(Qt::black);
 	}
-	const auto bgSize = bg.size() / bg.devicePixelRatio();
 
 	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);

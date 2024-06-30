@@ -119,7 +119,6 @@ void InnerWidget::fill() {
 	const auto container = this;
 	const auto &data = _state;
 	const auto multiplier = data.usdRate * Data::kEarnMultiplier;
-	const auto session = &_peer->session();
 
 	auto availableBalanceValue = rpl::single(
 		data.availableBalance
@@ -192,7 +191,7 @@ void InnerWidget::fill() {
 			Ui::ToggleChildrenVisibility(line, true);
 
 			Ui::AddSkip(container);
-			const auto sub = container->add(
+			container->add(
 				object_ptr<Ui::FlatLabel>(
 					container,
 					text(),

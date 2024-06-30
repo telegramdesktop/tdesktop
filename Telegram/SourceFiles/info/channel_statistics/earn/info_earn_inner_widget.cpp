@@ -281,10 +281,6 @@ void InnerWidget::load() {
 		rpl::lifetime apiPremiumBotLifetime;
 	};
 	const auto state = lifetime().make_state<State>(_peer);
-	const auto api = lifetime().make_state<Api::ChannelEarnStatistics>(
-		_peer->asChannel());
-	const auto apiCredits = lifetime().make_state<Api::CreditsEarnStatistics>(
-		_peer);
 
 	Info::Statistics::FillLoading(
 		this,
