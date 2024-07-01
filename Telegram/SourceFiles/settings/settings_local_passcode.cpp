@@ -80,6 +80,7 @@ private:
 	rpl::event_stream<> _setInnerFocus;
 	rpl::event_stream<Type> _showOther;
 	rpl::event_stream<> _showBack;
+	bool _systemUnlockWithBiometric = false;
 
 };
 
@@ -96,6 +97,13 @@ rpl::producer<QString> LocalPasscodeEnter::title() {
 
 void LocalPasscodeEnter::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+
+	base::SystemUnlockStatus(
+		true
+	) | rpl::start_with_next([=](base::SystemUnlockAvailability status) {
+		_systemUnlockWithBiometric = status.available
+			&& status.withBiometrics;
+	}, lifetime());
 
 	const auto isCreate = (enterType() == EnterType::Create);
 	const auto isCheck = (enterType() == EnterType::Check);
@@ -242,8 +250,10 @@ void LocalPasscodeEnter::setupContent() {
 				}
 				SetPasscode(_controller, newText);
 				if (isCreate) {
-					Core::App().settings().setSystemUnlockEnabled(true);
-					Core::App().saveSettingsDelayed();
+					if (Platform::IsWindows() || _systemUnlockWithBiometric) {
+						Core::App().settings().setSystemUnlockEnabled(true);
+						Core::App().saveSettingsDelayed();
+					}
 					_showOther.fire(LocalPasscodeManageId());
 				} else if (isChange) {
 					_showBack.fire({});
@@ -601,6 +611,8 @@ QPointer<Ui::RpWidget> LocalPasscodeManage::createPinnedToBottom(
 				.text = tr::lng_settings_passcode_disable_sure(),
 				.confirmed = [=](Fn<void()> &&close) {
 					SetPasscode(_controller, QString());
+					Core::App().settings().setSystemUnlockEnabled(false);
+					Core::App().saveSettingsDelayed();
 
 					close();
 					_showBack.fire({});

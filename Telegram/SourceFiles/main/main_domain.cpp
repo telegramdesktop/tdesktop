@@ -403,6 +403,8 @@ bool Domain::removePasscodeIfEmpty() {
 		return false;
 	}
 	_local->setPasscode(QByteArray());
+	Core::App().settings().setSystemUnlockEnabled(false);
+	Core::App().saveSettingsDelayed();
 	return true;
 }
 
