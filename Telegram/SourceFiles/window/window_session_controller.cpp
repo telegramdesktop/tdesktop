@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_filters_menu.h"
 #include "window/window_separate_id.h"
-#include "info/channel_statistics/earn/info_earn_inner_widget.h"
+#include "info/channel_statistics/earn/info_channel_earn_list.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "inline_bots/bot_attach_web_view.h"

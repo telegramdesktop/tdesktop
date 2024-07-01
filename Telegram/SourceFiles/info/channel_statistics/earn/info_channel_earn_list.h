@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "info/channel_statistics/earn/info_earn_widget.h"
+#include "info/channel_statistics/earn/info_channel_earn_widget.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
 

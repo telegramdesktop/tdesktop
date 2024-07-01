@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/channel_statistics/earn/info_earn_inner_widget.h"
+#include "info/channel_statistics/earn/info_channel_earn_list.h"
 
 #include "api/api_credits.h"
 #include "api/api_earn.h"
@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "info/channel_statistics/earn/earn_format.h"
-#include "info/channel_statistics/earn/info_earn_widget.h"
+#include "info/channel_statistics/earn/info_channel_earn_widget.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.

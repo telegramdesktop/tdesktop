@@ -890,10 +890,10 @@ PRIVATE
     history/history_view_highlight_manager.h
     history/history_widget.cpp
     history/history_widget.h
-    info/bot/earn/info_earn_inner_widget.cpp
-    info/bot/earn/info_earn_inner_widget.h
-    info/bot/earn/info_earn_widget.cpp
-    info/bot/earn/info_earn_widget.h
+    info/bot/earn/info_bot_earn_list.cpp
+    info/bot/earn/info_bot_earn_list.h
+    info/bot/earn/info_bot_earn_widget.cpp
+    info/bot/earn/info_bot_earn_widget.h
     info/channel_statistics/boosts/create_giveaway_box.cpp
     info/channel_statistics/boosts/create_giveaway_box.h
     info/channel_statistics/boosts/giveaway/giveaway_list_controllers.cpp
@@ -902,10 +902,10 @@ PRIVATE
     info/channel_statistics/boosts/info_boosts_inner_widget.h
     info/channel_statistics/boosts/info_boosts_widget.cpp
     info/channel_statistics/boosts/info_boosts_widget.h
-    info/channel_statistics/earn/info_earn_inner_widget.cpp
-    info/channel_statistics/earn/info_earn_inner_widget.h
-    info/channel_statistics/earn/info_earn_widget.cpp
-    info/channel_statistics/earn/info_earn_widget.h
+    info/channel_statistics/earn/info_channel_earn_list.cpp
+    info/channel_statistics/earn/info_channel_earn_list.h
+    info/channel_statistics/earn/info_channel_earn_widget.cpp
+    info/channel_statistics/earn/info_channel_earn_widget.h
     info/common_groups/info_common_groups_inner_widget.cpp
     info/common_groups/info_common_groups_inner_widget.h
     info/common_groups/info_common_groups_widget.cpp

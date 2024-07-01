@@ -67,7 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
-#include "info/channel_statistics/earn/info_earn_widget.h"
+#include "info/channel_statistics/earn/info_channel_earn_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/statistics/info_statistics_widget.h"
 #include "info/stories/info_stories_widget.h"

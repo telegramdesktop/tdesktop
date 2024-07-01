@@ -43,7 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
-#include "info/bot/earn/info_earn_widget.h"
+#include "info/bot/earn/info_bot_earn_widget.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_memento.h"
