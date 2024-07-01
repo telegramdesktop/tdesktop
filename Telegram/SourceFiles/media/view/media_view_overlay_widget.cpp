@@ -3841,16 +3841,12 @@ void OverlayWidget::updatePowerSaveBlocker(
 		&& !IsPausedOrPausing(state.state)
 		&& !IsStoppedOrStopping(state.state);
 
-	_window->shownValue() | rpl::filter([=](bool shown) {
-		return shown;
-	}) | rpl::take(1) | rpl::start_with_next([=] {
-		base::UpdatePowerSaveBlocker(
-			_streamed->powerSaveBlocker,
-			block,
-			base::PowerSaveBlockType::PreventDisplaySleep,
-			[] { return u"Video playback is active"_q; },
-			[=] { return window(); });
-	}, lifetime());
+	base::UpdatePowerSaveBlocker(
+		_streamed->powerSaveBlocker,
+		block,
+		base::PowerSaveBlockType::PreventDisplaySleep,
+		[] { return u"Video playback is active"_q; },
+		[=] { return _window->windowHandle(); });
 }
 
 QImage OverlayWidget::transformedShownContent() const {
