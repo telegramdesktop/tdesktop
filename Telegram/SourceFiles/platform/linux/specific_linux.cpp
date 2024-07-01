@@ -687,7 +687,7 @@ void start() {
 	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
 		QDir::tempPath(),
 		h,
-		QCoreApplication::applicationName(),
+		KSandbox::isSnap() ? QString() : QCoreApplication::applicationName(),
 		u"%1"_q).toStdString());
 
 	InstallLauncher();
