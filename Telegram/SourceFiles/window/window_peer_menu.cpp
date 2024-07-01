@@ -689,8 +689,9 @@ void Filler::addNewWindow() {
 	_addAction(tr::lng_context_new_window(tr::now), [=] {
 		Ui::PreventDelayedActivation();
 		if (const auto strong = weak.get()) {
+			const auto forum = !strong->asTopic() && peer->isForum();
 			controller->showInNewWindow(SeparateId(
-				peer->isForum() ? SeparateType::Forum : SeparateType::Chat,
+				forum ? SeparateType::Forum : SeparateType::Chat,
 				strong));
 		}
 	}, &st::menuIconNewWindow);
