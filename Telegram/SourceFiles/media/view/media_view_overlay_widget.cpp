@@ -506,15 +506,15 @@ OverlayWidget::OverlayWidget()
 				return base::EventFilterResult::Cancel;
 			}
 		} else if (e->type() == QEvent::WindowStateChange) {
-			const auto state = _window->windowState();
-			if (state & Qt::WindowMinimized || Platform::IsMac()) {
-			} else if (state & Qt::WindowMaximized) {
+			const auto state = window()->windowState();
+			if (state == Qt::WindowMinimized || Platform::IsMac()) {
+			} else if (state == Qt::WindowMaximized) {
 				if (_fullscreen || _windowed) {
 					_fullscreen = _windowed = false;
 					savePosition();
 				}
 			} else if (_fullscreen || _windowed) {
-			} else if (state & Qt::WindowFullScreen) {
+			} else if (state == Qt::WindowFullScreen) {
 				_fullscreen = true;
 				savePosition();
 			} else {
