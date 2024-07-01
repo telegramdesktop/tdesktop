@@ -687,6 +687,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_use_winhello_about" = "You need to enter your passcode once before unlocking Telegram with Windows Hello.";
 "lng_settings_use_touchid" = "Unlock with Touch ID";
 "lng_settings_use_touchid_about" = "You need to enter your passcode once before unlocking Telegram with Touch ID.";
+"lng_settings_use_applewatch" = "Unlock with Apple Watch";
+"lng_settings_use_applewatch_about" = "You need to enter your passcode once before unlocking Telegram with Apple Watch.";
+"lng_settings_use_systempwd" = "Unlock with System Password";
+"lng_settings_use_systempwd_about" = "You need to enter your passcode once before unlocking Telegram with System Password.";
 "lng_settings_password_disable" = "Disable Cloud Password";
 "lng_settings_password_abort" = "Abort two-step verification setup";
 "lng_settings_about_bio" = "Any details such as age, occupation or city.\nExample: 23 y.o. designer from San Francisco";
@@ -998,6 +1002,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_logout" = "Log out";
 "lng_passcode_winhello" = "You need to enter your passcode\nbefore you can use Windows Hello.";
 "lng_passcode_touchid" = "You need to enter your passcode\nbefore you can use Touch ID.";
+"lng_passcode_applewatch" = "You need to enter your passcode\nbefore you can use Watch to unlock.";
+"lng_passcode_systempwd" = "You need to enter your passcode\nbefore you can use system password.";
 "lng_passcode_winhello_unlock" = "Telegram wants to unlock with Windows Hello.";
 "lng_passcode_touchid_unlock" = "unlock";
 "lng_passcode_create_button" = "Save Passcode";

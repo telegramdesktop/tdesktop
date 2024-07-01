@@ -157,6 +157,8 @@ menuIconFont: icon {{ "menu/fonts", menuIconColor }};
 menuIconFactcheck: icon {{ "menu/factcheck", menuIconColor }};
 menuIconWinHello: icon {{ "menu/passcode_winhello", menuIconColor }};
 menuIconTouchID: icon {{ "menu/passcode_finger", menuIconColor }};
+menuIconAppleWatch: icon {{ "menu/passcode_watch", menuIconColor }};
+menuIconSystemPwd: menuIconPermissions;
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

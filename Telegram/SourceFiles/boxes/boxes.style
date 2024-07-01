@@ -293,6 +293,8 @@ passcodeSkip: 23px;
 passcodeSystemUnlock: IconButton(defaultIconButton) {
 	width: 32px;
 	height: 36px;
+	icon: icon{{ "menu/passcode_winhello", lightButtonFg }};
+	iconOver: icon{{ "menu/passcode_winhello", lightButtonFg }};
 	iconPosition: point(4px, 4px);
 	rippleAreaSize: 32px;
 	rippleAreaPosition: point(0px, 0px);
@@ -300,14 +302,9 @@ passcodeSystemUnlock: IconButton(defaultIconButton) {
 		color: lightButtonBgOver;
 	}
 }
-passcodeSystemWinHello: IconButton(passcodeSystemUnlock) {
-	icon: icon{{ "menu/passcode_winhello", lightButtonFg }};
-	iconOver: icon{{ "menu/passcode_winhello", lightButtonFg }};
-}
-passcodeSystemTouchID: IconButton(passcodeSystemUnlock) {
-	icon: icon{{ "menu/passcode_finger", lightButtonFg }};
-	iconOver: icon{{ "menu/passcode_finger", lightButtonFg }};
-}
+passcodeSystemTouchID: icon{{ "menu/passcode_finger", lightButtonFg }};
+passcodeSystemAppleWatch: icon{{ "menu/passcode_watch", lightButtonFg }};
+passcodeSystemSystemPwd: icon{{ "menu/permissions", lightButtonFg }};
 passcodeSystemUnlockLater: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	textFg: windowSubTextFg;

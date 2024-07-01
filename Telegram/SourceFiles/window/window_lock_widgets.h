@@ -65,6 +65,13 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	enum class SystemUnlockType : uchar {
+		None,
+		Default,
+		Biometrics,
+		Companion,
+	};
+
 	void paintContent(QPainter &p) override;
 
 	void setupSystemUnlockInfo();
@@ -75,8 +82,8 @@ private:
 	void submit();
 	void error();
 
-	rpl::variable<bool> _systemUnlockAvailable = false;
-	rpl::variable<bool> _systemUnlockAllowed = false;
+	rpl::variable<SystemUnlockType> _systemUnlockAvailable;
+	rpl::variable<SystemUnlockType> _systemUnlockAllowed;
 	object_ptr<Ui::PasswordInput> _passcode;
 	object_ptr<Ui::RoundButton> _submit;
 	object_ptr<Ui::LinkButton> _logout;

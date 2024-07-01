@@ -110,8 +110,17 @@ PasscodeLockWidget::PasscodeLockWidget(
 
 	using namespace rpl::mappers;
 	if (Core::App().settings().systemUnlockEnabled()) {
-		_systemUnlockAvailable = base::SystemUnlockStatus()
-			| rpl::map(_1 == base::SystemUnlockAvailability::Available);
+		_systemUnlockAvailable = base::SystemUnlockStatus(
+			true
+		) | rpl::map([](base::SystemUnlockAvailability status) {
+			return status.withBiometrics
+				? SystemUnlockType::Biometrics
+				: status.withCompanion
+				? SystemUnlockType::Companion
+				: status.available
+				? SystemUnlockType::Default
+				: SystemUnlockType::None;
+		});
 		if (Core::App().domain().started()) {
 			_systemUnlockAllowed = _systemUnlockAvailable.value();
 			setupSystemUnlock();
@@ -122,11 +131,22 @@ PasscodeLockWidget::PasscodeLockWidget(
 }
 
 void PasscodeLockWidget::setupSystemUnlockInfo() {
+	const auto macos = [&] {
+		return _systemUnlockAvailable.value(
+		) | rpl::map([](SystemUnlockType type) {
+			return (type == SystemUnlockType::Biometrics)
+				? tr::lng_passcode_touchid()
+				: (type == SystemUnlockType::Companion)
+				? tr::lng_passcode_applewatch()
+				: tr::lng_passcode_systempwd();
+		}) | rpl::flatten_latest();
+	};
+	auto text = Platform::IsWindows()
+		? tr::lng_passcode_winhello()
+		: macos();
 	const auto info = Ui::CreateChild<Ui::FlatLabel>(
 		this,
-		(Platform::IsWindows()
-			? tr::lng_passcode_winhello()
-			: tr::lng_passcode_touchid()),
+		std::move(text),
 		st::passcodeSystemUnlockLater);
 	_logout->geometryValue(
 	) | rpl::start_with_next([=](QRect logout) {
@@ -137,7 +157,8 @@ void PasscodeLockWidget::setupSystemUnlockInfo() {
 			st::boxRowPadding.left(),
 			logout.y() + logout.height() + st::passcodeSystemUnlockSkip);
 	}, info->lifetime());
-	info->showOn(_systemUnlockAvailable.value());
+	info->showOn(_systemUnlockAvailable.value(
+	) | rpl::map(rpl::mappers::_1 != SystemUnlockType::None));
 }
 
 void PasscodeLockWidget::setupSystemUnlock() {
@@ -152,10 +173,21 @@ void PasscodeLockWidget::setupSystemUnlock() {
 
 	const auto button = Ui::CreateChild<Ui::IconButton>(
 		_passcode.data(),
-		(Platform::IsWindows()
-			? st::passcodeSystemWinHello
-			: st::passcodeSystemTouchID));
-	button->showOn(_systemUnlockAllowed.value());
+		st::passcodeSystemUnlock);
+	if (!Platform::IsWindows()) {
+		using namespace base;
+		_systemUnlockAllowed.value(
+		) | rpl::start_with_next([=](SystemUnlockType type) {
+			const auto icon = (type == SystemUnlockType::Biometrics)
+				? &st::passcodeSystemTouchID
+				: (type == SystemUnlockType::Companion)
+				? &st::passcodeSystemAppleWatch
+				: &st::passcodeSystemSystemPwd;
+			button->setIconOverride(icon, icon);
+		}, button->lifetime());
+	}
+	button->showOn(_systemUnlockAllowed.value(
+	) | rpl::map(rpl::mappers::_1 != SystemUnlockType::None));
 	_passcode->sizeValue() | rpl::start_with_next([=](QSize size) {
 		button->moveToRight(0, size.height() - button->height());
 	}, button->lifetime());
@@ -177,7 +209,7 @@ void PasscodeLockWidget::suggestSystemUnlock() {
 		using namespace base;
 		_systemUnlockAllowed.value(
 		) | rpl::filter(
-			rpl::mappers::_1
+			rpl::mappers::_1 != SystemUnlockType::None
 		) | rpl::take(1) | rpl::start_with_next([=] {
 			const auto weak = Ui::MakeWeak(this);
 			const auto done = [weak](SystemUnlockResult result) {
