@@ -573,8 +573,7 @@ void SetupBio(
 		}
 		changed->fire(*current != text);
 		const auto limit = self->isPremium() ? premiumLimit : defaultLimit;
-		const auto countLeft = limit
-			- bio->lastTextSizeWithoutSurrogatePairsCount();
+		const auto countLeft = limit - Ui::ComputeFieldCharacterCount(bio);
 		countdown->setText(QString::number(countLeft));
 		countdown->setTextColorOverride(
 			countLeft < 0 ? st::boxTextFgError->c : std::optional<QColor>());
@@ -984,13 +983,13 @@ void AccountsList::rebuild() {
 						_reorder->finishReordering();
 						if (newWindow) {
 							_closeRequests.fire({});
-							Core::App().ensureSeparateWindowForAccount(
-								account);
+							Core::App().ensureSeparateWindowFor(account);
 						}
 						Core::App().domain().maybeActivate(account);
 					}
 				};
-				if (const auto window = Core::App().separateWindowForAccount(account)) {
+				if (const auto window = Core::App().separateWindowFor(
+						account)) {
 					_closeRequests.fire({});
 					window->activate();
 				} else {

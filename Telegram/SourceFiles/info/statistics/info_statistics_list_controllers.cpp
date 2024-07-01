@@ -45,6 +45,15 @@ using BoostCallback = Fn<void(const Data::Boost &)>;
 constexpr auto kColorIndexUnclaimed = int(3);
 constexpr auto kColorIndexPending = int(4);
 
+[[nodiscard]] PeerListRowId UniqueRowIdFromEntry(
+		const Data::CreditsHistoryEntry &entry) {
+	return UniqueRowIdFromString(entry.id
+		+ (entry.refunded ? '1' : '0')
+		+ (entry.pending ? '1' : '0')
+		+ (entry.failed ? '1' : '0')
+		+ (entry.in ? '1' : '0'));
+}
+
 void AddArrow(not_null<Ui::RpWidget*> parent) {
 	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	arrow->paintRequest(
@@ -747,26 +756,30 @@ private:
 	QString _name;
 
 	Ui::Text::String _rightText;
+
+	base::has_weak_ptr _guard;
 };
 
-CreditsRow::CreditsRow(not_null<PeerData*> peer, const Descriptor &descriptor)
-: PeerListRow(peer, UniqueRowIdFromString(descriptor.entry.id))
+CreditsRow::CreditsRow(
+	not_null<PeerData*> peer,
+	const Descriptor &descriptor)
+: PeerListRow(peer, UniqueRowIdFromEntry(descriptor.entry))
 , _entry(descriptor.entry)
 , _creditIcon(descriptor.creditIcon)
 , _rowHeight(descriptor.rowHeight) {
-	const auto photo = _entry.photoId
-		? peer->session().data().photo(_entry.photoId).get()
-		: nullptr;
-	if (photo) {
-		_paintUserpicCallback = Ui::GenerateCreditsPaintEntryCallback(
-			photo,
-			[this, update = descriptor.updateCallback] { update(this); });
+	const auto callback = Ui::PaintPreviewCallback(
+		&peer->session(),
+		_entry);
+	if (callback) {
+		_paintUserpicCallback = callback(crl::guard(&_guard, [this, update = descriptor.updateCallback] {
+			update(this);
+		}));
 	}
 	init();
 }
 
 CreditsRow::CreditsRow(const Descriptor &descriptor)
-: PeerListRow(UniqueRowIdFromString(descriptor.entry.id))
+: PeerListRow(UniqueRowIdFromEntry(descriptor.entry))
 , _entry(descriptor.entry)
 , _creditIcon(descriptor.creditIcon)
 , _rowHeight(descriptor.rowHeight) {
@@ -782,13 +795,17 @@ void CreditsRow::init() {
 		langDateTimeFull(_entry.date)
 		+ (_entry.refunded
 			? (joiner + tr::lng_channel_earn_history_return(tr::now))
+			: _entry.pending
+			? (joiner + tr::lng_channel_earn_history_pending(tr::now))
+			: _entry.failed
+			? (joiner + tr::lng_channel_earn_history_failed(tr::now))
 			: QString())
 		+ (_entry.title.isEmpty() ? QString() : (joiner + _name)));
 	{
 		constexpr auto kMinus = QChar(0x2212);
 		_rightText.setText(
 			st::semiboldTextStyle,
-			((!_entry.bareId || _entry.refunded) ? QChar('+') : kMinus)
+			(_entry.in ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(std::abs(int64(_entry.credits))));
 	}
 	if (!_paintUserpicCallback) {
@@ -836,7 +853,9 @@ void CreditsRow::rightActionPaint(
 		bool actionSelected) {
 	const auto &font = _rightText.style()->font;
 	y += _rowHeight / 2;
-	p.setPen((!_entry.bareId || _entry.refunded)
+	p.setPen(_entry.pending
+		? st::creditsStroke
+		: _entry.in
 		? st::boxTextFgGood
 		: st::menuIconAttentionColor);
 	x += st::creditsHistoryRightSkip;
@@ -932,8 +951,8 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 				},
 			};
 			using Type = Data::CreditsHistoryEntry::PeerType;
-			if (item.bareId) {
-				const auto peer = session().data().peer(PeerId(item.bareId));
+			if (const auto peerId = PeerId(item.barePeerId)) {
+				const auto peer = session().data().peer(peerId);
 				return std::make_unique<CreditsRow>(peer, descriptor);
 			} else if (item.peerType == Type::PremiumBot) {
 				return std::make_unique<CreditsRow>(_premiumBot, descriptor);

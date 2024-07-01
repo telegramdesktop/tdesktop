@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h"
 
 #include "apiwrap.h"
+#include "api/api_credits.h"
 #include "api/api_peer_photo.h"
 #include "api/api_user_names.h"
 #include "main/main_session.h"
@@ -42,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
+#include "info/bot/earn/info_bot_earn_widget.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_memento.h"
@@ -52,6 +54,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/boost_box.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/premium_graphics.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/vertical_list.h"
 #include "ui/toast/toast.h"
@@ -70,6 +74,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
+
+#include <QtSvg/QSvgRenderer>
 
 namespace {
 
@@ -343,6 +349,7 @@ private:
 	void fillPendingRequestsButton();
 
 	void fillBotUsernamesButton();
+	void fillBotBalanceButton();
 	void fillBotEditIntroButton();
 	void fillBotEditCommandsButton();
 	void fillBotEditSettingsButton();
@@ -1126,6 +1133,7 @@ void Controller::fillManageSection() {
 
 		::AddSkip(container, 0);
 		fillBotUsernamesButton();
+		fillBotBalanceButton();
 		fillBotEditIntroButton();
 		fillBotEditCommandsButton();
 		fillBotEditSettingsButton();
@@ -1534,6 +1542,84 @@ void Controller::fillBotUsernamesButton() {
 			_navigation->uiShow()->showBox(Box(UsernamesBox, user));
 		},
 		{ &st::menuIconLinks });
+}
+
+void Controller::fillBotBalanceButton() {
+	Expects(_isBot);
+
+	struct State final {
+		rpl::variable<QString> balance;
+	};
+
+	auto &lifetime = _controls.buttonsLayout->lifetime();
+	const auto state = lifetime.make_state<State>();
+
+	const auto wrap = _controls.buttonsLayout->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			_controls.buttonsLayout,
+			EditPeerInfoBox::CreateButton(
+				_controls.buttonsLayout,
+				tr::lng_manage_peer_bot_balance(),
+				state->balance.value(),
+				[controller = _navigation->parentController(), peer = _peer] {
+					controller->showSection(Info::BotEarn::Make(peer));
+				},
+				st::manageGroupButton,
+				{})));
+	wrap->toggle(false, anim::type::instant);
+
+	const auto button = wrap->entity();
+	{
+		const auto api = button->lifetime().make_state<Api::CreditsStatus>(
+			_peer);
+		api->request({}, [=](Data::CreditsStatusSlice data) {
+			if (data.balance) {
+				wrap->toggle(true, anim::type::normal);
+			}
+			state->balance = QString::number(data.balance);
+		});
+	}
+	{
+		constexpr auto kSizeShift = 3;
+		constexpr auto kStrokeWidth = 5;
+
+		const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
+		icon->resize(Size(st::menuIconLinks.width() - kSizeShift));
+
+		auto colorized = [&] {
+			auto f = QFile(Ui::Premium::Svg());
+			if (!f.open(QIODevice::ReadOnly)) {
+				return QString();
+			}
+			return QString::fromUtf8(
+				f.readAll()).replace(u"#fff"_q, u"#ffffff00"_q);
+		}();
+		colorized.replace(
+			u"stroke=\"none\""_q,
+			u"stroke=\"%1\""_q.arg(st::menuIconColor->c.name()));
+		colorized.replace(
+			u"stroke-width=\"1\""_q,
+			u"stroke-width=\"%1\""_q.arg(kStrokeWidth));
+		const auto svg = icon->lifetime().make_state<QSvgRenderer>(
+			colorized.toUtf8());
+		svg->setViewBox(svg->viewBox() + Margins(kStrokeWidth));
+
+		const auto starSize = Size(icon->height());
+
+		icon->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(icon);
+			svg->render(&p, Rect(starSize));
+		}, icon->lifetime());
+
+		button->sizeValue(
+		) | rpl::start_with_next([=](const QSize &size) {
+			icon->moveToLeft(
+				button->st().iconLeft + kSizeShift / 2.,
+				(size.height() - icon->height()) / 2);
+		}, icon->lifetime());
+	}
+
 }
 
 void Controller::fillBotEditIntroButton() {

@@ -701,7 +701,7 @@ manageGroupReactionsField: InputField(defaultInputField) {
 	placeholderScale: 0.;
 	placeholderFont: normalFont;
 	placeholderShift: -50px;
-	font: normalFont;
+	style: defaultTextStyle;
 	heightMin: 36px;
 	heightMax: 158px;
 }
@@ -764,8 +764,6 @@ editPeerDescription: InputField(defaultInputField) {
 	borderActive: 0px;
 
 	heightMin: 32px;
-
-	font: boxTextFont;
 }
 editPeerDescriptionMargins: margins(22px, 3px, 22px, 2px);
 editPeerPrivaciesMargins: margins(15px, 7px, 22px, 0px);

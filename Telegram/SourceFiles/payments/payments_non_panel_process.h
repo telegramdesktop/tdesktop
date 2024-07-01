@@ -18,6 +18,8 @@ namespace Payments {
 enum class CheckoutResult;
 struct NonPanelPaymentForm;
 
+[[nodiscard]] bool IsCreditsInvoice(not_null<HistoryItem*> item);
+
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 	not_null<Window::SessionController*> controller,
 	Fn<void(Payments::CheckoutResult)> maybeReturnToBot = nullptr);

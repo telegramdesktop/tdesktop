@@ -11,6 +11,8 @@ sys.dont_write_bytecode = True
 scriptPath = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(scriptPath + '/../cmake')
 import run_cmake
+sys.path.append(scriptPath + '/build')
+import qt_version
 
 executePath = os.getcwd()
 def finish(code):
@@ -41,12 +43,18 @@ if officialTarget in ['win', 'uwp']:
     arch = 'x86'
 elif officialTarget in ['win64', 'uwp64']:
     arch = 'x64'
+elif officialTarget in ['winarm', 'uwparm']:
+    arch = 'arm'
+if not qt_version.resolve(arch):
+    error('Unsupported platform.')
+
+if 'qt6' in arguments:
+    arguments.remove('qt6')
 
 if officialTarget != '':
     officialApiIdFile = scriptPath + '/../../DesktopPrivate/custom_api_id.h'
     if not os.path.isfile(officialApiIdFile):
-        print("[ERROR] DesktopPrivate/custom_api_id.h not found.")
-        finish(1)
+        error('DesktopPrivate/custom_api_id.h not found.')
     with open(officialApiIdFile, 'r') as f:
         for line in f:
             apiIdMatch = re.search(r'ApiId\s+=\s+(\d+)', line)

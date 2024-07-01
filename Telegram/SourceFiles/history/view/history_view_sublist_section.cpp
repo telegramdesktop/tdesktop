@@ -736,6 +736,11 @@ QString SublistWidget::listElementAuthorRank(not_null<const Element*> view) {
 	return {};
 }
 
+bool SublistWidget::listElementHideTopicButton(
+		not_null<const Element*> view) {
+	return true;
+}
+
 History *SublistWidget::listTranslateHistory() {
 	return _history;
 }

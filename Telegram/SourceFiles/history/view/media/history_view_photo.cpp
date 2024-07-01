@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_photo.h"
 
+#include "boxes/send_credits_box.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -14,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_spoiler.h"
+#include "lang/lang_keys.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
@@ -23,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/effects/spoiler_mess.h"
 #include "ui/chat/chat_style.h"
+#include "ui/text/text_utilities.h"
 #include "ui/grouped_layout.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
@@ -37,7 +40,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_auto_download.h"
 #include "data/data_web_page.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
 namespace {
@@ -56,6 +61,15 @@ struct Photo::Streamed {
 	QImage frozenFrame;
 	std::array<QImage, 4> roundingCorners;
 	QImage roundingMask;
+};
+
+struct Photo::PriceTag {
+	uint64 price = 0;
+	QImage cache;
+	QColor darken;
+	QColor fg;
+	QColor star;
+	ClickHandlerPtr link;
 };
 
 Photo::Streamed::Streamed(
@@ -125,6 +139,7 @@ void Photo::create(FullMsgId contextId, PeerData *chat) {
 	if (_spoiler) {
 		createSpoilerLink(_spoiler.get());
 	}
+	_purchasedPriceTag = hasPurchasedTag() ? 1 : 0;
 }
 
 void Photo::ensureDataMediaCreated() const {
@@ -140,7 +155,8 @@ void Photo::dataMediaCreated() const {
 
 	if (_data->inlineThumbnailBytes().isEmpty()
 		&& !_dataMedia->image(PhotoSize::Large)
-		&& !_dataMedia->image(PhotoSize::Thumbnail)) {
+		&& !_dataMedia->image(PhotoSize::Thumbnail)
+		&& !_data->extendedMediaPreview()) {
 		_dataMedia->wanted(PhotoSize::Small, _realParent->fullId());
 	}
 	history()->owner().registerHeavyViewPart(_parent);
@@ -219,10 +235,14 @@ QSize Photo::countCurrentSize(int newWidth) {
 			: st::minPhotoSize),
 		thumbMaxWidth);
 	const auto dimensions = photoSize();
-	auto pix = CountPhotoMediaSize(
-		CountDesiredMediaSize(dimensions),
-		newWidth,
-		maxWidth());
+	auto pix = _data->extendedMediaVideoDuration()
+		? CountMediaSize(
+			CountDesiredMediaSize(dimensions),
+			newWidth)
+		: CountPhotoMediaSize(
+			CountDesiredMediaSize(dimensions),
+			newWidth,
+			maxWidth());
 	newWidth = qMax(pix.width(), minWidth);
 	auto newHeight = qMax(pix.height(), st::minPhotoSize);
 	if (_parent->hasBubble()) {
@@ -273,8 +293,9 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	auto loaded = _dataMedia->loaded();
-	auto displayLoading = _data->displayLoading();
+	const auto preview = _data->extendedMediaPreview();
+	const auto loaded = preview || _dataMedia->loaded();
+	const auto displayLoading = !preview && _data->displayLoading();
 
 	auto inWebPage = (_parent->media() != this);
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -361,6 +382,10 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, sti->historyFileThumbRadialFg);
 		}
+	} else if (preview) {
+		drawPriceTag(p, rthumb, context, [&] {
+			return priceTagBackground();
+		});
 	}
 	if (showEnlarge) {
 		auto hq = PainterHighQualityEnabler(p);
@@ -368,6 +393,14 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		const auto radius = st::historyPageEnlargeRadius;
 		p.drawRoundedRect(rect, radius, radius);
 		sti->historyPageEnlarge.paintInCenter(p, rect);
+	}
+	if (_purchasedPriceTag) {
+		auto geometry = rthumb;
+		if (showEnlarge) {
+			const auto rect = enlargeRect();
+			geometry.setY(rect.y() + rect.height());
+		}
+		drawPurchasedTag(p, geometry, context);
 	}
 
 	// date
@@ -390,6 +423,107 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
 			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
+	}
+}
+
+void Photo::setupPriceTag() const {
+	const auto media = parent()->data()->media();
+	const auto invoice = media ? media->invoice() : nullptr;
+	const auto price = invoice->isPaidMedia ? invoice->amount : 0;
+	if (!price) {
+		return;
+	}
+	_priceTag = std::make_unique<PriceTag>();
+	_priceTag->price = price;
+}
+
+void Photo::drawPriceTag(
+		Painter &p,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const {
+	if (!_priceTag) {
+		setupPriceTag();
+		if (!_priceTag) {
+			return;
+		}
+	}
+	const auto st = context.st;
+	const auto darken = st->msgDateImgBg()->c;
+	const auto fg = st->msgDateImgFg()->c;
+	const auto star = st->creditsBg1()->c;
+	if (_priceTag->cache.isNull()
+		|| _priceTag->darken != darken
+		|| _priceTag->fg != fg
+		|| _priceTag->star != star) {
+		const auto ratio = style::DevicePixelRatio();
+		auto bg = generateBackground();
+		if (bg.isNull()) {
+			bg = QImage(ratio, ratio, QImage::Format_ARGB32_Premultiplied);
+			bg.fill(Qt::black);
+		}
+
+		auto text = Ui::Text::String();
+		const auto session = &history()->session();
+		auto price = Ui::Text::Colorized(Ui::CreditsEmoji(session));
+		price.append(Lang::FormatCountDecimal(_priceTag->price));
+		text.setMarkedText(
+			st::semiboldTextStyle,
+			tr::lng_paid_price(
+				tr::now,
+				lt_price,
+				price,
+				Ui::Text::WithEntities),
+			kMarkupTextOptions,
+			Core::MarkedTextContext{
+				.session = session,
+				.customEmojiRepaint = [] {},
+			});
+		const auto width = text.maxWidth();
+		const auto inner = QRect(0, 0, width, text.minHeight());
+		const auto outer = inner.marginsAdded(st::paidTagPadding);
+		const auto size = outer.size();
+		const auto radius = std::min(size.width(), size.height()) / 2;
+		auto cache = QImage(
+			size * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(ratio);
+		cache.fill(Qt::black);
+		auto p = Painter(&cache);
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(
+			QRect(
+				(size.width() - rthumb.width()) / 2,
+				(size.height() - rthumb.height()) / 2,
+				rthumb.width(),
+				rthumb.height()),
+			bg);
+		p.fillRect(QRect(QPoint(), size), darken);
+		p.setPen(fg);
+		p.setTextPalette(st->priceTagTextPalette());
+		text.draw(p, -outer.x(), -outer.y(), width);
+		p.end();
+
+		_priceTag->darken = darken;
+		_priceTag->fg = fg;
+		_priceTag->cache = Images::Round(
+			std::move(cache),
+			Images::CornersMask(radius));
+	}
+	const auto &cache = _priceTag->cache;
+	const auto size = cache.size() / cache.devicePixelRatio();
+	const auto left = rthumb.x() + (rthumb.width() - size.width()) / 2;
+	const auto top = rthumb.y() + (rthumb.height() - size.height()) / 2;
+	p.drawImage(left, top, cache);
+	if (context.selected()) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = std::min(size.width(), size.height()) / 2;
+		p.setPen(Qt::NoPen);
+		p.setBrush(st->msgSelectOverlay());
+		p.drawRoundedRect(
+			QRect(left, top, size.width(), size.height()),
+			radius,
+			radius);
 	}
 }
 
@@ -600,6 +734,26 @@ QRect Photo::enlargeRect() const {
 	};
 }
 
+ClickHandlerPtr Photo::priceTagLink() const {
+	const auto item = parent()->data();
+	if (!item->isRegular()) {
+		return nullptr;
+	} else if (!_priceTag) {
+		setupPriceTag();
+		if (!_priceTag) {
+			return nullptr;
+		}
+	}
+	if (!_priceTag->link) {
+		_priceTag->link = MakePaidMediaLink(item);
+	}
+	return _priceTag->link;
+}
+
+QImage Photo::priceTagBackground() const {
+	return _spoiler ? _spoiler->background : QImage();
+}
+
 TextState Photo::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 
@@ -613,7 +767,9 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
 		ensureDataMediaCreated();
-		result.link = (_spoiler && !_spoiler->revealed)
+		result.link = _data->extendedMediaPreview()
+			? priceTagLink()
+			: (_spoiler && !_spoiler->revealed)
 			? _spoiler->link
 			: _data->uploading()
 			? _cancell
@@ -678,8 +834,9 @@ void Photo::drawGrouped(
 
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
-	const auto loaded = _dataMedia->loaded();
-	const auto displayLoading = _data->displayLoading();
+	const auto preview = _data->extendedMediaPreview();
+	const auto loaded = preview || _dataMedia->loaded();
+	const auto displayLoading = !preview && _data->displayLoading();
 
 	if (displayLoading) {
 		ensureAnimation();
@@ -784,7 +941,9 @@ TextState Photo::getStateGrouped(
 		return {};
 	}
 	ensureDataMediaCreated();
-	return TextState(_parent, (_spoiler && !_spoiler->revealed)
+	return TextState(_parent, _data->extendedMediaPreview()
+		? priceTagLink()
+		: (_spoiler && !_spoiler->revealed)
 		? _spoiler->link
 		: _data->uploading()
 		? _cancell
@@ -830,7 +989,8 @@ void Photo::validateGroupedCache(
 
 	ensureDataMediaCreated();
 
-	const auto loaded = _dataMedia->loaded();
+	const auto preview = _data->extendedMediaPreview();
+	const auto loaded = preview || _dataMedia->loaded();
 	const auto loadLevel = loaded
 		? 2
 		: (_dataMedia->thumbnailInline()

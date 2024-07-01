@@ -779,6 +779,8 @@ QByteArray SerializeMessage(
 			{ "until_date", SerializeDate(data.untilDate) },
 			{ "channels", serialized },
 		}));
+	}, [&](const PaidMedia &data) {
+		push("paid_stars_amount", data.stars);
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
 	}, [](v::null_t) {});

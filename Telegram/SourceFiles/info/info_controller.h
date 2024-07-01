@@ -135,6 +135,7 @@ public:
 		Statistics,
 		Boosts,
 		ChannelEarn,
+		BotEarn,
 	};
 	using SettingsType = ::Settings::Type;
 	using MediaType = Storage::SharedMediaType;

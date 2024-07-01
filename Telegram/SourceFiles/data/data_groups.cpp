@@ -81,6 +81,7 @@ void Groups::refreshMessage(
 		bool justRefreshViews) {
 	if (!isGrouped(item)) {
 		unregisterMessage(item);
+		_data->requestItemViewRefresh(item);
 		return;
 	}
 	if (!item->isRegular() && !item->isScheduled()) {

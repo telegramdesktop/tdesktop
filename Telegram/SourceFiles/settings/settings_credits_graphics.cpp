@@ -8,20 +8,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h"
 
 #include "api/api_credits.h"
+#include "api/api_earn.h"
+#include "base/timer_rpl.h"
+#include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
+#include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "core/click_handler_types.h" // UrlClickHandler
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
 #include "settings/settings_common_session.h"
-#include "settings/settings_credits_graphics.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/credits_graphics.h"
@@ -33,9 +42,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "ui/widgets/fields/number_input.h"
+#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
@@ -43,6 +55,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "styles/style_channel_earn.h"
+#include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
@@ -66,6 +80,11 @@ namespace {
 		+ QString::number(d.amount);
 
 	return XXH64(string.data(), string.size() * sizeof(ushort), 0);
+}
+
+[[nodiscard]] int WithdrawalMin(not_null<Main::Session*> session) {
+	const auto key = u"stars_revenue_withdrawal_min"_q;
+	return session->appConfig().get<int>(key, 1000);
 }
 
 class Balance final
@@ -107,65 +126,107 @@ private:
 
 };
 
-} // namespace
+void AddViewMediaHandler(
+		not_null<Ui::RpWidget*> thumb,
+		not_null<Window::SessionController*> controller,
+		const Data::CreditsHistoryEntry &e) {
+	if (e.extended.empty()) {
+		return;
+	}
+	thumb->setCursor(style::cur_pointer);
 
-QImage GenerateStars(int height, int count) {
-	constexpr auto kOutlineWidth = .6;
-	constexpr auto kStrokeWidth = 3;
-	constexpr auto kShift = 3;
+	struct State {
+		~State() {
+			if (item) {
+				item->destroy();
+			}
+		}
 
-	auto colorized = qs(Ui::Premium::ColorizedSvg(
-		Ui::Premium::CreditsIconGradientStops()));
-	colorized.replace(
-		u"stroke=\"none\""_q,
-		u"stroke=\"%1\""_q.arg(st::creditsStroke->c.name()));
-	colorized.replace(
-		u"stroke-width=\"1\""_q,
-		u"stroke-width=\"%1\""_q.arg(kStrokeWidth));
-	auto svg = QSvgRenderer(colorized.toUtf8());
-	svg.setViewBox(svg.viewBox() + Margins(kStrokeWidth));
-
-	const auto starSize = Size(height - kOutlineWidth * 2);
-
-	auto frame = QImage(
-		QSize(
-			(height + kShift * (count - 1)) * style::DevicePixelRatio(),
-			height * style::DevicePixelRatio()),
-		QImage::Format_ARGB32_Premultiplied);
-	frame.setDevicePixelRatio(style::DevicePixelRatio());
-	frame.fill(Qt::transparent);
-	const auto drawSingle = [&](QPainter &q) {
-		const auto s = kOutlineWidth;
-		q.save();
-		q.translate(s, s);
-		q.setCompositionMode(QPainter::CompositionMode_Clear);
-		svg.render(&q, QRectF(QPointF(s, 0), starSize));
-		svg.render(&q, QRectF(QPointF(s, s), starSize));
-		svg.render(&q, QRectF(QPointF(0, s), starSize));
-		svg.render(&q, QRectF(QPointF(-s, s), starSize));
-		svg.render(&q, QRectF(QPointF(-s, 0), starSize));
-		svg.render(&q, QRectF(QPointF(-s, -s), starSize));
-		svg.render(&q, QRectF(QPointF(0, -s), starSize));
-		svg.render(&q, QRectF(QPointF(s, -s), starSize));
-		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		svg.render(&q, Rect(starSize));
-		q.restore();
+		HistoryItem *item = nullptr;
+		bool pressed = false;
+		bool over = false;
 	};
-	{
-		auto q = QPainter(&frame);
-		q.translate(frame.width() / style::DevicePixelRatio() - height, 0);
-		for (auto i = count; i > 0; --i) {
-			drawSingle(q);
-			q.translate(-kShift, 0);
+	const auto state = thumb->lifetime().make_state<State>();
+	const auto session = &controller->session();
+	const auto owner = &session->data();
+	const auto peerId = e.barePeerId
+		? PeerId(e.barePeerId)
+		: session->userPeerId();
+	const auto history = owner->history(session->user());
+	state->item = history->makeMessage({
+		.id = history->nextNonHistoryEntryId(),
+		.flags = MessageFlag::HasFromId | MessageFlag::AdminLogEntry,
+		.from = peerId,
+		.date = base::unixtime::serialize(e.date),
+	}, TextWithEntities(), MTP_messageMediaEmpty());
+	auto fake = std::vector<std::unique_ptr<Data::Media>>();
+	fake.reserve(e.extended.size());
+	for (const auto &item : e.extended) {
+		if (item.type == Data::CreditsHistoryMediaType::Photo) {
+			fake.push_back(std::make_unique<Data::MediaPhoto>(
+				state->item,
+				owner->photo(item.id),
+				false)); // spoiler
+		} else {
+			fake.push_back(std::make_unique<Data::MediaFile>(
+				state->item,
+				owner->document(item.id),
+				true, // skipPremiumEffect
+				false, // spoiler
+				0)); // ttlSeconds
 		}
 	}
-	return frame;
+	state->item->overrideMedia(std::make_unique<Data::MediaInvoice>(
+		state->item,
+		Data::Invoice{
+			.amount = uint64(std::abs(int64(e.credits))),
+			.currency = Ui::kCreditsCurrency,
+			.extendedMedia = std::move(fake),
+			.isPaidMedia = true,
+		}));
+	const auto showMedia = crl::guard(controller, [=] {
+		if (const auto media = state->item->media()) {
+			if (const auto invoice = media->invoice()) {
+				if (!invoice->extendedMedia.empty()) {
+					const auto first = invoice->extendedMedia[0].get();
+					if (const auto photo = first->photo()) {
+						controller->openPhoto(photo, {
+							.id = state->item->fullId(),
+						});
+					} else if (const auto document = first->document()) {
+						controller->openDocument(document, true, {
+							.id = state->item->fullId(),
+						});
+					}
+				}
+			}
+		}
+	});
+	thumb->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseButtonPress) {
+			const auto mouse = static_cast<QMouseEvent*>(e.get());
+			if (mouse->button() == Qt::LeftButton) {
+				state->over = true;
+				state->pressed = true;
+			}
+		} else if (e->type() == QEvent::MouseButtonRelease
+			&& state->over
+			&& state->pressed) {
+			showMedia();
+		} else if (e->type() == QEvent::Enter) {
+			state->over = true;
+		} else if (e->type() == QEvent::Leave) {
+			state->over = false;
+		}
+	}, thumb->lifetime());
 }
+
+} // namespace
 
 void FillCreditOptions(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
-		int minCredits,
+		int minimumCredits,
 		Fn<void()> paid) {
 	const auto options = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -175,7 +236,7 @@ void FillCreditOptions(
 
 	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
 
-	const auto singleStarWidth = GenerateStars(
+	const auto singleStarWidth = Ui::GenerateStars(
 		st::creditsTopupButton.height,
 		1).width() / style::DevicePixelRatio();
 
@@ -191,6 +252,10 @@ void FillCreditOptions(
 			- st.iconLeft
 			- singleStarWidth;
 		const auto buttonHeight = st.height + rect::m::sum::v(st.padding);
+		const auto minCredits = (!options.empty()
+				&& (minimumCredits > options.back().credits))
+			? 0
+			: minimumCredits;
 		for (auto i = 0; i < options.size(); i++) {
 			const auto &option = options[i];
 			if (option.credits < minCredits) {
@@ -211,14 +276,11 @@ void FillCreditOptions(
 				Ui::FillAmountAndCurrency(option.amount, option.currency),
 				st::creditsTopupPrice);
 			const auto inner = Ui::CreateChild<Ui::RpWidget>(button);
-			const auto stars = GenerateStars(st.height, (i + 1));
+			const auto stars = Ui::GenerateStars(st.height, (i + 1));
 			inner->paintRequest(
 			) | rpl::start_with_next([=](const QRect &rect) {
 				auto p = QPainter(inner);
-				p.drawImage(
-					0,
-					(buttonHeight - stars.height()) / 2,
-					stars);
+				p.drawImage(0, 0, stars);
 				const auto textLeft = diffBetweenTextAndStar
 					+ stars.width() / style::DevicePixelRatio();
 				p.setPen(st.textFg);
@@ -310,7 +372,7 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 		bool rightAlign) {
 	const auto balance = Ui::CreateChild<Balance>(parent);
 	const auto balanceStar = balance->lifetime().make_state<QImage>(
-		GenerateStars(st::creditsBalanceStarHeight, 1));
+		Ui::GenerateStars(st::creditsBalanceStarHeight, 1));
 	const auto starSize = balanceStar->size() / style::DevicePixelRatio();
 	const auto label = balance->lifetime().make_state<Ui::Text::String>(
 		st::defaultTextStyle,
@@ -373,7 +435,7 @@ void ReceiptCreditsBox(
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 
-	const auto star = GenerateStars(st::creditsTopupButton.height, 1);
+	const auto star = Ui::GenerateStars(st::creditsTopupButton.height, 1);
 
 	const auto content = box->verticalLayout();
 	Ui::AddSkip(content);
@@ -383,18 +445,17 @@ void ReceiptCreditsBox(
 	using Type = Data::CreditsHistoryEntry::PeerType;
 
 	const auto &stUser = st::boostReplaceUserpic;
+	const auto session = &controller->session();
 	const auto peer = (e.peerType == Type::PremiumBot)
 		? premiumBot
-		: e.bareId
-		? controller->session().data().peer(PeerId(e.bareId)).get()
+		: e.barePeerId
+		? session->data().peer(PeerId(e.barePeerId)).get()
 		: nullptr;
-	const auto photo = e.photoId
-		? controller->session().data().photo(e.photoId).get()
-		: nullptr;
-	if (photo) {
-		content->add(object_ptr<Ui::CenterWrap<>>(
+	if (const auto callback = Ui::PaintPreviewCallback(session, e)) {
+		const auto thumb = content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
-			HistoryEntryPhoto(content, photo, stUser.photoSize)));
+			GenericEntryPhoto(content, callback, stUser.photoSize)));
+		AddViewMediaHandler(thumb->entity(), controller, e);
 	} else if (peer) {
 		content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
@@ -438,14 +499,19 @@ void ReceiptCreditsBox(
 		auto &lifetime = content->lifetime();
 		const auto text = lifetime.make_state<Ui::Text::String>(
 			st::semiboldTextStyle,
-			((!e.bareId || e.refunded) ? QChar('+') : kMinus)
+			(e.in ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(std::abs(int64(e.credits))));
-		const auto refundedText = tr::lng_channel_earn_history_return(
-			tr::now);
-		const auto refunded = e.refunded
+		const auto roundedText = e.refunded
+			? tr::lng_channel_earn_history_return(tr::now)
+			: e.pending
+			? tr::lng_channel_earn_history_pending(tr::now)
+			: e.failed
+			? tr::lng_channel_earn_history_failed(tr::now)
+			: QString();
+		const auto rounded = !roundedText.isEmpty()
 			? lifetime.make_state<Ui::Text::String>(
 				st::defaultTextStyle,
-				refundedText)
+				roundedText)
 			: (Ui::Text::String*)(nullptr);
 
 		const auto amount = content->add(
@@ -453,23 +519,25 @@ void ReceiptCreditsBox(
 				content,
 				star.height() / style::DevicePixelRatio()));
 		const auto font = text->style()->font;
-		const auto refundedFont = st::defaultTextStyle.font;
+		const auto roundedFont = st::defaultTextStyle.font;
 		const auto starWidth = star.width()
 			/ style::DevicePixelRatio();
-		const auto refundedSkip = refundedFont->spacew * 2;
-		const auto refundedWidth = refunded
-			? refundedFont->width(refundedText)
-				+ refundedSkip
-				+ refundedFont->height
+		const auto roundedSkip = roundedFont->spacew * 2;
+		const auto roundedWidth = rounded
+			? roundedFont->width(roundedText)
+				+ roundedSkip
+				+ roundedFont->height
 			: 0;
 		const auto fullWidth = text->maxWidth()
 			+ font->spacew * 1
 			+ starWidth
-			+ refundedWidth;
+			+ roundedWidth;
 		amount->paintRequest(
 		) | rpl::start_with_next([=] {
 			auto p = Painter(amount);
-			p.setPen((!e.bareId || e.refunded)
+			p.setPen(e.pending
+				? st::creditsStroke
+				: e.in
 				? st::boxTextFgGood
 				: st::menuIconAttentionColor);
 			const auto x = (amount->width() - fullWidth) / 2;
@@ -481,15 +549,15 @@ void ReceiptCreditsBox(
 				.availableWidth = amount->width(),
 			});
 			p.drawImage(
-				x + fullWidth - starWidth - refundedWidth,
+				x + fullWidth - starWidth - roundedWidth,
 				0,
 				star);
 
-			if (refunded) {
-				const auto refundedLeft = fullWidth
+			if (rounded) {
+				const auto roundedLeft = fullWidth
 					+ x
-					- refundedWidth
-					+ refundedSkip;
+					- roundedWidth
+					+ roundedSkip;
 				const auto pen = p.pen();
 				auto color = pen.color();
 				color.setAlphaF(color.alphaF() * 0.15);
@@ -498,20 +566,20 @@ void ReceiptCreditsBox(
 				{
 					auto hq = PainterHighQualityEnabler(p);
 					p.drawRoundedRect(
-						refundedLeft,
-						(amount->height() - refundedFont->height) / 2,
-						refundedWidth - refundedSkip,
-						refundedFont->height,
-						refundedFont->height / 2,
-						refundedFont->height / 2);
+						roundedLeft,
+						(amount->height() - roundedFont->height) / 2,
+						roundedWidth - roundedSkip,
+						roundedFont->height,
+						roundedFont->height / 2,
+						roundedFont->height / 2);
 				}
 				p.setPen(pen);
-				refunded->draw(p, Ui::Text::PaintContext{
+				rounded->draw(p, Ui::Text::PaintContext{
 					.position = QPoint(
-						refundedLeft + refundedFont->height / 2,
-						(amount->height() - refundedFont->height) / 2),
-					.outerWidth = refundedWidth,
-					.availableWidth = refundedWidth,
+						roundedLeft + roundedFont->height / 2,
+						(amount->height() - roundedFont->height) / 2),
+					.outerWidth = roundedWidth,
+					.availableWidth = roundedWidth,
 				});
 			}
 		}, amount->lifetime());
@@ -565,18 +633,16 @@ void ReceiptCreditsBox(
 	}, button->lifetime());
 }
 
-object_ptr<Ui::RpWidget> HistoryEntryPhoto(
+object_ptr<Ui::RpWidget> GenericEntryPhoto(
 		not_null<Ui::RpWidget*> parent,
-		not_null<PhotoData*> photo,
+		Fn<Fn<void(Painter &, int, int, int, int)>(Fn<void()>)> callback,
 		int photoSize) {
 	auto owned = object_ptr<Ui::RpWidget>(parent);
 	const auto widget = owned.data();
 	widget->resize(Size(photoSize));
 
-	const auto draw = Ui::GenerateCreditsPaintEntryCallback(
-		photo,
-		[=] { widget->update(); });
-
+	const auto draw = callback(
+		crl::guard(widget, [=] { widget->update(); }));
 	widget->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = Painter(widget);
@@ -584,6 +650,36 @@ object_ptr<Ui::RpWidget> HistoryEntryPhoto(
 	}, widget->lifetime());
 
 	return owned;
+}
+
+object_ptr<Ui::RpWidget> HistoryEntryPhoto(
+		not_null<Ui::RpWidget*> parent,
+		not_null<PhotoData*> photo,
+		int photoSize) {
+	return GenericEntryPhoto(
+		parent,
+		[=](Fn<void()> update) {
+			return Ui::GenerateCreditsPaintEntryCallback(photo, update);
+		},
+		photoSize);
+}
+
+object_ptr<Ui::RpWidget> PaidMediaThumbnail(
+		not_null<Ui::RpWidget*> parent,
+		not_null<PhotoData*> photo,
+		PhotoData *second,
+		int totalCount,
+		int photoSize) {
+	return GenericEntryPhoto(
+		parent,
+		[=](Fn<void()> update) {
+			return Ui::GeneratePaidMediaPaintCallback(
+				photo,
+				second,
+				totalCount,
+				update);
+		},
+		photoSize);
 }
 
 void SmallBalanceBox(
@@ -662,6 +758,304 @@ void SmallBalanceBox(
 			balance->update();
 		}, balance->lifetime());
 	}
+}
+
+void AddWithdrawalWidget(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		rpl::producer<QString> secondButtonUrl,
+		rpl::producer<uint64> availableBalanceValue,
+		rpl::producer<QDateTime> dateValue,
+		rpl::producer<bool> lockedValue,
+		rpl::producer<QString> usdValue) {
+	Ui::AddSkip(container);
+
+	const auto labels = container->add(
+		object_ptr<Ui::CenterWrap<Ui::RpWidget>>(
+			container,
+			object_ptr<Ui::RpWidget>(container)))->entity();
+
+	const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
+		labels,
+		rpl::duplicate(availableBalanceValue) | rpl::map([](uint64 v) {
+			return Lang::FormatCountDecimal(v);
+		}),
+		st::channelEarnBalanceMajorLabel);
+	const auto icon = Ui::CreateSingleStarWidget(
+		labels,
+		majorLabel->height());
+	majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	majorLabel->sizeValue(
+	) | rpl::start_with_next([=](const QSize &majorSize) {
+		const auto skip = st::channelEarnBalanceMinorLabelSkip;
+		labels->resize(
+			majorSize.width() + icon->width() + skip,
+			majorSize.height());
+		majorLabel->moveToLeft(icon->width() + skip, 0);
+	}, labels->lifetime());
+	Ui::ToggleChildrenVisibility(labels, true);
+
+	Ui::AddSkip(container);
+	container->add(
+		object_ptr<Ui::CenterWrap<>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				std::move(usdValue),
+				st::channelEarnOverviewSubMinorLabel)));
+
+	Ui::AddSkip(container);
+
+	const auto input = Ui::AddInputFieldForCredits(
+		container,
+		rpl::duplicate(availableBalanceValue));
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+
+	const auto &stButton = st::defaultActiveButton;
+	const auto buttonsContainer = container->add(
+		Ui::CreateSkipWidget(container, stButton.height),
+		st::boxRowPadding);
+
+	const auto button = Ui::CreateChild<Ui::RoundButton>(
+		buttonsContainer,
+		rpl::never<QString>(),
+		stButton);
+
+	const auto buttonCredits = Ui::CreateChild<Ui::RoundButton>(
+		buttonsContainer,
+		tr::lng_bot_earn_balance_button_buy_ads(),
+		stButton);
+	buttonCredits->setTextTransform(
+		Ui::RoundButton::TextTransform::NoTransform);
+
+	Ui::ToggleChildrenVisibility(buttonsContainer, true);
+
+	rpl::combine(
+		std::move(secondButtonUrl),
+		buttonsContainer->sizeValue()
+	) | rpl::start_with_next([=](const QString &url, const QSize &size) {
+		if (url.isEmpty()) {
+			button->resize(size.width(), size.height());
+			buttonCredits->resize(0, 0);
+		} else {
+			const auto w = size.width() - st::boxRowPadding.left() / 2;
+			button->resize(w / 2, size.height());
+			buttonCredits->resize(w / 2, size.height());
+			buttonCredits->moveToRight(0, 0);
+			buttonCredits->setClickedCallback([=] {
+				UrlClickHandler::Open(url);
+			});
+		}
+	}, buttonsContainer->lifetime());
+
+	rpl::duplicate(
+		lockedValue
+	) | rpl::start_with_next([=](bool v) {
+		button->setAttribute(Qt::WA_TransparentForMouseEvents, v);
+	}, button->lifetime());
+
+	const auto session = &controller->session();
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		tr::lng_channel_earn_balance_button(tr::now),
+		st::channelEarnSemiboldLabel);
+	const auto processInputChange = [&] {
+		const auto buttonEmoji = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				st::settingsPremiumIconStar,
+				{ 0, -st::moderateBoxExpandInnerSkip, 0, 0 },
+				true));
+		const auto context = Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [=] { label->update(); },
+		};
+		using Balance = rpl::variable<uint64>;
+		const auto currentBalance = input->lifetime().make_state<Balance>(
+			rpl::duplicate(availableBalanceValue));
+		const auto process = [=] {
+			const auto amount = input->getLastText().toDouble();
+			if (amount >= currentBalance->current()) {
+				label->setText(
+					tr::lng_bot_earn_balance_button_all(tr::now));
+			} else {
+				label->setMarkedText(
+					tr::lng_bot_earn_balance_button(
+						tr::now,
+						lt_count,
+						amount,
+						lt_emoji,
+						buttonEmoji,
+						Ui::Text::RichLangValue),
+					context);
+			}
+		};
+		QObject::connect(input, &Ui::MaskedInputField::changed, process);
+		process();
+		return process;
+	}();
+	label->setTextColorOverride(stButton.textFg->c);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	rpl::combine(
+		rpl::duplicate(lockedValue),
+		button->sizeValue(),
+		label->sizeValue()
+	) | rpl::start_with_next([=](bool v, const QSize &b, const QSize &l) {
+		label->moveToLeft(
+			(b.width() - l.width()) / 2,
+			(v ? -10 : 1) * (b.height() - l.height()) / 2);
+	}, label->lifetime());
+
+	const auto lockedColor = anim::with_alpha(stButton.textFg->c, .5);
+	const auto lockedLabelTop = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		tr::lng_bot_earn_balance_button_locked(),
+		st::botEarnLockedButtonLabel);
+	lockedLabelTop->setTextColorOverride(lockedColor);
+	lockedLabelTop->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto lockedLabelBottom = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		QString(),
+		st::botEarnLockedButtonLabel);
+	lockedLabelBottom->setTextColorOverride(lockedColor);
+	lockedLabelBottom->setAttribute(Qt::WA_TransparentForMouseEvents);
+	rpl::combine(
+		rpl::duplicate(lockedValue),
+		button->sizeValue(),
+		lockedLabelTop->sizeValue(),
+		lockedLabelBottom->sizeValue()
+	) | rpl::start_with_next([=](
+			bool locked,
+			const QSize &b,
+			const QSize &top,
+			const QSize &bottom) {
+		const auto factor = locked ? 1 : -10;
+		const auto sumHeight = top.height() + bottom.height();
+		lockedLabelTop->moveToLeft(
+			(b.width() - top.width()) / 2,
+			factor * (b.height() - sumHeight) / 2);
+		lockedLabelBottom->moveToLeft(
+			(b.width() - bottom.width()) / 2,
+			factor * ((b.height() - sumHeight) / 2 + top.height()));
+	}, lockedLabelTop->lifetime());
+
+	const auto dateUpdateLifetime
+		= lockedLabelBottom->lifetime().make_state<rpl::lifetime>();
+	std::move(
+		dateValue
+	) | rpl::start_with_next([=](const QDateTime &dt) {
+		dateUpdateLifetime->destroy();
+		if (dt.isNull()) {
+			return;
+		}
+		constexpr auto kDateUpdateInterval = crl::time(250);
+		const auto was = base::unixtime::serialize(dt);
+
+		const auto context = Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [=] { lockedLabelBottom->update(); },
+		};
+		const auto emoji = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				st::chatSimilarLockedIcon,
+				st::botEarnButtonLockMargins,
+				true));
+
+		rpl::single(
+			rpl::empty
+		) | rpl::then(
+			base::timer_each(kDateUpdateInterval)
+		) | rpl::start_with_next([=] {
+			const auto secondsDifference = std::max(
+				was - base::unixtime::now() - 1,
+				0);
+			const auto hours = secondsDifference / 3600;
+			const auto minutes = (secondsDifference % 3600) / 60;
+			const auto seconds = secondsDifference % 60;
+			constexpr auto kZero = QChar('0');
+			const auto formatted = (hours > 0)
+				? (u"%1:%2:%3"_q)
+					.arg(hours, 2, 10, kZero)
+					.arg(minutes, 2, 10, kZero)
+					.arg(seconds, 2, 10, kZero)
+				: (u"%1:%2"_q)
+					.arg(minutes, 2, 10, kZero)
+					.arg(seconds, 2, 10, kZero);
+			lockedLabelBottom->setMarkedText(
+				base::duplicate(emoji).append(formatted),
+				context);
+		}, *dateUpdateLifetime);
+	}, lockedLabelBottom->lifetime());
+
+	Api::HandleWithdrawalButton(
+		Api::RewardReceiver{
+			.creditsReceiver = peer,
+			.creditsAmount = [=, show = controller->uiShow()] {
+				const auto amount = input->getLastText().toULongLong();
+				const auto min = float64(WithdrawalMin(session));
+				if (amount < min) {
+					auto text = tr::lng_bot_earn_credits_out_minimal(
+						tr::now,
+						lt_link,
+						Ui::Text::Link(
+							tr::lng_bot_earn_credits_out_minimal_link(
+								tr::now,
+								lt_count,
+								min),
+							u"internal:"_q),
+						Ui::Text::RichLangValue);
+					show->showToast(Ui::Toast::Config{
+						.text = std::move(text),
+						.filter = [=](const auto ...) {
+							input->setText(QString::number(min));
+							processInputChange();
+							return true;
+						},
+					});
+					return 0ULL;
+				}
+				return amount;
+			},
+		},
+		button,
+		controller->uiShow());
+	Ui::ToggleChildrenVisibility(button, true);
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+
+	const auto arrow = Ui::Text::SingleCustomEmoji(
+		session->data().customEmojiManager().registerInternalEmoji(
+			st::topicButtonArrow,
+			st::channelEarnLearnArrowMargins,
+			false));
+	auto about = Ui::CreateLabelWithCustomEmoji(
+		container,
+		tr::lng_bot_earn_learn_credits_out_about(
+			lt_link,
+			tr::lng_channel_earn_about_link(
+				lt_emoji,
+				rpl::single(arrow),
+				Ui::Text::RichLangValue
+			) | rpl::map([](TextWithEntities text) {
+				return Ui::Text::Link(
+					std::move(text),
+					tr::lng_bot_earn_balance_about_url(tr::now));
+			}),
+			Ui::Text::RichLangValue),
+		{ .session = session },
+		st::boxDividerLabel);
+	Ui::AddSkip(container);
+	container->add(object_ptr<Ui::DividerLabel>(
+		container,
+		std::move(about),
+		st::defaultBoxDividerLabelPadding,
+		RectPart::Top | RectPart::Bottom));
+
+	Ui::AddSkip(container);
 }
 
 } // namespace Settings

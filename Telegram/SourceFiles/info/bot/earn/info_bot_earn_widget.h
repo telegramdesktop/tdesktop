@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_channel_earn.h"
+#include "data/data_credits_earn.h"
 #include "info/info_content_widget.h"
 
-namespace Info::ChannelEarn {
+namespace Info::BotEarn {
 
 class InnerWidget;
 
@@ -27,7 +27,7 @@ public:
 
 	Section section() const override;
 
-	using SavedState = Data::EarnStatistics;
+	using SavedState = Data::CreditsEarnStatistics;
 
 	void setState(SavedState states);
 	[[nodiscard]] SavedState state();
@@ -65,4 +65,4 @@ private:
 
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer);
 
-} // namespace Info::ChannelEarn
+} // namespace Info::BotEarn

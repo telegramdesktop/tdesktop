@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/unread_badge_paint.h"
 #include "ui/vertical_list.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
@@ -551,9 +552,15 @@ void MainMenu::setupArchive() {
 	const auto folder = [=] {
 		return controller->session().data().folderLoaded(Data::Folder::kId);
 	};
-	const auto showArchive = [=] {
+	const auto showArchive = [=](Qt::KeyboardModifiers modifiers) {
 		if (const auto f = folder()) {
-			controller->openFolder(f);
+			if (modifiers & Qt::ControlModifier) {
+				controller->showInNewWindow(Window::SeparateId(
+					Window::SeparateType::Archive,
+					&controller->session()));
+			} else {
+				controller->openFolder(f);
+			}
 			controller->window().hideSettingsAndLayer();
 		}
 	};
@@ -583,7 +590,7 @@ void MainMenu::setupArchive() {
 	button->clicks(
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		if (which == Qt::LeftButton) {
-			showArchive();
+			showArchive(button->clickModifiers());
 			return;
 		} else if (which != Qt::RightButton) {
 			return;
@@ -591,35 +598,13 @@ void MainMenu::setupArchive() {
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(
 			this,
 			st::popupMenuExpandedSeparator);
-		const auto addAction = PeerMenuCallback([&](
-				PeerMenuCallback::Args a) {
-			return _contextMenu->addAction(
-				a.text,
-				std::move(a.handler),
-				a.icon);
-		});
-
-		const auto hide = [=] {
-			controller->session().settings().setArchiveInMainMenu(false);
-			controller->session().saveSettingsDelayed();
-			controller->window().hideSettingsAndLayer();
-		};
-		addAction(
-			tr::lng_context_archive_to_list(tr::now),
-			std::move(hide),
-			&st::menuIconFromMainMenu);
-
-		MenuAddMarkAsReadChatListAction(
-			controller,
-			[f = folder()] { return f->chatsList(); },
-			addAction);
-
-		_contextMenu->addSeparator();
-		Settings::PreloadArchiveSettings(&controller->session());
-		addAction(tr::lng_context_archive_settings(tr::now), [=] {
-			controller->show(Box(Settings::ArchiveSettingsBox, controller));
-		}, &st::menuIconManage);
-
+		Window::FillDialogsEntryMenu(
+			_controller,
+			Dialogs::EntryState{
+				.key = folder(),
+				.section = Dialogs::EntryState::Section::ContextMenu,
+			},
+			Ui::Menu::CreateAddActionCallback(_contextMenu));
 		_contextMenu->popup(QCursor::pos());
 	}, button->lifetime());
 
@@ -957,21 +942,15 @@ void MainMenu::drawName(Painter &p) {
 }
 
 void MainMenu::initResetScaleButton() {
-	if (!window() || !window()->windowHandle()) {
-		return;
-	}
-	const auto handle = window()->windowHandle();
-	rpl::single(
-		handle->screen()
-	) | rpl::then(
-		base::qt_signal_producer(handle, &QWindow::screenChanged)
-	) | rpl::filter([](QScreen *screen) {
-		return screen != nullptr;
-	}) | rpl::map([](QScreen * screen) {
+	_controller->widget()->screenValue(
+	) | rpl::map([](not_null<QScreen*> screen) {
 		return rpl::single(
 			screen->availableGeometry()
 		) | rpl::then(
-			base::qt_signal_producer(screen, &QScreen::availableGeometryChanged)
+			base::qt_signal_producer(
+				screen.get(),
+				&QScreen::availableGeometryChanged
+			)
 		);
 	}) | rpl::flatten_latest(
 	) | rpl::map([](QRect available) {

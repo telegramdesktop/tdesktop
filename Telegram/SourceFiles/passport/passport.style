@@ -159,7 +159,7 @@ passportDetailsField: InputField(defaultInputField) {
 	placeholderScale: 0.;
 	placeholderFont: normalFont;
 	heightMin: 32px;
-	font: normalFont;
+	style: defaultTextStyle;
 }
 passportDetailsDateField: InputField(passportDetailsField) {
 	textMargins: margins(2px, 8px, 2px, 0px);
@@ -178,7 +178,7 @@ passportDetailsSeparator: FlatLabel(passportPasswordLabelBold) {
 }
 passportDetailsSeparatorPadding: margins(5px, 8px, 5px, 0px);
 passportContactField: InputField(defaultInputField) {
-	font: normalFont;
+	style: defaultTextStyle;
 }
 passportDetailsFieldLeft: 116px;
 passportDetailsFieldTop: 2px;

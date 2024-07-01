@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_cloud_password.h"
 #include "apiwrap.h"
+#include "ui/layers/generic_box.h"
 #include "boxes/passcode_box.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
@@ -34,20 +35,31 @@ void RestrictSponsored(
 }
 
 void HandleWithdrawalButton(
-		not_null<ChannelData*> channel,
+		RewardReceiver receiver,
 		not_null<Ui::RippleButton*> button,
 		std::shared_ptr<Ui::Show> show) {
+	Expects(receiver.currencyReceiver
+		|| (receiver.creditsReceiver && receiver.creditsAmount));
 	struct State {
 		rpl::lifetime lifetime;
 		bool loading = false;
 	};
 
+	const auto channel = receiver.currencyReceiver;
+	const auto peer = receiver.creditsReceiver;
+
 	const auto state = button->lifetime().make_state<State>();
-	const auto session = &channel->session();
+	const auto session = (channel ? &channel->session() : &peer->session());
+
+	using ChannelOutUrl = MTPstats_BroadcastRevenueWithdrawalUrl;
+	using CreditsOutUrl = MTPpayments_StarsRevenueWithdrawalUrl;
 
 	session->api().cloudPassword().reload();
-	button->setClickedCallback([=] {
+	const auto processOut = [=] {
 		if (state->loading) {
+			return;
+		}
+		if (peer && !receiver.creditsAmount()) {
 			return;
 		}
 		state->loading = true;
@@ -58,10 +70,12 @@ void HandleWithdrawalButton(
 			state->loading = false;
 
 			auto fields = PasscodeBox::CloudFields::From(pass);
-			fields.customTitle
-				= tr::lng_channel_earn_balance_password_title();
-			fields.customDescription
-				= tr::lng_channel_earn_balance_password_description(tr::now);
+			fields.customTitle = channel
+				? tr::lng_channel_earn_balance_password_title()
+				: tr::lng_bot_earn_balance_password_title();
+			fields.customDescription = channel
+				? tr::lng_channel_earn_balance_password_description(tr::now)
+				: tr::lng_bot_earn_balance_password_description(tr::now);
 			fields.customSubmitButton = tr::lng_passcode_submit();
 			fields.customCheckCallback = crl::guard(button, [=](
 					const Core::CloudPasswordResult &result,
@@ -74,22 +88,63 @@ void HandleWithdrawalButton(
 						}
 					}
 				};
-				const auto fail = [=](const QString &error) {
-					show->showToast(error);
+				const auto fail = [=](const MTP::Error &error) {
+					show->showToast(error.type());
 				};
-				session->api().request(
-					MTPstats_GetBroadcastRevenueWithdrawalUrl(
-						channel->inputChannel,
-						result.result
-				)).done([=](const MTPstats_BroadcastRevenueWithdrawalUrl &r) {
-					done(qs(r.data().vurl()));
-				}).fail([=](const MTP::Error &error) {
-					fail(error.type());
-				}).send();
+				if (channel) {
+					session->api().request(
+						MTPstats_GetBroadcastRevenueWithdrawalUrl(
+							channel->inputChannel,
+							result.result
+					)).done([=](const ChannelOutUrl &r) {
+						done(qs(r.data().vurl()));
+					}).fail(fail).send();
+				} else if (peer) {
+					session->api().request(
+						MTPpayments_GetStarsRevenueWithdrawalUrl(
+							peer->input,
+							MTP_long(receiver.creditsAmount()),
+							result.result
+					)).done([=](const CreditsOutUrl &r) {
+						done(qs(r.data().vurl()));
+					}).fail(fail).send();
+				}
 			});
 			show->show(Box<PasscodeBox>(session, fields));
 		});
-
+	};
+	button->setClickedCallback([=] {
+		if (state->loading) {
+			return;
+		}
+		const auto fail = [=](const MTP::Error &error) {
+			auto box = PrePasswordErrorBox(
+				error.type(),
+				session,
+				TextWithEntities{
+					tr::lng_channel_earn_out_check_password_about(tr::now),
+				});
+			if (box) {
+				show->show(std::move(box));
+				state->loading = false;
+			} else {
+				processOut();
+			}
+		};
+		if (channel) {
+			session->api().request(
+				MTPstats_GetBroadcastRevenueWithdrawalUrl(
+					channel->inputChannel,
+					MTP_inputCheckPasswordEmpty()
+			)).fail(fail).send();
+		} else if (peer) {
+			session->api().request(
+				MTPpayments_GetStarsRevenueWithdrawalUrl(
+					peer->input,
+					MTP_long(std::numeric_limits<int64_t>::max()),
+					MTP_inputCheckPasswordEmpty()
+			)).fail(fail).send();
+		}
 	});
 }
 

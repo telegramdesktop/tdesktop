@@ -317,7 +317,7 @@ ClickHandlerPtr JumpToMessageClickHandler(
 		TextWithEntities highlightPart,
 		int highlightPartOffsetHint) {
 	return std::make_shared<LambdaClickHandler>([=] {
-		const auto separate = Core::App().separateWindowForPeer(peer);
+		const auto separate = Core::App().separateWindowFor(peer);
 		const auto controller = separate
 			? separate->sessionController()
 			: peer->session().tryResolveWindow();
@@ -347,7 +347,7 @@ ClickHandlerPtr JumpToStoryClickHandler(
 		not_null<PeerData*> peer,
 		StoryId storyId) {
 	return std::make_shared<LambdaClickHandler>([=] {
-		const auto separate = Core::App().separateWindowForPeer(peer);
+		const auto separate = Core::App().separateWindowFor(peer);
 		const auto controller = separate
 			? separate->sessionController()
 			: peer->session().tryResolveWindow();
@@ -556,6 +556,8 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	}, [](const MTPDmessageMediaGiveaway &) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaGiveawayResults &) {
+		return Result::Good;
+	}, [](const MTPDmessageMediaPaidMedia &) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaUnsupported &) {
 		return Result::Unsupported;

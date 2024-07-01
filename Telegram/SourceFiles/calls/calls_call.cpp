@@ -706,7 +706,8 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {
-			const auto window = Core::App().windowFor(_user);
+			const auto window = Core::App().windowFor(
+				Window::SeparateId(_user));
 			const auto session = &_user->session();
 			const auto callId = _id;
 			const auto callAccessHash = _accessHash;
@@ -1402,7 +1403,8 @@ void Call::handleRequestError(const QString &error) {
 			_user->name())
 		: QString();
 	if (!inform.isEmpty()) {
-		if (const auto window = Core::App().windowFor(_user)) {
+		if (const auto window = Core::App().windowFor(
+				Window::SeparateId(_user))) {
 			window->show(Ui::MakeInformBox(inform));
 		} else {
 			Ui::show(Ui::MakeInformBox(inform));
@@ -1420,7 +1422,8 @@ void Call::handleControllerError(const QString &error) {
 		? tr::lng_call_error_audio_io(tr::now)
 		: QString();
 	if (!inform.isEmpty()) {
-		if (const auto window = Core::App().windowFor(_user)) {
+		if (const auto window = Core::App().windowFor(
+				Window::SeparateId(_user))) {
 			window->show(Ui::MakeInformBox(inform));
 		} else {
 			Ui::show(Ui::MakeInformBox(inform));

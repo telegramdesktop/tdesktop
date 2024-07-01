@@ -1393,7 +1393,6 @@ groupCallScheduleDateField: InputField(groupCallField) {
 	placeholderScale: 0.;
 	heightMin: 30px;
 	textAlign: align(top);
-	font: font(14px);
 }
 groupCallScheduleTimeField: InputField(groupCallScheduleDateField) {
 	textBg: groupCallMembersBg;

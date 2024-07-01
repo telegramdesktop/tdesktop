@@ -29,7 +29,7 @@ private:
 	bool nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		long *result) override;
+		native_event_filter_result *result) override;
 	bool processEvent(
 		HWND hWnd,
 		UINT msg,

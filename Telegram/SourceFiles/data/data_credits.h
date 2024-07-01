@@ -19,6 +19,16 @@ struct CreditTopupOption final {
 
 using CreditTopupOptions = std::vector<CreditTopupOption>;
 
+enum class CreditsHistoryMediaType {
+	Photo,
+	Video,
+};
+
+struct CreditsHistoryMedia {
+	CreditsHistoryMediaType type = CreditsHistoryMediaType::Photo;
+	uint64 id = 0;
+};
+
 struct CreditsHistoryEntry final {
 	using PhotoId = uint64;
 	enum class PeerType {
@@ -28,16 +38,26 @@ struct CreditsHistoryEntry final {
 		Fragment,
 		Unsupported,
 		PremiumBot,
+		Ads,
 	};
+
 	QString id;
 	QString title;
 	QString description;
 	QDateTime date;
 	PhotoId photoId = 0;
+	std::vector<CreditsHistoryMedia> extended;
 	uint64 credits = 0;
-	uint64 bareId = 0;
+	uint64 bareMsgId = 0;
+	uint64 barePeerId = 0;
 	PeerType peerType;
 	bool refunded = false;
+	bool pending = false;
+	bool failed = false;
+	QDateTime successDate;
+	QString successLink;
+	bool in = false;
+
 };
 
 struct CreditsStatusSlice final {

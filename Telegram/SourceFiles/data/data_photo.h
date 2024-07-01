@@ -53,6 +53,7 @@ public:
 
 	void automaticLoadSettingsChanged();
 
+	[[nodiscard]] TimeId date() const;
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] bool displayLoading() const;
 	void cancel();
@@ -88,6 +89,14 @@ public:
 	[[nodiscard]] std::shared_ptr<Data::PhotoMedia> createMediaView();
 	[[nodiscard]] auto activeMediaView() const
 		-> std::shared_ptr<Data::PhotoMedia>;
+
+	void setFields(TimeId date, bool hasAttachedStickers);
+	void setExtendedMediaPreview(
+		QSize dimensions,
+		const QByteArray &inlineThumbnailBytes,
+		std::optional<TimeId> videoDuration);
+	[[nodiscard]] bool extendedMediaPreview() const;
+	[[nodiscard]] std::optional<TimeId> extendedMediaVideoDuration() const;
 
 	void updateImages(
 		const QByteArray &inlineThumbnailBytes,
@@ -148,11 +157,10 @@ public:
 	void setHasAttachedStickers(bool value);
 
 	// For now they return size of the 'large' image.
-	int width() const;
-	int height() const;
+	[[nodiscard]] int width() const;
+	[[nodiscard]] int height() const;
 
 	PhotoId id = 0;
-	TimeId date = 0;
 
 	PeerData *peer = nullptr; // for chat and channel photos connection
 	// geo, caption
@@ -163,6 +171,8 @@ private:
 	[[nodiscard]] Data::CloudFile &videoFile(Data::PhotoSize size);
 	[[nodiscard]] const Data::CloudFile &videoFile(
 		Data::PhotoSize size) const;
+
+	TimeId _dateOrExtendedVideoDuration = 0;
 
 	struct VideoSizes {
 		Data::CloudFile small;
@@ -177,6 +187,8 @@ private:
 	int32 _dc = 0;
 	uint64 _access = 0;
 	bool _hasStickers = false;
+	bool _extendedMediaPreview = false;
+
 	QByteArray _fileReference;
 	std::unique_ptr<Data::ReplyPreview> _replyPreview;
 	std::weak_ptr<Data::PhotoMedia> _media;

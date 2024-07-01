@@ -1,3 +1,36 @@
+5.2.1 (01.07.24)
+
+- Fix crash when opening topic in a new window.
+- Fix crash in topic search scope dropdown.
+- Fix crash in video player.
+- Fix feeze and crash in Instant View (Windows).
+- Allow unlock by Apple Watch or System Password (macOS).
+
+5.2 (30.06.24)
+
+- Pay for content with Telegram Stars.
+- Enable local passcode unlock by Windows Hello and Touch ID.
+- Allow opening forums, topics and archive in a separate window.
+
+5.1.8 beta (15.06.24)
+
+- Support nice blockquotes and code blocks edition when composing messages.
+- Support collapsing blockquotes and specifying syntax highlight language.
+- Support nice spoiler animation in the message composing input field.
+
+5.1.7 (14.06.24)
+
+- Fix recently searched hashtags in chats search.
+- Fix formatting shortcuts on macOS.
+- Fix non-Telegram-Stars-invoice bot buttons with star emoji.
+
+5.1.6 (13.06.24)
+
+- Fix search in archived chats in single-column layout.
+- Improve chat previews for topics, Saved Messages and groups.
+- Fix formatting shortcuts on Linux.
+- Fix options for Telegram Stars buying in case of large amounts.
+
 5.1.5 (07.06.24)
 
 - Return WebView on Windows.

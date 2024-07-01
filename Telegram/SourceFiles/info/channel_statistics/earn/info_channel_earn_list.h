@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_channel_earn.h"
+#include "info/channel_statistics/earn/info_channel_earn_widget.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
 
@@ -56,13 +56,14 @@ private:
 	not_null<PeerData*> _peer;
 	std::shared_ptr<Ui::Show> _show;
 
-	Data::EarnStatistics _state;
+	Memento::SavedState _state;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<ShowRequest> _showRequests;
 	rpl::event_stream<> _showFinished;
 	rpl::event_stream<> _focusRequested;
 	rpl::event_stream<bool> _loaded;
+	rpl::event_stream<> _stateUpdated;
 
 };
 

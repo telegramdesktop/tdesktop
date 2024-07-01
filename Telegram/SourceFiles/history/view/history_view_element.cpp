@@ -198,9 +198,15 @@ void DefaultElementDelegate::elementStartEffect(
 }
 
 QString DefaultElementDelegate::elementAuthorRank(
-	not_null<const Element*> view) {
+		not_null<const Element*> view) {
 	return {};
 }
+
+bool DefaultElementDelegate::elementHideTopicButton(
+		not_null<const Element*> view) {
+	return true;
+}
+
 
 SimpleElementDelegate::SimpleElementDelegate(
 	not_null<Window::SessionController*> controller,
@@ -713,6 +719,14 @@ void Element::overrideMedia(std::unique_ptr<Media> media) {
 		history()->owner().requestViewResize(this);
 	}
 	_flags |= Flag::MediaOverriden;
+}
+
+not_null<PurchasedTag*> Element::enforcePurchasedTag() {
+	if (const auto purchased = Get<PurchasedTag>()) {
+		return purchased;
+	}
+	AddComponents(PurchasedTag::Bit());
+	return Get<PurchasedTag>();
 }
 
 void Element::refreshMedia(Element *replacing) {

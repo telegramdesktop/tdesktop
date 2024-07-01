@@ -213,6 +213,7 @@ private:
 	mutable bool _thumbCacheBlurred : 1 = false;
 	mutable bool _thumbIsEllipse : 1 = false;
 	mutable bool _pollingStory : 1 = false;
+	mutable bool _purchasedPriceTag : 1 = false;
 
 };
 

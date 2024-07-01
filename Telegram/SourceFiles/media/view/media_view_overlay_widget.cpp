@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_attached_stickers.h"
 #include "api/api_peer_photo.h"
+#include "base/qt/qt_common_adapters.h"
 #include "lang/lang_keys.h"
 #include "boxes/premium_preview_box.h"
 #include "core/application.h"
@@ -504,6 +505,22 @@ OverlayWidget::OverlayWidget()
 			if (handleContextMenu(position)) {
 				return base::EventFilterResult::Cancel;
 			}
+		} else if (e->type() == QEvent::WindowStateChange) {
+			const auto state = window()->windowState();
+			if (state == Qt::WindowMinimized || Platform::IsMac()) {
+			} else if (state == Qt::WindowMaximized) {
+				if (_fullscreen || _windowed) {
+					_fullscreen = _windowed = false;
+					savePosition();
+				}
+			} else if (_fullscreen || _windowed) {
+			} else if (state == Qt::WindowFullScreen) {
+				_fullscreen = true;
+				savePosition();
+			} else {
+				_windowed = true;
+				savePosition();
+			}
 		}
 		return base::EventFilterResult::Continue;
 	});
@@ -615,10 +632,10 @@ OverlayWidget::OverlayWidget()
 	}
 	_widget->setMouseTracking(true);
 
-	QObject::connect(
-		window(),
-		&QWindow::screenChanged,
-		[=](QScreen *screen) { handleScreenChanged(screen); });
+	_window->screenValue(
+	) | rpl::skip(1) | rpl::start_with_next([=](not_null<QScreen*> screen) {
+		handleScreenChanged(screen);
+	}, lifetime());
 	subscribeToScreenGeometry();
 	updateGeometry();
 	updateControlsGeometry();
@@ -733,29 +750,6 @@ void OverlayWidget::setupWindow() {
 		return Flag::Move | Flag(0);
 	});
 
-	const auto callback = [=](Qt::WindowState state) {
-		if (state == Qt::WindowMinimized || Platform::IsMac()) {
-			return;
-		} else if (state == Qt::WindowMaximized) {
-			if (_fullscreen || _windowed) {
-				_fullscreen = _windowed = false;
-				savePosition();
-			}
-		} else if (_fullscreen || _windowed) {
-			return;
-		} else if (state == Qt::WindowFullScreen) {
-			_fullscreen = true;
-			savePosition();
-		} else {
-			_windowed = true;
-			savePosition();
-		}
-	};
-	QObject::connect(
-		_window->windowHandle(),
-		&QWindow::windowStateChanged,
-		callback);
-
 	_window->setAttribute(Qt::WA_NoSystemBackground, true);
 	_window->setAttribute(Qt::WA_TranslucentBackground, true);
 
@@ -809,7 +803,11 @@ void OverlayWidget::moveToScreen(bool inMove) {
 		DEBUG_LOG(("Viewer Pos: Currently on screen %1, moving to screen %2")
 			.arg(screenList.indexOf(myScreen))
 			.arg(screenList.indexOf(activeWindowScreen)));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		_window->setScreen(activeWindowScreen);
+#else // Qt >= 6.0.0
 		window()->setScreen(activeWindowScreen);
+#endif // Qt < 6.0.0
 		DEBUG_LOG(("Viewer Pos: New actual screen: %1")
 			.arg(screenList.indexOf(_window->screen())));
 	}
@@ -867,7 +865,8 @@ void OverlayWidget::savePosition() {
 	} else if (!_wasWindowedMode && !Platform::IsMac()) {
 		return;
 	} else {
-		auto r = _normalGeometry = _window->geometry();
+		auto r = _normalGeometry = _window->body()->mapToGlobal(
+			_window->body()->rect());
 		realPosition.x = r.x();
 		realPosition.y = r.y();
 		realPosition.w = r.width();
@@ -912,7 +911,7 @@ void OverlayWidget::updateGeometry(bool inMove) {
 			.arg(_normalGeometry.y())
 			.arg(_normalGeometry.width())
 			.arg(_normalGeometry.height()));
-		_window->RpWidget::setGeometry(_normalGeometry);
+		_window->setGeometry(_normalGeometry);
 	}
 	if constexpr (!Platform::IsMac()) {
 		if (_fullscreen) {
@@ -1368,7 +1367,7 @@ void OverlayWidget::updateControls() {
 		if (_message) {
 			return ItemDateTime(_message);
 		} else if (_photo) {
-			return base::unixtime::parse(_photo->date);
+			return base::unixtime::parse(_photo->date());
 		} else if (_document) {
 			return base::unixtime::parse(_document->date);
 		}
@@ -2221,9 +2220,6 @@ void OverlayWidget::close() {
 		return;
 	}
 	hide();
-	if (const auto window = Core::App().activeWindow()) {
-		window->reActivate();
-	}
 	_helper->clearState();
 }
 
@@ -2323,7 +2319,7 @@ void OverlayWidget::dropdownHidden() {
 	}
 }
 
-void OverlayWidget::handleScreenChanged(QScreen *screen) {
+void OverlayWidget::handleScreenChanged(not_null<QScreen*> screen) {
 	subscribeToScreenGeometry();
 	if (isHidden()) {
 		return;
@@ -2445,7 +2441,7 @@ void OverlayWidget::saveAs() {
 					u".mp4"_q,
 					QString(),
 					false,
-					_photo->date),
+					_photo->date()),
 				crl::guard(_window, [=](const QString &result) {
 					QFile f(result);
 					if (!result.isEmpty()
@@ -2476,7 +2472,7 @@ void OverlayWidget::saveAs() {
 				u".jpg"_q,
 				QString(),
 				false,
-				_photo->date),
+				_photo->date()),
 			crl::guard(_window, [=](const QString &result) {
 				if (!result.isEmpty() && _photo == photo) {
 					media->saveToFile(result);
@@ -2780,7 +2776,7 @@ auto OverlayWidget::sharedMediaType() const
 	using Type = SharedMediaType;
 	if (_message) {
 		if (const auto media = _message->media()) {
-			if (media->webpage()) {
+			if (media->webpage() || media->invoice()) {
 				return std::nullopt;
 			}
 		}
@@ -3008,6 +3004,14 @@ std::optional<OverlayWidget::CollageKey> OverlayWidget::collageKey() const {
 						return item;
 					}
 				}
+			} else if (const auto invoice = media->invoice()) {
+				for (const auto &item : invoice->extendedMedia) {
+					if (_photo && item->photo() == _photo) {
+						return _photo;
+					} else if (_document && item->document() == _document) {
+						return _document;
+					}
+				}
 			}
 		}
 	}
@@ -3041,6 +3045,16 @@ void OverlayWidget::validateCollage() {
 			if (const auto media = _message->media()) {
 				if (const auto page = media->webpage()) {
 					_collageData = page->collage;
+				} else if (const auto invoice = media->invoice()) {
+					auto &data = *_collageData;
+					data.items.reserve(invoice->extendedMedia.size());
+					for (const auto &item : invoice->extendedMedia) {
+						if (const auto photo = item->photo()) {
+							data.items.push_back(photo);
+						} else if (const auto document = item->document()) {
+							data.items.push_back(document);
+						}
+					}
 				}
 			}
 		}
@@ -3253,7 +3267,7 @@ bool OverlayWidget::isHidden() const {
 }
 
 bool OverlayWidget::isMinimized() const {
-	return _window->windowHandle()->windowState() == Qt::WindowMinimized;
+	return _window->isMinimized();
 }
 
 bool OverlayWidget::isFullScreen() const {
@@ -3831,12 +3845,13 @@ void OverlayWidget::updatePowerSaveBlocker(
 		&& _document->isVideoFile()
 		&& !IsPausedOrPausing(state.state)
 		&& !IsStoppedOrStopping(state.state);
+
 	base::UpdatePowerSaveBlocker(
 		_streamed->powerSaveBlocker,
 		block,
 		base::PowerSaveBlockType::PreventDisplaySleep,
 		[] { return u"Video playback is active"_q; },
-		[=] { return window(); });
+		[=] { return _window->windowHandle(); });
 }
 
 QImage OverlayWidget::transformedShownContent() const {
@@ -5844,6 +5859,8 @@ void OverlayWidget::handleMouseRelease(
 			QVariant::fromValue(ClickHandlerContext{
 				.itemId = _message ? _message->fullId() : FullMsgId(),
 				.sessionWindow = base::make_weak(findWindow()),
+				.show = _stories ? _stories->uiShow() : nullptr,
+				.dark = true,
 			})
 		});
 		return;
@@ -6142,7 +6159,7 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 
 	if (switchTo) {
 		auto controllerPtr = (Window::SessionController*)nullptr;
-		const auto account = &_session->account();
+		const auto account = not_null(&_session->account());
 		const auto sessionWindow = Core::App().windowFor(account);
 		const auto anyWindow = (sessionWindow
 			&& &sessionWindow->account() == account)

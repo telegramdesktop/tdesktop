@@ -72,7 +72,7 @@ public:
 		style::align alignSmall,
 		QRect geometryFull = QRect());
 	void setShowTooltip(
-		not_null<QWidget*> tooltipParent,
+		not_null<Ui::RpWidget*> tooltipParent,
 		rpl::producer<bool> shown,
 		Fn<void()> hide);
 	void raiseTooltip();

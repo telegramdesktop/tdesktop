@@ -503,6 +503,10 @@ void AlbumThumbnail::paintFile(
 		_fileThumb.size() / style::DevicePixelRatio());
 }
 
+QRect AlbumThumbnail::geometry() const {
+	return _layout.geometry;
+}
+
 bool AlbumThumbnail::containsPoint(QPoint position) const {
 	return _layout.geometry.contains(position);
 }

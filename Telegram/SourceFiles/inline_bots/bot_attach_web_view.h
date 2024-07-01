@@ -165,6 +165,7 @@ private:
 	bool botHandleLocalUri(QString uri, bool keepOpen) override;
 	void botHandleInvoice(QString slug) override;
 	void botHandleMenuButton(Ui::BotWebView::MenuButton button) override;
+	bool botValidateExternalLink(QString uri) override;
 	void botOpenIvLink(QString uri) override;
 	void botSendData(QByteArray data) override;
 	void botSwitchInlineQuery(
@@ -184,6 +185,9 @@ private:
 		const std::unique_ptr<Context> &a,
 		const Context &b);
 
+	bool openAppFromMenuLink(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> bot);
 	void requestWithOptionalConfirm(
 		not_null<UserData*> bot,
 		const WebViewButton &button,

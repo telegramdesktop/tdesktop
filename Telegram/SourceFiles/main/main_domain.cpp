@@ -318,8 +318,8 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 void Domain::addActivated(MTP::Environment environment, bool newWindow) {
 	const auto added = [&](not_null<Main::Account*> account) {
 		if (newWindow) {
-			Core::App().ensureSeparateWindowForAccount(account);
-		} else if (const auto window = Core::App().separateWindowForAccount(
+			Core::App().ensureSeparateWindowFor(account);
+		} else if (const auto window = Core::App().separateWindowFor(
 				account)) {
 			window->activate();
 		} else {
@@ -371,11 +371,11 @@ void Domain::watchSession(not_null<Account*> account) {
 void Domain::closeAccountWindows(not_null<Main::Account*> account) {
 	auto another = (Main::Account*)nullptr;
 	for (auto i = _accounts.begin(); i != _accounts.end(); ++i) {
-		const auto other = i->account.get();
+		const auto other = not_null(i->account.get());
 		if (other == account) {
 			continue;
-		} else if (Core::App().separateWindowForAccount(other)) {
-			const auto that = Core::App().separateWindowForAccount(account);
+		} else if (Core::App().separateWindowFor(other)) {
+			const auto that = Core::App().separateWindowFor(account);
 			if (that) {
 				that->close();
 			}
@@ -403,6 +403,8 @@ bool Domain::removePasscodeIfEmpty() {
 		return false;
 	}
 	_local->setPasscode(QByteArray());
+	Core::App().settings().setSystemUnlockEnabled(false);
+	Core::App().saveSettingsDelayed();
 	return true;
 }
 
@@ -411,7 +413,7 @@ void Domain::removeRedundantAccounts() {
 
 	const auto was = _accounts.size();
 	for (auto i = _accounts.begin(); i != _accounts.end();) {
-		if (Core::App().separateWindowForAccount(i->account.get())
+		if (Core::App().separateWindowFor(not_null(i->account.get()))
 			|| i->account->sessionExists()) {
 			++i;
 			continue;
@@ -442,7 +444,7 @@ void Domain::checkForLastProductionConfig(
 }
 
 void Domain::maybeActivate(not_null<Main::Account*> account) {
-	if (Core::App().separateWindowForAccount(account)) {
+	if (Core::App().separateWindowFor(account)) {
 		activate(account);
 	} else {
 		Core::App().preventOrInvoke(crl::guard(account, [=] {
@@ -452,7 +454,7 @@ void Domain::maybeActivate(not_null<Main::Account*> account) {
 }
 
 void Domain::activate(not_null<Main::Account*> account) {
-	if (const auto window = Core::App().separateWindowForAccount(account)) {
+	if (const auto window = Core::App().separateWindowFor(account)) {
 		window->activate();
 	}
 	if (_active.current() == account.get()) {

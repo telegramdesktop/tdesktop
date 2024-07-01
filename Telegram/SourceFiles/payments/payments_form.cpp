@@ -399,6 +399,7 @@ void Form::requestForm() {
 				.amount = amount,
 			};
 			const auto formData = CreditsFormData{
+				.id = _id,
 				.formId = data.vform_id().v,
 				.botId = data.vbot_id().v,
 				.title = qs(data.vtitle()),

@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/layers/box_content.h"
 #include "base/bytes.h"
+#include "base/timer.h"
+
+namespace base {
+enum class SystemUnlockResult;
+} // namespace base
 
 namespace Ui {
 class PasswordInput;
@@ -60,15 +65,32 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	enum class SystemUnlockType : uchar {
+		None,
+		Default,
+		Biometrics,
+		Companion,
+	};
+
 	void paintContent(QPainter &p) override;
+
+	void setupSystemUnlockInfo();
+	void setupSystemUnlock();
+	void suggestSystemUnlock();
+	void systemUnlockDone(base::SystemUnlockResult result);
 	void changed();
 	void submit();
 	void error();
 
+	rpl::variable<SystemUnlockType> _systemUnlockAvailable;
+	rpl::variable<SystemUnlockType> _systemUnlockAllowed;
 	object_ptr<Ui::PasswordInput> _passcode;
 	object_ptr<Ui::RoundButton> _submit;
 	object_ptr<Ui::LinkButton> _logout;
 	QString _error;
+
+	rpl::lifetime _systemUnlockSuggested;
+	base::Timer _systemUnlockCooldown;
 
 };
 

@@ -683,6 +683,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_privacy_premium_link" = "Telegram Premium";
 "lng_settings_passcode_disable" = "Disable Passcode";
 "lng_settings_passcode_disable_sure" = "Are you sure you want to disable passcode?";
+"lng_settings_use_winhello" = "Unlock with Windows Hello";
+"lng_settings_use_winhello_about" = "You need to enter your passcode once before unlocking Telegram with Windows Hello.";
+"lng_settings_use_touchid" = "Unlock with Touch ID";
+"lng_settings_use_touchid_about" = "You need to enter your passcode once before unlocking Telegram with Touch ID.";
+"lng_settings_use_applewatch" = "Unlock with Apple Watch";
+"lng_settings_use_applewatch_about" = "You need to enter your passcode once before unlocking Telegram with Apple Watch.";
+"lng_settings_use_systempwd" = "Unlock with System Password";
+"lng_settings_use_systempwd_about" = "You need to enter your passcode once before unlocking Telegram with System Password.";
 "lng_settings_password_disable" = "Disable Cloud Password";
 "lng_settings_password_abort" = "Abort two-step verification setup";
 "lng_settings_about_bio" = "Any details such as age, occupation or city.\nExample: 23 y.o. designer from San Francisco";
@@ -897,6 +905,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_gift_premium_users_confirm" = "Proceed";
 "lng_settings_gift_premium_users_error#one" = "You can select maximum {count} user.";
 "lng_settings_gift_premium_users_error#other" = "You can select maximum {count} users.";
+"lng_settings_gift_premium_choose" = "Please choose at least one recipient.";
 
 "lng_backgrounds_header" = "Choose Wallpaper";
 "lng_theme_sure_keep" = "Keep this theme?";
@@ -991,6 +1000,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_ph" = "Your passcode";
 "lng_passcode_submit" = "Submit";
 "lng_passcode_logout" = "Log out";
+"lng_passcode_winhello" = "You need to enter your passcode\nbefore you can use Windows Hello.";
+"lng_passcode_touchid" = "You need to enter your passcode\nbefore you can use Touch ID.";
+"lng_passcode_applewatch" = "You need to enter your passcode\nbefore you can use Watch to unlock.";
+"lng_passcode_systempwd" = "You need to enter your passcode\nbefore you can use system password.";
+"lng_passcode_winhello_unlock" = "Telegram wants to unlock with Windows Hello.";
+"lng_passcode_touchid_unlock" = "unlock";
 "lng_passcode_create_button" = "Save Passcode";
 "lng_passcode_check_button" = "Submit";
 "lng_passcode_change_button" = "Save Passcode";
@@ -1560,6 +1575,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_manage_peer_bot_public_link" = "Public Link";
 "lng_manage_peer_bot_public_links" = "Public Links";
+"lng_manage_peer_bot_balance" = "Balance";
 "lng_manage_peer_bot_edit_intro" = "Edit Intro";
 "lng_manage_peer_bot_edit_commands" = "Edit Commands";
 "lng_manage_peer_bot_edit_settings" = "Change Bot Settings";
@@ -2185,6 +2201,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_translation" = "Real-time translation of channels and chats into other languages.";
 "lng_premium_summary_subtitle_business" = "Telegram Business";
 "lng_premium_summary_about_business" = "Upgrade your account with business features such as location, opening hours and quick replies.";
+"lng_premium_summary_subtitle_effects" = "Message Effects";
+"lng_premium_summary_about_effects" = "Add over 500 animated effects to private messages.";
 "lng_premium_summary_bottom_subtitle" = "About Telegram Premium";
 "lng_premium_summary_bottom_about" = "While the free version of Telegram already gives its users more than any other messaging application, **Telegram Premium** pushes its capabilities even further.\n\n**Telegram Premium** is a paid option, because most Premium Features require additional expenses from Telegram to third parties such as data center providers and server manufacturers. Contributions from **Telegram Premium** users allow us to cover such costs and also help Telegram stay free for everyone.";
 "lng_premium_summary_button" = "Subscribe for {cost} per month";
@@ -2325,15 +2343,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_out_title" = "Confirm Your Purchase";
 "lng_credits_box_out_sure#one" = "Do you want to buy **\"{text}\"** in **{bot}** for **{count} Star**?";
 "lng_credits_box_out_sure#other" = "Do you want to buy **\"{text}\"** in **{bot}** for **{count} Stars**?";
+"lng_credits_box_out_media#one" = "Do you want to unlock {media} in {chat} for **{count} Star**?";
+"lng_credits_box_out_media#other" = "Do you want to unlock {media} in {chat} for **{count} Stars**?";
+"lng_credits_box_out_photo" = "a photo";
+"lng_credits_box_out_photos#one" = "{count} photo";
+"lng_credits_box_out_photos#other" = "{count} photos";
+"lng_credits_box_out_video" = "a video";
+"lng_credits_box_out_videos#one" = "{count} video";
+"lng_credits_box_out_videos#other" = "{count} videos";
+"lng_credits_box_out_both" = "{photo} and {video}";
 "lng_credits_box_out_confirm#one" = "Confirm and Pay {emoji} {count} Star";
 "lng_credits_box_out_confirm#other" = "Confirm and Pay {emoji} {count} Stars";
 "lng_credits_box_out_about" = "Review the {link} for Stars.";
+"lng_credits_media_done_title" = "Media Unlocked";
+"lng_credits_media_done_text#one" = "**{count} Star** transferred to {chat}.";
+"lng_credits_media_done_text#other" = "**{count} Stars** transferred to {chat}.";
 "lng_credits_summary_in_toast_title" = "Stars Acquired";
 "lng_credits_summary_in_toast_about#one" = "**{count}** Star added to your balance.";
 "lng_credits_summary_in_toast_about#other" = "**{count}** Stars added to your balance.";
 "lng_credits_box_history_entry_peer" = "Recipient";
+"lng_credits_box_history_entry_via" = "Via";
+"lng_credits_box_history_entry_play_market" = "Play Market";
+"lng_credits_box_history_entry_app_store" = "App Store";
+"lng_credits_box_history_entry_fragment" = "Fragment";
+"lng_credits_box_history_entry_ads" = "Ads Platform";
 "lng_credits_box_history_entry_id" = "Transaction ID";
 "lng_credits_box_history_entry_id_copied" = "Transaction ID copied to clipboard.";
+"lng_credits_box_history_entry_success_date" = "Transaction date";
+"lng_credits_box_history_entry_success_url" = "Transaction link";
+"lng_credits_box_history_entry_media" = "Media";
 "lng_credits_box_history_entry_about" = "You can dispute this transaction {link}.";
 "lng_credits_box_history_entry_about_link" = "here";
 "lng_credits_small_balance_title#one" = "{count} Star Needed";
@@ -3305,6 +3343,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_context_spoiler_effect" = "Hide with Spoiler";
 "lng_context_disable_spoiler" = "Remove Spoiler";
+"lng_context_make_paid" = "Make This Content Paid";
+"lng_context_change_price" = "Change Price";
 
 "lng_factcheck_title" = "Fact Check";
 "lng_factcheck_placeholder" = "Add Facts or Context";
@@ -3315,6 +3355,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_factcheck_remove_done" = "Fact check removed.";
 "lng_factcheck_bottom" = "This clarification was provided by a fact checking agency assigned by the department of the government of your country ({country}) responsible for combatting misinformation.";
 "lng_factcheck_links" = "Only **t.me/** links are allowed.";
+
+"lng_paid_title" = "Paid Content";
+"lng_paid_enter_cost" = "Enter Unlock Cost";
+"lng_paid_cost_placeholder" = "Stars to Unlock";
+"lng_paid_about" = "Users will have to transfer this amount of Stars to your channel in order to view this media. {link}";
+"lng_paid_about_link" = "More about stars >";
+"lng_paid_about_link_url" = "https://telegram.org/blog/telegram-stars";
+"lng_paid_price" = "Unlock for {price}";
 
 "lng_translate_show_original" = "Show Original";
 "lng_translate_bar_to" = "Translate to {name}";
@@ -3582,6 +3630,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_formatting_link_text" = "Text";
 "lng_formatting_link_url" = "URL";
 "lng_formatting_link_create" = "Create";
+"lng_formatting_code_title" = "Code Language";
+"lng_formatting_code_language" = "Language for syntax highlighting.";
+"lng_formatting_code_auto" = "Auto-Detect";
 
 "lng_text_copied" = "Text copied to clipboard.";
 "lng_code_copied" = "Block copied to clipboard.";
@@ -4132,6 +4183,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_polls_all" = "Posting polls isn't allowed in this group.";
 
 "lng_restricted_send_public_polls" = "Sorry, public polls can't be forwarded to channels.";
+"lng_restricted_send_paid_media" = "Sorry, paid media can't be sent to this channel.";
 
 "lng_restricted_send_voice_messages" = "{user} restricted sending of voice messages to them.";
 "lng_restricted_send_video_messages" = "{user} restricted sending of video messages to them.";
@@ -5159,6 +5211,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_history_return" = "Refund";
 "lng_channel_earn_history_return_about" = "Refunded back";
 "lng_channel_earn_history_pending" = "Pending";
+"lng_channel_earn_history_failed" = "Failed";
 "lng_channel_earn_history_show_more#one" = "Show {count} More Transaction";
 "lng_channel_earn_history_show_more#other" = "Show {count} More Transactions";
 "lng_channel_earn_off" = "Switch Off Ads";
@@ -5181,6 +5234,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_earn_chart_revenue" = "Ad revenue";
 "lng_channel_earn_chart_overriden_detail_currency" = "Revenue in TON";
 "lng_channel_earn_chart_overriden_detail_usd" = "Revenue in USD";
+"lng_channel_earn_currency_history" = "TON Transactions";
+"lng_channel_earn_credits_history" = "Stars Transactions";
+"lng_channel_earn_out_check_password_about" = "You can withdraw only if you have:";
+
+"lng_bot_earn_title" = "Stars Balance";
+"lng_bot_earn_chart_revenue" = "Revenue";
+"lng_bot_earn_overview_title" = "Proceeds overview";
+"lng_bot_earn_available" = "Available balance";
+"lng_bot_earn_total" = "Total lifetime proceeds";
+"lng_bot_earn_balance_title" = "Available balance";
+"lng_bot_earn_balance_about" = "Stars from your total balance become available for spending on ads and rewards 21 days after they are earned.";
+"lng_bot_earn_balance_about_url" = "https://telegram.org/tos/stars";
+"lng_bot_earn_balance_button#one" = "Withdraw {emoji} {count}";
+"lng_bot_earn_balance_button#other" = "Withdraw {emoji} {count}";
+"lng_bot_earn_balance_button_all" = "Withdraw all stars";
+"lng_bot_earn_balance_button_locked" = "Withdraw";
+"lng_bot_earn_balance_button_buy_ads" = "Buy Ads";
+"lng_bot_earn_learn_credits_out_about" = "You can withdraw Stars using Fragment, or use Stars to advertise your bot. {link}";
+"lng_bot_earn_out_ph" = "Enter amount to withdraw";
+"lng_bot_earn_balance_password_title" = "Two-step verification";
+"lng_bot_earn_balance_password_description" = "Please enter your password to collect.";
+"lng_bot_earn_credits_out_minimal" = "You cannot withdraw less then {link}.";
+"lng_bot_earn_credits_out_minimal_link#one" = "{count} star";
+"lng_bot_earn_credits_out_minimal_link#other" = "{count} stars";
 
 "lng_contact_add" = "Add";
 "lng_contact_send_message" = "message";

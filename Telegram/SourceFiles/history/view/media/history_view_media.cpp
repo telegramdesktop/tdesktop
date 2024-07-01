@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media.h"
 
+#include "boxes/send_credits_box.h" // CreditsEmoji.
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
@@ -18,12 +19,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
+#include "lang/lang_tag.h" // FormatCountDecimal.
 #include "ui/item_text_options.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/effects/spoiler_mess.h"
 #include "ui/image/image_prepare.h"
+#include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "ui/power_saving.h"
+#include "ui/text/text_utilities.h"
 #include "core/ui_integration.h"
 #include "styles/style_chat.h"
 
@@ -200,6 +205,73 @@ SelectedQuote Media::selectedQuote(TextSelection selection) const {
 
 QSize Media::countCurrentSize(int newWidth) {
 	return QSize(qMin(newWidth, maxWidth()), minHeight());
+}
+
+bool Media::hasPurchasedTag() const {
+	if (const auto media = parent()->data()->media()) {
+		if (const auto invoice = media->invoice()) {
+			if (invoice->isPaidMedia && !invoice->extendedMedia.empty()) {
+				const auto photo = invoice->extendedMedia.front()->photo();
+				return !photo || !photo->extendedMediaPreview();
+			}
+		}
+	}
+	return false;
+}
+
+void Media::drawPurchasedTag(
+		Painter &p,
+		QRect outer,
+		const PaintContext &context) const {
+	const auto purchased = parent()->enforcePurchasedTag();
+	if (purchased->text.isEmpty()) {
+		const auto item = parent()->data();
+		const auto media = item->media();
+		const auto invoice = media ? media->invoice() : nullptr;
+		const auto amount = invoice ? invoice->amount : 0;
+		if (!amount) {
+			return;
+		}
+		const auto session = &item->history()->session();
+		auto text = Ui::Text::Colorized(Ui::CreditsEmojiSmall(session));
+		text.append(Lang::FormatCountDecimal(amount));
+		purchased->text.setMarkedText(st::defaultTextStyle, text, kMarkupTextOptions, Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [] {},
+		});
+	}
+
+	const auto st = context.st;
+	const auto sti = context.imageStyle();
+	const auto &padding = st::purchasedTagPadding;
+	auto right = outer.x() + outer.width();
+	auto top = outer.y();
+	right -= st::msgDateImgDelta + padding.right();
+	top += st::msgDateImgDelta + padding.top();
+
+	const auto size = QSize(
+		purchased->text.maxWidth(),
+		st::normalFont->height);
+	const auto tagX = right - size.width();
+	const auto tagY = top;
+	const auto tagW = padding.left() + size.width() + padding.right();
+	const auto tagH = padding.top() + size.height() + padding.bottom();
+	Ui::FillRoundRect(
+		p,
+		tagX - padding.left(),
+		tagY - padding.top(),
+		tagW,
+		tagH,
+		sti->msgDateImgBg,
+		sti->msgDateImgBgCorners);
+
+	p.setPen(st->msgDateImgFg());
+	purchased->text.draw(p, {
+		.position = { tagX, tagY },
+		.outerWidth = width(),
+		.availableWidth = size.width(),
+		.palette = &st->priceTagTextPalette(),
+	});
 }
 
 void Media::fillImageShadow(

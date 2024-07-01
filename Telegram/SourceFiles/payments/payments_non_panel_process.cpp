@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 namespace Payments {
-namespace {
 
 bool IsCreditsInvoice(not_null<HistoryItem*> item) {
 	if (const auto payment = item->Get<HistoryServicePayment>()) {
@@ -37,8 +36,6 @@ bool IsCreditsInvoice(not_null<HistoryItem*> item) {
 	const auto invoice = media ? media->invoice() : nullptr;
 	return invoice && (invoice->currency == Ui::kCreditsCurrency);
 }
-
-} // namespace
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 		not_null<Window::SessionController*> controller,
@@ -108,7 +105,8 @@ Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 				.date = base::unixtime::parse(receipt->date),
 				.photoId = receipt->photo ? receipt->photo->id : 0,
 				.credits = receipt->credits,
-				.bareId = receipt->peerId.value,
+				.bareMsgId = uint64(),
+				.barePeerId = receipt->peerId.value,
 				.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
 			};
 			controller->uiShow()->show(Box(

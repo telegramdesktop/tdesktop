@@ -57,6 +57,7 @@ namespace Window {
 class SessionController;
 class ConnectionState;
 struct SectionShow;
+struct SeparateId;
 } // namespace Window
 
 namespace Dialogs::Stories {
@@ -74,10 +75,12 @@ class FakeRow;
 class Key;
 struct ChosenRow;
 class InnerWidget;
-enum class SearchRequestType;
+enum class SearchRequestType : uchar;
+enum class SearchRequestDelay : uchar;
 class Suggestions;
 class ChatSearchIn;
 enum class ChatSearchTab : uchar;
+enum class HashOrCashtag : uchar;
 
 class Widget final : public Window::AbstractSectionWidget {
 public:
@@ -131,7 +134,6 @@ public:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
 
-	bool cancelSearch(bool forceFullCancel = false);
 	bool cancelSearchByMouseBack();
 
 	QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
@@ -157,8 +159,8 @@ private:
 	[[nodiscard]] QString currentSearchQuery() const;
 	[[nodiscard]] int currentSearchQueryCursorPosition() const;
 	void clearSearchField();
-	void searchRequested();
-	bool search(bool inCache = false);
+	void searchRequested(SearchRequestDelay delay);
+	bool search(bool inCache = false, SearchRequestDelay after = {});
 	void searchTopics();
 	void searchMore();
 
@@ -261,6 +263,12 @@ private:
 	[[nodiscard]] bool redirectKeyToSearch(QKeyEvent *e) const;
 	[[nodiscard]] bool redirectImeToSearch() const;
 
+	struct CancelSearchOptions {
+		bool forceFullCancel = false;
+		bool jumpBackToSearchedChat = false;
+	};
+	bool cancelSearch(CancelSearchOptions options);
+
 	MTP::Sender _api;
 
 	bool _dragInScroll = false;
@@ -308,7 +316,7 @@ private:
 	object_ptr<Ui::JumpDownButton> _scrollToTop;
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
-	bool _searchingHashtag = false;
+	HashOrCashtag _searchHashOrCashtag = {};
 
 	Data::Folder *_openedFolder = nullptr;
 	Data::Forum *_openedForum = nullptr;

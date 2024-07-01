@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "statistics/chart_lines_filter_controller.h"
 #include "statistics/statistics_common.h"
+#include "statistics/statistics_graphics.h"
 #include "styles/style_basic.h"
 #include "styles/style_statistics.h"
 
@@ -37,7 +38,7 @@ void ChartRulersView::setChartData(
 	_isDouble = (type == ChartViewType::DoubleLinear)
 		|| chartData.currencyRate;
 	if (chartData.currencyRate) {
-		_currencyIcon = &st::statisticsCurrencyIcon;
+		_currencyIcon = ChartCurrencyIcon(chartData, {});
 		_leftCustomCaption = [=](float64 value) {
 			return FormatF(value / float64(Data::kEarnMultiplier));
 		};
@@ -92,7 +93,9 @@ void ChartRulersView::paintCaptionsToRulers(
 	for (auto &ruler : _rulers) {
 		const auto rulerAlpha = alpha * ruler.alpha;
 		p.setOpacity(rulerAlpha);
-		const auto left = _currencyIcon ? _currencyIcon->width() : 0;
+		const auto left = _currencyIcon.isNull()
+			 ? 0
+			 : _currencyIcon.width() / style::DevicePixelRatio();
 		for (const auto &line : ruler.lines) {
 			const auto y = offset + r.height() * line.relativeValue;
 			const auto hasLinesFilter = _isDouble && _linesFilter;
@@ -102,11 +105,11 @@ void ChartRulersView::paintCaptionsToRulers(
 			} else {
 				p.setPen(st::windowSubTextFg);
 			}
-			if (_currencyIcon) {
+			if (!_currencyIcon.isNull()) {
 				const auto iconTop = y
-					- _currencyIcon->height()
+					- _currencyIcon.height() / style::DevicePixelRatio()
 					+ st::statisticsChartRulerCaptionSkip;
-				_currencyIcon->paint(p, 0, iconTop, r.width());
+				p.drawImage(0, iconTop, _currencyIcon);
 			}
 			p.drawText(
 				left,

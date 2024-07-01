@@ -136,3 +136,16 @@ sponsoredReportLabel: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 	minWidth: 150px;
 }
+
+botEarnInputField: InputField(defaultInputField) {
+	textMargins: margins(23px, 28px, 0px, 4px);
+	placeholderMargins: margins(-23px, 0px, 0px, 0px);
+	width: 100px;
+	heightMax: 55px;
+}
+botEarnLockedButtonLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(10px semibold);
+	}
+}
+botEarnButtonLockMargins: margins(-2px, 4px, 0px, 0px);

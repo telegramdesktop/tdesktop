@@ -7,12 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_statistics_sender.h"
 #include "data/data_credits.h"
+#include "data/data_credits_earn.h"
 #include "mtproto/sender.h"
 
 namespace Main {
 class Session;
 } // namespace Main
+
+class UserData;
 
 namespace Api {
 
@@ -65,6 +69,21 @@ private:
 	mtpRequestId _requestId = 0;
 
 	MTP::Sender _api;
+
+};
+
+class CreditsEarnStatistics final : public StatisticsRequestSender {
+public:
+	explicit CreditsEarnStatistics(not_null<PeerData*>);
+
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
+	[[nodiscard]] Data::CreditsEarnStatistics data() const;
+
+private:
+	Data::CreditsEarnStatistics _data;
+	bool _isUser = false;
+
+	mtpRequestId _requestId = 0;
 
 };
 

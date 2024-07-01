@@ -545,6 +545,10 @@ private:
 		Api::SendOptions options,
 		uint64 randomId,
 		Fn<void(bool)> done = nullptr);
+	void sendMultiPaidMedia(
+		not_null<HistoryItem*> item,
+		not_null<SendingAlbum*> album,
+		Fn<void(bool)> done = nullptr);
 
 	void getTopPromotionDelayed(TimeId now, TimeId next);
 	void topPromotionDone(const MTPhelp_PromoData &proxy);

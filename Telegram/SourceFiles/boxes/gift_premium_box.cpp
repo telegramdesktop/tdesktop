@@ -1011,14 +1011,16 @@ void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
 				}) | ranges::views::filter([](UserData *u) -> bool {
 					return u;
 				}) | ranges::to<std::vector<not_null<UserData*>>>();
-				if (!users.empty()) {
-					const auto giftBox = show->show(
-						Box(GiftsBox, _controller, users, api, ref));
-					giftBox->boxClosing(
-					) | rpl::start_with_next([=] {
-						_manyGiftsLifetime.destroy();
-					}, giftBox->lifetime());
+				if (users.empty()) {
+					show->showToast(
+						tr::lng_settings_gift_premium_choose(tr::now));
 				}
+				const auto giftBox = show->show(
+					Box(GiftsBox, _controller, users, api, ref));
+				giftBox->boxClosing(
+				) | rpl::start_with_next([=] {
+					_manyGiftsLifetime.destroy();
+				}, giftBox->lifetime());
 				(*ignoreClose) = true;
 				peersBox->closeBox();
 			};
@@ -1644,12 +1646,60 @@ void AddCreditsHistoryEntryTable(
 			container,
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
-	if (entry.bareId) {
+	const auto peerId = PeerId(entry.barePeerId);
+	if (peerId) {
+		auto text = tr::lng_credits_box_history_entry_peer();
+		AddTableRow(table, std::move(text), controller, peerId);
+	}
+	if (const auto msgId = MsgId(peerId ? entry.bareMsgId : 0)) {
+		const auto session = &controller->session();
+		const auto peer = session->data().peer(peerId);
+		if (const auto channel = peer->asBroadcast()) {
+			const auto username = channel->username();
+			const auto base = username.isEmpty()
+				? u"c/%1"_q.arg(peerToChannel(channel->id).bare)
+				: username;
+			const auto query = base + '/' + QString::number(msgId.bare);
+			const auto link = session->createInternalLink(query);
+			auto label = object_ptr<Ui::FlatLabel>(
+				table,
+				rpl::single(Ui::Text::Link(link)),
+				st::giveawayGiftCodeValue);
+			label->setClickHandlerFilter([=](const auto &...) {
+				controller->showPeerHistory(channel, {}, msgId);
+				return false;
+			});
+			AddTableRow(
+				table,
+				tr::lng_credits_box_history_entry_media(),
+				std::move(label),
+				st::giveawayGiftCodeValueMargin);
+		}
+	}
+	using Type = Data::CreditsHistoryEntry::PeerType;
+	if (entry.peerType == Type::AppStore) {
 		AddTableRow(
 			table,
-			tr::lng_credits_box_history_entry_peer(),
-			controller,
-			PeerId(entry.bareId));
+			tr::lng_credits_box_history_entry_via(),
+			tr::lng_credits_box_history_entry_app_store(
+				Ui::Text::RichLangValue));
+	} else if (entry.peerType == Type::PlayMarket) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_via(),
+			tr::lng_credits_box_history_entry_play_market(
+				Ui::Text::RichLangValue));
+	} else if (entry.peerType == Type::Fragment) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_via(),
+			tr::lng_credits_box_history_entry_fragment(
+				Ui::Text::RichLangValue));
+	} else if (entry.peerType == Type::Ads) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_via(),
+			tr::lng_credits_box_history_entry_ads(Ui::Text::RichLangValue));
 	}
 	if (!entry.id.isEmpty()) {
 		constexpr auto kOneLineCount = 18;
@@ -1679,5 +1729,18 @@ void AddCreditsHistoryEntryTable(
 			table,
 			tr::lng_gift_link_label_date(),
 			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
+	}
+	if (!entry.successDate.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_success_date(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
+	}
+	if (!entry.successLink.isEmpty()) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_success_url(),
+			rpl::single(
+				Ui::Text::Link(entry.successLink, entry.successLink)));
 	}
 }

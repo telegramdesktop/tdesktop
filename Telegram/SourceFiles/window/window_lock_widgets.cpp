@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_lock_widgets.h"
 
+#include "base/platform/base_platform_info.h"
+#include "base/call_delayed.h"
+#include "base/system_unlock.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_domain.h"
 #include "mainwindow.h"
@@ -27,6 +30,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 namespace Window {
+namespace {
+
+constexpr auto kSystemUnlockDelay = crl::time(1000);
+
+} // namespace
 
 LockWidget::LockWidget(QWidget *parent, not_null<Controller*> window)
 : RpWidget(parent)
@@ -99,6 +107,140 @@ PasscodeLockWidget::PasscodeLockWidget(
 	_logout->setClickedCallback([=] {
 		window->showLogoutConfirmation();
 	});
+
+	using namespace rpl::mappers;
+	if (Core::App().settings().systemUnlockEnabled()) {
+		_systemUnlockAvailable = base::SystemUnlockStatus(
+			true
+		) | rpl::map([](base::SystemUnlockAvailability status) {
+			return status.withBiometrics
+				? SystemUnlockType::Biometrics
+				: status.withCompanion
+				? SystemUnlockType::Companion
+				: status.available
+				? SystemUnlockType::Default
+				: SystemUnlockType::None;
+		});
+		if (Core::App().domain().started()) {
+			_systemUnlockAllowed = _systemUnlockAvailable.value();
+			setupSystemUnlock();
+		} else {
+			setupSystemUnlockInfo();
+		}
+	}
+}
+
+void PasscodeLockWidget::setupSystemUnlockInfo() {
+	const auto macos = [&] {
+		return _systemUnlockAvailable.value(
+		) | rpl::map([](SystemUnlockType type) {
+			return (type == SystemUnlockType::Biometrics)
+				? tr::lng_passcode_touchid()
+				: (type == SystemUnlockType::Companion)
+				? tr::lng_passcode_applewatch()
+				: tr::lng_passcode_systempwd();
+		}) | rpl::flatten_latest();
+	};
+	auto text = Platform::IsWindows()
+		? tr::lng_passcode_winhello()
+		: macos();
+	const auto info = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		std::move(text),
+		st::passcodeSystemUnlockLater);
+	_logout->geometryValue(
+	) | rpl::start_with_next([=](QRect logout) {
+		info->resizeToWidth(width()
+			- st::boxRowPadding.left()
+			- st::boxRowPadding.right());
+		info->moveToLeft(
+			st::boxRowPadding.left(),
+			logout.y() + logout.height() + st::passcodeSystemUnlockSkip);
+	}, info->lifetime());
+	info->showOn(_systemUnlockAvailable.value(
+	) | rpl::map(rpl::mappers::_1 != SystemUnlockType::None));
+}
+
+void PasscodeLockWidget::setupSystemUnlock() {
+	windowActiveValue() | rpl::skip(1) | rpl::filter([=](bool active) {
+		return active
+			&& !_systemUnlockSuggested
+			&& !_systemUnlockCooldown.isActive();
+	}) | rpl::start_with_next([=](bool) {
+		[[maybe_unused]] auto refresh = base::SystemUnlockStatus();
+		suggestSystemUnlock();
+	}, lifetime());
+
+	const auto button = Ui::CreateChild<Ui::IconButton>(
+		_passcode.data(),
+		st::passcodeSystemUnlock);
+	if (!Platform::IsWindows()) {
+		using namespace base;
+		_systemUnlockAllowed.value(
+		) | rpl::start_with_next([=](SystemUnlockType type) {
+			const auto icon = (type == SystemUnlockType::Biometrics)
+				? &st::passcodeSystemTouchID
+				: (type == SystemUnlockType::Companion)
+				? &st::passcodeSystemAppleWatch
+				: &st::passcodeSystemSystemPwd;
+			button->setIconOverride(icon, icon);
+		}, button->lifetime());
+	}
+	button->showOn(_systemUnlockAllowed.value(
+	) | rpl::map(rpl::mappers::_1 != SystemUnlockType::None));
+	_passcode->sizeValue() | rpl::start_with_next([=](QSize size) {
+		button->moveToRight(0, size.height() - button->height());
+	}, button->lifetime());
+	button->setClickedCallback([=] {
+		const auto delay = st::passcodeSystemUnlock.ripple.hideDuration;
+		base::call_delayed(delay, this, [=] {
+			suggestSystemUnlock();
+		});
+	});
+}
+
+void PasscodeLockWidget::suggestSystemUnlock() {
+	InvokeQueued(this, [=] {
+		if (_systemUnlockSuggested) {
+			return;
+		}
+		_systemUnlockCooldown.cancel();
+
+		using namespace base;
+		_systemUnlockAllowed.value(
+		) | rpl::filter(
+			rpl::mappers::_1 != SystemUnlockType::None
+		) | rpl::take(1) | rpl::start_with_next([=] {
+			const auto weak = Ui::MakeWeak(this);
+			const auto done = [weak](SystemUnlockResult result) {
+				crl::on_main([=] {
+					if (const auto strong = weak.data()) {
+						strong->systemUnlockDone(result);
+					}
+				});
+			};
+			SuggestSystemUnlock(
+				this,
+				(::Platform::IsWindows()
+					? tr::lng_passcode_winhello_unlock(tr::now)
+					: tr::lng_passcode_touchid_unlock(tr::now)),
+				done);
+		}, _systemUnlockSuggested);
+	});
+}
+
+void PasscodeLockWidget::systemUnlockDone(base::SystemUnlockResult result) {
+	if (result == base::SystemUnlockResult::Success) {
+		Core::App().unlockPasscode();
+		return;
+	}
+	_systemUnlockCooldown.callOnce(kSystemUnlockDelay);
+	_systemUnlockSuggested.destroy();
+	if (result == base::SystemUnlockResult::FloodError) {
+		_error = tr::lng_flood_error(tr::now);
+		_passcode->setFocusFast();
+		update();
+	}
 }
 
 void PasscodeLockWidget::paintContent(QPainter &p) {

@@ -35,13 +35,14 @@ class Show;
 
 namespace Ui {
 class PopupMenu;
+class Show;
 } // namespace Ui
 
 [[nodiscard]] QString PrepareMentionTag(not_null<UserData*> user);
 [[nodiscard]] TextWithTags PrepareEditText(not_null<HistoryItem*> item);
 [[nodiscard]] bool EditTextChanged(
 	not_null<HistoryItem*> item,
-	const TextWithTags &updated);
+	TextWithTags updated);
 
 Fn<bool(
 	Ui::InputField::EditLinkSelection selection,
@@ -51,6 +52,8 @@ Fn<bool(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		const style::InputField *fieldStyle = nullptr);
+Fn<void(QString now, Fn<void(QString)> save)> DefaultEditLanguageCallback(
+	std::shared_ptr<Ui::Show> show);
 void InitMessageFieldHandlers(
 	not_null<Main::Session*> session,
 	std::shared_ptr<Main::SessionShow> show, // may be null

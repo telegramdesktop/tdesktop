@@ -96,7 +96,9 @@ introPhoneTop: 6px;
 introLinkTop: 24px;
 introCountry: InputField(defaultInputField) {
 	textMargins: margins(3px, 27px, 3px, 6px);
-	font: font(16px);
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px);
+	}
 	width: 300px;
 	heightMin: 61px;
 }

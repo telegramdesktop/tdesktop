@@ -28,8 +28,6 @@ class VerticalLayout;
 
 namespace Settings {
 
-[[nodiscard]] QImage GenerateStars(int height, int count);
-
 void FillCreditOptions(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container,
@@ -41,15 +39,37 @@ void FillCreditOptions(
 	rpl::producer<uint64> balanceValue,
 	bool rightAlign);
 
+void AddWithdrawalWidget(
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	rpl::producer<QString> secondButtonUrl,
+	rpl::producer<uint64> availableBalanceValue,
+	rpl::producer<QDateTime> dateValue,
+	rpl::producer<bool> lockedValue,
+	rpl::producer<QString> usdValue);
+
 void ReceiptCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
 	PeerData *premiumBot,
 	const Data::CreditsHistoryEntry &e);
 
+[[nodiscard]] object_ptr<Ui::RpWidget> GenericEntryPhoto(
+	not_null<Ui::RpWidget*> parent,
+	Fn<Fn<void(Painter &, int, int, int, int)>(Fn<void()> update)> callback,
+	int photoSize);
+
 [[nodiscard]] object_ptr<Ui::RpWidget> HistoryEntryPhoto(
 	not_null<Ui::RpWidget*> parent,
 	not_null<PhotoData*> photo,
+	int photoSize);
+
+[[nodiscard]] object_ptr<Ui::RpWidget> PaidMediaThumbnail(
+	not_null<Ui::RpWidget*> parent,
+	not_null<PhotoData*> photo,
+	PhotoData *second,
+	int totalCount,
 	int photoSize);
 
 void SmallBalanceBox(

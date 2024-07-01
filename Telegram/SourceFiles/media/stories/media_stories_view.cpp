@@ -170,6 +170,10 @@ void View::showFullCaption() {
 	_controller->showFullCaption();
 }
 
+std::shared_ptr<ChatHelpers::Show> View::uiShow() const {
+	return _controller->uiShow();
+}
+
 rpl::lifetime &View::lifetime() {
 	return _controller->lifetime();
 }

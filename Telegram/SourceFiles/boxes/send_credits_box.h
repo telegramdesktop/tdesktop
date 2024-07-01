@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Payments {
 struct CreditsFormData;
 } // namespace Payments
@@ -21,5 +25,11 @@ void SendCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Payments::CreditsFormData> data,
 	Fn<void()> sent);
+
+[[nodiscard]] TextWithEntities CreditsEmoji(
+	not_null<Main::Session*> session);
+
+[[nodiscard]] TextWithEntities CreditsEmojiSmall(
+	not_null<Main::Session*> session);
 
 } // namespace Ui

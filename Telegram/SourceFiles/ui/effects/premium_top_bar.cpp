@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_premium.h"
 
-#include <QtCore/QFile>
-
 namespace Ui::Premium {
 namespace {
 
@@ -41,70 +39,6 @@ constexpr auto kMinAcceptableContrast = 4.5; // 1.14;
 }
 
 } // namespace
-
-QString Svg() {
-	return u":/gui/icons/settings/star.svg"_q;
-}
-
-QByteArray ColorizedSvg(const QGradientStops &gradientStops) {
-	auto f = QFile(Svg());
-	if (!f.open(QIODevice::ReadOnly)) {
-		return QByteArray();
-	}
-	auto content = QString::fromUtf8(f.readAll());
-	auto stops = [&] {
-		auto s = QString();
-		for (const auto &stop : gradientStops) {
-			s += QString("<stop offset='%1' stop-color='%2'/>")
-				.arg(QString::number(stop.first), stop.second.name());
-		}
-		return s;
-	}();
-	const auto color = QString("<linearGradient id='Gradient2' "
-		"x1='%1' x2='%2' y1='%3' y2='%4'>%5</linearGradient>")
-		.arg(0)
-		.arg(1)
-		.arg(1)
-		.arg(0)
-		.arg(std::move(stops));
-	content.replace(u"gradientPlaceholder"_q, color);
-	content.replace(u"#fff"_q, u"url(#Gradient2)"_q);
-	f.close();
-	return content.toUtf8();
-}
-
-QImage GenerateStarForLightTopBar(QRectF rect) {
-	auto svg = QSvgRenderer(Ui::Premium::Svg());
-
-	const auto size = rect.size().toSize();
-	auto frame = QImage(
-		size * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	frame.setDevicePixelRatio(style::DevicePixelRatio());
-
-	auto mask = frame;
-	mask.fill(Qt::transparent);
-	{
-		auto p = QPainter(&mask);
-		auto gradient = QLinearGradient(
-			0,
-			size.height(),
-			size.width(),
-			0);
-		gradient.setStops(Ui::Premium::ButtonGradientStops());
-		p.setPen(Qt::NoPen);
-		p.setBrush(gradient);
-		p.drawRect(0, 0, size.width(), size.height());
-	}
-	frame.fill(Qt::transparent);
-	{
-		auto q = QPainter(&frame);
-		svg.render(&q, QRect(QPoint(), size));
-		q.setCompositionMode(QPainter::CompositionMode_SourceIn);
-		q.drawImage(0, 0, mask);
-	}
-	return frame;
-}
 
 TopBarAbstract::TopBarAbstract(
 	QWidget *parent,

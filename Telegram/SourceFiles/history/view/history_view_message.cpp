@@ -1037,8 +1037,7 @@ QSize Message::performCountOptimalSize() {
 void Message::refreshTopicButton() {
 	const auto item = data();
 	if (isAttachedToPrevious()
-		|| (context() != Context::History
-			&& context() != Context::ChatPreview)) {
+		|| delegate()->elementHideTopicButton(this)) {
 		_topicButton = nullptr;
 	} else if (const auto topic = item->topic()) {
 		if (!_topicButton) {

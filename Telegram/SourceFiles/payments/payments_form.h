@@ -178,6 +178,7 @@ struct InvoiceId {
 };
 
 struct CreditsFormData {
+	InvoiceId id;
 	uint64 formId = 0;
 	uint64 botId = 0;
 	QString title;

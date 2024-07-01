@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_connecting_widget.h"
 
-#include "base/event_filter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/painter.h"
@@ -37,6 +36,8 @@ class Progress : public Ui::RpWidget {
 public:
 	Progress(QWidget *parent);
 
+	rpl::producer<> animationStepRequests() const;
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -44,6 +45,7 @@ private:
 	void animationStep();
 
 	Ui::InfiniteRadialAnimation _animation;
+	rpl::event_stream<> _animationStepRequests;
 
 };
 
@@ -71,8 +73,13 @@ void Progress::paintEvent(QPaintEvent *e) {
 
 void Progress::animationStep() {
 	if (!anim::Disabled()) {
+		_animationStepRequests.fire({});
 		update();
 	}
+}
+
+rpl::producer<> Progress::animationStepRequests() const {
+	return _animationStepRequests.events();
 }
 
 } // namespace
@@ -109,7 +116,7 @@ private:
 	const not_null<Main::Account*> _account;
 	Layout _currentLayout;
 	base::unique_qptr<Ui::LinkButton> _retry;
-	QPointer<Ui::RpWidget> _progress;
+	QPointer<Progress> _progress;
 	QPointer<ProxyIcon> _proxyIcon;
 	rpl::event_stream<> _refreshStateRequests;
 
@@ -210,14 +217,6 @@ ConnectionState::ConnectionState(
 	rpl::producer<bool> shown)
 : _account(account)
 , _parent(parent)
-, _exposeFilter(base::install_event_filter(
-	parent->window()->windowHandle(),
-	[=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Expose) {
-			refreshState();
-		}
-		return base::EventFilterResult::Continue;
-	}))
 , _refreshTimer([=] { refreshState(); })
 , _currentLayout(computeLayout(_state)) {
 	rpl::combine(
@@ -241,7 +240,9 @@ ConnectionState::ConnectionState(
 		}, _lifetime);
 	}
 
-	Core::App().settings().proxy().connectionTypeValue(
+	rpl::combine(
+		Core::App().settings().proxy().connectionTypeValue(),
+		rpl::single(QRect()) | rpl::then(_parent->paintRequest())
 	) | rpl::start_with_next([=] {
 		refreshState();
 	}, _lifetime);
@@ -301,7 +302,8 @@ void ConnectionState::setBottomSkip(int skip) {
 void ConnectionState::refreshState() {
 	using Checker = Core::UpdateChecker;
 	const auto state = [&]() -> State {
-		const auto exposed = _parent->window()->windowHandle()->isExposed();
+		const auto exposed = _parent->window()->windowHandle()
+			&& _parent->window()->windowHandle()->isExposed();
 		const auto under = _widget && _widget->isOver();
 		const auto ready = (Checker().state() == Checker::State::Ready);
 		const auto state = _account->mtp().dcstate();
@@ -501,6 +503,11 @@ ConnectionState::Widget::Widget(
 	addClickHandler([=] {
 		Ui::show(ProxiesBoxController::CreateOwningBox(account));
 	});
+
+	_progress->animationStepRequests(
+	) | rpl::start_with_next([=] {
+		_refreshStateRequests.fire({});
+	}, _progress->lifetime());
 }
 
 void ConnectionState::Widget::onStateChanged(

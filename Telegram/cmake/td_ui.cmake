@@ -82,6 +82,7 @@ PRIVATE
     data/data_birthday.h
     data/data_channel_earn.h
     data/data_credits.h
+    data/data_credits_earn.h
     data/data_statistics_chart.cpp
     data/data_statistics_chart.h
     data/data_subscription_option.h
@@ -213,6 +214,8 @@ PRIVATE
     statistics/statistics_data_deserialize.h
     statistics/statistics_format_values.cpp
     statistics/statistics_format_values.h
+    statistics/statistics_graphics.cpp
+    statistics/statistics_graphics.h
     statistics/statistics_types.h
     statistics/view/abstract_chart_view.cpp
     statistics/view/abstract_chart_view.h
@@ -401,6 +404,7 @@ PRIVATE
     ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp
     ui/widgets/sent_code_field.h
+    ui/widgets/slider_natural_width.h
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
 

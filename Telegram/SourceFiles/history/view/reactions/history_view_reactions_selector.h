@@ -102,11 +102,12 @@ public:
 	[[nodiscard]] bool useTransparency() const;
 
 	int countWidth(int desiredWidth, int maxWidth);
+	[[nodiscard]] int effectPreviewHeight() const;
 	[[nodiscard]] QMargins marginsForShadow() const;
 	[[nodiscard]] int extendTopForCategories() const;
 	[[nodiscard]] int extendTopForCategoriesAndAbout(int width) const;
 	[[nodiscard]] int opaqueExtendTopAbout(int width) const;
-	[[nodiscard]] int minimalHeight() const;
+	[[nodiscard]] int minimalHeight(int fullWidth) const;
 	[[nodiscard]] int countAppearedWidth(float64 progress) const;
 	void setSpecialExpandTopSkip(int skip);
 	void initGeometry(int innerTop);

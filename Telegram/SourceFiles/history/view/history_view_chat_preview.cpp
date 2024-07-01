@@ -126,6 +126,7 @@ private:
 		Painter &p,
 		const Ui::ChatPaintContext &context) override;
 	QString listElementAuthorRank(not_null<const Element*> view) override;
+	bool listElementHideTopicButton(not_null<const Element*> view) override;
 	History *listTranslateHistory() override;
 	void listAddTranslatedItems(
 		not_null<TranslateTracker*> tracker) override;
@@ -279,6 +280,8 @@ void Item::setupTop() {
 	const auto topic = _thread->asTopic();
 	auto nameValue = (topic
 		? Info::Profile::TitleValue(topic)
+		: _thread->peer()->isSelf()
+		? tr::lng_saved_messages()
 		: Info::Profile::NameValue(_thread->peer())
 	) | rpl::start_spawning(_top->lifetime());
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
@@ -294,18 +297,24 @@ void Item::setupTop() {
 	) | rpl::map([](StatusFields &&fields) {
 		return fields.text;
 	});
-	const auto status = Ui::CreateChild<Ui::FlatLabel>(
-		_top.get(),
-		(topic
-			? Info::Profile::NameValue(topic->channel())
-			: std::move(statusText)),
-		st::previewStatus);
-	std::move(statusFields) | rpl::start_with_next([=](const StatusFields &fields) {
-		status->setTextColorOverride(fields.active
-			? st::windowActiveTextFg->c
-			: std::optional<QColor>());
-	}, status->lifetime());
-	status->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto status = _thread->peer()->isSelf()
+		? nullptr
+		: Ui::CreateChild<Ui::FlatLabel>(
+			_top.get(),
+			(topic
+				? Info::Profile::NameValue(topic->channel())
+				: std::move(statusText)),
+			st::previewStatus);
+	if (status) {
+		std::move(
+			statusFields
+		) | rpl::start_with_next([=](const StatusFields &fields) {
+			status->setTextColorOverride(fields.active
+				? st::windowActiveTextFg->c
+				: std::optional<QColor>());
+		}, status->lifetime());
+		status->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
 	const auto userpic = topic
 		? nullptr
 		: Ui::CreateChild<Ui::UserpicButton>(
@@ -313,6 +322,7 @@ void Item::setupTop() {
 			_thread->peer(),
 			st::previewUserpic);
 	if (userpic) {
+		userpic->showSavedMessagesOnSelf(true);
 		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 	const auto icon = topic
@@ -334,15 +344,23 @@ void Item::setupTop() {
 		name->resizeToNaturalWidth(width
 			- st.namePosition.x()
 			- st.photoPosition.x());
-		name->move(st::previewTop.namePosition);
+		if (status) {
+			name->move(st::previewTop.namePosition);
+		} else {
+			name->move(
+				st::previewTop.namePosition.x(),
+				(st::previewTop.height - name->height()) / 2);
+		}
 	}, name->lifetime());
 
 	_top->geometryValue() | rpl::start_with_next([=](QRect geometry) {
 		const auto &st = st::previewTop;
-		status->resizeToWidth(geometry.width()
-			- st.statusPosition.x()
-			- st.photoPosition.x());
-		status->move(st.statusPosition);
+		if (status) {
+			status->resizeToWidth(geometry.width()
+				- st.statusPosition.x()
+				- st.photoPosition.x());
+			status->move(st.statusPosition);
+		}
 		shadow->setGeometry(
 			geometry.x(),
 			geometry.y() + geometry.height(),
@@ -559,8 +577,12 @@ MessagesBarData Item::listMessagesBar(
 		? _replies->computeInboxReadTillFull()
 		: MsgId();
 	const auto migrated = _replies ? nullptr : _history->migrateFrom();
-	const auto migratedTill = migrated ? migrated->inboxReadTillId() : 0;
-	const auto historyTill = _replies ? 0 : _history->inboxReadTillId();
+	const auto migratedTill = (migrated && migrated->unreadCount() > 0)
+		? migrated->inboxReadTillId()
+		: 0;
+	const auto historyTill = (_replies || !_history->unreadCount())
+		? 0
+		: _history->inboxReadTillId();
 	if (!_replies && !migratedTill && !historyTill) {
 		return {};
 	}
@@ -671,6 +693,10 @@ void Item::listPaintEmpty(
 
 QString Item::listElementAuthorRank(not_null<const Element*> view) {
 	return {};
+}
+
+bool Item::listElementHideTopicButton(not_null<const Element*> view) {
+	return _thread->asTopic() != nullptr;
 }
 
 History *Item::listTranslateHistory() {

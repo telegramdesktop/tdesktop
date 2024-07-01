@@ -41,6 +41,10 @@ namespace Premium {
 
 inline constexpr auto kLimitRowRatio = 0.5;
 
+[[nodiscard]] QString Svg();
+[[nodiscard]] QByteArray ColorizedSvg(const QGradientStops &gradientStops);
+[[nodiscard]] QImage GenerateStarForLightTopBar(QRectF rect);
+
 void AddBubbleRow(
 	not_null<Ui::VerticalLayout*> parent,
 	const style::PremiumBubble &st,

@@ -378,11 +378,10 @@ HistoryWidget::HistoryWidget(
 		_field->setEnabled(shown);
 	}, _field->lifetime());
 #endif // Q_OS_MAC
-	connect(
-		controller->widget()->windowHandle(),
-		&QWindow::visibleChanged,
-		this,
-		[=] { windowIsVisibleChanged(); });
+	controller->widget()->shownValue(
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		windowIsVisibleChanged();
+	}, lifetime());
 
 	initTabbedSelector();
 
@@ -824,7 +823,7 @@ HistoryWidget::HistoryWidget(
 		if (flags & PeerUpdateFlag::UnavailableReason) {
 			const auto unavailable = _peer->computeUnavailableReason();
 			if (!unavailable.isEmpty()) {
-				const auto account = &_peer->account();
+				const auto account = not_null(&_peer->account());
 				closeCurrent();
 				if (const auto primary = Core::App().windowFor(account)) {
 					primary->showToast(unavailable);
@@ -1856,12 +1855,13 @@ void HistoryWidget::setInnerFocus() {
 	if (_list) {
 		if (isSearching()) {
 			_composeSearch->setInnerFocus();
-		} else if (_chooseTheme && _chooseTheme->shouldBeShown()) {
+		} else if (isChoosingTheme()) {
 			_chooseTheme->setFocus();
 		} else if (_showAnimation
 			|| _nonEmptySelection
 			|| (_list && _list->wasSelectedText())
 			|| isRecording()
+			|| isJoinChannel()
 			|| isBotStart()
 			|| isBlocked()
 			|| (!_canSendTexts && !_editMsgId)) {
@@ -3343,7 +3343,8 @@ void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 		|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {
 		auto was = _peer;
 		closeCurrent();
-		if (const auto primary = Core::App().windowFor(&was->account())) {
+		const auto wasAccount = not_null(&was->account());
+		if (const auto primary = Core::App().windowFor(wasAccount)) {
 			primary->showToast((was && was->isMegagroup())
 				? tr::lng_group_not_accessible(tr::now)
 				: tr::lng_channel_not_accessible(tr::now));
@@ -4975,8 +4976,8 @@ bool HistoryWidget::updateCmdStartShown() {
 }
 
 bool HistoryWidget::searchInChatEmbedded(Dialogs::Key chat, QString query) {
-	const auto peer = chat.peer();
-	if (!peer || peer != controller()->singlePeer()) {
+	const auto peer = chat.peer(); // windows todo
+	if (!peer || Window::SeparateId(peer) != controller()->windowId()) {
 		return false;
 	} else if (_peer != peer) {
 		const auto weak = Ui::MakeWeak(this);
@@ -7513,7 +7514,7 @@ void HistoryWidget::showPremiumToast(not_null<DocumentData*> document) {
 }
 
 void HistoryWidget::checkCharsCount() {
-	_fieldCharsCountManager.setCount(Ui::FieldCharacterCount(_field));
+	_fieldCharsCountManager.setCount(Ui::ComputeFieldCharacterCount(_field));
 	checkCharsLimitation();
 }
 

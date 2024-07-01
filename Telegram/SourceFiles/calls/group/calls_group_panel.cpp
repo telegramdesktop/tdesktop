@@ -383,19 +383,13 @@ void Panel::initWindow() {
 				&& _fullScreenOrMaximized.current()) {
 				toggleFullScreen();
 			}
+		} else if (e->type() == QEvent::WindowStateChange && _call->rtmp()) {
+			const auto state = window()->windowState();
+			_fullScreenOrMaximized = (state & Qt::WindowFullScreen)
+				|| (state & Qt::WindowMaximized);
 		}
 		return base::EventFilterResult::Continue;
 	});
-
-	if (_call->rtmp()) {
-		QObject::connect(
-			window()->windowHandle(),
-			&QWindow::windowStateChanged,
-			[=](Qt::WindowState state) {
-				_fullScreenOrMaximized = (state == Qt::WindowFullScreen)
-					|| (state == Qt::WindowMaximized);
-			});
-	}
 
 	window()->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;

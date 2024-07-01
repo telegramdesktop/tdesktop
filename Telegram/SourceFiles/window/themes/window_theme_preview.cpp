@@ -604,7 +604,7 @@ void Generator::paintComposeArea() {
 
 	_p->setClipRect(field);
 	_p->save();
-	_p->setFont(st::historyComposeField.font);
+	_p->setFont(st::historyComposeField.style.font);
 	_p->setPen(st::historyComposeField.placeholderFg[_palette]);
 
 	auto placeholderRect = QRect(
@@ -658,7 +658,7 @@ void Generator::paintDialogs() {
 	_p->save();
 	_p->setClipRect(filter);
 	auto phRect = QRect(filter.x() + st::dialogsFilter.textMargins.left() + st::dialogsFilter.placeholderMargins.left(), filter.y() + st::dialogsFilter.textMargins.top() + st::dialogsFilter.placeholderMargins.top(), filter.width() - st::dialogsFilter.textMargins.left() - st::dialogsFilter.textMargins.right(), filter.height() - st::dialogsFilter.textMargins.top() - st::dialogsFilter.textMargins.bottom());
-	_p->setFont(st::dialogsFilter.font);
+	_p->setFont(st::dialogsFilter.style.font);
 	_p->setPen(st::dialogsFilter.placeholderFg[_palette]);
 	_p->drawText(phRect, tr::lng_dlg_filter(tr::now), QTextOption(st::dialogsFilter.placeholderAlign));
 	_p->restore();

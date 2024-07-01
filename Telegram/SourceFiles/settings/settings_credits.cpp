@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_credits.h"
 
-#include "settings/settings_credits_graphics.h"
 #include "api/api_credits.h"
 #include "boxes/gift_premium_box.h"
 #include "core/click_handler_types.h"
@@ -20,8 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/boost_box.h" // Ui::StartFireworks.
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
@@ -30,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/discrete_sliders.h"
+#include "ui/widgets/slider_natural_width.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -93,8 +94,8 @@ Credits::Credits(
 	not_null<Window::SessionController*> controller)
 : Section(parent)
 , _controller(controller)
-, _star(GenerateStars(st::creditsTopupButton.height, 1))
-, _balanceStar(GenerateStars(st::creditsBalanceStarHeight, 1)) {
+, _star(Ui::GenerateStars(st::creditsTopupButton.height, 1))
+, _balanceStar(Ui::GenerateStars(st::creditsBalanceStarHeight, 1)) {
 	setupContent();
 }
 
@@ -159,25 +160,12 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			header->setSubTitle({});
 		}
 
-		class Slider final : public Ui::SettingsSlider {
-		public:
-			using Ui::SettingsSlider::SettingsSlider;
-			void setNaturalWidth(int w) {
-				_naturalWidth = w;
-			}
-			int naturalWidth() const override {
-				return _naturalWidth;
-			}
-
-		private:
-			int _naturalWidth = 0;
-
-		};
-
 		const auto slider = inner->add(
-			object_ptr<Ui::SlideWrap<Slider>>(
+			object_ptr<Ui::SlideWrap<Ui::CustomWidthSlider>>(
 				inner,
-				object_ptr<Slider>(inner, st::defaultTabsSlider)),
+				object_ptr<Ui::CustomWidthSlider>(
+					inner,
+					st::defaultTabsSlider)),
 			st::boxRowPadding);
 		slider->toggle(!hasOneTab, anim::type::instant);
 

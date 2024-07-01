@@ -87,14 +87,21 @@ private:
 
 };
 
+enum class HashOrCashtag : uchar {
+	None,
+	Hashtag,
+	Cashtag,
+};
+
 struct FixedHashtagSearchQuery {
 	QString text;
 	int cursorPosition = 0;
 };
 [[nodiscard]] FixedHashtagSearchQuery FixHashtagSearchQuery(
 	const QString &query,
-	int cursorPosition);
+	int cursorPosition,
+	HashOrCashtag tag);
 
-[[nodiscard]] bool IsHashtagSearchQuery(const QString &query);
+[[nodiscard]] HashOrCashtag IsHashOrCashtagSearchQuery(const QString &query);
 
 } // namespace Dialogs

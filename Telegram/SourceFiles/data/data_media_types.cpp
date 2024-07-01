@@ -7,12 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_media_types.h"
 
+#include "base/random.h"
+#include "boxes/send_credits_box.h" // CreditsEmoji.
 #include "history/history.h"
 #include "history/history_item.h" // CreateMedia.
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
-#include "history/view/media/history_view_extended_preview.h"
 #include "history/view/media/history_view_photo.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_gif.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_giveaway.h"
 #include "history/view/media/history_view_invoice.h"
 #include "history/view/media/history_view_media_generic.h"
+#include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_call.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/media/history_view_poll.h"
@@ -83,6 +85,13 @@ constexpr auto kLoadingStoryPhotoId = PhotoId(0x7FFF'DEAD'FFFF'FFFFULL);
 
 using ItemPreview = HistoryView::ItemPreview;
 using ItemPreviewImage = HistoryView::ItemPreviewImage;
+
+struct AlbumCounts {
+	int photos = 0;
+	int videos = 0;
+	int audios = 0;
+	int files = 0;
+};
 
 [[nodiscard]] TextWithEntities WithCaptionNotificationText(
 		const QString &attachType,
@@ -165,7 +174,7 @@ template <typename MediaType>
 	return (reinterpret_cast<uint64>(data.get()) & ~1) | (spoiler ? 1 : 0);
 }
 
-[[nodiscard]] ItemPreviewImage PreparePhotoPreview(
+[[nodiscard]] ItemPreviewImage PreparePhotoPreviewImage(
 		not_null<const HistoryItem*> item,
 		const std::shared_ptr<PhotoMedia> &media,
 		ImageRoundRadius radius,
@@ -181,14 +190,15 @@ template <typename MediaType>
 	}
 	const auto allowedToDownload = media->autoLoadThumbnailAllowed(
 		item->history()->peer);
-	const auto cacheKey = allowedToDownload ? 0 : counted;
+	const auto spoilered = uint64(spoiler ? 1 : 0);
+	const auto cacheKey = allowedToDownload ? spoilered : counted;
 	if (allowedToDownload) {
 		media->owner()->load(PhotoSize::Small, item->fullId());
 	}
 	if (const auto blurred = media->thumbnailInline()) {
 		return { PreparePreviewImage(blurred, radius, spoiler), cacheKey };
 	}
-	return { QImage(), allowedToDownload ? 0 : cacheKey };
+	return { QImage(), allowedToDownload ? spoilered : cacheKey };
 }
 
 [[nodiscard]] ItemPreviewImage PrepareFilePreviewImage(
@@ -207,10 +217,11 @@ template <typename MediaType>
 		};
 	}
 	document->loadThumbnail(item->fullId());
+	const auto spoilered = uint64(spoiler ? 1 : 0);
 	if (const auto blurred = media->thumbnailInline()) {
-		return { PreparePreviewImage(blurred, radius, spoiler), 0 };
+		return { PreparePreviewImage(blurred, radius, spoiler), spoilered };
 	}
-	return { QImage(), 0 };
+	return { QImage(), spoilered };
 }
 
 [[nodiscard]] QImage PutPlayIcon(QImage preview) {
@@ -223,6 +234,18 @@ template <typename MediaType>
 			QRect(QPoint(), preview.size() / preview.devicePixelRatio()));
 	}
 	return preview;
+}
+
+[[nodiscard]] ItemPreviewImage PreparePhotoPreview(
+		not_null<const HistoryItem*> item,
+		const std::shared_ptr<PhotoMedia> &media,
+		ImageRoundRadius radius,
+		bool spoiler) {
+	auto result = PreparePhotoPreviewImage(item, media, radius, spoiler);
+	if (media->owner()->extendedMediaVideoDuration().has_value()) {
+		result.data = PutPlayIcon(std::move(result.data));
+	}
+	return result;
 }
 
 [[nodiscard]] ItemPreviewImage PrepareFilePreview(
@@ -261,46 +284,80 @@ template <typename MediaType>
 }
 
 bool UpdateExtendedMedia(
-		Invoice &invoice,
+		std::unique_ptr<Media> &media,
 		not_null<HistoryItem*> item,
-		const MTPMessageExtendedMedia &media) {
-	return media.match([&](const MTPDmessageExtendedMediaPreview &data) {
-		if (invoice.extendedMedia) {
-			return false;
+		const MTPMessageExtendedMedia &extended) {
+	return extended.match([&](const MTPDmessageExtendedMediaPreview &data) {
+		auto photo = (PhotoData*)nullptr;
+		if (!media) {
+			const auto id = base::RandomValue<PhotoId>();
+			photo = item->history()->owner().photo(id);
+		} else {
+			photo = media->photo();
+			if (!photo || !photo->extendedMediaPreview()) {
+				return false;
+			}
 		}
+
 		auto changed = false;
-		auto &preview = invoice.extendedPreview;
+		auto size = QSize();
+		auto thumbnail = QByteArray();
+		auto videoDuration = std::optional<TimeId>();
 		if (const auto &w = data.vw()) {
 			const auto &h = data.vh();
 			Assert(h.has_value());
-			const auto dimensions = QSize(w->v, h->v);
-			if (preview.dimensions != dimensions) {
-				preview.dimensions = dimensions;
+			size = QSize(w->v, h->v);
+			if (!changed && photo->size(PhotoSize::Large) != size) {
 				changed = true;
 			}
 		}
 		if (const auto &thumb = data.vthumb()) {
 			if (thumb->type() == mtpc_photoStrippedSize) {
-				const auto bytes = thumb->c_photoStrippedSize().vbytes().v;
-				if (preview.inlineThumbnailBytes != bytes) {
-					preview.inlineThumbnailBytes = bytes;
+				thumbnail = thumb->c_photoStrippedSize().vbytes().v;
+				if (!changed && photo->inlineThumbnailBytes() != thumbnail) {
 					changed = true;
 				}
 			}
 		}
 		if (const auto &duration = data.vvideo_duration()) {
-			if (preview.videoDuration != duration->v) {
-				preview.videoDuration = duration->v;
+			videoDuration = duration->v;
+			if (photo->extendedMediaVideoDuration() != videoDuration) {
 				changed = true;
 			}
+		} else if (photo->extendedMediaVideoDuration().has_value()) {
+			changed = true;
+		}
+		if (changed) {
+			photo->setExtendedMediaPreview(size, thumbnail, videoDuration);
+		}
+		if (!media) {
+			media = std::make_unique<MediaPhoto>(item, photo, true);
 		}
 		return changed;
 	}, [&](const MTPDmessageExtendedMedia &data) {
-		invoice.extendedMedia = HistoryItem::CreateMedia(
-			item,
-			data.vmedia());
+		media = HistoryItem::CreateMedia(item, data.vmedia());
 		return true;
 	});
+}
+
+bool UpdateExtendedMedia(
+		Invoice &invoice,
+		not_null<HistoryItem*> item,
+		const QVector<MTPMessageExtendedMedia> &media) {
+	auto changed = false;
+	const auto count = int(media.size());
+	for (auto i = 0; i != count; ++i) {
+		if (i <= invoice.extendedMedia.size()) {
+			invoice.extendedMedia.emplace_back();
+			changed = true;
+		}
+		UpdateExtendedMedia(invoice.extendedMedia[i], item, media[i]);
+	}
+	if (count < invoice.extendedMedia.size()) {
+		invoice.extendedMedia.resize(count);
+		changed = true;
+	}
+	return changed;
 }
 
 TextForMimeData WithCaptionClipboardText(
@@ -320,6 +377,29 @@ TextForMimeData WithCaptionClipboardText(
 		}
 	}
 	return result;
+}
+
+[[nodiscard]] QString ComputeAlbumCountsString(AlbumCounts counts) {
+	const auto medias = counts.photos + counts.videos;
+	return (counts.photos && counts.videos)
+		? tr::lng_in_dlg_media_count(tr::now, lt_count, medias)
+		: (counts.photos > 1)
+		? tr::lng_in_dlg_photo_count(tr::now, lt_count, counts.photos)
+		: counts.photos
+		? tr::lng_in_dlg_photo(tr::now)
+		: (counts.videos > 1)
+		? tr::lng_in_dlg_video_count(tr::now, lt_count, counts.videos)
+		: counts.videos
+		? tr::lng_in_dlg_video(tr::now)
+		: (counts.audios > 1)
+		? tr::lng_in_dlg_audio_count(tr::now, lt_count, counts.audios)
+		: counts.audios
+		? tr::lng_in_dlg_audio(tr::now)
+		: (counts.files > 1)
+		? tr::lng_in_dlg_file_count(tr::now, lt_count, counts.files)
+		: counts.files
+		? tr::lng_in_dlg_file(tr::now)
+		: tr::lng_in_dlg_album(tr::now);
 }
 
 } // namespace
@@ -344,8 +424,20 @@ Invoice ComputeInvoiceData(
 		.isTest = data.is_test(),
 	};
 	if (const auto &media = data.vextended_media()) {
-		UpdateExtendedMedia(result, item, *media);
+		UpdateExtendedMedia(result, item, { *media });
 	}
+	return result;
+}
+
+Invoice ComputeInvoiceData(
+		not_null<HistoryItem*> item,
+		const MTPDmessageMediaPaidMedia &data) {
+	auto result = Invoice{
+		.amount = data.vstars_amount().v,
+		.currency = Ui::kCreditsCurrency,
+		.isPaidMedia = true,
+	};
+	UpdateExtendedMedia(result, item, data.vextended_media().v);
 	return result;
 }
 
@@ -422,6 +514,27 @@ GiveawayResults ComputeGiveawayResultsData(
 		result.additionalPrize = qs(*additional);
 	}
 	return result;
+}
+
+bool HasExtendedMedia(const Invoice &invoice) {
+	return !invoice.extendedMedia.empty();
+}
+
+bool HasUnpaidMedia(const Invoice &invoice) {
+	for (const auto &media : invoice.extendedMedia) {
+		const auto photo = media->photo();
+		return photo && photo->extendedMediaPreview();
+	}
+	return false;
+}
+
+bool IsFirstVideo(const Invoice &invoice) {
+	if (invoice.extendedMedia.empty()) {
+		return false;
+	} else if (const auto photo = invoice.extendedMedia.front()->photo()) {
+		return photo->extendedMediaVideoDuration().has_value();
+	}
+	return true;
 }
 
 Media::Media(not_null<HistoryItem*> parent) : _parent(parent) {
@@ -586,21 +699,18 @@ ItemPreview Media::toGroupPreview(
 		ToPreviewOptions options) const {
 	auto result = ItemPreview();
 	auto loadingContext = std::vector<std::any>();
-	auto photoCount = 0;
-	auto videoCount = 0;
-	auto audioCount = 0;
-	auto fileCount = 0;
+	auto counts = AlbumCounts();
 	auto manyCaptions = false;
 	for (const auto &item : items) {
 		if (const auto media = item->media()) {
 			if (media->photo()) {
-				photoCount++;
+				counts.photos++;
 			} else if (const auto document = media->document()) {
 				(document->isVideoFile()
-					? videoCount
+					? counts.videos
 					: document->isAudioFile()
-					? audioCount
-					: fileCount)++;
+					? counts.audios
+					: counts.files)++;
 			}
 			auto copy = options;
 			copy.ignoreGroup = true;
@@ -630,19 +740,7 @@ ItemPreview Media::toGroupPreview(
 		}
 	}
 	if (manyCaptions || result.text.text.isEmpty()) {
-		const auto mediaCount = photoCount + videoCount;
-		auto genericText = (photoCount && videoCount)
-			? tr::lng_in_dlg_media_count(tr::now, lt_count, mediaCount)
-			: photoCount
-			? tr::lng_in_dlg_photo_count(tr::now, lt_count, photoCount)
-			: videoCount
-			? tr::lng_in_dlg_video_count(tr::now, lt_count, videoCount)
-			: audioCount
-			? tr::lng_in_dlg_audio_count(tr::now, lt_count, audioCount)
-			: fileCount
-			? tr::lng_in_dlg_file_count(tr::now, lt_count, fileCount)
-			: tr::lng_in_dlg_album(tr::now);
-		result.text = Ui::Text::Colorized(genericText);
+		result.text = Ui::Text::Colorized(ComputeAlbumCountsString(counts));
 	}
 	if (!loadingContext.empty()) {
 		result.loadingContext = std::move(loadingContext);
@@ -1219,6 +1317,92 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 		_document);
 }
 
+SharedContact::VcardItems SharedContact::ParseVcard(const QString &data) {
+	const auto decode = [&](const QByteArray &input) -> QString {
+		auto output = QByteArray();
+		for (auto i = 0; i < input.size(); ++i) {
+			if ((input.at(i) == '=') && ((i + 2) < input.size())) {
+				const auto value = input.mid((++i)++, 2);
+				auto converted = false;
+				const auto character = char(value.toUInt(&converted, 16));
+				if (converted) {
+					output.append(character);
+				} else {
+					output.append('=');
+					output.append(value);
+				}
+			} else {
+				output.append(input.at(i));
+			}
+		}
+
+		return QString::fromUtf8(output);
+	};
+
+	using Type = SharedContact::VcardItemType;
+	auto items = SharedContact::VcardItems();
+	for (const auto &item : data.split('\n')) {
+		const auto parts = item.split(':');
+		if (parts.size() == 2) {
+			const auto &type = parts.front();
+			const auto attributes = type.split(';', Qt::SkipEmptyParts);
+
+			const auto c = Qt::CaseInsensitive;
+			auto isQuotedPrintable = false;
+			for (const auto &attribute : attributes) {
+				const auto parts = attribute.split('=', Qt::SkipEmptyParts);
+				if (parts.size() == 2) {
+					if (parts.front().startsWith("ENCODING", c)) {
+						isQuotedPrintable = parts[1].startsWith(
+							"QUOTED-PRINTABLE",
+							c);
+						break;
+					}
+				}
+			}
+
+			const auto &value = isQuotedPrintable
+				? decode(parts[1].toUtf8())
+				: parts[1];
+
+			if (type.startsWith("TEL")) {
+				const auto telType = type.contains("PREF")
+					? Type::PhoneMain
+					: type.contains("HOME")
+					? Type::PhoneHome
+					: type.contains("WORK")
+					? Type::PhoneWork
+					: (type.contains("CELL")
+						|| type.contains("MOBILE"))
+					? Type::PhoneMobile
+					: type.contains("OTHER")
+					? Type::PhoneOther
+					: Type::Phone;
+				items[telType] = value;
+			} else if (type.startsWith("EMAIL")) {
+				items[Type::Email] = value;
+			} else if (type.startsWith("URL")) {
+				items[Type::Url] = value;
+			} else if (type.startsWith("NOTE")) {
+				items[Type::Note] = value;
+			} else if (type.startsWith("ORG")) {
+				items[Type::Organization] = base::duplicate(value)
+					.replace(';', ' ')
+					.trimmed();
+			} else if (type.startsWith("ADR")) {
+				items[Type::Address] = value;
+			} else if (type.startsWith("BDAY")) {
+				items[Type::Birthday] = value;
+			} else if (type.startsWith("N")) {
+				items[Type::Name] = base::duplicate(value)
+					.replace(';', ' ')
+					.trimmed();
+			}
+		}
+	}
+	return items;
+}
+
 MediaContact::MediaContact(
 	not_null<HistoryItem*> parent,
 	UserId userId,
@@ -1765,14 +1949,15 @@ MediaInvoice::MediaInvoice(
 	.currency = data.currency,
 	.title = data.title,
 	.description = data.description,
-	.extendedPreview = data.extendedPreview,
-	.extendedMedia = (data.extendedMedia
-		? data.extendedMedia->clone(parent)
-		: nullptr),
 	.photo = data.photo,
+	.isPaidMedia = data.isPaidMedia,
 	.isTest = data.isTest,
 } {
-	if (_invoice.extendedPreview && !_invoice.extendedMedia) {
+	_invoice.extendedMedia.reserve(data.extendedMedia.size());
+	for (auto &item : data.extendedMedia) {
+		_invoice.extendedMedia.push_back(item->clone(parent));
+	}
+	if (HasUnpaidMedia(_invoice)) {
 		Ui::PreloadImageSpoiler();
 	}
 }
@@ -1808,7 +1993,87 @@ bool MediaInvoice::replyPreviewLoaded() const {
 }
 
 TextWithEntities MediaInvoice::notificationText() const {
+	if (_invoice.isPaidMedia && !_invoice.extendedMedia.empty()) {
+		return WithCaptionNotificationText(
+			(IsFirstVideo(_invoice)
+				? tr::lng_in_dlg_video
+				: tr::lng_in_dlg_photo)(tr::now),
+			parent()->originalText());
+	}
 	return { .text = _invoice.title };
+}
+
+ItemPreview MediaInvoice::toPreview(ToPreviewOptions options) const {
+	if (!_invoice.isPaidMedia || _invoice.extendedMedia.empty()) {
+		return Media::toPreview(options);
+	}
+	auto counts = AlbumCounts();
+	auto images = std::vector<ItemPreviewImage>();
+	auto context = std::vector<std::any>();
+	const auto existing = options.existing;
+	const auto spoiler = HasUnpaidMedia(_invoice);
+	for (const auto &media : _invoice.extendedMedia) {
+		const auto raw = media.get();
+		const auto photo = raw->photo();
+		const auto document = raw->document();
+		if (!photo && !document) {
+			continue;
+		} else if (images.size() < kMaxPreviewImages) {
+			auto found = photo
+				? FindCachedPreview(existing, not_null(photo), spoiler)
+				: FindCachedPreview(existing, not_null(document), spoiler);
+			const auto radius = ImageRoundRadius::Small;
+			if (found) {
+				images.push_back(std::move(found));
+			} else if (photo) {
+				const auto media = photo->createMediaView();
+				if (auto prepared = PreparePhotoPreview(
+					parent(),
+					media,
+					radius,
+					spoiler)
+					; prepared || !prepared.cacheKey) {
+					images.push_back(std::move(prepared));
+					if (!prepared.cacheKey) {
+						context.push_back(media);
+					}
+				}
+			} else if (TryFilePreview(document)) {
+				const auto media = document->createMediaView();
+				if (auto prepared = PrepareFilePreview(
+						parent(),
+						media,
+						radius,
+						spoiler)
+					; prepared || !prepared.cacheKey) {
+					images.push_back(std::move(prepared));
+					if (!prepared.cacheKey) {
+						context.push_back(media);
+					}
+				}
+			}
+		}
+		if (photo && !photo->extendedMediaVideoDuration().has_value()) {
+			++counts.photos;
+		} else {
+			++counts.videos;
+		}
+	}
+	const auto type = ComputeAlbumCountsString(counts);
+	const auto caption = (options.hideCaption || options.ignoreMessageText)
+		? TextWithEntities()
+		: options.translated
+		? parent()->translatedText()
+		: parent()->originalText();
+	const auto hasMiniImages = !images.empty();
+	auto nice = Ui::Text::Colorized(
+		Ui::CreditsEmojiSmall(&parent()->history()->session()));
+	nice.append(WithCaptionNotificationText(type, caption, hasMiniImages));
+	return {
+		.text = std::move(nice),
+		.images = std::move(images),
+		.loadingContext = std::move(context),
+	};
 }
 
 QString MediaInvoice::pinnedTextSubstring() const {
@@ -1831,7 +2096,7 @@ bool MediaInvoice::updateSentMedia(const MTPMessageMedia &media) {
 
 bool MediaInvoice::updateExtendedMedia(
 		not_null<HistoryItem*> item,
-		const MTPMessageExtendedMedia &media) {
+		const QVector<MTPMessageExtendedMedia> &media) {
 	Expects(item == parent());
 
 	return UpdateExtendedMedia(_invoice, item, media);
@@ -1841,15 +2106,15 @@ std::unique_ptr<HistoryView::Media> MediaInvoice::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	if (_invoice.extendedMedia) {
-		return _invoice.extendedMedia->createView(
+	if (_invoice.extendedMedia.size() == 1) {
+		return _invoice.extendedMedia.front()->createView(
 			message,
 			realParent,
 			replacing);
-	} else if (_invoice.extendedPreview) {
-		return std::make_unique<HistoryView::ExtendedPreview>(
+	} else if (!_invoice.extendedMedia.empty()) {
+		return std::make_unique<HistoryView::GroupedMedia>(
 			message,
-			&_invoice);
+			_invoice.extendedMedia);
 	}
 	return std::make_unique<HistoryView::Invoice>(message, &_invoice);
 }

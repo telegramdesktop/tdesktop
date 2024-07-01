@@ -19,6 +19,7 @@ SingleMediaPreview *SingleMediaPreview::Create(
 		const style::ComposeControls &st,
 		Fn<bool()> gifPaused,
 		const PreparedFile &file,
+		Fn<bool()> canToggleSpoiler,
 		AttachControls::Type type) {
 	auto preview = QImage();
 	auto animated = false;
@@ -51,7 +52,8 @@ SingleMediaPreview *SingleMediaPreview::Create(
 		Core::IsMimeSticker(file.information->filemime),
 		file.spoiler,
 		animationPreview ? file.path : QString(),
-		type);
+		type,
+		std::move(canToggleSpoiler));
 }
 
 SingleMediaPreview::SingleMediaPreview(
@@ -63,8 +65,9 @@ SingleMediaPreview::SingleMediaPreview(
 	bool sticker,
 	bool spoiler,
 	const QString &animatedPreviewPath,
-	AttachControls::Type type)
-: AbstractSingleMediaPreview(parent, st, type)
+	AttachControls::Type type,
+	Fn<bool()> canToggleSpoiler)
+: AbstractSingleMediaPreview(parent, st, type, std::move(canToggleSpoiler))
 , _gifPaused(std::move(gifPaused))
 , _sticker(sticker) {
 	Expects(!preview.isNull());

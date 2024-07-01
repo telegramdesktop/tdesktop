@@ -32,9 +32,11 @@ constexpr auto kMinPreviewWidth = 20;
 AbstractSingleMediaPreview::AbstractSingleMediaPreview(
 	QWidget *parent,
 	const style::ComposeControls &st,
-	AttachControls::Type type)
+	AttachControls::Type type,
+	Fn<bool()> canToggleSpoiler)
 : AbstractSinglePreview(parent)
 , _st(st)
+, _canToggleSpoiler(std::move(canToggleSpoiler))
 , _minThumbH(st::sendBoxAlbumGroupSize.height()
 	+ st::sendBoxAlbumGroupSkipTop * 2)
 , _controls(base::make_unique_q<AttachControlsWidget>(this, type)) {
@@ -80,6 +82,10 @@ bool AbstractSingleMediaPreview::canHaveSpoiler() const {
 
 rpl::producer<bool> AbstractSingleMediaPreview::spoileredChanges() const {
 	return _spoileredChanges.events();
+}
+
+QImage AbstractSingleMediaPreview::generatePriceTagBackground() const {
+	return (_previewBlurred.isNull() ? _preview : _previewBlurred).toImage();
 }
 
 void AbstractSingleMediaPreview::preparePreview(QImage preview) {
@@ -266,7 +272,9 @@ void AbstractSingleMediaPreview::applyCursor(style::cursor cursor) {
 }
 
 void AbstractSingleMediaPreview::showContextMenu(QPoint position) {
-	if (!_sendWay.sendImagesAsPhotos() || !supportsSpoilers()) {
+	if (!_canToggleSpoiler()
+		|| !_sendWay.sendImagesAsPhotos()
+		|| !supportsSpoilers()) {
 		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(

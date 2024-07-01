@@ -211,4 +211,7 @@ private:
 
 };
 
+[[nodiscard]] bool IsWithdrawalNotification(
+	const MTPDupdateServiceNotification &);
+
 } // namespace Api

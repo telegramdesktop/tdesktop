@@ -51,13 +51,13 @@ using WorkMode = Core::Settings::WorkMode;
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 void XCBSkipTaskbar(QWindow *window, bool skip) {
-	const auto connection = base::Platform::XCB::GetConnectionFromQt();
-	if (!connection) {
+	const base::Platform::XCB::Connection connection;
+	if (!connection || xcb_connection_has_error(connection)) {
 		return;
 	}
 
 	const auto root = base::Platform::XCB::GetRootWindow(connection);
-	if (!root.has_value()) {
+	if (!root) {
 		return;
 	}
 
@@ -65,7 +65,7 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 		connection,
 		"_NET_WM_STATE");
 
-	if (!stateAtom.has_value()) {
+	if (!stateAtom) {
 		return;
 	}
 
@@ -73,29 +73,32 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 		connection,
 		"_NET_WM_STATE_SKIP_TASKBAR");
 
-	if (!skipTaskbarAtom.has_value()) {
+	if (!skipTaskbarAtom) {
 		return;
 	}
 
 	xcb_client_message_event_t xev;
 	xev.response_type = XCB_CLIENT_MESSAGE;
-	xev.type = *stateAtom;
+	xev.type = stateAtom;
 	xev.sequence = 0;
 	xev.window = window->winId();
 	xev.format = 32;
 	xev.data.data32[0] = skip ? 1 : 0;
-	xev.data.data32[1] = *skipTaskbarAtom;
+	xev.data.data32[1] = skipTaskbarAtom;
 	xev.data.data32[2] = 0;
 	xev.data.data32[3] = 0;
 	xev.data.data32[4] = 0;
 
-	xcb_send_event(
-		connection,
-		false,
-		*root,
-		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
-			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
-		reinterpret_cast<const char*>(&xev));
+	free(
+		xcb_request_check(
+			connection,
+			xcb_send_event_checked(
+				connection,
+				false,
+				root,
+				XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+					| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+				reinterpret_cast<const char*>(&xev))));
 }
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
@@ -109,16 +112,18 @@ void SkipTaskbar(QWindow *window, bool skip) {
 }
 
 void SendKeySequence(
-	Qt::Key key,
-	Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-	const auto focused = static_cast<QObject*>(QApplication::focusWidget());
+		Qt::Key key,
+		Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+	const auto focused = QApplication::focusWidget();
 	if (qobject_cast<QLineEdit*>(focused)
 		|| qobject_cast<QTextEdit*>(focused)
 		|| dynamic_cast<HistoryInner*>(focused)) {
-		QKeyEvent pressEvent(QEvent::KeyPress, key, modifiers);
-		focused->event(&pressEvent);
-		QKeyEvent releaseEvent(QEvent::KeyRelease, key, modifiers);
-		focused->event(&releaseEvent);
+		QApplication::postEvent(
+			focused,
+			new QKeyEvent(QEvent::KeyPress, key, modifiers));
+		QApplication::postEvent(
+			focused,
+			new QKeyEvent(QEvent::KeyRelease, key, modifiers));
 	}
 }
 
@@ -134,35 +139,6 @@ void ForceDisabled(QAction *action, bool disabled) {
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
-}
-
-void MainWindow::initHook() {
-	events() | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::ThemeChange) {
-			updateWindowIcon();
-		}
-	}, lifetime());
-
-	base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Expose) {
-			auto ee = static_cast<QExposeEvent*>(e.get());
-			if (ee->region().isNull()) {
-				return base::EventFilterResult::Continue;
-			}
-			if (!windowHandle()
-				|| windowHandle()->parent()
-				|| !windowHandle()->isVisible()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(true);
-		} else if (e->type() == QEvent::Hide) {
-			if (!windowHandle() || windowHandle()->parent()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(false);
-		}
-		return base::EventFilterResult::Continue;
-	});
 }
 
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
@@ -258,6 +234,7 @@ void MainWindow::createGlobalMenu() {
 		QKeySequence::Quit);
 
 	quit->setMenuRole(QAction::QuitRole);
+	quit->setShortcutContext(Qt::WidgetShortcut);
 
 	auto edit = psMainMenu->addMenu(tr::lng_mac_menu_edit(tr::now));
 
@@ -265,6 +242,8 @@ void MainWindow::createGlobalMenu() {
 		tr::lng_linux_menu_undo(tr::now),
 		[] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
 		QKeySequence::Undo);
+
+	psUndo->setShortcutContext(Qt::WidgetShortcut);
 
 	psRedo = edit->addAction(
 		tr::lng_linux_menu_redo(tr::now),
@@ -275,6 +254,8 @@ void MainWindow::createGlobalMenu() {
 		},
 		QKeySequence::Redo);
 
+	psRedo->setShortcutContext(Qt::WidgetShortcut);
+
 	edit->addSeparator();
 
 	psCut = edit->addAction(
@@ -282,20 +263,28 @@ void MainWindow::createGlobalMenu() {
 		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
 		QKeySequence::Cut);
 
+	psCut->setShortcutContext(Qt::WidgetShortcut);
+
 	psCopy = edit->addAction(
 		tr::lng_mac_menu_copy(tr::now),
 		[] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
 		QKeySequence::Copy);
+
+	psCopy->setShortcutContext(Qt::WidgetShortcut);
 
 	psPaste = edit->addAction(
 		tr::lng_mac_menu_paste(tr::now),
 		[] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
 		QKeySequence::Paste);
 
+	psPaste->setShortcutContext(Qt::WidgetShortcut);
+
 	psDelete = edit->addAction(
 		tr::lng_mac_menu_delete(tr::now),
 		[] { SendKeySequence(Qt::Key_Delete); },
 		QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
+
+	psDelete->setShortcutContext(Qt::WidgetShortcut);
 
 	edit->addSeparator();
 
@@ -304,15 +293,21 @@ void MainWindow::createGlobalMenu() {
 		[] { SendKeySequence(Qt::Key_B, Qt::ControlModifier); },
 		QKeySequence::Bold);
 
+	psBold->setShortcutContext(Qt::WidgetShortcut);
+
 	psItalic = edit->addAction(
 		tr::lng_menu_formatting_italic(tr::now),
 		[] { SendKeySequence(Qt::Key_I, Qt::ControlModifier); },
 		QKeySequence::Italic);
 
+	psItalic->setShortcutContext(Qt::WidgetShortcut);
+
 	psUnderline = edit->addAction(
 		tr::lng_menu_formatting_underline(tr::now),
 		[] { SendKeySequence(Qt::Key_U, Qt::ControlModifier); },
 		QKeySequence::Underline);
+
+	psUnderline->setShortcutContext(Qt::WidgetShortcut);
 
 	psStrikeOut = edit->addAction(
 		tr::lng_menu_formatting_strike_out(tr::now),
@@ -323,6 +318,8 @@ void MainWindow::createGlobalMenu() {
 		},
 		Ui::kStrikeOutSequence);
 
+	psStrikeOut->setShortcutContext(Qt::WidgetShortcut);
+
 	psBlockquote = edit->addAction(
 		tr::lng_menu_formatting_blockquote(tr::now),
 		[] {
@@ -331,6 +328,8 @@ void MainWindow::createGlobalMenu() {
 				Qt::ControlModifier | Qt::ShiftModifier);
 		},
 		Ui::kBlockquoteSequence);
+
+	psBlockquote->setShortcutContext(Qt::WidgetShortcut);
 
 	psMonospace = edit->addAction(
 		tr::lng_menu_formatting_monospace(tr::now),
@@ -341,6 +340,8 @@ void MainWindow::createGlobalMenu() {
 		},
 		Ui::kMonospaceSequence);
 
+	psMonospace->setShortcutContext(Qt::WidgetShortcut);
+
 	psClearFormat = edit->addAction(
 		tr::lng_menu_formatting_clear(tr::now),
 		[] {
@@ -350,12 +351,16 @@ void MainWindow::createGlobalMenu() {
 		},
 		Ui::kClearFormatSequence);
 
+	psClearFormat->setShortcutContext(Qt::WidgetShortcut);
+
 	edit->addSeparator();
 
 	psSelectAll = edit->addAction(
 		tr::lng_mac_menu_select_all(tr::now),
 		[] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
 		QKeySequence::SelectAll);
+
+	psSelectAll->setShortcutContext(Qt::WidgetShortcut);
 
 	edit->addSeparator();
 
@@ -369,6 +374,7 @@ void MainWindow::createGlobalMenu() {
 		QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 
 	prefs->setMenuRole(QAction::PreferencesRole);
+	prefs->setShortcutContext(Qt::WidgetShortcut);
 
 	auto tools = psMainMenu->addMenu(tr::lng_linux_menu_tools(tr::now));
 
@@ -514,17 +520,20 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 				updateGlobalMenu();
 			}
 		}
+	} else if (obj == this && t == QEvent::Paint) {
+		if (!_exposed) {
+			_exposed = true;
+			SkipTaskbar(
+				windowHandle(),
+				(Core::App().settings().workMode() == WorkMode::TrayOnly)
+					&& TrayIconSupported());
+		}
+	} else if (obj == this && t == QEvent::Hide) {
+		_exposed = false;
+	} else if (obj == this && t == QEvent::ThemeChange) {
+		updateWindowIcon();
 	}
 	return Window::MainWindow::eventFilter(obj, evt);
-}
-
-void MainWindow::handleNativeSurfaceChanged(bool exist) {
-	if (exist) {
-		SkipTaskbar(
-			windowHandle(),
-			(Core::App().settings().workMode() == WorkMode::TrayOnly)
-				&& TrayIconSupported());
-	}
 }
 
 MainWindow::~MainWindow() {

@@ -1867,6 +1867,11 @@ QString ListWidget::elementAuthorRank(not_null<const Element*> view) {
 	return _delegate->listElementAuthorRank(view);
 }
 
+bool ListWidget::elementHideTopicButton(not_null<const Element*> view) {
+	return _delegate->listElementHideTopicButton(view);
+}
+
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	const auto state = countScrollState();
@@ -2258,7 +2263,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			}
 		}
 		session->data().reactions().poll(item, context.now);
-		if (item->hasExtendedMediaPreview()) {
+		if (item->hasUnpaidContent()) {
 			session->api().views().pollExtendedMedia(item);
 		}
 		if (_reactionsManager) {
@@ -3773,12 +3778,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 				forwardIds = MessageIdsList(1, exactItem->fullId());
 			}
 		}
-		if (forwardIds.empty()) {
-			return nullptr;
-		}
-		session().data().setMimeForwardIds(std::move(forwardIds));
-		auto result = std::make_unique<QMimeData>();
-		result->setData(u"application/x-td-forward"_q, "1");
+
 		if (pressedHandler) {
 			const auto lnkDocument = reinterpret_cast<DocumentData*>(
 				pressedHandler->property(
@@ -3786,11 +3786,22 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 			if (lnkDocument) {
 				const auto filepath = lnkDocument->filepath(true);
 				if (!filepath.isEmpty()) {
-					QList<QUrl> urls;
 					urls.push_back(QUrl::fromLocalFile(filepath));
-					result->setUrls(urls);
 				}
 			}
+		}
+
+		if (forwardIds.empty() && urls.isEmpty()) {
+			return nullptr;
+		}
+
+		auto result = std::make_unique<QMimeData>();
+		if (!forwardIds.empty()) {
+			session().data().setMimeForwardIds(std::move(forwardIds));
+			result->setData(u"application/x-td-forward"_q, "1");
+		}
+		if (!urls.isEmpty()) {
+			result->setUrls(urls);
 		}
 		return result;
 	}

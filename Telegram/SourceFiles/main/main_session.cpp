@@ -497,7 +497,8 @@ Window::SessionController *Session::tryResolveWindow(
 	if (forPeer) {
 		auto primary = (Window::SessionController*)nullptr;
 		for (const auto &window : _windows) {
-			if (window->singlePeer() == forPeer) {
+			const auto thread = window->windowId().thread;
+			if (thread && thread->peer() == forPeer) {
 				return window;
 			} else if (window->isPrimary()) {
 				primary = window;

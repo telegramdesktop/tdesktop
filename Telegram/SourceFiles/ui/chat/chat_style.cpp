@@ -171,6 +171,7 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 	make(_historyPsaForwardPalette, st::historyPsaForwardPalette);
 	make(_imgReplyTextPalette, st::imgReplyTextPalette);
 	make(_serviceTextPalette, st::serviceTextPalette);
+	make(_priceTagTextPalette, st::priceTagTextPalette);
 	make(_historyRepliesInvertedIcon, st::historyRepliesInvertedIcon);
 	make(_historyViewsInvertedIcon, st::historyViewsInvertedIcon);
 	make(_historyViewsSendingIcon, st::historyViewsSendingIcon);

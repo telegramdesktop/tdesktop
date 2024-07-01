@@ -71,6 +71,7 @@ ComposeIcons {
 	menuSpoilerOff: icon;
 	menuBelow: icon;
 	menuAbove: icon;
+	menuPrice: icon;
 
 	stripBubble: icon;
 	stripExpandPanel: icon;
@@ -610,6 +611,7 @@ defaultComposeIcons: ComposeIcons {
 	menuSpoilerOff: menuIconSpoilerOff;
 	menuBelow: menuIconBelow;
 	menuAbove: menuIconAbove;
+	menuPrice: menuIconEarn;
 
 	stripBubble: icon{
 		{ "chat/reactions_bubble_shadow", windowShadowFg },
@@ -989,8 +991,33 @@ historyUnreadReactions: TwoIconButton(historyToDown) {
 }
 historyUnreadThingsSkip: 4px;
 
+historyQuoteStyle: QuoteStyle(defaultQuoteStyle) {
+	padding: margins(10px, 2px, 4px, 2px);
+	verticalSkip: 4px;
+	outline: 3px;
+	outlineShift: 2px;
+	radius: 5px;
+}
+historyTextStyle: TextStyle(defaultTextStyle) {
+	blockquote: QuoteStyle(historyQuoteStyle) {
+		padding: margins(10px, 2px, 20px, 2px);
+		icon: icon{{ "chat/mini_quote", windowFg }};
+		iconPosition: point(4px, 4px);
+		expand: icon{{ "intro_country_dropdown", windowFg }};
+		expandPosition: point(6px, 4px);
+		collapse: icon{{ "intro_country_dropdown-flip_vertical", windowFg }};
+		collapsePosition: point(6px, 4px);
+	}
+	pre: QuoteStyle(historyQuoteStyle) {
+		header: 20px;
+		headerPosition: point(10px, 2px);
+		scrollable: true;
+		icon: icon{{ "chat/mini_copy", windowFg }};
+		iconPosition: point(4px, 2px);
+	}
+}
 historyComposeField: InputField(defaultInputField) {
-	font: normalFont;
+	style: historyTextStyle;
 	textMargins: margins(0px, 0px, 0px, 0px);
 	textAlign: align(left);
 	textFg: historyComposeAreaFg;
@@ -1381,3 +1408,18 @@ editTagField: InputField(defaultInputField) {
 editTagLimit: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
+
+paidStarIcon: icon {{ "settings/premium/star", creditsBg1 }};
+paidStarIconTop: 7px;
+paidAmountAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	textFg: windowSubTextFg;
+}
+paidTagLabel: FlatLabel(defaultFlatLabel) {
+	textFg: radialFg;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: creditsBg1;
+	}
+	style: semiboldTextStyle;
+}
+paidTagPadding: margins(16px, 6px, 16px, 6px);

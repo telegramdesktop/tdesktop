@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QFileDialog>
 #include <QtGui/QDesktopServices>
 #include <QtCore/QSettings>
+#include <QtCore/QStandardPaths>
 
 #include <Shlwapi.h>
 #include <Windowsx.h>

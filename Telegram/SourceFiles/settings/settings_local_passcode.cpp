@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_local_passcode.h"
 
 #include "base/platform/base_platform_last_input.h"
+#include "base/platform/base_platform_info.h"
+#include "base/system_unlock.h"
 #include "boxes/auto_lock_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -23,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/slide_wrap.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
@@ -77,6 +80,7 @@ private:
 	rpl::event_stream<> _setInnerFocus;
 	rpl::event_stream<Type> _showOther;
 	rpl::event_stream<> _showBack;
+	bool _systemUnlockWithBiometric = false;
 
 };
 
@@ -93,6 +97,13 @@ rpl::producer<QString> LocalPasscodeEnter::title() {
 
 void LocalPasscodeEnter::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+
+	base::SystemUnlockStatus(
+		true
+	) | rpl::start_with_next([=](base::SystemUnlockAvailability status) {
+		_systemUnlockWithBiometric = status.available
+			&& status.withBiometrics;
+	}, lifetime());
 
 	const auto isCreate = (enterType() == EnterType::Create);
 	const auto isCheck = (enterType() == EnterType::Check);
@@ -199,11 +210,11 @@ void LocalPasscodeEnter::setupContent() {
 			content,
 			object_ptr<Ui::RoundButton>(
 				content,
-				isCreate
+				(isCreate
 					? tr::lng_passcode_create_button()
 					: isCheck
 					? tr::lng_passcode_check_button()
-					: tr::lng_passcode_change_button(),
+					: tr::lng_passcode_change_button()),
 				st::changePhoneButton)),
 		st::settingLocalPasscodeButtonPadding)->entity();
 	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
@@ -239,6 +250,10 @@ void LocalPasscodeEnter::setupContent() {
 				}
 				SetPasscode(_controller, newText);
 				if (isCreate) {
+					if (Platform::IsWindows() || _systemUnlockWithBiometric) {
+						Core::App().settings().setSystemUnlockEnabled(true);
+						Core::App().saveSettingsDelayed();
+					}
 					_showOther.fire(LocalPasscodeManageId());
 				} else if (isChange) {
 					_showBack.fire({});
@@ -506,6 +521,85 @@ void LocalPasscodeManage::setupContent() {
 		divider->skipEdge(Qt::BottomEdge, shown);
 	}, divider->lifetime());
 
+	const auto systemUnlockWrap = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content))
+	)->setDuration(0);
+	const auto systemUnlockContent = systemUnlockWrap->entity();
+
+	enum class UnlockType {
+		None,
+		Default,
+		Biometrics,
+		Companion,
+	};
+	const auto unlockType = systemUnlockContent->lifetime().make_state<
+		rpl::variable<UnlockType>
+	>(base::SystemUnlockStatus(
+		true
+	) | rpl::map([](base::SystemUnlockAvailability status) {
+		return status.withBiometrics
+			? UnlockType::Biometrics
+			: status.withCompanion
+			? UnlockType::Companion
+			: status.available
+			? UnlockType::Default
+			: UnlockType::None;
+	}));
+
+	unlockType->value(
+	) | rpl::start_with_next([=](UnlockType type) {
+		while (systemUnlockContent->count()) {
+			delete systemUnlockContent->widgetAt(0);
+		}
+
+		Ui::AddSkip(systemUnlockContent);
+
+		AddButtonWithIcon(
+			systemUnlockContent,
+			(Platform::IsWindows()
+				? tr::lng_settings_use_winhello()
+				: (type == UnlockType::Biometrics)
+				? tr::lng_settings_use_touchid()
+				: (type == UnlockType::Companion)
+				? tr::lng_settings_use_applewatch()
+				: tr::lng_settings_use_systempwd()),
+			st::settingsButton,
+			{ Platform::IsWindows()
+				? &st::menuIconWinHello
+				: (type == UnlockType::Biometrics)
+				? &st::menuIconTouchID
+				: (type == UnlockType::Companion)
+				? &st::menuIconAppleWatch
+				: &st::menuIconSystemPwd }
+		)->toggleOn(
+			rpl::single(Core::App().settings().systemUnlockEnabled())
+		)->toggledChanges(
+		) | rpl::filter([=](bool value) {
+			return value != Core::App().settings().systemUnlockEnabled();
+		}) | rpl::start_with_next([=](bool value) {
+			Core::App().settings().setSystemUnlockEnabled(value);
+			Core::App().saveSettingsDelayed();
+		}, systemUnlockContent->lifetime());
+
+		Ui::AddSkip(systemUnlockContent);
+
+		Ui::AddDividerText(
+			systemUnlockContent,
+			(Platform::IsWindows()
+				? tr::lng_settings_use_winhello_about()
+				: (type == UnlockType::Biometrics)
+				? tr::lng_settings_use_touchid_about()
+				: (type == UnlockType::Companion)
+				? tr::lng_settings_use_applewatch_about()
+				: tr::lng_settings_use_systempwd_about()));
+
+	}, systemUnlockContent->lifetime());
+
+	systemUnlockWrap->toggleOn(unlockType->value(
+	) | rpl::map(rpl::mappers::_1 != UnlockType::None));
+
 	Ui::ResizeFitChild(this, content);
 }
 
@@ -517,6 +611,8 @@ QPointer<Ui::RpWidget> LocalPasscodeManage::createPinnedToBottom(
 				.text = tr::lng_settings_passcode_disable_sure(),
 				.confirmed = [=](Fn<void()> &&close) {
 					SetPasscode(_controller, QString());
+					Core::App().settings().setSystemUnlockEnabled(false);
+					Core::App().saveSettingsDelayed();
 
 					close();
 					_showBack.fire({});
