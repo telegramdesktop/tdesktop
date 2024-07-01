@@ -29,6 +29,7 @@ public:
 		std::shared_ptr<Ui::DynamicImage> icon,
 		const QString &label,
 		bool chosen);
+	~Action();
 
 	bool isEnabled() const override;
 	not_null<QAction*> action() const override;
@@ -109,6 +110,10 @@ Action::Action(
 	}, lifetime());
 
 	enableMouseSelecting();
+}
+
+Action::~Action() {
+	_icon->subscribeToUpdates(nullptr);
 }
 
 void Action::resolveMinWidth() {
