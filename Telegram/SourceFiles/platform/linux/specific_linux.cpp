@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/specific_linux.h"
 
+#include "base/openssl_help.h"
 #include "base/random.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
@@ -480,6 +481,16 @@ void InstallLauncher() {
 	});
 }
 
+[[nodiscard]] QByteArray HashForSocketPath(const QByteArray &data) {
+	constexpr auto kHashForSocketPathLength = 24;
+
+	const auto binary = openssl::Sha256(bytes::make_span(data));
+	const auto base64 = QByteArray(
+		reinterpret_cast<const char*>(binary.data()),
+		binary.size()).toBase64(QByteArray::Base64UrlEncoding);
+	return base64.mid(0, kHashForSocketPathLength);
+}
+
 } // namespace
 
 namespace Platform {
@@ -686,8 +697,8 @@ void start() {
 
 	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
 		QDir::tempPath(),
-		h,
-		QCoreApplication::applicationName(),
+		HashForSocketPath(d),
+		u"TD"_q,//QCoreApplication::applicationName(), - make path smaller.
 		u"%1"_q).toStdString());
 
 	InstallLauncher();
