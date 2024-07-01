@@ -1,3 +1,11 @@
+5.2.1 (01.07.24)
+
+- Fix crash when opening topic in a new window.
+- Fix crash in topic search scope dropdown.
+- Fix crash in video player.
+- Fix feeze and crash in Instant View (Windows).
+- Allow unlock by Apple Watch or System Password (macOS).
+
 5.2 (30.06.24)
 
 - Pay for content with Telegram Stars.
