@@ -342,9 +342,11 @@ void Controller::createWindow() {
 	_window = std::make_unique<Ui::RpWindow>();
 	const auto window = _window.get();
 
-	window->windowActiveValue(
-	) | rpl::filter([=](bool active) {
-		return _webview && active;
+	base::qt_signal_producer(
+		window->window()->windowHandle(),
+		&QWindow::activeChanged
+	) | rpl::filter([=] {
+		return _webview && window->window()->windowHandle()->isActive();
 	}) | rpl::start_with_next([=] {
 		setInnerFocus();
 	}, window->lifetime());
