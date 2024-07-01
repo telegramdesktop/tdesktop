@@ -280,10 +280,7 @@ void FillCreditOptions(
 			inner->paintRequest(
 			) | rpl::start_with_next([=](const QRect &rect) {
 				auto p = QPainter(inner);
-				p.drawImage(
-					0,
-					(buttonHeight - stars.height()) / 2,
-					stars);
+				p.drawImage(0, 0, stars);
 				const auto textLeft = diffBetweenTextAndStar
 					+ stars.width() / style::DevicePixelRatio();
 				p.setPen(st.textFg);
