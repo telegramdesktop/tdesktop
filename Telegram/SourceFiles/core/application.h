@@ -126,6 +126,8 @@ enum class QuitReason {
 	QtQuitEvent,
 };
 
+extern const char kOptionSkipUrlSchemeRegister[];
+
 class Application final : public QObject {
 public:
 	struct ProxyChange {
@@ -349,6 +351,7 @@ private:
 	friend bool IsAppLaunched();
 	friend Application &App();
 
+	void autoRegisterUrlScheme();
 	void clearEmojiSourceImages();
 	[[nodiscard]] auto prepareEmojiSourceImages()
 		-> std::shared_ptr<Ui::Emoji::UniversalImages>;
