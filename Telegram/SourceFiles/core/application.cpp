@@ -261,9 +261,14 @@ void Application::run() {
 
 	refreshGlobalProxy(); // Depends on app settings being read.
 
-	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
+	if (const auto old = Local::oldSettingsVersion()) {
+		if (old < AppVersion) {
+			InvokeQueued(this, [] { RegisterUrlScheme(); });
+			Platform::NewVersionLaunched(old);
+		}
+	} else {
+		// Initial launch.
 		InvokeQueued(this, [] { RegisterUrlScheme(); });
-		Platform::NewVersionLaunched(old);
 	}
 
 	if (cAutoStart() && !Platform::AutostartSupported()) {
