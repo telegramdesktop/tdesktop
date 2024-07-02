@@ -18,6 +18,7 @@ struct Source {
 	std::optional<MTPPhoto> webpagePhoto;
 	std::optional<MTPDocument> webpageDocument;
 	QString name;
+	int updatedCachedViews = 0;
 };
 
 [[nodiscard]] Prepared Prepare(const Source &source, const Options &options);

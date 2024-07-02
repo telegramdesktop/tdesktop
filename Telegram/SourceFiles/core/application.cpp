@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/battery_saving.h"
 #include "base/event_filter.h"
 #include "base/concurrent_timer.h"
+#include "base/options.h"
 #include "base/qt_signal_producer.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
@@ -140,9 +141,17 @@ void SetCrashAnnotationsGL() {
 #endif // DESKTOP_APP_USE_ANGLE
 }
 
+base::options::toggle OptionSkipUrlSchemeRegister({
+	.id = kOptionSkipUrlSchemeRegister,
+	.name = "Skip URL scheme register",
+	.description = "Don't re-register tg:// URL scheme on autoupdate.",
+});
+
 } // namespace
 
 Application *Application::Instance = nullptr;
+
+const char kOptionSkipUrlSchemeRegister[] = "skip-url-scheme-register";
 
 struct Application::Private {
 	base::Timer quitTimer;
@@ -261,9 +270,14 @@ void Application::run() {
 
 	refreshGlobalProxy(); // Depends on app settings being read.
 
-	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
-		InvokeQueued(this, [] { RegisterUrlScheme(); });
-		Platform::NewVersionLaunched(old);
+	if (const auto old = Local::oldSettingsVersion()) {
+		if (old < AppVersion) {
+			autoRegisterUrlScheme();
+			Platform::NewVersionLaunched(old);
+		}
+	} else {
+		// Initial launch.
+		autoRegisterUrlScheme();
 	}
 
 	if (cAutoStart() && !Platform::AutostartSupported()) {
@@ -403,6 +417,12 @@ void Application::run() {
 	}
 
 	processCreatedWindow(_lastActivePrimaryWindow);
+}
+
+void Application::autoRegisterUrlScheme() {
+	if (!OptionSkipUrlSchemeRegister.value()) {
+		InvokeQueued(this, [] { RegisterUrlScheme(); });
+	}
 }
 
 void Application::showAccount(not_null<Main::Account*> account) {

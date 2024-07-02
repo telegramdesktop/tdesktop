@@ -2200,8 +2200,11 @@ void Controller::saveForum() {
 		channel->inputChannel,
 		MTP_bool(*_savingData.forum)
 	)).done([=](const MTPUpdates &result) {
+		const auto weak = base::make_weak(this);
 		channel->session().api().applyUpdates(result);
-		continueSave();
+		if (weak) { // todo better to be able to save in closed already box.
+			continueSave();
+		}
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"CHAT_NOT_MODIFIED"_q) {
 			continueSave();

@@ -152,8 +152,7 @@ public:
 		const SectionShow &params);
 	void updateColumnLayout();
 	bool stackIsEmpty() const;
-	void showBackFromStack(
-		const SectionShow &params);
+	bool showBackFromStack(const SectionShow &params);
 	void orderWidgets();
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 	void checkMainSectionToLayer();

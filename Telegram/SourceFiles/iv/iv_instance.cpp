@@ -57,6 +57,7 @@ constexpr auto kGeoPointScale = 1;
 constexpr auto kGeoPointZoomMin = 13;
 constexpr auto kMaxLoadParts = 5;
 constexpr auto kKeepLoadingParts = 8;
+constexpr auto kAllowPageReloadAfter = 3 * crl::time(1000);
 
 } // namespace
 
@@ -815,19 +816,19 @@ void Instance::show(
 			}
 			break;
 		case Type::OpenPage:
-		case Type::OpenLink:
+		case Type::OpenLink: {
 			if (!urlChecked) {
 				break;
 			}
-			_fullRequested[_shownSession].emplace(event.url);
-			_shownSession->api().request(MTPmessages_GetWebPage(
-				MTP_string(event.url),
-				MTP_int(0)
+			const auto session = _shownSession;
+			const auto url = event.url;
+			auto &requested = _fullRequested[session][url];
+			requested.lastRequestedAt = crl::now();
+			session->api().request(MTPmessages_GetWebPage(
+				MTP_string(url),
+				MTP_int(requested.hash)
 			)).done([=](const MTPmessages_WebPage &result) {
-				_shownSession->data().processUsers(result.data().vusers());
-				_shownSession->data().processChats(result.data().vchats());
-				const auto page = _shownSession->data().processWebpage(
-					result.data().vwebpage());
+				const auto page = processReceivedPage(session, url, result);
 				if (page && page->iv) {
 					const auto parts = event.url.split('#');
 					const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
@@ -838,7 +839,7 @@ void Instance::show(
 			}).fail([=] {
 				UrlClickHandler::Open(event.url);
 			}).send();
-			break;
+		} break;
 		case Type::Report:
 			if (const auto controller = _shownSession->tryResolveWindow()) {
 				controller->window().activate();
@@ -954,15 +955,13 @@ void Instance::openWithIvPreferred(
 	};
 	_ivRequestSession = session;
 	_ivRequestUri = uri;
-	_fullRequested[session].emplace(url);
+	auto &requested = _fullRequested[session][url];
+	requested.lastRequestedAt = crl::now();
 	_ivRequestId = session->api().request(MTPmessages_GetWebPage(
 		MTP_string(url),
-		MTP_int(0)
+		MTP_int(requested.hash)
 	)).done([=](const MTPmessages_WebPage &result) {
-		const auto &data = result.data();
-		session->data().processUsers(data.vusers());
-		session->data().processChats(data.vchats());
-		finish(session->data().processWebpage(data.vwebpage()));
+		finish(processReceivedPage(session, url, result));
 	}).fail([=] {
 		finish(nullptr);
 	}).send();
@@ -971,22 +970,51 @@ void Instance::openWithIvPreferred(
 void Instance::requestFull(
 		not_null<Main::Session*> session,
 		const QString &id) {
-	if (!_tracking.contains(session)
-		|| !_fullRequested[session].emplace(id).second) {
+	if (!_tracking.contains(session)) {
 		return;
 	}
+	auto &requested = _fullRequested[session][id];
+	const auto last = requested.lastRequestedAt;
+	const auto now = crl::now();
+	if (last && (now - last) < kAllowPageReloadAfter) {
+		return;
+	}
+	requested.lastRequestedAt = now;
 	session->api().request(MTPmessages_GetWebPage(
 		MTP_string(id),
-		MTP_int(0)
+		MTP_int(requested.hash)
 	)).done([=](const MTPmessages_WebPage &result) {
-		session->data().processUsers(result.data().vusers());
-		session->data().processChats(result.data().vchats());
-		const auto page = session->data().processWebpage(
-			result.data().vwebpage());
+		const auto page = processReceivedPage(session, id, result);
 		if (page && page->iv && _shown && _shownSession == session) {
 			_shown->update(page->iv.get());
 		}
 	}).send();
+}
+
+WebPageData *Instance::processReceivedPage(
+		not_null<Main::Session*> session,
+		const QString &url,
+		const MTPmessages_WebPage &result) {
+	const auto &data = result.data();
+	const auto owner = &session->data();
+	owner->processUsers(data.vusers());
+	owner->processChats(data.vchats());
+	auto &requested = _fullRequested[session][url];
+	const auto &mtp = data.vwebpage();
+	mtp.match([&](const MTPDwebPageNotModified &data) {
+		const auto page = requested.page;
+		if (const auto views = data.vcached_page_views()) {
+			if (page && page->iv) {
+				page->iv->updateCachedViews(views->v);
+			}
+		}
+	}, [&](const MTPDwebPage &data) {
+		requested.hash = data.vhash().v;
+		requested.page = owner->processWebpage(data).get();
+	}, [&](const auto &) {
+		requested.page = owner->processWebpage(mtp).get();
+	});
+	return requested.page;
 }
 
 void Instance::processOpenChannel(const QString &context) {

@@ -71,6 +71,12 @@ bool Data::partial() const {
 
 Data::~Data() = default;
 
+void Data::updateCachedViews(int cachedViews) {
+	_source->updatedCachedViews = std::max(
+		_source->updatedCachedViews,
+		cachedViews);
+}
+
 void Data::prepare(const Options &options, Fn<void(Prepared)> done) const {
 	crl::async([source = *_source, options, done = std::move(done)] {
 		done(Prepare(source, options));

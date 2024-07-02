@@ -61,11 +61,22 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	struct FullResult {
+		crl::time lastRequestedAt = 0;
+		WebPageData *page = nullptr;
+		int32 hash = 0;
+	};
+
 	void processOpenChannel(const QString &context);
 	void processJoinChannel(const QString &context);
 	void requestFull(not_null<Main::Session*> session, const QString &id);
 
 	void trackSession(not_null<Main::Session*> session);
+
+	WebPageData *processReceivedPage(
+		not_null<Main::Session*> session,
+		const QString &url,
+		const MTPmessages_WebPage &result);
 
 	const not_null<Delegate*> _delegate;
 
@@ -77,7 +88,7 @@ private:
 		base::flat_set<not_null<ChannelData*>>> _joining;
 	base::flat_map<
 		not_null<Main::Session*>,
-		base::flat_set<QString>> _fullRequested;
+		base::flat_map<QString, FullResult>> _fullRequested;
 
 	base::flat_map<
 		not_null<Main::Session*>,
