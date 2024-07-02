@@ -1660,8 +1660,9 @@ void SessionController::showForum(
 	) | rpl::start_with_next([=, history = forum->history()] {
 		const auto now = activeChatCurrent().owningHistory();
 		const auto showHistory = !now || (now == history);
+		const auto weak = base::make_weak(this);
 		closeForum();
-		if (showHistory) {
+		if (weak && showHistory) {
 			showPeerHistory(history, {
 				SectionShow::Way::Backward,
 				anim::type::normal,
@@ -1676,7 +1677,7 @@ void SessionController::closeForum() {
 	if (const auto forum = _shownForum.current()) {
 		const auto id = windowId();
 		if (id.type == SeparateType::Forum) {
-			const auto initial = id.thread->asForum();
+			const auto initial = id.forum();
 			if (!initial || initial == forum) {
 				Core::App().closeWindow(_window);
 			} else {
@@ -2529,7 +2530,13 @@ void SessionController::showBackFromStack(const SectionShow &params) {
 		return topic && topic->forum()->topicDeleted(topic->rootId());
 	};
 	do {
-		content()->showBackFromStack(params);
+		const auto empty = content()->stackIsEmpty();
+		const auto shown = content()->showBackFromStack(params);
+		if (empty && !shown && content()->stackIsEmpty() && bad()) {
+			clearSectionStack(anim::type::instant);
+			window().close();
+			break;
+		}
 	} while (bad());
 }
 
