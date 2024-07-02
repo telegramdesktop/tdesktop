@@ -1001,14 +1001,20 @@ WebPageData *Instance::processReceivedPage(
 	owner->processChats(data.vchats());
 	auto &requested = _fullRequested[session][url];
 	const auto &mtp = data.vwebpage();
-	return mtp.match([&](const MTPDwebPageNotModified &data) {
-		return requested.page;
+	mtp.match([&](const MTPDwebPageNotModified &data) {
+		const auto page = requested.page;
+		if (const auto views = data.vcached_page_views()) {
+			if (page && page->iv) {
+				page->iv->updateCachedViews(views->v);
+			}
+		}
 	}, [&](const MTPDwebPage &data) {
 		requested.hash = data.vhash().v;
-		return owner->processWebpage(data).get();
+		requested.page = owner->processWebpage(data).get();
 	}, [&](const auto &) {
-		return owner->processWebpage(mtp).get();
+		requested.page = owner->processWebpage(mtp).get();
 	});
+	return requested.page;
 }
 
 void Instance::processOpenChannel(const QString &context) {

@@ -229,7 +229,9 @@ Parser::Parser(const Source &source, const Options &options)
 	_result.name = source.name;
 	_result.rtl = source.page.data().is_rtl();
 
-	const auto views = source.page.data().vviews().value_or_empty();
+	const auto views = std::max(
+		source.page.data().vviews().value_or_empty(),
+		source.updatedCachedViews);
 	const auto content = list(source.page.data().vblocks());
 	_result.content = wrap(content, views);
 }
