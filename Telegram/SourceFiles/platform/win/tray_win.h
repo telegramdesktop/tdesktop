@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 
 namespace Window {
-class CounterLayerArgs;
+struct CounterLayerArgs;
 } // namespace Window
 
 namespace Ui {
