@@ -76,9 +76,9 @@ namespace {
 			return rpl::single(ContentWithoutPreview(item, repaint));
 		}
 		constexpr auto kFullLoaded = 2;
-		constexpr auto kSomeLoaded = 1;
-		constexpr auto kNotLoaded = 0;
 		const auto loadedLevel = [=] {
+			constexpr auto kSomeLoaded = 1;
+			constexpr auto kNotLoaded = 0;
 			const auto preview = media->replyPreview();
 			return media->replyPreviewLoaded()
 				? kFullLoaded
