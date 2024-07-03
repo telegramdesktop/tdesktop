@@ -250,7 +250,7 @@ COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
 COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
 
-RUN git clone -b v0.10.2 --depth=1 {{ GIT }}/libjxl/libjxl.git \
+RUN git clone -b v0.10.3 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 	&& cd libjxl \
 	&& git apply ../patches/libjxl.patch \
 	&& git submodule update --init --recursive --depth=1 third_party/libjpeg-turbo \
