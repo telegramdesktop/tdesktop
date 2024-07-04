@@ -88,6 +88,7 @@ struct PreparedFile {
 };
 
 [[nodiscard]] bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album);
+[[nodiscard]] bool InsertTextOnImageCancel(const QString &text);
 
 struct PreparedList {
 	enum class Error {

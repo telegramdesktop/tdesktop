@@ -82,6 +82,10 @@ bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album) {
 	Unexpected("AlbumType in CanBeInAlbumType.");
 }
 
+bool InsertTextOnImageCancel(const QString &text) {
+	return !text.isEmpty() && !text.startsWith(u"data:image"_q);
+}
+
 PreparedList PreparedList::Reordered(
 		PreparedList &&list,
 		std::vector<int> order) {

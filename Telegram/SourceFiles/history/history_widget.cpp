@@ -5668,7 +5668,7 @@ bool HistoryWidget::confirmSendingFiles(
 			cursor.setPosition(position, QTextCursor::KeepAnchor);
 		}
 		_field->setTextCursor(cursor);
-		if (!insertTextOnCancel.isEmpty()) {
+		if (Ui::InsertTextOnImageCancel(insertTextOnCancel)) {
 			_field->textCursor().insertText(insertTextOnCancel);
 		}
 	}));
