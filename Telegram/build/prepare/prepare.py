@@ -938,7 +938,7 @@ mac:
 """)
 
 stage('libjxl', """
-    git clone -b v0.8.2 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.10.3 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
     cd libjxl
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
@@ -954,12 +954,10 @@ stage('libjxl', """
     -DJPEGXL_ENABLE_SJPEG=OFF
     -DJPEGXL_ENABLE_OPENEXR=OFF
     -DJPEGXL_ENABLE_SKCMS=ON
-    -DJPEGXL_BUNDLE_SKCMS=ON
     -DJPEGXL_ENABLE_VIEWERS=OFF
     -DJPEGXL_ENABLE_TCMALLOC=OFF
     -DJPEGXL_ENABLE_PLUGINS=OFF
     -DJPEGXL_ENABLE_COVERAGE=OFF
-    -DJPEGXL_ENABLE_PROFILER=OFF
     -DJPEGXL_WARNINGS_AS_ERRORS=OFF
 """) + """
 win:
@@ -967,8 +965,8 @@ win:
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
-        -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
+        -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
+        -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
