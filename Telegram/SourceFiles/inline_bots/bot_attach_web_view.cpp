@@ -9,9 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_blocked_peers.h"
 #include "api/api_common.h"
+#include "api/api_sending.h"
 #include "base/qthelp_url.h"
 #include "boxes/share_box.h"
 #include "core/click_handler_types.h"
+#include "core/shortcuts.h"
 #include "data/data_bot_app.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
@@ -28,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_instance.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_bot_webview.h"
+#include "ui/controls/location_picker.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/popup_menu.h"
@@ -153,6 +156,10 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 			: PeerType(0);
 	}
 	return result;
+}
+
+[[nodiscard]] QString ResolveMapsToken(not_null<Main::Session*> session) {
+	return u""_q;
 }
 
 void ShowChooseBox(
@@ -1793,6 +1800,21 @@ void AttachWebView::toggleInMenu(
 	}).send();
 }
 
+void ChooseAndSendLocation(
+		not_null<Window::SessionController*> controller,
+		Api::SendAction action) {
+	const auto callback = [=](Ui::LocationInfo info) {
+		Api::SendLocation(action, info.lat, info.lon);
+	};
+	Ui::LocationPicker::Show({
+		.parent = controller->widget(),
+		.callback = crl::guard(controller, callback),
+		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
+		.storageId = controller->session().local().resolveStorageIdBots(),
+		.closeRequests = controller->content()->death(),
+	});
+}
+
 std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller,
@@ -1846,6 +1868,14 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 				source,
 				{ sendMenuType });
 		}, &st::menuIconCreatePoll);
+	}
+	const auto session = &controller->session();
+	const auto locationType = ChatRestriction::SendOther;
+	if (Data::CanSendAnyOf(peer, locationType)
+		&& Ui::LocationPicker::Available(ResolveMapsToken(session))) {
+		raw->addAction(tr::lng_maps_point(tr::now), [=] {
+			ChooseAndSendLocation(controller, actionFactory());
+		}, &st::menuIconAddress);
 	}
 	for (const auto &bot : bots->attachBots()) {
 		if (!bot.inAttachMenu

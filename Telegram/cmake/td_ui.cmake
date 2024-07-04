@@ -70,6 +70,8 @@ PRIVATE
     chat_helpers/stickers_emoji_image_loader.cpp
     chat_helpers/stickers_emoji_image_loader.h
 
+    core/current_geo_location.cpp
+    core/current_geo_location.h
     core/file_location.cpp
     core/file_location.h
     core/mime_type.cpp
@@ -78,6 +80,8 @@ PRIVATE
     countries/countries_instance.cpp
     countries/countries_instance.h
 
+    data/raw/raw_countries_bounds.cpp
+    data/raw/raw_countries_bounds.h
     data/data_birthday.cpp
     data/data_birthday.h
     data/data_channel_earn.h
@@ -194,9 +198,16 @@ PRIVATE
     payments/ui/payments_panel_data.h
     payments/ui/payments_panel_delegate.h
 
+    platform/linux/current_geo_location_linux.cpp
+    platform/linux/current_geo_location_linux.h
     platform/mac/file_bookmark_mac.h
     platform/mac/file_bookmark_mac.mm
+    platform/mac/current_geo_location_mac.h
+    platform/mac/current_geo_location_mac.mm
+    platform/win/current_geo_location_win.cpp
+    platform/win/current_geo_location_win.h
     platform/platform_file_bookmark.h
+    platform/platform_current_geo_location.h
 
     settings/settings_common.cpp
     settings/settings_common.h
@@ -344,6 +355,8 @@ PRIVATE
     ui/controls/invite_link_buttons.h
     ui/controls/invite_link_label.cpp
     ui/controls/invite_link_label.h
+    ui/controls/location_picker.cpp
+    ui/controls/location_picker.h
     ui/controls/peer_list_dummy.cpp
     ui/controls/peer_list_dummy.h
     ui/controls/send_as_button.cpp
@@ -437,6 +450,12 @@ PRIVATE
     window/window_slide_animation.h
 
     ui/ui_pch.h
+)
+
+nice_target_sources(td_ui ${res_loc}
+PRIVATE
+    picker_html/picker.css
+    picker_html/picker.js
 )
 
 if (DESKTOP_APP_SPECIAL_TARGET)

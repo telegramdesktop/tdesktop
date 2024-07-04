@@ -45,6 +45,16 @@ private:
 
 };
 
+struct InputVenue {
+	float64 lat = 0.;
+	float64 lon = 0.;
+	QString title;
+	QString address;
+	QString provider;
+	QString id;
+	QString venueType;
+};
+
 [[nodiscard]] GeoPointLocation ComputeLocation(const LocationPoint &point);
 
 } // namespace Data
