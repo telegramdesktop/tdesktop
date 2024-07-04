@@ -205,6 +205,8 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::PremiumBot:
 			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
+		case Data::CreditsHistoryEntry::PeerType::Ads:
+			return { st::historyPeer6UserpicBg, st::historyPeer6UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::Unsupported:
 			return {
 				st::historyPeerArchiveUserpicBg,
@@ -227,6 +229,8 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 			? st::sessionIconAndroid
 			: (entry.peerType == PeerType::Fragment)
 			? st::introFragmentIcon
+			: (entry.peerType == PeerType::Ads)
+			? st::creditsHistoryEntryTypeAds
 			: st::dialogsInaccessibleUserpic).paintInCenter(p, rect);
 	};
 }
@@ -442,6 +446,8 @@ Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 	return ((entry.peerType == Data::CreditsHistoryEntry::PeerType::Fragment)
 		? tr::lng_bot_username_description1_link
+		: (entry.peerType == Data::CreditsHistoryEntry::PeerType::Ads)
+		? tr::lng_credits_box_history_entry_ads
 		: tr::lng_credits_summary_history_entry_inner_in)(
 			tr::now,
 			TextWithEntities::Simple);
