@@ -37,17 +37,21 @@ var LocationPicker = {
 			document.getElementsByTagName('html')[0].style = styles;
 		}
 	},
-	init: function (token, center, bounds) {
-		mapboxgl.accessToken = token;
+	init: function (params) {
+		mapboxgl.accessToken = params.token;
+		if (params.protocol) {
+			mapboxgl.config.API_URL = params.protocol + '://domain/api.mapbox.com';
+		}
 
 		var options = { container: 'map' };
+		var center = params.center;
 		if (center) {
 			center = [center[1], center[0]];
 			options.center = center;
 			options.zoom = LocationPicker.startZoom;
-		} else if (bounds) {
-			options.bounds = bounds;
-			center = new mapboxgl.LngLatBounds(bounds).getCenter();
+		} else if (params.bounds) {
+			options.bounds = params.bounds;
+			center = new mapboxgl.LngLatBounds(params.bounds).getCenter();
 		} else {
 			center = [0, 0];
 		}

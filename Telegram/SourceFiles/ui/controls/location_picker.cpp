@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
 
+#include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonValue>
@@ -27,6 +28,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+#ifdef Q_OS_MAC
+const auto kProtocolOverride = "mapboxapihelper";
+#else // Q_OS_MAC
+const auto kProtocolOverride = "";
+#endif // Q_OS_MAC
+
 Core::GeoLocation LastExactLocation;
 QString MapsProviderToken;
 
@@ -35,9 +42,9 @@ QString MapsProviderToken;
 		return "null";
 	}
 	return "["_q
-		+ QByteArray::number(LastExactLocation.point.x() - 1)
+		+ QByteArray::number(LastExactLocation.point.x())
 		+ ","_q
-		+ QByteArray::number(LastExactLocation.point.y() - 1)
+		+ QByteArray::number(LastExactLocation.point.y())
 		+ "]"_q;
 }
 
@@ -189,6 +196,7 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
 			.storageId = descriptor.storageId,
+			.dataProtocolOverride = kProtocolOverride,
 		});
 	const auto raw = _webview.get();
 
@@ -293,18 +301,25 @@ void LocationPicker::initMap() {
 	const auto token = MapsProviderToken.toUtf8();
 	const auto center = DefaultCenter();
 	const auto bounds = DefaultBounds();
-	const auto arguments = "'" + token + "', " + center + ", " + bounds;
-	_webview->eval("LocationPicker.init(" + arguments + ");");
+	const auto protocol = *kProtocolOverride
+		? "'"_q + kProtocolOverride + "'"
+		: "null";
+	const auto params = "token: '" + token + "'"
+		+ ", center: " + center
+		+ ", bounds: " + bounds
+		+ ", protocol: " + protocol;
+	_webview->eval("LocationPicker.init({ " + params + " });");
 }
 
 void LocationPicker::resolveCurrentLocation() {
 	using namespace Core;
 	const auto window = _window.get();
 	ResolveCurrentGeoLocation(crl::guard(window, [=](GeoLocation location) {
-		if (location) {
-			LastExactLocation = location;
+		if (location.accuracy != GeoLocationAccuracy::Exact) {
+			return;
 		}
-		if (_webview && location.accuracy == GeoLocationAccuracy::Exact) {
+		LastExactLocation = location;
+		if (_webview) {
 			const auto point = QByteArray::number(location.point.x())
 				+ ","_q
 				+ QByteArray::number(location.point.y());
@@ -327,7 +342,10 @@ void LocationPicker::processKey(
 }
 
 void LocationPicker::close() {
-	_window->close();
+	crl::on_main(this, [=] {
+		_window = nullptr;
+		delete this;
+	});
 }
 
 void LocationPicker::minimize() {

@@ -12,12 +12,20 @@
 	<string>Icon.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>@bundle_identifier_plist@</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>@output_name@</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>@desktop_app_version_string@</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>MacOSX</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -39,16 +47,18 @@
 	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.social-networking</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>@CMAKE_OSX_DEPLOYMENT_TARGET@</string>
 	<key>LSFileQuarantineEnabled</key>
 	<true/>
+	<key>LSMinimumSystemVersion</key>
+	<string>@CMAKE_OSX_DEPLOYMENT_TARGET@</string>
 	<key>NOTE</key>
 	<string></string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need access to your microphone so that you can record voice messages and make calls.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to your camera so that you can record video messages and make video calls.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>We need access to your location so that you can send your current locations.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>

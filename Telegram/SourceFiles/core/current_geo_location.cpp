@@ -40,7 +40,7 @@ GeoLocation ResolveCurrentCountryLocation() {
 void ResolveCurrentGeoLocation(Fn<void(GeoLocation)> callback) {
 	using namespace Platform;
 	return ResolveCurrentExactLocation([done = std::move(callback)](
-		GeoLocation result) {
+			GeoLocation result) {
 		done(result.accuracy != GeoLocationAccuracy::Failed
 			? result
 			: ResolveCurrentCountryLocation());
