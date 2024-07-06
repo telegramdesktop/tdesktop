@@ -178,6 +178,8 @@ void Panel::Button::updateFg(QColor fg) {
 void Panel::Button::updateArgs(MainButtonArgs &&args) {
 	_textFull = std::move(args.text);
 	setDisabled(!args.isActive);
+	setPointerCursor(false);
+	setCursor(args.isActive ? style::cur_pointer : Qt::ForbiddenCursor);
 	setVisible(args.isVisible);
 	toggleProgress(args.isProgressVisible);
 	update();
