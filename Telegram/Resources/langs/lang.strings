@@ -1115,6 +1115,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_faq" = "Telegram FAQ";
 "lng_settings_faq_link" = "https://telegram.org/faq#general-questions";
 "lng_settings_features" = "Telegram Features";
+"lng_settings_credits" = "Your Stars";
 "lng_settings_logout" = "Log Out";
 "lng_sure_logout" = "Are you sure you want to log out?";
 

@@ -503,7 +503,7 @@ void SetupPremium(
 		AddPremiumStar(
 			AddButtonWithLabel(
 				wrap->entity(),
-				tr::lng_credits_summary_title(),
+				tr::lng_settings_credits(),
 				controller->session().creditsValue(
 				) | rpl::map([=](uint64 c) {
 					return c ? Lang::FormatCountToShort(c).string : QString{};
