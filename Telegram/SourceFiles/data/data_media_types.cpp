@@ -121,8 +121,8 @@ struct AlbumCounts {
 		ImageRoundRadius radius,
 		bool spoiler) {
 	const auto original = image->original();
-	if (original.width() * 10 < original.height()
-		|| original.height() * 10 < original.width()) {
+	if (original.width() * 20 < original.height()
+		|| original.height() * 20 < original.width()) {
 		return QImage();
 	}
 	const auto factor = style::DevicePixelRatio();
