@@ -1,3 +1,8 @@
+5.2.3 (07.07.24)
+
+- Fix crash in bot star stats page.
+- Bug fixes and other minor improvements.
+
 5.2.2 (02.07.24)
 
 - Fix topics search in topic groups.
