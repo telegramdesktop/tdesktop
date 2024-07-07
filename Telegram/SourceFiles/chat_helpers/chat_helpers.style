@@ -1423,3 +1423,7 @@ paidTagLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 }
 paidTagPadding: margins(16px, 6px, 16px, 6px);
+
+pickLocationWindow: size(364px, 680px);
+pickLocationMapHeight: 220px;
+pickLocationCollapsedHeight: 108px;

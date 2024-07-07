@@ -10,11 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "core/current_geo_location.h"
 #include "lang/lang_keys.h"
-#include "ui/widgets/rp_window.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/separate_panel.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/vertical_layout.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
 
@@ -117,7 +120,10 @@ QString MapsProviderToken;
 LocationPicker::LocationPicker(Descriptor &&descriptor)
 : _callback(std::move(descriptor.callback))
 , _quit(std::move(descriptor.quit))
-, _window(std::make_unique<RpWindow>())
+, _window(std::make_unique<SeparatePanel>())
+, _body((_window->setInnerSize(st::pickLocationWindow)
+	, _window->showInner(base::make_unique_q<RpWidget>(_window.get()))
+	, _window->inner()))
 , _updateStyles([=] {
 	const auto str = EscapeForScriptString(ComputeStyles());
 	if (_webview) {
@@ -148,35 +154,50 @@ void LocationPicker::setup(const Descriptor &descriptor) {
 void LocationPicker::setupWindow(const Descriptor &descriptor) {
 	const auto window = _window.get();
 
+	window->setWindowFlag(Qt::WindowStaysOnTopHint, false);
+	window->closeRequests() | rpl::start_with_next([=] {
+		close();
+	}, _lifetime);
+
 	const auto parent = descriptor.parent
 		? descriptor.parent->window()->geometry()
 		: QGuiApplication::primaryScreen()->availableGeometry();
-	window->setGeometry(QRect(
-		parent.x() + (parent.width() - st::windowMinHeight) / 2,
-		parent.y() + (parent.height() - st::windowMinWidth) / 2,
-		st::windowMinHeight,
-		st::windowMinWidth));
-	window->setMinimumSize({ st::windowMinHeight, st::windowMinWidth });
+	window->setTitle(tr::lng_maps_point());
+	window->move(
+		parent.x() + (parent.width() - window->width()) / 2,
+		parent.y() + (parent.height() - window->height()) / 2);
 
-	_container = Ui::CreateChild<Ui::RpWidget>(window->body().get());
-	const auto button = Ui::CreateChild<FlatButton>(
-		window->body(),
+	_container = CreateChild<RpWidget>(_body.get());
+	const auto scroll = CreateChild<ScrollArea>(_body.get());
+	const auto controls = scroll->setOwnedWidget(
+		object_ptr<VerticalLayout>(scroll));
+	const auto toppad = controls->add(object_ptr<RpWidget>(controls));
+
+	const auto button = controls->add(object_ptr<FlatButton>(
+		controls,
 		tr::lng_maps_point_send(tr::now),
-		st::dialogsUpdateButton);
-	button->show();
+		st::dialogsUpdateButton));
 	button->setClickedCallback([=] {
 		_webview->eval("LocationPicker.send();");
 	});
-	window->body()->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		_container->setGeometry(QRect(QPoint(), size).marginsRemoved(
-			{ 0, 0, 0, button->height() }));
-		button->resizeToWidth(size.width());
-		button->setGeometry(
-			0,
-			size.height() - button->height(),
-			button->width(),
-			button->height());
+	controls->add(object_ptr<RpWidget>(controls))->resize(
+		st::pickLocationWindow);
+
+	rpl::combine(
+		_body->sizeValue(),
+		scroll->scrollTopValue()
+	) | rpl::start_with_next([=](QSize size, int scrollTop) {
+		const auto width = size.width();
+		const auto height = size.height();
+		const auto sub = std::min(
+			(st::pickLocationMapHeight - st::pickLocationCollapsedHeight),
+			scrollTop);
+		const auto mapHeight = st::pickLocationMapHeight - sub;
+		const auto scrollHeight = height - mapHeight;
+		button->resizeToWidth(width);
+		_container->setGeometry(0, 0, width, mapHeight);
+		scroll->setGeometry(0, mapHeight, width, scrollHeight);
+		toppad->resize(width, sub);
 	}, _container->lifetime());
 
 	_container->paintRequest() | rpl::start_with_next([=](QRect clip) {
@@ -184,6 +205,9 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 	}, _container->lifetime());
 
 	_container->show();
+	scroll->show();
+	controls->show();
+	button->show();
 	window->show();
 }
 

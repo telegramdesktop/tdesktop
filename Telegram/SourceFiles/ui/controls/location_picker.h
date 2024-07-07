@@ -17,7 +17,7 @@ class Window;
 
 namespace Ui {
 
-class RpWindow;
+class SeparatePanel;
 class RpWidget;
 
 struct LocationInfo {
@@ -56,7 +56,8 @@ private:
 
 	Fn<void(LocationInfo)> _callback;
 	Fn<void()> _quit;
-	std::unique_ptr<RpWindow> _window;
+	std::unique_ptr<SeparatePanel> _window;
+	not_null<RpWidget*> _body;
 	RpWidget *_container = nullptr;
 	std::unique_ptr<Webview::Window> _webview;
 	SingleQueuedInvokation _updateStyles;
