@@ -559,6 +559,8 @@ public:
 		const MTPWebDocument &data,
 		const ImageLocation &thumbnailLocation,
 		const ImageLocation &videoThumbnailLocation);
+	[[nodiscard]] not_null<DocumentData*> venueIconDocument(
+		const QString &icon);
 
 	[[nodiscard]] not_null<WebPageData*> webpage(WebPageId id);
 	not_null<WebPageData*> processWebpage(const MTPWebPage &data);
@@ -1002,6 +1004,7 @@ private:
 		FullStoryId,
 		base::flat_set<not_null<HistoryItem*>>> _storyItems;
 	base::flat_map<uint64, not_null<HistoryItem*>> _highlightings;
+	base::flat_map<QString, not_null<DocumentData*>> _venueIcons;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;

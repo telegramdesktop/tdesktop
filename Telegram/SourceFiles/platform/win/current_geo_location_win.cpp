@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <winrt/Windows.Devices.Geolocation.h>
 #include <winrt/Windows.Foundation.h>
 
+#include <winrt/Windows.Services.Maps.h>
+#include <winrt/Windows.Foundation.Collections.h>
+
 namespace Platform {
 
 void ResolveCurrentExactLocation(Fn<void(Core::GeoLocation)> callback) {
@@ -54,6 +57,12 @@ void ResolveCurrentExactLocation(Fn<void(Core::GeoLocation)> callback) {
 	if (!success) {
 		callback({});
 	}
+}
+
+void ResolveLocationAddress(
+		const Core::GeoLocation &location,
+		Fn<void(Core::GeoAddress)> callback) {
+	callback({});
 }
 
 } // namespace Platform

@@ -116,4 +116,10 @@ void ResolveCurrentExactLocation(Fn<void(Core::GeoLocation)> callback) {
 	[[LocationDelegate alloc] initWithCallback:std::move(callback)];
 }
 
+void ResolveLocationAddress(
+		const Core::GeoLocation &location,
+		Fn<void(Core::GeoAddress)> callback) {
+	callback({});
+}
+
 } // namespace Platform

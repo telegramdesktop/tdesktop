@@ -162,6 +162,10 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 	return u""_q;
 }
 
+[[nodiscard]] QString ResolveGeocodingToken(not_null<Main::Session*> session) {
+	return u""_q;
+}
+
 void ShowChooseBox(
 		not_null<Window::SessionController*> controller,
 		PeerTypes types,
@@ -1808,6 +1812,7 @@ void ChooseAndSendLocation(
 	};
 	Ui::LocationPicker::Show({
 		.parent = controller->widget(),
+		.session = &controller->session(),
 		.callback = crl::guard(controller, callback),
 		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
 		.storageId = controller->session().local().resolveStorageIdBots(),
@@ -1872,7 +1877,9 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	const auto session = &controller->session();
 	const auto locationType = ChatRestriction::SendOther;
 	if (Data::CanSendAnyOf(peer, locationType)
-		&& Ui::LocationPicker::Available(ResolveMapsToken(session))) {
+		&& Ui::LocationPicker::Available(
+			ResolveMapsToken(session),
+			ResolveGeocodingToken(session))) {
 		raw->addAction(tr::lng_maps_point(tr::now), [=] {
 			ChooseAndSendLocation(controller, actionFactory());
 		}, &st::menuIconAddress);

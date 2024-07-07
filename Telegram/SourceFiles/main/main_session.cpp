@@ -73,10 +73,14 @@ constexpr auto kTmpPasswordReserveTime = TimeId(10);
 		if (domain.startsWith(prefix, Qt::CaseInsensitive)) {
 			return domain.endsWith('/')
 				? domain
-				: MTP::ConfigFields().internalLinksDomain;
+				: MTP::ConfigFields(
+					session->mtp().environment()
+				).internalLinksDomain;
 		}
 	}
-	return MTP::ConfigFields().internalLinksDomain;
+	return MTP::ConfigFields(
+		session->mtp().environment()
+	).internalLinksDomain;
 }
 
 } // namespace

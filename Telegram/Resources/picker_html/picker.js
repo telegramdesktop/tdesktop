@@ -31,10 +31,22 @@ var LocationPicker = {
 			});
 		}
 	},
+	isNight: function() {
+		var html = document.getElementsByTagName('html')[0];
+		return html.style.getPropertyValue('--td-night') == '1';
+	},
+	lightPreset: function() {
+		return LocationPicker.isNight() ? 'night' : 'day';
+	},
 	updateStyles: function (styles) {
 		if (LocationPicker.styles !== styles) {
 			LocationPicker.styles = styles;
 			document.getElementsByTagName('html')[0].style = styles;
+
+			LocationPicker.map.setConfigProperty(
+				'basemap',
+				'lightPreset',
+				LocationPicker.lightPreset());
 		}
 	},
 	init: function (params) {
@@ -43,7 +55,9 @@ var LocationPicker = {
 			mapboxgl.config.API_URL = params.protocol + '://domain/api.mapbox.com';
 		}
 
-		var options = { container: 'map' };
+		var options = { container: 'map', config: {
+			basemap: { lightPreset: LocationPicker.lightPreset() }
+		} };
 		var center = params.center;
 		if (center) {
 			center = [center[1], center[0]];

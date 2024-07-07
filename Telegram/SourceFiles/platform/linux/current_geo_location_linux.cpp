@@ -14,5 +14,10 @@ namespace Platform {
 void ResolveCurrentExactLocation(Fn<void(Core::GeoLocation)> callback) {
 	callback({});
 }
+void ResolveLocationAddress(
+		const Core::GeoLocation &location,
+		Fn<void(Core::GeoAddress)> callback) {
+	callback({});
+}
 
 } // namespace Platform

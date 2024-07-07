@@ -355,8 +355,6 @@ PRIVATE
     ui/controls/invite_link_buttons.h
     ui/controls/invite_link_label.cpp
     ui/controls/invite_link_label.h
-    ui/controls/location_picker.cpp
-    ui/controls/location_picker.h
     ui/controls/peer_list_dummy.cpp
     ui/controls/peer_list_dummy.h
     ui/controls/send_as_button.cpp
@@ -403,6 +401,11 @@ PRIVATE
     ui/text/text_options.cpp
     ui/text/text_options.h
 
+    ui/widgets/fields/special_fields.cpp
+    ui/widgets/fields/special_fields.h
+    ui/widgets/fields/time_part_input_with_placeholder.cpp
+    ui/widgets/fields/time_part_input_with_placeholder.h
+
     ui/widgets/color_editor.cpp
     ui/widgets/color_editor.h
     ui/widgets/continuous_sliders.cpp
@@ -441,10 +444,8 @@ PRIVATE
     ui/unread_badge_paint.h
     ui/userpic_view.cpp
     ui/userpic_view.h
-    ui/widgets/fields/special_fields.cpp
-    ui/widgets/fields/special_fields.h
-    ui/widgets/fields/time_part_input_with_placeholder.cpp
-    ui/widgets/fields/time_part_input_with_placeholder.h
+    ui/webview_helpers.cpp
+    ui/webview_helpers.h
 
     window/window_slide_animation.cpp
     window/window_slide_animation.h

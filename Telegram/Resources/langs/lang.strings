@@ -3195,6 +3195,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_maps_point" = "Location";
 "lng_maps_point_send" = "Send This Location";
+"lng_maps_or_choose" = "Or choose a venue";
+"lng_maps_places_in_area" = "Places in this area";
+"lng_maps_no_places" = "No places found";
 "lng_live_location" = "Live Location";
 "lng_live_location_now" = "updated just now";
 "lng_live_location_minutes#one" = "updated {count} minute ago";

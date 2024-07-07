@@ -16,18 +16,30 @@ namespace {
 
 constexpr auto kVersion = 1;
 
-} // namespace
-
-QString ConfigDefaultReactionEmoji() {
+[[nodiscard]] QString ConfigDefaultReactionEmoji() {
 	static const auto result = QString::fromUtf8("\xf0\x9f\x91\x8d");
 	return result;
 }
 
-Config::Config(Environment environment) : _dcOptions(environment) {
-	_fields.webFileDcId = _dcOptions.isTestMode() ? 2 : 4;
-	_fields.txtDomainString = _dcOptions.isTestMode()
-		? u"tapv3.stel.com"_q
-		: u"apv3.stel.com"_q;
+} // namespace
+
+ConfigFields::ConfigFields(Environment environment)
+: webFileDcId(environment == Environment::Test ? 2 : 4)
+, txtDomainString(environment == Environment::Test
+	? u"tapv3.stel.com"_q
+	: u"apv3.stel.com"_q)
+, reactionDefaultEmoji(ConfigDefaultReactionEmoji())
+, gifSearchUsername(environment == Environment::Test
+	? u"izgifbot"_q
+	: u"gif"_q)
+, venueSearchUsername(environment == Environment::Test
+	? u"foursquarebot"_q
+	: u"foursquare"_q) {
+}
+
+Config::Config(Environment environment)
+: _dcOptions(environment)
+, _fields(environment) {
 }
 
 Config::Config(const Config &other)
@@ -46,7 +58,9 @@ QByteArray Config::serialize() const {
 		+ 3 * sizeof(qint32)
 		+ Serialize::stringSize(_fields.reactionDefaultEmoji)
 		+ sizeof(quint64)
-		+ sizeof(qint32);
+		+ sizeof(qint32)
+		+ Serialize::stringSize(_fields.gifSearchUsername)
+		+ Serialize::stringSize(_fields.venueSearchUsername);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -91,7 +105,9 @@ QByteArray Config::serialize() const {
 			<< qint32(_fields.captionLengthMax)
 			<< _fields.reactionDefaultEmoji
 			<< quint64(_fields.reactionDefaultCustom)
-			<< qint32(_fields.ratingDecay);
+			<< qint32(_fields.ratingDecay)
+			<< _fields.gifSearchUsername
+			<< _fields.venueSearchUsername;
 	}
 	return result;
 }
@@ -190,6 +206,10 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		read(raw->_fields.ratingDecay);
 	}
+	if (!stream.atEnd()) {
+		read(raw->_fields.gifSearchUsername);
+		read(raw->_fields.venueSearchUsername);
+	}
 
 	if (stream.status() != QDataStream::Ok
 		|| !raw->_dcOptions.constructFromSerialized(dcOptionsSerialized)) {
@@ -256,8 +276,12 @@ void Config::apply(const MTPDconfig &data) {
 	_fields.autologinToken = qs(data.vautologin_token().value_or_empty());
 	_fields.ratingDecay = data.vrating_e_decay().v;
 	if (_fields.ratingDecay <= 0) {
-		_fields.ratingDecay = ConfigFields().ratingDecay;
+		_fields.ratingDecay = ConfigFields(
+			_dcOptions.environment()
+		).ratingDecay;
 	}
+	_fields.gifSearchUsername = qs(data.vgif_search_username().value_or_empty());
+	_fields.venueSearchUsername = qs(data.vvenue_search_username().value_or_empty());
 
 	if (data.vdc_options().v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));

@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
 #include "menu/menu_send.h" // SendMenu::FillSendMenu
+#include "mtproto/mtproto_config.h"
 #include "core/click_handler_types.h"
 #include "ui/controls/tabbed_search.h"
 #include "ui/widgets/buttons.h"
@@ -48,7 +49,6 @@ namespace ChatHelpers {
 namespace {
 
 constexpr auto kSearchRequestDelay = 400;
-constexpr auto kSearchBotUsername = "gif"_cs;
 constexpr auto kMinRepaintDelay = crl::time(33);
 constexpr auto kMinAfterScrollDelay = crl::time(33);
 
@@ -864,13 +864,11 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	}
 
 	if (!_searchBot && !_searchBotRequestId) {
-		auto username = kSearchBotUsername.utf16();
+		const auto username = session().serverConfig().gifSearchUsername;
 		_searchBotRequestId = _api.request(MTPcontacts_ResolveUsername(
 			MTP_string(username)
 		)).done([=](const MTPcontacts_ResolvedPeer &result) {
-			Expects(result.type() == mtpc_contacts_resolvedPeer);
-
-			auto &data = result.c_contacts_resolvedPeer();
+			auto &data = result.data();
 			session().data().processUsers(data.vusers());
 			session().data().processChats(data.vchats());
 			const auto peer = session().data().peerLoaded(

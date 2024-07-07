@@ -9,10 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Core {
 struct GeoLocation;
+struct GeoAddress;
 } // namespace Core
 
 namespace Platform {
 
 void ResolveCurrentExactLocation(Fn<void(Core::GeoLocation)> callback);
+void ResolveLocationAddress(
+	const Core::GeoLocation &location,
+	Fn<void(Core::GeoAddress)> callback);
 
 } // namespace Platform

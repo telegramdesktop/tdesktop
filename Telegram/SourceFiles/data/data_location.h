@@ -53,6 +53,10 @@ struct InputVenue {
 	QString provider;
 	QString id;
 	QString venueType;
+
+	friend inline bool operator==(
+		const InputVenue &,
+		const InputVenue &) = default;
 };
 
 [[nodiscard]] GeoPointLocation ComputeLocation(const LocationPoint &point);

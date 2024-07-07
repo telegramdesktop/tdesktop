@@ -33,9 +33,29 @@ struct GeoLocation {
 	explicit operator bool() const {
 		return !failed();
 	}
+
+	friend inline bool operator==(
+		const GeoLocation&,
+		const GeoLocation&) = default;
+};
+
+struct GeoAddress {
+	QString name;
+
+	[[nodiscard]] bool empty() const {
+		return name.isEmpty();
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
 };
 
 [[nodiscard]] GeoLocation ResolveCurrentCountryLocation();
 void ResolveCurrentGeoLocation(Fn<void(GeoLocation)> callback);
+
+void ResolveLocationAddress(
+	const GeoLocation &location,
+	const QString &token,
+	Fn<void(GeoAddress)> callback);
 
 } // namespace Core
