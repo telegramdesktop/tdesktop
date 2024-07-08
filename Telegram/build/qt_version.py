@@ -2,7 +2,7 @@ import sys, os
 
 def resolve(arch):
     if sys.platform == 'darwin':
-        os.environ['QT'] = '6.2.8'
+        os.environ['QT'] = '6.2.9'
     elif sys.platform == 'win32':
         if arch == 'arm' or 'qt6' in sys.argv:
             print('Choosing Qt 6.')
