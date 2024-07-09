@@ -29,6 +29,7 @@ class Panel;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Window {
@@ -155,11 +156,20 @@ public:
 	[[nodiscard]] std::optional<Api::SendAction> lookupLastAction(
 		const QString &url) const;
 
+	struct ShowGameParams {
+		not_null<UserData*> bot;
+		FullMsgId context;
+		QString url;
+		QString title;
+	};
+	void showGame(ShowGameParams &&params);
+
+	[[nodiscard]] std::shared_ptr<Main::SessionShow> uiShow();
+
 	static void ClearAll();
 
 private:
 	struct Context;
-
 
 	Webview::ThemeParams botThemeParams() override;
 	bool botHandleLocalUri(QString uri, bool keepOpen) override;
@@ -176,6 +186,7 @@ private:
 	void botSharePhone(Fn<void(bool shared)> callback) override;
 	void botInvokeCustomMethod(
 		Ui::BotWebView::CustomMethodRequest request) override;
+	void botShareGameScore() override;
 	void botClose() override;
 
 	[[nodiscard]] static Context LookupContext(
@@ -270,6 +281,8 @@ private:
 	std::vector<AttachWebViewBot> _attachBots;
 	rpl::event_stream<> _attachBotsUpdates;
 	base::flat_set<not_null<UserData*>> _disclaimerAccepted;
+
+	FullMsgId _gameContext;
 
 	std::unique_ptr<Ui::BotWebView::Panel> _panel;
 	bool _catchingCancelInShowCall = false;

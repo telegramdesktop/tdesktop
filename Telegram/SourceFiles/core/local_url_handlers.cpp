@@ -327,21 +327,6 @@ bool ConfirmPhone(
 	return true;
 }
 
-bool ShareGameScore(
-		Window::SessionController *controller,
-		const Match &match,
-		const QVariant &context) {
-	if (!controller) {
-		return false;
-	}
-	const auto params = url_parse_params(
-		match->captured(1),
-		qthelp::UrlParamNameTransform::ToLower);
-	ShareGameScoreByHash(controller, params.value(u"hash"_q));
-	controller->window().activate();
-	return true;
-}
-
 bool ApplySocksProxy(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1229,10 +1214,6 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^confirmphone/?\\?(.+)(#|$)"_q,
 			ConfirmPhone
-		},
-		{
-			u"^share_game_score/?\\?(.+)(#|$)"_q,
-			ShareGameScore
 		},
 		{
 			u"^socks/?\\?(.+)(#|$)"_q,

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webview/webview_interface.h"
 #include "base/debug_log.h"
 #include "base/invoke_queued.h"
+#include "base/qt_signal_producer.h"
 #include "styles/style_payments.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonArray>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
+#include <QtGui/QWindow>
 
 namespace Ui::BotWebView {
 namespace {
@@ -373,6 +375,13 @@ Panel::~Panel() {
 
 void Panel::requestActivate() {
 	_widget->showAndActivate();
+	if (const auto widget = _webview ? _webview->window.widget() : nullptr) {
+		InvokeQueued(widget, [=] {
+			if (widget->isVisible()) {
+				_webview->window.focus();
+			}
+		});
+	}
 }
 
 void Panel::toggleProgress(bool shown) {
@@ -527,9 +536,15 @@ bool Panel::showWebview(
 				_webview->window.navigate(url);
 			}
 		}, &st::menuIconRestore);
-		callback(tr::lng_bot_terms(tr::now), [=] {
-			File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
-		}, &st::menuIconGroupLog);
+		if (_menuButtons & MenuButton::ShareGame) {
+			callback(tr::lng_iv_share(tr::now), [=] {
+				_delegate->botShareGameScore();
+			}, &st::menuIconShare);
+		} else {
+			callback(tr::lng_bot_terms(tr::now), [=] {
+				File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
+			}, &st::menuIconGroupLog);
+		}
 		const auto main = (_menuButtons & MenuButton::RemoveFromMainMenu);
 		if (main || (_menuButtons & MenuButton::RemoveFromMenu)) {
 			const auto handler = [=] {
@@ -691,6 +706,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			requestClipboardText(arguments);
 		} else if (command == "web_app_set_header_color") {
 			processHeaderColor(arguments);
+		} else if (command == "share_score") {
+			_delegate->botShareGameScore();
 		}
 	});
 
@@ -721,6 +738,17 @@ postEvent: function(eventType, eventData) {
 	}
 
 	setupProgressGeometry();
+
+	base::qt_signal_producer(
+		_widget->window()->windowHandle(),
+		&QWindow::activeChanged
+	) | rpl::filter([=] {
+		return _webview && _widget->window()->windowHandle()->isActive();
+	}) | rpl::start_with_next([=] {
+		if (_webview && !_webview->window.widget()->isHidden()) {
+			_webview->window.focus();
+		}
+	}, _webview->lifetime);
 
 	return true;
 }
@@ -1207,6 +1235,13 @@ void Panel::updateFooterHeight() {
 }
 
 void Panel::showBox(object_ptr<BoxContent> box) {
+	showBox(std::move(box), LayerOption::KeepOther, anim::type::normal);
+}
+
+void Panel::showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
 	if (const auto widget = _webview ? _webview->window.widget() : nullptr) {
 		const auto hideNow = !widget->isHidden();
 		if (hideNow || _webview->lastHidingBox) {
@@ -1220,10 +1255,12 @@ void Panel::showBox(object_ptr<BoxContent> box) {
 					&& widget->isHidden()
 					&& _webview->lastHidingBox == raw) {
 					widget->show();
+					_webviewBottom->show();
 				}
 			}, _webview->lifetime);
 			if (hideNow) {
 				widget->hide();
+				_webviewBottom->hide();
 			}
 		}
 	}
@@ -1235,6 +1272,14 @@ void Panel::showBox(object_ptr<BoxContent> box) {
 
 void Panel::showToast(TextWithEntities &&text) {
 	_widget->showToast(std::move(text));
+}
+
+not_null<QWidget*> Panel::toastParent() const {
+	return _widget->uiShow()->toastParent();
+}
+
+void Panel::hideLayer(anim::type animated) {
+	_widget->hideLayer(animated);
 }
 
 void Panel::showCriticalError(const TextWithEntities &text) {

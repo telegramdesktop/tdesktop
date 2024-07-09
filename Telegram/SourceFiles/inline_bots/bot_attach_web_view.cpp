@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_blocked_peers.h"
 #include "api/api_common.h"
 #include "base/qthelp_url.h"
+#include "boxes/share_box.h"
 #include "core/click_handler_types.h"
 #include "data/data_bot_app.h"
 #include "data/data_changes.h"
@@ -802,6 +803,16 @@ void AttachWebView::botInvokeCustomMethod(
 	}).send();
 }
 
+void AttachWebView::botShareGameScore() {
+	if (!_panel || !_gameContext) {
+		return;
+	} else if (const auto item = _session->data().message(_gameContext)) {
+		FastShareMessage(uiShow(), item);
+	} else {
+		_panel->showToast({ tr::lng_message_not_found(tr::now) });
+	}
+}
+
 void AttachWebView::botClose() {
 	crl::on_main(this, [=] { cancel(); });
 }
@@ -1547,6 +1558,7 @@ void AttachWebView::show(
 	_lastShownUrl = url;
 	_lastShownQueryId = queryId;
 	_lastShownButtonText = buttonText;
+	_gameContext = {};
 	base::take(_panel);
 	_catchingCancelInShowCall = true;
 	_panel = Ui::BotWebView::Show({
@@ -1560,6 +1572,24 @@ void AttachWebView::show(
 	});
 	_catchingCancelInShowCall = false;
 	started(queryId);
+}
+
+void AttachWebView::showGame(ShowGameParams &&params) {
+	ActiveWebViews().emplace(this);
+
+	base::take(_panel);
+	_gameContext = params.context;
+
+	_catchingCancelInShowCall = true;
+	_panel = Ui::BotWebView::Show({
+		.url = params.url,
+		.storageId = _session->local().resolveStorageIdBots(),
+		.title = rpl::single(params.title),
+		.bottom = rpl::single('@' + params.bot->username()),
+		.delegate = static_cast<Ui::BotWebView::Delegate*>(this),
+		.menuButtons = Ui::BotWebView::MenuButton::ShareGame,
+	});
+	_catchingCancelInShowCall = false;
 }
 
 void AttachWebView::started(uint64 queryId) {
@@ -1599,6 +1629,57 @@ void AttachWebView::started(uint64 queryId) {
 			_prolongId = 0;
 		}).send();
 	}, _panel->lifetime());
+}
+
+std::shared_ptr<Main::SessionShow> AttachWebView::uiShow() {
+	class Show final : public Main::SessionShow {
+	public:
+		explicit Show(not_null<AttachWebView*> that) : _that(that) {
+		}
+
+		void showOrHideBoxOrLayer(
+				std::variant<
+				v::null_t,
+				object_ptr<Ui::BoxContent>,
+				std::unique_ptr<Ui::LayerWidget>> &&layer,
+				Ui::LayerOptions options,
+				anim::type animated) const override {
+			using UniqueLayer = std::unique_ptr<Ui::LayerWidget>;
+			using ObjectBox = object_ptr<Ui::BoxContent>;
+			const auto panel = _that ? _that->_panel.get() : nullptr;
+			if (auto layerWidget = std::get_if<UniqueLayer>(&layer)) {
+				Unexpected("Layers in AttachWebView are not implemented.");
+			} else if (auto box = std::get_if<ObjectBox>(&layer)) {
+				if (panel) {
+					panel->showBox(std::move(*box), options, animated);
+				}
+			} else if (panel) {
+				panel->hideLayer(animated);
+			}
+		}
+		[[nodiscard]] not_null<QWidget*> toastParent() const override {
+			const auto panel = _that ? _that->_panel.get() : nullptr;
+
+			Ensures(panel != nullptr);
+			return panel->toastParent();
+		}
+		[[nodiscard]] bool valid() const override {
+			return _that && (_that->_panel != nullptr);
+		}
+		operator bool() const override {
+			return valid();
+		}
+
+		[[nodiscard]] Main::Session &session() const override {
+			Expects(_that.get() != nullptr);
+			return *_that->_session;
+		}
+
+	private:
+		const base::weak_ptr<AttachWebView> _that;
+
+	};
+	return std::make_shared<Show>(this);
 }
 
 void AttachWebView::showToast(

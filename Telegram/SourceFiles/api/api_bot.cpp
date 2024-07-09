@@ -127,11 +127,7 @@ void SendBotCallbackData(
 				UrlClickHandler::Open(link);
 				return;
 			}
-			const auto scoreLink = AppendShareGameScoreUrl(
-				session,
-				link,
-				item->fullId());
-			BotGameUrlClickHandler(bot, scoreLink).onClick({
+			BotGameUrlClickHandler(bot, link).onClick({
 				Qt::LeftButton,
 				QVariant::fromValue(ClickHandlerContext{
 					.itemId = item->fullId(),

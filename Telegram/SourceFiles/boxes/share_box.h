@@ -59,13 +59,11 @@ class SlideWrap;
 class PopupMenu;
 } // namespace Ui
 
-QString AppendShareGameScoreUrl(
-	not_null<Main::Session*> session,
-	const QString &url,
-	const FullMsgId &fullId);
-void ShareGameScoreByHash(
-	not_null<Window::SessionController*> controller,
-	const QString &hash);
+class ShareBox;
+
+void FastShareMessage(
+	std::shared_ptr<Main::SessionShow> show,
+	not_null<HistoryItem*> item);
 void FastShareMessage(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item);
