@@ -43,6 +43,7 @@ ChatFilter::ChatFilter(
 	FilterId id,
 	const QString &title,
 	const QString &iconEmoji,
+	std::optional<uint8> colorIndex,
 	Flags flags,
 	base::flat_set<not_null<History*>> always,
 	std::vector<not_null<History*>> pinned,
@@ -50,6 +51,7 @@ ChatFilter::ChatFilter(
 : _id(id)
 , _title(title)
 , _iconEmoji(iconEmoji)
+, _colorIndex(colorIndex)
 , _always(std::move(always))
 , _pinned(std::move(pinned))
 , _never(std::move(never))
@@ -95,6 +97,9 @@ ChatFilter ChatFilter::FromTL(
 			data.vid().v,
 			qs(data.vtitle()),
 			qs(data.vemoticon().value_or_empty()),
+			data.vcolor()
+				? std::make_optional(data.vcolor()->v)
+				: std::nullopt,
 			flags,
 			std::move(list),
 			std::move(pinned),
@@ -140,6 +145,9 @@ ChatFilter ChatFilter::FromTL(
 			data.vid().v,
 			qs(data.vtitle()),
 			qs(data.vemoticon().value_or_empty()),
+			data.vcolor()
+				? std::make_optional(data.vcolor()->v)
+				: std::nullopt,
 			(Flag::Chatlist
 				| (data.is_has_my_invites() ? Flag::HasMyLinks : Flag())),
 			std::move(list),
@@ -189,18 +197,20 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	}
 	if (_flags & Flag::Chatlist) {
 		using TLFlag = MTPDdialogFilterChatlist::Flag;
-		const auto flags = TLFlag::f_emoticon;
+		const auto flags = TLFlag::f_emoticon
+			| (_colorIndex ? TLFlag::f_color : TLFlag(0));
 		return MTP_dialogFilterChatlist(
 			MTP_flags(flags),
 			MTP_int(replaceId ? replaceId : _id),
 			MTP_string(_title),
 			MTP_string(_iconEmoji),
-			MTPint(), // color
+			MTP_int(_colorIndex.value_or(0)),
 			MTP_vector<MTPInputPeer>(pinned),
 			MTP_vector<MTPInputPeer>(include));
 	}
 	using TLFlag = MTPDdialogFilter::Flag;
 	const auto flags = TLFlag::f_emoticon
+		| (_colorIndex ? TLFlag::f_color : TLFlag(0))
 		| ((_flags & Flag::Contacts) ? TLFlag::f_contacts : TLFlag(0))
 		| ((_flags & Flag::NonContacts) ? TLFlag::f_non_contacts : TLFlag(0))
 		| ((_flags & Flag::Groups) ? TLFlag::f_groups : TLFlag(0))
@@ -221,7 +231,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 		MTP_int(replaceId ? replaceId : _id),
 		MTP_string(_title),
 		MTP_string(_iconEmoji),
-		MTPint(), // color
+		MTP_int(_colorIndex.value_or(0)),
 		MTP_vector<MTPInputPeer>(pinned),
 		MTP_vector<MTPInputPeer>(include),
 		MTP_vector<MTPInputPeer>(never));
@@ -237,6 +247,10 @@ QString ChatFilter::title() const {
 
 QString ChatFilter::iconEmoji() const {
 	return _iconEmoji;
+}
+
+std::optional<uint8> ChatFilter::colorIndex() const {
+	return _colorIndex;
 }
 
 ChatFilter::Flags ChatFilter::flags() const {
@@ -555,7 +569,7 @@ void ChatFilters::applyInsert(ChatFilter filter, int position) {
 
 	_list.insert(
 		begin(_list) + position,
-		ChatFilter(filter.id(), {}, {}, {}, {}, {}, {}));
+		ChatFilter(filter.id(), {}, {}, {}, {}, {}, {}, {}));
 	applyChange(*(begin(_list) + position), std::move(filter));
 }
 
@@ -582,7 +596,7 @@ void ChatFilters::applyRemove(int position) {
 	Expects(position >= 0 && position < _list.size());
 
 	const auto i = begin(_list) + position;
-	applyChange(*i, ChatFilter(i->id(), {}, {}, {}, {}, {}, {}));
+	applyChange(*i, ChatFilter(i->id(), {}, {}, {}, {}, {}, {}, {}));
 	_list.erase(i);
 }
 
@@ -711,6 +725,7 @@ const ChatFilter &ChatFilters::applyUpdatedPinned(
 		id,
 		i->title(),
 		i->iconEmoji(),
+		i->colorIndex(),
 		i->flags(),
 		std::move(always),
 		std::move(pinned),
