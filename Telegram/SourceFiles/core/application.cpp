@@ -270,14 +270,9 @@ void Application::run() {
 
 	refreshGlobalProxy(); // Depends on app settings being read.
 
-	if (const auto old = Local::oldSettingsVersion()) {
-		if (old < AppVersion) {
-			autoRegisterUrlScheme();
-			Platform::NewVersionLaunched(old);
-		}
-	} else {
-		// Initial launch.
+	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
 		autoRegisterUrlScheme();
+		Platform::NewVersionLaunched(old);
 	}
 
 	if (cAutoStart() && !Platform::AutostartSupported()) {
