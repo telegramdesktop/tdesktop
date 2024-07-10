@@ -2,8 +2,6 @@
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set QT = "6.7.2" -%}
 {%- set QT_TAG = "v" ~ QT -%}
-{%- set CMAKE_VER = "3.27.6" -%}
-{%- set CMAKE_FILE = "cmake-" ~ CMAKE_VER ~ "-Linux-x86_64.sh" -%}
 {%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -D_GLIBCXX_ASSERTIONS" -%}
 {%- set CFLAGS_LTO = "-flto=auto -ffat-lto-objects" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
@@ -18,7 +16,7 @@ ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/loc
 
 RUN dnf -y install epel-release \
 	&& dnf config-manager --set-enabled powertools \
-	&& dnf -y install autoconf automake libtool pkgconfig make patch git \
+	&& dnf -y install cmake autoconf automake libtool pkgconfig make patch git \
 		python3.11-pip python3.11-devel gperf flex bison clang lld nasm yasm \
 		file which perl-open perl-XML-Parser perl-IPC-Cmd xorg-x11-util-macros \
 		gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils \
@@ -33,12 +31,6 @@ SHELL [ "bash", "-c", ". /opt/rh/gcc-toolset-12/enable; exec bash -c \"$@\"", "-
 WORKDIR {{ LibrariesPath }}
 
 RUN python3 -m pip install meson ninja
-
-RUN mkdir /opt/cmake \
-	&& curl -sSLo {{ CMAKE_FILE }} {{ GIT }}/Kitware/CMake/releases/download/v{{ CMAKE_VER }}/{{ CMAKE_FILE }} \
-	&& sh {{ CMAKE_FILE }} --prefix=/opt/cmake --skip-license \
-	&& ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake \
-	&& rm {{ CMAKE_FILE }}
 
 FROM builder-base AS builder
 ENV AR gcc-ar
