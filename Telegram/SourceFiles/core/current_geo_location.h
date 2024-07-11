@@ -55,6 +55,7 @@ void ResolveCurrentGeoLocation(Fn<void(GeoLocation)> callback);
 
 void ResolveLocationAddress(
 	const GeoLocation &location,
+	const QString &language,
 	const QString &token,
 	Fn<void(GeoAddress)> callback);
 

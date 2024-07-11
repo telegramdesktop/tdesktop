@@ -27,14 +27,51 @@ namespace {
 
 constexpr auto kDestroyManagerTimeout = 20 * crl::time(1000);
 
+[[nodiscard]] QString ChooseLanguage(const QString &language) {
+	// https://docs.mapbox.com/api/search/geocoding#language-coverage
+	auto result = language.toLower().replace('-', '_');
+	static const auto kGood = std::array{
+		// Global coverage.
+		u"de"_q, u"en"_q, u"es"_q, u"fr"_q, u"it"_q, u"nl"_q, u"pl"_q,
+
+		// Local coverage.
+		u"az"_q, u"bn"_q, u"ca"_q, u"cs"_q, u"da"_q, u"el"_q, u"fa"_q,
+		u"fi"_q, u"ga"_q, u"hu"_q, u"id"_q, u"is"_q, u"ja"_q, u"ka"_q,
+		u"km"_q, u"ko"_q, u"lt"_q, u"lv"_q, u"mn"_q, u"pt"_q, u"ro"_q,
+		u"sk"_q, u"sq"_q, u"sv"_q, u"th"_q, u"tl"_q, u"uk"_q, u"vi"_q,
+		u"zh"_q, u"zh_Hans"_q, u"zh_TW"_q,
+
+		// Limited coverage.
+		u"ar"_q, u"bs"_q, u"gu"_q, u"he"_q, u"hi"_q, u"kk"_q, u"lo"_q,
+		u"my"_q, u"nb"_q, u"ru"_q, u"sr"_q, u"te"_q, u"tk"_q, u"tr"_q,
+		u"zh_Hant"_q,
+	};
+	for (const auto &known : kGood) {
+		if (known.toLower() == result) {
+			return known;
+		}
+	}
+	if (const auto delimeter = result.indexOf('_'); delimeter > 0) {
+		result = result.mid(0, delimeter);
+		for (const auto &known : kGood) {
+			if (known == result) {
+				return known;
+			}
+		}
+	}
+	return u"en"_q;
+}
+
 void ResolveLocationAddressGeneric(
 		const GeoLocation &location,
+		const QString &language,
 		const QString &token,
 		Fn<void(GeoAddress)> callback) {
 	const auto partialUrl = u"https://api.mapbox.com/search/geocode/v6"
-		"/reverse?longitude=%1&latitude=%2&access_token=%3"_q
+		"/reverse?longitude=%1&latitude=%2&language=%3&access_token=%4"_q
 		.arg(location.point.y())
-		.arg(location.point.x());
+		.arg(location.point.x())
+		.arg(ChooseLanguage(language));
 	static auto Cache = base::flat_map<QString, GeoAddress>();
 	const auto i = Cache.find(partialUrl);
 	if (i != end(Cache)) {
@@ -161,16 +198,21 @@ void ResolveCurrentGeoLocation(Fn<void(GeoLocation)> callback) {
 
 void ResolveLocationAddress(
 		const GeoLocation &location,
+		const QString &language,
 		const QString &token,
 		Fn<void(GeoAddress)> callback) {
 	auto done = [=, done = std::move(callback)](GeoAddress result) mutable {
 		if (!result && !token.isEmpty()) {
-			ResolveLocationAddressGeneric(location, token, std::move(done));
+			ResolveLocationAddressGeneric(
+				location,
+				language,
+				token,
+				std::move(done));
 		} else {
 			done(result);
 		}
 	};
-	Platform::ResolveLocationAddress(location, std::move(done));
+	Platform::ResolveLocationAddress(location, language, std::move(done));
 }
 
 } // namespace Core

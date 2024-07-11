@@ -70,16 +70,41 @@ var LocationPicker = {
 			center = [0, 0];
 		}
 		LocationPicker.map = new mapboxgl.Map(options);
-
-		const marker = new mapboxgl.Marker()
-			.setLngLat(center)
-			.addTo(LocationPicker.map);
-		const drop = document.getElementById('marker_drop');
-		const element = marker.getElement();
-		drop.innerHTML = element.innerHTML;
-		const offset = marker.getOffset();
-		drop.style.transform = 'translate(' + offset.x + 'px, ' + offset.y + 'px)';
-		marker.remove();
+		LocationPicker.createMarker(center);
+		LocationPicker.trackMovement();
+	},
+	marker: function() {
+		return document.getElementById('marker_drop');
+	},
+	createMarker: function(center) {
+		document.getElementById('marker').style.display = 'flex';
+	},
+	clearMovingTimer: function() {
+		if (LocationPicker.clearMovingTimeoutId) {
+			clearTimeout(LocationPicker.clearMovingTimeoutId);
+			LocationPicker.clearMovingTimeoutId = 0;
+		}
+	},
+	startMovingTimer: function(done) {
+		LocationPicker.clearMovingTimer();
+		LocationPicker.clearMovingTimeoutId = setTimeout(done, 500);
+	},
+	trackMovement: function() {
+		LocationPicker.map.on('movestart', function() {
+			LocationPicker.marker().classList.add('moving');
+			LocationPicker.clearMovingTimer();
+			LocationPicker.notify({ event: 'movestart' });
+		});
+		LocationPicker.map.on('moveend', function() {
+			LocationPicker.startMovingTimer(function() {
+				LocationPicker.marker().classList.remove('moving');
+				LocationPicker.notify({
+					event: 'moveend',
+					latitude: LocationPicker.map.getCenter().lat,
+					longitude: LocationPicker.map.getCenter().lng
+				});
+			});
+		});
 	},
 	narrowTo: function (point) {
 		LocationPicker.map.flyTo({

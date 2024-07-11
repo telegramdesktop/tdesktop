@@ -17,6 +17,7 @@ namespace Platform {
 void ResolveCurrentExactLocation(Fn<void(Core::GeoLocation)> callback);
 void ResolveLocationAddress(
 	const Core::GeoLocation &location,
+	const QString &language,
 	Fn<void(Core::GeoAddress)> callback);
 
 } // namespace Platform

@@ -50,11 +50,21 @@ html.custom_scroll ::-webkit-scrollbar-thumb:hover {
 }
 #marker {
 	pointer-events: none;
-	display: flex;
+	display: none;
 	z-index: 2;
 	position: absolute;
 	width: 100%;
 	height: 100%;
 	justify-content: center;
 	align-items: center;
+}
+#marker_drop {
+	margin-bottom: 0px;
+	transition: margin 160ms ease-in-out;
+}
+#marker_drop.moving {
+	margin-bottom: 24px;
+}
+#marker_shadow {
+	position: absolute;
 }

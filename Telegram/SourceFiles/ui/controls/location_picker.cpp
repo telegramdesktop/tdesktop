@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_location.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
@@ -45,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 namespace {
+
+constexpr auto kResolveAddressDelay = 3 * crl::time(1000);
 
 #ifdef Q_OS_MAC
 const auto kProtocolOverride = "mapboxapihelper";
@@ -355,7 +358,30 @@ void LinksController::rowPaintIcon(
 		<link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet' />
 	</head>
 	<body>
-		<div id="marker"><div id="marker_drop"></div></div>
+		<div id="marker">
+			<div id="marker_shadow" style="transform: translate(0px, -14px);">
+<svg display="block" height="41px" width="27px" viewBox="0 0 27 41">
+	<defs>
+		<radialGradient id="shadowGradient">
+			<stop offset="10%" stop-opacity="0.4"></stop>
+			<stop offset="100%" stop-opacity="0.05"></stop>
+		</radialGradient>
+	</defs>
+	<ellipse
+		cx="13.5"
+		cy="34.8"
+		rx="10.5"
+		ry="5.25"
+		fill=")" + "url(#shadowGradient)" + R"("></ellipse>
+</svg>
+			</div>
+			<div id="marker_drop" style="transform: translate(0px, -14px);">
+<svg display="block" height="41px" width="27px" viewBox="0 0 27 41">
+	<path fill="#3FB1CE" d="M27,13.5C27,19.07 20.25,27 14.75,34.5C14.02,35.5 12.98,35.5 12.25,34.5C6.75,27 0,19.22 0,13.5C0,6.04 6.04,0 13.5,0C20.96,0 27,6.04 27,13.5Z"></path><path opacity="0.25" d="M13.5,0C6.04,0 0,6.04 0,13.5C0,19.22 6.75,27 12.25,34.5C13,35.52 14.02,35.5 14.75,34.5C20.25,27 27,19.07 27,13.5C27,6.04 20.96,0 13.5,0ZM13.5,1C20.42,1 26,6.58 26,13.5C26,15.9 24.5,19.18 22.22,22.74C19.95,26.3 16.71,30.14 13.94,33.91C13.74,34.18 13.61,34.32 13.5,34.44C13.39,34.32 13.26,34.18 13.06,33.91C10.28,30.13 7.41,26.31 5.02,22.77C2.62,19.23 1,15.95 1,13.5C1,6.58 6.58,1 13.5,1Z"></path>
+	<circle fill="white" cx="13.5" cy="13.5" r="5.5"></circle>
+</svg>
+			</div>
+		</div>
 		<div id="map"></div>
 		<script>LocationPicker.notify({ event: 'ready' });</script>
 	</body>
@@ -408,26 +434,26 @@ void LinksController::rowPaintIcon(
 		raw,
 		rpl::duplicate(statusText),
 		st::pickLocationButtonStatus);
-	status->showOn(std::move(
+	status->showOn(rpl::duplicate(
 		statusText
 	) | rpl::map([](const QString &text) {
 		return !text.isEmpty();
 	}) | rpl::distinct_until_changed());
 	rpl::combine(
 		result->widthValue(),
-		status->shownValue()
-	) | rpl::start_with_next([=](int width, bool statusShown) {
+		std::move(statusText)
+	) | rpl::start_with_next([=](int width, const QString &statusText) {
 		const auto available = width
 			- st->namePosition.x()
 			- st->button.padding.right();
 		const auto namePosition = st->namePosition;
 		const auto statusPosition = st->statusPosition;
 		name->resizeToWidth(available);
-		const auto nameTop = statusShown
-			? namePosition.y()
-			: (st->height - name->height()) / 2;
+		const auto nameTop = statusText.isEmpty()
+			? ((st->height - name->height()) / 2)
+			: namePosition.y();
 		name->moveToLeft(namePosition.x(), nameTop, width);
-		status->resizeToWidth(available);
+		status->resizeToNaturalWidth(available);
 		status->moveToLeft(statusPosition.x(), statusPosition.y(), width);
 	}, name->lifetime());
 
@@ -501,6 +527,7 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 		_webview->eval("LocationPicker.updateStyles('" + str + "');");
 	}
 })
+, _geocoderResolveTimer([=] { resolveAddressByTimer(); })
 , _venueState(PickerVenueLoading())
 , _session(descriptor.session)
 , _api(&_session->mtp()) {
@@ -660,6 +687,17 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 				const auto lon = object.value("longitude").toDouble();
 				_callback({ lat, lon });
 				close();
+			} else if (event == u"movestart"_q) {
+				_geocoderAddress = QString();
+				_geocoderResolveTimer.cancel();
+			} else if (event == u"moveend"_q) {
+				const auto lat = object.value("latitude").toDouble();
+				const auto lon = object.value("longitude").toDouble();
+				_geocoderResolvePostponed = Core::GeoLocation{
+					.point = { lat, lon },
+					.accuracy = Core::GeoLocationAccuracy::Exact,
+				};
+				_geocoderResolveTimer.callOnce(kResolveAddressDelay);
 			}
 		});
 	});
@@ -714,6 +752,12 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 	raw->navigateToData("location/picker.html");
 }
 
+void LocationPicker::resolveAddressByTimer() {
+	if (const auto location = base::take(_geocoderResolvePostponed)) {
+		resolveAddress(location);
+	}
+}
+
 void LocationPicker::resolveAddress(Core::GeoLocation location) {
 	if (_geocoderResolvingFor == location) {
 		return;
@@ -730,8 +774,14 @@ void LocationPicker::resolveAddress(Core::GeoLocation location) {
 				.arg(location.point.y(), 0, 'f');
 		}
 	};
+	const auto baseLangId = Lang::GetInstance().baseId();
+	const auto langId = baseLangId.isEmpty()
+		? Lang::GetInstance().id()
+		: baseLangId;
+	const auto nonEmptyId = langId.isEmpty() ? u"en"_q : langId;
 	Core::ResolveLocationAddress(
 		location,
+		langId,
 		GeocodingProviderToken,
 		crl::guard(this, done));
 }

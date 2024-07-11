@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/invoke_queued.h"
+#include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "core/current_geo_location.h"
 #include "mtproto/sender.h"
@@ -106,6 +107,7 @@ private:
 	void setupWebview(const Descriptor &descriptor);
 	void processKey(const QString &key, const QString &modifier);
 	void resolveCurrentLocation();
+	void resolveAddressByTimer();
 	void resolveAddress(Core::GeoLocation location);
 	void mapReady();
 
@@ -124,6 +126,8 @@ private:
 	SingleQueuedInvokation _updateStyles;
 	bool _subscribedToColors = false;
 
+	base::Timer _geocoderResolveTimer;
+	Core::GeoLocation _geocoderResolvePostponed;
 	Core::GeoLocation _geocoderResolvingFor;
 	rpl::variable<QString> _geocoderAddress;
 
