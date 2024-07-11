@@ -102,6 +102,7 @@ VenueRow::VenueRow(
 void VenueRow::update(const VenueData &data) {
 	_data = data;
 	setCustomStatus(data.address);
+	refreshName(st::pickLocationVenueItem);
 }
 
 VenueData VenueRow::data() const {
@@ -128,12 +129,12 @@ PaintRoundImageCallback VenueRow::generatePaintUserpicCallback(
 	};
 }
 
-class LinksController final
+class VenuesController final
 	: public PeerListController
 	, public VenueRowDelegate
 	, public base::has_weak_ptr {
 public:
-	LinksController(
+	VenuesController(
 		not_null<Main::Session*> session,
 		rpl::producer<std::vector<VenueData>> content);
 
@@ -176,21 +177,21 @@ private:
 	return query.trimmed().toLower();
 }
 
-LinksController::LinksController(
+VenuesController::VenuesController(
 	not_null<Main::Session*> session,
 	rpl::producer<std::vector<VenueData>> content)
 : _session(session)
 , _rows(std::move(content)) {
 }
 
-void LinksController::prepare() {
+void VenuesController::prepare() {
 	_rows.value(
 	) | rpl::start_with_next([=](const std::vector<VenueData> &rows) {
 		rebuild(rows);
 	}, _lifetime);
 }
 
-void LinksController::rebuild(const std::vector<VenueData> &rows) {
+void VenuesController::rebuild(const std::vector<VenueData> &rows) {
 	auto i = 0;
 	auto count = delegate()->peerListFullRowsCount();
 	while (i < rows.size()) {
@@ -209,24 +210,24 @@ void LinksController::rebuild(const std::vector<VenueData> &rows) {
 	delegate()->peerListRefreshRows();
 }
 
-void LinksController::rowClicked(not_null<PeerListRow*> row) {
+void VenuesController::rowClicked(not_null<PeerListRow*> row) {
 	const auto venue = static_cast<VenueRow*>(row.get())->data();
 	venue;
 }
 
-void LinksController::rowRightActionClicked(not_null<PeerListRow*> row) {
+void VenuesController::rowRightActionClicked(not_null<PeerListRow*> row) {
 	delegate()->peerListShowRowMenu(row, true);
 }
 
-Main::Session &LinksController::session() const {
+Main::Session &VenuesController::session() const {
 	return *_session;
 }
 
-void LinksController::appendRow(const VenueData &data) {
+void VenuesController::appendRow(const VenueData &data) {
 	delegate()->peerListAppendRow(std::make_unique<VenueRow>(this, data));
 }
 
-void LinksController::rowPaintIcon(
+void VenuesController::rowPaintIcon(
 		QPainter &p,
 		int x,
 		int y,
@@ -331,6 +332,7 @@ void LinksController::rowPaintIcon(
 		{ "window-bg-over", &st::windowBgOver },
 		{ "window-bg-ripple", &st::windowBgRipple },
 		{ "window-active-text-fg", &st::windowActiveTextFg },
+		{ "history-to-down-shadow", &st::historyToDownShadow },
 	};
 	static const auto phrases = base::flat_map<QByteArray, tr::phrase<>>{
 		{ "maps-places-in-area", tr::lng_maps_places_in_area },
@@ -358,6 +360,9 @@ void LinksController::rowPaintIcon(
 		<link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet' />
 	</head>
 	<body>
+		<div id="search_venues">
+			<div id="search_venues_inner"><span id="search_venues_content"></span></div>
+		</div>
 		<div id="marker">
 			<div id="marker_shadow" style="transform: translate(0px, -14px);">
 <svg display="block" height="41px" width="27px" viewBox="0 0 27 41">
@@ -467,7 +472,7 @@ void SetupVenues(
 	auto &lifetime = container->lifetime();
 	const auto delegate = lifetime.make_state<PeerListContentDelegateShow>(
 		show);
-	const auto controller = lifetime.make_state<LinksController>(
+	const auto controller = lifetime.make_state<VenuesController>(
 		&show->session(),
 		std::move(value));
 	controller->setStyleOverrides(&st::pickLocationVenueList);
@@ -687,17 +692,40 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 				const auto lon = object.value("longitude").toDouble();
 				_callback({ lat, lon });
 				close();
-			} else if (event == u"movestart"_q) {
-				_geocoderAddress = QString();
+			} else if (event == u"move_start"_q) {
+				if (const auto now = _geocoderAddress.current()
+					; !now.isEmpty()) {
+					_geocoderSavedAddress = now;
+					_geocoderAddress = QString();
+				}
+				base::take(_geocoderResolvePostponed);
 				_geocoderResolveTimer.cancel();
-			} else if (event == u"moveend"_q) {
+			} else if (event == u"move_end"_q) {
 				const auto lat = object.value("latitude").toDouble();
 				const auto lon = object.value("longitude").toDouble();
-				_geocoderResolvePostponed = Core::GeoLocation{
+				const auto location = Core::GeoLocation{
 					.point = { lat, lon },
 					.accuracy = Core::GeoLocationAccuracy::Exact,
 				};
-				_geocoderResolveTimer.callOnce(kResolveAddressDelay);
+				if (AreTheSame(_geocoderResolvingFor, location)
+					&& !_geocoderSavedAddress.isEmpty()) {
+					_geocoderAddress = base::take(_geocoderSavedAddress);
+					_geocoderResolveTimer.cancel();
+				} else {
+					_geocoderResolvePostponed = location;
+					_geocoderResolveTimer.callOnce(kResolveAddressDelay);
+				}
+				if (!AreTheSame(_venuesRequestLocation, location)) {
+					_webview->eval(
+						"LocationPicker.toggleSearchVenues(true);");
+				}
+			} else if (event == u"search_venues"_q) {
+				const auto lat = object.value("latitude").toDouble();
+				const auto lon = object.value("longitude").toDouble();
+				venuesRequest({
+					.point = { lat, lon },
+					.accuracy = Core::GeoLocationAccuracy::Exact,
+				});
 			}
 		});
 	});
@@ -759,12 +787,12 @@ void LocationPicker::resolveAddressByTimer() {
 }
 
 void LocationPicker::resolveAddress(Core::GeoLocation location) {
-	if (_geocoderResolvingFor == location) {
+	if (AreTheSame(_geocoderResolvingFor, location)) {
 		return;
 	}
 	_geocoderResolvingFor = location;
 	const auto done = [=](Core::GeoAddress address) {
-		if (_geocoderResolvingFor != location) {
+		if (!AreTheSame(_geocoderResolvingFor, location)) {
 			return;
 		} else if (address) {
 			_geocoderAddress = address.name;
@@ -809,14 +837,13 @@ void LocationPicker::venuesRequest(
 		QString query) {
 	query = NormalizeVenuesQuery(query);
 	auto &cache = _venuesCache[query];
-	const auto i = ranges::find(
-		cache,
-		location,
-		&VenuesCacheEntry::location);
+	const auto i = ranges::find_if(cache, [&](const VenuesCacheEntry &v) {
+		return AreTheSame(v.location, location);
+	});
 	if (i != end(cache)) {
 		_venueState = i->result;
 		return;
-	} else if (_venuesRequestLocation == location
+	} else if (AreTheSame(_venuesRequestLocation, location)
 		&& _venuesRequestQuery == query) {
 		return;
 	} else if (const auto oldRequestId = base::take(_venuesRequestId)) {
@@ -888,7 +915,7 @@ void LocationPicker::resolveCurrentLocation() {
 	using namespace Core;
 	const auto window = _window.get();
 	ResolveCurrentGeoLocation(crl::guard(window, [=](GeoLocation location) {
-		const auto changed = (LastExactLocation != location);
+		const auto changed = !AreTheSame(LastExactLocation, location);
 		if (location.accuracy != GeoLocationAccuracy::Exact || !changed) {
 			return;
 		}

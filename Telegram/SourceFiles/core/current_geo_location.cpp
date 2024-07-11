@@ -148,7 +148,7 @@ void ResolveLocationAddressGeneric(
 				}
 			}
 		};
-		add({ u"address"_q, u"street"_q, u"neighborhood"_q });
+		add({ /*u"address"_q, u"street"_q, */u"neighborhood"_q });
 		add({ u"place"_q, u"region"_q });
 		add({ u"country"_q });
 		finishWith({ .name = names.join(", ") });
@@ -213,6 +213,31 @@ void ResolveLocationAddress(
 		}
 	};
 	Platform::ResolveLocationAddress(location, language, std::move(done));
+}
+
+bool AreTheSame(const GeoLocation &a, const GeoLocation &b) {
+	if (a.accuracy != GeoLocationAccuracy::Exact
+		|| b.accuracy != GeoLocationAccuracy::Exact) {
+		return false;
+	}
+	const auto normalize = [](float64 value) {
+		value = std::fmod(value + 180., 360.);
+		return (value + (value < 0. ? 360. : 0.)) - 180.;
+	};
+	constexpr auto kEpsilon = 0.0001;
+	const auto lon1 = normalize(a.point.y());
+	const auto lon2 = normalize(b.point.y());
+	const auto diffLat = std::abs(a.point.x() - b.point.x());
+	if (std::abs(a.point.x()) >= (90. - kEpsilon)
+		|| std::abs(b.point.x()) >= (90. - kEpsilon)) {
+		return diffLat <= kEpsilon;
+	}
+	auto diffLon = std::abs(lon1 - lon2);
+	if (diffLon > 180.) {
+		diffLon = 360. - diffLon;
+	}
+
+	return diffLat <= kEpsilon && diffLon <= kEpsilon;
 }
 
 } // namespace Core

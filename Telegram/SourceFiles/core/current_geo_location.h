@@ -33,11 +33,9 @@ struct GeoLocation {
 	explicit operator bool() const {
 		return !failed();
 	}
-
-	friend inline bool operator==(
-		const GeoLocation&,
-		const GeoLocation&) = default;
 };
+
+[[nodiscard]] bool AreTheSame(const GeoLocation &a, const GeoLocation &b);
 
 struct GeoAddress {
 	QString name;

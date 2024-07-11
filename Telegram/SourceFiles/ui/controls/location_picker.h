@@ -129,6 +129,7 @@ private:
 	base::Timer _geocoderResolveTimer;
 	Core::GeoLocation _geocoderResolvePostponed;
 	Core::GeoLocation _geocoderResolvingFor;
+	QString _geocoderSavedAddress;
 	rpl::variable<QString> _geocoderAddress;
 
 	rpl::variable<PickerVenueState> _venueState;
