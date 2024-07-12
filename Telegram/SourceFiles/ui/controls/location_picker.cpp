@@ -409,7 +409,7 @@ void VenuesController::rowPaintIcon(
 		st::pickLocationButton);
 	const auto raw = result.data();
 
-	const auto st = &st::pickLocationVenue;
+	const auto st = &st::pickLocationVenueItem;
 	const auto icon = CreateChild<RpWidget>(raw);
 	icon->setGeometry(
 		st->photoPosition.x(),
@@ -628,7 +628,8 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 
 	venuesRequest(*_venuesSearchLocation, *_venuesSearchQuery);
 })
-, _api(&_session->mtp()) {
+, _api(&_session->mtp())
+, _venueRecipient(descriptor.recipient) {
 	std::move(
 		descriptor.closeRequests
 	) | rpl::start_with_next([=] {
@@ -1002,7 +1003,7 @@ void LocationPicker::venuesSendRequest() {
 	_venuesRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(MTPmessages_GetInlineBotResults::Flag::f_geo_point),
 		_venuesBot->inputUser,
-		MTP_inputPeerEmpty(),
+		(_venueRecipient ? _venueRecipient->input : MTP_inputPeerEmpty()),
 		MTP_inputGeoPoint(
 			MTP_flags(0),
 			MTP_double(_venuesRequestLocation.point.x()),

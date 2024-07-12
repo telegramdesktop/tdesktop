@@ -1822,6 +1822,7 @@ void ChooseAndSendLocation(
 	Ui::LocationPicker::Show({
 		.parent = controller->widget(),
 		.config = config,
+		.recipient = action.history->peer,
 		.session = &controller->session(),
 		.callback = crl::guard(controller, callback),
 		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },

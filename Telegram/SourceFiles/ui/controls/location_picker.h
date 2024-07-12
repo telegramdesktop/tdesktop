@@ -80,6 +80,7 @@ public:
 	struct Descriptor {
 		RpWidget *parent = nullptr;
 		LocationPickerConfig config;
+		PeerData *recipient = nullptr;
 		not_null<Main::Session*> session;
 		Fn<void(Data::InputVenue)> callback;
 		Fn<void()> quit;
@@ -145,6 +146,7 @@ private:
 	std::optional<QString> _venuesSearchQuery;
 	base::Timer _venuesSearchDebounceTimer;
 	MTP::Sender _api;
+	PeerData *_venueRecipient = nullptr;
 	UserData *_venuesBot = nullptr;
 	mtpRequestId _venuesBotRequestId = 0;
 	mtpRequestId _venuesRequestId = 0;
