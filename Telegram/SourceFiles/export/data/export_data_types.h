@@ -576,6 +576,13 @@ struct ActionBoostApply {
 	int boosts = 0;
 };
 
+struct ActionPaymentRefunded {
+	PeerId peerId = 0;
+	Utf8String currency;
+	uint64 amount = 0;
+	Utf8String transactionId;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -617,7 +624,8 @@ struct ServiceAction {
 		ActionGiftCode,
 		ActionGiveawayLaunch,
 		ActionGiveawayResults,
-		ActionBoostApply> content;
+		ActionBoostApply,
+		ActionPaymentRefunded> content;
 };
 
 ServiceAction ParseServiceAction(

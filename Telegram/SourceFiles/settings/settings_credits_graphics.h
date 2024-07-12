@@ -54,6 +54,9 @@ void ReceiptCreditsBox(
 	not_null<Window::SessionController*> controller,
 	PeerData *premiumBot,
 	const Data::CreditsHistoryEntry &e);
+void ShowRefundInfoBox(
+	not_null<Window::SessionController*> controller,
+	FullMsgId refundItemId);
 
 [[nodiscard]] object_ptr<Ui::RpWidget> GenericEntryPhoto(
 	not_null<Ui::RpWidget*> parent,

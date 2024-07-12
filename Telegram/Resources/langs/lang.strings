@@ -1889,6 +1889,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_boost_apply#one" = "{from} boosted the group";
 "lng_action_boost_apply#other" = "{from} boosted the group {count} times";
 "lng_action_set_chat_intro" = "{from} added the message below for all empty chats. How?";
+"lng_action_payment_refunded" = "{peer} refunded back {amount}";
 
 "lng_similar_channels_title" = "Similar channels";
 "lng_similar_channels_view_all" = "View all";

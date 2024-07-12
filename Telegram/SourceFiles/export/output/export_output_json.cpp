@@ -625,6 +625,13 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("boost_apply");
 		push("boosts", data.boosts);
+	}, [&](const ActionPaymentRefunded &data) {
+		pushAction("refunded_payment");
+		push("amount", data.amount);
+		push("currency", data.currency);
+		pushBare("peer_name", wrapPeerName(data.peerId));
+		push("peer_id", data.peerId);
+		push("charge_id", data.transactionId);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
