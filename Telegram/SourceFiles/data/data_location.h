@@ -54,6 +54,10 @@ struct InputVenue {
 	QString id;
 	QString venueType;
 
+	[[nodiscard]] bool justLocation() const {
+		return id.isEmpty() && title.isEmpty() && address.isEmpty();
+	}
+
 	friend inline bool operator==(
 		const InputVenue &,
 		const InputVenue &) = default;

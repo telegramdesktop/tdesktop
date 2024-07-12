@@ -33,11 +33,6 @@ class SeparatePanel;
 class RpWidget;
 class ScrollArea;
 
-struct LocationInfo {
-	float64 lat = 0.;
-	float64 lon = 0.;
-};
-
 struct PickerVenueLoading {
 	friend inline bool operator==(
 		PickerVenueLoading,
@@ -72,20 +67,24 @@ using PickerVenueState = std::variant<
 	PickerVenueWaitingForLocation,
 	PickerVenueList>;
 
+struct LocationPickerConfig {
+	QString mapsToken;
+	QString geoToken;
+};
+
 class LocationPicker final : public base::has_weak_ptr {
 public:
 	struct Descriptor {
 		RpWidget *parent = nullptr;
+		LocationPickerConfig config;
 		not_null<Main::Session*> session;
-		Fn<void(LocationInfo)> callback;
+		Fn<void(Data::InputVenue)> callback;
 		Fn<void()> quit;
 		Webview::StorageId storageId;
 		rpl::producer<> closeRequests;
 	};
 
-	[[nodiscard]] static bool Available(
-		const QString &mapsToken,
-		const QString &geocodingToken);
+	[[nodiscard]] static bool Available(const LocationPickerConfig &config);
 	static not_null<LocationPicker*> Show(Descriptor &&descriptor);
 
 	void close();
@@ -114,9 +113,8 @@ private:
 	void venuesRequest(Core::GeoLocation location, QString query = {});
 	void venuesSendRequest();
 
-	rpl::lifetime _lifetime;
-
-	Fn<void(LocationInfo)> _callback;
+	LocationPickerConfig _config;
+	Fn<void(Data::InputVenue)> _callback;
 	Fn<void()> _quit;
 	std::unique_ptr<SeparatePanel> _window;
 	not_null<RpWidget*> _body;
@@ -142,6 +140,8 @@ private:
 	Core::GeoLocation _venuesRequestLocation;
 	QString _venuesRequestQuery;
 	base::flat_map<QString, std::vector<VenuesCacheEntry>> _venuesCache;
+
+	rpl::lifetime _lifetime;
 
 };
 

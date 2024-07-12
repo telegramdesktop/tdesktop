@@ -158,12 +158,16 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 	return result;
 }
 
-[[nodiscard]] QString ResolveMapsToken(not_null<Main::Session*> session) {
-	return u""_q;
-}
-
-[[nodiscard]] QString ResolveGeocodingToken(not_null<Main::Session*> session) {
-	return u""_q;
+[[nodiscard]] Ui::LocationPickerConfig ResolveMapsConfig(
+		not_null<Main::Session*> session) {
+	const auto &appConfig = session->appConfig();
+	auto map = appConfig.get<base::flat_map<QString, QString>>(
+		u"tdesktop_config_map"_q,
+		base::flat_map<QString, QString>());
+	return {
+		.mapsToken = map[u"maps"_q],
+		.geoToken = map[u"geo"_q],
+	};
 }
 
 void ShowChooseBox(
@@ -1806,12 +1810,18 @@ void AttachWebView::toggleInMenu(
 
 void ChooseAndSendLocation(
 		not_null<Window::SessionController*> controller,
+		const Ui::LocationPickerConfig &config,
 		Api::SendAction action) {
-	const auto callback = [=](Ui::LocationInfo info) {
-		Api::SendLocation(action, info.lat, info.lon);
+	const auto callback = [=](Data::InputVenue venue) {
+		if (venue.justLocation()) {
+			Api::SendLocation(action, venue.lat, venue.lon);
+		} else {
+			Api::SendVenue(action, venue);
+		}
 	};
 	Ui::LocationPicker::Show({
 		.parent = controller->widget(),
+		.config = config,
 		.session = &controller->session(),
 		.callback = crl::guard(controller, callback),
 		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
@@ -1876,12 +1886,11 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	}
 	const auto session = &controller->session();
 	const auto locationType = ChatRestriction::SendOther;
+	const auto config = ResolveMapsConfig(session);
 	if (Data::CanSendAnyOf(peer, locationType)
-		&& Ui::LocationPicker::Available(
-			ResolveMapsToken(session),
-			ResolveGeocodingToken(session))) {
+		&& Ui::LocationPicker::Available(config)) {
 		raw->addAction(tr::lng_maps_point(tr::now), [=] {
-			ChooseAndSendLocation(controller, actionFactory());
+			ChooseAndSendLocation(controller, config, actionFactory());
 		}, &st::menuIconAddress);
 	}
 	for (const auto &bot : bots->attachBots()) {

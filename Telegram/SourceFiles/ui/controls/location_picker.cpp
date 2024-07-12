@@ -56,8 +56,6 @@ const auto kProtocolOverride = "";
 #endif // Q_OS_MAC
 
 Core::GeoLocation LastExactLocation;
-QString MapsProviderToken;
-QString GeocodingProviderToken;
 
 using VenueData = Data::InputVenue;
 
@@ -136,7 +134,8 @@ class VenuesController final
 public:
 	VenuesController(
 		not_null<Main::Session*> session,
-		rpl::producer<std::vector<VenueData>> content);
+		rpl::producer<std::vector<VenueData>> content,
+		Fn<void(VenueData)> callback);
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -165,6 +164,7 @@ private:
 	void rebuild(const std::vector<VenueData> &rows);
 
 	const not_null<Main::Session*> _session;
+	const Fn<void(VenueData)> _callback;
 	rpl::variable<std::vector<VenueData>> _rows;
 
 	base::flat_map<QString, VenueIcon> _icons;
@@ -179,8 +179,10 @@ private:
 
 VenuesController::VenuesController(
 	not_null<Main::Session*> session,
-	rpl::producer<std::vector<VenueData>> content)
+	rpl::producer<std::vector<VenueData>> content,
+	Fn<void(VenueData)> callback)
 : _session(session)
+, _callback(std::move(callback))
 , _rows(std::move(content)) {
 }
 
@@ -211,8 +213,7 @@ void VenuesController::rebuild(const std::vector<VenueData> &rows) {
 }
 
 void VenuesController::rowClicked(not_null<PeerListRow*> row) {
-	const auto venue = static_cast<VenueRow*>(row.get())->data();
-	venue;
+	_callback(static_cast<VenueRow*>(row.get())->data());
 }
 
 void VenuesController::rowRightActionClicked(not_null<PeerListRow*> row) {
@@ -468,13 +469,15 @@ void VenuesController::rowPaintIcon(
 void SetupVenues(
 		not_null<VerticalLayout*> container,
 		std::shared_ptr<Main::SessionShow> show,
-		rpl::producer<std::vector<VenueData>> value) {
+		rpl::producer<std::vector<VenueData>> value,
+		Fn<void(VenueData)> callback) {
 	auto &lifetime = container->lifetime();
 	const auto delegate = lifetime.make_state<PeerListContentDelegateShow>(
 		show);
 	const auto controller = lifetime.make_state<VenuesController>(
 		&show->session(),
-		std::move(value));
+		std::move(value),
+		std::move(callback));
 	controller->setStyleOverrides(&st::pickLocationVenueList);
 	const auto content = container->add(object_ptr<PeerListContent>(
 		container,
@@ -520,7 +523,8 @@ void SetupVenues(
 } // namespace
 
 LocationPicker::LocationPicker(Descriptor &&descriptor)
-: _callback(std::move(descriptor.callback))
+: _config(std::move(descriptor.config))
+, _callback(std::move(descriptor.callback))
 , _quit(std::move(descriptor.quit))
 , _window(std::make_unique<SeparatePanel>())
 , _body((_window->setInnerSize(st::pickLocationWindow)
@@ -550,13 +554,9 @@ std::shared_ptr<Main::SessionShow> LocationPicker::uiShow() {
 	return Main::MakeSessionShow(nullptr, _session);
 }
 
-bool LocationPicker::Available(
-		const QString &mapsToken,
-		const QString &geocodingToken) {
+bool LocationPicker::Available(const LocationPickerConfig &config) {
 	static const auto Supported = Webview::NavigateToDataSupported();
-	MapsProviderToken = mapsToken;
-	GeocodingProviderToken = geocodingToken;
-	return Supported && !MapsProviderToken.isEmpty();
+	return Supported && !config.mapsToken.isEmpty();
 }
 
 void LocationPicker::setup(const Descriptor &descriptor) {
@@ -606,7 +606,10 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 		return v::is<PickerVenueList>(state);
 	}) | rpl::map([=](PickerVenueState &&state) {
 		return std::move(v::get<PickerVenueList>(state).list);
-	}));
+	}), [=](VenueData info) {
+		_callback(std::move(info));
+		close();
+	});
 
 	rpl::combine(
 		_body->sizeValue(),
@@ -810,14 +813,14 @@ void LocationPicker::resolveAddress(Core::GeoLocation location) {
 	Core::ResolveLocationAddress(
 		location,
 		langId,
-		GeocodingProviderToken,
+		_config.geoToken,
 		crl::guard(this, done));
 }
 
 void LocationPicker::mapReady() {
 	Expects(_scroll != nullptr);
 
-	const auto token = MapsProviderToken.toUtf8();
+	const auto token = _config.mapsToken.toUtf8();
 	const auto center = DefaultCenter();
 	const auto bounds = DefaultBounds();
 	const auto protocol = *kProtocolOverride
