@@ -17,11 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_location.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "dialogs/ui/chat_search_empty.h" // Dialogs::SearchEmpty.
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
+#include "ui/effects/radial_animation.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/widgets/buttons.h"
@@ -468,17 +471,95 @@ void VenuesController::rowPaintIcon(
 	return result;
 }
 
+void SetupLoadingView(not_null<RpWidget*> container) {
+	class Loading final : public RpWidget {
+	public:
+		explicit Loading(QWidget *parent)
+		: RpWidget(parent)
+		, animation(
+				[=] { if (!anim::Disabled()) update(); },
+				st::pickLocationLoading) {
+			animation.start(st::pickLocationLoading.sineDuration);
+		}
+
+	private:
+		void paintEvent(QPaintEvent *e) override {
+			auto p = QPainter(this);
+			const auto size = st::pickLocationLoading.size;
+			const auto inner = QRect(QPoint(), size);
+			const auto positioned = style::centerrect(rect(), inner);
+			animation.draw(p, positioned.topLeft(), size, width());
+		}
+
+		InfiniteRadialAnimation animation;
+
+	};
+
+	const auto view = CreateChild<Loading>(container);
+	view->resize(container->width(), st::recentPeersEmptyHeightMin);
+	view->show();
+
+	ResizeFitChild(container, view);
+}
+
+void SetupEmptyView(
+		not_null<RpWidget*> container,
+		std::optional<QString> query) {
+	using Icon = Dialogs::SearchEmptyIcon;
+	const auto view = CreateChild<Dialogs::SearchEmpty>(
+		container,
+		(query ? Icon::NoResults : Icon::Search),
+		(query
+			? tr::lng_maps_no_places
+			: tr::lng_maps_choose_to_search)(Ui::Text::WithEntities));
+	view->setMinimalHeight(st::recentPeersEmptyHeightMin);
+	view->show();
+
+	ResizeFitChild(container, view);
+
+	InvokeQueued(view, [=] { view->animate(); });
+}
+
 void SetupVenues(
 		not_null<VerticalLayout*> container,
 		std::shared_ptr<Main::SessionShow> show,
-		rpl::producer<std::vector<VenueData>> value,
+		rpl::producer<PickerVenueState> value,
 		Fn<void(VenueData)> callback) {
+	const auto otherWrap = container->add(object_ptr<SlideWrap<RpWidget>>(
+		container,
+		object_ptr<RpWidget>(container)));
+	const auto other = otherWrap->entity();
+	rpl::duplicate(
+		value
+	) | rpl::start_with_next([=](const PickerVenueState &state) {
+		while (!other->children().isEmpty()) {
+			delete other->children()[0];
+		}
+		if (v::is<PickerVenueList>(state)) {
+			otherWrap->hide(anim::type::instant);
+			return;
+		} else if (v::is<PickerVenueLoading>(state)) {
+			SetupLoadingView(other);
+		} else {
+			const auto n = std::get_if<PickerVenueNothingFound>(&state);
+			SetupEmptyView(other, n ? n->query : std::optional<QString>());
+		}
+		otherWrap->show(anim::type::instant);
+	}, otherWrap->lifetime());
+
 	auto &lifetime = container->lifetime();
+	auto venuesList = rpl::duplicate(
+		value
+	) | rpl::map([=](PickerVenueState &&state) {
+		return v::is<PickerVenueList>(state)
+			? std::move(v::get<PickerVenueList>(state).list)
+			: std::vector<VenueData>();
+	});
 	const auto delegate = lifetime.make_state<PeerListContentDelegateShow>(
 		show);
 	const auto controller = lifetime.make_state<VenuesController>(
 		&show->session(),
-		std::move(value),
+		std::move(venuesList),
 		std::move(callback));
 	controller->setStyleOverrides(&st::pickLocationVenueList);
 	const auto content = container->add(object_ptr<PeerListContent>(
@@ -601,8 +682,7 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 	_mapControlsWrap = controls->add(
 		object_ptr<SlideWrap<VerticalLayout>>(
 			controls,
-			object_ptr<VerticalLayout>(controls))
-	)->setDuration(0);
+			object_ptr<VerticalLayout>(controls)));
 	_mapControlsWrap->show(anim::type::instant);
 	const auto mapControls = _mapControlsWrap->entity();
 
@@ -619,12 +699,8 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 	AddSkip(mapControls);
 	AddSubsectionTitle(mapControls, tr::lng_maps_or_choose());
 
-	SetupVenues(controls, uiShow(), _venueState.value(
-	) | rpl::filter([=](const PickerVenueState &state) {
-		return v::is<PickerVenueList>(state);
-	}) | rpl::map([=](PickerVenueState &&state) {
-		return std::move(v::get<PickerVenueList>(state).list);
-	}), [=](VenueData info) {
+	auto state = _venueState.value();
+	SetupVenues(controls, uiShow(), std::move(state), [=](VenueData info) {
 		_callback(std::move(info));
 		close();
 	});
@@ -706,6 +782,9 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 			if (event == u"ready"_q) {
 				mapReady();
 				resolveCurrentLocation();
+				if (_webview) {
+					_webview->focus();
+				}
 			} else if (event == u"keydown"_q) {
 				const auto key = object.value("key").toString();
 				const auto modifier = object.value("modifier").toString();
@@ -974,7 +1053,6 @@ void LocationPicker::venuesSearchChanged(
 		_mapControlsWrap->toggle(!shown, anim::type::instant);
 		if (shown) {
 			_venuesNoSearchLocation = _venuesRequestLocation;
-			_venueState = PickerVenueLoading();
 		} else if (_venuesNoSearchLocation) {
 			if (!venuesFromCache(_venuesNoSearchLocation)) {
 				venuesRequest(_venuesNoSearchLocation);
@@ -986,6 +1064,7 @@ void LocationPicker::venuesSearchChanged(
 		&& !venuesFromCache(
 			*_venuesSearchLocation,
 			*_venuesSearchQuery)) {
+		_venueState = PickerVenueLoading();
 		_venuesSearchDebounceTimer.callOnce(kSearchDebounceDelay);
 	} else {
 		_venuesSearchDebounceTimer.cancel();
@@ -998,6 +1077,9 @@ void LocationPicker::resolveCurrentLocation() {
 	ResolveCurrentGeoLocation(crl::guard(window, [=](GeoLocation location) {
 		const auto changed = !AreTheSame(LastExactLocation, location);
 		if (location.accuracy != GeoLocationAccuracy::Exact || !changed) {
+			if (!_venuesSearchLocation) {
+				_venueState = PickerVenueWaitingForLocation();
+			}
 			return;
 		}
 		LastExactLocation = location;

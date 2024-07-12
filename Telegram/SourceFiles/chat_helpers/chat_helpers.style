@@ -1476,3 +1476,8 @@ pickLocationVenueList: PeerList(defaultPeerList) {
 	padding: margins(0px, 0px, 0px, 0px);
 }
 pickLocationIconSkip: 6px;
+pickLocationLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(56px, 56px);
+	color: windowSubTextFg;
+	thickness: 4px;
+}
