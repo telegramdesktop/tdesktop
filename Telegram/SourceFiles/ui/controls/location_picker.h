@@ -32,6 +32,9 @@ namespace Ui {
 class SeparatePanel;
 class RpWidget;
 class ScrollArea;
+class VerticalLayout;
+template <typename Widget>
+class SlideWrap;
 
 struct PickerVenueLoading {
 	friend inline bool operator==(
@@ -110,8 +113,12 @@ private:
 	void resolveAddress(Core::GeoLocation location);
 	void mapReady();
 
+	bool venuesFromCache(Core::GeoLocation location, QString query = {});
 	void venuesRequest(Core::GeoLocation location, QString query = {});
 	void venuesSendRequest();
+	void venuesApplyResults(PickerVenueList venues);
+	void venuesSearchEnableAt(Core::GeoLocation location);
+	void venuesSearchChanged(const std::optional<QString> &query);
 
 	LocationPickerConfig _config;
 	Fn<void(Data::InputVenue)> _callback;
@@ -119,6 +126,7 @@ private:
 	std::unique_ptr<SeparatePanel> _window;
 	not_null<RpWidget*> _body;
 	RpWidget *_container = nullptr;
+	SlideWrap<VerticalLayout> *_mapControlsWrap = nullptr;
 	ScrollArea *_scroll = nullptr;
 	std::unique_ptr<Webview::Window> _webview;
 	SingleQueuedInvokation _updateStyles;
@@ -133,13 +141,19 @@ private:
 	rpl::variable<PickerVenueState> _venueState;
 
 	const not_null<Main::Session*> _session;
+	std::optional<Core::GeoLocation> _venuesSearchLocation;
+	std::optional<QString> _venuesSearchQuery;
+	base::Timer _venuesSearchDebounceTimer;
 	MTP::Sender _api;
 	UserData *_venuesBot = nullptr;
 	mtpRequestId _venuesBotRequestId = 0;
 	mtpRequestId _venuesRequestId = 0;
 	Core::GeoLocation _venuesRequestLocation;
 	QString _venuesRequestQuery;
+	QString _venuesInitialQuery;
 	base::flat_map<QString, std::vector<VenuesCacheEntry>> _venuesCache;
+	Core::GeoLocation _venuesNoSearchLocation;
+	rpl::variable<bool> _venuesSearchShown = false;
 
 	rpl::lifetime _lifetime;
 

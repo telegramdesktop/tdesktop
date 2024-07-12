@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
@@ -48,6 +49,7 @@ namespace Ui {
 namespace {
 
 constexpr auto kResolveAddressDelay = 3 * crl::time(1000);
+constexpr auto kSearchDebounceDelay = crl::time(900);
 
 #ifdef Q_OS_MAC
 const auto kProtocolOverride = "mapboxapihelper";
@@ -539,6 +541,12 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 , _geocoderResolveTimer([=] { resolveAddressByTimer(); })
 , _venueState(PickerVenueLoading())
 , _session(descriptor.session)
+, _venuesSearchDebounceTimer([=] {
+	Expects(_venuesSearchLocation.has_value());
+	Expects(_venuesSearchQuery.has_value());
+
+	venuesRequest(*_venuesSearchLocation, *_venuesSearchQuery);
+})
 , _api(&_session->mtp()) {
 	std::move(
 		descriptor.closeRequests
@@ -565,6 +573,7 @@ void LocationPicker::setup(const Descriptor &descriptor) {
 	if (LastExactLocation) {
 		venuesRequest(LastExactLocation);
 		resolveAddress(LastExactLocation);
+		venuesSearchEnableAt(LastExactLocation);
 	}
 }
 
@@ -588,18 +597,27 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 	_scroll = CreateChild<ScrollArea>(_body.get());
 	const auto controls = _scroll->setOwnedWidget(
 		object_ptr<VerticalLayout>(_scroll));
-	const auto toppad = controls->add(object_ptr<RpWidget>(controls));
 
-	const auto button = controls->add(
-		MakeSendLocationButton(controls, _geocoderAddress.value()),
+	_mapControlsWrap = controls->add(
+		object_ptr<SlideWrap<VerticalLayout>>(
+			controls,
+			object_ptr<VerticalLayout>(controls))
+	)->setDuration(0);
+	_mapControlsWrap->show(anim::type::instant);
+	const auto mapControls = _mapControlsWrap->entity();
+
+	const auto toppad = mapControls->add(object_ptr<RpWidget>(controls));
+
+	const auto button = mapControls->add(
+		MakeSendLocationButton(mapControls, _geocoderAddress.value()),
 		{ 0, st::pickLocationButtonSkip, 0, st::pickLocationButtonSkip });
 	button->setClickedCallback([=] {
 		_webview->eval("LocationPicker.send();");
 	});
 
-	AddDivider(controls);
-	AddSkip(controls);
-	AddSubsectionTitle(controls, tr::lng_maps_or_choose());
+	AddDivider(mapControls);
+	AddSkip(mapControls);
+	AddSubsectionTitle(mapControls, tr::lng_maps_or_choose());
 
 	SetupVenues(controls, uiShow(), _venueState.value(
 	) | rpl::filter([=](const PickerVenueState &state) {
@@ -613,17 +631,19 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 
 	rpl::combine(
 		_body->sizeValue(),
-		_scroll->scrollTopValue()
-	) | rpl::start_with_next([=](QSize size, int scrollTop) {
+		_scroll->scrollTopValue(),
+		_venuesSearchShown.value()
+	) | rpl::start_with_next([=](QSize size, int scrollTop, bool search) {
 		const auto width = size.width();
 		const auto height = size.height();
 		const auto sub = std::min(
 			(st::pickLocationMapHeight - st::pickLocationCollapsedHeight),
 			scrollTop);
 		const auto mapHeight = st::pickLocationMapHeight - sub;
-		const auto scrollHeight = height - mapHeight;
 		_container->setGeometry(0, 0, width, mapHeight);
-		_scroll->setGeometry(0, mapHeight, width, scrollHeight);
+		const auto scrollWidgetTop = search ? 0 : mapHeight;
+		const auto scrollHeight = height - scrollWidgetTop;
+		_scroll->setGeometry(0, scrollWidgetTop, width, scrollHeight);
 		controls->resizeToWidth(width);
 		toppad->resize(width, sub);
 	}, _container->lifetime());
@@ -662,7 +682,7 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 			close();
 		} else if (e->type() == QEvent::KeyPress) {
 			const auto event = static_cast<QKeyEvent*>(e.get());
-			if (event->key() == Qt::Key_Escape) {
+			if (event->key() == Qt::Key_Escape && !_venuesSearchQuery) {
 				close();
 			}
 		}
@@ -722,6 +742,7 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 					_webview->eval(
 						"LocationPicker.toggleSearchVenues(true);");
 				}
+				venuesSearchEnableAt(location);
 			} else if (event == u"search_venues"_q) {
 				const auto lat = object.value("latitude").toDouble();
 				const auto lon = object.value("longitude").toDouble();
@@ -835,26 +856,38 @@ void LocationPicker::mapReady() {
 	_scroll->show();
 }
 
-void LocationPicker::venuesRequest(
+bool LocationPicker::venuesFromCache(
 		Core::GeoLocation location,
 		QString query) {
-	query = NormalizeVenuesQuery(query);
-	auto &cache = _venuesCache[query];
+	const auto normalized = NormalizeVenuesQuery(query);
+	auto &cache = _venuesCache[normalized];
 	const auto i = ranges::find_if(cache, [&](const VenuesCacheEntry &v) {
 		return AreTheSame(v.location, location);
 	});
-	if (i != end(cache)) {
-		_venueState = i->result;
-		return;
-	} else if (AreTheSame(_venuesRequestLocation, location)
-		&& _venuesRequestQuery == query) {
+	if (i == end(cache)) {
+		return false;
+	}
+	_venuesRequestLocation = location;
+	_venuesRequestQuery = normalized;
+	_venuesInitialQuery = query;
+	venuesApplyResults(i->result);
+	return true;
+}
+
+void LocationPicker::venuesRequest(
+		Core::GeoLocation location,
+		QString query) {
+	const auto normalized = NormalizeVenuesQuery(query);
+	if (AreTheSame(_venuesRequestLocation, location)
+		&& _venuesRequestQuery == normalized) {
 		return;
 	} else if (const auto oldRequestId = base::take(_venuesRequestId)) {
 		_api.request(oldRequestId).cancel();
 	}
 	_venueState = PickerVenueLoading();
 	_venuesRequestLocation = location;
-	_venuesRequestQuery = query;
+	_venuesRequestQuery = normalized;
+	_venuesInitialQuery = query;
 	if (_venuesBot) {
 		venuesSendRequest();
 	} else if (_venuesBotRequestId) {
@@ -904,14 +937,59 @@ void LocationPicker::venuesSendRequest() {
 			.location = _venuesRequestLocation,
 			.result = parsed,
 		});
-		if (parsed.list.empty()) {
-			_venueState = PickerVenueNothingFound{ _venuesRequestQuery };
-		} else {
-			_venueState = std::move(parsed);
-		}
+		venuesApplyResults(std::move(parsed));
 	}).fail([=] {
-		_venueState = PickerVenueNothingFound{ _venuesRequestQuery };
+		venuesApplyResults({});
 	}).send();
+}
+
+void LocationPicker::venuesApplyResults(PickerVenueList venues) {
+	_venuesRequestId = 0;
+	if (venues.list.empty()) {
+		_venueState = PickerVenueNothingFound{ _venuesInitialQuery };
+	} else {
+		_venueState = std::move(venues);
+	}
+}
+
+void LocationPicker::venuesSearchEnableAt(Core::GeoLocation location) {
+	if (!_venuesSearchLocation) {
+		_window->setSearchAllowed(
+			tr::lng_dlg_filter(),
+			[=](std::optional<QString> query) {
+				venuesSearchChanged(query);
+			});
+	}
+	_venuesSearchLocation = location;
+}
+
+void LocationPicker::venuesSearchChanged(
+		const std::optional<QString> &query) {
+	_venuesSearchQuery = query;
+
+	const auto shown = query && !query->trimmed().isEmpty();
+	_venuesSearchShown = shown;
+	if (_container->isHidden() != shown) {
+		_container->setVisible(!shown);
+		_mapControlsWrap->toggle(!shown, anim::type::instant);
+		if (shown) {
+			_venuesNoSearchLocation = _venuesRequestLocation;
+			_venueState = PickerVenueLoading();
+		} else if (_venuesNoSearchLocation) {
+			if (!venuesFromCache(_venuesNoSearchLocation)) {
+				venuesRequest(_venuesNoSearchLocation);
+			}
+		}
+	}
+
+	if (shown
+		&& !venuesFromCache(
+			*_venuesSearchLocation,
+			*_venuesSearchQuery)) {
+		_venuesSearchDebounceTimer.callOnce(kSearchDebounceDelay);
+	} else {
+		_venuesSearchDebounceTimer.cancel();
+	}
 }
 
 void LocationPicker::resolveCurrentLocation() {
@@ -924,7 +1002,9 @@ void LocationPicker::resolveCurrentLocation() {
 		}
 		LastExactLocation = location;
 		if (location) {
-			venuesRequest(location);
+			if (_venuesSearchQuery.value_or(QString()).isEmpty()) {
+				venuesRequest(location);
+			}
 			resolveAddress(location);
 		}
 		if (_webview) {
@@ -940,7 +1020,11 @@ void LocationPicker::processKey(
 		const QString &key,
 		const QString &modifier) {
 	const auto ctrl = ::Platform::IsMac() ? u"cmd"_q : u"ctrl"_q;
-	if (key == u"escape"_q || (key == u"w"_q && modifier == ctrl)) {
+	if (key == u"escape"_q) {
+		if (!_window->closeSearch()) {
+			close();
+		}
+	} else if (key == u"w"_q && modifier == ctrl) {
 		close();
 	} else if (key == u"m"_q && modifier == ctrl) {
 		minimize();
