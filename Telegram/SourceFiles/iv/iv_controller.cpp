@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "base/invoke_queued.h"
-#include "base/qt_signal_producer.h"
 #include "base/qthelp_url.h"
 #include "iv/iv_data.h"
 #include "lang/lang_keys.h"
@@ -281,12 +280,14 @@ void Controller::createWindow() {
 	_window = std::make_unique<Ui::RpWindow>();
 	const auto window = _window.get();
 
-	base::qt_signal_producer(
-		window->window()->windowHandle(),
-		&QWindow::activeChanged
-	) | rpl::filter([=] {
-		return _webview && window->window()->windowHandle()->isActive();
-	}) | rpl::start_with_next([=] {
+	window->windowActiveValue(
+	) | rpl::map([=] {
+		const auto handle = window->window()->windowHandle();
+		return (_shareFocus || _webview) && handle && handle->isActive();
+	}) | rpl::distinct_until_changed(
+	) | rpl::filter(
+		rpl::mappers::_1
+	) | rpl::start_with_next([=] {
 		setInnerFocus();
 	}, window->lifetime());
 

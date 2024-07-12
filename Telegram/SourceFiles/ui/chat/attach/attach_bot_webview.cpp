@@ -739,15 +739,18 @@ postEvent: function(eventType, eventData) {
 
 	setupProgressGeometry();
 
-	base::qt_signal_producer(
-		_widget->window()->windowHandle(),
-		&QWindow::activeChanged
-	) | rpl::filter([=] {
-		return _webview && _widget->window()->windowHandle()->isActive();
-	}) | rpl::start_with_next([=] {
-		if (_webview && !_webview->window.widget()->isHidden()) {
-			_webview->window.focus();
-		}
+	_widget->windowActiveValue(
+	) | rpl::map([=] {
+		const auto handle = _widget->window()->windowHandle();
+		return _webview
+			&& !_webview->window.widget()->isHidden()
+			&& handle
+			&& handle->isActive();
+	}) | rpl::distinct_until_changed(
+	) | rpl::filter(
+		rpl::mappers::_1
+	) | rpl::start_with_next([=] {
+		_webview->window.focus();
 	}, _webview->lifetime);
 
 	return true;
