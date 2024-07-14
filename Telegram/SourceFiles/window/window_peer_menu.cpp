@@ -1090,6 +1090,8 @@ void Filler::addViewStatistics() {
 		using Flag = ChannelDataFlag;
 		const auto canGetStats = (channel->flags() & Flag::CanGetStatistics);
 		const auto canViewEarn = (channel->flags() & Flag::CanViewRevenue);
+		const auto canViewCreditsEarn
+			= (channel->flags() & Flag::CanViewCreditsRevenue);
 		if (canGetStats) {
 			_addAction(tr::lng_stats_title(tr::now), [=] {
 				if (const auto strong = weak.get()) {
@@ -1107,7 +1109,7 @@ void Filler::addViewStatistics() {
 				}
 			}, &st::menuIconBoosts);
 		}
-		if (canViewEarn) {
+		if (canViewEarn || canViewCreditsEarn) {
 			_addAction(tr::lng_channel_earn_title(tr::now), [=] {
 				if (const auto strong = weak.get()) {
 					controller->showSection(Info::ChannelEarn::Make(peer));

@@ -67,6 +67,7 @@ enum class ChannelDataFlag : uint64 {
 	SimilarExpanded = (1ULL << 31),
 	CanViewRevenue = (1ULL << 32),
 	PaidMediaAllowed = (1ULL << 33),
+	CanViewCreditsRevenue = (1ULL << 34),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
