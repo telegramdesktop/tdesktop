@@ -2370,6 +2370,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_history_entry_app_store" = "App Store";
 "lng_credits_box_history_entry_fragment" = "Fragment";
 "lng_credits_box_history_entry_ads" = "Ads Platform";
+"lng_credits_box_history_entry_premium_bot" = "Stars Top-Up";
+"lng_credits_box_history_entry_via_premium_bot" = "Premium Bot";
 "lng_credits_box_history_entry_id" = "Transaction ID";
 "lng_credits_box_history_entry_id_copied" = "Transaction ID copied to clipboard.";
 "lng_credits_box_history_entry_success_date" = "Transaction date";

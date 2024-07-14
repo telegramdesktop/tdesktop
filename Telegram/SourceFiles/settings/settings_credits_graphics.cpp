@@ -448,7 +448,7 @@ void ReceiptCreditsBox(
 	const auto &stUser = st::boostReplaceUserpic;
 	const auto session = &controller->session();
 	const auto peer = (e.peerType == Type::PremiumBot)
-		? premiumBot
+		? nullptr
 		: e.barePeerId
 		? session->data().peer(PeerId(e.barePeerId)).get()
 		: nullptr;
@@ -621,6 +621,33 @@ void ReceiptCreditsBox(
 			st::creditsBoxAboutDivider)));
 
 	Ui::AddSkip(content);
+
+	if (e.peerType == Data::CreditsHistoryEntry::PeerType::PremiumBot) {
+		const auto widget = Ui::CreateChild<Ui::RpWidget>(content);
+		using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
+		const auto stars = widget->lifetime().make_state<ColoredMiniStars>(
+			widget,
+			false,
+			Ui::Premium::MiniStars::Type::BiStars);
+		stars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
+		widget->resize(
+			st::boxWidth - stUser.photoSize,
+			stUser.photoSize * 2);
+		content->sizeValue(
+		) | rpl::start_with_next([=](const QSize &size) {
+			widget->moveToLeft(stUser.photoSize / 2, 0);
+			const auto starsRect = Rect(widget->size());
+			stars->setPosition(starsRect.topLeft());
+			stars->setSize(starsRect.size());
+			widget->lower();
+		}, widget->lifetime());
+		widget->paintRequest(
+		) | rpl::start_with_next([=](const QRect &r) {
+			auto p = QPainter(widget);
+			p.fillRect(r, Qt::transparent);
+			stars->paint(p);
+		}, widget->lifetime());
+	}
 
 	const auto button = box->addButton(tr::lng_box_ok(), [=] {
 		box->closeBox();

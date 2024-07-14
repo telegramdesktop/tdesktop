@@ -1702,6 +1702,12 @@ void AddCreditsHistoryEntryTable(
 			table,
 			tr::lng_credits_box_history_entry_via(),
 			tr::lng_credits_box_history_entry_ads(Ui::Text::RichLangValue));
+	} else if (entry.peerType == Type::PremiumBot) {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_via(),
+			tr::lng_credits_box_history_entry_via_premium_bot(
+				Ui::Text::RichLangValue));
 	}
 	if (!entry.id.isEmpty()) {
 		constexpr auto kOneLineCount = 18;
