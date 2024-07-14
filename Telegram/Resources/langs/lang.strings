@@ -2813,12 +2813,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_badge" = "x{amount}";
 
 "lng_prizes_results_title" = "Winners Selected!";
+"lng_prizes_results_title_one" = "Winner Selected!";
 "lng_prizes_results_about#one" = "**{count}** winner of the {link} was randomly selected by Telegram.";
 "lng_prizes_results_about#other" = "**{count}** winners of the {link} were randomly selected by Telegram.";
 "lng_prizes_results_link" = "Giveaway";
+"lng_prizes_results_winner" = "Winner";
 "lng_prizes_results_winners" = "Winners";
 "lng_prizes_results_more#one" = "and {count} more!";
 "lng_prizes_results_more#other" = "and {count} more!";
+"lng_prizes_results_one" = "The winner received their gift link in a private message.";
 "lng_prizes_results_all" = "All winners received gift links in private messages.";
 "lng_prizes_results_some" = "Some winners couldn't be selected.";
 

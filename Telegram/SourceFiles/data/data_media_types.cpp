@@ -2631,7 +2631,11 @@ const GiveawayResults *MediaGiveawayResults::giveawayResults() const {
 }
 
 TextWithEntities MediaGiveawayResults::notificationText() const {
-	return Ui::Text::Colorized({ tr::lng_prizes_results_title(tr::now) });
+	return Ui::Text::Colorized({
+		((_data.winnersCount == 1)
+			? tr::lng_prizes_results_title_one
+			: tr::lng_prizes_results_title)(tr::now)
+	});
 }
 
 QString MediaGiveawayResults::pinnedTextSubstring() const {
