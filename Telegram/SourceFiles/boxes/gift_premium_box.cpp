@@ -1648,7 +1648,9 @@ void AddCreditsHistoryEntryTable(
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
 	if (peerId) {
-		auto text = tr::lng_credits_box_history_entry_peer();
+		auto text = entry.in
+			? tr::lng_credits_box_history_entry_peer_in()
+			: tr::lng_credits_box_history_entry_peer();
 		AddTableRow(table, std::move(text), controller, peerId);
 	}
 	if (const auto msgId = MsgId(peerId ? entry.bareMsgId : 0)) {
