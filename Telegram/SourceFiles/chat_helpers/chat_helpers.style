@@ -1474,3 +1474,4 @@ pickLocationLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	color: windowSubTextFg;
 	thickness: 4px;
 }
+pickLocationPromoHeight: 32px;

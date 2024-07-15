@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/separate_panel.h"
+#include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -182,6 +183,27 @@ private:
 	return query.trimmed().toLower();
 }
 
+[[nodiscard]] object_ptr<RpWidget> MakeFoursquarePromo() {
+	auto result = object_ptr<RpWidget>((QWidget*)nullptr);
+	const auto raw = result.data();
+	raw->resize(0, st::pickLocationPromoHeight);
+	const auto shadow = CreateChild<PlainShadow>(raw);
+	raw->widthValue() | rpl::start_with_next([=](int width) {
+		shadow->setGeometry(0, 0, width, st::lineWidth);
+	}, raw->lifetime());
+	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(raw);
+		p.fillRect(clip, st::windowBg);
+		p.setPen(st::windowSubTextFg);
+		p.setFont(st::normalFont);
+		p.drawText(
+			raw->rect(),
+			tr::lng_maps_venues_source(tr::now),
+			style::al_center);
+	}, raw->lifetime());
+	return result;
+}
+
 VenuesController::VenuesController(
 	not_null<Main::Session*> session,
 	rpl::producer<std::vector<VenueData>> content,
@@ -213,6 +235,11 @@ void VenuesController::rebuild(const std::vector<VenueData> &rows) {
 	while (i < count) {
 		delegate()->peerListRemoveRow(delegate()->peerListRowAt(i));
 		--count;
+	}
+	if (i > 0) {
+		delegate()->peerListSetBelowWidget(MakeFoursquarePromo());
+	} else {
+		delegate()->peerListSetBelowWidget({ nullptr });
 	}
 	delegate()->peerListRefreshRows();
 }

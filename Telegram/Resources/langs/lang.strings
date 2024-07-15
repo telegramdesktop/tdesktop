@@ -3199,6 +3199,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_maps_places_in_area" = "Places in this area";
 "lng_maps_no_places" = "No places found";
 "lng_maps_choose_to_search" = "Choose location to see places nearby.";
+"lng_maps_venues_source" = "Powered by Foursquare";
 "lng_live_location" = "Live Location";
 "lng_live_location_now" = "updated just now";
 "lng_live_location_minutes#one" = "updated {count} minute ago";
