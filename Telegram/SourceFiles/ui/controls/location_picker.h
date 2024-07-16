@@ -133,8 +133,8 @@ private:
 	ScrollArea *_scroll = nullptr;
 	std::unique_ptr<Webview::Window> _webview;
 	SingleQueuedInvokation _updateStyles;
+	Core::GeoLocation _initialProvided;
 	bool _subscribedToColors = false;
-	bool _initialProvided = false;
 
 	base::Timer _geocoderResolveTimer;
 	Core::GeoLocation _geocoderResolvePostponed;

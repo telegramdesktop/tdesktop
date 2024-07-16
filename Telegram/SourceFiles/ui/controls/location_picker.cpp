@@ -332,14 +332,15 @@ void VenuesController::rowPaintIcon(
 	p.drawImage(x, y, data.image);
 }
 
-[[nodiscard]] QByteArray DefaultCenter() {
-	if (!LastExactLocation) {
+[[nodiscard]] QByteArray DefaultCenter(Core::GeoLocation initial) {
+	const auto &use = initial.exact() ? initial : LastExactLocation;
+	if (!use) {
 		return "null";
 	}
 	return "["_q
-		+ QByteArray::number(LastExactLocation.point.x())
+		+ QByteArray::number(use.point.x())
 		+ ","_q
-		+ QByteArray::number(LastExactLocation.point.y())
+		+ QByteArray::number(use.point.y())
 		+ "]"_q;
 }
 
@@ -495,6 +496,10 @@ void VenuesController::rowPaintIcon(
 		status->resizeToNaturalWidth(available);
 		status->moveToLeft(statusPosition.x(), statusPosition.y(), width);
 	}, name->lifetime());
+
+	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+	name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	status->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	return result;
 }
@@ -681,9 +686,9 @@ void LocationPicker::setup(const Descriptor &descriptor) {
 	setupWindow(descriptor);
 	setupWebview(descriptor);
 
-	_initialProvided = descriptor.initial.exact();
-	const auto initial = _initialProvided
-		? descriptor.initial
+	_initialProvided = descriptor.initial;
+	const auto initial = _initialProvided.exact()
+		? _initialProvided
 		: LastExactLocation;
 	if (initial) {
 		venuesRequest(initial);
@@ -964,7 +969,7 @@ void LocationPicker::mapReady() {
 	Expects(_scroll != nullptr);
 
 	const auto token = _config.mapsToken.toUtf8();
-	const auto center = DefaultCenter();
+	const auto center = DefaultCenter(_initialProvided);
 	const auto bounds = DefaultBounds();
 	const auto protocol = *kProtocolOverride
 		? "'"_q + kProtocolOverride + "'"
