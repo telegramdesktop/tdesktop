@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/current_geo_location_mac.h"
 
+#include "base/platform/mac/base_utilities_mac.h"
 #include "core/current_geo_location.h"
 
 #include <CoreLocation/CoreLocation.h>
@@ -120,7 +121,34 @@ void ResolveLocationAddress(
 		const Core::GeoLocation &location,
 		const QString &language,
 		Fn<void(Core::GeoAddress)> callback) {
-	callback({});
+	CLGeocoder *geocoder = [[CLGeocoder alloc] init];
+	CLLocation *request = [[CLLocation alloc]
+		initWithLatitude:location.point.x()
+		longitude:location.point.y()];
+	[geocoder reverseGeocodeLocation:request completionHandler:^(
+			NSArray<CLPlacemark*> * __nullable placemarks,
+			NSError * __nullable error) {
+		if (placemarks && [placemarks count] > 0) {
+			CLPlacemark *placemark = [placemarks firstObject];
+			auto list = QStringList();
+			const auto push = [&](NSString *text) {
+				if (text) {
+					const auto qt = NS2QString(text);
+					if (!qt.isEmpty()) {
+						list.push_back(qt);
+					}
+				}
+			};
+			push([placemark thoroughfare]);
+			push([placemark locality]);
+			push([placemark country]);
+			callback({ .name = list.join(u", "_q) });
+		} else {
+			callback({});
+		}
+		[geocoder release];
+	}];
+	[request release];
 }
 
 } // namespace Platform
