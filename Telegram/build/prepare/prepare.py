@@ -1,4 +1,4 @@
-import os, sys, pprint, re, json, pathlib, hashlib, subprocess, glob
+import os, sys, pprint, re, json, pathlib, hashlib, subprocess, glob, tempfile
 
 executePath = os.getcwd()
 sys.dont_write_bytecode = True
@@ -435,8 +435,12 @@ if customRunCommand:
             modifiedEnv['PROMPT'] = '(prepare) $P$G'
             subprocess.run("cmd.exe", shell=True, env=modifiedEnv)
         else:
-            modifiedEnv['PS1'] = '(prepare) \\w \\$ '
-            subprocess.run("bash --noprofile --norc", env=modifiedEnv)
+            prompt = '(prepare) %~ %# '
+            with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp_zshrc:
+                tmp_zshrc.write(f'export PS1="{prompt}"\n')
+                tmp_zshrc_path = tmp_zshrc.name
+            subprocess.run(['zsh', '--rcs', tmp_zshrc_path], env=modifiedEnv)
+            os.remove(tmp_zshrc_path)
     elif not run(command):
         print('FAILED :(')
         finish(1)
@@ -1616,7 +1620,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout afd9d5d317
+    git checkout 996dbe2c83
     git submodule init
     git submodule update
 win:

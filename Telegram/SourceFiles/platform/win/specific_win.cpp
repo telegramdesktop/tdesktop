@@ -58,6 +58,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <guiddef.h>
 #include <locale.h>
 
+#include <ShellScalingApi.h>
+
 #ifndef DCX_USESTYLE
 #define DCX_USESTYLE 0x00010000
 #endif
@@ -695,3 +697,18 @@ bool psLaunchMaps(const Data::LocationPoint &point) {
 	return QDesktopServices::openUrl(
 		url.arg(point.latAsString()).arg(point.lonAsString()));
 }
+
+// Stub while we still support Windows 7.
+extern "C" {
+
+STDAPI GetDpiForMonitor(
+		_In_ HMONITOR hmonitor,
+		_In_ MONITOR_DPI_TYPE dpiType,
+		_Out_ UINT *dpiX,
+		_Out_ UINT *dpiY) {
+	return Dlls::GetDpiForMonitor
+		? Dlls::GetDpiForMonitor(hmonitor, dpiType, dpiX, dpiY)
+		: E_FAIL;
+}
+
+} // extern "C"

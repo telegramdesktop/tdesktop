@@ -63,6 +63,9 @@ SafeIniter::SafeIniter() {
 
 	const auto LibUser32 = LoadLibrary(L"user32.dll");
 	LOAD_SYMBOL(LibUser32, SetWindowCompositionAttribute);
+
+	const auto LibShCore = LoadLibrary(L"Shcore.dll");
+	LOAD_SYMBOL(LibShCore, GetDpiForMonitor);
 }
 
 SafeIniter kSafeIniter;
