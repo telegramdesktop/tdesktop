@@ -621,7 +621,7 @@ win64:
 winarm:
     perl Configure no-shared no-tests debug-VC-WIN64-ARM /FS
 win:
-    jom -j%NUMBER_OF_PROCESSORS%
+    jom -j%NUMBER_OF_PROCESSORS% build_libs
     mkdir out.dbg
     move libcrypto.lib out.dbg
     move libssl.lib out.dbg
@@ -637,7 +637,7 @@ win64_release:
 winarm_release:
     perl Configure no-shared no-tests VC-WIN64-ARM /FS
 win_release:
-    jom -j%NUMBER_OF_PROCESSORS%
+    jom -j%NUMBER_OF_PROCESSORS% build_libs
     mkdir out
     move libcrypto.lib out
     move libssl.lib out
@@ -733,7 +733,7 @@ mac:
 """)
 
 stage('gas-preprocessor', """
-winarm:
+win:
     git clone https://github.com/FFmpeg/gas-preprocessor
     cd gas-preprocessor
     echo @echo off > cpp.bat
