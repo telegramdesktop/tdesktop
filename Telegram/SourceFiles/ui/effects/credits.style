@@ -54,3 +54,6 @@ creditsHistoryEntryGiftStickerSkip: -20px;
 creditsHistoryEntryGiftStickerSize: 150px;
 creditsHistoryEntryGiftStickerSpace: 105px;
 
+creditsGiftBox: Box(defaultBox) {
+	shadowIgnoreTopSkip: true;
+}
