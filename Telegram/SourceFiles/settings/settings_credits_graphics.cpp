@@ -231,6 +231,7 @@ void AddViewMediaHandler(
 void FillCreditOptions(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::VerticalLayout*> container,
+		not_null<PeerData*> peer,
 		int minimumCredits,
 		Fn<void()> paid) {
 	const auto options = container->add(
@@ -351,8 +352,7 @@ void FillCreditOptions(
 	};
 
 	using ApiOptions = Api::CreditsTopupOptions;
-	const auto apiCredits = content->lifetime().make_state<ApiOptions>(
-		show->session().user());
+	const auto apiCredits = content->lifetime().make_state<ApiOptions>(peer);
 
 	if (show->session().premiumPossible()) {
 		apiCredits->request(
@@ -864,7 +864,11 @@ void SmallBalanceBox(
 			}));
 	}();
 
-	FillCreditOptions(show, box->verticalLayout(), creditsNeeded, done);
+	{
+		const auto content = box->verticalLayout();
+		const auto self = show->session().user();
+		FillCreditOptions(show, content, self, creditsNeeded, done);
+	}
 
 	content->setMaximumHeight(st::creditsLowBalancePremiumCoverHeight);
 	content->setMinimumHeight(st::infoLayerTopBarHeight);

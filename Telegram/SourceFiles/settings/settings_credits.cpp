@@ -289,7 +289,8 @@ void Credits::setupContent() {
 			Ui::StartFireworks(_parent);
 		}
 	};
-	FillCreditOptions(_controller->uiShow(), content, 0, paid);
+	const auto self = _controller->session().user();
+	FillCreditOptions(_controller->uiShow(), content, self, 0, paid);
 	setupHistory(content);
 
 	Ui::ResizeFitChild(this, content);

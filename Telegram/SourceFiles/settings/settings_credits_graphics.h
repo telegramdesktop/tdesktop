@@ -35,6 +35,7 @@ namespace Settings {
 void FillCreditOptions(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<Ui::VerticalLayout*> container,
+	not_null<PeerData*> peer,
 	int minCredits,
 	Fn<void()> paid);
 
