@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 
@@ -38,6 +39,10 @@ DocumentData *GiftBoxPack::lookup(int months) const {
 	return (index >= _documents.size()) ? fallback : _documents[index];
 }
 
+Data::FileOrigin GiftBoxPack::origin() const {
+	return Data::FileOriginStickerSet(_setId, _accessHash);
+}
+
 void GiftBoxPack::load() {
 	if (_requestId || !_documents.empty()) {
 		return;
@@ -59,6 +64,7 @@ void GiftBoxPack::load() {
 
 void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 	_setId = data.vset().data().vid().v;
+	_accessHash = data.vset().data().vaccess_hash().v;
 	auto documents = base::flat_map<DocumentId, not_null<DocumentData*>>();
 	for (const auto &sticker : data.vdocuments().v) {
 		const auto document = _session->data().processDocument(sticker);

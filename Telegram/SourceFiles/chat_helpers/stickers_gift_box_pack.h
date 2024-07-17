@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
+namespace Data {
+struct FileOrigin;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -22,6 +26,7 @@ public:
 
 	void load();
 	[[nodiscard]] DocumentData *lookup(int months) const;
+	[[nodiscard]] Data::FileOrigin origin() const;
 
 private:
 	using SetId = uint64;
@@ -32,6 +37,7 @@ private:
 
 	std::vector<DocumentData*> _documents;
 	SetId _setId = 0;
+	uint64 _accessHash = 0;
 	mtpRequestId _requestId = 0;
 
 };
