@@ -1847,9 +1847,14 @@ if (WIN32)
         /DELAYLOAD:propsys.dll
     )
     if (QT_VERSION GREATER 6)
+        if (NOT build_winarm)
+            target_link_options(Telegram PRIVATE
+                /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
+            )
+        endif()
+
         target_link_options(Telegram
         PRIVATE
-            /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-1.dll
@@ -1866,7 +1871,7 @@ if (WIN32)
             /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Security-CryptoAPI-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Shcore-Scaling-l1-1-1.dll
+            # /DELAYLOAD:API-MS-Win-Shcore-Scaling-l1-1-1.dll # We shadowed GetDpiForMonitor
             /DELAYLOAD:authz.dll # Authz.lib
             /DELAYLOAD:comdlg32.dll
             /DELAYLOAD:dwrite.dll # DWrite.lib
