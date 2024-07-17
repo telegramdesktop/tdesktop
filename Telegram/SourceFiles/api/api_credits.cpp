@@ -134,12 +134,10 @@ rpl::producer<rpl::no_value, QString> CreditsTopupOptions::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-		using TLOption = MTPStarsTopupOption;
-		_api.request(MTPpayments_GetStarsTopupOptions(
-		)).done([=](const MTPVector<TLOption> &result) {
-			_options = ranges::views::all(
-				result.v
-			) | ranges::views::transform([](const TLOption &option) {
+		const auto optionsFromTL = [](const auto &options) {
+			return ranges::views::all(
+				options
+			) | ranges::views::transform([=](const auto &option) {
 				return Data::CreditTopupOption{
 					.credits = option.data().vstars().v,
 					.product = qs(
@@ -149,10 +147,28 @@ rpl::producer<rpl::no_value, QString> CreditsTopupOptions::request() {
 					.extended = option.data().is_extended(),
 				};
 			}) | ranges::to_vector;
-			consumer.put_done();
-		}).fail([=](const MTP::Error &error) {
+		};
+		const auto fail = [=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
-		}).send();
+		};
+
+		if (_peer->isSelf()) {
+			using TLOption = MTPStarsTopupOption;
+			_api.request(MTPpayments_GetStarsTopupOptions(
+			)).done([=](const MTPVector<TLOption> &result) {
+				_options = optionsFromTL(result.v);
+				consumer.put_done();
+			}).fail(fail).send();
+		} else if (const auto user = _peer->asUser()) {
+			using TLOption = MTPStarsGiftOption;
+			_api.request(MTPpayments_GetStarsGiftOptions(
+				MTP_flags(MTPpayments_GetStarsGiftOptions::Flag::f_user_id),
+				user->inputUser
+			)).done([=](const MTPVector<TLOption> &result) {
+				_options = optionsFromTL(result.v);
+				consumer.put_done();
+			}).fail(fail).send();
+		}
 
 		return lifetime;
 	};
