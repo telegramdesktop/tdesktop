@@ -948,7 +948,6 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 					delegate()->peerListUpdateRow(row);
 				},
 			};
-			using Type = Data::CreditsHistoryEntry::PeerType;
 			if (const auto peerId = PeerId(item.barePeerId)) {
 				const auto peer = session().data().peer(peerId);
 				return std::make_unique<CreditsRow>(peer, descriptor);
