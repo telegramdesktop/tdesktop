@@ -55,7 +55,7 @@ void AddCreditsHistoryList(
 	const Data::CreditsStatusSlice &firstSlice,
 	not_null<Ui::VerticalLayout*> container,
 	Fn<void(const Data::CreditsHistoryEntry &)> entryClickedCallback,
-	not_null<PeerData*> premiumBot,
+	not_null<PeerData*> peer,
 	not_null<QImage*> creditIcon,
 	bool in,
 	bool out);

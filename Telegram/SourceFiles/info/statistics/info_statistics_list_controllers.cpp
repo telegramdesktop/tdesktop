@@ -131,7 +131,7 @@ struct BoostsDescriptor final {
 struct CreditsDescriptor final {
 	Data::CreditsStatusSlice firstSlice;
 	Fn<void(const Data::CreditsHistoryEntry &)> entryClickedCallback;
-	not_null<PeerData*> premiumBot;
+	not_null<PeerData*> peer;
 	not_null<QImage*> creditIcon;
 	bool in = false;
 	bool out = false;
@@ -889,7 +889,6 @@ private:
 	void applySlice(const Data::CreditsStatusSlice &slice);
 
 	const not_null<Main::Session*> _session;
-	const not_null<PeerData*> _premiumBot;
 	Fn<void(const Data::CreditsHistoryEntry &)> _entryClickedCallback;
 	not_null<QImage*> const _creditIcon;
 
@@ -903,11 +902,10 @@ private:
 };
 
 CreditsController::CreditsController(CreditsDescriptor d)
-: _session(&d.premiumBot->session())
-, _premiumBot(d.premiumBot)
+: _session(&d.peer->session())
 , _entryClickedCallback(std::move(d.entryClickedCallback))
 , _creditIcon(d.creditIcon)
-, _api(d.premiumBot->session().user(), d.in, d.out)
+, _api(d.peer, d.in, d.out)
 , _firstSlice(std::move(d.firstSlice)) {
 	PeerListController::setStyleOverrides(&st::boostsListBox);
 }

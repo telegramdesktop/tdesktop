@@ -128,6 +128,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto content = history->entity();
+	const auto self = _controller->session().user();
 
 	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
 
@@ -231,7 +232,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			fullSlice,
 			fullWrap->entity(),
 			entryClicked,
-			premiumBot,
+			self,
 			&_star,
 			true,
 			true);
@@ -240,7 +241,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			inSlice,
 			inWrap->entity(),
 			entryClicked,
-			premiumBot,
+			self,
 			&_star,
 			true,
 			false);
@@ -249,7 +250,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			outSlice,
 			outWrap->entity(),
 			std::move(entryClicked),
-			premiumBot,
+			self,
 			&_star,
 			false,
 			true);
@@ -263,7 +264,6 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 	const auto apiLifetime = content->lifetime().make_state<rpl::lifetime>();
 	{
 		using Api = Api::CreditsHistory;
-		const auto self = _controller->session().user();
 		const auto apiFull = apiLifetime->make_state<Api>(self, true, true);
 		const auto apiIn = apiLifetime->make_state<Api>(self, true, false);
 		const auto apiOut = apiLifetime->make_state<Api>(self, false, true);

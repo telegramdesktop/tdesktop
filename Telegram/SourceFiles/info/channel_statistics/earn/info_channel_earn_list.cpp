@@ -1419,7 +1419,7 @@ void InnerWidget::fill() {
 				data.creditsStatusSlice,
 				tabCreditsList->entity(),
 				entryClicked,
-				premiumBot,
+				_peer,
 				star,
 				true,
 				true);

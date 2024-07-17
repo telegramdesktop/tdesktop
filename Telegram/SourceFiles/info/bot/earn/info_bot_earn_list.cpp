@@ -261,7 +261,7 @@ void InnerWidget::fillHistory() {
 
 	const auto sectionIndex = history->lifetime().make_state<int>(0);
 
-	const auto fill = [=](
+	const auto fill = [=, peer = _peer](
 			not_null<PeerData*> premiumBot,
 			const Data::CreditsStatusSlice &fullSlice,
 			const Data::CreditsStatusSlice &inSlice,
@@ -368,7 +368,7 @@ void InnerWidget::fillHistory() {
 			fullSlice,
 			fullWrap->entity(),
 			entryClicked,
-			premiumBot,
+			peer,
 			star,
 			true,
 			true);
@@ -377,7 +377,7 @@ void InnerWidget::fillHistory() {
 			inSlice,
 			inWrap->entity(),
 			entryClicked,
-			premiumBot,
+			peer,
 			star,
 			true,
 			false);
@@ -386,7 +386,7 @@ void InnerWidget::fillHistory() {
 			outSlice,
 			outWrap->entity(),
 			std::move(entryClicked),
-			premiumBot,
+			peer,
 			star,
 			false,
 			true);
@@ -398,11 +398,11 @@ void InnerWidget::fillHistory() {
 	const auto apiLifetime = history->lifetime().make_state<rpl::lifetime>();
 	rpl::single(rpl::empty) | rpl::then(
 		_stateUpdated.events()
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=, peer = _peer] {
 		using Api = Api::CreditsHistory;
-		const auto apiFull = apiLifetime->make_state<Api>(_peer, true, true);
-		const auto apiIn = apiLifetime->make_state<Api>(_peer, true, false);
-		const auto apiOut = apiLifetime->make_state<Api>(_peer, false, true);
+		const auto apiFull = apiLifetime->make_state<Api>(peer, true, true);
+		const auto apiIn = apiLifetime->make_state<Api>(peer, true, false);
+		const auto apiOut = apiLifetime->make_state<Api>(peer, false, true);
 		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
 			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
 				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
