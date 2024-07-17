@@ -1522,6 +1522,13 @@ ServiceAction ParseServiceAction(
 		content.peerId = ParsePeerId(data.vpeer());
 		content.transactionId = data.vcharge().data().vid().v;
 		result.content = content;
+	}, [&](const MTPDmessageActionGiftStars &data) {
+		auto content = ActionGiftStars();
+		content.cost = Ui::FillAmountAndCurrency(
+			data.vamount().v,
+			qs(data.vcurrency())).toUtf8();
+		content.stars = data.vstars().v;
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

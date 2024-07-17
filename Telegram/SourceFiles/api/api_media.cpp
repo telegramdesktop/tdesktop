@@ -36,7 +36,8 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 				MTP_double(document->duration() / 1000.),
 				MTP_int(dimensions.width()),
 				MTP_int(dimensions.height()),
-				MTPint())); // preload_prefix_size
+				MTPint(), // preload_prefix_size
+				MTPdouble())); // video_start_ts
 		} else {
 			attributes.push_back(MTP_documentAttributeImageSize(
 				MTP_int(dimensions.width()),

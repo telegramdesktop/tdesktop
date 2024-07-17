@@ -529,7 +529,7 @@ struct ActionWebViewDataSent {
 
 struct ActionGiftPremium {
 	Utf8String cost;
-	int months;
+	int months = 0;
 };
 
 struct ActionTopicCreate {
@@ -583,6 +583,11 @@ struct ActionPaymentRefunded {
 	Utf8String transactionId;
 };
 
+struct ActionGiftStars {
+	Utf8String cost;
+	int stars = 0;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -625,7 +630,8 @@ struct ServiceAction {
 		ActionGiveawayLaunch,
 		ActionGiveawayResults,
 		ActionBoostApply,
-		ActionPaymentRefunded> content;
+		ActionPaymentRefunded,
+		ActionGiftStars> content;
 };
 
 ServiceAction ParseServiceAction(

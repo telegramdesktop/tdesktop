@@ -131,6 +131,17 @@ struct UrlArea {
 		const UrlArea &) = default;
 };
 
+struct WeatherArea {
+	StoryArea area;
+	QString emoji;
+	QColor color;
+	int millicelcius = 0;
+
+	friend inline bool operator==(
+		const WeatherArea &,
+		const WeatherArea &) = default;
+};
+
 class Story final {
 public:
 	Story(

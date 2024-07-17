@@ -318,20 +318,11 @@ MTPInputInvoice Form::inputInvoice() const {
 	} else if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
 		return MTP_inputInvoiceSlug(MTP_string(slug->slug));
 	} else if (const auto credits = std::get_if<InvoiceCredits>(&_id.value)) {
-		using Flag = MTPDstarsTopupOption::Flag;
-		const auto emptyFlag = MTPDstarsTopupOption::Flags(0);
-		return MTP_inputInvoiceStars(MTP_starsTopupOption(
-			MTP_flags(emptyFlag
-				| (credits->product.isEmpty()
-					? Flag::f_store_product
-					: emptyFlag)
-				| (credits->extended
-					? Flag::f_extended
-					: emptyFlag)),
-			MTP_long(credits->credits),
-			MTP_string(credits->product),
-			MTP_string(credits->currency),
-			MTP_long(credits->amount)));
+		return MTP_inputInvoiceStars(
+			MTP_inputStorePaymentStarsTopup(
+				MTP_long(credits->credits),
+				MTP_string(credits->currency),
+				MTP_long(credits->amount)));
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
 	using Flag = MTPDpremiumGiftCodeOption::Flag;

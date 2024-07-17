@@ -2303,8 +2303,9 @@ ClickHandlerPtr MediaDice::MakeHandler(
 MediaGiftBox::MediaGiftBox(
 	not_null<HistoryItem*> parent,
 	not_null<PeerData*> from,
-	int months)
-: MediaGiftBox(parent, from, GiftCode{ .months = months }) {
+	GiftType type,
+	int count)
+: MediaGiftBox(parent, from, GiftCode{ .count = count, .type = type }) {
 }
 
 MediaGiftBox::MediaGiftBox(

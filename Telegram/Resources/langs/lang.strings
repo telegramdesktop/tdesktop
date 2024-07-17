@@ -2854,6 +2854,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_link_pending_toast" = "Only the recipient can see the link.";
 "lng_gift_link_pending_footer" = "This link hasn't been activated yet.";
 
+"lng_gift_stars_title#one" = "{count} Star";
+"lng_gift_stars_title#other" = "{count} Stars";
+"lng_gift_stars_outgoing" = "With Stars, {user} will be able to unlock content and services on Telegram.";
+"lng_gift_stars_incoming" = "Use Stars to unlock content and services on Telegram.";
+
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected accounts.";
 "lng_accounts_limit1#other" = "You have reached the limit of **{count}** connected accounts.";

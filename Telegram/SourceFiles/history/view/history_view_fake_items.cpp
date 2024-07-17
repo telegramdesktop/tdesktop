@@ -59,7 +59,8 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPVector<MTPUsername>(),
 		MTPint(), // stories_max_id
 		MTPPeerColor(), // color
-		MTPPeerColor())); // profile_color
+		MTPPeerColor(), // profile_color
+		MTPint())); // bot_active_users
 	return peerId;
 }
 

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_credits.h" // Settings::CreditsId
 #include "settings/settings_premium.h" // Settings::ShowGiftPremium
 #include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
@@ -45,6 +46,9 @@ QSize PremiumGift::size() {
 }
 
 QString PremiumGift::title() {
+	if (const auto count = stars()) {
+		return tr::lng_gift_stars_title(tr::now, lt_count, count);
+	}
 	return gift()
 		? tr::lng_premium_summary_title(tr::now)
 		: _data.unclaimed
@@ -53,8 +57,16 @@ QString PremiumGift::title() {
 }
 
 TextWithEntities PremiumGift::subtitle() {
-	if (gift()) {
-		return { GiftDuration(_data.months) };
+	if (const auto count = stars()) {
+		return outgoingGift()
+			? tr::lng_gift_stars_outgoing(
+				tr::now,
+				lt_user,
+				Ui::Text::Bold(_parent->history()->peer->shortName()),
+				Ui::Text::WithEntities)
+			: tr::lng_gift_stars_incoming(tr::now, Ui::Text::WithEntities);
+	} else if (gift()) {
+		return { GiftDuration(_data.count) };
 	}
 	const auto name = _data.channel ? _data.channel->name() : "channel";
 	auto result = (_data.unclaimed
@@ -74,7 +86,7 @@ TextWithEntities PremiumGift::subtitle() {
 		: tr::lng_prize_gift_duration)(
 			tr::now,
 			lt_duration,
-			Ui::Text::Bold(GiftDuration(_data.months)),
+			Ui::Text::Bold(GiftDuration(_data.count)),
 			Ui::Text::RichLangValue));
 	return result;
 }
@@ -94,9 +106,11 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 		if (const auto controller = my.sessionWindow.get()) {
 			const auto selfId = controller->session().userPeerId();
 			const auto self = (from->id == selfId);
-			if (data.slug.isEmpty()) {
+			if (data.type == Data::GiftType::Stars) {
+				controller->showSettings(Settings::CreditsId());
+			} else if (data.slug.isEmpty()) {
 				const auto peer = self ? to : from;
-				const auto months = data.months;
+				const auto months = data.count;
 				Settings::ShowGiftPremium(controller, peer, months, self);
 			} else {
 				const auto fromId = from->id;
@@ -162,12 +176,16 @@ bool PremiumGift::gift() const {
 	return _data.slug.isEmpty() || !_data.channel;
 }
 
+int PremiumGift::stars() const {
+	return (_data.type == Data::GiftType::Stars) ? _data.count : 0;
+}
+
 void PremiumGift::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
 	}
 	const auto &session = _parent->history()->session();
-	const auto months = _gift->data().months;
+	const auto months = stars() ? 1 : _data.count;
 	auto &packs = session.giftBoxStickersPacks();
 	if (const auto document = packs.lookup(months)) {
 		if (const auto sticker = document->sticker()) {

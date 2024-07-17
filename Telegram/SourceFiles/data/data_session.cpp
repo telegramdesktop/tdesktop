@@ -4533,7 +4533,8 @@ void Session::serviceNotification(
 			MTPVector<MTPUsername>(),
 			MTPint(), // stories_max_id
 			MTPPeerColor(), // color
-			MTPPeerColor())); // profile_color
+			MTPPeerColor(), // profile_color
+			MTPint())); // bot_active_users
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	const auto insert = [=] {

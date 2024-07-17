@@ -632,6 +632,15 @@ QByteArray SerializeMessage(
 		pushBare("peer_name", wrapPeerName(data.peerId));
 		push("peer_id", data.peerId);
 		push("charge_id", data.transactionId);
+	}, [&](const ActionGiftStars &data) {
+		pushActor();
+		pushAction("send_stars_gift");
+		if (!data.cost.isEmpty()) {
+			push("cost", data.cost);
+		}
+		if (data.stars) {
+			push("stars", data.stars);
+		}
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

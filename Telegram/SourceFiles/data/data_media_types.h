@@ -125,10 +125,16 @@ struct GiveawayResults {
 	bool all = false;
 };
 
+enum class GiftType : uchar {
+	Premium, // count - months
+	Stars, // count - stars
+};
+
 struct GiftCode {
 	QString slug;
 	ChannelData *channel = nullptr;
-	int months = 0;
+	int count = 0;
+	GiftType type = GiftType::Premium;
 	bool viaGiveaway = false;
 	bool unclaimed = false;
 };
@@ -591,7 +597,8 @@ public:
 	MediaGiftBox(
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> from,
-		int months);
+		GiftType type,
+		int count);
 	MediaGiftBox(
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> from,

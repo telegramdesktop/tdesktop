@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/download_manager_mtproto.h"
 #include "storage/file_download.h" // kMaxFileInMemory
 #include "ui/text/text_utilities.h"
+#include "ui/color_int_conversion.h"
 
 namespace Data {
 namespace {
@@ -41,6 +42,10 @@ using UpdateFlag = StoryUpdate::Flag;
 		.geometry = { corner / 100., size / 100. },
 		.rotation = data.vrotation().v,
 	};
+}
+
+[[nodiscard]] uint32 ParseMilliKelvin(double celcius) {
+	return uint32(std::clamp(celcius + 273.15, 0., 1'000'000.) * 1000.);
 }
 
 [[nodiscard]] TextWithEntities StripLinks(TextWithEntities text) {
@@ -83,6 +88,7 @@ using UpdateFlag = StoryUpdate::Flag;
 	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
 	}, [&](const MTPDmediaAreaChannelPost &data) {
 	}, [&](const MTPDmediaAreaUrl &data) {
+	}, [&](const MTPDmediaAreaWeather &data) {
 	}, [&](const MTPDinputMediaAreaChannelPost &data) {
 		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
 	}, [&](const MTPDinputMediaAreaVenue &data) {
@@ -105,6 +111,7 @@ using UpdateFlag = StoryUpdate::Flag;
 		});
 	}, [&](const MTPDmediaAreaChannelPost &data) {
 	}, [&](const MTPDmediaAreaUrl &data) {
+	}, [&](const MTPDmediaAreaWeather &data) {
 	}, [&](const MTPDinputMediaAreaChannelPost &data) {
 		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
 	}, [&](const MTPDinputMediaAreaVenue &data) {
@@ -127,6 +134,7 @@ using UpdateFlag = StoryUpdate::Flag;
 				data.vmsg_id().v),
 		});
 	}, [&](const MTPDmediaAreaUrl &data) {
+	}, [&](const MTPDmediaAreaWeather &data) {
 	}, [&](const MTPDinputMediaAreaChannelPost &data) {
 		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
 	}, [&](const MTPDinputMediaAreaVenue &data) {
@@ -146,6 +154,30 @@ using UpdateFlag = StoryUpdate::Flag;
 		result.emplace(UrlArea{
 			.area = ParseArea(data.vcoordinates()),
 			.url = qs(data.vurl()),
+		});
+	}, [&](const MTPDmediaAreaWeather &data) {
+	}, [&](const MTPDinputMediaAreaChannelPost &data) {
+		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
+	}, [&](const MTPDinputMediaAreaVenue &data) {
+		LOG(("API Error: Unexpected inputMediaAreaVenue from API."));
+	});
+	return result;
+}
+
+[[nodiscard]] auto ParseWeatherArea(const MTPMediaArea &area)
+-> std::optional<WeatherArea> {
+	auto result = std::optional<WeatherArea>();
+	area.match([&](const MTPDmediaAreaVenue &data) {
+	}, [&](const MTPDmediaAreaGeoPoint &data) {
+	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
+	}, [&](const MTPDmediaAreaChannelPost &data) {
+	}, [&](const MTPDmediaAreaUrl &data) {
+	}, [&](const MTPDmediaAreaWeather &data) {
+		result.emplace(WeatherArea{
+			.area = ParseArea(data.vcoordinates()),
+			.emoji = qs(data.vemoji()),
+			.color = Ui::ColorFromSerialized(data.vcolor().v),
+			.millicelcius = int(data.vtemperature_c().v * 1000.),
 		});
 	}, [&](const MTPDinputMediaAreaChannelPost &data) {
 		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));

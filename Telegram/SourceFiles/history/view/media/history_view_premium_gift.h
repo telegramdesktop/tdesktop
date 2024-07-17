@@ -49,6 +49,7 @@ private:
 	[[nodiscard]] bool incomingGift() const;
 	[[nodiscard]] bool outgoingGift() const;
 	[[nodiscard]] bool gift() const;
+	[[nodiscard]] int stars() const;
 	void ensureStickerCreated() const;
 
 	const not_null<Element*> _parent;

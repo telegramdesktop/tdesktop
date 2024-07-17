@@ -1321,6 +1321,16 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " refunded back "
 			+ amount;
 		return result;
+	}, [&](const ActionGiftStars &data) {
+		if (!data.stars || data.cost.isEmpty()) {
+			return serviceFrom + " sent you a gift.";
+		}
+		return serviceFrom
+			+ " sent you a gift for "
+			+ data.cost
+			+ ": "
+			+ QString::number(data.stars).toUtf8()
+			+ " Telegram Stars.";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
