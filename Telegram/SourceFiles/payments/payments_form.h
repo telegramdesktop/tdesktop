@@ -167,6 +167,7 @@ struct InvoiceCredits {
 	QString currency;
 	uint64 amount = 0;
 	bool extended = false;
+	PeerId giftPeerId = PeerId(0);
 };
 
 struct InvoiceId {

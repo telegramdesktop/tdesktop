@@ -318,6 +318,16 @@ MTPInputInvoice Form::inputInvoice() const {
 	} else if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
 		return MTP_inputInvoiceSlug(MTP_string(slug->slug));
 	} else if (const auto credits = std::get_if<InvoiceCredits>(&_id.value)) {
+		if (const auto userId = peerToUser(credits->giftPeerId)) {
+			if (const auto user = _session->data().user(userId)) {
+				return MTP_inputInvoiceStars(
+					MTP_inputStorePaymentStarsGift(
+						user->inputUser,
+						MTP_long(credits->credits),
+						MTP_string(credits->currency),
+						MTP_long(credits->amount)));
+			}
+		}
 		return MTP_inputInvoiceStars(
 			MTP_inputStorePaymentStarsTopup(
 				MTP_long(credits->credits),

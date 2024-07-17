@@ -134,7 +134,9 @@ rpl::producer<rpl::no_value, QString> CreditsTopupOptions::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-		const auto optionsFromTL = [](const auto &options) {
+		const auto giftBarePeerId = !_peer->isSelf() ? _peer->id.value : 0;
+
+		const auto optionsFromTL = [giftBarePeerId](const auto &options) {
 			return ranges::views::all(
 				options
 			) | ranges::views::transform([=](const auto &option) {
@@ -145,6 +147,7 @@ rpl::producer<rpl::no_value, QString> CreditsTopupOptions::request() {
 					.currency = qs(option.data().vcurrency()),
 					.amount = option.data().vamount().v,
 					.extended = option.data().is_extended(),
+					.giftBarePeerId = giftBarePeerId,
 				};
 			}) | ranges::to_vector;
 		};

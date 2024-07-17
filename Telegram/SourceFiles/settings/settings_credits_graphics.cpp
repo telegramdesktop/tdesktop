@@ -314,6 +314,7 @@ void FillCreditOptions(
 					.currency = option.currency,
 					.amount = option.amount,
 					.extended = option.extended,
+					.giftPeerId = PeerId(option.giftBarePeerId),
 				};
 
 				const auto weak = Ui::MakeWeak(button);
