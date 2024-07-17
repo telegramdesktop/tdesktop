@@ -427,8 +427,9 @@ void VenuesController::rowPaintIcon(
 )"_q;
 }
 
-[[nodiscard]] object_ptr<AbstractButton> MakeSendLocationButton(
+[[nodiscard]] object_ptr<AbstractButton> MakeChooseLocationButton(
 		QWidget *parent,
+		rpl::producer<QString> label,
 		rpl::producer<QString> address) {
 	auto result = object_ptr<FlatButton>(
 		parent,
@@ -465,7 +466,7 @@ void VenuesController::rowPaintIcon(
 	});
 	const auto name = CreateChild<FlatLabel>(
 		raw,
-		tr::lng_maps_point_send(tr::now),
+		std::move(label),
 		st::pickLocationButtonText);
 	name->show();
 	const auto status = CreateChild<FlatLabel>(
@@ -679,10 +680,15 @@ bool LocationPicker::Available(const LocationPickerConfig &config) {
 void LocationPicker::setup(const Descriptor &descriptor) {
 	setupWindow(descriptor);
 	setupWebview(descriptor);
-	if (LastExactLocation) {
-		venuesRequest(LastExactLocation);
-		resolveAddress(LastExactLocation);
-		venuesSearchEnableAt(LastExactLocation);
+
+	_initialProvided = descriptor.initial.exact();
+	const auto initial = _initialProvided
+		? descriptor.initial
+		: LastExactLocation;
+	if (initial) {
+		venuesRequest(initial);
+		resolveAddress(initial);
+		venuesSearchEnableAt(initial);
 	}
 }
 
@@ -717,7 +723,10 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 	const auto toppad = mapControls->add(object_ptr<RpWidget>(controls));
 
 	const auto button = mapControls->add(
-		MakeSendLocationButton(mapControls, _geocoderAddress.value()),
+		MakeChooseLocationButton(
+			mapControls,
+			std::move(descriptor.chooseLabel),
+			_geocoderAddress.value()),
 		{ 0, st::pickLocationButtonSkip, 0, st::pickLocationButtonSkip });
 	button->setClickedCallback([=] {
 		_webview->eval("LocationPicker.send();");
@@ -809,7 +818,9 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 			const auto event = object.value("event").toString();
 			if (event == u"ready"_q) {
 				mapReady();
-				resolveCurrentLocation();
+				if (!_initialProvided) {
+					resolveCurrentLocation();
+				}
 				if (_webview) {
 					_webview->focus();
 				}
@@ -820,7 +831,11 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 			} else if (event == u"send"_q) {
 				const auto lat = object.value("latitude").toDouble();
 				const auto lon = object.value("longitude").toDouble();
-				_callback({ lat, lon });
+				_callback({
+					.lat = lat,
+					.lon = lon,
+					.address = _geocoderAddress.current(),
+				});
 				close();
 			} else if (event == u"move_start"_q) {
 				if (const auto now = _geocoderAddress.current()

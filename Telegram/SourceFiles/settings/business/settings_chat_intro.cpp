@@ -632,7 +632,6 @@ void ChatIntro::setupContent(
 }
 
 void ChatIntro::save() {
-	const auto show = controller()->uiShow();
 	const auto fail = [=](QString error) {
 	};
 	controller()->session().data().businessInfo().saveChatIntro(

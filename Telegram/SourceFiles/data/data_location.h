@@ -16,6 +16,11 @@ public:
 	LocationPoint() = default;
 	explicit LocationPoint(const MTPDgeoPoint &point);
 
+	enum IgnoreAccessHash {
+		NoAccessHash,
+	};
+	LocationPoint(float64 lat, float64 lon, IgnoreAccessHash);
+
 	[[nodiscard]] QString latAsString() const;
 	[[nodiscard]] QString lonAsString() const;
 	[[nodiscard]] MTPGeoPoint toMTP() const;
@@ -55,7 +60,7 @@ struct InputVenue {
 	QString venueType;
 
 	[[nodiscard]] bool justLocation() const {
-		return id.isEmpty() && title.isEmpty() && address.isEmpty();
+		return id.isEmpty();
 	}
 
 	friend inline bool operator==(

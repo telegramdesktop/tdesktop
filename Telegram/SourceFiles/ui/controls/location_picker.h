@@ -80,8 +80,10 @@ public:
 	struct Descriptor {
 		RpWidget *parent = nullptr;
 		LocationPickerConfig config;
+		rpl::producer<QString> chooseLabel;
 		PeerData *recipient = nullptr;
 		not_null<Main::Session*> session;
+		Core::GeoLocation initial;
 		Fn<void(Data::InputVenue)> callback;
 		Fn<void()> quit;
 		Webview::StorageId storageId;
@@ -132,6 +134,7 @@ private:
 	std::unique_ptr<Webview::Window> _webview;
 	SingleQueuedInvokation _updateStyles;
 	bool _subscribedToColors = false;
+	bool _initialProvided = false;
 
 	base::Timer _geocoderResolveTimer;
 	Core::GeoLocation _geocoderResolvePostponed;

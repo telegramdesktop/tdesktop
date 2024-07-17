@@ -130,6 +130,42 @@ void BusinessInfo::saveChatIntro(ChatIntro data, Fn<void(QString)> fail) {
 	session->user()->setBusinessDetails(std::move(details));
 }
 
+void BusinessInfo::saveLocation(
+		BusinessLocation data,
+		Fn<void(QString)> fail) {
+	const auto session = &_owner->session();
+	auto details = session->user()->businessDetails();
+	const auto &was = details.location;
+	if (was == data) {
+		return;
+	} else {
+		const auto session = &_owner->session();
+		using Flag = MTPaccount_UpdateBusinessLocation::Flag;
+		session->api().request(MTPaccount_UpdateBusinessLocation(
+			MTP_flags((data.point ? Flag::f_geo_point : Flag())
+				| (data.address.isEmpty() ? Flag() : Flag::f_address)),
+			(data.point
+				? MTP_inputGeoPoint(
+					MTP_flags(0),
+					MTP_double(data.point->lat()),
+					MTP_double(data.point->lon()),
+					MTPint()) // accuracy_radius
+				: MTP_inputGeoPointEmpty()),
+			MTP_string(data.address)
+		)).fail([=](const MTP::Error &error) {
+			auto details = session->user()->businessDetails();
+			details.location = was;
+			session->user()->setBusinessDetails(std::move(details));
+			if (fail) {
+				fail(error.type());
+			}
+		}).send();
+	}
+
+	details.location = std::move(data);
+	session->user()->setBusinessDetails(std::move(details));
+}
+
 void BusinessInfo::applyAwaySettings(AwaySettings data) {
 	if (_awaySettings == data) {
 		return;
