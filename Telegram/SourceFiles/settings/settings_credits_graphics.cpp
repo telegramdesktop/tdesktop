@@ -864,11 +864,12 @@ void SmallBalanceBox(
 			}));
 	}();
 
-	{
-		const auto content = box->verticalLayout();
-		const auto self = show->session().user();
-		FillCreditOptions(show, content, self, creditsNeeded, done);
-	}
+	FillCreditOptions(
+		show,
+		box->verticalLayout(),
+		show->session().user(),
+		creditsNeeded,
+		done);
 
 	content->setMaximumHeight(st::creditsLowBalancePremiumCoverHeight);
 	content->setMinimumHeight(st::infoLayerTopBarHeight);
