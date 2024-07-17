@@ -147,6 +147,17 @@ RUN git clone -b 1.4.1 --depth=1 {{ GIT }}/videolan/dav1d.git \
 	&& cd .. \
 	&& rm -rf dav1d
 
+FROM builder AS openh264
+RUN git clone -b v2.4.1 --depth=1 {{ GIT }}/cisco/openh264.git \
+	&& cd openh264 \
+	&& meson build \
+		--buildtype=plain \
+		--default-library=both \
+	&& meson compile -C build \
+	&& DESTDIR="{{ LibrariesPath }}/openh264-cache" meson install -C build \
+	&& cd .. \
+	&& rm -rf openh264
+
 FROM builder AS libde265
 RUN git clone -b v1.0.15 --depth=1 {{ GIT }}/strukturag/libde265.git \
 	&& cd libde265 \
@@ -742,6 +753,7 @@ RUN git clone -b v2023.06.01 --depth=1 https://chromium.googlesource.com/breakpa
 
 FROM builder AS webrtc
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
+COPY --link --from=openh264 {{ LibrariesPath }}/openh264-cache /
 COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
 COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
 COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
@@ -767,6 +779,7 @@ RUN git init tg_owt \
 		-DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/include \
 		-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
 		-DTG_OWT_LIBVPX_INCLUDE_PATH=/usr/local/include \
+		-DTG_OWT_OPENH264_INCLUDE_PATH=/usr/local/include \
 		-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
 
 WORKDIR tg_owt
@@ -791,6 +804,7 @@ COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
 COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
+COPY --link --from=openh264 {{ LibrariesPath }}/openh264-cache /
 COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
 COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
 COPY --link --from=libavif {{ LibrariesPath }}/libavif-cache /
