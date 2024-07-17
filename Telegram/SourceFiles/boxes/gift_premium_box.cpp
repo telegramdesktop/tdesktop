@@ -1695,8 +1695,10 @@ void AddCreditsHistoryEntryTable(
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_via(),
-			tr::lng_credits_box_history_entry_fragment(
-				Ui::Text::RichLangValue));
+			(entry.gift
+				? tr::lng_credits_box_history_entry_anonymous
+				: tr::lng_credits_box_history_entry_fragment)(
+					Ui::Text::RichLangValue));
 	} else if (entry.peerType == Type::Ads) {
 		AddTableRow(
 			table,

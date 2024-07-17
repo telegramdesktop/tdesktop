@@ -57,7 +57,7 @@ struct CreditsHistoryEntry final {
 	QDateTime successDate;
 	QString successLink;
 	bool in = false;
-
+	bool gift = false;
 };
 
 struct CreditsStatusSlice final {

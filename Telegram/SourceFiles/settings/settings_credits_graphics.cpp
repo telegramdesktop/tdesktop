@@ -488,6 +488,8 @@ void ReceiptCreditsBox(
 			rpl::single(
 				!e.title.isEmpty()
 				? e.title
+				: e.gift
+				? tr::lng_credits_box_history_entry_gift_name(tr::now)
 				: peer
 				? peer->name()
 				: Ui::GenerateEntryName(e).text),
@@ -593,7 +595,41 @@ void ReceiptCreditsBox(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				rpl::single(e.description),
-				st::defaultFlatLabel)));
+				st::creditsBoxAbout)));
+	}
+	if (e.gift) {
+		Ui::AddSkip(content);
+		const auto arrow = Ui::Text::SingleCustomEmoji(
+			session->data().customEmojiManager().registerInternalEmoji(
+				st::topicButtonArrow,
+				st::channelEarnLearnArrowMargins,
+				false));
+		auto link = tr::lng_credits_box_history_entry_gift_about_link(
+			lt_emoji,
+			rpl::single(arrow),
+			Ui::Text::RichLangValue
+		) | rpl::map([](TextWithEntities text) {
+			return Ui::Text::Link(
+				std::move(text),
+				tr::lng_credits_box_history_entry_gift_about_url(tr::now));
+		});
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
+			box,
+			Ui::CreateLabelWithCustomEmoji(
+				box,
+				(!e.in && peer)
+					? tr::lng_credits_box_history_entry_gift_out_about(
+						lt_user,
+						rpl::single(TextWithEntities{ peer->shortName() }),
+						lt_link,
+						std::move(link),
+						Ui::Text::RichLangValue)
+					: tr::lng_credits_box_history_entry_gift_in_about(
+						lt_link,
+						std::move(link),
+						Ui::Text::RichLangValue),
+				{ .session = session },
+				st::creditsBoxAbout)));
 	}
 
 	Ui::AddSkip(content);

@@ -800,7 +800,9 @@ void CreditsRow::init() {
 			: _entry.failed
 			? (joiner + tr::lng_channel_earn_history_failed(tr::now))
 			: QString())
-		+ (_entry.title.isEmpty() ? QString() : (joiner + _name)));
+		+ ((_entry.gift && PeerListRow::special())
+			? (joiner + tr::lng_credits_box_history_entry_anonymous(tr::now))
+			: (_entry.title.isEmpty() ? QString() : (joiner + _name))));
 	{
 		constexpr auto kMinus = QChar(0x2212);
 		_rightText.setText(

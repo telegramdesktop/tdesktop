@@ -102,6 +102,7 @@ constexpr auto kTransactionsLimit = 100;
 			: QDateTime(),
 		.successLink = qs(tl.data().vtransaction_url().value_or_empty()),
 		.in = (int64(tl.data().vstars().v) >= 0),
+		.gift = tl.data().is_gift(),
 	};
 }
 
