@@ -49,3 +49,8 @@ starIconSmall: icon{{ "payments/small_star", windowFg }};
 starIconSmallPadding: margins(0px, -2px, 0px, 0px);
 
 creditsHistoryEntryTypeAds: icon {{ "folders/folders_channels", premiumButtonFg }};
+
+creditsHistoryEntryGiftStickerSkip: -20px;
+creditsHistoryEntryGiftStickerSize: 150px;
+creditsHistoryEntryGiftStickerSpace: 105px;
+
