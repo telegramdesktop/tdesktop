@@ -852,11 +852,11 @@ mac:
         arch=$1
         folder=`pwd`/$2
 
-        meson setup \\
-            --cross-file ../patches/macos_meson_${arch}.txt \\
-            --prefix ${USED_PREFIX} \\
-            --default-library=static \\
-            --buildtype=minsize \\
+        meson setup \
+            --cross-file ../patches/macos_meson_${arch}.txt \
+            --prefix ${USED_PREFIX} \
+            --default-library=static \
+            --buildtype=minsize \
             ${folder}
         meson compile -C ${folder}
         meson install -C ${folder}
@@ -864,10 +864,10 @@ mac:
         mv ${USED_PREFIX}/lib/libopenh264.a ${folder}/libopenh264.a
     }
 
-    buildOneArch arm64 build.arm64
-    buildOneArch x86_64 build
+    buildOneArch aarch64 build.aarch64
+    buildOneArch x86_64 build.x86_64
 
-    lipo -create build.arm64/libopenh264.a build/libopenh264.a -output ${USED_PREFIX}/lib/libopenh264.a
+    lipo -create build.aarch64/libopenh264.a build.x86_64/libopenh264.a -output ${USED_PREFIX}/lib/libopenh264.a
 """)
 
 stage('libavif', """
