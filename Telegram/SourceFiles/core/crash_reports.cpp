@@ -296,13 +296,17 @@ bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, 
 
 QString PlatformString() {
 	if (Platform::IsWindowsStoreBuild()) {
-		return Platform::IsWindows64Bit()
+		return Platform::IsWindowsARM64()
+			? u"WinStoreARM64"_q
+			: Platform::IsWindows64Bit()
 			? u"WinStore64Bit"_q
 			: u"WinStore32Bit"_q;
 	} else if (Platform::IsWindows32Bit()) {
 		return u"Windows32Bit"_q;
 	} else if (Platform::IsWindows64Bit()) {
 		return u"Windows64Bit"_q;
+	} else if (Platform::IsWindowsARM64()) {
+		return u"WindowsARM64"_q;
 	} else if (Platform::IsMacStoreBuild()) {
 		return u"MacAppStore"_q;
 	} else if (Platform::IsMac()) {
