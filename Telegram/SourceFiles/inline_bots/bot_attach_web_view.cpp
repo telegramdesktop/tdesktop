@@ -621,16 +621,38 @@ void AttachWebView::botHandleInvoice(QString slug) {
 			}());
 		}
 	};
-	_panel->hideForPayment();
 	Payments::CheckoutProcess::Start(
 		&_bot->session(),
 		slug,
 		reactivate,
-		_context
-			? Payments::ProcessNonPanelPaymentFormFactory(
-				_context->controller.get(),
-				reactivate)
-			: nullptr);
+		nonPanelPaymentFormFactory(reactivate));
+}
+
+auto AttachWebView::nonPanelPaymentFormFactory(
+	Fn<void(Payments::CheckoutResult)> reactivate)
+-> Fn<void(Payments::NonPanelPaymentForm)> {
+	using namespace Payments;
+	const auto panel = base::make_weak(_panel.get());
+	const auto weak = _context ? _context->controller : nullptr;
+	return [=](Payments::NonPanelPaymentForm form) {
+		using CreditsFormDataPtr = std::shared_ptr<CreditsFormData>;
+		using CreditsReceiptPtr = std::shared_ptr<CreditsReceiptData>;
+		v::match(form, [&](const CreditsFormDataPtr &form) {
+			if (const auto strong = panel.get()) {
+				ProcessCreditsPayment(
+					uiShow(),
+					strong->toastParent().get(),
+					form,
+					reactivate);
+			}
+		}, [&](const CreditsReceiptPtr &receipt) {
+			if (const auto controller = weak.get()) {
+				ProcessCreditsReceipt(controller, receipt, reactivate);
+			}
+		}, [&](RealFormPresentedNotification) {
+			_panel->hideForPayment();
+		});
+	};
 }
 
 void AttachWebView::botHandleMenuButton(Ui::BotWebView::MenuButton button) {

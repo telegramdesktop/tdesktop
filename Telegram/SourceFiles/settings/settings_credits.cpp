@@ -289,7 +289,7 @@ void Credits::setupContent() {
 			Ui::StartFireworks(_parent);
 		}
 	};
-	FillCreditOptions(_controller, content, 0, paid);
+	FillCreditOptions(_controller->uiShow(), content, 0, paid);
 	setupHistory(content);
 
 	Ui::ResizeFitChild(this, content);

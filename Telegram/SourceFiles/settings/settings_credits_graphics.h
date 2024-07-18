@@ -16,6 +16,10 @@ namespace Data {
 struct CreditsHistoryEntry;
 } // namespace Data
 
+namespace Main {
+class SessionShow;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -29,7 +33,7 @@ class VerticalLayout;
 namespace Settings {
 
 void FillCreditOptions(
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<Main::SessionShow> show,
 	not_null<Ui::VerticalLayout*> container,
 	int minCredits,
 	Fn<void()> paid);
@@ -77,7 +81,7 @@ void ShowRefundInfoBox(
 
 void SmallBalanceBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<Main::SessionShow> show,
 	int creditsNeeded,
 	UserId botId,
 	Fn<void()> paid);

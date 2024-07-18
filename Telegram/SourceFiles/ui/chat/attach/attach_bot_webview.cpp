@@ -1344,8 +1344,10 @@ void Panel::invoiceClosed(const QString &slug, const QString &status) {
 		{ u"slug"_q, slug },
 		{ u"status"_q, status },
 	});
-	_widget->showAndActivate();
-	_hiddenForPayment = false;
+	if (_hiddenForPayment) {
+		_hiddenForPayment = false;
+		_widget->showAndActivate();
+	}
 }
 
 void Panel::hideForPayment() {

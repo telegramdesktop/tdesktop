@@ -241,19 +241,20 @@ ClickHandlerPtr MakePaidMediaLink(not_null<HistoryItem*> item) {
 				}
 			}
 		});
+		const auto reactivate = controller
+			? crl::guard(
+				controller,
+				[=](auto) { controller->widget()->activate(); })
+			: Fn<void(Payments::CheckoutResult)>();
+		const auto credits = Payments::IsCreditsInvoice(item);
+		const auto nonPanelPaymentFormProcess = (controller && credits)
+			? Payments::ProcessNonPanelPaymentFormFactory(controller, done)
+			: nullptr;
 		Payments::CheckoutProcess::Start(
 			item,
 			Payments::Mode::Payment,
-			(controller
-				? crl::guard(
-					controller,
-					[=](auto) { controller->widget()->activate(); })
-				: Fn<void(Payments::CheckoutResult)>()),
-			((controller && Payments::IsCreditsInvoice(item))
-				? Payments::ProcessNonPanelPaymentFormFactory(
-					controller,
-					done)
-				: nullptr));
+			reactivate,
+			nonPanelPaymentFormProcess);
 	});
 }
 

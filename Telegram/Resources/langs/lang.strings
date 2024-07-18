@@ -3161,6 +3161,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_add_to_side_menu" = "{bot} asks your permission to be added as an option to your main menu so you can access it any time.";
 "lng_bot_add_to_side_menu_done" = "Bot added to the main menu.";
 "lng_bot_no_scan_qr" = "QR Codes for bots are not supported on Desktop. Please use one of Telegram's mobile apps.";
+"lng_bot_click_to_start" = "Click here to use this bot.";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
@@ -3757,6 +3758,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_card_declined" = "Your card was declined.";
 "lng_payments_payment_failed" = "Payment failed. Your card has not been billed.";
 "lng_payments_precheckout_failed" = "The bot couldn't process your payment. Your card has not been billed.";
+"lng_payments_precheckout_timeout" = "The bot didn't respond in time. Your card has not been billed.";
+"lng_payments_precheckout_stars_failed" = "The bot couldn't process your payment.";
+"lng_payments_precheckout_stars_timeout" = "The bot didn't respond in time.";
 "lng_payments_already_paid" = "You have already paid for this item.";
 
 "lng_payments_terms_title" = "Terms of Service";

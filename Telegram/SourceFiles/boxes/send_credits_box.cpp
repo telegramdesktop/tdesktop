@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
 #include "settings/settings_credits_graphics.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h" // Ui::Premium::ColorizedSvg.
@@ -257,6 +258,8 @@ void SendCreditsBox(
 		if (state->confirmButtonBusy.current()) {
 			return;
 		}
+		const auto show = box->uiShow();
+		const auto weak = MakeWeak(box.get());
 		state->confirmButtonBusy = true;
 		session->api().request(
 			MTPpayments_SendStarsForm(
@@ -264,12 +267,31 @@ void SendCreditsBox(
 				MTP_long(form->formId),
 				form->inputInvoice)
 		).done([=](auto result) {
-			state->confirmButtonBusy = false;
-			box->closeBox();
+			if (weak) {
+				state->confirmButtonBusy = false;
+				box->closeBox();
+			}
 			sent();
 		}).fail([=](const MTP::Error &error) {
-			state->confirmButtonBusy = false;
-			box->uiShow()->showToast(error.type());
+			if (weak) {
+				state->confirmButtonBusy = false;
+			}
+			const auto id = error.type();
+			if (id == u"BOT_PRECHECKOUT_FAILED"_q) {
+				auto error = ::Ui::MakeInformBox(
+					tr::lng_payments_precheckout_stars_failed(tr::now));
+				error->boxClosing() | rpl::start_with_next([=] {
+					if (const auto paybox = weak.data()) {
+						paybox->closeBox();
+					}
+				}, error->lifetime());
+				show->showBox(std::move(error));
+			} else if (id == u"BOT_PRECHECKOUT_TIMEOUT"_q) {
+				show->showToast(
+					tr::lng_payments_precheckout_stars_timeout(tr::now));
+			} else {
+				show->showToast(id);
+			}
 		}).send();
 	});
 	{

@@ -225,7 +225,7 @@ void AddViewMediaHandler(
 } // namespace
 
 void FillCreditOptions(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::VerticalLayout*> container,
 		int minimumCredits,
 		Fn<void()> paid) {
@@ -302,7 +302,7 @@ void FillCreditOptions(
 			}, button->lifetime());
 			button->setClickedCallback([=] {
 				const auto invoice = Payments::InvoiceCredits{
-					.session = &controller->session(),
+					.session = &show->session(),
 					.randomId = UniqueIdFromOption(option),
 					.credits = option.credits,
 					.product = option.product,
@@ -348,18 +348,18 @@ void FillCreditOptions(
 
 	using ApiOptions = Api::CreditsTopupOptions;
 	const auto apiCredits = content->lifetime().make_state<ApiOptions>(
-		controller->session().user());
+		show->session().user());
 
-	if (controller->session().premiumPossible()) {
+	if (show->session().premiumPossible()) {
 		apiCredits->request(
 		) | rpl::start_with_error_done([=](const QString &error) {
-			controller->showToast(error);
+			show->showToast(error);
 		}, [=] {
 			fill(apiCredits->options());
 		}, content->lifetime());
 	}
 
-	controller->session().premiumPossibleValue(
+	show->session().premiumPossibleValue(
 	) | rpl::start_with_next([=](bool premiumPossible) {
 		if (!premiumPossible) {
 			fill({});
@@ -739,7 +739,7 @@ object_ptr<Ui::RpWidget> PaidMediaThumbnail(
 
 void SmallBalanceBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		int creditsNeeded,
 		UserId botId,
 		Fn<void()> paid) {
@@ -750,21 +750,13 @@ void SmallBalanceBox(
 		paid();
 	};
 
-	const auto bot = controller->session().data().user(botId).get();
+	const auto bot = show->session().data().user(botId).get();
 
 	const auto content = [&]() -> Ui::Premium::TopBarAbstract* {
-		const auto weak = base::make_weak(controller);
-		const auto clickContextOther = [=] {
-			return QVariant::fromValue(ClickHandlerContext{
-				.sessionWindow = weak,
-				.botStartAutoSubmit = true,
-			});
-		};
 		return box->setPinnedToTopContent(object_ptr<Ui::Premium::TopBar>(
 			box,
 			st::creditsLowBalancePremiumCover,
 			Ui::Premium::TopBarDescriptor{
-				.clickContextOther = clickContextOther,
 				.title = tr::lng_credits_small_balance_title(
 					lt_count,
 					rpl::single(creditsNeeded) | tr::to_count()),
@@ -777,7 +769,7 @@ void SmallBalanceBox(
 			}));
 	}();
 
-	FillCreditOptions(controller, box->verticalLayout(), creditsNeeded, done);
+	FillCreditOptions(show, box->verticalLayout(), creditsNeeded, done);
 
 	content->setMaximumHeight(st::creditsLowBalancePremiumCoverHeight);
 	content->setMinimumHeight(st::infoLayerTopBarHeight);
@@ -796,12 +788,12 @@ void SmallBalanceBox(
 	{
 		const auto balance = AddBalanceWidget(
 			content,
-			controller->session().creditsValue(),
+			show->session().creditsValue(),
 			true);
 		const auto api = balance->lifetime().make_state<Api::CreditsStatus>(
-			controller->session().user());
+			show->session().user());
 		api->request({}, [=](Data::CreditsStatusSlice slice) {
-			controller->session().setCredits(slice.balance);
+			show->session().setCredits(slice.balance);
 		});
 		rpl::combine(
 			balance->sizeValue(),

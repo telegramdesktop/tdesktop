@@ -536,6 +536,8 @@ void CheckoutProcess::handleError(const Error &error) {
 			showToast({ tr::lng_payments_payment_failed(tr::now) });
 		} else if (id == u"BOT_PRECHECKOUT_FAILED"_q) {
 			showToast({ tr::lng_payments_precheckout_failed(tr::now) });
+		} else if (id == u"BOT_PRECHECKOUT_TIMEOUT"_q) {
+			showToast({ tr::lng_payments_precheckout_timeout(tr::now) });
 		} else if (id == u"REQUESTED_INFO_INVALID"_q
 			|| id == u"SHIPPING_OPTION_INVALID"_q
 			|| id == u"PAYMENT_CREDENTIALS_INVALID"_q
@@ -764,6 +766,14 @@ void CheckoutProcess::showForm() {
 		_form->information(),
 		_form->paymentMethod().ui,
 		_form->shippingOptions());
+	if (_nonPanelPaymentFormProcess && !_realFormNotified) {
+		_realFormNotified = true;
+		const auto weak = base::make_weak(_panel.get());
+		_nonPanelPaymentFormProcess(RealFormPresentedNotification());
+		if (weak) {
+			requestActivate();
+		}
+	}
 }
 
 void CheckoutProcess::showEditInformation(Ui::InformationField field) {

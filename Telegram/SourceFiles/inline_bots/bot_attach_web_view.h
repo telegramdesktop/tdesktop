@@ -40,6 +40,11 @@ namespace Data {
 class DocumentMedia;
 } // namespace Data
 
+namespace Payments {
+struct NonPanelPaymentForm;
+enum class CheckoutResult;
+} // namespace Payments
+
 namespace InlineBots {
 
 enum class PeerType : uint8 {
@@ -246,6 +251,8 @@ private:
 	void showToast(
 		const QString &text,
 		Window::SessionController *controller = nullptr);
+	Fn<void(Payments::NonPanelPaymentForm)> nonPanelPaymentFormFactory(
+		Fn<void(Payments::CheckoutResult)> reactivate);
 
 	const not_null<Main::Session*> _session;
 
