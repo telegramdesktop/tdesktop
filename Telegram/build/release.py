@@ -221,6 +221,20 @@ files.append({
   'label': 'Windows 64 bit: Portable',
 })
 files.append({
+  'local': 'tsetup-arm64.' + version_full + '.exe',
+  'remote': 'tsetup-arm64.' + version_full + '.exe',
+  'backup_folder': 'tarm64',
+  'mime': 'application/octet-stream',
+  'label': 'Windows on ARM: Installer',
+})
+files.append({
+  'local': 'tportable-arm64.' + version_full + '.zip',
+  'remote': 'tportable-arm64.' + version_full + '.zip',
+  'backup_folder': 'tarm64',
+  'mime': 'application/zip',
+  'label': 'Windows on ARM: Portable',
+})
+files.append({
   'local': 'tsetup.' + version_full + '.dmg',
   'remote': 'tsetup.' + version_full + '.dmg',
   'backup_folder': 'tmac',
