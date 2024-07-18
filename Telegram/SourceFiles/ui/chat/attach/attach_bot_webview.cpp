@@ -694,6 +694,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			openInvoice(arguments);
 		} else if (command == "web_app_open_popup") {
 			openPopup(arguments);
+		} else if (command == "web_app_open_scan_qr_popup") {
+			openScanQrPopup(arguments);
 		} else if (command == "web_app_request_write_access") {
 			requestWriteAccess();
 		} else if (command == "web_app_request_phone") {
@@ -916,6 +918,19 @@ void Panel::openPopup(const QJsonObject &args) {
 			? QJsonObject{ { u"button_id"_q, *result.id } }
 			: EventData());
 	}
+}
+
+void Panel::openScanQrPopup(const QJsonObject &args) {
+	const auto widget = _webview->window.widget();
+	[[maybe_unused]] const auto ok = Webview::ShowBlockingPopup({
+		.parent = widget ? widget->window() : nullptr,
+		.text = tr::lng_bot_no_scan_qr(tr::now),
+		.buttons = { {
+			.id = "ok",
+			.text = tr::lng_box_ok(tr::now),
+			.type = Webview::PopupArgs::Button::Type::Ok,
+		}},
+	});
 }
 
 void Panel::requestWriteAccess() {

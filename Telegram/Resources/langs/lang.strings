@@ -3160,6 +3160,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_close_warning_sure" = "Close anyway";
 "lng_bot_add_to_side_menu" = "{bot} asks your permission to be added as an option to your main menu so you can access it any time.";
 "lng_bot_add_to_side_menu_done" = "Bot added to the main menu.";
+"lng_bot_no_scan_qr" = "QR Codes for bots are not supported on Desktop. Please use one of Telegram's mobile apps.";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
