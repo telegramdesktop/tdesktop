@@ -1268,7 +1268,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolveBoost,
 		},
 		{
-			u"^message/?\\?slug=([a-zA-Z0-9\\.\\_]+)(&|$)"_q,
+			u"^message/?\\?slug=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"_q,
 			ResolveChatLink
 		},
 		{
