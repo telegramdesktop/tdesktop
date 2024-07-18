@@ -2,7 +2,12 @@
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set QT = "6.7.2" -%}
 {%- set QT_TAG = "v" ~ QT -%}
+{%- set CFLAGS = "-O3 -pipe -fPIC -fno-omit-frame-pointer -fstack-protector-all -fstack-clash-protection -fcf-protection -DNDEBUG -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS" -%}
 {%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -D_GLIBCXX_ASSERTIONS" -%}
+{%- if ARCH == "aarch64" -%}
+    {%- set CFLAGS = CFLAGS | replace("-fcf-protection", "-msign-return-address=all -mbranch-protection=standard") -%}
+    {%- set CFLAGS_DEBUG = CFLAGS_DEBUG | replace("-fcf-protection", "-msign-return-address=all -mbranch-protection=standard") -%}
+{%- endif -%}
 {%- set CFLAGS_LTO = "-flto=auto -ffat-lto-objects" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
 
@@ -36,7 +41,7 @@ FROM builder-base AS builder
 ENV AR gcc-ar
 ENV RANLIB gcc-ranlib
 ENV NM gcc-nm
-ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}{{ CFLAGS_LTO }}{% endif %} -pipe -fPIC -fno-omit-frame-pointer -fstack-protector-all -fstack-clash-protection -fcf-protection -DNDEBUG -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS
+ENV CFLAGS {% if DEBUG %}-g{% endif %} {% if LTO %}{{ CFLAGS_LTO }}{% endif %} {{ CFLAGS }}
 ENV CXXFLAGS $CFLAGS
 
 FROM builder AS patches
