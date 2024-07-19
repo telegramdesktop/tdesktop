@@ -954,6 +954,8 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 			if (const auto peerId = PeerId(item.barePeerId)) {
 				const auto peer = session().data().peer(peerId);
 				return std::make_unique<CreditsRow>(peer, descriptor);
+			} else if (item.peerType == Type::PremiumBot) {
+				return std::make_unique<CreditsRow>(_premiumBot, descriptor);
 			} else {
 				return std::make_unique<CreditsRow>(descriptor);
 			}
