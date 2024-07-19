@@ -1684,7 +1684,7 @@ std::shared_ptr<Main::SessionShow> AttachWebView::uiShow() {
 			using UniqueLayer = std::unique_ptr<Ui::LayerWidget>;
 			using ObjectBox = object_ptr<Ui::BoxContent>;
 			const auto panel = _that ? _that->_panel.get() : nullptr;
-			if (auto layerWidget = std::get_if<UniqueLayer>(&layer)) {
+			if (v::is<UniqueLayer>(layer)) {
 				Unexpected("Layers in AttachWebView are not implemented.");
 			} else if (auto box = std::get_if<ObjectBox>(&layer)) {
 				if (panel) {

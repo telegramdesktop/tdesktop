@@ -1,5 +1,6 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
+{%- set GIT_UPDATE_M4 = "git submodule set-url m4 https://gitlab.freedesktop.org/xorg/util/xcb-util-m4 && git config -f .gitmodules submodule.m4.shallow true && git submodule init && git submodule update" -%}
 {%- set QT = "6.7.2" -%}
 {%- set QT_TAG = "v" ~ QT -%}
 {%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -D_GLIBCXX_ASSERTIONS" -%}
@@ -313,8 +314,9 @@ RUN git clone -b libxcb-1.16 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
 	&& rm -rf libxcb
 
 FROM builder AS xcb-wm
-RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
+RUN git clone -b xcb-util-wm-0.4.2 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
 	&& cd libxcb-wm \
+	&& {{ GIT_UPDATE_M4 }} \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-wm-cache" install \
@@ -322,8 +324,9 @@ RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules {{
 	&& rm -rf libxcb-wm
 
 FROM builder AS xcb-util
-RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-util.git \
+RUN git clone -b xcb-util-0.4.1 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb-util.git \
 	&& cd libxcb-util \
+	&& {{ GIT_UPDATE_M4 }} \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-util-cache" install \
@@ -333,8 +336,9 @@ RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive --shallow-submodules {{ GI
 FROM builder AS xcb-image
 COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 
-RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-image.git \
+RUN git clone -b xcb-util-image-0.4.1 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb-image.git \
 	&& cd libxcb-image \
+	&& {{ GIT_UPDATE_M4 }} \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-image-cache" install \
@@ -342,8 +346,9 @@ RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive --shallow-submodules
 	&& rm -rf libxcb-image
 
 FROM builder AS xcb-keysyms
-RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
+RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
 	&& cd libxcb-keysyms \
+	&& {{ GIT_UPDATE_M4 }} \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-keysyms-cache" install \
@@ -351,8 +356,9 @@ RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive --shallow-submodul
 	&& rm -rf libxcb-keysyms
 
 FROM builder AS xcb-render-util
-RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
+RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
 	&& cd libxcb-render-util \
+	&& {{ GIT_UPDATE_M4 }} \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-render-util-cache" install \
@@ -364,8 +370,9 @@ COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
 COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
 
-RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive --shallow-submodules {{ GIT_FREEDESKTOP }}/libxcb-cursor.git \
+RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb-cursor.git \
 	&& cd libxcb-cursor \
+	&& {{ GIT_UPDATE_M4 }} \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/xcb-cursor-cache" install \
@@ -613,12 +620,13 @@ RUN git clone -b n6.1.1 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
 	&& rm -rf ffmpeg
 
 FROM builder AS pipewire
-RUN git clone -b 0.3.25 --depth=1 {{ GIT }}/PipeWire/pipewire.git \
+RUN git clone -b 0.3.62 --depth=1 {{ GIT }}/PipeWire/pipewire.git \
 	&& cd pipewire \
 	&& meson build \
 		--buildtype=plain \
 		-Dtests=disabled \
 		-Dexamples=disabled \
+		-Dsession-managers=media-session \
 		-Dspa-plugins=disabled \
 	&& meson compile -C build \
 	&& DESTDIR="{{ LibrariesPath }}/pipewire-cache" meson install -C build \
