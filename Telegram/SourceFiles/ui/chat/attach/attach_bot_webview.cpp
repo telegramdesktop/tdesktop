@@ -741,17 +741,16 @@ postEvent: function(eventType, eventData) {
 
 	setupProgressGeometry();
 
-	_widget->windowActiveValue(
-	) | rpl::map([=] {
+	base::qt_signal_producer(
+		qApp,
+		&QGuiApplication::focusWindowChanged
+	) | rpl::filter([=](QWindow *focused) {
 		const auto handle = _widget->window()->windowHandle();
 		return _webview
 			&& !_webview->window.widget()->isHidden()
 			&& handle
-			&& handle->isActive();
-	}) | rpl::distinct_until_changed(
-	) | rpl::filter(
-		rpl::mappers::_1
-	) | rpl::start_with_next([=] {
+			&& (focused == handle);
+	}) | rpl::start_with_next([=] {
 		_webview->window.focus();
 	}, _webview->lifetime);
 
