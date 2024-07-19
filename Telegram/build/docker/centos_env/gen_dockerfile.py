@@ -3,11 +3,14 @@ from os import environ
 from os.path import dirname
 from jinja2 import Environment, FileSystemLoader
 
+import platform
+
 def checkEnv(envName, defaultValue):
     return bool(len(environ[envName])) if envName in environ else defaultValue
 
 def main():
     print(Environment(loader=FileSystemLoader(dirname(__file__))).get_template("Dockerfile").render(
+	ARCH=platform.machine(),
         DEBUG=checkEnv("DEBUG", True),
         LTO=checkEnv("LTO", True),
     ))

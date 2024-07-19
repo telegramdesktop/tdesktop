@@ -2,7 +2,12 @@
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set QT = "6.7.2" -%}
 {%- set QT_TAG = "v" ~ QT -%}
+{%- set CFLAGS = "-O3 -pipe -fPIC -fno-omit-frame-pointer -fstack-protector-all -fstack-clash-protection -fcf-protection -DNDEBUG -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS" -%}
 {%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -D_GLIBCXX_ASSERTIONS" -%}
+{%- if ARCH == "aarch64" -%}
+    {%- set CFLAGS = CFLAGS | replace("-fcf-protection", "-msign-return-address=all -mbranch-protection=standard") -%}
+    {%- set CFLAGS_DEBUG = CFLAGS_DEBUG | replace("-fcf-protection", "-msign-return-address=all -mbranch-protection=standard") -%}
+{%- endif -%}
 {%- set CFLAGS_LTO = "-flto=auto -ffat-lto-objects" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
 
@@ -36,7 +41,7 @@ FROM builder-base AS builder
 ENV AR gcc-ar
 ENV RANLIB gcc-ranlib
 ENV NM gcc-nm
-ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}{{ CFLAGS_LTO }}{% endif %} -pipe -fPIC -fno-omit-frame-pointer -fstack-protector-all -fstack-clash-protection -fcf-protection -DNDEBUG -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS
+ENV CFLAGS {% if DEBUG %}-g{% endif %} {% if LTO %}{{ CFLAGS_LTO }}{% endif %} {{ CFLAGS }}
 ENV CXXFLAGS $CFLAGS
 
 FROM builder AS patches
@@ -740,6 +745,14 @@ RUN git clone -b v2023.06.01 --depth=1 https://chromium.googlesource.com/breakpa
 	&& cd .. \
 	&& rm -rf breakpad
 
+FROM builder AS openh264 
+RUN git clone https://github.com/cisco/openh264.git \
+	&& cd openh264 \
+	&& make -j$(nproc) OS=linux ARCH={{ ARCH }} \
+	&& make DESTDIR="{{ LibrariesPath }}/openh264-cache" install \
+	&& cd .. \
+	&& rm -rf openh264
+
 FROM builder AS webrtc
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
@@ -748,6 +761,7 @@ COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
 COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
+COPY --link --from=openh264 {{ LibrariesPath }}/openh264-cache /
 
 # Shallow clone on a specific commit.
 RUN git init tg_owt \
@@ -824,6 +838,7 @@ COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /
 COPY --link --from=webrtc {{ LibrariesPath }}/tg_owt tg_owt
 COPY --link --from=webrtc_release {{ LibrariesPath }}/tg_owt/out/Release tg_owt/out/Release
 COPY --link --from=libwebp {{ LibrariesPath }}/libwebp-cache /
+COPY --link --from=openh264 {{ LibrariesPath }}/openh264-cache /
 
 {%- if DEBUG %}
 COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/Debug
