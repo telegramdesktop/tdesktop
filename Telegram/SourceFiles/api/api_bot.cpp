@@ -488,20 +488,23 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 
 	case ButtonType::WebView: {
 		if (const auto bot = item->getMessageBot()) {
-			bot->session().attachWebView().request(
-				controller,
-				Api::SendAction(bot->owner().history(bot)),
-				bot,
-				{ .text = button->text, .url = button->data });
+			bot->session().attachWebView().open({
+				.bot = bot,
+				.context = { .controller = controller },
+				.button = { .text = button->text, .url = button->data },
+				.source = InlineBots::WebViewSourceButton{ .simple = false },
+			});
 		}
 	} break;
 
 	case ButtonType::SimpleWebView: {
 		if (const auto bot = item->getMessageBot()) {
-			bot->session().attachWebView().requestSimple(
-				controller,
-				bot,
-				{ .text = button->text, .url = button->data });
+			bot->session().attachWebView().open({
+				.bot = bot,
+				.context = { .controller = controller },
+				.button = {.text = button->text, .url = button->data },
+				.source = InlineBots::WebViewSourceButton{ .simple = true },
+			});
 		}
 	} break;
 	}

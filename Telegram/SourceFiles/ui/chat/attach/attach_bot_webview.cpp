@@ -1282,6 +1282,27 @@ void Panel::showBox(
 			}
 		}
 	}
+	const auto raw = box.data();
+
+	InvokeQueued(raw, [=] {
+		if (raw->window()->isActiveWindow()) {
+			// In case focus is somewhat in a native child window,
+			// like a webview, Qt glitches here with input fields showing
+			// focused state, but not receiving any keyboard input:
+			//
+			// window()->windowHandle()->isActive() == false.
+			//
+			// Steps were: SeparatePanel with a WebView2 child,
+			// some interaction with mouse inside the WebView2,
+			// so that WebView2 gets focus and active window state,
+			// then we call setSearchAllowed() and after animation
+			// is finished try typing -> nothing happens.
+			//
+			// With this workaround it works fine.
+			_widget->activateWindow();
+		}
+	});
+
 	_widget->showBox(
 		std::move(box),
 		LayerOption::KeepOther,

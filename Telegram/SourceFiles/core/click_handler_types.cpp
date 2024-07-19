@@ -191,11 +191,13 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 	const auto title = game->title;
 	const auto itemId = my.itemId;
 	const auto openGame = [=] {
-		bot->session().attachWebView().showGame({
+		bot->session().attachWebView().open({
 			.bot = bot,
-			.context = itemId,
-			.url = url,
-			.title = title,
+			.button = {.url = url.toUtf8() },
+			.source = InlineBots::WebViewSourceGame{
+				.messageId = itemId,
+				.title = title,
+			},
 		});
 	};
 	if (_bot->isVerified()

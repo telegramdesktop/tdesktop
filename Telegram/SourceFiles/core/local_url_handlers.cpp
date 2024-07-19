@@ -573,8 +573,11 @@ bool ResolveUsernameOrPhone(
 			: (appname.isEmpty() && params.contains(u"startapp"_q))
 			? params.value(u"startapp"_q)
 			: std::optional<QString>()),
-		.attachBotMenuOpen = (appname.isEmpty()
+		.attachBotMainOpen = (appname.isEmpty()
 			&& params.contains(u"startapp"_q)),
+		.attachBotMainCompact = (appname.isEmpty()
+			&& params.contains(u"startapp"_q)
+			&& (params.value(u"mode"_q) == u"compact"_q)),
 		.attachBotChooseTypes = InlineBots::ParseChooseTypes(
 			params.value(u"choose"_q)),
 		.voicechatHash = (params.contains(u"livestream"_q)
@@ -585,7 +588,7 @@ bool ResolveUsernameOrPhone(
 			? std::make_optional(params.value(u"voicechat"_q))
 			: std::nullopt),
 		.clickFromMessageId = myContext.itemId,
-		.clickFromAttachBotWebviewUrl = myContext.attachBotWebviewUrl,
+		.clickFromBotWebviewContext = myContext.botWebviewContext,
 	});
 	return true;
 }
@@ -626,7 +629,7 @@ bool ResolvePrivatePost(
 			}
 			: Window::RepliesByLinkInfo{ v::null },
 		.clickFromMessageId = my.itemId,
-		.clickFromAttachBotWebviewUrl = my.attachBotWebviewUrl,
+		.clickFromBotWebviewContext = my.botWebviewContext,
 	});
 	controller->window().activate();
 	return true;
@@ -1178,7 +1181,7 @@ bool ResolveChatLink(
 	controller->showPeerByLink(Window::PeerByLinkInfo{
 		.chatLinkSlug = match->captured(1),
 		.clickFromMessageId = myContext.itemId,
-		.clickFromAttachBotWebviewUrl = myContext.attachBotWebviewUrl,
+		.clickFromBotWebviewContext = myContext.botWebviewContext,
 	});
 	return true;
 }

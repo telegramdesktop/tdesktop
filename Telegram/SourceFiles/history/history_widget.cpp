@@ -4940,7 +4940,14 @@ bool HistoryWidget::updateCmdStartShown() {
 			const auto user = _peer ? _peer->asUser() : nullptr;
 			const auto bot = (user && user->isBot()) ? user : nullptr;
 			if (bot && !bot->botInfo->botMenuButtonUrl.isEmpty()) {
-				session().attachWebView().requestMenu(controller(), bot);
+				session().attachWebView().open({
+					.bot = bot,
+					.context = { .controller = controller() },
+					.button = {
+						.url = bot->botInfo->botMenuButtonUrl.toUtf8(),
+					},
+					.source = InlineBots::WebViewSourceBotMenu(),
+				});
 			} else if (!_fieldAutocomplete->isHidden()) {
 				_fieldAutocomplete->hideAnimated();
 			} else {

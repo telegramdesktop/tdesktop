@@ -193,7 +193,7 @@ void MainWindow::setupPasscodeLock() {
 		setInnerFocus();
 	}
 	if (const auto sessionController = controller().sessionController()) {
-		sessionController->session().attachWebView().cancel();
+		sessionController->session().attachWebView().closeAll();
 	}
 }
 
