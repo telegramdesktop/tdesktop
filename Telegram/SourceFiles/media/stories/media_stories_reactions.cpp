@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "chat_helpers/stickers_lottie.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -20,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/view/media/history_view_custom_emoji.h"
 #include "history/view/media/history_view_media_unwrapped.h"
+#include "history/view/media/history_view_sticker_player.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item_reply_markup.h"
@@ -61,7 +64,7 @@ constexpr auto kStoppingFadeDuration = crl::time(150);
 
 class ReactionView final
 	: public Ui::RpWidget
-	, public SuggestedReactionView
+	, public StoryAreaView
 	, public HistoryView::DefaultElementDelegate {
 public:
 	ReactionView(
@@ -69,9 +72,11 @@ public:
 		not_null<Main::Session*> session,
 		const Data::SuggestedReaction &reaction);
 
-	void setAreaGeometry(QRect geometry) override;
-	void updateCount(int count) override;
+	void setAreaGeometry(QRect geometry, float64 radius) override;
+	void updateReactionsCount(int count) override;
 	void playEffect() override;
+	void toggleMode() override;
+	bool contains(QPoint point) override;
 
 private:
 	using Element = HistoryView::Element;
@@ -108,6 +113,7 @@ private:
 	Ui::Text::String _counter;
 	Ui::Animations::Simple _counterAnimation;
 	QRectF _bubbleGeometry;
+	QRect _apiGeometry;
 	int _size = 0;
 	int _mediaLeft = 0;
 	int _mediaTop = 0;
@@ -126,6 +132,58 @@ private:
 
 };
 
+class WeatherView final : public Ui::RpWidget, public StoryAreaView {
+public:
+	WeatherView(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		const Data::WeatherArea &data);
+
+	void setAreaGeometry(QRect geometry, float64 radius) override;
+	void updateReactionsCount(int count) override;
+	void playEffect() override;
+	void toggleMode() override;
+	bool contains(QPoint point) override;
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	void cacheBackground();
+	void watchForSticker();
+	void setStickerFrom(not_null<DocumentData*> document);
+	[[nodiscard]] QSize stickerSize() const;
+
+	const not_null<Main::Session*> _session;
+	Data::WeatherArea _data;
+	EmojiPtr _emoji;
+	QColor _fg;
+	QImage _background;
+	QFont _font;
+	QRectF _rect;
+	QRect _wrapped;
+	float64 _radius = 0.;
+	int _emojiSize = 0;
+	int _padding = 0;
+	bool _celsius = true;
+
+	std::shared_ptr<HistoryView::StickerPlayer> _sticker;
+	rpl::lifetime _lifetime;
+
+};
+
+[[nodiscard]] QPoint Rotated(QPoint point, QPoint origin, float64 angle) {
+	if (std::abs(angle) < 1.) {
+		return point;
+	}
+	const auto alpha = angle / 180. * M_PI;
+	const auto acos = cos(alpha);
+	const auto asin = sin(alpha);
+	point -= origin;
+	return origin + QPoint(
+		int(base::SafeRound(acos * point.x() - asin * point.y())),
+		int(base::SafeRound(asin * point.x() + acos * point.y())));
+}
+
 [[nodiscard]] AdminLog::OwnedItem GenerateFakeItem(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history) {
@@ -138,6 +196,13 @@ private:
 		.date = base::unixtime::now(),
 	}, TextWithEntities(), MTP_messageMediaEmpty());
 	return AdminLog::OwnedItem(delegate, item);
+}
+
+[[nodiscard]] QColor ChooseWeatherFg(const QColor &bg) {
+	const auto luminance = (0.2126 * bg.redF())
+		+ (0.7152 * bg.greenF())
+		+ (0.0722 * bg.blueF());
+	return (luminance > 0.705) ? QColor(0, 0, 0) : QColor(255, 255, 255);
 }
 
 ReactionView::ReactionView(
@@ -198,7 +263,7 @@ ReactionView::ReactionView(
 	}, lifetime());
 
 	_data.count = 0;
-	updateCount(reaction.count);
+	updateReactionsCount(reaction.count);
 	_counterAnimation.stop();
 
 	setupCustomChatStylePalette();
@@ -212,7 +277,8 @@ void ReactionView::setupCustomChatStylePalette() {
 	_chatStyle->applyCustomPalette(_chatStyle.get());
 }
 
-void ReactionView::setAreaGeometry(QRect geometry) {
+void ReactionView::setAreaGeometry(QRect geometry, float64 radius) {
+	_apiGeometry = geometry;
 	_size = std::min(geometry.width(), geometry.height());
 	_bubble = _size * kSuggestedBubbleSize;
 	_bigOffset = _bubble * kSuggestedTailBigOffset;
@@ -228,7 +294,7 @@ void ReactionView::setAreaGeometry(QRect geometry) {
 	updateEffectGeometry();
 }
 
-void ReactionView::updateCount(int count) {
+void ReactionView::updateReactionsCount(int count) {
 	if (_data.count == count) {
 		return;
 	}
@@ -281,6 +347,17 @@ void ReactionView::playEffect() {
 			_effectCanvas->update();
 		}, 1., 0., kStoppingFadeDuration);
 	}
+}
+
+void ReactionView::toggleMode() {
+	Unexpected("ReactionView::toggleMode.");
+}
+
+bool ReactionView::contains(QPoint point) {
+	const auto circle = _apiGeometry;
+	const auto radius = std::min(circle.width(), circle.height()) / 2;
+	const auto delta = circle.center() - point;
+	return QPoint::dotProduct(delta, delta) < (radius * radius);
 }
 
 void ReactionView::paintEffectFrame(
@@ -455,6 +532,205 @@ void ReactionView::cacheBackground() {
 		_background = Images::Blur(std::move(_background), true);
 	}
 	paintShape(_data.dark ? dark : QColor(255, 255, 255));
+}
+
+WeatherView::WeatherView(
+	QWidget *parent,
+	not_null<Main::Session*> session,
+	const Data::WeatherArea &data)
+: RpWidget(parent)
+, _session(session)
+, _data(data)
+, _emoji(Ui::Emoji::Find(_data.emoji))
+, _fg(ChooseWeatherFg(_data.color)) {
+	watchForSticker();
+	setAttribute(Qt::WA_TransparentForMouseEvents);
+	show();
+}
+
+void WeatherView::watchForSticker() {
+	if (!_emoji) {
+		return;
+	}
+	const auto emojiStickers = &_session->emojiStickersPack();
+	if (const auto sticker = emojiStickers->stickerForEmoji(_emoji)) {
+		setStickerFrom(sticker.document);
+	} else {
+		emojiStickers->refreshed() | rpl::map([=] {
+			return emojiStickers->stickerForEmoji(_emoji).document;
+		}) | rpl::filter([=](DocumentData *document) {
+			return document != nullptr;
+		}) | rpl::take(
+			1
+		) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+			setStickerFrom(document);
+			update();
+		}, _lifetime);
+	}
+}
+
+void WeatherView::setAreaGeometry(QRect geometry, float64 radius) {
+	const auto diagxdiag = (geometry.width() * geometry.width())
+		+ (geometry.height() * geometry.height());
+	const auto diag = std::sqrt(diagxdiag);
+	const auto topleft = QRectF(geometry).center()
+		- QPointF(diag / 2., diag / 2.);
+	const auto bottomright = topleft + QPointF(diag, diag);
+	const auto left = int(std::floor(topleft.x()));
+	const auto top = int(std::floor(topleft.y()));
+	const auto right = int(std::ceil(bottomright.x()));
+	const auto bottom = int(std::ceil(bottomright.y()));
+	setGeometry(left, top, right - left, bottom - top);
+	_rect = QRectF(geometry).translated(-left, -top);
+	_radius = radius;
+
+	_emojiSize = int(base::SafeRound(_rect.height() * 2 / 3.));
+	_font = st::semiboldFont->f;
+	_font.setPixelSize(_emojiSize);
+	_background = {};
+}
+
+void WeatherView::updateReactionsCount(int count) {
+	Unexpected("WeatherView::updateRactionsCount.");
+}
+
+void WeatherView::playEffect() {
+	Unexpected("WeatherView::playEffect.");
+}
+
+void WeatherView::toggleMode() {
+	_celsius = !_celsius;
+	_background = {};
+	update();
+}
+
+bool WeatherView::contains(QPoint point) {
+	const auto geometry = _rect.translated(pos()).toRect();
+	const auto angle = -_data.area.rotation;
+	return geometry.contains(Rotated(point, geometry.center(), angle));
+}
+
+void WeatherView::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	if (_background.size() != size() * style::DevicePixelRatio()) {
+		cacheBackground();
+	}
+	p.drawImage(0, 0, _background);
+	if (_sticker && _sticker->ready()) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto rcenter = _wrapped.center();
+		p.translate(rcenter);
+		p.rotate(_data.area.rotation);
+		p.translate(-rcenter);
+
+		const auto image = _sticker->frame(
+			stickerSize(),
+			QColor(0, 0, 0, 0),
+			false,
+			crl::now(),
+			false).image;
+		const auto size = image.size() / style::DevicePixelRatio();
+		const auto rect = QRectF(
+			_wrapped.x() + _padding + (_emojiSize - size.width()) / 2.,
+			_wrapped.y() + (_wrapped.height() - size.height()) / 2.,
+			size.width(),
+			size.height());
+		const auto scenter = rect.center();
+		const auto scale = (_emojiSize * 1.) / stickerSize().width();
+		p.translate(scenter);
+		p.scale(scale, scale);
+		p.translate(-scenter);
+		p.drawImage(rect, image);
+		_sticker->markFrameShown();
+	}
+}
+
+QSize WeatherView::stickerSize() const {
+	return QSize(st::chatIntroStickerSize, st::chatIntroStickerSize);
+}
+
+void WeatherView::setStickerFrom(not_null<DocumentData*> document) {
+	if (_sticker || !_emoji) {
+		return;
+	}
+	const auto media = document->createMediaView();
+	media->checkStickerLarge();
+	media->goodThumbnailWanted();
+
+	rpl::single() | rpl::then(
+		document->owner().session().downloaderTaskFinished()
+	) | rpl::filter([=] {
+		return media->loaded();
+	}) | rpl::take(1) | rpl::start_with_next([=] {
+		const auto sticker = document->sticker();
+		if (sticker->isLottie()) {
+			_sticker = std::make_shared<HistoryView::LottiePlayer>(
+				ChatHelpers::LottiePlayerFromDocument(
+					media.get(),
+					ChatHelpers::StickerLottieSize::StickerSet,
+					stickerSize(),
+					Lottie::Quality::High));
+		} else if (sticker->isWebm()) {
+			_sticker = std::make_shared<HistoryView::WebmPlayer>(
+				media->owner()->location(),
+				media->bytes(),
+				stickerSize());
+		} else {
+			_sticker = std::make_shared<HistoryView::StaticStickerPlayer>(
+				media->owner()->location(),
+				media->bytes(),
+				stickerSize());
+		}
+		_sticker->setRepaintCallback([=] { update(); });
+		update();
+	}, _lifetime);
+}
+
+void WeatherView::cacheBackground() {
+	const auto ratio = style::DevicePixelRatio();
+	_background = QImage(
+		size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_background.setDevicePixelRatio(ratio);
+	_background.fill(Qt::transparent);
+
+	auto p = QPainter(&_background);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setBrush(_data.color);
+	p.setPen(Qt::NoPen);
+	const auto center = _rect.center();
+	p.translate(center);
+	p.rotate(_data.area.rotation);
+	p.translate(-center);
+
+	const auto format = [](float64 value) {
+		return QString::number(int(base::SafeRound(value * 10)) / 10.);
+	};
+	const auto text = [&] {
+		const auto celsius = _data.millicelsius / 1000.;
+		if (_celsius) {
+			return format(celsius);
+		}
+		const auto fahrenheit = (celsius * 9.0 / 5.0) + 32;
+		return format(fahrenheit);
+	}().append(QChar(0xb0)).append(_celsius ? "C" : "F");
+	const auto metrics = QFontMetrics(_font);
+	const auto textWidth = metrics.horizontalAdvance(text);
+	_padding = int(_rect.height() / 6);
+	const auto fullWidth = (_emoji ? _emojiSize : 0)
+		+ textWidth
+		+ (2 * _padding);
+	const auto left = _rect.x() + (_rect.width() - fullWidth) / 2;
+	_wrapped = QRect(left, _rect.y(), fullWidth, _rect.height());
+
+	p.drawRoundedRect(_wrapped, _radius, _radius);
+
+	p.setPen(_fg);
+	p.setFont(_font);
+	p.drawText(_wrapped.marginsRemoved(
+		{ _padding + (_emoji ? _emojiSize : 0), 0, _padding, 0 }),
+		text,
+		style::al_center);
 }
 
 [[nodiscard]] Data::ReactionId HeartReactionId() {
@@ -804,11 +1080,19 @@ auto Reactions::chosen() const -> rpl::producer<Chosen> {
 
 auto Reactions::makeSuggestedReactionWidget(
 	const Data::SuggestedReaction &reaction)
--> std::unique_ptr<SuggestedReactionView> {
+-> std::unique_ptr<StoryAreaView> {
 	return std::make_unique<ReactionView>(
 		_controller->wrap(),
 		&_controller->uiShow()->session(),
 		reaction);
+}
+
+auto Reactions::makeWeatherAreaWidget(const Data::WeatherArea &data)
+-> std::unique_ptr<StoryAreaView> {
+	return std::make_unique<WeatherView>(
+		_controller->wrap(),
+		&_controller->uiShow()->session(),
+		data);
 }
 
 void Reactions::setReplyFieldState(

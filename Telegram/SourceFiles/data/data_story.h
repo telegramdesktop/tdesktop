@@ -81,6 +81,7 @@ struct StoryViews {
 struct StoryArea {
 	QRectF geometry;
 	float64 rotation = 0;
+	float64 radius = 0;
 
 	friend inline bool operator==(
 		const StoryArea &,
@@ -135,7 +136,7 @@ struct WeatherArea {
 	StoryArea area;
 	QString emoji;
 	QColor color;
-	int millicelcius = 0;
+	int millicelsius = 0;
 
 	friend inline bool operator==(
 		const WeatherArea &,
@@ -219,6 +220,8 @@ public:
 		-> const std::vector<ChannelPost> &;
 	[[nodiscard]] auto urlAreas() const
 		-> const std::vector<UrlArea> &;
+	[[nodiscard]] auto weatherAreas() const
+		-> const std::vector<WeatherArea> &;
 
 	void applyChanges(
 		StoryMedia media,
@@ -270,6 +273,7 @@ private:
 	std::vector<SuggestedReaction> _suggestedReactions;
 	std::vector<ChannelPost> _channelPosts;
 	std::vector<UrlArea> _urlAreas;
+	std::vector<WeatherArea> _weatherAreas;
 	StoryViews _views;
 	StoryViews _channelReactions;
 	const TimeId _date = 0;

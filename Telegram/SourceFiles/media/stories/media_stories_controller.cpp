@@ -536,8 +536,9 @@ void Controller::rebuildActiveAreas(const Layout &layout) const {
 			int(base::SafeRound(general.width() * scale.width())),
 			int(base::SafeRound(general.height() * scale.height()))
 		).translated(origin);
-		if (const auto reaction = area.reaction.get()) {
-			reaction->setAreaGeometry(area.geometry);
+		area.radius = scale.width() * area.radiusOriginal / 100.;
+		if (const auto view = area.view.get()) {
+			view->setAreaGeometry(area.geometry, area.radius);
 		}
 	}
 }
@@ -1050,6 +1051,9 @@ void Controller::updateAreas(Data::Story *story) {
 	const auto &urlAreas = story
 		? story->urlAreas()
 		: std::vector<Data::UrlArea>();
+	const auto &weatherAreas = story
+		? story->weatherAreas()
+		: std::vector<Data::WeatherArea>();
 	if (_locations != locations) {
 		_locations = locations;
 		_areas.clear();
@@ -1062,13 +1066,18 @@ void Controller::updateAreas(Data::Story *story) {
 		_urlAreas = urlAreas;
 		_areas.clear();
 	}
+	if (_weatherAreas != weatherAreas) {
+		_weatherAreas = weatherAreas;
+		_areas.clear();
+	}
 	const auto reactionsCount = int(suggestedReactions.size());
 	if (_suggestedReactions.size() == reactionsCount && !_areas.empty()) {
 		for (auto i = 0; i != reactionsCount; ++i) {
 			const auto count = suggestedReactions[i].count;
 			if (_suggestedReactions[i].count != count) {
 				_suggestedReactions[i].count = count;
-				_areas[i + _locations.size()].reaction->updateCount(count);
+				const auto view = _areas[i + _locations.size()].view.get();
+				view->updateReactionsCount(count);
 			}
 			if (_suggestedReactions[i] != suggestedReactions[i]) {
 				_suggestedReactions = suggestedReactions;
@@ -1206,7 +1215,8 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 		|| (_locations.empty()
 			&& _suggestedReactions.empty()
 			&& _channelPosts.empty()
-			&& _urlAreas.empty())) {
+			&& _urlAreas.empty()
+			&& _weatherAreas.empty())) {
 		return nullptr;
 	} else if (_areas.empty()) {
 		const auto now = story();
@@ -1240,7 +1250,7 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 						}
 					}
 				}),
-				.reaction = std::move(widget),
+				.view = std::move(widget),
 			});
 		}
 		if (const auto session = now ? &now->session() : nullptr) {
@@ -1261,19 +1271,27 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 				.handler = std::make_shared<HiddenUrlClickHandler>(url.url),
 			});
 		}
+		for (const auto &weather : _weatherAreas) {
+			auto widget = _reactions->makeWeatherAreaWidget(weather);
+			const auto raw = widget.get();
+			_areas.push_back({
+				.original = weather.area.geometry,
+				.radiusOriginal = weather.area.radius,
+				.rotation = weather.area.rotation,
+				.handler = std::make_shared<LambdaClickHandler>([=] {
+					raw->toggleMode();
+				}),
+				.view = std::move(widget),
+			});
+		}
 		rebuildActiveAreas(*layout);
 	}
 
-	const auto circleContains = [&](QRect circle) {
-		const auto radius = std::min(circle.width(), circle.height()) / 2;
-		const auto delta = circle.center() - point;
-		return QPoint::dotProduct(delta, delta) < (radius * radius);
-	};
 	for (const auto &area : _areas) {
 		const auto center = area.geometry.center();
 		const auto angle = -area.rotation;
-		const auto contains = area.reaction
-			? circleContains(area.geometry)
+		const auto contains = area.view
+			? area.view->contains(point)
 			: area.geometry.contains(Rotated(point, center, angle));
 		if (contains) {
 			return area.handler;

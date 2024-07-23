@@ -41,11 +41,8 @@ using UpdateFlag = StoryUpdate::Flag;
 	return {
 		.geometry = { corner / 100., size / 100. },
 		.rotation = data.vrotation().v,
+		.radius = data.vradius().value_or_empty(),
 	};
-}
-
-[[nodiscard]] uint32 ParseMilliKelvin(double celcius) {
-	return uint32(std::clamp(celcius + 273.15, 0., 1'000'000.) * 1000.);
 }
 
 [[nodiscard]] TextWithEntities StripLinks(TextWithEntities text) {
@@ -176,8 +173,11 @@ using UpdateFlag = StoryUpdate::Flag;
 		result.emplace(WeatherArea{
 			.area = ParseArea(data.vcoordinates()),
 			.emoji = qs(data.vemoji()),
-			.color = Ui::ColorFromSerialized(data.vcolor().v),
-			.millicelcius = int(data.vtemperature_c().v * 1000.),
+			.color = Ui::Color32FromSerialized(data.vcolor().v),
+			.millicelsius = int(1000. * std::clamp(
+				data.vtemperature_c().v,
+				-274.,
+				1'000'000.)),
 		});
 	}, [&](const MTPDinputMediaAreaChannelPost &data) {
 		LOG(("API Error: Unexpected inputMediaAreaChannelPost from API."));
@@ -721,6 +721,10 @@ const std::vector<UrlArea> &Story::urlAreas() const {
 	return _urlAreas;
 }
 
+const std::vector<WeatherArea> &Story::weatherAreas() const {
+	return _weatherAreas;
+}
+
 void Story::applyChanges(
 		StoryMedia media,
 		const MTPDstoryItem &data,
@@ -825,6 +829,7 @@ void Story::applyFields(
 	auto suggestedReactions = std::vector<SuggestedReaction>();
 	auto channelPosts = std::vector<ChannelPost>();
 	auto urlAreas = std::vector<UrlArea>();
+	auto weatherAreas = std::vector<WeatherArea>();
 	if (const auto areas = data.vmedia_areas()) {
 		for (const auto &area : areas->v) {
 			if (const auto location = ParseLocation(area)) {
@@ -840,6 +845,8 @@ void Story::applyFields(
 				channelPosts.push_back(*post);
 			} else if (auto url = ParseUrlArea(area)) {
 				urlAreas.push_back(*url);
+			} else if (auto weather = ParseWeatherArea(area)) {
+				weatherAreas.push_back(*weather);
 			}
 		}
 	}
@@ -853,6 +860,7 @@ void Story::applyFields(
 		= (_suggestedReactions != suggestedReactions);
 	const auto channelPostsChanged = (_channelPosts != channelPosts);
 	const auto urlAreasChanged = (_urlAreas != urlAreas);
+	const auto weatherAreasChanged = (_weatherAreas != weatherAreas);
 	const auto reactionChanged = (_sentReactionId != reaction);
 
 	_out = out;
@@ -881,6 +889,9 @@ void Story::applyFields(
 	if (urlAreasChanged) {
 		_urlAreas = std::move(urlAreas);
 	}
+	if (weatherAreasChanged) {
+		_weatherAreas = std::move(weatherAreas);
+	}
 	if (reactionChanged) {
 		_sentReactionId = reaction;
 	}
@@ -891,7 +902,8 @@ void Story::applyFields(
 		|| mediaChanged
 		|| locationsChanged
 		|| channelPostsChanged
-		|| urlAreasChanged;
+		|| urlAreasChanged
+		|| weatherAreasChanged;
 	const auto reactionsChanged = reactionChanged
 		|| suggestedReactionsChanged;
 	if (!initial && (changed || reactionsChanged)) {
