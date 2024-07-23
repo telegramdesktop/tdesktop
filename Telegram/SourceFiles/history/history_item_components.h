@@ -649,7 +649,7 @@ struct HistoryServicePayment
 : public RuntimeComponent<HistoryServicePayment, HistoryItem>
 , public HistoryServiceDependentData {
 	QString slug;
-	QString amount;
+	TextWithEntities amount;
 	ClickHandlerPtr invoiceLink;
 	bool recurringInit = false;
 	bool recurringUsed = false;

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/history_translation.h"
 #include "history/history_unread_things.h"
+#include "core/ui_integration.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
@@ -1128,14 +1129,23 @@ void History::applyServiceChanges(
 			}
 			if (paid) {
 				// Toast on a current active window.
+				const auto context = [=](not_null<QWidget*> toast) {
+					return Core::MarkedTextContext{
+						.session = &session(),
+						.customEmojiRepaint = [=] { toast->update(); },
+					};
+				};
 				Ui::Toast::Show({
 					.text = tr::lng_payments_success(
 						tr::now,
 						lt_amount,
-						Ui::Text::Bold(payment->amount),
+						Ui::Text::Wrapped(
+							payment->amount,
+							EntityType::Bold),
 						lt_title,
 						Ui::Text::Bold(paid->title),
 						Ui::Text::WithEntities),
+					.textContext = context,
 				});
 			}
 		}

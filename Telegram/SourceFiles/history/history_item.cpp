@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "base/unixtime.h"
 #include "base/timer_rpl.h"
+#include "boxes/send_credits_box.h"
 #include "api/api_text_entities.h"
 #include "api/api_updates.h"
 #include "data/components/scheduled_messages.h"
@@ -135,6 +136,17 @@ template <typename T>
 		not_null<HistoryItem*> original) {
 	fields.flags |= NewForwardedFlags(history->peer, fields.from, original);
 	return fields;
+}
+
+[[nodiscard]] TextWithEntities AmountAndStarCurrency(
+		not_null<Main::Session*> session,
+		int64 amount,
+		const QString &currency) {
+	if (currency == Ui::kCreditsCurrency) {
+		return Ui::CreditsEmojiSmall(session).append(
+			Lang::FormatCountDecimal(std::abs(amount)));
+	}
+	return { Ui::FillAmountAndCurrency(amount, currency) };
 }
 
 } // namespace
@@ -3957,7 +3969,10 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		payment->recurringInit = data.is_recurring_init();
 		payment->recurringUsed = data.is_recurring_used();
 		payment->isCreditsCurrency = (currency == Ui::kCreditsCurrency);
-		payment->amount = Ui::FillAmountAndCurrency(amount, currency);
+		payment->amount = AmountAndStarCurrency(
+			&_history->session(),
+			amount,
+			currency);
 		payment->invoiceLink = std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {
 			using namespace Payments;
@@ -4692,7 +4707,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 				lt_user,
 				Ui::Text::Link(peer->name(), 1), // Link 1.
 				lt_cost,
-				{ Ui::FillAmountAndCurrency(amount, currency) },
+				AmountAndStarCurrency(&peer->session(), amount, currency),
 				Ui::Text::WithEntities);
 		return result;
 	};
@@ -4905,9 +4920,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 					lt_user,
 					Ui::Text::Link(peer->name(), 1), // Link 1.
 					lt_cost,
-					{ Ui::FillAmountAndCurrency(
+					AmountAndStarCurrency(
+						&_history->session(),
 						action.vamount().value_or_empty(),
-						qs(action.vcurrency().value_or_empty())) },
+						qs(action.vcurrency().value_or_empty())),
 					Ui::Text::WithEntities);
 
 		}
@@ -4957,7 +4973,6 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			Ui::Text::WithEntities);
 		return result;
 	};
-
 	auto preparePaymentRefunded = [&](const MTPDmessageActionPaymentRefunded &action) {
 		auto result = PreparedServiceText();
 		const auto refund = Get<HistoryServicePaymentRefund>();
@@ -4972,7 +4987,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			lt_peer,
 			Ui::Text::Link(refund->peer->name(), 1), // Link 1.
 			lt_amount,
-			{ Ui::FillAmountAndCurrency(amount, currency) },
+			AmountAndStarCurrency(&_history->session(), amount, currency),
 			Ui::Text::WithEntities);
 		return result;
 	};
@@ -4993,7 +5008,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 				lt_user,
 				Ui::Text::Link(peer->name(), 1), // Link 1.
 				lt_cost,
-				{ Ui::FillAmountAndCurrency(amount, currency) },
+				AmountAndStarCurrency(
+					&_history->session(),
+					amount,
+					currency),
 				Ui::Text::WithEntities);
 		return result;
 	};
@@ -5412,7 +5430,7 @@ PreparedServiceText HistoryItem::preparePaymentSentText() {
 			result.text = tr::lng_action_payment_used_recurring(
 				tr::now,
 				lt_amount,
-				{ .text = payment->amount },
+				payment->amount,
 				Ui::Text::WithEntities);
 		} else {
 			result.text = (payment->recurringInit
@@ -5420,7 +5438,7 @@ PreparedServiceText HistoryItem::preparePaymentSentText() {
 				: tr::lng_action_payment_done)(
 					tr::now,
 					lt_amount,
-					{ .text = payment->amount },
+					payment->amount,
 					lt_user,
 					{ .text = _history->peer->name() },
 					Ui::Text::WithEntities);
@@ -5431,7 +5449,7 @@ PreparedServiceText HistoryItem::preparePaymentSentText() {
 			: tr::lng_action_payment_done_for)(
 				tr::now,
 				lt_amount,
-				{ .text = payment->amount },
+				payment->amount,
 				lt_user,
 				{ .text = _history->peer->name() },
 				lt_invoice,
