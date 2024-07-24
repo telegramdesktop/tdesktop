@@ -1,3 +1,8 @@
+5.2.4 beta (24.07.24)
+
+- Allow opening several web apps.
+- Send location marks and venues.
+
 5.2.3 (07.07.24)
 
 - Fix crash in bot star stats page.
