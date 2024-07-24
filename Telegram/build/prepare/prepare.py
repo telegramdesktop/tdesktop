@@ -540,7 +540,7 @@ release:
 
 stage('xz', """
 !win:
-    git clone -b v5.4.5 https://git.tukaani.org/xz.git
+    git clone -b v5.4.5 https://github.com/tukaani-project/xz.git
     cd xz
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
