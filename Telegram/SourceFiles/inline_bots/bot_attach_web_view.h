@@ -239,6 +239,7 @@ private:
 
 	void requestButton();
 	void requestSimple();
+	void requestMain();
 	void requestApp(bool allowWrite);
 	void requestWithMainMenuDisclaimer();
 	void requestWithMenuAdd();

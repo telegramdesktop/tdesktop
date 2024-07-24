@@ -651,7 +651,9 @@ void WebViewInstance::resolve() {
 	}, [&](WebViewSourceLinkApp data) {
 		resolveApp(data.appname, data.token, !_context.maySkipConfirmation);
 	}, [&](WebViewSourceLinkBotProfile) {
-		requestWithMenuAdd();
+		confirmOpen([=] {
+			requestMain();
+		});
 	}, [&](WebViewSourceLinkAttachMenu data) {
 		requestWithMenuAdd();
 	}, [&](WebViewSourceMainMenu) {
@@ -667,7 +669,9 @@ void WebViewInstance::resolve() {
 	}, [&](WebViewSourceGame game) {
 		showGame();
 	}, [&](WebViewSourceBotProfile) {
-		requestWithMenuAdd();
+		confirmOpen([=] {
+			requestMain();
+		});
 	});
 }
 
@@ -857,6 +861,31 @@ void WebViewInstance::requestSimple() {
 				: Flag::f_url)),
 		_bot->inputUser,
 		MTP_bytes(_button.url),
+		MTP_string(_button.startCommand),
+		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
+		MTP_string("tdesktop")
+	)).done([=](const MTPWebViewResult &result) {
+		show(qs(result.data().vurl()));
+	}).fail([=](const MTP::Error &error) {
+		_parentShow->showToast(error.type());
+		close();
+	}).send();
+}
+
+void WebViewInstance::requestMain() {
+	using Flag = MTPmessages_RequestMainWebView::Flag;
+	_requestId = _session->api().request(MTPmessages_RequestMainWebView(
+		MTP_flags(Flag::f_theme_params
+			| (_button.startCommand.isEmpty()
+						? Flag()
+						: Flag::f_start_param)
+			| (v::is<WebViewSourceLinkBotProfile>(_source)
+				? (v::get<WebViewSourceLinkBotProfile>(_source).compact
+					? Flag::f_compact
+					: Flag(0))
+				: Flag(0))),
+		_context.action->history->peer->input,
+		_bot->inputUser,
 		MTP_string(_button.startCommand),
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
 		MTP_string("tdesktop")
