@@ -1305,7 +1305,6 @@ void WebViewInstance::botAllowWriteAccess(Fn<void(bool allowed)> callback) {
 }
 
 void WebViewInstance::botSharePhone(Fn<void(bool shared)> callback) {
-	const auto bot = _bot;
 	const auto history = _bot->owner().history(_bot);
 	if (_bot->isBlocked()) {
 		const auto done = crl::guard(this, [=](bool success) {
