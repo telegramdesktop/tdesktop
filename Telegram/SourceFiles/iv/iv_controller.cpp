@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "base/invoke_queued.h"
-#include "base/qt_signal_producer.h"
 #include "base/qthelp_url.h"
 #include "iv/iv_data.h"
 #include "lang/lang_keys.h"
@@ -36,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonValue>
 #include <QtCore/QFile>
-#include <QtGui/QGuiApplication>
 #include <QtGui/QPainter>
 #include <QtGui/QWindow>
 #include <charconv>
@@ -282,12 +280,9 @@ void Controller::createWindow() {
 	_window = std::make_unique<Ui::RpWindow>();
 	const auto window = _window.get();
 
-	base::qt_signal_producer(
-		qApp,
-		&QGuiApplication::focusWindowChanged
-	) | rpl::filter([=](QWindow *focused) {
-		const auto handle = window->window()->windowHandle();
-		return _webview && handle && (focused == handle);
+	window->windowActiveValue(
+	) | rpl::filter([=](bool active) {
+		return _webview && active;
 	}) | rpl::start_with_next([=] {
 		setInnerFocus();
 	}, window->lifetime());

@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webview/webview_interface.h"
 #include "base/debug_log.h"
 #include "base/invoke_queued.h"
-#include "base/qt_signal_producer.h"
 #include "styles/style_payments.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -35,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonArray>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
-#include <QtGui/QWindow>
 
 namespace Ui::BotWebView {
 namespace {
@@ -741,15 +739,9 @@ postEvent: function(eventType, eventData) {
 
 	setupProgressGeometry();
 
-	base::qt_signal_producer(
-		qApp,
-		&QGuiApplication::focusWindowChanged
-	) | rpl::filter([=](QWindow *focused) {
-		const auto handle = _widget->window()->windowHandle();
-		return _webview
-			&& !_webview->window.widget()->isHidden()
-			&& handle
-			&& (focused == handle);
+	_widget->windowActiveValue(
+	) | rpl::filter([=](bool active) {
+		return _webview && !_webview->window.widget()->isHidden() && active;
 	}) | rpl::start_with_next([=] {
 		_webview->window.focus();
 	}, _webview->lifetime);
