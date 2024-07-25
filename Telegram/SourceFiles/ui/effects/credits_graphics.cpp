@@ -217,7 +217,7 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 		case Data::CreditsHistoryEntry::PeerType::PlayMarket:
 			return { st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::Fragment:
-			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
+			return { st::windowSubTextFg, st::imageBg };
 		case Data::CreditsHistoryEntry::PeerType::PremiumBot:
 			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::Ads:
@@ -458,7 +458,7 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 	return (entry.gift
 		? tr::lng_credits_box_history_entry_gift_name
 		: (entry.peerType == Data::CreditsHistoryEntry::PeerType::Fragment)
-		? tr::lng_bot_username_description1_link
+		? tr::lng_credits_box_history_entry_fragment
 		: (entry.peerType == Data::CreditsHistoryEntry::PeerType::PremiumBot)
 		? tr::lng_credits_box_history_entry_premium_bot
 		: (entry.peerType == Data::CreditsHistoryEntry::PeerType::Ads)

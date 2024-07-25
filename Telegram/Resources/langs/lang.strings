@@ -1845,6 +1845,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_webview_data_done" = "You have just successfully transferred data from the «{text}» button to the bot.";
 "lng_action_gift_received" = "{user} sent you a gift for {cost}";
 "lng_action_gift_received_me" = "You sent to {user} a gift for {cost}";
+"lng_action_gift_received_anonymous" = "Unknown user sent you a gift for {cost}";
 "lng_action_suggested_photo_me" = "You suggested {user} to use this profile photo.";
 "lng_action_suggested_photo" = "{user} suggests you to use this profile photo.";
 "lng_action_suggested_photo_button" = "View Photo";
@@ -2358,6 +2359,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_out_confirm#one" = "Confirm and Pay {emoji} {count} Star";
 "lng_credits_box_out_confirm#other" = "Confirm and Pay {emoji} {count} Stars";
 "lng_credits_box_out_about" = "Review the {link} for Stars.";
+"lng_credits_box_out_about_link" = "https://telegram.org/tos/stars";
 "lng_credits_media_done_title" = "Media Unlocked";
 "lng_credits_media_done_text#one" = "**{count} Star** transferred to {chat}.";
 "lng_credits_media_done_text#other" = "**{count} Stars** transferred to {chat}.";
@@ -2372,6 +2374,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_history_entry_fragment" = "Fragment";
 "lng_credits_box_history_entry_anonymous" = "Unknown User";
 "lng_credits_box_history_entry_gift_name" = "Received Gift";
+"lng_credits_box_history_entry_gift_sent" = "Sent Gift";
 "lng_credits_box_history_entry_gift_out_about" = "With Stars, **{user}** will be able to unlock content and services on Telegram.\n{link}";
 "lng_credits_box_history_entry_gift_in_about" = "Use Stars to unlock content and services on Telegram. {link}";
 "lng_credits_box_history_entry_gift_about_link" = "See Examples {emoji}";

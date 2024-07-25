@@ -1694,7 +1694,9 @@ void AddCreditsHistoryEntryTable(
 	} else if (entry.peerType == Type::Fragment) {
 		AddTableRow(
 			table,
-			tr::lng_credits_box_history_entry_via(),
+			(entry.gift
+				? tr::lng_credits_box_history_entry_peer_in
+				: tr::lng_credits_box_history_entry_via)(),
 			(entry.gift
 				? tr::lng_credits_box_history_entry_anonymous
 				: tr::lng_credits_box_history_entry_fragment)(

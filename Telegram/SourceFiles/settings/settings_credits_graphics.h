@@ -59,6 +59,13 @@ void ReceiptCreditsBox(
 	not_null<Window::SessionController*> controller,
 	PeerData *premiumBot,
 	const Data::CreditsHistoryEntry &e);
+void GiftedCreditsBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> from,
+	not_null<PeerData*> to,
+	int count,
+	TimeId date);
 void ShowRefundInfoBox(
 	not_null<Window::SessionController*> controller,
 	FullMsgId refundItemId);

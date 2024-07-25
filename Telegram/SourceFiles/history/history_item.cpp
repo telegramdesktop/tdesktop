@@ -4694,21 +4694,32 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareGiftPremium = [&](
 			const MTPDmessageActionGiftPremium &action) {
 		auto result = PreparedServiceText();
-		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto session = &_history->session();
+		const auto isSelf = _from->isSelf();
 		const auto peer = isSelf ? _history->peer : _from;
-		_history->session().giftBoxStickersPacks().load();
+		session->giftBoxStickersPacks().load();
 		const auto amount = action.vamount().v;
 		const auto currency = qs(action.vcurrency());
-		result.links.push_back(peer->createOpenLink());
-		result.text = (isSelf
-			? tr::lng_action_gift_received_me
-			: tr::lng_action_gift_received)(
+		const auto cost = AmountAndStarCurrency(session, amount, currency);
+		const auto anonymous = _from->isServiceUser();
+		if (anonymous) {
+			result.text = tr::lng_action_gift_received_anonymous(
 				tr::now,
-				lt_user,
-				Ui::Text::Link(peer->name(), 1), // Link 1.
 				lt_cost,
-				AmountAndStarCurrency(&peer->session(), amount, currency),
+				cost,
 				Ui::Text::WithEntities);
+		} else {
+			result.links.push_back(peer->createOpenLink());
+			result.text = (isSelf
+				? tr::lng_action_gift_received_me
+				: tr::lng_action_gift_received)(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(peer->name(), 1), // Link 1.
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities);
+		}
 		return result;
 	};
 

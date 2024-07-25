@@ -466,83 +466,80 @@ void ReceiptCreditsBox(
 		content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
 			object_ptr<Ui::UserpicButton>(content, peer, stUser)));
-	} else {
-		if (e.gift) {
-			using PlayerPtr = std::unique_ptr<Lottie::SinglePlayer>;
-			struct State final {
-				DocumentData *sticker = nullptr;
-				std::shared_ptr<Data::DocumentMedia> media;
-				std::unique_ptr<Lottie::SinglePlayer> lottie;
-				rpl::lifetime downloadLifetime;
-			};
-			Ui::AddSkip(
-				content,
-				st::creditsHistoryEntryGiftStickerSpace);
-			const auto icon = Ui::CreateChild<Ui::RpWidget>(content);
-			icon->resize(Size(st::creditsHistoryEntryGiftStickerSize));
-			const auto state = icon->lifetime().make_state<State>();
-			auto &packs = session->giftBoxStickersPacks();
-			const auto document = packs.lookup(1);
-			if (document && document->sticker()) {
-				state->sticker = document;
-				state->media = document->createMediaView();
-				state->media->thumbnailWanted(packs.origin());
-				state->media->automaticLoad(packs.origin(), nullptr);
-				session->downloaderTaskFinished(
-				) | rpl::start_with_next([=] {
-					if (state->media->loaded()) {
-						state->lottie = ChatHelpers::LottiePlayerFromDocument(
-							state->media.get(),
-							ChatHelpers::StickerLottieSize::MessageHistory,
-							icon->size(),
-							Lottie::Quality::High);
-						state->lottie->updates() | rpl::start_with_next([=] {
-							icon->update();
-						}, icon->lifetime());
-						state->downloadLifetime.destroy();
-					}
-				}, state->downloadLifetime);
-			}
-			icon->paintRequest(
-			) | rpl::start_with_next([=] {
-				auto p = Painter(icon);
-				const auto &lottie = state->lottie;
-				const auto frame = (lottie && lottie->ready())
-					? lottie->frameInfo({ .box = icon->size() })
-					: Lottie::Animation::FrameInfo();
-				if (!frame.image.isNull()) {
-					p.drawImage(0, 0, frame.image);
-					if (lottie->frameIndex() < lottie->framesCount() - 1) {
-						lottie->markFrameShown();
-					}
-				}
-			}, icon->lifetime());
-			content->sizeValue(
-			) | rpl::start_with_next([=](const QSize &size) {
-				icon->move(
-					(size.width() - icon->width()) / 2,
-					st::creditsHistoryEntryGiftStickerSkip);
-			}, icon->lifetime());
-		} else {
-			const auto widget = content->add(
-				object_ptr<Ui::CenterWrap<>>(
-					content,
-					object_ptr<Ui::RpWidget>(content)))->entity();
-			using Draw = Fn<void(Painter &, int, int, int, int)>;
-			const auto draw = widget->lifetime().make_state<Draw>(
-				Ui::GenerateCreditsPaintUserpicCallback(e));
-			widget->resize(Size(stUser.photoSize));
-			widget->paintRequest(
-			) | rpl::start_with_next([=] {
-				auto p = Painter(widget);
-				(*draw)(p, 0, 0, stUser.photoSize, stUser.photoSize);
-			}, widget->lifetime());
+	} else if (e.gift) {
+		struct State final {
+			DocumentData *sticker = nullptr;
+			std::shared_ptr<Data::DocumentMedia> media;
+			std::unique_ptr<Lottie::SinglePlayer> lottie;
+			rpl::lifetime downloadLifetime;
+		};
+		Ui::AddSkip(
+			content,
+			st::creditsHistoryEntryGiftStickerSpace);
+		const auto icon = Ui::CreateChild<Ui::RpWidget>(content);
+		icon->resize(Size(st::creditsHistoryEntryGiftStickerSize));
+		const auto state = icon->lifetime().make_state<State>();
+		auto &packs = session->giftBoxStickersPacks();
+		const auto document = packs.lookup(packs.monthsForStars(e.credits));
+		if (document && document->sticker()) {
+			state->sticker = document;
+			state->media = document->createMediaView();
+			state->media->thumbnailWanted(packs.origin());
+			state->media->automaticLoad(packs.origin(), nullptr);
+			rpl::single() | rpl::then(
+				session->downloaderTaskFinished()
+			) | rpl::filter([=] {
+				return state->media->loaded();
+			}) | rpl::start_with_next([=] {
+				state->lottie = ChatHelpers::LottiePlayerFromDocument(
+					state->media.get(),
+					ChatHelpers::StickerLottieSize::MessageHistory,
+					icon->size(),
+					Lottie::Quality::High);
+				state->lottie->updates() | rpl::start_with_next([=] {
+					icon->update();
+				}, icon->lifetime());
+				state->downloadLifetime.destroy();
+			}, state->downloadLifetime);
 		}
+		icon->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = Painter(icon);
+			const auto &lottie = state->lottie;
+			const auto frame = (lottie && lottie->ready())
+				? lottie->frameInfo({ .box = icon->size() })
+				: Lottie::Animation::FrameInfo();
+			if (!frame.image.isNull()) {
+				p.drawImage(0, 0, frame.image);
+				if (lottie->frameIndex() < lottie->framesCount() - 1) {
+					lottie->markFrameShown();
+				}
+			}
+		}, icon->lifetime());
+		content->sizeValue(
+		) | rpl::start_with_next([=](const QSize &size) {
+			icon->move(
+				(size.width() - icon->width()) / 2,
+				st::creditsHistoryEntryGiftStickerSkip);
+		}, icon->lifetime());
+	} else {
+		const auto widget = content->add(
+			object_ptr<Ui::CenterWrap<>>(
+				content,
+				object_ptr<Ui::RpWidget>(content)))->entity();
+		using Draw = Fn<void(Painter &, int, int, int, int)>;
+		const auto draw = widget->lifetime().make_state<Draw>(
+			Ui::GenerateCreditsPaintUserpicCallback(e));
+		widget->resize(Size(stUser.photoSize));
+		widget->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = Painter(widget);
+			(*draw)(p, 0, 0, stUser.photoSize, stUser.photoSize);
+		}, widget->lifetime());
 	}
 
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
-
 
 	box->addRow(object_ptr<Ui::CenterWrap<>>(
 		box,
@@ -565,7 +562,7 @@ void ReceiptCreditsBox(
 		auto &lifetime = content->lifetime();
 		const auto text = lifetime.make_state<Ui::Text::String>(
 			st::semiboldTextStyle,
-			(e.in ? QChar('+') : kMinus)
+			(e.in ? u"+"_q : e.gift ? QString() : QString(kMinus))
 				+ Lang::FormatCountDecimal(std::abs(int64(e.credits))));
 		const auto roundedText = e.refunded
 			? tr::lng_channel_earn_history_return(tr::now)
@@ -605,6 +602,8 @@ void ReceiptCreditsBox(
 				? st::creditsStroke
 				: e.in
 				? st::boxTextFgGood
+				: e.gift
+				? st::windowBoldFg
 				: st::menuIconAttentionColor);
 			const auto x = (amount->width() - fullWidth) / 2;
 			text->draw(p, Ui::Text::PaintContext{
@@ -709,10 +708,9 @@ void ReceiptCreditsBox(
 			tr::lng_credits_box_out_about(
 				lt_link,
 				tr::lng_payments_terms_link(
-				) | rpl::map([](const QString &t) {
-					using namespace Ui::Text;
-					return Link(t, u"https://telegram.org/tos"_q);
-				}),
+				) | Ui::Text::ToLink(
+					tr::lng_credits_box_out_about_link(tr::now)
+				),
 				Ui::Text::WithEntities),
 			st::creditsBoxAboutDivider)));
 
@@ -755,6 +753,32 @@ void ReceiptCreditsBox(
 	}) | rpl::start_with_next([=] {
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
+}
+
+void GiftedCreditsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> from,
+		not_null<PeerData*> to,
+		int count,
+		TimeId date) {
+	const auto received = to->isSelf();
+	const auto anonymous = from->isServiceUser();
+	const auto peer = received ? from : to;
+	using PeerType = Data::CreditsHistoryEntry::PeerType;
+	Settings::ReceiptCreditsBox(box, controller, nullptr, {
+		.id = QString(),
+		.title = (received
+			? tr::lng_credits_box_history_entry_gift_name
+			: tr::lng_credits_box_history_entry_gift_sent)(tr::now),
+		.date = base::unixtime::parse(date),
+		.credits = uint64(count),
+		.bareMsgId = uint64(),
+		.barePeerId = (anonymous ? uint64() : peer->id.value),
+		.peerType = (anonymous ? PeerType::Fragment : PeerType::Peer),
+		.in = received,
+		.gift = true,
+	});
 }
 
 void ShowRefundInfoBox(

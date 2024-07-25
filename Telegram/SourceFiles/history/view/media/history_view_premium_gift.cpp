@@ -12,13 +12,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "data/data_document.h"
 #include "data/data_channel.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_credits.h" // Settings::CreditsId
+#include "settings/settings_credits_graphics.h" // GiftedCreditsBox
 #include "settings/settings_premium.h" // Settings::ShowGiftPremium
+#include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -99,22 +102,29 @@ rpl::producer<QString> PremiumGift::button() {
 
 ClickHandlerPtr PremiumGift::createViewLink() {
 	const auto from = _gift->from();
-	const auto to = _parent->history()->peer;
+	const auto peer = _parent->history()->peer;
+	const auto date = _parent->data()->date();
 	const auto data = _gift->data();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			const auto selfId = controller->session().userPeerId();
-			const auto self = (from->id == selfId);
+			const auto sent = (from->id == selfId);
 			if (data.type == Data::GiftType::Stars) {
-				controller->showSettings(Settings::CreditsId());
+				const auto to = sent ? peer : peer->session().user();
+				controller->show(Box(
+					Settings::GiftedCreditsBox,
+					controller,
+					from,
+					to,
+					data.count,
+					date));
 			} else if (data.slug.isEmpty()) {
-				const auto peer = self ? to : from;
 				const auto months = data.count;
-				Settings::ShowGiftPremium(controller, peer, months, self);
+				Settings::ShowGiftPremium(controller, peer, months, sent);
 			} else {
 				const auto fromId = from->id;
-				const auto toId = self ? to->id : selfId;
+				const auto toId = sent ? peer->id : selfId;
 				ResolveGiftCode(controller, data.slug, fromId, toId);
 			}
 		}
