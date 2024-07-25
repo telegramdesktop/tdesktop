@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_text.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_widget.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_mute.h"
@@ -776,6 +777,7 @@ private:
 	object_ptr<Ui::RpWidget> setupPersonalChannel(not_null<UserData*> user);
 	object_ptr<Ui::RpWidget> setupInfo();
 	object_ptr<Ui::RpWidget> setupMuteToggle();
+	void setupMainApp();
 	void setupMainButtons();
 	Ui::MultiSlideTracker fillTopicButtons();
 	Ui::MultiSlideTracker fillUserButtons(
@@ -1209,10 +1211,21 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	}
 	if (!_peer->isSelf()) {
 		// No notifications toggle for Self => no separator.
+
+		const auto user = _peer->asUser();
+		const auto app = user && user->botInfo && user->botInfo->hasMainApp;
+		const auto padding = app
+			? QMargins(
+				st::infoOpenAppMargin.left(),
+				st::infoProfileSeparatorPadding.top(),
+				st::infoOpenAppMargin.right(),
+				0)
+			: st::infoProfileSeparatorPadding;
+
 		result->add(object_ptr<Ui::SlideWrap<>>(
 			result,
 			object_ptr<Ui::PlainShadow>(result),
-			st::infoProfileSeparatorPadding)
+			padding)
 		)->setDuration(
 			st::infoSlideDuration
 		)->toggleOn(
@@ -1548,6 +1561,42 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	return result;
 }
 
+void DetailsFiller::setupMainApp() {
+	const auto button = _wrap->add(
+		object_ptr<Ui::RoundButton>(
+			_wrap,
+			tr::lng_profile_open_app(),
+			st::infoOpenApp),
+		st::infoOpenAppMargin);
+	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+
+	const auto user = _peer->asUser();
+	const auto controller = _controller->parentController();
+	button->setClickedCallback([=] {
+		user->session().attachWebView().open({
+			.bot = user,
+			.context = {
+				.controller = controller,
+				.maySkipConfirmation = true,
+			},
+			.source = InlineBots::WebViewSourceBotProfile(),
+		});
+	});
+
+	const auto url = tr::lng_mini_apps_tos_url(tr::now);
+	Ui::AddDividerText(
+		_wrap,
+		tr::lng_profile_open_app_about(
+			lt_terms,
+			tr::lng_profile_open_app_terms() | Ui::Text::ToLink(url),
+			Ui::Text::WithEntities)
+	)->setClickHandlerFilter([=](const auto &...) {
+		UrlClickHandler::Open(url);
+		return false;
+	});
+	Ui::AddSkip(_wrap);
+}
+
 void DetailsFiller::setupMainButtons() {
 	auto wrapButtons = [=](auto &&callback) {
 		auto topSkip = _wrap->add(CreateSlideSkipWidget(_wrap));
@@ -1737,6 +1786,13 @@ object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 	add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	add(CreateSkipWidget(_wrap));
 	add(setupInfo());
+	if (const auto user = _peer->asUser()) {
+		if (const auto info = user->botInfo.get()) {
+			if (info->hasMainApp) {
+				setupMainApp();
+			}
+		}
+	}
 	if (!_peer->isSelf()) {
 		add(setupMuteToggle());
 	}

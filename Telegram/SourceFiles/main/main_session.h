@@ -129,6 +129,9 @@ public:
 	[[nodiscard]] Data::TopPeers &topPeers() const {
 		return *_topPeers;
 	}
+	[[nodiscard]] Data::TopPeers &topBotApps() const {
+		return *_topBotApps;
+	}
 	[[nodiscard]] Data::Factchecks &factchecks() const {
 		return *_factchecks;
 	}
@@ -262,6 +265,7 @@ private:
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
 	const std::unique_ptr<Data::SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Data::TopPeers> _topPeers;
+	const std::unique_ptr<Data::TopPeers> _topBotApps;
 	const std::unique_ptr<Data::Factchecks> _factchecks;
 	const std::unique_ptr<Data::LocationPickers> _locationPickers;
 

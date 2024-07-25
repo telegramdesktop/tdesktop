@@ -256,9 +256,6 @@ private:
 	void showGame();
 	void started(uint64 queryId);
 
-	[[nodiscard]] Window::SessionController *windowForThread(
-		not_null<Data::Thread*> thread);
-
 	auto nonPanelPaymentFormFactory(
 		Fn<void(Payments::CheckoutResult)> reactivate)
 	-> Fn<void(Payments::NonPanelPaymentForm)>;
@@ -352,6 +349,11 @@ public:
 	void close(not_null<WebViewInstance*> instance);
 	void closeAll();
 
+	void loadPopularAppBots();
+	[[nodiscard]] auto popularAppBots() const
+		-> const std::vector<not_null<UserData*>> &;
+	[[nodiscard]] rpl::producer<> popularAppBotsLoaded() const;
+
 private:
 	void resolveUsername(
 		std::shared_ptr<Ui::Show> show,
@@ -394,6 +396,10 @@ private:
 	base::flat_set<not_null<UserData*>> _disclaimerAccepted;
 
 	std::vector<std::unique_ptr<WebViewInstance>> _instances;
+
+	std::vector<not_null<UserData*>> _popularAppBots;
+	mtpRequestId _popularAppBotsRequestId = 0;
+	rpl::variable<bool> _popularAppBotsLoaded = false;
 
 };
 

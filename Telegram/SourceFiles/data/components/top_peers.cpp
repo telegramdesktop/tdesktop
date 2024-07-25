@@ -41,12 +41,36 @@ constexpr auto kRequestTimeLimit = 10 * crl::time(1000);
 	) / 1'000'000.;
 }
 
+[[nodiscard]] MTPTopPeerCategory TypeToCategory(TopPeerType type) {
+	switch (type) {
+	case TopPeerType::Chat: return MTP_topPeerCategoryCorrespondents();
+	case TopPeerType::BotApp: return MTP_topPeerCategoryBotsApp();
+	}
+	Unexpected("Type in TypeToCategory.");
+}
+
+[[nodiscard]] auto TypeToGetFlags(TopPeerType type) {
+	using Flag = MTPcontacts_GetTopPeers::Flag;
+	switch (type) {
+	case TopPeerType::Chat: return Flag::f_correspondents;
+	case TopPeerType::BotApp: return Flag::f_bots_app;
+	}
+	Unexpected("Type in TypeToGetFlags.");
+}
+
 } // namespace
 
-TopPeers::TopPeers(not_null<Main::Session*> session)
-: _session(session) {
+TopPeers::TopPeers(not_null<Main::Session*> session, TopPeerType type)
+: _session(session)
+, _type(type) {
+	if (_type == TopPeerType::Chat) {
+		loadAfterChats();
+	}
+}
+
+void TopPeers::loadAfterChats() {
 	using namespace rpl::mappers;
-	crl::on_main(session, [=] {
+	crl::on_main(_session, [=] {
 		_session->data().chatsListLoadedEvents(
 		) | rpl::filter(_1 == nullptr) | rpl::start_with_next([=] {
 			crl::on_main(_session, [=] {
@@ -84,7 +108,7 @@ void TopPeers::remove(not_null<PeerData*> peer) {
 	}
 
 	_requestId = _session->api().request(MTPcontacts_ResetTopPeerRating(
-		MTP_topPeerCategoryCorrespondents(),
+		TypeToCategory(_type),
 		peer->input
 	)).send();
 }
@@ -160,11 +184,13 @@ void TopPeers::request() {
 	}
 
 	_requestId = _session->api().request(MTPcontacts_GetTopPeers(
-		MTP_flags(MTPcontacts_GetTopPeers::Flag::f_correspondents),
+		MTP_flags(TypeToGetFlags(_type)),
 		MTP_int(0),
 		MTP_int(kLimit),
 		MTP_long(countHash())
-	)).done([=](const MTPcontacts_TopPeers &result, const MTP::Response &response) {
+	)).done([=](
+			const MTPcontacts_TopPeers &result,
+			const MTP::Response &response) {
 		_lastReceivedDate = TimeId(response.outerMsgId >> 32);
 		_lastReceived = crl::now();
 		_requestId = 0;
@@ -176,19 +202,22 @@ void TopPeers::request() {
 			owner->processChats(data.vchats());
 			for (const auto &category : data.vcategories().v) {
 				const auto &data = category.data();
-				data.vcategory().match(
-					[&](const MTPDtopPeerCategoryCorrespondents &) {
-					_list = ranges::views::all(
-						data.vpeers().v
-					) | ranges::views::transform([&](const MTPTopPeer &top) {
-						return TopPeer{
-							owner->peer(peerFromMTP(top.data().vpeer())),
-							top.data().vrating().v,
-						};
-					}) | ranges::to_vector;
-				}, [](const auto &) {
+				const auto cons = (_type == TopPeerType::Chat)
+					? mtpc_topPeerCategoryCorrespondents
+					: mtpc_topPeerCategoryBotsApp;
+				if (data.vcategory().type() != cons) {
 					LOG(("API Error: Unexpected top peer category."));
-				});
+					continue;
+				}
+				_list = ranges::views::all(
+					data.vpeers().v
+				) | ranges::views::transform([&](
+						const MTPTopPeer &top) {
+					return TopPeer{
+						owner->peer(peerFromMTP(top.data().vpeer())),
+						top.data().vrating().v,
+					};
+				}) | ranges::to_vector;
 			}
 			updated();
 		}, [&](const MTPDcontacts_topPeersDisabled &) {

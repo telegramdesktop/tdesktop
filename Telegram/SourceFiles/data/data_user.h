@@ -40,12 +40,14 @@ struct BotInfo {
 
 	int version = 0;
 	int descriptionVersion = 0;
+	int activeUsers = 0;
 	bool inited : 1 = false;
 	bool readsAllHistory : 1 = false;
 	bool cantJoinGroups : 1 = false;
 	bool supportsAttachMenu : 1 = false;
 	bool canEditInformation : 1 = false;
 	bool supportsBusiness : 1 = false;
+	bool hasMainApp : 1 = false;
 };
 
 enum class UserDataFlag : uint32 {

@@ -13,9 +13,14 @@ class Session;
 
 namespace Data {
 
+enum class TopPeerType {
+	Chat,
+	BotApp,
+};
+
 class TopPeers final {
 public:
-	explicit TopPeers(not_null<Main::Session*> session);
+	TopPeers(not_null<Main::Session*> session, TopPeerType type);
 	~TopPeers();
 
 	[[nodiscard]] std::vector<not_null<PeerData*>> list() const;
@@ -36,11 +41,13 @@ private:
 		float64 rating = 0.;
 	};
 
+	void loadAfterChats();
 	void request();
 	[[nodiscard]] uint64 countHash() const;
 	void updated();
 
 	const not_null<Main::Session*> _session;
+	const TopPeerType _type = {};
 
 	std::vector<TopPeer> _list;
 	rpl::event_stream<> _updates;

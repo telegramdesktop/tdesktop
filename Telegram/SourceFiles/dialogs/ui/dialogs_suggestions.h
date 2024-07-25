@@ -79,6 +79,14 @@ public:
 	-> rpl::producer<not_null<PeerData*>> {
 		return _recommendations->chosen.events();
 	}
+	[[nodiscard]] auto recentAppChosen() const
+	-> rpl::producer<not_null<PeerData*>> {
+		return _recentApps->chosen.events();
+	}
+	[[nodiscard]] auto popularAppChosen() const
+	-> rpl::producer<not_null<PeerData*>> {
+		return _popularApps->chosen.events();
+	}
 
 	class ObjectListController;
 
@@ -86,6 +94,7 @@ private:
 	enum class Tab : uchar {
 		Chats,
 		Channels,
+		Apps,
 	};
 	enum class JumpResult : uchar {
 		NotApplied,
@@ -110,13 +119,16 @@ private:
 	void setupTabs();
 	void setupChats();
 	void setupChannels();
+	void setupApps();
 
 	void selectJumpChats(Qt::Key direction, int pageSize);
 	void selectJumpChannels(Qt::Key direction, int pageSize);
+	void selectJumpApps(Qt::Key direction, int pageSize);
 
 	[[nodiscard]] Data::Thread *updateFromChatsDrag(QPoint globalPosition);
 	[[nodiscard]] Data::Thread *updateFromChannelsDrag(
 		QPoint globalPosition);
+	[[nodiscard]] Data::Thread *updateFromAppsDrag(QPoint globalPosition);
 	[[nodiscard]] Data::Thread *fromListId(uint64 peerListRowId);
 
 	[[nodiscard]] std::unique_ptr<ObjectList> setupRecentPeers(
@@ -128,6 +140,9 @@ private:
 	[[nodiscard]] std::unique_ptr<ObjectList> setupRecommendations();
 	[[nodiscard]] auto setupEmptyChannels()
 		-> object_ptr<Ui::SlideWrap<Ui::RpWidget>>;
+
+	[[nodiscard]] std::unique_ptr<ObjectList> setupRecentApps();
+	[[nodiscard]] std::unique_ptr<ObjectList> setupPopularApps();
 
 	[[nodiscard]] std::unique_ptr<ObjectList> setupObjectList(
 		not_null<Ui::ElasticScroll*> scroll,
@@ -142,7 +157,7 @@ private:
 
 	void switchTab(Tab tab);
 	void startShownAnimation(bool shown, Fn<void()> finish);
-	void startSlideAnimation();
+	void startSlideAnimation(Tab was, Tab now);
 	void finishShow();
 
 	void handlePressForChatPreview(PeerId id, Fn<void(bool)> callback);
@@ -171,6 +186,12 @@ private:
 
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyChannels;
 
+	const std::unique_ptr<Ui::ElasticScroll> _appsScroll;
+	const not_null<Ui::VerticalLayout*> _appsContent;
+
+	const std::unique_ptr<ObjectList> _recentApps;
+	const std::unique_ptr<ObjectList> _popularApps;
+
 	Ui::Animations::Simple _shownAnimation;
 	Fn<void()> _showFinished;
 	bool _hidden = false;
@@ -180,6 +201,9 @@ private:
 	Ui::Animations::Simple _slideAnimation;
 	QPixmap _slideLeft;
 	QPixmap _slideRight;
+
+	int _slideLeftTop = 0;
+	int _slideRightTop = 0;
 
 };
 

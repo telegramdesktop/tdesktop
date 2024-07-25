@@ -1448,6 +1448,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_topic_title" = "Topic Info";
 "lng_profile_enable_notifications" = "Notifications";
 "lng_profile_send_message" = "Send Message";
+"lng_profile_open_app" = "Open App";
+"lng_profile_open_app_about" = "By launching this mini app, you agree to the {terms}.";
+"lng_profile_open_app_terms" = "Terms of Service for Mini Apps";
 "lng_info_add_as_contact" = "Add to contacts";
 "lng_profile_shared_media" = "Shared media";
 "lng_profile_suggest_photo" = "Suggest Profile Photo";
@@ -3186,6 +3189,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_add_to_side_menu_done" = "Bot added to the main menu.";
 "lng_bot_no_scan_qr" = "QR Codes for bots are not supported on Desktop. Please use one of Telegram's mobile apps.";
 "lng_bot_click_to_start" = "Click here to use this bot.";
+"lng_bot_status_users#one" = "{count} user";
+"lng_bot_status_users#other" = "{count} users";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
@@ -5341,12 +5346,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_recent_none" = "Recent search results\nwill appear here.";
 "lng_recent_chats" = "Chats";
 "lng_recent_channels" = "Channels";
+"lng_recent_apps" = "Apps";
 "lng_channels_none_title" = "No channels yet...";
 "lng_channels_none_about" = "You are not currently subscribed to any channels.";
 "lng_channels_your_title" = "Channels you joined";
 "lng_channels_your_more" = "Show more";
 "lng_channels_your_less" = "Show less";
 "lng_channels_recommended" = "Recommended channels";
+"lng_bot_apps_your" = "Apps you use";
+"lng_bot_apps_popular" = "Popular apps";
 
 "lng_font_box_title" = "Choose font family";
 "lng_font_default" = "Default";

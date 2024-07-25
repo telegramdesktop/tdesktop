@@ -469,6 +469,12 @@ infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoGroupMembersIconPosition: point(20px, 10px);
 infoChannelMembersIconPosition: point(20px, 19px);
 
+infoOpenApp: RoundButton(defaultActiveButton) {
+	textTop: 11px;
+	height: 40px;
+}
+infoOpenAppMargin: margins(16px, 12px, 16px, 12px);
+
 infoPersonalChannelIconPosition: point(25px, 20px);
 infoPersonalChannelNameLabel: FlatLabel(infoProfileStatus) {
 	textFg: windowBoldFg;

@@ -110,7 +110,9 @@ Session::Session(
 , _recentPeers(std::make_unique<Data::RecentPeers>(this))
 , _scheduledMessages(std::make_unique<Data::ScheduledMessages>(this))
 , _sponsoredMessages(std::make_unique<Data::SponsoredMessages>(this))
-, _topPeers(std::make_unique<Data::TopPeers>(this))
+, _topPeers(std::make_unique<Data::TopPeers>(this, Data::TopPeerType::Chat))
+, _topBotApps(
+	std::make_unique<Data::TopPeers>(this, Data::TopPeerType::BotApp))
 , _factchecks(std::make_unique<Data::Factchecks>(this))
 , _locationPickers(std::make_unique<Data::LocationPickers>())
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
