@@ -410,7 +410,7 @@ void Panel::initWindow() {
 		}
 		const auto shown = _layerBg->topShownLayer();
 		return (!shown || !shown->geometry().contains(widgetPoint))
-			? (Flag::Move | Flag::Maximize)
+			? (Flag::Move | Flag::Menu | Flag::Maximize)
 			: Flag::None;
 	});
 

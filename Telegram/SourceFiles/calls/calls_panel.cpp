@@ -215,7 +215,7 @@ void Panel::initWindow() {
 		}
 		const auto shown = _layerBg->topShownLayer();
 		return (!shown || !shown->geometry().contains(widgetPoint))
-			? (Flag::Move | Flag::FullScreen)
+			? (Flag::Move | Flag::Menu | Flag::FullScreen)
 			: Flag::None;
 	});
 
