@@ -70,9 +70,9 @@ else
   DeployMac="1"
   DeployWin="1"
   DeployWin64="1"
-  DeployWinArm="1"
+  DeployWinArm="0"
   DeployLinux="1"
-  echo "Deploying five versions of $AppVersionStrFull: for Windows 32 bit, Windows 64 bit, Windows on ARM, macOS and Linux 64 bit.."
+  echo "Deploying four versions of $AppVersionStrFull: for Windows 32 bit, Windows 64 bit, macOS and Linux 64 bit.."
 fi
 if [ "$BuildTarget" == "mac" ]; then
   BackupPath="$HOME/Projects/backup/tdesktop"
