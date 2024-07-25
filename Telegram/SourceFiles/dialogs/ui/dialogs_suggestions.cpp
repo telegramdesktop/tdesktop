@@ -87,66 +87,6 @@ private:
 
 };
 
-class ControllerWithPreviews
-	: public PeerListController
-	, public base::has_weak_ptr {
-public:
-	explicit ControllerWithPreviews(
-		not_null<Window::SessionController*> window);
-
-	[[nodiscard]] not_null<Window::SessionController*> window() const {
-		return _window;
-	}
-
-	bool rowTrackPress(not_null<PeerListRow*> row) override;
-	void rowTrackPressCancel() override;
-	bool rowTrackPressSkipMouseSelection() override;
-
-	bool processTouchEvent(not_null<QTouchEvent*> e);
-	void setupTouchChatPreview(not_null<Ui::ElasticScroll*> scroll);
-
-private:
-	const not_null<Window::SessionController*> _window;
-
-	std::optional<QPoint> _chatPreviewTouchGlobal;
-	rpl::event_stream<> _touchCancelRequests;
-
-};
-
-class RecentsController final : public ControllerWithPreviews {
-public:
-	RecentsController(
-		not_null<Window::SessionController*> window,
-		RecentPeersList list);
-
-	[[nodiscard]] rpl::producer<int> count() const {
-		return _count.value();
-	}
-	[[nodiscard]] rpl::producer<not_null<PeerData*>> chosen() const {
-		return _chosen.events();
-	}
-
-	void prepare() override;
-	void rowClicked(not_null<PeerListRow*> row) override;
-	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
-		QWidget *parent,
-		not_null<PeerListRow*> row) override;
-	Main::Session &session() const override;
-
-	QString savedMessagesChatStatus() const override;
-
-private:
-	void setupDivider();
-	void subscribeToEvents();
-	[[nodiscard]] Fn<void()> removeAllCallback();
-
-	RecentPeersList _recent;
-	rpl::variable<int> _count;
-	rpl::event_stream<not_null<PeerData*>> _chosen;
-	rpl::lifetime _lifetime;
-
-};
-
 class ChannelRow final : public PeerListRow {
 public:
 	using PeerListRow::PeerListRow;
@@ -158,73 +98,6 @@ public:
 
 private:
 	bool _active = false;
-
-};
-
-class MyChannelsController final : public ControllerWithPreviews {
-public:
-	explicit MyChannelsController(
-		not_null<Window::SessionController*> window);
-
-	[[nodiscard]] rpl::producer<int> count() const {
-		return _count.value();
-	}
-	[[nodiscard]] rpl::producer<not_null<PeerData*>> chosen() const {
-		return _chosen.events();
-	}
-
-	void prepare() override;
-	void rowClicked(not_null<PeerListRow*> row) override;
-	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
-		QWidget *parent,
-		not_null<PeerListRow*> row) override;
-	Main::Session &session() const override;
-
-private:
-	void setupDivider();
-	void appendRow(not_null<ChannelData*> channel);
-	void fill(bool force = false);
-
-	std::vector<not_null<History*>> _channels;
-	rpl::variable<Ui::RpWidget*> _toggleExpanded = nullptr;
-	rpl::variable<int> _count = 0;
-	rpl::variable<bool> _expanded = false;
-	rpl::event_stream<not_null<PeerData*>> _chosen;
-	rpl::lifetime _lifetime;
-
-};
-
-class RecommendationsController final : public ControllerWithPreviews {
-public:
-	explicit RecommendationsController(
-		not_null<Window::SessionController*> window);
-
-	[[nodiscard]] rpl::producer<int> count() const {
-		return _count.value();
-	}
-	[[nodiscard]] rpl::producer<not_null<PeerData*>> chosen() const {
-		return _chosen.events();
-	}
-
-	void prepare() override;
-	void rowClicked(not_null<PeerListRow*> row) override;
-	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
-		QWidget *parent,
-		not_null<PeerListRow*> row) override;
-	Main::Session &session() const override;
-
-	void load();
-
-private:
-	void fill();
-	void setupDivider();
-	void appendRow(not_null<ChannelData*> channel);
-
-	rpl::variable<int> _count;
-	History *_activeHistory = nullptr;
-	bool _requested = false;
-	rpl::event_stream<not_null<PeerData*>> _chosen;
-	rpl::lifetime _lifetime;
 
 };
 
@@ -422,12 +295,131 @@ const style::PeerListItem &ChannelRow::computeSt(
 	return _active ? st::recentPeersItemActive : st::recentPeersItem;
 }
 
-ControllerWithPreviews::ControllerWithPreviews(
+} // namespace
+
+
+class Suggestions::ObjectListController
+	: public PeerListController
+	, public base::has_weak_ptr {
+public:
+	explicit ObjectListController(
+		not_null<Window::SessionController*> window);
+
+	[[nodiscard]] not_null<Window::SessionController*> window() const {
+		return _window;
+	}
+	[[nodiscard]] rpl::producer<int> count() const {
+		return _count.value();
+	}
+	[[nodiscard]] rpl::producer<not_null<PeerData*>> chosen() const {
+		return _chosen.events();
+	}
+
+	bool rowTrackPress(not_null<PeerListRow*> row) override;
+	void rowTrackPressCancel() override;
+	bool rowTrackPressSkipMouseSelection() override;
+
+	bool processTouchEvent(not_null<QTouchEvent*> e);
+	void setupTouchChatPreview(not_null<Ui::ElasticScroll*> scroll);
+
+protected:
+	[[nodiscard]] int countCurrent() const;
+	void setCount(int count);
+	void choose(not_null<PeerData*> peer);
+
+private:
+	const not_null<Window::SessionController*> _window;
+
+	std::optional<QPoint> _chatPreviewTouchGlobal;
+	rpl::event_stream<> _touchCancelRequests;
+	rpl::event_stream<not_null<PeerData*>> _chosen;
+	rpl::variable<int> _count;
+
+};
+
+class RecentsController final : public Suggestions::ObjectListController {
+public:
+	RecentsController(
+		not_null<Window::SessionController*> window,
+		RecentPeersList list);
+
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override;
+	Main::Session &session() const override;
+
+	QString savedMessagesChatStatus() const override;
+
+private:
+	void setupDivider();
+	void subscribeToEvents();
+	[[nodiscard]] Fn<void()> removeAllCallback();
+
+	RecentPeersList _recent;
+	rpl::lifetime _lifetime;
+
+};
+
+class MyChannelsController final
+	: public Suggestions::ObjectListController {
+public:
+	explicit MyChannelsController(
+		not_null<Window::SessionController*> window);
+
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override;
+	Main::Session &session() const override;
+
+private:
+	void setupDivider();
+	void appendRow(not_null<ChannelData*> channel);
+	void fill(bool force = false);
+
+	std::vector<not_null<History*>> _channels;
+	rpl::variable<Ui::RpWidget*> _toggleExpanded = nullptr;
+	rpl::variable<bool> _expanded = false;
+	rpl::lifetime _lifetime;
+
+};
+
+class RecommendationsController final
+	: public Suggestions::ObjectListController {
+public:
+	explicit RecommendationsController(
+		not_null<Window::SessionController*> window);
+
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override;
+	Main::Session &session() const override;
+
+	void load();
+
+private:
+	void fill();
+	void setupDivider();
+	void appendRow(not_null<ChannelData*> channel);
+
+	History *_activeHistory = nullptr;
+	bool _requested = false;
+	rpl::lifetime _lifetime;
+
+};
+
+Suggestions::ObjectListController::ObjectListController(
 	not_null<Window::SessionController*> window)
 : _window(window) {
 }
 
-bool ControllerWithPreviews::rowTrackPress(not_null<PeerListRow*> row) {
+bool Suggestions::ObjectListController::rowTrackPress(
+		not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
 	const auto history = peer->owner().history(peer);
 	const auto callback = crl::guard(this, [=](bool shown) {
@@ -454,16 +446,17 @@ bool ControllerWithPreviews::rowTrackPress(not_null<PeerListRow*> row) {
 	return false;
 }
 
-void ControllerWithPreviews::rowTrackPressCancel() {
+void Suggestions::ObjectListController::rowTrackPressCancel() {
 	_chatPreviewTouchGlobal = {};
 	_window->cancelScheduledPreview();
 }
 
-bool ControllerWithPreviews::rowTrackPressSkipMouseSelection() {
+bool Suggestions::ObjectListController::rowTrackPressSkipMouseSelection() {
 	return _chatPreviewTouchGlobal.has_value();
 }
 
-bool ControllerWithPreviews::processTouchEvent(not_null<QTouchEvent*> e) {
+bool Suggestions::ObjectListController::processTouchEvent(
+		not_null<QTouchEvent*> e) {
 	const auto point = e->touchPoints().empty()
 		? std::optional<QPoint>()
 		: e->touchPoints().front().screenPos().toPoint();
@@ -500,7 +493,7 @@ bool ControllerWithPreviews::processTouchEvent(not_null<QTouchEvent*> e) {
 	return false;
 }
 
-void ControllerWithPreviews::setupTouchChatPreview(
+void Suggestions::ObjectListController::setupTouchChatPreview(
 		not_null<Ui::ElasticScroll*> scroll) {
 	_touchCancelRequests.events() | rpl::start_with_next([=] {
 		QTouchEvent ev(QEvent::TouchCancel);
@@ -509,10 +502,22 @@ void ControllerWithPreviews::setupTouchChatPreview(
 	}, lifetime());
 }
 
+int Suggestions::ObjectListController::countCurrent() const {
+	return _count.current();
+}
+
+void Suggestions::ObjectListController::setCount(int count) {
+	_count = count;
+}
+
+void Suggestions::ObjectListController::choose(not_null<PeerData*> peer) {
+	_chosen.fire_copy(peer);
+}
+
 RecentsController::RecentsController(
 	not_null<Window::SessionController*> window,
 	RecentPeersList list)
-: ControllerWithPreviews(window)
+: ObjectListController(window)
 , _recent(std::move(list)) {
 }
 
@@ -523,13 +528,13 @@ void RecentsController::prepare() {
 		delegate()->peerListAppendRow(std::make_unique<RecentRow>(peer));
 	}
 	delegate()->peerListRefreshRows();
-	_count = _recent.list.size();
+	setCount(_recent.list.size());
 
 	subscribeToEvents();
 }
 
 void RecentsController::rowClicked(not_null<PeerListRow*> row) {
-	_chosen.fire(row->peer());
+	choose(row->peer());
 }
 
 Fn<void()> RecentsController::removeAllCallback() {
@@ -537,7 +542,7 @@ Fn<void()> RecentsController::removeAllCallback() {
 	const auto session = &this->session();
 	return crl::guard(session, [=] {
 		if (weak) {
-			_count = 0;
+			setCount(0);
 			while (delegate()->peerListFullRowsCount() > 0) {
 				delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
 			}
@@ -560,7 +565,7 @@ base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 		if (weak) {
 			const auto rowId = peer->id.value;
 			if (const auto row = delegate()->peerListFindRow(rowId)) {
-				_count = std::max(0, _count.current() - 1);
+				setCount(std::max(0, countCurrent() - 1));
 				delegate()->peerListRemoveRow(row);
 				delegate()->peerListRefreshRows();
 			}
@@ -649,7 +654,7 @@ void RecentsController::subscribeToEvents() {
 
 	session().data().unreadBadgeChanges(
 	) | rpl::start_with_next([=] {
-		for (auto i = 0; i != _count.current(); ++i) {
+		for (auto i = 0; i != countCurrent(); ++i) {
 			const auto row = delegate()->peerListRowAt(i);
 			if (static_cast<RecentRow*>(row.get())->refreshBadge()) {
 				delegate()->peerListUpdateRow(row);
@@ -660,7 +665,7 @@ void RecentsController::subscribeToEvents() {
 
 MyChannelsController::MyChannelsController(
 	not_null<Window::SessionController*> window)
-: ControllerWithPreviews(window) {
+: ObjectListController(window) {
 }
 
 void MyChannelsController::prepare() {
@@ -683,7 +688,7 @@ void MyChannelsController::prepare() {
 		if (row) {
 			delegate()->peerListRemoveRow(row);
 		}
-		_count = int(_channels.size());
+		setCount(_channels.size());
 		fill(true);
 	}, _lifetime);
 
@@ -704,7 +709,7 @@ void MyChannelsController::prepare() {
 	}
 
 	ranges::sort(_channels, ranges::greater(), &History::chatListTimeId);
-	_count = int(_channels.size());
+	setCount(_channels.size());
 
 	_expanded.value() | rpl::start_with_next([=] {
 		fill();
@@ -728,17 +733,17 @@ void MyChannelsController::prepare() {
 				}
 			}
 		}
-		const auto was = _count.current();
+		const auto was = countCurrent();
 		const auto now = int(_channels.size());
 		if (was != now) {
-			_count = now;
+			setCount(now);
 			fill();
 		}
 	}, _lifetime);
 }
 
 void MyChannelsController::fill(bool force) {
-	const auto count = _count.current();
+	const auto count = countCurrent();
 	const auto limit = _expanded.current()
 		? count
 		: std::min(count, kCollapsedChannelsCount);
@@ -772,7 +777,7 @@ void MyChannelsController::appendRow(not_null<ChannelData*> channel) {
 }
 
 void MyChannelsController::rowClicked(not_null<PeerListRow*> row) {
-	_chosen.fire(row->peer());
+	choose(row->peer());
 }
 
 base::unique_qptr<Ui::PopupMenu> MyChannelsController::rowContextMenu(
@@ -806,7 +811,7 @@ void MyChannelsController::setupDivider() {
 		raw,
 		tr::lng_channels_your_title(),
 		st::searchedBarLabel);
-	_count.value(
+	count(
 	) | rpl::map(
 		rpl::mappers::_1 > kCollapsedChannelsCount
 	) | rpl::distinct_until_changed() | rpl::start_with_next([=](bool more) {
@@ -865,7 +870,7 @@ void MyChannelsController::setupDivider() {
 
 RecommendationsController::RecommendationsController(
 	not_null<Window::SessionController*> window)
-: ControllerWithPreviews(window) {
+: ObjectListController(window) {
 }
 
 void RecommendationsController::prepare() {
@@ -874,7 +879,7 @@ void RecommendationsController::prepare() {
 }
 
 void RecommendationsController::load() {
-	if (_requested || _count.current()) {
+	if (_requested || countCurrent()) {
 		return;
 	}
 	_requested = true;
@@ -898,7 +903,7 @@ void RecommendationsController::fill() {
 		}
 	}
 	delegate()->peerListRefreshRows();
-	_count = delegate()->peerListFullRowsCount();
+	setCount(delegate()->peerListFullRowsCount());
 
 	window()->activeChatValue() | rpl::start_with_next([=](const Key &key) {
 		const auto history = key.history();
@@ -936,7 +941,7 @@ void RecommendationsController::appendRow(not_null<ChannelData*> channel) {
 }
 
 void RecommendationsController::rowClicked(not_null<PeerListRow*> row) {
-	_chosen.fire(row->peer());
+	choose(row->peer());
 }
 
 base::unique_qptr<Ui::PopupMenu> RecommendationsController::rowContextMenu(
@@ -972,8 +977,6 @@ void RecommendationsController::setupDivider() {
 	delegate()->peerListSetAboveWidget(std::move(result));
 }
 
-} // namespace
-
 Suggestions::Suggestions(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> controller,
@@ -990,13 +993,13 @@ Suggestions::Suggestions(
 		this,
 		object_ptr<TopPeersStrip>(this, std::move(topPeers)))))
 , _topPeers(_topPeersWrap->entity())
-, _recentPeers(_chatsContent->add(setupRecentPeers(std::move(recentPeers))))
+, _recent(setupRecentPeers(std::move(recentPeers)))
 , _emptyRecent(_chatsContent->add(setupEmptyRecent()))
 , _channelsScroll(std::make_unique<Ui::ElasticScroll>(this))
 , _channelsContent(
 	_channelsScroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
-, _myChannels(_channelsContent->add(setupMyChannels()))
-, _recommendations(_channelsContent->add(setupRecommendations()))
+, _myChannels(setupMyChannels())
+, _recommendations(setupRecommendations())
 , _emptyChannels(_channelsContent->add(setupEmptyChannels())) {
 
 	setupTabs();
@@ -1032,10 +1035,10 @@ void Suggestions::setupTabs() {
 }
 
 void Suggestions::setupChats() {
-	_recentCount.value() | rpl::start_with_next([=](int count) {
-		_recentPeers->toggle(count > 0, anim::type::instant);
+	_recent->count.value() | rpl::start_with_next([=](int count) {
+		_recent->wrap->toggle(count > 0, anim::type::instant);
 		_emptyRecent->toggle(count == 0, anim::type::instant);
-	}, _recentPeers->lifetime());
+	}, _recent->wrap->lifetime());
 
 	_topPeers->emptyValue() | rpl::start_with_next([=](bool empty) {
 		_topPeersWrap->toggle(!empty, anim::type::instant);
@@ -1097,7 +1100,7 @@ void Suggestions::setupChats() {
 	}, _topPeers->lifetime());
 
 	_chatsScroll->setVisible(_tab.current() == Tab::Chats);
-	_chatsScroll->setCustomTouchProcess(_recentProcessTouch);
+	_chatsScroll->setCustomTouchProcess(_recent->processTouch);
 }
 
 void Suggestions::handlePressForChatPreview(
@@ -1115,25 +1118,25 @@ void Suggestions::handlePressForChatPreview(
 }
 
 void Suggestions::setupChannels() {
-	_myChannelsCount.value() | rpl::start_with_next([=](int count) {
-		_myChannels->toggle(count > 0, anim::type::instant);
-	}, _myChannels->lifetime());
+	_myChannels->count.value() | rpl::start_with_next([=](int count) {
+		_myChannels->wrap->toggle(count > 0, anim::type::instant);
+	}, _myChannels->wrap->lifetime());
 
-	_recommendationsCount.value() | rpl::start_with_next([=](int count) {
-		_recommendations->toggle(count > 0, anim::type::instant);
-	}, _recommendations->lifetime());
+	_recommendations->count.value() | rpl::start_with_next([=](int count) {
+		_recommendations->wrap->toggle(count > 0, anim::type::instant);
+	}, _recommendations->wrap->lifetime());
 
 	_emptyChannels->toggleOn(
 		rpl::combine(
-			_myChannelsCount.value(),
-			_recommendationsCount.value(),
+			_myChannels->count.value(),
+			_recommendations->count.value(),
 			rpl::mappers::_1 + rpl::mappers::_2 == 0),
 		anim::type::instant);
 
 	_channelsScroll->setVisible(_tab.current() == Tab::Channels);
 	_channelsScroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
-		const auto myChannels = _myChannelsProcessTouch(e);
-		const auto recommendations = _recommendationsProcessTouch(e);
+		const auto myChannels = _myChannels->processTouch(e);
+		const auto recommendations = _recommendations->processTouch(e);
 		return myChannels || recommendations;
 	});
 }
@@ -1148,26 +1151,27 @@ void Suggestions::selectJump(Qt::Key direction, int pageSize) {
 
 void Suggestions::selectJumpChats(Qt::Key direction, int pageSize) {
 	const auto recentHasSelection = [=] {
-		return _recentSelectJump({}, 0) == JumpResult::Applied;
+		return _recent->selectJump({}, 0) == JumpResult::Applied;
 	};
 	if (pageSize) {
 		if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
 			_topPeers->deselectByKeyboard();
 			if (!recentHasSelection()) {
 				if (direction == Qt::Key_Down) {
-					_recentSelectJump(direction, 0);
+					_recent->selectJump(direction, 0);
 				} else {
 					return;
 				}
 			}
-			if (_recentSelectJump(direction, pageSize) == JumpResult::AppliedAndOut) {
+			if (_recent->selectJump(direction, pageSize)
+				== JumpResult::AppliedAndOut) {
 				if (direction == Qt::Key_Up) {
 					_chatsScroll->scrollTo(0);
 				}
 			}
 		}
 	} else if (direction == Qt::Key_Up) {
-		if (_recentSelectJump(direction, pageSize)
+		if (_recent->selectJump(direction, pageSize)
 			== JumpResult::AppliedAndOut) {
 			_topPeers->selectByKeyboard(direction);
 		} else if (_topPeers->selectedByKeyboard()) {
@@ -1175,12 +1179,12 @@ void Suggestions::selectJumpChats(Qt::Key direction, int pageSize) {
 		}
 	} else if (direction == Qt::Key_Down) {
 		if (!_topPeersWrap->toggled() || recentHasSelection()) {
-			_recentSelectJump(direction, pageSize);
+			_recent->selectJump(direction, pageSize);
 		} else if (_topPeers->selectedByKeyboard()) {
 			if (!_topPeers->selectByKeyboard(direction)
-				&& _recentCount.current() > 0) {
+				&& _recent->count.current() > 0) {
 				_topPeers->deselectByKeyboard();
-				_recentSelectJump(direction, pageSize);
+				_recent->selectJump(direction, pageSize);
 			}
 		} else {
 			_topPeers->selectByKeyboard({});
@@ -1195,62 +1199,62 @@ void Suggestions::selectJumpChats(Qt::Key direction, int pageSize) {
 
 void Suggestions::selectJumpChannels(Qt::Key direction, int pageSize) {
 	const auto myChannelsHasSelection = [=] {
-		return _myChannelsSelectJump({}, 0) == JumpResult::Applied;
+		return _myChannels->selectJump({}, 0) == JumpResult::Applied;
 	};
 	const auto recommendationsHasSelection = [=] {
-		return _recommendationsSelectJump({}, 0) == JumpResult::Applied;
+		return _recommendations->selectJump({}, 0) == JumpResult::Applied;
 	};
 	if (pageSize) {
 		if (direction == Qt::Key_Down) {
 			if (recommendationsHasSelection()) {
-				_recommendationsSelectJump(direction, pageSize);
+				_recommendations->selectJump(direction, pageSize);
 			} else if (myChannelsHasSelection()) {
-				if (_myChannelsSelectJump(direction, pageSize)
+				if (_myChannels->selectJump(direction, pageSize)
 					== JumpResult::AppliedAndOut) {
-					_recommendationsSelectJump(direction, 0);
+					_recommendations->selectJump(direction, 0);
 				}
-			} else if (_myChannelsCount.current()) {
-				_myChannelsSelectJump(direction, 0);
-				_myChannelsSelectJump(direction, pageSize);
-			} else if (_recommendationsCount.current()) {
-				_recommendationsSelectJump(direction, 0);
-				_recommendationsSelectJump(direction, pageSize);
+			} else if (_myChannels->count.current()) {
+				_myChannels->selectJump(direction, 0);
+				_myChannels->selectJump(direction, pageSize);
+			} else if (_recommendations->count.current()) {
+				_recommendations->selectJump(direction, 0);
+				_recommendations->selectJump(direction, pageSize);
 			}
 		} else if (direction == Qt::Key_Up) {
 			if (myChannelsHasSelection()) {
-				if (_myChannelsSelectJump(direction, pageSize)
+				if (_myChannels->selectJump(direction, pageSize)
 					== JumpResult::AppliedAndOut) {
 					_channelsScroll->scrollTo(0);
 				}
 			} else if (recommendationsHasSelection()) {
-				if (_recommendationsSelectJump(direction, pageSize)
+				if (_recommendations->selectJump(direction, pageSize)
 					== JumpResult::AppliedAndOut) {
-					_myChannelsSelectJump(direction, -1);
+					_myChannels->selectJump(direction, -1);
 				}
 			}
 		}
 	} else if (direction == Qt::Key_Up) {
 		if (myChannelsHasSelection()) {
-			_myChannelsSelectJump(direction, 0);
-		} else if (_recommendationsSelectJump(direction, 0)
+			_myChannels->selectJump(direction, 0);
+		} else if (_recommendations->selectJump(direction, 0)
 			== JumpResult::AppliedAndOut) {
-			_myChannelsSelectJump(direction, -1);
+			_myChannels->selectJump(direction, -1);
 		} else if (!recommendationsHasSelection()) {
-			if (_myChannelsSelectJump(direction, 0)
+			if (_myChannels->selectJump(direction, 0)
 				== JumpResult::AppliedAndOut) {
 				_channelsScroll->scrollTo(0);
 			}
 		}
 	} else if (direction == Qt::Key_Down) {
 		if (recommendationsHasSelection()) {
-			_recommendationsSelectJump(direction, 0);
-		} else if (_myChannelsSelectJump(direction, 0)
+			_recommendations->selectJump(direction, 0);
+		} else if (_myChannels->selectJump(direction, 0)
 			== JumpResult::AppliedAndOut) {
-			_recommendationsSelectJump(direction, 0);
+			_recommendations->selectJump(direction, 0);
 		} else if (!myChannelsHasSelection()) {
-			if (_recommendationsSelectJump(direction, 0)
+			if (_recommendations->selectJump(direction, 0)
 				== JumpResult::AppliedAndOut) {
-				_myChannelsSelectJump(direction, 0);
+				_myChannels->selectJump(direction, 0);
 			}
 		}
 	}
@@ -1258,7 +1262,7 @@ void Suggestions::selectJumpChannels(Qt::Key direction, int pageSize) {
 
 void Suggestions::chooseRow() {
 	if (!_topPeers->chooseRow()) {
-		_recentPeersChoose();
+		_recent->choose();
 	}
 }
 
@@ -1272,14 +1276,14 @@ Data::Thread *Suggestions::updateFromChatsDrag(QPoint globalPosition) {
 	if (const auto top = _topPeers->updateFromParentDrag(globalPosition)) {
 		return _controller->session().data().history(PeerId(top));
 	}
-	return fromListId(_recentUpdateFromParentDrag(globalPosition));
+	return fromListId(_recent->updateFromParentDrag(globalPosition));
 }
 
 Data::Thread *Suggestions::updateFromChannelsDrag(QPoint globalPosition) {
-	if (const auto id = _myChannelsUpdateFromParentDrag(globalPosition)) {
+	if (const auto id = _myChannels->updateFromParentDrag(globalPosition)) {
 		return fromListId(id);
 	}
-	return fromListId(_recommendationsUpdateFromParentDrag(globalPosition));
+	return fromListId(_recommendations->updateFromParentDrag(globalPosition));
 }
 
 Data::Thread *Suggestions::fromListId(uint64 peerListRowId) {
@@ -1290,9 +1294,9 @@ Data::Thread *Suggestions::fromListId(uint64 peerListRowId) {
 
 void Suggestions::dragLeft() {
 	_topPeers->dragLeft();
-	_recentDragLeft();
-	_myChannelsDragLeft();
-	_recommendationsDragLeft();
+	_recent->dragLeft();
+	_myChannels->dragLeft();
+	_recommendations->dragLeft();
 }
 
 void Suggestions::show(anim::type animated, Fn<void()> finish) {
@@ -1432,36 +1436,25 @@ void Suggestions::resizeEvent(QResizeEvent *e) {
 	_channelsContent->resizeToWidth(w);
 }
 
-object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
-		RecentPeersList recentPeers) {
-	auto &lifetime = _chatsContent->lifetime();
-	const auto delegate = lifetime.make_state<
-		PeerListContentDelegateSimple
-	>();
-	const auto controller = lifetime.make_state<RecentsController>(
+auto Suggestions::setupRecentPeers(RecentPeersList recentPeers)
+-> std::unique_ptr<ObjectList> {
+	const auto controller = lifetime().make_state<RecentsController>(
 		_controller,
 		std::move(recentPeers));
-	controller->setStyleOverrides(&st::recentPeersList);
 
-	_recentCount = controller->count();
-	_recentProcessTouch = [=](not_null<QTouchEvent*> e) {
-		return controller->processTouchEvent(e);
+	const auto addToScroll = [=] {
+		return _topPeersWrap->toggled() ? _topPeers->height() : 0;
 	};
+	auto result = setupObjectList(
+		_chatsScroll.get(),
+		_chatsContent,
+		controller,
+		addToScroll);
+	const auto raw = result.get();
+	const auto list = raw->wrap->entity();
 
-	controller->chosen(
-	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
-		_controller->session().recentPeers().bump(peer);
-		_recentPeerChosen.fire_copy(peer);
-	}, lifetime);
-
-	auto content = object_ptr<PeerListContent>(_chatsContent, controller);
-
-	const auto raw = content.data();
-	_recentPeersChoose = [=] {
-		return raw->submitted();
-	};
-	_recentSelectJump = [raw](Qt::Key direction, int pageSize) {
-		const auto had = raw->hasSelection();
+	raw->selectJump = [list](Qt::Key direction, int pageSize) {
+		const auto had = list->hasSelection();
 		if (direction == Qt::Key()) {
 			return had ? JumpResult::Applied : JumpResult::NotApplied;
 		} else if (direction == Qt::Key_Up && !had) {
@@ -1469,11 +1462,11 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
 			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
 			if (pageSize > 0) {
-				raw->selectSkipPage(pageSize, delta);
+				list->selectSkipPage(pageSize, delta);
 			} else {
-				raw->selectSkip(delta);
+				list->selectSkip(delta);
 			}
-			return raw->hasSelection()
+			return list->hasSelection()
 				? JumpResult::Applied
 				: had
 				? JumpResult::AppliedAndOut
@@ -1481,28 +1474,180 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupRecentPeers(
 		}
 		return JumpResult::NotApplied;
 	};
-	_recentUpdateFromParentDrag = [=](QPoint globalPosition) {
-		return raw->updateFromParentDrag(globalPosition);
-	};
-	_recentDragLeft = [=] {
-		raw->dragLeft();
-	};
-	raw->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-		const auto add = _topPeersWrap->toggled() ? _topPeers->height() : 0;
-		_chatsScroll->scrollToY(request.ymin + add, request.ymax + add);
-	}, lifetime);
 
-	delegate->setContent(raw);
-	controller->setDelegate(delegate);
-	controller->setupTouchChatPreview(_chatsScroll.get());
+	raw->chosen.events(
+	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		_controller->session().recentPeers().bump(peer);
+	}, list->lifetime());
 
-	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
+	return result;
 }
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmptyRecent() {
 	const auto icon = SearchEmptyIcon::Search;
 	return setupEmpty(_chatsContent, icon, tr::lng_recent_none());
+}
+
+auto Suggestions::setupMyChannels() -> std::unique_ptr<ObjectList> {
+	const auto controller = lifetime().make_state<MyChannelsController>(
+		_controller);
+
+	auto result = setupObjectList(
+		_channelsScroll.get(),
+		_channelsContent,
+		controller);
+	const auto raw = result.get();
+	const auto list = raw->wrap->entity();
+
+	raw->selectJump = [=](Qt::Key direction, int pageSize) {
+		const auto had = list->hasSelection();
+		if (direction == Qt::Key()) {
+			return had ? JumpResult::Applied : JumpResult::NotApplied;
+		} else if (direction == Qt::Key_Up && !had) {
+			if (pageSize < 0) {
+				list->selectLast();
+				return list->hasSelection()
+					? JumpResult::Applied
+					: JumpResult::NotApplied;
+			}
+			return JumpResult::NotApplied;
+		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
+			const auto was = list->selectedIndex();
+			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
+			if (pageSize > 0) {
+				list->selectSkipPage(pageSize, delta);
+			} else {
+				list->selectSkip(delta);
+			}
+			if (had
+				&& delta > 0
+				&& raw->count.current()
+				&& list->selectedIndex() == was) {
+				list->clearSelection();
+				return JumpResult::AppliedAndOut;
+			}
+			return list->hasSelection()
+				? JumpResult::Applied
+				: had
+				? JumpResult::AppliedAndOut
+				: JumpResult::NotApplied;
+		}
+		return JumpResult::NotApplied;
+	};
+
+	raw->chosen.events(
+	) | rpl::start_with_next([=] {
+		_persist = false;
+	}, list->lifetime());
+
+	return result;
+}
+
+auto Suggestions::setupRecommendations() -> std::unique_ptr<ObjectList> {
+	const auto controller = lifetime().make_state<RecommendationsController>(
+		_controller);
+
+	const auto addToScroll = [=] {
+		const auto wrap = _myChannels->wrap;
+		return wrap->toggled() ? wrap->height() : 0;
+	};
+	auto result = setupObjectList(
+		_channelsScroll.get(),
+		_channelsContent,
+		controller,
+		addToScroll);
+	const auto raw = result.get();
+	const auto list = raw->wrap->entity();
+
+	raw->selectJump = [list](Qt::Key direction, int pageSize) {
+		const auto had = list->hasSelection();
+		if (direction == Qt::Key()) {
+			return had ? JumpResult::Applied : JumpResult::NotApplied;
+		} else if (direction == Qt::Key_Up && !had) {
+			return JumpResult::NotApplied;
+		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
+			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
+			if (pageSize > 0) {
+				list->selectSkipPage(pageSize, delta);
+			} else {
+				list->selectSkip(delta);
+			}
+			return list->hasSelection()
+				? JumpResult::Applied
+				: had
+				? JumpResult::AppliedAndOut
+				: JumpResult::NotApplied;
+		}
+		return JumpResult::NotApplied;
+	};
+
+	raw->chosen.events(
+	) | rpl::start_with_next([=] {
+		_persist = true;
+	}, list->lifetime());
+
+	_tab.value() | rpl::filter(
+		rpl::mappers::_1 == Tab::Channels
+	) | rpl::start_with_next([=] {
+		controller->load();
+	}, list->lifetime());
+
+	return result;
+}
+
+auto Suggestions::setupObjectList(
+	not_null<Ui::ElasticScroll*> scroll,
+	not_null<Ui::VerticalLayout*> parent,
+	not_null<ObjectListController*> controller,
+	Fn<int()> addToScroll)
+-> std::unique_ptr<ObjectList> {
+	auto &lifetime = parent->lifetime();
+	const auto delegate = lifetime.make_state<
+		PeerListContentDelegateSimple
+	>();
+	controller->setStyleOverrides(&st::recentPeersList);
+
+	auto content = object_ptr<PeerListContent>(parent, controller);
+	const auto list = content.data();
+
+	auto result = std::make_unique<ObjectList>(ObjectList{
+		.wrap = parent->add(object_ptr<Ui::SlideWrap<PeerListContent>>(
+			parent,
+			std::move(content))),
+	});
+	const auto raw = result.get();
+
+	raw->count = controller->count();
+	raw->processTouch = [=](not_null<QTouchEvent*> e) {
+		return controller->processTouchEvent(e);
+	};
+
+	controller->chosen(
+	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		raw->chosen.fire_copy(peer);
+	}, lifetime);
+
+	raw->choose = [=] {
+		return list->submitted();
+	};
+	raw->updateFromParentDrag = [=](QPoint globalPosition) {
+		return list->updateFromParentDrag(globalPosition);
+	};
+	raw->dragLeft = [=] {
+		list->dragLeft();
+	};
+
+	list->scrollToRequests(
+	) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+		const auto add = addToScroll ? addToScroll() : 0;
+		scroll->scrollToY(request.ymin + add, request.ymax + add);
+	}, list->lifetime());
+
+	delegate->setContent(list);
+	controller->setDelegate(delegate);
+	controller->setupTouchChatPreview(scroll);
+
+	return result;
 }
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmptyChannels() {
@@ -1539,157 +1684,6 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupEmpty(
 	}, raw->lifetime());
 
 	return result;
-}
-
-object_ptr<Ui::SlideWrap<>> Suggestions::setupMyChannels() {
-	auto &lifetime = _channelsContent->lifetime();
-	const auto delegate = lifetime.make_state<
-		PeerListContentDelegateSimple
-	>();
-	const auto controller = lifetime.make_state<MyChannelsController>(
-		_controller);
-	controller->setStyleOverrides(&st::recentPeersList);
-
-	_myChannelsCount = controller->count();
-	_myChannelsProcessTouch = [=](not_null<QTouchEvent*> e) {
-		return controller->processTouchEvent(e);
-	};
-
-	controller->chosen(
-	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
-		_persist = false;
-		_myChannelChosen.fire_copy(peer);
-	}, lifetime);
-
-	auto content = object_ptr<PeerListContent>(_channelsContent, controller);
-
-	const auto raw = content.data();
-	_myChannelsChoose = [=] {
-		return raw->submitted();
-	};
-	_myChannelsSelectJump = [=](Qt::Key direction, int pageSize) {
-		const auto had = raw->hasSelection();
-		if (direction == Qt::Key()) {
-			return had ? JumpResult::Applied : JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Up && !had) {
-			if (pageSize < 0) {
-				raw->selectLast();
-				return raw->hasSelection()
-					? JumpResult::Applied
-					: JumpResult::NotApplied;
-			}
-			return JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
-			const auto was = raw->selectedIndex();
-			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
-			if (pageSize > 0) {
-				raw->selectSkipPage(pageSize, delta);
-			} else {
-				raw->selectSkip(delta);
-			}
-			if (had
-				&& delta > 0
-				&& _recommendationsCount.current()
-				&& raw->selectedIndex() == was) {
-				raw->clearSelection();
-				return JumpResult::AppliedAndOut;
-			}
-			return raw->hasSelection()
-				? JumpResult::Applied
-				: had
-				? JumpResult::AppliedAndOut
-				: JumpResult::NotApplied;
-		}
-		return JumpResult::NotApplied;
-	};
-	_myChannelsUpdateFromParentDrag = [=](QPoint globalPosition) {
-		return raw->updateFromParentDrag(globalPosition);
-	};
-	_myChannelsDragLeft = [=] {
-		raw->dragLeft();
-	};
-	raw->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-		_channelsScroll->scrollToY(request.ymin, request.ymax);
-	}, lifetime);
-
-	delegate->setContent(raw);
-	controller->setDelegate(delegate);
-	controller->setupTouchChatPreview(_channelsScroll.get());
-
-	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
-}
-
-object_ptr<Ui::SlideWrap<>> Suggestions::setupRecommendations() {
-	auto &lifetime = _channelsContent->lifetime();
-	const auto delegate = lifetime.make_state<
-		PeerListContentDelegateSimple
-	>();
-	const auto controller = lifetime.make_state<RecommendationsController>(
-		_controller);
-	controller->setStyleOverrides(&st::recentPeersList);
-
-	_recommendationsCount = controller->count();
-	_recommendationsProcessTouch = [=](not_null<QTouchEvent*> e) {
-		return controller->processTouchEvent(e);
-	};
-
-	_tab.value() | rpl::filter(
-		rpl::mappers::_1 == Tab::Channels
-	) | rpl::start_with_next([=] {
-		controller->load();
-	}, lifetime);
-
-	controller->chosen(
-	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
-		_persist = true;
-		_recommendationChosen.fire_copy(peer);
-	}, lifetime);
-
-	auto content = object_ptr<PeerListContent>(_channelsContent, controller);
-
-	const auto raw = content.data();
-	_recommendationsChoose = [=] {
-		return raw->submitted();
-	};
-	_recommendationsSelectJump = [raw](Qt::Key direction, int pageSize) {
-		const auto had = raw->hasSelection();
-		if (direction == Qt::Key()) {
-			return had ? JumpResult::Applied : JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Up && !had) {
-			return JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
-			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
-			if (pageSize > 0) {
-				raw->selectSkipPage(pageSize, delta);
-			} else {
-				raw->selectSkip(delta);
-			}
-			return raw->hasSelection()
-				? JumpResult::Applied
-				: had
-				? JumpResult::AppliedAndOut
-				: JumpResult::NotApplied;
-		}
-		return JumpResult::NotApplied;
-	};
-	_recommendationsUpdateFromParentDrag = [=](QPoint globalPosition) {
-		return raw->updateFromParentDrag(globalPosition);
-	};
-	_recommendationsDragLeft = [=] {
-		raw->dragLeft();
-	};
-	raw->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-		const auto add = _myChannels->toggled() ? _myChannels->height() : 0;
-		_channelsScroll->scrollToY(request.ymin + add, request.ymax + add);
-	}, lifetime);
-
-	delegate->setContent(raw);
-	controller->setDelegate(delegate);
-	controller->setupTouchChatPreview(_channelsScroll.get());
-
-	return object_ptr<Ui::SlideWrap<>>(this, std::move(content));
 }
 
 bool Suggestions::persist() const {
