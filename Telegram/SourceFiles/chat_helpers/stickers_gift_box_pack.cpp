@@ -22,6 +22,16 @@ GiftBoxPack::GiftBoxPack(not_null<Main::Session*> session)
 
 GiftBoxPack::~GiftBoxPack() = default;
 
+int GiftBoxPack::monthsForStars(int stars) const {
+	if (stars <= 1000) {
+		return 3;
+	} else if (stars < 2500) {
+		return 6;
+	} else {
+		return 12;
+	}
+}
+
 DocumentData *GiftBoxPack::lookup(int months) const {
 	const auto it = ranges::lower_bound(_localMonths, months);
 	const auto fallback = _documents.empty() ? nullptr : _documents[0];

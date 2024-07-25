@@ -25,6 +25,7 @@ public:
 	~GiftBoxPack();
 
 	void load();
+	[[nodiscard]] int monthsForStars(int stars) const;
 	[[nodiscard]] DocumentData *lookup(int months) const;
 	[[nodiscard]] Data::FileOrigin origin() const;
 

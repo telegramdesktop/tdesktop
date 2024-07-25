@@ -185,8 +185,9 @@ void PremiumGift::ensureStickerCreated() const {
 		return;
 	}
 	const auto &session = _parent->history()->session();
-	const auto months = stars() ? 1 : _data.count;
 	auto &packs = session.giftBoxStickersPacks();
+	const auto count = stars();
+	const auto months = count ? packs.monthsForStars(count) : _data.count;
 	if (const auto document = packs.lookup(months)) {
 		if (const auto sticker = document->sticker()) {
 			const auto skipPremiumEffect = false;
