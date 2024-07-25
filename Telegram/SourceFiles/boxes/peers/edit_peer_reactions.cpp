@@ -911,7 +911,8 @@ void SaveAllowedReactions(
 		allowed.maxCount ? MTP_flags(Flag::f_reactions_limit) : MTP_flags(0),
 		peer->input,
 		updated,
-		MTP_int(allowed.maxCount)
+		MTP_int(allowed.maxCount),
+		MTPbool() // paid_enabled
 	)).done([=](const MTPUpdates &result) {
 		peer->session().api().applyUpdates(result);
 		auto parsed = Data::Parse(updated);

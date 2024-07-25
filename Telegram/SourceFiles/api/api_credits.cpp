@@ -109,14 +109,19 @@ constexpr auto kTransactionsLimit = 100;
 [[nodiscard]] Data::CreditsStatusSlice StatusFromTL(
 		const MTPpayments_StarsStatus &status,
 		not_null<PeerData*> peer) {
-	peer->owner().processUsers(status.data().vusers());
-	peer->owner().processChats(status.data().vchats());
-	return Data::CreditsStatusSlice{
-		.list = ranges::views::all(
-			status.data().vhistory().v
+	const auto &data = status.data();
+	peer->owner().processUsers(data.vusers());
+	peer->owner().processChats(data.vchats());
+	auto list = std::vector<Data::CreditsHistoryEntry>();
+	if (const auto history = data.vhistory()) {
+		list = ranges::views::all(
+			history->v
 		) | ranges::views::transform([&](const MTPStarsTransaction &tl) {
 			return HistoryFromTL(tl, peer);
-		}) | ranges::to_vector,
+		}) | ranges::to_vector;
+	}
+	return Data::CreditsStatusSlice{
+		.list = std::move(list),
 		.balance = status.data().vbalance().v,
 		.allLoaded = !status.data().vnext_offset().has_value(),
 		.token = qs(status.data().vnext_offset().value_or_empty()),
@@ -220,6 +225,7 @@ void CreditsHistory::request(
 	}
 	_requestId = _api.request(MTPpayments_GetStarsTransactions(
 		MTP_flags(_flags),
+		MTPstring(), // subscription_id
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input,
 		MTP_string(token),
 		MTP_int(kTransactionsLimit)

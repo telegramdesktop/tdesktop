@@ -120,7 +120,8 @@ void InviteLinks::performCreate(
 		peer->input,
 		MTP_int(expireDate),
 		MTP_int(usageLimit),
-		MTP_string(label)
+		MTP_string(label),
+		MTPStarsSubscriptionPricing()
 	)).done([=](const MTPExportedChatInvite &result) {
 		const auto callbacks = _createCallbacks.take(peer);
 		const auto link = prepend(peer, peer->session().user(), result);

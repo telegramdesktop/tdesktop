@@ -68,6 +68,7 @@ enum class ChannelDataFlag : uint64 {
 	CanViewRevenue = (1ULL << 32),
 	PaidMediaAllowed = (1ULL << 33),
 	CanViewCreditsRevenue = (1ULL << 34),
+	SignatureProfiles = (1ULL << 35),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -230,6 +231,9 @@ public:
 	}
 	[[nodiscard]] bool addsSignature() const {
 		return flags() & Flag::Signatures;
+	}
+	[[nodiscard]] bool signatureProfiles() const {
+		return flags() & Flag::SignatureProfiles;
 	}
 	[[nodiscard]] bool isForbidden() const {
 		return flags() & Flag::Forbidden;

@@ -271,6 +271,8 @@ void Config::apply(const MTPDconfig &data) {
 			_fields.reactionDefaultEmoji = qs(data.vemoticon());
 		}, [&](const MTPDreactionCustomEmoji &data) {
 			_fields.reactionDefaultCustom = data.vdocument_id().v;
+		}, [&](const MTPDreactionPaid &data) {
+			_fields.reactionDefaultEmoji = QString(QChar('*'));
 		});
 	}
 	_fields.autologinToken = qs(data.vautologin_token().value_or_empty());

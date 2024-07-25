@@ -56,17 +56,21 @@ ReactionId ReactionFromMTP(const MTPReaction &reaction) {
 		return ReactionId{ qs(data.vemoticon()) };
 	}, [](const MTPDreactionCustomEmoji &data) {
 		return ReactionId{ DocumentId(data.vdocument_id().v) };
+	}, [](const MTPDreactionPaid &) {
+		return ReactionId::Paid();
 	});
 }
 
 MTPReaction ReactionToMTP(ReactionId id) {
-	if (const auto custom = id.custom()) {
+	if (!id) {
+		return MTP_reactionEmpty();
+	} else if (id.paid()) {
+		return MTP_reactionPaid();
+	} else if (const auto custom = id.custom()) {
 		return MTP_reactionCustomEmoji(MTP_long(custom));
+	} else {
+		return MTP_reactionEmoji(MTP_string(id.emoji()));
 	}
-	const auto emoji = id.emoji();
-	return emoji.isEmpty()
-		? MTP_reactionEmpty()
-		: MTP_reactionEmoji(MTP_string(emoji));
 }
 
 } // namespace Data

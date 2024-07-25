@@ -318,6 +318,7 @@ private:
 		std::optional<bool> hiddenPreHistory;
 		std::optional<bool> forum;
 		std::optional<bool> signatures;
+		std::optional<bool> signatureProfiles;
 		std::optional<bool> noForwards;
 		std::optional<bool> joinToWrite;
 		std::optional<bool> requestToJoin;
@@ -408,6 +409,7 @@ private:
 	std::optional<EditPeerTypeData> _typeDataSavedValue;
 	std::optional<bool> _forumSavedValue;
 	std::optional<bool> _signaturesSavedValue;
+	std::optional<bool> _signatureProfilesSavedValue;
 
 	const not_null<Window::SessionNavigation*> _navigation;
 	const not_null<Ui::BoxContent*> _box;
@@ -1066,6 +1068,8 @@ void Controller::fillSignaturesButton() {
 	) | rpl::start_with_next([=](bool toggled) {
 		_signaturesSavedValue = toggled;
 	}, _controls.buttonsLayout->lifetime());
+
+	_signatureProfilesSavedValue = channel->signatureProfiles();
 }
 
 void Controller::fillHistoryVisibilityButton() {
@@ -1783,10 +1787,14 @@ bool Controller::validateForum(Saving &to) const {
 }
 
 bool Controller::validateSignatures(Saving &to) const {
+	Expects(_signaturesSavedValue.has_value()
+		== _signatureProfilesSavedValue.has_value());
+
 	if (!_signaturesSavedValue.has_value()) {
 		return true;
 	}
 	to.signatures = _signaturesSavedValue;
+	to.signatureProfiles = _signatureProfilesSavedValue;
 	return true;
 }
 
@@ -2219,15 +2227,27 @@ void Controller::saveForum() {
 }
 
 void Controller::saveSignatures() {
+	Expects(_savingData.signatures.has_value()
+		== _savingData.signatureProfiles.has_value());
+
 	const auto channel = _peer->asChannel();
 	if (!_savingData.signatures
 		|| !channel
-		|| *_savingData.signatures == channel->addsSignature()) {
+		|| ((*_savingData.signatures == channel->addsSignature())
+			&& (*_savingData.signatureProfiles
+				== channel->signatureProfiles()))) {
 		return continueSave();
 	}
+	using Flag = MTPchannels_ToggleSignatures::Flag;
 	_api.request(MTPchannels_ToggleSignatures(
-		channel->inputChannel,
-		MTP_bool(*_savingData.signatures)
+		MTP_flags(Flag()
+			| (*_savingData.signatures
+				? Flag::f_signatures_enabled
+				: Flag())
+			| (*_savingData.signatureProfiles
+				? Flag::f_profiles_enabled
+				: Flag())),
+		channel->inputChannel
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		continueSave();
