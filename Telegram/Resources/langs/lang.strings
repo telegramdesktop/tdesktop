@@ -2929,6 +2929,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_masks_has_been_archived" = "Mask pack has been archived.";
 "lng_masks_installed" = "Mask pack has been installed.";
 "lng_emoji_nothing_found" = "No emoji found";
+"lng_stickers_context_edit_name" = "Edit name";
+"lng_stickers_box_edit_name_title" = "Edit Sticker Set Name";
+"lng_stickers_box_edit_name_about" = "Choose a name for your set.";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_album" = "Album";

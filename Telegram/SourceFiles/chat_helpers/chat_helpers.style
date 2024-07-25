@@ -1409,6 +1409,11 @@ editTagLimit: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 
+editStickerSetNameField: InputField(defaultInputField) {
+	textMargins: margins(0px, 28px, 26px, 4px);
+	heightMax: 55px;
+}
+
 paidStarIcon: icon {{ "settings/premium/star", creditsBg1 }};
 paidStarIconTop: 7px;
 paidAmountAbout: FlatLabel(defaultFlatLabel) {

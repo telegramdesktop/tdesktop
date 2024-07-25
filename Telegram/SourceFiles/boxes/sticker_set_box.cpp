@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/gradient_round_button.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/image/image.h"
 #include "ui/image/image_location_factory.h"
 #include "ui/text/text_utilities.h"
@@ -271,6 +272,10 @@ public:
 			: Data::StickersType::Stickers;
 	}
 
+	[[nodiscard]] bool amSetCreator() const {
+		return _amSetCreator;
+	}
+
 	~Inner();
 
 protected:
@@ -366,6 +371,7 @@ private:
 	TimeId _setInstallDate = TimeId(0);
 	StickerType _setThumbnailType = StickerType::Webp;
 	ImageWithLocation _setThumbnail;
+	bool _amSetCreator = false;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	mutable StickerPremiumMark _premiumMark;
@@ -538,6 +544,70 @@ void StickerSetBox::updateTitleAndButtons() {
 	updateButtons();
 }
 
+void ChangeSetNameBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Data::Session*> data,
+		const StickerSetIdentifier &input) {
+	box->setTitle(tr::lng_stickers_box_edit_name_title());
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_stickers_box_edit_name_about(),
+			st::boxLabel));
+
+	const auto wasName = [&] {
+		const auto &sets = data->stickers().sets();
+		const auto it = sets.find(input.id);
+		return (it == sets.end()) ? QString() : it->second->title;
+	}();
+	const auto wrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
+		box,
+		st::editStickerSetNameField.heightMin));
+	auto owned = object_ptr<Ui::InputField>(
+		wrap,
+		st::editStickerSetNameField,
+		tr::lng_stickers_context_edit_name(),
+		wasName);
+	const auto field = owned.data();
+	wrap->widthValue() | rpl::start_with_next([=](int width) {
+		field->move(0, 0);
+		field->resize(width, field->height());
+		wrap->resize(width, field->height());
+	}, wrap->lifetime());
+	field->selectAll();
+	constexpr auto kMaxSetNameLength = 50;
+	field->setMaxLength(kMaxSetNameLength);
+	Ui::AddLengthLimitLabel(field, kMaxSetNameLength, kMaxSetNameLength + 1);
+	box->setFocusCallback([=] { field->setFocusFast(); });
+	const auto close = crl::guard(box, [=] { box->closeBox(); });
+	const auto save = [=, show = box->uiShow()] {
+		const auto text = field->getLastText().trimmed();
+		if ((Ui::ComputeRealUnicodeCharactersCount(text) > kMaxSetNameLength)
+			|| text.isEmpty()) {
+			field->showError();
+			return;
+		}
+		data->session().api().request(
+			MTPstickers_RenameStickerSet(
+				Data::InputStickerSet(input),
+				MTP_string(text))
+		).done([=](const MTPmessages_StickerSet &result) {
+			result.match([&](const MTPDmessages_stickerSet &d) {
+				data->stickers().feedSetFull(d);
+				data->stickers().notifyUpdated(Data::StickersType::Stickers);
+			}, [](const auto &) {
+			});
+			close();
+		}).fail([=](const MTP::Error &error) {
+			show->showToast(error.type());
+			close();
+		}).send();
+	};
+
+	box->addButton(tr::lng_box_done(), save);
+	box->addButton(tr::lng_cancel(), close);
+}
+
 void StickerSetBox::updateButtons() {
 	clearButtons();
 	if (_inner->loaded()) {
@@ -548,6 +618,20 @@ void StickerSetBox::updateButtons() {
 					? tr::lng_stickers_copied_emoji(tr::now)
 					: tr::lng_stickers_copied(tr::now));
 		};
+		const auto fillSetCreatorMenu = [&] {
+			using Filler = Fn<void(not_null<Ui::PopupMenu*>)>;
+			if (!_inner->amSetCreator()) {
+				return Filler(nullptr);
+			}
+			const auto data = &_session->data();
+			return Filler([=, show = _show, set = _set](
+					not_null<Ui::PopupMenu*> menu) {
+				menu->addAction(
+					tr::lng_stickers_context_edit_name(tr::now),
+					[=] { show->showBox(Box(ChangeSetNameBox, data, set)); },
+					&st::menuIconEdit);
+			});
+		}();
 		if (_inner->notInstalled()) {
 			if (!_session->premium()
 				&& _session->premiumPossible()
@@ -586,6 +670,9 @@ void StickerSetBox::updateButtons() {
 					*menu = base::make_unique_q<Ui::PopupMenu>(
 						top,
 						st::popupMenuWithIcons);
+					if (fillSetCreatorMenu) {
+						fillSetCreatorMenu(*menu);
+					}
 					(*menu)->addAction(
 						((type == Data::StickersType::Emoji)
 							? tr::lng_stickers_share_emoji
@@ -636,6 +723,9 @@ void StickerSetBox::updateButtons() {
 							remove,
 							&st::menuIconRemove);
 					} else {
+						if (fillSetCreatorMenu) {
+							fillSetCreatorMenu(*menu);
+						}
 						(*menu)->addAction(
 							(type == Data::StickersType::Masks
 								? tr::lng_masks_archive_pack(tr::now)
@@ -748,7 +838,9 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				}
 			});
 		}
-		data.vset().match([&](const MTPDstickerSet &set) {
+
+		{
+			const auto &set = data.vset().data();
 			_setTitle = _session->data().stickers().getSetTitle(
 				set);
 			_setShortName = qs(set.vshort_name());
@@ -759,6 +851,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_setFlags = Data::ParseStickersSetFlags(set);
 			_setInstallDate = set.vinstalled_date().value_or(0);
 			_setThumbnailDocumentId = set.vthumb_document_id().value_or_empty();
+			_amSetCreator = set.is_creator();
 			_setThumbnail = [&] {
 				if (const auto thumbs = set.vthumbs()) {
 					for (const auto &thumb : thumbs->v) {
@@ -791,7 +884,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				set->emoji = _emoji;
 				set->setThumbnail(_setThumbnail, _setThumbnailType);
 			}
-		});
+		};
 	}, [&](const MTPDmessages_stickerSetNotModified &data) {
 		LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 	});
