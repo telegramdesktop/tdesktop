@@ -503,7 +503,9 @@ bool ResolveUsernameOrPhone(
 		return false;
 	}
 	using ResolveType = Window::ResolveType;
-	auto resolveType = ResolveType::Default;
+	auto resolveType = params.contains(u"profile"_q)
+		? ResolveType::Profile
+		: ResolveType::Default;
 	auto startToken = params.value(u"start"_q);
 	if (!startToken.isEmpty()) {
 		resolveType = ResolveType::BotStart;

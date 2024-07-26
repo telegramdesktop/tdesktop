@@ -577,6 +577,8 @@ void SessionNavigation::showPeerByLinkResolved(
 			info.messageId,
 			commentId->id,
 			params);
+	} else if (resolveType == ResolveType::Profile) {
+		showPeerInfo(peer, params);
 	} else if (peer->isForum() && resolveType != ResolveType::Boost) {
 		const auto itemId = info.messageId;
 		if (!itemId) {

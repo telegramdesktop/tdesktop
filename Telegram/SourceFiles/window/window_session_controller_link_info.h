@@ -22,6 +22,7 @@ enum class ResolveType {
 	ShareGame,
 	Mention,
 	Boost,
+	Profile,
 };
 
 struct CommentId {
