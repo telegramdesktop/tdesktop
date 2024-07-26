@@ -171,6 +171,39 @@ private:
 
 };
 
+class TonSite final : public base::has_weak_ptr {
+public:
+	TonSite(not_null<Delegate*> delegate, QString uri);
+
+	[[nodiscard]] bool active() const;
+
+	void moveTo(QString uri);
+
+	void minimize();
+
+	[[nodiscard]] rpl::producer<Controller::Event> events() const {
+		return _events.events();
+	}
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
+private:
+	void createController();
+
+	void showWindowed();
+
+	const not_null<Delegate*> _delegate;
+	QString _uri;
+	std::unique_ptr<Controller> _controller;
+
+	rpl::event_stream<Controller::Event> _events;
+
+	rpl::lifetime _lifetime;
+
+};
+
 Shown::Shown(
 	not_null<Delegate*> delegate,
 	not_null<Main::Session*> session,
@@ -742,6 +775,50 @@ void Shown::minimize() {
 	}
 }
 
+TonSite::TonSite(not_null<Delegate*> delegate, QString uri)
+: _delegate(delegate)
+, _uri(uri) {
+	showWindowed();
+}
+
+void TonSite::createController() {
+	Expects(!_controller);
+
+	const auto showShareBox = [=](ShareBoxDescriptor &&descriptor) {
+		return ShareBoxResult();
+	};
+	_controller = std::make_unique<Controller>(
+		_delegate,
+		std::move(showShareBox));
+
+	_controller->events(
+	) | rpl::start_to_stream(_events, _controller->lifetime());
+}
+
+void TonSite::showWindowed() {
+	if (!_controller) {
+		createController();
+	}
+
+	_controller->showTonSite(
+		{},//_session->local().resolveStorageIdOther(),
+		_uri);
+}
+
+bool TonSite::active() const {
+	return _controller && _controller->active();
+}
+
+void TonSite::moveTo(QString uri) {
+	_controller->showTonSite({}, uri);
+}
+
+void TonSite::minimize() {
+	if (_controller) {
+		_controller->minimize();
+	}
+}
+
 Instance::Instance(not_null<Delegate*> delegate) : _delegate(delegate) {
 }
 
@@ -785,6 +862,7 @@ void Instance::show(
 		const auto lower = event.url.toLower();
 		const auto urlChecked = lower.startsWith("http://")
 			|| lower.startsWith("https://");
+		const auto tonsite = lower.startsWith("tonsite://");
 		switch (event.type) {
 		case Type::Close:
 			_shown = nullptr;
@@ -801,8 +879,10 @@ void Instance::show(
 		case Type::OpenLinkExternal:
 			if (urlChecked) {
 				File::OpenUrl(event.url);
+				closeAll();
+			} else if (tonsite) {
+				showTonSite(event.url);
 			}
-			closeAll();
 			break;
 		case Type::OpenMedia:
 			if (const auto window = Core::App().activeWindow()) {
@@ -840,7 +920,10 @@ void Instance::show(
 			break;
 		case Type::OpenPage:
 		case Type::OpenLink: {
-			if (!urlChecked) {
+			if (tonsite) {
+				showTonSite(event.url);
+				break;
+			} else if (!urlChecked) {
 				break;
 			}
 			const auto session = _shownSession;
@@ -990,6 +1073,52 @@ void Instance::openWithIvPreferred(
 	}).send();
 }
 
+void Instance::showTonSite(
+		const QString &uri,
+		QVariant context) {
+	if (Platform::IsMac()) {
+		// Otherwise IV is not visible under the media viewer.
+		Core::App().hideMediaView();
+	}
+	if (_tonSite) {
+		_tonSite->moveTo(uri);
+		return;
+	}
+	_tonSite = std::make_unique<TonSite>(_delegate, uri);
+	_tonSite->events() | rpl::start_with_next([=](Controller::Event event) {
+		using Type = Controller::Event::Type;
+		const auto lower = event.url.toLower();
+		const auto urlChecked = lower.startsWith("http://")
+			|| lower.startsWith("https://");
+		const auto tonsite = lower.startsWith("tonsite://");
+		switch (event.type) {
+		case Type::Close:
+			_tonSite = nullptr;
+			break;
+		case Type::Quit:
+			Shortcuts::Launch(Shortcuts::Command::Quit);
+			break;
+		case Type::OpenLinkExternal:
+			if (urlChecked) {
+				File::OpenUrl(event.url);
+				closeAll();
+			} else if (tonsite) {
+				showTonSite(event.url);
+			}
+			break;
+		case Type::OpenPage:
+		case Type::OpenLink:
+			if (urlChecked) {
+				File::OpenUrl(event.url);
+				closeAll();
+			} else if (tonsite) {
+				showTonSite(event.url);
+			}
+			break;
+		}
+	}, _tonSite->lifetime());
+}
+
 void Instance::requestFull(
 		not_null<Main::Session*> session,
 		const QString &id) {
@@ -1085,23 +1214,30 @@ bool Instance::hasActiveWindow(not_null<Main::Session*> session) const {
 }
 
 bool Instance::closeActive() {
-	if (!_shown || !_shown->active()) {
-		return false;
+	if (_shown && _shown->active()) {
+		_shown = nullptr;
+		return true;
+	} else if (_tonSite && _tonSite->active()) {
+		_tonSite = nullptr;
+		return true;
 	}
-	_shown = nullptr;
-	return true;
+	return false;
 }
 
 bool Instance::minimizeActive() {
-	if (!_shown || !_shown->active()) {
-		return false;
+	if (_shown && _shown->active()) {
+		_shown->minimize();
+		return true;
+	} else if (_tonSite && _tonSite->active()) {
+		_tonSite->minimize();
+		return true;
 	}
-	_shown->minimize();
-	return true;
+	return false;
 }
 
 void Instance::closeAll() {
 	_shown = nullptr;
+	_tonSite = nullptr;
 }
 
 bool PreferForUri(const QString &uri) {

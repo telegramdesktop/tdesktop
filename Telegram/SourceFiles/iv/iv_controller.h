@@ -76,6 +76,8 @@ public:
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues);
 	void update(Prepared page);
 
+	void showTonSite(const Webview::StorageId &storageId, QString uri);
+
 	[[nodiscard]] bool active() const;
 	void showJoinedTooltip();
 	void minimize();

@@ -22,6 +22,7 @@ namespace Iv {
 
 class Data;
 class Shown;
+class TonSite;
 
 class Instance final {
 public:
@@ -48,6 +49,10 @@ public:
 	void openWithIvPreferred(
 		not_null<Main::Session*> session,
 		QString uri,
+		QVariant context = {});
+
+	void showTonSite(
+		const QString &uri,
 		QVariant context = {});
 
 	[[nodiscard]] bool hasActiveWindow(
@@ -97,6 +102,7 @@ private:
 	QString _ivRequestUri;
 	mtpRequestId _ivRequestId = 0;
 
+	std::unique_ptr<TonSite> _tonSite;
 
 	rpl::lifetime _lifetime;
 

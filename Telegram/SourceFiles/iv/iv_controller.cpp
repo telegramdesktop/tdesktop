@@ -251,6 +251,26 @@ void Controller::update(Prepared page) {
 	}
 }
 
+void Controller::showTonSite(
+		const Webview::StorageId &storageId,
+		QString uri) {
+	auto part = uri.mid(u"tonsite://"_q.size());
+	part = part.replace('-', "-h");
+	part = part.replace('.', "-d");
+	const auto url = "https://" + part + ".magic.org";
+	if (!_webview) {
+		createWebview(storageId);
+	}
+	if (_webview && _webview->widget()) {
+		_webview->navigate(url);
+		activate();
+	} else {
+		_events.fire({ Event::Type::Close });
+	}
+	_subtitleText = uri;
+	_menuToggle->hide();
+}
+
 QByteArray Controller::fillInChannelValuesScript(
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues) {
 	auto result = QByteArray();
