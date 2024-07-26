@@ -42,7 +42,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 6898f0d215f249917c076f00d3fc954a43f35e6a \
+	&& git fetch --depth=1 origin 85a1c4ec327ed390a27e85f2162c31525220a50d \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -771,7 +771,7 @@ COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 RUN git init tg_owt \
 	&& cd tg_owt \
 	&& git remote add origin {{ GIT }}/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin 996dbe2c83b5a71d9045ce47960b8432e223dbb3 \
+	&& git fetch --depth=1 origin c0ba7b391c0fd1d408fc0d58f4fbecb68a6fcd55 \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
 	&& rm -rf .git \

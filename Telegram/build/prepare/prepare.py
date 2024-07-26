@@ -457,7 +457,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 6898f0d215
+    git checkout 85a1c4ec32
 """)
 
 stage('msys64', """
@@ -1718,7 +1718,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 996dbe2c83
+    git checkout c0ba7b391c
     git submodule init
     git submodule update
 win:
