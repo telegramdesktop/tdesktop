@@ -298,6 +298,10 @@ void VenuesController::rowPaintIcon(
 					QSize(inner, inner) * ratio,
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
+				if (!data.icon.isNull()) {
+					data.icon = data.icon.convertToFormat(
+						QImage::Format_ARGB32_Premultiplied);
+				}
 			}
 		}
 
