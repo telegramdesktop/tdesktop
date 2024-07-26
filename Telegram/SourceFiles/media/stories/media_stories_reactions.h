@@ -49,7 +49,6 @@ public:
 	virtual void setAreaGeometry(QRect geometry, float64 radius) = 0;
 	virtual void updateReactionsCount(int count) = 0;
 	virtual void playEffect() = 0;
-	virtual void toggleMode() = 0;
 	virtual bool contains(QPoint point) = 0;
 };
 
@@ -83,7 +82,9 @@ public:
 	[[nodiscard]] auto makeSuggestedReactionWidget(
 		const Data::SuggestedReaction &reaction)
 	-> std::unique_ptr<StoryAreaView>;
-	[[nodiscard]] auto makeWeatherAreaWidget(const Data::WeatherArea &data)
+	[[nodiscard]] auto makeWeatherAreaWidget(
+		const Data::WeatherArea &data,
+		rpl::producer<bool> weatherInCelsius)
 	-> std::unique_ptr<StoryAreaView>;
 
 	void setReplyFieldState(

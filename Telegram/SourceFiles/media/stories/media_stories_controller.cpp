@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/stories/media_stories_controller.h"
 
+#include "base/platform/base_platform_info.h"
 #include "base/power_save_blocker.h"
 #include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
@@ -126,6 +127,13 @@ struct SameDayRange {
 	return origin + QPoint(
 		int(base::SafeRound(acos * point.x() - asin * point.y())),
 		int(base::SafeRound(asin * point.x() + acos * point.y())));
+}
+
+[[nodiscard]] bool ResolveWeatherInCelsius() {
+	const auto saved = Core::App().settings().weatherInCelsius();
+	return saved.value_or(!ranges::contains(
+		std::array{ u"US"_q, u"BS"_q, u"KY"_q, u"LR"_q, u"BZ"_q },
+		Platform::SystemCountry().toUpper()));
 }
 
 } // namespace
@@ -284,7 +292,8 @@ Controller::Controller(not_null<Delegate*> delegate)
 , _slider(std::make_unique<Slider>(this))
 , _replyArea(std::make_unique<ReplyArea>(this))
 , _reactions(std::make_unique<Reactions>(this))
-, _recentViews(std::make_unique<RecentViews>(this)) {
+, _recentViews(std::make_unique<RecentViews>(this))
+, _weatherInCelsius(ResolveWeatherInCelsius()){
 	initLayout();
 
 	using namespace rpl::mappers;
@@ -1272,16 +1281,16 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 			});
 		}
 		for (const auto &weather : _weatherAreas) {
-			auto widget = _reactions->makeWeatherAreaWidget(weather);
-			const auto raw = widget.get();
 			_areas.push_back({
 				.original = weather.area.geometry,
 				.radiusOriginal = weather.area.radius,
 				.rotation = weather.area.rotation,
 				.handler = std::make_shared<LambdaClickHandler>([=] {
-					raw->toggleMode();
+					toggleWeatherMode();
 				}),
-				.view = std::move(widget),
+				.view = _reactions->makeWeatherAreaWidget(
+					weather,
+					_weatherInCelsius.value()),
 			});
 		}
 		rebuildActiveAreas(*layout);
@@ -1298,6 +1307,13 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 		}
 	}
 	return nullptr;
+}
+
+void Controller::toggleWeatherMode() const {
+	const auto now = !_weatherInCelsius.current();
+	Core::App().settings().setWeatherInCelsius(now);
+	Core::App().saveSettingsDelayed();
+	_weatherInCelsius = now;
 }
 
 void Controller::maybeMarkAsRead(const Player::TrackState &state) {

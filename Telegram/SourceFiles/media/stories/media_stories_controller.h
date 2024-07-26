@@ -229,6 +229,7 @@ private:
 	void updatePlayingAllowed();
 	void setPlayingAllowed(bool allowed);
 	void rebuildActiveAreas(const Layout &layout) const;
+	void toggleWeatherMode() const;
 
 	void hideSiblings();
 	void showSiblings(not_null<Main::Session*> session);
@@ -307,6 +308,7 @@ private:
 	std::vector<Data::UrlArea> _urlAreas;
 	std::vector<Data::WeatherArea> _weatherAreas;
 	mutable std::vector<ActiveArea> _areas;
+	mutable rpl::variable<bool> _weatherInCelsius;
 
 	std::vector<CachedSource> _cachedSourcesList;
 	int _cachedSourceIndex = -1;

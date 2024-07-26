@@ -75,7 +75,6 @@ public:
 	void setAreaGeometry(QRect geometry, float64 radius) override;
 	void updateReactionsCount(int count) override;
 	void playEffect() override;
-	void toggleMode() override;
 	bool contains(QPoint point) override;
 
 private:
@@ -137,12 +136,12 @@ public:
 	WeatherView(
 		QWidget *parent,
 		not_null<Main::Session*> session,
-		const Data::WeatherArea &data);
+		const Data::WeatherArea &data,
+		rpl::producer<bool> weatherInCelsius);
 
 	void setAreaGeometry(QRect geometry, float64 radius) override;
 	void updateReactionsCount(int count) override;
 	void playEffect() override;
-	void toggleMode() override;
 	bool contains(QPoint point) override;
 
 private:
@@ -349,10 +348,6 @@ void ReactionView::playEffect() {
 	}
 }
 
-void ReactionView::toggleMode() {
-	Unexpected("ReactionView::toggleMode.");
-}
-
 bool ReactionView::contains(QPoint point) {
 	const auto circle = _apiGeometry;
 	const auto radius = std::min(circle.width(), circle.height()) / 2;
@@ -537,7 +532,8 @@ void ReactionView::cacheBackground() {
 WeatherView::WeatherView(
 	QWidget *parent,
 	not_null<Main::Session*> session,
-	const Data::WeatherArea &data)
+	const Data::WeatherArea &data,
+	rpl::producer<bool> weatherInCelsius)
 : RpWidget(parent)
 , _session(session)
 , _data(data)
@@ -546,6 +542,12 @@ WeatherView::WeatherView(
 	watchForSticker();
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	show();
+
+	std::move(weatherInCelsius) | rpl::start_with_next([=](bool celsius) {
+		_celsius = celsius;
+		_background = {};
+		update();
+	}, lifetime());
 }
 
 void WeatherView::watchForSticker() {
@@ -565,7 +567,7 @@ void WeatherView::watchForSticker() {
 		) | rpl::start_with_next([=](not_null<DocumentData*> document) {
 			setStickerFrom(document);
 			update();
-		}, _lifetime);
+		}, lifetime());
 	}
 }
 
@@ -596,12 +598,6 @@ void WeatherView::updateReactionsCount(int count) {
 
 void WeatherView::playEffect() {
 	Unexpected("WeatherView::playEffect.");
-}
-
-void WeatherView::toggleMode() {
-	_celsius = !_celsius;
-	_background = {};
-	update();
 }
 
 bool WeatherView::contains(QPoint point) {
@@ -683,7 +679,7 @@ void WeatherView::setStickerFrom(not_null<DocumentData*> document) {
 		}
 		_sticker->setRepaintCallback([=] { update(); });
 		update();
-	}, _lifetime);
+	}, lifetime());
 }
 
 void WeatherView::cacheBackground() {
@@ -1087,12 +1083,15 @@ auto Reactions::makeSuggestedReactionWidget(
 		reaction);
 }
 
-auto Reactions::makeWeatherAreaWidget(const Data::WeatherArea &data)
+auto Reactions::makeWeatherAreaWidget(
+	const Data::WeatherArea &data,
+	rpl::producer<bool> weatherInCelsius)
 -> std::unique_ptr<StoryAreaView> {
 	return std::make_unique<WeatherView>(
 		_controller->wrap(),
 		&_controller->uiShow()->session(),
-		data);
+		data,
+		std::move(weatherInCelsius));
 }
 
 void Reactions::setReplyFieldState(
