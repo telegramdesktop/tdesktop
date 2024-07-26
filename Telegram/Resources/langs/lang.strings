@@ -3197,6 +3197,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_unread_bar_some" = "Unread messages";
 
 "lng_maps_point" = "Location";
+"lng_maps_select_on_map" = "Select on the Map";
 "lng_maps_point_send" = "Send This Location";
 "lng_maps_point_set" = "Set This Location";
 "lng_maps_or_choose" = "Or choose a venue";

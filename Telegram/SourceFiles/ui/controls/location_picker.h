@@ -29,6 +29,7 @@ class Window;
 
 namespace Ui {
 
+class AbstractButton;
 class SeparatePanel;
 class RpWidget;
 class ScrollArea;
@@ -93,6 +94,7 @@ public:
 	[[nodiscard]] static bool Available(const LocationPickerConfig &config);
 	static not_null<LocationPicker*> Show(Descriptor &&descriptor);
 
+	void activate();
 	void close();
 	void minimize();
 	void quit();
@@ -109,7 +111,7 @@ private:
 
 	void setup(const Descriptor &descriptor);
 	void setupWindow(const Descriptor &descriptor);
-	void setupWebview(const Descriptor &descriptor);
+	void setupWebview();
 	void processKey(const QString &key, const QString &modifier);
 	void resolveCurrentLocation();
 	void resolveAddressByTimer();
@@ -129,11 +131,17 @@ private:
 	std::unique_ptr<SeparatePanel> _window;
 	not_null<RpWidget*> _body;
 	RpWidget *_container = nullptr;
+	RpWidget *_mapPlaceholder = nullptr;
+	RpWidget *_mapLoading = nullptr;
+	AbstractButton *_mapButton = nullptr;
 	SlideWrap<VerticalLayout> *_mapControlsWrap = nullptr;
+	rpl::variable<QString> _chooseButtonLabel;
 	ScrollArea *_scroll = nullptr;
+	Webview::StorageId _webviewStorageId;
 	std::unique_ptr<Webview::Window> _webview;
 	SingleQueuedInvokation _updateStyles;
 	Core::GeoLocation _initialProvided;
+	int _mapPlaceholderAdded = 0;
 	bool _subscribedToColors = false;
 
 	base::Timer _geocoderResolveTimer;

@@ -30,6 +30,10 @@ struct SendOptions {
 	bool invertCaption = false;
 	bool hideViaBot = false;
 	crl::time ttlSeconds = 0;
+
+	friend inline bool operator==(
+		const SendOptions &,
+		const SendOptions &) = default;
 };
 [[nodiscard]] SendOptions DefaultSendWhenOnlineOptions();
 
@@ -52,6 +56,10 @@ struct SendAction {
 	MsgId replaceMediaOf = 0;
 
 	[[nodiscard]] MTPInputReplyTo mtpReplyTo() const;
+
+	friend inline bool operator==(
+		const SendAction &,
+		const SendAction &) = default;
 };
 
 struct MessageToSend {

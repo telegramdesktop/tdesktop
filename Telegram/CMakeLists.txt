@@ -475,6 +475,8 @@ PRIVATE
     data/business/data_shortcut_messages.h
     data/components/factchecks.cpp
     data/components/factchecks.h
+    data/components/location_pickers.cpp
+    data/components/location_pickers.h
     data/components/recent_peers.cpp
     data/components/recent_peers.h
     data/components/scheduled_messages.cpp

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "core/click_handler_types.h"
 #include "core/shortcuts.h"
+#include "data/components/location_pickers.h"
 #include "data/data_bot_app.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
@@ -1776,6 +1777,11 @@ void ChooseAndSendLocation(
 		not_null<Window::SessionController*> controller,
 		const Ui::LocationPickerConfig &config,
 		Api::SendAction action) {
+	const auto session = &controller->session();
+	if (const auto picker = session->locationPickers().lookup(action)) {
+		picker->activate();
+		return;
+	}
 	const auto callback = [=](Data::InputVenue venue) {
 		if (venue.justLocation()) {
 			Api::SendLocation(action, venue.lat, venue.lon);
@@ -1783,17 +1789,18 @@ void ChooseAndSendLocation(
 			Api::SendVenue(action, venue);
 		}
 	};
-	Ui::LocationPicker::Show({
+	const auto picker = Ui::LocationPicker::Show({
 		.parent = controller->widget(),
 		.config = config,
 		.chooseLabel = tr::lng_maps_point_send(),
 		.recipient = action.history->peer,
-		.session = &controller->session(),
-		.callback = crl::guard(controller, callback),
+		.session = session,
+		.callback = crl::guard(session, callback),
 		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
-		.storageId = controller->session().local().resolveStorageIdBots(),
+		.storageId = session->local().resolveStorageIdBots(),
 		.closeRequests = controller->content()->death(),
 	});
+	session->locationPickers().emplace(action, picker);
 }
 
 std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(

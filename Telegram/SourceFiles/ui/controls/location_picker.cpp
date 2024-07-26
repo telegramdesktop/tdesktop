@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/chat_search_empty.h" // Dialogs::SearchEmpty.
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
@@ -41,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
+#include "styles/style_settings.h" // settingsCloudPasswordIconSize
+#include "styles/style_layers.h" // boxDividerHeight
 
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
@@ -185,11 +188,12 @@ private:
 
 [[nodiscard]] object_ptr<RpWidget> MakeFoursquarePromo() {
 	auto result = object_ptr<RpWidget>((QWidget*)nullptr);
+	const auto skip = st::defaultVerticalListSkip;
 	const auto raw = result.data();
-	raw->resize(0, st::pickLocationPromoHeight);
+	raw->resize(0, skip + st::pickLocationPromoHeight);
 	const auto shadow = CreateChild<PlainShadow>(raw);
 	raw->widthValue() | rpl::start_with_next([=](int width) {
-		shadow->setGeometry(0, 0, width, st::lineWidth);
+		shadow->setGeometry(0, skip, width, st::lineWidth);
 	}, raw->lifetime());
 	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
 		auto p = QPainter(raw);
@@ -197,7 +201,7 @@ private:
 		p.setPen(st::windowSubTextFg);
 		p.setFont(st::normalFont);
 		p.drawText(
-			raw->rect(),
+			raw->rect().marginsRemoved({ 0, skip, 0, 0 }),
 			tr::lng_maps_venues_source(tr::now),
 			style::al_center);
 	}, raw->lifetime());
@@ -544,7 +548,7 @@ void SetupEmptyView(
 		(query ? Icon::NoResults : Icon::Search),
 		(query
 			? tr::lng_maps_no_places
-			: tr::lng_maps_choose_to_search)(Ui::Text::WithEntities));
+			: tr::lng_maps_choose_to_search)(Text::WithEntities));
 	view->setMinimalHeight(st::recentPeersEmptyHeightMin);
 	view->show();
 
@@ -636,6 +640,96 @@ void SetupVenues(
 	return result;
 }
 
+not_null<RpWidget*> SetupMapPlaceholder(
+		not_null<RpWidget*> parent,
+		int minHeight,
+		int maxHeight,
+		Fn<void()> choose) {
+	const auto result = CreateChild<RpWidget>(parent);
+
+	const auto top = CreateChild<BoxContentDivider>(result);
+	const auto bottom = CreateChild<BoxContentDivider>(result);
+
+	const auto icon = CreateChild<RpWidget>(result);
+	const auto iconSize = st::settingsCloudPasswordIconSize;
+	auto ownedLottie = Lottie::MakeIcon({
+		.name = u"location"_q,
+		.sizeOverride = { iconSize, iconSize },
+		.limitFps = true,
+	});
+	const auto lottie = ownedLottie.get();
+	icon->lifetime().add([kept = std::move(ownedLottie)] {});
+
+	icon->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(icon);
+		const auto left = (icon->width() - iconSize) / 2;
+		const auto scale = icon->height() / float64(iconSize);
+		auto hq = std::optional<PainterHighQualityEnabler>();
+		if (scale < 1.) {
+			const auto center = QPointF(
+				icon->width() / 2.,
+				icon->height() / 2.);
+			hq.emplace(p);
+			p.translate(center);
+			p.scale(scale, scale);
+			p.translate(-center);
+			p.setOpacity(scale);
+		}
+		lottie->paint(p, left, 0);
+	}, icon->lifetime());
+
+	InvokeQueued(icon, [=] {
+		const auto till = lottie->framesCount() - 1;
+		lottie->animate([=] { icon->update(); }, 0, till);
+	});
+
+	const auto button = CreateChild<RoundButton>(
+		result,
+		tr::lng_maps_select_on_map(),
+		st::pickLocationChooseOnMap);
+	button->setFullRadius(true);
+	button->setTextTransform(RoundButton::TextTransform::NoTransform);
+	button->setClickedCallback(choose);
+
+	parent->sizeValue() | rpl::start_with_next([=](QSize size) {
+		result->setGeometry(QRect(QPoint(), size));
+
+		const auto width = size.width();
+		top->setGeometry(0, 0, width, top->height());
+		bottom->setGeometry(QRect(
+			QPoint(0, size.height() - bottom->height()),
+			QSize(width, bottom->height())));
+		const auto dividers = top->height() + bottom->height();
+
+		const auto ratio = (size.height() - minHeight)
+			/ float64(maxHeight - minHeight);
+		const auto iconHeight = int(base::SafeRound(ratio * iconSize));
+
+		const auto available = size.height() - dividers;
+		const auto maxDelta = (maxHeight
+			- dividers
+			- iconSize
+			- button->height()) / 2;
+		const auto minDelta = (minHeight - dividers - button->height()) / 2;
+
+		const auto delta = anim::interpolate(minDelta, maxDelta, ratio);
+		button->move(
+			(width - button->width()) / 2,
+			size.height() - bottom->height() - delta - button->height());
+		const auto wide = available - delta - button->height();
+		const auto skip = (wide - iconHeight) / 2;
+		icon->setGeometry(0, top->height() + skip, width, iconHeight);
+	}, result->lifetime());
+
+	top->show();
+	icon->show();
+	bottom->show();
+	result->show();
+
+	return result;
+}
+
 } // namespace
 
 LocationPicker::LocationPicker(Descriptor &&descriptor)
@@ -646,6 +740,8 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 , _body((_window->setInnerSize(st::pickLocationWindow)
 	, _window->showInner(base::make_unique_q<RpWidget>(_window.get()))
 	, _window->inner()))
+, _chooseButtonLabel(std::move(descriptor.chooseLabel))
+, _webviewStorageId(descriptor.storageId)
 , _updateStyles([=] {
 	const auto str = EscapeForScriptString(ComputeStyles());
 	if (_webview) {
@@ -684,7 +780,6 @@ bool LocationPicker::Available(const LocationPickerConfig &config) {
 
 void LocationPicker::setup(const Descriptor &descriptor) {
 	setupWindow(descriptor);
-	setupWebview(descriptor);
 
 	_initialProvided = descriptor.initial;
 	const auto initial = _initialProvided.exact()
@@ -694,6 +789,9 @@ void LocationPicker::setup(const Descriptor &descriptor) {
 		venuesRequest(initial);
 		resolveAddress(initial);
 		venuesSearchEnableAt(initial);
+	}
+	if (!_initialProvided) {
+		resolveCurrentLocation();
 	}
 }
 
@@ -714,6 +812,15 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 		parent.y() + (parent.height() - window->height()) / 2);
 
 	_container = CreateChild<RpWidget>(_body.get());
+	_mapPlaceholderAdded = st::pickLocationButtonSkip
+		+ st::pickLocationButton.height
+		+ st::pickLocationButtonSkip
+		+ st::boxDividerHeight;
+	const auto min = st::pickLocationCollapsedHeight + _mapPlaceholderAdded;
+	const auto max = st::pickLocationMapHeight + _mapPlaceholderAdded;
+	_mapPlaceholder = SetupMapPlaceholder(_container, min, max, [=] {
+		setupWebview();
+	});
 	_scroll = CreateChild<ScrollArea>(_body.get());
 	const auto controls = _scroll->setOwnedWidget(
 		object_ptr<VerticalLayout>(_scroll));
@@ -727,17 +834,6 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 
 	const auto toppad = mapControls->add(object_ptr<RpWidget>(controls));
 
-	const auto button = mapControls->add(
-		MakeChooseLocationButton(
-			mapControls,
-			std::move(descriptor.chooseLabel),
-			_geocoderAddress.value()),
-		{ 0, st::pickLocationButtonSkip, 0, st::pickLocationButtonSkip });
-	button->setClickedCallback([=] {
-		_webview->eval("LocationPicker.send();");
-	});
-
-	AddDivider(mapControls);
 	AddSkip(mapControls);
 	AddSubsectionTitle(mapControls, tr::lng_maps_or_choose());
 
@@ -757,7 +853,9 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 		const auto sub = std::min(
 			(st::pickLocationMapHeight - st::pickLocationCollapsedHeight),
 			scrollTop);
-		const auto mapHeight = st::pickLocationMapHeight - sub;
+		const auto mapHeight = st::pickLocationMapHeight
+			- sub
+			+ (_mapPlaceholder ? _mapPlaceholderAdded : 0);
 		_container->setGeometry(0, 0, width, mapHeight);
 		const auto scrollWidgetTop = search ? 0 : mapHeight;
 		const auto scrollHeight = height - scrollWidgetTop;
@@ -771,21 +869,52 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 	}, _container->lifetime());
 
 	_container->show();
-	_scroll->hide();
+	_scroll->show();
 	controls->show();
-	button->show();
 	window->show();
 }
 
-void LocationPicker::setupWebview(const Descriptor &descriptor) {
+void LocationPicker::setupWebview() {
 	Expects(!_webview);
+
+	delete base::take(_mapPlaceholder);
+
+	const auto mapControls = _mapControlsWrap->entity();
+	mapControls->insert(
+		1,
+		object_ptr<BoxContentDivider>(mapControls)
+	)->show();
+
+	_mapButton = mapControls->insert(
+		1,
+		MakeChooseLocationButton(
+			mapControls,
+			_chooseButtonLabel.value(),
+			_geocoderAddress.value()),
+		{ 0, st::pickLocationButtonSkip, 0, st::pickLocationButtonSkip });
+	_mapButton->setClickedCallback([=] {
+		_webview->eval("LocationPicker.send();");
+	});
+	_mapButton->hide();
+
+	_scroll->scrollToY(0);
+	_venuesSearchShown.force_assign(_venuesSearchShown.current());
+
+	_mapLoading = CreateChild<RpWidget>(_body.get());
+
+	_container->geometryValue() | rpl::start_with_next([=](QRect rect) {
+		_mapLoading->setGeometry(rect);
+	}, _mapLoading->lifetime());
+
+	SetupLoadingView(_mapLoading);
+	_mapLoading->show();
 
 	const auto window = _window.get();
 	_webview = std::make_unique<Webview::Window>(
 		_container,
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
-			.storageId = descriptor.storageId,
+			.storageId = _webviewStorageId,
 			.dataProtocolOverride = kProtocolOverride,
 		});
 	const auto raw = _webview.get();
@@ -823,12 +952,6 @@ void LocationPicker::setupWebview(const Descriptor &descriptor) {
 			const auto event = object.value("event").toString();
 			if (event == u"ready"_q) {
 				mapReady();
-				if (!_initialProvided) {
-					resolveCurrentLocation();
-				}
-				if (_webview) {
-					_webview->focus();
-				}
 			} else if (event == u"keydown"_q) {
 				const auto key = object.value("key").toString();
 				const auto modifier = object.value("modifier").toString();
@@ -968,6 +1091,8 @@ void LocationPicker::resolveAddress(Core::GeoLocation location) {
 void LocationPicker::mapReady() {
 	Expects(_scroll != nullptr);
 
+	delete base::take(_mapLoading);
+
 	const auto token = _config.mapsToken.toUtf8();
 	const auto center = DefaultCenter(_initialProvided);
 	const auto bounds = DefaultBounds();
@@ -980,7 +1105,11 @@ void LocationPicker::mapReady() {
 		+ ", protocol: " + protocol;
 	_webview->eval("LocationPicker.init({ " + params + " });");
 
-	_scroll->show();
+	const auto handle = _window->window()->windowHandle();
+	if (handle && QGuiApplication::focusWindow() == handle) {
+		_webview->focus();
+	}
+	_mapButton->show();
 }
 
 bool LocationPicker::venuesFromCache(
@@ -1160,6 +1289,12 @@ void LocationPicker::processKey(
 		minimize();
 	} else if (key == u"q"_q && modifier == ctrl) {
 		quit();
+	}
+}
+
+void LocationPicker::activate() {
+	if (_window) {
+		_window->activateWindow();
 	}
 }
 

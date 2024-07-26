@@ -1475,3 +1475,9 @@ pickLocationLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	thickness: 4px;
 }
 pickLocationPromoHeight: 32px;
+pickLocationChooseOnMap: RoundButton(defaultActiveButton) {
+	height: 44px;
+	textTop: 11px;
+	width: -96px;
+	font: font(15px semibold);
+}

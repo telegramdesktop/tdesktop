@@ -63,6 +63,7 @@ private:
 	const Ui::LocationPickerConfig _config;
 	rpl::variable<Data::BusinessLocation> _data;
 	rpl::variable<Data::CloudImage*> _map = nullptr;
+	base::weak_ptr<Ui::LocationPicker> _picker;
 	std::shared_ptr<QImage> _view;
 	Ui::RoundRect _bottomSkipRounding;
 
@@ -232,6 +233,10 @@ void Location::setupPicker(not_null<Ui::VerticalLayout*> content) {
 }
 
 void Location::chooseOnMap() {
+	if (const auto strong = _picker.get()) {
+		strong->activate();
+		return;
+	}
 	const auto callback = [=](Data::InputVenue venue) {
 		auto copy = _data.current();
 		copy.point = Data::LocationPoint(
@@ -249,7 +254,7 @@ void Location::chooseOnMap() {
 			.accuracy = Core::GeoLocationAccuracy::Exact,
 		}
 		: Core::GeoLocation();
-	Ui::LocationPicker::Show({
+	_picker = Ui::LocationPicker::Show({
 		.parent = controller()->widget(),
 		.config = _config,
 		.chooseLabel = tr::lng_maps_point_set(),
@@ -258,7 +263,7 @@ void Location::chooseOnMap() {
 		.callback = crl::guard(this, callback),
 		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
 		.storageId = session->local().resolveStorageIdBots(),
-		.closeRequests = controller()->content()->death(),
+		.closeRequests = death(),
 	});
 }
 
