@@ -69,7 +69,7 @@ jobs:
         run: |
           brew update
           brew upgrade || true
-          brew install autoconf automake boost cmake ffmpeg@6 openal-soft openssl opus ninja pkg-config python qt yasm xz
+          brew install autoconf automake boost cmake ffmpeg@6 openal-soft openh264 openssl opus ninja pkg-config python qt yasm xz
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
           xcodebuild -version > CACHE_KEY.txt
@@ -108,7 +108,7 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone --recursive --depth=1 $GIT/desktop-app/tg_owt.git
+          git clone --depth=1 --recursive --shallow-submodules $GIT/desktop-app/tg_owt.git
           cd tg_owt
 
           cmake -B build . -GNinja -DCMAKE_BUILD_TYPE=Debug
