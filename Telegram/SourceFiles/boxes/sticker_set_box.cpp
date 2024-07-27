@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/popup_menu.h"
@@ -70,6 +71,7 @@ constexpr auto kEmojiPerRow = 8;
 constexpr auto kMinRepaintDelay = crl::time(33);
 constexpr auto kMinAfterScrollDelay = crl::time(33);
 constexpr auto kGrayLockOpacity = 0.3;
+constexpr auto kStickerMoveDuration = crl::time(200);
 
 using Data::StickersSet;
 using Data::StickersPack;
@@ -262,6 +264,13 @@ public:
 	[[nodiscard]] rpl::producer<uint64> setArchived() const;
 	[[nodiscard]] rpl::producer<> updateControls() const;
 
+	void setReorderState(bool enabled) {
+		_dragging.enabled = enabled;
+	}
+	[[nodiscard]] bool reorderState() const {
+		return _dragging.enabled;
+	}
+
 	[[nodiscard]] rpl::producer<Error> errors() const;
 
 	void archiveStickers();
@@ -338,6 +347,9 @@ private:
 		not_null<DocumentData*> sticker,
 		Api::SendOptions options);
 
+	[[nodiscard]] QPoint posFromIndex(int index) const;
+	[[nodiscard]] bool isDraggedAnimating() const;
+
 	not_null<Lottie::MultiPlayer*> getLottiePlayer();
 
 	void showPreview();
@@ -375,6 +387,20 @@ private:
 	StickerType _setThumbnailType = StickerType::Webp;
 	ImageWithLocation _setThumbnail;
 	bool _amSetCreator = false;
+
+	struct {
+		bool enabled = false;
+		int index = -1;
+		int lastSelected = -1;
+		QPoint point;
+	} _dragging;
+
+	struct ShiftAnimation final {
+		Ui::Animations::Simple animation;
+		Ui::Animations::Simple yAnimation;
+		int shift = 0;
+	};
+	base::flat_map<int, ShiftAnimation> _shiftAnimations;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	mutable StickerPremiumMark _premiumMark;
@@ -647,7 +673,12 @@ void ChangeSetNameBox(
 
 void StickerSetBox::updateButtons() {
 	clearButtons();
-	if (_inner->loaded()) {
+	if (_inner->reorderState()) {
+		addButton(tr::lng_box_done(), [=] {
+			_inner->setReorderState(false);
+			updateButtons();
+		});
+	} else if (_inner->loaded()) {
 		const auto type = _inner->setType();
 		const auto share = [=] {
 			copyStickersLink();
@@ -674,6 +705,13 @@ void StickerSetBox::updateButtons() {
 						show->showBox(Box(ChangeSetNameBox, data, set, done));
 					},
 					&st::menuIconEdit);
+				menu->addAction(
+					tr::lng_stickers_context_reorder(tr::now),
+					[=] {
+						_inner->setReorderState(true);
+						updateButtons();
+					},
+					&st::menuIconManage);
 			});
 		}();
 		if (_inner->notInstalled()) {
@@ -1069,11 +1107,100 @@ void StickerSetBox::Inner::mousePressEvent(QMouseEvent *e) {
 	if (index < 0 || index >= _pack.size()) {
 		return;
 	}
+	if (_dragging.enabled) {
+		_previewTimer.cancel();
+		if (isDraggedAnimating()) {
+			return;
+		}
+		_dragging.index = index;
+		_dragging.point = mapFromGlobal(QCursor::pos()) - posFromIndex(index);
+		return;
+	}
 	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
 void StickerSetBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 	updateSelected();
+	const auto draggedAnimating = isDraggedAnimating();
+	if (_selected >= 0 && !draggedAnimating) {
+		_dragging.lastSelected = _selected;
+	}
+	if (_dragging.index >= 0
+		&& _dragging.index < _pack.size()
+		&& _dragging.lastSelected >= 0
+		&& !draggedAnimating) {
+		for (auto i = 0; i < _pack.size(); i++) {
+			if (i == _dragging.index) {
+				continue;
+			}
+			auto &entry = _shiftAnimations[i];
+			const auto wasShift = entry.shift;
+			if ((i >= _dragging.index) && (i <= _dragging.lastSelected)) {
+				if (entry.shift == 0) {
+					entry.shift = -1;
+				} else if (entry.shift == 1) {
+					entry.shift = 0;
+				}
+			} else if ((i < _dragging.index)
+					&& (i >= _dragging.lastSelected)) {
+				if (entry.shift == 0) {
+					entry.shift = 1;
+				} else if (entry.shift == -1) {
+					entry.shift = 0;
+				}
+			}
+			if ((i < std::min(_dragging.index, _dragging.lastSelected))
+				|| (i > std::max(_dragging.index, _dragging.lastSelected))) {
+				entry.shift = 0;
+			}
+			if (wasShift != entry.shift) {
+				const auto fromPoint = posFromIndex(i + wasShift);
+				const auto toPoint = posFromIndex(i + entry.shift);
+				const auto toX = float64(toPoint.x());
+				const auto toY = float64(toPoint.y());
+				const auto ratio = [&] {
+					const auto fromX = entry.animation.value(toX);
+					const auto ratioX = std::min(toX, fromX)
+						/ std::max(toX, fromX);
+					const auto fromY = entry.yAnimation.value(toY);
+					const auto ratioY = std::min(toY, fromY)
+						/ std::max(toY, fromY);
+					return (ratioX == 1.)
+						? ratioY
+						: (ratioY == 1.)
+						? ratioX
+						: std::max(ratioX, ratioY);
+				}();
+				if (!entry.animation.animating()) {
+					entry.animation.stop();
+					entry.animation.start(
+						[=] { update(); },
+						fromPoint.x(),
+						toX,
+						kStickerMoveDuration);
+				} else {
+					entry.animation.change(
+						toX,
+						kStickerMoveDuration * (1. - ratio),
+						anim::linear);
+				}
+				if (!entry.yAnimation.animating()) {
+					entry.yAnimation.stop();
+					entry.yAnimation.start(
+						[=] { update(); },
+						fromPoint.y(),
+						toY,
+						kStickerMoveDuration);
+				} else {
+					entry.yAnimation.change(
+						toY,
+						kStickerMoveDuration * (1. - ratio),
+						anim::linear);
+				}
+			}
+		}
+		update();
+	}
 	if (_previewShown >= 0) {
 		showPreviewAt(e->globalPos());
 	}
@@ -1096,6 +1223,46 @@ void StickerSetBox::Inner::leaveEventHook(QEvent *e) {
 }
 
 void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
+	if (_dragging.index >= 0 && !isDraggedAnimating()) {
+		const auto fromPos = mapFromGlobal(e->globalPos()) - _dragging.point;
+		const auto toPos = posFromIndex(_dragging.lastSelected);
+		const auto finish = [=] {
+			base::reorder(_pack, _dragging.index, _dragging.lastSelected);
+			base::reorder(_elements, _dragging.index, _dragging.lastSelected);
+			_dragging = {};
+			_dragging.enabled = true;
+			_shiftAnimations.clear();
+		};
+		auto &entry = _shiftAnimations[_dragging.index];
+		entry.animation.stop();
+		entry.yAnimation.stop();
+		entry.animation.start(
+			[finish, toPos, this](float64 value) {
+				const auto index = _dragging.index;
+				if (value >= toPos.x()
+					&& index >= 0
+					&& !_shiftAnimations[index].yAnimation.animating()) {
+					finish();
+				}
+				update();
+			},
+			fromPos.x(),
+			toPos.x(),
+			kStickerMoveDuration);
+		entry.yAnimation.start(
+			[finish, toPos, this](float64 value) {
+				const auto index = _dragging.index;
+				if (value >= toPos.y()
+					&& index >= 0
+					&& !_shiftAnimations[index].animation.animating()) {
+					finish();
+				}
+				update();
+			},
+			fromPos.y(),
+			toPos.y(),
+			kStickerMoveDuration);
+	}
 	if (_previewShown >= 0) {
 		_previewShown = -1;
 		return;
@@ -1216,7 +1383,11 @@ void StickerSetBox::Inner::setSelected(int selected) {
 		startOverAnimation(_selected, 1., 0.);
 		_selected = selected;
 		startOverAnimation(_selected, 0., 1.);
-		setCursor(_selected >= 0 ? style::cur_pointer : style::cur_default);
+		setCursor((_selected < 0)
+			? style::cur_default
+			: _dragging.enabled
+			? style::cur_sizeall
+			: style::cur_pointer);
 	}
 }
 
@@ -1236,6 +1407,24 @@ void StickerSetBox::Inner::startOverAnimation(int index, float64 from, float64 t
 void StickerSetBox::Inner::showPreview() {
 	_previewShown = -1;
 	showPreviewAt(QCursor::pos());
+}
+
+QPoint StickerSetBox::Inner::posFromIndex(int index) const {
+	return {
+		_padding.left() + (index % _perRow) * _singleSize.width(),
+		_padding.top() + (index / _perRow) * _singleSize.height(),
+	};
+}
+
+bool StickerSetBox::Inner::isDraggedAnimating() const {
+	if (_dragging.index < 0) {
+		return false;
+	}
+	const auto it = _shiftAnimations.find(_dragging.index);
+	return (it == _shiftAnimations.end())
+		? false
+		: (it->second.animation.animating()
+			|| it->second.yAnimation.animating());
 }
 
 not_null<Lottie::MultiPlayer*> StickerSetBox::Inner::getLottiePlayer() {
@@ -1277,12 +1466,36 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 
 	_pathGradient->startFrame(0, width(), width() / 2);
 
+	const auto indexUnderCursor = (_dragging.index >= 0
+			&& _dragging.index < _elements.size())
+		? stickerFromGlobalPos(QCursor::pos())
+		: -2;
+	const auto lastIndex = indexUnderCursor >= 0
+		? indexUnderCursor
+		: _dragging.lastSelected;
+
 	const auto now = crl::now();
 	const auto paused = On(PowerSaving::kStickersPanel)
 		|| _show->paused(ChatHelpers::PauseReason::Layer);
 	for (int32 i = from; i < to; ++i) {
 		for (int32 j = 0; j < _perRow; ++j) {
 			int32 index = i * _perRow + j;
+
+			if (lastIndex >= 0) {
+				if (_dragging.index == index) {
+					continue;
+				}
+				const auto it = _shiftAnimations.find(index);
+				if (it != _shiftAnimations.end()) {
+					const auto &entry = it->second;
+					const auto toPos = posFromIndex(index + entry.shift);
+					const auto pos = QPoint(
+						entry.animation.value(toPos.x()),
+						entry.yAnimation.value(toPos.y()));
+					paintSticker(p, index, pos, paused, now);
+					continue;
+				}
+			}
 			if (index >= _elements.size()) {
 				break;
 			}
@@ -1291,6 +1504,14 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 				_padding.top() + i * _singleSize.height());
 			paintSticker(p, index, pos, paused, now);
 		}
+	}
+	if (_dragging.index >= 0 && _dragging.index < _elements.size()) {
+		const auto pos = isDraggedAnimating()
+			? QPoint(
+				_shiftAnimations[_dragging.index].animation.value(0),
+				_shiftAnimations[_dragging.index].yAnimation.value(0))
+			: (mapFromGlobal(QCursor::pos()) - _dragging.point);
+		paintSticker(p, _dragging.index, pos, paused, now);
 	}
 
 	if (_lottiePlayer && !paused) {
@@ -1453,12 +1674,24 @@ void StickerSetBox::Inner::paintSticker(
 		QPoint position,
 		bool paused,
 		crl::time now) const {
-	if (const auto over = _elements[index].overAnimation.value((index == _selected) ? 1. : 0.)) {
-		p.setOpacity(over);
-		auto tl = position;
-		if (rtl()) tl.setX(width() - tl.x() - _singleSize.width());
-		Ui::FillRoundRect(p, QRect(tl, _singleSize), st::emojiPanHover, Ui::StickerHoverCorners);
-		p.setOpacity(1);
+	if (_dragging.index != index) {
+		const auto over = _elements[index].overAnimation.value(
+			(index == _selected) ? 1. : 0.);
+		if (over) {
+			p.setOpacity(over);
+			Ui::FillRoundRect(
+				p,
+				QRect(
+					rtl()
+						? QPoint(
+							width() - position.x() - _singleSize.width(),
+							position.y())
+						: position,
+					_singleSize),
+				st::emojiPanHover,
+				Ui::StickerHoverCorners);
+			p.setOpacity(1);
+		}
 	}
 
 	const auto &element = _elements[index];
