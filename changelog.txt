@@ -1,3 +1,8 @@
+5.2.5 beta (27.07.24)
+
+- Fix media viewer context menu.
+- Fix blockquotes layout in messages.
+
 5.2.4 beta (24.07.24)
 
 - Allow opening several web apps.
