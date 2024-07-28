@@ -1284,7 +1284,14 @@ void CopyPostLink(
 		not_null<Window::SessionController*> controller,
 		FullMsgId itemId,
 		Context context) {
-	const auto item = controller->session().data().message(itemId);
+	CopyPostLink(controller->uiShow(), itemId, context);
+}
+
+void CopyPostLink(
+		std::shared_ptr<Main::SessionShow> show,
+		FullMsgId itemId,
+		Context context) {
+	const auto item = show->session().data().message(itemId);
 	if (!item || !item->hasDirectLink()) {
 		return;
 	}
@@ -1311,7 +1318,7 @@ void CopyPostLink(
 		return channel->hasUsername();
 	}();
 
-	controller->showToast(isPublicLink
+	show->showToast(isPublicLink
 		? tr::lng_channel_public_link_copied(tr::now)
 		: tr::lng_context_about_private_link(tr::now));
 }

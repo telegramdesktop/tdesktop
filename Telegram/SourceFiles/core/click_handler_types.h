@@ -21,6 +21,10 @@ namespace Ui {
 class Show;
 } // namespace Ui
 
+namespace InlineBots {
+struct WebViewContext;
+} // namespace InlineBots
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -38,10 +42,10 @@ class SessionController;
 class PeerData;
 struct ClickHandlerContext {
 	FullMsgId itemId;
-	QString attachBotWebviewUrl;
 	// Is filled from sections.
 	Fn<HistoryView::ElementDelegate*()> elementDelegate;
 	base::weak_ptr<Window::SessionController> sessionWindow;
+	std::shared_ptr<InlineBots::WebViewContext> botWebviewContext;
 	std::shared_ptr<Ui::Show> show;
 	bool mayShowConfirmation = false;
 	bool skipBotAutoLogin = false;

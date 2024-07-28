@@ -3328,6 +3328,22 @@ void Session::documentApplyFields(
 	}
 }
 
+not_null<DocumentData*> Session::venueIconDocument(const QString &icon) {
+	const auto i = _venueIcons.find(icon);
+	if (i != end(_venueIcons)) {
+		return i->second;
+	}
+	const auto result = documentFromWeb(MTP_webDocumentNoProxy(
+		MTP_string(u"https://ss3.4sqi.net/img/categories_v2/"_q
+			+ icon
+			+ u"_64.png"_q),
+		MTP_int(0),
+		MTP_string("image/png"),
+		MTP_vector<MTPDocumentAttribute>()), {}, {});
+	_venueIcons.emplace(icon, result);
+	return result;
+}
+
 not_null<WebPageData*> Session::webpage(WebPageId id) {
 	auto i = _webpages.find(id);
 	if (i == _webpages.cend()) {

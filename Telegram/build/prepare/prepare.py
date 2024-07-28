@@ -1,4 +1,4 @@
-import os, sys, pprint, re, json, pathlib, hashlib, subprocess, glob
+import os, sys, pprint, re, json, pathlib, hashlib, subprocess, glob, tempfile
 
 executePath = os.getcwd()
 sys.dont_write_bytecode = True
@@ -26,7 +26,7 @@ if win and not 'Platform' in os.environ:
 
 win32 = win and (os.environ['Platform'] == 'x86')
 win64 = win and (os.environ['Platform'] == 'x64')
-winarm = win and (os.environ['Platform'] == 'arm')
+winarm = win and (os.environ['Platform'] == 'arm64')
 
 arch = ''
 if win32:
@@ -113,6 +113,12 @@ elif (win64):
         'SPECIAL_TARGET': 'win64',
         'X8664': 'x64',
         'WIN32X64': 'x64',
+    })
+elif (winarm):
+    environment.update({
+        'SPECIAL_TARGET': 'winarm',
+        'X8664': 'ARM64',
+        'WIN32X64': 'ARM64',
     })
 elif (mac):
     environment.update({
@@ -238,6 +244,8 @@ def filterByPlatform(commands):
             if win32 and 'win32' in scopes:
                 inscope = True
             if win64 and 'win64' in scopes:
+                inscope = True
+            if winarm and 'winarm' in scopes:
                 inscope = True
             if mac and 'mac' in scopes:
                 inscope = True
@@ -435,8 +443,12 @@ if customRunCommand:
             modifiedEnv['PROMPT'] = '(prepare) $P$G'
             subprocess.run("cmd.exe", shell=True, env=modifiedEnv)
         else:
-            modifiedEnv['PS1'] = '(prepare) \\w \\$ '
-            subprocess.run("bash --noprofile --norc", env=modifiedEnv)
+            prompt = '(prepare) %~ %# '
+            with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp_zshrc:
+                tmp_zshrc.write(f'export PS1="{prompt}"\n')
+                tmp_zshrc_path = tmp_zshrc.name
+            subprocess.run(['zsh', '--rcs', tmp_zshrc_path], env=modifiedEnv)
+            os.remove(tmp_zshrc_path)
     elif not run(command):
         print('FAILED :(')
         finish(1)
@@ -445,7 +457,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 20a7c5ffd8
+    git checkout 85a1c4ec32
 """)
 
 stage('msys64', """
@@ -456,12 +468,12 @@ win:
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
-    powershell -Command "iwr -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20221028.sfx.exe"
+    powershell -Command "iwr -OutFile ./msys64.exe https://github.com/msys2/msys2-installer/releases/download/2024-05-07/msys2-base-x86_64-20240507.sfx.exe"
     msys64.exe
     del msys64.exe
 
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
-    pacman -Syu --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja
+    pacman -Syu --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja msys/make diffutils pkg-config
 
     SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
@@ -498,9 +510,9 @@ mac:
 if not mac or 'build-stackwalk' in options:
     stage('gyp', """
 win:
-    git clone https://chromium.googlesource.com/external/gyp
+    git clone https://github.com/desktop-app/gyp.git
     cd gyp
-    git checkout 9d09418933
+    git checkout 618958fdbe
 mac:
     python3 -m pip install \\
         --ignore-installed \\
@@ -528,7 +540,7 @@ release:
 
 stage('xz', """
 !win:
-    git clone -b v5.4.5 https://git.tukaani.org/xz.git
+    git clone -b v5.4.5 https://github.com/tukaani-project/xz.git
     cd xz
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
@@ -606,8 +618,10 @@ win32:
     perl Configure no-shared no-tests debug-VC-WIN32 /FS
 win64:
     perl Configure no-shared no-tests debug-VC-WIN64A /FS
+winarm:
+    perl Configure no-shared no-tests debug-VC-WIN64-ARM /FS
 win:
-    jom -j%NUMBER_OF_PROCESSORS%
+    jom -j%NUMBER_OF_PROCESSORS% build_libs
     mkdir out.dbg
     move libcrypto.lib out.dbg
     move libssl.lib out.dbg
@@ -620,8 +634,10 @@ win32_release:
     perl Configure no-shared no-tests VC-WIN32 /FS
 win64_release:
     perl Configure no-shared no-tests VC-WIN64A /FS
+winarm_release:
+    perl Configure no-shared no-tests VC-WIN64-ARM /FS
 win_release:
-    jom -j%NUMBER_OF_PROCESSORS%
+    jom -j%NUMBER_OF_PROCESSORS% build_libs
     mkdir out
     move libcrypto.lib out
     move libssl.lib out
@@ -716,18 +732,32 @@ mac:
     make install
 """)
 
+stage('gas-preprocessor', """
+win:
+    git clone https://github.com/FFmpeg/gas-preprocessor
+    cd gas-preprocessor
+    echo @echo off > cpp.bat
+    echo cl %%%%%%** >> cpp.bat
+""")
+
 # Somehow in x86 Debug build dav1d crashes on AV1 10bpc videos.
 stage('dav1d', """
     git clone -b 1.4.1 https://code.videolan.org/videolan/dav1d.git
     cd dav1d
+win32:
+    SET "TARGET=x86"
+    SET "DAV1D_ASM_DISABLE=-Denable_asm=false"
+win64:
+    SET "TARGET=x86_64"
+    SET "DAV1D_ASM_DISABLE="
+winarm:
+    SET "TARGET=aarch64"
+    SET "DAV1D_ASM_DISABLE="
+    SET "PATH_BACKUP_=%PATH%"
+    SET "PATH=%LIBS_DIR%\\gas-preprocessor;%PATH%"
+    echo armasm64 fails with 'syntax error in expression: tbnz x14, #4, 8f' as if this instruction is unknown/unsupported.
+    git revert --no-edit d503bb0ccaf104b2f13da0f092e09cc9411b3297
 win:
-    if "%X8664%" equ "x64" (
-        SET "TARGET=x86_64"
-        SET "DAV1D_ASM_DISABLE="
-    ) else (
-        SET "TARGET=x86"
-        SET "DAV1D_ASM_DISABLE=-Denable_asm=false"
-    )
     set FILE=cross-file.txt
     echo [binaries] > %FILE%
     echo c = 'cl' >> %FILE%
@@ -752,6 +782,8 @@ release:
 win:
     copy %LIBS_DIR%\\local\\lib\\libdav1d.a %LIBS_DIR%\\local\\lib\\dav1d.lib
     deactivate
+winarm:
+    SET "PATH=%PATH_BACKUP_%"
 mac:
     buildOneArch() {
         arch=$1
@@ -775,6 +807,67 @@ mac:
     buildOneArch x86_64 build
 
     lipo -create build.arm64/libdav1d.a build/libdav1d.a -output ${USED_PREFIX}/lib/libdav1d.a
+""")
+
+stage('openh264', """
+    git clone -b v2.4.1 https://github.com/cisco/openh264.git
+    cd openh264
+win32:
+    SET "TARGET=x86"
+win64:
+    SET "TARGET=x86_64"
+winarm:
+    SET "TARGET=aarch64"
+    SET "PATH_BACKUP_=%PATH%"
+    SET "PATH=%LIBS_DIR%\\gas-preprocessor;%PATH%"
+win:
+    set FILE=cross-file.txt
+    echo [binaries] > %FILE%
+    echo c = 'cl' >> %FILE%
+    echo cpp = 'cl' >> %FILE%
+    echo ar = 'lib' >> %FILE%
+    echo windres = 'rc' >> %FILE%
+    echo [host_machine] >> %FILE%
+    echo system = 'windows' >> %FILE%
+    echo cpu_family = '%TARGET%' >> %FILE%
+    echo cpu = '%TARGET%' >> %FILE%
+    echo endian = 'little' >> %FILE%
+
+depends:python/Scripts/activate.bat
+    %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
+    meson setup --cross-file %FILE% --prefix %LIBS_DIR%/local --default-library=static --buildtype=debug -Db_vscrt=mtd builddir-debug
+    meson compile -C builddir-debug
+    meson install -C builddir-debug
+release:
+    meson setup --cross-file %FILE% --prefix %LIBS_DIR%/local --default-library=static --buildtype=release -Db_vscrt=mt builddir-release
+    meson compile -C builddir-release
+    meson install -C builddir-release
+win:
+    copy %LIBS_DIR%\\local\\lib\\libopenh264.a %LIBS_DIR%\\local\\lib\\openh264.lib
+    deactivate
+winarm:
+    SET "PATH=%PATH_BACKUP_%"
+mac:
+    buildOneArch() {
+        arch=$1
+        folder=`pwd`/$2
+
+        meson setup \
+            --cross-file ../patches/macos_meson_${arch}.txt \
+            --prefix ${USED_PREFIX} \
+            --default-library=static \
+            --buildtype=minsize \
+            ${folder}
+        meson compile -C ${folder}
+        meson install -C ${folder}
+
+        mv ${USED_PREFIX}/lib/libopenh264.a ${folder}/libopenh264.a
+    }
+
+    buildOneArch aarch64 build.aarch64
+    buildOneArch x86_64 build.x86_64
+
+    lipo -create build.aarch64/libopenh264.a build.x86_64/libopenh264.a -output ${USED_PREFIX}/lib/libopenh264.a
 """)
 
 stage('libavif', """
@@ -846,7 +939,7 @@ mac:
 """)
 
 stage('libwebp', """
-    git clone -b v1.3.2 https://github.com/webmproject/libwebp.git
+    git clone -b v1.4.0 https://github.com/webmproject/libwebp.git
     cd libwebp
 win:
     nmake /f Makefile.vc CFG=debug-static OBJDIR=out RTLIBCFG=static all
@@ -938,7 +1031,7 @@ mac:
 """)
 
 stage('libjxl', """
-    git clone -b v0.8.2 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.10.3 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
     cd libjxl
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
@@ -954,12 +1047,10 @@ stage('libjxl', """
     -DJPEGXL_ENABLE_SJPEG=OFF
     -DJPEGXL_ENABLE_OPENEXR=OFF
     -DJPEGXL_ENABLE_SKCMS=ON
-    -DJPEGXL_BUNDLE_SKCMS=ON
     -DJPEGXL_ENABLE_VIEWERS=OFF
     -DJPEGXL_ENABLE_TCMALLOC=OFF
     -DJPEGXL_ENABLE_PLUGINS=OFF
     -DJPEGXL_ENABLE_COVERAGE=OFF
-    -DJPEGXL_ENABLE_PROFILER=OFF
     -DJPEGXL_WARNINGS_AS_ERRORS=OFF
 """) + """
 win:
@@ -967,8 +1058,8 @@ win:
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
-        -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
+        -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
+        -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
         -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
         -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
@@ -1003,12 +1094,13 @@ win:
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
-    if "%X8664%" equ "x64" (
-        SET "TOOLCHAIN=x86_64-win64-vs17"
-    ) else (
-        SET "TOOLCHAIN=x86-win32-vs17"
-    )
-
+win32:
+    SET "TOOLCHAIN=x86-win32-vs17"
+win64:
+    SET "TOOLCHAIN=x86_64-win64-vs17"
+winarm:
+    SET "TOOLCHAIN=arm64-win64-vs17"
+win:
 depends:patches/build_libvpx_win.sh
     bash --login ../patches/build_libvpx_win.sh
 
@@ -1095,12 +1187,19 @@ stage('ffmpeg', """
     git clone -b n6.1.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
 win:
+depends:patches/ffmpeg.patch
+    git apply ../patches/ffmpeg.patch
+
     SET PATH_BACKUP_=%PATH%
     SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
 
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
+    SET "ARCH_PARAM="
+winarm:
+    SET "ARCH_PARAM=--arch=aarch64"
+win:
 depends:patches/build_ffmpeg_win.sh
     bash --login ../patches/build_ffmpeg_win.sh
 
@@ -1317,11 +1416,12 @@ depends:patches/breakpad.diff
     git clone -b release-1.11.0 https://github.com/google/googletest src/testing
 win:
     SET "PYTHONUTF8=1"
-    if "%X8664%" equ "x64" (
-        SET "FolderPostfix=_x64"
-    ) else (
-        SET "FolderPostfix="
-    )
+    SET "FolderPostfix="
+win64:
+    SET "FolderPostfix=_x64"
+winarm:
+    SET "FolderPostfix=_ARM64"
+win:
 depends:python/Scripts/activate.bat
     %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
     cd src\\client\\windows
@@ -1618,7 +1718,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout afd9d5d317
+    git checkout c0ba7b391c
     git submodule init
     git submodule update
 win:
@@ -1626,6 +1726,7 @@ win:
     SET OPUS_PATH=$USED_PREFIX/include/opus
     SET OPENSSL_PATH=$LIBS_DIR/openssl3/include
     SET LIBVPX_PATH=$USED_PREFIX/include
+    SET OPENH264_PATH=$USED_PREFIX/include
     SET FFMPEG_PATH=$LIBS_DIR/ffmpeg
     mkdir out
     cd out
@@ -1639,6 +1740,7 @@ win:
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PATH \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
+        -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
 release:
@@ -1653,12 +1755,14 @@ release:
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PATH \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
+        -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
 mac:
     MOZJPEG_PATH=$USED_PREFIX/include
     OPUS_PATH=$USED_PREFIX/include/opus
     LIBVPX_PATH=$USED_PREFIX/include
+    OPENH264_PATH=$USED_PREFIX/include
     FFMPEG_PATH=$USED_PREFIX/include
     mkdir out
     cd out
@@ -1673,6 +1777,7 @@ mac:
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl3/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
+        -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
     cd ..
@@ -1687,6 +1792,7 @@ mac:
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl3/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
+        -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
     cd ..
@@ -1703,6 +1809,7 @@ release:
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl3/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
+        -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
     cd ..
@@ -1716,6 +1823,7 @@ release:
         -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl3/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
+        -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
     ninja
     cd ..

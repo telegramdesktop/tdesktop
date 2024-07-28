@@ -327,21 +327,6 @@ bool ConfirmPhone(
 	return true;
 }
 
-bool ShareGameScore(
-		Window::SessionController *controller,
-		const Match &match,
-		const QVariant &context) {
-	if (!controller) {
-		return false;
-	}
-	const auto params = url_parse_params(
-		match->captured(1),
-		qthelp::UrlParamNameTransform::ToLower);
-	ShareGameScoreByHash(controller, params.value(u"hash"_q));
-	controller->window().activate();
-	return true;
-}
-
 bool ApplySocksProxy(
 		Window::SessionController *controller,
 		const Match &match,
@@ -518,7 +503,9 @@ bool ResolveUsernameOrPhone(
 		return false;
 	}
 	using ResolveType = Window::ResolveType;
-	auto resolveType = ResolveType::Default;
+	auto resolveType = params.contains(u"profile"_q)
+		? ResolveType::Profile
+		: ResolveType::Default;
 	auto startToken = params.value(u"start"_q);
 	if (!startToken.isEmpty()) {
 		resolveType = ResolveType::BotStart;
@@ -588,8 +575,11 @@ bool ResolveUsernameOrPhone(
 			: (appname.isEmpty() && params.contains(u"startapp"_q))
 			? params.value(u"startapp"_q)
 			: std::optional<QString>()),
-		.attachBotMenuOpen = (appname.isEmpty()
+		.attachBotMainOpen = (appname.isEmpty()
 			&& params.contains(u"startapp"_q)),
+		.attachBotMainCompact = (appname.isEmpty()
+			&& params.contains(u"startapp"_q)
+			&& (params.value(u"mode"_q) == u"compact"_q)),
 		.attachBotChooseTypes = InlineBots::ParseChooseTypes(
 			params.value(u"choose"_q)),
 		.voicechatHash = (params.contains(u"livestream"_q)
@@ -600,7 +590,7 @@ bool ResolveUsernameOrPhone(
 			? std::make_optional(params.value(u"voicechat"_q))
 			: std::nullopt),
 		.clickFromMessageId = myContext.itemId,
-		.clickFromAttachBotWebviewUrl = myContext.attachBotWebviewUrl,
+		.clickFromBotWebviewContext = myContext.botWebviewContext,
 	});
 	return true;
 }
@@ -641,7 +631,7 @@ bool ResolvePrivatePost(
 			}
 			: Window::RepliesByLinkInfo{ v::null },
 		.clickFromMessageId = my.itemId,
-		.clickFromAttachBotWebviewUrl = my.attachBotWebviewUrl,
+		.clickFromBotWebviewContext = my.botWebviewContext,
 	});
 	controller->window().activate();
 	return true;
@@ -1193,7 +1183,7 @@ bool ResolveChatLink(
 	controller->showPeerByLink(Window::PeerByLinkInfo{
 		.chatLinkSlug = match->captured(1),
 		.clickFromMessageId = myContext.itemId,
-		.clickFromAttachBotWebviewUrl = myContext.attachBotWebviewUrl,
+		.clickFromBotWebviewContext = myContext.botWebviewContext,
 	});
 	return true;
 }
@@ -1229,10 +1219,6 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^confirmphone/?\\?(.+)(#|$)"_q,
 			ConfirmPhone
-		},
-		{
-			u"^share_game_score/?\\?(.+)(#|$)"_q,
-			ShareGameScore
 		},
 		{
 			u"^socks/?\\?(.+)(#|$)"_q,
@@ -1287,7 +1273,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolveBoost,
 		},
 		{
-			u"^message/?\\?slug=([a-zA-Z0-9\\.\\_]+)(&|$)"_q,
+			u"^message/?\\?slug=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"_q,
 			ResolveChatLink
 		},
 		{

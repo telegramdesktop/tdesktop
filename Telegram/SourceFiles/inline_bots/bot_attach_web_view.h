@@ -10,15 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "dialogs/dialogs_key.h"
+#include "api/api_common.h"
 #include "mtproto/sender.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/rp_widget.h"
 
-namespace Api {
-struct SendAction;
-} // namespace Api
+namespace Data {
+class Thread;
+} // namespace Data
 
 namespace Ui {
+class Show;
 class GenericBox;
 class DropdownMenu;
 } // namespace Ui
@@ -29,6 +32,7 @@ class Panel;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Window {
@@ -39,7 +43,14 @@ namespace Data {
 class DocumentMedia;
 } // namespace Data
 
+namespace Payments {
+struct NonPanelPaymentForm;
+enum class CheckoutResult;
+} // namespace Payments
+
 namespace InlineBots {
+
+class WebViewInstance;
 
 enum class PeerType : uint8 {
 	SameBot   = 0x01,
@@ -80,50 +91,227 @@ struct AddToMenuOpenApp {
 	not_null<BotAppData*> app;
 	QString startCommand;
 };
-using AddToMenuOpen = std::variant<
+struct AddToMenuOpen : std::variant<
 	AddToMenuOpenAttach,
 	AddToMenuOpenMenu,
-	AddToMenuOpenApp>;
+	AddToMenuOpenApp> {
+	using variant::variant;
+};
 
-class AttachWebView final
+struct WebViewSourceButton {
+	bool simple = false;
+
+	friend inline bool operator==(
+		WebViewSourceButton,
+		WebViewSourceButton) = default;
+};
+
+struct WebViewSourceSwitch {
+	friend inline bool operator==(
+		const WebViewSourceSwitch &,
+		const WebViewSourceSwitch &) = default;
+};
+
+struct WebViewSourceLinkApp { // t.me/botusername/appname
+	base::weak_ptr<WebViewInstance> from;
+	QString appname;
+	QString token;
+
+	friend inline bool operator==(
+		const WebViewSourceLinkApp &,
+		const WebViewSourceLinkApp &) = default;
+};
+
+struct WebViewSourceLinkAttachMenu { // ?startattach
+	base::weak_ptr<WebViewInstance> from;
+	base::weak_ptr<Data::Thread> thread;
+	PeerTypes choose;
+	QString token;
+
+	friend inline bool operator==(
+		const WebViewSourceLinkAttachMenu &,
+		const WebViewSourceLinkAttachMenu &) = default;
+};
+
+struct WebViewSourceLinkBotProfile { // t.me/botusername?startapp
+	base::weak_ptr<WebViewInstance> from;
+	QString token;
+	bool compact = false;
+
+	friend inline bool operator==(
+		const WebViewSourceLinkBotProfile &,
+		const WebViewSourceLinkBotProfile &) = default;
+};
+
+struct WebViewSourceMainMenu {
+	friend inline bool operator==(
+		WebViewSourceMainMenu,
+		WebViewSourceMainMenu) = default;
+};
+
+struct WebViewSourceAttachMenu {
+	base::weak_ptr<Data::Thread> thread;
+
+	friend inline bool operator==(
+		const WebViewSourceAttachMenu &,
+		const WebViewSourceAttachMenu &) = default;
+};
+
+struct WebViewSourceBotMenu {
+	friend inline bool operator==(
+		WebViewSourceBotMenu,
+		WebViewSourceBotMenu) = default;
+};
+
+struct WebViewSourceGame {
+	FullMsgId messageId;
+	QString title;
+
+	friend inline bool operator==(
+		WebViewSourceGame,
+		WebViewSourceGame) = default;
+};
+
+struct WebViewSourceBotProfile {
+	friend inline bool operator==(
+		WebViewSourceBotProfile,
+		WebViewSourceBotProfile) = default;
+};
+
+struct WebViewSource : std::variant<
+	WebViewSourceButton,
+	WebViewSourceSwitch,
+	WebViewSourceLinkApp,
+	WebViewSourceLinkAttachMenu,
+	WebViewSourceLinkBotProfile,
+	WebViewSourceMainMenu,
+	WebViewSourceAttachMenu,
+	WebViewSourceBotMenu,
+	WebViewSourceGame,
+	WebViewSourceBotProfile> {
+	using variant::variant;
+};
+
+struct WebViewButton {
+	QString text;
+	QString startCommand;
+	QByteArray url;
+	bool fromAttachMenu = false;
+	bool fromMainMenu = false;
+	bool fromSwitch = false;
+};
+
+struct WebViewContext {
+	base::weak_ptr<Window::SessionController> controller;
+	Dialogs::EntryState dialogsEntryState;
+	std::optional<Api::SendAction> action;
+	bool maySkipConfirmation = false;
+};
+
+struct WebViewDescriptor {
+	not_null<UserData*> bot;
+	std::shared_ptr<Ui::Show> parentShow;
+	WebViewContext context;
+	WebViewButton button;
+	WebViewSource source;
+};
+
+class WebViewInstance final
 	: public base::has_weak_ptr
 	, public Ui::BotWebView::Delegate {
+public:
+	explicit WebViewInstance(WebViewDescriptor &&descriptor);
+	~WebViewInstance();
+
+	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] not_null<UserData*> bot() const;
+	[[nodiscard]] WebViewSource source() const;
+
+	void activate();
+	void close();
+
+	[[nodiscard]] std::shared_ptr<Main::SessionShow> uiShow();
+
+private:
+	void resolve();
+
+	bool openAppFromBotMenuLink();
+
+	void requestButton();
+	void requestSimple();
+	void requestApp(bool allowWrite);
+	void requestWithMainMenuDisclaimer();
+	void requestWithMenuAdd();
+	void maybeChooseAndRequestButton(PeerTypes supported);
+
+	void resolveApp(
+		const QString &appname,
+		const QString &startparam,
+		bool forceConfirmation);
+	void confirmOpen(Fn<void()> done);
+	void confirmAppOpen(bool writeAccess, Fn<void(bool allowWrite)> done);
+
+	void show(const QString &url, uint64 queryId = 0);
+	void showGame();
+	void started(uint64 queryId);
+
+	[[nodiscard]] Window::SessionController *windowForThread(
+		not_null<Data::Thread*> thread);
+
+	auto nonPanelPaymentFormFactory(
+		Fn<void(Payments::CheckoutResult)> reactivate)
+	-> Fn<void(Payments::NonPanelPaymentForm)>;
+
+	Webview::ThemeParams botThemeParams() override;
+	bool botHandleLocalUri(QString uri, bool keepOpen) override;
+	void botHandleInvoice(QString slug) override;
+	void botHandleMenuButton(Ui::BotWebView::MenuButton button) override;
+	bool botValidateExternalLink(QString uri) override;
+	void botOpenIvLink(QString uri) override;
+	void botSendData(QByteArray data) override;
+	void botSwitchInlineQuery(
+		std::vector<QString> chatTypes,
+		QString query) override;
+	void botCheckWriteAccess(Fn<void(bool allowed)> callback) override;
+	void botAllowWriteAccess(Fn<void(bool allowed)> callback) override;
+	void botSharePhone(Fn<void(bool shared)> callback) override;
+	void botInvokeCustomMethod(
+		Ui::BotWebView::CustomMethodRequest request) override;
+	void botShareGameScore() override;
+	void botClose() override;
+
+	const std::shared_ptr<Ui::Show> _parentShow;
+	const not_null<Main::Session*> _session;
+	const not_null<UserData*> _bot;
+	const WebViewContext _context;
+	const WebViewButton _button;
+	const WebViewSource _source;
+
+	BotAppData *_app = nullptr;
+	QString _appStartParam;
+	bool _dataSent = false;
+
+	mtpRequestId _requestId = 0;
+	mtpRequestId _prolongId = 0;
+
+	QString _panelUrl;
+	std::unique_ptr<Ui::BotWebView::Panel> _panel;
+
+	static base::weak_ptr<WebViewInstance> PendingActivation;
+
+};
+
+class AttachWebView final : public base::has_weak_ptr {
 public:
 	explicit AttachWebView(not_null<Main::Session*> session);
 	~AttachWebView();
 
-	struct WebViewButton {
-		QString text;
-		QString startCommand;
-		QByteArray url;
-		bool fromAttachMenu = false;
-		bool fromMainMenu = false;
-		bool fromSwitch = false;
-	};
-	void request(
+	void open(WebViewDescriptor &&descriptor);
+	void openByUsername(
 		not_null<Window::SessionController*> controller,
 		const Api::SendAction &action,
 		const QString &botUsername,
 		const QString &startCommand);
-	void request(
-		not_null<Window::SessionController*> controller,
-		const Api::SendAction &action,
-		not_null<UserData*> bot,
-		const WebViewButton &button);
-	void requestSimple(
-		not_null<Window::SessionController*> controller,
-		not_null<UserData*> bot,
-		const WebViewButton &button);
-	void requestMenu(
-		not_null<Window::SessionController*> controller,
-		not_null<UserData*> bot);
-	void requestApp(
-		not_null<Window::SessionController*> controller,
-		const Api::SendAction &action,
-		not_null<UserData*> bot,
-		const QString &appName,
-		const QString &startParam,
-		bool forceConfirmation);
 
 	void cancel();
 
@@ -142,71 +330,31 @@ public:
 	[[nodiscard]] bool showMainMenuNewBadge(
 		const AttachWebViewBot &bot) const;
 
+	void removeFromMenu(
+		std::shared_ptr<Ui::Show> show,
+		not_null<UserData*> bot);
+
+	enum class AddToMenuResult {
+		AlreadyInMenu,
+		Added,
+		Unsupported,
+		Cancelled,
+	};
 	void requestAddToMenu(
 		not_null<UserData*> bot,
-		AddToMenuOpen open);
-	void requestAddToMenu(
+		Fn<void(AddToMenuResult, PeerTypes supported)> done);
+	void acceptMainMenuDisclaimer(
+		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
-		AddToMenuOpen open,
-		Window::SessionController *controller,
-		std::optional<Api::SendAction> action);
-	void removeFromMenu(not_null<UserData*> bot);
+		Fn<void(AddToMenuResult, PeerTypes supported)> done);
 
-	[[nodiscard]] std::optional<Api::SendAction> lookupLastAction(
-		const QString &url) const;
-
-	static void ClearAll();
+	void close(not_null<WebViewInstance*> instance);
+	void closeAll();
 
 private:
-	struct Context;
-
-
-	Webview::ThemeParams botThemeParams() override;
-	bool botHandleLocalUri(QString uri, bool keepOpen) override;
-	void botHandleInvoice(QString slug) override;
-	void botHandleMenuButton(Ui::BotWebView::MenuButton button) override;
-	bool botValidateExternalLink(QString uri) override;
-	void botOpenIvLink(QString uri) override;
-	void botSendData(QByteArray data) override;
-	void botSwitchInlineQuery(
-		std::vector<QString> chatTypes,
-		QString query) override;
-	void botCheckWriteAccess(Fn<void(bool allowed)> callback) override;
-	void botAllowWriteAccess(Fn<void(bool allowed)> callback) override;
-	void botSharePhone(Fn<void(bool shared)> callback) override;
-	void botInvokeCustomMethod(
-		Ui::BotWebView::CustomMethodRequest request) override;
-	void botClose() override;
-
-	[[nodiscard]] static Context LookupContext(
-		not_null<Window::SessionController*> controller,
-		const Api::SendAction &action);
-	[[nodiscard]] static bool IsSame(
-		const std::unique_ptr<Context> &a,
-		const Context &b);
-
-	bool openAppFromMenuLink(
-		not_null<Window::SessionController*> controller,
-		not_null<UserData*> bot);
-	void requestWithOptionalConfirm(
-		not_null<UserData*> bot,
-		const WebViewButton &button,
-		const Context &context,
-		Window::SessionController *controllerForConfirm = nullptr);
-
-	void resolve();
-	void request(const WebViewButton &button);
-	void requestSimple(const WebViewButton &button);
 	void resolveUsername(
-		const QString &username,
+		std::shared_ptr<Ui::Show> show,
 		Fn<void(not_null<PeerData*>)> done);
-
-	void confirmOpen(
-		not_null<Window::SessionController*> controller,
-		Fn<void()> done);
-	void acceptMainMenuDisclaimer(
-		not_null<Window::SessionController*> controller,
-		const WebViewButton &button);
 
 	enum class ToggledState {
 		Removed,
@@ -216,63 +364,35 @@ private:
 	void toggleInMenu(
 		not_null<UserData*> bot,
 		ToggledState state,
-		Fn<void()> callback = nullptr);
-
-	void show(
-		uint64 queryId,
-		const QString &url,
-		const QString &buttonText = QString(),
-		bool allowClipboardRead = false,
-		const BotAppData *app = nullptr,
-		bool fromMainMenu = false);
+		Fn<void(bool success)> callback = nullptr);
 	void confirmAddToMenu(
 		AttachWebViewBot bot,
-		Fn<void()> callback = nullptr);
-	void confirmAppOpen(bool requestWriteAccess);
-	void requestAppView(bool allowWrite);
-	void started(uint64 queryId);
-
-	void showToast(
-		const QString &text,
-		Window::SessionController *controller = nullptr);
+		Fn<void(bool added)> callback = nullptr);
 
 	const not_null<Main::Session*> _session;
 
 	base::Timer _refreshTimer;
 
-	std::unique_ptr<Context> _context;
-	std::unique_ptr<Context> _lastShownContext;
-	QString _lastShownUrl;
-	uint64 _lastShownQueryId = 0;
-	QString _lastShownButtonText;
-	UserData *_bot = nullptr;
 	QString _botUsername;
-	QString _botAppName;
 	QString _startCommand;
-	BotAppData *_app = nullptr;
-	QPointer<Ui::GenericBox> _confirmAddBox;
-	bool _appConfirmationRequired = false;
-	bool _appRequestWriteAccess = false;
 
 	mtpRequestId _requestId = 0;
-	mtpRequestId _prolongId = 0;
 
 	uint64 _botsHash = 0;
 	mtpRequestId _botsRequestId = 0;
 	std::vector<Fn<void()>> _botsRequestCallbacks;
 
-	std::unique_ptr<Context> _addToMenuContext;
-	UserData *_addToMenuBot = nullptr;
-	mtpRequestId _addToMenuId = 0;
-	AddToMenuOpen _addToMenuOpen;
-	base::weak_ptr<Window::SessionController> _addToMenuChooseController;
+	struct AddToMenuProcess {
+		mtpRequestId requestId = 0;
+		std::vector<Fn<void(AddToMenuResult, PeerTypes supported)>> done;
+	};
+	base::flat_map<not_null<UserData*>, AddToMenuProcess> _addToMenu;
 
 	std::vector<AttachWebViewBot> _attachBots;
 	rpl::event_stream<> _attachBotsUpdates;
 	base::flat_set<not_null<UserData*>> _disclaimerAccepted;
 
-	std::unique_ptr<Ui::BotWebView::Panel> _panel;
-	bool _catchingCancelInShowCall = false;
+	std::vector<std::unique_ptr<WebViewInstance>> _instances;
 
 };
 

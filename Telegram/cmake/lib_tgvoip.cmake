@@ -134,20 +134,13 @@ PRIVATE
 )
 
 if (WIN32)
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(lib_tgvoip_bundled
-        PRIVATE
-            /wd4005
-            /wd4244 # conversion from 'int' to 'float', possible loss of data (several in webrtc)
-            /wd5055 # operator '>' deprecated between enumerations and floating-point types
-        )
-    else()
-        target_compile_definitions(lib_tgvoip_bundled
-        PUBLIC
-            # Doesn't build with mingw for now
-            TGVOIP_NO_DSP
-        )
-    endif()
+    target_compile_options_if_exists(lib_tgvoip_bundled
+    PRIVATE
+        /wd4005 # 'identifier' : macro redefinition
+        /wd4068 # unknown pragma
+        /wd4996 # deprecated
+        /wd5055 # operator '>' deprecated between enumerations and floating-point types
+    )
 elseif (APPLE)
     target_compile_definitions(lib_tgvoip_bundled
     PUBLIC

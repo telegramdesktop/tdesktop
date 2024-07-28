@@ -55,9 +55,13 @@ enum class CheckoutResult {
 	Failed,
 };
 
-struct NonPanelPaymentForm : std::variant<
-	std::shared_ptr<CreditsFormData>,
-	std::shared_ptr<CreditsReceiptData>> {
+struct RealFormPresentedNotification {
+};
+struct NonPanelPaymentForm
+	: std::variant<
+		std::shared_ptr<CreditsFormData>,
+		std::shared_ptr<CreditsReceiptData>,
+		RealFormPresentedNotification> {
 	using variant::variant;
 };
 
@@ -183,6 +187,7 @@ private:
 	Fn<void(NonPanelPaymentForm)> _nonPanelPaymentFormProcess;
 	SubmitState _submitState = SubmitState::None;
 	bool _initialSilentValidation = false;
+	bool _realFormNotified = false;
 	bool _sendFormPending = false;
 	bool _sendFormFailed = false;
 

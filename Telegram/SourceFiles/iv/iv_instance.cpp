@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/platform/base_platform_info.h"
+#include "base/qt_signal_producer.h"
 #include "boxes/share_box.h"
 #include "core/application.h"
 #include "core/file_utilities.h"
@@ -49,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller_link_info.h"
 
 #include <QtGui/QGuiApplication>
+#include <QtGui/QWindow>
 
 namespace Iv {
 namespace {
@@ -298,12 +300,33 @@ ShareBoxResult Shown::shareBox(ShareBoxDescriptor &&descriptor) {
 		state->destroyRequests.fire({});
 	}, wrap->lifetime());
 
+	const auto waiting = layer->lifetime().make_state<rpl::lifetime>();
 	const auto focus = crl::guard(layer, [=] {
-		if (!layer->window()->isActiveWindow()) {
-			layer->window()->activateWindow();
+		const auto set = [=] {
 			layer->window()->setFocus();
+			layer->setInnerFocus();
+		};
+
+		const auto handle = layer->window()->windowHandle();
+		if (!handle) {
+			waiting->destroy();
+			return;
+		} else if (QGuiApplication::focusWindow() == handle) {
+			waiting->destroy();
+			set();
+		} else {
+			*waiting = base::qt_signal_producer(
+				qApp,
+				&QGuiApplication::focusWindowChanged
+			) | rpl::filter([=](QWindow *focused) {
+				const auto handle = layer->window()->windowHandle();
+				return handle && (focused == handle);
+			}) | rpl::start_with_next([=] {
+				waiting->destroy();
+				set();
+			});
+			layer->window()->activateWindow();
 		}
-		layer->setInnerFocus();
 	});
 	auto result = ShareBoxResult{
 		.focus = focus,

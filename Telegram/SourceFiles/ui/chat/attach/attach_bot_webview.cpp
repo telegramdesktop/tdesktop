@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webview/webview_interface.h"
 #include "base/debug_log.h"
 #include "base/invoke_queued.h"
+#include "base/qt_signal_producer.h"
 #include "styles/style_payments.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonArray>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
+#include <QtGui/QWindow>
 
 namespace Ui::BotWebView {
 namespace {
@@ -178,6 +180,8 @@ void Panel::Button::updateFg(QColor fg) {
 void Panel::Button::updateArgs(MainButtonArgs &&args) {
 	_textFull = std::move(args.text);
 	setDisabled(!args.isActive);
+	setPointerCursor(false);
+	setCursor(args.isActive ? style::cur_pointer : Qt::ForbiddenCursor);
 	setVisible(args.isVisible);
 	toggleProgress(args.isProgressVisible);
 	update();
@@ -371,6 +375,13 @@ Panel::~Panel() {
 
 void Panel::requestActivate() {
 	_widget->showAndActivate();
+	if (const auto widget = _webview ? _webview->window.widget() : nullptr) {
+		InvokeQueued(widget, [=] {
+			if (widget->isVisible()) {
+				_webview->window.focus();
+			}
+		});
+	}
 }
 
 void Panel::toggleProgress(bool shown) {
@@ -525,9 +536,15 @@ bool Panel::showWebview(
 				_webview->window.navigate(url);
 			}
 		}, &st::menuIconRestore);
-		callback(tr::lng_bot_terms(tr::now), [=] {
-			File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
-		}, &st::menuIconGroupLog);
+		if (_menuButtons & MenuButton::ShareGame) {
+			callback(tr::lng_iv_share(tr::now), [=] {
+				_delegate->botShareGameScore();
+			}, &st::menuIconShare);
+		} else {
+			callback(tr::lng_bot_terms(tr::now), [=] {
+				File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
+			}, &st::menuIconGroupLog);
+		}
 		const auto main = (_menuButtons & MenuButton::RemoveFromMainMenu);
 		if (main || (_menuButtons & MenuButton::RemoveFromMenu)) {
 			const auto handler = [=] {
@@ -677,6 +694,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			openInvoice(arguments);
 		} else if (command == "web_app_open_popup") {
 			openPopup(arguments);
+		} else if (command == "web_app_open_scan_qr_popup") {
+			openScanQrPopup(arguments);
 		} else if (command == "web_app_request_write_access") {
 			requestWriteAccess();
 		} else if (command == "web_app_request_phone") {
@@ -689,6 +708,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			requestClipboardText(arguments);
 		} else if (command == "web_app_set_header_color") {
 			processHeaderColor(arguments);
+		} else if (command == "share_score") {
+			_delegate->botShareGameScore();
 		}
 	});
 
@@ -719,6 +740,19 @@ postEvent: function(eventType, eventData) {
 	}
 
 	setupProgressGeometry();
+
+	base::qt_signal_producer(
+		qApp,
+		&QGuiApplication::focusWindowChanged
+	) | rpl::filter([=](QWindow *focused) {
+		const auto handle = _widget->window()->windowHandle();
+		return _webview
+			&& !_webview->window.widget()->isHidden()
+			&& handle
+			&& (focused == handle);
+	}) | rpl::start_with_next([=] {
+		_webview->window.focus();
+	}, _webview->lifetime);
 
 	return true;
 }
@@ -883,6 +917,19 @@ void Panel::openPopup(const QJsonObject &args) {
 			? QJsonObject{ { u"button_id"_q, *result.id } }
 			: EventData());
 	}
+}
+
+void Panel::openScanQrPopup(const QJsonObject &args) {
+	const auto widget = _webview->window.widget();
+	[[maybe_unused]] const auto ok = Webview::ShowBlockingPopup({
+		.parent = widget ? widget->window() : nullptr,
+		.text = tr::lng_bot_no_scan_qr(tr::now),
+		.buttons = { {
+			.id = "ok",
+			.text = tr::lng_box_ok(tr::now),
+			.type = Webview::PopupArgs::Button::Type::Ok,
+		}},
+	});
 }
 
 void Panel::requestWriteAccess() {
@@ -1205,6 +1252,13 @@ void Panel::updateFooterHeight() {
 }
 
 void Panel::showBox(object_ptr<BoxContent> box) {
+	showBox(std::move(box), LayerOption::KeepOther, anim::type::normal);
+}
+
+void Panel::showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
 	if (const auto widget = _webview ? _webview->window.widget() : nullptr) {
 		const auto hideNow = !widget->isHidden();
 		if (hideNow || _webview->lastHidingBox) {
@@ -1218,13 +1272,36 @@ void Panel::showBox(object_ptr<BoxContent> box) {
 					&& widget->isHidden()
 					&& _webview->lastHidingBox == raw) {
 					widget->show();
+					_webviewBottom->show();
 				}
 			}, _webview->lifetime);
 			if (hideNow) {
 				widget->hide();
+				_webviewBottom->hide();
 			}
 		}
 	}
+	const auto raw = box.data();
+
+	InvokeQueued(raw, [=] {
+		if (raw->window()->isActiveWindow()) {
+			// In case focus is somewhat in a native child window,
+			// like a webview, Qt glitches here with input fields showing
+			// focused state, but not receiving any keyboard input:
+			//
+			// window()->windowHandle()->isActive() == false.
+			//
+			// Steps were: SeparatePanel with a WebView2 child,
+			// some interaction with mouse inside the WebView2,
+			// so that WebView2 gets focus and active window state,
+			// then we call setSearchAllowed() and after animation
+			// is finished try typing -> nothing happens.
+			//
+			// With this workaround it works fine.
+			_widget->activateWindow();
+		}
+	});
+
 	_widget->showBox(
 		std::move(box),
 		LayerOption::KeepOther,
@@ -1233,6 +1310,14 @@ void Panel::showBox(object_ptr<BoxContent> box) {
 
 void Panel::showToast(TextWithEntities &&text) {
 	_widget->showToast(std::move(text));
+}
+
+not_null<QWidget*> Panel::toastParent() const {
+	return _widget->uiShow()->toastParent();
+}
+
+void Panel::hideLayer(anim::type animated) {
+	_widget->hideLayer(animated);
 }
 
 void Panel::showCriticalError(const TextWithEntities &text) {
@@ -1279,8 +1364,10 @@ void Panel::invoiceClosed(const QString &slug, const QString &status) {
 		{ u"slug"_q, slug },
 		{ u"status"_q, status },
 	});
-	_widget->showAndActivate();
-	_hiddenForPayment = false;
+	if (_hiddenForPayment) {
+		_hiddenForPayment = false;
+		_widget->showAndActivate();
+	}
 }
 
 void Panel::hideForPayment() {

@@ -553,7 +553,7 @@ bool ReadSetting(
 				const auto proxy = readProxy();
 				if (proxy) {
 					list.push_back(proxy);
-				} else if (index < -list.size()) {
+				} else if (index < -int64(list.size())) {
 					++index;
 				} else if (index > list.size()) {
 					--index;

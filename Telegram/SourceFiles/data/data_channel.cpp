@@ -1089,7 +1089,8 @@ void ApplyChannelUpdate(
 		| Flag::CanGetStatistics
 		| Flag::ViewAsMessages
 		| Flag::CanViewRevenue
-		| Flag::PaidMediaAllowed;
+		| Flag::PaidMediaAllowed
+		| Flag::CanViewCreditsRevenue;
 	channel->setFlags((channel->flags() & ~mask)
 		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag())
 		| (update.is_can_view_participants()
@@ -1107,7 +1108,10 @@ void ApplyChannelUpdate(
 			? Flag::ViewAsMessages
 			: Flag())
 		| (update.is_paid_media_allowed() ? Flag::PaidMediaAllowed : Flag())
-		| (update.is_can_view_revenue() ? Flag::CanViewRevenue : Flag()));
+		| (update.is_can_view_revenue() ? Flag::CanViewRevenue : Flag())
+		| (update.is_can_view_stars_revenue()
+			? Flag::CanViewCreditsRevenue
+			: Flag()));
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {
 		channel->addFlags(Flag::Megagroup);

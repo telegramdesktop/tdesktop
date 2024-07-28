@@ -671,6 +671,15 @@ struct HistoryServiceCustomLink
 	ClickHandlerPtr link;
 };
 
+struct HistoryServicePaymentRefund
+: public RuntimeComponent<HistoryServicePaymentRefund, HistoryItem> {
+	ClickHandlerPtr link;
+	PeerData *peer = nullptr;
+	QString transactionId;
+	QString currency;
+	uint64 amount = 0;
+};
+
 enum class HistorySelfDestructType {
 	Photo,
 	Video,

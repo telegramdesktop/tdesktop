@@ -155,6 +155,7 @@ int main(int argc, char *argv[])
 	QString remove;
 	int version = 0;
 	[[maybe_unused]] bool targetwin64 = false;
+	[[maybe_unused]] bool targetwinarm = false;
 	[[maybe_unused]] bool targetarmac = false;
 	QFileInfoList files;
 	for (int i = 0; i < argc; ++i) {
@@ -165,6 +166,7 @@ int main(int argc, char *argv[])
 			if (remove.isEmpty()) remove = info.canonicalPath() + "/";
 		} else if (string("-target") == argv[i] && i + 1 < argc) {
 			targetwin64 = (string("win64") == argv[i + 1]);
+			targetwinarm = (string("winarm") == argv[i + 1]);
 		} else if (string("-arch") == argv[i] && i + 1 < argc) {
 			targetarmac = (string("arm64") == argv[i + 1]);
 			if (!targetarmac && string("x86_64") != argv[i + 1]) {
@@ -493,7 +495,7 @@ int main(int argc, char *argv[])
 	cout << "Signature verified!\n";
 	RSA_free(pbKey);
 #ifdef Q_OS_WIN
-	QString outName((targetwin64 ? QString("tx64upd%1") : QString("tupdate%1")).arg(AlphaVersion ? AlphaVersion : version));
+	QString outName((targetwinarm ? QString("tarm64upd%1") : targetwin64 ? QString("tx64upd%1") : QString("tupdate%1")).arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_MAC
 	QString outName((targetarmac ? QString("tarmacupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
 #else

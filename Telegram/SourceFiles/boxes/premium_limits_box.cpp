@@ -418,7 +418,9 @@ void SimpleLimitBox(
 		BoxShowFinishes(box),
 		0,
 		descriptor.current,
-		descriptor.premiumLimit,
+		(descriptor.complexRatio
+			? descriptor.premiumLimit
+			: 2 * descriptor.current),
 		premiumPossible,
 		descriptor.phrase,
 		descriptor.icon);
@@ -769,7 +771,7 @@ void FilterLinksLimitBox(
 			premiumLimit,
 			&st::premiumIconChats,
 			std::nullopt,
-			true });
+			/*true */}); // Don't use real ratio, "Free" doesn't fit.
 }
 
 
@@ -856,7 +858,7 @@ void ShareableFiltersLimitBox(
 			premiumLimit,
 			&st::premiumIconFolders,
 			std::nullopt,
-			true });
+			/*true*/ }); // Don't use real ratio, "Free" doesn't fit.
 }
 
 void FilterPinsLimitBox(

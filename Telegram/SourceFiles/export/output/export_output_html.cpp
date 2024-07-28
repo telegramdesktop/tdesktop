@@ -1315,6 +1315,12 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " boosted the group "
 			+ QByteArray::number(data.boosts)
 			+ (data.boosts > 1 ? " times" : " time");
+	}, [&](const ActionPaymentRefunded &data) {
+		const auto amount = FormatMoneyAmount(data.amount, data.currency);
+		auto result = peers.wrapPeerName(data.peerId)
+			+ " refunded back "
+			+ amount;
+		return result;
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

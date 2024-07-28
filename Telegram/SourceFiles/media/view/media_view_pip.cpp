@@ -351,10 +351,14 @@ void PipPanel::init() {
 	widget()->resize(0, 0);
 	widget()->hide();
 
-	rp()->shownValue(
-	) | rpl::filter([=](bool shown) {
-		return shown;
-	}) | rpl::start_with_next([=] {
+	rpl::merge(
+		rp()->shownValue() | rpl::to_empty,
+		rp()->paintRequest() | rpl::to_empty
+	) | rpl::map([=] {
+		return widget()->windowHandle()
+			&& widget()->windowHandle()->isExposed();
+	}) | rpl::distinct_until_changed(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
 		// Workaround Qt's forced transient parent.
 		Ui::Platform::ClearTransientParent(widget());
 	}, rp()->lifetime());

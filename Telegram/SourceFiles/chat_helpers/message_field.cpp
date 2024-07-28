@@ -525,7 +525,7 @@ void InitMessageFieldGeometry(not_null<Ui::InputField*> field) {
 		st::historySendSize.height() - 2 * st::historySendPadding);
 	field->setMaxHeight(st::historyComposeFieldMaxHeight);
 
-	field->document()->setDocumentMargin(4.);
+	field->setDocumentMargin(4.);
 	field->setAdditionalMargin(style::ConvertScale(4) - 4);
 }
 

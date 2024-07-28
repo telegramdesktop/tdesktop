@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/painter.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/history.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
@@ -677,10 +678,13 @@ void Inner::switchPm() {
 	if (!_inlineBot || !_inlineBot->isBot()) {
 		return;
 	} else if (!_switchPmUrl.isEmpty()) {
-		_inlineBot->session().attachWebView().requestSimple(
-			_controller,
-			_inlineBot,
-			{ .url = _switchPmUrl, .fromSwitch = true });
+		const auto bot = _inlineBot;
+		_inlineBot->session().attachWebView().open({
+			.bot = bot,
+			.context = { .controller = _controller },
+			.button = { .url = _switchPmUrl },
+			.source = InlineBots::WebViewSourceSwitch(),
+		});
 	} else {
 		_inlineBot->botInfo->startToken = _switchPmStartToken;
 		_inlineBot->botInfo->inlineReturnTo

@@ -14,42 +14,54 @@ if not exist "%FullScriptPath%..\..\..\DesktopPrivate" (
 
 FOR /F "tokens=1* delims= " %%i in (%FullScriptPath%target) do set "BuildTarget=%%i"
 
-if "%BuildTarget%" equ "uwp" (
-  set "BuildUWP=1"
-) else if "%BuildTarget%" equ "uwp64" (
-  set "BuildUWP=1"
-) else (
-  set "BuildUWP=0"
-)
-
+set "Build64=0"
+set "BuildARM=0"
+set "BuildUWP=0"
 if "%BuildTarget%" equ "win64" (
   set "Build64=1"
+) else if "%BuildTarget%" equ "winarm" (
+  set "BuildARM=1"
+) else if "%BuildTarget%" equ "uwp" (
+  set "BuildUWP=1"
 ) else if "%BuildTarget%" equ "uwp64" (
   set "Build64=1"
-) else (
-  set "Build64=0"
+  set "BuildUWP=1"
+) else if "%BuildTarget%" equ "uwparm" (
+  set "BuildARM=1"
+  set "BuildUWP=1"
 )
 
 if %Build64% neq 0 (
   if "%Platform%" neq "x64" (
-    echo Bad environment. Make sure to run from 'x64 Native Tools Command Prompt for VS 2019'.
+    echo Bad environment. Make sure to run from 'x64 Native Tools Command Prompt for VS 2022'.
     exit /b
   ) else if "%VSCMD_ARG_HOST_ARCH%" neq "x64" (
-    echo Bad environment. Make sure to run from 'x64 Native Tools Command Prompt for VS 2019'.
+    echo Bad environment. Make sure to run from 'x64 Native Tools Command Prompt for VS 2022'.
     exit /b
   ) else if "%VSCMD_ARG_TGT_ARCH%" neq "x64" (
-    echo Bad environment. Make sure to run from 'x64 Native Tools Command Prompt for VS 2019'.
+    echo Bad environment. Make sure to run from 'x64 Native Tools Command Prompt for VS 2022'.
+    exit /b
+  )
+) else if %BuildARM% neq 0 (
+  if "%Platform%" neq "arm64" (
+    echo Bad environment. Make sure to run from 'ARM64 Native Tools Command Prompt for VS 2022'.
+    exit /b
+  ) else if "%VSCMD_ARG_HOST_ARCH%" neq "arm64" (
+    echo Bad environment. Make sure to run from 'ARM64 Native Tools Command Prompt for VS 2022'.
+    exit /b
+  ) else if "%VSCMD_ARG_TGT_ARCH%" neq "arm64" (
+    echo Bad environment. Make sure to run from 'ARM64 Native Tools Command Prompt for VS 2022'.
     exit /b
   )
 ) else (
   if "%Platform%" neq "x86" (
-    echo Bad environment. Make sure to run from 'x86 Native Tools Command Prompt for VS 2019'.
+    echo Bad environment. Make sure to run from 'x86 Native Tools Command Prompt for VS 2022'.
     exit /b
   ) else if "%VSCMD_ARG_HOST_ARCH%" neq "x86" (
-    echo Bad environment. Make sure to run from 'x86 Native Tools Command Prompt for VS 2019'.
+    echo Bad environment. Make sure to run from 'x86 Native Tools Command Prompt for VS 2022'.
     exit /b
   ) else if "%VSCMD_ARG_TGT_ARCH%" neq "x86" (
-    echo Bad environment. Make sure to run from 'x86 Native Tools Command Prompt for VS 2019'.
+    echo Bad environment. Make sure to run from 'x86 Native Tools Command Prompt for VS 2022'.
     exit /b
   )
 )
@@ -76,12 +88,16 @@ echo.
 if %BuildUWP% neq 0 (
   if %Build64% neq 0 (
     echo Building version %AppVersionStrFull% for UWP 64 bit..
+  ) else if %BuildARM% neq 0 (
+    echo Building version %AppVersionStrFull% for UWP ARM..
   ) else (
     echo Building version %AppVersionStrFull% for UWP..
   )
 ) else (
   if %Build64% neq 0 (
     echo Building version %AppVersionStrFull% for Windows 64 bit..
+  ) else if %BuildARM% neq 0 (
+    echo Building version %AppVersionStrFull% for Windows on ARM..
   ) else (
     echo Building version %AppVersionStrFull% for Windows..
   )
@@ -96,6 +112,11 @@ if %Build64% neq 0 (
   set "SetupFile=tsetup-x64.%AppVersionStrFull%.exe"
   set "PortableFile=tportable-x64.%AppVersionStrFull%.zip"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
+) else if %BuildARM% neq 0 (
+  set "UpdateFile=tarm64upd%AppVersion%"
+  set "SetupFile=tsetup-arm64.%AppVersionStrFull%.exe"
+  set "PortableFile=tportable-arm64.%AppVersionStrFull%.zip"
+  set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 ) else (
   set "UpdateFile=tupdate%AppVersion%"
   set "SetupFile=tsetup.%AppVersionStrFull%.exe"
@@ -210,7 +231,11 @@ if %BuildUWP% equ 0 (
     if not exist "%SetupFile%" goto error
   )
 
-  call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\%Platform%\d3d\d3dcompiler_47.dll" -target %BuildTarget% %AlphaBetaParam%
+  if %BuildARM% neq 0 (
+    call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -target %BuildTarget% %AlphaBetaParam%
+  ) else (
+    call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\%Platform%\d3d\d3dcompiler_47.dll" -target %BuildTarget% %AlphaBetaParam%
+  )
   if %errorlevel% neq 0 goto error
 
   if %AlphaVersion% neq 0 (
@@ -309,10 +334,12 @@ if %BuildUWP% neq 0 (
   if %errorlevel% neq 0 goto error
 )
 
-if %Build64% equ 0 (
-  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tsetup"
-) else (
+if %Build64% neq 0 (
   set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tx64"
+) else if %BuildARM% neq 0 (
+  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tarm64"
+) else (
+  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tsetup"
 )
 
 if %BuildUWP% equ 0 (

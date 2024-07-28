@@ -167,7 +167,7 @@ void SimilarChannels::draw(Painter &p, const PaintContext &context) const {
 	_hasHeavyPart = 1;
 	validateLastPremiumLock();
 	const auto drawOne = [&](const Channel &channel) {
-		const auto geometry = channel.geometry.translated(-_scrollLeft, 0);
+		const auto geometry = channel.geometry.translated(-int(_scrollLeft), 0);
 		const auto right = geometry.x() + geometry.width();
 		if (right <= 0) {
 			return;
@@ -501,7 +501,7 @@ TextState SimilarChannels::textState(
 		return result;
 	}
 	for (const auto &channel : _channels) {
-		if (channel.geometry.translated(-_scrollLeft, 0).contains(point)) {
+		if (channel.geometry.translated(-int(_scrollLeft), 0).contains(point)) {
 			result.link = channel.link;
 			_lastPoint = point
 				+ QPoint(_scrollLeft, 0)

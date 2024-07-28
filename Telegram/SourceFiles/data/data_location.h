@@ -16,6 +16,11 @@ public:
 	LocationPoint() = default;
 	explicit LocationPoint(const MTPDgeoPoint &point);
 
+	enum IgnoreAccessHash {
+		NoAccessHash,
+	};
+	LocationPoint(float64 lat, float64 lon, IgnoreAccessHash);
+
 	[[nodiscard]] QString latAsString() const;
 	[[nodiscard]] QString lonAsString() const;
 	[[nodiscard]] MTPGeoPoint toMTP() const;
@@ -43,6 +48,24 @@ private:
 	float64 _lon = 0;
 	uint64 _access = 0;
 
+};
+
+struct InputVenue {
+	float64 lat = 0.;
+	float64 lon = 0.;
+	QString title;
+	QString address;
+	QString provider;
+	QString id;
+	QString venueType;
+
+	[[nodiscard]] bool justLocation() const {
+		return id.isEmpty();
+	}
+
+	friend inline bool operator==(
+		const InputVenue &,
+		const InputVenue &) = default;
 };
 
 [[nodiscard]] GeoPointLocation ComputeLocation(const LocationPoint &point);

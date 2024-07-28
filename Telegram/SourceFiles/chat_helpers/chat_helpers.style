@@ -1423,3 +1423,61 @@ paidTagLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 }
 paidTagPadding: margins(16px, 6px, 16px, 6px);
+
+pickLocationWindow: size(364px, 680px);
+pickLocationMapHeight: 220px;
+pickLocationCollapsedHeight: 92px;
+pickLocationRowHeight: 52px;
+pickLocationButton: FlatButton {
+	height: pickLocationRowHeight;
+	bgColor: contactsBg;
+	overBgColor: contactsBgOver;
+	ripple: defaultRippleAnimation;
+}
+pickLocationButtonText: FlatLabel(defaultFlatLabel) {
+	minWidth: 128px;
+	maxHeight: 20px;
+	style: semiboldTextStyle;
+	textFg: windowBoldFg;
+}
+pickLocationButtonStatus: FlatLabel(defaultFlatLabel) {
+	minWidth: 128px;
+	maxHeight: 20px;
+	textFg: windowSubTextFg;
+}
+pickLocationButtonSkip: 6px;
+pickLocationSendIcon: icon{{ "chat/filled_location", windowFgActive }};
+pickLocationVenueItem: PeerListItem(defaultPeerListItem) {
+	height: pickLocationRowHeight;
+	photoSize: 42px;
+	photoPosition: point(18px, 5px);
+	namePosition: point(70px, 7px);
+	statusPosition: point(70px, 27px);
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBgOver;
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: contactsStatusFg;
+	statusFgOver: contactsStatusFgOver;
+	statusFgActive: contactsStatusFgOnline;
+}
+pickLocationVenueList: PeerList(defaultPeerList) {
+	item: pickLocationVenueItem;
+	padding: margins(0px, 0px, 0px, 0px);
+}
+pickLocationIconSkip: 6px;
+pickLocationLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(56px, 56px);
+	color: windowSubTextFg;
+	thickness: 4px;
+}
+pickLocationPromoHeight: 32px;
+pickLocationChooseOnMap: RoundButton(defaultActiveButton) {
+	height: 44px;
+	textTop: 11px;
+	width: -96px;
+	font: font(15px semibold);
+}

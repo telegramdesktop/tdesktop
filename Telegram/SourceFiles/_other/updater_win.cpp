@@ -571,8 +571,8 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 	}
 	if (!hDumpFile || hDumpFile == INVALID_HANDLE_VALUE) {
 		WCHAR wstrPath[maxFileLen];
-		DWORD wstrPathLen;
-		if (wstrPathLen = GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
+		DWORD wstrPathLen = GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen);
+		if (wstrPathLen) {
 			wsprintf(wstrPath + wstrPathLen, L"\\%s\\", _programName);
 			hDumpFile = _generateDumpFileAtPath(wstrPath);
 		}

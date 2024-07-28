@@ -1115,6 +1115,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_faq" = "Telegram FAQ";
 "lng_settings_faq_link" = "https://telegram.org/faq#general-questions";
 "lng_settings_features" = "Telegram Features";
+"lng_settings_credits" = "Your Stars";
 "lng_settings_logout" = "Log Out";
 "lng_sure_logout" = "Are you sure you want to log out?";
 
@@ -1888,6 +1889,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_boost_apply#one" = "{from} boosted the group";
 "lng_action_boost_apply#other" = "{from} boosted the group {count} times";
 "lng_action_set_chat_intro" = "{from} added the message below for all empty chats. How?";
+"lng_action_payment_refunded" = "{peer} refunded back {amount}";
 
 "lng_similar_channels_title" = "Similar channels";
 "lng_similar_channels_view_all" = "View all";
@@ -2362,11 +2364,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_summary_in_toast_about#one" = "**{count}** Star added to your balance.";
 "lng_credits_summary_in_toast_about#other" = "**{count}** Stars added to your balance.";
 "lng_credits_box_history_entry_peer" = "Recipient";
+"lng_credits_box_history_entry_peer_in" = "From";
 "lng_credits_box_history_entry_via" = "Via";
 "lng_credits_box_history_entry_play_market" = "Play Market";
 "lng_credits_box_history_entry_app_store" = "App Store";
 "lng_credits_box_history_entry_fragment" = "Fragment";
 "lng_credits_box_history_entry_ads" = "Ads Platform";
+"lng_credits_box_history_entry_premium_bot" = "Stars Top-Up";
+"lng_credits_box_history_entry_via_premium_bot" = "Premium Bot";
 "lng_credits_box_history_entry_id" = "Transaction ID";
 "lng_credits_box_history_entry_id_copied" = "Transaction ID copied to clipboard.";
 "lng_credits_box_history_entry_success_date" = "Transaction date";
@@ -2382,6 +2387,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_location_title" = "Location";
 "lng_location_about" = "Display the location of your business on your account.";
 "lng_location_address" = "Enter Address";
+"lng_location_set_map" = "Set Location on Map";
 "lng_location_fallback" = "You can set your location on the map from your mobile device.";
 
 "lng_hours_title" = "Business Hours";
@@ -2810,12 +2816,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_badge" = "x{amount}";
 
 "lng_prizes_results_title" = "Winners Selected!";
+"lng_prizes_results_title_one" = "Winner Selected!";
 "lng_prizes_results_about#one" = "**{count}** winner of the {link} was randomly selected by Telegram.";
 "lng_prizes_results_about#other" = "**{count}** winners of the {link} were randomly selected by Telegram.";
 "lng_prizes_results_link" = "Giveaway";
+"lng_prizes_results_winner" = "Winner";
 "lng_prizes_results_winners" = "Winners";
 "lng_prizes_results_more#one" = "and {count} more!";
 "lng_prizes_results_more#other" = "and {count} more!";
+"lng_prizes_results_one" = "The winner received their gift link in a private message.";
 "lng_prizes_results_all" = "All winners received gift links in private messages.";
 "lng_prizes_results_some" = "Some winners couldn't be selected.";
 
@@ -3151,6 +3160,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_close_warning_sure" = "Close anyway";
 "lng_bot_add_to_side_menu" = "{bot} asks your permission to be added as an option to your main menu so you can access it any time.";
 "lng_bot_add_to_side_menu_done" = "Bot added to the main menu.";
+"lng_bot_no_scan_qr" = "QR Codes for bots are not supported on Desktop. Please use one of Telegram's mobile apps.";
+"lng_bot_click_to_start" = "Click here to use this bot.";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
@@ -3186,6 +3197,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_unread_bar_some" = "Unread messages";
 
 "lng_maps_point" = "Location";
+"lng_maps_select_on_map" = "Select on the Map";
+"lng_maps_point_send" = "Send This Location";
+"lng_maps_point_set" = "Set This Location";
+"lng_maps_or_choose" = "Or choose a venue";
+"lng_maps_places_in_area" = "Places in this area";
+"lng_maps_no_places" = "No places found";
+"lng_maps_choose_to_search" = "Choose location to see places nearby.";
+"lng_maps_venues_source" = "Powered by Foursquare";
 "lng_live_location" = "Live Location";
 "lng_live_location_now" = "updated just now";
 "lng_live_location_minutes#one" = "updated {count} minute ago";
@@ -3740,6 +3759,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_card_declined" = "Your card was declined.";
 "lng_payments_payment_failed" = "Payment failed. Your card has not been billed.";
 "lng_payments_precheckout_failed" = "The bot couldn't process your payment. Your card has not been billed.";
+"lng_payments_precheckout_timeout" = "The bot didn't respond in time. Your card has not been billed.";
+"lng_payments_precheckout_stars_failed" = "The bot couldn't process your payment.";
+"lng_payments_precheckout_stars_timeout" = "The bot didn't respond in time.";
 "lng_payments_already_paid" = "You have already paid for this item.";
 
 "lng_payments_terms_title" = "Terms of Service";

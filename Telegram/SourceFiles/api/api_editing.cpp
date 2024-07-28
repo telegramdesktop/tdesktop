@@ -153,9 +153,7 @@ mtpRequestId EditMessage(
 	const auto &text = item->originalText();
 	const auto webpage = (!item->media() || !item->media()->webpage())
 		? Data::WebPageDraft{ .removed = true }
-		: Data::WebPageDraft{
-			.id = item->media()->webpage()->id,
-		};
+		: Data::WebPageDraft::FromItem(item);
 	return EditMessage(
 		item,
 		text,

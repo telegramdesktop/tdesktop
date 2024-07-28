@@ -175,7 +175,7 @@ void AddFeaturesList(
 			st::boostFeatureIconPosition);
 	};
 	const auto proj = &Ui::Text::RichLangValue;
-	const auto max = std::max({
+	const auto lowMax = std::max({
 		features.linkLogoLevel,
 		features.transcribeLevel,
 		features.emojiPackLevel,
@@ -189,9 +189,13 @@ void AddFeaturesList(
 			? 0
 			: features.linkStylesByLevel.back().first),
 	});
+	const auto highMax = std::max(lowMax, features.sponsoredLevel);
 	auto nameColors = 0;
 	auto linkStyles = 0;
-	for (auto i = std::max(startFromLevel, 1); i <= max; ++i) {
+	for (auto i = std::max(startFromLevel, 1); i <= highMax; ++i) {
+		if ((i > lowMax) && (i < highMax)) {
+			continue;
+		}
 		const auto unlocks = (i == startFromLevel);
 		container->add(
 			MakeFeaturesBadge(
@@ -202,6 +206,9 @@ void AddFeaturesList(
 						lt_count,
 						rpl::single(float64(i)))),
 			st::boostLevelBadgePadding);
+		if (i >= features.sponsoredLevel) {
+			add(tr::lng_channel_earn_off(proj), st::boostFeatureOffSponsored);
+		}
 		if (i >= features.customWallpaperLevel) {
 			add(
 				(group

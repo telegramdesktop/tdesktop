@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/text/text_utilities.h"
+#include "settings/settings_credits_graphics.h" // ShowRefundInfoBox.
 #include "storage/file_upload.h"
 #include "storage/storage_shared_media.h"
 #include "main/main_account.h"
@@ -4028,6 +4029,22 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		}
 	} else if (type == mtpc_messageActionGiveawayResults) {
 		UpdateComponents(HistoryServiceGiveawayResults::Bit());
+	} else if (type == mtpc_messageActionPaymentRefunded) {
+		const auto &data = action.c_messageActionPaymentRefunded();
+		UpdateComponents(HistoryServicePaymentRefund::Bit());
+		const auto refund = Get<HistoryServicePaymentRefund>();
+		refund->peer = _history->owner().peer(peerFromMTP(data.vpeer()));
+		refund->amount = data.vtotal_amount().v;
+		refund->currency = qs(data.vcurrency());
+		refund->transactionId = qs(data.vcharge().data().vid());
+		const auto id = fullId();
+		refund->link = std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			if (const auto window = my.sessionWindow.get()) {
+				Settings::ShowRefundInfoBox(window, id);
+			}
+		});
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -4941,6 +4958,25 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto preparePaymentRefunded = [&](const MTPDmessageActionPaymentRefunded &action) {
+		auto result = PreparedServiceText();
+		const auto refund = Get<HistoryServicePaymentRefund>();
+		Assert(refund != nullptr);
+		Assert(refund->peer != nullptr);
+
+		const auto amount = refund->amount;
+		const auto currency = refund->currency;
+		result.links.push_back(refund->peer->createOpenLink());
+		result.text = tr::lng_action_payment_refunded(
+			tr::now,
+			lt_peer,
+			Ui::Text::Link(refund->peer->name(), 1), // Link 1.
+			lt_amount,
+			{ Ui::FillAmountAndCurrency(amount, currency) },
+			Ui::Text::WithEntities);
+		return result;
+	};
+
 	setServiceText(action.match(
 		prepareChatAddUserText,
 		prepareChatJoinedByLink,
@@ -4983,6 +5019,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareGiveawayLaunch,
 		prepareGiveawayResults,
 		prepareBoostApply,
+		preparePaymentRefunded,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 

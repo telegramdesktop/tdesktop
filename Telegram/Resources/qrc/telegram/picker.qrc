@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/picker">
+    <file alias="picker.css">../../picker_html/picker.css</file>
+    <file alias="picker.js">../../picker_html/picker.js</file>
+  </qresource>
+</RCC>

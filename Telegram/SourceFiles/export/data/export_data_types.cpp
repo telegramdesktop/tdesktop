@@ -1515,6 +1515,13 @@ ServiceAction ParseServiceAction(
 		result.content = content;
 	}, [&](const MTPDmessageActionRequestedPeerSentMe &data) {
 		// Should not be in user inbox.
+	}, [&](const MTPDmessageActionPaymentRefunded &data) {
+		auto content = ActionPaymentRefunded();
+		content.currency = ParseString(data.vcurrency());
+		content.amount = data.vtotal_amount().v;
+		content.peerId = ParsePeerId(data.vpeer());
+		content.transactionId = data.vcharge().data().vid().v;
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

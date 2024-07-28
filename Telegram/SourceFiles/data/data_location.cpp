@@ -26,6 +26,11 @@ LocationPoint::LocationPoint(const MTPDgeoPoint &point)
 , _access(point.vaccess_hash().v) {
 }
 
+LocationPoint::LocationPoint(float64 lat, float64 lon, IgnoreAccessHash)
+: _lat(lat)
+, _lon(lon) {
+}
+
 QString LocationPoint::latAsString() const {
 	return AsString(_lat);
 }

@@ -62,6 +62,79 @@ void InnerFillMessagePostFlags(
 	}
 }
 
+void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
+	const auto history = action.history;
+	const auto peer = history->peer;
+	const auto session = &history->session();
+	const auto api = &session->api();
+
+	action.clearDraft = false;
+	action.generateLocal = false;
+	api->sendAction(action);
+
+	const auto randomId = base::RandomValue<uint64>();
+
+	auto flags = NewMessageFlags(peer);
+	auto sendFlags = MTPmessages_SendMedia::Flags(0);
+	if (action.replyTo) {
+		flags |= MessageFlag::HasReplyInfo;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
+	}
+	const auto silentPost = ShouldSendSilent(peer, action.options);
+	InnerFillMessagePostFlags(action.options, peer, flags);
+	if (silentPost) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
+	}
+	const auto sendAs = action.options.sendAs;
+	if (sendAs) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
+	}
+	const auto messagePostAuthor = peer->isBroadcast()
+		? session->user()->name()
+		: QString();
+
+	if (action.options.scheduled) {
+		flags |= MessageFlag::IsOrWasScheduled;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+	}
+	if (action.options.shortcutId) {
+		flags |= MessageFlag::ShortcutMessage;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
+	}
+	if (action.options.effectId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
+	if (action.options.invertCaption) {
+		flags |= MessageFlag::InvertMedia;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+	}
+
+	auto &histories = history->owner().histories();
+	histories.sendPreparedMessage(
+		history,
+		action.replyTo,
+		randomId,
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
+			MTP_flags(sendFlags),
+			peer->input,
+			Data::Histories::ReplyToPlaceholder(),
+			std::move(inputMedia),
+			MTPstring(),
+			MTP_long(randomId),
+			MTPReplyMarkup(),
+			MTPvector<MTPMessageEntity>(),
+			MTP_int(action.options.scheduled),
+			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+			Data::ShortcutIdToMTP(session, action.options.shortcutId),
+			MTP_long(action.options.effectId)
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		api->sendMessageFail(error, peer, randomId);
+	});
+
+	api->finishForwarding(action);
+}
+
 template <typename MediaData>
 void SendExistingMedia(
 		MessageToSend &&message,
@@ -360,6 +433,33 @@ bool SendDice(MessageToSend &message) {
 	});
 	api->finishForwarding(action);
 	return true;
+}
+
+void SendLocation(SendAction action, float64 lat, float64 lon) {
+	SendSimpleMedia(
+		action,
+		MTP_inputMediaGeoPoint(
+			MTP_inputGeoPoint(
+				MTP_flags(0),
+				MTP_double(lat),
+				MTP_double(lon),
+				MTPint()))); // accuracy_radius
+}
+
+void SendVenue(SendAction action, Data::InputVenue venue) {
+	SendSimpleMedia(
+		action,
+		MTP_inputMediaVenue(
+			MTP_inputGeoPoint(
+				MTP_flags(0),
+				MTP_double(venue.lat),
+				MTP_double(venue.lon),
+				MTPint()), // accuracy_radius
+			MTP_string(venue.title),
+			MTP_string(venue.address),
+			MTP_string(venue.provider),
+			MTP_string(venue.id),
+			MTP_string(venue.venueType)));
 }
 
 void FillMessagePostFlags(

@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
+#include "ui/webview_helpers.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
@@ -35,11 +36,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonValue>
 #include <QtCore/QFile>
+#include <QtGui/QGuiApplication>
 #include <QtGui/QPainter>
 #include <QtGui/QWindow>
 #include <charconv>
-
-#include "base/call_delayed.h"
 
 namespace Iv {
 namespace {
@@ -79,67 +79,7 @@ namespace {
 	static const auto phrases = base::flat_map<QByteArray, tr::phrase<>>{
 		{ "iv-join-channel", tr::lng_iv_join_channel },
 	};
-	static const auto serialize = [](const style::color *color) {
-		const auto qt = (*color)->c;
-		if (qt.alpha() == 255) {
-			return '#'
-				+ QByteArray::number(qt.red(), 16).right(2)
-				+ QByteArray::number(qt.green(), 16).right(2)
-				+ QByteArray::number(qt.blue(), 16).right(2);
-		}
-		return "rgba("
-			+ QByteArray::number(qt.red()) + ","
-			+ QByteArray::number(qt.green()) + ","
-			+ QByteArray::number(qt.blue()) + ","
-			+ QByteArray::number(qt.alpha() / 255.) + ")";
-	};
-	static const auto escape = [](tr::phrase<> phrase) {
-		const auto text = phrase(tr::now);
-
-		auto result = QByteArray();
-		for (auto i = 0; i != text.size(); ++i) {
-			uint ucs4 = text[i].unicode();
-			if (QChar::isHighSurrogate(ucs4) && i + 1 != text.size()) {
-				ushort low = text[i + 1].unicode();
-				if (QChar::isLowSurrogate(low)) {
-					ucs4 = QChar::surrogateToUcs4(ucs4, low);
-					++i;
-				}
-			}
-			if (ucs4 == '\'' || ucs4 == '\"' || ucs4 == '\\') {
-				result.append('\\').append(char(ucs4));
-			} else if (ucs4 < 32 || ucs4 > 127) {
-				result.append('\\' + QByteArray::number(ucs4, 16) + ' ');
-			} else {
-				result.append(char(ucs4));
-			}
-		}
-		return result;
-	};
-	auto result = QByteArray();
-	for (const auto &[name, phrase] : phrases) {
-		result += "--td-lng-" + name + ":'" + escape(phrase) + "'; ";
-	}
-	for (const auto &[name, color] : map) {
-		result += "--td-" + name + ':' + serialize(color) + ';';
-	}
-	return result;
-}
-
-[[nodiscard]] QByteArray EscapeForAttribute(QByteArray value) {
-	return value
-		.replace('&', "&amp;")
-		.replace('"', "&quot;")
-		.replace('\'', "&#039;")
-		.replace('<', "&lt;")
-		.replace('>', "&gt;");
-}
-
-[[nodiscard]] QByteArray EscapeForScriptString(QByteArray value) {
-	return value
-		.replace('\\', "\\\\")
-		.replace('"', "\\\"")
-		.replace('\'', "\\\'");
+	return Ui::ComputeStyles(map, phrases);
 }
 
 [[nodiscard]] QByteArray WrapPage(const Prepared &page) {
@@ -159,7 +99,7 @@ namespace {
 <html)"_q
 	+ classAttribute
 	+ R"( style=")"
-	+ EscapeForAttribute(ComputeStyles())
+	+ Ui::EscapeForAttribute(ComputeStyles())
 	+ R"(">
 	<head>
 		<meta charset="utf-8">
@@ -194,7 +134,7 @@ Controller::Controller(
 	Fn<ShareBoxResult(ShareBoxDescriptor)> showShareBox)
 : _delegate(delegate)
 , _updateStyles([=] {
-	const auto str = EscapeForScriptString(ComputeStyles());
+	const auto str = Ui::EscapeForScriptString(ComputeStyles());
 	if (_webview) {
 		_webview->eval("IV.updateStyles('" + str + "');");
 	}
@@ -343,10 +283,11 @@ void Controller::createWindow() {
 	const auto window = _window.get();
 
 	base::qt_signal_producer(
-		window->window()->windowHandle(),
-		&QWindow::activeChanged
-	) | rpl::filter([=] {
-		return _webview && window->window()->windowHandle()->isActive();
+		qApp,
+		&QGuiApplication::focusWindowChanged
+	) | rpl::filter([=](QWindow *focused) {
+		const auto handle = window->window()->windowHandle();
+		return _webview && handle && (focused == handle);
 	}) | rpl::start_with_next([=] {
 		setInnerFocus();
 	}, window->lifetime());
@@ -612,7 +553,7 @@ QByteArray Controller::navigateScript(int index, const QString &hash) {
 	return "IV.navigateTo("
 		+ QByteArray::number(index)
 		+ ", '"
-		+ EscapeForScriptString(qthelp::url_decode(hash).toUtf8())
+		+ Ui::EscapeForScriptString(qthelp::url_decode(hash).toUtf8())
 		+ "');";
 }
 
@@ -679,7 +620,7 @@ bool Controller::active() const {
 void Controller::showJoinedTooltip() {
 	if (_webview && _ready) {
 		_webview->eval("IV.showTooltip('"
-			+ EscapeForScriptString(
+			+ Ui::EscapeForScriptString(
 				tr::lng_action_you_joined(tr::now).toUtf8())
 			+ "');");
 	}

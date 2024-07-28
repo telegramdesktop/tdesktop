@@ -61,6 +61,10 @@ void CopyPostLink(
 	not_null<Window::SessionController*> controller,
 	FullMsgId itemId,
 	Context context);
+void CopyPostLink(
+	std::shared_ptr<Main::SessionShow> show,
+	FullMsgId itemId,
+	Context context);
 void CopyStoryLink(
 	std::shared_ptr<Main::SessionShow> show,
 	FullStoryId storyId);

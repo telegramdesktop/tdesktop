@@ -193,6 +193,21 @@ not_null<MaskedInputField*> AddInputFieldForCredits(
 
 PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 		const Data::CreditsHistoryEntry &entry) {
+	using PeerType = Data::CreditsHistoryEntry::PeerType;
+	if (entry.peerType == PeerType::PremiumBot) {
+		const auto svg = std::make_shared<QSvgRenderer>(Ui::Premium::Svg());
+		return [=](Painter &p, int x, int y, int, int size) mutable {
+			const auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			{
+				auto gradient = QLinearGradient(x + size, y + size, x, y);
+				gradient.setStops(Ui::Premium::ButtonGradientStops());
+				p.setBrush(gradient);
+			}
+			p.drawEllipse(x, y, size, size);
+			svg->render(&p, QRectF(x, y, size, size) - Margins(size / 5.));
+		};
+	}
 	const auto bg = [&]() -> EmptyUserpic::BgColors {
 		switch (entry.peerType) {
 		case Data::CreditsHistoryEntry::PeerType::Peer:
@@ -205,6 +220,8 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::PremiumBot:
 			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
+		case Data::CreditsHistoryEntry::PeerType::Ads:
+			return { st::historyPeer6UserpicBg, st::historyPeer6UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::Unsupported:
 			return {
 				st::historyPeerArchiveUserpicBg,
@@ -216,10 +233,6 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 	const auto userpic = std::make_shared<EmptyUserpic>(bg, QString());
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		userpic->paintCircle(p, x, y, outerWidth, size);
-		using PeerType = Data::CreditsHistoryEntry::PeerType;
-		if (entry.peerType == PeerType::PremiumBot) {
-			return;
-		}
 		const auto rect = QRect(x, y, size, size);
 		((entry.peerType == PeerType::AppStore)
 			? st::sessionIconiPhone
@@ -227,6 +240,8 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 			? st::sessionIconAndroid
 			: (entry.peerType == PeerType::Fragment)
 			? st::introFragmentIcon
+			: (entry.peerType == PeerType::Ads)
+			? st::creditsHistoryEntryTypeAds
 			: st::dialogsInaccessibleUserpic).paintInCenter(p, rect);
 	};
 }
@@ -442,6 +457,10 @@ Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 	return ((entry.peerType == Data::CreditsHistoryEntry::PeerType::Fragment)
 		? tr::lng_bot_username_description1_link
+		: (entry.peerType == Data::CreditsHistoryEntry::PeerType::PremiumBot)
+		? tr::lng_credits_box_history_entry_premium_bot
+		: (entry.peerType == Data::CreditsHistoryEntry::PeerType::Ads)
+		? tr::lng_credits_box_history_entry_ads
 		: tr::lng_credits_summary_history_entry_inner_in)(
 			tr::now,
 			TextWithEntities::Simple);

@@ -475,6 +475,8 @@ PRIVATE
     data/business/data_shortcut_messages.h
     data/components/factchecks.cpp
     data/components/factchecks.h
+    data/components/location_pickers.cpp
+    data/components/location_pickers.h
     data/components/recent_peers.cpp
     data/components/recent_peers.h
     data/components/scheduled_messages.cpp
@@ -1472,6 +1474,8 @@ PRIVATE
     ui/chat/choose_send_as.h
     ui/chat/choose_theme_controller.cpp
     ui/chat/choose_theme_controller.h
+    ui/controls/location_picker.cpp
+    ui/controls/location_picker.h
     ui/controls/silent_toggle.cpp
     ui/controls/silent_toggle.h
     ui/controls/userpic_button.cpp
@@ -1493,6 +1497,10 @@ PRIVATE
     ui/image/image_location.h
     ui/image/image_location_factory.cpp
     ui/image/image_location_factory.h
+    ui/text/format_song_document_name.cpp
+    ui/text/format_song_document_name.h
+    ui/widgets/label_with_custom_emoji.cpp
+    ui/widgets/label_with_custom_emoji.h
     ui/countryinput.cpp
     ui/countryinput.h
     ui/dynamic_thumbnails.cpp
@@ -1506,10 +1514,6 @@ PRIVATE
     ui/resize_area.h
     ui/search_field_controller.cpp
     ui/search_field_controller.h
-    ui/text/format_song_document_name.cpp
-    ui/text/format_song_document_name.h
-    ui/widgets/label_with_custom_emoji.cpp
-    ui/widgets/label_with_custom_emoji.h
     ui/unread_badge.cpp
     ui/unread_badge.h
     window/main_window.cpp
@@ -1614,6 +1618,7 @@ PRIVATE
     qrc/telegram/animations.qrc
     qrc/telegram/export.qrc
     qrc/telegram/iv.qrc
+    qrc/telegram/picker.qrc
     qrc/telegram/telegram.qrc
     qrc/telegram/sounds.qrc
     winrc/Telegram.rc
@@ -1844,9 +1849,14 @@ if (WIN32)
         /DELAYLOAD:propsys.dll
     )
     if (QT_VERSION GREATER 6)
+        if (NOT build_winarm)
+            target_link_options(Telegram PRIVATE
+                /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
+            )
+        endif()
+
         target_link_options(Telegram
         PRIVATE
-            /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-1.dll
@@ -1863,7 +1873,7 @@ if (WIN32)
             /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Security-CryptoAPI-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Shcore-Scaling-l1-1-1.dll
+            # /DELAYLOAD:API-MS-Win-Shcore-Scaling-l1-1-1.dll # We shadowed GetDpiForMonitor
             /DELAYLOAD:authz.dll # Authz.lib
             /DELAYLOAD:comdlg32.dll
             /DELAYLOAD:dwrite.dll # DWrite.lib

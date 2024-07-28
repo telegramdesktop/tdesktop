@@ -121,8 +121,8 @@ struct AlbumCounts {
 		ImageRoundRadius radius,
 		bool spoiler) {
 	const auto original = image->original();
-	if (original.width() * 10 < original.height()
-		|| original.height() * 10 < original.width()) {
+	if (original.width() * 20 < original.height()
+		|| original.height() * 20 < original.width()) {
 		return QImage();
 	}
 	const auto factor = style::DevicePixelRatio();
@@ -2631,7 +2631,11 @@ const GiveawayResults *MediaGiveawayResults::giveawayResults() const {
 }
 
 TextWithEntities MediaGiveawayResults::notificationText() const {
-	return Ui::Text::Colorized({ tr::lng_prizes_results_title(tr::now) });
+	return Ui::Text::Colorized({
+		((_data.winnersCount == 1)
+			? tr::lng_prizes_results_title_one
+			: tr::lng_prizes_results_title)(tr::now)
+	});
 }
 
 QString MediaGiveawayResults::pinnedTextSubstring() const {

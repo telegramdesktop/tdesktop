@@ -281,6 +281,9 @@ void InnerWidget::load() {
 		rpl::lifetime apiPremiumBotLifetime;
 	};
 	const auto state = lifetime().make_state<State>(_peer);
+	using ChannelFlag = ChannelDataFlag;
+	const auto canViewCredits = !_peer->isChannel()
+		|| (_peer->asChannel()->flags() & ChannelFlag::CanViewCreditsRevenue);
 
 	Info::Statistics::FillLoading(
 		this,
@@ -363,7 +366,11 @@ void InnerWidget::load() {
 					_state.premiumBotId = bot->id;
 					state->apiCredits.request(
 					) | rpl::start_with_error_done([=](const QString &error) {
-						fail(error);
+						if (canViewCredits) {
+							fail(error);
+						} else {
+							_state.creditsEarn = {};
+						}
 						finish();
 					}, [=] {
 						_state.creditsEarn = state->apiCredits.data();
@@ -1412,7 +1419,7 @@ void InnerWidget::fill() {
 				data.creditsStatusSlice,
 				tabCreditsList->entity(),
 				entryClicked,
-				premiumBot,
+				_peer,
 				star,
 				true,
 				true);

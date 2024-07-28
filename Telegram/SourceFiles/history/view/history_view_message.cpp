@@ -929,9 +929,6 @@ QSize Message::performCountOptimalSize() {
 					- st::msgPadding.left()
 					- st::msgPadding.right();
 				if (withVisibleText) {
-					if (botTop) {
-						minHeight += botTop->height;
-					}
 					if (maxWidth < textualWidth) {
 						minHeight -= text().minHeight();
 						minHeight += text().countHeight(innerWidth);

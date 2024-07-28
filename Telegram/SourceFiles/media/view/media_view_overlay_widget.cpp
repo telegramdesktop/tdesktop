@@ -729,25 +729,27 @@ void OverlayWidget::orderWidgets() {
 void OverlayWidget::setupWindow() {
 	_window->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;
-		if (!_windowed
-			|| !_widget->rect().contains(widgetPoint)
+		Ui::WindowTitleHitTestFlags result;
+		if (!_widget->rect().contains(widgetPoint)
 			|| _helper->skipTitleHitTest(widgetPoint)) {
-			return Flag::None | Flag(0);
+			return result;
 		}
-		const auto inControls = (_over != Over::None) && (_over != Over::Video);
+		if (widgetPoint.y() <= st::mediaviewTitleButton.height) {
+			result |= Flag::Menu;
+		}
+		const auto inControls = ((_over != Over::None) && (_over != Over::Video));
 		if (inControls
 			|| (_streamed
 				&& _streamed->controls
 				&& _streamed->controls->dragging())) {
-			return Flag::None | Flag(0);
 		} else if ((_w > _widget->width() || _h > _maxUsedHeight)
 				&& (widgetPoint.y() > st::mediaviewHeaderTop)
 				&& QRect(_x, _y, _w, _h).contains(widgetPoint)) {
-			return Flag::None | Flag(0);
 		} else if (_stories && _stories->ignoreWindowMove(widgetPoint)) {
-			return Flag::None | Flag(0);
+		} else if (_windowed) {
+			result |= Flag::Move;
 		}
-		return Flag::Move | Flag(0);
+		return result;
 	});
 
 	_window->setAttribute(Qt::WA_NoSystemBackground, true);
@@ -5931,8 +5933,11 @@ void OverlayWidget::handleMouseRelease(
 }
 
 bool OverlayWidget::handleContextMenu(std::optional<QPoint> position) {
-	if (position && !QRect(_x, _y, _w, _h).contains(*position)) {
-		return false;
+	if (position) {
+		if (!QRect(_x, _y, _w, _h).contains(*position)
+				|| position->y() <= st::mediaviewTitleButton.height) {
+			return false;
+		}
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		_window,

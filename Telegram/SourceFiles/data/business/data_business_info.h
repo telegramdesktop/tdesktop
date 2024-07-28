@@ -22,6 +22,7 @@ public:
 
 	void saveWorkingHours(WorkingHours data, Fn<void(QString)> fail);
 	void saveChatIntro(ChatIntro data, Fn<void(QString)> fail);
+	void saveLocation(BusinessLocation data, Fn<void(QString)> fail);
 
 	void saveAwaySettings(AwaySettings data, Fn<void(QString)> fail);
 	void applyAwaySettings(AwaySettings data);

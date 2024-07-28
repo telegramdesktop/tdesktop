@@ -577,6 +577,8 @@ void SessionNavigation::showPeerByLinkResolved(
 			info.messageId,
 			commentId->id,
 			params);
+	} else if (resolveType == ResolveType::Profile) {
+		showPeerInfo(peer, params);
 	} else if (peer->isForum() && resolveType != ResolveType::Boost) {
 		const auto itemId = info.messageId;
 		if (!itemId) {
@@ -614,17 +616,23 @@ void SessionNavigation::showPeerByLinkResolved(
 		const auto contextPeer = item
 			? item->history()->peer
 			: bot;
-		const auto action = bot->session().attachWebView().lookupLastAction(
-			info.clickFromAttachBotWebviewUrl
-		).value_or(Api::SendAction(bot->owner().history(contextPeer)));
+		const auto action = info.clickFromBotWebviewContext
+			? info.clickFromBotWebviewContext->action
+			: Api::SendAction(bot->owner().history(contextPeer));
 		crl::on_main(this, [=] {
-			bot->session().attachWebView().requestApp(
-				parentController(),
-				action,
-				bot,
-				info.botAppName,
-				info.startToken,
-				info.botAppForceConfirmation);
+			bot->session().attachWebView().open({
+				.bot = bot,
+				.context = {
+					.controller = parentController(),
+					.action = action,
+					.maySkipConfirmation = !info.botAppForceConfirmation,
+				},
+				.button = { .startCommand = info.startToken },
+				.source = InlineBots::WebViewSourceLinkApp{
+					.appname = info.botAppName,
+					.token = info.startToken,
+				},
+			});
 		});
 	} else if (bot && resolveType == ResolveType::ShareGame) {
 		Window::ShowShareGameBox(parentController(), bot, info.startToken);
@@ -672,20 +680,25 @@ void SessionNavigation::showPeerByLinkResolved(
 			crl::on_main(this, [=] {
 				const auto history = peer->owner().history(peer);
 				showPeerHistory(history, params, msgId);
-				peer->session().attachWebView().request(
+
+				peer->session().attachWebView().openByUsername(
 					parentController(),
 					Api::SendAction(history),
 					attachBotUsername,
 					info.attachBotToggleCommand.value_or(QString()));
 			});
-		} else if (bot && info.attachBotMenuOpen) {
+		} else if (bot && info.attachBotMainOpen) {
 			const auto startCommand = info.attachBotToggleCommand.value_or(
 				QString());
-			bot->session().attachWebView().requestAddToMenu(
-				bot,
-				InlineBots::AddToMenuOpenMenu{ startCommand },
-				parentController(),
-				std::optional<Api::SendAction>());
+			bot->session().attachWebView().open({
+				.bot = bot,
+				.context = { .controller = parentController() },
+				.button = { .startCommand = startCommand },
+				.source = InlineBots::WebViewSourceLinkBotProfile{
+					.token = startCommand,
+					.compact = info.attachBotMainCompact,
+				},
+			});
 		} else if (bot && info.attachBotToggleCommand) {
 			const auto itemId = info.clickFromMessageId;
 			const auto item = _session->data().message(itemId);
@@ -695,17 +708,21 @@ void SessionNavigation::showPeerByLinkResolved(
 			const auto contextUser = contextPeer
 				? contextPeer->asUser()
 				: nullptr;
-			bot->session().attachWebView().requestAddToMenu(
-				bot,
-				InlineBots::AddToMenuOpenAttach{
-					.startCommand = *info.attachBotToggleCommand,
-					.chooseTypes = info.attachBotChooseTypes,
+			bot->session().attachWebView().open({
+				.bot = bot,
+				.context = {
+					.controller = parentController(),
+					.action = (contextUser
+						? Api::SendAction(
+							contextUser->owner().history(contextUser))
+						: std::optional<Api::SendAction>()),
 				},
-				parentController(),
-				(contextUser
-					? Api::SendAction(
-						contextUser->owner().history(contextUser))
-					: std::optional<Api::SendAction>()));
+				.button = { .startCommand = *info.attachBotToggleCommand },
+				.source = InlineBots::WebViewSourceLinkAttachMenu{
+					.choose = info.attachBotChooseTypes,
+					.token = *info.attachBotToggleCommand,
+				},
+			});
 		} else {
 			const auto draft = info.text;
 			crl::on_main(this, [=] {

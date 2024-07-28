@@ -1409,55 +1409,6 @@ std::vector<not_null<Data::Thread*>> ShareBox::Inner::selected() const {
 	return result;
 }
 
-QString AppendShareGameScoreUrl(
-		not_null<Main::Session*> session,
-		const QString &url,
-		const FullMsgId &fullId) {
-	auto shareHashData = QByteArray(0x20, Qt::Uninitialized);
-	auto shareHashDataInts = reinterpret_cast<uint64*>(shareHashData.data());
-	const auto peer = fullId.peer
-		? session->data().peerLoaded(fullId.peer)
-		: static_cast<PeerData*>(nullptr);
-	const auto channelAccessHash = uint64((peer && peer->isChannel())
-		? peer->asChannel()->access
-		: 0);
-	shareHashDataInts[0] = session->userId().bare;
-	shareHashDataInts[1] = fullId.peer.value;
-	shareHashDataInts[2] = uint64(fullId.msg.bare);
-	shareHashDataInts[3] = channelAccessHash;
-
-	// Count SHA1() of data.
-	auto key128Size = 0x10;
-	auto shareHashEncrypted = QByteArray(key128Size + shareHashData.size(), Qt::Uninitialized);
-	hashSha1(shareHashData.constData(), shareHashData.size(), shareHashEncrypted.data());
-
-	//// Mix in channel access hash to the first 64 bits of SHA1 of data.
-	//*reinterpret_cast<uint64*>(shareHashEncrypted.data()) ^= channelAccessHash;
-
-	// Encrypt data.
-	if (!session->local().encrypt(shareHashData.constData(), shareHashEncrypted.data() + key128Size, shareHashData.size(), shareHashEncrypted.constData())) {
-		return url;
-	}
-
-	auto shareHash = shareHashEncrypted.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-	auto shareUrl = u"tg://share_game_score?hash="_q + QString::fromLatin1(shareHash);
-
-	auto shareComponent = u"tgShareScoreUrl="_q + qthelp::url_encode(shareUrl);
-
-	auto hashPosition = url.indexOf('#');
-	if (hashPosition < 0) {
-		return url + '#' + shareComponent;
-	}
-	auto hash = url.mid(hashPosition + 1);
-	if (hash.indexOf('=') >= 0 || hash.indexOf('?') >= 0) {
-		return url + '&' + shareComponent;
-	}
-	if (!hash.isEmpty()) {
-		return url + '?' + shareComponent;
-	}
-	return url + shareComponent;
-}
-
 ChatHelpers::ForwardedMessagePhraseArgs CreateForwardedMessagePhraseArgs(
 		const std::vector<not_null<Data::Thread*>> &result,
 		const MessageIdsList &msgIds) {
@@ -1612,9 +1563,8 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 }
 
 void FastShareMessage(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item) {
-	const auto show = controller->uiShow();
 	const auto history = item->history();
 	const auto owner = &history->owner();
 	const auto session = &history->session();
@@ -1643,7 +1593,7 @@ void FastShareMessage(
 		}
 		if (item->hasDirectLink()) {
 			using namespace HistoryView;
-			CopyPostLink(controller, item->fullId(), Context::History);
+			CopyPostLink(show, item->fullId(), Context::History);
 		} else if (const auto bot = item->getMessageBot()) {
 			if (const auto media = item->media()) {
 				if (const auto game = media->game()) {
@@ -1675,23 +1625,27 @@ void FastShareMessage(
 	auto copyLinkCallback = canCopyLink
 		? Fn<void()>(std::move(copyCallback))
 		: Fn<void()>();
-	controller->show(
-		Box<ShareBox>(ShareBox::Descriptor{
-			.session = session,
-			.copyCallback = std::move(copyLinkCallback),
-			.submitCallback = ShareBox::DefaultForwardCallback(
-				show,
-				history,
-				msgIds),
-			.filterCallback = std::move(filterCallback),
-			.forwardOptions = {
-				.sendersCount = ItemsForwardSendersCount(items),
-				.captionsCount = ItemsForwardCaptionsCount(items),
-				.show = !hasOnlyForcedForwardedInfo,
-			},
-			.premiumRequiredError = SharePremiumRequiredError(),
-		}),
-		Ui::LayerOption::CloseOther);
+	show->show(Box<ShareBox>(ShareBox::Descriptor{
+		.session = session,
+		.copyCallback = std::move(copyLinkCallback),
+		.submitCallback = ShareBox::DefaultForwardCallback(
+			show,
+			history,
+			msgIds),
+		.filterCallback = std::move(filterCallback),
+		.forwardOptions = {
+			.sendersCount = ItemsForwardSendersCount(items),
+			.captionsCount = ItemsForwardCaptionsCount(items),
+			.show = !hasOnlyForcedForwardedInfo,
+		},
+		.premiumRequiredError = SharePremiumRequiredError(),
+	}), Ui::LayerOption::CloseOther);
+}
+
+void FastShareMessage(
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item) {
+	FastShareMessage(controller->uiShow(), item);
 }
 
 void FastShareLink(
@@ -1792,112 +1746,4 @@ void FastShareLink(
 auto SharePremiumRequiredError()
 -> Fn<RecipientPremiumRequiredError(not_null<UserData*>)> {
 	return WritePremiumRequiredError;
-}
-
-void ShareGameScoreByHash(
-		not_null<Window::SessionController*> controller,
-		const QString &hash) {
-	auto &session = controller->session();
-	auto key128Size = 0x10;
-
-	auto hashEncrypted = QByteArray::fromBase64(hash.toLatin1(), QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-	if (hashEncrypted.size() <= key128Size || (hashEncrypted.size() != key128Size + 0x20)) {
-		controller->show(
-			Ui::MakeInformBox(tr::lng_confirm_phone_link_invalid()),
-			Ui::LayerOption::CloseOther);
-		return;
-	}
-
-	// Decrypt data.
-	auto hashData = QByteArray(hashEncrypted.size() - key128Size, Qt::Uninitialized);
-	if (!session.local().decrypt(hashEncrypted.constData() + key128Size, hashData.data(), hashEncrypted.size() - key128Size, hashEncrypted.constData())) {
-		return;
-	}
-
-	// Count SHA1() of data.
-	char dataSha1[20] = { 0 };
-	hashSha1(hashData.constData(), hashData.size(), dataSha1);
-
-	//// Mix out channel access hash from the first 64 bits of SHA1 of data.
-	//auto channelAccessHash = *reinterpret_cast<uint64*>(hashEncrypted.data()) ^ *reinterpret_cast<uint64*>(dataSha1);
-
-	//// Check next 64 bits of SHA1() of data.
-	//auto skipSha1Part = sizeof(channelAccessHash);
-	//if (memcmp(dataSha1 + skipSha1Part, hashEncrypted.constData() + skipSha1Part, key128Size - skipSha1Part) != 0) {
-	//	Ui::show(Box<Ui::InformBox>(tr::lng_share_wrong_user(tr::now)));
-	//	return;
-	//}
-
-	// Check 128 bits of SHA1() of data.
-	if (memcmp(dataSha1, hashEncrypted.constData(), key128Size) != 0) {
-		controller->show(
-			Ui::MakeInformBox(tr::lng_share_wrong_user()),
-			Ui::LayerOption::CloseOther);
-		return;
-	}
-
-	auto hashDataInts = reinterpret_cast<uint64*>(hashData.data());
-	if (hashDataInts[0] != session.userId().bare) {
-		controller->show(
-			Ui::MakeInformBox(tr::lng_share_wrong_user()),
-			Ui::LayerOption::CloseOther);
-		return;
-	}
-
-	const auto peerId = PeerId(hashDataInts[1]);
-	const auto channelAccessHash = hashDataInts[3];
-	if (!peerIsChannel(peerId) && channelAccessHash) {
-		// If there is no channel id, there should be no channel access_hash.
-		controller->show(
-			Ui::MakeInformBox(tr::lng_share_wrong_user()),
-			Ui::LayerOption::CloseOther);
-		return;
-	}
-
-	const auto msgId = MsgId(int64(hashDataInts[2]));
-	if (const auto item = session.data().message(peerId, msgId)) {
-		FastShareMessage(controller, item);
-	} else {
-		const auto weak = base::make_weak(controller);
-		const auto resolveMessageAndShareScore = crl::guard(weak, [=](
-				PeerData *peer) {
-			auto done = crl::guard(weak, [=] {
-				const auto item = weak->session().data().message(
-					peerId,
-					msgId);
-				if (item) {
-					FastShareMessage(weak.get(), item);
-				} else {
-					weak->show(
-						Ui::MakeInformBox(tr::lng_edit_deleted()),
-						Ui::LayerOption::CloseOther);
-				}
-			});
-			auto &api = weak->session().api();
-			api.requestMessageData(peer, msgId, std::move(done));
-		});
-
-		const auto peer = peerIsChannel(peerId)
-			? controller->session().data().peerLoaded(peerId)
-			: nullptr;
-		if (peer || !peerIsChannel(peerId)) {
-			resolveMessageAndShareScore(peer);
-		} else {
-			const auto owner = &controller->session().data();
-			controller->session().api().request(MTPchannels_GetChannels(
-				MTP_vector<MTPInputChannel>(
-					1,
-					MTP_inputChannel(
-						MTP_long(peerToChannel(peerId).bare),
-						MTP_long(channelAccessHash)))
-			)).done([=](const MTPmessages_Chats &result) {
-				result.match([&](const auto &data) {
-					owner->processChats(data.vchats());
-				});
-				if (const auto peer = owner->peerLoaded(peerId)) {
-					resolveMessageAndShareScore(peer);
-				}
-			}).send();
-		}
-	}
 }
