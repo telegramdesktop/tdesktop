@@ -342,6 +342,8 @@ private:
 
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
 
+	void requestReorder(not_null<DocumentData*> document, int index);
+
 	void chosen(
 		int index,
 		not_null<DocumentData*> sticker,
@@ -394,6 +396,8 @@ private:
 		int lastSelected = -1;
 		QPoint point;
 	} _dragging;
+	std::deque<Fn<void()>> _reorderRequests;
+	std::optional<MTP::Sender> _apiReorder;
 
 	struct ShiftAnimation final {
 		Ui::Animations::Simple animation;
@@ -1222,13 +1226,52 @@ void StickerSetBox::Inner::leaveEventHook(QEvent *e) {
 	setSelected(-1);
 }
 
+void StickerSetBox::Inner::requestReorder(
+		not_null<DocumentData*> document,
+		int index) {
+	if (!_apiReorder) {
+		_apiReorder.emplace(&_session->mtp());
+	}
+	_reorderRequests.emplace_back([document, index, this] {
+		_apiReorder->request(
+			MTPstickers_ChangeStickerPosition(
+				document->mtpInput(),
+				MTP_int(index))
+			).done([this, document](const TLStickerSet &result) {
+				result.match([&](const MTPDmessages_stickerSet &d) {
+					document->owner().stickers().feedSetFull(d);
+					document->owner().stickers().notifyUpdated(
+						Data::StickersType::Stickers);
+				}, [](const auto &) {
+				});
+				if (!_reorderRequests.empty()) {
+					_reorderRequests.pop_front();
+				}
+				if (_reorderRequests.empty()) {
+					// applySet(result); // Causes stickers blink.
+				} else {
+					_reorderRequests.front()();
+				}
+			}).fail([show = _show](const MTP::Error &error) {
+				show->showToast(error.type());
+			}).send();
+	});
+	if (_reorderRequests.size() == 1) {
+		_reorderRequests.front()();
+	}
+}
+
 void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_dragging.index >= 0 && !isDraggedAnimating()) {
 		const auto fromPos = mapFromGlobal(e->globalPos()) - _dragging.point;
 		const auto toPos = posFromIndex(_dragging.lastSelected);
-		const auto finish = [=] {
-			base::reorder(_pack, _dragging.index, _dragging.lastSelected);
-			base::reorder(_elements, _dragging.index, _dragging.lastSelected);
+		const auto document = _pack[_dragging.index];
+		const auto wasPosition = _dragging.index;
+		const auto nowPosition = _dragging.lastSelected;
+		const auto finish = [=, this] {
+			requestReorder(document, nowPosition);
+			base::reorder(_pack, wasPosition, nowPosition);
+			base::reorder(_elements, wasPosition, nowPosition);
 			_dragging = {};
 			_dragging.enabled = true;
 			_shiftAnimations.clear();
