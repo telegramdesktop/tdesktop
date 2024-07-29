@@ -20,12 +20,17 @@ namespace Info::Statistics {
 
 not_null<Ui::RpWidget*> InfiniteRadialAnimationWidget(
 		not_null<Ui::RpWidget*> parent,
-		int size) {
+		int size,
+		const style::InfiniteRadialAnimation *st) {
 	class Widget final : public Ui::RpWidget {
 	public:
-		Widget(not_null<Ui::RpWidget*> p, int size)
+		Widget(
+			not_null<Ui::RpWidget*> p,
+			int size,
+			const style::InfiniteRadialAnimation *st)
 		: Ui::RpWidget(p)
-		, _animation([=] { update(); }, st::startGiveawayButtonLoading) {
+		, _st(st ? st : &st::startGiveawayButtonLoading)
+		, _animation([=] { update(); }, *_st) {
 			resize(size, size);
 			shownValue() | rpl::start_with_next([=](bool v) {
 				return v
@@ -39,17 +44,17 @@ not_null<Ui::RpWidget*> InfiniteRadialAnimationWidget(
 			auto p = QPainter(this);
 			p.setPen(st::activeButtonFg);
 			p.setBrush(st::activeButtonFg);
-			const auto r = rect()
-				- Margins(st::startGiveawayButtonLoading.thickness);
+			const auto r = rect() - Margins(_st->thickness);
 			_animation.draw(p, r.topLeft(), r.size(), width());
 		}
 
 	private:
+		const style::InfiniteRadialAnimation *_st;
 		Ui::InfiniteRadialAnimation _animation;
 
 	};
 
-	return Ui::CreateChild<Widget>(parent.get(), size);
+	return Ui::CreateChild<Widget>(parent.get(), size, st);
 }
 
 void AddChildToWidgetCenter(

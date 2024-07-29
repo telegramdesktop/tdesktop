@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace style {
+struct InfiniteRadialAnimation;
 struct TextStyle;
 } // namespace style
 
@@ -30,7 +31,8 @@ namespace Info::Statistics {
 
 [[nodiscard]] not_null<Ui::RpWidget*> InfiniteRadialAnimationWidget(
 	not_null<Ui::RpWidget*> parent,
-	int size);
+	int size,
+	const style::InfiniteRadialAnimation *st = nullptr);
 
 void AddChildToWidgetCenter(
 	not_null<Ui::RpWidget*> parent,
