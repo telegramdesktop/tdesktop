@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location_factory.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/custom_emoji_instance.h"
+#include "ui/effects/animation_value_f.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
@@ -266,6 +267,13 @@ public:
 
 	void setReorderState(bool enabled) {
 		_dragging.enabled = enabled;
+		if (enabled) {
+			_shakeAnimation.init([=] { update(); });
+			_shakeAnimation.start();
+		} else {
+			_shakeAnimation.stop();
+			update();
+		}
 	}
 	[[nodiscard]] bool reorderState() const {
 		return _dragging.enabled;
@@ -323,6 +331,11 @@ private:
 		int index,
 		QPoint position,
 		bool paused,
+		crl::time now) const;
+	void shakeTransform(
+		QPainter &p,
+		int index,
+		QPoint position,
 		crl::time now) const;
 	void setupLottie(int index);
 	void setupWebm(int index);
@@ -396,6 +409,7 @@ private:
 		int lastSelected = -1;
 		QPoint point;
 	} _dragging;
+	Ui::Animations::Basic _shakeAnimation;
 	std::deque<Fn<void()>> _reorderRequests;
 	std::optional<MTP::Sender> _apiReorder;
 
@@ -1711,6 +1725,70 @@ void StickerSetBox::Inner::customEmojiRepaint() {
 	update();
 }
 
+void StickerSetBox::Inner::shakeTransform(
+		QPainter &p,
+		int index,
+		QPoint position,
+		crl::time now) const {
+	constexpr auto kShakeADuration = crl::time(400);
+	constexpr auto kShakeXDuration = crl::time(kShakeADuration * 1.2);
+	constexpr auto kShakeYDuration = kShakeADuration;
+	const auto diff = ((index % 2) ? 0 : kShakeYDuration / 2)
+		+ (now - _shakeAnimation.started());
+	const auto pX = (diff % kShakeXDuration)
+		/ float64(kShakeXDuration);
+	const auto pY = (diff % kShakeYDuration)
+		/ float64(kShakeYDuration);
+	const auto pA = (diff % kShakeADuration)
+		/ float64(kShakeADuration);
+
+	constexpr auto kMaxA = 2.;
+	constexpr auto kMaxTranslation = .5;
+	constexpr auto kAStep = 1. / 5;
+	constexpr auto kXStep = 1. / 5;
+	constexpr auto kYStep = 1. / 4;
+
+	// 0, -kMaxA, 0, kMaxA, 0.
+	const auto angle = (pA < kAStep)
+		? anim::interpolateF(0., -kMaxA, pA / kAStep)
+		: (pA < kAStep * 2.)
+		? anim::interpolateF(-kMaxA, 0, (pA - kAStep) / kAStep)
+		: (pA < kAStep * 3.)
+		? anim::interpolateF(0, kMaxA, (pA - kAStep * 2.) / kAStep)
+		: (pA < kAStep * 4.)
+		? anim::interpolateF(kMaxA, 0, (pA - kAStep * 3.) / kAStep)
+		: anim::interpolateF(0, 0., (pA - kAStep * 4.) / kAStep);
+
+	// 0, kMaxTranslation, 0, -kMaxTranslation, 0.
+	const auto x = (pX < kXStep)
+		? anim::interpolateF(0., kMaxTranslation, pX / kXStep)
+		: (pX < kXStep * 2.)
+		? anim::interpolateF(kMaxTranslation, 0, (pX - kXStep) / kXStep)
+		: (pX < kXStep * 3.)
+		? anim::interpolateF(0, -kMaxTranslation, (pX - kXStep * 2.) / kXStep)
+		: (pX < kXStep * 4.)
+		? anim::interpolateF(-kMaxTranslation, 0, (pX - kXStep * 3.) / kXStep)
+		: anim::interpolateF(0, 0., (pX - kXStep * 4.) / kXStep);
+
+	// 0, kMaxTranslation, -kMaxTranslation, 0.
+	const auto y = (pY < kYStep)
+		? anim::interpolateF(0., kMaxTranslation, pY / kYStep)
+		: (pY < kYStep * 2.)
+		? anim::interpolateF(kMaxTranslation, 0, (pY - kYStep) / kYStep)
+		: (pY < kYStep * 3.)
+		? anim::interpolateF(0, -kMaxTranslation, (pY - kYStep * 2.) / kYStep)
+		: anim::interpolateF(-kMaxTranslation, 0, (pY - kYStep * 3) / kYStep);
+
+	const auto center = position + QPoint(
+		_singleSize.width() / 2,
+		_singleSize.height() / 2);
+
+	p.translate(center);
+	p.rotate(angle);
+	p.translate(-center);
+	p.translate(x, y);
+}
+
 void StickerSetBox::Inner::paintSticker(
 		Painter &p,
 		int index,
@@ -1735,6 +1813,11 @@ void StickerSetBox::Inner::paintSticker(
 				Ui::StickerHoverCorners);
 			p.setOpacity(1);
 		}
+	}
+
+	const auto hasShake = _shakeAnimation.animating();
+	if (hasShake) {
+		shakeTransform(p, index, position, now);
 	}
 
 	const auto &element = _elements[index];
@@ -1802,6 +1885,9 @@ void StickerSetBox::Inner::paintSticker(
 			position,
 			_singleSize,
 			width());
+	}
+	if (hasShake) {
+		p.resetTransform();
 	}
 }
 
