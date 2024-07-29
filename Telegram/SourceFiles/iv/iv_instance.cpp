@@ -800,9 +800,7 @@ void TonSite::showWindowed() {
 		createController();
 	}
 
-	_controller->showTonSite(
-		{},//_session->local().resolveStorageIdOther(),
-		_uri);
+	_controller->showTonSite(Storage::TonSiteStorageId(), _uri);
 }
 
 bool TonSite::active() const {

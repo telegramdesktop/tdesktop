@@ -34,7 +34,7 @@ SessionSettings::SessionSettings()
 
 QByteArray SessionSettings::serialize() const {
 	const auto autoDownload = _autoDownload.serialize();
-	auto size = sizeof(qint32) * 4
+	const auto size = sizeof(qint32) * 4
 		+ _groupStickersSectionHidden.size() * sizeof(quint64)
 		+ sizeof(qint32) * 4
 		+ Serialize::bytearraySize(autoDownload)
@@ -103,6 +103,8 @@ QByteArray SessionSettings::serialize() const {
 			<< qint32(_lastNonPremiumLimitDownload)
 			<< qint32(_lastNonPremiumLimitUpload);
 	}
+
+	Ensures(result.size() == size);
 	return result;
 }
 

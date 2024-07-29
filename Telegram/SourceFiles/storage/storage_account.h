@@ -327,4 +327,6 @@ private:
 
 };
 
+[[nodiscard]] Webview::StorageId TonSiteStorageId();
+
 } // namespace Storage

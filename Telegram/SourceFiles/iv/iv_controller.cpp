@@ -254,10 +254,24 @@ void Controller::update(Prepared page) {
 void Controller::showTonSite(
 		const Webview::StorageId &storageId,
 		QString uri) {
-	auto part = uri.mid(u"tonsite://"_q.size());
-	part = part.replace('-', "-h");
-	part = part.replace('.', "-d");
-	const auto url = "https://" + part + ".magic.org";
+	const auto url = [&] {
+		auto parsed = QUrl(uri);
+		if (parsed.isValid()) {
+			auto host = parsed.host();
+			host = host.replace('-', "-h");
+			host = host.replace('.', "-d");
+			parsed.setHost(host + ".magic.org");
+			parsed.setScheme("https");
+			return parsed.toString();
+		}
+		auto part = uri.mid(u"tonsite://"_q.size());
+		const auto split = part.indexOf('/');
+		auto host = (split < 0) ? part : part.left(split);
+		host = host.replace('-', "-h");
+		host = host.replace('.', "-d");
+		part = (split < 0) ? QString() : part.mid(split);
+		return "https://" + host + ".magic.org" + part;
+	}();
 	if (!_webview) {
 		createWebview(storageId);
 	}

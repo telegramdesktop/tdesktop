@@ -898,6 +898,13 @@ public:
 		_weatherInCelsius = value;
 	}
 
+	[[nodiscard]] QByteArray tonsiteStorageToken() const {
+		return _tonsiteStorageToken;
+	}
+	void setTonsiteStorageToken(const QByteArray &value) {
+		_tonsiteStorageToken = value;
+	}
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 
@@ -1030,6 +1037,7 @@ private:
 	QString _customFontFamily;
 	bool _systemUnlockEnabled = false;
 	std::optional<bool> _weatherInCelsius;
+	QByteArray _tonsiteStorageToken;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window
