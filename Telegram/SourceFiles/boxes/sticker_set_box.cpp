@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "menu/menu_send.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/premium_preview_box.h"
@@ -73,6 +74,7 @@ constexpr auto kGrayLockOpacity = 0.3;
 using Data::StickersSet;
 using Data::StickersPack;
 using SetFlag = Data::StickersSetFlag;
+using TLStickerSet = MTPmessages_StickerSet;
 
 [[nodiscard]] std::optional<QColor> ComputeImageColor(
 		const style::icon &lockIcon,
@@ -276,6 +278,8 @@ public:
 		return _amSetCreator;
 	}
 
+	void applySet(const TLStickerSet &set);
+
 	~Inner();
 
 protected:
@@ -327,7 +331,6 @@ private:
 	void startOverAnimation(int index, float64 from, float64 to);
 	int stickerFromGlobalPos(const QPoint &p) const;
 
-	void gotSet(const MTPmessages_StickerSet &set);
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
 
 	void chosen(
@@ -547,13 +550,19 @@ void StickerSetBox::updateTitleAndButtons() {
 void ChangeSetNameBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Data::Session*> data,
-		const StickerSetIdentifier &input) {
+		const StickerSetIdentifier &input,
+		Fn<void(TLStickerSet)> done) {
+	struct State final {
+		rpl::variable<mtpRequestId> requestId = 0;
+		Ui::RpWidget* saveButton = nullptr;
+	};
 	box->setTitle(tr::lng_stickers_box_edit_name_title());
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			tr::lng_stickers_box_edit_name_about(),
 			st::boxLabel));
+	const auto state = box->lifetime().make_state<State>();
 
 	const auto wasName = [&] {
 		const auto &sets = data->stickers().sets();
@@ -581,31 +590,59 @@ void ChangeSetNameBox(
 	box->setFocusCallback([=] { field->setFocusFast(); });
 	const auto close = crl::guard(box, [=] { box->closeBox(); });
 	const auto save = [=, show = box->uiShow()] {
+		if (state->requestId.current()) {
+			return;
+		}
 		const auto text = field->getLastText().trimmed();
 		if ((Ui::ComputeRealUnicodeCharactersCount(text) > kMaxSetNameLength)
 			|| text.isEmpty()) {
 			field->showError();
 			return;
 		}
-		data->session().api().request(
+		const auto buttonWidth = state->saveButton
+			? state->saveButton->width()
+			: 0;
+		state->requestId = data->session().api().request(
 			MTPstickers_RenameStickerSet(
 				Data::InputStickerSet(input),
 				MTP_string(text))
-		).done([=](const MTPmessages_StickerSet &result) {
+		).done([=](const TLStickerSet &result) {
 			result.match([&](const MTPDmessages_stickerSet &d) {
 				data->stickers().feedSetFull(d);
 				data->stickers().notifyUpdated(Data::StickersType::Stickers);
 			}, [](const auto &) {
 			});
+			done(result);
 			close();
 		}).fail([=](const MTP::Error &error) {
 			show->showToast(error.type());
 			close();
 		}).send();
+		if (state->saveButton) {
+			state->saveButton->resizeToWidth(buttonWidth);
+		}
 	};
 
-	box->addButton(tr::lng_box_done(), save);
-	box->addButton(tr::lng_cancel(), close);
+	state->saveButton = box->addButton(
+		rpl::conditional(
+			state->requestId.value() | rpl::map(rpl::mappers::_1 > 0),
+			rpl::single(QString()),
+			tr::lng_box_done()),
+		save);
+	if (const auto saveButton = state->saveButton) {
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			saveButton,
+			saveButton->height() / 2,
+			&st::editStickerSetNameLoading);
+		AddChildToWidgetCenter(saveButton, loadingAnimation);
+		loadingAnimation->showOn(
+			state->requestId.value() | rpl::map(rpl::mappers::_1 > 0));
+	}
+	box->addButton(tr::lng_cancel(), [=] {
+		data->session().api().request(state->requestId.current()).cancel();
+		close();
+	});
 }
 
 void StickerSetBox::updateButtons() {
@@ -626,9 +663,16 @@ void StickerSetBox::updateButtons() {
 			const auto data = &_session->data();
 			return Filler([=, show = _show, set = _set](
 					not_null<Ui::PopupMenu*> menu) {
+				const auto done = [inner = _inner](const TLStickerSet &set) {
+					if (const auto raw = inner.data()) {
+						raw->applySet(set);
+					}
+				};
 				menu->addAction(
 					tr::lng_stickers_context_edit_name(tr::now),
-					[=] { show->showBox(Box(ChangeSetNameBox, data, set)); },
+					[=] {
+						show->showBox(Box(ChangeSetNameBox, data, set, done));
+					},
 					&st::menuIconEdit);
 			});
 		}();
@@ -777,8 +821,8 @@ StickerSetBox::Inner::Inner(
 	_api.request(MTPmessages_GetStickerSet(
 		Data::InputStickerSet(_input),
 		MTP_int(0) // hash
-	)).done([=](const MTPmessages_StickerSet &result) {
-		gotSet(result);
+	)).done([=](const TLStickerSet &result) {
+		applySet(result);
 	}).fail([=] {
 		_loaded = true;
 		_errors.fire(Error::NotFound);
@@ -794,7 +838,7 @@ StickerSetBox::Inner::Inner(
 	setMouseTracking(true);
 }
 
-void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
+void StickerSetBox::Inner::applySet(const TLStickerSet &set) {
 	_pack.clear();
 	_emoji.clear();
 	_elements.clear();

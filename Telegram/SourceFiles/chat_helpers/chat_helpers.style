@@ -1413,6 +1413,10 @@ editStickerSetNameField: InputField(defaultInputField) {
 	textMargins: margins(0px, 28px, 26px, 4px);
 	heightMax: 55px;
 }
+editStickerSetNameLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: lightButtonFg;
+	thickness: 2px;
+}
 
 paidStarIcon: icon {{ "settings/premium/star", creditsBg1 }};
 paidStarIconTop: 7px;
