@@ -1718,7 +1718,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout c0ba7b391c
+    git checkout 4a60ce1ab9
     git submodule init
     git submodule update
 win:
