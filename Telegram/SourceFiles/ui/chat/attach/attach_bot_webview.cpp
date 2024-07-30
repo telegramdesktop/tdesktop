@@ -1401,32 +1401,34 @@ if (window.TelegramGameProxy) {
 )");
 }
 
-void Panel::showWebviewError(
-		const QString &text,
-		const Webview::Available &information) {
-	using Error = Webview::Available::Error;
-	Expects(information.error != Error::None);
+TextWithEntities ErrorText(const Webview::Available &info) {
+	Expects(info.error != Webview::Available::Error::None);
 
-	auto rich = TextWithEntities{ text };
-	rich.append("\n\n");
-	switch (information.error) {
-	case Error::NoWebview2: {
-		rich.append(tr::lng_payments_webview_install_edge(
+	using Error = Webview::Available::Error;
+	switch (info.error) {
+	case Error::NoWebview2:
+		return tr::lng_payments_webview_install_edge(
 			tr::now,
 			lt_link,
 			Text::Link(
 				"Microsoft Edge WebView2 Runtime",
 				"https://go.microsoft.com/fwlink/p/?LinkId=2124703"),
-			Ui::Text::WithEntities));
-	} break;
+			Ui::Text::WithEntities);
 	case Error::NoWebKitGTK:
-		rich.append(tr::lng_payments_webview_install_webkit(tr::now));
-		break;
+		return { tr::lng_payments_webview_install_webkit(tr::now) };
+	case Error::OldWindows:
+		return { tr::lng_payments_webview_update_windows(tr::now) };
 	default:
-		rich.append(QString::fromStdString(information.details));
-		break;
+		return { QString::fromStdString(info.details) };
 	}
-	showCriticalError(rich);
+}
+
+void Panel::showWebviewError(
+		const QString &text,
+		const Webview::Available &information) {
+	showCriticalError(TextWithEntities{ text }.append(
+		"\n\n"
+	).append(ErrorText(information)));
 }
 
 rpl::lifetime &Panel::lifetime() {

@@ -11,8 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
 #include "base/qthelp_url.h"
+#include "core/file_utilities.h"
 #include "iv/iv_data.h"
 #include "lang/lang_keys.h"
+#include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -28,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/palette.h"
 #include "styles/style_iv.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_payments.h" // paymentsCriticalError
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -194,7 +197,7 @@ Controller::~Controller() {
 		_window->hide();
 	}
 	_ready = false;
-	_webview = nullptr;
+	base::take(_webview);
 	_back.destroy();
 	_forward.destroy();
 	_menu = nullptr;
@@ -335,8 +338,6 @@ void Controller::showTonSite(
 	if (_webview && _webview->widget()) {
 		_webview->navigate(url);
 		activate();
-	} else {
-		_events.fire({ Event::Type::Close });
 	}
 	_url = url;
 	_subtitleText = _url.value(
@@ -435,7 +436,7 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 
 	window->lifetime().add([=] {
 		_ready = false;
-		_webview = nullptr;
+		base::take(_webview);
 	});
 
 	window->events(
@@ -449,11 +450,32 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 			}
 		}
 	}, window->lifetime());
-	raw->widget()->show();
+
+	const auto widget = raw->widget();
+	if (!widget) {
+		base::take(_webview);
+		showWebviewError();
+		return;
+	}
+	widget->show();
+
+	QObject::connect(widget, &QObject::destroyed, [=] {
+		if (!_webview) {
+			// If we destroyed _webview ourselves,
+			// we don't show any message, nothing crashed.
+			return;
+		}
+		crl::on_main(window, [=] {
+			showWebviewError({ "Error: WebView has crashed." });
+		});
+		base::take(_webview);
+	});
 
 	_container->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		raw->widget()->setGeometry(QRect(QPoint(), size));
+		if (const auto widget = raw->widget()) {
+			widget->setGeometry(QRect(QPoint(), size));
+		}
 	}, _container->lifetime());
 
 	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
@@ -600,9 +622,43 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 		_back->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
 			!state.canGoBack);
+		_url = QString::fromStdString(state.url);
 	}, _webview->lifetime());
 
 	raw->init(R"()");
+}
+
+void Controller::showWebviewError() {
+	const auto available = Webview::Availability();
+	if (available.error != Webview::Available::Error::None) {
+		showWebviewError(Ui::BotWebView::ErrorText(available));
+	} else {
+		showWebviewError({ "Error: Could not initialize WebView." });
+	}
+}
+
+void Controller::showWebviewError(TextWithEntities text) {
+	auto error = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
+		_container,
+		object_ptr<Ui::FlatLabel>(
+			_container,
+			rpl::single(text),
+			st::paymentsCriticalError),
+		st::paymentsCriticalErrorPadding);
+	error->entity()->setClickHandlerFilter([=](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton) {
+		const auto entity = handler->getTextEntity();
+		if (entity.type != EntityType::CustomUrl) {
+			return true;
+		}
+		File::OpenUrl(entity.data);
+		return false;
+	});
+	error->show();
+	_container->sizeValue() | rpl::start_with_next([=](QSize size) {
+		error->setGeometry(0, 0, size.width(), size.height() * 2 / 3);
+	}, error->lifetime());
 }
 
 void Controller::showInWindow(

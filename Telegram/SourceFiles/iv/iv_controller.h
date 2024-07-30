@@ -123,6 +123,9 @@ private:
 	void showShareMenu();
 	void destroyShareMenu();
 
+	void showWebviewError();
+	void showWebviewError(TextWithEntities text);
+
 	const not_null<Delegate*> _delegate;
 
 	std::unique_ptr<Ui::RpWindow> _window;

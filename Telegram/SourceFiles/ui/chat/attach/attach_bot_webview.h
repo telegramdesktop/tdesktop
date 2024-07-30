@@ -30,6 +30,8 @@ struct Available;
 
 namespace Ui::BotWebView {
 
+[[nodiscard]] TextWithEntities ErrorText(const Webview::Available &info);
+
 struct MainButtonArgs {
 	bool isActive = false;
 	bool isVisible = false;

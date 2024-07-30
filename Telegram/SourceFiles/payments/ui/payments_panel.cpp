@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/boxes/single_choice_box.h"
+#include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/radial_animation.h"
@@ -908,32 +909,9 @@ std::shared_ptr<Show> Panel::uiShow() {
 void Panel::showWebviewError(
 		const QString &text,
 		const Webview::Available &information) {
-	using Error = Webview::Available::Error;
-	Expects(information.error != Error::None);
-
-	auto rich = TextWithEntities{ text };
-	rich.append("\n\n");
-	switch (information.error) {
-	case Error::NoWebview2: {
-		rich.append(tr::lng_payments_webview_install_edge(
-			tr::now,
-			lt_link,
-			Text::Link(
-				"Microsoft Edge WebView2 Runtime",
-				"https://go.microsoft.com/fwlink/p/?LinkId=2124703"),
-			Ui::Text::WithEntities));
-	} break;
-	case Error::NoWebKitGTK:
-		rich.append(tr::lng_payments_webview_install_webkit(tr::now));
-		break;
-	case Error::OldWindows:
-		rich.append(tr::lng_payments_webview_update_windows(tr::now));
-		break;
-	default:
-		rich.append(QString::fromStdString(information.details));
-		break;
-	}
-	showCriticalError(rich);
+	showCriticalError(TextWithEntities{ text }.append(
+		"\n\n"
+	).append(BotWebView::ErrorText(information)));
 }
 
 void Panel::updateThemeParams(const Webview::ThemeParams &params) {
