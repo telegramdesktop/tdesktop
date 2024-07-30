@@ -127,6 +127,51 @@ namespace {
 	return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
 }
 
+[[nodiscard]] QString TonsiteToHttps(QString value) {
+	const auto ChangeHost = [](QString tonsite) {
+		tonsite = tonsite.replace('-', "-h");
+		tonsite = tonsite.replace('.', "-d");
+		return tonsite + ".magic.org";
+	};
+	auto parsed = QUrl(value);
+	if (parsed.isValid()) {
+		parsed.setScheme("https");
+		parsed.setHost(ChangeHost(parsed.host()));
+		if (parsed.path().isEmpty()) {
+			parsed.setPath(u"/"_q);
+		}
+		return parsed.toString();
+	}
+	const auto part = value.mid(u"tonsite://"_q.size());
+	const auto split = part.indexOf('/');
+	return "https://"
+		+ ChangeHost((split < 0) ? part : part.left(split))
+		+ ((split < 0) ? u"/"_q : part.mid(split));
+}
+
+[[nodiscard]] QString HttpsToTonsite(QString value) {
+	const auto ChangeHost = [](QString https) {
+		https.replace(".magic.org", QString());
+		https = https.replace("-d", ".");
+		https = https.replace("-h", "-");
+		return https;
+	};
+	auto parsed = QUrl(value);
+	if (parsed.isValid()) {
+		parsed.setScheme("tonsite");
+		parsed.setHost(ChangeHost(parsed.host()));
+		if (parsed.path().isEmpty()) {
+			parsed.setPath(u"/"_q);
+		}
+		return parsed.toString();
+	}
+	const auto part = value.mid(u"https://"_q.size());
+	const auto split = part.indexOf('/');
+	return "tonsite://"
+		+ ChangeHost((split < 0) ? part : part.left(split))
+		+ ((split < 0) ? u"/"_q : part.mid(split));
+}
+
 } // namespace
 
 Controller::Controller(
@@ -151,6 +196,7 @@ Controller::~Controller() {
 	_ready = false;
 	_webview = nullptr;
 	_back.destroy();
+	_forward.destroy();
 	_menu = nullptr;
 	_menuToggle.destroy();
 	_subtitle = nullptr;
@@ -168,15 +214,22 @@ void Controller::updateTitleGeometry(int newWidth) const {
 		QPainter(_subtitleWrap.get()).fillRect(clip, st::windowBg);
 	}, _subtitleWrap->lifetime());
 
-	const auto progress = _subtitleLeft.value(_back->toggled() ? 1. : 0.);
-	const auto left = anim::interpolate(
-		st::ivSubtitleLeft,
-		_back->width() + st::ivSubtitleSkip,
-		progress);
+	const auto progressBack = _subtitleBackShift.value(
+		_back->toggled() ? 1. : 0.);
+	const auto progressForward = _subtitleForwardShift.value(
+		_forward->toggled() ? 1. : 0.);
+	const auto backAdded = _back->width()
+		+ st::ivSubtitleSkip
+		- st::ivSubtitleLeft;
+	const auto forwardAdded = _forward->width();
+	const auto left = st::ivSubtitleLeft
+		+ anim::interpolate(0, backAdded, progressBack)
+		+ anim::interpolate(0, forwardAdded, progressForward);
 	_subtitle->resizeToWidth(newWidth - left - _menuToggle->width());
 	_subtitle->moveToLeft(left, st::ivSubtitleTop);
 
 	_back->moveToLeft(0, 0);
+	_forward->moveToLeft(_back->width() * progressBack, 0);
 	_menuToggle->moveToRight(0, 0);
 }
 
@@ -191,12 +244,12 @@ void Controller::initControls() {
 		_subtitleWrap.get(),
 		_subtitleText.value(),
 		st::ivSubtitle);
+	_subtitle->setSelectable(true);
 	_subtitleText.value(
 	) | rpl::start_with_next([=](const QString &subtitle) {
 		const auto prefix = tr::lng_iv_window_title(tr::now);
 		_window->setWindowTitle(prefix + ' ' + QChar(0x2014) + ' ' + subtitle);
 	}, _subtitle->lifetime());
-	_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_menuToggle.create(_subtitleWrap.get(), st::ivMenuToggle);
 	_menuToggle->setClickedCallback([=] { showMenu(); });
@@ -206,15 +259,25 @@ void Controller::initControls() {
 		object_ptr<Ui::IconButton>(_subtitleWrap.get(), st::ivBack));
 	_back->entity()->setClickedCallback([=] {
 		if (_webview) {
-			_webview->eval("IV.back();");
+			_webview->eval("window.history.back();");
 		} else {
 			_back->hide(anim::type::normal);
+		}
+	});
+	_forward.create(
+		_subtitleWrap.get(),
+		object_ptr<Ui::IconButton>(_subtitleWrap.get(), st::ivForward));
+	_forward->entity()->setClickedCallback([=] {
+		if (_webview) {
+			_webview->eval("window.history.forward();");
+		} else {
+			_forward->hide(anim::type::normal);
 		}
 	});
 
 	_back->toggledValue(
 	) | rpl::start_with_next([=](bool toggled) {
-		_subtitleLeft.start(
+		_subtitleBackShift.start(
 			[=] { updateTitleGeometry(_window->body()->width()); },
 			toggled ? 0. : 1.,
 			toggled ? 1. : 0.,
@@ -222,7 +285,18 @@ void Controller::initControls() {
 	}, _back->lifetime());
 	_back->hide(anim::type::instant);
 
-	_subtitleLeft.stop();
+	_forward->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		_subtitleForwardShift.start(
+			[=] { updateTitleGeometry(_window->body()->width()); },
+			toggled ? 0. : 1.,
+			toggled ? 1. : 0.,
+			st::fadeWrapDuration);
+	}, _forward->lifetime());
+	_forward->hide(anim::type::instant);
+
+	_subtitleBackShift.stop();
+	_subtitleForwardShift.stop();
 }
 
 void Controller::show(
@@ -254,24 +328,7 @@ void Controller::update(Prepared page) {
 void Controller::showTonSite(
 		const Webview::StorageId &storageId,
 		QString uri) {
-	const auto url = [&] {
-		auto parsed = QUrl(uri);
-		if (parsed.isValid()) {
-			auto host = parsed.host();
-			host = host.replace('-', "-h");
-			host = host.replace('.', "-d");
-			parsed.setHost(host + ".magic.org");
-			parsed.setScheme("https");
-			return parsed.toString();
-		}
-		auto part = uri.mid(u"tonsite://"_q.size());
-		const auto split = part.indexOf('/');
-		auto host = (split < 0) ? part : part.left(split);
-		host = host.replace('-', "-h");
-		host = host.replace('.', "-d");
-		part = (split < 0) ? QString() : part.mid(split);
-		return "https://" + host + ".magic.org" + part;
-	}();
+	const auto url = TonsiteToHttps(uri);
 	if (!_webview) {
 		createWebview(storageId);
 	}
@@ -281,7 +338,13 @@ void Controller::showTonSite(
 	} else {
 		_events.fire({ Event::Type::Close });
 	}
-	_subtitleText = uri;
+	_url = url;
+	_subtitleText = _url.value(
+	) | rpl::filter([=](const QString &url) {
+		return !url.isEmpty() && url != u"about:blank"_q;
+	}) | rpl::map([=](QString value) {
+		return HttpsToTonsite(value);
+	});
 	_menuToggle->hide();
 }
 
@@ -438,12 +501,12 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 				if (!script.isEmpty()) {
 					_webview->eval(script);
 				}
-			} else if (event == u"location_change"_q) {
-				_index = object.value("index").toInt();
-				_hash = object.value("hash").toString();
-				_back->toggle(
-					(object.value("position").toInt() > 0),
-					anim::type::normal);
+			//} else if (event == u"location_change"_q) {
+			//	_index = object.value("index").toInt();
+			//	_hash = object.value("hash").toString();
+			//	_back->toggle(
+			//		(object.value("position").toInt() > 0),
+			//		anim::type::normal);
 			}
 		});
 	});
@@ -523,6 +586,21 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 		}
 		return Webview::DataResult::Failed;
 	});
+
+	raw->navigationHistoryState(
+	) | rpl::start_with_next([=](Webview::NavigationHistoryState state) {
+		_back->toggle(
+			state.canGoBack || state.canGoForward,
+			anim::type::normal);
+		_forward->toggle(state.canGoForward, anim::type::normal);
+		_back->entity()->setDisabled(!state.canGoBack);
+		_back->entity()->setIconOverride(
+			state.canGoBack ? nullptr : &st::ivBackIconDisabled,
+			state.canGoBack ? nullptr : &st::ivBackIconDisabled);
+		_back->setAttribute(
+			Qt::WA_TransparentForMouseEvents,
+			!state.canGoBack);
+	}, _webview->lifetime());
 
 	raw->init(R"()");
 }

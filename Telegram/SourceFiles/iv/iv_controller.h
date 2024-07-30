@@ -127,11 +127,14 @@ private:
 
 	std::unique_ptr<Ui::RpWindow> _window;
 	std::unique_ptr<Ui::RpWidget> _subtitleWrap;
+	rpl::variable<QString> _url;
 	rpl::variable<QString> _subtitleText;
 	std::unique_ptr<Ui::FlatLabel> _subtitle;
-	Ui::Animations::Simple _subtitleLeft;
+	Ui::Animations::Simple _subtitleBackShift;
+	Ui::Animations::Simple _subtitleForwardShift;
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _back = { nullptr };
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _forward = { nullptr };
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	Ui::RpWidget *_container = nullptr;
 	std::unique_ptr<Webview::Window> _webview;

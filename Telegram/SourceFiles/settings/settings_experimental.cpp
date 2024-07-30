@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "media/player/media_player_instance.h"
+#include "webview/platform/win/webview_windows_edge_chromium.h"
 #include "webview/webview_embed.h"
 #include "window/main_window.h"
 #include "window/window_peer_menu.h"
@@ -149,6 +150,7 @@ void SetupExperimental(
 	addToggle(Media::Player::kOptionDisableAutoplayNext);
 	addToggle(kOptionSendLargePhotos);
 	addToggle(Webview::kOptionWebviewDebugEnabled);
+	addToggle(Webview::EdgeChromium::kOptionWebviewLegacyEdge);
 	addToggle(kOptionAutoScrollInactiveChat);
 	addToggle(Window::Notifications::kOptionGNotification);
 	addToggle(Core::kOptionFreeType);

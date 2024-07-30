@@ -618,9 +618,6 @@ var IV = {
 		element.getAnimations().forEach(
 			(animation) => animation.finish());
 	},
-	back: function () {
-        window.history.back();
-	},
 	menuShown: function (shown) {
 		var already = document.getElementById('menu_page_blocker');
 		if (already && shown) {

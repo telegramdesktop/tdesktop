@@ -22,11 +22,20 @@ ivMenuToggle: IconButton(defaultIconButton) {
 	}
 }
 ivMenuPosition: point(-2px, 40px);
+ivBackIcon: icon {{ "box_button_back", menuIconColor }};
 ivBack: IconButton(ivMenuToggle) {
 	width: 60px;
-	icon: icon {{ "box_button_back", menuIconColor }};
-	iconOver: icon {{ "box_button_back", menuIconColor }};
+	icon: ivBackIcon;
+	iconOver: ivBackIcon;
 	rippleAreaPosition: point(12px, 6px);
+}
+ivBackIconDisabled: icon {{ "box_button_back", menuIconFg }};
+ivForwardIcon: icon {{ "box_button_back-flip_horizontal", menuIconColor }};
+ivForward: IconButton(ivBack) {
+	width: 48px;
+	icon: ivForwardIcon;
+	iconOver: ivForwardIcon;
+	rippleAreaPosition: point(0px, 6px);
 }
 ivSubtitleFont: font(16px semibold);
 ivSubtitle: FlatLabel(defaultFlatLabel) {
