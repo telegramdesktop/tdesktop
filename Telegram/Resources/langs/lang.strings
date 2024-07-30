@@ -2931,6 +2931,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_nothing_found" = "No emoji found";
 "lng_stickers_context_reorder" = "Reorder";
 "lng_stickers_context_edit_name" = "Edit name";
+"lng_stickers_context_delete" = "Delete sticker";
+"lng_stickers_context_delete_sure" = "Are you sure you want to delete the sticker from your sticker set?";
 "lng_stickers_box_edit_name_title" = "Edit Sticker Set Name";
 "lng_stickers_box_edit_name_about" = "Choose a name for your set.";
 

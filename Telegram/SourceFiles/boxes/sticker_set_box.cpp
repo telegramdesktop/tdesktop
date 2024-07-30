@@ -7,54 +7,55 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/sticker_set_box.h"
 
+#include "api/api_common.h"
+#include "api/api_toggling_media.h"
+#include "apiwrap.h"
+#include "base/unixtime.h"
+#include "boxes/premium_preview_box.h"
+#include "chat_helpers/compose/compose_show.h"
+#include "chat_helpers/stickers_list_widget.h"
+#include "chat_helpers/stickers_lottie.h"
+#include "core/application.h"
 #include "data/data_document.h"
-#include "data/data_session.h"
-#include "data/data_file_origin.h"
 #include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer_values.h"
-#include "data/stickers/data_stickers.h"
+#include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
-#include "menu/menu_send.h"
+#include "data/stickers/data_stickers.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
-#include "ui/boxes/confirm_box.h"
-#include "boxes/premium_preview_box.h"
-#include "core/application.h"
+#include "lottie/lottie_animation.h"
+#include "lottie/lottie_multi_player.h"
+#include "main/main_session.h"
+#include "mainwindow.h"
+#include "media/clip/media_clip_reader.h"
+#include "menu/menu_send.h"
 #include "mtproto/sender.h"
+#include "settings/settings_premium.h"
 #include "storage/storage_account.h"
-#include "dialogs/ui/dialogs_layout.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/gradient_round_button.h"
-#include "ui/widgets/fields/input_field.h"
-#include "ui/image/image.h"
-#include "ui/image/image_location_factory.h"
-#include "ui/text/text_utilities.h"
-#include "ui/text/custom_emoji_instance.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/cached_round_corners.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/emoji_config.h"
+#include "ui/image/image.h"
+#include "ui/image/image_location_factory.h"
 #include "ui/painter.h"
-#include "ui/rect.h"
 #include "ui/power_saving.h"
+#include "ui/rect.h"
+#include "ui/text/custom_emoji_instance.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/gradient_round_button.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/cached_round_corners.h"
-#include "lottie/lottie_multi_player.h"
-#include "lottie/lottie_animation.h"
-#include "chat_helpers/compose/compose_show.h"
-#include "chat_helpers/stickers_lottie.h"
-#include "chat_helpers/stickers_list_widget.h"
-#include "media/clip/media_clip_reader.h"
-#include "window/window_controller.h"
-#include "settings/settings_premium.h"
-#include "base/unixtime.h"
-#include "main/main_session.h"
-#include "apiwrap.h"
-#include "api/api_toggling_media.h"
-#include "api/api_common.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
+#include "ui/widgets/scroll_area.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
@@ -356,6 +357,7 @@ private:
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
 
 	void requestReorder(not_null<DocumentData*> document, int index);
+	void fillDeleteStickerBox(not_null<Ui::GenericBox*> box, int index);
 
 	void chosen(
 		int index,
@@ -1422,12 +1424,149 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 			(isFaved
 				? &st::menuIconUnfave
 				: &st::menuIconFave));
+		if (amSetCreator()) {
+			const auto addAction = Ui::Menu::CreateAddActionCallback(
+				_menu.get());
+			addAction({
+				.text = tr::lng_stickers_context_delete(tr::now),
+				.handler = [index, this, show = _show] {
+					show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+						fillDeleteStickerBox(box, index);
+					}));
+				},
+				.icon = &st::menuIconDeleteAttention,
+				.isAttention = true,
+			});
+		}
 	}
 	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {
 		_menu->popup(QCursor::pos());
 	}
+}
+
+void StickerSetBox::Inner::fillDeleteStickerBox(
+		not_null<Ui::GenericBox*> box,
+		int index) {
+	Expects(index >= 0 || index < _pack.size());
+	const auto document = _pack[index];
+	const auto weak = Ui::MakeWeak(this);
+	const auto show = _show;
+
+	const auto container = box->verticalLayout();
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+	const auto line = container->add(object_ptr<Ui::RpWidget>(container));
+	line->resize(line->width(), _singleSize.height());
+
+	const auto sticker = Ui::CreateChild<Ui::RpWidget>(line);
+	auto &lifetime = sticker->lifetime();
+	struct State final {
+		rpl::variable<mtpRequestId> requestId = 0;
+		Ui::RpWidget* saveButton = nullptr;
+	};
+	const auto state = lifetime.make_state<State>();
+	sticker->resize(_singleSize);
+	{
+		const auto animation = lifetime.make_state<Ui::Animations::Basic>();
+		animation->init([=] { sticker->update(); });
+		animation->start();
+	}
+	sticker->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = Painter(sticker);
+		if (const auto strong = weak.get()) {
+			const auto paused = On(PowerSaving::kStickersPanel)
+				|| show->paused(ChatHelpers::PauseReason::Layer);
+			paintSticker(p, index, QPoint(), paused, crl::now());
+			if (_lottiePlayer && !paused) {
+				_lottiePlayer->markFrameShown();
+			}
+		}
+	}, sticker->lifetime());
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		line,
+		tr::lng_stickers_context_delete(),
+		box->getDelegate()->style().title);
+	line->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		sticker->moveToLeft(st::boxRowPadding.left(), 0);
+		const auto skip = st::defaultBoxCheckbox.textPosition.x();
+		label->resizeToWidth(width
+			- rect::right(sticker)
+			- skip
+			- st::boxRowPadding.right());
+		label->moveToLeft(
+			rect::right(sticker) + skip,
+			((sticker->height() - label->height()) / 2));
+	}, label->lifetime());
+
+	sticker->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_stickers_context_delete_sure(),
+			st::boxLabel));
+	const auto save = [=] {
+		if (state->requestId.current()) {
+			return;
+		}
+		const auto weakBox = Ui::MakeWeak(box);
+		const auto buttonWidth = state->saveButton
+			? state->saveButton->width()
+			: 0;
+		state->requestId = document->owner().session().api().request(
+			MTPstickers_RemoveStickerFromSet(document->mtpInput()
+		)).done([=](const TLStickerSet &result) {
+			result.match([&](const MTPDmessages_stickerSet &d) {
+				document->owner().stickers().feedSetFull(d);
+				document->owner().stickers().notifyUpdated(
+					Data::StickersType::Stickers);
+			}, [](const auto &) {
+			});
+			if (const auto strong = weak.get()) {
+				applySet(result);
+			}
+			if (const auto strongBox = weakBox.get()) {
+				strongBox->closeBox();
+			}
+		}).fail([=](const MTP::Error &error) {
+			if (const auto strongBox = weakBox.get()) {
+				strongBox->uiShow()->showToast(error.type());
+			}
+		}).send();
+		if (state->saveButton) {
+			state->saveButton->resizeToWidth(buttonWidth);
+		}
+	};
+	state->saveButton = box->addButton(
+		rpl::conditional(
+			state->requestId.value() | rpl::map(rpl::mappers::_1 > 0),
+			rpl::single(QString()),
+			tr::lng_selected_delete()),
+		save,
+		st::attentionBoxButton);
+	if (const auto saveButton = state->saveButton) {
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			saveButton,
+			saveButton->height() / 2,
+			&st::editStickerSetNameLoading);
+		AddChildToWidgetCenter(saveButton, loadingAnimation);
+		loadingAnimation->showOn(
+			state->requestId.value() | rpl::map(rpl::mappers::_1 > 0));
+	}
+	box->addButton(tr::lng_close(), [=] {
+		document->owner().session().api().request(
+			state->requestId.current()).cancel();
+		box->closeBox();
+	});
 }
 
 void StickerSetBox::Inner::updateSelected() {
