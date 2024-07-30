@@ -499,6 +499,15 @@ void Controller::invokeForSessionController(
 	if (separateSession) {
 		return callback(separateSession);
 	}
+	const auto accountWindow = account
+		? Core::App().separateWindowFor(not_null(account))
+		: nullptr;
+	const auto accountSession = accountWindow
+		? accountWindow->sessionController()
+		: nullptr;
+	if (accountSession) {
+		return callback(accountSession);
+	}
 	_id.account->domain().activate(std::move(account));
 	if (_sessionController) {
 		callback(_sessionController.get());
