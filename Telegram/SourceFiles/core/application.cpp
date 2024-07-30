@@ -683,7 +683,8 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 			if (const auto file = event->file(); !file.isEmpty()) {
 				_filesToOpen.append(file);
 				_fileOpenTimer.callOnce(kFileOpenTimeoutMs);
-			} else if (event->url().scheme() == u"tg"_q) {
+			} else if (event->url().scheme() == u"tg"_q
+				|| event->url().scheme() == u"tonsite"_q) {
 				const auto url = QString::fromUtf8(
 					event->url().toEncoded().trimmed());
 				cSetStartUrl(url.mid(0, 8192));
@@ -1084,13 +1085,17 @@ void Application::checkSendPaths() {
 }
 
 void Application::checkStartUrl() {
-	if (!cStartUrl().isEmpty()
-		&& _lastActivePrimaryWindow
-		&& !_lastActivePrimaryWindow->locked()) {
+	if (!cStartUrl().isEmpty()) {
 		const auto url = cStartUrl();
-		cSetStartUrl(QString());
-		if (!openLocalUrl(url, {})) {
-			cSetStartUrl(url);
+		if (url.startsWith("tonsite://", Qt::CaseInsensitive)) {
+			cSetStartUrl(QString());
+			iv().showTonSite(url, {});
+		} else if (_lastActivePrimaryWindow
+			&& !_lastActivePrimaryWindow->locked()) {
+			cSetStartUrl(QString());
+			if (!openLocalUrl(url, {})) {
+				cSetStartUrl(url);
+			}
 		}
 	}
 }
@@ -1798,13 +1803,26 @@ void Application::startShortcuts() {
 }
 
 void Application::RegisterUrlScheme() {
+	const auto arguments = Launcher::Instance().customWorkingDir()
+		? u"-workdir \"%1\""_q.arg(cWorkingDir())
+		: QString();
+
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
 		.executable = Platform::ExecutablePathForShortcuts(),
-		.arguments = Launcher::Instance().customWorkingDir()
-			? u"-workdir \"%1\""_q.arg(cWorkingDir())
-			: QString(),
+		.arguments = arguments,
 		.protocol = u"tg"_q,
 		.protocolName = u"Telegram Link"_q,
+		.shortAppName = u"tdesktop"_q,
+		.longAppName = QCoreApplication::applicationName(),
+		.displayAppName = AppName.utf16(),
+		.displayAppDescription = AppName.utf16(),
+	});
+
+	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
+		.executable = Platform::ExecutablePathForShortcuts(),
+		.arguments = arguments,
+		.protocol = u"tonsite"_q,
+		.protocolName = u"TonSite Link"_q,
 		.shortAppName = u"tdesktop"_q,
 		.longAppName = QCoreApplication::applicationName(),
 		.displayAppName = AppName.utf16(),

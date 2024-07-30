@@ -523,12 +523,10 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 				if (!script.isEmpty()) {
 					_webview->eval(script);
 				}
-			//} else if (event == u"location_change"_q) {
-			//	_index = object.value("index").toInt();
-			//	_hash = object.value("hash").toString();
-			//	_back->toggle(
-			//		(object.value("position").toInt() > 0),
-			//		anim::type::normal);
+			} else if (event == u"location_change"_q) {
+				_index = object.value("index").toInt();
+				_hash = object.value("hash").toString();
+				_webview->refreshNavigationHistoryState();
 			}
 		});
 	});

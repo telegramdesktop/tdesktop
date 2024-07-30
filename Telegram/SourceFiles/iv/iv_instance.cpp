@@ -1107,8 +1107,7 @@ void Instance::showTonSite(
 		case Type::OpenPage:
 		case Type::OpenLink:
 			if (urlChecked) {
-				File::OpenUrl(event.url);
-				closeAll();
+				UrlClickHandler::Open(event.url);
 			} else if (tonsite) {
 				showTonSite(event.url);
 			}

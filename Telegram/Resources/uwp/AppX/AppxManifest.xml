@@ -37,6 +37,9 @@
       <Extensions>
         <uap3:Extension Category="windows.protocol">
           <uap3:Protocol Name="tg" Parameters="-- &quot;%1&quot;" />
+        <uap3:Extension Category="windows.protocol">
+        </uap3:Extension>
+          <uap3:Protocol Name="tonsite" Parameters="-- &quot;%1&quot;" />
         </uap3:Extension>
         <desktop:Extension
           Category="windows.startupTask"
