@@ -746,8 +746,9 @@ postEvent: function(eventType, eventData) {
 		&QGuiApplication::focusWindowChanged
 	) | rpl::filter([=](QWindow *focused) {
 		const auto handle = _widget->window()->windowHandle();
-		return _webview
-			&& !_webview->window.widget()->isHidden()
+		const auto widget = _webview ? _webview->window.widget() : nullptr;
+		return widget
+			&& !widget->isHidden()
 			&& handle
 			&& (focused == handle);
 	}) | rpl::start_with_next([=] {
