@@ -124,7 +124,7 @@ void GiftCreditsBox(
 		0,
 		[=] { gifted(); box->uiShow()->hideLayer(); });
 
-	const auto bottom = box->setPinnedToBottomContent(
+	box->setPinnedToBottomContent(
 		object_ptr<Ui::VerticalLayout>(box));
 }
 
