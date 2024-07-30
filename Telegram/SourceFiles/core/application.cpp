@@ -1341,7 +1341,7 @@ Window::Controller *Application::ensureSeparateWindowFor(
 Window::Controller *Application::windowFor(Window::SeparateId id) const {
 	if (const auto separate = separateWindowFor(id)) {
 		return separate;
-	} else if (id && id.primary()) {
+	} else if (id && !id.primary()) {
 		return windowFor(not_null(id.account));
 	}
 	return activePrimaryWindow();
