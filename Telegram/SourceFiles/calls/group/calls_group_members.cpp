@@ -1195,24 +1195,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	const auto addVolumeItem = (!muted || isMe(participantPeer));
 	const auto admin = IsGroupCallAdmin(_peer, participantPeer);
 	const auto session = &_peer->session();
-	const auto getCurrentWindow = [=]() -> Window::SessionController* {
-		if (const auto window = Core::App().windowFor(participantPeer)) {
-			if (const auto controller = window->sessionController()) {
-				if (&controller->session() == session) {
-					return controller;
-				}
-			}
-		}
-		return nullptr;
-	};
-	const auto getWindow = [=] {
-		if (const auto current = getCurrentWindow()) {
-			return current;
-		} else if (&Core::App().domain().active() != &session->account()) {
-			Core::App().domain().activate(&session->account());
-		}
-		return getCurrentWindow();
-	};
+	const auto account = &session->account();
 
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
@@ -1223,7 +1206,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			: st::groupCallPopupMenu));
 	const auto weakMenu = Ui::MakeWeak(result.get());
 	const auto withActiveWindow = [=](auto callback) {
-		if (const auto window = getWindow()) {
+		if (const auto window = Core::App().activePrimaryWindow()) {
 			if (const auto menu = weakMenu.data()) {
 				menu->discardParentReActivate();
 
@@ -1232,8 +1215,13 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 				// PopupMenu::hide activates back the group call panel :(
 				delete weakMenu;
 			}
-			callback(window);
-			window->widget()->activate();
+			window->invokeForSessionController(
+				account,
+				participantPeer,
+				[&](not_null<Window::SessionController*> newController) {
+					callback(newController);
+					newController->widget()->activate();
+				});
 		}
 	};
 	const auto showProfile = [=] {
