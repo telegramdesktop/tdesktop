@@ -1476,7 +1476,7 @@ void StickerSetBox::Inner::fillDeleteStickerBox(
 	sticker->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = Painter(sticker);
-		if (const auto strong = weak.get()) {
+		if (const auto strong = weak.data()) {
 			const auto paused = On(PowerSaving::kStickersPanel)
 				|| show->paused(ChatHelpers::PauseReason::Layer);
 			paintSticker(p, index, QPoint(), paused, crl::now());
@@ -1530,14 +1530,14 @@ void StickerSetBox::Inner::fillDeleteStickerBox(
 					Data::StickersType::Stickers);
 			}, [](const auto &) {
 			});
-			if (const auto strong = weak.get()) {
+			if (const auto strong = weak.data()) {
 				applySet(result);
 			}
-			if (const auto strongBox = weakBox.get()) {
+			if (const auto strongBox = weakBox.data()) {
 				strongBox->closeBox();
 			}
 		}).fail([=](const MTP::Error &error) {
-			if (const auto strongBox = weakBox.get()) {
+			if (const auto strongBox = weakBox.data()) {
 				strongBox->uiShow()->showToast(error.type());
 			}
 		}).send();
