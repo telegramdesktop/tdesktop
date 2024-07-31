@@ -128,7 +128,7 @@ mtpRequestId EditMessage(
 		}
 
 		if (updateRecentStickers) {
-			api->requestRecentStickersForce(true);
+			api->requestSpecialStickersForce(false, false, true);
 		}
 	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 		if constexpr (ErrorWithId<FailCallback>) {

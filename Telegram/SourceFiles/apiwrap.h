@@ -244,7 +244,10 @@ public:
 	void updateSavedGifs();
 	void updateMasks();
 	void updateCustomEmoji();
-	void requestRecentStickersForce(bool attached = false);
+	void requestSpecialStickersForce(
+		bool faved,
+		bool recent,
+		bool attached);
 	void setGroupStickerSet(
 		not_null<ChannelData*> megagroup,
 		const StickerSetIdentifier &set);
@@ -477,9 +480,10 @@ private:
 	void requestStickers(TimeId now);
 	void requestMasks(TimeId now);
 	void requestCustomEmoji(TimeId now);
-	void requestRecentStickers(TimeId now, bool attached = false);
-	void requestRecentStickersWithHash(uint64 hash, bool attached = false);
-	void requestFavedStickers(TimeId now);
+	void requestRecentStickers(
+		std::optional<TimeId> now,
+		bool attached);
+	void requestFavedStickers(std::optional<TimeId> now);
 	void requestFeaturedStickers(TimeId now);
 	void requestFeaturedEmoji(TimeId now);
 	void requestSavedGifs(TimeId now);

@@ -2585,7 +2585,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &resu
 void ApiWrap::updateStickers() {
 	const auto now = crl::now();
 	requestStickers(now);
-	requestRecentStickers(now);
+	requestRecentStickers(now, false);
 	requestFavedStickers(now);
 	requestFeaturedStickers(now);
 }
@@ -2607,8 +2607,15 @@ void ApiWrap::updateCustomEmoji() {
 	requestFeaturedEmoji(now);
 }
 
-void ApiWrap::requestRecentStickersForce(bool attached) {
-	requestRecentStickersWithHash(0, attached);
+void ApiWrap::requestSpecialStickersForce(
+		bool faved,
+		bool recent,
+		bool attached) {
+	if (faved) {
+		requestFavedStickers(std::nullopt);
+	} else if (recent || attached) {
+		requestRecentStickers(std::nullopt, attached);
+	}
 }
 
 void ApiWrap::setGroupStickerSet(
@@ -2761,18 +2768,17 @@ void ApiWrap::requestCustomEmoji(TimeId now) {
 	}).send();
 }
 
-void ApiWrap::requestRecentStickers(TimeId now, bool attached) {
-	const auto needed = attached
-		? _session->data().stickers().recentAttachedUpdateNeeded(now)
-		: _session->data().stickers().recentUpdateNeeded(now);
+void ApiWrap::requestRecentStickers(
+		std::optional<TimeId> now,
+		bool attached) {
+	const auto needed = !now
+		? true
+		: attached
+		? _session->data().stickers().recentAttachedUpdateNeeded(*now)
+		: _session->data().stickers().recentUpdateNeeded(*now);
 	if (!needed) {
 		return;
 	}
-	requestRecentStickersWithHash(
-		Api::CountRecentStickersHash(_session, attached), attached);
-}
-
-void ApiWrap::requestRecentStickersWithHash(uint64 hash, bool attached) {
 	const auto requestId = [=]() -> mtpRequestId & {
 		return attached
 			? _recentAttachedStickersUpdateRequest
@@ -2795,7 +2801,7 @@ void ApiWrap::requestRecentStickersWithHash(uint64 hash, bool attached) {
 		: MTPmessages_getRecentStickers::Flags(0);
 	requestId() = request(MTPmessages_GetRecentStickers(
 		MTP_flags(flags),
-		MTP_long(hash)
+		MTP_long(now ? Api::CountRecentStickersHash(_session, attached) : 0)
 	)).done([=](const MTPmessages_RecentStickers &result) {
 		finish();
 
@@ -2822,13 +2828,15 @@ void ApiWrap::requestRecentStickersWithHash(uint64 hash, bool attached) {
 	}).send();
 }
 
-void ApiWrap::requestFavedStickers(TimeId now) {
-	if (!_session->data().stickers().favedUpdateNeeded(now)
-		|| _favedStickersUpdateRequest) {
-		return;
+void ApiWrap::requestFavedStickers(std::optional<TimeId> now) {
+	if (now) {
+		if (!_session->data().stickers().favedUpdateNeeded(*now)
+			|| _favedStickersUpdateRequest) {
+			return;
+		}
 	}
 	_favedStickersUpdateRequest = request(MTPmessages_GetFavedStickers(
-		MTP_long(Api::CountFavedStickersHash(_session))
+		MTP_long(now ? Api::CountFavedStickersHash(_session) : 0)
 	)).done([=](const MTPmessages_FavedStickers &result) {
 		_session->data().stickers().setLastFavedUpdate(crl::now());
 		_favedStickersUpdateRequest = 0;
@@ -4204,7 +4212,7 @@ void ApiWrap::sendMediaWithRandomId(
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (done) done(true);
 		if (updateRecentStickers) {
-			requestRecentStickersForce(true);
+			requestRecentStickers(std::nullopt, true);
 		}
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		if (done) done(false);
