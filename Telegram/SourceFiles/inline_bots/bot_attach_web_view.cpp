@@ -787,6 +787,10 @@ void WebViewInstance::confirmAppOpen(
 			done((*allowed) && (*allowed)->checked());
 			close();
 		};
+		const auto cancelled = [=](Fn<void()> close) {
+			botClose();
+			close();
+		};
 		Ui::ConfirmBox(box, {
 			tr::lng_allow_bot_webview(
 				tr::now,
@@ -794,7 +798,7 @@ void WebViewInstance::confirmAppOpen(
 				Ui::Text::Bold(_bot->name()),
 				Ui::Text::RichLangValue),
 			crl::guard(this, callback),
-			crl::guard(this, [=] { botClose(); }),
+			crl::guard(this, cancelled),
 		});
 		if (writeAccess) {
 			(*allowed) = box->addRow(
