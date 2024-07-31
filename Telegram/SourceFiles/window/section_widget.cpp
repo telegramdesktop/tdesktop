@@ -457,7 +457,11 @@ void SectionWidget::showFinished() {
 	showChildren();
 	showFinishedHook();
 
-	controller()->widget()->setInnerFocus();
+	if (isAncestorOf(window()->focusWidget())) {
+		setInnerFocus();
+	} else {
+		controller()->widget()->setInnerFocus();
+	}
 }
 
 rpl::producer<int> SectionWidget::desiredHeight() const {
