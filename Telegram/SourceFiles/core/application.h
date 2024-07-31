@@ -378,6 +378,7 @@ private:
 
 	void showOpenGLCrashNotification();
 	void clearPasscodeLock();
+	void closeAdditionalWindows();
 
 	bool openCustomUrl(
 		const QString &protocol,

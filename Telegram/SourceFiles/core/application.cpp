@@ -188,8 +188,11 @@ Application::Application()
 	_platformIntegration->init();
 
 	passcodeLockChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](bool locked) {
 		_shouldLockAt = 0;
+		if (locked) {
+			closeAdditionalWindows();
+		}
 	}, _lifetime);
 
 	passcodeLockChanges(
@@ -211,6 +214,16 @@ Application::Application()
 	}, _lifetime);
 }
 
+void Application::closeAdditionalWindows() {
+	Payments::CheckoutProcess::ClearAll();
+	for (const auto &[index, account] : _domain->accounts()) {
+		if (account->sessionExists()) {
+			account->session().attachWebView().closeAll();
+		}
+	}
+	_iv->closeAll();
+}
+
 Application::~Application() {
 	if (_saveSettingsTimer && _saveSettingsTimer->isActive()) {
 		Local::writeSettings();
@@ -230,13 +243,7 @@ Application::~Application() {
 	//
 	// For example Domain::removeRedundantAccounts() is called from
 	// Domain::finish() and there is a violation on Ensures(started()).
-	Payments::CheckoutProcess::ClearAll();
-	for (const auto &[index, account] : _domain->accounts()) {
-		if (account->sessionExists()) {
-			account->session().attachWebView().closeAll();
-		}
-	}
-	_iv->closeAll();
+	closeAdditionalWindows();
 
 	_domain->finish();
 
@@ -1087,14 +1094,15 @@ void Application::checkSendPaths() {
 void Application::checkStartUrl() {
 	if (!cStartUrl().isEmpty()) {
 		const auto url = cStartUrl();
-		if (url.startsWith("tonsite://", Qt::CaseInsensitive)) {
-			cSetStartUrl(QString());
-			iv().showTonSite(url, {});
-		} else if (_lastActivePrimaryWindow
-			&& !_lastActivePrimaryWindow->locked()) {
-			cSetStartUrl(QString());
-			if (!openLocalUrl(url, {})) {
-				cSetStartUrl(url);
+		if (!Core::App().passcodeLocked()) {
+			if (url.startsWith("tonsite://", Qt::CaseInsensitive)) {
+				cSetStartUrl(QString());
+				iv().showTonSite(url, {});
+			} else if (_lastActivePrimaryWindow) {
+				cSetStartUrl(QString());
+				if (!openLocalUrl(url, {})) {
+					cSetStartUrl(url);
+				}
 			}
 		}
 	}
