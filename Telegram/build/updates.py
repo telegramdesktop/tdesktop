@@ -81,7 +81,7 @@ if building:
         if result != 0:
             finish(1, 'While stripping Telegram.')
 
-        result = subprocess.call('codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" Telegram.app --entitlements "../../Telegram/Telegram/Telegram.entitlements"', shell=True)
+        result = subprocess.call('codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: Telegram FZ-LLC (C67CF9S4VU)" Telegram.app --entitlements "../../Telegram/Telegram/Telegram.entitlements"', shell=True)
         if result != 0:
             finish(1, 'While signing Telegram.')
 
