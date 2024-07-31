@@ -59,6 +59,7 @@ enum class StickersSetFlag : ushort {
 	Emoji = (1 << 9),
 	TextColor = (1 << 10),
 	ChannelStatus = (1 << 11),
+	AmCreator = (1 << 12),
 };
 inline constexpr bool is_flag_type(StickersSetFlag) { return true; };
 using StickersSetFlags = base::flags<StickersSetFlag>;

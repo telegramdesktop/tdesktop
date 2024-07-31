@@ -284,6 +284,10 @@ stickersTrendingSubheaderFont: normalFont;
 stickersTrendingSubheaderFg: windowSubTextFg;
 stickersTrendingSubheaderTop: 31px;
 
+stickersHeaderBadgeFont: font(10px);
+stickersHeaderBadgeFontTop: 12px;
+stickersHeaderBadgeFontSkip: 12px;
+
 emojiPanButtonRight: 7px;
 emojiPanButtonTop: 8px;
 emojiPanButton: RoundButton(defaultActiveButton) {
