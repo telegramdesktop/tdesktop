@@ -1337,6 +1337,13 @@ QString TryConvertUrlToLocal(QString url) {
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
+	auto tonsiteMatch = (url.indexOf(u".ton") >= 0)
+		? regex_match(u"^(https?://)?[^/@:]+\\.ton($|/)"_q, url, matchOptions)
+		: RegularExpressionMatch(QRegularExpressionMatch());
+	if (tonsiteMatch) {
+		const auto protocol = tonsiteMatch->captured(1);
+		return u"tonsite://"_q + url.mid(protocol.size());
+	}
 	auto subdomainMatch = regex_match(u"^(https?://)?([a-zA-Z0-9\\_]+)\\.t\\.me(/\\d+)?/?(\\?.+)?"_q, url, matchOptions);
 	if (subdomainMatch) {
 		const auto name = subdomainMatch->captured(2);

@@ -122,7 +122,9 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 			return result;
 		}()));
 	} else {
-		const auto parsedUrl = QUrl::fromUserInput(url);
+		const auto parsedUrl = url.startsWith(u"tonsite://"_q)
+			? QUrl(url)
+			: QUrl::fromUserInput(url);
 		if (UrlRequiresConfirmation(parsedUrl) && !base::IsCtrlPressed()) {
 			const auto my = context.value<ClickHandlerContext>();
 			if (!my.show) {

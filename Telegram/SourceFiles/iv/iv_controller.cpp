@@ -166,12 +166,16 @@ namespace {
 	};
 	auto parsed = QUrl(value);
 	if (parsed.isValid()) {
+		const auto host = ChangeHost(parsed.host());
+		const auto emptyPath = parsed.path().isEmpty();
 		parsed.setScheme("tonsite");
-		parsed.setHost(ChangeHost(parsed.host()));
-		if (parsed.path().isEmpty()) {
+		parsed.setHost(host);
+		if (emptyPath) {
 			parsed.setPath(u"/"_q);
 		}
-		return parsed.toString();
+		if (parsed.isValid()) {
+			return parsed.toString();
+		}
 	}
 	const auto part = value.mid(u"https://"_q.size());
 	const auto split = part.indexOf('/');
