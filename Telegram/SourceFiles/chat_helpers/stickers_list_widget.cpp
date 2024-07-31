@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_list_widget.h"
 
+#include "base/timer_rpl.h"
 #include "core/application.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -1717,12 +1718,32 @@ QPoint StickersListWidget::buttonRippleTopLeft(int section) const {
 		+ st().removeSet.rippleAreaPosition;
 }
 
-void StickersListWidget::showStickerSetBox(not_null<DocumentData*> document) {
+void StickersListWidget::showStickerSetBox(
+		not_null<DocumentData*> document,
+		uint64 setId) {
 	if (document->sticker() && document->sticker()->set) {
 		checkHideWithBox(Box<StickerSetBox>(
 			_show,
 			document->sticker()->set,
 			document->sticker()->setType));
+	} else if ((setId == Data::Stickers::FavedSetId)
+			|| (setId == Data::Stickers::RecentSetId)) {
+		const auto lifetime = std::make_shared<rpl::lifetime>();
+		constexpr auto kTimeout = 10000;
+		rpl::merge(
+			base::timer_once(kTimeout),
+			document->owner().stickers().updated(
+				Data::StickersType::Stickers)
+		) | rpl::start_with_next([=, weak = Ui::MakeWeak(this)] {
+			if (weak.get()) {
+				showStickerSetBox(document, setId);
+			}
+			lifetime->destroy();
+		}, *lifetime);
+		document->owner().session().api().requestSpecialStickersForce(
+			setId == Data::Stickers::FavedSetId,
+			setId == Data::Stickers::RecentSetId,
+			false);
 	}
 }
 
@@ -1779,8 +1800,8 @@ base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillContextMenu(
 		isFaved ? &icons->menuUnfave : &icons->menuFave);
 
 	if (_features.openStickerSets) {
-		menu->addAction(tr::lng_context_pack_info(tr::now), [=] {
-			showStickerSetBox(document);
+		menu->addAction(tr::lng_context_pack_info(tr::now), [=, id = set.id] {
+			showStickerSetBox(document, id);
 		}, &icons->menuStickerSet);
 	}
 
@@ -1850,7 +1871,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			const auto document = set.stickers[sticker->index].document;
 			if (_features.openStickerSets
 				&& (e->modifiers() & Qt::ControlModifier)) {
-				showStickerSetBox(document);
+				showStickerSetBox(document, set.id);
 			} else {
 				_chosen.fire({
 					.document = document,

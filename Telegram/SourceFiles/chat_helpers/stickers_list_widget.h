@@ -350,7 +350,9 @@ private:
 	void refreshFooterIcons();
 	void refreshIcons(ValidateIconAnimations animations);
 
-	void showStickerSetBox(not_null<DocumentData*> document);
+	void showStickerSetBox(
+		not_null<DocumentData*> document,
+		uint64 setId);
 
 	void cancelSetsSearch();
 	void showSearchResults();
