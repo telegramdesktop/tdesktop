@@ -10,24 +10,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 
 namespace Ui {
+namespace {
 
-[[nodiscard]] QByteArray ComputeStyles(
+[[nodiscard]] QByteArray Serialize(const QColor &qt) {
+	if (qt.alpha() == 255) {
+		return '#'
+			+ QByteArray::number(qt.red(), 16).right(2)
+			+ QByteArray::number(qt.green(), 16).right(2)
+			+ QByteArray::number(qt.blue(), 16).right(2);
+	}
+	return "rgba("
+		+ QByteArray::number(qt.red()) + ","
+		+ QByteArray::number(qt.green()) + ","
+		+ QByteArray::number(qt.blue()) + ","
+		+ QByteArray::number(qt.alpha() / 255.) + ")";
+}
+
+} // namespace
+
+QByteArray ComputeStyles(
 		const base::flat_map<QByteArray, const style::color*> &colors,
 		const base::flat_map<QByteArray, tr::phrase<>> &phrases,
 		bool nightTheme) {
 	static const auto serialize = [](const style::color *color) {
-		const auto qt = (*color)->c;
-		if (qt.alpha() == 255) {
-			return '#'
-				+ QByteArray::number(qt.red(), 16).right(2)
-				+ QByteArray::number(qt.green(), 16).right(2)
-				+ QByteArray::number(qt.blue(), 16).right(2);
-		}
-		return "rgba("
-			+ QByteArray::number(qt.red()) + ","
-			+ QByteArray::number(qt.green()) + ","
-			+ QByteArray::number(qt.blue()) + ","
-			+ QByteArray::number(qt.alpha() / 255.) + ")";
+		return Serialize((*color)->c);
 	};
 	static const auto escape = [](tr::phrase<> phrase) {
 		const auto text = phrase(tr::now);
@@ -61,6 +67,40 @@ namespace Ui {
 	}
 	result += "--td-night:"_q + (nightTheme ? "1" : "0") + ';';
 	return result;
+}
+
+QByteArray ComputeSemiTransparentOverStyle(
+		const QByteArray &name,
+		const style::color &over,
+		const style::color &bg) {
+	const auto result = [&](const QColor &c) {
+		return "--td-"_q + name + ':' + Serialize(c) + ';';
+	};
+	if (over->c.alpha() < 255) {
+		return result(over->c);
+	}
+	// The most transparent color that will still give the same result.
+	const auto r0 = bg->c.red();
+	const auto g0 = bg->c.green();
+	const auto b0 = bg->c.blue();
+	const auto r1 = over->c.red();
+	const auto g1 = over->c.green();
+	const auto b1 = over->c.blue();
+	const auto mina = [](int c0, int c1) {
+		return (c0 == c1)
+			? 0
+			: (c0 > c1)
+			? (((c0 - c1) * 255) / c0)
+			: (((c1 - c0) * 255) / (255 - c0));
+	};
+	const auto rmina = mina(r0, r1);
+	const auto gmina = mina(g0, g1);
+	const auto bmina = mina(b0, b1);
+	const auto a = std::max({ rmina, gmina, bmina });
+	const auto r = (r1 * 255 - r0 * (255 - a)) / a;
+	const auto g = (g1 * 255 - g0 * (255 - a)) / a;
+	const auto b = (b1 * 255 - b0 * (255 - a)) / a;
+	return result(QColor(r, g, b, a));
 }
 
 QByteArray EscapeForAttribute(QByteArray value) {

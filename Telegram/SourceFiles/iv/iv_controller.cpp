@@ -65,7 +65,7 @@ namespace {
 		{ "box-divider-bg", &st::boxDividerBg },
 		{ "box-divider-fg", &st::boxDividerFg },
 		{ "light-button-fg", &st::lightButtonFg },
-		{ "light-button-bg-over", &st::lightButtonBgOver },
+		//{ "light-button-bg-over", &st::lightButtonBgOver },
 		{ "menu-icon-fg", &st::menuIconFg },
 		{ "menu-icon-fg-over", &st::menuIconFgOver },
 		{ "menu-bg", &st::menuBg },
@@ -82,7 +82,12 @@ namespace {
 	static const auto phrases = base::flat_map<QByteArray, tr::phrase<>>{
 		{ "iv-join-channel", tr::lng_iv_join_channel },
 	};
-	return Ui::ComputeStyles(map, phrases);
+	return Ui::ComputeStyles(map, phrases)
+		+ ';'
+		+ Ui::ComputeSemiTransparentOverStyle(
+			"light-button-bg-over",
+			st::lightButtonBgOver,
+			st::windowBg);
 }
 
 [[nodiscard]] QByteArray WrapPage(const Prepared &page) {
