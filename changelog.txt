@@ -1,3 +1,12 @@
+5.3 (31.07.24)
+
+- View recent and popular web apps in chats search.
+- Open several web apps in different windows.
+- Gift Telegram Stars to your friends.
+- Send location marks and venues.
+- Open tonsite:// links in webview.
+- Edit order of stickers in your packs.
+
 5.2.6 beta (29.07.24)
 
 - Fix launching on X11. (Linux)
