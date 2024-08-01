@@ -1117,9 +1117,10 @@ Webview::ThemeParams WebViewInstance::botThemeParams() {
 
 bool WebViewInstance::botHandleLocalUri(QString uri, bool keepOpen) {
 	const auto local = Core::TryConvertUrlToLocal(uri);
-	if (uri == local || Core::InternalPassportLink(local)) {
-		return local.startsWith(u"tg://"_q);
-	} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
+	if (Core::InternalPassportLink(local)) {
+		return true;
+	} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)
+		&& !local.startsWith(u"tonsite://"_q, Qt::CaseInsensitive)) {
 		return false;
 	}
 	const auto bot = _bot;
