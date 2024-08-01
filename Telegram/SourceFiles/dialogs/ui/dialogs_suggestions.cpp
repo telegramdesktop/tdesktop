@@ -166,16 +166,17 @@ void FillEntryMenu(
 		.icon = &st::menuIconDeleteAttention,
 		.isAttention = true,
 	});
-
-	add({
-		.text = descriptor.removeAllText,
-		.handler = RemoveAllConfirm(
-			descriptor.controller,
-			descriptor.removeAllConfirm,
-			descriptor.removeAll),
-		.icon = &st::menuIconCancelAttention,
-		.isAttention = true,
-	});
+	if (!descriptor.removeAllText.isEmpty()) {
+		add({
+			.text = descriptor.removeAllText,
+			.handler = RemoveAllConfirm(
+				descriptor.controller,
+				descriptor.removeAllConfirm,
+				descriptor.removeAll),
+			.icon = &st::menuIconCancelAttention,
+			.isAttention = true,
+		});
+	}
 }
 
 RecentRow::RecentRow(not_null<PeerData*> peer)
@@ -422,6 +423,9 @@ public:
 		not_null<Window::SessionController*> window);
 
 	void prepare() override;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override;
 
 	void load();
 
@@ -1029,6 +1033,35 @@ void RecentAppsController::prepare() {
 	expanded() | rpl::skip(1) | rpl::start_with_next([=] {
 		fill();
 	}, _lifetime);
+}
+
+base::unique_qptr<Ui::PopupMenu> RecentAppsController::rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) {
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
+	const auto peer = row->peer();
+	const auto weak = base::make_weak(this);
+	const auto session = &this->session();
+	const auto removeOne = crl::guard(session, [=] {
+		if (weak) {
+			const auto rowId = peer->id.value;
+			if (const auto row = delegate()->peerListFindRow(rowId)) {
+				setCount(std::max(0, countCurrent() - 1));
+				delegate()->peerListRemoveRow(row);
+				delegate()->peerListRefreshRows();
+			}
+		}
+		session->topBotApps().remove(peer);
+	});
+	FillEntryMenu(Ui::Menu::CreateAddActionCallback(result), {
+		.controller = window(),
+		.peer = peer,
+		.removeOneText = tr::lng_recent_remove(tr::now),
+		.removeOne = removeOne,
+	});
+	return result;
 }
 
 void RecentAppsController::load() {
