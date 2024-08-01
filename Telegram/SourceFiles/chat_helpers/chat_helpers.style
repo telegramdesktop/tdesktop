@@ -1414,8 +1414,15 @@ editTagLimit: FlatLabel(defaultFlatLabel) {
 }
 
 editStickerSetNameField: InputField(defaultInputField) {
-	textMargins: margins(0px, 28px, 26px, 4px);
-	heightMax: 55px;
+	textMargins: margins(0px, 8px, 26px, 4px);
+	heightMin: 36px;
+	heightMax: 36px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
 }
 editStickerSetNameLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	color: lightButtonFg;
