@@ -1831,6 +1831,30 @@ release:
     lipo -create Release.arm64/libtg_owt.a Release.x86_64/libtg_owt.a -output Release/libtg_owt.a
 """)
 
+stage('ada', """
+    git clone -b v2.9.0 https://github.com/ada-url/ada.git
+    cd ada
+win:
+    cmake -B out . ^
+        -A %WIN32X64% ^
+        -D ADA_TESTING=OFF ^
+        -D ADA_TOOLS=OFF ^
+        -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
+        -D CMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -D CMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"
+    cmake --build out --config Debug --parallel
+    cmake --build out --config Release --parallel
+mac:
+    CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
+        -D ADA_TESTING=OFF \\
+        -D ADA_TOOLS=OFF \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
+        -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
+    cmake --build build $MAKE_THREADS_CNT
+    cmake --install build
+""")
+
 stage('protobuf', """
 win:
     git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
