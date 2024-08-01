@@ -1,3 +1,9 @@
+5.3.1 (01.08.24)
+
+- Open normal links from tonsite-s in system browser.
+- Fix unicode tonsite:// links.
+- Fix crash on Linux X11.
+
 5.3 (31.07.24)
 
 - View recent and popular web apps in chats search.
