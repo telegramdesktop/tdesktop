@@ -109,6 +109,7 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 
 			auto &raw = **window;
 			raw.setAttribute(Qt::WA_DontShowOnScreen);
+			raw.setWindowFlag(Qt::Window);
 			raw.setWindowModality(Qt::WindowModal);
 			raw.show();
 
