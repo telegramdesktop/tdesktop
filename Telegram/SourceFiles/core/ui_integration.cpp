@@ -239,7 +239,7 @@ bool UiIntegration::handleUrlClick(
 		Core::App().openLocalUrl(local, context);
 		return true;
 	} else if (local.startsWith(u"tonsite://"_q, Qt::CaseInsensitive)) {
-		Core::App().iv().showTonSite(url, context);
+		Core::App().iv().showTonSite(local, context);
 		return true;
 	} else if (local.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
 		Core::App().openInternalUrl(local, context);
