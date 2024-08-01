@@ -1014,6 +1014,7 @@ void GiftPremiumValidator::showChoosePeerBox(const QString &ref) {
 				if (users.empty()) {
 					show->showToast(
 						tr::lng_settings_gift_premium_choose(tr::now));
+					return;
 				}
 				const auto giftBox = show->show(
 					Box(GiftsBox, _controller, users, api, ref));
