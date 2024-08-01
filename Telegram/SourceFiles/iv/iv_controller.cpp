@@ -257,10 +257,15 @@ void Controller::initControls() {
 		_subtitleText.value(),
 		st::ivSubtitle);
 	_subtitle->setSelectable(true);
-	_subtitleText.value(
-	) | rpl::start_with_next([=](const QString &subtitle) {
+
+	_windowTitleText = _subtitleText.value(
+	) | rpl::map([=](const QString &subtitle) {
 		const auto prefix = tr::lng_iv_window_title(tr::now);
-		_window->setWindowTitle(prefix + ' ' + QChar(0x2014) + ' ' + subtitle);
+		return prefix + ' ' + QChar(0x2014) + ' ' + subtitle;
+	});
+	_windowTitleText.value(
+	) | rpl::start_with_next([=](const QString &title) {
+		_window->setWindowTitle(title);
 	}, _subtitle->lifetime());
 
 	_menuToggle.create(_subtitleWrap.get(), st::ivMenuToggle);
@@ -355,6 +360,7 @@ void Controller::showTonSite(
 	}) | rpl::map([=](QString value) {
 		return HttpsToTonsite(value);
 	});
+	_windowTitleText = _subtitleText;
 	_menuToggle->hide();
 }
 
@@ -488,7 +494,12 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 	}, _container->lifetime());
 
 	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
-		return true;
+		if (uri.startsWith(u"http://desktop-app-resource/"_q)
+			|| QUrl(uri).host().toLower().endsWith(u".magic.org"_q)) {
+			return true;
+		}
+		_events.fire({ .type = Event::Type::OpenLink, .url = uri });
+		return false;
 	});
 	raw->setNavigationDoneHandler([=](bool success) {
 	});
@@ -578,7 +589,8 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 				|| index >= _pages.size()) {
 				return Webview::DataResult::Failed;
 			}
-			return finishWith(WrapPage(_pages[index]), "text/html; charset=utf-8");
+			return finishWith(
+				WrapPage(_pages[index]), "text/html; charset=utf-8");
 		} else if (id.starts_with("page") && id.ends_with(".json")) {
 			auto index = 0;
 			const auto result = std::from_chars(

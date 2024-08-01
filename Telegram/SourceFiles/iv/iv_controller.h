@@ -132,6 +132,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _subtitleWrap;
 	rpl::variable<QString> _url;
 	rpl::variable<QString> _subtitleText;
+	rpl::variable<QString> _windowTitleText;
 	std::unique_ptr<Ui::FlatLabel> _subtitle;
 	Ui::Animations::Simple _subtitleBackShift;
 	Ui::Animations::Simple _subtitleForwardShift;
