@@ -76,6 +76,7 @@ public:
 		base::flat_map<QByteArray, rpl::producer<bool>> inChannelValues);
 	void update(Prepared page);
 
+	[[nodiscard]] static bool IsGoodTonSiteUrl(const QString &uri);
 	void showTonSite(const Webview::StorageId &storageId, QString uri);
 
 	[[nodiscard]] bool active() const;

@@ -38,6 +38,7 @@ PUBLIC
     tdesktop::td_scheme
 PRIVATE
     desktop-app::lib_webview
+    desktop-app::external_ada
     tdesktop::td_lang
     tdesktop::td_ui
 )

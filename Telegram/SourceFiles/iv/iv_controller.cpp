@@ -44,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <charconv>
 
+#include <ada.h>
+
 namespace Iv {
 namespace {
 
@@ -137,50 +139,62 @@ namespace {
 
 [[nodiscard]] QString TonsiteToHttps(QString value) {
 	const auto ChangeHost = [](QString tonsite) {
+		const auto fake = "http://" + tonsite.toStdString();
+		const auto parsed = ada::parse<ada::url>(fake);
+		if (!parsed) {
+			return QString();
+		}
+		tonsite = QString::fromStdString(parsed->get_hostname());
 		tonsite = tonsite.replace('-', "-h");
 		tonsite = tonsite.replace('.', "-d");
 		return tonsite + ".magic.org";
 	};
-	auto parsed = QUrl(value);
-	if (parsed.isValid()) {
-		parsed.setScheme("https");
-		parsed.setHost(ChangeHost(parsed.host()));
-		if (parsed.path().isEmpty()) {
-			parsed.setPath(u"/"_q);
-		}
-		return parsed.toString();
+	const auto prefix = u"tonsite://"_q;
+	if (!value.toLower().startsWith(prefix)) {
+		return QString();
 	}
-	const auto part = value.mid(u"tonsite://"_q.size());
+	const auto part = value.mid(prefix.size());
 	const auto split = part.indexOf('/');
-	return "https://"
-		+ ChangeHost((split < 0) ? part : part.left(split))
-		+ ((split < 0) ? u"/"_q : part.mid(split));
+	const auto host = ChangeHost((split < 0) ? part : part.left(split));
+	if (host.isEmpty()) {
+		return QString();
+	}
+	return "https://" + host + ((split < 0) ? u"/"_q : part.mid(split));
 }
 
 [[nodiscard]] QString HttpsToTonsite(QString value) {
 	const auto ChangeHost = [](QString https) {
-		https.replace(".magic.org", QString());
+		const auto dot = https.indexOf('.');
+		if (dot < 0 || https.mid(dot).toLower() != u".magic.org"_q) {
+			return QString();
+		}
+		https = https.mid(0, dot);
 		https = https.replace("-d", ".");
 		https = https.replace("-h", "-");
-		return https;
+		auto parts = https.split('.');
+		for (auto &part : parts) {
+			if (part.startsWith(u"xn--"_q)) {
+				const auto utf8 = part.mid(4).toStdString();
+				auto out = std::u32string();
+				if (ada::idna::punycode_to_utf32(utf8, out)) {
+					part = QString::fromUcs4(out.data(), out.size());
+				}
+			}
+		}
+		return parts.join('.');
 	};
-	auto parsed = QUrl(value);
-	if (parsed.isValid()) {
-		const auto host = ChangeHost(parsed.host());
-		const auto emptyPath = parsed.path().isEmpty();
-		parsed.setScheme("tonsite");
-		parsed.setHost(host);
-		if (emptyPath) {
-			parsed.setPath(u"/"_q);
-		}
-		if (parsed.isValid()) {
-			return parsed.toString();
-		}
+	const auto prefix = u"https://"_q;
+	if (!value.toLower().startsWith(prefix)) {
+		return value;
 	}
-	const auto part = value.mid(u"https://"_q.size());
+	const auto part = value.mid(prefix.size());
 	const auto split = part.indexOf('/');
+	const auto host = ChangeHost((split < 0) ? part : part.left(split));
+	if (host.isEmpty()) {
+		return value;
+	}
 	return "tonsite://"
-		+ ChangeHost((split < 0) ? part : part.left(split))
+		+ host
 		+ ((split < 0) ? u"/"_q : part.mid(split));
 }
 
@@ -342,10 +356,16 @@ void Controller::update(Prepared page) {
 	}
 }
 
+bool Controller::IsGoodTonSiteUrl(const QString &uri) {
+	return !TonsiteToHttps(uri).isEmpty();
+}
+
 void Controller::showTonSite(
 		const Webview::StorageId &storageId,
 		QString uri) {
 	const auto url = TonsiteToHttps(uri);
+	Assert(!url.isEmpty());
+
 	if (!_webview) {
 		createWebview(storageId);
 	}
@@ -360,7 +380,7 @@ void Controller::showTonSite(
 	}) | rpl::map([=](QString value) {
 		return HttpsToTonsite(value);
 	});
-	_windowTitleText = _subtitleText;
+	_windowTitleText = _subtitleText.value();
 	_menuToggle->hide();
 }
 

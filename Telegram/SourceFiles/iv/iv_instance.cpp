@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/basic_click_handlers.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_interface.h"
@@ -1074,7 +1075,10 @@ void Instance::openWithIvPreferred(
 void Instance::showTonSite(
 		const QString &uri,
 		QVariant context) {
-	if (Platform::IsMac()) {
+	if (!Controller::IsGoodTonSiteUrl(uri)) {
+		Ui::Toast::Show(tr::lng_iv_not_supported(tr::now));
+		return;
+	} else if (Platform::IsMac()) {
 		// Otherwise IV is not visible under the media viewer.
 		Core::App().hideMediaView();
 	}
