@@ -189,6 +189,8 @@ private:
 	const std::unique_ptr<Ui::ElasticScroll> _appsScroll;
 	const not_null<Ui::VerticalLayout*> _appsContent;
 
+	rpl::producer<> _recentAppsRefreshed;
+	Fn<bool(not_null<PeerData*>)> _recentAppsShows;
 	const std::unique_ptr<ObjectList> _recentApps;
 	const std::unique_ptr<ObjectList> _popularApps;
 

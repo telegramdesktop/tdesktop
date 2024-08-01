@@ -429,11 +429,15 @@ public:
 
 	void load();
 
+	[[nodiscard]] rpl::producer<> refreshed() const;
+	[[nodiscard]] bool shown(not_null<PeerData*> peer) const;
+
 private:
 	void appendRow(not_null<UserData*> bot);
 	void fill();
 
 	std::vector<not_null<UserData*>> _bots;
+	rpl::event_stream<> _refreshed;
 	rpl::lifetime _lifetime;
 
 };
@@ -442,7 +446,9 @@ class PopularAppsController final
 	: public Suggestions::ObjectListController {
 public:
 	explicit PopularAppsController(
-		not_null<Window::SessionController*> window);
+		not_null<Window::SessionController*> window,
+		Fn<bool(not_null<PeerData*>)> filterOut,
+		rpl::producer<> filterOutRefreshes);
 
 	void prepare() override;
 
@@ -452,6 +458,8 @@ private:
 	void fill();
 	void appendRow(not_null<UserData*> bot);
 
+	Fn<bool(not_null<PeerData*>)> _filterOut;
+	rpl::producer<> _filterOutRefreshes;
 	History *_activeHistory = nullptr;
 	bool _requested = false;
 	rpl::lifetime _lifetime;
@@ -1068,6 +1076,14 @@ void RecentAppsController::load() {
 	session().topBotApps().reload();
 }
 
+rpl::producer<> RecentAppsController::refreshed() const {
+	return _refreshed.events();
+}
+
+bool RecentAppsController::shown(not_null<PeerData*> peer) const {
+	return delegate()->peerListFindRow(peer->id.value) != nullptr;
+}
+
 void RecentAppsController::fill() {
 	const auto count = countCurrent();
 	const auto limit = expandedCurrent()
@@ -1087,6 +1103,8 @@ void RecentAppsController::fill() {
 		}
 	}
 	delegate()->peerListRefreshRows();
+
+	_refreshed.fire({});
 }
 
 void RecentAppsController::appendRow(not_null<UserData*> bot) {
@@ -1099,13 +1117,21 @@ void RecentAppsController::appendRow(not_null<UserData*> bot) {
 }
 
 PopularAppsController::PopularAppsController(
-	not_null<Window::SessionController*> window)
-: ObjectListController(window) {
+	not_null<Window::SessionController*> window,
+	Fn<bool(not_null<PeerData*>)> filterOut,
+	rpl::producer<> filterOutRefreshes)
+: ObjectListController(window)
+, _filterOut(std::move(filterOut))
+, _filterOutRefreshes(std::move(filterOutRefreshes)) {
 }
 
 void PopularAppsController::prepare() {
 	setupPlainDivider(tr::lng_bot_apps_popular());
-	fill();
+	rpl::single() | rpl::then(
+		std::move(_filterOutRefreshes)
+	) | rpl::start_with_next([=] {
+		fill();
+	}, _lifetime);
 }
 
 void PopularAppsController::load() {
@@ -1122,13 +1148,13 @@ void PopularAppsController::load() {
 }
 
 void PopularAppsController::fill() {
-	const auto attachWebView = &session().attachWebView();
-	const auto &list = attachWebView->popularAppBots();
-	if (list.empty()) {
-		return;
+	while (delegate()->peerListFullRowsCount()) {
+		delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
 	}
-	for (const auto &bot : list) {
-		appendRow(bot);
+	for (const auto &bot : session().attachWebView().popularAppBots()) {
+		if (!_filterOut || !_filterOut(bot)) {
+			appendRow(bot);
+		}
 	}
 	delegate()->peerListRefreshRows();
 	setCount(delegate()->peerListFullRowsCount());
@@ -1136,10 +1162,10 @@ void PopularAppsController::fill() {
 
 void PopularAppsController::appendRow(not_null<UserData*> bot) {
 	auto row = std::make_unique<PeerListRow>(bot);
-	if (const auto count = bot->botInfo->activeUsers) {
-		row->setCustomStatus(
-			tr::lng_bot_status_users(tr::now, lt_count_decimal, count));
-	}
+	//if (const auto count = bot->botInfo->activeUsers) {
+	//	row->setCustomStatus(
+	//		tr::lng_bot_status_users(tr::now, lt_count_decimal, count));
+	//}
 	delegate()->peerListAppendRow(std::move(row));
 }
 
@@ -1896,6 +1922,10 @@ auto Suggestions::setupRecommendations() -> std::unique_ptr<ObjectList> {
 auto Suggestions::setupRecentApps() -> std::unique_ptr<ObjectList> {
 	const auto controller = lifetime().make_state<RecentAppsController>(
 		_controller);
+	_recentAppsShows = [=](not_null<PeerData*> peer) {
+		return controller->shown(peer);
+	};
+	_recentAppsRefreshed = controller->refreshed();
 
 	auto result = setupObjectList(
 		_appsScroll.get(),
@@ -1952,7 +1982,9 @@ auto Suggestions::setupRecentApps() -> std::unique_ptr<ObjectList> {
 
 auto Suggestions::setupPopularApps() -> std::unique_ptr<ObjectList> {
 	const auto controller = lifetime().make_state<PopularAppsController>(
-		_controller);
+		_controller,
+		_recentAppsShows,
+		rpl::duplicate(_recentAppsRefreshed));
 
 	const auto addToScroll = [=] {
 		const auto wrap = _recentApps->wrap;
