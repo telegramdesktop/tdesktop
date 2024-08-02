@@ -156,6 +156,7 @@ parts:
       craftctl default
       rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
     after:
+      - ada
       - ffmpeg
       - libjxl
       - qt
