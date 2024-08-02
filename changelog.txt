@@ -1,3 +1,7 @@
+5.3.2 (02.08.24)
+
+- Fix crash on launch in some Linux systems.
+
 5.3.1 (01.08.24)
 
 - Open normal links from tonsite-s in system browser.
