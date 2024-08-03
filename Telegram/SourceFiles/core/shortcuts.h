@@ -22,6 +22,15 @@ enum class Command {
 	MediaPrevious,
 	MediaNext,
 
+	ChatScrollDown,
+	ChatScrollUp,
+	ChatScrollScreenDown,
+	ChatScrollScreenUp,
+	ChatScrollHalfScreenDown,
+	ChatScrollHalfScreenUp,
+	ChatScrollTop,
+	ChatScrollBottom,
+
 	Search,
 
 	ChatPrevious,

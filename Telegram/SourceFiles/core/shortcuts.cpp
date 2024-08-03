@@ -36,6 +36,12 @@ const auto AutoRepeatCommands = base::flat_set<Command>{
 	Command::ChatNext,
 	Command::ChatFirst,
 	Command::ChatLast,
+	Command::ChatScrollDown,
+	Command::ChatScrollUp,
+	Command::ChatScrollScreenDown,
+	Command::ChatScrollScreenUp,
+	Command::ChatScrollHalfScreenDown,
+	Command::ChatScrollHalfScreenUp,
 };
 
 const auto MediaCommands = base::flat_set<Command>{
@@ -73,6 +79,14 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"previous_chat"_q     , Command::ChatPrevious },
 	{ u"next_chat"_q         , Command::ChatNext },
 	{ u"first_chat"_q        , Command::ChatFirst },
+	{ u"chat_scroll_down"_q  , Command::ChatScrollDown },
+	{ u"chat_scroll_up"_q    , Command::ChatScrollUp },
+	{ u"chat_scroll_screen_down"_q, Command::ChatScrollScreenDown },
+	{ u"chat_scroll_screen_up"_q  , Command::ChatScrollScreenUp },
+	{ u"chat_scroll_half_screen_down"_q, Command::ChatScrollHalfScreenDown },
+	{ u"chat_scroll_half_screen_up"_q  , Command::ChatScrollHalfScreenUp },
+	{ u"chat_scroll_top"_q   , Command::ChatScrollTop },
+	{ u"chat_scroll_bottom"_q, Command::ChatScrollBottom },
 	{ u"last_chat"_q         , Command::ChatLast },
 	{ u"self_chat"_q         , Command::ChatSelf },
 
@@ -130,6 +144,14 @@ const auto CommandNames = base::flat_map<Command, QString>{
 	{ Command::ChatFirst      , u"first_chat"_q },
 	{ Command::ChatLast       , u"last_chat"_q },
 	{ Command::ChatSelf       , u"self_chat"_q },
+	{ Command::ChatScrollDown  , u"chat_scroll_down"_q },
+	{ Command::ChatScrollUp    , u"chat_scroll_up"_q },
+	{ Command::ChatScrollScreenDown, u"chat_scroll_screen_down"_q },
+	{ Command::ChatScrollScreenUp  , u"chat_scroll_screen_up"_q },
+	{ Command::ChatScrollHalfScreenDown, u"chat_scroll_half_screen_down"_q },
+	{ Command::ChatScrollHalfScreenUp  , u"chat_scroll_half_screen_up"_q },
+	{ Command::ChatScrollTop   , u"chat_scroll_top"_q },
+	{ Command::ChatScrollBottom, u"chat_scroll_bottom"_q },
 
 	{ Command::FolderPrevious , u"previous_folder"_q },
 	{ Command::FolderNext     , u"next_folder"_q },
@@ -395,6 +417,9 @@ void Manager::fillDefaults() {
 	set(u"alt+down"_q, Command::ChatNext);
 	set(u"ctrl+pgup"_q, Command::ChatPrevious);
 	set(u"alt+up"_q, Command::ChatPrevious);
+
+	set(u"pgup"_q, Command::ChatScrollScreenUp);
+	set(u"pgdown"_q, Command::ChatScrollScreenDown);
 
 	set(u"%1+tab"_q.arg(ctrl), Command::ChatNext);
 	set(u"%1+shift+tab"_q.arg(ctrl), Command::ChatPrevious);
