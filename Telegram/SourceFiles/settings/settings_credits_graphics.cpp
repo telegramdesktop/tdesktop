@@ -256,7 +256,7 @@ void FillCreditOptions(
 		const auto &st = st::creditsTopupButton;
 		const auto diffBetweenTextAndStar = st.padding.left()
 			- st.iconLeft
-			- singleStarWidth;
+			- int(singleStarWidth * 1.5);
 		const auto buttonHeight = st.height + rect::m::sum::v(st.padding);
 		const auto minCredits = (!options.empty()
 				&& (minimumCredits > options.back().credits))
@@ -283,26 +283,25 @@ void FillCreditOptions(
 				st::creditsTopupPrice);
 			const auto inner = Ui::CreateChild<Ui::RpWidget>(button);
 			const auto stars = Ui::GenerateStars(st.height, (i + 1));
+			const auto textLeft = diffBetweenTextAndStar
+				+ stars.width() / style::DevicePixelRatio();
 			inner->paintRequest(
 			) | rpl::start_with_next([=](const QRect &rect) {
 				auto p = QPainter(inner);
 				p.drawImage(0, 0, stars);
-				const auto textLeft = diffBetweenTextAndStar
-					+ stars.width() / style::DevicePixelRatio();
 				p.setPen(st.textFg);
 				text->draw(p, {
 					.position = QPoint(textLeft, 0),
 					.availableWidth = inner->width() - textLeft,
+					.elisionLines = 1,
 				});
 			}, inner->lifetime());
-			button->sizeValue(
-			) | rpl::start_with_next([=](const QSize &size) {
+			button->widthValue(
+			) | rpl::start_with_next([=](int width) {
 				price->moveToRight(st.padding.right(), st.padding.top());
 				inner->moveToLeft(st.iconLeft, st.padding.top());
 				inner->resize(
-					size.width()
-						- rect::m::sum::h(st.padding)
-						- price->width(),
+					width - price->width() - st.padding.left(),
 					buttonHeight);
 			}, button->lifetime());
 			button->setClickedCallback([=] {
