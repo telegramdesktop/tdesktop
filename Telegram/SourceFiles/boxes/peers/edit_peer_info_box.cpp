@@ -620,13 +620,17 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 				local.x() + emojiToggle->width() * 3);
 		};
 
-		base::install_event_filter(container, [=](not_null<QEvent*> event) {
-			const auto type = event->type();
-			if (type == QEvent::Move || type == QEvent::Resize) {
-				crl::on_main(field, [=] { updateEmojiPanelGeometry(); });
-			}
-			return base::EventFilterResult::Continue;
-		});
+
+		field->lifetime().make_state<base::unique_qptr<QObject>>([&] {
+			return base::install_event_filter(container, [=](
+					not_null<QEvent*> event) {
+				const auto type = event->type();
+				if (type == QEvent::Move || type == QEvent::Resize) {
+					crl::on_main(field, [=] { updateEmojiPanelGeometry(); });
+				}
+				return base::EventFilterResult::Continue;
+			});
+		}());
 
 		field->widthValue() | rpl::start_with_next([=](int width) {
 			const auto &p = st::editPeerTitleEmojiPosition;
