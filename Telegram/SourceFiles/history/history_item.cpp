@@ -2514,6 +2514,16 @@ bool HistoryItem::canReact() const {
 	return true;
 }
 
+void HistoryItem::addPaidReaction(int count, ReactionSource source) {
+	Expects(_history->peer->isBroadcast());
+
+	if (!_reactions) {
+		_reactions = std::make_unique<Data::MessageReactions>(this);
+	}
+	_reactions->addPaid(count);
+	_history->owner().notifyItemDataChange(this);
+}
+
 void HistoryItem::toggleReaction(
 		const Data::ReactionId &reaction,
 		ReactionSource source) {
@@ -2530,7 +2540,6 @@ void HistoryItem::toggleReaction(
 		if (_reactions->empty()) {
 			_reactions = nullptr;
 			_flags &= ~MessageFlag::CanViewReactions;
-			_history->owner().notifyItemDataChange(this);
 		}
 	} else {
 		_reactions->add(reaction, (source == ReactionSource::Selector));

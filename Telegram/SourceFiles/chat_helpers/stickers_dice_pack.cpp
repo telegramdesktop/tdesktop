@@ -8,11 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_dice_pack.h"
 
 #include "main/main_session.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
-#include "ui/chat/attach/attach_prepare.h"
-#include "ui/image/image_location_factory.h"
-#include "storage/localimageloader.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
 
@@ -104,6 +102,11 @@ void DicePack::tryGenerateLocalZero() {
 		return;
 	}
 
+	const auto generateLocal = [&](int index, const QString &name) {
+		_map.emplace(
+			index,
+			ChatHelpers::GenerateLocalTgsSticker(_session, name));
+	};
 	if (_emoji == DicePacks::kDiceString) {
 		generateLocal(0, u"dice_idle"_q);
 	} else if (_emoji == DicePacks::kDartString) {
@@ -123,32 +126,8 @@ void DicePack::tryGenerateLocalZero() {
 	}
 }
 
-void DicePack::generateLocal(int index, const QString &name) {
-	const auto path = u":/gui/art/"_q + name + u".tgs"_q;
-	auto task = FileLoadTask(
-		_session,
-		path,
-		QByteArray(),
-		nullptr,
-		SendMediaType::File,
-		FileLoadTo(0, {}, {}, 0),
-		{},
-		false);
-	task.process({ .generateGoodThumbnail = false });
-	const auto result = task.peekResult();
-	Assert(result != nullptr);
-	const auto document = _session->data().processDocument(
-		result->document,
-		Images::FromImageInMemory(result->thumb, "WEBP", result->thumbbytes));
-	document->setLocation(Core::FileLocation(path));
-
-	_map.emplace(index, document);
-
-	Ensures(document->sticker());
-	Ensures(document->sticker()->isLottie());
-}
-
-DicePacks::DicePacks(not_null<Main::Session*> session) : _session(session) {
+DicePacks::DicePacks(not_null<Main::Session*> session)
+: _session(session) {
 }
 
 DocumentData *DicePacks::lookup(const QString &emoji, int value) {

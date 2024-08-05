@@ -130,4 +130,8 @@ bool PaintStickerThumbnailPath(
 	not_null<DocumentData*> document,
 	QSize box);
 
+[[nodiscard]] not_null<DocumentData*> GenerateLocalTgsSticker(
+	not_null<Main::Session*> session,
+	const QString &name);
+
 } // namespace ChatHelpers

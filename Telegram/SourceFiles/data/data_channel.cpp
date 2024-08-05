@@ -1220,11 +1220,16 @@ void ApplyChannelUpdate(
 
 	const auto reactionsLimit = update.vreactions_limit().value_or_empty();
 	if (const auto allowed = update.vavailable_reactions()) {
-		auto parsed = Data::Parse(*allowed);
-		parsed.maxCount = reactionsLimit;
+		auto parsed = Data::Parse(
+			*allowed,
+			reactionsLimit,
+			update.is_paid_reactions_available());
 		channel->setAllowedReactions(std::move(parsed));
 	} else {
-		channel->setAllowedReactions({ .maxCount = reactionsLimit });
+		channel->setAllowedReactions({
+			.maxCount = reactionsLimit,
+			.paidEnabled = update.is_paid_reactions_available(),
+		});
 	}
 	channel->owner().stories().apply(channel, update.vstories());
 	channel->fullUpdated();

@@ -144,6 +144,10 @@ void InlineList::layoutButtons() {
 				return true;
 			} else if (acount < bcount) {
 				return false;
+			} else if (b->id.paid()) {
+				return false;
+			} else if (a->id.paid()) {
+				return true;
 			}
 			return ranges::find(list, a->id, &::Data::Reaction::id)
 				< ranges::find(list, b->id, &::Data::Reaction::id);

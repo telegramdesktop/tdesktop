@@ -608,6 +608,7 @@ void EditAllowedReactionsBox(
 		rpl::variable<SelectorState> selectorState;
 		std::vector<Data::ReactionId> selected;
 		rpl::variable<int> customCount;
+		bool paidEnabled = false;
 	};
 	const auto allowed = args.allowed;
 	const auto optionInitial = (allowed.type != AllowedReactionsType::Some)
@@ -617,6 +618,7 @@ void EditAllowedReactionsBox(
 		: Option::Some;
 	const auto state = box->lifetime().make_state<State>(State{
 		.option = optionInitial,
+		.paidEnabled = allowed.paidEnabled,
 	});
 
 	const auto container = box->verticalLayout();
@@ -847,6 +849,29 @@ void EditAllowedReactionsBox(
 			) | rpl::map(rpl::mappers::_1 == SelectorState::Active)));
 
 		Ui::AddDividerText(inner, tr::lng_manage_peer_reactions_max_about());
+
+		Ui::AddSkip(inner);
+		const auto paid = inner->add(object_ptr<Ui::SettingsButton>(
+			inner,
+			tr::lng_manage_peer_reactions_paid(),
+			st::manageGroupNoIconButton.button));
+		paid->toggleOn(rpl::single(allowed.paidEnabled));
+		paid->toggledValue(
+		) | rpl::start_with_next([=](bool value) {
+			state->paidEnabled = value;
+		}, paid->lifetime());
+		Ui::AddSkip(inner);
+
+		Ui::AddDividerText(
+			inner,
+			tr::lng_manage_peer_reactions_paid_about(
+				lt_link,
+				tr::lng_manage_peer_reactions_paid_link([=](QString text) {
+					return Ui::Text::Link(
+						text,
+						u"https://telegram.org/tos/stars"_q);
+				}),
+				Ui::Text::WithEntities));
 	}
 	const auto collect = [=] {
 		auto result = AllowedReactions();
@@ -855,6 +880,9 @@ void EditAllowedReactionsBox(
 			? (state->option.current() == Option::Some)
 			: (enabled->toggled())) {
 			result.some = state->selected;
+		}
+		if (!isGroup && enabled->toggled())	{
+			result.paidEnabled = state->paidEnabled;
 		}
 		auto some = result.some;
 		auto simple = all | ranges::views::transform(
@@ -907,16 +935,20 @@ void SaveAllowedReactions(
 		: allowed.some.empty()
 		? MTP_chatReactionsNone()
 		: MTP_chatReactionsSome(MTP_vector<MTPReaction>(ids));
+	const auto editPaidEnabled = peer->isBroadcast();
+	const auto paidEnabled = editPaidEnabled && allowed.paidEnabled;
+	const auto maxCount = allowed.maxCount;
 	peer->session().api().request(MTPmessages_SetChatAvailableReactions(
-		allowed.maxCount ? MTP_flags(Flag::f_reactions_limit) : MTP_flags(0),
+		MTP_flags(Flag()
+			| (maxCount ? Flag::f_reactions_limit : Flag())
+			| (editPaidEnabled ? Flag::f_paid_enabled : Flag())),
 		peer->input,
 		updated,
-		MTP_int(allowed.maxCount),
-		MTPbool() // paid_enabled
+		MTP_int(maxCount),
+		MTP_bool(paidEnabled)
 	)).done([=](const MTPUpdates &result) {
 		peer->session().api().applyUpdates(result);
-		auto parsed = Data::Parse(updated);
-		parsed.maxCount = allowed.maxCount;
+		auto parsed = Data::Parse(updated, maxCount, paidEnabled);
 		if (const auto chat = peer->asChat()) {
 			chat->setAllowedReactions(parsed);
 		} else if (const auto channel = peer->asChannel()) {

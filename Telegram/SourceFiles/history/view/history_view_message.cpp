@@ -3306,7 +3306,12 @@ void Message::refreshReactions() {
 					ClickContext context) {
 				if (const auto strong = weak.get()) {
 					const auto item = strong->data();
-					if (item->reactionsAreTags()) {
+					if (id.paid()) {
+						item->addPaidReaction(
+							1,
+							HistoryItem::ReactionSource::Existing);
+						return;
+					} else if (item->reactionsAreTags()) {
 						if (item->history()->session().premium()) {
 							const auto tag = Data::SearchTagToQuery(id);
 							HashtagClickHandler(tag).onClick(context);

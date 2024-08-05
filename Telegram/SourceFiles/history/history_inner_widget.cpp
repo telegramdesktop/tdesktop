@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_isolated_emoji.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/boxes/edit_factcheck_box.h"
 #include "ui/boxes/report_box.h"
 #include "ui/layers/generic_box.h"
@@ -487,6 +488,15 @@ HistoryInner::HistoryInner(
 void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
 	const auto item = session().data().message(reaction.context);
 	if (!item) {
+		return;
+	} else if (reaction.id.paid()) {
+		_controller->show(Ui::MakeConfirmBox({
+			.text = u"Send 10-stars reaction?"_q,
+			.confirmed = [=](Fn<void()> close) {
+				item->addPaidReaction(10, HistoryItem::ReactionSource::Selector);
+				close();
+			},
+		}));
 		return;
 	} else if (Window::ShowReactPremiumError(
 			_controller,

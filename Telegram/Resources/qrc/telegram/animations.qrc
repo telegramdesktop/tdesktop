@@ -28,5 +28,20 @@
     <file alias="collectible_phone.tgs">../../animations/collectible_phone.tgs</file>
     <file alias="search.tgs">../../animations/search.tgs</file>
     <file alias="noresults.tgs">../../animations/noresults.tgs</file>
+
+    <file alias="dice_idle.tgs">../../animations/dice/dice_idle.tgs</file>
+    <file alias="dart_idle.tgs">../../animations/dice/dart_idle.tgs</file>
+    <file alias="bball_idle.tgs">../../animations/dice/bball_idle.tgs</file>
+    <file alias="fball_idle.tgs">../../animations/dice/fball_idle.tgs</file>
+    <file alias="slot_0_idle.tgs">../../animations/dice/slot_0_idle.tgs</file>
+    <file alias="slot_1_idle.tgs">../../animations/dice/slot_1_idle.tgs</file>
+    <file alias="slot_2_idle.tgs">../../animations/dice/slot_2_idle.tgs</file>
+    <file alias="slot_back.tgs">../../animations/dice/slot_back.tgs</file>
+    <file alias="slot_pull.tgs">../../animations/dice/slot_pull.tgs</file>
+    <file alias="winners.tgs">../../animations/dice/winners.tgs</file>
+
+    <file alias="star_reaction_appear.tgs">../../animations/star_reaction/appear.tgs</file>
+    <file alias="star_reaction_effect.tgs">../../animations/star_reaction/effect.tgs</file>
+    <file alias="star_reaction_select.tgs">../../animations/star_reaction/select.tgs</file>
   </qresource>
 </RCC>

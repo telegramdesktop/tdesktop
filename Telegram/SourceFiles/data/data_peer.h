@@ -101,7 +101,7 @@ bool ApplyBotMenuButton(
 	not_null<BotInfo*> info,
 	const MTPBotMenuButton *button);
 
-enum class AllowedReactionsType {
+enum class AllowedReactionsType : uchar {
 	All,
 	Default,
 	Some,
@@ -109,14 +109,19 @@ enum class AllowedReactionsType {
 
 struct AllowedReactions {
 	std::vector<ReactionId> some;
-	AllowedReactionsType type = AllowedReactionsType::Some;
 	int maxCount = 0;
+	AllowedReactionsType type = AllowedReactionsType::Some;
+	bool paidEnabled = false;
+
+	friend inline bool operator==(
+		const AllowedReactions &,
+		const AllowedReactions &) = default;
 };
 
-bool operator<(const AllowedReactions &a, const AllowedReactions &b);
-bool operator==(const AllowedReactions &a, const AllowedReactions &b);
-
-[[nodiscard]] AllowedReactions Parse(const MTPChatReactions &value);
+[[nodiscard]] AllowedReactions Parse(
+	const MTPChatReactions &value,
+	int maxCount,
+	bool paidEnabled);
 [[nodiscard]] PeerData *PeerFromInputMTP(
 	not_null<Session*> owner,
 	const MTPInputPeer &input);

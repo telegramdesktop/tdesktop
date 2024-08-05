@@ -26,7 +26,6 @@ private:
 	void load();
 	void applySet(const MTPDmessages_stickerSet &data);
 	void tryGenerateLocalZero();
-	void generateLocal(int index, const QString &name);
 
 	const not_null<Main::Session*> _session;
 	QString _emoji;

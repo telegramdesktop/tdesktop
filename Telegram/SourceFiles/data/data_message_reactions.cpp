@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_message_reactions.h"
 
+#include "chat_helpers/stickers_lottie.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "base/timer_rpl.h"
 #include "base/call_delayed.h"
+#include "base/unixtime.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 
@@ -204,9 +206,13 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		}
 	} else {
 		const auto &allowed = PeerAllowedReactions(peer);
-		result.recent.reserve((allowed.type == AllowedReactionsType::Some)
-			? allowed.some.size()
-			: full.size());
+		result.recent.reserve((allowed.paidEnabled ? 1 : 0)
+			+ ((allowed.type == AllowedReactionsType::Some)
+				? allowed.some.size()
+				: full.size()));
+		if (allowed.paidEnabled) {
+			result.recent.push_back(reactions->lookupPaid());
+		}
 		add([&](const Reaction &reaction) {
 			const auto id = reaction.id;
 			if (id.custom() && !premiumPossible) {
@@ -569,7 +575,7 @@ rpl::producer<> Reactions::effectsUpdates() const {
 }
 
 void Reactions::preloadReactionImageFor(const ReactionId &emoji) {
-	if (!emoji.emoji().isEmpty()) {
+	if (emoji.paid() || !emoji.emoji().isEmpty()) {
 		preloadImageFor(emoji);
 	}
 }
@@ -586,6 +592,10 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 	}
 	auto &set = _images.emplace(id).first->second;
 	set.effect = (id.custom() != 0);
+	if (id.paid()) {
+		loadImage(set, lookupPaid()->selectAnimation, true);
+		return;
+	}
 	auto &list = set.effect ? _effects : _available;
 	const auto i = ranges::find(list, id, &Reaction::id);
 	const auto document = (i == end(list))
@@ -1356,7 +1366,10 @@ void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 		MTP_flags(flags),
 		item->history()->peer->input,
 		MTP_int(id.msg),
-		MTP_vector<MTPReaction>(chosen | ranges::views::transform(
+		MTP_vector<MTPReaction>(chosen | ranges::views::filter([](
+				const ReactionId &id) {
+			return !id.paid();
+		}) | ranges::views::transform(
 			ReactionToMTP
 		) | ranges::to<QVector<MTPReaction>>())
 	)).done([=](const MTPUpdates &result) {
@@ -1364,6 +1377,21 @@ void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 		_owner->session().api().applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {
 		_sentRequests.remove(id);
+	}).send();
+}
+
+void Reactions::sendPaid(not_null<HistoryItem*> item, int count) {
+	const auto id = item->fullId();
+	const auto randomId = base::unixtime::mtproto_msg_id();
+	auto &api = _owner->session().api();
+	api.request(MTPmessages_SendPaidReaction(
+		item->history()->peer->input,
+		MTP_int(id.msg),
+		MTP_int(count),
+		MTP_long(randomId)
+	)).done([=](const MTPUpdates &result) {
+		_owner->session().api().applyUpdates(result);
+	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 
@@ -1403,7 +1431,9 @@ void Reactions::clearTemporary() {
 }
 
 Reaction *Reactions::lookupTemporary(const ReactionId &id) {
-	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
+	if (id.paid()) {
+		return lookupPaid();
+	} else if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
 		const auto i = ranges::find(_available, id, &Reaction::id);
 		return (i != end(_available)) ? &*i : nullptr;
 	} else if (const auto customId = id.custom()) {
@@ -1422,6 +1452,26 @@ Reaction *Reactions::lookupTemporary(const ReactionId &id) {
 		return nullptr;
 	}
 	return nullptr;
+}
+
+not_null<Reaction*> Reactions::lookupPaid() {
+	if (!_paid) {
+		const auto generate = [&](const QString &name) {
+			const auto session = &_owner->session();
+			return ChatHelpers::GenerateLocalTgsSticker(session, name);
+		};
+		const auto select = generate(u"star_reaction_select"_q);
+		_paid.emplace(Reaction{
+			.id = ReactionId::Paid(),
+			.title = u"Telegram Star"_q,
+			.appearAnimation = generate(u"star_reaction_appear"_q),
+			.selectAnimation = select,
+			.centerIcon = select,
+			//.aroundAnimation = generate(u"star_reaction_effect"_q),
+			.active = true,
+		});
+	}
+	return &*_paid;
 }
 
 rpl::producer<std::vector<Reaction>> Reactions::myTagsValue(
@@ -1527,6 +1577,25 @@ void Reactions::CheckUnknownForUnread(
 
 MessageReactions::MessageReactions(not_null<HistoryItem*> item)
 : _item(item) {
+}
+
+void MessageReactions::addPaid(int count) {
+	Expects(_item->history()->peer->isBroadcast());
+
+	const auto id = Data::ReactionId::Paid();
+	const auto history = _item->history();
+	const auto peer = history->peer;
+	const auto i = ranges::find(_list, id, &MessageReaction::id);
+	if (i != end(_list)) {
+		i->my = true;
+		i->count += count;
+		std::rotate(i, i + 1, end(_list));
+	} else {
+		_list.push_back({ .id = id, .count = count, .my = true });
+	}
+	auto &owner = history->owner();
+	owner.reactions().sendPaid(_item, count);
+	owner.notifyItemDataChange(_item);
 }
 
 void MessageReactions::add(const ReactionId &id, bool addToRecent) {

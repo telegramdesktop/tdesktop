@@ -129,6 +129,7 @@ public:
 	void preloadAnimationsFor(const ReactionId &emoji);
 
 	void send(not_null<HistoryItem*> item, bool addToRecent);
+	void sendPaid(not_null<HistoryItem*> item, int count);
 	[[nodiscard]] bool sending(not_null<HistoryItem*> item) const;
 
 	void poll(not_null<HistoryItem*> item, crl::time now);
@@ -137,6 +138,7 @@ public:
 
 	void clearTemporary();
 	[[nodiscard]] Reaction *lookupTemporary(const ReactionId &id);
+	[[nodiscard]] not_null<Reaction*> lookupPaid();
 
 	[[nodiscard]] rpl::producer<std::vector<Reaction>> myTagsValue(
 		SavedSublist *sublist = nullptr);
@@ -275,6 +277,7 @@ private:
 	// So we use std::map instead of base::flat_map here.
 	// Otherwise we could use flat_map<DocumentId, unique_ptr<Reaction>>.
 	std::map<DocumentId, Reaction> _temporary;
+	std::optional<Reaction> _paid;
 
 	base::Timer _topRefreshTimer;
 	mtpRequestId _topRequestId = 0;
@@ -333,6 +336,7 @@ public:
 	explicit MessageReactions(not_null<HistoryItem*> item);
 
 	void add(const ReactionId &id, bool addToRecent);
+	void addPaid(int count);
 	void remove(const ReactionId &id);
 	bool change(
 		const QVector<MTPReactionCount> &list,

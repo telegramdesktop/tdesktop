@@ -86,6 +86,11 @@ ReactionFlyAnimation::ReactionFlyAnimation(
 		_customSize = esize;
 		_centerSizeMultiplier = _customSize / float64(size);
 		aroundAnimation = owner->chooseGenericAnimation(document);
+	} else if (args.id.paid()) {
+		const auto fake = owner->lookupPaid();
+		centerIcon = fake->centerIcon;
+		aroundAnimation = fake->aroundAnimation;
+		_centerSizeMultiplier = 1.;// fake->centerIcon ? 1. : 0.5;
 	} else {
 		const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
 		if (i == end(list)/* || !i->centerIcon*/) {

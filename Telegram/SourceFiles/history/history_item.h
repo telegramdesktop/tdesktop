@@ -443,6 +443,7 @@ public:
 	void toggleReaction(
 		const Data::ReactionId &reaction,
 		ReactionSource source);
+	void addPaidReaction(int count, ReactionSource source);
 	void updateReactionsUnknown();
 	[[nodiscard]] auto reactions() const
 		-> const std::vector<Data::MessageReaction> &;
