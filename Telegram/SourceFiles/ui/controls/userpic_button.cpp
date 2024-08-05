@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 
 #include "base/call_delayed.h"
+#include "boxes/peers/edit_peer_info_box.h" // EditPeerInfoBox::Available.
 #include "ui/effects/ripple_animation.h"
 #include "ui/empty_userpic.h"
 #include "data/data_photo.h"
@@ -285,6 +286,8 @@ void UserpicButton::choosePhotoLocally() {
 					: QString();
 				const auto phrase = (type == ChosenType::Suggest)
 					? &tr::lng_profile_suggest_sure
+					: (user && EditPeerInfoBox::Available(user))
+					? nullptr
 					: (user && !user->isSelf())
 					? &tr::lng_profile_set_personal_sure
 					: nullptr;
