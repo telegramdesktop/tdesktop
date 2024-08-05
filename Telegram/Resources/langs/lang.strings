@@ -5179,6 +5179,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_stats_loading" = "Loading stats...";
 "lng_stats_loading_subtext" = "Please wait a few moments while we generate your stats.";
+"lng_stats_boosts_loading" = "Loading boosts list...";
+"lng_stats_boosts_loading_subtext" = "Please wait a few moments while we generate your stats.";
+"lng_stats_earn_loading" = "Loading rewards info...";
+"lng_stats_earn_loading_subtext" = "Please wait a few moments while we generate your stats.";
 
 "lng_chart_title_member_count" = "Growth";
 "lng_chart_title_join" = "Followers";
