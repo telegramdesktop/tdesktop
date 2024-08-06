@@ -87,12 +87,36 @@ void ShowRefundInfoBox(
 	int totalCount,
 	int photoSize);
 
+struct SmallBalanceBot {
+	UserId botId = 0;
+};
+struct SmallBalanceReaction {
+	ChannelId channelId = 0;
+};
+struct SmallBalanceSource : std::variant<
+	SmallBalanceBot,
+	SmallBalanceReaction> {
+	using variant::variant;
+};
+
 void SmallBalanceBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Main::SessionShow> show,
-	int creditsNeeded,
-	UserId botId,
+	uint64 credits,
+	SmallBalanceSource source,
 	Fn<void()> paid);
+
+enum class SmallBalanceResult {
+	Success,
+	Blocked,
+	Cancelled,
+};
+
+void MaybeRequestBalanceIncrease(
+	std::shared_ptr<Main::SessionShow> show,
+	uint64 credits,
+	SmallBalanceSource source,
+	Fn<void(SmallBalanceResult)> done);
 
 } // namespace Settings
 

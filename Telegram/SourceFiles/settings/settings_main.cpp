@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
+#include "data/components/credits.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
@@ -492,19 +493,21 @@ void SetupPremium(
 		showOther(PremiumId());
 	});
 	{
+		controller->session().credits().load();
+
 		const auto wrap = container->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				container,
 				object_ptr<Ui::VerticalLayout>(container)));
 		wrap->toggleOn(
-			controller->session().creditsValue(
+			controller->session().credits().balanceValue(
 			) | rpl::map(rpl::mappers::_1 > 0));
 		wrap->finishAnimating();
 		AddPremiumStar(
 			AddButtonWithLabel(
 				wrap->entity(),
 				tr::lng_settings_credits(),
-				controller->session().creditsValue(
+				controller->session().credits().balanceValue(
 				) | rpl::map([=](uint64 c) {
 					return c ? Lang::FormatCountToShort(c).string : QString{};
 				}),
@@ -524,12 +527,6 @@ void SetupPremium(
 		showOther(BusinessId());
 	});
 	Ui::NewBadge::AddToRight(button);
-
-	const auto api = button->lifetime().make_state<Api::CreditsStatus>(
-		controller->session().user());
-	api->request({}, [=](Data::CreditsStatusSlice slice) {
-		controller->session().setCredits(slice.balance);
-	});
 
 	if (controller->session().premiumCanBuy()) {
 		const auto button = AddButtonWithIcon(

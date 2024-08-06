@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "base/unixtime.h"
 #include "boxes/send_credits_box.h"
+#include "data/components/credits.h"
 #include "data/data_credits.h"
 #include "data/data_photo.h"
 #include "data/data_user.h"
@@ -39,27 +40,35 @@ bool IsCreditsInvoice(not_null<HistoryItem*> item) {
 }
 
 void ProcessCreditsPayment(
-		std::shared_ptr<Main::SessionShow> show,
-		QPointer<QWidget> fireworks,
-		std::shared_ptr<CreditsFormData> form,
-		Fn<void(CheckoutResult)> maybeReturnToBot) {
-	const auto lifetime = std::make_shared<rpl::lifetime>();
-	const auto api = lifetime->make_state<Api::CreditsStatus>(
-		show->session().user());
-	const auto sendBox = [=] {
+	std::shared_ptr<Main::SessionShow> show,
+	QPointer<QWidget> fireworks,
+	std::shared_ptr<CreditsFormData> form,
+	Fn<void(CheckoutResult)> maybeReturnToBot) {
+	const auto done = [=](Settings::SmallBalanceResult result) {
+		if (result == Settings::SmallBalanceResult::Blocked) {
+			if (const auto onstack = maybeReturnToBot) {
+				onstack(CheckoutResult::Failed);
+			}
+			return;
+		} else if (result == Settings::SmallBalanceResult::Cancelled) {
+			if (const auto onstack = maybeReturnToBot) {
+				onstack(CheckoutResult::Cancelled);
+			}
+			return;
+		}
 		const auto unsuccessful = std::make_shared<bool>(true);
 		const auto box = show->show(Box(
 			Ui::SendCreditsBox,
 			form,
 			[=] {
-				*unsuccessful = false;
-				if (const auto widget = fireworks.data()) {
-					Ui::StartFireworks(widget);
-				}
-				if (maybeReturnToBot) {
-					maybeReturnToBot(CheckoutResult::Paid);
-				}
-			}));
+			*unsuccessful = false;
+			if (const auto widget = fireworks.data()) {
+				Ui::StartFireworks(widget);
+			}
+			if (maybeReturnToBot) {
+				maybeReturnToBot(CheckoutResult::Paid);
+			}
+		}));
 		box->boxClosing() | rpl::start_with_next([=] {
 			crl::on_main([=] {
 				if ((*unsuccessful) && maybeReturnToBot) {
@@ -68,28 +77,11 @@ void ProcessCreditsPayment(
 			});
 		}, box->lifetime());
 	};
-	api->request({}, [=](Data::CreditsStatusSlice slice) {
-		show->session().setCredits(slice.balance);
-		const auto creditsNeeded = int64(form->invoice.credits)
-			- int64(slice.balance);
-		if (creditsNeeded <= 0) {
-			sendBox();
-		} else if (show->session().premiumPossible()) {
-			show->show(Box(
-				Settings::SmallBalanceBox,
-				show,
-				creditsNeeded,
-				form->botId,
-				sendBox));
-		} else {
-			show->showToast(
-				tr::lng_credits_purchase_blocked(tr::now));
-			if (maybeReturnToBot) {
-				maybeReturnToBot(CheckoutResult::Failed);
-			}
-		}
-		lifetime->destroy();
-	});
+	Settings::MaybeRequestBalanceIncrease(
+		show,
+		form->invoice.credits,
+		Settings::SmallBalanceBot{ .botId = form->botId },
+		done);
 }
 
 void ProcessCreditsReceipt(

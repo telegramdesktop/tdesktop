@@ -107,6 +107,12 @@ struct HistoryItemCommonFields {
 	HistoryMessageMarkupData markup;
 };
 
+enum class HistoryReactionSource : char {
+	Selector,
+	Quick,
+	Existing,
+};
+
 class HistoryItem final : public RuntimeComposer<HistoryItem> {
 public:
 	[[nodiscard]] static std::unique_ptr<Data::Media> CreateMedia(
@@ -435,18 +441,17 @@ public:
 	void translationDone(LanguageId to, TextWithEntities result);
 
 	[[nodiscard]] bool canReact() const;
-	enum class ReactionSource {
-		Selector,
-		Quick,
-		Existing,
-	};
 	void toggleReaction(
 		const Data::ReactionId &reaction,
-		ReactionSource source);
-	void addPaidReaction(int count, ReactionSource source);
+		HistoryReactionSource source);
+	void addPaidReaction(int count);
+	[[nodiscard]] int startPaidReactionSending();
+	void finishPaidReactionSending(int count, bool success);
 	void updateReactionsUnknown();
 	[[nodiscard]] auto reactions() const
 		-> const std::vector<Data::MessageReaction> &;
+	[[nodiscard]] auto reactionsWithLocal() const
+		-> std::vector<Data::MessageReaction>;
 	[[nodiscard]] auto recentReactions() const
 		-> const base::flat_map<
 			Data::ReactionId,

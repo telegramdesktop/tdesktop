@@ -2650,7 +2650,7 @@ void ListWidget::toggleFavoriteReaction(not_null<Element*> view) const {
 			view->animateReaction({ .id = favorite });
 		}
 	}
-	item->toggleReaction(favorite, HistoryItem::ReactionSource::Quick);
+	item->toggleReaction(favorite, HistoryReactionSource::Quick);
 }
 
 void ListWidget::trySwitchToWordSelection() {
@@ -2807,9 +2807,7 @@ void ListWidget::reactionChosen(ChosenReaction reaction) {
 		}
 		return;
 	}
-	item->toggleReaction(
-		reaction.id,
-		HistoryItem::ReactionSource::Selector);
+	item->toggleReaction(reaction.id, HistoryReactionSource::Selector);
 	if (!ranges::contains(item->chosenReactions(), reaction.id)) {
 		return;
 	} else if (const auto view = viewForItem(item)) {

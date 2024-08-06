@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "payments/payments_reaction_process.h" // TryAddingPaidReaction.
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
@@ -808,11 +809,7 @@ QSize Message::performCountOptimalSize() {
 
 	const auto markup = item->inlineReplyMarkup();
 	const auto reactionsKey = [&] {
-		return embedReactionsInBottomInfo()
-			? 0
-			: embedReactionsInBubble()
-			? 1
-			: 2;
+		return embedReactionsInBubble() ? 0 : 1;
 	};
 	const auto oldKey = reactionsKey();
 	validateText();
@@ -3248,97 +3245,62 @@ bool Message::isSignedAuthorElided() const {
 	return _bottomInfo.isSignedAuthorElided();
 }
 
-bool Message::embedReactionsInBottomInfo() const {
-	return false;
-#if 0 // legacy
-	const auto item = data();
-	const auto user = item->history()->peer->asUser();
-	if (!user
-		|| user->isPremium()
-		|| user->isSelf()
-		|| user->session().premium()) {
-		// Only in messages of a non premium user with a non premium user.
-		// In saved messages we use reactions for tags, we don't embed them.
-		return false;
-	}
-	auto seenMy = false;
-	auto seenHis = false;
-	for (const auto &reaction : item->reactions()) {
-		if (reaction.id.custom()) {
-			// Only in messages without any custom emoji reactions.
-			return false;
-		}
-		// Only in messages without two reactions from the same person.
-		if (reaction.my) {
-			if (seenMy) {
-				return false;
-			}
-			seenMy = true;
-		}
-		if (!reaction.my || (reaction.count > 1)) {
-			if (seenHis) {
-				return false;
-			}
-			seenHis = true;
-		}
-	}
-	return true;
-#endif
-}
-
 bool Message::embedReactionsInBubble() const {
 	return needInfoDisplay();
 }
 
 void Message::refreshReactions() {
-	const auto item = data();
-	const auto &list = item->reactions();
-	if (list.empty() || embedReactionsInBottomInfo()) {
+	using namespace Reactions;
+	auto reactionsData = InlineListDataFromMessage(this);
+	if (reactionsData.reactions.empty()) {
 		setReactions(nullptr);
 		return;
 	}
-	using namespace Reactions;
-	auto reactionsData = InlineListDataFromMessage(this);
 	if (!_reactions) {
 		const auto handlerFactory = [=](ReactionId id) {
 			const auto weak = base::make_weak(this);
 			return std::make_shared<LambdaClickHandler>([=](
 					ClickContext context) {
-				if (const auto strong = weak.get()) {
-					const auto item = strong->data();
-					if (id.paid()) {
-						item->addPaidReaction(
-							1,
-							HistoryItem::ReactionSource::Existing);
-						return;
-					} else if (item->reactionsAreTags()) {
-						if (item->history()->session().premium()) {
-							const auto tag = Data::SearchTagToQuery(id);
-							HashtagClickHandler(tag).onClick(context);
-						} else if (const auto controller
-							= ExtractController(context)) {
-							ShowPremiumPreviewBox(
-								controller,
-								PremiumFeature::TagsForMessages);
-						}
-						return;
+				const auto strong = weak.get();
+				if (!strong) {
+					return;
+				}
+				const auto item = strong->data();
+				const auto controller = ExtractController(context);
+				if (item->reactionsAreTags()) {
+					if (item->history()->session().premium()) {
+						const auto tag = Data::SearchTagToQuery(id);
+						HashtagClickHandler(tag).onClick(context);
+					} else if (controller) {
+						ShowPremiumPreviewBox(
+							controller,
+							PremiumFeature::TagsForMessages);
 					}
-					item->toggleReaction(
-						id,
-						HistoryItem::ReactionSource::Existing);
-					if (const auto now = weak.get()) {
-						const auto chosen = now->data()->chosenReactions();
-						if (ranges::contains(chosen, id)) {
-							now->animateReaction({
-								.id = id,
-							});
-						}
+					return;
+				}
+				if (id.paid()) {
+					Payments::TryAddingPaidReaction(
+						item,
+						weak.get(),
+						1,
+						controller->uiShow());
+					return;
+				} else {
+					const auto source = HistoryReactionSource::Existing;
+					item->toggleReaction(id, source);
+				}
+				if (const auto now = weak.get()) {
+					const auto chosen = now->data()->chosenReactions();
+					if (id.paid() || ranges::contains(chosen, id)) {
+						now->animateReaction({
+							.id = id,
+						});
 					}
 				}
 			});
 		};
 		setReactions(std::make_unique<InlineList>(
-			&item->history()->owner().reactions(),
+			&history()->owner().reactions(),
 			handlerFactory,
 			[=] { customEmojiRepaint(); },
 			std::move(reactionsData)));

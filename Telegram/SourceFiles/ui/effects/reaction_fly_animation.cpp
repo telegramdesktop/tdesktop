@@ -89,8 +89,8 @@ ReactionFlyAnimation::ReactionFlyAnimation(
 	} else if (args.id.paid()) {
 		const auto fake = owner->lookupPaid();
 		centerIcon = fake->centerIcon;
-		aroundAnimation = fake->aroundAnimation;
-		_centerSizeMultiplier = 1.;// fake->centerIcon ? 1. : 0.5;
+		aroundAnimation = owner->choosePaidReactionAnimation();
+		_centerSizeMultiplier = 0.5;
 	} else {
 		const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
 		if (i == end(list)/* || !i->centerIcon*/) {

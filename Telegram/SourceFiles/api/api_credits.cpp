@@ -200,10 +200,14 @@ void CreditsStatus::request(
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input
 	)).done([=](const TLResult &result) {
 		_requestId = 0;
-		done(StatusFromTL(result, _peer));
+		if (const auto onstack = done) {
+			onstack(StatusFromTL(result, _peer));
+		}
 	}).fail([=] {
 		_requestId = 0;
-		done({});
+		if (const auto onstack = done) {
+			onstack({});
+		}
 	}).send();
 }
 

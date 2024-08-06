@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/storage_account.h"
 #include "storage/storage_facade.h"
+#include "data/components/credits.h"
 #include "data/components/factchecks.h"
 #include "data/components/location_pickers.h"
 #include "data/components/recent_peers.h"
@@ -115,6 +116,7 @@ Session::Session(
 	std::make_unique<Data::TopPeers>(this, Data::TopPeerType::BotApp))
 , _factchecks(std::make_unique<Data::Factchecks>(this))
 , _locationPickers(std::make_unique<Data::LocationPickers>())
+, _credits(std::make_unique<Data::Credits>(this))
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
 , _supportHelper(Support::Helper::Create(this))
 , _saveSettingsTimer([=] { saveSettings(); }) {
@@ -288,14 +290,6 @@ rpl::producer<bool> Session::premiumPossibleValue() const {
 
 bool Session::premiumCanBuy() const {
 	return _premiumPossible.current();
-}
-
-rpl::producer<uint64> Session::creditsValue() const {
-	return _credits.value();
-}
-
-void Session::setCredits(uint64 credits) {
-	_credits = credits;
 }
 
 bool Session::isTestMode() const {

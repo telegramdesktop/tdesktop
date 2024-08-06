@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/click_handler_types.h" // UrlClickHandler
 #include "core/ui_integration.h"
+#include "data/components/credits.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
@@ -416,16 +417,20 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 		});
 		count->draw(p, {
 			.position = QPoint(
-				balance->width() - count->maxWidth(),
+				(rightAlign
+					? (balance->width() - count->maxWidth())
+					: (starSize.width() + diffBetweenStarAndCount)),
 				label->minHeight()
 					+ (starSize.height() - count->minHeight()) / 2),
 			.availableWidth = balance->width(),
 		});
 		p.drawImage(
-			balance->width()
-				- count->maxWidth()
-				- starSize.width()
-				- diffBetweenStarAndCount,
+			(rightAlign
+				? (balance->width()
+					- count->maxWidth()
+					- starSize.width()
+					- diffBetweenStarAndCount)
+				: 0),
 			label->minHeight(),
 			*balanceStar);
 	}, balance->lifetime());
@@ -859,9 +864,11 @@ object_ptr<Ui::RpWidget> PaidMediaThumbnail(
 void SmallBalanceBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		int creditsNeeded,
-		UserId botId,
+		uint64 credits,
+		SmallBalanceSource source,
 		Fn<void()> paid) {
+	Expects(show->session().credits().loaded());
+
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 	const auto done = [=] {
@@ -869,8 +876,17 @@ void SmallBalanceBox(
 		paid();
 	};
 
-	const auto bot = show->session().data().user(botId).get();
+	const auto owner = &show->session().data();
+	const auto peer = v::match(source, [&](SmallBalanceBot value) {
+		return owner->peer(peerFromUser(value.botId));
+	}, [&](SmallBalanceReaction value) {
+		return owner->peer(peerFromChannel(value.channelId));
+	});
 
+	auto needed = show->session().credits().balanceValue(
+	) | rpl::map([=](uint64 balance) {
+		return (balance < credits) ? (credits - balance) : 0;
+	});
 	const auto content = [&]() -> Ui::Premium::TopBarAbstract* {
 		return box->setPinnedToTopContent(object_ptr<Ui::Premium::TopBar>(
 			box,
@@ -878,11 +894,18 @@ void SmallBalanceBox(
 			Ui::Premium::TopBarDescriptor{
 				.title = tr::lng_credits_small_balance_title(
 					lt_count,
-					rpl::single(creditsNeeded) | tr::to_count()),
-				.about = tr::lng_credits_small_balance_about(
-					lt_bot,
-					rpl::single(TextWithEntities{ bot->name() }),
-					Ui::Text::RichLangValue),
+					rpl::duplicate(
+						needed
+					) | rpl::filter(rpl::mappers::_1 > 0) | tr::to_count()),
+				.about = (peer->isBroadcast()
+					? tr::lng_credits_small_balance_reaction(
+						lt_channel,
+						rpl::single(Ui::Text::Bold(peer->name())),
+						Ui::Text::RichLangValue)
+					: tr::lng_credits_small_balance_about(
+						lt_bot,
+						rpl::single(TextWithEntities{ peer->name() }),
+						Ui::Text::RichLangValue)),
 				.light = true,
 				.gradientStops = Ui::Premium::CreditsIconGradientStops(),
 			}));
@@ -892,8 +915,8 @@ void SmallBalanceBox(
 		show,
 		box->verticalLayout(),
 		show->session().user(),
-		creditsNeeded,
-		done);
+		credits - show->session().credits().balance(),
+		[=] { show->session().credits().load(true); });
 
 	content->setMaximumHeight(st::creditsLowBalancePremiumCoverHeight);
 	content->setMinimumHeight(st::infoLayerTopBarHeight);
@@ -912,13 +935,10 @@ void SmallBalanceBox(
 	{
 		const auto balance = AddBalanceWidget(
 			content,
-			show->session().creditsValue(),
+			show->session().credits().balanceValue(),
 			true);
-		const auto api = balance->lifetime().make_state<Api::CreditsStatus>(
-			show->session().user());
-		api->request({}, [=](Data::CreditsStatusSlice slice) {
-			show->session().setCredits(slice.balance);
-		});
+		show->session().credits().load(true);
+
 		rpl::combine(
 			balance->sizeValue(),
 			content->sizeValue()
@@ -929,6 +949,12 @@ void SmallBalanceBox(
 			balance->update();
 		}, balance->lifetime());
 	}
+
+	std::move(
+		needed
+	) | rpl::filter(
+		!rpl::mappers::_1
+	) | rpl::start_with_next(done, content->lifetime());
 }
 
 void AddWithdrawalWidget(
@@ -1227,6 +1253,60 @@ void AddWithdrawalWidget(
 		RectPart::Top | RectPart::Bottom));
 
 	Ui::AddSkip(container);
+}
+
+void MaybeRequestBalanceIncrease(
+		std::shared_ptr<Main::SessionShow> show,
+		uint64 credits,
+		SmallBalanceSource source,
+		Fn<void(SmallBalanceResult)> done) {
+	struct State {
+		rpl::lifetime lifetime;
+		bool success = false;
+	};
+	const auto state = std::make_shared<State>();
+
+	const auto session = &show->session();
+	session->credits().load();
+	session->credits().loadedValue(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
+		state->lifetime.destroy();
+
+		const auto balance = session->credits().balance();
+		if (credits <= balance) {
+			if (const auto onstack = done) {
+				onstack(SmallBalanceResult::Success);
+			}
+		} else if (show->session().premiumPossible()) {
+			const auto success = [=] {
+				state->success = true;
+				if (const auto onstack = done) {
+					onstack(SmallBalanceResult::Success);
+				}
+			};
+			const auto box = show->show(Box(
+				Settings::SmallBalanceBox,
+				show,
+				credits,
+				source,
+				success));
+			box->boxClosing() | rpl::start_with_next([=] {
+				crl::on_main([=] {
+					if (!state->success) {
+						if (const auto onstack = done) {
+							onstack(SmallBalanceResult::Cancelled);
+						}
+					}
+				});
+			}, box->lifetime());
+		} else {
+			show->showToast(
+				tr::lng_credits_purchase_blocked(tr::now));
+			if (const auto onstack = done) {
+				onstack(SmallBalanceResult::Blocked);
+			}
+		}
+	}, state->lifetime);
 }
 
 } // namespace Settings

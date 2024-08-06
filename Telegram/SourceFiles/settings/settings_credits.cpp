@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/gift_credits_box.h"
 #include "boxes/gift_premium_box.h"
 #include "core/click_handler_types.h"
+#include "data/components/credits.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
@@ -360,13 +361,9 @@ QPointer<Ui::RpWidget> Credits::createPinnedToTop(
 	{
 		const auto balance = AddBalanceWidget(
 			content,
-			_controller->session().creditsValue(),
+			_controller->session().credits().balanceValue(),
 			true);
-		const auto api = balance->lifetime().make_state<Api::CreditsStatus>(
-			_controller->session().user());
-		api->request({}, [=](Data::CreditsStatusSlice slice) {
-			_controller->session().setCredits(slice.balance);
-		});
+		_controller->session().credits().load(true);
 		rpl::combine(
 			balance->sizeValue(),
 			content->sizeValue()

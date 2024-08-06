@@ -791,7 +791,7 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 	using Flag = InlineListData::Flag;
 	const auto item = message->data();
 	auto result = InlineListData();
-	result.reactions = item->reactions();
+	result.reactions = item->reactionsWithLocal();
 	if (const auto user = item->history()->peer->asUser()) {
 		// Always show userpics, we have all information.
 		result.recent.reserve(result.reactions.size());

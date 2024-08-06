@@ -197,6 +197,8 @@ PRIVATE
     payments/ui/payments_panel.h
     payments/ui/payments_panel_data.h
     payments/ui/payments_panel_delegate.h
+    payments/ui/payments_reaction_box.cpp
+    payments/ui/payments_reaction_box.h
 
     platform/linux/current_geo_location_linux.cpp
     platform/linux/current_geo_location_linux.h

@@ -1549,9 +1549,7 @@ void ShowTagMenu(
 		if (const auto item = owner->message(itemId)) {
 			const auto &list = item->reactions();
 			if (ranges::contains(list, id, &MessageReaction::id)) {
-				item->toggleReaction(
-					id,
-					HistoryItem::ReactionSource::Quick);
+				item->toggleReaction(id, HistoryReactionSource::Quick);
 			}
 		}
 	};

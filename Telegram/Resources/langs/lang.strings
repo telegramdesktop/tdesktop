@@ -2399,6 +2399,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_small_balance_title#one" = "{count} Star Needed";
 "lng_credits_small_balance_title#other" = "{count} Stars Needed";
 "lng_credits_small_balance_about" = "Buy **Stars** and use them on **{bot}** and other miniapps.";
+"lng_credits_small_balance_reaction" = "Buy **Stars** and send them to {channel} to support their posts.";
 "lng_credits_purchase_blocked" = "Sorry, you can't purchase this item with Telegram Stars.";
 
 "lng_credits_gift_title" = "Gift Telegram Stars";
@@ -3415,6 +3416,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_paid_about_link" = "More about stars >";
 "lng_paid_about_link_url" = "https://telegram.org/blog/telegram-stars";
 "lng_paid_price" = "Unlock for {price}";
+
+"lng_paid_react_title" = "Star Reaction";
+"lng_paid_react_about" = "Choose how many stars you want to send to {channel} to support this post.";
+"lng_paid_react_top_title" = "Top Senders";
+"lng_paid_react_send" = "Send {price}";
+"lng_paid_react_agree" = "By sending stars, you agree to the {link}.";
+"lng_paid_react_agree_link" = "Terms of Service";
 
 "lng_translate_show_original" = "Show Original";
 "lng_translate_bar_to" = "Translate to {name}";

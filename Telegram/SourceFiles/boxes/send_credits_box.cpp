@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "apiwrap.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
+#include "data/components/credits.h"
 #include "data/data_credits.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -301,7 +302,7 @@ void SendCreditsBox(
 			st::giveawayGiftCodeStartButton.height / 2);
 		AddChildToWidgetCenter(button.data(), loadingAnimation);
 		loadingAnimation->showOn(state->confirmButtonBusy.value());
-		}
+	}
 	{
 		auto buttonText = tr::lng_credits_box_out_confirm(
 			lt_count,
@@ -361,15 +362,11 @@ void SendCreditsBox(
 	}
 
 	{
+		session->credits().load(true);
 		const auto balance = Settings::AddBalanceWidget(
 			content,
-			session->creditsValue(),
+			session->credits().balanceValue(),
 			false);
-		const auto api = balance->lifetime().make_state<Api::CreditsStatus>(
-			session->user());
-		api->request({}, [=](Data::CreditsStatusSlice slice) {
-			session->setCredits(slice.balance);
-		});
 		rpl::combine(
 			balance->sizeValue(),
 			content->sizeValue()

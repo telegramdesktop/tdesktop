@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_emoji_interactions.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
+#include "payments/payments_reaction_process.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
@@ -490,13 +491,11 @@ void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
 	if (!item) {
 		return;
 	} else if (reaction.id.paid()) {
-		_controller->show(Ui::MakeConfirmBox({
-			.text = u"Send 10-stars reaction?"_q,
-			.confirmed = [=](Fn<void()> close) {
-				item->addPaidReaction(10, HistoryItem::ReactionSource::Selector);
-				close();
-			},
-		}));
+		Payments::ShowPaidReactionDetails(
+			_controller->uiShow(),
+			item,
+			viewByItem(item),
+			HistoryReactionSource::Selector);
 		return;
 	} else if (Window::ShowReactPremiumError(
 			_controller,
@@ -507,7 +506,7 @@ void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
 		}
 		return;
 	}
-	item->toggleReaction(reaction.id, HistoryItem::ReactionSource::Selector);
+	item->toggleReaction(reaction.id, HistoryReactionSource::Selector);
 	if (!ranges::contains(item->chosenReactions(), reaction.id)) {
 		return;
 	} else if (const auto view = viewByItem(item)) {
@@ -2047,7 +2046,7 @@ void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 			view->animateReaction({ .id = favorite });
 		}
 	}
-	item->toggleReaction(favorite, HistoryItem::ReactionSource::Quick);
+	item->toggleReaction(favorite, HistoryReactionSource::Quick);
 }
 
 HistoryView::SelectedQuote HistoryInner::selectedQuote(

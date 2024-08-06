@@ -2514,19 +2514,34 @@ bool HistoryItem::canReact() const {
 	return true;
 }
 
-void HistoryItem::addPaidReaction(int count, ReactionSource source) {
+void HistoryItem::addPaidReaction(int count) {
+	Expects(count > 0);
 	Expects(_history->peer->isBroadcast());
 
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 	}
-	_reactions->addPaid(count);
+	_reactions->scheduleSendPaid(count);
+	_history->owner().notifyItemDataChange(this);
+}
+
+int HistoryItem::startPaidReactionSending() {
+	return _reactions ? _reactions->startPaidSending() : 0;
+}
+
+void HistoryItem::finishPaidReactionSending(int count, bool success) {
+	Expects(_reactions != nullptr);
+
+	_reactions->finishPaidSending(count, success);
 	_history->owner().notifyItemDataChange(this);
 }
 
 void HistoryItem::toggleReaction(
 		const Data::ReactionId &reaction,
-		ReactionSource source) {
+		HistoryReactionSource source) {
+	Expects(!reaction.paid());
+
+	const auto addToRecent = (source == HistoryReactionSource::Selector);
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 		const auto canViewReactions = !isDiscussionPost()
@@ -2534,7 +2549,7 @@ void HistoryItem::toggleReaction(
 		if (canViewReactions) {
 			_flags |= MessageFlag::CanViewReactions;
 		}
-		_reactions->add(reaction, (source == ReactionSource::Selector));
+		_reactions->add(reaction, addToRecent);
 	} else if (ranges::contains(_reactions->chosen(), reaction)) {
 		_reactions->remove(reaction);
 		if (_reactions->empty()) {
@@ -2542,7 +2557,7 @@ void HistoryItem::toggleReaction(
 			_flags &= ~MessageFlag::CanViewReactions;
 		}
 	} else {
-		_reactions->add(reaction, (source == ReactionSource::Selector));
+		_reactions->add(reaction, addToRecent);
 	}
 	_history->owner().notifyItemDataChange(this);
 }
@@ -2554,6 +2569,30 @@ void HistoryItem::updateReactionsUnknown() {
 const std::vector<Data::MessageReaction> &HistoryItem::reactions() const {
 	static const auto kEmpty = std::vector<Data::MessageReaction>();
 	return _reactions ? _reactions->list() : kEmpty;
+}
+
+std::vector<Data::MessageReaction> HistoryItem::reactionsWithLocal() const {
+	auto result = reactions();
+	if (const auto local = _reactions ? _reactions->localPaidCount() : 0) {
+		const auto i = ranges::find(
+			result,
+			Data::ReactionId::Paid(),
+			&Data::MessageReaction::id);
+		if (i != end(result)) {
+			i->my = true;
+			i->count += local;
+			if (i != begin(result)) {
+				std::rotate(begin(result), i, i + 1);
+			}
+		} else {
+			result.insert(begin(result), Data::MessageReaction{
+				.id = Data::ReactionId::Paid(),
+				.count = local,
+				.my = true,
+			});
+		}
+	}
+	return result;
 }
 
 bool HistoryItem::reactionsAreTags() const {
@@ -3729,12 +3768,21 @@ bool HistoryItem::changeReactions(const MTPMessageReactions *reactions) {
 	if (reactions || _reactionsLastRefreshed) {
 		_reactionsLastRefreshed = crl::now();
 	}
+	const auto changeToEmpty = [&] {
+		if (!_reactions) {
+			return false;
+		} else if (!_reactions->localPaidCount()) {
+			_reactions = nullptr;
+			return true;
+		}
+		return _reactions->clearCloudData();
+	};
 	if (!reactions) {
 		_flags &= ~MessageFlag::CanViewReactions;
 		if (_history->peer->isSelf()) {
 			_flags |= MessageFlag::ReactionsAreTags;
 		}
-		return (base::take(_reactions) != nullptr);
+		return changeToEmpty();
 	}
 	const auto &data = reactions->data();
 	const auto empty = data.vresults().v.isEmpty();
@@ -3750,13 +3798,14 @@ bool HistoryItem::changeReactions(const MTPMessageReactions *reactions) {
 		_flags &= ~MessageFlag::CanViewReactions;
 	}
 	if (empty) {
-		return (base::take(_reactions) != nullptr);
+		return changeToEmpty();
 	} else if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 	}
 	const auto min = data.is_min();
 	const auto &list = data.vresults().v;
 	const auto &recent = data.vrecent_reactions().value_or_empty();
+	const auto &top = data.vtop_reactors().value_or_empty();
 	if (min && hasUnreadReaction()) {
 		// We can't update reactions from min if we have unread.
 		if (_reactions->checkIfChanged(list, recent, min)) {
@@ -3764,7 +3813,7 @@ bool HistoryItem::changeReactions(const MTPMessageReactions *reactions) {
 		}
 		return false;
 	}
-	return _reactions->change(list, recent, min);
+	return _reactions->change(list, recent, top, min);
 }
 
 void HistoryItem::applyTTL(const MTPDmessage &data) {

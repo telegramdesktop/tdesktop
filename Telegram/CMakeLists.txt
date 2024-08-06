@@ -475,6 +475,8 @@ PRIVATE
     data/business/data_business_info.h
     data/business/data_shortcut_messages.cpp
     data/business/data_shortcut_messages.h
+    data/components/credits.cpp
+    data/components/credits.h
     data/components/factchecks.cpp
     data/components/factchecks.h
     data/components/location_pickers.cpp
@@ -1236,6 +1238,8 @@ PRIVATE
     payments/payments_form.h
     payments/payments_non_panel_process.cpp
     payments/payments_non_panel_process.h
+    payments/payments_reaction_process.cpp
+    payments/payments_reaction_process.h
     platform/linux/file_utilities_linux.cpp
     platform/linux/file_utilities_linux.h
     platform/linux/launcher_linux.cpp
