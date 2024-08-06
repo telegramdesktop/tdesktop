@@ -69,41 +69,23 @@ JoinedByLinkSlice ParseJoinedByLinkSlice(
 InviteLinks::InviteLinks(not_null<ApiWrap*> api) : _api(api) {
 }
 
-void InviteLinks::create(
-		not_null<PeerData*> peer,
-		Fn<void(Link)> done,
-		const QString &label,
-		TimeId expireDate,
-		int usageLimit,
-		bool requestApproval) {
-	performCreate(
-		peer,
-		std::move(done),
-		false,
-		label,
-		expireDate,
-		usageLimit,
-		requestApproval);
+void InviteLinks::create(const CreateInviteLinkArgs &args) {
+	performCreate(args, false);
 }
 
 void InviteLinks::performCreate(
-		not_null<PeerData*> peer,
-		Fn<void(Link)> done,
-		bool revokeLegacyPermanent,
-		const QString &label,
-		TimeId expireDate,
-		int usageLimit,
-		bool requestApproval) {
-	if (const auto i = _createCallbacks.find(peer)
+		const CreateInviteLinkArgs &args,
+		bool revokeLegacyPermanent) {
+	if (const auto i = _createCallbacks.find(args.peer)
 		; i != end(_createCallbacks)) {
-		if (done) {
-			i->second.push_back(std::move(done));
+		if (args.done) {
+			i->second.push_back(std::move(args.done));
 		}
 		return;
 	}
-	auto &callbacks = _createCallbacks[peer];
-	if (done) {
-		callbacks.push_back(std::move(done));
+	auto &callbacks = _createCallbacks[args.peer];
+	if (args.done) {
+		callbacks.push_back(std::move(args.done));
 	}
 
 	using Flag = MTPmessages_ExportChatInvite::Flag;
@@ -111,18 +93,18 @@ void InviteLinks::performCreate(
 		MTP_flags((revokeLegacyPermanent
 			? Flag::f_legacy_revoke_permanent
 			: Flag(0))
-			| (!label.isEmpty() ? Flag::f_title : Flag(0))
-			| (expireDate ? Flag::f_expire_date : Flag(0))
-			| ((!requestApproval && usageLimit)
+			| (!args.label.isEmpty() ? Flag::f_title : Flag(0))
+			| (args.expireDate ? Flag::f_expire_date : Flag(0))
+			| ((!args.requestApproval && args.usageLimit)
 				? Flag::f_usage_limit
 				: Flag(0))
-			| (requestApproval ? Flag::f_request_needed : Flag(0))),
-		peer->input,
-		MTP_int(expireDate),
-		MTP_int(usageLimit),
-		MTP_string(label),
+			| (args.requestApproval ? Flag::f_request_needed : Flag(0))),
+		args.peer->input,
+		MTP_int(args.expireDate),
+		MTP_int(args.usageLimit),
+		MTP_string(args.label),
 		MTPStarsSubscriptionPricing()
-	)).done([=](const MTPExportedChatInvite &result) {
+	)).done([=, peer = args.peer](const MTPExportedChatInvite &result) {
 		const auto callbacks = _createCallbacks.take(peer);
 		const auto link = prepend(peer, peer->session().user(), result);
 		if (link && callbacks) {
@@ -130,7 +112,7 @@ void InviteLinks::performCreate(
 				callback(*link);
 			}
 		}
-	}).fail([=] {
+	}).fail([=, peer = args.peer] {
 		_createCallbacks.erase(peer);
 	}).send();
 }
@@ -345,7 +327,7 @@ void InviteLinks::revokePermanent(
 	} else if (!admin->isSelf()) {
 		crl::on_main(&peer->session(), done);
 	} else {
-		performCreate(peer, callback, true);
+		performCreate({ peer, callback }, true);
 	}
 }
 

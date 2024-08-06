@@ -517,10 +517,13 @@ void InviteForbiddenController::send(
 	};
 	const auto sendForFull = [=] {
 		if (!sendLink()) {
-			_peer->session().api().inviteLinks().create(_peer, [=](auto) {
-				if (!sendLink()) {
-					close();
-				}
+			_peer->session().api().inviteLinks().create({
+				_peer,
+				[=](auto) {
+					if (!sendLink()) {
+						close();
+					}
+				},
 			});
 		}
 	};

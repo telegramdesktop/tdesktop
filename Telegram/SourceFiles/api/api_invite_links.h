@@ -53,6 +53,15 @@ struct InviteLinkUpdate {
 	not_null<PeerData*> peer,
 	const MTPmessages_ChatInviteImporters &slice);
 
+struct CreateInviteLinkArgs {
+	not_null<PeerData*> peer;
+	Fn<void(InviteLink)> done = nullptr;
+	QString label;
+	TimeId expireDate = 0;
+	int usageLimit = 0;
+	bool requestApproval = false;
+};
+
 class InviteLinks final {
 public:
 	explicit InviteLinks(not_null<ApiWrap*> api);
@@ -61,13 +70,7 @@ public:
 	using Links = PeerInviteLinks;
 	using Update = InviteLinkUpdate;
 
-	void create(
-		not_null<PeerData*> peer,
-		Fn<void(Link)> done = nullptr,
-		const QString &label = QString(),
-		TimeId expireDate = 0,
-		int usageLimit = 0,
-		bool requestApproval = false);
+	void create(const CreateInviteLinkArgs &args);
 	void edit(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
@@ -189,13 +192,8 @@ private:
 		int usageLimit = 0,
 		bool requestApproval = false);
 	void performCreate(
-		not_null<PeerData*> peer,
-		Fn<void(Link)> done,
-		bool revokeLegacyPermanent,
-		const QString &label = QString(),
-		TimeId expireDate = 0,
-		int usageLimit = 0,
-		bool requestApproval = false);
+		const CreateInviteLinkArgs &args,
+		bool revokeLegacyPermanent);
 
 	void requestJoinedFirstSlice(LinkKey key);
 	[[nodiscard]] std::optional<JoinedByLinkSlice> lookupJoinedFirstSlice(

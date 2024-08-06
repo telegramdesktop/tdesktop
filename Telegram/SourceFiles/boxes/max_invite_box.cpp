@@ -94,7 +94,7 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 			showToast(tr::lng_create_channel_link_copied(tr::now));
 		} else if (_channel->isFullLoaded() && !_creatingInviteLink) {
 			_creatingInviteLink = true;
-			_channel->session().api().inviteLinks().create(_channel);
+			_channel->session().api().inviteLinks().create({ _channel });
 		}
 	}
 }

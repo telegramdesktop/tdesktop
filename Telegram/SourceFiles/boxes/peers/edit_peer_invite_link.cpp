@@ -1266,13 +1266,14 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 		};
 		if (creating) {
 			Assert(data.admin->isSelf());
-			peer->session().api().inviteLinks().create(
+			peer->session().api().inviteLinks().create({
 				peer,
 				finish,
 				result.label,
 				result.expireDate,
 				result.usageLimit,
-				result.requestApproval);
+				result.requestApproval,
+			});
 		} else {
 			peer->session().api().inviteLinks().edit(
 				peer,
