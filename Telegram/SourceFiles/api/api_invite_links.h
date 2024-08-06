@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ApiWrap;
 
+#include "data/data_subscriptions.h"
+
 namespace Api {
 
 struct InviteLink {
@@ -60,6 +62,7 @@ struct CreateInviteLinkArgs {
 	TimeId expireDate = 0;
 	int usageLimit = 0;
 	bool requestApproval = false;
+	Data::PeerSubscription subscription;
 };
 
 class InviteLinks final {

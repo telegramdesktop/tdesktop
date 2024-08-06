@@ -8,12 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_invite_links.h"
 
 #include "api/api_chat_participants.h"
-#include "data/data_peer.h"
-#include "data/data_user.h"
-#include "data/data_chat.h"
-#include "data/data_channel.h"
-#include "data/data_session.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_peer.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
 #include "main/main_session.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
@@ -88,6 +88,7 @@ void InviteLinks::performCreate(
 		callbacks.push_back(std::move(args.done));
 	}
 
+	const auto requestApproval = !args.subscription && args.requestApproval;
 	using Flag = MTPmessages_ExportChatInvite::Flag;
 	_api->request(MTPmessages_ExportChatInvite(
 		MTP_flags((revokeLegacyPermanent
@@ -95,15 +96,18 @@ void InviteLinks::performCreate(
 			: Flag(0))
 			| (!args.label.isEmpty() ? Flag::f_title : Flag(0))
 			| (args.expireDate ? Flag::f_expire_date : Flag(0))
-			| ((!args.requestApproval && args.usageLimit)
+			| ((!requestApproval && args.usageLimit)
 				? Flag::f_usage_limit
 				: Flag(0))
-			| (args.requestApproval ? Flag::f_request_needed : Flag(0))),
+			| (requestApproval ? Flag::f_request_needed : Flag(0))
+			| (args.subscription ? Flag::f_subscription_pricing : Flag(0))),
 		args.peer->input,
 		MTP_int(args.expireDate),
 		MTP_int(args.usageLimit),
 		MTP_string(args.label),
-		MTPStarsSubscriptionPricing()
+		MTP_starsSubscriptionPricing(
+			MTP_int(args.subscription.period),
+			MTP_long(args.subscription.credits))
 	)).done([=, peer = args.peer](const MTPExportedChatInvite &result) {
 		const auto callbacks = _createCallbacks.take(peer);
 		const auto link = prepend(peer, peer->session().user(), result);
