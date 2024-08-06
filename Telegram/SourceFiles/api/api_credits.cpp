@@ -94,13 +94,14 @@ constexpr auto kTransactionsLimit = 100;
 		}, [](const MTPDstarsTransactionPeerAds &) {
 			return Data::CreditsHistoryEntry::PeerType::Ads;
 		}),
-		.refunded = tl.data().is_refund(),
-		.pending = tl.data().is_pending(),
-		.failed = tl.data().is_failed(),
 		.successDate = tl.data().vtransaction_date()
 			? base::unixtime::parse(tl.data().vtransaction_date()->v)
 			: QDateTime(),
 		.successLink = qs(tl.data().vtransaction_url().value_or_empty()),
+		.reaction = tl.data().is_reaction(),
+		.refunded = tl.data().is_refund(),
+		.pending = tl.data().is_pending(),
+		.failed = tl.data().is_failed(),
 		.in = (int64(tl.data().vstars().v) >= 0),
 		.gift = tl.data().is_gift(),
 	};

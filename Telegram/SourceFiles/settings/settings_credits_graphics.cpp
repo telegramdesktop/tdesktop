@@ -554,7 +554,7 @@ void ReceiptCreditsBox(
 				? e.title
 				: e.gift
 				? tr::lng_credits_box_history_entry_gift_name(tr::now)
-				: peer
+				: (peer && !e.reaction)
 				? peer->name()
 				: Ui::GenerateEntryName(e).text),
 			st::creditsBoxAboutTitle)));

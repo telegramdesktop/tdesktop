@@ -455,7 +455,9 @@ Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 }
 
 TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
-	return (entry.gift
+	return (entry.reaction
+		? tr::lng_credits_box_history_entry_reaction_name
+		: entry.gift
 		? tr::lng_credits_box_history_entry_gift_name
 		: (entry.peerType == Data::CreditsHistoryEntry::PeerType::Fragment)
 		? tr::lng_credits_box_history_entry_fragment

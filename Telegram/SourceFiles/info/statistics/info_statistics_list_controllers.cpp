@@ -753,6 +753,7 @@ private:
 	const int _rowHeight;
 
 	PaintRoundImageCallback _paintUserpicCallback;
+	QString _title;
 	QString _name;
 
 	Ui::Text::String _rightText;
@@ -787,9 +788,14 @@ CreditsRow::CreditsRow(const Descriptor &descriptor)
 }
 
 void CreditsRow::init() {
-	_name = !PeerListRow::special()
+	const auto name = !PeerListRow::special()
 		? PeerListRow::generateName()
 		: Ui::GenerateEntryName(_entry).text;
+	_name = _entry.reaction
+		? Ui::GenerateEntryName(_entry).text
+		: _entry.title.isEmpty()
+		? name
+		: _entry.title;
 	const auto joiner = QString(QChar(' ')) + QChar(8212) + QChar(' ');
 	PeerListRow::setCustomStatus(
 		langDateTimeFull(_entry.date)
@@ -802,7 +808,7 @@ void CreditsRow::init() {
 			: QString())
 		+ ((_entry.gift && PeerListRow::special())
 			? (joiner + tr::lng_credits_box_history_entry_anonymous(tr::now))
-			: (_entry.title.isEmpty() ? QString() : (joiner + _name))));
+			: ((_name == name) ? QString() : (joiner + name))));
 	{
 		constexpr auto kMinus = QChar(0x2212);
 		_rightText.setText(
