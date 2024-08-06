@@ -87,9 +87,9 @@ PRIVATE
     data/data_channel_earn.h
     data/data_credits.h
     data/data_credits_earn.h
+    data/data_premium_subscription_option.h
     data/data_statistics_chart.cpp
     data/data_statistics_chart.h
-    data/data_subscription_option.h
 
     dialogs/dialogs_three_state_icon.h
     dialogs/ui/chat_search_empty.cpp

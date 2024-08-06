@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
-struct SubscriptionOption {
+struct PremiumSubscriptionOption {
 	QString duration;
 	QString discount;
 	QString costPerMonth;
@@ -17,6 +17,6 @@ struct SubscriptionOption {
 	QString total;
 	QString botUrl;
 };
-using SubscriptionOptions = std::vector<SubscriptionOption>;
+using PremiumSubscriptionOptions = std::vector<PremiumSubscriptionOption>;
 
 } // namespace Data

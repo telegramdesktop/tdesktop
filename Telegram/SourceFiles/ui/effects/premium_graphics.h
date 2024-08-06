@@ -21,7 +21,7 @@ struct phrase;
 enum lngtag_count : int;
 
 namespace Data {
-struct SubscriptionOption;
+struct PremiumSubscriptionOption;
 } // namespace Data
 
 namespace style {
@@ -124,7 +124,7 @@ void ShowListBox(
 void AddGiftOptions(
 	not_null<Ui::VerticalLayout*> parent,
 	std::shared_ptr<Ui::RadiobuttonGroup> group,
-	std::vector<Data::SubscriptionOption> gifts,
+	std::vector<Data::PremiumSubscriptionOption> gifts,
 	const style::PremiumOption &st,
 	bool topBadges = false);
 

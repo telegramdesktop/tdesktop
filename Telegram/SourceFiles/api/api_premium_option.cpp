@@ -13,7 +13,7 @@ namespace Api {
 
 constexpr auto kDiscountDivider = 1.;
 
-Data::SubscriptionOption CreateSubscriptionOption(
+Data::PremiumSubscriptionOption CreateSubscriptionOption(
 		int months,
 		int monthlyAmount,
 		int64 amount,

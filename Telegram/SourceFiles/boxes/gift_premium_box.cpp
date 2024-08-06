@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h" // Data::GiveawayStart.
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
 #include "data/data_session.h"
-#include "data/data_subscription_option.h"
+#include "data/data_premium_subscription_option.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
@@ -66,8 +66,8 @@ namespace {
 
 constexpr auto kUserpicsMax = size_t(3);
 
-using GiftOption = Data::SubscriptionOption;
-using GiftOptions = Data::SubscriptionOptions;
+using GiftOption = Data::PremiumSubscriptionOption;
+using GiftOptions = Data::PremiumSubscriptionOptions;
 
 GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	auto result = GiftOptions();
@@ -75,7 +75,7 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	if (!gifts) {
 		return result;
 	}
-	result = Api::SubscriptionOptionsFromTL(gifts->v);
+	result = Api::PremiumSubscriptionOptionsFromTL(gifts->v);
 	for (auto &option : result) {
 		option.costPerMonth = tr::lng_premium_gift_per(
 			tr::now,

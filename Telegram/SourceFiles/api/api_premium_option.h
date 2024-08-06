@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_subscription_option.h"
+#include "data/data_premium_subscription_option.h"
 
 namespace Api {
 
-[[nodiscard]] Data::SubscriptionOption CreateSubscriptionOption(
+[[nodiscard]] Data::PremiumSubscriptionOption CreateSubscriptionOption(
 	int months,
 	int monthlyAmount,
 	int64 amount,
@@ -19,22 +19,22 @@ namespace Api {
 	const QString &botUrl);
 
 template<typename Option>
-[[nodiscard]] Data::SubscriptionOptions SubscriptionOptionsFromTL(
-		const QVector<Option> &tlOptions) {
-	if (tlOptions.isEmpty()) {
+[[nodiscard]] auto PremiumSubscriptionOptionsFromTL(
+		const QVector<Option> &tlOpts) -> Data::PremiumSubscriptionOptions {
+	if (tlOpts.isEmpty()) {
 		return {};
 	}
-	auto result = Data::SubscriptionOptions();
+	auto result = Data::PremiumSubscriptionOptions();
 	const auto monthlyAmount = [&] {
 		const auto &min = ranges::min_element(
-			tlOptions,
+			tlOpts,
 			ranges::less(),
 			[](const Option &o) { return o.data().vamount().v; }
 		)->data();
 		return min.vamount().v / float64(min.vmonths().v);
 	}();
-	result.reserve(tlOptions.size());
-	for (const auto &tlOption : tlOptions) {
+	result.reserve(tlOpts.size());
+	for (const auto &tlOption : tlOpts) {
 		const auto &option = tlOption.data();
 		auto botUrl = QString();
 		if constexpr (!std::is_same_v<Option, MTPPremiumGiftCodeOption>) {
