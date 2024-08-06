@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/generic_box.h"
+template <typename Object>
+class object_ptr;
 
 class PeerData;
 
@@ -22,6 +23,7 @@ class Session;
 namespace Ui {
 class VerticalLayout;
 class Show;
+class BoxContent;
 } // namespace Ui
 
 [[nodiscard]] bool IsExpiredLink(const Api::InviteLink &data, TimeId now);

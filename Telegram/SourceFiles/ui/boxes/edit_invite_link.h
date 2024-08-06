@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/generic_box.h"
-
 namespace Ui {
+
+class GenericBox;
+class SettingsButton;
 
 struct InviteLinkFields {
 	QString link;
