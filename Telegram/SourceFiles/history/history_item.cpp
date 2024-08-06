@@ -2573,11 +2573,11 @@ const std::vector<Data::MessageReaction> &HistoryItem::reactions() const {
 
 std::vector<Data::MessageReaction> HistoryItem::reactionsWithLocal() const {
 	auto result = reactions();
+	const auto i = ranges::find(
+		result,
+		Data::ReactionId::Paid(),
+		&Data::MessageReaction::id);
 	if (const auto local = _reactions ? _reactions->localPaidCount() : 0) {
-		const auto i = ranges::find(
-			result,
-			Data::ReactionId::Paid(),
-			&Data::MessageReaction::id);
 		if (i != end(result)) {
 			i->my = true;
 			i->count += local;
@@ -2591,8 +2591,14 @@ std::vector<Data::MessageReaction> HistoryItem::reactionsWithLocal() const {
 				.my = true,
 			});
 		}
+	} else if (i != end(result) && i != begin(result)) {
+		std::rotate(begin(result), i, i + 1);
 	}
 	return result;
+}
+
+int HistoryItem::reactionsPaidScheduled() const {
+	return _reactions ? _reactions->scheduledPaid() : 0;
 }
 
 bool HistoryItem::reactionsAreTags() const {
@@ -2607,6 +2613,12 @@ auto HistoryItem::recentReactions() const
 		Data::ReactionId,
 		std::vector<Data::RecentReaction>>();
 	return _reactions ? _reactions->recent() : kEmpty;
+}
+
+auto HistoryItem::topPaidReactions() const
+-> const std::vector<Data::MessageReactionsTopPaid> & {
+	static const auto kEmpty = std::vector<Data::MessageReactionsTopPaid>();
+	return _reactions ? _reactions->topPaid() : kEmpty;
 }
 
 bool HistoryItem::canViewReactions() const {

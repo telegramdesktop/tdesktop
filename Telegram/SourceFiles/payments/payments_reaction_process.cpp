@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_credits_box.h" // CreditsEmojiSmall.
 #include "core/ui_integration.h" // MarkedTextContext.
 #include "data/components/credits.h"
+#include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/view/history_view_element.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
+#include "ui/dynamic_thumbnails.h"
 
 namespace Payments {
 namespace {
@@ -167,10 +169,26 @@ void ShowPaidReactionDetails(
 			};
 		});
 	};
+	auto top = std::vector<Ui::PaidReactionTop>();
+	const auto &topPaid = item->topPaidReactions();
+	top.reserve(topPaid.size());
+	for (const auto &entry : topPaid) {
+		if (!entry.top) {
+			continue;
+		}
+		top.push_back({
+			.name = entry.peer->shortName(),
+			.photo = Ui::MakeUserpicThumbnail(entry.peer),
+			.count = int(entry.count),
+		});
+	}
+	ranges::sort(top, ranges::greater(), &Ui::PaidReactionTop::count);
+
 	state->selectBox = show->show(Ui::MakePaidReactionBox({
 		.min = min,
 		.max = max,
 		.chosen = chosen,
+		.top = std::move(top),
 		.channel = item->history()->peer->name(),
 		.submit = std::move(submitText),
 		.balanceValue = session->credits().balanceValue(),

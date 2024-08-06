@@ -13,16 +13,25 @@ namespace Ui {
 
 class BoxContent;
 class GenericBox;
+class DynamicImage;
 
 struct TextWithContext {
 	TextWithEntities text;
 	std::any context;
 };
 
+struct PaidReactionTop {
+	QString name;
+	std::shared_ptr<DynamicImage> photo;
+	int count = 0;
+};
+
 struct PaidReactionBoxArgs {
 	int min = 0;
 	int max = 0;
 	int chosen = 0;
+
+	std::vector<PaidReactionTop> top;
 
 	QString channel;
 	Fn<rpl::producer<TextWithContext>(rpl::producer<int> amount)> submit;

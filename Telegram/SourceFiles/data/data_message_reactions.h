@@ -379,6 +379,7 @@ public:
 	[[nodiscard]] const std::vector<MessageReaction> &list() const;
 	[[nodiscard]] auto recent() const
 		-> const base::flat_map<ReactionId, std::vector<RecentReaction>> &;
+	[[nodiscard]] const std::vector<TopPaid> &topPaid() const;
 	[[nodiscard]] std::vector<ReactionId> chosen() const;
 	[[nodiscard]] bool empty() const;
 

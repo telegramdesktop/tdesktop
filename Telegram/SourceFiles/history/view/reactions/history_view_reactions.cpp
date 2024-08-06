@@ -55,6 +55,7 @@ struct InlineList::Button {
 	int textWidth = 0;
 	int count = 0;
 	bool chosen = false;
+	bool paid = false;
 	bool tag = false;
 };
 
@@ -180,7 +181,7 @@ void InlineList::layoutButtons() {
 }
 
 InlineList::Button InlineList::prepareButtonWithId(const ReactionId &id) {
-	auto result = Button{ .id = id };
+	auto result = Button{ .id = id, .paid = id.paid()};
 	if (const auto customId = id.custom()) {
 		result.custom = _owner->owner().customEmojiManager().create(
 			customId,
@@ -421,14 +422,18 @@ void InlineList::paint(
 				} else if (!bubbleReady) {
 					opacity = bubbleProgress;
 				}
-				color = stm->msgFileBg->c;
+				color = button.paid
+					? st->creditsBg3()->c
+					: stm->msgFileBg->c;
 			} else {
 				if (!bubbleReady) {
 					opacity = bubbleProgress;
 				}
-				color = (chosen
-					? st->msgServiceFg()
-					: st->msgServiceBg())->c;
+				color = (!chosen
+					? st->msgServiceBg()
+					: button.paid
+					? st->creditsBg2()
+					: st->msgServiceFg())->c;
 			}
 
 			const auto fill = geometry.marginsAdded({
@@ -451,7 +456,7 @@ void InlineList::paint(
 				? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
 				: st->msgServiceFg())
 			: !chosen
-			? stm->msgServiceFg
+			? (button.paid ? st->creditsFg() : stm->msgServiceFg)
 			: context.outbg
 			? (context.selected()
 				? st->historyFileOutIconFgSelected()

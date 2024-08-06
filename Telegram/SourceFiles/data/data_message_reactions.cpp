@@ -2042,6 +2042,11 @@ auto MessageReactions::recent() const
 	return _recent;
 }
 
+auto MessageReactions::topPaid() const -> const std::vector<TopPaid> & {
+	static const auto kEmpty = std::vector<TopPaid>();
+	return _paid ? _paid->top : kEmpty;
+}
+
 bool MessageReactions::empty() const {
 	return _list.empty();
 }

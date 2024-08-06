@@ -57,6 +57,7 @@ struct RippleAnimation;
 namespace Data {
 struct MessagePosition;
 struct RecentReaction;
+struct MessageReactionsTopPaid;
 struct ReactionId;
 class Media;
 struct MessageReaction;
@@ -456,6 +457,9 @@ public:
 		-> const base::flat_map<
 			Data::ReactionId,
 			std::vector<Data::RecentReaction>> &;
+	[[nodiscard]] auto topPaidReactions() const
+		-> const std::vector<Data::MessageReactionsTopPaid> &;
+	[[nodiscard]] int reactionsPaidScheduled() const;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] std::vector<Data::ReactionId> chosenReactions() const;
 	[[nodiscard]] Data::ReactionId lookupUnreadReaction(

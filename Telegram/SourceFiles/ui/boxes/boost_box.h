@@ -17,6 +17,7 @@ class Show;
 class RpWidget;
 class GenericBox;
 class VerticalLayout;
+class FlatLabel;
 
 struct BoostCounters {
 	int level = 0;
@@ -128,5 +129,10 @@ void FillBoostLimit(
 	not_null<VerticalLayout*> container,
 	rpl::producer<BoostCounters> data,
 	style::margins limitLinePadding);
+
+[[nodiscard]] object_ptr<Ui::FlatLabel> MakeBoostFeaturesBadge(
+	not_null<QWidget*> parent,
+	rpl::producer<QString> text,
+	Fn<QBrush(QRect)> bg);
 
 } // namespace Ui

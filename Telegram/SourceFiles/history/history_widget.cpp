@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/credits.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
 #include "data/notify/data_notify_settings.h"
@@ -869,6 +870,11 @@ HistoryWidget::HistoryWidget(
 		}
 		if (flags & PeerUpdateFlag::FullInfo) {
 			fullInfoUpdated();
+			if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
+				if (channel->allowedReactions().paidEnabled) {
+					session().credits().load();
+				}
+			}
 		}
 	}, lifetime());
 
