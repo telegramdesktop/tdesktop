@@ -366,12 +366,18 @@ boostFeatureStories: icon{{ "settings/premium/features/feature_stories", windowB
 boostFeatureTranscribe: icon{{ "settings/premium/features/feature_voice", windowBgActive }};
 boostFeatureOffSponsored: icon{{ "settings/premium/features/feature_off_sponsored", windowBgActive }};
 
-paidReactTitleSkip: 23px;
-paidReactTopTitleMargin: margins(10px, 26px, 10px, 12px);
-paidReactTopMargin: margins(0px, 12px, 0px, 11px);
-paidReactTopUserpic: 42px;
-paidReactTopNameSkip: 47px;
-paidReactTopBadgeSkip: 32px;
+paidReactBox: Box(boostBox) {
+	buttonPadding: margins(22px, 22px, 22px, 22px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		font: font(13px semibold);
+	}
+}
+paidReactBubbleIcon: icon{{ "settings/premium/star", premiumButtonFg }};
+paidReactBubbleTop: 5px;
+paidReactSliderTop: 5px;
 paidReactSlider: MediaSlider(defaultContinuousSlider) {
 	activeFg: creditsBg3;
 	inactiveFg: creditsBg2;
@@ -382,12 +388,9 @@ paidReactSlider: MediaSlider(defaultContinuousSlider) {
 	width: 6px;
 	seekSize: size(16px, 16px);
 }
-paidReactBox: Box(boostBox) {
-	buttonPadding: margins(22px, 22px, 22px, 22px);
-	buttonHeight: 42px;
-	button: RoundButton(defaultActiveButton) {
-		height: 42px;
-		textTop: 12px;
-		font: font(13px semibold);
-	}
-}
+paidReactTitleSkip: 23px;
+paidReactTopTitleMargin: margins(10px, 26px, 10px, 12px);
+paidReactTopMargin: margins(0px, 12px, 0px, 11px);
+paidReactTopUserpic: 42px;
+paidReactTopNameSkip: 47px;
+paidReactTopBadgeSkip: 32px;

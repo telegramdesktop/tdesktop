@@ -9,12 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/boxes/boost_box.h" // MakeBoostFeaturesBadge.
+#include "ui/effects/premium_bubble.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
@@ -33,23 +35,94 @@ namespace {
 
 constexpr auto kMaxTopPaidShown = 3;
 
+struct Discreter {
+	Fn<int(float64)> ratioToValue;
+	Fn<float64(int)> valueToRatio;
+};
+
+[[nodiscard]] Discreter DiscreterForMax(int max) {
+	Expects(max >= 2);
+
+	// 1/8 of width is 1..10
+	// 1/3 of width is 1..100
+	// 2/3 of width is 1..1000
+
+	auto thresholds = base::flat_map<float64, int>();
+	thresholds.emplace(0., 1);
+	if (max <= 40) {
+		thresholds.emplace(1., max);
+	} else if (max <= 300) {
+		thresholds.emplace(1. / 4, 10);
+		thresholds.emplace(1., max);
+	} else if (max <= 600) {
+		thresholds.emplace(1. / 8, 10);
+		thresholds.emplace(1. / 2, 100);
+		thresholds.emplace(1., max);
+	} else if (max <= 1900) {
+		thresholds.emplace(1. / 8, 10);
+		thresholds.emplace(1. / 3, 100);
+		thresholds.emplace(1., max);
+	} else {
+		thresholds.emplace(1. / 8, 10);
+		thresholds.emplace(1. / 3, 100);
+		thresholds.emplace(2. / 3, 1000);
+		thresholds.emplace(1., max);
+	}
+
+	const auto ratioToValue = [=](float64 ratio) {
+		ratio = std::clamp(ratio, 0., 1.);
+		const auto j = thresholds.lower_bound(ratio);
+		if (j == begin(thresholds)) {
+			return 1;
+		}
+		const auto i = j - 1;
+		const auto progress = (ratio - i->first) / (j->first - i->first);
+		const auto value = i->second + (j->second - i->second) * progress;
+		return int(base::SafeRound(value));
+	};
+	const auto valueToRatio = [=](int value) {
+		value = std::clamp(value, 1, max);
+		auto i = begin(thresholds);
+		auto j = i + 1;
+		while (j->second < value) {
+			i = j++;
+		}
+		const auto progress = (value - i->second)
+			/ float64(j->second - i->second);
+		return i->first + (j->first - i->first) * progress;
+	};
+	return {
+		.ratioToValue = ratioToValue,
+		.valueToRatio = valueToRatio,
+	};
+}
+
 void PaidReactionSlider(
 		not_null<VerticalLayout*> container,
-		int min,
 		int current,
 		int max,
 		Fn<void(int)> changed) {
-	const auto top = st::boxTitleClose.height + st::creditsHistoryRightSkip;
+	Expects(current >= 1 && current <= max);
+
 	const auto slider = container->add(
 		object_ptr<MediaSlider>(container, st::paidReactSlider),
-		st::boxRowPadding + QMargins(0, top, 0, 0));
+		st::boxRowPadding + QMargins(0, st::paidReactSliderTop, 0, 0));
 	slider->resize(slider->width(), st::paidReactSlider.seekSize.height());
-	slider->setPseudoDiscrete(
-		max + 1 - min,
-		[=](int index) { return min + index; },
-		current - min,
-		changed,
-		changed);
+
+	const auto discreter = DiscreterForMax(max);
+	slider->setAlwaysDisplayMarker(true);
+	slider->setDirection(ContinuousSlider::Direction::Horizontal);
+	slider->setValue(discreter.valueToRatio(current));
+	slider->setAdjustCallback([=](float64 ratio) {
+		return discreter.valueToRatio(discreter.ratioToValue(ratio));
+	});
+	const auto ratioToValue = discreter.ratioToValue;
+	slider->setChangeProgressCallback([=](float64 value) {
+		changed(ratioToValue(value));
+	});
+	slider->setChangeFinishedCallback([=](float64 value) {
+		changed(ratioToValue(value));
+	});
 }
 
 [[nodiscard]] QImage GenerateBadgeImage(int count) {
@@ -100,15 +173,15 @@ void PaidReactionSlider(
 	return result;
 }
 
-[[nodiscard]] not_null<Ui::RpWidget*> MakeTopReactor(
+[[nodiscard]] not_null<RpWidget*> MakeTopReactor(
 		not_null<QWidget*> parent,
 		const PaidReactionTop &data) {
-	const auto result = Ui::CreateChild<Ui::RpWidget>(parent);
+	const auto result = CreateChild<RpWidget>(parent);
 	result->show();
 
 	struct State {
 		QImage badge;
-		Ui::Text::String name;
+		Text::String name;
 	};
 	const auto state = result->lifetime().make_state<State>();
 	state->name.setText(st::defaultTextStyle, data.name);
@@ -159,10 +232,10 @@ void FillTopReactors(
 
 	const auto height = st::paidReactTopNameSkip + st::normalFont->height;
 	const auto wrap = container->add(
-		object_ptr<Ui::FixedHeightWidget>(container, height),
+		object_ptr<FixedHeightWidget>(container, height),
 		st::paidReactTopMargin);
 	struct State {
-		std::vector<not_null<Ui::RpWidget*>> widgets;
+		std::vector<not_null<RpWidget*>> widgets;
 	};
 	const auto state = wrap->lifetime().make_state<State>();
 
@@ -189,6 +262,9 @@ void FillTopReactors(
 void PaidReactionsBox(
 		not_null<GenericBox*> box,
 		PaidReactionBoxArgs &&args) {
+	args.max = std::max(args.max, 2);
+	args.chosen = std::clamp(args.chosen, 1, args.max);
+
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::paidReactBox);
 	box->setNoContentMargin(true);
@@ -201,41 +277,79 @@ void PaidReactionsBox(
 	const auto changed = [=](int count) {
 		state->chosen = count;
 	};
-	PaidReactionSlider(
-		box->verticalLayout(),
-		args.min,
-		args.chosen,
-		args.max,
-		changed);
+
+	const auto content = box->verticalLayout();
+	AddSkip(content, st::boxTitleClose.height + st::paidReactBubbleTop);
+
+	const auto valueToRatio = DiscreterForMax(args.max).valueToRatio;
+	auto bubbleRowState = state->chosen.value() | rpl::map([=](int value) {
+		const auto full = st::boxWideWidth
+			- st::boxRowPadding.left()
+			- st::boxRowPadding.right();
+		const auto marker = st::paidReactSlider.seekSize.width();
+		const auto start = marker / 2;
+		const auto inner = full - marker;
+		const auto correct = start + inner * valueToRatio(value);
+		return Premium::BubbleRowState{
+			.counter = value,
+			.ratio = correct / full,
+		};
+	});
+	Premium::AddBubbleRow(
+		content,
+		st::boostBubble,
+		BoxShowFinishes(box),
+		std::move(bubbleRowState),
+		Premium::BubbleType::Credits,
+		nullptr,
+		&st::paidReactBubbleIcon,
+		st::boxRowPadding);
+
+	PaidReactionSlider(content, args.chosen, args.max, changed);
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
 	box->addRow(
-		object_ptr<Ui::FlatLabel>(
+		object_ptr<FlatLabel>(
 			box,
 			tr::lng_paid_react_title(),
 			st::boostCenteredTitle),
 		st::boxRowPadding + QMargins(0, st::paidReactTitleSkip, 0, 0));
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			tr::lng_paid_react_about(
-				lt_channel,
-				rpl::single(Text::Bold(args.channel)),
-				Text::RichLangValue),
-			st::boostText),
+	const auto labelWrap = box->addRow(
+		object_ptr<RpWidget>(box),
 		(st::boxRowPadding
 			+ QMargins(0, st::lineWidth, 0, st::boostBottomSkip)));
+	const auto label = CreateChild<FlatLabel>(
+		labelWrap,
+		(args.already
+			? tr::lng_paid_react_already(
+				lt_count,
+				rpl::single(args.already) | tr::to_count(),
+				Text::RichLangValue)
+			: tr::lng_paid_react_about(
+				lt_channel,
+				rpl::single(Text::Bold(args.channel)),
+				Text::RichLangValue)),
+		st::boostText);
+	labelWrap->widthValue() | rpl::start_with_next([=](int width) {
+		label->resizeToWidth(width);
+	}, label->lifetime());
+	label->heightValue() | rpl::start_with_next([=](int height) {
+		const auto min = 2 * st::normalFont->height;
+		const auto skip = std::max((min - height) / 2, 0);
+		labelWrap->resize(labelWrap->width(), 2 * skip + height);
+		label->moveToLeft(0, skip);
+	}, label->lifetime());
 
 	if (!args.top.empty()) {
-		FillTopReactors(box->verticalLayout(), std::move(args.top));
+		FillTopReactors(content, std::move(args.top));
 	}
 
 	const auto button = box->addButton(rpl::single(QString()), [=] {
 		args.send(state->chosen.current());
 	});
 	{
-		const auto buttonLabel = Ui::CreateChild<Ui::FlatLabel>(
+		const auto buttonLabel = CreateChild<FlatLabel>(
 			button,
 			rpl::single(QString()),
 			st::creditsBoxButtonLabel);
@@ -268,7 +382,7 @@ void PaidReactionsBox(
 
 	{
 		const auto balance = Settings::AddBalanceWidget(
-			box->verticalLayout(),
+			content,
 			std::move(args.balanceValue),
 			false);
 		rpl::combine(

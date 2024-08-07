@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/fireworks_animation.h"
+#include "ui/effects/premium_bubble.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -811,7 +812,7 @@ void FillBoostLimit(
 		st::boostBubble,
 		std::move(showFinished),
 		rpl::duplicate(bubbleRowState),
-		true,
+		Premium::BubbleType::Premium,
 		nullptr,
 		&st::premiumIconBoost,
 		limitLinePadding);

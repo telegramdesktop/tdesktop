@@ -3419,7 +3419,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_paid_price" = "Unlock for {price}";
 
 "lng_paid_react_title" = "Star Reaction";
-"lng_paid_react_about" = "Choose how many stars you want to send to {channel} to support this post.";
+"lng_paid_react_about" = "Choose how many **Stars** you want to send to {channel} to support this post.";
+"lng_paid_react_already#one" = "You sent **{count} Star** to support this post.";
+"lng_paid_react_already#other" = "You sent **{count} Stars** to support this post.";
 "lng_paid_react_top_title" = "Top Senders";
 "lng_paid_react_send" = "Send {price}";
 "lng_paid_react_agree" = "By sending stars, you agree to the {link}.";

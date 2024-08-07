@@ -27,9 +27,9 @@ struct PaidReactionTop {
 };
 
 struct PaidReactionBoxArgs {
-	int min = 0;
-	int max = 0;
+	int already = 0;
 	int chosen = 0;
+	int max = 0;
 
 	std::vector<PaidReactionTop> top;
 

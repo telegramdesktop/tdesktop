@@ -34,7 +34,7 @@ namespace Payments {
 namespace {
 
 constexpr auto kMaxPerReactionFallback = 2'500;
-constexpr auto kDefaultPerReaction = 20;
+constexpr auto kDefaultPerReaction = 50;
 
 void TryAddingPaidReaction(
 		not_null<Main::Session*> session,
@@ -82,6 +82,17 @@ void TryAddingPaidReaction(
 		done);
 }
 
+[[nodiscard]] int CountLocalPaid(not_null<HistoryItem*> item) {
+	const auto paid = [](const std::vector<Data::MessageReaction> &v) {
+		const auto i = ranges::find(
+			v,
+			Data::ReactionId::Paid(),
+			&Data::MessageReaction::id);
+		return (i != end(v)) ? i->count : 0;
+	};
+	return paid(item->reactionsWithLocal()) - paid(item->reactions());
+}
+
 } // namespace
 
 void TryAddingPaidReaction(
@@ -110,13 +121,12 @@ void ShowPaidReactionDetails(
 	const auto session = &item->history()->session();
 	const auto appConfig = &session->appConfig();
 
-	const auto min = 1;
 	const auto max = std::max(
 		appConfig->get<int>(
 			u"stars_paid_reaction_amount_max"_q,
 			kMaxPerReactionFallback),
-		min);
-	const auto chosen = std::clamp(kDefaultPerReaction, min, max);
+		2);
+	const auto chosen = std::clamp(kDefaultPerReaction, 1, max);
 
 	struct State {
 		QPointer<Ui::BoxContent> selectBox;
@@ -169,10 +179,14 @@ void ShowPaidReactionDetails(
 			};
 		});
 	};
+	auto already = 0;
 	auto top = std::vector<Ui::PaidReactionTop>();
 	const auto &topPaid = item->topPaidReactions();
 	top.reserve(topPaid.size());
 	for (const auto &entry : topPaid) {
+		if (entry.my) {
+			already = entry.count;
+		}
 		if (!entry.top) {
 			continue;
 		}
@@ -185,9 +199,9 @@ void ShowPaidReactionDetails(
 	ranges::sort(top, ranges::greater(), &Ui::PaidReactionTop::count);
 
 	state->selectBox = show->show(Ui::MakePaidReactionBox({
-		.min = min,
-		.max = max,
+		.already = already + CountLocalPaid(item),
 		.chosen = chosen,
+		.max = max,
 		.top = std::move(top),
 		.channel = item->history()->peer->name(),
 		.submit = std::move(submitText),
