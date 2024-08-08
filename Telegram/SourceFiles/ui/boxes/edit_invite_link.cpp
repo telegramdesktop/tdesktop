@@ -55,6 +55,7 @@ void EditInviteLinkBox(
 	const auto link = data.link;
 	const auto isGroup = data.isGroup;
 	const auto isPublic = data.isPublic;
+	const auto subscriptionLocked = data.subscriptionCredits > 0;
 	box->setTitle(link.isEmpty()
 		? tr::lng_group_invite_new_title()
 		: tr::lng_group_invite_edit_title());
@@ -108,7 +109,6 @@ void EditInviteLinkBox(
 		.subscription = false,
 	});
 
-	const auto subscriptionLocked = data.subscriptionCredits > 0;
 	const auto requestApproval = (isPublic || subscriptionLocked)
 		? nullptr
 		: container->add(
@@ -171,6 +171,37 @@ void EditInviteLinkBox(
 	labelField->setMaxLength(kMaxLabelLength);
 	addDivider(container, tr::lng_group_invite_label_about());
 
+	const auto &saveLabel = link.isEmpty()
+		? tr::lng_formatting_link_create
+		: tr::lng_settings_save;
+	box->addButton(saveLabel(), [=] {
+		const auto label = labelField->getLastText();
+		const auto expireDate = (state->expireValue == kMaxLimit)
+			? 0
+			: (state->expireValue < 0)
+			? (base::unixtime::now() - state->expireValue)
+			: state->expireValue;
+		const auto usageLimit = (state->usageValue == kMaxLimit)
+			? 0
+			: state->usageValue;
+		done(InviteLinkFields{
+			.link = link,
+			.label = label,
+			.expireDate = expireDate,
+			.usageLimit = usageLimit,
+			.subscriptionCredits = credits
+				? credits->getLastText().toInt()
+				: 0,
+			.requestApproval = state->requestApproval.current(),
+			.isGroup = isGroup,
+			.isPublic = isPublic,
+		});
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+	if (subscriptionLocked) {
+		return;
+	}
 	addTitle(container, tr::lng_group_invite_expire_title());
 	const auto expiresWrap = container->add(
 		object_ptr<VerticalLayout>(container),
@@ -342,34 +373,6 @@ void EditInviteLinkBox(
 
 	usagesSlide->toggleOn(state->requestApproval.value() | rpl::map(!_1));
 	usagesSlide->finishAnimating();
-
-	const auto &saveLabel = link.isEmpty()
-		? tr::lng_formatting_link_create
-		: tr::lng_settings_save;
-	box->addButton(saveLabel(), [=] {
-		const auto label = labelField->getLastText();
-		const auto expireDate = (state->expireValue == kMaxLimit)
-			? 0
-			: (state->expireValue < 0)
-			? (base::unixtime::now() - state->expireValue)
-			: state->expireValue;
-		const auto usageLimit = (state->usageValue == kMaxLimit)
-			? 0
-			: state->usageValue;
-		done(InviteLinkFields{
-			.link = link,
-			.label = label,
-			.expireDate = expireDate,
-			.usageLimit = usageLimit,
-			.subscriptionCredits = credits
-				? credits->getLastText().toInt()
-				: 0,
-			.requestApproval = state->requestApproval.current(),
-			.isGroup = isGroup,
-			.isPublic = isPublic,
-		});
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 void CreateInviteLinkBox(

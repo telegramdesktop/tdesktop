@@ -1281,6 +1281,13 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 				result.requestApproval,
 				{ uint64(result.subscriptionCredits), period },
 			});
+		} else if (result.subscriptionCredits) {
+			peer->session().api().inviteLinks().editTitle(
+				peer,
+				data.admin,
+				result.link,
+				result.label,
+				finish);
 		} else {
 			peer->session().api().inviteLinks().edit(
 				peer,

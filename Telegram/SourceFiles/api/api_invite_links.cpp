@@ -225,6 +225,15 @@ void InviteLinks::edit(
 		requestApproval);
 }
 
+void InviteLinks::editTitle(
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const QString &link,
+		const QString &label,
+		Fn<void(Link)> done) {
+	performEdit(peer, admin, link, done, false, label, 0, 0, false, true);
+}
+
 void InviteLinks::performEdit(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
@@ -234,7 +243,8 @@ void InviteLinks::performEdit(
 		const QString &label,
 		TimeId expireDate,
 		int usageLimit,
-		bool requestApproval) {
+		bool requestApproval,
+		bool editOnlyTitle) {
 	const auto key = LinkKey{ peer, link };
 	if (_deleteCallbacks.contains(key)) {
 		return;
@@ -259,7 +269,7 @@ void InviteLinks::performEdit(
 			? Flag::f_request_needed
 			: Flag(0));
 	_api->request(MTPmessages_EditExportedChatInvite(
-		MTP_flags(flags),
+		MTP_flags(editOnlyTitle ? Flag::f_title : flags),
 		peer->input,
 		MTP_string(link),
 		MTP_int(expireDate),

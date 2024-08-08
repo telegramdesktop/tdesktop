@@ -84,6 +84,12 @@ public:
 		int usageLimit,
 		bool requestApproval,
 		Fn<void(Link)> done = nullptr);
+	void editTitle(
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const QString &link,
+		const QString &label,
+		Fn<void(Link)> done = nullptr);
 	void revoke(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
@@ -194,7 +200,8 @@ private:
 		const QString &label = QString(),
 		TimeId expireDate = 0,
 		int usageLimit = 0,
-		bool requestApproval = false);
+		bool requestApproval = false,
+		bool editOnlyTitle = false);
 	void performCreate(
 		const CreateInviteLinkArgs &args,
 		bool revokeLegacyPermanent);
