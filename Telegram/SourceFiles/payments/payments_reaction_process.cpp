@@ -62,6 +62,8 @@ void TryAddingPaidReaction(
 			if (const auto item = checkItem()) {
 				item->addPaidReaction(count);
 				if (const auto view = weakView.get()) {
+					const auto history = view->history();
+					history->owner().notifyViewPaidReactionSent(view);
 					view->animateReaction({
 						.id = Data::ReactionId::Paid(),
 					});

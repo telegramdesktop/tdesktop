@@ -2525,6 +2525,13 @@ void HistoryItem::addPaidReaction(int count) {
 	_history->owner().notifyItemDataChange(this);
 }
 
+void HistoryItem::cancelScheduledPaidReaction() {
+	if (_reactions) {
+		_reactions->cancelScheduledPaid();
+		_history->owner().notifyItemDataChange(this);
+	}
+}
+
 int HistoryItem::startPaidReactionSending() {
 	return _reactions ? _reactions->startPaidSending() : 0;
 }

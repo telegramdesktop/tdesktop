@@ -43,6 +43,7 @@
     <file alias="star_reaction_appear.tgs">../../animations/star_reaction/appear.tgs</file>
     <file alias="star_reaction_center.tgs">../../animations/star_reaction/center.tgs</file>
     <file alias="star_reaction_select.tgs">../../animations/star_reaction/select.tgs</file>
+    <file alias="star_reaction_toast.tgs">../../animations/star_reaction/toast.tgs</file>
     <file alias="star_reaction_effect1.tgs">../../animations/star_reaction/effect1.tgs</file>
     <file alias="star_reaction_effect2.tgs">../../animations/star_reaction/effect2.tgs</file>
     <file alias="star_reaction_effect3.tgs">../../animations/star_reaction/effect3.tgs</file>

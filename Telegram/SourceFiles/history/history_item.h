@@ -446,6 +446,7 @@ public:
 		const Data::ReactionId &reaction,
 		HistoryReactionSource source);
 	void addPaidReaction(int count);
+	void cancelScheduledPaidReaction();
 	[[nodiscard]] int startPaidReactionSending();
 	void finishPaidReactionSending(int count, bool success);
 	void updateReactionsUnknown();

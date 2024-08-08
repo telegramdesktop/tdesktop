@@ -1884,6 +1884,14 @@ rpl::producer<not_null<const ViewElement*>> Session::viewRemoved() const {
 	return _viewRemoved.events();
 }
 
+void Session::notifyViewPaidReactionSent(not_null<const ViewElement*> view) {
+	_viewPaidReactionSent.fire_copy(view);
+}
+
+rpl::producer<not_null<const ViewElement*>> Session::viewPaidReactionSent() const {
+	return _viewPaidReactionSent.events();
+}
+
 void Session::notifyHistoryUnloaded(not_null<const History*> history) {
 	_historyUnloaded.fire_copy(history);
 }

@@ -3426,6 +3426,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_paid_react_send" = "Send {price}";
 "lng_paid_react_agree" = "By sending stars, you agree to the {link}.";
 "lng_paid_react_agree_link" = "Terms of Service";
+"lng_paid_react_toast_title" = "Star Sent!";
+"lng_paid_react_toast_text#one" = "You reacted with **{count} Star**.";
+"lng_paid_react_toast_text#other" = "You reacted with **{count} Stars**.";
+"lng_paid_react_undo" = "Undo";
 
 "lng_translate_show_original" = "Show Original";
 "lng_translate_bar_to" = "Translate to {name}";

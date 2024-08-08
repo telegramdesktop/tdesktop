@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "main/main_session.h"
 
+#include <xxhash.h>
+
 namespace ChatHelpers {
 namespace {
 
@@ -315,6 +317,12 @@ QSize ComputeStickerSize(not_null<DocumentData*> document, QSize box) {
 	return HistoryView::NonEmptySize(request.size(dimensions, 8) / ratio);
 }
 
+[[nodiscard]] uint64 LocalTgsStickerId(QStringView name) {
+	auto full = u"local_tgs_sticker:"_q;
+	full.append(name);
+	return XXH64(full.data(), full.size() * sizeof(QChar), 0);
+}
+
 not_null<DocumentData*> GenerateLocalTgsSticker(
 		not_null<Main::Session*> session,
 		const QString &name) {
@@ -327,7 +335,9 @@ not_null<DocumentData*> GenerateLocalTgsSticker(
 		SendMediaType::File,
 		FileLoadTo(0, {}, {}, 0),
 		{},
-		false);
+		false,
+		nullptr,
+		LocalTgsStickerId(name));
 	task.process({ .generateGoodThumbnail = false });
 	const auto result = task.peekResult();
 	Assert(result != nullptr);

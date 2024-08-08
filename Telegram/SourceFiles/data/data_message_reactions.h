@@ -139,11 +139,16 @@ public:
 	void clearTemporary();
 	[[nodiscard]] Reaction *lookupTemporary(const ReactionId &id);
 	[[nodiscard]] not_null<Reaction*> lookupPaid();
+	[[nodiscard]] not_null<DocumentData*> paidToastAnimation();
 
 	[[nodiscard]] rpl::producer<std::vector<Reaction>> myTagsValue(
 		SavedSublist *sublist = nullptr);
 
 	void schedulePaid(not_null<HistoryItem*> item);
+	void undoScheduledPaid(not_null<HistoryItem*> item);
+	[[nodiscard]] crl::time sendingScheduledPaidAt(
+		not_null<HistoryItem*> item) const;
+	[[nodiscard]] static crl::time ScheduledPaidDelay();
 
 	[[nodiscard]] static bool HasUnread(const MTPMessageReactions &data);
 	static void CheckUnknownForUnread(
@@ -293,6 +298,7 @@ private:
 	// Otherwise we could use flat_map<DocumentId, unique_ptr<Reaction>>.
 	std::map<DocumentId, Reaction> _temporary;
 	std::optional<Reaction> _paid;
+	DocumentData *_paidToastAnimation = nullptr;
 
 	base::Timer _topRefreshTimer;
 	mtpRequestId _topRequestId = 0;

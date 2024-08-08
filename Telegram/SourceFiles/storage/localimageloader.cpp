@@ -472,8 +472,9 @@ FileLoadTask::FileLoadTask(
 	const FileLoadTo &to,
 	const TextWithTags &caption,
 	bool spoiler,
-	std::shared_ptr<SendingAlbum> album)
-: _id(base::RandomValue<uint64>())
+	std::shared_ptr<SendingAlbum> album,
+	uint64 idOverride)
+: _id(idOverride ? idOverride : base::RandomValue<uint64>())
 , _session(session)
 , _dcId(session->mainDcId())
 , _to(to)

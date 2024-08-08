@@ -224,7 +224,8 @@ public:
 		const FileLoadTo &to,
 		const TextWithTags &caption,
 		bool spoiler,
-		std::shared_ptr<SendingAlbum> album = nullptr);
+		std::shared_ptr<SendingAlbum> album = nullptr,
+		uint64 idOverride = 0);
 	FileLoadTask(
 		not_null<Main::Session*> session,
 		const QByteArray &voice,

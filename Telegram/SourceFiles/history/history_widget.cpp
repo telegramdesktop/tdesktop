@@ -104,6 +104,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_contact_status.h"
 #include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_paid_reaction_toast.h"
 #include "history/view/history_view_pinned_tracker.h"
 #include "history/view/history_view_pinned_section.h"
 #include "history/view/history_view_pinned_bar.h"
@@ -285,6 +286,13 @@ HistoryWidget::HistoryWidget(
 	})
 , _saveDraftTimer([=] { saveDraft(); })
 , _saveCloudDraftTimer([=] { saveCloudDraft(); })
+, _paidReactionToast(std::make_unique<HistoryView::PaidReactionToast>(
+	this,
+	&session().data(),
+	rpl::single(st::topBarHeight),
+	[=](not_null<const HistoryView::Element*> view) {
+		return _list && _list->itemTop(view) >= 0;
+	}))
 , _topShadow(this) {
 	setAcceptDrops(true);
 

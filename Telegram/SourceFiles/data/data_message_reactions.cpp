@@ -48,7 +48,7 @@ constexpr auto kRecentReactionsLimit = 40;
 constexpr auto kMyTagsRequestTimeout = crl::time(1000);
 constexpr auto kTopRequestDelay = 60 * crl::time(1000);
 constexpr auto kTopReactionsLimit = 14;
-constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000);
+constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 
 [[nodiscard]] QString ReactionIdToLog(const ReactionId &id) {
 	if (const auto custom = id.custom()) {
@@ -1525,6 +1525,15 @@ not_null<Reaction*> Reactions::lookupPaid() {
 	return &*_paid;
 }
 
+not_null<DocumentData*> Reactions::paidToastAnimation() {
+	if (!_paidToastAnimation) {
+		_paidToastAnimation = ChatHelpers::GenerateLocalTgsSticker(
+			&_owner->session(),
+			u"star_reaction_toast"_q);
+	}
+	return _paidToastAnimation;
+}
+
 rpl::producer<std::vector<Reaction>> Reactions::myTagsValue(
 		SavedSublist *sublist) {
 	refreshMyTags(sublist);
@@ -1544,6 +1553,21 @@ void Reactions::schedulePaid(not_null<HistoryItem*> item) {
 	if (!_sendPaidTimer.isActive()) {
 		_sendPaidTimer.callOnce(kPaidAccumulatePeriod);
 	}
+}
+
+void Reactions::undoScheduledPaid(not_null<HistoryItem*> item) {
+	_sendPaidItems.remove(item);
+	item->cancelScheduledPaidReaction();
+}
+
+crl::time Reactions::sendingScheduledPaidAt(
+		not_null<HistoryItem*> item) const {
+	const auto i = _sendPaidItems.find(item);
+	return (i != end(_sendPaidItems)) ? i->second : crl::time();
+}
+
+crl::time Reactions::ScheduledPaidDelay() {
+	return kPaidAccumulatePeriod;
 }
 
 void Reactions::repaintCollected() {

@@ -87,6 +87,7 @@ class TabbedSelector;
 
 namespace HistoryView {
 class StickerToast;
+class PaidReactionToast;
 class TopBarWidget;
 class ContactStatus;
 class BusinessBotStatus;
@@ -824,6 +825,8 @@ private:
 	HistoryView::InfoTooltip _topToast;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
+
+	std::unique_ptr<HistoryView::PaidReactionToast> _paidReactionToast;
 
 	base::flat_set<not_null<HistoryItem*>> _itemRevealPending;
 	base::flat_map<
