@@ -992,6 +992,24 @@ inviteLinkQrSkip: 24px;
 inviteLinkQrMargin: margins(0px, 0px, 0px, 13px);
 inviteLinkQrValuePadding: margins(22px, 0px, 22px, 12px);
 
+inviteLinkCreditsField: InputField(defaultInputField) {
+	textMargins: margins(23px, 10px, 0px, 0px);
+	textAlign: align(left);
+	textFg: historyComposeAreaFg;
+	textBg: historyComposeAreaBg;
+	heightMin: 36px;
+	heightMax: 36px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 2px, 0px);
+	placeholderAlign: align(left);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	placeholderShift: -50px;
+	duration: 100;
+}
+
 usernamesReorderIcon: icon {{ "stickers_reorder", dialogsMenuIconFg }};
 
 infoAboutGigagroup: FlatLabel(defaultFlatLabel) {

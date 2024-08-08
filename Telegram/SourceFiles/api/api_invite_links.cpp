@@ -737,6 +737,12 @@ auto InviteLinks::parse(
 		return std::optional<Link>(Link{
 			.link = qs(data.vlink()),
 			.label = qs(data.vtitle().value_or_empty()),
+			.subscription = data.vsubscription_pricing()
+				? Data::PeerSubscription{
+					data.vsubscription_pricing()->data().vamount().v,
+					data.vsubscription_pricing()->data().vperiod().v,
+				}
+				: Data::PeerSubscription(),
 			.admin = peer->session().data().user(data.vadmin_id()),
 			.date = data.vdate().v,
 			.startDate = data.vstart_date().value_or_empty(),

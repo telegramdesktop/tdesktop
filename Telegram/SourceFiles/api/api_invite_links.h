@@ -16,6 +16,7 @@ namespace Api {
 struct InviteLink {
 	QString link;
 	QString label;
+	Data::PeerSubscription subscription;
 	not_null<UserData*> admin;
 	TimeId date = 0;
 	TimeId startDate = 0;

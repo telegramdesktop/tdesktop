@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/edit_invite_link.h"
+#include "ui/boxes/edit_invite_link_session.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "boxes/share_box.h"
@@ -1251,6 +1252,8 @@ object_ptr<Ui::BoxContent> InviteLinkQrBox(
 object_ptr<Ui::BoxContent> EditLinkBox(
 		not_null<PeerData*> peer,
 		const Api::InviteLink &data) {
+	constexpr auto kPeriod = 3600 * 24 * 30;
+	constexpr auto kTestModePeriod = 300;
 	const auto creating = data.link.isEmpty();
 	const auto box = std::make_shared<QPointer<Ui::GenericBox>>();
 	using Fields = Ui::InviteLinkFields;
@@ -1266,6 +1269,9 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 		};
 		if (creating) {
 			Assert(data.admin->isSelf());
+			const auto period = peer->session().isTestMode()
+				? kTestModePeriod
+				: kPeriod;
 			peer->session().api().inviteLinks().create({
 				peer,
 				finish,
@@ -1273,6 +1279,7 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 				result.expireDate,
 				result.usageLimit,
 				result.requestApproval,
+				{ uint64(result.subscriptionCredits), period },
 			});
 		} else {
 			peer->session().api().inviteLinks().edit(
@@ -1288,26 +1295,31 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 	};
 	const auto isGroup = !peer->isBroadcast();
 	const auto isPublic = peer->isChannel() && peer->asChannel()->isPublic();
-	if (creating) {
-		auto object = Box(Ui::CreateInviteLinkBox, isGroup, isPublic, done);
-		*box = Ui::MakeWeak(object.data());
-		return object;
-	} else {
-		auto object = Box(
-			Ui::EditInviteLinkBox,
-			Fields{
-				.link = data.link,
-				.label = data.label,
-				.expireDate = data.expireDate,
-				.usageLimit = data.usageLimit,
-				.requestApproval = data.requestApproval,
-				.isGroup = isGroup,
-				.isPublic = isPublic,
-			},
-			done);
-		*box = Ui::MakeWeak(object.data());
-		return object;
-	}
+	auto object = Box([=](not_null<Ui::GenericBox*> box) {
+		const auto fill = [=] {
+			return Ui::FillCreateInviteLinkSubscriptionToggle(box, peer);
+		};
+		if (creating) {
+			Ui::CreateInviteLinkBox(box, fill, isGroup, isPublic, done);
+		} else {
+			Ui::EditInviteLinkBox(
+				box,
+				fill,
+				Fields{
+					.link = data.link,
+					.label = data.label,
+					.expireDate = data.expireDate,
+					.usageLimit = data.usageLimit,
+					.subscriptionCredits = data.subscription.period,
+					.requestApproval = data.requestApproval,
+					.isGroup = isGroup,
+					.isPublic = isPublic,
+				},
+				done);
+		}
+	});
+	*box = Ui::MakeWeak(object.data());
+	return object;
 }
 
 object_ptr<Ui::BoxContent> RevokeLinkBox(

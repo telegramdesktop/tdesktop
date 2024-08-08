@@ -11,9 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/boxes/choose_date_time.h"
 #include "ui/layers/generic_box.h"
+#include "ui/vertical_list.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/number_input.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_settings.h"
@@ -44,6 +47,7 @@ constexpr auto kMaxLabelLength = 32;
 
 void EditInviteLinkBox(
 		not_null<GenericBox*> box,
+		Fn<InviteLinkSubscriptionToggle()> fillSubscription,
 		const InviteLinkFields &data,
 		Fn<void(InviteLinkFields)> done) {
 	using namespace rpl::mappers;
@@ -95,14 +99,17 @@ void EditInviteLinkBox(
 		int expireValue = 0;
 		int usageValue = 0;
 		rpl::variable<bool> requestApproval = false;
+		rpl::variable<bool> subscription = false;
 	};
 	const auto state = box->lifetime().make_state<State>(State{
 		.expireValue = expire,
 		.usageValue = usage,
 		.requestApproval = (data.requestApproval && !isPublic),
+		.subscription = false,
 	});
 
-	const auto requestApproval = isPublic
+	const auto subscriptionLocked = data.subscriptionCredits > 0;
+	const auto requestApproval = (isPublic || subscriptionLocked)
 		? nullptr
 		: container->add(
 			object_ptr<SettingsButton>(
@@ -111,8 +118,11 @@ void EditInviteLinkBox(
 				st::settingsButtonNoIcon),
 			style::margins{ 0, 0, 0, st::defaultVerticalListSkip });
 	if (requestApproval) {
-		requestApproval->toggleOn(state->requestApproval.value());
-		state->requestApproval = requestApproval->toggledValue();
+		requestApproval->toggleOn(state->requestApproval.value(), true);
+		requestApproval->setClickedCallback([=] {
+			state->requestApproval.force_assign(!requestApproval->toggled());
+			state->subscription.force_assign(false);
+		});
 		addDivider(container, rpl::conditional(
 			state->requestApproval.value(),
 			(isGroup
@@ -121,6 +131,30 @@ void EditInviteLinkBox(
 			(isGroup
 				? tr::lng_group_invite_about_no_approve()
 				: tr::lng_group_invite_about_no_approve_channel())));
+	}
+	auto credits = (Ui::NumberInput*)(nullptr);
+	if (!isPublic && fillSubscription) {
+		Ui::AddSkip(container);
+		const auto &[subscription, input] = fillSubscription();
+		credits = input.get();
+		subscription->toggleOn(state->subscription.value(), true);
+		if (subscriptionLocked) {
+			input->setText(QString::number(data.subscriptionCredits));
+			input->setReadOnly(true);
+			state->subscription.force_assign(true);
+			state->requestApproval.force_assign(false);
+			subscription->setToggleLocked(true);
+			subscription->finishAnimating();
+		}
+		subscription->setClickedCallback([=, show = box->uiShow()] {
+			if (subscriptionLocked) {
+				show->showToast(
+					tr::lng_group_invite_subscription_toast(tr::now));
+				return;
+			}
+			state->subscription.force_assign(!subscription->toggled());
+			state->requestApproval.force_assign(false);
+		});
 	}
 
 	const auto labelField = container->add(
@@ -327,6 +361,9 @@ void EditInviteLinkBox(
 			.label = label,
 			.expireDate = expireDate,
 			.usageLimit = usageLimit,
+			.subscriptionCredits = credits
+				? credits->getLastText().toInt()
+				: 0,
 			.requestApproval = state->requestApproval.current(),
 			.isGroup = isGroup,
 			.isPublic = isPublic,
@@ -337,11 +374,13 @@ void EditInviteLinkBox(
 
 void CreateInviteLinkBox(
 		not_null<GenericBox*> box,
+		Fn<InviteLinkSubscriptionToggle()> fillSubscription,
 		bool isGroup,
 		bool isPublic,
 		Fn<void(InviteLinkFields)> done) {
 	EditInviteLinkBox(
 		box,
+		std::move(fillSubscription),
 		InviteLinkFields{ .isGroup = isGroup, .isPublic = isPublic },
 		std::move(done));
 }
