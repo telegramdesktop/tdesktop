@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "storage/file_download.h" // kMaxFileInMemory
+#include "ui/effects/credits_graphics.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/text/custom_emoji_instance.h"
 #include "ui/text/text_custom_emoji.h"
@@ -961,6 +962,14 @@ Session &CustomEmojiManager::owner() const {
 
 uint64 CustomEmojiManager::coloredSetId() const {
 	return _coloredSetId;
+}
+
+TextWithEntities CustomEmojiManager::creditsEmoji(QMargins padding) {
+	return Ui::Text::SingleCustomEmoji(
+		registerInternalEmoji(
+			Ui::GenerateStars(st::normalFont->height, 1),
+			padding,
+			false));
 }
 
 QString CustomEmojiManager::registerInternalEmoji(
