@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h"
+#include "data/components/credits.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
 #include "data/data_forum.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_badge.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/premium_graphics.h"
@@ -35,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_credits.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
@@ -247,15 +250,26 @@ void ConfirmSubscriptionBox(
 					Ui::Text::RichLangValue),
 				st::inviteLinkSubscribeBoxTerms)));
 
-	auto confirmText = tr::lng_channel_invite_subscription_button();
-	const auto weak = Ui::MakeWeak(box);
-	state->saveButton = box->addButton(std::move(confirmText), [=] {
-		if (state->api) {
-			return;
-		}
-		state->api.emplace(&session->mtp());
-		state->loading.force_assign(true);
+	{
+		const auto balance = Settings::AddBalanceWidget(
+			content,
+			session->credits().balanceValue(),
+			true);
+		session->credits().load(true);
 
+		rpl::combine(
+			balance->sizeValue(),
+			content->sizeValue()
+		) | rpl::start_with_next([=](const QSize &, const QSize &) {
+			balance->moveToRight(
+				st::creditsHistoryRightSkip * 2,
+				st::creditsHistoryRightSkip);
+			balance->update();
+		}, balance->lifetime());
+	}
+
+	const auto sendCredits = [=, weak = Ui::MakeWeak(box)] {
+		const auto show = box->uiShow();
 		const auto buttonWidth = state->saveButton
 			? state->saveButton->width()
 			: 0;
@@ -264,22 +278,52 @@ void ConfirmSubscriptionBox(
 				MTP_flags(0),
 				MTP_long(formId),
 				MTP_inputInvoiceChatInviteSubscription(MTP_string(hash)))
-		).done([=](auto result) {
+		).done([=](const MTPpayments_PaymentResult &result) {
+			state->api = std::nullopt;
+			state->loading.force_assign(false);
+			result.match([&](const MTPDpayments_paymentResult &data) {
+				session->api().applyUpdates(data.vupdates());
+			}, [](const MTPDpayments_paymentVerificationNeeded &data) {
+			});
 			if (weak) {
-				state->api = std::nullopt;
 				box->closeBox();
 			}
-		}).fail([=, show = box->uiShow()](const MTP::Error &error) {
+		}).fail([=](const MTP::Error &error) {
 			const auto id = error.type();
 			if (weak) {
 				state->api = std::nullopt;
 			}
 			show->showToast(id);
+			state->loading.force_assign(false);
 		}).send();
 		if (state->saveButton) {
 			state->saveButton->resizeToWidth(buttonWidth);
 		}
+	};
+
+	auto confirmText = tr::lng_channel_invite_subscription_button();
+	state->saveButton = box->addButton(std::move(confirmText), [=] {
+		if (state->api) {
+			return;
+		}
+		state->api.emplace(&session->mtp());
+		state->loading.force_assign(true);
+
+		const auto done = [=](Settings::SmallBalanceResult result) {
+			if (result == Settings::SmallBalanceResult::Success) {
+				sendCredits();
+			} else {
+				state->api = std::nullopt;
+				state->loading.force_assign(false);
+			}
+		};
+		Settings::MaybeRequestBalanceIncrease(
+			Main::MakeSessionShow(box->uiShow(), session),
+			amount,
+			Settings::SmallBalanceSubscription{ .name = name },
+			done);
 	});
+
 	if (const auto saveButton = state->saveButton) {
 		using namespace Info::Statistics;
 		const auto loadingAnimation = InfiniteRadialAnimationWidget(

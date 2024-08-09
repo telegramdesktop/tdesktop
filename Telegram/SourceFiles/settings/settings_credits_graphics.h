@@ -93,9 +93,13 @@ struct SmallBalanceBot {
 struct SmallBalanceReaction {
 	ChannelId channelId = 0;
 };
+struct SmallBalanceSubscription {
+	QString name;
+};
 struct SmallBalanceSource : std::variant<
 	SmallBalanceBot,
-	SmallBalanceReaction> {
+	SmallBalanceReaction,
+	SmallBalanceSubscription> {
 	using variant::variant;
 };
 

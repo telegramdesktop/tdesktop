@@ -877,10 +877,12 @@ void SmallBalanceBox(
 	};
 
 	const auto owner = &show->session().data();
-	const auto peer = v::match(source, [&](SmallBalanceBot value) {
-		return owner->peer(peerFromUser(value.botId));
+	const auto name = v::match(source, [&](SmallBalanceBot value) {
+		return owner->peer(peerFromUser(value.botId))->name();
 	}, [&](SmallBalanceReaction value) {
-		return owner->peer(peerFromChannel(value.channelId));
+		return owner->peer(peerFromChannel(value.channelId))->name();
+	}, [](SmallBalanceSubscription value) {
+		return value.name;
 	});
 
 	auto needed = show->session().credits().balanceValue(
@@ -897,14 +899,19 @@ void SmallBalanceBox(
 					rpl::duplicate(
 						needed
 					) | rpl::filter(rpl::mappers::_1 > 0) | tr::to_count()),
-				.about = (peer->isBroadcast()
+				.about = (v::is<SmallBalanceSubscription>(source)
+					? tr::lng_credits_small_balance_subscribe(
+						lt_channel,
+						rpl::single(Ui::Text::Bold(name)),
+						Ui::Text::RichLangValue)
+					: v::is<SmallBalanceReaction>(source)
 					? tr::lng_credits_small_balance_reaction(
 						lt_channel,
-						rpl::single(Ui::Text::Bold(peer->name())),
+						rpl::single(Ui::Text::Bold(name)),
 						Ui::Text::RichLangValue)
 					: tr::lng_credits_small_balance_about(
 						lt_bot,
-						rpl::single(TextWithEntities{ peer->name() }),
+						rpl::single(TextWithEntities{ name }),
 						Ui::Text::RichLangValue)),
 				.light = true,
 				.gradientStops = Ui::Premium::CreditsIconGradientStops(),
