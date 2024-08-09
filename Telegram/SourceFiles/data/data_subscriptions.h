@@ -18,4 +18,19 @@ struct PeerSubscription final {
 	}
 };
 
+struct SubscriptionEntry final {
+	explicit operator bool() const {
+		return !id.isEmpty();
+	}
+
+	QString id;
+	QString inviteHash;
+	QDateTime until;
+	PeerSubscription subscription;
+	uint64 barePeerId = 0;
+	bool cancelled = false;
+	bool expired = false;
+	bool canRefulfill = false;
+};
+
 } // namespace Data

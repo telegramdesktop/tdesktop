@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_subscriptions.h"
+
 namespace Data {
 
 struct CreditTopupOption final {
@@ -31,6 +33,10 @@ struct CreditsHistoryMedia {
 };
 
 struct CreditsHistoryEntry final {
+	explicit operator bool() const {
+		return !id.isEmpty();
+	}
+
 	using PhotoId = uint64;
 	enum class PeerType {
 		Peer,
@@ -66,9 +72,12 @@ struct CreditsHistoryEntry final {
 struct CreditsStatusSlice final {
 	using OffsetToken = QString;
 	std::vector<CreditsHistoryEntry> list;
+	std::vector<SubscriptionEntry> subscriptions;
 	uint64 balance = 0;
+	uint64 subscriptionsMissingBalance = 0;
 	bool allLoaded = false;
 	OffsetToken token;
+	OffsetToken tokenSubscriptions;
 };
 
 } // namespace Data

@@ -60,6 +60,9 @@ public:
 	void request(
 		const Data::CreditsStatusSlice::OffsetToken &token,
 		Fn<void(Data::CreditsStatusSlice)> done);
+	void requestSubscriptions(
+		const Data::CreditsStatusSlice::OffsetToken &token,
+		Fn<void(Data::CreditsStatusSlice)> done);
 
 private:
 	using HistoryTL = MTPpayments_GetStarsTransactions;
