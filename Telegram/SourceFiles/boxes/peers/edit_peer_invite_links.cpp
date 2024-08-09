@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
@@ -31,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h" // st::boxDividerLabel
 #include "styles/style_menu_icons.h"
 
+#include <QtSvg/QSvgRenderer>
+
 namespace {
 
 enum class Color {
@@ -39,6 +42,7 @@ enum class Color {
 	ExpireSoon,
 	Expired,
 	Revoked,
+	Subscription,
 
 	Count,
 };
@@ -145,6 +149,8 @@ private:
 		? Color::ExpireSoon
 		: (progress >= 0.)
 		? Color::Expiring
+		: link.subscription
+		? Color::Subscription
 		: Color::Permanent;
 }
 
@@ -659,6 +665,7 @@ void LinksController::rowPaintIcon(
 		case Color::ExpireSoon: return &st::msgFile4Bg;
 		case Color::Expired: return &st::msgFile3Bg;
 		case Color::Revoked: return &st::windowSubTextFg;
+		case Color::Subscription: return &st::msgFile2Bg;
 		}
 		Unexpected("Color in LinksController::rowPaintIcon.");
 	}();
@@ -676,15 +683,25 @@ void LinksController::rowPaintIcon(
 		p.setBrush(*bg);
 		{
 			auto hq = PainterHighQualityEnabler(p);
-			auto rect = QRect(0, 0, inner, inner);
-			if (color == Color::Expiring || color == Color::ExpireSoon) {
-				rect = rect.marginsRemoved({ stroke, stroke, stroke, stroke });
-			}
+			const auto rect = QRect(0, 0, inner, inner)
+				- ((color == Color::Expiring || color == Color::ExpireSoon)
+					? Margins(stroke)
+					: Margins(0));
 			p.drawEllipse(rect);
 		}
-		(color == Color::Revoked
-			? st::inviteLinkRevokedIcon
-			: st::inviteLinkIcon).paintInCenter(p, { 0, 0, inner, inner });
+		if (color == Color::Subscription) {
+			auto svg = QSvgRenderer(u":/gui/links_subscription.svg"_q);
+			const auto r = QRect(
+				(inner - st::inviteLinkSubscriptionSize) / 2,
+				(inner - st::inviteLinkSubscriptionSize) / 2,
+				st::inviteLinkSubscriptionSize,
+				st::inviteLinkSubscriptionSize);
+			svg.render(&p, r);
+		} else {
+			(color == Color::Revoked
+				? st::inviteLinkRevokedIcon
+				: st::inviteLinkIcon).paintInCenter(p, { 0, 0, inner, inner });
+		}
 	}
 	p.drawImage(x + skip, y + skip, icon);
 	if (progress >= 0. && progress < 1.) {
