@@ -29,6 +29,30 @@ void Credits::apply(const MTPDupdateStarsBalance &data) {
 	apply(data.vbalance().v);
 }
 
+rpl::producer<float64> Credits::rateValue(
+		not_null<PeerData*> ownedBotOrChannel) {
+	// Should be replaced in the future.
+	if (_rate > 0) {
+		return rpl::single(_rate);
+	}
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		const auto api = lifetime.make_state<Api::CreditsEarnStatistics>(
+			ownedBotOrChannel);
+		api->request(
+		) | rpl::start_with_done([=] {
+			_rate = api->data().usdRate;
+			if (_rate > 0) {
+				consumer.put_next_copy(_rate);
+				consumer.put_done();
+			}
+		}, lifetime);
+
+		return lifetime;
+	};
+}
+
 void Credits::load(bool force) {
 	if (_loader
 		|| (!force

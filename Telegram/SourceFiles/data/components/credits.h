@@ -30,6 +30,8 @@ public:
 
 	[[nodiscard]] uint64 balance() const;
 	[[nodiscard]] rpl::producer<uint64> balanceValue() const;
+	[[nodiscard]] rpl::producer<float64> rateValue(
+		not_null<PeerData*> ownedBotOrChannel);
 
 	void lock(int count);
 	void unlock(int count);
@@ -47,6 +49,7 @@ private:
 	rpl::variable<uint64> _locked;
 	rpl::event_stream<> _loadedChanges;
 	crl::time _lastLoaded = 0;
+	float64 _rate = 0.;
 
 	SingleQueuedInvokation _reload;
 
