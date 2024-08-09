@@ -2028,6 +2028,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_subscription_about" = "Charge a subscription fee from people joining your channel via this link. {link}";
 "lng_group_invite_subscription_about_link" = "Learn more {emoji}";
 "lng_group_invite_subscription_about_url" = "https://telegram.org/tos/stars";
+"lng_group_invite_subscription_info_subtitle" = "Subscription fee";
+"lng_group_invite_subscription_info_title" = "{emoji} {price} / month {multiplier} {total}";
+"lng_group_invite_subscription_info_title_none" = "{emoji} {price} / month";
+"lng_group_invite_subscription_info_about" = "you get approximately {total} montly";
+"lng_group_invite_joined_right" = "per month";
 
 "lng_group_request_to_join" = "Request to Join";
 "lng_group_request_about" = "This group accepts new members only after they are approved by its admins.";

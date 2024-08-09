@@ -8,12 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_invite_link.h"
 
 #include "core/application.h"
-#include "data/data_peer.h"
-#include "data/data_user.h"
-#include "data/data_channel.h"
+#include "core/ui_integration.h" // Core::MarkedTextContext.
+#include "data/components/credits.h"
 #include "data/data_changes.h"
-#include "data/data_session.h"
+#include "data/data_channel.h"
 #include "data/data_histories.h"
+#include "data/data_peer.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "main/main_session.h"
 #include "api/api_invite_links.h"
 #include "base/unixtime.h"
@@ -26,10 +29,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/abstract_button.h"
 #include "ui/toast/toast.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/edit_invite_link.h"
 #include "ui/boxes/edit_invite_link_session.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "boxes/share_box.h"
 #include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
@@ -49,8 +54,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
-#include <QtGui/QGuiApplication>
 #include <QtCore/QMimeData>
+#include <QtGui/QGuiApplication>
+#include <QtSvg/QSvgRenderer>
 
 namespace {
 
@@ -604,6 +610,101 @@ void Controller::setupAboveJoinedWidget() {
 	const auto revoked = current.revoked;
 	if (revoked || !current.permanent) {
 		addHeaderBlock(container);
+	}
+	if (current.subscription) {
+		const auto &st = st::peerListSingleRow.item;
+		Ui::AddSubsectionTitle(
+			container,
+			tr::lng_group_invite_subscription_info_subtitle());
+		const auto widget = container->add(
+			CreateSkipWidget(container, st.height));
+		const auto name = widget->lifetime().make_state<Ui::Text::String>();
+		auto userpic = QImage(
+			Size(st.photoSize) * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		{
+			constexpr auto kGreenIndex = 3;
+			const auto colors = Ui::EmptyUserpic::UserpicColor(kGreenIndex);
+			auto emptyUserpic = Ui::EmptyUserpic(colors, {});
+
+			userpic.setDevicePixelRatio(style::DevicePixelRatio());
+			userpic.fill(Qt::transparent);
+
+			auto p = QPainter(&userpic);
+			emptyUserpic.paintCircle(p, 0, 0, st.photoSize, st.photoSize);
+
+			auto svg = QSvgRenderer(u":/gui/links_subscription.svg"_q);
+			const auto size = st.photoSize / 4. * 3.;
+			const auto r = QRectF(
+				(st.photoSize - size) / 2.,
+				(st.photoSize - size) / 2.,
+				size,
+				size);
+			p.setPen(st::historyPeerUserpicFg);
+			p.setBrush(Qt::NoBrush);
+			svg.render(&p, r);
+		}
+		name->setMarkedText(
+			st.nameStyle,
+			current.usage
+				? tr::lng_group_invite_subscription_info_title(
+					tr::now,
+					lt_emoji,
+					session().data().customEmojiManager().creditsEmoji(),
+					lt_price,
+					{ QString::number(current.subscription.credits) },
+					lt_multiplier,
+					TextWithEntities{ .text = QString(QChar(0x00D7)) },
+					lt_total,
+					{ QString::number(current.usage) },
+					Ui::Text::WithEntities)
+				: tr::lng_group_invite_subscription_info_title_none(
+					tr::now,
+					lt_emoji,
+					session().data().customEmojiManager().creditsEmoji(),
+					lt_price,
+					{ QString::number(current.subscription.credits) },
+					Ui::Text::WithEntities),
+			kMarkupTextOptions,
+			Core::MarkedTextContext{
+				.session = &session(),
+				.customEmojiRepaint = [=] { widget->update(); },
+			});
+		auto &lifetime = widget->lifetime();
+		const auto rateValue = lifetime.make_state<rpl::variable<float64>>(
+			session().credits().rateValue(_peer));
+		const auto currency = u"USD"_q;
+		const auto allCredits = current.subscription.credits * current.usage;
+		widget->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = Painter(widget);
+			p.setBrush(Qt::NoBrush);
+			p.setPen(st.nameFg);
+			name->draw(p, {
+				.position = st.namePosition,
+				.outerWidth = widget->width() - name->maxWidth(),
+				.availableWidth = widget->width() - name->maxWidth(),
+			});
+
+			p.drawImage(st.photoPosition, userpic);
+
+			const auto rate = rateValue->current();
+			const auto status = (allCredits <= 0)
+				? tr::lng_group_invite_no_joined(tr::now)
+				: (rate > 0)
+				? tr::lng_group_invite_subscription_info_about(
+					tr::now,
+					lt_total,
+					Ui::FillAmountAndCurrency(allCredits * rate, currency))
+				: QString();
+			p.setPen(st.statusFg);
+			p.setFont(st::contactsStatusFont);
+			p.drawTextLeft(
+				st.statusPosition.x(),
+				st.statusPosition.y(),
+				widget->width() - st.statusPosition.x(),
+				status);
+		}, widget->lifetime());
 	}
 	Ui::AddSubsectionTitle(
 		container,
