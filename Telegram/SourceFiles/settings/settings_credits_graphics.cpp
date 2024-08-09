@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_credits_graphics.h"
 
+#include "api/api_chat_invite.h"
 #include "api/api_credits.h"
 #include "api/api_earn.h"
+#include "apiwrap.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
@@ -29,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h" // HistoryServicePaymentRefund.
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
@@ -783,9 +786,68 @@ void ReceiptCreditsBox(
 		}, widget->lifetime());
 	}
 
-	const auto button = box->addButton(tr::lng_box_ok(), [=] {
-		box->closeBox();
+	const auto toRenew = (s.cancelled || s.expired)
+		&& !s.inviteHash.isEmpty();
+	const auto toCancel = !toRenew && s;
+	struct State final {
+		rpl::variable<bool> confirmButtonBusy;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	auto confirmText = rpl::conditional(
+		state->confirmButtonBusy.value(),
+		rpl::single(QString()),
+		toRenew
+			? tr::lng_credits_subscription_off_button()
+			: toCancel
+			? tr::lng_credits_subscription_on_button()
+			: tr::lng_box_ok());
+
+	using Flag = MTPpayments_ChangeStarsSubscription::Flag;
+	const auto send = [=, weak = Ui::MakeWeak(box)] {
+		if (toRenew && s.expired) {
+			Api::CheckChatInvite(controller, s.inviteHash, nullptr, [=] {
+				if (const auto strong = weak.get()) {
+					strong->closeBox();
+				}
+			});
+		} else {
+			session->api().request(
+				MTPpayments_ChangeStarsSubscription(
+					MTP_flags(Flag::f_canceled),
+					MTP_inputPeerSelf(),
+					MTP_string(s.id),
+					MTP_bool(toCancel)
+			)).done([=] {
+				state->confirmButtonBusy = false;
+				if (const auto strong = weak.get()) {
+					strong->closeBox();
+				}
+			}).fail([=, show = box->uiShow()](const MTP::Error &error) {
+				state->confirmButtonBusy = false;
+				show->showToast(error.type());
+			}).send();
+		}
+	};
+
+	const auto button = box->addButton(std::move(confirmText), [=] {
+		if (state->confirmButtonBusy.current()) {
+			return;
+		}
+		state->confirmButtonBusy = true;
+		if ((toRenew || toCancel) && peer) {
+			send();
+		} else {
+			box->closeBox();
+		}
 	});
+	{
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			button,
+			button->height() / 2);
+		AddChildToWidgetCenter(button, loadingAnimation);
+		loadingAnimation->showOn(state->confirmButtonBusy.value());
+	}
 	const auto buttonWidth = st::boxWidth
 		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
 	button->widthValue() | rpl::filter([=] {

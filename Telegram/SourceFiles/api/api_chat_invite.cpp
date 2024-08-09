@@ -342,13 +342,17 @@ void ConfirmSubscriptionBox(
 void CheckChatInvite(
 		not_null<Window::SessionController*> controller,
 		const QString &hash,
-		ChannelData *invitePeekChannel) {
+		ChannelData *invitePeekChannel,
+		Fn<void()> loaded) {
 	const auto session = &controller->session();
 	const auto weak = base::make_weak(controller);
 	session->api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
 		const auto strong = weak.get();
 		if (!strong) {
 			return;
+		}
+		if (loaded) {
+			loaded();
 		}
 		Core::App().hideMediaView();
 		const auto show = [&](not_null<PeerData*> chat) {
