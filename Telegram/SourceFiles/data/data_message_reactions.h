@@ -144,6 +144,7 @@ public:
 	[[nodiscard]] rpl::producer<std::vector<Reaction>> myTagsValue(
 		SavedSublist *sublist = nullptr);
 
+	[[nodiscard]] bool isQuitPrevent();
 	void schedulePaid(not_null<HistoryItem*> item);
 	void undoScheduledPaid(not_null<HistoryItem*> item);
 	[[nodiscard]] crl::time sendingScheduledPaidAt(
@@ -249,8 +250,12 @@ private:
 
 	void sendPaid();
 	bool sendPaid(not_null<HistoryItem*> item);
-	void sendPaidRequest(int count);
-	void sendPaidFinish(FullMsgId id, int count, bool success);
+	void sendPaidRequest(not_null<HistoryItem*> item, int count);
+	void sendPaidFinish(
+		not_null<HistoryItem*> item,
+		int count,
+		bool success);
+	void checkQuitPreventFinished();
 
 	const not_null<Session*> _owner;
 
@@ -333,7 +338,7 @@ private:
 	mtpRequestId _pollRequestId = 0;
 
 	base::flat_map<not_null<HistoryItem*>, crl::time> _sendPaidItems;
-	HistoryItem *_sendingPaid = nullptr;
+	base::flat_map<not_null<HistoryItem*>, mtpRequestId> _sendingPaid;
 	base::Timer _sendPaidTimer;
 
 	mtpRequestId _saveFaveRequestId = 0;

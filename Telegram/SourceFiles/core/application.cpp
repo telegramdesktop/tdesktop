@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
@@ -1738,6 +1739,9 @@ bool Application::readyToQuit() {
 					prevented = true;
 				}
 				if (session->data().stories().isQuitPrevent()) {
+					prevented = true;
+				}
+				if (session->data().reactions().isQuitPrevent()) {
 					prevented = true;
 				}
 			}

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 
 #include "chat_helpers/stickers_lottie.h"
+#include "core/application.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
@@ -304,8 +305,9 @@ Reactions::Reactions(not_null<Session*> owner)
 		_pollItems.remove(item);
 		_repaintItems.remove(item);
 		_sendPaidItems.remove(item);
-		if (_sendingPaid == item) {
-			_sendingPaid = nullptr;
+		if (const auto i = _sendingPaid.find(item)
+			; i != end(_sendingPaid)) {
+			_sendingPaid.erase(i);
 			_owner->session().credits().invalidate();
 			crl::on_main(&_owner->session(), [=] {
 				sendPaid();
@@ -1548,6 +1550,23 @@ rpl::producer<std::vector<Reaction>> Reactions::myTagsValue(
 	) | rpl::map(list));
 }
 
+bool Reactions::isQuitPrevent() {
+	for (auto i = begin(_sendPaidItems); i != end(_sendPaidItems);) {
+		const auto item = i->first;
+		if (_sendingPaid.contains(item)) {
+			++i;
+		} else {
+			i = _sendPaidItems.erase(i);
+			sendPaid(item);
+		}
+	}
+	if (_sendingPaid.empty()) {
+		return false;
+	}
+	LOG(("Reactions prevents quit, sending paid..."));
+	return true;
+}
+
 void Reactions::schedulePaid(not_null<HistoryItem*> item) {
 	_sendPaidItems[item] = crl::now() + kPaidAccumulatePeriod;
 	if (!_sendPaidTimer.isActive()) {
@@ -1625,7 +1644,8 @@ void Reactions::pollCollected() {
 }
 
 bool Reactions::sending(not_null<HistoryItem*> item) const {
-	return _sentRequests.contains(item->fullId()) || (_sendingPaid == item);
+	return _sentRequests.contains(item->fullId())
+		|| _sendingPaid.contains(item);
 }
 
 bool Reactions::HasUnread(const MTPMessageReactions &data) {
@@ -1658,7 +1678,7 @@ void Reactions::CheckUnknownForUnread(
 }
 
 void Reactions::sendPaid() {
-	if (_sendingPaid) {
+	if (!_sendingPaid.empty()) {
 		return;
 	}
 	auto next = crl::time();
@@ -1684,46 +1704,63 @@ void Reactions::sendPaid() {
 }
 
 bool Reactions::sendPaid(not_null<HistoryItem*> item) {
-	Expects(!_sendingPaid);
-
 	const auto count = item->startPaidReactionSending();
 	if (!count) {
 		return false;
 	}
 
-	_sendingPaid = item;
-	sendPaidRequest(count);
+	sendPaidRequest(item, count);
 	return true;
 }
 
-void Reactions::sendPaidRequest(int count) {
-	const auto id = _sendingPaid->fullId();
+void Reactions::sendPaidRequest(not_null<HistoryItem*> item, int count) {
+	Expects(!_sendingPaid.contains(item));
+
+	const auto id = item->fullId();
 	const auto randomId = base::unixtime::mtproto_msg_id();
 	auto &api = _owner->session().api();
-	api.request(MTPmessages_SendPaidReaction(
-		_sendingPaid->history()->peer->input,
+	const auto requestId = api.request(MTPmessages_SendPaidReaction(
+		item->history()->peer->input,
 		MTP_int(id.msg),
 		MTP_int(count),
 		MTP_long(randomId)
 	)).done([=](const MTPUpdates &result) {
-		sendPaidFinish(id, count, true);
-		_owner->session().api().applyUpdates(result);
-	}).fail([=](const MTP::Error &error) {
-		if (!_sendingPaid
-			|| (_sendingPaid->fullId() != id)
-			|| (error.type() != u"RANDOM_ID_EXPIRED"_q)) {
-			sendPaidFinish(id, count, false);
-		} else {
-			sendPaidRequest(count);
+		if (const auto item = _owner->message(id)) {
+			if (_sendingPaid.remove(item)) {
+				sendPaidFinish(item, count, true);
+			}
 		}
+		_owner->session().api().applyUpdates(result);
+		checkQuitPreventFinished();
+	}).fail([=](const MTP::Error &error) {
+		if (const auto item = _owner->message(id)) {
+			_sendingPaid.remove(item);
+			if (error.type() == u"RANDOM_ID_EXPIRED"_q) {
+				sendPaidRequest(item, count);
+			} else {
+				sendPaidFinish(item, count, false);
+			}
+		}
+		checkQuitPreventFinished();
 	}).send();
+	_sendingPaid[item] = requestId;
 }
 
-void Reactions::sendPaidFinish(FullMsgId id, int count, bool success) {
-	if (_sendingPaid && _sendingPaid->fullId() == id) {
-		base::take(_sendingPaid)->finishPaidReactionSending(count, success);
-		sendPaid();
+void Reactions::checkQuitPreventFinished() {
+	if (_sendingPaid.empty()) {
+		if (Core::Quitting()) {
+			LOG(("Reactions doesn't prevent quit any more."));
+		}
+		Core::App().quitPreventFinished();
 	}
+}
+
+void Reactions::sendPaidFinish(
+		not_null<HistoryItem*> item,
+		int count,
+		bool success) {
+	item->finishPaidReactionSending(count, success);
+	sendPaid();
 }
 
 MessageReactions::MessageReactions(not_null<HistoryItem*> item)
