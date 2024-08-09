@@ -10,11 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "api/api_statistics.h"
 #include "boxes/peer_list_controllers.h"
+#include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_channel.h"
 #include "data/data_credits.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "history/history_item.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
@@ -30,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "styles/style_boxes.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h" // dialogsStoriesFull.
 #include "styles/style_layers.h" // boxRowPadding.
@@ -720,6 +723,7 @@ class CreditsRow final : public PeerListRow {
 public:
 	struct Descriptor final {
 		Data::CreditsHistoryEntry entry;
+		Data::SubscriptionEntry subscription;
 		not_null<QImage*> creditIcon;
 		int rowHeight = 0;
 		Fn<void(not_null<PeerListRow*>)> updateCallback;
@@ -729,6 +733,7 @@ public:
 	CreditsRow(const Descriptor &descriptor);
 
 	[[nodiscard]] const Data::CreditsHistoryEntry &entry() const;
+	[[nodiscard]] const Data::SubscriptionEntry &subscription() const;
 	[[nodiscard]] QString generateName() override;
 
 	[[nodiscard]] PaintRoundImageCallback generatePaintUserpicCallback(
@@ -749,6 +754,7 @@ private:
 	void init();
 
 	const Data::CreditsHistoryEntry _entry;
+	const Data::SubscriptionEntry _subscription;
 	not_null<QImage*> const _creditIcon;
 	const int _rowHeight;
 
@@ -766,15 +772,16 @@ CreditsRow::CreditsRow(
 	const Descriptor &descriptor)
 : PeerListRow(peer, UniqueRowIdFromEntry(descriptor.entry))
 , _entry(descriptor.entry)
+, _subscription(descriptor.subscription)
 , _creditIcon(descriptor.creditIcon)
 , _rowHeight(descriptor.rowHeight) {
 	const auto callback = Ui::PaintPreviewCallback(
 		&peer->session(),
 		_entry);
 	if (callback) {
-		_paintUserpicCallback = callback(crl::guard(&_guard, [this, update = descriptor.updateCallback] {
-			update(this);
-		}));
+		_paintUserpicCallback = callback(crl::guard(
+			&_guard,
+			[this, update = descriptor.updateCallback] { update(this); }));
 	}
 	init();
 }
@@ -782,13 +789,15 @@ CreditsRow::CreditsRow(
 CreditsRow::CreditsRow(const Descriptor &descriptor)
 : PeerListRow(UniqueRowIdFromEntry(descriptor.entry))
 , _entry(descriptor.entry)
+, _subscription(descriptor.subscription)
 , _creditIcon(descriptor.creditIcon)
 , _rowHeight(descriptor.rowHeight) {
 	init();
 }
 
 void CreditsRow::init() {
-	const auto name = !PeerListRow::special()
+	const auto isSpecial = PeerListRow::special();
+	const auto name = !isSpecial
 		? PeerListRow::generateName()
 		: Ui::GenerateEntryName(_entry).text;
 	_name = _entry.reaction
@@ -809,18 +818,39 @@ void CreditsRow::init() {
 			? (joiner
 				+ tr::lng_credits_box_history_entry_subscription(tr::now))
 			: QString())
-		+ ((_entry.gift && PeerListRow::special())
+		+ ((_entry.gift && isSpecial)
 			? (joiner + tr::lng_credits_box_history_entry_anonymous(tr::now))
 			: ((_name == name) ? QString() : (joiner + name))));
-	{
+	if (_subscription) {
+		PeerListRow::setCustomStatus((_subscription.expired
+			? tr::lng_credits_subscription_status_none
+			: _subscription.cancelled
+			? tr::lng_credits_subscription_status_off
+			: tr::lng_credits_subscription_status_on)(
+				tr::now,
+				lt_date,
+				langDayOfMonthFull(_subscription.until.date())));
+	}
+	if (_entry) {
 		constexpr auto kMinus = QChar(0x2212);
 		_rightText.setText(
 			st::semiboldTextStyle,
 			(_entry.in ? QChar('+') : kMinus)
 				+ Lang::FormatCountDecimal(std::abs(int64(_entry.credits))));
+	} else if (_subscription.subscription.credits && !isSpecial) {
+		const auto peer = PeerListRow::peer();
+		_rightText.setMarkedText(
+			st::semiboldTextStyle,
+			peer->owner().customEmojiManager().creditsEmoji().append(
+				Lang::FormatCountDecimal(_subscription.subscription.credits)),
+			kMarkupTextOptions,
+			Core::MarkedTextContext{
+				.session = &peer->session(),
+				.customEmojiRepaint = [] {},
+			});
 	}
 	if (!_paintUserpicCallback) {
-		_paintUserpicCallback = !PeerListRow::special()
+		_paintUserpicCallback = !isSpecial
 			? PeerListRow::generatePaintUserpicCallback(false)
 			: Ui::GenerateCreditsPaintUserpicCallback(_entry);
 	}
@@ -828,6 +858,10 @@ void CreditsRow::init() {
 
 const Data::CreditsHistoryEntry &CreditsRow::entry() const {
 	return _entry;
+}
+
+const Data::SubscriptionEntry &CreditsRow::subscription() const {
+	return _subscription;
 }
 
 QString CreditsRow::generateName() {
@@ -839,6 +873,20 @@ PaintRoundImageCallback CreditsRow::generatePaintUserpicCallback(bool force) {
 }
 
 QSize CreditsRow::rightActionSize() const {
+	if (_subscription.cancelled || _subscription.expired) {
+		const auto text = _subscription.cancelled
+			? tr::lng_credits_subscription_status_off_right(tr::now)
+			: tr::lng_credits_subscription_status_none_right(tr::now);
+		return QSize(
+			st::contactsStatusFont->width(text) + st::boxRowPadding.right(),
+			_rowHeight);
+	} else if (_subscription) {
+		return QSize(
+			_rightText.maxWidth() + st::boxRowPadding.right(),
+			_rowHeight);
+	} else if (!_entry && !_subscription) {
+		return QSize();
+	}
 	return QSize(
 		_rightText.maxWidth()
 			+ (_creditIcon->width() / style::DevicePixelRatio())
@@ -863,6 +911,44 @@ void CreditsRow::rightActionPaint(
 		bool selected,
 		bool actionSelected) {
 	const auto &font = _rightText.style()->font;
+	if (_subscription) {
+		const auto &statusFont = st::contactsStatusFont;
+		const auto &st = st::boostsListBox.item;
+		const auto textHeight = font->height + statusFont->height;
+		const auto skip = (_rowHeight - textHeight) / 2;
+		const auto rightSkip = st::boxRowPadding.right();
+		if (_subscription.cancelled || _subscription.expired) {
+			y += _rowHeight / 2;
+			p.setFont(statusFont);
+			p.setPen(st::attentionButtonFg);
+			p.drawTextRight(
+				rightSkip,
+				y - statusFont->height / 2,
+				outerWidth,
+				_subscription.expired
+					? tr::lng_credits_subscription_status_none_right(tr::now)
+					: tr::lng_credits_subscription_status_off_right(tr::now));
+			return;
+		}
+
+		p.setPen(st.statusFg);
+		p.setFont(statusFont);
+		p.drawTextRight(
+			rightSkip,
+			y + _rowHeight - skip - statusFont->height,
+			outerWidth,
+			tr::lng_group_invite_joined_right(tr::now));
+
+		p.setPen(st.nameFg);
+		_rightText.draw(p, Ui::Text::PaintContext{
+			.position = QPoint(
+				outerWidth - _rightText.maxWidth() - rightSkip,
+				y + skip),
+			.outerWidth = outerWidth,
+			.availableWidth = outerWidth,
+		});
+		return;
+	}
 	y += _rowHeight / 2;
 	p.setPen(_entry.pending
 		? st::creditsStroke
@@ -931,10 +1017,14 @@ bool CreditsController::skipRequest() const {
 
 void CreditsController::requestNext() {
 	_requesting = true;
-	_api.request(_apiToken, [=](const Data::CreditsStatusSlice &s) {
+	const auto done = [=](const Data::CreditsStatusSlice &s) {
 		_requesting = false;
 		applySlice(s);
-	});
+	};
+	if (!_firstSlice.subscriptions.empty()) {
+		return _api.requestSubscriptions(_apiToken, done);
+	}
+	_api.request(_apiToken, done);
 }
 
 void CreditsController::prepare() {
@@ -947,26 +1037,32 @@ void CreditsController::loadMoreRows() {
 
 void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 	_allLoaded = slice.allLoaded;
-	_apiToken = slice.token;
+	_apiToken = slice.tokenSubscriptions;
 
+	auto create = [&](
+			const Data::CreditsHistoryEntry &i,
+			const Data::SubscriptionEntry &s) {
+		const auto descriptor = CreditsRow::Descriptor{
+			.entry = i,
+			.subscription = s,
+			.creditIcon = _creditIcon,
+			.rowHeight = computeListSt().item.height,
+			.updateCallback = [=](not_null<PeerListRow*> row) {
+				delegate()->peerListUpdateRow(row);
+			},
+		};
+		if (const auto peerId = PeerId(i.barePeerId + s.barePeerId)) {
+			const auto peer = session().data().peer(peerId);
+			return std::make_unique<CreditsRow>(peer, descriptor);
+		} else {
+			return std::make_unique<CreditsRow>(descriptor);
+		}
+	};
 	for (const auto &item : slice.list) {
-		auto row = [&] {
-			const auto descriptor = CreditsRow::Descriptor{
-				.entry = item,
-				.creditIcon = _creditIcon,
-				.rowHeight = computeListSt().item.height,
-				.updateCallback = [=](not_null<PeerListRow*> row) {
-					delegate()->peerListUpdateRow(row);
-				},
-			};
-			if (const auto peerId = PeerId(item.barePeerId)) {
-				const auto peer = session().data().peer(peerId);
-				return std::make_unique<CreditsRow>(peer, descriptor);
-			} else {
-				return std::make_unique<CreditsRow>(descriptor);
-			}
-		}();
-		delegate()->peerListAppendRow(std::move(row));
+		delegate()->peerListAppendRow(create(item, {}));
+	}
+	for (const auto &item : slice.subscriptions) {
+		delegate()->peerListAppendRow(create({}, item));
 	}
 	delegate()->peerListRefreshRows();
 }

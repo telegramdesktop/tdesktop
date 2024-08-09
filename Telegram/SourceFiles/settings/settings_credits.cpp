@@ -71,6 +71,7 @@ private:
 	void setupContent();
 	void setupOptions(not_null<Ui::VerticalLayout*> container);
 	void setupHistory(not_null<Ui::VerticalLayout*> container);
+	void setupSubscriptions(not_null<Ui::VerticalLayout*> container);
 
 	const not_null<Window::SessionController*> _controller;
 
@@ -124,6 +125,66 @@ void Credits::setStepDataReference(std::any &data) {
 	}
 }
 
+void Credits::setupSubscriptions(not_null<Ui::VerticalLayout*> container) {
+	const auto history = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto content = history->entity();
+	const auto self = _controller->session().user();
+
+	const auto fill = [=](const Data::CreditsStatusSlice &fullSlice) {
+		const auto inner = content;
+		if (fullSlice.subscriptions.empty()) {
+			return;
+		}
+		Ui::AddSkip(inner);
+		Ui::AddSubsectionTitle(
+			inner,
+			tr::lng_credits_subscription_section(),
+			{ 0, 0, 0, -st::settingsPremiumOptionsPadding.bottom() });
+
+		const auto fullWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+
+		const auto controller = _controller->parentController();
+		const auto entryClicked = [=](const Data::CreditsHistoryEntry &e) {
+			controller->uiShow()->show(Box(
+				ReceiptCreditsBox,
+				controller,
+				nullptr,
+				e));
+		};
+
+		Info::Statistics::AddCreditsHistoryList(
+			controller->uiShow(),
+			fullSlice,
+			fullWrap->entity(),
+			entryClicked,
+			self,
+			&_star,
+			true,
+			true);
+
+		Ui::AddSkip(inner);
+		Ui::AddSkip(inner);
+		Ui::AddDivider(inner);
+
+		inner->resizeToWidth(container->width());
+	};
+
+	const auto apiLifetime = content->lifetime().make_state<rpl::lifetime>();
+	{
+		using Api = Api::CreditsHistory;
+		const auto apiFull = apiLifetime->make_state<Api>(self, true, true);
+		apiFull->requestSubscriptions({}, [=](Data::CreditsStatusSlice d) {
+			fill(std::move(d));
+		});
+	}
+}
+
 void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 	const auto history = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -132,7 +193,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 	const auto content = history->entity();
 	const auto self = _controller->session().user();
 
-	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
+	Ui::AddSkip(content);
 
 	const auto fill = [=](
 			not_null<PeerData*> premiumBot,
@@ -306,6 +367,7 @@ void Credits::setupContent() {
 		});
 	}
 
+	setupSubscriptions(content);
 	setupHistory(content);
 
 	Ui::ResizeFitChild(this, content);

@@ -1418,7 +1418,7 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 					.label = data.label,
 					.expireDate = data.expireDate,
 					.usageLimit = data.usageLimit,
-					.subscriptionCredits = data.subscription.period,
+					.subscriptionCredits = int(data.subscription.credits),
 					.requestApproval = data.requestApproval,
 					.isGroup = isGroup,
 					.isPublic = isPublic,
