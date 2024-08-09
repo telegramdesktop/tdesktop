@@ -808,7 +808,7 @@ bool Manager::showContextMenu(
 	const auto id = std::get_if<ReactionId>(&selected);
 	if (!id || id->empty() || _tagsStrip) {
 		return false;
-	} else if (*id == favorite) {
+	} else if (*id == favorite || id->paid()) {
 		return true;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
