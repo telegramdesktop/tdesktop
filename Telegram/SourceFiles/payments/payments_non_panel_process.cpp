@@ -102,7 +102,8 @@ void ProcessCreditsReceipt(
 	controller->uiShow()->show(Box(
 		Settings::ReceiptCreditsBox,
 		controller,
-		entry));
+		entry,
+		Data::SubscriptionEntry{}));
 	controller->window().activate();
 }
 

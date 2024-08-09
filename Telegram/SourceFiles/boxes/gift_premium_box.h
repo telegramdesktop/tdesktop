@@ -19,6 +19,7 @@ namespace Data {
 struct CreditsHistoryEntry;
 struct GiveawayStart;
 struct GiveawayResults;
+struct SubscriptionEntry;
 } // namespace Data
 
 namespace Ui {
@@ -78,3 +79,8 @@ void AddCreditsHistoryEntryTable(
 	not_null<Window::SessionNavigation*> controller,
 	not_null<Ui::VerticalLayout*> container,
 	const Data::CreditsHistoryEntry &entry);
+
+void AddSubscriptionEntryTable(
+	not_null<Window::SessionNavigation*> controller,
+	not_null<Ui::VerticalLayout*> container,
+	const Data::SubscriptionEntry &s);

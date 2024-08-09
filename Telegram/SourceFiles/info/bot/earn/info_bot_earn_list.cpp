@@ -353,11 +353,14 @@ void InnerWidget::fillHistory() {
 		}, inner->lifetime());
 
 		const auto controller = _controller->parentController();
-		const auto entryClicked = [=](const Data::CreditsHistoryEntry &e) {
+		const auto entryClicked = [=](
+				const Data::CreditsHistoryEntry &e,
+				const Data::SubscriptionEntry &s) {
 			controller->uiShow()->show(Box(
 				::Settings::ReceiptCreditsBox,
 				controller,
-				e));
+				e,
+				s));
 		};
 
 		Info::Statistics::AddCreditsHistoryList(

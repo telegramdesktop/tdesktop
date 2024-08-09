@@ -1642,6 +1642,9 @@ void AddCreditsHistoryEntryTable(
 		not_null<Window::SessionNavigation*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		const Data::CreditsHistoryEntry &entry) {
+	if (!entry) {
+		return;
+	}
 	auto table = container->add(
 		object_ptr<Ui::TableLayout>(
 			container,
@@ -1755,5 +1758,35 @@ void AddCreditsHistoryEntryTable(
 			tr::lng_credits_box_history_entry_success_url(),
 			rpl::single(
 				Ui::Text::Link(entry.successLink, entry.successLink)));
+	}
+}
+
+void AddSubscriptionEntryTable(
+		not_null<Window::SessionNavigation*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		const Data::SubscriptionEntry &s) {
+	if (!s) {
+		return;
+	}
+	auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	const auto peerId = PeerId(s.barePeerId);
+	AddTableRow(
+		table,
+		tr::lng_credits_subscription_row_to(),
+		controller,
+		peerId);
+	if (!s.until.isNull()) {
+		AddTableRow(
+			table,
+			s.expired
+				? tr::lng_credits_subscription_row_next_none()
+				: s.cancelled
+				? tr::lng_credits_subscription_row_next_off()
+				: tr::lng_credits_subscription_row_next_on(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(s.until))));
 	}
 }

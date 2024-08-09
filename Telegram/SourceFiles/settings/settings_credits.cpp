@@ -150,11 +150,14 @@ void Credits::setupSubscriptions(not_null<Ui::VerticalLayout*> container) {
 				object_ptr<Ui::VerticalLayout>(inner)));
 
 		const auto controller = _controller->parentController();
-		const auto entryClicked = [=](const Data::CreditsHistoryEntry &e) {
+		const auto entryClicked = [=](
+				const Data::CreditsHistoryEntry &e,
+				const Data::SubscriptionEntry &s) {
 			controller->uiShow()->show(Box(
 				ReceiptCreditsBox,
 				controller,
-				e));
+				e,
+				s));
 		};
 
 		Info::Statistics::AddCreditsHistoryList(
@@ -280,11 +283,14 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		}, inner->lifetime());
 
 		const auto controller = _controller->parentController();
-		const auto entryClicked = [=](const Data::CreditsHistoryEntry &e) {
+		const auto entryClicked = [=](
+				const Data::CreditsHistoryEntry &e,
+				const Data::SubscriptionEntry &s) {
 			controller->uiShow()->show(Box(
 				ReceiptCreditsBox,
 				controller,
-				e));
+				e,
+				s));
 		};
 
 		Info::Statistics::AddCreditsHistoryList(

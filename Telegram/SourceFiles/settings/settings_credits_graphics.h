@@ -14,6 +14,7 @@ class PeerData;
 
 namespace Data {
 struct CreditsHistoryEntry;
+struct SubscriptionEntry;
 } // namespace Data
 
 namespace Main {
@@ -57,7 +58,8 @@ void AddWithdrawalWidget(
 void ReceiptCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
-	const Data::CreditsHistoryEntry &e);
+	const Data::CreditsHistoryEntry &e,
+	const Data::SubscriptionEntry &s);
 void GiftedCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,

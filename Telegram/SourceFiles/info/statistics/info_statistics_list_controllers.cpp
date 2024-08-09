@@ -133,7 +133,7 @@ struct BoostsDescriptor final {
 
 struct CreditsDescriptor final {
 	Data::CreditsStatusSlice firstSlice;
-	Fn<void(const Data::CreditsHistoryEntry &)> entryClickedCallback;
+	Clicked entryClickedCallback;
 	not_null<PeerData*> peer;
 	bool in = false;
 	bool out = false;
@@ -980,7 +980,7 @@ private:
 	void applySlice(const Data::CreditsStatusSlice &slice);
 
 	const not_null<Main::Session*> _session;
-	Fn<void(const Data::CreditsHistoryEntry &)> _entryClickedCallback;
+	Clicked _entryClickedCallback;
 
 	Api::CreditsHistory _api;
 	Data::CreditsStatusSlice _firstSlice;
@@ -1066,8 +1066,8 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 
 void CreditsController::rowClicked(not_null<PeerListRow*> row) {
 	if (_entryClickedCallback) {
-		_entryClickedCallback(
-			static_cast<const CreditsRow*>(row.get())->entry());
+		const auto r = static_cast<const CreditsRow*>(row.get());
+		_entryClickedCallback(r->entry(), r->subscription());
 	}
 }
 
@@ -1230,7 +1230,7 @@ void AddCreditsHistoryList(
 		std::shared_ptr<Main::SessionShow> show,
 		const Data::CreditsStatusSlice &firstSlice,
 		not_null<Ui::VerticalLayout*> container,
-		Fn<void(const Data::CreditsHistoryEntry &)> callback,
+		Clicked callback,
 		not_null<PeerData*> bot,
 		bool in,
 		bool out) {

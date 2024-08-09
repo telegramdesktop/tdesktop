@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "data/data_subscriptions.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
@@ -440,11 +441,10 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 void ReceiptCreditsBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
-		const Data::CreditsHistoryEntry &e) {
+		const Data::CreditsHistoryEntry &e,
+		const Data::SubscriptionEntry &s) {
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
-
-	const auto star = Ui::GenerateStars(st::creditsTopupButton.height, 1);
 
 	const auto content = box->verticalLayout();
 	Ui::AddSkip(content);
@@ -455,7 +455,9 @@ void ReceiptCreditsBox(
 
 	const auto &stUser = st::boostReplaceUserpic;
 	const auto session = &controller->session();
-	const auto peer = (e.peerType == Type::PremiumBot)
+	const auto peer = (s.barePeerId)
+		? session->data().peer(PeerId(s.barePeerId)).get()
+		: (e.peerType == Type::PremiumBot)
 		? nullptr
 		: e.barePeerId
 		? session->data().peer(PeerId(e.barePeerId)).get()
@@ -548,7 +550,9 @@ void ReceiptCreditsBox(
 		box,
 		object_ptr<Ui::FlatLabel>(
 			box,
-			rpl::single(!e.subscriptionUntil.isNull()
+			rpl::single(!s.until.isNull()
+				? tr::lng_credits_box_subscription_title(tr::now)
+				: !e.subscriptionUntil.isNull()
 				? tr::lng_credits_box_history_entry_subscription(tr::now)
 				: !e.title.isEmpty()
 				? e.title
@@ -564,10 +568,7 @@ void ReceiptCreditsBox(
 	{
 		constexpr auto kMinus = QChar(0x2212);
 		auto &lifetime = content->lifetime();
-		const auto text = lifetime.make_state<Ui::Text::String>(
-			st::semiboldTextStyle,
-			(e.in ? u"+"_q : e.gift ? QString() : QString(kMinus))
-				+ Lang::FormatCountDecimal(std::abs(int64(e.credits))));
+		const auto text = lifetime.make_state<Ui::Text::String>();
 		const auto roundedText = e.refunded
 			? tr::lng_channel_earn_history_return(tr::now)
 			: e.pending
@@ -584,25 +585,50 @@ void ReceiptCreditsBox(
 		const auto amount = content->add(
 			object_ptr<Ui::FixedHeightWidget>(
 				content,
-				star.height() / style::DevicePixelRatio()));
+				st::defaultTextStyle.font->height));
+		const auto context = Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [=] { amount->update(); },
+		};
+		if (s) {
+			text->setMarkedText(
+				st::defaultTextStyle,
+				tr::lng_credits_subscription_subtitle(
+					tr::now,
+					lt_emoji,
+					session->data().customEmojiManager().creditsEmoji(),
+					lt_cost,
+					{ QString::number(s.subscription.credits) },
+					Ui::Text::WithEntities),
+				kMarkupTextOptions,
+				context);
+		} else {
+			auto t = TextWithEntities()
+				.append(e.in ? u"+"_q : e.gift ? QString() : QString(kMinus))
+				.append(Lang::FormatCountDecimal(std::abs(int64(e.credits))))
+				.append(QChar(' '))
+				.append(session->data().customEmojiManager().creditsEmoji());
+			text->setMarkedText(
+				st::semiboldTextStyle,
+				std::move(t),
+				kMarkupTextOptions,
+				context);
+		}
 		const auto font = text->style()->font;
 		const auto roundedFont = st::defaultTextStyle.font;
-		const auto starWidth = star.width()
-			/ style::DevicePixelRatio();
 		const auto roundedSkip = roundedFont->spacew * 2;
 		const auto roundedWidth = rounded
 			? roundedFont->width(roundedText)
 				+ roundedSkip
 				+ roundedFont->height
 			: 0;
-		const auto fullWidth = text->maxWidth()
-			+ font->spacew * 1
-			+ starWidth
-			+ roundedWidth;
+		const auto fullWidth = text->maxWidth() + roundedWidth;
 		amount->paintRequest(
 		) | rpl::start_with_next([=] {
 			auto p = Painter(amount);
-			p.setPen(e.pending
+			p.setPen(s
+				? st::windowSubTextFg
+				: e.pending
 				? st::creditsStroke
 				: e.in
 				? st::boxTextFgGood
@@ -617,10 +643,6 @@ void ReceiptCreditsBox(
 				.outerWidth = amount->width(),
 				.availableWidth = amount->width(),
 			});
-			p.drawImage(
-				x + fullWidth - starWidth - roundedWidth,
-				0,
-				star);
 
 			if (rounded) {
 				const auto roundedLeft = fullWidth
@@ -702,6 +724,7 @@ void ReceiptCreditsBox(
 	Ui::AddSkip(content);
 
 	AddCreditsHistoryEntryTable(controller, content, e);
+	AddSubscriptionEntryTable(controller, content, s);
 
 	Ui::AddSkip(content);
 
@@ -713,10 +736,23 @@ void ReceiptCreditsBox(
 				lt_link,
 				tr::lng_payments_terms_link(
 				) | Ui::Text::ToLink(
-					tr::lng_credits_box_out_about_link(tr::now)
-				),
+					tr::lng_credits_box_out_about_link(tr::now)),
 				Ui::Text::WithEntities),
 			st::creditsBoxAboutDivider)));
+
+	if (s) {
+		Ui::AddSkip(content);
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				s.cancelled
+					? tr::lng_credits_subscription_off_about()
+					: tr::lng_credits_subscription_on_about(
+						lt_date,
+						rpl::single(langDayOfMonthFull(s.until.date()))),
+				st::creditsBoxAboutDivider)));
+	}
 
 	Ui::AddSkip(content);
 
@@ -782,7 +818,7 @@ void GiftedCreditsBox(
 		.peerType = (anonymous ? PeerType::Fragment : PeerType::Peer),
 		.in = received,
 		.gift = true,
-	});
+	}, {});
 }
 
 void ShowRefundInfoBox(
@@ -808,7 +844,8 @@ void ShowRefundInfoBox(
 	controller->show(Box(
 		::Settings::ReceiptCreditsBox,
 		controller,
-		info));
+		info,
+		Data::SubscriptionEntry{}));
 }
 
 object_ptr<Ui::RpWidget> GenericEntryPhoto(

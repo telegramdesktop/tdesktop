@@ -1404,11 +1404,13 @@ void InnerWidget::fill() {
 			const auto show = controller->uiShow();
 			const auto premiumBot = _peer->owner().peer(data.premiumBotId);
 			const auto entryClicked = [=](
-					const Data::CreditsHistoryEntry &e) {
+					const Data::CreditsHistoryEntry &e,
+					const Data::SubscriptionEntry &s) {
 				show->show(Box(
 					::Settings::ReceiptCreditsBox,
 					controller,
-					e));
+					e,
+					s));
 			};
 
 			Info::Statistics::AddCreditsHistoryList(
