@@ -398,6 +398,10 @@ paidReactToastLabel: FlatLabel(defaultFlatLabel) {
 	textFg: toastFg;
 	palette: defaultToastPalette;
 }
+paidReactTopStarIcon: icon{{ "chat/mini_stars", premiumButtonFg }};
+paidReactTopStarIconPosition: point(0px, 1px);
+paidReactTopStarSkip: 4px;
+
 toastUndoStroke: 2px;
 toastUndoSpace: 8px;
 toastUndoDiameter: 20px;

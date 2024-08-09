@@ -128,8 +128,10 @@ void PaidReactionSlider(
 [[nodiscard]] QImage GenerateBadgeImage(int count) {
 	const auto text = Lang::FormatCountDecimal(count);
 	const auto length = st::chatSimilarBadgeFont->width(text);
-	const auto contents = length
-		+ st::chatSimilarLockedIcon.width();
+	const auto contents = st::chatSimilarLockedIconPosition.x()
+		+ st::paidReactTopStarIcon.width()
+		+ st::paidReactTopStarSkip
+		+ length;
 	const auto badge = QRect(
 		st::chatSimilarBadgePadding.left(),
 		st::chatSimilarBadgePadding.top(),
@@ -146,7 +148,7 @@ void PaidReactionSlider(
 
 	const auto &font = st::chatSimilarBadgeFont;
 	const auto textTop = badge.y() + font->ascent;
-	const auto icon = &st::chatSimilarLockedIcon;
+	const auto icon = &st::paidReactTopStarIcon;
 	const auto position = st::chatSimilarLockedIconPosition;
 
 	auto hq = PainterHighQualityEnabler(q);
@@ -162,7 +164,7 @@ void PaidReactionSlider(
 			badge.x() + position.x(),
 			badge.y() + position.y(),
 			rect.width());
-		textLeft += position.x() + icon->width();
+		textLeft += position.x() + icon->width() + st::paidReactTopStarSkip;
 	}
 
 	q.setFont(font);
