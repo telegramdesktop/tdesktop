@@ -36,14 +36,9 @@ public:
 	~PaidReactionToast();
 
 private:
-	void maybeShowFor(not_null<HistoryItem*> item);
+	bool maybeShowFor(not_null<HistoryItem*> item);
 	void showFor(
 		FullMsgId itemId,
-		int count,
-		crl::time left,
-		crl::time total);
-	void update(
-		not_null<Ui::Toast::Instance*> toast,
 		int count,
 		crl::time left,
 		crl::time total);
@@ -55,9 +50,10 @@ private:
 	const not_null<Data::Session*> _owner;
 	const rpl::variable<int> _topOffset;
 
-	style::Toast _st;
 	base::weak_ptr<Ui::Toast::Instance> _weak;
 	std::vector<base::weak_ptr<Ui::Toast::Instance>> _hiding;
+	rpl::variable<int> _count;
+	rpl::variable<crl::time> _timeFinish;
 
 	std::vector<FullMsgId> _stack;
 

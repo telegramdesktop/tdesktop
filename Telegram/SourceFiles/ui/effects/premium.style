@@ -394,3 +394,12 @@ paidReactTopMargin: margins(0px, 12px, 0px, 11px);
 paidReactTopUserpic: 42px;
 paidReactTopNameSkip: 47px;
 paidReactTopBadgeSkip: 32px;
+paidReactToastLabel: FlatLabel(defaultFlatLabel) {
+	textFg: toastFg;
+	palette: defaultToastPalette;
+}
+toastUndoStroke: 2px;
+toastUndoSpace: 8px;
+toastUndoDiameter: 20px;
+toastUndoSkip: 20px;
+toastUndoFont: font(12px bold);
