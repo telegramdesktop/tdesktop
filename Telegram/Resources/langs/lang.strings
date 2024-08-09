@@ -4342,6 +4342,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_invites_disabled" = "{from} disabled group invites";
 "lng_admin_log_signatures_enabled" = "{from} enabled signatures";
 "lng_admin_log_signatures_disabled" = "{from} disabled signatures";
+"lng_admin_log_signature_profiles_enabled" = "{from} enabled showing authors' profiles";
+"lng_admin_log_signature_profiles_disabled" = "{from} disabled showing authors' profiles";
 "lng_admin_log_forwards_enabled" = "{from} allowed content copying";
 "lng_admin_log_forwards_disabled" = "{from} restricted content copying";
 "lng_admin_log_history_made_hidden" = "{from} made group history hidden for new members";
