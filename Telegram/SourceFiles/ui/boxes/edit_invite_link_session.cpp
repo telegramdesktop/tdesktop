@@ -116,7 +116,6 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 		p.setFont(st.placeholderFont);
 		p.setPen(st.placeholderFg);
 		p.setBrush(Qt::NoBrush);
-		const auto textWidth = st.placeholderFont->width(text);
 		const auto m = QMargins(0, skip, right, 0);
 		p.drawText(priceOverlay->rect() - m, text, style::al_right);
 	}, priceOverlay->lifetime());

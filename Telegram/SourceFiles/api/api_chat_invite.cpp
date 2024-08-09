@@ -234,7 +234,7 @@ void ConfirmSubscriptionBox(
 					Ui::Text::WithEntities),
 				st::inviteLinkSubscribeBoxAbout)));
 	Ui::AddSkip(content);
-	const auto terms = box->addRow(
+	box->addRow(
 		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 			box,
 			object_ptr<Ui::FlatLabel>(
