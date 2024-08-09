@@ -102,7 +102,6 @@ void ProcessCreditsReceipt(
 	controller->uiShow()->show(Box(
 		Settings::ReceiptCreditsBox,
 		controller,
-		nullptr,
 		entry));
 	controller->window().activate();
 }

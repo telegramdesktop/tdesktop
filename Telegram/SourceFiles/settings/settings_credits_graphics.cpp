@@ -440,7 +440,6 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 void ReceiptCreditsBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
-		PeerData *premiumBot,
 		const Data::CreditsHistoryEntry &e) {
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -771,7 +770,7 @@ void GiftedCreditsBox(
 	const auto anonymous = from->isServiceUser();
 	const auto peer = received ? from : to;
 	using PeerType = Data::CreditsHistoryEntry::PeerType;
-	Settings::ReceiptCreditsBox(box, controller, nullptr, {
+	Settings::ReceiptCreditsBox(box, controller, {
 		.id = QString(),
 		.title = (received
 			? tr::lng_credits_box_history_entry_gift_name
@@ -809,7 +808,6 @@ void ShowRefundInfoBox(
 	controller->show(Box(
 		::Settings::ReceiptCreditsBox,
 		controller,
-		nullptr, // premiumBot
 		info));
 }
 

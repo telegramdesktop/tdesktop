@@ -57,7 +57,6 @@ void AddWithdrawalWidget(
 void ReceiptCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
-	PeerData *premiumBot,
 	const Data::CreditsHistoryEntry &e);
 void GiftedCreditsBox(
 	not_null<Ui::GenericBox*> box,

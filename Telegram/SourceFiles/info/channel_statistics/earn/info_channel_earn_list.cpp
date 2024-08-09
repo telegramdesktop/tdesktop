@@ -1408,7 +1408,6 @@ void InnerWidget::fill() {
 				show->show(Box(
 					::Settings::ReceiptCreditsBox,
 					controller,
-					premiumBot.get(),
 					e));
 			};
 

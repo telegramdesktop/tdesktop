@@ -357,7 +357,6 @@ void InnerWidget::fillHistory() {
 			controller->uiShow()->show(Box(
 				::Settings::ReceiptCreditsBox,
 				controller,
-				premiumBot.get(),
 				e));
 		};
 

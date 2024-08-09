@@ -154,7 +154,6 @@ void Credits::setupSubscriptions(not_null<Ui::VerticalLayout*> container) {
 			controller->uiShow()->show(Box(
 				ReceiptCreditsBox,
 				controller,
-				nullptr,
 				e));
 		};
 
@@ -285,7 +284,6 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			controller->uiShow()->show(Box(
 				ReceiptCreditsBox,
 				controller,
-				premiumBot.get(),
 				e));
 		};
 
