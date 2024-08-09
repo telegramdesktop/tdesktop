@@ -549,8 +549,9 @@ void ReceiptCreditsBox(
 		box,
 		object_ptr<Ui::FlatLabel>(
 			box,
-			rpl::single(
-				!e.title.isEmpty()
+			rpl::single(!e.subscriptionUntil.isNull()
+				? tr::lng_credits_box_history_entry_subscription(tr::now)
+				: !e.title.isEmpty()
 				? e.title
 				: e.gift
 				? tr::lng_credits_box_history_entry_gift_name(tr::now)

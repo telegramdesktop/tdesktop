@@ -94,6 +94,10 @@ constexpr auto kTransactionsLimit = 100;
 		}, [](const MTPDstarsTransactionPeerAds &) {
 			return Data::CreditsHistoryEntry::PeerType::Ads;
 		}),
+		.subscriptionUntil = tl.data().vsubscription_period()
+			? base::unixtime::parse(base::unixtime::now()
+				+ tl.data().vsubscription_period()->v)
+			: QDateTime(),
 		.successDate = tl.data().vtransaction_date()
 			? base::unixtime::parse(tl.data().vtransaction_date()->v)
 			: QDateTime(),

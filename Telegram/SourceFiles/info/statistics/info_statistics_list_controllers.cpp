@@ -805,6 +805,9 @@ void CreditsRow::init() {
 			? (joiner + tr::lng_channel_earn_history_pending(tr::now))
 			: _entry.failed
 			? (joiner + tr::lng_channel_earn_history_failed(tr::now))
+			: !_entry.subscriptionUntil.isNull()
+			? (joiner
+				+ tr::lng_credits_box_history_entry_subscription(tr::now))
 			: QString())
 		+ ((_entry.gift && PeerListRow::special())
 			? (joiner + tr::lng_credits_box_history_entry_anonymous(tr::now))

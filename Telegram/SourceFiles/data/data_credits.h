@@ -52,6 +52,7 @@ struct CreditsHistoryEntry final {
 	uint64 bareMsgId = 0;
 	uint64 barePeerId = 0;
 	PeerType peerType;
+	QDateTime subscriptionUntil;
 	QDateTime successDate;
 	QString successLink;
 	bool reaction = false;
