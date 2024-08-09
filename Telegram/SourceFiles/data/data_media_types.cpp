@@ -2266,7 +2266,6 @@ ClickHandlerPtr MediaDice::MakeHandler(
 			.text = { tr::lng_about_random(tr::now, lt_emoji, emoji) },
 			.st = &st::historyDiceToast,
 			.duration = Ui::Toast::kDefaultDuration * 2,
-			.multiline = true,
 		};
 		if (CanSend(history->peer, ChatRestriction::SendOther)) {
 			auto link = Ui::Text::Link(tr::lng_about_random_send(tr::now));
@@ -2295,7 +2294,7 @@ ClickHandlerPtr MediaDice::MakeHandler(
 		if (const auto strong = weak.get()) {
 			ShownToast = strong->showToast(std::move(config));
 		} else {
-			ShownToast = Ui::Toast::Show(config);
+			ShownToast = Ui::Toast::Show(std::move(config));
 		}
 	});
 }

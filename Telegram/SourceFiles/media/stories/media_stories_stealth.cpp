@@ -55,8 +55,8 @@ struct Feature {
 			TextWithEntities{ TimeLeftText(left) },
 			Ui::Text::RichLangValue),
 		.st = &st::storiesStealthToast,
-		.duration = kAlreadyToastDuration,
 		.adaptive = true,
+		.duration = kAlreadyToastDuration,
 	};
 }
 
@@ -67,8 +67,8 @@ struct Feature {
 			tr::now,
 			Ui::Text::RichLangValue),
 		.st = &st::storiesStealthToast,
-		.duration = kAlreadyToastDuration,
 		.adaptive = true,
+		.duration = kAlreadyToastDuration,
 	};
 }
 
@@ -78,8 +78,8 @@ struct Feature {
 			tr::now,
 			Ui::Text::RichLangValue),
 		.st = &st::storiesStealthToast,
-		.duration = kAlreadyToastDuration,
 		.adaptive = true,
+		.duration = kAlreadyToastDuration,
 	};
 }
 

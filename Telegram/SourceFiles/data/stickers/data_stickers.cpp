@@ -96,8 +96,8 @@ void MaybeShowPremiumToast(
 	};
 	show->showToast({
 		.text = std::move(text),
-		.duration = kPremiumToastDuration,
 		.filter = filter,
+		.duration = kPremiumToastDuration,
 	});
 }
 
@@ -398,7 +398,6 @@ void Stickers::applyArchivedResult(
 	Ui::Toast::Show(Ui::Toast::Config{
 		.text = { tr::lng_stickers_packs_archived(tr::now) },
 		.st = &st::stickersToast,
-		.multiline = true,
 	});
 	//Ui::show(
 	//	Box<StickersBox>(archived, &session()),

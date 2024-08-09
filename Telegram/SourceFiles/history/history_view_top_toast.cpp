@@ -40,12 +40,10 @@ void InfoTooltip::show(
 	hide(anim::type::normal);
 	_topToast = Ui::Toast::Show(parent, Ui::Toast::Config{
 		.text = text,
-		.st = &st::historyInfoToast,
-		.duration = CountToastDuration(text),
-		.multiline = true,
-		.dark = true,
-		.slideSide = RectPart::Top,
 		.textContext = context,
+		.st = &st::historyInfoToast,
+		.attach = RectPart::Top,
+		.duration = CountToastDuration(text),
 	});
 	if (const auto strong = _topToast.get()) {
 		if (hiddenCallback) {

@@ -1126,10 +1126,8 @@ base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 			: list.back();
 		*toast = Ui::Toast::Show(parent, {
 			.text = { tr::lng_send_text_no_about(tr::now, lt_types, types) },
-			.st = &st::defaultMultilineToast,
+			.attach = RectPart::Bottom,
 			.duration = kTypesDuration,
-			.multiline = true,
-			.slideSide = RectPart::Bottom,
 		});
 	});
 	return result;

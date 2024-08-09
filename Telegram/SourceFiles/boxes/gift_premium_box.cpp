@@ -932,8 +932,8 @@ void ShowAlreadyPremiumToast(
 			Ui::Text::Link(
 				Ui::Text::Bold(tr::lng_gift_link_already_link(tr::now))),
 			Ui::Text::WithEntities),
-		.duration = 6 * crl::time(1000),
 		.filter = crl::guard(navigation, shareLink),
+		.duration = 6 * crl::time(1000),
 	});
 }
 

@@ -1429,9 +1429,6 @@ Fn<void()> VoicesPrivacyController::premiumClickedCallback(
 				lt_link,
 				link,
 				Ui::Text::WithEntities),
-			.st = &st::defaultMultilineToast,
-			.duration = Ui::Toast::kDefaultDuration * 2,
-			.multiline = true,
 			.filter = crl::guard(&controller->session(), [=](
 					const ClickHandlerPtr &,
 					Qt::MouseButton button) {
@@ -1447,6 +1444,7 @@ Fn<void()> VoicesPrivacyController::premiumClickedCallback(
 				}
 				return false;
 			}),
+			.duration = Ui::Toast::kDefaultDuration * 2,
 		});
 	};
 

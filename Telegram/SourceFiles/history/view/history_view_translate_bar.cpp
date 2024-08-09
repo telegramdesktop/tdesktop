@@ -524,16 +524,14 @@ void TranslateBar::showToast(
 	const auto weak = Ui::Toast::Show(_wrap.window(), Ui::Toast::Config{
 		.text = std::move(text),
 		.st = st.get(),
+		.attach = RectPart::Bottom,
+		.acceptinput = true,
 		.duration = kToastDuration,
-		.multiline = true,
-		.dark = true,
-		.slideSide = RectPart::Bottom,
 	});
 	const auto strong = weak.get();
 	if (!strong) {
 		return;
 	}
-	strong->setInputUsed(true);
 	const auto widget = strong->widget();
 	widget->lifetime().add([st] {});
 	const auto hideToast = [weak] {

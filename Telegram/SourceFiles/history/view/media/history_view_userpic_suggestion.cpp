@@ -146,10 +146,8 @@ void ShowSetToast(
 	const auto weak = controller->showToast({
 		.text = text,
 		.st = st.get(),
+		.attach = RectPart::Bottom,
 		.duration = kToastDuration,
-		.multiline = true,
-		.dark = true,
-		.slideSide = RectPart::Bottom,
 	});
 	if (const auto strong = weak.get()) {
 		const auto widget = strong->widget();

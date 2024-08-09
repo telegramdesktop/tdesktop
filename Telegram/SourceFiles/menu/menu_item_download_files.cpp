@@ -106,8 +106,8 @@ void AddAction(
 							tr::lng_mediaview_downloads(tr::now),
 							"internal:show_saved_message"),
 						Ui::Text::WithEntities),
-					.st = &st::defaultToast,
 					.filter = filter,
+					.st = &st::defaultToast,
 				});
 			};
 

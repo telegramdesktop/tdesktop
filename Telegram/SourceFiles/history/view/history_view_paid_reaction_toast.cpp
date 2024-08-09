@@ -115,16 +115,14 @@ void PaidReactionToast::showFor(
 	_weak = Ui::Toast::Show(_parent, Ui::Toast::Config{
 		.text = text,
 		.st = &_st,
-		.duration = -1,
-		.multiline = true,
-		.dark = true,
-		.slideSide = RectPart::Top,
+		.attach = RectPart::Top,
+		.acceptinput = true,
+		.infinite = true,
 	});
 	const auto strong = _weak.get();
 	if (!strong) {
 		return;
 	}
-	strong->setInputUsed(true);
 	const auto widget = strong->widget();
 	const auto hideToast = [weak = _weak] {
 		if (const auto strong = weak.get()) {
@@ -188,9 +186,10 @@ void PaidReactionToast::setupLottiePreview(
 
 	const auto bytes = document->createMediaView()->bytes();
 	const auto filepath = document->filepath();
+	const auto ratio = style::DevicePixelRatio();
 	const auto player = widget->lifetime().make_state<Lottie::SinglePlayer>(
 		Lottie::ReadContent(bytes, filepath),
-		Lottie::FrameRequest{ QSize(size, size) },
+		Lottie::FrameRequest{ QSize(size, size) * ratio },
 		Lottie::Quality::Default);
 
 	widget->paintRequest(
@@ -200,7 +199,7 @@ void PaidReactionToast::setupLottiePreview(
 		}
 		const auto image = player->frame();
 		QPainter(widget).drawImage(
-			QRect(QPoint(), image.size() / image.devicePixelRatio()),
+			QRect(QPoint(), image.size() / ratio),
 			image);
 		if (player->frameIndex() + 1 != player->framesCount()) {
 			player->markFrameShown();

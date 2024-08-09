@@ -1947,9 +1947,9 @@ void MainWidget::showNonPremiumLimitToast(bool download) {
 			? tr::lng_limit_download_title
 			: tr::lng_limit_upload_title)(tr::now),
 		.text = std::move(text),
-		.duration = 5 * crl::time(1000),
-		.slideSide = RectPart::Top,
 		.filter = std::move(filter),
+		.attach = RectPart::Top,
+		.duration = 5 * crl::time(1000),
 	});
 }
 

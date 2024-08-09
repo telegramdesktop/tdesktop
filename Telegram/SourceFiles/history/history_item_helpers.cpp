@@ -840,8 +840,8 @@ void ShowTrialTranscribesToast(int left, TimeId until) {
 			Ui::Text::WithEntities);
 	window->uiShow()->showToast(Ui::Toast::Config{
 		.text = text,
-		.duration = kToastDuration,
 		.filter = filter,
+		.duration = kToastDuration,
 	});
 }
 

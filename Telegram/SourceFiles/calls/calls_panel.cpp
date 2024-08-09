@@ -554,7 +554,6 @@ void Panel::reinitWithCall(Call *call) {
 		Ui::Toast::Show(widget(), Ui::Toast::Config{
 			.text = { text },
 			.st = &st::callErrorToast,
-			.multiline = true,
 		});
 	}, _callLifetime);
 

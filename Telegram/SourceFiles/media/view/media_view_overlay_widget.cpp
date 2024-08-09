@@ -1271,9 +1271,9 @@ void OverlayWidget::showPremiumDownloadPromo() {
 				Ui::Text::Bold(
 					tr::lng_send_as_premium_required_link(tr::now))),
 			Ui::Text::WithEntities),
-		.duration = kStorySavePromoDuration,
-		.adaptive = true,
 		.filter = filter,
+		.adaptive = true,
+		.duration = kStorySavePromoDuration,
 	});
 }
 

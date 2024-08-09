@@ -1076,9 +1076,9 @@ void CreateGiveawayBox(
 										tr::lng_giveaway_created_link(
 											tr::now)),
 									Ui::Text::WithEntities)),
-						.duration = kDoneTooltipDuration,
-						.adaptive = true,
 						.filter = filter,
+						.adaptive = true,
+						.duration = kDoneTooltipDuration,
 					});
 				} else if (weak) {
 					state->confirmButtonBusy = false;

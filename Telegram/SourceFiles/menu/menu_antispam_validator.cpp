@@ -167,7 +167,6 @@ void AntiSpamValidator::addAction(
 				channel = _channel] {
 			window->showToast({
 				.text = text,
-				.duration = ApiWrap::kJoinErrorDuration,
 				.filter = [=](
 						const ClickHandlerPtr&,
 						Qt::MouseButton) {
@@ -177,6 +176,7 @@ void AntiSpamValidator::addAction(
 						ParticipantsRole::Admins);
 					return true;
 				},
+				.duration = ApiWrap::kJoinErrorDuration,
 			});
 		};
 		menu->addAction(

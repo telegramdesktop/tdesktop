@@ -165,16 +165,14 @@ void StickerToast::showWithTitle(const QString &title) {
 	_weak = Ui::Toast::Show(_parent, Ui::Toast::Config{
 		.text = text,
 		.st = &_st,
+		.attach = RectPart::Bottom,
+		.acceptinput = true,
 		.duration = kPremiumToastDuration,
-		.multiline = true,
-		.dark = true,
-		.slideSide = RectPart::Bottom,
 	});
 	const auto strong = _weak.get();
 	if (!strong) {
 		return;
 	}
-	strong->setInputUsed(true);
 	const auto widget = strong->widget();
 	const auto hideToast = [weak = _weak] {
 		if (const auto strong = weak.get()) {
@@ -325,9 +323,10 @@ void StickerToast::setupLottiePreview(not_null<Ui::RpWidget*> widget, int size) 
 
 	const auto bytes = _for->createMediaView()->bytes();
 	const auto filepath = _for->filepath();
+	const auto ratio = style::DevicePixelRatio();
 	const auto player = widget->lifetime().make_state<Lottie::SinglePlayer>(
 		Lottie::ReadContent(bytes, filepath),
-		Lottie::FrameRequest{ QSize(size, size) },
+		Lottie::FrameRequest{ QSize(size, size) * ratio },
 		Lottie::Quality::Default);
 
 	widget->paintRequest(
@@ -337,7 +336,7 @@ void StickerToast::setupLottiePreview(not_null<Ui::RpWidget*> widget, int size) 
 		}
 		const auto image = player->frame();
 		QPainter(widget).drawImage(
-			QRect(QPoint(), image.size() / image.devicePixelRatio()),
+			QRect(QPoint(), image.size() / ratio),
 			image);
 		player->markFrameShown();
 	}, widget->lifetime());
