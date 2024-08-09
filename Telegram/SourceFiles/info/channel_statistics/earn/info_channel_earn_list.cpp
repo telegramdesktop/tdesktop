@@ -1412,16 +1412,12 @@ void InnerWidget::fill() {
 					e));
 			};
 
-			const auto star = tabCreditsList->lifetime().make_state<QImage>(
-				Ui::GenerateStars(st::creditsTopupButton.height, 1));
-
 			Info::Statistics::AddCreditsHistoryList(
 				show,
 				data.creditsStatusSlice,
 				tabCreditsList->entity(),
 				entryClicked,
 				_peer,
-				star,
 				true,
 				true);
 		}

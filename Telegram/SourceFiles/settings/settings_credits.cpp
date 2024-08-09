@@ -164,7 +164,6 @@ void Credits::setupSubscriptions(not_null<Ui::VerticalLayout*> container) {
 			fullWrap->entity(),
 			entryClicked,
 			self,
-			&_star,
 			true,
 			true);
 
@@ -296,7 +295,6 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			fullWrap->entity(),
 			entryClicked,
 			self,
-			&_star,
 			true,
 			true);
 		Info::Statistics::AddCreditsHistoryList(
@@ -305,7 +303,6 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			inWrap->entity(),
 			entryClicked,
 			self,
-			&_star,
 			true,
 			false);
 		Info::Statistics::AddCreditsHistoryList(
@@ -314,7 +311,6 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			outWrap->entity(),
 			std::move(entryClicked),
 			self,
-			&_star,
 			false,
 			true);
 

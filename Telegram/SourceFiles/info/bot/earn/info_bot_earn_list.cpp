@@ -361,16 +361,12 @@ void InnerWidget::fillHistory() {
 				e));
 		};
 
-		const auto star = lifetime().make_state<QImage>(
-			Ui::GenerateStars(st::creditsTopupButton.height, 1));
-
 		Info::Statistics::AddCreditsHistoryList(
 			controller->uiShow(),
 			fullSlice,
 			fullWrap->entity(),
 			entryClicked,
 			peer,
-			star,
 			true,
 			true);
 		Info::Statistics::AddCreditsHistoryList(
@@ -379,7 +375,6 @@ void InnerWidget::fillHistory() {
 			inWrap->entity(),
 			entryClicked,
 			peer,
-			star,
 			true,
 			false);
 		Info::Statistics::AddCreditsHistoryList(
@@ -388,7 +383,6 @@ void InnerWidget::fillHistory() {
 			outWrap->entity(),
 			std::move(entryClicked),
 			peer,
-			star,
 			false,
 			true);
 

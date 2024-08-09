@@ -135,7 +135,6 @@ struct CreditsDescriptor final {
 	Data::CreditsStatusSlice firstSlice;
 	Fn<void(const Data::CreditsHistoryEntry &)> entryClickedCallback;
 	not_null<PeerData*> peer;
-	not_null<QImage*> creditIcon;
 	bool in = false;
 	bool out = false;
 };
@@ -724,7 +723,7 @@ public:
 	struct Descriptor final {
 		Data::CreditsHistoryEntry entry;
 		Data::SubscriptionEntry subscription;
-		not_null<QImage*> creditIcon;
+		Core::MarkedTextContext context;
 		int rowHeight = 0;
 		Fn<void(not_null<PeerListRow*>)> updateCallback;
 	};
@@ -755,7 +754,7 @@ private:
 
 	const Data::CreditsHistoryEntry _entry;
 	const Data::SubscriptionEntry _subscription;
-	not_null<QImage*> const _creditIcon;
+	const Core::MarkedTextContext _context;
 	const int _rowHeight;
 
 	PaintRoundImageCallback _paintUserpicCallback;
@@ -773,7 +772,7 @@ CreditsRow::CreditsRow(
 : PeerListRow(peer, UniqueRowIdFromEntry(descriptor.entry))
 , _entry(descriptor.entry)
 , _subscription(descriptor.subscription)
-, _creditIcon(descriptor.creditIcon)
+, _context(descriptor.context)
 , _rowHeight(descriptor.rowHeight) {
 	const auto callback = Ui::PaintPreviewCallback(
 		&peer->session(),
@@ -790,7 +789,7 @@ CreditsRow::CreditsRow(const Descriptor &descriptor)
 : PeerListRow(UniqueRowIdFromEntry(descriptor.entry))
 , _entry(descriptor.entry)
 , _subscription(descriptor.subscription)
-, _creditIcon(descriptor.creditIcon)
+, _context(descriptor.context)
 , _rowHeight(descriptor.rowHeight) {
 	init();
 }
@@ -831,23 +830,27 @@ void CreditsRow::init() {
 				lt_date,
 				langDayOfMonthFull(_subscription.until.date())));
 	}
+	auto &manager = _context.session->data().customEmojiManager();
 	if (_entry) {
 		constexpr auto kMinus = QChar(0x2212);
-		_rightText.setText(
+		_rightText.setMarkedText(
 			st::semiboldTextStyle,
-			(_entry.in ? QChar('+') : kMinus)
-				+ Lang::FormatCountDecimal(std::abs(int64(_entry.credits))));
+			TextWithEntities()
+				.append(_entry.in ? QChar('+') : kMinus)
+				.append(
+					Lang::FormatCountDecimal(std::abs(int64(_entry.credits))))
+				.append(QChar(' '))
+				.append(manager.creditsEmoji()),
+			kMarkupTextOptions,
+			_context);
 	} else if (_subscription.subscription.credits && !isSpecial) {
 		const auto peer = PeerListRow::peer();
 		_rightText.setMarkedText(
 			st::semiboldTextStyle,
-			peer->owner().customEmojiManager().creditsEmoji().append(
+			manager.creditsEmoji().append(
 				Lang::FormatCountDecimal(_subscription.subscription.credits)),
 			kMarkupTextOptions,
-			Core::MarkedTextContext{
-				.session = &peer->session(),
-				.customEmojiRepaint = [] {},
-			});
+			_context);
 	}
 	if (!_paintUserpicCallback) {
 		_paintUserpicCallback = !isSpecial
@@ -880,19 +883,14 @@ QSize CreditsRow::rightActionSize() const {
 		return QSize(
 			st::contactsStatusFont->width(text) + st::boxRowPadding.right(),
 			_rowHeight);
-	} else if (_subscription) {
+	} else if (_subscription || _entry) {
 		return QSize(
 			_rightText.maxWidth() + st::boxRowPadding.right(),
 			_rowHeight);
 	} else if (!_entry && !_subscription) {
 		return QSize();
 	}
-	return QSize(
-		_rightText.maxWidth()
-			+ (_creditIcon->width() / style::DevicePixelRatio())
-			+ st::creditsHistoryRightSkip
-			+ _rightText.style()->font->spacew * 2,
-		_rowHeight);
+	return QSize();
 }
 
 QMargins CreditsRow::rightActionMargins() const {
@@ -911,12 +909,12 @@ void CreditsRow::rightActionPaint(
 		bool selected,
 		bool actionSelected) {
 	const auto &font = _rightText.style()->font;
+	const auto rightSkip = st::boxRowPadding.right();
 	if (_subscription) {
 		const auto &statusFont = st::contactsStatusFont;
 		const auto &st = st::boostsListBox.item;
 		const auto textHeight = font->height + statusFont->height;
 		const auto skip = (_rowHeight - textHeight) / 2;
-		const auto rightSkip = st::boxRowPadding.right();
 		if (_subscription.cancelled || _subscription.expired) {
 			y += _rowHeight / 2;
 			p.setFont(statusFont);
@@ -955,17 +953,13 @@ void CreditsRow::rightActionPaint(
 		: _entry.in
 		? st::boxTextFgGood
 		: st::menuIconAttentionColor);
-	x += st::creditsHistoryRightSkip;
 	_rightText.draw(p, Ui::Text::PaintContext{
-		.position = QPoint(x, y - font->height / 2),
+		.position = QPoint(
+			outerWidth - _rightText.maxWidth() - rightSkip,
+			y - font->height / 2),
 		.outerWidth = outerWidth,
 		.availableWidth = outerWidth,
 	});
-	x += _rightText.maxWidth() + font->spacew * 2;
-	p.drawImage(
-		x,
-		y -(_creditIcon->height() / style::DevicePixelRatio()) / 2,
-		*_creditIcon);
 }
 
 class CreditsController final : public PeerListController {
@@ -987,11 +981,11 @@ private:
 
 	const not_null<Main::Session*> _session;
 	Fn<void(const Data::CreditsHistoryEntry &)> _entryClickedCallback;
-	not_null<QImage*> const _creditIcon;
 
 	Api::CreditsHistory _api;
 	Data::CreditsStatusSlice _firstSlice;
 	Data::CreditsStatusSlice::OffsetToken _apiToken;
+	Core::MarkedTextContext _context;
 
 	rpl::variable<bool> _allLoaded = false;
 	bool _requesting = false;
@@ -1001,9 +995,12 @@ private:
 CreditsController::CreditsController(CreditsDescriptor d)
 : _session(&d.peer->session())
 , _entryClickedCallback(std::move(d.entryClickedCallback))
-, _creditIcon(d.creditIcon)
 , _api(d.peer, d.in, d.out)
-, _firstSlice(std::move(d.firstSlice)) {
+, _firstSlice(std::move(d.firstSlice))
+, _context(Core::MarkedTextContext{
+	.session = _session,
+	.customEmojiRepaint = [] {},
+}) {
 	PeerListController::setStyleOverrides(&st::boostsListBox);
 }
 
@@ -1045,7 +1042,7 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 		const auto descriptor = CreditsRow::Descriptor{
 			.entry = i,
 			.subscription = s,
-			.creditIcon = _creditIcon,
+			.context = _context,
 			.rowHeight = computeListSt().item.height,
 			.updateCallback = [=](not_null<PeerListRow*> row) {
 				delegate()->peerListUpdateRow(row);
@@ -1235,7 +1232,6 @@ void AddCreditsHistoryList(
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(const Data::CreditsHistoryEntry &)> callback,
 		not_null<PeerData*> bot,
-		not_null<QImage*> icon,
 		bool in,
 		bool out) {
 	struct State final {
@@ -1249,7 +1245,7 @@ void AddCreditsHistoryList(
 		CreditsController controller;
 	};
 	const auto state = container->lifetime().make_state<State>(
-		CreditsDescriptor{ firstSlice, callback, bot, icon, in, out },
+		CreditsDescriptor{ firstSlice, callback, bot, in, out },
 		show);
 
 	state->delegate.setContent(container->add(
