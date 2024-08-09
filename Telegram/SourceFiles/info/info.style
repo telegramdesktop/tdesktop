@@ -1011,6 +1011,27 @@ inviteLinkCreditsField: InputField(defaultInputField) {
 	duration: 100;
 }
 
+inviteLinkSubscribeBoxTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 300px;
+	textFg: windowBoldFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(17px semibold);
+	}
+}
+inviteLinkSubscribeBoxAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 300px;
+	align: align(top);
+}
+inviteLinkSubscribeBoxTerms: FlatLabel(defaultFlatLabel) {
+	minWidth: 300px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+
 usernamesReorderIcon: icon {{ "stickers_reorder", dialogsMenuIconFg }};
 
 infoAboutGigagroup: FlatLabel(defaultFlatLabel) {

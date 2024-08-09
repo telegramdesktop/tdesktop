@@ -1947,6 +1947,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_members#other" = "{count} members, among them:";
 "lng_channel_invite_private" = "This channel is private.\nPlease join it to continue viewing its content.";
 
+"lng_channel_invite_subscription_button" = "Subscribe";
+"lng_channel_invite_subscription_title" = "Subscribe to the Channel";
+"lng_channel_invite_subscription_about" = "Do you want to subscribe for {channel} for {price} per month?";
+"lng_channel_invite_subscription_terms" = "By subscribing you agree to the {link}.";
+
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about_new" = "Your previous link will be deactivated and we'll generate a new invite link for you.";
 "lng_group_invite_copied" = "Invite link copied to clipboard.";

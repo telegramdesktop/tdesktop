@@ -8,26 +8,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 
 #include "apiwrap.h"
-#include "window/window_session_controller.h"
+#include "boxes/premium_limits_box.h"
+#include "core/application.h"
+#include "data/data_channel.h"
+#include "data/data_file_origin.h"
+#include "data/data_forum.h"
+#include "data/data_photo.h"
+#include "data/data_photo_media.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "info/profile/info_profile_badge.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "ui/empty_userpic.h"
-#include "ui/painter.h"
-#include "core/application.h"
-#include "data/data_session.h"
-#include "data/data_photo.h"
-#include "data/data_photo_media.h"
-#include "data/data_channel.h"
-#include "data/data_forum.h"
-#include "data/data_user.h"
-#include "data/data_file_origin.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/userpic_button.h"
+#include "ui/effects/premium_graphics.h"
+#include "ui/effects/premium_stars_colored.h"
+#include "ui/empty_userpic.h"
+#include "ui/layers/generic_box.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "boxes/premium_limits_box.h"
+#include "ui/vertical_list.h"
+#include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_premium.h"
 
 namespace Api {
 
@@ -101,6 +111,188 @@ void SubmitChatInvite(
 	}).send();
 }
 
+void ConfirmSubscriptionBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		const QString &hash,
+		const MTPDchatInvite *data) {
+	box->setWidth(st::boxWideWidth);
+	const auto amount = data->vsubscription_pricing()->data().vamount().v;
+	const auto formId = data->vsubscription_form_id()->v;
+	const auto name = qs(data->vtitle());
+	const auto maybePhoto = session->data().processPhoto(data->vphoto());
+	const auto photo = maybePhoto->isNull() ? nullptr : maybePhoto.get();
+
+	struct State final {
+		std::shared_ptr<Data::PhotoMedia> photoMedia;
+		std::unique_ptr<Ui::EmptyUserpic> photoEmpty;
+
+		std::optional<MTP::Sender> api;
+		Ui::RpWidget* saveButton = nullptr;
+		rpl::variable<bool> loading;
+	};
+	const auto state = box->lifetime().make_state<State>();
+
+	const auto content = box->verticalLayout();
+
+	Ui::AddSkip(content, st::confirmInvitePhotoTop);
+	const auto userpicWrap = content->add(
+		object_ptr<Ui::CenterWrap<>>(
+			content,
+			object_ptr<Ui::RpWidget>(content)));
+	const auto userpic = userpicWrap->entity();
+	const auto photoSize = st::confirmInvitePhotoSize;
+	userpic->resize(Size(photoSize));
+	const auto options = Images::Option::RoundCircle;
+	userpic->paintRequest(
+	) | rpl::start_with_next([=, small = Data::PhotoSize::Small] {
+		auto p = QPainter(userpic);
+		if (state->photoMedia) {
+			if (const auto image = state->photoMedia->image(small)) {
+				p.drawPixmap(
+					0,
+					0,
+					image->pix(Size(photoSize), { .options = options }));
+			}
+		} else if (state->photoEmpty) {
+			state->photoEmpty->paintCircle(
+				p,
+				0,
+				0,
+				userpic->width(),
+				photoSize);
+		}
+	}, userpicWrap->lifetime());
+	userpicWrap->setAttribute(Qt::WA_TransparentForMouseEvents);
+	if (photo) {
+		state->photoMedia = photo->createMediaView();
+		state->photoMedia->wanted(Data::PhotoSize::Small, Data::FileOrigin());
+		if (!state->photoMedia->image(Data::PhotoSize::Small)) {
+			session->downloaderTaskFinished(
+			) | rpl::start_with_next([=] {
+				userpic->update();
+			}, userpicWrap->entity()->lifetime());
+		}
+	} else {
+		state->photoEmpty = std::make_unique<Ui::EmptyUserpic>(
+			Ui::EmptyUserpic::UserpicColor(0),
+			name);
+	}
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	{
+		const auto widget = Ui::CreateChild<Ui::RpWidget>(content);
+		using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
+		const auto stars = widget->lifetime().make_state<ColoredMiniStars>(
+			widget,
+			false,
+			Ui::Premium::MiniStars::Type::BiStars);
+		stars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
+		widget->resize(
+			st::boxWideWidth - photoSize,
+			photoSize * 2);
+		content->sizeValue(
+		) | rpl::start_with_next([=](const QSize &size) {
+			widget->moveToLeft(photoSize / 2, 0);
+			const auto starsRect = Rect(widget->size());
+			stars->setPosition(starsRect.topLeft());
+			stars->setSize(starsRect.size());
+			widget->lower();
+		}, widget->lifetime());
+		widget->paintRequest(
+		) | rpl::start_with_next([=](const QRect &r) {
+			auto p = QPainter(widget);
+			p.fillRect(r, Qt::transparent);
+			stars->paint(p);
+		}, widget->lifetime());
+	}
+
+	box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_channel_invite_subscription_title(),
+				st::inviteLinkSubscribeBoxTitle)));
+	box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_channel_invite_subscription_about(
+					lt_channel,
+					rpl::single(Ui::Text::Bold(name)),
+					lt_price,
+					tr::lng_credits_summary_options_credits(
+						lt_count,
+						rpl::single(amount) | tr::to_count(),
+						Ui::Text::Bold),
+					Ui::Text::WithEntities),
+				st::inviteLinkSubscribeBoxAbout)));
+	Ui::AddSkip(content);
+	const auto terms = box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_channel_invite_subscription_terms(
+					lt_link,
+					rpl::combine(
+						tr::lng_paid_react_agree_link(),
+						tr::lng_group_invite_subscription_about_url()
+					) | rpl::map([](const QString &text, const QString &url) {
+						return Ui::Text::Link(text, url);
+					}),
+					Ui::Text::RichLangValue),
+				st::inviteLinkSubscribeBoxTerms)));
+
+	auto confirmText = tr::lng_channel_invite_subscription_button();
+	const auto weak = Ui::MakeWeak(box);
+	state->saveButton = box->addButton(std::move(confirmText), [=] {
+		if (state->api) {
+			return;
+		}
+		state->api.emplace(&session->mtp());
+		state->loading.force_assign(true);
+
+		const auto buttonWidth = state->saveButton
+			? state->saveButton->width()
+			: 0;
+		state->api->request(
+			MTPpayments_SendStarsForm(
+				MTP_flags(0),
+				MTP_long(formId),
+				MTP_inputInvoiceChatInviteSubscription(MTP_string(hash)))
+		).done([=](auto result) {
+			if (weak) {
+				state->api = std::nullopt;
+				box->closeBox();
+			}
+		}).fail([=, show = box->uiShow()](const MTP::Error &error) {
+			const auto id = error.type();
+			if (weak) {
+				state->api = std::nullopt;
+			}
+			show->showToast(id);
+		}).send();
+		if (state->saveButton) {
+			state->saveButton->resizeToWidth(buttonWidth);
+		}
+	});
+	if (const auto saveButton = state->saveButton) {
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			saveButton,
+			saveButton->height() / 2,
+			&st::editStickerSetNameLoading);
+		AddChildToWidgetCenter(saveButton, loadingAnimation);
+		loadingAnimation->showOn(
+			state->loading.value() | rpl::map(rpl::mappers::_1));
+	}
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
 } // namespace
 
 void CheckChatInvite(
@@ -125,11 +317,23 @@ void CheckChatInvite(
 		};
 		result.match([=](const MTPDchatInvite &data) {
 			const auto isGroup = !data.is_broadcast();
-			const auto box = strong->show(Box<ConfirmInviteBox>(
-				session,
-				data,
-				invitePeekChannel,
-				[=] { SubmitChatInvite(weak, session, hash, isGroup); }));
+			const auto hasPricing = !!data.vsubscription_pricing();
+			if (hasPricing && !data.vsubscription_form_id()) {
+				strong->uiShow()->showToast(
+					tr::lng_confirm_phone_link_invalid(tr::now));
+				return;
+			}
+			const auto box = hasPricing
+				? strong->show(Box(
+					ConfirmSubscriptionBox,
+					session,
+					hash,
+					&data))
+				: strong->show(Box<ConfirmInviteBox>(
+					session,
+					data,
+					invitePeekChannel,
+					[=] { SubmitChatInvite(weak, session, hash, isGroup); }));
 			if (invitePeekChannel) {
 				box->boxClosing(
 				) | rpl::filter([=] {
