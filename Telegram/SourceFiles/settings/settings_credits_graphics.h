@@ -18,12 +18,17 @@ struct SubscriptionEntry;
 } // namespace Data
 
 namespace Main {
+class Session;
 class SessionShow;
 } // namespace Main
 
 namespace Window {
 class SessionController;
 } // namespace Window
+
+namespace style {
+struct PeerListItem;
+} // namespace style
 
 namespace Ui {
 class GenericBox;
@@ -32,6 +37,15 @@ class VerticalLayout;
 } // namespace Ui
 
 namespace Settings {
+
+struct SubscriptionRightLabel {
+	Fn<void(QPainter &, int x, int y, int h)> draw;
+	QSize size;
+};
+SubscriptionRightLabel PaintSubscriptionRightLabelCallback(
+	not_null<Main::Session*> session,
+	const style::PeerListItem &st,
+	int amount);
 
 void FillCreditOptions(
 	std::shared_ptr<Main::SessionShow> show,

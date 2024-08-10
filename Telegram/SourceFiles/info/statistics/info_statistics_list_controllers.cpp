@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "main/session/session_show.h"
+#include "settings/settings_credits_graphics.h" // PaintSubscriptionRightLabelCallback
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/outline_segments.h" // Ui::UnreadStoryOutlineGradient.
 #include "ui/effects/toggle_arrow.h"
@@ -758,6 +759,7 @@ private:
 	const int _rowHeight;
 
 	PaintRoundImageCallback _paintUserpicCallback;
+	std::optional<Settings::SubscriptionRightLabel> _rightLabel;
 	QString _title;
 	QString _name;
 
@@ -781,6 +783,14 @@ CreditsRow::CreditsRow(
 		_paintUserpicCallback = callback(crl::guard(
 			&_guard,
 			[this, update = descriptor.updateCallback] { update(this); }));
+	}
+	if (!_subscription.cancelled
+		&& !_subscription.expired
+		&& _subscription.subscription) {
+		_rightLabel = Settings::PaintSubscriptionRightLabelCallback(
+			&peer->session(),
+			st::boostsListBox.item,
+			_subscription.subscription.credits);
 	}
 	init();
 }
@@ -843,14 +853,6 @@ void CreditsRow::init() {
 				.append(manager.creditsEmoji()),
 			kMarkupTextOptions,
 			_context);
-	} else if (_subscription.subscription.credits && !isSpecial) {
-		const auto peer = PeerListRow::peer();
-		_rightText.setMarkedText(
-			st::semiboldTextStyle,
-			manager.creditsEmoji().append(
-				Lang::FormatCountDecimal(_subscription.subscription.credits)),
-			kMarkupTextOptions,
-			_context);
 	}
 	if (!_paintUserpicCallback) {
 		_paintUserpicCallback = !isSpecial
@@ -876,7 +878,9 @@ PaintRoundImageCallback CreditsRow::generatePaintUserpicCallback(bool force) {
 }
 
 QSize CreditsRow::rightActionSize() const {
-	if (_subscription.cancelled || _subscription.expired) {
+	if (_rightLabel) {
+		return _rightLabel->size;
+	} else if (_subscription.cancelled || _subscription.expired) {
 		const auto text = _subscription.cancelled
 			? tr::lng_credits_subscription_status_off_right(tr::now)
 			: tr::lng_credits_subscription_status_none_right(tr::now);
@@ -910,41 +914,20 @@ void CreditsRow::rightActionPaint(
 		bool actionSelected) {
 	const auto &font = _rightText.style()->font;
 	const auto rightSkip = st::boxRowPadding.right();
-	if (_subscription) {
+	if (_rightLabel) {
+		return _rightLabel->draw(p, x, y, _rowHeight);
+	} else if (_subscription.cancelled || _subscription.expired) {
 		const auto &statusFont = st::contactsStatusFont;
-		const auto &st = st::boostsListBox.item;
-		const auto textHeight = font->height + statusFont->height;
-		const auto skip = (_rowHeight - textHeight) / 2;
-		if (_subscription.cancelled || _subscription.expired) {
-			y += _rowHeight / 2;
-			p.setFont(statusFont);
-			p.setPen(st::attentionButtonFg);
-			p.drawTextRight(
-				rightSkip,
-				y - statusFont->height / 2,
-				outerWidth,
-				_subscription.expired
-					? tr::lng_credits_subscription_status_none_right(tr::now)
-					: tr::lng_credits_subscription_status_off_right(tr::now));
-			return;
-		}
-
-		p.setPen(st.statusFg);
+		y += _rowHeight / 2;
 		p.setFont(statusFont);
+		p.setPen(st::attentionButtonFg);
 		p.drawTextRight(
 			rightSkip,
-			y + _rowHeight - skip - statusFont->height,
+			y - statusFont->height / 2,
 			outerWidth,
-			tr::lng_group_invite_joined_right(tr::now));
-
-		p.setPen(st.nameFg);
-		_rightText.draw(p, Ui::Text::PaintContext{
-			.position = QPoint(
-				outerWidth - _rightText.maxWidth() - rightSkip,
-				y + skip),
-			.outerWidth = outerWidth,
-			.availableWidth = outerWidth,
-		});
+			_subscription.expired
+				? tr::lng_credits_subscription_status_none_right(tr::now)
+				: tr::lng_credits_subscription_status_off_right(tr::now));
 		return;
 	}
 	y += _rowHeight / 2;

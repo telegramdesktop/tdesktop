@@ -233,6 +233,51 @@ void AddViewMediaHandler(
 
 } // namespace
 
+SubscriptionRightLabel PaintSubscriptionRightLabelCallback(
+		not_null<Main::Session*> session,
+		const style::PeerListItem &st,
+		int amount) {
+	const auto text = std::make_shared<Ui::Text::String>();
+	text->setMarkedText(
+		st::semiboldTextStyle,
+		TextWithEntities()
+			.append(session->data().customEmojiManager().creditsEmoji())
+			.append(QChar::Space)
+			.append(Lang::FormatCountDecimal(amount)),
+		kMarkupTextOptions,
+		Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = [] {},
+		});
+	const auto &font = text->style()->font;
+	const auto &statusFont = st::contactsStatusFont;
+	const auto status = tr::lng_group_invite_joined_right(tr::now);
+	const auto rightSkip = st::boxRowPadding.right();
+	const auto statusWidth = statusFont->width(status);
+	const auto size = QSize(
+		std::max(text->maxWidth(), statusWidth) + rightSkip,
+		font->height + statusFont->height);
+	const auto statusX = size.width() - statusWidth;
+	auto draw = [=](QPainter &p, int x, int y, int h) {
+		p.setPen(st.statusFg);
+		p.setFont(statusFont);
+		const auto skip = y + (h - size.height()) / 2;
+		p.drawText(
+			x + statusX,
+			font->height + statusFont->ascent + skip,
+			status);
+
+		p.setPen(st.nameFg);
+		const auto textWidth = text->maxWidth();
+		text->draw(p, Ui::Text::PaintContext{
+			.position = QPoint(x + size.width() - textWidth, skip),
+			.outerWidth = textWidth,
+			.availableWidth = textWidth,
+		});
+	};
+	return { std::move(draw), size };
+}
+
 void FillCreditOptions(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::VerticalLayout*> container,
