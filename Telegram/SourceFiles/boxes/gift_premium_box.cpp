@@ -1790,3 +1790,26 @@ void AddSubscriptionEntryTable(
 			rpl::single(Ui::Text::WithEntities(langDateTime(s.until))));
 	}
 }
+
+void AddSubscriberEntryTable(
+		not_null<Window::SessionNavigation*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		not_null<PeerData*> peer,
+		TimeId date) {
+	auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	AddTableRow(
+		table,
+		tr::lng_group_invite_joined_row_subscriber(),
+		controller,
+		peer->id);
+	if (const auto d = base::unixtime::parse(date); !d.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_group_invite_joined_row_date(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(d))));
+	}
+}

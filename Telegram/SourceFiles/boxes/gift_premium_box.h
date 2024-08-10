@@ -84,3 +84,8 @@ void AddSubscriptionEntryTable(
 	not_null<Window::SessionNavigation*> controller,
 	not_null<Ui::VerticalLayout*> container,
 	const Data::SubscriptionEntry &s);
+void AddSubscriberEntryTable(
+	not_null<Window::SessionNavigation*> controller,
+	not_null<Ui::VerticalLayout*> container,
+	not_null<PeerData*> peer,
+	TimeId date);

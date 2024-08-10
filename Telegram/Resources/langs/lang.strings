@@ -2038,6 +2038,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_subscription_info_title_none" = "{emoji} {price} / month";
 "lng_group_invite_subscription_info_about" = "you get approximately {total} montly";
 "lng_group_invite_joined_right" = "per month";
+"lng_group_invite_joined_status" = "joined {date}";
+"lng_group_invite_joined_row_subscriber" = "Subscriber";
+"lng_group_invite_joined_row_date" = "Subscribed";
 
 "lng_group_request_to_join" = "Request to Join";
 "lng_group_request_about" = "This group accepts new members only after they are approved by its admins.";
@@ -2419,6 +2422,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_subscription_section" = "My subscriptions";
 "lng_credits_box_subscription_title" = "Subscription";
 "lng_credits_subscription_subtitle" = "{emoji} {cost} / month";
+"lng_credits_subscriber_subtitle" = "appx. {total} per month";
 
 "lng_credits_subscription_row_to" = "Subscription";
 "lng_credits_subscription_row_from" = "Subscribed";

@@ -7,6 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_invite_link.h"
 
+#include "api/api_invite_links.h"
+#include "apiwrap.h"
+#include "base/unixtime.h"
+#include "boxes/gift_premium_box.h"
+#include "boxes/peer_list_box.h"
+#include "boxes/share_box.h"
 #include "core/application.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/components/credits.h"
@@ -17,42 +23,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "history/history.h"
+#include "history/history_item_helpers.h" // GetErrorTextForSending.
+#include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "api/api_invite_links.h"
-#include "base/unixtime.h"
-#include "apiwrap.h"
-#include "ui/controls/invite_link_buttons.h"
-#include "ui/controls/invite_link_label.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/padding_wrap.h"
-#include "ui/widgets/popup_menu.h"
-#include "ui/abstract_button.h"
-#include "ui/toast/toast.h"
-#include "ui/text/format_values.h"
-#include "ui/text/text_utilities.h"
+#include "qr/qr_generate.h"
+#include "settings/settings_credits_graphics.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/boxes/edit_invite_link.h"
 #include "ui/boxes/edit_invite_link_session.h"
+#include "ui/controls/invite_link_buttons.h"
+#include "ui/controls/invite_link_label.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
-#include "boxes/share_box.h"
-#include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
-#include "history/history_item_helpers.h" // GetErrorTextForSending.
-#include "history/history.h"
-#include "ui/boxes/confirm_box.h"
-#include "boxes/peer_list_box.h"
-#include "mainwindow.h"
-#include "lang/lang_keys.h"
-#include "window/window_session_controller.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
-#include "mtproto/sender.h"
-#include "qr/qr_generate.h"
-#include "intro/intro_qr.h" // TelegramLogoImage
+#include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
-#include "styles/style_layers.h" // st::boxDividerLabel.
+#include "styles/style_credits.h"
+#include "styles/style_giveaway.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h" // st::boxDividerLabel.
 #include "styles/style_menu_icons.h"
+#include "styles/style_premium.h"
 
 #include <QtCore/QMimeData>
 #include <QtGui/QGuiApplication>
@@ -76,6 +78,66 @@ void ShowPeerInfoSync(not_null<PeerData*> peer) {
 				controller->showPeerInfo(peer);
 			}
 		}
+	}
+}
+
+class SubscriptionRow final : public PeerListRow {
+public:
+	SubscriptionRow(
+		not_null<PeerData*> peer,
+		TimeId date,
+		Data::PeerSubscription subscription);
+
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+
+private:
+	std::optional<Settings::SubscriptionRightLabel> _rightLabel;
+
+};
+
+SubscriptionRow::SubscriptionRow(
+	not_null<PeerData*> peer,
+	TimeId date,
+	Data::PeerSubscription subscription)
+: PeerListRow(peer) {
+	if (subscription) {
+		_rightLabel = Settings::PaintSubscriptionRightLabelCallback(
+			&peer->session(),
+			st::peerListBoxItem,
+			subscription.credits);
+	}
+	setCustomStatus(
+		tr::lng_group_invite_joined_status(
+			tr::now,
+			lt_date,
+			langDayOfMonthFull(base::unixtime::parse(date).date())));
+}
+
+QSize SubscriptionRow::rightActionSize() const {
+	return _rightLabel ? _rightLabel->size : QSize();
+}
+
+QMargins SubscriptionRow::rightActionMargins() const {
+	return QMargins(0, 0, st::boxRowPadding.right(), 0);
+}
+
+void SubscriptionRow::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (_rightLabel) {
+		return _rightLabel->draw(p, x, y, st::peerListBoxItem.height);
 	}
 }
 
@@ -845,6 +907,11 @@ void Controller::appendSlice(const Api::JoinedByLinkSlice &slice) {
 		_lastUser = user;
 		auto row = (_role == Role::Requested)
 			? std::make_unique<RequestedRow>(user.user, user.date)
+			: (_data.current().subscription)
+			? std::make_unique<SubscriptionRow>(
+				user.user,
+				user.date,
+				_data.current().subscription)
 			: std::make_unique<PeerListRow>(user.user);
 		if (_role != Role::Requested && user.viaFilterLink) {
 			row->setCustomStatus(
@@ -862,11 +929,117 @@ void Controller::appendSlice(const Api::JoinedByLinkSlice &slice) {
 }
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {
-	ShowPeerInfoSync(row->peer());
+	if (!_data.current().subscription) {
+		return ShowPeerInfoSync(row->peer());
+	}
+	const auto channel = _peer;
+	const auto data = _data.current();
+	const auto show = delegate()->peerListUiShow();
+	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto w = Core::App().findWindow(box);
+		const auto controller = w ? w->sessionController() : nullptr;
+		if (!controller) {
+			return;
+		}
+
+		box->setStyle(st::giveawayGiftCodeBox);
+		box->setNoContentMargin(true);
+
+		const auto content = box->verticalLayout();
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+
+		const auto &stUser = st::boostReplaceUserpic;
+		const auto session = &row->peer()->session();
+		content->add(object_ptr<Ui::CenterWrap<>>(
+			content,
+			object_ptr<Ui::UserpicButton>(content, channel, stUser))
+		)->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_credits_box_subscription_title(),
+				st::creditsBoxAboutTitle)));
+
+		Ui::AddSkip(content);
+
+		const auto subtitle1 = box->addRow(
+			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+				box,
+				object_ptr<Ui::FlatLabel>(
+					box,
+					st::creditsTopupPrice)))->entity();
+		subtitle1->setMarkedText(
+			tr::lng_credits_subscription_subtitle(
+				tr::now,
+				lt_emoji,
+				session->data().customEmojiManager().creditsEmoji(),
+				lt_cost,
+				{ QString::number(data.subscription.credits) },
+				Ui::Text::WithEntities),
+			Core::MarkedTextContext{
+				.session = session,
+				.customEmojiRepaint = [=] { subtitle1->update(); },
+			});
+		const auto subtitle2 = box->addRow(
+			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+				box,
+				object_ptr<Ui::FlatLabel>(
+					box,
+					st::creditsTopupPrice)))->entity();
+		session->credits().rateValue(
+			channel
+		) | rpl::start_with_next([=, currency = u"USD"_q](float64 rate) {
+			subtitle2->setText(
+				tr::lng_credits_subscriber_subtitle(
+					tr::now,
+					lt_total,
+					Ui::FillAmountAndCurrency(
+						data.subscription.credits * rate,
+						currency)));
+		}, subtitle2->lifetime());
+
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+
+		AddSubscriberEntryTable(controller, content, row->peer(), data.date);
+
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_credits_box_out_about(
+					lt_link,
+					tr::lng_payments_terms_link(
+					) | Ui::Text::ToLink(
+						tr::lng_credits_box_out_about_link(tr::now)),
+					Ui::Text::WithEntities),
+				st::creditsBoxAboutDivider)));
+
+		const auto button = box->addButton(tr::lng_box_ok(), [=] {
+			box->closeBox();
+		});
+		const auto buttonWidth = st::boxWidth
+			- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
+		button->widthValue() | rpl::filter([=] {
+			return (button->widthNoMargins() != buttonWidth);
+		}) | rpl::start_with_next([=] {
+			button->resizeToWidth(buttonWidth);
+		}, button->lifetime());
+	}));
 }
 
 void Controller::rowRightActionClicked(not_null<PeerListRow*> row) {
-	if (_role != Role::Requested) {
+	if (_role != Role::Requested || _data.current().subscription) {
 		return;
 	}
 	delegate()->peerListShowRowMenu(row, true);
