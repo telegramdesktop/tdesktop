@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/chat_theme.h" // CountAverageColor.
 #include "ui/color_contrast.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/outline_segments.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image_prepare.h"
@@ -38,6 +39,72 @@ constexpr auto kTopLayer = 2;
 constexpr auto kBottomLayer = 1;
 constexpr auto kNoneLayer = 0;
 constexpr auto kBlurRadius = 24;
+
+[[nodiscard]] const QPainterPath &SubscriptionOutlinePath() {
+	static auto path = QPainterPath();
+	if (!path.isEmpty()) {
+		return path;
+	}
+	const auto floatScale = [&](float64 v) {
+		constexpr auto kPrecision = 1000000.;
+		return style::ConvertScale(v * kPrecision) / kPrecision;
+	};
+	const auto scaledMoveTo = [&](float64 x, float64 y) {
+		path.moveTo(floatScale(x), floatScale(y));
+	};
+	const auto scaledLineTo = [&](float64 x, float64 y) {
+		path.lineTo(floatScale(x), floatScale(y));
+	};
+	const auto scaledCubicTo = [&](
+			float64 x1,
+			float64 y1,
+			float64 x2,
+			float64 y2,
+			float64 x3,
+			float64 y3) {
+		path.cubicTo(
+			floatScale(x1),
+			floatScale(y1),
+			floatScale(x2),
+			floatScale(y2),
+			floatScale(x3),
+			floatScale(y3));
+	};
+	const auto scaledTranslate = [&](float64 x, float64 y) {
+		path.translate(floatScale(x), floatScale(y));
+	};
+
+	scaledMoveTo(42.3009, 18.3345);
+	scaledLineTo(44.3285, 14.1203);
+	scaledCubicTo(44.6152, 13.6549, 45.7858, 13.3542, 46.1909, 13.5523);
+	scaledCubicTo(46.3355, 13.6044, 47.0064, 13.7541, 47.3833, 14.5053);
+	scaledLineTo(49.3924 * 1.0071, 18.4206 * 0.9905);
+	// 49.5459 * 1.007, 18.7336 * 0.9897.
+	scaledCubicTo(49.8927213, 18.5406439, 52.5473, 18.8491, 53.3141, 18.8789);
+	scaledCubicTo(53.6484, 18.8441, 55.8914, 20.0065, 54.3752, 20.7818);
+	scaledCubicTo(54.1725, 20.8744, 41.3467, 31.3217, 41.3467, 31.3217);
+	scaledCubicTo(40.7918, 31.5944, 41.2661, 31.4116, 40.8968, 30.9483);
+	scaledCubicTo(39.9809, 30.3111, 40.0577, 25.4542, 40.1925, 25.5408);
+	scaledCubicTo(39.9835, 25.6454, 38.4545, 22.9776, 37.8121, 22.3477);
+	scaledLineTo(37.3236, 21.4448);
+	scaledCubicTo(37.0943, 20.8845, 37.2524, 20.4742, 37.4164, 19.7765);
+	scaledCubicTo(37.4703, 19.4582, 38.1756, 19.0759, 38.4504, 19.0422);
+	scaledLineTo(41.6566, 18.6449);
+	scaledCubicTo(41.5344, 18.6041, 42.2622, 18.6087, 42.3009, 18.3345);
+	scaledTranslate(-42.3009, -18.3345);
+	scaledTranslate(1.2, 0.4);
+
+	return path;
+}
+
+[[nodiscard]] const QImage &SubscriptionIcon() {
+	static auto starImage = QImage();
+	if (!starImage.isNull()) {
+		return starImage;
+	}
+	starImage = Ui::GenerateStars(st::dialogsSubscriptionBadgeSize, 1);
+	return starImage;
+}
 
 [[nodiscard]] QImage CornerBadgeTTL(
 		not_null<PeerData*> peer,
@@ -393,7 +460,20 @@ void Row::PaintCornerBadgeFrame(
 	}
 
 	if (subscribed) {
-		// Draw badge.
+		if (!hq) {
+			hq.emplace(q);
+		}
+		// TODO: Unnecessarily repaints on activating peer.
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		const auto &s = st::dialogsSubscriptionBadgeSkip;
+		auto path = SubscriptionOutlinePath();
+		const auto x = photoSize - s.x() - st::dialogsSubscriptionBadgeSize;
+		const auto y = photoSize - s.y() - st::dialogsSubscriptionBadgeSize;
+		q.translate(x, y);
+		q.fillPath(path, Qt::transparent);
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		q.resetTransform();
+		q.drawImage(x, y, SubscriptionIcon());
 		return;
 	}
 

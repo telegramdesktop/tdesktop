@@ -112,6 +112,9 @@ dialogsOnlineBadgeDuration: 150;
 dialogsCallBadgeSize: 16px;
 dialogsCallBadgeSkip: point(-3px, -3px);
 
+dialogsSubscriptionBadgeSize: 16px;
+dialogsSubscriptionBadgeSkip: point(-4px, -4px);
+
 dialogsTTLBadgeSize: 20px;
 dialogsTTLBadgeInnerMargins: margins(2px, 2px, 2px, 2px);
 // Relative to a photo place, not a whole userpic place.
