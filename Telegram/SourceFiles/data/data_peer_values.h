@@ -164,6 +164,7 @@ inline auto PeerFullFlagValue(
 [[nodiscard]] bool OnlineTextActive(not_null<UserData*> user, TimeId now);
 [[nodiscard]] bool IsUserOnline(not_null<UserData*> user, TimeId now = 0);
 [[nodiscard]] bool ChannelHasActiveCall(not_null<ChannelData*> channel);
+[[nodiscard]] bool ChannelHasSubscriptionUntilDate(ChannelData *channel);
 
 [[nodiscard]] rpl::producer<QImage> PeerUserpicImageValue(
 	not_null<PeerData*> peer,

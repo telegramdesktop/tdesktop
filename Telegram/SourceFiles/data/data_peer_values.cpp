@@ -508,6 +508,10 @@ bool ChannelHasActiveCall(not_null<ChannelData*> channel) {
 	return (channel->flags() & ChannelDataFlag::CallNotEmpty);
 }
 
+bool ChannelHasSubscriptionUntilDate(ChannelData *channel) {
+	return channel && channel->subscriptionUntilDate() > 0;
+}
+
 rpl::producer<QImage> PeerUserpicImageValue(
 		not_null<PeerData*> peer,
 		int size,

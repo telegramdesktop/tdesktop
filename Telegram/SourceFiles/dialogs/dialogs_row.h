@@ -192,7 +192,8 @@ private:
 		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,
-		const Ui::PaintContext &context);
+		const Ui::PaintContext &context,
+		bool subscribed);
 
 	Key _id;
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;

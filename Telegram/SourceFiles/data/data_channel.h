@@ -489,6 +489,9 @@ public:
 	[[nodiscard]] int levelHint() const;
 	void updateLevelHint(int levelHint);
 
+	[[nodiscard]] TimeId subscriptionUntilDate() const;
+	void updateSubscriptionUntilDate(TimeId subscriptionUntilDate);
+
 	// Still public data members.
 	uint64 access = 0;
 
@@ -531,6 +534,7 @@ private:
 	AdminRightFlags _adminRights;
 	RestrictionFlags _restrictions;
 	TimeId _restrictedUntil;
+	TimeId _subscriptionUntilDate;
 
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	std::unique_ptr<InvitePeek> _invitePeek;

@@ -301,11 +301,13 @@ void Row::updateCornerBadgeShown(
 		Fn<void()> updateCallback) const {
 	const auto user = peer->asUser();
 	const auto now = user ? base::unixtime::now() : TimeId();
+	const auto channel = user ? nullptr : peer->asChannel();
 	const auto nextLayer = [&] {
 		if (user && Data::IsUserOnline(user, now)) {
 			return kTopLayer;
-		} else if (peer->isChannel()
-			&& Data::ChannelHasActiveCall(peer->asChannel())) {
+		} else if (channel
+			&& (Data::ChannelHasActiveCall(channel)
+				|| Data::ChannelHasSubscriptionUntilDate(channel))) {
 			return kTopLayer;
 		} else if (peer->messagesTTL()) {
 			return kBottomLayer;
@@ -332,7 +334,8 @@ void Row::PaintCornerBadgeFrame(
 		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,
-		const Ui::PaintContext &context) {
+		const Ui::PaintContext &context,
+		bool subscribed) {
 	data->frame.fill(Qt::transparent);
 
 	Painter q(&data->frame);
@@ -389,6 +392,11 @@ void Row::PaintCornerBadgeFrame(
 		Ui::PaintOutlineSegments(q, outline, segments);
 	}
 
+	if (subscribed) {
+		// Draw badge.
+		return;
+	}
+
 	const auto &manager = data->layersManager;
 	if (const auto p = manager.progressForLayer(kBottomLayer); p > 0.) {
 		const auto size = photoSize;
@@ -419,6 +427,7 @@ void Row::PaintCornerBadgeFrame(
 		? st::dialogsOnlineBadgeSkip
 		: st::dialogsCallBadgeSkip;
 	const auto shrink = (size / 2) * (1. - topLayerProgress);
+	const auto doubleShrink = shrink * 2;
 
 	auto pen = QPen(Qt::transparent);
 	pen.setWidthF(stroke * topLayerProgress);
@@ -427,11 +436,10 @@ void Row::PaintCornerBadgeFrame(
 		? st::dialogsOnlineBadgeFgActive
 		: st::dialogsOnlineBadgeFg);
 	q.drawEllipse(QRectF(
-		photoSize - skip.x() - size,
-		photoSize - skip.y() - size,
-		size,
-		size
-	).marginsRemoved({ shrink, shrink, shrink, shrink }));
+		photoSize - skip.x() - size - shrink,
+		photoSize - skip.y() - size - shrink,
+		size + doubleShrink,
+		size + doubleShrink));
 }
 
 void Row::paintUserpic(
@@ -509,6 +517,8 @@ void Row::paintUserpic(
 	if (keyChanged) {
 		_cornerBadgeUserpic->cacheTTL = QImage();
 	}
+	const auto subscribed = Data::ChannelHasSubscriptionUntilDate(
+		peer ? peer->asChannel() : nullptr);
 	if (keyChanged
 		|| !_cornerBadgeUserpic->layersManager.isFinished()
 		|| _cornerBadgeUserpic->active != active
@@ -530,14 +540,15 @@ void Row::paintUserpic(
 			peer,
 			videoUserpic,
 			userpicView(),
-			context);
+			context,
+			subscribed);
 	}
 	p.drawImage(
 		context.st->padding.left() - framePadding,
 		context.st->padding.top() - framePadding,
 		_cornerBadgeUserpic->frame);
 	const auto history = _id.history();
-	if (!history || history->peer->isUser()) {
+	if (!history || history->peer->isUser() || subscribed) {
 		return;
 	}
 	const auto actionPainter = history->sendActionPainter();

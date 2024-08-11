@@ -1028,6 +1028,14 @@ void ChannelData::updateLevelHint(int levelHint) {
 	_levelHint = levelHint;
 }
 
+TimeId ChannelData::subscriptionUntilDate() const {
+	return _subscriptionUntilDate;
+}
+
+void ChannelData::updateSubscriptionUntilDate(TimeId subscriptionUntilDate) {
+	_subscriptionUntilDate = subscriptionUntilDate;
+}
+
 namespace Data {
 
 void ApplyMigration(
