@@ -294,7 +294,9 @@ void SettingsWidget::addLocationLabel(
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([=](const QString &path) {
 		const auto text = IsDefaultPath(_session, path)
+			? Core::App().canReadDefaultDownloadPath()
 			? u"Downloads/"_q + File::DefaultDownloadPathFolder(_session)
+			: tr::lng_download_path_temp(tr::now)
 			: path;
 		return Ui::Text::Link(
 			QDir::toNativeSeparators(text),
@@ -341,7 +343,9 @@ void SettingsWidget::addFormatAndLocationLabel(
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([=](const QString &path) {
 		const auto text = IsDefaultPath(_session, path)
+			? Core::App().canReadDefaultDownloadPath()
 			? u"Downloads/"_q + File::DefaultDownloadPathFolder(_session)
+			: tr::lng_download_path_temp(tr::now)
 			: path;
 		return Ui::Text::Link(
 			QDir::toNativeSeparators(text),

@@ -209,7 +209,7 @@ public:
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 	void saveSettings();
 
-	[[nodiscard]] bool canReadDefaultDownloadPath(bool always = false) const;
+	[[nodiscard]] bool canReadDefaultDownloadPath() const;
 	[[nodiscard]] bool canSaveFileWithoutAskingForPath() const;
 
 	// Fallback config and proxy.
