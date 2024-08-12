@@ -846,12 +846,11 @@ void ReceiptCreditsBox(
 			: toCancel
 			? tr::lng_credits_subscription_on_button()
 			: tr::lng_box_ok());
-
 	using Flag = MTPpayments_ChangeStarsSubscription::Flag;
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
 		if (toRenew && s.expired) {
 			Api::CheckChatInvite(controller, s.inviteHash, nullptr, [=] {
-				if (const auto strong = weak.get()) {
+				if (const auto strong = weak.data()) {
 					strong->closeBox();
 				}
 			});
@@ -864,7 +863,7 @@ void ReceiptCreditsBox(
 					MTP_bool(toCancel)
 			)).done([=] {
 				state->confirmButtonBusy = false;
-				if (const auto strong = weak.get()) {
+				if (const auto strong = weak.data()) {
 					strong->closeBox();
 				}
 			}).fail([=, show = box->uiShow()](const MTP::Error &error) {
