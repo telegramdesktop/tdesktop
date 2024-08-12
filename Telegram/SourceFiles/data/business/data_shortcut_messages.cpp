@@ -449,9 +449,6 @@ void ShortcutMessages::preloadShortcuts() {
 		result.match([&](const MTPDmessages_quickReplies &data) {
 			owner->processUsers(data.vusers());
 			owner->processChats(data.vchats());
-			owner->processMessages(
-				data.vmessages(),
-				NewMessageType::Existing);
 			updateShortcuts(data.vquick_replies().v);
 		}, [&](const MTPDmessages_quickRepliesNotModified &) {
 			if (!_shortcutsLoaded) {

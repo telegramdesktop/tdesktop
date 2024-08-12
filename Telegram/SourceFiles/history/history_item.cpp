@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_credits_box.h"
 #include "api/api_text_entities.h"
 #include "api/api_updates.h"
+#include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
 #include "data/notify/data_notify_settings.h"
@@ -713,6 +714,10 @@ HistoryItem::HistoryItem(
 , _date(fields.date)
 , _shortcutId(fields.shortcutId)
 , _effectId(fields.effectId) {
+	Expects(!_shortcutId
+		|| isSending()
+		|| _history->owner().shortcutMessages().lookupId(this));
+
 	if (isHistoryEntry() && IsClientMsgId(id)) {
 		_history->registerClientSideMessage(this);
 	}
