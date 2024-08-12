@@ -2521,15 +2521,17 @@ bool HistoryItem::canReact() const {
 	return true;
 }
 
-void HistoryItem::addPaidReaction(int count) {
-	Expects(count > 0);
+void HistoryItem::addPaidReaction(int count, bool anonymous) {
+	Expects(count >= 0);
 	Expects(_history->peer->isBroadcast());
 
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 	}
-	_reactions->scheduleSendPaid(count);
-	_history->owner().notifyItemDataChange(this);
+	_reactions->scheduleSendPaid(count, anonymous);
+	if (count > 0) {
+		_history->owner().notifyItemDataChange(this);
+	}
 }
 
 void HistoryItem::cancelScheduledPaidReaction() {
@@ -2539,14 +2541,18 @@ void HistoryItem::cancelScheduledPaidReaction() {
 	}
 }
 
-int HistoryItem::startPaidReactionSending() {
-	return _reactions ? _reactions->startPaidSending() : 0;
+Data::PaidReactionSend HistoryItem::startPaidReactionSending() {
+	return _reactions
+		? _reactions->startPaidSending()
+		: Data::PaidReactionSend();
 }
 
-void HistoryItem::finishPaidReactionSending(int count, bool success) {
+void HistoryItem::finishPaidReactionSending(
+		Data::PaidReactionSend send,
+		bool success) {
 	Expects(_reactions != nullptr);
 
-	_reactions->finishPaidSending(count, success);
+	_reactions->finishPaidSending(send, success);
 	_history->owner().notifyItemDataChange(this);
 }
 
@@ -2586,12 +2592,15 @@ const std::vector<Data::MessageReaction> &HistoryItem::reactions() const {
 }
 
 std::vector<Data::MessageReaction> HistoryItem::reactionsWithLocal() const {
-	auto result = reactions();
+	if (!_reactions) {
+		return {};
+	}
+	auto result = _reactions->list();
 	const auto i = ranges::find(
 		result,
 		Data::ReactionId::Paid(),
 		&Data::MessageReaction::id);
-	if (const auto local = _reactions ? _reactions->localPaidCount() : 0) {
+	if (const auto local = _reactions->localPaidCount()) {
 		if (i != end(result)) {
 			i->my = true;
 			i->count += local;
@@ -2629,10 +2638,41 @@ auto HistoryItem::recentReactions() const
 	return _reactions ? _reactions->recent() : kEmpty;
 }
 
-auto HistoryItem::topPaidReactions() const
--> const std::vector<Data::MessageReactionsTopPaid> & {
-	static const auto kEmpty = std::vector<Data::MessageReactionsTopPaid>();
-	return _reactions ? _reactions->topPaid() : kEmpty;
+auto HistoryItem::topPaidReactionsWithLocal() const
+-> std::vector<Data::MessageReactionsTopPaid> {
+	if (!_reactions) {
+		return {};
+	}
+	using TopPaid = Data::MessageReactionsTopPaid;
+	auto result = _reactions->topPaid();
+	const auto i = ranges::find_if(
+		result,
+		[](const TopPaid &entry) { return entry.my != 0; });
+	const auto peer = _reactions->localPaidAnonymous()
+		? nullptr
+		: history()->session().user().get();
+	if (const auto local = _reactions->localPaidCount()) {
+		const auto top = [&](int mine) {
+			return ranges::count_if(result, [&](const TopPaid &entry) {
+				return !entry.my && entry.count >= mine;
+			}) < 3;
+		};
+		if (i != end(result)) {
+			i->count += local;
+			i->peer = peer;
+			i->top = top(i->count) ? 1 : 0;
+		} else {
+			result.push_back({
+				.peer = peer,
+				.count = uint32(local),
+				.top = uint32(top(local) ? 1 : 0),
+				.my = uint32(1),
+			});
+		}
+	} else if (i != end(result)) {
+		i->peer = peer;
+	}
+	return result;
 }
 
 bool HistoryItem::canViewReactions() const {
@@ -3834,7 +3874,7 @@ bool HistoryItem::changeReactions(const MTPMessageReactions *reactions) {
 	const auto changeToEmpty = [&] {
 		if (!_reactions) {
 			return false;
-		} else if (!_reactions->localPaidCount()) {
+		} else if (!_reactions->localPaidData()) {
 			_reactions = nullptr;
 			return true;
 		}

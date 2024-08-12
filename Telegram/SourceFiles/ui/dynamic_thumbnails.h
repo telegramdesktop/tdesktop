@@ -23,6 +23,7 @@ class DynamicImage;
 	bool forceRound = false);
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeSavedMessagesThumbnail();
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeRepliesThumbnail();
+[[nodiscard]] std::shared_ptr<DynamicImage> MakeHiddenAuthorThumbnail();
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeStoryThumbnail(
 	not_null<Data::Story*> story);
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeIconThumbnail(

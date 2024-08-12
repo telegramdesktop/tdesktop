@@ -155,7 +155,8 @@ constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 } // namespace
 
 PossibleItemReactionsRef LookupPossibleReactions(
-		not_null<HistoryItem*> item) {
+		not_null<HistoryItem*> item,
+		bool paidInFront) {
 	if (!item->canReact()) {
 		return {};
 	}
@@ -258,12 +259,15 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			&& premiumPossible;
 	}
 	if (!item->reactionsAreTags()) {
-		const auto i = ranges::find(
-			result.recent,
-			reactions->favoriteId(),
-			&Reaction::id);
-		if (i != end(result.recent) && i != begin(result.recent)) {
-			std::rotate(begin(result.recent), i, i + 1);
+		const auto toFront = [&](Data::ReactionId id) {
+			const auto i = ranges::find(result.recent, id, &Reaction::id);
+			if (i != end(result.recent) && i != begin(result.recent)) {
+				std::rotate(begin(result.recent), i, i + 1);
+			}
+		};
+		toFront(reactions->favoriteId());
+		if (paidInFront) {
+			toFront(Data::ReactionId::Paid());
 		}
 	}
 	return result;
@@ -1704,31 +1708,71 @@ void Reactions::sendPaid() {
 }
 
 bool Reactions::sendPaid(not_null<HistoryItem*> item) {
-	const auto count = item->startPaidReactionSending();
-	if (!count) {
+	const auto send = item->startPaidReactionSending();
+	if (!send.valid) {
 		return false;
 	}
 
-	sendPaidRequest(item, count);
+	sendPaidRequest(item, send);
 	return true;
 }
 
-void Reactions::sendPaidRequest(not_null<HistoryItem*> item, int count) {
+void Reactions::sendPaidPrivacyRequest(
+		not_null<HistoryItem*> item,
+		PaidReactionSend send) {
 	Expects(!_sendingPaid.contains(item));
+	Expects(!send.count);
+
+	const auto id = item->fullId();
+	auto &api = _owner->session().api();
+	using Flag = MTPmessages_SendPaidReaction::Flag;
+	const auto requestId = api.request(
+		MTPmessages_TogglePaidReactionPrivacy(
+			item->history()->peer->input,
+			MTP_int(id.msg),
+			MTP_bool(send.anonymous))
+	).done([=] {
+		if (const auto item = _owner->message(id)) {
+			if (_sendingPaid.remove(item)) {
+				sendPaidFinish(item, send, true);
+			}
+		}
+		checkQuitPreventFinished();
+	}).fail([=](const MTP::Error &error) {
+		if (const auto item = _owner->message(id)) {
+			if (_sendingPaid.remove(item)) {
+				sendPaidFinish(item, send, false);
+			}
+		}
+		checkQuitPreventFinished();
+	}).send();
+	_sendingPaid[item] = requestId;
+}
+
+void Reactions::sendPaidRequest(
+		not_null<HistoryItem*> item,
+		PaidReactionSend send) {
+	Expects(!_sendingPaid.contains(item));
+
+	if (!send.count) {
+		sendPaidPrivacyRequest(item, send);
+		return;
+	}
 
 	const auto id = item->fullId();
 	const auto randomId = base::unixtime::mtproto_msg_id();
 	auto &api = _owner->session().api();
+	using Flag = MTPmessages_SendPaidReaction::Flag;
 	const auto requestId = api.request(MTPmessages_SendPaidReaction(
-		MTP_flags(0),
+		MTP_flags(send.anonymous ? Flag::f_private : Flag()),
 		item->history()->peer->input,
 		MTP_int(id.msg),
-		MTP_int(count),
+		MTP_int(send.count),
 		MTP_long(randomId)
 	)).done([=](const MTPUpdates &result) {
 		if (const auto item = _owner->message(id)) {
 			if (_sendingPaid.remove(item)) {
-				sendPaidFinish(item, count, true);
+				sendPaidFinish(item, send, true);
 			}
 		}
 		_owner->session().api().applyUpdates(result);
@@ -1737,9 +1781,9 @@ void Reactions::sendPaidRequest(not_null<HistoryItem*> item, int count) {
 		if (const auto item = _owner->message(id)) {
 			_sendingPaid.remove(item);
 			if (error.type() == u"RANDOM_ID_EXPIRED"_q) {
-				sendPaidRequest(item, count);
+				sendPaidRequest(item, send);
 			} else {
-				sendPaidFinish(item, count, false);
+				sendPaidFinish(item, send, false);
 			}
 		}
 		checkQuitPreventFinished();
@@ -1758,9 +1802,9 @@ void Reactions::checkQuitPreventFinished() {
 
 void Reactions::sendPaidFinish(
 		not_null<HistoryItem*> item,
-		int count,
+		PaidReactionSend send,
 		bool success) {
-	item->finishPaidReactionSending(count, success);
+	item->finishPaidReactionSending(send, success);
 	sendPaid();
 }
 
@@ -1772,7 +1816,9 @@ MessageReactions::~MessageReactions() {
 	cancelScheduledPaid();
 	if (const auto paid = _paid.get()) {
 		if (paid->sending > 0) {
-			finishPaidSending(paid->sending, false);
+			finishPaidSending(
+				{ int(paid->sending), (paid->sendingAnonymous == 1) },
+				false);
 		}
 	}
 }
@@ -2063,7 +2109,7 @@ bool MessageReactions::change(
 	if (paidTop.empty()) {
 		if (_paid && !_paid->top.empty()) {
 			changed = true;
-			if (localPaidCount()) {
+			if (localPaidData()) {
 				_paid->top.clear();
 			} else {
 				_paid = nullptr;
@@ -2133,14 +2179,18 @@ void MessageReactions::markRead() {
 	}
 }
 
-void MessageReactions::scheduleSendPaid(int count) {
-	Expects(count > 0);
+void MessageReactions::scheduleSendPaid(int count, bool anonymous) {
+	Expects(count >= 0);
 
 	if (!_paid) {
 		_paid = std::make_unique<Paid>();
 	}
 	_paid->scheduled += count;
-	_item->history()->session().credits().lock(count);
+	_paid->scheduledFlag = 1;
+	_paid->scheduledAnonymous = anonymous ? 1 : 0;
+	if (count > 0) {
+		_item->history()->session().credits().lock(count);
+	}
 	_item->history()->owner().reactions().schedulePaid(_item);
 }
 
@@ -2150,50 +2200,100 @@ int MessageReactions::scheduledPaid() const {
 
 void MessageReactions::cancelScheduledPaid() {
 	if (_paid) {
-		if (_paid->scheduled > 0) {
-			_item->history()->session().credits().unlock(
-				base::take(_paid->scheduled));
+		if (_paid->scheduledFlag) {
+			if (const auto amount = int(_paid->scheduled)) {
+				_item->history()->session().credits().unlock(amount);
+			}
+			_paid->scheduled = 0;
+			_paid->scheduledFlag = 0;
+			_paid->scheduledAnonymous = 0;
 		}
-		if (!_paid->sending && _paid->top.empty()) {
+		if (!_paid->sendingFlag && _paid->top.empty()) {
 			_paid = nullptr;
 		}
 	}
 }
 
-int MessageReactions::startPaidSending() {
-	if (!_paid || !_paid->scheduled || _paid->sending) {
-		return 0;
+PaidReactionSend MessageReactions::startPaidSending() {
+	if (!_paid || !_paid->scheduledFlag || _paid->sendingFlag) {
+		return {};
 	}
 	_paid->sending = _paid->scheduled;
+	_paid->sendingFlag = _paid->scheduledFlag;
+	_paid->sendingAnonymous = _paid->scheduledAnonymous;
 	_paid->scheduled = 0;
-	return _paid->sending;
+	_paid->scheduledFlag = 0;
+	_paid->scheduledAnonymous = 0;
+	return {
+		.count = int(_paid->sending),
+		.valid = true,
+		.anonymous = (_paid->sendingAnonymous == 1),
+	};
 }
 
-void MessageReactions::finishPaidSending(int count, bool success) {
-	Expects(count > 0);
+void MessageReactions::finishPaidSending(
+		PaidReactionSend send,
+		bool success) {
 	Expects(_paid != nullptr);
-	Expects(count == _paid->sending);
+	Expects(send.count == _paid->sending);
+	Expects(send.valid == (_paid->sendingFlag == 1));
+	Expects(send.anonymous == (_paid->sendingAnonymous == 1));
 
 	_paid->sending = 0;
-	if (!_paid->scheduled && _paid->top.empty()) {
+	_paid->sendingFlag = 0;
+	_paid->sendingAnonymous = 0;
+	if (!_paid->scheduledFlag && _paid->top.empty()) {
 		_paid = nullptr;
+	} else if (!send.count) {
+		const auto i = ranges::find_if(_paid->top, [](const TopPaid &top) {
+			return top.my;
+		});
+		if (i != end(_paid->top)) {
+			i->peer = send.anonymous
+				? nullptr
+				: _item->history()->session().user().get();
+		}
 	}
-	if (success) {
-		_item->history()->session().credits().withdrawLocked(count);
-	} else {
-		_item->history()->session().credits().unlock(count);
+	if (const auto amount = send.count) {
+		const auto credits = &_item->history()->session().credits();
+		if (success) {
+			credits->withdrawLocked(amount);
+		} else {
+			credits->unlock(amount);
+		}
 	}
+}
+
+bool MessageReactions::localPaidData() const {
+	return _paid && (_paid->scheduledFlag || _paid->sendingFlag);
 }
 
 int MessageReactions::localPaidCount() const {
 	return _paid ? (_paid->scheduled + _paid->sending) : 0;
 }
 
+bool MessageReactions::localPaidAnonymous() const {
+	const auto minePaidAnonymous = [&] {
+		for (const auto &entry : _paid->top) {
+			if (entry.my) {
+				return !entry.peer;
+			}
+		}
+		return false;
+	};
+	return _paid
+		&& (_paid->scheduledFlag
+			? (_paid->scheduledAnonymous == 1)
+			: _paid->sendingFlag
+			? (_paid->sendingAnonymous == 1)
+			: minePaidAnonymous());
+}
+
 bool MessageReactions::clearCloudData() {
 	const auto result = !_list.empty();
 	_recent.clear();
 	_list.clear();
-	if (localPaidCount()) {
+	if (localPaidData()) {
 		_paid->top.clear();
 	} else {
 		_paid = nullptr;

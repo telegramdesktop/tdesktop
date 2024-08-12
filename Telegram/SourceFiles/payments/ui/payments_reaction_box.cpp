@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
@@ -178,8 +179,13 @@ void PaidReactionSlider(
 [[nodiscard]] not_null<RpWidget*> MakeTopReactor(
 		not_null<QWidget*> parent,
 		const PaidReactionTop &data) {
-	const auto result = CreateChild<RpWidget>(parent);
+	const auto result = CreateChild<AbstractButton>(parent);
 	result->show();
+	if (data.click && !data.my) {
+		result->setClickedCallback(data.click);
+	} else {
+		result->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
 
 	struct State {
 		QImage badge;
@@ -224,7 +230,9 @@ void PaidReactionSlider(
 
 void FillTopReactors(
 		not_null<VerticalLayout*> container,
-		std::vector<PaidReactionTop> top) {
+		std::vector<PaidReactionTop> top,
+		rpl::producer<int> chosen,
+		rpl::producer<bool> anonymous) {
 	container->add(
 		MakeBoostFeaturesBadge(
 			container,
@@ -238,20 +246,53 @@ void FillTopReactors(
 		st::paidReactTopMargin);
 	struct State {
 		std::vector<not_null<RpWidget*>> widgets;
+		rpl::event_stream<> updated;
 	};
 	const auto state = wrap->lifetime().make_state<State>();
 
-	const auto topCount = std::min(int(top.size()), kMaxTopPaidShown);
-	for (auto i = 0; i != topCount; ++i) {
-		state->widgets.push_back(MakeTopReactor(wrap, top[i]));
-	}
+	rpl::combine(
+		std::move(chosen),
+		std::move(anonymous)
+	) | rpl::start_with_next([=](int chosen, bool anonymous) {
+		for (const auto &widget : state->widgets) {
+			delete widget;
+		}
+		state->widgets.clear();
 
-	wrap->widthValue() | rpl::start_with_next([=](int width) {
+		auto list = std::vector<PaidReactionTop>();
+		list.reserve(kMaxTopPaidShown + 1);
+		for (const auto &entry : top) {
+			if (!entry.my) {
+				list.push_back(entry);
+			} else if (!entry.click == anonymous) {
+				auto copy = entry;
+				copy.count += chosen;
+				list.push_back(copy);
+			}
+		}
+		ranges::stable_sort(
+			list,
+			ranges::greater(),
+			&PaidReactionTop::count);
+		while (list.size() > kMaxTopPaidShown) {
+			list.pop_back();
+		}
+		for (const auto &entry : list) {
+			state->widgets.push_back(MakeTopReactor(wrap, entry));
+		}
+		state->updated.fire({});
+	}, wrap->lifetime());
+
+	rpl::combine(
+		state->updated.events_starting_with({}),
+		wrap->widthValue()
+	) | rpl::start_with_next([=](auto, int width) {
 		const auto single = width / 4;
 		if (single <= st::paidReactTopUserpic) {
 			return;
 		}
-		auto left = (width - single * topCount) / 2;
+		const auto count = int(state->widgets.size());
+		auto left = (width - single * count) / 2;
 		for (const auto widget : state->widgets) {
 			widget->setGeometry(left, 0, single, height);
 			left += single;
@@ -264,6 +305,8 @@ void FillTopReactors(
 void PaidReactionsBox(
 		not_null<GenericBox*> box,
 		PaidReactionBoxArgs &&args) {
+	Expects(!args.top.empty());
+
 	args.max = std::max(args.max, 2);
 	args.chosen = std::clamp(args.chosen, 1, args.max);
 
@@ -273,12 +316,21 @@ void PaidReactionsBox(
 
 	struct State {
 		rpl::variable<int> chosen;
+		rpl::variable<bool> anonymous;
 	};
 	const auto state = box->lifetime().make_state<State>();
+
 	state->chosen = args.chosen;
 	const auto changed = [=](int count) {
 		state->chosen = count;
 	};
+
+	const auto initialAnonymous = ranges::find(
+		args.top,
+		true,
+		&PaidReactionTop::my
+	)->click == nullptr;
+	state->anonymous = initialAnonymous;
 
 	const auto content = box->verticalLayout();
 	AddSkip(content, st::boxTitleClose.height + st::paidReactBubbleTop);
@@ -307,6 +359,10 @@ void PaidReactionsBox(
 		&st::paidReactBubbleIcon,
 		st::boxRowPadding);
 
+	const auto already = ranges::find(
+		args.top,
+		true,
+		&PaidReactionTop::my)->count;
 	PaidReactionSlider(content, args.chosen, args.max, changed);
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
@@ -323,10 +379,10 @@ void PaidReactionsBox(
 			+ QMargins(0, st::lineWidth, 0, st::boostBottomSkip)));
 	const auto label = CreateChild<FlatLabel>(
 		labelWrap,
-		(args.already
+		(already
 			? tr::lng_paid_react_already(
 				lt_count,
-				rpl::single(args.already) | tr::to_count(),
+				rpl::single(already) | tr::to_count(),
 				Text::RichLangValue)
 			: tr::lng_paid_react_about(
 				lt_channel,
@@ -343,13 +399,31 @@ void PaidReactionsBox(
 		label->moveToLeft(0, skip);
 	}, label->lifetime());
 
-	if (!args.top.empty()) {
-		FillTopReactors(content, std::move(args.top));
-	}
+	FillTopReactors(
+		content,
+		std::move(args.top),
+		state->chosen.value(),
+		state->anonymous.value());
+
+	const auto named = box->addRow(object_ptr<CenterWrap<Checkbox>>(
+		box,
+		object_ptr<Checkbox>(
+			box,
+			tr::lng_paid_react_show_in_top(tr::now),
+			!state->anonymous.current())));
+	state->anonymous = named->entity()->checkedValue(
+	) | rpl::map(!rpl::mappers::_1);
 
 	const auto button = box->addButton(rpl::single(QString()), [=] {
-		args.send(state->chosen.current());
+		args.send(state->chosen.current(), !named->entity()->checked());
 	});
+
+	box->boxClosing() | rpl::filter([=] {
+		return state->anonymous.current() != initialAnonymous;
+	}) | rpl::start_with_next([=] {
+		args.send(0, state->anonymous.current());
+	}, box->lifetime());
+
 	{
 		const auto buttonLabel = CreateChild<FlatLabel>(
 			button,

@@ -67,6 +67,7 @@ class Thread;
 struct SponsoredFrom;
 class Story;
 class SavedSublist;
+struct PaidReactionSend;
 } // namespace Data
 
 namespace Main {
@@ -445,10 +446,12 @@ public:
 	void toggleReaction(
 		const Data::ReactionId &reaction,
 		HistoryReactionSource source);
-	void addPaidReaction(int count);
+	void addPaidReaction(int count, bool anonymous);
 	void cancelScheduledPaidReaction();
-	[[nodiscard]] int startPaidReactionSending();
-	void finishPaidReactionSending(int count, bool success);
+	[[nodiscard]] Data::PaidReactionSend startPaidReactionSending();
+	void finishPaidReactionSending(
+		Data::PaidReactionSend send,
+		bool success);
 	void updateReactionsUnknown();
 	[[nodiscard]] auto reactions() const
 		-> const std::vector<Data::MessageReaction> &;
@@ -458,8 +461,8 @@ public:
 		-> const base::flat_map<
 			Data::ReactionId,
 			std::vector<Data::RecentReaction>> &;
-	[[nodiscard]] auto topPaidReactions() const
-		-> const std::vector<Data::MessageReactionsTopPaid> &;
+	[[nodiscard]] auto topPaidReactionsWithLocal() const
+		-> std::vector<Data::MessageReactionsTopPaid>;
 	[[nodiscard]] int reactionsPaidScheduled() const;
 	[[nodiscard]] bool canViewReactions() const;
 	[[nodiscard]] std::vector<Data::ReactionId> chosenReactions() const;

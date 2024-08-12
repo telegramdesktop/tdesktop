@@ -492,7 +492,7 @@ void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
 		return;
 	} else if (reaction.id.paid()) {
 		Payments::ShowPaidReactionDetails(
-			_controller->uiShow(),
+			_controller,
 			item,
 			viewByItem(item),
 			HistoryReactionSource::Selector);

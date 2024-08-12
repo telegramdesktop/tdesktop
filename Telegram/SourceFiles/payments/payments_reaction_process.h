@@ -19,17 +19,24 @@ namespace Ui {
 class Show;
 } // namespace Ui
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Payments {
+
+[[nodiscard]] bool LookupMyPaidAnonymous(not_null<HistoryItem*> item);
 
 void TryAddingPaidReaction(
 	not_null<HistoryItem*> item,
 	HistoryView::Element *view,
 	int count,
+	bool anonymous,
 	std::shared_ptr<Ui::Show> show,
 	Fn<void(bool)> finished = nullptr);
 
 void ShowPaidReactionDetails(
-	std::shared_ptr<Ui::Show> show,
+	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
 	HistoryView::Element *view,
 	HistoryReactionSource source);

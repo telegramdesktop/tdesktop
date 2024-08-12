@@ -3283,6 +3283,7 @@ void Message::refreshReactions() {
 						item,
 						weak.get(),
 						1,
+						Payments::LookupMyPaidAnonymous(item),
 						controller->uiShow());
 					return;
 				} else {

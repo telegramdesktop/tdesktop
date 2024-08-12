@@ -59,12 +59,19 @@ struct PossibleItemReactions {
 };
 
 [[nodiscard]] PossibleItemReactionsRef LookupPossibleReactions(
-	not_null<HistoryItem*> item);
+	not_null<HistoryItem*> item,
+	bool paidInFront = false);
 
 struct MyTagInfo {
 	ReactionId id;
 	QString title;
 	int count = 0;
+};
+
+struct PaidReactionSend {
+	int count = 0;
+	bool valid = false;
+	bool anonymous = false;
 };
 
 class Reactions final : private CustomEmojiManager::Listener {
@@ -250,10 +257,15 @@ private:
 
 	void sendPaid();
 	bool sendPaid(not_null<HistoryItem*> item);
-	void sendPaidRequest(not_null<HistoryItem*> item, int count);
+	void sendPaidRequest(
+		not_null<HistoryItem*> item,
+		PaidReactionSend send);
+	void sendPaidPrivacyRequest(
+		not_null<HistoryItem*> item,
+		PaidReactionSend send);
 	void sendPaidFinish(
 		not_null<HistoryItem*> item,
-		int count,
+		PaidReactionSend send,
 		bool success);
 	void checkQuitPreventFinished();
 
@@ -397,21 +409,27 @@ public:
 	[[nodiscard]] bool hasUnread() const;
 	void markRead();
 
-	void scheduleSendPaid(int count);
+	void scheduleSendPaid(int count, bool anonymous);
 	[[nodiscard]] int scheduledPaid() const;
 	void cancelScheduledPaid();
 
-	int startPaidSending();
-	void finishPaidSending(int count, bool success);
+	[[nodiscard]] PaidReactionSend startPaidSending();
+	void finishPaidSending(PaidReactionSend send, bool success);
 
+	[[nodiscard]] bool localPaidData() const;
 	[[nodiscard]] int localPaidCount() const;
+	[[nodiscard]] bool localPaidAnonymous() const;
 	bool clearCloudData();
 
 private:
 	struct Paid {
 		std::vector<TopPaid> top;
-		int scheduled = 0;
-		int sending = 0;
+		uint32 scheduled: 30 = 0;
+		uint32 scheduledFlag : 1 = 0;
+		uint32 scheduledAnonymous : 1 = 0;
+		uint32 sending : 30 = 0;
+		uint32 sendingFlag : 1 = 0;
+		uint32 sendingAnonymous : 1 = 0;
 	};
 	const not_null<HistoryItem*> _item;
 

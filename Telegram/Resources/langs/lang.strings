@@ -3477,6 +3477,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_paid_react_toast_text#one" = "You reacted with **{count} Star**.";
 "lng_paid_react_toast_text#other" = "You reacted with **{count} Stars**.";
 "lng_paid_react_undo" = "Undo";
+"lng_paid_react_show_in_top" = "Show me in Top Senders";
+"lng_paid_react_anonymous" = "Anonymous";
 
 "lng_translate_show_original" = "Show Original";
 "lng_translate_bar_to" = "Translate to {name}";
