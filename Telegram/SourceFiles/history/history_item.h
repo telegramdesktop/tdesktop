@@ -516,6 +516,9 @@ public:
 	[[nodiscard]] bool isEmpty() const;
 	[[nodiscard]] MessageGroupId groupId() const;
 	[[nodiscard]] EffectId effectId() const;
+	[[nodiscard]] QString computeUnavailableReason() const;
+	[[nodiscard]] bool hasSensitiveSpoiler() const;
+	void allowSensitive();
 
 	[[nodiscard]] const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
 		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();

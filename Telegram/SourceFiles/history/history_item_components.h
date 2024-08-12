@@ -33,6 +33,7 @@ namespace Data {
 class Session;
 class Story;
 class SavedSublist;
+struct UnavailableReason;
 } // namespace Data
 
 namespace Media::Player {
@@ -594,6 +595,11 @@ struct HistoryMessageFactcheck
 	MessageFactcheck data;
 	WebPageData *page = nullptr;
 	bool requested = false;
+};
+
+struct HistoryMessageRestrictions
+: public RuntimeComponent<HistoryMessageRestrictions, HistoryItem> {
+	std::vector<Data::UnavailableReason> reasons;
 };
 
 struct HistoryServiceData

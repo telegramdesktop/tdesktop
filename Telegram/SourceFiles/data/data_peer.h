@@ -95,6 +95,13 @@ struct UnavailableReason {
 
 	[[nodiscard]] bool sensitive() const;
 	[[nodiscard]] static UnavailableReason Sensitive();
+
+	[[nodiscard]] static QString Compute(
+		not_null<Main::Session*> session,
+		const std::vector<UnavailableReason> &list);
+
+	[[nodiscard]] static std::vector<UnavailableReason> Extract(
+		const MTPvector<MTPRestrictionReason> *list);
 };
 
 bool ApplyBotMenuButton(

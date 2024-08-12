@@ -190,6 +190,8 @@ struct HistoryItem::CreateConfig {
 
 	// For messages created from existing messages (forwarded).
 	const HistoryMessageReplyMarkup *inlineMarkup = nullptr;
+
+	std::vector<Data::UnavailableReason> restrictions;
 };
 
 void HistoryItem::FillForwardedInfo(
@@ -3279,6 +3281,24 @@ EffectId HistoryItem::effectId() const {
 	return _effectId;
 }
 
+QString HistoryItem::computeUnavailableReason() const {
+	if (const auto restrictions = Get<HistoryMessageRestrictions>()) {
+		return Data::UnavailableReason::Compute(
+			&history()->session(),
+			restrictions->reasons);
+	}
+	return QString();
+}
+
+bool HistoryItem::hasSensitiveSpoiler() const {
+	return (_flags & MessageFlag::SensitiveContent)
+		&& !(_flags & MessageFlag::AllowSensitive);
+}
+
+void HistoryItem::allowSensitive() {
+	_flags |= MessageFlag::AllowSensitive;
+}
+
 bool HistoryItem::isEmpty() const {
 	return _text.empty()
 		&& !_media
@@ -3487,6 +3507,12 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 	if (_history->peer->isSelf()) {
 		mask |= HistoryMessageSaved::Bit();
 	}
+	if (!config.restrictions.empty()) {
+		if (config.restrictions.size() > 1
+			|| !config.restrictions.front().sensitive()) {
+			mask |= HistoryMessageRestrictions::Bit();
+		}
+	}
 
 	UpdateComponents(mask);
 
@@ -3558,6 +3584,19 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 		_flags |= MessageFlag::HasReplyMarkup;
 	} else {
 		_flags &= ~MessageFlag::HasReplyMarkup;
+	}
+	if (const auto restrictions = Get<HistoryMessageRestrictions>()) {
+		restrictions->reasons = std::move(config.restrictions);
+		const auto i = ranges::find(
+			restrictions->reasons,
+			true,
+			&Data::UnavailableReason::sensitive);
+		if (i != end(restrictions->reasons)) {
+			restrictions->reasons.erase(i);
+			_flags |= MessageFlag::SensitiveContent;
+		}
+	} else if (!config.restrictions.empty()) {
+		_flags |= MessageFlag::SensitiveContent;
 	}
 
 	if (out() && isSending()) {
@@ -3874,6 +3913,8 @@ void HistoryItem::createComponents(const MTPDmessage &data) {
 	config.markup = HistoryMessageMarkupData(data.vreply_markup());
 	config.editDate = data.vedit_date().value_or_empty();
 	config.postAuthor = qs(data.vpost_author().value_or_empty());
+	config.restrictions = Data::UnavailableReason::Extract(
+		data.vrestriction_reason());
 	createComponents(std::move(config));
 }
 
