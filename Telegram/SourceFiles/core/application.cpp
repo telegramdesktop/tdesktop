@@ -737,14 +737,12 @@ void Application::saveSettings() {
 	Local::writeSettings();
 }
 
-bool Application::canReadDefaultDownloadPath(bool always) const {
-	if (KSandbox::isInside()
-		&& (always || settings().downloadPath().isEmpty())) {
-		const auto path = QStandardPaths::writableLocation(
-			QStandardPaths::DownloadLocation);
-		return base::CanReadDirectory(path);
-	}
-	return true;
+bool Application::canReadDefaultDownloadPath() const {
+	return KSandbox::isInside()
+		? base::CanReadDirectory(
+			QStandardPaths::writableLocation(
+				QStandardPaths::DownloadLocation))
+		: true;
 }
 
 bool Application::canSaveFileWithoutAskingForPath() const {

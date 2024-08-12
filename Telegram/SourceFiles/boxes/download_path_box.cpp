@@ -25,7 +25,7 @@ DownloadPathBox::DownloadPathBox(
 , _path(Core::App().settings().downloadPath())
 , _pathBookmark(Core::App().settings().downloadPathBookmark())
 , _group(std::make_shared<Ui::RadioenumGroup<Directory>>(typeFromPath(_path)))
-, _default(Core::App().canReadDefaultDownloadPath(true)
+, _default(Core::App().canReadDefaultDownloadPath()
 	? object_ptr<Ui::Radioenum<Directory>>(
 		this,
 		_group,
@@ -149,7 +149,7 @@ void DownloadPathBox::setPathText(const QString &text) {
 DownloadPathBox::Directory DownloadPathBox::typeFromPath(
 		const QString &path) {
 	if (path.isEmpty()) {
-		return Core::App().canReadDefaultDownloadPath(true)
+		return Core::App().canReadDefaultDownloadPath()
 			? Directory::Downloads
 			: Directory::Temp;
 	} else if (path == FileDialog::Tmp()) {

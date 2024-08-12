@@ -1106,7 +1106,7 @@ void SetupDataStorage(
 	auto pathtext = Core::App().settings().downloadPathValue(
 	) | rpl::map([](const QString &text) {
 		if (text.isEmpty()) {
-			return Core::App().canReadDefaultDownloadPath(true)
+			return Core::App().canReadDefaultDownloadPath()
 				? tr::lng_download_path_default(tr::now)
 				: tr::lng_download_path_temp(tr::now);
 		} else if (text == FileDialog::Tmp()) {
