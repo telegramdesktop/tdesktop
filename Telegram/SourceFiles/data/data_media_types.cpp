@@ -242,7 +242,8 @@ template <typename MediaType>
 		ImageRoundRadius radius,
 		bool spoiler) {
 	auto result = PreparePhotoPreviewImage(item, media, radius, spoiler);
-	if (media->owner()->extendedMediaVideoDuration().has_value()) {
+	if (!result.data.isNull()
+		&& media->owner()->extendedMediaVideoDuration().has_value()) {
 		result.data = PutPlayIcon(std::move(result.data));
 	}
 	return result;
