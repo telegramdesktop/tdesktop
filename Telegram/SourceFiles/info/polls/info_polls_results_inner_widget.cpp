@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/polls/info_polls_results_widget.h"
 #include "lang/lang_keys.h"
+#include "data/data_peer.h"
 #include "data/data_poll.h"
-#include "data/data_user.h"
 #include "data/data_session.h"
 #include "ui/controls/peer_list_dummy.h"
 #include "ui/widgets/buttons.h"
@@ -261,7 +261,7 @@ void ListController::collapse() {
 	_preloaded.reserve(_preloaded.size() + remove);
 	for (auto i = 0; i != remove; ++i) {
 		const auto row = delegate()->peerListRowAt(count - i - 1);
-		_preloaded.push_back(row->peer()->asUser());
+		_preloaded.push_back(row->peer());
 		delegate()->peerListRemoveRow(row);
 	}
 	ranges::actions::reverse(_preloaded);
@@ -273,8 +273,8 @@ void ListController::collapse() {
 }
 
 void ListController::addPreloaded() {
-	for (const auto user : base::take(_preloaded)) {
-		appendRow(user);
+	for (const auto peer : base::take(_preloaded)) {
+		appendRow(peer);
 	}
 	preloadedAdded();
 }
