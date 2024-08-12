@@ -140,10 +140,10 @@ constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 
 [[nodiscard]] bool IsMyTop(
 		const MTPDmessageReactor &data,
-		not_null<PeerData*> peer,
+		PeerData *peer,
 		const std::vector<MessageReactionsTopPaid> &top,
 		bool min) {
-	if (peer->isSelf()) {
+	if (peer && peer->isSelf()) {
 		return true;
 	} else if (!min) {
 		return data.is_my();
@@ -1720,6 +1720,7 @@ void Reactions::sendPaidRequest(not_null<HistoryItem*> item, int count) {
 	const auto randomId = base::unixtime::mtproto_msg_id();
 	auto &api = _owner->session().api();
 	const auto requestId = api.request(MTPmessages_SendPaidReaction(
+		MTP_flags(0),
 		item->history()->peer->input,
 		MTP_int(id.msg),
 		MTP_int(count),
@@ -2048,7 +2049,10 @@ bool MessageReactions::change(
 	const auto &paindTopNow = _paid ? _paid->top : std::vector<TopPaid>();
 	for (const auto &reactor : top) {
 		const auto &data = reactor.data();
-		const auto peer = owner.peer(peerFromMTP(data.vpeer_id()));
+		const auto peerId = (data.is_anonymous() || !data.vpeer_id())
+			? PeerId()
+			: peerFromMTP(*data.vpeer_id());
+		const auto peer = peerId ? owner.peer(peerId).get() : nullptr;
 		paidTop.push_back({
 			.peer = peer,
 			.count = uint32(data.vcount().v),

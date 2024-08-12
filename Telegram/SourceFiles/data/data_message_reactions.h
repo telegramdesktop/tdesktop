@@ -359,7 +359,7 @@ struct RecentReaction {
 };
 
 struct MessageReactionsTopPaid {
-	not_null<PeerData*> peer;
+	PeerData *peer = nullptr;
 	uint32 count : 30 = 0;
 	uint32 top : 1 = 0;
 	uint32 my : 1 = 0;

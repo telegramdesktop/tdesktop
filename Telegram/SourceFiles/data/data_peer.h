@@ -89,12 +89,12 @@ struct UnavailableReason {
 	QString reason;
 	QString text;
 
-	bool operator==(const UnavailableReason &other) const {
-		return (reason == other.reason) && (text == other.text);
-	}
-	bool operator!=(const UnavailableReason &other) const {
-		return !(*this == other);
-	}
+	friend inline bool operator==(
+		const UnavailableReason &,
+		const UnavailableReason &) = default;
+
+	[[nodiscard]] bool sensitive() const;
+	[[nodiscard]] static UnavailableReason Sensitive();
 };
 
 bool ApplyBotMenuButton(
@@ -340,6 +340,7 @@ public:
 	// If this string is not empty we must not allow to open the
 	// conversation and we must show this string instead.
 	[[nodiscard]] QString computeUnavailableReason() const;
+	[[nodiscard]] bool isUnavailableSensitive() const;
 
 	[[nodiscard]] ClickHandlerPtr createOpenLink();
 	[[nodiscard]] const ClickHandlerPtr &openLink() {

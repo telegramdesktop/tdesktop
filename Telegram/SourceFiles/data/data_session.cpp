@@ -133,7 +133,7 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 	return ranges::views::all(
 		restrictions
 	) | ranges::views::filter([](const MTPRestrictionReason &restriction) {
-		return restriction.match([&](const MTPDrestrictionReason &data) {
+		return restriction.match([&](const auto &data) {
 			const auto platform = qs(data.vplatform());
 			return false
 #ifdef OS_MAC_STORE

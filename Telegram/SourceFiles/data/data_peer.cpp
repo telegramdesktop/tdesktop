@@ -74,6 +74,14 @@ PeerId FakePeerIdForJustName(const QString &name) {
 	return peerFromUser(kShift + std::abs(base));
 }
 
+bool UnavailableReason::sensitive() const {
+	return reason == u"sensitive"_q;
+}
+
+UnavailableReason UnavailableReason::Sensitive() {
+	return { u"sensitive"_q };
+}
+
 bool ApplyBotMenuButton(
 		not_null<BotInfo*> info,
 		const MTPBotMenuButton *button) {
@@ -505,10 +513,18 @@ QString PeerData::computeUnavailableReason() const {
 	auto &&filtered = ranges::views::all(
 		list
 	) | ranges::views::filter([&](const Data::UnavailableReason &reason) {
-		return !ranges::contains(skip, reason.reason);
+		return !reason.sensitive()
+			&& !ranges::contains(skip, reason.reason);
 	});
 	const auto first = filtered.begin();
 	return (first != filtered.end()) ? first->text : QString();
+}
+
+bool PeerData::isUnavailableSensitive() const {
+	return ranges::contains(
+		unavailableReasons(),
+		true,
+		&Data::UnavailableReason::sensitive);
 }
 
 // This is duplicated in CanPinMessagesValue().
