@@ -890,12 +890,13 @@ QSize Message::performCountOptimalSize() {
 			accumulate_max(
 				maxWidth,
 				std::min(st::msgMaxWidth, reactionsMaxWidth));
-			if (!mediaDisplayed || _viewButton) {
-				minHeight += st::mediaInBubbleSkip;
-			} else if (!media->additionalInfoString().isEmpty()) {
+			if (mediaDisplayed
+				&& !media->additionalInfoString().isEmpty()) {
 				// In round videos in a web page status text is painted
 				// in the bottom left corner, reactions should be below.
 				minHeight += st::msgDateFont->height;
+			} else {
+				minHeight += st::mediaInBubbleSkip;
 			}
 			if (maxWidth >= reactionsMaxWidth) {
 				minHeight += _reactions->minHeight();
@@ -4339,12 +4340,13 @@ int Message::resizeContentGetHeight(int newWidth) {
 				newHeight += entry->resizeGetHeight(contentWidth);
 			}
 			if (reactionsInBubble) {
-				if (!mediaDisplayed || _viewButton) {
-					newHeight += st::mediaInBubbleSkip;
-				} else if (!media->additionalInfoString().isEmpty()) {
+				if (mediaDisplayed
+					&& !media->additionalInfoString().isEmpty()) {
 					// In round videos in a web page status text is painted
 					// in the bottom left corner, reactions should be below.
 					newHeight += st::msgDateFont->height;
+				} else {
+					newHeight += st::mediaInBubbleSkip;
 				}
 				newHeight += _reactions->height();
 			}
