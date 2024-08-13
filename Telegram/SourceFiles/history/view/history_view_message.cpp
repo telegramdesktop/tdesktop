@@ -408,6 +408,7 @@ Message::Message(
 	Element *replacing)
 : Element(delegate, data, replacing, Flag(0))
 , _hideReply(delegate->elementHideReply(this))
+, _postShowingAuthor(data->isPostShowingAuthor() ? 1 : 0)
 , _bottomInfo(
 		&data->history()->owner().reactions(),
 		BottomInfoDataFromMessage(this)) {
@@ -2272,10 +2273,11 @@ bool Message::hasFromPhoto() const {
 	case Context::SavedSublist:
 	case Context::ScheduledTopic: {
 		const auto item = data();
-		if (item->isPost()) {
+		if (item->isPostHidingAuthor()) {
 			return false;
-		}
-		if (item->isEmpty()
+		} else if (item->isPost()) {
+			return true;
+		} else if (item->isEmpty()
 			|| (context() == Context::Replies && item->isDiscussionPost())) {
 			return false;
 		} else if (delegate()->elementIsChatWide()) {
@@ -4243,6 +4245,14 @@ int Message::resizeContentGetHeight(int newWidth) {
 	const auto media = this->media();
 	const auto mediaDisplayed = media ? media->isDisplayed() : false;
 	const auto bubble = drawBubble();
+
+	const auto postShowingAuthor = item->isPostShowingAuthor() ? 1 : 0;
+	if (_postShowingAuthor != postShowingAuthor) {
+		_postShowingAuthor = postShowingAuthor;
+		_bottomInfo.update(BottomInfoDataFromMessage(this), newWidth);
+		_fromNameVersion = -1;
+		previousInBlocksChanged();
+	}
 
 	item->resolveDependent();
 

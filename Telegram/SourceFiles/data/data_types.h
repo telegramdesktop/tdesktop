@@ -313,19 +313,20 @@ enum class MessageFlag : uint64 {
 
 	// If not set then we need to refresh _displayFrom value.
 	DisplayFromChecked    = (1ULL << 40),
+	DisplayFromProfiles   = (1ULL << 41),
 
-	ShowSimilarChannels   = (1ULL << 41),
+	ShowSimilarChannels   = (1ULL << 42),
 
-	Sponsored             = (1ULL << 42),
+	Sponsored             = (1ULL << 43),
 
-	ReactionsAreTags      = (1ULL << 43),
+	ReactionsAreTags      = (1ULL << 44),
 
-	ShortcutMessage       = (1ULL << 44),
+	ShortcutMessage       = (1ULL << 45),
 
-	EffectWatched         = (1ULL << 45),
+	EffectWatched         = (1ULL << 46),
 
-	SensitiveContent      = (1ULL << 46),
-	AllowSensitive        = (1ULL << 47),
+	SensitiveContent      = (1ULL << 47),
+	AllowSensitive        = (1ULL << 48),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

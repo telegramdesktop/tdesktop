@@ -327,6 +327,9 @@ public:
 	[[nodiscard]] bool showSimilarChannels() const {
 		return _flags & MessageFlag::ShowSimilarChannels;
 	}
+	[[nodiscard]] bool hasRealFromId() const;
+	[[nodiscard]] bool isPostHidingAuthor() const;
+	[[nodiscard]] bool isPostShowingAuthor() const;
 	[[nodiscard]] bool isRegular() const;
 	[[nodiscard]] bool isUploading() const;
 	void sendFailed();

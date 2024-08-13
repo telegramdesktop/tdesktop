@@ -3282,9 +3282,9 @@ void ApiWrap::forwardMessages(
 	if (!action.options.scheduled && !action.options.shortcutId) {
 		histories.readInbox(history);
 	}
+	const auto sendAs = action.options.sendAs;
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, action.options);
-	const auto sendAs = action.options.sendAs;
 
 	using SendFlag = MTPmessages_ForwardMessages::Flag;
 	auto flags = MessageFlags();

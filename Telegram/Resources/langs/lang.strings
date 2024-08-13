@@ -3584,6 +3584,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_channel_title" = "Edit channel";
 "lng_edit_bot_title" = "Edit bot";
 "lng_edit_sign_messages" = "Sign messages";
+"lng_edit_sign_messages_about" = "Add names of admins to the messages they post.";
+"lng_edit_sign_profiles" = "Show authors' profiles";
+"lng_edit_sign_profiles_about" = "Add names and photos of admins to the messages they post, linking to their profiles.";
 "lng_edit_group" = "Edit group";
 "lng_edit_channel_color" = "Change name color";
 "lng_edit_channel_level_min" = "Level 1+";

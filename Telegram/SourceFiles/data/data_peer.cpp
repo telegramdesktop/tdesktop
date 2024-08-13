@@ -1268,9 +1268,12 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 }
 
 bool PeerData::amAnonymous() const {
-	return isBroadcast()
-		|| (isChannel()
-			&& (asChannel()->adminRights() & ChatAdminRight::Anonymous));
+	if (const auto channel = asChannel()) {
+		return channel->isBroadcast()
+			? !channel->signatureProfiles()
+			: (channel->adminRights() & ChatAdminRight::Anonymous);
+	}
+	return false;
 }
 
 bool PeerData::canRevokeFullHistory() const {

@@ -1057,19 +1057,50 @@ void Controller::fillSignaturesButton() {
 		return;
 	}
 
-	AddButtonWithText(
+	const auto signs = AddButtonWithText(
 		_controls.buttonsLayout,
 		tr::lng_edit_sign_messages(),
 		rpl::single(QString()),
 		[] {},
 		{ &st::menuIconSigned }
-	)->toggleOn(rpl::single(channel->addsSignature())
-	)->toggledValue(
+	)->toggleOn(rpl::single(channel->addsSignature()));
+
+	const auto profiles = _controls.buttonsLayout->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			_controls.buttonsLayout,
+			EditPeerInfoBox::CreateButton(
+				_controls.buttonsLayout,
+				tr::lng_edit_sign_profiles(),
+				rpl::single(QString()),
+				[] {},
+				st::manageGroupTopButtonWithText,
+				{ &st::menuIconSigned })));
+	profiles->toggleOn(signs->toggledValue());
+	profiles->finishAnimating();
+
+	profiles->entity()->toggleOn(rpl::single(
+		channel->addsSignature() && channel->signatureProfiles()
+	))->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		_signatureProfilesSavedValue = toggled;
+	}, profiles->entity()->lifetime());
+
+	signs->toggledValue(
 	) | rpl::start_with_next([=](bool toggled) {
 		_signaturesSavedValue = toggled;
+		if (!toggled) {
+			_signatureProfilesSavedValue = false;
+		}
 	}, _controls.buttonsLayout->lifetime());
 
-	_signatureProfilesSavedValue = channel->signatureProfiles();
+	Ui::AddSkip(_controls.buttonsLayout);
+	Ui::AddDividerText(
+		_controls.buttonsLayout,
+		rpl::conditional(
+			signs->toggledValue(),
+			tr::lng_edit_sign_profiles_about(Ui::Text::WithEntities),
+			tr::lng_edit_sign_messages_about(Ui::Text::WithEntities)));
+	Ui::AddSkip(_controls.buttonsLayout);
 }
 
 void Controller::fillHistoryVisibilityButton() {
@@ -1227,11 +1258,9 @@ void Controller::fillManageSection() {
 	}
 	if (canEditSignatures) {
 		fillSignaturesButton();
-	}
-	if (canEditPreHistoryHidden
+	} else if (canEditPreHistoryHidden
 		|| canEditForum
 		|| canEditColorIndex
-		|| canEditSignatures
 		//|| canEditInviteLinks
 		|| canViewOrEditLinkedChat
 		|| canEditType) {

@@ -1232,10 +1232,19 @@ PeerData *HistoryItem::computeDisplayFrom() const {
 }
 
 PeerData *HistoryItem::displayFrom() const {
-	if (!(_flags & MessageFlag::DisplayFromChecked)) {
-		_flags |= MessageFlag::DisplayFromChecked;
-		_displayFrom = computeDisplayFrom();
+	if (_flags & MessageFlag::DisplayFromChecked) {
+		const auto showing = isPostShowingAuthor();
+		const auto flag = (_flags & MessageFlag::DisplayFromProfiles);
+		if (showing && !flag) {
+			_flags |= MessageFlag::DisplayFromProfiles;
+		} else if (!showing && flag) {
+			_flags &= ~MessageFlag::DisplayFromProfiles;
+		} else {
+			return _displayFrom;
+		}
 	}
+	_flags |= MessageFlag::DisplayFromChecked;
+	_displayFrom = computeDisplayFrom();
 	return _displayFrom;
 }
 
@@ -2148,7 +2157,7 @@ QString HistoryItem::notificationHeader() const {
 		return QString();
 	} else if (out() && isFromScheduled() && !_history->peer->isSelf()) {
 		return tr::lng_from_you(tr::now);
-	} else if (!_history->peer->isUser() && !isPost()) {
+	} else if (!_history->peer->isUser() && !isPostHidingAuthor()) {
 		return from()->name();
 	}
 	return QString();
@@ -2746,7 +2755,9 @@ bool HistoryItem::inThread(MsgId rootId) const {
 }
 
 not_null<PeerData*> HistoryItem::author() const {
-	return (isPost() && !isSponsored()) ? _history->peer : from();
+	return (isPostHidingAuthor() && !isSponsored())
+		? _history->peer
+		: from();
 }
 
 TimeId HistoryItem::originalDate() const {
@@ -3090,6 +3101,23 @@ void HistoryItem::replaceBuyWithReceiptInMarkup() {
 
 bool HistoryItem::isUploading() const {
 	return _media && _media->uploading();
+}
+
+bool HistoryItem::hasRealFromId() const {
+	return !isPost() || (_flags & MessageFlag::HasFromId);
+}
+
+bool HistoryItem::isPostHidingAuthor() const {
+	if (!isPost()) {
+		return false;
+	} else if (const auto channel = _history->peer->asBroadcast()) {
+		return !channel->signatureProfiles();
+	}
+	return false; // Should not happen, I guess.
+}
+
+bool HistoryItem::isPostShowingAuthor() const {
+	return isPost() && !isPostHidingAuthor();
 }
 
 bool HistoryItem::isRegular() const {
@@ -3464,7 +3492,7 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		return {};
 	};
 	const auto sender = [&]() -> std::optional<QString> {
-		if (options.hideSender || isPost() || isEmpty()) {
+		if (options.hideSender || isPostHidingAuthor() || isEmpty()) {
 			return {};
 		} else if (!_history->peer->isUser()) {
 			if (const auto from = displayFrom()) {

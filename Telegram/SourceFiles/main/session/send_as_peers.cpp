@@ -43,11 +43,16 @@ SendAsPeers::SendAsPeers(not_null<Session*> session)
 
 bool SendAsPeers::shouldChoose(not_null<PeerData*> peer) {
 	refresh(peer);
-	return Data::CanSendAnything(peer, false) && (list(peer).size() > 1);
+	const auto channel = peer->asBroadcast();
+	return Data::CanSendAnything(peer, false)
+		&& (list(peer).size() > 1)
+		&& (!channel
+			|| channel->addsSignature()
+			|| channel->signatureProfiles());
 }
 
 void SendAsPeers::refresh(not_null<PeerData*> peer, bool force) {
-	if (!peer->isMegagroup()) {
+	if (!peer->isChannel()) {
 		return;
 	}
 	const auto now = crl::now();
@@ -117,7 +122,7 @@ not_null<PeerData*> SendAsPeers::ResolveChosen(
 		? i->peer
 		: !list.empty()
 		? list.front().peer
-		: (peer->isMegagroup() && peer->amAnonymous())
+		: peer->amAnonymous()
 		? peer
 		: peer->session().user();
 }

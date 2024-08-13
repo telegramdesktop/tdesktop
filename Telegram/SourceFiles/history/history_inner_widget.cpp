@@ -730,8 +730,8 @@ bool HistoryInner::canHaveFromUserpics() const {
 		&& !_peer->isRepliesChat()
 		&& !_isChatWide) {
 		return false;
-	} else if (_peer->isChannel() && !_peer->isMegagroup()) {
-		return false;
+	} else if (const auto channel = _peer->asBroadcast()) {
+		return channel->signatureProfiles();
 	}
 	return true;
 }

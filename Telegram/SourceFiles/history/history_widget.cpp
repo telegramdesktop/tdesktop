@@ -822,6 +822,14 @@ HistoryWidget::HistoryWidget(
 			updateStickersByEmoji();
 			updateFieldPlaceholder();
 			_preview->checkNow(false);
+
+			const auto was = (_sendAs != nullptr);
+			refreshSendAsToggle();
+			if (was != (_sendAs != nullptr)) {
+				updateControlsVisibility();
+				updateControlsGeometry();
+				orderWidgets();
+			}
 		}
 		if (flags & PeerUpdateFlag::Migration) {
 			handlePeerMigration();

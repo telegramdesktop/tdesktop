@@ -41,14 +41,14 @@ void InnerFillMessagePostFlags(
 		const SendOptions &options,
 		not_null<PeerData*> peer,
 		MessageFlags &flags) {
-	const auto anonymousPost = peer->amAnonymous();
 	if (ShouldSendSilent(peer, options)) {
 		flags |= MessageFlag::Silent;
 	}
-	if (!anonymousPost || options.sendAs) {
+	if (!peer->amAnonymous()) {
 		flags |= MessageFlag::HasFromId;
-		return;
-	} else if (peer->asMegagroup()) {
+	}
+	const auto channel = peer->asBroadcast();
+	if (!channel) {
 		return;
 	}
 	flags |= MessageFlag::Post;
@@ -57,7 +57,7 @@ void InnerFillMessagePostFlags(
 		return;
 	}
 	flags |= MessageFlag::HasViews;
-	if (peer->asChannel()->addsSignature()) {
+	if (channel->addsSignature()) {
 		flags |= MessageFlag::HasPostAuthor;
 	}
 }

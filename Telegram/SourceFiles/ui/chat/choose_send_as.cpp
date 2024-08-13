@@ -263,9 +263,9 @@ void SetupSendAsButton(
 
 	auto userpic = current->value(
 	) | rpl::filter([=](PeerData *peer) {
-		return peer && peer->isMegagroup();
+		return peer && peer->isChannel();
 	}) | rpl::map([=](not_null<PeerData*> peer) {
-		const auto channel = peer->asMegagroup();
+		const auto channel = peer->asChannel();
 
 		auto updates = rpl::single(
 			rpl::empty

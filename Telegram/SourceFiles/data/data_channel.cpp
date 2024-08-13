@@ -184,7 +184,11 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 			});
 		}
 	}
-	if (diff & (Flag::Forum | Flag::CallNotEmpty | Flag::SimilarExpanded)) {
+	if (diff & (Flag::Forum
+		| Flag::CallNotEmpty
+		| Flag::SimilarExpanded
+		| Flag::Signatures
+		| Flag::SignatureProfiles)) {
 		if (const auto history = this->owner().historyLoaded(this)) {
 			if (diff & Flag::CallNotEmpty) {
 				history->updateChatListEntry();
@@ -202,6 +206,12 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 				if (const auto item = history->joinedMessageInstance()) {
 					history->owner().requestItemResize(item);
 				}
+			}
+			if (diff & Flag::SignatureProfiles) {
+				history->forceFullResize();
+			}
+			if (diff & (Flag::Signatures | Flag::SignatureProfiles)) {
+				session().changes().peerUpdated(this, UpdateFlag::Rights);
 			}
 		}
 	}
