@@ -31,6 +31,7 @@ struct BotInfo {
 
 	QString botMenuButtonText;
 	QString botMenuButtonUrl;
+	QString privacyPolicyUrl;
 
 	QString startToken;
 	Dialogs::EntryState inlineReturnTo;

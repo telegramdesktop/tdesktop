@@ -331,7 +331,11 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			d.vmenu_button());
 		botInfo->inited = true;
 
-		if (changedCommands || changedButton) {
+		const auto privacy = qs(d.vprivacy_policy_url().value_or_empty());
+		const auto privacyChanged = (botInfo->privacyPolicyUrl != privacy);
+		botInfo->privacyPolicyUrl = privacy;
+
+		if (changedCommands || changedButton || privacyChanged) {
 			owner().botCommandsChanged(this);
 		}
 	} break;
