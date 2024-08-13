@@ -214,19 +214,20 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		result.tags = true;
 	} else if (limited) {
 		result.recent.reserve((allowed.paidEnabled ? 1 : 0) + all.size());
-		if (allowed.paidEnabled) {
-			result.recent.push_back(reactions->lookupPaid());
-		}
 		add([&](const Reaction &reaction) {
 			return ranges::contains(all, reaction.id, &MessageReaction::id);
 		});
 		for (const auto &reaction : all) {
 			const auto id = reaction.id;
-			if (!added.contains(id)) {
+			if (added.emplace(id).second) {
 				if (const auto temp = reactions->lookupTemporary(id)) {
 					result.recent.push_back(temp);
 				}
 			}
+		}
+		if (allowed.paidEnabled
+			&& !added.contains(Data::ReactionId::Paid())) {
+			result.recent.push_back(reactions->lookupPaid());
 		}
 	} else {
 		result.recent.reserve((allowed.paidEnabled ? 1 : 0)
