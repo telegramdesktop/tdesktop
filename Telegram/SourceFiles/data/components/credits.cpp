@@ -81,43 +81,42 @@ rpl::producer<bool> Credits::loadedValue() const {
 }
 
 uint64 Credits::balance() const {
-	const auto balance = _balance.current();
-	const auto locked = _locked.current();
-	return (balance >= locked) ? (balance - locked) : 0;
+	return _nonLockedBalance.current();
 }
 
 rpl::producer<uint64> Credits::balanceValue() const {
-	return rpl::combine(
-		_balance.value(),
-		_locked.value()
-	) | rpl::map([=](uint64 balance, uint64 locked) {
-		return (balance >= locked) ? (balance - locked) : 0;
-	});
+	return _nonLockedBalance.value();
+}
+
+void Credits::updateNonLockedValue() {
+	_nonLockedBalance = (_balance >= _locked) ? (_balance - _locked) : 0;
 }
 
 void Credits::lock(int count) {
 	Expects(loaded());
 	Expects(count >= 0);
+	Expects(_locked + count <= _balance);
 
-	_locked = _locked.current() + count;
+	_locked += count;
 
-	Ensures(_locked.current() <= _balance.current());
+	updateNonLockedValue();
 }
 
 void Credits::unlock(int count) {
 	Expects(count >= 0);
-	Expects(_locked.current() >= count);
+	Expects(_locked >= count);
 
-	_locked = _locked.current() - count;
+	_locked -= count;
+
+	updateNonLockedValue();
 }
 
 void Credits::withdrawLocked(int count) {
 	Expects(count >= 0);
-	Expects(_locked.current() >= count);
+	Expects(_locked >= count);
 
-	const auto balance = _balance.current();
-	_locked = _locked.current() - count;
-	apply(balance >= count ? (balance - count) : 0);
+	_locked -= count;
+	apply(_balance >= count ? (_balance - count) : 0);
 	invalidate();
 }
 
@@ -127,6 +126,7 @@ void Credits::invalidate() {
 
 void Credits::apply(uint64 balance) {
 	_balance = balance;
+	updateNonLockedValue();
 
 	const auto was = std::exchange(_lastLoaded, crl::now());
 	if (!was) {

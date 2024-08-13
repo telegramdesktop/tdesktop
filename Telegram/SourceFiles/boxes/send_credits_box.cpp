@@ -81,14 +81,12 @@ struct PaidMediaData {
 		}
 	}
 
+	const auto bot = item->viaBot();
 	const auto sender = item->originalSender();
-	const auto broadcast = (sender && sender->isBroadcast())
-		? sender
-		: message->peer.get();
 	return {
 		.invoice = invoice,
 		.item = item,
-		.peer = broadcast,
+		.peer = (bot ? bot : sender ? sender : message->peer.get()),
 		.photos = photos,
 		.videos = videos,
 	};
@@ -131,6 +129,16 @@ struct PaidMediaData {
 					lt_video,
 					std::move(videosBold),
 					Ui::Text::WithEntities);
+		if (const auto user = data.peer->asUser()) {
+			return tr::lng_credits_box_out_media_user(
+				lt_count,
+				rpl::single(form->invoice.amount) | tr::to_count(),
+				lt_media,
+				std::move(media),
+				lt_user,
+				rpl::single(Ui::Text::Bold(user->shortName())),
+				Ui::Text::RichLangValue);
+		}
 		return tr::lng_credits_box_out_media(
 			lt_count,
 			rpl::single(form->invoice.amount) | tr::to_count(),

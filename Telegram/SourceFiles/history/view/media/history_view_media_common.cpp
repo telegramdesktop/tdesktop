@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_wall_paper.h"
 #include "data/data_media_types.h"
+#include "data/data_user.h"
 #include "history/view/history_view_element.h"
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_photo.h"
@@ -210,16 +211,29 @@ void ShowPaidMediaUnlockedToast(
 	const auto broadcast = (sender && sender->isBroadcast())
 		? sender
 		: item->history()->peer.get();
+	const auto user = item->viaBot()
+		? item->viaBot()
+		: item->originalSender()
+		? item->originalSender()->asUser()
+		: nullptr;
 	auto text = tr::lng_credits_media_done_title(
 		tr::now,
 		Ui::Text::Bold
-	).append('\n').append(tr::lng_credits_media_done_text(
-		tr::now,
-		lt_count,
-		invoice->amount,
-		lt_chat,
-		Ui::Text::Bold(broadcast->name()),
-		Ui::Text::RichLangValue));
+	).append('\n').append(user
+		? tr::lng_credits_media_done_text_user(
+			tr::now,
+			lt_count,
+			invoice->amount,
+			lt_user,
+			Ui::Text::Bold(user->shortName()),
+			Ui::Text::RichLangValue)
+		: tr::lng_credits_media_done_text(
+			tr::now,
+			lt_count,
+			invoice->amount,
+			lt_chat,
+			Ui::Text::Bold(broadcast->name()),
+			Ui::Text::RichLangValue));
 	controller->showToast(std::move(text), kMediaUnlockedTooltipDuration);
 }
 

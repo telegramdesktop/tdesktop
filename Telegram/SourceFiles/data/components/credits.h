@@ -41,12 +41,15 @@ public:
 	void apply(const MTPDupdateStarsBalance &data);
 
 private:
+	void updateNonLockedValue();
+
 	const not_null<Main::Session*> _session;
 
 	std::unique_ptr<Api::CreditsStatus> _loader;
 
-	rpl::variable<uint64> _balance;
-	rpl::variable<uint64> _locked;
+	uint64 _balance = 0;
+	uint64 _locked = 0;
+	rpl::variable<uint64> _nonLockedBalance;
 	rpl::event_stream<> _loadedChanges;
 	crl::time _lastLoaded = 0;
 	float64 _rate = 0.;
