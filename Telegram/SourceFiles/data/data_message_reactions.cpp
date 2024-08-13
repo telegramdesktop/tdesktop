@@ -177,6 +177,7 @@ PossibleItemReactionsRef LookupPossibleReactions(
 	const auto &myTags = reactions->list(Reactions::Type::MyTags);
 	const auto &tags = reactions->list(Reactions::Type::Tags);
 	const auto &all = item->reactions();
+	const auto &allowed = PeerAllowedReactions(peer);
 	const auto limit = UniqueReactionsLimit(peer);
 	const auto premiumPossible = session->premiumPossible();
 	const auto limited = (all.size() >= limit) && [&] {
@@ -212,7 +213,10 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		result.customAllowed = premiumPossible;
 		result.tags = true;
 	} else if (limited) {
-		result.recent.reserve(all.size());
+		result.recent.reserve((allowed.paidEnabled ? 1 : 0) + all.size());
+		if (allowed.paidEnabled) {
+			result.recent.push_back(reactions->lookupPaid());
+		}
 		add([&](const Reaction &reaction) {
 			return ranges::contains(all, reaction.id, &MessageReaction::id);
 		});
@@ -225,7 +229,6 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			}
 		}
 	} else {
-		const auto &allowed = PeerAllowedReactions(peer);
 		result.recent.reserve((allowed.paidEnabled ? 1 : 0)
 			+ ((allowed.type == AllowedReactionsType::Some)
 				? allowed.some.size()

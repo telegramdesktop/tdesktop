@@ -2572,7 +2572,7 @@ void HistoryItem::toggleReaction(
 		_reactions->add(reaction, addToRecent);
 	} else if (ranges::contains(_reactions->chosen(), reaction)) {
 		_reactions->remove(reaction);
-		if (_reactions->empty()) {
+		if (_reactions->empty() && !_reactions->localPaidData()) {
 			_reactions = nullptr;
 			_flags &= ~MessageFlag::CanViewReactions;
 		}

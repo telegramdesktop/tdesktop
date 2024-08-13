@@ -293,7 +293,8 @@ void ChatData::setAllowedReactions(Data::AllowedReactions value) {
 	if (_allowedReactions != value) {
 		const auto enabled = [](const Data::AllowedReactions &allowed) {
 			return (allowed.type != Data::AllowedReactionsType::Some)
-				|| !allowed.some.empty();
+				|| !allowed.some.empty()
+				|| allowed.paidEnabled;
 		};
 		const auto was = enabled(_allowedReactions);
 		_allowedReactions = std::move(value);
