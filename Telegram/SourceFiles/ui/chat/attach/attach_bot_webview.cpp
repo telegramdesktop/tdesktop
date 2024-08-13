@@ -538,12 +538,15 @@ bool Panel::showWebview(
 		}, &st::menuIconRestore);
 		if (_menuButtons & MenuButton::ShareGame) {
 			callback(tr::lng_iv_share(tr::now), [=] {
-				_delegate->botShareGameScore();
+				_delegate->botHandleMenuButton(MenuButton::ShareGame);
 			}, &st::menuIconShare);
 		} else {
 			callback(tr::lng_bot_terms(tr::now), [=] {
 				File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
 			}, &st::menuIconGroupLog);
+			callback(tr::lng_profile_bot_privacy(tr::now), [=] {
+				_delegate->botOpenPrivacyPolicy();
+			}, &st::menuIconAntispam);
 		}
 		const auto main = (_menuButtons & MenuButton::RemoveFromMainMenu);
 		if (main || (_menuButtons & MenuButton::RemoveFromMenu)) {
@@ -709,7 +712,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		} else if (command == "web_app_set_header_color") {
 			processHeaderColor(arguments);
 		} else if (command == "share_score") {
-			_delegate->botShareGameScore();
+			_delegate->botHandleMenuButton(MenuButton::ShareGame);
 		}
 	});
 

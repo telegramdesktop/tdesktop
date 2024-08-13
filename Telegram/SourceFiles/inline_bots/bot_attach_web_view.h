@@ -275,7 +275,7 @@ private:
 	void botSharePhone(Fn<void(bool shared)> callback) override;
 	void botInvokeCustomMethod(
 		Ui::BotWebView::CustomMethodRequest request) override;
-	void botShareGameScore() override;
+	void botOpenPrivacyPolicy() override;
 	void botClose() override;
 
 	const std::shared_ptr<Ui::Show> _parentShow;

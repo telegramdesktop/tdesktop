@@ -72,7 +72,7 @@ public:
 	virtual void botAllowWriteAccess(Fn<void(bool allowed)> callback) = 0;
 	virtual void botSharePhone(Fn<void(bool shared)> callback) = 0;
 	virtual void botInvokeCustomMethod(CustomMethodRequest request) = 0;
-	virtual void botShareGameScore() = 0;
+	virtual void botOpenPrivacyPolicy() = 0;
 	virtual void botClose() = 0;
 };
 
