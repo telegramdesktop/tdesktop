@@ -1254,6 +1254,11 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	auto tshift = inner.top();
 	auto paintw = inner.width();
 
+	const auto hasSponsoredMedia = sponsored && sponsored->hasMedia;
+	if (hasSponsoredMedia && _attach) {
+		tshift += _attach->height() + st::mediaInBubbleSkip;
+	}
+
 	const auto lineHeight = UnitedLineHeight();
 	auto inThumb = false;
 	if (asArticle()) {
@@ -1335,12 +1340,13 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	if (inThumb) {
 		result.link = _openl;
 	} else if (_attach) {
-		const auto attachAtTop = (!_siteNameLines
-				&& !_titleLines
-				&& !_descriptionLines)
-			|| (sponsored && sponsored->hasMedia);
+		const auto attachAtTop = hasSponsoredMedia
+			|| (!_siteNameLines && !_titleLines && !_descriptionLines);
 		if (!attachAtTop) {
 			tshift += st::mediaInBubbleSkip;
+		}
+		if (hasSponsoredMedia) {
+			tshift -= _attach->height();
 		}
 
 		const auto rect = QRect(
@@ -1352,18 +1358,25 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			const auto attachLeft = rtl()
 				? width() - (inner.left() - bubble.left()) - _attach->width()
 				: (inner.left() - bubble.left());
-			const auto attachTop = tshift - bubble.top();
+			const auto attachTop = hasSponsoredMedia
+				? inner.top()
+				: (tshift - bubble.top());
 			result = _attach->textState(
 				point - QPoint(attachLeft, attachTop),
 				request);
-			if (result.cursor == CursorState::Enlarge) {
+			if (hasSponsoredMedia) {
+			} else if (result.cursor == CursorState::Enlarge) {
 				result.cursor = CursorState::None;
 			} else {
 				result.link = replaceAttachLink(result.link);
 			}
 		}
+		if (hasSponsoredMedia) {
+			tshift += _attach->height();
+		}
 	}
-	if ((!result.link || sponsored) && outer.contains(point)) {
+	if ((!result.link || (sponsored && !hasSponsoredMedia))
+		&& outer.contains(point)) {
 		result.link = _openl;
 	}
 	if (const auto hint = hintData()) {

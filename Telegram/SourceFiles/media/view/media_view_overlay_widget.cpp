@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
+#include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -3101,6 +3102,12 @@ void OverlayWidget::refreshCaption() {
 		} else if (_message) {
 			if (const auto media = _message->media()) {
 				if (media->webpage()) {
+					if (_message->isSponsored()) {
+						return TextWithEntities()
+							.append(Ui::Text::Bold(media->webpage()->title))
+							.append('\n')
+							.append(media->webpage()->description);
+					}
 					return TextWithEntities();
 				}
 			}
