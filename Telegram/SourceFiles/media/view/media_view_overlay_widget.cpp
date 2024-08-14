@@ -99,6 +99,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
+#include <QGraphicsOpacityEffect>
 
 #include <kurlmimedata.h>
 
@@ -750,6 +751,8 @@ void OverlayWidget::setupWindow() {
 				&& (widgetPoint.y() > st::mediaviewHeaderTop)
 				&& QRect(_x, _y, _w, _h).contains(widgetPoint)) {
 		} else if (_stories && _stories->ignoreWindowMove(widgetPoint)) {
+		} else if (_sponsoredButton
+			&& _sponsoredButton->geometry().contains(widgetPoint)) {
 		} else if (_windowed) {
 			result |= Flag::Move;
 		}
@@ -1421,7 +1424,9 @@ void OverlayWidget::resizeCenteredControls() {
 	_groupThumbsTop = _groupThumbs ? (height() - _groupThumbs->height()) : 0;
 
 	refreshClipControllerGeometry();
+	refreshSponsoredButtonGeometry();
 	refreshCaptionGeometry();
+	refreshSponsoredButtonWidth();
 }
 
 void OverlayWidget::refreshCaptionGeometry() {
@@ -1443,6 +1448,8 @@ void OverlayWidget::refreshCaptionGeometry() {
 	}
 	const auto captionBottom = _stories
 		? (_y + _h)
+		: _sponsoredButton
+		? (_sponsoredButton->y() - st::mediaviewCaptionMargin.height())
 		: (_streamed && _streamed->controls)
 		? (_streamed->controls->y() - st::mediaviewCaptionMargin.height())
 		: _groupThumbs
@@ -1485,6 +1492,41 @@ void OverlayWidget::refreshCaptionGeometry() {
 			- st::mediaviewCaptionPadding.bottom()),
 		captionWidth,
 		captionHeight);
+}
+
+void OverlayWidget::refreshSponsoredButtonGeometry() {
+	if (!_sponsoredButton) {
+		return;
+	}
+	const auto controllerBottom = (_groupThumbs && !_fullScreenVideo)
+		? _groupThumbsTop
+		: height();
+	const auto skip = st::mediaviewCaptionPadding.bottom();
+	const auto captionRect = captionGeometry();
+	_sponsoredButton->resize(
+		captionRect.width(),
+		_sponsoredButton->height());
+	_sponsoredButton->move(
+		(width() - captionRect.width()) / 2,
+		(controllerBottom // Duplicated in recountSkipTop().
+			- ((_streamed && _streamed->controls)
+				? (_streamed->controls->height()
+					+ st::mediaviewCaptionMargin.height())
+				: 0)
+			- _sponsoredButton->height()
+			- st::mediaviewCaptionPadding.bottom()));
+	Ui::SendPendingMoveResizeEvents(_sponsoredButton.get());
+}
+
+void OverlayWidget::refreshSponsoredButtonWidth() {
+	if (!_sponsoredButton) {
+		return;
+	}
+	const auto captionWidth = captionGeometry().width();
+	_sponsoredButton->resize(captionWidth, _sponsoredButton->height());
+	_sponsoredButton->move(
+		(width() - captionWidth) / 2,
+		_sponsoredButton->y());
 }
 
 void OverlayWidget::fillContextMenuActions(
@@ -1768,6 +1810,13 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 		updateCursor();
 	} else {
 		_controlsOpacity.update(dt, anim::linear);
+	}
+	if (_sponsoredButtonOpacity && _sponsoredButton) {
+		const auto value = _controlsOpacity.current();
+		_sponsoredButtonOpacity->setOpacity(value);
+		_sponsoredButton->setAttribute(
+			Qt::WA_TransparentForMouseEvents,
+			value < 1);
 	}
 	_helper->setControlsOpacity(_controlsOpacity.current());
 	const auto content = finalContentRect();
@@ -3508,6 +3557,7 @@ void OverlayWidget::displayDocument(
 				).toImage());
 			}
 		} else {
+			initSponsoredButton();
 			if (_documentMedia->canBePlayed(_message)
 				&& initStreaming(startStreaming)) {
 			} else if (_document->isVideoFile()) {
@@ -3611,6 +3661,33 @@ void OverlayWidget::displayDocument(
 	} else {
 		displayFinished(activation);
 	}
+}
+
+void OverlayWidget::initSponsoredButton() {
+	const auto has = _message && _message->isSponsored() && _session;
+	if (has && _sponsoredButton) {
+		return;
+	} else if (!has && _sponsoredButton) {
+		_sponsoredButton = nullptr;
+		return;
+	} else if (!has && !_sponsoredButton) {
+		return;
+	}
+	const auto &component = _session->sponsoredMessages();
+	const auto details = component.lookupDetails(_message->fullId());
+	_sponsoredButton = base::make_unique_q<Ui::RoundButton>(
+		_body,
+		rpl::single(details.buttonText),
+		st::mediaviewSponsoredButton);
+
+	_sponsoredButton->setClickedCallback([=, link = details.link] {
+		UrlClickHandler::Open(link);
+		hide();
+	});
+	_sponsoredButtonOpacity = base::make_unique_q<QGraphicsOpacityEffect>(
+		_sponsoredButton.get());
+	_sponsoredButtonOpacity->setOpacity(1.0);
+    _sponsoredButton->setGraphicsEffect(_sponsoredButtonOpacity.get());
 }
 
 void OverlayWidget::updateThemePreviewGeometry() {
@@ -5677,8 +5754,8 @@ void OverlayWidget::updateOverRect(Over state) {
 		break;
 	case Over::LeftStories:
 		update(_stories
-			? _stories->sibling(Type::Left).layout.geometry :
-			QRect());
+			? _stories->sibling(Type::Left).layout.geometry
+			: QRect());
 		break;
 	case Over::RightStories:
 		update(_stories
@@ -6219,6 +6296,8 @@ void OverlayWidget::clearBeforeHide() {
 	_helper->setControlsOpacity(1.);
 	_groupThumbs = nullptr;
 	_groupThumbsRect = QRect();
+	_sponsoredButtonOpacity = nullptr;
+	_sponsoredButton = nullptr;
 }
 
 void OverlayWidget::clearAfterHide() {
