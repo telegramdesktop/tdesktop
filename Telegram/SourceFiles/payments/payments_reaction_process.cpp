@@ -87,17 +87,6 @@ void TryAddingPaidReaction(
 		done);
 }
 
-[[nodiscard]] int CountLocalPaid(not_null<HistoryItem*> item) {
-	const auto paid = [](const std::vector<Data::MessageReaction> &v) {
-		const auto i = ranges::find(
-			v,
-			Data::ReactionId::Paid(),
-			&Data::MessageReaction::id);
-		return (i != end(v)) ? i->count : 0;
-	};
-	return paid(item->reactionsWithLocal()) - paid(item->reactions());
-}
-
 } // namespace
 
 bool LookupMyPaidAnonymous(not_null<HistoryItem*> item) {

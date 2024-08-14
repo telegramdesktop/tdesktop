@@ -1402,7 +1402,6 @@ void InnerWidget::fill() {
 		if (hasCreditsTab) {
 			const auto controller = _controller->parentController();
 			const auto show = controller->uiShow();
-			const auto premiumBot = _peer->owner().peer(data.premiumBotId);
 			const auto entryClicked = [=](
 					const Data::CreditsHistoryEntry &e,
 					const Data::SubscriptionEntry &s) {

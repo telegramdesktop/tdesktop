@@ -313,10 +313,6 @@ void PaidReactionToast::clearHiddenHiding() {
 void PaidReactionToast::setupLottiePreview(
 		not_null<Ui::RpWidget*> widget,
 		int size) {
-	const auto generate = [&](const QString &name) {
-		const auto session = &_owner->session();
-		return ChatHelpers::GenerateLocalTgsSticker(session, name);
-	};
 	const auto document = _owner->reactions().paidToastAnimation();
 
 	const auto bytes = document->createMediaView()->bytes();
