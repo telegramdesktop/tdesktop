@@ -1501,7 +1501,6 @@ void OverlayWidget::refreshSponsoredButtonGeometry() {
 	const auto controllerBottom = (_groupThumbs && !_fullScreenVideo)
 		? _groupThumbsTop
 		: height();
-	const auto skip = st::mediaviewCaptionPadding.bottom();
 	const auto captionRect = captionGeometry();
 	_sponsoredButton->resize(
 		captionRect.width(),
