@@ -60,7 +60,8 @@ void TryAddingPaidReaction(
 		return;
 	}
 	const auto done = [=](Settings::SmallBalanceResult result) {
-		if (result == Settings::SmallBalanceResult::Success) {
+		if (result == Settings::SmallBalanceResult::Success
+			|| result == Settings::SmallBalanceResult::Already) {
 			if (const auto item = checkItem()) {
 				item->addPaidReaction(count, anonymous);
 				if (const auto view = count ? weakView.get() : nullptr) {

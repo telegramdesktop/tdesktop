@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_keys.h"
+#include "core/ui_integration.h" // MarkedTextContext.
 #include "core/update_checker.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -46,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
 #include "payments/payments_checkout_process.h"
+#include "settings/settings_credits.h"
+#include "settings/settings_credits_graphics.h"
 #include "settings/settings_information.h"
 #include "settings/settings_global_ttl.h"
 #include "settings/settings_folders.h"
@@ -1170,6 +1173,61 @@ bool ResolveBoost(
 	return true;
 }
 
+bool ResolveTopUp(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	const auto amount = std::clamp(
+		params.value(u"balance"_q).toULongLong(),
+		qulonglong(1),
+		qulonglong(1'000'000));
+	const auto purpose = params.value(u"purpose"_q);
+	const auto weak = base::make_weak(controller);
+	const auto done = [=](::Settings::SmallBalanceResult result) {
+		if (result == ::Settings::SmallBalanceResult::Already) {
+			if (const auto strong = weak.get()) {
+				auto balance = TextWithEntities{ u"hello"_q };
+				const auto context = [=](not_null<QWidget*> toast) {
+					return Core::MarkedTextContext{
+						.session = &strong->session(),
+						.customEmojiRepaint = [=] { toast->update(); },
+					};
+				};
+				const auto filter = [=](const auto &...) {
+					strong->showSettings(::Settings::CreditsId());
+					return false;
+				};
+				strong->showToast(Ui::Toast::Config{
+					.text = tr::lng_credits_enough(
+						tr::now,
+						lt_balance,
+						balance,
+						lt_link,
+						Ui::Text::Link(
+							Ui::Text::Bold(
+								tr::lng_credits_enough_link(tr::now))),
+						Ui::Text::RichLangValue),
+					.textContext = context,
+					.filter = filter,
+				});
+			}
+		}
+	};
+	::Settings::MaybeRequestBalanceIncrease(
+		controller->uiShow(),
+		amount,
+		::Settings::SmallBalanceDeepLink{ .purpose = purpose },
+		[](auto) {});
+	return true;
+}
+
+
 bool ResolveChatLink(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1275,6 +1333,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^message/?\\?slug=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"_q,
 			ResolveChatLink
+		},
+		{
+			u"^stars_topup/?\\?(.+)(#|$)"_q,
+			ResolveTopUp
 		},
 		{
 			u"^([^\\?]+)(\\?|#|$)"_q,

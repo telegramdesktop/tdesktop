@@ -82,6 +82,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
+const auto kTopUpPrefix = "cloud_lng_topup_purpose_";
+
 [[nodiscard]] uint64 UniqueIdFromOption(
 		const Data::CreditTopupOption &d) {
 	const auto string = QString::number(d.credits)
@@ -95,6 +97,15 @@ namespace {
 [[nodiscard]] int WithdrawalMin(not_null<Main::Session*> session) {
 	const auto key = u"stars_revenue_withdrawal_min"_q;
 	return session->appConfig().get<int>(key, 1000);
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> DeepLinkBalanceAbout(
+		const QString &purpose) {
+	const auto phrase = Lang::GetNonDefaultValue(
+		kTopUpPrefix + purpose.toUtf8());
+	return phrase.isEmpty()
+		? tr::lng_credits_small_balance_fallback(Ui::Text::RichLangValue)
+		: rpl::single(Ui::Text::RichLangValue(phrase));
 }
 
 class Balance final
@@ -1025,6 +1036,8 @@ void SmallBalanceBox(
 		return owner->peer(peerFromChannel(value.channelId))->name();
 	}, [](SmallBalanceSubscription value) {
 		return value.name;
+	}, [](SmallBalanceDeepLink value) {
+		return QString();
 	});
 
 	auto needed = show->session().credits().balanceValue(
@@ -1051,6 +1064,9 @@ void SmallBalanceBox(
 						lt_channel,
 						rpl::single(Ui::Text::Bold(name)),
 						Ui::Text::RichLangValue)
+					: v::is<SmallBalanceDeepLink>(source)
+					? DeepLinkBalanceAbout(
+						v::get<SmallBalanceDeepLink>(source).purpose)
 					: tr::lng_credits_small_balance_about(
 						lt_bot,
 						rpl::single(TextWithEntities{ name }),
@@ -1424,7 +1440,7 @@ void MaybeRequestBalanceIncrease(
 		const auto balance = session->credits().balance();
 		if (credits <= balance) {
 			if (const auto onstack = done) {
-				onstack(SmallBalanceResult::Success);
+				onstack(SmallBalanceResult::Already);
 			}
 		} else if (show->session().premiumPossible()) {
 			const auto success = [=] {

@@ -310,7 +310,8 @@ void ConfirmSubscriptionBox(
 		state->loading.force_assign(true);
 
 		const auto done = [=](Settings::SmallBalanceResult result) {
-			if (result == Settings::SmallBalanceResult::Success) {
+			if (result == Settings::SmallBalanceResult::Success
+				|| result == Settings::SmallBalanceResult::Already) {
 				sendCredits();
 			} else {
 				state->api = std::nullopt;

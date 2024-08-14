@@ -111,10 +111,14 @@ struct SmallBalanceReaction {
 struct SmallBalanceSubscription {
 	QString name;
 };
+struct SmallBalanceDeepLink {
+	QString purpose;
+};
 struct SmallBalanceSource : std::variant<
 	SmallBalanceBot,
 	SmallBalanceReaction,
-	SmallBalanceSubscription> {
+	SmallBalanceSubscription,
+	SmallBalanceDeepLink> {
 	using variant::variant;
 };
 
@@ -126,6 +130,7 @@ void SmallBalanceBox(
 	Fn<void()> paid);
 
 enum class SmallBalanceResult {
+	Already,
 	Success,
 	Blocked,
 	Cancelled,

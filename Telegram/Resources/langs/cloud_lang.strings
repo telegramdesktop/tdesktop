@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "cloud_lng_forwarded_psa_covid" = "COVID-19 Notification from {channel}";
 "cloud_lng_tooltip_psa_covid" = "This message provides you with a public service announcement in relation to the ongoing COVID-19 pandemic. Learn more about this initiative at https://telegram.org/blog/coronavirus";
 
+"cloud_lng_topup_purpose_subs" = "Buy **Stars** to keep your channel subscriptions.";
+
 "cloud_lng_passport_in_ar" = "Arabic";
 "cloud_lng_passport_in_az" = "Azerbaijani";
 "cloud_lng_passport_in_bg" = "Bulgarian";

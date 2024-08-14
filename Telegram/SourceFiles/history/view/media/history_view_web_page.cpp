@@ -310,10 +310,11 @@ void WebPage::setupAdditionalData() {
 			: 0;
 		if (!_attach) {
 			const auto maybePhoto = details.mediaPhotoId
-				? _data->session().data().photo(details.mediaPhotoId)
+				? _data->session().data().photo(details.mediaPhotoId).get()
 				: nullptr;
 			const auto maybeDocument = details.mediaDocumentId
-				? _data->session().data().document(details.mediaDocumentId)
+				? _data->session().data().document(
+					details.mediaDocumentId).get()
 				: nullptr;
 			_attach = CreateAttach(
 				_parent,
