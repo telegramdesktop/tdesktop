@@ -203,7 +203,10 @@ void PaidReactionToast::showFor(
 	_count = count;
 	_timeFinish = finish;
 	auto text = rpl::combine(
-		tr::lng_paid_react_toast_title(Ui::Text::Bold),
+		tr::lng_paid_react_toast(
+			lt_count,
+			_count.value() | tr::to_count(),
+			Ui::Text::Bold),
 		tr::lng_paid_react_toast_text(
 			lt_count_decimal,
 			_count.value() | tr::to_count(),

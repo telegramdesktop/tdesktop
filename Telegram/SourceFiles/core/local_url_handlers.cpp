@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_keys.h"
-#include "core/ui_integration.h" // MarkedTextContext.
 #include "core/update_checker.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -34,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "data/components/credits.h"
 #include "data/data_birthday.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
@@ -1192,13 +1192,6 @@ bool ResolveTopUp(
 	const auto done = [=](::Settings::SmallBalanceResult result) {
 		if (result == ::Settings::SmallBalanceResult::Already) {
 			if (const auto strong = weak.get()) {
-				auto balance = TextWithEntities{ u"hello"_q };
-				const auto context = [=](not_null<QWidget*> toast) {
-					return Core::MarkedTextContext{
-						.session = &strong->session(),
-						.customEmojiRepaint = [=] { toast->update(); },
-					};
-				};
 				const auto filter = [=](const auto &...) {
 					strong->showSettings(::Settings::CreditsId());
 					return false;
@@ -1206,15 +1199,13 @@ bool ResolveTopUp(
 				strong->showToast(Ui::Toast::Config{
 					.text = tr::lng_credits_enough(
 						tr::now,
-						lt_balance,
-						balance,
 						lt_link,
 						Ui::Text::Link(
 							Ui::Text::Bold(
 								tr::lng_credits_enough_link(tr::now))),
 						Ui::Text::RichLangValue),
-					.textContext = context,
 					.filter = filter,
+					.duration = 4 * crl::time(1000),
 				});
 			}
 		}
@@ -1223,7 +1214,7 @@ bool ResolveTopUp(
 		controller->uiShow(),
 		amount,
 		::Settings::SmallBalanceDeepLink{ .purpose = purpose },
-		[](auto) {});
+		done);
 	return true;
 }
 
