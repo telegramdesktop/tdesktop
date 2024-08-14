@@ -3249,6 +3249,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_add_to_side_menu" = "{bot} asks your permission to be added as an option to your main menu so you can access it any time.";
 "lng_bot_add_to_side_menu_done" = "Bot added to the main menu.";
 "lng_bot_no_scan_qr" = "QR Codes for bots are not supported on Desktop. Please use one of Telegram's mobile apps.";
+"lng_bot_no_share_story" = "Sharing to Stories is not supported on Desktop. Please use one of Telegram's mobile apps.";
 "lng_bot_click_to_start" = "Click here to use this bot.";
 "lng_bot_status_users#one" = "{count} user";
 "lng_bot_status_users#other" = "{count} users";

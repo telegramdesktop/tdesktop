@@ -699,6 +699,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			openPopup(arguments);
 		} else if (command == "web_app_open_scan_qr_popup") {
 			openScanQrPopup(arguments);
+		} else if (command == "web_app_share_to_story") {
+			openShareStory(arguments);
 		} else if (command == "web_app_request_write_access") {
 			requestWriteAccess();
 		} else if (command == "web_app_request_phone") {
@@ -928,6 +930,19 @@ void Panel::openScanQrPopup(const QJsonObject &args) {
 	[[maybe_unused]] const auto ok = Webview::ShowBlockingPopup({
 		.parent = widget ? widget->window() : nullptr,
 		.text = tr::lng_bot_no_scan_qr(tr::now),
+		.buttons = { {
+			.id = "ok",
+			.text = tr::lng_box_ok(tr::now),
+			.type = Webview::PopupArgs::Button::Type::Ok,
+		}},
+	});
+}
+
+void Panel::openShareStory(const QJsonObject &args) {
+	const auto widget = _webview->window.widget();
+	[[maybe_unused]] const auto ok = Webview::ShowBlockingPopup({
+		.parent = widget ? widget->window() : nullptr,
+		.text = tr::lng_bot_no_share_story(tr::now),
 		.buttons = { {
 			.id = "ok",
 			.text = tr::lng_box_ok(tr::now),

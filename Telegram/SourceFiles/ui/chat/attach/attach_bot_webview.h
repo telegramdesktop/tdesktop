@@ -135,6 +135,7 @@ private:
 	void openInvoice(const QJsonObject &args);
 	void openPopup(const QJsonObject &args);
 	void openScanQrPopup(const QJsonObject &args);
+	void openShareStory(const QJsonObject &args);
 	void requestWriteAccess();
 	void replyRequestWriteAccess(bool allowed);
 	void requestPhone();
