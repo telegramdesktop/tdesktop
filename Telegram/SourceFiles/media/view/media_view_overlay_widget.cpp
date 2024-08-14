@@ -1510,10 +1510,10 @@ void OverlayWidget::refreshSponsoredButtonGeometry() {
 		(controllerBottom // Duplicated in recountSkipTop().
 			- ((_streamed && _streamed->controls)
 				? (_streamed->controls->height()
-					+ st::mediaviewCaptionMargin.height())
+					+ st::mediaviewCaptionPadding.bottom())
 				: 0)
 			- _sponsoredButton->height()
-			- st::mediaviewCaptionPadding.bottom()));
+			- st::mediaviewCaptionMargin.height()));
 	Ui::SendPendingMoveResizeEvents(_sponsoredButton.get());
 }
 
@@ -3482,6 +3482,8 @@ void OverlayWidget::displayPhoto(
 	if (!_stories && _photo->videoCanBePlayed()) {
 		initStreaming();
 	}
+
+	initSponsoredButton();
 
 	refreshCaption();
 

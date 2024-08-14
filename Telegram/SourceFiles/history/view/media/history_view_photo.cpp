@@ -258,6 +258,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 	const auto enlargeOuter = 2 * st::historyPageEnlargeSkip + enlargeInner;
 	const auto showEnlarge = (_parent->media() != this)
 		&& _parent->data()->media()
+		&& !_parent->data()->isSponsored()
 		&& _parent->data()->media()->webpage()
 		&& _parent->data()->media()->webpage()->suggestEnlargePhoto()
 		&& (newWidth >= enlargeOuter)
