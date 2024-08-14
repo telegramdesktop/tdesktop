@@ -1350,11 +1350,17 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			tshift -= _attach->height();
 		}
 
-		const auto rect = QRect(
-			inner.left(),
-			tshift,
-			paintw,
-			inner.top() + inner.height() - tshift);
+		const auto rect = hasSponsoredMedia
+			? QRect(
+				inner.left(),
+				inner.top(),
+				_attach->width(),
+				_attach->height())
+			: QRect(
+				inner.left(),
+				tshift,
+				paintw,
+				inner.top() + inner.height() - tshift);
 		if (rect.contains(point)) {
 			const auto attachLeft = rtl()
 				? width() - (inner.left() - bubble.left()) - _attach->width()
