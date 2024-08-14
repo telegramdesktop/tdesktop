@@ -247,6 +247,8 @@ void FillTopReactors(
 	struct State {
 		std::vector<not_null<RpWidget*>> widgets;
 		rpl::event_stream<> updated;
+		std::optional<int> initialChosen;
+		bool chosenChanged = false;
 	};
 	const auto state = wrap->lifetime().make_state<State>();
 
@@ -254,6 +256,11 @@ void FillTopReactors(
 		std::move(chosen),
 		std::move(anonymous)
 	) | rpl::start_with_next([=](int chosen, bool anonymous) {
+		if (!state->initialChosen) {
+			state->initialChosen = chosen;
+		} else if (*state->initialChosen != chosen) {
+			state->chosenChanged = true;
+		}
 		for (const auto &widget : state->widgets) {
 			delete widget;
 		}
@@ -266,7 +273,9 @@ void FillTopReactors(
 				list.push_back(entry);
 			} else if (!entry.click == anonymous) {
 				auto copy = entry;
-				copy.count += chosen;
+				if (state->chosenChanged) {
+					copy.count += chosen;
+				}
 				list.push_back(copy);
 			}
 		}
