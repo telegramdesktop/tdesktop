@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "base/qt/qt_common_adapters.h"
 #include "lang/lang_keys.h"
+#include "menu/menu_sponsored.h"
 #include "boxes/premium_preview_box.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -21,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/sandbox.h"
 #include "core/shortcuts.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
@@ -1484,7 +1487,15 @@ void OverlayWidget::refreshCaptionGeometry() {
 		captionHeight);
 }
 
-void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
+void OverlayWidget::fillContextMenuActions(
+		const Ui::Menu::MenuCallback &addAction) {
+	if (_message && _message->isSponsored()) {
+		if (const auto window = findWindow()) {
+			const auto show = window->uiShow();
+			Menu::FillSponsored(_body, addAction, show, _message, true);
+		}
+		return;
+	}
 	const auto story = _stories ? _stories->story() : nullptr;
 	if (!story && _document && _document->loading()) {
 		addAction(
@@ -5944,12 +5955,7 @@ bool OverlayWidget::handleContextMenu(std::optional<QPoint> position) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		_window,
 		st::mediaviewPopupMenu);
-	fillContextMenuActions([&](
-			const QString &text,
-			Fn<void()> handler,
-			const style::icon *icon) {
-		_menu->addAction(text, std::move(handler), icon);
-	});
+	fillContextMenuActions(Ui::Menu::CreateAddActionCallback(_menu));
 
 	if (_menu->empty()) {
 		_menu = nullptr;
@@ -6233,12 +6239,7 @@ void OverlayWidget::receiveMouse() {
 
 void OverlayWidget::showDropdown() {
 	_dropdown->clearActions();
-	fillContextMenuActions([&](
-			const QString &text,
-			Fn<void()> handler,
-			const style::icon *icon) {
-		_dropdown->addAction(text, std::move(handler), icon);
-	});
+	fillContextMenuActions(Ui::Menu::CreateAddActionCallback(_dropdown));
 	_dropdown->moveToRight(0, height() - _dropdown->height());
 	_dropdown->showAnimated(Ui::PanelAnimation::Origin::BottomRight);
 	_dropdown->setFocus();

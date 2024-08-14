@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
+#include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
@@ -339,21 +340,24 @@ void FillSponsored(
 		not_null<Ui::RpWidget*> parent,
 		const Ui::Menu::MenuCallback &addAction,
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<HistoryItem*> item) {
+		not_null<HistoryItem*> item,
+		bool mediaViewer) {
 	Expects(item->isSponsored());
 
 	const auto session = &item->history()->session();
 
 	addAction(tr::lng_sponsored_menu_revenued_about(tr::now), [=] {
 		show->show(Box(AboutBox, show));
-	}, &st::menuIconInfo);
+	}, (mediaViewer ? &st::mediaMenuIconInfo : &st::menuIconInfo));
 
 	addAction(tr::lng_sponsored_menu_revenued_report(tr::now), [=] {
 		ShowReportSponsoredBox(show, item);
-	}, &st::menuIconBlock);
+	}, (mediaViewer ? &st::mediaMenuIconBlock : &st::menuIconBlock));
 
 	addAction({
-		.separatorSt = &st::expandedMenuSeparator,
+		.separatorSt = (mediaViewer
+			? &st::mediaviewMenuSeparator
+			: &st::expandedMenuSeparator),
 		.isSeparator = true,
 	});
 
@@ -365,7 +369,7 @@ void FillSponsored(
 		} else {
 			ShowPremiumPreviewBox(show, PremiumFeature::NoAds);
 		}
-	}, &st::menuIconCancel);
+	}, (mediaViewer ? &st::mediaMenuIconCancel : &st::menuIconCancel));
 }
 
 void ShowSponsored(
@@ -382,7 +386,8 @@ void ShowSponsored(
 		parent,
 		Ui::Menu::CreateAddActionCallback(menu),
 		show,
-		item);
+		item,
+		false);
 
 	menu->popup(QCursor::pos());
 }

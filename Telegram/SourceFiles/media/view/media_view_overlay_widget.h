@@ -47,6 +47,10 @@ struct ChosenRenderer;
 enum class Backend;
 } // namespace Ui::GL
 
+namespace Ui::Menu {
+class MenuCallback;
+} // namespace Ui::Menu
+
 namespace Platform {
 class OverlayWidgetHelper;
 } // namespace Platform
@@ -364,11 +368,7 @@ private:
 	void updateControlsGeometry();
 	void updateNavigationControlsGeometry();
 
-	using MenuCallback = Fn<void(
-		const QString &,
-		Fn<void()>,
-		const style::icon *)>;
-	void fillContextMenuActions(const MenuCallback &addAction);
+	void fillContextMenuActions(const Ui::Menu::MenuCallback &addAction);
 
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
