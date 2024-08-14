@@ -1729,7 +1729,6 @@ void Reactions::sendPaidPrivacyRequest(
 
 	const auto id = item->fullId();
 	auto &api = _owner->session().api();
-	using Flag = MTPmessages_SendPaidReaction::Flag;
 	const auto requestId = api.request(
 		MTPmessages_TogglePaidReactionPrivacy(
 			item->history()->peer->input,

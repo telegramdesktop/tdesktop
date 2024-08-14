@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/calendar_box.h"
 #include "platform/platform_specific.h"
+#include "core/application.h"
 #include "core/file_utilities.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
