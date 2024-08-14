@@ -44,6 +44,8 @@ struct SponsoredFrom {
 	QString link;
 	QString buttonText;
 	PhotoId photoId = PhotoId(0);
+	PhotoId mediaPhotoId = PhotoId(0);
+	DocumentId mediaDocumentId = DocumentId(0);
 	uint64 backgroundEmojiId = 0;
 	uint8 colorIndex : 6 = 0;
 	bool isLinkInternal = false;
@@ -73,6 +75,8 @@ public:
 		QString link;
 		QString buttonText;
 		PhotoId photoId = PhotoId(0);
+		PhotoId mediaPhotoId = PhotoId(0);
+		DocumentId mediaDocumentId = DocumentId(0);
 		uint64 backgroundEmojiId = 0;
 		uint8 colorIndex : 6 = 0;
 		bool isLinkInternal = false;

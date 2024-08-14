@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/userpic_view.h"
 
 namespace Data {
+class DocumentMedia;
 class Media;
 class PhotoMedia;
 } // namespace Data
@@ -127,6 +128,7 @@ private:
 		uint8 colorIndex : 6 = 0;
 		uint8 isLinkInternal : 1 = 0;
 		uint8 canReport : 1 = 0;
+		uint8 hasMedia : 1 = 0;
 
 		HintData hint;
 	};

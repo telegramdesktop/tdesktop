@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "core/click_handler_types.h"
 #include "data/data_channel.h"
+#include "data/data_document.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -269,6 +270,35 @@ void SponsoredMessages::append(
 		const MTPSponsoredMessage &message) {
 	const auto &data = message.data();
 	const auto randomId = data.vrandom_id().v;
+	auto mediaPhotoId = PhotoId(0);
+	auto mediaDocumentId = DocumentId(0);
+	{
+		if (data.vmedia()) {
+			data.vmedia()->match([&](const MTPDmessageMediaPhoto &media) {
+				if (const auto tlPhoto = media.vphoto()) {
+					tlPhoto->match([&](const MTPDphoto &data) {
+						const auto p = history->owner().processPhoto(data);
+						mediaPhotoId = p->id;
+					}, [](const MTPDphotoEmpty &) {
+					});
+				}
+			}, [&](const MTPDmessageMediaDocument &media) {
+				if (const auto tlDocument = media.vdocument()) {
+					tlDocument->match([&](const MTPDdocument &data) {
+						const auto d = history->owner().processDocument(data);
+						if (d->isVideoFile()
+							|| d->isSilentVideo()
+							|| d->isAnimation()
+							|| d->isGifv()) {
+							mediaDocumentId = d->id;
+						}
+					}, [](const MTPDdocumentEmpty &) {
+					});
+				}
+			}, [](const auto &) {
+			});
+		}
+	};
 	const auto from = SponsoredFrom{
 		.title = qs(data.vtitle()),
 		.link = qs(data.vurl()),
@@ -276,6 +306,8 @@ void SponsoredMessages::append(
 		.photoId = data.vphoto()
 			? history->session().data().processPhoto(*data.vphoto())->id
 			: PhotoId(0),
+		.mediaPhotoId = mediaPhotoId,
+		.mediaDocumentId = mediaDocumentId,
 		.backgroundEmojiId = data.vcolor().has_value()
 			? data.vcolor()->data().vbackground_emoji_id().value_or_empty()
 			: uint64(0),
@@ -396,6 +428,8 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		.colorIndex = data.from.colorIndex,
 		.isLinkInternal = data.from.isLinkInternal,
 		.canReport = data.from.canReport,
+		.mediaPhotoId = data.from.mediaPhotoId,
+		.mediaDocumentId = data.from.mediaDocumentId,
 	};
 }
 

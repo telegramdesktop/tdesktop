@@ -305,6 +305,23 @@ void WebPage::setupAdditionalData() {
 		raw->backgroundEmojiId = details.backgroundEmojiId;
 		raw->colorIndex = details.colorIndex;
 		raw->canReport = details.canReport ? 1 : 0;
+		raw->hasMedia = (details.mediaPhotoId || details.mediaDocumentId)
+			? 1
+			: 0;
+		if (!_attach) {
+			const auto maybePhoto = details.mediaPhotoId
+				? _data->session().data().photo(details.mediaPhotoId)
+				: nullptr;
+			const auto maybeDocument = details.mediaDocumentId
+				? _data->session().data().document(details.mediaDocumentId)
+				: nullptr;
+			_attach = CreateAttach(
+				_parent,
+				maybeDocument,
+				maybePhoto,
+				_collage,
+				_data->url);
+		}
 	} else if (_data->stickerSet) {
 		_additionalData = std::make_unique<AdditionalData>(StickerSetData());
 		const auto raw = stickerSetData();
@@ -460,6 +477,9 @@ QSize WebPage::countOptimalSize() {
 	} else {
 		_asArticle = _data->computeDefaultSmallMedia();
 	}
+	if (sponsored && sponsored->hasMedia) {
+		_asArticle = 0;
+	}
 
 	// init attach
 	if (!_attach && !_asArticle) {
@@ -567,9 +587,10 @@ QSize WebPage::countOptimalSize() {
 		minHeight += st::factcheckFooterSkip + factcheck->footer.minHeight();
 	}
 	if (_attach) {
-		const auto attachAtTop = _siteName.isEmpty()
-			&& _title.isEmpty()
-			&& _description.isEmpty();
+		const auto attachAtTop = (_siteName.isEmpty()
+				&& _title.isEmpty()
+				&& _description.isEmpty())
+			|| (sponsored && sponsored->hasMedia);
 		if (!attachAtTop) {
 			minHeight += st::mediaInBubbleSkip;
 		}
@@ -622,7 +643,9 @@ QSize WebPage::countCurrentSize(int newWidth) {
 
 	const auto stickerSet = stickerSetData();
 	const auto factcheck = factcheckData();
-	const auto specialRightPix = (sponsoredData() || stickerSet);
+	const auto sponsored = sponsoredData();
+	const auto specialRightPix = ((sponsored && !sponsored->hasMedia)
+		|| stickerSet);
 	const auto lineHeight = UnitedLineHeight();
 	const auto factcheckMetrics = factcheck
 		? computeFactcheckMetrics(_description.countHeight(innerWidth))
@@ -720,9 +743,10 @@ QSize WebPage::countCurrentSize(int newWidth) {
 		}
 
 		if (_attach) {
-			const auto attachAtTop = !_siteNameLines
-				&& !_titleLines
-				&& !_descriptionLines;
+			const auto attachAtTop = (!_siteNameLines
+					&& !_titleLines
+					&& !_descriptionLines)
+				|| (sponsored && sponsored->hasMedia);
 			if (!attachAtTop) {
 				newHeight += st::mediaInBubbleSkip;
 			}
@@ -817,6 +841,11 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 
 	const auto sponsored = sponsoredData();
 	const auto factcheck = factcheckData();
+
+	const auto hasSponsoredMedia = sponsored && sponsored->hasMedia;
+	if (hasSponsoredMedia && _attach) {
+		tshift += _attach->height() + st::mediaInBubbleSkip;
+	}
 
 	const auto selected = context.selected();
 	const auto view = parent();
@@ -1078,9 +1107,8 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		tshift += factcheck->footerHeight;
 	}
 	if (_attach) {
-		const auto attachAtTop = !_siteNameLines
-			&& !_titleLines
-			&& !_descriptionLines;
+		const auto attachAtTop = hasSponsoredMedia
+			|| (!_siteNameLines && !_titleLines && !_descriptionLines);
 		if (!attachAtTop) {
 			tshift += st::mediaInBubbleSkip;
 		}
@@ -1088,7 +1116,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		const auto attachLeft = rtl()
 			? (width() - (inner.left() - bubble.left()) - _attach->width())
 			: (inner.left() - bubble.left());
-		const auto attachTop = tshift - bubble.top();
+		const auto attachTop = hasSponsoredMedia
+			? inner.top()
+			: (tshift - bubble.top());
 
 		p.translate(attachLeft, attachTop);
 
@@ -1305,9 +1335,10 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	if (inThumb) {
 		result.link = _openl;
 	} else if (_attach) {
-		const auto attachAtTop = !_siteNameLines
-			&& !_titleLines
-			&& !_descriptionLines;
+		const auto attachAtTop = (!_siteNameLines
+				&& !_titleLines
+				&& !_descriptionLines)
+			|| (sponsored && sponsored->hasMedia);
 		if (!attachAtTop) {
 			tshift += st::mediaInBubbleSkip;
 		}
