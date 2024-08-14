@@ -507,7 +507,6 @@ void Row::PaintCornerBadgeFrame(
 		? st::dialogsOnlineBadgeSkip
 		: st::dialogsCallBadgeSkip;
 	const auto shrink = (size / 2) * (1. - topLayerProgress);
-	const auto doubleShrink = shrink * 2;
 
 	auto pen = QPen(Qt::transparent);
 	pen.setWidthF(stroke * topLayerProgress);
@@ -516,10 +515,11 @@ void Row::PaintCornerBadgeFrame(
 		? st::dialogsOnlineBadgeFgActive
 		: st::dialogsOnlineBadgeFg);
 	q.drawEllipse(QRectF(
-		photoSize - skip.x() - size - shrink,
-		photoSize - skip.y() - size - shrink,
-		size + doubleShrink,
-		size + doubleShrink));
+		photoSize - skip.x() - size,
+		photoSize - skip.y() - size,
+		size,
+		size
+	).marginsRemoved({ shrink, shrink, shrink, shrink }));
 }
 
 void Row::paintUserpic(
