@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
@@ -242,8 +243,11 @@ void FillTopReactors(
 
 	const auto height = st::paidReactTopNameSkip + st::normalFont->height;
 	const auto wrap = container->add(
-		object_ptr<FixedHeightWidget>(container, height),
-		st::paidReactTopMargin);
+		object_ptr<SlideWrap<FixedHeightWidget>>(
+			container,
+			object_ptr<FixedHeightWidget>(container, height),
+			st::paidReactTopMargin));
+	const auto parent = wrap->entity();
 	struct State {
 		std::vector<not_null<RpWidget*>> widgets;
 		rpl::event_stream<> updated;
@@ -261,11 +265,6 @@ void FillTopReactors(
 		} else if (*state->initialChosen != chosen) {
 			state->chosenChanged = true;
 		}
-		for (const auto &widget : state->widgets) {
-			delete widget;
-		}
-		state->widgets.clear();
-
 		auto list = std::vector<PaidReactionTop>();
 		list.reserve(kMaxTopPaidShown + 1);
 		for (const auto &entry : top) {
@@ -283,14 +282,26 @@ void FillTopReactors(
 			list,
 			ranges::greater(),
 			&PaidReactionTop::count);
-		while (list.size() > kMaxTopPaidShown) {
+		while (list.size() > kMaxTopPaidShown
+			|| (!list.empty() && !list.back().count)) {
 			list.pop_back();
 		}
-		for (const auto &entry : list) {
-			state->widgets.push_back(MakeTopReactor(wrap, entry));
+		if (list.empty()) {
+			wrap->hide(anim::type::normal);
+		} else {
+			for (const auto &widget : state->widgets) {
+				delete widget;
+			}
+			state->widgets.clear();
+			for (const auto &entry : list) {
+				state->widgets.push_back(MakeTopReactor(parent, entry));
+			}
+			wrap->show(anim::type::normal);
 		}
+
 		state->updated.fire({});
 	}, wrap->lifetime());
+	wrap->finishAnimating();
 
 	rpl::combine(
 		state->updated.events_starting_with({}),
