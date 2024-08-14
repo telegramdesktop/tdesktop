@@ -14,7 +14,7 @@ class Show;
 namespace Ui {
 class RpWidget;
 namespace Menu {
-class MenuCallback;
+struct MenuCallback;
 } // namespace Menu
 } // namespace Ui
 

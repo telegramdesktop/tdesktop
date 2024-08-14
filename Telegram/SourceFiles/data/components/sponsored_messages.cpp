@@ -424,12 +424,12 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		.link = data.link,
 		.buttonText = data.from.buttonText,
 		.photoId = data.from.photoId,
+		.mediaPhotoId = data.from.mediaPhotoId,
+		.mediaDocumentId = data.from.mediaDocumentId,
 		.backgroundEmojiId = data.from.backgroundEmojiId,
 		.colorIndex = data.from.colorIndex,
 		.isLinkInternal = data.from.isLinkInternal,
 		.canReport = data.from.canReport,
-		.mediaPhotoId = data.from.mediaPhotoId,
-		.mediaDocumentId = data.from.mediaDocumentId,
 	};
 }
 

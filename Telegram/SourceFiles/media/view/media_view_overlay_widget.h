@@ -48,7 +48,7 @@ enum class Backend;
 } // namespace Ui::GL
 
 namespace Ui::Menu {
-class MenuCallback;
+struct MenuCallback;
 } // namespace Ui::Menu
 
 namespace Platform {
