@@ -63,15 +63,6 @@ struct Photo::Streamed {
 	QImage roundingMask;
 };
 
-struct Photo::PriceTag {
-	uint64 price = 0;
-	QImage cache;
-	QColor darken;
-	QColor fg;
-	QColor star;
-	ClickHandlerPtr link;
-};
-
 Photo::Streamed::Streamed(
 	std::shared_ptr<::Media::Streaming::Document> shared)
 : instance(std::move(shared), nullptr) {
@@ -87,7 +78,10 @@ Photo::Photo(
 , _storyId(realParent->media()
 	? realParent->media()->storyId()
 	: FullStoryId())
-, _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr) {
+, _spoiler((spoiler || realParent->isMediaSensitive())
+	? std::make_unique<MediaSpoiler>()
+	: nullptr)
+, _sensitiveSpoiler(realParent->isMediaSensitive() ? 1 : 0) {
 	create(realParent->fullId());
 }
 
@@ -342,7 +336,8 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	const auto showEnlarge = loaded && _showEnlarge;
-	const auto paintInCenter = (radial || (!loaded && !_data->loading()));
+	const auto paintInCenter = !_sensitiveSpoiler
+		&& (radial || (!loaded && !_data->loading()));
 	if (paintInCenter || showEnlarge) {
 		p.setPen(Qt::NoPen);
 		if (context.selected()) {
@@ -382,9 +377,9 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, sti->historyFileThumbRadialFg);
 		}
-	} else if (preview) {
-		drawPriceTag(p, rthumb, context, [&] {
-			return priceTagBackground();
+	} else if (_sensitiveSpoiler || preview) {
+		drawSpoilerTag(p, rthumb, context, [&] {
+			return spoilerTagBackground();
 		});
 	}
 	if (showEnlarge) {
@@ -426,105 +421,18 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	}
 }
 
-void Photo::setupPriceTag() const {
-	const auto media = parent()->data()->media();
-	const auto invoice = media ? media->invoice() : nullptr;
-	const auto price = invoice->isPaidMedia ? invoice->amount : 0;
-	if (!price) {
-		return;
-	}
-	_priceTag = std::make_unique<PriceTag>();
-	_priceTag->price = price;
-}
-
-void Photo::drawPriceTag(
+void Photo::drawSpoilerTag(
 		Painter &p,
 		QRect rthumb,
 		const PaintContext &context,
 		Fn<QImage()> generateBackground) const {
-	if (!_priceTag) {
-		setupPriceTag();
-		if (!_priceTag) {
-			return;
-		}
-	}
-	const auto st = context.st;
-	const auto darken = st->msgDateImgBg()->c;
-	const auto fg = st->msgDateImgFg()->c;
-	const auto star = st->creditsBg1()->c;
-	if (_priceTag->cache.isNull()
-		|| _priceTag->darken != darken
-		|| _priceTag->fg != fg
-		|| _priceTag->star != star) {
-		const auto ratio = style::DevicePixelRatio();
-		auto bg = generateBackground();
-		if (bg.isNull()) {
-			bg = QImage(ratio, ratio, QImage::Format_ARGB32_Premultiplied);
-			bg.fill(Qt::black);
-		}
-
-		auto text = Ui::Text::String();
-		const auto session = &history()->session();
-		auto price = Ui::Text::Colorized(Ui::CreditsEmoji(session));
-		price.append(Lang::FormatCountDecimal(_priceTag->price));
-		text.setMarkedText(
-			st::semiboldTextStyle,
-			tr::lng_paid_price(
-				tr::now,
-				lt_price,
-				price,
-				Ui::Text::WithEntities),
-			kMarkupTextOptions,
-			Core::MarkedTextContext{
-				.session = session,
-				.customEmojiRepaint = [] {},
-			});
-		const auto width = text.maxWidth();
-		const auto inner = QRect(0, 0, width, text.minHeight());
-		const auto outer = inner.marginsAdded(st::paidTagPadding);
-		const auto size = outer.size();
-		const auto radius = std::min(size.width(), size.height()) / 2;
-		auto cache = QImage(
-			size * ratio,
-			QImage::Format_ARGB32_Premultiplied);
-		cache.setDevicePixelRatio(ratio);
-		cache.fill(Qt::black);
-		auto p = Painter(&cache);
-		auto hq = PainterHighQualityEnabler(p);
-		p.drawImage(
-			QRect(
-				(size.width() - rthumb.width()) / 2,
-				(size.height() - rthumb.height()) / 2,
-				rthumb.width(),
-				rthumb.height()),
-			bg);
-		p.fillRect(QRect(QPoint(), size), darken);
-		p.setPen(fg);
-		p.setTextPalette(st->priceTagTextPalette());
-		text.draw(p, -outer.x(), -outer.y(), width);
-		p.end();
-
-		_priceTag->darken = darken;
-		_priceTag->fg = fg;
-		_priceTag->cache = Images::Round(
-			std::move(cache),
-			Images::CornersMask(radius));
-	}
-	const auto &cache = _priceTag->cache;
-	const auto size = cache.size() / cache.devicePixelRatio();
-	const auto left = rthumb.x() + (rthumb.width() - size.width()) / 2;
-	const auto top = rthumb.y() + (rthumb.height() - size.height()) / 2;
-	p.drawImage(left, top, cache);
-	if (context.selected()) {
-		auto hq = PainterHighQualityEnabler(p);
-		const auto radius = std::min(size.width(), size.height()) / 2;
-		p.setPen(Qt::NoPen);
-		p.setBrush(st->msgSelectOverlay());
-		p.drawRoundedRect(
-			QRect(left, top, size.width(), size.height()),
-			radius,
-			radius);
-	}
+	Media::drawSpoilerTag(
+		p,
+		_spoiler.get(),
+		_spoilerTag,
+		rthumb,
+		context,
+		std::move(generateBackground));
 }
 
 void Photo::validateUserpicImageCache(QSize size, bool forum) const {
@@ -734,23 +642,11 @@ QRect Photo::enlargeRect() const {
 	};
 }
 
-ClickHandlerPtr Photo::priceTagLink() const {
-	const auto item = parent()->data();
-	if (!item->isRegular()) {
-		return nullptr;
-	} else if (!_priceTag) {
-		setupPriceTag();
-		if (!_priceTag) {
-			return nullptr;
-		}
-	}
-	if (!_priceTag->link) {
-		_priceTag->link = MakePaidMediaLink(item);
-	}
-	return _priceTag->link;
+ClickHandlerPtr Photo::spoilerTagLink() const {
+	return Media::spoilerTagLink(_spoiler.get(), _spoilerTag);
 }
 
-QImage Photo::priceTagBackground() const {
+QImage Photo::spoilerTagBackground() const {
 	return _spoiler ? _spoiler->background : QImage();
 }
 
@@ -767,10 +663,10 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
 		ensureDataMediaCreated();
-		result.link = _data->extendedMediaPreview()
-			? priceTagLink()
-			: (_spoiler && !_spoiler->revealed)
-			? _spoiler->link
+		result.link = (_spoiler && !_spoiler->revealed)
+			? ((_data->extendedMediaPreview() || _sensitiveSpoiler)
+				? spoilerTagLink()
+				: _spoiler->link)
 			: _data->uploading()
 			? _cancell
 			: _dataMedia->loaded()
@@ -875,10 +771,11 @@ void Photo::drawGrouped(
 		p.setOpacity(1.);
 	}
 
-	const auto displayState = radial
-		|| (!loaded && !_data->loading())
-		|| _data->waitingForAlbum();
-	if (displayState) {
+	const auto paintInCenter = !_sensitiveSpoiler
+		&& (radial
+			|| (!loaded && !_data->loading())
+			|| _data->waitingForAlbum());
+	if (paintInCenter) {
 		const auto radialOpacity = radial
 			? _animation->radial.opacity()
 			: 1.;
@@ -941,17 +838,18 @@ TextState Photo::getStateGrouped(
 		return {};
 	}
 	ensureDataMediaCreated();
-	return TextState(_parent, _data->extendedMediaPreview()
-		? priceTagLink()
-		: (_spoiler && !_spoiler->revealed)
-		? _spoiler->link
+	auto link = (_spoiler && !_spoiler->revealed)
+		? ((_data->extendedMediaPreview() || _sensitiveSpoiler)
+			? spoilerTagLink()
+			: _spoiler->link)
 		: _data->uploading()
 		? _cancell
 		: _dataMedia->loaded()
 		? _openl
 		: _data->loading()
 		? _cancell
-		: _savel);
+		: _savel;
+	return TextState(_parent, std::move(link));
 }
 
 float64 Photo::dataProgress() const {

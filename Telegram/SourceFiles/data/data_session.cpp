@@ -311,6 +311,22 @@ Session::Session(not_null<Main::Session*> session)
 
 		_stories->loadMore(Data::StorySourcesList::NotHidden);
 	});
+
+	session->appConfig().ignoredRestrictionReasonsChanges(
+	) | rpl::start_with_next([=](std::vector<QString> &&changed) {
+		auto refresh = std::vector<not_null<const HistoryItem*>>();
+		for (const auto &[item, reasons] : _possiblyRestricted) {
+			for (const auto &reason : changed) {
+				if (reasons.contains(reason)) {
+					refresh.push_back(item);
+					break;
+				}
+			}
+		}
+		for (const auto &item : refresh) {
+			requestItemViewRefresh(item);
+		}
+	}, _lifetime);
 }
 
 void Session::subscribeForTopicRepliesLists() {
@@ -1773,7 +1789,7 @@ rpl::producer<not_null<ViewElement*>> Session::viewResizeRequest() const {
 	return _viewResizeRequest.events();
 }
 
-void Session::requestItemViewRefresh(not_null<HistoryItem*> item) {
+void Session::requestItemViewRefresh(not_null<const HistoryItem*> item) {
 	if (const auto view = item->mainView()) {
 		notifyHistoryChangeDelayed(item->history());
 		view->refreshInBlock();
@@ -1781,7 +1797,7 @@ void Session::requestItemViewRefresh(not_null<HistoryItem*> item) {
 	_itemViewRefreshRequest.fire_copy(item);
 }
 
-rpl::producer<not_null<HistoryItem*>> Session::itemViewRefreshRequest() const {
+rpl::producer<not_null<const HistoryItem*>> Session::itemViewRefreshRequest() const {
 	return _itemViewRefreshRequest.events();
 }
 
@@ -1804,6 +1820,31 @@ void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
 		call(group->items.front());
 	} else {
 		call(item);
+	}
+}
+
+void Session::registerRestricted(
+		not_null<const HistoryItem*> item,
+		const QString &reason) {
+	Expects(item->hasPossibleRestrictions());
+
+	_possiblyRestricted[item].emplace(reason);
+}
+
+void Session::registerRestricted(
+		not_null<const HistoryItem*> item,
+		const std::vector<UnavailableReason> &reasons) {
+	Expects(item->hasPossibleRestrictions());
+
+	auto &list = _possiblyRestricted[item];
+	if (list.empty()) {
+		auto &&simple = reasons
+			| ranges::views::transform(&UnavailableReason::reason);
+		list = { begin(simple), end(simple) };
+	} else {
+		for (const auto &reason : reasons) {
+			list.emplace(reason.reason);
+		}
 	}
 }
 
@@ -2510,6 +2551,9 @@ void Session::unregisterMessage(not_null<HistoryItem*> item) {
 	const auto peerId = item->history()->peer->id;
 	const auto itemId = item->id;
 	_itemRemoved.fire_copy(item);
+	if (item->hasPossibleRestrictions()) {
+		_possiblyRestricted.remove(item);
+	}
 	session().changes().messageUpdated(
 		item,
 		Data::MessageUpdate::Flag::Destroyed);

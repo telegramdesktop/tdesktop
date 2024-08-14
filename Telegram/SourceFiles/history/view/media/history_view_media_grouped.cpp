@@ -297,16 +297,19 @@ QMargins GroupedMedia::groupedPadding() const {
 		(normal.bottom() - grouped.bottom()) + addToBottom);
 }
 
-Media *GroupedMedia::lookupUnpaidMedia() const {
+Media *GroupedMedia::lookupSpoilerTagMedia() const {
 	if (_parts.empty()) {
 		return nullptr;
 	}
 	const auto media = _parts.front().content.get();
+	if (media && _parts.front().item->isMediaSensitive()) {
+		return media;
+	}
 	const auto photo = media ? media->getPhoto() : nullptr;
 	return (photo && photo->extendedMediaPreview()) ? media : nullptr;
 }
 
-QImage GroupedMedia::generatePriceTagBackground(QRect full) const {
+QImage GroupedMedia::generateSpoilerTagBackground(QRect full) const {
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
 		full.size() * ratio,
@@ -317,7 +320,7 @@ QImage GroupedMedia::generatePriceTagBackground(QRect full) const {
 	const auto skip1 = st::historyGroupSkip / 2;
 	const auto skip2 = st::historyGroupSkip - skip1;
 	for (const auto &part : _parts) {
-		auto background = part.content->priceTagBackground();
+		auto background = part.content->spoilerTagBackground();
 		const auto extended = part.geometry.translated(shift).marginsAdded(
 			{ skip1, skip1, skip2, skip2 });
 		if (background.isNull()) {
@@ -394,7 +397,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		? Ui::BubbleRounding{ kSmall, kSmall, kSmall, kSmall }
 		: adjustedBubbleRounding();
 	auto highlight = context.highlight.range;
-	const auto unpaid = lookupUnpaidMedia();
+	const auto tagged = lookupSpoilerTagMedia();
 	auto fullRect = QRect();
 	const auto subpartHighlight = IsSubGroupSelection(highlight);
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
@@ -435,7 +438,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		if (!part.cache.isNull()) {
 			nowCache = true;
 		}
-		if (unpaid || _purchasedPriceTag) {
+		if (tagged || _purchasedPriceTag) {
 			fullRect = fullRect.united(part.geometry);
 		}
 	}
@@ -443,9 +446,9 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		history()->owner().registerHeavyViewPart(_parent);
 	}
 
-	if (unpaid) {
-		unpaid->drawPriceTag(p, fullRect, context, [&] {
-			return generatePriceTagBackground(fullRect);
+	if (tagged) {
+		tagged->drawSpoilerTag(p, fullRect, context, [&] {
+			return generateSpoilerTagBackground(fullRect);
 		});
 	} else if (_purchasedPriceTag) {
 		drawPurchasedTag(p, fullRect, context);
@@ -511,9 +514,11 @@ PointState GroupedMedia::pointState(QPoint point) const {
 TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
 	const auto groupPadding = groupedPadding();
 	auto result = getPartState(point - QPoint(0, groupPadding.top()), request);
-	if (const auto unpaid = lookupUnpaidMedia()) {
+	if (const auto tagged = lookupSpoilerTagMedia()) {
 		if (QRect(0, 0, width(), height()).contains(point)) {
-			result.link = unpaid->priceTagLink();
+			if (auto link = tagged->spoilerTagLink()) {
+				result.link = std::move(link);
+			}
 		}
 	}
 	if (_parent->media() == this && (!_parent->hasBubble() || isBubbleBottom())) {

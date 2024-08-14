@@ -99,6 +99,8 @@ struct UnavailableReason {
 	[[nodiscard]] static QString Compute(
 		not_null<Main::Session*> session,
 		const std::vector<UnavailableReason> &list);
+	[[nodiscard]] static bool IgnoreSensitiveMark(
+		not_null<Main::Session*> session);
 
 	[[nodiscard]] static std::vector<UnavailableReason> Extract(
 		const MTPvector<MTPRestrictionReason> *list);
@@ -347,7 +349,9 @@ public:
 	// If this string is not empty we must not allow to open the
 	// conversation and we must show this string instead.
 	[[nodiscard]] QString computeUnavailableReason() const;
-	[[nodiscard]] bool isUnavailableSensitive() const;
+	[[nodiscard]] bool hasSensitiveContent() const;
+	void setUnavailableReasons(
+		std::vector<Data::UnavailableReason> &&reason);
 
 	[[nodiscard]] ClickHandlerPtr createOpenLink();
 	[[nodiscard]] const ClickHandlerPtr &openLink() {
@@ -489,6 +493,10 @@ private:
 		const ImageLocation &location,
 		bool hasVideo);
 
+	virtual void setUnavailableReasonsList(
+		std::vector<Data::UnavailableReason> &&reasons);
+	void setHasSensitiveContent(bool has);
+
 	const not_null<Data::Session*> _owner;
 
 	mutable Data::CloudImage _userpic;
@@ -507,7 +515,8 @@ private:
 	crl::time _lastFullUpdate = 0;
 
 	QString _name;
-	uint32 _nameVersion : 31 = 1;
+	uint32 _nameVersion : 30 = 1;
+	uint32 _sensitiveContent : 1 = 0;
 	uint32 _wallPaperOverriden : 1 = 0;
 
 	TimeId _ttlPeriod = 0;

@@ -433,9 +433,6 @@ public:
 		return _ptsWaiter.waitingForShortPoll();
 	}
 
-	void setUnavailableReasons(
-		std::vector<Data::UnavailableReason> &&reason);
-
 	[[nodiscard]] MsgId availableMinId() const {
 		return _availableMinId;
 	}
@@ -514,6 +511,9 @@ private:
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;
 	bool canEditLastAdmin(not_null<UserData*> user) const;
+
+	void setUnavailableReasonsList(
+		std::vector<Data::UnavailableReason> &&reasons) override;
 
 	Flags _flags = ChannelDataFlags(Flag::Forbidden);
 

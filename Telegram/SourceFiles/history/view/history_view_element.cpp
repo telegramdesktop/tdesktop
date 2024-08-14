@@ -736,6 +736,10 @@ void Element::refreshMedia(Element *replacing) {
 	_flags &= ~Flag::HiddenByGroup;
 
 	const auto item = data();
+	if (!item->computeUnavailableReason().isEmpty()) {
+		_media = nullptr;
+		return;
+	}
 	if (const auto media = item->media()) {
 		if (media->canBeGrouped()) {
 			if (const auto group = history()->owner().groups().find(item)) {
@@ -1004,7 +1008,12 @@ void Element::validateText() {
 			: contextDependentText.links;
 		setTextWithLinks(markedText, customLinks);
 	} else {
-		setTextWithLinks(_textItem->translatedTextWithLocalEntities());
+		const auto unavailable = item->computeUnavailableReason();
+		if (!unavailable.isEmpty()) {
+			setTextWithLinks(Ui::Text::Italic(unavailable));
+		} else {
+			setTextWithLinks(_textItem->translatedTextWithLocalEntities());
+		}
 	}
 }
 

@@ -18,6 +18,11 @@ class BoxContent;
 
 namespace Settings {
 
+void SetupSensitiveContent(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<> updateTrigger);
+
 int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions);
 
 bool CheckEditCloudPassword(not_null<::Main::Session*> session);

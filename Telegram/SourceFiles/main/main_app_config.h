@@ -55,7 +55,15 @@ public:
 
 	[[nodiscard]] bool newRequirePremiumFree() const;
 
-	void refresh();
+	[[nodiscard]] auto ignoredRestrictionReasons() const
+		-> const std::vector<QString> & {
+		return _ignoreRestrictionReasons;
+	}
+	[[nodiscard]] auto ignoredRestrictionReasonsChanges() const {
+		return _ignoreRestrictionChanges.events();
+	}
+
+	void refresh(bool force = false);
 
 private:
 	void refreshDelayed();
@@ -84,13 +92,19 @@ private:
 		const QString &key,
 		std::vector<int> &&fallback) const;
 
+	void updateIgnoredRestrictionReasons(std::vector<QString> was);
+
 	const not_null<Account*> _account;
 	std::optional<MTP::Sender> _api;
 	mtpRequestId _requestId = 0;
 	int32 _hash = 0;
+	bool _pendingRefresh = false;
 	base::flat_map<QString, MTPJSONValue> _data;
 	rpl::event_stream<> _refreshed;
 	base::flat_set<QString> _dismissedSuggestions;
+
+	std::vector<QString> _ignoreRestrictionReasons;
+	rpl::event_stream<std::vector<QString>> _ignoreRestrictionChanges;
 
 	rpl::lifetime _lifetime;
 

@@ -326,7 +326,7 @@ enum class MessageFlag : uint64 {
 	EffectWatched         = (1ULL << 46),
 
 	SensitiveContent      = (1ULL << 47),
-	AllowSensitive        = (1ULL << 48),
+	HasRestrictions       = (1ULL << 48),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

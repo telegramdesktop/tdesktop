@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_peer.h"
 
+#include "api/api_sensitive_content.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_chat_participant_status.h"
@@ -58,6 +59,11 @@ constexpr auto kUserpicSize = 160;
 
 using UpdateFlag = Data::PeerUpdate::Flag;
 
+[[nodiscard]] const std::vector<QString> &IgnoredReasons(
+		not_null<Main::Session*> session) {
+	return session->appConfig().ignoredRestrictionReasons();
+}
+
 } // namespace
 
 namespace Data {
@@ -85,10 +91,7 @@ UnavailableReason UnavailableReason::Sensitive() {
 QString UnavailableReason::Compute(
 		not_null<Main::Session*> session,
 		const std::vector<UnavailableReason> &list) {
-	const auto &config = session->appConfig();
-	const auto skip = config.get<std::vector<QString>>(
-		"ignore_restriction_reasons",
-		std::vector<QString>());
+	const auto &skip = IgnoredReasons(session);
 	auto &&filtered = ranges::views::all(
 		list
 	) | ranges::views::filter([&](const Data::UnavailableReason &reason) {
@@ -97,6 +100,13 @@ QString UnavailableReason::Compute(
 	});
 	const auto first = filtered.begin();
 	return (first != filtered.end()) ? first->text : QString();
+}
+
+bool UnavailableReason::IgnoreSensitiveMark(
+		not_null<Main::Session*> session) {
+	return ranges::contains(
+			IgnoredReasons(session),
+			UnavailableReason::Sensitive().reason);
 }
 
 // We should get a full restriction in "{full}: {reason}" format and we
@@ -554,11 +564,45 @@ QString PeerData::computeUnavailableReason() const {
 		unavailableReasons());
 }
 
-bool PeerData::isUnavailableSensitive() const {
-	return ranges::contains(
-		unavailableReasons(),
+bool PeerData::hasSensitiveContent() const {
+	return _sensitiveContent == 1;
+}
+
+void PeerData::setUnavailableReasonsList(
+		std::vector<Data::UnavailableReason> &&reasons) {
+	Unexpected("PeerData::setUnavailableReasonsList.");
+}
+
+void PeerData::setUnavailableReasons(
+		std::vector<Data::UnavailableReason> &&reasons) {
+	const auto i = ranges::find(
+		reasons,
 		true,
 		&Data::UnavailableReason::sensitive);
+	const auto sensitive = (i != end(reasons));
+	if (sensitive) {
+		reasons.erase(i);
+	}
+	auto changed = (sensitive != hasSensitiveContent());
+	if (changed) {
+		setHasSensitiveContent(sensitive);
+	}
+	if (reasons != unavailableReasons()) {
+		setUnavailableReasonsList(std::move(reasons));
+		changed = true;
+	}
+	if (changed) {
+		session().changes().peerUpdated(
+			this,
+			UpdateFlag::UnavailableReason);
+	}
+}
+
+void PeerData::setHasSensitiveContent(bool has) {
+	_sensitiveContent = has ? 1 : 0;
+	if (has) {
+		session().api().sensitiveContent().preload();
+	}
 }
 
 // This is duplicated in CanPinMessagesValue().

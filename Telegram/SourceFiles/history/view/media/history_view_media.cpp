@@ -13,13 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_text_helper.h"
-#include "history/view/media/history_view_sticker.h"
+#include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_spoiler.h"
+#include "history/view/media/history_view_sticker.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
-#include "lang/lang_tag.h" // FormatCountDecimal.
+#include "lang/lang_keys.h"
 #include "ui/item_text_options.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
@@ -31,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "core/ui_integration.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_menu_icons.h" // mediaMenuIconStealth.
 
 namespace HistoryView {
 namespace {
@@ -349,6 +352,156 @@ void Media::fillImageSpoiler(
 		Ui::DefaultImageSpoiler().frame(
 			spoiler->animation->index(context.now, pausedSpoiler)),
 		spoiler->cornerCache);
+}
+
+void Media::drawSpoilerTag(
+		Painter &p,
+		not_null<MediaSpoiler*> spoiler,
+		std::unique_ptr<MediaSpoilerTag> &tag,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const {
+	if (!tag) {
+		setupSpoilerTag(tag);
+		if (!tag) {
+			return;
+		}
+	}
+	const auto revealed = spoiler->revealAnimation.value(
+		spoiler->revealed ? 1. : 0.);
+	if (revealed == 1.) {
+		return;
+	}
+	p.setOpacity(1. - revealed);
+	const auto st = context.st;
+	const auto darken = st->msgDateImgBg()->c;
+	const auto fg = st->msgDateImgFg()->c;
+	const auto star = st->creditsBg1()->c;
+	if (tag->cache.isNull()
+		|| tag->darken != darken
+		|| tag->fg != fg
+		|| tag->star != star) {
+		const auto ratio = style::DevicePixelRatio();
+		auto bg = generateBackground();
+		if (bg.isNull()) {
+			bg = QImage(ratio, ratio, QImage::Format_ARGB32_Premultiplied);
+			bg.fill(Qt::black);
+		}
+
+		auto text = Ui::Text::String();
+		auto iconSkip = 0;
+		if (tag->sensitive) {
+			text.setText(
+				st::semiboldTextStyle,
+				tr::lng_sensitive_tag(tr::now));
+			iconSkip = st::mediaMenuIconStealth.width() * 1.4;
+		} else {
+			const auto session = &history()->session();
+			auto price = Ui::Text::Colorized(Ui::CreditsEmoji(session));
+			price.append(Lang::FormatCountDecimal(tag->price));
+			text.setMarkedText(
+				st::semiboldTextStyle,
+				tr::lng_paid_price(
+					tr::now,
+					lt_price,
+					price,
+					Ui::Text::WithEntities),
+				kMarkupTextOptions,
+				Core::MarkedTextContext{
+					.session = session,
+					.customEmojiRepaint = [] {},
+				});
+		}
+		const auto width = iconSkip + text.maxWidth();
+		const auto inner = QRect(0, 0, width, text.minHeight());
+		const auto outer = inner.marginsAdded(st::paidTagPadding);
+		const auto size = outer.size();
+		const auto radius = std::min(size.width(), size.height()) / 2;
+		auto cache = QImage(
+			size * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(ratio);
+		cache.fill(Qt::black);
+		auto p = Painter(&cache);
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(
+			QRect(
+				(size.width() - rthumb.width()) / 2,
+				(size.height() - rthumb.height()) / 2,
+				rthumb.width(),
+				rthumb.height()),
+			bg);
+		p.fillRect(QRect(QPoint(), size), darken);
+		p.setPen(fg);
+		p.setTextPalette(st->priceTagTextPalette());
+		if (iconSkip) {
+			st::mediaMenuIconStealth.paint(
+				p,
+				-outer.x(),
+				(size.height() - st::mediaMenuIconStealth.height()) / 2,
+				size.width(),
+				fg);
+		}
+		text.draw(p, iconSkip - outer.x(), -outer.y(), width);
+		p.end();
+
+		tag->darken = darken;
+		tag->fg = fg;
+		tag->cache = Images::Round(
+			std::move(cache),
+			Images::CornersMask(radius));
+	}
+	const auto &cache = tag->cache;
+	const auto size = cache.size() / cache.devicePixelRatio();
+	const auto left = rthumb.x() + (rthumb.width() - size.width()) / 2;
+	const auto top = rthumb.y() + (rthumb.height() - size.height()) / 2;
+	p.drawImage(left, top, cache);
+	if (context.selected()) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = std::min(size.width(), size.height()) / 2;
+		p.setPen(Qt::NoPen);
+		p.setBrush(st->msgSelectOverlay());
+		p.drawRoundedRect(
+			QRect(left, top, size.width(), size.height()),
+			radius,
+			radius);
+	}
+	p.setOpacity(1.);
+}
+
+void Media::setupSpoilerTag(std::unique_ptr<MediaSpoilerTag> &tag) const {
+	const auto item = parent()->data();
+	if (item->isMediaSensitive()) {
+		tag = std::make_unique<MediaSpoilerTag>();
+		tag->sensitive = 1;
+		return;
+	}
+	const auto media = parent()->data()->media();
+	const auto invoice = media ? media->invoice() : nullptr;
+	if (const auto price = invoice->isPaidMedia ? invoice->amount : 0) {
+		tag = std::make_unique<MediaSpoilerTag>();
+		tag->price = price;
+	}
+}
+
+ClickHandlerPtr Media::spoilerTagLink(
+		not_null<MediaSpoiler*> spoiler,
+		std::unique_ptr<MediaSpoilerTag> &tag) const {
+	const auto item = parent()->data();
+	if (!item->isRegular() || spoiler->revealed) {
+		return nullptr;
+	} else if (!tag) {
+		setupSpoilerTag(tag);
+		if (!tag) {
+			return nullptr;
+		}
+	}
+	if (!tag->link) {
+		tag->link = tag->sensitive
+			? MakeSensitiveMediaLink(spoiler->link, item)
+			: MakePaidMediaLink(item);
+	}
+	return tag->link;
 }
 
 void Media::createSpoilerLink(not_null<MediaSpoiler*> spoiler) {

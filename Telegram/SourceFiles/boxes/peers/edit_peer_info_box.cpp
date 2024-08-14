@@ -1074,7 +1074,7 @@ void Controller::fillSignaturesButton() {
 				rpl::single(QString()),
 				[] {},
 				st::manageGroupTopButtonWithText,
-				{ &st::menuIconSigned })));
+				{ &st::menuIconProfile })));
 	profiles->toggleOn(signs->toggledValue());
 	profiles->finishAnimating();
 

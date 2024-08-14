@@ -75,13 +75,13 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
-	void drawPriceTag(
+	void drawSpoilerTag(
 		Painter &p,
 		QRect rthumb,
 		const PaintContext &context,
 		Fn<QImage()> generateBackground) const override;
-	ClickHandlerPtr priceTagLink() const override;
-	QImage priceTagBackground() const override;
+	ClickHandlerPtr spoilerTagLink() const override;
+	QImage spoilerTagBackground() const override;
 
 	void hideSpoilers() override;
 	bool needsBubble() const override;
@@ -105,7 +105,6 @@ protected:
 
 private:
 	struct Streamed;
-	struct PriceTag;
 
 	void create(FullMsgId contextId, PeerData *chat = nullptr);
 
@@ -115,7 +114,7 @@ private:
 
 	void ensureDataMediaCreated() const;
 	void dataMediaCreated() const;
-	void setupPriceTag() const;
+	void setupSpoilerTag() const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -161,14 +160,15 @@ private:
 
 	const not_null<PhotoData*> _data;
 	const FullStoryId _storyId;
-	mutable std::unique_ptr<PriceTag> _priceTag;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	mutable std::unique_ptr<Streamed> _streamed;
 	const std::unique_ptr<MediaSpoiler> _spoiler;
+	mutable std::unique_ptr<MediaSpoilerTag> _spoilerTag;
 	mutable QImage _imageCache;
 	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
-	uint32 _serviceWidth : 27 = 0;
+	uint32 _serviceWidth : 26 = 0;
 	uint32 _purchasedPriceTag : 1 = 0;
+	const uint32 _sensitiveSpoiler : 1 = 0;
 	mutable uint32 _imageCacheForum : 1 = 0;
 	mutable uint32 _imageCacheBlurred : 1 = 0;
 	mutable uint32 _pollingStory : 1 = 0;

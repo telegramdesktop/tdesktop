@@ -22,7 +22,8 @@ class SensitiveContent final {
 public:
 	explicit SensitiveContent(not_null<ApiWrap*> api);
 
-	void reload();
+	void preload();
+	void reload(bool force = false);
 	void update(bool enabled);
 
 	[[nodiscard]] bool enabledCurrent() const;
@@ -32,10 +33,14 @@ public:
 private:
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
-	mtpRequestId _requestId = 0;
+	mtpRequestId _loadRequestId = 0;
+	mtpRequestId _saveRequestId = 0;
 	rpl::variable<bool> _enabled = false;
 	rpl::variable<bool> _canChange = false;
 	base::Timer _appConfigReloadTimer;
+	bool _appConfigReloadForce = false;
+	bool _loadPending = false;
+	bool _loaded = false;
 
 };
 

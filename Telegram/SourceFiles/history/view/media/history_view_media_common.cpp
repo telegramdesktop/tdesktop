@@ -7,10 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media_common.h"
 
+#include "api/api_sensitive_content.h"
 #include "api/api_views.h"
 #include "apiwrap.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
 #include "core/click_handler_types.h"
 #include "data/data_document.h"
@@ -269,6 +275,64 @@ ClickHandlerPtr MakePaidMediaLink(not_null<HistoryItem*> item) {
 			Payments::Mode::Payment,
 			reactivate,
 			nonPanelPaymentFormProcess);
+	});
+}
+
+ClickHandlerPtr MakeSensitiveMediaLink(
+		ClickHandlerPtr reveal,
+		not_null<HistoryItem*> item) {
+	const auto session = &item->history()->session();
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		const auto controller = my.sessionWindow.get();
+		const auto show = controller ? controller->uiShow() : my.show;
+		if (!show) {
+			reveal->onClick(context);
+			return;
+		}
+		show->show(Box([=](not_null<Ui::GenericBox*> box) {
+			struct State {
+				rpl::variable<bool> canChange;
+				Ui::Checkbox *checkbox = nullptr;
+			};
+			const auto state = box->lifetime().make_state<State>();
+			const auto sensitive = &session->api().sensitiveContent();
+			state->canChange = sensitive->canChange();
+			const auto done = [=](Fn<void()> close) {
+				if (state->canChange.current()
+					&& state->checkbox->checked()) {
+					show->showToast({
+						.text = tr::lng_sensitive_toast(
+							tr::now,
+							Ui::Text::RichLangValue),
+						.adaptive = true,
+						.duration = 5 * crl::time(1000),
+					});
+					sensitive->update(true);
+				} else {
+					reveal->onClick(context);
+				}
+				close();
+			};
+			Ui::ConfirmBox(box, {
+				.text = tr::lng_sensitive_text(Ui::Text::RichLangValue),
+				.confirmed = done,
+				.confirmText = tr::lng_sensitive_view(),
+				.title = tr::lng_sensitive_title(),
+			});
+			const auto skip = st::defaultCheckbox.margin.bottom();
+			const auto wrap = box->addRow(
+				object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+					box,
+					object_ptr<Ui::Checkbox>(
+						box,
+						tr::lng_sensitive_always(tr::now),
+						false)),
+				st::boxRowPadding + QMargins(0, 0, 0, skip));
+			wrap->toggleOn(state->canChange.value());
+			wrap->finishAnimating();
+			state->checkbox = wrap->entity();
+		}));
 	});
 }
 

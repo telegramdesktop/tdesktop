@@ -90,6 +90,14 @@ public:
 	void stopAnimation() override;
 	void checkAnimation() override;
 
+	void drawSpoilerTag(
+		Painter &p,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const override;
+	ClickHandlerPtr spoilerTagLink() const override;
+	QImage spoilerTagBackground() const override;
+
 	void hideSpoilers() override;
 	bool needsBubble() const override;
 	bool unwrapped() const override;
@@ -203,6 +211,7 @@ private:
 	const FullStoryId _storyId;
 	std::unique_ptr<Streamed> _streamed;
 	const std::unique_ptr<MediaSpoiler> _spoiler;
+	mutable std::unique_ptr<MediaSpoilerTag> _spoilerTag;
 	mutable std::unique_ptr<TranscribeButton> _transcribe;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
@@ -214,6 +223,7 @@ private:
 	mutable bool _thumbIsEllipse : 1 = false;
 	mutable bool _pollingStory : 1 = false;
 	mutable bool _purchasedPriceTag : 1 = false;
+	const bool _sensitiveSpoiler : 1 = false;
 
 };
 

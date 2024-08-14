@@ -544,12 +544,9 @@ auto ChannelData::unavailableReasons() const
 	return _unavailableReasons;
 }
 
-void ChannelData::setUnavailableReasons(
+void ChannelData::setUnavailableReasonsList(
 		std::vector<Data::UnavailableReason> &&reasons) {
-	if (_unavailableReasons != reasons) {
-		_unavailableReasons = std::move(reasons);
-		session().changes().peerUpdated(this, UpdateFlag::UnavailableReason);
-	}
+	_unavailableReasons = std::move(reasons);
 }
 
 void ChannelData::setAvailableMinId(MsgId availableMinId) {

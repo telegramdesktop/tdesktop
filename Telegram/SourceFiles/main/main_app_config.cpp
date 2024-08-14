@@ -38,15 +38,18 @@ void AppConfig::start() {
 	}, _lifetime);
 }
 
-void AppConfig::refresh() {
+void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
+		if (force) {
+			_pendingRefresh = true;
+		}
 		return;
 	}
+	_pendingRefresh = false;
 	_requestId = _api->request(MTPhelp_GetAppConfig(
 		MTP_int(_hash)
 	)).done([=](const MTPhelp_AppConfig &result) {
 		_requestId = 0;
-		refreshDelayed();
 		result.match([&](const MTPDhelp_appConfig &data) {
 			_hash = data.vhash().v;
 
@@ -55,15 +58,25 @@ void AppConfig::refresh() {
 				LOG(("API Error: Unexpected config type."));
 				return;
 			}
+			auto was = ignoredRestrictionReasons();
+
 			_data.clear();
 			for (const auto &element : config.c_jsonObject().vvalue().v) {
 				element.match([&](const MTPDjsonObjectValue &data) {
 					_data.emplace_or_assign(qs(data.vkey()), data.vvalue());
 				});
 			}
+			updateIgnoredRestrictionReasons(std::move(was));
+
 			DEBUG_LOG(("getAppConfig result handled."));
 			_refreshed.fire({});
 		}, [](const MTPDhelp_appConfigNotModified &) {});
+
+		if (base::take(_pendingRefresh)) {
+			refresh();
+		} else {
+			refreshDelayed();
+		}
 	}).fail([=] {
 		_requestId = 0;
 		refreshDelayed();
@@ -74,6 +87,24 @@ void AppConfig::refreshDelayed() {
 	base::call_delayed(kRefreshTimeout, _account, [=] {
 		refresh();
 	});
+}
+
+void AppConfig::updateIgnoredRestrictionReasons(std::vector<QString> was) {
+	_ignoreRestrictionReasons = get<std::vector<QString>>(
+		u"ignore_restriction_reasons"_q,
+		std::vector<QString>());
+	ranges::sort(_ignoreRestrictionReasons);
+	if (_ignoreRestrictionReasons != was) {
+		for (const auto &reason : _ignoreRestrictionReasons) {
+			const auto i = ranges::remove(was, reason);
+			if (i != end(was)) {
+				was.erase(i, end(was));
+			} else {
+				was.push_back(reason);
+			}
+		}
+		_ignoreRestrictionChanges.fire(std::move(was));
+	}
 }
 
 rpl::producer<> AppConfig::refreshed() const {

@@ -135,10 +135,13 @@ Gif::Gif(
 , _storyId(realParent->media()
 	? realParent->media()->storyId()
 	: FullStoryId())
-, _spoiler((spoiler || IsHiddenRoundMessage(_parent))
+, _spoiler((spoiler
+	|| IsHiddenRoundMessage(_parent)
+	|| realParent->isMediaSensitive())
 	? std::make_unique<MediaSpoiler>()
 	: nullptr)
-, _downloadSize(Ui::FormatSizeText(_data->size)) {
+, _downloadSize(Ui::FormatSizeText(_data->size))
+, _sensitiveSpoiler(realParent->isMediaSensitive()) {
 	if (_data->isVideoMessage() && _parent->data()->media()->ttlSeconds()) {
 		if (_spoiler) {
 			_drawTtl = CreateTtlPaintCallback([=] { repaint(); });
@@ -582,9 +585,11 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 
-	if (radial
-		|| (!streamingMode
-			&& ((!loaded && !_data->loading()) || !autoplay))) {
+	const auto paintInCenter = !_sensitiveSpoiler
+		&& (radial
+			|| (!streamingMode
+				&& ((!loaded && !_data->loading()) || !autoplay)));
+	if (paintInCenter) {
 		const auto radialRevealed = 1.;
 		const auto opacity = (item->isSending() || _data->uploading())
 			? 1.
@@ -652,6 +657,10 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 		p.setOpacity(1.);
+	} else if (_sensitiveSpoiler) {
+		drawSpoilerTag(p, rthumb, context, [&] {
+			return spoilerTagBackground();
+		});
 	}
 	if (displayMute) {
 		auto muteRect = style::rtlrect(rthumb.x() + (rthumb.width() - st::historyVideoMessageMuteSize) / 2, rthumb.y() + st::msgDateImgDelta, st::historyVideoMessageMuteSize, st::historyVideoMessageMuteSize, width());
@@ -833,6 +842,28 @@ void Gif::paintTranscribe(
 		x - (right ? 0 : s.width()),
 		y - s.height() - st::msgDateImgDelta,
 		context);
+}
+
+void Gif::drawSpoilerTag(
+		Painter &p,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const {
+	Media::drawSpoilerTag(
+		p,
+		_spoiler.get(),
+		_spoilerTag,
+		rthumb,
+		context,
+		std::move(generateBackground));
+}
+
+ClickHandlerPtr Gif::spoilerTagLink() const {
+	return Media::spoilerTagLink(_spoiler.get(), _spoilerTag);
+}
+
+QImage Gif::spoilerTagBackground() const {
+	return _spoiler ? _spoiler->background : QImage();
 }
 
 void Gif::validateVideoThumbnail() const {
@@ -1113,10 +1144,12 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	}
 	if (QRect(usex + paintx, painty, usew, painth).contains(point)) {
 		ensureDataMediaCreated();
-		result.link = (isRound && _parent->data()->media()->ttlSeconds())
-			? _openl // Overriden.
-			: (_spoiler && !_spoiler->revealed)
-			? _spoiler->link
+		result.link = (_spoiler && !_spoiler->revealed)
+			? (_sensitiveSpoiler
+				? spoilerTagLink()
+				: (isRound && _parent->data()->media()->ttlSeconds())
+				? _openl // Overriden.
+				: _spoiler->link)
 			: _data->uploading()
 			? _cancell
 			: _realParent->isSending()
@@ -1335,9 +1368,11 @@ void Gif::drawGrouped(
 		p.setOpacity(1.);
 	}
 
-	if (radial
-		|| (!streamingMode
-			&& ((!loaded && !_data->loading()) || !autoplay))) {
+	const auto paintInCenter = !_sensitiveSpoiler
+		&& (radial
+			|| (!streamingMode
+				&& ((!loaded && !_data->loading()) || !autoplay)));
+	if (paintInCenter) {
 		const auto radialRevealed = 1.;
 		const auto opacity = (item->isSending() || _data->uploading())
 			? 1.
@@ -1439,8 +1474,8 @@ TextState Gif::getStateGrouped(
 		}
 	}
 	ensureDataMediaCreated();
-	return TextState(_parent, (_spoiler && !_spoiler->revealed)
-		? _spoiler->link
+	auto link = (_spoiler && !_spoiler->revealed)
+		? (_sensitiveSpoiler ? spoilerTagLink() : _spoiler->link)
 		: _data->uploading()
 		? _cancell
 		: _realParent->isSending()
@@ -1449,7 +1484,8 @@ TextState Gif::getStateGrouped(
 		? _openl
 		: _data->loading()
 		? _cancell
-		: _savel);
+		: _savel;
+	return TextState(_parent, std::move(link));
 }
 
 void Gif::ensureDataMediaCreated() const {

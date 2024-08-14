@@ -166,7 +166,7 @@ PreviewWrap::PreviewWrap(
 		}
 	}, lifetime());
 	session->data().itemViewRefreshRequest(
-	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		if (item == _item) {
 			if (goodItem()) {
 				createView();

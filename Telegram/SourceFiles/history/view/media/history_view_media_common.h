@@ -75,6 +75,10 @@ void PaintInterpolatedIcon(
 	int newWidth,
 	int maxWidth);
 
-[[nodiscard]] ClickHandlerPtr MakePaidMediaLink(not_null<HistoryItem*> item);
+[[nodiscard]] ClickHandlerPtr MakePaidMediaLink(
+	not_null<HistoryItem*> item);
+[[nodiscard]] ClickHandlerPtr MakeSensitiveMediaLink(
+	ClickHandlerPtr reveal,
+	not_null<HistoryItem*> item);
 
 } // namespace HistoryView

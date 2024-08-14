@@ -143,7 +143,7 @@ void DownloadManager::trackSession(not_null<Main::Session*> session) {
 	}, data.lifetime);
 
 	session->data().itemViewRefreshRequest(
-	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		changed(item);
 	}, data.lifetime);
 

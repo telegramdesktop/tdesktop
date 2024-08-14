@@ -47,6 +47,7 @@ enum class InfoDisplayType : char;
 struct TextState;
 struct StateRequest;
 struct MediaSpoiler;
+struct MediaSpoilerTag;
 class StickerPlayer;
 class Element;
 struct SelectedQuote;
@@ -223,18 +224,18 @@ public:
 		QPoint point,
 		StateRequest request) const;
 
-	virtual void drawPriceTag(
+	virtual void drawSpoilerTag(
 			Painter &p,
 			QRect rthumb,
 			const PaintContext &context,
 			Fn<QImage()> generateBackground) const {
-		Unexpected("Price tag method call.");
+		Unexpected("Spoiler tag method call.");
 	}
-	[[nodiscard]] virtual ClickHandlerPtr priceTagLink() const {
-		Unexpected("Price tag method call.");
+	[[nodiscard]] virtual ClickHandlerPtr spoilerTagLink() const {
+		Unexpected("Spoiler tag method call.");
 	}
-	[[nodiscard]] virtual QImage priceTagBackground() const {
-		Unexpected("Price tag method call.");
+	[[nodiscard]] virtual QImage spoilerTagBackground() const {
+		Unexpected("Spoiler tag method call.");
 	}
 
 	[[nodiscard]] virtual bool animating() const {
@@ -390,6 +391,17 @@ protected:
 		not_null<MediaSpoiler*> spoiler,
 		QRect rect,
 		const PaintContext &context) const;
+	void drawSpoilerTag(
+		Painter &p,
+		not_null<MediaSpoiler*> spoiler,
+		std::unique_ptr<MediaSpoilerTag> &tag,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const;
+	void setupSpoilerTag(std::unique_ptr<MediaSpoilerTag> &tag) const;
+	[[nodiscard]] ClickHandlerPtr spoilerTagLink(
+		not_null<MediaSpoiler*> spoiler,
+		std::unique_ptr<MediaSpoilerTag> &tag) const;
 	void createSpoilerLink(not_null<MediaSpoiler*> spoiler);
 
 	void repaint() const;

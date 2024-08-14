@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_item.h"
 
+#include "api/api_sensitive_content.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "calls/calls_instance.h" // Core::App().calls().joinGroupCall.
@@ -3356,6 +3357,8 @@ EffectId HistoryItem::effectId() const {
 
 QString HistoryItem::computeUnavailableReason() const {
 	if (const auto restrictions = Get<HistoryMessageRestrictions>()) {
+		_flags |= MessageFlag::HasRestrictions;
+		_history->owner().registerRestricted(this, restrictions->reasons);
 		return Data::UnavailableReason::Compute(
 			&history()->session(),
 			restrictions->reasons);
@@ -3363,13 +3366,19 @@ QString HistoryItem::computeUnavailableReason() const {
 	return QString();
 }
 
-bool HistoryItem::hasSensitiveSpoiler() const {
-	return (_flags & MessageFlag::SensitiveContent)
-		&& !(_flags & MessageFlag::AllowSensitive);
+bool HistoryItem::isMediaSensitive() const {
+	if (!(_flags & MessageFlag::SensitiveContent)
+		&& !_history->peer->hasSensitiveContent()) {
+		return false;
+	}
+	_flags |= MessageFlag::HasRestrictions;
+	_history->owner().registerRestricted(this, u"sensitive"_q);
+	return !Data::UnavailableReason::IgnoreSensitiveMark(
+		&_history->session());
 }
 
-void HistoryItem::allowSensitive() {
-	_flags |= MessageFlag::AllowSensitive;
+bool HistoryItem::hasPossibleRestrictions() const {
+	return _flags & MessageFlag::HasRestrictions;
 }
 
 bool HistoryItem::isEmpty() const {
@@ -3666,10 +3675,10 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 			&Data::UnavailableReason::sensitive);
 		if (i != end(restrictions->reasons)) {
 			restrictions->reasons.erase(i);
-			_flags |= MessageFlag::SensitiveContent;
+			flagSensitiveContent();
 		}
 	} else if (!config.restrictions.empty()) {
-		_flags |= MessageFlag::SensitiveContent;
+		flagSensitiveContent();
 	}
 
 	if (out() && isSending()) {
@@ -3677,6 +3686,11 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 			_boostsApplied = channel->mgInfo->boostsApplied;
 		}
 	}
+}
+
+void HistoryItem::flagSensitiveContent() {
+	_flags |= MessageFlag::SensitiveContent;
+	_history->session().api().sensitiveContent().preload();
 }
 
 bool HistoryItem::checkRepliesPts(

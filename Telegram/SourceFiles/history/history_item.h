@@ -522,9 +522,9 @@ public:
 	[[nodiscard]] bool isEmpty() const;
 	[[nodiscard]] MessageGroupId groupId() const;
 	[[nodiscard]] EffectId effectId() const;
+	[[nodiscard]] bool hasPossibleRestrictions() const;
 	[[nodiscard]] QString computeUnavailableReason() const;
-	[[nodiscard]] bool hasSensitiveSpoiler() const;
-	void allowSensitive();
+	[[nodiscard]] bool isMediaSensitive() const;
 
 	[[nodiscard]] const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
 		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();
@@ -660,6 +660,7 @@ private:
 	[[nodiscard]] PreparedServiceText prepareCallScheduledText(
 		TimeId scheduleDate);
 
+	void flagSensitiveContent();
 	[[nodiscard]] PeerData *computeDisplayFrom() const;
 
 	const not_null<History*> _history;

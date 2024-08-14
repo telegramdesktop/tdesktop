@@ -3485,6 +3485,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_paid_react_show_in_top" = "Show me in Top Senders";
 "lng_paid_react_anonymous" = "Anonymous";
 
+"lng_sensitive_tag" = "18+";
+"lng_sensitive_title" = "18+";
+"lng_sensitive_text" = "This media may contain sensitive content suitable only for adults. Do you still want to view it?";
+"lng_sensitive_always" = "Always show 18+ media";
+"lng_sensitive_view" = "View Anyway";
+"lng_sensitive_toast" = "You can update the visibility of sensitive media in **Settings > Chat Settings > Sensitive content**";
+
 "lng_translate_show_original" = "Show Original";
 "lng_translate_bar_to" = "Translate to {name}";
 "lng_translate_bar_to_other" = "Translate to {name}";

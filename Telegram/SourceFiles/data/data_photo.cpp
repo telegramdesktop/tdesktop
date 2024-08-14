@@ -252,8 +252,7 @@ Image *PhotoData::getReplyPreview(
 
 Image *PhotoData::getReplyPreview(not_null<HistoryItem*> item) {
 	const auto media = item->media();
-	const auto spoiler = (media && media->hasSpoiler())
-		|| item->hasSensitiveSpoiler();
+	const auto spoiler = (media && media->hasSpoiler());
 	return getReplyPreview(item->fullId(), item->history()->peer, spoiler);
 }
 
