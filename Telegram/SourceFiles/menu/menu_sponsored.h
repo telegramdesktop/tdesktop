@@ -13,11 +13,20 @@ class Show;
 
 namespace Ui {
 class RpWidget;
+namespace Menu {
+class MenuCallback;
+} // namespace Menu
 } // namespace Ui
 
 class HistoryItem;
 
 namespace Menu {
+
+void FillSponsored(
+	not_null<Ui::RpWidget*> parent,
+	const Ui::Menu::MenuCallback &addAction,
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<HistoryItem*> item);
 
 void ShowSponsored(
 	not_null<Ui::RpWidget*> parent,
