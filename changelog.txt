@@ -1,3 +1,9 @@
+5.4 (14.08.24)
+
+- Super Channels with post authors' profiles.
+- Support favorite channels with Star Reactions.
+- Channel Subscriptions with Stars monthly payments.
+
 5.3.2 (02.08.24)
 
 - Fix crash on launch in some Linux systems.
