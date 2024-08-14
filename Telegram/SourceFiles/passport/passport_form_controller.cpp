@@ -233,9 +233,10 @@ QString SpecialScanCredentialsKey(FileType type) {
 
 QString ValidateUrl(const QString &url) {
 	const auto result = qthelp::validate_url(url);
-	return result.startsWith("tg://", Qt::CaseInsensitive)
-		? QString()
-		: result;
+	return (result.startsWith("http://", Qt::CaseInsensitive)
+		|| result.startsWith("https://", Qt::CaseInsensitive))
+		? result
+		: QString();
 }
 
 auto ParseConfig(const QByteArray &json) {
