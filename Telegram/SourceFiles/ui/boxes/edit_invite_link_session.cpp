@@ -73,7 +73,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 		st,
 		tr::lng_group_invite_subscription_ph(),
 		QString(),
-		maxCredits);
+		std::pow(QString::number(maxCredits).size(), 10));
 	wrap->toggledValue() | rpl::start_with_next([=](bool shown) {
 		if (shown) {
 			input->setFocus();
@@ -97,6 +97,10 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 	}, input->lifetime());
 	ToggleChildrenVisibility(inputContainer, true);
 	QObject::connect(input, &Ui::MaskedInputField::changed, [=] {
+		const auto amount = input->getLastText().toDouble();
+		if (amount > maxCredits) {
+			input->setText(QString::number(maxCredits));
+		}
 		priceOverlay->update();
 	});
 	priceOverlay->paintRequest(
