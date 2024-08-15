@@ -2533,7 +2533,7 @@ bool HistoryItem::canReact() const {
 
 void HistoryItem::addPaidReaction(int count, bool anonymous) {
 	Expects(count >= 0);
-	Expects(_history->peer->isBroadcast());
+	Expects(_history->peer->isBroadcast() || isDiscussionPost());
 
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);

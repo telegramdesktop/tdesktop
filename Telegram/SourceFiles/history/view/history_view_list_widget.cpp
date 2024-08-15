@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_who_reacted.h"
 #include "api/api_views.h"
 #include "layout/layout_selection.h"
+#include "payments/payments_reaction_process.h"
 #include "window/section_widget.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
@@ -2800,6 +2801,13 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 void ListWidget::reactionChosen(ChosenReaction reaction) {
 	const auto item = session().data().message(reaction.context);
 	if (!item) {
+		return;
+	} else if (reaction.id.paid()) {
+		Payments::ShowPaidReactionDetails(
+			controller(),
+			item,
+			viewForItem(item),
+			HistoryReactionSource::Selector);
 		return;
 	} else if (_delegate->listShowReactPremiumError(item, reaction.id)) {
 		if (_menu) {
