@@ -1577,9 +1577,11 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 	const auto isGroup = !peer->isBroadcast();
 	const auto isPublic = peer->isChannel() && peer->asChannel()->isPublic();
 	auto object = Box([=](not_null<Ui::GenericBox*> box) {
-		const auto fill = [=] {
-			return Ui::FillCreateInviteLinkSubscriptionToggle(box, peer);
-		};
+		const auto fill = isGroup
+			? Fn<Ui::InviteLinkSubscriptionToggle()>(nullptr)
+			: [=] {
+				return Ui::FillCreateInviteLinkSubscriptionToggle(box, peer);
+			};
 		if (creating) {
 			Ui::CreateInviteLinkBox(box, fill, isGroup, isPublic, done);
 		} else {
