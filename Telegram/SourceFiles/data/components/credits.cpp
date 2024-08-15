@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_credits.h"
 #include "data/data_user.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 
 namespace Data {
@@ -31,26 +32,10 @@ void Credits::apply(const MTPDupdateStarsBalance &data) {
 
 rpl::producer<float64> Credits::rateValue(
 		not_null<PeerData*> ownedBotOrChannel) {
-	// Should be replaced in the future.
-	if (_rate > 0) {
-		return rpl::single(_rate);
-	}
-	return [=](auto consumer) {
-		auto lifetime = rpl::lifetime();
-
-		const auto api = lifetime.make_state<Api::CreditsEarnStatistics>(
-			ownedBotOrChannel);
-		api->request(
-		) | rpl::start_with_done([=] {
-			_rate = api->data().usdRate;
-			if (_rate > 0) {
-				consumer.put_next_copy(_rate);
-				consumer.put_done();
-			}
-		}, lifetime);
-
-		return lifetime;
-	};
+	return rpl::single(
+		_session->appConfig().get<float64>(
+			u"stars_usd_withdraw_rate_x1000"_q,
+			1200) / 1000.);
 }
 
 void Credits::load(bool force) {

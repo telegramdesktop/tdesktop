@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/boxes/edit_invite_link_session.h"
 
-#include "api/api_credits.h"
+#include "data/components/credits.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -39,7 +39,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer) {
 	struct State final {
-		float64 usdRate = 0;
+		rpl::variable<float64> usdRate = 0;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	const auto currency = u"USD"_q;
@@ -101,7 +101,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 	});
 	priceOverlay->paintRequest(
 	) | rpl::start_with_next([=, right = st::boxRowPadding.right()] {
-		if (state->usdRate <= 0) {
+		if (state->usdRate.current() <= 0) {
 			return;
 		}
 		const auto amount = input->getLastText().toDouble();
@@ -111,7 +111,9 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 		const auto text = tr::lng_group_invite_subscription_price(
 			tr::now,
 			lt_cost,
-			Ui::FillAmountAndCurrency(amount * state->usdRate, currency));
+			Ui::FillAmountAndCurrency(
+				amount * state->usdRate.current(),
+				currency));
 		auto p = QPainter(priceOverlay);
 		p.setFont(st.placeholderFont);
 		p.setPen(st.placeholderFg);
@@ -120,16 +122,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 		p.drawText(priceOverlay->rect() - m, text, style::al_right);
 	}, priceOverlay->lifetime());
 
-	{
-		auto &lifetime = priceOverlay->lifetime();
-		const auto api = lifetime.make_state<Api::CreditsEarnStatistics>(
-			peer);
-		api->request(
-		) | rpl::start_with_done([=] {
-			state->usdRate = api->data().usdRate;
-			priceOverlay->update();
-		}, priceOverlay->lifetime());
-	}
+	state->usdRate = peer->session().credits().rateValue(peer);
 
 	const auto arrow = Ui::Text::SingleCustomEmoji(
 		peer->owner().customEmojiManager().registerInternalEmoji(
