@@ -29,14 +29,16 @@ SendAsPeers::SendAsPeers(not_null<Session*> session)
 	) | rpl::map([=](const Data::PeerUpdate &update) {
 		const auto peer = update.peer;
 		const auto channel = peer->asChannel();
-		return std::tuple(
-			peer,
-			peer->amAnonymous(),
-			channel ? channel->isPublic() : false);
+		const auto bits = 0
+			| (peer->amAnonymous() ? (1 << 0) : 0)
+			| ((channel && channel->isPublic()) ? (1 << 1) : 0)
+			| ((channel && channel->addsSignature()) ? (1 << 2) : 0)
+			| ((channel && channel->signatureProfiles()) ? (1 << 3) : 0);
+		return std::tuple(peer, bits);
 	}) | rpl::distinct_until_changed(
-	) | rpl::filter([=](not_null<PeerData*> peer, bool, bool) {
-		return _lists.contains(peer);
-	}) | rpl::start_with_next([=](not_null<PeerData*> peer, bool, bool) {
+	) | rpl::filter([=](not_null<PeerData*> peer, int) {
+		return _lists.contains(peer) || _lastRequestTime.contains(peer);
+	}) | rpl::start_with_next([=](not_null<PeerData*> peer, int) {
 		refresh(peer, true);
 	}, _lifetime);
 }
