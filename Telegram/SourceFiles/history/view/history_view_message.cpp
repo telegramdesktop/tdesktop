@@ -831,7 +831,7 @@ QSize Message::performCountOptimalSize() {
 		refreshReactions();
 	}
 	refreshRightBadge();
-	refreshInfoSkipBlock();
+	refreshInfoSkipBlock(textItem);
 
 	const auto botTop = item->isFakeAboutView()
 		? Get<FakeBotAboutTop>()
@@ -4485,17 +4485,16 @@ QSize Message::performCountCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
-void Message::refreshInfoSkipBlock() {
-	const auto item = data();
+void Message::refreshInfoSkipBlock(HistoryItem *textItem) {
 	const auto media = this->media();
 	const auto hasTextSkipBlock = [&] {
-		if (item->_text.empty()) {
+		if (!textItem || textItem->_text.empty()) {
 			if (const auto media = data()->media()) {
 				return media->storyExpired();
 			}
 			return false;
-		} else if (item->Has<HistoryMessageLogEntryOriginal>()
-			|| factcheckBlock()) {
+		} else if (factcheckBlock()
+			|| data()->Has<HistoryMessageLogEntryOriginal>()) {
 			return false;
 		} else if (media && media->isDisplayed() && !_invertMedia) {
 			return false;
