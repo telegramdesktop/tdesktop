@@ -1295,6 +1295,9 @@ void MainWidget::showHistory(
 		const SectionShow &params,
 		MsgId showAtMsgId) {
 	if (peerId && _controller->window().locked()) {
+		if (params.activation != anim::activation::background) {
+			_controller->window().activate();
+		}
 		return;
 	} else if (auto peer = session().data().peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
@@ -1317,6 +1320,9 @@ void MainWidget::showHistory(
 		&& _mainSection
 		&& _mainSection->showMessage(peerId, params, showAtMsgId)) {
 		session().data().hideShownSpoilers();
+		if (params.activation != anim::activation::background) {
+			_controller->window().activate();
+		}
 		return;
 	} else if (showHistoryInDifferentWindow(peerId, params, showAtMsgId)) {
 		return;
@@ -1502,16 +1508,26 @@ void MainWidget::showMessage(
 	if (!v::is_null(params.origin)) {
 		if (_mainSection) {
 			if (_mainSection->showMessage(peerId, params, itemId)) {
+				if (params.activation != anim::activation::background) {
+					_controller->window().activate();
+				}
 				return;
 			}
 		} else if (_history->peer() == item->history()->peer) {
+			// showHistory may be redirected to different window,
+			// so we don't call activate() on current controller's window.
 			showHistory(peerId, params, itemId);
 			return;
 		}
 	}
 	if (const auto topic = item->topic()) {
 		_controller->showTopic(topic, item->id, params);
+		if (params.activation != anim::activation::background) {
+			_controller->window().activate();
+		}
 	} else {
+		// showPeerHistory may be redirected to different window,
+		// so we don't call activate() on current controller's window.
 		_controller->showPeerHistory(
 			item->history(),
 			params,

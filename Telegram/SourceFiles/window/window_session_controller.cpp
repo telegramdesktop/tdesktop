@@ -2487,11 +2487,11 @@ void SessionController::showMessage(
 					std::make_shared<HistoryView::ScheduledMemento>(
 						item->history()),
 					params);
+				if (params.activation != anim::activation::background) {
+					controller->window().activate();
+				}
 			} else {
 				controller->content()->showMessage(item, params);
-			}
-			if (params.activation != anim::activation::background) {
-				controller->window().activate();
 			}
 		});
 }
