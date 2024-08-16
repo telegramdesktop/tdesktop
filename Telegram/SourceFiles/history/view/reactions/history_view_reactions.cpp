@@ -141,14 +141,14 @@ void InlineList::layoutButtons() {
 				not_null<const MessageReaction*> b) {
 			const auto acount = a->count - (a->my ? 1 : 0);
 			const auto bcount = b->count - (b->my ? 1 : 0);
-			if (acount > bcount) {
-				return true;
-			} else if (acount < bcount) {
-				return false;
-			} else if (b->id.paid()) {
+			if (b->id.paid()) {
 				return false;
 			} else if (a->id.paid()) {
 				return true;
+			} else if (acount > bcount) {
+				return true;
+			} else if (acount < bcount) {
+				return false;
 			}
 			return ranges::find(list, a->id, &::Data::Reaction::id)
 				< ranges::find(list, b->id, &::Data::Reaction::id);
