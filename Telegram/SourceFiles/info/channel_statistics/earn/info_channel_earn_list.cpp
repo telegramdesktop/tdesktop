@@ -386,7 +386,13 @@ void InnerWidget::load() {
 
 void InnerWidget::fill() {
 	const auto container = this;
-	const auto &data = _state.currencyEarn;
+	const auto channel = _peer->asChannel();
+	const auto canViewCurrencyEarn = channel
+		? (channel->flags() & ChannelDataFlag::CanViewRevenue)
+		: true;
+	const auto &data = canViewCurrencyEarn
+		? _state.currencyEarn
+		: Data::EarnStatistics();
 	const auto &creditsData = _state.creditsEarn;
 
 	auto currencyStateValue = rpl::single(
@@ -417,7 +423,6 @@ void InnerWidget::fill() {
 	const auto nonInteractive = base::unixtime::now() < kNonInteractivePeriod;
 
 	const auto session = &_peer->session();
-	const auto channel = _peer->asChannel();
 	const auto withdrawalEnabled = WithdrawalEnabled(session)
 		&& !nonInteractive;
 	const auto makeContext = [=](not_null<Ui::FlatLabel*> l) {
@@ -1486,10 +1491,15 @@ void InnerWidget::fill() {
 					[] {});
 			}
 			if (!isLocked) {
-				Api::RestrictSponsored(channel, value, [=](const QString &e) {
-					toggled->fire(false);
-					_controller->uiShow()->showToast(e);
-				});
+				const auto weak = Ui::MakeWeak(this);
+				const auto show = _controller->uiShow();
+				const auto failed = [=](const QString &e) {
+					if (weak.data()) {
+						toggled->fire(false);
+						show->showToast(e);
+					}
+				};
+				Api::RestrictSponsored(channel, value, failed);
 			}
 		}, button->lifetime());
 
