@@ -482,10 +482,6 @@ public:
 	[[nodiscard]] Data::MessagePosition position() const;
 	[[nodiscard]] TimeId date() const;
 
-	[[nodiscard]] static TimeId NewMessageDate(TimeId scheduled);
-	[[nodiscard]] static TimeId NewMessageDate(
-		const Api::SendOptions &options);
-
 	[[nodiscard]] Data::Media *media() const {
 		return _media.get();
 	}

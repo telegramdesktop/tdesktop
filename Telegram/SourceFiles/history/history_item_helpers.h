@@ -83,6 +83,10 @@ void RequestDependentMessageStory(
 	PeerId peerId,
 	StoryId storyId);
 [[nodiscard]] MessageFlags NewMessageFlags(not_null<PeerData*> peer);
+[[nodiscard]] TimeId NewMessageDate(TimeId scheduled);
+[[nodiscard]] TimeId NewMessageDate(const Api::SendOptions &options);
+[[nodiscard]] PeerId NewMessageFromId(const Api::SendAction &action);
+[[nodiscard]] QString NewMessagePostAuthor(const Api::SendAction &action);
 [[nodiscard]] bool ShouldSendSilent(
 	not_null<PeerData*> peer,
 	const Api::SendOptions &options);

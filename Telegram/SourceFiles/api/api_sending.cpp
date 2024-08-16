@@ -165,25 +165,15 @@ void SendExistingMedia(
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
-	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 	InnerFillMessagePostFlags(action.options, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
 	const auto sendAs = action.options.sendAs;
-	const auto messageFromId = sendAs
-		? sendAs->id
-		: anonymousPost
-		? 0
-		: session->userPeerId();
 	if (sendAs) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
 	}
-	const auto messagePostAuthor = peer->isBroadcast()
-		? session->user()->name()
-		: QString();
-
 	auto caption = TextWithEntities{
 		message.textWithTags.text,
 		TextUtilities::ConvertTextTagsToEntities(message.textWithTags.tags)
@@ -219,11 +209,11 @@ void SendExistingMedia(
 	history->addNewLocalMessage({
 		.id = newId.msg,
 		.flags = flags,
-		.from = messageFromId,
+		.from = NewMessageFromId(action),
 		.replyTo = action.replyTo,
-		.date = HistoryItem::NewMessageDate(action.options),
+		.date = NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
-		.postAuthor = messagePostAuthor,
+		.postAuthor = NewMessagePostAuthor(action),
 		.effectId = action.options.effectId,
 	}, media, caption);
 
@@ -361,25 +351,15 @@ bool SendDice(MessageToSend &message) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
-	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 	InnerFillMessagePostFlags(action.options, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
 	const auto sendAs = action.options.sendAs;
-	const auto messageFromId = sendAs
-		? sendAs->id
-		: anonymousPost
-		? 0
-		: session->userPeerId();
 	if (sendAs) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
 	}
-	const auto messagePostAuthor = peer->isBroadcast()
-		? session->user()->name()
-		: QString();
-
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
@@ -401,11 +381,11 @@ bool SendDice(MessageToSend &message) {
 	history->addNewLocalMessage({
 		.id = newId.msg,
 		.flags = flags,
-		.from = messageFromId,
+		.from = NewMessageFromId(action),
 		.replyTo = action.replyTo,
-		.date = HistoryItem::NewMessageDate(action.options),
+		.date = NewMessageDate(action.options),
 		.shortcutId = action.options.shortcutId,
-		.postAuthor = messagePostAuthor,
+		.postAuthor = NewMessagePostAuthor(action),
 		.effectId = action.options.effectId,
 	}, TextWithEntities(), MTP_messageMediaDice(
 		MTP_int(0),
@@ -529,7 +509,6 @@ void SendConfirmedFile(
 	if (file->to.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
-	const auto anonymousPost = peer->amAnonymous();
 	FillMessagePostFlags(action, peer, flags);
 	if (file->to.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
@@ -551,16 +530,6 @@ void SendConfirmedFile(
 	if (file->to.options.invertCaption) {
 		flags |= MessageFlag::InvertMedia;
 	}
-
-	const auto messageFromId = file->to.options.sendAs
-		? file->to.options.sendAs->id
-		: anonymousPost
-		? PeerId()
-		: session->userPeerId();
-	const auto messagePostAuthor = peer->isBroadcast()
-		? session->user()->name()
-		: QString();
-
 	const auto media = MTPMessageMedia([&] {
 		if (file->type == SendMediaType::Photo) {
 			using Flag = MTPDmessageMediaPhoto::Flag;
@@ -626,11 +595,11 @@ void SendConfirmedFile(
 		history->addNewLocalMessage({
 			.id = newId.msg,
 			.flags = flags,
-			.from = messageFromId,
+			.from = NewMessageFromId(action),
 			.replyTo = file->to.replyTo,
-			.date = HistoryItem::NewMessageDate(file->to.options),
+			.date = NewMessageDate(file->to.options),
 			.shortcutId = file->to.options.shortcutId,
-			.postAuthor = messagePostAuthor,
+			.postAuthor = NewMessagePostAuthor(action),
 			.groupedId = groupId,
 			.effectId = file->to.options.effectId,
 		}, caption, media);

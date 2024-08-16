@@ -117,6 +117,12 @@ not_null<PeerData*> SendAsPeers::ResolveChosen(
 		not_null<PeerData*> peer,
 		const std::vector<SendAsPeer> &list,
 		PeerId chosen) {
+	const auto fallback = peer->amAnonymous()
+		? peer
+		: peer->session().user();
+	if (!chosen) {
+		chosen = fallback->id;
+	}
 	const auto i = ranges::find(list, chosen, [](const SendAsPeer &as) {
 		return as.peer->id;
 	});
@@ -124,9 +130,7 @@ not_null<PeerData*> SendAsPeers::ResolveChosen(
 		? i->peer
 		: !list.empty()
 		? list.front().peer
-		: peer->amAnonymous()
-		? peer
-		: peer->session().user();
+		: fallback;
 }
 
 void SendAsPeers::request(not_null<PeerData*> peer) {
