@@ -1271,24 +1271,31 @@ History *Session::historyLoaded(const PeerData *peer) {
 }
 
 void Session::deleteConversationLocally(not_null<PeerData*> peer) {
-	const auto history = historyLoaded(peer);
-	if (history) {
+	const auto markLeft = [&] {
+		if (const auto channel = peer->asMegagroup()) {
+			channel->addFlags(ChannelDataFlag::Left);
+			if (const auto from = channel->getMigrateFromChat()) {
+				if (const auto migrated = historyLoaded(from)) {
+					migrated->updateChatListExistence();
+				}
+			}
+		}
+	};
+	if (const auto history = historyLoaded(peer)) {
 		if (history->folderKnown()) {
 			setChatPinned(history, FilterId(), false);
 		}
 		removeChatListEntry(history);
 		history->clearFolder();
+
+		// We want to mark the channel as left before unloading the history,
+		// otherwise some parts of updating may return us to the chats list.
+		markLeft();
 		history->clear(peer->isChannel()
 			? History::ClearType::Unload
 			: History::ClearType::DeleteChat);
-	}
-	if (const auto channel = peer->asMegagroup()) {
-		channel->addFlags(ChannelDataFlag::Left);
-		if (const auto from = channel->getMigrateFromChat()) {
-			if (const auto migrated = historyLoaded(from)) {
-				migrated->updateChatListExistence();
-			}
-		}
+	} else {
+		markLeft();
 	}
 }
 
