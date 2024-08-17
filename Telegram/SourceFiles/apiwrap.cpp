@@ -3374,7 +3374,6 @@ void ApiWrap::forwardMessages(
 			const auto newId = FullMsgId(
 				peer->id,
 				_session->data().nextLocalMessageId());
-			const auto self = _session->user();
 			history->addNewLocalMessage({
 				.id = newId.msg,
 				.flags = flags,

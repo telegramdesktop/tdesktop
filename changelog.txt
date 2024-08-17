@@ -1,3 +1,10 @@
+5.4.1 (17.08.24)
+
+- Fix crash when sending Star Reaction in comments.
+- Fix loading "Send As" channels in a channel.
+- Place Star Reaction always first in list.
+- Removed paid Invite Links in groups.
+
 5.4 (14.08.24)
 
 - Super Channels with post authors' profiles.
