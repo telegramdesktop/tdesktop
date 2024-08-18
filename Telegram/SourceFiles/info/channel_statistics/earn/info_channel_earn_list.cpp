@@ -1012,8 +1012,7 @@ void InnerWidget::fill() {
 			not_null<Ui::VerticalLayout*> listsContainer) {
 		const auto hasCurrencyTab
 			= !data.currencyEarn.firstHistorySlice.list.empty();
-		const auto hasCreditsTab = !data.creditsStatusSlice.list.empty()
-			&& data.premiumBotId;
+		const auto hasCreditsTab = !data.creditsStatusSlice.list.empty();
 		const auto hasOneTab = (hasCurrencyTab || hasCreditsTab)
 			&& (hasCurrencyTab != hasCreditsTab);
 
@@ -1029,7 +1028,9 @@ void InnerWidget::fill() {
 					listsContainer,
 					st::defaultTabsSlider)),
 			st::boxRowPadding);
-		slider->toggle(!hasOneTab, anim::type::instant);
+		slider->toggle(
+			((hasCurrencyTab ? 1 : 0) + (hasCreditsTab ? 1 : 0) > 1),
+			anim::type::instant);
 
 		if (hasCurrencyTab) {
 			slider->entity()->addSection(currencyTabText);
@@ -1053,11 +1054,13 @@ void InnerWidget::fill() {
 		if (hasOneTab) {
 			if (hasCurrencyTab) {
 				AddHeader(listsContainer, tr::lng_channel_earn_history_title);
+				AddSkip(listsContainer);
 			} else if (hasCreditsTab) {
 				AddHeader(
 					listsContainer,
 					tr::lng_channel_earn_credits_history);
 				slider->entity()->setActiveSectionFast(1);
+				AddSkip(listsContainer);
 			}
 		} else {
 			slider->entity()->setActiveSectionFast(*sectionIndex);
