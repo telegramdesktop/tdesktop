@@ -143,45 +143,46 @@ void ShowOrPremiumBox(
 		box->closeBox();
 	});
 
+	const auto buttonPadding = QMargins(
+		st::showOrBox.buttonPadding.left(),
+		0,
+		st::showOrBox.buttonPadding.right(),
+		0);
 	box->addRow(MakeShowOrPremiumIcon(box, skin.icon));
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
 			std::move(skin.showTitle),
 			st::boostCenteredTitle),
-		st::showOrTitlePadding);
+		st::showOrTitlePadding + buttonPadding);
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
 			std::move(skin.showAbout),
 			st::boostText),
-		st::showOrAboutPadding);
+		st::showOrAboutPadding + buttonPadding);
 	const auto show = box->addRow(
 		object_ptr<RoundButton>(
 			box,
 			std::move(skin.showButton),
 			st::showOrShowButton),
-		QMargins(
-			st::showOrBox.buttonPadding.left(),
-			0,
-			st::showOrBox.buttonPadding.right(),
-			0));
+		buttonPadding);
 	show->setTextTransform(RoundButton::TextTransform::NoTransform);
 	box->addRow(
 		MakeShowOrLabel(box, std::move(skin.orPremium)),
-		st::showOrLabelPadding);
+		st::showOrLabelPadding + buttonPadding);
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
 			std::move(skin.premiumTitle),
 			st::boostCenteredTitle),
-		st::showOrTitlePadding);
+		st::showOrTitlePadding + buttonPadding);
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
 			std::move(skin.premiumAbout),
 			st::boostText),
-		st::showOrPremiumAboutPadding);
+		st::showOrPremiumAboutPadding + buttonPadding);
 
 	const auto premium = CreateChild<GradientButton>(
 		box.get(),
