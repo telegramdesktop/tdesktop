@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/share_message_phrase_factory.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/fields/input_field.h"
 #include "api/api_chat_participants.h"
@@ -1545,15 +1546,27 @@ void PeerMenuDeleteContact(
 			user->session().api().applyUpdates(result);
 		}).send();
 	};
-	controller->show(
-		Ui::MakeConfirmBox({
+	auto box = Box([=](not_null<Ui::GenericBox*> box) {
+		Ui::AddSkip(box->verticalLayout());
+		Ui::IconWithTitle(
+			box->verticalLayout(),
+			Ui::CreateChild<Ui::UserpicButton>(
+				box,
+				user,
+				st::mainMenuUserpic),
+			Ui::CreateChild<Ui::FlatLabel>(
+				box,
+				tr::lng_info_delete_contact() | Ui::Text::ToBold(),
+				box->getDelegate()->style().title));
+		Ui::ConfirmBox(box, {
 			.text = text,
 			.confirmed = deleteSure,
 			.confirmText = tr::lng_box_delete(),
-		}),
-		Ui::LayerOption::CloseOther);
+			.confirmStyle = &st::attentionBoxButton,
+		});
+	});
+	controller->show(std::move(box), Ui::LayerOption::CloseOther);
 }
-
 
 void PeerMenuDeleteTopicWithConfirmation(
 		not_null<Window::SessionNavigation*> navigation,
