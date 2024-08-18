@@ -731,6 +731,7 @@ void InnerWidget::fill() {
 				rpl::producer<EarnInt> currencyValue,
 				rpl::producer<EarnInt> creditsValue,
 				const tr::phrase<> &text,
+				bool showCurrency,
 				bool showCredits) {
 			const auto line = container->add(
 				Ui::CreateSkipWidget(container, 0),
@@ -793,7 +794,9 @@ void InnerWidget::fill() {
 					st::channelEarnOverviewSubMinorLabelPos.y());
 
 				icon->moveToLeft(
-					available / 2 + st::boxRowPadding.left() / 2,
+					showCurrency
+						? (available / 2 + st::boxRowPadding.left() / 2)
+						: 0,
 					0);
 				creditsLabel->moveToLeft(rect::right(icon) + skip, 0);
 				creditsSecondLabel->moveToLeft(
@@ -806,6 +809,12 @@ void InnerWidget::fill() {
 					icon->moveToLeft(x, 0);
 					creditsLabel->moveToLeft(x, 0);
 					creditsSecondLabel->moveToLeft(x, 0);
+				}
+				if (!showCurrency) {
+					const auto x = std::numeric_limits<int>::max();
+					majorLabel->moveToLeft(x, 0);
+					minorLabel->moveToLeft(x, 0);
+					secondMinorLabel->moveToLeft(x, 0);
 				}
 			}, minorLabel->lifetime());
 			Ui::ToggleChildrenVisibility(line, true);
@@ -829,6 +838,7 @@ void InnerWidget::fill() {
 			rpl::duplicate(currencyStateValue) | rpl::map(availValueMap),
 			rpl::duplicate(creditsStateValue) | rpl::map(availValueMap),
 			tr::lng_channel_earn_available,
+			canViewCurrencyEarn,
 			hasAnyCredits);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
@@ -836,6 +846,7 @@ void InnerWidget::fill() {
 			rpl::duplicate(currencyStateValue) | rpl::map(currentValueMap),
 			rpl::duplicate(creditsStateValue) | rpl::map(currentValueMap),
 			tr::lng_channel_earn_reward,
+			canViewCurrencyEarn,
 			hasAnyCredits);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
@@ -843,6 +854,7 @@ void InnerWidget::fill() {
 			rpl::duplicate(currencyStateValue) | rpl::map(overallValueMap),
 			rpl::duplicate(creditsStateValue) | rpl::map(overallValueMap),
 			tr::lng_channel_earn_total,
+			canViewCurrencyEarn,
 			hasAnyCredits);
 		Ui::AddSkip(container);
 	}
