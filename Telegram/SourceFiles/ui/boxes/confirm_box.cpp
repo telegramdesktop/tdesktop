@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 
 #include "lang/lang_keys.h"
+#include "ui/rect.h"
 #include "ui/widgets/buttons.h"
 #include "styles/style_layers.h"
 
@@ -98,6 +99,35 @@ void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args) {
 
 object_ptr<Ui::GenericBox> MakeConfirmBox(ConfirmBoxArgs &&args) {
 	return Box(ConfirmBox, std::move(args));
+}
+
+void IconWithTitle(
+		not_null<VerticalLayout*> container,
+		not_null<RpWidget*> icon,
+		not_null<RpWidget*> title) {
+	const auto line = container->add(
+		object_ptr<RpWidget>(container),
+		st::boxRowPadding);
+	icon->setParent(line);
+	title->setParent(line);
+
+	icon->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		line->resize(line->width(), height);
+	}, icon->lifetime());
+
+	line->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		icon->moveToLeft(0, 0);
+		const auto skip = st::defaultBoxCheckbox.textPosition.x();
+		title->resizeToWidth(width - rect::right(icon) - skip);
+		title->moveToLeft(
+			rect::right(icon) + skip,
+			((icon->height() - title->height()) / 2));
+	}, title->lifetime());
+
+	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+	title->setAttribute(Qt::WA_TransparentForMouseEvents);
 }
 
 } // namespace Ui

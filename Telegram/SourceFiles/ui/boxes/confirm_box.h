@@ -60,4 +60,9 @@ inline void InformBox(not_null<GenericBox*> box, ConfirmBoxArgs &&args) {
 	return MakeInformBox({ .text = std::move(text) });
 }
 
+void IconWithTitle(
+	not_null<VerticalLayout*> container,
+	not_null<RpWidget*> icon,
+	not_null<RpWidget*> title);
+
 } // namespace Ui

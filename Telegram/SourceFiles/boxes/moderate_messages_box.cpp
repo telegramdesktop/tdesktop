@@ -757,38 +757,22 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 		return base::EventFilterResult::Continue;
 	});
 
-	const auto line = container->add(object_ptr<Ui::RpWidget>(container));
-	const auto &st = st::mainMenuUserpic;
-	line->resize(line->width(), st.size.height());
-
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-		line,
+		container,
 		peer,
-		st);
+		st::mainMenuUserpic);
 	userpic->showSavedMessagesOnSelf(true);
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		line,
-		peer->isSelf()
-			? tr::lng_saved_messages() | Ui::Text::ToBold()
-			: maybeUser
-			? tr::lng_profile_delete_conversation() | Ui::Text::ToBold()
-			: rpl::single(Ui::Text::Bold(peer->name())) | rpl::type_erased(),
-		box->getDelegate()->style().title);
-	line->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		userpic->moveToLeft(st::boxRowPadding.left(), 0);
-		const auto skip = st::defaultBoxCheckbox.textPosition.x();
-		label->resizeToWidth(width
-			- rect::right(userpic)
-			- skip
-			- st::boxRowPadding.right());
-		label->moveToLeft(
-			rect::right(userpic) + skip,
-			((userpic->height() - label->height()) / 2));
-	}, label->lifetime());
-
-	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	Ui::IconWithTitle(
+		container,
+		userpic,
+		Ui::CreateChild<Ui::FlatLabel>(
+			container,
+			peer->isSelf()
+				? tr::lng_saved_messages() | Ui::Text::ToBold()
+				: maybeUser
+				? tr::lng_profile_delete_conversation() | Ui::Text::ToBold()
+				: rpl::single(peer->name()) | Ui::Text::ToBold(),
+			box->getDelegate()->style().title));
 
 	Ui::AddSkip(container);
 	Ui::AddSkip(container);
