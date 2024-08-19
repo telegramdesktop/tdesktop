@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "base/event_filter.h"
 #include "base/random.h"
 #include "base/qt_signal_producer.h"
 #include "chat_helpers/emoji_list_widget.h"
@@ -481,6 +482,9 @@ void EditForumTopicBox(
 			title->getLastText().trimmed(),
 			state->defaultIcon.current().colorId,
 		};
+	}, title->lifetime());
+	title->submits() | rpl::start_with_next([box] {
+		box->triggerButton(0);
 	}, title->lifetime());
 
 	if (!topic || !topic->isGeneral()) {
