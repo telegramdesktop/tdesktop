@@ -31,6 +31,7 @@ enum class AudioState;
 namespace Webrtc {
 enum class VideoState;
 class VideoTrack;
+struct DeviceResolvedId;
 } // namespace Webrtc
 
 namespace Calls {
@@ -219,6 +220,13 @@ public:
 	[[nodiscard]] QString screenSharingDeviceId() const;
 	void toggleCameraSharing(bool enabled);
 	void toggleScreenSharing(std::optional<QString> uniqueId);
+
+	[[nodiscard]] auto playbackDeviceIdValue() const
+		-> rpl::producer<Webrtc::DeviceResolvedId>;
+	[[nodiscard]] auto captureDeviceIdValue() const
+		-> rpl::producer<Webrtc::DeviceResolvedId>;
+	[[nodiscard]] auto cameraDeviceIdValue() const
+		-> rpl::producer<Webrtc::DeviceResolvedId>;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;

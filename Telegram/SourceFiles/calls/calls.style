@@ -155,6 +155,8 @@ callMicrophoneMute: CallButton(callAnswer) {
 	bg: callIconBg;
 	outerBg: callMuteRipple;
 	label: callButtonLabel;
+	cornerButtonPosition: point(40px, 4px);
+	cornerButtonBorder: 2px;
 }
 callMicrophoneUnmute: CallButton(callMicrophoneMute) {
 	button: IconButton(callButton) {
@@ -176,6 +178,34 @@ callCameraMute: CallButton(callMicrophoneMute) {
 callCameraUnmute: CallButton(callMicrophoneUnmute) {
 	button: IconButton(callButton) {
 		icon: icon {{ "calls/call_camera_muted", callIconFgActive }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callIconActiveRipple;
+		}
+	}
+}
+callCornerButtonInner: IconButton {
+	width: 20px;
+	height: 20px;
+
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 20px;
+	ripple: defaultRippleAnimation;
+}
+callCornerButton: CallButton(callMicrophoneMute) {
+	button: IconButton(callCornerButtonInner) {
+		icon: icon {{ "calls/mini_calls_arrow", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callMuteRipple;
+		}
+	}
+	bgSize: 20px;
+	bgPosition: point(0px, 0px);
+}
+callCornerButtonInactive: CallButton(callMicrophoneUnmute, callCornerButton) {
+	button: IconButton(callCornerButtonInner) {
+		icon: icon {{ "calls/mini_calls_arrow", callIconFgActive }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callIconActiveRipple;
 		}
@@ -575,6 +605,18 @@ groupCallMenuAbout: FlatLabel(defaultFlatLabel) {
 	}
 	minWidth: 200px;
 	maxHeight: 92px;
+}
+callDeviceSelectionLabel: FlatLabel(defaultSubsectionTitle) {
+	textFg: groupCallActiveFg;
+	minWidth: 200px;
+	maxHeight: 20px;
+}
+callDeviceSelectionMenu: PopupMenu(groupCallPopupMenu) {
+	scrollPadding: margins(0px, 3px, 0px, 8px);
+	menu: Menu(groupCallMenu) {
+		widthMin: 240px;
+		itemPadding: margins(17px, 8px, 17px, 7px);
+	}
 }
 
 groupCallRecordingTimerPadding: margins(0px, 4px, 0px, 4px);

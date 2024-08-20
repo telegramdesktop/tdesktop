@@ -37,6 +37,7 @@ class FadeWrap;
 template <typename Widget>
 class PaddingWrap;
 class RpWindow;
+class PopupMenu;
 namespace GL {
 enum class Backend;
 } // namespace GL
@@ -55,6 +56,7 @@ namespace Calls {
 class Userpic;
 class SignalBars;
 class VideoBubble;
+struct DeviceSelection;
 
 class Panel final : private Group::Ui::DesktopCapture::ChooseSourceDelegate {
 public:
@@ -104,6 +106,7 @@ private:
 	void initControls();
 	void reinitWithCall(Call *call);
 	void initLayout();
+	void initMediaDeviceToggles();
 	void initGeometry();
 
 	[[nodiscard]] bool handleClose() const;
@@ -125,6 +128,10 @@ private:
 	void createRemoteLowBattery();
 	void showRemoteLowBattery();
 	void refreshAnswerHangupRedialLabel();
+
+	void showDevicesMenu(
+		not_null<QWidget*> button,
+		std::vector<DeviceSelection> types);
 
 	[[nodiscard]] QRect incomingFrameGeometry() const;
 	[[nodiscard]] QRect outgoingFrameGeometry() const;
@@ -156,8 +163,10 @@ private:
 	Ui::Animations::Simple _hangupShownProgress;
 	object_ptr<Ui::FadeWrap<Ui::CallButton>> _screencast;
 	object_ptr<Ui::CallButton> _camera;
+	Ui::CallButton *_cameraDeviceToggle = nullptr;
 	base::unique_qptr<Ui::CallButton> _startVideo;
 	object_ptr<Ui::FadeWrap<Ui::CallButton>> _mute;
+	Ui::CallButton *_audioDeviceToggle = nullptr;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
 	object_ptr<Ui::RpWidget> _fingerprint = { nullptr };
@@ -169,6 +178,8 @@ private:
 	QPixmap _bottomShadow;
 	int _bodyTop = 0;
 	int _buttonsTop = 0;
+
+	base::unique_qptr<Ui::PopupMenu> _devicesMenu;
 
 	base::Timer _updateDurationTimer;
 	base::Timer _updateOuterRippleTimer;

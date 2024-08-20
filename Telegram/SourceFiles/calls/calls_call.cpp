@@ -1310,6 +1310,19 @@ void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
 	_videoOutgoing->setState(Webrtc::VideoState::Active);
 }
 
+auto Call::playbackDeviceIdValue() const
+-> rpl::producer<Webrtc::DeviceResolvedId> {
+	return _playbackDeviceId.value();
+}
+
+rpl::producer<Webrtc::DeviceResolvedId> Call::captureDeviceIdValue() const {
+	return _captureDeviceId.value();
+}
+
+rpl::producer<Webrtc::DeviceResolvedId> Call::cameraDeviceIdValue() const {
+	return _cameraDeviceId.value();
+}
+
 void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	Expects(type != FinishType::None);
 
