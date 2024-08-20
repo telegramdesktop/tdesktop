@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_credits_box.h"
+#include "platform/platform_file_utilities.h"
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/checkbox.h"
@@ -70,7 +71,7 @@ constexpr auto kMaxMessageLength = 4096;
 using Ui::SendFilesWay;
 
 [[nodiscard]] inline bool CanAddUrls(const QList<QUrl> &urls) {
-	return !urls.isEmpty() && ranges::all_of(urls, &QUrl::isLocalFile);
+	return !urls.isEmpty() && ranges::all_of(urls, Core::UrlIsLocal);
 }
 
 [[nodiscard]] bool CanAddFiles(not_null<const QMimeData*> data) {

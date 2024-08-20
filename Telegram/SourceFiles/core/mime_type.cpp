@@ -226,11 +226,22 @@ bool CanSendFiles(not_null<const QMimeData*> data) {
 	if (data->hasImage()) {
 		return true;
 	} else if (const auto urls = ReadMimeUrls(data); !urls.empty()) {
-		if (ranges::all_of(urls, &QUrl::isLocalFile)) {
+		if (ranges::all_of(urls, UrlIsLocal)) {
 			return true;
 		}
 	}
 	return false;
+}
+
+bool UrlIsLocal(const QUrl &url) {
+	if (!url.isLocalFile()) {
+		return false;
+	}
+	const auto result = url.toLocalFile();
+	if (result.startsWith("//")) {
+		return false;
+	}
+	return !result.isEmpty();
 }
 
 QString FileExtension(const QString &filepath) {

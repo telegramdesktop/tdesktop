@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Core {
+bool UrlIsLocal(const QUrl &url);
+} // namespace Core
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -45,7 +49,7 @@ void ShowInFolder(const QString &filepath);
 namespace internal {
 
 inline QString UrlToLocalDefault(const QUrl &url) {
-	return url.toLocalFile();
+	return Core::UrlIsLocal(url) ? url.toLocalFile() : QString();
 }
 
 void UnsafeOpenUrlDefault(const QString &url);

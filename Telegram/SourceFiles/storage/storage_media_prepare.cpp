@@ -83,10 +83,9 @@ bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
 	}
 
 	if (!urls.isEmpty()) {
-		const auto url = urls.front();
-		if (url.isLocalFile()) {
-			using namespace Core;
-			const auto file = Platform::File::UrlToLocal(url);
+		using namespace Core;
+		const auto file = Platform::File::UrlToLocal(urls.front());
+		if (!file.isEmpty()) {
 			const auto info = QFileInfo(file);
 			return FileIsImage(file, MimeTypeForFile(info).name())
 				&& QImageReader(file).canRead();
@@ -107,10 +106,10 @@ bool ValidateEditMediaDragData(
 	}
 
 	if (albumType == Ui::AlbumType::PhotoVideo && !urls.isEmpty()) {
-		const auto url = urls.front();
-		if (url.isLocalFile()) {
-			using namespace Core;
-			const auto info = QFileInfo(Platform::File::UrlToLocal(url));
+		using namespace Core;
+		const auto file = Platform::File::UrlToLocal(urls.front());
+		if (!file.isEmpty()) {
+			const auto info = QFileInfo(file);
 			return IsMimeAcceptedForPhotoVideoAlbum(MimeTypeForFile(info).name());
 		}
 	}
@@ -134,10 +133,10 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 
 	auto allAreSmallImages = true;
 	for (const auto &url : urls) {
-		if (!url.isLocalFile()) {
+		const auto file = Platform::File::UrlToLocal(url);
+		if (file.isEmpty()) {
 			return MimeDataState::None;
 		}
-		const auto file = Platform::File::UrlToLocal(url);
 
 		const auto info = QFileInfo(file);
 		if (info.isDir()) {
@@ -171,13 +170,13 @@ PreparedList PrepareMediaList(
 	auto locals = QStringList();
 	locals.reserve(files.size());
 	for (const auto &url : files) {
-		if (!url.isLocalFile()) {
+		locals.push_back(Platform::File::UrlToLocal(url));
+		if (locals.back().isEmpty()) {
 			return {
 				PreparedList::Error::NonLocalUrl,
 				url.toDisplayString()
 			};
 		}
-		locals.push_back(Platform::File::UrlToLocal(url));
 	}
 	return PrepareMediaList(locals, previewWidth, premium);
 }
