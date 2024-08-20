@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_permissions_box.h"
 
 #include "lang/lang_keys.h"
+#include "history/admin_log/history_admin_log_filter.h"
 #include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
@@ -53,6 +54,11 @@ constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
 [[nodiscard]] auto Dependencies(PowerSaving::Flags)
 -> std::vector<std::pair<PowerSaving::Flag, PowerSaving::Flag>> {
 	return {};
+}
+
+[[nodiscard]] auto Dependencies(AdminLog::FilterValue::Flags) {
+	using Flag = AdminLog::FilterValue::Flag;
+	return std::vector<std::pair<Flag, Flag>>{};
 }
 
 [[nodiscard]] auto NestedRestrictionLabelsList(
@@ -1424,6 +1430,21 @@ EditFlagsControl<PowerSaving::Flags> CreateEditPowerSaving(
 	auto widget = object_ptr<Ui::VerticalLayout>(parent);
 	auto descriptor = Settings::PowerSavingLabels();
 	descriptor.forceDisabledMessage = std::move(forceDisabledMessage);
+	auto result = CreateEditFlags(
+		widget.data(),
+		flags,
+		std::move(descriptor));
+	result.widget = std::move(widget);
+
+	return result;
+}
+
+EditFlagsControl<AdminLog::FilterValue::Flags> CreateEditAdminLogFilter(
+		QWidget *parent,
+		AdminLog::FilterValue::Flags flags,
+		bool isChannel) {
+	auto widget = object_ptr<Ui::VerticalLayout>(parent);
+	auto descriptor = AdminLog::FilterValueLabels(isChannel);
 	auto result = CreateEditFlags(
 		widget.data(),
 		flags,

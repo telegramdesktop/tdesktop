@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/box_content.h"
 #include "history/admin_log/history_admin_log_filter_value.h"
+#include "ui/layers/box_content.h"
+
+template <typename Flags>
+struct EditFlagsDescriptor;
 
 namespace AdminLog {
 
@@ -39,5 +42,7 @@ private:
 	QPointer<Inner> _inner;
 
 };
+
+EditFlagsDescriptor<FilterValue::Flags> FilterValueLabels(bool isChannel);
 
 } // namespace AdminLog

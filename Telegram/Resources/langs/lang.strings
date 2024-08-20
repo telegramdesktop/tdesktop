@@ -4344,11 +4344,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_filter" = "Filter";
 "lng_admin_log_filter_title" = "Filter";
 "lng_admin_log_filter_all_actions" = "All actions";
+"lng_admin_log_filter_actions_type_subtitle" = "Filter actions by type";
+"lng_admin_log_filter_actions_member_section" = "Members And Admins";
 "lng_admin_log_filter_restrictions" = "New restrictions";
 "lng_admin_log_filter_admins_new" = "New admins";
 "lng_admin_log_filter_members_new" = "New members";
+"lng_admin_log_filter_actions_settings_section" = "Group Settings";
 "lng_admin_log_filter_info_group" = "Group info";
 "lng_admin_log_filter_info_channel" = "Channel info";
+"lng_admin_log_filter_actions_messages_section" = "Messages";
 "lng_admin_log_filter_messages_deleted" = "Deleted messages";
 "lng_admin_log_filter_messages_edited" = "Edited messages";
 "lng_admin_log_filter_messages_pinned" = "Pinned messages";
@@ -4358,6 +4362,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_filter_members_removed" = "Leaving members";
 "lng_admin_log_filter_topics" = "Topics";
 "lng_admin_log_filter_all_admins" = "All users and admins";
+"lng_admin_log_filter_actions_admins_subtitle" = "Filter actions by admins";
+"lng_admin_log_filter_actions_admins_section" = "Show Actions by All Admins";
 "lng_admin_log_about" = "What is this?";
 "lng_admin_log_about_text" = "This is a list of all service actions taken by the group's members and admins in the last 48 hours.";
 "lng_admin_log_about_text_channel" = "This is a list of all service actions taken by the channel's admins in the last 48 hours.";

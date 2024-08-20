@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_chat_participant_status.h"
 #include "base/object_ptr.h"
+#include "data/data_chat_participant_status.h"
+#include "history/admin_log/history_admin_log_filter_value.h"
 
 namespace style {
 struct SettingsButton;
@@ -115,3 +116,9 @@ using AdminRightLabel = EditFlagsLabel<ChatAdminRights>;
 	PowerSaving::Flags flags,
 	rpl::producer<QString> forceDisabledMessage
 ) -> EditFlagsControl<PowerSaving::Flags>;
+
+[[nodiscard]] auto CreateEditAdminLogFilter(
+	QWidget *parent,
+	AdminLog::FilterValue::Flags flags,
+	bool isChannel
+) -> EditFlagsControl<AdminLog::FilterValue::Flags>;
