@@ -367,12 +367,15 @@ void CheckChatInvite(
 		result.match([=](const MTPDchatInvite &data) {
 			const auto isGroup = !data.is_broadcast();
 			const auto hasPricing = !!data.vsubscription_pricing();
-			if (hasPricing && !data.vsubscription_form_id()) {
+			const auto canRefulfill = data.is_can_refulfill_subscription();
+			if (hasPricing
+				&& !canRefulfill
+				&& !data.vsubscription_form_id()) {
 				strong->uiShow()->showToast(
 					tr::lng_confirm_phone_link_invalid(tr::now));
 				return;
 			}
-			const auto box = hasPricing
+			const auto box = (hasPricing && !canRefulfill)
 				? strong->show(Box(
 					ConfirmSubscriptionBox,
 					session,
