@@ -61,6 +61,7 @@ void AddCreditsHistoryList(
 	Clicked entryClickedCallback,
 	not_null<PeerData*> peer,
 	bool in,
-	bool out);
+	bool out,
+	bool subscription = false);
 
 } // namespace Info::Statistics

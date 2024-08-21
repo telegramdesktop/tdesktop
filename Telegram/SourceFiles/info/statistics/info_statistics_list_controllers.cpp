@@ -138,6 +138,7 @@ struct CreditsDescriptor final {
 	not_null<PeerData*> peer;
 	bool in = false;
 	bool out = false;
+	bool subscription = false;
 };
 
 class PeerListRowWithFullId : public PeerListRow {
@@ -963,6 +964,7 @@ private:
 	void applySlice(const Data::CreditsStatusSlice &slice);
 
 	const not_null<Main::Session*> _session;
+	const bool _subscription;
 	Clicked _entryClickedCallback;
 
 	Api::CreditsHistory _api;
@@ -977,6 +979,7 @@ private:
 
 CreditsController::CreditsController(CreditsDescriptor d)
 : _session(&d.peer->session())
+, _subscription(d.subscription)
 , _entryClickedCallback(std::move(d.entryClickedCallback))
 , _api(d.peer, d.in, d.out)
 , _firstSlice(std::move(d.firstSlice))
@@ -1017,7 +1020,7 @@ void CreditsController::loadMoreRows() {
 
 void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 	_allLoaded = slice.allLoaded;
-	_apiToken = slice.tokenSubscriptions;
+	_apiToken = _subscription ? slice.tokenSubscriptions : slice.token;
 
 	auto create = [&](
 			const Data::CreditsHistoryEntry &i,
@@ -1216,7 +1219,8 @@ void AddCreditsHistoryList(
 		Clicked callback,
 		not_null<PeerData*> bot,
 		bool in,
-		bool out) {
+		bool out,
+		bool subscription) {
 	struct State final {
 		State(
 			CreditsDescriptor d,
@@ -1228,7 +1232,7 @@ void AddCreditsHistoryList(
 		CreditsController controller;
 	};
 	const auto state = container->lifetime().make_state<State>(
-		CreditsDescriptor{ firstSlice, callback, bot, in, out },
+		CreditsDescriptor{ firstSlice, callback, bot, in, out, subscription },
 		show);
 
 	state->delegate.setContent(container->add(

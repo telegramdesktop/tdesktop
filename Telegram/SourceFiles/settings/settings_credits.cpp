@@ -153,11 +153,8 @@ void Credits::setupSubscriptions(not_null<Ui::VerticalLayout*> container) {
 		const auto entryClicked = [=](
 				const Data::CreditsHistoryEntry &e,
 				const Data::SubscriptionEntry &s) {
-			controller->uiShow()->show(Box(
-				ReceiptCreditsBox,
-				controller,
-				e,
-				s));
+			controller->uiShow()->show(
+				Box(ReceiptCreditsBox, controller, e, s));
 		};
 
 		Info::Statistics::AddCreditsHistoryList(
@@ -166,6 +163,7 @@ void Credits::setupSubscriptions(not_null<Ui::VerticalLayout*> container) {
 			fullWrap->entity(),
 			entryClicked,
 			self,
+			true,
 			true,
 			true);
 
