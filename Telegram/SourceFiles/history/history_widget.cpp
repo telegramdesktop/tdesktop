@@ -330,6 +330,10 @@ HistoryWidget::HistoryWidget(
 	_fieldBarCancel->addClickHandler([=] { cancelFieldAreaState(); });
 	_send->addClickHandler([=] { sendButtonClicked(); });
 
+	_mediaEditManager.updateRequests() | rpl::start_with_next([this] {
+		updateOverStates(mapFromGlobal(QCursor::pos()));
+	}, lifetime());
+
 	{
 		using namespace SendMenu;
 		const auto sendAction = [=](Action action, Details) {

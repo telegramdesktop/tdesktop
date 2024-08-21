@@ -48,6 +48,8 @@ public:
 	[[nodiscard]] SendMenu::Details sendMenuDetails(
 		bool hasCaptionText) const;
 
+	[[nodiscard]] rpl::producer<> updateRequests() const;
+
 	[[nodiscard]] explicit operator bool() const {
 		return _item != nullptr;
 	}
@@ -59,6 +61,8 @@ private:
 	HistoryItem *_item = nullptr;
 	bool _spoilered = false;
 	bool _invertCaption = false;
+
+	rpl::event_stream<> _updateRequests;
 
 	rpl::lifetime _lifetime;
 
