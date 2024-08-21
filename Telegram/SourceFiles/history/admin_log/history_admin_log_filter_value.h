@@ -34,17 +34,15 @@ struct FilterValue final {
 	using Flags = base::flags<Flag>;
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 
-	// Empty "flags" means all events.
-	Flags flags = 0;
-	std::vector<not_null<UserData*>> admins;
-	bool allUsers = true;
+	// Std::nullopt "flags" means all events.
+	std::optional<Flags> flags = std::nullopt;
+	// Std::nullopt admins means all users.
+	std::optional<std::vector<not_null<UserData*>>> admins = std::nullopt;
 
 };
 
 inline bool operator==(const FilterValue &a, const FilterValue &b) {
-	return (a.flags == b.flags)
-		&& (a.admins == b.admins)
-		&& (a.allUsers == b.allUsers);
+	return (a.flags == b.flags) && (a.admins == b.admins);
 }
 
 inline bool operator!=(const FilterValue &a, const FilterValue &b) {

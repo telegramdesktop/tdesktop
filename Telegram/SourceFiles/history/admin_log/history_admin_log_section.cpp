@@ -141,7 +141,7 @@ FixedBar::FixedBar(
 }
 
 void FixedBar::applyFilter(const FilterValue &value) {
-	auto hasFilter = (value.flags != 0) || !value.allUsers;
+	auto hasFilter = value.flags || value.admins;
 	_backButton->setText(hasFilter
 		? tr::lng_admin_log_title_selected(tr::now)
 		: tr::lng_admin_log_title_all(tr::now));

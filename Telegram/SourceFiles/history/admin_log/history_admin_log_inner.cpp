@@ -512,7 +512,7 @@ void InnerWidget::clearAndRequestLog() {
 
 void InnerWidget::updateEmptyText() {
 	auto hasSearch = !_searchQuery.isEmpty();
-	auto hasFilter = (_filter.flags != 0) || !_filter.allUsers;
+	auto hasFilter = _filter.flags || _filter.admins;
 	auto text = Ui::Text::Semibold((hasSearch || hasFilter)
 		? tr::lng_admin_log_no_results_title(tr::now)
 		: tr::lng_admin_log_no_events_title(tr::now));
@@ -734,7 +734,7 @@ void InnerWidget::preloadMore(Direction direction) {
 		using Flag = MTPDchannelAdminLogEventsFilter::Flag;
 		using LocalFlag = FilterValue::Flag;
 		const auto empty = MTPDchannelAdminLogEventsFilter::Flags(0);
-		const auto f = _filter.flags;
+		const auto f = _filter.flags.value_or(LocalFlag());
 		return empty
 			| ((f & LocalFlag::Join) ? Flag::f_join : empty)
 			| ((f & LocalFlag::Leave) ? Flag::f_leave : empty)
@@ -758,10 +758,10 @@ void InnerWidget::preloadMore(Direction direction) {
 		flags |= MTPchannels_GetAdminLog::Flag::f_events_filter;
 	}
 	auto admins = QVector<MTPInputUser>(0);
-	if (!_filter.allUsers) {
-		if (!_filter.admins.empty()) {
-			admins.reserve(_filter.admins.size());
-			for (auto &admin : _filter.admins) {
+	if (_filter.admins) {
+		if (!_filter.admins->empty()) {
+			admins.reserve(_filter.admins->size());
+			for (const auto &admin : (*_filter.admins)) {
 				admins.push_back(admin->inputUser);
 			}
 		}
