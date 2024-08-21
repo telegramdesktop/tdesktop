@@ -847,7 +847,7 @@ void MainWindow::updateTitle() {
 	const auto user = (session
 		&& !settings.hideAccountName
 		&& Core::App().domain().accountsAuthedCount() > 1)
-		? session->authedName()
+		? st::wrap_rtl(session->authedName())
 		: QString();
 	const auto key = (session && !settings.hideChatName)
 		? session->activeChatCurrent()
@@ -864,10 +864,11 @@ void MainWindow::updateTitle() {
 		: history->peer->isSelf()
 		? tr::lng_saved_messages(tr::now)
 		: history->peer->name();
+	const auto wrapped = st::wrap_rtl(name);
 	const auto threadCounter = thread->chatListBadgesState().unreadCounter;
 	const auto primary = (threadCounter > 0)
-		? u"(%1) %2"_q.arg(threadCounter).arg(name)
-		: name;
+		? u"(%1) %2"_q.arg(threadCounter).arg(wrapped)
+		: wrapped;
 	const auto middle = !user.isEmpty()
 		? (u" @ "_q + user)
 		: !added.isEmpty()

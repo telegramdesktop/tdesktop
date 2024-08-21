@@ -971,7 +971,7 @@ void Notification::updateNotifyDisplay() {
 		}
 
 		const auto topicWithChat = [&]() -> TextWithEntities {
-			const auto name = _history->peer->name();
+			const auto name = st::wrap_rtl(_history->peer->name());
 			return _topic
 				? _topic->titleWithIcon().append(u" ("_q + name + ')')
 				: TextWithEntities{ name };

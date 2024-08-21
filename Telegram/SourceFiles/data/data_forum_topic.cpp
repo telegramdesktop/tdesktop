@@ -165,11 +165,12 @@ TextWithEntities ForumTopicIconWithTitle(
 		MsgId rootId,
 		DocumentId iconId,
 		const QString &title) {
+	const auto wrapped = st::wrap_rtl(title);
 	return (rootId == ForumTopic::kGeneralId)
-		? TextWithEntities{ u"# "_q + title }
+		? TextWithEntities{ u"# "_q + wrapped }
 		: iconId
-		? Data::SingleCustomEmoji(iconId).append(' ').append(title)
-		: TextWithEntities{ title };
+		? Data::SingleCustomEmoji(iconId).append(' ').append(wrapped)
+		: TextWithEntities{ wrapped };
 }
 
 QString ForumGeneralIconTitle() {
