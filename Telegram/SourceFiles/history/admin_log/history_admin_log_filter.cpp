@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "history/admin_log/history_admin_log_filter_value.h"
 #include "lang/lang_keys.h"
+#include "ui/wrap/vertical_layout.h"
 
 namespace AdminLog {
 
@@ -83,6 +84,19 @@ EditFlagsDescriptor<FilterValue::Flags> FilterValueLabels(bool isChannel) {
 			std::move(messages),
 		},
 	}, .st = nullptr };
+}
+
+Fn<FilterValue::Flags()> FillFilterValueList(
+		not_null<Ui::VerticalLayout*> container,
+		bool isChannel,
+		const FilterValue &filter) {
+	auto [checkboxes, getResult, changes] = CreateEditAdminLogFilter(
+		container,
+		filter.flags ? (*filter.flags) : ~FilterValue::Flags(0),
+		isChannel);
+	const auto controlsRaw = checkboxes.data();
+	container->add(std::move(checkboxes));
+	return getResult;
 }
 
 } // namespace AdminLog

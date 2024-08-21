@@ -13,9 +13,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 template <typename Flags>
 struct EditFlagsDescriptor;
 
+namespace Ui {
+class VerticalLayout;
+} // namespace Ui
+
 namespace AdminLog {
 
 struct FilterValue;
+
+[[nodiscard]] Fn<FilterValue::Flags()> FillFilterValueList(
+	not_null<Ui::VerticalLayout*> container,
+	bool isChannel,
+	const FilterValue &filter);
 
 EditFlagsDescriptor<FilterValue::Flags> FilterValueLabels(bool isChannel);
 
