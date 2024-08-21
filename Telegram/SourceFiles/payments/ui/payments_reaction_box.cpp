@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "payments/ui/payments_reaction_box.h"
 
+#include "base/qt/qt_compare.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/boost_box.h" // MakeBoostFeaturesBadge.
 #include "ui/effects/premium_bubble.h"
@@ -196,7 +197,7 @@ void PaidReactionSlider(
 	state->name.setText(st::defaultTextStyle, data.name);
 
 	const auto count = data.count;
-	const auto photo = data.photo;
+	const auto photo = data.photo->clone();
 	photo->subscribeToUpdates([=] {
 		result->update();
 	});
@@ -248,7 +249,16 @@ void FillTopReactors(
 			object_ptr<FixedHeightWidget>(container, height),
 			st::paidReactTopMargin));
 	const auto parent = wrap->entity();
+	struct Key {
+		std::shared_ptr<DynamicImage> photo;
+		int count = 0;
+		QString name;
+
+		inline auto operator<=>(const Key &) const = default;
+		inline bool operator==(const Key &) const = default;
+	};
 	struct State {
+		base::flat_map<Key, not_null<RpWidget*>> cache;
 		std::vector<not_null<RpWidget*>> widgets;
 		rpl::event_stream<> updated;
 		std::optional<int> initialChosen;
@@ -290,11 +300,26 @@ void FillTopReactors(
 			wrap->hide(anim::type::normal);
 		} else {
 			for (const auto &widget : state->widgets) {
-				delete widget;
+				widget->hide();
 			}
 			state->widgets.clear();
 			for (const auto &entry : list) {
-				state->widgets.push_back(MakeTopReactor(parent, entry));
+				const auto key = Key{
+					.photo = entry.photo,
+					.count = entry.count,
+					.name = entry.name,
+				};
+				const auto i = state->cache.find(key);
+				const auto widget = (i != end(state->cache))
+					? i->second
+					: MakeTopReactor(parent, entry);
+				state->widgets.push_back(widget);
+				widget->show();
+			}
+			for (const auto &[k, widget] : state->cache) {
+				if (widget->isHidden()) {
+					delete widget;
+				}
 			}
 			wrap->show(anim::type::normal);
 		}
@@ -313,7 +338,7 @@ void FillTopReactors(
 		}
 		const auto count = int(state->widgets.size());
 		auto left = (width - single * count) / 2;
-		for (const auto widget : state->widgets) {
+		for (const auto &widget : state->widgets) {
 			widget->setGeometry(left, 0, single, height);
 			left += single;
 		}

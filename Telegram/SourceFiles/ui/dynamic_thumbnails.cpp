@@ -261,7 +261,9 @@ void PeerUserpic::subscribeToUpdates(Fn<void()> callback) {
 		_subscribed = nullptr;
 		return;
 	}
-	_subscribed = std::make_unique<Subscribed>(std::move(callback));
+	const auto old = std::exchange(
+		_subscribed,
+		std::make_unique<Subscribed>(std::move(callback)));
 
 	_peer->session().changes().peerUpdates(
 		_peer,
