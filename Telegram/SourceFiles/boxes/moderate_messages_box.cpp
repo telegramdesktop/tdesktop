@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/timer.h"
+#include "ui/widgets/participants_check_view.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "core/application.h"
@@ -114,99 +115,42 @@ class Button final : public Ui::RippleButton {
 public:
 	Button(not_null<QWidget*> parent, int count);
 
-	void setChecked(bool checked);
-	[[nodiscard]] bool checked() const;
-
-	[[nodiscard]] static QSize ComputeSize(int);
+	[[nodiscard]] not_null<Ui::AbstractCheckView*> checkView() const;
 
 private:
 	void paintEvent(QPaintEvent *event) override;
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
 
-	const int _count;
-	const QString _text;
-	bool _checked = false;
-
-	Ui::Animations::Simple _animation;
+	std::unique_ptr<Ui::AbstractCheckView> _view;
 
 };
 
 Button::Button(not_null<QWidget*> parent, int count)
-: RippleButton(parent, st::defaultRippleAnimation)
-, _count(count)
-, _text(QString::number(std::abs(_count))) {
+: Ui::RippleButton(parent, st::defaultRippleAnimation)
+, _view(std::make_unique<Ui::ParticipantsCheckView>(
+	count,
+	st::slideWrapDuration,
+	false,
+	[=] { update(); })) {
 }
 
-QSize Button::ComputeSize(int count) {
-	return QSize(
-		st::moderateBoxExpandHeight
-			+ st::moderateBoxExpand.width()
-			+ st::moderateBoxExpandInnerSkip * 4
-			+ st::moderateBoxExpandFont->width(
-				QString::number(std::abs(count)))
-			+ st::moderateBoxExpandToggleSize,
-		st::moderateBoxExpandHeight);
-}
-
-void Button::setChecked(bool checked) {
-	if (_checked == checked) {
-		return;
-	}
-	_checked = checked;
-	_animation.stop();
-	_animation.start(
-		[=] { update(); },
-		checked ? 0 : 1,
-		checked ? 1 : 0,
-		st::slideWrapDuration);
-}
-
-bool Button::checked() const {
-	return _checked;
-}
-
-void Button::paintEvent(QPaintEvent *event) {
-	auto p = Painter(this);
-	auto hq = PainterHighQualityEnabler(p);
-	Ui::RippleButton::paintRipple(p, QPoint());
-	const auto radius = height() / 2;
-	p.setPen(Qt::NoPen);
-	st::moderateBoxExpand.paint(
-		p,
-		radius,
-		(height() - st::moderateBoxExpand.height()) / 2,
-		width());
-
-	const auto innerSkip = st::moderateBoxExpandInnerSkip;
-
-	p.setBrush(Qt::NoBrush);
-	p.setPen(st::boxTextFg);
-	p.setFont(st::moderateBoxExpandFont);
-	p.drawText(
-		QRect(
-			innerSkip + radius + st::moderateBoxExpand.width(),
-			0,
-			width(),
-			height()),
-		_text,
-		style::al_left);
-
-	const auto path = Ui::ToggleUpDownArrowPath(
-		width() - st::moderateBoxExpandToggleSize - radius,
-		height() / 2,
-		st::moderateBoxExpandToggleSize,
-		st::moderateBoxExpandToggleFourStrokes,
-		_animation.value(_checked ? 1. : 0.));
-	p.fillPath(path, st::boxTextFg);
+not_null<Ui::AbstractCheckView*> Button::checkView() const {
+	return _view.get();
 }
 
 QImage Button::prepareRippleMask() const {
-	return Ui::RippleAnimation::RoundRectMask(size(), size().height() / 2);
+	return _view->prepareRippleMask();
 }
 
 QPoint Button::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos());
+}
+
+void Button::paintEvent(QPaintEvent *event) {
+	auto p = QPainter(this);
+	Ui::RippleButton::paintRipple(p, QPoint());
+	_view->paint(p, 0, 0, width());
 }
 
 void CreateParticipantsList(
@@ -313,7 +257,7 @@ void AppendList(
 	}
 	const auto count = int(participants.size());
 	const auto button = Ui::CreateChild<Button>(inner, count);
-	button->resize(Button::ComputeSize(count));
+	button->resize(Ui::ParticipantsCheckView::ComputeSize(count));
 
 	const auto overlay = Ui::CreateChild<Ui::AbstractButton>(inner);
 
@@ -334,8 +278,11 @@ void AppendList(
 		checkbox->setChecked(toggled);
 	}, checkbox->lifetime());
 	button->setClickedCallback([=] {
-		button->setChecked(!button->checked());
-		controller->toggleRequestsFromTop.fire_copy(button->checked());
+		button->checkView()->setChecked(
+			!button->checkView()->checked(),
+			anim::type::normal);
+		controller->toggleRequestsFromTop.fire_copy(
+			button->checkView()->checked());
 	});
 	overlay->setClickedCallback([=] {
 		checkbox->setChecked(!checkbox->checked());
@@ -361,7 +308,12 @@ void CreateModerateMessagesBox(
 	const auto isSingle = participants.size() == 1;
 	const auto buttonPadding = isSingle
 		? QMargins()
-		: QMargins(0, 0, Button::ComputeSize(participants.size()).width(), 0);
+		: QMargins(
+			0,
+			0,
+			Ui::ParticipantsCheckView::ComputeSize(
+				participants.size()).width(),
+			0);
 
 	const auto session = &items.front()->history()->session();
 	const auto historyPeerId = items.front()->history()->peer->id;

@@ -428,6 +428,8 @@ PRIVATE
     ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp
     ui/widgets/sent_code_field.h
+    ui/widgets/participants_check_view.cpp
+    ui/widgets/participants_check_view.h
     ui/widgets/slider_natural_width.h
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
