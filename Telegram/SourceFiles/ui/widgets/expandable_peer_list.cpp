@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/rect.h"
+#include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/participants_check_view.h"
@@ -69,11 +70,13 @@ void Button::paintEvent(QPaintEvent *event) {
 void AddExpandablePeerList(
 		not_null<Ui::Checkbox*> checkbox,
 		not_null<ExpandablePeerListController*> controller,
-		not_null<Ui::VerticalLayout*> inner,
-		const Participants &participants,
-		bool handleSingle,
-		bool hideRightButton) {
-	const auto isSingle = handleSingle ? (participants.size() == 1) : false;
+		not_null<Ui::VerticalLayout*> inner) {
+	const auto &participants = controller->data.participants;
+	const auto hideRightButton = controller->data.hideRightButton;
+	const auto checkTopOnAllInner = controller->data.checkTopOnAllInner;
+	const auto isSingle = controller->data.skipSingle
+		? false
+		: (participants.size() == 1);
 	if (isSingle) {
 		const auto p = participants.front();
 		controller->collectRequests = [=] { return Participants{ p }; };
@@ -151,8 +154,10 @@ void AddExpandablePeerList(
 				st);
 			const auto checkbox = Ui::CreateChild<Ui::Checkbox>(
 				line,
-				peer->name(),
-				false,
+				controller->data.bold
+					? Ui::Text::Bold(peer->name())
+					: TextWithEntities{ .text = peer->name() },
+				ranges::contains(controller->data.checked, peer->id),
 				st::defaultBoxCheckbox);
 			line->widthValue(
 			) | rpl::start_with_next([=](int width) {
@@ -186,7 +191,9 @@ void AddExpandablePeerList(
 		clicks->events(
 		) | rpl::start_with_next([=] {
 			controller->toggleRequestsFromInner.fire_copy(
-				ranges::any_of(checkboxes, &Ui::Checkbox::checked));
+				checkTopOnAllInner
+				? ranges::all_of(checkboxes, &Ui::Checkbox::checked)
+				: ranges::any_of(checkboxes, &Ui::Checkbox::checked));
 		}, container->lifetime());
 
 		controller->checkAllRequests.events(

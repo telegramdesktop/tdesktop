@@ -229,14 +229,9 @@ void CreateModerateMessagesBox(
 				false,
 				st::defaultBoxCheckbox),
 			st::boxRowPadding + buttonPadding);
-		const auto controller = box->lifetime().make_state<Controller>();
-		Ui::AddExpandablePeerList(
-			report,
-			controller,
-			inner,
-			participants,
-			true,
-			false);
+		const auto controller = box->lifetime().make_state<Controller>(
+			Controller::Data{ .participants = participants });
+		Ui::AddExpandablePeerList(report, controller, inner);
 		handleSubmition(report);
 
 		const auto ids = items.front()->from()->owner().itemsToIds(items);
@@ -293,14 +288,9 @@ void CreateModerateMessagesBox(
 			}, title->lifetime());
 		}
 
-		const auto controller = box->lifetime().make_state<Controller>();
-		Ui::AddExpandablePeerList(
-			deleteAll,
-			controller,
-			inner,
-			participants,
-			true,
-			false);
+		const auto controller = box->lifetime().make_state<Controller>(
+			Controller::Data{ .participants = participants });
+		Ui::AddExpandablePeerList(deleteAll, controller, inner);
 		handleSubmition(deleteAll);
 
 		handleConfirmation(deleteAll, controller, [=](
@@ -329,14 +319,9 @@ void CreateModerateMessagesBox(
 				false,
 				st::defaultBoxCheckbox),
 			st::boxRowPadding + buttonPadding);
-		const auto controller = box->lifetime().make_state<Controller>();
-		Ui::AddExpandablePeerList(
-			ban,
-			controller,
-			inner,
-			participants,
-			true,
-			false);
+		const auto controller = box->lifetime().make_state<Controller>(
+			Controller::Data{ .participants = participants });
+		Ui::AddExpandablePeerList(ban, controller, inner);
 		handleSubmition(ban);
 
 		Ui::AddSkip(inner);
