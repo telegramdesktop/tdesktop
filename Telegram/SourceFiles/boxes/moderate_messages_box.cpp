@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/timer.h"
-#include "ui/widgets/participants_check_view.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "core/application.h"
@@ -32,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/effects/toggle_arrow.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -40,21 +38,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/expandable_peer_list.h"
+#include "ui/widgets/participants_check_view.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 
 namespace {
-
-using Participants = std::vector<not_null<PeerData*>>;
-
-struct Controller final {
-	rpl::event_stream<bool> toggleRequestsFromTop;
-	rpl::event_stream<bool> toggleRequestsFromInner;
-	rpl::event_stream<bool> checkAllRequests;
-	Fn<Participants()> collectRequests;
-};
 
 struct ModerateOptions final {
 	bool allCanBan = false;
@@ -111,192 +102,14 @@ ModerateOptions CalculateModerateOptions(const HistoryItemsList &items) {
 	};
 }
 
-class Button final : public Ui::RippleButton {
-public:
-	Button(not_null<QWidget*> parent, int count);
-
-	[[nodiscard]] not_null<Ui::AbstractCheckView*> checkView() const;
-
-private:
-	void paintEvent(QPaintEvent *event) override;
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
-
-	std::unique_ptr<Ui::AbstractCheckView> _view;
-
-};
-
-Button::Button(not_null<QWidget*> parent, int count)
-: Ui::RippleButton(parent, st::defaultRippleAnimation)
-, _view(std::make_unique<Ui::ParticipantsCheckView>(
-	count,
-	st::slideWrapDuration,
-	false,
-	[=] { update(); })) {
-}
-
-not_null<Ui::AbstractCheckView*> Button::checkView() const {
-	return _view.get();
-}
-
-QImage Button::prepareRippleMask() const {
-	return _view->prepareRippleMask();
-}
-
-QPoint Button::prepareRippleStartPosition() const {
-	return mapFromGlobal(QCursor::pos());
-}
-
-void Button::paintEvent(QPaintEvent *event) {
-	auto p = QPainter(this);
-	Ui::RippleButton::paintRipple(p, QPoint());
-	_view->paint(p, 0, 0, width());
-}
-
-void CreateParticipantsList(
-		not_null<Controller*> controller,
-		not_null<Ui::VerticalLayout*> inner,
-		const Participants &participants) {
-	const auto wrap = inner->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			inner,
-			object_ptr<Ui::VerticalLayout>(inner)));
-	wrap->toggle(false, anim::type::instant);
-
-	controller->toggleRequestsFromTop.events(
-	) | rpl::start_with_next([=](bool toggled) {
-		wrap->toggle(toggled, anim::type::normal);
-	}, wrap->lifetime());
-
-	const auto container = wrap->entity();
-	Ui::AddSkip(container);
-
-	auto &lifetime = wrap->lifetime();
-	const auto clicks = lifetime.make_state<rpl::event_stream<>>();
-	const auto checkboxes = ranges::views::all(
-		participants
-	) | ranges::views::transform([&](not_null<PeerData*> peer) {
-		const auto line = container->add(
-			object_ptr<Ui::AbstractButton>(container));
-		const auto &st = st::moderateBoxUserpic;
-		line->resize(line->width(), st.size.height());
-
-		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-			line,
-			peer,
-			st);
-		const auto checkbox = Ui::CreateChild<Ui::Checkbox>(
-			line,
-			peer->name(),
-			false,
-			st::defaultBoxCheckbox);
-		line->widthValue(
-		) | rpl::start_with_next([=](int width) {
-			userpic->moveToLeft(
-				st::boxRowPadding.left()
-					+ checkbox->checkRect().width()
-					+ st::defaultBoxCheckbox.textPosition.x(),
-				0);
-			const auto skip = st::defaultBoxCheckbox.textPosition.x();
-			checkbox->resizeToWidth(width
-				- rect::right(userpic)
-				- skip
-				- st::boxRowPadding.right());
-			checkbox->moveToLeft(
-				rect::right(userpic) + skip,
-				((userpic->height() - checkbox->height()) / 2)
-					+ st::defaultBoxCheckbox.margin.top());
-		}, checkbox->lifetime());
-
-		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
-		checkbox->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-		line->setClickedCallback([=] {
-			checkbox->setChecked(!checkbox->checked());
-			clicks->fire({});
-		});
-
-		return checkbox;
-	}) | ranges::to_vector;
-
-	clicks->events(
-	) | rpl::start_with_next([=] {
-		controller->toggleRequestsFromInner.fire_copy(
-			ranges::any_of(checkboxes, &Ui::Checkbox::checked));
-	}, container->lifetime());
-
-	controller->checkAllRequests.events(
-	) | rpl::start_with_next([=](bool checked) {
-		for (const auto &c : checkboxes) {
-			c->setChecked(checked);
-		}
-	}, container->lifetime());
-
-	controller->collectRequests = [=] {
-		auto result = Participants();
-		for (auto i = 0; i < checkboxes.size(); i++) {
-			if (checkboxes[i]->checked()) {
-				result.push_back(participants[i]);
-			}
-		}
-		return result;
-	};
-}
-
-void AppendList(
-		not_null<Ui::Checkbox*> checkbox,
-		not_null<Controller*> controller,
-		not_null<Ui::VerticalLayout*> inner,
-		const Participants &participants,
-		bool handleSingle) {
-	const auto isSingle = handleSingle ? (participants.size() == 1) : false;
-	if (isSingle) {
-		const auto p = participants.front();
-		controller->collectRequests = [=] { return Participants{ p }; };
-		return;
-	}
-	const auto count = int(participants.size());
-	const auto button = Ui::CreateChild<Button>(inner, count);
-	button->resize(Ui::ParticipantsCheckView::ComputeSize(count));
-
-	const auto overlay = Ui::CreateChild<Ui::AbstractButton>(inner);
-
-	checkbox->geometryValue(
-	) | rpl::start_with_next([=](const QRect &rect) {
-		overlay->setGeometry(rect);
-		overlay->raise();
-
-		button->moveToRight(
-			st::moderateBoxExpandRight,
-			rect.top() + (rect.height() - button->height()) / 2,
-			inner->width());
-		button->raise();
-	}, button->lifetime());
-
-	controller->toggleRequestsFromInner.events(
-	) | rpl::start_with_next([=](bool toggled) {
-		checkbox->setChecked(toggled);
-	}, checkbox->lifetime());
-	button->setClickedCallback([=] {
-		button->checkView()->setChecked(
-			!button->checkView()->checked(),
-			anim::type::normal);
-		controller->toggleRequestsFromTop.fire_copy(
-			button->checkView()->checked());
-	});
-	overlay->setClickedCallback([=] {
-		checkbox->setChecked(!checkbox->checked());
-		controller->checkAllRequests.fire_copy(checkbox->checked());
-	});
-	CreateParticipantsList(controller, inner, participants);
-}
-
 } // namespace
 
 void CreateModerateMessagesBox(
 		not_null<Ui::GenericBox*> box,
 		const HistoryItemsList &items,
 		Fn<void()> confirmed) {
+	using Controller = Ui::ExpandablePeerListController;
+
 	const auto [allCanBan, allCanDelete, participants]
 		= CalculateModerateOptions(items);
 	const auto inner = box->verticalLayout();
@@ -417,7 +230,13 @@ void CreateModerateMessagesBox(
 				st::defaultBoxCheckbox),
 			st::boxRowPadding + buttonPadding);
 		const auto controller = box->lifetime().make_state<Controller>();
-		AppendList(report, controller, inner, participants, true);
+		Ui::AddExpandablePeerList(
+			report,
+			controller,
+			inner,
+			participants,
+			true,
+			false);
 		handleSubmition(report);
 
 		const auto ids = items.front()->from()->owner().itemsToIds(items);
@@ -475,7 +294,13 @@ void CreateModerateMessagesBox(
 		}
 
 		const auto controller = box->lifetime().make_state<Controller>();
-		AppendList(deleteAll, controller, inner, participants, true);
+		Ui::AddExpandablePeerList(
+			deleteAll,
+			controller,
+			inner,
+			participants,
+			true,
+			false);
 		handleSubmition(deleteAll);
 
 		handleConfirmation(deleteAll, controller, [=](
@@ -505,7 +330,13 @@ void CreateModerateMessagesBox(
 				st::defaultBoxCheckbox),
 			st::boxRowPadding + buttonPadding);
 		const auto controller = box->lifetime().make_state<Controller>();
-		AppendList(ban, controller, inner, participants, true);
+		Ui::AddExpandablePeerList(
+			ban,
+			controller,
+			inner,
+			participants,
+			true,
+			false);
 		handleSubmition(ban);
 
 		Ui::AddSkip(inner);

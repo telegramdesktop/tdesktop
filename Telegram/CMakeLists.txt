@@ -1509,6 +1509,8 @@ PRIVATE
     ui/image/image_location_factory.h
     ui/text/format_song_document_name.cpp
     ui/text/format_song_document_name.h
+    ui/widgets/expandable_peer_list.cpp
+    ui/widgets/expandable_peer_list.h
     ui/widgets/label_with_custom_emoji.cpp
     ui/widgets/label_with_custom_emoji.h
     ui/countryinput.cpp
