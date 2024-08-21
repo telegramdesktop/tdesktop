@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/integration.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "lang/lang_keys.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_dialog.h"
@@ -397,14 +398,13 @@ void Panel::toggleProgress(bool shown) {
 			auto p = QPainter(&_progress->widget);
 			p.setOpacity(
 				_progress->shownAnimation.value(_progress->shown ? 1. : 0.));
-			auto thickness = st::paymentsLoading.thickness;
+			const auto thickness = st::paymentsLoading.thickness;
 			if (progressWithBackground()) {
 				auto color = st::windowBg->c;
 				color.setAlphaF(kProgressOpacity);
 				p.fillRect(clip, color);
 			}
-			const auto rect = progressRect().marginsRemoved(
-				{ thickness, thickness, thickness, thickness });
+			const auto rect = progressRect() - Margins(thickness);
 			InfiniteRadialAnimation::Draw(
 				p,
 				_progress->animation.computeState(),
@@ -412,7 +412,7 @@ void Panel::toggleProgress(bool shown) {
 				rect.size() - QSize(),
 				_progress->widget.width(),
 				st::paymentsLoading.color,
-				thickness);
+				anim::Disabled() ? (thickness / 2.) : thickness);
 		}, _progress->widget.lifetime());
 		_progress->widget.show();
 		_progress->animation.start();
