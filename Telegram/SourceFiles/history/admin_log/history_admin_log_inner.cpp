@@ -497,8 +497,6 @@ void InnerWidget::showFilter(Fn<void(FilterValue &&filter)> callback) {
 	if (_admins.empty()) {
 		_showFilterCallback = std::move(callback);
 	} else {
-		_controller->show(
-			Box<FilterBox>(_channel, _admins, _filter, std::move(callback)));
 	}
 }
 
