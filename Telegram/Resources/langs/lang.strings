@@ -3114,6 +3114,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_text_type_files" = "Files";
 "lng_send_text_type_stickers" = "Stickers & GIFs";
 "lng_send_text_type_polls" = "Polls";
+"lng_send_gif_with_caption" = "Send GIF with caption";
 
 "lng_send_as_title" = "Send message as...";
 "lng_send_as_anonymous_admin" = "Anonymous admin";

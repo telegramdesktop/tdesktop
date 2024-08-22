@@ -310,6 +310,8 @@ PRIVATE
     boxes/self_destruction_box.h
     boxes/send_credits_box.cpp
     boxes/send_credits_box.h
+    boxes/send_gif_with_caption_box.cpp
+    boxes/send_gif_with_caption_box.h
     boxes/send_files_box.cpp
     boxes/send_files_box.h
     boxes/sessions_box.cpp
