@@ -340,7 +340,12 @@ void ScheduledWidget::setupComposeControls() {
 	_composeControls->fileChosen(
 	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
 		controller()->hideLayer(anim::type::normal);
-		sendExistingDocument(data.document);
+		const auto document = data.document;
+		const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+			sendExistingDocument(document, options);
+		});
+		controller()->show(
+			PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 	}, lifetime());
 
 	_composeControls->photoChosen(
@@ -806,15 +811,6 @@ void ScheduledWidget::edit(
 
 	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
-}
-
-void ScheduledWidget::sendExistingDocument(
-		not_null<DocumentData*> document) {
-	const auto callback = [=](Api::SendOptions options) {
-		sendExistingDocument(document, options);
-	};
-	controller()->show(
-		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 bool ScheduledWidget::sendExistingDocument(

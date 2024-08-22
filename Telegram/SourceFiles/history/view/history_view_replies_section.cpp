@@ -1325,11 +1325,6 @@ void RepliesWidget::refreshJoinGroupButton() {
 	}
 }
 
-void RepliesWidget::sendExistingDocument(
-		not_null<DocumentData*> document) {
-	sendExistingDocument(document, {}, std::nullopt);
-}
-
 bool RepliesWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options,

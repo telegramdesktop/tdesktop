@@ -214,7 +214,6 @@ private:
 		Api::SendOptions options,
 		bool ctrlShiftEnter);
 
-	void sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options,
@@ -696,7 +695,7 @@ void ShortcutMessages::setupComposeControls() {
 	_composeControls->fileChosen(
 	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
 		_controller->hideLayer(anim::type::normal);
-		sendExistingDocument(data.document);
+		sendExistingDocument(data.document, {}, std::nullopt);
 	}, lifetime());
 
 	_composeControls->photoChosen(
@@ -1492,11 +1491,6 @@ void ShortcutMessages::doSetInnerFocus() {
 		|| !_composeControls->focus()) {
 		_inner->setFocus();
 	}
-}
-
-void ShortcutMessages::sendExistingDocument(
-		not_null<DocumentData*> document) {
-	sendExistingDocument(document, {}, std::nullopt);
 }
 
 bool ShortcutMessages::sendExistingDocument(
