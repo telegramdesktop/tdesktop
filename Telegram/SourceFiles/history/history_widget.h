@@ -37,6 +37,7 @@ struct Details;
 } // namespace SendMenu
 
 namespace Api {
+struct MessageToSend;
 struct SendOptions;
 struct SendAction;
 } // namespace Api
@@ -273,7 +274,7 @@ public:
 	[[nodiscard]] SendMenu::Details saveMenuDetails() const;
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options,
+		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId = std::nullopt);
 	bool sendExistingPhoto(
 		not_null<PhotoData*> photo,

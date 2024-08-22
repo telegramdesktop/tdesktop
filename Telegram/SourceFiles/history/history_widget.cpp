@@ -1201,7 +1201,13 @@ void HistoryWidget::initTabbedSelector() {
 			controller()->sendingAnimation().appendSending(
 				data.messageSendingFrom);
 			const auto localId = data.messageSendingFrom.localId;
-			sendExistingDocument(data.document, data.options, localId);
+			auto messageToSend = Api::MessageToSend(
+				prepareSendAction(data.options));
+			messageToSend.textWithTags = base::take(data.caption);
+			sendExistingDocument(
+				data.document,
+				std::move(messageToSend),
+				localId);
 		}
 	}, lifetime());
 
@@ -7458,7 +7464,7 @@ void HistoryWidget::requestMessageData(MsgId msgId) {
 
 bool HistoryWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options,
+		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId) {
 	const auto error = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::SendStickers)
@@ -7474,7 +7480,7 @@ bool HistoryWidget::sendExistingDocument(
 	}
 
 	Api::SendExistingDocument(
-		Api::MessageToSend(prepareSendAction(options)),
+		std::move(messageToSend),
 		document,
 		localId);
 

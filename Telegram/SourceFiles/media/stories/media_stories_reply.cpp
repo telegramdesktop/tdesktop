@@ -252,7 +252,7 @@ void ReplyArea::sendVoice(VoiceToSend &&data) {
 
 bool ReplyArea::sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options,
+		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId) {
 	Expects(_data.peer != nullptr);
 
@@ -268,10 +268,7 @@ bool ReplyArea::sendExistingDocument(
 		return false;
 	}
 
-	Api::SendExistingDocument(
-		Api::MessageToSend(prepareSendAction(options)),
-		document,
-		localId);
+	Api::SendExistingDocument(std::move(messageToSend), document, localId);
 
 	_controls->cancelReplyMessage();
 	finishSending();
@@ -633,8 +630,13 @@ void ReplyArea::initActions() {
 	_controls->fileChosen(
 	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
 		_controller->uiShow()->hideLayer();
-		const auto localId = data.messageSendingFrom.localId;
-		sendExistingDocument(data.document, data.options, localId);
+		auto messageToSend = Api::MessageToSend(
+			prepareSendAction(data.options));
+		messageToSend.textWithTags = base::take(data.caption);
+		sendExistingDocument(
+			data.document,
+			std::move(messageToSend),
+			data.messageSendingFrom.localId);
 	}, _lifetime);
 
 	_controls->photoChosen(

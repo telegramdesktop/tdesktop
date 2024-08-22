@@ -172,7 +172,8 @@ private:
 	void selectInlineResult(
 		int index,
 		Api::SendOptions options,
-		bool forceSend = false);
+		bool forceSend = false,
+		TextWithTags caption = {});
 
 	const std::shared_ptr<Show> _show;
 	std::unique_ptr<Ui::TabbedSearch> _search;

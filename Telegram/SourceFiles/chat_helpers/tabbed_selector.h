@@ -62,6 +62,7 @@ struct FileChosen {
 	not_null<DocumentData*> document;
 	Api::SendOptions options;
 	Ui::MessageSendingAnimationFrom messageSendingFrom;
+	TextWithTags caption;
 };
 
 struct PhotoChosen {

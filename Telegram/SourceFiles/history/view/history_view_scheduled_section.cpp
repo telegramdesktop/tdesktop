@@ -342,7 +342,10 @@ void ScheduledWidget::setupComposeControls() {
 		controller()->hideLayer(anim::type::normal);
 		const auto document = data.document;
 		const auto callback = crl::guard(this, [=](Api::SendOptions options) {
-			sendExistingDocument(document, options);
+			auto messageToSend = Api::MessageToSend(
+				prepareSendAction(options));
+			messageToSend.textWithTags = data.caption;
+			sendExistingDocument(document, std::move(messageToSend));
 		});
 		controller()->show(
 			PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
@@ -815,7 +818,7 @@ void ScheduledWidget::edit(
 
 bool ScheduledWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options) {
+		Api::MessageToSend messageToSend) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
 		ChatRestriction::SendStickers);
@@ -826,9 +829,7 @@ bool ScheduledWidget::sendExistingDocument(
 		return false;
 	}
 
-	Api::SendExistingDocument(
-		Api::MessageToSend(prepareSendAction(options)),
-		document);
+	Api::SendExistingDocument(std::move(messageToSend), document);
 
 	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();

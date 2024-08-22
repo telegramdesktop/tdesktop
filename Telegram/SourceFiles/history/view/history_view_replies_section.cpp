@@ -760,8 +760,13 @@ void RepliesWidget::setupComposeControls() {
 		controller()->hideLayer(anim::type::normal);
 		controller()->sendingAnimation().appendSending(
 			data.messageSendingFrom);
-		const auto localId = data.messageSendingFrom.localId;
-		sendExistingDocument(data.document, data.options, localId);
+		auto messageToSend = Api::MessageToSend(
+			prepareSendAction(data.options));
+		messageToSend.textWithTags = base::take(data.caption);
+		sendExistingDocument(
+			data.document,
+			std::move(messageToSend),
+			data.messageSendingFrom.localId);
 	}, lifetime());
 
 	_composeControls->photoChosen(
@@ -1327,7 +1332,7 @@ void RepliesWidget::refreshJoinGroupButton() {
 
 bool RepliesWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options,
+		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
@@ -1341,7 +1346,7 @@ bool RepliesWidget::sendExistingDocument(
 	}
 
 	Api::SendExistingDocument(
-		Api::MessageToSend(prepareSendAction(options)),
+		std::move(messageToSend),
 		document,
 		localId);
 

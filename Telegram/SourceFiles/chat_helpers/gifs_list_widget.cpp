@@ -457,7 +457,8 @@ void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
 void GifsListWidget::selectInlineResult(
 		int index,
 		Api::SendOptions options,
-		bool forceSend) {
+		bool forceSend,
+		TextWithTags caption) {
 	const auto item = _mosaic.maybeItemAt(index);
 	if (!item) {
 		return;
@@ -498,6 +499,7 @@ void GifsListWidget::selectInlineResult(
 				.document = document,
 				.options = options,
 				.messageSendingFrom = messageSendingFrom(),
+				.caption = std::move(caption),
 			});
 		} else if (!preview.usingThumbnail()) {
 			if (preview.loading()) {

@@ -23,6 +23,7 @@ struct Details;
 } // namespace SendMenu
 
 namespace Api {
+struct MessageToSend;
 struct SendOptions;
 struct SendAction;
 } // namespace Api
@@ -303,7 +304,7 @@ private:
 
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options,
+		Api::MessageToSend messageToSend,
 		std::optional<MsgId> localId);
 	void sendExistingPhoto(not_null<PhotoData*> photo);
 	bool sendExistingPhoto(
