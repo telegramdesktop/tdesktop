@@ -1061,16 +1061,6 @@ SendMenu::Details MainWidget::sendMenuDetails() const {
 	return _history->sendMenuDetails();
 }
 
-bool MainWidget::sendExistingDocument(not_null<DocumentData*> document) {
-	return sendExistingDocument(document, {});
-}
-
-bool MainWidget::sendExistingDocument(
-		not_null<DocumentData*> document,
-		Api::SendOptions options) {
-	return _history->sendExistingDocument(document, options);
-}
-
 void MainWidget::dialogsCancelled() {
 	if (_hider) {
 		_hider->startHide();

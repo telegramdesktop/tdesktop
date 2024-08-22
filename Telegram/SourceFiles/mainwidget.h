@@ -158,10 +158,6 @@ public:
 	void checkMainSectionToLayer();
 
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
-	bool sendExistingDocument(not_null<DocumentData*> document);
-	bool sendExistingDocument(
-		not_null<DocumentData*> document,
-		Api::SendOptions options);
 
 	[[nodiscard]] bool animatingShow() const;
 
