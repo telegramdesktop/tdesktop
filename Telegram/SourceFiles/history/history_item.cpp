@@ -3453,7 +3453,11 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		if (_media) {
 			return _media->toPreview(options);
 		} else if (!emptyText()) {
-			return { .text = options.translated ? translatedText() : _text };
+			return {
+				.text = st::wrap_rtl(options.translated
+					? translatedText()
+					: _text)
+			};
 		}
 		return {};
 	}();
@@ -5509,7 +5513,7 @@ PreparedServiceText HistoryItem::preparePinnedText() {
 				lt_from,
 				fromLinkText(), // Link 1.
 				lt_text,
-				std::move(original), // Link 2.
+				st::wrap_rtl(original), // Link 2.
 				Ui::Text::WithEntities);
 		} else {
 			result.text = tr::lng_action_pinned_media(
@@ -5756,7 +5760,7 @@ PreparedServiceText HistoryItem::prepareCallScheduledText(
 }
 
 TextWithEntities HistoryItem::fromLinkText() const {
-	return Ui::Text::Link(_from->name(), 1);
+	return Ui::Text::Link(st::wrap_rtl(_from->name()), 1);
 }
 
 ClickHandlerPtr HistoryItem::fromLink() const {

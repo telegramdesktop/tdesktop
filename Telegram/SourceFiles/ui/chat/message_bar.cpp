@@ -438,12 +438,15 @@ void MessageBar::paint(Painter &p) {
 		if (_title.isEmpty()) {
 			// "Loading..." state.
 			p.setPen(st::historyComposeAreaFgService);
-			_text.drawLeftElided(
-				p,
-				body.x(),
-				body.y() + (body.height() - st::normalFont->height) / 2,
-				body.width(),
-				width);
+			_text.draw(p, {
+				.position = {
+					body.x(),
+					body.y() + (body.height() - st::normalFont->height) / 2,
+				},
+				.outerWidth = width,
+				.availableWidth = body.width(),
+				.elisionLines = 1,
+			});
 		} else {
 			p.setPen(_st.textFg);
 			_text.draw(p, {

@@ -1687,7 +1687,11 @@ void Message::paintFromName(
 	}
 	p.setFont(st::msgNameFont);
 	p.setPen(nameFg);
-	nameText->drawElided(p, availableLeft, trect.top(), availableWidth);
+	nameText->draw(p, {
+		.position = { availableLeft, trect.top() },
+		.availableWidth = availableWidth,
+		.elisionLines = 1,
+	});
 	const auto skipWidth = nameText->maxWidth()
 		+ (_fromNameStatus
 			? (st::dialogsPremiumIcon.icon.width()

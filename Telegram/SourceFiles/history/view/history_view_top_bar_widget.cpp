@@ -600,11 +600,11 @@ void TopBarWidget::paintTopBar(Painter &p) {
 		const auto namewidth = availableWidth - badgeWidth;
 
 		p.setPen(st::dialogsNameFg);
-		_title.drawElided(
-			p,
-			nameleft,
-			nametop,
-			namewidth);
+		_title.draw(p, {
+			.position = { nameleft, nametop },
+			.availableWidth = namewidth,
+			.elisionLines = 1,
+		});
 
 		p.setFont(st::dialogsTextFont);
 		if (!paintConnectingState(p, nameleft, statustop, width())

@@ -100,9 +100,9 @@ struct AlbumCounts {
 	if (caption.text.isEmpty()) {
 		return Ui::Text::Colorized(attachType);
 	}
-
+	auto wrapped = st::wrap_rtl(caption);
 	return hasMiniImages
-		? caption
+		? wrapped
 		: tr::lng_dialogs_text_media(
 			tr::now,
 			lt_media_part,
@@ -112,7 +112,7 @@ struct AlbumCounts {
 				Ui::Text::Colorized(attachType),
 				Ui::Text::WithEntities),
 			lt_caption,
-			caption,
+			wrapped,
 			Ui::Text::WithEntities);
 }
 

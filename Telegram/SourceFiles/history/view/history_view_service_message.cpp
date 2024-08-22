@@ -570,8 +570,8 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 			.now = context.now,
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-			.selection = context.selection,
 			.fullWidthSelection = false,
+			.selection = context.selection,
 		});
 	}
 	if (mediaDisplayed) {
