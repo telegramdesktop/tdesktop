@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 
 #include "lang/lang_keys.h"
+#include "chat_helpers/bot_command.h"
 #include "core/application.h"
 #include "core/local_url_handlers.h"
 #include "mainwidget.h"

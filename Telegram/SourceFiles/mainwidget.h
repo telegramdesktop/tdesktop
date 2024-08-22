@@ -8,25 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
-#include "chat_helpers/bot_command.h"
 #include "media/player/media_player_float.h"
 #include "mtproto/sender.h"
 
-struct HistoryMessageMarkupButton;
-class MainWindow;
 class HistoryWidget;
 class StackItem;
-class History;
 class Image;
 
-namespace MTP {
-class Error;
-} // namespace MTP
-
-namespace Api {
-struct SendAction;
-struct SendOptions;
-} // namespace Api
+namespace Bot {
+struct SendCommandRequest;
+} // namespace Bot
 
 namespace SendMenu {
 struct Details;
@@ -68,10 +59,8 @@ struct Content;
 
 namespace Ui {
 class ChatTheme;
-class ConfirmBox;
 class ResizeArea;
 class PlainShadow;
-class DropdownMenu;
 enum class ReportReason;
 template <typename Widget>
 class SlideWrap;
@@ -83,7 +72,6 @@ template <typename Inner>
 class TopBarWrapWidget;
 class SectionMemento;
 class SectionWidget;
-class AbstractSectionWidget;
 class SlideAnimation;
 class ConnectionState;
 struct SectionSlideParams;
@@ -102,12 +90,6 @@ class TopBar;
 namespace Core {
 class Changelogs;
 } // namespace Core
-
-namespace InlineBots {
-namespace Layout {
-class ItemBase;
-} // namespace Layout
-} // namespace InlineBots
 
 class MainWidget final
 	: public Ui::RpWidget
