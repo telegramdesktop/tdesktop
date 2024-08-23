@@ -94,7 +94,6 @@ Fn<FilterValue::Flags()> FillFilterValueList(
 		container,
 		filter.flags ? (*filter.flags) : ~FilterValue::Flags(0),
 		isChannel);
-	const auto controlsRaw = checkboxes.data();
 	container->add(std::move(checkboxes));
 	return getResult;
 }
