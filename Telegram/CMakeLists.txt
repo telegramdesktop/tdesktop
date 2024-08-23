@@ -37,6 +37,10 @@ include(cmake/td_scheme.cmake)
 include(cmake/td_ui.cmake)
 include(cmake/generate_appdata_changelog.cmake)
 
+if (DESKTOP_APP_TEST_APPS)
+    include(cmake/tests.cmake)
+endif()
+
 if (WIN32)
     include(cmake/generate_midl.cmake)
     generate_midl(Telegram ${src_loc}
