@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/moderate_messages_box.h"
 
+#include "api/api_blocked_peers.h"
 #include "api/api_chat_participants.h"
 #include "api/api_messages_search.h"
 #include "apiwrap.h"
@@ -590,6 +591,20 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 				st::defaultBoxCheckbox));
 	}();
 
+	const auto maybeBotCheckbox = [&]() -> Ui::Checkbox* {
+		if (!maybeUser || !maybeUser->isBot()) {
+			return nullptr;
+		}
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		return box->addRow(
+			object_ptr<Ui::Checkbox>(
+				container,
+				tr::lng_profile_block_bot(tr::now, Ui::Text::WithEntities),
+				false,
+				st::defaultBoxCheckbox));
+	}();
+
 	Ui::AddSkip(container);
 
 	auto buttonText = maybeUser
@@ -603,7 +618,11 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	const auto close = crl::guard(box, [=] { box->closeBox(); });
 	box->addButton(std::move(buttonText), [=] {
 		const auto revoke = maybeCheckbox && maybeCheckbox->checked();
+		const auto stopBot = maybeBotCheckbox && maybeBotCheckbox->checked();
 		Core::App().closeChatFromWindows(peer);
+		if (stopBot) {
+			peer->session().api().blockedPeers().block(peer);
+		}
 		// Don't delete old history by default,
 		// because Android app doesn't.
 		//
