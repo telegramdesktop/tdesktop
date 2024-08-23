@@ -641,6 +641,10 @@ QByteArray SerializeMessage(
 		if (data.stars) {
 			push("stars", data.stars);
 		}
+	}, [&](const ActionPrizeStars &data) {
+		pushActor();
+		pushAction("stars_prize");
+		push("stars", data.amount); AssertIsDebug();
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

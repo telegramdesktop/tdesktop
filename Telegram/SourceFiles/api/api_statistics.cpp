@@ -571,13 +571,17 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 				_boostStatus.prepaidGiveaway = ranges::views::all(
 					data.vprepaid_giveaways()->v
 				) | ranges::views::transform([](const MTPPrepaidGiveaway &r) {
-					return Data::BoostPrepaidGiveaway{
-						.months = r.data().vmonths().v,
-						.id = r.data().vid().v,
-						.quantity = r.data().vquantity().v,
-						.date = QDateTime::fromSecsSinceEpoch(
-							r.data().vdate().v),
-					};
+					return r.match([&](const MTPDprepaidGiveaway &data) {
+						return Data::BoostPrepaidGiveaway{
+							.months = data.vmonths().v,
+							.id = data.vid().v,
+							.quantity = data.vquantity().v,
+							.date = QDateTime::fromSecsSinceEpoch(
+								data.vdate().v),
+						};
+					}, [&](const MTPDprepaidStarsGiveaway &data) {
+						return Data::BoostPrepaidGiveaway(AssertIsDebug());
+					});
 				}) | ranges::to_vector;
 			}
 

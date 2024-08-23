@@ -5232,6 +5232,13 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareGiftPrize = [&](
+			const MTPDmessageActionPrizeStars &action) {
+		auto result = PreparedServiceText();
+		AssertIsDebug();
+		return result;
+	};
+
 	setServiceText(action.match(
 		prepareChatAddUserText,
 		prepareChatJoinedByLink,
@@ -5276,6 +5283,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareBoostApply,
 		preparePaymentRefunded,
 		prepareGiftStars,
+		prepareGiftPrize,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 

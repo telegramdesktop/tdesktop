@@ -734,7 +734,8 @@ GiveawayStart ParseGiveaway(const MTPDmessageMediaGiveaway &data) {
 	auto result = GiveawayStart{
 		.untilDate = data.vuntil_date().v,
 		.quantity = data.vquantity().v,
-		.months = data.vmonths().v,
+		.months = data.vmonths().value_or_empty(), AssertIsDebug()
+		//.stars = data.vstars().value_or_empty(),
 	};
 	for (const auto &id : data.vchannels().v) {
 		result.channels.push_back(ChannelId(id));
@@ -1528,6 +1529,10 @@ ServiceAction ParseServiceAction(
 			data.vamount().v,
 			qs(data.vcurrency())).toUtf8();
 		content.stars = data.vstars().v;
+		result.content = content;
+	}, [&](const MTPDmessageActionPrizeStars &data) {
+		auto content = ActionPrizeStars();
+		content.amount = data.vstars().v;
 		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;

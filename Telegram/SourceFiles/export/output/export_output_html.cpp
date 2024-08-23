@@ -1331,6 +1331,8 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ ": "
 			+ QString::number(data.stars).toUtf8()
 			+ " Telegram Stars.";
+	}, [&](const ActionPrizeStars &data) {
+		return serviceFrom + " prize stars."; AssertIsDebug();
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

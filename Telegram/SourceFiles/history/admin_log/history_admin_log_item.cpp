@@ -780,6 +780,7 @@ void GenerateItems(
 	using LogChangeWallpaper = MTPDchannelAdminLogEventActionChangeWallpaper;
 	using LogChangeEmojiStatus = MTPDchannelAdminLogEventActionChangeEmojiStatus;
 	using LogToggleSignatureProfiles = MTPDchannelAdminLogEventActionToggleSignatureProfiles;
+	using LogParticipantSubExtend = MTPDchannelAdminLogEventActionParticipantSubExtend;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -2037,6 +2038,10 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
+	const auto createParticipantSubExtend = [&](const LogParticipantSubExtend &action) {
+		AssertIsDebug();
+	};
+
 	action.match(
 		createChangeTitle,
 		createChangeAbout,
@@ -2086,7 +2091,8 @@ void GenerateItems(
 		createChangeProfilePeerColor,
 		createChangeWallpaper,
 		createChangeEmojiStatus,
-		createToggleSignatureProfiles);
+		createToggleSignatureProfiles,
+		createParticipantSubExtend);
 }
 
 } // namespace AdminLog

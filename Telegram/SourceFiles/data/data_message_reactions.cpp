@@ -1776,11 +1776,12 @@ void Reactions::sendPaidRequest(
 	auto &api = _owner->session().api();
 	using Flag = MTPmessages_SendPaidReaction::Flag;
 	const auto requestId = api.request(MTPmessages_SendPaidReaction(
-		MTP_flags(send.anonymous ? Flag::f_private : Flag()),
+		MTP_flags(Flag::f_private),
 		item->history()->peer->input,
 		MTP_int(id.msg),
 		MTP_int(send.count),
-		MTP_long(randomId)
+		MTP_long(randomId),
+		MTP_bool(send.anonymous)
 	)).done([=](const MTPUpdates &result) {
 		if (const auto item = _owner->message(id)) {
 			if (_sendingPaid.remove(item)) {
