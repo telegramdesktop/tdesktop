@@ -328,7 +328,7 @@ Panel::Panel(
 , _widget(std::make_unique<SeparatePanel>())
 , _allowClipboardRead(allowClipboardRead) {
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
-	_widget->setInnerSize(st::botWebViewPanelSize);
+	_widget->setInnerSize(st::botWebViewPanelSize, false);
 
 	_widget->closeRequests(
 	) | rpl::start_with_next([=] {
