@@ -80,4 +80,22 @@ struct CreditsStatusSlice final {
 	OffsetToken tokenSubscriptions;
 };
 
+struct CreditsGiveawayOption final {
+	struct Winner final {
+		int users = 0;
+		uint64 perUserStars = 0;
+		bool isDefault = false;
+	};
+	std::vector<Winner> winners;
+	QString storeProduct;
+	QString currency;
+	uint64 amount = 0;
+	uint64 credits = 0;
+	int yearlyBoosts = 0;
+	bool isExtended = false;
+	bool isDefault = false;
+};
+
+using CreditsGiveawayOptions = std::vector<CreditsGiveawayOption>;
+
 } // namespace Data
