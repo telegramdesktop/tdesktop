@@ -215,6 +215,10 @@ rpl::producer<rpl::no_value, QString> CreditsTopupOptions::request() {
 	};
 }
 
+Data::CreditTopupOptions CreditsTopupOptions::options() const {
+	return _options;
+}
+
 CreditsStatus::CreditsStatus(not_null<PeerData*> peer)
 : _peer(peer)
 , _api(&peer->session().api().instance()) {
@@ -292,10 +296,6 @@ void CreditsHistory::requestSubscriptions(
 		_requestId = 0;
 		done({});
 	}).send();
-}
-
-Data::CreditTopupOptions CreditsTopupOptions::options() const {
-	return _options;
 }
 
 rpl::producer<not_null<PeerData*>> PremiumPeerBot(
@@ -383,6 +383,60 @@ rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 
 Data::CreditsEarnStatistics CreditsEarnStatistics::data() const {
 	return _data;
+}
+
+CreditsGiveawayOptions::CreditsGiveawayOptions(not_null<PeerData*> peer)
+: _peer(peer)
+, _api(&peer->session().api().instance()) {
+}
+
+rpl::producer<rpl::no_value, QString> CreditsGiveawayOptions::request() {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		using TLOption = MTPStarsGiveawayOption;
+
+		const auto optionsFromTL = [=](const auto &options) {
+			return ranges::views::all(
+				options
+			) | ranges::views::transform([=](const auto &option) {
+				return Data::CreditsGiveawayOption{
+					.winners = ranges::views::all(
+						option.data().vwinners().v
+					) | ranges::views::transform([](const auto &winner) {
+						return Data::CreditsGiveawayOption::Winner{
+							.users = winner.data().vusers().v,
+							.perUserStars = winner.data().vper_user_stars().v,
+							.isDefault = winner.data().is_default(),
+						};
+					}) | ranges::to_vector,
+					.storeProduct = qs(
+						option.data().vstore_product().value_or_empty()),
+					.currency = qs(option.data().vcurrency()),
+					.amount = option.data().vamount().v,
+					.credits = option.data().vstars().v,
+					.yearlyBoosts = option.data().vyearly_boosts().v,
+					.isExtended = option.data().is_extended(),
+					.isDefault = option.data().is_default(),
+				};
+			}) | ranges::to_vector;
+		};
+		const auto fail = [=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		};
+
+		_api.request(MTPpayments_GetStarsGiveawayOptions(
+		)).done([=](const MTPVector<TLOption> &result) {
+			_options = optionsFromTL(result.v);
+			consumer.put_done();
+		}).fail(fail).send();
+
+		return lifetime;
+	};
+}
+
+Data::CreditsGiveawayOptions CreditsGiveawayOptions::options() const {
+	return _options;
 }
 
 } // namespace Api

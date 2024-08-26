@@ -36,6 +36,22 @@ private:
 
 };
 
+class CreditsGiveawayOptions final {
+public:
+	CreditsGiveawayOptions(not_null<PeerData*> peer);
+
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
+	[[nodiscard]] Data::CreditsGiveawayOptions options() const;
+
+private:
+	const not_null<PeerData*> _peer;
+
+	Data::CreditsGiveawayOptions _options;
+
+	MTP::Sender _api;
+
+};
+
 class CreditsStatus final {
 public:
 	CreditsStatus(not_null<PeerData*> peer);
