@@ -2801,6 +2801,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_prizes_just_premium#other" = "All prizes: **{count}** Telegram Premium subscriptions {duration}.";
 "lng_giveaway_prizes_additional#one" = "All prizes: **{count}** {prize} with Telegram Premium subscription {duration}.";
 "lng_giveaway_prizes_additional#other" = "All prizes: **{count}** {prize} with Telegram Premium subscriptions {duration}.";
+"lng_giveaway_additional_credits_about" = "Turn this on if you want to give the winners your own prizes in addition to Stars.";
+"lng_giveaway_prizes_just_credits#one" = "All prizes: **{count}** Star.";
+"lng_giveaway_prizes_just_credits#other" = "All prizes: **{count}** Stars.";
+"lng_giveaway_prizes_additional_credits#one" = "All prizes: **{count}** {prize} with {amount}.";
+"lng_giveaway_prizes_additional_credits#other" = "All prizes: **{count}** {prize} with {amount}.";
+"lng_giveaway_prizes_additional_credits_amount#one" = "{count} Star";
+"lng_giveaway_prizes_additional_credits_amount#other" = "{count} Stars";
 "lng_giveaway_show_winners" = "Show winners";
 "lng_giveaway_show_winners_about" = "Choose whether to make the list of winners public when the giveaway ends.";
 

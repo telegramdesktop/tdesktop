@@ -1052,29 +1052,31 @@ void CreateGiveawayBox(
 		const auto listOptions = (type == GiveawayType::SpecificUsers)
 			? listOptionsSpecific
 			: listOptionsRandom;
-		Ui::AddSubsectionTitle(
-			listOptions,
-			tr::lng_giveaway_duration_title(
-				lt_count,
-				rpl::single(usersCount) | tr::to_count()),
-			st::giveawayGiftCodeChannelsSubsectionPadding);
-		Ui::Premium::AddGiftOptions(
-			listOptions,
-			durationGroup,
-			state->apiOptions.options(usersCount),
-			st::giveawayGiftCodeGiftOption,
-			true);
+		if (type != GiveawayType::Credits) {
+			Ui::AddSubsectionTitle(
+				listOptions,
+				tr::lng_giveaway_duration_title(
+					lt_count,
+					rpl::single(usersCount) | tr::to_count()),
+				st::giveawayGiftCodeChannelsSubsectionPadding);
+			Ui::Premium::AddGiftOptions(
+				listOptions,
+				durationGroup,
+				state->apiOptions.options(usersCount),
+				st::giveawayGiftCodeGiftOption,
+				true);
 
-		Ui::AddSkip(listOptions);
+			Ui::AddSkip(listOptions);
 
-		auto termsContainer = object_ptr<Ui::VerticalLayout>(listOptions);
-		addTerms(termsContainer.data());
-		listOptions->add(object_ptr<Ui::DividerLabel>(
-			listOptions,
-			std::move(termsContainer),
-			st::defaultBoxDividerLabelPadding));
+			auto termsContainer = object_ptr<Ui::VerticalLayout>(listOptions);
+			addTerms(termsContainer.data());
+			listOptions->add(object_ptr<Ui::DividerLabel>(
+				listOptions,
+				std::move(termsContainer),
+				st::defaultBoxDividerLabelPadding));
 
-		Ui::AddSkip(listOptions);
+			Ui::AddSkip(listOptions);
+		}
 
 		box->verticalLayout()->resizeToWidth(box->width());
 	};
@@ -1202,8 +1204,49 @@ void CreateGiveawayBox(
 				TextWithEntities{ duration },
 				Ui::Text::RichLangValue);
 		});
+		auto creditsAdditionalAbout = rpl::combine(
+			state->additionalPrize.value(),
+			state->sliderValue.value(),
+			creditsGroup->value()
+		) | rpl::map([=](QString prize, int users, int creditsIndex) {
+			const auto credits = creditsOption(creditsIndex).credits;
+			return prize.isEmpty()
+				? tr::lng_giveaway_prizes_just_credits(
+					tr::now,
+					lt_count,
+					credits,
+					Ui::Text::RichLangValue)
+				: tr::lng_giveaway_prizes_additional_credits(
+					tr::now,
+					lt_count,
+					users,
+					lt_prize,
+					TextWithEntities{ prize },
+					lt_amount,
+					tr::lng_giveaway_prizes_additional_credits_amount(
+						tr::now,
+						lt_count,
+						credits,
+						Ui::Text::RichLangValue),
+					Ui::Text::RichLangValue);
+		});
 
-		Ui::AddDividerText(additionalWrap, std::move(additionalAbout));
+		auto creditsValueType = typeGroup->value(
+		) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits);
+
+		Ui::AddDividerText(
+			additionalWrap,
+			rpl::conditional(
+				additionalToggle->toggledValue(),
+				rpl::conditional(
+					rpl::duplicate(creditsValueType),
+					std::move(creditsAdditionalAbout),
+					std::move(additionalAbout)),
+				rpl::conditional(
+					rpl::duplicate(creditsValueType),
+					tr::lng_giveaway_additional_credits_about(),
+					tr::lng_giveaway_additional_about()
+				) | rpl::map(Ui::Text::WithEntities)));
 		Ui::AddSkip(additionalWrap);
 	}
 
