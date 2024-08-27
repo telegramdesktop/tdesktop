@@ -45,15 +45,11 @@ constexpr auto kBlurRadius = 24;
 	if (!path.isEmpty()) {
 		return path;
 	}
-	const auto floatScale = [&](float64 v) {
-		constexpr auto kPrecision = 1000000.;
-		return style::ConvertScale(v * kPrecision) / kPrecision;
-	};
 	const auto scaledMoveTo = [&](float64 x, float64 y) {
-		path.moveTo(floatScale(x), floatScale(y));
+		path.moveTo(style::ConvertFloatScale(x), style::ConvertFloatScale(y));
 	};
 	const auto scaledLineTo = [&](float64 x, float64 y) {
-		path.lineTo(floatScale(x), floatScale(y));
+		path.lineTo(style::ConvertFloatScale(x), style::ConvertFloatScale(y));
 	};
 	const auto scaledCubicTo = [&](
 			float64 x1,
@@ -63,15 +59,17 @@ constexpr auto kBlurRadius = 24;
 			float64 x3,
 			float64 y3) {
 		path.cubicTo(
-			floatScale(x1),
-			floatScale(y1),
-			floatScale(x2),
-			floatScale(y2),
-			floatScale(x3),
-			floatScale(y3));
+			style::ConvertFloatScale(x1),
+			style::ConvertFloatScale(y1),
+			style::ConvertFloatScale(x2),
+			style::ConvertFloatScale(y2),
+			style::ConvertFloatScale(x3),
+			style::ConvertFloatScale(y3));
 	};
 	const auto scaledTranslate = [&](float64 x, float64 y) {
-		path.translate(floatScale(x), floatScale(y));
+		path.translate(
+			style::ConvertFloatScale(x),
+			style::ConvertFloatScale(y));
 	};
 
 	scaledMoveTo(42.3009, 18.3345);
