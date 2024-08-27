@@ -237,13 +237,13 @@ void AddPremiumTopBarWithDefaultTitleBar(
 
 void CreateGiveawayBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Info::Controller*> controller,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Fn<void()> reloadOnDone,
 		std::optional<Data::BoostPrepaidGiveaway> prepaid) {
 	box->setWidth(st::boxWideWidth);
 
-	const auto weakWindow = base::make_weak(controller->parentController());
+	const auto weakWindow = base::make_weak(navigation->parentController());
 
 	using GiveawayType = Giveaway::GiveawayTypeRow::Type;
 	using GiveawayGroup = Ui::RadioenumGroup<GiveawayType>;
@@ -384,7 +384,7 @@ void CreateGiveawayBox(
 
 			using Controller = Giveaway::AwardMembersListController;
 			auto listController = std::make_unique<Controller>(
-				controller,
+				navigation,
 				peer,
 				state->selectedToAward);
 			listController->setCheckError(CreateErrorCallback(
