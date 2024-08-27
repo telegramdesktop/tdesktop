@@ -2812,6 +2812,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_awarded_body_group" = "Check your groups' {link} to see how gifts boosted your group.";
 "lng_giveaway_created_link" = "Statistics";
 
+"lng_giveaway_credits_options_title" = "Stars to distribute";
+"lng_giveaway_credits_option_status#one" = "{count} per user";
+"lng_giveaway_credits_option_status#other" = "{count} per user";
+"lng_giveaway_credits_options_about" = "Choose how many stars to give away and how many boosts to receive for 1 year.";
+"lng_giveaway_credits_quantity_title" = "Number of winners";
+"lng_giveaway_credits_quantity_about" = "Choose how many winners you want to distribute stars among.";
+
 "lng_prize_title" = "Congratulations!";
 "lng_prize_about" = "You won a prize in a giveaway organized by {channel}.";
 "lng_prize_duration" = "Your prize is a **Telegram Premium** subscription {duration}.";

@@ -20,33 +20,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "payments/payments_checkout_process.h" // Payments::CheckoutProcess
 #include "payments/payments_form.h" // Payments::InvoicePremiumGiftCode
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h" // Settings::ShowPremium
 #include "ui/boxes/choose_date_time.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/vertical_list.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/ui_utility.h"
+#include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
+#include "styles/style_statistics.h"
+
+#include <xxhash.h> // XXH64.
 
 namespace {
 
@@ -62,6 +69,19 @@ constexpr auto kAdditionalPrizeLengthMax = 128;
 	}
 	dateNow.setTime(timeNow);
 	return dateNow;
+}
+
+[[nodiscard]] uint64 UniqueIdFromCreditsOption(
+		const Data::CreditsGiveawayOption &d,
+		not_null<PeerData*> peer) {
+	const auto string = QString::number(d.credits)
+		+ d.storeProduct
+		+ d.currency
+		+ QString::number(d.amount)
+		+ QString::number(peer->id.value)
+		+ QString::number(peer->session().uniqueId());
+
+	return XXH64(string.data(), string.size() * sizeof(ushort), 0);
 }
 
 [[nodiscard]] Fn<bool(int)> CreateErrorCallback(
@@ -249,6 +269,7 @@ void CreateGiveawayBox(
 
 	using GiveawayType = Giveaway::GiveawayTypeRow::Type;
 	using GiveawayGroup = Ui::RadioenumGroup<GiveawayType>;
+	using CreditsGroup = Ui::RadioenumGroup<int>;
 	struct State final {
 		State(not_null<PeerData*> p) : apiOptions(p), apiCreditsOptions(p) {
 		}
@@ -276,6 +297,7 @@ void CreateGiveawayBox(
 	const auto group = peer->isMegagroup();
 	const auto state = box->lifetime().make_state<State>(peer);
 	const auto typeGroup = std::make_shared<GiveawayGroup>();
+	const auto creditsGroup = std::make_shared<CreditsGroup>();
 
 	auto showFinished = Ui::BoxShowFinishes(box);
 	AddPremiumTopBarWithDefaultTitleBar(
@@ -346,6 +368,20 @@ void CreateGiveawayBox(
 			state->typeValue.force_assign(GiveawayType::Random);
 		});
 	}
+	const auto creditsOption = [=](int index) {
+		const auto options = state->apiCreditsOptions.options();
+		return (index >= 0 && index < options.size())
+			? options[index]
+			: Data::CreditsGiveawayOption();
+	};
+	const auto creditsOptionWinners = [=](int index) {
+		const auto winners = creditsOption(index).winners;
+		return ranges::views::all(
+			winners
+		) | ranges::views::transform([](const auto &w) {
+			return w.users;
+		}) | ranges::to_vector;
+	};
 	const auto creditsTypeWrap = contentWrap->entity()->add(
 		object_ptr<Ui::VerticalLayout>(contentWrap->entity()));
 	const auto fillCreditsTypeWrap = [=] {
@@ -467,28 +503,241 @@ void CreateGiveawayBox(
 
 	randomWrap->toggleOn(
 		state->typeValue.value(
-		) | rpl::map(rpl::mappers::_1 == GiveawayType::Random),
+		) | rpl::map((rpl::mappers::_1 == GiveawayType::Random)
+			|| (rpl::mappers::_1 == GiveawayType::Credits)),
 		anim::type::instant);
 
-	const auto sliderContainer = randomWrap->entity()->add(
-		object_ptr<Ui::VerticalLayout>(randomWrap));
+	const auto randomCreditsWrap = randomWrap->entity()->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			contentWrap,
+			object_ptr<Ui::VerticalLayout>(box)));
+	randomCreditsWrap->toggleOn(
+		state->typeValue.value(
+		) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits),
+		anim::type::instant);
+	const auto fillCreditsOptions = [=] {
+		randomCreditsWrap->entity()->clear();
+
+		const auto &st = st::giveawayTypeListItem;
+		const auto &stButton = st::defaultSettingsButton;
+		const auto &stStatus = st::defaultTextStyle;
+		const auto buttonInnerSkip = st.height - stButton.height;
+		const auto options = state->apiCreditsOptions.options();
+		const auto singleStarWidth = Ui::GenerateStars(
+			st.nameStyle.font->height,
+			1).width() / style::DevicePixelRatio();
+		const auto content = randomCreditsWrap->entity();
+		const auto title = Ui::AddSubsectionTitle(
+			content,
+			tr::lng_giveaway_credits_options_title());
+
+		const auto rightLabel = Ui::CreateChild<Ui::FlatLabel>(
+			content,
+			st::giveawayGiftCodeQuantitySubtitle);
+		rightLabel->show();
+
+		rpl::combine(
+			tr::lng_giveaway_quantity(
+				lt_count,
+				creditsGroup->value() | rpl::map([=](int i) -> float64 {
+					return creditsOption(i).yearlyBoosts;
+				})),
+			title->positionValue(),
+			content->geometryValue()
+		) | rpl::start_with_next([=](QString s, const QPoint &p, QRect) {
+			rightLabel->setText(std::move(s));
+			rightLabel->moveToRight(st::boxRowPadding.right(), p.y());
+		}, rightLabel->lifetime());
+
+		const auto buttonHeight = st.height;
+		const auto minCredits = 0;
+
+		struct State final {
+			rpl::variable<bool> isExtended = false;
+		};
+		const auto creditsState = content->lifetime().make_state<State>();
+
+		for (auto i = 0; i < options.size(); i++) {
+			const auto &option = options[i];
+			if (option.credits < minCredits) {
+				continue;
+			}
+			struct State final {
+				std::optional<Ui::Text::String> text;
+				QString status;
+				bool hasStatus = false;
+			};
+			const auto buttonWrap = content->add(
+				object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+					content,
+					object_ptr<Ui::SettingsButton>(
+						content,
+						rpl::never<QString>(),
+						stButton)));
+			const auto button = buttonWrap->entity();
+			button->setPaddingOverride({ 0, buttonInnerSkip, 0, 0 });
+			const auto buttonState = button->lifetime().make_state<State>();
+			buttonState->text.emplace(
+				st.nameStyle,
+				tr::lng_credits_summary_options_credits(
+					tr::now,
+					lt_count_decimal,
+					option.credits));
+			buttonState->status = tr::lng_giveaway_credits_option_status(
+				tr::now,
+				lt_count_decimal,
+				option.credits);
+			const auto price = Ui::CreateChild<Ui::FlatLabel>(
+				button,
+				Ui::FillAmountAndCurrency(option.amount, option.currency),
+				st::creditsTopupPrice);
+			const auto inner = Ui::CreateChild<Ui::RpWidget>(button);
+			const auto stars = Ui::GenerateStars(
+				st.nameStyle.font->height,
+				(i + 1));
+			const auto textLeft = st.photoPosition.x()
+				+ (st.nameStyle.font->spacew * 2)
+				+ (stars.width() / style::DevicePixelRatio());
+			state->sliderValue.value(
+			) | rpl::start_with_next([=](int users) {
+				const auto option = creditsOption(i);
+				buttonState->hasStatus = false;
+				for (const auto &winner : option.winners) {
+					if (winner.users == users) {
+						auto status = tr::lng_giveaway_credits_option_status(
+							tr::now,
+							lt_count_decimal,
+							winner.perUserStars);
+						buttonState->status = std::move(status);
+						buttonState->hasStatus = true;
+						inner->update();
+						return;
+					}
+				}
+				inner->update();
+			}, button->lifetime());
+			inner->paintRequest(
+			) | rpl::start_with_next([=](const QRect &rect) {
+				auto p = QPainter(inner);
+				const auto namey = buttonState->hasStatus
+					? st.namePosition.y()
+					: (buttonHeight - stStatus.font->height) / 2;
+				p.drawImage(st.photoPosition.x(), namey, stars);
+				p.setPen(st.nameFg);
+				buttonState->text->draw(p, {
+					.position = QPoint(textLeft, namey),
+					.availableWidth = inner->width() - textLeft,
+					.elisionLines = 1,
+				});
+				if (buttonState->hasStatus) {
+					p.setFont(stStatus.font);
+					p.setPen(st.statusFg);
+					p.setBrush(Qt::NoBrush);
+					p.drawText(
+						st.photoPosition.x(),
+						st.statusPosition.y() + stStatus.font->ascent,
+						buttonState->status);
+				}
+			}, inner->lifetime());
+			button->widthValue(
+			) | rpl::start_with_next([=](int width) {
+				price->moveToRight(
+					st::boxRowPadding.right(),
+					(buttonHeight - price->height()) / 2);
+				inner->moveToLeft(0, 0);
+				inner->resize(
+					width
+						- price->width()
+						- st::boxRowPadding.right()
+						- st::boxRowPadding.left() / 2,
+					buttonHeight);
+			}, button->lifetime());
+
+			{
+				const auto &st = st::defaultCheckbox;
+				const auto radio = Ui::CreateChild<Ui::Radioenum<int>>(
+					button,
+					creditsGroup,
+					i,
+					QString(),
+					st);
+				radio->moveToLeft(
+					st::boxRowPadding.left(),
+					(buttonHeight - radio->checkRect().height()) / 2);
+				radio->setAttribute(Qt::WA_TransparentForMouseEvents);
+				radio->show();
+			}
+			button->setClickedCallback([=] {
+				creditsGroup->setValue(i);
+			});
+			if (option.isDefault) {
+				creditsGroup->setValue(i);
+			}
+			buttonWrap->toggle(
+				(!option.isExtended) || option.isDefault,
+				anim::type::instant);
+			if (option.isExtended) {
+				buttonWrap->toggleOn(creditsState->isExtended.value());
+			}
+			Ui::ToggleChildrenVisibility(button, true);
+		}
+
+		{
+			Ui::AddSkip(content, st::settingsButton.padding.top());
+			const auto showMoreWrap = Info::Statistics::AddShowMoreButton(
+				content,
+				tr::lng_stories_show_more());
+			showMoreWrap->toggle(true, anim::type::instant);
+
+			showMoreWrap->entity()->setClickedCallback([=] {
+				showMoreWrap->toggle(false, anim::type::instant);
+				creditsState->isExtended = true;
+			});
+		}
+
+		Ui::AddSkip(content);
+		Ui::AddDividerText(content, tr::lng_giveaway_credits_options_about());
+		Ui::AddSkip(content);
+	};
+
+	const auto sliderContainerWrap = randomWrap->entity()->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			randomWrap,
+			object_ptr<Ui::VerticalLayout>(randomWrap)));
+	const auto sliderContainer = sliderContainerWrap->entity();
+	sliderContainerWrap->toggle(true, anim::type::instant);
 	const auto fillSliderContainer = [=] {
 		const auto availablePresets = state->apiOptions.availablePresets();
+		const auto creditsOptions = state->apiCreditsOptions.options();
 		if (prepaid) {
 			state->sliderValue = prepaid->quantity;
 			return;
 		}
-		if (availablePresets.empty()) {
+		if (availablePresets.empty()
+			&& (creditsOptions.empty()
+				|| creditsOptions.front().winners.empty())) {
 			return;
 		}
-		state->sliderValue = availablePresets.front();
+		state->sliderValue = availablePresets.empty()
+			? creditsOptions.front().winners.front().users
+			: availablePresets.front();
+		auto creditsValueType = typeGroup->value(
+			) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits);
 		const auto title = Ui::AddSubsectionTitle(
 			sliderContainer,
-			tr::lng_giveaway_quantity_title());
+			rpl::conditional(
+				rpl::duplicate(creditsValueType),
+				tr::lng_giveaway_credits_quantity_title(),
+				tr::lng_giveaway_quantity_title()));
 		const auto rightLabel = Ui::CreateChild<Ui::FlatLabel>(
 			sliderContainer,
 			st::giveawayGiftCodeQuantitySubtitle);
 		rightLabel->show();
+		rpl::duplicate(
+			creditsValueType
+		) | rpl::start_with_next([=](bool isCredits) {
+			rightLabel->setVisible(!isCredits);
+		}, rightLabel->lifetime());
 
 		const auto floatLabel = Ui::CreateChild<Ui::FlatLabel>(
 			sliderContainer,
@@ -512,37 +761,84 @@ void CreateGiveawayBox(
 		const auto &padding = st::giveawayGiftCodeSliderPadding;
 		Ui::AddSkip(sliderContainer, padding.top());
 
-		const auto slider = sliderContainer->add(
-			object_ptr<Ui::MediaSliderWheelless>(
-				sliderContainer,
-				st::settingsScale),
+		const auto sliderParent = sliderContainer->add(
+			object_ptr<Ui::VerticalLayout>(sliderContainer),
 			st::boxRowPadding);
+		struct State final {
+			Ui::MediaSliderWheelless *slider = nullptr;
+		};
+		const auto sliderState = sliderParent->lifetime().make_state<State>();
 		Ui::AddSkip(sliderContainer, padding.bottom());
-		slider->resize(slider->width(), st::settingsScale.seekSize.height());
-		slider->setPseudoDiscrete(
-			availablePresets.size(),
-			[=](int index) { return availablePresets[index]; },
-			availablePresets.front(),
-			[=](int boosts) { state->sliderValue = boosts; },
-			[](int) {});
+		rpl::combine(
+			rpl::duplicate(creditsValueType),
+			creditsGroup->value()
+		) | rpl::start_with_next([=](bool isCredits, int value) {
+			while (sliderParent->count()) {
+				delete sliderParent->widgetAt(0);
+			}
+			sliderState->slider = sliderParent->add(
+				object_ptr<Ui::MediaSliderWheelless>(
+					sliderContainer,
+					st::settingsScale));
+			sliderState->slider->resize(
+				sliderState->slider->width(),
+				st::settingsScale.seekSize.height());
+			const auto &values = isCredits
+				? creditsOptionWinners(value)
+				: availablePresets;
+			const auto resultValue = [&] {
+				const auto sliderValue = state->sliderValue.current();
+				return ranges::contains(values, sliderValue)
+					? sliderValue
+					: values.front();
+			}();
+			state->sliderValue.force_assign(resultValue);
+			if (values.size() <= 1) {
+				sliderContainerWrap->toggle(false, anim::type::instant);
+				return;
+			} else {
+				sliderContainerWrap->toggle(true, anim::type::instant);
+			}
+			sliderState->slider->setPseudoDiscrete(
+				values.size(),
+				[=](int index) { return values[index]; },
+				resultValue,
+				[=](int boosts) { state->sliderValue = boosts; },
+				[](int) {});
+		}, sliderParent->lifetime());
 
-		state->sliderValue.value(
-		) | rpl::start_with_next([=](int boosts) {
+		rpl::combine(
+			rpl::duplicate(creditsValueType),
+			creditsGroup->value(),
+			state->sliderValue.value()
+		) | rpl::start_with_next([=](
+				bool isCredits,
+				int credits,
+				int boosts) {
 			floatLabel->setText(QString::number(boosts));
 
-			const auto count = availablePresets.size();
-			const auto sliderWidth = slider->width()
+			if (!sliderState->slider) {
+				return;
+			}
+			const auto &values = isCredits
+				? creditsOptionWinners(credits)
+				: availablePresets;
+			const auto count = values.size();
+			const auto sliderWidth = sliderState->slider->width()
 				- st::settingsScale.seekSize.width();
 			for (auto i = 0; i < count; i++) {
-				if ((i + 1 == count || availablePresets[i + 1] > boosts)
-					&& availablePresets[i] <= boosts) {
+				if ((i + 1 == count || values[i + 1] > boosts)
+					&& values[i] <= boosts) {
 					const auto x = (sliderWidth * i) / (count - 1);
+					const auto mapped = sliderState->slider->mapTo(
+						sliderContainer,
+						sliderState->slider->pos());
 					floatLabel->moveToLeft(
-						slider->x()
+						mapped.x()
 							+ x
 							+ st::settingsScale.seekSize.width() / 2
 							- floatLabel->width() / 2,
-						slider->y()
+						mapped.y()
 							- floatLabel->height()
 							- st::giveawayGiftCodeSliderFloatSkip);
 					break;
@@ -553,7 +849,10 @@ void CreateGiveawayBox(
 		Ui::AddSkip(sliderContainer);
 		Ui::AddDividerText(
 			sliderContainer,
-			tr::lng_giveaway_quantity_about());
+			rpl::conditional(
+				rpl::duplicate(creditsValueType),
+				tr::lng_giveaway_credits_quantity_about(),
+				tr::lng_giveaway_quantity_about()));
 		Ui::AddSkip(sliderContainer);
 
 		sliderContainer->resizeToWidth(box->width());
@@ -1006,13 +1305,18 @@ void CreateGiveawayBox(
 			button,
 			rpl::conditional(
 				state->typeValue.value(
-				) | rpl::map(rpl::mappers::_1 == GiveawayType::Random),
-				tr::lng_giveaway_start(),
-				tr::lng_giveaway_award()),
-			state->sliderValue.value(
-			) | rpl::map([=](int v) -> int {
-				return state->apiOptions.giveawayBoostsPerPremium() * v;
-			}),
+				) | rpl::map(rpl::mappers::_1 != GiveawayType::Random),
+				tr::lng_giveaway_award(),
+				tr::lng_giveaway_start()),
+			rpl::conditional(
+				state->typeValue.value(
+				) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits),
+				creditsGroup->value() | rpl::map([=](int v) {
+					return creditsOption(v).yearlyBoosts;
+				}),
+				state->sliderValue.value() | rpl::map([=](int v) -> int {
+					return state->apiOptions.giveawayBoostsPerPremium() * v;
+				})),
 			state->confirmButtonBusy.value() | rpl::map(!rpl::mappers::_1));
 
 		{
@@ -1037,17 +1341,32 @@ void CreateGiveawayBox(
 			const auto type = typeGroup->current();
 			const auto isSpecific = (type == GiveawayType::SpecificUsers);
 			const auto isRandom = (type == GiveawayType::Random);
-			if (!isSpecific && !isRandom) {
+			const auto isCredits = (type == GiveawayType::Credits);
+			if (!isSpecific && !isRandom && !isCredits) {
 				return;
 			}
-			auto invoice = state->apiOptions.invoice(
-				isSpecific
-					? state->selectedToAward.size()
-					: state->sliderValue.current(),
-				prepaid
-					? prepaid->months
-					: state->apiOptions.monthsFromPreset(
-						durationGroup->current()));
+			auto invoice = [&] {
+				if (isCredits) {
+					const auto option = creditsOption(
+						creditsGroup->current());
+					return Payments::InvoicePremiumGiftCode{
+						.currency = option.currency,
+						.storeProduct = option.storeProduct,
+						.creditsAmount = option.credits,
+						.randomId = UniqueIdFromCreditsOption(option, peer),
+						.amount = option.amount,
+						.users = state->sliderValue.current(),
+					};
+				}
+				return state->apiOptions.invoice(
+					isSpecific
+						? state->selectedToAward.size()
+						: state->sliderValue.current(),
+					prepaid
+						? prepaid->months
+						: state->apiOptions.monthsFromPreset(
+							durationGroup->current()));
+			}();
 			if (isSpecific) {
 				if (state->selectedToAward.empty()) {
 					return;
@@ -1061,7 +1380,7 @@ void CreateGiveawayBox(
 					}) | ranges::to_vector,
 					peer->asChannel(),
 				};
-			} else if (isRandom) {
+			} else if (isRandom || isCredits) {
 				invoice.purpose = Payments::InvoicePremiumGiftCodeGiveaway{
 					.boostPeer = peer->asChannel(),
 					.additionalChannels = ranges::views::all(
@@ -1180,6 +1499,7 @@ void CreateGiveawayBox(
 				state->chosenMonths = state->apiOptions.monthsFromPreset(0);
 			}
 			fillCreditsTypeWrap();
+			fillCreditsOptions();
 			rebuildListOptions(state->typeValue.current(), 1);
 			contentWrap->toggle(true, anim::type::instant);
 			contentWrap->resizeToWidth(box->width());
