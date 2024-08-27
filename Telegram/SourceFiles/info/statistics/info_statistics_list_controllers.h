@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PeerData;
 
 namespace Ui {
+class SettingsButton;
+template <typename Widget>
+class SlideWrap;
 class VerticalLayout;
 } // namespace Ui
 
@@ -63,5 +66,9 @@ void AddCreditsHistoryList(
 	bool in,
 	bool out,
 	bool subscription = false);
+
+[[nodiscard]] not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddShowMoreButton(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> title);
 
 } // namespace Info::Statistics

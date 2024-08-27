@@ -1141,13 +1141,9 @@ void AddMembersList(
 		object_ptr<PeerListContent>(container, &state->controller)));
 	state->controller.setDelegate(&state->delegate);
 
-	const auto wrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-			container,
-			object_ptr<Ui::SettingsButton>(
-				container,
-				tr::lng_stories_show_more())),
-		{ 0, -st::settingsButton.padding.top(), 0, 0 });
+	const auto wrap = AddShowMoreButton(
+		container,
+		tr::lng_stories_show_more());
 
 	const auto showMore = [=] {
 		state->limit = std::min(int(max), state->limit + kPerPage);
@@ -1181,23 +1177,14 @@ void AddBoostsList(
 		object_ptr<PeerListContent>(container, &state->controller)));
 	state->controller.setDelegate(&state->delegate);
 
-	const auto wrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-			container,
-			object_ptr<Ui::SettingsButton>(
-				container,
-				(firstSlice.token.gifts
-					? tr::lng_boosts_show_more_gifts
-					: tr::lng_boosts_show_more_boosts)(
-						lt_count,
-						state->controller.totalBoostsValue(
-						) | rpl::map(
-							max - rpl::mappers::_1
-						) | tr::to_count()),
-				st::statisticsShowMoreButton)),
-		{ 0, -st::settingsButton.padding.top(), 0, 0 });
-	const auto button = wrap->entity();
-	AddArrow(button);
+	const auto wrap = AddShowMoreButton(
+		container,
+		(firstSlice.token.gifts
+			? tr::lng_boosts_show_more_gifts
+			: tr::lng_boosts_show_more_boosts)(
+				lt_count,
+				state->controller.totalBoostsValue(
+				) | rpl::map(max - rpl::mappers::_1) | tr::to_count()));
 
 	const auto showMore = [=] {
 		if (!state->controller.skipRequest()) {
@@ -1209,7 +1196,7 @@ void AddBoostsList(
 		state->controller.totalBoostsValue(
 		) | rpl::map(rpl::mappers::_1 > 0 && rpl::mappers::_1 < max),
 		anim::type::instant);
-	button->setClickedCallback(showMore);
+	wrap->entity()->setClickedCallback(showMore);
 }
 
 void AddCreditsHistoryList(
@@ -1239,16 +1226,9 @@ void AddCreditsHistoryList(
 		object_ptr<PeerListContent>(container, &state->controller)));
 	state->controller.setDelegate(&state->delegate);
 
-	const auto wrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-			container,
-			object_ptr<Ui::SettingsButton>(
-				container,
-				tr::lng_stories_show_more(),
-				st::statisticsShowMoreButton)),
-		{ 0, -st::settingsButton.padding.top(), 0, 0 });
-	const auto button = wrap->entity();
-	AddArrow(button);
+	const auto wrap = AddShowMoreButton(
+		container,
+		tr::lng_stories_show_more());
 
 	const auto showMore = [=] {
 		if (!state->controller.skipRequest()) {
@@ -1259,7 +1239,22 @@ void AddCreditsHistoryList(
 	wrap->toggleOn(
 		state->controller.allLoadedValue() | rpl::map(!rpl::mappers::_1),
 		anim::type::instant);
-	button->setClickedCallback(showMore);
+	wrap->entity()->setClickedCallback(showMore);
+}
+
+not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddShowMoreButton(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> title) {
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			object_ptr<Ui::SettingsButton>(
+				container,
+				std::move(title),
+				st::statisticsShowMoreButton)),
+		{ 0, -st::settingsButton.padding.top(), 0, 0 });
+	AddArrow(wrap->entity());
+	return wrap;
 }
 
 } // namespace Info::Statistics
