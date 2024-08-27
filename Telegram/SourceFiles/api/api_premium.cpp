@@ -537,10 +537,10 @@ Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
 	const auto token = Token{ users, months };
 	const auto &store = _stores[token];
 	return Payments::InvoicePremiumGiftCode{
-		.randomId = randomId,
 		.currency = _optionsForOnePerson.currency,
-		.amount = store.amount,
 		.storeProduct = store.product,
+		.randomId = randomId,
+		.amount = store.amount,
 		.storeQuantity = store.quantity,
 		.users = token.users,
 		.months = token.months,

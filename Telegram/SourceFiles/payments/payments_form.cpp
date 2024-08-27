@@ -173,6 +173,49 @@ MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 		MTP_long(invoice.amount));
 }
 
+MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
+		const InvoicePremiumGiftCode &invoice) {
+	Expects(invoice.creditsAmount.has_value());
+	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
+		invoice.purpose);
+	using Flag = MTPDinputStorePaymentStarsGiveaway::Flag;
+	return MTP_inputStorePaymentStarsGiveaway(
+		MTP_flags(Flag()
+			| (giveaway.onlyNewSubscribers
+				? Flag::f_only_new_subscribers
+				: Flag())
+			| (giveaway.additionalChannels.empty()
+				? Flag()
+				: Flag::f_additional_peers)
+			| (giveaway.countries.empty()
+				? Flag()
+				: Flag::f_countries_iso2)
+			| (giveaway.showWinners
+				? Flag::f_winners_are_visible
+				: Flag())
+			| (giveaway.additionalPrize.isEmpty()
+				? Flag()
+				: Flag::f_prize_description)),
+		MTP_long(*invoice.creditsAmount),
+		giveaway.boostPeer->input,
+		MTP_vector_from_range(ranges::views::all(
+			giveaway.additionalChannels
+		) | ranges::views::transform([](not_null<ChannelData*> c) {
+			return MTPInputPeer(c->input);
+		})),
+		MTP_vector_from_range(ranges::views::all(
+			giveaway.countries
+		) | ranges::views::transform([](QString value) {
+			return MTP_string(value);
+		})),
+		MTP_string(giveaway.additionalPrize),
+		MTP_long(invoice.randomId),
+		MTP_int(giveaway.untilDate),
+		MTP_string(invoice.currency),
+		MTP_long(invoice.amount),
+		MTP_int(invoice.users));
+}
+
 Form::Form(InvoiceId id, bool receipt)
 : _id(id)
 , _session(SessionFromId(id))
@@ -335,6 +378,9 @@ MTPInputInvoice Form::inputInvoice() const {
 				MTP_long(credits->amount)));
 	}
 	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
+	if (giftCode.creditsAmount) {
+		return MTP_inputInvoiceStars(InvoiceCreditsGiveawayToTL(giftCode));
+	}
 	using Flag = MTPDpremiumGiftCodeOption::Flag;
 	const auto option = MTP_premiumGiftCodeOption(
 		MTP_flags((giftCode.storeQuantity ? Flag::f_store_quantity : Flag())

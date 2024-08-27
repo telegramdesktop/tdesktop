@@ -150,10 +150,11 @@ struct InvoicePremiumGiftCode {
 		InvoicePremiumGiftCodeUsers,
 		InvoicePremiumGiftCodeGiveaway> purpose;
 
-	uint64 randomId = 0;
 	QString currency;
-	uint64 amount = 0;
 	QString storeProduct;
+	std::optional<uint64> creditsAmount;
+	uint64 randomId = 0;
+	uint64 amount = 0;
 	int storeQuantity = 0;
 	int users = 0;
 	int months = 0;
