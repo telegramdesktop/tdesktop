@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/boosts/giveaway/giveaway_type_row.h"
 
 #include "lang/lang_keys.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_options.h"
@@ -16,7 +17,67 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_giveaway.h"
 #include "styles/style_statistics.h"
 
+#include <QtSvg/QSvgRenderer>
+
 namespace Giveaway {
+namespace {
+
+[[nodiscard]] QImage CreditsCustomUserpic(int photoSize) {
+	auto svg = QSvgRenderer(Ui::Premium::Svg());
+	auto result = QImage(
+		Size(photoSize) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+
+	constexpr auto kPoints = uint(16);
+	constexpr auto kAngleStep = 2. * M_PI / kPoints;
+	constexpr auto kOutlineWidth = 1.6;
+	constexpr auto kStarShift = 3.8;
+	const auto userpicRect = Rect(Size(photoSize));
+	const auto starRect = userpicRect - Margins(userpicRect.width() / 4.);
+	const auto starSize = starRect.size();
+	const auto drawSingle = [&](QPainter &q) {
+		const auto s = style::ConvertFloatScale(kOutlineWidth);
+		q.save();
+		q.setCompositionMode(QPainter::CompositionMode_Clear);
+		for (auto i = 0; i < kPoints; ++i) {
+			const auto angle = i * kAngleStep;
+			const auto x = s * std::cos(angle);
+			const auto y = s * std::sin(angle);
+			svg.render(&q, QRectF(QPointF(x, y), starSize));
+		}
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		svg.render(&q, Rect(starSize));
+		q.restore();
+	};
+	{
+		auto p = QPainter(&result);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::lightButtonFg);
+		p.translate(starRect.topLeft());
+		p.translate(style::ConvertFloatScale(kStarShift) / 2., 0);
+		drawSingle(p);
+		{
+			// Remove the previous star at bottom.
+			p.setCompositionMode(QPainter::CompositionMode_Clear);
+			p.save();
+			p.resetTransform();
+			p.fillRect(
+				userpicRect.x(),
+				userpicRect.y(),
+				userpicRect.width() / 2.,
+				userpicRect.height(),
+				Qt::transparent);
+			p.restore();
+		}
+		p.translate(-style::ConvertFloatScale(kStarShift), 0);
+		drawSingle(p);
+	}
+	return result;
+}
+
+} // namespace
 
 constexpr auto kColorIndexSpecific = int(4);
 constexpr auto kColorIndexRandom = int(2);
@@ -54,7 +115,9 @@ GiveawayTypeRow::GiveawayTypeRow(
 	QImage badge)
 : RippleButton(parent, st::defaultRippleAnimation)
 , _type(type)
-, _st((_type == Type::SpecificUsers || _type == Type::Random)
+, _st((_type == Type::SpecificUsers
+		|| _type == Type::Random
+		|| _type == Type::Credits)
 	? st::giveawayTypeListItem
 	: (_type == Type::Prepaid)
 	? st::boostsListBox.item
@@ -63,6 +126,9 @@ GiveawayTypeRow::GiveawayTypeRow(
 	Ui::EmptyUserpic::UserpicColor(Ui::EmptyUserpic::ColorIndex(colorIndex)),
 	QString())
 , _badge(std::move(badge)) {
+	if (_type == Type::Credits) {
+		_customUserpic = CreditsCustomUserpic(_st.photoSize);
+	}
 	std::move(
 		subtitle
 	) | rpl::start_with_next([=] (const QString &s) {
@@ -89,7 +155,8 @@ void GiveawayTypeRow::paintEvent(QPaintEvent *e) {
 	const auto isPrepaid = (_type == Type::Prepaid);
 	const auto hasUserpic = (_type == Type::Random)
 		|| isSpecific
-		|| isPrepaid;
+		|| isPrepaid
+		|| (!_customUserpic.isNull());
 
 	if (paintOver) {
 		p.fillRect(e->rect(), _st.button.textBgOver);
@@ -103,16 +170,20 @@ void GiveawayTypeRow::paintEvent(QPaintEvent *e) {
 			outerWidth,
 			_st.photoSize);
 
-		const auto &userpic = isSpecific
-			? st::giveawayUserpicGroup
-			: st::giveawayUserpic;
 		const auto userpicRect = QRect(
 			_st.photoPosition
 				- QPoint(
 					isSpecific ? -st::giveawayUserpicSkip : 0,
 					isSpecific ? 0 : st::giveawayUserpicSkip),
 			Size(_st.photoSize));
-		userpic.paintInCenter(p, userpicRect);
+		if (!_customUserpic.isNull()) {
+			p.drawImage(_st.photoPosition, _customUserpic);
+		} else {
+			const auto &userpic = isSpecific
+				? st::giveawayUserpicGroup
+				: st::giveawayUserpic;
+			userpic.paintInCenter(p, userpicRect);
+		}
 	}
 
 	const auto namex = _st.namePosition.x();

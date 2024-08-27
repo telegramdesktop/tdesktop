@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/channel_statistics/boosts/create_giveaway_box.h"
 
+#include "api/api_credits.h"
 #include "api/api_premium.h"
 #include "base/call_delayed.h"
 #include "base/unixtime.h"
@@ -249,10 +250,11 @@ void CreateGiveawayBox(
 	using GiveawayType = Giveaway::GiveawayTypeRow::Type;
 	using GiveawayGroup = Ui::RadioenumGroup<GiveawayType>;
 	struct State final {
-		State(not_null<PeerData*> p) : apiOptions(p) {
+		State(not_null<PeerData*> p) : apiOptions(p), apiCreditsOptions(p) {
 		}
 
 		Api::PremiumGiftCodeOptions apiOptions;
+		Api::CreditsGiveawayOptions apiCreditsOptions;
 		rpl::lifetime lifetimeApi;
 
 		std::vector<not_null<PeerData*>> selectedToAward;
@@ -344,6 +346,54 @@ void CreateGiveawayBox(
 			state->typeValue.force_assign(GiveawayType::Random);
 		});
 	}
+	const auto creditsTypeWrap = contentWrap->entity()->add(
+		object_ptr<Ui::VerticalLayout>(contentWrap->entity()));
+	const auto fillCreditsTypeWrap = [=] {
+		if (state->apiCreditsOptions.options().empty()) {
+			return;
+		}
+		constexpr auto kColorIndexCredits = int(1);
+		constexpr auto kOutdated = 1735689600;
+
+		auto badge = [&] {
+			if (base::unixtime::now() > kOutdated) {
+				return QImage();
+			}
+			const auto badge = Ui::CreateChild<Ui::PaddingWrap<>>(
+				creditsTypeWrap,
+				object_ptr<Ui::FlatLabel>(
+					creditsTypeWrap,
+					tr::lng_premium_summary_new_badge(tr::now),
+					st::settingsPremiumNewBadge),
+				st::settingsPremiumNewBadgePadding);
+			badge->setAttribute(Qt::WA_TransparentForMouseEvents);
+			badge->paintRequest() | rpl::start_with_next([=] {
+				auto p = QPainter(badge);
+				auto hq = PainterHighQualityEnabler(p);
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::windowBgActive);
+				const auto r = st::settingsPremiumNewBadgePadding.left();
+				p.drawRoundedRect(badge->rect(), r, r);
+			}, badge->lifetime());
+			badge->show();
+			auto result = Ui::GrabWidget(badge).toImage();
+			badge->hide();
+			return result;
+		}();
+
+		const auto row = creditsTypeWrap->add(
+			object_ptr<Giveaway::GiveawayTypeRow>(
+				box,
+				GiveawayType::Credits,
+				kColorIndexCredits,
+				tr::lng_credits_summary_title(),
+				tr::lng_giveaway_create_subtitle(),
+				std::move(badge)));
+		row->addRadio(typeGroup);
+		row->setClickedCallback([=] {
+			state->typeValue.force_assign(GiveawayType::Credits);
+		});
+	};
 	if (!prepaid) {
 		const auto row = contentWrap->entity()->add(
 			object_ptr<Giveaway::GiveawayTypeRow>(
@@ -1129,9 +1179,18 @@ void CreateGiveawayBox(
 			if (!prepaid) {
 				state->chosenMonths = state->apiOptions.monthsFromPreset(0);
 			}
+			fillCreditsTypeWrap();
 			rebuildListOptions(state->typeValue.current(), 1);
 			contentWrap->toggle(true, anim::type::instant);
 			contentWrap->resizeToWidth(box->width());
+		};
+		const auto receivedOptions = [=] {
+			state->lifetimeApi.destroy();
+			state->lifetimeApi = state->apiCreditsOptions.request(
+			) | rpl::start_with_error_done([=](const QString &error) {
+				box->uiShow()->showToast(error);
+				box->closeBox();
+			}, done);
 		};
 		if (prepaid) {
 			return done();
@@ -1140,6 +1199,6 @@ void CreateGiveawayBox(
 		) | rpl::start_with_error_done([=](const QString &error) {
 			box->uiShow()->showToast(error);
 			box->closeBox();
-		}, done);
+		}, receivedOptions);
 	}, box->lifetime());
 }
