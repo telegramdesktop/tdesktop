@@ -1242,7 +1242,8 @@ bool MainWidget::showHistoryInDifferentWindow(
 		const SectionShow &params,
 		MsgId showAtMsgId) {
 	if (!peerId) {
-		return false;
+		// In case we don't have dialogs, we can't clear section stack.
+		return !_dialogs;
 	}
 	const auto peer = session().data().peer(peerId);
 	if (const auto separateChat = _controller->windowId().chat()) {
