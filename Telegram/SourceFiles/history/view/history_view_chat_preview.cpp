@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/userpic_button.h"
-#include "ui/platform/win/ui_windows_direct_manipulation.h"
 #include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/elastic_scroll.h"
