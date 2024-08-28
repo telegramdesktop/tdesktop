@@ -73,4 +73,6 @@ Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 [[nodiscard]] TextWithEntities GenerateEntryName(
 	const Data::CreditsHistoryEntry &entry);
 
+[[nodiscard]] QImage CreditsWhiteDoubledIcon(int size, float64 outlineRatio);
+
 } // namespace Ui

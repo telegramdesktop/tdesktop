@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/round_rect.h"
 #include "styles/style_chat.h"
 
@@ -438,9 +439,13 @@ StickerWithBadgePart::StickerWithBadgePart(
 	Element *replacing,
 	Fn<Data()> lookup,
 	QMargins padding,
-	QString badge)
-: _sticker(parent, replacing, std::move(lookup), padding)
-, _badgeText(badge) {
+	QString badge,
+	QImage customLeftIcon,
+	std::optional<QColor> colorOverride)
+: _customLeftIcon(std::move(customLeftIcon))
+, _sticker(parent, replacing, std::move(lookup), padding)
+, _badgeText(badge)
+, _colorOverride(std::move(colorOverride)) {
 }
 
 void StickerWithBadgePart::draw(
@@ -500,10 +505,13 @@ void StickerWithBadgePart::paintBadge(
 	{
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
-		p.setBrush(context.messageStyle()->msgFileBg);
+		if (_colorOverride) {
+			p.setBrush(*_colorOverride);
+		} else {
+			p.setBrush(context.messageStyle()->msgFileBg);
+		}
 		const auto half = st::chatGiveawayBadgeStroke / 2.;
-		const auto inner = QRectF(rect).marginsRemoved(
-			{ half, half, half, half });
+		const auto inner = QRectF(rect) - Margins(half);
 		const auto radius = inner.height() / 2.;
 		p.drawRoundedRect(inner, radius, radius);
 	}
@@ -534,9 +542,12 @@ void StickerWithBadgePart::validateBadge(
 	const auto &font = st::chatGiveawayBadgeFont;
 	_badgeFg = badgeFg;
 	_badgeBorder = badgeBorder;
-	const auto width = font->width(_badgeText);
+	const auto iconWidth = _customLeftIcon.isNull()
+		? 0
+		: (_customLeftIcon.width() / style::DevicePixelRatio());
+	const auto width = font->width(_badgeText) + iconWidth;
 	const auto inner = QRect(0, 0, width, font->height);
-	const auto rect = inner.marginsAdded(st::chatGiveawayBadgePadding);
+	const auto rect = inner + st::chatGiveawayBadgePadding;
 	const auto size = rect.size();
 	const auto ratio = style::DevicePixelRatio();
 	_badge = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
@@ -548,17 +559,27 @@ void StickerWithBadgePart::validateBadge(
 	p.setPen(QPen(_badgeBorder, st::chatGiveawayBadgeStroke * 1.));
 	p.setBrush(Qt::NoBrush);
 	const auto half = st::chatGiveawayBadgeStroke / 2.;
-	const auto smaller = QRectF(
-		rect.translated(-rect.topLeft())
-	).marginsRemoved({ half, half, half, half });
+	const auto left = _customLeftIcon.isNull()
+		? st::chatGiveawayBadgePadding.left()
+		: (st::chatGiveawayBadgePadding.left() - half * 2);
+	const auto smaller = QRectF(rect.translated(-rect.topLeft()))
+		- Margins(half);
 	const auto radius = smaller.height() / 2.;
 	p.drawRoundedRect(smaller, radius, radius);
 	p.setPen(_badgeFg);
 	p.setFont(font);
 	p.drawText(
-		st::chatGiveawayBadgePadding.left(),
+		left + iconWidth,
 		st::chatGiveawayBadgePadding.top() + font->ascent,
 		_badgeText);
+	if (!_customLeftIcon.isNull()) {
+		const auto iconHeight = _customLeftIcon.height()
+			/ style::DevicePixelRatio();
+		p.drawImage(
+			left,
+			half + (inner.height() - iconHeight) / 2,
+			_customLeftIcon);
+	}
 }
 
 PeerBubbleListPart::PeerBubbleListPart(

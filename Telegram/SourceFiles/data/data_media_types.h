@@ -108,6 +108,7 @@ struct GiveawayStart {
 	TimeId untilDate = 0;
 	int quantity = 0;
 	int months = 0;
+	uint64 credits = 0;
 	bool all = false;
 };
 
@@ -121,6 +122,7 @@ struct GiveawayResults {
 	int winnersCount = 0;
 	int unclaimedCount = 0;
 	int months = 0;
+	uint64 credits = 0;
 	bool refunded = false;
 	bool all = false;
 };

@@ -21,10 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/text/text_utilities.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
+
+constexpr auto kOutlineRatio = 0.85;
 
 auto GenerateGiveawayStart(
 	not_null<Element*> parent,
@@ -49,10 +52,20 @@ auto GenerateGiveawayStart(
 			nullptr,
 			sticker,
 			st::chatGiveawayStickerPadding,
-			tr::lng_prizes_badge(
-				tr::now,
-				lt_amount,
-				QString::number(quantity))));
+			data->credits
+				? QString::number(data->credits)
+				: tr::lng_prizes_badge(
+					tr::now,
+					lt_amount,
+					QString::number(quantity)),
+			data->credits
+				? Ui::CreditsWhiteDoubledIcon(
+					st::chatGiveawayCreditsIconHeight,
+					kOutlineRatio)
+				: QImage(),
+			data->credits
+				? std::make_optional(st::creditsBg3->c)
+				: std::nullopt));
 
 		auto pushText = [&](
 				TextWithEntities text,
@@ -83,8 +96,29 @@ auto GenerateGiveawayStart(
 				st::chatGiveawayPrizesWithPadding));
 		}
 
-		pushText(
-			tr::lng_prizes_about(
+		pushText((data->credits && (quantity == 1))
+			? tr::lng_prizes_credits_about_single(
+				tr::now,
+				lt_amount,
+				tr::lng_prizes_credits_about_amount(
+					tr::now,
+					lt_count,
+					data->credits,
+					Ui::Text::RichLangValue),
+				Ui::Text::RichLangValue)
+			: (data->credits && (quantity > 1))
+			? tr::lng_prizes_credits_about(
+				tr::now,
+				lt_count,
+				quantity,
+				lt_amount,
+				tr::lng_prizes_credits_about_amount(
+					tr::now,
+					lt_count,
+					data->credits,
+					Ui::Text::RichLangValue),
+				Ui::Text::RichLangValue)
+			: tr::lng_prizes_about(
 				tr::now,
 				lt_count,
 				quantity,
@@ -186,10 +220,20 @@ auto GenerateGiveawayResults(
 			nullptr,
 			sticker,
 			st::chatGiveawayStickerPadding,
-			tr::lng_prizes_badge(
-				tr::now,
-				lt_amount,
-				QString::number(quantity))));
+			data->credits
+				? QString::number(data->credits)
+				: tr::lng_prizes_badge(
+					tr::now,
+					lt_amount,
+					QString::number(quantity)),
+			data->credits
+				? Ui::CreditsWhiteDoubledIcon(
+					st::chatGiveawayCreditsIconHeight,
+					kOutlineRatio)
+				: QImage(),
+			data->credits
+				? std::make_optional(st::creditsBg3->c)
+				: std::nullopt));
 
 		auto pushText = [&](
 				TextWithEntities text,
@@ -237,7 +281,17 @@ auto GenerateGiveawayResults(
 					data->winnersCount - data->winners.size())),
 				st::chatGiveawayNoCountriesTitleMargin);
 		}
-		pushText({ data->unclaimedCount
+		pushText({ (data->credits && isSingleWinner)
+			? tr::lng_prizes_credits_results_one(
+				tr::now,
+				lt_count,
+				data->credits)
+			: (data->credits && !isSingleWinner)
+			? tr::lng_prizes_credits_results_all(
+				tr::now,
+				lt_count,
+				data->credits)
+			: data->unclaimedCount
 			? tr::lng_prizes_results_some(tr::now)
 			: isSingleWinner
 			? tr::lng_prizes_results_one(tr::now)

@@ -472,4 +472,64 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 			TextWithEntities::Simple);
 }
 
+QImage CreditsWhiteDoubledIcon(int size, float64 outlineRatio) {
+	auto svg = QSvgRenderer(Ui::Premium::Svg());
+	auto result = QImage(
+		Size(size) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+
+	// constexpr auto kIdealSize = 42;
+	constexpr auto kPoints = uint(16);
+	constexpr auto kAngleStep = 2. * M_PI / kPoints;
+	constexpr auto kOutlineWidth = 1.6;
+	constexpr auto kStarShift = 3.8;
+	const auto userpicRect = Rect(Size(size));
+	const auto starRect = userpicRect - Margins(userpicRect.width() / 4.);
+	const auto starSize = starRect.size();
+	const auto drawSingle = [&](QPainter &q) {
+		const auto s = style::ConvertFloatScale(kOutlineWidth * outlineRatio);
+		q.save();
+		q.setCompositionMode(QPainter::CompositionMode_Clear);
+		for (auto i = 0; i < kPoints; ++i) {
+			const auto angle = i * kAngleStep;
+			const auto x = s * std::cos(angle);
+			const auto y = s * std::sin(angle);
+			svg.render(&q, QRectF(QPointF(x, y), starSize));
+		}
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		svg.render(&q, Rect(starSize));
+		q.restore();
+	};
+	{
+		auto p = QPainter(&result);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::lightButtonFg);
+		p.translate(starRect.topLeft());
+		p.translate(
+			style::ConvertFloatScale(kStarShift * outlineRatio) / 2.,
+			0);
+		drawSingle(p);
+		{
+			// Remove the previous star at bottom.
+			p.setCompositionMode(QPainter::CompositionMode_Clear);
+			p.save();
+			p.resetTransform();
+			p.fillRect(
+				userpicRect.x(),
+				userpicRect.y(),
+				userpicRect.width() / 2.,
+				userpicRect.height(),
+				Qt::transparent);
+			p.restore();
+		}
+		p.translate(
+			-style::ConvertFloatScale(kStarShift * outlineRatio),
+			0);
+		drawSingle(p);
+	}
+	return result;
+}
+
 } // namespace Ui

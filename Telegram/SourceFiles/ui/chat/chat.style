@@ -1009,6 +1009,7 @@ chatGiveawayEndDateMargin: margins(11px, 0px, 11px, 16px);
 chatGiveawayPeerSize: 32px;
 chatGiveawayPeerPadding: margins(5px, 7px, 12px, 0px);
 chatGiveawayPeerSkip: 8px;
+chatGiveawayCreditsIconHeight: 19px;
 
 chatSimilarRadius: 12px;
 chatSimilarArrowSize: 6px;

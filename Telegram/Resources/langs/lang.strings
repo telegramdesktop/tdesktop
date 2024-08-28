@@ -2845,6 +2845,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_additional_with" = "with";
 "lng_prizes_about#one" = "**{count}** Telegram Premium Subscription {duration}.";
 "lng_prizes_about#other" = "**{count}** Telegram Premium Subscriptions {duration}.";
+"lng_prizes_credits_about_single" = "**{amount}** will be distributed to the **1** winner.";
+"lng_prizes_credits_about#one" = "**{amount}** will be distributed among {count} winner.";
+"lng_prizes_credits_about#other" = "**{amount}** will be distributed among {count} winners.";
+"lng_prizes_credits_about_amount#one" = "{count} Star";
+"lng_prizes_credits_about_amount#other" = "{count} Stars";
 "lng_prizes_participants" = "Participants";
 "lng_prizes_participants_all#one" = "All subscribers of the channel:";
 "lng_prizes_participants_all#other" = "All subscribers of the channels:";
@@ -2918,6 +2923,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_results_more#other" = "and {count} more!";
 "lng_prizes_results_one" = "The winner received their gift link in a private message.";
 "lng_prizes_results_all" = "All winners received gift links in private messages.";
+"lng_prizes_credits_results_one#one" = "The winner received {count} Star.";
+"lng_prizes_credits_results_one#other" = "The winner received {count} Stars.";
+"lng_prizes_credits_results_all#one" = "All winners received {count} Star in total.";
+"lng_prizes_credits_results_all#other" = "All winners received {count} Stars in total.";
 "lng_prizes_results_some" = "Some winners couldn't be selected.";
 
 "lng_gift_link_title" = "Gift Link";

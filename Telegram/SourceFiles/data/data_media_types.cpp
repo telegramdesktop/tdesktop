@@ -471,8 +471,8 @@ GiveawayStart ComputeGiveawayStartData(
 	auto result = GiveawayStart{
 		.untilDate = data.vuntil_date().v,
 		.quantity = data.vquantity().v,
-		.months = data.vmonths().value_or_empty(),AssertIsDebug()
-		//.stars = data.vstars().value_or_empty(),
+		.months = data.vmonths().value_or_empty(),
+		.credits = data.vstars().value_or_empty(),
 		.all = !data.is_only_new_subscribers(),
 	};
 	result.channels.reserve(data.vchannels().v.size());
@@ -503,8 +503,8 @@ GiveawayResults ComputeGiveawayResultsData(
 		.additionalPeersCount = additional.value_or_empty(),
 		.winnersCount = data.vwinners_count().v,
 		.unclaimedCount = data.vunclaimed_count().v,
-		.months = data.vmonths().value_or_empty(), AssertIsDebug()
-		//.stars = data.vstars().value_or_empty(),
+		.months = data.vmonths().value_or_empty(),
+		.credits = data.vstars().value_or_empty(),
 		.refunded = data.is_refunded(),
 		.all = !data.is_only_new_subscribers(),
 	};

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/boosts/giveaway/giveaway_type_row.h"
 
 #include "lang/lang_keys.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -18,67 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_giveaway.h"
 #include "styles/style_statistics.h"
 
-#include <QtSvg/QSvgRenderer>
-
 namespace Giveaway {
-namespace {
-
-[[nodiscard]] QImage CreditsCustomUserpic(int photoSize) {
-	auto svg = QSvgRenderer(Ui::Premium::Svg());
-	auto result = QImage(
-		Size(photoSize) * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	result.fill(Qt::transparent);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
-
-	constexpr auto kPoints = uint(16);
-	constexpr auto kAngleStep = 2. * M_PI / kPoints;
-	constexpr auto kOutlineWidth = 1.6;
-	constexpr auto kStarShift = 3.8;
-	const auto userpicRect = Rect(Size(photoSize));
-	const auto starRect = userpicRect - Margins(userpicRect.width() / 4.);
-	const auto starSize = starRect.size();
-	const auto drawSingle = [&](QPainter &q) {
-		const auto s = style::ConvertFloatScale(kOutlineWidth);
-		q.save();
-		q.setCompositionMode(QPainter::CompositionMode_Clear);
-		for (auto i = 0; i < kPoints; ++i) {
-			const auto angle = i * kAngleStep;
-			const auto x = s * std::cos(angle);
-			const auto y = s * std::sin(angle);
-			svg.render(&q, QRectF(QPointF(x, y), starSize));
-		}
-		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		svg.render(&q, Rect(starSize));
-		q.restore();
-	};
-	{
-		auto p = QPainter(&result);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::lightButtonFg);
-		p.translate(starRect.topLeft());
-		p.translate(style::ConvertFloatScale(kStarShift) / 2., 0);
-		drawSingle(p);
-		{
-			// Remove the previous star at bottom.
-			p.setCompositionMode(QPainter::CompositionMode_Clear);
-			p.save();
-			p.resetTransform();
-			p.fillRect(
-				userpicRect.x(),
-				userpicRect.y(),
-				userpicRect.width() / 2.,
-				userpicRect.height(),
-				Qt::transparent);
-			p.restore();
-		}
-		p.translate(-style::ConvertFloatScale(kStarShift), 0);
-		drawSingle(p);
-	}
-	return result;
-}
-
-} // namespace
 
 constexpr auto kColorIndexSpecific = int(4);
 constexpr auto kColorIndexRandom = int(2);
@@ -129,7 +70,7 @@ GiveawayTypeRow::GiveawayTypeRow(
 	QString())
 , _badge(std::move(badge)) {
 	if (_type == Type::Credits) {
-		_customUserpic = CreditsCustomUserpic(_st.photoSize);
+		_customUserpic = Ui::CreditsWhiteDoubledIcon(_st.photoSize, 1.);
 	}
 	std::move(
 		subtitle
