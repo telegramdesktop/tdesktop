@@ -2772,6 +2772,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_users_about_group" = "Choose if you want to limit the giveaway only to those who joined the group after the giveaway started or to members from specific countries.";
 "lng_giveaway_start" = "Start Giveaway";
 "lng_giveaway_award" = "Gift Premium";
+"lng_giveaway_random_button" = "Choose randomly";
 "lng_giveaway_start_sure" = "Are you sure you want to start this prepaid giveaway now? This action cannot be undone.";
 "lng_giveaway_date_title" = "Date when giveaway ends";
 "lng_giveaway_date" = "Date and Time";

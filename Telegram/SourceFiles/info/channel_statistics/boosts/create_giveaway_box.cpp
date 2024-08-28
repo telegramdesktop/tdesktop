@@ -299,13 +299,25 @@ void CreateGiveawayBox(
 	const auto typeGroup = std::make_shared<GiveawayGroup>();
 	const auto creditsGroup = std::make_shared<CreditsGroup>();
 
+	const auto isSpecificUsers = [=] {
+		return !state->selectedToAward.empty();
+	};
+	const auto hideSpecificUsersOn = [=] {
+		return rpl::combine(
+			state->typeValue.value(),
+			state->toAwardAmountChanged.events_starting_with(
+				rpl::empty_value()) | rpl::type_erased()
+		) | rpl::map([=](GiveawayType type, auto) {
+			return (type == GiveawayType::Credits) || !isSpecificUsers();
+		});
+	};
+
 	auto showFinished = Ui::BoxShowFinishes(box);
 	AddPremiumTopBarWithDefaultTitleBar(
 		box,
 		rpl::duplicate(showFinished),
 		rpl::conditional(
-			state->typeValue.value(
-			) | rpl::map(rpl::mappers::_1 == GiveawayType::Random),
+			hideSpecificUsersOn(),
 			tr::lng_giveaway_start(),
 			tr::lng_giveaway_award()),
 		peer->isMegagroup());
@@ -361,11 +373,65 @@ void CreateGiveawayBox(
 			object_ptr<Giveaway::GiveawayTypeRow>(
 				box,
 				GiveawayType::Random,
-				tr::lng_giveaway_create_subtitle(),
+				state->toAwardAmountChanged.events_starting_with(
+					rpl::empty_value()
+				) | rpl::map([=] {
+					const auto &selected = state->selectedToAward;
+					return selected.empty()
+						? tr::lng_giveaway_create_subtitle()
+						: (selected.size() == 1)
+						? rpl::single(selected.front()->name())
+						: tr::lng_giveaway_award_chosen(
+							lt_count,
+							rpl::single(selected.size()) | tr::to_count());
+				}) | rpl::flatten_latest(),
 				group));
 		row->addRadio(typeGroup);
 		row->setClickedCallback([=] {
-			state->typeValue.force_assign(GiveawayType::Random);
+			auto initBox = [=](not_null<PeerListBox*> peersBox) {
+				peersBox->setTitle(tr::lng_giveaway_award_option());
+
+				auto aboveOwned = object_ptr<Ui::VerticalLayout>(peersBox);
+				const auto above = aboveOwned.data();
+				peersBox->peerListSetAboveWidget(std::move(aboveOwned));
+				Ui::AddSkip(above);
+				const auto buttonRandom = above->add(
+					object_ptr<Ui::SettingsButton>(
+						peersBox,
+						tr::lng_giveaway_random_button(),
+						st::settingsButtonLightNoIcon));
+				buttonRandom->setClickedCallback([=] {
+					state->selectedToAward.clear();
+					state->toAwardAmountChanged.fire({});
+					state->typeValue.force_assign(GiveawayType::Random);
+					peersBox->closeBox();
+				});
+				Ui::AddSkip(above);
+
+				peersBox->addButton(tr::lng_settings_save(), [=] {
+					state->selectedToAward = peersBox->collectSelectedRows();
+					state->toAwardAmountChanged.fire({});
+					state->typeValue.force_assign(GiveawayType::Random);
+					peersBox->closeBox();
+				});
+				peersBox->addButton(tr::lng_cancel(), [=] {
+					peersBox->closeBox();
+				});
+			};
+
+			using Controller = Giveaway::AwardMembersListController;
+			auto listController = std::make_unique<Controller>(
+				navigation,
+				peer,
+				state->selectedToAward);
+			listController->setCheckError(CreateErrorCallback(
+				state->apiOptions.giveawayAddPeersMax(),
+				tr::lng_giveaway_maximum_users_error));
+			box->uiShow()->showBox(
+				Box<PeerListBox>(
+					std::move(listController),
+					std::move(initBox)),
+				Ui::LayerOption::KeepOther);
 		});
 	}
 	const auto creditsOption = [=](int index) {
@@ -430,60 +496,6 @@ void CreateGiveawayBox(
 			state->typeValue.force_assign(GiveawayType::Credits);
 		});
 	};
-	if (!prepaid) {
-		const auto row = contentWrap->entity()->add(
-			object_ptr<Giveaway::GiveawayTypeRow>(
-				box,
-				GiveawayType::SpecificUsers,
-				state->toAwardAmountChanged.events_starting_with(
-					rpl::empty_value()
-				) | rpl::map([=] {
-					const auto &selected = state->selectedToAward;
-					return selected.empty()
-						? tr::lng_giveaway_award_subtitle()
-						: (selected.size() == 1)
-						? rpl::single(selected.front()->name())
-						: tr::lng_giveaway_award_chosen(
-							lt_count,
-							rpl::single(selected.size()) | tr::to_count());
-				}) | rpl::flatten_latest(),
-				group));
-		row->addRadio(typeGroup);
-		row->setClickedCallback([=] {
-			auto initBox = [=](not_null<PeerListBox*> peersBox) {
-				peersBox->setTitle(tr::lng_giveaway_award_option());
-				peersBox->addButton(tr::lng_settings_save(), [=] {
-					state->selectedToAward = peersBox->collectSelectedRows();
-					state->toAwardAmountChanged.fire({});
-					peersBox->closeBox();
-				});
-				peersBox->addButton(tr::lng_cancel(), [=] {
-					peersBox->closeBox();
-				});
-				peersBox->boxClosing(
-				) | rpl::start_with_next([=] {
-					state->typeValue.force_assign(
-						state->selectedToAward.empty()
-							? GiveawayType::Random
-							: GiveawayType::SpecificUsers);
-				}, peersBox->lifetime());
-			};
-
-			using Controller = Giveaway::AwardMembersListController;
-			auto listController = std::make_unique<Controller>(
-				navigation,
-				peer,
-				state->selectedToAward);
-			listController->setCheckError(CreateErrorCallback(
-				state->apiOptions.giveawayAddPeersMax(),
-				tr::lng_giveaway_maximum_users_error));
-			box->uiShow()->showBox(
-				Box<PeerListBox>(
-					std::move(listController),
-					std::move(initBox)),
-				Ui::LayerOption::KeepOther);
-		});
-	}
 
 	{
 		const auto &padding = st::giveawayGiftCodeTypeDividerPadding;
@@ -498,14 +510,10 @@ void CreateGiveawayBox(
 			object_ptr<Ui::VerticalLayout>(box)));
 	state->typeValue.value(
 	) | rpl::start_with_next([=](GiveawayType type) {
-		randomWrap->toggle(type == GiveawayType::Random, anim::type::instant);
+		randomWrap->toggle(!isSpecificUsers(), anim::type::instant);
 	}, randomWrap->lifetime());
 
-	randomWrap->toggleOn(
-		state->typeValue.value(
-		) | rpl::map((rpl::mappers::_1 == GiveawayType::Random)
-			|| (rpl::mappers::_1 == GiveawayType::Credits)),
-		anim::type::instant);
+	randomWrap->toggleOn(hideSpecificUsersOn(), anim::type::instant);
 
 	const auto randomCreditsWrap = randomWrap->entity()->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -1049,7 +1057,7 @@ void CreateGiveawayBox(
 		while (listOptionsSpecific->count()) {
 			delete listOptionsSpecific->widgetAt(0);
 		}
-		const auto listOptions = (type == GiveawayType::SpecificUsers)
+		const auto listOptions = isSpecificUsers()
 			? listOptionsSpecific
 			: listOptionsRandom;
 		if (type != GiveawayType::Credits) {
@@ -1086,9 +1094,9 @@ void CreateGiveawayBox(
 			state->typeValue.value()
 		) | rpl::start_with_next([=](int users, GiveawayType type) {
 			typeGroup->setValue(type);
-			rebuildListOptions(type, (type == GiveawayType::SpecificUsers)
-				? state->selectedToAward.size()
-				: users);
+			rebuildListOptions(
+				type,
+				isSpecificUsers() ? state->selectedToAward.size() : users);
 		}, box->lifetime());
 	} else {
 		typeGroup->setValue(GiveawayType::Random);
@@ -1144,7 +1152,7 @@ void CreateGiveawayBox(
 			? (rpl::single(prepaid->months) | rpl::type_erased())
 			: state->chosenMonths.value();
 		const auto usersCountByType = [=](GiveawayType type) {
-			if (type != GiveawayType::SpecificUsers) {
+			if (!isSpecificUsers()) {
 				return state->sliderValue.value() | rpl::type_erased();
 			}
 			return state->toAwardAmountChanged.events_starting_with_copy(
@@ -1347,18 +1355,23 @@ void CreateGiveawayBox(
 		AddLabelWithBadgeToButton(
 			button,
 			rpl::conditional(
-				state->typeValue.value(
-				) | rpl::map(rpl::mappers::_1 != GiveawayType::Random),
-				tr::lng_giveaway_award(),
-				tr::lng_giveaway_start()),
+				hideSpecificUsersOn(),
+				tr::lng_giveaway_start(),
+				tr::lng_giveaway_award()),
 			rpl::conditional(
 				state->typeValue.value(
 				) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits),
 				creditsGroup->value() | rpl::map([=](int v) {
 					return creditsOption(v).yearlyBoosts;
 				}),
-				state->sliderValue.value() | rpl::map([=](int v) -> int {
-					return state->apiOptions.giveawayBoostsPerPremium() * v;
+				rpl::combine(
+					state->sliderValue.value(),
+					hideSpecificUsersOn()
+				) | rpl::map([=](int v, bool random) -> int {
+					const auto c = random
+						? v
+						: int(state->selectedToAward.size());
+					return state->apiOptions.giveawayBoostsPerPremium() * c;
 				})),
 			state->confirmButtonBusy.value() | rpl::map(!rpl::mappers::_1));
 
@@ -1382,7 +1395,7 @@ void CreateGiveawayBox(
 				return;
 			}
 			const auto type = typeGroup->current();
-			const auto isSpecific = (type == GiveawayType::SpecificUsers);
+			const auto isSpecific = isSpecificUsers();
 			const auto isRandom = (type == GiveawayType::Random);
 			const auto isCredits = (type == GiveawayType::Credits);
 			if (!isSpecific && !isRandom && !isCredits) {

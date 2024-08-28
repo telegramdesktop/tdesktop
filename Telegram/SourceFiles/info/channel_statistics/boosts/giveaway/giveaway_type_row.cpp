@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/widgets/checkbox.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_statistics.h"
 
@@ -94,7 +95,8 @@ GiveawayTypeRow::GiveawayTypeRow(
 	(type == Type::SpecificUsers)
 		? tr::lng_giveaway_award_option()
 		: (type == Type::Random)
-		? tr::lng_giveaway_create_option()
+		? tr::lng_premium_summary_title()
+		// ? tr::lng_giveaway_create_option()
 		: (type == Type::AllMembers)
 		? (group
 			? tr::lng_giveaway_users_all_group()
@@ -131,8 +133,11 @@ GiveawayTypeRow::GiveawayTypeRow(
 	}
 	std::move(
 		subtitle
-	) | rpl::start_with_next([=] (const QString &s) {
-		_status.setText(st::defaultTextStyle, s, Ui::NameTextOptions());
+	) | rpl::start_with_next([=] (QString s) {
+		_status.setText(
+			st::defaultTextStyle,
+			s.replace(QChar('>'), QString()),
+			Ui::NameTextOptions());
 	}, lifetime());
 	std::move(
 		title
@@ -151,9 +156,10 @@ void GiveawayTypeRow::paintEvent(QPaintEvent *e) {
 	const auto paintOver = (isOver() || isDown()) && !isDisabled();
 	const auto skipRight = _st.photoPosition.x();
 	const auto outerWidth = width();
+	const auto isRandom = (_type == Type::Random);
 	const auto isSpecific = (_type == Type::SpecificUsers);
 	const auto isPrepaid = (_type == Type::Prepaid);
-	const auto hasUserpic = (_type == Type::Random)
+	const auto hasUserpic = isRandom
 		|| isSpecific
 		|| isPrepaid
 		|| (!_customUserpic.isNull());
@@ -204,12 +210,29 @@ void GiveawayTypeRow::paintEvent(QPaintEvent *e) {
 			_badge);
 	}
 
+	const auto statusIcon = isRandom ? &st::topicButtonArrow : nullptr;
 	const auto statusx = _st.statusPosition.x();
 	const auto statusy = _st.statusPosition.y();
-	const auto statusw = outerWidth - statusx - skipRight;
+	const auto statusw = outerWidth
+		- statusx
+		- skipRight
+		- (statusIcon
+			? (statusIcon->width() + st::boostsListMiniIconSkip)
+			: 0);
 	p.setFont(st::contactsStatusFont);
-	p.setPen((isSpecific || !hasUserpic) ? st::lightButtonFg : _st.statusFg);
+	p.setPen((isRandom || !hasUserpic) ? st::lightButtonFg : _st.statusFg);
 	_status.drawLeftElided(p, statusx, statusy, statusw, outerWidth);
+	if (statusIcon) {
+		statusIcon->paint(
+			p,
+			QPoint(
+				statusx
+					+ std::min(_status.maxWidth(), statusw)
+					+ st::boostsListMiniIconSkip,
+				statusy + st::contactsStatusFont->descent),
+			outerWidth,
+			st::lightButtonFg->c);
+	}
 }
 
 void GiveawayTypeRow::addRadio(
