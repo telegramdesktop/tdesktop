@@ -1,3 +1,9 @@
+5.4.2 beta (28.08.24)
+
+- Select audio devices from one-on-one call window.
+- Bug fixes and other minor improvements.
+- New text layout testing.
+
 5.4.1 (17.08.24)
 
 - Fix crash when sending Star Reaction in comments.

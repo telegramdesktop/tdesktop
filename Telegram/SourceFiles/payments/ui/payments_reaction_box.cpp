@@ -38,6 +38,19 @@ namespace {
 
 constexpr auto kMaxTopPaidShown = 3;
 
+struct TopReactorKey {
+	std::shared_ptr<DynamicImage> photo;
+	int count = 0;
+	QString name;
+
+	friend inline auto operator<=>(
+		const TopReactorKey &,
+		const TopReactorKey &) = default;
+	friend inline bool operator==(
+		const TopReactorKey &,
+		const TopReactorKey &) = default;
+};
+
 struct Discreter {
 	Fn<int(float64)> ratioToValue;
 	Fn<float64(int)> valueToRatio;
@@ -249,14 +262,7 @@ void FillTopReactors(
 			object_ptr<FixedHeightWidget>(container, height),
 			st::paidReactTopMargin));
 	const auto parent = wrap->entity();
-	struct Key {
-		std::shared_ptr<DynamicImage> photo;
-		int count = 0;
-		QString name;
-
-		inline auto operator<=>(const Key &) const = default;
-		inline bool operator==(const Key &) const = default;
-	};
+	using Key = TopReactorKey;
 	struct State {
 		base::flat_map<Key, not_null<RpWidget*>> cache;
 		std::vector<not_null<RpWidget*>> widgets;
