@@ -258,7 +258,7 @@ QByteArray Settings::serialize() const {
 		}
 		stream
 			<< qint32(_sendFilesWay.serialize())
-			<< qint32(_sendSubmitWay)
+			<< qint32(_sendSubmitWay.current())
 			<< qint32(_includeMutedCounter ? 1 : 0)
 			<< qint32(_countUnreadMessages ? 1 : 0)
 			<< qint32(1) // legacy exe launch warning
@@ -421,7 +421,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 soundOverridesCount = 0;
 	base::flat_map<QString, QString> soundOverrides;
 	qint32 sendFilesWay = _sendFilesWay.serialize();
-	qint32 sendSubmitWay = static_cast<qint32>(_sendSubmitWay);
+	qint32 sendSubmitWay = static_cast<qint32>(_sendSubmitWay.current());
 	qint32 includeMutedCounter = _includeMutedCounter ? 1 : 0;
 	qint32 countUnreadMessages = _countUnreadMessages ? 1 : 0;
 	std::optional<QString> noWarningExtensions;

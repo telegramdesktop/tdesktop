@@ -1528,6 +1528,11 @@ void ComposeControls::init() {
 		saveFieldToHistoryLocalDraft();
 	}, _wrap->lifetime());
 
+	Core::App().settings().sendSubmitWayValue(
+	) | rpl::start_with_next([=] {
+		updateSubmitSettings();
+	}, _wrap->lifetime());
+
 	session().attachWebView().attachBotsUpdates(
 	) | rpl::start_with_next([=] {
 		updateAttachBotsMenu();

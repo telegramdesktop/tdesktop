@@ -388,7 +388,11 @@ public:
 		_sendSubmitWay = value;
 	}
 	[[nodiscard]] Ui::InputSubmitSettings sendSubmitWay() const {
-		return _sendSubmitWay;
+		return _sendSubmitWay.current();
+	}
+	[[nodiscard]] auto sendSubmitWayValue() const
+	-> rpl::producer<Ui::InputSubmitSettings> {
+		return _sendSubmitWay.value();
 	}
 	void setSoundOverride(const QString &key, const QString &path) {
 		_soundOverrides.emplace(key, path);
@@ -966,7 +970,8 @@ private:
 	Window::Theme::AccentColors _themesAccentColors;
 	bool _lastSeenWarningSeen = false;
 	Ui::SendFilesWay _sendFilesWay = Ui::SendFilesWay();
-	Ui::InputSubmitSettings _sendSubmitWay = Ui::InputSubmitSettings();
+	rpl::variable<Ui::InputSubmitSettings> _sendSubmitWay
+		= Ui::InputSubmitSettings();
 	base::flat_map<QString, QString> _soundOverrides;
 	base::flat_set<QString> _noWarningExtensions;
 	bool _ipRevealWarning = true;

@@ -251,8 +251,6 @@ public:
 
 	void applyCloudDraft(History *history);
 
-	void updateFieldSubmitSettings();
-
 	void activate();
 	void setInnerFocus();
 	[[nodiscard]] rpl::producer<> cancelRequests() const {
@@ -379,6 +377,8 @@ private:
 	void showMembersDropdown();
 	void windowIsVisibleChanged();
 	void saveFieldToHistoryLocalDraft();
+
+	void updateFieldSubmitSettings();
 
 	// Checks if we are too close to the top or to the bottom
 	// in the scroll area and preloads history if needed.

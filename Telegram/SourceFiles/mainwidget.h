@@ -175,7 +175,6 @@ public:
 
 	void clearBotStartToken(PeerData *peer);
 
-	void ctrlEnterSubmitUpdated();
 	void setInnerFocus();
 
 	bool contentOverlapped(const QRect &globalRect);

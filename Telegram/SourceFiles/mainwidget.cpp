@@ -1211,10 +1211,6 @@ void MainWidget::clearBotStartToken(PeerData *peer) {
 	}
 }
 
-void MainWidget::ctrlEnterSubmitUpdated() {
-	_history->updateFieldSubmitSettings();
-}
-
 void MainWidget::showChooseReportMessages(
 		not_null<PeerData*> peer,
 		Ui::ReportReason reason,

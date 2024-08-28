@@ -661,6 +661,12 @@ HistoryWidget::HistoryWidget(
 			updateHistoryGeometry();
 		});
 	}, lifetime());
+	Core::App().settings().sendSubmitWayValue(
+	) | rpl::start_with_next([=] {
+		crl::on_main(this, [=] {
+			updateFieldSubmitSettings();
+		});
+	}, lifetime());
 
 	session().data().channelDifferenceTooLong(
 	) | rpl::filter([=](not_null<ChannelData*> channel) {
