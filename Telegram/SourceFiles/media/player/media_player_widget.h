@@ -127,6 +127,7 @@ private:
 	// We change _voiceIsActive to false only manually or from tracksFinished().
 	AudioMsgId::Type _type = AudioMsgId::Type::Unknown;
 	AudioMsgId _lastSongId;
+	bool _lastSongFromAnotherSession = false;
 	bool _voiceIsActive = false;
 	Fn<void()> _closeCallback;
 	Fn<void(not_null<const HistoryItem*>)> _showItemCallback;

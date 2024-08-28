@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "storage/storage_account.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h" // expandedMenuSeparator.
@@ -443,7 +444,8 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 		if (_labelsOver != downLabels) {
 			return;
 		}
-		if (_type == AudioMsgId::Type::Voice) {
+		if ((_type == AudioMsgId::Type::Voice)
+				|| _lastSongFromAnotherSession) {
 			const auto current = instance()->current(_type);
 			const auto document = current.audio();
 			const auto context = current.contextId();
@@ -469,7 +471,9 @@ void Widget::updateOverLabelsState(QPoint pos) {
 
 void Widget::updateOverLabelsState(bool over) {
 	_labelsOver = over;
-	auto pressShowsItem = _labelsOver && (_type == AudioMsgId::Type::Voice);
+	const auto pressShowsItem = _labelsOver
+		&& ((_type == AudioMsgId::Type::Voice)
+			|| _lastSongFromAnotherSession);
 	setCursor(pressShowsItem ? style::cur_pointer : style::cur_default);
 	_togglePlaylistRequests.fire(over && (_type == AudioMsgId::Type::Song));
 }
@@ -666,6 +670,8 @@ void Widget::updateTimeLabel() {
 void Widget::handleSongChange() {
 	const auto current = instance()->current(_type);
 	const auto document = current.audio();
+	_lastSongFromAnotherSession = (document->session().uniqueId()
+		!= _controller->session().uniqueId());
 	if (!current
 		|| !document
 		|| ((_lastSongId.audio() == document)
@@ -674,7 +680,7 @@ void Widget::handleSongChange() {
 	}
 	_lastSongId = current;
 
-	TextWithEntities textWithEntities;
+	auto textWithEntities = TextWithEntities();
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
 		if (const auto item = document->owner().message(current.contextId())) {
 			const auto name = (!item->out() || item->isPost())
