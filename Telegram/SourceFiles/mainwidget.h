@@ -173,8 +173,6 @@ public:
 	void checkChatBackground();
 	Image *newBackgroundThumb();
 
-	void clearBotStartToken(PeerData *peer);
-
 	void setInnerFocus();
 
 	bool contentOverlapped(const QRect &globalRect);
