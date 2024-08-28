@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_inner_widget.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/ui_utility.h"
 
 namespace Info::Statistics {
 

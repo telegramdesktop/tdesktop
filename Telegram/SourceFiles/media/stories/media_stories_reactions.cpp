@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
 #include "styles/style_media_view.h"

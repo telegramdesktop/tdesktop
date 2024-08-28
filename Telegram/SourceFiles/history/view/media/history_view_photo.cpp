@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+#include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_streaming.h"

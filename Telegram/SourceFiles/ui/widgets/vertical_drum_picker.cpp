@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/vertical_drum_picker.h"
 
 #include "ui/effects/animation_value_f.h"
+#include "ui/ui_utility.h"
 #include "styles/style_basic.h"
 
 namespace Ui {

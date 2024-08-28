@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_section.h"
 #include "info/info_controller.h"
 #include "ui/text/format_song_document_name.h"
+#include "ui/ui_utility.h"
 #include "data/data_download_manager.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"

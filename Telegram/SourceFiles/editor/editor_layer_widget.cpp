@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_layer_widget.h"
 
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 
 #include <QtGui/QGuiApplication>
 

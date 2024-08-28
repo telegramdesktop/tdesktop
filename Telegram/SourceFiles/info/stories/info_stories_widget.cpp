@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "ui/widgets/scroll_area.h"
 #include "lang/lang_keys.h"
+#include "ui/ui_utility.h"
 
 namespace Info::Stories {
 

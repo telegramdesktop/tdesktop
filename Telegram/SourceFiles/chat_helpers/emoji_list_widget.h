@@ -46,6 +46,7 @@ enum class Section;
 } // namespace Ui::Emoji
 
 namespace Ui::Text {
+class CustomEmoji;
 struct CustomEmojiPaintContext;
 } // namespace Ui::Text
 

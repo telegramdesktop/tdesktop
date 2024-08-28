@@ -7,14 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_abstract_single_file_preview.h"
 
-#include "ui/text/text_options.h"
-#include "ui/widgets/buttons.h"
+#include "base/timer_rpl.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
-#include "base/timer_rpl.h"
+#include "ui/text/text_options.h"
+#include "ui/ui_utility.h"
+#include "ui/widgets/buttons.h"
+#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_boxes.h"
 
 namespace Ui {
 

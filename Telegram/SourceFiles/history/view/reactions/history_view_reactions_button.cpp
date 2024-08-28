@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_peer_values.h"

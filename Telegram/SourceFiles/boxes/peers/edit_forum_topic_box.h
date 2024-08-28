@@ -16,6 +16,10 @@ struct TopicIconDescriptor;
 enum class CustomEmojiSizeTag : uchar;
 } // namespace Data
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Window {
 class SessionController;
 } // namespace Window

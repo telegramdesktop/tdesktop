@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/shadow.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
 

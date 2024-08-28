@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/animated_icon.h"
+#include "ui/ui_utility.h"
 #include "styles/style_info.h"
 #include "styles/style_chat.h"
 

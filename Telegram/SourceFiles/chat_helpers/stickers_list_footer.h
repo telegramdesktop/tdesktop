@@ -20,6 +20,10 @@ class InputField;
 class CrossButton;
 } // namespace Ui
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Data {
 class StickersSet;
 class StickersSetThumbnailView;

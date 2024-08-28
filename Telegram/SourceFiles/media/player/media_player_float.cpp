@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "styles/style_media_player.h"
 #include "styles/style_chat.h"
 
