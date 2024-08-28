@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_pip.h"
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_video_track.h"
+#include "ui/integration.h"
 #include "ui/painter.h"
 #include "ui/abstract_button.h"
 #include "ui/gl/gl_surface.h"

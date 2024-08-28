@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image_prepare.h"
+#include "ui/integration.h"
 #include "ui/painter.h"
 #include "ui/round_rect.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::Value.

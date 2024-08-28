@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/edit_birthday_box.h"
+#include "ui/integration.h"
 #include "payments/payments_non_panel_process.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
