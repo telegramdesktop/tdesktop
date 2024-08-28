@@ -119,8 +119,9 @@ void AddPremiumTopBarWithDefaultTitleBar(
 		object_ptr<Ui::RpWidget>(box));
 	closeTopBar->resize(box->width(), st::boxTitleHeight);
 	closeTopBar->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::start_with_next([=] {
 		auto p = Painter(closeTopBar);
+		const auto r = closeTopBar->rect();
 		const auto radius = st::boxRadius;
 		const auto progress = state->animation.value(isCloseBarShown()
 			? 1.
@@ -138,7 +139,6 @@ void AddPremiumTopBarWithDefaultTitleBar(
 					resultRect.width() - hPadding,
 					resultRect.height());
 				p.setClipPath(path);
-				PainterHighQualityEnabler hq(p);
 				p.setPen(Qt::NoPen);
 				p.setBrush(st::boxDividerBg);
 				p.drawRoundedRect(resultRect, radius, radius);
