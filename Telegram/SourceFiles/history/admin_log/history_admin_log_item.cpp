@@ -1922,13 +1922,22 @@ void GenerateItems(
 	};
 
 	const auto createChangeProfilePeerColor = [&](const LogChangeProfilePeerColor &data) {
+		const auto group = channel->isMegagroup();
 		createColorChange(
 			data.vprev_value(),
 			data.vnew_value(),
-			tr::lng_admin_log_change_profile_color,
-			tr::lng_admin_log_set_profile_background_emoji,
-			tr::lng_admin_log_removed_profile_background_emoji,
-			tr::lng_admin_log_change_profile_background_emoji);
+			(group
+				? tr::lng_admin_log_change_profile_color_group
+				: tr::lng_admin_log_change_profile_color),
+			(group
+				? tr::lng_admin_log_set_profile_background_emoji_group
+				: tr::lng_admin_log_set_profile_background_emoji),
+			(group
+				? tr::lng_admin_log_removed_profile_background_emoji_group
+				: tr::lng_admin_log_removed_profile_background_emoji),
+			(group
+				? tr::lng_admin_log_change_profile_background_emoji_group
+				: tr::lng_admin_log_change_profile_background_emoji));
 	};
 
 	const auto createChangeWallpaper = [&](const LogChangeWallpaper &data) {

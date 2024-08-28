@@ -4478,6 +4478,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_set_profile_background_emoji" = "{from} set channel profile background emoji to {emoji}";
 "lng_admin_log_change_profile_background_emoji" = "{from} changed channel profile background emoji from {previous} to {emoji}";
 "lng_admin_log_removed_profile_background_emoji" = "{from} removed channel profile background emoji {emoji}";
+"lng_admin_log_change_profile_color_group" = "{from} changed group profile color from {previous} to {color}";
+"lng_admin_log_set_profile_background_emoji_group" = "{from} set group profile background emoji to {emoji}";
+"lng_admin_log_change_profile_background_emoji_group" = "{from} changed group profile background emoji from {previous} to {emoji}";
+"lng_admin_log_removed_profile_background_emoji_group" = "{from} removed group profile background emoji {emoji}";
 "lng_admin_log_change_wallpaper" = "{from} changed channel wallpaper";
 "lng_admin_log_set_status" = "{from} set channel emoji status to {emoji}";
 "lng_admin_log_change_status" = "{from} changed channel emoji status from {previous} to {emoji}";
