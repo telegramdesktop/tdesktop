@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "api/api_statistics.h"
 #include "boxes/peer_list_controllers.h"
+#include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/data_channel.h"
 #include "data/data_credits.h"
@@ -810,7 +811,7 @@ void CreditsRow::init() {
 	const auto name = !isSpecial
 		? PeerListRow::generateName()
 		: Ui::GenerateEntryName(_entry).text;
-	_name = _entry.reaction
+	_name = (_entry.reaction || _entry.bareGiveawayMsgId)
 		? Ui::GenerateEntryName(_entry).text
 		: _entry.title.isEmpty()
 		? name
@@ -1041,7 +1042,13 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 			return std::make_unique<CreditsRow>(descriptor);
 		}
 	};
+
+	auto giftPacksRequested = false;
 	for (const auto &item : slice.list) {
+		if (item.bareGiveawayMsgId && !giftPacksRequested) {
+			giftPacksRequested = true;
+			session().giftBoxStickersPacks().load();
+		}
 		delegate()->peerListAppendRow(create(item, {}));
 	}
 	for (const auto &item : slice.subscriptions) {

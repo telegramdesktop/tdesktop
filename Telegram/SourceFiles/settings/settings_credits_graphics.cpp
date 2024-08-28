@@ -515,7 +515,10 @@ void ReceiptCreditsBox(
 
 	const auto &stUser = st::boostReplaceUserpic;
 	const auto session = &controller->session();
-	const auto peer = (s.barePeerId)
+	const auto isPrize = e.bareGiveawayMsgId > 0;
+	const auto peer = isPrize
+		? nullptr
+		: (s.barePeerId)
 		? session->data().peer(PeerId(s.barePeerId)).get()
 		: (e.peerType == Type::PremiumBot)
 		? nullptr
@@ -531,7 +534,7 @@ void ReceiptCreditsBox(
 		content->add(object_ptr<Ui::CenterWrap<>>(
 			content,
 			object_ptr<Ui::UserpicButton>(content, peer, stUser)));
-	} else if (e.gift) {
+	} else if (e.gift || isPrize) {
 		struct State final {
 			DocumentData *sticker = nullptr;
 			std::shared_ptr<Data::DocumentMedia> media;
@@ -612,6 +615,8 @@ void ReceiptCreditsBox(
 			box,
 			rpl::single(!s.until.isNull()
 				? tr::lng_credits_box_subscription_title(tr::now)
+				: isPrize
+				? tr::lng_credits_box_history_entry_giveaway_name(tr::now)
 				: !e.subscriptionUntil.isNull()
 				? tr::lng_credits_box_history_entry_subscription(tr::now)
 				: !e.title.isEmpty()
@@ -745,7 +750,7 @@ void ReceiptCreditsBox(
 				rpl::single(e.description),
 				st::creditsBoxAbout)));
 	}
-	if (e.gift) {
+	if (e.gift || isPrize) {
 		Ui::AddSkip(content);
 		const auto arrow = Ui::Text::SingleCustomEmoji(
 			session->data().customEmojiManager().registerInternalEmoji(

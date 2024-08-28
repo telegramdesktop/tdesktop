@@ -79,6 +79,8 @@ constexpr auto kTransactionsLimit = 100;
 		.credits = tl.data().vstars().v,
 		.bareMsgId = uint64(tl.data().vmsg_id().value_or_empty()),
 		.barePeerId = barePeerId,
+		.bareGiveawayMsgId = uint64(
+			tl.data().vgiveaway_post_id().value_or_empty()),
 		.peerType = tl.data().vpeer().match([](const HistoryPeerTL &) {
 			return Data::CreditsHistoryEntry::PeerType::Peer;
 		}, [](const MTPDstarsTransactionPeerPlayMarket &) {

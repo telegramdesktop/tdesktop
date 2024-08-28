@@ -1651,6 +1651,21 @@ void AddCreditsHistoryEntryTable(
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
+	const auto createMessageLink = [&](uint64 messageId) {
+		if (const auto msgId = MsgId(peerId ? messageId : 0)) {
+			const auto session = &controller->session();
+			const auto peer = session->data().peer(peerId);
+			if (const auto channel = peer->asBroadcast()) {
+				const auto username = channel->username();
+				const auto base = username.isEmpty()
+					? u"c/%1"_q.arg(peerToChannel(channel->id).bare)
+					: username;
+				const auto query = base + '/' + QString::number(msgId.bare);
+				return session->createInternalLink(query);
+			}
+		}
+		return QString();
+	};
 	if (peerId) {
 		auto text = entry.in
 			? tr::lng_credits_box_history_entry_peer_in()
@@ -1661,12 +1676,7 @@ void AddCreditsHistoryEntryTable(
 		const auto session = &controller->session();
 		const auto peer = session->data().peer(peerId);
 		if (const auto channel = peer->asBroadcast()) {
-			const auto username = channel->username();
-			const auto base = username.isEmpty()
-				? u"c/%1"_q.arg(peerToChannel(channel->id).bare)
-				: username;
-			const auto query = base + '/' + QString::number(msgId.bare);
-			const auto link = session->createInternalLink(query);
+			const auto link = createMessageLink(entry.bareMsgId);
 			auto label = object_ptr<Ui::FlatLabel>(
 				table,
 				rpl::single(Ui::Text::Link(link)),
@@ -1716,6 +1726,27 @@ void AddCreditsHistoryEntryTable(
 			tr::lng_credits_box_history_entry_via(),
 			tr::lng_credits_box_history_entry_via_premium_bot(
 				Ui::Text::RichLangValue));
+	}
+	if (entry.bareGiveawayMsgId && entry.credits) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_gift(),
+			tr::lng_gift_stars_title(
+				lt_count,
+				rpl::single(float64(entry.credits)),
+				Ui::Text::RichLangValue));
+	}
+	{
+		const auto link = createMessageLink(entry.bareGiveawayMsgId);
+		if (!link.isEmpty()) {
+			AddTableRow(
+				table,
+				tr::lng_gift_link_label_reason(),
+				tr::lng_gift_link_reason_giveaway(
+				) | rpl::map([link](const QString &text) {
+					return Ui::Text::Link(text, link);
+				}));
+		}
 	}
 	if (!entry.id.isEmpty()) {
 		constexpr auto kOneLineCount = 18;
