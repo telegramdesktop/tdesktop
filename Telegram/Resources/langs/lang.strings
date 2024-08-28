@@ -2831,6 +2831,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prize_title" = "Congratulations!";
 "lng_prize_about" = "You won a prize in a giveaway organized by {channel}.";
 "lng_prize_duration" = "Your prize is a **Telegram Premium** subscription {duration}.";
+"lng_prize_credits" = "Your prize is {amount}.";
+"lng_prize_credits_amount#one" = "{count} Star";
+"lng_prize_credits_amount#other" = "{count} Stars";
 "lng_prize_gift_about" = "You've received a gift from {channel}.";
 "lng_prize_gift_duration" = "Your gift is a **Telegram Premium** subscription {duration}.";
 "lng_prize_open" = "Open Gift Link";

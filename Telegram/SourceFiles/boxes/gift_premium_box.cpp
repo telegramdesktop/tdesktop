@@ -1727,6 +1727,13 @@ void AddCreditsHistoryEntryTable(
 			tr::lng_credits_box_history_entry_via_premium_bot(
 				Ui::Text::RichLangValue));
 	}
+	if (entry.bareGiveawayMsgId) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_to(),
+			controller,
+			controller->session().userId());
+	}
 	if (entry.bareGiveawayMsgId && entry.credits) {
 		AddTableRow(
 			table,

@@ -129,13 +129,14 @@ struct GiveawayResults {
 
 enum class GiftType : uchar {
 	Premium, // count - months
-	Stars, // count - stars
+	Credits, // count - credits
 };
 
 struct GiftCode {
 	QString slug;
 	ChannelData *channel = nullptr;
 	int count = 0;
+	int giveawayMsgId = 0;
 	GiftType type = GiftType::Premium;
 	bool viaGiveaway = false;
 	bool unclaimed = false;

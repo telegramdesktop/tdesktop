@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_premium_gift.h"
 
+#include "base/unixtime.h"
 #include "boxes/gift_premium_box.h" // ResolveGiftCode
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
-#include "data/data_document.h"
 #include "data/data_channel.h"
+#include "data/data_credits.h"
+#include "data/data_document.h"
 #include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -19,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_credits.h" // Settings::CreditsId
+#include "settings/settings_credits_graphics.h"
 #include "settings/settings_credits_graphics.h" // GiftedCreditsBox
 #include "settings/settings_premium.h" // Settings::ShowGiftPremium
 #include "ui/layers/generic_box.h"
@@ -49,7 +52,9 @@ QSize PremiumGift::size() {
 }
 
 QString PremiumGift::title() {
-	if (const auto count = stars()) {
+	if (creditsPrize()) {
+		return tr::lng_prize_title(tr::now);
+	} else if (const auto count = credits()) {
 		return tr::lng_gift_stars_title(tr::now, lt_count, count);
 	}
 	return gift()
@@ -60,7 +65,8 @@ QString PremiumGift::title() {
 }
 
 TextWithEntities PremiumGift::subtitle() {
-	if (const auto count = stars()) {
+	const auto isCreditsPrize = creditsPrize();
+	if (const auto count = credits(); count && !isCreditsPrize) {
 		return outgoingGift()
 			? tr::lng_gift_stars_outgoing(
 				tr::now,
@@ -82,20 +88,32 @@ TextWithEntities PremiumGift::subtitle() {
 			Ui::Text::Bold(name),
 			Ui::Text::RichLangValue);
 	result.append("\n\n");
-	result.append((_data.unclaimed
-		? tr::lng_prize_unclaimed_duration
-		: _data.viaGiveaway
-		? tr::lng_prize_duration
-		: tr::lng_prize_gift_duration)(
+	result.append(isCreditsPrize
+		? tr::lng_prize_credits(
 			tr::now,
-			lt_duration,
-			Ui::Text::Bold(GiftDuration(_data.count)),
-			Ui::Text::RichLangValue));
+			lt_amount,
+			tr::lng_prize_credits_amount(
+				tr::now,
+				lt_count,
+				credits(),
+				Ui::Text::RichLangValue),
+			Ui::Text::RichLangValue)
+		: (_data.unclaimed
+			? tr::lng_prize_unclaimed_duration
+			: _data.viaGiveaway
+			? tr::lng_prize_duration
+			: tr::lng_prize_gift_duration)(
+				tr::now,
+				lt_duration,
+				Ui::Text::Bold(GiftDuration(_data.count)),
+				Ui::Text::RichLangValue));
 	return result;
 }
 
 rpl::producer<QString> PremiumGift::button() {
-	return (gift() && (outgoingGift() || !_data.unclaimed))
+	return creditsPrize()
+		? tr::lng_view_button_giftcode()
+		: (gift() && (outgoingGift() || !_data.unclaimed))
 		? tr::lng_sticker_premium_view()
 		: tr::lng_prize_open();
 }
@@ -110,7 +128,26 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 		if (const auto controller = my.sessionWindow.get()) {
 			const auto selfId = controller->session().userPeerId();
 			const auto sent = (from->id == selfId);
-			if (data.type == Data::GiftType::Stars) {
+			if (creditsPrize()) {
+				using Type = Data::CreditsHistoryEntry::PeerType;
+				controller->show(Box(
+					Settings::ReceiptCreditsBox,
+					controller,
+					Data::CreditsHistoryEntry{
+						.id = data.slug,
+						.title = QString(),
+						.description = QString(),
+						.date = base::unixtime::parse(date),
+						.credits = uint64(data.count),
+						.barePeerId = data.channel
+							? data.channel->id.value
+							: 0,
+						.bareGiveawayMsgId = uint64(data.giveawayMsgId),
+						.peerType = Type::Peer,
+						.in = true,
+					},
+					Data::SubscriptionEntry()));
+			} else if (data.type == Data::GiftType::Credits) {
 				const auto to = sent ? peer : peer->session().user();
 				controller->show(Box(
 					Settings::GiftedCreditsBox,
@@ -186,8 +223,14 @@ bool PremiumGift::gift() const {
 	return _data.slug.isEmpty() || !_data.channel;
 }
 
-int PremiumGift::stars() const {
-	return (_data.type == Data::GiftType::Stars) ? _data.count : 0;
+bool PremiumGift::creditsPrize() const {
+	return _data.viaGiveaway
+		&& (_data.type == Data::GiftType::Credits)
+		&& !_data.slug.isEmpty();
+}
+
+int PremiumGift::credits() const {
+	return (_data.type == Data::GiftType::Credits) ? _data.count : 0;
 }
 
 void PremiumGift::ensureStickerCreated() const {
@@ -196,7 +239,7 @@ void PremiumGift::ensureStickerCreated() const {
 	}
 	const auto &session = _parent->history()->session();
 	auto &packs = session.giftBoxStickersPacks();
-	const auto count = stars();
+	const auto count = credits();
 	const auto months = count ? packs.monthsForStars(count) : _data.count;
 	if (const auto document = packs.lookup(months)) {
 		if (const auto sticker = document->sticker()) {

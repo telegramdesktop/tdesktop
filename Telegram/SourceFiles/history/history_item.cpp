@@ -5237,7 +5237,16 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareGiftPrize = [&](
 			const MTPDmessageActionPrizeStars &action) {
 		auto result = PreparedServiceText();
-		AssertIsDebug();
+		_history->session().giftBoxStickersPacks().load();
+		result.text = {
+			(action.is_unclaimed()
+				? tr::lng_prize_unclaimed_about
+				: tr::lng_prize_about)(
+					tr::now,
+					lt_channel,
+					_from->owner().peer(
+						peerFromMTP(action.vboost_peer()))->name()),
+		};
 		return result;
 	};
 
@@ -5382,8 +5391,22 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 		_media = std::make_unique<Data::MediaGiftBox>(
 			this,
 			_from,
-			Data::GiftType::Stars,
+			Data::GiftType::Credits,
 			data.vstars().v);
+	}, [&](const MTPDmessageActionPrizeStars &data) {
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			Data::GiftCode{
+				.slug = qs(data.vtransaction_id()),
+				.channel = history()->owner().channel(
+					peerToChannel(peerFromMTP(data.vboost_peer()))),
+				.count = int(data.vstars().v),
+				.giveawayMsgId = data.vgiveaway_msg_id().v,
+				.type = Data::GiftType::Credits,
+				.viaGiveaway = true,
+				.unclaimed = data.is_unclaimed(),
+			});
 	}, [](const auto &) {
 	});
 }
