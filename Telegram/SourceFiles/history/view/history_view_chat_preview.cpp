@@ -43,6 +43,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
+#ifdef Q_OS_WIN
+#include "ui/platform/win/ui_windows_direct_manipulation.h"
+#endif // Q_OS_WIN
+
 namespace HistoryView {
 namespace {
 
