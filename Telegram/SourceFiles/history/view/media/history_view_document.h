@@ -139,6 +139,7 @@ private:
 
 	void setStatusSize(int64 newSize, TimeId realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause
+	[[nodiscard]] int thumbedLinkMaxWidth() const;
 
 	[[nodiscard]] bool downloadInCorner() const;
 	void drawCornerDownload(

@@ -507,8 +507,16 @@ QSize Document::countOptimalSize() {
 	}
 
 	auto minHeight = st.padding.top() + st.thumbSize + st.padding.bottom();
-	if (isBubbleBottom() && !hasTranscribe && _parent->bottomInfoIsWide()) {
-		minHeight += st::msgDateFont->height - st::msgDateDelta.y();
+	if (isBubbleBottom() && !hasTranscribe) {
+		if (const auto link = thumbedLinkMaxWidth()) {
+			accumulate_max(
+				maxWidth,
+				(tleft
+					+ link
+					+ st.thumbSkip
+					+ _parent->bottomInfoFirstLineWidth()
+					+ tright));
+		}
 	}
 	if (!isBubbleTop()) {
 		minHeight -= st::msgFileTopMinus;
@@ -530,13 +538,30 @@ QSize Document::countCurrentSize(int newWidth) {
 	const auto captioned = Get<HistoryDocumentCaptioned>();
 	const auto voice = Get<HistoryDocumentVoice>();
 	const auto hasTranscribe = voice && !voice->transcribeText.isEmpty();
+	const auto thumbed = Get<HistoryDocumentThumbed>();
+	const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
 	if (!captioned && !hasTranscribe) {
-		return File::countCurrentSize(newWidth);
+		auto result = File::countCurrentSize(newWidth);
+		if (isBubbleBottom()) {
+			if (const auto link = thumbedLinkMaxWidth()) {
+				const auto needed = st.padding.left()
+					+ st.thumbSize
+					+ st.thumbSkip
+					+ link
+					+ st.thumbSkip
+					+ _parent->bottomInfoFirstLineWidth()
+					+ st.padding.right();
+				if (result.width() < needed) {
+					result.setHeight(result.height()
+						+ st::msgDateFont->height
+						- st::msgDateDelta.y());
+				}
+			}
+		}
+		return result;
 	}
 
 	accumulate_min(newWidth, maxWidth());
-	const auto thumbed = Get<HistoryDocumentThumbed>();
-	const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
 	auto newHeight = st.padding.top() + st.thumbSize + st.padding.bottom();
 	if (!isBubbleTop()) {
 		newHeight -= st::msgFileTopMinus;
@@ -1380,6 +1405,20 @@ TextSelection Document::selectionFromQuote(
 
 bool Document::uploading() const {
 	return _data->uploading();
+}
+
+[[nodiscard]] int Document::thumbedLinkMaxWidth() const {
+	if (Has<HistoryDocumentThumbed>()) {
+		const auto w = [](const QString &text) {
+			return st::semiboldFont->width(text.toUpper());
+		};
+		return std::max({
+			w(tr::lng_media_download(tr::now)),
+			w(tr::lng_media_open_with(tr::now)),
+			w(tr::lng_media_cancel(tr::now)),
+		});
+	}
+	return 0;
 }
 
 void Document::setStatusSize(int64 newSize, TimeId realDuration) const {
