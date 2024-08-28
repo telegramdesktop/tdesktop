@@ -37,4 +37,5 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/arc_angles.h"
 #include "ui/text/text.h"
 #include "ui/effects/animations.h"
+#include "ui/qt_object_factory.h"
 #include "styles/palette.h"
