@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 #include "window/window_session_controller_link_info.h"
 #include "styles/style_chat_helpers.h"

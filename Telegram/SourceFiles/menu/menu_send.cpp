@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_peer.h"

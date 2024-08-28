@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/time_picker_box.h"
 #include "ui/effects/emoji_fly_animation.h"
 #include "ui/text/format_values.h"
+#include "ui/ui_utility.h"
 #include "base/unixtime.h"
 #include "boxes/premium_preview_box.h"
 #include "window/window_session_controller.h"

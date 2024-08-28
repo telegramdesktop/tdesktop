@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/expandable_peer_list.h"
 #include "ui/widgets/participants_check_view.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/ui_utility.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "ui/widgets/call_button.h"
 #include "ui/widgets/labels.h"
+#include "ui/ui_utility.h"
 #include "base/random.h"
 #include "styles/palette.h"
 #include "styles/style_widgets.h"

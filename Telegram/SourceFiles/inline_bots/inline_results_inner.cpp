@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "styles/style_chat_helpers.h"

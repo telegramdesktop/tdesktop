@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout_reorder.h"
+#include "ui/ui_utility.h"
 #include "styles/style_boxes.h" // contactsStatusFont.
 #include "styles/style_info.h"
 #include "styles/style_layers.h"

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/click_handler.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
