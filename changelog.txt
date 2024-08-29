@@ -1,3 +1,8 @@
+5.4.4 beta (29.08.24)
+
+- Fix wrong layout and crashes in text shaping.
+- Fix crashes in voice / video messages playback.
+
 5.4.3 beta (29.08.24)
 
 - Fix working on Windows 7.
