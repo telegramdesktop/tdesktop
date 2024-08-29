@@ -611,6 +611,9 @@ struct ActionGiftStars {
 struct ActionPrizeStars {
 	PeerId peerId = 0;
 	uint64 amount = 0;
+	Utf8String transactionId;
+	int32 giveawayMsgId = 0;
+	bool isUnclaimed = false;
 };
 
 struct ServiceAction {

@@ -1565,10 +1565,13 @@ ServiceAction ParseServiceAction(
 		content.credits = data.vstars().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionPrizeStars &data) {
-		auto content = ActionPrizeStars();
-		content.peerId = ParsePeerId(data.vboost_peer());
-		content.amount = data.vstars().v;
-		result.content = content;
+		result.content = ActionPrizeStars{
+			.peerId = ParsePeerId(data.vboost_peer()),
+			.amount = data.vstars().v,
+			.transactionId = data.vtransaction_id().v,
+			.giveawayMsgId = data.vgiveaway_msg_id().v,
+			.isUnclaimed = data.is_unclaimed(),
+		};
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

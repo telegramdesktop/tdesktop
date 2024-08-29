@@ -644,7 +644,12 @@ QByteArray SerializeMessage(
 	}, [&](const ActionPrizeStars &data) {
 		pushActor();
 		pushAction("stars_prize");
-		push("stars", data.amount); AssertIsDebug();
+		push("boost_peer_id", data.peerId);
+		pushBare("boost_peer_name", wrapPeerName(data.peerId));
+		push("stars", data.amount);
+		push("is_unclaimed", data.isUnclaimed);
+		push("giveaway_msg_id", data.giveawayMsgId);
+		push("transaction_id", data.transactionId);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
