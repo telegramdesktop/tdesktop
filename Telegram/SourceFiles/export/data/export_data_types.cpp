@@ -1562,10 +1562,11 @@ ServiceAction ParseServiceAction(
 		content.cost = Ui::FillAmountAndCurrency(
 			data.vamount().v,
 			qs(data.vcurrency())).toUtf8();
-		content.stars = data.vstars().v;
+		content.credits = data.vstars().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionPrizeStars &data) {
 		auto content = ActionPrizeStars();
+		content.peerId = ParsePeerId(data.vboost_peer());
 		content.amount = data.vstars().v;
 		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});

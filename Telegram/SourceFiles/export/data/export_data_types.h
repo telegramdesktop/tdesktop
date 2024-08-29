@@ -605,10 +605,11 @@ struct ActionPaymentRefunded {
 
 struct ActionGiftStars {
 	Utf8String cost;
-	int stars = 0;
+	int credits = 0;
 };
 
 struct ActionPrizeStars {
+	PeerId peerId = 0;
 	uint64 amount = 0;
 };
 

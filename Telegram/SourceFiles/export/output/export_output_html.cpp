@@ -1330,17 +1330,21 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ amount;
 		return result;
 	}, [&](const ActionGiftStars &data) {
-		if (!data.stars || data.cost.isEmpty()) {
+		if (!data.credits || data.cost.isEmpty()) {
 			return serviceFrom + " sent you a gift.";
 		}
 		return serviceFrom
 			+ " sent you a gift for "
 			+ data.cost
 			+ ": "
-			+ QString::number(data.stars).toUtf8()
+			+ QString::number(data.credits).toUtf8()
 			+ " Telegram Stars.";
 	}, [&](const ActionPrizeStars &data) {
-		return serviceFrom + " prize stars."; AssertIsDebug();
+		return "You won a prize in a giveaway organized by "
+			+ peers.wrapPeerName(data.peerId)
+			+ ".\n Your prize is "
+			+ QString::number(data.amount).toUtf8()
+			+ " Telegram Stars.";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

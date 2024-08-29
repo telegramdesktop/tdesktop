@@ -638,8 +638,8 @@ QByteArray SerializeMessage(
 		if (!data.cost.isEmpty()) {
 			push("cost", data.cost);
 		}
-		if (data.stars) {
-			push("stars", data.stars);
+		if (data.credits) {
+			push("stars", data.credits);
 		}
 	}, [&](const ActionPrizeStars &data) {
 		pushActor();
