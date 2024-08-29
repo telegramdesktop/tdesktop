@@ -670,8 +670,6 @@ void Widget::updateTimeLabel() {
 void Widget::handleSongChange() {
 	const auto current = instance()->current(_type);
 	const auto document = current.audio();
-	_lastSongFromAnotherSession = (document->session().uniqueId()
-		!= _controller->session().uniqueId());
 	if (!current
 		|| !document
 		|| ((_lastSongId.audio() == document)
@@ -679,6 +677,8 @@ void Widget::handleSongChange() {
 		return;
 	}
 	_lastSongId = current;
+	_lastSongFromAnotherSession = (document->session().uniqueId()
+		!= _controller->session().uniqueId());
 
 	auto textWithEntities = TextWithEntities();
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
