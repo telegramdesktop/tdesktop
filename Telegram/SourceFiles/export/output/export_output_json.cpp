@@ -815,6 +815,32 @@ QByteArray SerializeMessage(
 			{ "is_only_new_subscribers", (!data.all) ? "true" : "false" },
 		}));
 	}, [&](const GiveawayResults &data) {
+		context.nesting.push_back(Context::kArray);
+		const auto winners = ranges::views::all(
+			data.winners
+		) | ranges::views::transform([&](PeerId id) {
+			return NumberToString(id.value);
+		}) | ranges::to_vector;
+		const auto serialized = SerializeArray(context, winners);
+		context.nesting.pop_back();
+
+		const auto additionalPrize = data.additionalPrize.toUtf8();
+		const auto peersCount = data.additionalPeersCount;
+
+		pushBare("giveaway_results", SerializeObject(context, {
+			{ "channel", NumberToString(data.channel.bare) },
+			{ "winners", serialized },
+			{ "additional_prize", SerializeString(additionalPrize) },
+			{ "until_date", SerializeDate(data.untilDate) },
+			{ "launch_message_id", NumberToString(data.launchId) },
+			{ "additional_peers_count", NumberToString(peersCount) },
+			{ "winners_count", NumberToString(data.winnersCount) },
+			{ "unclaimed_count", NumberToString(data.unclaimedCount) },
+			{ "months", NumberToString(data.months) },
+			{ "stars", NumberToString(data.credits) },
+			{ "is_refunded", data.refunded ? "true" : "false" },
+			{ "is_only_new_subscribers", (!data.all) ? "true" : "false" },
+		}));
 	}, [&](const PaidMedia &data) {
 		push("paid_stars_amount", data.stars);
 	}, [](const UnsupportedMedia &data) {
