@@ -361,7 +361,7 @@ void Premium::resolveGiveawayInfo(
 				? GiveawayState::Refunded
 				: GiveawayState::Finished;
 			info.giftCode = qs(data.vgift_code_slug().value_or_empty());
-			info.activatedCount = data.vactivated_count().value_or_empty(); AssertIsDebug();
+			info.activatedCount = data.vactivated_count().value_or_empty();
 			info.finishDate = data.vfinish_date().v;
 			info.startDate = data.vstart_date().v;
 		});

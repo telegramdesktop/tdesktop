@@ -733,12 +733,22 @@ Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 GiveawayStart ParseGiveaway(const MTPDmessageMediaGiveaway &data) {
 	auto result = GiveawayStart{
 		.untilDate = data.vuntil_date().v,
+		.credits = data.vstars().value_or_empty(),
 		.quantity = data.vquantity().v,
-		.months = data.vmonths().value_or_empty(), AssertIsDebug()
-		//.stars = data.vstars().value_or_empty(),
+		.months = data.vmonths().value_or_empty(),
+		.all = !data.is_only_new_subscribers(),
 	};
 	for (const auto &id : data.vchannels().v) {
 		result.channels.push_back(ChannelId(id));
+	}
+	if (const auto countries = data.vcountries_iso2()) {
+		result.countries.reserve(countries->v.size());
+		for (const auto &country : countries->v) {
+			result.countries.push_back(qs(country));
+		}
+	}
+	if (const auto additional = data.vprize_description()) {
+		result.additionalPrize = qs(*additional);
 	}
 	return result;
 }

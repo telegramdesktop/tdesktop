@@ -210,10 +210,14 @@ struct Poll {
 };
 
 struct GiveawayStart {
+	std::vector<QString> countries;
 	std::vector<ChannelId> channels;
+	QString additionalPrize;
 	TimeId untilDate = 0;
+	uint64 credits = 0;
 	int quantity = 0;
 	int months = 0;
+	bool all = false;
 };
 
 struct UserpicsSlice {

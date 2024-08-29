@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/output/export_output_html.h"
 
+#include "countries/countries_instance.h"
 #include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
 #include "core/utils.h"
@@ -1307,9 +1308,11 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom + " just started a giveaway "
 			"of Telegram Premium subscriptions to its followers.";
 	}, [&](const ActionGiveawayResults &data) {
-		return QByteArray::number(data.winners)
-			+ " of the giveaway were randomly selected by Telegram "
-			"and received private messages with giftcodes.";
+		return (data.winners > 0)
+			? NumberToString(data.winners)
+				+ " of the giveaway were randomly selected by Telegram "
+				"and received private messages with giftcodes."
+			: "No winners of the giveaway could be selected.";
 	}, [&](const ActionBoostApply &data) {
 		return serviceFrom
 			+ " boosted the group "
@@ -1912,17 +1915,47 @@ QByteArray HtmlWriter::Wrap::pushGiveaway(
 	result.append(pushDiv("media_giveaway"));
 
 	result.append(pushDiv("section_title bold"));
-	result.append(SerializeString("Giveaway Prizes"));
+	result.append((data.quantity > 1)
+		? SerializeString("Giveaway Prizes")
+		: SerializeString("Giveaway Prize"));
 	result.append(popTag());
+
+	{
+		result.append(pushDiv("section_body"));
+		result.append("<b>"
+			+ Data::NumberToString(data.quantity)
+			+ "</b> "
+			+ SerializeString(data.additionalPrize.toUtf8()));
+		result.append(popTag());
+		result.append(pushDiv("section_title bold"));
+		result.append(SerializeString("with"));
+		result.append(popTag());
+	};
 	result.append(pushDiv("section_body"));
-	result.append("<b>"
-		+ Data::NumberToString(data.quantity)
-		+ "</b> "
-		+ SerializeString((data.quantity > 1)
-			? "Telegram Premium Subscriptions"
-			: "Telegram Premium Subscription")
-		+ " for <b>" + Data::NumberToString(data.months) + "</b> "
-		+ (data.months > 1 ? "months." : "month."));
+	if (data.credits > 0) {
+		result.append("<b>"
+			+ Data::NumberToString(data.credits)
+			+ (SerializeString(data.credits == 1 ? (" Star") : (" Stars")))
+			+ "</b> " + SerializeString("will be distributed ")
+			+ ((data.quantity == 1)
+				? SerializeString("to ")
+					+ "<b>"
+					+ Data::NumberToString(data.quantity)
+					+ "</b> " + SerializeString("winner.")
+				: SerializeString("among ")
+					+ "<b>"
+					+ Data::NumberToString(data.quantity)
+					+ "</b> " + SerializeString("winners.")));
+	} else {
+		result.append("<b>"
+			+ Data::NumberToString(data.quantity)
+			+ "</b> "
+			+ SerializeString((data.quantity > 1)
+				? "Telegram Premium Subscriptions"
+				: "Telegram Premium Subscription")
+			+ " for <b>" + Data::NumberToString(data.months) + "</b> "
+			+ (data.months > 1 ? "months." : "month."));
+	}
 	result.append(popTag());
 
 	result.append(pushDiv("section_title bold"));
@@ -1930,15 +1963,85 @@ QByteArray HtmlWriter::Wrap::pushGiveaway(
 	result.append(popTag());
 	result.append(pushDiv("section_body"));
 	auto channels = QByteArrayList();
+	auto anyChannel = false;
+	auto anyGroup = false;
 	for (const auto &channel : data.channels) {
+		if (const auto chat = peers.peer(channel).chat()) {
+			if (chat->isBroadcast) {
+				anyChannel = true;
+			} else if (chat->isSupergroup) {
+				anyGroup = true;
+			}
+		}
 		channels.append("<b>" + peers.wrapPeerName(channel) + "</b>");
 	}
-	result.append(SerializeString((channels.size() > 1)
-		? "All subscribers of those channels: "
-		: "All subscribers of the channel: ")
-		+ channels.join(", "));
+
+	const auto participants = [&] {
+		if (data.all && !anyGroup && anyChannel && channels.size() == 1) {
+			return "All subscribers of the channel:";
+		}
+		if (data.all && !anyGroup && anyChannel && channels.size() > 1) {
+			return "All subscribers of the channels:";
+		}
+		if (data.all && anyGroup && !anyChannel && channels.size() == 1) {
+			return "All members of the group:";
+		}
+		if (data.all && anyGroup && !anyChannel && channels.size() > 1) {
+			return "All members of the groups:";
+		}
+		if (data.all && anyGroup && anyChannel && channels.size() == 1) {
+			return "All members of the group:";
+		}
+		if (data.all && anyGroup && anyChannel && channels.size() > 1) {
+			return "All members of the groups and channels:";
+		}
+		if (!data.all && !anyGroup && anyChannel && channels.size() == 1) {
+			return "All users who joined the channel below after this date:";
+		}
+		if (!data.all && !anyGroup && anyChannel && channels.size() > 1) {
+			return "All users who joined the channels below after this date:";
+		}
+		if (!data.all && anyGroup && !anyChannel && channels.size() == 1) {
+			return "All users who joined the group below after this date:";
+		}
+		if (!data.all && anyGroup && !anyChannel && channels.size() > 1) {
+			return "All users who joined the groups below after this date:";
+		}
+		if (!data.all && anyGroup && anyChannel && channels.size() == 1) {
+			return "All users who joined the group below after this date:";
+		}
+		if (!data.all && anyGroup && anyChannel && channels.size() > 1) {
+			return "All users who joined the groups and channels below "
+				"after this date:";
+		}
+		return "";
+	}();
+
+	result.append(SerializeString(participants)) + channels.join(", ");
 	result.append(popTag());
 
+	{
+		const auto &instance = Countries::Instance();
+		auto countries = QStringList();
+		for (const auto &country : data.countries) {
+			const auto name = instance.countryNameByISO2(country);
+			const auto flag = instance.flagEmojiByISO2(country);
+			countries.push_back(flag + QChar(0xA0) + name);
+		}
+
+		if (const auto count = countries.size()) {
+			auto united = countries.front();
+			for (auto i = 1; i != count; ++i) {
+				united = ((i + 1 == count)
+					? u"%1 and %2"_q
+					: u"%1, %2"_q).arg(united, countries[i]);
+			}
+			result.append(pushDiv("section_body"));
+			result.append(
+				SerializeString((u"from %1"_q).arg(united).toUtf8()));
+			result.append(popTag());
+		}
+	}
 	result.append(pushDiv("section_title bold"));
 	result.append(SerializeString("Winners Selection Date"));
 	result.append(popTag());
