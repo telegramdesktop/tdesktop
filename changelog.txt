@@ -1,3 +1,7 @@
+5.4.3 beta (29.08.24)
+
+- Fix working on Windows 7.
+
 5.4.2 beta (28.08.24)
 
 - Select audio devices from one-on-one call window.
