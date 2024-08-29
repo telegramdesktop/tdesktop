@@ -598,7 +598,8 @@ private:
 		const Data::Message &message,
 		const QString &basePath,
 		const PeersMap &peers,
-		const QString &internalLinksDomain);
+		const QString &internalLinksDomain,
+		Fn<QByteArray(int messageId, QByteArray text)> wrapMessageLink);
 	[[nodiscard]] QByteArray pushGenericMedia(const MediaData &data);
 	[[nodiscard]] QByteArray pushStickerMedia(
 		const Data::Document &data,
@@ -616,6 +617,10 @@ private:
 	[[nodiscard]] QByteArray pushGiveaway(
 		const PeersMap &peers,
 		const Data::GiveawayStart &data);
+	[[nodiscard]] QByteArray pushGiveaway(
+		const PeersMap &peers,
+		const Data::GiveawayResults &data,
+		Fn<QByteArray(int messageId, QByteArray text)> wrapMessageLink);
 
 	File _file;
 	QByteArray _composedStart;
@@ -1456,7 +1461,13 @@ auto HtmlWriter::Wrap::pushMessage(
 		block.append(popTag());
 	}
 
-	block.append(pushMedia(message, basePath, peers, internalLinksDomain));
+	block.append(
+		pushMedia(
+			message,
+			basePath,
+			peers,
+			internalLinksDomain,
+			wrapMessageLink));
 
 	const auto text = FormatText(message.text, internalLinksDomain, _base);
 	if (!text.isEmpty()) {
@@ -1559,7 +1570,8 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 		const Data::Message &message,
 		const QString &basePath,
 		const PeersMap &peers,
-		const QString &internalLinksDomain) {
+		const QString &internalLinksDomain,
+		Fn<QByteArray(int messageId, QByteArray text)> wrapMessageLink) {
 	const auto data = prepareMediaData(
 		message,
 		basePath,
@@ -1587,6 +1599,8 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 		return pushPoll(*poll);
 	} else if (const auto giveaway = std::get_if<GiveawayStart>(&content)) {
 		return pushGiveaway(peers, *giveaway);
+	} else if (const auto giveaway = std::get_if<GiveawayResults>(&content)) {
+		return pushGiveaway(peers, *giveaway, wrapMessageLink);
 	}
 	Assert(v::is_null(content));
 	return QByteArray();
@@ -2054,6 +2068,84 @@ QByteArray HtmlWriter::Wrap::pushGiveaway(
 	return result;
 }
 
+QByteArray HtmlWriter::Wrap::pushGiveaway(
+		const PeersMap &peers,
+		const Data::GiveawayResults &data,
+		Fn<QByteArray(int messageId, QByteArray text)> wrapMessageLink) {
+	auto result = pushDiv("media_wrap clearfix");
+	result.append(pushDiv("media_giveaway"));
+
+	result.append(pushDiv("section_title bold"));
+	result.append((data.winnersCount > 1)
+		? SerializeString("Winners Selected!")
+		: SerializeString("Winner Selected!"));
+	result.append(popTag());
+
+	result.append(pushDiv("section_body"));
+	result.append(
+		"<b>" + Data::NumberToString(data.winnersCount) + "</b> "
+		+ SerializeString((data.winnersCount > 1) ? "winners" : "winner")
+		+ " of the "
+		+ wrapMessageLink(data.launchId, "Giveaway")
+		+ " was randomly selected by Telegram.");
+	result.append(popTag());
+
+	result.append(pushDiv("section_title bold"));
+	result.append((data.winnersCount > 1)
+		? SerializeString("Winners")
+		: SerializeString("Winner"));
+	result.append(popTag());
+
+	result.append(pushDiv("section_body"));
+	auto winners = QByteArrayList();
+	for (const auto &winner : data.winners) {
+		winners.append("<b>" + peers.wrapPeerName(winner) + "</b>");
+	}
+	const auto andMore = [&, size = data.winners.size()] {
+		if (data.winnersCount > size) {
+			return SerializeString(" and ")
+				+ Data::NumberToString(data.winnersCount - size)
+				+ SerializeString(" more!");
+		}
+		return QByteArray();
+	}();
+	result.append(winners.join(", ") + andMore);
+	result.append(popTag());
+
+	result.append(pushDiv("section_body"));
+	const auto prize = [&, singleStar = (data.credits == 1)] {
+		if (data.credits && data.winnersCount == 1) {
+			return SerializeString("The winner received ")
+				+ "<b>"
+				+ Data::NumberToString(data.credits)
+				+ "</b>"
+				+ SerializeString(singleStar ? " Star." : " Stars.");
+		} else if (data.credits && data.winnersCount > 1) {
+			return SerializeString("All winners received ")
+				+ "<b>"
+				+ Data::NumberToString(data.credits)
+				+ "</b>"
+				+ SerializeString(singleStar
+					? " Star in total."
+					: " Stars in total.");
+		} else if (data.unclaimedCount) {
+			return SerializeString("Some winners couldn't be selected.");
+		} else if (data.winnersCount == 1) {
+			return SerializeString(
+				"The winner received their gift link in a private message.");
+		} else if (data.winnersCount > 1) {
+			return SerializeString(
+				"All winners received gift links in private messages.");
+		}
+	}();
+	result.append(prize);
+	result.append(popTag());
+
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
 MediaData HtmlWriter::Wrap::prepareMediaData(
 		const Data::Message &message,
 		const QString &basePath,
@@ -2213,6 +2305,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		result.status = Data::FormatMoneyAmount(data.amount, data.currency);
 	}, [](const Poll &data) {
 	}, [](const GiveawayStart &data) {
+	}, [](const GiveawayResults &data) {
 	}, [&](const PaidMedia &data) {
 		result.classes = "media_invoice";
 		result.status = Data::FormatMoneyAmount(data.stars, "XTR");

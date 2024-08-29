@@ -753,6 +753,30 @@ GiveawayStart ParseGiveaway(const MTPDmessageMediaGiveaway &data) {
 	return result;
 }
 
+GiveawayResults ParseGiveaway(const MTPDmessageMediaGiveawayResults &data) {
+	const auto additional = data.vadditional_peers_count();
+	auto result = GiveawayResults{
+		.channel = ChannelId(data.vchannel_id()),
+		.untilDate = data.vuntil_date().v,
+		.launchId = data.vlaunch_msg_id().v,
+		.additionalPeersCount = additional.value_or_empty(),
+		.winnersCount = data.vwinners_count().v,
+		.unclaimedCount = data.vunclaimed_count().v,
+		.months = data.vmonths().value_or_empty(),
+		.credits = data.vstars().value_or_empty(),
+		.refunded = data.is_refunded(),
+		.all = !data.is_only_new_subscribers(),
+	};
+	result.winners.reserve(data.vwinners().v.size());
+	for (const auto &id : data.vwinners().v) {
+		result.winners.push_back(UserId(id));
+	}
+	if (const auto additional = data.vprize_description()) {
+		result.additionalPrize = qs(*additional);
+	}
+	return result;
+}
+
 UserpicsSlice ParseUserpicsSlice(
 		const MTPVector<MTPPhoto> &data,
 		int baseIndex) {
@@ -1257,7 +1281,7 @@ Media ParseMedia(
 	}, [&](const MTPDmessageMediaGiveaway &data) {
 		result.content = ParseGiveaway(data);
 	}, [&](const MTPDmessageMediaGiveawayResults &data) {
-		// #TODO export giveaway
+		result.content = ParseGiveaway(data);
 	}, [&](const MTPDmessageMediaPaidMedia &data) {
 		result.content = ParsePaidMedia(context, data, folder, date);
 	}, [](const MTPDmessageMediaEmpty &data) {});

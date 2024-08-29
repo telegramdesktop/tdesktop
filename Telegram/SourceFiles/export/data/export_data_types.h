@@ -220,6 +220,21 @@ struct GiveawayStart {
 	bool all = false;
 };
 
+struct GiveawayResults {
+	ChannelId channel = 0;
+	std::vector<PeerId> winners;
+	QString additionalPrize;
+	TimeId untilDate = 0;
+	int32 launchId = 0;
+	int additionalPeersCount = 0;
+	int winnersCount = 0;
+	int unclaimedCount = 0;
+	int months = 0;
+	uint64 credits = 0;
+	bool refunded = false;
+	bool all = false;
+};
+
 struct UserpicsSlice {
 	std::vector<Photo> list;
 };
@@ -353,6 +368,7 @@ struct Media {
 		Invoice,
 		Poll,
 		GiveawayStart,
+		GiveawayResults,
 		PaidMedia,
 		UnsupportedMedia> content;
 	TimeId ttl = 0;

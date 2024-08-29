@@ -799,6 +799,7 @@ QByteArray SerializeMessage(
 			{ "until_date", SerializeDate(data.untilDate) },
 			{ "channels", serialized },
 		}));
+	}, [&](const GiveawayResults &data) {
 	}, [&](const PaidMedia &data) {
 		push("paid_stars_amount", data.stars);
 	}, [](const UnsupportedMedia &data) {
