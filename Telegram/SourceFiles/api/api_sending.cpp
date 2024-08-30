@@ -44,7 +44,10 @@ void InnerFillMessagePostFlags(
 	if (ShouldSendSilent(peer, options)) {
 		flags |= MessageFlag::Silent;
 	}
-	if (!peer->amAnonymous()) {
+	if (!peer->amAnonymous()
+		|| (!peer->isBroadcast()
+			&& options.sendAs
+			&& options.sendAs != peer)) {
 		flags |= MessageFlag::HasFromId;
 	}
 	const auto channel = peer->asBroadcast();
