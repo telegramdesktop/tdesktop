@@ -111,6 +111,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/algorithm.h"
 #include "base/basic_types.h"
+#include "base/debug_destroy_informer.h" // _DEBUG only.
 #include "base/flat_set.h"
 #include "base/flat_map.h"
 #include "base/invoke_queued.h"
