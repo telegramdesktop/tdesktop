@@ -115,6 +115,28 @@ rpl::producer<bool> GlobalPrivacy::newRequirePremium() const {
 	return _newRequirePremium.value();
 }
 
+void GlobalPrivacy::loadPaidReactionAnonymous() {
+	if (_paidReactionAnonymousLoaded) {
+		return;
+	}
+	_paidReactionAnonymousLoaded = true;
+	_api.request(MTPmessages_GetPaidReactionPrivacy(
+	)).done([=](const MTPUpdates &result) {
+		_session->api().applyUpdates(result);
+	}).send();
+}
+
+void GlobalPrivacy::updatePaidReactionAnonymous(bool value) {
+	_paidReactionAnonymous = value;
+}
+
+bool GlobalPrivacy::paidReactionAnonymousCurrent() const {
+	return _paidReactionAnonymous.current();
+}
+
+rpl::producer<bool> GlobalPrivacy::paidReactionAnonymous() const {
+	return _paidReactionAnonymous.value();
+}
 
 void GlobalPrivacy::updateArchiveAndMute(bool value) {
 	update(

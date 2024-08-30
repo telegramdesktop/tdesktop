@@ -49,6 +49,11 @@ public:
 	[[nodiscard]] bool newRequirePremiumCurrent() const;
 	[[nodiscard]] rpl::producer<bool> newRequirePremium() const;
 
+	void loadPaidReactionAnonymous();
+	void updatePaidReactionAnonymous(bool value);
+	[[nodiscard]] bool paidReactionAnonymousCurrent() const;
+	[[nodiscard]] rpl::producer<bool> paidReactionAnonymous() const;
+
 private:
 	void apply(const MTPGlobalPrivacySettings &data);
 
@@ -67,7 +72,9 @@ private:
 	rpl::variable<bool> _showArchiveAndMute = false;
 	rpl::variable<bool> _hideReadTime = false;
 	rpl::variable<bool> _newRequirePremium = false;
+	rpl::variable<bool> _paidReactionAnonymous = false;
 	std::vector<Fn<void()>> _callbacks;
+	bool _paidReactionAnonymousLoaded = false;
 
 };
 

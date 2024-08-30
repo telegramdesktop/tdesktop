@@ -3377,7 +3377,7 @@ void Message::refreshReactions() {
 						item,
 						weak.get(),
 						1,
-						Payments::LookupMyPaidAnonymous(item),
+						std::nullopt,
 						controller->uiShow());
 					return;
 				} else {

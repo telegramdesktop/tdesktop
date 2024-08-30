@@ -2526,7 +2526,7 @@ bool HistoryItem::canReact() const {
 	return true;
 }
 
-void HistoryItem::addPaidReaction(int count, bool anonymous) {
+void HistoryItem::addPaidReaction(int count, std::optional<bool> anonymous) {
 	Expects(count >= 0);
 	Expects(_history->peer->isBroadcast() || isDiscussionPost());
 
@@ -2653,9 +2653,11 @@ auto HistoryItem::topPaidReactionsWithLocal() const
 	const auto i = ranges::find_if(
 		result,
 		[](const TopPaid &entry) { return entry.my != 0; });
-	const auto peer = _reactions->localPaidAnonymous()
-		? nullptr
-		: history()->session().user().get();
+	const auto peerForMine = [&] {
+		return _reactions->localPaidAnonymous()
+			? nullptr
+			: history()->session().user().get();
+	};
 	if (const auto local = _reactions->localPaidCount()) {
 		const auto top = [&](int mine) {
 			return ranges::count_if(result, [&](const TopPaid &entry) {
@@ -2664,18 +2666,18 @@ auto HistoryItem::topPaidReactionsWithLocal() const
 		};
 		if (i != end(result)) {
 			i->count += local;
-			i->peer = peer;
+			i->peer = peerForMine();
 			i->top = top(i->count) ? 1 : 0;
 		} else {
 			result.push_back({
-				.peer = peer,
+				.peer = peerForMine(),
 				.count = uint32(local),
 				.top = uint32(top(local) ? 1 : 0),
 				.my = uint32(1),
 			});
 		}
 	} else if (i != end(result)) {
-		i->peer = peer;
+		i->peer = peerForMine();
 	}
 	return result;
 }

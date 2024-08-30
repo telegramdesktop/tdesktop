@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_message_reactions.h"
 
+#include "api/api_global_privacy.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
 #include "history/history.h"
@@ -150,6 +151,10 @@ constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 	}
 	const auto i = ranges::find(top, peer, &MessageReactionsTopPaid::peer);
 	return (i != end(top)) && i->my;
+}
+
+[[nodiscard]] std::optional<bool> MaybeAnonymous(uint32 privacySet, uint32 anonymous) {
+	return privacySet ? (anonymous == 1) : std::optional<bool>();
 }
 
 } // namespace
@@ -1734,6 +1739,7 @@ void Reactions::sendPaidPrivacyRequest(
 		not_null<HistoryItem*> item,
 		PaidReactionSend send) {
 	Expects(!_sendingPaid.contains(item));
+	Expects(send.anonymous.has_value());
 	Expects(!send.count);
 
 	const auto id = item->fullId();
@@ -1742,7 +1748,7 @@ void Reactions::sendPaidPrivacyRequest(
 		MTPmessages_TogglePaidReactionPrivacy(
 			item->history()->peer->input,
 			MTP_int(id.msg),
-			MTP_bool(send.anonymous))
+			MTP_bool(*send.anonymous))
 	).done([=] {
 		if (const auto item = _owner->message(id)) {
 			if (_sendingPaid.remove(item)) {
@@ -1776,12 +1782,12 @@ void Reactions::sendPaidRequest(
 	auto &api = _owner->session().api();
 	using Flag = MTPmessages_SendPaidReaction::Flag;
 	const auto requestId = api.request(MTPmessages_SendPaidReaction(
-		MTP_flags(Flag::f_private),
+		MTP_flags(send.anonymous ? Flag::f_private : Flag()),
 		item->history()->peer->input,
 		MTP_int(id.msg),
 		MTP_int(send.count),
 		MTP_long(randomId),
-		MTP_bool(send.anonymous)
+		MTP_bool(send.anonymous.value_or(false))
 	)).done([=](const MTPUpdates &result) {
 		if (const auto item = _owner->message(id)) {
 			if (_sendingPaid.remove(item)) {
@@ -1829,9 +1835,13 @@ MessageReactions::~MessageReactions() {
 	cancelScheduledPaid();
 	if (const auto paid = _paid.get()) {
 		if (paid->sending > 0) {
-			finishPaidSending(
-				{ int(paid->sending), (paid->sendingAnonymous == 1) },
-				false);
+			finishPaidSending({
+				.count = int(paid->sending),
+				.valid = true,
+				.anonymous = MaybeAnonymous(
+					paid->sendingPrivacySet,
+					paid->sendingAnonymous),
+			}, false);
 		}
 	}
 }
@@ -2192,7 +2202,9 @@ void MessageReactions::markRead() {
 	}
 }
 
-void MessageReactions::scheduleSendPaid(int count, bool anonymous) {
+void MessageReactions::scheduleSendPaid(
+		int count,
+		std::optional<bool> anonymous) {
 	Expects(count >= 0);
 
 	if (!_paid) {
@@ -2200,7 +2212,10 @@ void MessageReactions::scheduleSendPaid(int count, bool anonymous) {
 	}
 	_paid->scheduled += count;
 	_paid->scheduledFlag = 1;
-	_paid->scheduledAnonymous = anonymous ? 1 : 0;
+	if (anonymous.has_value()) {
+		_paid->scheduledAnonymous = anonymous.value_or(false) ? 1 : 0;
+		_paid->scheduledPrivacySet = anonymous.has_value();
+	}
 	if (count > 0) {
 		_item->history()->session().credits().lock(count);
 	}
@@ -2220,6 +2235,7 @@ void MessageReactions::cancelScheduledPaid() {
 			_paid->scheduled = 0;
 			_paid->scheduledFlag = 0;
 			_paid->scheduledAnonymous = 0;
+			_paid->scheduledPrivacySet = 0;
 		}
 		if (!_paid->sendingFlag && _paid->top.empty()) {
 			_paid = nullptr;
@@ -2234,13 +2250,17 @@ PaidReactionSend MessageReactions::startPaidSending() {
 	_paid->sending = _paid->scheduled;
 	_paid->sendingFlag = _paid->scheduledFlag;
 	_paid->sendingAnonymous = _paid->scheduledAnonymous;
+	_paid->sendingPrivacySet = _paid->scheduledPrivacySet;
 	_paid->scheduled = 0;
 	_paid->scheduledFlag = 0;
 	_paid->scheduledAnonymous = 0;
+	_paid->scheduledPrivacySet = 0;
 	return {
 		.count = int(_paid->sending),
 		.valid = true,
-		.anonymous = (_paid->sendingAnonymous == 1),
+		.anonymous = MaybeAnonymous(
+			_paid->sendingPrivacySet,
+			_paid->sendingAnonymous),
 	};
 }
 
@@ -2250,11 +2270,14 @@ void MessageReactions::finishPaidSending(
 	Expects(_paid != nullptr);
 	Expects(send.count == _paid->sending);
 	Expects(send.valid == (_paid->sendingFlag == 1));
-	Expects(send.anonymous == (_paid->sendingAnonymous == 1));
+	Expects(send.anonymous == MaybeAnonymous(
+		_paid->sendingPrivacySet,
+		_paid->sendingAnonymous));
 
 	_paid->sending = 0;
 	_paid->sendingFlag = 0;
 	_paid->sendingAnonymous = 0;
+	_paid->sendingPrivacySet = 0;
 	if (!_paid->scheduledFlag && _paid->top.empty()) {
 		_paid = nullptr;
 	} else if (!send.count) {
@@ -2292,12 +2315,13 @@ bool MessageReactions::localPaidAnonymous() const {
 				return !entry.peer;
 			}
 		}
-		return false;
+		const auto api = &_item->history()->session().api();
+		return api->globalPrivacy().paidReactionAnonymousCurrent();
 	};
 	return _paid
-		&& (_paid->scheduledFlag
+		&& ((_paid->scheduledFlag && _paid->scheduledPrivacySet)
 			? (_paid->scheduledAnonymous == 1)
-			: _paid->sendingFlag
+			: (_paid->sendingFlag && _paid->sendingPrivacySet)
 			? (_paid->sendingAnonymous == 1)
 			: minePaidAnonymous());
 }

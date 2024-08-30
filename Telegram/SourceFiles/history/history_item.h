@@ -449,7 +449,7 @@ public:
 	void toggleReaction(
 		const Data::ReactionId &reaction,
 		HistoryReactionSource source);
-	void addPaidReaction(int count, bool anonymous);
+	void addPaidReaction(int count, std::optional<bool> anonymous = {});
 	void cancelScheduledPaidReaction();
 	[[nodiscard]] Data::PaidReactionSend startPaidReactionSending();
 	void finishPaidReactionSending(

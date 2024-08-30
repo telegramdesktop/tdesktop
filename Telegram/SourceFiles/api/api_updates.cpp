@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_authorizations.h"
 #include "api/api_user_names.h"
 #include "api/api_chat_participants.h"
+#include "api/api_global_privacy.h"
 #include "api/api_ringtones.h"
 #include "api/api_text_entities.h"
 #include "api/api_user_privacy.h"
@@ -2620,6 +2621,12 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateStarsBalance: {
 		const auto &data = update.c_updateStarsBalance();
 		_session->credits().apply(data);
+	} break;
+
+	case mtpc_updatePaidReactionPrivacy: {
+		const auto &data = update.c_updatePaidReactionPrivacy();
+		_session->api().globalPrivacy().updatePaidReactionAnonymous(
+			mtpIsTrue(data.vprivate()));
 	} break;
 
 	}
