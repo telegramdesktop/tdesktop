@@ -27,10 +27,6 @@ struct GiftCodeLink final {
 };
 
 struct Boost final {
-	bool isGift = false;
-	bool isGiveaway = false;
-	bool isUnclaimed = false;
-
 	QString id;
 	UserId userId = UserId(0);
 	FullMsgId giveawayMessage;
@@ -39,6 +35,11 @@ struct Boost final {
 	int expiresAfterMonths = 0;
 	GiftCodeLink giftCodeLink;
 	int multiplier = 0;
+
+	bool isGift = false;
+	bool isGiveaway = false;
+	bool isUnclaimed = false;
+	bool isCredits = false;
 };
 
 struct BoostsListSlice final {

@@ -479,6 +479,7 @@ private:
 	Ui::EmptyUserpic _userpic;
 	QImage _badge;
 	QImage _rightBadge;
+	PaintRoundImageCallback _paintUserpicCallback;
 
 };
 
@@ -501,6 +502,55 @@ BoostRow::BoostRow(const Data::Boost &boost)
 }
 
 void BoostRow::init() {
+	if (!PeerListRow::special()) {
+		_paintUserpicCallback = PeerListRow::generatePaintUserpicCallback(
+			false);
+	} else {
+		_paintUserpicCallback = [=](
+				Painter &p,
+				int x,
+				int y,
+				int outerWidth,
+				int size) mutable {
+			_userpic.paintCircle(p, x, y, outerWidth, size);
+			(_boost.isUnclaimed
+				? st::boostsListUnclaimedIcon
+				: st::boostsListUnknownIcon).paintInCenter(
+					p,
+					Rect(x, y, Size(size)));
+		};
+	}
+	if (_boost.isCredits) {
+		const auto copy = base::duplicate(_paintUserpicCallback);
+		const auto badgeSize = st::boostsListCreditsIconSize;
+		const auto drawCredits = Ui::PaintOutlinedColoredCreditsIconCallback(
+			badgeSize,
+			1.);
+		_paintUserpicCallback = [=](
+				Painter &p,
+				int x,
+				int y,
+				int outerWidth,
+				int size) {
+			auto result = QImage(
+				Size(size) * style::DevicePixelRatio(),
+				QImage::Format_ARGB32_Premultiplied);
+			result.fill(Qt::transparent);
+			result.setDevicePixelRatio(style::DevicePixelRatio());
+			{
+				auto q = Painter(&result);
+				copy(q, 0, 0, outerWidth, size);
+
+				const auto r = QRect(
+					QPoint(size - badgeSize, size - badgeSize),
+					Size(badgeSize));
+				q.translate(r.x(), r.y());
+				drawCredits(q);
+			}
+			p.drawImage(x, y, result);
+		};
+	}
+
 	invalidateBadges();
 	auto status = !PeerListRow::special()
 		? tr::lng_boosts_list_status(
@@ -528,17 +578,7 @@ QString BoostRow::generateName() {
 }
 
 PaintRoundImageCallback BoostRow::generatePaintUserpicCallback(bool force) {
-	if (!PeerListRow::special()) {
-		return PeerListRow::generatePaintUserpicCallback(force);
-	}
-	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
-		_userpic.paintCircle(p, x, y, outerWidth, size);
-		(_boost.isUnclaimed
-			? st::boostsListUnclaimedIcon
-			: st::boostsListUnknownIcon).paintInCenter(
-				p,
-				Rect(x, y, Size(size)));
-	};
+	return _paintUserpicCallback;
 }
 
 void BoostRow::invalidateBadges() {

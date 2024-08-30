@@ -20,12 +20,10 @@ class Session;
 } // namespace Main
 
 namespace Ui {
+
 class MaskedInputField;
 class RpWidget;
 class VerticalLayout;
-} // namespace Ui
-
-namespace Ui {
 
 using PaintRoundImageCallback = Fn<void(
 	Painter &p,
@@ -72,6 +70,10 @@ Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 
 [[nodiscard]] TextWithEntities GenerateEntryName(
 	const Data::CreditsHistoryEntry &entry);
+
+Fn<void(QPainter &)> PaintOutlinedColoredCreditsIconCallback(
+	int size,
+	float64 outlineRatio);
 
 [[nodiscard]] QImage CreditsWhiteDoubledIcon(int size, float64 outlineRatio);
 

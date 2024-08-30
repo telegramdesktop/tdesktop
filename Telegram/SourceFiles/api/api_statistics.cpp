@@ -639,9 +639,6 @@ void Boosts::requestBoosts(
 				}
 				: Data::GiftCodeLink();
 			list.push_back({
-				data.is_gift(),
-				data.is_giveaway(),
-				data.is_unclaimed(),
 				qs(data.vid()),
 				data.vuser_id().value_or_empty(),
 				data.vgiveaway_msg_id()
@@ -652,6 +649,10 @@ void Boosts::requestBoosts(
 				(data.vexpires().v - data.vdate().v) / kMonthsDivider,
 				std::move(giftCodeLink),
 				data.vmultiplier().value_or_empty(),
+				data.is_gift(),
+				data.is_giveaway(),
+				data.is_unclaimed(),
+				data.is_stars(),
 			});
 		}
 		done(Data::BoostsListSlice{
