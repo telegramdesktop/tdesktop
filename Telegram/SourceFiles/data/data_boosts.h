@@ -35,11 +35,11 @@ struct Boost final {
 	int expiresAfterMonths = 0;
 	GiftCodeLink giftCodeLink;
 	int multiplier = 0;
+	uint64 credits = 0;
 
 	bool isGift = false;
 	bool isGiveaway = false;
 	bool isUnclaimed = false;
-	bool isCredits = false;
 };
 
 struct BoostsListSlice final {

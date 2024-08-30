@@ -639,20 +639,21 @@ void Boosts::requestBoosts(
 				}
 				: Data::GiftCodeLink();
 			list.push_back({
-				qs(data.vid()),
-				data.vuser_id().value_or_empty(),
-				data.vgiveaway_msg_id()
+				.id = qs(data.vid()),
+				.userId = UserId(data.vuser_id().value_or_empty()),
+				.giveawayMessage = data.vgiveaway_msg_id()
 					? FullMsgId{ _peer->id, data.vgiveaway_msg_id()->v }
 					: FullMsgId(),
-				QDateTime::fromSecsSinceEpoch(data.vdate().v),
-				QDateTime::fromSecsSinceEpoch(data.vexpires().v),
-				(data.vexpires().v - data.vdate().v) / kMonthsDivider,
-				std::move(giftCodeLink),
-				data.vmultiplier().value_or_empty(),
-				data.is_gift(),
-				data.is_giveaway(),
-				data.is_unclaimed(),
-				data.is_stars(),
+				.date = QDateTime::fromSecsSinceEpoch(data.vdate().v),
+				.expiresAt = QDateTime::fromSecsSinceEpoch(data.vexpires().v),
+				.expiresAfterMonths = ((data.vexpires().v - data.vdate().v)
+					/ kMonthsDivider),
+				.giftCodeLink = std::move(giftCodeLink),
+				.multiplier = data.vmultiplier().value_or_empty(),
+				.credits = data.vstars().value_or_empty(),
+				.isGift = data.is_gift(),
+				.isGiveaway = data.is_giveaway(),
+				.isUnclaimed = data.is_unclaimed(),
 			});
 		}
 		done(Data::BoostsListSlice{

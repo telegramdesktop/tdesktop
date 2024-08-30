@@ -520,7 +520,7 @@ void BoostRow::init() {
 					Rect(x, y, Size(size)));
 		};
 	}
-	if (_boost.isCredits) {
+	if (_boost.credits) {
 		const auto copy = base::duplicate(_paintUserpicCallback);
 		const auto badgeSize = st::boostsListCreditsIconSize;
 		const auto drawCredits = Ui::PaintOutlinedColoredCreditsIconCallback(
