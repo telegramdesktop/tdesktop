@@ -455,7 +455,7 @@ void CreateGiveawayBox(
 			return;
 		}
 		constexpr auto kColorIndexCredits = int(1);
-		constexpr auto kOutdated = 1735689600;
+		static constexpr auto kOutdated = 1735689600;
 
 		auto badge = [&] {
 			if (base::unixtime::now() > kOutdated) {
@@ -531,9 +531,9 @@ void CreateGiveawayBox(
 		const auto &stStatus = st::defaultTextStyle;
 		const auto buttonInnerSkip = st.height - stButton.height;
 		const auto options = state->apiCreditsOptions.options();
-		const auto singleStarWidth = Ui::GenerateStars(
-			st.nameStyle.font->height,
-			1).width() / style::DevicePixelRatio();
+		//const auto singleStarWidth = Ui::GenerateStars(
+		//	st.nameStyle.font->height,
+		//	1).width() / style::DevicePixelRatio();
 		const auto content = randomCreditsWrap->entity();
 		const auto title = Ui::AddSubsectionTitle(
 			content,

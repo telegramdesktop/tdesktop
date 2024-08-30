@@ -2141,6 +2141,7 @@ QByteArray HtmlWriter::Wrap::pushGiveaway(
 			return SerializeString(
 				"All winners received gift links in private messages.");
 		}
+		return QByteArray();
 	}();
 	result.append(prize);
 	result.append(popTag());

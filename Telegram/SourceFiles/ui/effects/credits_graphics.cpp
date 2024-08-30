@@ -483,7 +483,7 @@ Fn<void(QPainter &)> PaintOutlinedColoredCreditsIconCallback(
 	constexpr auto kPoints = uint(16);
 	constexpr auto kAngleStep = 2. * M_PI / kPoints;
 	constexpr auto kOutlineWidth = 1.6;
-	constexpr auto kStarShift = 3.8;
+	// constexpr auto kStarShift = 3.8;
 	constexpr auto kStrokeWidth = 3;
 	const auto starSize = Size(size);
 
