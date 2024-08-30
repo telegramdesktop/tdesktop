@@ -1933,6 +1933,7 @@ void Message::paintText(
 		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 		.selection = context.selection,
 		.highlight = highlightRequest ? &*highlightRequest : nullptr,
+		.useFullWidth = true,
 	});
 }
 
