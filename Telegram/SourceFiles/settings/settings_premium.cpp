@@ -1429,7 +1429,7 @@ not_null<Ui::RoundButton*> CreateLockedButton(
 
 	const auto labelSt = result->lifetime().make_state<style::FlatLabel>(
 		st::defaultFlatLabel);
-	labelSt->style.font = st.font;
+	labelSt->style.font = st.style.font;
 	labelSt->textFg = st.textFg;
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(

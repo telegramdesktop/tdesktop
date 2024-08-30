@@ -49,7 +49,9 @@ passportPasswordSubmit: RoundButton(defaultActiveButton) {
 	width: 200px;
 	height: 44px;
 	textTop: 12px;
-	font: font(semibold 15px);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(semibold 15px);
+	}
 }
 passportPasswordSubmitBottom: 72px;
 passportPasswordForgotBottom: 36px;

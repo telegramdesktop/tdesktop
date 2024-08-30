@@ -91,7 +91,7 @@ constexpr auto kPremiumToastDuration = 5 * crl::time(1000);
 	result->paintRequest() | rpl::start_with_next([=] {
 		auto p = QPainter(result);
 
-		const auto font = st::historyPremiumViewSet.font;
+		const auto font = st::historyPremiumViewSet.style.font;
 		const auto top = (result->height() - font->height) / 2;
 		auto pen = st::historyPremiumViewSet.textFg->p;
 		p.setPen(pen);
@@ -229,7 +229,7 @@ void PaidReactionToast::showFor(
 	child->show();
 
 	const auto leftSkip = skip + size + skip - st.padding.left();
-	const auto undoFont = st::historyPremiumViewSet.font;
+	const auto undoFont = st::historyPremiumViewSet.style.font;
 
 	const auto rightSkip = undoFont->width(undoText)
 		+ st::toastUndoSpace

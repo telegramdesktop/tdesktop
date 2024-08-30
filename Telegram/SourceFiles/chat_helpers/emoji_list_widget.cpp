@@ -1450,17 +1450,17 @@ void EmojiListWidget::drawCollapsedBadge(
 		int count) {
 	const auto &st = st::emojiPanExpand;
 	const auto text = u"+%1"_q.arg(count - _columnCount * kCollapsedRows + 1);
-	const auto textWidth = st.font->width(text);
+	const auto textWidth = st.style.font->width(text);
 	const auto buttonw = std::max(textWidth - st.width, st.height);
 	const auto buttonh = st.height;
 	const auto buttonx = position.x() + (_singleSize.width() - buttonw) / 2;
 	const auto buttony = position.y() + (_singleSize.height() - buttonh) / 2;
 	_collapsedBg.paint(p, QRect(buttonx, buttony, buttonw, buttonh));
 	p.setPen(this->st().bg);
-	p.setFont(st.font);
+	p.setFont(st.style.font);
 	p.drawText(
 		buttonx + (buttonw - textWidth) / 2,
-		(buttony + st.textTop + st.font->ascent),
+		(buttony + st.textTop + st.style.font->ascent),
 		text);
 }
 
@@ -2546,12 +2546,12 @@ int EmojiListWidget::paintButtonGetWidth(
 		: selected
 		? st::emojiPanButton.textFgOver
 		: st::emojiPanButton.textFg);
-	p.setFont(st::emojiPanButton.font);
+	p.setFont(st::emojiPanButton.style.font);
 	p.drawText(
 		rect.x() - (st::emojiPanButton.width / 2),
 		(rect.y()
 			+ st::emojiPanButton.textTop
-			+ st::emojiPanButton.font->ascent),
+			+ st::emojiPanButton.style.font->ascent),
 		button.text);
 	return emojiRight() - rect.x();
 }
@@ -2678,7 +2678,7 @@ void EmojiListWidget::initButton(
 		const QString &text,
 		bool gradient) {
 	button.text = text;
-	button.textWidth = st::emojiPanButton.font->width(text);
+	button.textWidth = st::emojiPanButton.style.font->width(text);
 	const auto width = button.textWidth - st::emojiPanButton.width;
 	const auto height = st::emojiPanButton.height;
 	const auto factor = style::DevicePixelRatio();

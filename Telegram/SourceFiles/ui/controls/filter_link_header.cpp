@@ -396,7 +396,7 @@ object_ptr<RoundButton> FilterLinkProcessButton(
 	const auto label = result->lifetime().make_state<Label>(result.data());
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	result->sizeValue() | rpl::start_with_next([=](QSize size) {
-		const auto xskip = st->font->spacew;
+		const auto xskip = st->style.font->spacew;
 		const auto yskip = xskip / 2;
 		label->setGeometry(QRect(QPoint(), size).marginsRemoved(
 			{ xskip, yskip, xskip, yskip }));

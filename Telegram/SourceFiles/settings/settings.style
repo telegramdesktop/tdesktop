@@ -531,7 +531,7 @@ filterInviteBox: Box(defaultBox) {
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
 		textTop: 12px;
-		font: font(13px semibold);
+		style: semiboldTextStyle;
 	}
 }
 filterInviteButtonStyle: TextStyle(defaultTextStyle) {

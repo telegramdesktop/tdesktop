@@ -241,8 +241,8 @@ RequestsBoxController::RowHelper::RowHelper(bool isGroup)
 	? tr::lng_group_requests_add(tr::now)
 	: tr::lng_group_requests_add_channel(tr::now))
 , _rejectText(tr::lng_group_requests_dismiss(tr::now))
-, _acceptTextWidth(st::requestsAcceptButton.font->width(_acceptText))
-, _rejectTextWidth(st::requestsRejectButton.font->width(_rejectText)) {
+, _acceptTextWidth(st::requestsAcceptButton.style.font->width(_acceptText))
+, _rejectTextWidth(st::requestsRejectButton.style.font->width(_rejectText)) {
 }
 
 RequestsBoxController::RequestsBoxController(
@@ -491,7 +491,7 @@ void RequestsBoxController::RowHelper::paintButton(
 	const auto textLeft = geometry.x()
 		+ ((geometry.width() - textWidth) / 2);
 	const auto textTop = geometry.y() + st.textTop;
-	p.setFont(st.font);
+	p.setFont(st.style.font);
 	p.setPen(over ? st.textFgOver : st.textFg);
 	p.drawTextLeft(textLeft, textTop, outerWidth, text);
 }

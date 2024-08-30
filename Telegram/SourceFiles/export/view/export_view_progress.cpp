@@ -362,9 +362,9 @@ void ProgressWidget::showDone() {
 		tr::lng_export_done(),
 		st::exportDoneButton);
 	const auto desired = std::min(
-		st::exportDoneButton.font->width(tr::lng_export_done(tr::now))
+		st::exportDoneButton.style.font->width(tr::lng_export_done(tr::now))
 		+ st::exportDoneButton.height
-		- st::exportDoneButton.font->height,
+		- st::exportDoneButton.style.font->height,
 		st::exportPanelSize.width() - 2 * st::exportCancelBottom);
 	if (_done->width() < desired) {
 		_done->setFullWidth(desired);

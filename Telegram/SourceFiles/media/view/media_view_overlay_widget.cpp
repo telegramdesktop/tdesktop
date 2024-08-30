@@ -4917,7 +4917,7 @@ void OverlayWidget::paintThemePreviewContent(
 			+ (_themeShare->y() - _themePreviewRect.y())
 			+ st::themePreviewCancelButton.padding.top()
 			+ st::themePreviewCancelButton.textTop
-			+ st::themePreviewCancelButton.font->ascent;
+			+ st::themePreviewCancelButton.style.font->ascent;
 		p.drawText(
 			left,
 			baseline,

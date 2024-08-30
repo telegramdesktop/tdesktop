@@ -787,7 +787,7 @@ backgroundConfirmPadding: margins(24px, 16px, 24px, 16px);
 backgroundConfirm: RoundButton(defaultActiveButton) {
 	height: 44px;
 	textTop: 12px;
-	font: font(13px semibold);
+	style: semiboldTextStyle;
 }
 backgroundConfirmCancel: RoundButton(backgroundConfirm) {
 	textFg: mediaviewSaveMsgFg;
@@ -799,7 +799,7 @@ backgroundConfirmCancel: RoundButton(backgroundConfirm) {
 
 	height: 44px;
 	textTop: 12px;
-	font: font(13px semibold);
+	style: semiboldTextStyle;
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: shadowFg;
@@ -951,7 +951,7 @@ sponsoredUrlButton: RoundButton(defaultActiveButton) {
 	textFg: historyLinkInFg;
 	textFgOver: historyLinkInFg;
 	textTop: 7px;
-	font: normalFont;
+	style: defaultTextStyle;
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;

@@ -368,7 +368,9 @@ infoProfileCover: InfoProfileCover {
 		width: -12px;
 		height: 18px;
 		textTop: 0px;
-		font: font(12px);
+		style: TextStyle(defaultTextStyle) {
+			font: font(12px);
+		}
 		ripple: defaultRippleAnimation;
 	}
 	showLastSeenPosition: point(3px, 58px);
@@ -607,8 +609,7 @@ infoMembersCancelSearch: CrossButton {
 }
 infoMembersSearchTop: 15px;
 
-infoMediaHeaderStyle: TextStyle(semiboldTextStyle) {
-}
+infoMediaHeaderStyle: semiboldTextStyle;
 infoMediaHeaderHeight: 28px;
 infoMediaHeaderPosition: point(14px, 6px);
 infoMediaSkip: 2px;
@@ -1100,7 +1101,7 @@ similarChannelsLockFade: 58px;
 similarChannelsLock: RoundButton(defaultActiveButton) {
 	height: 44px;
 	textTop: 12px;
-	font: font(13px semibold);
+	style: semiboldTextStyle;
 }
 similarChannelsLockLabel: FlatLabel(defaultFlatLabel) {
 	textFg: premiumButtonFg;

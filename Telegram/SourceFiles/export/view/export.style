@@ -70,14 +70,18 @@ exportCancelButton: RoundButton(attentionBoxButton) {
 	width: 200px;
 	height: 44px;
 	textTop: 12px;
-	font: font(semibold 15px);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(semibold 15px);
+	}
 }
 exportCancelBottom: 30px;
 exportDoneButton: RoundButton(defaultActiveButton) {
 	width: 200px;
 	height: 44px;
 	textTop: 12px;
-	font: font(semibold 15px);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(semibold 15px);
+	}
 }
 
 exportAboutLabel: FlatLabel(boxLabel) {

@@ -97,7 +97,7 @@ premiumPreviewBox: Box(defaultBox) {
 	button: RoundButton(defaultActiveButton) {
 		height: 44px;
 		textTop: 12px;
-		font: font(13px semibold);
+		style: semiboldTextStyle;
 	}
 }
 premiumPreviewDoubledLimitsBox: Box(premiumPreviewBox) {
@@ -295,7 +295,7 @@ boostBox: Box(premiumPreviewDoubledLimitsBox) {
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
 		textTop: 12px;
-		font: font(13px semibold);
+		style: semiboldTextStyle;
 	}
 }
 
@@ -323,7 +323,7 @@ showOrShowButton: RoundButton(defaultActiveButton) {
 	width: 308px;
 	height: 42px;
 	textTop: 12px;
-	font: font(13px semibold);
+	style: semiboldTextStyle;
 }
 showOrLabel: FlatLabel(boostText) {
 	textFg: windowSubTextFg;
@@ -372,7 +372,7 @@ paidReactBox: Box(boostBox) {
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
 		textTop: 12px;
-		font: font(13px semibold);
+		style: semiboldTextStyle;
 	}
 }
 paidReactBubbleIcon: icon{{ "settings/premium/star", premiumButtonFg }};

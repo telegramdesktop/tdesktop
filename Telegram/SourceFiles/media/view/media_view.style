@@ -371,11 +371,15 @@ themePreviewLoadingFont: font(16px);
 themePreviewLoadingFg: windowSubTextFg;
 themePreviewApplyButton: RoundButton(defaultActiveButton) {
 	height: 38px;
-	font: font(15px semibold);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(15px semibold);
+	}
 }
 themePreviewCancelButton: RoundButton(defaultLightButton) {
 	height: 38px;
-	font: font(15px semibold);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(15px semibold);
+	}
 }
 themePreviewButtonsSkip: 20px;
 themePreviewDialogsWidth: 312px;
@@ -796,7 +800,9 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 			width: -12px;
 			height: 18px;
 			textTop: 0px;
-			font: font(12px);
+			style: TextStyle(defaultTextStyle) {
+				font: font(12px);
+			}
 			ripple: storiesComposeRipple;
 		}
 		buttonSkip: 6px;
@@ -959,7 +965,7 @@ storiesStealthBox: Box(defaultBox) {
 	button: RoundButton(defaultBoxButton) {
 		height: 42px;
 		textTop: 12px;
-		font: font(13px semibold);
+		style: semiboldTextStyle;
 
 		textFg: storiesComposeWhiteText;
 		textFgOver: storiesComposeWhiteText;

@@ -276,7 +276,7 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 		paintRipple(p, rect().topLeft(), &ripple);
 	}
 
-	p.setFont(_st.font);
+	p.setFont(_st.style.font);
 
 	const auto height = rect().height();
 	const auto progress = st::paymentsLoading.size;

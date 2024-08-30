@@ -60,9 +60,7 @@ giveawayGiftCodeQuantitySubtitle: FlatLabel(defaultFlatLabel) {
 	align: align(right);
 }
 giveawayGiftCodeQuantityFloat: FlatLabel(defaultFlatLabel) {
-	style: TextStyle(semiboldTextStyle) {
-		font: font(13px);
-	}
+	style: semiboldTextStyle;
 	textFg: windowActiveTextFg;
 	minWidth: 50px;
 	align: align(center);
@@ -164,7 +162,7 @@ giveawayGiftCodeBox: Box(defaultBox) {
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
 		textTop: 12px;
-		font: font(13px semibold);
+		style: semiboldTextStyle;
 	}
 	shadowIgnoreTopSkip: true;
 }

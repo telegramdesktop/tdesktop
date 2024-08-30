@@ -296,7 +296,9 @@ emojiPanButton: RoundButton(defaultActiveButton) {
 	textTop: 2px;
 }
 emojiPanExpand: RoundButton(defaultActiveButton) {
-	font: font(12px bold);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(12px bold);
+	}
 	width: -8px;
 	height: 19px;
 	textTop: 1px;
@@ -1499,5 +1501,7 @@ pickLocationChooseOnMap: RoundButton(defaultActiveButton) {
 	height: 44px;
 	textTop: 11px;
 	width: -96px;
-	font: font(15px semibold);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(15px semibold);
+	}
 }

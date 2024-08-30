@@ -154,7 +154,7 @@ void StickerToast::showWithTitle(const QString &title) {
 		? tr::lng_animated_emoji_saved_open(tr::now)
 		: tr::lng_sticker_premium_view(tr::now);
 	_st.padding.setLeft(skip + size + skip);
-	_st.padding.setRight(st::historyPremiumViewSet.font->width(view)
+	_st.padding.setRight(st::historyPremiumViewSet.style.font->width(view)
 		- st::historyPremiumViewSet.width);
 
 	clearHiddenHiding();
