@@ -21,7 +21,8 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 ## Install third party software
 
 * Download **Python 3.10** installer from [https://www.python.org/downloads/](https://www.python.org/downloads/) and install it with adding to PATH.
-* Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
+* Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it with adding to PATH.
+* Download **Graphviz** installer from [https://graphviz.org/download/](https://graphviz.org/download/) and install it with adding to PATH.
 
 ## Clone source code and prepare libraries
 
