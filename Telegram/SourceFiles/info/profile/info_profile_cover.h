@@ -149,7 +149,7 @@ private:
 	const std::unique_ptr<Badge> _badge;
 	rpl::variable<int> _onlineCount;
 
-	object_ptr<Ui::UserpicButton> _userpic;
+	const object_ptr<Ui::UserpicButton> _userpic;
 	Ui::UserpicButton *_changePersonal = nullptr;
 	std::optional<QImage> _personalChosen;
 	object_ptr<TopicIconButton> _iconButton;
