@@ -508,7 +508,9 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
 		_api.request(MTPpayments_LaunchPrepaidGiveaway(
 			_peer->input,
 			MTP_long(prepaidId),
-			Payments::InvoicePremiumGiftCodeGiveawayToTL(invoice)
+			invoice.creditsAmount
+				? Payments::InvoiceCreditsGiveawayToTL(invoice)
+				: Payments::InvoicePremiumGiftCodeGiveawayToTL(invoice)
 		)).done([=](const MTPUpdates &result) {
 			_peer->session().api().applyUpdates(result);
 			consumer.put_done();

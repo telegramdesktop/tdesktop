@@ -62,14 +62,14 @@ GiveawayTypeRow::GiveawayTypeRow(
 		|| _type == Type::Random
 		|| _type == Type::Credits)
 	? st::giveawayTypeListItem
-	: (_type == Type::Prepaid)
+	: ((_type == Type::Prepaid) || (_type == Type::PrepaidCredits))
 	? st::boostsListBox.item
 	: st::giveawayGiftCodeMembersPeerList.item)
 , _userpic(
 	Ui::EmptyUserpic::UserpicColor(Ui::EmptyUserpic::ColorIndex(colorIndex)),
 	QString())
 , _badge(std::move(badge)) {
-	if (_type == Type::Credits) {
+	if (_type == Type::Credits || _type == Type::PrepaidCredits) {
 		_customUserpic = Ui::CreditsWhiteDoubledIcon(_st.photoSize, 1.);
 	}
 	std::move(

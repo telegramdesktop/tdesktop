@@ -59,6 +59,7 @@ namespace {
 
 constexpr auto kDoneTooltipDuration = 5 * crl::time(1000);
 constexpr auto kAdditionalPrizeLengthMax = 128;
+constexpr auto kColorIndexCredits = int(1);
 
 [[nodiscard]] QDateTime ThreeDaysAfterToday() {
 	auto dateNow = QDateTime::currentDateTime();
@@ -299,6 +300,8 @@ void CreateGiveawayBox(
 	const auto typeGroup = std::make_shared<GiveawayGroup>();
 	const auto creditsGroup = std::make_shared<CreditsGroup>();
 
+	const auto isPrepaidCredits = (prepaid && prepaid->credits);
+
 	const auto isSpecificUsers = [=] {
 		return !state->selectedToAward.empty();
 	};
@@ -355,16 +358,26 @@ void CreateGiveawayBox(
 		contentWrap->entity()->add(
 			object_ptr<Giveaway::GiveawayTypeRow>(
 				box,
-				GiveawayType::Prepaid,
-				prepaid->id,
+				prepaid->credits
+					? GiveawayType::PrepaidCredits
+					: GiveawayType::Prepaid,
+				prepaid->credits ? kColorIndexCredits : prepaid->id,
 				tr::lng_boosts_prepaid_giveaway_single(),
-				tr::lng_boosts_prepaid_giveaway_status(
-					lt_count,
-					rpl::single(prepaid->quantity) | tr::to_count(),
-					lt_duration,
-					tr::lng_premium_gift_duration_months(
+				prepaid->credits
+					? tr::lng_boosts_prepaid_giveaway_credits_status(
 						lt_count,
-						rpl::single(prepaid->months) | tr::to_count())),
+						rpl::single(prepaid->quantity) | tr::to_count(),
+						lt_amount,
+						tr::lng_prize_credits_amount(
+							lt_count_decimal,
+							rpl::single(prepaid->credits) | tr::to_count()))
+					: tr::lng_boosts_prepaid_giveaway_status(
+						lt_count,
+						rpl::single(prepaid->quantity) | tr::to_count(),
+						lt_duration,
+						tr::lng_premium_gift_duration_months(
+							lt_count,
+							rpl::single(prepaid->months) | tr::to_count())),
 				QImage())
 		)->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
@@ -454,7 +467,6 @@ void CreateGiveawayBox(
 		if (state->apiCreditsOptions.options().empty()) {
 			return;
 		}
-		constexpr auto kColorIndexCredits = int(1);
 		static constexpr auto kOutdated = 1735689600;
 
 		auto badge = [&] {
@@ -895,7 +907,9 @@ void CreateGiveawayBox(
 				lt_count,
 				state->sliderValue.value(
 				) | rpl::map([=](int v) -> float64 {
-					return state->apiOptions.giveawayBoostsPerPremium() * v;
+					return (prepaid && prepaid->boosts)
+						? prepaid->boosts
+						: (state->apiOptions.giveawayBoostsPerPremium() * v);
 				})));
 
 		using IconType = Settings::IconType;
@@ -1355,21 +1369,23 @@ void CreateGiveawayBox(
 				hideSpecificUsersOn(),
 				tr::lng_giveaway_start(),
 				tr::lng_giveaway_award()),
-			rpl::conditional(
-				state->typeValue.value(
-				) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits),
-				creditsGroup->value() | rpl::map([=](int v) {
-					return creditsOption(v).yearlyBoosts;
-				}),
-				rpl::combine(
-					state->sliderValue.value(),
-					hideSpecificUsersOn()
-				) | rpl::map([=](int v, bool random) -> int {
-					const auto c = random
-						? v
-						: int(state->selectedToAward.size());
-					return state->apiOptions.giveawayBoostsPerPremium() * c;
-				})),
+			(prepaid && prepaid->boosts)
+				? rpl::single(prepaid->boosts)
+				: rpl::conditional(
+					state->typeValue.value(
+					) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits),
+					creditsGroup->value() | rpl::map([=](int v) {
+						return creditsOption(v).yearlyBoosts;
+					}),
+					rpl::combine(
+						state->sliderValue.value(),
+						hideSpecificUsersOn()
+					) | rpl::map([=](int value, bool random) -> int {
+						return state->apiOptions.giveawayBoostsPerPremium()
+							* (random
+								? value
+								: int(state->selectedToAward.size()));
+					})),
 			state->confirmButtonBusy.value() | rpl::map(!rpl::mappers::_1));
 
 		{
@@ -1399,7 +1415,13 @@ void CreateGiveawayBox(
 				return;
 			}
 			auto invoice = [&] {
-				if (isCredits) {
+				if (isPrepaidCredits) {
+					return Payments::InvoicePremiumGiftCode{
+						.creditsAmount = prepaid->credits,
+						.randomId = prepaid->id,
+						.users = prepaid->quantity,
+					};
+				} else if (isCredits) {
 					const auto option = creditsOption(
 						creditsGroup->current());
 					return Payments::InvoicePremiumGiftCode{
@@ -1433,7 +1455,7 @@ void CreateGiveawayBox(
 					}) | ranges::to_vector,
 					peer->asChannel(),
 				};
-			} else if (isRandom || isCredits) {
+			} else if (isRandom || isCredits || isPrepaidCredits) {
 				invoice.purpose = Payments::InvoicePremiumGiftCodeGiveaway{
 					.boostPeer = peer->asChannel(),
 					.additionalChannels = ranges::views::all(

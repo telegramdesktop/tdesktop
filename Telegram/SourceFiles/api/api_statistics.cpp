@@ -573,13 +573,19 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 				) | ranges::views::transform([](const MTPPrepaidGiveaway &r) {
 					return r.match([&](const MTPDprepaidGiveaway &data) {
 						return Data::BoostPrepaidGiveaway{
-							.months = data.vmonths().v,
-							.id = data.vid().v,
-							.quantity = data.vquantity().v,
 							.date = base::unixtime::parse(data.vdate().v),
+							.id = data.vid().v,
+							.months = data.vmonths().v,
+							.quantity = data.vquantity().v,
 						};
 					}, [&](const MTPDprepaidStarsGiveaway &data) {
-						return Data::BoostPrepaidGiveaway(AssertIsDebug());
+						return Data::BoostPrepaidGiveaway{
+							.date = base::unixtime::parse(data.vdate().v),
+							.id = data.vid().v,
+							.credits = data.vstars().v,
+							.quantity = data.vquantity().v,
+							.boosts = data.vboosts().v,
+						};
 					});
 				}) | ranges::to_vector;
 			}

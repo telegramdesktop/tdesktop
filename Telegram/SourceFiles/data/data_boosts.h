@@ -54,10 +54,12 @@ struct BoostsListSlice final {
 };
 
 struct BoostPrepaidGiveaway final {
-	int months = 0;
-	uint64 id = 0;
-	int quantity = 0;
 	QDateTime date;
+	uint64 id = 0;
+	uint64 credits = 0;
+	int months = 0;
+	int quantity = 0;
+	int boosts = 0;
 };
 
 struct BoostStatus final {

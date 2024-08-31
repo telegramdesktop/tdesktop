@@ -27,6 +27,7 @@ public:
 		OnlyNewMembers,
 
 		Prepaid,
+		PrepaidCredits,
 
 		Credits,
 	};
