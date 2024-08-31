@@ -5149,15 +5149,30 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareGiveawayLaunch = [&](const MTPDmessageActionGiveawayLaunch &action) {
+		const auto credits = action.vstars().value_or_empty();
 		auto result = PreparedServiceText();
 		result.links.push_back(fromLink());
-		result.text = (_history->peer->isMegagroup()
-			? tr::lng_action_giveaway_started_group
-			: tr::lng_action_giveaway_started)(
-				tr::now,
-				lt_from,
-				fromLinkText(), // Link 1.
-				Ui::Text::WithEntities);
+		result.text = credits
+			? (_history->peer->isMegagroup()
+				? tr::lng_action_giveaway_credits_started_group
+				: tr::lng_action_giveaway_credits_started)(
+					tr::now,
+					lt_from,
+					fromLinkText(), // Link 1.
+					lt_amount,
+					tr::lng_action_giveaway_credits_started_amount(
+						tr::now,
+						lt_count_decimal,
+						float64(credits),
+						Ui::Text::Bold),
+					Ui::Text::WithEntities)
+			: (_history->peer->isMegagroup()
+				? tr::lng_action_giveaway_started_group
+				: tr::lng_action_giveaway_started)(
+					tr::now,
+					lt_from,
+					fromLinkText(), // Link 1.
+					Ui::Text::WithEntities);
 		return result;
 	};
 
