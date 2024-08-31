@@ -432,7 +432,7 @@ QByteArray Parser::block(const MTPDpageBlockFooter &data) {
 }
 
 QByteArray Parser::block(const MTPDpageBlockDivider &data) {
-	return tag("hr", { { "class", "divider" } });
+	return tag("hr", Attributes{ { "class", "divider" } });
 }
 
 QByteArray Parser::block(const MTPDpageBlockAnchor &data) {

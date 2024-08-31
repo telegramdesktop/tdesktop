@@ -1,8 +1,8 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set GIT_UPDATE_M4 = "git submodule set-url m4 https://gitlab.freedesktop.org/xorg/util/xcb-util-m4 && git config -f .gitmodules submodule.m4.shallow true && git submodule init && git submodule update" -%}
-{%- set QT = "6.7.2" -%}
-{%- set QT_TAG = "v" ~ QT -%}
+{%- set QT = "6.8.0" -%}
+{%- set QT_TAG = "v" ~ QT ~ "-beta4" -%}
 {%- set CFLAGS_DEBUG = "$CFLAGS -O0 -fno-lto -U_FORTIFY_SOURCE" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
 
@@ -42,7 +42,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 85a1c4ec327ed390a27e85f2162c31525220a50d \
+	&& git fetch --depth=1 origin 5361159037f844567cfffbd98c90d48d052fb5d0 \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -726,24 +726,18 @@ RUN git clone -b {{ QT_TAG }} --depth=1 {{ GIT }}/qt/qt5.git \
 	&& cd ../qtwayland \
 	&& find ../../patches/qtwayland_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
-	&& ./configure \
-		CMAKE_BUILD_TYPE=None \
-		-opensource \
-		-confirm-license \
-		-qt-libpng \
-		-qt-harfbuzz \
-		-qt-pcre \
-		-no-icu \
-		INPUT_forkfd_pidfd=no \
-		-no-feature-xcb-sm \
-		-static \
-		-dbus-runtime \
-		-openssl-linked \
-		-system-webp \
-		-nomake examples \
-		-nomake tests \
-	&& cmake --build . --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/qt-cache" cmake --install . \
+	&& cmake -GNinja -B build . \
+		-DCMAKE_BUILD_TYPE=None \
+		-DBUILD_SHARED_LIBS=OFF \
+		-DINPUT_libpng=qt \
+		-DINPUT_harfbuzz=qt \
+		-DINPUT_pcre=qt \
+		-DFEATURE_icu=OFF \
+		-DFEATURE_xcb_sm=OFF \
+		-DINPUT_dbus=runtime \
+		-DINPUT_openssl=linked \
+	&& cmake --build build --parallel \
+	&& DESTDIR="{{ LibrariesPath }}/qt-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf qt5
 

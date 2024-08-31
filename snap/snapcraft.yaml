@@ -166,7 +166,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 85a1c4ec327ed390a27e85f2162c31525220a50d
+    source-commit: 5361159037f844567cfffbd98c90d48d052fb5d0
     plugin: dump
     override-pull: |
       craftctl default
@@ -292,7 +292,7 @@ parts:
       - patches
 
   qt:
-    plugin: nil
+    plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
@@ -378,10 +378,17 @@ parts:
       - zlib1g
       - mesa-vulkan-drivers
       - xkb-data
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
+      - -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - -DINPUT_openssl=linked
     override-pull: |
-      QT=6.7.2
+      QT=6.8.0
 
-      git clone -b v${QT} --depth=1 https://github.com/qt/qt5.git .
+      git clone -b v${QT}-beta4 --depth=1 https://github.com/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 
       cd qtbase
@@ -389,21 +396,6 @@ parts:
       cd ../qtwayland
       find $CRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
-    override-build: |
-      ./configure \
-        -prefix /usr \
-        -libdir /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR \
-        -release \
-        -opensource \
-        -confirm-license \
-        -openssl-linked \
-        -nomake examples \
-        -nomake tests \
-        -- \
-        -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
-
-      cmake --build . -j$CRAFT_PARALLEL_BUILD_COUNT
-      DESTDIR="$CRAFT_PART_INSTALL" cmake --install .
     prime:
       - -./usr/bin
       - -./usr/doc
