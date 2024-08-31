@@ -1442,22 +1442,39 @@ void GiveawayInfoBox(
 		? results->channel->isMegagroup()
 		: (!start->channels.empty()
 			&& start->channels.front()->isMegagroup());
+	const auto credits = start
+		? start->credits
+		: (results ? results->credits : 0);
 	text.append((finished
 		? tr::lng_prizes_end_text
 		: tr::lng_prizes_how_text)(
 			tr::now,
 			lt_admins,
-			(group
-				? tr::lng_prizes_admins_group
-				: tr::lng_prizes_admins)(
-					tr::now,
-					lt_count,
-					quantity,
-					lt_channel,
-					Ui::Text::Bold(first),
-					lt_duration,
-					TextWithEntities{ GiftDuration(months) },
-					Ui::Text::RichLangValue),
+			credits
+				? (group
+					? tr::lng_prizes_credits_admins_group
+					: tr::lng_prizes_credits_admins)(
+						tr::now,
+						lt_channel,
+						Ui::Text::Bold(first),
+						lt_amount,
+						tr::lng_prizes_credits_admins_amount(
+							tr::now,
+							lt_count_decimal,
+							float64(credits),
+							Ui::Text::Bold),
+						Ui::Text::RichLangValue)
+				: (group
+					? tr::lng_prizes_admins_group
+					: tr::lng_prizes_admins)(
+						tr::now,
+						lt_count,
+						quantity,
+						lt_channel,
+						Ui::Text::Bold(first),
+						lt_duration,
+						TextWithEntities{ GiftDuration(months) },
+						Ui::Text::RichLangValue),
 			Ui::Text::RichLangValue));
 	const auto many = start
 		? (start->channels.size() > 1)

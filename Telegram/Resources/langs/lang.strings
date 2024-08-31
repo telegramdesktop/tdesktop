@@ -2883,6 +2883,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_admins#other" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscriptions {duration} for its followers";
 "lng_prizes_admins_group#one" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscription {duration} for its members";
 "lng_prizes_admins_group#other" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscriptions {duration} for its members";
+"lng_prizes_credits_admins" = "the admins of {channel}, who aquired **{amount}** for its followers";
+"lng_prizes_credits_admins_group" = "the admins of {channel}, who aquired **{amount}** for its members";
+"lng_prizes_credits_admins_amount#one" = "{count} Star";
+"lng_prizes_credits_admins_amount#other" = "{count} Stars";
 "lng_prizes_additional_added#one" = "{channel} also included **{count} {prize}** in the prize. Admins of the channel are responsible for delivering this prize.";
 "lng_prizes_additional_added#other" = "{channel} also included **{count} {prize}** in the prizes. Admins of the channel are responsible for delivering these prizes.";
 "lng_prizes_additional_added_group#one" = "{channel} also included **{count} {prize}** in the prize. Admins of the group are responsible for delivering this prize.";
