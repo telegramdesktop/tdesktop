@@ -1,3 +1,7 @@
+5.4.5 beta (31.08.24)
+
+- Fix possible crash in text rendering.
+
 5.4.4 beta (29.08.24)
 
 - Fix wrong layout and crashes in text shaping.

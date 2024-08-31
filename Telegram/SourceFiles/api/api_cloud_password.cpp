@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 #include "passport/passport_encryption.h"
 
+#include "base/unixtime.h"
+#include "base/call_delayed.h"
+
 namespace Api {
 namespace {
 
@@ -78,6 +81,11 @@ auto CloudPassword::stateCurrent() const
 auto CloudPassword::resetPassword()
 -> rpl::producer<CloudPassword::ResetRetryDate, QString> {
 	return [=](auto consumer) {
+		base::call_delayed(3000, [=] {
+			consumer.put_next_copy(base::unixtime::now() + 86400);
+			consumer.put_done();
+		});
+		return rpl::lifetime();
 		_api.request(MTPaccount_ResetPassword(
 		)).done([=](const MTPaccount_ResetPasswordResult &result) {
 			result.match([&](const MTPDaccount_resetPasswordOk &data) {
