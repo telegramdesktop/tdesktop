@@ -576,8 +576,7 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 							.months = data.vmonths().v,
 							.id = data.vid().v,
 							.quantity = data.vquantity().v,
-							.date = QDateTime::fromSecsSinceEpoch(
-								data.vdate().v),
+							.date = base::unixtime::parse(data.vdate().v),
 						};
 					}, [&](const MTPDprepaidStarsGiveaway &data) {
 						return Data::BoostPrepaidGiveaway(AssertIsDebug());
@@ -644,8 +643,8 @@ void Boosts::requestBoosts(
 				.giveawayMessage = data.vgiveaway_msg_id()
 					? FullMsgId{ _peer->id, data.vgiveaway_msg_id()->v }
 					: FullMsgId(),
-				.date = QDateTime::fromSecsSinceEpoch(data.vdate().v),
-				.expiresAt = QDateTime::fromSecsSinceEpoch(data.vexpires().v),
+				.date = base::unixtime::parse(data.vdate().v),
+				.expiresAt = base::unixtime::parse(data.vexpires().v),
 				.expiresAfterMonths = ((data.vexpires().v - data.vdate().v)
 					/ kMonthsDivider),
 				.giftCodeLink = std::move(giftCodeLink),
