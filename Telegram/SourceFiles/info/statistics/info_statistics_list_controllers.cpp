@@ -47,6 +47,7 @@ namespace Info::Statistics {
 namespace {
 
 using BoostCallback = Fn<void(const Data::Boost &)>;
+constexpr auto kColorIndexCredits = int(1);
 constexpr auto kColorIndexUnclaimed = int(3);
 constexpr auto kColorIndexPending = int(4);
 
@@ -494,7 +495,9 @@ BoostRow::BoostRow(const Data::Boost &boost)
 : PeerListRow(UniqueRowIdFromString(boost.id))
 , _boost(boost)
 , _userpic(
-	Ui::EmptyUserpic::UserpicColor(boost.isUnclaimed
+	Ui::EmptyUserpic::UserpicColor(boost.credits
+		? kColorIndexCredits
+		: boost.isUnclaimed
 		? kColorIndexUnclaimed
 		: kColorIndexPending),
 	QString()) {
@@ -505,6 +508,20 @@ void BoostRow::init() {
 	if (!PeerListRow::special()) {
 		_paintUserpicCallback = PeerListRow::generatePaintUserpicCallback(
 			false);
+	} else if (_boost.credits) {
+		const auto creditsIcon = std::make_shared<QImage>();
+		_paintUserpicCallback = [=](
+				Painter &p,
+				int x,
+				int y,
+				int outerWidth,
+				int size) mutable {
+			_userpic.paintCircle(p, x, y, outerWidth, size);
+			if (creditsIcon->isNull()) {
+				*creditsIcon = Ui::CreditsWhiteDoubledIcon(size, 1.);
+			}
+			p.drawImage(x, y, *creditsIcon);
+		};
 	} else {
 		_paintUserpicCallback = [=](
 				Painter &p,
@@ -520,39 +537,9 @@ void BoostRow::init() {
 					Rect(x, y, Size(size)));
 		};
 	}
-	if (_boost.credits) {
-		const auto copy = base::duplicate(_paintUserpicCallback);
-		const auto badgeSize = st::boostsListCreditsIconSize;
-		const auto drawCredits = Ui::PaintOutlinedColoredCreditsIconCallback(
-			badgeSize,
-			1.);
-		_paintUserpicCallback = [=](
-				Painter &p,
-				int x,
-				int y,
-				int outerWidth,
-				int size) {
-			auto result = QImage(
-				Size(size) * style::DevicePixelRatio(),
-				QImage::Format_ARGB32_Premultiplied);
-			result.fill(Qt::transparent);
-			result.setDevicePixelRatio(style::DevicePixelRatio());
-			{
-				auto q = Painter(&result);
-				copy(q, 0, 0, outerWidth, size);
-
-				const auto r = QRect(
-					QPoint(size - badgeSize, size - badgeSize),
-					Size(badgeSize));
-				q.translate(r.x(), r.y());
-				drawCredits(q);
-			}
-			p.drawImage(x, y, result);
-		};
-	}
 
 	invalidateBadges();
-	auto status = !PeerListRow::special()
+	auto status = (!PeerListRow::special() || _boost.credits)
 		? tr::lng_boosts_list_status(
 			tr::now,
 			lt_date,
@@ -572,6 +559,11 @@ const Data::Boost &BoostRow::boost() const {
 QString BoostRow::generateName() {
 	return !PeerListRow::special()
 		? PeerListRow::generateName()
+		: _boost.credits
+		? tr::lng_giveaway_prizes_additional_credits_amount(
+			tr::now,
+			lt_count_decimal,
+			_boost.credits)
 		: _boost.isUnclaimed
 		? tr::lng_boosts_list_unclaimed(tr::now)
 		: tr::lng_boosts_list_pending(tr::now);
@@ -602,7 +594,7 @@ void BoostRow::invalidateBadges() {
 	const auto &rightIcon = _boost.isGiveaway
 		? st::boostsListGiveawayMiniIcon
 		: st::boostsListGiftMiniIcon;
-	_rightBadge = (_boost.isGift || _boost.isGiveaway)
+	_rightBadge = ((_boost.isGift || _boost.isGiveaway) && !_boost.credits)
 		? CreateBadge(
 			st::boostsListRightBadgeTextStyle,
 			_boost.isGiveaway

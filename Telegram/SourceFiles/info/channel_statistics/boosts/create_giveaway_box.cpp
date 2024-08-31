@@ -531,9 +531,6 @@ void CreateGiveawayBox(
 		const auto &stStatus = st::defaultTextStyle;
 		const auto buttonInnerSkip = st.height - stButton.height;
 		const auto options = state->apiCreditsOptions.options();
-		//const auto singleStarWidth = Ui::GenerateStars(
-		//	st.nameStyle.font->height,
-		//	1).width() / style::DevicePixelRatio();
 		const auto content = randomCreditsWrap->entity();
 		const auto title = Ui::AddSubsectionTitle(
 			content,
