@@ -2747,6 +2747,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_new_title" = "Boosts via Gifts";
 "lng_giveaway_new_about" = "Get more boosts for your channel by gifting Premium to your subscribers.";
 "lng_giveaway_new_about_group" = "Get more boosts for your group by gifting Premium to your subscribers.";
+"lng_giveaway_credits_new_about" = "Get more boosts and subscribers for your channel by giving away prizes.";
+"lng_giveaway_credits_new_about_group" = "Get more boosts and members for your group by giving away prizes.";
 "lng_giveaway_create_option" = "Create Giveaway";
 "lng_giveaway_create_subtitle" = "winners are chosen randomly";
 "lng_giveaway_award_option" = "Award Specific Users";

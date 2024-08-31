@@ -113,7 +113,7 @@ void AddPremiumTopBarWithDefaultTitleBar(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<> showFinished,
 		rpl::producer<QString> titleText,
-		bool group) {
+		rpl::producer<TextWithEntities> subtitleText) {
 	struct State final {
 		Ui::Animations::Simple animation;
 		Ui::Text::String title;
@@ -200,9 +200,7 @@ void AddPremiumTopBarWithDefaultTitleBar(
 		Ui::Premium::TopBarDescriptor{
 			.clickContextOther = nullptr,
 			.title = tr::lng_giveaway_new_title(),
-			.about = (group
-				? tr::lng_giveaway_new_about_group
-				: tr::lng_giveaway_new_about)(Ui::Text::RichLangValue),
+			.about = std::move(subtitleText),
 			.light = true,
 			.optimizeMinistars = false,
 		});
@@ -323,7 +321,18 @@ void CreateGiveawayBox(
 			hideSpecificUsersOn(),
 			tr::lng_giveaway_start(),
 			tr::lng_giveaway_award()),
-		peer->isMegagroup());
+		rpl::conditional(
+			isPrepaidCredits
+				? rpl::single(true)
+				: state->typeValue.value() | rpl::map(
+					rpl::mappers::_1 == GiveawayType::Credits),
+			(peer->isMegagroup()
+				? tr::lng_giveaway_credits_new_about_group()
+				: tr::lng_giveaway_credits_new_about()),
+			(peer->isMegagroup()
+				? tr::lng_giveaway_new_about_group()
+				: tr::lng_giveaway_new_about())
+		) | rpl::map(Ui::Text::RichLangValue));
 	{
 		const auto &padding = st::giveawayGiftCodeCoverDividerPadding;
 		Ui::AddSkip(box->verticalLayout(), padding.bottom());
