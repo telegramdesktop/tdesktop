@@ -348,6 +348,8 @@ Reaction ParseReaction(const MTPReaction& reaction) {
 	}, [&](const MTPDreactionCustomEmoji &data) {
 		result.type = Reaction::Type::CustomEmoji;
 		result.documentId = NumberToString(data.vdocument_id().v);
+	}, [&](const MTPDreactionPaid &data) {
+		result.type = Reaction::Type::Paid;
 	}, [&](const MTPDreactionEmpty &data) {
 		result.type = Reaction::Type::Empty;
 	});
