@@ -263,7 +263,18 @@ void Input::setupContent() {
 					}
 					close();
 					_requestLifetime = cloudPassword().resetPassword(
-					) | rpl::start_with_error_done([=](const QString &type) {
+					) | rpl::start_with_next_error_done([=](
+							Api::CloudPassword::ResetRetryDate retryDate) {
+						_requestLifetime.destroy();
+						const auto left = std::max(
+							retryDate - base::unixtime::now(),
+							60);
+						controller()->show(Ui::MakeInformBox(
+							tr::lng_cloud_password_reset_later(
+								tr::now,
+								lt_duration,
+								Ui::FormatResetCloudPasswordIn(left))));
+					}, [=](const QString &type) {
 						_requestLifetime.destroy();
 					}, [=] {
 						_requestLifetime.destroy();
