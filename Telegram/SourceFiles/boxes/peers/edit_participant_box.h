@@ -36,6 +36,8 @@ public:
 		not_null<UserData*> user,
 		bool hasAdminRights);
 
+	[[nodiscard]] not_null<Ui::VerticalLayout*> verticalLayout() const;
+
 protected:
 	void prepare() override;
 

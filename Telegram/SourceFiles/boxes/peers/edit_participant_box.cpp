@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/vertical_list.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -62,6 +63,10 @@ public:
 
 	template <typename Widget>
 	Widget *addControl(object_ptr<Widget> widget, QMargins margin);
+
+	[[nodiscard]] not_null<Ui::VerticalLayout*> verticalLayout() const {
+		return _rows;
+	}
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -162,6 +167,10 @@ EditParticipantBox::EditParticipantBox(
 : _peer(peer)
 , _user(user)
 , _hasAdminRights(hasAdminRights) {
+}
+
+not_null<Ui::VerticalLayout*> EditParticipantBox::verticalLayout() const {
+	return _inner->verticalLayout();
 }
 
 void EditParticipantBox::prepare() {
@@ -279,9 +288,8 @@ void EditAdminBox::prepare() {
 			object_ptr<Ui::VerticalLayout>(this)));
 	const auto inner = _adminControlsWrap->entity();
 
-	inner->add(
-		object_ptr<Ui::BoxContentDivider>(inner),
-		st::rightsDividerMargin);
+	Ui::AddDivider(inner);
+	Ui::AddSkip(inner);
 
 	const auto chat = peer()->asChat();
 	const auto channel = peer()->asChannel();
@@ -335,9 +343,9 @@ void EditAdminBox::prepare() {
 		.isForum = peer()->isForum(),
 		.anyoneCanAddMembers = anyoneCanAddMembers,
 	};
+	Ui::AddSubsectionTitle(inner, tr::lng_rights_edit_admin_header());
 	auto [checkboxes, getChecked, changes] = CreateEditAdminRights(
 		inner,
-		tr::lng_rights_edit_admin_header(),
 		prepareFlags,
 		disabledMessages,
 		options);
@@ -441,9 +449,7 @@ void EditAdminBox::refreshButtons() {
 
 not_null<Ui::InputField*> EditAdminBox::addRankInput(
 		not_null<Ui::VerticalLayout*> container) {
-	container->add(
-		object_ptr<Ui::BoxContentDivider>(container),
-		st::rightsRankMargin);
+	Ui::AddDivider(container);
 
 	container->add(
 		object_ptr<Ui::FlatLabel>(
@@ -712,9 +718,8 @@ void EditRestrictedBox::prepare() {
 
 	setTitle(tr::lng_rights_user_restrictions());
 
-	addControl(
-		object_ptr<Ui::BoxContentDivider>(this),
-		st::rightsDividerMargin);
+	Ui::AddDivider(verticalLayout());
+	Ui::AddSkip(verticalLayout());
 
 	const auto chat = peer()->asChat();
 	const auto channel = peer()->asChannel();
@@ -749,16 +754,20 @@ void EditRestrictedBox::prepare() {
 		return result;
 	}();
 
+	Ui::AddSubsectionTitle(
+		verticalLayout(),
+		tr::lng_rights_user_restrictions_header());
 	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
 		this,
-		tr::lng_rights_user_restrictions_header(),
 		prepareFlags,
 		disabledMessages,
 		{ .isForum = peer()->isForum() });
 	addControl(std::move(checkboxes), QMargins());
 
 	_until = prepareRights.until;
-	addControl(object_ptr<Ui::BoxContentDivider>(this), st::rightsUntilMargin);
+	addControl(
+		object_ptr<Ui::FixedHeightWidget>(this, st::defaultVerticalListSkip));
+	Ui::AddDivider(verticalLayout());
 	addControl(
 		object_ptr<Ui::FlatLabel>(
 			this,

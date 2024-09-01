@@ -73,7 +73,6 @@ struct NestedEditFlagsLabels {
 
 template <typename Flags>
 struct EditFlagsDescriptor {
-	rpl::producer<QString> header;
 	std::vector<NestedEditFlagsLabels<Flags>> labels;
 	base::flat_map<Flags, QString> disabledMessages;
 	const style::SettingsButton *st = nullptr;
@@ -90,7 +89,6 @@ using AdminRightLabel = EditFlagsLabel<ChatAdminRights>;
 
 [[nodiscard]] auto CreateEditRestrictions(
 	QWidget *parent,
-	rpl::producer<QString> header,
 	ChatRestrictions restrictions,
 	base::flat_map<ChatRestrictions, QString> disabledMessages,
 	Data::RestrictionsSetOptions options)
@@ -98,7 +96,6 @@ using AdminRightLabel = EditFlagsLabel<ChatAdminRights>;
 
 [[nodiscard]] auto CreateEditAdminRights(
 	QWidget *parent,
-	rpl::producer<QString> header,
 	ChatAdminRights rights,
 	base::flat_map<ChatAdminRights, QString> disabledMessages,
 	Data::AdminRightsSetOptions options)

@@ -436,14 +436,16 @@ void CreateModerateMessagesBox(
 			return result;
 		}();
 
-		auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
-			box,
+		Ui::AddSubsectionTitle(
+			inner,
 			rpl::conditional(
 				rpl::single(isSingle),
 				tr::lng_restrict_users_part_single_header(),
 				tr::lng_restrict_users_part_header(
 					lt_count,
-					rpl::single(participants.size()) | tr::to_count())),
+					rpl::single(participants.size()) | tr::to_count())));
+		auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
+			box,
 			prepareFlags,
 			disabledMessages,
 			{ .isForum = peer->isForum() });

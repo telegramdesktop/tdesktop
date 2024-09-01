@@ -597,8 +597,6 @@ rightsHeaderLabel: FlatLabel(boxLabel) {
 	}
 	textFg: windowActiveTextFg;
 }
-rightsUntilMargin: margins(0px, 8px, 0px, 20px);
-rightsRankMargin: margins(0px, 7px, 0px, 20px);
 
 groupStickersRemove: defaultMultiSelectSearchCancel;
 groupStickersRemovePosition: point(6px, 6px);
