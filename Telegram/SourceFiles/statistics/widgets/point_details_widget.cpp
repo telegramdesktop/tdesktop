@@ -130,7 +130,6 @@ void PaintDetails(
 PointDetailsWidget::PointDetailsWidget(
 	not_null<Ui::RpWidget*> parent,
 	const Data::StatisticalChart &chartData,
-	float64 maxAbsoluteValue,
 	bool zoomEnabled)
 : Ui::AbstractButton(parent)
 , _zoomEnabled(zoomEnabled)
@@ -173,12 +172,44 @@ PointDetailsWidget::PointDetailsWidget(
 		return 0;
 	}();
 
-	const auto calculatedWidth = [&]{
+	const auto hasUsdLine = (_chartData.currencyRate != 0)
+		&& (_chartData.currency != Data::StatisticalCurrency::None)
+		&& (_chartData.lines.size() == 1);
+
+	const auto maxValueTextWidth = [&] {
+		if (hasUsdLine) {
+			auto maxValueWidth = 0;
+			const auto multiplier = float64(Data::kEarnMultiplier);
+			for (const auto &value : _chartData.lines.front().y) {
+				const auto valueText = Ui::Text::String(
+					_textStyle,
+					QString::number(value / multiplier));
+				const auto usdText = Ui::Text::String(
+					_textStyle,
+					Info::ChannelEarn::ToUsd(value, _chartData.currencyRate));
+				const auto width = std::max(
+					usdText.maxWidth(),
+					valueText.maxWidth());
+				if (width > maxValueWidth) {
+					maxValueWidth = width;
+				}
+			}
+			return maxValueWidth;
+		}
+		const auto maxAbsoluteValue = [&] {
+			auto maxValue = ChartValue(0);
+			for (const auto &l : _chartData.lines) {
+				maxValue = std::max(l.maxValue, maxValue);
+			}
+			return maxValue;
+		}();
 		const auto maxValueText = Ui::Text::String(
 			_textStyle,
 			Lang::FormatCountDecimal(maxAbsoluteValue));
-		const auto maxValueTextWidth = maxValueText.maxWidth();
+		return maxValueText.maxWidth();
+	}();
 
+	const auto calculatedWidth = [&]{
 		auto maxNameTextWidth = 0;
 		for (const auto &dataLine : _chartData.lines) {
 			const auto maxNameText = Ui::Text::String(
@@ -187,6 +218,19 @@ PointDetailsWidget::PointDetailsWidget(
 			maxNameTextWidth = std::max(
 				maxNameText.maxWidth(),
 				maxNameTextWidth);
+			if (hasUsdLine) {
+				const auto currency = Ui::Text::String(
+					_textStyle,
+					tr::lng_channel_earn_chart_overriden_detail_currency(
+						tr::now));
+				const auto usd = Ui::Text::String(
+					_textStyle,
+					tr::lng_channel_earn_chart_overriden_detail_usd(
+						tr::now));
+				maxNameTextWidth = std::max(
+					std::max(currency.maxWidth(), usd.maxWidth()),
+					maxNameTextWidth);
+			}
 		}
 		{
 			const auto maxHeaderText = Ui::Text::String(

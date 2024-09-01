@@ -27,7 +27,6 @@ public:
 	PointDetailsWidget(
 		not_null<Ui::RpWidget*> parent,
 		const Data::StatisticalChart &chartData,
-		float64 maxAbsoluteValue,
 		bool zoomEnabled);
 
 	[[nodiscard]] int xIndex() const;
