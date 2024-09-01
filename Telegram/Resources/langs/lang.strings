@@ -3349,6 +3349,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_promote_admin" = "Promote to admin";
 "lng_context_edit_permissions" = "Edit permissions";
 "lng_context_restrict_user" = "Restrict user";
+"lng_context_ban_user" = "Ban";
 "lng_context_remove_from_group" = "Remove from group";
 "lng_context_add_to_group" = "Add to group";
 

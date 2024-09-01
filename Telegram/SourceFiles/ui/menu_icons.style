@@ -203,6 +203,7 @@ menuIconReportAttention: icon {{ "menu/report", menuIconAttentionColor }};
 menuIconRestoreAttention: icon {{ "menu/restore", menuIconAttentionColor }};
 menuIconTagRemoveAttention: icon {{ "menu/tag_remove", menuIconAttentionColor }};
 menuIconCancelAttention: icon {{ "menu/cancel", menuIconAttentionColor }};
+menuIconBlockAttention: icon {{ "menu/block", menuIconAttentionColor }};
 
 menuIconBlockSettings: icon {{ "menu/block", windowBgActive }};
 menuIconInviteSettings: icon {{ "menu/invite", windowBgActive }};

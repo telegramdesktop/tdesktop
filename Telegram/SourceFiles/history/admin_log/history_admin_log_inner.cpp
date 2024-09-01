@@ -39,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/expandable_peer_list.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
@@ -52,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
@@ -1564,6 +1567,30 @@ void InnerWidget::suggestRestrictParticipant(
 			}).send();
 		}
 	}, &st::menuIconPermissions);
+
+	{
+		const auto lifetime = std::make_shared<rpl::lifetime>();
+		auto handler = [=, this] {
+			participant->session().changes().peerUpdates(
+				_channel,
+				Data::PeerUpdate::Flag::Members
+			) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+				_downLoaded = false;
+				preloadMore(Direction::Down);
+				lifetime->destroy();
+			}, *lifetime);
+			participant->session().api().chatParticipants().kick(
+				_channel,
+				participant,
+				{ _channel->restrictions(), 0 });
+		};
+		Ui::Menu::CreateAddActionCallback(_menu)({
+			.text = tr::lng_context_ban_user(tr::now),
+			.handler = std::move(handler),
+			.icon = &st::menuIconBlockAttention,
+			.isAttention = true,
+		});
+	}
 }
 
 void InnerWidget::restrictParticipant(
