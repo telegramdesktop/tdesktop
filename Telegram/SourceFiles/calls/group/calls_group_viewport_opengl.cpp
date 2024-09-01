@@ -460,7 +460,8 @@ void Viewport::RendererGL::validateUserpicFrame(
 		return;
 	}
 	const auto size = tile->trackOrUserpicSize();
-	tileData.userpicFrame = tile->row()->peer()->generateUserpicImage(
+	tileData.userpicFrame = PeerData::GenerateUserpicImage(
+		tile->row()->peer(),
 		tile->row()->ensureUserpicView(),
 		size.width(),
 		0);

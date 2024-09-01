@@ -1026,10 +1026,12 @@ void UserpicButton::prepareUserpicPixmap() {
 							true);
 						p.drawImage(QRect(0, 0, size, size), _userpicView.cached);
 					} else {
-						const auto empty = _peer->generateUserpicImage(
+						const auto empty = PeerData::GenerateUserpicImage(
+							_peer,
 							_userpicView,
 							size * ratio,
-							size * ratio * Ui::ForumUserpicRadiusMultiplier());
+							(size * ratio)
+								* Ui::ForumUserpicRadiusMultiplier());
 						p.drawImage(QRect(0, 0, size, size), empty);
 					}
 				} else {

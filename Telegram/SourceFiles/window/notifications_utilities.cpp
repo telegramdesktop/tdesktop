@@ -28,7 +28,7 @@ QImage GenerateUserpic(not_null<PeerData*> peer, Ui::PeerUserpicView &view) {
 		? Ui::EmptyUserpic::GenerateSavedMessages(st::notifyMacPhotoSize)
 		: peer->isRepliesChat()
 		? Ui::EmptyUserpic::GenerateRepliesMessages(st::notifyMacPhotoSize)
-		: peer->generateUserpicImage(view, st::notifyMacPhotoSize);
+		: PeerData::GenerateUserpicImage(peer, view, st::notifyMacPhotoSize);
 }
 
 CachedUserpics::CachedUserpics()

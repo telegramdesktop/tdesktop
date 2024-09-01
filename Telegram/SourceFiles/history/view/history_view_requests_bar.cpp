@@ -86,7 +86,8 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		state->someUserpicsNotLoaded = false;
 		for (auto &userpic : state->userpics) {
 			userpic.peer->loadUserpic();
-			auto image = userpic.peer->generateUserpicImage(
+			auto image = PeerData::GenerateUserpicImage(
+				userpic.peer,
 				userpic.view,
 				userpicSize * style::DevicePixelRatio());
 			userpic.uniqueKey = userpic.peer->userpicUniqueKey(userpic.view);

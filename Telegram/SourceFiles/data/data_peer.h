@@ -333,10 +333,11 @@ public:
 	[[nodiscard]] Ui::PeerUserpicView createUserpicView();
 	[[nodiscard]] bool useEmptyUserpic(Ui::PeerUserpicView &view) const;
 	[[nodiscard]] InMemoryKey userpicUniqueKey(Ui::PeerUserpicView &view) const;
-	[[nodiscard]] QImage generateUserpicImage(
+	[[nodiscard]] static QImage GenerateUserpicImage(
+		not_null<PeerData*> peer,
 		Ui::PeerUserpicView &view,
 		int size,
-		std::optional<int> radius = {}) const;
+		std::optional<int> radius = {});
 	[[nodiscard]] ImageLocation userpicLocation() const;
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);

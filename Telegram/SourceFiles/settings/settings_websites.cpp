@@ -235,7 +235,8 @@ PaintRoundImageCallback Row::generatePaintUserpicCallback(bool forceRound) {
 			p.drawImage(QRect(x, y, size, size), userpic.cached);
 		} else {
 			if (_emptyUserpic.isNull()) {
-				_emptyUserpic = peer->generateUserpicImage(
+				_emptyUserpic = PeerData::GenerateUserpicImage(
+					peer,
 					_userpic,
 					size * ratio,
 					size * ratio * Ui::ForumUserpicRadiusMultiplier());

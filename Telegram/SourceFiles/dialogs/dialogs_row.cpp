@@ -118,7 +118,7 @@ constexpr auto kBlurRadius = 24;
 	const auto &partSize = partRect.width();
 	const auto partSkip = fullSize - partSize;
 	auto result = Images::Circle(BlurredDarkenedPart(
-		peer->generateUserpicImage(view, fullSize * ratio, 0),
+		PeerData::GenerateUserpicImage(peer, view, fullSize * ratio, 0),
 		QRect(
 			QPoint(partSkip, partSkip) * ratio,
 			QSize(partSize, partSize) * ratio)));

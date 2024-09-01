@@ -79,7 +79,8 @@ void ProcessUserpic(
 	if (!state->userpicView.cloud) {
 		GenerateImage(
 			state,
-			peer->generateUserpicImage(
+			PeerData::GenerateUserpicImage(
+				peer,
 				state->userpicView,
 				st::shortInfoWidth * style::DevicePixelRatio(),
 				0),

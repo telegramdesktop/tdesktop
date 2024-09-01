@@ -542,10 +542,12 @@ rpl::producer<QImage> PeerUserpicImageValue(
 			}
 			state->key = key;
 			state->empty = false;
-			consumer.put_next(peer->generateUserpicImage(
-				state->view,
-				size,
-				radius));
+			consumer.put_next(
+				PeerData::GenerateUserpicImage(
+					peer,
+					state->view,
+					size,
+					radius));
 		};
 		peer->session().changes().peerFlagsValue(
 			peer,

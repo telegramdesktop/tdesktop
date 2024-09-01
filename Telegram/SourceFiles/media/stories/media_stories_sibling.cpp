@@ -336,7 +336,10 @@ QImage Sibling::userpicImage(const SiblingLayout &layout) {
 	const auto key = _peer->userpicUniqueKey(_userpicView);
 	if (_userpicImage.width() != size || _userpicKey != key) {
 		_userpicKey = key;
-		_userpicImage = _peer->generateUserpicImage(_userpicView, size);
+		_userpicImage = PeerData::GenerateUserpicImage(
+			_peer,
+			_userpicView,
+			size);
 		_userpicImage.setDevicePixelRatio(ratio);
 	}
 	return _userpicImage;

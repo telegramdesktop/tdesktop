@@ -245,7 +245,11 @@ QImage PeerUserpic::image(int size) {
 		} else {
 			const auto full = size * style::DevicePixelRatio();
 			const auto r = full / 2.;
-			const auto empty = _peer->generateUserpicImage(view, full, r);
+			const auto empty = PeerData::GenerateUserpicImage(
+				_peer,
+				view,
+				full,
+				r);
 			p.drawImage(QRect(0, 0, size, size), empty);
 		}
 	}

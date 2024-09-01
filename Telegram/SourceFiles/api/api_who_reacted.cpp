@@ -214,7 +214,10 @@ struct State {
 
 [[nodiscard]] QImage GenerateUserpic(Userpic &userpic, int size) {
 	size *= style::DevicePixelRatio();
-	auto result = userpic.peer->generateUserpicImage(userpic.view, size);
+	auto result = PeerData::GenerateUserpicImage(
+		userpic.peer,
+		userpic.view,
+		size);
 	result.setDevicePixelRatio(style::DevicePixelRatio());
 	return result;
 }
