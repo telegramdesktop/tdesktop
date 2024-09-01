@@ -850,6 +850,9 @@ void CreateGiveawayBox(
 				? creditsOptionWinners(credits)
 				: availablePresets;
 			const auto count = values.size();
+			if (count <= 1) {
+				return;
+			}
 			const auto sliderWidth = sliderState->slider->width()
 				- st::settingsScale.seekSize.width();
 			for (auto i = 0; i < count; i++) {
