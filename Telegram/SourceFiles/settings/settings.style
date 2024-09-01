@@ -176,7 +176,7 @@ settingLocalPasscodeInputField: InputField(defaultInputField) {
 settingLocalPasscodeDescription: FlatLabel(changePhoneDescription) {
 	minWidth: 256px;
 }
-settingLocalPasscodeDescriptionHeight: 52px;
+settingLocalPasscodeDescriptionHeight: 53px;
 settingLocalPasscodeError: FlatLabel(changePhoneError) {
 	minWidth: 256px;
 }
