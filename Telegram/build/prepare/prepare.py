@@ -457,7 +457,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout ac72a4f597
+    git checkout 8cd00d57c7
 """)
 
 stage('msys64', """
@@ -1539,11 +1539,19 @@ release:
     stage('qt_' + qt, """
     git clone -b v$QT-lts-lgpl https://github.com/qt/qt5.git qt_$QT
     cd qt_$QT
-    git submodule update --init --recursive qtbase qtimageformats qtsvg
+    git submodule update --init --recursive --progress qtbase qtimageformats qtsvg
 depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do git apply %%i -v
+    setlocal enabledelayedexpansion
+    for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
+        git apply %%i -v
+        if errorlevel 1 (
+            echo ERROR: Applying patch %%~nxi failed!
+            exit /b 1
+        )
+    )
+
     cd ..
 
     SET CONFIGURATIONS=-debug
