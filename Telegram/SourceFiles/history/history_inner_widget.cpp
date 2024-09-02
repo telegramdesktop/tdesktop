@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_emoji_interactions.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
+#include "history/history_view_swipe.h"
 #include "payments/payments_reaction_process.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
@@ -121,6 +122,15 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 		}
 	}
 	return start;
+}
+
+[[nodiscard]] bool CanSendReply(not_null<const HistoryItem*> item) {
+	const auto peer = item->history()->peer;
+	const auto topic = item->topic();
+	return topic
+		? Data::CanSendAnything(topic)
+		: (Data::CanSendAnything(peer)
+			&& (!peer->isChannel() || peer->asChannel()->amIn()));
 }
 
 void FillSponsoredMessagesMenu(
@@ -373,6 +383,59 @@ HistoryInner::HistoryInner(
 		_migrated->delegateMixin()->setCurrent(this);
 		_migrated->translateTo(_history->translatedTo());
 	}
+	HistoryView::SetupSwipeHandler(this, _scroll, [=](
+			HistoryView::ChatPaintGestureHorizontalData data) {
+		_gestureHorizontal = data;
+		update();
+	}, [=, show = controller->uiShow()](int cursorTop) {
+		auto result = HistoryView::SwipeHandlerFinishData();
+		if (inSelectionMode()) {
+			return result;
+		}
+		enumerateItems<EnumItemsDirection::BottomToTop>([&](
+				not_null<Element*> view,
+				int itemtop,
+				int itembottom) {
+			if ((cursorTop < itemtop)
+				|| (cursorTop > itembottom)
+				|| !view->data()->isRegular()
+				|| view->data()->isService()) {
+				return true;
+			}
+			const auto item = view->data();
+			const auto canSendReply = CanSendReply(item);
+			const auto canReply = (canSendReply || item->allowsForward());
+			if (!canReply) {
+				return true;
+			}
+			result.msgBareId = item->fullId().msg.bare;
+			result.callback = [=, itemId = item->fullId()] {
+				const auto still = show->session().data().message(itemId);
+				const auto selected = selectedQuote(still);
+				const auto replyToItemId = (selected.item
+					? selected.item
+					: still)->fullId();
+				if (canSendReply) {
+					_widget->replyToMessage({
+						.messageId = replyToItemId,
+						.quote = selected.text,
+						.quoteOffset = selected.offset,
+					});
+					if (!selected.text.empty()) {
+						_widget->clearSelected();
+					}
+				} else {
+					HistoryView::Controls::ShowReplyToChatBox(show, {
+						.messageId = replyToItemId,
+						.quote = selected.text,
+						.quoteOffset = selected.offset,
+					});
+				}
+			};
+			return false;
+		});
+		return result;
+	});
 
 	Window::ChatThemeValueFromPeer(
 		controller,
@@ -944,6 +1007,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	auto clip = e->rect();
 
 	auto context = preparePaintContext(clip);
+	context.gestureHorizontal = _gestureHorizontal;
 	context.highlightPathCache = &_highlightPathCache;
 	_pathGradient->startFrame(
 		0,
@@ -1157,6 +1221,11 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		// paint the userpic if it intersects the painted rect
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
 			const auto item = view->data();
+			const auto hasTranslation = _gestureHorizontal.ratio
+				&& (_gestureHorizontal.msgBareId == item->fullId().msg.bare);
+			if (hasTranslation) {
+				p.translate(_gestureHorizontal.translation, 0);
+			}
 			if (const auto from = item->displayFrom()) {
 				Dialogs::Ui::PaintUserpic(
 					p,
@@ -1191,6 +1260,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				}
 			} else {
 				Unexpected("Corrupt forwarded information in message.");
+			}
+			if (hasTranslation) {
+				p.translate(-_gestureHorizontal.translation, 0);
 			}
 		}
 		return true;
@@ -2461,14 +2533,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (!item || !item->isRegular()) {
 			return;
 		}
-		const auto canSendReply = [&] {
-			const auto peer = item->history()->peer;
-			const auto topic = item->topic();
-			return topic
-				? Data::CanSendAnything(topic)
-				: (Data::CanSendAnything(peer)
-					&& (!peer->isChannel() || peer->asChannel()->amIn()));
-		}();
+		const auto canSendReply = CanSendReply(item);
 		const auto canReply = canSendReply || item->allowsForward();
 		if (canReply) {
 			const auto selected = selectedQuote(item);

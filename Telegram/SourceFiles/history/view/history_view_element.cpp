@@ -315,6 +315,10 @@ void UnreadBar::paint(
 		int y,
 		int w,
 		bool chatWide) const {
+	const auto previousTranslation = p.transform().dx();
+	if (previousTranslation != 0) {
+		p.translate(-previousTranslation, 0);
+	}
 	const auto st = context.st;
 	const auto bottom = y + height();
 	y += marginTop();
@@ -350,6 +354,9 @@ void UnreadBar::paint(
 		(w - width) / 2,
 		y + (skip / 2) + st::historyUnreadBarFont->ascent,
 		text);
+	if (previousTranslation != 0) {
+		p.translate(previousTranslation, 0);
+	}
 }
 
 void DateBadge::init(const QString &date) {

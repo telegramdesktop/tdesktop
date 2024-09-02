@@ -1091,6 +1091,12 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	const auto item = data();
 	const auto media = this->media();
 
+	const auto hasGesture = context.gestureHorizontal.ratio
+		&& (context.gestureHorizontal.msgBareId == item->fullId().msg.bare);
+	if (hasGesture) {
+		p.translate(context.gestureHorizontal.translation, 0);
+	}
+
 	if (item->hasUnrequestedFactcheck()) {
 		item->history()->session().factchecks().requestFor(item);
 	}
@@ -1480,6 +1486,41 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				const_cast<Message*>(this)->setPendingResize();
 			}
 		}
+	}
+	if (hasGesture) {
+		p.translate(-context.gestureHorizontal.translation, 0);
+
+		constexpr auto kShiftRatio = 1.5;
+		const auto size = st::historyFastShareSize;
+		const auto rect = QRect(
+			width() - (size * kShiftRatio) * context.gestureHorizontal.ratio,
+			g.y() + (g.height() - size) / 2,
+			size,
+			size);
+		const auto center = rect::center(rect);
+		const auto spanAngle = -context.gestureHorizontal.ratio
+			* arc::kFullLength;
+		const auto strokeWidth = style::ConvertFloatScale(2.);
+		auto pen = QPen(context.st->msgServiceBg());
+		pen.setWidthF(strokeWidth);
+		const auto arcRect = rect - Margins(strokeWidth);
+		p.save();
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(context.st->msgServiceBg());
+			p.setOpacity(context.gestureHorizontal.ratio);
+			p.drawEllipse(rect);
+			p.setPen(pen);
+			p.setBrush(Qt::NoBrush);
+			p.drawArc(arcRect, arc::kQuarterLength, spanAngle);
+			p.drawArc(arcRect, arc::kQuarterLength, spanAngle);
+			p.translate(center);
+			p.scale(-1., 1.);
+			p.translate(-center);
+			context.st->historyFastShareIcon().paintInCenter(p, rect);
+		}
+		p.restore();
 	}
 }
 

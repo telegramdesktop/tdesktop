@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style_radius.h"
 #include "ui/style/style_core_palette.h"
+#include "history/history_view_swipe_data.h"
 #include "layout/layout_selection.h"
 #include "styles/style_basic.h"
 
@@ -164,6 +165,7 @@ struct ChatPaintContext {
 	QPainterPath *highlightPathCache = nullptr;
 	mutable QRect highlightInterpolateTo;
 	crl::time now = 0;
+	HistoryView::ChatPaintGestureHorizontalData gestureHorizontal;
 
 	void translate(int x, int y) {
 		viewport.translate(x, y);

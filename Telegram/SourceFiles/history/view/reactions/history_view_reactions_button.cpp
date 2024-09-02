@@ -488,6 +488,10 @@ void Manager::paint(QPainter &p, const PaintContext &context) {
 		paintButton(p, context, button.get());
 	}
 	if (const auto current = _button.get()) {
+		if (context.gestureHorizontal.ratio) {
+			current->applyState(ButtonState::Hidden);
+			_buttonHiding.push_back(std::move(_button));
+		}
 		paintButton(p, context, current);
 	}
 
