@@ -1313,11 +1313,20 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom + " just started a giveaway "
 			"of Telegram Premium subscriptions to its followers.";
 	}, [&](const ActionGiveawayResults &data) {
-		return (data.winners > 0)
-			? NumberToString(data.winners)
-				+ " of the giveaway were randomly selected by Telegram "
-				"and received private messages with giftcodes."
-			: "No winners of the giveaway could be selected.";
+		return !data.winners
+			? "No winners of the giveaway could be selected."
+			: (data.credits && data.unclaimed)
+			? "Some winners of the giveaway were randomly selected by "
+				"Telegram and received their prize."
+			: (!data.credits && data.unclaimed)
+			? "Some winners of the giveaway were randomly selected by "
+				"Telegram and received private messages with giftcodes."
+			: (data.credits && !data.unclaimed)
+			? NumberToString(data.winners) + " of the giveaway was randomly "
+				"selected by Telegram and received their prize."
+			: NumberToString(data.winners) + " of the giveaway was randomly "
+				"selected by Telegram and received private messages with "
+				"giftcodes.";
 	}, [&](const ActionBoostApply &data) {
 		return serviceFrom
 			+ " boosted the group "

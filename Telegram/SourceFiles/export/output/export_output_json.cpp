@@ -615,6 +615,7 @@ QByteArray SerializeMessage(
 		pushAction("giveaway_results");
 		push("winners", data.winners);
 		push("unclaimed", data.unclaimed);
+		push("stars", data.credits);
 	}, [&](const ActionSetChatWallPaper &data) {
 		pushActor();
 		pushAction(data.same

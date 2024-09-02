@@ -1543,6 +1543,7 @@ ServiceAction ParseServiceAction(
 		auto content = ActionGiveawayResults();
 		content.winners = data.vwinners_count().v;
 		content.unclaimed = data.vunclaimed_count().v;
+		content.credits = data.is_stars();
 		result.content = content;
 	}, [&](const MTPDmessageActionBoostApply &data) {
 		auto content = ActionBoostApply();

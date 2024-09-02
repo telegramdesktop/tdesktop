@@ -590,6 +590,7 @@ struct ActionGiveawayLaunch {
 struct ActionGiveawayResults {
 	int winners = 0;
 	int unclaimed = 0;
+	bool credits = false;
 };
 
 struct ActionBoostApply {

@@ -5180,15 +5180,20 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		auto result = PreparedServiceText();
 		const auto winners = action.vwinners_count().v;
 		const auto unclaimed = action.vunclaimed_count().v;
+		const auto credits = action.is_stars();
 		result.text = {
 			(!winners
 				? tr::lng_action_giveaway_results_none(tr::now)
-				: unclaimed
+				: (credits && unclaimed)
+				? tr::lng_action_giveaway_results_credits_some(tr::now)
+				: (!credits && unclaimed)
 				? tr::lng_action_giveaway_results_some(tr::now)
-				: tr::lng_action_giveaway_results(
+				: (credits && !unclaimed)
+				? tr::lng_action_giveaway_results_credits(
 					tr::now,
 					lt_count,
-					winners))
+					winners)
+				: tr::lng_action_giveaway_results(tr::now, lt_count, winners))
 		};
 		return result;
 	};
