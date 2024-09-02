@@ -74,9 +74,23 @@ base::options::toggle OptionNewWindowsSizeAsFirst({
 	.description = "Open new windows with a size of the main window.",
 });
 
+base::options::toggle OptionDisableTouchbar({
+	.id = kOptionDisableTouchbar,
+	.name = "Disable Touch Bar (macOS only).",
+	.scope = [] {
+#ifdef Q_OS_MAC
+		return true;
+#else // !Q_OS_MAC
+		return false;
+#endif // !Q_OS_MAC
+	},
+	.restartRequired = true,
+});
+
 } // namespace.
 
 const char kOptionNewWindowsSizeAsFirst[] = "new-windows-size-as-first";
+const char kOptionDisableTouchbar[] = "touchbar-disabled";
 
 const QImage &Logo() {
 	static const auto result = QImage(u":/gui/art/logo_256.png"_q);

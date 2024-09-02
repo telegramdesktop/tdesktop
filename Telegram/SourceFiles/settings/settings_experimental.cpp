@@ -156,6 +156,7 @@ void SetupExperimental(
 	addToggle(Core::kOptionSkipUrlSchemeRegister);
 	addToggle(Data::kOptionExternalVideoPlayer);
 	addToggle(Window::kOptionNewWindowsSizeAsFirst);
+	addToggle(Window::kOptionDisableTouchbar);
 }
 
 } // namespace
