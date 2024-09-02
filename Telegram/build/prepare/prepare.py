@@ -449,7 +449,7 @@ if customRunCommand:
                 tmp_zshrc_path = tmp_zshrc.name
             subprocess.run(['zsh', '--rcs', tmp_zshrc_path], env=modifiedEnv)
             os.remove(tmp_zshrc_path)
-    elif not run(command):
+    elif not run(' '.join(runCommand) + '\n'):
         print('FAILED :(')
         finish(1)
     finish(0)
@@ -1543,6 +1543,7 @@ release:
 depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
 win:
+    git revert --no-edit 6ad56dce34
     setlocal enabledelayedexpansion
     for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
         git apply %%i -v
