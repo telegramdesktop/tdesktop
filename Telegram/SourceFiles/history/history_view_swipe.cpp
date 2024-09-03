@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_view_swipe.h"
 
-#include "base/event_filter.h"
 #include "base/platform/base_platform_haptic.h"
+#include "base/platform/base_platform_info.h"
+#include "base/qt/qt_common_adapters.h"
+#include "base/event_filter.h"
 #include "history/history_view_swipe_data.h"
 #include "ui/chat/chat_style.h"
 #include "ui/ui_utility.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/scroll_area.h"
 
 #include <QtWidgets/QApplication>
@@ -32,9 +35,11 @@ void SetupSwipeHandler(
 		SwipeHandlerFinishData finishByTopData;
 		std::optional<Qt::Orientation> orientation;
 		QPointF startAt;
-		QPointF lastAt;
+		QPointF delta;
 		int cursorTop = 0;
+		bool started = false;
 		bool reached = false;
+		bool touch = false;
 
 		rpl::lifetime lifetime;
 	};
@@ -48,124 +53,158 @@ void SetupSwipeHandler(
 			.cursorTop = state->cursorTop,
 		});
 	};
-	const auto setOrientation = [=](const std::optional<Qt::Orientation> &o) {
+	const auto setOrientation = [=](std::optional<Qt::Orientation> o) {
 		state->orientation = o;
-		const auto isHorizontal = o.value_or(Qt::Vertical) == Qt::Horizontal;
+		const auto isHorizontal = (o == Qt::Horizontal);
 		scroll->viewport()->setAttribute(
 			Qt::WA_AcceptTouchEvents,
 			!isHorizontal);
 		scroll->disableScroll(isHorizontal);
 	};
-	const auto processEnd = [=](QTouchEvent *t) {
-		if (state->orientation) {
-			if ((*state->orientation) == Qt::Horizontal) {
-				if (t && t->touchPoints().size() > 0) {
-					state->lastAt = t->touchPoints().at(0).pos();
-				}
-				const auto delta = state->startAt - state->lastAt;
-				const auto ratio = delta.x() / threshold;
-				if ((ratio >= 1) && state->finishByTopData.callback) {
-					Ui::PostponeCall(
-						widget,
-						state->finishByTopData.callback);
-				}
-				state->animationEnd.stop();
-				state->animationEnd.start(
-					updateRatio,
-					ratio,
-					0.,
-					st::slideWrapDuration);
+	const auto processEnd = [=](std::optional<QPointF> delta = {}) {
+		if (state->orientation == Qt::Horizontal) {
+			const auto ratio = delta.value_or(state->delta).x() / threshold;
+			if ((ratio >= 1) && state->finishByTopData.callback) {
+				Ui::PostponeCall(
+					widget,
+					state->finishByTopData.callback);
 			}
+			state->animationReach.stop();
+			state->animationEnd.stop();
+			state->animationEnd.start(
+				updateRatio,
+				ratio,
+				0.,
+				st::slideWrapDuration);
 		}
 		setOrientation(std::nullopt);
-		state->startAt = QPointF();
+		state->started = false;
 		state->reached = false;
 	};
 	scroll->scrolls() | rpl::start_with_next([=] {
-		processEnd(nullptr);
+		processEnd();
 	}, state->lifetime);
 	const auto animationReachCallback = [=] {
-		updateRatio((state->startAt - state->lastAt).x() / threshold);
+		updateRatio(state->delta.x() / threshold);
+	};
+	struct UpdateArgs {
+		QPointF position;
+		QPointF delta;
+		bool touch = false;
+	};
+	const auto updateWith = [=](UpdateArgs &&args) {
+		if (!state->started || state->touch != args.touch) {
+			state->started = true;
+			state->touch = args.touch;
+			state->startAt = args.position;
+			state->delta = QPointF();
+			state->cursorTop = widget->mapFromGlobal(
+				QCursor::pos()).y();
+			state->finishByTopData = generateFinishByTop(
+				state->cursorTop);
+			if (!state->finishByTopData.callback) {
+				setOrientation(Qt::Vertical);
+			}
+		} else if (!state->orientation) {
+			state->delta = args.delta;
+			const auto diffXtoY = std::abs(args.delta.x())
+				- std::abs(args.delta.y());
+			if (diffXtoY > 0) {
+				setOrientation(Qt::Horizontal);
+			} else if (diffXtoY < 0) {
+				setOrientation(Qt::Vertical);
+			} else {
+				setOrientation(std::nullopt);
+			}
+		} else if (*state->orientation == Qt::Horizontal) {
+			state->delta = args.delta;
+			const auto ratio = args.delta.x() / threshold;
+			updateRatio(ratio);
+			constexpr auto kResetReachedOn = 0.95;
+			constexpr auto kBounceDuration = crl::time(500);
+			if (!state->reached && ratio >= 1.) {
+				state->reached = true;
+				state->animationReach.stop();
+				state->animationReach.start(
+					animationReachCallback,
+					0.,
+					1.,
+					kBounceDuration);
+				base::Platform::Haptic();
+			} else if (state->reached
+				&& ratio < kResetReachedOn) {
+				state->reached = false;
+			}
+		}
 	};
 	const auto filter = [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Leave && state->orientation) {
-			processEnd(nullptr);
-		}
-		if (e->type() == QEvent::MouseMove && state->orientation) {
-			const auto m = static_cast<QMouseEvent*>(e.get());
-			if (std::abs(m->pos().y() - state->cursorTop)
-					> QApplication::startDragDistance()) {
-				processEnd(nullptr);
+		const auto type = e->type();
+		switch (type) {
+		case QEvent::Leave:
+			if (state->orientation) {
+				processEnd();
 			}
-		}
-		if (e->type() == QEvent::TouchBegin
-				|| e->type() == QEvent::TouchUpdate
-				|| e->type() == QEvent::TouchEnd
-				|| e->type() == QEvent::TouchCancel) {
-			const auto t = static_cast<QTouchEvent*>(e.get());
-			const auto &touches = t->touchPoints();
-			const auto anyReleased = (touches.size() == 2)
-				? ((touches.at(0).state() & Qt::TouchPointReleased)
-					+ (touches.at(1).state() & Qt::TouchPointReleased))
-				: (touches.size() == 1)
-				? (touches.at(0).state() & Qt::TouchPointReleased)
-				: 0;
-			if (touches.size() == 2) {
-				if ((e->type() == QEvent::TouchBegin)
-					|| (e->type() == QEvent::TouchUpdate)) {
-					if (state->startAt.isNull()) {
-						state->startAt = touches.at(0).pos();
-						state->cursorTop = widget->mapFromGlobal(
-							QCursor::pos()).y();
-						state->finishByTopData = generateFinishByTop(
-							state->cursorTop);
-						if (!state->finishByTopData.callback) {
-							setOrientation(Qt::Vertical);
-						}
-					} else if (state->orientation) {
-						if ((*state->orientation) == Qt::Horizontal) {
-							state->lastAt = touches.at(0).pos();
-							const auto delta = state->startAt - state->lastAt;
-							const auto ratio = delta.x() / threshold;
-							updateRatio(ratio);
-							constexpr auto kResetReachedOn = 0.95;
-							constexpr auto kBounceDuration = crl::time(500);
-							if (!state->reached && ratio >= 1.) {
-								state->reached = true;
-								state->animationReach.stop();
-								state->animationReach.start(
-									animationReachCallback,
-									0.,
-									1.,
-									kBounceDuration);
-								base::Platform::Haptic();
-							} else if (state->reached
-									&& ratio < kResetReachedOn) {
-								state->reached = false;
-							}
-						}
-					} else {
-						state->lastAt = touches.at(0).pos();
-						const auto delta = state->startAt - state->lastAt;
-						const auto diffXtoY = std::abs(delta.x())
-							- std::abs(delta.y());
-						if (diffXtoY > 0) {
-							setOrientation(Qt::Horizontal);
-						} else if (diffXtoY < 0) {
-							setOrientation(Qt::Vertical);
-						} else {
-							setOrientation(std::nullopt);
-						}
-					}
+			break;
+		case QEvent::MouseMove:
+			if (state->orientation) {
+				const auto m = static_cast<QMouseEvent*>(e.get());
+				if (std::abs(m->pos().y() - state->cursorTop)
+					> QApplication::startDragDistance()) {
+					processEnd();
 				}
 			}
-			if ((e->type() == QEvent::TouchEnd)
-					|| touches.empty()
-					|| anyReleased
-					|| (touches.size() > 2)) {
-				processEnd(t);
+			break;
+		case QEvent::TouchBegin:
+		case QEvent::TouchUpdate:
+		case QEvent::TouchEnd:
+		case QEvent::TouchCancel: {
+			const auto t = static_cast<QTouchEvent*>(e.get());
+			const auto touchscreen = t->device()
+				&& (t->device()->type() != base::TouchDevice::TouchScreen);
+			if (!Platform::IsMac() && !touchscreen) {
+				break;
 			}
-			return base::EventFilterResult::Cancel;
+			const auto &touches = t->touchPoints();
+			const auto released = [&](int index) {
+				return (touches.size() > index)
+					&& (touches.at(index).state() & Qt::TouchPointReleased);
+			};
+			const auto cancel = released(0)
+				|| released(1)
+				|| (touches.size() != (touchscreen ? 1 : 2))
+				|| (type == QEvent::TouchEnd)
+				|| (type == QEvent::TouchCancel);
+			if (cancel) {
+				processEnd(touches.empty()
+					? std::optional<QPointF>()
+					: (state->startAt - touches[0].pos()));
+			} else {
+				updateWith({
+					.position = touches[0].pos(),
+					.delta = state->startAt - touches[0].pos(),
+					.touch = true,
+				});
+			}
+		} break;
+		case QEvent::Wheel: {
+			const auto w = static_cast<QWheelEvent*>(e.get());
+			const auto phase = w->phase();
+			if (Platform::IsMac() || phase == Qt::NoScrollPhase) {
+				break;
+			}
+			const auto cancel = w->buttons()
+				|| (phase == Qt::ScrollEnd)
+				|| (phase == Qt::ScrollMomentum);
+			if (cancel) {
+				processEnd();
+			} else {
+				updateWith({
+					.position = QPointF(),
+					.delta = state->delta - Ui::ScrollDelta(w),
+					.touch = false,
+				});
+			}
+		} break;
 		}
 		return base::EventFilterResult::Continue;
 	};
