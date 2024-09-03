@@ -13,6 +13,7 @@ class object_ptr;
 class PeerData;
 
 namespace Data {
+struct Boost;
 struct CreditsHistoryEntry;
 struct SubscriptionEntry;
 } // namespace Data
@@ -74,6 +75,10 @@ void ReceiptCreditsBox(
 	not_null<Window::SessionController*> controller,
 	const Data::CreditsHistoryEntry &e,
 	const Data::SubscriptionEntry &s);
+void BoostCreditsBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller,
+	const Data::Boost &b);
 void GiftedCreditsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,

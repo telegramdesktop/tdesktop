@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
+#include "settings/settings_credits_graphics.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/controls/invite_link_label.h"
@@ -413,6 +414,12 @@ void InnerWidget::fill() {
 						_controller->showPeerInfo(user);
 					});
 				}
+			} else if (boost.credits) {
+				_show->showBox(
+					Box(
+						::Settings::BoostCreditsBox,
+						_controller->parentController(),
+						boost));
 			} else if (!boost.isUnclaimed) {
 				_show->showToast(tr::lng_boosts_list_pending_about(tr::now));
 			}

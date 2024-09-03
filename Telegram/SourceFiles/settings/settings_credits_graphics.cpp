@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h" // UrlClickHandler
 #include "core/ui_integration.h"
 #include "data/components/credits.h"
+#include "data/data_boosts.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
+#include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
@@ -496,6 +498,145 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 			*balanceStar);
 	}, balance->lifetime());
 	return balance;
+}
+
+void BoostCreditsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		const Data::Boost &b) {
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	const auto content = box->verticalLayout();
+	const auto session = &controller->session();
+	Ui::AddSkip(content);
+	{
+		const auto &stUser = st::premiumGiftsUserpicButton;
+		const auto widget = content->add(object_ptr<Ui::RpWidget>(content));
+		using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
+		const auto stars = widget->lifetime().make_state<ColoredMiniStars>(
+			widget,
+			false,
+			Ui::Premium::MiniStars::Type::BiStars);
+		stars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
+		widget->resize(
+			st::boxWidth - stUser.photoSize,
+			stUser.photoSize * 1.3);
+		const auto svg = std::make_shared<QSvgRenderer>(
+			Ui::Premium::ColorizedSvg(
+				Ui::Premium::CreditsIconGradientStops()));
+		content->sizeValue(
+		) | rpl::start_with_next([=](const QSize &size) {
+			widget->moveToLeft(stUser.photoSize / 2, 0);
+			const auto starsRect = Rect(widget->size());
+			stars->setPosition(starsRect.topLeft());
+			stars->setSize(starsRect.size());
+			widget->lower();
+		}, widget->lifetime());
+		widget->paintRequest(
+		) | rpl::start_with_next([=](const QRect &r) {
+			auto p = QPainter(widget);
+			p.fillRect(r, Qt::transparent);
+			stars->paint(p);
+			svg->render(
+				&p,
+				QRectF(
+					(widget->width() - stUser.photoSize) / 2.,
+					(widget->height() - stUser.photoSize) / 2.,
+					stUser.photoSize,
+					stUser.photoSize));
+		}, widget->lifetime());
+	}
+	content->add(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			content,
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_gift_stars_title(
+					lt_count,
+					rpl::single(float64(b.credits))),
+				st::boxTitle)));
+	Ui::AddSkip(content);
+	if (b.multiplier) {
+		const auto &st = st::statisticsDetailsBottomCaptionStyle;
+		const auto badge = content->add(object_ptr<Ui::RpWidget>(content));
+		badge->resize(badge->width(), st.font->height * 1.5);
+		const auto text = badge->lifetime().make_state<Ui::Text::String>(
+			st::boxWidth
+				- st::boxRowPadding.left()
+				- st::boxRowPadding.right());
+		auto textWithEntities = TextWithEntities();
+		textWithEntities.append(
+			Ui::Text::SingleCustomEmoji(
+				session->data().customEmojiManager().registerInternalEmoji(
+					st::boostsListMiniIcon,
+					{ st.font->descent * 2, st.font->descent / 2, 0, 0 },
+					true)));
+		textWithEntities.append(
+			tr::lng_boosts_list_title(tr::now, lt_count, b.multiplier));
+		text->setMarkedText(
+			st,
+			std::move(textWithEntities),
+			kMarkupTextOptions,
+			Core::MarkedTextContext{
+				.session = session,
+				.customEmojiRepaint = [=] { badge->update(); },
+			});
+		badge->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(badge);
+			auto hq = PainterHighQualityEnabler(p);
+			const auto radius = badge->height() / 2;
+			const auto badgeWidth = text->maxWidth() + radius;
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::premiumButtonBg2);
+			p.drawRoundedRect(
+				QRect(
+					(badge->width() - badgeWidth) / 2,
+					0,
+					badgeWidth,
+					badge->height()),
+				radius,
+				radius);
+			p.setPen(st::premiumButtonFg);
+			p.setBrush(Qt::NoBrush);
+			text->draw(p, Ui::Text::PaintContext{
+				.position = QPoint(
+					(badge->width() - text->maxWidth() - radius) / 2,
+					(badge->height() - text->minHeight()) / 2),
+				.outerWidth = badge->width(),
+				.availableWidth = badge->width(),
+			});
+		}, badge->lifetime());
+
+		Ui::AddSkip(content);
+	}
+	AddCreditsBoostTable(controller, content, b);
+	Ui::AddSkip(content);
+
+	box->addRow(object_ptr<Ui::CenterWrap<>>(
+		box,
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_credits_box_out_about(
+				lt_link,
+				tr::lng_payments_terms_link(
+				) | Ui::Text::ToLink(
+					tr::lng_credits_box_out_about_link(tr::now)),
+				Ui::Text::WithEntities),
+			st::creditsBoxAboutDivider)));
+	Ui::AddSkip(content);
+
+	const auto button = box->addButton(tr::lng_box_ok(), [=] {
+		box->closeBox();
+	});
+	const auto buttonWidth = st::boxWidth
+		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
+	button->widthValue() | rpl::filter([=] {
+		return (button->widthNoMargins() != buttonWidth);
+	}) | rpl::start_with_next([=] {
+		button->resizeToWidth(buttonWidth);
+	}, button->lifetime());
 }
 
 void ReceiptCreditsBox(

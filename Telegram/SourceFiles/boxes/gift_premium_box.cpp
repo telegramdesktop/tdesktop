@@ -69,6 +69,24 @@ constexpr auto kUserpicsMax = size_t(3);
 using GiftOption = Data::PremiumSubscriptionOption;
 using GiftOptions = Data::PremiumSubscriptionOptions;
 
+[[nodiscard]] QString CreateMessageLink(
+		not_null<Main::Session*> session,
+		PeerId peerId,
+		uint64 messageId) {
+	if (const auto msgId = MsgId(peerId ? messageId : 0)) {
+		const auto peer = session->data().peer(peerId);
+		if (const auto channel = peer->asBroadcast()) {
+			const auto username = channel->username();
+			const auto base = username.isEmpty()
+				? u"c/%1"_q.arg(peerToChannel(channel->id).bare)
+				: username;
+			const auto query = base + '/' + QString::number(msgId.bare);
+			return session->createInternalLink(query);
+		}
+	}
+	return QString();
+};
+
 GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	auto result = GiftOptions();
 	const auto gifts = data.vpremium_gifts();
@@ -1703,21 +1721,7 @@ void AddCreditsHistoryEntryTable(
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
-	const auto createMessageLink = [&](uint64 messageId) {
-		if (const auto msgId = MsgId(peerId ? messageId : 0)) {
-			const auto session = &controller->session();
-			const auto peer = session->data().peer(peerId);
-			if (const auto channel = peer->asBroadcast()) {
-				const auto username = channel->username();
-				const auto base = username.isEmpty()
-					? u"c/%1"_q.arg(peerToChannel(channel->id).bare)
-					: username;
-				const auto query = base + '/' + QString::number(msgId.bare);
-				return session->createInternalLink(query);
-			}
-		}
-		return QString();
-	};
+	const auto session = &controller->session();
 	if (peerId) {
 		auto text = entry.in
 			? tr::lng_credits_box_history_entry_peer_in()
@@ -1725,10 +1729,12 @@ void AddCreditsHistoryEntryTable(
 		AddTableRow(table, std::move(text), controller, peerId);
 	}
 	if (const auto msgId = MsgId(peerId ? entry.bareMsgId : 0)) {
-		const auto session = &controller->session();
 		const auto peer = session->data().peer(peerId);
 		if (const auto channel = peer->asBroadcast()) {
-			const auto link = createMessageLink(entry.bareMsgId);
+			const auto link = CreateMessageLink(
+				session,
+				peerId,
+				entry.bareMsgId);
 			auto label = object_ptr<Ui::FlatLabel>(
 				table,
 				rpl::single(Ui::Text::Link(link)),
@@ -1796,7 +1802,10 @@ void AddCreditsHistoryEntryTable(
 				Ui::Text::RichLangValue));
 	}
 	{
-		const auto link = createMessageLink(entry.bareGiveawayMsgId);
+		const auto link = CreateMessageLink(
+			session,
+			peerId,
+			entry.bareGiveawayMsgId);
 		if (!link.isEmpty()) {
 			AddTableRow(
 				table,
@@ -1901,5 +1910,62 @@ void AddSubscriberEntryTable(
 			table,
 			tr::lng_group_invite_joined_row_date(),
 			rpl::single(Ui::Text::WithEntities(langDateTime(d))));
+	}
+}
+
+void AddCreditsBoostTable(
+		not_null<Window::SessionNavigation*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		const Data::Boost &b) {
+	auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	const auto peerId = b.giveawayMessage.peer;
+	if (!peerId) {
+		return;
+	}
+	const auto from = controller->session().data().peer(peerId);
+	AddTableRow(
+		table,
+		tr::lng_credits_box_history_entry_peer_in(),
+		controller,
+		from->id);
+	if (b.credits) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_gift(),
+			tr::lng_gift_stars_title(
+				lt_count,
+				rpl::single(float64(b.credits)),
+				Ui::Text::RichLangValue));
+	}
+	{
+		const auto link = CreateMessageLink(
+			&controller->session(),
+			peerId,
+			b.giveawayMessage.msg.bare);
+		if (!link.isEmpty()) {
+			AddTableRow(
+				table,
+				tr::lng_gift_link_label_reason(),
+				tr::lng_gift_link_reason_giveaway(
+				) | rpl::map([link](const QString &text) {
+					return Ui::Text::Link(text, link);
+				}));
+		}
+	}
+	if (!b.date.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_date(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(b.date))));
+	}
+	if (!b.expiresAt.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_until(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(b.expiresAt))));
 	}
 }

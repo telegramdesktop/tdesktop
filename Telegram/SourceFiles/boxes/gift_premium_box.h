@@ -16,6 +16,7 @@ struct GiftCode;
 } // namespace Api
 
 namespace Data {
+struct Boost;
 struct CreditsHistoryEntry;
 struct GiveawayStart;
 struct GiveawayResults;
@@ -89,3 +90,8 @@ void AddSubscriberEntryTable(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	TimeId date);
+
+void AddCreditsBoostTable(
+	not_null<Window::SessionNavigation*> controller,
+	not_null<Ui::VerticalLayout*> container,
+	const Data::Boost &boost);
