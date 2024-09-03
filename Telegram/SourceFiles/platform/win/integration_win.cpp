@@ -19,8 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tray.h"
 #include "styles/style_window.h"
 
-#include <QtCore/QCoreApplication>
 #include <QtCore/QAbstractNativeEventFilter>
+#include <private/qguiapplication_p.h>
 
 #include <propvarutil.h>
 #include <propkey.h>
@@ -28,6 +28,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 
 void WindowsIntegration::init() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+	using namespace QNativeInterface::Private;
+	const auto native = qApp->nativeInterface<QWindowsApplication>();
+	if (native) {
+		native->setHasBorderInFullScreenDefault(true);
+	}
+#endif // Qt >= 6.5.0
 	QCoreApplication::instance()->installNativeEventFilter(this);
 	_taskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 }
