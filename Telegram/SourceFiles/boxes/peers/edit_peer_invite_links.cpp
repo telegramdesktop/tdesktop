@@ -734,7 +734,7 @@ void LinksController::rowPaintIcon(
 		} else {
 			(color == Color::Revoked
 				? st::inviteLinkRevokedIcon
-				: st::inviteLinkIcon).paintInCenter(p, { 0, 0, inner, inner });
+				: st::inviteLinkIcon).paintInCenter(p, Rect(Size(inner)));
 		}
 	}
 	p.drawImage(x + skip, y + skip, icon);

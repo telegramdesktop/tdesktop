@@ -195,7 +195,7 @@ PaintRoundImageCallback PremiumsRow::generatePaintUserpicCallback(
 			const auto radius = size * Ui::ForumUserpicRadiusMultiplier();
 			p.drawRoundedRect(x, y, size, size, radius, radius);
 		}
-		st::settingsPrivacyPremium.paintInCenter(p, { x, y, size, size });
+		st::settingsPrivacyPremium.paintInCenter(p, QRect(x, y, size, size));
 	};
 }
 

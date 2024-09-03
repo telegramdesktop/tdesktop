@@ -536,7 +536,7 @@ PaintRoundImageCallback BoostRow::generatePaintUserpicCallback(bool force) {
 			? st::boostsListUnclaimedIcon
 			: st::boostsListUnknownIcon).paintInCenter(
 				p,
-				{ x, y, size, size });
+				Rect(x, y, Size(size)));
 	};
 }
 

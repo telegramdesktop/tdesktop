@@ -3831,10 +3831,10 @@ void Message::drawRightAction(
 	} else if (_rightAction->second) {
 		st->historyFastCloseIcon().paintInCenter(
 			p,
-			{ left, top, size->width(), size->width() });
+			QRect(left, top, size->width(), size->width()));
 		st->historyFastMoreIcon().paintInCenter(
 			p,
-			{ left, size->width() + top, size->width(), size->width() });
+			QRect(left, size->width() + top, size->width(), size->width()));
 	} else {
 		const auto &icon = data()->isSponsored()
 			? st->historyFastCloseIcon()
@@ -3843,7 +3843,7 @@ void Message::drawRightAction(
 				&& this->context() != Context::SavedSublist)
 			? st->historyFastShareIcon()
 			: st->historyGoToOriginalIcon();
-		icon.paintInCenter(p, { left, top, size->width(), size->height() });
+		icon.paintInCenter(p, Rect(left, top, *size));
 	}
 }
 

@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -688,7 +689,7 @@ void LinksController::rowPaintIcon(
 			auto rect = QRect(0, 0, inner, inner);
 			p.drawEllipse(rect);
 		}
-		st::inviteLinkIcon.paintInCenter(p, { 0, 0, inner, inner });
+		st::inviteLinkIcon.paintInCenter(p, Rect(Size(inner)));
 	}
 	p.drawImage(x + skip, y + skip, _icon);
 }
