@@ -364,6 +364,7 @@ void Premium::resolveGiveawayInfo(
 			info.activatedCount = data.vactivated_count().value_or_empty();
 			info.finishDate = data.vfinish_date().v;
 			info.startDate = data.vstart_date().v;
+			info.credits = data.vstars_prize().value_or_empty();
 		});
 		_giveawayInfoDone(std::move(info));
 	}).fail([=] {

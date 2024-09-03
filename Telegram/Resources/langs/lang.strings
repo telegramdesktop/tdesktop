@@ -2922,6 +2922,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_how_yes_joined_one" = "You are participating in this giveaway, because you have joined {channel}.";
 "lng_prizes_how_yes_joined_many" = "You are participating in this giveaway, because you have joined {channel} (and other listed groups and channels).";
 "lng_prizes_you_won" = "You won a prize in this giveaway {cup}";
+"lng_prizes_you_won_credits" = "You won {amount} in this giveaway {cup}";
+"lng_prizes_you_won_credits_amount#one" = "{count} Star";
+"lng_prizes_you_won_credits_amount#other" = "{count} Stars";
 "lng_prizes_view_prize" = "View my prize";
 "lng_prizes_you_didnt" = "You didn't win a prize in this giveaway.";
 "lng_prizes_cancelled" = "The channel cancelled the prizes by reversing the payment for them.";

@@ -57,6 +57,7 @@ struct GiveawayInfo {
 	TimeId tooEarlyDate = 0;
 	TimeId finishDate = 0;
 	TimeId startDate = 0;
+	uint64 credits = 0;
 	int winnersCount = 0;
 	int activatedCount = 0;
 	bool participating = false;

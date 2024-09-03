@@ -1419,20 +1419,55 @@ void GiveawayInfoBox(
 		: !start->channels.empty()
 		? start->channels.front()->name()
 		: u"channel"_q;
-	auto text = TextWithEntities();
 
-	if (!info.giftCode.isEmpty()) {
-		text.append("\n\n");
-		text.append(Ui::Text::Bold(tr::lng_prizes_you_won(
-			tr::now,
+	auto resultText = (!info.giftCode.isEmpty())
+		? tr::lng_prizes_you_won(
 			lt_cup,
-			QString::fromUtf8("\xf0\x9f\x8f\x86"))));
-		text.append("\n\n");
-	} else if (info.state == State::Finished) {
-		text.append("\n\n");
-		text.append(Ui::Text::Bold(tr::lng_prizes_you_didnt(tr::now)));
-		text.append("\n\n");
+			rpl::single(
+				TextWithEntities{ QString::fromUtf8("\xf0\x9f\x8f\x86") }),
+			Ui::Text::WithEntities)
+		: (info.credits)
+		? tr::lng_prizes_you_won_credits(
+			lt_amount,
+			tr::lng_prizes_you_won_credits_amount(
+				lt_count,
+				rpl::single(float64(info.credits)),
+				Ui::Text::Bold),
+			lt_cup,
+			rpl::single(
+				TextWithEntities{ QString::fromUtf8("\xf0\x9f\x8f\x86") }),
+			Ui::Text::WithEntities)
+		: (info.state == State::Finished)
+		? tr::lng_prizes_you_didnt(Ui::Text::WithEntities)
+		: (rpl::producer<TextWithEntities>)(nullptr);
+
+	if (resultText) {
+		const auto &st = st::changePhoneDescription;
+		const auto skip = st.style.font->height * 0.5;
+		auto label = object_ptr<Ui::FlatLabel>(
+			box.get(),
+			std::move(resultText),
+			st);
+		if ((!info.giftCode.isEmpty()) || info.credits) {
+			label->setTextColorOverride(st::windowActiveTextFg->c);
+		}
+		const auto result = box->addRow(
+			object_ptr<Ui::PaddingWrap<Ui::CenterWrap<Ui::FlatLabel>>>(
+				box.get(),
+				object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+					box.get(),
+					std::move(label)),
+				QMargins(0, skip, 0, skip)));
+		result->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(result);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::boxDividerBg);
+			p.drawRoundedRect(result->rect(), st::boxRadius, st::boxRadius);
+		}, result->lifetime());
+		Ui::AddSkip(box->verticalLayout());
 	}
+
+	auto text = TextWithEntities();
 
 	const auto quantity = start
 		? start->quantity
