@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/round_rect.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/text_extended_data.h"
 #include "ui/power_saving.h"
 #include "data/components/factchecks.h"
 #include "data/components/sponsored_messages.h"
@@ -3575,6 +3576,9 @@ bool Message::allowTextSelectionByHandler(
 		if (media->allowTextSelectionByHandler(handler)) {
 			return true;
 		}
+	}
+	if (dynamic_cast<Ui::Text::BlockquoteClickHandler*>(handler.get())) {
+		return true;
 	}
 	return false;
 }
