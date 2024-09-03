@@ -140,12 +140,12 @@ void SetupSwipeHandler(
 	const auto filter = [=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		switch (type) {
-		case QEvent::Leave:
+		case QEvent::Leave: {
 			if (state->orientation) {
 				processEnd();
 			}
-			break;
-		case QEvent::MouseMove:
+		} break;
+		case QEvent::MouseMove: {
 			if (state->orientation) {
 				const auto m = static_cast<QMouseEvent*>(e.get());
 				if (std::abs(m->pos().y() - state->cursorTop)
@@ -153,14 +153,14 @@ void SetupSwipeHandler(
 					processEnd();
 				}
 			}
-			break;
+		} break;
 		case QEvent::TouchBegin:
 		case QEvent::TouchUpdate:
 		case QEvent::TouchEnd:
 		case QEvent::TouchCancel: {
 			const auto t = static_cast<QTouchEvent*>(e.get());
 			const auto touchscreen = t->device()
-				&& (t->device()->type() != base::TouchDevice::TouchScreen);
+				&& (t->device()->type() == base::TouchDevice::TouchScreen);
 			if (!Platform::IsMac() && !touchscreen) {
 				break;
 			}
