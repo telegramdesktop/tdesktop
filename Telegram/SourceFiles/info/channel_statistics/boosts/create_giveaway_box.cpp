@@ -323,7 +323,7 @@ void CreateGiveawayBox(
 			tr::lng_giveaway_award()),
 		rpl::conditional(
 			isPrepaidCredits
-				? rpl::single(true)
+				? rpl::single(true) | rpl::type_erased()
 				: state->typeValue.value() | rpl::map(
 					rpl::mappers::_1 == GiveawayType::Credits),
 			(peer->isMegagroup()
@@ -1382,7 +1382,7 @@ void CreateGiveawayBox(
 				tr::lng_giveaway_start(),
 				tr::lng_giveaway_award()),
 			(prepaid && prepaid->boosts)
-				? rpl::single(prepaid->boosts)
+				? rpl::single(prepaid->boosts) | rpl::type_erased()
 				: rpl::conditional(
 					state->typeValue.value(
 					) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits),
