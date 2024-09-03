@@ -420,6 +420,7 @@ private:
 	void reactionChosen(const ChosenReaction &reaction);
 
 	void setupSharingDisallowed();
+	void setupSwipeReply();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
 	[[nodiscard]] bool hasCopyMediaRestriction(
 		not_null<HistoryItem*> item) const;

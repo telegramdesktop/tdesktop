@@ -383,64 +383,6 @@ HistoryInner::HistoryInner(
 		_migrated->delegateMixin()->setCurrent(this);
 		_migrated->translateTo(_history->translatedTo());
 	}
-	HistoryView::SetupSwipeHandler(this, _scroll, [=, history = _history](
-			HistoryView::ChatPaintGestureHorizontalData data) {
-		_gestureHorizontal = data;
-		const auto item = history->peer->owner().message(
-			history->peer->id,
-			MsgId{ data.msgBareId });
-		if (item) {
-			repaintItem(item);
-		}
-	}, [=, show = controller->uiShow()](int cursorTop) {
-		auto result = HistoryView::SwipeHandlerFinishData();
-		if (inSelectionMode()) {
-			return result;
-		}
-		enumerateItems<EnumItemsDirection::BottomToTop>([&](
-				not_null<Element*> view,
-				int itemtop,
-				int itembottom) {
-			if ((cursorTop < itemtop)
-				|| (cursorTop > itembottom)
-				|| !view->data()->isRegular()
-				|| view->data()->isService()) {
-				return true;
-			}
-			const auto item = view->data();
-			const auto canSendReply = CanSendReply(item);
-			const auto canReply = (canSendReply || item->allowsForward());
-			if (!canReply) {
-				return true;
-			}
-			result.msgBareId = item->fullId().msg.bare;
-			result.callback = [=, itemId = item->fullId()] {
-				const auto still = show->session().data().message(itemId);
-				const auto selected = selectedQuote(still);
-				const auto replyToItemId = (selected.item
-					? selected.item
-					: still)->fullId();
-				if (canSendReply) {
-					_widget->replyToMessage({
-						.messageId = replyToItemId,
-						.quote = selected.text,
-						.quoteOffset = selected.offset,
-					});
-					if (!selected.text.empty()) {
-						_widget->clearSelected();
-					}
-				} else {
-					HistoryView::Controls::ShowReplyToChatBox(show, {
-						.messageId = replyToItemId,
-						.quote = selected.text,
-						.quoteOffset = selected.offset,
-					});
-				}
-			};
-			return false;
-		});
-		return result;
-	});
 
 	Window::ChatThemeValueFromPeer(
 		controller,
@@ -553,6 +495,7 @@ HistoryInner::HistoryInner(
 	}, _scroll->lifetime());
 
 	setupSharingDisallowed();
+	setupSwipeReply();
 }
 
 void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
@@ -633,6 +576,67 @@ void HistoryInner::setupSharingDisallowed() {
 			mouseActionCancel();
 		}
 	}, lifetime());
+}
+
+void HistoryInner::setupSwipeReply() {
+	HistoryView::SetupSwipeHandler(this, _scroll, [=, history = _history](
+			HistoryView::ChatPaintGestureHorizontalData data) {
+		_gestureHorizontal = data;
+		const auto item = history->peer->owner().message(
+			history->peer->id,
+			MsgId{ data.msgBareId });
+		if (item) {
+			repaintItem(item);
+		}
+	}, [=, show = _controller->uiShow()](int cursorTop) {
+		auto result = HistoryView::SwipeHandlerFinishData();
+		if (inSelectionMode()) {
+			return result;
+		}
+		enumerateItems<EnumItemsDirection::BottomToTop>([&](
+				not_null<Element*> view,
+				int itemtop,
+				int itembottom) {
+			if ((cursorTop < itemtop)
+				|| (cursorTop > itembottom)
+				|| !view->data()->isRegular()
+				|| view->data()->isService()) {
+				return true;
+			}
+			const auto item = view->data();
+			const auto canSendReply = CanSendReply(item);
+			const auto canReply = (canSendReply || item->allowsForward());
+			if (!canReply) {
+				return true;
+			}
+			result.msgBareId = item->fullId().msg.bare;
+			result.callback = [=, itemId = item->fullId()] {
+				const auto still = show->session().data().message(itemId);
+				const auto selected = selectedQuote(still);
+				const auto replyToItemId = (selected.item
+					? selected.item
+					: still)->fullId();
+				if (canSendReply) {
+					_widget->replyToMessage({
+						.messageId = replyToItemId,
+						.quote = selected.text,
+						.quoteOffset = selected.offset,
+					});
+					if (!selected.text.empty()) {
+						_widget->clearSelected();
+					}
+				} else {
+					HistoryView::Controls::ShowReplyToChatBox(show, {
+						.messageId = replyToItemId,
+						.quote = selected.text,
+						.quoteOffset = selected.offset,
+					});
+				}
+			};
+			return false;
+		});
+		return result;
+	});
 }
 
 bool HistoryInner::hasSelectRestriction() const {
