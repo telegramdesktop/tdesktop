@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h" // GetErrorTextForSending.
+#include "history/history_view_swipe.h"
 #include "ui/chat/pinned_bar.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/buttons.h"
@@ -399,6 +400,7 @@ RepliesWidget::RepliesWidget(
 
 	setupTopicViewer();
 	setupComposeControls();
+	setupSwipeReply();
 	orderWidgets();
 
 	if (_pinnedBar) {
@@ -863,6 +865,62 @@ void RepliesWidget::setupComposeControls() {
 			refreshJoinGroupButton();
 		}
 	}
+}
+
+void RepliesWidget::setupSwipeReply() {
+	const auto can = [=](not_null<HistoryItem*> still) {
+		const auto canSendReply = _topic
+			? Data::CanSendAnything(_topic)
+			: Data::CanSendAnything(_history->peer);
+		const auto allowInAnotherChat = still && still->allowsForward();
+		if (allowInAnotherChat && (_joinGroup || !canSendReply)) {
+			return true;
+		} else if (!_joinGroup && canSendReply) {
+			return true;
+		}
+		return false;
+	};
+	HistoryView::SetupSwipeHandler(_inner, _scroll.get(), [=](
+			HistoryView::ChatPaintGestureHorizontalData data) {
+		_gestureHorizontal = data;
+		const auto item = _history->peer->owner().message(
+			_history->peer->id,
+			MsgId{ data.msgBareId });
+		if (item) {
+			_inner->update();
+			// repaintItem(item);
+		}
+	}, [=, show = controller()->uiShow()](int cursorTop) {
+		auto result = HistoryView::SwipeHandlerFinishData();
+		if (_inner->elementInSelectionMode()) {
+			return result;
+		}
+		const auto view = _inner->lookupItemByY(cursorTop);
+		if (!view->data()->isRegular()
+			|| view->data()->isService()) {
+			return result;
+		}
+		if (!can(view->data())) {
+			return result;
+		}
+
+		result.msgBareId = view->data()->fullId().msg.bare;
+		result.callback = [=, itemId = view->data()->fullId()] {
+			const auto still = show->session().data().message(itemId);
+			const auto view = _inner->viewByPosition(still->position());
+			const auto selected = view->selectedQuote(
+				_inner->getSelectedTextRange(still));
+			const auto replyToItemId = (selected.item
+				? selected.item
+				: still)->fullId();
+			_inner->replyToMessageRequestNotify({
+				.messageId = replyToItemId,
+				.quote = selected.text,
+				.quoteOffset = selected.offset,
+			});
+		};
+		return result;
+	});
 }
 
 void RepliesWidget::chooseAttach(
@@ -2629,6 +2687,14 @@ void RepliesWidget::listAddTranslatedItems(
 	if (_shownPinnedItem) {
 		tracker->add(_shownPinnedItem);
 	}
+}
+
+Ui::ChatPaintContext RepliesWidget::listPreparePaintContext(
+		Ui::ChatPaintContextArgs &&args) {
+	auto context = WindowListDelegate::listPreparePaintContext(
+		std::move(args));
+	context.gestureHorizontal = _gestureHorizontal;
+	return context;
 }
 
 void RepliesWidget::setupEmptyPainter() {

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
+#include "history/history_view_swipe_data.h"
 #include "data/data_messages.h"
 #include "base/timer.h"
 
@@ -180,6 +181,8 @@ public:
 	History *listTranslateHistory() override;
 	void listAddTranslatedItems(
 		not_null<TranslateTracker*> tracker) override;
+	Ui::ChatPaintContext listPreparePaintContext(
+		Ui::ChatPaintContextArgs &&args) override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(
@@ -221,6 +224,7 @@ private:
 	void finishSending();
 
 	void setupComposeControls();
+	void setupSwipeReply();
 
 	void setupRoot();
 	void setupRootView();
@@ -368,6 +372,8 @@ private:
 	FullMsgId _lastShownAt;
 	HistoryView::CornerButtons _cornerButtons;
 	rpl::lifetime _topicLifetime;
+
+	HistoryView::ChatPaintGestureHorizontalData _gestureHorizontal;
 
 	int _lastScrollTop = 0;
 	int _topicReopenBarHeight = 0;
