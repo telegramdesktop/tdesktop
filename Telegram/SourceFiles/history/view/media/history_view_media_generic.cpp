@@ -514,6 +514,10 @@ void StickerWithBadgePart::paintBadge(
 		const auto inner = QRectF(rect) - Margins(half);
 		const auto radius = inner.height() / 2.;
 		p.drawRoundedRect(inner, radius, radius);
+		if (_colorOverride && context.selected()) {
+			p.setBrush(context.st->msgStickerOverlay());
+			p.drawRoundedRect(inner, radius, radius);
+		}
 	}
 
 	if (!_sticker.parent()->usesBubblePattern(context)) {
@@ -578,7 +582,9 @@ void StickerWithBadgePart::validateBadge(
 		p.drawImage(
 			left,
 			half + (inner.height() - iconHeight) / 2,
-			_customLeftIcon);
+			context.selected()
+				? Images::Colored(base::duplicate(_customLeftIcon), _badgeFg)
+				: _customLeftIcon);
 	}
 }
 
