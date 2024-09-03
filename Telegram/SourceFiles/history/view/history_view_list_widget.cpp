@@ -2305,7 +2305,7 @@ void ListWidget::paintUserpics(
 		// paint the userpic if it intersects the painted rect
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
 			const auto item = view->data();
-			const auto hasTranslation = context.gestureHorizontal.ratio
+			const auto hasTranslation = context.gestureHorizontal.translation
 				&& (context.gestureHorizontal.msgBareId == item->fullId().msg.bare);
 			if (hasTranslation) {
 				p.translate(context.gestureHorizontal.translation, 0);

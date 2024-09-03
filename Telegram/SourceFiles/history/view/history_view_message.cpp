@@ -1092,7 +1092,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	const auto item = data();
 	const auto media = this->media();
 
-	const auto hasGesture = context.gestureHorizontal.ratio
+	const auto hasGesture = context.gestureHorizontal.translation
 		&& (context.gestureHorizontal.msgBareId == item->fullId().msg.bare);
 	if (hasGesture) {
 		p.translate(context.gestureHorizontal.translation, 0);

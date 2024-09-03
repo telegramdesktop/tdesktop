@@ -882,13 +882,16 @@ void RepliesWidget::setupSwipeReply() {
 	};
 	HistoryView::SetupSwipeHandler(_inner, _scroll.get(), [=](
 			HistoryView::ChatPaintGestureHorizontalData data) {
+		const auto changed = (_gestureHorizontal.msgBareId != data.msgBareId)
+			|| (_gestureHorizontal.translation != data.translation);
 		_gestureHorizontal = data;
-		const auto item = _history->peer->owner().message(
-			_history->peer->id,
-			MsgId{ data.msgBareId });
-		if (item) {
-			_inner->update();
-			// repaintItem(item);
+		if (changed) {
+			const auto item = _history->peer->owner().message(
+				_history->peer->id,
+				MsgId{ data.msgBareId });
+			if (item) {
+				_history->owner().requestItemRepaint(item);
+			}
 		}
 	}, [=, show = controller()->uiShow()](int cursorTop) {
 		auto result = HistoryView::SwipeHandlerFinishData();

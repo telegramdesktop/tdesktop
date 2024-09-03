@@ -581,12 +581,16 @@ void HistoryInner::setupSharingDisallowed() {
 void HistoryInner::setupSwipeReply() {
 	HistoryView::SetupSwipeHandler(this, _scroll, [=, history = _history](
 			HistoryView::ChatPaintGestureHorizontalData data) {
+		const auto changed = (_gestureHorizontal.msgBareId != data.msgBareId)
+			|| (_gestureHorizontal.translation != data.translation);
 		_gestureHorizontal = data;
-		const auto item = history->peer->owner().message(
-			history->peer->id,
-			MsgId{ data.msgBareId });
-		if (item) {
-			repaintItem(item);
+		if (changed) {
+			const auto item = history->peer->owner().message(
+				history->peer->id,
+				MsgId{ data.msgBareId });
+			if (item) {
+				repaintItem(item);
+			}
 		}
 	}, [=, show = _controller->uiShow()](int cursorTop) {
 		auto result = HistoryView::SwipeHandlerFinishData();
@@ -1230,7 +1234,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		// paint the userpic if it intersects the painted rect
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
 			const auto item = view->data();
-			const auto hasTranslation = _gestureHorizontal.ratio
+			const auto hasTranslation = _gestureHorizontal.translation
 				&& (_gestureHorizontal.msgBareId == item->fullId().msg.bare);
 			if (hasTranslation) {
 				p.translate(_gestureHorizontal.translation, 0);
