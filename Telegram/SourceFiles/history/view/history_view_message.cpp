@@ -1495,11 +1495,17 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		constexpr auto kBouncePart = 0.25;
 		constexpr auto kStrokeWidth = 2.;
 		constexpr auto kWaveWidth = 10.;
+		const auto isLeftSize = (!context.outbg)
+			|| delegate()->elementIsChatWide();
 		const auto ratio = std::min(context.gestureHorizontal.ratio, 1.);
 		const auto reachRatio = context.gestureHorizontal.reachRatio;
 		const auto size = st::historyFastShareSize;
+		const auto outerWidth = st::historySwipeIconSkip
+			+ (isLeftSize ? rect::right(g) : width());
 		const auto rect = QRectF(
-			width() - (size * kShiftRatio) * context.gestureHorizontal.ratio,
+			outerWidth
+				- (size * kShiftRatio * context.gestureHorizontal.ratio)
+				- (st::historySwipeIconSkip * ratio * (isLeftSize ? .7 : 1.)),
 			g.y() + (g.height() - size) / 2,
 			size,
 			size);
@@ -1533,13 +1539,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			p.translate(-center);
 			// All the next draws are mirrored.
 			p.drawEllipse(rect);
-			context.st->historyFastShareIcon().paintInCenter(
-				p,
-				QRect(
-					base::SafeRound(rect.x()),
-					base::SafeRound(rect.y()),
-					base::SafeRound(rect.width()),
-					base::SafeRound(rect.height())));
+			context.st->historyFastShareIcon().paintInCenter(p, rect);
 			p.setPen(pen);
 			p.setBrush(Qt::NoBrush);
 			p.drawArc(arcRect, arc::kQuarterLength, spanAngle);

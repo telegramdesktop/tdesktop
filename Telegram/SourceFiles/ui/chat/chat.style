@@ -570,6 +570,8 @@ historyFastTranscribeLockPos: point(18px, 13px);
 historyFastTranscribeLockOverlayPos: point(21px, 13px);
 historyFastTranscribeLockOverlaySize: size(6px, 10px);
 
+historySwipeIconSkip: 80px;
+
 historySavedFont: font(semibold 14px);
 
 historyGroupWidthMax: maxMediaSize;
