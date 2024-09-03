@@ -11,6 +11,7 @@ namespace HistoryView {
 
 struct ChatPaintGestureHorizontalData {
 	float64 ratio = 0.;
+	float64 reachRatio = 0.;
 	float64 translation = 0.;
 	int64 msgBareId = 0;
 	int cursorTop = 0;

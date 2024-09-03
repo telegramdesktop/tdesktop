@@ -27,6 +27,7 @@ void SetupSwipeHandler(
 	const auto threshold = style::ConvertFloatScale(kThresholdWidth);
 	struct State {
 		base::unique_qptr<QObject> filter;
+		Ui::Animations::Simple animationReach;
 		Ui::Animations::Simple animationEnd;
 		SwipeHandlerFinishData finishByTopData;
 		std::optional<Qt::Orientation> orientation;
@@ -41,6 +42,7 @@ void SetupSwipeHandler(
 	const auto updateRatio = [=](float64 ratio) {
 		update({
 			.ratio = std::clamp(ratio, 0., 1.),
+			.reachRatio = state->animationReach.value(0.),
 			.translation = (-std::clamp(ratio, 0., 1.5) * threshold),
 			.msgBareId = state->finishByTopData.msgBareId,
 			.cursorTop = state->cursorTop,
@@ -82,6 +84,9 @@ void SetupSwipeHandler(
 	scroll->scrolls() | rpl::start_with_next([=] {
 		processEnd(nullptr);
 	}, state->lifetime);
+	const auto animationReachCallback = [=] {
+		updateRatio((state->startAt - state->lastAt).x() / threshold);
+	};
 	const auto filter = [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Leave && state->orientation) {
 			processEnd(nullptr);
@@ -124,8 +129,15 @@ void SetupSwipeHandler(
 							const auto ratio = delta.x() / threshold;
 							updateRatio(ratio);
 							constexpr auto kResetReachedOn = 0.95;
+							constexpr auto kBounceDuration = crl::time(500);
 							if (!state->reached && ratio >= 1.) {
 								state->reached = true;
+								state->animationReach.stop();
+								state->animationReach.start(
+									animationReachCallback,
+									0.,
+									1.,
+									kBounceDuration);
 								base::Platform::Haptic();
 							} else if (state->reached
 									&& ratio < kResetReachedOn) {

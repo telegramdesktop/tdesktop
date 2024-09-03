@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_reaction_process.h" // TryAddingPaidReaction.
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
+#include "window/themes/window_theme.h" // IsNightMode.
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -1491,18 +1492,31 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		p.translate(-context.gestureHorizontal.translation, 0);
 
 		constexpr auto kShiftRatio = 1.5;
+		constexpr auto kBouncePart = 0.25;
+		constexpr auto kStrokeWidth = 2.;
+		constexpr auto kWaveWidth = 10.;
+		const auto reachRatio = context.gestureHorizontal.reachRatio;
 		const auto size = st::historyFastShareSize;
-		const auto rect = QRect(
+		const auto rect = QRectF(
 			width() - (size * kShiftRatio) * context.gestureHorizontal.ratio,
 			g.y() + (g.height() - size) / 2,
 			size,
 			size);
 		const auto center = rect::center(rect);
-		const auto spanAngle = -context.gestureHorizontal.ratio
+		const auto spanAngle = context.gestureHorizontal.ratio
 			* arc::kFullLength;
-		const auto strokeWidth = style::ConvertFloatScale(2.);
-		auto pen = QPen(context.st->msgServiceBg());
-		pen.setWidthF(strokeWidth);
+		const auto strokeWidth = style::ConvertFloatScale(kStrokeWidth);
+
+		const auto reachScale = std::clamp(
+			(reachRatio > kBouncePart)
+				? (kBouncePart * 2 - reachRatio)
+				: reachRatio,
+			0.,
+			1.);
+		auto pen = Window::Theme::IsNightMode()
+			? QPen(anim::with_alpha(context.st->msgServiceFg()->c, 0.3))
+			: QPen(context.st->msgServiceBg());
+		pen.setWidthF(strokeWidth - (1. * (reachScale / kBouncePart)));
 		const auto arcRect = rect - Margins(strokeWidth);
 		p.save();
 		{
@@ -1510,15 +1524,34 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			p.setPen(Qt::NoPen);
 			p.setBrush(context.st->msgServiceBg());
 			p.setOpacity(context.gestureHorizontal.ratio);
+			p.translate(center);
+			if (reachScale) {
+				p.scale(-(1. + 1. * reachScale), (1. + 1. * reachScale));
+			} else {
+				p.scale(-1., 1.);
+			}
+			p.translate(-center);
+			// All the next draws are mirrored.
 			p.drawEllipse(rect);
+			context.st->historyFastShareIcon().paintInCenter(
+				p,
+				QRect(
+					base::SafeRound(rect.x()),
+					base::SafeRound(rect.y()),
+					base::SafeRound(rect.width()),
+					base::SafeRound(rect.height())));
 			p.setPen(pen);
 			p.setBrush(Qt::NoBrush);
 			p.drawArc(arcRect, arc::kQuarterLength, spanAngle);
-			p.drawArc(arcRect, arc::kQuarterLength, spanAngle);
-			p.translate(center);
-			p.scale(-1., 1.);
-			p.translate(-center);
-			context.st->historyFastShareIcon().paintInCenter(p, rect);
+			// p.drawArc(arcRect, arc::kQuarterLength, spanAngle);
+			if (reachRatio) {
+				const auto w = style::ConvertFloatScale(kWaveWidth);
+				p.setOpacity(context.gestureHorizontal.ratio - reachRatio);
+				p.drawArc(
+					arcRect + Margins(reachRatio * reachRatio * w),
+					arc::kQuarterLength,
+					spanAngle);
+			}
 		}
 		p.restore();
 	}
