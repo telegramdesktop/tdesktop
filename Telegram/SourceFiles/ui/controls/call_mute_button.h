@@ -73,7 +73,6 @@ public:
 	[[nodiscard]] rpl::producer<Qt::MouseButton> clicks();
 
 	[[nodiscard]] QSize innerSize() const;
-	[[nodiscard]] QRect innerGeometry() const;
 	void moveInner(QPoint position);
 
 	void shake();
@@ -165,6 +164,9 @@ private:
 	HandleMouseState _handleMouseState = HandleMouseState::Enabled;
 
 	not_null<const style::CallMuteButton*> _st;
+	QSize _lottieSize;
+	int _bgSize = 0;
+	int _bgSkip = 0;
 
 	const base::unique_qptr<BlobsWidget> _blobs;
 	const base::unique_qptr<AbstractButton> _content;
