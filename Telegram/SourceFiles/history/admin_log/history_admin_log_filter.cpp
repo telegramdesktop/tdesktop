@@ -50,6 +50,10 @@ EditFlagsDescriptor<FilterValue::Flags> FilterValueLabels(bool isChannel) {
 				? tr::lng_admin_log_filter_voice_chats
 				: tr::lng_admin_log_filter_voice_chats_channel)(tr::now),
 		},
+		{
+			Flag::SubExtend,
+			tr::lng_admin_log_filter_sub_extend(tr::now),
+		},
 	};
 	if (!isChannel) {
 		settings.push_back({
