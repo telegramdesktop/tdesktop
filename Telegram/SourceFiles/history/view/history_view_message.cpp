@@ -1495,6 +1495,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		constexpr auto kBouncePart = 0.25;
 		constexpr auto kStrokeWidth = 2.;
 		constexpr auto kWaveWidth = 10.;
+		const auto ratio = std::min(context.gestureHorizontal.ratio, 1.);
 		const auto reachRatio = context.gestureHorizontal.reachRatio;
 		const auto size = st::historyFastShareSize;
 		const auto rect = QRectF(
@@ -1503,8 +1504,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			size,
 			size);
 		const auto center = rect::center(rect);
-		const auto spanAngle = context.gestureHorizontal.ratio
-			* arc::kFullLength;
+		const auto spanAngle = ratio * arc::kFullLength;
 		const auto strokeWidth = style::ConvertFloatScale(kStrokeWidth);
 
 		const auto reachScale = std::clamp(
@@ -1523,7 +1523,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
 			p.setBrush(context.st->msgServiceBg());
-			p.setOpacity(context.gestureHorizontal.ratio);
+			p.setOpacity(ratio);
 			p.translate(center);
 			if (reachScale) {
 				p.scale(-(1. + 1. * reachScale), (1. + 1. * reachScale));
@@ -1546,7 +1546,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			// p.drawArc(arcRect, arc::kQuarterLength, spanAngle);
 			if (reachRatio) {
 				const auto w = style::ConvertFloatScale(kWaveWidth);
-				p.setOpacity(context.gestureHorizontal.ratio - reachRatio);
+				p.setOpacity(ratio - reachRatio);
 				p.drawArc(
 					arcRect + Margins(reachRatio * reachRatio * w),
 					arc::kQuarterLength,

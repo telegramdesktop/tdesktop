@@ -41,7 +41,7 @@ void SetupSwipeHandler(
 	const auto state = widget->lifetime().make_state<State>();
 	const auto updateRatio = [=](float64 ratio) {
 		update({
-			.ratio = std::clamp(ratio, 0., 1.),
+			.ratio = std::clamp(ratio, 0., 1.5),
 			.reachRatio = state->animationReach.value(0.),
 			.translation = (-std::clamp(ratio, 0., 1.5) * threshold),
 			.msgBareId = state->finishByTopData.msgBareId,
