@@ -383,10 +383,15 @@ HistoryInner::HistoryInner(
 		_migrated->delegateMixin()->setCurrent(this);
 		_migrated->translateTo(_history->translatedTo());
 	}
-	HistoryView::SetupSwipeHandler(this, _scroll, [=](
+	HistoryView::SetupSwipeHandler(this, _scroll, [=, history = _history](
 			HistoryView::ChatPaintGestureHorizontalData data) {
 		_gestureHorizontal = data;
-		update();
+		const auto item = history->peer->owner().message(
+			history->peer->id,
+			MsgId{ data.msgBareId });
+		if (item) {
+			repaintItem(item);
+		}
 	}, [=, show = controller->uiShow()](int cursorTop) {
 		auto result = HistoryView::SwipeHandlerFinishData();
 		if (inSelectionMode()) {
