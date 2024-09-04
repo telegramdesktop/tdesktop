@@ -230,7 +230,7 @@ void SetupSwipeHandler(
 				processEnd();
 			} else {
 				updateWith({
-					.globalCursor = w->globalPos(),
+					.globalCursor = w->globalPosition().toPoint(),
 					.position = QPointF(),
 					.delta = state->delta - Ui::ScrollDelta(w),
 					.touch = false,
