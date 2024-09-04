@@ -1493,6 +1493,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 		constexpr auto kShiftRatio = 1.5;
 		constexpr auto kBouncePart = 0.25;
+		constexpr auto kMaxHeightRatio = 3.5;
 		constexpr auto kStrokeWidth = 2.;
 		constexpr auto kWaveWidth = 10.;
 		const auto isLeftSize = (!context.outbg)
@@ -1501,7 +1502,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		const auto reachRatio = context.gestureHorizontal.reachRatio;
 		const auto size = st::historyFastShareSize;
 		const auto outerWidth = st::historySwipeIconSkip
-			+ (isLeftSize ? rect::right(g) : width());
+			+ (isLeftSize ? rect::right(g) : width())
+			+ ((g.height() < size * kMaxHeightRatio)
+				? rightActionSize().value_or(QSize()).width()
+				: 0);
 		const auto rect = QRectF(
 			outerWidth
 				- (size * kShiftRatio * context.gestureHorizontal.ratio)
