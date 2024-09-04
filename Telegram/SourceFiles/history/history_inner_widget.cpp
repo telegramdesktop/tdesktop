@@ -582,7 +582,8 @@ void HistoryInner::setupSwipeReply() {
 	HistoryView::SetupSwipeHandler(this, _scroll, [=, history = _history](
 			HistoryView::ChatPaintGestureHorizontalData data) {
 		const auto changed = (_gestureHorizontal.msgBareId != data.msgBareId)
-			|| (_gestureHorizontal.translation != data.translation);
+			|| (_gestureHorizontal.translation != data.translation)
+			|| (_gestureHorizontal.reachRatio != data.reachRatio);
 		_gestureHorizontal = data;
 		if (changed) {
 			const auto item = history->peer->owner().message(

@@ -33,6 +33,7 @@ void SetupSwipeHandler(
 		base::unique_qptr<QObject> filter;
 		Ui::Animations::Simple animationReach;
 		Ui::Animations::Simple animationEnd;
+		ChatPaintGestureHorizontalData data;
 		SwipeHandlerFinishData finishByTopData;
 		std::optional<Qt::Orientation> orientation;
 		QPointF startAt;
@@ -53,14 +54,12 @@ void SetupSwipeHandler(
 	}, state->lifetime);
 
 	const auto updateRatio = [=](float64 ratio) {
-		update({
-			.ratio = std::clamp(ratio, 0., 1.5),
-			.reachRatio = state->animationReach.value(0.),
-			.msgBareId = state->finishByTopData.msgBareId,
-			.translation = int(
-				base::SafeRound(-std::clamp(ratio, 0., 1.5) * threshold)),
-			.cursorTop = state->cursorTop,
-		});
+		state->data.ratio = std::clamp(ratio, 0., 1.5),
+		state->data.msgBareId = state->finishByTopData.msgBareId;
+		state->data.translation = int(
+			base::SafeRound(-std::clamp(ratio, 0., 1.5) * threshold));
+		state->data.cursorTop = state->cursorTop;
+		update(state->data);
 	};
 	const auto setOrientation = [=](std::optional<Qt::Orientation> o) {
 		state->orientation = o;
@@ -78,7 +77,6 @@ void SetupSwipeHandler(
 					widget,
 					state->finishByTopData.callback);
 			}
-			state->animationReach.stop();
 			state->animationEnd.stop();
 			state->animationEnd.start(
 				updateRatio,
@@ -95,8 +93,9 @@ void SetupSwipeHandler(
 			processEnd();
 		}
 	}, state->lifetime);
-	const auto animationReachCallback = [=] {
-		updateRatio(state->delta.x() / threshold);
+	const auto animationReachCallback = [=](float64 value) {
+		state->data.reachRatio = value;
+		update(state->data);
 	};
 	struct UpdateArgs {
 		QPoint globalCursor;
