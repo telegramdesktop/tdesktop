@@ -1847,6 +1847,12 @@ void HistoryItem::applyEdition(
 }
 
 void HistoryItem::applySentMessage(const MTPDmessage &data) {
+	if (data.is_invert_media()) {
+		_flags |= MessageFlag::InvertMedia;
+	} else {
+		_flags &= ~MessageFlag::InvertMedia;
+	}
+
 	updateSentContent({
 		qs(data.vmessage()),
 		Api::EntitiesFromMTP(
