@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/item_text_options.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "ui/cached_round_corners.h"
 #include "ui/gl/gl_window.h"
@@ -100,7 +101,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
-#include <QGraphicsOpacityEffect>
 
 #include <kurlmimedata.h>
 
@@ -227,6 +227,73 @@ QWidget *PipDelegate::pipParentWidget() {
 }
 
 } // namespace
+
+class OverlayWidget::SponsoredButton : public Ui::RippleButton {
+public:
+	SponsoredButton(QWidget *parent)
+	: Ui::RippleButton(parent, st::mediaviewSponsoredButton.ripple) {
+	}
+
+	void setText(QString text) {
+		_text = Ui::Text::String(
+			st::mediaviewSponsoredButton.style,
+			std::move(text),
+			kDefaultTextOptions,
+			width());
+		resize(width(), _text.minHeight() * 2);
+	}
+	void setOpacity(float opacity) {
+		_opacity = opacity;
+	}
+
+protected:
+	void paintEvent(QPaintEvent *e) override {
+		auto p = QPainter(this);
+		const auto &st = st::mediaviewSponsoredButton;
+
+		p.setOpacity(_opacity);
+
+		const auto over = Ui::AbstractButton::isOver();
+		const auto down = Ui::AbstractButton::isDown();
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush((over || down) ? st.textBgOver : st.textBg);
+			p.drawRoundedRect(
+				rect(),
+				st::mediaviewCaptionRadius,
+				st::mediaviewCaptionRadius);
+		}
+
+		Ui::RippleButton::paintRipple(p, 0, 0);
+
+		p.setPen(st.textFg);
+		p.setBrush(Qt::NoBrush);
+		_text.draw(p, {
+			.position = QPoint(
+				(width() - _text.maxWidth()) / 2,
+				(height() - _text.minHeight()) / 2),
+			.outerWidth = width(),
+			.availableWidth = width(),
+		});
+	}
+
+	QImage prepareRippleMask() const override {
+		return Ui::RippleAnimation::RoundRectMask(
+			size(),
+			st::mediaviewCaptionRadius);
+	}
+	QPoint prepareRippleStartPosition() const override {
+		return mapFromGlobal(QCursor::pos())
+			- rect::m::pos::tl(st::mediaviewSponsoredButton.padding);
+	}
+
+private:
+	Ui::Text::String _text;
+	float64 _opacity = 1.;
+
+};
+
 
 struct OverlayWidget::SharedMedia {
 	SharedMedia(SharedMediaKey key) : key(key) {
@@ -1812,9 +1879,9 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 	} else {
 		_controlsOpacity.update(dt, anim::linear);
 	}
-	if (_sponsoredButtonOpacity && _sponsoredButton) {
+	if (_sponsoredButton) {
 		const auto value = _controlsOpacity.current();
-		_sponsoredButtonOpacity->setOpacity(value);
+		_sponsoredButton->setOpacity(value);
 		_sponsoredButton->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
 			value < 1);
@@ -3678,19 +3745,14 @@ void OverlayWidget::initSponsoredButton() {
 	}
 	const auto &component = _session->sponsoredMessages();
 	const auto details = component.lookupDetails(_message->fullId());
-	_sponsoredButton = base::make_unique_q<Ui::RoundButton>(
-		_body,
-		rpl::single(details.buttonText),
-		st::mediaviewSponsoredButton);
+	_sponsoredButton = base::make_unique_q<SponsoredButton>(_body);
+	_sponsoredButton->setText(details.buttonText);
+	_sponsoredButton->setOpacity(1.0);
 
 	_sponsoredButton->setClickedCallback([=, link = details.link] {
 		UrlClickHandler::Open(link);
 		hide();
 	});
-	_sponsoredButtonOpacity = base::make_unique_q<QGraphicsOpacityEffect>(
-		_sponsoredButton.get());
-	_sponsoredButtonOpacity->setOpacity(1.0);
-    _sponsoredButton->setGraphicsEffect(_sponsoredButtonOpacity.get());
 }
 
 void OverlayWidget::updateThemePreviewGeometry() {
@@ -6299,7 +6361,6 @@ void OverlayWidget::clearBeforeHide() {
 	_helper->setControlsOpacity(1.);
 	_groupThumbs = nullptr;
 	_groupThumbsRect = QRect();
-	_sponsoredButtonOpacity = nullptr;
 	_sponsoredButton = nullptr;
 }
 

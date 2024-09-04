@@ -20,8 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_open_common.h"
 #include "media/stories/media_stories_delegate.h"
 
-class QGraphicsOpacityEffect;
-
 class History;
 
 namespace anim {
@@ -143,6 +141,7 @@ private:
 	class Renderer;
 	class RendererSW;
 	class RendererGL;
+	class SponsoredButton;
 
 	// If changing, see paintControls()!
 	enum class Over {
@@ -700,8 +699,7 @@ private:
 	object_ptr<Ui::DropdownMenu> _dropdown;
 	base::Timer _dropdownShowTimer;
 
-	base::unique_qptr<Ui::RoundButton> _sponsoredButton;
-	base::unique_qptr<QGraphicsOpacityEffect> _sponsoredButtonOpacity;
+	base::unique_qptr<SponsoredButton> _sponsoredButton;
 
 	bool _receiveMouse = true;
 	bool _processingKeyPress = false;
