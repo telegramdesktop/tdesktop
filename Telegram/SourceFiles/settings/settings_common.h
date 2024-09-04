@@ -214,6 +214,7 @@ struct SliderWithLabel {
 	const style::MediaSlider &sliderSt,
 	const style::FlatLabel &labelSt,
 	int skip,
-	int minLabelWidth = 0);
+	int minLabelWidth = 0,
+	bool ignoreWheel = false);
 
 } // namespace Settings

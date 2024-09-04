@@ -230,4 +230,15 @@ private:
 
 };
 
+class MediaSliderWheelless : public MediaSlider {
+public:
+	using Ui::MediaSlider::MediaSlider;
+
+protected:
+	void wheelEvent(QWheelEvent *e) override {
+		e->ignore();
+	}
+
+};
+
 } // namespace Ui

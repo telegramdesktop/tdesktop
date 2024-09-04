@@ -462,19 +462,10 @@ void CreateGiveawayBox(
 		const auto &padding = st::giveawayGiftCodeSliderPadding;
 		Ui::AddSkip(sliderContainer, padding.top());
 
-		class Slider : public Ui::MediaSlider {
-		public:
-			using Ui::MediaSlider::MediaSlider;
-
-		protected:
-			void wheelEvent(QWheelEvent *e) override {
-				e->ignore();
-			}
-
-		};
-
 		const auto slider = sliderContainer->add(
-			object_ptr<Slider>(sliderContainer, st::settingsScale),
+			object_ptr<Ui::MediaSliderWheelless>(
+				sliderContainer,
+				st::settingsScale),
 			st::boxRowPadding);
 		Ui::AddSkip(sliderContainer, padding.bottom());
 		slider->resize(slider->width(), st::settingsScale.seekSize.height());
