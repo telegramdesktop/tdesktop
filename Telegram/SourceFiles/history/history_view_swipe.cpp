@@ -110,9 +110,10 @@ void SetupSwipeHandler(
 			state->delta = args.delta;
 			const auto diffXtoY = std::abs(args.delta.x())
 				- std::abs(args.delta.y());
-			if (diffXtoY > 0) {
+			constexpr auto kOrientationThreshold = 1.;
+			if (diffXtoY > kOrientationThreshold) {
 				setOrientation(Qt::Horizontal);
-			} else if (diffXtoY < 0) {
+			} else if (diffXtoY < -kOrientationThreshold) {
 				setOrientation(Qt::Vertical);
 			} else {
 				setOrientation(std::nullopt);
