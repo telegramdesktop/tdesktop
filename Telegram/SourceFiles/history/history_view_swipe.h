@@ -25,6 +25,7 @@ void SetupSwipeHandler(
 	not_null<Ui::RpWidget*> widget,
 	not_null<Ui::ScrollArea*> scroll,
 	Fn<void(ChatPaintGestureHorizontalData)> update,
-	Fn<SwipeHandlerFinishData(int)> generateFinishByTop);
+	Fn<SwipeHandlerFinishData(int)> generateFinishByTop,
+	rpl::producer<bool> dontStart = nullptr);
 
 } // namespace HistoryView

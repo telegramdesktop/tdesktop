@@ -25,7 +25,8 @@ void SetupSwipeHandler(
 		not_null<Ui::RpWidget*> widget,
 		not_null<Ui::ScrollArea*> scroll,
 		Fn<void(ChatPaintGestureHorizontalData)> update,
-		Fn<SwipeHandlerFinishData(int)> generateFinishByTop) {
+		Fn<SwipeHandlerFinishData(int)> generateFinishByTop,
+		rpl::producer<bool> dontStart) {
 	constexpr auto kThresholdWidth = 50;
 	const auto threshold = style::ConvertFloatScale(kThresholdWidth);
 	struct State {
@@ -37,6 +38,7 @@ void SetupSwipeHandler(
 		QPointF startAt;
 		QPointF delta;
 		int cursorTop = 0;
+		bool dontStart = false;
 		bool started = false;
 		bool reached = false;
 		bool touch = false;
@@ -44,6 +46,12 @@ void SetupSwipeHandler(
 		rpl::lifetime lifetime;
 	};
 	const auto state = widget->lifetime().make_state<State>();
+	std::move(
+		dontStart
+	) | rpl::start_with_next([=](bool dontStart) {
+		state->dontStart = dontStart;
+	}, state->lifetime);
+
 	const auto updateRatio = [=](float64 ratio) {
 		update({
 			.ratio = std::clamp(ratio, 0., 1.5),
@@ -83,12 +91,15 @@ void SetupSwipeHandler(
 		state->reached = false;
 	};
 	scroll->scrolls() | rpl::start_with_next([=] {
-		processEnd();
+		if (state->orientation != Qt::Vertical) {
+			processEnd();
+		}
 	}, state->lifetime);
 	const auto animationReachCallback = [=] {
 		updateRatio(state->delta.x() / threshold);
 	};
 	struct UpdateArgs {
+		QPoint globalCursor;
 		QPointF position;
 		QPointF delta;
 		bool touch = false;
@@ -99,8 +110,7 @@ void SetupSwipeHandler(
 			state->touch = args.touch;
 			state->startAt = args.position;
 			state->delta = QPointF();
-			state->cursorTop = widget->mapFromGlobal(
-				QCursor::pos()).y();
+			state->cursorTop = widget->mapFromGlobal(args.globalCursor).y();
 			state->finishByTopData = generateFinishByTop(
 				state->cursorTop);
 			if (!state->finishByTopData.callback) {
@@ -112,7 +122,9 @@ void SetupSwipeHandler(
 				- std::abs(args.delta.y());
 			constexpr auto kOrientationThreshold = 1.;
 			if (diffXtoY > kOrientationThreshold) {
-				setOrientation(Qt::Horizontal);
+				if (!state->dontStart) {
+					setOrientation(Qt::Horizontal);
+				}
 			} else if (diffXtoY < -kOrientationThreshold) {
 				setOrientation(Qt::Vertical);
 			} else {
@@ -143,12 +155,12 @@ void SetupSwipeHandler(
 		const auto type = e->type();
 		switch (type) {
 		case QEvent::Leave: {
-			if (state->orientation) {
+			if (state->orientation == Qt::Horizontal) {
 				processEnd();
 			}
 		} break;
 		case QEvent::MouseMove: {
-			if (state->orientation) {
+			if (state->orientation == Qt::Horizontal) {
 				const auto m = static_cast<QMouseEvent*>(e.get());
 				if (std::abs(m->pos().y() - state->cursorTop)
 					> QApplication::startDragDistance()) {
@@ -165,6 +177,9 @@ void SetupSwipeHandler(
 				&& (t->device()->type() == base::TouchDevice::TouchScreen);
 			if (!Platform::IsMac() && !touchscreen) {
 				break;
+			} else if (type == QEvent::TouchBegin) {
+				// Reset state in case we lost some TouchEnd.
+				processEnd();
 			}
 			const auto &touches = t->touchPoints();
 			const auto released = [&](int index) {
@@ -184,6 +199,9 @@ void SetupSwipeHandler(
 					: (state->startAt - touches[0].pos()));
 			} else {
 				updateWith({
+					.globalCursor = (touchscreen
+						? touches[0].screenPos().toPoint()
+						: QCursor::pos()),
 					.position = touches[0].pos(),
 					.delta = state->startAt - touches[0].pos(),
 					.touch = true,
@@ -198,6 +216,9 @@ void SetupSwipeHandler(
 			const auto phase = w->phase();
 			if (Platform::IsMac() || phase == Qt::NoScrollPhase) {
 				break;
+			} else if (phase == Qt::ScrollBegin) {
+				// Reset state in case we lost some TouchEnd.
+				processEnd();
 			}
 			const auto cancel = w->buttons()
 				|| (phase == Qt::ScrollEnd)
@@ -206,6 +227,7 @@ void SetupSwipeHandler(
 				processEnd();
 			} else {
 				updateWith({
+					.globalCursor = w->globalPos(),
 					.position = QPointF(),
 					.delta = state->delta - Ui::ScrollDelta(w),
 					.touch = false,

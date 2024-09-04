@@ -923,7 +923,7 @@ void RepliesWidget::setupSwipeReply() {
 			});
 		};
 		return result;
-	});
+	}, _inner->touchMaybeSelectingValue());
 }
 
 void RepliesWidget::chooseAttach(
