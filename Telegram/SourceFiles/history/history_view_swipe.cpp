@@ -28,6 +28,7 @@ void SetupSwipeHandler(
 		Fn<SwipeHandlerFinishData(int)> generateFinishByTop,
 		rpl::producer<bool> dontStart) {
 	constexpr auto kThresholdWidth = 50;
+	constexpr auto kMaxRatio = 1.5;
 	const auto threshold = style::ConvertFloatScale(kThresholdWidth);
 	struct State {
 		base::unique_qptr<QObject> filter;
@@ -54,10 +55,10 @@ void SetupSwipeHandler(
 	}, state->lifetime);
 
 	const auto updateRatio = [=](float64 ratio) {
-		state->data.ratio = std::clamp(ratio, 0., 1.5),
+		state->data.ratio = std::clamp(ratio, 0., kMaxRatio),
 		state->data.msgBareId = state->finishByTopData.msgBareId;
 		state->data.translation = int(
-			base::SafeRound(-std::clamp(ratio, 0., 1.5) * threshold));
+			base::SafeRound(-std::clamp(ratio, 0., kMaxRatio) * threshold));
 		state->data.cursorTop = state->cursorTop;
 		update(state->data);
 	};
@@ -71,7 +72,10 @@ void SetupSwipeHandler(
 	};
 	const auto processEnd = [=](std::optional<QPointF> delta = {}) {
 		if (state->orientation == Qt::Horizontal) {
-			const auto ratio = delta.value_or(state->delta).x() / threshold;
+			const auto ratio = std::clamp(
+				delta.value_or(state->delta).x() / threshold,
+				0.,
+				kMaxRatio);
 			if ((ratio >= 1) && state->finishByTopData.callback) {
 				Ui::PostponeCall(
 					widget,
@@ -82,7 +86,7 @@ void SetupSwipeHandler(
 				updateRatio,
 				ratio,
 				0.,
-				st::slideWrapDuration);
+				std::min(1., ratio) * st::slideWrapDuration);
 		}
 		setOrientation(std::nullopt);
 		state->started = false;
