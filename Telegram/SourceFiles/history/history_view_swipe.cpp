@@ -189,7 +189,9 @@ void SetupSwipeHandler(
 					.touch = true,
 				});
 			}
-			return base::EventFilterResult::Cancel;
+			return (touchscreen && state->orientation != Qt::Horizontal)
+				? base::EventFilterResult::Continue
+				: base::EventFilterResult::Cancel;
 		} break;
 		case QEvent::Wheel: {
 			const auto w = static_cast<QWheelEvent*>(e.get());
