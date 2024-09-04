@@ -48,7 +48,8 @@ void SetupSwipeHandler(
 		update({
 			.ratio = std::clamp(ratio, 0., 1.5),
 			.reachRatio = state->animationReach.value(0.),
-			.translation = int(base::SafeRound(-std::clamp(ratio, 0., 1.5) * threshold)),
+			.translation = int(
+				base::SafeRound(-std::clamp(ratio, 0., 1.5) * threshold)),
 			.msgBareId = state->finishByTopData.msgBareId,
 			.cursorTop = state->cursorTop,
 		});
@@ -171,7 +172,9 @@ void SetupSwipeHandler(
 			};
 			const auto cancel = released(0)
 				|| released(1)
-				|| (touches.size() != (touchscreen ? 1 : 2))
+				|| (touchscreen
+					? (touches.size() != 1)
+					: (touches.size() <= 0 || touches.size() > 2))
 				|| (type == QEvent::TouchEnd)
 				|| (type == QEvent::TouchCancel);
 			if (cancel) {
@@ -185,6 +188,7 @@ void SetupSwipeHandler(
 					.touch = true,
 				});
 			}
+			return base::EventFilterResult::Cancel;
 		} break;
 		case QEvent::Wheel: {
 			const auto w = static_cast<QWheelEvent*>(e.get());
