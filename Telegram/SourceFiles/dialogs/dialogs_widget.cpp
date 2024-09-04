@@ -3326,7 +3326,9 @@ void Widget::updateControlsGeometry() {
 	}
 
 	const auto wasScrollTop = _scroll->scrollTop();
-	const auto newScrollTop = (_topDelta < 0 && wasScrollTop <= 0)
+	const auto newScrollTop = (wasScrollTop == 0)
+		? wasScrollTop
+		: (_topDelta < 0 && wasScrollTop <= 0)
 		? wasScrollTop
 		: (wasScrollTop + _topDelta);
 
