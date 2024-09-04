@@ -1235,10 +1235,19 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		// paint the userpic if it intersects the painted rect
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
 			const auto item = view->data();
-			const auto hasTranslation = _gestureHorizontal.translation
-				&& (_gestureHorizontal.msgBareId == item->fullId().msg.bare);
+			const auto hasTranslation = context.gestureHorizontal.translation
+				&& (context.gestureHorizontal.msgBareId
+					== item->fullId().msg.bare);
 			if (hasTranslation) {
-				p.translate(_gestureHorizontal.translation, 0);
+				p.translate(context.gestureHorizontal.translation, 0);
+				update(
+					QRect(
+						st::historyPhotoLeft
+							+ context.gestureHorizontal.translation,
+						userpicTop,
+						st::msgPhotoSize
+							- context.gestureHorizontal.translation,
+						st::msgPhotoSize));
 			}
 			if (const auto from = item->displayFrom()) {
 				Dialogs::Ui::PaintUserpic(

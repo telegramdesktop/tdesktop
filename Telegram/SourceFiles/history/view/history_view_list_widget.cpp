@@ -2306,9 +2306,18 @@ void ListWidget::paintUserpics(
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
 			const auto item = view->data();
 			const auto hasTranslation = context.gestureHorizontal.translation
-				&& (context.gestureHorizontal.msgBareId == item->fullId().msg.bare);
+				&& (context.gestureHorizontal.msgBareId
+					== item->fullId().msg.bare);
 			if (hasTranslation) {
 				p.translate(context.gestureHorizontal.translation, 0);
+				update(
+					QRect(
+						st::historyPhotoLeft
+							+ context.gestureHorizontal.translation,
+						userpicTop,
+						st::msgPhotoSize
+							- context.gestureHorizontal.translation,
+						st::msgPhotoSize));
 			}
 			if (const auto from = item->displayFrom()) {
 				from->paintUserpicLeft(
