@@ -23,7 +23,7 @@
         <category>Network</category>
         <category>InstantMessaging</category>
     </categories>
-    <developer_name>Telegram FZ-LLC</developer_name>
+    <developer id="org.telegram"><name>Telegram FZ-LLC</name></developer>
     <url type="homepage">https://desktop.telegram.org/</url>
     <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
     <url type="translate">https://translations.telegram.org/</url>
