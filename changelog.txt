@@ -1,3 +1,9 @@
+5.4.6 beta (04.09.24)
+
+- Add Swipe-To-Reply for modern touchpads and touchscreens.
+- Add text selection in collapsed and expanded blockquotes.
+- Fix text rendering in 100% interface scale on Windows.
+
 5.4.5 beta (31.08.24)
 
 - Fix possible crash in text rendering.
