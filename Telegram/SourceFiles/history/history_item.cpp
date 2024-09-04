@@ -3454,9 +3454,10 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 			return _media->toPreview(options);
 		} else if (!emptyText()) {
 			return {
-				.text = st::wrap_rtl(options.translated
-					? translatedText()
-					: _text)
+				// wrap_rtl "adds" a newline in case text starts with quote.
+				// So we remove those by DialogsPreviewText call.
+				.text = st::wrap_rtl(Dialogs::Ui::DialogsPreviewText(
+					options.translated ? translatedText() : _text))
 			};
 		}
 		return {};
