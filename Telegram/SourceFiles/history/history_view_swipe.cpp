@@ -48,9 +48,9 @@ void SetupSwipeHandler(
 		update({
 			.ratio = std::clamp(ratio, 0., 1.5),
 			.reachRatio = state->animationReach.value(0.),
+			.msgBareId = state->finishByTopData.msgBareId,
 			.translation = int(
 				base::SafeRound(-std::clamp(ratio, 0., 1.5) * threshold)),
-			.msgBareId = state->finishByTopData.msgBareId,
 			.cursorTop = state->cursorTop,
 		});
 	};
