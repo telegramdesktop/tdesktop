@@ -23,6 +23,7 @@ class Session;
 } // namespace Main
 
 namespace Ui {
+class BoxContent;
 class ElasticScroll;
 class SettingsSlider;
 class VerticalLayout;
@@ -214,5 +215,8 @@ private:
 
 [[nodiscard]] RecentPeersList RecentPeersContent(
 	not_null<Main::Session*> session);
+
+[[nodiscard]] object_ptr<Ui::BoxContent> StarsExamplesBox(
+	not_null<Window::SessionController*> window);
 
 } // namespace Dialogs

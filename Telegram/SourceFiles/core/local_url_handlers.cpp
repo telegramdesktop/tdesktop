@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "dialogs/ui/dialogs_suggestions.h"
 #include "boxes/background_preview_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/edit_birthday_box.h"
@@ -923,6 +924,17 @@ bool ShowCollectibleUsername(
 	return true;
 }
 
+bool ShowStarsExamples(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	controller->show(Dialogs::StarsExamplesBox(controller));
+	return true;
+}
+
 void ExportTestChatTheme(
 		not_null<Window::SessionController*> controller,
 		not_null<const Data::CloudTheme*> theme) {
@@ -1379,6 +1391,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^collectible_username/([a-zA-Z0-9\\-\\_\\.]+)@([0-9]+)$"_q,
 			ShowCollectibleUsername,
+		},
+		{
+			u"^stars_examples$"_q,
+			ShowStarsExamples,
 		},
 	};
 	return Result;

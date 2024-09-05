@@ -759,7 +759,7 @@ void ReceiptCreditsBox(
 		) | rpl::map([](TextWithEntities text) {
 			return Ui::Text::Link(
 				std::move(text),
-				tr::lng_credits_box_history_entry_gift_about_url(tr::now));
+				u"internal:stars_examples"_q);
 		});
 		box->addRow(object_ptr<Ui::CenterWrap<>>(
 			box,

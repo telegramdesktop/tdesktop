@@ -446,7 +446,7 @@ private:
 class PopularAppsController final
 	: public Suggestions::ObjectListController {
 public:
-	explicit PopularAppsController(
+	PopularAppsController(
 		not_null<Window::SessionController*> window,
 		Fn<bool(not_null<PeerData*>)> filterOut,
 		rpl::producer<> filterOutRefreshes);
@@ -1127,7 +1127,9 @@ PopularAppsController::PopularAppsController(
 }
 
 void PopularAppsController::prepare() {
-	setupPlainDivider(tr::lng_bot_apps_popular());
+	if (_filterOut) {
+		setupPlainDivider(tr::lng_bot_apps_popular());
+	}
 	rpl::single() | rpl::then(
 		std::move(_filterOutRefreshes)
 	) | rpl::start_with_next([=] {
@@ -1163,10 +1165,11 @@ void PopularAppsController::fill() {
 
 void PopularAppsController::appendRow(not_null<UserData*> bot) {
 	auto row = std::make_unique<PeerListRow>(bot);
-	//if (const auto count = bot->botInfo->activeUsers) {
-	//	row->setCustomStatus(
-	//		tr::lng_bot_status_users(tr::now, lt_count_decimal, count));
-	//}
+	if (bot->isBot()) {
+		if (!bot->botInfo->activeUsers && !bot->username().isEmpty()) {
+			row->setCustomStatus('@' + bot->username());
+		}
+	}
 	delegate()->peerListAppendRow(std::move(row));
 }
 
@@ -2281,6 +2284,42 @@ rpl::producer<TopPeersList> TopPeersContent(
 
 RecentPeersList RecentPeersContent(not_null<Main::Session*> session) {
 	return RecentPeersList{ session->recentPeers().list() };
+}
+
+object_ptr<Ui::BoxContent> StarsExamplesBox(
+		not_null<Window::SessionController*> window) {
+	auto controller = std::make_unique<PopularAppsController>(
+		window,
+		nullptr,
+		nullptr);
+	const auto raw = controller.get();
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->setTitle(tr::lng_credits_box_history_entry_gift_examples());
+		box->addButton(tr::lng_close(), [=] {
+			box->closeBox();
+		});
+
+		raw->load();
+		raw->chosen() | rpl::start_with_next([=](not_null<PeerData*> peer) {
+			if (const auto user = peer->asUser()) {
+				if (const auto info = user->botInfo.get()) {
+					if (info->hasMainApp) {
+						window->session().attachWebView().open({
+							.bot = user,
+							.context = {
+								.controller = window,
+								.maySkipConfirmation = true,
+							},
+							.source = InlineBots::WebViewSourceBotProfile(),
+						});
+						return;
+					}
+				}
+			}
+			window->showPeerInfo(peer);
+		}, box->lifetime());
+	};
+	return Box<PeerListBox>(std::move(controller), std::move(initBox));
 }
 
 } // namespace Dialogs
