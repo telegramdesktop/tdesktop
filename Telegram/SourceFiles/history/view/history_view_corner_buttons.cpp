@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_corner_buttons.h"
 
-#include "ui/widgets/scroll_area.h"
 #include "ui/chat/chat_style.h"
 #include "ui/controls/jump_down_button.h"
+#include "ui/widgets/elastic_scroll.h"
+#include "ui/widgets/scroll_area.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -33,17 +34,41 @@ CornerButtons::CornerButtons(
 	not_null<Ui::ScrollArea*> parent,
 	not_null<const Ui::ChatStyle*> st,
 	not_null<CornerButtonsDelegate*> delegate)
-: _scroll(parent)
+: CornerButtons(
+	parent,
+	[=](QEvent *e) { return parent->viewportEvent(e); },
+	st,
+	delegate) {
+}
+
+CornerButtons::CornerButtons(
+	not_null<Ui::ElasticScroll*> parent,
+	not_null<const Ui::ChatStyle*> st,
+	not_null<CornerButtonsDelegate*> delegate)
+: CornerButtons(
+	parent,
+	[=](QEvent *e) { return parent->viewportEvent(e); },
+	st,
+	delegate) {
+}
+
+CornerButtons::CornerButtons(
+	not_null<QWidget*> parent,
+	Fn<bool(QEvent*)> scrollViewportEvent,
+	not_null<const Ui::ChatStyle*> st,
+	not_null<CornerButtonsDelegate*> delegate)
+: _parent(parent)
+, _scrollViewportEvent(std::move(scrollViewportEvent))
 , _delegate(delegate)
 , _down(
 	parent,
-	st->value(parent->lifetime(), st::historyToDown))
+	st->value(_stLifetime, st::historyToDown))
 , _mentions(
 	parent,
-	st->value(parent->lifetime(), st::historyUnreadMentions))
+	st->value(_stLifetime, st::historyUnreadMentions))
 , _reactions(
 		parent,
-		st->value(parent->lifetime(), st::historyUnreadReactions)) {
+		st->value(_stLifetime, st::historyUnreadReactions)) {
 	_down.widget->addClickHandler([=] { downClick(); });
 	_mentions.widget->addClickHandler([=] { mentionsClick(); });
 	_reactions.widget->addClickHandler([=] { reactionsClick(); });
@@ -68,7 +93,7 @@ bool CornerButtons::eventFilter(QObject *o, QEvent *e) {
 		&& (o == _down.widget
 			|| o == _mentions.widget
 			|| o == _reactions.widget)) {
-		return _scroll->viewportEvent(e);
+		return _scrollViewportEvent(e);
 	}
 	return QObject::eventFilter(o, e);
 }
@@ -200,9 +225,7 @@ void CornerButtons::showAt(MsgId id) {
 	}
 }
 
-void CornerButtons::updateVisibility(
-		CornerButtonType type,
-		bool shown) {
+void CornerButtons::updateVisibility(Type type, bool shown) {
 	auto &button = buttonByType(type);
 	if (button.shown != shown) {
 		button.shown = shown;
@@ -291,7 +314,7 @@ void CornerButtons::updatePositions() {
 			historyDownShown);
 		_down.widget->moveToRight(
 			st::historyToDownPosition.x(),
-			_scroll->height() - top);
+			_parent->height() - top);
 	}
 	{
 		const auto right = anim::interpolate(
@@ -302,7 +325,7 @@ void CornerButtons::updatePositions() {
 			0,
 			_down.widget->height() + skip,
 			historyDownShown);
-		const auto top = _scroll->height()
+		const auto top = _parent->height()
 			- _mentions.widget->height()
 			- st::historyToDownPosition.y()
 			- shift;
@@ -321,7 +344,7 @@ void CornerButtons::updatePositions() {
 			0,
 			_mentions.widget->height() + skip,
 			unreadMentionsShown);
-		const auto top = _scroll->height()
+		const auto top = _parent->height()
 			- _reactions.widget->height()
 			- st::historyToDownPosition.y()
 			- shift;
@@ -355,7 +378,7 @@ Fn<void(bool found)> CornerButtons::doneJumpFrom(
 		}
 		if (!found && !ignoreMessageNotFound) {
 			Ui::Toast::Show(
-				_scroll.get(),
+				_parent.get(),
 				tr::lng_message_not_found(tr::now));
 		}
 	};

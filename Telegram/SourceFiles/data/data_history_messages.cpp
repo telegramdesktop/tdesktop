@@ -189,7 +189,8 @@ rpl::producer<MessagesSlice> HistoryMessagesViewer(
 	};
 	const auto messageId = (aroundId.fullId.msg == ShowAtUnreadMsgId)
 		? computeUnreadAroundId()
-		: (aroundId.fullId.msg == ShowAtTheEndMsgId)
+		: ((aroundId.fullId.msg == ShowAtTheEndMsgId)
+			|| (aroundId == MaxMessagePosition))
 		? (ServerMaxMsgId - 1)
 		: (aroundId.fullId.peer == history->peer->id)
 		? aroundId.fullId.msg

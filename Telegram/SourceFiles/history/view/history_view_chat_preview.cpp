@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_thread.h"
 #include "history/view/reactions/history_view_reactions_button.h"
+#include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -52,7 +53,8 @@ namespace {
 
 class Item final
 	: public Ui::Menu::ItemBase
-	, private HistoryView::ListDelegate {
+	, private ListDelegate
+	, private CornerButtonsDelegate {
 public:
 	Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread);
 
@@ -73,6 +75,7 @@ private:
 	void setupHistory();
 	void updateInnerVisibleArea();
 
+	// ListDelegate delegate.
 	Context listContext() override;
 	bool listScrollTo(int top, bool syntetic = true) override;
 	void listCancelRequest() override;
@@ -164,6 +167,16 @@ private:
 		std::unique_ptr<QMimeData> data,
 		Fn<void()> finished) override;
 
+	// CornerButtonsDelegate delegate.
+	void cornerButtonsShowAtPosition(
+		Data::MessagePosition position) override;
+	Data::Thread *cornerButtonsThread() override;
+	FullMsgId cornerButtonsCurrentId() override;
+	bool cornerButtonsIgnoreVisibility() override;
+	std::optional<bool> cornerButtonsDownShown() override;
+	bool cornerButtonsUnreadMayBeShown() override;
+	bool cornerButtonsHas(CornerButtonType type) override;
+
 	const not_null<QAction*> _dummyAction;
 	const not_null<Main::Session*> _session;
 	const not_null<Data::Thread*> _thread;
@@ -176,7 +189,8 @@ private:
 	const std::unique_ptr<Ui::ElasticScroll> _scroll;
 	const std::unique_ptr<Ui::FlatButton> _markRead;
 
-	QPointer<HistoryView::ListWidget> _inner;
+	QPointer<ListWidget> _inner;
+	std::unique_ptr<CornerButtons> _cornerButtons;
 	rpl::event_stream<ChatPreviewAction> _actions;
 
 	QImage _bg;
@@ -446,11 +460,16 @@ void Item::setupHistory() {
 		this,
 		_session,
 		static_cast<ListDelegate*>(this)));
+	_cornerButtons = std::make_unique<CornerButtons>(
+		_scroll.get(),
+		_chatStyle.get(),
+		static_cast<CornerButtonsDelegate*>(this));
 
 	_markRead->shownValue() | rpl::start_with_next([=](bool shown) {
 		const auto top = _top->height();
 		const auto bottom = shown ? _markRead->height() : 0;
 		_scroll->setGeometry(rect().marginsRemoved({ 0, top, 0, bottom }));
+		_cornerButtons->updatePositions();
 	}, _markRead->lifetime());
 
 	_scroll->scrolls(
@@ -495,6 +514,7 @@ void Item::paintEvent(QPaintEvent *e) {
 void Item::updateInnerVisibleArea() {
 	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+	_cornerButtons->updateJumpDownVisibility();
 }
 
 Context Item::listContext() {
@@ -592,18 +612,28 @@ MessagesBarData Item::listMessagesBar(
 		return {};
 	}
 
+	auto skipped = false;
 	const auto hidden = _replies && (repliesTill < 2);
 	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
 		const auto item = elements[i]->data();
-		if (!item->isRegular()
-			|| item->out()
-			|| (_replies && !item->replyToId())) {
+		if (!item->isRegular() || (_replies && !item->replyToId())) {
 			continue;
 		}
 		const auto inHistory = (item->history() == _history);
-		if ((_replies && item->id > repliesTill)
+		const auto unread = (_replies && item->id > repliesTill)
 			|| (migratedTill && (inHistory || item->id > migratedTill))
-			|| (historyTill && inHistory && item->id > historyTill)) {
+			|| (historyTill && inHistory && item->id > historyTill);
+		if (!unread) {
+			skipped = true;
+		}
+		if (item->out()) {
+			continue;
+		}
+		if (unread) {
+			if (!skipped) {
+				// Don't show jumping unread bar if scrolling up from bottom.
+				return {};
+			}
 			return {
 				.bar = {
 					.element = elements[i],
@@ -798,6 +828,46 @@ bool Item::listAllowsDragForward() {
 void Item::listLaunchDrag(
 	std::unique_ptr<QMimeData> data,
 	Fn<void()> finished) {
+}
+
+void Item::cornerButtonsShowAtPosition(Data::MessagePosition position) {
+	if (position == Data::UnreadMessagePosition) {
+		position = Data::MaxMessagePosition;
+	}
+	_inner->showAtPosition(
+		position,
+		{},
+		_cornerButtons->doneJumpFrom(position.fullId, {}, true));
+}
+
+Data::Thread *Item::cornerButtonsThread() {
+	return _thread;
+}
+
+FullMsgId Item::cornerButtonsCurrentId() {
+	return {};
+}
+
+bool Item::cornerButtonsIgnoreVisibility() {
+	return false;
+}
+
+std::optional<bool> Item::cornerButtonsDownShown() {
+	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
+	if (top < _scroll->scrollTopMax()) {
+		return true;
+	} else if (_inner->loadedAtBottomKnown()) {
+		return !_inner->loadedAtBottom();
+	}
+	return std::nullopt;
+}
+
+bool Item::cornerButtonsUnreadMayBeShown() {
+	return _inner->loadedAtBottomKnown();
+}
+
+bool Item::cornerButtonsHas(CornerButtonType type) {
+	return (type == CornerButtonType::Down);
 }
 
 } // namespace
