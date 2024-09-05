@@ -23,7 +23,7 @@ using Type = SelfDestructionBox::Type;
 
 [[nodiscard]] std::vector<int> Values(Type type) {
 	switch (type) {
-	case Type::Account: return { 30, 90, 180, 365, 548 };
+	case Type::Account: return { 30, 90, 180, 365, 548, 720 };
 	case Type::Sessions: return { 7, 30, 90, 180, 365 };
 	}
 	Unexpected("SelfDestructionBox::Type in Values.");
