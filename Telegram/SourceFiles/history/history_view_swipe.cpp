@@ -229,7 +229,7 @@ void SetupSwipeHandler(
 			if (cancel) {
 				processEnd();
 			} else {
-				const auto invert = (w->inverted() ? 1 : 0);
+				const auto invert = (w->inverted() ? -1 : 1);
 				updateWith({
 					.globalCursor = w->globalPosition().toPoint(),
 					.position = QPointF(),
