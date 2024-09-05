@@ -261,6 +261,15 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		}
 		result.customAllowed = (allowed.type == AllowedReactionsType::All)
 			&& premiumPossible;
+
+		const auto favoriteId = reactions->favoriteId();
+		if (favoriteId.custom()
+			&& result.customAllowed
+			&& !ranges::contains(result.recent, favoriteId, &Reaction::id)) {
+			if (const auto temp = reactions->lookupTemporary(favoriteId)) {
+				result.recent.insert(begin(result.recent), temp);
+			}
+		}
 	}
 	if (!item->reactionsAreTags()) {
 		const auto toFront = [&](Data::ReactionId id) {
