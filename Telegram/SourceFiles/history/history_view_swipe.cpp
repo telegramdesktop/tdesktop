@@ -229,10 +229,11 @@ void SetupSwipeHandler(
 			if (cancel) {
 				processEnd();
 			} else {
+				const auto invert = (w->inverted() ? 1 : 0);
 				updateWith({
 					.globalCursor = w->globalPosition().toPoint(),
 					.position = QPointF(),
-					.delta = state->delta - Ui::ScrollDelta(w),
+					.delta = state->delta + Ui::ScrollDelta(w) * invert,
 					.touch = false,
 				});
 			}
