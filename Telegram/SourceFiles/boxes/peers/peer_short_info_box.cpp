@@ -671,8 +671,6 @@ PeerShortInfoBox::PeerShortInfoBox(
 	) | rpl::start_with_next([=] {
 		_cover.setScrollTop(_scroll->scrollTop());
 	}, _cover.lifetime());
-
-	setCustomCornersFilling(RectPart::FullTop);
 }
 
 PeerShortInfoBox::~PeerShortInfoBox() = default;
@@ -723,6 +721,7 @@ void PeerShortInfoBox::prepare() {
 	_roundedTop.setDevicePixelRatio(style::DevicePixelRatio());
 	refreshRoundedTopImage(getDelegate()->style().bg->c);
 
+	setCustomCornersFilling(RectPart::FullTop);
 	setDimensionsToContent(st::shortInfoWidth, _rows);
 }
 
