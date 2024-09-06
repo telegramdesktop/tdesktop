@@ -1512,10 +1512,12 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			+ ((g.height() < size * kMaxHeightRatio)
 				? rightActionSize().value_or(QSize()).width()
 				: 0);
+		const auto shift = std::min(
+			(size * kShiftRatio * context.gestureHorizontal.ratio),
+			-1. * context.gestureHorizontal.translation
+		) + (st::historySwipeIconSkip * ratio * (isLeftSize ? .7 : 1.));
 		const auto rect = QRectF(
-			outerWidth
-				- (size * kShiftRatio * context.gestureHorizontal.ratio)
-				- (st::historySwipeIconSkip * ratio * (isLeftSize ? .7 : 1.)),
+			outerWidth - shift,
 			g.y() + (g.height() - size) / 2,
 			size,
 			size);

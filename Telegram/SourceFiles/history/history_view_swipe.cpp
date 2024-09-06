@@ -20,6 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QApplication>
 
 namespace HistoryView {
+namespace {
+
+constexpr auto kSwipeSlow = 0.2;
+
+} // namespace
 
 void SetupSwipeHandler(
 		not_null<Ui::RpWidget*> widget,
@@ -63,10 +68,16 @@ void SetupSwipeHandler(
 	}, state->lifetime);
 
 	const auto updateRatio = [=](float64 ratio) {
-		state->data.ratio = std::clamp(ratio, 0., kMaxRatio),
+		ratio = std::max(ratio, 0.);
+		state->data.ratio = ratio;
+		const auto overscrollRatio = std::max(ratio - 1., 0.);
+		const auto translation = int(
+			base::SafeRound(-std::min(ratio, 1.) * threshold)
+		) + Ui::OverscrollFromAccumulated(int(
+			base::SafeRound(-overscrollRatio * threshold)
+		));
 		state->data.msgBareId = state->finishByTopData.msgBareId;
-		state->data.translation = int(
-			base::SafeRound(-std::clamp(ratio, 0., kMaxRatio) * threshold));
+		state->data.translation = translation;
 		state->data.cursorTop = state->cursorTop;
 		update(state->data);
 	};
@@ -248,10 +259,11 @@ void SetupSwipeHandler(
 				processEnd();
 			} else {
 				const auto invert = (w->inverted() ? -1 : 1);
+				const auto delta = Ui::ScrollDeltaF(w) * invert;
 				updateWith({
 					.globalCursor = w->globalPosition().toPoint(),
 					.position = QPointF(),
-					.delta = state->delta + Ui::ScrollDelta(w) * invert,
+					.delta = state->delta + delta * kSwipeSlow,
 					.touch = false,
 				});
 			}

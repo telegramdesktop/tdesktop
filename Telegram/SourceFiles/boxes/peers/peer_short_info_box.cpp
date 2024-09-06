@@ -671,6 +671,8 @@ PeerShortInfoBox::PeerShortInfoBox(
 	) | rpl::start_with_next([=] {
 		_cover.setScrollTop(_scroll->scrollTop());
 	}, _cover.lifetime());
+
+	setCustomCornersFilling(RectPart::FullTop);
 }
 
 PeerShortInfoBox::~PeerShortInfoBox() = default;
@@ -793,10 +795,6 @@ void PeerShortInfoBox::prepareRows() {
 		birthdayLabel(),
 		birthdayValue() | Ui::Text::ToWithEntities(),
 		tr::lng_mediaview_copy(tr::now));
-}
-
-RectParts PeerShortInfoBox::customCornersFilling() {
-	return RectPart::FullTop;
 }
 
 void PeerShortInfoBox::resizeEvent(QResizeEvent *e) {
