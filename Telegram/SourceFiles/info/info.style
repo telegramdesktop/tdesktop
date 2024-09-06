@@ -433,11 +433,15 @@ infoProfileSeparatorPadding: margins(
 infoProfileLabeledButtonCopy: IconButton(defaultIconButton) {
 	width: 34px;
 	height: 34px;
-	icon: icon {{ "menu/copy", infoIconFg }};
-	iconOver: icon {{ "menu/copy", infoIconFg }};
+	icon: icon {{ "menu/copy", windowBgActive }};
+	iconOver: icon {{ "menu/copy", windowBgActive }};
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 34px;
 	ripple: defaultRippleAnimation;
+}
+infoProfileLabeledButtonQr: IconButton(infoProfileLabeledButtonCopy) {
+	icon: icon {{ "menu/qr_code", windowBgActive }};
+	iconOver: icon {{ "menu/qr_code", windowBgActive }};
 }
 
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};

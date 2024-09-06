@@ -1120,3 +1120,8 @@ moderateBoxDividerLabel: FlatLabel(boxDividerLabel) {
 		selectLinkFg: windowActiveTextFg;
 	}
 }
+
+profileQrCenterSize: 34px;
+profileQrBackgroundRadius: 12px;
+profileQrIcon: icon{{ "qr_mini", windowActiveTextFg }};
+profileQrBackgroundSkip: 36px;

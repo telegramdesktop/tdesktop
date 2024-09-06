@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "menu/menu_mute.h"
 #include "support/support_helper.h"
+#include "ui/boxes/profile_qr_box.h"
 #include "ui/boxes/report_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/painter.h"
@@ -1102,10 +1103,14 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		usernameLine.text->setContextMenuHook(hook);
 		usernameLine.subtext->setContextMenuHook(hook);
 		const auto usernameLabel = usernameLine.text;
-		if (user->isBot()) {
-			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
-				usernameLabel->parentWidget(),
-				st::infoProfileLabeledButtonCopy);
+		if (user) {
+			const auto copyUsername = user->isBot()
+				? Ui::CreateChild<Ui::IconButton>(
+					usernameLabel->parentWidget(),
+					st::infoProfileLabeledButtonCopy)
+				: Ui::CreateChild<Ui::IconButton>(
+					usernameLabel->parentWidget(),
+					st::infoProfileLabeledButtonQr);
 			result->sizeValue(
 			) | rpl::start_with_next([=] {
 				const auto s = usernameLabel->parentWidget()->size();
@@ -1114,6 +1119,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 					(s.height() - copyUsername->height()) / 2);
 			}, copyUsername->lifetime());
 			copyUsername->setClickedCallback([=] {
+				if (!user->isBot()) {
+					controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+						Ui::FillProfileQrBox(box, user);
+					}));
+					return false;
+				}
 				const auto link = user->session().createInternalLinkFull(
 					user->username());
 				if (!link.isEmpty()) {

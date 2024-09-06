@@ -31,6 +31,7 @@
     <file alias="topic_icons/gray.svg">../../art/topic_icons/gray.svg</file>
     <file alias="topic_icons/general.svg">../../art/topic_icons/general.svg</file>
     <file alias="links_subscription.svg">../../icons/info/edit/links_subscription.svg</file>
+    <file alias="plane_white.svg">../../icons/plane_white.svg</file>
   </qresource>
   <qresource prefix="/icons">
     <file alias="calls/hands.lottie">../../icons/calls/hands.lottie</file>
