@@ -550,6 +550,24 @@ Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
 	};
 }
 
+std::vector<GiftOptionData> PremiumGiftCodeOptions::optionsForPeer() const {
+	auto result = std::vector<GiftOptionData>();
+
+	if (!_optionsForOnePerson.currency.isEmpty()) {
+		const auto count = int(_optionsForOnePerson.months.size());
+		result.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			Assert(i < _optionsForOnePerson.totalCosts.size());
+			result.push_back({
+				.cost = _optionsForOnePerson.totalCosts[i],
+				.currency = _optionsForOnePerson.currency,
+				.months = _optionsForOnePerson.months[i],
+			});
+		}
+	}
+	return result;
+}
+
 Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 	const auto it = _subscriptionOptions.find(amount);
 	if (it != end(_subscriptionOptions)) {

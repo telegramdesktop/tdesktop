@@ -57,3 +57,25 @@ creditsHistoryEntryGiftStickerSpace: 105px;
 creditsGiftBox: Box(defaultBox) {
 	shadowIgnoreTopSkip: true;
 }
+
+giftBoxSubtitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+	}
+	textFg: windowBoldFg;
+	align: align(top);
+	minWidth: 200px;
+}
+giftBoxSubtitleMargin: margins(22px, 4px, 22px, 4px);
+giftBoxAbout: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 200px;
+}
+giftBoxAboutMargin: margins(20px, 4px, 20px, 4px);
+giftBoxTabsMargin: margins(20px, 4px, 20px, 4px);
+giftBoxTabPadding: margins(8px, 2px, 8px, 2px);
+giftBoxTabSkip: 2px;
+giftBoxTabStyle: semiboldTextStyle;
+giftBoxTabFg: windowSubTextFg;
+giftBoxTabFgActive: windowBoldFg;
+giftBoxTabBgActive: windowBgRipple;

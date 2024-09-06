@@ -2981,6 +2981,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_stars_incoming" = "Use Stars to unlock content and services on Telegram.";
 "lng_gift_until" = "Until";
 
+"lng_gift_premium_subtitle" = "Gift Premium";
+"lng_gift_premium_about" = "Give {name} access to exclusive features with Telegram Premium. {features}";
+"lng_gift_premium_features" = "See Features >";
+"lng_gift_premium_label" = "Premium";
+"lng_gift_stars_subtitle" = "Gift Stars";
+"lng_gift_stars_about" = "Give {name} gifts that can be kept on your profile or converted to Stars. {link}";
+"lng_gift_stars_link" = "What are Stars >";
+"lng_gift_stars_limited" = "limited";
+"lng_gift_stars_tabs_all" = "All Gifts";
+"lng_gift_stars_tabs_limited" = "Limited";
+
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";
 "lng_accounts_limit1#other" = "You have reached the limit of **{count}** connected accounts.";

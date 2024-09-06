@@ -67,6 +67,12 @@ struct GiveawayInfo {
 	}
 };
 
+struct GiftOptionData {
+	int64 cost = 0;
+	QString currency;
+	int months = 0;
+};
+
 class Premium final {
 public:
 	explicit Premium(not_null<ApiWrap*> api);
@@ -171,6 +177,7 @@ public:
 	PremiumGiftCodeOptions(not_null<PeerData*> peer);
 
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
+	[[nodiscard]] std::vector<GiftOptionData> optionsForPeer() const;
 	[[nodiscard]] Data::PremiumSubscriptionOptions options(int amount);
 	[[nodiscard]] const std::vector<int> &availablePresets() const;
 	[[nodiscard]] int monthsFromPreset(int monthsIndex);
@@ -206,7 +213,7 @@ private:
 	base::flat_map<Amount, PremiumSubscriptionOptions> _subscriptionOptions;
 	struct {
 		std::vector<int> months;
-		std::vector<float64> totalCosts;
+		std::vector<int64> totalCosts;
 		QString currency;
 	} _optionsForOnePerson;
 
