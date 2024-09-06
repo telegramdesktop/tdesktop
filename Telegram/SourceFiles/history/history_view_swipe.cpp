@@ -30,6 +30,12 @@ void SetupSwipeHandler(
 	constexpr auto kThresholdWidth = 50;
 	constexpr auto kMaxRatio = 1.5;
 	const auto threshold = style::ConvertFloatScale(kThresholdWidth);
+	struct UpdateArgs {
+		QPoint globalCursor;
+		QPointF position;
+		QPointF delta;
+		bool touch = false;
+	};
 	struct State {
 		base::unique_qptr<QObject> filter;
 		Ui::Animations::Simple animationReach;
@@ -44,6 +50,8 @@ void SetupSwipeHandler(
 		bool started = false;
 		bool reached = false;
 		bool touch = false;
+		bool twoFingerScrollStarted = false;
+		std::optional<UpdateArgs> pendingUpdate;
 
 		rpl::lifetime lifetime;
 	};
@@ -101,13 +109,7 @@ void SetupSwipeHandler(
 		state->data.reachRatio = value;
 		update(state->data);
 	};
-	struct UpdateArgs {
-		QPoint globalCursor;
-		QPointF position;
-		QPointF delta;
-		bool touch = false;
-	};
-	const auto updateWith = [=](UpdateArgs &&args) {
+	const auto updateWith = [=](UpdateArgs args) {
 		if (!state->started || state->touch != args.touch) {
 			state->started = true;
 			state->touch = args.touch;
@@ -199,14 +201,21 @@ void SetupSwipeHandler(
 					? std::optional<QPointF>()
 					: (state->startAt - touches[0].pos()));
 			} else {
-				updateWith({
+				const auto args = UpdateArgs{
 					.globalCursor = (touchscreen
 						? touches[0].screenPos().toPoint()
 						: QCursor::pos()),
 					.position = touches[0].pos(),
 					.delta = state->startAt - touches[0].pos(),
 					.touch = true,
-				});
+				};
+#ifdef Q_OS_MAC
+				if (!state->twoFingerScrollStarted) {
+					state->pendingUpdate = args;
+					return base::EventFilterResult::Cancel;
+				}
+#endif // Q_OS_MAC
+				updateWith(args);
 			}
 			return (touchscreen && state->orientation != Qt::Horizontal)
 				? base::EventFilterResult::Continue
@@ -215,6 +224,17 @@ void SetupSwipeHandler(
 		case QEvent::Wheel: {
 			const auto w = static_cast<QWheelEvent*>(e.get());
 			const auto phase = w->phase();
+#ifdef Q_OS_MAC
+			if (phase == Qt::ScrollBegin) {
+				state->twoFingerScrollStarted = true;
+				if (const auto update = base::take(state->pendingUpdate)) {
+					updateWith((*update));
+				}
+			} else if (phase == Qt::ScrollEnd
+				|| phase == Qt::ScrollMomentum) {
+				state->twoFingerScrollStarted = false;
+			}
+#endif // Q_OS_MAC
 			if (Platform::IsMac() || phase == Qt::NoScrollPhase) {
 				break;
 			} else if (phase == Qt::ScrollBegin) {
