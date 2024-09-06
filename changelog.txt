@@ -1,3 +1,7 @@
+5.5.1 (06.09.24)
+
+- Fix crash in peer short info box.
+
 5.5 (06.09.24)
 
 - Star Giveaways.
