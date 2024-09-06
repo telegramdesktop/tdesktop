@@ -1,3 +1,10 @@
+5.5 (06.09.24)
+
+- Star Giveaways.
+- Swipe-to-Reply.
+- Audio device selection in one-on-one calls.
+- Text selection in collapsed / expanded quotes.
+
 5.4.6 beta (04.09.24)
 
 - Add Swipe-To-Reply for modern touchpads and touchscreens.
