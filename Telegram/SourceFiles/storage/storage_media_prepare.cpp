@@ -152,9 +152,13 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		} else if (allAreSmallImages) {
 			if (filesize > Images::kReadBytesLimit) {
 				allAreSmallImages = false;
-			} else if (!FileIsImage(file, MimeTypeForFile(info).name())
-				|| !QImageReader(file).canRead()) {
-				allAreSmallImages = false;
+			} else {
+				const auto mime = MimeTypeForFile(info).name();
+				if (mime == u"image/gif"_q
+					|| !FileIsImage(file, mime)
+					|| !QImageReader(file).canRead()) {
+					allAreSmallImages = false;
+				}
 			}
 		}
 	}
