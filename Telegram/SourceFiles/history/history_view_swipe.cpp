@@ -191,9 +191,7 @@ void SetupSwipeHandler(
 			};
 			const auto cancel = released(0)
 				|| released(1)
-				|| (touchscreen
-					? (touches.size() != 1)
-					: (touches.size() <= 0 || touches.size() > 2))
+				|| (touches.size() != (touchscreen ? 1 : 2))
 				|| (type == QEvent::TouchEnd)
 				|| (type == QEvent::TouchCancel);
 			if (cancel) {
