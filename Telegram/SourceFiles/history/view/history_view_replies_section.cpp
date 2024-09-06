@@ -885,8 +885,8 @@ void RepliesWidget::setupSwipeReply() {
 		const auto changed = (_gestureHorizontal.msgBareId != data.msgBareId)
 			|| (_gestureHorizontal.translation != data.translation)
 			|| (_gestureHorizontal.reachRatio != data.reachRatio);
-		_gestureHorizontal = data;
 		if (changed) {
+			_gestureHorizontal = data;
 			const auto item = _history->peer->owner().message(
 				_history->peer->id,
 				MsgId{ data.msgBareId });
