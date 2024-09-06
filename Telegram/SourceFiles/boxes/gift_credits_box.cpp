@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
@@ -27,9 +28,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/label_with_custom_emoji.h"
+#include "ui/widgets/shadow.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
@@ -47,6 +50,7 @@ namespace {
 
 constexpr auto kPriceTabAll = 0;
 constexpr auto kPriceTabLimited = -1;
+constexpr auto kGiftsPerRow = 3;
 
 struct GiftTypePremium {
 	int64 cost = 0;
@@ -119,9 +123,9 @@ struct GiftDescriptor : std::variant<GiftTypePremium, GiftTypeStars> {
 			for (auto &gift : list) {
 				if (gift.months > minMonthsGift.months
 					&& gift.currency == minMonthsGift.currency) {
-					const auto costPerMonth = gift.cost / gift.months;
+					const auto costPerMonth = gift.cost / (1. * gift.months);
 					const auto maxCostPerMonth = minMonthsGift.cost
-						/ minMonthsGift.months;
+						/ (1. * minMonthsGift.months);
 					const auto costRatio = costPerMonth / maxCostPerMonth;
 					const auto discount = 1. - costRatio;
 					const auto discountPercent = 100 * discount;
@@ -131,6 +135,7 @@ struct GiftDescriptor : std::variant<GiftTypePremium, GiftTypeStars> {
 					}
 				}
 			}
+			ranges::sort(list, ranges::less(), &GiftTypePremium::months);
 			Map[session].last = list;
 			consumer.put_next_copy(list);
 		}, lifetime);
@@ -385,8 +390,174 @@ struct GiftPriceTabs {
 	auto result = object_ptr<RpWidget>((QWidget*)nullptr);
 	const auto raw = result.data();
 
-	raw->paintRequest() | rpl::start_with_next([=] {
+	struct Button {
+		GiftDescriptor descriptor;
+		Text::String text;
+		Text::String price;
+		QRect geometry;
+		QRect button;
+		std::unique_ptr<HistoryView::StickerPlayer> player;
+	};
+	struct State {
+		std::vector<Button> buttons;
+		QPoint bgShift;
+		QImage bg;
+	};
+	const auto state = raw->lifetime().make_state<State>();
 
+	const auto width = st::boxWideWidth;
+	const auto padding = st::giftBoxPadding;
+	const auto available = width - padding.left() - padding.right();
+	const auto singlew = (available - 2 * st::giftBoxGiftSkip.x())
+		/ kGiftsPerRow;
+	const auto shadow = st::defaultDropdownMenu.wrap.shadow;
+	const auto extend = shadow.extend;
+
+	state->bgShift = -QPoint(extend.left(), extend.top());
+	const auto single = QSize(singlew, st::giftBoxGiftHeight);
+	const auto bgSize = QRect(QPoint(), single ).marginsAdded(extend).size();
+	state->bg = QImage(
+		bgSize * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	state->bg.setDevicePixelRatio(style::DevicePixelRatio());
+	state->bg.fill(Qt::transparent);
+
+	auto p = QPainter(&state->bg);
+	const auto rect = QRect(QPoint(), bgSize).marginsRemoved(extend);
+	Shadow::paint(p, rect, bgSize.width(), shadow);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::windowBg);
+	const auto radius = st::roundRadiusSmall;
+	p.drawRoundedRect(rect, radius, radius);
+	p.end();
+
+	std::move(
+		gifts
+	) | rpl::start_with_next([=](const std::vector<GiftDescriptor> &gifts) {
+		const auto context = Core::MarkedTextContext{
+			.session = &peer->session(),
+			.customEmojiRepaint = [] {},
+		};
+		const auto star = [&] {
+			return peer->owner().customEmojiManager().creditsEmoji();
+		};
+		auto x = padding.left();
+		auto y = padding.top();
+		state->buttons.resize(gifts.size());
+		for (auto i = 0, count = int(gifts.size()); i != count; ++i) {
+			auto &button = state->buttons[i];
+			const auto &descriptor = gifts[i];
+			if (button.descriptor != descriptor) {
+				button.descriptor = descriptor;
+				v::match(descriptor, [&](const GiftTypePremium &data) {
+					const auto months = data.months;
+					const auto years = (months % 12) ? 0 : months / 12;
+					button.text = Text::String(singlew / 2);
+					button.text.setMarkedText(
+						st::defaultTextStyle,
+						Text::Bold(years
+							? tr::lng_years(tr::now, lt_count, years)
+							: tr::lng_months(tr::now, lt_count, months)
+						).append('\n').append(
+							tr::lng_gift_premium_label(tr::now)
+						));
+					button.price.setText(
+						st::semiboldTextStyle,
+						FillAmountAndCurrency(
+							data.cost,
+							data.currency,
+							true));
+				}, [&](const GiftTypeStars &data) {
+					button.price.setMarkedText(
+						st::semiboldTextStyle,
+						star().append(QString::number(data.stars)),
+						kMarkupTextOptions,
+						context);
+				});
+				const auto buttonw = button.price.maxWidth();
+				const auto buttonh = st::semiboldFont->height;
+				const auto inner = QRect(
+					QPoint(),
+					QSize(buttonw, buttonh)
+				).marginsAdded(st::giftBoxButtonPadding);
+				const auto skipx = (singlew - inner.width()) / 2;
+				const auto skipy = single.height()
+					- st::giftBoxButtonBottom
+					- inner.height();
+				const auto outer = (singlew - 2 * skipx);
+				button.button = QRect(skipx, skipy, outer, inner.height());
+			}
+			const auto last = !((i + 1) % kGiftsPerRow);
+			if (last) {
+				x = padding.left() + available - single.width();
+			}
+			button.geometry = QRect(QPoint(x, y), single);
+			if (last) {
+				x = padding.left();
+				y += single.height() + st::giftBoxGiftSkip.y();
+			} else {
+				x += single.width() + st::giftBoxGiftSkip.x();
+			}
+		}
+		if (gifts.size() % kGiftsPerRow) {
+			y += padding.bottom() + single.height();
+		} else {
+			y += padding.bottom() - st::giftBoxGiftSkip.y();
+		}
+		raw->resize(raw->width(), gifts.empty() ? 0 : y);
+	}, raw->lifetime());
+
+	raw->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		for (const auto &button : state->buttons) {
+			const auto position = button.geometry.topLeft();
+			p.drawImage(position + state->bgShift, state->bg);
+
+			auto hq = PainterHighQualityEnabler(p);
+			const auto premium = v::is<GiftTypePremium>(button.descriptor);
+			p.setFont(st::normalFont);
+			v::match(button.descriptor, [&](const GiftTypePremium &data) {
+				if (data.discountPercent > 0) {
+					p.setPen(st::attentionBoxButton.textFg);
+					p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), '-' + QString::number(data.discountPercent) + '%', style::al_center);
+				}
+			}, [&](const GiftTypeStars &data) {
+				if (data.limited) {
+					p.setPen(st::windowActiveTextFg);
+					p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), u"limited"_q, style::al_center);
+				}
+			});
+			p.setBrush(premium ? st::lightButtonBgOver : st::creditsBg3);
+			p.setPen(Qt::NoPen);
+			if (!premium) {
+				p.setOpacity(0.12);
+			}
+			const auto geometry = button.button.translated(position);
+			const auto radius = geometry.height() / 2.;
+			p.drawRoundedRect(geometry, radius, radius);
+			if (!premium) {
+				p.setOpacity(1.);
+			}
+
+			if (!button.text.isEmpty()) {
+				p.setPen(st::windowFg);
+				button.text.draw(p, {
+					.position = (position
+						+ QPoint(0, st::giftBoxPremiumTextTop)),
+					.availableWidth = singlew,
+					.align = style::al_top,
+				});
+			}
+
+			const auto padding = st::giftBoxButtonPadding;
+			p.setPen(premium ? st::windowActiveTextFg : st::creditsFg);
+			button.price.draw(p, {
+				.position = (geometry.topLeft()
+					+ QPoint(padding.left(), padding.top())),
+				.availableWidth = button.price.maxWidth(),
+			});
+		}
 	}, raw->lifetime());
 
 	return result;
@@ -437,19 +608,19 @@ void AddBlock(
 [[nodiscard]] object_ptr<RpWidget> MakePremiumGifts(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer) {
-	auto result = object_ptr<RpWidget>((QWidget*)nullptr);
-
 	struct State {
 		rpl::variable<std::vector<GiftDescriptor>> gifts;
 	};
-	const auto state = std::make_unique<State>();
+	auto state = std::make_unique<State>();
 
 	state->gifts = GiftsPremium(&window->session(), peer) | rpl::map([=](
 			const std::vector<GiftTypePremium> &gifts) {
 		return gifts | ranges::to<std::vector<GiftDescriptor>>;
 	});
 
-	return MakeGiftsList(window, peer, state->gifts.value());
+	auto result = MakeGiftsList(window, peer, state->gifts.value());
+	result->lifetime().add([state = std::move(state)] {});
+	return result;
 }
 
 [[nodiscard]] object_ptr<RpWidget> MakeStarsGifts(
