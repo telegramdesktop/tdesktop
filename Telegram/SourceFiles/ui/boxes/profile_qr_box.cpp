@@ -79,7 +79,7 @@ using Colors = std::vector<QColor>;
 [[nodiscard]] not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Ui::RpWidget*> topWidget,
-		rpl::producer<TextWithEntities> codes,
+		rpl::producer<TextWithEntities> username,
 		rpl::producer<QString> links,
 		rpl::producer<std::vector<QColor>> bgs) {
 	const auto divider = container->add(
@@ -92,7 +92,8 @@ using Colors = std::vector<QColor>;
 		Ui::Animations::Basic updating;
 		QImage qr;
 		std::vector<QColor> bgs;
-		rpl::variable<TextWithEntities> code;
+		rpl::variable<TextWithEntities> username;
+		int textMaxHeight = 0;
 		rpl::variable<QString> link;
 	};
 	auto palettes = rpl::single(rpl::empty) | rpl::then(
@@ -103,7 +104,7 @@ using Colors = std::vector<QColor>;
 	topWidget->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto state = result->lifetime().make_state<State>(
 		[=] { result->update(); });
-	state->code = rpl::variable<TextWithEntities>(std::move(codes));
+	state->username = rpl::variable<TextWithEntities>(std::move(username));
 	state->link = rpl::variable<QString>(std::move(links));
 	std::move(
 		bgs
@@ -111,22 +112,32 @@ using Colors = std::vector<QColor>;
 		state->bgs = bgs;
 	}, container->lifetime());
 	const auto font = st::mainMenuResetScaleFont;
-	const auto textMaxHeight = font->height * 3;
+	const auto backSkip = st::profileQrBackgroundSkip;
 	const auto qrMaxSize = st::boxWideWidth
 		- rect::m::sum::h(st::boxRowPadding)
-		- 2 * st::profileQrBackgroundSkip;
-	result->resize(
-		qrMaxSize + 2 * st::profileQrBackgroundSkip,
-		qrMaxSize + 2 * st::profileQrBackgroundSkip + textMaxHeight * 2);
+		- 2 * backSkip;
 	rpl::combine(
-		state->link.value() | rpl::map([](const QString &code) {
-			return Qr::Encode(code.toUtf8(), Qr::Redundancy::Default);
+		state->username.value() | rpl::map([=](const TextWithEntities &u) {
+			return font->width(u.text);
 		}),
-		rpl::duplicate(palettes)
-	) | rpl::map([=](const Qr::Data &code, const auto &) {
-		return TelegramQr(code, st::introQrPixel, qrMaxSize);
-	}) | rpl::start_with_next([=](QImage &&image) {
+		rpl::combine(
+			state->link.value() | rpl::map([](const QString &code) {
+				return Qr::Encode(code.toUtf8(), Qr::Redundancy::Default);
+			}),
+			rpl::duplicate(palettes)
+		) | rpl::map([=](const Qr::Data &code, const auto &) {
+			return TelegramQr(code, st::introQrPixel, qrMaxSize);
+		})
+	) | rpl::start_with_next([=](int usernameW, QImage &&image) {
 		state->qr = std::move(image);
+		const auto qrWidth = state->qr.size().width()
+			/ style::DevicePixelRatio();
+		const auto lines = int(usernameW / qrWidth) + 1;
+		state->textMaxHeight = font->height * lines;
+		const auto heightSkip = (font->height * 3);
+		result->resize(
+			qrMaxSize + 2 * backSkip,
+			qrMaxSize + 2 * backSkip + state->textMaxHeight + heightSkip);
 	}, result->lifetime());
 	result->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
@@ -138,17 +149,21 @@ using Colors = std::vector<QColor>;
 			st::introQrPixel);
 		const auto size = (state->qr.size() / style::DevicePixelRatio());
 		const auto radius = st::profileQrBackgroundRadius;
-		const auto skip = st::profileQrBackgroundSkip;
 		const auto qr = QRect(
 			(result->width() - size.width()) / 2,
-			skip * 3,
+			backSkip * 3,
 			size.width(),
 			size.height());
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(Qt::white);
 		p.drawRoundedRect(
-			qr + QMargins(skip, skip + skip / 2, skip, skip + textMaxHeight),
+			qr
+				+ QMargins(
+					backSkip,
+					backSkip + backSkip / 2,
+					backSkip,
+					backSkip + state->textMaxHeight),
 			radius,
 			radius);
 		if (!state->qr.isNull() && !state->bgs.empty()) {
@@ -167,7 +182,9 @@ using Colors = std::vector<QColor>;
 				gradientRotation,
 				1. - (gradientRotationAdd / 45.));
 			p.drawImage(qr, back);
-			const auto coloredSize = QSize(back.width(), textMaxHeight);
+			const auto coloredSize = QSize(
+				back.width(),
+				state->textMaxHeight);
 			auto colored = QImage(
 				coloredSize * style::DevicePixelRatio(),
 				QImage::Format_ARGB32_Premultiplied);
@@ -183,13 +200,13 @@ using Colors = std::vector<QColor>;
 				option.setWrapMode(QTextOption::WrapAnywhere);
 				p.drawText(
 					Rect(coloredSize),
-					state->code.current().text.toUpper(),
+					state->username.current().text.toUpper(),
 					option);
 				p.setCompositionMode(QPainter::CompositionMode_SourceIn);
-				p.drawImage(0, -back.height() + textMaxHeight, back);
+				p.drawImage(0, -back.height() + state->textMaxHeight, back);
 			}
 			p.drawImage(qr, state->qr);
-			p.drawImage(qr.x(), qr.y() + qr.height() + skip / 2, colored);
+			p.drawImage(qr.x(), qr.y() + qr.height() + backSkip / 2, colored);
 		}
 	}, result->lifetime());
 	result->sizeValue(
@@ -200,7 +217,7 @@ using Colors = std::vector<QColor>;
 		const auto qrHeight = state->qr.height() / style::DevicePixelRatio();
 		topWidget->moveToLeft(
 			(result->width() - topWidget->width()) / 2,
-			(st::profileQrBackgroundSkip
+			(backSkip
 				+ st::profileQrBackgroundSkip / 2
 				- topWidget->height() / 2));
 		topWidget->raise();
