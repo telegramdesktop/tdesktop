@@ -270,36 +270,56 @@ void FillProfileQrBox(
 		}
 		Ui::AddSkip(themesContainer);
 		Ui::AddSkip(themesContainer);
-		Ui::AddSkip(themesContainer);
-		Ui::AddSkip(themesContainer);
 		struct State {
 			Colors colors;
 			QImage image;
 		};
 		constexpr auto kMaxInRow = 4;
+		constexpr auto kMaxColors = 4;
 		auto row = (Ui::RpWidget*)(nullptr);
 		auto counter = 0;
 		const auto spacing = (0
 			+ (box->width() - rect::m::sum::h(st::boxRowPadding))
 			- (kMaxInRow * size)) / (kMaxInRow + 1);
 
-		for (const auto &cloudTheme : cloudThemes) {
+		auto colorsCollection = ranges::views::all(
+			cloudThemes
+		) | ranges::views::transform([](const auto &cloudTheme) -> Colors {
 			const auto it = cloudTheme.settings.find(
 				Data::CloudThemeType::Light);
 			if (it == end(cloudTheme.settings)) {
-				continue;
+				return Colors();
 			}
 			const auto colors = it->second.paper
 				? it->second.paper->backgroundColors()
-				: std::vector<QColor>();
-			if (colors.size() != 4) {
-				continue;
+				: Colors();
+			if (colors.size() != kMaxColors) {
+				return Colors();
 			}
+			return colors;
+		}) | ranges::views::filter([](const Colors &colors) {
+			return !colors.empty();
+		}) | ranges::to_vector;
+		colorsCollection.push_back(Colors{
+			st::premiumButtonBg1->c,
+			st::premiumButtonBg1->c,
+			st::premiumButtonBg2->c,
+			st::premiumButtonBg3->c,
+		});
+		// colorsCollection.push_back(Colors{
+		// 	st::creditsBg1->c,
+		// 	st::creditsBg2->c,
+		// 	st::creditsBg1->c,
+		// 	st::creditsBg2->c,
+		// });
+
+		for (const auto &colors : colorsCollection) {
 			if (state->bgs.current().empty()) {
 				state->bgs = colors;
 			}
 
 			if (counter % kMaxInRow == 0) {
+				Ui::AddSkip(themesContainer);
 				row = themesContainer->add(
 					object_ptr<Ui::RpWidget>(themesContainer));
 				row->resize(size, size);
@@ -313,7 +333,7 @@ void FillProfileQrBox(
 				state->animation.start([=](float64 value) {
 					const auto was = state->bgs.current();
 					const auto now = colors;
-					if (was.size() == now.size(); was.size() == 4) {
+					if (was.size() == now.size(); was.size() == kMaxColors) {
 						state->bgs = Colors({
 							anim::color(was[0], now[0], value),
 							anim::color(was[1], now[1], value),
@@ -391,10 +411,10 @@ void FillProfileQrBox(
 						st::roundRadiusLarge + activewidth * 4.2);
 				}
 			}, widget->lifetime());
-			if ((++counter) >= kMaxInRow) {
-				Ui::AddSkip(themesContainer);
-			}
+			counter++;
 		}
+		Ui::AddSkip(themesContainer);
+		Ui::AddSkip(themesContainer);
 		themesContainer->resizeToWidth(box->width());
 	};
 
