@@ -133,16 +133,11 @@ private:
 
 };
 
-[[nodiscard]] bool UseSeparateWindow() {
-	return !Platform::IsWayland()
-		&& Ui::Platform::TranslucentWindowsSupported();
-}
-
 Preview::Preview(QWidget *slider, rpl::producer<QImage> userpic)
 : _widget(slider->window())
 , _slider(slider)
 , _ratio(style::DevicePixelRatio())
-, _window(UseSeparateWindow()) {
+, _window(Ui::Platform::TranslucentWindowsSupported()) {
 	std::move(userpic) | rpl::start_with_next([=](QImage &&userpic) {
 		_userpicOriginal = std::move(userpic);
 		if (!_userpicImage.isNull()) {
