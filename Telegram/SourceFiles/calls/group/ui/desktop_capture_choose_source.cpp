@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <tgcalls/desktop_capturer/DesktopCaptureSourceManager.h>
 #include <tgcalls/desktop_capturer/DesktopCaptureSourceHelper.h>
-#include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 
 namespace Calls::Group::Ui::DesktopCapture {
@@ -585,13 +584,7 @@ void ChooseSourceProcess::setupSourcesGeometry() {
 
 void ChooseSourceProcess::setupGeometryWithParent(
 		not_null<QWidget*> parent) {
-	const auto parentScreen = [&] {
-		if (const auto screen = QGuiApplication::screenAt(
-				parent->geometry().center())) {
-			return screen;
-		}
-		return parent->screen();
-	}();
+	const auto parentScreen = parent->screen();
 	const auto myScreen = _window->screen();
 	if (parentScreen && myScreen != parentScreen) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
