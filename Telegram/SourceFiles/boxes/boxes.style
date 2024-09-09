@@ -1121,7 +1121,8 @@ moderateBoxDividerLabel: FlatLabel(boxDividerLabel) {
 	}
 }
 
+profileQrFont: font(fsize bold);
 profileQrCenterSize: 34px;
 profileQrBackgroundRadius: 12px;
 profileQrIcon: icon{{ "qr_mini", windowActiveTextFg }};
-profileQrBackgroundSkip: 36px;
+profileQrBackgroundMargins: margins(36px, 12px, 36px, 12px);

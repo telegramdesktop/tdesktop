@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -49,6 +50,8 @@ using Colors = std::vector<QColor>;
 [[nodiscard]] QImage TelegramQr(const Qr::Data &data, int pixel, int max) {
 	Expects(data.size > 0);
 
+	constexpr auto kCenterRatio = 0.175;
+
 	if (max > 0 && data.size * pixel > max) {
 		pixel = std::max(max / data.size, 1);
 	}
@@ -62,10 +65,8 @@ using Colors = std::vector<QColor>;
 		auto hq = PainterHighQualityEnabler(p);
 		auto svg = QSvgRenderer(u":/gui/plane_white.svg"_q);
 		const auto size = qr.rect().size();
-		const auto centerWidth = st::profileQrCenterSize
-			* style::DevicePixelRatio();
 		const auto centerRect = Rect(size)
-			- Margins((size.width() - centerWidth) / 2);
+			- Margins((size.width() - (size.width() * kCenterRatio)) / 2);
 		p.setPen(Qt::NoPen);
 		p.setBrush(Qt::white);
 		p.setCompositionMode(QPainter::CompositionMode_Clear);
@@ -76,12 +77,80 @@ using Colors = std::vector<QColor>;
 	return qr;
 }
 
+void Paint(
+		QPainter &p,
+		const style::font &font,
+		const QString &text,
+		const Colors &backgroundColors,
+		const QMargins &backgroundMargins,
+		const QImage &qrImage,
+		const QRect &qrRect,
+		int qrMaxSize,
+		int qrPixel,
+		int radius,
+		int textMaxHeight,
+		int photoSize) {
+	const auto usualSize = 41;
+	const auto pixel = std::clamp(qrMaxSize / usualSize, 1, qrPixel);
+	const auto size = (qrImage.size() / style::DevicePixelRatio());
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(Qt::white);
+	const auto roundedRect = qrRect
+		+ backgroundMargins
+		+ QMargins(0, photoSize / 2, 0, textMaxHeight);
+	p.drawRoundedRect(roundedRect, radius, radius);
+	if (!qrImage.isNull() && !backgroundColors.empty()) {
+		constexpr auto kDuration = crl::time(10000);
+		const auto angle = (crl::now() % kDuration)
+			/ float64(kDuration) * 360.0;
+		const auto gradientRotation = int(angle / 45.) * 45;
+		const auto gradientRotationAdd = angle - gradientRotation;
+
+		const auto center = QPointF(rect::center(qrRect));
+		const auto radius = std::sqrt(std::pow(qrRect.width() / 2., 2)
+			+ std::pow(qrRect.height() / 2., 2));
+		auto back = Images::GenerateGradient(
+			qrRect.size(),
+			backgroundColors,
+			gradientRotation,
+			1. - (gradientRotationAdd / 45.));
+		p.drawImage(qrRect, back);
+		const auto coloredSize = QSize(back.width(), textMaxHeight);
+		auto colored = QImage(
+			coloredSize * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		colored.setDevicePixelRatio(style::DevicePixelRatio());
+		colored.fill(Qt::transparent);
+		{
+			// '@' + QString(32, 'W');
+			auto p = QPainter(&colored);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::black);
+			p.setFont(font);
+			auto option = QTextOption(style::al_center);
+			option.setWrapMode(QTextOption::WrapAnywhere);
+			p.drawText(Rect(coloredSize), text, option);
+			p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+			p.drawImage(0, -back.height() + textMaxHeight, back);
+		}
+		p.drawImage(qrRect, qrImage);
+		p.drawImage(
+			qrRect.x(),
+			rect::bottom(qrRect)
+				+ ((rect::bottom(roundedRect) - rect::bottom(qrRect))
+					- textMaxHeight) / 2,
+			colored);
+	}
+}
+
 [[nodiscard]] not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Ui::RpWidget*> topWidget,
+		const style::font &font,
 		rpl::producer<TextWithEntities> username,
 		rpl::producer<QString> links,
-		rpl::producer<std::vector<QColor>> bgs) {
+		rpl::producer<Colors> bgs) {
 	const auto divider = container->add(
 		object_ptr<Ui::BoxContentDivider>(container));
 	struct State final {
@@ -90,138 +159,89 @@ using Colors = std::vector<QColor>;
 		}
 
 		Ui::Animations::Basic updating;
-		QImage qr;
-		std::vector<QColor> bgs;
-		rpl::variable<TextWithEntities> username;
+		QImage qrImage;
+		Colors backgroundColors;
+		QString text;
+		int textWidth = 0;
 		int textMaxHeight = 0;
-		rpl::variable<QString> link;
 	};
-	auto palettes = rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
-	);
 	const auto result = Ui::CreateChild<Ui::RpWidget>(divider);
 	topWidget->setParent(result);
 	topWidget->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto state = result->lifetime().make_state<State>(
 		[=] { result->update(); });
-	state->username = rpl::variable<TextWithEntities>(std::move(username));
-	state->link = rpl::variable<QString>(std::move(links));
-	std::move(
-		bgs
-	) | rpl::start_with_next([=](const std::vector<QColor> &bgs) {
-		state->bgs = bgs;
-	}, container->lifetime());
-	const auto font = st::mainMenuResetScaleFont;
-	const auto backSkip = st::profileQrBackgroundSkip;
+	const auto photoSize = st::defaultUserpicButton.photoSize;
+	const auto backgroundMargins = st::profileQrBackgroundMargins;
 	const auto qrMaxSize = st::boxWideWidth
 		- rect::m::sum::h(st::boxRowPadding)
-		- 2 * backSkip;
+		- rect::m::sum::h(backgroundMargins);
 	rpl::combine(
-		state->username.value() | rpl::map([=](const TextWithEntities &u) {
-			return font->width(u.text);
-		}),
-		rpl::combine(
-			state->link.value() | rpl::map([](const QString &code) {
-				return Qr::Encode(code.toUtf8(), Qr::Redundancy::Default);
-			}),
-			rpl::duplicate(palettes)
-		) | rpl::map([=](const Qr::Data &code, const auto &) {
-			return TelegramQr(code, st::introQrPixel, qrMaxSize);
-		})
-	) | rpl::start_with_next([=](int usernameW, QImage &&image) {
-		state->qr = std::move(image);
-		const auto qrWidth = state->qr.size().width()
+		std::move(username),
+		std::move(bgs),
+		std::move(links),
+		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
+	) | rpl::start_with_next([=](
+			const TextWithEntities &username,
+			const Colors &backgroundColors,
+			const QString &link,
+			const auto &) {
+		state->backgroundColors = backgroundColors;
+		state->text = username.text.toUpper();
+		state->textWidth = font->width(state->text);
+		state->qrImage = TelegramQr(
+			Qr::Encode(link.toUtf8(), Qr::Redundancy::Default),
+			st::introQrPixel,
+			qrMaxSize);
+		const auto qrWidth = state->qrImage.width()
 			/ style::DevicePixelRatio();
-		const auto lines = int(usernameW / qrWidth) + 1;
+		const auto lines = int(state->textWidth / qrWidth) + 1;
 		state->textMaxHeight = font->height * lines;
-		const auto heightSkip = (font->height * 3);
 		result->resize(
-			qrMaxSize + 2 * backSkip,
-			qrMaxSize + 2 * backSkip + state->textMaxHeight + heightSkip);
-	}, result->lifetime());
+			qrMaxSize + rect::m::sum::h(backgroundMargins),
+			qrMaxSize
+				+ rect::m::sum::v(backgroundMargins)
+				+ backgroundMargins.bottom()
+				+ state->textMaxHeight
+				+ photoSize);
+
+		divider->resize(container->width(), result->height());
+		result->moveToLeft((container->width() - result->width()) / 2, 0);
+		topWidget->moveToLeft(
+			(result->width() - topWidget->width()) / 2,
+			-std::numeric_limits<int>::min());
+		topWidget->raise();
+	}, container->lifetime());
 	result->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
 		auto p = QPainter(result);
-		const auto usualSize = 41;
-		const auto pixel = std::clamp(
-			qrMaxSize / usualSize,
-			1,
-			st::introQrPixel);
-		const auto size = (state->qr.size() / style::DevicePixelRatio());
-		const auto radius = st::profileQrBackgroundRadius;
-		const auto qr = QRect(
+		const auto size = (state->qrImage.size() / style::DevicePixelRatio());
+		const auto qrRect = Rect(
 			(result->width() - size.width()) / 2,
-			backSkip * 3,
-			size.width(),
-			size.height());
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(Qt::white);
-		p.drawRoundedRect(
-			qr
-				+ QMargins(
-					backSkip,
-					backSkip + backSkip / 2,
-					backSkip,
-					backSkip + state->textMaxHeight),
-			radius,
-			radius);
-		if (!state->qr.isNull() && !state->bgs.empty()) {
-			constexpr auto kDuration = crl::time(10000);
-			const auto angle = (crl::now() % kDuration)
-				/ float64(kDuration) * 360.0;
-			const auto gradientRotation = int(angle / 45.) * 45;
-			const auto gradientRotationAdd = angle - gradientRotation;
-
-			const auto center = QPointF(rect::center(qr));
-			const auto radius = std::sqrt(std::pow(qr.width() / 2., 2)
-				+ std::pow(qr.height() / 2., 2));
-			auto back = Images::GenerateGradient(
-				qr.size(),
-				state->bgs,
-				gradientRotation,
-				1. - (gradientRotationAdd / 45.));
-			p.drawImage(qr, back);
-			const auto coloredSize = QSize(
-				back.width(),
-				state->textMaxHeight);
-			auto colored = QImage(
-				coloredSize * style::DevicePixelRatio(),
-				QImage::Format_ARGB32_Premultiplied);
-			colored.setDevicePixelRatio(style::DevicePixelRatio());
-			colored.fill(Qt::transparent);
-			{
-				// '@' + QString(32, 'W');
-				auto p = QPainter(&colored);
-				auto hq = PainterHighQualityEnabler(p);
-				p.setPen(Qt::red);
-				p.setFont(font);
-				auto option = QTextOption(style::al_center);
-				option.setWrapMode(QTextOption::WrapAnywhere);
-				p.drawText(
-					Rect(coloredSize),
-					state->username.current().text.toUpper(),
-					option);
-				p.setCompositionMode(QPainter::CompositionMode_SourceIn);
-				p.drawImage(0, -back.height() + state->textMaxHeight, back);
-			}
-			p.drawImage(qr, state->qr);
-			p.drawImage(qr.x(), qr.y() + qr.height() + backSkip / 2, colored);
-		}
+			backgroundMargins.top() + photoSize / 2,
+			size);
+		p.translate(0, backgroundMargins.top() + photoSize / 2);
+		Paint(
+			p,
+			font,
+			state->text,
+			state->backgroundColors,
+			st::profileQrBackgroundMargins,
+			state->qrImage,
+			qrRect,
+			qrMaxSize,
+			st::introQrPixel,
+			st::profileQrBackgroundRadius,
+			state->textMaxHeight,
+			photoSize);
+		const auto top = Ui::GrabWidget(
+			topWidget,
+			QRect(),
+			Qt::transparent).scaled(
+				Size(photoSize * style::DevicePixelRatio()),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		p.drawPixmap((result->width() - photoSize) / 2, -photoSize / 2, top);
 	}, result->lifetime());
-	result->sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
-		divider->resize(container->width(), size.height());
-		result->moveToLeft((container->width() - size.width()) / 2, 0);
-
-		const auto qrHeight = state->qr.height() / style::DevicePixelRatio();
-		topWidget->moveToLeft(
-			(result->width() - topWidget->width()) / 2,
-			(backSkip
-				+ st::profileQrBackgroundSkip / 2
-				- topWidget->height() / 2));
-		topWidget->raise();
-	}, divider->lifetime());
 	return result;
 }
 
@@ -241,17 +261,31 @@ void FillProfileQrBox(
 	box->setTitle(tr::lng_group_invite_context_qr());
 	box->verticalLayout()->resizeToWidth(box->width());
 	struct State {
-		rpl::variable<std::vector<QColor>> bgs;
+		Ui::RpWidget* saveButton = nullptr;
+		rpl::variable<bool> saveButtonBusy = false;
+		rpl::variable<Colors> bgs;
 		Ui::Animations::Simple animation;
 		rpl::variable<int> chosen = 0;
+
+		style::font font;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	const auto createFont = [=](int scale) {
+		return style::font(
+			style::ConvertScale(30, scale),
+			st::profileQrFont->flags(),
+			st::profileQrFont->family());
+	};
+	state->font = createFont(style::Scale());
+
+	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+		box,
+		peer,
+		st::defaultUserpicButton);
 	const auto qr = PrepareQrWidget(
 		box->verticalLayout(),
-		Ui::CreateChild<Ui::UserpicButton>(
-			box,
-			peer,
-			st::defaultUserpicButton),
+		userpic,
+		state->font,
 		Info::Profile::UsernameValue(peer->asUser()),
 		Info::Profile::LinkValue(peer) | rpl::map([](const auto &link) {
 			return link.url;
@@ -430,20 +464,146 @@ void FillProfileQrBox(
 		}, box->lifetime());
 	}
 
+	auto buttonText = rpl::conditional(
+		state->saveButtonBusy.value() | rpl::map(rpl::mappers::_1),
+		rpl::single(QString()),
+		tr::lng_chat_link_copy());
 	const auto show = controller->uiShow();
-	const auto button = box->addButton(tr::lng_chat_link_copy(), [=] {
-		auto mime = std::make_unique<QMimeData>();
-		mime->setImageData(Ui::GrabWidget(qr, {}, Qt::transparent));
-		QGuiApplication::clipboard()->setMimeData(mime.release());
-		show->showToast(tr::lng_group_invite_qr_copied(tr::now));
+	state->saveButton = box->addButton(std::move(buttonText), [=] {
+		const auto buttonWidth = state->saveButton
+			? state->saveButton->width()
+			: 0;
+		state->saveButtonBusy = true;
+		if (state->saveButton) {
+			state->saveButton->resizeToWidth(buttonWidth);
+		}
+
+		const auto scale = style::kScaleDefault * 3;
+		const auto divider = std::max(1, style::Scale())
+			/ style::kScaleDefault;
+		const auto profileQrBackgroundRadius = style::ConvertScale(
+			st::profileQrBackgroundRadius / divider,
+			scale);
+		const auto introQrPixel = style::ConvertScale(
+			st::introQrPixel / divider,
+			scale);
+		const auto boxWideWidth = style::ConvertScale(
+			st::boxWideWidth / divider,
+			scale);
+		const auto createMargins = [&](const style::margins &margins) {
+			return QMargins(
+				style::ConvertScale(margins.left() / divider, scale),
+				style::ConvertScale(margins.top() / divider, scale),
+				style::ConvertScale(margins.right() / divider, scale),
+				style::ConvertScale(margins.bottom() / divider, scale));
+		};
+		const auto boxRowPadding = createMargins(st::boxRowPadding);
+		const auto backgroundMargins = createMargins(
+			st::profileQrBackgroundMargins);
+		const auto qrMaxSize = boxWideWidth
+			- rect::m::sum::h(boxRowPadding)
+			- rect::m::sum::h(backgroundMargins);
+		const auto photoSize = style::ConvertScale(
+			st::defaultUserpicButton.photoSize,
+			scale);
+
+		const auto font = createFont(scale);
+		const auto username = rpl::variable<TextWithEntities>(
+			Info::Profile::UsernameValue(
+				peer->asUser())).current().text.toUpper();
+		const auto link = rpl::variable<QString>(
+			Info::Profile::LinkValue(peer) | rpl::map([](const auto &l) {
+				return l.url;
+			}));
+		const auto textWidth = font->width(username);
+		const auto top = Ui::GrabWidget(
+			userpic,
+			{},
+			Qt::transparent);
+		const auto weak = Ui::MakeWeak(box);
+
+		crl::async([=] {
+			const auto qrImage = TelegramQr(
+				Qr::Encode(
+					link.current().toUtf8(),
+					Qr::Redundancy::Default),
+				introQrPixel,
+				qrMaxSize);
+			const auto qrWidth = qrImage.width() / style::DevicePixelRatio();
+			const auto lines = int(textWidth / qrWidth) + 1;
+			const auto textMaxHeight = font->height * lines;
+
+			const auto resultSize = QSize(
+				qrMaxSize + rect::m::sum::h(backgroundMargins),
+				qrMaxSize
+					+ rect::m::sum::v(backgroundMargins)
+					+ backgroundMargins.bottom()
+					+ textMaxHeight
+					+ photoSize);
+
+			const auto qrImageSize = qrImage.size()
+				/ style::DevicePixelRatio();
+			const auto qrRect = Rect(
+				(resultSize.width() - qrImageSize.width()) / 2,
+				backgroundMargins.top() + photoSize / 2,
+				qrImageSize);
+
+			auto image = QImage(
+				resultSize * style::DevicePixelRatio(),
+				QImage::Format_ARGB32_Premultiplied);
+			image.fill(Qt::transparent);
+			image.setDevicePixelRatio(style::DevicePixelRatio());
+			{
+				auto p = QPainter(&image);
+				p.translate(0, photoSize / 2 + backgroundMargins.top());
+				Paint(
+					p,
+					font,
+					username,
+					state->bgs.current(),
+					backgroundMargins,
+					qrImage,
+					qrRect,
+					qrMaxSize,
+					introQrPixel,
+					profileQrBackgroundRadius,
+					textMaxHeight,
+					photoSize);
+
+				p.drawPixmap(
+					(resultSize.width() - photoSize) / 2,
+					-photoSize / 2,
+					top.scaled(
+						Size(photoSize * style::DevicePixelRatio()),
+						Qt::IgnoreAspectRatio,
+						Qt::SmoothTransformation));
+			}
+			crl::on_main(weak, [=] {
+				state->saveButtonBusy = false;
+				auto mime = std::make_unique<QMimeData>();
+				mime->setImageData(std::move(image));
+				QGuiApplication::clipboard()->setMimeData(mime.release());
+				show->showToast(tr::lng_group_invite_qr_copied(tr::now));
+			});
+		});
 	});
+
+	if (const auto saveButton = state->saveButton) {
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			saveButton,
+			saveButton->height() / 2);
+		AddChildToWidgetCenter(saveButton, loadingAnimation);
+		loadingAnimation->showOn(state->saveButtonBusy.value());
+	}
+
 	const auto buttonWidth = box->width()
 		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
-	button->widthValue() | rpl::filter([=] {
-		return (button->widthNoMargins() != buttonWidth);
+	state->saveButton->widthValue() | rpl::filter([=] {
+		return (state->saveButton->widthNoMargins() != buttonWidth);
 	}) | rpl::start_with_next([=] {
-		button->resizeToWidth(buttonWidth);
-	}, button->lifetime());
+		state->saveButton->resizeToWidth(buttonWidth);
+	}, state->saveButton->lifetime());
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 }
 
