@@ -2042,7 +2042,7 @@ void GenerateItems(
 		const auto participant = Api::ChatParticipant(
 			action.vnew_participant(),
 			channel);
-		if (participant.subscriptionDate().isNull()) {
+		if (!participant.subscriptionDate()) {
 			return;
 		}
 		const auto participantPeer = channel->owner().peer(participant.id());
@@ -2050,13 +2050,15 @@ void GenerateItems(
 		const auto participantPeerLinkText = Ui::Text::Link(
 			participantPeer->name(),
 			QString());
+		const auto parsed = base::unixtime::parse(
+			participant.subscriptionDate());
 		addServiceMessageWithLink(
 			tr::lng_admin_log_subscription_extend(
 				tr::now,
 				lt_name,
 				participantPeerLinkText,
 				lt_date,
-				{ langDateTimeFull(participant.subscriptionDate()) },
+				{ langDateTimeFull(parsed) },
 				Ui::Text::WithEntities),
 			participantPeerLink);
 	};

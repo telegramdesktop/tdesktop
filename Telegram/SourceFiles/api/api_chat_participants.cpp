@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 
 #include "apiwrap.h"
-#include "base/unixtime.h"
 #include "boxes/add_contact_box.h" // ShowAddParticipantsError
 #include "boxes/peers/add_participants_box.h" // ChatInviteForbidden
 #include "data/data_changes.h"
@@ -269,14 +268,12 @@ ChatParticipant::ChatParticipant(
 		_type = Type::Member;
 		_by = peerToUser(peerFromUser(data.vinviter_id()));
 		if (data.vsubscription_until_date()) {
-			_subscriptionDate = base::unixtime::parse(
-				data.vsubscription_until_date()->v);
+			_subscriptionDate = data.vsubscription_until_date()->v;
 		}
 	}, [&](const MTPDchannelParticipant &data) {
 		_type = Type::Member;
 		if (data.vsubscription_until_date()) {
-			_subscriptionDate = base::unixtime::parse(
-				data.vsubscription_until_date()->v);
+			_subscriptionDate = data.vsubscription_until_date()->v;
 		}
 	}, [&](const MTPDchannelParticipantBanned &data) {
 		_restrictions = ChatRestrictionsInfo(data.vbanned_rights());
@@ -357,7 +354,7 @@ ChatAdminRightsInfo ChatParticipant::rights() const {
 	return _rights;
 }
 
-QDateTime ChatParticipant::subscriptionDate() const {
+TimeId ChatParticipant::subscriptionDate() const {
 	return _subscriptionDate;
 }
 
