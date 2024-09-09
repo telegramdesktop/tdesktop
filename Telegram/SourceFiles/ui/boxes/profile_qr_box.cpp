@@ -47,6 +47,14 @@ namespace {
 
 using Colors = std::vector<QColor>;
 
+[[nodiscard]] QMargins NoPhotoBackgroundMargins() {
+	return QMargins(
+		st::profileQrBackgroundMargins.left(),
+		st::profileQrBackgroundMargins.left(),
+		st::profileQrBackgroundMargins.right(),
+		st::profileQrBackgroundMargins.bottom());
+}
+
 [[nodiscard]] QImage TelegramQr(const Qr::Data &data, int pixel, int max) {
 	Expects(data.size > 0);
 
@@ -148,6 +156,7 @@ void Paint(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Ui::RpWidget*> topWidget,
 		const style::font &font,
+		rpl::producer<bool> userpicToggled,
 		rpl::producer<TextWithEntities> username,
 		rpl::producer<QString> links,
 		rpl::producer<Colors> bgs) {
@@ -162,29 +171,37 @@ void Paint(
 		QImage qrImage;
 		Colors backgroundColors;
 		QString text;
+		QMargins backgroundMargins;
 		int textWidth = 0;
 		int textMaxHeight = 0;
+		int photoSize = 0;
 	};
 	const auto result = Ui::CreateChild<Ui::RpWidget>(divider);
 	topWidget->setParent(result);
 	topWidget->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto state = result->lifetime().make_state<State>(
 		[=] { result->update(); });
-	const auto photoSize = st::defaultUserpicButton.photoSize;
-	const auto backgroundMargins = st::profileQrBackgroundMargins;
 	const auto qrMaxSize = st::boxWideWidth
 		- rect::m::sum::h(st::boxRowPadding)
-		- rect::m::sum::h(backgroundMargins);
+		- rect::m::sum::h(st::profileQrBackgroundMargins);
 	rpl::combine(
+		std::move(userpicToggled),
 		std::move(username),
 		std::move(bgs),
 		std::move(links),
 		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
 	) | rpl::start_with_next([=](
+			bool userpicToggled,
 			const TextWithEntities &username,
 			const Colors &backgroundColors,
 			const QString &link,
 			const auto &) {
+		state->backgroundMargins = userpicToggled
+			? st::profileQrBackgroundMargins
+			: NoPhotoBackgroundMargins();
+		state->photoSize = userpicToggled
+			? st::defaultUserpicButton.photoSize
+			: 0;
 		state->backgroundColors = backgroundColors;
 		state->text = username.text.toUpper();
 		state->textWidth = font->width(state->text);
@@ -197,15 +214,16 @@ void Paint(
 		const auto lines = int(state->textWidth / qrWidth) + 1;
 		state->textMaxHeight = font->height * lines;
 		result->resize(
-			qrMaxSize + rect::m::sum::h(backgroundMargins),
+			qrMaxSize + rect::m::sum::h(state->backgroundMargins),
 			qrMaxSize
-				+ rect::m::sum::v(backgroundMargins)
-				+ backgroundMargins.bottom()
+				+ rect::m::sum::v(state->backgroundMargins)
+				+ state->backgroundMargins.bottom()
 				+ state->textMaxHeight
-				+ photoSize);
+				+ state->photoSize);
 
 		divider->resize(container->width(), result->height());
 		result->moveToLeft((container->width() - result->width()) / 2, 0);
+		topWidget->setVisible(userpicToggled);
 		topWidget->moveToLeft(
 			(result->width() - topWidget->width()) / 2,
 			-std::numeric_limits<int>::min());
@@ -217,22 +235,28 @@ void Paint(
 		const auto size = (state->qrImage.size() / style::DevicePixelRatio());
 		const auto qrRect = Rect(
 			(result->width() - size.width()) / 2,
-			backgroundMargins.top() + photoSize / 2,
+			state->backgroundMargins.top() + state->photoSize / 2,
 			size);
-		p.translate(0, backgroundMargins.top() + photoSize / 2);
+		p.translate(
+			0,
+			st::profileQrBackgroundMargins.top() + state->photoSize / 2);
 		Paint(
 			p,
 			font,
 			state->text,
 			state->backgroundColors,
-			st::profileQrBackgroundMargins,
+			state->backgroundMargins,
 			state->qrImage,
 			qrRect,
 			qrMaxSize,
 			st::introQrPixel,
 			st::profileQrBackgroundRadius,
 			state->textMaxHeight,
-			photoSize);
+			state->photoSize);
+		if (!state->photoSize) {
+			return;
+		}
+		const auto photoSize = state->photoSize;
 		const auto top = Ui::GrabWidget(
 			topWidget,
 			QRect(),
@@ -263,6 +287,7 @@ void FillProfileQrBox(
 	struct State {
 		Ui::RpWidget* saveButton = nullptr;
 		rpl::variable<bool> saveButtonBusy = false;
+		rpl::variable<bool> userpicToggled = true;
 		rpl::variable<Colors> bgs;
 		Ui::Animations::Simple animation;
 		rpl::variable<int> chosen = 0;
@@ -286,11 +311,18 @@ void FillProfileQrBox(
 		box->verticalLayout(),
 		userpic,
 		state->font,
+		state->userpicToggled.value(),
 		Info::Profile::UsernameValue(peer->asUser()),
 		Info::Profile::LinkValue(peer) | rpl::map([](const auto &link) {
 			return link.url;
 		}),
 		state->bgs.value());
+
+	Ui::AddSkip(box->verticalLayout());
+	Ui::AddSubsectionTitle(
+		box->verticalLayout(),
+		tr::lng_userpic_builder_color_subtitle());
+
 	const auto themesContainer = box->addRow(
 		object_ptr<Ui::VerticalLayout>(box));
 
@@ -302,8 +334,7 @@ void FillProfileQrBox(
 		while (themesContainer->count()) {
 			delete themesContainer->widgetAt(0);
 		}
-		Ui::AddSkip(themesContainer);
-		Ui::AddSkip(themesContainer);
+
 		struct State {
 			Colors colors;
 			QImage image;
@@ -464,6 +495,26 @@ void FillProfileQrBox(
 		}, box->lifetime());
 	}
 
+	Ui::AddSkip(box->verticalLayout());
+	Ui::AddDivider(box->verticalLayout());
+	Ui::AddSkip(box->verticalLayout());
+	Ui::AddSubsectionTitle(
+		box->verticalLayout(),
+		tr::lng_profile_changed_photo_link());
+	const auto userpicToggle = box->verticalLayout()->add(
+		object_ptr<Ui::SettingsButton>(
+			box->verticalLayout(),
+			(peer->isUser()
+				? tr::lng_mediaview_profile_photo
+				: (peer->isChannel() && !peer->isMegagroup())
+				? tr::lng_mediaview_channel_photo
+				: tr::lng_mediaview_group_photo)(),
+			st::settingsButtonNoIcon));
+	userpicToggle->toggleOn(state->userpicToggled.value());
+	userpicToggle->setClickedCallback([=] {
+		state->userpicToggled = !state->userpicToggled.current();
+	});
+
 	auto buttonText = rpl::conditional(
 		state->saveButtonBusy.value() | rpl::map(rpl::mappers::_1),
 		rpl::single(QString()),
@@ -478,6 +529,7 @@ void FillProfileQrBox(
 			state->saveButton->resizeToWidth(buttonWidth);
 		}
 
+		const auto userpicToggled = state->userpicToggled.current();
 		const auto scale = style::kScaleDefault * 3;
 		const auto divider = std::max(1, style::Scale())
 			/ style::kScaleDefault;
@@ -498,14 +550,15 @@ void FillProfileQrBox(
 				style::ConvertScale(margins.bottom() / divider, scale));
 		};
 		const auto boxRowPadding = createMargins(st::boxRowPadding);
-		const auto backgroundMargins = createMargins(
-			st::profileQrBackgroundMargins);
+		const auto backgroundMargins = userpicToggled
+			? createMargins(st::profileQrBackgroundMargins)
+			: createMargins(NoPhotoBackgroundMargins());
 		const auto qrMaxSize = boxWideWidth
 			- rect::m::sum::h(boxRowPadding)
 			- rect::m::sum::h(backgroundMargins);
-		const auto photoSize = style::ConvertScale(
-			st::defaultUserpicButton.photoSize,
-			scale);
+		const auto photoSize = userpicToggled
+			? style::ConvertScale(st::defaultUserpicButton.photoSize, scale)
+			: 0;
 
 		const auto font = createFont(scale);
 		const auto username = rpl::variable<TextWithEntities>(
@@ -537,9 +590,10 @@ void FillProfileQrBox(
 				qrMaxSize + rect::m::sum::h(backgroundMargins),
 				qrMaxSize
 					+ rect::m::sum::v(backgroundMargins)
-					+ backgroundMargins.bottom()
 					+ textMaxHeight
-					+ photoSize);
+					+ (photoSize
+						? (backgroundMargins.bottom() + photoSize)
+						: 0));
 
 			const auto qrImageSize = qrImage.size()
 				/ style::DevicePixelRatio();
@@ -555,7 +609,9 @@ void FillProfileQrBox(
 			image.setDevicePixelRatio(style::DevicePixelRatio());
 			{
 				auto p = QPainter(&image);
-				p.translate(0, photoSize / 2 + backgroundMargins.top());
+				if (userpicToggled) {
+					p.translate(0, photoSize / 2 + backgroundMargins.top());
+				}
 				Paint(
 					p,
 					font,
@@ -570,13 +626,15 @@ void FillProfileQrBox(
 					textMaxHeight,
 					photoSize);
 
-				p.drawPixmap(
-					(resultSize.width() - photoSize) / 2,
-					-photoSize / 2,
-					top.scaled(
-						Size(photoSize * style::DevicePixelRatio()),
-						Qt::IgnoreAspectRatio,
-						Qt::SmoothTransformation));
+				if (userpicToggled) {
+					p.drawPixmap(
+						(resultSize.width() - photoSize) / 2,
+						-photoSize / 2,
+						top.scaled(
+							Size(photoSize * style::DevicePixelRatio()),
+							Qt::IgnoreAspectRatio,
+							Qt::SmoothTransformation));
+				}
 			}
 			crl::on_main(weak, [=] {
 				state->saveButtonBusy = false;
