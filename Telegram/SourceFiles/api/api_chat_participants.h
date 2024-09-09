@@ -61,6 +61,9 @@ public:
 	ChatAdminRightsInfo rights() const;
 
 	TimeId subscriptionDate() const;
+	TimeId promotedSince() const;
+	TimeId restrictedSince() const;
+	TimeId memberSince() const;
 
 	Type type() const;
 	QString rank() const;
@@ -76,6 +79,7 @@ private:
 
 	QString _rank;
 	TimeId _subscriptionDate = 0;
+	TimeId _date = 0;
 
 	ChatRestrictionsInfo _restrictions;
 	ChatAdminRightsInfo _rights;

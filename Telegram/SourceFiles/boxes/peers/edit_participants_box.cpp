@@ -387,6 +387,24 @@ QString ParticipantsAdditionalData::adminRank(
 	return (i != end(_adminRanks)) ? i->second : QString();
 }
 
+TimeId ParticipantsAdditionalData::adminPromotedSince(
+		not_null<UserData*> user) const {
+	const auto i = _adminPromotedSince.find(user);
+	return (i != end(_adminPromotedSince)) ? i->second : TimeId(0);
+}
+
+TimeId ParticipantsAdditionalData::restrictedSince(
+		not_null<PeerData*> peer) const {
+	const auto i = _restrictedSince.find(peer);
+	return (i != end(_restrictedSince)) ? i->second : TimeId(0);
+}
+
+TimeId ParticipantsAdditionalData::memberSince(
+		not_null<UserData*> user) const {
+	const auto i = _memberSince.find(user);
+	return (i != end(_memberSince)) ? i->second : TimeId(0);
+}
+
 auto ParticipantsAdditionalData::restrictedRights(
 	not_null<PeerData*> participant) const
 -> std::optional<ChatRestrictionsInfo> {
@@ -689,6 +707,11 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 	} else {
 		_adminRanks.remove(user);
 	}
+	if (data.promotedSince()) {
+		_adminPromotedSince[user] = data.promotedSince();
+	} else {
+		_adminPromotedSince.remove(user);
+	}
 	if (const auto by = _peer->owner().userLoaded(data.by())) {
 		const auto i = _adminPromotedBy.find(user);
 		if (i == _adminPromotedBy.end()) {
@@ -740,6 +763,11 @@ PeerData *ParticipantsAdditionalData::applyBanned(
 		_kicked.emplace(participant);
 	} else {
 		_kicked.erase(participant);
+	}
+	if (data.restrictedSince()) {
+		_restrictedSince[participant] = data.restrictedSince();
+	} else {
+		_restrictedSince.remove(participant);
 	}
 	_restrictedRights[participant] = data.restrictions();
 	if (const auto by = _peer->owner().userLoaded(data.by())) {
