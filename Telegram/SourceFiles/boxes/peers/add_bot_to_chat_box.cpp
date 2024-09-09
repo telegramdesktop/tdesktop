@@ -170,11 +170,15 @@ void AddBotToGroupBoxController::requestExistingRights(
 				channel);
 			_existingRights = participant.rights().flags;
 			_existingRank = participant.rank();
+			_promotedSince = participant.promotedSince();
+			_promotedBy = participant.by();
 			addBotToGroup(_existingRightsChannel);
 		});
 	}).fail([=] {
 		_existingRights = ChatAdminRights();
 		_existingRank = QString();
+		_promotedSince = 0;
+		_promotedBy = 0;
 		addBotToGroup(_existingRightsChannel);
 	}).send();
 }
@@ -191,6 +195,8 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		_existingRights = {};
 		_existingRank = QString();
 		_existingRightsChannel = nullptr;
+		_promotedSince = 0;
+		_promotedBy = 0;
 		_bot->session().api().request(_existingRightsRequestId).cancel();
 	}
 	const auto requestedAddAdmin = (_scope == Scope::GroupAdmin)
@@ -241,9 +247,12 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 			bot,
 			ChatAdminRightsInfo(rights),
 			_existingRank,
+			_promotedSince,
+			_promotedBy ? chat->owner().user(_promotedBy) : nullptr,
 			EditAdminBotFields{
 				_token,
-				_existingRights.value_or(ChatAdminRights()) });
+				_existingRights.value_or(ChatAdminRights()),
+			});
 		box->setSaveCallback(saveCallback);
 		controller->show(std::move(box));
 	} else {

@@ -206,6 +206,8 @@ EditAdminBox::EditAdminBox(
 	not_null<UserData*> user,
 	ChatAdminRightsInfo rights,
 	const QString &rank,
+	TimeId promotedSince,
+	UserData *by,
 	std::optional<EditAdminBotFields> addingBot)
 : EditParticipantBox(
 	nullptr,
@@ -214,6 +216,8 @@ EditAdminBox::EditAdminBox(
 	(rights.flags != 0))
 , _oldRights(rights)
 , _oldRank(rank)
+, _promotedSince(promotedSince)
+, _by(by)
 , _addingBot(std::move(addingBot)) {
 }
 
@@ -288,8 +292,26 @@ void EditAdminBox::prepare() {
 			object_ptr<Ui::VerticalLayout>(this)));
 	const auto inner = _adminControlsWrap->entity();
 
-	Ui::AddDivider(inner);
-	Ui::AddSkip(inner);
+	if (_promotedSince) {
+		const auto parsed = base::unixtime::parse(_promotedSince);
+		const auto label = Ui::AddDividerText(
+			inner,
+			tr::lng_rights_about_by(
+				lt_user,
+				rpl::single(_by
+					? Ui::Text::Link(_by->name(), 1)
+					: TextWithEntities(QString::fromUtf8("\U0001F47B"))),
+				lt_date,
+				rpl::single(TextWithEntities{ langDateTimeFull(parsed) }),
+				Ui::Text::WithEntities));
+		if (_by) {
+			label->setLink(1, _by->createOpenLink());
+		}
+		Ui::AddSkip(inner);
+	} else {
+		Ui::AddDivider(inner);
+		Ui::AddSkip(inner);
+	}
 
 	const auto chat = peer()->asChat();
 	const auto channel = peer()->asChannel();

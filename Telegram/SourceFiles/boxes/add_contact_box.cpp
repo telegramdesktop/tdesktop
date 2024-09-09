@@ -217,7 +217,9 @@ void ShowAddParticipantsError(
 					channel,
 					user,
 					ChatAdminRightsInfo(),
-					QString());
+					QString(),
+					0,
+					nullptr);
 				box->setSaveCallback(saveCallback);
 				*weak = box.data();
 				show->showBox(std::move(box));

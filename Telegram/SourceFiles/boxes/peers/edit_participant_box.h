@@ -79,6 +79,8 @@ public:
 		not_null<UserData*> user,
 		ChatAdminRightsInfo rights,
 		const QString &rank,
+		TimeId promotedSince,
+		UserData *by,
 		std::optional<EditAdminBotFields> addingBot = {});
 
 	void setSaveCallback(
@@ -130,6 +132,8 @@ private:
 	mtpRequestId _transferRequestId = 0;
 	Fn<void()> _save, _finishSave;
 
+	TimeId _promotedSince = 0;
+	UserData *_by = nullptr;
 	std::optional<EditAdminBotFields> _addingBot;
 
 };

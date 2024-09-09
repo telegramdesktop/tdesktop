@@ -1748,7 +1748,9 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 		_peer,
 		user,
 		currentRights,
-		_additional.adminRank(user));
+		_additional.adminRank(user),
+		_additional.adminPromotedSince(user),
+		_additional.adminPromotedBy(user));
 	if (_additional.canAddOrEditAdmin(user)) {
 		const auto done = crl::guard(this, [=](
 				ChatAdminRightsInfo newRights,

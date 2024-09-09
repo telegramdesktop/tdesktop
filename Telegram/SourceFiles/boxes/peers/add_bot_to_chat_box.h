@@ -65,6 +65,8 @@ private:
 	mtpRequestId _existingRightsRequestId = 0;
 	std::optional<ChatAdminRights> _existingRights;
 	QString _existingRank;
+	TimeId _promotedSince = 0;
+	UserId _promotedBy = 0;
 
 	rpl::event_stream<not_null<PeerData*>> _groups;
 	rpl::event_stream<not_null<PeerData*>> _channels;
