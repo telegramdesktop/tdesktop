@@ -1,3 +1,9 @@
+5.5.2 (09.09.24)
+
+- Support two bottom buttons in web apps.
+- Fix text layout outside of the message bubble glitch.
+- Don't stop video when dragging media viewer in window mode.
+
 5.5.1 (06.09.24)
 
 - Fix crash in peer short info box.
