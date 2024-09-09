@@ -6050,7 +6050,7 @@ void OverlayWidget::handleMouseRelease(
 	} else if (_over == Over::Video && _down == Over::Video) {
 		if (_stories) {
 			_stories->contentPressed(false);
-		} else if (_streamed) {
+		} else if (_streamed && !_window->mousePressCancelled()) {
 			playbackPauseResume();
 		}
 	} else if (_pressed) {
