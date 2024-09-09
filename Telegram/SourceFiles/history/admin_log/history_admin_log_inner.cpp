@@ -1509,15 +1509,28 @@ void InnerWidget::suggestRestrictParticipant(
 	}
 	_menu->addAction(tr::lng_context_restrict_user(tr::now), [=] {
 		const auto user = participant->asUser();
-		auto editRestrictions = [=](bool hasAdminRights, ChatRestrictionsInfo currentRights) {
+		auto editRestrictions = [=](
+				bool hasAdminRights,
+				ChatRestrictionsInfo currentRights,
+				UserData *by,
+				TimeId since) {
 			auto weak = QPointer<InnerWidget>(this);
 			auto weakBox = std::make_shared<QPointer<Ui::BoxContent>>();
-			auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights);
+			auto box = Box<EditRestrictedBox>(
+				_channel,
+				user,
+				hasAdminRights,
+				currentRights,
+				by,
+				since);
 			box->setSaveCallback([=](
 					ChatRestrictionsInfo oldRights,
 					ChatRestrictionsInfo newRights) {
 				if (weak) {
-					weak->restrictParticipant(participant, oldRights, newRights);
+					weak->restrictParticipant(
+						participant,
+						oldRights,
+						newRights);
 				}
 				if (*weakBox) {
 					(*weakBox)->closeBox();
@@ -1544,7 +1557,7 @@ void InnerWidget::suggestRestrictParticipant(
 			});
 			*weakBox = _controller->show(Ui::MakeConfirmBox({ text, sure }));
 		} else if (base::contains(_admins, user)) {
-			editRestrictions(true, ChatRestrictionsInfo());
+			editRestrictions(true, {}, nullptr, 0);
 		} else {
 			_api.request(MTPchannels_GetParticipant(
 				_channel->inputChannel,
@@ -1558,15 +1571,16 @@ void InnerWidget::suggestRestrictParticipant(
 				using Type = Api::ChatParticipant::Type;
 				if (participant.type() == Type::Creator
 					|| participant.type() == Type::Admin) {
-					editRestrictions(true, {});
-				} else if (participant.type() == Type::Restricted
-					|| participant.type() == Type::Banned) {
+					editRestrictions(true, {}, nullptr, 0);
+				} else if (const auto since = participant.restrictedSince()) {
 					editRestrictions(
 						false,
-						participant.restrictions());
+						participant.restrictions(),
+						user->owner().user(participant.by()),
+						since);
 				}
 			}).fail([=] {
-				editRestrictions(false, ChatRestrictionsInfo());
+				editRestrictions(false, {}, nullptr, 0);
 			}).send();
 		}
 	}, &st::menuIconPermissions);

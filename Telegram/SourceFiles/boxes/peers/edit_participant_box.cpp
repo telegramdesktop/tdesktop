@@ -705,9 +705,13 @@ EditRestrictedBox::EditRestrictedBox(
 	not_null<PeerData*> peer,
 	not_null<UserData*> user,
 	bool hasAdminRights,
-	ChatRestrictionsInfo rights)
+	ChatRestrictionsInfo rights,
+	UserData *by,
+	TimeId since)
 : EditParticipantBox(nullptr, peer, user, hasAdminRights)
-, _oldRights(rights) {
+, _oldRights(rights)
+, _by(by)
+, _since(since) {
 }
 
 void EditRestrictedBox::prepare() {
@@ -781,6 +785,29 @@ void EditRestrictedBox::prepare() {
 	//		this,
 	//		tr::lng_rights_chat_banned_block(tr::now),
 	//		st::boxLinkButton));
+
+	if (_since) {
+		const auto parsed = base::unixtime::parse(_since);
+		const auto inner = addControl(object_ptr<Ui::VerticalLayout>(this));
+		const auto isBanned = (_oldRights.flags
+			& ChatRestriction::ViewMessages);
+		Ui::AddSkip(inner);
+		const auto label = Ui::AddDividerText(
+			inner,
+			(isBanned
+				? tr::lng_rights_chat_banned_by
+				: tr::lng_rights_chat_restricted_by)(
+					lt_user,
+					rpl::single(_by
+						? Ui::Text::Link(_by->name(), 1)
+						: TextWithEntities(QString::fromUtf8("\U0001F47B"))),
+					lt_date,
+					rpl::single(TextWithEntities{ langDateTimeFull(parsed) }),
+					Ui::Text::WithEntities));
+		if (_by) {
+			label->setLink(1, _by->createOpenLink());
+		}
+	}
 
 	if (canSave()) {
 		const auto save = [=, value = getRestrictions] {

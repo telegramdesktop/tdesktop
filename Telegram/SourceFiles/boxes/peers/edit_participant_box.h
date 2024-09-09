@@ -146,7 +146,9 @@ public:
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		bool hasAdminRights,
-		ChatRestrictionsInfo rights);
+		ChatRestrictionsInfo rights,
+		UserData *by,
+		TimeId since);
 
 	void setSaveCallback(
 			Fn<void(ChatRestrictionsInfo, ChatRestrictionsInfo)> callback) {
@@ -170,6 +172,8 @@ private:
 	TimeId getRealUntilValue() const;
 
 	const ChatRestrictionsInfo _oldRights;
+	UserData *_by = nullptr;
+	TimeId _since = 0;
 	TimeId _until = 0;
 	Fn<void(ChatRestrictionsInfo, ChatRestrictionsInfo)> _saveCallback;
 

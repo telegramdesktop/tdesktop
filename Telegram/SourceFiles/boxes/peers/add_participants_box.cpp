@@ -1354,7 +1354,9 @@ void AddSpecialBoxController::showRestricted(
 		_peer,
 		user,
 		_additional.adminRights(user).has_value(),
-		currentRights);
+		currentRights,
+		_additional.restrictedBy(user),
+		_additional.restrictedSince(user));
 	if (_additional.canRestrictParticipant(user)) {
 		const auto done = crl::guard(this, [=](
 				ChatRestrictionsInfo newRights) {
