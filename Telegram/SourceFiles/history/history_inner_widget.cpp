@@ -4275,32 +4275,32 @@ auto HistoryInner::findViewForPinnedTracking(int top) const
 	return { nullptr, 0 };
 }
 
-void HistoryInner::refreshAboutView() {
+void HistoryInner::refreshAboutView(bool force) {
+	const auto refresh = [&] {
+		if (force) {
+			_aboutView = nullptr;
+		}
+		if (!_aboutView) {
+			_aboutView = std::make_unique<HistoryView::AboutView>(
+				_history,
+				_history->delegateMixin()->delegate());
+		}
+	};
 	if (const auto user = _peer->asUser()) {
 		if (const auto info = user->botInfo.get()) {
-			if (!_aboutView) {
-				_aboutView = std::make_unique<HistoryView::AboutView>(
-					_history,
-					_history->delegateMixin()->delegate());
-			}
+			refresh();
 			if (!info->inited) {
 				session().api().requestFullPeer(user);
 			}
 		} else if (user->meRequiresPremiumToWrite()
 			&& !user->session().premium()
 			&& !historyHeight()) {
-			if (!_aboutView) {
-				_aboutView = std::make_unique<HistoryView::AboutView>(
-					_history,
-					_history->delegateMixin()->delegate());
-			}
+			refresh();
 		} else if (!historyHeight()) {
 			if (!user->isFullLoaded()) {
 				session().api().requestFullPeer(user);
-			} else if (!_aboutView) {
-				_aboutView = std::make_unique<HistoryView::AboutView>(
-					_history,
-					_history->delegateMixin()->delegate());
+			} else {
+				refresh();
 			}
 		}
 	}

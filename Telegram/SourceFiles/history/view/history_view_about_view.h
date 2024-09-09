@@ -36,6 +36,7 @@ public:
 private:
 	[[nodiscard]] AdminLog::OwnedItem makeAboutBot(not_null<BotInfo*> info);
 	[[nodiscard]] AdminLog::OwnedItem makePremiumRequired();
+	[[nodiscard]] AdminLog::OwnedItem makeBlocked();
 	void makeIntro(not_null<UserData*> user);
 	void setItem(AdminLog::OwnedItem item, DocumentData *sticker);
 	void setHelloChosen(not_null<DocumentData*> sticker);

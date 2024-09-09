@@ -201,7 +201,7 @@ public:
 	[[nodiscard]] std::pair<Element*, int> findViewForPinnedTracking(
 		int top) const;
 
-	void refreshAboutView();
+	void refreshAboutView(bool force = false);
 	void notifyMigrateUpdated();
 
 	// Ui::AbstractTooltipShower interface.

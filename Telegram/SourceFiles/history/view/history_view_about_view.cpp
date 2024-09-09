@@ -245,6 +245,8 @@ bool AboutView::refresh() {
 			} else if (user->meRequiresPremiumToWrite()
 				&& !user->session().premium()) {
 				setItem(makePremiumRequired(), nullptr);
+			} else if (user->isBlocked()) {
+				setItem(makeBlocked(), nullptr);
 			} else {
 				makeIntro(user);
 			}
@@ -391,6 +393,19 @@ AdminLog::OwnedItem AboutView::makePremiumRequired() {
 		result.get(),
 		std::make_unique<PremiumRequiredBox>(result.get())));
 	return result;
+}
+
+AdminLog::OwnedItem AboutView::makeBlocked() {
+	const auto item = _history->makeMessage({
+		.id = _history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeAboutView
+			| MessageFlag::FakeHistoryItem
+			| MessageFlag::Local),
+		.from = _history->peer->id,
+	}, PreparedServiceText{
+		{ tr::lng_chat_intro_default_title(tr::now) }
+	});
+	return AdminLog::OwnedItem(_delegate, item);
 }
 
 } // namespace HistoryView
