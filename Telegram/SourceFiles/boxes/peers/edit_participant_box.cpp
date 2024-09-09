@@ -300,7 +300,7 @@ void EditAdminBox::prepare() {
 				lt_user,
 				rpl::single(_by
 					? Ui::Text::Link(_by->name(), 1)
-					: TextWithEntities(QString::fromUtf8("\U0001F47B"))),
+					: TextWithEntities{ QString::fromUtf8("\U0001F47B") }),
 				lt_date,
 				rpl::single(TextWithEntities{ langDateTimeFull(parsed) }),
 				Ui::Text::WithEntities));
@@ -405,7 +405,7 @@ void EditAdminBox::prepare() {
 			) | rpl::map(
 				(_1 & Flag::AddAdmins) != 0
 			) | rpl::distinct_until_changed(
-			) | rpl::map([=](bool canAddAdmins) {
+			) | rpl::map([=](bool canAddAdmins) -> rpl::producer<QString> {
 				const auto empty = (amCreator() && user()->isSelf());
 				aboutAddAdminsInner->toggle(!empty, anim::type::instant);
 				emptyAboutAddAdminsInner->toggle(empty, anim::type::instant);
@@ -836,7 +836,7 @@ void EditRestrictedBox::prepare() {
 					lt_user,
 					rpl::single(_by
 						? Ui::Text::Link(_by->name(), 1)
-						: TextWithEntities(QString::fromUtf8("\U0001F47B"))),
+						: TextWithEntities{ QString::fromUtf8("\U0001F47B") }),
 					lt_date,
 					rpl::single(TextWithEntities{ langDateTimeFull(parsed) }),
 					Ui::Text::WithEntities));

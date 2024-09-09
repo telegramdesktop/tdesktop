@@ -248,7 +248,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 			ChatAdminRightsInfo(rights),
 			_existingRank,
 			_promotedSince,
-			_promotedBy ? chat->owner().user(_promotedBy) : nullptr,
+			_promotedBy ? chat->owner().user(_promotedBy).get() : nullptr,
 			EditAdminBotFields{
 				_token,
 				_existingRights.value_or(ChatAdminRights()),
