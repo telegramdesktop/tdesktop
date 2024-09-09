@@ -1550,20 +1550,20 @@ void InnerWidget::suggestRestrictParticipant(
 				_channel->inputChannel,
 				user->input
 			)).done([=](const MTPchannels_ChannelParticipant &result) {
-				Expects(result.type() == mtpc_channels_channelParticipant);
+				user->owner().processUsers(result.data().vusers());
 
-				auto &participant = result.c_channels_channelParticipant();
-				_channel->owner().processUsers(participant.vusers());
-				auto type = participant.vparticipant().type();
-				if (type == mtpc_channelParticipantBanned) {
-					auto &banned = participant.vparticipant().c_channelParticipantBanned();
+				const auto participant = Api::ChatParticipant(
+					result.data().vparticipant(),
+					user);
+				using Type = Api::ChatParticipant::Type;
+				if (participant.type() == Type::Creator
+					|| participant.type() == Type::Admin) {
+					editRestrictions(true, {});
+				} else if (participant.type() == Type::Restricted
+					|| participant.type() == Type::Banned) {
 					editRestrictions(
 						false,
-						ChatRestrictionsInfo(banned.vbanned_rights()));
-				} else {
-					auto hasAdminRights = (type == mtpc_channelParticipantAdmin)
-						|| (type == mtpc_channelParticipantCreator);
-					editRestrictions(hasAdminRights, ChatRestrictionsInfo());
+						participant.restrictions());
 				}
 			}).fail([=] {
 				editRestrictions(false, ChatRestrictionsInfo());
