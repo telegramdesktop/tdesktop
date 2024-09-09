@@ -110,7 +110,6 @@ private:
 	}
 	void finishAddAdmin();
 	void refreshButtons();
-	void refreshAboutAddAdminsText(bool canAddAdmins);
 	bool canTransferOwnership() const;
 	not_null<Ui::SlideWrap<Ui::RpWidget>*> setupTransferButton(
 		not_null<Ui::VerticalLayout*> container,
@@ -127,7 +126,6 @@ private:
 	Ui::Checkbox *_addAsAdmin = nullptr;
 	Ui::SlideWrap<Ui::VerticalLayout> *_adminControlsWrap = nullptr;
 	Ui::InputField *_rank = nullptr;
-	QPointer<Ui::FlatLabel> _aboutAddAdmins;
 	mtpRequestId _checkTransferRequestId = 0;
 	mtpRequestId _transferRequestId = 0;
 	Fn<void()> _save, _finishSave;
