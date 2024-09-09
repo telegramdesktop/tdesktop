@@ -129,7 +129,9 @@ namespace {
 		not_null<Window::SessionController*> controller) {
 	using Limit = HistoryView::Controls::CharactersLimitLabel;
 
-	const auto wrap = box->verticalLayout()->add(
+	const auto bottomContainer = box->setPinnedToBottomContent(
+		object_ptr<Ui::VerticalLayout>(box));
+	const auto wrap = bottomContainer->add(
 		object_ptr<Ui::RpWidget>(box),
 		st::boxRowPadding);
 	const auto input = Ui::CreateChild<Ui::InputField>(
@@ -233,6 +235,7 @@ void SendGifWithCaptionBox(
 	}
 	box->setTitle(tr::lng_send_gif_with_caption());
 	box->setWidth(st::boxWidth);
+	box->getDelegate()->setStyle(st::sendGifBox);
 
 	const auto container = box->verticalLayout();
 	[[maybe_unused]] const auto gifWidget = AddGifWidget(
