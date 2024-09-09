@@ -105,11 +105,22 @@ private:
 	icon->paint(p, iconLeft, myIconTop, size);
 
 	const auto paintName = [&](const QString &text, int top) {
-		const auto &font = st.style.font;
-		p.drawText(
-			QRect(0, top, column, font->height),
-			font->elided(text, available),
-			style::al_top);
+		auto string = Ui::Text::String(
+			st.style,
+			text,
+			kDefaultTextOptions,
+			available);
+		string.draw(p, {
+			.position = QPoint(
+				std::max(
+					(column - string.maxWidth()) / 2,
+					skip),
+				top),
+			.outerWidth = available,
+			.availableWidth = available,
+			.align = style::al_left,
+			.elisionLines = 1,
+		});
 	};
 	p.setFont(st.style.font);
 	p.setPen(st.textFg);

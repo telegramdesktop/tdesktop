@@ -1114,7 +1114,7 @@ QString FilterChatStatusText(not_null<PeerData*> peer) {
 				? tr::lng_chat_status_subscribers
 				: tr::lng_chat_status_members)(
 					tr::now,
-					lt_count,
+					lt_count_decimal,
 					channel->membersCount());
 		}
 	}
