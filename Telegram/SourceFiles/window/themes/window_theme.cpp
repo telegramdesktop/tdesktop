@@ -1503,6 +1503,7 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 		{ "section_header_text_color", st::windowActiveTextFg },
 		{ "subtitle_text_color", st::windowSubTextFg },
 		{ "destructive_text_color", st::attentionButtonFg },
+		{ "bottom_bar_bg_color", st::windowBg },
 	};
 	auto object = QJsonObject();
 	const auto wrap = [](QColor color) {

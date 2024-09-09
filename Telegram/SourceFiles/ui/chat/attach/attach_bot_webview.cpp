@@ -48,6 +48,26 @@ constexpr auto kProgressOpacity = 0.3;
 constexpr auto kLightnessThreshold = 128;
 constexpr auto kLightnessDelta = 32;
 
+struct ButtonArgs {
+	bool isActive = false;
+	bool isVisible = false;
+	bool isProgressVisible = false;
+	QString text;
+};
+
+[[nodiscard]] RectPart ParsePosition(const QString &position) {
+	if (position == u"left"_q) {
+		return RectPart::Left;
+	} else if (position == u"top"_q) {
+		return RectPart::Top;
+	} else if (position == u"right"_q) {
+		return RectPart::Right;
+	} else if (position == u"bottom"_q) {
+		return RectPart::Bottom;
+	}
+	return RectPart::Left;
+}
+
 [[nodiscard]] QJsonObject ParseMethodArgs(const QString &json) {
 	if (json.isEmpty()) {
 		return {};
@@ -99,6 +119,15 @@ constexpr auto kLightnessDelta = 32;
 		alpha);
 }
 
+[[nodiscard]] const style::color *LookupNamedColor(const QString &key) {
+	if (key == u"secondary_bg_color"_q) {
+		return &st::boxDividerBg;
+	} else if (key == u"bottom_bar_bg_color"_q) {
+		return &st::windowBg;
+	}
+	return nullptr;
+}
+
 } // namespace
 
 class Panel::Button final : public RippleButton {
@@ -107,8 +136,11 @@ public:
 	~Button();
 
 	void updateBg(QColor bg);
+	void updateBg(not_null<const style::color*> paletteBg);
 	void updateFg(QColor fg);
-	void updateArgs(MainButtonArgs &&args);
+	void updateFg(not_null<const style::color*> paletteFg);
+
+	void updateArgs(ButtonArgs &&args);
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -127,6 +159,9 @@ private:
 	QColor _fg;
 	style::owned_color _bg;
 	RoundRect _roundRect;
+
+	rpl::lifetime _bgLifetime;
+	rpl::lifetime _fgLifetime;
 
 };
 
@@ -171,15 +206,33 @@ Panel::Button::~Button() = default;
 void Panel::Button::updateBg(QColor bg) {
 	_bg.update(bg);
 	_roundRect.setColor(_bg.color());
+	_bgLifetime.destroy();
 	update();
+}
+
+void Panel::Button::updateBg(not_null<const style::color*> paletteBg) {
+	updateBg((*paletteBg)->c);
+	_bgLifetime = style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		updateBg((*paletteBg)->c);
+	});
 }
 
 void Panel::Button::updateFg(QColor fg) {
 	_fg = fg;
+	_fgLifetime.destroy();
 	update();
 }
 
-void Panel::Button::updateArgs(MainButtonArgs &&args) {
+void Panel::Button::updateFg(not_null<const style::color*> paletteFg) {
+	updateFg((*paletteFg)->c);
+	_fgLifetime = style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		updateFg((*paletteFg)->c);
+	});
+}
+
+void Panel::Button::updateArgs(ButtonArgs &&args) {
 	_textFull = std::move(args.text);
 	setDisabled(!args.isActive);
 	setPointerCursor(false);
@@ -266,10 +319,7 @@ void Panel::Button::setupProgressGeometry() {
 void Panel::Button::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	_roundRect.paintSomeRounded(
-		p,
-		rect().marginsAdded({ 0, st::callRadius * 2, 0, 0 }),
-		RectPart::BottomLeft | RectPart::BottomRight);
+	_roundRect.paint(p, rect());
 
 	if (!isDisabled()) {
 		const auto ripple = ResolveRipple(_bg.color()->c);
@@ -292,12 +342,7 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 }
 
 QImage Panel::Button::prepareRippleMask() const {
-	return RippleAnimation::MaskByDrawer(size(), false, [&](QPainter &p) {
-		p.drawRoundedRect(
-			rect().marginsAdded({ 0, st::callRadius * 2, 0, 0 }),
-			st::callRadius,
-			st::callRadius);
-	});
+	return RippleAnimation::RoundRectMask(size(), st::callRadius);
 }
 
 QPoint Panel::Button::prepareRippleStartPosition() const {
@@ -599,7 +644,7 @@ void Panel::createWebviewBottom() {
 	) | rpl::start_with_next([=](QRect inner, int height) {
 		bottom->move(inner.x(), inner.y() + inner.height() - height);
 		bottom->resizeToWidth(inner.width());
-		updateFooterHeight();
+		layoutButtons();
 	}, bottom->lifetime());
 }
 
@@ -633,7 +678,9 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		}
 		if (_webviewBottom.get() == bottom) {
 			_webviewBottom = nullptr;
+			_secondaryButton = nullptr;
 			_mainButton = nullptr;
+			_bottomButtonsBg = nullptr;
 		}
 	});
 	if (!raw->widget()) {
@@ -655,7 +702,6 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		});
 	});
 
-	updateFooterHeight();
 	rpl::combine(
 		container->geometryValue(),
 		_footerHeight.value()
@@ -681,7 +727,9 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		} else if (command == "web_app_switch_inline_query") {
 			switchInlineQueryMessage(arguments);
 		} else if (command == "web_app_setup_main_button") {
-			processMainButtonMessage(arguments);
+			processButtonMessage(_mainButton, arguments);
+		} else if (command == "web_app_setup_secondary_button") {
+			processButtonMessage(_secondaryButton, arguments);
 		} else if (command == "web_app_setup_back_button") {
 			processBackButtonMessage(arguments);
 		} else if (command == "web_app_setup_settings_button") {
@@ -714,6 +762,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			requestClipboardText(arguments);
 		} else if (command == "web_app_set_header_color") {
 			processHeaderColor(arguments);
+		} else if (command == "web_app_set_bottom_bar_color") {
+			processBottomBarColor(arguments);
 		} else if (command == "share_score") {
 			_delegate->botHandleMenuButton(MenuButton::ShareGame);
 		}
@@ -745,6 +795,7 @@ postEvent: function(eventType, eventData) {
 		return false;
 	}
 
+	layoutButtons();
 	setupProgressGeometry();
 
 	base::qt_signal_producer(
@@ -1096,12 +1147,12 @@ void Panel::requestClipboardText(const QJsonObject &args) {
 }
 
 bool Panel::allowOpenLink() const {
-	const auto now = crl::now();
-	if (_mainButtonLastClick
-		&& _mainButtonLastClick + kProcessClickTimeout >= now) {
-		_mainButtonLastClick = 0;
-		return true;
-	}
+	//const auto now = crl::now();
+	//if (_mainButtonLastClick
+	//	&& _mainButtonLastClick + kProcessClickTimeout >= now) {
+	//	_mainButtonLastClick = 0;
+	//	return true;
+	//}
 	return true;
 }
 
@@ -1109,12 +1160,12 @@ bool Panel::allowClipboardQuery() const {
 	if (!_allowClipboardRead) {
 		return false;
 	}
-	const auto now = crl::now();
-	if (_mainButtonLastClick
-		&& _mainButtonLastClick + kProcessClickTimeout >= now) {
-		_mainButtonLastClick = 0;
-		return true;
-	}
+	//const auto now = crl::now();
+	//if (_mainButtonLastClick
+	//	&& _mainButtonLastClick + kProcessClickTimeout >= now) {
+	//	_mainButtonLastClick = 0;
+	//	return true;
+	//}
 	return true;
 }
 
@@ -1157,14 +1208,16 @@ void Panel::setupClosingBehaviour(const QJsonObject &args) {
 	_closeNeedConfirmation = args["need_confirmation"].toBool();
 }
 
-void Panel::processMainButtonMessage(const QJsonObject &args) {
+void Panel::processButtonMessage(
+		std::unique_ptr<Button> &button,
+		const QJsonObject &args) {
 	if (args.isEmpty()) {
 		_delegate->botClose();
 		return;
 	}
 
 	const auto shown = [&] {
-		return _mainButton && !_mainButton->isHidden();
+		return button && !button->isHidden();
 	};
 	const auto wasShown = shown();
 	const auto guard = gsl::finally([&] {
@@ -1175,42 +1228,38 @@ void Panel::processMainButtonMessage(const QJsonObject &args) {
 		}
 	});
 
-	if (!_mainButton) {
-		if (args["is_visible"].toBool()) {
-			createMainButton();
+	const auto text = args["text"].toString().trimmed();
+	const auto visible = args["is_visible"].toBool() && !text.isEmpty();
+	if (!button) {
+		if (visible) {
+			createButton(button);
+			_bottomButtonsBg->show();
 		} else {
 			return;
 		}
 	}
 
 	if (const auto bg = ParseColor(args["color"].toString())) {
-		_mainButton->updateBg(*bg);
-		_bgLifetime.destroy();
+		button->updateBg(*bg);
 	} else {
-		_mainButton->updateBg(st::windowBgActive->c);
-		_bgLifetime = style::PaletteChanged(
-		) | rpl::start_with_next([=] {
-			_mainButton->updateBg(st::windowBgActive->c);
-		});
+		button->updateBg(&st::windowBgActive);
 	}
 
 	if (const auto fg = ParseColor(args["text_color"].toString())) {
-		_mainButton->updateFg(*fg);
-		_fgLifetime.destroy();
+		button->updateFg(*fg);
 	} else {
-		_mainButton->updateFg(st::windowFgActive->c);
-		_fgLifetime = style::PaletteChanged(
-		) | rpl::start_with_next([=] {
-			_mainButton->updateFg(st::windowFgActive->c);
-		});
+		button->updateFg(&st::windowFgActive);
 	}
 
-	_mainButton->updateArgs({
+	button->updateArgs({
 		.isActive = args["is_active"].toBool(),
-		.isVisible = args["is_visible"].toBool(),
+		.isVisible = visible,
 		.isProgressVisible = args["is_progress_visible"].toBool(),
 		.text = args["text"].toString(),
 	});
+	if (button.get() == _secondaryButton.get()) {
+		_secondaryPosition = ParsePosition(args["position"].toString());
+	}
 }
 
 void Panel::processBackButtonMessage(const QJsonObject &args) {
@@ -1225,11 +1274,12 @@ void Panel::processHeaderColor(const QJsonObject &args) {
 	if (const auto color = ParseColor(args["color"].toString())) {
 		_widget->overrideTitleColor(color);
 		_headerColorLifetime.destroy();
-	} else if (args["color_key"].toString() == u"secondary_bg_color"_q) {
-		_widget->overrideTitleColor(st::boxDividerBg->c);
+	} else if (const auto color = LookupNamedColor(
+			args["color_key"].toString())) {
+		_widget->overrideTitleColor((*color)->c);
 		_headerColorLifetime = style::PaletteChanged(
 		) | rpl::start_with_next([=] {
-			_widget->overrideTitleColor(st::boxDividerBg->c);
+			_widget->overrideTitleColor((*color)->c);
 		});
 	} else {
 		_widget->overrideTitleColor(std::nullopt);
@@ -1237,37 +1287,146 @@ void Panel::processHeaderColor(const QJsonObject &args) {
 	}
 }
 
-void Panel::createMainButton() {
-	_mainButton = std::make_unique<Button>(
-		_widget.get(),
-		st::botWebViewBottomButton);
-	const auto button = _mainButton.get();
-
-	button->setClickedCallback([=] {
-		if (!button->isDisabled()) {
-			postEvent("main_button_pressed");
-			_mainButtonLastClick = crl::now();
-		}
-	});
-	button->hide();
-
-	rpl::combine(
-		_webviewParent->geometryValue() | rpl::map([=] {
-			return _widget->innerGeometry();
-		}),
-		button->shownValue(),
-		button->heightValue()
-	) | rpl::start_with_next([=](QRect inner, bool shown, int height) {
-		button->move(inner.x(), inner.y() + inner.height() - height);
-		button->resizeToWidth(inner.width());
-		_webviewBottom->setVisible(!shown);
-		updateFooterHeight();
-	}, button->lifetime());
+void Panel::processBottomBarColor(const QJsonObject &args) {
+	if (const auto color = ParseColor(args["color"].toString())) {
+		_widget->overrideBottomBarColor(color);
+		_bottomBarColor = color;
+		_bottomBarColorLifetime.destroy();
+	} else if (const auto color = LookupNamedColor(
+			args["color_key"].toString())) {
+		_widget->overrideBottomBarColor((*color)->c);
+		_bottomBarColor = (*color)->c;
+		_headerColorLifetime = style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			_widget->overrideBottomBarColor((*color)->c);
+			_bottomBarColor = (*color)->c;
+		});
+	} else {
+		_widget->overrideBottomBarColor(std::nullopt);
+		_bottomBarColor = std::nullopt;
+		_headerColorLifetime.destroy();
+	}
+	if (const auto raw = _bottomButtonsBg.get()) {
+		raw->update();
+	}
 }
 
-void Panel::updateFooterHeight() {
-	_footerHeight = (_mainButton && !_mainButton->isHidden())
-		? _mainButton->height()
+void Panel::createButton(std::unique_ptr<Button> &button) {
+	if (!_bottomButtonsBg) {
+		_bottomButtonsBg = std::make_unique<RpWidget>(_widget.get());
+
+		const auto raw = _bottomButtonsBg.get();
+		raw->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(raw);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(_bottomBarColor.value_or(st::windowBg->c));
+			p.drawRoundedRect(
+				raw->rect().marginsAdded({ 0, 2 * st::callRadius, 0, 0 }),
+				st::callRadius,
+				st::callRadius);
+		}, raw->lifetime());
+	}
+	button = std::make_unique<Button>(
+		_bottomButtonsBg.get(),
+		st::botWebViewBottomButton);
+	const auto raw = button.get();
+
+	raw->setClickedCallback([=] {
+		if (!raw->isDisabled()) {
+			if (raw == _mainButton.get()) {
+				postEvent("main_button_pressed");
+			} else if (raw == _secondaryButton.get()) {
+				postEvent("secondary_button_pressed");
+			}
+		}
+	});
+	raw->hide();
+
+	rpl::combine(
+		raw->shownValue(),
+		raw->heightValue()
+	) | rpl::start_with_next([=] {
+		layoutButtons();
+	}, raw->lifetime());
+}
+
+void Panel::layoutButtons() {
+	const auto inner = _widget->innerGeometry();
+	const auto shown = [](std::unique_ptr<Button> &button) {
+		return button && !button->isHidden();
+	};
+	const auto any = shown(_mainButton) || shown(_secondaryButton);
+	_webviewBottom->setVisible(!any);
+	if (any) {
+		_bottomButtonsBg->show();
+
+		const auto one = shown(_mainButton)
+			? _mainButton.get()
+			: _secondaryButton.get();
+		const auto both = shown(_mainButton) && shown(_secondaryButton);
+		const auto vertical = both
+			&& ((_secondaryPosition == RectPart::Top)
+				|| (_secondaryPosition == RectPart::Bottom));
+		const auto padding = st::botWebViewBottomPadding;
+		const auto height = padding.top()
+			+ (vertical
+				? (_mainButton->height()
+					+ st::botWebViewBottomSkip.y()
+					+ _secondaryButton->height())
+				: one->height())
+			+ padding.bottom();
+		_bottomButtonsBg->setGeometry(
+			inner.x(),
+			inner.y() + inner.height() - height,
+			inner.width(),
+			height);
+		auto left = padding.left();
+		auto bottom = height - padding.bottom();
+		auto available = inner.width() - padding.left() - padding.right();
+		if (!both) {
+			one->resizeToWidth(available);
+			one->move(left, bottom - one->height());
+		} else if (_secondaryPosition == RectPart::Top) {
+			_mainButton->resizeToWidth(available);
+			bottom -= _mainButton->height();
+			_mainButton->move(left, bottom);
+			bottom -= st::botWebViewBottomSkip.y();
+			_secondaryButton->resizeToWidth(available);
+			bottom -= _secondaryButton->height();
+			_secondaryButton->move(left, bottom);
+		} else if (_secondaryPosition == RectPart::Bottom) {
+			_secondaryButton->resizeToWidth(available);
+			bottom -= _secondaryButton->height();
+			_secondaryButton->move(left, bottom);
+			bottom -= st::botWebViewBottomSkip.y();
+			_mainButton->resizeToWidth(available);
+			bottom -= _mainButton->height();
+			_mainButton->move(left, bottom);
+		} else if (_secondaryPosition == RectPart::Left) {
+			available = (available - st::botWebViewBottomSkip.x()) / 2;
+			_secondaryButton->resizeToWidth(available);
+			bottom -= _secondaryButton->height();
+			_secondaryButton->move(left, bottom);
+			_mainButton->resizeToWidth(available);
+			_mainButton->move(
+				inner.width() - padding.right() - available,
+				bottom);
+		} else {
+			available = (available - st::botWebViewBottomSkip.x()) / 2;
+			_mainButton->resizeToWidth(available);
+			bottom -= _mainButton->height();
+			_mainButton->move(left, bottom);
+			_secondaryButton->resizeToWidth(available);
+			_secondaryButton->move(
+				inner.width() - padding.right() - available,
+				bottom);
+		}
+	} else if (_bottomButtonsBg) {
+		_bottomButtonsBg->hide();
+	}
+	_footerHeight = any
+		? _bottomButtonsBg->height()
 		: _webviewBottom->height();
 }
 
