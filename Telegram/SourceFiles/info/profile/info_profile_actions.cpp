@@ -51,7 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "menu/menu_mute.h"
 #include "support/support_helper.h"
-#include "ui/boxes/profile_qr_box.h"
+#include "ui/boxes/peer_qr_box.h"
 #include "ui/boxes/report_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/painter.h"
@@ -1121,7 +1121,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			copyUsername->setClickedCallback([=] {
 				if (!user->isBot()) {
 					controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-						Ui::FillProfileQrBox(box, user);
+						Ui::FillPeerQrBox(box, user);
 					}));
 					return false;
 				}

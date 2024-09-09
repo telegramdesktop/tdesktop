@@ -13,7 +13,7 @@ namespace Ui {
 
 class GenericBox;
 
-void FillProfileQrBox(
+void FillPeerQrBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<PeerData*> peer);
 

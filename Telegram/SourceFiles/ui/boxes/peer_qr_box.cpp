@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "ui/boxes/profile_qr_box.h"
+#include "ui/boxes/peer_qr_box.h"
 
 #include "core/application.h"
 #include "data/data_cloud_themes.h"
@@ -336,7 +336,7 @@ void Paint(
 
 } // namespace
 
-void FillProfileQrBox(
+void FillPeerQrBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer) {
 	const auto window = Core::App().findWindow(box);
