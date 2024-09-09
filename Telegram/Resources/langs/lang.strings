@@ -5546,6 +5546,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_contact_details_birthday" = "Birthday";
 "lng_contact_details_organization" = "Organization";
 
+"lng_qr_box_quality" = "Quality";
+"lng_qr_box_quality1" = "Normal";
+"lng_qr_box_quality2" = "High";
+"lng_qr_box_quality3" = "Very High";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

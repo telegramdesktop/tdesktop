@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
@@ -269,6 +270,70 @@ void Paint(
 	return result;
 }
 
+[[nodiscard]] Fn<void(int)> AddDotsToSlider(
+		not_null<Ui::ContinuousSlider*> slider,
+		const style::MediaSlider &st,
+		int count) {
+	const auto lineWidth = st::lineWidth;
+	const auto smallSize = Size(st.seekSize.height() - st.width);
+	auto smallDots = std::vector<not_null<Ui::RpWidget*>>();
+	smallDots.reserve(count - 1);
+	const auto paintSmall = [=](QPainter &p, const QBrush &brush) {
+		auto hq = PainterHighQualityEnabler(p);
+		auto pen = st::boxBg->p;
+		pen.setWidth(st.width);
+		p.setPen(pen);
+		p.setBrush(brush);
+		p.drawEllipse(Rect(smallSize) - Margins(lineWidth));
+	};
+	for (auto i = 0; i < count - 1; i++) {
+		smallDots.push_back(
+			Ui::CreateChild<Ui::RpWidget>(slider->parentWidget()));
+		const auto dot = smallDots.back();
+		dot->resize(smallSize);
+		dot->setAttribute(Qt::WA_TransparentForMouseEvents);
+		dot->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(dot);
+			const auto fg = (slider->value() > (i / float64(count - 1)))
+				? st.activeFg
+				: st.inactiveFg;
+			paintSmall(p, fg);
+		}, dot->lifetime());
+	}
+	const auto bigDot = Ui::CreateChild<Ui::RpWidget>(slider->parentWidget());
+	bigDot->resize(st.seekSize);
+	bigDot->setAttribute(Qt::WA_TransparentForMouseEvents);
+	bigDot->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(bigDot);
+		auto hq = PainterHighQualityEnabler(p);
+		auto pen = st::boxBg->p;
+		pen.setWidth(st.width);
+		p.setPen(pen);
+		p.setBrush(st.activeFg);
+		p.drawEllipse(Rect(st.seekSize) - Margins(lineWidth));
+	}, bigDot->lifetime());
+
+	return [=](int index) {
+		const auto g = slider->geometry();
+		const auto bigTop = g.y() + (g.height() - bigDot->height()) / 2;
+		const auto smallTop = g.y()
+			+ (g.height() - smallSize.height()) / 2;
+		for (auto i = 0; i < count; ++i) {
+			if (index == i) {
+				const auto x = ((g.width() - bigDot->width()) * i)
+					/ float64(count - 1);
+				bigDot->move(g.x() + std::ceil(x), bigTop);
+			} else {
+				const auto k = (i < index) ? i : i - 1;
+				const auto w = smallDots[k]->width();
+				smallDots[k]->move(
+					g.x() + ((g.width() - w) * i) / (count - 1),
+					smallTop);
+			}
+		}
+	};
+}
+
 } // namespace
 
 void FillProfileQrBox(
@@ -291,6 +356,7 @@ void FillProfileQrBox(
 		rpl::variable<Colors> bgs;
 		Ui::Animations::Simple animation;
 		rpl::variable<int> chosen = 0;
+		rpl::variable<int> scaleValue = 0;
 
 		style::font font;
 	};
@@ -500,7 +566,85 @@ void FillProfileQrBox(
 	Ui::AddSkip(box->verticalLayout());
 	Ui::AddSubsectionTitle(
 		box->verticalLayout(),
-		tr::lng_profile_changed_photo_link());
+		tr::lng_qr_box_quality());
+	Ui::AddSkip(box->verticalLayout());
+	constexpr auto kMaxQualities = 3;
+	{
+		const auto seekSize = st::settingsScale.seekSize.height();
+		const auto &labelSt = st::defaultFlatLabel;
+		const auto labels = box->verticalLayout()->add(
+			Ui::CreateSkipWidget(
+				box,
+				labelSt.style.font->height + labelSt.style.font->descent),
+			st::boxRowPadding);
+		const auto left = Ui::CreateChild<Ui::FlatLabel>(
+			labels,
+			tr::lng_qr_box_quality1(),
+			labelSt);
+		const auto middle = Ui::CreateChild<Ui::FlatLabel>(
+			labels,
+			tr::lng_qr_box_quality2(),
+			labelSt);
+		const auto right = Ui::CreateChild<Ui::FlatLabel>(
+			labels,
+			tr::lng_qr_box_quality3(),
+			labelSt);
+		labels->sizeValue(
+		) | rpl::start_with_next([=](const QSize &size) {
+			left->moveToLeft(0, 0);
+			middle->moveToLeft((size.width() - middle->width()) / 2, 0);
+			right->moveToRight(0, 0);
+		}, labels->lifetime());
+
+		const auto slider = box->verticalLayout()->add(
+			object_ptr<Ui::MediaSliderWheelless>(
+				box->verticalLayout(),
+				st::settingsScale),
+			st::boxRowPadding);
+		slider->resize(slider->width(), seekSize);
+		const auto active = st::windowActiveTextFg->c;
+		const auto inactive = st::windowSubTextFg->c;
+		const auto colorize = [=](int index) {
+			if (index == 0) {
+				left->setTextColorOverride(active);
+				middle->setTextColorOverride(inactive);
+				right->setTextColorOverride(inactive);
+			} else if (index == 1) {
+				left->setTextColorOverride(inactive);
+				middle->setTextColorOverride(active);
+				right->setTextColorOverride(inactive);
+			} else if (index == 2) {
+				left->setTextColorOverride(inactive);
+				middle->setTextColorOverride(inactive);
+				right->setTextColorOverride(active);
+			}
+		};
+		const auto updateGeometry = AddDotsToSlider(
+			slider,
+			st::settingsScale,
+			kMaxQualities);
+		slider->geometryValue(
+		) | rpl::start_with_next([=](const QRect &rect) {
+			updateGeometry(int(slider->value() * (kMaxQualities - 1)));
+		}, box->lifetime());
+
+		box->setShowFinishedCallback([=] {
+			colorize(0);
+			updateGeometry(0);
+		});
+		slider->setPseudoDiscrete(
+			kMaxQualities,
+			[=](int index) { return index; },
+			0,
+			[=](int scale) {
+				state->scaleValue = scale;
+				colorize(scale);
+				updateGeometry(scale);
+			},
+			[](int) {});
+	}
+	Ui::AddSkip(box->verticalLayout());
+	Ui::AddSkip(box->verticalLayout());
 	const auto userpicToggle = box->verticalLayout()->add(
 		object_ptr<Ui::SettingsButton>(
 			box->verticalLayout(),
@@ -510,10 +654,12 @@ void FillProfileQrBox(
 				? tr::lng_mediaview_channel_photo
 				: tr::lng_mediaview_group_photo)(),
 			st::settingsButtonNoIcon));
-	userpicToggle->toggleOn(state->userpicToggled.value());
+	userpicToggle->toggleOn(state->userpicToggled.value(), true);
 	userpicToggle->setClickedCallback([=] {
 		state->userpicToggled = !state->userpicToggled.current();
 	});
+	Ui::AddSkip(box->verticalLayout());
+	Ui::AddSkip(box->verticalLayout());
 
 	auto buttonText = rpl::conditional(
 		state->saveButtonBusy.value() | rpl::map(rpl::mappers::_1),
@@ -530,7 +676,8 @@ void FillProfileQrBox(
 		}
 
 		const auto userpicToggled = state->userpicToggled.current();
-		const auto scale = style::kScaleDefault * 3;
+		const auto scale = style::kScaleDefault
+			* (kMaxQualities + int(state->scaleValue.current() * 2));
 		const auto divider = std::max(1, style::Scale())
 			/ style::kScaleDefault;
 		const auto profileQrBackgroundRadius = style::ConvertScale(
