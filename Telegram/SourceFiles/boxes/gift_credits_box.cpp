@@ -10,18 +10,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "api/api_premium.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/send_credits_box.h"
+#include "chat_helpers/stickers_gift_box_pack.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "history/admin_log/history_admin_log_item.h"
 #include "history/view/media/history_view_sticker_player.h"
+#include "history/view/media/history_view_media_generic.h"
+#include "history/view/history_view_element.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_credits.h"
 #include "settings/settings_premium.h"
+#include "ui/chat/chat_style.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/ripple_animation.h"
@@ -31,8 +43,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/shadow.h"
+#include "window/themes/window_theme.h"
+#include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
@@ -41,9 +56,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
+#include "styles/style_settings.h"
 
 #include "data/stickers/data_stickers.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 
 namespace Ui {
 namespace {
@@ -51,6 +68,9 @@ namespace {
 constexpr auto kPriceTabAll = 0;
 constexpr auto kPriceTabLimited = -1;
 constexpr auto kGiftsPerRow = 3;
+constexpr auto kGiftMessageLimit = 256;
+
+using namespace HistoryView;
 
 struct GiftTypePremium {
 	int64 cost = 0;
@@ -80,6 +100,259 @@ struct GiftDescriptor : std::variant<GiftTypePremium, GiftTypeStars> {
 		const GiftDescriptor&,
 		const GiftDescriptor&) = default;
 };
+
+struct GiftDetails {
+	GiftDescriptor descriptor;
+	QString text;
+	bool anonymous = false;
+};
+
+class PreviewDelegate final : public DefaultElementDelegate {
+public:
+	PreviewDelegate(
+		not_null<QWidget*> parent,
+		not_null<Ui::ChatStyle*> st,
+		Fn<void()> update);
+
+	bool elementAnimationsPaused() override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
+	Context elementContext() override;
+
+private:
+	const not_null<QWidget*> _parent;
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+
+};
+
+class PreviewWrap final : public Ui::RpWidget {
+public:
+	PreviewWrap(
+		not_null<QWidget*> parent,
+		not_null<Main::Session*> session,
+		rpl::producer<GiftDetails> details);
+	~PreviewWrap();
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	void resizeTo(int width);
+	void prepare(rpl::producer<GiftDetails> details);
+
+	const not_null<History*> _history;
+	const std::unique_ptr<Ui::ChatTheme> _theme;
+	const std::unique_ptr<Ui::ChatStyle> _style;
+	const std::unique_ptr<PreviewDelegate> _delegate;
+	AdminLog::OwnedItem _item;
+	QPoint _position;
+
+};
+
+PreviewDelegate::PreviewDelegate(
+	not_null<QWidget*> parent,
+	not_null<Ui::ChatStyle*> st,
+	Fn<void()> update)
+: _parent(parent)
+, _pathGradient(MakePathShiftGradient(st, update)) {
+}
+
+bool PreviewDelegate::elementAnimationsPaused() {
+	return _parent->window()->isActiveWindow();
+}
+
+auto PreviewDelegate::elementPathShiftGradient()
+-> not_null<Ui::PathShiftGradient*> {
+	return _pathGradient.get();
+}
+
+Context PreviewDelegate::elementContext() {
+	return Context::History;
+}
+
+auto GenerateGiftMedia(
+	not_null<Element*> parent,
+	Element *replacing,
+	const GiftDetails &data)
+-> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
+	return [=](Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
+		const auto &descriptor = data.descriptor;
+		auto pushText = [&](
+				TextWithEntities text,
+				QMargins margins = {},
+				const base::flat_map<uint16, ClickHandlerPtr> &links = {}) {
+			if (text.empty()) {
+				return;
+			}
+			push(std::make_unique<MediaGenericTextPart>(
+				std::move(text),
+				margins,
+				links));
+		};
+		const auto sticker = [=] {
+			using Tag = ChatHelpers::StickerLottieSize;
+			const auto &session = parent->history()->session();
+			auto &packs = session.giftBoxStickersPacks();
+			packs.load();
+			auto sticker = v::match(descriptor, [&](GiftTypePremium data) {
+				return packs.lookup(data.months);
+			}, [&](GiftTypeStars data) {
+				return data.document
+					? data.document
+					: packs.lookup(packs.monthsForStars(data.stars));
+			});
+			return StickerInBubblePart::Data{
+				.sticker = sticker,
+				.size = st::chatIntroStickerSize,
+				.cacheTag = Tag::ChatIntroHelloSticker,
+				.singleTimePlayback = v::is<GiftTypePremium>(descriptor),
+			};
+		};
+		push(std::make_unique<StickerInBubblePart>(
+			parent,
+			replacing,
+			sticker,
+			st::giftBoxPreviewStickerPadding));
+		const auto title = data.anonymous
+			? tr::lng_action_gift_anonymous(tr::now)
+			: tr::lng_action_gift_got_subtitle(
+				tr::now,
+				lt_user,
+				parent->data()->history()->session().user()->shortName());
+		auto textFallback = v::match(descriptor, [&](GiftTypePremium data) {
+			return TextWithEntities{
+				u"Use all those premium features with joy!"_q
+			};
+		}, [&](GiftTypeStars data) {
+			return tr::lng_action_gift_got_stars_text(
+				tr::now,
+				lt_cost,
+				tr::lng_gift_stars_title(
+					tr::now,
+					lt_count,
+					data.stars,
+					Ui::Text::Bold),
+				Ui::Text::WithEntities);
+		});
+		auto description = data.text.isEmpty()
+			? std::move(textFallback)
+			: TextWithEntities{ data.text };
+		pushText(Ui::Text::Bold(title), st::giftBoxPreviewTitlePadding);
+		pushText(std::move(description), st::giftBoxPreviewTextPadding);
+	};
+}
+
+PreviewWrap::PreviewWrap(
+	not_null<QWidget*> parent,
+	not_null<Main::Session*> session,
+	rpl::producer<GiftDetails> details)
+: RpWidget(parent)
+, _history(session->data().history(session->userPeerId()))
+, _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
+, _style(std::make_unique<Ui::ChatStyle>(
+	_history->session().colorIndicesValue()))
+, _delegate(std::make_unique<PreviewDelegate>(
+	parent,
+	_style.get(),
+	[=] { update(); }))
+, _position(0, st::msgMargin.bottom()) {
+	_style->apply(_theme.get());
+
+	using namespace HistoryView;
+	session->data().viewRepaintRequest(
+	) | rpl::start_with_next([=](not_null<const Element*> view) {
+		if (view == _item.get()) {
+			update();
+		}
+	}, lifetime());
+
+	session->downloaderTaskFinished() | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
+
+	prepare(std::move(details));
+}
+
+PreviewWrap::~PreviewWrap() {
+	_item = {};
+}
+
+void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
+	std::move(details) | rpl::start_with_next([=](GiftDetails details) {
+		const auto &descriptor = details.descriptor;
+		const auto cost = v::match(descriptor, [&](GiftTypePremium data) {
+			return FillAmountAndCurrency(data.cost, data.currency, true);
+		}, [&](GiftTypeStars data) {
+			return tr::lng_gift_stars_title(tr::now, lt_count, data.stars);
+		});
+		const auto text = details.anonymous
+			? tr::lng_action_gift_received_anonymous(tr::now, lt_cost, cost)
+			: tr::lng_action_gift_received(
+				tr::now,
+				lt_user,
+				_history->session().user()->shortName(),
+				lt_cost,
+				cost);
+		const auto item = _history->makeMessage({
+			.id = _history->nextNonHistoryEntryId(),
+			.flags = (MessageFlag::FakeAboutView
+				| MessageFlag::FakeHistoryItem
+				| MessageFlag::Local),
+			.from = _history->peer->id,
+		}, PreparedServiceText{ { text } });
+
+		auto owned = AdminLog::OwnedItem(_delegate.get(), item);
+		owned->overrideMedia(std::make_unique<MediaGeneric>(
+			owned.get(),
+			GenerateGiftMedia(owned.get(), _item.get(), details),
+			MediaGenericDescriptor{
+				.maxWidth = st::chatIntroWidth,
+				.service = true,
+			}));
+		_item = std::move(owned);
+		if (width() >= st::msgMinWidth) {
+			resizeTo(width());
+		}
+		update();
+	}, lifetime());
+
+	widthValue(
+	) | rpl::filter([=](int width) {
+		return width >= st::msgMinWidth;
+	}) | rpl::start_with_next([=](int width) {
+		resizeTo(width);
+	}, lifetime());
+}
+
+void PreviewWrap::resizeTo(int width) {
+	const auto height = _position.y()
+		+ _item->resizeGetHeight(width)
+		+ _position.y()
+		+ st::msgServiceMargin.top()
+		+ st::msgServiceGiftBoxTopSkip
+		- st::msgServiceMargin.bottom();
+	resize(width, height);
+}
+
+void PreviewWrap::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+
+	const auto clip = e->rect();
+	if (!clip.isEmpty()) {
+		p.setClipRect(clip);
+		Window::SectionWidget::PaintBackground(
+			p,
+			_theme.get(),
+			QSize(width(), window()->height()),
+			clip);
+	}
+
+	auto context = _theme->preparePaintContext(
+		_style.get(),
+		rect(),
+		e->rect(),
+		!window()->isActiveWindow());
+	p.translate(_position);
+	_item->draw(p, context);
+}
 
 [[nodiscard]] rpl::producer<std::vector<GiftTypePremium>> GiftsPremium(
 		not_null<Main::Session*> session,
@@ -389,6 +662,8 @@ public:
 	[[nodiscard]] virtual std::any textContext() = 0;
 	[[nodiscard]] virtual QSize buttonSize() = 0;
 	[[nodiscard]] virtual QImage background() = 0;
+	[[nodiscard]] virtual DocumentData *lookupSticker(
+		const GiftDescriptor &descriptor) = 0;
 };
 
 class GiftButton final : public AbstractButton {
@@ -402,13 +677,17 @@ public:
 private:
 	void paintEvent(QPaintEvent *e) override;
 
+	void setDocument(not_null<DocumentData*> document);
+
 	const not_null<GiftButtonDelegate*> _delegate;
 	GiftDescriptor _descriptor;
 	Text::String _text;
 	Text::String _price;
 	QRect _button;
 	QMargins _extend;
-	std::unique_ptr<HistoryView::StickerPlayer> _player;
+
+	std::unique_ptr<StickerPlayer> _player;
+	rpl::lifetime _mediaLifetime;
 
 };
 
@@ -423,6 +702,8 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 	if (_descriptor == descriptor) {
 		return;
 	}
+	auto player = base::take(_player);
+	_mediaLifetime.destroy();
 	_descriptor = descriptor;
 	v::match(descriptor, [&](const GiftTypePremium &data) {
 		const auto months = data.months;
@@ -449,6 +730,10 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 			kMarkupTextOptions,
 			_delegate->textContext());
 	});
+	if (const auto document = _delegate->lookupSticker(descriptor)) {
+		setDocument(document);
+	}
+
 	const auto buttonw = _price.maxWidth();
 	const auto buttonh = st::semiboldFont->height;
 	const auto inner = QRect(
@@ -464,6 +749,44 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 	_button = QRect(skipx, skipy, outer, inner.height());
 }
 
+void GiftButton::setDocument(not_null<DocumentData*> document) {
+	const auto media = document->createMediaView();
+	media->checkStickerLarge();
+	media->goodThumbnailWanted();
+
+	rpl::single() | rpl::then(
+		document->owner().session().downloaderTaskFinished()
+	) | rpl::filter([=] {
+		return media->loaded();
+	}) | rpl::start_with_next([=] {
+		_mediaLifetime.destroy();
+
+		auto result = std::unique_ptr<StickerPlayer>();
+		const auto sticker = document->sticker();
+		if (sticker->isLottie()) {
+			result = std::make_unique<HistoryView::LottiePlayer>(
+				ChatHelpers::LottiePlayerFromDocument(
+					media.get(),
+					ChatHelpers::StickerLottieSize::InlineResults,
+					st::giftBoxStickerSize,
+					Lottie::Quality::High));
+		} else if (sticker->isWebm()) {
+			result = std::make_unique<HistoryView::WebmPlayer>(
+				media->owner()->location(),
+				media->bytes(),
+				st::giftBoxStickerSize);
+		} else {
+			result = std::make_unique<HistoryView::StaticStickerPlayer>(
+				media->owner()->location(),
+				media->bytes(),
+				st::giftBoxStickerSize);
+		}
+		result->setRepaintCallback([=] { update(); });
+		_player = std::move(result);
+		update();
+	}, _mediaLifetime);
+}
+
 void GiftButton::setGeometry(QRect inner, QMargins extend) {
 	_extend = extend;
 	AbstractButton::setGeometry(inner.marginsAdded(extend));
@@ -474,6 +797,30 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	const auto position = QPoint(_extend.left(), _extend.top());
 	p.drawImage(0, 0, _delegate->background());
 
+	if (_player && _player->ready()) {
+		const auto paused = !isOver();
+		auto info = _player->frame(
+			st::giftBoxStickerSize,
+			QColor(0, 0, 0, 0),
+			false,
+			crl::now(),
+			paused);
+		const auto finished = (info.index + 1 == _player->framesCount());
+		if (!finished || !paused) {
+			_player->markFrameShown();
+		}
+		const auto size = info.image.size() / style::DevicePixelRatio();
+		p.drawImage(
+			QRect(
+				(width() - size.width()) / 2,
+				(_text.isEmpty()
+					? st::giftBoxStickerStarTop
+					: st::giftBoxStickerTop),
+				size.width(),
+				size.height()),
+			info.image);
+	}
+
 	auto hq = PainterHighQualityEnabler(p);
 	const auto premium = v::is<GiftTypePremium>(_descriptor);
 	const auto singlew = _delegate->buttonSize().width();
@@ -481,12 +828,12 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	v::match(_descriptor, [&](const GiftTypePremium &data) {
 		if (data.discountPercent > 0) {
 			p.setPen(st::attentionBoxButton.textFg);
-			p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), '-' + QString::number(data.discountPercent) + '%', style::al_center);
+			p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), '-' + QString::number(data.discountPercent) + '%', style::al_topright);
 		}
 	}, [&](const GiftTypeStars &data) {
 		if (data.limited) {
 			p.setPen(st::windowActiveTextFg);
-			p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), u"limited"_q, style::al_center);
+			p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), u"limited"_q, style::al_topright);
 		}
 	});
 	p.setBrush(premium ? st::lightButtonBgOver : st::creditsBg3);
@@ -518,6 +865,124 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			+ QPoint(padding.left(), padding.top())),
 		.availableWidth = _price.maxWidth(),
 	});
+}
+
+[[nodiscard]] not_null<Ui::InputField*> AddPartInput(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> placeholder,
+		QString current,
+		int limit) {
+	const auto field = container->add(
+		object_ptr<Ui::InputField>(
+			container,
+			st::giftBoxTextField,
+			Ui::InputField::Mode::NoNewlines,
+			std::move(placeholder),
+			current),
+		st::giftBoxTextPadding);
+	field->setMaxLength(limit);
+	Ui::AddLengthLimitLabel(field, limit);
+	return field;
+}
+
+void SendGiftBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> window,
+		not_null<PeerData*> peer,
+		const GiftDescriptor &descriptor) {
+	box->setStyle(st::giftBox);
+	box->setWidth(st::boxWideWidth);
+	box->setTitle(tr::lng_gift_send_title());
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
+
+	const auto session = &window->session();
+	const auto context = Core::MarkedTextContext{
+		.session = session,
+		.customEmojiRepaint = [] {},
+	};
+	auto cost = rpl::single([&] {
+		return v::match(descriptor, [&](const GiftTypePremium &data) {
+			if (data.currency == Ui::kCreditsCurrency) {
+				return Ui::CreditsEmojiSmall(session).append(
+					Lang::FormatCountDecimal(std::abs(data.cost)));
+			}
+			return TextWithEntities{
+				FillAmountAndCurrency(data.cost, data.currency),
+			};
+		}, [&](const GiftTypeStars &data) {
+			return Ui::CreditsEmojiSmall(session).append(
+				Lang::FormatCountDecimal(std::abs(data.stars)));
+		});
+	}());
+	const auto button = box->addButton(rpl::single(QString()), [=] {
+		box->closeBox();
+	});
+	SetButtonMarkedLabel(
+		button,
+		tr::lng_gift_send_button(
+			lt_cost,
+			std::move(cost),
+			Ui::Text::WithEntities),
+		session,
+		st::creditsBoxButtonLabel,
+		st::giftBox.button.textFg->c);
+
+	struct State {
+		rpl::variable<GiftDetails> details;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->details = GiftDetails{
+		.descriptor = descriptor,
+	};
+
+	const auto container = box->verticalLayout();
+	container->add(object_ptr<PreviewWrap>(
+		container,
+		session,
+		state->details.value()));
+
+	const auto text = AddPartInput(
+		container,
+		tr::lng_gift_send_message(),
+		QString(),
+		kGiftMessageLimit);
+	text->changes() | rpl::start_with_next([=] {
+		auto now = state->details.current();
+		now.text = text->getLastText();
+		state->details = std::move(now);
+	}, text->lifetime());
+
+	AddDivider(container);
+	AddSkip(container);
+	container->add(
+		object_ptr<Ui::SettingsButton>(
+			container,
+			tr::lng_gift_send_anonymous(),
+			st::settingsButtonNoIcon)
+	)->toggleOn(rpl::single(false))->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		auto now = state->details.current();
+		now.anonymous = toggled;
+		state->details = std::move(now);
+	}, container->lifetime());
+	AddSkip(container);
+	AddDividerText(container, tr::lng_gift_send_anonymous_about(
+		lt_user,
+		rpl::single(peer->shortName()),
+		lt_recipient,
+		rpl::single(peer->shortName())));
+
+	const auto buttonWidth = st::boxWideWidth
+		- st::giftBox.buttonPadding.left()
+		- st::giftBox.buttonPadding.right();
+	button->resizeToWidth(buttonWidth);
+	button->widthValue() | rpl::start_with_next([=](int width) {
+		if (width != buttonWidth) {
+			button->resizeToWidth(buttonWidth);
+		}
+	}, button->lifetime());
 }
 
 [[nodiscard]] object_ptr<RpWidget> MakeGiftsList(
@@ -562,6 +1027,19 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		}
 		QImage background() override {
 			return _bg;
+		}
+		DocumentData *lookupSticker(
+				const GiftDescriptor &descriptor) {
+			const auto &session = _window->session();
+			auto &packs = session.giftBoxStickersPacks();
+			packs.load();
+			return v::match(descriptor, [&](GiftTypePremium data) {
+				return packs.lookup(data.months);
+			}, [&](GiftTypeStars data) {
+				return data.document
+					? data.document
+					: packs.lookup(packs.monthsForStars(data.stars));
+			});
 		}
 
 	private:
@@ -655,6 +1133,10 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			} else {
 				x += single.width() + st::giftBoxGiftSkip.x();
 			}
+
+			button->setClickedCallback([=] {
+				window->show(Box(SendGiftBox, window, peer, descriptor));
+			});
 		}
 		if (gifts.size() % kGiftsPerRow) {
 			y += padding.bottom() + single.height();

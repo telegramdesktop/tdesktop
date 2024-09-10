@@ -1855,6 +1855,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_received" = "{user} sent you a gift for {cost}";
 "lng_action_gift_received_me" = "You sent to {user} a gift for {cost}";
 "lng_action_gift_received_anonymous" = "Unknown user sent you a gift for {cost}";
+"lng_action_gift_anonymous" = "Anonymous Gift";
+"lng_action_gift_got_subtitle" = "Gift from {user}";
+"lng_action_gift_got_stars_text" = "Display this gift on your page or convert it to {cost}.";
 "lng_action_suggested_photo_me" = "You suggested this photo for {user}'s Telegram profile.";
 "lng_action_suggested_photo" = "{user} suggests this photo for your Telegram profile.";
 "lng_action_suggested_photo_button" = "View Photo";
@@ -2991,6 +2994,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_stars_limited" = "limited";
 "lng_gift_stars_tabs_all" = "All Gifts";
 "lng_gift_stars_tabs_limited" = "Limited";
+"lng_gift_send_title" = "Send a Gift";
+"lng_gift_send_message" = "Enter Message";
+"lng_gift_send_anonymous" = "Hide My Name";
+"lng_gift_send_anonymous_about" = "You can hide your name and message from visitors to {user}'s profile. {recipient} will still see your name and message.";
+"lng_gift_send_button" = "Send a Gift for {cost}";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";

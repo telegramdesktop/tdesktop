@@ -58,6 +58,15 @@ creditsGiftBox: Box(defaultBox) {
 	shadowIgnoreTopSkip: true;
 }
 
+giftBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 22px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+}
 giftBoxSubtitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: boxTitleFont;
@@ -85,6 +94,32 @@ giftBoxGiftHeight: 164px;
 giftBoxGiftRadius: 12px;
 giftBoxPremiumIconSize: 64px;
 giftBoxPremiumIconTop: 10px;
-giftBoxPremiumTextTop: 56px;
+giftBoxPremiumTextTop: 84px;
 giftBoxButtonBottom: 12px;
 giftBoxButtonPadding: margins(8px, 4px, 8px, 4px);
+giftBoxPreviewStickerPadding: margins(10px, 12px, 10px, 16px);
+giftBoxPreviewTitlePadding: margins(12px, 4px, 12px, 4px);
+giftBoxPreviewTextPadding: margins(12px, 4px, 12px, 24px);
+giftBoxStickerTop: 0px;
+giftBoxStickerStarTop: 24px;
+giftBoxStickerSize: size(80px, 80px);
+giftBoxTextField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 0px, 32px, 0px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 20px;
+	heightMax: 48px;
+
+	style: defaultTextStyle;
+}
+giftBoxTextPadding: margins(20px, 15px, 20px, 11px);

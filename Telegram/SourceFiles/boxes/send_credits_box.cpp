@@ -314,41 +314,22 @@ void SendCreditsBox(
 		AddChildToWidgetCenter(button.data(), loadingAnimation);
 		loadingAnimation->showOn(state->confirmButtonBusy.value());
 	}
-	{
-		auto buttonText = tr::lng_credits_box_out_confirm(
-			lt_count,
-			rpl::single(form->invoice.amount) | tr::to_count(),
-			lt_emoji,
-			rpl::single(CreditsEmojiSmall(session)),
-			Ui::Text::RichLangValue);
-		const auto buttonLabel = Ui::CreateChild<Ui::FlatLabel>(
-			button,
-			rpl::single(QString()),
-			st::creditsBoxButtonLabel);
-		std::move(
-			buttonText
-		) | rpl::start_with_next([=](const TextWithEntities &text) {
-			buttonLabel->setMarkedText(
-				text,
-				Core::MarkedTextContext{
-					.session = session,
-					.customEmojiRepaint = [=] { buttonLabel->update(); },
-				});
-		}, buttonLabel->lifetime());
-		buttonLabel->setTextColorOverride(
-			box->getDelegate()->style().button.textFg->c);
-		button->sizeValue(
-		) | rpl::start_with_next([=](const QSize &size) {
-			buttonLabel->moveToLeft(
-				(size.width() - buttonLabel->width()) / 2,
-				(size.height() - buttonLabel->height()) / 2);
-		}, buttonLabel->lifetime());
-		buttonLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-		state->confirmButtonBusy.value(
-		) | rpl::start_with_next([=](bool busy) {
-			buttonLabel->setVisible(!busy);
-		}, buttonLabel->lifetime());
-	}
+	SetButtonMarkedLabel(
+		button,
+		rpl::combine(
+			tr::lng_credits_box_out_confirm(
+				lt_count,
+				rpl::single(form->invoice.amount) | tr::to_count(),
+				lt_emoji,
+				rpl::single(CreditsEmojiSmall(session)),
+				Ui::Text::RichLangValue),
+			state->confirmButtonBusy.value()
+		) | rpl::map([](TextWithEntities &&text, bool busy) {
+			return busy ? TextWithEntities() : std::move(text);
+		}),
+		session,
+		st::creditsBoxButtonLabel,
+		box->getDelegate()->style().button.textFg->c);
 
 	const auto buttonWidth = st::boxWidth
 		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
@@ -406,6 +387,57 @@ TextWithEntities CreditsEmojiSmall(not_null<Main::Session*> session) {
 			st::starIconSmallPadding,
 			true),
 		QString(QChar(0x2B50)));
+}
+
+not_null<FlatLabel*> SetButtonMarkedLabel(
+		not_null<RpWidget*> button,
+		rpl::producer<TextWithEntities> text,
+		Fn<std::any(Fn<void()> update)> context,
+		const style::FlatLabel &st,
+		std::optional<QColor> textFg) {
+	const auto buttonLabel = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		rpl::single(QString()),
+		st);
+	rpl::duplicate(
+		text
+	) | rpl::filter([=](const TextWithEntities &text) {
+		return !text.text.isEmpty();
+	}) | rpl::start_with_next([=](const TextWithEntities &text) {
+		buttonLabel->setMarkedText(
+			text,
+			context([=] { buttonLabel->update(); }));
+	}, buttonLabel->lifetime());
+	if (textFg) {
+		buttonLabel->setTextColorOverride(textFg);
+	}
+	button->sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		buttonLabel->moveToLeft(
+			(size.width() - buttonLabel->width()) / 2,
+			(size.height() - buttonLabel->height()) / 2);
+	}, buttonLabel->lifetime());
+	buttonLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	buttonLabel->showOn(std::move(
+		text
+	) | rpl::map([=](const TextWithEntities &text) {
+		return !text.text.isEmpty();
+	}));
+	return buttonLabel;
+}
+
+not_null<FlatLabel*> SetButtonMarkedLabel(
+		not_null<RpWidget*> button,
+		rpl::producer<TextWithEntities> text,
+		not_null<Main::Session*> session,
+		const style::FlatLabel &st,
+		std::optional<QColor> textFg) {
+	return SetButtonMarkedLabel(button, text, [=](Fn<void()> update) {
+		return Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = update,
+		};
+	}, st, textFg);
 }
 
 } // namespace Ui
