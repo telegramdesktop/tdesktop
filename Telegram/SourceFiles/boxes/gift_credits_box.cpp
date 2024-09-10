@@ -824,18 +824,35 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto premium = v::is<GiftTypePremium>(_descriptor);
 	const auto singlew = _delegate->buttonSize().width();
-	p.setFont(st::normalFont);
-	v::match(_descriptor, [&](const GiftTypePremium &data) {
+	const auto font = st::semiboldFont;
+	p.setFont(font);
+	const auto text = v::match(_descriptor, [&](GiftTypePremium data) {
 		if (data.discountPercent > 0) {
-			p.setPen(st::attentionBoxButton.textFg);
-			p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), '-' + QString::number(data.discountPercent) + '%', style::al_topright);
+			p.setBrush(st::attentionBoxButton.textFg);
+			const auto kMinus = QChar(0x2212);
+			return kMinus + QString::number(data.discountPercent) + '%';
 		}
+		return QString();
 	}, [&](const GiftTypeStars &data) {
 		if (data.limited) {
-			p.setPen(st::windowActiveTextFg);
-			p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), u"limited"_q, style::al_topright);
+			p.setBrush(st::windowActiveTextFg);
+			return tr::lng_gift_stars_limited(tr::now);
 		}
+		return QString();
 	});
+	if (!text.isEmpty()) {
+		p.setPen(Qt::NoPen);
+		const auto twidth = font->width(text);
+		const auto pos = position + QPoint(singlew - twidth, font->height);
+		p.save();
+		p.translate(pos);
+		p.rotate(45.);
+		p.translate(-pos);
+		p.drawRect(-5 * twidth, position.y(), twidth * 12, font->height);
+		p.setPen(st::windowBg);
+		p.drawText(pos - QPoint(0, font->descent), text);
+		p.restore();
+	}
 	p.setBrush(premium ? st::lightButtonBgOver : st::creditsBg3);
 	p.setPen(Qt::NoPen);
 	if (!premium) {
