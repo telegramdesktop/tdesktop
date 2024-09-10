@@ -124,7 +124,6 @@ void Paint(
 		const auto gradientRotation = int(angle / 45.) * 45;
 		const auto gradientRotationAdd = angle - gradientRotation;
 
-		const auto center = QPointF(rect::center(qrRect));
 		auto back = Images::GenerateGradient(
 			qrRect.size(),
 			backgroundColors,
@@ -161,7 +160,7 @@ void Paint(
 	}
 }
 
-[[nodiscard]] not_null<Ui::RpWidget*> PrepareQrWidget(
+not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Ui::RpWidget*> topWidget,
 		const style::font &font,
@@ -412,7 +411,7 @@ void FillPeerQrBox(
 
 	const auto usernameValue = [=] {
 		return (customLink || !peer)
-			? rpl::single(QString())
+			? (rpl::single(QString()) | rpl::type_erased())
 			: Info::Profile::UsernameValue(peer, true) | rpl::map(
 				[](const auto &username) { return username.text; });
 	};
@@ -422,7 +421,7 @@ void FillPeerQrBox(
 			: peer
 			? Info::Profile::LinkValue(peer, true) | rpl::map(
 				[](const auto &link) { return link.text; })
-			: rpl::single(QString());
+			: (rpl::single(QString()) | rpl::type_erased());
 	};
 
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
@@ -430,7 +429,7 @@ void FillPeerQrBox(
 		peer ? peer : controller->session().user().get(),
 		st::defaultUserpicButton);
 	userpic->setVisible(peer != nullptr);
-	const auto qr = PrepareQrWidget(
+	PrepareQrWidget(
 		box->verticalLayout(),
 		userpic,
 		state->font,

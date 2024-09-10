@@ -1,3 +1,9 @@
+5.5.3 (10.09.24)
+
+- Fix custom emoji sending.
+- Add mention link QR code sharing.
+- Fix sending files from network drives. (Windows)
+
 5.5.2 (09.09.24)
 
 - Support two bottom buttons in web apps.
