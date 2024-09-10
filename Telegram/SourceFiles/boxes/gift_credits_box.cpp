@@ -383,6 +383,143 @@ struct GiftPriceTabs {
 	};
 }
 
+class GiftButtonDelegate {
+public:
+	[[nodiscard]] virtual TextWithEntities star() = 0;
+	[[nodiscard]] virtual std::any textContext() = 0;
+	[[nodiscard]] virtual QSize buttonSize() = 0;
+	[[nodiscard]] virtual QImage background() = 0;
+};
+
+class GiftButton final : public AbstractButton {
+public:
+	GiftButton(QWidget *parent, not_null<GiftButtonDelegate*> delegate);
+	using AbstractButton::AbstractButton;
+
+	void setDescriptor(const GiftDescriptor &descriptor);
+	void setGeometry(QRect inner, QMargins extend);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	const not_null<GiftButtonDelegate*> _delegate;
+	GiftDescriptor _descriptor;
+	Text::String _text;
+	Text::String _price;
+	QRect _button;
+	QMargins _extend;
+	std::unique_ptr<HistoryView::StickerPlayer> _player;
+
+};
+
+GiftButton::GiftButton(
+	QWidget *parent,
+	not_null<GiftButtonDelegate*> delegate)
+: AbstractButton(parent)
+, _delegate(delegate) {
+}
+
+void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
+	if (_descriptor == descriptor) {
+		return;
+	}
+	_descriptor = descriptor;
+	v::match(descriptor, [&](const GiftTypePremium &data) {
+		const auto months = data.months;
+		const auto years = (months % 12) ? 0 : months / 12;
+		_text = Text::String(st::giftBoxGiftHeight / 4);
+		_text.setMarkedText(
+			st::defaultTextStyle,
+			Text::Bold(years
+				? tr::lng_years(tr::now, lt_count, years)
+				: tr::lng_months(tr::now, lt_count, months)
+			).append('\n').append(
+				tr::lng_gift_premium_label(tr::now)
+			));
+		_price.setText(
+			st::semiboldTextStyle,
+			FillAmountAndCurrency(
+				data.cost,
+				data.currency,
+				true));
+	}, [&](const GiftTypeStars &data) {
+		_price.setMarkedText(
+			st::semiboldTextStyle,
+			_delegate->star().append(QString::number(data.stars)),
+			kMarkupTextOptions,
+			_delegate->textContext());
+	});
+	const auto buttonw = _price.maxWidth();
+	const auto buttonh = st::semiboldFont->height;
+	const auto inner = QRect(
+		QPoint(),
+		QSize(buttonw, buttonh)
+	).marginsAdded(st::giftBoxButtonPadding);
+	const auto single = _delegate->buttonSize();
+	const auto skipx = (single.width() - inner.width()) / 2;
+	const auto skipy = single.height()
+		- st::giftBoxButtonBottom
+		- inner.height();
+	const auto outer = (single.width() - 2 * skipx);
+	_button = QRect(skipx, skipy, outer, inner.height());
+}
+
+void GiftButton::setGeometry(QRect inner, QMargins extend) {
+	_extend = extend;
+	AbstractButton::setGeometry(inner.marginsAdded(extend));
+}
+
+void GiftButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	const auto position = QPoint(_extend.left(), _extend.top());
+	p.drawImage(0, 0, _delegate->background());
+
+	auto hq = PainterHighQualityEnabler(p);
+	const auto premium = v::is<GiftTypePremium>(_descriptor);
+	const auto singlew = _delegate->buttonSize().width();
+	p.setFont(st::normalFont);
+	v::match(_descriptor, [&](const GiftTypePremium &data) {
+		if (data.discountPercent > 0) {
+			p.setPen(st::attentionBoxButton.textFg);
+			p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), '-' + QString::number(data.discountPercent) + '%', style::al_center);
+		}
+	}, [&](const GiftTypeStars &data) {
+		if (data.limited) {
+			p.setPen(st::windowActiveTextFg);
+			p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), u"limited"_q, style::al_center);
+		}
+	});
+	p.setBrush(premium ? st::lightButtonBgOver : st::creditsBg3);
+	p.setPen(Qt::NoPen);
+	if (!premium) {
+		p.setOpacity(0.12);
+	}
+	const auto geometry = _button.translated(position);
+	const auto radius = geometry.height() / 2.;
+	p.drawRoundedRect(geometry, radius, radius);
+	if (!premium) {
+		p.setOpacity(1.);
+	}
+
+	if (!_text.isEmpty()) {
+		p.setPen(st::windowFg);
+		_text.draw(p, {
+			.position = (position
+				+ QPoint(0, st::giftBoxPremiumTextTop)),
+			.availableWidth = singlew,
+			.align = style::al_top,
+		});
+	}
+
+	const auto padding = st::giftBoxButtonPadding;
+	p.setPen(premium ? st::windowActiveTextFg : st::creditsFg);
+	_price.draw(p, {
+		.position = (geometry.topLeft()
+			+ QPoint(padding.left(), padding.top())),
+		.availableWidth = _price.maxWidth(),
+	});
+}
+
 [[nodiscard]] object_ptr<RpWidget> MakeGiftsList(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
@@ -390,109 +527,128 @@ struct GiftPriceTabs {
 	auto result = object_ptr<RpWidget>((QWidget*)nullptr);
 	const auto raw = result.data();
 
-	struct Button {
-		GiftDescriptor descriptor;
-		Text::String text;
-		Text::String price;
-		QRect geometry;
-		QRect button;
-		std::unique_ptr<HistoryView::StickerPlayer> player;
-	};
-	struct State {
-		std::vector<Button> buttons;
-		QPoint bgShift;
-		QImage bg;
-	};
-	const auto state = raw->lifetime().make_state<State>();
+	class Delegate final : public GiftButtonDelegate {
+	public:
+		Delegate(
+			not_null<Window::SessionController*> window,
+			not_null<PeerData*> peer)
+		: _window(window)
+		, _peer(peer) {
+		}
 
-	const auto width = st::boxWideWidth;
-	const auto padding = st::giftBoxPadding;
-	const auto available = width - padding.left() - padding.right();
-	const auto singlew = (available - 2 * st::giftBoxGiftSkip.x())
-		/ kGiftsPerRow;
+		TextWithEntities star() override {
+			return _peer->owner().customEmojiManager().creditsEmoji();
+		}
+		std::any textContext() override {
+			return Core::MarkedTextContext{
+				.session = &_peer->session(),
+				.customEmojiRepaint = [] {},
+			};
+		}
+		QSize buttonSize() override {
+			if (!_single.isEmpty()) {
+				return _single;
+			}
+			const auto width = st::boxWideWidth;
+			const auto padding = st::giftBoxPadding;
+			const auto available = width - padding.left() - padding.right();
+			const auto singlew = (available - 2 * st::giftBoxGiftSkip.x())
+				/ kGiftsPerRow;
+			_single = QSize(singlew, st::giftBoxGiftHeight);
+			return _single;
+		}
+		void setBackground(QImage bg) {
+			_bg = std::move(bg);
+		}
+		QImage background() override {
+			return _bg;
+		}
+
+	private:
+		const not_null<Window::SessionController*> _window;
+		const not_null<PeerData*> _peer;
+		QSize _single;
+		QImage _bg;
+
+	};
+
+	struct State {
+		Delegate delegate;
+		std::vector<std::unique_ptr<GiftButton>> buttons;
+	};
+	const auto state = raw->lifetime().make_state<State>(State{
+		.delegate = Delegate(window, peer),
+	});
+	const auto single = state->delegate.buttonSize();
 	const auto shadow = st::defaultDropdownMenu.wrap.shadow;
 	const auto extend = shadow.extend;
 
-	state->bgShift = -QPoint(extend.left(), extend.top());
-	const auto single = QSize(singlew, st::giftBoxGiftHeight);
 	const auto bgSize = QRect(QPoint(), single ).marginsAdded(extend).size();
-	state->bg = QImage(
-		bgSize * style::DevicePixelRatio(),
+	const auto ratio = style::DevicePixelRatio();
+	auto bg = QImage(
+		bgSize * ratio,
 		QImage::Format_ARGB32_Premultiplied);
-	state->bg.setDevicePixelRatio(style::DevicePixelRatio());
-	state->bg.fill(Qt::transparent);
+	bg.setDevicePixelRatio(ratio);
+	bg.fill(Qt::transparent);
 
-	auto p = QPainter(&state->bg);
+	const auto radius = st::giftBoxGiftRadius;
 	const auto rect = QRect(QPoint(), bgSize).marginsRemoved(extend);
-	Shadow::paint(p, rect, bgSize.width(), shadow);
-	auto hq = PainterHighQualityEnabler(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::windowBg);
-	const auto radius = st::roundRadiusSmall;
-	p.drawRoundedRect(rect, radius, radius);
-	p.end();
 
+	{
+		auto p = QPainter(&bg);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setOpacity(0.3);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowShadowFg);
+		p.drawRoundedRect(
+			QRectF(rect).translated(0, radius / 12.),
+			radius,
+			radius);
+	}
+	bg = bg.scaled(
+		(bgSize * ratio) / 2,
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
+	bg = Images::Blur(std::move(bg), true);
+	bg = bg.scaled(
+		bgSize * ratio,
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
+	{
+		auto p = QPainter(&bg);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBg);
+		p.drawRoundedRect(rect, radius, radius);
+	}
+
+	state->delegate.setBackground(std::move(bg));
 	std::move(
 		gifts
 	) | rpl::start_with_next([=](const std::vector<GiftDescriptor> &gifts) {
-		const auto context = Core::MarkedTextContext{
-			.session = &peer->session(),
-			.customEmojiRepaint = [] {},
-		};
-		const auto star = [&] {
-			return peer->owner().customEmojiManager().creditsEmoji();
-		};
+		const auto width = st::boxWideWidth;
+		const auto padding = st::giftBoxPadding;
+		const auto available = width - padding.left() - padding.right();
+
 		auto x = padding.left();
 		auto y = padding.top();
 		state->buttons.resize(gifts.size());
-		for (auto i = 0, count = int(gifts.size()); i != count; ++i) {
-			auto &button = state->buttons[i];
-			const auto &descriptor = gifts[i];
-			if (button.descriptor != descriptor) {
-				button.descriptor = descriptor;
-				v::match(descriptor, [&](const GiftTypePremium &data) {
-					const auto months = data.months;
-					const auto years = (months % 12) ? 0 : months / 12;
-					button.text = Text::String(singlew / 2);
-					button.text.setMarkedText(
-						st::defaultTextStyle,
-						Text::Bold(years
-							? tr::lng_years(tr::now, lt_count, years)
-							: tr::lng_months(tr::now, lt_count, months)
-						).append('\n').append(
-							tr::lng_gift_premium_label(tr::now)
-						));
-					button.price.setText(
-						st::semiboldTextStyle,
-						FillAmountAndCurrency(
-							data.cost,
-							data.currency,
-							true));
-				}, [&](const GiftTypeStars &data) {
-					button.price.setMarkedText(
-						st::semiboldTextStyle,
-						star().append(QString::number(data.stars)),
-						kMarkupTextOptions,
-						context);
-				});
-				const auto buttonw = button.price.maxWidth();
-				const auto buttonh = st::semiboldFont->height;
-				const auto inner = QRect(
-					QPoint(),
-					QSize(buttonw, buttonh)
-				).marginsAdded(st::giftBoxButtonPadding);
-				const auto skipx = (singlew - inner.width()) / 2;
-				const auto skipy = single.height()
-					- st::giftBoxButtonBottom
-					- inner.height();
-				const auto outer = (singlew - 2 * skipx);
-				button.button = QRect(skipx, skipy, outer, inner.height());
+		for (auto &button : state->buttons) {
+			if (!button) {
+				button = std::make_unique<GiftButton>(raw, &state->delegate);
+				button->show();
 			}
+		}
+		for (auto i = 0, count = int(gifts.size()); i != count; ++i) {
+			const auto button = state->buttons[i].get();
+			const auto &descriptor = gifts[i];
+			button->setDescriptor(descriptor);
+
 			const auto last = !((i + 1) % kGiftsPerRow);
 			if (last) {
 				x = padding.left() + available - single.width();
 			}
-			button.geometry = QRect(QPoint(x, y), single);
+			button->setGeometry(QRect(QPoint(x, y), single), extend);
 			if (last) {
 				x = padding.left();
 				y += single.height() + st::giftBoxGiftSkip.y();
@@ -506,58 +662,6 @@ struct GiftPriceTabs {
 			y += padding.bottom() - st::giftBoxGiftSkip.y();
 		}
 		raw->resize(raw->width(), gifts.empty() ? 0 : y);
-	}, raw->lifetime());
-
-	raw->paintRequest() | rpl::start_with_next([=] {
-		auto p = QPainter(raw);
-		for (const auto &button : state->buttons) {
-			const auto position = button.geometry.topLeft();
-			p.drawImage(position + state->bgShift, state->bg);
-
-			auto hq = PainterHighQualityEnabler(p);
-			const auto premium = v::is<GiftTypePremium>(button.descriptor);
-			p.setFont(st::normalFont);
-			v::match(button.descriptor, [&](const GiftTypePremium &data) {
-				if (data.discountPercent > 0) {
-					p.setPen(st::attentionBoxButton.textFg);
-					p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), '-' + QString::number(data.discountPercent) + '%', style::al_center);
-				}
-			}, [&](const GiftTypeStars &data) {
-				if (data.limited) {
-					p.setPen(st::windowActiveTextFg);
-					p.drawText(QRect(position, QSize(singlew, st::normalFont->height * 2)), u"limited"_q, style::al_center);
-				}
-			});
-			p.setBrush(premium ? st::lightButtonBgOver : st::creditsBg3);
-			p.setPen(Qt::NoPen);
-			if (!premium) {
-				p.setOpacity(0.12);
-			}
-			const auto geometry = button.button.translated(position);
-			const auto radius = geometry.height() / 2.;
-			p.drawRoundedRect(geometry, radius, radius);
-			if (!premium) {
-				p.setOpacity(1.);
-			}
-
-			if (!button.text.isEmpty()) {
-				p.setPen(st::windowFg);
-				button.text.draw(p, {
-					.position = (position
-						+ QPoint(0, st::giftBoxPremiumTextTop)),
-					.availableWidth = singlew,
-					.align = style::al_top,
-				});
-			}
-
-			const auto padding = st::giftBoxButtonPadding;
-			p.setPen(premium ? st::windowActiveTextFg : st::creditsFg);
-			button.price.draw(p, {
-				.position = (geometry.topLeft()
-					+ QPoint(padding.left(), padding.top())),
-				.availableWidth = button.price.maxWidth(),
-			});
-		}
 	}, raw->lifetime());
 
 	return result;
