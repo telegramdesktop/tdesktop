@@ -245,6 +245,7 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = toDescriptionSelection(context.selection),
+			.useFullWidth = true,
 		});
 		tshift += _descriptionHeight;
 	}

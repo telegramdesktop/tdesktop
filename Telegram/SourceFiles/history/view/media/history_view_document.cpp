@@ -931,6 +931,7 @@ void Document::draw(
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = selection,
 			.highlight = highlightRequest ? &*highlightRequest : nullptr,
+			.useFullWidth = true,
 		});
 	}
 }

@@ -280,6 +280,7 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 			.selection = toDescriptionSelection(context.selection),
 			.elisionHeight = _descriptionLines * lineHeight,
 			.elisionRemoveFromEnd = endskip,
+			.useFullWidth = true,
 		});
 		tshift += _descriptionLines * lineHeight;
 	}

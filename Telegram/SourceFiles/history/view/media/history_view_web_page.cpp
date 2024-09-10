@@ -1085,6 +1085,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				? (_descriptionLines * lineHeight)
 				: 0),
 			.elisionRemoveFromEnd = (_descriptionLines > 0) ? endskip : 0,
+			.useFullWidth = true,
 		});
 		tshift += (_descriptionLines > 0)
 			? (_descriptionLines * lineHeight)
