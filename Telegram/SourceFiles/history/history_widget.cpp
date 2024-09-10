@@ -5786,7 +5786,7 @@ bool HistoryWidget::canSendFiles(not_null<const QMimeData*> data) const {
 	} else if (data->hasImage()) {
 		return true;
 	} else if (const auto urls = Core::ReadMimeUrls(data); !urls.empty()) {
-		if (ranges::all_of(urls, Core::UrlIsLocal)) {
+		if (ranges::all_of(urls, &QUrl::isLocalFile)) {
 			return true;
 		}
 	}

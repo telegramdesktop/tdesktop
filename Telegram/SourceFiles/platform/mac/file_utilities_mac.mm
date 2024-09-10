@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/file_utilities_mac.h"
 
 #include "base/platform/mac/base_utilities_mac.h"
-#include "core/mime_type.h"
 #include "lang/lang_keys.h"
 #include "styles/style_window.h"
 
@@ -380,9 +379,6 @@ namespace Platform {
 namespace File {
 
 QString UrlToLocal(const QUrl &url) {
-	if (!Core::UrlIsLocal(url)) {
-		return QString();
-	}
 	auto result = url.toLocalFile();
 	if (result.startsWith(u"/.file/id="_q)) {
 		NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (u"file://"_q + result).toUtf8().constData()]] filePathURL] path];
