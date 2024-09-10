@@ -98,8 +98,6 @@ void Paint(
 		int radius,
 		int textMaxHeight,
 		int photoSize) {
-	const auto usualSize = 41;
-	const auto pixel = std::clamp(qrMaxSize / usualSize, 1, qrPixel);
 	auto hq = PainterHighQualityEnabler(p);
 	p.setPen(Qt::NoPen);
 	p.setBrush(Qt::white);
@@ -115,8 +113,6 @@ void Paint(
 		const auto gradientRotationAdd = angle - gradientRotation;
 
 		const auto center = QPointF(rect::center(qrRect));
-		const auto radius = std::sqrt(std::pow(qrRect.width() / 2., 2)
-			+ std::pow(qrRect.height() / 2., 2));
 		auto back = Images::GenerateGradient(
 			qrRect.size(),
 			backgroundColors,
@@ -463,7 +459,6 @@ void FillPeerQrBox(
 				row->resize(size, size);
 			}
 			const auto widget = Ui::CreateChild<Ui::AbstractButton>(row);
-			const auto widgetState = widget->lifetime().make_state<State>();
 			widget->setClickedCallback([=] {
 				state->chosen = counter;
 				widget->update();
