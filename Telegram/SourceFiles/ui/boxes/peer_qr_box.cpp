@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "data/data_user.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -22,12 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
-#include "ui/widgets/continuous_sliders.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -386,9 +385,9 @@ void FillPeerQrBox(
 		userpic,
 		state->font,
 		state->userpicToggled.value(),
-		Info::Profile::UsernameValue(peer->asUser()),
-		Info::Profile::LinkValue(peer) | rpl::map([](const auto &link) {
-			return link.url;
+		Info::Profile::UsernameValue(peer, true),
+		Info::Profile::LinkValue(peer, true) | rpl::map([](const auto &link) {
+			return link.text;
 		}),
 		state->bgs.value());
 
@@ -719,12 +718,12 @@ void FillPeerQrBox(
 			: 0;
 
 		const auto font = createFont(scale);
+		using namespace Info::Profile;
 		const auto username = rpl::variable<TextWithEntities>(
-			Info::Profile::UsernameValue(
-				peer->asUser())).current().text.toUpper();
+			UsernameValue(peer, true)).current().text.toUpper();
 		const auto link = rpl::variable<QString>(
-			Info::Profile::LinkValue(peer) | rpl::map([](const auto &l) {
-				return l.url;
+			LinkValue(peer, true) | rpl::map([](const auto &l) {
+				return l.text;
 			}));
 		const auto textWidth = font->width(username);
 		const auto top = Ui::GrabWidget(

@@ -154,11 +154,11 @@ rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 }
 
 rpl::producer<TextWithEntities> UsernameValue(
-		not_null<UserData*> user,
+		not_null<PeerData*> peer,
 		bool primary) {
 	return (primary
-		? PlainPrimaryUsernameValue(user)
-		: (PlainUsernameValue(user) | rpl::type_erased())
+		? PlainPrimaryUsernameValue(peer)
+		: (PlainUsernameValue(peer) | rpl::type_erased())
 	) | rpl::map([](QString &&username) {
 		return username.isEmpty()
 			? QString()

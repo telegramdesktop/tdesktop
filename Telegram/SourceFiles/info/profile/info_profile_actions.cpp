@@ -1035,6 +1035,22 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		result.text->setContextCopyText(contextCopyText);
 		return result;
 	};
+	const auto fitLabelToButton = [&](
+			not_null<Ui::RpWidget*> button,
+			not_null<Ui::FlatLabel*> label) {
+		const auto parent = label->parentWidget();
+		result->sizeValue() | rpl::start_with_next([=] {
+			const auto s = parent->size();
+			button->moveToRight(
+				0,
+				(s.height() - button->height()) / 2);
+			label->resizeToWidth(
+				s.width()
+					- label->geometry().left()
+					- st::lineWidth * 2
+					- button->width());
+		}, button->lifetime());
+	};
 	if (const auto user = _peer->asUser()) {
 		const auto controller = _controller->parentController();
 		if (user->session().supportMode()) {
@@ -1103,25 +1119,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		usernameLine.text->setContextMenuHook(hook);
 		usernameLine.subtext->setContextMenuHook(hook);
 		if (user) {
-			const auto usernameLabel = usernameLine.text;
-			const auto parent = usernameLabel->parentWidget();
 			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
-				parent,
+				usernameLine.text->parentWidget(),
 				user->isBot()
 					? st::infoProfileLabeledButtonCopy
 					: st::infoProfileLabeledButtonQr);
-			result->sizeValue(
-			) | rpl::start_with_next([=] {
-				const auto s = parent->size();
-				copyUsername->moveToRight(
-					0,
-					(s.height() - copyUsername->height()) / 2);
-				usernameLabel->resizeToWidth(
-					s.width()
-						- usernameLabel->geometry().left()
-						- st::lineWidth * 2
-						- copyUsername->width());
-			}, copyUsername->lifetime());
+			fitLabelToButton(copyUsername, usernameLine.text);
 			copyUsername->setClickedCallback([=] {
 				if (!user->isBot()) {
 					controller->show(Box([=](not_null<Ui::GenericBox*> box) {
@@ -1187,7 +1190,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 						: text) + addToLink,
 					(addToLink.isEmpty() ? link.url : (text + addToLink)));
 		});
-		auto linkLine = addInfoOneLine(
+		const auto linkLine = addInfoOneLine(
 			(topicRootId
 				? tr::lng_info_link_label(Ui::Text::WithEntities)
 				: UsernamesSubtext(_peer, tr::lng_info_link_label())),
@@ -1200,6 +1203,18 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			addToLink);
 		linkLine.text->overrideLinkClickHandler(linkCallback);
 		linkLine.subtext->overrideLinkClickHandler(linkCallback);
+		{
+			const auto qr = Ui::CreateChild<Ui::IconButton>(
+				linkLine.text->parentWidget(),
+				st::infoProfileLabeledButtonQr);
+			fitLabelToButton(qr, linkLine.text);
+			qr->setClickedCallback([=, peer = _peer] {
+				controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+					Ui::FillPeerQrBox(box, peer);
+				}));
+				return false;
+			});
+		}
 
 		if (const auto channel = _topic ? nullptr : _peer->asChannel()) {
 			auto locationText = LocationValue(

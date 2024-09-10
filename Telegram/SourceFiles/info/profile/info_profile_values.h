@@ -57,7 +57,7 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> UsernameValue(
-	not_null<UserData*> user,
+	not_null<PeerData*> peer,
 	bool primary = false);
 [[nodiscard]] rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
 	not_null<PeerData*> peer);
