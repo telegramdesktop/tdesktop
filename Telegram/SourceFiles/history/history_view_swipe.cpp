@@ -191,7 +191,7 @@ void SetupSwipeHandler(
 			const auto t = static_cast<QTouchEvent*>(e.get());
 			const auto touchscreen = t->device()
 				&& (t->device()->type() == base::TouchDevice::TouchScreen);
-			if (!Platform::IsMac() && !touchscreen) {
+			if (/*!Platform::IsMac() && */!touchscreen) {
 				break;
 			} else if (type == QEvent::TouchBegin) {
 				// Reset state in case we lost some TouchEnd.
@@ -235,6 +235,7 @@ void SetupSwipeHandler(
 		case QEvent::Wheel: {
 			const auto w = static_cast<QWheelEvent*>(e.get());
 			const auto phase = w->phase();
+#if 0
 #ifdef Q_OS_MAC
 			if (phase == Qt::ScrollBegin) {
 				state->twoFingerScrollStarted = true;
@@ -246,7 +247,8 @@ void SetupSwipeHandler(
 				state->twoFingerScrollStarted = false;
 			}
 #endif // Q_OS_MAC
-			if (Platform::IsMac() || phase == Qt::NoScrollPhase) {
+#endif
+			if (/*Platform::IsMac() || */phase == Qt::NoScrollPhase) {
 				break;
 			} else if (phase == Qt::ScrollBegin) {
 				// Reset state in case we lost some TouchEnd.
