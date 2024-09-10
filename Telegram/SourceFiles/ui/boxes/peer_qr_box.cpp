@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -375,7 +376,7 @@ void Paint(
 
 void FillPeerQrBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<PeerData*> peer,
+		PeerData *peer,
 		std::optional<QString> customLink,
 		rpl::producer<QString> about) {
 	const auto window = Core::App().findWindow(box);
@@ -400,6 +401,7 @@ void FillPeerQrBox(
 		style::font font;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	state->userpicToggled = !(customLink || !peer);
 	const auto createFont = [=](int scale) {
 		return style::font(
 			style::ConvertScale(30, scale),
@@ -409,7 +411,7 @@ void FillPeerQrBox(
 	state->font = createFont(style::Scale());
 
 	const auto usernameValue = [=] {
-		return customLink
+		return (customLink || !peer)
 			? rpl::single(QString())
 			: Info::Profile::UsernameValue(peer, true) | rpl::map(
 				[](const auto &username) { return username.text; });
@@ -417,14 +419,17 @@ void FillPeerQrBox(
 	const auto linkValue = [=] {
 		return customLink
 			? rpl::single(*customLink)
-			: Info::Profile::LinkValue(peer, true) | rpl::map(
-				[](const auto &link) { return link.text; });
+			: peer
+			? Info::Profile::LinkValue(peer, true) | rpl::map(
+				[](const auto &link) { return link.text; })
+			: rpl::single(QString());
 	};
 
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 		box,
-		peer,
+		peer ? peer : controller->session().user().get(),
 		st::defaultUserpicButton);
+	userpic->setVisible(peer != nullptr);
 	const auto qr = PrepareQrWidget(
 		box->verticalLayout(),
 		userpic,
@@ -696,19 +701,21 @@ void FillPeerQrBox(
 	}
 	Ui::AddSkip(box->verticalLayout());
 	Ui::AddSkip(box->verticalLayout());
-	const auto userpicToggle = box->verticalLayout()->add(
-		object_ptr<Ui::SettingsButton>(
-			box->verticalLayout(),
-			(peer->isUser()
-				? tr::lng_mediaview_profile_photo
-				: (peer->isChannel() && !peer->isMegagroup())
-				? tr::lng_mediaview_channel_photo
-				: tr::lng_mediaview_group_photo)(),
-			st::settingsButtonNoIcon));
-	userpicToggle->toggleOn(state->userpicToggled.value(), true);
-	userpicToggle->setClickedCallback([=] {
-		state->userpicToggled = !state->userpicToggled.current();
-	});
+	if (peer) {
+		const auto userpicToggle = box->verticalLayout()->add(
+			object_ptr<Ui::SettingsButton>(
+				box->verticalLayout(),
+				(peer->isUser()
+					? tr::lng_mediaview_profile_photo
+					: (peer->isChannel() && !peer->isMegagroup())
+					? tr::lng_mediaview_channel_photo
+					: tr::lng_mediaview_group_photo)(),
+				st::settingsButtonNoIcon));
+		userpicToggle->toggleOn(state->userpicToggled.value(), true);
+		userpicToggle->setClickedCallback([=] {
+			state->userpicToggled = !state->userpicToggled.current();
+		});
+	}
 	Ui::AddSkip(box->verticalLayout());
 	Ui::AddSkip(box->verticalLayout());
 
@@ -718,6 +725,9 @@ void FillPeerQrBox(
 		tr::lng_chat_link_copy());
 	const auto show = controller->uiShow();
 	state->saveButton = box->addButton(std::move(buttonText), [=] {
+		if (state->saveButtonBusy.current()) {
+			return;
+		}
 		const auto buttonWidth = state->saveButton
 			? state->saveButton->width()
 			: 0;

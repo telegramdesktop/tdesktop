@@ -1127,9 +1127,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			fitLabelToButton(copyUsername, usernameLine.text);
 			copyUsername->setClickedCallback([=] {
 				if (!user->isBot()) {
-					controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-						Ui::FillPeerQrBox(box, user);
-					}));
+					controller->show(
+						Box(Ui::FillPeerQrBox, user, std::nullopt, nullptr));
 					return false;
 				}
 				const auto link = user->session().createInternalLinkFull(
@@ -1209,9 +1208,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				st::infoProfileLabeledButtonQr);
 			fitLabelToButton(qr, linkLine.text);
 			qr->setClickedCallback([=, peer = _peer] {
-				controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-					Ui::FillPeerQrBox(box, peer);
-				}));
+				controller->show(
+					Box(Ui::FillPeerQrBox, peer, std::nullopt, nullptr));
 				return false;
 			});
 		}
