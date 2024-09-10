@@ -15,6 +15,8 @@ class GenericBox;
 
 void FillPeerQrBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	std::optional<QString> customLink = std::nullopt,
+	rpl::producer<QString> about = nullptr);
 
 } // namespace Ui
