@@ -1126,3 +1126,4 @@ profileQrCenterSize: 34px;
 profileQrBackgroundRadius: 12px;
 profileQrIcon: icon{{ "qr_mini", windowActiveTextFg }};
 profileQrBackgroundMargins: margins(36px, 12px, 36px, 12px);
+profileQrBackgroundPadding: margins(0px, 24px, 0px, 24px);

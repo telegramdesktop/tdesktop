@@ -101,7 +101,6 @@ void Paint(
 		int photoSize) {
 	const auto usualSize = 41;
 	const auto pixel = std::clamp(qrMaxSize / usualSize, 1, qrPixel);
-	const auto size = (qrImage.size() / style::DevicePixelRatio());
 	auto hq = PainterHighQualityEnabler(p);
 	p.setPen(Qt::NoPen);
 	p.setBrush(Qt::white);
@@ -206,10 +205,19 @@ void Paint(
 		state->backgroundColors = backgroundColors;
 		state->text = username.text.toUpper();
 		state->textWidth = font->width(state->text);
-		state->qrImage = TelegramQr(
-			Qr::Encode(link.toUtf8(), Qr::Redundancy::Default),
-			st::introQrPixel,
-			qrMaxSize);
+		{
+			const auto remainder = qrMaxSize % st::introQrPixel;
+			const auto downTo = remainder
+				? qrMaxSize - remainder
+				: qrMaxSize;
+			state->qrImage = TelegramQr(
+				Qr::Encode(link.toUtf8(), Qr::Redundancy::Default),
+				st::introQrPixel,
+				downTo).scaled(
+					Size(qrMaxSize * style::DevicePixelRatio()),
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
+		}
 		const auto qrWidth = state->qrImage.width()
 			/ style::DevicePixelRatio();
 		const auto lines = int(state->textWidth / qrWidth) + 1;
@@ -217,8 +225,8 @@ void Paint(
 		result->resize(
 			qrMaxSize + rect::m::sum::h(state->backgroundMargins),
 			qrMaxSize
-				+ rect::m::sum::v(state->backgroundMargins)
-				+ state->backgroundMargins.bottom()
+				+ rect::m::sum::v(state->backgroundMargins) // White.
+				+ rect::m::sum::v(st::profileQrBackgroundPadding) // Gray.
 				+ state->textMaxHeight
 				+ state->photoSize);
 
@@ -240,7 +248,7 @@ void Paint(
 			size);
 		p.translate(
 			0,
-			st::profileQrBackgroundMargins.top() + state->photoSize / 2);
+			st::profileQrBackgroundPadding.top() + state->photoSize / 2);
 		Paint(
 			p,
 			font,
@@ -463,8 +471,9 @@ void FillPeerQrBox(
 				state->animation.stop();
 				state->animation.start([=](float64 value) {
 					const auto was = state->bgs.current();
-					const auto now = colors;
-					if (was.size() == now.size(); was.size() == kMaxColors) {
+					const auto &now = colors;
+					if (was.size() == now.size()
+						&& was.size() == kMaxColors) {
 						state->bgs = Colors({
 							anim::color(was[0], now[0], value),
 							anim::color(was[1], now[1], value),
@@ -704,7 +713,9 @@ void FillPeerQrBox(
 			- rect::m::sum::h(boxRowPadding)
 			- rect::m::sum::h(backgroundMargins);
 		const auto photoSize = userpicToggled
-			? style::ConvertScale(st::defaultUserpicButton.photoSize, scale)
+			? style::ConvertScale(
+				st::defaultUserpicButton.photoSize / divider,
+				scale)
 			: 0;
 
 		const auto font = createFont(scale);
@@ -739,7 +750,7 @@ void FillPeerQrBox(
 					+ rect::m::sum::v(backgroundMargins)
 					+ textMaxHeight
 					+ (photoSize
-						? (backgroundMargins.bottom() + photoSize)
+						? (backgroundMargins.bottom() * 3 + photoSize)
 						: 0));
 
 			const auto qrImageSize = qrImage.size()
