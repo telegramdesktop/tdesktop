@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/edit_invite_link.h"
 #include "ui/boxes/edit_invite_link_session.h"
+#include "ui/boxes/peer_qr_box.h"
 #include "ui/controls/invite_link_buttons.h"
 #include "ui/controls/invite_link_label.h"
 #include "ui/controls/userpic_button.h"
@@ -64,8 +65,8 @@ namespace {
 
 constexpr auto kFirstPage = 20;
 constexpr auto kPerPage = 100;
-constexpr auto kShareQrSize = 768;
-constexpr auto kShareQrPadding = 16;
+// constexpr auto kShareQrSize = 768;
+// constexpr auto kShareQrPadding = 16;
 
 using LinkData = Api::InviteLink;
 
@@ -282,6 +283,8 @@ private:
 	return updated.link.isEmpty() || (!revoked && updated.revoked);
 }
 
+#if 0
+
 QImage QrExact(const Qr::Data &data, int pixel, QColor color) {
 	const auto image = [](int size) {
 		auto result = QImage(
@@ -383,6 +386,8 @@ void QrBox(
 	box->addLeftButton(tr::lng_group_invite_context_copy(), copyCallback);
 }
 
+#endif
+
 Controller::Controller(
 	not_null<PeerData*> peer,
 	not_null<UserData*> admin,
@@ -421,6 +426,7 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
 		delegate()->peerListUiShow()->showBox(InviteLinkQrBox(
+			_peer,
 			link,
 			tr::lng_group_invite_qr_title(),
 			tr::lng_group_invite_qr_about()));
@@ -1253,6 +1259,7 @@ void AddPermanentLinkBlock(
 	const auto getLinkQr = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
 			show->showBox(InviteLinkQrBox(
+				peer,
 				current.link,
 				tr::lng_group_invite_qr_title(),
 				tr::lng_group_invite_qr_about()));
@@ -1510,16 +1517,14 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 }
 
 object_ptr<Ui::BoxContent> InviteLinkQrBox(
+		PeerData *peer,
 		const QString &link,
 		rpl::producer<QString> title,
 		rpl::producer<QString> about) {
-	return Box(QrBox, link, std::move(title), std::move(about), [=](
-			const QImage &image,
-			std::shared_ptr<Ui::Show> show) {
-		auto mime = std::make_unique<QMimeData>();
-		mime->setImageData(image);
-		QGuiApplication::clipboard()->setMimeData(mime.release());
-		show->showToast(tr::lng_group_invite_qr_copied(tr::now));
+	return Box([=, t = std::move(title), a = std::move(about)](
+			not_null<Ui::GenericBox*> box) {
+		Ui::FillPeerQrBox(box, peer, link, std::move(a));
+		box->setTitle(std::move(t));
 	});
 }
 

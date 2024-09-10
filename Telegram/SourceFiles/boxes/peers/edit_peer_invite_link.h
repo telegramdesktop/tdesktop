@@ -50,6 +50,7 @@ void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link);
 	const QString &link,
 	const QString &copied = {});
 [[nodiscard]] object_ptr<Ui::BoxContent> InviteLinkQrBox(
+	PeerData *peer,
 	const QString &link,
 	rpl::producer<QString> title,
 	rpl::producer<QString> about);

@@ -582,6 +582,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
 		delegate()->peerListUiShow()->showBox(InviteLinkQrBox(
+			nullptr,
 			link,
 			tr::lng_group_invite_qr_title(),
 			tr::lng_filters_link_qr_about()));
@@ -890,6 +891,7 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 	};
 	const auto getLinkQr = [=] {
 		delegate()->peerListUiShow()->showBox(InviteLinkQrBox(
+			nullptr,
 			link,
 			tr::lng_group_invite_qr_title(),
 			tr::lng_filters_link_qr_about()));
