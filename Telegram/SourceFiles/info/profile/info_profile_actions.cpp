@@ -1102,21 +1102,25 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		usernameLine.subtext->overrideLinkClickHandler(callback);
 		usernameLine.text->setContextMenuHook(hook);
 		usernameLine.subtext->setContextMenuHook(hook);
-		const auto usernameLabel = usernameLine.text;
 		if (user) {
-			const auto copyUsername = user->isBot()
-				? Ui::CreateChild<Ui::IconButton>(
-					usernameLabel->parentWidget(),
-					st::infoProfileLabeledButtonCopy)
-				: Ui::CreateChild<Ui::IconButton>(
-					usernameLabel->parentWidget(),
-					st::infoProfileLabeledButtonQr);
+			const auto usernameLabel = usernameLine.text;
+			const auto parent = usernameLabel->parentWidget();
+			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
+				parent,
+				user->isBot()
+					? st::infoProfileLabeledButtonCopy
+					: st::infoProfileLabeledButtonQr);
 			result->sizeValue(
 			) | rpl::start_with_next([=] {
-				const auto s = usernameLabel->parentWidget()->size();
+				const auto s = parent->size();
 				copyUsername->moveToRight(
 					0,
 					(s.height() - copyUsername->height()) / 2);
+				usernameLabel->resizeToWidth(
+					s.width()
+						- usernameLabel->geometry().left()
+						- st::lineWidth * 2
+						- copyUsername->width());
 			}, copyUsername->lifetime());
 			copyUsername->setClickedCallback([=] {
 				if (!user->isBot()) {
