@@ -159,10 +159,12 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 				showSettings,
 				&st::menuIconSettings);
 			if (state->callsDelegate.peerListFullRowsCount() > 0) {
-				state->menu->addAction(
-					tr::lng_call_box_clear_all(tr::now),
-					clearAll,
-					&st::menuIconDelete);
+				Ui::Menu::CreateAddActionCallback(state->menu)({
+					.text = tr::lng_call_box_clear_all(tr::now),
+					.handler = clearAll,
+					.icon = &st::menuIconDeleteAttention,
+					.isAttention = true,
+				});
 			}
 			state->menu->popup(QCursor::pos());
 			return true;
