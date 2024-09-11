@@ -446,6 +446,8 @@ public:
 	WebPageData *webpage() const override;
 	MediaWebPageFlags webpageFlags() const override;
 
+	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
+
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;
 	bool replyPreviewLoaded() const override;

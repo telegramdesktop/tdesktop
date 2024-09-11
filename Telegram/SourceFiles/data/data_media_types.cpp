@@ -1726,6 +1726,10 @@ MediaWebPageFlags MediaWebPage::webpageFlags() const {
 	return _flags;
 }
 
+Storage::SharedMediaTypesMask MediaWebPage::sharedMediaTypes() const {
+	return Storage::SharedMediaType::Link;
+}
+
 bool MediaWebPage::hasReplyPreview() const {
 	if (const auto document = MediaWebPage::document()) {
 		return document->hasThumbnail()

@@ -1638,6 +1638,17 @@ Link::Link(
 		}
 		_links.push_back(LinkEntry(url, entityText));
 	}
+	if (_links.empty()) {
+		if (const auto media = parent->media()) {
+			if (const auto webpage = media->webpage()) {
+				if (!webpage->displayUrl.isEmpty()
+					&& !webpage->url.isEmpty()) {
+					_links.push_back(
+						LinkEntry(webpage->displayUrl, webpage->url));
+				}
+			}
+		}
+	}
 	while (lnk > 0 && till > from) {
 		--lnk;
 		auto &entity = entities.at(lnk);
