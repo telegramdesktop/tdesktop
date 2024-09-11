@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_top_bar.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/settings_chat.h"
+#include "settings/settings_information.h"
 #include "settings/settings_main.h"
 #include "settings/settings_premium.h"
 #include "ui/effects/ripple_animation.h" // MaskByDrawer.
@@ -35,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "boxes/peer_list_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/boxes/peer_qr_box.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 #include "data/data_download_manager.h"
@@ -384,6 +386,22 @@ void WrapWidget::setupTopBarMenuToggle() {
 		addProfileCallsButton();
 	} else if (section.type() == Section::Type::Settings) {
 		addTopBarMenuButton();
+		if (section.settingsType() == ::Settings::Information::Id()) {
+			const auto controller = _controller->parentController();
+			const auto self = controller->session().user();
+			if (!self->username().isEmpty()) {
+				const auto show = controller->uiShow();
+				const auto &st = (wrap() == Wrap::Layer)
+					? st::infoLayerTopBarQr
+					: st::infoTopBarQr;
+				const auto button = _topBar->addButton(
+					base::make_unique_q<Ui::IconButton>(_topBar, st));
+				button->addClickHandler([show, self] {
+					show->show(
+						Box(Ui::FillPeerQrBox, self, std::nullopt, nullptr));
+				});
+			}
+		}
 	} else if (section.type() == Section::Type::Downloads) {
 		auto &manager = Core::App().downloadManager();
 		rpl::merge(

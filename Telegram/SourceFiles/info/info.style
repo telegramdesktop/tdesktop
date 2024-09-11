@@ -169,6 +169,13 @@ infoTopBarCall: IconButton(infoTopBarMenu) {
 	iconPosition: point(5px, -1px);
 	rippleAreaPosition: point(0px, 6px);
 }
+infoTopBarQr: IconButton(infoTopBarMenu) {
+	width: 52px;
+	icon: icon {{ "menu/qr_code", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/qr_code", boxTitleCloseFgOver }};
+	iconPosition: point(9px, -1px);
+	rippleAreaPosition: point(0px, 6px);
+}
 infoTopBarForward: IconButton(infoTopBarBack) {
 	width: 46px;
 	icon: icon {{ "info/info_media_forward", boxTitleCloseFg }};
@@ -261,6 +268,12 @@ infoLayerTopBarCall: IconButton(infoLayerTopBarMenu) {
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
 	iconPosition: point(3px, -1px);
+}
+infoLayerTopBarQr: IconButton(infoLayerTopBarClose) {
+	width: 40px;
+	icon: icon {{ "menu/qr_code", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/qr_code", boxTitleCloseFgOver }};
+	iconPosition: point(8px, -1px);
 }
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	width: 45px;
