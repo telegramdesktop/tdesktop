@@ -1572,7 +1572,8 @@ void InnerWidget::suggestRestrictParticipant(
 				if (participant.type() == Type::Creator
 					|| participant.type() == Type::Admin) {
 					editRestrictions(true, {}, nullptr, 0);
-				} else if (const auto since = participant.restrictedSince()) {
+				} else {
+					const auto since = participant.restrictedSince();
 					editRestrictions(
 						false,
 						participant.restrictions(),
