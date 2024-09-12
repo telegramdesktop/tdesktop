@@ -487,14 +487,13 @@ void FillPeerQrBox(
 		}) | ranges::views::filter([](const Colors &colors) {
 			return !colors.empty();
 		}) | ranges::to_vector;
-		colorsCollection.insert(
-			colorsCollection.begin(),
-			Colors{
-				st::premiumButtonBg1->c,
-				st::premiumButtonBg1->c,
-				st::premiumButtonBg2->c,
-				st::premiumButtonBg3->c,
-			});
+		Expects(!colorsCollection.empty());
+		colorsCollection[0] = Colors{
+			st::premiumButtonBg1->c,
+			st::premiumButtonBg1->c,
+			st::premiumButtonBg2->c,
+			st::premiumButtonBg3->c,
+		};
 		// colorsCollection.push_back(Colors{
 		// 	st::creditsBg1->c,
 		// 	st::creditsBg2->c,
