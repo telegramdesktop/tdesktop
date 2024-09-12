@@ -386,7 +386,8 @@ void WrapWidget::setupTopBarMenuToggle() {
 		addProfileCallsButton();
 	} else if (section.type() == Section::Type::Settings) {
 		addTopBarMenuButton();
-		if (section.settingsType() == ::Settings::Information::Id()) {
+		if (section.settingsType() == ::Settings::Information::Id()
+			|| section.settingsType() == ::Settings::Main::Id()) {
 			const auto controller = _controller->parentController();
 			const auto self = controller->session().user();
 			if (!self->username().isEmpty()) {
