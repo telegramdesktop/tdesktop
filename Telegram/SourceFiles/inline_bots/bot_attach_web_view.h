@@ -80,24 +80,6 @@ struct AttachWebViewBot {
 	bool requestWriteAccess : 1 = false;
 };
 
-struct AddToMenuOpenAttach {
-	QString startCommand;
-	PeerTypes chooseTypes;
-};
-struct AddToMenuOpenMenu {
-	QString startCommand;
-};
-struct AddToMenuOpenApp {
-	not_null<BotAppData*> app;
-	QString startCommand;
-};
-struct AddToMenuOpen : std::variant<
-	AddToMenuOpenAttach,
-	AddToMenuOpenMenu,
-	AddToMenuOpenApp> {
-	using variant::variant;
-};
-
 struct WebViewSourceButton {
 	bool simple = false;
 
