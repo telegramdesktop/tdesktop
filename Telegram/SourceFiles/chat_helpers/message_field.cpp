@@ -147,13 +147,24 @@ void EditLinkBox(
 		object_ptr<Ui::RpWidget>(content),
 		st::markdownLinkFieldPadding);
 	placeholder->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto link = [&] {
+		if (!startLink.trimmed().isEmpty()) {
+			return startLink.trimmed();
+		}
+		const auto clipboard = QGuiApplication::clipboard()->text().trimmed();
+		if (clipboard.startsWith("http://")
+			|| clipboard.startsWith("https://")) {
+			return clipboard;
+		}
+		return QString();
+	}();
 	const auto url = Ui::AttachParentChild(
 		content,
 		object_ptr<Ui::InputField>(
 			content,
 			fieldSt,
 			tr::lng_formatting_link_url(),
-			startLink.trimmed()));
+			link));
 	url->heightValue(
 	) | rpl::start_with_next([placeholder](int height) {
 		placeholder->resize(placeholder->width(), height);
