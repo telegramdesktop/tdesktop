@@ -124,8 +124,9 @@ void Paint(
 		const auto gradientRotation = int(angle / 45.) * 45;
 		const auto gradientRotationAdd = angle - gradientRotation;
 
+		const auto textAdditionalWidth = backgroundMargins.left();
 		auto back = Images::GenerateGradient(
-			qrRect.size(),
+			qrRect.size() + QSize(textAdditionalWidth, 0),
 			backgroundColors,
 			gradientRotation,
 			1. - (gradientRotationAdd / 45.));
@@ -151,7 +152,7 @@ void Paint(
 		p.drawImage(qrRect, qrImage);
 		if (textMaxHeight) {
 			p.drawImage(
-				qrRect.x(),
+				qrRect.x() - textAdditionalWidth / 2,
 				rect::bottom(qrRect)
 					+ ((rect::bottom(roundedRect) - rect::bottom(qrRect))
 						- textMaxHeight) / 2,
@@ -238,9 +239,9 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			aboutLabel->setText(about);
 			aboutLabel->resizeToWidth(resultWidth);
 		}
-		const auto qrWidth = state->qrImage.width()
-			/ style::DevicePixelRatio();
-		const auto lines = int(state->textWidth / qrWidth) + 1;
+		const auto textMaxWidth = state->backgroundMargins.left()
+			+ (state->qrImage.width() / style::DevicePixelRatio());
+		const auto lines = int(state->textWidth / textMaxWidth) + 1;
 		state->textMaxHeight = state->textWidth ? (font->height * lines) : 0;
 		const auto whiteMargins = RoundedMargins(
 			state->backgroundMargins,
@@ -792,8 +793,9 @@ void FillPeerQrBox(
 					Qr::Redundancy::Default),
 				introQrPixel,
 				qrMaxSize);
-			const auto qrWidth = qrImage.width() / style::DevicePixelRatio();
-			const auto lines = int(textWidth / qrWidth) + 1;
+			const auto textMaxWidth = backgroundMargins.left()
+				+ (qrImage.width() / style::DevicePixelRatio());
+			const auto lines = int(textWidth / textMaxWidth) + 1;
 			const auto textMaxHeight = textWidth ? font->height * lines : 0;
 
 			const auto whiteMargins = RoundedMargins(
