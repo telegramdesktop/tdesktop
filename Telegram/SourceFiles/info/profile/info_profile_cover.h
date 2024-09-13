@@ -71,6 +71,7 @@ private:
 	Fn<bool()> _paused;
 	Fn<void()> _update;
 	std::shared_ptr<StickerPlayer> _player;
+	bool _playerUsesTextColor = false;
 	QImage _image;
 	rpl::lifetime _lifetime;
 
