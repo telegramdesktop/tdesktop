@@ -1684,12 +1684,16 @@ void InitFieldAutocomplete(
 	}, raw->lifetime());
 
 	const auto peer = descriptor.peer;
+	const auto features = descriptor.features;
 	const auto processShortcut = descriptor.processShortcut;
 	const auto shortcutMessages = (processShortcut != nullptr)
 		? &peer->owner().shortcutMessages()
 		: nullptr;
 	raw->botCommandChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::BotCommandChosen data) {
+		if (!features().autocompleteCommands) {
+			return;
+		}
 		using Method = FieldAutocompleteChooseMethod;
 		const auto byTab = (data.method == Method::ByTab);
 		const auto shortcut = data.user->isSelf();
@@ -1708,16 +1712,17 @@ void InitFieldAutocomplete(
 
 	raw->setModerateKeyActivateCallback(std::move(descriptor.moderateKeyActivateCallback));
 
-	const auto stickerChoosing = descriptor.stickerChoosing;
-	raw->choosingProcesses(
-	) | rpl::start_with_next([=](FieldAutocomplete::Type type) {
-		if (type == FieldAutocomplete::Type::Stickers) {
-			stickerChoosing();
-		}
-	}, raw->lifetime());
-	if (auto chosen = descriptor.stickerChosen) {
+	if (const auto stickerChoosing = descriptor.stickerChoosing) {
+		raw->choosingProcesses(
+		) | rpl::start_with_next([=](FieldAutocomplete::Type type) {
+			if (type == FieldAutocomplete::Type::Stickers) {
+				stickerChoosing();
+			}
+		}, raw->lifetime());
+	}
+	if (const auto chosen = descriptor.stickerChosen) {
 		raw->stickerChosen(
-		) | rpl::start_with_next(std::move(chosen), raw->lifetime());
+		) | rpl::start_with_next(chosen, raw->lifetime());
 	}
 
 	field->tabbed(
@@ -1727,7 +1732,6 @@ void InitFieldAutocomplete(
 		}
 	}, raw->lifetime());
 
-	const auto features = descriptor.features;
 	const auto check = [=] {
 		auto parsed = ParseMentionHashtagBotCommandQuery(field, features());
 		if (parsed.query.isEmpty()) {
