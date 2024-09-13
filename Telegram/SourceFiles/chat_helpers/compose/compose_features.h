@@ -10,20 +10,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace ChatHelpers {
 
 struct ComposeFeatures {
-	bool likes = false;
-	bool sendAs = true;
-	bool ttlInfo = true;
-	bool botCommandSend = true;
-	bool silentBroadcastToggle = true;
-	bool attachBotsMenu = true;
-	bool inlineBots = true;
-	bool megagroupSet = true;
-	bool stickersSettings = true;
-	bool openStickerSets = true;
-	bool autocompleteHashtags = true;
-	bool autocompleteMentions = true;
-	bool autocompleteCommands = true;
-	bool commonTabbedPanel = true;
+	bool likes : 1 = false;
+	bool sendAs : 1 = true;
+	bool ttlInfo : 1 = true;
+	bool botCommandSend : 1 = true;
+	bool silentBroadcastToggle : 1 = true;
+	bool attachBotsMenu : 1 = true;
+	bool inlineBots : 1 = true;
+	bool megagroupSet : 1 = true;
+	bool stickersSettings : 1 = true;
+	bool openStickerSets : 1 = true;
+	bool autocompleteHashtags : 1 = true;
+	bool autocompleteMentions : 1 = true;
+	bool autocompleteCommands : 1 = true;
+	bool suggestStickersByEmoji : 1 = true;
+	bool commonTabbedPanel : 1 = true;
 };
 
 } // namespace ChatHelpers

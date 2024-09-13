@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 enum class SendMediaType;
 class MessageLinksParser;
 struct InlineBotQuery;
-struct AutocompleteQuery;
 
 namespace MTP {
 class Error;
@@ -76,6 +75,10 @@ class ContinuousScroll;
 struct ChatPaintHighlight;
 } // namespace Ui
 
+namespace Ui::Emoji {
+class SuggestionsController;
+} // namespace Ui::Emoji
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -84,7 +87,7 @@ namespace ChatHelpers {
 class TabbedPanel;
 class TabbedSelector;
 class FieldAutocomplete;
-enum class FieldAutocompleteChooseMethod;
+struct FileChosen;
 } // namespace ChatHelpers
 
 namespace HistoryView {
@@ -126,8 +129,6 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 
-	void start();
-
 	void historyLoaded();
 
 	[[nodiscard]] bool preventsClose(Fn<void()> &&continueCallback) const;
@@ -159,7 +160,6 @@ public:
 
 	bool updateReplaceMediaButton();
 	void updateFieldPlaceholder();
-	bool updateStickersByEmoji();
 
 	bool confirmSendingFiles(const QStringList &files);
 	bool confirmSendingFiles(not_null<const QMimeData*> data);
@@ -367,17 +367,15 @@ private:
 	void fieldFocused();
 	void fieldResized();
 
-	void insertHashtagOrBotCommand(
-		QString str,
-		ChatHelpers::FieldAutocompleteChooseMethod method);
+	void initFieldAutocomplete();
 	void cancelInlineBot();
 	void saveDraft(bool delayed = false);
 	void saveCloudDraft();
 	void saveDraftDelayed();
-	void checkFieldAutocomplete();
 	void showMembersDropdown();
 	void windowIsVisibleChanged();
 	void saveFieldToHistoryLocalDraft();
+	void fileChosen(ChatHelpers::FileChosen &&data);
 
 	void updateFieldSubmitSettings();
 
@@ -485,8 +483,6 @@ private:
 	void orderWidgets();
 
 	[[nodiscard]] InlineBotQuery parseInlineBotQuery() const;
-	[[nodiscard]] auto parseMentionHashtagBotCommandQuery() const
-		-> AutocompleteQuery;
 
 	void clearInlineBot();
 	void inlineBotChanged();
@@ -740,7 +736,8 @@ private:
 
 	HistoryView::CornerButtons _cornerButtons;
 
-	const object_ptr<ChatHelpers::FieldAutocomplete> _fieldAutocomplete;
+	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
+	std::unique_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions;
 	object_ptr<Support::Autocomplete> _supportAutocomplete;
 
 	UserData *_inlineBot = nullptr;
@@ -806,8 +803,6 @@ private:
 	std::unique_ptr<Ui::DropdownMenu> _attachBotsMenu;
 
 	DragArea::Areas _attachDragAreas;
-
-	Fn<void()> _raiseEmojiSuggestions;
 
 	bool _nonEmptySelection = false;
 

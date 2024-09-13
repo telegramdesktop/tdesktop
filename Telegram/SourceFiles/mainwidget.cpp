@@ -422,7 +422,7 @@ MainWidget::MainWidget(
 
 	cSetOtherOnline(0);
 
-	_history->start();
+	session().data().stickers().notifySavedGifsUpdated();
 }
 
 MainWidget::~MainWidget() = default;

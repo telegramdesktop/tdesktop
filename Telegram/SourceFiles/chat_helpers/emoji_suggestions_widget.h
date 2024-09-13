@@ -37,7 +37,7 @@ class SuggestionsWidget;
 
 using SuggestionsQuery = std::variant<QString, EmojiPtr>;
 
-class SuggestionsController {
+class SuggestionsController final : public QObject {
 public:
 	struct Options {
 		bool suggestExactFirstWord = true;
@@ -47,6 +47,7 @@ public:
 	};
 
 	SuggestionsController(
+		not_null<QWidget*> parent,
 		not_null<QWidget*> outer,
 		not_null<QTextEdit*> field,
 		not_null<Main::Session*> session,
