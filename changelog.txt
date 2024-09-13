@@ -1,3 +1,9 @@
+5.5.5 (13.09.24)
+
+- Suggest URL from clipboard when creating a custom link.
+- Fix animated topic icons in topic info page.
+- Fix excessive getChannelDifference requests.
+
 5.5.4 (12.09.24)
 
 - Fix channel updates stopping after difference request failing.
