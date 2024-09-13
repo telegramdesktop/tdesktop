@@ -900,7 +900,8 @@ void RepliesWidget::setupSwipeReply() {
 			return result;
 		}
 		const auto view = _inner->lookupItemByY(cursorTop);
-		if (!view->data()->isRegular()
+		if (!view
+			|| !view->data()->isRegular()
 			|| view->data()->isService()) {
 			return result;
 		}
