@@ -846,7 +846,8 @@ void FileLoadTask::process(Args &&args) {
 				MTP_int(coverWidth),
 				MTP_int(coverHeight),
 				MTPint(), // preload_prefix_size
-				MTPdouble())); // video_start_ts
+				MTPdouble(), // video_start_ts
+				MTPstring())); // video_codec
 
 			if (args.generateGoodThumbnail) {
 				goodThumbnail = video->thumbnail;

@@ -238,6 +238,7 @@ void KeyboardStyle::paintButtonIcon(
 		case Type::SwitchInline: return &st->msgBotKbSwitchPmIcon();
 		case Type::WebView:
 		case Type::SimpleWebView: return &st->msgBotKbWebviewIcon();
+		case Type::CopyText: return &st->msgBotKbCopyIcon();
 		}
 		return nullptr;
 	}();
@@ -334,6 +335,7 @@ int KeyboardStyle::minButtonWidth(
 	case Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
 	case Type::WebView:
 	case Type::SimpleWebView: iconWidth = st::msgBotKbWebviewIcon.width(); break;
+	case Type::CopyText: return st::msgBotKbCopyIcon.width(); break;
 	}
 	if (iconWidth > 0) {
 		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));

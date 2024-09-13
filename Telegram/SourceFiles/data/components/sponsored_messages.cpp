@@ -441,7 +441,9 @@ void SponsoredMessages::clicked(const FullMsgId &fullId) {
 	const auto randomId = entryPtr->sponsored.randomId;
 	const auto channel = entryPtr->item->history()->peer->asChannel();
 	Assert(channel != nullptr);
+	using Flag = MTPchannels_ClickSponsoredMessage::Flag;
 	_session->api().request(MTPchannels_ClickSponsoredMessage(
+		MTP_flags(Flag(0)),
 		channel->inputChannel,
 		MTP_bytes(randomId)
 	)).send();

@@ -148,6 +148,12 @@ std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
 					qs(data.vtext()),
 					data.vurl().v
 				});
+			}, [&](const MTPDkeyboardButtonCopy &data) {
+				row.push_back({
+					Type::CopyText,
+					qs(data.vtext()),
+					data.vcopy_text().v,
+				});
 			}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
 			});
 		}
@@ -181,6 +187,7 @@ QByteArray HistoryMessageMarkupButton::TypeToString(
 	case Type::UserProfile: return "user_profile";
 	case Type::WebView: return "web_view";
 	case Type::SimpleWebView: return "simple_web_view";
+	case Type::CopyText: return "copy_text";
 	}
 	Unexpected("Type in HistoryMessageMarkupButton::Type.");
 }
