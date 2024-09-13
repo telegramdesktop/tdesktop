@@ -118,6 +118,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "profile/profile_block_group_members.h"
 #include "core/click_handler_types.h"
+#include "chat_helpers/field_autocomplete.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/tabbed_section.h"
@@ -473,7 +474,8 @@ HistoryWidget::HistoryWidget(
 	}, lifetime());
 
 	_fieldAutocomplete->mentionChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
+	) | rpl::start_with_next([=](
+			ChatHelpers::FieldAutocomplete::MentionChosen data) {
 		auto replacement = QString();
 		auto entityTag = QString();
 		if (data.mention.isEmpty()) {
@@ -489,13 +491,15 @@ HistoryWidget::HistoryWidget(
 	}, lifetime());
 
 	_fieldAutocomplete->hashtagChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::HashtagChosen data) {
+	) | rpl::start_with_next([=](
+			ChatHelpers::FieldAutocomplete::HashtagChosen data) {
 		insertHashtagOrBotCommand(data.hashtag, data.method);
 	}, lifetime());
 
 	_fieldAutocomplete->botCommandChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::BotCommandChosen data) {
-		using Method = FieldAutocomplete::ChooseMethod;
+	) | rpl::start_with_next([=](
+			ChatHelpers::FieldAutocomplete::BotCommandChosen data) {
+		using Method = ChatHelpers::FieldAutocompleteChooseMethod;
 		const auto messages = &data.user->owner().shortcutMessages();
 		const auto shortcut = data.user->isSelf();
 		const auto command = data.command.mid(1);
@@ -528,11 +532,11 @@ HistoryWidget::HistoryWidget(
 	});
 
 	_fieldAutocomplete->choosingProcesses(
-	) | rpl::start_with_next([=](FieldAutocomplete::Type type) {
+	) | rpl::start_with_next([=](ChatHelpers::FieldAutocomplete::Type type) {
 		if (!_history) {
 			return;
 		}
-		if (type == FieldAutocomplete::Type::Stickers) {
+		if (type == ChatHelpers::FieldAutocomplete::Type::Stickers) {
 			session().sendProgressManager().update(
 				_history,
 				Api::SendProgressType::ChooseSticker);
@@ -1488,13 +1492,14 @@ void HistoryWidget::start() {
 
 void HistoryWidget::insertHashtagOrBotCommand(
 		QString str,
-		FieldAutocomplete::ChooseMethod method) {
+		ChatHelpers::FieldAutocompleteChooseMethod method) {
 	if (!_peer) {
 		return;
 	}
 
 	// Send bot command at once, if it was not inserted by pressing Tab.
-	if (str.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
+	using Method = ChatHelpers::FieldAutocompleteChooseMethod;
+	if (str.at(0) == '/' && method != Method::ByTab) {
 		sendBotCommand({ _peer, str, FullMsgId(), replyTo() });
 		session().api().finishForwarding(prepareSendAction({}));
 		setFieldText(_field->getTextWithTagsPart(_field->textCursor().position()));
@@ -6935,7 +6940,8 @@ void HistoryWidget::fieldTabbed() {
 	if (_supportAutocomplete) {
 		_supportAutocomplete->activate(_field.data());
 	} else if (!_fieldAutocomplete->isHidden()) {
-		_fieldAutocomplete->chooseSelected(FieldAutocomplete::ChooseMethod::ByTab);
+		_fieldAutocomplete->chooseSelected(
+			ChatHelpers::FieldAutocomplete::ChooseMethod::ByTab);
 	}
 }
 

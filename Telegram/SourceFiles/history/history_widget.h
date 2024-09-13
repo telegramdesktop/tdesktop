@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_view_highlight_manager.h"
 #include "history/history_view_top_toast.h"
 #include "history/history.h"
-#include "chat_helpers/field_autocomplete.h"
 #include "chat_helpers/field_characters_count_manager.h"
 #include "window/section_widget.h"
 #include "ui/widgets/fields/input_field.h"
@@ -84,6 +83,8 @@ class SessionController;
 namespace ChatHelpers {
 class TabbedPanel;
 class TabbedSelector;
+class FieldAutocomplete;
+enum class FieldAutocompleteChooseMethod;
 } // namespace ChatHelpers
 
 namespace HistoryView {
@@ -368,7 +369,7 @@ private:
 
 	void insertHashtagOrBotCommand(
 		QString str,
-		FieldAutocomplete::ChooseMethod method);
+		ChatHelpers::FieldAutocompleteChooseMethod method);
 	void cancelInlineBot();
 	void saveDraft(bool delayed = false);
 	void saveCloudDraft();
@@ -739,7 +740,7 @@ private:
 
 	HistoryView::CornerButtons _cornerButtons;
 
-	const object_ptr<FieldAutocomplete> _fieldAutocomplete;
+	const object_ptr<ChatHelpers::FieldAutocomplete> _fieldAutocomplete;
 	object_ptr<Support::Autocomplete> _supportAutocomplete;
 
 	UserData *_inlineBot = nullptr;

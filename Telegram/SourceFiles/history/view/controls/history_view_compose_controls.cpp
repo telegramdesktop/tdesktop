@@ -859,7 +859,7 @@ ComposeControls::ComposeControls(
 		_wrap.get(),
 		st::historyBotCommandStart)
 	: nullptr)
-, _autocomplete(std::make_unique<FieldAutocomplete>(
+, _autocomplete(std::make_unique<ChatHelpers::FieldAutocomplete>(
 	parent,
 	_show,
 	&_st.tabbed))
@@ -1701,9 +1701,10 @@ void ComposeControls::updateSubmitSettings() {
 void ComposeControls::initAutocomplete() {
 	const auto insertHashtagOrBotCommand = [=](
 			const QString &string,
-			FieldAutocomplete::ChooseMethod method) {
+			ChatHelpers::FieldAutocompleteChooseMethod method) {
 		// Send bot command at once, if it was not inserted by pressing Tab.
-		if (string.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
+		using Method = ChatHelpers::FieldAutocompleteChooseMethod;
+		if (string.at(0) == '/' && method != Method::ByTab) {
 			_sendCommandRequests.fire_copy(string);
 			setText(
 				_field->getTextWithTagsPart(_field->textCursor().position()));
@@ -1713,7 +1714,8 @@ void ComposeControls::initAutocomplete() {
 	};
 
 	_autocomplete->mentionChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
+	) | rpl::start_with_next([=](
+			ChatHelpers::FieldAutocomplete::MentionChosen data) {
 		const auto user = data.user;
 		if (data.mention.isEmpty()) {
 			_field->insertTag(
@@ -1725,17 +1727,20 @@ void ComposeControls::initAutocomplete() {
 	}, _autocomplete->lifetime());
 
 	_autocomplete->hashtagChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::HashtagChosen data) {
+	) | rpl::start_with_next([=](
+			ChatHelpers::FieldAutocomplete::HashtagChosen data) {
 		insertHashtagOrBotCommand(data.hashtag, data.method);
 	}, _autocomplete->lifetime());
 
 	_autocomplete->botCommandChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::BotCommandChosen data) {
+	) | rpl::start_with_next([=](
+			ChatHelpers::FieldAutocomplete::BotCommandChosen data) {
 		insertHashtagOrBotCommand(data.command, data.method);
 	}, _autocomplete->lifetime());
 
 	_autocomplete->stickerChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::StickerChosen data) {
+	) | rpl::start_with_next([=](
+			ChatHelpers::FieldAutocomplete::StickerChosen data) {
 		if (!_showSlowmodeError || !_showSlowmodeError()) {
 			setText({});
 		}
@@ -1747,8 +1752,8 @@ void ComposeControls::initAutocomplete() {
 	}, _autocomplete->lifetime());
 
 	_autocomplete->choosingProcesses(
-	) | rpl::start_with_next([=](FieldAutocomplete::Type type) {
-		if (type == FieldAutocomplete::Type::Stickers) {
+	) | rpl::start_with_next([=](ChatHelpers::FieldAutocomplete::Type type) {
+		if (type == ChatHelpers::FieldAutocomplete::Type::Stickers) {
 			_sendActionUpdates.fire({
 				.type = Api::SendProgressType::ChooseSticker,
 			});
@@ -2125,7 +2130,8 @@ void ComposeControls::cancelForward() {
 
 void ComposeControls::fieldTabbed() {
 	if (!_autocomplete->isHidden()) {
-		_autocomplete->chooseSelected(FieldAutocomplete::ChooseMethod::ByTab);
+		_autocomplete->chooseSelected(
+			ChatHelpers::FieldAutocomplete::ChooseMethod::ByTab);
 	}
 }
 

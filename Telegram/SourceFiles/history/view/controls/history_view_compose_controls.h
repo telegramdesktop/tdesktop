@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class DocumentData;
-class FieldAutocomplete;
 class Image;
 
 namespace style {
@@ -39,6 +38,7 @@ struct FileChosen;
 struct PhotoChosen;
 class Show;
 enum class PauseReason;
+class FieldAutocomplete;
 } // namespace ChatHelpers
 
 namespace Data {
@@ -391,7 +391,7 @@ private:
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
 	std::unique_ptr<Ui::DropdownMenu> _attachBotsMenu;
-	std::unique_ptr<FieldAutocomplete> _autocomplete;
+	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
 
 	friend class FieldHeader;
 	const std::unique_ptr<FieldHeader> _header;

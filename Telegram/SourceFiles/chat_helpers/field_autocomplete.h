@@ -46,9 +46,15 @@ struct Details;
 } // namespace SendMenu
 
 namespace ChatHelpers {
+
 struct FileChosen;
 class Show;
-} // namespace ChatHelpers
+
+enum class FieldAutocompleteChooseMethod {
+	ByEnter,
+	ByTab,
+	ByClick,
+};
 
 class FieldAutocomplete final : public Ui::RpWidget {
 public:
@@ -57,11 +63,11 @@ public:
 		not_null<Window::SessionController*> controller);
 	FieldAutocomplete(
 		QWidget *parent,
-		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<Show> show,
 		const style::EmojiPan *stOverride = nullptr);
 	~FieldAutocomplete();
 
-	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
+	[[nodiscard]] std::shared_ptr<Show> uiShow() const;
 
 	bool clearFilteredBotCommands();
 	void showFiltered(
@@ -81,11 +87,7 @@ public:
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
-	enum class ChooseMethod {
-		ByEnter,
-		ByTab,
-		ByClick,
-	};
+	using ChooseMethod = FieldAutocompleteChooseMethod;
 	struct MentionChosen {
 		not_null<UserData*> user;
 		QString mention;
@@ -100,7 +102,7 @@ public:
 		QString command;
 		ChooseMethod method = ChooseMethod::ByEnter;
 	};
-	using StickerChosen = ChatHelpers::FileChosen;
+	using StickerChosen = FileChosen;
 	enum class Type {
 		Mentions,
 		Hashtags,
@@ -157,7 +159,7 @@ private:
 	void recount(bool resetScroll = false);
 	StickerRows getStickerSuggestions();
 
-	const std::shared_ptr<ChatHelpers::Show> _show;
+	const std::shared_ptr<Show> _show;
 	const not_null<Main::Session*> _session;
 	const style::EmojiPan &_st;
 	QPixmap _cache;
@@ -193,3 +195,5 @@ private:
 	Fn<bool(int)> _moderateKeyActivateCallback;
 
 };
+
+} // namespace ChatHelpers

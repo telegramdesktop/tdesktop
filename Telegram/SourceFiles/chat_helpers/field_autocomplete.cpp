@@ -53,11 +53,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
+namespace ChatHelpers {
 namespace {
 
 [[nodiscard]] QString PrimaryUsername(not_null<UserData*> user) {
 	const auto &usernames = user->usernames();
 	return usernames.empty() ? user->username() : usernames.front();
+}
+
+template <typename T, typename U>
+inline int indexOfInFirstN(const T &v, const U &elem, int last) {
+	for (auto b = v.cbegin(), i = b, e = b + std::max(int(v.size()), last)
+		; i != e
+		; ++i) {
+		if (i->user == elem) {
+			return (i - b);
+		}
+	}
+	return -1;
 }
 
 } // namespace
@@ -70,7 +83,7 @@ public:
 	};
 
 	Inner(
-		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<Show> show,
 		const style::EmojiPan &st,
 		not_null<FieldAutocomplete*> parent,
 		not_null<MentionRows*> mrows,
@@ -127,7 +140,7 @@ private:
 		Media::Clip::Notification notification,
 		not_null<DocumentData*> document);
 
-	const std::shared_ptr<ChatHelpers::Show> _show;
+	const std::shared_ptr<Show> _show;
 	const not_null<Main::Session*> _session;
 	const style::EmojiPan &_st;
 	const not_null<FieldAutocomplete*> _parent;
@@ -197,7 +210,7 @@ FieldAutocomplete::FieldAutocomplete(
 
 FieldAutocomplete::FieldAutocomplete(
 	QWidget *parent,
-	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<Show> show,
 	const style::EmojiPan *stOverride)
 : RpWidget(parent)
 , _show(std::move(show))
@@ -235,7 +248,7 @@ FieldAutocomplete::FieldAutocomplete(
 	}), lifetime());
 }
 
-std::shared_ptr<ChatHelpers::Show> FieldAutocomplete::uiShow() const {
+std::shared_ptr<Show> FieldAutocomplete::uiShow() const {
 	return _show;
 }
 
@@ -371,18 +384,6 @@ bool FieldAutocomplete::clearFilteredBotCommands() {
 	}
 	_brows.clear();
 	return true;
-}
-
-namespace {
-template <typename T, typename U>
-inline int indexOfInFirstN(const T &v, const U &elem, int last) {
-	for (auto b = v.cbegin(), i = b, e = b + std::max(int(v.size()), last); i != e; ++i) {
-		if (i->user == elem) {
-			return (i - b);
-		}
-	}
-	return -1;
-}
 }
 
 FieldAutocomplete::StickerRows FieldAutocomplete::getStickerSuggestions() {
@@ -871,7 +872,7 @@ bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
 }
 
 FieldAutocomplete::Inner::Inner(
-	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<Show> show,
 	const style::EmojiPan &st,
 	not_null<FieldAutocomplete*> parent,
 	not_null<MentionRows*> mrows,
@@ -963,8 +964,8 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 
 				media->checkStickerSmall();
 				const auto paused = _show->paused(
-					ChatHelpers::PauseReason::TabbedPanel);
-				const auto size = ChatHelpers::ComputeStickerSize(
+					PauseReason::TabbedPanel);
+				const auto size = ComputeStickerSize(
 					document,
 					stickerBoundingBox());
 				const auto ppos = pos + QPoint(
@@ -989,7 +990,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				} else if (const auto image = media->getStickerSmall()) {
 					p.drawPixmapLeft(ppos, width(), image->pix(size));
 				} else {
-					ChatHelpers::PaintStickerThumbnailPath(
+					PaintStickerThumbnailPath(
 						p,
 						media.get(),
 						QRect(ppos, size),
@@ -1250,7 +1251,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 				const auto bounding = selectedRect(index);
 				auto contentRect = QRect(
 					QPoint(),
-					ChatHelpers::ComputeStickerSize(
+					ComputeStickerSize(
 						document,
 						stickerBoundingBox()));
 				contentRect.moveCenter(bounding.center());
@@ -1464,9 +1465,9 @@ auto FieldAutocomplete::Inner::getLottieRenderer()
 
 void FieldAutocomplete::Inner::setupLottie(StickerSuggestion &suggestion) {
 	const auto document = suggestion.document;
-	suggestion.lottie = ChatHelpers::LottiePlayerFromDocument(
+	suggestion.lottie = LottiePlayerFromDocument(
 		suggestion.documentMedia.get(),
-		ChatHelpers::StickerLottieSize::InlineResults,
+		StickerLottieSize::InlineResults,
 		stickerBoundingBox() * style::DevicePixelRatio(),
 		Lottie::Quality::Default,
 		getLottieRenderer());
@@ -1534,7 +1535,7 @@ void FieldAutocomplete::Inner::clipCallback(
 		} else if (i->webm->state() == State::Error) {
 			i->webm.setBad();
 		} else if (i->webm->ready() && !i->webm->started()) {
-			const auto size = ChatHelpers::ComputeStickerSize(
+			const auto size = ComputeStickerSize(
 				i->document,
 				stickerBoundingBox());
 			i->webm->start({ .frame = size, .keepAlpha = true });
@@ -1632,3 +1633,5 @@ auto FieldAutocomplete::Inner::scrollToRequested() const
 -> rpl::producer<ScrollTo> {
 	return _scrollToRequested.events();
 }
+
+} // namespace ChatHelpers
