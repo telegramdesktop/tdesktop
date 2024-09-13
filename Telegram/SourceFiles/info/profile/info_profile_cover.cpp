@@ -133,7 +133,7 @@ void TopicIconView::paintInRect(QPainter &p, QRect rect) {
 	if (_player && _player->ready()) {
 		paint(_player->frame(
 			st::infoTopicCover.photo.size,
-			st::windowFg->c,
+			QColor(0, 0, 0, 0),
 			false,
 			crl::now(),
 			_paused()).image);
