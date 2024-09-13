@@ -2028,7 +2028,7 @@ void ApiWrap::deleteHistory(
 	}
 	if (const auto channel = peer->asChannel()) {
 		if (!justClear && !revoke) {
-			channel->ptsWaitingForShortPoll(-1);
+			channel->ptsSetWaitingForShortPoll(-1);
 			leaveChannel(channel);
 		} else {
 			if (const auto migrated = peer->migrateFrom()) {

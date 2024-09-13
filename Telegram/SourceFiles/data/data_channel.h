@@ -423,7 +423,7 @@ public:
 		return _ptsWaiter.setRequesting(isRequesting);
 	}
 	// < 0 - not waiting
-	void ptsWaitingForShortPoll(int32 ms) {
+	void ptsSetWaitingForShortPoll(int32 ms) {
 		return _ptsWaiter.setWaitingForShortPoll(this, ms);
 	}
 	[[nodiscard]] bool ptsWaitingForSkipped() const {
