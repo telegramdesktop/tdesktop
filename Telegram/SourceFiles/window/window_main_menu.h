@@ -108,7 +108,9 @@ struct OthersUnreadState {
 	bool allMuted = false;
 };
 
-[[nodiscard]] OthersUnreadState OtherAccountsUnreadStateCurrent();
-[[nodiscard]] rpl::producer<OthersUnreadState> OtherAccountsUnreadState();
+[[nodiscard]] OthersUnreadState OtherAccountsUnreadStateCurrent(
+	not_null<Main::Account*> current);
+[[nodiscard]] rpl::producer<OthersUnreadState> OtherAccountsUnreadState(
+	not_null<Main::Account*> current);
 
 } // namespace Window

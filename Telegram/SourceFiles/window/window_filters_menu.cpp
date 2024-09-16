@@ -160,6 +160,7 @@ void FiltersMenu::setup() {
 
 void FiltersMenu::setupMainMenuIcon() {
 	OtherAccountsUnreadState(
+		&_session->session().account()
 	) | rpl::start_with_next([=](const OthersUnreadState &state) {
 		const auto icon = !state.count
 			? nullptr
