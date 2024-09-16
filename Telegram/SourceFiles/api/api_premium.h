@@ -73,6 +73,14 @@ struct GiftOptionData {
 	int months = 0;
 };
 
+struct StarGift {
+	uint64 id = 0;
+	int64 stars = 0;
+	not_null<DocumentData*> document;
+	int limitedLeft = 0;
+	int limitedCount = 0;
+};
+
 class Premium final {
 public:
 	explicit Premium(not_null<ApiWrap*> api);
@@ -194,6 +202,9 @@ public:
 	[[nodiscard]] int giveawayPeriodMax() const;
 	[[nodiscard]] bool giveawayGiftsPurchaseAvailable() const;
 
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> requestStarGifts();
+	[[nodiscard]] const std::vector<StarGift> &starGifts() const;
+
 private:
 	struct Token final {
 		int users = 0;
@@ -220,6 +231,9 @@ private:
 	std::vector<int> _availablePresets;
 
 	base::flat_map<Token, Store> _stores;
+
+	int32 _giftsHash = 0;
+	std::vector<StarGift> _gifts;
 
 	MTP::Sender _api;
 

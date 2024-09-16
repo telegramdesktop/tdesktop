@@ -589,6 +589,51 @@ Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 	}
 }
 
+auto PremiumGiftCodeOptions::requestStarGifts()
+-> rpl::producer<rpl::no_value, QString> {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		_api.request(MTPpayments_GetStarGifts(
+			MTP_int(0)
+		)).done([=](const MTPpayments_StarGifts &result) {
+			result.match([&](const MTPDpayments_starGifts &data) {
+				_giftsHash = data.vhash().v;
+				const auto &list = data.vgifts().v;
+				auto gifts = std::vector<StarGift>();
+				gifts.reserve(list.size());
+				for (const auto &gift : list) {
+					const auto &data = gift.data();
+					const auto document = _peer->owner().processDocument(
+						data.vsticker());
+					const auto remaining = data.vavailability_remains();
+					const auto total = data.vavailability_total();
+					if (document->sticker()) {
+						gifts.push_back(StarGift{
+							.id = uint64(data.vid().v),
+							.stars = int64(data.vstars().v),
+							.document = document,
+							.limitedLeft = remaining.value_or_empty(),
+							.limitedCount = total.value_or_empty(),
+						});
+					}
+				}
+				_gifts = std::move(gifts);
+			}, [&](const MTPDpayments_starGiftsNotModified &) {
+			});
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
+const std::vector<StarGift> &PremiumGiftCodeOptions::starGifts() const {
+	return _gifts;
+}
+
 int PremiumGiftCodeOptions::giveawayBoostsPerPremium() const {
 	constexpr auto kFallbackCount = 4;
 	return _peer->session().appConfig().get<int>(

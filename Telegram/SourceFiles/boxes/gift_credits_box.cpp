@@ -84,8 +84,9 @@ struct GiftTypePremium {
 };
 
 struct GiftTypeStars {
+	uint64 id = 0;
+	int64 stars = 0;
 	DocumentData *document = nullptr;
-	int stars = 0;
 	bool limited = false;
 
 	[[nodiscard]] friend inline bool operator==(
@@ -409,8 +410,11 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 				}
 			}
 			ranges::sort(list, ranges::less(), &GiftTypePremium::months);
-			Map[session].last = list;
-			consumer.put_next_copy(list);
+			auto &map = Map[session];
+			if (map.last != list) {
+				map.last = list;
+				consumer.put_next_copy(list);
+			}
 		}, lifetime);
 
 		return lifetime;
@@ -420,34 +424,46 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 [[nodiscard]] rpl::producer<std::vector<GiftTypeStars>> GiftsStars(
 		not_null<Main::Session*> session,
 		not_null<PeerData*> peer) {
-	//struct Session {
-	//	std::vector<GiftTypeStars> last;
-	//};
-	//static auto Map = base::flat_map<not_null<Main::Session*>, Session>();
+	struct Session {
+		std::vector<GiftTypeStars> last;
+	};
+	static auto Map = base::flat_map<not_null<Main::Session*>, Session>();
+
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-		auto list = std::vector<GiftTypeStars>();
+		auto i = Map.find(session);
+		if (i == end(Map)) {
+			i = Map.emplace(session, Session()).first;
+			session->lifetime().add([=] { Map.remove(session); });
+		}
+		if (!i->second.last.empty()) {
+			consumer.put_next_copy(i->second.last);
+		}
 
-		const auto add = [&](uint64 setId, int price, bool limited) {
-			auto &sets = session->data().stickers().setsRef();
-			const auto i = sets.find(setId);
-			if (i != end(sets)) {
-				for (const auto document : i->second->stickers) {
-					price = document->isPremiumSticker() ? 1000 : price;
-					list.push_back({
-						.document = document,
-						.stars = price,
-						.limited = limited,
-					});
-				}
+		using namespace Api;
+		const auto api = lifetime.make_state<PremiumGiftCodeOptions>(peer);
+		api->requestStarGifts(
+		) | rpl::start_with_error_done([=](QString error) {
+			consumer.put_next({});
+		}, [=] {
+			auto list = std::vector<GiftTypeStars>();
+			const auto &gifts = api->starGifts();
+			list.reserve(gifts.size());
+			for (auto &gift : gifts) {
+				list.push_back({
+					.id = gift.id,
+					.stars = gift.stars,
+					.document = gift.document,
+					.limited = (gift.limitedCount > 0),
+				});
 			}
-		};
-		add(Data::Stickers::CloudRecentSetId, 100, false);
-		add(Data::Stickers::RecentSetId, 250, false);
-		add(Data::Stickers::FavedSetId, 50, true);
-
-		consumer.put_next(std::move(list));
+			auto &map = Map[session];
+			if (map.last != list) {
+				map.last = list;
+				consumer.put_next_copy(list);
+			}
+		}, lifetime);
 
 		return lifetime;
 	};
