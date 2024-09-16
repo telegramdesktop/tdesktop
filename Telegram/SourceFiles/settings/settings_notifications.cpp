@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "api/api_authorizations.h"
 #include "api/api_ringtones.h"
+#include "data/data_chat_filters.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/notify/data_notify_settings.h"
@@ -1085,6 +1086,16 @@ void SetupNotificationsContent(
 		tr::lng_settings_include_muted(),
 		st::settingsButtonNoIcon));
 	muted->toggleOn(rpl::single(settings.includeMutedCounter()));
+	const auto mutedFolders = session->data().chatsFilters().has()
+		? container->add(object_ptr<Button>(
+			container,
+			tr::lng_settings_include_muted_folders(),
+			st::settingsButtonNoIcon))
+		: nullptr;
+	if (mutedFolders) {
+		mutedFolders->toggleOn(
+			rpl::single(settings.includeMutedCounterFolders()));
+	}
 	const auto count = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_count_unread(),
@@ -1201,6 +1212,17 @@ void SetupNotificationsContent(
 		Core::App().settings().setIncludeMutedCounter(checked);
 		changed(Change::IncludeMuted);
 	}, muted->lifetime());
+
+	if (mutedFolders) {
+		mutedFolders->toggledChanges(
+		) | rpl::filter([=](bool checked) {
+			return (checked
+				!= Core::App().settings().includeMutedCounterFolders());
+		}) | rpl::start_with_next([=](bool checked) {
+			Core::App().settings().setIncludeMutedCounterFolders(checked);
+			changed(Change::IncludeMuted);
+		}, mutedFolders->lifetime());
+	}
 
 	count->toggledChanges(
 	) | rpl::filter([=](bool checked) {

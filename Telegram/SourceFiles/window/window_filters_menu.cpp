@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
+#include "core/application.h"
+#include "core/core_settings.h"
+#include "window/notifications_manager.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
 #include "data/data_folder.h"
@@ -85,7 +88,15 @@ FiltersMenu::FiltersMenu(
 , _scroll(&_outer)
 , _container(
 	_scroll.setOwnedWidget(
-		object_ptr<Ui::VerticalLayout>(&_scroll))) {
+		object_ptr<Ui::VerticalLayout>(&_scroll)))
+, _includeMuted(Core::App().settings().includeMutedCounterFolders()) {
+	Core::App().notifications().settingsChanged(
+	) | rpl::filter(
+		rpl::mappers::_1 == Window::Notifications::ChangeType::IncludeMuted
+	) | rpl::start_with_next([=] {
+		_includeMuted = Core::App().settings().includeMutedCounterFolders();
+	}, _outer.lifetime());
+
 	_drag.timer.setCallback([=] {
 		if (_drag.filterId >= 0) {
 			_session->setActiveChatsFilter(_drag.filterId);
@@ -298,18 +309,21 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		: Ui::FilterIcon::All);
 	raw->setIconOverride(icons.normal, icons.active);
 	if (id >= 0) {
-		UnreadStateValue(
-			&_session->session(),
-			id
-		) | rpl::start_with_next([=](const Dialogs::UnreadState &state) {
-			const auto count = (state.chats + state.marks);
+		rpl::combine(
+			UnreadStateValue(&_session->session(), id),
+			_includeMuted.value()
+		) | rpl::start_with_next([=](
+				const Dialogs::UnreadState &state,
+				bool includeMuted) {
 			const auto muted = (state.chatsMuted + state.marksMuted);
+			const auto count = (state.chats + state.marks)
+				- (includeMuted ? 0 : muted);
 			const auto string = !count
 				? QString()
 				: (count > 99)
 				? "99+"
 				: QString::number(count);
-			raw->setBadge(string, count == muted);
+			raw->setBadge(string, includeMuted && (count == muted));
 		}, raw->lifetime());
 	}
 	raw->setActive(_session->activeChatsFilterCurrent() == id);

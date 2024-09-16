@@ -221,7 +221,8 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(noWarningExtensions)
 		+ Serialize::stringSize(_customFontFamily)
 		+ sizeof(qint32) * 3
-		+ Serialize::bytearraySize(_tonsiteStorageToken);
+		+ Serialize::bytearraySize(_tonsiteStorageToken)
+		+ sizeof(qint32);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -375,7 +376,8 @@ QByteArray Settings::serialize() const {
 				1000000))
 			<< qint32(_systemUnlockEnabled ? 1 : 0)
 			<< qint32(!_weatherInCelsius ? 0 : *_weatherInCelsius ? 1 : 2)
-			<< _tonsiteStorageToken;
+			<< _tonsiteStorageToken
+			<< qint32(_includeMutedCounterFolders ? 1 : 0);
 	}
 
 	Ensures(result.size() == size);
@@ -423,6 +425,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 sendFilesWay = _sendFilesWay.serialize();
 	qint32 sendSubmitWay = static_cast<qint32>(_sendSubmitWay.current());
 	qint32 includeMutedCounter = _includeMutedCounter ? 1 : 0;
+	qint32 includeMutedCounterFolders = _includeMutedCounterFolders ? 1 : 0;
 	qint32 countUnreadMessages = _countUnreadMessages ? 1 : 0;
 	std::optional<QString> noWarningExtensions;
 	qint32 legacyExeLaunchWarning = 1;
@@ -804,6 +807,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> tonsiteStorageToken;
 	}
+	if (!stream.atEnd()) {
+		stream >> includeMutedCounterFolders;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -844,6 +850,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	case ScreenCorner::BottomLeft: _notificationsCorner = uncheckedNotificationsCorner; break;
 	}
 	_includeMutedCounter = (includeMutedCounter == 1);
+	_includeMutedCounterFolders = (includeMutedCounterFolders == 1);
 	_countUnreadMessages = (countUnreadMessages == 1);
 	_notifyAboutPinned = (notifyAboutPinned == 1);
 	_autoLock = autoLock;
@@ -864,8 +871,6 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	case Ui::InputSubmitSettings::Enter:
 	case Ui::InputSubmitSettings::CtrlEnter: _sendSubmitWay = uncheckedSendSubmitWay; break;
 	}
-	_includeMutedCounter = (includeMutedCounter == 1);
-	_countUnreadMessages = (countUnreadMessages == 1);
 	if (noWarningExtensions) {
 		const auto list = noWarningExtensions->mid(0, 10240)
 			.split(' ', Qt::SkipEmptyParts)
@@ -1345,6 +1350,7 @@ void Settings::resetOnLastLogout() {
 	//_notificationsCount = 3;
 	//_notificationsCorner = ScreenCorner::BottomRight;
 	_includeMutedCounter = true;
+	_includeMutedCounterFolders = true;
 	_countUnreadMessages = true;
 	_notifyAboutPinned = true;
 	//_autoLock = 3600;
