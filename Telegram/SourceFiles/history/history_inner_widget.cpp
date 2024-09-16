@@ -2916,9 +2916,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 
 	if (_dragStateItem) {
+		const auto view = viewByItem(_dragStateItem);
+		const auto textItem = view ? view->textItem() : _dragStateItem;
 		HistoryView::AddEmojiPacksAction(
 			_menu,
-			_dragStateItem,
+			textItem ? textItem : _dragStateItem,
 			HistoryView::EmojiPacksSource::Message,
 			_controller);
 	}

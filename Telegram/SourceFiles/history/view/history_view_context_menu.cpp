@@ -1266,10 +1266,10 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	}
 	AddMessageActions(result, request, list);
 
-	if (item) {
+	if (const auto textItem = view ? view->textItem() : item) {
 		AddEmojiPacksAction(
 			result,
-			item,
+			textItem,
 			HistoryView::EmojiPacksSource::Message,
 			list->controller());
 	}
