@@ -5270,6 +5270,12 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareStarGift = [&](
+			const MTPDmessageActionStarGift &action) {
+		auto result = PreparedServiceText();
+		return result;
+	};
+
 	setServiceText(action.match(
 		prepareChatAddUserText,
 		prepareChatJoinedByLink,
@@ -5315,6 +5321,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		preparePaymentRefunded,
 		prepareGiftStars,
 		prepareGiftPrize,
+		prepareStarGift,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 
@@ -5427,6 +5434,12 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 				.viaGiveaway = true,
 				.unclaimed = data.is_unclaimed(),
 			});
+	}, [&](const MTPDmessageActionStarGift &data) {
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			Data::GiftType::Credits,
+			data.vstars_amount().v);
 	}, [](const auto &) {
 	});
 }

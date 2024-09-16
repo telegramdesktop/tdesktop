@@ -647,6 +647,14 @@ QByteArray SerializeMessage(
 		push("is_unclaimed", data.isUnclaimed);
 		push("giveaway_msg_id", data.giveawayMsgId);
 		push("transaction_id", data.transactionId);
+	}, [&](const ActionStarGift &data) {
+		pushActor();
+		pushAction("send_star_gift");
+		push("gift_id", data.giftId);
+		push("stars", data.stars);
+		push("is_limited", data.limited);
+		push("is_anonymous", data.anonymous);
+		pushBare("text", SerializeText(context, data.text));
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

@@ -272,10 +272,13 @@ void SendCreditsBox(
 		state->confirmButtonBusy = true;
 		session->api().request(
 			MTPpayments_SendStarsForm(
-				MTP_flags(0),
 				MTP_long(form->formId),
 				form->inputInvoice)
-		).done([=](auto result) {
+		).done([=](const MTPpayments_PaymentResult &result) {
+			result.match([&](const MTPDpayments_paymentResult &data) {
+				session->api().applyUpdates(data.vupdates());
+			}, [](const MTPDpayments_paymentVerificationNeeded &data) {
+			});
 			if (weak) {
 				state->confirmButtonBusy = false;
 				box->closeBox();

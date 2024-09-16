@@ -183,6 +183,7 @@ messageActionRequestedPeerSentMe#93b31848 button_id:int peers:Vector<RequestedPe
 messageActionPaymentRefunded#41b3e202 flags:# peer:Peer currency:string total_amount:long payload:flags.0?bytes charge:PaymentCharge = MessageAction;
 messageActionGiftStars#45d5b021 flags:# currency:string amount:long stars:long crypto_currency:flags.0?string crypto_amount:flags.0?long transaction_id:flags.1?string = MessageAction;
 messageActionPrizeStars#b00c47a2 flags:# unclaimed:flags.0?true stars:long transaction_id:string boost_peer:Peer giveaway_msg_id:int = MessageAction;
+messageActionStarGift#9bb3ef44 flags:# name_hidden:flags.0?true saved:flags.2?true converted:flags.3?true gift:StarGift message:flags.1?TextWithEntities convert_stars:long = MessageAction;
 
 dialog#d58a08c6 flags:# pinned:flags.2?true unread_mark:flags.3?true view_forum_as_messages:flags.6?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int ttl_period:flags.5?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -234,7 +235,7 @@ inputReportReasonFake#f5ddd6e7 = ReportReason;
 inputReportReasonIllegalDrugs#a8eb2be = ReportReason;
 inputReportReasonPersonalDetails#9ec7863d = ReportReason;
 
-userFull#cc997720 flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true can_pin_message:flags.7?true has_scheduled:flags.12?true video_calls_available:flags.13?true voice_messages_forbidden:flags.20?true translations_disabled:flags.23?true stories_pinned_available:flags.26?true blocked_my_stories_from:flags.27?true wallpaper_overridden:flags.28?true contact_require_premium:flags.29?true read_dates_private:flags.30?true flags2:# sponsored_enabled:flags2.7?true id:long about:flags.1?string settings:PeerSettings personal_photo:flags.21?Photo profile_photo:flags.2?Photo fallback_photo:flags.22?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo pinned_msg_id:flags.6?int common_chats_count:int folder_id:flags.11?int ttl_period:flags.14?int theme_emoticon:flags.15?string private_forward_name:flags.16?string bot_group_admin_rights:flags.17?ChatAdminRights bot_broadcast_admin_rights:flags.18?ChatAdminRights premium_gifts:flags.19?Vector<PremiumGiftOption> wallpaper:flags.24?WallPaper stories:flags.25?PeerStories business_work_hours:flags2.0?BusinessWorkHours business_location:flags2.1?BusinessLocation business_greeting_message:flags2.2?BusinessGreetingMessage business_away_message:flags2.3?BusinessAwayMessage business_intro:flags2.4?BusinessIntro birthday:flags2.5?Birthday personal_channel_id:flags2.6?long personal_channel_message:flags2.6?int = UserFull;
+userFull#1f58e369 flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true can_pin_message:flags.7?true has_scheduled:flags.12?true video_calls_available:flags.13?true voice_messages_forbidden:flags.20?true translations_disabled:flags.23?true stories_pinned_available:flags.26?true blocked_my_stories_from:flags.27?true wallpaper_overridden:flags.28?true contact_require_premium:flags.29?true read_dates_private:flags.30?true flags2:# sponsored_enabled:flags2.7?true id:long about:flags.1?string settings:PeerSettings personal_photo:flags.21?Photo profile_photo:flags.2?Photo fallback_photo:flags.22?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo pinned_msg_id:flags.6?int common_chats_count:int folder_id:flags.11?int ttl_period:flags.14?int theme_emoticon:flags.15?string private_forward_name:flags.16?string bot_group_admin_rights:flags.17?ChatAdminRights bot_broadcast_admin_rights:flags.18?ChatAdminRights premium_gifts:flags.19?Vector<PremiumGiftOption> wallpaper:flags.24?WallPaper stories:flags.25?PeerStories business_work_hours:flags2.0?BusinessWorkHours business_location:flags2.1?BusinessLocation business_greeting_message:flags2.2?BusinessGreetingMessage business_away_message:flags2.3?BusinessAwayMessage business_intro:flags2.4?BusinessIntro birthday:flags2.5?Birthday personal_channel_id:flags2.6?long personal_channel_message:flags2.6?int stargifts_count:flags2.8?int = UserFull;
 
 contact#145ade0b user_id:long mutual:Bool = Contact;
 
@@ -915,6 +916,7 @@ upload.webFile#21e753bc size:int mime_type:string file_type:storage.FileType mti
 
 payments.paymentForm#a0058751 flags:# can_save_credentials:flags.2?true password_missing:flags.3?true form_id:long bot_id:long title:string description:string photo:flags.5?WebDocument invoice:Invoice provider_id:long url:string native_provider:flags.4?string native_params:flags.4?DataJSON additional_methods:flags.6?Vector<PaymentFormMethod> saved_info:flags.0?PaymentRequestedInfo saved_credentials:flags.1?Vector<PaymentSavedCredentials> users:Vector<User> = payments.PaymentForm;
 payments.paymentFormStars#7bf6b15c flags:# form_id:long bot_id:long title:string description:string photo:flags.5?WebDocument invoice:Invoice users:Vector<User> = payments.PaymentForm;
+payments.paymentFormStarGift#b425cfe1 form_id:long invoice:Invoice = payments.PaymentForm;
 
 payments.validatedRequestedInfo#d1451883 flags:# id:flags.0?string shipping_options:flags.1?Vector<ShippingOption> = payments.ValidatedRequestedInfo;
 
@@ -1464,6 +1466,7 @@ inputInvoiceSlug#c326caef slug:string = InputInvoice;
 inputInvoicePremiumGiftCode#98986c0d purpose:InputStorePaymentPurpose option:PremiumGiftCodeOption = InputInvoice;
 inputInvoiceStars#65f00ce3 purpose:InputStorePaymentPurpose = InputInvoice;
 inputInvoiceChatInviteSubscription#34e793f1 hash:string = InputInvoice;
+inputInvoiceStarGift#25d8c1d8 flags:# hide_name:flags.0?true user_id:InputUser gift_id:long message:flags.1?TextWithEntities = InputInvoice;
 
 payments.exportedInvoice#aed0cbd9 url:string = payments.ExportedInvoice;
 
@@ -1858,6 +1861,15 @@ messageReactor#4ba3a95a flags:# top:flags.0?true my:flags.1?true anonymous:flags
 starsGiveawayOption#94ce852a flags:# extended:flags.0?true default:flags.1?true stars:long yearly_boosts:int store_product:flags.2?string currency:string amount:long winners:Vector<StarsGiveawayWinnersOption> = StarsGiveawayOption;
 
 starsGiveawayWinnersOption#54236209 flags:# default:flags.0?true users:int per_user_stars:long = StarsGiveawayWinnersOption;
+
+starGift#aea174ee flags:# limited:flags.0?true id:long sticker:Document stars:long availability_remains:flags.0?int availability_total:flags.0?int convert_stars:long = StarGift;
+
+payments.starGiftsNotModified#a388a368 = payments.StarGifts;
+payments.starGifts#901689ea hash:int gifts:Vector<StarGift> = payments.StarGifts;
+
+userStarGift#eea49a6e flags:# name_hidden:flags.0?true unsaved:flags.5?true from_id:flags.1?long date:int gift:StarGift message:flags.2?TextWithEntities msg_id:flags.3?int convert_stars:flags.4?long = UserStarGift;
+
+payments.userStarGifts#6b65b517 flags:# count:int gifts:Vector<UserStarGift> next_offset:flags.0?string users:Vector<User> = payments.UserStarGifts;
 
 ---functions---
 
@@ -2413,7 +2425,7 @@ payments.launchPrepaidGiveaway#5ff58f20 peer:InputPeer giveaway_id:long purpose:
 payments.getStarsTopupOptions#c00ec7d3 = Vector<StarsTopupOption>;
 payments.getStarsStatus#104fcfa7 peer:InputPeer = payments.StarsStatus;
 payments.getStarsTransactions#69da4557 flags:# inbound:flags.0?true outbound:flags.1?true ascending:flags.2?true subscription_id:flags.3?string peer:InputPeer offset:string limit:int = payments.StarsStatus;
-payments.sendStarsForm#2bb731d flags:# form_id:long invoice:InputInvoice = payments.PaymentResult;
+payments.sendStarsForm#7998c914 form_id:long invoice:InputInvoice = payments.PaymentResult;
 payments.refundStarsCharge#25ae8f4a user_id:InputUser charge_id:string = Updates;
 payments.getStarsRevenueStats#d91ffad6 flags:# dark:flags.0?true peer:InputPeer = payments.StarsRevenueStats;
 payments.getStarsRevenueWithdrawalUrl#13bbe8b3 peer:InputPeer stars:long password:InputCheckPasswordSRP = payments.StarsRevenueWithdrawalUrl;
@@ -2424,6 +2436,10 @@ payments.getStarsSubscriptions#32512c5 flags:# missing_balance:flags.0?true peer
 payments.changeStarsSubscription#c7770878 flags:# peer:InputPeer subscription_id:string canceled:flags.0?Bool = Bool;
 payments.fulfillStarsSubscription#cc5bebb3 peer:InputPeer subscription_id:string = Bool;
 payments.getStarsGiveawayOptions#bd1efd3e = Vector<StarsGiveawayOption>;
+payments.getStarGifts#c4563590 hash:int = payments.StarGifts;
+payments.getUserStarGifts#5e72c7e1 user_id:InputUser offset:string limit:int = payments.UserStarGifts;
+payments.saveStarGift#87acf08e flags:# unsave:flags.0?true user_id:InputUser msg_id:int = Bool;
+payments.convertStarGift#421e027 user_id:InputUser msg_id:int = Bool;
 
 stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true emojis:flags.5?true text_color:flags.6?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;
@@ -2543,4 +2559,4 @@ smsjobs.finishJob#4f1ebf24 flags:# job_id:string error:flags.0?string = Bool;
 
 fragment.getCollectibleInfo#be1e85ba collectible:InputCollectible = fragment.CollectibleInfo;
 
-// LAYER 188
+// LAYER 189

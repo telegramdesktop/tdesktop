@@ -460,6 +460,8 @@ void Form::requestForm() {
 				.inputInvoice = inputInvoice(),
 			};
 			_updates.fire(CreditsPaymentStarted{ .data = formData });
+		}, [&](const MTPDpayments_paymentFormStarGift &data) {
+			// todo pay for star gift.
 		});
 	}).fail([=](const MTP::Error &error) {
 		hideProgress();
