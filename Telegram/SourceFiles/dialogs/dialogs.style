@@ -496,6 +496,8 @@ dialogsMiniForward: DialogsMiniIcon {
 	skipMedia: 2px;
 }
 
+dialogsMiniReplyIcon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg, point(0px, 2px) }};
+
 dialogsMiniReplyStory: DialogsMiniIcon {
 	icon: ThreeStateIcon {
 		icon: icon {{ "mini_reply_story", dialogsTextFg, point(0px, 1px) }};
