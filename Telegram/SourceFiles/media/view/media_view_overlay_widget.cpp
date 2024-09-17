@@ -3715,14 +3715,16 @@ void OverlayWidget::initSponsoredButton() {
 	} else if (!has && !_sponsoredButton) {
 		return;
 	}
-	const auto &component = _session->sponsoredMessages();
-	const auto details = component.lookupDetails(_message->fullId());
+	const auto sponsoredMessages = &_session->sponsoredMessages();
+	const auto fullId = _message->fullId();
+	const auto details = sponsoredMessages->lookupDetails(fullId);
 	_sponsoredButton = base::make_unique_q<SponsoredButton>(_body);
 	_sponsoredButton->setText(details.buttonText);
 	_sponsoredButton->setOpacity(1.0);
 
 	_sponsoredButton->setClickedCallback([=, link = details.link] {
 		UrlClickHandler::Open(link);
+		sponsoredMessages->clicked(fullId, false, true);
 		hide();
 	});
 }
@@ -6020,7 +6022,18 @@ void OverlayWidget::handleMouseRelease(
 		if (_stories) {
 			_stories->contentPressed(false);
 		} else if (_streamed && !_window->mousePressCancelled()) {
-			playbackPauseResume();
+			if (_sponsoredButton && _session && _message) {
+				const auto sponsoredMessages = &_session->sponsoredMessages();
+				const auto fullId = _message->fullId();
+				const auto details = sponsoredMessages->lookupDetails(fullId);
+				if (const auto link = details.link; !link.isEmpty()) {
+					UrlClickHandler::Open(link);
+					sponsoredMessages->clicked(fullId, true, true);
+					hide();
+				}
+			} else {
+				playbackPauseResume();
+			}
 		}
 	} else if (_pressed) {
 		if (_dragging) {

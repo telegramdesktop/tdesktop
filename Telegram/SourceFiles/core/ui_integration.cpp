@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "core/click_handler_types.h"
-#include "data/components/sponsored_messages.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_session.h"
 #include "iv/iv_instance.h"
@@ -294,16 +293,6 @@ std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 Fn<void()> UiIntegration::createSpoilerRepaint(const std::any &context) {
 	const auto my = std::any_cast<MarkedTextContext>(&context);
 	return my ? my->customEmojiRepaint : nullptr;
-}
-
-bool UiIntegration::allowClickHandlerActivation(
-		const std::shared_ptr<ClickHandler> &handler,
-		const ClickContext &context) {
-	const auto my = context.other.value<ClickHandlerContext>();
-	if (const auto window = my.sessionWindow.get()) {
-		window->session().sponsoredMessages().clicked(my.itemId);
-	}
-	return true;
 }
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
