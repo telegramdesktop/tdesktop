@@ -40,10 +40,10 @@ bool IsCreditsInvoice(not_null<HistoryItem*> item) {
 }
 
 void ProcessCreditsPayment(
-	std::shared_ptr<Main::SessionShow> show,
-	QPointer<QWidget> fireworks,
-	std::shared_ptr<CreditsFormData> form,
-	Fn<void(CheckoutResult)> maybeReturnToBot) {
+		std::shared_ptr<Main::SessionShow> show,
+		QPointer<QWidget> fireworks,
+		std::shared_ptr<CreditsFormData> form,
+		Fn<void(CheckoutResult)> maybeReturnToBot) {
 	const auto done = [=](Settings::SmallBalanceResult result) {
 		if (result == Settings::SmallBalanceResult::Blocked) {
 			if (const auto onstack = maybeReturnToBot) {
@@ -55,6 +55,20 @@ void ProcessCreditsPayment(
 				onstack(CheckoutResult::Cancelled);
 			}
 			return;
+		} else if (form->starGiftForm) {
+			const auto done = [=](std::optional<QString> error) {
+				const auto onstack = maybeReturnToBot;
+				if (error) {
+					show->showToast(*error);
+					if (onstack) {
+						onstack(CheckoutResult::Failed);
+					}
+				} else if (onstack) {
+					onstack(CheckoutResult::Paid);
+				}
+			};
+			Ui::SendStarGift(&show->session(), form, done);
+			return;
 		}
 		const auto unsuccessful = std::make_shared<bool>(true);
 		const auto box = show->show(Box(
@@ -65,14 +79,16 @@ void ProcessCreditsPayment(
 			if (const auto widget = fireworks.data()) {
 				Ui::StartFireworks(widget);
 			}
-			if (maybeReturnToBot) {
-				maybeReturnToBot(CheckoutResult::Paid);
+			if (const auto onstack = maybeReturnToBot) {
+				onstack(CheckoutResult::Paid);
 			}
 		}));
 		box->boxClosing() | rpl::start_with_next([=] {
 			crl::on_main([=] {
-				if ((*unsuccessful) && maybeReturnToBot) {
-					maybeReturnToBot(CheckoutResult::Cancelled);
+				if (*unsuccessful) {
+					if (const auto onstack = maybeReturnToBot) {
+						onstack(CheckoutResult::Cancelled);
+					}
 				}
 			});
 		}, box->lifetime());

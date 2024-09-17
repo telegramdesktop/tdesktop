@@ -440,4 +440,22 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 	}, st, textFg);
 }
 
+void SendStarGift(
+		not_null<Main::Session*> session,
+		std::shared_ptr<Payments::CreditsFormData> data,
+		Fn<void(std::optional<QString>)> done) {
+	session->api().request(MTPpayments_SendStarsForm(
+		MTP_long(data->formId),
+		data->inputInvoice
+	)).done([=](const MTPpayments_PaymentResult &result) {
+		result.match([&](const MTPDpayments_paymentResult &data) {
+			session->api().applyUpdates(data.vupdates());
+		}, [](const MTPDpayments_paymentVerificationNeeded &data) {
+		});
+		done(std::nullopt);
+	}).fail([=](const MTP::Error &error) {
+		done(error.type());
+	}).send();
+}
+
 } // namespace Ui

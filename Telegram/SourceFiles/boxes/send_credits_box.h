@@ -52,4 +52,9 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 	const style::FlatLabel &st,
 	std::optional<QColor> textFg = {});
 
+void SendStarGift(
+	not_null<Main::Session*> session,
+	std::shared_ptr<Payments::CreditsFormData> data,
+	Fn<void(std::optional<QString>)> done);
+
 } // namespace Ui

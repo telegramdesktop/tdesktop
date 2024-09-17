@@ -52,7 +52,14 @@ QSize PremiumGift::size() {
 }
 
 QString PremiumGift::title() {
-	if (creditsPrize()) {
+	if (starGift()) {
+		return (outgoingGift()
+			? tr::lng_action_gift_sent_subtitle
+			: tr::lng_action_gift_got_subtitle)(
+				tr::now,
+				lt_user,
+				_parent->history()->peer->shortName());
+	} else if (creditsPrize()) {
 		return tr::lng_prize_title(tr::now);
 	} else if (const auto count = credits()) {
 		return tr::lng_gift_stars_title(tr::now, lt_count, count);
@@ -65,6 +72,23 @@ QString PremiumGift::title() {
 }
 
 TextWithEntities PremiumGift::subtitle() {
+	if (starGift()) {
+		return !_data.message.empty()
+			? _data.message
+			: outgoingGift()
+			? tr::lng_action_gift_sent_text(
+				tr::now,
+				lt_count,
+				_data.count,
+				lt_user,
+				Ui::Text::Bold(_parent->history()->peer->shortName()),
+				Ui::Text::RichLangValue)
+			: tr::lng_action_gift_got_stars_text(
+				tr::now,
+				lt_count,
+				_data.count,
+				Ui::Text::RichLangValue);
+	}
 	const auto isCreditsPrize = creditsPrize();
 	if (const auto count = credits(); count && !isCreditsPrize) {
 		return outgoingGift()
@@ -111,7 +135,9 @@ TextWithEntities PremiumGift::subtitle() {
 }
 
 rpl::producer<QString> PremiumGift::button() {
-	return creditsPrize()
+	return (starGift() && outgoingGift())
+		? nullptr
+		: creditsPrize()
 		? tr::lng_view_button_giftcode()
 		: (gift() && (outgoingGift() || !_data.unclaimed))
 		? tr::lng_sticker_premium_view()
@@ -119,6 +145,9 @@ rpl::producer<QString> PremiumGift::button() {
 }
 
 ClickHandlerPtr PremiumGift::createViewLink() {
+	if (starGift() && outgoingGift()) {
+		return nullptr;
+	}
 	const auto from = _gift->from();
 	const auto peer = _parent->history()->peer;
 	const auto date = _parent->data()->date();
@@ -142,7 +171,7 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 						.barePeerId = data.channel
 							? data.channel->id.value
 							: 0,
-						.bareGiveawayMsgId = uint64(data.giveawayMsgId),
+						.bareGiveawayMsgId = uint64(data.giveawayMsgId.bare),
 						.peerType = Type::Peer,
 						.in = true,
 					},
@@ -223,6 +252,10 @@ bool PremiumGift::gift() const {
 	return _data.slug.isEmpty() || !_data.channel;
 }
 
+bool PremiumGift::starGift() const {
+	return _data.type == Data::GiftType::StarGift;
+}
+
 bool PremiumGift::creditsPrize() const {
 	return _data.viaGiveaway
 		&& (_data.type == Data::GiftType::Credits)
@@ -236,6 +269,14 @@ int PremiumGift::credits() const {
 void PremiumGift::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
+	} else if (const auto document = _data.document) {
+		if (const auto sticker = document->sticker()) {
+			const auto skipPremiumEffect = false;
+			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
+			_sticker->setDiceIndex(sticker->alt, 1);
+			_sticker->initSize(st::msgServiceGiftBoxStickerSize);
+			return;
+		}
 	}
 	const auto &session = _parent->history()->session();
 	auto &packs = session.giftBoxStickersPacks();

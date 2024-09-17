@@ -4917,12 +4917,15 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 				Ui::Text::WithEntities);
 		} else {
 			result.links.push_back(peer->createOpenLink());
-			result.text = (isSelf
-				? tr::lng_action_gift_received_me
-				: tr::lng_action_gift_received)(
+			result.text = isSelf
+				? tr::lng_action_gift_sent(tr::now,
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities)
+				: tr::lng_action_gift_received(
 					tr::now,
 					lt_user,
-					Ui::Text::Link(peer->name(), 1), // Link 1.
+					Ui::Text::Link(peer->shortName(), 1), // Link 1.
 					lt_cost,
 					cost,
 					Ui::Text::WithEntities);
@@ -5130,18 +5133,22 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		} else {
 			const auto isSelf = (_from->id == _from->session().userPeerId());
 			const auto peer = isSelf ? _history->peer : _from;
+			const auto cost = AmountAndStarCurrency(
+				&_history->session(),
+				action.vamount().value_or_empty(),
+				qs(action.vcurrency().value_or_empty()));
 			result.links.push_back(peer->createOpenLink());
-			result.text = (isSelf
-				? tr::lng_action_gift_received_me
-				: tr::lng_action_gift_received)(
+			result.text = isSelf
+				? tr::lng_action_gift_sent(tr::now,
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities)
+				: tr::lng_action_gift_received(
 					tr::now,
 					lt_user,
-					Ui::Text::Link(peer->name(), 1), // Link 1.
+					Ui::Text::Link(peer->shortName(), 1), // Link 1.
 					lt_cost,
-					AmountAndStarCurrency(
-						&_history->session(),
-						action.vamount().value_or_empty(),
-						qs(action.vcurrency().value_or_empty())),
+					cost,
 					Ui::Text::WithEntities);
 
 		}
@@ -5238,18 +5245,22 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		_history->session().giftBoxStickersPacks().load();
 		const auto amount = action.vamount().v;
 		const auto currency = qs(action.vcurrency());
+		const auto cost = AmountAndStarCurrency(
+			&_history->session(),
+			amount,
+			currency);
 		result.links.push_back(peer->createOpenLink());
-		result.text = (isSelf
-			? tr::lng_action_gift_received_me
-			: tr::lng_action_gift_received)(
+		result.text = isSelf
+			? tr::lng_action_gift_sent(tr::now,
+				lt_cost,
+				cost,
+				Ui::Text::WithEntities)
+			: tr::lng_action_gift_received(
 				tr::now,
 				lt_user,
-				Ui::Text::Link(peer->name(), 1), // Link 1.
+				Ui::Text::Link(peer->shortName(), 1), // Link 1.
 				lt_cost,
-				AmountAndStarCurrency(
-					&_history->session(),
-					amount,
-					currency),
+				cost,
 				Ui::Text::WithEntities);
 		return result;
 	};
@@ -5273,6 +5284,34 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareStarGift = [&](
 			const MTPDmessageActionStarGift &action) {
 		auto result = PreparedServiceText();
+		const auto isSelf = _from->isSelf();
+		const auto peer = isSelf ? _history->peer : _from;
+		const auto stars = action.vgift().data().vstars().v;
+		const auto cost = TextWithEntities{
+			tr::lng_action_gift_for_stars(tr::now, lt_count, stars),
+		};
+		const auto anonymous = _from->isServiceUser();
+		if (anonymous) {
+			result.text = tr::lng_action_gift_received_anonymous(
+				tr::now,
+				lt_cost,
+				cost,
+				Ui::Text::WithEntities);
+		} else {
+			result.links.push_back(peer->createOpenLink());
+			result.text = isSelf
+				? tr::lng_action_gift_sent(tr::now,
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities)
+				: tr::lng_action_gift_received(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(peer->shortName(), 1), // Link 1.
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities);
+		}
 		return result;
 	};
 
@@ -5428,18 +5467,35 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 				.slug = qs(data.vtransaction_id()),
 				.channel = history()->owner().channel(
 					peerToChannel(peerFromMTP(data.vboost_peer()))),
-				.count = int(data.vstars().v),
 				.giveawayMsgId = data.vgiveaway_msg_id().v,
+				.count = int(data.vstars().v),
 				.type = Data::GiftType::Credits,
 				.viaGiveaway = true,
 				.unclaimed = data.is_unclaimed(),
 			});
 	}, [&](const MTPDmessageActionStarGift &data) {
-		_media = std::make_unique<Data::MediaGiftBox>(
-			this,
-			_from,
-			Data::GiftType::Credits,
-			data.vstars_amount().v);
+		const auto &gift = data.vgift().data();
+		const auto document = history()->owner().processDocument(
+			gift.vsticker());
+		using Fields = Data::GiftCode;
+		_media = std::make_unique<Data::MediaGiftBox>(this, _from, Fields{
+			.document = document->sticker() ? document.get() : nullptr,
+			.message = (data.vmessage()
+				? TextWithEntities{
+					.text = qs(data.vmessage()->data().vtext()),
+					.entities = Api::EntitiesFromMTP(
+						&history()->session(),
+						data.vmessage()->data().ventities().v),
+				}
+				: TextWithEntities()),
+			.convertStars = int(data.vconvert_stars().v),
+			.limitedCount = gift.vavailability_total().value_or_empty(),
+			.count = int(gift.vstars().v),
+			.type = Data::GiftType::StarGift,
+			.anonymous = data.is_name_hidden(),
+			.converted = data.is_converted(),
+			.saved = data.is_saved(),
+		});
 	}, [](const auto &) {
 	});
 }

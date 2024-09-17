@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/gift_credits_box.h"
 
+#include "base/random.h"
 #include "api/api_credits.h"
 #include "api/api_premium.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/send_credits_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "core/click_handler_types.h"
+#include "core/local_url_handlers.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -27,6 +30,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
+#include "payments/payments_form.h"
+#include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_credits.h"
 #include "settings/settings_premium.h"
@@ -38,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
@@ -83,6 +90,11 @@ struct GiftTypePremium {
 		const GiftTypePremium &) = default;
 };
 
+struct PremiumGiftsDescriptor {
+	std::vector<GiftTypePremium> list;
+	std::shared_ptr<Api::PremiumGiftCodeOptions> api;
+};
+
 struct GiftTypeStars {
 	uint64 id = 0;
 	int64 stars = 0;
@@ -100,6 +112,11 @@ struct GiftDescriptor : std::variant<GiftTypePremium, GiftTypeStars> {
 	[[nodiscard]] friend inline bool operator==(
 		const GiftDescriptor&,
 		const GiftDescriptor&) = default;
+};
+
+struct GiftsDescriptor {
+	std::vector<GiftDescriptor> list;
+	std::shared_ptr<Api::PremiumGiftCodeOptions> api;
 };
 
 struct GiftDetails {
@@ -174,6 +191,8 @@ auto GenerateGiftMedia(
 	Element *replacing,
 	const GiftDetails &data)
 -> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
+	Expects(v::is<GiftTypeStars>(data.descriptor));
+
 	return [=](Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
 		const auto &descriptor = data.descriptor;
 		auto pushText = [&](
@@ -212,27 +231,15 @@ auto GenerateGiftMedia(
 			replacing,
 			sticker,
 			st::giftBoxPreviewStickerPadding));
-		const auto title = data.anonymous
-			? tr::lng_action_gift_anonymous(tr::now)
-			: tr::lng_action_gift_got_subtitle(
-				tr::now,
-				lt_user,
-				parent->data()->history()->session().user()->shortName());
-		auto textFallback = v::match(descriptor, [&](GiftTypePremium data) {
-			return TextWithEntities{
-				u"Use all those premium features with joy!"_q
-			};
-		}, [&](GiftTypeStars data) {
-			return tr::lng_action_gift_got_stars_text(
-				tr::now,
-				lt_cost,
-				tr::lng_gift_stars_title(
-					tr::now,
-					lt_count,
-					data.stars,
-					Ui::Text::Bold),
-				Ui::Text::WithEntities);
-		});
+		const auto title = tr::lng_action_gift_got_subtitle(
+			tr::now,
+			lt_user,
+			parent->data()->history()->session().user()->shortName());
+		auto textFallback = tr::lng_action_gift_got_stars_text(
+			tr::now,
+			lt_count,
+			v::get<GiftTypeStars>(descriptor).stars,
+			Ui::Text::RichLangValue);
 		auto description = data.text.isEmpty()
 			? std::move(textFallback)
 			: TextWithEntities{ data.text };
@@ -284,14 +291,12 @@ void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 		}, [&](GiftTypeStars data) {
 			return tr::lng_gift_stars_title(tr::now, lt_count, data.stars);
 		});
-		const auto text = details.anonymous
-			? tr::lng_action_gift_received_anonymous(tr::now, lt_cost, cost)
-			: tr::lng_action_gift_received(
-				tr::now,
-				lt_user,
-				_history->session().user()->shortName(),
-				lt_cost,
-				cost);
+		const auto text = tr::lng_action_gift_received(
+			tr::now,
+			lt_user,
+			_history->session().user()->shortName(),
+			lt_cost,
+			cost);
 		const auto item = _history->makeMessage({
 			.id = _history->nextNonHistoryEntryId(),
 			.flags = (MessageFlag::FakeAboutView
@@ -355,11 +360,11 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	_item->draw(p, context);
 }
 
-[[nodiscard]] rpl::producer<std::vector<GiftTypePremium>> GiftsPremium(
+[[nodiscard]] rpl::producer<PremiumGiftsDescriptor> GiftsPremium(
 		not_null<Main::Session*> session,
 		not_null<PeerData*> peer) {
 	struct Session {
-		std::vector<GiftTypePremium> last;
+		PremiumGiftsDescriptor last;
 	};
 	static auto Map = base::flat_map<not_null<Main::Session*>, Session>();
 	return [=](auto consumer) {
@@ -370,12 +375,12 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			i = Map.emplace(session, Session()).first;
 			session->lifetime().add([=] { Map.remove(session); });
 		}
-		if (!i->second.last.empty()) {
+		if (!i->second.last.list.empty()) {
 			consumer.put_next_copy(i->second.last);
 		}
 
 		using namespace Api;
-		const auto api = lifetime.make_state<PremiumGiftCodeOptions>(peer);
+		const auto api = std::make_shared<PremiumGiftCodeOptions>(peer);
 		api->request() | rpl::start_with_error_done([=](QString error) {
 			consumer.put_next({});
 		}, [=] {
@@ -411,9 +416,12 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			}
 			ranges::sort(list, ranges::less(), &GiftTypePremium::months);
 			auto &map = Map[session];
-			if (map.last != list) {
-				map.last = list;
-				consumer.put_next_copy(list);
+			if (map.last.list != list) {
+				map.last = PremiumGiftsDescriptor{
+					std::move(list),
+					api,
+				};
+				consumer.put_next_copy(map.last);
 			}
 		}, lifetime);
 
@@ -923,6 +931,9 @@ void SendGiftBox(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
 		const GiftDescriptor &descriptor) {
+	Expects(v::is<GiftTypeStars>(descriptor));
+
+	const auto gift = v::get<GiftTypeStars>(descriptor);
 	box->setStyle(st::giftBox);
 	box->setWidth(st::boxWideWidth);
 	box->setTitle(tr::lng_gift_send_title());
@@ -949,21 +960,11 @@ void SendGiftBox(
 				Lang::FormatCountDecimal(std::abs(data.stars)));
 		});
 	}());
-	const auto button = box->addButton(rpl::single(QString()), [=] {
-		box->closeBox();
-	});
-	SetButtonMarkedLabel(
-		button,
-		tr::lng_gift_send_button(
-			lt_cost,
-			std::move(cost),
-			Ui::Text::WithEntities),
-		session,
-		st::creditsBoxButtonLabel,
-		st::giftBox.button.textFg->c);
 
 	struct State {
 		rpl::variable<GiftDetails> details;
+		uint64 randomId = 0;
+		bool submitting = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	state->details = GiftDetails{
@@ -1010,6 +1011,33 @@ void SendGiftBox(
 	const auto buttonWidth = st::boxWideWidth
 		- st::giftBox.buttonPadding.left()
 		- st::giftBox.buttonPadding.right();
+	const auto button = box->addButton(rpl::single(QString()), [=] {
+		if (state->submitting) {
+			return;
+		}
+		state->submitting = true;
+		state->randomId = base::RandomValue<uint64>();
+		const auto details = state->details.current();
+		const auto done = [=](Payments::CheckoutResult result) {
+			box->closeBox();
+		};
+		Payments::CheckoutProcess::Start(Payments::InvoiceStarGift{
+			.giftId = gift.id,
+			.randomId = state->randomId,
+			.message = { details.text },
+			.user = peer->asUser(),
+			.anonymous = details.anonymous,
+		}, done, Payments::ProcessNonPanelPaymentFormFactory(window, done));
+	});
+	SetButtonMarkedLabel(
+		button,
+		tr::lng_gift_send_button(
+			lt_cost,
+			std::move(cost),
+			Ui::Text::WithEntities),
+		session,
+		st::creditsBoxButtonLabel,
+		st::giftBox.button.textFg->c);
 	button->resizeToWidth(buttonWidth);
 	button->widthValue() | rpl::start_with_next([=](int width) {
 		if (width != buttonWidth) {
@@ -1018,10 +1046,23 @@ void SendGiftBox(
 	}, button->lifetime());
 }
 
+void SendPremiumGift(
+		not_null<Window::SessionController*> window,
+		not_null<PeerData*> peer,
+		std::shared_ptr<Api::PremiumGiftCodeOptions> api,
+		const GiftTypePremium &gift,
+		Fn<void(Payments::CheckoutResult)> done) {
+	auto invoice = api->invoice(1, gift.months);
+	invoice.purpose = Payments::InvoicePremiumGiftCodeUsers{
+		{ peer->asUser() }
+	};
+	Payments::CheckoutProcess::Start(std::move(invoice), done);
+}
+
 [[nodiscard]] object_ptr<RpWidget> MakeGiftsList(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
-		rpl::producer<std::vector<GiftDescriptor>> gifts) {
+		rpl::producer<GiftsDescriptor> gifts) {
 	auto result = object_ptr<RpWidget>((QWidget*)nullptr);
 	const auto raw = result.data();
 
@@ -1062,7 +1103,7 @@ void SendGiftBox(
 			return _bg;
 		}
 		DocumentData *lookupSticker(
-				const GiftDescriptor &descriptor) {
+				const GiftDescriptor &descriptor) override {
 			const auto &session = _window->session();
 			auto &packs = session.giftBoxStickersPacks();
 			packs.load();
@@ -1086,6 +1127,7 @@ void SendGiftBox(
 	struct State {
 		Delegate delegate;
 		std::vector<std::unique_ptr<GiftButton>> buttons;
+		bool sending = false;
 	};
 	const auto state = raw->lifetime().make_state<State>(State{
 		.delegate = Delegate(window, peer),
@@ -1136,23 +1178,24 @@ void SendGiftBox(
 	state->delegate.setBackground(std::move(bg));
 	std::move(
 		gifts
-	) | rpl::start_with_next([=](const std::vector<GiftDescriptor> &gifts) {
+	) | rpl::start_with_next([=](const GiftsDescriptor &gifts) {
 		const auto width = st::boxWideWidth;
 		const auto padding = st::giftBoxPadding;
 		const auto available = width - padding.left() - padding.right();
 
 		auto x = padding.left();
 		auto y = padding.top();
-		state->buttons.resize(gifts.size());
+		state->buttons.resize(gifts.list.size());
 		for (auto &button : state->buttons) {
 			if (!button) {
 				button = std::make_unique<GiftButton>(raw, &state->delegate);
 				button->show();
 			}
 		}
-		for (auto i = 0, count = int(gifts.size()); i != count; ++i) {
+		const auto api = gifts.api;
+		for (auto i = 0, count = int(gifts.list.size()); i != count; ++i) {
 			const auto button = state->buttons[i].get();
-			const auto &descriptor = gifts[i];
+			const auto &descriptor = gifts.list[i];
 			button->setDescriptor(descriptor);
 
 			const auto last = !((i + 1) % kGiftsPerRow);
@@ -1167,16 +1210,36 @@ void SendGiftBox(
 				x += single.width() + st::giftBoxGiftSkip.x();
 			}
 
+			const auto premiumSent = [=](Payments::CheckoutResult result) {
+				state->sending = false;
+				if (result == Payments::CheckoutResult::Paid) {
+					window->showToast(u"Sent!"_q);
+				}
+			};
 			button->setClickedCallback([=] {
-				window->show(Box(SendGiftBox, window, peer, descriptor));
+				if (v::is<GiftTypePremium>(descriptor)) {
+					if (state->sending) {
+						return;
+					} else {
+						state->sending = true;
+					}
+					SendPremiumGift(
+						window,
+						peer,
+						api,
+						v::get<GiftTypePremium>(descriptor),
+						premiumSent);
+				} else {
+					window->show(Box(SendGiftBox, window, peer, descriptor));
+				}
 			});
 		}
-		if (gifts.size() % kGiftsPerRow) {
+		if (gifts.list.size() % kGiftsPerRow) {
 			y += padding.bottom() + single.height();
 		} else {
 			y += padding.bottom() - st::giftBoxGiftSkip.y();
 		}
-		raw->resize(raw->width(), gifts.empty() ? 0 : y);
+		raw->resize(raw->width(), gifts.list.empty() ? 0 : y);
 	}, raw->lifetime());
 
 	return result;
@@ -1228,16 +1291,20 @@ void AddBlock(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer) {
 	struct State {
-		rpl::variable<std::vector<GiftDescriptor>> gifts;
+		rpl::variable<PremiumGiftsDescriptor> gifts;
 	};
 	auto state = std::make_unique<State>();
 
-	state->gifts = GiftsPremium(&window->session(), peer) | rpl::map([=](
-			const std::vector<GiftTypePremium> &gifts) {
-		return gifts | ranges::to<std::vector<GiftDescriptor>>;
-	});
+	state->gifts = GiftsPremium(&window->session(), peer);
+	;
 
-	auto result = MakeGiftsList(window, peer, state->gifts.value());
+	auto result = MakeGiftsList(window, peer, state->gifts.value(
+	) | rpl::map([=](const PremiumGiftsDescriptor &gifts) {
+		return GiftsDescriptor{
+			gifts.list | ranges::to<std::vector<GiftDescriptor>>,
+			gifts.api,
+		};
+	}));
 	result->lifetime().add([state = std::move(state)] {});
 	return result;
 }
@@ -1267,7 +1334,9 @@ void AddBlock(
 				? (!gift.limited)
 				: (price && gift.stars != price);
 		}), end(gifts));
-		return gifts | ranges::to<std::vector<GiftDescriptor>>();
+		return GiftsDescriptor{
+			gifts | ranges::to<std::vector<GiftDescriptor>>(),
+		};
 	})));
 
 	return result;

@@ -130,16 +130,24 @@ struct GiveawayResults {
 enum class GiftType : uchar {
 	Premium, // count - months
 	Credits, // count - credits
+	StarGift, // count - stars
 };
 
 struct GiftCode {
 	QString slug;
+	DocumentData *document = nullptr;
+	TextWithEntities message;
 	ChannelData *channel = nullptr;
+	MsgId giveawayMsgId = 0;
+	int convertStars = 0;
+	int limitedCount = 0;
 	int count = 0;
-	int giveawayMsgId = 0;
 	GiftType type = GiftType::Premium;
-	bool viaGiveaway = false;
-	bool unclaimed = false;
+	bool viaGiveaway : 1 = false;
+	bool unclaimed : 1 = false;
+	bool anonymous : 1 = false;
+	bool converted : 1 = false;
+	bool saved : 1 = false;
 };
 
 class Media {
