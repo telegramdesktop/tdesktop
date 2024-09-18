@@ -220,6 +220,9 @@ void EditLinkBox(
 		if (startText.isEmpty()) {
 			text->setFocusFast();
 		} else {
+			if (!url->empty()) {
+				url->selectAll();
+			}
 			url->setFocusFast();
 		}
 	});
@@ -227,12 +230,31 @@ void EditLinkBox(
 	url->customTab(true);
 	text->customTab(true);
 
+	const auto clearFullSelection = [=](not_null<Ui::InputField*> input) {
+		if (input->empty()) {
+			return;
+		}
+		auto cursor = input->rawTextEdit()->textCursor();
+		const auto hasFull = (!cursor.selectionStart()
+			&& (cursor.selectionEnd()
+				== (input->rawTextEdit()->document()->characterCount() - 1)));
+		if (hasFull) {
+			cursor.clearSelection();
+			input->setTextCursor(cursor);
+		}
+	};
+
 	url->tabbed(
 	) | rpl::start_with_next([=] {
+		clearFullSelection(url);
 		text->setFocus();
 	}, url->lifetime());
 	text->tabbed(
 	) | rpl::start_with_next([=] {
+		if (!url->empty()) {
+			url->selectAll();
+		}
+		clearFullSelection(text);
 		url->setFocus();
 	}, text->lifetime());
 }
