@@ -89,5 +89,6 @@
         <binary>telegram-desktop</binary>
         <dbus type="session">org.telegram.desktop</dbus>
         <mediatype>x-scheme-handler/tg</mediatype>
+        <mediatype>x-scheme-handler/tonsite</mediatype>
     </provides>
 </component>
