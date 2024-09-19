@@ -375,7 +375,7 @@ Panel::Panel(
 , _widget(std::make_unique<SeparatePanel>())
 , _allowClipboardRead(allowClipboardRead) {
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
-	_widget->setInnerSize(st::botWebViewPanelSize);
+	_widget->setInnerSize(st::botWebViewPanelSize, true);
 
 	_widget->closeRequests(
 	) | rpl::start_with_next([=] {
@@ -708,6 +708,9 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	) | rpl::start_with_next([=](QRect geometry, int footer) {
 		if (const auto view = raw->widget()) {
 			view->setGeometry(geometry.marginsRemoved({ 0, 0, 0, footer }));
+			crl::on_main(view, [=] {
+				sendViewport();
+			});
 		}
 	}, _webview->lifetime);
 
