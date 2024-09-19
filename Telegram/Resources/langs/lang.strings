@@ -3004,6 +3004,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_send_anonymous" = "Hide My Name";
 "lng_gift_send_anonymous_about" = "You can hide your name and message from visitors to {user}'s profile. {recipient} will still see your name and message.";
 "lng_gift_send_button" = "Send a Gift for {cost}";
+"lng_gift_sent_title" = "Gift Sent!";
+"lng_gift_sent_about#one" = "You spent **{count}** Star from your balance.";
+"lng_gift_sent_about#other" = "You spent **{count}** Stars from your balance.";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";

@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/label_with_custom_emoji.h"
@@ -76,6 +77,7 @@ constexpr auto kPriceTabAll = 0;
 constexpr auto kPriceTabLimited = -1;
 constexpr auto kGiftsPerRow = 3;
 constexpr auto kGiftMessageLimit = 256;
+constexpr auto kSentToastDuration = 3 * crl::time(1000);
 
 using namespace HistoryView;
 
@@ -277,6 +279,61 @@ PreviewWrap::PreviewWrap(
 	}, lifetime());
 
 	prepare(std::move(details));
+}
+
+void ShowSentToast(not_null<Window::SessionController*> window, GiftTypeStars gift) {
+	const auto &st = st::historyPremiumToast;
+	const auto skip = st.padding.top();
+	const auto size = st.style.font->height * 2;
+	const auto leftSkip = skip + size + skip - st.padding.left();
+	const auto strong = window->showToast({
+		.title = tr::lng_gift_sent_title(tr::now),
+		.text = tr::lng_gift_sent_about(
+			tr::now,
+			lt_count,
+			gift.stars,
+			Ui::Text::RichLangValue),
+		.padding = rpl::single(QMargins(leftSkip, 0, 0, 0)),
+		.st = &st,
+		.attach = RectPart::Top,
+		.duration = kSentToastDuration,
+	}).get();
+	if (!strong) {
+		return;
+	}
+	const auto widget = strong->widget();
+	const auto preview = Ui::CreateChild<Ui::RpWidget>(widget.get());
+	preview->moveToLeft(skip, skip);
+	preview->resize(size, size);
+	preview->show();
+
+	const auto document = gift.document;
+	const auto bytes = document->createMediaView()->bytes();
+	const auto filepath = document->filepath();
+	const auto ratio = style::DevicePixelRatio();
+	const auto player = preview->lifetime().make_state<Lottie::SinglePlayer>(
+		Lottie::ReadContent(bytes, filepath),
+		Lottie::FrameRequest{ QSize(size, size) * ratio },
+		Lottie::Quality::Default);
+
+	preview->paintRequest(
+	) | rpl::start_with_next([=] {
+		if (!player->ready()) {
+			return;
+		}
+		const auto image = player->frame();
+		QPainter(preview).drawImage(
+			QRect(QPoint(), image.size() / ratio),
+			image);
+		if (player->frameIndex() + 1 != player->framesCount()) {
+			player->markFrameShown();
+		}
+	}, preview->lifetime());
+
+	player->updates(
+	) | rpl::start_with_next([=] {
+		preview->update();
+	}, preview->lifetime());
 }
 
 PreviewWrap::~PreviewWrap() {
@@ -963,6 +1020,7 @@ void SendGiftBox(
 
 	struct State {
 		rpl::variable<GiftDetails> details;
+		std::shared_ptr<Data::DocumentMedia> media;
 		uint64 randomId = 0;
 		bool submitting = false;
 	};
@@ -970,6 +1028,8 @@ void SendGiftBox(
 	state->details = GiftDetails{
 		.descriptor = descriptor,
 	};
+	state->media = gift.document->createMediaView();
+	state->media->checkStickerLarge();
 
 	const auto container = box->verticalLayout();
 	container->add(object_ptr<PreviewWrap>(
@@ -1018,8 +1078,16 @@ void SendGiftBox(
 		state->submitting = true;
 		state->randomId = base::RandomValue<uint64>();
 		const auto details = state->details.current();
+		const auto weak = Ui::MakeWeak(box);
 		const auto done = [=](Payments::CheckoutResult result) {
-			box->closeBox();
+			if (result == Payments::CheckoutResult::Paid) {
+				const auto copy = state->media;
+				window->showPeerHistory(peer);
+				ShowSentToast(window, gift);
+			}
+			if (const auto strong = weak.data()) {
+				box->closeBox();
+			}
 		};
 		Payments::CheckoutProcess::Start(Payments::InvoiceStarGift{
 			.giftId = gift.id,
@@ -1213,7 +1281,9 @@ void SendPremiumGift(
 			const auto premiumSent = [=](Payments::CheckoutResult result) {
 				state->sending = false;
 				if (result == Payments::CheckoutResult::Paid) {
-					window->showToast(u"Sent!"_q);
+					window->showPeerHistory(peer);
+					window->showToast(
+						Ui::Text::Bold(tr::lng_gift_sent_title(tr::now)));
 				}
 			};
 			button->setClickedCallback([=] {
