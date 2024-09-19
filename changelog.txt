@@ -1,3 +1,13 @@
+5.5.6 beta (19.09.24)
+
+- Allow resizing the window used for web apps and games.
+- Add mention / hashtag autocomplete in media caption field.
+- Add "Include muted chats in folder counters" notifications setting.
+- Auto-select URL suggested from clipboard when creating a custom link.
+- Update emoji to Unicode 15.1.
+- Fix replying with a quote from media album caption.
+- Fix viewing custom emoji packs from media album caption.
+
 5.5.5 (13.09.24)
 
 - Suggest URL from clipboard when creating a custom link.

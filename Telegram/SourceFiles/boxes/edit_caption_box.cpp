@@ -596,7 +596,6 @@ void EditCaptionBox::setupFieldAutocomplete() {
 		Ui::PostponeCall(raw, [=] {
 			*scheduled = false;
 
-			auto full = parent->rect();
 			auto field = Ui::MapFrom(parent, this, _field->geometry());
 			_autocomplete->setBoundings(QRect(
 				field.x() - _field->x(),

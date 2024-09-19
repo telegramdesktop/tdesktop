@@ -1362,7 +1362,6 @@ void SendFilesBox::setupCaptionAutocomplete() {
 		Ui::PostponeCall(raw, [=] {
 			*scheduled = false;
 
-			auto full = parent->rect();
 			auto field = Ui::MapFrom(parent, this, _caption->geometry());
 			_autocomplete->setBoundings(QRect(
 				field.x() - _caption->x(),
