@@ -153,6 +153,36 @@ private:
 
 };
 
+void ToggleStarGiftSaved(
+		not_null<Window::SessionController*> window,
+		not_null<HistoryItem*> item,
+		bool save,
+		Fn<void(bool)> done) {
+	Expects(item->history()->peer->isUser());
+
+	using Flag = MTPpayments_SaveStarGift::Flag;
+	const auto api = &window->session().api();
+	const auto weak = base::make_weak(window);
+	api->request(MTPpayments_SaveStarGift(
+		MTP_flags(save ? Flag(0) : Flag::f_unsave),
+		item->history()->peer->asUser()->inputUser,
+		MTP_int(item->id.bare)
+	)).done([=] {
+		if (const auto strong = weak.get()) {
+			strong->showPeerInfo(strong->session().user());
+			strong->showToast((save
+				? tr::lng_gift_display_done
+				: tr::lng_gift_display_done_hide)(tr::now));
+		}
+		done(true);
+	}).fail([=](const MTP::Error &error) {
+		if (const auto strong = weak.get()) {
+			strong->showToast(error.type());
+		}
+		done(false);
+	}).send();
+}
+
 void AddViewMediaHandler(
 		not_null<Ui::RpWidget*> thumb,
 		not_null<Window::SessionController*> controller,
@@ -647,7 +677,15 @@ void ReceiptCreditsBox(
 		not_null<Window::SessionController*> controller,
 		const Data::CreditsHistoryEntry &e,
 		const Data::SubscriptionEntry &s) {
-	box->setStyle(st::giveawayGiftCodeBox);
+	const auto item = controller->session().data().message(
+		PeerId(e.barePeerId), MsgId(e.bareMsgId));
+	const auto isStarGift = (e.convertStars > 0);
+	const auto starGiftSender = (isStarGift && item)
+		? item->history()->peer->asUser()
+		: nullptr;
+	const auto canConvert = isStarGift && !e.converted && starGiftSender;
+
+	box->setStyle(canConvert ? st::starGiftBox : st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 
 	const auto content = box->verticalLayout();
@@ -660,7 +698,6 @@ void ReceiptCreditsBox(
 	const auto &stUser = st::boostReplaceUserpic;
 	const auto session = &controller->session();
 	const auto isPrize = e.bareGiveawayMsgId > 0;
-	const auto isStarGift = (e.convertStars > 0);
 	const auto starGiftSticker = (isStarGift && e.bareGiftStickerId)
 		? session->data().document(e.bareGiftStickerId).get()
 		: nullptr;
@@ -1043,23 +1080,45 @@ void ReceiptCreditsBox(
 		rpl::variable<bool> confirmButtonBusy;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	auto confirmText = rpl::conditional(
-		state->confirmButtonBusy.value(),
-		rpl::single(QString()),
-		toRenew
-			? tr::lng_credits_subscription_off_button()
-			: toCancel
-			? tr::lng_credits_subscription_on_button()
-			: tr::lng_box_ok());
-	using Flag = MTPpayments_ChangeStarsSubscription::Flag;
+	auto confirmText = canConvert
+		? (e.savedToProfile
+			? tr::lng_gift_display_on_page_hide()
+			: tr::lng_gift_display_on_page())
+		: rpl::conditional(
+			state->confirmButtonBusy.value(),
+			rpl::single(QString()),
+			(toRenew
+				? tr::lng_credits_subscription_off_button()
+				: toCancel
+				? tr::lng_credits_subscription_on_button()
+				: tr::lng_box_ok()));
+	const auto weakWindow = base::make_weak(controller);
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
-		if (toRenew && s.expired) {
+		if (canConvert) {
+			const auto save = !e.savedToProfile;
+			const auto window = weakWindow.get();
+			const auto item = session->data().message(
+				starGiftSender->id,
+				MsgId(e.bareMsgId));
+			if (window && item) {
+				ToggleStarGiftSaved(window, item, save, [=](bool ok) {
+					if (const auto strong = weak.data()) {
+						if (ok) {
+							strong->closeBox();
+						} else {
+							state->confirmButtonBusy = false;
+						}
+					}
+				});
+			}
+		} else if (toRenew && s.expired) {
 			Api::CheckChatInvite(controller, s.inviteHash, nullptr, [=] {
 				if (const auto strong = weak.data()) {
 					strong->closeBox();
 				}
 			});
 		} else {
+			using Flag = MTPpayments_ChangeStarsSubscription::Flag;
 			session->api().request(
 				MTPpayments_ChangeStarsSubscription(
 					MTP_flags(Flag::f_canceled),
@@ -1067,12 +1126,13 @@ void ReceiptCreditsBox(
 					MTP_string(s.id),
 					MTP_bool(toCancel)
 			)).done([=] {
-				state->confirmButtonBusy = false;
 				if (const auto strong = weak.data()) {
 					strong->closeBox();
 				}
 			}).fail([=, show = box->uiShow()](const MTP::Error &error) {
-				state->confirmButtonBusy = false;
+				if (const auto strong = weak.data()) {
+					state->confirmButtonBusy = false;
+				}
 				show->showToast(error.type());
 			}).send();
 		}
@@ -1083,7 +1143,7 @@ void ReceiptCreditsBox(
 			return;
 		}
 		state->confirmButtonBusy = true;
-		if ((toRenew || toCancel) && peer) {
+		if ((toRenew || toCancel || canConvert) && peer) {
 			send();
 		} else {
 			box->closeBox();
@@ -1099,11 +1159,38 @@ void ReceiptCreditsBox(
 	}
 	const auto buttonWidth = st::boxWidth
 		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
+
 	button->widthValue() | rpl::filter([=] {
 		return (button->widthNoMargins() != buttonWidth);
 	}) | rpl::start_with_next([=] {
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
+
+	if (canConvert) {
+		using namespace Ui;
+		const auto convert = CreateChild<RoundButton>(
+			button->parentWidget(),
+			tr::lng_gift_convert_to_stars(
+				lt_count,
+				rpl::single(e.convertStars * 1.)),
+			st::defaultLightButton);
+		convert->setTextTransform(RoundButton::TextTransform::NoTransform);
+		convert->widthValue() | rpl::filter([=] {
+			return convert->widthNoMargins() != buttonWidth;
+		}) | rpl::start_with_next([=] {
+			convert->resizeToWidth(buttonWidth);
+		}, convert->lifetime());
+		button->positionValue(
+		) | rpl::start_with_next([=](QPoint position) {
+			convert->move(
+				position.x(),
+				(position.y()
+					+ st::starGiftBox.buttonHeight
+					+ st::starGiftBox.buttonPadding.bottom()
+					- st::starGiftBox.buttonPadding.top()
+					- convert->height()));
+		}, convert->lifetime());
+	}
 }
 
 void GiftedCreditsBox(

@@ -203,3 +203,7 @@ startGiveawayButtonLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimati
 	color: activeButtonFg;
 	thickness: 2px;
 }
+
+starGiftBox: Box(giveawayGiftCodeBox) {
+	buttonPadding: margins(22px, 11px, 22px, 52px);
+}
