@@ -1323,6 +1323,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_similar_channels#other" = "{count} similar channels";
 "lng_profile_saved_messages#one" = "{count} saved message";
 "lng_profile_saved_messages#other" = "{count} saved messages";
+"lng_profile_peer_gifts#one" = "{count} gift";
+"lng_profile_peer_gifts#other" = "{count} gifts";
 "lng_profile_participants_section" = "Members";
 "lng_profile_subscribers_section" = "Subscribers";
 "lng_profile_add_contact" = "Add Contact";
@@ -1923,6 +1925,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_similar_channels_premium_all#other" = "Subscribe to {link} to unlock up to **{count}** similar channels.";
 "lng_similar_channels_premium_all_link" = "Telegram Premium";
 "lng_similar_channels_show_more" = "Show more channels";
+
+"lng_peer_gifts_title" = "Gifts";
 
 "lng_premium_gift_duration_months#one" = "for {count} month";
 "lng_premium_gift_duration_months#other" = "for {count} months";

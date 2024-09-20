@@ -581,6 +581,15 @@ rpl::producer<int> SavedSublistCountValue(
 	return sublist->fullCountValue();
 }
 
+rpl::producer<int> PeerGiftsCountValue(not_null<UserData*> user) {
+	return user->session().changes().peerFlagsValue(
+		user,
+		UpdateFlag::PeerGifts
+	) | rpl::map([=] {
+		return user->peerGiftsCount();
+	});
+}
+
 rpl::producer<bool> CanAddMemberValue(not_null<PeerData*> peer) {
 	if (const auto chat = peer->asChat()) {
 		return peer->session().changes().peerFlagsValue(

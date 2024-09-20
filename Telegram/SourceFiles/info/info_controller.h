@@ -127,6 +127,7 @@ public:
 		CommonGroups,
 		SimilarChannels,
 		SavedSublists,
+		PeerGifts,
 		Members,
 		Settings,
 		Downloads,

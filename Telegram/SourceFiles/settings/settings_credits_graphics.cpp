@@ -990,9 +990,7 @@ void ReceiptCreditsBox(
 				rpl::single(e.description),
 				st::creditsBoxAbout)));
 	}
-	if (isStarGift && !canConvert) {
-		// Nothing
-	} else if (isStarGift) {
+	if (isStarGift) {
 		Ui::AddSkip(content);
 		const auto about = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(

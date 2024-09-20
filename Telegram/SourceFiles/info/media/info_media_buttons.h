@@ -203,4 +203,25 @@ inline auto AddSavedSublistButton(
 	return result;
 }
 
+inline auto AddPeerGiftsButton(
+		Ui::VerticalLayout *parent,
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<UserData*> user,
+		Ui::MultiSlideTracker &tracker) {
+	auto result = AddCountedButton(
+		parent,
+		Profile::PeerGiftsCountValue(user),
+		[](int count) {
+			return tr::lng_profile_peer_gifts(tr::now, lt_count, count);
+		},
+		tracker)->entity();
+	result->addClickHandler([=] {
+		navigation->showSection(
+			std::make_shared<Info::Memento>(
+				user,
+				Section::Type::PeerGifts));
+	});
+	return result;
+}
+
 } // namespace Info::Media
