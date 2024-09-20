@@ -76,6 +76,7 @@ struct GiftOptionData {
 struct StarGift {
 	uint64 id = 0;
 	int64 stars = 0;
+	int64 convertStars = 0;
 	not_null<DocumentData*> document;
 	int limitedLeft = 0;
 	int limitedCount = 0;

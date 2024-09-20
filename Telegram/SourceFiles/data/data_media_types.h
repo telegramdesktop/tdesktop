@@ -141,6 +141,7 @@ struct GiftCode {
 	MsgId giveawayMsgId = 0;
 	int convertStars = 0;
 	int limitedCount = 0;
+	int limitedLeft = 0;
 	int count = 0;
 	GiftType type = GiftType::Premium;
 	bool viaGiveaway : 1 = false;

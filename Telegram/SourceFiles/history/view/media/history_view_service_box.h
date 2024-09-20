@@ -28,6 +28,9 @@ public:
 		return top();
 	}
 	[[nodiscard]] virtual rpl::producer<QString> button() = 0;
+	[[nodiscard]] virtual QString cornerTagText() {
+		return {};
+	}
 	virtual void draw(
 		Painter &p,
 		const PaintContext &context,

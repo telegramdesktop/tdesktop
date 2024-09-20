@@ -5490,6 +5490,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 				: TextWithEntities()),
 			.convertStars = int(data.vconvert_stars().v),
 			.limitedCount = gift.vavailability_total().value_or_empty(),
+			.limitedLeft = gift.vavailability_remains().value_or_empty(),
 			.count = int(gift.vstars().v),
 			.type = Data::GiftType::StarGift,
 			.anonymous = data.is_name_hidden(),

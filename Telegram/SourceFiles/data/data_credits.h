@@ -50,7 +50,7 @@ struct CreditsHistoryEntry final {
 
 	QString id;
 	QString title;
-	QString description;
+	TextWithEntities description;
 	QDateTime date;
 	PhotoId photoId = 0;
 	std::vector<CreditsHistoryMedia> extended;
@@ -58,10 +58,17 @@ struct CreditsHistoryEntry final {
 	uint64 bareMsgId = 0;
 	uint64 barePeerId = 0;
 	uint64 bareGiveawayMsgId = 0;
+	uint64 bareGiftStickerId = 0;
 	PeerType peerType;
 	QDateTime subscriptionUntil;
 	QDateTime successDate;
 	QString successLink;
+	int limitedCount = 0;
+	int limitedLeft = 0;
+	int convertStars = 0;
+	bool converted = false;
+	bool anonymous = false;
+	bool savedToProfile = false;
 	bool reaction = false;
 	bool refunded = false;
 	bool pending = false;

@@ -612,6 +612,7 @@ auto PremiumGiftCodeOptions::requestStarGifts()
 						gifts.push_back(StarGift{
 							.id = uint64(data.vid().v),
 							.stars = int64(data.vstars().v),
+							.convertStars = int64(data.vconvert_stars().v),
 							.document = document,
 							.limitedLeft = remaining.value_or_empty(),
 							.limitedCount = total.value_or_empty(),

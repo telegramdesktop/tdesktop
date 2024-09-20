@@ -3007,6 +3007,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sent_title" = "Gift Sent!";
 "lng_gift_sent_about#one" = "You spent **{count}** Star from your balance.";
 "lng_gift_sent_about#other" = "You spent **{count}** Stars from your balance.";
+"lng_gift_limited_of_one" = "unique";
+"lng_gift_limited_of_count" = "1 of {amount}";
+"lng_gift_anonymous_hint" = "Only you can see the sender's name.";
+"lng_gift_availability" = "Availability";
+"lng_gift_availability_left#one" = "{count} of {amount} left";
+"lng_gift_availability_left#other" = "{count} of {amount} left";
+"lng_gift_availability_none" = "None of {amount} left";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";

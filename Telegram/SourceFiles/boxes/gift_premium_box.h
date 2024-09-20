@@ -76,6 +76,10 @@ void ResolveGiveawayInfo(
 	std::optional<Data::GiveawayStart> start,
 	std::optional<Data::GiveawayResults> results);
 
+void AddStarGiftTable(
+	not_null<Window::SessionNavigation*> controller,
+	not_null<Ui::VerticalLayout*> container,
+	const Data::CreditsHistoryEntry &entry);
 void AddCreditsHistoryEntryTable(
 	not_null<Window::SessionNavigation*> controller,
 	not_null<Ui::VerticalLayout*> container,

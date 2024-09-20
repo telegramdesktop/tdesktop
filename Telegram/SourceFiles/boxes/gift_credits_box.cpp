@@ -100,6 +100,7 @@ struct PremiumGiftsDescriptor {
 struct GiftTypeStars {
 	uint64 id = 0;
 	int64 stars = 0;
+	int64 convertStars = 0;
 	DocumentData *document = nullptr;
 	bool limited = false;
 
@@ -240,7 +241,7 @@ auto GenerateGiftMedia(
 		auto textFallback = tr::lng_action_gift_got_stars_text(
 			tr::now,
 			lt_count,
-			v::get<GiftTypeStars>(descriptor).stars,
+			v::get<GiftTypeStars>(descriptor).convertStars,
 			Ui::Text::RichLangValue);
 		auto description = data.text.isEmpty()
 			? std::move(textFallback)
@@ -519,6 +520,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 				list.push_back({
 					.id = gift.id,
 					.stars = gift.stars,
+					.convertStars = gift.convertStars,
 					.document = gift.document,
 					.limited = (gift.limitedCount > 0),
 				});
@@ -1428,8 +1430,7 @@ void GiftBox(
 	const auto &stUser = st::premiumGiftsUserpicButton;
 	const auto content = box->verticalLayout();
 
-	AddSkip(content);
-	AddSkip(content);
+	AddSkip(content, st::defaultVerticalListSkip * 5);
 
 	content->add(
 		object_ptr<CenterWrap<>>(

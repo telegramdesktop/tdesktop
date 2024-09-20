@@ -72,7 +72,7 @@ constexpr auto kTransactionsLimit = 100;
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
 		.title = qs(tl.data().vtitle().value_or_empty()),
-		.description = qs(tl.data().vdescription().value_or_empty()),
+		.description = { qs(tl.data().vdescription().value_or_empty()) },
 		.date = base::unixtime::parse(tl.data().vdate().v),
 		.photoId = photo ? photo->id : 0,
 		.extended = std::move(extended),

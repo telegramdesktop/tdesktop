@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_credits.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -79,14 +80,14 @@ TextWithEntities PremiumGift::subtitle() {
 			? tr::lng_action_gift_sent_text(
 				tr::now,
 				lt_count,
-				_data.count,
+				_data.convertStars,
 				lt_user,
 				Ui::Text::Bold(_parent->history()->peer->shortName()),
 				Ui::Text::RichLangValue)
 			: tr::lng_action_gift_got_stars_text(
 				tr::now,
 				lt_count,
-				_data.count,
+				_data.convertStars,
 				Ui::Text::RichLangValue);
 	}
 	const auto isCreditsPrize = creditsPrize();
@@ -149,6 +150,7 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 		return nullptr;
 	}
 	const auto from = _gift->from();
+	const auto itemId = _parent->data()->fullId();
 	const auto peer = _parent->history()->peer;
 	const auto date = _parent->data()->date();
 	const auto data = _gift->data();
@@ -157,25 +159,21 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 		if (const auto controller = my.sessionWindow.get()) {
 			const auto selfId = controller->session().userPeerId();
 			const auto sent = (from->id == selfId);
-			if (creditsPrize()) {
-				using Type = Data::CreditsHistoryEntry::PeerType;
+			if (starGift()) {
+				const auto item = controller->session().data().message(itemId);
+				if (item) {
+					controller->show(Box(
+						Settings::StarGiftViewBox,
+						controller,
+						data,
+						item));
+				}
+			} else if (creditsPrize()) {
 				controller->show(Box(
-					Settings::ReceiptCreditsBox,
+					Settings::CreditsPrizeBox,
 					controller,
-					Data::CreditsHistoryEntry{
-						.id = data.slug,
-						.title = QString(),
-						.description = QString(),
-						.date = base::unixtime::parse(date),
-						.credits = uint64(data.count),
-						.barePeerId = data.channel
-							? data.channel->id.value
-							: 0,
-						.bareGiveawayMsgId = uint64(data.giveawayMsgId.bare),
-						.peerType = Type::Peer,
-						.in = true,
-					},
-					Data::SubscriptionEntry()));
+					data,
+					date));
 			} else if (data.type == Data::GiftType::Credits) {
 				const auto to = sent ? peer : peer->session().user();
 				controller->show(Box(
@@ -210,6 +208,20 @@ void PremiumGift::draw(
 	} else {
 		ensureStickerCreated();
 	}
+}
+
+QString PremiumGift::cornerTagText() {
+	if (const auto count = _data.limitedCount) {
+		return (count == 1)
+			? tr::lng_gift_limited_of_one(tr::now)
+			: tr::lng_gift_limited_of_count(
+				tr::now,
+				lt_amount,
+				((count % 1000)
+					? Lang::FormatCountDecimal(count)
+					: Lang::FormatCountToShort(count).string));
+	}
+	return QString();
 }
 
 bool PremiumGift::hideServiceText() {

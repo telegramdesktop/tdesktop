@@ -799,10 +799,12 @@ void AddTableRow(
 		object_ptr<Ui::RpWidget> value,
 		style::margins valueMargins) {
 	table->addRow(
-		object_ptr<Ui::FlatLabel>(
-			table,
-			std::move(label),
-			st::giveawayGiftCodeLabel),
+		(label
+			? object_ptr<Ui::FlatLabel>(
+				table,
+				std::move(label),
+				st::giveawayGiftCodeLabel)
+			: object_ptr<Ui::FlatLabel>(nullptr)),
 		std::move(value),
 		st::giveawayGiftCodeLabelMargin,
 		valueMargins);
@@ -1706,6 +1708,59 @@ void ResolveGiveawayInfo(
 		peer,
 		messageId,
 		crl::guard(controller, show));
+}
+
+void AddStarGiftTable(
+		not_null<Window::SessionNavigation*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		const Data::CreditsHistoryEntry &entry) {
+	auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	const auto peerId = PeerId(entry.barePeerId);
+	if (peerId) {
+		auto text = entry.in
+			? tr::lng_credits_box_history_entry_peer_in()
+			: tr::lng_credits_box_history_entry_peer();
+		AddTableRow(table, std::move(text), controller, peerId);
+	}
+	if (!entry.date.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_date(),
+			rpl::single(Ui::Text::WithEntities(langDateTime(entry.date))));
+	}
+	if (entry.limitedCount > 0) {
+		auto amount = rpl::single(TextWithEntities{
+			QString::number(entry.limitedCount)
+		});
+		AddTableRow(
+			table,
+			tr::lng_gift_availability(),
+			((entry.limitedLeft > 0)
+				? tr::lng_gift_availability_left(
+					lt_count,
+					rpl::single(entry.limitedLeft * 1.),
+					lt_amount,
+					std::move(amount),
+					Ui::Text::WithEntities)
+				: tr::lng_gift_availability_none(
+					lt_amount,
+					std::move(amount),
+					Ui::Text::WithEntities)));
+	}
+	if (!entry.description.empty()) {
+		table->addRow(
+			nullptr,
+			object_ptr<Ui::FlatLabel>(
+				table,
+				rpl::single(entry.description),
+				st::giveawayGiftCodeValue),
+			st::giveawayGiftCodeLabelMargin,
+			st::giveawayGiftCodeValueMargin);
+	}
 }
 
 void AddCreditsHistoryEntryTable(
