@@ -600,23 +600,12 @@ auto PremiumGiftCodeOptions::requestStarGifts()
 			result.match([&](const MTPDpayments_starGifts &data) {
 				_giftsHash = data.vhash().v;
 				const auto &list = data.vgifts().v;
+				const auto session = &_peer->session();
 				auto gifts = std::vector<StarGift>();
 				gifts.reserve(list.size());
 				for (const auto &gift : list) {
-					const auto &data = gift.data();
-					const auto document = _peer->owner().processDocument(
-						data.vsticker());
-					const auto remaining = data.vavailability_remains();
-					const auto total = data.vavailability_total();
-					if (document->sticker()) {
-						gifts.push_back(StarGift{
-							.id = uint64(data.vid().v),
-							.stars = int64(data.vstars().v),
-							.convertStars = int64(data.vconvert_stars().v),
-							.document = document,
-							.limitedLeft = remaining.value_or_empty(),
-							.limitedCount = total.value_or_empty(),
-						});
+					if (auto parsed = FromTL(session, gift)) {
+						gifts.push_back(std::move(*parsed));
 					}
 				}
 				_gifts = std::move(gifts);
@@ -767,6 +756,55 @@ rpl::producer<DocumentData*> RandomHelloStickerValue(
 	) | rpl::filter([=] {
 		return !premium->helloStickers().empty();
 	}) | rpl::take(1) | rpl::map(random));
+}
+
+std::optional<StarGift> FromTL(
+		not_null<Main::Session*> session,
+		const MTPstarGift &gift) {
+	const auto &data = gift.data();
+	const auto document = session->data().processDocument(
+		data.vsticker());
+	const auto remaining = data.vavailability_remains();
+	const auto total = data.vavailability_total();
+	if (!document->sticker()) {
+		return {};
+	}
+	return StarGift{
+		.id = uint64(data.vid().v),
+		.stars = int64(data.vstars().v),
+		.convertStars = int64(data.vconvert_stars().v),
+		.document = document,
+		.limitedLeft = remaining.value_or_empty(),
+		.limitedCount = total.value_or_empty(),
+	};
+}
+
+std::optional<UserStarGift> FromTL(
+		not_null<Main::Session*> session,
+		const MTPuserStarGift &gift) {
+	const auto &data = gift.data();
+	auto parsed = FromTL(session, data.vgift());
+	if (!parsed) {
+		return {};
+	}
+	return UserStarGift{
+		.gift = std::move(*parsed),
+		.message = (data.vmessage()
+			? TextWithEntities{
+				.text = qs(data.vmessage()->data().vtext()),
+				.entities = Api::EntitiesFromMTP(
+					session,
+					data.vmessage()->data().ventities().v),
+			}
+			: TextWithEntities()),
+		.convertStars = int64(data.vconvert_stars().value_or_empty()),
+		.fromId = (data.vfrom_id()
+			? peerFromUser(data.vfrom_id()->v)
+			: PeerId()),
+		.messageId = data.vmsg_id().value_or_empty(),
+		.anonymous = data.is_name_hidden(),
+		.hidden = data.is_unsaved(),
+	};
 }
 
 } // namespace Api

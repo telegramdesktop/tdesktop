@@ -82,6 +82,16 @@ struct StarGift {
 	int limitedCount = 0;
 };
 
+struct UserStarGift {
+	StarGift gift;
+	TextWithEntities message;
+	int64 convertStars = 0;
+	PeerId fromId = 0;
+	MsgId messageId = 0;
+	bool anonymous = false;
+	bool hidden = false;
+};
+
 class Premium final {
 public:
 	explicit Premium(not_null<ApiWrap*> api);
@@ -263,5 +273,12 @@ enum class RequirePremiumState {
 
 [[nodiscard]] rpl::producer<DocumentData*> RandomHelloStickerValue(
 	not_null<Main::Session*> session);
+
+[[nodiscard]] std::optional<StarGift> FromTL(
+	not_null<Main::Session*> session,
+	const MTPstarGift &gift);
+[[nodiscard]] std::optional<UserStarGift> FromTL(
+	not_null<Main::Session*> session,
+	const MTPuserStarGift &gift);
 
 } // namespace Api

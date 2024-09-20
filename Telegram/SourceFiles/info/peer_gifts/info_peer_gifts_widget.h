@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_premium.h"
 #include "info/info_content_widget.h"
 
 class UserData;
@@ -14,17 +15,8 @@ struct PeerListState;
 
 namespace Info::PeerGifts {
 
-struct ListEntry {
-	TextWithEntities message;
-	int64 convertStars = 0;
-	PeerId fromId = 0;
-	MsgId messageId = 0;
-	bool anonymous = false;
-	bool hidden = false;
-};
-
 struct ListState {
-	std::vector<ListEntry> list;
+	std::vector<Api::UserStarGift> list;
 	QString offset;
 };
 

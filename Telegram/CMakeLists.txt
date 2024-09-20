@@ -949,6 +949,8 @@ PRIVATE
     info/media/info_media_widget.h
     info/members/info_members_widget.cpp
     info/members/info_members_widget.h
+    info/peer_gifts/info_peer_gifts_common.cpp
+    info/peer_gifts/info_peer_gifts_common.h
     info/peer_gifts/info_peer_gifts_widget.cpp
     info/peer_gifts/info_peer_gifts_widget.h
     info/polls/info_polls_results_inner_widget.cpp

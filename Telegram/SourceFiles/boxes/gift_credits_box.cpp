@@ -6,34 +6,33 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/gift_credits_box.h"
-
+//
 #include "base/random.h"
-#include "api/api_credits.h"
 #include "api/api_premium.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/send_credits_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
-#include "core/click_handler_types.h"
-#include "core/local_url_handlers.h"
-#include "data/data_peer.h"
+#include "core/ui_integration.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/admin_log/history_admin_log_item.h"
-#include "history/view/media/history_view_sticker_player.h"
 #include "history/view/media/history_view_media_generic.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
+#include "info/peer_gifts/info_peer_gifts_common.h"
 #include "lang/lang_keys.h"
-#include "main/session/session_show.h"
+#include "lottie/lottie_common.h"
+#include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
 #include "payments/payments_form.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_non_panel_process.h"
-#include "settings/settings_credits_graphics.h"
 #include "settings/settings_credits.h"
 #include "settings/settings_premium.h"
 #include "ui/chat/chat_style.h"
@@ -42,9 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
-#include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
-#include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
@@ -52,69 +49,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/widgets/label_with_custom_emoji.h"
-#include "ui/widgets/shadow.h"
+#include "ui/widgets/buttons.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
-#include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
-#include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
-
-#include "data/stickers/data_stickers.h"
-#include "data/data_document.h"
-#include "data/data_document_media.h"
 
 namespace Ui {
 namespace {
 
 constexpr auto kPriceTabAll = 0;
 constexpr auto kPriceTabLimited = -1;
-constexpr auto kGiftsPerRow = 3;
 constexpr auto kGiftMessageLimit = 256;
 constexpr auto kSentToastDuration = 3 * crl::time(1000);
 
 using namespace HistoryView;
-
-struct GiftTypePremium {
-	int64 cost = 0;
-	QString currency;
-	int months = 0;
-	int discountPercent = 0;
-
-	[[nodiscard]] friend inline bool operator==(
-		const GiftTypePremium &,
-		const GiftTypePremium &) = default;
-};
+using namespace Info::PeerGifts;
 
 struct PremiumGiftsDescriptor {
 	std::vector<GiftTypePremium> list;
 	std::shared_ptr<Api::PremiumGiftCodeOptions> api;
-};
-
-struct GiftTypeStars {
-	uint64 id = 0;
-	int64 stars = 0;
-	int64 convertStars = 0;
-	DocumentData *document = nullptr;
-	bool limited = false;
-
-	[[nodiscard]] friend inline bool operator==(
-		const GiftTypeStars&,
-		const GiftTypeStars&) = default;
-};
-
-struct GiftDescriptor : std::variant<GiftTypePremium, GiftTypeStars> {
-	using variant::variant;
-
-	[[nodiscard]] friend inline bool operator==(
-		const GiftDescriptor&,
-		const GiftDescriptor&) = default;
 };
 
 struct GiftsDescriptor {
@@ -739,234 +698,6 @@ struct GiftPriceTabs {
 	};
 }
 
-class GiftButtonDelegate {
-public:
-	[[nodiscard]] virtual TextWithEntities star() = 0;
-	[[nodiscard]] virtual std::any textContext() = 0;
-	[[nodiscard]] virtual QSize buttonSize() = 0;
-	[[nodiscard]] virtual QImage background() = 0;
-	[[nodiscard]] virtual DocumentData *lookupSticker(
-		const GiftDescriptor &descriptor) = 0;
-};
-
-class GiftButton final : public AbstractButton {
-public:
-	GiftButton(QWidget *parent, not_null<GiftButtonDelegate*> delegate);
-	using AbstractButton::AbstractButton;
-
-	void setDescriptor(const GiftDescriptor &descriptor);
-	void setGeometry(QRect inner, QMargins extend);
-
-private:
-	void paintEvent(QPaintEvent *e) override;
-
-	void setDocument(not_null<DocumentData*> document);
-
-	const not_null<GiftButtonDelegate*> _delegate;
-	GiftDescriptor _descriptor;
-	Text::String _text;
-	Text::String _price;
-	QRect _button;
-	QMargins _extend;
-
-	std::unique_ptr<StickerPlayer> _player;
-	rpl::lifetime _mediaLifetime;
-
-};
-
-GiftButton::GiftButton(
-	QWidget *parent,
-	not_null<GiftButtonDelegate*> delegate)
-: AbstractButton(parent)
-, _delegate(delegate) {
-}
-
-void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
-	if (_descriptor == descriptor) {
-		return;
-	}
-	auto player = base::take(_player);
-	_mediaLifetime.destroy();
-	_descriptor = descriptor;
-	v::match(descriptor, [&](const GiftTypePremium &data) {
-		const auto months = data.months;
-		const auto years = (months % 12) ? 0 : months / 12;
-		_text = Text::String(st::giftBoxGiftHeight / 4);
-		_text.setMarkedText(
-			st::defaultTextStyle,
-			Text::Bold(years
-				? tr::lng_years(tr::now, lt_count, years)
-				: tr::lng_months(tr::now, lt_count, months)
-			).append('\n').append(
-				tr::lng_gift_premium_label(tr::now)
-			));
-		_price.setText(
-			st::semiboldTextStyle,
-			FillAmountAndCurrency(
-				data.cost,
-				data.currency,
-				true));
-	}, [&](const GiftTypeStars &data) {
-		_price.setMarkedText(
-			st::semiboldTextStyle,
-			_delegate->star().append(QString::number(data.stars)),
-			kMarkupTextOptions,
-			_delegate->textContext());
-	});
-	if (const auto document = _delegate->lookupSticker(descriptor)) {
-		setDocument(document);
-	}
-
-	const auto buttonw = _price.maxWidth();
-	const auto buttonh = st::semiboldFont->height;
-	const auto inner = QRect(
-		QPoint(),
-		QSize(buttonw, buttonh)
-	).marginsAdded(st::giftBoxButtonPadding);
-	const auto single = _delegate->buttonSize();
-	const auto skipx = (single.width() - inner.width()) / 2;
-	const auto skipy = single.height()
-		- st::giftBoxButtonBottom
-		- inner.height();
-	const auto outer = (single.width() - 2 * skipx);
-	_button = QRect(skipx, skipy, outer, inner.height());
-}
-
-void GiftButton::setDocument(not_null<DocumentData*> document) {
-	const auto media = document->createMediaView();
-	media->checkStickerLarge();
-	media->goodThumbnailWanted();
-
-	rpl::single() | rpl::then(
-		document->owner().session().downloaderTaskFinished()
-	) | rpl::filter([=] {
-		return media->loaded();
-	}) | rpl::start_with_next([=] {
-		_mediaLifetime.destroy();
-
-		auto result = std::unique_ptr<StickerPlayer>();
-		const auto sticker = document->sticker();
-		if (sticker->isLottie()) {
-			result = std::make_unique<HistoryView::LottiePlayer>(
-				ChatHelpers::LottiePlayerFromDocument(
-					media.get(),
-					ChatHelpers::StickerLottieSize::InlineResults,
-					st::giftBoxStickerSize,
-					Lottie::Quality::High));
-		} else if (sticker->isWebm()) {
-			result = std::make_unique<HistoryView::WebmPlayer>(
-				media->owner()->location(),
-				media->bytes(),
-				st::giftBoxStickerSize);
-		} else {
-			result = std::make_unique<HistoryView::StaticStickerPlayer>(
-				media->owner()->location(),
-				media->bytes(),
-				st::giftBoxStickerSize);
-		}
-		result->setRepaintCallback([=] { update(); });
-		_player = std::move(result);
-		update();
-	}, _mediaLifetime);
-}
-
-void GiftButton::setGeometry(QRect inner, QMargins extend) {
-	_extend = extend;
-	AbstractButton::setGeometry(inner.marginsAdded(extend));
-}
-
-void GiftButton::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
-	const auto position = QPoint(_extend.left(), _extend.top());
-	p.drawImage(0, 0, _delegate->background());
-
-	if (_player && _player->ready()) {
-		const auto paused = !isOver();
-		auto info = _player->frame(
-			st::giftBoxStickerSize,
-			QColor(0, 0, 0, 0),
-			false,
-			crl::now(),
-			paused);
-		const auto finished = (info.index + 1 == _player->framesCount());
-		if (!finished || !paused) {
-			_player->markFrameShown();
-		}
-		const auto size = info.image.size() / style::DevicePixelRatio();
-		p.drawImage(
-			QRect(
-				(width() - size.width()) / 2,
-				(_text.isEmpty()
-					? st::giftBoxStickerStarTop
-					: st::giftBoxStickerTop),
-				size.width(),
-				size.height()),
-			info.image);
-	}
-
-	auto hq = PainterHighQualityEnabler(p);
-	const auto premium = v::is<GiftTypePremium>(_descriptor);
-	const auto singlew = _delegate->buttonSize().width();
-	const auto font = st::semiboldFont;
-	p.setFont(font);
-	const auto text = v::match(_descriptor, [&](GiftTypePremium data) {
-		if (data.discountPercent > 0) {
-			p.setBrush(st::attentionBoxButton.textFg);
-			const auto kMinus = QChar(0x2212);
-			return kMinus + QString::number(data.discountPercent) + '%';
-		}
-		return QString();
-	}, [&](const GiftTypeStars &data) {
-		if (data.limited) {
-			p.setBrush(st::windowActiveTextFg);
-			return tr::lng_gift_stars_limited(tr::now);
-		}
-		return QString();
-	});
-	if (!text.isEmpty()) {
-		p.setPen(Qt::NoPen);
-		const auto twidth = font->width(text);
-		const auto pos = position + QPoint(singlew - twidth, font->height);
-		p.save();
-		p.translate(pos);
-		p.rotate(45.);
-		p.translate(-pos);
-		p.drawRect(-5 * twidth, position.y(), twidth * 12, font->height);
-		p.setPen(st::windowBg);
-		p.drawText(pos - QPoint(0, font->descent), text);
-		p.restore();
-	}
-	p.setBrush(premium ? st::lightButtonBgOver : st::creditsBg3);
-	p.setPen(Qt::NoPen);
-	if (!premium) {
-		p.setOpacity(0.12);
-	}
-	const auto geometry = _button.translated(position);
-	const auto radius = geometry.height() / 2.;
-	p.drawRoundedRect(geometry, radius, radius);
-	if (!premium) {
-		p.setOpacity(1.);
-	}
-
-	if (!_text.isEmpty()) {
-		p.setPen(st::windowFg);
-		_text.draw(p, {
-			.position = (position
-				+ QPoint(0, st::giftBoxPremiumTextTop)),
-			.availableWidth = singlew,
-			.align = style::al_top,
-		});
-	}
-
-	const auto padding = st::giftBoxButtonPadding;
-	p.setPen(premium ? st::windowActiveTextFg : st::creditsFg);
-	_price.draw(p, {
-		.position = (geometry.topLeft()
-			+ QPoint(padding.left(), padding.top())),
-		.availableWidth = _price.maxWidth(),
-	});
-}
-
 [[nodiscard]] not_null<Ui::InputField*> AddPartInput(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> placeholder,
@@ -1136,122 +867,25 @@ void SendPremiumGift(
 	auto result = object_ptr<RpWidget>((QWidget*)nullptr);
 	const auto raw = result.data();
 
-	class Delegate final : public GiftButtonDelegate {
-	public:
-		Delegate(
-			not_null<Window::SessionController*> window,
-			not_null<PeerData*> peer)
-		: _window(window)
-		, _peer(peer) {
-		}
-
-		TextWithEntities star() override {
-			return _peer->owner().customEmojiManager().creditsEmoji();
-		}
-		std::any textContext() override {
-			return Core::MarkedTextContext{
-				.session = &_peer->session(),
-				.customEmojiRepaint = [] {},
-			};
-		}
-		QSize buttonSize() override {
-			if (!_single.isEmpty()) {
-				return _single;
-			}
-			const auto width = st::boxWideWidth;
-			const auto padding = st::giftBoxPadding;
-			const auto available = width - padding.left() - padding.right();
-			const auto singlew = (available - 2 * st::giftBoxGiftSkip.x())
-				/ kGiftsPerRow;
-			_single = QSize(singlew, st::giftBoxGiftHeight);
-			return _single;
-		}
-		void setBackground(QImage bg) {
-			_bg = std::move(bg);
-		}
-		QImage background() override {
-			return _bg;
-		}
-		DocumentData *lookupSticker(
-				const GiftDescriptor &descriptor) override {
-			const auto &session = _window->session();
-			auto &packs = session.giftBoxStickersPacks();
-			packs.load();
-			return v::match(descriptor, [&](GiftTypePremium data) {
-				return packs.lookup(data.months);
-			}, [&](GiftTypeStars data) {
-				return data.document
-					? data.document
-					: packs.lookup(packs.monthsForStars(data.stars));
-			});
-		}
-
-	private:
-		const not_null<Window::SessionController*> _window;
-		const not_null<PeerData*> _peer;
-		QSize _single;
-		QImage _bg;
-
-	};
-
 	struct State {
 		Delegate delegate;
 		std::vector<std::unique_ptr<GiftButton>> buttons;
 		bool sending = false;
 	};
 	const auto state = raw->lifetime().make_state<State>(State{
-		.delegate = Delegate(window, peer),
+		.delegate = Delegate(window),
 	});
 	const auto single = state->delegate.buttonSize();
 	const auto shadow = st::defaultDropdownMenu.wrap.shadow;
 	const auto extend = shadow.extend;
 
-	const auto bgSize = QRect(QPoint(), single ).marginsAdded(extend).size();
-	const auto ratio = style::DevicePixelRatio();
-	auto bg = QImage(
-		bgSize * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	bg.setDevicePixelRatio(ratio);
-	bg.fill(Qt::transparent);
-
-	const auto radius = st::giftBoxGiftRadius;
-	const auto rect = QRect(QPoint(), bgSize).marginsRemoved(extend);
-
-	{
-		auto p = QPainter(&bg);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setOpacity(0.3);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowShadowFg);
-		p.drawRoundedRect(
-			QRectF(rect).translated(0, radius / 12.),
-			radius,
-			radius);
-	}
-	bg = bg.scaled(
-		(bgSize * ratio) / 2,
-		Qt::IgnoreAspectRatio,
-		Qt::SmoothTransformation);
-	bg = Images::Blur(std::move(bg), true);
-	bg = bg.scaled(
-		bgSize * ratio,
-		Qt::IgnoreAspectRatio,
-		Qt::SmoothTransformation);
-	{
-		auto p = QPainter(&bg);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBg);
-		p.drawRoundedRect(rect, radius, radius);
-	}
-
-	state->delegate.setBackground(std::move(bg));
 	std::move(
 		gifts
 	) | rpl::start_with_next([=](const GiftsDescriptor &gifts) {
 		const auto width = st::boxWideWidth;
 		const auto padding = st::giftBoxPadding;
 		const auto available = width - padding.left() - padding.right();
+		const auto perRow = available / single.width();
 
 		auto x = padding.left();
 		auto y = padding.top();
@@ -1268,7 +902,7 @@ void SendPremiumGift(
 			const auto &descriptor = gifts.list[i];
 			button->setDescriptor(descriptor);
 
-			const auto last = !((i + 1) % kGiftsPerRow);
+			const auto last = !((i + 1) % perRow);
 			if (last) {
 				x = padding.left() + available - single.width();
 			}
@@ -1306,7 +940,7 @@ void SendPremiumGift(
 				}
 			});
 		}
-		if (gifts.list.size() % kGiftsPerRow) {
+		if (gifts.list.size() % perRow) {
 			y += padding.bottom() + single.height();
 		} else {
 			y += padding.bottom() - st::giftBoxGiftSkip.y();
@@ -1368,7 +1002,6 @@ void AddBlock(
 	auto state = std::make_unique<State>();
 
 	state->gifts = GiftsPremium(&window->session(), peer);
-	;
 
 	auto result = MakeGiftsList(window, peer, state->gifts.value(
 	) | rpl::map([=](const PremiumGiftsDescriptor &gifts) {
