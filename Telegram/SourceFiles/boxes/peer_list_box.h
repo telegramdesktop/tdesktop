@@ -200,6 +200,9 @@ public:
 	void setIsRepliesMessagesChat(bool isRepliesMessagesChat) {
 		_isRepliesMessagesChat = isRepliesMessagesChat;
 	}
+	void setIsVerifyCodesChat(bool isVerifyCodesChat) {
+		_isVerifyCodesChat = isVerifyCodesChat;
+	}
 
 	template <typename UpdateCallback>
 	void setChecked(
@@ -299,6 +302,7 @@ private:
 	bool _initialized : 1 = false;
 	bool _isSearchResult : 1 = false;
 	bool _isRepliesMessagesChat : 1 = false;
+	bool _isVerifyCodesChat : 1 = false;
 
 };
 

@@ -809,6 +809,7 @@ bool HistoryInner::canHaveFromUserpics() const {
 	if (_peer->isUser()
 		&& !_peer->isSelf()
 		&& !_peer->isRepliesChat()
+		&& !_peer->isVerifyCodes()
 		&& !_isChatWide) {
 		return false;
 	} else if (const auto channel = _peer->asBroadcast()) {

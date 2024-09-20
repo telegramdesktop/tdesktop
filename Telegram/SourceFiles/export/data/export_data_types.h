@@ -253,6 +253,7 @@ struct User {
 	bool isBot = false;
 	bool isSelf = false;
 	bool isReplies = false;
+	bool isVerifyCodes = false;
 
 	MTPInputUser input = MTP_inputUserEmpty();
 
@@ -866,6 +867,7 @@ struct DialogInfo {
 		Unknown,
 		Self,
 		Replies,
+		VerifyCodes,
 		Personal,
 		Bot,
 		PrivateGroup,

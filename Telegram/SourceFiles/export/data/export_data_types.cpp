@@ -1086,6 +1086,10 @@ User ParseUser(const MTPUser &data) {
 		}
 		if (data.is_self()) {
 			result.isSelf = true;
+		} else if (data.vid().v == 1271266957) {
+			result.isReplies = true;
+		} else if (data.vid().v == 489000) {
+			result.isVerifyCodes = true;
 		}
 		result.input = MTP_inputUser(
 			data.vid(),
@@ -2080,6 +2084,8 @@ DialogInfo::Type DialogTypeFromUser(const User &user) {
 		? DialogInfo::Type::Self
 		: user.isReplies
 		? DialogInfo::Type::Replies
+		: user.isVerifyCodes
+		? DialogInfo::Type::VerifyCodes
 		: user.isBot
 		? DialogInfo::Type::Bot
 		: DialogInfo::Type::Personal;

@@ -55,6 +55,10 @@ PaintRoundImageCallback PaintUserpicCallback(
 			return [](QPainter &p, int x, int y, int outerWidth, int size) {
 				Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
 			};
+		} else if (peer->isVerifyCodes()) {
+			return [](QPainter &p, int x, int y, int outerWidth, int size) {
+				Ui::EmptyUserpic::PaintVerifyCodes(p, x, y, outerWidth, size);
+			};
 		}
 	}
 	auto userpic = Ui::PeerUserpicView();
@@ -447,6 +451,8 @@ void PeerListBox::addSelectItem(
 		? tr::lng_saved_short(tr::now)
 		: (respect && peer->isRepliesChat())
 		? tr::lng_replies_messages(tr::now)
+		: (respect && peer->isVerifyCodes())
+		? tr::lng_verification_codes(tr::now)
 		: peer->shortName();
 	addSelectItem(
 		peer->id.value,
@@ -625,6 +631,8 @@ void PeerListRow::refreshName(const style::PeerListItem &st) {
 		? tr::lng_saved_messages(tr::now)
 		: _isRepliesMessagesChat
 		? tr::lng_replies_messages(tr::now)
+		: _isVerifyCodesChat
+		? tr::lng_verification_codes(tr::now)
 		: generateName();
 	_name.setText(st.nameStyle, text, Ui::NameTextOptions());
 }
@@ -695,6 +703,8 @@ QString PeerListRow::generateShortName() {
 		? tr::lng_saved_short(tr::now)
 		: _isRepliesMessagesChat
 		? tr::lng_replies_messages(tr::now)
+		: _isVerifyCodesChat
+		? tr::lng_verification_codes(tr::now)
 		: peer()->shortName();
 }
 
@@ -709,16 +719,20 @@ PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback(
 		bool forceRound) {
 	const auto saved = !_savedMessagesStatus.isEmpty();
 	const auto replies = _isRepliesMessagesChat;
+	const auto verifyCodes = _isVerifyCodesChat;
 	const auto peer = this->peer();
 	auto userpic = saved ? Ui::PeerUserpicView() : ensureUserpicView();
 	if (forceRound && peer->isForum()) {
 		return ForceRoundUserpicCallback(peer);
 	}
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
+		using namespace Ui;
 		if (saved) {
-			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
+			EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
 		} else if (replies) {
-			Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
+			EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
+		} else if (verifyCodes) {
+			EmptyUserpic::PaintVerifyCodes(p, x, y, outerWidth, size);
 		} else {
 			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}
@@ -759,7 +773,8 @@ int PeerListRow::paintNameIconGetWidth(
 		bool selected) {
 	if (special()
 		|| !_savedMessagesStatus.isEmpty()
-		|| _isRepliesMessagesChat) {
+		|| _isRepliesMessagesChat
+		|| _isVerifyCodesChat) {
 		return 0;
 	}
 	return _bagde.drawGetWidth(
@@ -874,12 +889,15 @@ void PeerListRow::paintDisabledCheckUserpic(
 	auto iconBorderPen = st.checkbox.check.border->p;
 	iconBorderPen.setWidth(st.checkbox.selectWidth);
 
+	const auto size = userpicRadius * 2;
 	if (!_savedMessagesStatus.isEmpty()) {
-		Ui::EmptyUserpic::PaintSavedMessages(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
+		Ui::EmptyUserpic::PaintSavedMessages(p, userpicLeft, userpicTop, outerWidth, size);
 	} else if (_isRepliesMessagesChat) {
-		Ui::EmptyUserpic::PaintRepliesMessages(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
+		Ui::EmptyUserpic::PaintRepliesMessages(p, userpicLeft, userpicTop, outerWidth, size);
+	} else if (_isVerifyCodesChat) {
+		Ui::EmptyUserpic::PaintVerifyCodes(p, userpicLeft, userpicTop, outerWidth, size);
 	} else {
-		peer()->paintUserpicLeft(p, _userpic, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
+		peer()->paintUserpicLeft(p, _userpic, userpicLeft, userpicTop, outerWidth, size);
 	}
 
 	{
@@ -1069,10 +1087,13 @@ void PeerListContent::setRowHidden(not_null<PeerListRow*> row, bool hidden) {
 void PeerListContent::addRowEntry(not_null<PeerListRow*> row) {
 	const auto savedMessagesStatus = _controller->savedMessagesChatStatus();
 	if (!savedMessagesStatus.isEmpty() && !row->special()) {
-		if (row->peer()->isSelf()) {
+		const auto peer = row->peer();
+		if (peer->isSelf()) {
 			row->setSavedMessagesChatStatus(savedMessagesStatus);
-		} else if (row->peer()->isRepliesChat()) {
+		} else if (peer->isRepliesChat()) {
 			row->setIsRepliesMessagesChat(true);
+		} else if (peer->isVerifyCodes()) {
+			row->setIsVerifyCodesChat(true);
 		}
 	}
 	_rowsById.emplace(row->id(), row);

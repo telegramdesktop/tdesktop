@@ -2378,6 +2378,8 @@ bool Message::hasFromPhoto() const {
 			return false;
 		} else if (delegate()->elementIsChatWide()) {
 			return true;
+		} else if (item->history()->peer->isVerifyCodes()) {
+			return !hasOutLayout();
 		} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 			const auto peer = item->history()->peer;
 			if (peer->isSelf() || peer->isRepliesChat()) {

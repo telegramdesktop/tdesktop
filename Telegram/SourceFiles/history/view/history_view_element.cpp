@@ -496,7 +496,10 @@ Element::Element(
 	}
 	if (data->isFakeAboutView()) {
 		const auto user = data->history()->peer->asUser();
-		if (user && user->isBot() && !user->isRepliesChat()) {
+		if (user
+			&& user->isBot()
+			&& !user->isRepliesChat()
+			&& !user->isVerifyCodes()) {
 			AddComponents(FakeBotAboutTop::Bit());
 		}
 	}
@@ -1124,8 +1127,10 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 		if (possible) {
 			const auto forwarded = item->Get<HistoryMessageForwarded>();
 			const auto prevForwarded = prev->Get<HistoryMessageForwarded>();
-			if (item->history()->peer->isSelf()
-				|| item->history()->peer->isRepliesChat()
+			const auto peer = item->history()->peer;
+			if (peer->isSelf()
+				|| peer->isRepliesChat()
+				|| peer->isVerifyCodes()
 				|| (forwarded && forwarded->imported)
 				|| (prevForwarded && prevForwarded->imported)) {
 				return IsAttachedToPreviousInSavedMessages(

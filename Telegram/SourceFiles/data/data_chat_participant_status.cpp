@@ -112,7 +112,9 @@ bool CanSendAnyOf(
 		ChatRestrictions rights,
 		bool forbidInForums) {
 	if (const auto user = peer->asUser()) {
-		if (user->isInaccessible() || user->isRepliesChat()) {
+		if (user->isInaccessible()
+			|| user->isRepliesChat()
+			|| user->isVerifyCodes()) {
 			return false;
 		} else if (user->meRequiresPremiumToWrite()
 			&& !user->session().premium()) {

@@ -452,7 +452,7 @@ bool UserData::requirePremiumToWriteKnown() const {
 }
 
 bool UserData::canSendIgnoreRequirePremium() const {
-	return !isInaccessible() && !isRepliesChat();
+	return !isInaccessible() && !isRepliesChat() && !isVerifyCodes();
 }
 
 bool UserData::readDatesPrivate() const {

@@ -302,7 +302,10 @@ rpl::producer<bool> IsContactValue(not_null<UserData*> user) {
 
 [[nodiscard]] rpl::producer<QString> InviteToChatButton(
 		not_null<UserData*> user) {
-	if (!user->isBot() || user->isRepliesChat() || user->isSupport()) {
+	if (!user->isBot()
+		|| user->isRepliesChat()
+		|| user->isVerifyCodes()
+		|| user->isSupport()) {
 		return rpl::single(QString());
 	}
 	using Flag = Data::PeerUpdate::Flag;
@@ -323,7 +326,10 @@ rpl::producer<bool> IsContactValue(not_null<UserData*> user) {
 
 [[nodiscard]] rpl::producer<QString> InviteToChatAbout(
 		not_null<UserData*> user) {
-	if (!user->isBot() || user->isRepliesChat() || user->isSupport()) {
+	if (!user->isBot()
+		|| user->isRepliesChat()
+		|| user->isVerifyCodes()
+		|| user->isSupport()) {
 		return rpl::single(QString());
 	}
 	using Flag = Data::PeerUpdate::Flag;

@@ -521,7 +521,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			p.drawTextLeft(nameleft, statustop, width(), _customTitleText);
 		}
 	} else if (folder
-		|| (peer && peer->sharedMediaInfo())
+		|| (peer && (peer->sharedMediaInfo() || peer->isVerifyCodes()))
 		|| (_activeChat.section == Section::Scheduled)
 		|| (_activeChat.section == Section::Pinned)) {
 		auto text = (_activeChat.section == Section::Scheduled)
@@ -536,6 +536,8 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			? tr::lng_saved_messages(tr::now)
 			: peer->isRepliesChat()
 			? tr::lng_replies_messages(tr::now)
+			: peer->isVerifyCodes()
+			? tr::lng_verification_codes(tr::now)
 			: peer->name();
 		const auto textWidth = st::historySavedFont->width(text);
 		if (availableWidth < textWidth) {

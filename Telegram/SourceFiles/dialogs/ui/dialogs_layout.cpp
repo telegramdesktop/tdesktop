@@ -49,7 +49,10 @@ namespace {
 const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
 [[nodiscard]] bool ShowUserBotIcon(not_null<UserData*> user) {
-	return user->isBot() && !user->isSupport() && !user->isRepliesChat();
+	return user->isBot()
+		&& !user->isSupport()
+		&& !user->isRepliesChat()
+		&& !user->isVerifyCodes();
 }
 
 [[nodiscard]] bool ShowSendActionInDialogs(Data::Thread *thread) {
@@ -245,10 +248,11 @@ void PaintFolderEntryText(
 enum class Flag {
 	SavedMessages    = 0x008,
 	RepliesMessages  = 0x010,
-	AllowUserOnline  = 0x020,
-	TopicJumpRipple  = 0x040,
-	HiddenAuthor     = 0x080,
-	MyNotes          = 0x100,
+	VerifyCodes      = 0x020,
+	AllowUserOnline  = 0x040,
+	TopicJumpRipple  = 0x080,
+	HiddenAuthor     = 0x100,
+	MyNotes          = 0x200,
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 
@@ -302,6 +306,13 @@ void PaintRow(
 			context.st->photoSize);
 	} else if (flags & Flag::RepliesMessages) {
 		EmptyUserpic::PaintRepliesMessages(
+			p,
+			context.st->padding.left(),
+			context.st->padding.top(),
+			context.width,
+			context.st->photoSize);
+	} else if (flags & Flag::VerifyCodes) {
+		EmptyUserpic::PaintVerifyCodes(
 			p,
 			context.st->padding.left(),
 			context.st->padding.top(),
@@ -615,12 +626,15 @@ void PaintRow(
 	if (flags
 		& (Flag::SavedMessages
 			| Flag::RepliesMessages
+			| Flag::VerifyCodes
 			| Flag::HiddenAuthor
 			| Flag::MyNotes)) {
 		auto text = (flags & Flag::SavedMessages)
 			? tr::lng_saved_messages(tr::now)
 			: (flags & Flag::RepliesMessages)
 			? tr::lng_replies_messages(tr::now)
+			: (flags & Flag::VerifyCodes)
+			? tr::lng_verification_codes(tr::now)
 			: (flags & Flag::MyNotes)
 			? tr::lng_my_notes(tr::now)
 			: tr::lng_hidden_author_messages(tr::now);
@@ -806,6 +820,9 @@ void RowPainter::Paint(
 		| ((from && from->isRepliesChat())
 			? Flag::RepliesMessages
 			: Flag(0))
+		| ((from && from->isVerifyCodes())
+			? Flag::VerifyCodes
+			: Flag(0))
 		| ((sublist && from->isSavedHiddenAuthor())
 			? Flag::HiddenAuthor
 			: Flag(0))
@@ -962,8 +979,12 @@ void RowPainter::Paint(
 	const auto showRepliesMessages = history
 		&& history->peer->isRepliesChat()
 		&& !row->searchInChat();
+	const auto showVerifyCodes = history
+		&& history->peer->isVerifyCodes()
+		&& !row->searchInChat();
 	const auto flags = (showSavedMessages ? Flag::SavedMessages : Flag(0))
-		| (showRepliesMessages ? Flag::RepliesMessages : Flag(0));
+		| (showRepliesMessages ? Flag::RepliesMessages : Flag(0))
+		| (showVerifyCodes ? Flag::VerifyCodes : Flag(0));
 	PaintRow(
 		p,
 		row,

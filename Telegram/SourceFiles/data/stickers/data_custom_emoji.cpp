@@ -604,6 +604,8 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::userpic(
 		image = Ui::MakeSavedMessagesThumbnail();
 	} else if (v[0] == u"replies"_q) {
 		image = Ui::MakeRepliesThumbnail();
+	} else if (v[0] == u"verify_codes"_q) {
+		image = Ui::MakeVerifyCodesThumbnail();
 	} else {
 		const auto id = PeerId(v[0].toULongLong());
 		image = Ui::MakeUserpicThumbnail(_owner->peer(id));
@@ -1017,6 +1019,8 @@ QString CustomEmojiManager::registerInternalEmoji(
 		? u"self"_q
 		: peer->isRepliesChat()
 		? u"replies"_q
+		: peer->isVerifyCodes()
+		? u"verify_codes"_q
 		: QString::number(peer->id.value);
 	return UserpicEmojiPrefix() + id + InternalPadding(padding);
 }

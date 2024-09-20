@@ -635,6 +635,8 @@ void ControllerObject::fillMessagesState(
 		? ProcessingState::EntityType::SavedMessages
 		: (dialog->type == Data::DialogInfo::Type::Replies)
 		? ProcessingState::EntityType::RepliesMessages
+		: (dialog->type == Data::DialogInfo::Type::VerifyCodes)
+		? ProcessingState::EntityType::VerifyCodes
 		: ProcessingState::EntityType::Chat;
 	result.itemIndex = _messagesWritten + progress.itemIndex;
 	result.itemCount = std::max(_messagesCount, result.itemIndex);

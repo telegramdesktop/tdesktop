@@ -328,6 +328,7 @@ PaintRoundImageCallback ChatRow::generatePaintUserpicCallback(
 	const auto peer = this->peer();
 	const auto saved = peer->isSelf();
 	const auto replies = peer->isRepliesChat();
+	const auto verifyCodes = peer->isVerifyCodes();
 	auto userpic = (saved || replies)
 		? Ui::PeerUserpicView()
 		: ensureUserpicView();
@@ -337,12 +338,15 @@ PaintRoundImageCallback ChatRow::generatePaintUserpicCallback(
 			int y,
 			int outerWidth,
 			int size) mutable {
+		using namespace Ui;
 		if (forceRound && peer->isForum()) {
 			ForceRoundUserpicCallback(peer)(p, x, y, outerWidth, size);
 		} else if (saved) {
-			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
+			EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
 		} else if (replies) {
-			Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
+			EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
+		} else if (verifyCodes) {
+			EmptyUserpic::PaintVerifyCodes(p, x, y, outerWidth, size);
 		} else {
 			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}

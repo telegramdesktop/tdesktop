@@ -842,6 +842,7 @@ auto ChooseRecipientBoxController::createRow(
 		? !_filter(history)
 		: ((peer->isBroadcast() && !Data::CanSendAnything(peer))
 			|| peer->isRepliesChat()
+			|| peer->isVerifyCodes()
 			|| (peer->isUser() && (_premiumRequiredError
 				? !peer->asUser()->canSendIgnoreRequirePremium()
 				: !Data::CanSendAnything(peer))));

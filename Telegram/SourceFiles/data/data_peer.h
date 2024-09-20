@@ -227,6 +227,7 @@ public:
 	[[nodiscard]] bool isForum() const;
 	[[nodiscard]] bool isGigagroup() const;
 	[[nodiscard]] bool isRepliesChat() const;
+	[[nodiscard]] bool isVerifyCodes() const;
 	[[nodiscard]] bool sharedMediaInfo() const;
 	[[nodiscard]] bool savedSublistsInfo() const;
 	[[nodiscard]] bool hasStoriesHidden() const;

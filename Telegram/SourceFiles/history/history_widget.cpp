@@ -2367,7 +2367,7 @@ void HistoryWidget::showHistory(
 			updateNotifyControls();
 			session().data().notifySettings().request(_peer);
 			refreshSilentToggle();
-		} else if (_peer->isRepliesChat()) {
+		} else if (_peer->isRepliesChat() || _peer->isVerifyCodes()) {
 			updateNotifyControls();
 		}
 		refreshScheduledToggle();
@@ -2753,7 +2753,7 @@ void HistoryWidget::updateFieldSubmitSettings() {
 }
 
 void HistoryWidget::updateNotifyControls() {
-	if (!_peer || (!_peer->isChannel() && !_peer->isRepliesChat())) {
+	if (!_peer || (!_peer->isChannel() && !_peer->isRepliesChat() && !_peer->isVerifyCodes())) {
 		return;
 	}
 
@@ -4874,7 +4874,8 @@ bool HistoryWidget::isMuteUnmute() const {
 	return _peer
 		&& ((_peer->isBroadcast() && !_peer->asChannel()->canPostMessages())
 			|| (_peer->isGigagroup() && !Data::CanSendAnything(_peer))
-			|| _peer->isRepliesChat());
+			|| _peer->isRepliesChat()
+			|| _peer->isVerifyCodes());
 }
 
 bool HistoryWidget::isSearching() const {

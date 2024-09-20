@@ -183,7 +183,7 @@ void FillEntryMenu(
 RecentRow::RecentRow(not_null<PeerData*> peer)
 : PeerListRow(peer)
 , _history(peer->owner().history(peer)) {
-	if (peer->isSelf() || peer->isRepliesChat()) {
+	if (peer->isSelf() || peer->isRepliesChat() || peer->isVerifyCodes()) {
 		setCustomStatus(u" "_q);
 	} else if (const auto chat = peer->asChat()) {
 		if (chat->count > 0) {
@@ -286,7 +286,9 @@ bool RecentRow::rightActionDisabled() const {
 
 const style::PeerListItem &RecentRow::computeSt(
 		const style::PeerListItem &st) const {
-	return (peer()->isSelf() || peer()->isRepliesChat())
+	return (peer()->isSelf()
+		|| peer()->isRepliesChat()
+		|| peer()->isVerifyCodes())
 		? st::recentPeersSpecialName
 		: st;
 }
@@ -789,7 +791,9 @@ void RecentsController::subscribeToEvents() {
 		} else if (update.flags & Flag::Notifications) {
 			refreshed = static_cast<RecentRow*>(row)->refreshBadge();
 		}
-		if (!peer->isRepliesChat() && (update.flags & Flag::OnlineStatus)) {
+		if (!peer->isRepliesChat()
+			&& !peer->isVerifyCodes()
+			&& (update.flags & Flag::OnlineStatus)) {
 			row->clearCustomStatus();
 			refreshed = true;
 		}

@@ -216,7 +216,7 @@ inline auto DefaultRestrictionValue(
 		ChatRestrictions rights,
 		bool forbidInForums) {
 	if (const auto user = peer->asUser()) {
-		if (user->isRepliesChat()) {
+		if (user->isRepliesChat() || user->isVerifyCodes()) {
 			return rpl::single(false);
 		}
 		using namespace rpl::mappers;

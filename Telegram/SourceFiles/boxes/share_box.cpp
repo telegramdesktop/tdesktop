@@ -838,6 +838,8 @@ void ShareBox::Inner::updateChatName(not_null<Chat*> chat) {
 		? tr::lng_saved_messages(tr::now)
 		: peer->isRepliesChat()
 		? tr::lng_replies_messages(tr::now)
+		: peer->isVerifyCodes()
+		? tr::lng_verification_codes(tr::now)
 		: peer->name();
 	chat->name.setText(_st.item.nameStyle, text, Ui::NameTextOptions());
 }

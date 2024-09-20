@@ -94,7 +94,7 @@ template <typename T>
 }
 
 [[nodiscard]] TextWithEntities SpoilerLoginCode(TextWithEntities text) {
-	const auto r = QRegularExpression(u"([\\d\\-]{5,7})"_q);
+	const auto r = QRegularExpression(u"([\\d\\-]{4,8})"_q);
 	const auto m = r.match(text.text);
 	if (!m.hasMatch()) {
 		return text;
@@ -2793,7 +2793,10 @@ bool HistoryItem::showForwardsFromSender(
 		not_null<const HistoryMessageForwarded*> forwarded) const {
 	const auto peer = history()->peer;
 	return !forwarded->story
-		&& (peer->isSelf() || peer->isRepliesChat() || forwarded->imported);
+		&& (peer->isSelf()
+			|| peer->isRepliesChat()
+			|| peer->isVerifyCodes()
+			|| forwarded->imported);
 }
 
 not_null<PeerData*> HistoryItem::fromOriginal() const {
@@ -3433,7 +3436,8 @@ TextWithEntities HistoryItem::notificationText(
 	}();
 	if (options.spoilerLoginCode
 		&& !out()
-		&& history()->peer->isNotificationsUser()) {
+		&& (history()->peer->isNotificationsUser()
+			|| history()->peer->isVerifyCodes())) {
 		result = SpoilerLoginCode(std::move(result));
 	}
 	if (result.text.size() <= kNotificationTextLimit) {
@@ -3472,7 +3476,8 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 	}();
 	if (options.spoilerLoginCode
 		&& !out()
-		&& history()->peer->isNotificationsUser()) {
+		&& (history()->peer->isNotificationsUser()
+			|| history()->peer->isVerifyCodes())) {
 		result.text = SpoilerLoginCode(std::move(result.text));
 	}
 	const auto fromSender = [](not_null<PeerData*> sender) {
@@ -3510,7 +3515,8 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 				return fromSender(from);
 			}
 			return fromForwarded();
-		} else if (_history->peer->isSelf()) {
+		} else if (_history->peer->isSelf()
+			|| _history->peer->isVerifyCodes()) {
 			return fromForwarded();
 		}
 		return {};
@@ -3573,8 +3579,10 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 		if (savedFrom && savedFrom->isChannel()) {
 			mask |= HistoryMessageSigned::Bit();
 		}
-	} else if ((_history->peer->isSelf() || _history->peer->isRepliesChat())
-		&& !config.originalPostAuthor.isEmpty()) {
+	} else if (!config.originalPostAuthor.isEmpty()
+		&& (_history->peer->isSelf()
+			|| _history->peer->isRepliesChat()
+			|| _history->peer->isVerifyCodes())) {
 		mask |= HistoryMessageSigned::Bit();
 	}
 	if (config.editDate != TimeId(0)) {

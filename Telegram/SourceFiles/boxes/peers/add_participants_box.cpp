@@ -269,7 +269,8 @@ PaintRoundImageCallback ForbiddenRow::generatePaintUserpicCallback(
 	const auto peer = this->peer();
 	const auto saved = peer->isSelf();
 	const auto replies = peer->isRepliesChat();
-	auto userpic = (saved || replies)
+	const auto verifyCodes = peer->isVerifyCodes();
+	auto userpic = (saved || replies || verifyCodes)
 		? Ui::PeerUserpicView()
 		: ensureUserpicView();
 	auto paint = [=](
@@ -302,6 +303,7 @@ PaintRoundImageCallback ForbiddenRow::generatePaintUserpicCallback(
 			repaint = (_paletteVersion != style::PaletteVersion())
 				|| (!saved
 					&& !replies
+					&& !verifyCodes
 					&& (_userpicKey != peer->userpicUniqueKey(userpic)));
 		}
 		if (repaint) {

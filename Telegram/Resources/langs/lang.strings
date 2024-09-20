@@ -3273,6 +3273,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_replies_discussion_started" = "Discussion started";
 "lng_replies_no_comments" = "No comments here yet...";
 
+"lng_verification_codes" = "Verification Codes";
+
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";
 "lng_archived_remove" = "Unarchive";

@@ -562,6 +562,7 @@ void Cover::refreshUploadPhotoOverlay() {
 				|| user->isSelf()
 				|| user->isInaccessible()
 				|| user->isRepliesChat()
+				|| user->isVerifyCodes()
 				|| (user->botInfo && user->botInfo->canEditInformation)
 				|| user->isServiceUser()) {
 			return false;

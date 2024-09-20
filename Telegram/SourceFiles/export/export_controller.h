@@ -48,6 +48,7 @@ struct ProcessingState {
 		Chat,
 		SavedMessages,
 		RepliesMessages,
+		VerifyCodes,
 		Other,
 	};
 

@@ -128,11 +128,12 @@ void TTLChatsBoxController::rowClicked(not_null<PeerListRow*> row) {
 
 std::unique_ptr<TTLChatsBoxController::Row> TTLChatsBoxController::createRow(
 		not_null<History*> history) {
-	if (history->peer->isSelf() || history->peer->isRepliesChat()) {
+	const auto peer = history->peer;
+	if (peer->isSelf() || peer->isRepliesChat() || peer->isVerifyCodes()) {
 		return nullptr;
-	} else if (history->peer->isChat() && history->peer->asChat()->amIn()) {
-	} else if (history->peer->isMegagroup()) {
-	} else if (!TTLMenu::TTLValidator(nullptr, history->peer).can()) {
+	} else if (peer->isChat() && peer->asChat()->amIn()) {
+	} else if (peer->isMegagroup()) {
+	} else if (!TTLMenu::TTLValidator(nullptr, peer).can()) {
 		return nullptr;
 	}
 	if (session().data().contactsNoChatsList()->contains({ history })) {
@@ -140,7 +141,7 @@ std::unique_ptr<TTLChatsBoxController::Row> TTLChatsBoxController::createRow(
 	}
 	auto result = std::make_unique<TTLRow>(history);
 	const auto applyStatus = [=, raw = result.get()] {
-		const auto ttl = history->peer->messagesTTL();
+		const auto ttl = peer->messagesTTL();
 		raw->setCustomStatus(
 			ttl
 				? tr::lng_settings_ttl_select_chats_status(

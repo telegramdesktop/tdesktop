@@ -356,11 +356,12 @@ void PrivacyExceptionsBoxController::rowClicked(not_null<PeerListRow*> row) {
 
 auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 -> std::unique_ptr<Row> {
-	if (history->peer->isSelf() || history->peer->isRepliesChat()) {
+	const auto peer = history->peer;
+	if (peer->isSelf() || peer->isRepliesChat() || peer->isVerifyCodes()) {
 		return nullptr;
-	} else if (!history->peer->isUser()
-		&& !history->peer->isChat()
-		&& !history->peer->isMegagroup()) {
+	} else if (!peer->isUser()
+		&& !peer->isChat()
+		&& !peer->isMegagroup()) {
 		return nullptr;
 	}
 	auto result = std::make_unique<Row>(history);

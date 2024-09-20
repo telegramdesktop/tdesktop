@@ -566,7 +566,10 @@ void Filler::addSupportInfo() {
 }
 
 void Filler::addInfo() {
-	if (_peer && (_peer->isSelf() || _peer->isRepliesChat())) {
+	if (_peer
+		&& (_peer->isSelf()
+			|| _peer->isRepliesChat()
+			|| _peer->isVerifyCodes())) {
 		return;
 	} else if (!_thread) {
 		return;
@@ -805,7 +808,8 @@ void Filler::addBlockUser() {
 	if (!user
 		|| user->isInaccessible()
 		|| user->isSelf()
-		|| user->isRepliesChat()) {
+		|| user->isRepliesChat()
+		|| user->isVerifyCodes()) {
 		return;
 	}
 	const auto window = &_controller->window();
@@ -1227,6 +1231,7 @@ void Filler::addGiftPremium() {
 		|| user->isNotificationsUser()
 		|| !user->canReceiveGifts()
 		|| user->isRepliesChat()
+		|| user->isVerifyCodes()
 		|| !user->session().premiumCanBuy()) {
 		return;
 	}

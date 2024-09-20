@@ -56,6 +56,10 @@ inline bool IsRepliesPeer(PeerData *peer) {
 	return peer && peer->isRepliesChat();
 }
 
+inline bool IsVerifyCodesPeer(PeerData *peer) {
+	return peer && peer->isVerifyCodes();
+}
+
 QImage PrepareImage() {
 	const auto s = kCircleDiameter * style::DevicePixelRatio();
 	auto result = QImage(QSize(s, s), QImage::Format_ARGB32_Premultiplied);
@@ -78,6 +82,15 @@ QImage RepliesMessagesUserpic() {
 
 	const auto s = result.width();
 	Ui::EmptyUserpic::PaintRepliesMessages(paint, 0, 0, s, s);
+	return result;
+}
+
+QImage VerifyCodesUserpic() {
+	auto result = PrepareImage();
+	Painter paint(&result);
+
+	const auto s = result.width();
+	Ui::EmptyUserpic::PaintVerifyCodes(paint, 0, 0, s, s);
 	return result;
 }
 
@@ -174,11 +187,13 @@ NSRect PeerRectByIndex(int index) {
 	std::vector<std::unique_ptr<Pin>> _pins;
 	QImage _savedMessages;
 	QImage _repliesMessages;
+	QImage _verifyCodes;
 	QImage _archive;
 
 	bool _hasArchive;
 	bool _selfUnpinned;
 	bool _repliesUnpinned;
+	bool _verifyCodesUnpinned;
 
 	rpl::event_stream<not_null<NSEvent*>> _touches;
 	rpl::event_stream<not_null<NSPressGestureRecognizer*>> _gestures;
@@ -462,6 +477,7 @@ NSRect PeerRectByIndex(int index) {
 	_hasArchive = _selfUnpinned = false;
 	_savedMessages = SavedMessagesUserpic();
 	_repliesMessages = RepliesMessagesUserpic();
+	_verifyCodes = VerifyCodesUserpic();
 
 	auto *gesture = [[[NSPressGestureRecognizer alloc]
 		initWithTarget:self
@@ -510,6 +526,9 @@ NSRect PeerRectByIndex(int index) {
 			return;
 		} else if (IsRepliesPeer(pin->peer)) {
 			pin->userpic = _repliesMessages;
+			return;
+		} else if (IsVerifyCodesPeer(pin->peer)) {
+			pin->userpic = _verifyCodes;
 			return;
 		}
 		auto userpic = PrepareImage();
@@ -635,6 +654,7 @@ NSRect PeerRectByIndex(int index) {
 		}) | ranges::to_vector;
 		_selfUnpinned = ranges::none_of(peers, &PeerData::isSelf);
 		_repliesUnpinned = ranges::none_of(peers, &PeerData::isRepliesChat);
+		_verifyCodesUnpinned = ranges::none_of(peers, &PeerData::isVerifyCodes);
 
 		peerChangedLifetime->destroy();
 		for (const auto &pin : _pins) {
@@ -714,6 +734,7 @@ NSRect PeerRectByIndex(int index) {
 			}
 			_savedMessages = SavedMessagesUserpic();
 			_repliesMessages = RepliesMessagesUserpic();
+			_verifyCodes = VerifyCodesUserpic();
 			updateUserpics();
 		});
 	}, _lifetime);
@@ -782,6 +803,8 @@ NSRect PeerRectByIndex(int index) {
 			return _savedMessages;
 		} else if (_repliesUnpinned) {
 			return _repliesMessages;
+		} else if (_verifyCodesUnpinned) {
+			return _verifyCodes;
 		}
 	}
 	return _pins[i]->userpic;
