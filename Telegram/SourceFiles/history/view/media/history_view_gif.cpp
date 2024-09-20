@@ -388,6 +388,9 @@ bool Gif::downloadInCorner() const {
 }
 
 bool Gif::autoplayEnabled() const {
+	if (_realParent->isSponsored()) {
+		return true;
+	}
 	return Data::AutoDownload::ShouldAutoPlay(
 		_data->session().settings().autoDownload(),
 		_realParent->history()->peer,
@@ -689,7 +692,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	if (!unwrapped && !skipDrawingSurrounding) {
-		if ((!isRound || !inWebPage) && !_realParent->isSponsored()) {
+		const auto sponsoredSkip = !_data->isVideoFile()
+			&& _realParent->isSponsored();
+		if ((!isRound || !inWebPage) && !sponsoredSkip) {
 			drawCornerStatus(p, context, QPoint());
 		}
 	} else if (!skipDrawingSurrounding) {
