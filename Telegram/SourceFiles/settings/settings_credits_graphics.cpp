@@ -45,7 +45,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
 #include "settings/settings_common_session.h"
+#include "settings/settings_credits.h"
 #include "statistics/widgets/chart_header_widget.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
@@ -173,6 +175,54 @@ void ToggleStarGiftSaved(
 			strong->showToast((save
 				? tr::lng_gift_display_done
 				: tr::lng_gift_display_done_hide)(tr::now));
+		}
+		done(true);
+	}).fail([=](const MTP::Error &error) {
+		if (const auto strong = weak.get()) {
+			strong->showToast(error.type());
+		}
+		done(false);
+	}).send();
+}
+
+void ConfirmConvertStarGift(
+		std::shared_ptr<Ui::Show> show,
+		QString name,
+		int stars,
+		Fn<void()> convert) {
+	show->show(Ui::MakeConfirmBox({
+		.text = tr::lng_gift_convert_sure_text(
+			lt_count,
+			rpl::single(stars * 1.),
+			lt_user,
+			rpl::single(Ui::Text::Bold(name)),
+			Ui::Text::RichLangValue),
+		.confirmed = [=](Fn<void()> close) { close(); convert(); },
+		.confirmText = tr::lng_gift_convert_sure(),
+		.title = tr::lng_gift_convert_sure_title(),
+	}));
+}
+
+void ConvertStarGift(
+		not_null<Window::SessionController*> window,
+		not_null<HistoryItem*> item,
+		int stars,
+		Fn<void(bool)> done) {
+	Expects(item->history()->peer->isUser());
+
+	const auto api = &window->session().api();
+	const auto weak = base::make_weak(window);
+	api->request(MTPpayments_ConvertStarGift(
+		item->history()->peer->asUser()->inputUser,
+		MTP_int(item->id.bare)
+	)).done([=] {
+		if (const auto strong = weak.get()) {
+			strong->showSettings(Settings::CreditsId());
+			strong->showToast(tr::lng_gift_got_stars(
+				tr::now,
+				lt_count,
+				stars,
+				Ui::Text::RichLangValue));
 		}
 		done(true);
 	}).fail([=](const MTP::Error &error) {
@@ -940,7 +990,9 @@ void ReceiptCreditsBox(
 				rpl::single(e.description),
 				st::creditsBoxAbout)));
 	}
-	if (isStarGift) {
+	if (isStarGift && !canConvert) {
+		// Nothing
+	} else if (isStarGift) {
 		Ui::AddSkip(content);
 		const auto about = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
@@ -948,10 +1000,12 @@ void ReceiptCreditsBox(
 				object_ptr<Ui::FlatLabel>(
 					box,
 					rpl::combine(
-						tr::lng_action_gift_got_stars_text(
-							lt_count,
-							rpl::single(e.convertStars * 1.),
-							Ui::Text::RichLangValue),
+						(canConvert
+							? tr::lng_action_gift_got_stars_text
+							: tr::lng_gift_got_stars)(
+								lt_count,
+								rpl::single(e.convertStars * 1.),
+								Ui::Text::RichLangValue),
 						tr::lng_paid_about_link()
 					) | rpl::map([](TextWithEntities text, QString link) {
 						return text.append(' ').append(Ui::Text::Link(link));
@@ -1078,20 +1132,21 @@ void ReceiptCreditsBox(
 	const auto toCancel = !toRenew && s;
 	struct State final {
 		rpl::variable<bool> confirmButtonBusy;
+		rpl::variable<bool> convertButtonBusy;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	auto confirmText = canConvert
-		? (e.savedToProfile
-			? tr::lng_gift_display_on_page_hide()
-			: tr::lng_gift_display_on_page())
-		: rpl::conditional(
-			state->confirmButtonBusy.value(),
-			rpl::single(QString()),
-			(toRenew
-				? tr::lng_credits_subscription_off_button()
-				: toCancel
-				? tr::lng_credits_subscription_on_button()
-				: tr::lng_box_ok()));
+	auto confirmText = rpl::conditional(
+		state->confirmButtonBusy.value(),
+		rpl::single(QString()),
+		(toRenew
+			? tr::lng_credits_subscription_off_button()
+			: toCancel
+			? tr::lng_credits_subscription_on_button()
+			: canConvert
+			? (e.savedToProfile
+				? tr::lng_gift_display_on_page_hide()
+				: tr::lng_gift_display_on_page())
+			: tr::lng_box_ok()));
 	const auto weakWindow = base::make_weak(controller);
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
 		if (canConvert) {
@@ -1139,7 +1194,8 @@ void ReceiptCreditsBox(
 	};
 
 	const auto button = box->addButton(std::move(confirmText), [=] {
-		if (state->confirmButtonBusy.current()) {
+		if (state->confirmButtonBusy.current()
+			|| state->convertButtonBusy.current()) {
 			return;
 		}
 		state->confirmButtonBusy = true;
@@ -1168,11 +1224,15 @@ void ReceiptCreditsBox(
 
 	if (canConvert) {
 		using namespace Ui;
-		const auto convert = CreateChild<RoundButton>(
-			button->parentWidget(),
+		auto convertText = rpl::conditional(
+			state->convertButtonBusy.value(),
+			rpl::single(QString()),
 			tr::lng_gift_convert_to_stars(
 				lt_count,
-				rpl::single(e.convertStars * 1.)),
+				rpl::single(e.convertStars * 1.)));
+		const auto convert = CreateChild<RoundButton>(
+			button->parentWidget(),
+			std::move(convertText),
 			st::defaultLightButton);
 		convert->setTextTransform(RoundButton::TextTransform::NoTransform);
 		convert->widthValue() | rpl::filter([=] {
@@ -1190,6 +1250,40 @@ void ReceiptCreditsBox(
 					- st::starGiftBox.buttonPadding.top()
 					- convert->height()));
 		}, convert->lifetime());
+		convert->setClickedCallback([=, weak = Ui::MakeWeak(box)] {
+			const auto stars = e.convertStars;
+			const auto name = starGiftSender->shortName();
+			ConfirmConvertStarGift(box->uiShow(), name, stars, [=] {
+				if (state->convertButtonBusy.current()
+					|| state->confirmButtonBusy.current()) {
+					return;
+				}
+				state->convertButtonBusy = true;
+				const auto window = weakWindow.get();
+				const auto item = session->data().message(
+					starGiftSender->id,
+					MsgId(e.bareMsgId));
+				if (window && item && stars) {
+					ConvertStarGift(window, item, stars, [=](bool ok) {
+						if (const auto strong = weak.data()) {
+							if (ok) {
+								strong->closeBox();
+							} else {
+								state->convertButtonBusy = false;
+							}
+						}
+					});
+				}
+			});
+		});
+
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			convert,
+			convert->height() / 2,
+			&st::starConvertButtonLoading);
+		AddChildToWidgetCenter(convert, loadingAnimation);
+		loadingAnimation->showOn(state->convertButtonBusy.value());
 	}
 }
 

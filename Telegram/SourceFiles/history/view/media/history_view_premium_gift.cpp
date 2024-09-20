@@ -84,11 +84,13 @@ TextWithEntities PremiumGift::subtitle() {
 				lt_user,
 				Ui::Text::Bold(_parent->history()->peer->shortName()),
 				Ui::Text::RichLangValue)
-			: tr::lng_action_gift_got_stars_text(
-				tr::now,
-				lt_count,
-				_data.convertStars,
-				Ui::Text::RichLangValue);
+			: (_data.converted
+				? tr::lng_gift_got_stars
+				: tr::lng_action_gift_got_stars_text)(
+					tr::now,
+					lt_count,
+					_data.convertStars,
+					Ui::Text::RichLangValue);
 	}
 	const auto isCreditsPrize = creditsPrize();
 	if (const auto count = credits(); count && !isCreditsPrize) {

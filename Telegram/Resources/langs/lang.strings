@@ -3014,6 +3014,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_availability_left#one" = "{count} of {amount} left";
 "lng_gift_availability_left#other" = "{count} of {amount} left";
 "lng_gift_availability_none" = "None of {amount} left";
+"lng_gift_display_on_page" = "Display on my Page";
+"lng_gift_display_on_page_hide" = "Hide from my Page";
+"lng_gift_convert_to_stars#one" = "Convert to {count} Star";
+"lng_gift_convert_to_stars#other" = "Convert to {count} Stars";
+"lng_gift_convert_sure_title" = "Convert Gift to Stars";
+"lng_gift_convert_sure_text#one" = "Do you want to convert this gift from {user} to **{count} Star**?\n\nThis action cannot be undone.";
+"lng_gift_convert_sure_text#other" = "Do you want to convert this gift from {user} to **{count} Stars**?\n\nThis action cannot be undone.";
+"lng_gift_convert_sure" = "Convert";
+"lng_gift_display_done" = "The gift is now shown on your profile page.";
+"lng_gift_display_done_hide" = "The gift is now hidden from your profile page.";
+"lng_gift_got_stars#one" = "You got **{count} Star** for this gift.";
+"lng_gift_got_stars#other" = "You got **{count} Stars** for this gift.";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";
