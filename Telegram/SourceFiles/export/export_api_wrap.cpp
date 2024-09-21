@@ -1812,51 +1812,56 @@ Data::FileOrigin ApiWrap::currentFileMessageOrigin() const {
 	return result;
 }
 
-bool ApiWrap::renderCustomEmoji(QByteArray *data) {
+std::optional<Utf8String> ApiWrap::getCustomEmoji(Utf8String &data) {
 	if (const auto id = data->toULongLong()) {
 		const auto i = _resolvedCustomEmoji.find(id);
 		if (i == end(_resolvedCustomEmoji)) {
-			*data = Data::TextPart::UnavailableEmoji();
+			return Data::TextPart::UnavailableEmoji();
+		}
+		auto &file = i->second.file;
+		const auto fileProgress = [=](FileProgress value) {
+			return loadMessageEmojiProgress(value);
+		};
+		const auto ready = processFileLoad(
+			file,
+			{ .customEmojiId = id },
+			fileProgress,
+			[=](const QString &path) {
+				loadMessageEmojiDone(id, path);
+			});
+		if (!ready) {
+			return std::nullopt;
+		}
+		using SkipReason = Data::File::SkipReason;
+		if (file.skipReason == SkipReason::Unavailable) {
+			return Data::TextPart::UnavailableEmoji();
+		} else if (file.skipReason == SkipReason::FileType
+			|| file.skipReason == SkipReason::FileSize) {
+			return QByteArray();
 		} else {
-			auto &file = i->second.file;
-			const auto fileProgress = [=](FileProgress value) {
-				return loadMessageEmojiProgress(value);
-			};
-			const auto ready = processFileLoad(
-				file,
-				{ .customEmojiId = id },
-				fileProgress,
-				[=](const QString &path) {
-					loadMessageEmojiDone(id, path);
-				});
-			if (!ready) {
-				return false;
-			}
-			using SkipReason = Data::File::SkipReason;
-			if (file.skipReason == SkipReason::Unavailable) {
-				*data = Data::TextPart::UnavailableEmoji();
-			} else if (file.skipReason == SkipReason::FileType
-				|| file.skipReason == SkipReason::FileSize) {
-				*data = QByteArray();
-			} else {
-				*data = file.relativePath.toUtf8();
-			}
+			return file.relativePath.toUtf8();
 		}
 	}
-	return true;
+	return std::nullopt;
 }
 
 bool ApiWrap::messageCustomEmojiReady(Data::Message &message) {
 	for (auto &part : message.text) {
 		if (part.type == Data::TextPart::Type::CustomEmoji) {
-			if (!renderCustomEmoji(&part.additional)) {
+			auto custom = getCustomEmoji(part.additional);
+			if (custom.has_value()) {
+				part.additional = *custom;
+			} else {
 				return false;
 			}
 		}
 	}
 	for (auto &reaction : message.reactions) {
 		if (reaction.type == Data::Reaction::Type::CustomEmoji) {
-			if (!renderCustomEmoji(&reaction.documentId)) {
+			auto custom = getCustomEmoji(reaction.documentId);
+			if (custom.has_value()) {
+				reaction.documentId = *custom;
+			} else {
 				return false;
 			}
 		}
