@@ -358,8 +358,8 @@ Reaction ParseReaction(const MTPReaction& reaction) {
 }
 
 std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
-	std::map<QString, Reaction> reactionsMap;
-	std::vector<Utf8String> reactionsOrder;
+	auto reactionsMap = std::map<QString, Reaction>();
+	auto reactionsOrder = std::vector<Utf8String>();
 	for (const auto &single : data.data().vresults().v) {
 		Reaction reaction = ParseReaction(single.data().vreaction());
 		reaction.count = single.data().vcount().v;
