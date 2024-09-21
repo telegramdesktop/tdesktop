@@ -231,18 +231,18 @@ QByteArray JoinList(
 }
 
 QByteArray FormatCustomEmoji(
-	const Data::Utf8String &custom_emoji,
-	const QByteArray &text,
-	const QString &relativeLinkBase) {
+		const Data::Utf8String &custom_emoji,
+		const QByteArray &text,
+		const QString &relativeLinkBase) {
 	return (custom_emoji.isEmpty()
-			? "<a href=\"\" onclick=\"return ShowNotLoadedEmoji();\">"
-			: (custom_emoji == Data::TextPart::UnavailableEmoji())
-			? "<a href=\"\" onclick=\"return ShowNotAvailableEmoji();\">"
-			: ("<a href = \""
-				+ (relativeLinkBase + custom_emoji).toUtf8()
-				+ "\">"))
-			+ text
-			+ "</a>";
+		? "<a href=\"\" onclick=\"return ShowNotLoadedEmoji();\">"
+		: (custom_emoji == Data::TextPart::UnavailableEmoji())
+		? "<a href=\"\" onclick=\"return ShowNotAvailableEmoji();\">"
+		: ("<a href = \""
+			+ (relativeLinkBase + custom_emoji).toUtf8()
+			+ "\">"))
+		+ text
+		+ "</a>";
 }
 
 QByteArray FormatText(
