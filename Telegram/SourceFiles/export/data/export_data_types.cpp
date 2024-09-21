@@ -370,17 +370,19 @@ std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
 		}
 	}
 	if (data.data().vrecent_reactions().has_value()) {
-		for (const auto &single : data.data().vrecent_reactions().value_or_empty()) {
-			Reaction reaction = ParseReaction(single.data().vreaction());
-			Utf8String id = Reaction::Id(reaction);
-			auto const &[it, inserted] = reactionsMap.try_emplace(id, reaction);
-			if (inserted) {
-				reactionsOrder.push_back(id);
+		if (const auto list = data.data().vrecent_reactions()) {
+			for (const auto &single : list->v) {
+				Reaction reaction = ParseReaction(single.data().vreaction());
+				Utf8String id = Reaction::Id(reaction);
+				auto const &[it, inserted] = reactionsMap.try_emplace(id, reaction);
+				if (inserted) {
+					reactionsOrder.push_back(id);
+				}
+				it->second.recent.push_back({
+					.peerId = ParsePeerId(single.data().vpeer_id()),
+					.date = single.data().vdate().v,
+				});
 			}
-			it->second.recent.push_back({
-				.peerId = ParsePeerId(single.data().vpeer_id()),
-				.date = single.data().vdate().v,
-			});
 		}
 	}
 	std::vector<Reaction> results;
