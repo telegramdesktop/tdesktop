@@ -384,7 +384,7 @@ std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
 		}
 	}
 	std::vector<Reaction> results;
-	for (const auto& id : reactionsOrder) {
+	for (const auto &id : reactionsOrder) {
 		results.push_back(reactionsMap[id]);
 	}
 	return results;
