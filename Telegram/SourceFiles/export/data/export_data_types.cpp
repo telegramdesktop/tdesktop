@@ -342,7 +342,7 @@ Utf8String Reaction::Id(const Reaction &reaction) {
 }
 
 Reaction ParseReaction(const MTPReaction& reaction) {
-	Reaction result;
+	auto result = Reaction();
 	reaction.match([&](const MTPDreactionEmoji &data) {
 		result.type = Reaction::Type::Emoji;
 		result.emoji = qs(data.vemoticon());
