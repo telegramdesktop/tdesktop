@@ -183,7 +183,7 @@ private:
 	void resolveCustomEmoji();
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
 	void loadNextMessageFile();
-	std::optional<Utf8String> getCustomEmoji(Utf8String &data);
+	std::optional<QByteArray> getCustomEmoji(QByteArray &data);
 	bool messageCustomEmojiReady(Data::Message &message);
 	bool loadMessageFileProgress(FileProgress value);
 	void loadMessageFileDone(const QString &relativePath);

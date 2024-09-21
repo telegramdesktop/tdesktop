@@ -1812,8 +1812,8 @@ Data::FileOrigin ApiWrap::currentFileMessageOrigin() const {
 	return result;
 }
 
-std::optional<Utf8String> ApiWrap::getCustomEmoji(Utf8String &data) {
-	if (const auto id = data->toULongLong()) {
+std::optional<QByteArray> ApiWrap::getCustomEmoji(QByteArray &data) {
+	if (const auto id = data.toULongLong()) {
 		const auto i = _resolvedCustomEmoji.find(id);
 		if (i == end(_resolvedCustomEmoji)) {
 			return Data::TextPart::UnavailableEmoji();
@@ -1842,15 +1842,15 @@ std::optional<Utf8String> ApiWrap::getCustomEmoji(Utf8String &data) {
 			return file.relativePath.toUtf8();
 		}
 	}
-	return std::nullopt;
+	return data;
 }
 
 bool ApiWrap::messageCustomEmojiReady(Data::Message &message) {
 	for (auto &part : message.text) {
 		if (part.type == Data::TextPart::Type::CustomEmoji) {
-			auto custom = getCustomEmoji(part.additional);
-			if (custom.has_value()) {
-				part.additional = *custom;
+			auto data = getCustomEmoji(part.additional);
+			if (data.has_value()) {
+				part.additional = *data;
 			} else {
 				return false;
 			}
@@ -1858,9 +1858,9 @@ bool ApiWrap::messageCustomEmojiReady(Data::Message &message) {
 	}
 	for (auto &reaction : message.reactions) {
 		if (reaction.type == Data::Reaction::Type::CustomEmoji) {
-			auto custom = getCustomEmoji(reaction.documentId);
-			if (custom.has_value()) {
-				reaction.documentId = *custom;
+			auto data = getCustomEmoji(reaction.documentId);
+			if (data.has_value()) {
+				reaction.documentId = *data;
 			} else {
 				return false;
 			}
