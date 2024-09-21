@@ -361,9 +361,9 @@ std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
 	auto reactionsMap = std::map<QString, Reaction>();
 	auto reactionsOrder = std::vector<Utf8String>();
 	for (const auto &single : data.data().vresults().v) {
-		Reaction reaction = ParseReaction(single.data().vreaction());
+		auto reaction = ParseReaction(single.data().vreaction());
 		reaction.count = single.data().vcount().v;
-		Utf8String id = Reaction::Id(reaction);
+		auto id = Reaction::Id(reaction);
 		auto const &[_, inserted] = reactionsMap.try_emplace(id, reaction);
 		if (inserted) {
 			reactionsOrder.push_back(id);
@@ -372,8 +372,8 @@ std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
 	if (data.data().vrecent_reactions().has_value()) {
 		if (const auto list = data.data().vrecent_reactions()) {
 			for (const auto &single : list->v) {
-				Reaction reaction = ParseReaction(single.data().vreaction());
-				Utf8String id = Reaction::Id(reaction);
+				auto reaction = ParseReaction(single.data().vreaction());
+				auto id = Reaction::Id(reaction);
 				auto const &[it, inserted] = reactionsMap.try_emplace(id, reaction);
 				if (inserted) {
 					reactionsOrder.push_back(id);
