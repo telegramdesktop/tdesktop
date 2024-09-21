@@ -323,6 +323,7 @@ Utf8String Reaction::TypeToString(const Reaction &reaction) {
 		case Reaction::Type::Empty: return "empty";
 		case Reaction::Type::Emoji: return "emoji";
 		case Reaction::Type::CustomEmoji: return "custom_emoji";
+		case Reaction::Type::Paid: return "paid";
 	}
 	Unexpected("Type in Reaction::Type.");
 }
