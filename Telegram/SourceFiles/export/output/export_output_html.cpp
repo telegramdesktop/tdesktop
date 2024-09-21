@@ -1535,6 +1535,9 @@ auto HtmlWriter::Wrap::pushMessage(
 					break;
 				}
 			}
+			if (reaction.type == Reaction::Type::Paid) {
+				reactionClass += " paid";
+			}
 
 			block.append(pushTag("div", {
 				{ "class", reactionClass },
@@ -1551,6 +1554,9 @@ auto HtmlWriter::Wrap::pushMessage(
 						reaction.documentId,
 						"(custom emoji)",
 						_base));
+					break;
+				case Reaction::Type::Paid:
+					block.append(SerializeString("\u2B50"));
 					break;
 			}
 			block.append(popTag());
