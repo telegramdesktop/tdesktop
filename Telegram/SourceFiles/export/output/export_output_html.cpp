@@ -1552,7 +1552,7 @@ auto HtmlWriter::Wrap::pushMessage(
 				case Reaction::Type::CustomEmoji:
 					block.append(FormatCustomEmoji(
 						reaction.documentId,
-						"(custom emoji)",
+						"\U0001F44B",
 						_base));
 					break;
 				case Reaction::Type::Paid:
