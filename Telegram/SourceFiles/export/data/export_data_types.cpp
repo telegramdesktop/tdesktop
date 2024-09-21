@@ -329,14 +329,14 @@ Utf8String Reaction::TypeToString(const Reaction &reaction) {
 }
 
 Utf8String Reaction::Id(const Reaction &reaction) {
-	Utf8String id;
+	auto id = Utf8String();
 	switch (reaction.type) {
-		case Reaction::Type::Emoji:
-			id = reaction.emoji.toUtf8();
-			break;
-		case Reaction::Type::CustomEmoji:
-			id = reaction.documentId;
-			break;
+	case Reaction::Type::Emoji:
+		id = reaction.emoji.toUtf8();
+		break;
+	case Reaction::Type::CustomEmoji:
+		id = reaction.documentId;
+		break;
 	}
 	return Reaction::TypeToString(reaction) + id;
 }
