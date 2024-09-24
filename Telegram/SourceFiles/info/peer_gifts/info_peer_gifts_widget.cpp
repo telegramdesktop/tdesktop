@@ -64,7 +64,7 @@ private:
 	};
 	struct View {
 		std::unique_ptr<GiftButton> button;
-		Api::UserStarGift gift;
+		int entry = 0;
 	};
 
 	void visibleTopBottomUpdated(
@@ -181,9 +181,11 @@ void InnerWidget::validateButtons() {
 	if (!_perRow) {
 		return;
 	}
+	const auto padding = st::giftBoxPadding;
+	const auto vskip = padding.bottom();
 	const auto row = _single.height() + st::giftBoxGiftSkip.y();
-	const auto fromRow = _visibleFrom / row;
-	const auto tillRow = (_visibleTill + row - 1) / row;
+	const auto fromRow = std::max(_visibleFrom - vskip, 0) / row;
+	const auto tillRow = (_visibleTill - vskip + row - 1) / row;
 	Assert(tillRow >= fromRow);
 	if (_viewsFromRow == fromRow
 		&& _viewsTillRow == tillRow
@@ -194,44 +196,57 @@ void InnerWidget::validateButtons() {
 	_viewsTillRow = tillRow;
 	_viewsForWidth = width();
 
-	const auto padding = st::giftBoxPadding;
 	const auto available = _viewsForWidth - padding.left() - padding.right();
 	const auto skipw = st::giftBoxGiftSkip.x();
 	const auto fullw = _perRow * (_single.width() + skipw) - skipw;
 	const auto left = padding.left() + (available - fullw) / 2;
+	const auto oneh = _single.height() + st::giftBoxGiftSkip.y();
 	auto x = left;
-	auto y = padding.bottom();
-	auto entry = 0;
+	auto y = vskip + fromRow * oneh;
+	auto views = std::vector<View>();
+	views.reserve((tillRow - fromRow) * _perRow);
+	const auto add = [&](int index) {
+		const auto already = ranges::find(_views, index, &View::entry);
+		if (already != end(_views)) {
+			views.push_back(base::take(*already));
+			return;
+		}
+		const auto &descriptor = _entries[index].descriptor;
+		const auto unused = ranges::find_if(_views, [&](const View &v) {
+			return v.button
+				&& ((v.entry < fromRow * _perRow)
+					|| (v.entry >= tillRow * _perRow));
+		});
+		if (unused != end(_views)) {
+			views.push_back(base::take(*unused));
+			views.back().button->setDescriptor(descriptor);
+			views.back().entry = index;
+			return;
+		}
+		auto button = std::make_unique<GiftButton>(this, &_delegate);
+		button->setDescriptor(descriptor);
+		button->show();
+		views.push_back({
+			.button = std::move(button),
+			.entry = index,
+		});
+	};
 	for (auto j = fromRow; j != tillRow; ++j) {
 		for (auto i = 0; i != _perRow; ++i) {
 			const auto index = j * _perRow + i;
 			if (index >= _entries.size()) {
 				break;
 			}
-			const auto &descriptor = _entries[index].descriptor;
-			if (entry < _views.size()) {
-				_views[entry].button->setDescriptor(descriptor);
-			} else {
-				auto button = std::make_unique<GiftButton>(this, &_delegate);
-				button->setDescriptor(descriptor);
-				_views.push_back({
-					.button = std::move(button),
-					.gift = _entries[index].gift,
-				});
-			}
-			_views[entry].button->show();
-			_views[entry].button->setGeometry(
+			add(index);
+			views.back().button->setGeometry(
 				QRect(QPoint(x, y), _single),
 				_delegate.buttonExtend());
-			++entry;
 			x += _single.width() + skipw;
 		}
 		x = left;
-		y += _single.height() + st::giftBoxGiftSkip.y();
+		y += oneh;
 	}
-	for (auto k = entry; k != int(_views.size()); ++k) {
-		_views[k].button->hide();
-	}
+	std::swap(_views, views);
 }
 
 int InnerWidget::resizeGetHeight(int width) {
