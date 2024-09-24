@@ -77,6 +77,18 @@ struct RepliesReadTillUpdate {
 	bool out = false;
 };
 
+struct GiftUpdate {
+	enum class Action : uchar {
+		Save,
+		Unsave,
+		Convert,
+		Delete,
+	};
+
+	FullMsgId itemId;
+	Action action = {};
+};
+
 class Session final {
 public:
 	using ViewElement = HistoryView::Element;
@@ -281,6 +293,8 @@ public:
 	[[nodiscard]] rpl::producer<not_null<const ViewElement*>> viewLayoutChanged() const;
 	void notifyNewItemAdded(not_null<HistoryItem*> item);
 	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> newItemAdded() const;
+	void notifyGiftUpdate(GiftUpdate &&update);
+	[[nodiscard]] rpl::producer<GiftUpdate> giftUpdates() const;
 	void requestItemRepaint(not_null<const HistoryItem*> item);
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
 	void requestViewRepaint(not_null<const ViewElement*> view);
@@ -924,6 +938,7 @@ private:
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;
 	rpl::event_stream<not_null<HistoryItem*>> _newItemAdded;
+	rpl::event_stream<GiftUpdate> _giftUpdates;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
 	rpl::event_stream<not_null<const ViewElement*>> _viewRepaintRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemResizeRequest;

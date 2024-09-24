@@ -69,6 +69,7 @@ struct CreditsHistoryEntry final {
 	bool converted = false;
 	bool anonymous = false;
 	bool savedToProfile = false;
+	bool fromGiftsList = false;
 	bool reaction = false;
 	bool refunded = false;
 	bool pending = false;

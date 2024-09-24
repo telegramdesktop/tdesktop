@@ -76,7 +76,9 @@ private:
 		int visibleBottom) override;
 	void paintEvent(QPaintEvent *e) override;
 
+	void subscribeToUpdates();
 	void loadMore();
+	void refreshButtons();
 	void validateButtons();
 	void showGift(int index);
 
@@ -119,6 +121,52 @@ InnerWidget::InnerWidget(
 , _totalCount(_user->peerGiftsCount())
 , _api(&_user->session().mtp()) {
 	_singleMin = _delegate.buttonSize();
+
+	if (user->isSelf()) {
+		subscribeToUpdates();
+	}
+}
+
+void InnerWidget::subscribeToUpdates() {
+	_user->owner().giftUpdates(
+	) | rpl::start_with_next([=](const Data::GiftUpdate &update) {
+		const auto itemId = [](const Entry &entry) {
+			return FullMsgId(entry.gift.fromId, entry.gift.messageId);
+		};
+		const auto i = ranges::find(_entries, update.itemId, itemId);
+		if (i == end(_entries)) {
+			return;
+		}
+		const auto index = int(i - begin(_entries));
+		using Action = Data::GiftUpdate::Action;
+		if (update.action == Action::Convert
+			|| update.action == Action::Delete) {
+			_entries.erase(i);
+			if (_totalCount > 0) {
+				--_totalCount;
+			}
+			for (auto &view : _views) {
+				if (view.entry >= index) {
+					--view.entry;
+				}
+			}
+		} else if (update.action == Action::Save
+			|| update.action == Action::Unsave) {
+			i->gift.hidden = (update.action == Action::Unsave);
+			v::match(i->descriptor, [](GiftTypePremium &) {
+			}, [&](GiftTypeStars &data) {
+				data.hidden = i->gift.hidden;
+			});
+			for (auto &view : _views) {
+				if (view.entry == index) {
+					view.entry = -1;
+				}
+			}
+		} else {
+			return;
+		}
+		refreshButtons();
+	}, lifetime());
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -170,15 +218,19 @@ void InnerWidget::loadMore() {
 				});
 			}
 		}
-		_viewsForWidth = 0;
-		_viewsFromRow = 0;
-		_viewsTillRow = 0;
-		resizeToWidth(width());
-		validateButtons();
+		refreshButtons();
 	}).fail([=] {
 		_loadMoreRequestId = 0;
 		_allLoaded = true;
 	}).send();
+}
+
+void InnerWidget::refreshButtons() {
+	_viewsForWidth = 0;
+	_viewsFromRow = 0;
+	_viewsTillRow = 0;
+	resizeToWidth(width());
+	validateButtons();
 }
 
 void InnerWidget::validateButtons() {

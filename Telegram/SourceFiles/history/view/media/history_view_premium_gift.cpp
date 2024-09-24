@@ -37,7 +37,7 @@ PremiumGift::PremiumGift(
 	not_null<Data::MediaGiftBox*> gift)
 : _parent(parent)
 , _gift(gift)
-, _data(gift->data()) {
+, _data(*gift->gift()) {
 }
 
 PremiumGift::~PremiumGift() = default;
@@ -155,7 +155,7 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 	const auto itemId = _parent->data()->fullId();
 	const auto peer = _parent->history()->peer;
 	const auto date = _parent->data()->date();
-	const auto data = _gift->data();
+	const auto data = *_gift->gift();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {

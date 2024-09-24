@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "info/statistics/info_statistics_list_controllers.h"
+#include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
@@ -158,21 +160,19 @@ private:
 
 void ToggleStarGiftSaved(
 		not_null<Window::SessionController*> window,
-		not_null<HistoryItem*> item,
+		not_null<UserData*> sender,
+		MsgId itemId,
 		bool save,
 		Fn<void(bool)> done) {
-	Expects(item->history()->peer->isUser());
-
 	using Flag = MTPpayments_SaveStarGift::Flag;
 	const auto api = &window->session().api();
 	const auto weak = base::make_weak(window);
 	api->request(MTPpayments_SaveStarGift(
 		MTP_flags(save ? Flag(0) : Flag::f_unsave),
-		item->history()->peer->asUser()->inputUser,
-		MTP_int(item->id.bare)
+		sender->inputUser,
+		MTP_int(itemId.bare)
 	)).done([=] {
 		if (const auto strong = weak.get()) {
-			strong->showPeerInfo(strong->session().user());
 			strong->showToast((save
 				? tr::lng_gift_display_done
 				: tr::lng_gift_display_done_hide)(tr::now));
@@ -206,16 +206,15 @@ void ConfirmConvertStarGift(
 
 void ConvertStarGift(
 		not_null<Window::SessionController*> window,
-		not_null<HistoryItem*> item,
+		not_null<UserData*> sender,
+		MsgId itemId,
 		int stars,
 		Fn<void(bool)> done) {
-	Expects(item->history()->peer->isUser());
-
 	const auto api = &window->session().api();
 	const auto weak = base::make_weak(window);
 	api->request(MTPpayments_ConvertStarGift(
-		item->history()->peer->asUser()->inputUser,
-		MTP_int(item->id.bare)
+		sender->inputUser,
+		MTP_int(itemId)
 	)).done([=] {
 		if (const auto strong = weak.get()) {
 			strong->showSettings(Settings::CreditsId());
@@ -734,6 +733,8 @@ void ReceiptCreditsBox(
 	const auto myStarGift = isStarGift && e.in;
 	const auto starGiftSender = (isStarGift && item)
 		? item->history()->peer->asUser()
+		: (isStarGift && e.in)
+		? controller->session().data().peer(PeerId(e.barePeerId))->asUser()
 		: nullptr;
 	const auto canConvert = myStarGift
 		&& !e.converted
@@ -1081,6 +1082,15 @@ void ReceiptCreditsBox(
 						tr::lng_credits_box_out_about_link(tr::now)),
 					Ui::Text::WithEntities),
 				st::creditsBoxAboutDivider)));
+	} else if (myStarGift && e.fromGiftsList) {
+		box->addRow(object_ptr<Ui::CenterWrap<>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				(e.savedToProfile
+					? tr::lng_gift_visible_hint()
+					: tr::lng_gift_hidden_hint()),
+				st::creditsBoxAboutDivider)));
 	} else if (myStarGift && e.anonymous) {
 		box->addRow(object_ptr<Ui::CenterWrap<>>(
 			box,
@@ -1157,11 +1167,29 @@ void ReceiptCreditsBox(
 		if (canConvert) {
 			const auto save = !e.savedToProfile;
 			const auto window = weakWindow.get();
-			const auto item = session->data().message(
-				starGiftSender->id,
-				MsgId(e.bareMsgId));
-			if (window && item) {
-				ToggleStarGiftSaved(window, item, save, [=](bool ok) {
+			const auto showSection = !e.fromGiftsList;
+			const auto itemId = MsgId(e.bareMsgId);
+			if (window) {
+				const auto done = [=](bool ok) {
+					if (const auto window = weakWindow.get()) {
+						if (ok) {
+							using GiftAction = Data::GiftUpdate::Action;
+							window->session().data().notifyGiftUpdate({
+								.itemId = FullMsgId(
+									starGiftSender->id,
+									itemId),
+								.action = (save
+									? GiftAction::Save
+									: GiftAction::Unsave),
+							});
+							if (showSection) {
+								window->showSection(
+									std::make_shared<Info::Memento>(
+										window->session().user(),
+										Info::Section::Type::PeerGifts));
+							}
+						}
+					}
 					if (const auto strong = weak.data()) {
 						if (ok) {
 							strong->closeBox();
@@ -1169,7 +1197,13 @@ void ReceiptCreditsBox(
 							state->confirmButtonBusy = false;
 						}
 					}
-				});
+				};
+				ToggleStarGiftSaved(
+					window,
+					starGiftSender,
+					itemId,
+					save,
+					done);
 			}
 		} else if (toRenew && s.expired) {
 			Api::CheckChatInvite(controller, s.inviteHash, nullptr, [=] {
@@ -1265,11 +1299,20 @@ void ReceiptCreditsBox(
 				}
 				state->convertButtonBusy = true;
 				const auto window = weakWindow.get();
-				const auto item = session->data().message(
-					starGiftSender->id,
-					MsgId(e.bareMsgId));
-				if (window && item && stars) {
-					ConvertStarGift(window, item, stars, [=](bool ok) {
+				const auto itemId = MsgId(e.bareMsgId);
+				if (window && stars) {
+					const auto done = [=](bool ok) {
+						if (const auto window = weakWindow.get()) {
+							if (ok) {
+								using GiftAction = Data::GiftUpdate::Action;
+								window->session().data().notifyGiftUpdate({
+									.itemId = FullMsgId(
+										starGiftSender->id,
+										itemId),
+									.action = GiftAction::Convert,
+								});
+							}
+						}
 						if (const auto strong = weak.data()) {
 							if (ok) {
 								strong->closeBox();
@@ -1277,7 +1320,13 @@ void ReceiptCreditsBox(
 								state->convertButtonBusy = false;
 							}
 						}
-					});
+					};
+					ConvertStarGift(
+						window,
+						starGiftSender,
+						itemId,
+						stars,
+						done);
 				}
 			});
 		});
@@ -1366,6 +1415,7 @@ void UserStarGiftBox(
 			.converted = false,
 			.anonymous = data.anonymous,
 			.savedToProfile = !data.hidden,
+			.fromGiftsList = true,
 			.in = data.mine,
 			.gift = true,
 		},

@@ -251,7 +251,7 @@ void StickerPremiumMark::paint(
 		: (singleSize.height() - (bg.height() / factor) - radius);
 	const auto point = position + QPoint(shiftx, shifty);
 	p.drawImage(point, bg);
-	if (_premium) {
+	if (_premium && _part != RectPart::Center) {
 		validateStar();
 		p.drawImage(point, _star);
 	} else {

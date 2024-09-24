@@ -2374,6 +2374,7 @@ bool Message::hasFromPhoto() const {
 		} else if (item->isPost()) {
 			return true;
 		} else if (item->isEmpty()
+			|| item->isFakeAboutView()
 			|| (context() == Context::Replies && item->isDiscussionPost())) {
 			return false;
 		} else if (delegate()->elementIsChatWide()) {

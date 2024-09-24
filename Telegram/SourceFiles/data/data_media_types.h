@@ -172,6 +172,7 @@ public:
 	virtual const Call *call() const;
 	virtual GameData *game() const;
 	virtual const Invoice *invoice() const;
+	virtual const GiftCode *gift() const;
 	virtual CloudImage *location() const;
 	virtual PollData *poll() const;
 	virtual const WallPaper *paper() const;
@@ -621,7 +622,7 @@ public:
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	[[nodiscard]] not_null<PeerData*> from() const;
-	[[nodiscard]] const GiftCode &data() const;
+	[[nodiscard]] const GiftCode *gift() const override;
 
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
