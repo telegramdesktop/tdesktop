@@ -158,12 +158,10 @@ void EditLinkBox(
 			return startLink.trimmed();
 		}
 		const auto clipboard = QGuiApplication::clipboard()->text().trimmed();
-		return std::ranges::any_of(
-			    kLinkProtocols,
-			    [&] (const auto &protocol) {
-			        return clipboard.startsWith(protocol);
-				}
-			) ? clipboard : QString();
+		const auto starts = [&](const auto &protocol) {
+  			return clipboard.startsWith(protocol);
+		};
+		return std::ranges::any_of(kLinkProtocols, starts) ? clipboard : QString();
 	}();
 	const auto url = Ui::AttachParentChild(
 		content,
