@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "styles/style_credits.h"
@@ -39,7 +41,15 @@ GiftButton::GiftButton(
 , _delegate(delegate) {
 }
 
-GiftButton::~GiftButton() = default;
+GiftButton::~GiftButton() {
+	unsubscribe();
+}
+
+void GiftButton::unsubscribe() {
+	if (base::take(_subscribed)) {
+		_userpic->subscribeToUpdates(nullptr);
+	}
+}
 
 void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 	if (_descriptor == descriptor) {
@@ -48,6 +58,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 	auto player = base::take(_player);
 	_mediaLifetime.destroy();
 	_descriptor = descriptor;
+	unsubscribe();
 	v::match(descriptor, [&](const GiftTypePremium &data) {
 		const auto months = data.months;
 		const auto years = (months % 12) ? 0 : months / 12;
@@ -66,12 +77,18 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 				data.cost,
 				data.currency,
 				true));
+		_userpic = nullptr;
 	}, [&](const GiftTypeStars &data) {
 		_price.setMarkedText(
 			st::semiboldTextStyle,
 			_delegate->star().append(QString::number(data.stars)),
 			kMarkupTextOptions,
 			_delegate->textContext());
+		_userpic = !data.userpic
+			? nullptr
+			: data.from
+			? Ui::MakeUserpicThumbnail(data.from)
+			: Ui::MakeHiddenAuthorThumbnail();
 	});
 	if (const auto document = _delegate->lookupSticker(descriptor)) {
 		setDocument(document);
@@ -166,6 +183,16 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			QRect(half, 0, 1, height));
 	}
 
+	if (_userpic) {
+		if (!_subscribed) {
+			_subscribed = true;
+			_userpic->subscribeToUpdates([=] { update(); });
+		}
+		const auto image = _userpic->image(st::giftBoxUserpicSize);
+		const auto skip = st::giftBoxUserpicSkip;
+		p.drawImage(_extend.left() + skip, _extend.top() + skip, image);
+	}
+
 	if (_player && _player->ready()) {
 		const auto paused = !isOver();
 		auto info = _player->frame(
@@ -203,9 +230,18 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		}
 		return QString();
 	}, [&](const GiftTypeStars &data) {
-		if (data.limited) {
+		if (const auto count = data.limitedCount) {
 			p.setBrush(st::windowActiveTextFg);
-			return tr::lng_gift_stars_limited(tr::now);
+			return !data.userpic
+				? tr::lng_gift_stars_limited(tr::now)
+				: (count == 1)
+				? tr::lng_gift_limited_of_one(tr::now)
+				: tr::lng_gift_limited_of_count(
+					tr::now,
+					lt_amount,
+					((count % 1000)
+						? Lang::FormatCountDecimal(count)
+						: Lang::FormatCountToShort(count).string));
 		}
 		return QString();
 	});

@@ -3015,6 +3015,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_limited_of_count" = "1 of {amount}";
 "lng_gift_anonymous_hint" = "Only you can see the sender's name.";
 "lng_gift_availability" = "Availability";
+"lng_gift_from_hidden" = "Hidden User";
 "lng_gift_availability_left#one" = "{count} of {amount} left";
 "lng_gift_availability_left#other" = "{count} of {amount} left";
 "lng_gift_availability_none" = "None of {amount} left";

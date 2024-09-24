@@ -14,6 +14,10 @@ namespace HistoryView {
 class StickerPlayer;
 } // namespace HistoryView
 
+namespace Ui {
+class DynamicImage;
+} // namespace Ui
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -37,8 +41,9 @@ struct GiftTypeStars {
 	int64 convertStars = 0;
 	DocumentData *document = nullptr;
 	PeerData *from = nullptr;
-	bool limited = false;
+	int limitedCount = 0;
 	bool userpic = false;
+	bool mine = false;
 
 	[[nodiscard]] friend inline bool operator==(
 		const GiftTypeStars&,
@@ -77,11 +82,15 @@ private:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void setDocument(not_null<DocumentData*> document);
+	void unsubscribe();
 
 	const not_null<GiftButtonDelegate*> _delegate;
 	GiftDescriptor _descriptor;
 	Ui::Text::String _text;
 	Ui::Text::String _price;
+	std::shared_ptr<Ui::DynamicImage> _userpic;
+	bool _subscribed = false;
+
 	QRect _button;
 	QMargins _extend;
 

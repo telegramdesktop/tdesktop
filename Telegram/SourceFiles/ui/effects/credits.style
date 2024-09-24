@@ -103,6 +103,8 @@ giftBoxPreviewTextPadding: margins(12px, 4px, 12px, 24px);
 giftBoxStickerTop: 0px;
 giftBoxStickerStarTop: 24px;
 giftBoxStickerSize: size(80px, 80px);
+giftBoxUserpicSize: 24px;
+giftBoxUserpicSkip: 2px;
 giftBoxTextField: InputField(defaultInputField) {
 	textBg: transparent;
 	textMargins: margins(2px, 0px, 32px, 0px);

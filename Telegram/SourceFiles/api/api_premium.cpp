@@ -780,8 +780,9 @@ std::optional<StarGift> FromTL(
 }
 
 std::optional<UserStarGift> FromTL(
-		not_null<Main::Session*> session,
+		not_null<UserData*> to,
 		const MTPuserStarGift &gift) {
+	const auto session = &to->session();
 	const auto &data = gift.data();
 	auto parsed = FromTL(session, data.vgift());
 	if (!parsed) {
@@ -802,8 +803,10 @@ std::optional<UserStarGift> FromTL(
 			? peerFromUser(data.vfrom_id()->v)
 			: PeerId()),
 		.messageId = data.vmsg_id().value_or_empty(),
+		.date = data.vdate().v,
 		.anonymous = data.is_name_hidden(),
 		.hidden = data.is_unsaved(),
+		.mine = to->isSelf(),
 	};
 }
 

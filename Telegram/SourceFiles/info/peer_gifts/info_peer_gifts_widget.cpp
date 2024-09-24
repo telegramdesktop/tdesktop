@@ -11,11 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/info_controller.h"
+#include "ui/layers/generic_box.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "window/window_session_controller.h"
+#include "settings/settings_credits_graphics.h"
 #include "styles/style_info.h"
 #include "styles/style_credits.h" // giftBoxPadding
 
@@ -26,18 +28,19 @@ constexpr auto kPreloadPages = 2;
 constexpr auto kPerPage = 50;
 
 [[nodiscard]] GiftDescriptor DescriptorForGift(
-		not_null<Data::Session*> owner,
+		not_null<UserData*> to,
 		const Api::UserStarGift &gift) {
 	return GiftTypeStars{
 		.id = gift.gift.id,
 		.stars = gift.gift.stars,
 		.convertStars = gift.gift.convertStars,
 		.document = gift.gift.document,
-		.from = ((gift.hidden || !gift.fromId)
+		.from = ((gift.anonymous || !gift.fromId)
 			? nullptr
-			: owner->peer(gift.fromId).get()),
-		.limited = (gift.gift.limitedCount > 0),
+			: to->owner().peer(gift.fromId).get()),
+		.limitedCount = gift.gift.limitedCount,
 		.userpic = true,
+		.mine = to->isSelf(),
 	};
 }
 
@@ -74,11 +77,12 @@ private:
 
 	void loadMore();
 	void validateButtons();
+	void showGift(int index);
 
 	int resizeGetHeight(int width) override;
 
+	const not_null<Window::SessionController*> _window;
 	Delegate _delegate;
-	const std::shared_ptr<Main::SessionShow> _show;
 	not_null<Controller*> _controller;
 	const not_null<UserData*> _user;
 	std::vector<Entry> _entries;
@@ -107,8 +111,8 @@ InnerWidget::InnerWidget(
 	not_null<Controller*> controller,
 	not_null<UserData*> user)
 : RpWidget(parent)
-, _delegate(controller->parentController())
-, _show(controller->uiShow())
+, _window(controller->parentController())
+, _delegate(_window)
 , _controller(controller)
 , _user(user)
 , _totalCount(_user->peerGiftsCount())
@@ -155,11 +159,10 @@ void InnerWidget::loadMore() {
 		const auto owner = &_user->owner();
 		owner->processUsers(data.vusers());
 
-		const auto session = &_show->session();
 		_entries.reserve(_entries.size() + data.vgifts().v.size());
 		for (const auto &gift : data.vgifts().v) {
-			if (auto parsed = Api::FromTL(session, gift)) {
-				auto descriptor = DescriptorForGift(owner, *parsed);
+			if (auto parsed = Api::FromTL(_user, gift)) {
+				auto descriptor = DescriptorForGift(_user, *parsed);
 				_entries.push_back({
 					.gift = std::move(*parsed),
 					.descriptor = std::move(descriptor),
@@ -212,6 +215,9 @@ void InnerWidget::validateButtons() {
 			return;
 		}
 		const auto &descriptor = _entries[index].descriptor;
+		const auto callback = [=] {
+			showGift(index);
+		};
 		const auto unused = ranges::find_if(_views, [&](const View &v) {
 			return v.button
 				&& ((v.entry < fromRow * _perRow)
@@ -219,18 +225,18 @@ void InnerWidget::validateButtons() {
 		});
 		if (unused != end(_views)) {
 			views.push_back(base::take(*unused));
-			views.back().button->setDescriptor(descriptor);
 			views.back().entry = index;
-			return;
+		} else {
+			auto button = std::make_unique<GiftButton>(this, &_delegate);
+			button->show();
+			views.push_back({
+				.button = std::move(button),
+				.entry = index,
+			});
 		}
-		auto button = std::make_unique<GiftButton>(this, &_delegate);
-		button->setDescriptor(descriptor);
-		button->show();
-		views.push_back({
-			.button = std::move(button),
-			.entry = index,
-		});
-	};
+		views.back().button->setDescriptor(descriptor);
+		views.back().button->setClickedCallback(callback);
+ 	};
 	for (auto j = fromRow; j != tillRow; ++j) {
 		for (auto i = 0; i != _perRow; ++i) {
 			const auto index = j * _perRow + i;
@@ -247,6 +253,13 @@ void InnerWidget::validateButtons() {
 		y += oneh;
 	}
 	std::swap(_views, views);
+}
+
+void InnerWidget::showGift(int index) {
+	_window->show(Box(
+		::Settings::UserStarGiftBox,
+		_window,
+		_entries[index].gift));
 }
 
 int InnerWidget::resizeGetHeight(int width) {

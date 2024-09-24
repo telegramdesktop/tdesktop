@@ -88,8 +88,10 @@ struct UserStarGift {
 	int64 convertStars = 0;
 	PeerId fromId = 0;
 	MsgId messageId = 0;
+	TimeId date = 0;
 	bool anonymous = false;
 	bool hidden = false;
+	bool mine = false;
 };
 
 class Premium final {
@@ -278,7 +280,7 @@ enum class RequirePremiumState {
 	not_null<Main::Session*> session,
 	const MTPstarGift &gift);
 [[nodiscard]] std::optional<UserStarGift> FromTL(
-	not_null<Main::Session*> session,
+	not_null<UserData*> to,
 	const MTPuserStarGift &gift);
 
 } // namespace Api

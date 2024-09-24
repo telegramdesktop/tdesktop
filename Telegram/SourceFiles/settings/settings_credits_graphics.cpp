@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 #include "api/api_credits.h"
 #include "api/api_earn.h"
+#include "api/api_premium.h"
 #include "apiwrap.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
@@ -730,10 +731,13 @@ void ReceiptCreditsBox(
 	const auto item = controller->session().data().message(
 		PeerId(e.barePeerId), MsgId(e.bareMsgId));
 	const auto isStarGift = (e.convertStars > 0);
+	const auto myStarGift = isStarGift && e.in;
 	const auto starGiftSender = (isStarGift && item)
 		? item->history()->peer->asUser()
 		: nullptr;
-	const auto canConvert = isStarGift && !e.converted && starGiftSender;
+	const auto canConvert = myStarGift
+		&& !e.converted
+		&& starGiftSender;
 
 	box->setStyle(canConvert ? st::starGiftBox : st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -857,6 +861,8 @@ void ReceiptCreditsBox(
 				? tr::lng_credits_box_history_entry_subscription(tr::now)
 				: !e.title.isEmpty()
 				? e.title
+				: (isStarGift && !myStarGift)
+				? tr::lng_gift_link_label_gift(tr::now)
 				: e.gift
 				? tr::lng_credits_box_history_entry_gift_name(tr::now)
 				: (peer && !e.reaction)
@@ -935,7 +941,7 @@ void ReceiptCreditsBox(
 				? st::windowSubTextFg
 				: e.pending
 				? st::creditsStroke
-				: e.in
+				: (e.in || isStarGift)
 				? st::boxTextFgGood
 				: e.gift
 				? st::windowBoldFg
@@ -990,7 +996,7 @@ void ReceiptCreditsBox(
 				rpl::single(e.description),
 				st::creditsBoxAbout)));
 	}
-	if (isStarGift) {
+	if (myStarGift) {
 		Ui::AddSkip(content);
 		const auto about = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
@@ -1015,6 +1021,7 @@ void ReceiptCreditsBox(
 				tr::lng_paid_about_link_url(tr::now));
 			return false;
 		});
+	} else if (isStarGift) {
 	} else if (e.gift || isPrize) {
 		Ui::AddSkip(content);
 		const auto arrow = Ui::Text::SingleCustomEmoji(
@@ -1074,7 +1081,7 @@ void ReceiptCreditsBox(
 						tr::lng_credits_box_out_about_link(tr::now)),
 					Ui::Text::WithEntities),
 				st::creditsBoxAboutDivider)));
-	} else if (e.anonymous) {
+	} else if (myStarGift && e.anonymous) {
 		box->addRow(object_ptr<Ui::CenterWrap<>>(
 			box,
 			object_ptr<Ui::FlatLabel>(
@@ -1332,6 +1339,35 @@ void CreditsPrizeBox(
 			.bareGiveawayMsgId = uint64(data.giveawayMsgId.bare),
 			.peerType = Type::Peer,
 			.in = true,
+		},
+		Data::SubscriptionEntry());
+}
+
+void UserStarGiftBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		const Api::UserStarGift &data) {
+	Settings::ReceiptCreditsBox(
+		box,
+		controller,
+		Data::CreditsHistoryEntry{
+			.description = data.message,
+			.date = base::unixtime::parse(data.date),
+			.credits = uint64(data.gift.stars),
+			.bareMsgId = uint64(data.messageId.bare),
+			.barePeerId = data.fromId.value,
+			.bareGiftStickerId = (data.gift.document
+				? data.gift.document->id
+				: 0),
+			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
+			.limitedCount = data.gift.limitedCount,
+			.limitedLeft = data.gift.limitedLeft,
+			.convertStars = int(data.gift.convertStars),
+			.converted = false,
+			.anonymous = data.anonymous,
+			.savedToProfile = !data.hidden,
+			.in = data.mine,
+			.gift = true,
 		},
 		Data::SubscriptionEntry());
 }

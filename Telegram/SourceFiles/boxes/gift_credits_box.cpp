@@ -481,7 +481,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 					.stars = gift.stars,
 					.convertStars = gift.convertStars,
 					.document = gift.document,
-					.limited = (gift.limitedCount > 0),
+					.limitedCount = gift.limitedCount,
 				});
 			}
 			auto &map = Map[session];
@@ -554,7 +554,7 @@ struct GiftPriceTabs {
 		auto sameKey = 0;
 		for (const auto &gift : gifts) {
 			if (same) {
-				const auto key = gift.stars * (gift.limited ? -1 : 1);
+				const auto key = gift.stars * (gift.limitedCount ? -1 : 1);
 				if (!sameKey) {
 					sameKey = key;
 				} else if (sameKey != key) {
@@ -562,7 +562,7 @@ struct GiftPriceTabs {
 				}
 			}
 
-			if (gift.limited
+			if (gift.limitedCount
 				&& (result.size() < 2 || result[1] != kPriceTabLimited)) {
 				result.insert(begin(result) + 1, kPriceTabLimited);
 			}
@@ -1036,7 +1036,7 @@ void AddBlock(
 	) | rpl::map([=](std::vector<GiftTypeStars> &&gifts, int price) {
 		gifts.erase(ranges::remove_if(gifts, [&](const GiftTypeStars &gift) {
 			return (price == kPriceTabLimited)
-				? (!gift.limited)
+				? (!gift.limitedCount)
 				: (price && gift.stars != price);
 		}), end(gifts));
 		return GiftsDescriptor{

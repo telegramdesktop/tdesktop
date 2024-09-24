@@ -793,6 +793,43 @@ void GiftsBox(
 	return result;
 }
 
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeHiddenPeerTableValue(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionNavigation*> controller) {
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+
+	const auto &st = st::giveawayGiftCodeUserpic;
+	raw->resize(raw->width(), st.photoSize);
+
+	const auto userpic = Ui::CreateChild<Ui::RpWidget>(raw);
+	const auto usize = st.photoSize;
+	userpic->resize(usize, usize);
+	userpic->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(userpic);
+		Ui::EmptyUserpic::PaintHiddenAuthor(p, 0, 0, usize, usize);
+	}, userpic->lifetime());
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		tr::lng_gift_from_hidden(),
+		st::giveawayGiftCodeValue);
+	raw->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto position = st::giveawayGiftCodeNamePosition;
+		label->resizeToNaturalWidth(width - position.x());
+		label->moveToLeft(position.x(), position.y(), width);
+		const auto top = (raw->height() - userpic->height()) / 2;
+		userpic->moveToLeft(0, top, width);
+	}, label->lifetime());
+
+	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setTextColorOverride(st::windowFg->c);
+
+	return result;
+}
+
 void AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		rpl::producer<QString> label,
@@ -1721,10 +1758,17 @@ void AddStarGiftTable(
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
 	if (peerId) {
-		auto text = entry.in
-			? tr::lng_credits_box_history_entry_peer_in()
-			: tr::lng_credits_box_history_entry_peer();
-		AddTableRow(table, std::move(text), controller, peerId);
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_peer_in(),
+			controller,
+			peerId);
+	} else {
+		AddTableRow(
+			table,
+			tr::lng_credits_box_history_entry_peer_in(),
+			MakeHiddenPeerTableValue(table, controller),
+			st::giveawayGiftCodePeerMargin);
 	}
 	if (!entry.date.isNull()) {
 		AddTableRow(
