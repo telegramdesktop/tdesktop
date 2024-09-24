@@ -21,7 +21,7 @@ def nativeToolsError():
 win = (sys.platform == 'win32')
 mac = (sys.platform == 'darwin')
 
-if win and not 'Platform' in os.environ:
+if win and not any(key.casefold() == 'platform' for key in os.environ):
     nativeToolsError()
 
 win32 = win and (os.environ['Platform'] == 'x86')
