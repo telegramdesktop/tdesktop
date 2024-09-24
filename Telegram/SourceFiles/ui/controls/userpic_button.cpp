@@ -495,13 +495,6 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 			photoPosition.y(),
 			width(),
 			_st.photoSize);
-	} else if (showVerifyCodes()) {
-		Ui::EmptyUserpic::PaintVerifyCodes(
-			p,
-			photoPosition.x(),
-			photoPosition.y(),
-			width(),
-			_st.photoSize);
 	} else {
 		if (_a_appearance.animating()) {
 			p.drawPixmapLeft(photoPosition, width(), _oldUserpic);
@@ -903,10 +896,6 @@ bool UserpicButton::showSavedMessages() const {
 
 bool UserpicButton::showRepliesMessages() const {
 	return _showSavedMessagesOnSelf && _peer && _peer->isRepliesChat();
-}
-
-bool UserpicButton::showVerifyCodes() const {
-	return _showSavedMessagesOnSelf && _peer && _peer->isVerifyCodes();
 }
 
 void UserpicButton::startChangeOverlayAnimation() {

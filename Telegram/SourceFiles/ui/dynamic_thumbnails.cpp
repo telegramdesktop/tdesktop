@@ -157,19 +157,6 @@ private:
 
 };
 
-class VerifyCodesUserpic final : public DynamicImage {
-public:
-	std::shared_ptr<DynamicImage> clone() override;
-
-	QImage image(int size) override;
-	void subscribeToUpdates(Fn<void()> callback) override;
-
-private:
-	QImage _frame;
-	int _paletteVersion = 0;
-
-};
-
 class HiddenAuthorUserpic final : public DynamicImage {
 public:
 	std::shared_ptr<DynamicImage> clone() override;
@@ -508,37 +495,6 @@ void RepliesUserpic::subscribeToUpdates(Fn<void()> callback) {
 	}
 }
 
-std::shared_ptr<DynamicImage> VerifyCodesUserpic::clone() {
-	return std::make_shared<VerifyCodesUserpic>();
-}
-
-QImage VerifyCodesUserpic::image(int size) {
-	const auto good = (_frame.width() == size * _frame.devicePixelRatio());
-	const auto paletteVersion = style::PaletteVersion();
-	if (!good || _paletteVersion != paletteVersion) {
-		_paletteVersion = paletteVersion;
-
-		const auto ratio = style::DevicePixelRatio();
-		if (!good) {
-			_frame = QImage(
-				QSize(size, size) * ratio,
-				QImage::Format_ARGB32_Premultiplied);
-			_frame.setDevicePixelRatio(ratio);
-		}
-		_frame.fill(Qt::transparent);
-
-		auto p = Painter(&_frame);
-		Ui::EmptyUserpic::PaintVerifyCodes(p, 0, 0, size, size);
-	}
-	return _frame;
-}
-
-void VerifyCodesUserpic::subscribeToUpdates(Fn<void()> callback) {
-	if (!callback) {
-		_frame = {};
-	}
-}
-
 std::shared_ptr<DynamicImage> HiddenAuthorUserpic::clone() {
 	return std::make_shared<HiddenAuthorUserpic>();
 }
@@ -665,10 +621,6 @@ std::shared_ptr<DynamicImage> MakeSavedMessagesThumbnail() {
 
 std::shared_ptr<DynamicImage> MakeRepliesThumbnail() {
 	return std::make_shared<RepliesUserpic>();
-}
-
-std::shared_ptr<DynamicImage> MakeVerifyCodesThumbnail() {
-	return std::make_shared<VerifyCodesUserpic>();
 }
 
 std::shared_ptr<DynamicImage> MakeHiddenAuthorThumbnail() {

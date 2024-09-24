@@ -142,8 +142,9 @@ void FilterChatsPreview::paintEvent(QPaintEvent *e) {
 					width(),
 					st.photoSize);
 			} else {
-				Ui::EmptyUserpic::PaintVerifyCodes(
+				history->peer->paintUserpicLeft(
 					p,
+					userpic,
 					iconLeft,
 					top + iconTop,
 					width(),

@@ -311,13 +311,6 @@ void PaintRow(
 			context.st->padding.top(),
 			context.width,
 			context.st->photoSize);
-	} else if (flags & Flag::VerifyCodes) {
-		EmptyUserpic::PaintVerifyCodes(
-			p,
-			context.st->padding.left(),
-			context.st->padding.top(),
-			context.width,
-			context.st->photoSize);
 	} else if (flags & Flag::HiddenAuthor) {
 		EmptyUserpic::PaintHiddenAuthor(
 			p,

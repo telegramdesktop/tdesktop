@@ -55,10 +55,6 @@ PaintRoundImageCallback PaintUserpicCallback(
 			return [](QPainter &p, int x, int y, int outerWidth, int size) {
 				Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
 			};
-		} else if (peer->isVerifyCodes()) {
-			return [](QPainter &p, int x, int y, int outerWidth, int size) {
-				Ui::EmptyUserpic::PaintVerifyCodes(p, x, y, outerWidth, size);
-			};
 		}
 	}
 	auto userpic = Ui::PeerUserpicView();
@@ -719,7 +715,6 @@ PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback(
 		bool forceRound) {
 	const auto saved = !_savedMessagesStatus.isEmpty();
 	const auto replies = _isRepliesMessagesChat;
-	const auto verifyCodes = _isVerifyCodesChat;
 	const auto peer = this->peer();
 	auto userpic = saved ? Ui::PeerUserpicView() : ensureUserpicView();
 	if (forceRound && peer->isForum()) {
@@ -731,8 +726,6 @@ PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback(
 			EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
 		} else if (replies) {
 			EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
-		} else if (verifyCodes) {
-			EmptyUserpic::PaintVerifyCodes(p, x, y, outerWidth, size);
 		} else {
 			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}
@@ -894,8 +887,6 @@ void PeerListRow::paintDisabledCheckUserpic(
 		Ui::EmptyUserpic::PaintSavedMessages(p, userpicLeft, userpicTop, outerWidth, size);
 	} else if (_isRepliesMessagesChat) {
 		Ui::EmptyUserpic::PaintRepliesMessages(p, userpicLeft, userpicTop, outerWidth, size);
-	} else if (_isVerifyCodesChat) {
-		Ui::EmptyUserpic::PaintVerifyCodes(p, userpicLeft, userpicTop, outerWidth, size);
 	} else {
 		peer()->paintUserpicLeft(p, _userpic, userpicLeft, userpicTop, outerWidth, size);
 	}

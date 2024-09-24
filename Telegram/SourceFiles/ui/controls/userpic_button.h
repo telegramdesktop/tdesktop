@@ -138,7 +138,6 @@ private:
 	void updateVideo();
 	[[nodiscard]] bool showSavedMessages() const;
 	[[nodiscard]] bool showRepliesMessages() const;
-	[[nodiscard]] bool showVerifyCodes() const;
 	void checkStreamedIsStarted();
 	bool createStreamingObjects(not_null<PhotoData*> photo);
 	void clearStreaming();

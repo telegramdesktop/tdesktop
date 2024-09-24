@@ -870,9 +870,6 @@ void Notification::updateNotifyDisplay() {
 			} else if (_history->peer->isRepliesChat()) {
 				Ui::EmptyUserpic::PaintRepliesMessages(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 				_userpicLoaded = true;
-			} else if (_history->peer->isVerifyCodes()) {
-				Ui::EmptyUserpic::PaintVerifyCodes(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
-				_userpicLoaded = true;
 			} else {
 				_userpicView = _history->peer->createUserpicView();
 				_history->peer->loadUserpic();

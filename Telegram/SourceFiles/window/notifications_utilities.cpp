@@ -28,8 +28,6 @@ QImage GenerateUserpic(not_null<PeerData*> peer, Ui::PeerUserpicView &view) {
 		? Ui::EmptyUserpic::GenerateSavedMessages(st::notifyMacPhotoSize)
 		: peer->isRepliesChat()
 		? Ui::EmptyUserpic::GenerateRepliesMessages(st::notifyMacPhotoSize)
-		: peer->isVerifyCodes()
-		? Ui::EmptyUserpic::GenerateVerifyCodes(st::notifyMacPhotoSize)
 		: PeerData::GenerateUserpicImage(peer, view, st::notifyMacPhotoSize);
 }
 
