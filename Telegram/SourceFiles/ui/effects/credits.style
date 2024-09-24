@@ -125,3 +125,4 @@ giftBoxTextField: InputField(defaultInputField) {
 	style: defaultTextStyle;
 }
 giftBoxTextPadding: margins(20px, 15px, 20px, 11px);
+giftBoxHiddenMark: icon{{ "menu/stealth", premiumButtonFg }};

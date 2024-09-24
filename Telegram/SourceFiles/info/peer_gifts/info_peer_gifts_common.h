@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/abstract_button.h"
 #include "ui/text/text.h"
 
+class StickerPremiumMark;
+
 namespace HistoryView {
 class StickerPlayer;
 } // namespace HistoryView
@@ -43,6 +45,7 @@ struct GiftTypeStars {
 	PeerData *from = nullptr;
 	int limitedCount = 0;
 	bool userpic = false;
+	bool hidden = false;
 	bool mine = false;
 
 	[[nodiscard]] friend inline bool operator==(
@@ -67,6 +70,7 @@ public:
 	[[nodiscard]] virtual QImage background() = 0;
 	[[nodiscard]] virtual DocumentData *lookupSticker(
 		const GiftDescriptor &descriptor) = 0;
+	[[nodiscard]] virtual not_null<StickerPremiumMark*> hiddenMark() = 0;
 };
 
 class GiftButton final : public Ui::AbstractButton {
@@ -85,6 +89,7 @@ private:
 	void unsubscribe();
 
 	const not_null<GiftButtonDelegate*> _delegate;
+	QImage _hiddenBgCache;
 	GiftDescriptor _descriptor;
 	Ui::Text::String _text;
 	Ui::Text::String _price;
@@ -102,6 +107,8 @@ private:
 class Delegate final : public GiftButtonDelegate {
 public:
 	explicit Delegate(not_null<Window::SessionController*> window);
+	Delegate(Delegate &&other);
+	~Delegate();
 
 	TextWithEntities star() override;
 	std::any textContext() override;
@@ -109,9 +116,11 @@ public:
 	QMargins buttonExtend() override;
 	QImage background() override;
 	DocumentData *lookupSticker(const GiftDescriptor &descriptor) override;
+	not_null<StickerPremiumMark*> hiddenMark() override;
 
 private:
 	const not_null<Window::SessionController*> _window;
+	std::unique_ptr<StickerPremiumMark> _hiddenMark;
 	QSize _single;
 	QImage _bg;
 

@@ -40,6 +40,7 @@ constexpr auto kPerPage = 50;
 			: to->owner().peer(gift.fromId).get()),
 		.limitedCount = gift.gift.limitedCount,
 		.userpic = true,
+		.hidden = gift.hidden,
 		.mine = to->isSelf(),
 	};
 }

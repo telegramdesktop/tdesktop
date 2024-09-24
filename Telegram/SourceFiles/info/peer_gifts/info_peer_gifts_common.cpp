@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/peer_gifts/info_peer_gifts_common.h"
 
+#include "boxes/sticker_set_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/ui_integration.h"
@@ -159,6 +160,8 @@ void GiftButton::resizeEvent(QResizeEvent *e) {
 
 void GiftButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
+	const auto hidden = v::is<GiftTypeStars>(_descriptor)
+		&& v::get<GiftTypeStars>(_descriptor).hidden;;
 	const auto position = QPoint(_extend.left(), _extend.top());
 	const auto background = _delegate->background();
 	const auto dpr = int(background.devicePixelRatio());
@@ -193,6 +196,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		p.drawImage(_extend.left() + skip, _extend.top() + skip, image);
 	}
 
+	auto frame = QImage();
 	if (_player && _player->ready()) {
 		const auto paused = !isOver();
 		auto info = _player->frame(
@@ -201,11 +205,12 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 			false,
 			crl::now(),
 			paused);
+		frame = info.image;
 		const auto finished = (info.index + 1 == _player->framesCount());
 		if (!finished || !paused) {
 			_player->markFrameShown();
 		}
-		const auto size = info.image.size() / style::DevicePixelRatio();
+		const auto size = frame.size() / style::DevicePixelRatio();
 		p.drawImage(
 			QRect(
 				(width - size.width()) / 2,
@@ -214,7 +219,21 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 					: st::giftBoxStickerTop),
 				size.width(),
 				size.height()),
-			info.image);
+			frame);
+	}
+	if (hidden) {
+		const auto topleft = QPoint(
+			(width - st::giftBoxStickerSize.width()) / 2,
+			(_text.isEmpty()
+				? st::giftBoxStickerStarTop
+				: st::giftBoxStickerTop));
+		_delegate->hiddenMark()->paint(
+			p,
+			frame,
+			_hiddenBgCache,
+			topleft,
+			st::giftBoxStickerSize,
+			width);
 	}
 
 	auto hq = PainterHighQualityEnabler(p);
@@ -290,9 +309,16 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 }
 
 Delegate::Delegate(not_null<Window::SessionController*> window)
-: _window(window) {
+: _window(window)
+, _hiddenMark(std::make_unique<StickerPremiumMark>(
+	&window->session(),
+	st::giftBoxHiddenMark,
+	RectPart::Center)) {
 }
 
+Delegate::Delegate(Delegate &&other) = default;
+
+Delegate::~Delegate() = default;
 
 TextWithEntities Delegate::star() {
 	const auto owner = &_window->session().data();
@@ -383,6 +409,10 @@ DocumentData *Delegate::lookupSticker(const GiftDescriptor &descriptor) {
 			? data.document
 			: packs.lookup(packs.monthsForStars(data.stars));
 	});
+}
+
+not_null<StickerPremiumMark*> Delegate::hiddenMark() {
+	return _hiddenMark.get();
 }
 
 } // namespace Info::PeerGifts
