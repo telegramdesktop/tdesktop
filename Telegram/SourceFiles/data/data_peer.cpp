@@ -1216,7 +1216,7 @@ bool PeerData::isVerifyCodes() const {
 }
 
 bool PeerData::sharedMediaInfo() const {
-	return isSelf() || isRepliesChat() || isVerifyCodes();
+	return isSelf() || isRepliesChat();
 }
 
 bool PeerData::savedSublistsInfo() const {
