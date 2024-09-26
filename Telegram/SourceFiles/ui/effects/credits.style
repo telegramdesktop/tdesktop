@@ -126,3 +126,10 @@ giftBoxTextField: InputField(defaultInputField) {
 }
 giftBoxTextPadding: margins(20px, 15px, 20px, 11px);
 giftBoxHiddenMark: icon{{ "menu/stealth", premiumButtonFg }};
+giftListAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: membersAboutLimitFg;
+	align: align(top);
+	style: boxLabelStyle;
+}
+giftListAboutMargin: margins(12px, 24px, 12px, 24px);

@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/info_controller.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/box_content_divider.h"
+#include "ui/widgets/labels.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -47,7 +50,7 @@ constexpr auto kPerPage = 50;
 
 } // namespace
 
-class InnerWidget final : public Ui::RpWidget {
+class InnerWidget final : public Ui::BoxContentDivider {
 public:
 	InnerWidget(
 		QWidget *parent,
@@ -87,6 +90,7 @@ private:
 	const not_null<Window::SessionController*> _window;
 	Delegate _delegate;
 	not_null<Controller*> _controller;
+	std::unique_ptr<Ui::FlatLabel> _about;
 	const not_null<UserData*> _user;
 	std::vector<Entry> _entries;
 	int _totalCount = 0;
@@ -113,10 +117,19 @@ InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
 	not_null<UserData*> user)
-: RpWidget(parent)
+: BoxContentDivider(parent)
 , _window(controller->parentController())
 , _delegate(_window)
 , _controller(controller)
+, _about(std::make_unique<Ui::FlatLabel>(
+	this,
+	(user->isSelf()
+		? tr::lng_peer_gifts_about_mine(Ui::Text::RichLangValue)
+		: tr::lng_peer_gifts_about(
+			lt_user,
+			rpl::single(Ui::Text::Bold(user->shortName())),
+			Ui::Text::RichLangValue)),
+	st::giftListAbout))
 , _user(user)
 , _totalCount(_user->peerGiftsCount())
 , _api(&_user->session().mtp()) {
@@ -184,7 +197,11 @@ void InnerWidget::visibleTopBottomUpdated(
 void InnerWidget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	p.fillRect(e->rect(), st::boxDividerBg);
+	const auto aboutSize = _about->size().grownBy(st::giftListAboutMargin);
+	const auto skips = QMargins(0, 0, 0, aboutSize.height());
+	p.fillRect(rect().marginsRemoved(skips), st::boxDividerBg->c);
+	paintTop(p);
+	paintBottom(p, skips.bottom());
 }
 
 void InnerWidget::loadMore() {
@@ -336,7 +353,14 @@ int InnerWidget::resizeGetHeight(int width) {
 	const auto rows = (count + _perRow - 1) / _perRow;
 	const auto skiph = st::giftBoxGiftSkip.y();
 
-	return padding.bottom() * 2 + rows * (singleh + skiph) - skiph;
+	auto result = padding.bottom() * 2 + rows * (singleh + skiph) - skiph;
+
+	const auto margin = st::giftListAboutMargin;
+	_about->resizeToWidth(width - margin.left() - margin.right());
+	_about->moveToLeft(margin.left(), result + margin.top());
+	result += margin.top() + _about->height() + margin.bottom();
+
+	return result;
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {

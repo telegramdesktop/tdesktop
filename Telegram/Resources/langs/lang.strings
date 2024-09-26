@@ -1927,6 +1927,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_similar_channels_show_more" = "Show more channels";
 
 "lng_peer_gifts_title" = "Gifts";
+"lng_peer_gifts_about" = "These gifts were sent to {user} by other users.";
+"lng_peer_gifts_about_mine" = "These gifts were sent to you by other users. Click on a gift to convert it to Stars or change its privacy settings.";
 
 "lng_premium_gift_duration_months#one" = "for {count} month";
 "lng_premium_gift_duration_months#other" = "for {count} months";
