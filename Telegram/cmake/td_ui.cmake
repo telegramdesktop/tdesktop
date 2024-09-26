@@ -290,8 +290,8 @@ PRIVATE
     ui/boxes/edit_invite_link.h
     ui/boxes/rate_call_box.cpp
     ui/boxes/rate_call_box.h
-    ui/boxes/report_box.cpp
-    ui/boxes/report_box.h
+    ui/boxes/report_box_graphics.cpp
+    ui/boxes/report_box_graphics.h
     ui/boxes/show_or_premium_box.cpp
     ui/boxes/show_or_premium_box.h
     ui/boxes/single_choice_box.cpp

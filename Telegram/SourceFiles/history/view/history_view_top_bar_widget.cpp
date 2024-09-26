@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/effects/radial_animation.h"
-#include "ui/boxes/report_box.h" // Ui::ReportReason
+#include "ui/boxes/report_box_graphics.h" // Ui::ReportReason
 #include "ui/text/text.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
