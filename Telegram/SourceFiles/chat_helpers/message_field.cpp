@@ -63,6 +63,12 @@ constexpr auto kParseLinksTimeout = crl::time(1000);
 constexpr auto kTypesDuration = 4 * crl::time(1000);
 constexpr auto kCodeLanguageLimit = 32;
 
+constexpr auto kLinkProtocols = {
+    "http://",
+    "https://",
+    "tonsite://"
+};
+
 // For mention / custom emoji tags save and validate selfId,
 // ignore tags for different users.
 [[nodiscard]] Fn<QString(QStringView)> FieldTagMimeProcessor(
@@ -152,11 +158,10 @@ void EditLinkBox(
 			return startLink.trimmed();
 		}
 		const auto clipboard = QGuiApplication::clipboard()->text().trimmed();
-		if (clipboard.startsWith("http://")
-			|| clipboard.startsWith("https://")) {
-			return clipboard;
-		}
-		return QString();
+		const auto starts = [&](const auto &protocol) {
+  			return clipboard.startsWith(protocol);
+		};
+		return std::ranges::any_of(kLinkProtocols, starts) ? clipboard : QString();
 	}();
 	const auto url = Ui::AttachParentChild(
 		content,
