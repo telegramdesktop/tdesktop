@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_stories.h"
 
-#include "api/api_report.h"
 #include "base/unixtime.h"
+#include "boxes/report_messages_box.h"
 #include "apiwrap.h"
 #include "core/application.h"
 #include "data/data_changes.h"
@@ -1912,7 +1912,7 @@ void Stories::report(
 		QString text) {
 	if (const auto maybeStory = lookup(id)) {
 		const auto story = *maybeStory;
-		Api::SendReport(show, story->peer(), reason, text, story->id());
+		ShowReportMessageBox(show, story->peer(), {}, { story->id() });
 	}
 }
 

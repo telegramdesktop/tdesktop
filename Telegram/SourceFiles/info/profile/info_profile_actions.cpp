@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
-#include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
 #include "history/view/history_view_item_preview.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -1973,7 +1972,7 @@ void ActionsFiller::addReportAction() {
 	const auto peer = _peer;
 	const auto controller = _controller->parentController();
 	const auto report = [=] {
-		ShowReportPeerBox(controller, peer);
+		ShowReportMessageBox(controller->uiShow(), peer, {}, {});
 	};
 	AddActionButton(
 		_wrap,

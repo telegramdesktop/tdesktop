@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_forward_panel.h"
+#include "api/api_report.h"
 #include "history/view/controls/history_view_draft_options.h"
 #include "boxes/moderate_messages_box.h"
 #include "history/view/media/history_view_sticker.h"
@@ -4215,8 +4216,8 @@ int HistoryInner::historyDrawTop() const {
 	return (top >= 0) ? (top + _historySkipHeight) : -1;
 }
 
-void HistoryInner::setChooseReportReason(Ui::ReportReason reason) {
-	_chooseForReportReason = reason;
+void HistoryInner::setChooseReportReason(Data::ReportInput reportInput) {
+	_chooseForReportReason = reportInput;
 }
 
 void HistoryInner::clearChooseReportReason() {
@@ -4501,17 +4502,21 @@ void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 }
 
 void HistoryInner::reportItem(FullMsgId itemId) {
-	_controller->show(ReportItemsBox(_peer, { 1, itemId }));
+	ShowReportMessageBox(_controller->uiShow(), _peer, { itemId.msg }, {});
 }
 
 void HistoryInner::reportAsGroup(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		const auto group = session().data().groups().find(item);
-		_controller->show(ReportItemsBox(
-			_peer,
-			(group
-				? session().data().itemsToIds(group->items)
-				: MessageIdsList{ 1, itemId })));
+		const auto ids = group
+			? (ranges::views::all(
+				group->items
+			) | ranges::views::transform([](const auto &i) {
+				return i->fullId().msg;
+			}) | ranges::to_vector)
+			: std::vector<MsgId>{ 1, itemId.msg };
+		const auto peer = item->history()->peer;
+		ShowReportMessageBox(_controller->uiShow(), _peer, ids, {});
 	}
 }
 

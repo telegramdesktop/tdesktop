@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_report.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/dragging_scroll_manager.h"
@@ -54,7 +55,6 @@ namespace Ui {
 class ChatTheme;
 class ChatStyle;
 class PopupMenu;
-enum class ReportReason;
 struct ChatPaintContext;
 class PathShiftGradient;
 struct PeerUserpicView;
@@ -189,7 +189,7 @@ public:
 	int historyTop() const;
 	int historyDrawTop() const;
 
-	void setChooseReportReason(Ui::ReportReason reason);
+	void setChooseReportReason(Data::ReportInput reportInput);
 	void clearChooseReportReason();
 
 	// -1 if should not be visible, -2 if bad history()
@@ -468,7 +468,7 @@ private:
 
 	style::cursor _cursor = style::cur_default;
 	SelectedItems _selected;
-	std::optional<Ui::ReportReason> _chooseForReportReason;
+	std::optional<Data::ReportInput> _chooseForReportReason;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	QPainterPath _highlightPathCache;

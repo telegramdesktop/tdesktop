@@ -2412,9 +2412,9 @@ void SessionController::clearPassportForm() {
 
 void SessionController::showChooseReportMessages(
 		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done) const {
-	content()->showChooseReportMessages(peer, reason, std::move(done));
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> done) const {
+	content()->showChooseReportMessages(peer, reportInput, std::move(done));
 }
 
 void SessionController::clearChooseReportMessages() const {

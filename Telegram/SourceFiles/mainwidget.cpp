@@ -1218,9 +1218,9 @@ void MainWidget::setInnerFocus() {
 
 void MainWidget::showChooseReportMessages(
 		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done) {
-	_history->setChooseReportMessagesDetails(reason, std::move(done));
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> done) {
+	_history->setChooseReportMessagesDetails(reportInput, std::move(done));
 	_controller->showPeerHistory(
 		peer,
 		SectionShow::Way::Forward,

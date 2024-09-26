@@ -1662,6 +1662,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_and_ban_button" = "Ban user";
 "lng_report_details_about" = "Please enter any additional details relevant to your report.";
 "lng_report_details" = "Additional Details";
+"lng_report_details_optional" = "Add Comment (Optional)";
+"lng_report_details_non_optional" = "Add Comment";
+"lng_report_details_message_about" = "Please help us by telling what is wrong with the message you have selected";
 "lng_report_reason_spam" = "Spam";
 "lng_report_reason_fake" = "Fake Account";
 "lng_report_reason_violence" = "Violence";

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/boxes/report_box.h" // AddReportOptionButton.
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -238,45 +239,9 @@ void ShowReportSponsoredBox(
 					box->setTitle(rpl::single(result.title));
 
 					for (const auto &option : result.options) {
-						const auto button = box->verticalLayout()->add(
-							object_ptr<Ui::SettingsButton>(
-								box,
-								rpl::single(QString()),
-								st::settingsButtonNoIcon));
-						const auto label = Ui::CreateChild<Ui::FlatLabel>(
-							button,
-							rpl::single(option.text),
-							st::sponsoredReportLabel);
-						const auto icon = Ui::CreateChild<Ui::RpWidget>(
-							button);
-						icon->resize(st::settingsPremiumArrow.size());
-						icon->paintRequest(
-						) | rpl::start_with_next([=, w = icon->width()] {
-							auto p = Painter(icon);
-							st::settingsPremiumArrow.paint(p, 0, 0, w);
-						}, icon->lifetime());
-						button->sizeValue(
-						) | rpl::start_with_next([=](const QSize &size) {
-							const auto left = button->st().padding.left();
-							const auto right = button->st().padding.right();
-							icon->moveToRight(
-								right,
-								(size.height() - icon->height()) / 2);
-							label->resizeToWidth(size.width()
-								- icon->width()
-								- left
-								- st::settingsButtonRightSkip
-								- right);
-							label->moveToLeft(
-								left,
-								(size.height() - label->height()) / 2);
-							button->resize(
-								button->width(),
-								rect::m::sum::v(button->st().padding)
-									+ label->height());
-						}, button->lifetime());
-						label->setAttribute(Qt::WA_TransparentForMouseEvents);
-						icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+						const auto button = Ui::AddReportOptionButton(
+							box->verticalLayout(),
+							option.text);
 						button->setClickedCallback([=] {
 							repeatRequest(repeatRequest, option.id);
 						});

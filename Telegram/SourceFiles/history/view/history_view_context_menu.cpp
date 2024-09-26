@@ -930,11 +930,15 @@ void AddReportAction(
 	const auto callback = crl::guard(controller, [=] {
 		if (const auto item = owner->message(itemId)) {
 			const auto group = owner->groups().find(item);
-			controller->show(ReportItemsBox(
-				item->history()->peer,
-				(group
-					? owner->itemsToIds(group->items)
-					: MessageIdsList{ 1, itemId })));
+			const auto ids = group
+				? (ranges::views::all(
+					group->items
+				) | ranges::views::transform([](const auto &i) {
+					return i->fullId().msg;
+				}) | ranges::to_vector)
+				: std::vector<MsgId>{ 1, itemId.msg };
+			const auto peer = item->history()->peer;
+			ShowReportMessageBox(controller->uiShow(), peer, ids, {});
 		}
 	});
 	menu->addAction(

@@ -2134,7 +2134,8 @@ void HistoryWidget::showHistory(
 				if (_chooseForReport) {
 					clearSelected();
 					_chooseForReport->active = true;
-					_list->setChooseReportReason(_chooseForReport->reason);
+					_list->setChooseReportReason(
+						_chooseForReport->reportInput);
 					updateControlsVisibility();
 					updateControlsGeometry();
 					updateTopBarChooseForReport();
@@ -2412,7 +2413,7 @@ void HistoryWidget::showHistory(
 		}, _list->lifetime());
 
 		if (_chooseForReport && _chooseForReport->active) {
-			_list->setChooseReportReason(_chooseForReport->reason);
+			_list->setChooseReportReason(_chooseForReport->reportInput);
 		}
 		updateTopBarChooseForReport();
 
@@ -4320,21 +4321,14 @@ void HistoryWidget::reportSelectedMessages() {
 		return;
 	}
 	const auto ids = _list->getSelectedItems();
-	const auto peer = _peer;
-	const auto reason = _chooseForReport->reason;
-	const auto weak = Ui::MakeWeak(_list.data());
-	controller()->window().show(Box([=](not_null<Ui::GenericBox*> box) {
-		const auto &st = st::defaultReportBox;
-		Ui::ReportDetailsBox(box, st, [=](const QString &text) {
-			if (weak) {
-				clearSelected();
-				controller()->clearChooseReportMessages();
-			}
-			const auto show = controller()->uiShow();
-			Api::SendReport(show, peer, reason, text, ids);
-			box->closeBox();
-		});
-	}));
+	const auto done = _chooseForReport->callback;
+	clearSelected();
+	controller()->clearChooseReportMessages();
+	if (done) {
+		done(ranges::views::all(
+			ids
+		) | ranges::views::transform(&FullMsgId::msg) | ranges::to_vector);
+	}
 }
 
 History *HistoryWidget::history() const {
@@ -7287,8 +7281,8 @@ void HistoryWidget::checkMessagesTTL() {
 }
 
 void HistoryWidget::setChooseReportMessagesDetails(
-		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> callback) {
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> callback) {
 	if (!callback) {
 		const auto refresh = _chooseForReport && _chooseForReport->active;
 		_chooseForReport = nullptr;
@@ -7304,7 +7298,7 @@ void HistoryWidget::setChooseReportMessagesDetails(
 	} else {
 		_chooseForReport = std::make_unique<ChooseMessagesForReport>(
 			ChooseMessagesForReport{
-				.reason = reason,
+				.reportInput = reportInput,
 				.callback = std::move(callback) });
 	}
 }
@@ -8198,7 +8192,7 @@ MessageIdsList HistoryWidget::getSelectedItems() const {
 void HistoryWidget::updateTopBarChooseForReport() {
 	if (_chooseForReport && _chooseForReport->active) {
 		_topBar->showChooseMessagesForReport(
-			_chooseForReport->reason);
+			_chooseForReport->reportInput);
 	} else {
 		_topBar->clearChooseMessagesForReport();
 	}

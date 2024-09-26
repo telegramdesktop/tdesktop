@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_peer_menu.h"
 
+#include "api/api_report.h"
 #include "menu/menu_check_item.h"
 #include "boxes/share_box.h"
 #include "chat_helpers/compose/compose_show.h"
@@ -913,7 +914,7 @@ void Filler::addReport() {
 	const auto peer = _peer;
 	const auto navigation = _controller;
 	_addAction(tr::lng_profile_report(tr::now), [=] {
-		ShowReportPeerBox(navigation, peer);
+		ShowReportMessageBox(navigation->uiShow(), peer, {}, {});
 	}, &st::menuIconReport);
 }
 

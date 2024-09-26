@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_view_top_toast.h"
 #include "history/history.h"
 #include "chat_helpers/field_characters_count_manager.h"
+#include "data/data_report.h"
 #include "window/section_widget.h"
 #include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
@@ -69,7 +70,6 @@ struct PreparedList;
 class SendFilesWay;
 class SendAsButton;
 class SpoilerAnimation;
-enum class ReportReason;
 class ChooseThemeController;
 class ContinuousScroll;
 struct ChatPaintHighlight;
@@ -238,8 +238,8 @@ public:
 		const TextWithEntities &highlightPart = {},
 		int highlightPartOffsetHint = 0);
 	void setChooseReportMessagesDetails(
-		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> callback);
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> callback);
 	void clearAllLoadRequests();
 	void clearSupportPreloadRequest();
 	void clearDelayedShowAtRequest();
@@ -328,8 +328,8 @@ private:
 		int value;
 	};
 	struct ChooseMessagesForReport {
-		Ui::ReportReason reason = {};
-		Fn<void(MessageIdsList)> callback;
+		Data::ReportInput reportInput;
+		Fn<void(std::vector<MsgId>)> callback;
 		bool active = false;
 	};
 	struct ItemRevealAnimation {

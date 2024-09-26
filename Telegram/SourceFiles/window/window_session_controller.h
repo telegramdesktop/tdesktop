@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/gift_premium_box.h" // GiftPremiumValidator.
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_report.h"
 #include "dialogs/dialogs_key.h"
 #include "settings/settings_type.h"
 #include "window/window_adaptive.h"
@@ -55,7 +56,6 @@ class FormController;
 
 namespace Ui {
 class LayerWidget;
-enum class ReportReason;
 class ChatStyle;
 class ChatTheme;
 struct ChatThemeKey;
@@ -509,8 +509,8 @@ public:
 
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done) const;
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> done) const;
 	void clearChooseReportMessages() const;
 
 	void showInNewWindow(

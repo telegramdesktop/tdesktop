@@ -606,6 +606,7 @@ PRIVATE
     data/data_replies_list.h
     data/data_reply_preview.cpp
     data/data_reply_preview.h
+    data/data_report.h
     data/data_saved_messages.cpp
     data/data_saved_messages.h
     data/data_saved_sublist.cpp
