@@ -81,6 +81,7 @@ public:
 	[[nodiscard]] bool hideServiceText() const override {
 		return _content->hideServiceText();
 	}
+	void hideSpoilers() override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;

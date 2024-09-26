@@ -6,14 +6,20 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_service_box.h"
-//
-#include "history/view/history_view_cursor_state.h"
+
+#include "core/ui_integration.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_element.h"
+#include "history/view/history_view_text_helper.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
+#include "ui/effects/animation_value.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "styles/style_chat.h"
 #include "styles/style_premium.h"
 #include "styles/style_layers.h"
@@ -48,9 +54,15 @@ ServiceBox::ServiceBox(
 			EntityType::StrikeOut,
 			EntityType::Underline,
 			EntityType::Italic,
+			EntityType::Spoiler,
+			EntityType::CustomEmoji,
 		}),
 	kMarkupTextOptions,
-	_maxWidth)
+	_maxWidth,
+	Core::MarkedTextContext{
+		.session = &parent->history()->session(),
+		.customEmojiRepaint = [parent] { parent->customEmojiRepaint(); },
+	})
 , _size(
 	_content->width(),
 	(st::msgServiceGiftBoxTopSkip
@@ -67,6 +79,7 @@ ServiceBox::ServiceBox(
 			: (_content->buttonSkip() + st::msgServiceGiftBoxButtonHeight))
 		+ st::msgServiceGiftBoxButtonMargins.bottom()))
 , _innerSize(_size - QSize(0, st::msgServiceGiftBoxTopSkip)) {
+	InitElementTextPart(_parent, _subtitle);
 	if (auto text = _content->button()) {
 		_button.repaint = [=] { repaint(); };
 		std::move(text) | rpl::start_with_next([=](QString value) {
@@ -116,7 +129,17 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 			_title.draw(p, st::msgPadding.left(), top, _maxWidth, style::al_top);
 			top += _title.countHeight(_maxWidth) + padding.bottom();
 		}
-		_subtitle.draw(p, st::msgPadding.left(), top, _maxWidth, style::al_top);
+		_parent->prepareCustomEmojiPaint(p, context, _subtitle);
+		_subtitle.draw(p, {
+			.position = QPoint(st::msgPadding.left(), top),
+			.availableWidth = _maxWidth,
+			.align = style::al_top,
+			.palette = &context.st->serviceTextPalette(),
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
+		});
 		top += _subtitle.countHeight(_maxWidth) + padding.bottom();
 	}
 
@@ -180,8 +203,30 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 
 TextState ServiceBox::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
+	const auto content = contentRect();
+	const auto lookupSubtitleLink = [&] {
+		auto top = st::msgServiceGiftBoxTopSkip
+			+ content.top()
+			+ content.height();
+		const auto &padding = st::msgServiceGiftBoxTitlePadding;
+		top += padding.top();
+		if (!_title.isEmpty()) {
+			top += _title.countHeight(_maxWidth) + padding.bottom();
+		}
+		auto subtitleRequest = request.forText();
+		subtitleRequest.align = style::al_top;
+		const auto state = _subtitle.getState(
+			point - QPoint(st::msgPadding.left(), top),
+			_maxWidth,
+			subtitleRequest);
+		if (state.link) {
+			result.link = state.link;
+		}
+	};
 	if (_button.empty()) {
-		if (QRect(QPoint(), _innerSize).contains(point)) {
+		if (!_button.link) {
+			lookupSubtitleLink();
+		} else if (QRect(QPoint(), _innerSize).contains(point)) {
 			result.link = _button.link;
 		}
 	} else {
@@ -189,11 +234,13 @@ TextState ServiceBox::textState(QPoint point, StateRequest request) const {
 		if (rect.contains(point)) {
 			result.link = _button.link;
 			_button.lastPoint = point - rect.topLeft();
-		} else if (contentRect().contains(point)) {
+		} else if (content.contains(point)) {
 			if (!_contentLink) {
 				_contentLink = _content->createViewLink();
 			}
 			result.link = _contentLink;
+		} else {
+			lookupSubtitleLink();
 		}
 	}
 	return result;
@@ -236,6 +283,10 @@ bool ServiceBox::needsBubble() const {
 
 bool ServiceBox::customInfoLayout() const {
 	return false;
+}
+
+void ServiceBox::hideSpoilers() {
+	_subtitle.setSpoilerRevealed(false, anim::type::instant);
 }
 
 bool ServiceBox::hasHeavyPart() const {

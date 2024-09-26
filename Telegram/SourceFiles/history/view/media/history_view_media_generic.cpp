@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/round_rect.h"
 #include "styles/style_chat.h"
@@ -222,10 +223,15 @@ QMargins MediaGeneric::inBubblePadding() const {
 MediaGenericTextPart::MediaGenericTextPart(
 	TextWithEntities text,
 	QMargins margins,
-	const base::flat_map<uint16, ClickHandlerPtr> &links)
+	const base::flat_map<uint16, ClickHandlerPtr> &links,
+	const std::any &context)
 : _text(st::msgMinWidth)
 , _margins(margins) {
-	_text.setMarkedText(st::defaultTextStyle, text);
+	_text.setMarkedText(
+		st::defaultTextStyle,
+		text,
+		kMarkupTextOptions,
+		context);
 	for (const auto &[index, link] : links) {
 		_text.setLink(index, link);
 	}
@@ -248,7 +254,10 @@ void MediaGenericTextPart::draw(
 		.palette = &(service
 			? context.st->serviceTextPalette()
 			: context.messageStyle()->textPalette),
+		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = context.now,
+		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 	});
 }
 

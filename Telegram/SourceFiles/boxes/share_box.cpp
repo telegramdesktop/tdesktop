@@ -240,13 +240,12 @@ void ShareBox::prepareCommentField() {
 	}, field->lifetime());
 
 	if (const auto show = uiShow(); show->valid()) {
-		InitMessageFieldHandlers(
-			_descriptor.session,
-			Main::MakeSessionShow(show, _descriptor.session),
-			field,
-			nullptr,
-			nullptr,
-			_descriptor.stLabel);
+		InitMessageFieldHandlers({
+			.session = _descriptor.session,
+			.show = Main::MakeSessionShow(show, _descriptor.session),
+			.field = field,
+			.fieldStyle = _descriptor.stLabel,
+		});
 	}
 	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 

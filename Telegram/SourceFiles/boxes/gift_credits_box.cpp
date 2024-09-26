@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/send_credits_box.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/ui_integration.h"
@@ -65,7 +67,7 @@ namespace {
 
 constexpr auto kPriceTabAll = 0;
 constexpr auto kPriceTabLimited = -1;
-constexpr auto kGiftMessageLimit = 256;
+constexpr auto kGiftMessageLimit = 255;
 constexpr auto kSentToastDuration = 3 * crl::time(1000);
 
 using namespace HistoryView;
@@ -83,7 +85,7 @@ struct GiftsDescriptor {
 
 struct GiftDetails {
 	GiftDescriptor descriptor;
-	QString text;
+	TextWithEntities text;
 	bool anonymous = false;
 };
 
@@ -160,14 +162,16 @@ auto GenerateGiftMedia(
 		auto pushText = [&](
 				TextWithEntities text,
 				QMargins margins = {},
-				const base::flat_map<uint16, ClickHandlerPtr> &links = {}) {
+				const base::flat_map<uint16, ClickHandlerPtr> &links = {},
+				const std::any &context = {}) {
 			if (text.empty()) {
 				return;
 			}
 			push(std::make_unique<MediaGenericTextPart>(
 				std::move(text),
 				margins,
-				links));
+				links,
+				context));
 		};
 		const auto sticker = [=] {
 			using Tag = ChatHelpers::StickerLottieSize;
@@ -202,11 +206,18 @@ auto GenerateGiftMedia(
 			lt_count,
 			v::get<GiftTypeStars>(descriptor).convertStars,
 			Ui::Text::RichLangValue);
-		auto description = data.text.isEmpty()
+		auto description = data.text.empty()
 			? std::move(textFallback)
-			: TextWithEntities{ data.text };
+			: data.text;
 		pushText(Ui::Text::Bold(title), st::giftBoxPreviewTitlePadding);
-		pushText(std::move(description), st::giftBoxPreviewTextPadding);
+		pushText(
+			std::move(description),
+			st::giftBoxPreviewTextPadding,
+			{},
+			Core::MarkedTextContext{
+				.session = &parent->data()->history()->session(),
+				.customEmojiRepaint = [parent] { parent->repaint(); },
+			});
 	};
 }
 
@@ -732,10 +743,6 @@ void SendGiftBox(
 	});
 
 	const auto session = &window->session();
-	const auto context = Core::MarkedTextContext{
-		.session = session,
-		.customEmojiRepaint = [] {},
-	};
 	auto cost = rpl::single([&] {
 		return v::match(descriptor, [&](const GiftTypePremium &data) {
 			if (data.currency == Ui::kCreditsCurrency) {
@@ -777,9 +784,39 @@ void SendGiftBox(
 		kGiftMessageLimit);
 	text->changes() | rpl::start_with_next([=] {
 		auto now = state->details.current();
-		now.text = text->getLastText();
+		auto textWithTags = text->getTextWithAppliedMarkdown();
+		now.text = TextWithEntities{
+			std::move(textWithTags.text),
+			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags)
+		};
 		state->details = std::move(now);
 	}, text->lifetime());
+
+	const auto allow = [=](not_null<DocumentData*> emoji) {
+		return true;
+	};
+	InitMessageFieldHandlers({
+		.session = &window->session(),
+		.show = window->uiShow(),
+		.field = text,
+		.customEmojiPaused = [=] {
+			using namespace Window;
+			return window->isGifPausedAtLeastFor(GifPauseReason::Layer);
+		},
+		.allowPremiumEmoji = allow,
+		.allowMarkdownTags = {
+			Ui::InputField::kTagBold,
+			Ui::InputField::kTagItalic,
+			Ui::InputField::kTagUnderline,
+			Ui::InputField::kTagStrikeOut,
+			Ui::InputField::kTagSpoiler,
+		}
+	});
+	Ui::Emoji::SuggestionsController::Init(
+		box->getDelegate()->outerContainer(),
+		text,
+		&window->session(),
+		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 
 	AddDivider(container);
 	AddSkip(container);
@@ -825,7 +862,7 @@ void SendGiftBox(
 		Payments::CheckoutProcess::Start(Payments::InvoiceStarGift{
 			.giftId = gift.id,
 			.randomId = state->randomId,
-			.message = { details.text },
+			.message = details.text,
 			.user = peer->asUser(),
 			.anonymous = details.anonymous,
 		}, done, Payments::ProcessNonPanelPaymentFormFactory(window, done));
