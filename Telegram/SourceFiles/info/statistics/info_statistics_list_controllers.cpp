@@ -843,14 +843,16 @@ void CreditsRow::init() {
 	const auto name = !isSpecial
 		? PeerListRow::generateName()
 		: Ui::GenerateEntryName(_entry).text;
-	_name = (_entry.reaction || _entry.bareGiveawayMsgId)
+	_name = (_entry.reaction
+		|| _entry.bareGiveawayMsgId
+		|| _entry.convertStars)
 		? Ui::GenerateEntryName(_entry).text
 		: _entry.title.isEmpty()
 		? name
 		: _entry.title;
 	const auto joiner = QString(QChar(' ')) + QChar(8212) + QChar(' ');
 	PeerListRow::setCustomStatus(
-		langDateTimeFull(_entry.date)
+		langDateTime(_entry.date)
 		+ (_entry.refunded
 			? (joiner + tr::lng_channel_earn_history_return(tr::now))
 			: _entry.pending
@@ -889,7 +891,12 @@ void CreditsRow::init() {
 			_context);
 	}
 	if (!_paintUserpicCallback) {
-		_paintUserpicCallback = !isSpecial
+		_paintUserpicCallback = _entry.convertStars
+			? Ui::GenerateGiftStickerUserpicCallback(
+				_context.session,
+				_entry.bareGiftStickerId,
+				_context.customEmojiRepaint)
+			: !isSpecial
 			? PeerListRow::generatePaintUserpicCallback(false)
 			: Ui::GenerateCreditsPaintUserpicCallback(_entry);
 	}

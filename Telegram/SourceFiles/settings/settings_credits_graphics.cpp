@@ -730,15 +730,16 @@ void ReceiptCreditsBox(
 	const auto item = controller->session().data().message(
 		PeerId(e.barePeerId), MsgId(e.bareMsgId));
 	const auto isStarGift = (e.convertStars > 0);
-	const auto myStarGift = isStarGift && e.in;
+	const auto creditsHistoryStarGift = isStarGift && !e.id.isEmpty();
+	const auto sentStarGift = creditsHistoryStarGift && !e.in;
+	const auto convertedStarGift = creditsHistoryStarGift && e.converted;
+	const auto gotStarGift = isStarGift && !creditsHistoryStarGift && e.in;
 	const auto starGiftSender = (isStarGift && item)
 		? item->history()->peer->asUser()
 		: (isStarGift && e.in)
 		? controller->session().data().peer(PeerId(e.barePeerId))->asUser()
 		: nullptr;
-	const auto canConvert = myStarGift
-		&& !e.converted
-		&& starGiftSender;
+	const auto canConvert = gotStarGift && !e.converted && starGiftSender;
 
 	box->setStyle(canConvert ? st::starGiftBox : st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -815,11 +816,17 @@ void ReceiptCreditsBox(
 		) | rpl::start_with_next([=] {
 			auto p = Painter(icon);
 			const auto &lottie = state->lottie;
+			const auto factor = style::DevicePixelRatio();
+			const auto request = Lottie::FrameRequest{
+				.box = icon->size() * factor,
+			};
 			const auto frame = (lottie && lottie->ready())
-				? lottie->frameInfo({ .box = icon->size() })
+				? lottie->frameInfo(request)
 				: Lottie::Animation::FrameInfo();
 			if (!frame.image.isNull()) {
-				p.drawImage(0, 0, frame.image);
+				p.drawImage(
+					QRect(QPoint(), frame.image.size() / factor),
+					frame.image);
 				if (lottie->frameIndex() < lottie->framesCount() - 1) {
 					lottie->markFrameShown();
 				}
@@ -862,7 +869,11 @@ void ReceiptCreditsBox(
 				? tr::lng_credits_box_history_entry_subscription(tr::now)
 				: !e.title.isEmpty()
 				? e.title
-				: (isStarGift && !myStarGift)
+				: sentStarGift
+				? tr::lng_credits_box_history_entry_gift_sent(tr::now)
+				: convertedStarGift
+				? tr::lng_credits_box_history_entry_gift_converted(tr::now)
+				: (isStarGift && !gotStarGift)
 				? tr::lng_gift_link_label_gift(tr::now)
 				: e.gift
 				? tr::lng_credits_box_history_entry_gift_name(tr::now)
@@ -912,9 +923,9 @@ void ReceiptCreditsBox(
 				context);
 		} else {
 			auto t = TextWithEntities()
-				.append((e.in && !isStarGift)
+				.append((e.in && (creditsHistoryStarGift || !isStarGift))
 					? u"+"_q
-					: e.gift
+					: (e.gift && !creditsHistoryStarGift)
 					? QString()
 					: QString(kMinus))
 				.append(Lang::FormatCountDecimal(std::abs(int64(e.credits))))
@@ -942,9 +953,9 @@ void ReceiptCreditsBox(
 				? st::windowSubTextFg
 				: e.pending
 				? st::creditsStroke
-				: (e.in || isStarGift)
+				: (e.in || (isStarGift && !creditsHistoryStarGift))
 				? st::boxTextFgGood
-				: e.gift
+				: (e.gift && !creditsHistoryStarGift)
 				? st::windowBoldFg
 				: st::menuIconAttentionColor);
 			const auto x = (amount->width() - fullWidth) / 2;
@@ -997,7 +1008,7 @@ void ReceiptCreditsBox(
 				rpl::single(e.description),
 				st::creditsBoxAbout)));
 	}
-	if (myStarGift) {
+	if (gotStarGift) {
 		Ui::AddSkip(content);
 		const auto about = box->addRow(
 			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
@@ -1061,7 +1072,7 @@ void ReceiptCreditsBox(
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
 
-	if (isStarGift) {
+	if (isStarGift && e.id.isEmpty()) {
 		AddStarGiftTable(controller, content, e);
 	} else {
 		AddCreditsHistoryEntryTable(controller, content, e);
@@ -1082,7 +1093,7 @@ void ReceiptCreditsBox(
 						tr::lng_credits_box_out_about_link(tr::now)),
 					Ui::Text::WithEntities),
 				st::creditsBoxAboutDivider)));
-	} else if (myStarGift && e.fromGiftsList) {
+	} else if (gotStarGift && e.fromGiftsList) {
 		box->addRow(object_ptr<Ui::CenterWrap<>>(
 			box,
 			object_ptr<Ui::FlatLabel>(
@@ -1091,7 +1102,7 @@ void ReceiptCreditsBox(
 					? tr::lng_gift_visible_hint()
 					: tr::lng_gift_hidden_hint()),
 				st::creditsBoxAboutDivider)));
-	} else if (myStarGift && e.anonymous) {
+	} else if (gotStarGift && e.anonymous) {
 		box->addRow(object_ptr<Ui::CenterWrap<>>(
 			box,
 			object_ptr<Ui::FlatLabel>(

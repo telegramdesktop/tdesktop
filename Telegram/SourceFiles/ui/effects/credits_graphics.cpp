@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "history/view/media/history_view_sticker_player.h"
+#include "info/userpic/info_userpic_emoji_builder_preview.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/effects/premium_graphics.h"
@@ -436,6 +438,32 @@ PaintRoundImageCallback GeneratePaidMediaPaintCallback(
 		totalCount);
 }
 
+PaintRoundImageCallback GenerateGiftStickerUserpicCallback(
+		not_null<Main::Session*> session,
+		uint64 stickerId,
+		Fn<void()> update) {
+	struct State {
+		std::optional<UserpicBuilder::PreviewPainter> painter;
+		int size = 0;
+	};
+	const auto state = std::make_shared<State>();
+	//const auto document = session->data().document(stickerId);
+	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+		if (state->size != size || !state->painter) {
+			state->size = size;
+			state->painter.emplace(size * M_SQRT2);
+			state->painter->setDocument(
+				session->data().document(stickerId),
+				update);
+		}
+		const auto skip = int(base::SafeRound((size * (M_SQRT2 - 1.)) / 2.));
+		auto hq = PainterHighQualityEnabler(p);
+		p.translate(x - skip, y - skip);
+		state->painter->paintForeground(p);
+		p.translate(skip - x, skip - y);
+	};
+}
+
 Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 		not_null<Main::Session*> session,
 		const Data::CreditsHistoryEntry &entry) {
@@ -463,6 +491,10 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 		? tr::lng_credits_box_history_entry_reaction_name
 		: entry.bareGiveawayMsgId
 		? tr::lng_credits_box_history_entry_giveaway_name
+		: entry.converted
+		? tr::lng_credits_box_history_entry_gift_converted
+		: entry.convertStars
+		? tr::lng_credits_box_history_entry_gift_sent
 		: entry.gift
 		? tr::lng_credits_box_history_entry_gift_name
 		: (entry.peerType == Data::CreditsHistoryEntry::PeerType::Fragment)

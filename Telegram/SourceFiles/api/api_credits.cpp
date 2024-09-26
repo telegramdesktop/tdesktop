@@ -69,6 +69,8 @@ constexpr auto kTransactionsLimit = 100;
 	}, [](const auto &) {
 		return PeerId(0);
 	}).value;
+	const auto stargift = tl.data().vstargift();
+	const auto incoming = (int64(tl.data().vstars().v) >= 0);
 	return Data::CreditsHistoryEntry{
 		.id = qs(tl.data().vid()),
 		.title = qs(tl.data().vtitle().value_or_empty()),
@@ -81,6 +83,9 @@ constexpr auto kTransactionsLimit = 100;
 		.barePeerId = barePeerId,
 		.bareGiveawayMsgId = uint64(
 			tl.data().vgiveaway_post_id().value_or_empty()),
+		.bareGiftStickerId = (stargift
+			? owner->processDocument(stargift->data().vsticker())->id
+			: 0),
 		.peerType = tl.data().vpeer().match([](const HistoryPeerTL &) {
 			return Data::CreditsHistoryEntry::PeerType::Peer;
 		}, [](const MTPDstarsTransactionPeerPlayMarket &) {
@@ -104,12 +109,16 @@ constexpr auto kTransactionsLimit = 100;
 			? base::unixtime::parse(tl.data().vtransaction_date()->v)
 			: QDateTime(),
 		.successLink = qs(tl.data().vtransaction_url().value_or_empty()),
+		.convertStars = int(stargift
+			? stargift->data().vconvert_stars().v
+			: 0),
+		.converted = stargift && incoming,
 		.reaction = tl.data().is_reaction(),
 		.refunded = tl.data().is_refund(),
 		.pending = tl.data().is_pending(),
 		.failed = tl.data().is_failed(),
-		.in = (int64(tl.data().vstars().v) >= 0),
-		.gift = tl.data().is_gift(),
+		.in = incoming,
+		.gift = tl.data().is_gift() || stargift.has_value(),
 	};
 }
 
