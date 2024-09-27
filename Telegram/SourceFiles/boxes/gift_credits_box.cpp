@@ -784,14 +784,11 @@ struct GiftPriceTabs {
 		}
 		return base::EventFilterResult::Continue;
 	};
-	base::install_event_filter(field, outer, filterCallback);
-	updateEmojiPanelGeometry();
-
-	rpl::merge(
-		toggle->geometryValue(),
-		container->geometryValue(),
-		field->geometryValue()
-	) | rpl::start_with_next(updateEmojiPanelGeometry, panel->lifetime());
+	for (auto widget = (QWidget*)field, end = (QWidget*)outer->parentWidget()
+		; widget && widget != end
+		; widget = widget->parentWidget()) {
+		base::install_event_filter(field, widget, filterCallback);
+	}
 
 	toggle->installEventFilter(panel);
 	toggle->addClickHandler([=] {
