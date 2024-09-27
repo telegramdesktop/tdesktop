@@ -3247,6 +3247,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_open_link" = "Open";
 "lng_allow_bot_pass" = "Allow {bot_name} to pass your Telegram name and ID (not your phone number) to the web pages you open via this bot?";
 "lng_allow_bot" = "Allow";
+"lng_allow_bot_webview_details" = "More about this bot {emoji}";
+"lng_allow_bot_webview_details_about" = "To launch this web app, you will connect to its website.\n\nIt will be able to access your **IP address** and basic device info.";
 "lng_allow_bot_webview" = "{bot_name} would like to open its web app to proceed.\n\nIt will be able to access your **IP address** and basic device info.";
 "lng_url_auth_open_confirm" = "Do you want to open {link}?";
 "lng_url_auth_login_option" = "Log in to {domain} as {user}";

@@ -10,58 +10,65 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_blocked_peers.h"
 #include "api/api_common.h"
 #include "api/api_sending.h"
+#include "apiwrap.h"
 #include "base/qthelp_url.h"
+#include "base/random.h"
+#include "base/timer_rpl.h"
+#include "boxes/peer_list_controllers.h"
 #include "boxes/share_box.h"
+#include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/local_url_handlers.h"
 #include "core/shortcuts.h"
 #include "data/components/location_pickers.h"
 #include "data/data_bot_app.h"
 #include "data/data_changes.h"
-#include "data/data_user.h"
-#include "data/data_file_origin.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer_bot_command.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "data/data_web_page.h"
-#include "main/main_app_config.h"
-#include "main/main_session.h"
-#include "main/main_domain.h"
-#include "storage/storage_domain.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "info/profile/info_profile_values.h"
 #include "iv/iv_instance.h"
+#include "lang/lang_keys.h"
+#include "main/main_app_config.h"
+#include "main/main_domain.h"
+#include "main/main_session.h"
+#include "mainwidget.h"
+#include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
+#include "storage/storage_account.h"
+#include "storage/storage_domain.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/controls/location_picker.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/widgets/dropdown_menu.h"
-#include "ui/widgets/popup_menu.h"
-#include "ui/widgets/menu/menu_item_base.h"
-#include "ui/text/text_utilities.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+#include "ui/text/text_utilities.h"
+#include "ui/vertical_list.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/label_with_custom_emoji.h"
+#include "ui/widgets/menu/menu_item_base.h"
+#include "ui/widgets/popup_menu.h"
+#include "webview/webview_interface.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
-#include "webview/webview_interface.h"
-#include "core/application.h"
-#include "core/local_url_handlers.h"
-#include "ui/basic_click_handlers.h"
-#include "history/history.h"
-#include "history/history_item.h"
-#include "payments/payments_checkout_process.h"
-#include "payments/payments_non_panel_process.h"
-#include "storage/storage_account.h"
-#include "boxes/peer_list_controllers.h"
-#include "lang/lang_keys.h"
-#include "base/random.h"
-#include "base/timer_rpl.h"
-#include "apiwrap.h"
-#include "mainwidget.h"
 #include "styles/style_boxes.h"
+#include "styles/style_channel_earn.h"
+#include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_window.h"
 
 #include <QSvgRenderer>
 
@@ -792,11 +799,51 @@ void WebViewInstance::confirmAppOpen(
 			botClose();
 			close();
 		};
+		{
+			auto arrow = Ui::Text::SingleCustomEmoji(
+				_bot->owner().customEmojiManager().registerInternalEmoji(
+					st::topicButtonArrow,
+					st::channelEarnLearnArrowMargins,
+					false));
+			auto aboutLabel = Ui::CreateLabelWithCustomEmoji(
+				box->verticalLayout(),
+				tr::lng_allow_bot_webview_details(
+					lt_emoji,
+					rpl::single(std::move(arrow)),
+					Ui::Text::RichLangValue
+				) | rpl::map([](TextWithEntities text) {
+					return Ui::Text::Link(std::move(text), u"internal:"_q);
+				}),
+				{ .session = &_bot->session() },
+				st::defaultFlatLabel);
+			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+				box->verticalLayout(),
+				_bot,
+				st::mainMenuUserpic);
+			Ui::AddSkip(box->verticalLayout());
+			aboutLabel->setClickHandlerFilter([=, weak = _context.controller](
+					const ClickHandlerPtr &,
+					Qt::MouseButton) {
+				if (const auto strong = weak.get()) {
+					strong->showPeerHistory(
+						_bot->id,
+						Window::SectionShow::Way::Forward);
+					return true;
+				}
+				return false;
+			});
+			Ui::IconWithTitle(
+				box->verticalLayout(),
+				userpic,
+				Ui::CreateChild<Ui::FlatLabel>(
+					box->verticalLayout(),
+					rpl::single(_bot->name()),
+					box->getDelegate()->style().title),
+				aboutLabel);
+		}
 		Ui::ConfirmBox(box, {
-			tr::lng_allow_bot_webview(
+			tr::lng_allow_bot_webview_details_about(
 				tr::now,
-				lt_bot_name,
-				Ui::Text::Bold(_bot->name()),
 				Ui::Text::RichLangValue),
 			crl::guard(this, callback),
 			crl::guard(this, cancelled),
