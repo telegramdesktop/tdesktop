@@ -593,10 +593,12 @@ void FillPeerQrBox(
 					auto pen = st::activeLineFg->p;
 					pen.setWidth(st::defaultInputField.borderActive);
 					p.setPen(pen);
+					const auto r = st::roundRadiusLarge
+						+ activewidth * 2.1 * style::DevicePixelRatio();
 					p.drawRoundedRect(
 						widget->rect() - Margins(pen.width()),
-						st::roundRadiusLarge + activewidth * 4.2,
-						st::roundRadiusLarge + activewidth * 4.2);
+						r,
+						r);
 				}
 			}, widget->lifetime());
 			counter++;
