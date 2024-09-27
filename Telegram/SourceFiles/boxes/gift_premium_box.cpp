@@ -1796,12 +1796,23 @@ void AddStarGiftTable(
 					Ui::Text::WithEntities)));
 	}
 	if (!entry.description.empty()) {
+		const auto session = &controller->session();
+		const auto makeContext = [=](Fn<void()> update) {
+			return Core::MarkedTextContext{
+				.session = session,
+				.customEmojiRepaint = std::move(update),
+			};
+		};
+		auto label = object_ptr<Ui::FlatLabel>(
+			table,
+			rpl::single(entry.description),
+			st::giveawayGiftMessage,
+			st::defaultPopupMenu,
+			makeContext);
+		label->setSelectable(true);
 		table->addRow(
 			nullptr,
-			object_ptr<Ui::FlatLabel>(
-				table,
-				rpl::single(entry.description),
-				st::giveawayGiftCodeValue),
+			std::move(label),
 			st::giveawayGiftCodeLabelMargin,
 			st::giveawayGiftCodeValueMargin);
 	}
