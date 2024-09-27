@@ -1121,22 +1121,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		if (user) {
 			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
 				usernameLine.text->parentWidget(),
-				user->isBot()
-					? st::infoProfileLabeledButtonCopy
-					: st::infoProfileLabeledButtonQr);
+				st::infoProfileLabeledButtonQr);
 			fitLabelToButton(copyUsername, usernameLine.text);
 			copyUsername->setClickedCallback([=] {
-				if (!user->isBot()) {
-					controller->show(
-						Box(Ui::FillPeerQrBox, user, std::nullopt, nullptr));
-					return false;
-				}
-				const auto link = user->session().createInternalLinkFull(
-					user->username());
-				if (!link.isEmpty()) {
-					QGuiApplication::clipboard()->setText(link);
-					controller->showToast(tr::lng_username_copied(tr::now));
-				}
+				controller->show(
+					Box(Ui::FillPeerQrBox, user, std::nullopt, nullptr));
 				return false;
 			});
 		} else {
