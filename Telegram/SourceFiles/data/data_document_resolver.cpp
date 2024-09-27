@@ -42,6 +42,8 @@ namespace {
 base::options::toggle OptionExternalVideoPlayer({
 	.id = kOptionExternalVideoPlayer,
 	.name = "External video player",
+	.description = "Use system video player instead of the internal one. "
+		"This disabes video playback in messages.",
 });
 
 void ConfirmDontWarnBox(
