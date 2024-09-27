@@ -6,7 +6,8 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/gift_credits_box.h"
-//
+
+#include "base/event_filter.h"
 #include "base/random.h"
 #include "api/api_premium.h"
 #include "boxes/peer_list_controllers.h"
@@ -15,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "chat_helpers/tabbed_panel.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "core/ui_integration.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -39,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/controls/emoji_button.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
@@ -57,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
@@ -710,7 +715,9 @@ struct GiftPriceTabs {
 }
 
 [[nodiscard]] not_null<Ui::InputField*> AddPartInput(
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
+		not_null<QWidget*> outer,
 		rpl::producer<QString> placeholder,
 		QString current,
 		int limit) {
@@ -723,7 +730,74 @@ struct GiftPriceTabs {
 			current),
 		st::giftBoxTextPadding);
 	field->setMaxLength(limit);
-	Ui::AddLengthLimitLabel(field, limit);
+	Ui::AddLengthLimitLabel(field, limit, std::nullopt, st::giftBoxLimitTop);
+
+	const auto toggle = Ui::CreateChild<Ui::EmojiButton>(
+		container,
+		st::defaultComposeFiles.emoji);
+	toggle->show();
+	field->geometryValue() | rpl::start_with_next([=](QRect r) {
+		toggle->move(
+			r.x() + r.width() - toggle->width(),
+			r.y() - st::giftBoxEmojiToggleTop);
+	}, toggle->lifetime());
+
+	using namespace ChatHelpers;
+	const auto panel = field->lifetime().make_state<TabbedPanel>(
+		outer,
+		controller,
+		object_ptr<TabbedSelector>(
+			nullptr,
+			controller->uiShow(),
+			Window::GifPauseReason::Layer,
+			TabbedSelector::Mode::EmojiOnly));
+	panel->setDesiredHeightValues(
+		1.,
+		st::emojiPanMinHeight / 2,
+		st::emojiPanMinHeight);
+	panel->hide();
+	panel->selector()->setAllowEmojiWithoutPremium(true);
+	panel->selector()->emojiChosen(
+	) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
+		Ui::InsertEmojiAtCursor(field->textCursor(), data.emoji);
+	}, field->lifetime());
+	panel->selector()->customEmojiChosen(
+	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
+		Data::InsertCustomEmoji(field, data.document);
+	}, field->lifetime());
+
+	const auto updateEmojiPanelGeometry = [=] {
+		const auto parent = panel->parentWidget();
+		const auto global = toggle->mapToGlobal({ 0, 0 });
+		const auto local = parent->mapFromGlobal(global);
+		panel->moveBottomRight(
+			local.y(),
+			local.x() + toggle->width() * 3);
+	};
+
+	const auto filterCallback = [=](not_null<QEvent*> event) {
+		const auto type = event->type();
+		if (type == QEvent::Move || type == QEvent::Resize) {
+			// updateEmojiPanelGeometry uses not only container geometry, but
+			// also container children geometries that will be updated later.
+			crl::on_main(field, updateEmojiPanelGeometry);
+		}
+		return base::EventFilterResult::Continue;
+	};
+	base::install_event_filter(field, outer, filterCallback);
+	updateEmojiPanelGeometry();
+
+	rpl::merge(
+		toggle->geometryValue(),
+		container->geometryValue(),
+		field->geometryValue()
+	) | rpl::start_with_next(updateEmojiPanelGeometry, panel->lifetime());
+
+	toggle->installEventFilter(panel);
+	toggle->addClickHandler([=] {
+		panel->toggleAnimated();
+	});
+
 	return field;
 }
 
@@ -778,7 +852,9 @@ void SendGiftBox(
 		state->details.value()));
 
 	const auto text = AddPartInput(
+		window,
 		container,
+		box->getDelegate()->outerContainer(),
 		tr::lng_gift_send_message(),
 		QString(),
 		kGiftMessageLimit);

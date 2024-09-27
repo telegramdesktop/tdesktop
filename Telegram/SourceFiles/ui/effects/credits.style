@@ -133,3 +133,5 @@ giftListAbout: FlatLabel(defaultFlatLabel) {
 	style: boxLabelStyle;
 }
 giftListAboutMargin: margins(12px, 24px, 12px, 24px);
+giftBoxEmojiToggleTop: 7px;
+giftBoxLimitTop: 28px;
