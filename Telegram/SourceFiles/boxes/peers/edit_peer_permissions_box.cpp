@@ -1129,11 +1129,14 @@ void ShowEditPeerPermissionsBox(
 			disabledByAdminRights,
 			tr::lng_rights_permission_cant_edit(tr::now));
 		if (const auto channel = peer->asChannel()) {
-			if (channel->isPublic()
-				|| (channel->isMegagroup() && channel->linkedChat())) {
+			if (channel->isPublic()) {
 				result.emplace(
 					Flag::ChangeInfo | Flag::PinMessages,
 					tr::lng_rights_permission_unavailable(tr::now));
+			} else if (channel->isMegagroup() && channel->linkedChat()) {
+				result.emplace(
+					Flag::ChangeInfo | Flag::PinMessages,
+					tr::lng_rights_permission_in_discuss(tr::now));
 			}
 		}
 		return result;

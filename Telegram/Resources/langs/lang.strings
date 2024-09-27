@@ -4236,6 +4236,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_restriction_for_all" = "This option is disabled for all members in Group Permissions.";
 "lng_rights_permission_for_all" = "This option is enabled for all members in Group Permissions.";
 "lng_rights_permission_unavailable" = "This permission is not available in public groups.";
+"lng_rights_permission_in_discuss" = "This permission is not available in discussion groups.";
 "lng_rights_permission_cant_edit" = "You cannot change this permission.";
 "lng_rights_user_restrictions" = "User permissions";
 "lng_rights_user_restrictions_header" = "What can this member do?";
