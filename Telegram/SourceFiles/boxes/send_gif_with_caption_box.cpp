@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/send_gif_with_caption_box.h"
 
+#include "base/event_filter.h"
 #include "boxes/premium_preview_box.h"
+#include "chat_helpers/field_autocomplete.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -30,9 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/emoji_button_factory.h"
 #include "ui/layers/generic_box.h"
-#include "ui/rect.h"
-#include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/rect.h"
+#include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
@@ -226,6 +229,7 @@ namespace {
 void SendGifWithCaptionBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<DocumentData*> document,
+		not_null<PeerData*> peer,
 		const SendMenu::Details &details,
 		Fn<void(Api::SendOptions, TextWithTags)> done) {
 	const auto window = Core::App().findWindow(box);
@@ -255,6 +259,61 @@ void SendGifWithCaptionBox(
 		return true;
 	});
 
+	const auto sendMenuDetails = [=] { return details; };
+	struct Autocomplete {
+		std::unique_ptr<ChatHelpers::FieldAutocomplete> dropdown;
+		bool geometryUpdateScheduled = false;
+	};
+	const auto autocomplete = box->lifetime().make_state<Autocomplete>();
+	const auto outer = box->getDelegate()->outerContainer();
+	ChatHelpers::InitFieldAutocomplete(autocomplete->dropdown, {
+		.parent = outer,
+		.show = controller->uiShow(),
+		.field = input,
+		.peer = peer,
+		.features = [=] {
+			auto result = ChatHelpers::ComposeFeatures();
+			result.autocompleteCommands = false;
+			result.suggestStickersByEmoji = false;
+			return result;
+		},
+		.sendMenuDetails = sendMenuDetails,
+	});
+	const auto raw = autocomplete->dropdown.get();
+	const auto recountPostponed = [=] {
+		if (autocomplete->geometryUpdateScheduled) {
+			return;
+		}
+		autocomplete->geometryUpdateScheduled = true;
+		Ui::PostponeCall(raw, [=] {
+			autocomplete->geometryUpdateScheduled = false;
+
+			const auto from = input->parentWidget();
+			auto field = Ui::MapFrom(outer, from, input->geometry());
+			const auto &st = st::defaultComposeFiles;
+			autocomplete->dropdown->setBoundings(QRect(
+				field.x() - input->x(),
+				st::defaultBox.margin.top(),
+				input->width(),
+				(field.y()
+					+ st.caption.textMargins.top()
+					+ st.caption.placeholderShift
+					+ st.caption.placeholderFont->height
+					- st::defaultBox.margin.top())));
+		});
+	};
+	for (auto w = (QWidget*)input; w; w = w->parentWidget()) {
+		base::install_event_filter(raw, w, [=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::Move || e->type() == QEvent::Resize) {
+				recountPostponed();
+			}
+			return base::EventFilterResult::Continue;
+		});
+		if (w == outer) {
+			break;
+		}
+	}
+
 	const auto send = [=](Api::SendOptions options) {
 		done(std::move(options), input->getTextWithTags());
 	};
@@ -264,8 +323,15 @@ void SendGifWithCaptionBox(
 	SendMenu::SetupMenuAndShortcuts(
 		confirm,
 		controller->uiShow(),
-		[=] { return details; },
+		sendMenuDetails,
 		SendMenu::DefaultCallback(controller->uiShow(), send));
+	box->setShowFinishedCallback([=] {
+		if (const auto raw = autocomplete->dropdown.get()) {
+			InvokeQueued(raw, [=] {
+				raw->raise();
+			});
+		}
+	});
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
 	});

@@ -409,17 +409,19 @@ base::unique_qptr<Ui::PopupMenu> GifsListWidget::fillContextMenu(
 		SendMenu::DefaultCallback(_show, send),
 		icons);
 
-	if (!isInlineResult) {
+	if (!isInlineResult && _inlineQueryPeer) {
 		auto done = crl::guard(this, [=](
 				Api::SendOptions options,
 				TextWithTags text) {
 			selectInlineResult(selected, options, true, std::move(text));
 		});
 		const auto show = _show;
+		const auto peer = _inlineQueryPeer;
 		menu->addAction(tr::lng_send_gif_with_caption(tr::now), [=] {
 			show->show(Box(
 				Ui::SendGifWithCaptionBox,
 				item->getDocument(),
+				peer,
 				copyDetails,
 				std::move(done)));
 		}, &st::menuIconEdit);
