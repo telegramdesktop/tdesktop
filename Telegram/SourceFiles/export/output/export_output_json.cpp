@@ -293,7 +293,7 @@ QByteArray SerializeMessage(
 	const auto wrapPeerId = [&](PeerId peerId) {
 		if (const auto chat = peerToChat(peerId)) {
 			return SerializeString("chat"
-					+ Data::NumberToString(chat.bare));
+				+ Data::NumberToString(chat.bare));
 		} else if (const auto channel = peerToChannel(peerId)) {
 			return SerializeString("channel"
 				+ Data::NumberToString(channel.bare));
