@@ -581,7 +581,6 @@ void InitMessageField(
 		[=] { return show->paused(ChatHelpers::PauseReason::Any); },
 		std::move(allowPremiumEmoji));
 	InitMessageFieldGeometry(field);
-	field->customTab(true);
 }
 
 void InitMessageField(
