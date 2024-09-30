@@ -276,8 +276,6 @@ PRIVATE
     boxes/edit_caption_box.h
     boxes/edit_privacy_box.cpp
     boxes/edit_privacy_box.h
-    boxes/gift_credits_box.cpp
-    boxes/gift_credits_box.h
     boxes/gift_premium_box.cpp
     boxes/gift_premium_box.h
     boxes/language_box.cpp
@@ -322,6 +320,8 @@ PRIVATE
     boxes/sessions_box.h
     boxes/share_box.cpp
     boxes/share_box.h
+    boxes/star_gift_box.cpp
+    boxes/star_gift_box.h
     boxes/sticker_set_box.cpp
     boxes/sticker_set_box.h
     boxes/stickers_box.cpp

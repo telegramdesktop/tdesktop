@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/gift_credits_box.h"
+#include "boxes/star_gift_box.h"
 
 #include "base/event_filter.h"
 #include "base/random.h"
@@ -1254,7 +1254,7 @@ void GiftBox(
 
 } // namespace
 
-void ShowGiftCreditsBox(
+void ChooseStarGiftRecipient(
 		not_null<Window::SessionController*> controller,
 		Fn<void()> gifted) {
 
@@ -1292,15 +1292,21 @@ void ShowGiftCreditsBox(
 		peersBox->addButton(tr::lng_cancel(), [=] { peersBox->closeBox(); });
 	};
 
-	const auto show = controller->uiShow();
 	auto listController = std::make_unique<Controller>(
 		&controller->session(),
 		[=](not_null<PeerData*> peer) {
-			show->showBox(Box(GiftBox, controller, peer, gifted));
+			ShowStarGiftBox(controller, peer, gifted);
 		});
-	show->showBox(
+	controller->show(
 		Box<PeerListBox>(std::move(listController), std::move(initBox)),
 		LayerOption::KeepOther);
+}
+
+void ShowStarGiftBox(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		Fn<void()> gifted) {
+	controller->show(Box(GiftBox, controller, peer, gifted));
 }
 
 } // namespace Ui

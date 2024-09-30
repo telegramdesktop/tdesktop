@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_report.h"
 #include "menu/menu_check_item.h"
 #include "boxes/share_box.h"
+#include "boxes/star_gift_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/share_message_phrase_factory.h"
@@ -1239,7 +1240,7 @@ void Filler::addGiftPremium() {
 
 	const auto navigation = _controller;
 	_addAction(tr::lng_profile_gift_premium(tr::now), [=] {
-		navigation->showGiftPremiumBox(user);
+		Ui::ChooseStarGiftRecipient(navigation, [] {});
 	}, &st::menuIconGiftPremium);
 }
 

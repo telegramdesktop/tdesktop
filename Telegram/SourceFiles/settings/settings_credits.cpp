@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits.h"
 
 #include "api/api_credits.h"
-#include "boxes/gift_credits_box.h"
+#include "boxes/star_gift_box.h"
 #include "boxes/gift_premium_box.h"
 #include "core/click_handler_types.h"
 #include "data/components/credits.h"
@@ -69,7 +69,6 @@ public:
 
 private:
 	void setupContent();
-	void setupOptions(not_null<Ui::VerticalLayout*> container);
 	void setupHistory(not_null<Ui::VerticalLayout*> container);
 	void setupSubscriptions(not_null<Ui::VerticalLayout*> container);
 
@@ -361,7 +360,7 @@ void Credits::setupContent() {
 		Ui::AddSkip(content);
 		Ui::AddDivider(content);
 		giftButton->setClickedCallback([=] {
-			Ui::ShowGiftCreditsBox(_controller, paid);
+			Ui::ChooseStarGiftRecipient(_controller, paid);
 		});
 	}
 

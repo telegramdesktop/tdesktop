@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/share_box.h"
+#include "boxes/star_gift_box.h"
 #include "boxes/translate_box.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -705,7 +706,7 @@ base::options::toggle ShowPeerIdBelowAbout({
 
 	button->setClickedCallback([=] {
 		if (!button->isDisabled()) {
-			controller->showGiftPremiumsBox(user, u"birthday"_q);
+			Ui::ShowStarGiftBox(controller, user, [] {});
 		}
 	});
 

@@ -8,11 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
-#include "boxes/gift_premium_box.h" // GiftPremiumValidator.
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_chat_participant_status.h"
 #include "data/data_report.h"
 #include "dialogs/dialogs_key.h"
+#include "mtproto/sender.h"
 #include "settings/settings_type.h"
 #include "window/window_adaptive.h"
 
@@ -407,11 +407,6 @@ public:
 		Dialogs::RowDescriptor from = {}) const;
 
 	void showEditPeerBox(PeerData *peer);
-	void showGiftPremiumBox(UserData *user);
-	void showGiftPremiumsBox(const QString &ref);
-
-	// Single user gift as if was selected in multiple recipients chooser.
-	void showGiftPremiumsBox(not_null<UserData*> user, const QString &ref);
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
@@ -734,8 +729,6 @@ private:
 	rpl::variable<PeerThemeOverride> _peerThemeOverride;
 
 	base::has_weak_ptr _storyOpenGuard;
-
-	GiftPremiumValidator _giftPremiumValidator;
 
 	QString _premiumRef;
 
