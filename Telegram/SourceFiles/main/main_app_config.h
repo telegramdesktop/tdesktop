@@ -63,6 +63,8 @@ public:
 		return _ignoreRestrictionChanges.events();
 	}
 
+	[[nodiscard]] int quoteLengthMax() const;
+
 	void refresh(bool force = false);
 
 private:

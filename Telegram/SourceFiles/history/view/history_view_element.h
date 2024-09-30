@@ -294,6 +294,7 @@ struct SelectedQuote {
 	HistoryItem *item = nullptr;
 	TextWithEntities text;
 	int offset = 0;
+	bool overflown = false;
 
 	explicit operator bool() const {
 		return item && !text.empty();

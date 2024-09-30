@@ -38,6 +38,10 @@ void AppConfig::start() {
 	}, _lifetime);
 }
 
+int AppConfig::quoteLengthMax() const {
+	return get<int>(u"quote_length_max"_q, 1024);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

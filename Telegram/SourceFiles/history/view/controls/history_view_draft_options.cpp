@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/painter.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "window/themes/window_theme.h"
@@ -843,7 +844,14 @@ void DraftOptionsBox(
 			: tr::lng_reply_quote_selected();
 	}) | rpl::flatten_latest();
 	box->addButton(std::move(save), [=] {
-		finish(resolveReply(), state->webpage);
+		if (state->quote.current().overflown) {
+			show->showToast({
+				.title = tr::lng_reply_quote_long_title(tr::now),
+				.text = tr::lng_reply_quote_long_text(tr::now),
+				});
+		} else {
+			finish(resolveReply(), state->webpage);
+		}
 	});
 
 	box->addButton(tr::lng_cancel(), [=] {

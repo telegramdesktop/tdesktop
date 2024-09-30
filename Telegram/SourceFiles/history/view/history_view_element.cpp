@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "window/window_session_controller.h"
@@ -1652,6 +1653,12 @@ SelectedQuote Element::FindSelectedQuote(
 	if (modified.empty() || modified.to > result.text.size()) {
 		return {};
 	}
+	const auto session = &item->history()->session();
+	const auto limit = session->appConfig().quoteLengthMax();
+	const auto overflown = (modified.from + limit < modified.to);
+	if (overflown) {
+		modified.to = modified.from + limit;
+	}
 	result.text = result.text.mid(
 		modified.from,
 		modified.to - modified.from);
@@ -1678,7 +1685,7 @@ SelectedQuote Element::FindSelectedQuote(
 			++i;
 		}
 	}
-	return { item, result, modified.from };
+	return { item, result, modified.from, overflown };
 }
 
 TextSelection Element::FindSelectionFromQuote(
