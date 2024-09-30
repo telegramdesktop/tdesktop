@@ -1564,7 +1564,7 @@ auto HtmlWriter::Wrap::pushMessage(
 				block.append(pushTag("div", {
 					{ "class", "userpics" },
 				}));
-				for (const auto& recent : reaction.recent) {
+				for (const auto &recent : reaction.recent) {
 					auto peer = peers.peer(recent.peerId);
 					block.append(pushUserpic(UserpicData({
 						.colorIndex = peer.colorIndex(),
