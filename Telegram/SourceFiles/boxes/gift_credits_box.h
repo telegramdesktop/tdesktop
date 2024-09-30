@@ -13,11 +13,8 @@ class SessionController;
 
 namespace Ui {
 
-void ChooseStarGiftRecipient(
-	not_null<Window::SessionController*> controller);
-
-void ShowStarGiftBox(
+void ShowGiftCreditsBox(
 	not_null<Window::SessionController*> controller,
-	not_null<PeerData*> peer);
+	Fn<void()> gifted);
 
 } // namespace Ui

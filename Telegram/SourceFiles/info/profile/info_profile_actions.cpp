@@ -706,7 +706,7 @@ base::options::toggle ShowPeerIdBelowAbout({
 
 	button->setClickedCallback([=] {
 		if (!button->isDisabled()) {
-			Ui::ShowStarGiftBox(controller, user, [] {});
+			Ui::ShowStarGiftBox(controller, user);
 		}
 	});
 

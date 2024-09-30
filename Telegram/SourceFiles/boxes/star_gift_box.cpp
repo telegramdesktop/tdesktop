@@ -1168,8 +1168,7 @@ void AddBlock(
 void GiftBox(
 		not_null<GenericBox*> box,
 		not_null<Window::SessionController*> window,
-		not_null<PeerData*> peer,
-		Fn<void()> gifted) {
+		not_null<PeerData*> peer) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::creditsGiftBox);
 	box->setNoContentMargin(true);
@@ -1255,9 +1254,7 @@ void GiftBox(
 } // namespace
 
 void ChooseStarGiftRecipient(
-		not_null<Window::SessionController*> controller,
-		Fn<void()> gifted) {
-
+		not_null<Window::SessionController*> controller) {
 	class Controller final : public ContactsBoxController {
 	public:
 		Controller(
@@ -1295,7 +1292,7 @@ void ChooseStarGiftRecipient(
 	auto listController = std::make_unique<Controller>(
 		&controller->session(),
 		[=](not_null<PeerData*> peer) {
-			ShowStarGiftBox(controller, peer, gifted);
+			ShowStarGiftBox(controller, peer);
 		});
 	controller->show(
 		Box<PeerListBox>(std::move(listController), std::move(initBox)),
@@ -1304,9 +1301,8 @@ void ChooseStarGiftRecipient(
 
 void ShowStarGiftBox(
 		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> peer,
-		Fn<void()> gifted) {
-	controller->show(Box(GiftBox, controller, peer, gifted));
+		not_null<PeerData*> peer) {
+	controller->show(Box(GiftBox, controller, peer));
 }
 
 } // namespace Ui

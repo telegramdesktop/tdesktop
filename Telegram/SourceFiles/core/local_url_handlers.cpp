@@ -1133,7 +1133,7 @@ bool ResolvePremiumMultigift(
 	if (!controller) {
 		return false;
 	}
-	Ui::ChooseStarGiftRecipient(controller, [] {});
+	Ui::ChooseStarGiftRecipient(controller);
 	controller->window().activate();
 	return true;
 }

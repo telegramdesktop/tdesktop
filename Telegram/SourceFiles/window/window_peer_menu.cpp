@@ -1240,7 +1240,7 @@ void Filler::addGiftPremium() {
 
 	const auto navigation = _controller;
 	_addAction(tr::lng_profile_gift_premium(tr::now), [=] {
-		Ui::ChooseStarGiftRecipient(navigation, [] {});
+		Ui::ChooseStarGiftRecipient(navigation);
 	}, &st::menuIconGiftPremium);
 }
 
