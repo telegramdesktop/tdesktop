@@ -370,8 +370,10 @@ std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
 	for (const auto &single : data.data().vresults().v) {
 		auto reaction = ParseReaction(single.data().vreaction());
 		reaction.count = single.data().vcount().v;
-		auto id = Reaction::Id(reaction);
-		auto const &[_, inserted] = reactionsMap.try_emplace(id, reaction);
+		const auto id = Reaction::Id(reaction);
+		auto const &[_, inserted] = reactionsMap.try_emplace(
+			id,
+			std::move(reaction));
 		if (inserted) {
 			reactionsOrder.push_back(id);
 		}
@@ -380,8 +382,10 @@ std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
 		if (const auto list = data.data().vrecent_reactions()) {
 			for (const auto &single : list->v) {
 				auto reaction = ParseReaction(single.data().vreaction());
-				auto id = Reaction::Id(reaction);
-				auto const &[it, inserted] = reactionsMap.try_emplace(id, reaction);
+				const auto id = Reaction::Id(reaction);
+				auto const &[it, inserted] = reactionsMap.try_emplace(
+					id,
+					std::move(reaction));
 				if (inserted) {
 					reactionsOrder.push_back(id);
 				}
@@ -392,11 +396,11 @@ std::vector<Reaction> ParseReactions(const MTPMessageReactions &data) {
 			}
 		}
 	}
-	std::vector<Reaction> results;
-	for (const auto &id : reactionsOrder) {
-		results.push_back(reactionsMap[id]);
-	}
-	return results;
+	return ranges::views::all(
+		reactionsOrder
+	) | ranges::views::transform([&](const Utf8String &id) {
+		return reactionsMap.at(id);
+	}) | ranges::to_vector;
 }
 
 Utf8String FillLeft(const Utf8String &data, int length, char filler) {

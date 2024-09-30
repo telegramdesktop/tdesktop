@@ -1556,9 +1556,9 @@ auto HtmlWriter::Wrap::pushMessage(
 	if (!message.reactions.empty()) {
 		block.append(pushDiv("reactions"));
 		for (const auto &reaction : message.reactions) {
-			QByteArray reactionClass = "reaction";
+			auto reactionClass = QByteArray("reaction");
 			for (const auto &recent : reaction.recent) {
-				auto peer = peers.peer(recent.peerId);
+				const auto peer = peers.peer(recent.peerId);
 				if (peer.user() && peer.user()->isSelf) {
 					reactionClass += " active";
 					break;
@@ -1594,7 +1594,7 @@ auto HtmlWriter::Wrap::pushMessage(
 					{ "class", "userpics" },
 				}));
 				for (const auto &recent : reaction.recent) {
-					auto peer = peers.peer(recent.peerId);
+					const auto peer = peers.peer(recent.peerId);
 					block.append(pushUserpic(UserpicData({
 						.colorIndex = peer.colorIndex(),
 						.pixelSize = 20,
@@ -1609,7 +1609,8 @@ auto HtmlWriter::Wrap::pushMessage(
 				}
 				block.append(popTag());
 			}
-			if (reaction.recent.empty() || reaction.count > reaction.recent.size()) {
+			if (reaction.recent.empty()
+				|| (reaction.count > reaction.recent.size())) {
 				block.append(pushTag("div", {
 					{ "class", "count" },
 				}));

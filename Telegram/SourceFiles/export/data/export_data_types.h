@@ -709,10 +709,10 @@ struct Reaction {
 		CustomEmoji,
 		Paid,
 	};
-	
-	static Utf8String TypeToString(const Reaction &);
 
-	static Utf8String Id(const Reaction &);
+	[[nodiscard]] static Utf8String TypeToString(const Reaction &);
+
+	[[nodiscard]] static Utf8String Id(const Reaction &);
 
 	struct Recent {
 		PeerId peerId = 0;

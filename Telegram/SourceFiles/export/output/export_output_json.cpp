@@ -918,7 +918,9 @@ QByteArray SerializeMessage(
 	if (!message.reactions.empty()) {
 		const auto serializeReaction = [&](const Reaction &reaction) {
 			context.nesting.push_back(Context::kObject);
-			const auto guard = gsl::finally([&] { context.nesting.pop_back(); });
+			const auto guard = gsl::finally([&] {
+				context.nesting.pop_back();
+			});
 
 			auto pairs = std::vector<std::pair<QByteArray, QByteArray>>();
 			pairs.push_back({
@@ -948,9 +950,12 @@ QByteArray SerializeMessage(
 				context.nesting.push_back(Context::kArray);
 				const auto recents = ranges::views::all(
 					reaction.recent
-				) | ranges::views::transform([&](const Reaction::Recent &recent) {
+				) | ranges::views::transform([&](
+						const Reaction::Recent &recent) {
 					context.nesting.push_back(Context::kArray);
-					const auto guard = gsl::finally([&] { context.nesting.pop_back(); });
+					const auto guard = gsl::finally([&] {
+						context.nesting.pop_back();
+					});
 					return SerializeObject(context, {
 						{ "from", wrapPeerName(recent.peerId) },
 						{ "from_id", wrapPeerId(recent.peerId) },

@@ -1826,9 +1826,7 @@ std::optional<QByteArray> ApiWrap::getCustomEmoji(QByteArray &data) {
 			file,
 			{ .customEmojiId = id },
 			fileProgress,
-			[=](const QString &path) {
-				loadMessageEmojiDone(id, path);
-			});
+			[=](const QString &path) { loadMessageEmojiDone(id, path); });
 		if (!ready) {
 			return std::nullopt;
 		}
@@ -1850,7 +1848,7 @@ bool ApiWrap::messageCustomEmojiReady(Data::Message &message) {
 		if (part.type == Data::TextPart::Type::CustomEmoji) {
 			auto data = getCustomEmoji(part.additional);
 			if (data.has_value()) {
-				part.additional = *data;
+				part.additional = base::take(*data);
 			} else {
 				return false;
 			}
@@ -1860,7 +1858,7 @@ bool ApiWrap::messageCustomEmojiReady(Data::Message &message) {
 		if (reaction.type == Data::Reaction::Type::CustomEmoji) {
 			auto data = getCustomEmoji(reaction.documentId);
 			if (data.has_value()) {
-				reaction.documentId = *data;
+				reaction.documentId = base::take(*data);
 			} else {
 				return false;
 			}
