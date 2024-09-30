@@ -1118,17 +1118,18 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		usernameLine.subtext->overrideLinkClickHandler(callback);
 		usernameLine.text->setContextMenuHook(hook);
 		usernameLine.subtext->setContextMenuHook(hook);
-		if (user) {
-			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
-				usernameLine.text->parentWidget(),
-				st::infoProfileLabeledButtonQr);
-			fitLabelToButton(copyUsername, usernameLine.text);
-			copyUsername->setClickedCallback([=] {
-				controller->show(
-					Box(Ui::FillPeerQrBox, user, std::nullopt, nullptr));
-				return false;
-			});
-		} else {
+
+		const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
+			usernameLine.text->parentWidget(),
+			st::infoProfileLabeledButtonQr);
+		fitLabelToButton(copyUsername, usernameLine.text);
+		copyUsername->setClickedCallback([=] {
+			controller->show(
+				Box(Ui::FillPeerQrBox, user, std::nullopt, nullptr));
+			return false;
+		});
+
+		if (!user->isBot()) {
 			tracker.track(result->add(
 				CreateBirthday(result, controller, user)));
 			tracker.track(result->add(CreateWorkingHours(result, user)));
