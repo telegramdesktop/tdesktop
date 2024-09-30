@@ -1526,7 +1526,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	}
 	if (!message.reactions.empty()) {
 		block.append(pushDiv("reactions"));
-		for (const auto& reaction : message.reactions) {
+		for (const auto &reaction : message.reactions) {
 			QByteArray reactionClass = "reaction";
 			for (const auto &recent : reaction.recent) {
 				auto peer = peers.peer(recent.peerId);
