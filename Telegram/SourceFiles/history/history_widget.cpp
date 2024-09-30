@@ -321,10 +321,28 @@ HistoryWidget::HistoryWidget(
 	}), lifetime());
 	_scroll->addContentRequests(
 	) | rpl::start_with_next([=] {
-		if (_history
-			&& _history->loadedAtBottom()
-			&& session().sponsoredMessages().append(_history)) {
-			_scroll->contentAdded();
+		if (_history && _history->loadedAtBottom()) {
+			using Result = Data::SponsoredMessages::AppendResult;
+			const auto tryToAppend = [=] {
+				const auto r = session().sponsoredMessages().append(_history);
+				if (r == Result::Appended) {
+					_scroll->contentAdded();
+				}
+				return r;
+			};
+			if (tryToAppend() == Result::MediaLoading) {
+				const auto sharedLifetime = std::make_shared<rpl::lifetime>();
+				session().downloaderTaskFinished(
+				) | rpl::start_with_next([=, weak = Ui::MakeWeak(this)] {
+					if (const auto strong = weak.data()) {
+						if (tryToAppend() != Result::MediaLoading) {
+							sharedLifetime->destroy();
+						}
+					} else {
+						sharedLifetime->destroy();
+					}
+				}, *sharedLifetime);
+			}
 		}
 	}, lifetime());
 

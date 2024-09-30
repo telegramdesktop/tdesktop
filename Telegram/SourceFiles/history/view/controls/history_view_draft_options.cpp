@@ -847,8 +847,8 @@ void DraftOptionsBox(
 		if (state->quote.current().overflown) {
 			show->showToast({
 				.title = tr::lng_reply_quote_long_title(tr::now),
-				.text = tr::lng_reply_quote_long_text(tr::now),
-				});
+				.text = { tr::lng_reply_quote_long_text(tr::now) },
+			});
 		} else {
 			finish(resolveReply(), state->webpage);
 		}

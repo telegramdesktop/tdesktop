@@ -12,7 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
@@ -69,16 +72,17 @@ void SponsoredMessages::clearOldRequests() {
 	}
 }
 
-bool SponsoredMessages::append(not_null<History*> history) {
+SponsoredMessages::AppendResult SponsoredMessages::append(
+		not_null<History*> history) {
 	const auto it = _data.find(history);
 	if (it == end(_data)) {
-		return false;
+		return SponsoredMessages::AppendResult::None;
 	}
 	auto &list = it->second;
 	if (list.showedAll
 		|| !TooEarlyForRequest(list.received)
 		|| list.postsBetween) {
-		return false;
+		return SponsoredMessages::AppendResult::None;
 	}
 
 	const auto entryIt = ranges::find_if(list.entries, [](const Entry &e) {
@@ -86,19 +90,30 @@ bool SponsoredMessages::append(not_null<History*> history) {
 	});
 	if (entryIt == end(list.entries)) {
 		list.showedAll = true;
-		return false;
+		return SponsoredMessages::AppendResult::None;
 	}
-	// SponsoredMessages::Details can be requested within
-	// the constructor of HistoryItem, so itemFullId is used as a key.
-	entryIt->itemFullId = FullMsgId(
-		history->peer->id,
-		_session->data().nextLocalMessageId());
+	if (const auto media = entryIt->documentMedia) {
+		const auto fullDuration = media->owner()->duration();
+		if (fullDuration <= 0) {
+			if (!media->loaded()) {
+				return SponsoredMessages::AppendResult::MediaLoading;
+			}
+		} else {
+			constexpr auto kEnoughDuration = float64(2000);
+			if ((kEnoughDuration / fullDuration) > media->progress()) {
+				return SponsoredMessages::AppendResult::MediaLoading;
+			}
+		}
+	}
+	if (entryIt->photoMedia && !entryIt->photoMedia->loaded()) {
+		return SponsoredMessages::AppendResult::MediaLoading;
+	}
 	entryIt->item.reset(history->addSponsoredMessage(
 		entryIt->itemFullId.msg,
 		entryIt->sponsored.from,
 		entryIt->sponsored.textWithEntities));
 
-	return true;
+	return SponsoredMessages::AppendResult::Appended;
 }
 
 void SponsoredMessages::inject(
@@ -221,8 +236,7 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	const auto channel = history->peer->asChannel();
 	Assert(channel != nullptr);
 	request.requestId = _session->api().request(
-		MTPchannels_GetSponsoredMessages(
-			channel->inputChannel)
+		MTPchannels_GetSponsoredMessages(channel->inputChannel)
 	).done([=](const MTPmessages_sponsoredMessages &result) {
 		parse(history, result);
 		if (done) {
@@ -270,15 +284,15 @@ void SponsoredMessages::append(
 		const MTPSponsoredMessage &message) {
 	const auto &data = message.data();
 	const auto randomId = data.vrandom_id().v;
-	auto mediaPhotoId = PhotoId(0);
-	auto mediaDocumentId = DocumentId(0);
+	auto mediaPhoto = std::shared_ptr<Data::PhotoMedia>(nullptr);
+	auto mediaDocument = std::shared_ptr<Data::DocumentMedia>(nullptr);
 	{
 		if (data.vmedia()) {
 			data.vmedia()->match([&](const MTPDmessageMediaPhoto &media) {
 				if (const auto tlPhoto = media.vphoto()) {
 					tlPhoto->match([&](const MTPDphoto &data) {
 						const auto p = history->owner().processPhoto(data);
-						mediaPhotoId = p->id;
+						mediaPhoto = p->createMediaView();
 					}, [](const MTPDphotoEmpty &) {
 					});
 				}
@@ -290,7 +304,7 @@ void SponsoredMessages::append(
 							|| d->isSilentVideo()
 							|| d->isAnimation()
 							|| d->isGifv()) {
-							mediaDocumentId = d->id;
+							mediaDocument = d->createMediaView();
 						}
 					}, [](const MTPDdocumentEmpty &) {
 					});
@@ -306,8 +320,10 @@ void SponsoredMessages::append(
 		.photoId = data.vphoto()
 			? history->session().data().processPhoto(*data.vphoto())->id
 			: PhotoId(0),
-		.mediaPhotoId = mediaPhotoId,
-		.mediaDocumentId = mediaDocumentId,
+		.mediaPhotoId = (mediaPhoto ? mediaPhoto->owner()->id : PhotoId(0)),
+		.mediaDocumentId = (mediaDocument
+			? mediaDocument->owner()->id
+			: DocumentId(0)),
 		.backgroundEmojiId = data.vcolor().has_value()
 			? data.vcolor()->data().vbackground_emoji_id().value_or_empty()
 			: uint64(0),
@@ -341,7 +357,31 @@ void SponsoredMessages::append(
 		.sponsorInfo = std::move(sponsorInfo),
 		.additionalInfo = std::move(additionalInfo),
 	};
-	list.entries.push_back({ nullptr, {}, std::move(sharedMessage) });
+	list.entries.push_back({
+		nullptr,
+		{},
+		std::move(sharedMessage),
+		mediaPhoto,
+		mediaDocument,
+	});
+
+	const auto fileOrigin = FullMsgId(
+		history->peer->id,
+		_session->data().nextLocalMessageId());
+	list.entries.back().itemFullId = fileOrigin;
+	if (mediaPhoto) {
+		mediaPhoto->owner()->load(
+			list.entries.back().itemFullId,
+			LoadFromCloudOrLocal,
+			true);
+	}
+	if (mediaDocument) {
+		mediaDocument->owner()->save(
+			fileOrigin,
+			QString(),
+			LoadFromCloudOrLocal,
+			true);
+	}
 }
 
 void SponsoredMessages::clearItems(not_null<History*> history) {
