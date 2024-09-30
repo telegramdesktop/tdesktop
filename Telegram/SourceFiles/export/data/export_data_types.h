@@ -702,6 +702,30 @@ struct TextPart {
 	}
 };
 
+struct Reaction {
+	enum class Type {
+		Empty,
+		Emoji,
+		CustomEmoji,
+		Paid,
+	};
+	
+	static Utf8String TypeToString(const Reaction &);
+
+	static Utf8String Id(const Reaction &);
+
+	struct Recent {
+		PeerId peerId = 0;
+		TimeId date = 0;
+	};
+
+	Type type;
+	QString emoji;
+	Utf8String documentId;
+	uint32 count = 0;
+	std::vector<Recent> recent;
+};
+
 struct MessageId {
 	ChannelId channelId;
 	int32 msgId = 0;
@@ -775,6 +799,7 @@ struct Message {
 	int32 replyToMsgId = 0;
 	PeerId replyToPeerId = 0;
 	std::vector<TextPart> text;
+	std::vector<Reaction> reactions;
 	Media media;
 	ServiceAction action;
 	bool out = false;

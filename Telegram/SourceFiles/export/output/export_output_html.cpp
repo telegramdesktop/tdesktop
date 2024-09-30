@@ -231,6 +231,21 @@ QByteArray JoinList(
 	return result;
 }
 
+QByteArray FormatCustomEmoji(
+		const Data::Utf8String &custom_emoji,
+		const QByteArray &text,
+		const QString &relativeLinkBase) {
+	return (custom_emoji.isEmpty()
+		? "<a href=\"\" onclick=\"return ShowNotLoadedEmoji();\">"
+		: (custom_emoji == Data::TextPart::UnavailableEmoji())
+		? "<a href=\"\" onclick=\"return ShowNotAvailableEmoji();\">"
+		: ("<a href = \""
+			+ (relativeLinkBase + custom_emoji).toUtf8()
+			+ "\">"))
+		+ text
+		+ "</a>";
+}
+
 QByteArray FormatText(
 		const std::vector<Data::TextPart> &data,
 		const QString &internalLinksDomain,
@@ -288,15 +303,8 @@ QByteArray FormatText(
 			"onclick=\"ShowSpoiler(this)\">"
 			"<span aria-hidden=\"true\">"
 			+ text + "</span></span>";
-		case Type::CustomEmoji: return (part.additional.isEmpty()
-			? "<a href=\"\" onclick=\"return ShowNotLoadedEmoji();\">"
-			: (part.additional == Data::TextPart::UnavailableEmoji())
-			? "<a href=\"\" onclick=\"return ShowNotAvailableEmoji();\">"
-			: ("<a href = \""
-				+ (relativeLinkBase + part.additional).toUtf8()
-				+ "\">"))
-			+ text
-			+ "</a>";
+		case Type::CustomEmoji:
+			return FormatCustomEmoji(part.additional, text, relativeLinkBase);
 		}
 		Unexpected("Type in text entities serialization.");
 	}) | ranges::to_vector);
@@ -1543,6 +1551,73 @@ auto HtmlWriter::Wrap::pushMessage(
 		block.append(popTag());
 	}
 	if (showForwardedInfo) {
+		block.append(popTag());
+	}
+	if (!message.reactions.empty()) {
+		block.append(pushDiv("reactions"));
+		for (const auto &reaction : message.reactions) {
+			QByteArray reactionClass = "reaction";
+			for (const auto &recent : reaction.recent) {
+				auto peer = peers.peer(recent.peerId);
+				if (peer.user() && peer.user()->isSelf) {
+					reactionClass += " active";
+					break;
+				}
+			}
+			if (reaction.type == Reaction::Type::Paid) {
+				reactionClass += " paid";
+			}
+
+			block.append(pushTag("div", {
+				{ "class", reactionClass },
+			}));
+			block.append(pushTag("div", {
+				{ "class", "emoji" },
+			}));
+			switch (reaction.type) {
+				case Reaction::Type::Emoji:
+					block.append(SerializeString(reaction.emoji.toUtf8()));
+					break;
+				case Reaction::Type::CustomEmoji:
+					block.append(FormatCustomEmoji(
+						reaction.documentId,
+						"\U0001F44B",
+						_base));
+					break;
+				case Reaction::Type::Paid:
+					block.append(SerializeString("\u2B50"));
+					break;
+			}
+			block.append(popTag());
+			if (!reaction.recent.empty()) {
+				block.append(pushTag("div", {
+					{ "class", "userpics" },
+				}));
+				for (const auto &recent : reaction.recent) {
+					auto peer = peers.peer(recent.peerId);
+					block.append(pushUserpic(UserpicData({
+						.colorIndex = peer.colorIndex(),
+						.pixelSize = 20,
+						.firstName = peer.user()
+							? peer.user()->info.firstName
+							: peer.name(),
+						.lastName = peer.user()
+							? peer.user()->info.lastName
+							: "",
+						.tooltip = peer.name(),
+					})));
+				}
+				block.append(popTag());
+			}
+			if (reaction.recent.empty() || reaction.count > reaction.recent.size()) {
+				block.append(pushTag("div", {
+					{ "class", "count" },
+				}));
+				block.append(NumberToString(reaction.count));
+				block.append(popTag());
+			}
+			block.append(popTag());
+		}
 		block.append(popTag());
 	}
 	block.append(popTag());
