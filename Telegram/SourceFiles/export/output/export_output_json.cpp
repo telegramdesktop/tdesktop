@@ -299,7 +299,7 @@ QByteArray SerializeMessage(
 					+ Data::NumberToString(channel.bare));
 		}
 		return SerializeString("user"
-				+ Data::NumberToString(peerToUser(peerId).bare));
+			+ Data::NumberToString(peerToUser(peerId).bare));
 	};
 	const auto push = [&](const QByteArray &key, const auto &value) {
 		using V = std::decay_t<decltype(value)>;
