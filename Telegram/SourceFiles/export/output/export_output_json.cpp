@@ -296,7 +296,7 @@ QByteArray SerializeMessage(
 					+ Data::NumberToString(chat.bare));
 		} else if (const auto channel = peerToChannel(peerId)) {
 			return SerializeString("channel"
-					+ Data::NumberToString(channel.bare));
+				+ Data::NumberToString(channel.bare));
 		}
 		return SerializeString("user"
 			+ Data::NumberToString(peerToUser(peerId).bare));
