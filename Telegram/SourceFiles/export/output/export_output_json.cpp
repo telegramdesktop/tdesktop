@@ -900,9 +900,9 @@ QByteArray SerializeMessage(
 					context.nesting.push_back(Context::kArray);
 					const auto guard = gsl::finally([&] { context.nesting.pop_back(); });
 					return SerializeObject(context, {
-						{"from", wrapPeerName(recent.peerId)},
-						{"from_id", wrapPeerId(recent.peerId)},
-						{"date", SerializeDate(recent.date)}
+						{ "from", wrapPeerName(recent.peerId) },
+						{ "from_id", wrapPeerId(recent.peerId) },
+						{ "date", SerializeDate(recent.date) },
 					});
 				}) | ranges::to_vector;
 				pairs.push_back({"recent", SerializeArray(context, recents)});
