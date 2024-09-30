@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_single_player.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "payments/payments_form.h"
 #include "payments/payments_checkout_process.h"
@@ -714,6 +715,12 @@ struct GiftPriceTabs {
 	};
 }
 
+[[nodiscard]] int StarGiftMessageLimit(not_null<Main::Session*> session) {
+	return session->appConfig().get<int>(
+		u"stargifts_message_length_max"_q,
+		255);
+}
+
 [[nodiscard]] not_null<Ui::InputField*> AddPartInput(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -848,13 +855,14 @@ void SendGiftBox(
 		session,
 		state->details.value()));
 
+	const auto limit = StarGiftMessageLimit(&window->session());
 	const auto text = AddPartInput(
 		window,
 		container,
 		box->getDelegate()->outerContainer(),
 		tr::lng_gift_send_message(),
 		QString(),
-		kGiftMessageLimit);
+		limit);
 	text->changes() | rpl::start_with_next([=] {
 		auto now = state->details.current();
 		auto textWithTags = text->getTextWithAppliedMarkdown();
