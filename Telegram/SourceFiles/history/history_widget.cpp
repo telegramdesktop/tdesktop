@@ -318,6 +318,8 @@ HistoryWidget::HistoryWidget(
 	) | rpl::start_with_next(crl::guard(_list, [=] {
 		_list->onParentGeometryChanged();
 	}), lifetime());
+
+	const auto weak = Ui::MakeWeak(this);
 	_scroll->addContentRequests(
 	) | rpl::start_with_next([=] {
 		if (_history && _history->loadedAtBottom()) {
@@ -332,7 +334,7 @@ HistoryWidget::HistoryWidget(
 			if (tryToAppend() == Result::MediaLoading) {
 				const auto sharedLifetime = std::make_shared<rpl::lifetime>();
 				session().downloaderTaskFinished(
-				) | rpl::start_with_next([=, weak = Ui::MakeWeak(this)] {
+				) | rpl::start_with_next([=] {
 					if (const auto strong = weak.data()) {
 						if (tryToAppend() != Result::MediaLoading) {
 							sharedLifetime->destroy();
