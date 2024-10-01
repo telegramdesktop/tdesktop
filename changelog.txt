@@ -1,3 +1,10 @@
+5.5.7 beta (01.10.24)
+
+- Add ability to share QR code of bots.
+- Add mention/hashtag autocomplete to Saved GIF caption.
+- Fixed display of working hours in profiles.
+- Respect the maximum reply quote length.
+
 5.5.6 beta (19.09.24)
 
 - Allow resizing the window used for web apps and games.
