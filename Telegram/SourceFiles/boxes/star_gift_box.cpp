@@ -1083,19 +1083,7 @@ void SendGiftBox(
 			};
 			button->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
-				if (v::is<GiftTypePremium>(descriptor)) {
-					if (state->sending) {
-						return;
-					} else {
-						state->sending = true;
-					}
-					SendGift(
-						window,
-						peer,
-						api,
-						GiftDetails{ descriptor },
-						premiumSent);
-				} else if (star && star->limitedCount && !star->limitedLeft) {
+				if (star && star->limitedCount && !star->limitedLeft) {
 					window->showToast({
 						.title = tr::lng_gift_sold_out_title(tr::now),
 						.text = tr::lng_gift_sold_out_text(

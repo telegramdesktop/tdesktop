@@ -415,7 +415,8 @@ MTPInputInvoice Form::inputInvoice() const {
 		using Flag = MTPDinputStorePaymentPremiumGiftCode::Flag;
 		return MTP_inputInvoicePremiumGiftCode(
 			MTP_inputStorePaymentPremiumGiftCode(
-				MTP_flags(users->boostPeer ? Flag::f_boost_peer : Flag()),
+				MTP_flags((users->boostPeer ? Flag::f_boost_peer : Flag())
+					| (users->message.empty() ? Flag(0) : Flag::f_message)),
 				MTP_vector_from_range(ranges::views::all(
 					users->users
 				) | ranges::views::transform([](not_null<UserData*> user) {
@@ -423,7 +424,13 @@ MTPInputInvoice Form::inputInvoice() const {
 				})),
 				users->boostPeer ? users->boostPeer->input : MTPInputPeer(),
 				MTP_string(giftCode.currency),
-				MTP_long(giftCode.amount)),
+				MTP_long(giftCode.amount),
+				MTP_textWithEntities(
+					MTP_string(users->message.text),
+					Api::EntitiesToMTP(
+						&users->users.front()->session(),
+						users->message.entities,
+						Api::ConvertOption::SkipLocal))),
 			option);
 	} else {
 		return MTP_inputInvoicePremiumGiftCode(
