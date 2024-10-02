@@ -22,6 +22,10 @@ GiftBoxPack::GiftBoxPack(not_null<Main::Session*> session)
 
 GiftBoxPack::~GiftBoxPack() = default;
 
+rpl::producer<> GiftBoxPack::updated() const {
+	return _updated.events();
+}
+
 int GiftBoxPack::monthsForStars(int stars) const {
 	if (stars <= 1000) {
 		return 3;
@@ -112,6 +116,7 @@ void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 			}
 		});
 	}
+	_updated.fire({});
 }
 
 } // namespace Stickers

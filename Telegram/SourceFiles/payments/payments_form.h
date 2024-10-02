@@ -143,6 +143,7 @@ struct InvoicePremiumGiftCodeGiveaway {
 struct InvoicePremiumGiftCodeUsers {
 	std::vector<not_null<UserData*>> users;
 	ChannelData *boostPeer = nullptr;
+	TextWithEntities message;
 };
 
 struct InvoicePremiumGiftCode {

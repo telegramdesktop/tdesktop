@@ -28,6 +28,7 @@ public:
 	[[nodiscard]] int monthsForStars(int stars) const;
 	[[nodiscard]] DocumentData *lookup(int months) const;
 	[[nodiscard]] Data::FileOrigin origin() const;
+	[[nodiscard]] rpl::producer<> updated() const;
 
 private:
 	using SetId = uint64;
@@ -36,6 +37,7 @@ private:
 	const not_null<Main::Session*> _session;
 	const std::vector<int> _localMonths;
 
+	rpl::event_stream<> _updated;
 	std::vector<DocumentData*> _documents;
 	SetId _setId = 0;
 	uint64 _accessHash = 0;

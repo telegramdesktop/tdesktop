@@ -16,6 +16,10 @@ namespace HistoryView {
 class StickerPlayer;
 } // namespace HistoryView
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class DynamicImage;
 } // namespace Ui
@@ -86,6 +90,8 @@ private:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void setDocument(not_null<DocumentData*> document);
+	[[nodiscard]] bool documentResolved() const;
+
 	void unsubscribe();
 
 	const not_null<GiftButtonDelegate*> _delegate;
@@ -125,5 +131,9 @@ private:
 	QImage _bg;
 
 };
+
+[[nodiscard]] DocumentData *LookupGiftSticker(
+	not_null<Main::Session*> session,
+	const GiftDescriptor &descriptor);
 
 } // namespace Info::PeerGifts

@@ -109,6 +109,10 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 	_button = QRect(skipx, skipy, outer, inner.height());
 }
 
+bool GiftButton::documentResolved() const {
+	return _player || _mediaLifetime;
+}
+
 void GiftButton::setDocument(not_null<DocumentData*> document) {
 	const auto media = document->createMediaView();
 	media->checkStickerLarge();
@@ -159,6 +163,12 @@ void GiftButton::resizeEvent(QResizeEvent *e) {
 }
 
 void GiftButton::paintEvent(QPaintEvent *e) {
+	if (!documentResolved()) {
+		if (const auto document = _delegate->lookupSticker(_descriptor)) {
+			setDocument(document);
+		}
+	}
+
 	auto p = QPainter(this);
 	const auto hidden = v::is<GiftTypeStars>(_descriptor)
 		&& v::get<GiftTypeStars>(_descriptor).hidden;;
@@ -399,8 +409,17 @@ QImage Delegate::background() {
 }
 
 DocumentData *Delegate::lookupSticker(const GiftDescriptor &descriptor) {
-	const auto &session = _window->session();
-	auto &packs = session.giftBoxStickersPacks();
+	return LookupGiftSticker(&_window->session(), descriptor);
+}
+
+not_null<StickerPremiumMark*> Delegate::hiddenMark() {
+	return _hiddenMark.get();
+}
+
+DocumentData *LookupGiftSticker(
+		not_null<Main::Session*> session,
+		const GiftDescriptor &descriptor) {
+	auto &packs = session->giftBoxStickersPacks();
 	packs.load();
 	return v::match(descriptor, [&](GiftTypePremium data) {
 		return packs.lookup(data.months);
@@ -409,10 +428,6 @@ DocumentData *Delegate::lookupSticker(const GiftDescriptor &descriptor) {
 			? data.document
 			: packs.lookup(packs.monthsForStars(data.stars));
 	});
-}
-
-not_null<StickerPremiumMark*> Delegate::hiddenMark() {
-	return _hiddenMark.get();
 }
 
 } // namespace Info::PeerGifts

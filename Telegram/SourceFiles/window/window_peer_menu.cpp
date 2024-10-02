@@ -1231,7 +1231,6 @@ void Filler::addGiftPremium() {
 		|| user->isSelf()
 		|| user->isBot()
 		|| user->isNotificationsUser()
-		|| !user->canReceiveGifts()
 		|| user->isRepliesChat()
 		|| user->isVerifyCodes()
 		|| !user->session().premiumCanBuy()) {
@@ -1240,7 +1239,7 @@ void Filler::addGiftPremium() {
 
 	const auto navigation = _controller;
 	_addAction(tr::lng_profile_gift_premium(tr::now), [=] {
-		Ui::ChooseStarGiftRecipient(navigation);
+		Ui::ShowStarGiftBox(navigation, user);
 	}, &st::menuIconGiftPremium);
 }
 

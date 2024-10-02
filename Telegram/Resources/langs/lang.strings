@@ -1868,6 +1868,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_sent_subtitle" = "Gift for {user}";
 "lng_action_gift_sent_text#one" = "{user} can display this gift on their page or convert it to {count} Star.";
 "lng_action_gift_sent_text#other" = "{user} can display this gift on their page or convert it to {count} Stars.";
+"lng_action_gift_premium_months#one" = "{count} Month Premium";
+"lng_action_gift_premium_months#other" = "{count} Months Premium";
+"lng_action_gift_premium_about" = "Subscription for exclusive Telegram features.";
 "lng_action_suggested_photo_me" = "You suggested this photo for {user}'s Telegram profile.";
 "lng_action_suggested_photo" = "{user} suggests this photo for your Telegram profile.";
 "lng_action_suggested_photo_button" = "View Photo";
@@ -3014,6 +3017,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_send_message" = "Enter Message";
 "lng_gift_send_anonymous" = "Hide My Name";
 "lng_gift_send_anonymous_about" = "You can hide your name and message from visitors to {user}'s profile. {recipient} will still see your name and message.";
+"lng_gift_send_premium_about" = "Only {user} will see your message.";
 "lng_gift_send_button" = "Send a Gift for {cost}";
 "lng_gift_sent_title" = "Gift Sent!";
 "lng_gift_sent_about#one" = "You spent **{count}** Star from your balance.";

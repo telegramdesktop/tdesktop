@@ -43,7 +43,7 @@ PremiumGift::PremiumGift(
 PremiumGift::~PremiumGift() = default;
 
 int PremiumGift::top() {
-	return st::msgServiceGiftBoxStickerTop;
+	return starGift() ? 0 : st::msgServiceGiftBoxStickerTop;
 }
 
 QSize PremiumGift::size() {
@@ -66,7 +66,7 @@ QString PremiumGift::title() {
 		return tr::lng_gift_stars_title(tr::now, lt_count, count);
 	}
 	return gift()
-		? tr::lng_premium_summary_title(tr::now)
+		? tr::lng_action_gift_premium_months(tr::now, lt_count, _data.count)
 		: _data.unclaimed
 		? tr::lng_prize_unclaimed_title(tr::now)
 		: tr::lng_prize_title(tr::now);
@@ -99,10 +99,14 @@ TextWithEntities PremiumGift::subtitle() {
 				tr::now,
 				lt_user,
 				Ui::Text::Bold(_parent->history()->peer->shortName()),
-				Ui::Text::WithEntities)
+				Ui::Text::RichLangValue)
 			: tr::lng_gift_stars_incoming(tr::now, Ui::Text::WithEntities);
 	} else if (gift()) {
-		return { GiftDuration(_data.count) };
+		return !_data.message.empty()
+			? _data.message
+			: tr::lng_action_gift_premium_about(
+				tr::now,
+				Ui::Text::RichLangValue);
 	}
 	const auto name = _data.channel ? _data.channel->name() : "channel";
 	auto result = (_data.unclaimed

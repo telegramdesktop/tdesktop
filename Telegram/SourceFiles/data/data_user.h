@@ -67,7 +67,7 @@ enum class UserDataFlag : uint32 {
 	DiscardMinPhoto = (1 << 12),
 	Self = (1 << 13),
 	Premium = (1 << 14),
-	CanReceiveGifts = (1 << 15),
+	//CanReceiveGifts = (1 << 15),
 	VoiceMessagesForbidden = (1 << 16),
 	PersonalPhoto = (1 << 17),
 	StoriesHidden = (1 << 18),
@@ -145,8 +145,6 @@ public:
 
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;
-
-	[[nodiscard]] bool canReceiveGifts() const;
 
 	// In Data::Session::processUsers() we check only that.
 	// When actually trying to share contact we perform
