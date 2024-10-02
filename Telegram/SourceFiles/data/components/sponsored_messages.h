@@ -20,8 +20,7 @@ class Session;
 
 namespace Data {
 
-class DocumentMedia;
-class PhotoMedia;
+class MediaPreload;
 
 struct SponsoredReportResult final {
 	using Id = QByteArray;
@@ -122,8 +121,7 @@ private:
 		OwnedItem item;
 		FullMsgId itemFullId;
 		SponsoredMessage sponsored;
-		std::shared_ptr<Data::PhotoMedia> photoMedia;
-		std::shared_ptr<Data::DocumentMedia> documentMedia;
+		std::unique_ptr<MediaPreload> preload;
 	};
 	struct List {
 		std::vector<Entry> entries;

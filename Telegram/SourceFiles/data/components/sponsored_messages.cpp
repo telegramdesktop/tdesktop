@@ -12,10 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
-#include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_media_preload.h"
 #include "data/data_photo.h"
-#include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
@@ -91,21 +90,7 @@ SponsoredMessages::AppendResult SponsoredMessages::append(
 	if (entryIt == end(list.entries)) {
 		list.showedAll = true;
 		return SponsoredMessages::AppendResult::None;
-	}
-	if (const auto media = entryIt->documentMedia) {
-		const auto fullDuration = media->owner()->duration();
-		if (fullDuration <= 0) {
-			if (!media->loaded()) {
-				return SponsoredMessages::AppendResult::MediaLoading;
-			}
-		} else {
-			constexpr auto kEnoughDuration = float64(2000);
-			if ((kEnoughDuration / fullDuration) > media->progress()) {
-				return SponsoredMessages::AppendResult::MediaLoading;
-			}
-		}
-	}
-	if (entryIt->photoMedia && !entryIt->photoMedia->loaded()) {
+	} else if (entryIt->preload) {
 		return SponsoredMessages::AppendResult::MediaLoading;
 	}
 	entryIt->item.reset(history->addSponsoredMessage(
@@ -284,15 +269,14 @@ void SponsoredMessages::append(
 		const MTPSponsoredMessage &message) {
 	const auto &data = message.data();
 	const auto randomId = data.vrandom_id().v;
-	auto mediaPhoto = std::shared_ptr<Data::PhotoMedia>(nullptr);
-	auto mediaDocument = std::shared_ptr<Data::DocumentMedia>(nullptr);
+	auto mediaPhoto = (PhotoData*)nullptr;
+	auto mediaDocument = (DocumentData*)nullptr;
 	{
 		if (data.vmedia()) {
 			data.vmedia()->match([&](const MTPDmessageMediaPhoto &media) {
 				if (const auto tlPhoto = media.vphoto()) {
 					tlPhoto->match([&](const MTPDphoto &data) {
-						const auto p = history->owner().processPhoto(data);
-						mediaPhoto = p->createMediaView();
+						mediaPhoto = history->owner().processPhoto(data);
 					}, [](const MTPDphotoEmpty &) {
 					});
 				}
@@ -304,7 +288,7 @@ void SponsoredMessages::append(
 							|| d->isSilentVideo()
 							|| d->isAnimation()
 							|| d->isGifv()) {
-							mediaDocument = d->createMediaView();
+							mediaDocument = d;
 						}
 					}, [](const MTPDdocumentEmpty &) {
 					});
@@ -320,10 +304,8 @@ void SponsoredMessages::append(
 		.photoId = data.vphoto()
 			? history->session().data().processPhoto(*data.vphoto())->id
 			: PhotoId(0),
-		.mediaPhotoId = (mediaPhoto ? mediaPhoto->owner()->id : PhotoId(0)),
-		.mediaDocumentId = (mediaDocument
-			? mediaDocument->owner()->id
-			: DocumentId(0)),
+		.mediaPhotoId = (mediaPhoto ? mediaPhoto->id : 0),
+		.mediaDocumentId = (mediaDocument ? mediaDocument->id : 0),
 		.backgroundEmojiId = data.vcolor().has_value()
 			? data.vcolor()->data().vbackground_emoji_id().value_or_empty()
 			: uint64(0),
@@ -358,29 +340,54 @@ void SponsoredMessages::append(
 		.additionalInfo = std::move(additionalInfo),
 	};
 	list.entries.push_back({
-		nullptr,
-		{},
-		std::move(sharedMessage),
-		mediaPhoto,
-		mediaDocument,
+		.sponsored = std::move(sharedMessage),
 	});
-
-	const auto fileOrigin = FullMsgId(
+	auto &entry = list.entries.back();
+	const auto itemId = entry.itemFullId = FullMsgId(
 		history->peer->id,
 		_session->data().nextLocalMessageId());
-	list.entries.back().itemFullId = fileOrigin;
+	const auto fileOrigin = FileOrigin(); // No way to refresh in ads.
+
+	static const auto kFlaggedPreload = ((MediaPreload*)nullptr) + 1;
+	const auto preloaded = [=] {
+		const auto i = _data.find(history);
+		if (i == end(_data)) {
+			return;
+		}
+		auto &entries = i->second.entries;
+		const auto j = ranges::find(entries, itemId, &Entry::itemFullId);
+		if (j == end(entries)) {
+			return;
+		}
+		auto &entry = *j;
+		if (entry.preload.get() == kFlaggedPreload) {
+			entry.preload.release();
+		} else {
+			entry.preload = nullptr;
+		}
+	};
+
+	auto preload = std::unique_ptr<MediaPreload>();
+	entry.preload.reset(kFlaggedPreload);
 	if (mediaPhoto) {
-		mediaPhoto->owner()->load(
-			list.entries.back().itemFullId,
-			LoadFromCloudOrLocal,
-			true);
-	}
-	if (mediaDocument) {
-		mediaDocument->owner()->save(
+		preload = std::make_unique<PhotoPreload>(
+			mediaPhoto,
 			fileOrigin,
-			QString(),
-			LoadFromCloudOrLocal,
-			true);
+			preloaded);
+	} else if (mediaDocument && VideoPreload::Can(mediaDocument)) {
+		preload = std::make_unique<VideoPreload>(
+			mediaDocument,
+			fileOrigin,
+			preloaded);
+	}
+	// Preload constructor may have called preloaded(), which zero-ed
+	// entry.preload, that way we're ready and don't need to save it.
+	// Otherwise we're preloading and need to save the task.
+	if (entry.preload.get() == kFlaggedPreload) {
+		entry.preload.release();
+		if (preload) {
+			entry.preload = std::move(preload);
+		}
 	}
 }
 
