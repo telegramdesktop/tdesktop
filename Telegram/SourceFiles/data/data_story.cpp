@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
+#include "data/data_media_preload.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_user.h"
@@ -229,107 +230,6 @@ using UpdateFlag = StoryUpdate::Flag;
 }
 
 } // namespace
-
-class StoryPreload::LoadTask final : private Storage::DownloadMtprotoTask {
-public:
-	LoadTask(
-		FullStoryId id,
-		not_null<DocumentData*> document,
-		Fn<void(QByteArray)> done);
-	~LoadTask();
-
-private:
-	bool readyToRequest() const override;
-	int64 takeNextRequestOffset() override;
-	bool feedPart(int64 offset, const QByteArray &bytes) override;
-	void cancelOnFail() override;
-	bool setWebFileSizeHook(int64 size) override;
-
-	base::flat_map<uint32, QByteArray> _parts;
-	Fn<void(QByteArray)> _done;
-	base::flat_set<int> _requestedOffsets;
-	int64 _full = 0;
-	int _nextRequestOffset = 0;
-	bool _finished = false;
-	bool _failed = false;
-
-};
-
-StoryPreload::LoadTask::LoadTask(
-	FullStoryId id,
-	not_null<DocumentData*> document,
-	Fn<void(QByteArray)> done)
-: DownloadMtprotoTask(
-	&document->session().downloader(),
-	document->videoPreloadLocation(),
-	id)
-, _done(std::move(done))
-, _full(document->size) {
-	const auto prefix = document->videoPreloadPrefix();
-	Assert(prefix > 0 && prefix <= document->size);
-	const auto part = Storage::kDownloadPartSize;
-	const auto parts = (prefix + part - 1) / part;
-	for (auto i = 0; i != parts; ++i) {
-		_parts.emplace(i * part, QByteArray());
-	}
-	addToQueue();
-}
-
-StoryPreload::LoadTask::~LoadTask() {
-	if (!_finished && !_failed) {
-		cancelAllRequests();
-	}
-}
-
-bool StoryPreload::LoadTask::readyToRequest() const {
-	const auto part = Storage::kDownloadPartSize;
-	return !_failed && (_nextRequestOffset < _parts.size() * part);
-}
-
-int64 StoryPreload::LoadTask::takeNextRequestOffset() {
-	Expects(readyToRequest());
-
-	_requestedOffsets.emplace(_nextRequestOffset);
-	_nextRequestOffset += Storage::kDownloadPartSize;
-	return _requestedOffsets.back();
-}
-
-bool StoryPreload::LoadTask::feedPart(
-		int64 offset,
-		const QByteArray &bytes) {
-	Expects(offset < _parts.size() * Storage::kDownloadPartSize);
-	Expects(_requestedOffsets.contains(int(offset)));
-	Expects(bytes.size() <= Storage::kDownloadPartSize);
-
-	const auto part = Storage::kDownloadPartSize;
-	_requestedOffsets.remove(int(offset));
-	_parts[offset] = bytes;
-	if ((_nextRequestOffset + part >= _parts.size() * part)
-		&& _requestedOffsets.empty()) {
-		_finished = true;
-		removeFromQueue();
-		auto result = ::Media::Streaming::SerializeComplexPartsMap(_parts);
-		if (result.size() == _full) {
-			// Make sure it is parsed as a complex map.
-			result.push_back(char(0));
-		}
-		_done(result);
-	}
-	return true;
-}
-
-void StoryPreload::LoadTask::cancelOnFail() {
-	_failed = true;
-	cancelAllRequests();
-	_done({});
-}
-
-bool StoryPreload::LoadTask::setWebFileSizeHook(int64 size) {
-	_failed = true;
-	cancelAllRequests();
-	_done({});
-	return false;
-}
 
 Story::Story(
 	StoryId id,
@@ -999,16 +899,31 @@ PeerData *Story::fromPeer() const {
 }
 
 StoryPreload::StoryPreload(not_null<Story*> story, Fn<void()> done)
-: _story(story)
-, _done(std::move(done)) {
-	start();
-}
-
-StoryPreload::~StoryPreload() {
-	if (_photo) {
-		base::take(_photo)->owner()->cancel();
+: _story(story) {
+	if (const auto photo = _story->photo()) {
+		if (PhotoPreload::Should(photo, story->peer())) {
+			_task = std::make_unique<PhotoPreload>(
+				photo,
+				story->fullId(),
+				std::move(done));
+		} else {
+			done();
+		}
+	} else if (const auto video = _story->document()) {
+		if (VideoPreload::Can(video)) {
+			_task = std::make_unique<VideoPreload>(
+				video,
+				story->fullId(),
+				std::move(done));
+		} else {
+			done();
+		}
+	} else {
+		done();
 	}
 }
+
+StoryPreload::~StoryPreload() = default;
 
 FullStoryId StoryPreload::id() const {
 	return _story->fullId();
@@ -1016,78 +931,6 @@ FullStoryId StoryPreload::id() const {
 
 not_null<Story*> StoryPreload::story() const {
 	return _story;
-}
-
-void StoryPreload::start() {
-	if (const auto photo = _story->photo()) {
-		_photo = photo->createMediaView();
-		if (_photo->loaded()) {
-			callDone();
-		} else {
-			_photo->automaticLoad(_story->fullId(), _story->peer());
-			photo->session().downloaderTaskFinished(
-			) | rpl::filter([=] {
-				return _photo->loaded();
-			}) | rpl::start_with_next([=] { callDone(); }, _lifetime);
-		}
-	} else if (const auto video = _story->document()) {
-		if (video->canBeStreamed(nullptr) && video->videoPreloadPrefix()) {
-			const auto key = video->bigFileBaseCacheKey();
-			if (key) {
-				const auto weak = base::make_weak(this);
-				video->owner().cacheBigFile().get(key, [weak](
-						const QByteArray &result) {
-					if (!result.isEmpty()) {
-						crl::on_main([weak] {
-							if (const auto strong = weak.get()) {
-								strong->callDone();
-							}
-						});
-					} else {
-						crl::on_main([weak] {
-							if (const auto strong = weak.get()) {
-								strong->load();
-							}
-						});
-					}
-				});
-			} else {
-				callDone();
-			}
-		} else {
-			callDone();
-		}
-	} else {
-		callDone();
-	}
-}
-
-void StoryPreload::load() {
-	Expects(_story->document() != nullptr);
-
-	const auto video = _story->document();
-	const auto valid = video->videoPreloadLocation().valid();
-	const auto prefix = video->videoPreloadPrefix();
-	const auto key = video->bigFileBaseCacheKey();
-	if (!valid || prefix <= 0 || prefix > video->size || !key) {
-		callDone();
-		return;
-	}
-	_task = std::make_unique<LoadTask>(id(), video, [=](QByteArray data) {
-		if (!data.isEmpty()) {
-			Assert(data.size() < Storage::kMaxFileInMemory);
-			_story->owner().cacheBigFile().putIfEmpty(
-				key,
-				Storage::Cache::Database::TaggedValue(std::move(data), 0));
-		}
-		callDone();
-	});
-}
-
-void StoryPreload::callDone() {
-	if (const auto onstack = _done) {
-		onstack();
-	}
 }
 
 } // namespace Data

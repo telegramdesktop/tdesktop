@@ -23,7 +23,7 @@ namespace Data {
 
 class Session;
 class Thread;
-class PhotoMedia;
+class MediaPreload;
 
 enum class StoryPrivacy : uchar {
 	Public,
@@ -301,18 +301,9 @@ public:
 	[[nodiscard]] not_null<Story*> story() const;
 
 private:
-	class LoadTask;
-
-	void start();
-	void load();
-	void callDone();
-
 	const not_null<Story*> _story;
-	Fn<void()> _done;
 
-	std::shared_ptr<Data::PhotoMedia> _photo;
-	std::unique_ptr<LoadTask> _task;
-	rpl::lifetime _lifetime;
+	std::unique_ptr<MediaPreload> _task;
 
 };
 
