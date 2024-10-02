@@ -914,6 +914,10 @@ void SendGiftBox(
 		state->details = std::move(now);
 	}, text->lifetime());
 
+	box->setFocusCallback([=] {
+		text->setFocusFast();
+	});
+
 	const auto allow = [=](not_null<DocumentData*> emoji) {
 		return true;
 	};
