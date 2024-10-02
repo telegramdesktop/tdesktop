@@ -258,7 +258,9 @@ PreviewWrap::PreviewWrap(
 	prepare(std::move(details));
 }
 
-void ShowSentToast(not_null<Window::SessionController*> window, GiftTypeStars gift) {
+void ShowSentToast(
+		not_null<Window::SessionController*> window,
+		GiftTypeStars gift) {
 	const auto &st = st::historyPremiumToast;
 	const auto skip = st.padding.top();
 	const auto size = st.style.font->height * 2;
@@ -1285,7 +1287,7 @@ void ChooseStarGiftRecipient(
 
 	};
 	auto initBox = [=](not_null<PeerListBox*> peersBox) {
-		peersBox->setTitle(tr::lng_credits_gift_title());
+		peersBox->setTitle(tr::lng_gift_premium_or_stars());
 		peersBox->addButton(tr::lng_cancel(), [=] { peersBox->closeBox(); });
 	};
 

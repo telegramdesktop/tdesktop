@@ -2999,6 +2999,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_stars_incoming" = "Use Stars to unlock content and services on Telegram.";
 "lng_gift_until" = "Until";
 
+"lng_gift_premium_or_stars" = "Gift Premium or Stars";
 "lng_gift_premium_subtitle" = "Gift Premium";
 "lng_gift_premium_about" = "Give {name} access to exclusive features with Telegram Premium. {features}";
 "lng_gift_premium_features" = "See Features >";
