@@ -55,8 +55,6 @@ void SetupSwipeHandler(
 		bool started = false;
 		bool reached = false;
 		bool touch = false;
-		bool twoFingerScrollStarted = false;
-		std::optional<UpdateArgs> pendingUpdate;
 
 		rpl::lifetime lifetime;
 	};
@@ -191,7 +189,7 @@ void SetupSwipeHandler(
 			const auto t = static_cast<QTouchEvent*>(e.get());
 			const auto touchscreen = t->device()
 				&& (t->device()->type() == base::TouchDevice::TouchScreen);
-			if (/*!Platform::IsMac() && */!touchscreen) {
+			if (!touchscreen) {
 				break;
 			} else if (type == QEvent::TouchBegin) {
 				// Reset state in case we lost some TouchEnd.
@@ -220,12 +218,6 @@ void SetupSwipeHandler(
 					.delta = state->startAt - touches[0].pos(),
 					.touch = true,
 				};
-#ifdef Q_OS_MAC
-				if (!state->twoFingerScrollStarted) {
-					state->pendingUpdate = args;
-					return base::EventFilterResult::Cancel;
-				}
-#endif // Q_OS_MAC
 				updateWith(args);
 			}
 			return (touchscreen && state->orientation != Qt::Horizontal)
@@ -235,20 +227,7 @@ void SetupSwipeHandler(
 		case QEvent::Wheel: {
 			const auto w = static_cast<QWheelEvent*>(e.get());
 			const auto phase = w->phase();
-#if 0
-#ifdef Q_OS_MAC
-			if (phase == Qt::ScrollBegin) {
-				state->twoFingerScrollStarted = true;
-				if (const auto update = base::take(state->pendingUpdate)) {
-					updateWith((*update));
-				}
-			} else if (phase == Qt::ScrollEnd
-				|| phase == Qt::ScrollMomentum) {
-				state->twoFingerScrollStarted = false;
-			}
-#endif // Q_OS_MAC
-#endif
-			if (/*Platform::IsMac() || */phase == Qt::NoScrollPhase) {
+			if (phase == Qt::NoScrollPhase) {
 				break;
 			} else if (phase == Qt::ScrollBegin) {
 				// Reset state in case we lost some TouchEnd.
