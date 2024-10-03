@@ -361,6 +361,52 @@ WebViewContext ResolveContext(
 	return context;
 }
 
+void FillBotUsepic(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> bot,
+		base::weak_ptr<Window::SessionController> weak) {
+	auto arrow = Ui::Text::SingleCustomEmoji(
+		bot->owner().customEmojiManager().registerInternalEmoji(
+			st::topicButtonArrow,
+			st::channelEarnLearnArrowMargins,
+			false));
+	auto aboutLabel = Ui::CreateLabelWithCustomEmoji(
+		box->verticalLayout(),
+		tr::lng_allow_bot_webview_details(
+			lt_emoji,
+			rpl::single(std::move(arrow)),
+			Ui::Text::RichLangValue
+		) | rpl::map([](TextWithEntities text) {
+			return Ui::Text::Link(std::move(text), u"internal:"_q);
+		}),
+		{ .session = &bot->session() },
+		st::defaultFlatLabel);
+	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
+		box->verticalLayout(),
+		bot,
+		st::mainMenuUserpic);
+	Ui::AddSkip(box->verticalLayout());
+	aboutLabel->setClickHandlerFilter([=](
+			const ClickHandlerPtr &,
+			Qt::MouseButton) {
+		if (const auto strong = weak.get()) {
+			strong->showPeerHistory(
+				bot->id,
+				Window::SectionShow::Way::Forward);
+			return true;
+		}
+		return false;
+	});
+	Ui::IconWithTitle(
+		box->verticalLayout(),
+		userpic,
+		Ui::CreateChild<Ui::FlatLabel>(
+			box->verticalLayout(),
+			rpl::single(bot->name()),
+			box->getDelegate()->style().title),
+		aboutLabel);
+}
+
 class BotAction final : public Ui::Menu::ItemBase {
 public:
 	BotAction(
@@ -775,15 +821,16 @@ void WebViewInstance::confirmOpen(Fn<void()> done) {
 		botClose();
 		close();
 	};
-	_parentShow->show(Ui::MakeConfirmBox({
-		.text = tr::lng_allow_bot_webview(
-			tr::now,
-			lt_bot_name,
-			Ui::Text::Bold(_bot->name()),
-			Ui::Text::RichLangValue),
-		.confirmed = crl::guard(this, callback),
-		.cancelled = crl::guard(this, cancel),
-		.confirmText = tr::lng_box_ok(),
+	_parentShow->show(Box([=](not_null<Ui::GenericBox*> box) {
+		FillBotUsepic(box, _bot, _context.controller);
+		Ui::ConfirmBox(box, {
+			.text = tr::lng_allow_bot_webview_details_about(
+				tr::now,
+				Ui::Text::RichLangValue),
+			.confirmed = crl::guard(this, callback),
+			.cancelled = crl::guard(this, cancel),
+			.confirmText = tr::lng_box_ok(),
+		});
 	}));
 }
 
@@ -800,48 +847,7 @@ void WebViewInstance::confirmAppOpen(
 			botClose();
 			close();
 		};
-		{
-			auto arrow = Ui::Text::SingleCustomEmoji(
-				_bot->owner().customEmojiManager().registerInternalEmoji(
-					st::topicButtonArrow,
-					st::channelEarnLearnArrowMargins,
-					false));
-			auto aboutLabel = Ui::CreateLabelWithCustomEmoji(
-				box->verticalLayout(),
-				tr::lng_allow_bot_webview_details(
-					lt_emoji,
-					rpl::single(std::move(arrow)),
-					Ui::Text::RichLangValue
-				) | rpl::map([](TextWithEntities text) {
-					return Ui::Text::Link(std::move(text), u"internal:"_q);
-				}),
-				{ .session = &_bot->session() },
-				st::defaultFlatLabel);
-			const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-				box->verticalLayout(),
-				_bot,
-				st::mainMenuUserpic);
-			Ui::AddSkip(box->verticalLayout());
-			aboutLabel->setClickHandlerFilter([=, weak = _context.controller](
-					const ClickHandlerPtr &,
-					Qt::MouseButton) {
-				if (const auto strong = weak.get()) {
-					strong->showPeerHistory(
-						_bot->id,
-						Window::SectionShow::Way::Forward);
-					return true;
-				}
-				return false;
-			});
-			Ui::IconWithTitle(
-				box->verticalLayout(),
-				userpic,
-				Ui::CreateChild<Ui::FlatLabel>(
-					box->verticalLayout(),
-					rpl::single(_bot->name()),
-					box->getDelegate()->style().title),
-				aboutLabel);
-		}
+		FillBotUsepic(box, _bot, _context.controller);
 		Ui::ConfirmBox(box, {
 			tr::lng_allow_bot_webview_details_about(
 				tr::now,
