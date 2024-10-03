@@ -87,6 +87,7 @@ namespace {
 
 constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
+constexpr auto kQueryPreviewLimit = 32;
 
 [[nodiscard]] int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
 	auto result = 0;
@@ -145,11 +146,14 @@ constexpr auto kStartReorderThreshold = 30;
 			tr::now,
 			Ui::Text::Bold));
 		if (!trimmed.isEmpty()) {
+			const auto preview = (trimmed.size() > kQueryPreviewLimit + 3)
+				? (trimmed.mid(0, kQueryPreviewLimit) + Ui::kQEllipsis)
+				: trimmed;
 			text.append("\n").append(
 				tr::lng_search_tab_no_results_text(
 					tr::now,
 					lt_query,
-					trimmed));
+					trimmed.mid(0, kQueryPreviewLimit)));
 			if (hashtag) {
 				text.append("\n").append(
 					tr::lng_search_tab_no_results_retry(tr::now));
