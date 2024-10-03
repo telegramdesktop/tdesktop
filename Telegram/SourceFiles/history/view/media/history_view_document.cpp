@@ -883,6 +883,7 @@ void Document::draw(
 			.outerWidth = width,
 			.availableWidth = namewidth,
 			.elisionLines = 1,
+			.elisionMiddle = true,
 		});
 		_tooltipFilename.setElided(namewidth < named->name.maxWidth());
 	}
