@@ -317,15 +317,23 @@ public:
 		Ui::PeerUserpicView &view,
 		int x,
 		int y,
-		int size) const;
+		int size,
+		bool forceCircle = false) const;
 	void paintUserpicLeft(
 			Painter &p,
 			Ui::PeerUserpicView &view,
 			int x,
 			int y,
 			int w,
-			int size) const {
-		paintUserpic(p, view, rtl() ? (w - x - size) : x, y, size);
+			int size,
+			bool forceCircle = false) const {
+		paintUserpic(
+			p,
+			view,
+			rtl() ? (w - x - size) : x,
+			y,
+			size,
+			forceCircle);
 	}
 	void loadUserpic();
 	[[nodiscard]] bool hasUserpic() const;

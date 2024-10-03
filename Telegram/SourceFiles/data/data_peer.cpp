@@ -394,7 +394,8 @@ void PeerData::paintUserpic(
 		Ui::PeerUserpicView &view,
 		int x,
 		int y,
-		int size) const {
+		int size,
+		bool forceCircle) const {
 	const auto cloud = userpicCloudImage(view);
 	const auto ratio = style::DevicePixelRatio();
 	Ui::ValidateUserpicCache(
@@ -402,7 +403,7 @@ void PeerData::paintUserpic(
 		cloud,
 		cloud ? nullptr : ensureEmptyUserpic().get(),
 		size * ratio,
-		isForum());
+		!forceCircle && isForum());
 	p.drawImage(QRect(x, y, size, size), view.cached);
 }
 

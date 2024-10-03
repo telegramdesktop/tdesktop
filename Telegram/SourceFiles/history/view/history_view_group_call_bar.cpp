@@ -38,13 +38,14 @@ void GenerateUserpicsInRow(
 	const auto single = st.size;
 	const auto shift = st.shift;
 	const auto width = single + (limit - 1) * (single - shift);
-	if (result.width() != width * style::DevicePixelRatio()) {
+	const auto ratio = style::DevicePixelRatio();
+	if (result.width() != width * ratio) {
 		result = QImage(
-			QSize(width, single) * style::DevicePixelRatio(),
+			QSize(width, single) * ratio,
 			QImage::Format_ARGB32_Premultiplied);
 	}
 	result.fill(Qt::transparent);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
+	result.setDevicePixelRatio(ratio);
 
 	auto q = Painter(&result);
 	auto hq = PainterHighQualityEnabler(q);
@@ -54,7 +55,7 @@ void GenerateUserpicsInRow(
 	for (auto i = count; i != 0;) {
 		auto &entry = list[--i];
 		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		entry.peer->paintUserpic(q, entry.view, x, 0, single);
+		entry.peer->paintUserpic(q, entry.view, x, 0, single, true);
 		entry.uniqueKey = entry.peer->userpicUniqueKey(entry.view);
 		q.setCompositionMode(QPainter::CompositionMode_Source);
 		q.setBrush(Qt::NoBrush);
