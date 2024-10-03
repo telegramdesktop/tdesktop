@@ -1,3 +1,10 @@
+5.5.8 beta (03.10.24)
+
+- Allow drag-to-scroll in reply quote edit box.
+- Add bot verified badge to web app title.
+- Fix crash when opening some channels.
+- Fix some visual glitches.
+
 5.5.7 beta (01.10.24)
 
 - Add ability to share QR code of bots.
