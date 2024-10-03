@@ -348,7 +348,7 @@ void SponsoredMessages::append(
 		_session->data().nextLocalMessageId());
 	const auto fileOrigin = FileOrigin(); // No way to refresh in ads.
 
-	static const auto kFlaggedPreload = ((MediaPreload*)nullptr) + 1;
+	static const auto kFlaggedPreload = ((MediaPreload*)quintptr(0x01));
 	const auto preloaded = [=] {
 		const auto i = _data.find(history);
 		if (i == end(_data)) {

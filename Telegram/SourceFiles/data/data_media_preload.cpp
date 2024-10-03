@@ -123,7 +123,6 @@ void VideoPreload::load() {
 		callDone();
 		return;
 	}
-	const auto key = _video->bigFileBaseCacheKey();
 	const auto prefix = ChoosePreloadPrefix(_video);
 	Assert(prefix > 0 && prefix <= _video->size);
 	const auto part = Storage::kDownloadPartSize;
