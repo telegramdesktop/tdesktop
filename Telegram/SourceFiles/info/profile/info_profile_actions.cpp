@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_blocked_peers.h"
 #include "api/api_chat_participants.h"
+#include "api/api_credits.h"
 #include "apiwrap.h"
 #include "base/options.h"
 #include "base/timer_rpl.h"
@@ -21,8 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/translate_box.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "data/business/data_business_common.h"
 #include "data/business/data_business_info.h"
+#include "data/components/credits.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -32,12 +35,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_message_view.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/view/history_view_item_preview.h"
+#include "info/bot/earn/info_bot_earn_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_icon.h"
@@ -75,6 +80,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h" // settingsButtonRightSkip.
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -825,6 +831,7 @@ public:
 
 private:
 	void addInviteToGroupAction(not_null<UserData*> user);
+	void addCreditsAction(not_null<UserData*> user);
 	void addShareContactAction(not_null<UserData*> user);
 	void addEditContactAction(not_null<UserData*> user);
 	void addDeleteContactAction(not_null<UserData*> user);
@@ -1830,8 +1837,7 @@ ActionsFiller::ActionsFiller(
 , _peer(peer) {
 }
 
-void ActionsFiller::addInviteToGroupAction(
-		not_null<UserData*> user) {
+void ActionsFiller::addInviteToGroupAction(not_null<UserData*> user) {
 	const auto notEmpty = [](const QString &value) {
 		return !value.isEmpty();
 	};
@@ -1853,6 +1859,59 @@ void ActionsFiller::addInviteToGroupAction(
 		InviteToChatAbout(user) | rpl::filter(notEmpty));
 	Ui::AddSkip(about->entity());
 	about->finishAnimating();
+}
+
+void ActionsFiller::addCreditsAction(not_null<UserData*> user) {
+	struct State final {
+		rpl::variable<uint64> balance;
+	};
+	const auto state = _wrap->lifetime().make_state<State>();
+	const auto controller = _controller->parentController();
+	const auto wrap = AddActionButton(
+		_wrap,
+		tr::lng_manage_peer_bot_balance(),
+		state->balance.value() | rpl::map(rpl::mappers::_1 > 0),
+		[=] { controller->showSection(Info::BotEarn::Make(user)); },
+		&st::infoIconBotBalance);
+	if (const auto balance = user->session().credits().balance(user->id)) {
+		state->balance = balance;
+	}
+	{
+		const auto api = _wrap->lifetime().make_state<Api::CreditsStatus>(
+			user);
+		api->request({}, [=](Data::CreditsStatusSlice data) {
+			state->balance = data.balance;
+		});
+	}
+	const auto &st = st::infoSharedMediaButton;
+	const auto button = wrap->entity();
+	const auto name = Ui::CreateChild<Ui::FlatLabel>(button, st.rightLabel);
+	name->show();
+	rpl::combine(
+		button->widthValue(),
+		tr::lng_manage_peer_bot_balance(),
+		state->balance.value()
+	) | rpl::start_with_next([=, &st](
+			int width,
+			const QString &button,
+			uint64 balance) {
+		const auto available = width
+			- rect::m::sum::h(st.padding)
+			- st.style.font->width(button)
+			- st::settingsButtonRightSkip;
+		name->setMarkedText(
+			user->owner().customEmojiManager().creditsEmoji()
+				.append(QChar(' '))
+				.append(QString::number(balance)),
+			Core::MarkedTextContext{
+				.session = &user->session(),
+				.customEmojiRepaint = [=] { name->update(); },
+			});
+		name->resizeToNaturalWidth(available);
+		name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+	}, name->lifetime());
+	name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	wrap->finishAnimating();
 }
 
 void ActionsFiller::addShareContactAction(not_null<UserData*> user) {
@@ -2077,6 +2136,7 @@ void ActionsFiller::addJoinChannelAction(
 
 void ActionsFiller::fillUserActions(not_null<UserData*> user) {
 	if (user->isBot()) {
+		addCreditsAction(user);
 		addInviteToGroupAction(user);
 	}
 	addShareContactAction(user);
