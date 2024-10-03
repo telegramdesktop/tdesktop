@@ -24,11 +24,13 @@ public:
 
 	void load(bool force = false);
 	void apply(uint64 balance);
+	void apply(PeerId peerId, uint64 balance);
 
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] rpl::producer<bool> loadedValue() const;
 
 	[[nodiscard]] uint64 balance() const;
+	[[nodiscard]] uint64 balance(PeerId peerId) const;
 	[[nodiscard]] rpl::producer<uint64> balanceValue() const;
 	[[nodiscard]] rpl::producer<float64> rateValue(
 		not_null<PeerData*> ownedBotOrChannel);
@@ -46,6 +48,8 @@ private:
 	const not_null<Main::Session*> _session;
 
 	std::unique_ptr<Api::CreditsStatus> _loader;
+
+	base::flat_map<PeerId, uint64> _cachedPeerBalances;
 
 	uint64 _balance = 0;
 	uint64 _locked = 0;

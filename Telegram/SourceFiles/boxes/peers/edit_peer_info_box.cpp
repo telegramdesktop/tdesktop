@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/components/credits.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
@@ -1591,6 +1592,9 @@ void Controller::fillBotBalanceButton() {
 
 	auto &lifetime = _controls.buttonsLayout->lifetime();
 	const auto state = lifetime.make_state<State>();
+	if (const auto balance = _peer->session().credits().balance(_peer->id)) {
+		state->balance = QString::number(balance);
+	}
 
 	const auto wrap = _controls.buttonsLayout->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
@@ -1604,7 +1608,7 @@ void Controller::fillBotBalanceButton() {
 				},
 				st::manageGroupButton,
 				{})));
-	wrap->toggle(false, anim::type::instant);
+	wrap->toggle(!state->balance.current().isEmpty(), anim::type::instant);
 
 	const auto button = wrap->entity();
 	{

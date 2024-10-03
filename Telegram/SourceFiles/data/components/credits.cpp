@@ -69,6 +69,11 @@ uint64 Credits::balance() const {
 	return _nonLockedBalance.current();
 }
 
+uint64 Credits::balance(PeerId peerId) const {
+	const auto it = _cachedPeerBalances.find(peerId);
+	return (it != _cachedPeerBalances.end()) ? it->second : 0;
+}
+
 rpl::producer<uint64> Credits::balanceValue() const {
 	return _nonLockedBalance.value();
 }
@@ -117,6 +122,10 @@ void Credits::apply(uint64 balance) {
 	if (!was) {
 		_loadedChanges.fire({});
 	}
+}
+
+void Credits::apply(PeerId peerId, uint64 balance) {
+	_cachedPeerBalances[peerId] = balance;
 }
 
 } // namespace Data

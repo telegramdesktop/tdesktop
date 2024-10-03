@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
+#include "data/components/credits.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
@@ -248,6 +249,8 @@ void CreditsStatus::request(
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input
 	)).done([=](const TLResult &result) {
 		_requestId = 0;
+		const auto balance = result.data().vbalance().v;
+		_peer->session().credits().apply(_peer->id, balance);
 		if (const auto onstack = done) {
 			onstack(StatusFromTL(result, _peer));
 		}
