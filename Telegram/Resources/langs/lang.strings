@@ -1381,6 +1381,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_public_photo" = "public photo";
 "lng_profile_administrators#one" = "{count} administrator";
 "lng_profile_administrators#other" = "{count} administrators";
+"lng_profile_manage" = "Channel settings";
 
 "lng_invite_upgrade_title" = "Upgrade to Premium";
 "lng_invite_upgrade_group_invite#one" = "{users} only accepts invitations to groups from Contacts and **Premium** users.";

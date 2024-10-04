@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
@@ -2339,6 +2340,20 @@ object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 		admins,
 		st::menuIconAdmin,
 		st::infoChannelAdminsIconPosition);
+
+	if (EditPeerInfoBox::Available(channel)) {
+		const auto sessionController = controller->parentController();
+		const auto button = AddActionButton(
+			result->entity(),
+			tr::lng_profile_manage(),
+			rpl::single(true),
+			[=] { sessionController->showEditPeerBox(channel); },
+			nullptr);
+		object_ptr<FloatingIcon>(
+			button,
+			st::menuIconManage,
+			st::infoChannelAdminsIconPosition);
+	}
 
 	result->setDuration(st::infoSlideDuration)->toggleOn(
 		rpl::combine(
