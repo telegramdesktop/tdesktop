@@ -1379,6 +1379,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_copy_fullname" = "Copy Name";
 "lng_profile_photo_by_you" = "photo set by you";
 "lng_profile_public_photo" = "public photo";
+"lng_profile_administrators#one" = "{count} administrator";
+"lng_profile_administrators#other" = "{count} administrators";
 
 "lng_invite_upgrade_title" = "Upgrade to Premium";
 "lng_invite_upgrade_group_invite#one" = "{users} only accepts invitations to groups from Contacts and **Premium** users.";

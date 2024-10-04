@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
@@ -2243,7 +2244,7 @@ void SetupAddChannelMember(
 	}, add->lifetime());
 }
 
-object_ptr<Ui::RpWidget> SetupChannelMembers(
+object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 		not_null<Controller*> controller,
 		not_null<Ui::RpWidget*> parent,
 		not_null<PeerData*> peer) {
@@ -2253,6 +2254,12 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 	if (!channel || channel->isMegagroup()) {
 		return { nullptr };
 	}
+
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		parent,
+		object_ptr<Ui::VerticalLayout>(parent));
+	result->entity()->add(object_ptr<Ui::BoxContentDivider>(result));
+	result->entity()->add(CreateSkipWidget(result));
 
 	auto membersShown = rpl::combine(
 		MembersCountValue(channel),
@@ -2269,32 +2276,77 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 			Section::Type::Members));
 	};
 
-	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		parent,
-		object_ptr<Ui::VerticalLayout>(parent));
-	result->setDuration(
+	const auto membersWrap = result->entity()->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			result->entity(),
+			object_ptr<Ui::VerticalLayout>(result->entity())));
+	membersWrap->setDuration(
 		st::infoSlideDuration
-	)->toggleOn(
-		std::move(membersShown)
-	);
+	)->toggleOn(rpl::duplicate(membersShown));
 
-	auto members = result->entity();
-	members->add(object_ptr<Ui::BoxContentDivider>(members));
-	members->add(CreateSkipWidget(members));
-	auto button = AddActionButton(
-		members,
-		std::move(membersText),
-		rpl::single(true),
-		std::move(membersCallback),
-		nullptr)->entity();
+	const auto members = membersWrap->entity();
+	{
+		auto button = AddActionButton(
+			members,
+			std::move(membersText),
+			rpl::single(true),
+			std::move(membersCallback),
+			nullptr)->entity();
 
-	SetupAddChannelMember(controller, button, channel);
+		SetupAddChannelMember(controller, button, channel);
+	}
 
 	object_ptr<FloatingIcon>(
 		members,
 		st::infoIconMembers,
 		st::infoChannelMembersIconPosition);
-	members->add(CreateSkipWidget(members));
+
+	auto adminsShown = peer->session().changes().peerFlagsValue(
+		channel,
+		Data::PeerUpdate::Flag::Rights
+	) | rpl::map([=] { return channel->canViewAdmins(); });
+	auto adminsText = tr::lng_profile_administrators(
+		lt_count_decimal,
+		Info::Profile::MigratedOrMeValue(
+			channel
+		) | rpl::map(
+			Info::Profile::AdminsCountValue
+		) | rpl::flatten_latest() | tr::to_count());
+	auto adminsCallback = [=] {
+		ParticipantsBoxController::Start(
+			controller,
+			channel,
+			ParticipantsBoxController::Role::Admins);
+	};
+
+	const auto adminsWrap = result->entity()->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			result->entity(),
+			object_ptr<Ui::VerticalLayout>(result->entity())));
+	adminsWrap->setDuration(
+		st::infoSlideDuration
+	)->toggleOn(rpl::duplicate(adminsShown));
+
+	const auto admins = adminsWrap->entity();
+	AddActionButton(
+		admins,
+		std::move(adminsText),
+		rpl::single(true),
+		std::move(adminsCallback),
+		nullptr);
+
+	object_ptr<FloatingIcon>(
+		admins,
+		st::menuIconAdmin,
+		st::infoChannelAdminsIconPosition);
+
+	result->setDuration(st::infoSlideDuration)->toggleOn(
+		rpl::combine(
+			std::move(membersShown),
+			std::move(adminsShown)
+		) | rpl::map(rpl::mappers::_1 || rpl::mappers::_2));
+
+	result->entity()->add(CreateSkipWidget(result));
 
 	return result;
 }

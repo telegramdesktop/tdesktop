@@ -43,7 +43,7 @@ object_ptr<Ui::RpWidget> SetupActions(
 	not_null<Ui::RpWidget*> parent,
 	not_null<PeerData*> peer);
 
-object_ptr<Ui::RpWidget> SetupChannelMembers(
+object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 	not_null<Controller*> controller,
 	not_null<Ui::RpWidget*> parent,
 	not_null<PeerData*> peer);

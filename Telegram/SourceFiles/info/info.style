@@ -488,7 +488,8 @@ infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoGroupMembersIconPosition: point(20px, 10px);
-infoChannelMembersIconPosition: point(20px, 19px);
+infoChannelMembersIconPosition: point(20px, 4px);
+infoChannelAdminsIconPosition: point(24px, 7px);
 
 infoOpenApp: RoundButton(defaultActiveButton) {
 	textTop: 11px;

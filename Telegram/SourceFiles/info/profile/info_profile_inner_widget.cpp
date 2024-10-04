@@ -113,8 +113,14 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	if (_topic) {
 		return result;
 	}
-	if (auto members = SetupChannelMembers(_controller, result.data(), _peer)) {
-		result->add(std::move(members));
+	{
+		auto buttons = SetupChannelMembersAndManage(
+			_controller,
+			result.data(),
+			_peer);
+		if (buttons) {
+			result->add(std::move(buttons));
+		}
 	}
 	if (auto actions = SetupActions(_controller, result.data(), _peer)) {
 		result->add(object_ptr<Ui::BoxContentDivider>(result));
