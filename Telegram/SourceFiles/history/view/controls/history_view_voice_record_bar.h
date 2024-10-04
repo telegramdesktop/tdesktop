@@ -24,6 +24,7 @@ struct RecordBar;
 namespace Ui {
 class AbstractButton;
 class SendButton;
+class RoundVideoRecorder;
 } // namespace Ui
 
 namespace Window {
@@ -124,13 +125,10 @@ private:
 
 	void recordUpdated(quint16 level, int samples);
 
-	[[nodiscard]] bool recordingAnimationCallback(crl::time now);
-
 	void stop(bool send);
 	void stopRecording(StopType type, bool ttlBeforeHide = false);
 	void visibilityAnimate(bool show, Fn<void()> &&callback);
 
-	[[nodiscard]] bool showRecordButton() const;
 	void drawDuration(QPainter &p);
 	void drawRedCircle(QPainter &p);
 	void drawMessage(QPainter &p, float64 recordActive);
@@ -152,6 +150,8 @@ private:
 
 	[[nodiscard]] bool peekTTLState() const;
 	[[nodiscard]] bool takeTTLState() const;
+
+	[[nodiscard]] bool createVideoRecorder();
 
 	const style::RecordBar &_st;
 	const not_null<Ui::RpWidget*> _outerContainer;
@@ -194,6 +194,11 @@ private:
 	rpl::event_stream<> _recordingTipRequests;
 	bool _recordingTipRequired = false;
 	bool _lockFromBottom = false;
+
+	std::unique_ptr<Ui::RoundVideoRecorder> _videoRecorder;
+	std::vector<std::unique_ptr<Ui::RoundVideoRecorder>> _videoHiding;
+	rpl::lifetime _videoCapturerLifetime;
+	bool _recordingVideo = false;
 
 	const style::font &_cancelFont;
 

@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QThread>
 #include <QtCore/QTimer>
-
-struct AVFrame;
 
 namespace Media {
 namespace Capture {
@@ -17,6 +16,12 @@ namespace Capture {
 struct Update {
 	int samples = 0;
 	ushort level = 0;
+};
+
+struct Chunk {
+	crl::time finished = 0;
+	QByteArray samples;
+	int frequency = 0;
 };
 
 struct Result;
@@ -45,7 +50,7 @@ public:
 		return _started.changes();
 	}
 
-	void start();
+	void start(Fn<void(Chunk)> externalProcessing = nullptr);
 	void stop(Fn<void(Result&&)> callback = nullptr);
 	void pause(bool value, Fn<void(Result&&)> callback);
 

@@ -31,6 +31,7 @@ extern const char kOptionSendLargePhotos[];
 enum class SendMediaType {
 	Photo,
 	Audio,
+	Round,
 	File,
 	ThemeFile,
 	Secure,
@@ -231,6 +232,7 @@ public:
 		const QByteArray &voice,
 		crl::time duration,
 		const VoiceWaveform &waveform,
+		bool video,
 		const FileLoadTo &to,
 		const TextWithTags &caption);
 	~FileLoadTask();

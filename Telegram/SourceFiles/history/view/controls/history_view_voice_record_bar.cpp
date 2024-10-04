@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "ui/boxes/confirm_box.h"
+#include "calls/calls_instance.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
 #include "data/data_document.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
+#include "ui/controls/round_video_recorder.h"
 #include "ui/controls/send_button.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/animation_value_f.h"
@@ -37,10 +39,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
+#include "webrtc/webrtc_video_track.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
+
+#include <tgcalls/VideoCaptureInterface.h>
 
 namespace HistoryView::Controls {
 namespace {
@@ -1579,6 +1584,11 @@ void VoiceRecordBar::activeAnimate(bool active) {
 }
 
 void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
+	//if (_videoRecorder) {
+	//	_videoHiding.push_back(base::take(_videoRecorder));
+	//	_videoHiding.back()->hide();
+	//}
+	AssertIsDebug();
 	const auto to = show ? 1. : 0.;
 	const auto from = show ? 0. : 1.;
 	auto animationCallback = [=, callback = std::move(callback)](auto value) {
@@ -1646,12 +1656,17 @@ void VoiceRecordBar::startRecording() {
 	if (isRecording()) {
 		return;
 	}
+	_recordingVideo = true; AssertIsDebug();
 	auto appearanceCallback = [=] {
 		if (_showAnimation.animating()) {
 			return;
 		}
 
 		using namespace ::Media::Capture;
+		if (_recordingVideo && !createVideoRecorder()) {
+			stop(false);
+			return;
+		}
 		if (!instance()->available()) {
 			stop(false);
 			return;
@@ -1664,8 +1679,13 @@ void VoiceRecordBar::startRecording() {
 		if (_paused.current()) {
 			_paused = false;
 			instance()->pause(false, nullptr);
+			if (_videoRecorder) {
+				_videoRecorder->setPaused(false);
+			}
 		} else {
-			instance()->start();
+			instance()->start(_videoRecorder
+				? _videoRecorder->audioChunkProcessor()
+				: nullptr);
 		}
 		instance()->updated(
 		) | rpl::start_with_next_error([=](const Update &update) {
@@ -1769,10 +1789,17 @@ void VoiceRecordBar::hideFast() {
 void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 	using namespace ::Media::Capture;
 	if (type == StopType::Cancel) {
+		if (_videoRecorder) {
+			_videoRecorder->setPaused(true);
+			_videoRecorder->hide();
+		}
 		instance()->stop(crl::guard(this, [=](Result &&data) {
 			_cancelRequests.fire({});
 		}));
 	} else if (type == StopType::Listen) {
+		if (_videoRecorder) {
+			_videoRecorder->setPaused(true);
+		}
 		instance()->pause(true, crl::guard(this, [=](Result &&data) {
 			if (data.bytes.isEmpty()) {
 				// Close everything.
@@ -1795,6 +1822,29 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 			// _lockShowing = false;
 		}));
 	} else if (type == StopType::Send) {
+		if (_videoRecorder) {
+			const auto weak = Ui::MakeWeak(this);
+			_videoRecorder->hide([=](Ui::RoundVideoResult data) {
+				crl::on_main([=, data = std::move(data)]() mutable {
+					if (weak) {
+						window()->raise();
+						window()->activateWindow();
+						const auto options = Api::SendOptions{
+							.ttlSeconds = (ttlBeforeHide
+								? std::numeric_limits<int>::max()
+								: 0),
+						};
+						_sendVoiceRequests.fire({
+							data.content,
+							VoiceWaveform{},
+							data.duration,
+							options,
+							true,
+						});
+					}
+				});
+			});
+		}
 		instance()->stop(crl::guard(this, [=](Result &&data) {
 			if (data.bytes.isEmpty()) {
 				// Close everything.
@@ -2092,6 +2142,42 @@ void VoiceRecordBar::showDiscardBox(
 		.confirmStyle = &st::attentionBoxButton,
 	}));
 	_warningShown = true;
+}
+
+bool VoiceRecordBar::createVideoRecorder() {
+	if (_videoRecorder) {
+		return true;
+	}
+	const auto hidden = [=](not_null<Ui::RoundVideoRecorder*> which) {
+		if (_videoRecorder.get() == which) {
+			_videoRecorder = nullptr;
+		}
+		_videoHiding.erase(
+			ranges::remove(
+				_videoHiding,
+				which.get(),
+				&std::unique_ptr<Ui::RoundVideoRecorder>::get),
+			end(_videoHiding));
+	};
+	auto capturer = Core::App().calls().getVideoCapture();
+	auto track = std::make_shared<Webrtc::VideoTrack>(
+		Webrtc::VideoState::Active);
+	capturer->setOutput(track->sink());
+	capturer->setPreferredAspectRatio(1.);
+	_videoCapturerLifetime = track->stateValue(
+	) | rpl::start_with_next([=](Webrtc::VideoState state) {
+		capturer->setState((state == Webrtc::VideoState::Active)
+			? tgcalls::VideoState::Active
+			: tgcalls::VideoState::Inactive);
+	});
+	_videoRecorder = std::make_unique<Ui::RoundVideoRecorder>(
+		Ui::RoundVideoRecorderDescriptor{
+			.container = _outerContainer,
+			.hidden = hidden,
+			.capturer = std::move(capturer),
+			.track = std::move(track),
+		});
+	return true;
 }
 
 } // namespace HistoryView::Controls

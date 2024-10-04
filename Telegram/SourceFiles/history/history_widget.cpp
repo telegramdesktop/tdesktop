@@ -1042,6 +1042,7 @@ void HistoryWidget::initVoiceRecordBar() {
 			data.bytes,
 			data.waveform,
 			data.duration,
+			data.video,
 			action);
 		_voiceRecordBar->clearListenState();
 	}, lifetime());

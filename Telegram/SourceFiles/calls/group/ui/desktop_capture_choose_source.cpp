@@ -73,8 +73,8 @@ private:
 
 	SourceButton _widget;
 	FlatLabel _label;
-	RoundRect _selectedRect;
-	RoundRect _activeRect;
+	Ui::RoundRect _selectedRect;
+	Ui::RoundRect _activeRect;
 	tgcalls::DesktopCaptureSource _source;
 	std::unique_ptr<Preview> _preview;
 	rpl::event_stream<> _activations;

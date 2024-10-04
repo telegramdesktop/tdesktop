@@ -3502,6 +3502,7 @@ void ApiWrap::sendVoiceMessage(
 		QByteArray result,
 		VoiceWaveform waveform,
 		crl::time duration,
+		bool video,
 		const SendAction &action) {
 	const auto caption = TextWithTags();
 	const auto to = FileLoadTaskOptions(action);
@@ -3510,6 +3511,7 @@ void ApiWrap::sendVoiceMessage(
 		result,
 		duration,
 		waveform,
+		video,
 		to,
 		caption));
 }

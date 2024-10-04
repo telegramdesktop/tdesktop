@@ -57,29 +57,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 
 ScheduledMemento::ScheduledMemento(not_null<History*> history)
-: _history(history)
-, _forumTopic(nullptr) {
+	: _history(history)
+	, _forumTopic(nullptr) {
 	const auto list = _history->session().scheduledMessages().list(_history);
 	if (!list.ids.empty()) {
-		_list.setScrollTopState({ .item = { .fullId = list.ids.front() } });
+		_list.setScrollTopState({ .item = {.fullId = list.ids.front() } });
 	}
 }
 
 ScheduledMemento::ScheduledMemento(not_null<Data::ForumTopic*> forumTopic)
-: _history(forumTopic->owningHistory())
-, _forumTopic(forumTopic) {
+	: _history(forumTopic->owningHistory())
+	, _forumTopic(forumTopic) {
 	const auto list = _history->session().scheduledMessages().list(
 		_forumTopic);
 	if (!list.ids.empty()) {
-		_list.setScrollTopState({ .item = { .fullId = list.ids.front() } });
+		_list.setScrollTopState({ .item = {.fullId = list.ids.front() } });
 	}
 }
 
 object_ptr<Window::SectionWidget> ScheduledMemento::createWidget(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		Window::Column column,
-		const QRect &geometry) {
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	Window::Column column,
+	const QRect &geometry) {
 	if (column == Window::Column::Third) {
 		return nullptr;
 	}
@@ -97,30 +97,30 @@ ScheduledWidget::ScheduledWidget(
 	not_null<Window::SessionController*> controller,
 	not_null<History*> history,
 	const Data::ForumTopic *forumTopic)
-: Window::SectionWidget(parent, controller, history->peer)
-, WindowListDelegate(controller)
-, _show(controller->uiShow())
-, _history(history)
-, _forumTopic(forumTopic)
-, _scroll(
-	this,
-	controller->chatStyle()->value(lifetime(), st::historyScroll),
-	false)
-, _topBar(this, controller)
-, _topBarShadow(this)
-, _composeControls(std::make_unique<ComposeControls>(
-	this,
-	ComposeControlsDescriptor{
-		.show = controller->uiShow(),
-		.unavailableEmojiPasted = [=](not_null<DocumentData*> emoji) {
-			listShowPremiumToast(emoji);
-		},
-		.mode = ComposeControls::Mode::Scheduled,
-		.sendMenuDetails = [] { return SendMenu::Details(); },
-		.regularWindow = controller,
-		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
-	}))
-, _cornerButtons(
+	: Window::SectionWidget(parent, controller, history->peer)
+	, WindowListDelegate(controller)
+	, _show(controller->uiShow())
+	, _history(history)
+	, _forumTopic(forumTopic)
+	, _scroll(
+		this,
+		controller->chatStyle()->value(lifetime(), st::historyScroll),
+		false)
+	, _topBar(this, controller)
+	, _topBarShadow(this)
+	, _composeControls(std::make_unique<ComposeControls>(
+		this,
+		ComposeControlsDescriptor{
+			.show = controller->uiShow(),
+			.unavailableEmojiPasted = [=](not_null<DocumentData*> emoji) {
+				listShowPremiumToast(emoji);
+			},
+			.mode = ComposeControls::Mode::Scheduled,
+			.sendMenuDetails = [] { return SendMenu::Details(); },
+			.regularWindow = controller,
+			.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
+		}))
+	, _cornerButtons(
 		_scroll.data(),
 		controller->chatStyle(),
 		static_cast<HistoryView::CornerButtonsDelegate*>(this)) {
@@ -209,83 +209,83 @@ ScheduledWidget::~ScheduledWidget() = default;
 void ScheduledWidget::setupComposeControls() {
 	auto writeRestriction = _forumTopic
 		? [&] {
-			auto topicWriteRestrictions = rpl::single(
-			) | rpl::then(session().changes().topicUpdates(
-				Data::TopicUpdate::Flag::Closed
-			) | rpl::filter([=](const Data::TopicUpdate &update) {
-				return (update.topic->history() == _history)
-					&& (update.topic->rootId() == _forumTopic->rootId());
-			}) | rpl::to_empty) | rpl::map([=] {
-				return (!_forumTopic
-						|| _forumTopic->canToggleClosed()
-						|| !_forumTopic->closed())
-					? std::optional<QString>()
-					: tr::lng_forum_topic_closed(tr::now);
-			});
-			return rpl::combine(
-				session().changes().peerFlagsValue(
-					_history->peer,
-					Data::PeerUpdate::Flag::Rights),
-				Data::CanSendAnythingValue(_history->peer),
-				std::move(topicWriteRestrictions)
-			) | rpl::map([=](
-					auto,
-					auto,
-					std::optional<QString> topicRestriction) {
-				const auto allWithoutPolls = Data::AllSendRestrictions()
-					& ~ChatRestriction::SendPolls;
-				const auto canSendAnything = Data::CanSendAnyOf(
-					_forumTopic,
-					allWithoutPolls);
-				const auto restriction = Data::RestrictionError(
-					_history->peer,
-					ChatRestriction::SendOther);
-				auto text = !canSendAnything
-					? (restriction
-						? restriction
-						: topicRestriction
-						? std::move(topicRestriction)
-						: tr::lng_group_not_accessible(tr::now))
+		auto topicWriteRestrictions = rpl::single(
+		) | rpl::then(session().changes().topicUpdates(
+			Data::TopicUpdate::Flag::Closed
+		) | rpl::filter([=](const Data::TopicUpdate &update) {
+			return (update.topic->history() == _history)
+				&& (update.topic->rootId() == _forumTopic->rootId());
+		}) | rpl::to_empty) | rpl::map([=] {
+			return (!_forumTopic
+				|| _forumTopic->canToggleClosed()
+				|| !_forumTopic->closed())
+				? std::optional<QString>()
+				: tr::lng_forum_topic_closed(tr::now);
+		});
+		return rpl::combine(
+			session().changes().peerFlagsValue(
+				_history->peer,
+				Data::PeerUpdate::Flag::Rights),
+			Data::CanSendAnythingValue(_history->peer),
+			std::move(topicWriteRestrictions)
+		) | rpl::map([=](
+			auto,
+			auto,
+			std::optional<QString> topicRestriction) {
+			const auto allWithoutPolls = Data::AllSendRestrictions()
+				& ~ChatRestriction::SendPolls;
+			const auto canSendAnything = Data::CanSendAnyOf(
+				_forumTopic,
+				allWithoutPolls);
+			const auto restriction = Data::RestrictionError(
+				_history->peer,
+				ChatRestriction::SendOther);
+			auto text = !canSendAnything
+				? (restriction
+					? restriction
 					: topicRestriction
 					? std::move(topicRestriction)
-					: std::optional<QString>();
-				return text ? Controls::WriteRestriction{
-					.text = std::move(*text),
-					.type = Controls::WriteRestrictionType::Rights,
-				} : Controls::WriteRestriction();
-			}) | rpl::type_erased();
-		}()
+					: tr::lng_group_not_accessible(tr::now))
+				: topicRestriction
+				? std::move(topicRestriction)
+				: std::optional<QString>();
+			return text ? Controls::WriteRestriction{
+				.text = std::move(*text),
+				.type = Controls::WriteRestrictionType::Rights,
+			} : Controls::WriteRestriction();
+		}) | rpl::type_erased();
+	}()
 		: [&] {
-			return rpl::combine(
-				session().changes().peerFlagsValue(
-					_history->peer,
-					Data::PeerUpdate::Flag::Rights),
-				Data::CanSendAnythingValue(_history->peer)
-			) | rpl::map([=] {
-				const auto allWithoutPolls = Data::AllSendRestrictions()
-					& ~ChatRestriction::SendPolls;
-				const auto canSendAnything = Data::CanSendAnyOf(
-					_history->peer,
-					allWithoutPolls,
-					false);
-				const auto restriction = Data::RestrictionError(
-					_history->peer,
-					ChatRestriction::SendOther);
-				auto text = !canSendAnything
-					? (restriction
-						? restriction
-						: tr::lng_group_not_accessible(tr::now))
-					: std::optional<QString>();
-				return text ? Controls::WriteRestriction{
-					.text = std::move(*text),
-					.type = Controls::WriteRestrictionType::Rights,
-				} : Controls::WriteRestriction();
-			}) | rpl::type_erased();
-		}();
+		return rpl::combine(
+			session().changes().peerFlagsValue(
+				_history->peer,
+				Data::PeerUpdate::Flag::Rights),
+			Data::CanSendAnythingValue(_history->peer)
+		) | rpl::map([=] {
+			const auto allWithoutPolls = Data::AllSendRestrictions()
+				& ~ChatRestriction::SendPolls;
+			const auto canSendAnything = Data::CanSendAnyOf(
+				_history->peer,
+				allWithoutPolls,
+				false);
+			const auto restriction = Data::RestrictionError(
+				_history->peer,
+				ChatRestriction::SendOther);
+			auto text = !canSendAnything
+				? (restriction
+					? restriction
+					: tr::lng_group_not_accessible(tr::now))
+				: std::optional<QString>();
+			return text ? Controls::WriteRestriction{
+				.text = std::move(*text),
+				.type = Controls::WriteRestrictionType::Rights,
+			} : Controls::WriteRestriction();
+		}) | rpl::type_erased();
+	}();
 	_composeControls->setHistory({
 		.history = _history.get(),
 		.writeRestriction = std::move(writeRestriction),
-	});
+		});
 
 	_composeControls->height(
 	) | rpl::start_with_next([=] {
@@ -308,7 +308,7 @@ void ScheduledWidget::setupComposeControls() {
 
 	_composeControls->sendVoiceRequests(
 	) | rpl::start_with_next([=](ComposeControls::VoiceToSend &&data) {
-		sendVoice(data.bytes, data.waveform, data.duration);
+		sendVoice(std::move(data));
 	}, lifetime());
 
 	_composeControls->sendCommandRequests(
@@ -393,8 +393,8 @@ void ScheduledWidget::setupComposeControls() {
 	}, lifetime());
 
 	_composeControls->setMimeDataHook([=](
-			not_null<const QMimeData*> data,
-			Ui::InputField::MimeAction action) {
+		not_null<const QMimeData*> data,
+		Ui::InputField::MimeAction action) {
 		if (action == Ui::InputField::MimeAction::Check) {
 			return Core::CanSendFiles(data);
 		} else if (action == Ui::InputField::MimeAction::Insert) {
@@ -426,7 +426,7 @@ void ScheduledWidget::chooseAttach() {
 
 	const auto filter = FileDialog::AllOrImagesFilter();
 	FileDialog::GetOpenPaths(this, tr::lng_choose_files(tr::now), filter, crl::guard(this, [=](
-			FileDialog::OpenResult &&result) {
+		FileDialog::OpenResult &&result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
@@ -434,7 +434,7 @@ void ScheduledWidget::chooseAttach() {
 		if (!result.remoteContent.isEmpty()) {
 			auto read = Images::Read({
 				.content = result.remoteContent,
-			});
+				});
 			if (!read.image.isNull() && !read.animated) {
 				confirmSendingFiles(
 					std::move(read.image),
@@ -454,9 +454,9 @@ void ScheduledWidget::chooseAttach() {
 }
 
 bool ScheduledWidget::confirmSendingFiles(
-		not_null<const QMimeData*> data,
-		std::optional<bool> overrideSendImagesAsPhotos,
-		const QString &insertTextOnCancel) {
+	not_null<const QMimeData*> data,
+	std::optional<bool> overrideSendImagesAsPhotos,
+	const QString &insertTextOnCancel) {
 	const auto hasImage = data->hasImage();
 	const auto premium = controller()->session().user()->isPremium();
 
@@ -488,8 +488,8 @@ bool ScheduledWidget::confirmSendingFiles(
 }
 
 bool ScheduledWidget::confirmSendingFiles(
-		Ui::PreparedList &&list,
-		const QString &insertTextOnCancel) {
+	Ui::PreparedList &&list,
+	const QString &insertTextOnCancel) {
 	if (_composeControls->confirmMediaEdit(list)) {
 		return true;
 	} else if (showSendingFilesError(list)) {
@@ -507,11 +507,11 @@ bool ScheduledWidget::confirmSendingFiles(
 		SendMenu::Details());
 
 	box->setConfirmedCallback(crl::guard(this, [=](
-			Ui::PreparedList &&list,
-			Ui::SendFilesWay way,
-			TextWithTags &&caption,
-			Api::SendOptions options,
-			bool ctrlShiftEnter) {
+		Ui::PreparedList &&list,
+		Ui::SendFilesWay way,
+		TextWithTags &&caption,
+		Api::SendOptions options,
+		bool ctrlShiftEnter) {
 		sendingFilesConfirmed(
 			std::move(list),
 			way,
@@ -529,11 +529,11 @@ bool ScheduledWidget::confirmSendingFiles(
 }
 
 void ScheduledWidget::sendingFilesConfirmed(
-		Ui::PreparedList &&list,
-		Ui::SendFilesWay way,
-		TextWithTags &&caption,
-		Api::SendOptions options,
-		bool ctrlShiftEnter) {
+	Ui::PreparedList &&list,
+	Ui::SendFilesWay way,
+	TextWithTags &&caption,
+	Api::SendOptions options,
+	bool ctrlShiftEnter) {
 	Expects(list.filesToProcess.empty());
 
 	if (showSendingFilesError(list, way.sendImagesAsPhotos())) {
@@ -565,10 +565,10 @@ void ScheduledWidget::sendingFilesConfirmed(
 }
 
 bool ScheduledWidget::confirmSendingFiles(
-		QImage &&image,
-		QByteArray &&content,
-		std::optional<bool> overrideSendImagesAsPhotos,
-		const QString &insertTextOnCancel) {
+	QImage &&image,
+	QByteArray &&content,
+	std::optional<bool> overrideSendImagesAsPhotos,
+	const QString &insertTextOnCancel) {
 	if (image.isNull()) {
 		return false;
 	}
@@ -604,8 +604,8 @@ void ScheduledWidget::checkReplyReturns() {
 }
 
 void ScheduledWidget::uploadFile(
-		const QByteArray &fileContent,
-		SendMediaType type) {
+	const QByteArray &fileContent,
+	SendMediaType type) {
 	const auto callback = [=](Api::SendOptions options) {
 		session().api().sendFile(
 			fileContent,
@@ -617,13 +617,13 @@ void ScheduledWidget::uploadFile(
 }
 
 bool ScheduledWidget::showSendingFilesError(
-		const Ui::PreparedList &list) const {
+	const Ui::PreparedList &list) const {
 	return showSendingFilesError(list, std::nullopt);
 }
 
 bool ScheduledWidget::showSendingFilesError(
-		const Ui::PreparedList &list,
-		std::optional<bool> compress) const {
+	const Ui::PreparedList &list,
+	std::optional<bool> compress) const {
 	const auto text = [&] {
 		using Error = Ui::PreparedList::Error;
 		const auto peer = _history->peer;
@@ -656,7 +656,7 @@ bool ScheduledWidget::showSendingFilesError(
 }
 
 Api::SendAction ScheduledWidget::prepareSendAction(
-		Api::SendOptions options) const {
+	Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
 	result.options.sendAs = _composeControls->sendAsPeer();
 	if (_forumTopic) {
@@ -716,26 +716,22 @@ void ScheduledWidget::send(Api::SendOptions options) {
 	_composeControls->focus();
 }
 
-void ScheduledWidget::sendVoice(
-		QByteArray bytes,
-		VoiceWaveform waveform,
-		crl::time duration) {
+void ScheduledWidget::sendVoice(const Controls::VoiceToSend &data) {
 	const auto callback = [=](Api::SendOptions options) {
-		sendVoice(bytes, waveform, duration, options);
+		sendVoice(base::duplicate(data), options);
 	};
 	controller()->show(
 		PrepareScheduleBox(this, _show, sendMenuDetails(), callback));
 }
 
 void ScheduledWidget::sendVoice(
-		QByteArray bytes,
-		VoiceWaveform waveform,
-		crl::time duration,
+		const Controls::VoiceToSend &data,
 		Api::SendOptions options) {
 	session().api().sendVoiceMessage(
-		bytes,
-		waveform,
-		duration,
+		data.bytes,
+		data.waveform,
+		data.duration,
+		data.video,
 		prepareSendAction(options));
 	_composeControls->clearListenState();
 }

@@ -47,6 +47,10 @@ namespace InlineBots {
 class Result;
 } // namespace InlineBots
 
+namespace HistoryView::Controls {
+struct VoiceToSend;
+} // namespace HistoryView::Controls
+
 namespace HistoryView {
 
 class Element;
@@ -207,14 +211,9 @@ private:
 		Api::SendOptions options) const;
 	void send();
 	void send(Api::SendOptions options);
+	void sendVoice(const Controls::VoiceToSend &data);
 	void sendVoice(
-		QByteArray bytes,
-		VoiceWaveform waveform,
-		crl::time duration);
-	void sendVoice(
-		QByteArray bytes,
-		VoiceWaveform waveform,
-		crl::time duration,
+		const Controls::VoiceToSend &data,
 		Api::SendOptions options);
 	void edit(
 		not_null<HistoryItem*> item,

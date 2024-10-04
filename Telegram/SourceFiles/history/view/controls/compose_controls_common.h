@@ -28,6 +28,7 @@ struct VoiceToSend {
 	VoiceWaveform waveform;
 	crl::time duration = 0;
 	Api::SendOptions options;
+	bool video = false;
 };
 struct SendActionUpdate {
 	Api::SendProgressType type = Api::SendProgressType();
