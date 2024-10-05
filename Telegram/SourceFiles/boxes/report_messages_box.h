@@ -15,6 +15,10 @@ class BoxContent;
 class Show;
 } // namespace Ui
 
+namespace style {
+struct ReportBox;
+} // namespace style
+
 class PeerData;
 
 [[nodiscard]] object_ptr<Ui::BoxContent> ReportProfilePhotoBox(
@@ -25,4 +29,5 @@ void ShowReportMessageBox(
 	std::shared_ptr<Ui::Show> show,
 	not_null<PeerData*> peer,
 	const std::vector<MsgId> &ids,
-	const std::vector<StoryId> &stories);
+	const std::vector<StoryId> &stories,
+	const style::ReportBox *stOverride = nullptr);

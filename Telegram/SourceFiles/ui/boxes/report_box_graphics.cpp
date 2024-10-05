@@ -166,21 +166,26 @@ void ReportDetailsBox(
 
 not_null<Ui::AbstractButton*> AddReportOptionButton(
 		not_null<Ui::VerticalLayout*> container,
-		const QString &text) {
+		const QString &text,
+		const style::ReportBox *stOverride) {
 	const auto button = container->add(
 		object_ptr<Ui::SettingsButton>(
 			container,
 			rpl::single(QString()),
-			st::settingsButtonNoIcon));
+			(stOverride ? stOverride : &st::defaultReportBox)->noIconButton));
+	const auto textFg = (stOverride
+		? stOverride->label
+		: st::sponsoredReportLabel).textFg->c;
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		rpl::single(text),
 		st::sponsoredReportLabel);
+	label->setTextColorOverride(textFg);
 	const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
 	icon->resize(st::settingsPremiumArrow.size());
 	icon->paintRequest() | rpl::start_with_next([=, w = icon->width()] {
 		auto p = Painter(icon);
-		st::settingsPremiumArrow.paint(p, 0, 0, w);
+		st::settingsPremiumArrow.paint(p, 0, 0, w, textFg);
 	}, icon->lifetime());
 	button->sizeValue() | rpl::start_with_next([=](const QSize &size) {
 		const auto left = button->st().padding.left();

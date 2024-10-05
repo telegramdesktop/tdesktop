@@ -218,8 +218,11 @@ ComposeControls {
 
 ReportBox {
 	button: SettingsButton;
+	noIconButton: SettingsButton;
 	label: FlatLabel;
 	field: InputField;
+	dividerBg: color;
+	dividerFg: color;
 	spam: icon;
 	fake: icon;
 	violence: icon;
@@ -1360,8 +1363,13 @@ reportReasonButton: SettingsButton(defaultSettingsButton) {
 
 defaultReportBox: ReportBox {
 	button: reportReasonButton;
+	noIconButton: SettingsButton(reportReasonButton) {
+		padding: margins(22px, 7px, 8px, 7px);
+	}
 	label: boxLabel;
 	field: newGroupDescription;
+	dividerBg: boxDividerBg;
+	dividerFg: windowSubTextFg;
 	spam: menuIconDelete;
 	fake: menuIconFake;
 	violence: menuIconViolence;

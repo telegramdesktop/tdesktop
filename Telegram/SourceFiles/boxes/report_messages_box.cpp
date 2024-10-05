@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
 namespace {
@@ -76,7 +77,8 @@ void ShowReportMessageBox(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const std::vector<MsgId> &ids,
-		const std::vector<StoryId> &stories) {
+		const std::vector<StoryId> &stories,
+		const style::ReportBox *stOverride) {
 	const auto report = Api::CreateReportMessagesOrStoriesCallback(
 		show,
 		peer);
@@ -120,7 +122,8 @@ void ShowReportMessageBox(
 					for (const auto &option : result.options) {
 						const auto button = Ui::AddReportOptionButton(
 							box->verticalLayout(),
-							option.text);
+							option.text,
+							stOverride);
 						button->setClickedCallback([=] {
 							auto copy = reportInput;
 							copy.optionId = option.id;
@@ -130,14 +133,16 @@ void ShowReportMessageBox(
 					}
 					if (const auto commentOption = result.commentOption) {
 						constexpr auto kReportReasonLengthMax = 512;
-						const auto &st = st::defaultReportBox;
+						const auto &st = stOverride
+							? stOverride
+							: &st::defaultReportBox;
 						Ui::AddReportDetailsIconButton(box);
 						Ui::AddSkip(box->verticalLayout());
 						Ui::AddSkip(box->verticalLayout());
 						const auto details = box->addRow(
 							object_ptr<Ui::InputField>(
 								box,
-								st.field,
+								st->field,
 								Ui::InputField::Mode::MultiLine,
 								commentOption->optional
 									? tr::lng_report_details_optional()
@@ -145,9 +150,31 @@ void ShowReportMessageBox(
 								QString()));
 						Ui::AddSkip(box->verticalLayout());
 						Ui::AddSkip(box->verticalLayout());
-						Ui::AddDividerText(
-							box->verticalLayout(),
-							tr::lng_report_details_message_about());
+						{
+							const auto container = box->verticalLayout();
+							auto label = object_ptr<Ui::FlatLabel>(
+								container,
+								tr::lng_report_details_message_about(),
+								st::boxDividerLabel);
+							label->setTextColorOverride(st->dividerFg->c);
+							using namespace Ui;
+							const auto widget = container->add(
+								object_ptr<PaddingWrap<>>(
+									container,
+									std::move(label),
+									st::defaultBoxDividerLabelPadding));
+							const auto background
+								= CreateChild<BoxContentDivider>(
+									widget,
+									st::boxDividerHeight,
+									st->dividerBg,
+									RectPart::Top | RectPart::Bottom);
+							background->lower();
+							widget->sizeValue(
+							) | rpl::start_with_next([=](const QSize &s) {
+								background->resize(s);
+							}, background->lifetime());
+						}
 						details->setMaxLength(kReportReasonLengthMax);
 						box->setFocusCallback([=] {
 							details->setFocusFast();

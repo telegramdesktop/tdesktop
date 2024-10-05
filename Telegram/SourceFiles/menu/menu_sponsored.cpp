@@ -241,7 +241,8 @@ void ShowReportSponsoredBox(
 					for (const auto &option : result.options) {
 						const auto button = Ui::AddReportOptionButton(
 							box->verticalLayout(),
-							option.text);
+							option.text,
+							nullptr);
 						button->setClickedCallback([=] {
 							repeatRequest(repeatRequest, option.id);
 						});

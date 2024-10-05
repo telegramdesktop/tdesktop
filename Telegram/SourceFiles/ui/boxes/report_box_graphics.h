@@ -56,7 +56,8 @@ void ReportDetailsBox(
 
 [[nodiscard]] not_null<Ui::AbstractButton*> AddReportOptionButton(
 	not_null<Ui::VerticalLayout*> container,
-	const QString &text);
+	const QString &text,
+	const style::ReportBox *stOverride);
 
 void AddReportDetailsIconButton(not_null<GenericBox*> box);
 

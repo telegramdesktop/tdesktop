@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
 #include "boxes/peers/prepare_short_info_box.h"
+#include "boxes/report_messages_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -1896,16 +1897,12 @@ void ReportRequested(
 		std::shared_ptr<Main::SessionShow> show,
 		FullStoryId id,
 		const style::ReportBox *stOverride) {
-	const auto owner = &show->session().data();
-	const auto st = stOverride ? stOverride : &st::defaultReportBox;
-	show->show(Box(Ui::ReportReasonBox, *st, Ui::ReportSource::Story, [=](
-			Ui::ReportReason reason) {
-		const auto done = [=](const QString &text) {
-			owner->stories().report(show, id, reason, text);
-			show->hideLayer();
-		};
-		show->showBox(Box(Ui::ReportDetailsBox, *st, done));
-	}));
+	if (const auto maybeStory = show->session().data().stories().lookup(id)) {
+		const auto story = *maybeStory;
+		const auto st = stOverride ? stOverride : &st::defaultReportBox;
+		// show->hideLayer();
+		ShowReportMessageBox(show, story->peer(), {}, { story->id() }, st);
+	}
 }
 
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(not_null<PeerData*> peer) {

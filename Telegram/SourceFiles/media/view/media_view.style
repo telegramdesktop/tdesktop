@@ -888,11 +888,21 @@ storiesReportBox: ReportBox(defaultReportBox) {
 		textBgOver: storiesComposeBgOver;
 		ripple: storiesComposeRipple;
 	}
+	noIconButton: SettingsButton(reportReasonButton) {
+		textFg: storiesComposeWhiteText;
+		textFgOver: storiesComposeWhiteText;
+		textBg: storiesComposeBg;
+		textBgOver: storiesComposeBgOver;
+		padding: margins(22px, 7px, 8px, 7px);
+		ripple: storiesComposeRipple;
+	}
 	label: storiesBoxLabel;
 	field: InputField(storiesBoxInputField) {
 		textMargins: margins(1px, 26px, 1px, 4px);
 		heightMax: 116px;
 	}
+	dividerBg: groupCallBg;
+	dividerFg: groupCallVideoSubTextFg;
 	spam: icon {{ "menu/delete", storiesComposeWhiteText }};
 	fake: icon {{ "menu/fake", storiesComposeWhiteText }};
 	violence: icon {{ "menu/violence", storiesComposeWhiteText }};
