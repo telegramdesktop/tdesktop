@@ -4515,7 +4515,6 @@ void HistoryInner::reportAsGroup(FullMsgId itemId) {
 				return i->fullId().msg;
 			}) | ranges::to_vector)
 			: std::vector<MsgId>{ 1, itemId.msg };
-		const auto peer = item->history()->peer;
 		ShowReportMessageBox(_controller->uiShow(), _peer, ids, {});
 	}
 }

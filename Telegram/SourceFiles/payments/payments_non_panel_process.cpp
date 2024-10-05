@@ -107,7 +107,7 @@ void ProcessCreditsReceipt(
 	const auto entry = Data::CreditsHistoryEntry{
 		.id = receipt->id,
 		.title = receipt->title,
-		.description = receipt->description,
+		.description = { receipt->description },
 		.date = base::unixtime::parse(receipt->date),
 		.photoId = receipt->photo ? receipt->photo->id : 0,
 		.credits = receipt->credits,

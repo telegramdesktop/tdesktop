@@ -1390,7 +1390,7 @@ void CreditsPrizeBox(
 		Data::CreditsHistoryEntry{
 			.id = data.slug,
 			.title = QString(),
-			.description = QString(),
+			.description = TextWithEntities(),
 			.date = base::unixtime::parse(date),
 			.credits = uint64(data.count),
 			.barePeerId = data.channel
