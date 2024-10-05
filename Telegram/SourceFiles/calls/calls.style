@@ -1139,6 +1139,7 @@ groupCallTitle: WindowTitle(defaultWindowTitle) {
 	bgActive: groupCallBg;
 	fg: transparent;
 	fgActive: transparent;
+	oneSideControls: true;
 	minimize: IconButton(groupCallTitleButton) {
 		icon: groupCallTitleMinimizeIcon;
 		iconOver: groupCallTitleMinimizeIconOver;
