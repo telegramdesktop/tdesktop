@@ -198,7 +198,9 @@ void Panel::initWindow() {
 			return Flag::None | Flag(0);
 		}
 #ifndef Q_OS_MAC
-		if (_controls->controls.geometry().contains(widgetPoint)) {
+		using Result = Ui::Platform::HitTestResult;
+		const auto windowPoint = widget()->mapTo(window(), widgetPoint);
+		if (_controls->controls.hitTest(windowPoint) != Result::None) {
 			return Flag::None | Flag(0);
 		}
 #endif // !Q_OS_MAC
