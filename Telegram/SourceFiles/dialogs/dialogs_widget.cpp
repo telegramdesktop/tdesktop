@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/download_bar.h"
 #include "ui/controls/jump_down_button.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -113,6 +114,56 @@ base::options::toggle OptionForumHideChatsList({
 	return false;
 }
 
+[[nodiscard]] QImage UpdateIcon() {
+	const auto iconSize = st::dialogsInstallUpdateIconSize;
+	auto result = QImage(
+		Size(iconSize) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	{
+		auto p = QPainter(&result);
+		auto hq = PainterHighQualityEnabler(p);
+		auto path = QPainterPath();
+
+		const auto fullRect = QRectF(0, 0, iconSize, iconSize);
+		const auto rect = fullRect
+			- Margins(st::dialogsInstallUpdateIconInnerMargin);
+		p.setPen(Qt::NoPen);
+		p.setBrush(Qt::white);
+		p.drawEllipse(fullRect);
+
+		p.setCompositionMode(QPainter::CompositionMode_Clear);
+
+		auto pen = QPen(Qt::black);
+		pen.setWidthF(style::ConvertFloatScale(2.));
+		pen.setCapStyle(Qt::RoundCap);
+		p.setPen(pen);
+
+		using namespace arc;
+		constexpr auto kShift = int(20 * 16);
+		p.drawArc(rect, -kShift, kQuarterLength + kShift);
+		p.drawArc(rect, kHalfLength - kShift, kQuarterLength + kShift);
+
+		const auto side1 = st::dialogsInstallUpdateIconSide1;
+		const auto side2 = st::dialogsInstallUpdateIconSide2;
+		const auto top = rect.y() - side1;
+		const auto bottom = rect::bottom(rect) - side1;
+		const auto centerX = rect::center(rect).x();
+		path.moveTo(centerX, bottom + side1 + side2);
+		path.lineTo(centerX, bottom + side1 - side2);
+		path.lineTo(centerX + side2, bottom + side1);
+		path.closeSubpath();
+
+		path.moveTo(centerX, top + side1 + side2);
+		path.lineTo(centerX, top + side1 - side2);
+		path.lineTo(centerX - side2, top + side1);
+		path.closeSubpath();
+
+		p.fillPath(path, Qt::black);
+	}
+	return result;
+}
+
 } // namespace
 
 const char kOptionForumHideChatsList[] = "forum-hide-chats-list";
@@ -124,7 +175,8 @@ public:
 		const QString &text,
 		const style::FlatButton &st,
 		const style::icon &icon,
-		const style::icon &iconOver);
+		const style::icon &iconOver,
+		bool hasTextIcon);
 
 	void setText(const QString &text);
 
@@ -140,7 +192,10 @@ private:
 	const style::FlatButton &_st;
 	const style::icon &_icon;
 	const style::icon &_iconOver;
+	const bool _hasTextIcon;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _loading;
+
+	QImage _textIcon;
 
 };
 
@@ -149,13 +204,23 @@ Widget::BottomButton::BottomButton(
 	const QString &text,
 	const style::FlatButton &st,
 	const style::icon &icon,
-	const style::icon &iconOver)
+	const style::icon &iconOver,
+	bool hasTextIcon)
 : RippleButton(parent, st.ripple)
 , _text(text)
 , _st(st)
 , _icon(icon)
-, _iconOver(iconOver) {
+, _iconOver(iconOver)
+, _hasTextIcon(hasTextIcon) {
 	resize(st::columnMinimalWidthLeft, _st.height);
+
+	if (_hasTextIcon) {
+		rpl::single(rpl::empty_value()) | rpl::then(
+			style::PaletteChanged()
+		) | rpl::start_with_next([this] {
+			_textIcon = UpdateIcon();
+		}, lifetime());
+	}
 }
 
 void Widget::BottomButton::setText(const QString &text) {
@@ -189,20 +254,56 @@ void Widget::BottomButton::paintEvent(QPaintEvent *e) {
 
 	const auto over = isOver() && !isDisabled();
 
-	QRect r(0, height() - _st.height, width(), _st.height);
-	p.fillRect(r, over ? _st.overBgColor : _st.bgColor);
+	auto r = QRect(0, height() - _st.height, width(), _st.height);
 
-	if (!isDisabled()) {
-		paintRipple(p, 0, 0);
+	if (_hasTextIcon) {
+		auto gradient = QLinearGradient(0, 0, width(), 0);
+		gradient.setStops({
+			{ 0., st::groupCallLive1->c },
+			{ 1., st::groupCallLive2->c },
+		});
+		p.fillRect(r, QBrush(std::move(gradient)));
+		if (over) {
+			p.fillRect(
+				r,
+				anim::with_alpha(st::universalRippleAnimation.color->c, .3));
+		}
+
+		if (!isDisabled()) {
+			paintRipple(p, 0, 0, &st::universalRippleAnimation.color->c);
+		}
+	} else {
+		p.fillRect(r, over ? _st.overBgColor : _st.bgColor);
+		if (!isDisabled()) {
+			paintRipple(p, 0, 0);
+		}
 	}
 
-	p.setFont(over ? _st.overFont : _st.font);
+	const auto &font = over ? _st.overFont : _st.font;
+	p.setFont(font);
 	p.setRenderHint(QPainter::TextAntialiasing);
 	p.setPen(over ? _st.overColor : _st.color);
 
 	if (width() >= st::columnMinimalWidthLeft) {
 		r.setTop(_st.textTop);
-		p.drawText(r, _text, style::al_top);
+		if (_hasTextIcon) {
+			const auto &icon = _textIcon;
+			const auto iconSize = icon.size() / style::DevicePixelRatio();
+			const auto skip = st::dialogsInstallUpdateIconSkip;
+			const auto textWidth = font->width(_text);
+			const auto rect = QRect(
+				(width() - (iconSize.width() + textWidth + skip)) / 2,
+				r.y(),
+				textWidth,
+				r.height());
+			p.drawText(
+				rect.translated(iconSize.width() + skip, 0),
+				_text,
+				style::al_top);
+			p.drawImage(rect.x(), (height() - iconSize.height()) / 2, icon);
+		} else {
+			p.drawText(r, _text, style::al_top);
+		}
 	} else if (isDisabled() && _loading) {
 		_loading->draw(
 			p,
@@ -211,7 +312,15 @@ void Widget::BottomButton::paintEvent(QPaintEvent *e) {
 				(height() - st::dialogsLoadMoreLoading.size.height()) / 2),
 			width());
 	} else {
-		(over ? _iconOver : _icon).paintInCenter(p, r);
+		if (_hasTextIcon) {
+			const auto size = _textIcon.size() / style::DevicePixelRatio();
+			p.drawImage(
+				(width() - size.width()) / 2,
+				(height() - size.height()) / 2,
+				_textIcon);
+		} else {
+			(over ? _iconOver : _icon).paintInCenter(p, r);
+		}
 	}
 }
 
@@ -1594,7 +1703,8 @@ void Widget::checkUpdateStatus() {
 			tr::lng_update_telegram(tr::now),
 			st::dialogsUpdateButton,
 			st::dialogsInstallUpdate,
-			st::dialogsInstallUpdateOver);
+			st::dialogsInstallUpdateOver,
+			true);
 		_updateTelegram->show();
 		_updateTelegram->setClickedCallback([] {
 			Core::checkReadyUpdate();
@@ -1962,7 +2072,8 @@ void Widget::refreshLoadMoreButton(bool mayBlock, bool isBlocked) {
 			"Load more",
 			st::dialogsLoadMoreButton,
 			st::dialogsLoadMore,
-			st::dialogsLoadMore);
+			st::dialogsLoadMore,
+			false);
 		_loadMoreChats->show();
 		_loadMoreChats->addClickHandler([=] {
 			loadMoreBlockedByDate();

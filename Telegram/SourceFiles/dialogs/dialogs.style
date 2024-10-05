@@ -430,6 +430,11 @@ dialogsUpdateButton: FlatButton {
 }
 dialogsInstallUpdate: icon {{ "install_update", activeButtonFg }};
 dialogsInstallUpdateOver: icon {{ "install_update", activeButtonFgOver }};
+dialogsInstallUpdateIconSkip: 7px;
+dialogsInstallUpdateIconSize: 20px;
+dialogsInstallUpdateIconInnerMargin: 5px;
+dialogsInstallUpdateIconSide1: 5px;
+dialogsInstallUpdateIconSide2: 3px;
 
 dialogsLoadMoreButton: FlatButton(dialogsUpdateButton) {
 	color: lightButtonFg;
@@ -442,6 +447,8 @@ dialogsLoadMoreButton: FlatButton(dialogsUpdateButton) {
 
 	height: 36px;
 	textTop: 9px;
+	font: semiboldFont;
+	overFont: semiboldFont;
 }
 dialogsLoadMore: icon {{ "install_update-flip_vertical", lightButtonFg }};
 dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
