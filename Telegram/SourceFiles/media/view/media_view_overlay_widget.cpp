@@ -659,11 +659,11 @@ OverlayWidget::OverlayWidget()
 	});
 	_helper->mouseEvents(
 	) | rpl::start_with_next([=](not_null<QMouseEvent*> e) {
-		const auto type = e->type();
-		const auto position = e->pos();
-		if (_helper->skipTitleHitTest(position)) {
+		if (_helper->skipTitleHitTest(e->windowPos().toPoint())) {
 			return;
 		}
+		const auto type = e->type();
+		const auto position = e->pos();
 		if (type == QEvent::MouseButtonPress) {
 			handleMousePress(position, e->button());
 		} else if (type == QEvent::MouseButtonRelease) {
@@ -804,7 +804,7 @@ void OverlayWidget::setupWindow() {
 		using Flag = Ui::WindowTitleHitTestFlag;
 		Ui::WindowTitleHitTestFlags result;
 		if (!_widget->rect().contains(widgetPoint)
-			|| _helper->skipTitleHitTest(widgetPoint)) {
+			|| _helper->skipTitleHitTest(_widget->mapTo(_window, widgetPoint))) {
 			return result;
 		}
 		if (widgetPoint.y() <= st::mediaviewTitleButton.height) {
