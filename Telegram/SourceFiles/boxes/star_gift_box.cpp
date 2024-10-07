@@ -1255,7 +1255,7 @@ void GiftBox(
 			stUser.photoSize * 2);
 		content->sizeValue(
 		) | rpl::start_with_next([=](const QSize &size) {
-			widget->moveToLeft(stUser.photoSize / 2, 0);
+			widget->moveToLeft((size.width() - widget->width()) / 2, 0);
 			const auto starsRect = Rect(widget->size());
 			stars->setPosition(starsRect.topLeft());
 			stars->setSize(starsRect.size());
