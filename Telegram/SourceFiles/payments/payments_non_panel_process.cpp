@@ -138,6 +138,7 @@ Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
 				controller->content().get(),
 				form,
 				maybeReturnToBot);
+			controller->window().activate();
 		}, [&](const CreditsReceiptPtr &receipt) {
 			ProcessCreditsReceipt(controller, receipt, maybeReturnToBot);
 		}, [](RealFormPresentedNotification) {});
