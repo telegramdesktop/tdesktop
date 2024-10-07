@@ -1101,7 +1101,8 @@ void SendGiftBox(
 						.text = tr::lng_gift_sold_out_text(
 							tr::now,
 							lt_count_decimal,
-							star->limitedCount),
+							star->limitedCount,
+							Ui::Text::RichLangValue),
 					});
 				} else {
 					window->show(
