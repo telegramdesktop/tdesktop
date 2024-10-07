@@ -138,11 +138,15 @@ struct SmallBalanceSubscription {
 struct SmallBalanceDeepLink {
 	QString purpose;
 };
+struct SmallBalanceStarGift {
+	UserId userId = 0;
+};
 struct SmallBalanceSource : std::variant<
 	SmallBalanceBot,
 	SmallBalanceReaction,
 	SmallBalanceSubscription,
-	SmallBalanceDeepLink> {
+	SmallBalanceDeepLink,
+	SmallBalanceStarGift> {
 	using variant::variant;
 };
 

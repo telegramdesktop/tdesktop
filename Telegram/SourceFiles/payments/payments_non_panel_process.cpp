@@ -93,11 +93,14 @@ void ProcessCreditsPayment(
 			});
 		}, box->lifetime());
 	};
-	Settings::MaybeRequestBalanceIncrease(
-		show,
-		form->invoice.credits,
-		Settings::SmallBalanceBot{ .botId = form->botId },
-		done);
+	using namespace Settings;
+	const auto starGift = std::get_if<InvoiceStarGift>(&form->id.value);
+	auto source = !starGift
+		? SmallBalanceSource(SmallBalanceBot{ .botId = form->botId })
+		: SmallBalanceSource(SmallBalanceStarGift{
+			.userId = peerToUser(starGift->user->id)
+		});
+	MaybeRequestBalanceIncrease(show, form->invoice.credits, source, done);
 }
 
 void ProcessCreditsReceipt(

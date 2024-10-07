@@ -48,6 +48,7 @@ struct GiftTypeStars {
 	DocumentData *document = nullptr;
 	PeerData *from = nullptr;
 	int limitedCount = 0;
+	int limitedLeft = 0;
 	bool userpic = false;
 	bool hidden = false;
 	bool mine = false;

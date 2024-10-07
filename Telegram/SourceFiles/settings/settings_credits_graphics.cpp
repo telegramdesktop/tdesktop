@@ -1555,13 +1555,17 @@ void SmallBalanceBox(
 
 	const auto owner = &show->session().data();
 	const auto name = v::match(source, [&](SmallBalanceBot value) {
-		return owner->peer(peerFromUser(value.botId))->name();
+		return value.botId
+			? owner->peer(peerFromUser(value.botId))->name()
+			: QString();
 	}, [&](SmallBalanceReaction value) {
 		return owner->peer(peerFromChannel(value.channelId))->name();
 	}, [](SmallBalanceSubscription value) {
 		return value.name;
 	}, [](SmallBalanceDeepLink value) {
 		return QString();
+	}, [&](SmallBalanceStarGift value) {
+		return owner->peer(peerFromUser(value.userId))->shortName();
 	});
 
 	auto needed = show->session().credits().balanceValue(
@@ -1591,6 +1595,14 @@ void SmallBalanceBox(
 					: v::is<SmallBalanceDeepLink>(source)
 					? DeepLinkBalanceAbout(
 						v::get<SmallBalanceDeepLink>(source).purpose)
+					: v::is<SmallBalanceStarGift>(source)
+					? tr::lng_credits_small_balance_star_gift(
+						lt_user,
+						rpl::single(Ui::Text::Bold(name)),
+						Ui::Text::RichLangValue)
+					: name.isEmpty()
+					? tr::lng_credits_small_balance_fallback(
+						Ui::Text::RichLangValue)
 					: tr::lng_credits_small_balance_about(
 						lt_bot,
 						rpl::single(TextWithEntities{ name }),

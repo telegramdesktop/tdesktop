@@ -253,15 +253,20 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	p.setFont(font);
 	const auto text = v::match(_descriptor, [&](GiftTypePremium data) {
 		if (data.discountPercent > 0) {
-			p.setBrush(st::attentionBoxButton.textFg);
+			p.setBrush(st::attentionButtonFg);
 			const auto kMinus = QChar(0x2212);
 			return kMinus + QString::number(data.discountPercent) + '%';
 		}
 		return QString();
 	}, [&](const GiftTypeStars &data) {
 		if (const auto count = data.limitedCount) {
-			p.setBrush(st::windowActiveTextFg);
-			return !data.userpic
+			const auto soldOut = !data.userpic && !data.limitedLeft;
+			p.setBrush(soldOut
+				? st::attentionButtonFg
+				: st::windowActiveTextFg);
+			return soldOut
+				? tr::lng_gift_stars_sold_out(tr::now)
+				: !data.userpic
 				? tr::lng_gift_stars_limited(tr::now)
 				: (count == 1)
 				? tr::lng_gift_limited_of_one(tr::now)

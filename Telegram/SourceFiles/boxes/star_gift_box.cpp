@@ -514,6 +514,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 					.convertStars = gift.convertStars,
 					.document = gift.document,
 					.limitedCount = gift.limitedCount,
+					.limitedLeft = gift.limitedLeft,
 				});
 			}
 			auto &map = Map[session];
@@ -1081,6 +1082,7 @@ void SendGiftBox(
 				}
 			};
 			button->setClickedCallback([=] {
+				const auto star = std::get_if<GiftTypeStars>(&descriptor);
 				if (v::is<GiftTypePremium>(descriptor)) {
 					if (state->sending) {
 						return;
@@ -1093,6 +1095,14 @@ void SendGiftBox(
 						api,
 						GiftDetails{ descriptor },
 						premiumSent);
+				} else if (star && star->limitedCount && !star->limitedLeft) {
+					window->showToast({
+						.title = tr::lng_gift_sold_out_title(tr::now),
+						.text = tr::lng_gift_sold_out_text(
+							tr::now,
+							lt_count_decimal,
+							star->limitedCount),
+					});
 				} else {
 					window->show(
 						Box(SendGiftBox, window, peer, api, descriptor));

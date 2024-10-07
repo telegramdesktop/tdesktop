@@ -2486,6 +2486,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_small_balance_about" = "Buy **Stars** and use them on **{bot}** and other miniapps.";
 "lng_credits_small_balance_reaction" = "Buy **Stars** and send them to {channel} to support their posts.";
 "lng_credits_small_balance_subscribe" = "Buy **Stars** and subscribe to **{channel}** and other channels.";
+"lng_credits_small_balance_star_gift" = "Buy **Stars** to send gifts to {user} and other contacts.";
 "lng_credits_small_balance_fallback" = "Buy **Stars** to unlock content and services on Telegram.";
 "lng_credits_purchase_blocked" = "Sorry, you can't purchase this item with Telegram Stars.";
 "lng_credits_enough" = "You have enough stars at the moment. {link}";
@@ -3014,6 +3015,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_stars_about" = "Give {name} gifts that can be kept on your profile or converted to Stars. {link}";
 "lng_gift_stars_link" = "What are Stars >";
 "lng_gift_stars_limited" = "limited";
+"lng_gift_stars_sold_out" = "sold out";
 "lng_gift_stars_tabs_all" = "All Gifts";
 "lng_gift_stars_tabs_limited" = "Limited";
 "lng_gift_send_title" = "Send a Gift";
@@ -3047,6 +3049,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_display_done_hide" = "The gift is now hidden from your profile page.";
 "lng_gift_got_stars#one" = "You got **{count} Star** for this gift.";
 "lng_gift_got_stars#other" = "You got **{count} Stars** for this gift.";
+"lng_gift_sold_out_title" = "Sold Out!";
+"lng_gift_sold_out_text#one" = "All {count} gift was already sold.";
+"lng_gift_sold_out_text#other" = "All {count} gifts were already sold.";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";
