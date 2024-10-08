@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "qr/qr_generate.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/effects/animations.h"
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
@@ -425,10 +427,18 @@ void FillPeerQrBox(
 			: (rpl::single(QString()) | rpl::type_erased());
 	};
 
-	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-		box,
-		peer ? peer : controller->session().user().get(),
-		st::defaultUserpicButton);
+	const auto userpic = Ui::CreateChild<Ui::RpWidget>(box);
+	const auto userpicSize = st::defaultUserpicButton.photoSize;
+	userpic->resize(Size(userpicSize));
+	const auto userpicMedia = Ui::MakeUserpicThumbnail(peer
+		? peer
+		: controller->session().user().get());
+	userpicMedia->subscribeToUpdates([=] { userpic->update(); });
+	userpic->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(userpic);
+		p.drawImage(0, 0, userpicMedia->image(userpicSize));
+	}, userpic->lifetime());
+
 	userpic->setVisible(peer != nullptr);
 	PrepareQrWidget(
 		box->verticalLayout(),
@@ -781,10 +791,7 @@ void FillPeerQrBox(
 			usernameValue()).current().toUpper();
 		const auto link = rpl::variable<QString>(linkValue());
 		const auto textWidth = font->width(username);
-		const auto top = Ui::GrabWidget(
-			userpic,
-			{},
-			Qt::transparent);
+		const auto top = userpicMedia->image(photoSize);
 		const auto weak = Ui::MakeWeak(box);
 
 		crl::async([=] {
@@ -837,13 +844,7 @@ void FillPeerQrBox(
 					photoSize);
 
 				if (userpicToggled) {
-					p.drawPixmap(
-						(resultSize.width() - photoSize) / 2,
-						0,
-						top.scaled(
-							Size(photoSize * style::DevicePixelRatio()),
-							Qt::IgnoreAspectRatio,
-							Qt::SmoothTransformation));
+					p.drawImage((resultSize.width() - photoSize) / 2, 0, top);
 				}
 			}
 			crl::on_main(weak, [=] {
