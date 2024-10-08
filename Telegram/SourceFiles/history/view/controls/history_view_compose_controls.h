@@ -278,6 +278,7 @@ private:
 	bool updateSendAsButton();
 	void updateAttachBotsMenu();
 	void updateHeight();
+	void updateRecordMediaState();
 	void updateWrappingVisibility();
 	void updateControlsVisibility();
 	void updateControlsGeometry(QSize size);
@@ -436,6 +437,9 @@ private:
 	bool _isInlineBot = false;
 	bool _botCommandShown = false;
 	bool _likeShown = false;
+
+	bool _canRecordVideoMessage = false;
+	bool _canRecordAudioMessage = false;
 
 	FullMsgId _editingId;
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;

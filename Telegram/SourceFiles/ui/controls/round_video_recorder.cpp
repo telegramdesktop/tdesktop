@@ -19,7 +19,7 @@ namespace Ui {
 namespace {
 
 constexpr auto kSide = 400;
-constexpr auto kOutputFilename = "C:\\Tmp\\TestVideo\\output.mp4";
+constexpr auto kUpdateEach = crl::time(100);
 
 using namespace FFmpeg;
 
@@ -33,6 +33,9 @@ public:
 	void push(int64 mcstimestamp, const QImage &frame);
 	void push(const Media::Capture::Chunk &chunk);
 
+	using Update = Media::Capture::Update;
+	[[nodiscard]] rpl::producer<Update, rpl::empty_error> updated() const;
+
 	[[nodiscard]] RoundVideoResult finish();
 
 private:
@@ -41,6 +44,23 @@ private:
 
 	int write(uint8_t *buf, int buf_size);
 	int64_t seek(int64_t offset, int whence);
+
+	void initEncoding();
+	bool initVideo();
+	bool initAudio();
+	void deinitEncoding();
+	void finishEncoding();
+	void fail();
+
+	void encodeVideoFrame(int64 mcstimestamp, const QImage &frame);
+	void encodeAudioFrame(const Media::Capture::Chunk &chunk);
+	bool writeFrame(
+		const FramePointer &frame,
+		const CodecPointer &codec,
+		AVStream *stream);
+
+	void updateMaxLevel(const Media::Capture::Chunk &chunk);
+	void updateResultDuration(int64 pts, AVRational timeBase);
 
 	const crl::weak_on_queue<Private> _weak;
 
@@ -72,18 +92,9 @@ private:
 	int64_t _resultOffset = 0;
 	crl::time _resultDuration = 0;
 
-	void initEncoding();
-	bool initVideo();
-	bool initAudio();
-	void deinitEncoding();
-	void finishEncoding();
-
-	void encodeVideoFrame(int64 mcstimestamp, const QImage &frame);
-	void encodeAudioFrame(const Media::Capture::Chunk &chunk);
-	bool writeFrame(
-		const FramePointer &frame,
-		const CodecPointer &codec,
-		AVStream *stream);
+	ushort _maxLevelSinceLastUpdate = 0;
+	crl::time _lastUpdateDuration = 0;
+	rpl::event_stream<Update, rpl::empty_error> _updates;
 
 };
 
@@ -94,11 +105,6 @@ RoundVideoRecorder::Private::Private(crl::weak_on_queue<Private> weak)
 
 RoundVideoRecorder::Private::~Private() {
 	finishEncoding();
-
-	QFile file(kOutputFilename);
-	if (file.open(QIODevice::WriteOnly)) {
-		file.write(_result);
-	}
 }
 
 int RoundVideoRecorder::Private::Write(void *opaque, uint8_t *buf, int buf_size) {
@@ -155,7 +161,7 @@ void RoundVideoRecorder::Private::initEncoding() {
 		"mp4"_q);
 
 	if (!initVideo() || !initAudio()) {
-		deinitEncoding();
+		fail();
 		return;
 	}
 
@@ -164,7 +170,7 @@ void RoundVideoRecorder::Private::initEncoding() {
 		nullptr));
 	if (error) {
 		LogError("avformat_write_header", error);
-		deinitEncoding();
+		fail();
 	}
 }
 
@@ -343,6 +349,11 @@ void RoundVideoRecorder::Private::finishEncoding() {
 	deinitEncoding();
 }
 
+auto RoundVideoRecorder::Private::updated() const
+-> rpl::producer<Update, rpl::empty_error> {
+	return _updates.events();
+}
+
 RoundVideoResult RoundVideoRecorder::Private::finish() {
 	if (!_format) {
 		return {};
@@ -354,6 +365,11 @@ RoundVideoResult RoundVideoRecorder::Private::finish() {
 		.duration = _resultDuration,
 	};
 };
+
+void RoundVideoRecorder::Private::fail() {
+	deinitEncoding();
+	_updates.fire_error({});
+}
 
 void RoundVideoRecorder::Private::deinitEncoding() {
 	_swsContext = nullptr;
@@ -406,7 +422,7 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 		AV_PIX_FMT_YUV420P,
 		&_swsContext);
 	if (!_swsContext) {
-		deinitEncoding();
+		fail();
 		return;
 	}
 
@@ -444,14 +460,15 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 		_videoFrame->linesize);
 
 	_videoFrame->pts = mcstimestamp - _videoFirstTimestamp;
-
-	LOG(("Audio At: %1").arg(_videoFrame->pts / 1'000'000.));
 	if (!writeFrame(_videoFrame, _videoCodec, _videoStream)) {
 		return;
 	}
 }
 
-void RoundVideoRecorder::Private::encodeAudioFrame(const Media::Capture::Chunk &chunk) {
+void RoundVideoRecorder::Private::encodeAudioFrame(
+		const Media::Capture::Chunk &chunk) {
+	updateMaxLevel(chunk);
+
 	if (_audioTail.isEmpty()) {
 		_audioTail = chunk.samples;
 	} else {
@@ -459,7 +476,8 @@ void RoundVideoRecorder::Private::encodeAudioFrame(const Media::Capture::Chunk &
 	}
 
 	const int inSamples = _audioTail.size() / sizeof(int16_t);
-	const uint8_t *inData = reinterpret_cast<const uint8_t*>(_audioTail.constData());
+	const uint8_t *inData = reinterpret_cast<const uint8_t*>(
+		_audioTail.constData());
 	int samplesProcessed = 0;
 
 	while (samplesProcessed + _audioCodec->frame_size <= inSamples) {
@@ -484,7 +502,7 @@ void RoundVideoRecorder::Private::encodeAudioFrame(const Media::Capture::Chunk &
 
 		if (error) {
 			LogError("swr_convert", error);
-			deinitEncoding();
+			fail();
 			return;
 		}
 
@@ -493,8 +511,6 @@ void RoundVideoRecorder::Private::encodeAudioFrame(const Media::Capture::Chunk &
 
 		_audioFrame->pts = _audioPts;
 		_audioPts += _audioFrame->nb_samples;
-
-		LOG(("Audio At: %1").arg(_audioFrame->pts / 48'000.));
 		if (!writeFrame(_audioFrame, _audioCodec, _audioStream)) {
 			return;
 		}
@@ -514,10 +530,14 @@ bool RoundVideoRecorder::Private::writeFrame(
 		const FramePointer &frame,
 		const CodecPointer &codec,
 		AVStream *stream) {
+	if (frame) {
+		updateResultDuration(frame->pts, codec->time_base);
+	}
+
 	auto error = AvErrorWrap(avcodec_send_frame(codec.get(), frame.get()));
 	if (error) {
 		LogError("avcodec_send_frame", error);
-		deinitEncoding();
+		fail();
 		return false;
 	}
 
@@ -533,26 +553,48 @@ bool RoundVideoRecorder::Private::writeFrame(
 			return true;  // Encoding finished
 		} else if (error) {
 			LogError("avcodec_receive_packet", error);
-			deinitEncoding();
+			fail();
 			return false;
 		}
 
 		pkt->stream_index = stream->index;
 		av_packet_rescale_ts(pkt, codec->time_base, stream->time_base);
 
-		accumulate_max(
-			_resultDuration,
-			PtsToTimeCeil(pkt->pts, stream->time_base));
+		updateResultDuration(pkt->pts, stream->time_base);
 
 		error = AvErrorWrap(av_interleaved_write_frame(_format.get(), pkt));
 		if (error) {
 			LogError("av_interleaved_write_frame", error);
-			deinitEncoding();
+			fail();
 			return false;
 		}
 	}
 
 	return true;
+}
+
+void RoundVideoRecorder::Private::updateMaxLevel(
+		const Media::Capture::Chunk &chunk) {
+	const auto &list = chunk.samples;
+	const auto samples = int(list.size() / sizeof(ushort));
+	const auto data = reinterpret_cast<const ushort*>(list.constData());
+	for (const auto value : gsl::make_span(data, samples)) {
+		accumulate_max(_maxLevelSinceLastUpdate, value);
+	}
+}
+
+void RoundVideoRecorder::Private::updateResultDuration(
+		int64 pts,
+		AVRational timeBase) {
+	accumulate_max(_resultDuration, PtsToTimeCeil(pts, timeBase));
+
+	if (_lastUpdateDuration + kUpdateEach >= _resultDuration) {
+		_lastUpdateDuration = _resultDuration;
+		_updates.fire({
+			.samples = int(_resultDuration * 48),
+			.level = base::take(_maxLevelSinceLastUpdate),
+		});
+	}
 }
 
 RoundVideoRecorder::RoundVideoRecorder(
@@ -571,6 +613,13 @@ Fn<void(Media::Capture::Chunk)> RoundVideoRecorder::audioChunkProcessor() {
 			that.push(copy);
 		});
 	};
+}
+
+auto RoundVideoRecorder::updated() const
+-> rpl::producer<Update, rpl::empty_error> {
+	return _private.producer_on_main([](const Private &that) {
+		return that.updated();
+	});
 }
 
 void RoundVideoRecorder::hide(Fn<void(RoundVideoResult)> done) {
@@ -642,6 +691,9 @@ void RoundVideoRecorder::setPaused(bool paused) {
 		return;
 	}
 	_paused = paused;
+	_descriptor.track->setState(paused
+		? Webrtc::VideoState::Inactive
+		: Webrtc::VideoState::Active);
 	_preview->update();
 }
 

@@ -480,6 +480,8 @@ storiesLike: IconButton(storiesAttach) {
 }
 storiesRecordVoice: icon {{ "chat/input_record", storiesComposeGrayIcon }};
 storiesRecordVoiceOver: icon {{ "chat/input_record", storiesComposeGrayIcon }};
+storiesRecordRound: icon {{ "info/info_media_round", storiesComposeGrayIcon }};
+storiesRecordRoundOver: icon {{ "info/info_media_round", storiesComposeGrayIcon }};
 storiesRemoveSet: IconButton(stickerPanRemoveSet) {
 	icon: icon {{ "simple_close", storiesComposeGrayIcon }};
 	iconOver: icon {{ "simple_close", storiesComposeGrayIcon }};
@@ -686,6 +688,8 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 		}
 		record: storiesRecordVoice;
 		recordOver: storiesRecordVoiceOver;
+		round: storiesRecordRound;
+		roundOver: storiesRecordRoundOver;
 		sendDisabledFg: storiesComposeGrayText;
 	}
 	attach: storiesAttach;

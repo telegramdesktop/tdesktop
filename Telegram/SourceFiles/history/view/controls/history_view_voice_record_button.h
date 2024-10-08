@@ -31,6 +31,7 @@ public:
 	enum class Type {
 		Send,
 		Record,
+		Round,
 	};
 
 	void setType(Type state);

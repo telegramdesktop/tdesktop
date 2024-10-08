@@ -497,6 +497,7 @@ private:
 	bool replyToPreviousMessage();
 	bool replyToNextMessage();
 	[[nodiscard]] bool showSlowmodeError();
+	void updateRecordMediaState();
 
 	void hideChildWidgets();
 	void hideSelectorControlsAnimated();
@@ -745,6 +746,9 @@ private:
 	bool _inlineLookingUpBot = false;
 	mtpRequestId _inlineBotResolveRequestId = 0;
 	bool _isInlineBot = false;
+
+	bool _canRecordVideoMessage = false;
+	bool _canRecordAudioMessage = false;
 
 	std::unique_ptr<HistoryView::ContactStatus> _contactStatus;
 	std::unique_ptr<HistoryView::BusinessBotStatus> _businessBotStatus;

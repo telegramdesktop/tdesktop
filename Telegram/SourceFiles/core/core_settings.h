@@ -628,6 +628,13 @@ public:
 		return _floatPlayerCorner;
 	}
 
+	[[nodiscard]] bool recordVideoMessages() const {
+		return _recordVideoMessages;
+	}
+	void setRecordVideoMessages(bool value) {
+		_recordVideoMessages = value;
+	}
+
 	void updateDialogsWidthRatio(float64 ratio, bool nochat);
 	[[nodiscard]] float64 dialogsWidthRatio(bool nochat) const;
 
@@ -1068,6 +1075,8 @@ private:
 	bool _rememberedSoundNotifyFromTray = false;
 	bool _rememberedFlashBounceNotifyFromTray = false;
 	bool _dialogsWidthSetToZeroWithoutChat = false;
+
+	bool _recordVideoMessages = false;
 
 	QByteArray _photoEditorBrush;
 

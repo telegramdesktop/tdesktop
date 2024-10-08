@@ -26,6 +26,7 @@ public:
 		Schedule,
 		Save,
 		Record,
+		Round,
 		Cancel,
 		Slowmode,
 	};
@@ -47,6 +48,7 @@ private:
 	[[nodiscard]] bool isSlowmode() const;
 
 	void paintRecord(QPainter &p, bool over);
+	void paintRound(QPainter &p, bool over);
 	void paintSave(QPainter &p, bool over);
 	void paintCancel(QPainter &p, bool over);
 	void paintSend(QPainter &p, bool over);

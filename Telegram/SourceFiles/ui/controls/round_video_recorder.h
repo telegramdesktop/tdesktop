@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::Capture {
 struct Chunk;
+struct Update;
 } // namespace Media::Capture
 
 namespace tgcalls {
@@ -48,6 +49,9 @@ public:
 
 	void setPaused(bool paused);
 	void hide(Fn<void(RoundVideoResult)> done = nullptr);
+
+	using Update = Media::Capture::Update;
+	[[nodiscard]] rpl::producer<Update, rpl::empty_error> updated() const;
 
 private:
 	class Private;

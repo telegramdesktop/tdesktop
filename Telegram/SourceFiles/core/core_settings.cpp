@@ -222,7 +222,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_customFontFamily)
 		+ sizeof(qint32) * 3
 		+ Serialize::bytearraySize(_tonsiteStorageToken)
-		+ sizeof(qint32) * 3;
+		+ sizeof(qint32) * 4;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -379,7 +379,8 @@ QByteArray Settings::serialize() const {
 			<< _tonsiteStorageToken
 			<< qint32(_includeMutedCounterFolders ? 1 : 0)
 			<< qint32(_ivZoom.current())
-			<< qint32(_skipToastsInFocus ? 1 : 0);
+			<< qint32(_skipToastsInFocus ? 1 : 0)
+			<< qint32(_recordVideoMessages ? 1 : 0);
 	}
 
 	Ensures(result.size() == size);
@@ -505,6 +506,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QByteArray tonsiteStorageToken = _tonsiteStorageToken;
 	qint32 ivZoom = _ivZoom.current();
 	qint32 skipToastsInFocus = _skipToastsInFocus ? 1 : 0;
+	qint32 recordVideoMessages = _recordVideoMessages ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -820,6 +822,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> skipToastsInFocus;
 	}
+	if (!stream.atEnd()) {
+		stream >> recordVideoMessages;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -1033,6 +1038,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_tonsiteStorageToken = tonsiteStorageToken;
 	_ivZoom = ivZoom;
 	_skipToastsInFocus = (skipToastsInFocus == 1);
+	_recordVideoMessages = (recordVideoMessages == 1);
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -1422,6 +1428,7 @@ void Settings::resetOnLastLogout() {
 	_storiesClickTooltipHidden = false;
 	_ttlVoiceClickTooltipHidden = false;
 	_ivZoom = 100;
+	_recordVideoMessages = false;
 
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();

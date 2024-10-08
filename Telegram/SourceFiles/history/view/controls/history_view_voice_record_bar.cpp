@@ -1535,6 +1535,7 @@ void VoiceRecordBar::init() {
 				return;
 			}
 			_recordingTipRequired = true;
+			_recordingVideo = (_send->type() == Ui::SendButton::Type::Round);
 			_startTimer.callOnce(st::universalDuration);
 		} else if (e->type() == QEvent::MouseButtonRelease) {
 			if (base::take(_recordingTipRequired)) {
@@ -1589,6 +1590,11 @@ void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
 	//	_videoHiding.back()->hide();
 	//}
 	AssertIsDebug();
+	if (_send->type() == Ui::SendButton::Type::Round) {
+		_level->setType(VoiceRecordButton::Type::Round);
+	} else {
+		_level->setType(VoiceRecordButton::Type::Record);
+	}
 	const auto to = show ? 1. : 0.;
 	const auto from = show ? 0. : 1.;
 	auto animationCallback = [=, callback = std::move(callback)](auto value) {
@@ -1656,7 +1662,6 @@ void VoiceRecordBar::startRecording() {
 	if (isRecording()) {
 		return;
 	}
-	_recordingVideo = true; AssertIsDebug();
 	auto appearanceCallback = [=] {
 		if (_showAnimation.animating()) {
 			return;
@@ -1694,6 +1699,15 @@ void VoiceRecordBar::startRecording() {
 		}, [=] {
 			stop(false);
 		}, _recordingLifetime);
+		if (_videoRecorder) {
+			_videoRecorder->updated(
+			) | rpl::start_with_next_error([=](const Update &update) {
+				_recordingTipRequired = (update.samples < kMinSamples);
+				recordUpdated(update.level, update.samples);
+			}, [=] {
+				stop(false);
+			}, _recordingLifetime);
+		}
 		_recordingLifetime.add([=] {
 			_recording = false;
 		});
@@ -2013,7 +2027,8 @@ bool VoiceRecordBar::isListenState() const {
 }
 
 bool VoiceRecordBar::isTypeRecord() const {
-	return (_send->type() == Ui::SendButton::Type::Record);
+	return (_send->type() == Ui::SendButton::Type::Record)
+		|| (_send->type() == Ui::SendButton::Type::Round);
 }
 
 bool VoiceRecordBar::isRecordingByAnotherBar() const {

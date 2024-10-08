@@ -150,6 +150,8 @@ SendButton {
 	inner: IconButton;
 	record: icon;
 	recordOver: icon;
+	round: icon;
+	roundOver: icon;
 	sendDisabledFg: color;
 }
 
@@ -1159,6 +1161,10 @@ historyRecordVoiceOnceFg: icon {{ "voice_lock/audio_once_number", windowFgActive
 historyRecordVoiceOnceFgOver: icon {{ "voice_lock/audio_once_number", windowFgActive }};
 historyRecordVoiceOnceInactive: icon {{ "chat/audio_once", windowSubTextFg }};
 historyRecordVoiceActive: icon {{ "chat/input_record_filled", historyRecordVoiceFgActiveIcon }};
+historyRecordRound: icon {{ "info/info_media_round", historyRecordVoiceFg }};
+historyRecordRoundOver: icon {{ "info/info_media_round", historyRecordVoiceFgOver }};
+historyRecordRoundActive: icon {{ "info/info_media_round", historyRecordVoiceFgActiveIcon }};
+historyRecordRoundIconPosition: point(0px, 0px);
 historyRecordSendIconPosition: point(2px, 0px);
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
 historyRecordSignalRadius: 5px;
@@ -1264,6 +1270,8 @@ historySend: SendButton {
 	}
 	record: historyRecordVoice;
 	recordOver: historyRecordVoiceOver;
+	round: historyRecordRound;
+	roundOver: historyRecordRoundOver;
 	sendDisabledFg: historyComposeIconFg;
 }
 
