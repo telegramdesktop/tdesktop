@@ -5632,6 +5632,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_qr_box_quality2" = "High";
 "lng_qr_box_quality3" = "Very High";
 "lng_qr_box_transparent_background" = "Transparent Background";
+"lng_qr_box_font_size" = "Font size";
 
 // Wnd specific
 
