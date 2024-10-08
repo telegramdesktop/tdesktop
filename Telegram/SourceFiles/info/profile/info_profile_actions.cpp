@@ -1064,16 +1064,19 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			not_null<Ui::RpWidget*> button,
 			not_null<Ui::FlatLabel*> label) {
 		const auto parent = label->parentWidget();
-		result->sizeValue() | rpl::start_with_next([=] {
+		rpl::combine(
+			label->geometryValue(),
+			button->sizeValue()
+		) | rpl::start_with_next([=](const QRect &, const QSize &buttonSize) {
 			const auto s = parent->size();
 			button->moveToRight(
 				0,
-				(s.height() - button->height()) / 2);
+				(s.height() - buttonSize.height()) / 2);
 			label->resizeToWidth(
 				s.width()
 					- label->geometry().left()
 					- st::lineWidth * 2
-					- button->width());
+					- buttonSize.width());
 		}, button->lifetime());
 	};
 	const auto controller = _controller->parentController();
@@ -1177,11 +1180,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		usernameLine.text->setContextMenuHook(lnkHook);
 		usernameLine.subtext->setContextMenuHook(lnkHook);
 
-		const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
+		const auto qrButton = Ui::CreateChild<Ui::IconButton>(
 			usernameLine.text->parentWidget(),
 			st::infoProfileLabeledButtonQr);
-		fitLabelToButton(copyUsername, usernameLine.text);
-		copyUsername->setClickedCallback([=] {
+		fitLabelToButton(qrButton, usernameLine.text);
+		qrButton->setClickedCallback([=] {
 			controller->show(
 				Box(Ui::FillPeerQrBox, user, std::nullopt, nullptr));
 			return false;
