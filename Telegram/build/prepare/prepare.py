@@ -1217,13 +1217,14 @@ depends:yasm/yasm
         --arch="$arch" \
         --extra-cflags="$MIN_VER -arch $arch $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
         --extra-cxxflags="$MIN_VER -arch $arch $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-        --extra-ldflags="$MIN_VER -arch $arch $USED_PREFIX/lib/libopus.a" \
+        --extra-ldflags="$MIN_VER -arch $arch $USED_PREFIX/lib/libopus.a -lc++" \
         --disable-programs \
         --disable-doc \
         --disable-network \
         --disable-everything \
         --enable-protocol=file \
         --enable-libdav1d \
+        --enable-libopenh264 \
         --enable-libopus \
         --enable-libvpx \
         --enable-hwaccel=h264_videotoolbox \
@@ -1301,7 +1302,9 @@ depends:yasm/yasm
         --enable-decoder=wmav1 \
         --enable-decoder=wmav2 \
         --enable-decoder=wmavoice \
+        --enable-encoder=aac \
         --enable-encoder=libopus \
+        --enable-encoder=libopenh264 \
         --enable-filter=atempo \
         --enable-parser=aac \
         --enable-parser=aac_latm \
@@ -1324,6 +1327,7 @@ depends:yasm/yasm
         --enable-demuxer=mp3 \
         --enable-demuxer=ogg \
         --enable-demuxer=wav \
+        --enable-muxer=mp4 \
         --enable-muxer=ogg \
         --enable-muxer=opus
     }
