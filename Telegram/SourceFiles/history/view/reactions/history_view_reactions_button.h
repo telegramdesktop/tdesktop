@@ -38,6 +38,8 @@ class Session;
 
 namespace HistoryView::Reactions {
 
+extern const char kOptionDisableFloatReactions[];
+
 enum class ExpandDirection {
 	Up,
 	Down,
