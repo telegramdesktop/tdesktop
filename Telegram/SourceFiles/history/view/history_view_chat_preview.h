@@ -21,6 +21,7 @@ namespace HistoryView {
 
 struct ChatPreviewAction {
 	FullMsgId openItemId;
+	bool cancel = false;
 	bool openInfo = false;
 	bool markRead = false;
 	bool markUnread = false;

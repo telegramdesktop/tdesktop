@@ -509,6 +509,10 @@ void Item::setupHistory() {
 	_inner->refreshViewer();
 
 	_inner->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	crl::on_main(this, [=] {
+		_inner->setFocus();
+	});
 }
 
 void Item::paintEvent(QPaintEvent *e) {
@@ -537,6 +541,7 @@ bool Item::listScrollTo(int top, bool syntetic) {
 }
 
 void Item::listCancelRequest() {
+	_actions.fire({ .cancel = true });
 }
 
 void Item::listDeleteRequest() {
