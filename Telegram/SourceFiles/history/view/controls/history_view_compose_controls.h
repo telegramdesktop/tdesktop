@@ -444,6 +444,7 @@ private:
 	FullMsgId _editingId;
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
 	bool _canReplaceMedia = false;
+	bool _canAddMedia = false;
 
 	std::unique_ptr<Controls::WebpageProcessor> _preview;
 

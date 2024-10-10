@@ -431,6 +431,7 @@ public:
 	[[nodiscard]] bool allowsSendNow() const;
 	[[nodiscard]] bool allowsForward() const;
 	[[nodiscard]] bool allowsEdit(TimeId now) const;
+	[[nodiscard]] bool allowsEditMedia() const;
 	[[nodiscard]] bool canDelete() const;
 	[[nodiscard]] bool canDeleteForEveryone(TimeId now) const;
 	[[nodiscard]] bool suggestReport() const;

@@ -2312,7 +2312,7 @@ void HistoryWidget::showHistory(
 	_processingReplyItem = _replyEditMsg = nullptr;
 	_processingReplyTo = _replyTo = FullReplyTo();
 	_editMsgId = MsgId();
-	_canReplaceMedia = false;
+	_canReplaceMedia = _canAddMedia = false;
 	_photoEditMedia = nullptr;
 	updateReplaceMediaButton();
 	_fieldBarCancel->hide();
@@ -2700,7 +2700,7 @@ void HistoryWidget::setEditMsgId(MsgId msgId) {
 	_editMsgId = msgId;
 	if (!msgId) {
 		_mediaEditManager.cancel();
-		_canReplaceMedia = false;
+		_canReplaceMedia = _canAddMedia = false;
 		if (_preview) {
 			_preview->setDisabled(false);
 		}
@@ -2756,14 +2756,16 @@ void HistoryWidget::clearAllLoadRequests() {
 }
 
 bool HistoryWidget::updateReplaceMediaButton() {
-	if (!_canReplaceMedia) {
+	if (!_canReplaceMedia && !_canAddMedia) {
 		const auto result = (_replaceMedia != nullptr);
 		_replaceMedia.destroy();
 		return result;
 	} else if (_replaceMedia) {
 		return false;
 	}
-	_replaceMedia.create(this, st::historyReplaceMedia);
+	_replaceMedia.create(
+		this,
+		_canReplaceMedia ? st::historyReplaceMedia : st::historyAddMedia);
 	const auto hideDuration = st::historyReplaceMedia.ripple.hideDuration;
 	_replaceMedia->setClickedCallback([=] {
 		base::call_delayed(hideDuration, this, [=] {
@@ -5712,7 +5714,7 @@ bool HistoryWidget::confirmSendingFiles(
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel) {
 	if (_editMsgId) {
-		if (_canReplaceMedia) {
+		if (_canReplaceMedia || _canAddMedia) {
 			EditCaptionBox::StartMediaReplace(
 				controller(),
 				{ _history->peer->id, _editMsgId },
@@ -8002,7 +8004,7 @@ void HistoryWidget::cancelEdit() {
 		return;
 	}
 
-	_canReplaceMedia = false;
+	_canReplaceMedia = _canAddMedia = false;
 	_photoEditMedia = nullptr;
 	updateReplaceMediaButton();
 	_replyEditMsg = nullptr;
@@ -8357,7 +8359,16 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		if (_editMsgId && _replyEditMsg) {
 			_mediaEditManager.start(_replyEditMsg);
 		}
-		_canReplaceMedia = editMedia && editMedia->allowsEditMedia();
+		_canReplaceMedia = _editMsgId && _replyEditMsg->allowsEditMedia();
+		if (editMedia) {
+			_canAddMedia = false;
+		} else {
+			_canAddMedia = base::take(_canReplaceMedia);
+		}
+		if (_canReplaceMedia || _canAddMedia) {
+			// Invalidate the button, maybe icon has changed.
+			_replaceMedia.destroy();
+		}
 		_photoEditMedia = (_canReplaceMedia
 			&& editMedia->photo()
 			&& !editMedia->photo()->isNull())

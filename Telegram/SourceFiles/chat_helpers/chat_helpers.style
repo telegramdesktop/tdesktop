@@ -1074,6 +1074,13 @@ historyReplaceMedia: IconButton(historyAttach) {
 		color: lightButtonBgOver;
 	}
 }
+historyAddMedia: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_attach", windowBgActive }};
+	iconOver: icon {{ "chat/input_attach", windowBgActive }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
 
 historyAttachEmojiActive: icon {{ "chat/input_smile_face", windowBgActive }};
 historyEmojiCircle: size(20px, 20px);

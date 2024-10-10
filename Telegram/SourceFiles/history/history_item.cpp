@@ -1470,12 +1470,10 @@ void HistoryItem::returnSavedMedia() {
 }
 
 void HistoryItem::savePreviousMedia() {
-	Expects(_media != nullptr);
-
 	AddComponents(HistoryMessageSavedMediaData::Bit());
 	const auto data = Get<HistoryMessageSavedMediaData>();
 	data->text = originalText();
-	data->media = _media->clone(this);
+	data->media = _media ? _media->clone(this) : nullptr;
 }
 
 bool HistoryItem::isEditingMedia() const {
@@ -2229,6 +2227,10 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 		&& (!_media || _media->allowsEdit())
 		&& !isLegacyMessage()
 		&& !isEditingMedia();
+}
+
+bool HistoryItem::allowsEditMedia() const {
+	return !_media || _media->allowsEditMedia();
 }
 
 bool HistoryItem::canBeEdited() const {
