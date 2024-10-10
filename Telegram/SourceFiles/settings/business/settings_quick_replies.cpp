@@ -171,10 +171,10 @@ void QuickReplies::setupContent(
 	}
 	for (const auto &ch : name) {
 		if (!ch.isLetterOrNumber()
-			&& (ch != '_')
-			&& (ch != 0x200c)
-			&& (ch != 0x00b7)
-			&& (ch < 0x0d80 || ch > 0x0dff)) {
+			&& (ch != QChar('_'))
+			&& (ch.unicode() != 0x200c)
+			&& (ch.unicode() != 0x00b7)
+			&& (ch.unicode() < 0x0d80 || ch.unicode() > 0x0dff)) {
 			return false;
 		}
 	}
