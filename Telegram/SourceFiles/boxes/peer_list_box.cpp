@@ -764,13 +764,14 @@ int PeerListRow::paintNameIconGetWidth(
 		int availableWidth,
 		int outerWidth,
 		bool selected) {
-	if (special()
+	if (_skipPeerBadge
+		|| special()
 		|| !_savedMessagesStatus.isEmpty()
 		|| _isRepliesMessagesChat
 		|| _isVerifyCodesChat) {
 		return 0;
 	}
-	return _bagde.drawGetWidth(
+	return _badge.drawGetWidth(
 		p,
 		QRect(
 			nameLeft,
