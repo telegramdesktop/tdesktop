@@ -147,8 +147,10 @@ base::options::toggle ShowPeerIdBelowAbout({
 				+ addToLink;
 		}
 		if (!link.isEmpty()) {
+			TextUtilities::SetClipboardText({ link });
 			if (const auto strong = weak.get()) {
-				FastShareLink(strong, link);
+				strong->showToast(
+					tr::lng_channel_public_link_copied(tr::now));
 			}
 		}
 	};
@@ -1074,8 +1076,65 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 					- button->width());
 		}, button->lifetime());
 	};
+	const auto controller = _controller->parentController();
+	const auto weak = base::make_weak(controller);
+	const auto peerIdRaw = QString::number(_peer->id.value);
+	const auto lnkHook = [=](Ui::FlatLabel::ContextMenuRequest request) {
+		const auto strong = weak.get();
+		if (!strong || !request.link) {
+			return;
+		}
+		const auto url = request.link->url();
+		if (url.startsWith(u"https://")) {
+			request.menu->addAction(
+				tr::lng_context_copy_link(tr::now),
+				[=] {
+					TextUtilities::SetClipboardText({ url });
+					if (const auto strong = weak.get()) {
+						strong->showToast(
+							tr::lng_channel_public_link_copied(tr::now));
+					}
+				});
+			request.menu->addAction(
+				tr::lng_group_invite_share(tr::now),
+				[=] {
+					if (const auto strong = weak.get()) {
+						FastShareLink(strong, url);
+					}
+				});
+			return;
+		}
+		static const auto kPrefix = QRegularExpression(u"^internal:"
+			"(collectible_username|username_link|username_regular)/"
+			"([a-zA-Z0-9\\-\\_\\.]+)@"_q);
+		const auto match = kPrefix.match(url);
+		if (!match.hasMatch()) {
+			return;
+		}
+		const auto username = match.captured(2);
+		const auto fullname = username + '@' + peerIdRaw;
+		const auto mentionLink = "internal:username_regular/" + fullname;
+		const auto linkLink = "internal:username_link/" + fullname;
+		const auto context = QVariant::fromValue(ClickHandlerContext{
+			.sessionWindow = weak,
+		});
+		const auto session = &strong->session();
+		const auto link = session->createInternalLinkFull(username);
+		request.menu->addAction(
+			tr::lng_context_copy_mention(tr::now),
+			[=] { Core::App().openInternalUrl(mentionLink, context); });
+		request.menu->addAction(
+			tr::lng_context_copy_link(tr::now),
+			[=] { Core::App().openInternalUrl(linkLink, context); });
+		request.menu->addAction(
+			tr::lng_group_invite_share(tr::now),
+			[=] {
+				if (const auto strong = weak.get()) {
+					FastShareLink(strong, link);
+				}
+			});
+	};
 	if (const auto user = _peer->asUser()) {
-		const auto controller = _controller->parentController();
 		if (user->session().supportMode()) {
 			addInfoLineGeneric(
 				user->session().supportHelper().infoLabelValue(user),
@@ -1113,34 +1172,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			_peer,
 			controller,
 			QString());
-		const auto hook = [=](Ui::FlatLabel::ContextMenuRequest request) {
-			if (!request.link) {
-				return;
-			}
-			const auto text = request.link->copyToClipboardContextItemText();
-			if (text.isEmpty()) {
-				return;
-			}
-			const auto link = request.link->copyToClipboardText();
-			request.menu->addAction(
-				text,
-				[=] { QGuiApplication::clipboard()->setText(link); });
-			const auto last = link.lastIndexOf('/');
-			if (last < 0) {
-				return;
-			}
-			const auto mention = '@' + link.mid(last + 1);
-			if (mention.size() < 2) {
-				return;
-			}
-			request.menu->addAction(
-				tr::lng_context_copy_mention(tr::now),
-				[=] { QGuiApplication::clipboard()->setText(mention); });
-		};
 		usernameLine.text->overrideLinkClickHandler(callback);
 		usernameLine.subtext->overrideLinkClickHandler(callback);
-		usernameLine.text->setContextMenuHook(hook);
-		usernameLine.subtext->setContextMenuHook(hook);
+		usernameLine.text->setContextMenuHook(lnkHook);
+		usernameLine.subtext->setContextMenuHook(lnkHook);
 
 		const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
 			usernameLine.text->parentWidget(),
@@ -1215,6 +1250,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			addToLink);
 		linkLine.text->overrideLinkClickHandler(linkCallback);
 		linkLine.subtext->overrideLinkClickHandler(linkCallback);
+		linkLine.text->setContextMenuHook(lnkHook);
+		linkLine.subtext->setContextMenuHook(lnkHook);
 		{
 			const auto qr = Ui::CreateChild<Ui::IconButton>(
 				linkLine.text->parentWidget(),

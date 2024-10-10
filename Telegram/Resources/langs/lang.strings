@@ -453,6 +453,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_username_app_not_found" = "Bot application not found.";
 "lng_username_link" = "This link opens a chat with you:";
 "lng_username_copied" = "Link copied to clipboard.";
+"lng_username_text_copied" = "Username copied to clipboard.";
 
 "lng_usernames_edit" = "click to edit";
 "lng_usernames_active" = "active";
@@ -487,6 +488,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_collectible_phone_info" = "This phone number was bought on **Fragment** on {date} for {price}";
 "lng_collectible_phone_copy" = "Copy Phone Number";
 "lng_collectible_learn_more" = "Learn More";
+"lng_collectible_phone_copied" = "Phone number copied to clipboard.";
 
 "lng_settings_section_info" = "Info";
 

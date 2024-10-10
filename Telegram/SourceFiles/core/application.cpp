@@ -1163,9 +1163,9 @@ bool Application::openCustomUrl(
 		return false;
 	}
 	static const auto kTagExp = QRegularExpression(
-		u"\\~[a-zA-Z0-9_\\-]+\\~:"_q);
+		u"^\\~[a-zA-Z0-9_\\-]+\\~:"_q);
 	auto skip = protocol.size();
-	const auto match = kTagExp.match(urlTrimmed, skip);
+	const auto match = kTagExp.match(base::StringViewMid(urlTrimmed, skip));
 	if (match.hasMatch()) {
 		skip += match.capturedLength();
 	}

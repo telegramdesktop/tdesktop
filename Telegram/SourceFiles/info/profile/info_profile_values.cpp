@@ -166,13 +166,21 @@ rpl::producer<TextWithEntities> UsernameValue(
 	}) | Ui::Text::ToWithEntities();
 }
 
-QString UsernameUrl(not_null<PeerData*> peer, const QString &username) {
-	return peer->isUsernameEditable(username)
-		? peer->session().createInternalLinkFull(username)
-		: (u"internal:collectible_username/"_q
-			+ username
-			+ "@"
-			+ QString::number(peer->id.value));
+QString UsernameUrl(
+		not_null<PeerData*> peer,
+		const QString &username,
+		bool link) {
+	const auto type = !peer->isUsernameEditable(username)
+		? u"collectible_username"_q
+		: link
+		? u"username_link"_q
+		: u"username_regular"_q;
+	return u"internal:"_q
+		+ type
+		+ u"/"_q
+		+ username
+		+ "@"
+		+ QString::number(peer->id.value);
 }
 
 rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
@@ -243,7 +251,7 @@ rpl::producer<LinkWithUrl> LinkValue(not_null<PeerData*> peer, bool primary) {
 				: peer->session().createInternalLinkFull(username)),
 			.url = (username.isEmpty()
 				? QString()
-				: UsernameUrl(peer, username)),
+				: UsernameUrl(peer, username, true)),
 		};
 	});
 }

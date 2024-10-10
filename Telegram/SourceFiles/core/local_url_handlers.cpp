@@ -785,9 +785,9 @@ bool CopyPeerId(
 		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	TextUtilities::SetClipboardText(TextForMimeData{ match->captured(1) });
+	TextUtilities::SetClipboardText({ match->captured(1) });
 	if (controller) {
-		controller->showToast(tr::lng_text_copied(tr::now));
+		controller->showToast(u"ID copied to clipboard."_q);
 	}
 	return true;
 }
@@ -923,6 +923,34 @@ bool ShowCollectibleUsername(
 	const auto username = match->captured(1);
 	const auto peerId = PeerId(match->captured(2).toULongLong());
 	controller->resolveCollectible(peerId, username);
+	return true;
+}
+
+bool CopyUsernameLink(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto username = match->captured(1);
+	TextUtilities::SetClipboardText({
+		controller->session().createInternalLinkFull(username)
+	});
+	controller->showToast(tr::lng_username_copied(tr::now));
+	return true;
+}
+
+bool CopyUsername(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto username = match->captured(1);
+	TextUtilities::SetClipboardText({ '@' + username });
+	controller->showToast(tr::lng_username_text_copied(tr::now));
 	return true;
 }
 
@@ -1390,6 +1418,14 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^collectible_username/([a-zA-Z0-9\\-\\_\\.]+)@([0-9]+)$"_q,
 			ShowCollectibleUsername,
+		},
+		{
+			u"^username_link/([a-zA-Z0-9\\-\\_\\.]+)@([0-9]+)$"_q,
+			CopyUsernameLink,
+		},
+		{
+			u"^username_regular/([a-zA-Z0-9\\-\\_\\.]+)@([0-9]+)$"_q,
+			CopyUsername,
 		},
 		{
 			u"^stars_examples$"_q,
