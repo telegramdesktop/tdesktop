@@ -527,9 +527,9 @@ void DateInput::correctValue(
 	if (accumulated > _maxValue
 		|| (limit == _maxDigits && oldLength > _maxDigits)) {
 		if (oldCursor > limit) {
-			_putNext.fire('0' + (accumulated % 10));
+			_putNext.fire(QChar('0' + (accumulated % 10)));
 		} else {
-			_putNext.fire(0);
+			_putNext.fire(QChar(0));
 		}
 	}
 }
