@@ -782,10 +782,13 @@ void ReceiptCreditsBox(
 			std::unique_ptr<Lottie::SinglePlayer> lottie;
 			rpl::lifetime downloadLifetime;
 		};
-		Ui::AddSkip(content, st::creditsHistoryEntryGiftStickerSpace
-			- (isStarGift ? st::creditsHistoryEntryGiftStickerSkip : 0));
+		Ui::AddSkip(content, isStarGift
+			? st::creditsHistoryEntryStarGiftSpace
+			: st::creditsHistoryEntryGiftStickerSpace);
 		const auto icon = Ui::CreateChild<Ui::RpWidget>(content);
-		icon->resize(Size(st::creditsHistoryEntryGiftStickerSize));
+		icon->resize(Size(isStarGift
+			? st::creditsHistoryEntryStarGiftSize
+			: st::creditsHistoryEntryGiftStickerSize));
 		const auto state = icon->lifetime().make_state<State>();
 		auto &packs = session->giftBoxStickersPacks();
 		const auto document = starGiftSticker
@@ -834,9 +837,9 @@ void ReceiptCreditsBox(
 		}, icon->lifetime());
 		content->sizeValue(
 		) | rpl::start_with_next([=](const QSize &size) {
-			icon->move(
-				(size.width() - icon->width()) / 2,
-				isStarGift ? 0 : st::creditsHistoryEntryGiftStickerSkip);
+			icon->move((size.width() - icon->width()) / 2, isStarGift
+				? st::creditsHistoryEntryStarGiftSkip
+				: st::creditsHistoryEntryGiftStickerSkip);
 		}, icon->lifetime());
 	} else {
 		const auto widget = content->add(
