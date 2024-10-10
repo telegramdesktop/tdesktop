@@ -2604,7 +2604,11 @@ auto ListWidget::countScrollState() const -> ScrollTopState {
 }
 
 void ListWidget::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
+	const auto key = e->key();
+	const auto hasModifiers = (Qt::NoModifier !=
+		(e->modifiers()
+			& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier)));
+	if (key == Qt::Key_Escape || key == Qt::Key_Back) {
 		if (hasSelectedText() || hasSelectedItems()) {
 			cancelSelection();
 		} else {
@@ -2616,20 +2620,31 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 		&& !hasCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText());
 #ifdef Q_OS_MAC
-	} else if (e->key() == Qt::Key_E
+	} else if (key == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)
 		&& !showCopyRestriction()
 		&& !hasCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
-	} else if (e == QKeySequence::Delete || e->key() == Qt::Key_Backspace) {
+	} else if (e == QKeySequence::Delete || key == Qt::Key_Backspace) {
 		_delegate->listDeleteRequest();
+	} else if (!hasModifiers
+		&& ((key == Qt::Key_Up)
+			|| (key == Qt::Key_Down)
+			|| (key == Qt::Key_PageUp)
+			|| (key == Qt::Key_PageDown))) {
+		_scrollKeyEvents.fire(std::move(e));
 	} else if (!(e->modifiers() & ~Qt::ShiftModifier)
-		&& e->key() != Qt::Key_Shift) {
+		&& key != Qt::Key_Shift) {
 		_delegate->listTryProcessKeyInput(e);
 	} else {
 		e->ignore();
 	}
+}
+
+auto ListWidget::scrollKeyEvents() const
+-> rpl::producer<not_null<QKeyEvent*>> {
+	return _scrollKeyEvents.events();
 }
 
 void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {

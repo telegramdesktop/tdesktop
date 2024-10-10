@@ -382,6 +382,10 @@ public:
 		const TextState &reactionState) const;
 	void toggleFavoriteReaction(not_null<Element*> view) const;
 
+
+	[[nodiscard]] auto scrollKeyEvents() const
+		-> rpl::producer<not_null<QKeyEvent*>>;
+
 	// ElementDelegate interface.
 	Context elementContext() override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
@@ -851,6 +855,7 @@ private:
 	rpl::event_stream<ReplyToMessageRequest> _requestedToReplyToMessage;
 	rpl::event_stream<FullMsgId> _requestedToReadMessage;
 	rpl::event_stream<FullMsgId> _requestedToShowMessage;
+	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 
 	rpl::lifetime _viewerLifetime;
 

@@ -378,7 +378,9 @@ void ScheduledWidget::setupComposeControls() {
 		}
 	}, lifetime());
 
-	_composeControls->scrollKeyEvents(
+	rpl::merge(
+		_composeControls->scrollKeyEvents(),
+		_inner->scrollKeyEvents()
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
 		_scroll->keyPressEvent(e);
 	}, lifetime());

@@ -480,6 +480,11 @@ void Item::setupHistory() {
 	using Type = Ui::ElasticScroll::OverscrollType;
 	_scroll->setOverscrollTypes(Type::Real, Type::Real);
 
+	_inner->scrollKeyEvents(
+	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
+		_scroll->keyPressEvent(e);
+	}, lifetime());
+
 	_scroll->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::MouseButtonDblClick) {
 			const auto button = static_cast<QMouseEvent*>(e.get())->button();
