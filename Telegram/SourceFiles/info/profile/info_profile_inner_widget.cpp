@@ -253,6 +253,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 
 	if (!_topic) {
 		addStoriesButton(_peer, st::infoIconMediaStories);
+		if (const auto user = _peer->asUser()) {
+			addPeerGiftsButton(user, st::infoIconMediaGifts);
+		}
 		addSavedSublistButton(_peer, st::infoIconMediaSaved);
 	}
 	addMediaButton(MediaType::Photo, st::infoIconMediaPhoto);
@@ -264,7 +267,6 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	addMediaButton(MediaType::GIF, st::infoIconMediaGif);
 	if (const auto user = _peer->asUser()) {
 		addCommonGroupsButton(user, st::infoIconMediaGroup);
-		addPeerGiftsButton(user, st::infoIconMediaGifts);
 	} else if (const auto channel = _peer->asChannel()) {
 		addSimilarChannelsButton(channel, st::infoIconMediaChannel);
 	}

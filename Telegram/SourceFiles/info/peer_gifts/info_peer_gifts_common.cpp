@@ -82,7 +82,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 	}, [&](const GiftTypeStars &data) {
 		_price.setMarkedText(
 			st::semiboldTextStyle,
-			_delegate->star().append(QString::number(data.stars)),
+			_delegate->star().append(' ' + QString::number(data.stars)),
 			kMarkupTextOptions,
 			_delegate->textContext());
 		_userpic = !data.userpic
@@ -284,6 +284,10 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		const auto twidth = font->width(text);
 		const auto pos = position + QPoint(singlew - twidth, font->height);
 		p.save();
+		const auto rubberOut = _extend.top();
+		const auto inner = rect().marginsRemoved(_extend);
+		p.setClipRect(inner.marginsAdded(
+			{ rubberOut, rubberOut, rubberOut, rubberOut }));
 		p.translate(pos);
 		p.rotate(45.);
 		p.translate(-pos);
