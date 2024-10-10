@@ -936,14 +936,14 @@ void DocumentData::setFileName(const QString &remoteFileName) {
 	// in filenames, because they introduce a security issue, when
 	// an executable "Fil[x]gepj.exe" may look like "Filexe.jpeg".
 	QChar controls[] = {
-		0x200E, // LTR Mark
-		0x200F, // RTL Mark
-		0x202A, // LTR Embedding
-		0x202B, // RTL Embedding
-		0x202D, // LTR Override
-		0x202E, // RTL Override
-		0x2066, // LTR Isolate
-		0x2067, // RTL Isolate
+		QChar(0x200E), // LTR Mark
+		QChar(0x200F), // RTL Mark
+		QChar(0x202A), // LTR Embedding
+		QChar(0x202B), // RTL Embedding
+		QChar(0x202D), // LTR Override
+		QChar(0x202E), // RTL Override
+		QChar(0x2066), // LTR Isolate
+		QChar(0x2067), // RTL Isolate
 	};
 	for (const auto &ch : controls) {
 		_filename = std::move(_filename).replace(ch, "_");
