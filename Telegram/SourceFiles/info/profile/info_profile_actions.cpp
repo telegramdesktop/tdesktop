@@ -185,7 +185,7 @@ base::options::toggle ShowPeerIdBelowAbout({
 		const auto raw = peer->id.value & PeerId::kChatTypeMask;
 		value.append(Link(
 			Italic(Lang::FormatCountDecimal(raw)),
-			"internal:copy:" + QString::number(raw)));
+			"internal:~peer_id~:copy:" + QString::number(raw)));
 		return std::move(value);
 	});
 }
@@ -979,6 +979,20 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		state->labelText = std::move(text);
 		label->setContextMenuHook([=](
 				Ui::FlatLabel::ContextMenuRequest request) {
+			if (request.link) {
+				const auto &url = request.link->url();
+				if (url.startsWith(u"internal:~peer_id~:"_q)) {
+					const auto weak = base::make_weak(controller);
+					request.menu->addAction(u"Copy ID"_q, [=] {
+						Core::App().openInternalUrl(
+							url,
+							QVariant::fromValue(ClickHandlerContext{
+								.sessionWindow = weak,
+							}));
+					});
+					return;
+				}
+			}
 			label->fillContextMenu(request);
 			if (Ui::SkipTranslate(state->labelText.current())) {
 				return;
