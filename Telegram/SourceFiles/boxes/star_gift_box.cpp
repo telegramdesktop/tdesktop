@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "base/random.h"
+#include "base/unixtime.h"
 #include "api/api_premium.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/send_credits_box.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/ui_integration.h"
+#include "data/data_credits.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
@@ -40,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_non_panel_process.h"
 #include "settings/settings_credits.h"
+#include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -213,7 +216,7 @@ auto GenerateGiftMedia(
 			return tr::lng_action_gift_got_stars_text(
 				tr::now,
 				lt_count,
-				gift.convertStars,
+				gift.info.convertStars,
 				Ui::Text::RichLangValue);
 		});
 		auto description = data.text.empty()
@@ -280,7 +283,7 @@ void ShowSentToast(
 		return tr::lng_gift_sent_about(
 			tr::now,
 			lt_count,
-			gift.stars,
+			gift.info.stars,
 			Ui::Text::RichLangValue);
 	});
 	const auto strong = window->showToast({
@@ -338,7 +341,10 @@ void PreviewWrap::prepare(rpl::producer<GiftDetails> details) {
 		const auto cost = v::match(descriptor, [&](GiftTypePremium data) {
 			return FillAmountAndCurrency(data.cost, data.currency, true);
 		}, [&](GiftTypeStars data) {
-			return tr::lng_gift_stars_title(tr::now, lt_count, data.stars);
+			return tr::lng_gift_stars_title(
+				tr::now,
+				lt_count,
+				data.info.stars);
 		});
 		const auto text = tr::lng_action_gift_received(
 			tr::now,
@@ -508,14 +514,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 			const auto &gifts = api->starGifts();
 			list.reserve(gifts.size());
 			for (auto &gift : gifts) {
-				list.push_back({
-					.id = gift.id,
-					.stars = gift.stars,
-					.convertStars = gift.convertStars,
-					.document = gift.document,
-					.limitedCount = gift.limitedCount,
-					.limitedLeft = gift.limitedLeft,
-				});
+				list.push_back({ .info = gift });
 			}
 			auto &map = Map[session];
 			if (map.last != list) {
@@ -587,7 +586,8 @@ struct GiftPriceTabs {
 		auto sameKey = 0;
 		for (const auto &gift : gifts) {
 			if (same) {
-				const auto key = gift.stars * (gift.limitedCount ? -1 : 1);
+				const auto key = gift.info.stars
+					* (gift.info.limitedCount ? -1 : 1);
 				if (!sameKey) {
 					sameKey = key;
 				} else if (sameKey != key) {
@@ -595,12 +595,12 @@ struct GiftPriceTabs {
 				}
 			}
 
-			if (gift.limitedCount
+			if (gift.info.limitedCount
 				&& (result.size() < 2 || result[1] != kPriceTabLimited)) {
 				result.insert(begin(result) + 1, kPriceTabLimited);
 			}
-			if (!ranges::contains(result, gift.stars)) {
-				result.push_back(gift.stars);
+			if (!ranges::contains(result, gift.info.stars)) {
+				result.push_back(gift.info.stars);
 			}
 		}
 		if (same) {
@@ -838,14 +838,36 @@ void SendGift(
 		const auto processNonPanelPaymentFormFactory
 			= Payments::ProcessNonPanelPaymentFormFactory(window, done);
 		Payments::CheckoutProcess::Start(Payments::InvoiceStarGift{
-			.giftId = gift.id,
+			.giftId = gift.info.id,
 			.randomId = details.randomId,
 			.message = details.text,
 			.user = peer->asUser(),
-			.limitedCount = gift.limitedCount,
+			.limitedCount = gift.info.limitedCount,
 			.anonymous = details.anonymous,
 		}, done, processNonPanelPaymentFormFactory);
 	});
+}
+
+void SoldOutBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> window,
+		const GiftTypeStars &gift) {
+	Settings::ReceiptCreditsBox(
+		box,
+		window,
+		Data::CreditsHistoryEntry{
+			.firstSaleDate = base::unixtime::parse(gift.info.firstSaleDate),
+			.lastSaleDate = base::unixtime::parse(gift.info.lastSaleDate),
+			.credits = uint64(gift.info.stars),
+			.bareGiftStickerId = gift.info.document->id,
+			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
+			.limitedCount = gift.info.limitedCount,
+			.limitedLeft = gift.info.limitedLeft,
+			.soldOutInfo = true,
+			.gift = true,
+		},
+		Data::SubscriptionEntry());
+
 }
 
 void SendGiftBox(
@@ -873,7 +895,7 @@ void SendGiftBox(
 			};
 		}, [&](const GiftTypeStars &data) {
 			return Ui::CreditsEmojiSmall(session).append(
-				Lang::FormatCountDecimal(std::abs(data.stars)));
+				Lang::FormatCountDecimal(std::abs(data.info.stars)));
 		});
 	}());
 
@@ -1076,15 +1098,10 @@ void SendGiftBox(
 
 			button->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
-				if (star && star->limitedCount && !star->limitedLeft) {
-					window->showToast({
-						.title = tr::lng_gift_sold_out_title(tr::now),
-						.text = tr::lng_gift_sold_out_text(
-							tr::now,
-							lt_count_decimal,
-							star->limitedCount,
-							Ui::Text::RichLangValue),
-					});
+				if (star
+					&& star->info.limitedCount
+					&& !star->info.limitedLeft) {
+					window->show(Box(SoldOutBox, window, *star));
 				} else {
 					window->show(
 						Box(SendGiftBox, window, peer, api, descriptor));
@@ -1187,8 +1204,8 @@ void AddBlock(
 	) | rpl::map([=](std::vector<GiftTypeStars> &&gifts, int price) {
 		gifts.erase(ranges::remove_if(gifts, [&](const GiftTypeStars &gift) {
 			return (price == kPriceTabLimited)
-				? (!gift.limitedCount)
-				: (price && gift.stars != price);
+				? (!gift.info.limitedCount)
+				: (price && gift.info.stars != price);
 		}), end(gifts));
 		return GiftsDescriptor{
 			gifts | ranges::to<std::vector<GiftDescriptor>>(),

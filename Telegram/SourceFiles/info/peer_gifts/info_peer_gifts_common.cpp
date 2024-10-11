@@ -86,12 +86,12 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 			{ 1., st::windowActiveTextFg->c },
 		});
 	}, [&](const GiftTypeStars &data) {
-		const auto soldOut = data.limitedCount
+		const auto soldOut = data.info.limitedCount
 			&& !data.userpic
-			&& !data.limitedLeft;
+			&& !data.info.limitedLeft;
 		_price.setMarkedText(
 			st::semiboldTextStyle,
-			_delegate->star().append(' ' + QString::number(data.stars)),
+			_delegate->star().append(' ' + QString::number(data.info.stars)),
 			kMarkupTextOptions,
 			_delegate->textContext());
 		_userpic = !data.userpic
@@ -282,8 +282,8 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		}
 		return QString();
 	}, [&](const GiftTypeStars &data) {
-		if (const auto count = data.limitedCount) {
-			const auto soldOut = !data.userpic && !data.limitedLeft;
+		if (const auto count = data.info.limitedCount) {
+			const auto soldOut = !data.userpic && !data.info.limitedLeft;
 			p.setBrush(soldOut
 				? st::attentionButtonFg
 				: st::windowActiveTextFg);
@@ -463,9 +463,7 @@ DocumentData *LookupGiftSticker(
 	return v::match(descriptor, [&](GiftTypePremium data) {
 		return packs.lookup(data.months);
 	}, [&](GiftTypeStars data) {
-		return data.document
-			? data.document
-			: packs.lookup(packs.monthsForStars(data.stars));
+		return data.info.document.get();
 	});
 }
 

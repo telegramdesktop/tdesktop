@@ -2444,6 +2444,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_box_history_entry_giveaway_name" = "Received Prize";
 "lng_credits_box_history_entry_gift_sent" = "Sent Gift";
 "lng_credits_box_history_entry_gift_converted" = "Converted Gift";
+"lng_credits_box_history_entry_gift_unavailable" = "Unavailable";
+"lng_credits_box_history_entry_gift_sold_out" = "This gift has sold out";
 "lng_credits_box_history_entry_gift_out_about" = "With Stars, **{user}** will be able to unlock content and services on Telegram.\n{link}";
 "lng_credits_box_history_entry_gift_in_about" = "Use Stars to unlock content and services on Telegram. {link}";
 "lng_credits_box_history_entry_gift_about_link" = "See Examples {emoji}";
@@ -2990,6 +2992,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_link_reason_unclaimed" = "Incomplete Giveaway";
 "lng_gift_link_reason_chosen" = "You were selected by the channel";
 "lng_gift_link_label_date" = "Date";
+"lng_gift_link_label_first_sale" = "First Sale";
+"lng_gift_link_label_last_sale" = "Last Sale";
+"lng_gift_link_label_value" = "Value";
 "lng_gift_link_also_send" = "You can also {link} to a friend as a gift.";
 "lng_gift_link_also_send_link" = "send this link";
 "lng_gift_link_use" = "Use Link";

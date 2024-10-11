@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_premium.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/text/text.h"
@@ -43,13 +44,8 @@ struct GiftTypePremium {
 };
 
 struct GiftTypeStars {
-	uint64 id = 0;
-	int64 stars = 0;
-	int64 convertStars = 0;
-	DocumentData *document = nullptr;
+	Api::StarGift info;
 	PeerData *from = nullptr;
-	int limitedCount = 0;
-	int limitedLeft = 0;
 	bool userpic = false;
 	bool hidden = false;
 	bool mine = false;

@@ -80,10 +80,16 @@ struct StarGift {
 	not_null<DocumentData*> document;
 	int limitedLeft = 0;
 	int limitedCount = 0;
+	TimeId firstSaleDate = 0;
+	TimeId lastSaleDate = 0;
+
+	friend inline bool operator==(
+		const StarGift &,
+		const StarGift &) = default;
 };
 
 struct UserStarGift {
-	StarGift gift;
+	StarGift info;
 	TextWithEntities message;
 	int64 convertStars = 0;
 	PeerId fromId = 0;

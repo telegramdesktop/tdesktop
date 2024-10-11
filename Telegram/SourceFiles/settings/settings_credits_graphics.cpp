@@ -731,7 +731,7 @@ void ReceiptCreditsBox(
 		const Data::SubscriptionEntry &s) {
 	const auto item = controller->session().data().message(
 		PeerId(e.barePeerId), MsgId(e.bareMsgId));
-	const auto isStarGift = (e.convertStars > 0);
+	const auto isStarGift = (e.convertStars > 0) || e.soldOutInfo;
 	const auto creditsHistoryStarGift = isStarGift && !e.id.isEmpty();
 	const auto sentStarGift = creditsHistoryStarGift && !e.in;
 	const auto convertedStarGift = creditsHistoryStarGift && e.converted;
@@ -880,6 +880,8 @@ void ReceiptCreditsBox(
 				? tr::lng_credits_box_history_entry_subscription(tr::now)
 				: !e.title.isEmpty()
 				? e.title
+				: e.soldOutInfo
+				? tr::lng_credits_box_history_entry_gift_unavailable(tr::now)
 				: sentStarGift
 				? tr::lng_credits_box_history_entry_gift_sent(tr::now)
 				: convertedStarGift
@@ -920,7 +922,11 @@ void ReceiptCreditsBox(
 			.session = session,
 			.customEmojiRepaint = [=] { amount->update(); },
 		};
-		if (s) {
+		if (e.soldOutInfo) {
+			text->setText(
+				st::defaultTextStyle,
+				tr::lng_credits_box_history_entry_gift_sold_out(tr::now));
+		} else if (s) {
 			text->setMarkedText(
 				st::defaultTextStyle,
 				tr::lng_credits_subscription_subtitle(
@@ -960,7 +966,9 @@ void ReceiptCreditsBox(
 		amount->paintRequest(
 		) | rpl::start_with_next([=] {
 			auto p = Painter(amount);
-			p.setPen(s
+			p.setPen(e.soldOutInfo
+				? st::menuIconAttentionColor
+				: s
 				? st::windowSubTextFg
 				: e.pending
 				? st::creditsStroke
@@ -1424,16 +1432,14 @@ void UserStarGiftBox(
 		Data::CreditsHistoryEntry{
 			.description = data.message,
 			.date = base::unixtime::parse(data.date),
-			.credits = uint64(data.gift.stars),
+			.credits = uint64(data.info.stars),
 			.bareMsgId = uint64(data.messageId.bare),
 			.barePeerId = data.fromId.value,
-			.bareGiftStickerId = (data.gift.document
-				? data.gift.document->id
-				: 0),
+			.bareGiftStickerId = data.info.document->id,
 			.peerType = Data::CreditsHistoryEntry::PeerType::Peer,
-			.limitedCount = data.gift.limitedCount,
-			.limitedLeft = data.gift.limitedLeft,
-			.convertStars = int(data.gift.convertStars),
+			.limitedCount = data.info.limitedCount,
+			.limitedLeft = data.info.limitedLeft,
+			.convertStars = int(data.info.convertStars),
 			.converted = false,
 			.anonymous = data.anonymous,
 			.savedToProfile = !data.hidden,

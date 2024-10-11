@@ -213,11 +213,14 @@ void AddTableRow(
 not_null<Ui::FlatLabel*> AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		rpl::producer<QString> label,
-		rpl::producer<TextWithEntities> value) {
+		rpl::producer<TextWithEntities> value,
+		const Fn<std::any(Fn<void()>)> &makeContext = nullptr) {
 	auto widget = object_ptr<Ui::FlatLabel>(
 		table,
 		std::move(value),
-		st::giveawayGiftCodeValue);
+		st::giveawayGiftCodeValue,
+		st::defaultPopupMenu,
+		std::move(makeContext));
 	const auto result = widget.data();
 	AddTableRow(
 		table,
@@ -946,18 +949,48 @@ void AddStarGiftTable(
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
 	const auto peerId = PeerId(entry.barePeerId);
+	const auto session = &controller->session();
+	const auto makeContext = [session](Fn<void()> update) {
+		return Core::MarkedTextContext{
+			.session = session,
+			.customEmojiRepaint = std::move(update),
+		};
+	};
 	if (peerId) {
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer_in(),
 			controller,
 			peerId);
-	} else {
+	} else if (!entry.soldOutInfo) {
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer_in(),
 			MakeHiddenPeerTableValue(table, controller),
 			st::giveawayGiftCodePeerMargin);
+	}
+	if (!entry.firstSaleDate.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_first_sale(),
+			rpl::single(Ui::Text::WithEntities(
+				langDateTime(entry.firstSaleDate))));
+	}
+	if (!entry.lastSaleDate.isNull()) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_last_sale(),
+			rpl::single(Ui::Text::WithEntities(
+				langDateTime(entry.lastSaleDate))));
+	}
+	{
+		auto star = session->data().customEmojiManager().creditsEmoji();
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_value(),
+			rpl::single(
+				star.append(Lang::FormatCountDecimal(entry.credits))),
+			makeContext);
 	}
 	if (!entry.date.isNull()) {
 		AddTableRow(
@@ -967,14 +1000,14 @@ void AddStarGiftTable(
 	}
 	if (entry.limitedCount > 0) {
 		auto amount = rpl::single(TextWithEntities{
-			QString::number(entry.limitedCount)
+			Lang::FormatCountDecimal(entry.limitedCount)
 		});
 		AddTableRow(
 			table,
 			tr::lng_gift_availability(),
 			((entry.limitedLeft > 0)
 				? tr::lng_gift_availability_left(
-					lt_count,
+					lt_count_decimal,
 					rpl::single(entry.limitedLeft * 1.),
 					lt_amount,
 					std::move(amount),

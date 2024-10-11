@@ -52,6 +52,8 @@ struct CreditsHistoryEntry final {
 	QString title;
 	TextWithEntities description;
 	QDateTime date;
+	QDateTime firstSaleDate;
+	QDateTime lastSaleDate;
 	PhotoId photoId = 0;
 	std::vector<CreditsHistoryMedia> extended;
 	uint64 credits = 0;
@@ -70,6 +72,7 @@ struct CreditsHistoryEntry final {
 	bool anonymous = false;
 	bool savedToProfile = false;
 	bool fromGiftsList = false;
+	bool soldOutInfo = false;
 	bool reaction = false;
 	bool refunded = false;
 	bool pending = false;

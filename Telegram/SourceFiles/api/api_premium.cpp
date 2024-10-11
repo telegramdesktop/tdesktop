@@ -776,6 +776,8 @@ std::optional<StarGift> FromTL(
 		.document = document,
 		.limitedLeft = remaining.value_or_empty(),
 		.limitedCount = total.value_or_empty(),
+		.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
+		.lastSaleDate = data.vlast_sale_date().value_or_empty(),
 	};
 }
 
@@ -789,7 +791,7 @@ std::optional<UserStarGift> FromTL(
 		return {};
 	}
 	return UserStarGift{
-		.gift = std::move(*parsed),
+		.info = std::move(*parsed),
 		.message = (data.vmessage()
 			? TextWithEntities{
 				.text = qs(data.vmessage()->data().vtext()),
