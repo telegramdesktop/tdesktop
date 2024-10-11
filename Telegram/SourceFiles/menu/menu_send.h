@@ -90,6 +90,13 @@ FillMenuResult FillSendMenu(
 	const style::ComposeIcons *iconsOverride = nullptr,
 	std::optional<QPoint> desiredPositionOverride = std::nullopt);
 
+FillMenuResult AttachSendMenuEffect(
+	not_null<Ui::PopupMenu*> menu,
+	std::shared_ptr<ChatHelpers::Show> show,
+	Details details,
+	Fn<void(Action, Details)> action,
+	std::optional<QPoint> desiredPositionOverride = std::nullopt);
+
 void SetupMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,
 	std::shared_ptr<ChatHelpers::Show> show,

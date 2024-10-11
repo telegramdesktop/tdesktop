@@ -402,9 +402,13 @@ base::unique_qptr<Ui::PopupMenu> GifsListWidget::fillContextMenu(
 		// inline results don't have effects
 		copyDetails.effectAllowed = false;
 	}
+
+	// In case we're adding items after FillSendMenu we have
+	// to pass nullptr for showForEffect and attach selector later.
+	// Otherwise added items widths won't be respected in menu geometry.
 	SendMenu::FillSendMenu(
 		menu,
-		_show,
+		nullptr, // showForMenu
 		copyDetails,
 		SendMenu::DefaultCallback(_show, send),
 		icons);
@@ -441,6 +445,13 @@ base::unique_qptr<Ui::PopupMenu> GifsListWidget::fillContextMenu(
 			AddGifAction(std::move(callback), _show, document, icons);
 		}
 	}
+
+	SendMenu::AttachSendMenuEffect(
+		menu,
+		_show,
+		copyDetails,
+		SendMenu::DefaultCallback(_show, send));
+
 	return menu;
 }
 
