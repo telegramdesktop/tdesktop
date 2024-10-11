@@ -2709,7 +2709,7 @@ std::optional<RecentHashtagPack> Account::saveRecentHashtags(
 	auto found = false;
 	auto m = QRegularExpressionMatch();
 	auto recent = getPack();
-	for (auto i = 0, next = 0; (m = TextUtilities::RegExpHashtag().match(text, i)).hasMatch(); i = next) {
+	for (auto i = 0, next = 0; (m = TextUtilities::RegExpHashtag(false).match(text, i)).hasMatch(); i = next) {
 		i = m.capturedStart();
 		next = m.capturedEnd();
 		if (m.hasMatch()) {
