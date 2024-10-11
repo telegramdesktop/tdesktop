@@ -819,7 +819,9 @@ void FillPeerQrBox(
 				box->verticalLayout(),
 				tr::lng_qr_box_transparent_background(),
 				st::settingsButtonNoIcon));
-		backgroundToggle->toggleOn(state->backgroundToggled.value(), true);
+		backgroundToggle->toggleOn(
+			state->backgroundToggled.value() | rpl::map(!rpl::mappers::_1),
+			true);
 		backgroundToggle->setClickedCallback([=] {
 			state->backgroundToggled = !state->backgroundToggled.current();
 		});
