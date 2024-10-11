@@ -3061,6 +3061,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sold_out_title" = "Sold Out!";
 "lng_gift_sold_out_text#one" = "All {count} gift was already sold.";
 "lng_gift_sold_out_text#other" = "All {count} gifts were already sold.";
+"lng_gift_send_small" = "send a gift";
+"lng_gift_sell_small#one" = "sell for {count} Star";
+"lng_gift_sell_small#other" = "sell for {count} Stars";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";

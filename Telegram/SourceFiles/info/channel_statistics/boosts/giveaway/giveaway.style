@@ -208,10 +208,24 @@ startGiveawayButtonLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimati
 	thickness: 2px;
 }
 
-starGiftBox: Box(giveawayGiftCodeBox) {
-	buttonPadding: margins(22px, 11px, 22px, 52px);
-}
 starConvertButtonLoading: InfiniteRadialAnimation(startGiveawayButtonLoading) {
 	color: windowActiveTextFg;
 	thickness: 2px;
+}
+
+starGiftSmallButton: RoundButton(defaultActiveButton) {
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+	textBg: lightButtonBgOver;
+	textBgOver: lightButtonBgOver;
+	width: -12px;
+	height: 18px;
+	radius: 9px;
+	textTop: 0px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
 }
