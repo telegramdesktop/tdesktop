@@ -177,6 +177,7 @@ struct InvoiceStarGift {
 	uint64 randomId = 0;
 	TextWithEntities message;
 	not_null<UserData*> user;
+	int limitedCount = 0;
 	bool anonymous = false;
 };
 
@@ -198,6 +199,7 @@ struct CreditsFormData {
 	PhotoData *photo = nullptr;
 	InvoiceCredits invoice;
 	MTPInputInvoice inputInvoice;
+	int starGiftLimitedCount = 0;
 	bool starGiftForm = false;
 };
 

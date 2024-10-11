@@ -501,11 +501,13 @@ void Form::requestForm() {
 				.currency = currency,
 				.amount = amount,
 			};
+			const auto gift = std::get_if<InvoiceStarGift>(&_id.value);
 			const auto formData = CreditsFormData{
 				.id = _id,
 				.formId = data.vform_id().v,
 				.invoice = invoice,
 				.inputInvoice = inputInvoice(),
+				.starGiftLimitedCount = gift ? gift->limitedCount : 0,
 				.starGiftForm = true,
 			};
 			_updates.fire(CreditsPaymentStarted{ .data = formData });

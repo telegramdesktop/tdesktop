@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/boost_box.h" // Ui::StartFireworks.
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
@@ -59,7 +61,24 @@ void ProcessCreditsPayment(
 			const auto done = [=](std::optional<QString> error) {
 				const auto onstack = maybeReturnToBot;
 				if (error) {
-					show->showToast(*error);
+					if (*error == u"STARGIFT_USAGE_LIMITED"_q) {
+						if (form->starGiftLimitedCount) {
+							show->showToast({
+								.title = tr::lng_gift_sold_out_title(
+									tr::now),
+								.text = tr::lng_gift_sold_out_text(
+									tr::now,
+									lt_count_decimal,
+									form->starGiftLimitedCount,
+									Ui::Text::RichLangValue),
+							});
+						} else {
+							show->showToast(
+								tr::lng_gift_sold_out_title(tr::now));
+						}
+					} else {
+						show->showToast(*error);
+					}
 					if (onstack) {
 						onstack(CheckoutResult::Failed);
 					}

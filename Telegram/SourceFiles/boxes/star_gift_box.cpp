@@ -842,6 +842,7 @@ void SendGift(
 			.randomId = details.randomId,
 			.message = details.text,
 			.user = peer->asUser(),
+			.limitedCount = gift.limitedCount,
 			.anonymous = details.anonymous,
 		}, done, processNonPanelPaymentFormFactory);
 	});
