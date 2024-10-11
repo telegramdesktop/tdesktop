@@ -757,7 +757,6 @@ void FillPeerQrBox(
 			tr::lng_qr_box_font_size());
 		Ui::AddSkip(box->verticalLayout());
 		const auto seekSize = st::settingsScale.seekSize.height();
-		const auto &labelSt = st::defaultFlatLabel;
 
 		const auto slider = box->verticalLayout()->add(
 			object_ptr<Ui::MediaSliderWheelless>(
