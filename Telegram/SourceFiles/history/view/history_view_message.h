@@ -22,6 +22,7 @@ struct ReactionId;
 
 namespace Ui {
 struct BubbleRounding;
+class RoundCheckbox;
 } // namespace Ui
 
 namespace HistoryView {
@@ -313,6 +314,7 @@ private:
 
 	mutable Ui::Text::String _fromName;
 	mutable std::unique_ptr<FromNameStatus> _fromNameStatus;
+	mutable std::unique_ptr<Ui::RoundCheckbox> _selectionRoundCheckbox;
 	Ui::Text::String _rightBadge;
 	mutable int _fromNameVersion = 0;
 	uint32 _bubbleWidthLimit : 28 = 0;

@@ -26,6 +26,7 @@ msgPadding: margins(11px, 8px, 11px, 8px);
 msgMargin: margins(16px, 6px, 56px, 2px);
 msgMarginTopAttached: 0px;
 msgShadow: 2px;
+msgSelectionOffset: 30px;
 
 historyReplyTop: 2px;
 historyReplyBottom: 2px;
@@ -1149,3 +1150,7 @@ factcheckField: InputField(defaultInputField) {
 	style: defaultTextStyle;
 }
 purchasedTagPadding: margins(3px, 2px, 6px, 2px);
+
+msgSelectionCheck: RoundCheckbox(defaultPeerListCheck) {
+	bgActive: boxTextFgGood;
+}

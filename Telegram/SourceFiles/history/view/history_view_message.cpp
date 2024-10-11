@@ -1100,6 +1100,14 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	if (hasGesture) {
 		p.translate(context.gestureHorizontal.translation, 0);
 	}
+	const auto selectionModeResult = delegate()->elementInSelectionMode();
+	const auto selectionTranslation = (selectionModeResult.progress > 0)
+		? (selectionModeResult.progress
+			* AdditionalSpaceForSelectionCheckbox(this, g))
+		: 0;
+	if (selectionTranslation) {
+		p.translate(selectionTranslation, 0);
+	}
 
 	if (item->hasUnrequestedFactcheck()) {
 		item->history()->session().factchecks().requestFor(item);
@@ -1449,7 +1457,14 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			const auto fastShareTop = data()->isSponsored()
 				? g.top() + fastShareSkip
 				: g.top() + g.height() - fastShareSkip - size->height();
+			const auto o = p.opacity();
+			if (selectionModeResult.progress > 0) {
+				p.setOpacity(1. - selectionModeResult.progress);
+			}
 			drawRightAction(p, context, fastShareLeft, fastShareTop, width());
+			if (selectionModeResult.progress > 0) {
+				p.setOpacity(o);
+			}
 		}
 
 		if (media) {
@@ -1569,6 +1584,48 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 		p.restore();
+	}
+	if (selectionTranslation) {
+		p.translate(-selectionTranslation, 0);
+	}
+	if (selectionModeResult.progress) {
+		const auto progress = selectionModeResult.progress;
+		if (progress <= 1.) {
+			if (context.selected()) {
+				if (!_selectionRoundCheckbox) {
+					_selectionRoundCheckbox
+						= std::make_unique<Ui::RoundCheckbox>(
+							st::msgSelectionCheck,
+							[this] { repaint(); });
+				}
+			}
+			if (_selectionRoundCheckbox) {
+				_selectionRoundCheckbox->setChecked(
+					context.selected(),
+					anim::type::normal);
+			}
+			const auto o = ScopedPainterOpacity(p, progress);
+			const auto &st = st::msgSelectionCheck;
+			const auto pos = QPoint(
+				(width()
+					- (st::msgSelectionOffset * progress - st.size) / 2
+					- st::msgPadding.right() / 2
+					- st.size),
+				g.y() + (g.height() - st.size) / 2);
+			{
+				p.setPen(QPen(st.border, st.width));
+				p.setBrush(context.st->msgServiceBg());
+				auto hq = PainterHighQualityEnabler(p);
+				p.drawEllipse(QRect(pos, Size(st.size)));
+			}
+			if (_selectionRoundCheckbox) {
+				_selectionRoundCheckbox->paint(p, pos.x(), pos.y(), width());
+			}
+		} else {
+			_selectionRoundCheckbox = nullptr;
+		}
+	} else {
+		_selectionRoundCheckbox = nullptr;
 	}
 }
 
@@ -2959,7 +3016,9 @@ bool Message::getStateText(
 void Message::updatePressed(QPoint point) {
 	const auto item = data();
 	const auto media = this->media();
-	if (!media) return;
+	if (!media) {
+		return;
+	}
 
 	auto g = countGeometry();
 	auto keyboard = item->inlineReplyKeyboard();
@@ -3792,7 +3851,7 @@ bool Message::displayFastReply() const {
 	return hasFastReply()
 		&& data()->isRegular()
 		&& canSendAnything()
-		&& !delegate()->elementInSelectionMode();
+		&& !delegate()->elementInSelectionMode().inSelectionMode;
 }
 
 bool Message::displayRightActionComments() const {
@@ -3956,6 +4015,9 @@ void Message::drawRightAction(
 
 ClickHandlerPtr Message::rightActionLink(
 		std::optional<QPoint> pressPoint) const {
+	if (delegate()->elementInSelectionMode().progress > 0) {
+		return nullptr;
+	}
 	ensureRightAction();
 	if (!_rightAction->link) {
 		_rightAction->link = prepareRightActionLink();

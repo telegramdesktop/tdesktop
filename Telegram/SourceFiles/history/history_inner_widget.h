@@ -30,6 +30,7 @@ namespace HistoryView {
 class ElementDelegate;
 class EmojiInteractions;
 struct TextState;
+struct SelectionModeResult;
 struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
@@ -135,7 +136,7 @@ public:
 	void clearSelected(bool onlyTextSelection = false);
 	[[nodiscard]] MessageIdsList getSelectedItems() const;
 	[[nodiscard]] bool hasSelectedItems() const;
-	[[nodiscard]] bool inSelectionMode() const;
+	[[nodiscard]] HistoryView::SelectionModeResult inSelectionMode() const;
 	[[nodiscard]] bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
@@ -242,6 +243,10 @@ protected:
 private:
 	void onTouchSelect();
 	void onTouchScrollTimer();
+
+	[[nodiscard]] static int SelectionViewOffset(
+		not_null<const HistoryInner*> inner,
+		not_null<const Element*> view);
 
 	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 	using VideoUserpic = Dialogs::Ui::VideoUserpic;
@@ -507,6 +512,9 @@ private:
 	Element *_dragSelTo = nullptr;
 	bool _dragSelecting = false;
 	bool _wasSelectedText = false; // was some text selected in current drag action
+
+	mutable bool _lastInSelectionMode = false;
+	mutable Ui::Animations::Simple _inSelectionModeAnimation;
 
 	// scroll by touch support (at least Windows Surface tablets)
 	bool _touchScroll = false;

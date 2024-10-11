@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/item_text_options.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "data/data_forum.h"
@@ -110,8 +111,8 @@ bool DefaultElementDelegate::elementUnderCursor(
 	return false;
 }
 
-bool DefaultElementDelegate::elementInSelectionMode() {
-	return false;
+SelectionModeResult DefaultElementDelegate::elementInSelectionMode() {
+	return {};
 }
 
 bool DefaultElementDelegate::elementIntersectsRange(
@@ -738,6 +739,25 @@ not_null<PurchasedTag*> Element::enforcePurchasedTag() {
 	}
 	AddComponents(PurchasedTag::Bit());
 	return Get<PurchasedTag>();
+}
+
+int Element::AdditionalSpaceForSelectionCheckbox(
+		not_null<const Element*> view,
+		QRect countedGeometry) {
+	if (!view->hasOutLayout() || view->delegate()->elementIsChatWide()) {
+		return 0;
+	}
+	if (countedGeometry.isEmpty()) {
+		countedGeometry = view->innerGeometry();
+	}
+	const auto diff = view->width()
+		- (countedGeometry.x() + countedGeometry.width())
+		- st::msgPadding.right()
+		- st::msgSelectionOffset
+		- view->rightActionSize().value_or(QSize()).width();
+	return (diff < 0)
+		? -(std::min(st::msgSelectionOffset, -diff))
+		: 0;
 }
 
 void Element::refreshMedia(Element *replacing) {

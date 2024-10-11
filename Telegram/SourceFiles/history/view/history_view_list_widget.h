@@ -389,7 +389,7 @@ public:
 	// ElementDelegate interface.
 	Context elementContext() override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	bool elementInSelectionMode() override;
+	SelectionModeResult elementInSelectionMode() override;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
@@ -459,6 +459,10 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	[[nodiscard]] static int SelectionViewOffset(
+		not_null<const ListWidget*> inner,
+		not_null<const Element*> view);
+
 	using ScrollTopState = ListMemento::ScrollTopState;
 	using PointState = HistoryView::PointState;
 	using CursorState = HistoryView::CursorState;
@@ -618,7 +622,7 @@ private:
 		const SelectedMap::const_iterator &i);
 	bool hasSelectedText() const;
 	bool hasSelectedItems() const;
-	bool inSelectionMode() const;
+	SelectionModeResult inSelectionMode() const;
 	bool overSelectedItems() const;
 	void clearTextSelection();
 	void clearSelected();
@@ -829,6 +833,9 @@ private:
 	crl::time _trippleClickStartTime = 0;
 
 	ElementHighlighter _highlighter;
+
+	mutable bool _lastInSelectionMode = false;
+	mutable Ui::Animations::Simple _inSelectionModeAnimation;
 
 	// scroll by touch support (at least Windows Surface tablets)
 	bool _touchScroll = false;

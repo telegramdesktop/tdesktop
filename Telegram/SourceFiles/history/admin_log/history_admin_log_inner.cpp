@@ -662,8 +662,8 @@ bool InnerWidget::elementUnderCursor(
 	return (Element::Hovered() == view);
 }
 
-bool InnerWidget::elementInSelectionMode() {
-	return false;
+HistoryView::SelectionModeResult InnerWidget::elementInSelectionMode() {
+	return {};
 }
 
 bool InnerWidget::elementIntersectsRange(
