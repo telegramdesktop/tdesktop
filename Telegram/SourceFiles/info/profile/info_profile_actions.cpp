@@ -1184,6 +1184,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			usernameLine.text->parentWidget(),
 			st::infoProfileLabeledButtonQr);
 		fitLabelToButton(qrButton, usernameLine.text);
+		fitLabelToButton(qrButton, usernameLine.subtext);
 		qrButton->setClickedCallback([=] {
 			controller->show(
 				Box(Ui::FillPeerQrBox, user, std::nullopt, nullptr));
@@ -1260,6 +1261,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				linkLine.text->parentWidget(),
 				st::infoProfileLabeledButtonQr);
 			fitLabelToButton(qr, linkLine.text);
+			fitLabelToButton(qr, linkLine.subtext);
 			qr->setClickedCallback([=, peer = _peer] {
 				controller->show(
 					Box(Ui::FillPeerQrBox, peer, std::nullopt, nullptr));
