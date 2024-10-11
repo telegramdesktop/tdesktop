@@ -897,7 +897,7 @@ void ReceiptCreditsBox(
 
 	Ui::AddSkip(content);
 
-	{
+	if (!isStarGift || creditsHistoryStarGift || e.soldOutInfo) {
 		constexpr auto kMinus = QChar(0x2212);
 		auto &lifetime = content->lifetime();
 		const auto text = lifetime.make_state<Ui::Text::String>();

@@ -989,7 +989,7 @@ void AddStarGiftTable(
 			table,
 			tr::lng_gift_link_label_value(),
 			rpl::single(
-				star.append(Lang::FormatCountDecimal(entry.credits))),
+				star.append(' ' + Lang::FormatCountDecimal(entry.credits))),
 			makeContext);
 	}
 	if (!entry.date.isNull()) {
