@@ -40,6 +40,25 @@ std::vector<ReactionId> SearchTagsFromQuery(
 	return result;
 }
 
+HashtagWithUsername HashtagWithUsernameFromQuery(QStringView query) {
+	const auto match = TextUtilities::RegExpHashtag(true).match(query);
+	if (match.hasMatch()) {
+		const auto username = match.capturedView(2).mid(1).toString();
+		const auto offset = int(match.capturedLength(1));
+		const auto full = int(query.size());
+		const auto length = full
+			- int(username.size())
+			- 1
+			- offset
+			- int(match.capturedLength(3));
+		if (!username.isEmpty() && length > 0 && offset + length <= full) {
+			const auto hashtag = query.mid(offset, length).toString();
+			return { hashtag, username };
+		}
+	}
+	return {};
+}
+
 QString ReactionEntityData(const ReactionId &id) {
 	if (id.empty()) {
 		return {};

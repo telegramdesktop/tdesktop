@@ -580,6 +580,8 @@ void SessionNavigation::showPeerByLinkResolved(
 			params);
 	} else if (resolveType == ResolveType::Profile) {
 		showPeerInfo(peer, params);
+	} else if (resolveType == ResolveType::HashtagSearch) {
+		searchMessages(info.text, peer->owner().history(peer));
 	} else if (peer->isForum() && resolveType != ResolveType::Boost) {
 		const auto itemId = info.messageId;
 		if (!itemId) {
