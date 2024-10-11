@@ -2252,22 +2252,22 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		return item;
 	};
-	const auto whoReactedItem = groupLeaderOrSelf(_dragStateItem);
-	const auto hasWhoReactedItem = whoReactedItem
-		&& Api::WhoReactedExists(whoReactedItem, Api::WhoReactedList::All);
+	const auto leaderOrSelf = groupLeaderOrSelf(_dragStateItem);
+	const auto hasWhoReactedItem = leaderOrSelf
+		&& Api::WhoReactedExists(leaderOrSelf, Api::WhoReactedList::All);
 	const auto clickedReaction = link
 		? link->property(
 			kReactionsCountEmojiProperty).value<Data::ReactionId>()
 		: Data::ReactionId();
 	_whoReactedMenuLifetime.destroy();
 	if (!clickedReaction.empty()
-		&& whoReactedItem
-		&& Api::WhoReactedExists(whoReactedItem, Api::WhoReactedList::One)) {
+		&& leaderOrSelf
+		&& Api::WhoReactedExists(leaderOrSelf, Api::WhoReactedList::One)) {
 		HistoryView::ShowWhoReactedMenu(
 			&_menu,
 			e->globalPos(),
 			this,
-			whoReactedItem,
+			leaderOrSelf,
 			clickedReaction,
 			_controller,
 			_whoReactedMenuLifetime);
@@ -2954,8 +2954,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		HistoryView::AddWhoReactedAction(
 			_menu,
 			this,
-			whoReactedItem,
+			leaderOrSelf,
 			_controller);
+	} else {
+		HistoryView::MaybeAddWhenEditedAction(_menu, leaderOrSelf);
 	}
 
 	if (_menu->empty()) {

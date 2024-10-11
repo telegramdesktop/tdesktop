@@ -597,7 +597,9 @@ void WhenAction::paint(Painter &p) {
 		p.fillRect(0, 0, width(), _height, _st.itemBg);
 	}
 	p.fillRect(0, 0, width(), _height, _st.itemBg);
-	const auto &icon = loading
+	const auto &icon = (_content.type == WhoReadType::Edited)
+		? (selected ? st::whenEditedOver : st::whenEdited)
+		: loading
 		? st::whoReadChecksDisabled
 		: selected
 		? st::whoReadChecksOver

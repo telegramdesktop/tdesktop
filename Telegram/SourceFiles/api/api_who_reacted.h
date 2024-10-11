@@ -61,5 +61,8 @@ struct WhoReadList {
 	const Data::ReactionId &reaction,
 	not_null<QWidget*> context, // Cache results for this lifetime.
 	const style::WhoRead &st);
+[[nodiscard]] rpl::producer<Ui::WhoReadContent> WhenEdited(
+	not_null<PeerData*> author,
+	TimeId date);
 
 } // namespace Api
