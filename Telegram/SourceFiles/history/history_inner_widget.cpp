@@ -3657,11 +3657,13 @@ HistoryView::SelectionModeResult HistoryInner::inSelectionMode() const {
 	const auto inSelectionMode = [&] {
 		if (hasSelectedItems()) {
 			return true;
-		} else if (_mouseAction == MouseAction::Selecting
-			&& _dragSelFrom
-			&& _dragSelTo) {
+		}
+		const auto isSelecting = _mouseAction == MouseAction::Selecting;
+		if (isSelecting && _dragSelFrom && _dragSelTo) {
 			return true;
 		} else if (_chooseForReportReason.has_value()) {
+			return true;
+		} else if (_lastInSelectionMode && isSelecting) {
 			return true;
 		}
 		return false;

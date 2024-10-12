@@ -1230,7 +1230,9 @@ bool ListWidget::hasSelectedItems() const {
 }
 
 SelectionModeResult ListWidget::inSelectionMode() const {
-	const auto now = hasSelectedItems() || !_dragSelected.empty();
+	const auto now = hasSelectedItems()
+		|| !_dragSelected.empty()
+		|| (_mouseAction == MouseAction::Selecting && _lastInSelectionMode);
 	if (_lastInSelectionMode != now) {
 		_lastInSelectionMode = now;
 		if (_inSelectionModeAnimation.animating()) {
