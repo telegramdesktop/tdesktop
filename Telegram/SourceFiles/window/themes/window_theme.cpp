@@ -529,6 +529,8 @@ void ChatBackground::start() {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 	rpl::single(
 		QGuiApplication::styleHints()->colorScheme()
+	) | rpl::filter(
+		rpl::mappers::_1 != Qt::ColorScheme::Unknown
 	) | rpl::then(
 		base::qt_signal_producer(
 			QGuiApplication::styleHints(),
@@ -542,7 +544,9 @@ void ChatBackground::start() {
 		Core::App().settings().setSystemDarkMode(dark);
 	}, _lifetime);
 #else // Qt >= 6.5.0
-	Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
+	if (const auto dark = Platform::IsDarkMode()) {
+		Core::App().settings().setSystemDarkMode(dark);
+	}
 #endif // Qt < 6.5.0
 }
 
