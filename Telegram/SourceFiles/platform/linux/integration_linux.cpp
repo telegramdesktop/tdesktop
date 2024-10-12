@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 
 #include <QtCore/QAbstractEventDispatcher>
+#include <QtGui/QStyleHints>
 
 #include <gio/gio.hpp>
 #include <xdpinhibit/xdpinhibit.hpp>
@@ -189,24 +190,30 @@ private:
 
 	const gi::ref_ptr<Application> _application;
 	XdpInhibit::InhibitProxy _inhibitProxy;
-#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+	rpl::variable<std::optional<bool>> _darkMode;
 	base::Platform::XDP::SettingWatcher _darkModeWatcher;
-#endif // Qt < 6.5.0
+	rpl::lifetime _lifetime;
 };
 
 LinuxIntegration::LinuxIntegration()
 : _application(MakeApplication())
-#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+, _darkMode([]() -> std::optional<bool> {
+	if (auto value = base::Platform::XDP::ReadSetting(
+			"org.freedesktop.appearance",
+			"color-scheme")) {
+		return value->get_uint32() == 1;
+	}
+	return std::nullopt;
+})
 , _darkModeWatcher(
 	"org.freedesktop.appearance",
 	"color-scheme",
-	[](GLib::Variant value) {
+	[=](GLib::Variant value) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			Core::App().settings().setSystemDarkMode(value.get_uint32() == 1);
+			_darkMode = value.get_uint32() == 1;
 		});
-})
-#endif // Qt < 6.5.0
-{
+	}
+) {
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
 
@@ -230,6 +237,30 @@ void LinuxIntegration::init() {
 
 			initInhibit();
 		}));
+
+	_darkMode.value()
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+	| rpl::filter([] {
+		return QGuiApplication::styleHints()->colorScheme()
+			== Qt::ColorScheme::Unknown;
+	})
+#endif // Qt >= 6.5.0
+	| rpl::start_with_next([](std::optional<bool> value) {
+		Core::App().settings().setSystemDarkMode(value);
+	}, _lifetime);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+	Core::App().settings().systemDarkModeValue(
+	) | rpl::filter([=](std::optional<bool> value) {
+		return !value && _darkMode.current();
+	}) | rpl::start_with_next([=] {
+		crl::on_main(this, [=] {
+			if (!Core::App().settings().systemDarkMode()) {
+				Core::App().settings().setSystemDarkMode(_darkMode.current());
+			}
+		});
+	}, _lifetime);
+#endif // Qt >= 6.5.0
 }
 
 void LinuxIntegration::initInhibit() {
