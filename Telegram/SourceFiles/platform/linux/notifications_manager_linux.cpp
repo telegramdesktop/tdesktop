@@ -249,8 +249,8 @@ bool NotificationData::init(
 			Gio::ThemedIcon::new_(base::IconName().toStdString()));
 
 		// for chat messages, according to
-		// https://docs.gtk.org/gio/enum.NotificationPriority.html
-		_notification.set_priority(Gio::NotificationPriority::HIGH_);
+		// https://specifications.freedesktop.org/notification-spec/1.2/urgency-levels.html
+		_notification.set_priority(Gio::NotificationPriority::NORMAL_);
 
 		// glib 2.70+, we keep glib 2.56+ compatibility
 		static const auto set_category = [] {
