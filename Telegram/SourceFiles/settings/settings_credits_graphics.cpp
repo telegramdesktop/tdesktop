@@ -174,17 +174,17 @@ void ToggleStarGiftSaved(
 		sender->inputUser,
 		MTP_int(itemId.bare)
 	)).done([=] {
+		done(true);
 		if (const auto strong = weak.get()) {
 			strong->showToast((save
 				? tr::lng_gift_display_done
 				: tr::lng_gift_display_done_hide)(tr::now));
 		}
-		done(true);
 	}).fail([=](const MTP::Error &error) {
+		done(false);
 		if (const auto strong = weak.get()) {
 			strong->showToast(error.type());
 		}
-		done(false);
 	}).send();
 }
 
@@ -192,14 +192,28 @@ void ConfirmConvertStarGift(
 		std::shared_ptr<Ui::Show> show,
 		QString name,
 		int stars,
+		int daysLeft,
 		Fn<void()> convert) {
-	show->show(Ui::MakeConfirmBox({
-		.text = tr::lng_gift_convert_sure_text(
+	auto text = rpl::combine(
+		tr::lng_gift_convert_sure_confirm(
 			lt_count,
 			rpl::single(stars * 1.),
 			lt_user,
 			rpl::single(Ui::Text::Bold(name)),
 			Ui::Text::RichLangValue),
+		tr::lng_gift_convert_sure_limit(
+			lt_count,
+			rpl::single(daysLeft * 1.),
+			Ui::Text::RichLangValue),
+		tr::lng_gift_convert_sure_caution(Ui::Text::RichLangValue)
+	) | rpl::map([](
+			TextWithEntities &&a,
+			TextWithEntities &&b,
+			TextWithEntities &&c) {
+		return a.append("\n\n").append(b).append("\n\n").append(c);
+	});
+	show->show(Ui::MakeConfirmBox({
+		.text = std::move(text),
 		.confirmed = [=](Fn<void()> close) { close(); convert(); },
 		.confirmText = tr::lng_gift_convert_sure(),
 		.title = tr::lng_gift_convert_sure_title(),
@@ -741,7 +755,13 @@ void ReceiptCreditsBox(
 		: (isStarGift && e.in)
 		? controller->session().data().peer(PeerId(e.barePeerId))->asUser()
 		: nullptr;
-	const auto canConvert = gotStarGift && !e.converted && starGiftSender;
+	const auto convertLast = base::unixtime::serialize(e.date)
+		+ controller->session().appConfig().stargiftConvertPeriodMax();
+	const auto timeLeft = int64(convertLast) - int64(base::unixtime::now());
+	const auto timeExceeded = (timeLeft <= 0);
+	const auto forConvert = gotStarGift && !e.converted && starGiftSender;
+	const auto canConvert = forConvert && !timeExceeded;
+	const auto couldConvert = forConvert && timeExceeded;
 
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -1034,17 +1054,23 @@ void ReceiptCreditsBox(
 				box,
 				object_ptr<Ui::FlatLabel>(
 					box,
-					rpl::combine(
-						(canConvert
-							? tr::lng_action_gift_got_stars_text
-							: tr::lng_gift_got_stars)(
-								lt_count,
-								rpl::single(e.convertStars * 1.),
-								Ui::Text::RichLangValue),
-						tr::lng_paid_about_link()
-					) | rpl::map([](TextWithEntities text, QString link) {
-						return text.append(' ').append(Ui::Text::Link(link));
-					}),
+					(couldConvert
+						? tr::lng_action_gift_got_gift_text(
+							Ui::Text::WithEntities)
+						: rpl::combine(
+							(canConvert
+								? tr::lng_action_gift_got_stars_text
+								: tr::lng_gift_got_stars)(
+									lt_count,
+									rpl::single(e.convertStars * 1.),
+									Ui::Text::RichLangValue),
+							tr::lng_paid_about_link()
+						) | rpl::map([](
+								TextWithEntities text,
+								QString link) {
+							return text.append(' ').append(
+								Ui::Text::Link(link));
+						})),
 					st::creditsBoxAbout)))->entity();
 		about->setClickHandlerFilter([=](const auto &...) {
 			Core::App().iv().openWithIvPreferred(
@@ -1101,8 +1127,9 @@ void ReceiptCreditsBox(
 	if (isStarGift && e.id.isEmpty()) {
 		const auto convert = [=, weak = Ui::MakeWeak(box)] {
 			const auto stars = e.convertStars;
+			const auto days = canConvert ? ((timeLeft + 86399) / 86400) : 0;
 			const auto name = starGiftSender->shortName();
-			ConfirmConvertStarGift(box->uiShow(), name, stars, [=] {
+			ConfirmConvertStarGift(box->uiShow(), name, stars, days, [=] {
 				if (state->convertButtonBusy.current()
 					|| state->confirmButtonBusy.current()) {
 					return;
@@ -1235,13 +1262,13 @@ void ReceiptCreditsBox(
 			? tr::lng_credits_subscription_off_button()
 			: toCancel
 			? tr::lng_credits_subscription_on_button()
-			: canConvert
+			: (canConvert || couldConvert)
 			? (e.savedToProfile
 				? tr::lng_gift_display_on_page_hide()
 				: tr::lng_gift_display_on_page())
 			: tr::lng_box_ok()));
 	const auto send = [=, weak = Ui::MakeWeak(box)] {
-		if (canConvert) {
+		if (canConvert || couldConvert) {
 			const auto save = !e.savedToProfile;
 			const auto window = weakWindow.get();
 			const auto showSection = !e.fromGiftsList;
@@ -1315,7 +1342,7 @@ void ReceiptCreditsBox(
 			return;
 		}
 		state->confirmButtonBusy = true;
-		if ((toRenew || toCancel || canConvert) && peer) {
+		if ((toRenew || toCancel || canConvert || couldConvert) && peer) {
 			send();
 		} else {
 			box->closeBox();

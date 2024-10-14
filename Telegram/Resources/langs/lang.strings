@@ -1871,6 +1871,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_got_subtitle" = "Gift from {user}";
 "lng_action_gift_got_stars_text#one" = "Display this gift on your page or convert it to **{count}** Star.";
 "lng_action_gift_got_stars_text#other" = "Display this gift on your page or convert it to **{count}** Stars.";
+"lng_action_gift_got_gift_text" = "You can keep this gift on your page.";
 "lng_action_gift_sent_subtitle" = "Gift for {user}";
 "lng_action_gift_sent_text#one" = "{user} can display this gift on their page or convert it to {count} Star.";
 "lng_action_gift_sent_text#other" = "{user} can display this gift on their page or convert it to {count} Stars.";
@@ -3051,8 +3052,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_convert_to_stars#one" = "Convert to {count} Star";
 "lng_gift_convert_to_stars#other" = "Convert to {count} Stars";
 "lng_gift_convert_sure_title" = "Convert Gift to Stars";
-"lng_gift_convert_sure_text#one" = "Do you want to convert this gift from {user} to **{count} Star**?\n\nThis action cannot be undone.";
-"lng_gift_convert_sure_text#other" = "Do you want to convert this gift from {user} to **{count} Stars**?\n\nThis action cannot be undone.";
+"lng_gift_convert_sure_confirm#one" = "Do you want to convert this gift from {user} to **{count} Star**?";
+"lng_gift_convert_sure_confirm#other" = "Do you want to convert this gift from {user} to **{count} Stars**?";
+"lng_gift_convert_sure_limit#one" = "Conversion is available for the next **{count} day**.";
+"lng_gift_convert_sure_limit#other" = "Conversion is available for the next **{count} days**.";
+"lng_gift_convert_sure_caution" = "This action cannot be undone. This will permanently destroy the gift.";
 "lng_gift_convert_sure" = "Convert";
 "lng_gift_display_done" = "The gift is now shown on your profile page.";
 "lng_gift_display_done_hide" = "The gift is now hidden from your profile page.";

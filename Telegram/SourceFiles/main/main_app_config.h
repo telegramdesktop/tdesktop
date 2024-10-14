@@ -64,6 +64,7 @@ public:
 	}
 
 	[[nodiscard]] int quoteLengthMax() const;
+	[[nodiscard]] int stargiftConvertPeriodMax() const;
 
 	void refresh(bool force = false);
 

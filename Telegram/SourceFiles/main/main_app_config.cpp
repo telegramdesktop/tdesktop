@@ -42,6 +42,12 @@ int AppConfig::quoteLengthMax() const {
 	return get<int>(u"quote_length_max"_q, 1024);
 }
 
+int AppConfig::stargiftConvertPeriodMax() const {
+	return get<int>(
+		u"stargifts_convert_period_max"_q,
+		_account->mtp().isTestMode() ? 300 : (90 * 86400));
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {
