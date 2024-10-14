@@ -1074,14 +1074,6 @@ void SendGiftBox(
 				x += single.width() + st::giftBoxGiftSkip.x();
 			}
 
-			const auto premiumSent = [=](Payments::CheckoutResult result) {
-				state->sending = false;
-				if (result == Payments::CheckoutResult::Paid) {
-					window->showPeerHistory(peer);
-					window->showToast(
-						Ui::Text::Bold(tr::lng_gift_sent_title(tr::now)));
-				}
-			};
 			button->setClickedCallback([=] {
 				const auto star = std::get_if<GiftTypeStars>(&descriptor);
 				if (star && star->limitedCount && !star->limitedLeft) {
