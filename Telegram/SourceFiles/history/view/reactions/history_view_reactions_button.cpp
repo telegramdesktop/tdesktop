@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
-#include "base/options.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
@@ -60,14 +59,7 @@ constexpr auto kRefreshListDelay = crl::time(100);
 	return CountMaxSizeWithMargins(st::reactionCornerShadow);
 }
 
-base::options::toggle OptionDisableFloatReactions({
-	.id = kOptionDisableFloatReactions,
-	.name = "Disable floating reactions strip",
-});
-
 } // namespace
-
-const char kOptionDisableFloatReactions[] = "disable-float-reactions";
 
 Button::Button(
 	Fn<void(QRect)> update,
@@ -453,11 +445,6 @@ void Manager::showButtonDelayed() {
 
 void Manager::applyList(const Data::PossibleItemReactionsRef &reactions) {
 	using Button = Strip::AddedButton;
-	if (OptionDisableFloatReactions.value()) {
-		_strip.applyList({}, Button::None);
-		_tagsStrip = {};
-		return;
-	}
 	_strip.applyList(
 		reactions.recent,
 		(/*reactions.customAllowed

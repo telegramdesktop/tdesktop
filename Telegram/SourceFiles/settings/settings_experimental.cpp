@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "dialogs/dialogs_widget.h"
 #include "info/profile/info_profile_actions.h"
-#include "history/view/reactions/history_view_reactions_button.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "media/player/media_player_instance.h"
@@ -158,7 +157,6 @@ void SetupExperimental(
 	addToggle(Data::kOptionExternalVideoPlayer);
 	addToggle(Window::kOptionNewWindowsSizeAsFirst);
 	addToggle(Window::kOptionDisableTouchbar);
-	addToggle(HistoryView::Reactions::kOptionDisableFloatReactions);
 }
 
 } // namespace

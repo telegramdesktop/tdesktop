@@ -76,8 +76,7 @@ base::options::toggle OptionNewWindowsSizeAsFirst({
 
 base::options::toggle OptionDisableTouchbar({
 	.id = kOptionDisableTouchbar,
-	.name = "Disable Touch Bar.",
-	.description = "macOS only",
+	.name = "Disable Touch Bar (macOS only).",
 	.scope = [] {
 #ifdef Q_OS_MAC
 		return true;
