@@ -889,7 +889,9 @@ void FillPeerQrBox(
 			usernameValue()).current().toUpper();
 		const auto link = rpl::variable<QString>(linkValue());
 		const auto textWidth = font->width(username);
-		const auto top = userpicMedia->image(photoSize);
+		const auto top = photoSize
+			? userpicMedia->image(photoSize)
+			: QImage();
 		const auto weak = Ui::MakeWeak(box);
 
 		crl::async([=] {
