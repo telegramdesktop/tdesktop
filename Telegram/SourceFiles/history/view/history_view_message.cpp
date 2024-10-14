@@ -1193,10 +1193,18 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 
-	if (customHighlight) {
-		media->drawHighlight(p, context, localMediaTop);
-	} else {
-		paintHighlight(p, context, fullGeometry.height());
+	{
+		if (selectionTranslation) {
+			p.translate(-selectionTranslation, 0);
+		}
+		if (customHighlight) {
+			media->drawHighlight(p, context, localMediaTop);
+		} else {
+			paintHighlight(p, context, fullGeometry.height());
+		}
+		if (selectionTranslation) {
+			p.translate(selectionTranslation, 0);
+		}
 	}
 
 	const auto roll = media ? media->bubbleRoll() : Media::BubbleRoll();
