@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_message_reactions.h"
+#include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "chat_helpers/message_field.h" // FactcheckFieldIniter.
 #include "core/file_utilities.h"
@@ -1270,12 +1271,20 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	}
 	AddMessageActions(result, request, list);
 
+	const auto wasAmount = result->actions().size();
 	if (const auto textItem = view ? view->textItem() : item) {
 		AddEmojiPacksAction(
 			result,
 			textItem,
 			HistoryView::EmojiPacksSource::Message,
 			list->controller());
+	}
+	{
+		const auto added = (result->actions().size() > wasAmount);
+		if (!added) {
+			result->addSeparator();
+		}
+		AddSelectRestrictionAction(result, item, !added);
 	}
 	if (hasWhoReactedItem) {
 		AddWhoReactedAction(result, list, item, list->controller());
@@ -1839,6 +1848,36 @@ void AddEmojiPacksAction(
 		CollectEmojiPacks(item, source),
 		source,
 		controller);
+}
+
+void AddSelectRestrictionAction(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<HistoryItem*> item,
+		bool addIcon) {
+	const auto peer = item->history()->peer;
+	if ((peer->allowsForwarding() && !item->forbidsForward())
+		|| item->isSponsored()) {
+		return;
+	}
+	auto button = base::make_unique_q<Ui::Menu::MultilineAction>(
+		menu->menu(),
+		menu->st().menu,
+		st::historyHasCustomEmoji,
+		addIcon
+			? st::historySponsoredAboutMenuLabelPosition
+			: st::historyHasCustomEmojiPosition,
+		(peer->isMegagroup()
+			? tr::lng_context_noforwards_info_group
+			: (peer->isChannel())
+			? tr::lng_context_noforwards_info_channel
+			: (peer->isUser() && peer->asUser()->isBot())
+			? tr::lng_context_noforwards_info_channel
+			: tr::lng_context_noforwards_info_bot)(
+			tr::now,
+			Ui::Text::RichLangValue),
+		addIcon ? &st::menuIconCopyright : nullptr);
+	button->setAttribute(Qt::WA_TransparentForMouseEvents);
+	menu->addAction(std::move(button));
 }
 
 TextWithEntities TransribedText(not_null<HistoryItem*> item) {

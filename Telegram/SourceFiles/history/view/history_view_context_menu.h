@@ -122,6 +122,10 @@ void AddEmojiPacksAction(
 	not_null<HistoryItem*> item,
 	EmojiPacksSource source,
 	not_null<Window::SessionController*> controller);
+void AddSelectRestrictionAction(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<HistoryItem*> item,
+	bool addIcon);
 
 [[nodiscard]] TextWithEntities TransribedText(not_null<HistoryItem*> item);
 

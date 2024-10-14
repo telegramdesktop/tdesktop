@@ -3576,6 +3576,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_animated_reactions_many#one" = "Reactions contain emoji from **{count} pack**.";
 "lng_context_animated_reactions_many#other" = "Reactions contain emoji from **{count} packs**.";
 
+"lng_context_noforwards_info_channel" = "Copying and forwarding is not allowed in this channel.";
+"lng_context_noforwards_info_group" = "Copying and forwarding is not allowed in this group.";
+"lng_context_noforwards_info_bot" = "Copying and forwarding is not allowed from this bot.";
+
 "lng_context_spoiler_effect" = "Hide with Spoiler";
 "lng_context_disable_spoiler" = "Remove Spoiler";
 "lng_context_make_paid" = "Make This Content Paid";
