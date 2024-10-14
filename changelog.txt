@@ -1,3 +1,12 @@
+5.6.2 (14.10.24)
+
+- Message selection marks.
+- Better copy username / public link / ID menu in profiles.
+- Keyboard navigation (Up/Down/PageUp/PageDown) in chat preview.
+- Improved QR options for profile links.
+- Fix calls color problems on Windows.
+- Fix scroll problems on Linux.
+
 5.6.1 (07.10.24)
 
 - Fix media viewer sometimes blocking the app after launch.
