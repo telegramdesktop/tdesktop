@@ -29,6 +29,38 @@ ivBack: IconButton(ivMenuToggle) {
 	iconOver: ivBackIcon;
 	rippleAreaPosition: point(12px, 6px);
 }
+ivZoomButtonsSize: 26px;
+ivPlusMinusZoom: IconButton(ivMenuToggle) {
+	width: ivZoomButtonsSize;
+	height: ivZoomButtonsSize;
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: ivZoomButtonsSize;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+ivResetZoomStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+}
+ivResetZoom: RoundButton(defaultActiveButton) {
+	textFg: windowFg;
+	textFgOver: windowFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	height: ivZoomButtonsSize;
+	padding: margins(0px, 0px, 0px, 0px);
+
+	style: ivResetZoomStyle;
+
+	ripple: defaultRippleAnimation;
+}
+ivResetZoomLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowFg;
+	style: ivResetZoomStyle;
+}
+ivResetZoomInnerPadding: 20px;
 ivBackIconDisabled: icon {{ "box_button_back", menuIconFg }};
 ivForwardIcon: icon {{ "box_button_back-flip_horizontal", menuIconColor }};
 ivForward: IconButton(ivBack) {

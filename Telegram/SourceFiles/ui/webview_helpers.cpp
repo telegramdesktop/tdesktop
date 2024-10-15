@@ -31,6 +31,7 @@ namespace {
 QByteArray ComputeStyles(
 		const base::flat_map<QByteArray, const style::color*> &colors,
 		const base::flat_map<QByteArray, tr::phrase<>> &phrases,
+		int zoom,
 		bool nightTheme) {
 	static const auto serialize = [](const style::color *color) {
 		return Serialize((*color)->c);
@@ -66,6 +67,9 @@ QByteArray ComputeStyles(
 		result += "--td-"_q + name + ':' + serialize(color) + ';';
 	}
 	result += "--td-night:"_q + (nightTheme ? "1" : "0") + ';';
+	result += "--td-zoom-percentage:"_q
+		+ (QString::number(zoom).toUtf8() + '%')
+		+ ';';
 	return result;
 }
 

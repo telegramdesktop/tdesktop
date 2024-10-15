@@ -19,6 +19,7 @@ namespace Ui {
 [[nodiscard]] QByteArray ComputeStyles(
 	const base::flat_map<QByteArray, const style::color*> &colors,
 	const base::flat_map<QByteArray, tr::phrase<>> &phrases,
+	int zoom,
 	bool nightTheme = false);
 [[nodiscard]] QByteArray ComputeSemiTransparentOverStyle(
 	const QByteArray &name,

@@ -915,6 +915,10 @@ public:
 		_tonsiteStorageToken = value;
 	}
 
+	[[nodiscard]] int ivZoom() const;
+	[[nodiscard]] rpl::producer<int> ivZoomValue() const;
+	void setIvZoom(int value);
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 
@@ -1050,6 +1054,7 @@ private:
 	bool _systemUnlockEnabled = false;
 	std::optional<bool> _weatherInCelsius;
 	QByteArray _tonsiteStorageToken;
+	rpl::variable<int> _ivZoom = 100;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

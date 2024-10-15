@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/rp_window.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/fade_wrap.h"
@@ -50,7 +51,145 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Iv {
 namespace {
 
-[[nodiscard]] QByteArray ComputeStyles() {
+constexpr auto kZoomStep = int(10);
+constexpr auto kDefaultZoom = int(100);
+
+class ItemZoom final : public Ui::Menu::Action {
+public:
+	ItemZoom(
+		not_null<RpWidget*> parent,
+		const not_null<Delegate*> delegate,
+		const style::Menu &st)
+	: Ui::Menu::Action(
+		parent,
+		st,
+		Ui::CreateChild<QAction>(parent),
+		nullptr,
+		nullptr)
+	, _delegate(delegate)
+	, _st(st) {
+		init();
+	}
+
+	void init() {
+		enableMouseSelecting();
+
+		AbstractButton::setDisabled(true);
+
+		class SmallButton final : public Ui::IconButton {
+		public:
+			SmallButton(
+				not_null<Ui::RpWidget*> parent,
+				QChar c,
+				float64 skip,
+				const style::color &color)
+			: Ui::IconButton(parent, st::ivPlusMinusZoom)
+			, _color(color)
+			, _skip(style::ConvertFloatScale(skip))
+			, _c(c) {
+			}
+
+			void paintEvent(QPaintEvent *event) override {
+				auto p = Painter(this);
+				Ui::RippleButton::paintRipple(
+					p,
+					st::ivPlusMinusZoom.rippleAreaPosition);
+				p.setPen(_color);
+				p.setFont(st::normalFont);
+				p.drawText(
+					QRectF(rect()).translated(0, _skip),
+					_c,
+					style::al_center);
+			}
+
+		private:
+			const style::color _color;
+			const float64 _skip;
+			const QChar _c;
+
+		};
+
+		const auto reset = Ui::CreateChild<Ui::RoundButton>(
+			this,
+			rpl::single<QString>(QString()),
+			st::ivResetZoom);
+		const auto resetLabel = Ui::CreateChild<Ui::FlatLabel>(
+			reset,
+			tr::lng_background_reset_default(),
+			st::ivResetZoomLabel);
+		resetLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+		reset->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		reset->setClickedCallback([this] {
+			_delegate->ivSetZoom(kDefaultZoom);
+		});
+		reset->show();
+		const auto plus = Ui::CreateChild<SmallButton>(
+			this,
+			'+',
+			0,
+			_st.itemFg);
+		plus->setClickedCallback([this] {
+			_delegate->ivSetZoom(_delegate->ivZoom() + kZoomStep);
+		});
+		plus->show();
+		const auto minus = Ui::CreateChild<SmallButton>(
+			this,
+			QChar(0x2013),
+			-1,
+			_st.itemFg);
+		minus->setClickedCallback([this] {
+			_delegate->ivSetZoom(_delegate->ivZoom() - kZoomStep);
+		});
+		minus->show();
+
+		_delegate->ivZoomValue(
+		) | rpl::start_with_next([this](int value) {
+			_text.setText(_st.itemStyle, QString::number(value) + '%');
+			update();
+		}, lifetime());
+
+		rpl::combine(
+			sizeValue(),
+			reset->sizeValue()
+		) | rpl::start_with_next([=, this](const QSize &size, const QSize &) {
+			reset->setFullWidth(0
+				+ resetLabel->width()
+				+ st::ivResetZoomInnerPadding);
+			resetLabel->moveToLeft(
+				(reset->width() - resetLabel->width()) / 2,
+				(reset->height() - resetLabel->height()) / 2);
+			reset->moveToRight(
+				_st.itemPadding.right(),
+				(size.height() - reset->height()) / 2);
+			plus->moveToRight(
+				_st.itemPadding.right() + reset->width(),
+				(size.height() - plus->height()) / 2);
+			minus->moveToRight(
+				_st.itemPadding.right() + plus->width() + reset->width(),
+				(size.height() - minus->height()) / 2);
+		}, lifetime());
+	}
+
+	void paintEvent(QPaintEvent *event) override {
+		auto p = QPainter(this);
+		p.setPen(_st.itemFg);
+		_text.draw(p, {
+			.position = QPoint(
+				_st.itemIconPosition.x(),
+				(height() - _text.minHeight()) / 2),
+			.outerWidth = width(),
+			.availableWidth = width(),
+		});
+	}
+
+private:
+	const not_null<Delegate*> _delegate;
+	const style::Menu &_st;
+	Ui::Text::String _text;
+
+};
+
+[[nodiscard]] QByteArray ComputeStyles(int zoom) {
 	static const auto map = base::flat_map<QByteArray, const style::color*>{
 		{ "shadow-fg", &st::shadowFg },
 		{ "scroll-bg", &st::scrollBg },
@@ -85,7 +224,7 @@ namespace {
 	static const auto phrases = base::flat_map<QByteArray, tr::phrase<>>{
 		{ "iv-join-channel", tr::lng_iv_join_channel },
 	};
-	return Ui::ComputeStyles(map, phrases)
+	return Ui::ComputeStyles(map, phrases, zoom)
 		+ ';'
 		+ Ui::ComputeSemiTransparentOverStyle(
 			"light-button-bg-over",
@@ -93,7 +232,7 @@ namespace {
 			st::windowBg);
 }
 
-[[nodiscard]] QByteArray WrapPage(const Prepared &page) {
+[[nodiscard]] QByteArray WrapPage(const Prepared &page, int zoom) {
 #ifdef Q_OS_MAC
 	const auto classAttribute = ""_q;
 #else // Q_OS_MAC
@@ -110,7 +249,7 @@ namespace {
 <html)"_q
 	+ classAttribute
 	+ R"( style=")"
-	+ Ui::EscapeForAttribute(ComputeStyles())
+	+ Ui::EscapeForAttribute(ComputeStyles(zoom))
 	+ R"(">
 	<head>
 		<meta charset="utf-8">
@@ -206,7 +345,8 @@ Controller::Controller(
 	Fn<ShareBoxResult(ShareBoxDescriptor)> showShareBox)
 : _delegate(delegate)
 , _updateStyles([=] {
-	const auto str = Ui::EscapeForScriptString(ComputeStyles());
+	const auto zoom = _delegate->ivZoom();
+	const auto str = Ui::EscapeForScriptString(ComputeStyles(zoom));
 	if (_webview) {
 		_webview->eval("IV.updateStyles('" + str + "');");
 	}
@@ -484,6 +624,16 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 			if (event->key() == Qt::Key_Escape) {
 				escape();
 			}
+			if (event->modifiers() & Qt::ControlModifier) {
+				if (event->key() == Qt::Key_Plus
+					|| event->key() == Qt::Key_Equal) {
+					_delegate->ivSetZoom(_delegate->ivZoom() + kZoomStep);
+				} else if (event->key() == Qt::Key_Minus) {
+					_delegate->ivSetZoom(_delegate->ivZoom() - kZoomStep);
+				} else if (event->key() == Qt::Key_0) {
+					_delegate->ivSetZoom(kDefaultZoom);
+				}
+			}
 		}
 	}, window->lifetime());
 
@@ -595,7 +745,8 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 
 				rpl::merge(
 					Lang::Updated(),
-					style::PaletteChanged()
+					style::PaletteChanged(),
+					_delegate->ivZoomValue() | rpl::to_empty
 				) | rpl::start_with_next([=] {
 					_updateStyles.call();
 				}, _webview->lifetime());
@@ -611,7 +762,8 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 				return Webview::DataResult::Failed;
 			}
 			return finishWith(
-				WrapPage(_pages[index]), "text/html; charset=utf-8");
+				WrapPage(_pages[index], _delegate->ivZoom()),
+				"text/html; charset=utf-8");
 		} else if (id.starts_with("page") && id.ends_with(".json")) {
 			auto index = 0;
 			const auto result = std::from_chars(
@@ -896,6 +1048,10 @@ void Controller::showMenu() {
 	_menu->addAction(tr::lng_iv_share(tr::now), [=] {
 		showShareMenu();
 	}, &st::menuIconShare);
+
+	_menu->addSeparator();
+	_menu->addAction(
+		base::make_unique_q<ItemZoom>(_menu, _delegate, _menu->menu()->st()));
 
 	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 	_menu->popup(_window->body()->mapToGlobal(
