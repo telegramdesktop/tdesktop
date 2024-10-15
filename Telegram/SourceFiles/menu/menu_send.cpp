@@ -752,14 +752,17 @@ FillMenuResult FillSendMenu(
 			&icons.menuPrice);
 	}
 
-	return showForEffect
-		? AttachSendMenuEffect(
+	if (showForEffect) {
+		return AttachSendMenuEffect(
 			menu,
 			showForEffect,
 			details,
 			action,
-			desiredPositionOverride)
-		: FillMenuResult::Prepared;
+			desiredPositionOverride);
+	}
+	const auto position = desiredPositionOverride.value_or(QCursor::pos());
+	menu->prepareGeometryFor(position);
+	return FillMenuResult::Prepared;
 }
 
 void SetupMenuAndShortcuts(
