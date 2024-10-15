@@ -384,11 +384,9 @@ void FillBotUsepic(
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 		box->verticalLayout(),
 		bot,
-		st::mainMenuUserpic);
+		st::infoPersonalChannelUserpic);
 	Ui::AddSkip(box->verticalLayout());
-	aboutLabel->setClickHandlerFilter([=](
-			const ClickHandlerPtr &,
-			Qt::MouseButton) {
+	aboutLabel->setClickHandlerFilter([=](auto &&...) {
 		if (const auto strong = weak.get()) {
 			strong->showPeerHistory(
 				bot->id,
@@ -397,14 +395,36 @@ void FillBotUsepic(
 		}
 		return false;
 	});
-	Ui::IconWithTitle(
-		box->verticalLayout(),
-		userpic,
-		Ui::CreateChild<Ui::FlatLabel>(
-			box->verticalLayout(),
-			rpl::single(bot->name()),
-			box->getDelegate()->style().title),
-		aboutLabel);
+	const auto title = Ui::CreateChild<Ui::RpWidget>(box->verticalLayout());
+	const auto titleLabel = Ui::CreateChild<Ui::FlatLabel>(
+		title,
+		rpl::single(bot->name()),
+		box->getDelegate()->style().title);
+	const auto icon = bot->isVerified() ? &st::infoVerifiedCheck : nullptr;
+	title->resize(
+		titleLabel->width() + (icon ? icon->width() : 0),
+		titleLabel->height());
+	title->widthValue(
+	) | rpl::distinct_until_changed() | rpl::start_with_next([=](int w) {
+		titleLabel->resizeToWidth(w
+			- (icon ? icon->width() + st::lineWidth : 0));
+	}, title->lifetime());
+	if (icon) {
+		title->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = Painter(title);
+			p.fillRect(title->rect(), Qt::transparent);
+			icon->paint(
+				p,
+				std::min(
+					titleLabel->textMaxWidth() + st::lineWidth,
+					title->width() - st::lineWidth - icon->width()),
+				(title->height() - icon->height()) / 2,
+				title->width());
+		}, title->lifetime());
+	}
+
+	Ui::IconWithTitle(box->verticalLayout(), userpic, title, aboutLabel);
 }
 
 class BotAction final : public Ui::Menu::ItemBase {
