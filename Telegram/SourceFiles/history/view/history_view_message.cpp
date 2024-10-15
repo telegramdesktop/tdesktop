@@ -1614,8 +1614,15 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			}
 			const auto o = ScopedPainterOpacity(p, progress);
 			const auto &st = st::msgSelectionCheck;
+			const auto right = delegate()->elementIsChatWide()
+				? (st::msgMaxWidth
+					+ st::msgPhotoSkip
+					+ st::msgSelectionOffset
+					+ st::msgPadding.left()
+					+ st.size)
+				: width();
 			const auto pos = QPoint(
-				(width()
+				(right
 					- (st::msgSelectionOffset * progress - st.size) / 2
 					- st::msgPadding.right() / 2
 					- st.size),
