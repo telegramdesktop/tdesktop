@@ -1,3 +1,12 @@
+5.6.3 (15.10.24)
+
+- Add ability to change page scale in Instant View pages.
+- Fix unnecessary timestamp jump to a new line.
+- Fix secondary button positioning in miniapps.
+- Fix a crash in QR code copy for a chat without a photo.
+- Fix a crash in share options menu showing.
+- Fix a crash on monitor disconnect.
+
 5.6.2 (14.10.24)
 
 - Message selection marks.
