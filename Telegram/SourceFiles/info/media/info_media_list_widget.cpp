@@ -1026,7 +1026,7 @@ void ListWidget::showContextMenu(
 				}
 			}
 		}
-	} else if (link && !_provider->hasSelectRestriction()) {
+	} else if (link) {
 		const auto actionText = link->copyToClipboardContextItemText();
 		if (!actionText.isEmpty()) {
 			_contextMenu->addAction(

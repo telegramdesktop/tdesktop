@@ -1266,9 +1266,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		}
 	}
 
-	if (!view || !list->hasCopyRestriction(view->data())) {
-		AddCopyLinkAction(result, link);
-	}
+	AddCopyLinkAction(result, link);
 	AddMessageActions(result, request, list);
 
 	const auto wasAmount = result->actions().size();

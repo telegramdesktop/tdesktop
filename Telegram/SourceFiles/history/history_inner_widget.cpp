@@ -2848,7 +2848,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			}
 		}
-		if (!actionText.isEmpty() && !hasCopyRestriction(item)) {
+		if (!actionText.isEmpty()) {
 			_menu->addAction(
 				actionText,
 				[text = link->copyToClipboardText()] {
