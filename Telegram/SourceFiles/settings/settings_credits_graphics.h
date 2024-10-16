@@ -126,6 +126,11 @@ void ShowRefundInfoBox(
 	int totalCount,
 	int photoSize);
 
+[[nodiscard]] object_ptr<Ui::RpWidget> SubscriptionUserpic(
+	not_null<Ui::RpWidget*> parent,
+	not_null<PeerData*> peer,
+	int photoSize);
+
 struct SmallBalanceBot {
 	UserId botId = 0;
 };

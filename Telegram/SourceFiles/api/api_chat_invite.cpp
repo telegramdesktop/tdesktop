@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/empty_userpic.h"
@@ -129,6 +130,7 @@ void ConfirmSubscriptionBox(
 	struct State final {
 		std::shared_ptr<Data::PhotoMedia> photoMedia;
 		std::unique_ptr<Ui::EmptyUserpic> photoEmpty;
+		QImage frame;
 
 		std::optional<MTP::Sender> api;
 		Ui::RpWidget* saveButton = nullptr;
@@ -146,25 +148,45 @@ void ConfirmSubscriptionBox(
 	const auto userpic = userpicWrap->entity();
 	const auto photoSize = st::confirmInvitePhotoSize;
 	userpic->resize(Size(photoSize));
+	const auto creditsIconSize = photoSize / 3;
+	const auto creditsIconCallback =
+		Ui::PaintOutlinedColoredCreditsIconCallback(
+			creditsIconSize,
+			1.5);
+	state->frame = QImage(
+		Size(photoSize * style::DevicePixelRatio()),
+		QImage::Format_ARGB32_Premultiplied);
+	state->frame.setDevicePixelRatio(style::DevicePixelRatio());
 	const auto options = Images::Option::RoundCircle;
 	userpic->paintRequest(
 	) | rpl::start_with_next([=, small = Data::PhotoSize::Small] {
-		auto p = QPainter(userpic);
-		if (state->photoMedia) {
-			if (const auto image = state->photoMedia->image(small)) {
-				p.drawPixmap(
+		state->frame.fill(Qt::transparent);
+		{
+			auto p = QPainter(&state->frame);
+			if (state->photoMedia) {
+				if (const auto image = state->photoMedia->image(small)) {
+					p.drawPixmap(
+						0,
+						0,
+						image->pix(Size(photoSize), { .options = options }));
+				}
+			} else if (state->photoEmpty) {
+				state->photoEmpty->paintCircle(
+					p,
 					0,
 					0,
-					image->pix(Size(photoSize), { .options = options }));
+					userpic->width(),
+					photoSize);
 			}
-		} else if (state->photoEmpty) {
-			state->photoEmpty->paintCircle(
-				p,
-				0,
-				0,
-				userpic->width(),
-				photoSize);
+			if (creditsIconCallback) {
+				p.translate(
+					photoSize - creditsIconSize,
+					photoSize - creditsIconSize);
+				creditsIconCallback(p);
+			}
 		}
+		auto p = QPainter(userpic);
+		p.drawImage(0, 0, state->frame);
 	}, userpicWrap->lifetime());
 	userpicWrap->setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (photo) {

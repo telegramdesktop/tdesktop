@@ -52,6 +52,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
@@ -772,9 +774,15 @@ void ReceiptCreditsBox(
 			GenericEntryPhoto(content, callback, stUser.photoSize)));
 		AddViewMediaHandler(thumb->entity(), controller, e);
 	} else if (peer && !e.gift) {
-		content->add(object_ptr<Ui::CenterWrap<>>(
-			content,
-			object_ptr<Ui::UserpicButton>(content, peer, stUser)));
+		if (e.subscriptionUntil.isNull() && s.until.isNull()) {
+			content->add(object_ptr<Ui::CenterWrap<>>(
+				content,
+				object_ptr<Ui::UserpicButton>(content, peer, stUser)));
+		} else {
+			content->add(object_ptr<Ui::CenterWrap<>>(
+				content,
+				SubscriptionUserpic(content, peer, stUser.photoSize)));
+		}
 	} else if (e.gift || isPrize) {
 		struct State final {
 			DocumentData *sticker = nullptr;
@@ -1539,6 +1547,35 @@ object_ptr<Ui::RpWidget> PaidMediaThumbnail(
 				update);
 		},
 		photoSize);
+}
+
+object_ptr<Ui::RpWidget> SubscriptionUserpic(
+		not_null<Ui::RpWidget*> parent,
+		not_null<PeerData*> peer,
+		int photoSize) {
+	auto widget = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = widget.data();
+	widget->resize(photoSize, photoSize);
+	const auto userpicMedia = Ui::MakeUserpicThumbnail(peer, false);
+	userpicMedia->subscribeToUpdates([=] { raw->update(); });
+	const auto creditsIconSize = photoSize / 3;
+	const auto creditsIconCallback =
+		Ui::PaintOutlinedColoredCreditsIconCallback(
+			creditsIconSize,
+			1.5);
+	widget->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		p.fillRect(Rect(Size(photoSize)), Qt::transparent);
+		auto image = userpicMedia->image(photoSize);
+		{
+			auto q = QPainter(&image);
+			q.translate(photoSize, photoSize);
+			q.translate(-creditsIconSize, -creditsIconSize);
+			creditsIconCallback(q);
+		}
+		p.drawImage(0, 0, image);
+	}, widget->lifetime());
+	return widget;
 }
 
 void SmallBalanceBox(
