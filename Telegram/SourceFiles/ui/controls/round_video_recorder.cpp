@@ -21,6 +21,9 @@ namespace {
 
 constexpr auto kSide = 400;
 constexpr auto kUpdateEach = crl::time(100);
+constexpr auto kAudioFrequency = 48'000;
+constexpr auto kAudioBitRate = 32'000;
+constexpr auto kVideoBitRate = 3 * 1024 * 1024;
 
 using namespace FFmpeg;
 
@@ -211,7 +214,7 @@ bool RoundVideoRecorder::Private::initVideo() {
 	_videoCodec->time_base = AVRational{ 1, 1'000'000 }; // Microseconds.
 	_videoCodec->framerate = AVRational{ 0, 1 }; // Variable frame rate.
 	_videoCodec->pix_fmt = AV_PIX_FMT_YUV420P;
-	_videoCodec->bit_rate = 5 * 1024 * 1024; // 5Mbps
+	_videoCodec->bit_rate = kVideoBitRate;
 
 	auto error = AvErrorWrap(avcodec_open2(
 		_videoCodec.get(),
@@ -273,8 +276,8 @@ bool RoundVideoRecorder::Private::initAudio() {
 
 	_audioChannels = 1;
 	_audioCodec->sample_fmt = AV_SAMPLE_FMT_FLTP;
-	_audioCodec->bit_rate = 32000;
-	_audioCodec->sample_rate = 48000;
+	_audioCodec->bit_rate = kAudioBitRate;
+	_audioCodec->sample_rate = kAudioFrequency;
 #if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	_audioCodec->ch_layout = AV_CHANNEL_LAYOUT_MONO;
 	_audioCodec->channels = _audioCodec->ch_layout.nb_channels;
@@ -547,9 +550,9 @@ void RoundVideoRecorder::Private::encodeAudioFrame(
 	while (samplesProcessed + _audioCodec->frame_size <= inSamples) {
 		const auto remainingSamples = inSamples - samplesProcessed;
 		auto outSamples = int(av_rescale_rnd(
-			swr_get_delay(_swrContext.get(), 48000) + remainingSamples,
+			swr_get_delay(_swrContext.get(), kAudioFrequency) + remainingSamples,
 			_audioCodec->sample_rate,
-			48000,
+			kAudioFrequency,
 			AV_ROUND_UP));
 
 		// Ensure we don't exceed the frame's capacity
