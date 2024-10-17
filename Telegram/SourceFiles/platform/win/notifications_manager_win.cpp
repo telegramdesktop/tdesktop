@@ -367,6 +367,7 @@ bool SkipSoundForCustom() {
 
 	return (UserNotificationState == QUNS_NOT_PRESENT)
 		|| (UserNotificationState == QUNS_PRESENTATION_MODE)
+		|| (FocusAssistBlocks && Core::App().settings().skipToastsInFocus())
 		|| Core::App().screenIsLocked();
 }
 
@@ -387,7 +388,8 @@ bool SkipToastForCustom() {
 	QuerySystemNotificationSettings();
 
 	return (UserNotificationState == QUNS_PRESENTATION_MODE)
-		|| (UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN);
+		|| (UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN)
+		|| (FocusAssistBlocks && Core::App().settings().skipToastsInFocus());
 }
 
 void MaybeFlashBounceForCustom(Fn<void()> flashBounce) {

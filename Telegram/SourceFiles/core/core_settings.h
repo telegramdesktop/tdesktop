@@ -220,6 +220,9 @@ public:
 	[[nodiscard]] bool nativeNotifications() const;
 	void setNativeNotifications(bool value);
 
+	[[nodiscard]] bool skipToastsInFocus() const;
+	void setSkipToastsInFocus(bool value);
+
 	[[nodiscard]] int notificationsCount() const {
 		return _notificationsCount;
 	}
@@ -958,6 +961,7 @@ private:
 	bool _flashBounceNotify = true;
 	NotifyView _notifyView = NotifyView::ShowPreview;
 	std::optional<bool> _nativeNotifications;
+	bool _skipToastsInFocus = false;
 	int _notificationsCount = 3;
 	ScreenCorner _notificationsCorner = ScreenCorner::BottomRight;
 	bool _includeMutedCounter = true;
