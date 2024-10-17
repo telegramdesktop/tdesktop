@@ -97,11 +97,17 @@ private:
 	crl::time _lastUpdateDuration = 0;
 	rpl::event_stream<Update, rpl::empty_error> _updates;
 
+	void cutCircleFromYUV420P(not_null<AVFrame*> frame);
+	void initCircleMask();
+
+	std::vector<bool> _circleMask; // Always nice to use vector<bool>! :D
+
 };
 
 RoundVideoRecorder::Private::Private(crl::weak_on_queue<Private> weak)
 : _weak(std::move(weak)) {
 	initEncoding();
+	initCircleMask();
 }
 
 RoundVideoRecorder::Private::~Private() {
@@ -416,8 +422,15 @@ void RoundVideoRecorder::Private::push(const Media::Capture::Chunk &chunk) {
 void RoundVideoRecorder::Private::encodeVideoFrame(
 		int64 mcstimestamp,
 		const QImage &frame) {
+	const auto fwidth = frame.width();
+	const auto fheight = frame.height();
+	const auto fmin = std::min(fwidth, fheight);
+	const auto fx = (fwidth > fheight) ? (fwidth - fheight) / 2 : 0;
+	const auto fy = (fwidth < fheight) ? (fheight - fwidth) / 2 : 0;
+	const auto crop = QRect(fx, fy, fmin, fmin);
+
 	_swsContext = MakeSwscalePointer(
-		QSize(kSide, kSide),
+		QSize(fmin, fmin),
 		AV_PIX_FMT_BGRA,
 		QSize(kSide, kSide),
 		AV_PIX_FMT_YUV420P,
@@ -431,38 +444,88 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 		_videoFirstTimestamp = mcstimestamp;
 	}
 
-	const auto fwidth = frame.width();
-	const auto fheight = frame.height();
-	const auto fmin = std::min(fwidth, fheight);
-	const auto fx = (fwidth > fheight) ? (fwidth - fheight) / 2 : 0;
-	const auto fy = (fwidth < fheight) ? (fheight - fwidth) / 2 : 0;
-	const auto crop = QRect(fx, fy, fmin, fmin);
-	const auto cropped = frame.copy(crop).scaled(
-		kSide,
-		kSide,
-		Qt::KeepAspectRatio,
-		Qt::SmoothTransformation);
+	const auto cdata = frame.constBits()
+		+ (frame.bytesPerLine() * fy)
+		+ (fx * frame.depth() / 8);
 
-	// Convert QImage to RGB32 format
-//	QImage rgbImage = cropped.convertToFormat(QImage::Format_ARGB32);
+	const uint8_t *srcSlice[1] = { cdata };
+	int srcStride[1] = { int(frame.bytesPerLine()) };
 
-	// Prepare source data
-	const uint8_t *srcSlice[1] = { cropped.constBits() };
-	int srcStride[1] = { cropped.bytesPerLine() };
-
-	// Perform the color space conversion
 	sws_scale(
 		_swsContext.get(),
 		srcSlice,
 		srcStride,
 		0,
-		kSide,
+		fmin,
 		_videoFrame->data,
 		_videoFrame->linesize);
+
+	cutCircleFromYUV420P(_videoFrame.get());
 
 	_videoFrame->pts = mcstimestamp - _videoFirstTimestamp;
 	if (!writeFrame(_videoFrame, _videoCodec, _videoStream)) {
 		return;
+	}
+}
+
+void RoundVideoRecorder::Private::initCircleMask() {
+	const auto width = kSide;
+	const auto height = kSide;
+	const auto centerX = width / 2;
+	const auto centerY = height / 2;
+	const auto radius = std::min(centerX, centerY) + 3; // Add some padding.
+	const auto radiusSquared = radius * radius;
+
+	_circleMask.resize(width * height);
+	auto index = 0;
+	for (auto y = 0; y != height; ++y) {
+		for (auto x = 0; x != width; ++x) {
+			const auto dx = x - centerX;
+			const auto dy = y - centerY;
+			_circleMask[index++] = (dx * dx + dy * dy > radiusSquared);
+		}
+	}
+}
+
+void RoundVideoRecorder::Private::cutCircleFromYUV420P(
+		not_null<AVFrame*> frame) {
+	const auto width = frame->width;
+	const auto height = frame->height;
+
+	auto yMaskIndex = 0;
+	auto yData = frame->data[0];
+	const auto ySkip = frame->linesize[0] - width;
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			if (_circleMask[yMaskIndex]) {
+				*yData = 255;
+			}
+			++yData;
+			++yMaskIndex;
+		}
+		yData += ySkip;
+	}
+
+	const auto whalf = width / 2;
+	const auto hhalf = height / 2;
+
+	auto uvMaskIndex = 0;
+	auto uData = frame->data[1];
+	auto vData = frame->data[2];
+	const auto uSkip = frame->linesize[1] - whalf;
+	for (auto y = 0; y != hhalf; ++y) {
+		for (auto x = 0; x != whalf; ++x) {
+			if (_circleMask[uvMaskIndex]) {
+				*uData = 128;
+				*vData = 128;
+			}
+			++uData;
+			++vData;
+			uvMaskIndex += 2;
+		}
+		uData += uSkip;
+		vData += uSkip;
+		uvMaskIndex += width;
 	}
 }
 
@@ -476,18 +539,18 @@ void RoundVideoRecorder::Private::encodeAudioFrame(
 		_audioTail.append(chunk.samples);
 	}
 
-	const int inSamples = _audioTail.size() / sizeof(int16_t);
-	const uint8_t *inData = reinterpret_cast<const uint8_t*>(
+	const auto inSamples = int(_audioTail.size() / sizeof(int16_t));
+	const auto inData = reinterpret_cast<const uint8_t*>(
 		_audioTail.constData());
-	int samplesProcessed = 0;
+	auto samplesProcessed = 0;
 
 	while (samplesProcessed + _audioCodec->frame_size <= inSamples) {
-		int remainingSamples = inSamples - samplesProcessed;
-		int outSamples = av_rescale_rnd(
+		const auto remainingSamples = inSamples - samplesProcessed;
+		auto outSamples = int(av_rescale_rnd(
 			swr_get_delay(_swrContext.get(), 48000) + remainingSamples,
 			_audioCodec->sample_rate,
 			48000,
-			AV_ROUND_UP);
+			AV_ROUND_UP));
 
 		// Ensure we don't exceed the frame's capacity
 		outSamples = std::min(outSamples, _audioCodec->frame_size);
