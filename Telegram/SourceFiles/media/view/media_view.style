@@ -480,8 +480,8 @@ storiesLike: IconButton(storiesAttach) {
 }
 storiesRecordVoice: icon {{ "chat/input_record", storiesComposeGrayIcon }};
 storiesRecordVoiceOver: icon {{ "chat/input_record", storiesComposeGrayIcon }};
-storiesRecordRound: icon {{ "info/info_media_round", storiesComposeGrayIcon }};
-storiesRecordRoundOver: icon {{ "info/info_media_round", storiesComposeGrayIcon }};
+storiesRecordRound: icon {{ "chat/input_video", storiesComposeGrayIcon }};
+storiesRecordRoundOver: icon {{ "chat/input_video", storiesComposeGrayIcon }};
 storiesRemoveSet: IconButton(stickerPanRemoveSet) {
 	icon: icon {{ "simple_close", storiesComposeGrayIcon }};
 	iconOver: icon {{ "simple_close", storiesComposeGrayIcon }};
