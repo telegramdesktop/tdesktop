@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/debug_log.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "media/audio/media_audio_capture.h"
+#include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "webrtc/webrtc_video_track.h"
@@ -637,50 +638,76 @@ void RoundVideoRecorder::hide(Fn<void(RoundVideoResult)> done) {
 	}
 }
 
+void RoundVideoRecorder::prepareFrame() {
+	if (_frameOriginal.isNull() || _preparedIndex == _lastAddedIndex) {
+		return;
+	}
+	_preparedIndex = _lastAddedIndex;
+
+	const auto owidth = _frameOriginal.width();
+	const auto oheight = _frameOriginal.height();
+	const auto omin = std::min(owidth, oheight);
+	const auto ox = (owidth > oheight) ? (owidth - oheight) / 2 : 0;
+	const auto oy = (owidth < oheight) ? (oheight - owidth) / 2 : 0;
+	const auto from = QRect(ox, oy, omin, omin);
+	const auto bytesPerLine = _frameOriginal.bytesPerLine();
+	const auto depth = _frameOriginal.depth() / 8;
+	const auto shift = (bytesPerLine * from.y()) + (from.x() * depth);
+	auto copy = QImage(
+		_frameOriginal.constBits() + shift,
+		omin, omin,
+		bytesPerLine,
+		_frameOriginal.format());
+
+	const auto ratio = style::DevicePixelRatio();
+	_framePrepared = Images::Circle(copy.scaled(
+		_side * ratio,
+		_side * ratio,
+		Qt::KeepAspectRatio,
+		Qt::SmoothTransformation));
+	_framePrepared.setDevicePixelRatio(ratio);
+}
+
 void RoundVideoRecorder::setup() {
 	const auto raw = _preview.get();
 
-	const auto side = style::ConvertScale(kSide * 3 / 4);
+	_side = style::ConvertScale(kSide * 3 / 4);
 	_descriptor.container->sizeValue(
 	) | rpl::start_with_next([=](QSize outer) {
 		raw->setGeometry(
 			style::centerrect(
 				QRect(QPoint(), outer),
-				QRect(0, 0, side, side)));
+				QRect(0, 0, _side, _side)));
 	}, raw->lifetime());
 
 	raw->paintRequest() | rpl::start_with_next([=] {
-		auto p = QPainter(raw);
-		auto hq = PainterHighQualityEnabler(p);
+		prepareFrame();
 
-		auto info = _descriptor.track->frameWithInfo(true);
-		if (!info.original.isNull()) {
-			const auto owidth = info.original.width();
-			const auto oheight = info.original.height();
-			const auto omin = std::min(owidth, oheight);
-			const auto ox = (owidth > oheight) ? (owidth - oheight) / 2 : 0;
-			const auto oy = (owidth < oheight) ? (oheight - owidth) / 2 : 0;
-			const auto from = QRect(ox, oy, omin, omin);
-			p.drawImage(QRect(0, 0, side, side), info.original, from);
+		auto p = QPainter(raw);
+		if (!_framePrepared.isNull()) {
+			p.drawImage(QRect(0, 0, _side, _side), _framePrepared);
 		} else {
+			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
 			p.setBrush(QColor(0, 0, 0));
-			p.drawEllipse(0, 0, side, side);
+			p.drawEllipse(0, 0, _side, _side);
 		}
-		_descriptor.track->markFrameShown();
 	}, raw->lifetime());
 
 	_descriptor.track->renderNextFrame() | rpl::start_with_next([=] {
 		const auto info = _descriptor.track->frameWithInfo(true);
 		if (!info.original.isNull() && _lastAddedIndex != info.index) {
 			_lastAddedIndex = info.index;
+			_frameOriginal = info.original;
 			const auto ts = info.mcstimestamp;
 			_private.with([copy = info.original, ts](Private &that) {
 				that.push(ts, copy);
 			});
 		}
+		_descriptor.track->markFrameShown();
 		raw->update();
 	}, raw->lifetime());
+	_descriptor.track->markFrameShown();
 
 	raw->show();
 	raw->raise();

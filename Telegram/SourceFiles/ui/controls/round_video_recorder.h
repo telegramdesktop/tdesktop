@@ -57,11 +57,16 @@ private:
 	class Private;
 
 	void setup();
+	void prepareFrame();
 
 	const RoundVideoRecorderDescriptor _descriptor;
 	std::unique_ptr<RpWidget> _preview;
 	crl::object_on_queue<Private> _private;
+	QImage _frameOriginal;
+	QImage _framePrepared;
 	int _lastAddedIndex = 0;
+	int _preparedIndex = 0;
+	int _side = 0;
 	bool _paused = false;
 
 };
