@@ -1162,8 +1162,22 @@ void PopularAppsController::fill() {
 			appendRow(bot);
 		}
 	}
+	const auto count = delegate()->peerListFullRowsCount();
+	setCount(count);
+	if (count > 0) {
+		delegate()->peerListSetBelowWidget(object_ptr<Ui::DividerLabel>(
+			(QWidget*)nullptr,
+			object_ptr<Ui::FlatLabel>(
+				(QWidget*)nullptr,
+				tr::lng_bot_apps_which(
+					lt_link,
+					tr::lng_bot_apps_which_link(
+					) | Ui::Text::ToLink(u"internal:about_popular_apps"_q),
+					Ui::Text::WithEntities),
+				st::dialogsPopularAppsAbout),
+			st::dialogsPopularAppsPadding));
+	}
 	delegate()->peerListRefreshRows();
-	setCount(delegate()->peerListFullRowsCount());
 }
 
 void PopularAppsController::appendRow(not_null<UserData*> bot) {
@@ -2323,6 +2337,23 @@ object_ptr<Ui::BoxContent> StarsExamplesBox(
 		}, box->lifetime());
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(initBox));
+}
+
+object_ptr<Ui::BoxContent> PopularAppsAboutBox(
+		not_null<Window::SessionController*> window) {
+	return Ui::MakeInformBox({
+		.text = tr::lng_popular_apps_info_text(
+			lt_bot,
+			rpl::single(Ui::Text::Link(
+				u"@botfather"_q,
+				u"https://t.me/botfather"_q)),
+			lt_link,
+			tr::lng_popular_apps_info_here(
+			) | Ui::Text::ToLink(tr::lng_popular_apps_info_url(tr::now)),
+			Ui::Text::RichLangValue),
+		.confirmText = tr::lng_popular_apps_info_confirm(),
+		.title = tr::lng_popular_apps_info_title(),
+	});
 }
 
 } // namespace Dialogs

@@ -965,6 +965,17 @@ bool ShowStarsExamples(
 	return true;
 }
 
+bool ShowPopularAppsAbout(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	controller->show(Dialogs::PopularAppsAboutBox(controller));
+	return true;
+}
+
 void ExportTestChatTheme(
 		not_null<Window::SessionController*> controller,
 		not_null<const Data::CloudTheme*> theme) {
@@ -1430,6 +1441,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^stars_examples$"_q,
 			ShowStarsExamples,
+		},
+		{
+			u"^about_popular_apps$"_q,
+			ShowPopularAppsAbout,
 		},
 	};
 	return Result;

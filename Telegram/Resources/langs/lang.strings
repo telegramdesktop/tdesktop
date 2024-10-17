@@ -5623,6 +5623,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channels_recommended" = "Similar channels";
 "lng_bot_apps_your" = "Apps you use";
 "lng_bot_apps_popular" = "Grossing apps";
+"lng_bot_apps_which" = "Which apps are included here? {link}";
+"lng_bot_apps_which_link" = "Learn >";
+
+"lng_popular_apps_info_title" = "Top Mini Apps";
+"lng_popular_apps_info_text" = "This catalogue ranks mini apps based on their daily revenue, measured in Stars. To be listed, developers must set their main mini apps in {bot} (as described {link}), have over **1,000** daily users, and earn a daily revenue above **1,000** Stars, based on the weekly average.";
+"lng_popular_apps_info_bot" = "@botfather";
+"lng_popular_apps_info_here" = "here";
+"lng_popular_apps_info_url" = "https://core.telegram.org/bots/webapps#launching-the-main-mini-app";
+"lng_popular_apps_info_confirm" = "Understood";
 
 "lng_font_box_title" = "Choose font family";
 "lng_font_default" = "Default";

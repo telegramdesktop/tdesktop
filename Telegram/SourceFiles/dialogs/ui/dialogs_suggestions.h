@@ -219,4 +219,7 @@ private:
 [[nodiscard]] object_ptr<Ui::BoxContent> StarsExamplesBox(
 	not_null<Window::SessionController*> window);
 
+[[nodiscard]] object_ptr<Ui::BoxContent> PopularAppsAboutBox(
+	not_null<Window::SessionController*> window);
+
 } // namespace Dialogs
