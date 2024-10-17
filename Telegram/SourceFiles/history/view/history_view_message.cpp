@@ -1628,7 +1628,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 					- (st::msgSelectionOffset * progress - st.size) / 2
 					- st::msgPadding.right() / 2
 					- st.size),
-				g.y() + (g.height() - st.size) / 2);
+				rect::bottom(g) - st.size - st::msgSelectionBottomSkip);
 			{
 				p.setPen(QPen(st.border, st.width));
 				p.setBrush(context.st->msgServiceBg());
