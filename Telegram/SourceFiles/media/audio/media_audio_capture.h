@@ -16,6 +16,8 @@ namespace Capture {
 struct Update {
 	int samples = 0;
 	ushort level = 0;
+
+	bool finished = false;
 };
 
 struct Chunk {

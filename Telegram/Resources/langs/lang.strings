@@ -3684,6 +3684,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_reply_in_another_title" = "Reply in...";
 "lng_reply_in_another_chat" = "Reply in Another Chat";
+"lng_reply_in_author" = "Message author";
+"lng_reply_in_chats_list" = "Your chats";
 "lng_reply_show_in_chat" = "Show in Chat";
 "lng_reply_remove" = "Do Not Reply";
 "lng_reply_about_quote" = "You can select a specific part to quote.";

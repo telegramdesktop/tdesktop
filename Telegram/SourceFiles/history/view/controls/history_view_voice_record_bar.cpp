@@ -1704,6 +1704,9 @@ void VoiceRecordBar::startRecording() {
 			) | rpl::start_with_next_error([=](const Update &update) {
 				_recordingTipRequired = (update.samples < kMinSamples);
 				recordUpdated(update.level, update.samples);
+				if (update.finished) {
+					stop(true);
+				}
 			}, [=] {
 				stop(false);
 			}, _recordingLifetime);

@@ -24,6 +24,7 @@ constexpr auto kUpdateEach = crl::time(100);
 constexpr auto kAudioFrequency = 48'000;
 constexpr auto kAudioBitRate = 32'000;
 constexpr auto kVideoBitRate = 3 * 1024 * 1024;
+constexpr auto kMaxDuration = 10 * crl::time(1000); AssertIsDebug();
 
 using namespace FFmpeg;
 
@@ -52,6 +53,7 @@ private:
 	void initEncoding();
 	bool initVideo();
 	bool initAudio();
+	void notifyFinished();
 	void deinitEncoding();
 	void finishEncoding();
 	void fail();
@@ -65,6 +67,9 @@ private:
 
 	void updateMaxLevel(const Media::Capture::Chunk &chunk);
 	void updateResultDuration(int64 pts, AVRational timeBase);
+
+	void cutCircleFromYUV420P(not_null<AVFrame*> frame);
+	void initCircleMask();
 
 	const crl::weak_on_queue<Private> _weak;
 
@@ -95,13 +100,11 @@ private:
 	QByteArray _result;
 	int64_t _resultOffset = 0;
 	crl::time _resultDuration = 0;
+	bool _finished = false;
 
 	ushort _maxLevelSinceLastUpdate = 0;
 	crl::time _lastUpdateDuration = 0;
 	rpl::event_stream<Update, rpl::empty_error> _updates;
-
-	void cutCircleFromYUV420P(not_null<AVFrame*> frame);
-	void initCircleMask();
 
 	std::vector<bool> _circleMask; // Always nice to use vector<bool>! :D
 
@@ -400,7 +403,7 @@ void RoundVideoRecorder::Private::deinitEncoding() {
 void RoundVideoRecorder::Private::push(
 		int64 mcstimestamp,
 		const QImage &frame) {
-	if (!_format) {
+	if (!_format || _finished) {
 		return;
 	} else if (!_firstAudioChunkFinished) {
 		// Skip frames while we didn't start receiving audio.
@@ -412,7 +415,7 @@ void RoundVideoRecorder::Private::push(
 }
 
 void RoundVideoRecorder::Private::push(const Media::Capture::Chunk &chunk) {
-	if (!_format) {
+	if (!_format || _finished) {
 		return;
 	} else if (!_firstAudioChunkFinished || !_firstVideoFrameTime) {
 		_firstAudioChunkFinished = chunk.finished;
@@ -425,6 +428,11 @@ void RoundVideoRecorder::Private::push(const Media::Capture::Chunk &chunk) {
 void RoundVideoRecorder::Private::encodeVideoFrame(
 		int64 mcstimestamp,
 		const QImage &frame) {
+	Expects(!_finished);
+
+	if (_videoFirstTimestamp == -1) {
+		_videoFirstTimestamp = mcstimestamp;
+	}
 	const auto fwidth = frame.width();
 	const auto fheight = frame.height();
 	const auto fmin = std::min(fwidth, fheight);
@@ -441,10 +449,6 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 	if (!_swsContext) {
 		fail();
 		return;
-	}
-
-	if (_videoFirstTimestamp == -1) {
-		_videoFirstTimestamp = mcstimestamp;
 	}
 
 	const auto cdata = frame.constBits()
@@ -466,7 +470,10 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 	cutCircleFromYUV420P(_videoFrame.get());
 
 	_videoFrame->pts = mcstimestamp - _videoFirstTimestamp;
-	if (!writeFrame(_videoFrame, _videoCodec, _videoStream)) {
+	if (_videoFrame->pts >= kMaxDuration * int64(1000)) {
+		notifyFinished();
+		return;
+	} else if (!writeFrame(_videoFrame, _videoCodec, _videoStream)) {
 		return;
 	}
 }
@@ -534,6 +541,8 @@ void RoundVideoRecorder::Private::cutCircleFromYUV420P(
 
 void RoundVideoRecorder::Private::encodeAudioFrame(
 		const Media::Capture::Chunk &chunk) {
+	Expects(!_finished);
+
 	updateMaxLevel(chunk);
 
 	if (_audioTail.isEmpty()) {
@@ -578,7 +587,10 @@ void RoundVideoRecorder::Private::encodeAudioFrame(
 
 		_audioFrame->pts = _audioPts;
 		_audioPts += _audioFrame->nb_samples;
-		if (!writeFrame(_audioFrame, _audioCodec, _audioStream)) {
+		if (_audioPts >= kMaxDuration * int64(kAudioFrequency) / 1000) {
+			notifyFinished();
+			return;
+		} else if (!writeFrame(_audioFrame, _audioCodec, _audioStream)) {
 			return;
 		}
 
@@ -591,6 +603,15 @@ void RoundVideoRecorder::Private::encodeAudioFrame(
 	} else {
 		_audioTail.clear();
 	}
+}
+
+void RoundVideoRecorder::Private::notifyFinished() {
+	_finished = true;
+	_updates.fire({
+		.samples = int(_resultDuration * 48),
+		.level = base::take(_maxLevelSinceLastUpdate),
+		.finished = true,
+	});
 }
 
 bool RoundVideoRecorder::Private::writeFrame(
