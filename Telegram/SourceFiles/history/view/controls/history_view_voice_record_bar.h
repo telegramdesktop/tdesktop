@@ -21,6 +21,10 @@ namespace style {
 struct RecordBar;
 } // namespace style
 
+namespace Media::Capture {
+enum class Error : uchar;
+} // namespace Media::Capture
+
 namespace Ui {
 class AbstractButton;
 class SendButton;
@@ -57,6 +61,7 @@ public:
 	using SendActionUpdate = Controls::SendActionUpdate;
 	using VoiceToSend = Controls::VoiceToSend;
 	using FilterCallback = Fn<bool()>;
+	using Error = ::Media::Capture::Error;
 
 	VoiceRecordBar(
 		not_null<Ui::RpWidget*> parent,
@@ -88,6 +93,7 @@ public:
 	[[nodiscard]] rpl::producer<not_null<QEvent*>> lockViewportEvents() const;
 	[[nodiscard]] rpl::producer<> updateSendButtonTypeRequests() const;
 	[[nodiscard]] rpl::producer<> recordingTipRequests() const;
+	[[nodiscard]] rpl::producer<Error> errors() const;
 
 	void requestToSendWithOptions(Api::SendOptions options);
 
@@ -173,6 +179,7 @@ private:
 	rpl::event_stream<VoiceToSend> _sendVoiceRequests;
 	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<> _listenChanges;
+	rpl::event_stream<Error> _errors;
 
 	int _centerY = 0;
 	QRect _redCircleRect;

@@ -50,9 +50,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView::Controls {
 namespace {
 
-using SendActionUpdate = VoiceRecordBar::SendActionUpdate;
-using VoiceToSend = VoiceRecordBar::VoiceToSend;
-
 constexpr auto kAudioVoiceUpdateView = crl::time(200);
 constexpr auto kAudioVoiceMaxLength = 100 * 60; // 100 minutes
 constexpr auto kMaxSamples
@@ -1703,8 +1700,9 @@ void VoiceRecordBar::startRecording() {
 				if (update.finished) {
 					stop(update.samples >= kMinSamples);
 				}
-			}, [=] {
+			}, [=](Error error) {
 				stop(false);
+				_errors.fire_copy(error);
 			}, _recordingLifetime);
 		}
 		_recordingLifetime.add([=] {
@@ -2023,6 +2021,10 @@ rpl::producer<> VoiceRecordBar::updateSendButtonTypeRequests() const {
 
 rpl::producer<> VoiceRecordBar::recordingTipRequests() const {
 	return _recordingTipRequests.events();
+}
+
+auto VoiceRecordBar::errors() const -> rpl::producer<Error> {
+	return _errors.events();
 }
 
 bool VoiceRecordBar::isLockPresent() const {

@@ -3248,6 +3248,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_record_lock_discard" = "Discard";
 "lng_record_voice_tip" = "Hold to record audio. Click to switch to video.";
 "lng_record_video_tip" = "Hold to record video. Click to switch to audio.";
+"lng_record_audio_problem" = "Could not start audio recording. Please check your microphone.";
+"lng_record_video_problem" = "Could not start video recording. Please check your camera.";
 "lng_record_once_first_tooltip" = "Click to set this message to **Play Once**.";
 "lng_record_once_active_tooltip" = "The recipient will be able to listen only once.";
 "lng_will_be_notified" = "Subscribers will be notified when you post.";
