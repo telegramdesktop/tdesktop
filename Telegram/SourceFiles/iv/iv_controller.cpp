@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_controller.h"
 
 #include "base/platform/base_platform_info.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
 #include "base/qthelp_url.h"
@@ -21,9 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/rp_window.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/webview_helpers.h"
 #include "ui/ui_utility.h"
 #include "webview/webview_data_stream_memory.h"
@@ -52,9 +55,13 @@ namespace Iv {
 namespace {
 
 constexpr auto kZoomStep = int(10);
+constexpr auto kZoomSmallStep = int(5);
+constexpr auto kZoomTinyStep = int(1);
 constexpr auto kDefaultZoom = int(100);
 
-class ItemZoom final : public Ui::Menu::Action {
+class ItemZoom final
+	: public Ui::Menu::Action
+	, public Ui::AbstractTooltipShower {
 public:
 	ItemZoom(
 		not_null<RpWidget*> parent,
@@ -109,10 +116,21 @@ public:
 
 		};
 
+		const auto processTooltip = [=, this](not_null<Ui::RpWidget*> w) {
+			w->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+				if (e->type() == QEvent::Enter) {
+					Ui::Tooltip::Show(1000, this);
+				} else if (e->type() == QEvent::Leave) {
+					Ui::Tooltip::Hide();
+				}
+			}, w->lifetime());
+		};
+
 		const auto reset = Ui::CreateChild<Ui::RoundButton>(
 			this,
 			rpl::single<QString>(QString()),
 			st::ivResetZoom);
+		processTooltip(reset);
 		const auto resetLabel = Ui::CreateChild<Ui::FlatLabel>(
 			reset,
 			tr::lng_background_reset_default(),
@@ -128,8 +146,16 @@ public:
 			'+',
 			0,
 			_st.itemFg);
-		plus->setClickedCallback([this] {
-			_delegate->ivSetZoom(_delegate->ivZoom() + kZoomStep);
+		processTooltip(plus);
+		const auto step = [] {
+			return base::IsAltPressed()
+				? kZoomTinyStep
+				: base::IsCtrlPressed()
+				? kZoomSmallStep
+				: kZoomStep;
+		};
+		plus->setClickedCallback([this, step] {
+			_delegate->ivSetZoom(_delegate->ivZoom() + step());
 		});
 		plus->show();
 		const auto minus = Ui::CreateChild<SmallButton>(
@@ -137,8 +163,9 @@ public:
 			QChar(0x2013),
 			-1,
 			_st.itemFg);
-		minus->setClickedCallback([this] {
-			_delegate->ivSetZoom(_delegate->ivZoom() - kZoomStep);
+		processTooltip(minus);
+		minus->setClickedCallback([this, step] {
+			_delegate->ivSetZoom(_delegate->ivZoom() - step());
 		});
 		minus->show();
 
@@ -180,6 +207,22 @@ public:
 			.outerWidth = width(),
 			.availableWidth = width(),
 		});
+	}
+
+	QString tooltipText() const override {
+#ifdef Q_OS_MAC
+		return tr::lng_iv_zoom_tooltip_cmd(tr::now);
+#else
+		return tr::lng_iv_zoom_tooltip_ctrl(tr::now);
+#endif
+	}
+
+	QPoint tooltipPos() const override {
+		return QCursor::pos();
+	}
+
+	bool tooltipWindowActive() const override {
+		return true;
 	}
 
 private:
