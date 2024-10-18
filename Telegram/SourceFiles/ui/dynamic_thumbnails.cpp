@@ -61,7 +61,7 @@ private:
 
 class StoryThumbnail : public DynamicImage {
 public:
-	explicit StoryThumbnail(FullStoryId id);
+	explicit StoryThumbnail(Data::FileOrigin origin, bool forceRound);
 
 	QImage image(int size) override;
 	void subscribeToUpdates(Fn<void()> callback) override;
@@ -72,14 +72,16 @@ protected:
 		bool blurred = false;
 	};
 
-	[[nodiscard]] FullStoryId id() const;
+	[[nodiscard]] Data::FileOrigin origin() const;
+	[[nodiscard]] bool forceRound() const;
 
 	[[nodiscard]] virtual Main::Session &session() = 0;
-	[[nodiscard]] virtual Thumb loaded(FullStoryId id) = 0;
+	[[nodiscard]] virtual Thumb loaded(Data::FileOrigin origin) = 0;
 	virtual void clear() = 0;
 
 private:
-	const FullStoryId _id;
+	const Data::FileOrigin _origin;
+	const bool _forceRound;
 	QImage _full;
 	rpl::lifetime _subscription;
 	QImage _prepared;
@@ -89,13 +91,16 @@ private:
 
 class PhotoThumbnail final : public StoryThumbnail {
 public:
-	PhotoThumbnail(not_null<PhotoData*> photo, FullStoryId id);
+	PhotoThumbnail(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin,
+		bool forceRound);
 
 	std::shared_ptr<DynamicImage> clone() override;
 
 private:
 	Main::Session &session() override;
-	Thumb loaded(FullStoryId id) override;
+	Thumb loaded(Data::FileOrigin origin) override;
 	void clear() override;
 
 	const not_null<PhotoData*> _photo;
@@ -105,13 +110,16 @@ private:
 
 class VideoThumbnail final : public StoryThumbnail {
 public:
-	VideoThumbnail(not_null<DocumentData*> video, FullStoryId id);
+	VideoThumbnail(
+		not_null<DocumentData*> video,
+		Data::FileOrigin origin,
+		bool forceRound);
 
 	std::shared_ptr<DynamicImage> clone() override;
 
 private:
 	Main::Session &session() override;
-	Thumb loaded(FullStoryId id) override;
+	Thumb loaded(Data::FileOrigin origin) override;
 	void clear() override;
 
 	const not_null<DocumentData*> _video;
@@ -296,8 +304,9 @@ void PeerUserpic::processNewPhoto() {
 	}, _subscribed->downloadLifetime);
 }
 
-StoryThumbnail::StoryThumbnail(FullStoryId id)
-: _id(id) {
+StoryThumbnail::StoryThumbnail(Data::FileOrigin origin, bool forceRound)
+: _origin(origin)
+, _forceRound(forceRound) {
 }
 
 QImage StoryThumbnail::image(int size) {
@@ -316,7 +325,9 @@ QImage StoryThumbnail::image(int size) {
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		}
-		_prepared = Images::Circle(std::move(_prepared));
+		if (_forceRound) {
+			_prepared = Images::Circle(std::move(_prepared));
+		}
 		_prepared.setDevicePixelRatio(ratio);
 	}
 	return _prepared;
@@ -330,7 +341,7 @@ void StoryThumbnail::subscribeToUpdates(Fn<void()> callback) {
 	} else if (!_full.isNull() && !_blurred) {
 		return;
 	}
-	const auto thumbnail = loaded(_id);
+	const auto thumbnail = loaded(_origin);
 	if (const auto image = thumbnail.image) {
 		_full = image->original();
 	}
@@ -340,7 +351,7 @@ void StoryThumbnail::subscribeToUpdates(Fn<void()> callback) {
 	} else {
 		_subscription = session().downloaderTaskFinished(
 		) | rpl::filter([=] {
-			const auto thumbnail = loaded(_id);
+			const auto thumbnail = loaded(_origin);
 			if (!thumbnail.blurred) {
 				_full = thumbnail.image->original();
 				_prepared = QImage();
@@ -352,27 +363,34 @@ void StoryThumbnail::subscribeToUpdates(Fn<void()> callback) {
 	}
 }
 
-FullStoryId StoryThumbnail::id() const {
-	return _id;
+Data::FileOrigin StoryThumbnail::origin() const {
+	return _origin;
 }
 
-PhotoThumbnail::PhotoThumbnail(not_null<PhotoData*> photo, FullStoryId id)
-: StoryThumbnail(id)
+bool StoryThumbnail::forceRound() const {
+	return _forceRound;
+}
+
+PhotoThumbnail::PhotoThumbnail(
+	not_null<PhotoData*> photo,
+	Data::FileOrigin origin,
+	bool forceRound)
+: StoryThumbnail(origin, forceRound)
 , _photo(photo) {
 }
 
 std::shared_ptr<DynamicImage> PhotoThumbnail::clone() {
-	return std::make_shared<PhotoThumbnail>(_photo, id());
+	return std::make_shared<PhotoThumbnail>(_photo, origin(), forceRound());
 }
 
 Main::Session &PhotoThumbnail::session() {
 	return _photo->session();
 }
 
-StoryThumbnail::Thumb PhotoThumbnail::loaded(FullStoryId id) {
+StoryThumbnail::Thumb PhotoThumbnail::loaded(Data::FileOrigin origin) {
 	if (!_media) {
 		_media = _photo->createMediaView();
-		_media->wanted(Data::PhotoSize::Small, id);
+		_media->wanted(Data::PhotoSize::Small, origin);
 	}
 	if (const auto small = _media->image(Data::PhotoSize::Small)) {
 		return { .image = small };
@@ -386,23 +404,24 @@ void PhotoThumbnail::clear() {
 
 VideoThumbnail::VideoThumbnail(
 	not_null<DocumentData*> video,
-	FullStoryId id)
-: StoryThumbnail(id)
+	Data::FileOrigin origin,
+	bool forceRound)
+: StoryThumbnail(origin, forceRound)
 , _video(video) {
 }
 
 std::shared_ptr<DynamicImage> VideoThumbnail::clone() {
-	return std::make_shared<VideoThumbnail>(_video, id());
+	return std::make_shared<VideoThumbnail>(_video, origin(), forceRound());
 }
 
 Main::Session &VideoThumbnail::session() {
 	return _video->session();
 }
 
-StoryThumbnail::Thumb VideoThumbnail::loaded(FullStoryId id) {
+StoryThumbnail::Thumb VideoThumbnail::loaded(Data::FileOrigin origin) {
 	if (!_media) {
 		_media = _video->createMediaView();
-		_media->thumbnailWanted(id);
+		_media->thumbnailWanted(origin);
 	}
 	if (const auto small = _media->thumbnail()) {
 		return { .image = small };
@@ -634,9 +653,9 @@ std::shared_ptr<DynamicImage> MakeStoryThumbnail(
 	return v::match(story->media().data, [](v::null_t) -> Result {
 		return std::make_shared<EmptyThumbnail>();
 	}, [&](not_null<PhotoData*> photo) -> Result {
-		return std::make_shared<PhotoThumbnail>(photo, id);
+		return std::make_shared<PhotoThumbnail>(photo, id, true);
 	}, [&](not_null<DocumentData*> video) -> Result {
-		return std::make_shared<VideoThumbnail>(video, id);
+		return std::make_shared<VideoThumbnail>(video, id, true);
 	});
 }
 
@@ -648,6 +667,18 @@ std::shared_ptr<DynamicImage> MakeEmojiThumbnail(
 		not_null<Data::Session*> owner,
 		const QString &data) {
 	return std::make_shared<EmojiThumbnail>(owner, data);
+}
+
+std::shared_ptr<DynamicImage> MakePhotoThumbnail(
+		not_null<PhotoData*> photo,
+		FullMsgId fullId) {
+	return std::make_shared<PhotoThumbnail>(photo, fullId, false);
+}
+
+std::shared_ptr<DynamicImage> MakeDocumentThumbnail(
+		not_null<DocumentData*> document,
+		FullMsgId fullId) {
+	return std::make_shared<VideoThumbnail>(document, fullId, false);
 }
 
 } // namespace Ui
