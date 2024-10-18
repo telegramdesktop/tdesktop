@@ -16,9 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/animation_value.h"
+#include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "styles/style_chat.h"
 #include "styles/style_premium.h"
@@ -98,6 +100,12 @@ ServiceBox::ServiceBox(
 			}
 		}, _lifetime);
 	}
+	if (_content->buttonMinistars()) {
+		_button.stars = std::make_unique<Ui::Premium::ColoredMiniStars>(
+			[=](const QRect &) { repaint(); },
+			Ui::Premium::MiniStars::Type::SlowStars);
+		_button.lastFg = std::make_unique<QColor>();
+	}
 }
 
 ServiceBox::~ServiceBox() = default;
@@ -117,7 +125,21 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 	const auto radius = st::msgServiceGiftBoxRadius;
 	p.setPen(Qt::NoPen);
 	p.setBrush(context.st->msgServiceBg());
-	p.drawRoundedRect(QRect(QPoint(), _innerSize), radius, radius);
+	p.drawRoundedRect(Rect(_innerSize), radius, radius);
+
+	if (_button.stars) {
+		const auto &c = context.st->msgServiceFg()->c;
+		if ((*_button.lastFg) != c) {
+			_button.lastFg->setRgb(c.red(), c.green(), c.blue());
+			const auto padding = _button.size.height() / 2;
+			_button.stars->setColorOverride(QGradientStops{
+				{ 0., anim::with_alpha(c, .3) },
+				{ 1., c },
+			});
+			_button.stars->setCenter(
+				Rect(_button.size) - QMargins(padding, 0, padding, 0));
+		}
+	}
 
 	const auto content = contentRect();
 	auto top = content.top() + content.height();
@@ -340,7 +362,15 @@ bool ServiceBox::Button::empty() const {
 
 void ServiceBox::Button::drawBg(QPainter &p) const {
 	const auto radius = size.height() / 2.;
-	p.drawRoundedRect(0, 0, size.width(), size.height(), radius, radius);
+	const auto r = Rect(size);
+	p.drawRoundedRect(r, radius, radius);
+	if (stars) {
+		auto clipPath = QPainterPath();
+		clipPath.addRoundedRect(r, radius, radius);
+		p.setClipPath(clipPath);
+		stars->paint(p);
+		p.setClipping(false);
+	}
 }
 
 } // namespace HistoryView

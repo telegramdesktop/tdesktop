@@ -151,6 +151,10 @@ rpl::producer<QString> PremiumGift::button() {
 		: tr::lng_prize_open();
 }
 
+bool PremiumGift::buttonMinistars() {
+	return true;
+}
+
 ClickHandlerPtr PremiumGift::createViewLink() {
 	if (starGift() && outgoingGift()) {
 		return nullptr;
