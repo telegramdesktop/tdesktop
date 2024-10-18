@@ -801,7 +801,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				p,
 				context,
 				fullRight,
-				fullBottom,
+				fullBottom - st::msgDateImgDelta,
 				2 * paintx + paintw,
 				(unwrapped
 					? InfoDisplayType::Background
