@@ -1277,7 +1277,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 			HistoryView::EmojiPacksSource::Message,
 			list->controller());
 	}
-	{
+	if (item) {
 		const auto added = (result->actions().size() > wasAmount);
 		if (!added) {
 			result->addSeparator();
