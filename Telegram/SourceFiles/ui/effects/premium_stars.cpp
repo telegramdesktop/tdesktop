@@ -21,19 +21,25 @@ MiniStars::MiniStars(
 	Fn<void(const QRect &r)> updateCallback,
 	bool opaque,
 	Type type)
-: _availableAngles({
+: _availableAngles((type != Type::SlowStars)
+? std::vector<Interval>{
 	Interval{ -10, 40 },
 	Interval{ 180 + 10 - 40, 40 },
 	Interval{ 180 + 15, 50 },
 	Interval{ -15 - 50, 50 },
-})
-, _lifeLength({ 150 / 5, 200 / 5 })
-, _deathTime({ 1500, 2000 })
+}
+: std::vector<Interval>{ Interval{ -90, 180 }, Interval{ 90, 180 } })
+, _lifeLength((type != Type::SlowStars)
+	? Interval{ 150 / 5, 200 / 5 }
+	: Interval{ 150 * 2, 200 * 2 })
+, _deathTime((type != Type::SlowStars)
+	? Interval{ 1500, 2000 }
+	: Interval{ 1500 * 2, 2000 * 2 })
 , _size({ 5, 10 })
 , _alpha({ opaque ? 100 : 40, opaque ? 100 : 60 })
 , _sinFactor({ 10, 190 })
 , _spritesCount({ 0, ((type == Type::MonoStars) ? 1 : 2) })
-, _appearProgressTill(0.2)
+, _appearProgressTill((type != Type::SlowStars) ? 0.2 : 0.01)
 , _disappearProgressAfter(0.8)
 , _distanceProgressStart(0.5)
 , _sprite(u":/gui/icons/settings/starmini.svg"_q)

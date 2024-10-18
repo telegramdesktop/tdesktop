@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/abstract_button.h"
+#include "ui/effects/premium_stars_colored.h"
 #include "ui/text/text.h"
 
 class StickerPremiumMark;
@@ -101,6 +102,7 @@ private:
 	Ui::Text::String _text;
 	Ui::Text::String _price;
 	std::shared_ptr<Ui::DynamicImage> _userpic;
+	Ui::Premium::ColoredMiniStars _stars;
 	bool _subscribed = false;
 
 	QRect _button;

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "styles/style_credits.h"
@@ -39,7 +40,9 @@ GiftButton::GiftButton(
 	QWidget *parent,
 	not_null<GiftButtonDelegate*> delegate)
 : AbstractButton(parent)
-, _delegate(delegate) {
+, _delegate(delegate)
+, _stars(this, true, Ui::Premium::MiniStars::Type::SlowStars) {
+	_stars.setColorOverride(Ui::Premium::CreditsIconGradientStops());
 }
 
 GiftButton::~GiftButton() {
@@ -159,6 +162,8 @@ void GiftButton::setGeometry(QRect inner, QMargins extend) {
 void GiftButton::resizeEvent(QResizeEvent *e) {
 	if (!_button.isEmpty()) {
 		_button.moveLeft((width() - _button.width()) / 2);
+		const auto padding = _button.height() / 2;
+		_stars.setCenter(_button - QMargins(padding, 0, padding, 0));
 	}
 }
 
@@ -306,6 +311,13 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	p.drawRoundedRect(geometry, radius, radius);
 	if (!premium) {
 		p.setOpacity(1.);
+	}
+	{
+		auto clipPath = QPainterPath();
+		clipPath.addRoundedRect(geometry, radius, radius);
+		p.setClipPath(clipPath);
+		_stars.paint(p);
+		p.setClipping(false);
 	}
 
 	if (!_text.isEmpty()) {
