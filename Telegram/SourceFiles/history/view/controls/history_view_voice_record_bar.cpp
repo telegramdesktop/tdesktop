@@ -1534,13 +1534,11 @@ void VoiceRecordBar::init() {
 			if (_startRecordingFilter && _startRecordingFilter()) {
 				return;
 			}
-			_recordingTipRequired = true;
+			_recordingTipRequire = crl::now();
 			_recordingVideo = (_send->type() == Ui::SendButton::Type::Round);
 			_startTimer.callOnce(st::universalDuration);
 		} else if (e->type() == QEvent::MouseButtonRelease) {
-			if (base::take(_recordingTipRequired)) {
-				_recordingTipRequests.fire({});
-			}
+			checkTipRequired();
 			_startTimer.cancel();
 		}
 	}, lifetime());
@@ -1694,7 +1692,6 @@ void VoiceRecordBar::startRecording() {
 		}
 		instance()->updated(
 		) | rpl::start_with_next_error([=](const Update &update) {
-			_recordingTipRequired = (update.samples < kMinSamples);
 			recordUpdated(update.level, update.samples);
 		}, [=] {
 			stop(false);
@@ -1702,10 +1699,9 @@ void VoiceRecordBar::startRecording() {
 		if (_videoRecorder) {
 			_videoRecorder->updated(
 			) | rpl::start_with_next_error([=](const Update &update) {
-				_recordingTipRequired = (update.samples < kMinSamples);
 				recordUpdated(update.level, update.samples);
 				if (update.finished) {
-					stop(true);
+					stop(update.samples >= kMinSamples);
 				}
 			}, [=] {
 				stop(false);
@@ -1742,12 +1738,20 @@ void VoiceRecordBar::startRecording() {
 			}
 			computeAndSetLockProgress(mouse->globalPos());
 		} else if (type == QEvent::MouseButtonRelease) {
-			if (base::take(_recordingTipRequired)) {
-				_recordingTipRequests.fire({});
-			}
+			checkTipRequired();
 			stop(_inField.current());
 		}
 	}, _recordingLifetime);
+}
+
+void VoiceRecordBar::checkTipRequired() {
+	const auto require = base::take(_recordingTipRequire);
+	const auto duration = st::universalDuration
+		+ (kMinSamples * crl::time(1000)
+			/ ::Media::Player::kDefaultFrequency);
+	if (require && (require + duration > crl::now())) {
+		_recordingTipRequests.fire({});
+	}
 }
 
 void VoiceRecordBar::recordUpdated(quint16 level, int samples) {

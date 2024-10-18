@@ -124,6 +124,7 @@ private:
 	void updateTTLGeometry(TTLAnimationType type, float64 progress);
 
 	void recordUpdated(quint16 level, int samples);
+	void checkTipRequired();
 
 	void stop(bool send);
 	void stopRecording(StopType type, bool ttlBeforeHide = false);
@@ -192,7 +193,7 @@ private:
 	float64 _redCircleProgress = 0.;
 
 	rpl::event_stream<> _recordingTipRequests;
-	bool _recordingTipRequired = false;
+	crl::time _recordingTipRequire = 0;
 	bool _lockFromBottom = false;
 
 	std::unique_ptr<Ui::RoundVideoRecorder> _videoRecorder;

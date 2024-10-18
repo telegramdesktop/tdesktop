@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
+
 #include <crl/crl_object_on_queue.h>
 
 namespace Media::Capture {
@@ -51,22 +53,29 @@ public:
 	void hide(Fn<void(RoundVideoResult)> done = nullptr);
 
 	using Update = Media::Capture::Update;
-	[[nodiscard]] rpl::producer<Update, rpl::empty_error> updated() const;
+	[[nodiscard]] rpl::producer<Update, rpl::empty_error> updated();
 
 private:
 	class Private;
 
 	void setup();
 	void prepareFrame();
+	void createImages();
+	void progressTo(float64 progress);
 
 	const RoundVideoRecorderDescriptor _descriptor;
 	std::unique_ptr<RpWidget> _preview;
 	crl::object_on_queue<Private> _private;
+	Ui::Animations::Simple _progressAnimation;
+	float64 _progress = 0.;
 	QImage _frameOriginal;
 	QImage _framePrepared;
+	QImage _shadow;
 	int _lastAddedIndex = 0;
 	int _preparedIndex = 0;
 	int _side = 0;
+	int _progressStroke = 0;
+	int _extent = 0;
 	bool _paused = false;
 
 };

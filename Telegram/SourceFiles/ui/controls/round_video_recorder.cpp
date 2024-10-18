@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_utility.h"
 #include "media/audio/media_audio_capture.h"
 #include "ui/image/image_prepare.h"
+#include "ui/arc_angles.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "webrtc/webrtc_video_track.h"
@@ -703,10 +704,14 @@ Fn<void(Media::Capture::Chunk)> RoundVideoRecorder::audioChunkProcessor() {
 	};
 }
 
-auto RoundVideoRecorder::updated() const
+auto RoundVideoRecorder::updated()
 -> rpl::producer<Update, rpl::empty_error> {
 	return _private.producer_on_main([](const Private &that) {
 		return that.updated();
+	}) | rpl::before_next([=](const Update &update) {
+		const auto duration = (update.samples * crl::time(1000))
+			/ kAudioFrequency;
+		progressTo(duration / (1. * kMaxDuration));
 	});
 }
 
@@ -723,6 +728,19 @@ void RoundVideoRecorder::hide(Fn<void(RoundVideoResult)> done) {
 	if (const auto onstack = _descriptor.hidden) {
 		onstack(this);
 	}
+}
+
+void RoundVideoRecorder::progressTo(float64 progress) {
+	if (_progress == progress) {
+		return;
+	}
+	_progressAnimation.start(
+		[=] { _preview->update(); },
+		progress,
+		_progress,
+		kUpdateEach);
+	_progress = progress;
+	_preview->update();
 }
 
 void RoundVideoRecorder::prepareFrame() {
@@ -755,29 +773,82 @@ void RoundVideoRecorder::prepareFrame() {
 	_framePrepared.setDevicePixelRatio(ratio);
 }
 
+void RoundVideoRecorder::createImages() {
+	const auto ratio = style::DevicePixelRatio();
+	_framePrepared = QImage(
+		QSize(_side, _side) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_framePrepared.fill(Qt::transparent);
+	_framePrepared.setDevicePixelRatio(ratio);
+	auto p = QPainter(&_framePrepared);
+	auto hq = PainterHighQualityEnabler(p);
+
+	p.setPen(Qt::NoPen);
+	p.setBrush(Qt::black);
+	p.drawEllipse(0, 0, _side, _side);
+
+	const auto side = _side + 2 * _extent;
+	_shadow = QImage(
+		QSize(side, side) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_shadow.fill(Qt::transparent);
+	_shadow.setDevicePixelRatio(ratio);
+
+	auto sp = QPainter(&_shadow);
+	auto shq = PainterHighQualityEnabler(sp);
+
+	QRadialGradient gradient(
+		QPointF(_extent + _side / 2, _extent + _side / 2),
+		_side / 2 + _extent);
+	gradient.setColorAt(0, QColor(0, 0, 0, 128));
+	gradient.setColorAt(0.8, QColor(0, 0, 0, 64));
+	gradient.setColorAt(1, QColor(0, 0, 0, 0));
+
+	sp.setPen(Qt::NoPen);
+	sp.fillRect(0, 0, side, side, gradient);
+	sp.end();
+}
+
 void RoundVideoRecorder::setup() {
 	const auto raw = _preview.get();
 
 	_side = style::ConvertScale(kSide * 3 / 4);
+	_progressStroke = st::radialLine;
+	_extent = _progressStroke * 8;
+	createImages();
+
 	_descriptor.container->sizeValue(
 	) | rpl::start_with_next([=](QSize outer) {
+		const auto side = _side + 2 * _extent;
 		raw->setGeometry(
 			style::centerrect(
 				QRect(QPoint(), outer),
-				QRect(0, 0, _side, _side)));
+				QRect(0, 0, side, side)));
 	}, raw->lifetime());
 
 	raw->paintRequest() | rpl::start_with_next([=] {
 		prepareFrame();
 
 		auto p = QPainter(raw);
-		if (!_framePrepared.isNull()) {
-			p.drawImage(QRect(0, 0, _side, _side), _framePrepared);
-		} else {
+		p.drawImage(raw->rect(), _shadow);
+		const auto inner = QRect(_extent, _extent, _side, _side);
+		p.drawImage(inner, _framePrepared);
+		if (_progress > 0.) {
 			auto hq = PainterHighQualityEnabler(p);
-			p.setPen(Qt::NoPen);
-			p.setBrush(QColor(0, 0, 0));
-			p.drawEllipse(0, 0, _side, _side);
+			p.setPen(QPen(
+				Qt::white,
+				_progressStroke,
+				Qt::SolidLine,
+				Qt::RoundCap));
+			p.setBrush(Qt::NoBrush);
+			const auto add = _progressStroke * 3 / 2.;
+			const auto full = arc::kFullLength;
+			const auto length = int(base::SafeRound(
+				_progressAnimation.value(_progress) * full));
+			p.drawArc(
+				QRectF(inner).marginsAdded({ add, add, add, add }),
+				(full / 4) - length,
+				length);
 		}
 	}, raw->lifetime());
 
