@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/round_video_recorder.h"
 
+#include "base/concurrent_timer.h"
 #include "base/debug_log.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "media/audio/media_audio_capture.h"
@@ -25,7 +26,8 @@ constexpr auto kUpdateEach = crl::time(100);
 constexpr auto kAudioFrequency = 48'000;
 constexpr auto kAudioBitRate = 32'000;
 constexpr auto kVideoBitRate = 3 * 1024 * 1024;
-constexpr auto kMaxDuration = 10 * crl::time(1000); AssertIsDebug();
+constexpr auto kMaxDuration = 10 * crl::time(1000);
+constexpr auto kInitTimeout = 5 * crl::time(1000);
 
 using namespace FFmpeg;
 
@@ -40,7 +42,7 @@ public:
 	void push(const Media::Capture::Chunk &chunk);
 
 	using Update = Media::Capture::Update;
-	[[nodiscard]] rpl::producer<Update, rpl::empty_error> updated() const;
+	[[nodiscard]] rpl::producer<Update, Error> updated() const;
 
 	[[nodiscard]] RoundVideoResult finish();
 
@@ -57,7 +59,8 @@ private:
 	void notifyFinished();
 	void deinitEncoding();
 	void finishEncoding();
-	void fail();
+	void fail(Error error);
+	void timeout();
 
 	void encodeVideoFrame(int64 mcstimestamp, const QImage &frame);
 	void encodeAudioFrame(const Media::Capture::Chunk &chunk);
@@ -105,16 +108,21 @@ private:
 
 	ushort _maxLevelSinceLastUpdate = 0;
 	crl::time _lastUpdateDuration = 0;
-	rpl::event_stream<Update, rpl::empty_error> _updates;
+	rpl::event_stream<Update, Error> _updates;
 
 	std::vector<bool> _circleMask; // Always nice to use vector<bool>! :D
+
+	base::ConcurrentTimer _timeoutTimer;
 
 };
 
 RoundVideoRecorder::Private::Private(crl::weak_on_queue<Private> weak)
-: _weak(std::move(weak)) {
+: _weak(std::move(weak))
+, _timeoutTimer(_weak, [=] { timeout(); }) {
 	initEncoding();
 	initCircleMask();
+
+	_timeoutTimer.callOnce(kInitTimeout);
 }
 
 RoundVideoRecorder::Private::~Private() {
@@ -174,8 +182,11 @@ void RoundVideoRecorder::Private::initEncoding() {
 		&Private::Seek,
 		"mp4"_q);
 
-	if (!initVideo() || !initAudio()) {
-		fail();
+	if (!initVideo()) {
+		fail(Error::VideoInit);
+		return;
+	} else if (!initAudio()) {
+		fail(Error::AudioInit);
 		return;
 	}
 
@@ -184,7 +195,7 @@ void RoundVideoRecorder::Private::initEncoding() {
 		nullptr));
 	if (error) {
 		LogError("avformat_write_header", error);
-		fail();
+		fail(Error::Encoding);
 	}
 }
 
@@ -364,7 +375,7 @@ void RoundVideoRecorder::Private::finishEncoding() {
 }
 
 auto RoundVideoRecorder::Private::updated() const
--> rpl::producer<Update, rpl::empty_error> {
+-> rpl::producer<Update, Error> {
 	return _updates.events();
 }
 
@@ -380,9 +391,17 @@ RoundVideoResult RoundVideoRecorder::Private::finish() {
 	};
 };
 
-void RoundVideoRecorder::Private::fail() {
+void RoundVideoRecorder::Private::fail(Error error) {
 	deinitEncoding();
 	_updates.fire_error({});
+}
+
+void RoundVideoRecorder::Private::timeout() {
+	if (!_firstAudioChunkFinished) {
+		fail(Error::AudioTimeout);
+	} else if (!_firstVideoFrameTime) {
+		fail(Error::VideoTimeout);
+	}
 }
 
 void RoundVideoRecorder::Private::deinitEncoding() {
@@ -448,7 +467,7 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 		AV_PIX_FMT_YUV420P,
 		&_swsContext);
 	if (!_swsContext) {
-		fail();
+		fail(Error::Encoding);
 		return;
 	}
 
@@ -579,7 +598,7 @@ void RoundVideoRecorder::Private::encodeAudioFrame(
 
 		if (error) {
 			LogError("swr_convert", error);
-			fail();
+			fail(Error::Encoding);
 			return;
 		}
 
@@ -619,6 +638,8 @@ bool RoundVideoRecorder::Private::writeFrame(
 		const FramePointer &frame,
 		const CodecPointer &codec,
 		AVStream *stream) {
+	_timeoutTimer.cancel();
+
 	if (frame) {
 		updateResultDuration(frame->pts, codec->time_base);
 	}
@@ -626,7 +647,7 @@ bool RoundVideoRecorder::Private::writeFrame(
 	auto error = AvErrorWrap(avcodec_send_frame(codec.get(), frame.get()));
 	if (error) {
 		LogError("avcodec_send_frame", error);
-		fail();
+		fail(Error::Encoding);
 		return false;
 	}
 
@@ -642,7 +663,7 @@ bool RoundVideoRecorder::Private::writeFrame(
 			return true;  // Encoding finished
 		} else if (error) {
 			LogError("avcodec_receive_packet", error);
-			fail();
+			fail(Error::Encoding);
 			return false;
 		}
 
@@ -654,7 +675,7 @@ bool RoundVideoRecorder::Private::writeFrame(
 		error = AvErrorWrap(av_interleaved_write_frame(_format.get(), pkt));
 		if (error) {
 			LogError("av_interleaved_write_frame", error);
-			fail();
+			fail(Error::Encoding);
 			return false;
 		}
 	}
@@ -677,7 +698,11 @@ void RoundVideoRecorder::Private::updateResultDuration(
 		AVRational timeBase) {
 	accumulate_max(_resultDuration, PtsToTimeCeil(pts, timeBase));
 
-	if (_lastUpdateDuration + kUpdateEach >= _resultDuration) {
+	const auto initial = !_lastUpdateDuration;
+	if (initial) {
+		accumulate_max(_resultDuration, crl::time(1));
+	}
+	if (initial || (_lastUpdateDuration + kUpdateEach < _resultDuration)) {
 		_lastUpdateDuration = _resultDuration;
 		_updates.fire({
 			.samples = int(_resultDuration * 48),
@@ -704,15 +729,14 @@ Fn<void(Media::Capture::Chunk)> RoundVideoRecorder::audioChunkProcessor() {
 	};
 }
 
-auto RoundVideoRecorder::updated()
--> rpl::producer<Update, rpl::empty_error> {
+auto RoundVideoRecorder::updated() -> rpl::producer<Update, Error> {
 	return _private.producer_on_main([](const Private &that) {
 		return that.updated();
-	}) | rpl::before_next([=](const Update &update) {
-		const auto duration = (update.samples * crl::time(1000))
-			/ kAudioFrequency;
-		progressTo(duration / (1. * kMaxDuration));
-	});
+	}) | rpl::before_next(crl::guard(this, [=](const Update &update) {
+		const auto progress = (update.samples * crl::time(1000))
+			/ float64(kAudioFrequency * kMaxDuration);
+		progressTo(progress);
+	}));
 }
 
 void RoundVideoRecorder::hide(Fn<void(RoundVideoResult)> done) {
@@ -733,12 +757,20 @@ void RoundVideoRecorder::hide(Fn<void(RoundVideoResult)> done) {
 void RoundVideoRecorder::progressTo(float64 progress) {
 	if (_progress == progress) {
 		return;
+	} else if (_progress > 0.001) {
+		_progressAnimation.start(
+			[=] { _preview->update(); },
+			_progress,
+			progress,
+			kUpdateEach * 1.1);
 	}
-	_progressAnimation.start(
-		[=] { _preview->update(); },
-		progress,
-		_progress,
-		kUpdateEach);
+	if (!_progress) {
+		_fadeContentAnimation.start(
+			[=] { _preview->update(); },
+			0.,
+			1.,
+			crl::time(200));
+	}
 	_progress = progress;
 	_preview->update();
 }
@@ -775,12 +807,12 @@ void RoundVideoRecorder::prepareFrame() {
 
 void RoundVideoRecorder::createImages() {
 	const auto ratio = style::DevicePixelRatio();
-	_framePrepared = QImage(
+	_framePlaceholder = QImage(
 		QSize(_side, _side) * ratio,
 		QImage::Format_ARGB32_Premultiplied);
-	_framePrepared.fill(Qt::transparent);
-	_framePrepared.setDevicePixelRatio(ratio);
-	auto p = QPainter(&_framePrepared);
+	_framePlaceholder.fill(Qt::transparent);
+	_framePlaceholder.setDevicePixelRatio(ratio);
+	auto p = QPainter(&_framePlaceholder);
 	auto hq = PainterHighQualityEnabler(p);
 
 	p.setPen(Qt::NoPen);
@@ -830,10 +862,23 @@ void RoundVideoRecorder::setup() {
 		prepareFrame();
 
 		auto p = QPainter(raw);
+		const auto opacity = _fadeAnimation.value(_visible ? 1. : 0.);
+		if (_fadeAnimation.animating()) {
+			p.setOpacity(opacity);
+		} else if (!_visible) {
+			return;
+		}
 		p.drawImage(raw->rect(), _shadow);
 		const auto inner = QRect(_extent, _extent, _side, _side);
-		p.drawImage(inner, _framePrepared);
-		if (_progress > 0.) {
+		if (!_progress) {
+			p.drawImage(inner, _framePlaceholder);
+		} else {
+			if (_fadeContentAnimation.animating()) {
+				p.drawImage(inner, _framePlaceholder);
+				p.setOpacity(opacity * _fadeContentAnimation.value(1.));
+			}
+			p.drawImage(inner, _framePrepared);
+
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(QPen(
 				Qt::white,
@@ -867,8 +912,22 @@ void RoundVideoRecorder::setup() {
 	}, raw->lifetime());
 	_descriptor.track->markFrameShown();
 
+	fade(true);
+
 	raw->show();
 	raw->raise();
+}
+
+void RoundVideoRecorder::fade(bool visible) {
+	if (_visible == visible) {
+		return;
+	}
+	_visible = visible;
+	_fadeAnimation.start(
+		[=] { _preview->update(); },
+		visible ? 0. : 1.,
+		visible ? 1. : 0.,
+		crl::time(200));
 }
 
 void RoundVideoRecorder::setPaused(bool paused) {

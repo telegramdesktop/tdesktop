@@ -144,7 +144,7 @@ void Instance::start(Fn<void(Chunk)> externalProcessing) {
 			});
 		}, [=] {
 			crl::on_main(this, [=] {
-				_updates.fire_error({});
+				_updates.fire_error(Error::Other);
 			});
 		}, externalProcessing);
 		crl::on_main(this, [=] {
