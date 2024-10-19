@@ -15,9 +15,9 @@ namespace {
 [[nodiscard]] QByteArray Serialize(const QColor &qt) {
 	if (qt.alpha() == 255) {
 		return '#'
-			+ QByteArray::number(qt.red(), 16).right(2)
-			+ QByteArray::number(qt.green(), 16).right(2)
-			+ QByteArray::number(qt.blue(), 16).right(2);
+			+ QByteArray::number(qt.red(), 16).rightJustified(2, '0')
+			+ QByteArray::number(qt.green(), 16).rightJustified(2, '0')
+			+ QByteArray::number(qt.blue(), 16).rightJustified(2, '0');
 	}
 	return "rgba("
 		+ QByteArray::number(qt.red()) + ","
