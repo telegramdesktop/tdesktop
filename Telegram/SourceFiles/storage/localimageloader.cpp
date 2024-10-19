@@ -1014,7 +1014,7 @@ void FileLoadTask::process(Args &&args) {
 			MTPVector<MTPVideoSize>(),
 			MTP_int(_dcId),
 			MTP_vector<MTPDocumentAttribute>(attributes));
-		_type = SendMediaType::File;
+		_type = isRound ? SendMediaType::Round : SendMediaType::File;
 	}
 
 	if (_information) {

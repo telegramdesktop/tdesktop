@@ -456,6 +456,7 @@ void SendConfirmedFile(
 		not_null<Main::Session*> session,
 		const std::shared_ptr<FilePrepareResult> &file) {
 	const auto isEditing = (file->type != SendMediaType::Audio)
+		&& (file->type != SendMediaType::Round)
 		&& (file->to.replaceMediaOf != 0);
 	const auto newId = FullMsgId(
 		file->to.peer,
@@ -525,7 +526,8 @@ void SendConfirmedFile(
 		// Shortcut messages have no 'edited' badge.
 		flags |= MessageFlag::HideEdited;
 	}
-	if (file->type == SendMediaType::Audio) {
+	if (file->type == SendMediaType::Audio
+		|| file->type == SendMediaType::Round) {
 		if (!peer->isChannel() || peer->isMegagroup()) {
 			flags |= MessageFlag::MediaIsUnread;
 		}
@@ -551,26 +553,22 @@ void SendConfirmedFile(
 				MTPint());
 		} else if (file->type == SendMediaType::Audio) {
 			const auto ttlSeconds = file->to.options.ttlSeconds;
-			const auto isVoice = [&] {
-				return file->document.match([](const MTPDdocumentEmpty &d) {
-					return false;
-				}, [](const MTPDdocument &d) {
-					return ranges::any_of(d.vattributes().v, [&](
-							const MTPDocumentAttribute &attribute) {
-						using Att = MTPDdocumentAttributeAudio;
-						return attribute.match([](const Att &data) -> bool {
-							return data.vflags().v & Att::Flag::f_voice;
-						}, [](const auto &) {
-							return false;
-						});
-					});
-				});
-			}();
 			using Flag = MTPDmessageMediaDocument::Flag;
 			return MTP_messageMediaDocument(
 				MTP_flags(Flag::f_document
-					| (isVoice ? Flag::f_voice : Flag())
+					| Flag::f_voice
 					| (ttlSeconds ? Flag::f_ttl_seconds : Flag())),
+				file->document,
+				MTPVector<MTPDocument>(), // alt_documents
+				MTP_int(ttlSeconds));
+		} else if (file->type == SendMediaType::Round) {
+			using Flag = MTPDmessageMediaDocument::Flag;
+			const auto ttlSeconds = file->to.options.ttlSeconds;
+			return MTP_messageMediaDocument(
+				MTP_flags(Flag::f_document
+					| Flag::f_round
+					| (ttlSeconds ? Flag::f_ttl_seconds : Flag())
+					| (file->spoiler ? Flag::f_spoiler : Flag())),
 				file->document,
 				MTPVector<MTPDocument>(), // alt_documents
 				MTP_int(ttlSeconds));
