@@ -36,6 +36,9 @@ on:
       - 'Telegram/SourceFiles/platform/linux/**'
       - 'Telegram/configure.bat'
 
+permissions:
+  contents: read
+
 jobs:
 
   macos:
