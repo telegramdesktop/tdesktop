@@ -83,39 +83,6 @@ public:
 
 		AbstractButton::setDisabled(true);
 
-		class SmallButton final : public Ui::IconButton {
-		public:
-			SmallButton(
-				not_null<Ui::RpWidget*> parent,
-				QChar c,
-				float64 skip,
-				const style::color &color)
-			: Ui::IconButton(parent, st::ivPlusMinusZoom)
-			, _color(color)
-			, _skip(style::ConvertFloatScale(skip))
-			, _c(c) {
-			}
-
-			void paintEvent(QPaintEvent *event) override {
-				auto p = Painter(this);
-				Ui::RippleButton::paintRipple(
-					p,
-					st::ivPlusMinusZoom.rippleAreaPosition);
-				p.setPen(_color);
-				p.setFont(st::normalFont);
-				p.drawText(
-					QRectF(rect()).translated(0, _skip),
-					_c,
-					style::al_center);
-			}
-
-		private:
-			const style::color _color;
-			const float64 _skip;
-			const QChar _c;
-
-		};
-
 		const auto processTooltip = [=, this](not_null<Ui::RpWidget*> w) {
 			w->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
 				if (e->type() == QEvent::Enter) {
@@ -141,11 +108,16 @@ public:
 			_delegate->ivSetZoom(kDefaultZoom);
 		});
 		reset->show();
-		const auto plus = Ui::CreateChild<SmallButton>(
+		const auto plus = Ui::CreateSimpleCircleButton(
 			this,
-			'+',
-			0,
-			_st.itemFg);
+			st::defaultRippleAnimationBgOver);
+		plus->resize(Size(st::ivZoomButtonsSize));
+		plus->paintRequest() | rpl::start_with_next([=, fg = _st.itemFg] {
+			auto p = QPainter(plus);
+			p.setPen(fg);
+			p.setFont(st::normalFont);
+			p.drawText(plus->rect(), QChar('+'), style::al_center);
+		}, plus->lifetime());
 		processTooltip(plus);
 		const auto step = [] {
 			return base::IsAltPressed()
@@ -158,11 +130,20 @@ public:
 			_delegate->ivSetZoom(_delegate->ivZoom() + step());
 		});
 		plus->show();
-		const auto minus = Ui::CreateChild<SmallButton>(
+		const auto minus = Ui::CreateSimpleCircleButton(
 			this,
-			QChar(0x2013),
-			-1,
-			_st.itemFg);
+			st::defaultRippleAnimationBgOver);
+		minus->resize(Size(st::ivZoomButtonsSize));
+		minus->paintRequest() | rpl::start_with_next([=, fg = _st.itemFg] {
+			auto p = QPainter(minus);
+			const auto r = minus->rect();
+			p.setPen(fg);
+			p.setFont(st::normalFont);
+			p.drawText(
+				QRectF(r).translated(0, style::ConvertFloatScale(-1)),
+				QChar(0x2013),
+				style::al_center);
+		}, minus->lifetime());
 		processTooltip(minus);
 		minus->setClickedCallback([this, step] {
 			_delegate->ivSetZoom(_delegate->ivZoom() - step());
