@@ -1674,7 +1674,7 @@ Link::Link(
 
 	const auto createHandler = [](const QString &url) {
 		return UrlClickHandler::IsSuspicious(url)
-			? std::make_shared<HiddenUrlClickHandler>(url)
+			? std::make_shared<HiddenUrlClickHandler>(url, url)
 			: std::make_shared<UrlClickHandler>(url, false);
 	};
 	_page = media ? media->webpage() : nullptr;
@@ -2004,7 +2004,7 @@ Link::LinkEntry::LinkEntry(const QString &url, const QString &text)
 : text(text)
 , width(st::normalFont->width(text))
 , lnk(UrlClickHandler::IsSuspicious(url)
-	? std::make_shared<HiddenUrlClickHandler>(url)
+	? std::make_shared<HiddenUrlClickHandler>(url, text)
 	: std::make_shared<UrlClickHandler>(url)) {
 }
 
