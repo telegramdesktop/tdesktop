@@ -129,9 +129,7 @@ infoTopBarBack: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(6px, 6px);
 	rippleAreaSize: 42px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 infoTopBarTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
@@ -623,9 +621,7 @@ infoMembersCancelSearch: CrossButton {
 
 	duration: 150;
 	loadingPeriod: 1000;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 infoMembersSearchTop: 15px;
 
@@ -841,9 +837,7 @@ topBarSearch: IconButton {
 
 	rippleAreaPosition: point(0px, 7px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 topBarCloseChoose: IconButton(topBarSearch) {
 	width: 56px;
@@ -1146,9 +1140,7 @@ infoHoursDayLabel: infoHoursState;
 infoHoursOuter: RoundButton(defaultActiveButton) {
 	textBg: transparent;
 	textBgOver: transparent;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 infoHoursOuterMargin: margins(8px, 4px, 8px, 4px);
 infoHoursDaySkip: 6px;

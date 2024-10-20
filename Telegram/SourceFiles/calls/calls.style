@@ -409,9 +409,7 @@ callRatingStar: IconButton {
 	icon: icon {{ "calls/call_rating", windowSubTextFg }};
 	iconPosition: point(-1px, -1px);
 
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 36px;
 }
@@ -1410,9 +1408,7 @@ groupCallRtmpShowButton: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 32px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 groupCallSettingsRtmpShowButton: IconButton(groupCallRtmpShowButton) {
 	ripple: groupCallRipple;

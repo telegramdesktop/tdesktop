@@ -17,9 +17,7 @@ ivMenuToggle: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(6px, 6px);
 	rippleAreaSize: 36px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 ivMenuPosition: point(-2px, 40px);
 ivBackIcon: icon {{ "box_button_back", menuIconColor }};
@@ -36,9 +34,7 @@ ivPlusMinusZoom: IconButton(ivMenuToggle) {
 
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: ivZoomButtonsSize;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 ivResetZoomStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);

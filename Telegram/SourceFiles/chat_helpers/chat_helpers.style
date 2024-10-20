@@ -331,9 +331,7 @@ stickersRemove: IconButton(defaultIconButton) {
 
 	rippleAreaSize: 40px;
 	rippleAreaPosition: point(0px, 0px);
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 stickersUndoRemove: RoundButton(defaultLightButton) {
 	width: -16px;
@@ -494,9 +492,7 @@ hashtagClose: IconButton {
 
 	rippleAreaPosition: point(5px, 5px);
 	rippleAreaSize: 20px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 
 stickerPanWidthMin: 64px;
@@ -898,9 +894,7 @@ historyBusinessBotSettings: IconButton(defaultIconButton) {
 	iconPosition: point(-1px, -1px);
 	rippleAreaSize: 40px;
 	rippleAreaPosition: point(4px, 9px);
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 	height: 58px;
 	width: 48px;
 }
@@ -927,9 +921,7 @@ historyReplyCancel: IconButton {
 
 	rippleAreaPosition: point(4px, 4px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 historyPinnedShowAll: IconButton(historyReplyCancel) {
 	icon: icon {{ "pinned_show_all", historyReplyCancelFg }};
@@ -1058,9 +1050,7 @@ historyAttach: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(2px, 3px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 
 historyMessagesTTL: IconButtonWithText {
@@ -1287,9 +1277,7 @@ defaultComposeFilesMenu: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(1px, 6px);
 	rippleAreaSize: 42px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 defaultComposeFilesField: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 31px, 4px);
@@ -1349,9 +1337,7 @@ moreChatsBarClose: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(0px, 4px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 
 reportReasonTopSkip: 8px;
