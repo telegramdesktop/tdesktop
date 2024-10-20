@@ -419,64 +419,56 @@ struct State {
 }
 
 bool UpdateUserpics(
-		not_null<State*> state,
-		not_null<HistoryItem*> item,
-		const std::vector<PeerWithReaction> &ids) {
-	auto &owner = item->history()->owner();
+    not_null<State*> state,
+    not_null<HistoryItem*> item,
+    const std::vector<PeerWithReaction> &ids) {
+    auto &owner = item->history()->owner();
 
-	struct ResolvedPeer {
-		PeerData *peer = nullptr;
-		TimeId date = 0;
-		bool dateReacted = false;
-		ReactionId reaction;
-	};
-	const auto peers = ranges::views::all(
-		ids
-	) | ranges::views::transform([&](PeerWithReaction id) {
-		return ResolvedPeer{
-			.peer = owner.peerLoaded(id.peerWithDate.peer),
-			.date = id.peerWithDate.date,
-			.dateReacted = id.peerWithDate.dateReacted,
-			.reaction = id.reaction,
-		};
-	}) | ranges::views::filter([](ResolvedPeer resolved) {
-		return resolved.peer != nullptr;
-	}) | ranges::to_vector;
+    auto resolvePeer = [&](const PeerWithReaction& id) -> std::optional<ResolvedPeer> {
+        auto peerData = owner.peerLoaded(id.peerWithDate.peer);
+        if (peerData) {
+            return ResolvedPeer {
+                .peer = peerData,
+                .date = id.peerWithDate.date,
+                .dateReacted = id.peerWithDate.dateReacted,
+                .reaction = id.reaction
+            };
+        }
+        return std::nullopt;
+    };
 
-	const auto same = ranges::equal(
-		state->userpics,
-		peers,
-		ranges::equal_to(),
-		[](const Userpic &u) { return std::pair(u.peer.get(), u.date); },
-		[](const ResolvedPeer &r) { return std::pair(r.peer, r.date); });
-	if (same) {
-		return false;
-	}
-	auto &was = state->userpics;
-	auto now = std::vector<Userpic>();
-	for (const auto &resolved : peers) {
-		const auto peer = not_null{ resolved.peer };
-		const auto &data = ReactionEntityData(resolved.reaction);
-		const auto i = ranges::find(was, peer, &Userpic::peer);
-		if (i != end(was) && i->view.cloud) {
-			i->date = resolved.date;
-			i->dateReacted = resolved.dateReacted;
-			now.push_back(std::move(*i));
-			now.back().customEntityData = data;
-			continue;
-		}
-		now.push_back(Userpic{
-			.peer = peer,
-			.date = resolved.date,
-			.dateReacted = resolved.dateReacted,
-			.customEntityData = data,
-		});
-		auto &userpic = now.back();
-		userpic.uniqueKey = peer->userpicUniqueKey(userpic.view);
-		peer->loadUserpic();
-	}
-	was = std::move(now);
-	return true;
+    auto resolvedPeers = ids | ranges::views::transform(resolvePeer)
+                              | ranges::views::filter([](const auto& resolved){ return resolved.has_value(); })
+                              | ranges::views::transform([](const auto& resolved){ return resolved.value(); })
+                              | ranges::to_vector;
+
+    if (ranges::equal(state->userpics, resolvedPeers, {}, 
+                      [](const auto& userpic){ return std::tie(userpic.peer, userpic.date); },
+                      [](const auto& resolved){ return std::tie(resolved.peer, resolved.date); })) {
+        return false;
+    }
+
+    state->userpics = resolvedPeers | ranges::views::transform([&](const auto& resolved) {
+        auto i = ranges::find(state->userpics, resolved.peer, &Userpic::peer);
+        if (i != end(state->userpics) && i->view.cloud) {
+            i->date = resolved.date;
+            i->dateReacted = resolved.dateReacted;
+            i->customEntityData = ReactionEntityData(resolved.reaction);
+            return *i;
+        } else {
+            auto userpic = Userpic {
+                .peer = resolved.peer,
+                .date = resolved.date,
+                .dateReacted = resolved.dateReacted,
+                .customEntityData = ReactionEntityData(resolved.reaction)
+            };
+            userpic.uniqueKey = resolved.peer->userpicUniqueKey(userpic.view);
+            resolved.peer->loadUserpic();
+            return userpic;
+        }
+    }) | ranges::to_vector;
+
+    return true;
 }
 
 void RegenerateUserpics(not_null<State*> state, int small, int large) {
@@ -503,37 +495,52 @@ void RegenerateUserpics(not_null<State*> state, int small, int large) {
 	}
 }
 
+void UpdateExistingParticipants(State& state, const QDateTime& currentDate) {
+    auto& participants = state.current.participants;
+    for (auto& userpic : state.userpics) {
+        const auto peer = userpic.peer;
+        const auto id = peer->id.value;
+        const auto wasParticipant = ranges::find(participants, id, &Ui::WhoReadParticipant::id);
+        if (wasParticipant != end(participants)) {
+            wasParticipant->name = peer->name();
+            wasParticipant->date = FormatReadDate(userpic.date, currentDate);
+            wasParticipant->dateReacted = userpic.dateReacted;
+            participants.push_back(std::move(*wasParticipant));
+        }
+    }
+}
+
+void AddNewParticipants(State& state, const QDateTime& currentDate, int small, int large) {
+    auto& participants = state.current.participants;
+    for (auto& userpic : state.userpics) {
+        const auto peer = userpic.peer;
+        const auto id = peer->id.value;
+        const auto wasParticipant = ranges::find(participants, id, &Ui::WhoReadParticipant::id);
+        if (wasParticipant == end(participants)) {
+            Ui::WhoReadParticipant newParticipant {
+                .name = peer->name(),
+                .date = FormatReadDate(userpic.date, currentDate),
+                .dateReacted = userpic.dateReacted,
+                .customEntityData = userpic.customEntityData,
+                .userpicLarge = GenerateUserpic(userpic, large),
+                .userpicKey = userpic.uniqueKey,
+                .id = id,
+            };
+            participants.push_back(newParticipant);
+            if (participants.size() <= Ui::WhoReadParticipant::kMaxSmallUserpics) {
+                participants.back().userpicSmall = GenerateUserpic(userpic, small);
+            }
+        }
+    }
+}
+
 void RegenerateParticipants(not_null<State*> state, int small, int large) {
-	const auto currentDate = QDateTime::currentDateTime();
-	auto old = base::take(state->current.participants);
-	auto &now = state->current.participants;
-	now.reserve(state->userpics.size());
-	for (auto &userpic : state->userpics) {
-		const auto peer = userpic.peer;
-		const auto date = userpic.date;
-		const auto id = peer->id.value;
-		const auto was = ranges::find(old, id, &Ui::WhoReadParticipant::id);
-		if (was != end(old)) {
-			was->name = peer->name();
-			was->date = FormatReadDate(date, currentDate);
-			was->dateReacted = userpic.dateReacted;
-			now.push_back(std::move(*was));
-			continue;
-		}
-		now.push_back({
-			.name = peer->name(),
-			.date = FormatReadDate(date, currentDate),
-			.dateReacted = userpic.dateReacted,
-			.customEntityData = userpic.customEntityData,
-			.userpicLarge = GenerateUserpic(userpic, large),
-			.userpicKey = userpic.uniqueKey,
-			.id = id,
-		});
-		if (now.size() <= Ui::WhoReadParticipant::kMaxSmallUserpics) {
-			now.back().userpicSmall = GenerateUserpic(userpic, small);
-		}
-	}
-	RegenerateUserpics(state, small, large);
+    const QDateTime currentDate = QDateTime::currentDateTime();
+
+    UpdateExistingParticipants(*state, currentDate);
+    AddNewParticipants(*state, currentDate, small, large);
+
+    RegenerateUserpics(state, small, large);
 }
 
 rpl::producer<Ui::WhoReadContent> WhoReacted(
