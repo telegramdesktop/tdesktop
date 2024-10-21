@@ -69,7 +69,7 @@ private:
 	class Private;
 
 	void setup();
-	void prepareFrame();
+	void prepareFrame(bool blurred = false);
 	void createImages();
 	void progressTo(float64 progress);
 	void fade(bool visible);
@@ -90,6 +90,7 @@ private:
 	int _side = 0;
 	int _progressStroke = 0;
 	int _extent = 0;
+	bool _progressReceived = false;
 	bool _visible = false;
 	bool _paused = false;
 

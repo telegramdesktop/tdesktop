@@ -29,6 +29,7 @@ constexpr auto kVideoBitRate = 3 * 1024 * 1024;
 constexpr auto kMinDuration = crl::time(200);
 constexpr auto kMaxDuration = 60 * crl::time(1000);
 constexpr auto kInitTimeout = 5 * crl::time(1000);
+constexpr auto kBlurredSize = 64;
 
 using namespace FFmpeg;
 
@@ -978,16 +979,16 @@ void RoundVideoRecorder::hide(Fn<void(RoundVideoResult)> done) {
 }
 
 void RoundVideoRecorder::progressTo(float64 progress) {
-	if (_progress == progress) {
+	if (_progress == progress || _paused) {
 		return;
-	} else if (_progress > 0.001) {
+	} else if (_progressReceived) {
 		_progressAnimation.start(
 			[=] { _preview->update(); },
 			_progress,
 			progress,
 			kUpdateEach * 1.1);
-	}
-	if (!_progress) {
+	} else {
+		_progressReceived = true;
 		_fadeContentAnimation.start(
 			[=] { _preview->update(); },
 			0.,
@@ -998,11 +999,15 @@ void RoundVideoRecorder::progressTo(float64 progress) {
 	_preview->update();
 }
 
-void RoundVideoRecorder::prepareFrame() {
-	if (_frameOriginal.isNull() || _preparedIndex == _lastAddedIndex) {
+void RoundVideoRecorder::prepareFrame(bool blurred) {
+	if (_frameOriginal.isNull()) {
 		return;
+	} else if (!blurred) {
+		if (_preparedIndex == _lastAddedIndex) {
+			return;
+		}
+		_preparedIndex = _lastAddedIndex;
 	}
-	_preparedIndex = _lastAddedIndex;
 
 	const auto owidth = _frameOriginal.width();
 	const auto oheight = _frameOriginal.height();
@@ -1020,12 +1025,27 @@ void RoundVideoRecorder::prepareFrame() {
 		_frameOriginal.format());
 
 	const auto ratio = style::DevicePixelRatio();
-	_framePrepared = Images::Circle(copy.scaled(
-		_side * ratio,
-		_side * ratio,
-		Qt::KeepAspectRatio,
-		Qt::SmoothTransformation));
-	_framePrepared.setDevicePixelRatio(ratio);
+	if (blurred) {
+		static constexpr auto kRadius = 16;
+		_framePlaceholder = Images::Circle(
+			Images::BlurLargeImage(
+				copy.scaled(
+					QSize(kBlurredSize, kBlurredSize),
+					Qt::KeepAspectRatio,
+					Qt::FastTransformation),
+				kRadius
+			).scaled(
+				QSize(_side, _side) * ratio,
+				Qt::KeepAspectRatio,
+				Qt::SmoothTransformation));
+		_framePlaceholder.setDevicePixelRatio(ratio);
+	} else {
+		_framePrepared = Images::Circle(copy.scaled(
+			QSize(_side, _side) * ratio,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation));
+		_framePrepared.setDevicePixelRatio(ratio);
+	}
 }
 
 void RoundVideoRecorder::createImages() {
@@ -1093,12 +1113,14 @@ void RoundVideoRecorder::setup() {
 		}
 		p.drawImage(raw->rect(), _shadow);
 		const auto inner = QRect(_extent, _extent, _side, _side);
-		if (!_progress) {
+		const auto fading = _fadeContentAnimation.animating();
+		if (!_progressReceived && !fading) {
 			p.drawImage(inner, _framePlaceholder);
 		} else {
-			if (_fadeContentAnimation.animating()) {
+			if (fading) {
 				p.drawImage(inner, _framePlaceholder);
-				p.setOpacity(opacity * _fadeContentAnimation.value(1.));
+				const auto to = _progressReceived ? 1. : 0.;
+				p.setOpacity(opacity * _fadeContentAnimation.value(to));
 			}
 			p.drawImage(inner, _framePrepared);
 
@@ -1162,6 +1184,13 @@ void RoundVideoRecorder::pause(Fn<void(RoundVideoResult)> done) {
 		});
 	}
 	_paused = true;
+	prepareFrame(true);
+	_progressReceived = false;
+	_fadeContentAnimation.start(
+		[=] { _preview->update(); },
+		1.,
+		0.,
+		crl::time(200));
 	_descriptor.track->setState(Webrtc::VideoState::Inactive);
 	_preview->update();
 }
