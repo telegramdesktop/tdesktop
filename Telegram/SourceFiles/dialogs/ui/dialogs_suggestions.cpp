@@ -57,7 +57,6 @@ namespace {
 
 constexpr auto kCollapsedChannelsCount = 5;
 constexpr auto kProbablyMaxChannels = 1000;
-constexpr auto kProbablyMaxRecommendations = 100;
 constexpr auto kCollapsedAppsCount = 5;
 constexpr auto kProbablyMaxApps = 100;
 
