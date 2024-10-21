@@ -63,7 +63,7 @@ public:
 
 	void start(Fn<void(Chunk)> externalProcessing = nullptr);
 	void stop(Fn<void(Result&&)> callback = nullptr);
-	void pause(bool value, Fn<void(Result&&)> callback);
+	void pause(bool value, Fn<void(Result&&)> callback = nullptr);
 
 private:
 	class Inner;

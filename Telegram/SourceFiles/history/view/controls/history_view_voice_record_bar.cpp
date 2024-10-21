@@ -497,8 +497,7 @@ ListenWrap::ListenWrap(
 , _data(data)
 , _delete(base::make_unique_q<Ui::IconButton>(parent, _st.remove))
 , _durationFont(font)
-, _duration(Ui::FormatDurationText(
-	float64(_data->samples) / ::Media::Player::kDefaultFrequency))
+, _duration(Ui::FormatDurationText(_data->duration / 1000))
 , _durationWidth(_durationFont->width(_duration))
 , _playPauseSt(st::mediaPlayerButton)
 , _playPauseButton(base::make_unique_q<Ui::AbstractButton>(parent))
@@ -634,7 +633,7 @@ void ListenWrap::initPlayButton() {
 
 	_mediaView->setBytes(_data->bytes);
 	_document->size = _data->bytes.size();
-	_document->type = VoiceDocument;
+	_document->type = _data->video ? RoundVideoDocument : VoiceDocument;
 
 	const auto &play = _playPauseSt.playOuter;
 	const auto &width = _waveformBgFinalCenterRect.height();
@@ -833,6 +832,7 @@ public:
 	void requestPaintLockToStopProgress(float64 progress);
 	void requestPaintPauseToInputProgress(float64 progress);
 	void setVisibleTopPart(int part);
+	void setRecordingVideo(bool value);
 
 	[[nodiscard]] rpl::producer<> locks() const;
 	[[nodiscard]] bool isLocked() const;
@@ -861,6 +861,7 @@ private:
 	float64 _pauseToInputProgress = 0.;
 	rpl::variable<float64> _progress = 0.;
 	int _visibleTopPart = -1;
+	bool _recordingVideo = false;
 
 };
 
@@ -882,6 +883,10 @@ RecordLock::RecordLock(
 
 void RecordLock::setVisibleTopPart(int part) {
 	_visibleTopPart = part;
+}
+
+void RecordLock::setRecordingVideo(bool value) {
+	_recordingVideo = value;
 }
 
 void RecordLock::init() {
@@ -974,9 +979,10 @@ void RecordLock::drawProgress(QPainter &p) {
 			p.setBrush(_st.fg);
 			if (_pauseToInputProgress > 0.) {
 				p.setOpacity(_pauseToInputProgress);
-				st::historyRecordLockInput.paintInCenter(
-					p,
-					blockRect.toRect());
+				const auto &icon = _recordingVideo
+					? st::historyRecordLockRound
+					: st::historyRecordLockInput;
+				icon.paintInCenter(p, blockRect.toRect());
 				p.setOpacity(1. - _pauseToInputProgress);
 			}
 			p.drawRoundedRect(
@@ -1533,6 +1539,7 @@ void VoiceRecordBar::init() {
 			}
 			_recordingTipRequire = crl::now();
 			_recordingVideo = (_send->type() == Ui::SendButton::Type::Round);
+			_lock->setRecordingVideo(_recordingVideo);
 			_startTimer.callOnce(st::universalDuration);
 		} else if (e->type() == QEvent::MouseButtonRelease) {
 			checkTipRequired();
@@ -1680,7 +1687,9 @@ void VoiceRecordBar::startRecording() {
 			_paused = false;
 			instance()->pause(false, nullptr);
 			if (_videoRecorder) {
-				_videoRecorder->setPaused(false);
+				_videoRecorder->resume({
+					.content = _data.bytes,
+				});
 			}
 		} else {
 			instance()->start(_videoRecorder
@@ -1809,7 +1818,6 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 	using namespace ::Media::Capture;
 	if (type == StopType::Cancel) {
 		if (_videoRecorder) {
-			_videoRecorder->setPaused(true);
 			_videoRecorder->hide();
 		}
 		instance()->stop(crl::guard(this, [=](Result &&data) {
@@ -1817,29 +1825,54 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 		}));
 	} else if (type == StopType::Listen) {
 		if (_videoRecorder) {
-			_videoRecorder->setPaused(true);
+			const auto weak = Ui::MakeWeak(this);
+			_videoRecorder->pause([=](Ui::RoundVideoResult data) {
+				crl::on_main([=, data = std::move(data)]() mutable {
+					if (weak) {
+						window()->raise();
+						window()->activateWindow();
+
+						_paused = true;
+						_data = ::Media::Capture::Result{
+							.bytes = std::move(data.content),
+							//.waveform = std::move(data.waveform),
+							.duration = data.duration,
+							.video = true,
+						};
+						_listen = std::make_unique<ListenWrap>(
+							this,
+							_st,
+							&_show->session(),
+							&_data,
+							_cancelFont);
+						_listenChanges.fire({});
+					}
+				});
+			});
+			instance()->pause(true);
+		} else {
+			instance()->pause(true, crl::guard(this, [=](Result &&data) {
+				if (data.bytes.isEmpty()) {
+					// Close everything.
+					stop(false);
+					return;
+				}
+				_paused = true;
+				_data = std::move(data);
+
+				window()->raise();
+				window()->activateWindow();
+				_listen = std::make_unique<ListenWrap>(
+					this,
+					_st,
+					&_show->session(),
+					&_data,
+					_cancelFont);
+				_listenChanges.fire({});
+
+				// _lockShowing = false;
+			}));
 		}
-		instance()->pause(true, crl::guard(this, [=](Result &&data) {
-			if (data.bytes.isEmpty()) {
-				// Close everything.
-				stop(false);
-				return;
-			}
-			_paused = true;
-			_data = std::move(data);
-
-			window()->raise();
-			window()->activateWindow();
-			_listen = std::make_unique<ListenWrap>(
-				this,
-				_st,
-				&_show->session(),
-				&_data,
-				_cancelFont);
-			_listenChanges.fire({});
-
-			// _lockShowing = false;
-		}));
 	} else if (type == StopType::Send) {
 		if (_videoRecorder) {
 			const auto weak = Ui::MakeWeak(this);
@@ -1882,7 +1915,7 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 			_sendVoiceRequests.fire({
 				_data.bytes,
 				_data.waveform,
-				Duration(_data.samples),
+				_data.duration,
 				options,
 			});
 		}));
@@ -1949,7 +1982,7 @@ void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
 		_sendVoiceRequests.fire({
 			_data.bytes,
 			_data.waveform,
-			Duration(_data.samples),
+			_data.duration,
 			options,
 		});
 	}

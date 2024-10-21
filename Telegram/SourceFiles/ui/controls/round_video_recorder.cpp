@@ -46,6 +46,7 @@ public:
 	[[nodiscard]] rpl::producer<Update, Error> updated() const;
 
 	[[nodiscard]] RoundVideoResult finish();
+	void restart(RoundVideoPartial partial);
 
 private:
 	static int Write(void *opaque, uint8_t *buf, int buf_size);
@@ -111,6 +112,10 @@ private:
 	crl::time _lastUpdateDuration = 0;
 	rpl::event_stream<Update, Error> _updates;
 
+	crl::time _maxDuration = 0;
+	crl::time _previousPartsDuration = 0;
+	QByteArray _previousContent;
+
 	std::vector<bool> _circleMask; // Always nice to use vector<bool>! :D
 
 	base::ConcurrentTimer _timeoutTimer;
@@ -119,6 +124,7 @@ private:
 
 RoundVideoRecorder::Private::Private(crl::weak_on_queue<Private> weak)
 : _weak(std::move(weak))
+, _maxDuration(kMaxDuration)
 , _timeoutTimer(_weak, [=] { timeout(); }) {
 	initEncoding();
 	initCircleMask();
@@ -385,15 +391,31 @@ RoundVideoResult RoundVideoRecorder::Private::finish() {
 		return {};
 	}
 	finishEncoding();
-	if (_resultDuration < kMinDuration) {
+	auto result = RoundVideoResult{
+		.content = base::take(_result),
+		.waveform = QByteArray(),
+		.duration = base::take(_resultDuration),
+	};
+	if (result.duration < kMinDuration) {
 		return {};
 	}
-	return {
-		.content = _result,
-		.waveform = QByteArray(),
-		.duration = _resultDuration,
-	};
-};
+	_previousPartsDuration += result.duration;
+	_maxDuration -= result.duration;
+	return result;
+}
+
+void RoundVideoRecorder::Private::restart(RoundVideoPartial partial) {
+	if (_format) {
+		return;
+	} else if (_maxDuration <= 0) {
+		notifyFinished();
+		return;
+	}
+	_previousContent = std::move(partial.content);
+	_finished = false;
+	initEncoding();
+	_timeoutTimer.callOnce(kInitTimeout);
+}
 
 void RoundVideoRecorder::Private::fail(Error error) {
 	deinitEncoding();
@@ -421,7 +443,17 @@ void RoundVideoRecorder::Private::deinitEncoding() {
 
 	_videoFirstTimestamp = -1;
 	_videoPts = 0;
+	_audioTail = QByteArray();
 	_audioPts = 0;
+	_audioChannels = 0;
+
+	_firstAudioChunkFinished = 0;
+	_firstVideoFrameTime = 0;
+
+	_resultOffset = 0;
+
+	_maxLevelSinceLastUpdate = 0;
+	_lastUpdateDuration = 0;
 }
 
 void RoundVideoRecorder::Private::push(
@@ -494,7 +526,7 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 	cutCircleFromYUV420P(_videoFrame.get());
 
 	_videoFrame->pts = mcstimestamp - _videoFirstTimestamp;
-	if (_videoFrame->pts >= kMaxDuration * int64(1000)) {
+	if (_videoFrame->pts >= _maxDuration * int64(1000)) {
 		notifyFinished();
 		return;
 	} else if (!writeFrame(_videoFrame, _videoCodec, _videoStream)) {
@@ -611,7 +643,7 @@ void RoundVideoRecorder::Private::encodeAudioFrame(
 
 		_audioFrame->pts = _audioPts;
 		_audioPts += _audioFrame->nb_samples;
-		if (_audioPts >= kMaxDuration * int64(kAudioFrequency) / 1000) {
+		if (_audioPts >= _maxDuration * int64(kAudioFrequency) / 1000) {
 			notifyFinished();
 			return;
 		} else if (!writeFrame(_audioFrame, _audioCodec, _audioStream)) {
@@ -632,7 +664,7 @@ void RoundVideoRecorder::Private::encodeAudioFrame(
 void RoundVideoRecorder::Private::notifyFinished() {
 	_finished = true;
 	_updates.fire({
-		.samples = int(_resultDuration * 48),
+		.samples = int((_previousPartsDuration + _resultDuration) * 48),
 		.level = base::take(_maxLevelSinceLastUpdate),
 		.finished = true,
 	});
@@ -709,7 +741,7 @@ void RoundVideoRecorder::Private::updateResultDuration(
 	if (initial || (_lastUpdateDuration + kUpdateEach < _resultDuration)) {
 		_lastUpdateDuration = _resultDuration;
 		_updates.fire({
-			.samples = int(_resultDuration * 48),
+			.samples = int((_previousPartsDuration + _resultDuration) * 48),
 			.level = base::take(_maxLevelSinceLastUpdate),
 		});
 	}
@@ -744,13 +776,7 @@ auto RoundVideoRecorder::updated() -> rpl::producer<Update, Error> {
 }
 
 void RoundVideoRecorder::hide(Fn<void(RoundVideoResult)> done) {
-	if (done) {
-		_private.with([done = std::move(done)](Private &that) {
-			done(that.finish());
-		});
-	}
-
-	setPaused(true);
+	pause(std::move(done));
 
 	_preview->hide();
 	if (const auto onstack = _descriptor.hidden) {
@@ -934,16 +960,29 @@ void RoundVideoRecorder::fade(bool visible) {
 		crl::time(200));
 }
 
-void RoundVideoRecorder::setPaused(bool paused) {
-	if (_paused == paused) {
+void RoundVideoRecorder::pause(Fn<void(RoundVideoResult)> done) {
+	if (_paused) {
 		return;
+	} else if (done) {
+		_private.with([done = std::move(done)](Private &that) {
+			done(that.finish());
+		});
 	}
-	_paused = paused;
-	_descriptor.track->setState(paused
-		? Webrtc::VideoState::Inactive
-		: Webrtc::VideoState::Active);
+	_paused = true;
+	_descriptor.track->setState(Webrtc::VideoState::Inactive);
 	_preview->update();
 }
 
+void RoundVideoRecorder::resume(RoundVideoPartial partial) {
+	if (!_paused) {
+		return;
+	}
+	_private.with([partial = std::move(partial)](Private &that) mutable {
+		that.restart(std::move(partial));
+	});
+	_paused = false;
+	_descriptor.track->setState(Webrtc::VideoState::Active);
+	_preview->update();
+}
 
 } // namespace Ui

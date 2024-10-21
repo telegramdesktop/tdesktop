@@ -170,13 +170,15 @@ void Instance::stop(Fn<void(Result&&)> callback) {
 }
 
 void Instance::pause(bool value, Fn<void(Result&&)> callback) {
-	Expects(callback != nullptr || !value);
 	InvokeQueued(_inner.get(), [=] {
-		_inner->pause(value, [=](Result &&result) {
-			crl::on_main([=, result = std::move(result)]() mutable {
-				callback(std::move(result));
-			});
-		});
+		auto done = callback
+			? [=](Result &&result) {
+				crl::on_main([=, result = std::move(result)]() mutable {
+					callback(std::move(result));
+				});
+			}
+			: std::move(callback);
+		_inner->pause(value, std::move(done));
 	});
 }
 
@@ -481,11 +483,16 @@ void Instance::Inner::pause(bool value, Fn<void(Result&&)> callback) {
 	if (!_paused) {
 		return;
 	}
-	callback({
-		d->fullSamples ? d->data : QByteArray(),
-		d->fullSamples ? CollectWaveform(d->waveform) : VoiceWaveform(),
-		qint32(d->fullSamples),
-	});
+	if (callback) {
+		callback({
+			.bytes = d->fullSamples ? d->data : QByteArray(),
+			.waveform = (d->fullSamples
+				? CollectWaveform(d->waveform)
+				: VoiceWaveform()),
+			.duration = ((d->fullSamples * crl::time(1000))
+				/ int64(kCaptureFrequency)),
+		});
+	}
 }
 
 void Instance::Inner::stop(Fn<void(Result&&)> callback) {
@@ -620,7 +627,11 @@ void Instance::Inner::stop(Fn<void(Result&&)> callback) {
 	}
 
 	if (needResult) {
-		callback({ result, waveform, samples });
+		callback({
+			.bytes = result,
+			.waveform = waveform,
+			.duration = (samples * crl::time(1000)) / kCaptureFrequency,
+		});
 	}
 }
 

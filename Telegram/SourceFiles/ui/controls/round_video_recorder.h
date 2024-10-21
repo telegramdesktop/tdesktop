@@ -44,6 +44,12 @@ struct RoundVideoResult {
 	crl::time duration = 0;
 };
 
+struct RoundVideoPartial {
+	QByteArray content;
+	crl::time from = 0;
+	crl::time till = 0;
+};
+
 class RoundVideoRecorder final : public base::has_weak_ptr {
 public:
 	explicit RoundVideoRecorder(RoundVideoRecorderDescriptor &&descriptor);
@@ -51,7 +57,8 @@ public:
 
 	[[nodiscard]] Fn<void(Media::Capture::Chunk)> audioChunkProcessor();
 
-	void setPaused(bool paused);
+	void pause(Fn<void(RoundVideoResult)> done = nullptr);
+	void resume(RoundVideoPartial partial);
 	void hide(Fn<void(RoundVideoResult)> done = nullptr);
 
 	using Update = Media::Capture::Update;
