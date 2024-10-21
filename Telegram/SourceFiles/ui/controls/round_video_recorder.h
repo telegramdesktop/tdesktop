@@ -45,7 +45,7 @@ struct RoundVideoResult {
 };
 
 struct RoundVideoPartial {
-	QByteArray content;
+	RoundVideoResult video;
 	crl::time from = 0;
 	crl::time till = 0;
 };

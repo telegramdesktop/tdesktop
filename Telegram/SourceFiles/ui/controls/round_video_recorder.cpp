@@ -32,6 +32,39 @@ constexpr auto kInitTimeout = 5 * crl::time(1000);
 
 using namespace FFmpeg;
 
+struct ReadBytesWrap {
+	int64 size = 0;
+	int64 offset = 0;
+	const uchar *data = nullptr;
+
+	static int Read(void *opaque, uint8_t *buf, int buf_size) {
+		auto wrap = static_cast<ReadBytesWrap*>(opaque);
+		const auto toRead = std::min(
+			int64(buf_size),
+			wrap->size - wrap->offset);
+		if (toRead > 0) {
+			memcpy(buf, wrap->data + wrap->offset, toRead);
+			wrap->offset += toRead;
+		}
+		return toRead;
+	};
+	static int64 Seek(void *opaque, int64_t offset, int whence) {
+		auto wrap = static_cast<ReadBytesWrap*>(opaque);
+		auto updated = int64(-1);
+		switch (whence) {
+		case SEEK_SET: updated = offset; break;
+		case SEEK_CUR: updated = wrap->offset + offset; break;
+		case SEEK_END: updated = wrap->size + offset; break;
+		case AVSEEK_SIZE: return wrap->size; break;
+		}
+		if (updated < 0 || updated > wrap->size) {
+			return -1;
+		}
+		wrap->offset = updated;
+		return updated;
+	};
+};
+
 } // namespace
 
 class RoundVideoRecorder::Private final {
@@ -49,8 +82,21 @@ public:
 	void restart(RoundVideoPartial partial);
 
 private:
-	static int Write(void *opaque, uint8_t *buf, int buf_size);
-	static int64_t Seek(void *opaque, int64_t offset, int whence);
+	static constexpr auto kMaxStreams = 2;
+
+	struct CopyContext {
+		CopyContext();
+
+		std::array<int64, kMaxStreams> lastPts = { 0 };
+		std::array<int64, kMaxStreams> lastDts = { 0 };
+	};
+
+	static int Write(void *opaque, uint8_t *buf, int buf_size) {
+		return static_cast<Private*>(opaque)->write(buf, buf_size);
+	}
+	static int64_t Seek(void *opaque, int64_t offset, int whence) {
+		return static_cast<Private*>(opaque)->seek(offset, whence);
+	}
 
 	int write(uint8_t *buf, int buf_size);
 	int64_t seek(int64_t offset, int whence);
@@ -76,6 +122,16 @@ private:
 
 	void cutCircleFromYUV420P(not_null<AVFrame*> frame);
 	void initCircleMask();
+
+	[[nodiscard]] RoundVideoResult appendToPrevious(RoundVideoResult video);
+	[[nodiscard]] static FormatPointer OpenInputContext(
+		not_null<const QByteArray*> data,
+		not_null<ReadBytesWrap*> wrap);
+	[[nodiscard]] bool copyPackets(
+		not_null<AVFormatContext*> input,
+		not_null<AVFormatContext*> output,
+		CopyContext &context,
+		crl::time offset = 0);
 
 	const crl::weak_on_queue<Private> _weak;
 
@@ -113,14 +169,20 @@ private:
 	rpl::event_stream<Update, Error> _updates;
 
 	crl::time _maxDuration = 0;
-	crl::time _previousPartsDuration = 0;
-	QByteArray _previousContent;
+	RoundVideoResult _previous;
+
+	ReadBytesWrap _forConcat1, _forConcat2;
 
 	std::vector<bool> _circleMask; // Always nice to use vector<bool>! :D
 
 	base::ConcurrentTimer _timeoutTimer;
 
 };
+
+RoundVideoRecorder::Private::CopyContext::CopyContext() {
+	ranges::fill(lastPts, std::numeric_limits<int64>::min());
+	ranges::fill(lastDts, std::numeric_limits<int64>::min());
+}
 
 RoundVideoRecorder::Private::Private(crl::weak_on_queue<Private> weak)
 : _weak(std::move(weak))
@@ -134,14 +196,6 @@ RoundVideoRecorder::Private::Private(crl::weak_on_queue<Private> weak)
 
 RoundVideoRecorder::Private::~Private() {
 	finishEncoding();
-}
-
-int RoundVideoRecorder::Private::Write(void *opaque, uint8_t *buf, int buf_size) {
-	return static_cast<Private*>(opaque)->write(buf, buf_size);
-}
-
-int64_t RoundVideoRecorder::Private::Seek(void *opaque, int64_t offset, int whence) {
-	return static_cast<Private*>(opaque)->seek(offset, whence);
 }
 
 int RoundVideoRecorder::Private::write(uint8_t *buf, int buf_size) {
@@ -376,7 +430,11 @@ void RoundVideoRecorder::Private::finishEncoding() {
 	if (_format
 		&& writeFrame(nullptr, _videoCodec, _videoStream)
 		&& writeFrame(nullptr, _audioCodec, _audioStream)) {
-		av_write_trailer(_format.get());
+		const auto error = AvErrorWrap(av_write_trailer(_format.get()));
+		if (error) {
+			LogError("av_write_trailer", error);
+			fail(Error::Encoding);
+		}
 	}
 	deinitEncoding();
 }
@@ -391,17 +449,151 @@ RoundVideoResult RoundVideoRecorder::Private::finish() {
 		return {};
 	}
 	finishEncoding();
-	auto result = RoundVideoResult{
+	auto result = appendToPrevious({
 		.content = base::take(_result),
 		.waveform = QByteArray(),
 		.duration = base::take(_resultDuration),
-	};
+	});
 	if (result.duration < kMinDuration) {
 		return {};
 	}
-	_previousPartsDuration += result.duration;
-	_maxDuration -= result.duration;
 	return result;
+}
+
+RoundVideoResult RoundVideoRecorder::Private::appendToPrevious(
+		RoundVideoResult video) {
+	if (!_previous.duration) {
+		return video;
+	}
+	const auto cleanup = gsl::finally([&] {
+		_forConcat1 = {};
+		_forConcat2 = {};
+		deinitEncoding();
+	});
+
+	auto input1 = OpenInputContext(&_previous.content, &_forConcat1);
+	auto input2 = OpenInputContext(&video.content, &_forConcat2);
+	if (!input1 || !input2) {
+		return video;
+	}
+
+	auto output = MakeWriteFormatPointer(
+		static_cast<void*>(this),
+		nullptr,
+		&Private::Write,
+		&Private::Seek,
+		"mp4"_q);
+
+	for (auto i = 0; i != input1->nb_streams; ++i) {
+		AVStream *inStream = input1->streams[i];
+		AVStream *outStream = avformat_new_stream(output.get(), nullptr);
+		if (!outStream) {
+			LogError("avformat_new_stream");
+			fail(Error::Encoding);
+			return {};
+		}
+		const auto error = AvErrorWrap(avcodec_parameters_copy(
+			outStream->codecpar,
+			inStream->codecpar));
+		if (error) {
+			LogError("avcodec_parameters_copy", error);
+			fail(Error::Encoding);
+			return {};
+		}
+		outStream->time_base = inStream->time_base;
+	}
+
+	const auto offset = _previous.duration;
+	auto context = CopyContext();
+	auto error = AvErrorWrap(avformat_write_header(
+		output.get(),
+		nullptr));
+	if (error) {
+		LogError("avformat_write_header", error);
+		fail(Error::Encoding);
+		return {};
+	} else if (!copyPackets(input1.get(), output.get(), context)
+		|| !copyPackets(input2.get(), output.get(), context, offset)) {
+		return {};
+	}
+	error = AvErrorWrap(av_write_trailer(output.get()));
+	if (error) {
+		LogError("av_write_trailer", error);
+		fail(Error::Encoding);
+		return {};
+	}
+	return RoundVideoResult{
+		.content = base::take(_result),
+		.waveform = QByteArray(),
+		.duration = _previous.duration + video.duration,
+	};
+}
+
+FormatPointer RoundVideoRecorder::Private::OpenInputContext(
+		not_null<const QByteArray*> data,
+		not_null<ReadBytesWrap*> wrap) {
+	*wrap = ReadBytesWrap{
+		.size = data->size(),
+		.data = reinterpret_cast<const uchar*>(data->constData()),
+	};
+	return MakeFormatPointer(
+		wrap.get(),
+		&ReadBytesWrap::Read,
+		nullptr,
+		&ReadBytesWrap::Seek);
+}
+
+bool RoundVideoRecorder::Private::copyPackets(
+		not_null<AVFormatContext*> input,
+		not_null<AVFormatContext*> output,
+		CopyContext &context,
+		crl::time offset) {
+	AVPacket packet;
+	av_init_packet(&packet);
+
+	auto offsets = std::array<int64, kMaxStreams>{ 0 };
+	while (av_read_frame(input, &packet) >= 0) {
+		const auto index = packet.stream_index;
+		Assert(index >= 0 && index < kMaxStreams);
+		Assert(index < output->nb_streams);
+
+		if (offset) {
+			auto &scaled = offsets[index];
+			if (!scaled) {
+				scaled = av_rescale_q(
+					offset,
+					AVRational{ 1, 1000 },
+					input->streams[index]->time_base);
+			}
+			if (packet.pts != AV_NOPTS_VALUE) {
+				packet.pts += scaled;
+			}
+			if (packet.dts != AV_NOPTS_VALUE) {
+				packet.dts += scaled;
+			}
+		}
+
+		if (packet.pts <= context.lastPts[index]) {
+			packet.pts = context.lastPts[index] + 1;
+		}
+		context.lastPts[index] = packet.pts;
+
+		if (packet.dts <= context.lastDts[index]) {
+			packet.dts = context.lastDts[index] + 1;
+		}
+		context.lastDts[index] = packet.dts;
+
+		const auto error = AvErrorWrap(av_interleaved_write_frame(
+			output,
+			&packet));
+		if (error) {
+			LogError("av_interleaved_write_frame", error);
+			av_packet_unref(&packet);
+			return false;
+		}
+		av_packet_unref(&packet);
+	}
+	return true;
 }
 
 void RoundVideoRecorder::Private::restart(RoundVideoPartial partial) {
@@ -411,7 +603,8 @@ void RoundVideoRecorder::Private::restart(RoundVideoPartial partial) {
 		notifyFinished();
 		return;
 	}
-	_previousContent = std::move(partial.content);
+	_previous = std::move(partial.video);
+	_maxDuration = kMaxDuration - _previous.duration;
 	_finished = false;
 	initEncoding();
 	_timeoutTimer.callOnce(kInitTimeout);
@@ -664,7 +857,7 @@ void RoundVideoRecorder::Private::encodeAudioFrame(
 void RoundVideoRecorder::Private::notifyFinished() {
 	_finished = true;
 	_updates.fire({
-		.samples = int((_previousPartsDuration + _resultDuration) * 48),
+		.samples = int((_previous.duration + _resultDuration) * 48),
 		.level = base::take(_maxLevelSinceLastUpdate),
 		.finished = true,
 	});
@@ -741,7 +934,7 @@ void RoundVideoRecorder::Private::updateResultDuration(
 	if (initial || (_lastUpdateDuration + kUpdateEach < _resultDuration)) {
 		_lastUpdateDuration = _resultDuration;
 		_updates.fire({
-			.samples = int((_previousPartsDuration + _resultDuration) * 48),
+			.samples = int((_previous.duration + _resultDuration) * 48),
 			.level = base::take(_maxLevelSinceLastUpdate),
 		});
 	}
@@ -986,3 +1179,4 @@ void RoundVideoRecorder::resume(RoundVideoPartial partial) {
 }
 
 } // namespace Ui
+

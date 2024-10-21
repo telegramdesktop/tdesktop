@@ -1688,7 +1688,10 @@ void VoiceRecordBar::startRecording() {
 			instance()->pause(false, nullptr);
 			if (_videoRecorder) {
 				_videoRecorder->resume({
-					.content = _data.bytes,
+					.video = {
+						.content = _data.bytes,
+						.duration = _data.duration,
+					},
 				});
 			}
 		} else {
