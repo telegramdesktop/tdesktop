@@ -2095,7 +2095,6 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 		rpl::single(true),
 		openPrivacyPolicy,
 		nullptr);
-
 }
 
 void ActionsFiller::addReportAction() {
