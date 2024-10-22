@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
+#include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_round_preview.h"
 #include "ui/controls/round_video_recorder.h"
 #include "ui/controls/send_button.h"
 #include "ui/effects/animation_value.h"
@@ -35,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/rect.h"
@@ -70,6 +73,61 @@ enum class FilterType {
 	ShowBox,
 	Cancel,
 };
+
+class SoundedPreview final : public Ui::DynamicImage {
+public:
+	SoundedPreview(
+		not_null<DocumentData*> document,
+		rpl::producer<> repaints);
+	std::shared_ptr<DynamicImage> clone() override;
+	QImage image(int size) override;
+	void subscribeToUpdates(Fn<void()> callback) override;
+
+private:
+	const not_null<DocumentData*> _document;
+	QImage _roundingMask;
+	Fn<void()> _repaint;
+	rpl::lifetime _lifetime;
+
+};
+
+SoundedPreview::SoundedPreview(
+	not_null<DocumentData*> document,
+	rpl::producer<> repaints)
+: _document(document) {
+	std::move(repaints) | rpl::start_with_next([=] {
+		if (const auto onstack = _repaint) {
+			onstack();
+		}
+	}, _lifetime);
+}
+
+std::shared_ptr<Ui::DynamicImage> SoundedPreview::clone() {
+	Unexpected("ListenWrap::videoPreview::clone.");
+}
+
+QImage SoundedPreview::image(int size) {
+	const auto player = ::Media::Player::instance();
+	const auto streamed = player->roundVideoPreview(_document);
+	if (!streamed) {
+		return {};
+	}
+
+	const auto full = QSize(size, size) * style::DevicePixelRatio();
+	if (_roundingMask.size() != full) {
+		_roundingMask = Images::EllipseMask(full);
+	}
+	const auto frame = streamed->frameWithInfo({
+		.resize = full,
+		.outer = full,
+		.mask = _roundingMask,
+	});
+	return frame.image;
+}
+
+void SoundedPreview::subscribeToUpdates(Fn<void()> callback) {
+	_repaint = std::move(callback);
+}
 
 [[nodiscard]] auto InactiveColor(const QColor &c) {
 	return QColor(c.red(), c.green(), c.blue(), kInactiveWaveformBarAlpha);
@@ -470,24 +528,26 @@ public:
 		const style::font &font);
 
 	void requestPaintProgress(float64 progress);
-	rpl::producer<> stopRequests() const;
+	[[nodiscard]] rpl::producer<> stopRequests() const;
 
 	void playPause();
+	[[nodiscard]] std::shared_ptr<Ui::DynamicImage> videoPreview();
 
-	rpl::lifetime &lifetime();
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	void init();
 	void initPlayButton();
 	void initPlayProgress();
 
-	bool isInPlayer(const ::Media::Player::TrackState &state) const;
-	bool isInPlayer() const;
+	[[nodiscard]] bool isInPlayer(
+		const ::Media::Player::TrackState &state) const;
+	[[nodiscard]] bool isInPlayer() const;
 
-	int computeTopMargin(int height) const;
-	QRect computeWaveformRect(const QRect &centerRect) const;
+	[[nodiscard]] int computeTopMargin(int height) const;
+	[[nodiscard]] QRect computeWaveformRect(const QRect &centerRect) const;
 
-	not_null<Ui::RpWidget*> _parent;
+	const not_null<Ui::RpWidget*> _parent;
 
 	const style::RecordBar &_st;
 	const not_null<Main::Session*> _session;
@@ -515,6 +575,7 @@ private:
 	anim::value _playProgress;
 
 	rpl::variable<float64> _showProgress = 0.;
+	rpl::event_stream<> _videoRepaints;
 
 	rpl::lifetime _lifetime;
 
@@ -716,6 +777,9 @@ void ListenWrap::initPlayButton() {
 	) | rpl::start_with_next([=](const State &state) {
 		if (isInPlayer(state)) {
 			*showPause = ShowPauseIcon(state.state);
+			if (!_data->minithumbs.isNull()) {
+				_videoRepaints.fire({});
+			}
 		} else if (showPause->current()) {
 			*showPause = false;
 		}
@@ -863,6 +927,12 @@ void ListenWrap::requestPaintProgress(float64 progress) {
 
 rpl::producer<> ListenWrap::stopRequests() const {
 	return _delete->clicks() | rpl::to_empty;
+}
+
+std::shared_ptr<Ui::DynamicImage> ListenWrap::videoPreview() {
+	return std::make_shared<SoundedPreview>(
+		_document,
+		_videoRepaints.events());
 }
 
 rpl::lifetime &ListenWrap::lifetime() {
@@ -1634,11 +1704,6 @@ void VoiceRecordBar::activeAnimate(bool active) {
 }
 
 void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
-	//if (_videoRecorder) {
-	//	_videoHiding.push_back(base::take(_videoRecorder));
-	//	_videoHiding.back()->hide();
-	//}
-	AssertIsDebug();
 	if (_send->type() == Ui::SendButton::Type::Round) {
 		_level->setType(VoiceRecordButton::Type::Round);
 	} else {
@@ -1871,24 +1936,29 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 			_cancelRequests.fire({});
 		}));
 	} else if (type == StopType::Listen) {
-		if (_videoRecorder) {
-			const auto weak = Ui::MakeWeak(this);
-			_videoRecorder->pause([=](Ui::RoundVideoResult data) {
-				crl::on_main([=, data = std::move(data)]() mutable {
-					if (weak) {
-						window()->raise();
-						window()->activateWindow();
+		if (const auto recorder = _videoRecorder.get()) {
+			const auto weak = base::make_weak(recorder);
+			recorder->pause([=](Ui::RoundVideoResult data) {
+				crl::on_main(weak, [=, data = std::move(data)]() mutable {
+					window()->raise();
+					window()->activateWindow();
 
-						_paused = true;
-						_data = std::move(data);
-						_listen = std::make_unique<ListenWrap>(
-							this,
-							_st,
-							&_show->session(),
-							&_data,
-							_cancelFont);
-						_listenChanges.fire({});
-					}
+					_paused = true;
+					_data = std::move(data);
+					_listen = std::make_unique<ListenWrap>(
+						this,
+						_st,
+						&_show->session(),
+						&_data,
+						_cancelFont);
+					_listenChanges.fire({});
+
+					using SilentPreview = ::Media::Streaming::RoundPreview;
+					recorder->showPreview(
+						std::make_shared<SilentPreview>(
+							_data.content,
+							recorder->previewSize()),
+						_listen->videoPreview());
 				});
 			});
 			instance()->pause(true);
@@ -1933,11 +2003,11 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 								: 0),
 						};
 						_sendVoiceRequests.fire({
-							data.content,
-							VoiceWaveform{},
-							data.duration,
-							options,
-							true,
+							.bytes = data.content,
+							//.waveform = {},
+							.duration = data.duration,
+							.options = options,
+							.video = true,
 						});
 					}
 				});
@@ -1963,10 +2033,10 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 					: 0),
 			};
 			_sendVoiceRequests.fire({
-				_data.content,
-				_data.waveform,
-				_data.duration,
-				options,
+				.bytes = _data.content,
+				.waveform = _data.waveform,
+				.duration = _data.duration,
+				.options = options,
 			});
 		}));
 	}
@@ -2030,10 +2100,11 @@ void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
 			options.ttlSeconds = std::numeric_limits<int>::max();
 		}
 		_sendVoiceRequests.fire({
-			_data.content,
-			_data.waveform,
-			_data.duration,
-			options,
+			.bytes = _data.content,
+			.waveform = _data.waveform,
+			.duration = _data.duration,
+			.options = options,
+			.video = !_data.minithumbs.isNull(),
 		});
 	}
 }

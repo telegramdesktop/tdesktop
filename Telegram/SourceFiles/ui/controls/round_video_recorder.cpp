@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 #include "ui/image/image_prepare.h"
 #include "ui/arc_angles.h"
+#include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "webrtc/webrtc_video_track.h"
@@ -33,6 +34,7 @@ constexpr auto kInitTimeout = 5 * crl::time(1000);
 constexpr auto kBlurredSize = 64;
 constexpr auto kMinithumbsPerSecond = 5;
 constexpr auto kMinithumbsInRow = 16;
+constexpr auto kFadeDuration = crl::time(150);
 
 using namespace FFmpeg;
 
@@ -1044,6 +1046,10 @@ Fn<void(Media::Capture::Chunk)> RoundVideoRecorder::audioChunkProcessor() {
 	};
 }
 
+int RoundVideoRecorder::previewSize() const {
+	return _side;
+}
+
 auto RoundVideoRecorder::updated() -> rpl::producer<Update, Error> {
 	return _private.producer_on_main([](const Private &that) {
 		return that.updated();
@@ -1078,7 +1084,7 @@ void RoundVideoRecorder::progressTo(float64 progress) {
 			[=] { _preview->update(); },
 			0.,
 			1.,
-			crl::time(200));
+			kFadeDuration);
 	}
 	_progress = progress;
 	_preview->update();
@@ -1225,6 +1231,30 @@ void RoundVideoRecorder::setup() {
 				(full / 4) - length,
 				length);
 		}
+
+		const auto preview = _fadePreviewAnimation.value(
+			_silentPreview ? 1. : 0.);
+		const auto frame = _silentPreview
+			? lookupPreviewFrame()
+			: _cachedPreviewFrame;
+		if (preview > 0. && !frame.image.isNull()) {
+			p.setOpacity(preview);
+			p.drawImage(inner, frame.image);
+			if (frame.silent) {
+				const auto iconSize = st::historyVideoMessageMuteSize;
+				const auto iconRect = style::rtlrect(
+					inner.x() + (inner.width() - iconSize) / 2,
+					inner.y() + st::msgDateImgDelta,
+					iconSize,
+					iconSize,
+					raw->width());
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::msgDateImgBg);
+				auto hq = PainterHighQualityEnabler(p);
+				p.drawEllipse(iconRect);
+				st::historyVideoMessageMute.paintInCenter(p, iconRect);
+			}
+		}
 	}, raw->lifetime());
 
 	_descriptor.track->renderNextFrame() | rpl::start_with_next([=] {
@@ -1257,7 +1287,24 @@ void RoundVideoRecorder::fade(bool visible) {
 		[=] { _preview->update(); },
 		visible ? 0. : 1.,
 		visible ? 1. : 0.,
-		crl::time(200));
+		kFadeDuration);
+}
+
+auto RoundVideoRecorder::lookupPreviewFrame() const -> PreviewFrame {
+	auto sounded = _soundedPreview
+		? _soundedPreview->image(_side)
+		: QImage();
+	const auto silent = (_silentPreview && sounded.isNull());
+	return {
+		.image = silent ? _silentPreview->image(_side) : std::move(sounded),
+		.silent = silent,
+	};
+}
+
+Fn<void()> RoundVideoRecorder::updater() const {
+	return [=] {
+		_preview->update();
+	};
 }
 
 void RoundVideoRecorder::pause(Fn<void(RoundVideoResult)> done) {
@@ -1271,12 +1318,19 @@ void RoundVideoRecorder::pause(Fn<void(RoundVideoResult)> done) {
 	_paused = true;
 	prepareFrame(true);
 	_progressReceived = false;
-	_fadeContentAnimation.start(
-		[=] { _preview->update(); },
-		1.,
-		0.,
-		crl::time(200));
+	_fadeContentAnimation.start(updater(), 1., 0., kFadeDuration);
 	_descriptor.track->setState(Webrtc::VideoState::Inactive);
+	_preview->update();
+}
+
+void RoundVideoRecorder::showPreview(
+		std::shared_ptr<Ui::DynamicImage> silent,
+		std::shared_ptr<Ui::DynamicImage> sounded) {
+	_silentPreview = std::move(silent);
+	_soundedPreview = std::move(sounded);
+	_silentPreview->subscribeToUpdates(updater());
+	_soundedPreview->subscribeToUpdates(updater());
+	_fadePreviewAnimation.start(updater(), 0., 1., kFadeDuration);
 	_preview->update();
 }
 
@@ -1288,6 +1342,16 @@ void RoundVideoRecorder::resume(RoundVideoPartial partial) {
 		that.restart(std::move(partial));
 	});
 	_paused = false;
+	_cachedPreviewFrame = lookupPreviewFrame();
+	if (const auto preview = base::take(_silentPreview)) {
+		preview->subscribeToUpdates(nullptr);
+	}
+	if (const auto preview = base::take(_soundedPreview)) {
+		preview->subscribeToUpdates(nullptr);
+	}
+	if (!_cachedPreviewFrame.image.isNull()) {
+		_fadePreviewAnimation.start(updater(), 1., 0., kFadeDuration);
+	}
 	_descriptor.track->setState(Webrtc::VideoState::Active);
 	_preview->update();
 }

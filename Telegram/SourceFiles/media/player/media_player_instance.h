@@ -109,6 +109,9 @@ public:
 	[[nodiscard]] View::PlaybackProgress *roundVideoPlayback(
 		HistoryItem *item) const;
 
+	[[nodiscard]] Streaming::Instance *roundVideoPreview(
+		not_null<DocumentData*> document) const;
+
 	[[nodiscard]] AudioMsgId current(AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
 			return data->current;

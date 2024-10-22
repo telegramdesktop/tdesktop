@@ -1200,6 +1200,21 @@ Streaming::Instance *Instance::roundVideoStreamed(HistoryItem *item) const {
 	return nullptr;
 }
 
+Streaming::Instance *Instance::roundVideoPreview(
+		not_null<DocumentData*> document) const {
+	if (const auto data = getData(AudioMsgId::Type::Voice)) {
+		if (const auto streamed = data->streamed.get()) {
+			if (streamed->id.audio() == document) {
+				const auto player = &streamed->instance.player();
+				if (player->ready() && !player->videoSize().isEmpty()) {
+					return &streamed->instance;
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
 View::PlaybackProgress *Instance::roundVideoPlayback(
 		HistoryItem *item) const {
 	return roundVideoStreamed(item)

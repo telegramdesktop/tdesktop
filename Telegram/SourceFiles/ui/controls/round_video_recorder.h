@@ -29,6 +29,7 @@ class VideoTrack;
 namespace Ui {
 
 class RpWidget;
+class DynamicImage;
 class RoundVideoRecorder;
 
 struct RoundVideoRecorderDescriptor {
@@ -58,11 +59,16 @@ public:
 	explicit RoundVideoRecorder(RoundVideoRecorderDescriptor &&descriptor);
 	~RoundVideoRecorder();
 
+	[[nodiscard]] int previewSize() const;
 	[[nodiscard]] Fn<void(Media::Capture::Chunk)> audioChunkProcessor();
 
 	void pause(Fn<void(RoundVideoResult)> done = nullptr);
 	void resume(RoundVideoPartial partial);
 	void hide(Fn<void(RoundVideoResult)> done = nullptr);
+
+	void showPreview(
+		std::shared_ptr<Ui::DynamicImage> silent,
+		std::shared_ptr<Ui::DynamicImage> sounded);
 
 	using Update = Media::Capture::Update;
 	using Error = Media::Capture::Error;
@@ -70,6 +76,10 @@ public:
 
 private:
 	class Private;
+	struct PreviewFrame {
+		QImage image;
+		bool silent = false;
+	};
 
 	void setup();
 	void prepareFrame(bool blurred = false);
@@ -77,12 +87,21 @@ private:
 	void progressTo(float64 progress);
 	void fade(bool visible);
 
+	[[nodiscard]] Fn<void()> updater() const;
+	[[nodiscard]] PreviewFrame lookupPreviewFrame() const;
+
 	const RoundVideoRecorderDescriptor _descriptor;
 	std::unique_ptr<RpWidget> _preview;
 	crl::object_on_queue<Private> _private;
 	Ui::Animations::Simple _progressAnimation;
 	Ui::Animations::Simple _fadeAnimation;
 	Ui::Animations::Simple _fadeContentAnimation;
+
+	std::shared_ptr<Ui::DynamicImage> _silentPreview;
+	std::shared_ptr<Ui::DynamicImage> _soundedPreview;
+	Ui::Animations::Simple _fadePreviewAnimation;
+	PreviewFrame _cachedPreviewFrame;
+
 	float64 _progress = 0.;
 	QImage _frameOriginal;
 	QImage _framePlaceholder;
