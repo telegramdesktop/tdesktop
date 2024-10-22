@@ -40,8 +40,11 @@ struct RoundVideoRecorderDescriptor {
 
 struct RoundVideoResult {
 	QByteArray content;
-	QByteArray waveform;
+	QVector<signed char> waveform;
 	crl::time duration = 0;
+	QImage minithumbs;
+	int minithumbsCount = 0;
+	int minithumbSize = 0;
 };
 
 struct RoundVideoPartial {

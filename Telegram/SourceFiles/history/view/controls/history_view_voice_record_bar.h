@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "media/audio/media_audio_capture_common.h"
+#include "ui/controls/round_video_recorder.h"
 #include "ui/effects/animations.h"
 #include "ui/round_rect.h"
 #include "ui/rp_widget.h"
@@ -170,7 +171,7 @@ private:
 	std::unique_ptr<Ui::AbstractButton> _ttlButton;
 	std::unique_ptr<ListenWrap> _listen;
 
-	::Media::Capture::Result _data;
+	Ui::RoundVideoResult _data;
 	rpl::variable<bool> _paused;
 
 	base::Timer _startTimer;

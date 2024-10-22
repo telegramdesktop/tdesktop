@@ -203,6 +203,44 @@ void PaintWaveform(
 	}
 }
 
+void FillWithMinithumbs(
+		QPainter &p,
+		not_null<const Ui::RoundVideoResult*> data,
+		QRect rect,
+		float64 progress) {
+	if (!data->minithumbsCount || !data->minithumbSize || rect.isEmpty()) {
+		return;
+	}
+	const auto size = rect.height();
+	const auto single = data->minithumbSize;
+	const auto perrow = data->minithumbs.width() / single;
+	const auto thumbs = (rect.width() + size - 1) / size;
+	if (!thumbs || !perrow) {
+		return;
+	}
+	for (auto i = 0; i != thumbs - 1; ++i) {
+		const auto index = (i * data->minithumbsCount) / thumbs;
+		p.drawImage(
+			QRect(rect.x() + i * size, rect.y(), size, size),
+			data->minithumbs,
+			QRect(
+				(index % perrow) * single,
+				(index / perrow) * single,
+				single,
+				single));
+	}
+	const auto last = rect.width() - (thumbs - 1) * size;
+	const auto index = ((thumbs - 1) * data->minithumbsCount) / thumbs;
+	p.drawImage(
+		QRect(rect.x() + (thumbs - 1) * size, rect.y(), last, size),
+		data->minithumbs,
+		QRect(
+			(index % perrow) * single,
+			(index / perrow) * single,
+			(last * single) / size,
+			single));
+}
+
 [[nodiscard]] QRect DrawLockCircle(
 		QPainter &p,
 		const QRect &widgetRect,
@@ -428,7 +466,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		const style::RecordBar &st,
 		not_null<Main::Session*> session,
-		::Media::Capture::Result *data,
+		not_null<Ui::RoundVideoResult*> data,
 		const style::font &font);
 
 	void requestPaintProgress(float64 progress);
@@ -456,7 +494,7 @@ private:
 	const not_null<DocumentData*> _document;
 	const std::unique_ptr<VoiceData> _voiceData;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;
-	const not_null<::Media::Capture::Result*> _data;
+	const not_null<Ui::RoundVideoResult*> _data;
 	const base::unique_qptr<Ui::IconButton> _delete;
 	const style::font &_durationFont;
 	const QString _duration;
@@ -486,7 +524,7 @@ ListenWrap::ListenWrap(
 	not_null<Ui::RpWidget*> parent,
 	const style::RecordBar &st,
 	not_null<Main::Session*> session,
-	::Media::Capture::Result *data,
+	not_null<Ui::RoundVideoResult*> data,
 	const style::font &font)
 : _parent(parent)
 , _st(st)
@@ -604,20 +642,27 @@ void ListenWrap::init() {
 			}
 
 			// Waveform paint.
-			{
-				const auto rect = (progress == 1.)
-					? _waveformFgRect
-					: computeWaveformRect(bgCenterRect);
-				if (rect.width() > 0) {
-					p.translate(rect.topLeft());
+			const auto waveformRect = (progress == 1.)
+				? _waveformFgRect
+				: computeWaveformRect(bgCenterRect);
+			if (!waveformRect.isEmpty()) {
+				const auto playProgress = _playProgress.current();
+				if (_data->minithumbs.isNull()) {
+					p.translate(waveformRect.topLeft());
 					PaintWaveform(
 						p,
 						_voiceData.get(),
-						rect.width(),
+						waveformRect.width(),
 						_activeWaveformBar,
 						_inactiveWaveformBar,
-						_playProgress.current());
+						playProgress);
 					p.resetTransform();
+				} else {
+					FillWithMinithumbs(
+						p,
+						_data,
+						waveformRect,
+						playProgress);
 				}
 			}
 		}
@@ -631,9 +676,11 @@ void ListenWrap::initPlayButton() {
 	using namespace ::Media::Player;
 	using State = TrackState;
 
-	_mediaView->setBytes(_data->bytes);
-	_document->size = _data->bytes.size();
-	_document->type = _data->video ? RoundVideoDocument : VoiceDocument;
+	_mediaView->setBytes(_data->content);
+	_document->size = _data->content.size();
+	_document->type = _data->minithumbs.isNull()
+		? VoiceDocument
+		: RoundVideoDocument;
 
 	const auto &play = _playPauseSt.playOuter;
 	const auto &width = _waveformBgFinalCenterRect.height();
@@ -1688,10 +1735,7 @@ void VoiceRecordBar::startRecording() {
 			instance()->pause(false, nullptr);
 			if (_videoRecorder) {
 				_videoRecorder->resume({
-					.video = {
-						.content = _data.bytes,
-						.duration = _data.duration,
-					},
+					.video = std::move(_data),
 				});
 			}
 		} else {
@@ -1836,12 +1880,7 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 						window()->activateWindow();
 
 						_paused = true;
-						_data = ::Media::Capture::Result{
-							.bytes = std::move(data.content),
-							//.waveform = std::move(data.waveform),
-							.duration = data.duration,
-							.video = true,
-						};
+						_data = std::move(data);
 						_listen = std::make_unique<ListenWrap>(
 							this,
 							_st,
@@ -1861,7 +1900,11 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 					return;
 				}
 				_paused = true;
-				_data = std::move(data);
+				_data = Ui::RoundVideoResult{
+					.content = std::move(data.bytes),
+					.waveform = std::move(data.waveform),
+					.duration = data.duration,
+				};
 
 				window()->raise();
 				window()->activateWindow();
@@ -1906,7 +1949,11 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 				stop(false);
 				return;
 			}
-			_data = std::move(data);
+			_data = Ui::RoundVideoResult{
+				.content = std::move(data.bytes),
+				.waveform = std::move(data.waveform),
+				.duration = data.duration,
+			};
 
 			window()->raise();
 			window()->activateWindow();
@@ -1916,7 +1963,7 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 					: 0),
 			};
 			_sendVoiceRequests.fire({
-				_data.bytes,
+				_data.content,
 				_data.waveform,
 				_data.duration,
 				options,
@@ -1983,7 +2030,7 @@ void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
 			options.ttlSeconds = std::numeric_limits<int>::max();
 		}
 		_sendVoiceRequests.fire({
-			_data.bytes,
+			_data.content,
 			_data.waveform,
 			_data.duration,
 			options,

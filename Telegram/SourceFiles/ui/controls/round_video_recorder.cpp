@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "webrtc/webrtc_video_track.h"
+#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
@@ -30,6 +31,8 @@ constexpr auto kMinDuration = crl::time(200);
 constexpr auto kMaxDuration = 60 * crl::time(1000);
 constexpr auto kInitTimeout = 5 * crl::time(1000);
 constexpr auto kBlurredSize = 64;
+constexpr auto kMinithumbsPerSecond = 5;
+constexpr auto kMinithumbsInRow = 16;
 
 using namespace FFmpeg;
 
@@ -66,11 +69,19 @@ struct ReadBytesWrap {
 	};
 };
 
+[[nodiscard]] int MinithumbSize() {
+	const auto full = st::historySendSize.height();
+	const auto margin = st::historyRecordWaveformBgMargins;
+	const auto outer = full - margin.top() - margin.bottom();
+	const auto inner = outer - 2 * st::msgWaveformMin;
+	return inner * style::DevicePixelRatio();
+}
+
 } // namespace
 
 class RoundVideoRecorder::Private final {
 public:
-	Private(crl::weak_on_queue<Private> weak);
+	Private(crl::weak_on_queue<Private> weak, int minithumbSize);
 	~Private();
 
 	void push(int64 mcstimestamp, const QImage &frame);
@@ -103,6 +114,13 @@ private:
 	int64_t seek(int64_t offset, int whence);
 
 	void initEncoding();
+	void initCircleMask();
+	void initMinithumbsCanvas();
+	void maybeSaveMinithumb(
+		not_null<AVFrame*> frame,
+		const QImage &original,
+		QRect crop);
+
 	bool initVideo();
 	bool initAudio();
 	void notifyFinished();
@@ -122,7 +140,6 @@ private:
 	void updateResultDuration(int64 pts, AVRational timeBase);
 
 	void cutCircleFromYUV420P(not_null<AVFrame*> frame);
-	void initCircleMask();
 
 	[[nodiscard]] RoundVideoResult appendToPrevious(RoundVideoResult video);
 	[[nodiscard]] static FormatPointer OpenInputContext(
@@ -169,6 +186,11 @@ private:
 	crl::time _lastUpdateDuration = 0;
 	rpl::event_stream<Update, Error> _updates;
 
+	crl::time _minithumbNextTimestamp = 0;
+	const int _minithumbSize = 0;
+	int _minithumbsCount = 0;
+	QImage _minithumbs;
+
 	crl::time _maxDuration = 0;
 	RoundVideoResult _previous;
 
@@ -185,12 +207,16 @@ RoundVideoRecorder::Private::CopyContext::CopyContext() {
 	ranges::fill(lastDts, std::numeric_limits<int64>::min());
 }
 
-RoundVideoRecorder::Private::Private(crl::weak_on_queue<Private> weak)
+RoundVideoRecorder::Private::Private(
+	crl::weak_on_queue<Private> weak,
+	int minithumbSize)
 : _weak(std::move(weak))
+, _minithumbSize(minithumbSize)
 , _maxDuration(kMaxDuration)
 , _timeoutTimer(_weak, [=] { timeout(); }) {
 	initEncoding();
 	initCircleMask();
+	initMinithumbsCanvas();
 
 	_timeoutTimer.callOnce(kInitTimeout);
 }
@@ -452,8 +478,11 @@ RoundVideoResult RoundVideoRecorder::Private::finish() {
 	finishEncoding();
 	auto result = appendToPrevious({
 		.content = base::take(_result),
-		.waveform = QByteArray(),
 		.duration = base::take(_resultDuration),
+		//.waveform = {},
+		.minithumbs = base::take(_minithumbs),
+		.minithumbsCount = base::take(_minithumbsCount),
+		.minithumbSize = _minithumbSize,
 	});
 	if (result.duration < kMinDuration) {
 		return {};
@@ -523,11 +552,9 @@ RoundVideoResult RoundVideoRecorder::Private::appendToPrevious(
 		fail(Error::Encoding);
 		return {};
 	}
-	return RoundVideoResult{
-		.content = base::take(_result),
-		.waveform = QByteArray(),
-		.duration = _previous.duration + video.duration,
-	};
+	video.content = base::take(_result);
+	video.duration += _previous.duration;
+	return video;
 }
 
 FormatPointer RoundVideoRecorder::Private::OpenInputContext(
@@ -605,7 +632,11 @@ void RoundVideoRecorder::Private::restart(RoundVideoPartial partial) {
 		return;
 	}
 	_previous = std::move(partial.video);
+	_minithumbs = std::move(_previous.minithumbs);
+	_minithumbsCount = _previous.minithumbsCount;
+	Assert(_minithumbSize == _previous.minithumbSize);
 	_maxDuration = kMaxDuration - _previous.duration;
+	_minithumbNextTimestamp = 0;
 	_finished = false;
 	initEncoding();
 	_timeoutTimer.callOnce(kInitTimeout);
@@ -720,12 +751,56 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 	cutCircleFromYUV420P(_videoFrame.get());
 
 	_videoFrame->pts = mcstimestamp - _videoFirstTimestamp;
+	maybeSaveMinithumb(_videoFrame.get(), frame, crop);
 	if (_videoFrame->pts >= _maxDuration * int64(1000)) {
 		notifyFinished();
 		return;
 	} else if (!writeFrame(_videoFrame, _videoCodec, _videoStream)) {
 		return;
 	}
+}
+
+void RoundVideoRecorder::Private::maybeSaveMinithumb(
+		not_null<AVFrame*> frame,
+		const QImage &original,
+		QRect crop) {
+	if (frame->pts < _minithumbNextTimestamp * 1000) {
+		return;
+	}
+	_minithumbNextTimestamp += crl::time(1000) / kMinithumbsPerSecond;
+	const auto perline = original.bytesPerLine();
+	const auto perpixel = original.depth() / 8;
+	const auto cropped = QImage(
+		original.constBits() + (crop.y() * perline) + (crop.x() * perpixel),
+		crop.width(),
+		crop.height(),
+		perline,
+		original.format()
+	).scaled(
+		_minithumbSize,
+		_minithumbSize,
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
+
+	const auto row = _minithumbsCount / kMinithumbsInRow;
+	const auto column = _minithumbsCount % kMinithumbsInRow;
+	const auto fromPerLine = cropped.bytesPerLine();
+	auto from = cropped.constBits();
+	const auto toPerLine = _minithumbs.bytesPerLine();
+	const auto toPerPixel = _minithumbs.depth() / 8;
+	auto to = _minithumbs.bits()
+		+ (row * _minithumbSize * toPerLine)
+		+ (column * _minithumbSize * toPerPixel);
+
+	Assert(toPerPixel == perpixel);
+	for (auto y = 0; y != _minithumbSize; ++y) {
+		Assert(to + toPerLine - _minithumbs.constBits()
+			<= _minithumbs.bytesPerLine() * _minithumbs.height());
+		memcpy(to, from, _minithumbSize * toPerPixel);
+		from += fromPerLine;
+		to += toPerLine;
+	}
+	++_minithumbsCount;
 }
 
 void RoundVideoRecorder::Private::initCircleMask() {
@@ -745,6 +820,16 @@ void RoundVideoRecorder::Private::initCircleMask() {
 			_circleMask[index++] = (dx * dx + dy * dy > radiusSquared);
 		}
 	}
+}
+
+void RoundVideoRecorder::Private::initMinithumbsCanvas() {
+	const auto width = kMinithumbsInRow * _minithumbSize;
+	const auto seconds = (kMaxDuration + 999) / 1000;
+	const auto persecond = kMinithumbsPerSecond;
+	const auto frames = (seconds + persecond - 1) * persecond;
+	const auto rows = (frames + kMinithumbsInRow - 1) / kMinithumbsInRow;
+	const auto height = rows * _minithumbSize;
+	_minithumbs = QImage(width, height, QImage::Format_ARGB32_Premultiplied);
 }
 
 void RoundVideoRecorder::Private::cutCircleFromYUV420P(
@@ -888,9 +973,9 @@ bool RoundVideoRecorder::Private::writeFrame(
 	while (true) {
 		error = AvErrorWrap(avcodec_receive_packet(codec.get(), pkt));
 		if (error.code() == AVERROR(EAGAIN)) {
-			return true;  // Need more input
+			return true; // Need more input
 		} else if (error.code() == AVERROR_EOF) {
-			return true;  // Encoding finished
+			return true; // Encoding finished
 		} else if (error) {
 			LogError("avcodec_receive_packet", error);
 			fail(Error::Encoding);
@@ -945,7 +1030,7 @@ RoundVideoRecorder::RoundVideoRecorder(
 	RoundVideoRecorderDescriptor &&descriptor)
 : _descriptor(std::move(descriptor))
 , _preview(std::make_unique<RpWidget>(_descriptor.container))
-, _private() {
+, _private(MinithumbSize()) {
 	setup();
 }
 
