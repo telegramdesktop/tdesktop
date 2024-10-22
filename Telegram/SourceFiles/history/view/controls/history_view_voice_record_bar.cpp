@@ -790,6 +790,13 @@ void ListenWrap::initPlayButton() {
 	) | rpl::start_with_next([=] {
 		*showPause = false;
 	}, _lifetime);
+
+	_lifetime.add([=] {
+		const auto current = instance()->current(AudioMsgId::Type::Voice);
+		if (current.audio() == _document) {
+			instance()->stop(AudioMsgId::Type::Voice, true);
+		}
+	});
 }
 
 void ListenWrap::initPlayProgress() {
@@ -1369,7 +1376,7 @@ VoiceRecordBar::VoiceRecordBar(
 }
 
 VoiceRecordBar::~VoiceRecordBar() {
-	if (isRecording()) {
+	if (isActive()) {
 		stopRecording(StopType::Cancel);
 	}
 }
@@ -1598,7 +1605,6 @@ void VoiceRecordBar::init() {
 		if (!paused) {
 			return;
 		}
-		// _lockShowing = false;
 
 		const auto to = 1.;
 		auto callback = [=](float64 value) {
@@ -1819,7 +1825,8 @@ void VoiceRecordBar::startRecording() {
 			) | rpl::start_with_next_error([=](const Update &update) {
 				recordUpdated(update.level, update.samples);
 				if (update.finished) {
-					stop(update.samples >= kMinSamples);
+					stopRecording(StopType::Listen);
+					_lockShowing = false;
 				}
 			}, [=](Error error) {
 				stop(false);
@@ -1895,7 +1902,6 @@ void VoiceRecordBar::stop(bool send) {
 		const auto type = send ? StopType::Send : StopType::Cancel;
 		stopRecording(type, ttlBeforeHide);
 	};
-	// _lockShowing = false;
 	visibilityAnimate(false, std::move(disappearanceCallback));
 }
 
@@ -1985,8 +1991,6 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 					&_data,
 					_cancelFont);
 				_listenChanges.fire({});
-
-				// _lockShowing = false;
 			}));
 		}
 	} else if (type == StopType::Send) {
@@ -2313,8 +2317,12 @@ void VoiceRecordBar::showDiscardBox(
 	};
 	_show->showBox(Ui::MakeConfirmBox({
 		.text = (isListenState()
-			? tr::lng_record_listen_cancel_sure
-			: tr::lng_record_lock_cancel_sure)(),
+			? (_recordingVideo
+				? tr::lng_record_listen_cancel_sure_round
+				: tr::lng_record_listen_cancel_sure)
+			: (_recordingVideo
+				? tr::lng_record_lock_cancel_sure_round
+				: tr::lng_record_lock_cancel_sure))(),
 		.confirmed = std::move(sure),
 		.confirmText = tr::lng_record_lock_discard(),
 		.confirmStyle = &st::attentionBoxButton,

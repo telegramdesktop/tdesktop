@@ -964,6 +964,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	initWebpageProcess();
 	initWriteRestriction();
 	initForwardProcess();
+	updateRecordMediaState();
 	updateBotCommandShown();
 	updateLikeShown();
 	updateMessagesTTLShown();

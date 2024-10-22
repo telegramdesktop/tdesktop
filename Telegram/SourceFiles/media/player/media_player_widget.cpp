@@ -717,6 +717,8 @@ void Widget::handleSongChange() {
 				0,
 				name.size(),
 				QString()));
+		} else if (document->isVideoMessage()) {
+			textWithEntities.text = tr::lng_media_round(tr::now);
 		} else {
 			textWithEntities.text = tr::lng_media_audio(tr::now);
 		}

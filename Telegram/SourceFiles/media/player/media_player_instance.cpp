@@ -869,13 +869,16 @@ void Instance::pause(AudioMsgId::Type type) {
 	}
 }
 
-void Instance::stop(AudioMsgId::Type type) {
+void Instance::stop(AudioMsgId::Type type, bool asFinished) {
 	if (const auto data = getData(type)) {
 		if (data->streamed) {
 			clearStreamed(data);
 		}
 		data->resumeOnCallEnd = false;
 		_playerStopped.fire_copy({type});
+	}
+	if (asFinished) {
+		_tracksFinished.fire_copy(type);
 	}
 }
 
