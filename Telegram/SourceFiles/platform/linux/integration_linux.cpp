@@ -204,7 +204,7 @@ LinuxIntegration::LinuxIntegration()
 		return value->get_uint32() == 1;
 	}
 	return std::nullopt;
-})
+}())
 , _darkModeWatcher(
 	"org.freedesktop.appearance",
 	"color-scheme",
