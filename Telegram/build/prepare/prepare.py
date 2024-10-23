@@ -61,6 +61,7 @@ optionsList = [
     'qt6',
     'skip-release',
     'build-stackwalk',
+    'no-deps-git-history'
 ]
 options = []
 runCommand = []
@@ -326,6 +327,17 @@ def run(commands):
     else:
         return subprocess.run("set -e\n" + commands, shell=True, env=modifiedEnv).returncode == 0
 
+no_deps_git_history = "no-deps-git-history" in options
+if no_deps_git_history:
+    print("Notice: Some dependency repositories will be downloaded without full history (via git clone --depth 1) to reduce time and disk space.")
+
+def git(command, args):
+    result = f"git {command}"
+    if no_deps_git_history:
+        result += " --depth 1"
+    result = result + " " + args
+    return result
+
 # Thanks https://stackoverflow.com/a/510364
 class _Getch:
     """Gets a single character from standard input.  Does not echo to the
@@ -500,9 +512,9 @@ win:
     del jom.zip
 """, 'ThirdParty')
 
-stage('depot_tools', """
+stage('depot_tools', f"""
 mac:
-    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+    {git('clone', 'https://chromium.googlesource.com/chromium/tools/depot_tools.git')}
     cd depot_tools
     ./update_depot_tools
 """, 'ThirdParty')
@@ -529,18 +541,18 @@ mac:
     make $MAKE_THREADS_CNT
 """, 'ThirdParty')
 
-stage('lzma', """
+stage('lzma', f"""
 win:
-    git clone https://github.com/desktop-app/lzma.git
+    {git('clone', 'https://github.com/desktop-app/lzma.git')}
     cd lzma\\C\\Util\\LzmaLib
     msbuild -m LzmaLib.sln /property:Configuration=Debug /property:Platform="$X8664"
 release:
     msbuild -m LzmaLib.sln /property:Configuration=Release /property:Platform="$X8664"
 """)
 
-stage('xz', """
+stage('xz', f"""
 !win:
-    git clone -b v5.4.5 https://github.com/tukaani-project/xz.git
+    {git('clone', '-b v5.4.5 https://github.com/tukaani-project/xz.git')}
     cd xz
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
@@ -574,8 +586,8 @@ mac:
     make install
 """)
 
-stage('mozjpeg', """
-    git clone -b v4.1.5 https://github.com/mozilla/mozjpeg.git
+stage('mozjpeg', f"""
+    {git('clone', '-b v4.1.5 https://github.com/mozilla/mozjpeg.git')}
     cd mozjpeg
 win:
     cmake . ^
@@ -611,8 +623,8 @@ mac:
     cmake --install build
 """)
 
-stage('openssl3', """
-    git clone -b openssl-3.2.1 https://github.com/openssl/openssl openssl3
+stage('openssl3', f"""
+    {git('clone', '-b openssl-3.2.1 https://github.com/openssl/openssl openssl3')}
     cd openssl3
 win32:
     perl Configure no-shared no-tests debug-VC-WIN32 /FS
@@ -732,9 +744,9 @@ mac:
     make install
 """)
 
-stage('gas-preprocessor', """
+stage('gas-preprocessor', f"""
 win:
-    git clone https://github.com/FFmpeg/gas-preprocessor
+    {git('clone', 'https://github.com/FFmpeg/gas-preprocessor.git')}
     cd gas-preprocessor
     echo @echo off > cpp.bat
     echo cl %%%%%%** >> cpp.bat
@@ -810,7 +822,7 @@ mac:
 """)
 
 stage('openh264', """
-    git clone -b v2.4.1 https://github.com/cisco/openh264.git
+    """ + git('clone', '-b v2.4.1 https://github.com/cisco/openh264.git') + """
     cd openh264
 win32:
     SET "TARGET=x86"
@@ -870,8 +882,8 @@ mac:
     lipo -create build.aarch64/libopenh264.a build.x86_64/libopenh264.a -output ${USED_PREFIX}/lib/libopenh264.a
 """)
 
-stage('libavif', """
-    git clone -b v1.0.4 https://github.com/AOMediaCodec/libavif.git
+stage('libavif', f"""
+    {git('clone', '-b v1.0.4 https://github.com/AOMediaCodec/libavif.git')}
     cd libavif
 win:
     cmake . ^
@@ -901,8 +913,8 @@ mac:
     cmake --install . --config MinSizeRel
 """)
 
-stage('libde265', """
-    git clone -b v1.0.15 https://github.com/strukturag/libde265.git
+stage('libde265', f"""
+    {git('clone', '-b v1.0.15 https://github.com/strukturag/libde265.git')}
     cd libde265
 win:
     cmake . ^
@@ -939,7 +951,7 @@ mac:
 """)
 
 stage('libwebp', """
-    git clone -b v1.4.0 https://github.com/webmproject/libwebp.git
+    """ + git('clone', '-b v1.4.0 https://github.com/webmproject/libwebp.git') + """
     cd libwebp
 win:
     nmake /f Makefile.vc CFG=debug-static OBJDIR=out RTLIBCFG=static all
@@ -978,8 +990,8 @@ mac:
     cmake --install build
 """)
 
-stage('libheif', """
-    git clone -b v1.17.6 https://github.com/strukturag/libheif.git
+stage('libheif', f"""
+    {git('clone', '-b v1.17.6 https://github.com/strukturag/libheif.git')}
     cd libheif
 win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
@@ -1030,8 +1042,8 @@ mac:
     cmake --install . --config MinSizeRel
 """)
 
-stage('libjxl', """
-    git clone -b v0.10.3 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+stage('libjxl', f"""
+    {git('clone', '-b v0.10.3 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git')}
     cd libjxl
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
@@ -1080,11 +1092,10 @@ mac:
     cmake --install . --config MinSizeRel
 """)
 
-stage('libvpx', """
-    git clone https://github.com/webmproject/libvpx.git
+stage('libvpx', f"""
+    {git('clone', '-b v1.14.1 https://github.com/webmproject/libvpx.git')}
 depends:patches/libvpx/*.patch
     cd libvpx
-    git checkout v1.14.1
 win:
     for /r %%i in (..\\patches\\libvpx\\*) do git apply %%i
 
@@ -1149,7 +1160,7 @@ depends:yasm/yasm
 
 stage('liblcms2', """
 mac:
-    git clone -b lcms2.16 https://github.com/mm2/Little-CMS.git liblcms2
+    """ + git('clone', '-b lcms2.16 https://github.com/mm2/Little-CMS.git liblcms2') + """
     cd liblcms2
 
     buildOneArch() {
@@ -1174,17 +1185,17 @@ mac:
     lipo -create build.arm64/liblcms2.a build/liblcms2.a -output ${USED_PREFIX}/lib/liblcms2.a
 """)
 
-stage('nv-codec-headers', """
+stage('nv-codec-headers', f"""
 win:
-    git clone -b n12.1.14.0 https://github.com/FFmpeg/nv-codec-headers.git
+    {git('clone', '-b n12.1.14.0 https://github.com/FFmpeg/nv-codec-headers.git')}
 """)
 
-stage('regex', """
-    git clone -b boost-1.83.0 https://github.com/boostorg/regex.git
+stage('regex', f"""
+    {git('clone', '-b boost-1.83.0 https://github.com/boostorg/regex.git')}
 """)
 
 stage('ffmpeg', """
-    git clone -b n6.1.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    """ + git('clone', '-b n6.1.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg') + """
     cd ffmpeg
 win:
 depends:patches/ffmpeg.patch
@@ -1362,10 +1373,10 @@ depends:yasm/yasm
     make install
 """)
 
-stage('openal-soft', """
+stage('openal-soft', f"""
 version: 3
 win:
-    git clone -b wasapi_exact_device_time https://github.com/telegramdesktop/openal-soft.git
+    {git('clone', '-b wasapi_exact_device_time https://github.com/telegramdesktop/openal-soft.git')}
     cd openal-soft
     cmake -B build . ^
         -A %WIN32X64% ^
@@ -1390,14 +1401,14 @@ mac:
 """)
 
 if 'build-stackwalk' in options:
-    stage('stackwalk', """
+    stage('stackwalk', f"""
 mac:
     git clone https://chromium.googlesource.com/breakpad/breakpad stackwalk
     cd stackwalk
     git checkout dfcb7b6799
 depends:patches/breakpad.diff
     git apply ../patches/breakpad.diff
-    git clone -b release-1.11.0 https://github.com/google/googletest src/testing
+    {git('clone', '-b release-1.11.0 https://github.com/google/googletest src/testing')}
     git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
     cd src/third_party/lss
     git checkout e1e7b0ad8e
@@ -1407,13 +1418,13 @@ depends:patches/breakpad.diff
     xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
 """)
 
-stage('breakpad', """
+stage('breakpad', f"""
     git clone https://chromium.googlesource.com/breakpad/breakpad
     cd breakpad
     git checkout dfcb7b6799
 depends:patches/breakpad.diff
     git apply ../patches/breakpad.diff
-    git clone -b release-1.11.0 https://github.com/google/googletest src/testing
+    {git('clone', '-b release-1.11.0 https://github.com/google/googletest src/testing')}
 win:
     SET "PYTHONUTF8=1"
     SET "FolderPostfix="
@@ -1539,7 +1550,7 @@ release:
     stage('qt_' + qt, """
     git clone -b v$QT-lts-lgpl https://github.com/qt/qt5.git qt_$QT
     cd qt_$QT
-    git submodule update --init --recursive --progress qtbase qtimageformats qtsvg
+    """ + git('submodule update', '--init --recursive --progress qtbase qtimageformats qtsvg') + """
 depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
 win:
@@ -1631,9 +1642,9 @@ mac:
 else: # qt > '6'
     branch = 'v$QT' + ('-lts-lgpl' if qt < '6.3' else '')
     stage('qt_' + qt, """
-    git clone -b """ + branch + """ https://github.com/qt/qt5.git qt_$QT
+    """ + git('clone',  '-b ' + branch + ' https://github.com/qt/qt5.git qt_$QT') + """
     cd qt_$QT
-    git submodule update --init --recursive qtbase qtimageformats qtsvg
+    """ + git('submodule update', '--init --recursive qtbase qtimageformats qtsvg') + """
 depends:patches/qtbase_""" + qt + """/*.patch
     cd qtbase
 mac:
