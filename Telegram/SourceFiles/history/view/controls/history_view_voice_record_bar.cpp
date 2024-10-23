@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_round_preview.h"
+#include "storage/storage_account.h"
 #include "ui/controls/round_video_recorder.h"
 #include "ui/controls/send_button.h"
 #include "ui/effects/animation_value.h"
@@ -2362,7 +2363,13 @@ bool VoiceRecordBar::createVideoRecorder() {
 			.hidden = hidden,
 			.capturer = std::move(capturer),
 			.track = std::move(track),
+			.placeholder = _show->session().local().readRoundPlaceholder(),
 		});
+	_videoRecorder->placeholderUpdates(
+	) | rpl::start_with_next([=](QImage &&placeholder) {
+		_show->session().local().writeRoundPlaceholder(placeholder);
+	}, _videoCapturerLifetime);
+
 	return true;
 }
 

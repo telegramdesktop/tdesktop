@@ -38,6 +38,7 @@ struct RoundVideoRecorderDescriptor {
 	Fn<void(not_null<RoundVideoRecorder*>)> hidden;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> capturer;
 	std::shared_ptr<Webrtc::VideoTrack> track;
+	QImage placeholder;
 };
 
 struct RoundVideoResult {
@@ -62,6 +63,7 @@ public:
 
 	[[nodiscard]] int previewSize() const;
 	[[nodiscard]] Fn<void(Media::Capture::Chunk)> audioChunkProcessor();
+	[[nodiscard]] rpl::producer<QImage> placeholderUpdates() const;
 
 	void pause(Fn<void(RoundVideoResult)> done = nullptr);
 	void resume(RoundVideoPartial partial);
@@ -84,6 +86,7 @@ private:
 
 	void setup();
 	void prepareFrame(bool blurred = false);
+	void preparePlaceholder(const QImage &placeholder);
 	void createImages();
 	void progressTo(float64 progress);
 	void fade(bool visible);
@@ -100,6 +103,7 @@ private:
 	Ui::Animations::Simple _progressAnimation;
 	Ui::Animations::Simple _fadeAnimation;
 	Ui::Animations::Simple _fadeContentAnimation;
+	rpl::event_stream<QImage> _placeholderUpdates;
 
 	std::shared_ptr<Ui::DynamicImage> _silentPreview;
 	std::shared_ptr<Ui::DynamicImage> _soundedPreview;

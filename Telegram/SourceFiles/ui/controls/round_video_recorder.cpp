@@ -1052,6 +1052,10 @@ Fn<void(Media::Capture::Chunk)> RoundVideoRecorder::audioChunkProcessor() {
 	};
 }
 
+rpl::producer<QImage> RoundVideoRecorder::placeholderUpdates() const {
+	return _placeholderUpdates.events();
+}
+
 int RoundVideoRecorder::previewSize() const {
 	return _side;
 }
@@ -1096,6 +1100,31 @@ void RoundVideoRecorder::progressTo(float64 progress) {
 	_preview->update();
 }
 
+void RoundVideoRecorder::preparePlaceholder(const QImage &placeholder) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto full = QSize(_side, _side) * ratio;
+	if (!placeholder.isNull()) {
+		_framePlaceholder = Images::Circle(
+			placeholder.scaled(
+				full,
+				Qt::KeepAspectRatio,
+				Qt::SmoothTransformation));
+		_framePlaceholder.setDevicePixelRatio(ratio);
+	} else {
+		_framePlaceholder = QImage(
+			full,
+			QImage::Format_ARGB32_Premultiplied);
+		_framePlaceholder.fill(Qt::transparent);
+		_framePlaceholder.setDevicePixelRatio(ratio);
+
+		auto p = QPainter(&_framePlaceholder);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(Qt::black);
+		p.drawEllipse(0, 0, _side, _side);
+	}
+}
+
 void RoundVideoRecorder::prepareFrame(bool blurred) {
 	if (_frameOriginal.isNull()) {
 		return;
@@ -1124,18 +1153,14 @@ void RoundVideoRecorder::prepareFrame(bool blurred) {
 	const auto ratio = style::DevicePixelRatio();
 	if (blurred) {
 		static constexpr auto kRadius = 16;
-		_framePlaceholder = Images::Circle(
-			Images::BlurLargeImage(
-				copy.scaled(
-					QSize(kBlurredSize, kBlurredSize),
-					Qt::KeepAspectRatio,
-					Qt::FastTransformation),
-				kRadius
-			).scaled(
-				QSize(_side, _side) * ratio,
+		auto image = Images::BlurLargeImage(
+			copy.scaled(
+				QSize(kBlurredSize, kBlurredSize),
 				Qt::KeepAspectRatio,
-				Qt::SmoothTransformation));
-		_framePlaceholder.setDevicePixelRatio(ratio);
+				Qt::FastTransformation),
+			kRadius);
+		preparePlaceholder(image);
+		_placeholderUpdates.fire(std::move(image));
 	} else {
 		_framePrepared = Images::Circle(copy.scaled(
 			QSize(_side, _side) * ratio,
@@ -1147,17 +1172,7 @@ void RoundVideoRecorder::prepareFrame(bool blurred) {
 
 void RoundVideoRecorder::createImages() {
 	const auto ratio = style::DevicePixelRatio();
-	_framePlaceholder = QImage(
-		QSize(_side, _side) * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	_framePlaceholder.fill(Qt::transparent);
-	_framePlaceholder.setDevicePixelRatio(ratio);
-	auto p = QPainter(&_framePlaceholder);
-	auto hq = PainterHighQualityEnabler(p);
-
-	p.setPen(Qt::NoPen);
-	p.setBrush(Qt::black);
-	p.drawEllipse(0, 0, _side, _side);
+	preparePlaceholder(_descriptor.placeholder);
 
 	const auto side = _side + 2 * _extent;
 	_shadow = QImage(
