@@ -1031,6 +1031,12 @@ void RoundVideoRecorder::Private::updateResultDuration(
 RoundVideoRecorder::RoundVideoRecorder(
 	RoundVideoRecorderDescriptor &&descriptor)
 : _descriptor(std::move(descriptor))
+, _gradientBg(QColor(255, 255, 255, 0))
+, _gradientFg(QColor(255, 255, 255, 48))
+, _gradient(
+	_gradientBg.color(),
+	_gradientFg.color(),
+	[=] { _preview->update(); })
 , _preview(std::make_unique<RpWidget>(_descriptor.container))
 , _private(MinithumbSize()) {
 	setup();
@@ -1192,6 +1198,43 @@ void RoundVideoRecorder::setup() {
 				QRect(0, 0, side, side)));
 	}, raw->lifetime());
 
+	const auto paintPlaceholder = [=](QPainter &p, QRect inner) {
+		p.drawImage(inner, _framePlaceholder);
+		if (_paused) {
+			return;
+		}
+
+		_gradient.startFrame(
+			0,
+			raw->width(),
+			raw->width() * 2 / 3);
+		_gradient.paint([&](const Ui::PathShiftGradient::Background &b) {
+			if (!v::is<QLinearGradient*>(b)) {
+				return true;
+			}
+			auto hq = PainterHighQualityEnabler(p);
+			const auto gradient = v::get<QLinearGradient*>(b);
+
+			auto copy = *gradient;
+			auto stops = copy.stops();
+			for (auto &pair : stops) {
+				if (pair.second.alpha() > 0) {
+					pair.second.setAlpha(255);
+				}
+			}
+			copy.setStops(stops);
+
+			const auto stroke = style::ConvertScaleExact(1.);
+			const auto sub = stroke / 2.;
+			p.setPen(QPen(QBrush(copy), stroke));
+
+			p.setBrush(*gradient);
+			const auto innerf = QRectF(inner);
+			p.drawEllipse(innerf.marginsRemoved({ sub, sub, sub, sub }));
+			return true;
+		});
+	};
+
 	raw->paintRequest() | rpl::start_with_next([=] {
 		prepareFrame();
 
@@ -1202,14 +1245,16 @@ void RoundVideoRecorder::setup() {
 		} else if (!_visible) {
 			return;
 		}
+
 		p.drawImage(raw->rect(), _shadow);
 		const auto inner = QRect(_extent, _extent, _side, _side);
 		const auto fading = _fadeContentAnimation.animating();
 		if (!_progressReceived && !fading) {
-			p.drawImage(inner, _framePlaceholder);
+			paintPlaceholder(p, inner);
 		} else {
 			if (fading) {
-				p.drawImage(inner, _framePlaceholder);
+				paintPlaceholder(p, inner);
+
 				const auto to = _progressReceived ? 1. : 0.;
 				p.setOpacity(opacity * _fadeContentAnimation.value(to));
 			}

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/path_shift_gradient.h"
 
 #include <crl/crl_object_on_queue.h>
 
@@ -91,6 +92,9 @@ private:
 	[[nodiscard]] PreviewFrame lookupPreviewFrame() const;
 
 	const RoundVideoRecorderDescriptor _descriptor;
+	style::owned_color _gradientBg;
+	style::owned_color _gradientFg;
+	PathShiftGradient _gradient;
 	std::unique_ptr<RpWidget> _preview;
 	crl::object_on_queue<Private> _private;
 	Ui::Animations::Simple _progressAnimation;
