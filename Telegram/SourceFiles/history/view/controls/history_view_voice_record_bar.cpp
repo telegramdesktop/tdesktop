@@ -2335,6 +2335,11 @@ bool VoiceRecordBar::createVideoRecorder() {
 	if (_videoRecorder) {
 		return true;
 	}
+	const auto hiding = [=](not_null<Ui::RoundVideoRecorder*> which) {
+		if (_videoRecorder.get() == which) {
+			_videoHiding.push_back(base::take(_videoRecorder));
+		}
+	};
 	const auto hidden = [=](not_null<Ui::RoundVideoRecorder*> which) {
 		if (_videoRecorder.get() == which) {
 			_videoRecorder = nullptr;
@@ -2360,6 +2365,7 @@ bool VoiceRecordBar::createVideoRecorder() {
 	_videoRecorder = std::make_unique<Ui::RoundVideoRecorder>(
 		Ui::RoundVideoRecorderDescriptor{
 			.container = _outerContainer,
+			.hiding = hiding,
 			.hidden = hidden,
 			.capturer = std::move(capturer),
 			.track = std::move(track),

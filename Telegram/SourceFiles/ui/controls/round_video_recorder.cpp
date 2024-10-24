@@ -36,6 +36,7 @@ constexpr auto kMinithumbsPerSecond = 5;
 constexpr auto kMinithumbsInRow = 16;
 constexpr auto kFadeDuration = crl::time(150);
 constexpr auto kSkipFrames = 8;
+constexpr auto kMinScale = 0.7;
 
 using namespace FFmpeg;
 
@@ -647,7 +648,7 @@ void RoundVideoRecorder::Private::restart(RoundVideoPartial partial) {
 
 void RoundVideoRecorder::Private::fail(Error error) {
 	deinitEncoding();
-	_updates.fire_error({});
+	_updates.fire_error_copy(error);
 }
 
 void RoundVideoRecorder::Private::timeout() {
@@ -1072,12 +1073,11 @@ auto RoundVideoRecorder::updated() -> rpl::producer<Update, Error> {
 }
 
 void RoundVideoRecorder::hide(Fn<void(RoundVideoResult)> done) {
-	pause(std::move(done));
-
-	_preview->hide();
-	if (const auto onstack = _descriptor.hidden) {
+	if (const auto onstack = _descriptor.hiding) {
 		onstack(this);
 	}
+	pause(std::move(done));
+	fade(false);
 }
 
 void RoundVideoRecorder::progressTo(float64 progress) {
@@ -1255,9 +1255,15 @@ void RoundVideoRecorder::setup() {
 		prepareFrame();
 
 		auto p = QPainter(raw);
-		const auto opacity = _fadeAnimation.value(_visible ? 1. : 0.);
+		const auto faded = _fadeAnimation.value(_visible ? 1. : 0.);
 		if (_fadeAnimation.animating()) {
-			p.setOpacity(opacity);
+			p.setOpacity(faded * faded);
+
+			const auto center = raw->rect().center();
+			p.translate(center);
+			const auto scale = kMinScale + (1. - kMinScale) * faded;
+			p.scale(scale, scale);
+			p.translate(-center);
 		} else if (!_visible) {
 			return;
 		}
@@ -1272,7 +1278,7 @@ void RoundVideoRecorder::setup() {
 				paintPlaceholder(p, inner);
 
 				const auto to = _progressReceived ? 1. : 0.;
-				p.setOpacity(opacity * _fadeContentAnimation.value(to));
+				p.setOpacity(faded * _fadeContentAnimation.value(to));
 			}
 			p.drawImage(inner, _framePrepared);
 
@@ -1352,11 +1358,18 @@ void RoundVideoRecorder::fade(bool visible) {
 		return;
 	}
 	_visible = visible;
-	_fadeAnimation.start(
-		[=] { _preview->update(); },
-		visible ? 0. : 1.,
-		visible ? 1. : 0.,
-		kFadeDuration);
+	const auto from = visible ? 0. : 1.;
+	const auto to = visible ? 1. : 0.;
+	_fadeAnimation.start([=] {
+		if (_fadeAnimation.animating() || _visible) {
+			_preview->update();
+		} else {
+			_preview->hide();
+			if (const auto onstack = _descriptor.hidden) {
+				onstack(this);
+			}
+		}
+	}, from, to, kFadeDuration);
 }
 
 auto RoundVideoRecorder::lookupPreviewFrame() const -> PreviewFrame {

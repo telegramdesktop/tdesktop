@@ -35,6 +35,7 @@ class RoundVideoRecorder;
 
 struct RoundVideoRecorderDescriptor {
 	not_null<RpWidget*> container;
+	Fn<void(not_null<RoundVideoRecorder*>)> hiding;
 	Fn<void(not_null<RoundVideoRecorder*>)> hidden;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> capturer;
 	std::shared_ptr<Webrtc::VideoTrack> track;
