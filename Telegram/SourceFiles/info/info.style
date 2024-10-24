@@ -441,19 +441,16 @@ infoProfileSeparatorPadding: margins(
 	infoProfileSkip,
 	0px,
 	infoProfileSkip);
-infoProfileLabeledButtonCopy: IconButton(defaultIconButton) {
+infoProfileLabeledButtonQr: IconButton(defaultIconButton) {
 	width: 34px;
 	height: 34px;
-	icon: icon {{ "menu/copy", windowBgActive }};
-	iconOver: icon {{ "menu/copy", windowBgActive }};
+	icon: icon {{ "menu/qr_code", windowActiveTextFg }};
+	iconOver: icon {{ "menu/qr_code", windowActiveTextFg }};
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 34px;
 	ripple: defaultRippleAnimation;
 }
-infoProfileLabeledButtonQr: IconButton(infoProfileLabeledButtonCopy) {
-	icon: icon {{ "menu/qr_code", windowBgActive }};
-	iconOver: icon {{ "menu/qr_code", windowBgActive }};
-}
+infoProfileLabeledButtonQrRightSkip: 10px;
 
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};
 infoIconAddMember: icon {{ "info/info_add_member", infoIconFg }};

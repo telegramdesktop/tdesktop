@@ -1062,7 +1062,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	};
 	const auto fitLabelToButton = [&](
 			not_null<Ui::RpWidget*> button,
-			not_null<Ui::FlatLabel*> label) {
+			not_null<Ui::FlatLabel*> label,
+			int rightSkip) {
 		const auto parent = label->parentWidget();
 		rpl::combine(
 			label->geometryValue(),
@@ -1070,10 +1071,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		) | rpl::start_with_next([=](const QRect &, const QSize &buttonSize) {
 			const auto s = parent->size();
 			button->moveToRight(
-				0,
+				rightSkip,
 				(s.height() - buttonSize.height()) / 2);
 			label->resizeToWidth(
 				s.width()
+					- rightSkip
 					- label->geometry().left()
 					- st::lineWidth * 2
 					- buttonSize.width());
@@ -1195,8 +1197,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		const auto qrButton = Ui::CreateChild<Ui::IconButton>(
 			usernameLine.text->parentWidget(),
 			st::infoProfileLabeledButtonQr);
-		fitLabelToButton(qrButton, usernameLine.text);
-		fitLabelToButton(qrButton, usernameLine.subtext);
+		const auto rightSkip = st::infoProfileLabeledButtonQrRightSkip;
+		fitLabelToButton(qrButton, usernameLine.text, rightSkip);
+		fitLabelToButton(qrButton, usernameLine.subtext, rightSkip);
 		qrButton->setClickedCallback([=] {
 			controller->show(
 				Box(Ui::FillPeerQrBox, user, std::nullopt, nullptr));
@@ -1272,8 +1275,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			const auto qr = Ui::CreateChild<Ui::IconButton>(
 				linkLine.text->parentWidget(),
 				st::infoProfileLabeledButtonQr);
-			fitLabelToButton(qr, linkLine.text);
-			fitLabelToButton(qr, linkLine.subtext);
+			const auto rightSkip = st::infoProfileLabeledButtonQrRightSkip;
+			fitLabelToButton(qr, linkLine.text, rightSkip);
+			fitLabelToButton(qr, linkLine.subtext, rightSkip);
 			qr->setClickedCallback([=, peer = _peer] {
 				controller->show(
 					Box(Ui::FillPeerQrBox, peer, std::nullopt, nullptr));
