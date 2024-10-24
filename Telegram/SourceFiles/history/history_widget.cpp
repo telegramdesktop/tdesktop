@@ -1057,6 +1057,24 @@ void HistoryWidget::initVoiceRecordBar() {
 		_cornerButtons.updateUnreadThingsVisibility();
 	}, lifetime());
 
+	_voiceRecordBar->errors(
+	) | rpl::start_with_next([=](::Media::Capture::Error error) {
+		using Error = ::Media::Capture::Error;
+		switch (error) {
+		case Error::AudioInit:
+		case Error::AudioTimeout:
+			controller()->showToast(tr::lng_record_audio_problem(tr::now));
+			break;
+		case Error::VideoInit:
+		case Error::VideoTimeout:
+			controller()->showToast(tr::lng_record_video_problem(tr::now));
+			break;
+		default:
+			controller()->showToast(u"Unknown error."_q);
+			break;
+		}
+	}, lifetime());
+
 	_voiceRecordBar->updateSendButtonTypeRequests(
 	) | rpl::start_with_next([=] {
 		updateSendButtonType();
