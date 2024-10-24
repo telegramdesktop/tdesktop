@@ -101,6 +101,8 @@ constexpr auto kTransactionsLimit = 100;
 			return Data::CreditsHistoryEntry::PeerType::PremiumBot;
 		}, [](const MTPDstarsTransactionPeerAds &) {
 			return Data::CreditsHistoryEntry::PeerType::Ads;
+		}, [](const MTPDstarsTransactionPeerAPI &) {
+			return Data::CreditsHistoryEntry::PeerType::API;
 		}),
 		.subscriptionUntil = tl.data().vsubscription_period()
 			? base::unixtime::parse(base::unixtime::now()

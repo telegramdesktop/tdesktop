@@ -46,6 +46,7 @@ struct CreditsHistoryEntry final {
 		Unsupported,
 		PremiumBot,
 		Ads,
+		API,
 	};
 
 	QString id;

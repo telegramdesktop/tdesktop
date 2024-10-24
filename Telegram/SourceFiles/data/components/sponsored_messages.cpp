@@ -221,7 +221,7 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	const auto channel = history->peer->asChannel();
 	Assert(channel != nullptr);
 	request.requestId = _session->api().request(
-		MTPchannels_GetSponsoredMessages(channel->inputChannel)
+		MTPmessages_GetSponsoredMessages(channel->input)
 	).done([=](const MTPmessages_sponsoredMessages &result) {
 		parse(history, result);
 		if (done) {
@@ -437,8 +437,8 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	const auto channel = entryPtr->item->history()->peer->asChannel();
 	Assert(channel != nullptr);
 	request.requestId = _session->api().request(
-		MTPchannels_ViewSponsoredMessage(
-			channel->inputChannel,
+		MTPmessages_ViewSponsoredMessage(
+			channel->input	,
 			MTP_bytes(randomId))
 	).done([=] {
 		auto &request = _viewRequests[randomId];
@@ -491,12 +491,12 @@ void SponsoredMessages::clicked(
 	const auto randomId = entryPtr->sponsored.randomId;
 	const auto channel = entryPtr->item->history()->peer->asChannel();
 	Assert(channel != nullptr);
-	using Flag = MTPchannels_ClickSponsoredMessage::Flag;
-	_session->api().request(MTPchannels_ClickSponsoredMessage(
+	using Flag = MTPmessages_ClickSponsoredMessage::Flag;
+	_session->api().request(MTPmessages_ClickSponsoredMessage(
 		MTP_flags(Flag(0)
 			| (isMedia ? Flag::f_media : Flag(0))
 			| (isFullscreen ? Flag::f_fullscreen : Flag(0))),
-		channel->inputChannel,
+		channel->input,
 		MTP_bytes(randomId)
 	)).send();
 }
@@ -548,8 +548,8 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 		}
 
 		state->requestId = _session->api().request(
-			MTPchannels_ReportSponsoredMessage(
-				channel->inputChannel,
+			MTPmessages_ReportSponsoredMessage(
+				channel->input,
 				MTP_bytes(entry->sponsored.randomId),
 				MTP_bytes(optionId))
 		).done([=](

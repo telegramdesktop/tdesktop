@@ -695,7 +695,7 @@ rpl::producer<rpl::no_value, QString> ChannelEarnStatistics::request() {
 
 		makeRequest(MTPstats_GetBroadcastRevenueStats(
 			MTP_flags(0),
-			channel()->inputChannel
+			channel()->input
 		)).done([=](const MTPstats_BroadcastRevenueStats &result) {
 			const auto &data = result.data();
 			const auto &balances = data.vbalances().data();
@@ -742,7 +742,7 @@ void ChannelEarnStatistics::requestHistory(
 	constexpr auto kTlFirstSlice = tl::make_int(kFirstSlice);
 	constexpr auto kTlLimit = tl::make_int(kLimit);
 	_requestId = api().request(MTPstats_GetBroadcastRevenueTransactions(
-		channel()->inputChannel,
+		channel()->input,
 		MTP_int(token),
 		(!token) ? kTlFirstSlice : kTlLimit
 	)).done([=](const MTPstats_BroadcastRevenueTransactions &result) {

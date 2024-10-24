@@ -97,7 +97,7 @@ void HandleWithdrawalButton(
 				if (channel) {
 					session->api().request(
 						MTPstats_GetBroadcastRevenueWithdrawalUrl(
-							channel->inputChannel,
+							channel->input,
 							result.result
 					)).done([=](const ChannelOutUrl &r) {
 						done(qs(r.data().vurl()));
@@ -137,7 +137,7 @@ void HandleWithdrawalButton(
 		if (channel) {
 			session->api().request(
 				MTPstats_GetBroadcastRevenueWithdrawalUrl(
-					channel->inputChannel,
+					channel->input,
 					MTP_inputCheckPasswordEmpty()
 			)).fail(fail).send();
 		} else if (peer) {
