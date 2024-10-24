@@ -89,7 +89,10 @@ void HandleWithdrawalButton(
 					}
 				};
 				const auto fail = [=](const MTP::Error &error) {
-					show->showToast(error.type());
+					const auto message = error.type();
+					if (box && !box->handleCustomCheckError(message)) {
+						show->showToast(message);
+					}
 				};
 				if (channel) {
 					session->api().request(
