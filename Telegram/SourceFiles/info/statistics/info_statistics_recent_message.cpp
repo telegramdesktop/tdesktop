@@ -224,6 +224,7 @@ void MessagePreview::processPreview() {
 			auto image = QImage(
 				rect.size() * style::DevicePixelRatio(),
 				QImage::Format_ARGB32_Premultiplied);
+			image.setDevicePixelRatio(style::DevicePixelRatio());
 			image.fill(Qt::transparent);
 			{
 				auto p = QPainter(&image);

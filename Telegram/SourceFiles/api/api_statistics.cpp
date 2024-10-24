@@ -341,6 +341,10 @@ void PublicForwards::request(
 			.token = nextToken,
 		});
 	};
+	const auto processFail = [=] {
+		_requestId = 0;
+		done({});
+	};
 
 	constexpr auto kLimit = tl::make_int(100);
 	if (_fullId.messageId) {
@@ -349,14 +353,14 @@ void PublicForwards::request(
 			MTP_int(_fullId.messageId.msg),
 			MTP_string(token),
 			kLimit
-		)).done(processResult).fail([=] { _requestId = 0; }).send();
+		)).done(processResult).fail(processFail).send();
 	} else if (_fullId.storyId) {
 		_requestId = makeRequest(MTPstats_GetStoryPublicForwards(
 			channel->input,
 			MTP_int(_fullId.storyId.story),
 			MTP_string(token),
 			kLimit
-		)).done(processResult).fail([=] { _requestId = 0; }).send();
+		)).done(processResult).fail(processFail).send();
 	}
 }
 
@@ -381,7 +385,7 @@ Data::PublicForwardsSlice MessageStatistics::firstSlice() const {
 }
 
 void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
-	if (channel()->isMegagroup()) {
+	if (channel()->isMegagroup() && !_storyId) {
 		return;
 	}
 	const auto requestFirstPublicForwards = [=](
