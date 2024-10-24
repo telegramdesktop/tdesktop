@@ -1616,7 +1616,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			const auto &st = st::msgSelectionCheck;
 			const auto right = delegate()->elementIsChatWide()
 				? std::min(
-					(_bubbleWidthLimit
+					int(_bubbleWidthLimit
 						+ st::msgPhotoSkip
 						+ st::msgSelectionOffset
 						+ st::msgPadding.left()
@@ -1624,7 +1624,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 					width())
 				: width();
 			const auto pos = QPoint(
-				(width()
+				(right
 					- (st::msgSelectionOffset * progress - st.size) / 2
 					- st::msgPadding.right() / 2
 					- st.size),
