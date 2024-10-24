@@ -56,7 +56,7 @@ struct ReadBytesWrap {
 		}
 		return toRead;
 	};
-	static int64 Seek(void *opaque, int64_t offset, int whence) {
+	static int64_t Seek(void *opaque, int64_t offset, int whence) {
 		auto wrap = static_cast<ReadBytesWrap*>(opaque);
 		auto updated = int64(-1);
 		switch (whence) {
@@ -253,9 +253,9 @@ int RoundVideoRecorder::Private::write(uint8_t *buf, int buf_size) {
 int64_t RoundVideoRecorder::Private::seek(int64_t offset, int whence) {
 	const auto checkedSeek = [&](int64_t offset) {
 		if (offset < 0 || offset > int64(_result.size())) {
-			return int64(-1);
+			return int64_t(-1);
 		}
-		return (_resultOffset = offset);
+		return int64_t(_resultOffset = offset);
 	};
 	switch (whence) {
 	case SEEK_SET: return checkedSeek(offset);

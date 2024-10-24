@@ -138,10 +138,6 @@ void SoundedPreview::subscribeToUpdates(Fn<void()> callback) {
 	return std::clamp(float64(low) / high, 0., 1.);
 }
 
-[[nodiscard]] crl::time Duration(int samples) {
-	return samples * crl::time(1000) / ::Media::Player::kDefaultFrequency;
-}
-
 [[nodiscard]] auto FormatVoiceDuration(int samples) {
 	const int duration = kPrecision
 		* (float64(samples) / ::Media::Player::kDefaultFrequency);
