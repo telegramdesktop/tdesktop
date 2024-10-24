@@ -35,6 +35,7 @@ constexpr auto kBlurredSize = 64;
 constexpr auto kMinithumbsPerSecond = 5;
 constexpr auto kMinithumbsInRow = 16;
 constexpr auto kFadeDuration = crl::time(150);
+constexpr auto kSkipFrames = 8;
 
 using namespace FFmpeg;
 
@@ -1317,15 +1318,23 @@ void RoundVideoRecorder::setup() {
 		}
 	}, raw->lifetime());
 
+	// Skip some frames, they are sometimes black :(
+	_skipFrames = kSkipFrames;
+	_descriptor.track->setState(Webrtc::VideoState::Active);
+
 	_descriptor.track->renderNextFrame() | rpl::start_with_next([=] {
 		const auto info = _descriptor.track->frameWithInfo(true);
 		if (!info.original.isNull() && _lastAddedIndex != info.index) {
 			_lastAddedIndex = info.index;
-			_frameOriginal = info.original;
-			const auto ts = info.mcstimestamp;
-			_private.with([copy = info.original, ts](Private &that) {
-				that.push(ts, copy);
-			});
+			if (_skipFrames > 0) {
+				--_skipFrames;
+			} else {
+				_frameOriginal = info.original;
+				const auto ts = info.mcstimestamp;
+				_private.with([copy = info.original, ts](Private &that) {
+					that.push(ts, copy);
+				});
+			}
 		}
 		_descriptor.track->markFrameShown();
 		raw->update();
@@ -1412,9 +1421,10 @@ void RoundVideoRecorder::resume(RoundVideoPartial partial) {
 	if (!_cachedPreviewFrame.image.isNull()) {
 		_fadePreviewAnimation.start(updater(), 1., 0., kFadeDuration);
 	}
+	// Skip some frames, they are sometimes black :(
+	_skipFrames = kSkipFrames;
 	_descriptor.track->setState(Webrtc::VideoState::Active);
 	_preview->update();
 }
 
 } // namespace Ui
-

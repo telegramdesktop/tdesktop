@@ -120,6 +120,7 @@ private:
 	int _side = 0;
 	int _progressStroke = 0;
 	int _extent = 0;
+	int _skipFrames = 0;
 	bool _progressReceived = false;
 	bool _visible = false;
 	bool _paused = false;
