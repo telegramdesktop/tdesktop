@@ -1,3 +1,8 @@
+5.6.4 beta (24.10.24)
+
+- Add recording of video messages in case a camera is available.
+- Add "Respect the Focus settings" for custom notifications on Windows.
+
 5.6.3 (15.10.24)
 
 - Add ability to change page scale in Instant View pages.
