@@ -300,6 +300,7 @@ void TopPeers::applyLocal(QByteArray serialized) {
 	_list.reserve(count);
 	for (auto i = 0; i != int(count); ++i) {
 		auto rating = quint64();
+		const auto streamPosition = stream.underlying().device()->pos();
 		const auto peer = Serialize::readPeer(
 			_session,
 			streamAppVersion,
@@ -313,6 +314,8 @@ void TopPeers::applyLocal(QByteArray serialized) {
 		} else {
 			DEBUG_LOG(("Suggestions: "
 				"Failed TopPeers reading %1 / %2.").arg(i + 1).arg(count));
+			DEBUG_LOG(("Failed bytes: %1.").arg(
+				QString::fromUtf8(serialized.mid(streamPosition).toHex())));
 			_list.clear();
 			return;
 		}

@@ -112,6 +112,7 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 		).arg(streamAppVersion));
 	_list.reserve(count);
 	for (auto i = 0; i != int(count); ++i) {
+		const auto streamPosition = stream.underlying().device()->pos();
 		const auto peer = Serialize::readPeer(
 			_session,
 			streamAppVersion,
@@ -123,6 +124,8 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 			DEBUG_LOG(("Suggestions: Failed RecentPeers reading %1 / %2."
 				).arg(i + 1
 				).arg(count));
+			DEBUG_LOG(("Failed bytes: %1.").arg(
+				QString::fromUtf8(serialized.mid(streamPosition).toHex())));
 			_list.clear();
 			return;
 		}
