@@ -42,7 +42,6 @@ GiftButton::GiftButton(
 : AbstractButton(parent)
 , _delegate(delegate)
 , _stars(this, true, Ui::Premium::MiniStars::Type::SlowStars) {
-	_stars.setColorOverride(Ui::Premium::CreditsIconGradientStops());
 }
 
 GiftButton::~GiftButton() {
@@ -82,7 +81,14 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 				data.currency,
 				true));
 		_userpic = nullptr;
+		_stars.setColorOverride(QGradientStops{
+			{ 0., anim::with_alpha(st::windowActiveTextFg->c, .3) },
+			{ 1., st::windowActiveTextFg->c },
+		});
 	}, [&](const GiftTypeStars &data) {
+		const auto soldOut = data.limitedCount
+			&& !data.userpic
+			&& !data.limitedLeft;
 		_price.setMarkedText(
 			st::semiboldTextStyle,
 			_delegate->star().append(' ' + QString::number(data.stars)),
@@ -93,6 +99,14 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 			: data.from
 			? Ui::MakeUserpicThumbnail(data.from)
 			: Ui::MakeHiddenAuthorThumbnail();
+		if (soldOut) {
+			_stars.setColorOverride(QGradientStops{
+				{ 0., Qt::transparent },
+				{ 1., Qt::transparent },
+			});
+		} else {
+			_stars.setColorOverride(Ui::Premium::CreditsIconGradientStops());
+		}
 	});
 	if (const auto document = _delegate->lookupSticker(descriptor)) {
 		setDocument(document);
@@ -110,6 +124,10 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor) {
 	const auto skipx = (width() - inner.width()) / 2;
 	const auto outer = (width() - 2 * skipx);
 	_button = QRect(skipx, skipy, outer, inner.height());
+	{
+		const auto padding = _button.height() / 2;
+		_stars.setCenter(_button - QMargins(padding, 0, padding, 0));
+	}
 }
 
 bool GiftButton::documentResolved() const {
