@@ -634,6 +634,7 @@ private:
 	QImage _streamedQualityChangeFrame;
 	crl::time _streamedPosition = 0;
 	int _streamedCreated = 0;
+	bool _streamedQualityChangeFinished = false;
 	bool _showAsPip = false;
 
 	std::unique_ptr<Stories::View> _stories;

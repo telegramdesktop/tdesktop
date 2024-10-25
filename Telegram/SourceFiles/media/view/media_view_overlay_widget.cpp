@@ -2285,6 +2285,8 @@ void OverlayWidget::assignMediaPointer(DocumentData *document) {
 	_photo = nullptr;
 	_photoMedia = nullptr;
 	if (_document != document) {
+		_streamedQualityChangeFrame = QImage();
+		_streamedQualityChangeFinished = false;
 		if ((_document = document)) {
 			_chosenQuality = chooseQuality();
 			_documentMedia = _document->createMediaView();
@@ -2301,6 +2303,8 @@ void OverlayWidget::assignMediaPointer(DocumentData *document) {
 void OverlayWidget::assignMediaPointer(not_null<PhotoData*> photo) {
 	_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
 	_chosenQuality = nullptr;
+	_streamedQualityChangeFrame = QImage();
+	_streamedQualityChangeFinished = false;
 	_document = nullptr;
 	_documentMedia = nullptr;
 	_documentLoadingTo = QString();
@@ -4279,7 +4283,9 @@ void OverlayWidget::playbackPauseResume() {
 			redisplayContent();
 		}
 	} else if (_streamed->instance.player().finished()
-		|| !_streamed->instance.player().active()) {
+		|| !_streamed->instance.player().active()
+		|| _streamedQualityChangeFinished) {
+		_streamedQualityChangeFinished = false;
 		_streamingStartPaused = false;
 		restartAtSeekPosition(0);
 	} else if (_streamed->instance.player().paused()) {
@@ -4348,6 +4354,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		_streamed->instance.pause();
 	} else {
 		playbackPauseMusic();
+		_streamedQualityChangeFinished = false;
 	}
 	_streamed->pausedBySeek = false;
 
@@ -4445,8 +4452,14 @@ void OverlayWidget::playbackControlsQualityChanged(int quality) {
 				if (_streamed && _streamed->instance.ready()) {
 					_streamedQualityChangeFrame = currentVideoFrameImage();
 				}
+				if (_streamed
+					&& (!_streamed->instance.player().active()
+						|| _streamed->instance.player().finished())) {
+					_streamedQualityChangeFinished = true;
+				}
+				_streamingStartPaused = _streamedQualityChangeFinished
+					|| (_streamed && _streamed->instance.player().paused());
 				clearStreaming();
-				_streamingStartPaused = false;
 				const auto time = _streamedPosition;
 				const auto startStreaming = StartStreaming(false, time);
 				if (!canInitStreaming() || !initStreaming(startStreaming)) {
