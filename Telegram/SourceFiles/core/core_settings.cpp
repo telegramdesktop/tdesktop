@@ -222,7 +222,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_customFontFamily)
 		+ sizeof(qint32) * 3
 		+ Serialize::bytearraySize(_tonsiteStorageToken)
-		+ sizeof(qint32) * 4;
+		+ sizeof(qint32) * 5;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -380,7 +380,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(_includeMutedCounterFolders ? 1 : 0)
 			<< qint32(_ivZoom.current())
 			<< qint32(_skipToastsInFocus ? 1 : 0)
-			<< qint32(_recordVideoMessages ? 1 : 0);
+			<< qint32(_recordVideoMessages ? 1 : 0)
+			<< qint32(_videoQuality);
 	}
 
 	Ensures(result.size() == size);
@@ -507,6 +508,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 ivZoom = _ivZoom.current();
 	qint32 skipToastsInFocus = _skipToastsInFocus ? 1 : 0;
 	qint32 recordVideoMessages = _recordVideoMessages ? 1 : 0;
+	qint32 videoQuality = _videoQuality;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -825,6 +827,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> recordVideoMessages;
 	}
+	if (!stream.atEnd()) {
+		stream >> videoQuality;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -1039,6 +1044,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_ivZoom = ivZoom;
 	_skipToastsInFocus = (skipToastsInFocus == 1);
 	_recordVideoMessages = (recordVideoMessages == 1);
+	_videoQuality = (videoQuality >= 0 && videoQuality <= 4320)
+		? videoQuality
+		: 0;
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -1429,6 +1437,7 @@ void Settings::resetOnLastLogout() {
 	_ttlVoiceClickTooltipHidden = false;
 	_ivZoom = 100;
 	_recordVideoMessages = false;
+	_videoQuality = 0;
 
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();
@@ -1572,6 +1581,7 @@ auto Settings::skipTranslationLanguagesValue() const
 void Settings::setRememberedDeleteMessageOnlyForYou(bool value) {
 	_rememberedDeleteMessageOnlyForYou = value;
 }
+
 bool Settings::rememberedDeleteMessageOnlyForYou() const {
 	return _rememberedDeleteMessageOnlyForYou;
 }
@@ -1579,9 +1589,11 @@ bool Settings::rememberedDeleteMessageOnlyForYou() const {
 int Settings::ivZoom() const {
 	return _ivZoom.current();
 }
+
 rpl::producer<int> Settings::ivZoomValue() const {
 	return _ivZoom.value();
 }
+
 void Settings::setIvZoom(int value) {
 #ifdef Q_OS_WIN
 	constexpr auto kMin = 25;
@@ -1591,6 +1603,14 @@ void Settings::setIvZoom(int value) {
 	constexpr auto kMax = 200;
 #endif
 	_ivZoom = std::clamp(value, kMin, kMax);
+}
+
+int Settings::videoQuality() const {
+	return _videoQuality;
+}
+
+void Settings::setVideoQuality(int value) {
+	_videoQuality = value;
 }
 
 } // namespace Core

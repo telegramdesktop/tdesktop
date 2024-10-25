@@ -489,6 +489,7 @@ OverlayWidget::OverlayWidget()
 , _widget(_surface->rpWidget())
 , _fullscreen(Core::App().settings().mediaViewPosition().maximized == 2)
 , _windowed(Core::App().settings().mediaViewPosition().maximized == 0)
+, _quality(Core::App().settings().videoQuality())
 , _layerBg(std::make_unique<Ui::LayerManager>(_body))
 , _docDownload(_body, tr::lng_media_download(tr::now), st::mediaviewFileLink)
 , _docSaveAs(_body, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
@@ -4436,6 +4437,8 @@ void OverlayWidget::playbackControlsQualityChanged(int quality) {
 	const auto now = _chosenQuality;
 	if (_quality != quality) {
 		_quality = quality;
+		Core::App().settings().setVideoQuality(quality);
+		Core::App().saveSettingsDelayed();
 		if (_document) {
 			_chosenQuality = chooseQuality();
 			if (_chosenQuality != now) {

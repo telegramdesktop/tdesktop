@@ -958,7 +958,9 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 		if (duration > 0) {
 			result.length = duration;
 		} else {
-			result.length = std::max(crl::time(result.position), crl::time(0));
+			result.length = std::max(
+				crl::time(result.position),
+				crl::time(0));
 		}
 	}
 	return result;

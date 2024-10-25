@@ -192,11 +192,9 @@ void Document::waitingChange(bool waiting) {
 			_radial.start(
 				st::defaultInfiniteRadialAnimation.sineDuration);
 		}
-		_fading.start(
-			[=] { waitingCallback(); },
-			_waiting ? 0. : 1.,
-			_waiting ? 1. : 0.,
-			duration);
+		_fading.start([=] {
+			waitingCallback();
+		}, _waiting ? 0. : 1., _waiting ? 1. : 0., duration);
 	};
 	if (waiting) {
 		if (_radial.animating()) {
