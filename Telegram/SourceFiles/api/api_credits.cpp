@@ -39,8 +39,8 @@ constexpr auto kTransactionsLimit = 100;
 	if (const auto list = tl.data().vextended_media()) {
 		extended.reserve(list->v.size());
 		for (const auto &media : list->v) {
-			media.match([&](const MTPDmessageMediaPhoto &photo) {
-				if (const auto inner = photo.vphoto()) {
+			media.match([&](const MTPDmessageMediaPhoto &data) {
+				if (const auto inner = data.vphoto()) {
 					const auto photo = owner->processPhoto(*inner);
 					if (!photo->isNull()) {
 						extended.push_back(CreditsHistoryMedia{
@@ -49,9 +49,11 @@ constexpr auto kTransactionsLimit = 100;
 						});
 					}
 				}
-			}, [&](const MTPDmessageMediaDocument &document) {
-				if (const auto inner = document.vdocument()) {
-					const auto document = owner->processDocument(*inner);
+			}, [&](const MTPDmessageMediaDocument &data) {
+				if (const auto inner = data.vdocument()) {
+					const auto document = owner->processDocument(
+						*inner,
+						data.valt_documents());
 					if (document->isAnimation()
 						|| document->isVideoFile()
 						|| document->isGifv()) {

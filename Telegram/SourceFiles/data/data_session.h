@@ -558,8 +558,12 @@ public:
 		const ImageLocation &thumbnailLocation);
 
 	[[nodiscard]] not_null<DocumentData*> document(DocumentId id);
-	not_null<DocumentData*> processDocument(const MTPDocument &data);
-	not_null<DocumentData*> processDocument(const MTPDdocument &data);
+	not_null<DocumentData*> processDocument(
+		const MTPDocument &data,
+		const MTPVector<MTPDocument> *qualities = nullptr);
+	not_null<DocumentData*> processDocument(
+		const MTPDdocument &data,
+		const MTPVector<MTPDocument> *qualities = nullptr);
 	not_null<DocumentData*> processDocument(
 		const MTPdocument &data,
 		const ImageWithLocation &thumbnail);

@@ -346,7 +346,9 @@ void SponsoredMessages::append(
 			}, [&](const MTPDmessageMediaDocument &media) {
 				if (const auto tlDocument = media.vdocument()) {
 					tlDocument->match([&](const MTPDdocument &data) {
-						const auto d = history->owner().processDocument(data);
+						const auto d = history->owner().processDocument(
+							data,
+							media.valt_documents());
 						if (d->isVideoFile()
 							|| d->isSilentVideo()
 							|| d->isAnimation()

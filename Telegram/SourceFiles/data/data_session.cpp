@@ -3139,17 +3139,24 @@ not_null<DocumentData*> Session::document(DocumentId id) {
 	return i->second.get();
 }
 
-not_null<DocumentData*> Session::processDocument(const MTPDocument &data) {
+not_null<DocumentData*> Session::processDocument(
+		const MTPDocument &data,
+		const MTPVector<MTPDocument> *qualities) {
 	return data.match([&](const MTPDdocument &data) {
-		return processDocument(data);
+		return processDocument(data, qualities);
 	}, [&](const MTPDdocumentEmpty &data) {
 		return document(data.vid().v);
 	});
 }
 
-not_null<DocumentData*> Session::processDocument(const MTPDdocument &data) {
+not_null<DocumentData*> Session::processDocument(
+		const MTPDdocument &data,
+		const MTPVector<MTPDocument> *qualities) {
 	const auto result = document(data.vid().v);
 	documentApplyFields(result, data);
+	if (qualities) {
+		result->setVideoQualities(qualities->v);
+	}
 	return result;
 }
 

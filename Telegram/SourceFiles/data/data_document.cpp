@@ -332,6 +332,8 @@ void DocumentData::setattributes(
 
 	validateLottieSticker();
 
+	auto wasVideoData = isVideoFile() ? std::move(_additional) : nullptr;
+
 	_videoPreloadPrefix = 0;
 	for (const auto &attribute : attributes) {
 		attribute.match([&](const MTPDdocumentAttributeImageSize &data) {
@@ -388,11 +390,21 @@ void DocumentData::setattributes(
 					: VideoDocument;
 				if (data.is_round_message()) {
 					_additional = std::make_unique<RoundData>();
-				} else if (const auto size = data.vpreload_prefix_size()) {
-					if (size->v > 0 && size->v < kMaxAllowedPreloadPrefix) {
-						_videoPreloadPrefix = size->v;
+				} else {
+					if (const auto size = data.vpreload_prefix_size()) {
+						if (size->v > 0
+							&& size->v < kMaxAllowedPreloadPrefix) {
+							_videoPreloadPrefix = size->v;
+						}
 					}
+					_additional = wasVideoData
+						? std::move(wasVideoData)
+						: std::make_unique<VideoData>();
+					video()->codec = qs(
+						data.vvideo_codec().value_or_empty());
 				}
+			} else if (type == VideoDocument && wasVideoData) {
+				_additional = std::move(wasVideoData);
 			} else if (const auto info = sticker()) {
 				info->type = StickerType::Webm;
 			}
@@ -509,6 +521,67 @@ void DocumentData::setattributes(
 		|| storyMedia()) {
 		setMaybeSupportsStreaming(true);
 	}
+}
+
+void DocumentData::setVideoQualities(const QVector<MTPDocument> &list) {
+	auto qualities = std::vector<not_null<DocumentData*>>();
+	qualities.reserve(list.size());
+	for (const auto &document : list) {
+		qualities.push_back(owner().processDocument(document));
+	}
+	setVideoQualities(std::move(qualities));
+}
+
+void DocumentData::setVideoQualities(
+		std::vector<not_null<DocumentData*>> qualities) {
+	const auto data = video();
+	if (!data) {
+		return;
+	}
+	auto count = int(qualities.size());
+	if (qualities.empty()) {
+		return;
+	}
+	const auto good = [&](not_null<DocumentData*> document) {
+		return document->isVideoFile()
+			&& !document->dimensions.isEmpty()
+			&& !document->inappPlaybackFailed()
+			&& document->useStreamingLoader()
+			&& document->canBeStreamed(nullptr);
+	};
+	ranges::sort(
+		qualities,
+		ranges::greater(),
+		&DocumentData::resolveVideoQuality);
+	for (auto i = 0; i != count - 1;) {
+		const auto my = qualities[i];
+		const auto next = qualities[i + 1];
+		const auto myQuality = my->resolveVideoQuality();
+		const auto nextQuality = next->resolveVideoQuality();
+		const auto myGood = good(my);
+		const auto nextGood = good(next);
+		if (!myGood || !nextGood || myQuality == nextQuality) {
+			const auto removeMe = !myGood
+				|| (nextGood && (my->size > next->size));
+			const auto from = i + (removeMe ? 1 : 2);
+			for (auto j = from; j != count; ++j) {
+				qualities[j - 1] = qualities[j];
+			}
+			--count;
+		} else {
+			++i;
+		}
+	}
+	if (!qualities[count - 1]->resolveVideoQuality()) {
+		--count;
+	}
+	qualities.erase(qualities.begin() + count, qualities.end());
+	data->qualities = std::move(qualities);
+}
+
+int DocumentData::resolveVideoQuality() const {
+	const auto size = isVideoFile() ? dimensions : QSize();
+	return size.isEmpty() ? 0 : std::min(size.width(), size.height());
 }
 
 void DocumentData::validateLottieSticker() {
@@ -1382,6 +1455,16 @@ RoundData *DocumentData::round() {
 
 const RoundData *DocumentData::round() const {
 	return const_cast<DocumentData*>(this)->round();
+}
+
+VideoData *DocumentData::video() {
+	return isVideoFile()
+		? static_cast<VideoData*>(_additional.get())
+		: nullptr;
+}
+
+const VideoData *DocumentData::video() const {
+	return const_cast<DocumentData*>(this)->video();
 }
 
 bool DocumentData::hasRemoteLocation() const {

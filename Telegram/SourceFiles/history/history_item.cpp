@@ -299,7 +299,9 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		return document->match([&](const MTPDdocument &document) -> Result {
 			return std::make_unique<Data::MediaFile>(
 				item,
-				item->history()->owner().processDocument(document),
+				item->history()->owner().processDocument(
+					document,
+					media.valt_documents()),
 				media.is_nopremium(),
 				media.is_spoiler(),
 				media.vttl_seconds().value_or_empty());
