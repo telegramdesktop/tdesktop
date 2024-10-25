@@ -143,6 +143,7 @@ private:
 	void updateMaxLevel(const Media::Capture::Chunk &chunk);
 	void updateResultDuration(int64 pts, AVRational timeBase);
 
+	void mirrorYUV420P(not_null<AVFrame*> frame);
 	void cutCircleFromYUV420P(not_null<AVFrame*> frame);
 
 	[[nodiscard]] RoundVideoResult appendToPrevious(RoundVideoResult video);
@@ -752,6 +753,7 @@ void RoundVideoRecorder::Private::encodeVideoFrame(
 		_videoFrame->data,
 		_videoFrame->linesize);
 
+	mirrorYUV420P(_videoFrame.get());
 	cutCircleFromYUV420P(_videoFrame.get());
 
 	_videoFrame->pts = mcstimestamp - _videoFirstTimestamp;
@@ -834,6 +836,21 @@ void RoundVideoRecorder::Private::initMinithumbsCanvas() {
 	const auto rows = (frames + kMinithumbsInRow - 1) / kMinithumbsInRow;
 	const auto height = rows * _minithumbSize;
 	_minithumbs = QImage(width, height, QImage::Format_ARGB32_Premultiplied);
+}
+
+void RoundVideoRecorder::Private::mirrorYUV420P(not_null<AVFrame*> frame) {
+	for (auto p = 0; p < 3; ++p) {
+		const auto size = p ? (kSide / 2) : kSide;
+		const auto linesize = _videoFrame->linesize[p];
+		auto data = _videoFrame->data[p];
+		for (auto y = 0; y != size; ++y) {
+			auto left = data + y * linesize;
+			auto right = left + size - 1;
+			while (left < right) {
+				std::swap(*left++, *right--);
+			}
+		}
+	}
 }
 
 void RoundVideoRecorder::Private::cutCircleFromYUV420P(
@@ -1104,26 +1121,14 @@ void RoundVideoRecorder::progressTo(float64 progress) {
 void RoundVideoRecorder::preparePlaceholder(const QImage &placeholder) {
 	const auto ratio = style::DevicePixelRatio();
 	const auto full = QSize(_side, _side) * ratio;
-	if (!placeholder.isNull()) {
-		_framePlaceholder = Images::Circle(
-			placeholder.scaled(
+	_framePlaceholder = Images::Circle(
+		(placeholder.isNull()
+			? QImage(u":/gui/art/round_placeholder.jpg"_q)
+			: placeholder).scaled(
 				full,
 				Qt::KeepAspectRatio,
 				Qt::SmoothTransformation));
-		_framePlaceholder.setDevicePixelRatio(ratio);
-	} else {
-		_framePlaceholder = QImage(
-			full,
-			QImage::Format_ARGB32_Premultiplied);
-		_framePlaceholder.fill(Qt::transparent);
-		_framePlaceholder.setDevicePixelRatio(ratio);
-
-		auto p = QPainter(&_framePlaceholder);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(Qt::black);
-		p.drawEllipse(0, 0, _side, _side);
-	}
+	_framePlaceholder.setDevicePixelRatio(ratio);
 }
 
 void RoundVideoRecorder::prepareFrame(bool blurred) {
@@ -1159,14 +1164,15 @@ void RoundVideoRecorder::prepareFrame(bool blurred) {
 				QSize(kBlurredSize, kBlurredSize),
 				Qt::KeepAspectRatio,
 				Qt::FastTransformation),
-			kRadius);
+			kRadius).mirrored(true, false);
 		preparePlaceholder(image);
 		_placeholderUpdates.fire(std::move(image));
 	} else {
-		_framePrepared = Images::Circle(copy.scaled(
+		auto scaled = copy.scaled(
 			QSize(_side, _side) * ratio,
 			Qt::KeepAspectRatio,
-			Qt::SmoothTransformation));
+			Qt::SmoothTransformation).mirrored(true, false);
+		_framePrepared = Images::Circle(std::move(scaled));
 		_framePrepared.setDevicePixelRatio(ratio);
 	}
 }
