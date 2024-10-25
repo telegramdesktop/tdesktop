@@ -44,6 +44,10 @@ public:
 		virtual void playbackControlsSpeedChanged(float64 speed) = 0;
 		[[nodiscard]] virtual float64 playbackControlsCurrentSpeed(
 			bool lastNonDefault) = 0;
+		[[nodiscard]] virtual auto playbackControlsQualities()
+			-> std::vector<int> = 0;
+		[[nodiscard]] virtual int playbackControlsCurrentQuality() = 0;
+		virtual void playbackControlsQualityChanged(int quality) = 0;
 		virtual void playbackControlsToFullScreen() = 0;
 		virtual void playbackControlsFromFullScreen() = 0;
 		virtual void playbackControlsToPictureInPicture() = 0;
@@ -89,6 +93,8 @@ private:
 
 	[[nodiscard]] float64 speedLookup(bool lastNonDefault) const;
 	void saveSpeed(float64 speed);
+
+	void saveQuality(int quality);
 
 	const not_null<Delegate*> _delegate;
 

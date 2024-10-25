@@ -177,7 +177,8 @@ void FillSpeedMenu(
 		not_null<Ui::Menu::Menu*> menu,
 		const style::MediaSpeedMenu &st,
 		rpl::producer<float64> value,
-		Fn<void(float64)> callback) {
+		Fn<void(float64)> callback,
+		bool onlySlider) {
 	auto slider = base::make_unique_q<SpeedSliderItem>(
 		menu,
 		st,
@@ -198,6 +199,11 @@ void FillSpeedMenu(
 	));
 
 	menu->addAction(std::move(slider));
+
+	if (onlySlider) {
+		return;
+	}
+
 	menu->addSeparator(&st.dropdown.menu.separator);
 
 	struct SpeedPoint {
@@ -693,7 +699,10 @@ SpeedController::SpeedController(
 	not_null<QWidget*> menuParent,
 	Fn<void(bool)> menuOverCallback,
 	Fn<float64(bool lastNonDefault)> value,
-	Fn<void(float64)> change)
+	Fn<void(float64)> change,
+	std::vector<int> qualities,
+	Fn<int()> quality,
+	Fn<void(int)> changeQuality)
 : WithDropdownController(
 	button,
 	menuParent,
@@ -702,7 +711,12 @@ SpeedController::SpeedController(
 	std::move(menuOverCallback))
 , _st(button->st())
 , _lookup(std::move(value))
-, _change(std::move(change)) {
+, _change(std::move(change))
+, _qualities(std::move(qualities))
+, _lookupQuality(std::move(quality))
+, _changeQuality(std::move(changeQuality)) {
+	Expects(_qualities.empty() || (_lookupQuality && _changeQuality));
+
 	button->setClickedCallback([=] {
 		toggleDefault();
 		save();
@@ -756,12 +770,63 @@ void SpeedController::save() {
 	_saved.fire({});
 }
 
+void SpeedController::setQuality(int quality) {
+	_quality = quality;
+	_changeQuality(quality);
+}
+
 void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 	FillSpeedMenu(
 		menu->menu(),
 		_st.menu,
 		_speedChanged.events_starting_with(speed()),
-		[=](float64 speed) { setSpeed(speed); save(); });
+		[=](float64 speed) { setSpeed(speed); save(); },
+		!_qualities.empty());
+	if (_qualities.empty()) {
+		return;
+	}
+	_quality = _lookupQuality();
+	const auto raw = menu->menu();
+	const auto &st = _st.menu;
+	raw->addSeparator(&st.dropdown.menu.separator);
+
+	const auto add = [&](int quality) {
+		const auto text = quality ? u"%1p"_q.arg(quality) : u"Original"_q;
+		auto action = base::make_unique_q<Ui::Menu::Action>(
+			raw,
+			st.qualityMenu,
+			Ui::Menu::CreateAction(raw, text, [=] { _changeQuality(quality); }),
+			nullptr,
+			nullptr);
+		const auto raw = action.get();
+		const auto check = Ui::CreateChild<Ui::RpWidget>(raw);
+		check->resize(st.activeCheck.size());
+		check->paintRequest(
+		) | rpl::start_with_next([check, icon = &st.activeCheck] {
+			auto p = QPainter(check);
+			icon->paint(p, 0, 0, check->width());
+		}, check->lifetime());
+		raw->sizeValue(
+		) | rpl::start_with_next([=, skip = st.activeCheckSkip](QSize size) {
+			check->moveToRight(
+				skip,
+				(size.height() - check->height()) / 2,
+				size.width());
+		}, check->lifetime());
+		check->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_quality.value(
+		) | rpl::start_with_next([=](int now) {
+			const auto chosen = (now == quality);
+			raw->action()->setEnabled(!chosen);
+			check->setVisible(chosen);
+		}, raw->lifetime());
+		menu->addAction(std::move(action));
+	};
+
+	add(0);
+	for (const auto quality : _qualities) {
+		add(quality);
+	}
 }
 
 } // namespace Media::Player

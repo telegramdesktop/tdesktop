@@ -307,17 +307,21 @@ mediaviewTitleMaximizeMacPadding: margins(0px, 4px, 8px, 4px);
 mediaviewShadowTop: icon{{ "mediaview/shadow_top", windowShadowFg }};
 mediaviewShadowBottom: icon{{ "mediaview/shadow_bottom", windowShadowFg }};
 
+mediaviewSpeedMenuInner: Menu(mediaviewMenu) {
+	separator: MenuSeparator(mediaviewMenuSeparator) {
+		fg: groupCallMenuBgOver;
+		padding: margins(0px, 4px, 0px, 4px);
+		width: 6px;
+	}
+	itemPadding: margins(54px, 7px, 54px, 9px);
+	itemFgDisabled: mediaviewTextLinkFg;
+}
 mediaviewSpeedMenu: MediaSpeedMenu(mediaPlayerSpeedMenu) {
 	dropdown: DropdownMenu(mediaviewDropdownMenu) {
-		menu: Menu(mediaviewMenu) {
-			separator: MenuSeparator(mediaviewMenuSeparator) {
-				fg: groupCallMenuBgOver;
-				padding: margins(0px, 4px, 0px, 4px);
-				width: 6px;
-			}
-			itemPadding: margins(54px, 7px, 54px, 9px);
-			itemFgDisabled: mediaviewTextLinkFg;
-		}
+		menu: mediaviewSpeedMenuInner;
+	}
+	qualityMenu: Menu(mediaviewSpeedMenuInner) {
+		itemPadding: margins(17px, 7px, 54px, 9px);
 	}
 	activeCheck: icon {{ "player/player_check", mediaviewTextLinkFg }};
 	slider: MediaSlider(defaultContinuousSlider) {

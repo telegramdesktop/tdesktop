@@ -47,7 +47,10 @@ PlaybackControls::PlaybackControls(
 		parent,
 		[=](bool) {},
 		[=](bool lastNonDefault) { return speedLookup(lastNonDefault); },
-		[=](float64 speed) { saveSpeed(speed); })
+		[=](float64 speed) { saveSpeed(speed); },
+		_delegate->playbackControlsQualities(),
+		[=] { return _delegate->playbackControlsCurrentQuality(); },
+		[=](int quality) { saveQuality(quality); })
 	: nullptr)
 , _fadeAnimation(std::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
@@ -190,6 +193,10 @@ float64 PlaybackControls::speedLookup(bool lastNonDefault) const {
 
 void PlaybackControls::saveSpeed(float64 speed) {
 	_delegate->playbackControlsSpeedChanged(speed);
+}
+
+void PlaybackControls::saveQuality(int quality) {
+	_delegate->playbackControlsQualityChanged(quality);
 }
 
 void PlaybackControls::updatePlaybackSpeed(float64 speed) {

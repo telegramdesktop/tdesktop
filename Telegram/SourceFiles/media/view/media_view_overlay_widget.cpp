@@ -1112,7 +1112,10 @@ bool OverlayWidget::videoShown() const {
 QSize OverlayWidget::videoSize() const {
 	Expects(videoShown());
 
-	return flipSizeByRotation(_streamed->instance.info().video.size);
+	const auto use = (_document && _chosenQuality != _document)
+		? _document->dimensions
+		: _streamed->instance.info().video.size;
+	return flipSizeByRotation(use);
 }
 
 bool OverlayWidget::streamingRequiresControls() const {
@@ -2257,16 +2260,37 @@ OverlayWidget::~OverlayWidget() {
 	_dropdown.destroy();
 }
 
+not_null<DocumentData*> OverlayWidget::chooseQuality() const {
+	Expects(_document != nullptr);
+
+	const auto video = _document->video();
+	if (!video || video->qualities.empty() || _quality == kOriginalQuality) {
+		return _document;
+	}
+	auto closest = _document;
+	auto closestAbs = std::abs(_quality - _document->resolveVideoQuality());
+	for (const auto &quality : video->qualities) {
+		const auto abs = std::abs(_quality - quality->resolveVideoQuality());
+		if (abs < closestAbs) {
+			closestAbs = abs;
+			closest = quality;
+		}
+	}
+	return closest;
+}
+
 void OverlayWidget::assignMediaPointer(DocumentData *document) {
 	_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
 	_photo = nullptr;
 	_photoMedia = nullptr;
 	if (_document != document) {
 		if ((_document = document)) {
+			_chosenQuality = chooseQuality();
 			_documentMedia = _document->createMediaView();
 			_documentMedia->goodThumbnailWanted();
 			_documentMedia->thumbnailWanted(fileOrigin());
 		} else {
+			_chosenQuality = nullptr;
 			_documentMedia = nullptr;
 		}
 		_documentLoadingTo = QString();
@@ -2275,6 +2299,7 @@ void OverlayWidget::assignMediaPointer(DocumentData *document) {
 
 void OverlayWidget::assignMediaPointer(not_null<PhotoData*> photo) {
 	_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
+	_chosenQuality = nullptr;
 	_document = nullptr;
 	_documentMedia = nullptr;
 	_documentLoadingTo = QString();
@@ -3848,12 +3873,12 @@ void OverlayWidget::startStreamingPlayer(
 		return;
 	}
 
-	const auto position = _document
+	_streamedPosition = _document
 		? startStreaming.startTime
 		: _photo
 		? _photo->videoStartPosition()
 		: 0;
-	restartAtSeekPosition(position);
+	restartAtSeekPosition(_streamedPosition);
 }
 
 void OverlayWidget::initStreamingThumbnail() {
@@ -3892,9 +3917,15 @@ void OverlayWidget::initStreamingThumbnail() {
 		: good
 		? good->size()
 		: _document->dimensions;
-	if (!good && !thumbnail && !blurred) {
+	if (size.isEmpty()) {
 		return;
-	} else if (size.isEmpty()) {
+	} else if (!_streamedQualityChangeFrame.isNull()) {
+		setStaticContent(_streamedQualityChangeFrame.scaled(
+			size,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation));
+		return;
+	} else if (!good && !thumbnail && !blurred) {
 		return;
 	}
 	const auto options = VideoThumbOptions(_document);
@@ -3917,6 +3948,7 @@ void OverlayWidget::initStreamingThumbnail() {
 void OverlayWidget::streamingReady(Streaming::Information &&info) {
 	if (videoShown()) {
 		applyVideoSize();
+		_streamedQualityChangeFrame = QImage();
 	} else {
 		updateContentRect();
 	}
@@ -3938,8 +3970,9 @@ bool OverlayWidget::createStreamingObjects() {
 
 	const auto origin = fileOrigin();
 	const auto callback = [=] { waitingAnimationCallback(); };
-	if (_document) {
-		_streamed = std::make_unique<Streamed>(_document, origin, callback);
+	const auto video = _chosenQuality ? _chosenQuality : _document;
+	if (video) {
+		_streamed = std::make_unique<Streamed>(video, origin, callback);
 	} else {
 		_streamed = std::make_unique<Streamed>(_photo, origin, callback);
 	}
@@ -3950,8 +3983,8 @@ bool OverlayWidget::createStreamingObjects() {
 	++_streamedCreated;
 	_streamed->instance.setPriority(kOverlayLoaderPriority);
 	_streamed->instance.lockPlayer();
-	_streamed->withSound = _document
-		&& !_document->isSilentVideo()
+	_streamed->withSound = video
+		&& !video->isSilentVideo()
 		&& (_document->isAudioFile()
 			|| _document->isVideoFile()
 			|| _document->isVoiceMessage()
@@ -4018,6 +4051,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 		updateContentRect();
 		Core::App().updateNonIdle();
 		updatePlaybackState();
+		_streamedPosition = update.position;
 	}, [&](const PreloadedAudio &update) {
 		updatePlaybackState();
 	}, [&](const UpdateAudio &update) {
@@ -4381,6 +4415,45 @@ float64 OverlayWidget::playbackControlsCurrentSpeed(bool lastNonDefault) {
 	return Core::App().settings().videoPlaybackSpeed(lastNonDefault);
 }
 
+std::vector<int> OverlayWidget::playbackControlsQualities() {
+	const auto video = _document ? _document->video() : nullptr;
+	if (!video || video->qualities.empty()) {
+		return {};
+	}
+	auto result = std::vector<int>();
+	result.reserve(video->qualities.size());
+	for (const auto &quality : video->qualities) {
+		result.push_back(quality->resolveVideoQuality());
+	}
+	return result;
+}
+
+int OverlayWidget::playbackControlsCurrentQuality() {
+	return _quality;
+}
+
+void OverlayWidget::playbackControlsQualityChanged(int quality) {
+	const auto now = _chosenQuality;
+	if (_quality != quality) {
+		_quality = quality;
+		if (_document) {
+			_chosenQuality = chooseQuality();
+			if (_chosenQuality != now) {
+				if (_streamed && _streamed->instance.ready()) {
+					_streamedQualityChangeFrame = currentVideoFrameImage();
+				}
+				clearStreaming();
+				_streamingStartPaused = false;
+				const auto time = _streamedPosition;
+				const auto startStreaming = StartStreaming(false, time);
+				if (!canInitStreaming() || !initStreaming(startStreaming)) {
+					redisplayContent();
+				}
+			}
+		}
+	}
+}
+
 void OverlayWidget::switchToPip() {
 	Expects(_streamed != nullptr);
 	Expects(_document != nullptr);
@@ -4628,6 +4701,7 @@ void OverlayWidget::updatePlaybackState() {
 	}
 	const auto state = _streamed->instance.player().prepareLegacyState();
 	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
+		_streamedPosition = state.position;
 		if (_streamed->controls) {
 			_streamed->controls->updatePlayback(state);
 			_touchbarTrackState.fire_copy(state);
