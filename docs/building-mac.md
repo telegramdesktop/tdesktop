@@ -20,6 +20,11 @@ Go to ***BuildPath*** and run
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
     ./tdesktop/Telegram/build/prepare/mac.sh
 
+> [!IMPORTANT]
+> You might not need Telegram Desktop's git dependency history, in which case you can run this command **instead of the last one** and save disk space and speed up cloning quite a bit:
+>
+>     ./tdesktop/Telegram/build/prepare/mac.sh no-deps-git-history
+
 ### Building the project
 
 Go to ***BuildPath*/tdesktop/Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
