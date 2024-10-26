@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_story.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "main/main_session.h"
 
@@ -685,17 +686,18 @@ Data::BoostStatus Boosts::boostStatus() const {
 	return _boostStatus;
 }
 
-ChannelEarnStatistics::ChannelEarnStatistics(not_null<ChannelData*> channel)
-: StatisticsRequestSender(channel) {
+EarnStatistics::EarnStatistics(not_null<PeerData*> peer)
+: StatisticsRequestSender(peer)
+, _isUser(peer->isUser()) {
 }
 
-rpl::producer<rpl::no_value, QString> ChannelEarnStatistics::request() {
+rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
 		makeRequest(MTPstats_GetBroadcastRevenueStats(
 			MTP_flags(0),
-			channel()->input
+			(_isUser ? user()->input : channel()->input)
 		)).done([=](const MTPstats_BroadcastRevenueStats &result) {
 			const auto &data = result.data();
 			const auto &balances = data.vbalances().data();
@@ -712,18 +714,22 @@ rpl::producer<rpl::no_value, QString> ChannelEarnStatistics::request() {
 			requestHistory({}, [=](Data::EarnHistorySlice &&slice) {
 				_data.firstHistorySlice = std::move(slice);
 
-				api().request(
-					MTPchannels_GetFullChannel(channel()->inputChannel)
-				).done([=](const MTPmessages_ChatFull &result) {
-					result.data().vfull_chat().match([&](
-							const MTPDchannelFull &d) {
-						_data.switchedOff = d.is_restricted_sponsored();
-					}, [](const auto &) {
-					});
+				if (!_isUser) {
+					api().request(
+						MTPchannels_GetFullChannel(channel()->inputChannel)
+					).done([=](const MTPmessages_ChatFull &result) {
+						result.data().vfull_chat().match([&](
+								const MTPDchannelFull &d) {
+							_data.switchedOff = d.is_restricted_sponsored();
+						}, [](const auto &) {
+						});
+						consumer.put_done();
+					}).fail([=](const MTP::Error &error) {
+						consumer.put_error_copy(error.type());
+					}).send();
+				} else {
 					consumer.put_done();
-				}).fail([=](const MTP::Error &error) {
-					consumer.put_error_copy(error.type());
-				}).send();
+				}
 			});
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
@@ -733,7 +739,7 @@ rpl::producer<rpl::no_value, QString> ChannelEarnStatistics::request() {
 	};
 }
 
-void ChannelEarnStatistics::requestHistory(
+void EarnStatistics::requestHistory(
 		const Data::EarnHistorySlice::OffsetToken &token,
 		Fn<void(Data::EarnHistorySlice)> done) {
 	if (_requestId) {
@@ -742,7 +748,7 @@ void ChannelEarnStatistics::requestHistory(
 	constexpr auto kTlFirstSlice = tl::make_int(kFirstSlice);
 	constexpr auto kTlLimit = tl::make_int(kLimit);
 	_requestId = api().request(MTPstats_GetBroadcastRevenueTransactions(
-		channel()->input,
+		(_isUser ? user()->input : channel()->input),
 		MTP_int(token),
 		(!token) ? kTlFirstSlice : kTlLimit
 	)).done([=](const MTPstats_BroadcastRevenueTransactions &result) {
@@ -803,7 +809,7 @@ void ChannelEarnStatistics::requestHistory(
 	}).send();
 }
 
-Data::EarnStatistics ChannelEarnStatistics::data() const {
+Data::EarnStatistics EarnStatistics::data() const {
 	return _data;
 }
 

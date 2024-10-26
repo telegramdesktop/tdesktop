@@ -99,8 +99,8 @@ public:
 	[[nodiscard]] Data::CreditsEarnStatistics data() const;
 
 private:
+	const bool _isUser = false;
 	Data::CreditsEarnStatistics _data;
-	bool _isUser = false;
 
 	mtpRequestId _requestId = 0;
 

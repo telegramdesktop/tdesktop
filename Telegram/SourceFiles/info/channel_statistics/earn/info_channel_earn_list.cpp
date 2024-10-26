@@ -269,11 +269,11 @@ InnerWidget::InnerWidget(
 void InnerWidget::load() {
 	struct State final {
 		State(not_null<PeerData*> peer)
-		: api(peer->asChannel())
+		: api(peer)
 		, apiCredits(peer)
 		, apiCreditsHistory(peer, true, true) {
 		}
-		Api::ChannelEarnStatistics api;
+		Api::EarnStatistics api;
 		Api::CreditsEarnStatistics apiCredits;
 		Api::CreditsHistory apiCreditsHistory;
 		rpl::lifetime apiLifetime;
@@ -1375,7 +1375,7 @@ void InnerWidget::fill() {
 					ShowMoreState(not_null<ChannelData*> channel)
 					: api(channel) {
 					}
-					Api::ChannelEarnStatistics api;
+					Api::EarnStatistics api;
 					bool loading = false;
 					Data::EarnHistorySlice::OffsetToken token;
 					rpl::variable<int> showed = 0;
