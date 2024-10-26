@@ -1574,7 +1574,8 @@ void OverlayWidget::fillContextMenuActions(
 	if (_message && _message->isSponsored()) {
 		if (const auto window = findWindow()) {
 			const auto show = window->uiShow();
-			Menu::FillSponsored(_body, addAction, show, _message, true);
+			const auto fullId = _message->fullId();
+			Menu::FillSponsored(_body, addAction, show, fullId, true);
 		}
 		return;
 	}

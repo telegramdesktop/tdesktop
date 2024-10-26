@@ -218,10 +218,8 @@ void AboutBox(
 
 void ShowReportSponsoredBox(
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<HistoryItem*> item) {
-	const auto peer = item->history()->peer;
-	auto &sponsoredMessages = peer->session().sponsoredMessages();
-	const auto fullId = item->fullId();
+		const FullMsgId &fullId) {
+	auto &sponsoredMessages = show->session().sponsoredMessages();
 	const auto report = sponsoredMessages.createReportCallback(fullId);
 	const auto guideLink = Ui::Text::Link(
 		tr::lng_report_sponsored_reported_link(tr::now),
@@ -306,18 +304,16 @@ void FillSponsored(
 		not_null<Ui::RpWidget*> parent,
 		const Ui::Menu::MenuCallback &addAction,
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<HistoryItem*> item,
+		const FullMsgId &fullId,
 		bool mediaViewer) {
-	Expects(item->isSponsored());
-
-	const auto session = &item->history()->session();
+	const auto session = &show->session();
 
 	addAction(tr::lng_sponsored_menu_revenued_about(tr::now), [=] {
 		show->show(Box(AboutBox, show));
 	}, (mediaViewer ? &st::mediaMenuIconInfo : &st::menuIconInfo));
 
 	addAction(tr::lng_sponsored_menu_revenued_report(tr::now), [=] {
-		ShowReportSponsoredBox(show, item);
+		ShowReportSponsoredBox(show, fullId);
 	}, (mediaViewer ? &st::mediaMenuIconBlock : &st::menuIconBlock));
 
 	addAction({
@@ -331,7 +327,7 @@ void FillSponsored(
 		if (session->premium()) {
 			using Result = Data::SponsoredReportResult;
 			session->sponsoredMessages().createReportCallback(
-				item->fullId())(Result::Id("-1"), [](const auto &) {});
+				fullId)(Result::Id("-1"), [](const auto &) {});
 		} else {
 			ShowPremiumPreviewBox(show, PremiumFeature::NoAds);
 		}
@@ -341,9 +337,7 @@ void FillSponsored(
 void ShowSponsored(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<HistoryItem*> item) {
-	Expects(item->isSponsored());
-
+		const FullMsgId &fullId) {
 	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
 		parent.get(),
 		st::popupMenuWithIcons);
@@ -352,7 +346,7 @@ void ShowSponsored(
 		parent,
 		Ui::Menu::CreateAddActionCallback(menu),
 		show,
-		item,
+		fullId,
 		false);
 
 	menu->popup(QCursor::pos());

@@ -409,7 +409,7 @@ ClickHandlerPtr ReportSponsoredClickHandler(not_null<HistoryItem*> item) {
 			Menu::ShowSponsored(
 				controller->widget(),
 				controller->uiShow(),
-				item);
+				item->fullId());
 		}
 	});
 }
