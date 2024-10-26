@@ -7,21 +7,118 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/sponsored_message_bar.h"
 
+#include "core/application.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/chat/chat_style.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
+#include "ui/effects/animation_value.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/image/image_prepare.h"
 #include "ui/rect.h"
-#include "ui/rp_widget.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "window/section_widget.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
+namespace {
+
+struct Colors final {
+	QColor bg;
+	QColor fg;
+};
+
+using ColorFactory = Fn<Colors()>;
+
+class RemoveButton final : public Ui::RippleButton {
+public:
+	RemoveButton(
+		not_null<Ui::RpWidget*> parent,
+		ColorFactory cache)
+	: Ui::RippleButton(parent, st::defaultRippleAnimation) {
+		tr::lng_sponsored_top_bar_hide(
+		) | rpl::start_with_next([this](const QString &t) {
+			const auto height = st::stickersHeaderBadgeFont->height;
+			resize(
+				st::stickersHeaderBadgeFont->width(t) + height,
+				height);
+			update();
+		}, lifetime());
+		paintRequest() | rpl::start_with_next([this, cache] {
+			auto p = QPainter(this);
+			const auto colors = cache();
+			const auto r = rect();
+			const auto rippleColor = anim::with_alpha(colors.fg, .15);
+			Ui::RippleButton::paintRipple(
+				p,
+				QPoint(),
+				&rippleColor);
+			p.setBrush(colors.bg);
+			p.setPen(Qt::NoPen);
+			p.drawRoundedRect(r, r.height() / 2, r.height() / 2);
+			p.setFont(st::stickersHeaderBadgeFont);
+			p.setPen(colors.fg);
+			p.drawText(
+				r,
+				tr::lng_sponsored_top_bar_hide(tr::now),
+				style::al_center);
+		}, lifetime());
+	}
+
+	QImage prepareRippleMask() const override {
+		return Ui::RippleAnimation::RoundRectMask(size(), height() / 2);
+	}
+
+};
+
+[[nodiscard]] ColorFactory GenerateReplyColorCallback(
+		not_null<RpWidget*> widget,
+		FullMsgId fullId,
+		int colorIndex) {
+	const auto window = Core::App().findWindow(widget);
+	const auto controller = window ? window->sessionController() : nullptr;
+	if (!controller) {
+		return [] -> Colors {
+			return { st::windowBgActive->c, st::windowActiveTextFg->c };
+		};
+	}
+	const auto peer = controller->session().data().peer(fullId.peer);
+	struct State final {
+		std::shared_ptr<Ui::ChatTheme> theme;
+	};
+	const auto state = widget->lifetime().make_state<State>();
+	Window::ChatThemeValueFromPeer(
+		controller,
+		peer
+	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
+		state->theme = std::move(theme);
+	}, widget->lifetime());
+
+	return [=] -> Colors {
+		if (!state->theme) {
+			return { st::windowBgActive->c, st::windowActiveTextFg->c };
+		}
+		const auto context = controller->preparePaintContext({
+			.theme = state->theme.get(),
+		});
+		const auto selected = false;
+		const auto cache = context.st->coloredReplyCache(
+			selected,
+			colorIndex);
+		return { cache->bg, cache->icon };
+	};
+}
+
+} // namespace
 
 void FillSponsoredMessageBar(
 		not_null<RpWidget*> widget,
@@ -40,14 +137,17 @@ void FillSponsoredMessageBar(
 		QImage rightPhotoImage;
 	};
 	const auto state = widget->lifetime().make_state<State>();
+	const auto &titleSt = st::semiboldTextStyle;
+	const auto &contentTitleSt = st::semiboldTextStyle;
+	const auto &contentTextSt = st::defaultTextStyle;
 	state->title.setText(
-		st::semiboldTextStyle,
+		titleSt,
 		from.isRecommended
 			? tr::lng_recommended_message_title(tr::now)
 			: tr::lng_sponsored_message_title(tr::now));
-	state->contentTitle.setText(st::semiboldTextStyle, from.title);
+	state->contentTitle.setText(contentTitleSt, from.title);
 	state->contentText.setMarkedText(
-		st::defaultTextStyle,
+		contentTextSt,
 		textWithEntities,
 		kMarkupTextOptions,
 		Core::MarkedTextContext{
@@ -55,9 +155,9 @@ void FillSponsoredMessageBar(
 			.customEmojiRepaint = [=] { widget->update(); },
 		});
 	const auto kLinesForPhoto = 3;
-	const auto rightPhotoSize = state->title.style()->font->ascent
+	const auto rightPhotoSize = titleSt.font->ascent
 		* kLinesForPhoto;
-	const auto rightPhotoPlaceholder = state->title.style()->font->height
+	const auto rightPhotoPlaceholder = titleSt.font->height
 		* kLinesForPhoto;
 	const auto hasRightPhoto = from.photoId > 0;
 	if (hasRightPhoto) {
@@ -73,6 +173,14 @@ void FillSponsoredMessageBar(
 		state->rightPhoto->subscribeToUpdates(callback);
 		callback();
 	}
+	const auto removeButton = Ui::CreateChild<RemoveButton>(
+		widget,
+		GenerateReplyColorCallback(
+			widget,
+			fullId,
+			from.colorIndex ? from.colorIndex : 4/*blue*/));
+	removeButton->show();
+
 	widget->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(widget);
@@ -88,20 +196,36 @@ void FillSponsoredMessageBar(
 			- (hasRightPhoto ? (rightPadding + rightPhotoSize) : 0);
 		const auto titleRight = leftPadding
 			+ state->title.maxWidth()
-			+ state->title.style()->font->spacew * 2;
-		const auto hasSecondLineTitle
-			= (availableWidth - state->contentTitle.maxWidth() < titleRight);
+			+ titleSt.font->spacew * 2;
+		const auto hasSecondLineTitle = (titleRight
+			> (availableWidth
+				- state->contentTitle.maxWidth()
+				- removeButton->width()));
 		p.setPen(st::windowActiveTextFg);
 		state->title.draw(p, {
 			.position = QPoint(leftPadding, topPadding),
 			.outerWidth = availableWidth,
 			.availableWidth = availableWidth,
 		});
+		removeButton->moveToLeft(
+			hasSecondLineTitle
+				? titleRight
+				: std::min(
+					titleRight
+						+ state->contentTitle.maxWidth()
+						+ titleSt.font->spacew * 2,
+					r.width()
+						- (hasRightPhoto
+							? (rightPadding + rightPhotoSize)
+							: 0)
+						- rightPadding),
+			topPadding
+				+ (titleSt.font->height - removeButton->height()) / 2);
 		p.setPen(st::windowFg);
 		{
 			const auto left = hasSecondLineTitle ? leftPadding : titleRight;
 			const auto top = hasSecondLineTitle
-				? (topPadding + state->title.style()->font->height)
+				? (topPadding + titleSt.font->height)
 				: topPadding;
 			state->contentTitle.draw(p, {
 				.position = QPoint(left, top),
@@ -116,11 +240,11 @@ void FillSponsoredMessageBar(
 			const auto left = leftPadding;
 			const auto top = hasSecondLineTitle
 				? (topPadding
-					+ state->title.style()->font->height
-					+ state->contentTitle.style()->font->height)
-				: topPadding + state->title.style()->font->height;
+					+ titleSt.font->height
+					+ contentTitleSt.font->height)
+				: topPadding + titleSt.font->height;
 			auto lastContentLineAmount = 0;
-			const auto lineHeight = state->contentText.style()->font->height;
+			const auto lineHeight = contentTextSt.font->height;
 			const auto lineLayout = [&](int line) -> Ui::Text::LineGeometry {
 				line++;
 				lastContentLineAmount = line;
@@ -171,7 +295,7 @@ void FillSponsoredMessageBar(
 			int lastLines) {
 		const auto bottomPadding = st::msgReplyPadding.top();
 		const auto desiredHeight = lastTop
-			+ (lastLines * state->contentText.style()->font->height)
+			+ (lastLines * contentTextSt.font->height)
 			+ bottomPadding;
 		const auto minHeight = hasRightPhoto
 			? (rightPhotoPlaceholder + bottomPadding * 2)

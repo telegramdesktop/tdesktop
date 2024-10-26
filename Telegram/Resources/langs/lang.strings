@@ -5201,6 +5201,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sponsored_revenued_info3_description#other" = "You can turn off ads by subscribing to {link}, and Level {count} channels can remove them for their subscribers.";
 "lng_sponsored_revenued_footer_title" = "Can I Launch an Ad?";
 "lng_sponsored_revenued_footer_description" = "Anyone can create an ad to display in this channel — with minimal budgets. Check out the **Telegram Ad Platform** for details. {link}";
+"lng_sponsored_top_bar_hide" = "remove";
 
 "lng_telegram_features_url" = "https://t.me/TelegramTips";
 
