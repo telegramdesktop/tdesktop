@@ -1594,6 +1594,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_bot_public_link" = "Public Link";
 "lng_manage_peer_bot_public_links" = "Public Links";
 "lng_manage_peer_bot_balance" = "Balance";
+"lng_manage_peer_bot_balance_currency" = "Toncoin";
+"lng_manage_peer_bot_balance_credits" = "Stars";
 "lng_manage_peer_bot_edit_intro" = "Edit Intro";
 "lng_manage_peer_bot_edit_commands" = "Edit Commands";
 "lng_manage_peer_bot_edit_settings" = "Change Bot Settings";

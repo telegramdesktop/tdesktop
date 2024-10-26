@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_blocked_peers.h"
 #include "api/api_chat_participants.h"
 #include "api/api_credits.h"
+#include "api/api_statistics.h"
 #include "apiwrap.h"
 #include "base/options.h"
 #include "base/timer_rpl.h"
@@ -45,13 +46,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/view/history_view_item_preview.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
-#include "info/info_controller.h"
-#include "info/info_memento.h"
+#include "info/channel_statistics/earn/earn_format.h"
+#include "info/channel_statistics/earn/info_channel_earn_list.h" // IconCurrency.
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_phone_menu.h"
 #include "info/profile/info_profile_text.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_widget.h"
+#include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
@@ -79,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h" // Window::Controller::show.
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+#include "styles/style_channel_earn.h" // st::channelEarnCurrencyCommonMargins
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -835,6 +839,7 @@ public:
 
 private:
 	void addInviteToGroupAction(not_null<UserData*> user);
+	void addCurrencyAction(not_null<UserData*> user);
 	void addCreditsAction(not_null<UserData*> user);
 	void addShareContactAction(not_null<UserData*> user);
 	void addEditContactAction(not_null<UserData*> user);
@@ -1935,6 +1940,77 @@ void ActionsFiller::addInviteToGroupAction(not_null<UserData*> user) {
 	about->finishAnimating();
 }
 
+void ActionsFiller::addCurrencyAction(not_null<UserData*> user) {
+	struct State final {
+		rpl::variable<uint64> balance;
+	};
+	const auto state = _wrap->lifetime().make_state<State>();
+	const auto controller = _controller->parentController();
+	const auto wrap = AddActionButton(
+		_wrap,
+		tr::lng_manage_peer_bot_balance_currency(),
+		state->balance.value() | rpl::map(rpl::mappers::_1 > 0),
+		[=] { controller->showSection(Info::BotEarn::Make(user)); },
+		&st::infoIconBotBalance);
+	const auto balance = user->session().credits().balanceCurrency(user->id);
+	if (balance) {
+		state->balance = balance;
+	}
+	{
+		const auto weak = Ui::MakeWeak(_wrap.data());
+		const auto currencyLoadLifetime
+			= std::make_shared<rpl::lifetime>();
+		const auto currencyLoad
+			= currencyLoadLifetime->make_state<Api::EarnStatistics>(user);
+		currencyLoad->request(
+		) | rpl::start_with_error_done([=](const QString &error) {
+			currencyLoadLifetime->destroy();
+		}, [=] {
+			if (const auto strong = weak.get()) {
+				state->balance = currencyLoad->data().currentBalance;
+				currencyLoadLifetime->destroy();
+			}
+		}, *currencyLoadLifetime);
+	}
+	const auto &st = st::infoSharedMediaButton;
+	const auto button = wrap->entity();
+	const auto name = Ui::CreateChild<Ui::FlatLabel>(button, st.rightLabel);
+	const auto icon = Ui::Text::SingleCustomEmoji(
+		user->owner().customEmojiManager().registerInternalEmoji(
+			Info::ChannelEarn::IconCurrency(
+				st.rightLabel,
+				st.rightLabel.textFg->c),
+			st::channelEarnCurrencyCommonMargins,
+			false));
+	name->show();
+	rpl::combine(
+		button->widthValue(),
+		tr::lng_manage_peer_bot_balance_currency(),
+		state->balance.value()
+	) | rpl::start_with_next([=, &st](
+			int width,
+			const QString &button,
+			uint64 balance) {
+		const auto available = width
+			- rect::m::sum::h(st.padding)
+			- st.style.font->width(button)
+			- st::settingsButtonRightSkip;
+		name->setMarkedText(
+			base::duplicate(icon)
+				.append(QChar(' '))
+				.append(Info::ChannelEarn::MajorPart(balance))
+				.append(Info::ChannelEarn::MinorPart(balance)),
+			Core::MarkedTextContext{
+				.session = &user->session(),
+				.customEmojiRepaint = [=] { name->update(); },
+			});
+		name->resizeToNaturalWidth(available);
+		name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+	}, name->lifetime());
+	name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	wrap->finishAnimating();
+}
+
 void ActionsFiller::addCreditsAction(not_null<UserData*> user) {
 	struct State final {
 		rpl::variable<uint64> balance;
@@ -1943,7 +2019,7 @@ void ActionsFiller::addCreditsAction(not_null<UserData*> user) {
 	const auto controller = _controller->parentController();
 	const auto wrap = AddActionButton(
 		_wrap,
-		tr::lng_manage_peer_bot_balance(),
+		tr::lng_manage_peer_bot_balance_credits(),
 		state->balance.value() | rpl::map(rpl::mappers::_1 > 0),
 		[=] { controller->showSection(Info::BotEarn::Make(user)); },
 		&st::infoIconBotBalance);
@@ -1963,7 +2039,7 @@ void ActionsFiller::addCreditsAction(not_null<UserData*> user) {
 	name->show();
 	rpl::combine(
 		button->widthValue(),
-		tr::lng_manage_peer_bot_balance(),
+		tr::lng_manage_peer_bot_balance_credits(),
 		state->balance.value()
 	) | rpl::start_with_next([=, &st](
 			int width,
@@ -2209,6 +2285,7 @@ void ActionsFiller::addJoinChannelAction(
 
 void ActionsFiller::fillUserActions(not_null<UserData*> user) {
 	if (user->isBot()) {
+		addCurrencyAction(user);
 		addCreditsAction(user);
 		addInviteToGroupAction(user);
 	}
