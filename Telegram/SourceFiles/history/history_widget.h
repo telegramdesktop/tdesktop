@@ -73,6 +73,8 @@ class SpoilerAnimation;
 class ChooseThemeController;
 class ContinuousScroll;
 struct ChatPaintHighlight;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 namespace Ui::Emoji {
@@ -686,6 +688,9 @@ private:
 	int _groupCallBarHeight = 0;
 	std::unique_ptr<Ui::RequestsBar> _requestsBar;
 	int _requestsBarHeight = 0;
+
+	base::unique_qptr<Ui::SlideWrap<Ui::RpWidget>> _sponsoredMessageBar;
+	int _sponsoredMessageBarHeight = 0;
 
 	bool _preserveScrollTop = false;
 	bool _repaintFieldScheduled = false;

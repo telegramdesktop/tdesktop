@@ -18,6 +18,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+class RpWidget;
+} // namespace Ui
+
 namespace Data {
 
 class MediaPreload;
@@ -76,6 +80,7 @@ public:
 		None,
 		AppendToEnd,
 		InjectToMiddle,
+		AppendToTopBar,
 	};
 	struct Details {
 		std::vector<TextWithEntities> info;
@@ -98,6 +103,9 @@ public:
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
 	void clicked(const FullMsgId &fullId, bool isMedia, bool isFullscreen);
+	void fillTopBar(
+		not_null<History*> history,
+		not_null<Ui::RpWidget*> widget);
 
 	[[nodiscard]] AppendResult append(not_null<History*> history);
 	void inject(

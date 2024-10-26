@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/chat/sponsored_message_bar.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
 
 namespace Data {
@@ -260,10 +261,31 @@ void SponsoredMessages::parse(
 			list.postsBetween = postsBetween->v;
 			list.state = State::InjectToMiddle;
 		} else {
-			list.state = State::AppendToEnd;
+			list.state = history->peer->isChannel()
+				? State::AppendToEnd
+				: State::AppendToTopBar;
 		}
 	}, [](const MTPDmessages_sponsoredMessagesEmpty &) {
 	});
+}
+
+void SponsoredMessages::fillTopBar(
+		not_null<History*> history,
+		not_null<Ui::RpWidget*> widget) {
+	const auto it = _data.find(history);
+	if (it == end(_data)) {
+		return;
+	}
+	const auto &list = it->second;
+	if (list.entries.empty()) {
+		return;
+	}
+	Ui::FillSponsoredMessageBar(
+		widget,
+		_session,
+		list.entries.front().itemFullId,
+		list.entries.front().sponsored.from,
+		list.entries.front().sponsored.textWithEntities);
 }
 
 void SponsoredMessages::append(

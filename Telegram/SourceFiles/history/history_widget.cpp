@@ -1611,6 +1611,9 @@ void HistoryWidget::orderWidgets() {
 	if (_translateBar) {
 		_translateBar->raise();
 	}
+	if (_sponsoredMessageBar) {
+		_sponsoredMessageBar->raise();
+	}
 	if (_pinnedBar) {
 		_pinnedBar->raise();
 	}
@@ -2284,6 +2287,7 @@ void HistoryWidget::showHistory(
 		_history->showAtMsgId = _showAtMsgId;
 
 		destroyUnreadBarOnClose();
+		_sponsoredMessageBar = nullptr;
 		_pinnedBar = nullptr;
 		_translateBar = nullptr;
 		_pinnedTracker = nullptr;
@@ -2520,6 +2524,26 @@ void HistoryWidget::showHistory(
 						session().sponsoredMessages().canHaveFor(_history));
 				} else if (state == State::InjectToMiddle) {
 					injectSponsoredMessages();
+				} else if (state == State::AppendToTopBar) {
+					_sponsoredMessageBar
+						= base::make_unique_q<Ui::SlideWrap<>>(
+							this,
+							object_ptr<Ui::RpWidget>(this));
+					session().sponsoredMessages().fillTopBar(
+						_history,
+						_sponsoredMessageBar->entity());
+					_sponsoredMessageBarHeight = 0;
+					_sponsoredMessageBar->heightValue(
+					) | rpl::start_with_next([=](int height) {
+						_topDelta = _preserveScrollTop
+							? 0
+							: (height - _sponsoredMessageBarHeight);
+						_sponsoredMessageBarHeight = height;
+						updateHistoryGeometry();
+						updateControlsGeometry();
+						_topDelta = 0;
+					}, _sponsoredMessageBar->lifetime());
+					_sponsoredMessageBar->show(anim::type::normal);
 				}
 			});
 			session().sponsoredMessages().request(_history, checkState);
@@ -2930,6 +2954,9 @@ void HistoryWidget::updateControlsVisibility() {
 	}
 	if (_pinnedBar) {
 		_pinnedBar->show();
+	}
+	if (_sponsoredMessageBar) {
+		_sponsoredMessageBar->show(anim::type::instant);
 	}
 	if (_translateBar) {
 		_translateBar->show();
@@ -4128,6 +4155,9 @@ void HistoryWidget::hideChildWidgets() {
 	if (_pinnedBar) {
 		_pinnedBar->hide();
 	}
+	if (_sponsoredMessageBar) {
+		_sponsoredMessageBar->hide(anim::type::instant);
+	}
 	if (_translateBar) {
 		_translateBar->hide();
 	}
@@ -4414,6 +4444,9 @@ void HistoryWidget::showAnimated(
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
+	if (_sponsoredMessageBar) {
+		_sponsoredMessageBar->finishAnimating();
+	}
 	if (_translateBar) {
 		_translateBar->finishAnimating();
 	}
@@ -4452,6 +4485,9 @@ void HistoryWidget::showFinished() {
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
+	if (_sponsoredMessageBar) {
+		_sponsoredMessageBar->finishAnimating();
+	}
 	if (_translateBar) {
 		_translateBar->finishAnimating();
 	}
@@ -4483,6 +4519,9 @@ void HistoryWidget::doneShow() {
 	updatePinnedViewer();
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
+	}
+	if (_sponsoredMessageBar) {
+		_sponsoredMessageBar->finishAnimating();
 	}
 	if (_translateBar) {
 		_translateBar->finishAnimating();
@@ -5999,8 +6038,14 @@ void HistoryWidget::updateControlsGeometry() {
 		_pinnedBar->move(0, pinnedBarTop);
 		_pinnedBar->resizeToWidth(width());
 	}
-	const auto translateTop = pinnedBarTop
+	const auto sponsoredMessageBarTop = pinnedBarTop
 		+ (_pinnedBar ? _pinnedBar->height() : 0);
+	if (_sponsoredMessageBar) {
+		_sponsoredMessageBar->move(0, sponsoredMessageBarTop);
+		_sponsoredMessageBar->resizeToWidth(width());
+	}
+	const auto translateTop = sponsoredMessageBarTop
+		+ (_sponsoredMessageBar ? _sponsoredMessageBar->height() : 0);
 	if (_translateBar) {
 		_translateBar->move(0, translateTop);
 		_translateBar->resizeToWidth(width());
@@ -6244,6 +6289,9 @@ void HistoryWidget::updateHistoryGeometry(
 	auto newScrollHeight = height() - _topBar->height();
 	if (_translateBar) {
 		newScrollHeight -= _translateBar->height();
+	}
+	if (_sponsoredMessageBar) {
+		newScrollHeight -= _sponsoredMessageBar->height();
 	}
 	if (_pinnedBar) {
 		newScrollHeight -= _pinnedBar->height();
@@ -6662,6 +6710,7 @@ int HistoryWidget::computeMaxFieldHeight() const {
 		- _topBar->height()
 		- (_contactStatus ? _contactStatus->bar().height() : 0)
 		- (_businessBotStatus ? _businessBotStatus->bar().height() : 0)
+		- (_sponsoredMessageBar ? _sponsoredMessageBar->height() : 0)
 		- (_pinnedBar ? _pinnedBar->height() : 0)
 		- (_groupCallBar ? _groupCallBar->height() : 0)
 		- (_requestsBar ? _requestsBar->height() : 0)

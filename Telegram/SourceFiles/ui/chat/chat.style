@@ -1153,3 +1153,5 @@ purchasedTagPadding: margins(3px, 2px, 6px, 2px);
 msgSelectionCheck: RoundCheckbox(defaultPeerListCheck) {
 	bgActive: boxTextFgGood;
 }
+
+sponsoredMessageBarMaxHeight: 156px;
