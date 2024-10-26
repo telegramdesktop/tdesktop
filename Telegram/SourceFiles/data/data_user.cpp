@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_user.h"
 
+#include "api/api_credits.h"
 #include "api/api_sensitive_content.h"
+#include "api/api_statistics.h"
 #include "storage/localstorage.h"
 #include "storage/storage_user_photos.h"
 #include "main/main_session.h"
 #include "data/business/data_business_common.h"
 #include "data/business/data_business_info.h"
+#include "data/components/credits.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_peer_bot_command.h"
@@ -634,6 +637,35 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			user->session().changes().peerUpdated(
 				user,
 				Data::PeerUpdate::Flag::Rights);
+		}
+		if (info->canEditInformation) {
+			const auto id = user->id;
+			const auto weak = base::make_weak(&user->session());
+			const auto creditsLoadLifetime
+				= std::make_shared<rpl::lifetime>();
+			const auto creditsLoad
+				= creditsLoadLifetime->make_state<Api::CreditsStatus>(user);
+			creditsLoad->request({}, [=](Data::CreditsStatusSlice slice) {
+				if (const auto strong = weak.get()) {
+					strong->credits().apply(id, slice.balance);
+					creditsLoadLifetime->destroy();
+				}
+			});
+			const auto currencyLoadLifetime
+				= std::make_shared<rpl::lifetime>();
+			const auto currencyLoad
+				= currencyLoadLifetime->make_state<Api::EarnStatistics>(user);
+			currencyLoad->request(
+			) | rpl::start_with_error_done([=](const QString &error) {
+				currencyLoadLifetime->destroy();
+			}, [=] {
+				if (const auto strong = weak.get()) {
+					strong->credits().applyCurrency(
+						id,
+						currencyLoad->data().currentBalance);
+					currencyLoadLifetime->destroy();
+				}
+			}, *currencyLoadLifetime);
 		}
 	}
 
