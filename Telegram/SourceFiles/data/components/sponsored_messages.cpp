@@ -194,7 +194,12 @@ void SponsoredMessages::inject(
 }
 
 bool SponsoredMessages::canHaveFor(not_null<History*> history) const {
-	return history->peer->isChannel();
+	if (history->peer->isChannel()) {
+		return true;
+	} else if (const auto user = history->peer->asUser()) {
+		return user->isBot();
+	}
+	return false;
 }
 
 void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
@@ -218,10 +223,8 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 			}
 		}
 	}
-	const auto channel = history->peer->asChannel();
-	Assert(channel != nullptr);
 	request.requestId = _session->api().request(
-		MTPmessages_GetSponsoredMessages(channel->input)
+		MTPmessages_GetSponsoredMessages(history->peer->input)
 	).done([=](const MTPmessages_sponsoredMessages &result) {
 		parse(history, result);
 		if (done) {
@@ -406,7 +409,7 @@ void SponsoredMessages::clearItems(not_null<History*> history) {
 
 const SponsoredMessages::Entry *SponsoredMessages::find(
 		const FullMsgId &fullId) const {
-	if (!peerIsChannel(fullId.peer)) {
+	if (!peerIsChannel(fullId.peer) && !peerIsUser(fullId.peer)) {
 		return nullptr;
 	}
 	const auto history = _session->data().history(fullId.peer);
@@ -434,11 +437,9 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
-	const auto channel = entryPtr->item->history()->peer->asChannel();
-	Assert(channel != nullptr);
 	request.requestId = _session->api().request(
 		MTPmessages_ViewSponsoredMessage(
-			channel->input	,
+			entryPtr->item->history()->peer->input,
 			MTP_bytes(randomId))
 	).done([=] {
 		auto &request = _viewRequests[randomId];
@@ -489,14 +490,12 @@ void SponsoredMessages::clicked(
 		return;
 	}
 	const auto randomId = entryPtr->sponsored.randomId;
-	const auto channel = entryPtr->item->history()->peer->asChannel();
-	Assert(channel != nullptr);
 	using Flag = MTPmessages_ClickSponsoredMessage::Flag;
 	_session->api().request(MTPmessages_ClickSponsoredMessage(
 		MTP_flags(Flag(0)
 			| (isMedia ? Flag::f_media : Flag(0))
 			| (isFullscreen ? Flag::f_fullscreen : Flag(0))),
-		channel->input,
+		entryPtr->item->history()->peer->input,
 		MTP_bytes(randomId)
 	)).send();
 }
@@ -526,10 +525,6 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 		}
 
 		const auto history = entry->item->history();
-		const auto channel = history->peer->asChannel();
-		if (!channel) {
-			return;
-		}
 
 		const auto erase = [=] {
 			const auto it = _data.find(history);
@@ -549,7 +544,7 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 
 		state->requestId = _session->api().request(
 			MTPmessages_ReportSponsoredMessage(
-				channel->input,
+				history->peer->input,
 				MTP_bytes(entry->sponsored.randomId),
 				MTP_bytes(optionId))
 		).done([=](
