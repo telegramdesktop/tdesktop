@@ -35,6 +35,9 @@ public:
 	[[nodiscard]] rpl::producer<float64> rateValue(
 		not_null<PeerData*> ownedBotOrChannel);
 
+	void applyCurrency(PeerId peerId, uint64 balance);
+	[[nodiscard]] uint64 balanceCurrency(PeerId peerId) const;
+
 	void lock(int count);
 	void unlock(int count);
 	void withdrawLocked(int count);
@@ -50,6 +53,7 @@ private:
 	std::unique_ptr<Api::CreditsStatus> _loader;
 
 	base::flat_map<PeerId, uint64> _cachedPeerBalances;
+	base::flat_map<PeerId, uint64> _cachedPeerCurrencyBalances;
 
 	uint64 _balance = 0;
 	uint64 _locked = 0;
