@@ -558,6 +558,10 @@ void WithDropdownController::updateDropdownGeometry() {
 	_menu->move(position);
 }
 
+rpl::producer<bool> WithDropdownController::menuToggledValue() const {
+	return _menuToggled.value();
+}
+
 void WithDropdownController::hideTemporarily() {
 	if (_menu && !_menu->isHidden()) {
 		_temporarilyHidden = true;
@@ -590,9 +594,19 @@ void WithDropdownController::showMenu() {
 		}
 	}, _menu->lifetime());
 	_menu->setHiddenCallback([=]{
+		if (_menu.get() == raw) {
+			_menuToggled = false;
+		}
 		Ui::PostponeCall(raw, [this] {
 			_menu = nullptr;
+			_menuToggled = false;
 		});
+	});
+	_menu->setShowStartCallback([=] {
+		_menuToggled = true;
+	});
+	_menu->setHideStartCallback([=] {
+		_menuToggled = false;
 	});
 	_button->installEventFilter(raw);
 	fillMenu(raw);
@@ -608,6 +622,7 @@ void WithDropdownController::showMenu() {
 		Unexpected("Menu align value.");
 	}();
 	_menu->showAnimated(origin);
+	_menuToggled = true;
 }
 
 OrderController::OrderController(
@@ -695,7 +710,8 @@ void OrderController::updateIcon() {
 }
 
 SpeedController::SpeedController(
-	not_null<SpeedButton*> button,
+	not_null<Ui::AbstractButton*> button,
+	const style::MediaSpeedButton &st,
 	not_null<QWidget*> menuParent,
 	Fn<void(bool)> menuOverCallback,
 	Fn<float64(bool lastNonDefault)> value,
@@ -706,10 +722,10 @@ SpeedController::SpeedController(
 : WithDropdownController(
 	button,
 	menuParent,
-	button->st().menu.dropdown,
-	button->st().menuAlign,
+	st.menu.dropdown,
+	st.menuAlign,
 	std::move(menuOverCallback))
-, _st(button->st())
+, _st(st)
 , _lookup(std::move(value))
 , _change(std::move(change))
 , _qualities(std::move(qualities))
@@ -727,18 +743,14 @@ SpeedController::SpeedController(
 
 	setSpeed(_lookup(false));
 	_speed = _lookup(true);
-
-	button->setSpeed(_speed, anim::type::instant);
-
-	_speedChanged.events_starting_with(
-		speed()
-	) | rpl::start_with_next([=](float64 speed) {
-		button->setSpeed(speed);
-	}, button->lifetime());
 }
 
 rpl::producer<> SpeedController::saved() const {
 	return _saved.events();
+}
+
+rpl::producer<float64> SpeedController::realtimeValue() const {
+	return _speedChanged.events_starting_with(speed());
 }
 
 float64 SpeedController::speed() const {

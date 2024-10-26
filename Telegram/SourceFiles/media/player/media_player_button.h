@@ -87,7 +87,7 @@ public:
 		return _st;
 	}
 
-	void setSpeed(float64 speed, anim::type animated = anim::type::normal);
+	void setSpeed(float64 speed);
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -98,6 +98,31 @@ private:
 	const style::MediaSpeedButton &_st;
 	SpeedButtonLayout _layout;
 	bool _isDefault = false;
+
+};
+
+class SettingsButton final : public Ui::RippleButton {
+public:
+	SettingsButton(QWidget *parent, const style::MediaSpeedButton &st);
+
+	[[nodiscard]] const style::MediaSpeedButton &st() const {
+		return _st;
+	}
+
+	void setSpeed(float64 speed);
+	void setQuality(int quality);
+	void setActive(bool active);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	const style::MediaSpeedButton &_st;
+	Ui::Animations::Simple _activeAnimation;
+	bool _isDefaultSpeed = false;
+	bool _active = false;
 
 };
 

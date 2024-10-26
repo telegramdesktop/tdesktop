@@ -36,7 +36,7 @@ PlaybackControls::PlaybackControls(
 , _volumeController(this, st::mediaviewPlayback)
 , _speedToggle((Media::Audio::SupportsSpeedControl()
 	|| !_delegate->playbackControlsQualities().empty())
-	? object_ptr<Player::SpeedButton>(this, st::mediaviewSpeedButton)
+	? object_ptr<Player::SettingsButton>(this, st::mediaviewSpeedButton)
 	: nullptr)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _pictureInPicture(this, st::mediaviewPipButton)
@@ -45,6 +45,7 @@ PlaybackControls::PlaybackControls(
 , _speedController(_speedToggle
 	? std::make_unique<Player::SpeedController>(
 		_speedToggle.data(),
+		_speedToggle->st(),
 		parent,
 		[=](bool) {},
 		[=](bool lastNonDefault) { return speedLookup(lastNonDefault); },
@@ -61,6 +62,11 @@ PlaybackControls::PlaybackControls(
 	_fadeAnimation->setUpdatedCallback([=](float64 opacity) {
 		fadeUpdated(opacity);
 	});
+
+	_speedController->menuToggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		_speedToggle->setActive(toggled);
+	}, _speedToggle->lifetime());
 
 	_pictureInPicture->addClickHandler([=] {
 		_delegate->playbackControlsToPictureInPicture();
@@ -193,10 +199,12 @@ float64 PlaybackControls::speedLookup(bool lastNonDefault) const {
 }
 
 void PlaybackControls::saveSpeed(float64 speed) {
+	_speedToggle->setSpeed(speed);
 	_delegate->playbackControlsSpeedChanged(speed);
 }
 
 void PlaybackControls::saveQuality(int quality) {
+	_speedToggle->setQuality(quality);
 	_delegate->playbackControlsQualityChanged(quality);
 }
 

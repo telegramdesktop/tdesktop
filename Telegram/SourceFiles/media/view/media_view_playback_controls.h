@@ -21,7 +21,7 @@ class PopupMenu;
 namespace Media {
 namespace Player {
 struct TrackState;
-class SpeedButton;
+class SettingsButton;
 class SpeedController;
 } // namespace Player
 
@@ -114,7 +114,7 @@ private:
 	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::MediaSlider> _volumeController;
-	object_ptr<Player::SpeedButton> _speedToggle;
+	object_ptr<Player::SettingsButton> _speedToggle;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::IconButton> _pictureInPicture;
 	object_ptr<Ui::LabelSimple> _playedAlready;

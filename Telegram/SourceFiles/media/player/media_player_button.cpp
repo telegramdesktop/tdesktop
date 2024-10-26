@@ -307,7 +307,7 @@ SpeedButton::SpeedButton(QWidget *parent, const style::MediaSpeedButton &st)
 	resize(_st.size);
 }
 
-void SpeedButton::setSpeed(float64 speed, anim::type animated) {
+void SpeedButton::setSpeed(float64 speed) {
 	_isDefault = EqualSpeeds(speed, 1.);
 	_layout.setSpeed(speed);
 	update();
@@ -332,6 +332,88 @@ QPoint SpeedButton::prepareRippleStartPosition() const {
 }
 
 QImage SpeedButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::RoundRectMask(
+		rect().marginsRemoved(_st.padding).size(),
+		_st.rippleRadius);
+}
+
+SettingsButton::SettingsButton(
+	QWidget *parent,
+	const style::MediaSpeedButton &st)
+: RippleButton(parent, st.ripple)
+, _st(st)
+, _isDefaultSpeed(true) {
+	resize(_st.size);
+}
+
+void SettingsButton::setSpeed(float64 speed) {
+	_isDefaultSpeed = EqualSpeeds(speed, 1.);
+	update();
+}
+
+void SettingsButton::setQuality(int quality) {
+	update();
+}
+
+void SettingsButton::setActive(bool active) {
+	if (_active == active) {
+		return;
+	}
+	_active = active;
+	_activeAnimation.start([=] {
+		update();
+	}, active ? 0. : 1., active ? 1. : 0., crl::time(150));
+}
+
+void SettingsButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	paintRipple(
+		p,
+		QPoint(_st.padding.left(), _st.padding.top()),
+		_isDefaultSpeed ? nullptr : &_st.rippleActiveColor->c);
+
+	//const auto active = !_isDefaultSpeed;
+	const auto inner = QRect(
+		QPoint(),
+		_st.size
+	).marginsRemoved(_st.padding);
+
+	auto hq = std::optional<PainterHighQualityEnabler>();
+	const auto active = _activeAnimation.value(_active ? 1. : 0.);
+	if (active > 0.) {
+		const auto shift = QRectF(inner).center();
+		p.save();
+		p.translate(shift);
+		p.rotate(active * 60.);
+		p.translate(-shift);
+		hq.emplace(p);
+	}
+	_st.icon.paintInCenter(p, inner);
+	if (active > 0.) {
+		p.restore();
+		hq.reset();
+	}
+
+	//p.setPen(color);
+	//p.setFont(_st.font);
+
+	//p.drawText(
+	//	QPointF(inner.topLeft()) + QPointF(
+	//		(inner.width() - _textWidth) / 2.,
+	//		(inner.height() - _adjustedHeight) / 2. + _adjustedAscent),
+	//	_text);
+}
+
+QPoint SettingsButton::prepareRippleStartPosition() const {
+	const auto inner = rect().marginsRemoved(_st.padding);
+	const auto result = mapFromGlobal(QCursor::pos()) - inner.topLeft();
+	return inner.contains(result)
+		? result
+		: DisabledRippleStartPosition();
+}
+
+QImage SettingsButton::prepareRippleMask() const {
 	return Ui::RippleAnimation::RoundRectMask(
 		rect().marginsRemoved(_st.padding).size(),
 		_st.rippleRadius);

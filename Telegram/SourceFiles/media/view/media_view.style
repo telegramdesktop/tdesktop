@@ -354,7 +354,7 @@ mediaviewSpeedButton: MediaSpeedButton(mediaPlayerSpeedButton) {
 	fg: mediaviewPlaybackIconFg;
 	overFg: mediaviewPlaybackIconFgOver;
 	activeFg: mediaviewTextLinkFg;
-	icon: icon{{ "player/player_speed", mediaviewPlaybackIconFg }};
+	icon: icon{{ "player/player_settings", mediaviewPlaybackIconFg }};
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: mediaviewPlaybackIconRipple;
 	}

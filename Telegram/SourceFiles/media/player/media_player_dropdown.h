@@ -30,8 +30,6 @@ class Menu;
 
 namespace Media::Player {
 
-class SpeedButton;
-
 class Dropdown final : public Ui::RpWidget {
 public:
 	explicit Dropdown(QWidget *parent);
@@ -82,6 +80,7 @@ public:
 	Ui::DropdownMenu *menu() const;
 
 	void updateDropdownGeometry();
+	[[nodiscard]] rpl::producer<bool> menuToggledValue() const;
 
 	void hideTemporarily();
 	void showBack();
@@ -98,6 +97,7 @@ private:
 	const Qt::Alignment _menuAlign = Qt::AlignTop | Qt::AlignRight;
 	const Fn<void(bool)> _menuOverCallback;
 	base::unique_qptr<Ui::DropdownMenu> _menu;
+	rpl::variable<bool> _menuToggled;
 	bool _temporarilyHidden = false;
 	bool _overButton = false;
 
@@ -125,7 +125,8 @@ private:
 class SpeedController final : public WithDropdownController {
 public:
 	SpeedController(
-		not_null<SpeedButton*> button,
+		not_null<Ui::AbstractButton*> button,
+		const style::MediaSpeedButton &st,
 		not_null<QWidget*> menuParent,
 		Fn<void(bool)> menuOverCallback,
 		Fn<float64(bool lastNonDefault)> value,
@@ -135,6 +136,7 @@ public:
 		Fn<void(int)> changeQuality = nullptr);
 
 	[[nodiscard]] rpl::producer<> saved() const;
+	[[nodiscard]] rpl::producer<float64> realtimeValue() const;
 
 private:
 	void fillMenu(not_null<Ui::DropdownMenu*> menu) override;
