@@ -2529,9 +2529,15 @@ void HistoryWidget::showHistory(
 						= base::make_unique_q<Ui::SlideWrap<>>(
 							this,
 							object_ptr<Ui::RpWidget>(this));
+					auto destruction = [this] {
+						if (_sponsoredMessageBar) {
+							_sponsoredMessageBar->hide(anim::type::normal);
+						}
+					};
 					session().sponsoredMessages().fillTopBar(
 						_history,
-						_sponsoredMessageBar->entity());
+						_sponsoredMessageBar->entity(),
+						std::move(destruction));
 					_sponsoredMessageBarHeight = 0;
 					_sponsoredMessageBar->heightValue(
 					) | rpl::start_with_next([=](int height) {

@@ -105,7 +105,8 @@ public:
 	void clicked(const FullMsgId &fullId, bool isMedia, bool isFullscreen);
 	void fillTopBar(
 		not_null<History*> history,
-		not_null<Ui::RpWidget*> widget);
+		not_null<Ui::RpWidget*> widget,
+		Fn<void()> hide);
 
 	[[nodiscard]] AppendResult append(not_null<History*> history);
 	void inject(
@@ -130,6 +131,7 @@ private:
 		FullMsgId itemFullId;
 		SponsoredMessage sponsored;
 		std::unique_ptr<MediaPreload> preload;
+		std::unique_ptr<rpl::lifetime> optionalDestructionNotifier;
 	};
 	struct List {
 		std::vector<Entry> entries;

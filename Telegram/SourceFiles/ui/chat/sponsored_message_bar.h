@@ -20,7 +20,7 @@ namespace Ui {
 class RpWidget;
 
 void FillSponsoredMessageBar(
-	not_null<RpWidget*> widget,
+	not_null<RpWidget*> container,
 	not_null<Main::Session*> session,
 	FullMsgId fullId,
 	Data::SponsoredFrom from,

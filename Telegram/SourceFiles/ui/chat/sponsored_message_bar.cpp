@@ -8,11 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/sponsored_message_bar.h"
 
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/ui_integration.h" // Core::MarkedTextContext.
 #include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
+#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "menu/menu_sponsored.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/dynamic_image.h"
@@ -80,12 +83,17 @@ public:
 
 };
 
+[[nodiscard]] Window::SessionController *FindSessionController(
+		not_null<RpWidget*> widget) {
+	const auto window = Core::App().findWindow(widget);
+	return window ? window->sessionController() : nullptr;
+}
+
 [[nodiscard]] ColorFactory GenerateReplyColorCallback(
 		not_null<RpWidget*> widget,
 		FullMsgId fullId,
 		int colorIndex) {
-	const auto window = Core::App().findWindow(widget);
-	const auto controller = window ? window->sessionController() : nullptr;
+	const auto controller = FindSessionController(widget);
 	if (!controller) {
 		return [] -> Colors {
 			return { st::windowBgActive->c, st::windowActiveTextFg->c };
@@ -121,11 +129,31 @@ public:
 } // namespace
 
 void FillSponsoredMessageBar(
-		not_null<RpWidget*> widget,
+		not_null<RpWidget*> container,
 		not_null<Main::Session*> session,
 		FullMsgId fullId,
 		Data::SponsoredFrom from,
 		const TextWithEntities &textWithEntities) {
+	const auto widget = CreateSimpleRectButton(
+		container,
+		st::defaultRippleAnimationBgOver);
+	widget->show();
+	container->sizeValue() | rpl::start_with_next([=](const QSize &s) {
+		widget->resize(s);
+	}, widget->lifetime());
+	widget->setAcceptBoth();
+
+	widget->addClickHandler([=](Qt::MouseButton button) {
+		if (button == Qt::RightButton) {
+			if (const auto controller = FindSessionController(widget)) {
+				::Menu::ShowSponsored(widget, controller->uiShow(), fullId);
+			}
+		} else if (button == Qt::LeftButton) {
+			session->sponsoredMessages().clicked(fullId, false, false);
+			UrlClickHandler::Open(from.link);
+		}
+	});
+
 	struct State final {
 		Ui::Text::String title;
 		Ui::Text::String contentTitle;
@@ -179,6 +207,18 @@ void FillSponsoredMessageBar(
 			widget,
 			fullId,
 			from.colorIndex ? from.colorIndex : 4/*blue*/));
+	const auto handler = HideSponsoredClickHandler();
+	removeButton->setClickedCallback([=] {
+		if (const auto controller = FindSessionController(widget)) {
+			ActivateClickHandler(widget, handler, {
+				.other = QVariant::fromValue(ClickHandlerContext{
+					.itemId = fullId,
+					.sessionWindow = base::make_weak(controller),
+					.show = controller->uiShow(),
+				})
+			});
+		}
+	});
 	removeButton->show();
 
 	widget->paintRequest(
@@ -186,6 +226,7 @@ void FillSponsoredMessageBar(
 		auto p = QPainter(widget);
 		const auto r = widget->rect();
 		p.fillRect(r, st::historyPinnedBg);
+		widget->paintRipple(p, 0, 0);
 		const auto leftPadding = st::msgReplyBarSkip + st::msgReplyBarSkip;
 		const auto rightPadding = st::msgReplyBarSkip;
 		const auto topPadding = st::msgReplyPadding.top();
@@ -300,14 +341,14 @@ void FillSponsoredMessageBar(
 		const auto minHeight = hasRightPhoto
 			? (rightPhotoPlaceholder + bottomPadding * 2)
 			: desiredHeight;
-		widget->resize(
+		container->resize(
 			widget->width(),
 			std::clamp(
 				desiredHeight,
 				minHeight,
 				st::sponsoredMessageBarMaxHeight));
 	}, widget->lifetime());
-	widget->resize(widget->width(), 1);
+	container->resize(widget->width(), 1);
 
 	{
 		const auto top = Ui::CreateChild<PlainShadow>(widget);

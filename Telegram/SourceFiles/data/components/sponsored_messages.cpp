@@ -271,21 +271,36 @@ void SponsoredMessages::parse(
 
 void SponsoredMessages::fillTopBar(
 		not_null<History*> history,
-		not_null<Ui::RpWidget*> widget) {
+		not_null<Ui::RpWidget*> widget,
+		Fn<void()> hide) {
 	const auto it = _data.find(history);
 	if (it == end(_data)) {
 		return;
 	}
-	const auto &list = it->second;
+	auto &list = it->second;
 	if (list.entries.empty()) {
 		return;
 	}
+	auto &entry = list.entries.front();
+	if (!entry.optionalDestructionNotifier) {
+		entry.optionalDestructionNotifier = std::make_unique<rpl::lifetime>();
+	}
+	const auto fullId = entry.itemFullId;
+	entry.optionalDestructionNotifier->add(std::move(hide));
 	Ui::FillSponsoredMessageBar(
 		widget,
 		_session,
-		list.entries.front().itemFullId,
-		list.entries.front().sponsored.from,
-		list.entries.front().sponsored.textWithEntities);
+		fullId,
+		entry.sponsored.from,
+		entry.sponsored.textWithEntities);
+
+	const auto viewLifetime = std::make_shared<rpl::lifetime>();
+	widget->shownValue() | rpl::filter(
+		rpl::mappers::_1
+	) | rpl::start_with_next([=, this](bool shown) {
+		view(fullId);
+		viewLifetime->destroy();
+	}, *viewLifetime);
 }
 
 void SponsoredMessages::append(
@@ -461,7 +476,9 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	}
 	request.requestId = _session->api().request(
 		MTPmessages_ViewSponsoredMessage(
-			entryPtr->item->history()->peer->input,
+			entryPtr->item
+				? entryPtr->item->history()->peer->input
+				: _session->data().peer(fullId.peer)->input,
 			MTP_bytes(randomId))
 	).done([=] {
 		auto &request = _viewRequests[randomId];
@@ -517,7 +534,9 @@ void SponsoredMessages::clicked(
 		MTP_flags(Flag(0)
 			| (isMedia ? Flag::f_media : Flag(0))
 			| (isFullscreen ? Flag::f_fullscreen : Flag(0))),
-		entryPtr->item->history()->peer->input,
+		entryPtr->item
+			? entryPtr->item->history()->peer->input
+			: _session->data().peer(fullId.peer)->input,
 		MTP_bytes(randomId)
 	)).send();
 }
@@ -546,7 +565,7 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 			return;
 		}
 
-		const auto history = entry->item->history();
+		const auto history = _session->data().history(fullId.peer);
 
 		const auto erase = [=] {
 			const auto it = _data.find(history);
