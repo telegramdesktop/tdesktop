@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
 #include "base/unixtime.h"
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone.
@@ -178,8 +179,8 @@ private:
 	return {
 		.tonEmoji = Ui::Text::SingleCustomEmoji(
 			session->data().customEmojiManager().registerInternalEmoji(
-				Info::ChannelEarn::IconCurrency(
-					st::collectibleInfo,
+				Ui::Earn::IconCurrencyColored(
+					st::collectibleInfo.style.font,
 					st::collectibleInfo.textFg->c),
 				st::collectibleInfoTonMargins,
 				true)),

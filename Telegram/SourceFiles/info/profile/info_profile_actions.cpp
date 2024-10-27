@@ -47,7 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_item_preview.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
 #include "info/channel_statistics/earn/earn_format.h"
-#include "info/channel_statistics/earn/info_channel_earn_list.h" // IconCurrency.
+#include "info/channel_statistics/earn/earn_icons.h"
+#include "info/channel_statistics/earn/info_channel_earn_list.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_phone_menu.h"
 #include "info/profile/info_profile_text.h"
@@ -815,8 +816,8 @@ rpl::producer<uint64> AddCurrencyAction(
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(button, st.rightLabel);
 	const auto icon = Ui::Text::SingleCustomEmoji(
 		user->owner().customEmojiManager().registerInternalEmoji(
-			Info::ChannelEarn::IconCurrency(
-				st.rightLabel,
+			Ui::Earn::IconCurrencyColored(
+				st.rightLabel.style.font,
 				st.rightLabel.textFg->c),
 			st::channelEarnCurrencyCommonMargins,
 			false));

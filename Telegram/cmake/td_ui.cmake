@@ -153,6 +153,8 @@ PRIVATE
 
     info/channel_statistics/earn/earn_format.cpp
     info/channel_statistics/earn/earn_format.h
+    info/channel_statistics/earn/earn_icons.cpp
+    info/channel_statistics/earn/earn_icons.h
 
     intro/intro_code_input.cpp
     intro/intro_code_input.h
