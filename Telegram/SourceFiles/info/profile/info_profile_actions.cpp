@@ -790,7 +790,52 @@ rpl::producer<uint64> AddCurrencyAction(
 		tr::lng_manage_peer_bot_balance_currency(),
 		state->balance.value() | rpl::map(rpl::mappers::_1 > 0),
 		[=] { parentController->showSection(Info::ChannelEarn::Make(user)); },
-		&st::infoIconBotBalance);
+		nullptr);
+	{
+		const auto button = wrapButton->entity();
+		const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
+		icon->resize(st::infoIconReport.size());
+		const auto image = [&] {
+			auto image = QImage(
+				icon->size() * style::DevicePixelRatio(),
+				QImage::Format_ARGB32_Premultiplied);
+			image.setDevicePixelRatio(style::DevicePixelRatio());
+			image.fill(Qt::transparent);
+			auto p = QPainter(&image);
+			st::infoIconReport.paintInCenter(
+				p,
+				icon->rect(),
+				st::infoIconFg->c);
+			p.setCompositionMode(QPainter::CompositionMode_Clear);
+			const auto w = st::lineWidth * 6;
+			p.fillRect(
+				QRect(
+					rect::center(icon->rect()).x() - w / 2,
+					rect::center(icon->rect()).y() - w,
+					w,
+					w * 2),
+				Qt::white);
+			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+			const auto i = Ui::Earn::IconCurrencyColored(
+				st::inviteLinkSubscribeBoxTerms.style.font,
+				st::infoIconFg->c);
+			p.drawImage(
+				(icon->width() - i.width() / style::DevicePixelRatio()) / 2,
+				(icon->height() - i.height() / style::DevicePixelRatio()) / 2,
+				i);
+			return image;
+		}();
+		icon->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(icon);
+			auto hq = PainterHighQualityEnabler(p);
+			p.drawImage(0, 0, image);
+		}, icon->lifetime());
+
+		button->sizeValue(
+		) | rpl::start_with_next([=](const QSize &size) {
+			icon->move(st::infoEarnCurrencyIconPosition);
+		}, icon->lifetime());
+	}
 	const auto balance = user->session().credits().balanceCurrency(user->id);
 	if (balance) {
 		state->balance = balance;
@@ -865,7 +910,22 @@ rpl::producer<uint64> AddCreditsAction(
 		tr::lng_manage_peer_bot_balance_credits(),
 		state->balance.value() | rpl::map(rpl::mappers::_1 > 0),
 		[=] { parentController->showSection(Info::BotEarn::Make(user)); },
-		&st::infoIconBotBalance);
+		nullptr);
+	{
+		const auto button = wrapButton->entity();
+		const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
+		const auto image = Ui::Earn::MenuIconCredits();
+		icon->resize(image.size() / style::DevicePixelRatio());
+		icon->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(icon);
+			p.drawImage(0, 0, image);
+		}, icon->lifetime());
+
+		button->sizeValue(
+		) | rpl::start_with_next([=](const QSize &size) {
+			icon->move(st::infoEarnCreditsIconPosition);
+		}, icon->lifetime());
+	}
 	if (const auto balance = user->session().credits().balance(user->id)) {
 		state->balance = balance;
 	}
