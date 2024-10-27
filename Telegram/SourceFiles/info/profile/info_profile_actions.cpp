@@ -795,39 +795,9 @@ rpl::producer<uint64> AddCurrencyAction(
 		const auto button = wrapButton->entity();
 		const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
 		icon->resize(st::infoIconReport.size());
-		const auto image = [&] {
-			auto image = QImage(
-				icon->size() * style::DevicePixelRatio(),
-				QImage::Format_ARGB32_Premultiplied);
-			image.setDevicePixelRatio(style::DevicePixelRatio());
-			image.fill(Qt::transparent);
-			auto p = QPainter(&image);
-			st::infoIconReport.paintInCenter(
-				p,
-				icon->rect(),
-				st::infoIconFg->c);
-			p.setCompositionMode(QPainter::CompositionMode_Clear);
-			const auto w = st::lineWidth * 6;
-			p.fillRect(
-				QRect(
-					rect::center(icon->rect()).x() - w / 2,
-					rect::center(icon->rect()).y() - w,
-					w,
-					w * 2),
-				Qt::white);
-			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-			const auto i = Ui::Earn::IconCurrencyColored(
-				st::inviteLinkSubscribeBoxTerms.style.font,
-				st::infoIconFg->c);
-			p.drawImage(
-				(icon->width() - i.width() / style::DevicePixelRatio()) / 2,
-				(icon->height() - i.height() / style::DevicePixelRatio()) / 2,
-				i);
-			return image;
-		}();
+		const auto image = Ui::Earn::MenuIconCurrency(icon->size());
 		icon->paintRequest() | rpl::start_with_next([=] {
 			auto p = QPainter(icon);
-			auto hq = PainterHighQualityEnabler(p);
 			p.drawImage(0, 0, image);
 		}, icon->lifetime());
 

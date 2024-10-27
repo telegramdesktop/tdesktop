@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
+#include "styles/style_info.h" // infoIconReport.
 
 #include <QFile>
 #include <QtSvg/QSvgRenderer>
@@ -59,6 +60,37 @@ QImage IconCurrencyColored(
 		auto p = QPainter(&image);
 		svg.render(&p, Rect(s));
 	}
+	return image;
+}
+
+QImage MenuIconCurrency(const QSize &size) {
+	auto image = QImage(
+		size * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(style::DevicePixelRatio());
+	image.fill(Qt::transparent);
+	auto p = QPainter(&image);
+	st::infoIconReport.paintInCenter(
+		p,
+		Rect(size),
+		st::infoIconFg->c);
+	p.setCompositionMode(QPainter::CompositionMode_Clear);
+	const auto w = st::lineWidth * 6;
+	p.fillRect(
+		QRect(
+			rect::center(Rect(size)).x() - w / 2,
+			rect::center(Rect(size)).y() - w,
+			w,
+			w * 2),
+		Qt::white);
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	const auto i = IconCurrencyColored(
+		st::inviteLinkSubscribeBoxTerms.style.font,
+		st::infoIconFg->c);
+	p.drawImage(
+		(size.width() - i.width() / style::DevicePixelRatio()) / 2,
+		(size.height() - i.height() / style::DevicePixelRatio()) / 2,
+		i);
 	return image;
 }
 
